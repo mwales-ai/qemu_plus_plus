@@ -135,10 +135,15 @@ Issues in shared headers that must be fixed before files using them can port:
 - **QAPI generated headers**: Use `export` as a struct member name (C++ keyword)
   - File: `build/qapi/qapi-types-block-core.h` line 3068
   - Fix: Modify QAPI code generator to rename `export` in C++ context
-- **`include/qemu/lockable.h`**: Implicit void* casts (lines 49, 53)
-  - Fix: Add explicit casts or C++ overloads
-- **`include/qemu/cutils.h`**: Uses `restrict` keyword (C-only, line 317)
-  - Fix: Use `__restrict__` or conditional define
+- ~~**`include/qemu/lockable.h`**: Implicit void* casts~~ **FIXED** (static_cast in #ifdef __cplusplus)
+- ~~**`include/qemu/cutils.h`**: Uses `restrict` keyword~~ **FIXED** (changed to `__restrict__`)
+- ~~**`include/qemu/compiler.h`**: `typeof_strip_qual` C-only~~ **FIXED** (C++ version using std::remove_cv_t)
+- **Trace headers**: Generated trace format strings use `"%"PRId64` (no space),
+  which triggers `-Werror=literal-suffix` in C++. Blocks porting any file that
+  includes `trace.h`. Fix: modify trace code generator or add `-Wno-literal-suffix`.
+- **VMState compound literals**: Files using `VMStateField[]` compound literals
+  (e.g., fifo8.c) can't port directly - compound literals aren't valid in C++.
+  Fix: use static const arrays or brace initialization.
 
 ## File Porting Checklist
 

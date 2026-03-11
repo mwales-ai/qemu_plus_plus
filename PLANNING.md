@@ -82,19 +82,42 @@ These shared header issues block porting files with complex dependencies:
 - [ ] **QAPI code generator**: `export` used as struct member name (C++ reserved word)
   - Affects: any file that transitively includes block-core QAPI types
   - Fix: modify scripts/qapi/ to rename `export` -> `export_` or similar
-- [ ] **`include/qemu/lockable.h`**: implicit void* -> typed pointer casts
-  - Fix: add `static_cast` in `#ifdef __cplusplus` blocks
-- [ ] **`include/qemu/cutils.h`**: `restrict` keyword (C99, not C++)
-  - Fix: use `__restrict__` or `#ifdef __cplusplus` conditional
-- [ ] **`include/qemu/osdep.h`**: already mostly C++ safe (has extern "C" guards)
-  - ARRAY_SIZE fixed, but QEMU_BUILD_BUG_ON_STRUCT uses anonymous struct bitfields
+- [x] **`include/qemu/lockable.h`**: implicit void* -> typed pointer casts
+  - Fixed: added `static_cast` in `#ifdef __cplusplus` block for QML_FUNC_ macro
+- [x] **`include/qemu/cutils.h`**: `restrict` keyword (C99, not C++)
+  - Fixed: changed to `__restrict__`
+- [x] **`include/qemu/compiler.h`**: `typeof_strip_qual` macro (C-only builtins)
+  - Fixed: added C++ version using `std::remove_cv_t<std::remove_reference_t<decltype(expr)>>`
+  - Unblocks files using qatomic_cmpxchg, qatomic_load_acquire, etc.
+- [x] **`include/qemu/osdep.h`**: already mostly C++ safe (has extern "C" guards)
+  - ARRAY_SIZE fixed with sizeof fallback for C++
+- [ ] **Trace headers**: Generated format strings use `"%"PRId64` (no space)
+  - Triggers `-Werror=literal-suffix` in C++
+  - Blocks porting files that include `trace.h` (e.g., memalign.c)
+  - Fix: modify trace code generator or add `-Wno-literal-suffix` for C++
+- [ ] **VMState compound literals**: `(const VMStateField[]) { ... }` is C-only
+  - Blocks files using vmstate macros (e.g., fifo8.c)
+  - Fix: use static const arrays
 
-### Phase 2: Common Infrastructure
+### Phase 2: Common Infrastructure (In Progress)
 Port foundational code that everything depends on:
 - [x] `include/qemu/osdep.h` - already C++ compatible (has extern "C" guards)
 - [ ] `include/qom/object.h` - the QOM core (plan C++ class hierarchy)
 - [ ] `include/qemu/typedefs.h` - type definitions
-- [ ] `util/` - utility functions
+- util/ files ported so far (13 of ~70):
+  - [x] `util/id.cpp` - identifier utilities
+  - [x] `util/base64.cpp` - base64 decode wrapper
+  - [x] `util/block-helpers.cpp` - block size validation
+  - [x] `util/drm.cpp` - DRM rendernode (uses std::string)
+  - [x] `util/hexdump.cpp` - hex dump utilities
+  - [x] `util/sys_membarrier.cpp` - memory barriers
+  - [x] `util/qemu-timer-common.cpp` - timer init
+  - [x] `util/filemonitor-stub.cpp` - file monitor stub
+  - [x] `util/guest-random.cpp` - guest RNG
+  - [x] `util/path.cpp` - path prefix mangling
+  - [x] `util/notify.cpp` - notifier lists
+  - [x] `util/event.cpp` - QemuEvent (futex/cond_var)
+  - [x] `util/crc32c.cpp` - CRC32C checksum
 - [ ] `qobject/` - QEMU object serialization
 
 Key challenge: The QOM uses C macros extensively (`OBJECT_CHECK`, `OBJECT_CLASS_CHECK`,
