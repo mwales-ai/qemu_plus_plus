@@ -1,4 +1,6 @@
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "block/qdict.h" /* for qdict_extract_subqdict() */
 #include "qapi/error.h"
 #include "qobject/qdict.h"
@@ -6,6 +8,7 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
+}
 
 QemuOptsList *vm_config_groups[48];
 QemuOptsList *drive_config_groups[5];
@@ -26,6 +29,7 @@ static QemuOptsList *find_list(QemuOptsList **lists, const char *group,
     return lists[i];
 }
 
+extern "C"
 QemuOptsList *qemu_find_opts(const char *group)
 {
     QemuOptsList *ret;
@@ -39,6 +43,7 @@ QemuOptsList *qemu_find_opts(const char *group)
     return ret;
 }
 
+extern "C"
 QemuOpts *qemu_find_opts_singleton(const char *group)
 {
     QemuOptsList *list;
@@ -53,11 +58,13 @@ QemuOpts *qemu_find_opts_singleton(const char *group)
     return opts;
 }
 
+extern "C"
 QemuOptsList *qemu_find_opts_err(const char *group, Error **errp)
 {
     return find_list(vm_config_groups, group, errp);
 }
 
+extern "C"
 void qemu_add_drive_opts(QemuOptsList *list)
 {
     int entries, i;
@@ -74,6 +81,7 @@ void qemu_add_drive_opts(QemuOptsList *list)
     abort();
 }
 
+extern "C"
 void qemu_add_opts(QemuOptsList *list)
 {
     int entries, i;
@@ -165,9 +173,10 @@ out_no_loc:
     return res;
 }
 
+extern "C"
 void qemu_config_do_parse(const char *group, QDict *qdict, void *opaque, Error **errp)
 {
-    QemuOptsList **lists = opaque;
+    QemuOptsList **lists = static_cast<QemuOptsList **>(opaque);
     QemuOptsList *list;
 
     list = find_list(lists, group, errp);
@@ -178,11 +187,13 @@ void qemu_config_do_parse(const char *group, QDict *qdict, void *opaque, Error *
     qemu_opts_from_qdict(list, qdict, errp);
 }
 
+extern "C"
 int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname, Error **errp)
 {
     return qemu_config_foreach(fp, qemu_config_do_parse, lists, fname, errp);
 }
 
+extern "C"
 int qemu_read_config_file(const char *filename, QEMUConfigCB *cb, Error **errp)
 {
     FILE *f = fopen(filename, "r");
@@ -280,6 +291,7 @@ static bool config_parse_qdict_section(QDict *options, QemuOptsList *opts,
     return true;
 }
 
+extern "C"
 bool qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
                              Error **errp)
 {

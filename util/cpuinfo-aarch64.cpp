@@ -4,14 +4,19 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "host/cpuinfo.h"
+}
 
 #ifdef CONFIG_LINUX
 # ifdef CONFIG_GETAUXVAL
 #  include <sys/auxv.h>
 # else
 #  include <asm/hwcap.h>
+extern "C" {
 #  include "elf.h"
+}
 # endif
 # ifndef HWCAP2_BTI
 #  define HWCAP2_BTI 0  /* added in glibc 2.32 */
@@ -30,7 +35,7 @@
 # include <sys/sysctl.h>
 #endif
 
-unsigned cpuinfo;
+extern "C" unsigned cpuinfo;
 
 #ifdef CONFIG_DARWIN
 static bool sysctl_for_bool(const char *name)
@@ -54,7 +59,7 @@ static bool sysctl_for_bool(const char *name)
 #endif
 
 /* Called both as constructor and (possibly) via other constructors. */
-unsigned __attribute__((constructor)) cpuinfo_init(void)
+extern "C" unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
     unsigned info = cpuinfo;
 

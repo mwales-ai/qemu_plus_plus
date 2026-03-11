@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qobject/qbool.h"
@@ -36,6 +37,7 @@
 #include "qemu/cutils.h"
 #include "qemu/id.h"
 #include "qemu/help_option.h"
+}
 
 /*
  * Extracts the name of an option from the parameter string (@p points at the
@@ -61,7 +63,7 @@ static const char *get_opt_name(const char *p, char **option, size_t len)
  * delimiter is fixed to be comma which starts a new option. To specify an
  * option value that contains commas, double each comma.
  */
-const char *get_opt_value(const char *p, char **value)
+extern "C" const char *get_opt_value(const char *p, char **value)
 {
     size_t capacity = 0, length;
     const char *offset;
@@ -129,7 +131,7 @@ static const char *find_default_by_name(QemuOpts *opts, const char *name)
     return desc ? desc->def_value_str : NULL;
 }
 
-bool parse_option_size(const char *name, const char *value,
+extern "C" bool parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp)
 {
     uint64_t size;
@@ -176,7 +178,7 @@ static const char *opt_type_to_string(enum QemuOptType type)
  * @print_caption should only be set to false if the caller prints its
  * own custom caption (so that the indentation makes sense).
  */
-void qemu_opts_print_help(QemuOptsList *list, bool print_caption)
+extern "C" void qemu_opts_print_help(QemuOptsList *list, bool print_caption)
 {
     QemuOptDesc *desc;
     int i;
@@ -190,7 +192,7 @@ void qemu_opts_print_help(QemuOptsList *list, bool print_caption)
                                opt_type_to_string(desc->type));
         if (desc->help) {
             if (str->len < 24) {
-                g_string_append_printf(str, "%*s", 24 - (int)str->len, "");
+                g_string_append_printf(str, "%*s", 24 - static_cast<int>(str->len), "");
             }
             g_string_append_printf(str, " - %s", desc->help);
         }
@@ -198,7 +200,7 @@ void qemu_opts_print_help(QemuOptsList *list, bool print_caption)
         desc++;
     }
 
-    g_ptr_array_sort(array, (GCompareFunc)qemu_pstrcmp0);
+    g_ptr_array_sort(array, reinterpret_cast<GCompareFunc>(qemu_pstrcmp0));
     if (print_caption && array->len > 0) {
         if (list->name) {
             printf("%s options:\n", list->name);
@@ -212,8 +214,8 @@ void qemu_opts_print_help(QemuOptsList *list, bool print_caption)
             printf("No options available.\n");
         }
     }
-    for (i = 0; i < array->len; i++) {
-        printf("%s\n", (char *)array->pdata[i]);
+    for (i = 0; (guint)i < array->len; i++) {
+        printf("%s\n", static_cast<char *>(array->pdata[i]));
     }
     g_ptr_array_set_free_func(array, g_free);
     g_ptr_array_free(array, true);
@@ -221,7 +223,7 @@ void qemu_opts_print_help(QemuOptsList *list, bool print_caption)
 }
 /* ------------------------------------------------------------------ */
 
-QemuOpt *qemu_opt_find(QemuOpts *opts, const char *name)
+extern "C" QemuOpt *qemu_opt_find(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
 
@@ -255,7 +257,7 @@ static void qemu_opt_del_all(QemuOpts *opts, const char *name)
     }
 }
 
-const char *qemu_opt_get(QemuOpts *opts, const char *name)
+extern "C" const char *qemu_opt_get(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
 
@@ -271,14 +273,14 @@ const char *qemu_opt_get(QemuOpts *opts, const char *name)
     return opt->str;
 }
 
-void qemu_opt_iter_init(QemuOptsIter *iter, QemuOpts *opts, const char *name)
+extern "C" void qemu_opt_iter_init(QemuOptsIter *iter, QemuOpts *opts, const char *name)
 {
     iter->opts = opts;
     iter->opt = QTAILQ_FIRST(&opts->head);
     iter->name = name;
 }
 
-const char *qemu_opt_iter_next(QemuOptsIter *iter)
+extern "C" const char *qemu_opt_iter_next(QemuOptsIter *iter)
 {
     QemuOpt *ret = iter->opt;
     if (iter->name) {
@@ -294,7 +296,7 @@ const char *qemu_opt_iter_next(QemuOptsIter *iter)
  * all in one action. Return a malloced string of the option value.
  * Result must be freed by caller with g_free().
  */
-char *qemu_opt_get_del(QemuOpts *opts, const char *name)
+extern "C" char *qemu_opt_get_del(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt;
     char *str;
@@ -313,7 +315,7 @@ char *qemu_opt_get_del(QemuOpts *opts, const char *name)
     return str;
 }
 
-bool qemu_opt_has_help_opt(QemuOpts *opts)
+extern "C" bool qemu_opt_has_help_opt(QemuOpts *opts)
 {
     QemuOpt *opt;
 
@@ -352,12 +354,12 @@ static bool qemu_opt_get_bool_helper(QemuOpts *opts, const char *name,
     return ret;
 }
 
-bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval)
+extern "C" bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval)
 {
     return qemu_opt_get_bool_helper(opts, name, defval, false);
 }
 
-bool qemu_opt_get_bool_del(QemuOpts *opts, const char *name, bool defval)
+extern "C" bool qemu_opt_get_bool_del(QemuOpts *opts, const char *name, bool defval)
 {
     return qemu_opt_get_bool_helper(opts, name, defval, true);
 }
@@ -389,12 +391,12 @@ static uint64_t qemu_opt_get_number_helper(QemuOpts *opts, const char *name,
     return ret;
 }
 
-uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval)
+extern "C" uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval)
 {
     return qemu_opt_get_number_helper(opts, name, defval, false);
 }
 
-uint64_t qemu_opt_get_number_del(QemuOpts *opts, const char *name,
+extern "C" uint64_t qemu_opt_get_number_del(QemuOpts *opts, const char *name,
                                  uint64_t defval)
 {
     return qemu_opt_get_number_helper(opts, name, defval, true);
@@ -427,12 +429,12 @@ static uint64_t qemu_opt_get_size_helper(QemuOpts *opts, const char *name,
     return ret;
 }
 
-uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval)
+extern "C" uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval)
 {
     return qemu_opt_get_size_helper(opts, name, defval, false);
 }
 
-uint64_t qemu_opt_get_size_del(QemuOpts *opts, const char *name,
+extern "C" uint64_t qemu_opt_get_size_del(QemuOpts *opts, const char *name,
                                uint64_t defval)
 {
     return qemu_opt_get_size_helper(opts, name, defval, true);
@@ -465,7 +467,7 @@ static bool opts_accepts_any(const QemuOptsList *list)
     return list->desc[0].name == NULL;
 }
 
-int qemu_opt_unset(QemuOpts *opts, const char *name)
+extern "C" int qemu_opt_unset(QemuOpts *opts, const char *name)
 {
     QemuOpt *opt = qemu_opt_find(opts, name);
 
@@ -481,7 +483,7 @@ int qemu_opt_unset(QemuOpts *opts, const char *name)
 
 static QemuOpt *opt_create(QemuOpts *opts, const char *name, char *value)
 {
-    QemuOpt *opt = g_malloc0(sizeof(*opt));
+    QemuOpt *opt = static_cast<QemuOpt *>(g_malloc0(sizeof(*opt)));
 
     opt->name = g_strdup(name);
     opt->str = value;
@@ -510,7 +512,7 @@ static bool opt_validate(QemuOpt *opt, Error **errp)
     return true;
 }
 
-bool qemu_opt_set(QemuOpts *opts, const char *name, const char *value,
+extern "C" bool qemu_opt_set(QemuOpts *opts, const char *name, const char *value,
                   Error **errp)
 {
     QemuOpt *opt = opt_create(opts, name, g_strdup(value));
@@ -522,7 +524,7 @@ bool qemu_opt_set(QemuOpts *opts, const char *name, const char *value,
     return true;
 }
 
-bool qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
+extern "C" bool qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
                        Error **errp)
 {
     QemuOpt *opt;
@@ -535,7 +537,7 @@ bool qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
         return false;
     }
 
-    opt = g_malloc0(sizeof(*opt));
+    opt = static_cast<QemuOpt *>(g_malloc0(sizeof(*opt)));
     opt->name = g_strdup(name);
     opt->opts = opts;
     opt->desc = desc;
@@ -545,7 +547,7 @@ bool qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
     return true;
 }
 
-bool qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
+extern "C" bool qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
                          Error **errp)
 {
     QemuOpt *opt;
@@ -558,7 +560,7 @@ bool qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
         return false;
     }
 
-    opt = g_malloc0(sizeof(*opt));
+    opt = static_cast<QemuOpt *>(g_malloc0(sizeof(*opt)));
     opt->name = g_strdup(name);
     opt->opts = opts;
     opt->desc = desc;
@@ -574,7 +576,7 @@ bool qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
  * When @func() returns non-zero, break the loop and return that value.
  * Return zero when the loop completes.
  */
-int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
+extern "C" int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
                      Error **errp)
 {
     QemuOpt *opt;
@@ -590,7 +592,7 @@ int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
     return 0;
 }
 
-QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
+extern "C" QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
 {
     QemuOpts *opts;
 
@@ -605,7 +607,7 @@ QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
     return NULL;
 }
 
-QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
+extern "C" QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
                            int fail_if_exists, Error **errp)
 {
     QemuOpts *opts = NULL;
@@ -634,7 +636,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
             return NULL;
         }
     }
-    opts = g_malloc0(sizeof(*opts));
+    opts = static_cast<QemuOpts *>(g_malloc0(sizeof(*opts)));
     opts->id = g_strdup(id);
     opts->list = list;
     loc_save(&opts->loc);
@@ -643,7 +645,7 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
     return opts;
 }
 
-void qemu_opts_reset(QemuOptsList *list)
+extern "C" void qemu_opts_reset(QemuOptsList *list)
 {
     QemuOpts *opts, *next_opts;
 
@@ -652,23 +654,23 @@ void qemu_opts_reset(QemuOptsList *list)
     }
 }
 
-void qemu_opts_loc_restore(QemuOpts *opts)
+extern "C" void qemu_opts_loc_restore(QemuOpts *opts)
 {
     loc_restore(&opts->loc);
 }
 
-const char *qemu_opts_id(QemuOpts *opts)
+extern "C" const char *qemu_opts_id(QemuOpts *opts)
 {
     return opts->id;
 }
 
 /* The id string will be g_free()d by qemu_opts_del */
-void qemu_opts_set_id(QemuOpts *opts, char *id)
+extern "C" void qemu_opts_set_id(QemuOpts *opts, char *id)
 {
     opts->id = id;
 }
 
-void qemu_opts_del(QemuOpts *opts)
+extern "C" void qemu_opts_del(QemuOpts *opts)
 {
     QemuOpt *opt;
 
@@ -700,7 +702,7 @@ static void escaped_print(const char *value)
     }
 }
 
-void qemu_opts_print(QemuOpts *opts, const char *separator)
+extern "C" void qemu_opts_print(QemuOpts *opts, const char *separator)
 {
     QemuOpt *opt;
     QemuOptDesc *desc = opts->list->desc;
@@ -848,7 +850,7 @@ static char *opts_parse_id(const char *params)
     return NULL;
 }
 
-bool has_help_option(const char *params)
+extern "C" bool has_help_option(const char *params)
 {
     const char *p;
     char *name, *value;
@@ -872,7 +874,7 @@ bool has_help_option(const char *params)
  * key=, and is treated as if key was @firstname.
  * On error, store an error object through @errp if non-null.
  */
-bool qemu_opts_do_parse(QemuOpts *opts, const char *params,
+extern "C" bool qemu_opts_do_parse(QemuOpts *opts, const char *params,
                        const char *firstname, Error **errp)
 {
     return opts_do_parse(opts, params, firstname, false, NULL, errp);
@@ -911,7 +913,7 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
  * On error, store an error object through @errp if non-null.
  * Return the new QemuOpts on success, null pointer on error.
  */
-QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
+extern "C" QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
                           bool permit_abbrev, Error **errp)
 {
     return opts_parse(list, params, permit_abbrev, false, NULL, errp);
@@ -925,7 +927,7 @@ QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
  * QMP context.  Do not use this function there!
  * Return the new QemuOpts on success, null pointer on error.
  */
-QemuOpts *qemu_opts_parse_noisily(QemuOptsList *list, const char *params,
+extern "C" QemuOpts *qemu_opts_parse_noisily(QemuOptsList *list, const char *params,
                                   bool permit_abbrev)
 {
     Error *err = NULL;
@@ -986,7 +988,7 @@ static bool qemu_opts_from_qdict_entry(QemuOpts *opts,
  * QStrings, QNums and QBools are copied.  Entries with other types
  * are silently ignored.
  */
-QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
+extern "C" QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
                                Error **errp)
 {
     QemuOpts *opts;
@@ -1014,7 +1016,7 @@ QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
  * from the QDict. When this function returns, the QDict contains only those
  * entries that couldn't be added to the QemuOpts.
  */
-bool qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
+extern "C" bool qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
 {
     const QDictEntry *entry, *next;
 
@@ -1051,7 +1053,7 @@ bool qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
  * TODO We'll want to use types appropriate for opt->desc->type, but
  * this is enough for now.
  */
-QDict *qemu_opts_to_qdict_filtered(QemuOpts *opts, QDict *qdict,
+extern "C" QDict *qemu_opts_to_qdict_filtered(QemuOpts *opts, QDict *qdict,
                                    QemuOptsList *list, bool del)
 {
     QemuOpt *opt, *next;
@@ -1086,7 +1088,7 @@ QDict *qemu_opts_to_qdict_filtered(QemuOpts *opts, QDict *qdict,
 
 /* Copy all options in a QemuOpts to the given QDict. See
  * qemu_opts_to_qdict_filtered() for details. */
-QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
+extern "C" QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
 {
     return qemu_opts_to_qdict_filtered(opts, qdict, NULL, false);
 }
@@ -1094,7 +1096,7 @@ QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
 /* Validate parsed opts against descriptions where no
  * descriptions were provided in the QemuOptsList.
  */
-bool qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
+extern "C" bool qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
 {
     QemuOpt *opt;
 
@@ -1122,7 +1124,7 @@ bool qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
  * When @func() returns non-zero, break the loop and return that value.
  * Return zero when the loop completes.
  */
-int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
+extern "C" int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func,
                       void *opaque, Error **errp)
 {
     Location loc;
@@ -1160,7 +1162,7 @@ static size_t count_opts_list(QemuOptsList *list)
     return num_opts;
 }
 
-void qemu_opts_free(QemuOptsList *list)
+extern "C" void qemu_opts_free(QemuOptsList *list)
 {
     g_free(list);
 }
@@ -1170,7 +1172,7 @@ void qemu_opts_free(QemuOptsList *list)
  * The lifetime of dst must be shorter than the input list because the
  * QemuOptDesc->name, ->help, and ->def_value_str strings are shared.
  */
-QemuOptsList *qemu_opts_append(QemuOptsList *dst,
+extern "C" QemuOptsList *qemu_opts_append(QemuOptsList *dst,
                                QemuOptsList *list)
 {
     size_t num_opts, num_dst_opts;
@@ -1198,8 +1200,8 @@ QemuOptsList *qemu_opts_append(QemuOptsList *dst,
     num_opts = count_opts_list(dst);
     num_dst_opts = num_opts;
     num_opts += count_opts_list(list);
-    dst = g_realloc(dst, sizeof(QemuOptsList) +
-                    (num_opts + 1) * sizeof(QemuOptDesc));
+    dst = static_cast<QemuOptsList *>(g_realloc(dst, sizeof(QemuOptsList) +
+                    (num_opts + 1) * sizeof(QemuOptDesc)));
     if (need_init) {
         dst->name = NULL;
         dst->implied_opt_name = NULL;

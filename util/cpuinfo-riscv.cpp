@@ -4,8 +4,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/host-utils.h"
 #include "host/cpuinfo.h"
+}
 
 #ifdef CONFIG_ASM_HWPROBE_H
 #include <asm/hwprobe.h>
@@ -13,14 +16,14 @@
 #include <asm/unistd.h>
 #endif
 
-unsigned cpuinfo;
-unsigned riscv_lg2_vlenb;
+extern "C" unsigned cpuinfo;
+extern "C" unsigned riscv_lg2_vlenb;
 static volatile sig_atomic_t got_sigill;
 
 static void sigill_handler(int signo, siginfo_t *si, void *data)
 {
     /* Skip the faulty instruction */
-    ucontext_t *uc = (ucontext_t *)data;
+    ucontext_t *uc = static_cast<ucontext_t *>(data);
 
 #ifdef __linux__
     uc->uc_mcontext.__gregs[REG_PC] += 4;
@@ -34,7 +37,7 @@ static void sigill_handler(int signo, siginfo_t *si, void *data)
 }
 
 /* Called both as constructor and (possibly) via other constructors. */
-unsigned __attribute__((constructor)) cpuinfo_init(void)
+extern "C" unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
     unsigned left = CPUINFO_ZBA | CPUINFO_ZBB | CPUINFO_ZBS
                   | CPUINFO_ZICOND | CPUINFO_ZVE64X;

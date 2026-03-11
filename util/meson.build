@@ -34,17 +34,17 @@ if glib_has_gslice
   util_ss.add(files('qtree.c'))
 endif
 util_ss.add(files('defer-call.cpp'))
-util_ss.add(files('envlist.cpp', 'path.cpp', 'module.c'))
+util_ss.add(files('envlist.cpp', 'path.cpp', 'module.cpp'))
 util_ss.add(files('event.cpp'))
 util_ss.add(files('host-utils.cpp'))
 util_ss.add(files('bitmap.cpp', 'bitops.cpp'))
 util_ss.add(files('fifo8.c'))
 util_ss.add(files('cacheflush.cpp'))
-util_ss.add(files('error.c', 'error-report.c'))
+util_ss.add(files('error.cpp', 'error-report.c'))
 util_ss.add(files('qemu-print.c'))
 util_ss.add(files('id.cpp'))
-util_ss.add(files('qemu-config.c', 'notify.cpp'))
-util_ss.add(files('qemu-option.c', 'qemu-progress.cpp'))
+util_ss.add(files('qemu-config.cpp', 'notify.cpp'))
+util_ss.add(files('qemu-option.cpp', 'qemu-progress.cpp'))
 util_ss.add(files('keyval.cpp'))
 util_ss.add(files('crc32c.cpp'))
 util_ss.add(files('uuid.cpp'))
@@ -125,15 +125,15 @@ if have_block
 endif
 
 if cpu == 'aarch64'
-  util_ss.add(files('cpuinfo-aarch64.c'))
+  util_ss.add(files('cpuinfo-aarch64.cpp'))
 elif cpu in ['x86', 'x86_64']
   util_ss.add(files('cpuinfo-i386.cpp'))
 elif cpu == 'loongarch64'
-  util_ss.add(files('cpuinfo-loongarch.c'))
+  util_ss.add(files('cpuinfo-loongarch.cpp'))
 elif cpu in ['ppc', 'ppc64']
-  util_ss.add(files('cpuinfo-ppc.c'))
+  util_ss.add(files('cpuinfo-ppc.cpp'))
 elif cpu in ['riscv32', 'riscv64']
-  util_ss.add(files('cpuinfo-riscv.c'))
+  util_ss.add(files('cpuinfo-riscv.cpp'))
 elif cpu == 's390x'
   util_ss.add(files('s390x_pci_mmio.c'))
 endif

@@ -14,9 +14,12 @@
  */
 
 #include "qemu/osdep.h"
+
 #ifdef CONFIG_MODULES
 #include <gmodule.h>
 #endif
+
+extern "C" {
 #include "qemu/queue.h"
 #include "qemu/module.h"
 #include "qemu/cutils.h"
@@ -26,6 +29,7 @@
 #include "qemu-version.h"
 #endif
 #include "trace.h"
+}
 
 typedef struct ModuleEntry
 {
@@ -67,12 +71,13 @@ static ModuleTypeList *find_type(module_init_type type)
     return &init_type_list[type];
 }
 
+extern "C"
 void register_module_init(void (*fn)(void), module_init_type type)
 {
     ModuleEntry *e;
     ModuleTypeList *l;
 
-    e = g_malloc0(sizeof(*e));
+    e = static_cast<ModuleEntry *>(g_malloc0(sizeof(*e)));
     e->init = fn;
     e->type = type;
 
@@ -81,19 +86,21 @@ void register_module_init(void (*fn)(void), module_init_type type)
     QTAILQ_INSERT_TAIL(l, e, node);
 }
 
+extern "C"
 void register_dso_module_init(void (*fn)(void), module_init_type type)
 {
     ModuleEntry *e;
 
     init_lists();
 
-    e = g_malloc0(sizeof(*e));
+    e = static_cast<ModuleEntry *>(g_malloc0(sizeof(*e)));
     e->init = fn;
     e->type = type;
 
     QTAILQ_INSERT_TAIL(&dso_init_list, e, node);
 }
 
+extern "C"
 void module_call_init(module_init_type type)
 {
     ModuleTypeList *l;
@@ -120,11 +127,13 @@ static const QemuModinfo module_info_stub[] = { {
 static const QemuModinfo *module_info = module_info_stub;
 static const char *module_arch;
 
+extern "C"
 void module_init_info(const QemuModinfo *info)
 {
     module_info = info;
 }
 
+extern "C"
 void module_allow_arch(const char *arch)
 {
     module_arch = arch;
@@ -168,18 +177,20 @@ static bool module_load_dso(const char *fname, bool export_symbols,
     if (!export_symbols) {
         flags |= G_MODULE_BIND_LOCAL;
     }
-    g_module = g_module_open(fname, flags);
+    g_module = g_module_open(fname, static_cast<GModuleFlags>(flags));
     if (!g_module) {
         error_setg(errp, "failed to open module: %s", g_module_error());
         return false;
     }
-    if (!g_module_symbol(g_module, DSO_STAMP_FUN_STR, (gpointer *)&sym)) {
+    if (!g_module_symbol(g_module, DSO_STAMP_FUN_STR,
+                         reinterpret_cast<gpointer *>(&sym))) {
         error_setg(errp, "failed to initialize module: %s", fname);
         /*
          * Print some info if this is a QEMU module (but from different build),
          * this will make debugging user problems easier.
          */
-        if (g_module_symbol(g_module, "qemu_module_dummy", (gpointer *)&sym)) {
+        if (g_module_symbol(g_module, "qemu_module_dummy",
+                            reinterpret_cast<gpointer *>(&sym))) {
             error_append_hint(errp,
                 "Only modules from the same build can be loaded.\n");
         }
@@ -199,6 +210,7 @@ static bool module_load_dso(const char *fname, bool export_symbols,
     return true;
 }
 
+extern "C"
 int module_load(const char *prefix, const char *name, Error **errp)
 {
     int rv = -1;
@@ -316,6 +328,7 @@ out:
 
 static bool module_loaded_qom_all;
 
+extern "C"
 int module_load_qom(const char *type, Error **errp)
 {
     const QemuModinfo *modinfo;
@@ -351,6 +364,7 @@ int module_load_qom(const char *type, Error **errp)
     return rv;
 }
 
+extern "C"
 void module_load_qom_all(void)
 {
     const QemuModinfo *modinfo;
@@ -374,6 +388,7 @@ void module_load_qom_all(void)
     module_loaded_qom_all = true;
 }
 
+extern "C"
 void qemu_load_module_for_opts(const char *group)
 {
     const QemuModinfo *modinfo;
@@ -396,10 +411,19 @@ void qemu_load_module_for_opts(const char *group)
 
 #else
 
+extern "C"
 void module_allow_arch(const char *arch) {}
+
+extern "C"
 void qemu_load_module_for_opts(const char *group) {}
+
+extern "C"
 int module_load(const char *prefix, const char *name, Error **errp) { return 2; }
+
+extern "C"
 int module_load_qom(const char *type, Error **errp) { return 2; }
+
+extern "C"
 void module_load_qom_all(void) {}
 
 #endif

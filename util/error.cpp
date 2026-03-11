@@ -13,9 +13,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qapi/error-internal.h"
+}
 
 Error *error_abort;
 Error *error_fatal;
@@ -61,7 +64,7 @@ static void error_setv(Error **errp,
     }
     assert(*errp == NULL);
 
-    err = g_malloc0(sizeof(*err));
+    err = static_cast<Error *>(g_malloc0(sizeof(*err)));
     err->msg = g_strdup_vprintf(fmt, ap);
     if (suffix) {
         char *msg = err->msg;
@@ -79,6 +82,7 @@ static void error_setv(Error **errp,
     errno = saved_errno;
 }
 
+extern "C"
 void error_set_internal(Error **errp,
                         const char *src, int line, const char *func,
                         ErrorClass err_class, const char *fmt, ...)
@@ -90,6 +94,7 @@ void error_set_internal(Error **errp,
     va_end(ap);
 }
 
+extern "C"
 void error_setg_internal(Error **errp,
                          const char *src, int line, const char *func,
                          const char *fmt, ...)
@@ -101,6 +106,7 @@ void error_setg_internal(Error **errp,
     va_end(ap);
 }
 
+extern "C"
 void error_setg_errno_internal(Error **errp,
                                const char *src, int line, const char *func,
                                int os_errno, const char *fmt, ...)
@@ -116,6 +122,7 @@ void error_setg_errno_internal(Error **errp,
     errno = saved_errno;
 }
 
+extern "C"
 void error_setg_file_open_internal(Error **errp,
                                    const char *src, int line, const char *func,
                                    int os_errno, const char *filename)
@@ -124,6 +131,7 @@ void error_setg_file_open_internal(Error **errp,
                               "Could not open '%s'", filename);
 }
 
+extern "C"
 void error_vprepend(Error *const *errp, const char *fmt, va_list ap)
 {
     GString *newmsg;
@@ -139,6 +147,7 @@ void error_vprepend(Error *const *errp, const char *fmt, va_list ap)
     (*errp)->msg = g_string_free(newmsg, 0);
 }
 
+extern "C"
 void error_prepend(Error *const *errp, const char *fmt, ...)
 {
     va_list ap;
@@ -148,6 +157,7 @@ void error_prepend(Error *const *errp, const char *fmt, ...)
     va_end(ap);
 }
 
+extern "C"
 void error_append_hint(Error *const *errp, const char *fmt, ...)
 {
     va_list ap;
@@ -172,6 +182,7 @@ void error_append_hint(Error *const *errp, const char *fmt, ...)
 
 #ifdef _WIN32
 
+extern "C"
 void error_setg_win32_internal(Error **errp,
                                const char *src, int line, const char *func,
                                int win32_err, const char *fmt, ...)
@@ -197,11 +208,12 @@ void error_setg_win32_internal(Error **errp,
 
 #endif
 
+extern "C"
 Error *error_copy(const Error *err)
 {
     Error *err_new;
 
-    err_new = g_malloc0(sizeof(*err));
+    err_new = static_cast<Error *>(g_malloc0(sizeof(*err)));
     err_new->msg = g_strdup(err->msg);
     err_new->err_class = err->err_class;
     err_new->src = err->src;
@@ -214,16 +226,19 @@ Error *error_copy(const Error *err)
     return err_new;
 }
 
+extern "C"
 ErrorClass error_get_class(const Error *err)
 {
     return err->err_class;
 }
 
+extern "C"
 const char *error_get_pretty(const Error *err)
 {
     return err->msg;
 }
 
+extern "C"
 void error_report_err(Error *err)
 {
     error_report("%s", error_get_pretty(err));
@@ -233,6 +248,7 @@ void error_report_err(Error *err)
     error_free(err);
 }
 
+extern "C"
 void warn_report_err(Error *err)
 {
     warn_report("%s", error_get_pretty(err));
@@ -242,6 +258,7 @@ void warn_report_err(Error *err)
     error_free(err);
 }
 
+extern "C"
 bool warn_report_err_once_cond(bool *printed, Error *err)
 {
     if (*printed) {
@@ -253,6 +270,7 @@ bool warn_report_err_once_cond(bool *printed, Error *err)
     return true;
 }
 
+extern "C"
 void error_reportf_err(Error *err, const char *fmt, ...)
 {
     va_list ap;
@@ -264,6 +282,7 @@ void error_reportf_err(Error *err, const char *fmt, ...)
 }
 
 
+extern "C"
 void warn_reportf_err(Error *err, const char *fmt, ...)
 {
     va_list ap;
@@ -274,6 +293,7 @@ void warn_reportf_err(Error *err, const char *fmt, ...)
     warn_report_err(err);
 }
 
+extern "C"
 void error_free(Error *err)
 {
     if (err) {
@@ -285,6 +305,7 @@ void error_free(Error *err)
     }
 }
 
+extern "C"
 void error_free_or_abort(Error **errp)
 {
     assert(errp && *errp);
@@ -292,6 +313,7 @@ void error_free_or_abort(Error **errp)
     *errp = NULL;
 }
 
+extern "C"
 void error_propagate(Error **dst_errp, Error *local_err)
 {
     if (!local_err) {
@@ -300,6 +322,7 @@ void error_propagate(Error **dst_errp, Error *local_err)
     error_handle(dst_errp, local_err);
 }
 
+extern "C"
 void error_propagate_prepend(Error **dst_errp, Error *err,
                              const char *fmt, ...)
 {

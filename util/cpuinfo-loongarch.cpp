@@ -4,19 +4,24 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "host/cpuinfo.h"
+}
 
 #ifdef CONFIG_GETAUXVAL
 # include <sys/auxv.h>
 #else
+extern "C" {
 # include "elf.h"
+}
 #endif
 #include <asm/hwcap.h>
 
-unsigned cpuinfo;
+extern "C" unsigned cpuinfo;
 
 /* Called both as constructor and (possibly) via other constructors. */
-unsigned __attribute__((constructor)) cpuinfo_init(void)
+extern "C" unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
     unsigned info = cpuinfo;
     unsigned long hwcap;

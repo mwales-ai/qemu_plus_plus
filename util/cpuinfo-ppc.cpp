@@ -4,14 +4,19 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "host/cpuinfo.h"
+}
 
 #ifdef CONFIG_LINUX
 # include <asm/cputable.h>
 # ifdef CONFIG_GETAUXVAL
 #  include <sys/auxv.h>
 # else
+extern "C" {
 #  include "elf.h"
+}
 # endif
 #endif
 #if defined(CONFIG_ELF_AUX_INFO)
@@ -23,10 +28,10 @@
 # define PPC_FEATURE2_VEC_CRYPTO  PPC_FEATURE2_HAS_VEC_CRYPTO
 #endif
 
-unsigned cpuinfo;
+extern "C" unsigned cpuinfo;
 
 /* Called both as constructor and (possibly) via other constructors. */
-unsigned __attribute__((constructor)) cpuinfo_init(void)
+extern "C" unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
     unsigned info = cpuinfo;
 
