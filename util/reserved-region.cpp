@@ -18,9 +18,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/range.h"
 #include "qemu/reserved-region.h"
+}
 
+extern "C"
 GList *resv_region_list_insert(GList *list, ReservedRegion *reg)
 {
     ReservedRegion *resv_iter, *new_reg;
@@ -29,7 +33,7 @@ GList *resv_region_list_insert(GList *list, ReservedRegion *reg)
     GList *l;
 
     for (l = list; l ; ) {
-        resv_iter = (ReservedRegion *)l->data;
+        resv_iter = static_cast<ReservedRegion *>(l->data);
         range_iter = &resv_iter->range;
 
         /* Skip all list elements strictly less than range to add */

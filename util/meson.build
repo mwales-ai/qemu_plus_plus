@@ -10,7 +10,7 @@ if host_os != 'windows'
     util_ss.add(files('fdmon-epoll.c'))
   endif
   util_ss.add(files('compatfd.cpp'))
-  util_ss.add(files('event_notifier-posix.c'))
+  util_ss.add(files('event_notifier-posix.cpp'))
   if host_os != 'emscripten'
     util_ss.add(files('mmap-alloc.cpp'))
   endif
@@ -58,7 +58,7 @@ util_ss.add(files('qdist.cpp'))
 util_ss.add(files('qht.c'))
 util_ss.add(files('qsp.c'))
 util_ss.add(files('range.cpp'))
-util_ss.add(files('reserved-region.c'))
+util_ss.add(files('reserved-region.cpp'))
 util_ss.add(files('stats64.cpp'))
 util_ss.add(files('systemd.cpp'))
 util_ss.add(files('transactions.cpp'))
@@ -97,7 +97,7 @@ if have_block
   util_ss.add(files('bufferiszero.cpp'))
   util_ss.add(files('hbitmap.cpp'))
   util_ss.add(files('hexdump.cpp'))
-  util_ss.add(files('iova-tree.c'))
+  util_ss.add(files('iova-tree.cpp'))
   util_ss.add(files('iov.cpp'))
   util_ss.add(files('nvdimm-utils.c'))
   util_ss.add(files('block-helpers.cpp'))

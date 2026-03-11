@@ -11,10 +11,19 @@
  */
 
 #include "qemu/osdep.h"
+
+/* Pre-include headers that contain C++ templates so their include guards
+ * prevent re-inclusion inside the extern "C" block below. */
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"
+}
 
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
@@ -25,7 +34,7 @@
  * Initialize @e with existing file descriptor @fd.
  * @fd must be a genuine eventfd object, emulation with pipe won't do.
  */
-void event_notifier_init_fd(EventNotifier *e, int fd)
+extern "C" void event_notifier_init_fd(EventNotifier *e, int fd)
 {
     e->rfd = fd;
     e->wfd = fd;
@@ -33,7 +42,7 @@ void event_notifier_init_fd(EventNotifier *e, int fd)
 }
 #endif
 
-int event_notifier_init(EventNotifier *e, int active)
+extern "C" int event_notifier_init(EventNotifier *e, int active)
 {
     int fds[2];
     int ret;
@@ -78,7 +87,7 @@ fail:
     return ret;
 }
 
-void event_notifier_cleanup(EventNotifier *e)
+extern "C" void event_notifier_cleanup(EventNotifier *e)
 {
     if (!e->initialized) {
         return;
@@ -94,17 +103,17 @@ void event_notifier_cleanup(EventNotifier *e)
     e->initialized = false;
 }
 
-int event_notifier_get_fd(const EventNotifier *e)
+extern "C" int event_notifier_get_fd(const EventNotifier *e)
 {
     return e->rfd;
 }
 
-int event_notifier_get_wfd(const EventNotifier *e)
+extern "C" int event_notifier_get_wfd(const EventNotifier *e)
 {
     return e->wfd;
 }
 
-int event_notifier_set(EventNotifier *e)
+extern "C" int event_notifier_set(EventNotifier *e)
 {
     static const uint64_t value = 1;
     ssize_t ret;
@@ -124,7 +133,7 @@ int event_notifier_set(EventNotifier *e)
     return 0;
 }
 
-int event_notifier_test_and_clear(EventNotifier *e)
+extern "C" int event_notifier_test_and_clear(EventNotifier *e)
 {
     int value;
     ssize_t len;
