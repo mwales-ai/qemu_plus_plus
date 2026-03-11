@@ -19,9 +19,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/host-utils.h"
 #include "qemu/buffer.h"
 #include "trace.h"
+}
 
 #define BUFFER_MIN_INIT_SIZE     4096
 #define BUFFER_MIN_SHRINK_SIZE  65536
@@ -41,7 +44,8 @@ static void buffer_adj_size(Buffer *buffer, size_t len)
 {
     size_t old = buffer->capacity;
     buffer->capacity = buffer_req_size(buffer, len);
-    buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
+    buffer->buffer = static_cast<uint8_t *>(
+        g_realloc(buffer->buffer, buffer->capacity));
     trace_buffer_resize(buffer->name ?: "unnamed",
                         old, buffer->capacity);
 
@@ -51,7 +55,7 @@ static void buffer_adj_size(Buffer *buffer, size_t len)
                            buffer->capacity << BUFFER_AVG_SIZE_SHIFT);
 }
 
-void buffer_init(Buffer *buffer, const char *name, ...)
+extern "C" void buffer_init(Buffer *buffer, const char *name, ...)
 {
     va_list ap;
 
@@ -65,9 +69,9 @@ static uint64_t buffer_get_avg_size(Buffer *buffer)
     return buffer->avg_size >> BUFFER_AVG_SIZE_SHIFT;
 }
 
-void buffer_shrink(Buffer *buffer)
+extern "C" void buffer_shrink(Buffer *buffer)
 {
-    size_t new;
+    size_t new_size;
 
     /* Calculate the average size of the buffer as
      * avg_size = avg_size * ( 1 - a ) + required_size * a
@@ -79,39 +83,39 @@ void buffer_shrink(Buffer *buffer)
     /* And then only shrink if the average size of the buffer is much
      * too big, to avoid bumping up & down the buffers all the time.
      * realloc() isn't exactly cheap ...  */
-    new = buffer_req_size(buffer, buffer_get_avg_size(buffer));
-    if (new < buffer->capacity >> 3 &&
-        new >= BUFFER_MIN_SHRINK_SIZE) {
+    new_size = buffer_req_size(buffer, buffer_get_avg_size(buffer));
+    if (new_size < buffer->capacity >> 3 &&
+        new_size >= BUFFER_MIN_SHRINK_SIZE) {
         buffer_adj_size(buffer, buffer_get_avg_size(buffer));
     }
 
     buffer_adj_size(buffer, 0);
 }
 
-void buffer_reserve(Buffer *buffer, size_t len)
+extern "C" void buffer_reserve(Buffer *buffer, size_t len)
 {
     if ((buffer->capacity - buffer->offset) < len) {
         buffer_adj_size(buffer, len);
     }
 }
 
-gboolean buffer_empty(Buffer *buffer)
+extern "C" gboolean buffer_empty(Buffer *buffer)
 {
     return buffer->offset == 0;
 }
 
-uint8_t *buffer_end(Buffer *buffer)
+extern "C" uint8_t *buffer_end(Buffer *buffer)
 {
     return buffer->buffer + buffer->offset;
 }
 
-void buffer_reset(Buffer *buffer)
+extern "C" void buffer_reset(Buffer *buffer)
 {
     buffer->offset = 0;
     buffer_shrink(buffer);
 }
 
-void buffer_free(Buffer *buffer)
+extern "C" void buffer_free(Buffer *buffer)
 {
     trace_buffer_free(buffer->name ?: "unnamed", buffer->capacity);
     g_free(buffer->buffer);
@@ -122,13 +126,13 @@ void buffer_free(Buffer *buffer)
     buffer->name = NULL;
 }
 
-void buffer_append(Buffer *buffer, const void *data, size_t len)
+extern "C" void buffer_append(Buffer *buffer, const void *data, size_t len)
 {
     memcpy(buffer->buffer + buffer->offset, data, len);
     buffer->offset += len;
 }
 
-void buffer_advance(Buffer *buffer, size_t len)
+extern "C" void buffer_advance(Buffer *buffer, size_t len)
 {
     memmove(buffer->buffer, buffer->buffer + len,
             (buffer->offset - len));
@@ -136,7 +140,7 @@ void buffer_advance(Buffer *buffer, size_t len)
     buffer_shrink(buffer);
 }
 
-void buffer_move_empty(Buffer *to, Buffer *from)
+extern "C" void buffer_move_empty(Buffer *to, Buffer *from)
 {
     trace_buffer_move_empty(to->name ?: "unnamed",
                             from->offset,
@@ -153,7 +157,7 @@ void buffer_move_empty(Buffer *to, Buffer *from)
     from->buffer = NULL;
 }
 
-void buffer_move(Buffer *to, Buffer *from)
+extern "C" void buffer_move(Buffer *to, Buffer *from)
 {
     if (to->offset == 0) {
         buffer_move_empty(to, from);

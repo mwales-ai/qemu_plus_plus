@@ -22,9 +22,12 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "qemu/bswap.h"
 #include "host/cpuinfo.h"
+}
 
 typedef bool (*biz_accel_fn)(const void *, size_t);
 
@@ -32,18 +35,21 @@ static bool buffer_is_zero_int_lt256(const void *buf, size_t len)
 {
     uint64_t t;
     const uint64_t *p, *e;
+    const char *cbuf = static_cast<const char *>(buf);
 
     /*
      * Use unaligned memory access functions to handle
      * the beginning and end of the buffer.
      */
     if (unlikely(len <= 8)) {
-        return (ldl_he_p(buf) | ldl_he_p(buf + len - 4)) == 0;
+        return (ldl_he_p(cbuf) | ldl_he_p(cbuf + len - 4)) == 0;
     }
 
-    t = ldq_he_p(buf) | ldq_he_p(buf + len - 8);
-    p = QEMU_ALIGN_PTR_DOWN(buf + 8, 8);
-    e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 8);
+    t = ldq_he_p(cbuf) | ldq_he_p(cbuf + len - 8);
+    p = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const uint64_t *>(cbuf + 8), 8);
+    e = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const uint64_t *>(cbuf + len - 1), 8);
 
     /* Read 0 to 31 aligned words from the middle. */
     while (p < e) {
@@ -54,13 +60,17 @@ static bool buffer_is_zero_int_lt256(const void *buf, size_t len)
 
 static bool buffer_is_zero_int_ge256(const void *buf, size_t len)
 {
+    const char *cbuf = static_cast<const char *>(buf);
+
     /*
      * Use unaligned memory access functions to handle
      * the beginning and end of the buffer.
      */
-    uint64_t t = ldq_he_p(buf) | ldq_he_p(buf + len - 8);
-    const uint64_t *p = QEMU_ALIGN_PTR_DOWN(buf + 8, 8);
-    const uint64_t *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 8);
+    uint64_t t = ldq_he_p(cbuf) | ldq_he_p(cbuf + len - 8);
+    const uint64_t *p = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const uint64_t *>(cbuf + 8), 8);
+    const uint64_t *e = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const uint64_t *>(cbuf + len - 1), 8);
 
     /* Collect a partial block at the tail end. */
     t |= e[-7] | e[-6] | e[-5] | e[-4] | e[-3] | e[-2] | e[-1];
@@ -86,12 +96,12 @@ static bool buffer_is_zero_int_ge256(const void *buf, size_t len)
 static biz_accel_fn buffer_is_zero_accel;
 static unsigned accel_index;
 
-bool buffer_is_zero_ool(const void *buf, size_t len)
+extern "C" bool buffer_is_zero_ool(const void *buf, size_t len)
 {
     if (unlikely(len == 0)) {
         return true;
     }
-    if (!buffer_is_zero_sample3(buf, len)) {
+    if (!buffer_is_zero_sample3(static_cast<const char *>(buf), len)) {
         return false;
     }
     /* All bytes are covered for any len <= 3.  */
@@ -105,12 +115,12 @@ bool buffer_is_zero_ool(const void *buf, size_t len)
     return buffer_is_zero_int_lt256(buf, len);
 }
 
-bool buffer_is_zero_ge256(const void *buf, size_t len)
+extern "C" bool buffer_is_zero_ge256(const void *buf, size_t len)
 {
     return buffer_is_zero_accel(buf, len);
 }
 
-bool test_buffer_is_zero_next_accel(void)
+extern "C" bool test_buffer_is_zero_next_accel(void)
 {
     if (accel_index != 0) {
         buffer_is_zero_accel = accel_table[--accel_index];

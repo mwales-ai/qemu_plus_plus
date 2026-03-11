@@ -12,9 +12,10 @@
 
 static bool buffer_is_zero_lsx(const void *buf, size_t len)
 {
-    const void *p = QEMU_ALIGN_PTR_DOWN(buf + 16, 16);
-    const void *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 16) - (7 * 16);
-    const void *l = buf + len;
+    const char *cbuf = static_cast<const char *>(buf);
+    const char *p = QEMU_ALIGN_PTR_DOWN(cbuf + 16, 16);
+    const char *e = QEMU_ALIGN_PTR_DOWN(cbuf + len - 1, 16) - (7 * 16);
+    const char *l = cbuf + len;
     bool ret;
 
     asm("vld $vr0,%2,0\n\t"             /* first: buf + 0 */
@@ -69,9 +70,10 @@ static bool buffer_is_zero_lsx(const void *buf, size_t len)
 
 static bool buffer_is_zero_lasx(const void *buf, size_t len)
 {
-    const void *p = QEMU_ALIGN_PTR_DOWN(buf + 32, 32);
-    const void *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 32) - (7 * 32);
-    const void *l = buf + len;
+    const char *cbuf = static_cast<const char *>(buf);
+    const char *p = QEMU_ALIGN_PTR_DOWN(cbuf + 32, 32);
+    const char *e = QEMU_ALIGN_PTR_DOWN(cbuf + len - 1, 32) - (7 * 32);
+    const char *l = cbuf + len;
     bool ret;
 
     asm("xvld $xr0,%2,0\n\t"             /* first: buf + 0 */

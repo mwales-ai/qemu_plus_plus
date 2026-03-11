@@ -15,12 +15,15 @@
 static bool __attribute__((target("sse2")))
 buffer_zero_sse2(const void *buf, size_t len)
 {
+    const char *cbuf = static_cast<const char *>(buf);
     /* Unaligned loads at head/tail.  */
-    __m128i v = *(__m128i_u *)(buf);
-    __m128i w = *(__m128i_u *)(buf + len - 16);
+    __m128i v = *reinterpret_cast<const __m128i_u *>(cbuf);
+    __m128i w = *reinterpret_cast<const __m128i_u *>(cbuf + len - 16);
     /* Align head/tail to 16-byte boundaries.  */
-    const __m128i *p = QEMU_ALIGN_PTR_DOWN(buf + 16, 16);
-    const __m128i *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 16);
+    const __m128i *p = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const __m128i *>(cbuf + 16), 16);
+    const __m128i *e = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const __m128i *>(cbuf + len - 1), 16);
     __m128i zero = { 0 };
 
     /* Collect a partial block at tail end.  */
@@ -61,12 +64,15 @@ buffer_zero_sse2(const void *buf, size_t len)
 static bool __attribute__((target("avx2")))
 buffer_zero_avx2(const void *buf, size_t len)
 {
+    const char *cbuf = static_cast<const char *>(buf);
     /* Unaligned loads at head/tail.  */
-    __m256i v = *(__m256i_u *)(buf);
-    __m256i w = *(__m256i_u *)(buf + len - 32);
+    __m256i v = *reinterpret_cast<const __m256i_u *>(cbuf);
+    __m256i w = *reinterpret_cast<const __m256i_u *>(cbuf + len - 32);
     /* Align head/tail to 32-byte boundaries.  */
-    const __m256i *p = QEMU_ALIGN_PTR_DOWN(buf + 32, 32);
-    const __m256i *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 32);
+    const __m256i *p = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const __m256i *>(cbuf + 32), 32);
+    const __m256i *e = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const __m256i *>(cbuf + len - 1), 32);
     __m256i zero = { 0 };
 
     /* Collect a partial block at tail end.  */
@@ -82,7 +88,7 @@ buffer_zero_avx2(const void *buf, size_t len)
     for (; p < e - 7; p += 8) {
         /* PTEST is not profitable here.  */
         v = _mm256_cmpeq_epi8(v, zero);
-        if (unlikely(_mm256_movemask_epi8(v) != 0xFFFFFFFF)) {
+        if (unlikely(static_cast<unsigned>(_mm256_movemask_epi8(v)) != 0xFFFFFFFFu)) {
             return false;
         }
         v = p[0]; w = p[1];
@@ -96,7 +102,7 @@ buffer_zero_avx2(const void *buf, size_t len)
         v |= w;
     }
 
-    return _mm256_movemask_epi8(_mm256_cmpeq_epi8(v, zero)) == 0xFFFFFFFF;
+    return static_cast<unsigned>(_mm256_movemask_epi8(_mm256_cmpeq_epi8(v, zero))) == 0xFFFFFFFFu;
 }
 #endif /* CONFIG_AVX2_OPT */
 

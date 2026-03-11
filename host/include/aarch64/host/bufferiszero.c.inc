@@ -15,13 +15,17 @@
 static bool buffer_is_zero_simd(const void *buf, size_t len)
 {
     uint32x4_t t0, t1, t2, t3;
+    const char *cbuf = static_cast<const char *>(buf);
 
     /* Align head/tail to 16-byte boundaries.  */
-    const uint32x4_t *p = QEMU_ALIGN_PTR_DOWN(buf + 16, 16);
-    const uint32x4_t *e = QEMU_ALIGN_PTR_DOWN(buf + len - 1, 16);
+    const uint32x4_t *p = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const uint32x4_t *>(cbuf + 16), 16);
+    const uint32x4_t *e = QEMU_ALIGN_PTR_DOWN(
+            reinterpret_cast<const uint32x4_t *>(cbuf + len - 1), 16);
 
     /* Unaligned loads at head/tail.  */
-    t0 = vld1q_u32(buf) | vld1q_u32(buf + len - 16);
+    t0 = vld1q_u32(reinterpret_cast<const uint32_t *>(cbuf))
+       | vld1q_u32(reinterpret_cast<const uint32_t *>(cbuf + len - 16));
 
     /* Collect a partial block at tail end.  */
     t1 = e[-7] | e[-6];

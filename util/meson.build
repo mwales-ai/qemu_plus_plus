@@ -93,9 +93,9 @@ if have_block or have_ga or have_user
 endif
 if have_block
   util_ss.add(files('aio-wait.c'))
-  util_ss.add(files('buffer.c'))
-  util_ss.add(files('bufferiszero.c'))
-  util_ss.add(files('hbitmap.c'))
+  util_ss.add(files('buffer.cpp'))
+  util_ss.add(files('bufferiszero.cpp'))
+  util_ss.add(files('hbitmap.cpp'))
   util_ss.add(files('hexdump.cpp'))
   util_ss.add(files('iova-tree.c'))
   util_ss.add(files('iov.c'))
@@ -119,7 +119,7 @@ if have_block
   if host_os == 'linux'
     util_ss.add(files('vhost-user-server.c'), vhost_user)
     util_ss.add(files('vfio-helpers.c'))
-    util_ss.add(files('chardev_open.c'))
+    util_ss.add(files('chardev_open.cpp'))
   endif
   util_ss.add(files('yank.c'))
 endif

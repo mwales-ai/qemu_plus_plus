@@ -38,7 +38,10 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/chardev_open.h"
+}
 
 static int open_cdev_internal(const char *path, dev_t cdev)
 {
@@ -69,7 +72,7 @@ static int open_cdev_robust(dev_t cdev)
     return open_cdev_internal(devpath, cdev);
 }
 
-int open_cdev(const char *devpath, dev_t cdev)
+extern "C" int open_cdev(const char *devpath, dev_t cdev)
 {
     int fd;
 
