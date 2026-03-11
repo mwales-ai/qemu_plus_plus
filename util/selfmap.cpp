@@ -7,10 +7,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "qemu/selfmap.h"
+}
 
-IntervalTreeRoot *read_self_maps(void)
+extern "C" IntervalTreeRoot *read_self_maps(void)
 {
     IntervalTreeRoot *root;
     gchar *maps, **lines;
@@ -54,7 +57,7 @@ IntervalTreeRoot *read_self_maps(void)
                     path_len = 0;
                 }
 
-                e = g_malloc0(sizeof(*e) + path_len);
+                e = static_cast<MapInfo *>(g_malloc0(sizeof(*e) + path_len));
 
                 e->itree.start = start;
                 e->itree.last = end - 1;
@@ -68,7 +71,7 @@ IntervalTreeRoot *read_self_maps(void)
                 e->is_priv  = fields[1][3] == 'p';
 
                 if (path_len) {
-                    e->path = memcpy(e + 1, p, path_len);
+                    e->path = static_cast<char *>(memcpy(e + 1, p, path_len));
                 }
 
                 interval_tree_insert(&e->itree, root);
@@ -100,7 +103,7 @@ static void free_rbnode(RBNode *n)
     }
 }
 
-void free_self_maps(IntervalTreeRoot *root)
+extern "C" void free_self_maps(IntervalTreeRoot *root)
 {
     if (root) {
         free_rbnode(root->rb_root.rb_node);

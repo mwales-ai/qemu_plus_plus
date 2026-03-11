@@ -18,10 +18,13 @@
 #endif /* CONFIG_LINUX */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/mmap-alloc.h"
 #include "qemu/host-utils.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+}
 
 #define HUGETLBFS_MAGIC       0x958458f6
 
@@ -30,6 +33,7 @@
 #include <linux/magic.h>
 #endif
 
+extern "C"
 QemuFsType qemu_fd_getfs(int fd)
 {
 #ifdef CONFIG_LINUX
@@ -57,6 +61,7 @@ QemuFsType qemu_fd_getfs(int fd)
 #endif
 }
 
+extern "C"
 size_t qemu_fd_getpagesize(int fd)
 {
 #ifdef CONFIG_LINUX
@@ -209,7 +214,7 @@ static void *mmap_activate(void *ptr, size_t size, int fd,
     if (activated_ptr == MAP_FAILED && map_sync_flags) {
         if (errno == ENOTSUP) {
             char *proc_link = g_strdup_printf("/proc/self/fd/%d", fd);
-            char *file_name = g_malloc0(PATH_MAX);
+            char *file_name = static_cast<char *>(g_malloc0(PATH_MAX));
             int len = readlink(proc_link, file_name, PATH_MAX - 1);
 
             if (len < 0) {
@@ -244,6 +249,7 @@ static inline size_t mmap_guard_pagesize(int fd)
 #endif
 }
 
+extern "C"
 void *qemu_ram_mmap(int fd,
                     size_t size,
                     size_t align,
@@ -269,10 +275,11 @@ void *qemu_ram_mmap(int fd,
     /* Always align to host page size */
     assert(align >= guard_pagesize);
 
-    offset = QEMU_ALIGN_UP((uintptr_t)guardptr, align) - (uintptr_t)guardptr;
+    offset = QEMU_ALIGN_UP(reinterpret_cast<uintptr_t>(guardptr), align)
+             - reinterpret_cast<uintptr_t>(guardptr);
 
-    ptr = mmap_activate(guardptr + offset, size, fd, qemu_map_flags,
-                        map_offset);
+    ptr = mmap_activate(static_cast<char *>(guardptr) + offset, size, fd,
+                        qemu_map_flags, map_offset);
     if (ptr == MAP_FAILED) {
         munmap(guardptr, total);
         return MAP_FAILED;
@@ -288,12 +295,14 @@ void *qemu_ram_mmap(int fd,
      */
     total -= offset;
     if (total > size + guard_pagesize) {
-        munmap(ptr + size + guard_pagesize, total - size - guard_pagesize);
+        munmap(static_cast<char *>(ptr) + size + guard_pagesize,
+               total - size - guard_pagesize);
     }
 
     return ptr;
 }
 
+extern "C"
 void qemu_ram_munmap(int fd, void *ptr, size_t size)
 {
     if (ptr) {

@@ -1,8 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/interval-tree.h"
 #include "qemu/atomic.h"
+}
 
 /*
  * Red Black Trees.
@@ -58,8 +61,8 @@ typedef enum RBColor
 
 typedef struct RBAugmentCallbacks {
     void (*propagate)(RBNode *node, RBNode *stop);
-    void (*copy)(RBNode *old, RBNode *new);
-    void (*rotate)(RBNode *old, RBNode *new);
+    void (*copy)(RBNode *rb_old, RBNode *rb_new);
+    void (*rotate)(RBNode *rb_old, RBNode *rb_new);
 } RBAugmentCallbacks;
 
 static inline uintptr_t rb_pc(const RBNode *n)
@@ -74,7 +77,7 @@ static inline void rb_set_pc(RBNode *n, uintptr_t pc)
 
 static inline RBNode *pc_parent(uintptr_t pc)
 {
-    return (RBNode *)(pc & ~1);
+    return reinterpret_cast<RBNode *>(pc & ~1);
 }
 
 static inline RBNode *rb_parent(const RBNode *n)
@@ -84,12 +87,12 @@ static inline RBNode *rb_parent(const RBNode *n)
 
 static inline RBNode *rb_red_parent(const RBNode *n)
 {
-    return (RBNode *)rb_pc(n);
+    return reinterpret_cast<RBNode *>(rb_pc(n));
 }
 
 static inline RBColor pc_color(uintptr_t pc)
 {
-    return (RBColor)(pc & 1);
+    return static_cast<RBColor>(pc & 1);
 }
 
 static inline bool pc_is_red(uintptr_t pc)
@@ -124,7 +127,7 @@ static inline void rb_set_black(RBNode *n)
 
 static inline void rb_set_parent_color(RBNode *n, RBNode *p, RBColor color)
 {
-    rb_set_pc(n, (uintptr_t)p | color);
+    rb_set_pc(n, reinterpret_cast<uintptr_t>(p) | color);
 }
 
 static inline void rb_set_parent(RBNode *n, RBNode *p)
@@ -134,7 +137,7 @@ static inline void rb_set_parent(RBNode *n, RBNode *p)
 
 static inline void rb_link_node(RBNode *node, RBNode *parent, RBNode **rb_link)
 {
-    node->rb_parent_color = (uintptr_t)parent;
+    node->rb_parent_color = reinterpret_cast<uintptr_t>(parent);
     node->rb_left = node->rb_right = NULL;
 
     /*
@@ -175,27 +178,27 @@ static RBNode *rb_next(RBNode *node)
     return parent;
 }
 
-static inline void rb_change_child(RBNode *old, RBNode *new,
+static inline void rb_change_child(RBNode *old, RBNode *newn,
                                    RBNode *parent, RBRoot *root)
 {
     if (!parent) {
-        qatomic_set(&root->rb_node, new);
+        qatomic_set(&root->rb_node, newn);
     } else if (parent->rb_left == old) {
-        qatomic_set(&parent->rb_left, new);
+        qatomic_set(&parent->rb_left, newn);
     } else {
-        qatomic_set(&parent->rb_right, new);
+        qatomic_set(&parent->rb_right, newn);
     }
 }
 
-static inline void rb_rotate_set_parents(RBNode *old, RBNode *new,
+static inline void rb_rotate_set_parents(RBNode *old, RBNode *newn,
                                          RBRoot *root, RBColor color)
 {
     uintptr_t pc = rb_pc(old);
     RBNode *parent = pc_parent(pc);
 
-    rb_set_pc(new, pc);
-    rb_set_parent_color(old, new, color);
-    rb_change_child(old, new, parent, root);
+    rb_set_pc(newn, pc);
+    rb_set_parent_color(old, newn, color);
+    rb_change_child(old, newn, parent, root);
 }
 
 static void rb_insert_augmented(RBNode *node, RBRoot *root,
@@ -365,9 +368,9 @@ static void rb_erase_color(RBNode *parent, RBRoot *root,
                  * Case 1 - left rotate at parent
                  *
                  *     P               S
-                 *    / \             / \ 
+                 *    / \             / \
                  *   N   s    -->    p   Sr
-                 *      / \         / \ 
+                 *      / \         / \
                  *     Sl  Sr      N   Sl
                  */
                 tmp1 = sibling->rb_left;
@@ -387,9 +390,9 @@ static void rb_erase_color(RBNode *parent, RBRoot *root,
                      * (p could be either color here)
                      *
                      *    (p)           (p)
-                     *    / \           / \ 
+                     *    / \           / \
                      *   N   S    -->  N   s
-                     *      / \           / \ 
+                     *      / \           / \
                      *     Sl  Sr        Sl  Sr
                      *
                      * This leaves us violating 5) which
@@ -649,7 +652,7 @@ static void rb_erase_augmented_cached(RBNode *node, RBRootLeftCached *root,
 
 #define rb_to_itree(N)  container_of(N, IntervalTreeNode, rb)
 
-static bool interval_tree_compute_max(IntervalTreeNode *node, bool exit)
+static bool interval_tree_compute_max(IntervalTreeNode *node, bool exit_early)
 {
     IntervalTreeNode *child;
     uint64_t max = node->last;
@@ -666,7 +669,7 @@ static bool interval_tree_compute_max(IntervalTreeNode *node, bool exit)
             max = child->subtree_last;
         }
     }
-    if (exit && node->subtree_last == max) {
+    if (exit_early && node->subtree_last == max) {
         return true;
     }
     node->subtree_last = max;
@@ -686,28 +689,29 @@ static void interval_tree_propagate(RBNode *rb, RBNode *stop)
 
 static void interval_tree_copy(RBNode *rb_old, RBNode *rb_new)
 {
-    IntervalTreeNode *old = rb_to_itree(rb_old);
-    IntervalTreeNode *new = rb_to_itree(rb_new);
+    IntervalTreeNode *old_node = rb_to_itree(rb_old);
+    IntervalTreeNode *new_node = rb_to_itree(rb_new);
 
-    new->subtree_last = old->subtree_last;
+    new_node->subtree_last = old_node->subtree_last;
 }
 
 static void interval_tree_rotate(RBNode *rb_old, RBNode *rb_new)
 {
-    IntervalTreeNode *old = rb_to_itree(rb_old);
-    IntervalTreeNode *new = rb_to_itree(rb_new);
+    IntervalTreeNode *old_node = rb_to_itree(rb_old);
+    IntervalTreeNode *new_node = rb_to_itree(rb_new);
 
-    new->subtree_last = old->subtree_last;
-    interval_tree_compute_max(old, false);
+    new_node->subtree_last = old_node->subtree_last;
+    interval_tree_compute_max(old_node, false);
 }
 
 static const RBAugmentCallbacks interval_tree_augment = {
-    .propagate = interval_tree_propagate,
-    .copy = interval_tree_copy,
-    .rotate = interval_tree_rotate,
+    interval_tree_propagate,
+    interval_tree_copy,
+    interval_tree_rotate,
 };
 
 /* Insert / remove interval nodes from the tree */
+extern "C"
 void interval_tree_insert(IntervalTreeNode *node, IntervalTreeRoot *root)
 {
     RBNode **link = &root->rb_root.rb_node, *rb_parent = NULL;
@@ -736,6 +740,7 @@ void interval_tree_insert(IntervalTreeNode *node, IntervalTreeRoot *root)
                                &interval_tree_augment);
 }
 
+extern "C"
 void interval_tree_remove(IntervalTreeNode *node, IntervalTreeRoot *root)
 {
     rb_erase_augmented_cached(&node->rb, root, &interval_tree_augment);
@@ -792,6 +797,7 @@ static IntervalTreeNode *interval_tree_subtree_search(IntervalTreeNode *node,
     }
 }
 
+extern "C"
 IntervalTreeNode *interval_tree_iter_first(IntervalTreeRoot *root,
                                            uint64_t start, uint64_t last)
 {
@@ -827,6 +833,7 @@ IntervalTreeNode *interval_tree_iter_first(IntervalTreeRoot *root,
     return interval_tree_subtree_search(node, start, last);
 }
 
+extern "C"
 IntervalTreeNode *interval_tree_iter_next(IntervalTreeNode *node,
                                           uint64_t start, uint64_t last)
 {

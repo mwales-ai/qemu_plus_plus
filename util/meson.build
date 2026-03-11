@@ -12,7 +12,7 @@ if host_os != 'windows'
   util_ss.add(files('compatfd.cpp'))
   util_ss.add(files('event_notifier-posix.c'))
   if host_os != 'emscripten'
-    util_ss.add(files('mmap-alloc.c'))
+    util_ss.add(files('mmap-alloc.cpp'))
   endif
   freebsd_dep = []
   if host_os == 'freebsd'
@@ -65,11 +65,11 @@ util_ss.add(files('transactions.cpp'))
 util_ss.add(files('guest-random.cpp'))
 util_ss.add(files('int128.cpp'))
 util_ss.add(files('memalign.c'))
-util_ss.add(files('interval-tree.c'))
+util_ss.add(files('interval-tree.cpp'))
 util_ss.add(files('lockcnt.c'))
 
 if have_user
-  util_ss.add(files('selfmap.c'))
+  util_ss.add(files('selfmap.cpp'))
 endif
 
 if have_system
@@ -104,7 +104,7 @@ if have_block
   util_ss.add(files('qemu-coroutine-sleep.c'))
   util_ss.add(files('qemu-co-shared-resource.c'))
   util_ss.add(files('qemu-co-timeout.c'))
-  util_ss.add(files('readline.c'))
+  util_ss.add(files('readline.cpp'))
   util_ss.add(files('throttle.c'))
   util_ss.add(files('timed-average.cpp'))
   if config_host_data.get('CONFIG_INOTIFY1')

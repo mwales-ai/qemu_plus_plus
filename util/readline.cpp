@@ -23,14 +23,19 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/readline.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
+}
 
 #define IS_NORM 0
 #define IS_ESC  1
 #define IS_CSI  2
 #define IS_SS3  3
+
+extern "C" {
 
 void readline_show_prompt(ReadLineState *rs)
 {
@@ -40,6 +45,8 @@ void readline_show_prompt(ReadLineState *rs)
     rs->last_cmd_buf_size = 0;
     rs->esc_state = IS_NORM;
 }
+
+} /* extern "C" */
 
 /* update the displayed command line */
 static void readline_update(ReadLineState *rs)
@@ -281,6 +288,8 @@ static void readline_kill_line(ReadLineState *rs)
 
 /* completion support */
 
+extern "C" {
+
 void readline_add_completion(ReadLineState *rs, const char *str)
 {
     if (rs->nb_completions < READLINE_MAX_COMPLETIONS) {
@@ -307,9 +316,12 @@ void readline_set_completion_index(ReadLineState *rs, int index)
     rs->completion_index = index;
 }
 
+} /* extern "C" */
+
 static int completion_comp(const void *a, const void *b)
 {
-    return strcmp(*(const char **) a, *(const char **) b);
+    return strcmp(*static_cast<const char * const *>(a),
+                 *static_cast<const char * const *>(b));
 }
 
 static void readline_completion(ReadLineState *rs)
@@ -391,6 +403,8 @@ static void readline_clear_screen(ReadLineState *rs)
     rs->printf_func(rs->opaque, "\033[2J\033[1;1H");
     readline_show_prompt(rs);
 }
+
+extern "C" {
 
 /* return true if command handled */
 void readline_handle_byte(ReadLineState *rs, int ch)
@@ -582,3 +596,5 @@ ReadLineState *readline_init(ReadLinePrintfFunc *printf_func,
 
     return rs;
 }
+
+} /* extern "C" */
