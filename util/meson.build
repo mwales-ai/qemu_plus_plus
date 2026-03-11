@@ -1,4 +1,4 @@
-util_ss.add(files('osdep.c', 'cutils.c', 'unicode.c', 'qemu-timer-common.c'))
+util_ss.add(files('osdep.c', 'cutils.c', 'unicode.c', 'qemu-timer-common.cpp'))
 util_ss.add(files('thread-context.c'), numa)
 if not config_host_data.get('CONFIG_ATOMIC64')
   util_ss.add(files('atomic64.c'))
@@ -34,7 +34,7 @@ if glib_has_gslice
   util_ss.add(files('qtree.c'))
 endif
 util_ss.add(files('defer-call.c'))
-util_ss.add(files('envlist.c', 'path.c', 'module.c'))
+util_ss.add(files('envlist.c', 'path.cpp', 'module.c'))
 util_ss.add(files('event.c'))
 util_ss.add(files('host-utils.c'))
 util_ss.add(files('bitmap.c', 'bitops.c'))
@@ -51,7 +51,7 @@ util_ss.add(files('uuid.c'))
 util_ss.add(files('getauxval.c'))
 util_ss.add(files('rcu.c'))
 if have_membarrier
-  util_ss.add(files('sys_membarrier.c'))
+  util_ss.add(files('sys_membarrier.cpp'))
 endif
 util_ss.add(files('log.c'))
 util_ss.add(files('qdist.c'))
@@ -62,7 +62,7 @@ util_ss.add(files('reserved-region.c'))
 util_ss.add(files('stats64.c'))
 util_ss.add(files('systemd.c'))
 util_ss.add(files('transactions.c'))
-util_ss.add(files('guest-random.c'))
+util_ss.add(files('guest-random.cpp'))
 util_ss.add(files('int128.c'))
 util_ss.add(files('memalign.c'))
 util_ss.add(files('interval-tree.c'))
@@ -114,7 +114,7 @@ if have_block
     endif
     util_ss.add(files('filemonitor-inotify.c'), freebsd_dep)
   else
-    util_ss.add(files('filemonitor-stub.c'))
+    util_ss.add(files('filemonitor-stub.cpp'))
   endif
   if host_os == 'linux'
     util_ss.add(files('vhost-user-server.c'), vhost_user)

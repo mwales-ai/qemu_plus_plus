@@ -4,16 +4,21 @@
    The assumption is that this area does not change.
 */
 #include "qemu/osdep.h"
-#include <sys/param.h>
-#include <dirent.h>
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "qemu/path.h"
 #include "qemu/thread.h"
+}
+
+#include <sys/param.h>
+#include <dirent.h>
 
 static const char *base;
 static GHashTable *hash;
 static QemuMutex lock;
 
+extern "C"
 void init_paths(const char *prefix)
 {
     if (prefix[0] == '\0' || !strcmp(prefix, "/")) {
@@ -33,6 +38,7 @@ void init_paths(const char *prefix)
 }
 
 /* Look for path in emulation dir, otherwise return name. */
+extern "C"
 const char *path(const char *name)
 {
     gpointer key, value;
@@ -47,7 +53,7 @@ const char *path(const char *name)
 
     /* Have we looked up this file before?  */
     if (g_hash_table_lookup_extended(hash, name, &key, &value)) {
-        ret = value ? value : name;
+        ret = value ? static_cast<const char *>(value) : name;
     } else {
         char *save = g_strdup(name);
         char *full = g_build_filename(base, name, NULL);

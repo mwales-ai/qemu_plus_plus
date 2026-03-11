@@ -19,11 +19,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/filemonitor.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
+}
 
-
+extern "C"
 QFileMonitor *
 qemu_file_monitor_new(Error **errp)
 {
@@ -31,13 +34,13 @@ qemu_file_monitor_new(Error **errp)
     return NULL;
 }
 
-
+extern "C"
 void
 qemu_file_monitor_free(QFileMonitor *mon G_GNUC_UNUSED)
 {
 }
 
-
+extern "C"
 int64_t
 qemu_file_monitor_add_watch(QFileMonitor *mon G_GNUC_UNUSED,
                             const char *dirpath G_GNUC_UNUSED,
@@ -50,7 +53,7 @@ qemu_file_monitor_add_watch(QFileMonitor *mon G_GNUC_UNUSED,
     return -1;
 }
 
-
+extern "C"
 void
 qemu_file_monitor_remove_watch(QFileMonitor *mon G_GNUC_UNUSED,
                                const char *dirpath G_GNUC_UNUSED,

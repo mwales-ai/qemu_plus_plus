@@ -7,8 +7,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/sys_membarrier.h"
 #include "qemu/error-report.h"
+}
 
 #ifdef CONFIG_LINUX
 #include <linux/membarrier.h>
@@ -21,6 +24,7 @@ membarrier(int cmd, int flags)
 }
 #endif
 
+extern "C"
 void smp_mb_global(void)
 {
 #if defined CONFIG_WIN32
@@ -32,6 +36,7 @@ void smp_mb_global(void)
 #endif
 }
 
+extern "C"
 void smp_mb_global_init(void)
 {
 #ifdef CONFIG_LINUX

@@ -10,11 +10,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
 #include "crypto/random.h"
 #include "exec/replay-core.h"
+}
 
 
 static __thread GRand *thread_rand;
@@ -24,6 +27,7 @@ static bool deterministic;
 static int glib_random_bytes(void *buf, size_t len)
 {
     GRand *rand = thread_rand;
+    uint8_t *byteptr = static_cast<uint8_t *>(buf);
     size_t i;
     uint32_t x;
 
@@ -34,15 +38,16 @@ static int glib_random_bytes(void *buf, size_t len)
 
     for (i = 0; i + 4 <= len; i += 4) {
         x = g_rand_int(rand);
-        __builtin_memcpy(buf + i, &x, 4);
+        __builtin_memcpy(byteptr + i, &x, 4);
     }
     if (i < len) {
         x = g_rand_int(rand);
-        __builtin_memcpy(buf + i, &x, len - i);
+        __builtin_memcpy(byteptr + i, &x, len - i);
     }
     return 0;
 }
 
+extern "C"
 int qemu_guest_getrandom(void *buf, size_t len, Error **errp)
 {
     int ret;
@@ -62,11 +67,13 @@ int qemu_guest_getrandom(void *buf, size_t len, Error **errp)
     return ret;
 }
 
+extern "C"
 void qemu_guest_getrandom_nofail(void *buf, size_t len)
 {
     (void)qemu_guest_getrandom(buf, len, &error_fatal);
 }
 
+extern "C"
 uint64_t qemu_guest_random_seed_thread_part1(void)
 {
     if (deterministic) {
@@ -77,6 +84,7 @@ uint64_t qemu_guest_random_seed_thread_part1(void)
     return 0;
 }
 
+extern "C"
 void qemu_guest_random_seed_thread_part2(uint64_t seed)
 {
     g_assert(thread_rand == NULL);
@@ -87,6 +95,7 @@ void qemu_guest_random_seed_thread_part2(uint64_t seed)
     }
 }
 
+extern "C"
 int qemu_guest_random_seed_main(const char *seedstr, Error **errp)
 {
     uint64_t seed;

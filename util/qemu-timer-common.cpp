@@ -22,7 +22,10 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/timer.h"
+}
 
 /***********************************************************/
 /* real time host monotonic timer */
