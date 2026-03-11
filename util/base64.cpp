@@ -19,12 +19,16 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/base64.h"
+}
 
 static const char *base64_valid_chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\n";
 
+extern "C"
 uint8_t *qbase64_decode(const char *input,
                         size_t in_len,
                         size_t *out_len,
@@ -32,7 +36,7 @@ uint8_t *qbase64_decode(const char *input,
 {
     *out_len = 0;
 
-    if (in_len != -1) {
+    if (in_len != (size_t)-1) {
         /* Lack of NUL terminator is an error */
         if (input[in_len] != '\0') {
             error_setg(errp, "Base64 data is not NUL terminated");

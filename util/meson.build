@@ -21,7 +21,7 @@ if host_os != 'windows'
   util_ss.add(files('oslib-posix.c'), freebsd_dep)
   util_ss.add(files('qemu-thread-posix.c'))
   util_ss.add(files('memfd.c'))
-  util_ss.add(files('drm.c'))
+  util_ss.add(files('drm.cpp'))
 else
   util_ss.add(files('aio-win32.c'))
   util_ss.add(files('event_notifier-win32.c'))
@@ -82,7 +82,7 @@ endif
 
 if have_block or have_ga
   util_ss.add(files('aiocb.c', 'async.c'))
-  util_ss.add(files('base64.c'))
+  util_ss.add(files('base64.cpp'))
   util_ss.add(files('main-loop.c'))
   util_ss.add(files('qemu-coroutine.c', 'qemu-coroutine-lock.c', 'qemu-coroutine-io.c'))
   util_ss.add(files(f'coroutine-@coroutine_backend@.c'))
@@ -100,7 +100,7 @@ if have_block
   util_ss.add(files('iova-tree.c'))
   util_ss.add(files('iov.c'))
   util_ss.add(files('nvdimm-utils.c'))
-  util_ss.add(files('block-helpers.c'))
+  util_ss.add(files('block-helpers.cpp'))
   util_ss.add(files('qemu-coroutine-sleep.c'))
   util_ss.add(files('qemu-co-shared-resource.c'))
   util_ss.add(files('qemu-co-timeout.c'))

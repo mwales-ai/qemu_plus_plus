@@ -69,11 +69,29 @@ We focus on 5 architectures to validate the port:
   - `QEMU_EXTERN_C_BEGIN` / `QEMU_EXTERN_C_END` for wrapping C header includes
   - `QEMU_EXTERN_C` for single function declarations
   - `QEMU_CAST()` for C++/C compatible casting
-- [ ] Port a proof-of-concept file from .c to .cpp to validate the toolchain
+- [x] Port proof-of-concept files to validate the toolchain
+  - `util/id.cpp` - first file ported (identifier utilities)
+  - `util/base64.cpp` - base64 decode wrapper
+  - `util/block-helpers.cpp` - block size validation
+  - `util/drm.cpp` - DRM rendernode open (with g_strdup_printf -> std::string)
+- [x] Fix `ARRAY_SIZE` macro for C++ (typeof not available, added sizeof fallback)
+- [x] Established include pattern: osdep.h first (unwrapped), then extern "C" for simple headers
+
+### Phase 1.5: Header Compatibility Fixes (Needed Before Broader Porting)
+These shared header issues block porting files with complex dependencies:
+- [ ] **QAPI code generator**: `export` used as struct member name (C++ reserved word)
+  - Affects: any file that transitively includes block-core QAPI types
+  - Fix: modify scripts/qapi/ to rename `export` -> `export_` or similar
+- [ ] **`include/qemu/lockable.h`**: implicit void* -> typed pointer casts
+  - Fix: add `static_cast` in `#ifdef __cplusplus` blocks
+- [ ] **`include/qemu/cutils.h`**: `restrict` keyword (C99, not C++)
+  - Fix: use `__restrict__` or `#ifdef __cplusplus` conditional
+- [ ] **`include/qemu/osdep.h`**: already mostly C++ safe (has extern "C" guards)
+  - ARRAY_SIZE fixed, but QEMU_BUILD_BUG_ON_STRUCT uses anonymous struct bitfields
 
 ### Phase 2: Common Infrastructure
 Port foundational code that everything depends on:
-- [ ] `include/qemu/osdep.h` - wrap for C++ compatibility
+- [x] `include/qemu/osdep.h` - already C++ compatible (has extern "C" guards)
 - [ ] `include/qom/object.h` - the QOM core (plan C++ class hierarchy)
 - [ ] `include/qemu/typedefs.h` - type definitions
 - [ ] `util/` - utility functions

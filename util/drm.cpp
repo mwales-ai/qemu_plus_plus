@@ -14,19 +14,24 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/drm.h"
+}
 
 #include <glob.h>
 #include <dirent.h>
+#include <string>
 
+extern "C"
 int qemu_drm_rendernode_open(const char *rendernode)
 {
     DIR *dir;
     struct dirent *e;
     struct stat st;
     int r, fd, ret;
-    char *p;
 
     if (rendernode) {
         return open(rendernode, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
@@ -43,11 +48,11 @@ int qemu_drm_rendernode_open(const char *rendernode)
             continue;
         }
 
-        p = g_strdup_printf("/dev/dri/%s", e->d_name);
+        /* std::string replaces g_strdup_printf + g_free */
+        std::string path = std::string("/dev/dri/") + e->d_name;
 
-        r = open(p, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
+        r = open(path.c_str(), O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
         if (r < 0) {
-            g_free(p);
             continue;
         }
 
@@ -58,12 +63,10 @@ int qemu_drm_rendernode_open(const char *rendernode)
         ret = fstat(r, &st);
         if (ret < 0 || (st.st_mode & S_IFMT) != S_IFCHR) {
             close(r);
-            g_free(p);
             continue;
         }
 
         fd = r;
-        g_free(p);
         break;
     }
 

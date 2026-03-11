@@ -10,8 +10,9 @@
  * or later.  See the COPYING.LIB file in the top-level directory.
  */
 
-extern "C" {
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/ctype.h"
 #include "qemu/id.h"
 }

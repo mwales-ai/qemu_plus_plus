@@ -107,18 +107,53 @@ cd build && make check
 - `QEMU_EXTERN_C` - mark a single function as extern "C"
 - `QEMU_CAST(type, expr)` - static_cast in C++, C-style cast in C
 
+## Header Include Pattern for .cpp Files
+
+CRITICAL: `qemu/osdep.h` MUST be included first, OUTSIDE any `extern "C"` block.
+It pulls in GLib and system headers that are already C++-aware.
+
+```cpp
+// CORRECT pattern:
+#include "qemu/osdep.h"       // Always first, never inside extern "C"
+
+extern "C" {
+#include "qemu/id.h"          // Simple QEMU headers go inside extern "C"
+#include "qapi/error.h"
+}
+
+#include <string>              // C++ headers after everything else
+```
+
+Headers that pull in deep dependency chains (monitor.h, block/block.h, etc.)
+may NOT work inside `extern "C"` because they transitively include C++
+standard library headers via GLib. These headers should be included outside
+`extern "C"` (they're already C++-safe via osdep.h's `extern "C"` block).
+
+## Known C++ Header Blockers
+
+Issues in shared headers that must be fixed before files using them can port:
+- **QAPI generated headers**: Use `export` as a struct member name (C++ keyword)
+  - File: `build/qapi/qapi-types-block-core.h` line 3068
+  - Fix: Modify QAPI code generator to rename `export` in C++ context
+- **`include/qemu/lockable.h`**: Implicit void* casts (lines 49, 53)
+  - Fix: Add explicit casts or C++ overloads
+- **`include/qemu/cutils.h`**: Uses `restrict` keyword (C-only, line 317)
+  - Fix: Use `__restrict__` or conditional define
+
 ## File Porting Checklist
 
 When converting a `.c` file to `.cpp`:
 1. `git mv file.c file.cpp`
-2. Add `#include "qemu/cpp_compat.h"` and wrap C header includes with
-   `QEMU_EXTERN_C_BEGIN` / `QEMU_EXTERN_C_END`
-3. Fix implicit void* casts (add `static_cast`)
-4. Rename variables that clash with C++ keywords (new, class, template, etc.)
-5. Fix designated initializer ordering if needed
-6. Replace compound literals with brace initialization
-7. Update the file reference in `meson.build`
-8. Build and run smoke tests
+2. Include `qemu/osdep.h` first (outside extern "C")
+3. Wrap simple QEMU C headers with `extern "C" { }`
+4. For headers with deep deps (monitor.h, block.h), include outside extern "C"
+5. Add `extern "C"` to function definitions called from C code
+6. Fix implicit void* casts (add `static_cast`)
+7. Rename variables that clash with C++ keywords (new, class, template, etc.)
+8. Fix designated initializer ordering if needed
+9. Replace compound literals with brace initialization
+10. Update the file reference in `meson.build`
+11. Build and run smoke tests
 
 ## Key Files for QOM Understanding
 

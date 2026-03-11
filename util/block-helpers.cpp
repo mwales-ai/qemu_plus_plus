@@ -9,22 +9,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "block-helpers.h"
+}
 
-/**
- * check_block_size:
- * @name: The name of the property being validated
- * @value: The block size in bytes
- * @errp: A pointer to an area to store an error
- *
- * This function checks that the block size meets the following conditions:
- * 1. At least MIN_BLOCK_SIZE
- * 2. No larger than MAX_BLOCK_SIZE
- * 3. A power of 2
- *
- * Returns: true on success, false on failure
- */
+extern "C"
 bool check_block_size(const char *name, int64_t value, Error **errp)
 {
     if (!value) {
