@@ -116,6 +116,14 @@ def c_name(name: str, protect: bool = True) -> str:
                      'public', 'reinterpret_cast', 'static_cast', 'template',
                      'this', 'throw', 'true', 'try', 'typeid', 'typename',
                      'using', 'virtual', 'wchar_t',
+                     # C++11
+                     'alignas', 'alignof', 'char16_t', 'char32_t',
+                     'constexpr', 'decltype', 'noexcept', 'nullptr',
+                     'static_assert', 'thread_local',
+                     # C++20
+                     'char8_t', 'concept', 'consteval', 'constinit',
+                     'co_await', 'co_return', 'co_yield', 'export',
+                     'import', 'module', 'requires',
                      # alternative representations
                      'and', 'and_eq', 'bitand', 'bitor', 'compl', 'not',
                      'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'])
