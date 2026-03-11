@@ -1,6 +1,9 @@
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/queue.h"
 #include "qemu/envlist.h"
+}
 
 struct envlist_entry {
     const char *ev_var;            /* actual env value */
@@ -15,12 +18,13 @@ struct envlist {
 /*
  * Allocates new envlist and returns pointer to it.
  */
+extern "C"
 envlist_t *
 envlist_create(void)
 {
     envlist_t *envlist;
 
-    envlist = g_malloc(sizeof(*envlist));
+    envlist = static_cast<envlist_t *>(g_malloc(sizeof(*envlist)));
 
     QLIST_INIT(&envlist->el_entries);
     envlist->el_count = 0;
@@ -31,6 +35,7 @@ envlist_create(void)
 /*
  * Releases given envlist and its entries.
  */
+extern "C"
 void
 envlist_free(envlist_t *envlist)
 {
@@ -54,6 +59,7 @@ envlist_free(envlist_t *envlist)
  *
  * Returns 0 in success, errno otherwise.
  */
+extern "C"
 int
 envlist_setenv(envlist_t *envlist, const char *env)
 {
@@ -88,7 +94,7 @@ envlist_setenv(envlist_t *envlist, const char *env)
         envlist->el_count++;
     }
 
-    entry = g_malloc(sizeof(*entry));
+    entry = static_cast<struct envlist_entry *>(g_malloc(sizeof(*entry)));
     entry->ev_var = g_strdup(env);
     QLIST_INSERT_HEAD(&envlist->el_entries, entry, ev_link);
 
@@ -99,6 +105,7 @@ envlist_setenv(envlist_t *envlist, const char *env)
  * Removes given env value from envlist in similar manner
  * than unsetenv(3).  Returns 0 in success, errno otherwise.
  */
+extern "C"
 int
 envlist_unsetenv(envlist_t *envlist, const char *env)
 {
@@ -142,6 +149,7 @@ envlist_unsetenv(envlist_t *envlist, const char *env)
  * If caller provides count pointer, number of items in array is
  * stored there.
  */
+extern "C"
 char **
 envlist_to_environ(const envlist_t *envlist, size_t *count)
 {

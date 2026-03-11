@@ -14,9 +14,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/uuid.h"
 #include "qemu/bswap.h"
+}
 
+extern "C"
 void qemu_uuid_generate(QemuUUID *uuid)
 {
     int i;
@@ -37,17 +41,20 @@ void qemu_uuid_generate(QemuUUID *uuid)
     uuid->data[6] = (uuid->data[6] & 0xf) | 0x40;
 }
 
+extern "C"
 int qemu_uuid_is_null(const QemuUUID *uu)
 {
     static QemuUUID null_uuid;
     return qemu_uuid_is_equal(uu, &null_uuid);
 }
 
+extern "C"
 int qemu_uuid_is_equal(const QemuUUID *lhv, const QemuUUID *rhv)
 {
     return memcmp(lhv, rhv, sizeof(QemuUUID)) == 0;
 }
 
+extern "C"
 void qemu_uuid_unparse(const QemuUUID *uuid, char *out)
 {
     const unsigned char *uu = &uuid->data[0];
@@ -56,6 +63,7 @@ void qemu_uuid_unparse(const QemuUUID *uuid, char *out)
              uu[8], uu[9], uu[10], uu[11], uu[12], uu[13], uu[14], uu[15]);
 }
 
+extern "C"
 char *qemu_uuid_unparse_strdup(const QemuUUID *uuid)
 {
     const unsigned char *uu = &uuid->data[0];
@@ -67,7 +75,7 @@ char *qemu_uuid_unparse_strdup(const QemuUUID *uuid)
 
 static bool qemu_uuid_is_valid(const char *str)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < strlen(str); i++) {
         const char c = str[i];
@@ -84,9 +92,10 @@ static bool qemu_uuid_is_valid(const char *str)
             return false;
         }
     }
-    return i == 36;
+    return i == 36u;
 }
 
+extern "C"
 int qemu_uuid_parse(const char *str, QemuUUID *uuid)
 {
     unsigned char *uu = &uuid->data[0];
@@ -109,6 +118,7 @@ int qemu_uuid_parse(const char *str, QemuUUID *uuid)
 
 /* Swap from UUID format endian (BE) to the opposite or vice versa.
  */
+extern "C"
 QemuUUID qemu_uuid_bswap(QemuUUID uuid)
 {
     bswap32s(&uuid.fields.time_low);
@@ -118,11 +128,12 @@ QemuUUID qemu_uuid_bswap(QemuUUID uuid)
 }
 
 /* djb2 hash algorithm */
+extern "C"
 uint32_t qemu_uuid_hash(const void *uuid)
 {
-    QemuUUID *qid = (QemuUUID *) uuid;
+    const QemuUUID *qid = static_cast<const QemuUUID *>(uuid);
     uint32_t h = 5381;
-    int i;
+    size_t i;
 
     for (i = 0; i < ARRAY_SIZE(qid->data); i++) {
         h = (h << 5) + h + qid->data[i];

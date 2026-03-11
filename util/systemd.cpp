@@ -11,11 +11,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/systemd.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+}
 
 #ifndef _WIN32
+extern "C"
 unsigned int check_socket_activation(void)
 {
     const char *s;
@@ -34,7 +38,7 @@ unsigned int check_socket_activation(void)
     if (err) {
         return 0;
     }
-    if (pid != getpid()) {
+    if (pid != (unsigned long)getpid()) {
         return 0;
     }
 
@@ -73,6 +77,7 @@ unsigned int check_socket_activation(void)
 }
 
 #else /* !_WIN32 */
+extern "C"
 unsigned int check_socket_activation(void)
 {
     return 0;

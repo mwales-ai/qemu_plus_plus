@@ -22,8 +22,10 @@
 
 #include "qemu/osdep.h"
 
+extern "C" {
 #include "qemu/transactions.h"
 #include "qemu/queue.h"
+}
 
 typedef struct TransactionAction {
     TransactionActionDrv *drv;
@@ -35,6 +37,7 @@ struct Transaction {
     QSLIST_HEAD(, TransactionAction) actions;
 };
 
+extern "C"
 Transaction *tran_new(void)
 {
     Transaction *tran = g_new(Transaction, 1);
@@ -44,19 +47,19 @@ Transaction *tran_new(void)
     return tran;
 }
 
+extern "C"
 void tran_add(Transaction *tran, TransactionActionDrv *drv, void *opaque)
 {
     TransactionAction *act;
 
     act = g_new(TransactionAction, 1);
-    *act = (TransactionAction) {
-        .drv = drv,
-        .opaque = opaque
-    };
+    act->drv = drv;
+    act->opaque = opaque;
 
     QSLIST_INSERT_HEAD(&tran->actions, act, entry);
 }
 
+extern "C"
 void tran_abort(Transaction *tran)
 {
     TransactionAction *act, *next;
@@ -78,6 +81,7 @@ void tran_abort(Transaction *tran)
     g_free(tran);
 }
 
+extern "C"
 void tran_commit(Transaction *tran)
 {
     TransactionAction *act, *next;

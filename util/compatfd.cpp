@@ -14,7 +14,10 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/thread.h"
+}
 
 #if defined(CONFIG_SIGNALFD)
 #include <sys/signalfd.h>
@@ -27,7 +30,8 @@ struct sigfd_compat_info {
 
 static void *sigwait_compat(void *opaque)
 {
-    struct sigfd_compat_info *info = opaque;
+    struct sigfd_compat_info *info =
+        static_cast<struct sigfd_compat_info *>(opaque);
 
     while (1) {
         int sig;
@@ -58,7 +62,7 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     QemuThread thread;
     int fds[2];
 
-    info = g_malloc(sizeof(*info));
+    info = static_cast<struct sigfd_compat_info *>(g_malloc(sizeof(*info)));
 
     if (!g_unix_open_pipe(fds, FD_CLOEXEC, NULL)) {
         g_free(info);
@@ -74,6 +78,7 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     return fds[0];
 }
 
+extern "C"
 int qemu_signalfd(const sigset_t *mask)
 {
 #if defined(CONFIG_SIGNALFD)
