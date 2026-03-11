@@ -64,9 +64,9 @@ util_ss.add(files('systemd.cpp'))
 util_ss.add(files('transactions.cpp'))
 util_ss.add(files('guest-random.cpp'))
 util_ss.add(files('int128.cpp'))
-util_ss.add(files('memalign.c'))
+util_ss.add(files('memalign.cpp'))
 util_ss.add(files('interval-tree.cpp'))
-util_ss.add(files('lockcnt.c'))
+util_ss.add(files('lockcnt.cpp'))
 
 if have_user
   util_ss.add(files('selfmap.cpp'))
@@ -76,7 +76,7 @@ if have_system
   util_ss.add(files('crc-ccitt.cpp'))
   util_ss.add(when: gio, if_true: files('dbus.c'))
   if host_os == 'linux'
-    util_ss.add(files('userfaultfd.c'))
+    util_ss.add(files('userfaultfd.cpp'))
   endif
 endif
 

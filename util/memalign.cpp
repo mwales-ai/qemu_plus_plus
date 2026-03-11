@@ -25,11 +25,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/host-utils.h"
 #include "qemu/memalign.h"
 #include "trace.h"
+}
 
-void *qemu_try_memalign(size_t alignment, size_t size)
+extern "C" void *qemu_try_memalign(size_t alignment, size_t size)
 {
     void *ptr;
 
@@ -68,7 +71,7 @@ void *qemu_try_memalign(size_t alignment, size_t size)
     return ptr;
 }
 
-void *qemu_memalign(size_t alignment, size_t size)
+extern "C" void *qemu_memalign(size_t alignment, size_t size)
 {
     void *p = qemu_try_memalign(alignment, size);
     if (p) {
@@ -80,7 +83,7 @@ void *qemu_memalign(size_t alignment, size_t size)
     abort();
 }
 
-void qemu_vfree(void *ptr)
+extern "C" void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
 #if !defined(CONFIG_POSIX_MEMALIGN) && defined(CONFIG_ALIGNED_MALLOC)

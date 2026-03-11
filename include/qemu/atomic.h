@@ -149,16 +149,16 @@
 })
 
 /* Returns the old value of '*ptr' (whether the cmpxchg failed or not) */
-#define qatomic_cmpxchg__nocheck(ptr, old, new)    ({                   \
+#define qatomic_cmpxchg__nocheck(ptr, old, newv)    ({                  \
     typeof_strip_qual(*ptr) _old = (old);                               \
-    (void)__atomic_compare_exchange_n(ptr, &_old, new, false,           \
+    (void)__atomic_compare_exchange_n(ptr, &_old, newv, false,          \
                               __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);      \
     _old;                                                               \
 })
 
-#define qatomic_cmpxchg(ptr, old, new)    ({                            \
+#define qatomic_cmpxchg(ptr, old, newv)    ({                           \
     qemu_build_assert(sizeof(*ptr) <= ATOMIC_REG_SIZE);                 \
-    qatomic_cmpxchg__nocheck(ptr, old, new);                            \
+    qatomic_cmpxchg__nocheck(ptr, old, newv);                           \
 })
 
 /* Provide shorter names for GCC atomic builtins, return old value */

@@ -11,10 +11,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/bitops.h"
 #include "qemu/error-report.h"
 #include "qemu/userfaultfd.h"
 #include "trace.h"
+}
+
 #include <poll.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
@@ -25,6 +29,7 @@ typedef enum {
     UFFD_USE_SYSCALL,
 } uffd_open_mode;
 
+extern "C"
 int uffd_open(int flags)
 {
 #if defined(__NR_userfaultfd)
@@ -66,10 +71,11 @@ int uffd_open(int flags)
  *
  * @features: parameter to receive 'uffdio_api.features'
  */
+extern "C"
 int uffd_query_features(uint64_t *features)
 {
     int uffd_fd;
-    struct uffdio_api api_struct = { 0 };
+    struct uffdio_api api_struct = {};
     int ret = -1;
 
     uffd_fd = uffd_open(O_CLOEXEC);
@@ -101,11 +107,12 @@ out:
  * @features: UFFD features to request
  * @non_blocking: create UFFD file descriptor for non-blocking operation
  */
+extern "C"
 int uffd_create_fd(uint64_t features, bool non_blocking)
 {
     int uffd_fd;
     int flags;
-    struct uffdio_api api_struct = { 0 };
+    struct uffdio_api api_struct = {};
     uint64_t ioctl_mask = BIT(_UFFDIO_REGISTER) | BIT(_UFFDIO_UNREGISTER);
 
     flags = O_CLOEXEC | (non_blocking ? O_NONBLOCK : 0);
@@ -138,6 +145,7 @@ fail:
  *
  * @uffd_fd: UFFD file descriptor
  */
+extern "C"
 void uffd_close_fd(int uffd_fd)
 {
     assert(uffd_fd >= 0);
@@ -155,12 +163,13 @@ void uffd_close_fd(int uffd_fd)
  * @mode: UFFD register mode (UFFDIO_REGISTER_MODE_MISSING, ...)
  * @ioctls: optional pointer to receive supported IOCTL mask
  */
+extern "C"
 int uffd_register_memory(int uffd_fd, void *addr, uint64_t length,
         uint64_t mode, uint64_t *ioctls)
 {
     struct uffdio_register uffd_register;
 
-    uffd_register.range.start = (uintptr_t) addr;
+    uffd_register.range.start = reinterpret_cast<uintptr_t>(addr);
     uffd_register.range.len = length;
     uffd_register.mode = mode;
 
@@ -184,11 +193,12 @@ int uffd_register_memory(int uffd_fd, void *addr, uint64_t length,
  * @addr: base address of memory range
  * @length: length of memory range
  */
+extern "C"
 int uffd_unregister_memory(int uffd_fd, void *addr, uint64_t length)
 {
     struct uffdio_range uffd_range;
 
-    uffd_range.start = (uintptr_t) addr;
+    uffd_range.start = reinterpret_cast<uintptr_t>(addr);
     uffd_range.len = length;
 
     if (ioctl(uffd_fd, UFFDIO_UNREGISTER, &uffd_range)) {
@@ -210,12 +220,13 @@ int uffd_unregister_memory(int uffd_fd, void *addr, uint64_t length)
  * @wp: write-protect/unprotect
  * @dont_wake: do not wake threads waiting on wr-protected page
  */
+extern "C"
 int uffd_change_protection(int uffd_fd, void *addr, uint64_t length,
         bool wp, bool dont_wake)
 {
     struct uffdio_writeprotect uffd_writeprotect;
 
-    uffd_writeprotect.range.start = (uintptr_t) addr;
+    uffd_writeprotect.range.start = reinterpret_cast<uintptr_t>(addr);
     uffd_writeprotect.range.len = length;
     if (!wp && dont_wake) {
         /* DONTWAKE is meaningful only on protection release */
@@ -227,7 +238,7 @@ int uffd_change_protection(int uffd_fd, void *addr, uint64_t length,
     if (ioctl(uffd_fd, UFFDIO_WRITEPROTECT, &uffd_writeprotect)) {
         error_report("uffd_change_protection() failed: addr=%p len=%" PRIu64
                 " mode=%" PRIx64 " errno=%i", addr, length,
-                (uint64_t) uffd_writeprotect.mode, errno);
+                static_cast<uint64_t>(uffd_writeprotect.mode), errno);
         return -1;
     }
 
@@ -248,13 +259,14 @@ int uffd_change_protection(int uffd_fd, void *addr, uint64_t length,
  * @length: length of the range to copy
  * @dont_wake: do not wake threads waiting on missing page
  */
+extern "C"
 int uffd_copy_page(int uffd_fd, void *dst_addr, void *src_addr,
         uint64_t length, bool dont_wake)
 {
     struct uffdio_copy uffd_copy;
 
-    uffd_copy.dst = (uintptr_t) dst_addr;
-    uffd_copy.src = (uintptr_t) src_addr;
+    uffd_copy.dst = reinterpret_cast<uintptr_t>(dst_addr);
+    uffd_copy.src = reinterpret_cast<uintptr_t>(src_addr);
     uffd_copy.len = length;
     uffd_copy.mode = dont_wake ? UFFDIO_COPY_MODE_DONTWAKE : 0;
 
@@ -262,7 +274,7 @@ int uffd_copy_page(int uffd_fd, void *dst_addr, void *src_addr,
         int e = errno;
         error_report("uffd_copy_page() failed: dst_addr=%p src_addr=%p length=%" PRIu64
                 " mode=%" PRIx64 " errno=%i", dst_addr, src_addr,
-                length, (uint64_t) uffd_copy.mode, e);
+                length, static_cast<uint64_t>(uffd_copy.mode), e);
         return -e;
     }
 
@@ -281,11 +293,12 @@ int uffd_copy_page(int uffd_fd, void *dst_addr, void *src_addr,
  * @length: length of the range to fill with zeroes
  * @dont_wake: do not wake threads waiting on missing page
  */
+extern "C"
 int uffd_zero_page(int uffd_fd, void *addr, uint64_t length, bool dont_wake)
 {
     struct uffdio_zeropage uffd_zeropage;
 
-    uffd_zeropage.range.start = (uintptr_t) addr;
+    uffd_zeropage.range.start = reinterpret_cast<uintptr_t>(addr);
     uffd_zeropage.range.len = length;
     uffd_zeropage.mode = dont_wake ? UFFDIO_ZEROPAGE_MODE_DONTWAKE : 0;
 
@@ -293,7 +306,7 @@ int uffd_zero_page(int uffd_fd, void *addr, uint64_t length, bool dont_wake)
         int e = errno;
         error_report("uffd_zero_page() failed: addr=%p length=%" PRIu64
                 " mode=%" PRIx64 " errno=%i", addr, length,
-                (uint64_t) uffd_zeropage.mode, e);
+                static_cast<uint64_t>(uffd_zeropage.mode), e);
         return -e;
     }
 
@@ -314,11 +327,12 @@ int uffd_zero_page(int uffd_fd, void *addr, uint64_t length, bool dont_wake)
  * @addr: base address
  * @length: length of the range
  */
+extern "C"
 int uffd_wakeup(int uffd_fd, void *addr, uint64_t length)
 {
     struct uffdio_range uffd_range;
 
-    uffd_range.start = (uintptr_t) addr;
+    uffd_range.start = reinterpret_cast<uintptr_t>(addr);
     uffd_range.len = length;
 
     if (ioctl(uffd_fd, UFFDIO_WAKE, &uffd_range)) {
@@ -341,6 +355,7 @@ int uffd_wakeup(int uffd_fd, void *addr, uint64_t length)
  * @msgs: pointer to message buffer
  * @count: number of messages that can fit in the buffer
  */
+extern "C"
 int uffd_read_events(int uffd_fd, struct uffd_msg *msgs, int count)
 {
     ssize_t res;
@@ -356,5 +371,5 @@ int uffd_read_events(int uffd_fd, struct uffd_msg *msgs, int count)
         return -1;
     }
 
-    return (int) (res / sizeof(struct uffd_msg));
+    return static_cast<int>(res / sizeof(struct uffd_msg));
 }
