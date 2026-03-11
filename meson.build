@@ -781,6 +781,11 @@ add_project_arguments(cc.get_supported_arguments(warn_flags), native: false, lan
 if 'cpp' in all_languages
   add_project_arguments(qemu_cxxflags, native: false, language: 'cpp')
   add_project_arguments(cxx.get_supported_arguments(warn_flags), native: false, language: 'cpp')
+  # Suppress -Wignored-attributes for C++ because typeof_strip_qual uses
+  # std::remove_cv_t/std::remove_reference_t templates which strip GCC
+  # alignment attributes (e.g. from aligned_uint64_t).  This is expected
+  # and harmless.
+  add_project_arguments(cxx.get_supported_arguments(['-Wno-ignored-attributes']), native: false, language: 'cpp')
 endif
 if 'objc' in all_languages
   # Note sanitizer flags are not applied to Objective-C sources!

@@ -4,14 +4,20 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "host/cpuinfo.h"
 #ifdef CONFIG_CPUID_H
 # include "qemu/cpuid.h"
 #endif
+}
 
+extern "C" {
 unsigned cpuinfo;
+}
 
 /* Called both as constructor and (possibly) via other constructors. */
+extern "C"
 unsigned __attribute__((constructor)) cpuinfo_init(void)
 {
     unsigned info = cpuinfo;

@@ -32,7 +32,9 @@ typedef struct Stat64 {
 static inline void stat64_init(Stat64 *s, uint64_t value)
 {
     /* This is not guaranteed to be atomic! */
-    *s = (Stat64) { value };
+    Stat64 tmp;
+    tmp.value = value;
+    *s = tmp;
 }
 
 static inline uint64_t stat64_get(const Stat64 *s)
@@ -75,7 +77,11 @@ bool stat64_add32_carry(Stat64 *s, uint32_t low, uint32_t high);
 static inline void stat64_init(Stat64 *s, uint64_t value)
 {
     /* This is not guaranteed to be atomic! */
-    *s = (Stat64) { .low = value, .high = value >> 32, .lock = 0 };
+    Stat64 tmp;
+    tmp.low = value;
+    tmp.high = value >> 32;
+    tmp.lock = 0;
+    *s = tmp;
 }
 
 static inline void stat64_add(Stat64 *s, uint64_t value)

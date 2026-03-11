@@ -23,8 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/host-utils.h"
 #include "qemu/int128.h"
+}
 
 #ifndef CONFIG_INT128
 
@@ -85,6 +88,7 @@ static Int128 divrem128(Int128 u, Int128 v, Int128 *q)
     }
 }
 
+extern "C"
 Int128 int128_divu(Int128 a, Int128 b)
 {
     Int128 q;
@@ -92,12 +96,14 @@ Int128 int128_divu(Int128 a, Int128 b)
     return q;
 }
 
+extern "C"
 Int128 int128_remu(Int128 a, Int128 b)
 {
     Int128 q;
     return divrem128(a, b, &q);
 }
 
+extern "C"
 Int128 int128_divs(Int128 a, Int128 b)
 {
     Int128 q;
@@ -121,6 +127,7 @@ Int128 int128_divs(Int128 a, Int128 b)
     return q;
 }
 
+extern "C"
 Int128 int128_rems(Int128 a, Int128 b)
 {
     Int128 q, r;
@@ -146,6 +153,7 @@ Int128 int128_rems(Int128 a, Int128 b)
 
 #elif defined(CONFIG_TCG_INTERPRETER)
 
+extern "C"
 Int128 int128_divu(Int128 a_s, Int128 b_s)
 {
     Int128Alias r, a, b;
@@ -156,6 +164,7 @@ Int128 int128_divu(Int128 a_s, Int128 b_s)
     return r.s;
 }
 
+extern "C"
 Int128 int128_remu(Int128 a_s, Int128 b_s)
 {
     Int128Alias r, a, b;
@@ -166,6 +175,7 @@ Int128 int128_remu(Int128 a_s, Int128 b_s)
     return r.s;
 }
 
+extern "C"
 Int128 int128_divs(Int128 a_s, Int128 b_s)
 {
     Int128Alias r, a, b;
@@ -176,6 +186,7 @@ Int128 int128_divs(Int128 a_s, Int128 b_s)
     return r.s;
 }
 
+extern "C"
 Int128 int128_rems(Int128 a_s, Int128 b_s)
 {
     Int128Alias r, a, b;

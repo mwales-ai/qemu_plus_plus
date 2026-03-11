@@ -6,17 +6,22 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/cacheflush.h"
 #include "qemu/cacheinfo.h"
 #include "qemu/bitops.h"
 #include "qemu/host-utils.h"
 #include "qemu/atomic.h"
+}
 
 
+extern "C" {
 int qemu_icache_linesize = 0;
 int qemu_icache_linesize_log;
 int qemu_dcache_linesize = 0;
 int qemu_dcache_linesize_log;
+}
 
 /*
  * Operating system specific cache detection mechanisms.
@@ -243,6 +248,7 @@ static void __attribute__((constructor)) init_cache_info(void)
 /* Apple does not expose CTR_EL0, so we must use system interfaces. */
 #include <libkern/OSCacheControl.h>
 
+extern "C"
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
     if (rx == rw) {
@@ -261,6 +267,7 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
  * This is a copy of gcc's __aarch64_sync_cache_range, modified
  * to fit this three-operand interface.
  */
+extern "C"
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
     const unsigned CTR_IDC = 1u << 28;
@@ -311,6 +318,7 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 #include <sys/cachectl.h>
 #endif
 
+extern "C"
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
     if (rx != rw) {
@@ -321,6 +329,7 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 
 #elif defined(__powerpc__)
 
+extern "C"
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
     uintptr_t p, b, e;
@@ -361,6 +370,7 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 
 #elif defined(__sparc__)
 
+extern "C"
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
     /* No additional data flush to the RW virtual address required. */
@@ -372,6 +382,7 @@ void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 
 #else
 
+extern "C"
 void flush_idcache_range(uintptr_t rx, uintptr_t rw, size_t len)
 {
     if (rw != rx) {

@@ -10,9 +10,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/atomic.h"
 #include "qemu/stats64.h"
 #include "qemu/processor.h"
+}
 
 #ifndef CONFIG_ATOMIC64
 static inline void stat64_rdlock(Stat64 *s)
@@ -41,22 +44,24 @@ static inline void stat64_wrunlock(Stat64 *s)
     qatomic_dec(&s->lock);
 }
 
+extern "C"
 uint64_t stat64_get(const Stat64 *s)
 {
     uint32_t high, low;
 
-    stat64_rdlock((Stat64 *)s);
+    stat64_rdlock(const_cast<Stat64 *>(s));
 
     /* 64-bit writes always take the lock, so we can read in
      * any order.
      */
     high = qatomic_read(&s->high);
     low = qatomic_read(&s->low);
-    stat64_rdunlock((Stat64 *)s);
+    stat64_rdunlock(const_cast<Stat64 *>(s));
 
     return ((uint64_t)high << 32) | low;
 }
 
+extern "C"
 void stat64_set(Stat64 *s, uint64_t val)
 {
     while (!stat64_wrtrylock(s)) {
@@ -68,6 +73,7 @@ void stat64_set(Stat64 *s, uint64_t val)
     stat64_wrunlock(s);
 }
 
+extern "C"
 bool stat64_add32_carry(Stat64 *s, uint32_t low, uint32_t high)
 {
     uint32_t old;
@@ -88,6 +94,7 @@ bool stat64_add32_carry(Stat64 *s, uint32_t low, uint32_t high)
     return true;
 }
 
+extern "C"
 bool stat64_min_slow(Stat64 *s, uint64_t value)
 {
     uint32_t high, low;
@@ -117,6 +124,7 @@ bool stat64_min_slow(Stat64 *s, uint64_t value)
     return true;
 }
 
+extern "C"
 bool stat64_max_slow(Stat64 *s, uint64_t value)
 {
     uint32_t high, low;

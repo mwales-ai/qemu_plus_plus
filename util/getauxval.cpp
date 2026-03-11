@@ -31,6 +31,7 @@
 
 #include <sys/auxv.h>
 
+extern "C"
 unsigned long qemu_getauxval(unsigned long key)
 {
     return getauxval(key);
@@ -55,7 +56,7 @@ static const ElfW_auxv_t *qemu_init_auxval(void)
 
     /* Allocate some initial storage.  Make sure the first entry is set
        to end-of-list, so that we've got a valid list in case of error.  */
-    auxv = a = g_malloc(size);
+    auxv = a = static_cast<ElfW_auxv_t *>(g_malloc(size));
     a[0].a_type = 0;
     a[0].a_val = 0;
 
@@ -72,8 +73,8 @@ static const ElfW_auxv_t *qemu_init_auxval(void)
         do {
             ofs = size;
             size *= 2;
-            auxv = a = g_realloc(a, size);
-            r = read(fd, (char *)a + ofs, ofs);
+            auxv = a = static_cast<ElfW_auxv_t *>(g_realloc(a, size));
+            r = read(fd, reinterpret_cast<char *>(a) + ofs, ofs);
         } while (r == ofs);
     }
 
@@ -81,6 +82,7 @@ static const ElfW_auxv_t *qemu_init_auxval(void)
     return a;
 }
 
+extern "C"
 unsigned long qemu_getauxval(unsigned long type)
 {
     const ElfW_auxv_t *a = auxv;
@@ -102,6 +104,7 @@ unsigned long qemu_getauxval(unsigned long type)
 #elif defined(CONFIG_ELF_AUX_INFO)
 #include <sys/auxv.h>
 
+extern "C"
 unsigned long qemu_getauxval(unsigned long type)
 {
     unsigned long aux = 0;
@@ -114,6 +117,7 @@ unsigned long qemu_getauxval(unsigned long type)
 
 #else
 
+extern "C"
 unsigned long qemu_getauxval(unsigned long type)
 {
     errno = ENOSYS;
