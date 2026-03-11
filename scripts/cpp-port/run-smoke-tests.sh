@@ -214,12 +214,12 @@ else
 fi
 
 # arm32 boot test
-if check_qemu "qemu-system-arm" && [ -f "${IMAGE_DIR}/alpine-armhf.iso" ]; then
+if check_qemu "qemu-system-arm" && [ -f "${IMAGE_DIR}/alpine-armv7.iso" ]; then
     run_boot_test "arm32 Alpine boot" "qemu-system-arm" \
         -machine virt \
         -cpu cortex-a15 \
         -m 512 \
-        -cdrom "${IMAGE_DIR}/alpine-armhf.iso" \
+        -cdrom "${IMAGE_DIR}/alpine-armv7.iso" \
         -nographic
 else
     echo "  [SKIP] arm32 boot test - missing binary or image"

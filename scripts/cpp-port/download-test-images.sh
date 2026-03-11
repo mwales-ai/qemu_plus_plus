@@ -66,10 +66,11 @@ download_image "aarch64" \
     "alpine-aarch64.iso"
 
 # ---- arm (32-bit) ----
-echo "--- arm (32-bit) ---"
-download_image "armhf" \
-    "${ALPINE_MIRROR}/armhf/alpine-virt-${ALPINE_MINOR}-armhf.iso" \
-    "alpine-armhf.iso"
+# Alpine armhf only has RPi images; armv7 has proper virt ISOs
+echo "--- arm (32-bit, armv7) ---"
+download_image "armv7" \
+    "${ALPINE_MIRROR}/armv7/alpine-virt-${ALPINE_MINOR}-armv7.iso" \
+    "alpine-armv7.iso"
 
 # ---- ppc64 ----
 # Alpine doesn't ship ppc64 ISOs; we use a small Debian netboot kernel+initrd instead
