@@ -23,7 +23,10 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/qemu-progress.h"
+}
 
 struct progress_state {
     float current;
@@ -113,6 +116,7 @@ static void progress_dummy_init(void)
  * Reports are also suppressed unless we've had at least @min_skip
  * percent progress since the last report.
  */
+extern "C"
 void qemu_progress_init(int enabled, float min_skip)
 {
     state.min_skip = min_skip;
@@ -123,6 +127,7 @@ void qemu_progress_init(int enabled, float min_skip)
     }
 }
 
+extern "C"
 void qemu_progress_end(void)
 {
     state.end();
@@ -139,6 +144,7 @@ void qemu_progress_end(void)
  * a function might be considered 40% of the full job if used from
  * bdrv_img_create() but only 20% if called from img_convert().
  */
+extern "C"
 void qemu_progress_print(float delta, int max)
 {
     float current;

@@ -19,10 +19,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/coroutine-tls.h"
 #include "qemu/notify.h"
 #include "qemu/thread.h"
 #include "qemu/defer-call.h"
+}
 
 /* A function call that has been deferred until defer_call_end() */
 typedef struct {
@@ -64,6 +67,7 @@ static __thread Notifier defer_call_atexit_notifier;
  *
  * The caller must ensure that @opaque is not freed before @fn() is invoked.
  */
+extern "C"
 void defer_call(void (*fn)(void *), void *opaque)
 {
     DeferCallThreadState *thread_state = get_ptr_defer_call_thread_state();
@@ -82,7 +86,7 @@ void defer_call(void (*fn)(void *), void *opaque)
         qemu_thread_atexit_add(&defer_call_atexit_notifier);
     }
 
-    DeferredCall *fns = (DeferredCall *)array->data;
+    DeferredCall *fns = reinterpret_cast<DeferredCall *>(array->data);
     DeferredCall new_fn = {
         .fn = fn,
         .opaque = opaque,
@@ -112,6 +116,7 @@ void defer_call(void (*fn)(void *), void *opaque)
  * Nesting is supported. defer_call() functions are only called at the
  * outermost defer_call_end().
  */
+extern "C"
 void defer_call_begin(void)
 {
     DeferCallThreadState *thread_state = get_ptr_defer_call_thread_state();
@@ -127,6 +132,7 @@ void defer_call_begin(void)
  * There must have been a matching defer_call_begin() call in the same thread
  * prior to this defer_call_end() call.
  */
+extern "C"
 void defer_call_end(void)
 {
     DeferCallThreadState *thread_state = get_ptr_defer_call_thread_state();
@@ -142,7 +148,7 @@ void defer_call_end(void)
         return;
     }
 
-    DeferredCall *fns = (DeferredCall *)array->data;
+    DeferredCall *fns = reinterpret_cast<DeferredCall *>(array->data);
 
     for (guint i = 0; i < array->len; i++) {
         fns[i].fn(fns[i].opaque);

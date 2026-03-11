@@ -33,7 +33,7 @@ util_ss.add(when: linux_io_uring, if_true: files('fdmon-io_uring.c'))
 if glib_has_gslice
   util_ss.add(files('qtree.c'))
 endif
-util_ss.add(files('defer-call.c'))
+util_ss.add(files('defer-call.cpp'))
 util_ss.add(files('envlist.cpp', 'path.cpp', 'module.c'))
 util_ss.add(files('event.cpp'))
 util_ss.add(files('host-utils.cpp'))
@@ -44,7 +44,7 @@ util_ss.add(files('error.c', 'error-report.c'))
 util_ss.add(files('qemu-print.c'))
 util_ss.add(files('id.cpp'))
 util_ss.add(files('qemu-config.c', 'notify.cpp'))
-util_ss.add(files('qemu-option.c', 'qemu-progress.c'))
+util_ss.add(files('qemu-option.c', 'qemu-progress.cpp'))
 util_ss.add(files('keyval.c'))
 util_ss.add(files('crc32c.cpp'))
 util_ss.add(files('uuid.cpp'))
@@ -106,7 +106,7 @@ if have_block
   util_ss.add(files('qemu-co-timeout.c'))
   util_ss.add(files('readline.c'))
   util_ss.add(files('throttle.c'))
-  util_ss.add(files('timed-average.c'))
+  util_ss.add(files('timed-average.cpp'))
   if config_host_data.get('CONFIG_INOTIFY1')
     freebsd_dep = []
     if host_os == 'freebsd'

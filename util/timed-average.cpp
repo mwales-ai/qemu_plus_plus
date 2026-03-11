@@ -26,7 +26,9 @@
 
 #include "qemu/osdep.h"
 
+extern "C" {
 #include "qemu/timed-average.h"
+}
 
 /* This module computes an average of a set of values within a time
  * window.
@@ -96,6 +98,7 @@ static TimedAverageWindow *current_window(TimedAverage *ta)
  * @clock_type: the type of clock to use
  * @period:     the time window period in nanoseconds
  */
+extern "C"
 void timed_average_init(TimedAverage *ta, QEMUClockType clock_type,
                         uint64_t period)
 {
@@ -160,6 +163,7 @@ static void check_expirations(TimedAverage *ta, uint64_t *elapsed)
  * @ta:    the TimedAverage structure
  * @value: the value to account
  */
+extern "C"
 void timed_average_account(TimedAverage *ta, uint64_t value)
 {
     int i;
@@ -187,6 +191,7 @@ void timed_average_account(TimedAverage *ta, uint64_t value)
  * @ta:  the TimedAverage structure
  * @ret: the minimum value
  */
+extern "C"
 uint64_t timed_average_min(TimedAverage *ta)
 {
     TimedAverageWindow *w;
@@ -200,6 +205,7 @@ uint64_t timed_average_min(TimedAverage *ta)
  * @ta:  the TimedAverage structure
  * @ret: the average value
  */
+extern "C"
 uint64_t timed_average_avg(TimedAverage *ta)
 {
     TimedAverageWindow *w;
@@ -213,6 +219,7 @@ uint64_t timed_average_avg(TimedAverage *ta)
  * @ta:  the TimedAverage structure
  * @ret: the maximum value
  */
+extern "C"
 uint64_t timed_average_max(TimedAverage *ta)
 {
     check_expirations(ta, NULL);
@@ -224,6 +231,7 @@ uint64_t timed_average_max(TimedAverage *ta)
  * @elapsed: if non-NULL, the elapsed time (in ns) will be stored here
  * @ret:     the sum of all accounted values
  */
+extern "C"
 uint64_t timed_average_sum(TimedAverage *ta, uint64_t *elapsed)
 {
     TimedAverageWindow *w;
