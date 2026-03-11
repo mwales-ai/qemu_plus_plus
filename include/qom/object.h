@@ -154,7 +154,7 @@ struct ObjectClass
 struct Object
 {
     /* private: */
-    ObjectClass *class;
+    ObjectClass *klass;
     ObjectFree *free;
     GHashTable *properties;
     uint32_t ref;
@@ -506,13 +506,13 @@ struct TypeInfo
 
 /**
  * OBJECT_CLASS:
- * @class: A derivative of #ObjectClass.
+ * @klass: A derivative of #ObjectClass.
  *
  * Converts a class to an #ObjectClass.  Since all objects are #Objects,
  * this function will always succeed.
  */
-#define OBJECT_CLASS(class) \
-    ((ObjectClass *)(class))
+#define OBJECT_CLASS(klass) \
+    ((ObjectClass *)(klass))
 
 /**
  * OBJECT_CHECK:
@@ -534,20 +534,20 @@ struct TypeInfo
 /**
  * OBJECT_CLASS_CHECK:
  * @class_type: The C type to use for the return value.
- * @class: A derivative class of @class_type to cast.
+ * @klass: A derivative class of @class_type to cast.
  * @name: the QOM typename of @class_type.
  *
  * A type safe version of @object_class_dynamic_cast_assert.  This macro is
  * typically wrapped by each type to perform type safe casts of a class to a
  * specific class type.
  */
-#define OBJECT_CLASS_CHECK(class_type, class, name) \
-    ((class_type *)object_class_dynamic_cast_assert(OBJECT_CLASS(class), (name), \
+#define OBJECT_CLASS_CHECK(class_type, klass, name) \
+    ((class_type *)object_class_dynamic_cast_assert(OBJECT_CLASS(klass), (name), \
                                                __FILE__, __LINE__, __func__))
 
 /**
  * OBJECT_GET_CLASS:
- * @class: The C type to use for the return value.
+ * @klass: The C type to use for the return value.
  * @obj: The object to obtain the class for.
  * @name: The QOM typename of @obj.
  *
@@ -555,8 +555,8 @@ struct TypeInfo
  * used by each type to provide a type safe macro to get a specific class type
  * from an object.
  */
-#define OBJECT_GET_CLASS(class, obj, name) \
-    OBJECT_CLASS_CHECK(class, object_get_class(OBJECT(obj)), name)
+#define OBJECT_GET_CLASS(klass, obj, name) \
+    OBJECT_CLASS_CHECK(klass, object_get_class(OBJECT(obj)), name)
 
 /**
  * struct InterfaceInfo:
@@ -622,7 +622,7 @@ Object *object_new_with_class(ObjectClass *klass);
 
 /**
  * object_new:
- * @typename: The name of the type of the object to instantiate.
+ * @type_name: The name of the type of the object to instantiate.
  *
  * This function will initialize a new object using heap allocated memory.
  * The returned object has a reference count of 1, and will be freed when
@@ -630,11 +630,11 @@ Object *object_new_with_class(ObjectClass *klass);
  *
  * Returns: The newly allocated and instantiated object.
  */
-Object *object_new(const char *typename);
+Object *object_new(const char *type_name);
 
 /**
  * object_new_with_props:
- * @typename:  The name of the type of the object to instantiate.
+ * @type_name:  The name of the type of the object to instantiate.
  * @parent: the parent object
  * @id: The unique ID of the object
  * @errp: pointer to error object
@@ -678,7 +678,7 @@ Object *object_new(const char *typename);
  *
  * Returns: The newly allocated, instantiated & initialized object.
  */
-Object *object_new_with_props(const char *typename,
+Object *object_new_with_props(const char *type_name,
                               Object *parent,
                               const char *id,
                               Error **errp,
@@ -686,7 +686,7 @@ Object *object_new_with_props(const char *typename,
 
 /**
  * object_new_with_propv:
- * @typename:  The name of the type of the object to instantiate.
+ * @type_name:  The name of the type of the object to instantiate.
  * @parent: the parent object
  * @id: The unique ID of the object
  * @errp: pointer to error object
@@ -694,7 +694,7 @@ Object *object_new_with_props(const char *typename,
  *
  * See object_new_with_props() for documentation.
  */
-Object *object_new_with_propv(const char *typename,
+Object *object_new_with_propv(const char *type_name,
                               Object *parent,
                               const char *id,
                               Error **errp,
@@ -760,13 +760,13 @@ bool object_set_propv(Object *obj, Error **errp, va_list vargs);
  * object_initialize:
  * @obj: A pointer to the memory to be used for the object.
  * @size: The maximum size available at @obj for the object.
- * @typename: The name of the type of the object to instantiate.
+ * @type_name: The name of the type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
  * have already been allocated.  The returned object has a reference count of 1,
  * and will be finalized when the last reference is dropped.
  */
-void object_initialize(void *obj, size_t size, const char *typename);
+void object_initialize(void *obj, size_t size, const char *type_name);
 
 /**
  * object_initialize_child_with_props:
@@ -839,19 +839,19 @@ void object_initialize_child_internal(Object *parent, const char *propname,
 /**
  * object_dynamic_cast:
  * @obj: The object to cast.
- * @typename: The @typename to cast to.
+ * @type_name: The @type_name to cast to.
  *
- * This function will determine if @obj is-a @typename.  @obj can refer to an
+ * This function will determine if @obj is-a @type_name.  @obj can refer to an
  * object or an interface associated with an object.
  *
  * Returns: This function returns @obj on success or #NULL on failure.
  */
-Object *object_dynamic_cast(Object *obj, const char *typename);
+Object *object_dynamic_cast(Object *obj, const char *type_name);
 
 /**
  * object_dynamic_cast_assert:
  * @obj: The object to cast.
- * @typename: The @typename to cast to.
+ * @type_name: The @type_name to cast to.
  * @file: Source code file where function was called
  * @line: Source code line where function was called
  * @func: Name of function where this function was called
@@ -862,7 +862,7 @@ Object *object_dynamic_cast(Object *obj, const char *typename);
  * This function is not meant to be called directly, but only through
  * the wrapper macro OBJECT_CHECK.
  */
-Object *object_dynamic_cast_assert(Object *obj, const char *typename,
+Object *object_dynamic_cast_assert(Object *obj, const char *type_name,
                                    const char *file, int line, const char *func);
 
 /**
@@ -939,7 +939,7 @@ void object_set_properties_from_keyval(Object *obj, const QDict *qdict,
 /**
  * object_class_dynamic_cast_assert:
  * @klass: The #ObjectClass to attempt to cast.
- * @typename: The QOM typename of the class to cast to.
+ * @type_name: The QOM typename of the class to cast to.
  * @file: Source code file where function was called
  * @line: Source code line where function was called
  * @func: Name of function where this function was called
@@ -951,26 +951,26 @@ void object_set_properties_from_keyval(Object *obj, const QDict *qdict,
  * the wrapper macro OBJECT_CLASS_CHECK.
  */
 ObjectClass *object_class_dynamic_cast_assert(ObjectClass *klass,
-                                              const char *typename,
+                                              const char *type_name,
                                               const char *file, int line,
                                               const char *func);
 
 /**
  * object_class_dynamic_cast:
  * @klass: The #ObjectClass to attempt to cast.
- * @typename: The QOM typename of the class to cast to.
+ * @type_name: The QOM typename of the class to cast to.
  *
- * Returns: If @typename is a class, this function returns @klass if
- * @typename is a subtype of @klass, else returns #NULL.
+ * Returns: If @type_name is a class, this function returns @klass if
+ * @type_name is a subtype of @klass, else returns #NULL.
  *
- * If @typename is an interface, this function returns the interface
+ * If @type_name is an interface, this function returns the interface
  * definition for @klass if @klass implements it unambiguously; #NULL
  * is returned if @klass does not implement the interface or if multiple
  * classes or interfaces on the hierarchy leading to @klass implement
  * it.  (FIXME: perhaps this can be detected at type definition time?)
  */
 ObjectClass *object_class_dynamic_cast(ObjectClass *klass,
-                                       const char *typename);
+                                       const char *type_name);
 
 /**
  * object_class_get_parent:
@@ -998,23 +998,23 @@ bool object_class_is_abstract(ObjectClass *klass);
 
 /**
  * object_class_by_name:
- * @typename: The QOM typename to obtain the class for.
+ * @type_name: The QOM typename to obtain the class for.
  *
- * Returns: The class for @typename or %NULL if not found.
+ * Returns: The class for @type_name or %NULL if not found.
  */
-ObjectClass *object_class_by_name(const char *typename);
+ObjectClass *object_class_by_name(const char *type_name);
 
 /**
  * module_object_class_by_name:
- * @typename: The QOM typename to obtain the class for.
+ * @type_name: The QOM typename to obtain the class for.
  *
  * For objects which might be provided by a module.  Behaves like
  * object_class_by_name, but additionally tries to load the module
  * needed in case the class is not available.
  *
- * Returns: The class for @typename or %NULL if not found.
+ * Returns: The class for @type_name or %NULL if not found.
  */
-ObjectClass *module_object_class_by_name(const char *typename);
+ObjectClass *module_object_class_by_name(const char *type_name);
 
 void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
                           const char *implements_type, bool include_abstract,
@@ -1443,7 +1443,7 @@ uint64_t object_property_get_uint(Object *obj, const char *name,
  * object_property_get_enum:
  * @obj: the object
  * @name: the name of the property
- * @typename: the name of the enum data type
+ * @type_name: the name of the enum data type
  * @errp: returns an error if this function fails
  *
  * Returns: the value of the property, converted to an integer (which
@@ -1451,7 +1451,7 @@ uint64_t object_property_get_uint(Object *obj, const char *name,
  * value is not an enum).
  */
 int object_property_get_enum(Object *obj, const char *name,
-                             const char *typename, Error **errp);
+                             const char *type_name, Error **errp);
 
 /**
  * object_property_set:
@@ -1595,7 +1595,7 @@ Object *object_resolve_path(const char *path, bool *ambiguous);
 /**
  * object_resolve_path_type:
  * @path: the path to resolve
- * @typename: the type to look for.
+ * @type_name: the type to look for.
  * @ambiguous: (out) (optional): location to store whether the lookup failed
  *   because it was ambiguous, or %NULL. Set to %false on success.
  *
@@ -1605,26 +1605,26 @@ Object *object_resolve_path(const char *path, bool *ambiguous);
  * ambiguous.
  *
  * For both partial and absolute paths, the return value goes through
- * a dynamic cast to @typename.  This is important if either the link,
+ * a dynamic cast to @type_name.  This is important if either the link,
  * or the typename itself are of interface types.
  *
  * Returns: The matched object or NULL on path lookup failure.
  */
-Object *object_resolve_path_type(const char *path, const char *typename,
+Object *object_resolve_path_type(const char *path, const char *type_name,
                                  bool *ambiguous);
 
 /**
  * object_resolve_type_unambiguous:
- * @typename: the type to look for
+ * @type_name: the type to look for
  * @errp: pointer to error object
  *
- * Return the only object in the QOM tree of type @typename.
+ * Return the only object in the QOM tree of type @type_name.
  * If no match or more than one match is found, an error is
  * returned.
  *
  * Returns: The matched object or NULL on path lookup failure.
  */
-Object *object_resolve_type_unambiguous(const char *typename, Error **errp);
+Object *object_resolve_type_unambiguous(const char *type_name, Error **errp);
 
 /**
  * object_resolve_path_at:
@@ -1798,25 +1798,25 @@ ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
  * object_property_add_enum:
  * @obj: the object to add a property to
  * @name: the name of the property
- * @typename: the name of the enum data type
+ * @type_name: the name of the enum data type
  * @lookup: enum value namelookup table
  * @get: the getter or %NULL if the property is write-only.
  * @set: the setter or %NULL if the property is read-only
  *
  * Add an enum property using getters/setters.  This function will add a
- * property of type '@typename'.
+ * property of type '@type_name'.
  *
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_enum(Object *obj, const char *name,
-                              const char *typename,
+                              const char *type_name,
                               const QEnumLookup *lookup,
                               int (*get)(Object *, Error **),
                               void (*set)(Object *, int, Error **));
 
 ObjectProperty *object_class_property_add_enum(ObjectClass *klass,
                                     const char *name,
-                                    const char *typename,
+                                    const char *type_name,
                                     const QEnumLookup *lookup,
                                     int (*get)(Object *, Error **),
                                     void (*set)(Object *, int, Error **));
