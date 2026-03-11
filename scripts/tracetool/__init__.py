@@ -397,7 +397,13 @@ class Event(object):
         """
         self.name = name
         self.properties = props
-        self.fmt = fmt
+        # Ensure spaces around PRI format macros for C++11 compatibility.
+        # C++11 treats "text"PRIx64 as a user-defined literal suffix error.
+        import re
+        self.fmt = re.sub(r'(PRI[diouxX](?:LEAST|FAST)?(?:8|16|32|64|MAX|PTR))(")',
+                          r'\1 \2', fmt)
+        self.fmt = re.sub(r'(")(PRI[diouxX](?:LEAST|FAST)?(?:8|16|32|64|MAX|PTR))',
+                          r'\1 \2', self.fmt)
         self.args = args
         self.lineno = int(lineno)
         self.filename = str(filename)
