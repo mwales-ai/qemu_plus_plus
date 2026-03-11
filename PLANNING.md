@@ -47,22 +47,29 @@ We focus on 5 architectures to validate the port:
 
 ## Porting Phases
 
-### Phase 0: Infrastructure (Current)
+### Phase 0: Infrastructure (Complete)
 - [x] Set up branch from v10.2.1
 - [x] Create build scripts
 - [x] Create dependency installer
 - [x] Create test image downloader
 - [x] Create smoke test suite
-- [ ] Verify baseline builds and passes all smoke tests
-- [ ] Add `.gitignore` entries for test-images/ and build/
+- [x] Verify baseline builds and passes all smoke tests
+- [x] Add `.gitignore` entries for test-images/ and build/
 
-### Phase 1: Build System Modifications
-- [ ] Modify `meson.build` to support compiling `.cpp` files alongside `.c`
-- [ ] Add C++ compiler detection to configure
-- [ ] Ensure mixed C/C++ linking works
-- [ ] Add `-std=c++17` to compiler flags
-- [ ] Handle `extern "C"` wrappers for C headers that C++ code includes
-- [ ] Create a `cpp_compat.h` header with common `extern "C"` wrapping macros
+### Phase 1: Build System Modifications (In Progress)
+- [x] Modify `meson.build` to support compiling `.cpp` files alongside `.c`
+  - Changed project() languages from `['c']` to `['c', 'cpp']`
+  - Changed `cpp_std` from `gnu++11` to `gnu++17`
+  - Enabled C++ compiler on all platforms (was Windows-only)
+  - QEMU already had C++ flag infrastructure (qemu_cxxflags, warn_flags)
+- [x] C++ compiler detection - meson handles this automatically with `['c', 'cpp']`
+- [x] Mixed C/C++ linking - meson handles this automatically
+- [x] C++17 standard via `cpp_std=gnu++17` in project defaults
+- [x] Create `include/qemu/cpp_compat.h` with `extern "C"` wrapping macros
+  - `QEMU_EXTERN_C_BEGIN` / `QEMU_EXTERN_C_END` for wrapping C header includes
+  - `QEMU_EXTERN_C` for single function declarations
+  - `QEMU_CAST()` for C++/C compatible casting
+- [ ] Port a proof-of-concept file from .c to .cpp to validate the toolchain
 
 ### Phase 2: Common Infrastructure
 Port foundational code that everything depends on:

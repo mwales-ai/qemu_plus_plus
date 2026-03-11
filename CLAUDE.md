@@ -89,11 +89,30 @@ cd build && make check
 - Keep variable names from the original C code unless they conflict with
   C++ reserved words
 
+## Build System Notes
+
+- Meson project declares both `['c', 'cpp']` languages
+- `cpp_std=gnu++17` set in project defaults
+- Meson auto-detects file language by extension: `.c` -> C, `.cpp` -> C++
+- Source files are added via `files()` into source sets (e.g., `util_ss`, `system_ss`)
+- C++ flags inherit from C flags + extra macros (`__STDC_LIMIT_MACROS`, etc.)
+- Warning flags applied per-language via `get_supported_arguments()` (C-only
+  warnings like `-Wmissing-prototypes` are silently skipped for C++)
+- Mixed C/C++ linking is handled automatically by meson
+
+## C/C++ Compatibility Header
+
+`include/qemu/cpp_compat.h` provides:
+- `QEMU_EXTERN_C_BEGIN` / `QEMU_EXTERN_C_END` - wrap C header includes in .cpp files
+- `QEMU_EXTERN_C` - mark a single function as extern "C"
+- `QEMU_CAST(type, expr)` - static_cast in C++, C-style cast in C
+
 ## File Porting Checklist
 
 When converting a `.c` file to `.cpp`:
 1. `git mv file.c file.cpp`
-2. Add `extern "C"` wrappers around C header includes
+2. Add `#include "qemu/cpp_compat.h"` and wrap C header includes with
+   `QEMU_EXTERN_C_BEGIN` / `QEMU_EXTERN_C_END`
 3. Fix implicit void* casts (add `static_cast`)
 4. Rename variables that clash with C++ keywords (new, class, template, etc.)
 5. Fix designated initializer ordering if needed

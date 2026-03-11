@@ -92,8 +92,8 @@ make -j$(nproc)
 
 | Phase | Description                  | Status      |
 |-------|------------------------------|-------------|
-| 0     | Infrastructure & test setup  | In Progress |
-| 1     | Build system C++ support     | Not Started |
+| 0     | Infrastructure & test setup  | Complete    |
+| 1     | Build system C++ support     | In Progress |
 | 2     | Common infrastructure        | Not Started |
 | 3     | Target-independent code      | Not Started |
 | 4     | Target-specific code         | Not Started |
