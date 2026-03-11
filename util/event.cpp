@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/thread.h"
+}
 
 /*
  * Valid transitions:
@@ -29,6 +32,7 @@
 #define EV_FREE        1
 #define EV_BUSY       -1
 
+extern "C"
 void qemu_event_init(QemuEvent *ev, bool init)
 {
 #ifndef HAVE_FUTEX
@@ -40,6 +44,7 @@ void qemu_event_init(QemuEvent *ev, bool init)
     ev->initialized = true;
 }
 
+extern "C"
 void qemu_event_destroy(QemuEvent *ev)
 {
     assert(ev->initialized);
@@ -50,6 +55,7 @@ void qemu_event_destroy(QemuEvent *ev)
 #endif
 }
 
+extern "C"
 void qemu_event_set(QemuEvent *ev)
 {
     assert(ev->initialized);
@@ -81,6 +87,7 @@ void qemu_event_set(QemuEvent *ev)
 #endif
 }
 
+extern "C"
 void qemu_event_reset(QemuEvent *ev)
 {
     assert(ev->initialized);
@@ -121,6 +128,7 @@ void qemu_event_reset(QemuEvent *ev)
 #endif
 }
 
+extern "C"
 void qemu_event_wait(QemuEvent *ev)
 {
     assert(ev->initialized);

@@ -325,7 +325,14 @@
 #define SECOND_ARG(first, second, ...) second
 #define IS_EMPTY_(junk_maybecomma)     SECOND_ARG(junk_maybecomma 1, 0)
 
-#ifndef __cplusplus
+#ifdef __cplusplus
+/*
+ * C++ version: use std::remove_cv_t<decltype(expr)> to strip qualifiers.
+ * This replaces the C version which uses typeof and __builtin_choose_expr.
+ */
+#include <type_traits>
+#define typeof_strip_qual(expr) std::remove_cv_t<std::remove_reference_t<decltype(expr)>>
+#else
 /*
  * Useful in macros that need to declare temporary variables.  For example,
  * the variable that receives the old value of an atomically-accessed

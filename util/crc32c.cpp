@@ -26,7 +26,10 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/crc32c.h"
+}
 
 /*
  * This is the CRC-32C table
@@ -105,6 +108,7 @@ static const uint32_t crc32c_table[256] = {
 };
 
 
+extern "C"
 uint32_t crc32c(uint32_t crc, const uint8_t *data, unsigned int length)
 {
     while (length--) {
@@ -113,10 +117,12 @@ uint32_t crc32c(uint32_t crc, const uint8_t *data, unsigned int length)
     return crc^0xffffffff;
 }
 
+extern "C"
 uint32_t iov_crc32c(uint32_t crc, const struct iovec *iov, size_t iov_cnt)
 {
     while (iov_cnt--) {
-        crc = crc32c(crc, iov->iov_base, iov->iov_len) ^ 0xffffffff;
+        crc = crc32c(crc, static_cast<const uint8_t *>(iov->iov_base),
+                     iov->iov_len) ^ 0xffffffff;
         iov++;
     }
     return crc ^ 0xffffffff;
