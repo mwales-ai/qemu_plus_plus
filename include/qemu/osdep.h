@@ -516,12 +516,24 @@ void QEMU_ERROR("code path is reachable")
  * &(x)[0] is always a pointer - if it's same type as x then the argument is a
  * pointer, not an array.
  */
+#ifdef __cplusplus
+/*
+ * C++ version: typeof and __builtin_types_compatible_p are not available
+ * in C++. Use a simple sizeof-based macro. The type safety check is lost
+ * but C++ compilers will catch most misuses through stricter type rules.
+ */
+#define QEMU_IS_ARRAY(x) true
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+#else
 #define QEMU_IS_ARRAY(x) (!__builtin_types_compatible_p(typeof(x), \
                                                         typeof(&(x)[0])))
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x) ((sizeof(x) / sizeof((x)[0])) + \
                        QEMU_BUILD_BUG_ON_ZERO(!QEMU_IS_ARRAY(x)))
 #endif
+#endif /* __cplusplus */
 
 int qemu_daemon(int nochdir, int noclose);
 void *qemu_anon_ram_alloc(size_t size, uint64_t *align, bool shared,

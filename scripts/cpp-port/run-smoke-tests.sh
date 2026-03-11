@@ -59,20 +59,18 @@ run_boot_test() {
     local logfile
     logfile=$(mktemp /tmp/qemu-smoke-XXXXXX.log)
 
-    # Run QEMU with a timeout, capture serial to log
-    timeout "${TIMEOUT_SECONDS}" \
+    # Run QEMU with a timeout, capture serial to log.
+    # Use --kill-after to guarantee cleanup if SIGTERM is ignored.
+    # Use --foreground so Ctrl-C kills the whole group.
+    local exit_code=0
+    timeout --kill-after=10 --foreground "${TIMEOUT_SECONDS}" \
         "${BUILD_DIR}/${qemu_binary}" \
         "${qemu_args[@]}" \
         -serial file:"${logfile}" \
         -monitor none \
         -display none \
         -no-reboot \
-        2>/dev/null &
-    local qemu_pid=$!
-
-    # Wait for QEMU to finish or timeout
-    local exit_code=0
-    wait $qemu_pid 2>/dev/null || exit_code=$?
+        2>/dev/null || exit_code=$?
 
     # Check results
     if [ -f "$logfile" ] && [ -s "$logfile" ]; then

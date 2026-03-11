@@ -10,11 +10,22 @@
  * or later.  See the COPYING.LIB file in the top-level directory.
  */
 
+extern "C" {
 #include "qemu/osdep.h"
 #include "qemu/ctype.h"
 #include "qemu/id.h"
+}
 
-bool id_wellformed(const char *id)
+#define ID_SPECIAL_CHAR '#'
+
+static const char *const id_subsys_str[ID_MAX] = {
+    [ID_QDEV]  = "qdev",
+    [ID_BLOCK] = "block",
+    [ID_CHR]   = "chr",
+    [ID_NET]   = "net",
+};
+
+extern "C" bool id_wellformed(const char *id)
 {
     int i;
 
@@ -28,15 +39,6 @@ bool id_wellformed(const char *id)
     }
     return true;
 }
-
-#define ID_SPECIAL_CHAR '#'
-
-static const char *const id_subsys_str[ID_MAX] = {
-    [ID_QDEV]  = "qdev",
-    [ID_BLOCK] = "block",
-    [ID_CHR] = "chr",
-    [ID_NET] = "net",
-};
 
 /*
  *  Generates an ID of the form PREFIX SUBSYSTEM NUMBER
@@ -52,7 +54,7 @@ static const char *const id_subsys_str[ID_MAX] = {
  *
  * The caller is responsible for freeing the returned string with g_free()
  */
-char *id_generate(IdSubSystems id)
+extern "C" char *id_generate(IdSubSystems id)
 {
     static uint64_t id_counters[ID_MAX];
     uint32_t rnd;
