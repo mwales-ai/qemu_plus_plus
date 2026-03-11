@@ -8,9 +8,13 @@
  */
 
 #include "qemu/osdep.h"
+
 #include <sys/syscall.h>
+
+extern "C" {
 #include "qemu/s390x_pci_mmio.h"
 #include "elf.h"
+} /* extern "C" */
 
 union register_pair {
     unsigned __int128 pair;
@@ -29,7 +33,7 @@ static __attribute__((constructor)) void check_is_mio_supported(void)
 
 static uint64_t s390x_pcilgi(const void *ioaddr, size_t len)
 {
-    union register_pair ioaddr_len = { .even = (uint64_t)ioaddr,
+    union register_pair ioaddr_len = { .even = reinterpret_cast<uint64_t>(ioaddr),
                                        .odd = len };
     uint64_t val;
     int cc;
@@ -51,7 +55,8 @@ static uint64_t s390x_pcilgi(const void *ioaddr, size_t len)
 
 static void s390x_pcistgi(void *ioaddr, uint64_t val, size_t len)
 {
-    union register_pair ioaddr_len = {.even = (uint64_t)ioaddr, .odd = len};
+    union register_pair ioaddr_len = {.even = reinterpret_cast<uint64_t>(ioaddr),
+                                      .odd = len};
 
     asm volatile (
         /* pcistgi */
@@ -61,7 +66,7 @@ static void s390x_pcistgi(void *ioaddr, uint64_t val, size_t len)
         : "cc", "memory");
 }
 
-uint8_t s390x_pci_mmio_read_8(const void *ioaddr)
+extern "C" uint8_t s390x_pci_mmio_read_8(const void *ioaddr)
 {
     uint8_t val = 0;
 
@@ -73,7 +78,7 @@ uint8_t s390x_pci_mmio_read_8(const void *ioaddr)
     return val;
 }
 
-uint16_t s390x_pci_mmio_read_16(const void *ioaddr)
+extern "C" uint16_t s390x_pci_mmio_read_16(const void *ioaddr)
 {
     uint16_t val = 0;
 
@@ -85,7 +90,7 @@ uint16_t s390x_pci_mmio_read_16(const void *ioaddr)
     return val;
 }
 
-uint32_t s390x_pci_mmio_read_32(const void *ioaddr)
+extern "C" uint32_t s390x_pci_mmio_read_32(const void *ioaddr)
 {
     uint32_t val = 0;
 
@@ -97,7 +102,7 @@ uint32_t s390x_pci_mmio_read_32(const void *ioaddr)
     return val;
 }
 
-uint64_t s390x_pci_mmio_read_64(const void *ioaddr)
+extern "C" uint64_t s390x_pci_mmio_read_64(const void *ioaddr)
 {
     uint64_t val = 0;
 
@@ -109,7 +114,7 @@ uint64_t s390x_pci_mmio_read_64(const void *ioaddr)
     return val;
 }
 
-void s390x_pci_mmio_write_8(void *ioaddr, uint8_t val)
+extern "C" void s390x_pci_mmio_write_8(void *ioaddr, uint8_t val)
 {
     if (is_mio_supported) {
         s390x_pcistgi(ioaddr, val, sizeof(val));
@@ -118,7 +123,7 @@ void s390x_pci_mmio_write_8(void *ioaddr, uint8_t val)
     }
 }
 
-void s390x_pci_mmio_write_16(void *ioaddr, uint16_t val)
+extern "C" void s390x_pci_mmio_write_16(void *ioaddr, uint16_t val)
 {
     if (is_mio_supported) {
         s390x_pcistgi(ioaddr, val, sizeof(val));
@@ -127,7 +132,7 @@ void s390x_pci_mmio_write_16(void *ioaddr, uint16_t val)
     }
 }
 
-void s390x_pci_mmio_write_32(void *ioaddr, uint32_t val)
+extern "C" void s390x_pci_mmio_write_32(void *ioaddr, uint32_t val)
 {
     if (is_mio_supported) {
         s390x_pcistgi(ioaddr, val, sizeof(val));
@@ -136,7 +141,7 @@ void s390x_pci_mmio_write_32(void *ioaddr, uint32_t val)
     }
 }
 
-void s390x_pci_mmio_write_64(void *ioaddr, uint64_t val)
+extern "C" void s390x_pci_mmio_write_64(void *ioaddr, uint64_t val)
 {
     if (is_mio_supported) {
         s390x_pcistgi(ioaddr, val, sizeof(val));

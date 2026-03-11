@@ -1,4 +1,4 @@
-util_ss.add(files('osdep.c', 'cutils.c', 'unicode.cpp', 'qemu-timer-common.cpp'))
+util_ss.add(files('osdep.c', 'cutils.cpp', 'unicode.cpp', 'qemu-timer-common.cpp'))
 util_ss.add(files('thread-context.c'), numa)
 if not config_host_data.get('CONFIG_ATOMIC64')
   util_ss.add(files('atomic64.c'))
@@ -135,5 +135,5 @@ elif cpu in ['ppc', 'ppc64']
 elif cpu in ['riscv32', 'riscv64']
   util_ss.add(files('cpuinfo-riscv.cpp'))
 elif cpu == 's390x'
-  util_ss.add(files('s390x_pci_mmio.c'))
+  util_ss.add(files('s390x_pci_mmio.cpp'))
 endif

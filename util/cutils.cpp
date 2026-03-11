@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/host-utils.h"
+
 #include <math.h>
 
 #ifdef __FreeBSD__
@@ -48,10 +48,14 @@
 #include <wchar.h>
 #endif
 
+extern "C" {
+#include "qemu/host-utils.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
+}
 
+extern "C"
 void strpadcpy(char *buf, int buf_size, const char *str, char pad)
 {
     int len = qemu_strnlen(str, buf_size);
@@ -59,6 +63,7 @@ void strpadcpy(char *buf, int buf_size, const char *str, char pad)
     memset(buf + len, pad, buf_size - len);
 }
 
+extern "C"
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
     int c;
@@ -77,6 +82,7 @@ void pstrcpy(char *buf, int buf_size, const char *str)
 }
 
 /* strcat and truncate. */
+extern "C"
 char *pstrcat(char *buf, int buf_size, const char *s)
 {
     int len;
@@ -86,6 +92,7 @@ char *pstrcat(char *buf, int buf_size, const char *s)
     return buf;
 }
 
+extern "C"
 int strstart(const char *str, const char *val, const char **ptr)
 {
     const char *p, *q;
@@ -102,6 +109,7 @@ int strstart(const char *str, const char *val, const char **ptr)
     return 1;
 }
 
+extern "C"
 int stristart(const char *str, const char *val, const char **ptr)
 {
     const char *p, *q;
@@ -119,6 +127,7 @@ int stristart(const char *str, const char *val, const char **ptr)
 }
 
 /* XXX: use host strnlen if available ? */
+extern "C"
 int qemu_strnlen(const char *s, int max_len)
 {
     int i;
@@ -131,6 +140,7 @@ int qemu_strnlen(const char *s, int max_len)
     return i;
 }
 
+extern "C"
 char *qemu_strsep(char **input, const char *delim)
 {
     char *result = *input;
@@ -152,6 +162,7 @@ char *qemu_strsep(char **input, const char *delim)
     return result;
 }
 
+extern "C"
 time_t mktimegm(struct tm *tm)
 {
     time_t t;
@@ -300,7 +311,7 @@ static int do_strtosz(const char *nptr, const char **end,
             retval = 0;
         } else {
             /* We want non-zero valf for any non-zero fraction */
-            valf = (uint64_t)(fraction * 0x1p64);
+            valf = static_cast<uint64_t>(fraction * 0x1p64);
             if (valf == 0 && fraction > 0.0) {
                 valf = 1;
             }
@@ -365,16 +376,19 @@ out:
     return retval;
 }
 
+extern "C"
 int qemu_strtosz(const char *nptr, const char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'B', 1024, result);
 }
 
+extern "C"
 int qemu_strtosz_MiB(const char *nptr, const char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'M', 1024, result);
 }
 
+extern "C"
 int qemu_strtosz_metric(const char *nptr, const char **end, uint64_t *result)
 {
     return do_strtosz(nptr, end, 'B', 1000, result);
@@ -445,13 +459,14 @@ static int check_strtox_error(const char *nptr, char *ep,
  * This matches the behavior of strtol() on 32-bit platforms, even on
  * platforms where long is 64-bits.
  */
+extern "C"
 int qemu_strtoi(const char *nptr, const char **endptr, int base,
                 int *result)
 {
     char *ep;
     long long lresult;
 
-    assert((unsigned) base <= 36 && base != 1);
+    assert(static_cast<unsigned>(base) <= 36 && base != 1);
     if (!nptr) {
         *result = 0;
         if (endptr) {
@@ -501,6 +516,7 @@ int qemu_strtoi(const char *nptr, const char **endptr, int base,
  * @result's type).  This matches the behavior of strtoul() on 32-bit
  * platforms, even on platforms where long is 64-bits.
  */
+extern "C"
 int qemu_strtoui(const char *nptr, const char **endptr, int base,
                  unsigned int *result)
 {
@@ -508,7 +524,7 @@ int qemu_strtoui(const char *nptr, const char **endptr, int base,
     unsigned long long lresult;
     bool neg;
 
-    assert((unsigned) base <= 36 && base != 1);
+    assert(static_cast<unsigned>(base) <= 36 && base != 1);
     if (!nptr) {
         *result = 0;
         if (endptr) {
@@ -570,12 +586,13 @@ int qemu_strtoui(const char *nptr, const char **endptr, int base,
  *
  * Else store the converted value in @result, and return zero.
  */
+extern "C"
 int qemu_strtol(const char *nptr, const char **endptr, int base,
                 long *result)
 {
     char *ep;
 
-    assert((unsigned) base <= 36 && base != 1);
+    assert(static_cast<unsigned>(base) <= 36 && base != 1);
     if (!nptr) {
         *result = 0;
         if (endptr) {
@@ -615,12 +632,13 @@ int qemu_strtol(const char *nptr, const char **endptr, int base,
  * the minus sign, checked for overflow (see above), then negated (in
  * @result's type).  This is exactly how strtoul() works.
  */
+extern "C"
 int qemu_strtoul(const char *nptr, const char **endptr, int base,
                  unsigned long *result)
 {
     char *ep;
 
-    assert((unsigned) base <= 36 && base != 1);
+    assert(static_cast<unsigned>(base) <= 36 && base != 1);
     if (!nptr) {
         *result = 0;
         if (endptr) {
@@ -644,12 +662,13 @@ int qemu_strtoul(const char *nptr, const char **endptr, int base,
  * Works like qemu_strtol(), except it stores INT64_MAX on overflow,
  * and INT64_MIN on underflow.
  */
+extern "C"
 int qemu_strtoi64(const char *nptr, const char **endptr, int base,
                  int64_t *result)
 {
     char *ep;
 
-    assert((unsigned) base <= 36 && base != 1);
+    assert(static_cast<unsigned>(base) <= 36 && base != 1);
     if (!nptr) {
         *result = 0;
         if (endptr) {
@@ -672,12 +691,13 @@ int qemu_strtoi64(const char *nptr, const char **endptr, int base,
  * (If you want to prohibit negative numbers that wrap around to
  * positive, use parse_uint()).
  */
+extern "C"
 int qemu_strtou64(const char *nptr, const char **endptr, int base,
                   uint64_t *result)
 {
     char *ep;
 
-    assert((unsigned) base <= 36 && base != 1);
+    assert(static_cast<unsigned>(base) <= 36 && base != 1);
     if (!nptr) {
         *result = 0;
         if (endptr) {
@@ -722,6 +742,7 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
  *
  * Else store the converted value in @result, and return zero.
  */
+extern "C"
 int qemu_strtod(const char *nptr, const char **endptr, double *result)
 {
     char *ep;
@@ -748,6 +769,7 @@ int qemu_strtod(const char *nptr, const char **endptr, double *result)
  * any sign.  -ERANGE failures for underflow still preserve the parsed
  * sign.
  */
+extern "C"
 int qemu_strtod_finite(const char *nptr, const char **endptr, double *result)
 {
     const char *tmp;
@@ -773,6 +795,7 @@ int qemu_strtod_finite(const char *nptr, const char **endptr, double *result)
  * to the trailing null byte if none was found.
  */
 #ifndef HAVE_STRCHRNUL
+extern "C"
 const char *qemu_strchrnul(const char *s, int c)
 {
     const char *e = strchr(s, c);
@@ -813,13 +836,14 @@ const char *qemu_strchrnul(const char *s, int c)
  *
  * Else, set *@value to the parsed integer, and return 0.
  */
+extern "C"
 int parse_uint(const char *s, const char **endptr, int base, uint64_t *value)
 {
     int r = 0;
-    char *endp = (char *)s;
+    char *endp = const_cast<char *>(s);
     unsigned long long val = 0;
 
-    assert((unsigned) base <= 36 && base != 1);
+    assert(static_cast<unsigned>(base) <= 36 && base != 1);
     if (!s) {
         r = -EINVAL;
         goto out;
@@ -869,11 +893,13 @@ out:
  *
  * Shorthand for parse_uint(s, NULL, base, value).
  */
+extern "C"
 int parse_uint_full(const char *s, int base, uint64_t *value)
 {
     return parse_uint(s, NULL, base, value);
 }
 
+extern "C"
 int qemu_parse_fd(const char *param)
 {
     long fd;
@@ -895,6 +921,7 @@ int qemu_parse_fd(const char *param)
  * Implementation of  ULEB128 (http://en.wikipedia.org/wiki/LEB128)
  * Input is limited to 14-bit numbers
  */
+extern "C"
 int uleb128_encode_small(uint8_t *out, uint32_t n)
 {
     g_assert(n <= 0x3fff);
@@ -908,6 +935,7 @@ int uleb128_encode_small(uint8_t *out, uint32_t n)
     }
 }
 
+extern "C"
 int uleb128_decode_small(const uint8_t *in, uint32_t *n)
 {
     if (!(*in & 0x80)) {
@@ -927,6 +955,7 @@ int uleb128_decode_small(const uint8_t *in, uint32_t *n)
 /*
  * helper to parse debug environment variables
  */
+extern "C"
 int parse_debug_env(const char *name, int max, int initial)
 {
     char *debug_env = getenv(name);
@@ -948,6 +977,7 @@ int parse_debug_env(const char *name, int max, int initial)
     return debug;
 }
 
+extern "C"
 const char *si_prefix(unsigned int exp10)
 {
     static const char *prefixes[] = {
@@ -959,6 +989,7 @@ const char *si_prefix(unsigned int exp10)
     return prefixes[exp10 / 3];
 }
 
+extern "C"
 const char *iec_binary_prefix(unsigned int exp2)
 {
     static const char *prefixes[] = { "", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei" };
@@ -973,6 +1004,7 @@ const char *iec_binary_prefix(unsigned int exp2)
  * Use IEC binary units like KiB, MiB, and so forth.
  * Caller is responsible for passing it to g_free().
  */
+extern "C"
 char *size_to_str(uint64_t val)
 {
     uint64_t div;
@@ -988,9 +1020,10 @@ char *size_to_str(uint64_t val)
     i = (i - 1) / 10 * 10;
     div = 1ULL << i;
 
-    return g_strdup_printf("%0.3g %sB", (double)val / div, iec_binary_prefix(i));
+    return g_strdup_printf("%0.3g %sB", static_cast<double>(val) / div, iec_binary_prefix(i));
 }
 
+extern "C"
 char *freq_to_str(uint64_t freq_hz)
 {
     double freq = freq_hz;
@@ -1004,6 +1037,7 @@ char *freq_to_str(uint64_t freq_hz)
     return g_strdup_printf("%0.3g %sHz", freq, si_prefix(exp10));
 }
 
+extern "C"
 int qemu_pstrcmp0(const char **str1, const char **str2)
 {
     return g_strcmp0(*str1, *str2);
@@ -1043,6 +1077,7 @@ static inline const char *next_component(const char *dir, int *p_len)
 
 static const char *exec_dir;
 
+extern "C"
 void qemu_init_exec_dir(const char *argv0)
 {
 #ifdef G_OS_WIN32
@@ -1144,6 +1179,7 @@ void qemu_init_exec_dir(const char *argv0)
 #endif
 }
 
+extern "C"
 char *get_relocated_path(const char *dir)
 {
     size_t prefix_len = strlen(CONFIG_PREFIX);
@@ -1158,17 +1194,21 @@ char *get_relocated_path(const char *dir)
     g_string_append(result, "/qemu-bundle");
     if (access(result->str, R_OK) == 0) {
 #ifdef G_OS_WIN32
+        mbstate_t mbs{};
         const char *src = dir;
-        size_t size = mbsrtowcs(NULL, &src, 0, &(mbstate_t){0}) + 1;
+        size_t size = mbsrtowcs(NULL, &src, 0, &mbs) + 1;
         PWSTR wdir = g_new(WCHAR, size);
-        mbsrtowcs(wdir, &src, size, &(mbstate_t){0});
+        mbs = mbstate_t{};
+        mbsrtowcs(wdir, &src, size, &mbs);
 
         PCWSTR wdir_skipped_root;
         if (PathCchSkipRoot(wdir, &wdir_skipped_root) == S_OK) {
-            size = wcsrtombs(NULL, &wdir_skipped_root, 0, &(mbstate_t){0});
+            mbs = mbstate_t{};
+            size = wcsrtombs(NULL, &wdir_skipped_root, 0, &mbs);
             char *cursor = result->str + result->len;
             g_string_set_size(result, result->len + size);
-            wcsrtombs(cursor, &wdir_skipped_root, size + 1, &(mbstate_t){0});
+            mbs = mbstate_t{};
+            wcsrtombs(cursor, &wdir_skipped_root, size + 1, &mbs);
         } else {
             g_string_append(result, dir);
         }
