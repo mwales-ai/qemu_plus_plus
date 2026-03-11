@@ -23,14 +23,22 @@
  */
 
 #include "qemu/osdep.h"
-#include "block/aio.h"
 
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+#include "block/aio.h"
+}
+
+extern "C"
 void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
                    BlockCompletionFunc *cb, void *opaque)
 {
     BlockAIOCB *acb;
 
-    acb = g_malloc(aiocb_info->aiocb_size);
+    acb = static_cast<BlockAIOCB *>(g_malloc(aiocb_info->aiocb_size));
     acb->aiocb_info = aiocb_info;
     acb->bs = bs;
     acb->cb = cb;
@@ -39,15 +47,17 @@ void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
     return acb;
 }
 
+extern "C"
 void qemu_aio_ref(void *p)
 {
-    BlockAIOCB *acb = p;
+    BlockAIOCB *acb = static_cast<BlockAIOCB *>(p);
     acb->refcnt++;
 }
 
+extern "C"
 void qemu_aio_unref(void *p)
 {
-    BlockAIOCB *acb = p;
+    BlockAIOCB *acb = static_cast<BlockAIOCB *>(p);
     assert(acb->refcnt > 0);
     if (--acb->refcnt == 0) {
         g_free(acb);

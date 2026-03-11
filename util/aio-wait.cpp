@@ -23,8 +23,15 @@
  */
 
 #include "qemu/osdep.h"
+
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/main-loop.h"
 #include "block/aio-wait.h"
+}
 
 AioWait global_aio_wait;
 
@@ -33,7 +40,7 @@ static void dummy_bh_cb(void *opaque)
     /* The point is to make AIO_WAIT_WHILE()'s aio_poll() return */
 }
 
-void aio_wait_kick(void)
+extern "C" void aio_wait_kick(void)
 {
     /*
      * Paired with smp_mb in AIO_WAIT_WHILE. Here we have:
@@ -64,7 +71,7 @@ typedef struct {
 /* Context: BH in IOThread */
 static void aio_wait_bh(void *opaque)
 {
-    AioWaitBHData *data = opaque;
+    AioWaitBHData *data = static_cast<AioWaitBHData *>(opaque);
 
     data->cb(data->opaque);
 
@@ -72,7 +79,7 @@ static void aio_wait_bh(void *opaque)
     aio_wait_kick();
 }
 
-void aio_wait_bh_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
+extern "C" void aio_wait_bh_oneshot(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
 {
     AioWaitBHData data = {
         .cb = cb,
