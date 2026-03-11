@@ -1,5 +1,5 @@
 /*
- * memfd.c
+ * memfd.cpp
  *
  * Copyright (c) 2015 Red Hat, Inc.
  *
@@ -27,16 +27,18 @@
 
 #include "qemu/osdep.h"
 
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/memfd.h"
 #include "qemu/host-utils.h"
+}
 
 #if defined CONFIG_LINUX && !defined CONFIG_MEMFD
 #include <sys/syscall.h>
 #include <asm/unistd.h>
 
-int memfd_create(const char *name, unsigned int flags)
+extern "C" int memfd_create(const char *name, unsigned int flags)
 {
 #ifdef __NR_memfd_create
     return syscall(__NR_memfd_create, name, flags);
@@ -47,8 +49,9 @@ int memfd_create(const char *name, unsigned int flags)
 }
 #endif
 
-int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
-                      uint64_t hugetlbsize, unsigned int seals, Error **errp)
+extern "C" int qemu_memfd_create(const char *name, size_t size, bool hugetlb,
+                                  uint64_t hugetlbsize, unsigned int seals,
+                                  Error **errp)
 {
     int htsize = hugetlbsize ? ctz64(hugetlbsize) : 0;
 
@@ -105,8 +108,8 @@ err:
  * memfd with sealing, but may fallback on other methods without
  * sealing.
  */
-void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
-                       int *fd, Error **errp)
+extern "C" void *qemu_memfd_alloc(const char *name, size_t size,
+                                   unsigned int seals, int *fd, Error **errp)
 {
     void *ptr;
     int mfd = qemu_memfd_create(name, size, false, 0, seals, NULL);
@@ -147,7 +150,7 @@ err:
     return NULL;
 }
 
-void qemu_memfd_free(void *ptr, size_t size, int fd)
+extern "C" void qemu_memfd_free(void *ptr, size_t size, int fd)
 {
     if (ptr) {
         if (munmap(ptr, size) != 0) {
@@ -174,7 +177,7 @@ enum {
  * Check if qemu_memfd_alloc() can allocate, including using a
  * fallback implementation when host doesn't support memfd.
  */
-bool qemu_memfd_alloc_check(void)
+extern "C" bool qemu_memfd_alloc_check(void)
 {
     static int memfd_check = MEMFD_TODO;
 
@@ -196,7 +199,7 @@ bool qemu_memfd_alloc_check(void)
  *
  * Check if host supports memfd.  Cache the answer for the common case flags=0.
  */
-bool qemu_memfd_check(unsigned int flags)
+extern "C" bool qemu_memfd_check(unsigned int flags)
 {
 #ifdef CONFIG_LINUX
     int mfd;

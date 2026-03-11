@@ -90,6 +90,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qobject/qdict.h"
 #include "qobject/qlist.h"
@@ -97,6 +99,7 @@
 #include "qemu/cutils.h"
 #include "qemu/keyval.h"
 #include "qemu/help_option.h"
+} /* extern "C" */
 
 /*
  * Convert @key to a list index.
@@ -147,25 +150,25 @@ static QObject *keyval_parse_put(QDict *cur,
                                  const char *key, const char *key_cursor,
                                  Error **errp)
 {
-    QObject *old, *new;
+    QObject *old, *new_obj;
 
     old = qdict_get(cur, key_in_cur);
     if (old) {
         if (qobject_type(old) != (value ? QTYPE_QSTRING : QTYPE_QDICT)) {
             error_setg(errp, "Parameters '%.*s.*' used inconsistently",
-                       (int)(key_cursor - key), key);
+                       static_cast<int>(key_cursor - key), key);
             qobject_unref(value);
             return NULL;
         }
         if (!value) {
             return old;         /* already QDict, do nothing */
         }
-        new = QOBJECT(value);   /* replacement */
+        new_obj = QOBJECT(value);   /* replacement */
     } else {
-        new = value ? QOBJECT(value) : QOBJECT(qdict_new());
+        new_obj = value ? QOBJECT(value) : QOBJECT(qdict_new());
     }
-    qdict_put_obj(cur, key_in_cur, new);
-    return new;
+    qdict_put_obj(cur, key_in_cur, new_obj);
+    return new_obj;
 }
 
 /*
@@ -197,7 +200,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
     val_end = NULL;
     len = strcspn(params, "=,");
     if (len && key[len] != '=') {
-        if (starts_with_help_option(key) == len) {
+        if ((size_t)starts_with_help_option(key) == len) {
             *help = true;
             s = key + len;
             if (*s == ',') {
@@ -232,14 +235,14 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
         if (!len || (s + len < key_end && s[len] != '.')) {
             assert(key != implied_key);
             error_setg(errp, "Invalid parameter '%.*s'",
-                       (int)(key_end - key), key);
+                       static_cast<int>(key_end - key), key);
             return NULL;
         }
         if (len >= sizeof(key_in_cur)) {
             assert(key != implied_key);
             error_setg(errp, "Parameter%s '%.*s' is too long",
                        s != key || s + len != key_end ? " fragment" : "",
-                       (int)len, s);
+                       static_cast<int>(len), s);
             return NULL;
         }
 
@@ -273,7 +276,7 @@ static const char *keyval_parse_one(QDict *qdict, const char *params,
     } else {
         if (*s != '=') {
             error_setg(errp, "Expected '=' after parameter '%.*s'",
-                       (int)(s - key), key);
+                       static_cast<int>(s - key), key);
             return NULL;
         }
         s++;
@@ -306,7 +309,7 @@ static char *reassemble_key(GSList *key)
 
     for (p = key; p; p = p->next) {
         g_string_prepend_c(s, '.');
-        g_string_prepend(s, (char *)p->data);
+        g_string_prepend(s, static_cast<char *>(p->data));
     }
 
     return g_string_free(s, FALSE);
@@ -344,9 +347,9 @@ static void keyval_do_merge(QDict *dest, const QDict *merged, GString *str, Erro
             } else if (qobject_type(ent->value) == QTYPE_QLIST) {
                 /* Append to old list.  */
                 QList *old = qobject_to(QList, old_value);
-                QList *new = qobject_to(QList, ent->value);
+                QList *new_list = qobject_to(QList, ent->value);
                 const QListEntry *item;
-                QLIST_FOREACH_ENTRY(new, item) {
+                QLIST_FOREACH_ENTRY(new_list, item) {
                     qobject_ref(item->value);
                     qlist_append_obj(old, item->value);
                 }
@@ -383,6 +386,7 @@ static void keyval_do_merge(QDict *dest, const QDict *merged, GString *str, Erro
  * a list. keyval_merge() can only be used when the options' semantics are
  * the former, not the latter.
  */
+extern "C"
 void keyval_merge(QDict *dest, const QDict *merged, Error **errp)
 {
     GString *str;
@@ -467,7 +471,7 @@ static QObject *keyval_listify(QDict *cur, GSList *key_of_cur, Error **errp)
          * here, we will put less than @nelt values into @elt[],
          * triggering the error in the next loop.
          */
-        if ((size_t)index >= nelt - 1) {
+        if (static_cast<size_t>(index) >= nelt - 1) {
             continue;
         }
         /* Even though dict keys are distinct, indexes need not be */
@@ -482,7 +486,7 @@ static QObject *keyval_listify(QDict *cur, GSList *key_of_cur, Error **errp)
      */
     list = qlist_new();
     assert(!elt[nelt-1]);       /* need the sentinel to be null */
-    for (i = 0; i < MIN(nelt, max_index + 1); i++) {
+    for (i = 0; (size_t)i < MIN(nelt, (size_t)(max_index + 1)); i++) {
         if (!elt[i]) {
             key = reassemble_key(key_of_cur);
             error_setg(errp, "Parameter '%s%d' missing", key, i);
@@ -518,6 +522,7 @@ static QObject *keyval_listify(QDict *cur, GSList *key_of_cur, Error **errp)
  * On failure, store an error through @errp and return NULL.  Any keys
  * and values parsed so far will be in @dict nevertheless.
  */
+extern "C"
 QDict *keyval_parse_into(QDict *qdict, const char *params, const char *implied_key,
                          bool *p_help, Error **errp)
 {
@@ -566,6 +571,7 @@ QDict *keyval_parse_into(QDict *qdict, const char *params, const char *implied_k
  * On success, return a dictionary of the parsed keys and values.
  * On failure, store an error through @errp and return NULL.
  */
+extern "C"
 QDict *keyval_parse(const char *params, const char *implied_key,
                     bool *p_help, Error **errp)
 {

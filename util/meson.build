@@ -20,7 +20,7 @@ if host_os != 'windows'
   endif
   util_ss.add(files('oslib-posix.c'), freebsd_dep)
   util_ss.add(files('qemu-thread-posix.c'))
-  util_ss.add(files('memfd.c'))
+  util_ss.add(files('memfd.cpp'))
   util_ss.add(files('drm.cpp'))
 else
   util_ss.add(files('aio-win32.c'))
@@ -45,7 +45,7 @@ util_ss.add(files('qemu-print.c'))
 util_ss.add(files('id.cpp'))
 util_ss.add(files('qemu-config.c', 'notify.cpp'))
 util_ss.add(files('qemu-option.c', 'qemu-progress.cpp'))
-util_ss.add(files('keyval.c'))
+util_ss.add(files('keyval.cpp'))
 util_ss.add(files('crc32c.cpp'))
 util_ss.add(files('uuid.cpp'))
 util_ss.add(files('getauxval.cpp'))
