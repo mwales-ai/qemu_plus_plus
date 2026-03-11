@@ -98,7 +98,7 @@ if have_block
   util_ss.add(files('hbitmap.cpp'))
   util_ss.add(files('hexdump.cpp'))
   util_ss.add(files('iova-tree.c'))
-  util_ss.add(files('iov.c'))
+  util_ss.add(files('iov.cpp'))
   util_ss.add(files('nvdimm-utils.c'))
   util_ss.add(files('block-helpers.cpp'))
   util_ss.add(files('qemu-coroutine-sleep.c'))

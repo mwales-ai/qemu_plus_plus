@@ -18,10 +18,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
+}
 
+extern "C"
 size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
                          size_t offset, const void *buf, size_t bytes)
 {
@@ -30,7 +34,8 @@ size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
     for (i = 0, done = 0; (offset || done < bytes) && i < iov_cnt; i++) {
         if (offset < iov[i].iov_len) {
             size_t len = MIN(iov[i].iov_len - offset, bytes - done);
-            memcpy(iov[i].iov_base + offset, buf + done, len);
+            memcpy(static_cast<char *>(iov[i].iov_base) + offset,
+                   static_cast<const char *>(buf) + done, len);
             done += len;
             offset = 0;
         } else {
@@ -40,6 +45,7 @@ size_t iov_from_buf_full(const struct iovec *iov, unsigned int iov_cnt,
     return done;
 }
 
+extern "C"
 size_t iov_to_buf_full(const struct iovec *iov, const unsigned int iov_cnt,
                        size_t offset, void *buf, size_t bytes)
 {
@@ -48,7 +54,8 @@ size_t iov_to_buf_full(const struct iovec *iov, const unsigned int iov_cnt,
     for (i = 0, done = 0; (offset || done < bytes) && i < iov_cnt; i++) {
         if (offset < iov[i].iov_len) {
             size_t len = MIN(iov[i].iov_len - offset, bytes - done);
-            memcpy(buf + done, iov[i].iov_base + offset, len);
+            memcpy(static_cast<char *>(buf) + done,
+                   static_cast<const char *>(iov[i].iov_base) + offset, len);
             done += len;
             offset = 0;
         } else {
@@ -58,6 +65,7 @@ size_t iov_to_buf_full(const struct iovec *iov, const unsigned int iov_cnt,
     return done;
 }
 
+extern "C"
 size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
                   size_t offset, int fillc, size_t bytes)
 {
@@ -66,7 +74,7 @@ size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
     for (i = 0, done = 0; (offset || done < bytes) && i < iov_cnt; i++) {
         if (offset < iov[i].iov_len) {
             size_t len = MIN(iov[i].iov_len - offset, bytes - done);
-            memset(iov[i].iov_base + offset, fillc, len);
+            memset(static_cast<char *>(iov[i].iov_base) + offset, fillc, len);
             done += len;
             offset = 0;
         } else {
@@ -76,6 +84,7 @@ size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
     return done;
 }
 
+extern "C"
 size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt)
 {
     size_t len;
@@ -113,8 +122,10 @@ do_send_recv(int sockfd, int flags, struct iovec *iov, unsigned iov_cnt,
     ssize_t off = 0;
     while (i < iov_cnt) {
         ssize_t r = do_send
-            ? send(sockfd, iov[i].iov_base + off, iov[i].iov_len - off, flags)
-            : recv(sockfd, iov[i].iov_base + off, iov[i].iov_len - off, flags);
+            ? send(sockfd, static_cast<char *>(iov[i].iov_base) + off,
+                   iov[i].iov_len - off, flags)
+            : recv(sockfd, static_cast<char *>(iov[i].iov_base) + off,
+                   iov[i].iov_len - off, flags);
         if (r > 0) {
             ret += r;
             off += r;
@@ -140,6 +151,7 @@ do_send_recv(int sockfd, int flags, struct iovec *iov, unsigned iov_cnt,
 #endif
 }
 
+extern "C"
 ssize_t iov_send_recv(int sockfd, const struct iovec *_iov, unsigned iov_cnt,
                       size_t offset, size_t bytes,
                       bool do_send)
@@ -148,6 +160,7 @@ ssize_t iov_send_recv(int sockfd, const struct iovec *_iov, unsigned iov_cnt,
                                     do_send);
 }
 
+extern "C"
 ssize_t iov_send_recv_with_flags(int sockfd, int sockflags,
                                  const struct iovec *_iov,
                                  unsigned iov_cnt, size_t offset,
@@ -184,7 +197,7 @@ ssize_t iov_send_recv_with_flags(int sockfd, int sockflags,
         if (offset) {
             /* second, skip `offset' bytes from the (now) first element,
              * undo it on exit */
-            iov[0].iov_base += offset;
+            iov[0].iov_base = static_cast<char *>(iov[0].iov_base) + offset;
             iov[0].iov_len -= offset;
         }
         /* Find the end position skipping `bytes' bytes: */
@@ -207,7 +220,7 @@ ssize_t iov_send_recv_with_flags(int sockfd, int sockflags,
             ret = do_send_recv(sockfd, sockflags, iov, niov, do_send);
         }
         if (offset) {
-            iov[0].iov_base -= offset;
+            iov[0].iov_base = static_cast<char *>(iov[0].iov_base) - offset;
             iov[0].iov_len += offset;
         }
 
@@ -237,6 +250,7 @@ ssize_t iov_send_recv_with_flags(int sockfd, int sockflags,
 }
 
 
+extern "C"
 void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
                  FILE *fp, const char *prefix, size_t limit)
 {
@@ -244,16 +258,17 @@ void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
     size_t size = 0;
     char *buf;
 
-    for (v = 0; v < iov_cnt; v++) {
+    for (v = 0; (unsigned)v < iov_cnt; v++) {
         size += iov[v].iov_len;
     }
     size = size > limit ? limit : size;
-    buf = g_malloc(size);
+    buf = static_cast<char *>(g_malloc(size));
     iov_to_buf(iov, iov_cnt, 0, buf, size);
     qemu_hexdump(fp, prefix, buf, size);
     g_free(buf);
 }
 
+extern "C"
 unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,
                  const struct iovec *iov, unsigned int iov_cnt,
                  size_t offset, size_t bytes)
@@ -268,7 +283,7 @@ unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,
         }
         len = MIN(bytes, iov[i].iov_len - offset);
 
-        dst_iov[j].iov_base = iov[i].iov_base + offset;
+        dst_iov[j].iov_base = static_cast<char *>(iov[i].iov_base) + offset;
         dst_iov[j].iov_len = len;
         j++;
         bytes -= len;
@@ -279,6 +294,7 @@ unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,
 
 /* io vectors */
 
+extern "C"
 void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint)
 {
     qiov->iov = g_new(struct iovec, alloc_hint);
@@ -287,6 +303,7 @@ void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint)
     qiov->size = 0;
 }
 
+extern "C"
 void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov)
 {
     int i;
@@ -299,6 +316,7 @@ void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov)
         qiov->size += iov[i].iov_len;
 }
 
+extern "C"
 void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len)
 {
     assert(qiov->nalloc != -1);
@@ -323,6 +341,7 @@ void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len)
  * of src".
  * Only vector pointers are processed, not the actual data buffers.
  */
+extern "C"
 size_t qemu_iovec_concat_iov(QEMUIOVector *dst,
                              struct iovec *src_iov, unsigned int src_cnt,
                              size_t soffset, size_t sbytes)
@@ -334,10 +353,12 @@ size_t qemu_iovec_concat_iov(QEMUIOVector *dst,
         return 0;
     }
     assert(dst->nalloc != -1);
-    for (i = 0, done = 0; done < sbytes && i < src_cnt; i++) {
+    for (i = 0, done = 0; done < sbytes && (unsigned)i < src_cnt; i++) {
         if (soffset < src_iov[i].iov_len) {
             size_t len = MIN(src_iov[i].iov_len - soffset, sbytes - done);
-            qemu_iovec_add(dst, src_iov[i].iov_base + soffset, len);
+            qemu_iovec_add(dst,
+                           static_cast<char *>(src_iov[i].iov_base) + soffset,
+                           len);
             done += len;
             soffset = 0;
         } else {
@@ -358,6 +379,7 @@ size_t qemu_iovec_concat_iov(QEMUIOVector *dst,
  * of src".
  * Only vector pointers are processed, not the actual data buffers.
  */
+extern "C"
 void qemu_iovec_concat(QEMUIOVector *dst,
                        QEMUIOVector *src, size_t soffset, size_t sbytes)
 {
@@ -390,6 +412,7 @@ static struct iovec *iov_skip_offset(struct iovec *iov, size_t offset,
  * be offset in first iov (returned by the function), @tail would be
  * count of extra bytes in last iovec (returned iov + @niov - 1).
  */
+extern "C"
 struct iovec *qemu_iovec_slice(QEMUIOVector *qiov,
                                size_t offset, size_t len,
                                size_t *head, size_t *tail, int *niov)
@@ -412,6 +435,7 @@ struct iovec *qemu_iovec_slice(QEMUIOVector *qiov,
     return iov;
 }
 
+extern "C"
 int qemu_iovec_subvec_niov(QEMUIOVector *qiov, size_t offset, size_t len)
 {
     size_t head, tail;
@@ -425,6 +449,7 @@ int qemu_iovec_subvec_niov(QEMUIOVector *qiov, size_t offset, size_t len)
 /*
  * Check if the contents of subrange of qiov data is all zeroes.
  */
+extern "C"
 bool qemu_iovec_is_zero(QEMUIOVector *qiov, size_t offset, size_t bytes)
 {
     struct iovec *iov;
@@ -435,7 +460,7 @@ bool qemu_iovec_is_zero(QEMUIOVector *qiov, size_t offset, size_t bytes)
     iov = iov_skip_offset(qiov->iov, offset, &current_offset);
 
     while (bytes) {
-        uint8_t *base = (uint8_t *)iov->iov_base + current_offset;
+        uint8_t *base = static_cast<uint8_t *>(iov->iov_base) + current_offset;
         size_t len = MIN(iov->iov_len - current_offset, bytes);
 
         if (!buffer_is_zero(base, len)) {
@@ -450,6 +475,7 @@ bool qemu_iovec_is_zero(QEMUIOVector *qiov, size_t offset, size_t bytes)
     return true;
 }
 
+extern "C"
 void qemu_iovec_init_slice(QEMUIOVector *qiov, QEMUIOVector *source,
                            size_t offset, size_t len)
 {
@@ -463,13 +489,16 @@ void qemu_iovec_init_slice(QEMUIOVector *qiov, QEMUIOVector *source,
     slice_iov = qemu_iovec_slice(source, offset, len,
                                  &slice_head, &slice_tail, &slice_niov);
     if (slice_niov == 1) {
-        qemu_iovec_init_buf(qiov, slice_iov[0].iov_base + slice_head, len);
+        qemu_iovec_init_buf(qiov,
+                            static_cast<char *>(slice_iov[0].iov_base) + slice_head,
+                            len);
     } else {
         qemu_iovec_init(qiov, slice_niov);
         qemu_iovec_concat_iov(qiov, slice_iov, slice_niov, slice_head, len);
     }
 }
 
+extern "C"
 void qemu_iovec_destroy(QEMUIOVector *qiov)
 {
     if (qiov->nalloc != -1) {
@@ -479,6 +508,7 @@ void qemu_iovec_destroy(QEMUIOVector *qiov)
     memset(qiov, 0, sizeof(*qiov));
 }
 
+extern "C"
 void qemu_iovec_reset(QEMUIOVector *qiov)
 {
     assert(qiov->nalloc != -1);
@@ -487,18 +517,21 @@ void qemu_iovec_reset(QEMUIOVector *qiov)
     qiov->size = 0;
 }
 
+extern "C"
 size_t qemu_iovec_to_buf(QEMUIOVector *qiov, size_t offset,
                          void *buf, size_t bytes)
 {
     return iov_to_buf(qiov->iov, qiov->niov, offset, buf, bytes);
 }
 
+extern "C"
 size_t qemu_iovec_from_buf(QEMUIOVector *qiov, size_t offset,
                            const void *buf, size_t bytes)
 {
     return iov_from_buf(qiov->iov, qiov->niov, offset, buf, bytes);
 }
 
+extern "C"
 size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
                          int fillc, size_t bytes)
 {
@@ -515,6 +548,7 @@ size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
  * @b:          I/O vector
  * @ret:        Offset to first mismatching byte or -1 if match
  */
+extern "C"
 ssize_t qemu_iovec_compare(QEMUIOVector *a, QEMUIOVector *b)
 {
     int i;
@@ -523,8 +557,8 @@ ssize_t qemu_iovec_compare(QEMUIOVector *a, QEMUIOVector *b)
     assert(a->niov == b->niov);
     for (i = 0; i < a->niov; i++) {
         size_t len = 0;
-        uint8_t *p = (uint8_t *)a->iov[i].iov_base;
-        uint8_t *q = (uint8_t *)b->iov[i].iov_base;
+        uint8_t *p = static_cast<uint8_t *>(a->iov[i].iov_base);
+        uint8_t *q = static_cast<uint8_t *>(b->iov[i].iov_base);
 
         assert(a->iov[i].iov_len == b->iov[i].iov_len);
         while (len < a->iov[i].iov_len && *p++ == *q++) {
@@ -548,8 +582,10 @@ typedef struct {
 
 static int sortelem_cmp_src_base(const void *a, const void *b)
 {
-    const IOVectorSortElem *elem_a = a;
-    const IOVectorSortElem *elem_b = b;
+    const IOVectorSortElem *elem_a =
+        static_cast<const IOVectorSortElem *>(a);
+    const IOVectorSortElem *elem_b =
+        static_cast<const IOVectorSortElem *>(b);
 
     /* Don't overflow */
     if (elem_a->src_iov->iov_base < elem_b->src_iov->iov_base) {
@@ -563,8 +599,10 @@ static int sortelem_cmp_src_base(const void *a, const void *b)
 
 static int sortelem_cmp_src_index(const void *a, const void *b)
 {
-    const IOVectorSortElem *elem_a = a;
-    const IOVectorSortElem *elem_b = b;
+    const IOVectorSortElem *elem_a =
+        static_cast<const IOVectorSortElem *>(a);
+    const IOVectorSortElem *elem_b =
+        static_cast<const IOVectorSortElem *>(b);
 
     return elem_a->src_index - elem_b->src_index;
 }
@@ -575,6 +613,7 @@ static int sortelem_cmp_src_index(const void *a, const void *b)
  * The relative relationships of overlapping iovecs are preserved.  This is
  * necessary to ensure identical semantics in the cloned I/O vector.
  */
+extern "C"
 void qemu_iovec_clone(QEMUIOVector *dest, const QEMUIOVector *src, void *buf)
 {
     g_autofree IOVectorSortElem *sortelems = g_new(IOVectorSortElem, src->niov);
@@ -596,12 +635,15 @@ void qemu_iovec_clone(QEMUIOVector *dest, const QEMUIOVector *src, void *buf)
 
         /* Detect overlap */
         if (last_end && last_end > cur->iov_base) {
-            rewind = last_end - cur->iov_base;
+            rewind = static_cast<char *>(last_end) -
+                     static_cast<char *>(cur->iov_base);
         }
 
-        sortelems[i].dest_base = buf - rewind;
-        buf += cur->iov_len - MIN(rewind, cur->iov_len);
-        last_end = MAX(cur->iov_base + cur->iov_len, last_end);
+        sortelems[i].dest_base = static_cast<char *>(buf) - rewind;
+        buf = static_cast<char *>(buf) + cur->iov_len -
+              MIN(rewind, static_cast<ptrdiff_t>(cur->iov_len));
+        last_end = MAX(static_cast<char *>(cur->iov_base) + cur->iov_len,
+                       static_cast<char *>(last_end));
     }
 
     /* Sort by source iovec index and build destination iovec */
@@ -611,6 +653,7 @@ void qemu_iovec_clone(QEMUIOVector *dest, const QEMUIOVector *src, void *buf)
     }
 }
 
+extern "C"
 void iov_discard_undo(IOVDiscardUndo *undo)
 {
     /* Restore original iovec if it was modified */
@@ -619,6 +662,7 @@ void iov_discard_undo(IOVDiscardUndo *undo)
     }
 }
 
+extern "C"
 size_t iov_discard_front_undoable(struct iovec **iov,
                                   unsigned int *iov_cnt,
                                   size_t bytes,
@@ -638,7 +682,7 @@ size_t iov_discard_front_undoable(struct iovec **iov,
                 undo->orig = *cur;
             }
 
-            cur->iov_base += bytes;
+            cur->iov_base = static_cast<char *>(cur->iov_base) + bytes;
             cur->iov_len -= bytes;
             total += bytes;
             break;
@@ -653,12 +697,14 @@ size_t iov_discard_front_undoable(struct iovec **iov,
     return total;
 }
 
+extern "C"
 size_t iov_discard_front(struct iovec **iov, unsigned int *iov_cnt,
                          size_t bytes)
 {
     return iov_discard_front_undoable(iov, iov_cnt, bytes, NULL);
 }
 
+extern "C"
 size_t iov_discard_back_undoable(struct iovec *iov,
                                  unsigned int *iov_cnt,
                                  size_t bytes,
@@ -698,12 +744,14 @@ size_t iov_discard_back_undoable(struct iovec *iov,
     return total;
 }
 
+extern "C"
 size_t iov_discard_back(struct iovec *iov, unsigned int *iov_cnt,
                         size_t bytes)
 {
     return iov_discard_back_undoable(iov, iov_cnt, bytes, NULL);
 }
 
+extern "C"
 void qemu_iovec_discard_back(QEMUIOVector *qiov, size_t bytes)
 {
     size_t total;
