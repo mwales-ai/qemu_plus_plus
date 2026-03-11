@@ -43,7 +43,27 @@ qemu_null_lockable(void *x)
     return NULL;
 }
 
-#define QML_FUNC_(name)                                           \
+/*
+ * In C++, void* does not implicitly convert to typed pointers, so we
+ * need explicit casts in the lock/unlock wrappers.
+ */
+#ifdef __cplusplus
+#define QML_FUNC_(name, type)                                     \
+    static inline void qemu_lockable_ ## name ## _lock(void *x)   \
+    {                                                             \
+        qemu_ ## name ## _lock(static_cast<type *>(x));           \
+    }                                                             \
+    static inline void qemu_lockable_ ## name ## _unlock(void *x) \
+    {                                                             \
+        qemu_ ## name ## _unlock(static_cast<type *>(x));         \
+    }
+
+QML_FUNC_(mutex, QemuMutex)
+QML_FUNC_(rec_mutex, QemuRecMutex)
+QML_FUNC_(co_mutex, CoMutex)
+QML_FUNC_(spin, QemuSpin)
+#else
+#define QML_FUNC_(name, type)                                     \
     static inline void qemu_lockable_ ## name ## _lock(void *x)   \
     {                                                             \
         qemu_ ## name ## _lock(x);                                \
@@ -53,10 +73,11 @@ qemu_null_lockable(void *x)
         qemu_ ## name ## _unlock(x);                              \
     }
 
-QML_FUNC_(mutex)
-QML_FUNC_(rec_mutex)
-QML_FUNC_(co_mutex)
-QML_FUNC_(spin)
+QML_FUNC_(mutex, QemuMutex)
+QML_FUNC_(rec_mutex, QemuRecMutex)
+QML_FUNC_(co_mutex, CoMutex)
+QML_FUNC_(spin, QemuSpin)
+#endif
 
 /*
  * In C, compound literals have the lifetime of an automatic variable.

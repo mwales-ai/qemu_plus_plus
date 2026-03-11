@@ -212,7 +212,8 @@ static inline bool buffer_is_zero_sample3(const char *buf, size_t len)
 static inline bool buffer_is_zero(const void *buf, size_t len)
 {
     return (__builtin_constant_p(len) && len >= 256
-            ? buffer_is_zero_sample3(buf, len) &&
+            ? buffer_is_zero_sample3(
+                  (const char *)buf, len) &&
               buffer_is_zero_ge256(buf, len)
             : buffer_is_zero_ool(buf, len));
 }
@@ -314,7 +315,7 @@ void qemu_hexdump(FILE *fp, const char *prefix,
  * @buffer. Finally, a nul terminating character is written; @buffer therefore
  * needs space for (data_size*2+1) chars.
  */
-void qemu_hexdump_to_buffer(char *restrict buffer, size_t buffer_size,
-                            const uint8_t *restrict data, size_t data_size);
+void qemu_hexdump_to_buffer(char *__restrict__ buffer, size_t buffer_size,
+                            const uint8_t *__restrict__ data, size_t data_size);
 
 #endif
