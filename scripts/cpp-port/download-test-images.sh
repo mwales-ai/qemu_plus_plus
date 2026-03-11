@@ -60,17 +60,28 @@ download_image "x86_64" \
     "alpine-x86_64.iso"
 
 # ---- aarch64 ----
+# ARM virt machines can't boot from CD-ROM without UEFI firmware.
+# Use Debian netboot kernel+initrd for reliable direct-kernel boot.
 echo "--- aarch64 ---"
+AARCH64_BASE="https://deb.debian.org/debian/dists/bookworm/main/installer-arm64/current/images/netboot/debian-installer/arm64"
 download_image "aarch64" \
-    "${ALPINE_MIRROR}/aarch64/alpine-virt-${ALPINE_MINOR}-aarch64.iso" \
-    "alpine-aarch64.iso"
+    "${AARCH64_BASE}/linux" \
+    "aarch64-linux"
+download_image "aarch64" \
+    "${AARCH64_BASE}/initrd.gz" \
+    "aarch64-initrd.gz"
 
 # ---- arm (32-bit) ----
-# Alpine armhf only has RPi images; armv7 has proper virt ISOs
-echo "--- arm (32-bit, armv7) ---"
-download_image "armv7" \
-    "${ALPINE_MIRROR}/armv7/alpine-virt-${ALPINE_MINOR}-armv7.iso" \
-    "alpine-armv7.iso"
+# ARM virt machines can't boot from CD-ROM without UEFI firmware.
+# Use Debian netboot kernel+initrd for reliable direct-kernel boot.
+echo "--- arm (32-bit) ---"
+ARMHF_BASE="https://deb.debian.org/debian/dists/bookworm/main/installer-armhf/current/images/netboot"
+download_image "armhf" \
+    "${ARMHF_BASE}/vmlinuz" \
+    "arm-vmlinuz"
+download_image "armhf" \
+    "${ARMHF_BASE}/initrd.gz" \
+    "arm-initrd.gz"
 
 # ---- ppc64 ----
 # Alpine doesn't ship ppc64 ISOs; we use a small Debian netboot kernel+initrd instead

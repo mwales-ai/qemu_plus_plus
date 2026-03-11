@@ -200,13 +200,15 @@ else
 fi
 
 # aarch64 boot test
-if check_qemu "qemu-system-aarch64" && [ -f "${IMAGE_DIR}/alpine-aarch64.iso" ]; then
-    run_boot_test "aarch64 Alpine boot" "qemu-system-aarch64" \
+if check_qemu "qemu-system-aarch64" && [ -f "${IMAGE_DIR}/aarch64-linux" ] && [ -f "${IMAGE_DIR}/aarch64-initrd.gz" ]; then
+    run_boot_test "aarch64 Debian netboot" "qemu-system-aarch64" \
         -machine virt \
         -cpu cortex-a57 \
         -m 512 \
-        -cdrom "${IMAGE_DIR}/alpine-aarch64.iso" \
-        -nographic
+        -kernel "${IMAGE_DIR}/aarch64-linux" \
+        -initrd "${IMAGE_DIR}/aarch64-initrd.gz" \
+        -nographic \
+        -append "console=ttyAMA0"
 else
     echo "  [SKIP] aarch64 boot test - missing binary or image"
     SKIPPED=$((SKIPPED + 1))
@@ -214,13 +216,15 @@ else
 fi
 
 # arm32 boot test
-if check_qemu "qemu-system-arm" && [ -f "${IMAGE_DIR}/alpine-armv7.iso" ]; then
-    run_boot_test "arm32 Alpine boot" "qemu-system-arm" \
+if check_qemu "qemu-system-arm" && [ -f "${IMAGE_DIR}/arm-vmlinuz" ] && [ -f "${IMAGE_DIR}/arm-initrd.gz" ]; then
+    run_boot_test "arm32 Debian netboot" "qemu-system-arm" \
         -machine virt \
         -cpu cortex-a15 \
         -m 512 \
-        -cdrom "${IMAGE_DIR}/alpine-armv7.iso" \
-        -nographic
+        -kernel "${IMAGE_DIR}/arm-vmlinuz" \
+        -initrd "${IMAGE_DIR}/arm-initrd.gz" \
+        -nographic \
+        -append "console=ttyAMA0"
 else
     echo "  [SKIP] arm32 boot test - missing binary or image"
     SKIPPED=$((SKIPPED + 1))
