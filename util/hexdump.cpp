@@ -14,8 +14,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "qemu/host-utils.h"
+}
 
 static inline char hexdump_nibble(unsigned x)
 {
@@ -35,10 +38,11 @@ static size_t hexdump_line_length(size_t buf_len, size_t unit_len,
     return est;
 }
 
+extern "C"
 GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
                            size_t unit_len, size_t block_len)
 {
-    const uint8_t *buf = vbuf;
+    const uint8_t *buf = static_cast<const uint8_t *>(vbuf);
     size_t u, b;
 
     if (str == NULL) {
@@ -69,7 +73,7 @@ GString *qemu_hexdump_line(GString *str, const void *vbuf, size_t len,
 
 static void asciidump_line(char *line, const void *bufptr, size_t len)
 {
-    const char *buf = bufptr;
+    const char *buf = static_cast<const char *>(bufptr);
 
     for (size_t i = 0; i < len; i++) {
         char c = buf[i];
@@ -86,31 +90,35 @@ static void asciidump_line(char *line, const void *bufptr, size_t len)
 #define QEMU_HEXDUMP_UNIT 1
 #define QEMU_HEXDUMP_BLOCK 4
 
+extern "C"
 void qemu_hexdump(FILE *fp, const char *prefix,
                   const void *bufptr, size_t size)
 {
     int width = hexdump_line_length(QEMU_HEXDUMP_LINE_BYTES,
                                     QEMU_HEXDUMP_UNIT,
                                     QEMU_HEXDUMP_BLOCK);
-    g_autoptr(GString) str = g_string_sized_new(width + 1);
+    GString *str = g_string_sized_new(width + 1);
     char ascii[QEMU_HEXDUMP_LINE_BYTES + 1];
+    const uint8_t *byteptr = static_cast<const uint8_t *>(bufptr);
     size_t b, len;
 
     for (b = 0; b < size; b += len) {
         len = MIN(size - b, QEMU_HEXDUMP_LINE_BYTES);
 
         g_string_truncate(str, 0);
-        qemu_hexdump_line(str, bufptr + b, len,
+        qemu_hexdump_line(str, byteptr + b, len,
                           QEMU_HEXDUMP_UNIT, QEMU_HEXDUMP_BLOCK);
-        asciidump_line(ascii, bufptr + b, len);
+        asciidump_line(ascii, byteptr + b, len);
 
         fprintf(fp, "%s: %04zx: %-*s %s\n", prefix, b, width, str->str, ascii);
     }
 
+    g_string_free(str, TRUE);
 }
 
-void qemu_hexdump_to_buffer(char *restrict buffer, size_t buffer_size,
-                            const uint8_t *restrict data, size_t data_size)
+extern "C"
+void qemu_hexdump_to_buffer(char *__restrict__ buffer, size_t buffer_size,
+                            const uint8_t *__restrict__ data, size_t data_size)
 {
     size_t i;
     uint64_t required_buffer_size;

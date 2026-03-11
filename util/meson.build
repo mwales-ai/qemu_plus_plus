@@ -96,7 +96,7 @@ if have_block
   util_ss.add(files('buffer.c'))
   util_ss.add(files('bufferiszero.c'))
   util_ss.add(files('hbitmap.c'))
-  util_ss.add(files('hexdump.c'))
+  util_ss.add(files('hexdump.cpp'))
   util_ss.add(files('iova-tree.c'))
   util_ss.add(files('iov.c'))
   util_ss.add(files('nvdimm-utils.c'))
