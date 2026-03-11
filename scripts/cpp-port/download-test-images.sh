@@ -88,8 +88,8 @@ download_image "ppc64" \
 echo "--- riscv64 ---"
 RISCV64_BASE="https://deb.debian.org/debian/dists/sid/main/installer-riscv64/current/images/netboot/debian-installer/riscv64"
 download_image "riscv64" \
-    "${RISCV64_BASE}/vmlinux" \
-    "riscv64-vmlinux"
+    "${RISCV64_BASE}/linux" \
+    "riscv64-linux"
 download_image "riscv64" \
     "${RISCV64_BASE}/initrd.gz" \
     "riscv64-initrd.gz"

@@ -243,11 +243,11 @@ else
 fi
 
 # riscv64 boot test
-if check_qemu "qemu-system-riscv64" && [ -f "${IMAGE_DIR}/riscv64-vmlinux" ] && [ -f "${IMAGE_DIR}/riscv64-initrd.gz" ]; then
+if check_qemu "qemu-system-riscv64" && [ -f "${IMAGE_DIR}/riscv64-linux" ] && [ -f "${IMAGE_DIR}/riscv64-initrd.gz" ]; then
     run_boot_test "riscv64 Debian netboot" "qemu-system-riscv64" \
         -machine virt \
         -m 512 \
-        -kernel "${IMAGE_DIR}/riscv64-vmlinux" \
+        -kernel "${IMAGE_DIR}/riscv64-linux" \
         -initrd "${IMAGE_DIR}/riscv64-initrd.gz" \
         -nographic \
         -append "console=ttyS0"
