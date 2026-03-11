@@ -127,7 +127,7 @@ static const QDevAlias qdev_alias_table[] = {
 
 static const char *qdev_class_get_alias(DeviceClass *dc)
 {
-    const char *typename = object_class_get_name(OBJECT_CLASS(dc));
+    const char *type_name = object_class_get_name(OBJECT_CLASS(dc));
     int i;
 
     for (i = 0; qdev_alias_table[i].typename; i++) {
@@ -136,7 +136,7 @@ static const char *qdev_class_get_alias(DeviceClass *dc)
             continue;
         }
 
-        if (strcmp(qdev_alias_table[i].typename, typename) == 0) {
+        if (strcmp(qdev_alias_table[i].typename, type_name) == 0) {
             return qdev_alias_table[i].alias;
         }
     }
@@ -238,10 +238,10 @@ static DeviceClass *qdev_get_device_class(const char **driver, Error **errp)
 
     oc = module_object_class_by_name(*driver);
     if (!oc) {
-        const char *typename = find_typename_by_alias(*driver);
+        const char *type_name = find_typename_by_alias(*driver);
 
-        if (typename) {
-            *driver = typename;
+        if (type_name) {
+            *driver = type_name;
             oc = module_object_class_by_name(*driver);
         }
     }
@@ -303,10 +303,10 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     if (!object_class_by_name(driver)) {
-        const char *typename = find_typename_by_alias(driver);
+        const char *type_name = find_typename_by_alias(driver);
 
-        if (typename) {
-            driver = typename;
+        if (type_name) {
+            driver = type_name;
         }
     }
 

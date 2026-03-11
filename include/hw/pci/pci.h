@@ -301,10 +301,10 @@ bool pci_bus_is_express(const PCIBus *bus);
 void pci_root_bus_init(PCIBus *bus, size_t bus_size, DeviceState *parent,
                        const char *name,
                        MemoryRegion *mem, MemoryRegion *io,
-                       uint8_t devfn_min, const char *typename);
+                       uint8_t devfn_min, const char *type_name);
 PCIBus *pci_root_bus_new(DeviceState *parent, const char *name,
                          MemoryRegion *mem, MemoryRegion *io,
-                         uint8_t devfn_min, const char *typename);
+                         uint8_t devfn_min, const char *type_name);
 void pci_root_bus_cleanup(PCIBus *bus);
 void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq,
                   void *irq_opaque, int nirq);
@@ -328,7 +328,7 @@ PCIBus *pci_register_root_bus(DeviceState *parent, const char *name,
                               void *irq_opaque,
                               MemoryRegion *mem, MemoryRegion *io,
                               uint8_t devfn_min, int nirq,
-                              const char *typename);
+                              const char *type_name);
 void pci_unregister_root_bus(PCIBus *bus);
 void pci_bus_set_route_irq_fn(PCIBus *, pci_route_irq_fn);
 PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin);

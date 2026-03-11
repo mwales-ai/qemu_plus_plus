@@ -155,7 +155,7 @@ struct CPUClass {
 
     ObjectClass *(*class_by_name)(const char *cpu_model);
     void (*list_cpus)(void);
-    void (*parse_features)(const char *typename, char *str, Error **errp);
+    void (*parse_features)(const char *type_name, char *str, Error **errp);
 
     int (*memory_rw_debug)(CPUState *cpu, vaddr addr,
                            uint8_t *buf, size_t len, bool is_write);
@@ -816,7 +816,7 @@ void cpu_reset(CPUState *cpu);
 
 /**
  * cpu_class_by_name:
- * @typename: The CPU base type.
+ * @type_name: The CPU base type.
  * @cpu_model: The model string without any parameters.
  *
  * Looks up a concrete CPU #ObjectClass matching name @cpu_model.
@@ -824,11 +824,11 @@ void cpu_reset(CPUState *cpu);
  * Returns: A concrete #CPUClass or %NULL if no matching class is found
  *          or if the matching class is abstract.
  */
-ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
+ObjectClass *cpu_class_by_name(const char *type_name, const char *cpu_model);
 
 /**
  * cpu_model_from_type:
- * @typename: The CPU type name
+ * @type_name: The CPU type name
  *
  * Extract the CPU model name from the CPU type name. The
  * CPU type name is either the combination of the CPU model
@@ -837,17 +837,17 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model);
  * Returns: CPU model name or NULL if the CPU class doesn't exist
  *          The user should g_free() the string once no longer needed.
  */
-char *cpu_model_from_type(const char *typename);
+char *cpu_model_from_type(const char *type_name);
 
 /**
  * cpu_create:
- * @typename: The CPU type.
+ * @type_name: The CPU type.
  *
  * Instantiates a CPU and realizes the CPU.
  *
  * Returns: A #CPUState or %NULL if an error occurred.
  */
-CPUState *cpu_create(const char *typename);
+CPUState *cpu_create(const char *type_name);
 
 /**
  * parse_cpu_option:

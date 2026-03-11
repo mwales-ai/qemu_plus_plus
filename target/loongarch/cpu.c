@@ -558,9 +558,9 @@ static ObjectClass *loongarch_cpu_class_by_name(const char *cpu_model)
 
     oc = object_class_by_name(cpu_model);
     if (!oc) {
-        g_autofree char *typename
+        g_autofree char *type_name
             = g_strdup_printf(LOONGARCH_CPU_TYPE_NAME("%s"), cpu_model);
-        oc = object_class_by_name(typename);
+        oc = object_class_by_name(type_name);
     }
 
     return oc;

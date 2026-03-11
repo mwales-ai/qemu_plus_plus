@@ -519,11 +519,11 @@ static char *mips_cpu_type_name(const char *cpu_model)
 static ObjectClass *mips_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename;
+    char *type_name;
 
-    typename = mips_cpu_type_name(cpu_model);
-    oc = object_class_by_name(typename);
-    g_free(typename);
+    type_name = mips_cpu_type_name(cpu_model);
+    oc = object_class_by_name(type_name);
+    g_free(type_name);
     return oc;
 }
 
@@ -642,16 +642,16 @@ static void mips_cpu_cpudef_class_init(ObjectClass *oc, const void *data)
 
 static void mips_register_cpudef_type(const struct mips_def_t *def)
 {
-    char *typename = mips_cpu_type_name(def->name);
+    char *type_name = mips_cpu_type_name(def->name);
     TypeInfo ti = {
-        .name = typename,
+        .name = type_name,
         .parent = TYPE_MIPS_CPU,
         .class_init = mips_cpu_cpudef_class_init,
         .class_data = def,
     };
 
     type_register_static(&ti);
-    g_free(typename);
+    g_free(type_name);
 }
 
 static void mips_cpu_register_types(void)

@@ -311,7 +311,7 @@ struct ChardevClass {
     void (*chr_listener_cleanup)(Chardev *chr);
 };
 
-Chardev *qemu_chardev_new(const char *id, const char *typename,
+Chardev *qemu_chardev_new(const char *id, const char *type_name,
                           ChardevBackend *backend, GMainContext *context,
                           Error **errp);
 

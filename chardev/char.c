@@ -523,10 +523,10 @@ static const ChardevClass *char_get_class(const char *driver, Error **errp)
 {
     ObjectClass *oc;
     const ChardevClass *cc;
-    char *typename = g_strdup_printf("chardev-%s", driver);
+    char *type_name = g_strdup_printf("chardev-%s", driver);
 
-    oc = module_object_class_by_name(typename);
-    g_free(typename);
+    oc = module_object_class_by_name(type_name);
+    g_free(type_name);
 
     if (!object_class_dynamic_cast(oc, TYPE_CHARDEV)) {
         error_setg(errp, "'%s' is not a valid char driver name", driver);
@@ -1000,7 +1000,7 @@ void qemu_chr_set_feature(Chardev *chr,
     return set_bit(feature, chr->features);
 }
 
-static Chardev *chardev_new(const char *id, const char *typename,
+static Chardev *chardev_new(const char *id, const char *type_name,
                             ChardevBackend *backend,
                             GMainContext *gcontext,
                             bool handover_yank_instance,
@@ -1011,10 +1011,10 @@ static Chardev *chardev_new(const char *id, const char *typename,
     Error *local_err = NULL;
     bool be_opened = true;
 
-    assert(g_str_has_prefix(typename, "chardev-"));
+    assert(g_str_has_prefix(type_name, "chardev-"));
     assert(id);
 
-    obj = object_new(typename);
+    obj = object_new(type_name);
     chr = CHARDEV(obj);
     chr->handover_yank_instance = handover_yank_instance;
     chr->label = g_strdup(id);
@@ -1028,7 +1028,7 @@ static Chardev *chardev_new(const char *id, const char *typename,
     }
 
     if (!chr->filename) {
-        chr->filename = g_strdup(typename + 8);
+        chr->filename = g_strdup(type_name + 8);
     }
     if (be_opened) {
         qemu_chr_be_event(chr, CHR_EVENT_OPENED);
@@ -1037,7 +1037,7 @@ static Chardev *chardev_new(const char *id, const char *typename,
     return chr;
 }
 
-Chardev *qemu_chardev_new(const char *id, const char *typename,
+Chardev *qemu_chardev_new(const char *id, const char *type_name,
                           ChardevBackend *backend,
                           GMainContext *gcontext,
                           Error **errp)
@@ -1050,7 +1050,7 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
         id = genid;
     }
 
-    chr = chardev_new(id, typename, backend, gcontext, false, errp);
+    chr = chardev_new(id, type_name, backend, gcontext, false, errp);
     if (!chr) {
         return NULL;
     }

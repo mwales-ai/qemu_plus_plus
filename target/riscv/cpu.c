@@ -494,14 +494,14 @@ static void riscv_register_custom_csrs(RISCVCPU *cpu, const RISCVCSR *csr_list)
 static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename;
+    char *type_name;
     char **cpuname;
 
     cpuname = g_strsplit(cpu_model, ",", 1);
-    typename = g_strdup_printf(RISCV_CPU_TYPE_NAME("%s"), cpuname[0]);
-    oc = object_class_by_name(typename);
+    type_name = g_strdup_printf(RISCV_CPU_TYPE_NAME("%s"), cpuname[0]);
+    oc = object_class_by_name(type_name);
     g_strfreev(cpuname);
-    g_free(typename);
+    g_free(type_name);
 
     return oc;
 }
@@ -509,11 +509,11 @@ static ObjectClass *riscv_cpu_class_by_name(const char *cpu_model)
 char *riscv_cpu_get_name(RISCVCPU *cpu)
 {
     RISCVCPUClass *rcc = RISCV_CPU_GET_CLASS(cpu);
-    const char *typename = object_class_get_name(OBJECT_CLASS(rcc));
+    const char *type_name = object_class_get_name(OBJECT_CLASS(rcc));
 
-    g_assert(g_str_has_suffix(typename, RISCV_CPU_TYPE_SUFFIX));
+    g_assert(g_str_has_suffix(type_name, RISCV_CPU_TYPE_SUFFIX));
 
-    return cpu_model_from_type(typename);
+    return cpu_model_from_type(type_name);
 }
 
 static void riscv_cpu_dump_state(CPUState *cs, FILE *f, int flags)

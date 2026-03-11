@@ -128,15 +128,15 @@ static void rx_cpu_reset_hold(Object *obj, ResetType type)
 static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename;
+    char *type_name;
 
     oc = object_class_by_name(cpu_model);
     if (oc != NULL && object_class_dynamic_cast(oc, TYPE_RX_CPU) != NULL) {
         return oc;
     }
-    typename = g_strdup_printf(RX_CPU_TYPE_NAME("%s"), cpu_model);
-    oc = object_class_by_name(typename);
-    g_free(typename);
+    type_name = g_strdup_printf(RX_CPU_TYPE_NAME("%s"), cpu_model);
+    oc = object_class_by_name(type_name);
+    g_free(type_name);
 
     return oc;
 }

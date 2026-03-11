@@ -236,9 +236,9 @@ static void hppa_cpu_reset_hold(Object *obj, ResetType type)
 
 static ObjectClass *hppa_cpu_class_by_name(const char *cpu_model)
 {
-    g_autofree char *typename = g_strconcat(cpu_model, "-cpu", NULL);
+    g_autofree char *type_name = g_strconcat(cpu_model, "-cpu", NULL);
 
-    return object_class_by_name(typename);
+    return object_class_by_name(type_name);
 }
 
 #ifndef CONFIG_USER_ONLY

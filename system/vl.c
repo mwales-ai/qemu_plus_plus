@@ -3423,17 +3423,17 @@ void qemu_init(int argc, char **argv)
                     GSList *el, *accel_list = object_class_get_list(TYPE_ACCEL,
                                                                     false);
                     for (el = accel_list; el; el = el->next) {
-                        gchar *typename = g_strdup(object_class_get_name(
+                        gchar *type_name = g_strdup(object_class_get_name(
                                                    OBJECT_CLASS(el->data)));
                         /* omit qtest which is used for tests only */
-                        if (g_strcmp0(typename, ACCEL_CLASS_NAME("qtest")) &&
-                            g_str_has_suffix(typename, ACCEL_CLASS_SUFFIX)) {
-                            gchar **optname = g_strsplit(typename,
+                        if (g_strcmp0(type_name, ACCEL_CLASS_NAME("qtest")) &&
+                            g_str_has_suffix(type_name, ACCEL_CLASS_SUFFIX)) {
+                            gchar **optname = g_strsplit(type_name,
                                                          ACCEL_CLASS_SUFFIX, 0);
                             printf("%s\n", optname[0]);
                             g_strfreev(optname);
                         }
-                        g_free(typename);
+                        g_free(type_name);
                     }
                     g_slist_free(accel_list);
                     exit(0);

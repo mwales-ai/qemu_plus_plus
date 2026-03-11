@@ -2216,7 +2216,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename;
+    char *type_name;
     char **cpuname;
     const char *cpunamestr;
 
@@ -2230,10 +2230,10 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
         cpunamestr = "max";
     }
 #endif
-    typename = g_strdup_printf(ARM_CPU_TYPE_NAME("%s"), cpunamestr);
-    oc = object_class_by_name(typename);
+    type_name = g_strdup_printf(ARM_CPU_TYPE_NAME("%s"), cpunamestr);
+    oc = object_class_by_name(type_name);
     g_strfreev(cpuname);
-    g_free(typename);
+    g_free(type_name);
 
     return oc;
 }

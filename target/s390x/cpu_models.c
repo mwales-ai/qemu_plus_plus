@@ -985,11 +985,11 @@ static char *s390_base_cpu_type_name(const char *model_name)
 
 ObjectClass *s390_cpu_class_by_name(const char *name)
 {
-    char *typename = s390_cpu_type_name(name);
+    char *type_name = s390_cpu_type_name(name);
     ObjectClass *oc;
 
-    oc = object_class_by_name(typename);
-    g_free(typename);
+    oc = object_class_by_name(type_name);
+    g_free(type_name);
     return oc;
 }
 

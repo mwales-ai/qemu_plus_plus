@@ -149,7 +149,7 @@ bool vfio_device_irq_set_signaling(VFIODevice *vbasedev, int index, int subindex
 void vfio_device_reset_handler(void *opaque);
 bool vfio_device_is_mdev(VFIODevice *vbasedev);
 bool vfio_device_hiod_create_and_realize(VFIODevice *vbasedev,
-                                         const char *typename, Error **errp);
+                                         const char *type_name, Error **errp);
 bool vfio_device_attach(char *name, VFIODevice *vbasedev,
                         AddressSpace *as, Error **errp);
 bool vfio_device_attach_by_iommu_type(const char *iommu_type, char *name,

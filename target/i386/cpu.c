@@ -2182,8 +2182,8 @@ static char *x86_cpu_type_name(const char *model_name)
 
 static ObjectClass *x86_cpu_class_by_name(const char *cpu_model)
 {
-    g_autofree char *typename = x86_cpu_type_name(cpu_model);
-    return object_class_by_name(typename);
+    g_autofree char *type_name = x86_cpu_type_name(cpu_model);
+    return object_class_by_name(type_name);
 }
 
 static char *x86_cpu_class_get_model_name(X86CPUClass *cc)
@@ -7158,7 +7158,7 @@ static gint compare_string(gconstpointer a, gconstpointer b)
 
 /* Parse "+feature,-feature,feature=foo" CPU feature string
  */
-static void x86_cpu_parse_featurestr(const char *typename, char *features,
+static void x86_cpu_parse_featurestr(const char *type_name, char *features,
                                      Error **errp)
 {
     char *featurestr; /* Single 'key=value" string being parsed */
@@ -7234,7 +7234,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
         }
 
         prop = g_new0(typeof(*prop), 1);
-        prop->driver = typename;
+        prop->driver = type_name;
         prop->property = g_strdup(name);
         prop->value = g_strdup(val);
         qdev_prop_register_global(prop);
@@ -7791,9 +7791,9 @@ static void x86_cpu_cpudef_class_init(ObjectClass *oc, const void *data)
 
 static void x86_register_cpu_model_type(const char *name, X86CPUModel *model)
 {
-    g_autofree char *typename = x86_cpu_type_name(name);
+    g_autofree char *type_name = x86_cpu_type_name(name);
     TypeInfo ti = {
-        .name = typename,
+        .name = type_name,
         .parent = TYPE_X86_CPU,
         .class_init = x86_cpu_cpudef_class_init,
         .class_data = model,

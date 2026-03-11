@@ -1147,14 +1147,14 @@ static void add_nic_model_help(const char *model, const char *alias)
     g_hash_table_replace(nic_model_help, g_strdup(model), alias_list);
 }
 
-NICInfo *qemu_find_nic_info(const char *typename, bool match_default,
+NICInfo *qemu_find_nic_info(const char *type_name, bool match_default,
                             const char *alias)
 {
     NICInfo *nd;
     int i;
 
     if (nic_model_help) {
-        add_nic_model_help(typename, alias);
+        add_nic_model_help(type_name, alias);
     }
 
     for (i = 0; i < nb_nics; i++) {
@@ -1164,7 +1164,7 @@ NICInfo *qemu_find_nic_info(const char *typename, bool match_default,
             continue;
         }
 
-        if ((match_default && !nd->model) || !g_strcmp0(nd->model, typename)
+        if ((match_default && !nd->model) || !g_strcmp0(nd->model, type_name)
             || (alias && !g_strcmp0(nd->model, alias))) {
             return nd;
         }
@@ -1203,17 +1203,17 @@ bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
 }
 
 /* "Please create a device, if you have a configuration for it" */
-DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
+DeviceState *qemu_create_nic_device(const char *type_name, bool match_default,
                                     const char *alias)
 {
-    NICInfo *nd = qemu_find_nic_info(typename, match_default, alias);
+    NICInfo *nd = qemu_find_nic_info(type_name, match_default, alias);
     DeviceState *dev;
 
     if (!nd) {
         return NULL;
     }
 
-    dev = qdev_new(typename);
+    dev = qdev_new(type_name);
     qdev_set_nic_properties(dev, nd);
     return dev;
 }

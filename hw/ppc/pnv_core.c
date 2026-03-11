@@ -359,7 +359,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     PnvCore *pc = PNV_CORE(OBJECT(dev));
     PnvCoreClass *pcc = PNV_CORE_GET_CLASS(pc);
     CPUCore *cc = CPU_CORE(OBJECT(dev));
-    const char *typename = pnv_core_cpu_typename(pc);
+    const char *type_name = pnv_core_cpu_typename(pc);
     Error *local_err = NULL;
     void *obj;
     int i, j;
@@ -372,7 +372,7 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
         PowerPCCPU *cpu;
         PnvCPUState *pnv_cpu;
 
-        obj = object_new(typename);
+        obj = object_new(type_name);
         cpu = POWERPC_CPU(obj);
 
         pc->threads[i] = POWERPC_CPU(obj);

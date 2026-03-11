@@ -50,12 +50,12 @@ void audio_register_model_with_cb(const char *name, const char *descr,
 }
 
 void audio_register_model(const char *name, const char *descr,
-                          const char *typename)
+                          const char *type_name)
 {
     assert(audio_models_count < ARRAY_SIZE(audio_models) - 1);
     audio_models[audio_models_count].name = name;
     audio_models[audio_models_count].descr = descr;
-    audio_models[audio_models_count].typename = typename;
+    audio_models[audio_models_count].typename = type_name;
     audio_models_count++;
 }
 

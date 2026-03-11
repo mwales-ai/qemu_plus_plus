@@ -213,14 +213,14 @@ int qemu_set_vnet_be(NetClientState *nc, bool is_be);
 void qemu_macaddr_default_if_unset(MACAddr *macaddr);
 /**
  * qemu_find_nic_info: Obtain NIC configuration information
- * @typename: Name of device object type
+ * @type_name: Name of device object type
  * @match_default: Match NIC configurations with no model specified
  * @alias: Additional model string to match (for user convenience and
  *         backward compatibility).
  *
  * Search for a NIC configuration matching the NIC model constraints.
  */
-NICInfo *qemu_find_nic_info(const char *typename, bool match_default,
+NICInfo *qemu_find_nic_info(const char *type_name, bool match_default,
                             const char *alias);
 /**
  * qemu_configure_nic_device: Apply NIC configuration to a given device
@@ -243,14 +243,14 @@ bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
 
 /**
  * qemu_create_nic_device: Create a NIC device if a configuration exists for it
- * @typename: Object typename of network device
+ * @type_name: Object type_name of network device
  * @match_default: Match NIC configurations with no model specified
  * @alias: Additional model string to match
  *
  * Search for a NIC configuration for the provided device type. If found,
  * create an object of the corresponding type and return it.
  */
-DeviceState *qemu_create_nic_device(const char *typename, bool match_default,
+DeviceState *qemu_create_nic_device(const char *type_name, bool match_default,
                                     const char *alias);
 
 /*

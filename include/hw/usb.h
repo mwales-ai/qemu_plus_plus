@@ -498,7 +498,7 @@ struct USBBusOps {
 void usb_bus_new(USBBus *bus, size_t bus_size,
                  USBBusOps *ops, DeviceState *host);
 void usb_bus_release(USBBus *bus);
-void usb_legacy_register(const char *typename, const char *usbdevice_name,
+void usb_legacy_register(const char *type_name, const char *usbdevice_name,
                          USBDevice *(*usbdevice_init)(void));
 USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,

@@ -217,11 +217,11 @@ static void xtensa_cpu_reset_hold(Object *obj, ResetType type)
 static ObjectClass *xtensa_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename;
+    char *type_name;
 
-    typename = g_strdup_printf(XTENSA_CPU_TYPE_NAME("%s"), cpu_model);
-    oc = object_class_by_name(typename);
-    g_free(typename);
+    type_name = g_strdup_printf(XTENSA_CPU_TYPE_NAME("%s"), cpu_model);
+    oc = object_class_by_name(type_name);
+    g_free(type_name);
 
     return oc;
 }

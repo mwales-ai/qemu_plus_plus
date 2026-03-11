@@ -339,7 +339,7 @@ void pci_bridge_reset(DeviceState *qdev)
 }
 
 /* default qdev initialization function for PCI-to-PCI bridge */
-void pci_bridge_initfn(PCIDevice *dev, const char *typename)
+void pci_bridge_initfn(PCIDevice *dev, const char *type_name)
 {
     PCIBus *parent = pci_get_bus(dev);
     PCIBridge *br = PCI_BRIDGE(dev);
@@ -374,7 +374,7 @@ void pci_bridge_initfn(PCIDevice *dev, const char *typename)
             br->bus_name = dev->qdev.id;
     }
 
-    qbus_init(sec_bus, sizeof(br->sec_bus), typename, DEVICE(dev),
+    qbus_init(sec_bus, sizeof(br->sec_bus), type_name, DEVICE(dev),
               br->bus_name);
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq ? br->map_irq : pci_swizzle_map_irq_fn;

@@ -430,7 +430,7 @@ static void aspeed_soc_ast2700_init(Object *obj)
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     int i;
     char socname[8];
-    char typename[64];
+    char type_name[64];
 
     if (sscanf(object_get_typename(obj), "%7s", socname) != 1) {
         g_assert_not_reached();
@@ -464,12 +464,12 @@ static void aspeed_soc_ast2700_init(Object *obj)
     object_property_add_alias(obj, "hw-strap2", OBJECT(&s->scuio),
                                   "hw-strap1");
 
-    snprintf(typename, sizeof(typename), "aspeed.fmc-%s", socname);
-    object_initialize_child(obj, "fmc", &s->fmc, typename);
+    snprintf(type_name, sizeof(type_name), "aspeed.fmc-%s", socname);
+    object_initialize_child(obj, "fmc", &s->fmc, type_name);
 
     for (i = 0; i < sc->spis_num; i++) {
-        snprintf(typename, sizeof(typename), "aspeed.spi%d-%s", i, socname);
-        object_initialize_child(obj, "spi[*]", &s->spi[i], typename);
+        snprintf(type_name, sizeof(type_name), "aspeed.spi%d-%s", i, socname);
+        object_initialize_child(obj, "spi[*]", &s->spi[i], type_name);
     }
 
     for (i = 0; i < sc->ehcis_num; i++) {
@@ -477,14 +477,14 @@ static void aspeed_soc_ast2700_init(Object *obj)
                                 TYPE_PLATFORM_EHCI);
     }
 
-    snprintf(typename, sizeof(typename), "aspeed.sdmc-%s", socname);
-    object_initialize_child(obj, "sdmc", &s->sdmc, typename);
+    snprintf(type_name, sizeof(type_name), "aspeed.sdmc-%s", socname);
+    object_initialize_child(obj, "sdmc", &s->sdmc, type_name);
     object_property_add_alias(obj, "ram-size", OBJECT(&s->sdmc),
                               "ram-size");
 
     for (i = 0; i < sc->wdts_num; i++) {
-        snprintf(typename, sizeof(typename), "aspeed.wdt-%s", socname);
-        object_initialize_child(obj, "wdt[*]", &s->wdt[i], typename);
+        snprintf(type_name, sizeof(type_name), "aspeed.wdt-%s", socname);
+        object_initialize_child(obj, "wdt[*]", &s->wdt[i], type_name);
     }
 
     for (i = 0; i < sc->macs_num; i++) {
@@ -504,44 +504,44 @@ static void aspeed_soc_ast2700_init(Object *obj)
     object_initialize_child(obj, "intcio", &a->intc[1],
                             TYPE_ASPEED_2700_INTCIO);
 
-    snprintf(typename, sizeof(typename), "aspeed.adc-%s", socname);
-    object_initialize_child(obj, "adc", &s->adc, typename);
+    snprintf(type_name, sizeof(type_name), "aspeed.adc-%s", socname);
+    object_initialize_child(obj, "adc", &s->adc, type_name);
 
-    snprintf(typename, sizeof(typename), "aspeed.i2c-%s", socname);
-    object_initialize_child(obj, "i2c", &s->i2c, typename);
+    snprintf(type_name, sizeof(type_name), "aspeed.i2c-%s", socname);
+    object_initialize_child(obj, "i2c", &s->i2c, type_name);
 
-    snprintf(typename, sizeof(typename), "aspeed.gpio-%s", socname);
-    object_initialize_child(obj, "gpio", &s->gpio, typename);
+    snprintf(type_name, sizeof(type_name), "aspeed.gpio-%s", socname);
+    object_initialize_child(obj, "gpio", &s->gpio, type_name);
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_ASPEED_RTC);
 
-    snprintf(typename, sizeof(typename), "aspeed.sdhci-%s", socname);
-    object_initialize_child(obj, "sd-controller", &s->sdhci, typename);
+    snprintf(type_name, sizeof(type_name), "aspeed.sdhci-%s", socname);
+    object_initialize_child(obj, "sd-controller", &s->sdhci, type_name);
     object_property_set_int(OBJECT(&s->sdhci), "num-slots", 1, &error_abort);
 
     /* Init sd card slot class here so that they're under the correct parent */
     object_initialize_child(obj, "sd-controller.sdhci",
                             &s->sdhci.slots[0], TYPE_SYSBUS_SDHCI);
 
-    object_initialize_child(obj, "emmc-controller", &s->emmc, typename);
+    object_initialize_child(obj, "emmc-controller", &s->emmc, type_name);
     object_property_set_int(OBJECT(&s->emmc), "num-slots", 1, &error_abort);
 
     object_initialize_child(obj, "emmc-controller.sdhci", &s->emmc.slots[0],
                             TYPE_SYSBUS_SDHCI);
 
-    snprintf(typename, sizeof(typename), "aspeed.timer-%s", socname);
-    object_initialize_child(obj, "timerctrl", &s->timerctrl, typename);
+    snprintf(type_name, sizeof(type_name), "aspeed.timer-%s", socname);
+    object_initialize_child(obj, "timerctrl", &s->timerctrl, type_name);
 
-    snprintf(typename, sizeof(typename), "aspeed.hace-%s", socname);
-    object_initialize_child(obj, "hace", &s->hace, typename);
+    snprintf(type_name, sizeof(type_name), "aspeed.hace-%s", socname);
+    object_initialize_child(obj, "hace", &s->hace, type_name);
 
     for (i = 0; i < sc->pcie_num; i++) {
-        snprintf(typename, sizeof(typename), "aspeed.pcie-phy-%s", socname);
-        object_initialize_child(obj, "pcie-phy[*]", &s->pcie_phy[i], typename);
+        snprintf(type_name, sizeof(type_name), "aspeed.pcie-phy-%s", socname);
+        object_initialize_child(obj, "pcie-phy[*]", &s->pcie_phy[i], type_name);
         object_property_set_int(OBJECT(&s->pcie_phy[i]), "id", i, &error_abort);
 
-        snprintf(typename, sizeof(typename), "aspeed.pcie-cfg-%s", socname);
-        object_initialize_child(obj, "pcie-cfg[*]", &s->pcie[i], typename);
+        snprintf(type_name, sizeof(type_name), "aspeed.pcie-cfg-%s", socname);
+        object_initialize_child(obj, "pcie-cfg[*]", &s->pcie[i], type_name);
         object_property_set_int(OBJECT(&s->pcie[i]), "id", i, &error_abort);
     }
 

@@ -45,11 +45,11 @@ static void riscv_cpu_add_definition(gpointer data, gpointer user_data)
     ObjectClass *oc = data;
     CpuDefinitionInfoList **cpu_list = user_data;
     CpuDefinitionInfo *info = g_malloc0(sizeof(*info));
-    const char *typename = object_class_get_name(oc);
+    const char *type_name = object_class_get_name(oc);
     ObjectClass *dyn_class;
 
-    info->name = cpu_model_from_type(typename);
-    info->q_typename = g_strdup(typename);
+    info->name = cpu_model_from_type(type_name);
+    info->q_typename = g_strdup(type_name);
 
     dyn_class = object_class_dynamic_cast(oc, TYPE_RISCV_DYNAMIC_CPU);
     info->q_static = dyn_class == NULL;

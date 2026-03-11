@@ -7057,7 +7057,7 @@ static const char *ppc_cpu_lookup_alias(const char *alias)
 
 ObjectClass *ppc_cpu_class_by_name(const char *name)
 {
-    char *cpu_model, *typename;
+    char *cpu_model, *type_name;
     ObjectClass *oc;
     const char *p;
     unsigned long pvr;
@@ -7096,9 +7096,9 @@ ObjectClass *ppc_cpu_class_by_name(const char *name)
         cpu_model = g_strdup(p);
     }
 
-    typename = g_strdup_printf("%s" POWERPC_CPU_TYPE_SUFFIX, cpu_model);
-    oc = object_class_by_name(typename);
-    g_free(typename);
+    type_name = g_strdup_printf("%s" POWERPC_CPU_TYPE_SUFFIX, cpu_model);
+    oc = object_class_by_name(type_name);
+    g_free(type_name);
     g_free(cpu_model);
 
     return oc;
@@ -7148,15 +7148,15 @@ static void ppc_cpu_list_entry(gpointer data, gpointer user_data)
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     DeviceClass *family = DEVICE_CLASS(ppc_cpu_get_family_class(pcc));
-    const char *typename = object_class_get_name(oc);
+    const char *type_name = object_class_get_name(oc);
     char *name;
     int i;
 
-    if (unlikely(strcmp(typename, TYPE_HOST_POWERPC_CPU) == 0)) {
+    if (unlikely(strcmp(type_name, TYPE_HOST_POWERPC_CPU) == 0)) {
         return;
     }
 
-    name = cpu_model_from_type(typename);
+    name = cpu_model_from_type(type_name);
     if (cc->deprecation_note) {
         qemu_printf("  %-16s PVR %08x (deprecated)\n", name, pcc->pvr);
     } else {

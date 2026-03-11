@@ -412,7 +412,7 @@ bool vfio_device_is_mdev(VFIODevice *vbasedev)
 }
 
 bool vfio_device_hiod_create_and_realize(VFIODevice *vbasedev,
-                                         const char *typename, Error **errp)
+                                         const char *type_name, Error **errp)
 {
     HostIOMMUDevice *hiod;
 
@@ -420,7 +420,7 @@ bool vfio_device_hiod_create_and_realize(VFIODevice *vbasedev,
         return true;
     }
 
-    hiod = HOST_IOMMU_DEVICE(object_new(typename));
+    hiod = HOST_IOMMU_DEVICE(object_new(type_name));
 
     if (!HOST_IOMMU_DEVICE_GET_CLASS(hiod)->realize(hiod, vbasedev, errp)) {
         object_unref(hiod);

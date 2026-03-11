@@ -175,7 +175,7 @@ static void superh_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 static ObjectClass *superh_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *s, *typename = NULL;
+    char *s, *type_name = NULL;
 
     s = g_ascii_strdown(cpu_model, -1);
     if (strcmp(s, "any") == 0) {
@@ -183,12 +183,12 @@ static ObjectClass *superh_cpu_class_by_name(const char *cpu_model)
         goto out;
     }
 
-    typename = g_strdup_printf(SUPERH_CPU_TYPE_NAME("%s"), s);
-    oc = object_class_by_name(typename);
+    type_name = g_strdup_printf(SUPERH_CPU_TYPE_NAME("%s"), s);
+    oc = object_class_by_name(type_name);
 
 out:
     g_free(s);
-    g_free(typename);
+    g_free(type_name);
     return oc;
 }
 

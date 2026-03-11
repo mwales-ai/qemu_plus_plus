@@ -30,10 +30,10 @@ static const TPMBackendClass *
 tpm_be_find_by_type(enum TpmType type)
 {
     ObjectClass *oc;
-    char *typename = g_strdup_printf("tpm-%s", TpmType_str(type));
+    char *type_name = g_strdup_printf("tpm-%s", TpmType_str(type));
 
-    oc = object_class_by_name(typename);
-    g_free(typename);
+    oc = object_class_by_name(type_name);
+    g_free(type_name);
 
     if (!object_class_dynamic_cast(oc, TYPE_TPM_BACKEND)) {
         return NULL;

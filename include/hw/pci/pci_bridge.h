@@ -137,7 +137,7 @@ void pci_bridge_write_config(PCIDevice *d,
 void pci_bridge_disable_base_limit(PCIDevice *dev);
 void pci_bridge_reset(DeviceState *qdev);
 
-void pci_bridge_initfn(PCIDevice *pci_dev, const char *typename);
+void pci_bridge_initfn(PCIDevice *pci_dev, const char *type_name);
 void pci_bridge_exitfn(PCIDevice *pci_dev);
 
 void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,

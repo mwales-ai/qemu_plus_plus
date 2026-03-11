@@ -53,10 +53,10 @@
 
 static Error *pv_mig_blocker;
 
-static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
+static S390CPU *s390x_new_cpu(const char *type_name, uint32_t core_id,
                               Error **errp)
 {
-    S390CPU *cpu = S390_CPU(object_new(typename));
+    S390CPU *cpu = S390_CPU(object_new(type_name));
     S390CPU *ret = NULL;
 
     if (!object_property_set_int(OBJECT(cpu), "core-id", core_id, errp)) {

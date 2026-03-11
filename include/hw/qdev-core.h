@@ -425,7 +425,7 @@ static inline void
 compat_props_add(GPtrArray *arr,
                  GlobalProperty props[], size_t nelem)
 {
-    int i;
+    size_t i;
     for (i = 0; i < nelem; i++) {
         g_ptr_array_add(arr, (void *)&props[i]);
     }
@@ -878,9 +878,9 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id);
 typedef int (qbus_walkerfn)(BusState *bus, void *opaque);
 typedef int (qdev_walkerfn)(DeviceState *dev, void *opaque);
 
-void qbus_init(void *bus, size_t size, const char *typename,
+void qbus_init(void *bus, size_t size, const char *type_name,
                DeviceState *parent, const char *name);
-BusState *qbus_new(const char *typename, DeviceState *parent, const char *name);
+BusState *qbus_new(const char *type_name, DeviceState *parent, const char *name);
 bool qbus_realize(BusState *bus, Error **errp);
 void qbus_unrealize(BusState *bus);
 

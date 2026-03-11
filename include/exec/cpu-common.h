@@ -215,7 +215,7 @@ int cpu_exec(CPUState *cpu);
  */
 static inline ArchCPU *env_archcpu(CPUArchState *env)
 {
-    return (void *)env - sizeof(CPUState);
+    return (ArchCPU *)((char *)env - sizeof(CPUState));
 }
 
 /**
@@ -226,7 +226,7 @@ static inline ArchCPU *env_archcpu(CPUArchState *env)
  */
 static inline const CPUState *env_cpu_const(const CPUArchState *env)
 {
-    return (void *)env - sizeof(CPUState);
+    return (const CPUState *)((const char *)env - sizeof(CPUState));
 }
 
 /**

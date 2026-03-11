@@ -189,12 +189,12 @@ static void ppc_cpu_defs_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     CpuDefinitionInfoList **first = user_data;
-    const char *typename;
+    const char *type_name;
     CpuDefinitionInfo *info;
 
-    typename = object_class_get_name(oc);
+    type_name = object_class_get_name(oc);
     info = g_malloc0(sizeof(*info));
-    info->name = cpu_model_from_type(typename);
+    info->name = cpu_model_from_type(type_name);
 
     QAPI_LIST_PREPEND(*first, info);
 }

@@ -102,7 +102,7 @@ static void bus_reset_child_foreach(Object *obj, ResettableChildCallback cb,
 static void qbus_init_internal(BusState *bus, DeviceState *parent,
                                const char *name)
 {
-    const char *typename = object_get_typename(OBJECT(bus));
+    const char *type_name = object_get_typename(OBJECT(bus));
     BusClass *bc;
     int i, bus_id;
 
@@ -118,7 +118,7 @@ static void qbus_init_internal(BusState *bus, DeviceState *parent,
         /* no id -> use lowercase bus type plus global bus-id for bus name */
         bc = BUS_GET_CLASS(bus);
         bus_id = bc->automatic_ids++;
-        bus->name = g_strdup_printf("%s.%d", typename, bus_id);
+        bus->name = g_strdup_printf("%s.%d", type_name, bus_id);
         for (i = 0; bus->name[i]; i++) {
             bus->name[i] = qemu_tolower(bus->name[i]);
         }
@@ -152,18 +152,18 @@ static void bus_unparent(Object *obj)
     bus->parent = NULL;
 }
 
-void qbus_init(void *bus, size_t size, const char *typename,
+void qbus_init(void *bus, size_t size, const char *type_name,
                DeviceState *parent, const char *name)
 {
-    object_initialize(bus, size, typename);
+    object_initialize(bus, size, type_name);
     qbus_init_internal(bus, parent, name);
 }
 
-BusState *qbus_new(const char *typename, DeviceState *parent, const char *name)
+BusState *qbus_new(const char *type_name, DeviceState *parent, const char *name)
 {
     BusState *bus;
 
-    bus = BUS(object_new(typename));
+    bus = BUS(object_new(type_name));
     qbus_init_internal(bus, parent, name);
 
     return bus;

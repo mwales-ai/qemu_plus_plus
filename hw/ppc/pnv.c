@@ -2902,11 +2902,11 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
     PnvMachineClass *pmc = PNV_MACHINE_GET_CLASS(pnv);
     Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
-    const char *typename = pnv_chip_core_typename(chip);
+    const char *type_name = pnv_chip_core_typename(chip);
     int i, core_hwid;
 
-    if (!object_class_by_name(typename)) {
-        error_setg(errp, "Unable to find PowerNV CPU Core '%s'", typename);
+    if (!object_class_by_name(type_name)) {
+        error_setg(errp, "Unable to find PowerNV CPU Core '%s'", type_name);
         return;
     }
 
@@ -2929,7 +2929,7 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
             continue;
         }
 
-        pnv_core = PNV_CORE(object_new(typename));
+        pnv_core = PNV_CORE(object_new(type_name));
 
         snprintf(core_name, sizeof(core_name), "core[%d]", core_hwid);
         object_property_add_child(OBJECT(chip), core_name, OBJECT(pnv_core));

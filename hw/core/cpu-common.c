@@ -55,10 +55,10 @@ bool cpu_exists(int64_t id)
     return !!cpu_by_arch_id(id);
 }
 
-CPUState *cpu_create(const char *typename)
+CPUState *cpu_create(const char *type_name)
 {
     Error *err = NULL;
-    CPUState *cpu = CPU(object_new(typename));
+    CPUState *cpu = CPU(object_new(type_name));
     if (!qdev_realize(DEVICE(cpu), NULL, &err)) {
         error_report_err(err);
         object_unref(OBJECT(cpu));
@@ -136,17 +136,17 @@ static void cpu_common_reset_exit(Object *obj, ResetType type)
     }
 }
 
-ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
+ObjectClass *cpu_class_by_name(const char *type_name, const char *cpu_model)
 {
     ObjectClass *oc;
     CPUClass *cc;
 
-    oc = object_class_by_name(typename);
+    oc = object_class_by_name(type_name);
     cc = CPU_CLASS(oc);
     assert(cc->class_by_name);
     assert(cpu_model);
     oc = cc->class_by_name(cpu_model);
-    if (object_class_dynamic_cast(oc, typename) &&
+    if (object_class_dynamic_cast(oc, type_name) &&
         !object_class_is_abstract(oc)) {
         return oc;
     }
@@ -154,22 +154,22 @@ ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)
     return NULL;
 }
 
-char *cpu_model_from_type(const char *typename)
+char *cpu_model_from_type(const char *type_name)
 {
     g_autofree char *suffix = g_strdup_printf("-%s", target_cpu_type());
 
-    if (!object_class_by_name(typename)) {
+    if (!object_class_by_name(type_name)) {
         return NULL;
     }
 
-    if (g_str_has_suffix(typename, suffix)) {
-        return g_strndup(typename, strlen(typename) - strlen(suffix));
+    if (g_str_has_suffix(type_name, suffix)) {
+        return g_strndup(type_name, strlen(type_name) - strlen(suffix));
     }
 
-    return g_strdup(typename);
+    return g_strdup(type_name);
 }
 
-static void cpu_common_parse_features(const char *typename, char *features,
+static void cpu_common_parse_features(const char *type_name, char *features,
                                       Error **errp)
 {
     char *val;
@@ -187,7 +187,7 @@ static void cpu_common_parse_features(const char *typename, char *features,
             GlobalProperty *prop = g_new0(typeof(*prop), 1);
             *val = 0;
             val++;
-            prop->driver = typename;
+            prop->driver = type_name;
             prop->property = g_strdup(featurestr);
             prop->value = g_strdup(val);
             qdev_prop_register_global(prop);
@@ -410,8 +410,8 @@ type_init(cpu_register_types)
 static void cpu_list_entry(gpointer data, gpointer user_data)
 {
     CPUClass *cc = CPU_CLASS(OBJECT_CLASS(data));
-    const char *typename = object_class_get_name(OBJECT_CLASS(data));
-    g_autofree char *model = cpu_model_from_type(typename);
+    const char *type_name = object_class_get_name(OBJECT_CLASS(data));
+    g_autofree char *model = cpu_model_from_type(type_name);
 
     if (cc->deprecation_note) {
         qemu_printf("  %s (deprecated)\n", model);

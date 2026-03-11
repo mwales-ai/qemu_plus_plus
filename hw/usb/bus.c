@@ -303,12 +303,12 @@ typedef struct LegacyUSBFactory
 
 static GSList *legacy_usb_factory;
 
-void usb_legacy_register(const char *typename, const char *usbdevice_name,
+void usb_legacy_register(const char *type_name, const char *usbdevice_name,
                          USBDevice *(*usbdevice_init)(void))
 {
     if (usbdevice_name) {
         LegacyUSBFactory *f = g_malloc0(sizeof(*f));
-        f->name = typename;
+        f->name = type_name;
         f->usbdevice_name = usbdevice_name;
         f->usbdevice_init = usbdevice_init;
         legacy_usb_factory = g_slist_append(legacy_usb_factory, f);

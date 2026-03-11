@@ -37,14 +37,14 @@ static void hexagon_v73_cpu_init(Object *obj) { }
 static ObjectClass *hexagon_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename;
+    char *type_name;
     char **cpuname;
 
     cpuname = g_strsplit(cpu_model, ",", 1);
-    typename = g_strdup_printf(HEXAGON_CPU_TYPE_NAME("%s"), cpuname[0]);
-    oc = object_class_by_name(typename);
+    type_name = g_strdup_printf(HEXAGON_CPU_TYPE_NAME("%s"), cpuname[0]);
+    oc = object_class_by_name(type_name);
     g_strfreev(cpuname);
-    g_free(typename);
+    g_free(type_name);
 
     return oc;
 }

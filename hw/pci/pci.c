@@ -690,19 +690,19 @@ bool pci_bus_is_express(const PCIBus *bus)
 void pci_root_bus_init(PCIBus *bus, size_t bus_size, DeviceState *parent,
                        const char *name,
                        MemoryRegion *mem, MemoryRegion *io,
-                       uint8_t devfn_min, const char *typename)
+                       uint8_t devfn_min, const char *type_name)
 {
-    qbus_init(bus, bus_size, typename, parent, name);
+    qbus_init(bus, bus_size, type_name, parent, name);
     pci_root_bus_internal_init(bus, parent, mem, io, devfn_min);
 }
 
 PCIBus *pci_root_bus_new(DeviceState *parent, const char *name,
                          MemoryRegion *mem, MemoryRegion *io,
-                         uint8_t devfn_min, const char *typename)
+                         uint8_t devfn_min, const char *type_name)
 {
     PCIBus *bus;
 
-    bus = PCI_BUS(qbus_new(typename, parent, name));
+    bus = PCI_BUS(qbus_new(type_name, parent, name));
     pci_root_bus_internal_init(bus, parent, mem, io, devfn_min);
     return bus;
 }
@@ -744,11 +744,11 @@ PCIBus *pci_register_root_bus(DeviceState *parent, const char *name,
                               void *irq_opaque,
                               MemoryRegion *mem, MemoryRegion *io,
                               uint8_t devfn_min, int nirq,
-                              const char *typename)
+                              const char *type_name)
 {
     PCIBus *bus;
 
-    bus = pci_root_bus_new(parent, name, mem, io, devfn_min, typename);
+    bus = pci_root_bus_new(parent, name, mem, io, devfn_min, type_name);
     pci_bus_irqs(bus, set_irq, irq_opaque, nirq);
     pci_bus_map_irqs(bus, map_irq);
     return bus;
