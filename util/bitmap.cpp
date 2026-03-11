@@ -10,9 +10,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
 #include "qemu/atomic.h"
+}
+
+extern "C" {
 
 /*
  * bitmaps provide an array of bits, implemented using an
@@ -199,7 +204,7 @@ void bitmap_set_atomic(unsigned long *map, long start, long nr)
 
     /* Full words */
     if (bits_to_set == BITS_PER_LONG) {
-        while (nr >= BITS_PER_LONG) {
+        while ((unsigned long)nr >= BITS_PER_LONG) {
             *p = ~0UL;
             nr -= BITS_PER_LONG;
             p++;
@@ -263,7 +268,7 @@ bool bitmap_test_and_clear(unsigned long *map, long start, long nr)
 
     /* Full words */
     if (bits_to_clear == BITS_PER_LONG) {
-        while (nr >= BITS_PER_LONG) {
+        while ((unsigned long)nr >= BITS_PER_LONG) {
             if (*p) {
                 dirty = true;
                 *p = 0;
@@ -308,7 +313,7 @@ bool bitmap_test_and_clear_atomic(unsigned long *map, long start, long nr)
 
     /* Full words */
     if (bits_to_clear == BITS_PER_LONG) {
-        while (nr >= BITS_PER_LONG) {
+        while ((unsigned long)nr >= BITS_PER_LONG) {
             if (*p) {
                 old_bits = qatomic_xchg(p, 0);
                 dirty |= old_bits;
@@ -532,3 +537,5 @@ void bitmap_copy_with_dst_offset(unsigned long *dst, const unsigned long *src,
         *dst |= (*src & last_mask) << shift;
     }
 }
+
+} /* extern "C" */

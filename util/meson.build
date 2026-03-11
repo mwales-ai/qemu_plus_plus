@@ -1,4 +1,4 @@
-util_ss.add(files('osdep.c', 'cutils.c', 'unicode.c', 'qemu-timer-common.cpp'))
+util_ss.add(files('osdep.c', 'cutils.c', 'unicode.cpp', 'qemu-timer-common.cpp'))
 util_ss.add(files('thread-context.c'), numa)
 if not config_host_data.get('CONFIG_ATOMIC64')
   util_ss.add(files('atomic64.c'))
@@ -36,8 +36,8 @@ endif
 util_ss.add(files('defer-call.c'))
 util_ss.add(files('envlist.cpp', 'path.cpp', 'module.c'))
 util_ss.add(files('event.cpp'))
-util_ss.add(files('host-utils.c'))
-util_ss.add(files('bitmap.c', 'bitops.c'))
+util_ss.add(files('host-utils.cpp'))
+util_ss.add(files('bitmap.cpp', 'bitops.cpp'))
 util_ss.add(files('fifo8.c'))
 util_ss.add(files('cacheflush.cpp'))
 util_ss.add(files('error.c', 'error-report.c'))
@@ -54,7 +54,7 @@ if have_membarrier
   util_ss.add(files('sys_membarrier.cpp'))
 endif
 util_ss.add(files('log.c'))
-util_ss.add(files('qdist.c'))
+util_ss.add(files('qdist.cpp'))
 util_ss.add(files('qht.c'))
 util_ss.add(files('qsp.c'))
 util_ss.add(files('range.cpp'))
@@ -73,7 +73,7 @@ if have_user
 endif
 
 if have_system
-  util_ss.add(files('crc-ccitt.c'))
+  util_ss.add(files('crc-ccitt.cpp'))
   util_ss.add(when: gio, if_true: files('dbus.c'))
   if host_os == 'linux'
     util_ss.add(files('userfaultfd.c'))

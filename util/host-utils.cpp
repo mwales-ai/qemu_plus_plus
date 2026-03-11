@@ -24,7 +24,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/host-utils.h"
+}
+
+extern "C" {
 
 #ifndef CONFIG_INT128
 /* Long integer helpers */
@@ -446,3 +451,5 @@ Int128 divs256(Int128 *plow, Int128 *phigh, Int128 divisor)
         return rem;
     }
 }
+
+} /* extern "C" */

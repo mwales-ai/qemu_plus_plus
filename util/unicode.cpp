@@ -11,11 +11,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/unicode.h"
+}
 
 static bool is_valid_codepoint(int codepoint)
 {
-    if (codepoint > 0x10FFFFu) {
+    if ((unsigned int)codepoint > 0x10FFFFu) {
         return false;            /* beyond Unicode range */
     }
     if ((codepoint >= 0xFDD0 && codepoint <= 0xFDEF)
@@ -59,6 +62,7 @@ static bool is_valid_codepoint(int codepoint)
  *
  * Returns: the Unicode codepoint on success, -1 on failure.
  */
+extern "C"
 int mod_utf8_codepoint(const char *s, size_t n, char **end)
 {
     static int min_cp[5] = { 0x80, 0x800, 0x10000, 0x200000, 0x4000000 };
@@ -68,11 +72,11 @@ int mod_utf8_codepoint(const char *s, size_t n, char **end)
 
     if (n == 0 || *s == 0) {
         /* empty sequence */
-        *end = (char *)s;
+        *end = const_cast<char *>(s);
         return -1;
     }
 
-    p = (const unsigned char *)s;
+    p = reinterpret_cast<const unsigned char *>(s);
     byte = *p++;
     if (byte < 0x80) {
         cp = byte;              /* one byte sequence */
@@ -106,7 +110,7 @@ int mod_utf8_codepoint(const char *s, size_t n, char **end)
     }
 
 out:
-    *end = (char *)p;
+    *end = reinterpret_cast<char *>(const_cast<unsigned char *>(p));
     return cp;
 }
 
@@ -121,6 +125,7 @@ out:
  * Returns: the length of the UTF-8 sequence on success, -1 when
  * @codepoint is invalid.
  */
+extern "C"
 ssize_t mod_utf8_encode(char buf[], size_t bufsz, int codepoint)
 {
     assert(bufsz >= 5);

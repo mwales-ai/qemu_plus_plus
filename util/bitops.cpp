@@ -12,7 +12,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/bitops.h"
+}
+
+extern "C" {
 
 /*
  * Find the next set bit in a memory region.
@@ -155,3 +160,5 @@ unsigned long find_last_bit(const unsigned long *addr, unsigned long size)
     /* Not found */
     return size;
 }
+
+} /* extern "C" */

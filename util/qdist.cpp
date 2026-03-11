@@ -7,7 +7,10 @@
  *   See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/qdist.h"
+}
 
 #include <math.h>
 #ifndef NAN
@@ -16,6 +19,7 @@
 
 #define QDIST_EMPTY_STR "(empty)"
 
+extern "C"
 void qdist_init(struct qdist *dist)
 {
     dist->entries = g_new(struct qdist_entry, 1);
@@ -23,6 +27,7 @@ void qdist_init(struct qdist *dist)
     dist->n = 0;
 }
 
+extern "C"
 void qdist_destroy(struct qdist *dist)
 {
     g_free(dist->entries);
@@ -40,12 +45,13 @@ static inline int qdist_cmp_double(double a, double b)
 
 static int qdist_cmp(const void *ap, const void *bp)
 {
-    const struct qdist_entry *a = ap;
-    const struct qdist_entry *b = bp;
+    const struct qdist_entry *a = static_cast<const struct qdist_entry *>(ap);
+    const struct qdist_entry *b = static_cast<const struct qdist_entry *>(bp);
 
     return qdist_cmp_double(a->x, b->x);
 }
 
+extern "C"
 void qdist_add(struct qdist *dist, double x, long count)
 {
     struct qdist_entry *entry = NULL;
@@ -54,7 +60,8 @@ void qdist_add(struct qdist *dist, double x, long count)
         struct qdist_entry e;
 
         e.x = x;
-        entry = bsearch(&e, dist->entries, dist->n, sizeof(e), qdist_cmp);
+        entry = static_cast<struct qdist_entry *>(
+            bsearch(&e, dist->entries, dist->n, sizeof(e), qdist_cmp));
     }
 
     if (entry) {
@@ -73,6 +80,7 @@ void qdist_add(struct qdist *dist, double x, long count)
     qsort(dist->entries, dist->n, sizeof(*entry), qdist_cmp);
 }
 
+extern "C"
 void qdist_inc(struct qdist *dist, double x)
 {
     qdist_add(dist, x, 1);
@@ -161,6 +169,7 @@ static char *qdist_pr_internal(const struct qdist *dist)
  *
  * If @n == 0 or @from->n == 1, use @from->n.
  */
+extern "C"
 void qdist_bin__internal(struct qdist *to, const struct qdist *from, size_t n)
 {
     double xmin, xmax;
@@ -229,6 +238,7 @@ void qdist_bin__internal(struct qdist *to, const struct qdist *from, size_t n)
  *
  * Callers must free the returned string with g_free().
  */
+extern "C"
 char *qdist_pr_plain(const struct qdist *dist, size_t n)
 {
     struct qdist binned;
@@ -302,6 +312,7 @@ static char *qdist_pr_label(const struct qdist *dist, size_t n_bins,
  *
  * Callers must free the returned string with g_free().
  */
+extern "C"
 char *qdist_pr(const struct qdist *dist, size_t n_bins, uint32_t opt)
 {
     const char *border = opt & QDIST_PR_BORDER ? "|" : "";
@@ -335,21 +346,25 @@ static inline double qdist_x(const struct qdist *dist, int index)
     return dist->entries[index].x;
 }
 
+extern "C"
 double qdist_xmin(const struct qdist *dist)
 {
     return qdist_x(dist, 0);
 }
 
+extern "C"
 double qdist_xmax(const struct qdist *dist)
 {
     return qdist_x(dist, dist->n - 1);
 }
 
+extern "C"
 size_t qdist_unique_entries(const struct qdist *dist)
 {
     return dist->n;
 }
 
+extern "C"
 unsigned long qdist_sample_count(const struct qdist *dist)
 {
     unsigned long count = 0;
@@ -385,6 +400,7 @@ static double qdist_pairwise_avg(const struct qdist *dist, size_t index,
     }
 }
 
+extern "C"
 double qdist_avg(const struct qdist *dist)
 {
     unsigned long count;

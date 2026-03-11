@@ -12,7 +12,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/crc-ccitt.h"
+}
+
+extern "C" {
 
 /*
  * This mysterious table is just the CRC of each possible byte. It can be
@@ -125,3 +130,5 @@ uint16_t crc_ccitt_false(uint16_t crc, uint8_t const *buffer, size_t len)
     }
     return crc;
 }
+
+} /* extern "C" */
