@@ -471,7 +471,7 @@ void build_append_gas(GArray *table, AmlAddressSpace as,
 static inline void
 build_append_gas_from_struct(GArray *table, const struct AcpiGenericAddress *s)
 {
-    build_append_gas(table, s->space_id, s->bit_width, s->bit_offset,
+    build_append_gas(table, (AmlAddressSpace)s->space_id, s->bit_width, s->bit_offset,
                      s->access_width, s->address);
 }
 

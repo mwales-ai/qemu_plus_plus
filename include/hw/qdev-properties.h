@@ -85,43 +85,43 @@ extern const PropertyInfo qdev_prop_link;
 
 #define DEFINE_PROP_SIGNED(_name, _state, _field, _defval, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type,                     \
-                .set_default = true,                                     \
-                .defval.i    = (_type)_defval)
+                .defval = { .i = (_type)_defval },                       \
+                .set_default = true)
 
 #define DEFINE_PROP_SIGNED_NODEFAULT(_name, _state, _field, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type)
 
 #define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval)   \
     DEFINE_PROP(_name, _state, _field, qdev_prop_bit, uint32_t, \
+                .defval = { .u = (bool)_defval },               \
                 .bitnr       = (_bit),                          \
-                .set_default = true,                            \
-                .defval.u    = (bool)_defval)
+                .set_default = true)
 
 #define DEFINE_PROP_UNSIGNED(_name, _state, _field, _defval, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type,                       \
-                .set_default = true,                                       \
-                .defval.u  = (_type)_defval)
+                .defval = { .u = (_type)_defval },                         \
+                .set_default = true)
 
 #define DEFINE_PROP_UNSIGNED_NODEFAULT(_name, _state, _field, _prop, _type) \
     DEFINE_PROP(_name, _state, _field, _prop, _type)
 
 #define DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval)   \
     DEFINE_PROP(_name, _state, _field, qdev_prop_bit64, uint64_t, \
+                .defval = { .u = (bool)_defval },                 \
                 .bitnr    = (_bit),                               \
-                .set_default = true,                              \
-                .defval.u  = (bool)_defval)
+                .set_default = true)
 
 #define DEFINE_PROP_ON_OFF_AUTO_BIT64(_name, _state, _field, _bit, _defval) \
     DEFINE_PROP(_name, _state, _field, qdev_prop_on_off_auto_bit64,         \
                 OnOffAutoBit64,                                             \
+                .defval = { .i = (OnOffAuto)_defval },                      \
                 .bitnr    = (_bit),                                         \
-                .set_default = true,                                        \
-                .defval.i = (OnOffAuto)_defval)
+                .set_default = true)
 
 #define DEFINE_PROP_BOOL(_name, _state, _field, _defval)     \
     DEFINE_PROP(_name, _state, _field, qdev_prop_bool, bool, \
-                .set_default = true,                         \
-                .defval.u    = (bool)_defval)
+                .defval = { .u = (bool)_defval },            \
+                .set_default = true)
 
 /**
  * The DEFINE_PROP_UINT64_CHECKMASK macro checks a user-supplied value
@@ -158,11 +158,11 @@ extern const PropertyInfo qdev_prop_link;
 #define DEFINE_PROP_ARRAY(_name, _state, _field,                        \
                           _arrayfield, _arrayprop, _arraytype)          \
     DEFINE_PROP(_name, _state, _field, qdev_prop_array, uint32_t,       \
-                .set_default = true,                                    \
-                .defval.u = 0,                                          \
+                .defval = { .u = 0 },                                   \
                 .arrayinfo = &(_arrayprop),                             \
+                .arrayoffset = offsetof(_state, _arrayfield),           \
                 .arrayfieldsize = sizeof(_arraytype),                   \
-                .arrayoffset = offsetof(_state, _arrayfield))
+                .set_default = true)
 
 #define DEFINE_PROP_LINK(_name, _state, _field, _type, _ptr_type)     \
     DEFINE_PROP(_name, _state, _field, qdev_prop_link, _ptr_type,     \

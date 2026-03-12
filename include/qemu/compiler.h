@@ -77,8 +77,18 @@
 
 #define QEMU_BUILD_BUG_ON(x) QEMU_BUILD_BUG_MSG(x, "not expecting: " #x)
 
+#ifdef __cplusplus
+/*
+ * C++ doesn't allow type definitions inside sizeof, so use a different
+ * approach: the ternary always evaluates to 0, but if x is true the
+ * negative array size will cause a compile error.
+ */
+#define QEMU_BUILD_BUG_ON_ZERO(x) \
+    (0 * sizeof(char[1 - 2 * !!(x)]))
+#else
 #define QEMU_BUILD_BUG_ON_ZERO(x) (sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)) - \
                                    sizeof(QEMU_BUILD_BUG_ON_STRUCT(x)))
+#endif
 
 #if !defined(__clang__) && defined(_WIN32)
 /*

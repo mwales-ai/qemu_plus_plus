@@ -61,7 +61,7 @@ static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table,
 {
     int i;
     for(i=0;i<n;i++) {
-        if (shdr_table[i].sh_type == type)
+        if ((int)shdr_table[i].sh_type == type)
             return shdr_table + i;
     }
     return NULL;
@@ -86,8 +86,8 @@ static const char *glue(lookup_symbol, SZ)(struct syminfo *s,
     struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
     struct elf_sym *sym;
 
-    sym = bsearch(&orig_addr, syms, s->disas_num_syms, sizeof(*syms),
-                  glue(symfind, SZ));
+    sym = static_cast<struct elf_sym *>(bsearch(&orig_addr, syms, s->disas_num_syms, sizeof(*syms),
+                  glue(symfind, SZ)));
     if (sym != NULL) {
         return s->disas_strtab + sym->st_name;
     }
@@ -114,8 +114,8 @@ static void glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     struct syminfo *s;
     int nsyms, i;
 
-    shdr_table = load_at(fd, ehdr->e_shoff,
-                         sizeof(struct elf_shdr) * ehdr->e_shnum);
+    shdr_table = static_cast<struct elf_shdr *>(load_at(fd, ehdr->e_shoff,
+                         sizeof(struct elf_shdr) * ehdr->e_shnum));
     if (!shdr_table) {
         return;
     }
@@ -130,7 +130,7 @@ static void glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     if (!symtab) {
         return;
     }
-    syms = load_at(fd, symtab->sh_offset, symtab->sh_size);
+    syms = static_cast<struct elf_sym *>(load_at(fd, symtab->sh_offset, symtab->sh_size));
     if (!syms) {
         return;
     }
@@ -143,7 +143,7 @@ static void glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     }
     strtab = &shdr_table[symtab->sh_link];
 
-    str = load_at(fd, strtab->sh_offset, strtab->sh_size);
+    str = static_cast<char *>(load_at(fd, strtab->sh_offset, strtab->sh_size));
     if (!str) {
         return;
     }
@@ -180,7 +180,7 @@ static void glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
         return;
     }
 
-    syms = g_realloc(syms, nsyms * sizeof(*syms));
+    syms = static_cast<struct elf_sym *>(g_realloc(syms, nsyms * sizeof(*syms)));
     qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
     for (i = 0; i < nsyms - 1; i++) {
         if (syms[i].st_size == 0) {
@@ -189,11 +189,11 @@ static void glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     }
 
     /* Commit */
-    s = g_malloc0(sizeof(*s));
+    s = static_cast<struct syminfo *>(g_malloc0(sizeof(*s)));
     s->lookup_symbol = glue(lookup_symbol, SZ);
-    glue(s->disas_symtab.elf, SZ) = g_steal_pointer(&syms);
+    glue(s->disas_symtab.elf, SZ) = static_cast<struct elf_sym *>(g_steal_pointer(&syms));
     s->disas_num_syms = nsyms;
-    s->disas_strtab = g_steal_pointer(&str);
+    s->disas_strtab = static_cast<const char *>(g_steal_pointer(&str));
     s->next = syminfos;
     syminfos = s;
 }
@@ -209,8 +209,8 @@ static int glue(elf_reloc, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     elf_word wordval;
     void *addr;
 
-    shdr_table = load_at(fd, ehdr->e_shoff,
-                         sizeof(struct elf_shdr) * ehdr->e_shnum);
+    shdr_table = static_cast<struct elf_shdr *>(load_at(fd, ehdr->e_shoff,
+                         sizeof(struct elf_shdr) * ehdr->e_shnum));
     if (!shdr_table) {
         return -1;
     }
@@ -224,7 +224,7 @@ static int glue(elf_reloc, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
     if (!reltab) {
         goto fail;
     }
-    rels = load_at(fd, reltab->sh_offset, reltab->sh_size);
+    rels = static_cast<struct elf_rela *>(load_at(fd, reltab->sh_offset, reltab->sh_size));
     if (!rels) {
         goto fail;
     }
@@ -305,7 +305,7 @@ static struct elf_note *glue(get_elf_note_type, SZ)(struct elf_note *nhdr,
         }
 
         /* skip to the next ELF Note entry */
-        nhdr = (void *)nhdr + elf_note_entry_offset;
+        nhdr = reinterpret_cast<struct elf_note *>(reinterpret_cast<char *>(nhdr) + elf_note_entry_offset);
         note_type = nhdr->n_type;
     }
 
@@ -394,10 +394,10 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
     glue(load_symbols, SZ)(&ehdr, fd, must_swab, clear_lsb, sym_cb);
 
     size = ehdr.e_phnum * sizeof(phdr[0]);
-    if (lseek(fd, ehdr.e_phoff, SEEK_SET) != ehdr.e_phoff) {
+    if (lseek(fd, ehdr.e_phoff, SEEK_SET) != (off_t)ehdr.e_phoff) {
         goto fail;
     }
-    phdr = g_malloc0(size);
+    phdr = static_cast<struct elf_phdr *>(g_malloc0(size));
     if (!phdr)
         goto fail;
     if (read(fd, phdr, size) != size)
@@ -484,7 +484,7 @@ static ssize_t glue(load_elf, SZ)(const char *name, int fd,
                 }
             }
 
-            if (mem_size > SSIZE_MAX - total_size) {
+            if (mem_size > (uint64_t)(SSIZE_MAX - total_size)) {
                 ret = ELF_LOAD_TOO_BIG;
                 goto fail;
             }

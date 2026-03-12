@@ -40,7 +40,7 @@ make_plugin_meminfo(MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 static inline enum qemu_plugin_mem_rw
 get_plugin_meminfo_rw(qemu_plugin_meminfo_t i)
 {
-    return i >> 16;
+    return (enum qemu_plugin_mem_rw)(i >> 16);
 }
 
 #ifdef CONFIG_PLUGIN
@@ -225,7 +225,7 @@ static inline void qemu_plugin_set_cb_flags(CPUState *cpu,
 static inline enum qemu_plugin_cb_flags qemu_plugin_get_cb_flags(void)
 {
     assert(current_cpu);
-    return current_cpu->neg.plugin_cb_flags;
+    return (enum qemu_plugin_cb_flags)current_cpu->neg.plugin_cb_flags;
 }
 
 #else /* !CONFIG_PLUGIN */

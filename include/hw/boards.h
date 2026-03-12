@@ -516,9 +516,9 @@ struct MachineState {
     static const TypeInfo machine_initfn##_typeinfo = { \
         .name       = MACHINE_TYPE_NAME(namestr), \
         .parent     = TYPE_##PARENT_NAME, \
-        .class_init = machine_initfn##_class_init, \
         .instance_size = sizeof(InstanceName), \
         .is_abstract = ABSTRACT, \
+        .class_init = machine_initfn##_class_init, \
         .interfaces = ifaces, \
     }; \
     static void machine_initfn##_register_types(void) \
