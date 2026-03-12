@@ -3762,7 +3762,7 @@ else
 endif
 
 if enable_modules
-  libmodulecommon = static_library('module-common', files('module-common.c') + genh, pic: true, c_args: '-DBUILD_DSO')
+  libmodulecommon = static_library('module-common', files('module-common.cpp') + genh, pic: true, cpp_args: '-DBUILD_DSO')
   modulecommon = declare_dependency(objects: libmodulecommon.extract_all_objects(recursive: false), compile_args: '-DBUILD_DSO')
 endif
 
@@ -3773,7 +3773,7 @@ libqom = static_library('qom', qom_ss.sources() + genh,
 qom = declare_dependency(objects: libqom.extract_all_objects(recursive: false),
                          dependencies: qom_ss.dependencies())
 
-event_loop_base = files('event-loop-base.c')
+event_loop_base = files('event-loop-base.cpp')
 event_loop_base = static_library('event-loop-base',
                                  sources: event_loop_base + genh,
                                  build_by_default: false)
@@ -3835,7 +3835,7 @@ if have_block
   elif host_os == 'emscripten'
     blockdev_ss.add(files('os-wasm.c'))
   else
-    blockdev_ss.add(files('os-posix.c'))
+    blockdev_ss.add(files('os-posix.cpp'))
   endif
 endif
 
@@ -4496,7 +4496,7 @@ subdir('qga')
 # when we don't build tools or system
 if xkbcommon.found()
   # used for the update-keymaps target, so include rules even if !have_tools
-  qemu_keymap = executable('qemu-keymap', files('qemu-keymap.c', 'ui/input-keymap.c') + genh,
+  qemu_keymap = executable('qemu-keymap', files('qemu-keymap.cpp', 'ui/input-keymap.c') + genh,
                            dependencies: [qemuutil, xkbcommon], install: have_tools)
 endif
 
@@ -4523,7 +4523,7 @@ if have_tools
 
   subdir('contrib/elf2dmp')
 
-  executable('qemu-edid', files('qemu-edid.c', 'hw/display/edid-generate.c'),
+  executable('qemu-edid', files('qemu-edid.cpp', 'hw/display/edid-generate.c'),
              dependencies: [qemuutil, rt],
              install: true)
 
@@ -4535,7 +4535,7 @@ if have_tools
   endif
 
   if host_os == 'linux'
-    executable('qemu-bridge-helper', files('qemu-bridge-helper.c'),
+    executable('qemu-bridge-helper', files('qemu-bridge-helper.cpp'),
                dependencies: [qemuutil, libcap_ng],
                install: true,
                install_dir: get_option('libexecdir'))

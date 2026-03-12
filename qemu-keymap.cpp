@@ -10,6 +10,11 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/notify.h"
 #include "ui/input.h"
 
@@ -38,7 +43,7 @@ static uint32_t qcode_to_number(uint32_t qcode)
     uint32_t number;
 
     keyvalue.type = KEY_VALUE_KIND_QCODE;
-    keyvalue.u.qcode.data = qcode;
+    keyvalue.u.qcode.data = static_cast<QKeyCode>(qcode);
     number = qemu_input_key_value_to_number(&keyvalue);
     assert(number != 0);
     return number;
@@ -59,7 +64,7 @@ static void print_sym(xkb_keysym_t sym, uint32_t qcode, const char *mod)
 
 static void walk_map(struct xkb_keymap *map, xkb_keycode_t code, void *data)
 {
-    struct xkb_state *state = data;
+    struct xkb_state *state = static_cast<struct xkb_state *>(data);
     xkb_keysym_t kbase, knumlock, kshift, kaltgr, kaltgrshift;
     uint32_t evdev, qcode;
     char name[64];
@@ -265,3 +270,5 @@ int main(int argc, char *argv[])
 
     exit(0);
 }
+
+} /* extern "C" */

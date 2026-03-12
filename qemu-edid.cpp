@@ -5,6 +5,11 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/bswap.h"
 #include "qemu/cutils.h"
 #include "hw/display/edid.h"
@@ -130,3 +135,5 @@ int main(int argc, char *argv[])
 
     exit(0);
 }
+
+} /* extern "C" */

@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
 #include "block/thread-pool.h"
@@ -43,8 +48,8 @@ static void event_loop_base_get_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     EventLoopBase *event_loop_base = EVENT_LOOP_BASE(obj);
-    EventLoopBaseParamInfo *info = opaque;
-    int64_t *field = (void *)event_loop_base + info->offset;
+    EventLoopBaseParamInfo *info = static_cast<EventLoopBaseParamInfo *>(opaque);
+    int64_t *field = (int64_t *)((char *)event_loop_base + info->offset);
 
     visit_type_int64(v, name, field, errp);
 }
@@ -54,8 +59,8 @@ static void event_loop_base_set_param(Object *obj, Visitor *v,
 {
     EventLoopBaseClass *bc = EVENT_LOOP_BASE_GET_CLASS(obj);
     EventLoopBase *base = EVENT_LOOP_BASE(obj);
-    EventLoopBaseParamInfo *info = opaque;
-    int64_t *field = (void *)base + info->offset;
+    EventLoopBaseParamInfo *info = static_cast<EventLoopBaseParamInfo *>(opaque);
+    int64_t *field = (int64_t *)((char *)base + info->offset);
     int64_t value;
 
     if (!visit_type_int64(v, name, &value, errp)) {
@@ -118,18 +123,20 @@ static void event_loop_base_class_init(ObjectClass *klass,
                               NULL, &thread_pool_max_info);
 }
 
+static const InterfaceInfo event_loop_base_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo event_loop_base_info = {
     .name = TYPE_EVENT_LOOP_BASE,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(EventLoopBase),
     .instance_init = event_loop_base_instance_init,
+    .is_abstract = true,
     .class_size = sizeof(EventLoopBaseClass),
     .class_init = event_loop_base_class_init,
-    .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = event_loop_base_interfaces
 };
 
 static void register_types(void)
@@ -137,3 +144,5 @@ static void register_types(void)
     type_register_static(&event_loop_base_info);
 }
 type_init(register_types);
+
+} /* extern "C" */

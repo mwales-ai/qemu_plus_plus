@@ -24,6 +24,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 
 #include <sys/ioctl.h>
@@ -124,7 +129,7 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
         }
 
         if (strcmp(cmd, "deny") == 0) {
-            acl_rule = g_malloc(sizeof(*acl_rule));
+            acl_rule = static_cast<ACLRule *>(g_malloc(sizeof(*acl_rule)));
             if (strcmp(arg, "all") == 0) {
                 acl_rule->type = ACL_DENY_ALL;
             } else {
@@ -133,7 +138,7 @@ static int parse_acl_file(const char *filename, ACLList *acl_list)
             }
             QSIMPLEQ_INSERT_TAIL(acl_list, acl_rule, entry);
         } else if (strcmp(cmd, "allow") == 0) {
-            acl_rule = g_malloc(sizeof(*acl_rule));
+            acl_rule = static_cast<ACLRule *>(g_malloc(sizeof(*acl_rule)));
             if (strcmp(arg, "all") == 0) {
                 acl_rule->type = ACL_ALLOW_ALL;
             } else {
@@ -214,7 +219,7 @@ static int drop_privileges(void)
     /* clear all capabilities */
     capng_clear(CAPNG_SELECT_BOTH);
 
-    if (capng_update(CAPNG_ADD, CAPNG_EFFECTIVE | CAPNG_PERMITTED,
+    if (capng_update(CAPNG_ADD, static_cast<capng_type_t>(CAPNG_EFFECTIVE | CAPNG_PERMITTED),
                      CAP_NET_ADMIN) < 0) {
         return -1;
     }
@@ -464,3 +469,5 @@ cleanup:
 
     return ret;
 }
+
+} /* extern "C" */

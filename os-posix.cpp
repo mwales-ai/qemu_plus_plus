@@ -24,6 +24,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <pwd.h>
@@ -353,3 +358,5 @@ int os_mlock(bool on_fault)
     return -ENOSYS;
 #endif
 }
+
+} /* extern "C" */
