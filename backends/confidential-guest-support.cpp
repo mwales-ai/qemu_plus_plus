@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "system/confidential-guest-support.h"
 #include "qapi/error.h"
@@ -58,7 +63,7 @@ static int get_mem_map_entry(int index, ConfidentialGuestMemoryMapEntry *entry,
     return -1;
 }
 
-static void confidential_guest_support_class_init(ObjectClass *oc,
+static void __attribute__((used)) confidential_guest_support_class_init(ObjectClass *oc,
                                                   const void *data)
 {
     ConfidentialGuestSupportClass *cgsc = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
@@ -68,10 +73,12 @@ static void confidential_guest_support_class_init(ObjectClass *oc,
     cgsc->get_mem_map_entry = get_mem_map_entry;
 }
 
-static void confidential_guest_support_init(Object *obj)
+static void __attribute__((used)) confidential_guest_support_init(Object *obj)
 {
 }
 
-static void confidential_guest_support_finalize(Object *obj)
+static void __attribute__((used)) confidential_guest_support_finalize(Object *obj)
 {
 }
+
+} /* extern "C" */

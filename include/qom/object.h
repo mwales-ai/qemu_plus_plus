@@ -285,15 +285,15 @@ struct Object
     module_obj_name##_init(Object *obj); \
     \
     static const TypeInfo module_obj_name##_info = { \
-        .parent = TYPE_##PARENT_MODULE_OBJ_NAME, \
         .name = TYPE_##MODULE_OBJ_NAME, \
+        .parent = TYPE_##PARENT_MODULE_OBJ_NAME, \
         .instance_size = sizeof(ModuleObjName), \
         .instance_align = __alignof__(ModuleObjName), \
         .instance_init = module_obj_name##_init, \
         .instance_finalize = module_obj_name##_finalize, \
+        .is_abstract = ABSTRACT, \
         .class_size = CLASS_SIZE, \
         .class_init = module_obj_name##_class_init, \
-        .is_abstract = ABSTRACT, \
         .interfaces = (const InterfaceInfo[]) { __VA_ARGS__ } , \
     }; \
     \

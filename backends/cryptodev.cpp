@@ -22,6 +22,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/cryptodev.h"
 #include "system/stats.h"
 #include "qapi/error.h"
@@ -62,7 +67,7 @@ static QTAILQ_HEAD(, CryptoDevBackendClient) crypto_clients;
 static int qmp_query_cryptodev_foreach(Object *obj, void *data)
 {
     CryptoDevBackend *backend;
-    QCryptodevInfoList **infolist = data;
+    QCryptodevInfoList **infolist = static_cast<QCryptodevInfoList **>(data);
     uint32_t services, i;
 
     if (!object_dynamic_cast(obj, TYPE_CRYPTODEV_BACKEND)) {
@@ -76,7 +81,7 @@ static int qmp_query_cryptodev_foreach(Object *obj, void *data)
     services = backend->conf.crypto_services;
     for (i = 0; i < QCRYPTODEV_BACKEND_SERVICE_TYPE__MAX; i++) {
         if (services & (1 << i)) {
-            QAPI_LIST_PREPEND(info->service, i);
+            QAPI_LIST_PREPEND(info->service, static_cast<QCryptodevBackendServiceType>(i));
         }
     }
 
@@ -495,7 +500,7 @@ static StatsList *cryptodev_backend_stats_add(const char *name, int64_t *val,
 
 static int cryptodev_backend_stats_query(Object *obj, void *data)
 {
-    StatsArgs *stats_args = data;
+    StatsArgs *stats_args = static_cast<StatsArgs *>(data);
     StatsResultList **stats_results = stats_args->result.stats;
     StatsList *stats_list = NULL;
     StatsResult *entry;
@@ -595,11 +600,11 @@ static void cryptodev_backend_schemas_cb(StatsSchemaList **result,
                                  ASYM_ENCRYPT_BYTES_STR, ASYM_DECRYPT_BYTES_STR,
                                  ASYM_SIGN_BYTES_STR, ASYM_VERIFY_BYTES_STR };
 
-    for (int i = 0; i < ARRAY_SIZE(sym_stats); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(sym_stats); i++) {
         stats_list = cryptodev_backend_schemas_add(sym_stats[i], stats_list);
     }
 
-    for (int i = 0; i < ARRAY_SIZE(asym_stats); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(asym_stats); i++) {
         stats_list = cryptodev_backend_schemas_add(asym_stats[i], stats_list);
     }
 
@@ -654,3 +659,5 @@ cryptodev_backend_register_types(void)
 }
 
 type_init(cryptodev_backend_register_types);
+
+} /* extern "C" */

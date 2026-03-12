@@ -20,6 +20,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
@@ -36,7 +41,7 @@
 static void get_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
-    TPMBackend **be = object_field_prop_ptr(obj, opaque);
+    TPMBackend **be = static_cast<TPMBackend **>(object_field_prop_ptr(obj, static_cast<const Property *>(opaque)));
     char *p;
 
     p = g_strdup(*be ? (*be)->id : "");
@@ -47,8 +52,8 @@ static void get_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
 static void set_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
-    const Property *prop = opaque;
-    TPMBackend *s, **be = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    TPMBackend *s, **be = static_cast<TPMBackend **>(object_field_prop_ptr(obj, prop));
     char *str;
 
     if (!visit_type_str(v, name, &str, errp)) {
@@ -67,14 +72,15 @@ static void set_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
 
 static void release_tpm(Object *obj, const char *name, void *opaque)
 {
-    const Property *prop = opaque;
-    TPMBackend **be = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    TPMBackend **be = static_cast<TPMBackend **>(object_field_prop_ptr(obj, prop));
 
     if (*be) {
         tpm_backend_reset(*be);
     }
 }
 
+extern const PropertyInfo qdev_prop_tpm;
 const PropertyInfo qdev_prop_tpm = {
     .type  = "str",
     .description = "ID of a tpm to use as a backend",
@@ -120,7 +126,7 @@ static int tpm_util_request(int fd,
     if (n < 0) {
         return -errno;
     }
-    if (n != requestlen) {
+    if (n != static_cast<int>(requestlen)) {
         return -EFAULT;
     }
 
@@ -131,12 +137,12 @@ static int tpm_util_request(int fd,
     }
 
     n = read(fd, response, responselen);
-    if (n < sizeof(struct tpm_resp_hdr)) {
+    if (n < static_cast<int>(sizeof(struct tpm_resp_hdr))) {
         return -EFAULT;
     }
 
     /* check the header */
-    if (tpm_cmd_get_size(response) != n) {
+    if (tpm_cmd_get_size(response) != static_cast<uint32_t>(n)) {
         return -EMSGSIZE;
     }
 
@@ -357,3 +363,5 @@ void tpm_util_show_buffer(const unsigned char *buffer,
     g_string_ascii_up(str);
     trace_tpm_util_show_buffer_content(str->str);
 }
+
+} /* extern "C" */

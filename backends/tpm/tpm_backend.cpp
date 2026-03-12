@@ -13,6 +13,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/tpm_backend.h"
 #include "qapi/error.h"
 #include "system/tpm.h"
@@ -187,8 +192,8 @@ static const TypeInfo tpm_backend_info = {
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(TPMBackend),
     .instance_finalize = tpm_backend_instance_finalize,
-    .class_size = sizeof(TPMBackendClass),
     .is_abstract = true,
+    .class_size = sizeof(TPMBackendClass),
 };
 
 static const TypeInfo tpm_if_info = {
@@ -204,3 +209,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

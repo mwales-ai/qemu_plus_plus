@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "hw/virtio/virtio-bus.h"
 #include "system/cryptodev-vhost.h"
 
@@ -254,7 +259,7 @@ void cryptodev_vhost_stop(VirtIODevice *dev, int total_queues)
     size_t i;
     int r;
 
-    for (i = 0; i < total_queues; i++) {
+    for (i = 0; i < static_cast<size_t>(total_queues); i++) {
         cc = b->conf.peers.ccs[i];
 
         vhost_crypto = cryptodev_get_vhost(cc, b, i);
@@ -347,3 +352,5 @@ bool cryptodev_vhost_virtqueue_pending(VirtIODevice *dev,
     return false;
 }
 #endif
+
+} /* extern "C" */

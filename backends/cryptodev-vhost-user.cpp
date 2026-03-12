@@ -22,6 +22,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
@@ -78,7 +83,7 @@ static void cryptodev_vhost_user_stop(int queues,
 {
     size_t i;
 
-    for (i = 0; i < queues; i++) {
+    for (i = 0; i < static_cast<size_t>(queues); i++) {
         if (!cryptodev_vhost_user_running(s->vhost_crypto[i])) {
             continue;
         }
@@ -97,7 +102,7 @@ cryptodev_vhost_user_start(int queues,
     int max_queues;
     size_t i;
 
-    for (i = 0; i < queues; i++) {
+    for (i = 0; i < static_cast<size_t>(queues); i++) {
         if (cryptodev_vhost_user_running(s->vhost_crypto[i])) {
             continue;
         }
@@ -153,7 +158,7 @@ cryptodev_vhost_claim_chardev(CryptoDevBackendVhostUser *s,
 
 static void cryptodev_vhost_user_event(void *opaque, QEMUChrEvent event)
 {
-    CryptoDevBackendVhostUser *s = opaque;
+    CryptoDevBackendVhostUser *s = static_cast<CryptoDevBackendVhostUser *>(opaque);
     CryptoDevBackend *b = CRYPTODEV_BACKEND(s);
     int queues = b->conf.peers.queues;
 
@@ -197,7 +202,7 @@ static void cryptodev_vhost_user_init(
 
     s->opened = true;
 
-    for (i = 0; i < queues; i++) {
+    for (i = 0; i < static_cast<size_t>(queues); i++) {
         cc = cryptodev_backend_new_client();
         cc->info_str = g_strdup_printf("cryptodev-vhost-user%zu to %s ",
                                        i, chr->label);
@@ -343,7 +348,7 @@ static void cryptodev_vhost_user_cleanup(
 
     cryptodev_vhost_user_stop(queues, s);
 
-    for (i = 0; i < queues; i++) {
+    for (i = 0; i < static_cast<size_t>(queues); i++) {
         cc = backend->conf.peers.ccs[i];
         if (cc) {
             cryptodev_backend_free_client(cc);
@@ -382,7 +387,7 @@ cryptodev_vhost_user_get_chardev(Object *obj, Error **errp)
     return NULL;
 }
 
-static void cryptodev_vhost_user_finalize(Object *obj)
+static void __attribute__((used)) cryptodev_vhost_user_finalize(Object *obj)
 {
     CryptoDevBackendVhostUser *s =
                       CRYPTODEV_BACKEND_VHOST_USER(obj);
@@ -412,9 +417,9 @@ cryptodev_vhost_user_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo cryptodev_vhost_user_info = {
     .name = TYPE_CRYPTODEV_BACKEND_VHOST_USER,
     .parent = TYPE_CRYPTODEV_BACKEND,
-    .class_init = cryptodev_vhost_user_class_init,
-    .instance_finalize = cryptodev_vhost_user_finalize,
     .instance_size = sizeof(CryptoDevBackendVhostUser),
+    .instance_finalize = cryptodev_vhost_user_finalize,
+    .class_init = cryptodev_vhost_user_class_init,
 };
 
 static void
@@ -424,3 +429,5 @@ cryptodev_vhost_user_register_types(void)
 }
 
 type_init(cryptodev_vhost_user_register_types);
+
+} /* extern "C" */

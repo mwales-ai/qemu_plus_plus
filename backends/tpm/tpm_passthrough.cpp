@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/sockets.h"
@@ -105,14 +110,14 @@ static void tpm_passthrough_unix_tx_bufs(TPMPassthruState *tpm_pt,
             error_setg_errno(errp, errno, "tpm_passthrough: error while "
                              "reading data from TPM");
         }
-    } else if (ret < sizeof(struct tpm_resp_hdr) ||
-               tpm_cmd_get_size(out) != ret) {
+    } else if (ret < static_cast<ssize_t>(sizeof(struct tpm_resp_hdr)) ||
+               tpm_cmd_get_size(out) != static_cast<uint32_t>(ret)) {
         ret = -1;
         error_setg_errno(errp, errno, "tpm_passthrough: received invalid "
                      "response packet from TPM");
     }
 
-    if (is_selftest && (ret >= sizeof(struct tpm_resp_hdr))) {
+    if (is_selftest && (ret >= static_cast<ssize_t>(sizeof(struct tpm_resp_hdr)))) {
         *selftest_done = tpm_cmd_get_errcode(out) == 0;
     }
 
@@ -232,11 +237,11 @@ static int tpm_passthrough_open_sysfs_cancel(TPMPassthruState *tpm_pt)
 
     dev++;
     if (snprintf(path, sizeof(path), "/sys/class/tpm/%s/device/cancel",
-                 dev) < sizeof(path)) {
+                 dev) < static_cast<int>(sizeof(path))) {
         fd = qemu_open_old(path, O_WRONLY);
         if (fd < 0) {
             if (snprintf(path, sizeof(path), "/sys/class/misc/%s/device/cancel",
-                         dev) < sizeof(path)) {
+                         dev) < static_cast<int>(sizeof(path))) {
                 fd = qemu_open_old(path, O_WRONLY);
             }
         }
@@ -340,7 +345,7 @@ static const QemuOptDesc tpm_passthrough_cmdline_opts[] = {
     { /* end of list */ },
 };
 
-static void tpm_passthrough_inst_init(Object *obj)
+static void __attribute__((used)) tpm_passthrough_inst_init(Object *obj)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
 
@@ -349,7 +354,7 @@ static void tpm_passthrough_inst_init(Object *obj)
     tpm_pt->cancel_fd = -1;
 }
 
-static void tpm_passthrough_inst_finalize(Object *obj)
+static void __attribute__((used)) tpm_passthrough_inst_finalize(Object *obj)
 {
     TPMPassthruState *tpm_pt = TPM_PASSTHROUGH(obj);
 
@@ -388,9 +393,9 @@ static const TypeInfo tpm_passthrough_info = {
     .name = TYPE_TPM_PASSTHROUGH,
     .parent = TYPE_TPM_BACKEND,
     .instance_size = sizeof(TPMPassthruState),
-    .class_init = tpm_passthrough_class_init,
     .instance_init = tpm_passthrough_inst_init,
     .instance_finalize = tpm_passthrough_inst_finalize,
+    .class_init = tpm_passthrough_class_init,
 };
 
 static void tpm_passthrough_register(void)
@@ -399,3 +404,5 @@ static void tpm_passthrough_register(void)
 }
 
 type_init(tpm_passthrough_register)
+
+} /* extern "C" */

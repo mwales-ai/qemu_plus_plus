@@ -43,27 +43,27 @@ static inline void tpm_cmd_set_tag(void *b, uint16_t tag)
 
 static inline uint32_t tpm_cmd_get_size(const void *b)
 {
-    return ldl_be_p(b + 2);
+    return ldl_be_p((const uint8_t *)b + 2);
 }
 
 static inline void tpm_cmd_set_size(void *b, uint32_t size)
 {
-    stl_be_p(b + 2, size);
+    stl_be_p((uint8_t *)b + 2, size);
 }
 
 static inline uint32_t tpm_cmd_get_ordinal(const void *b)
 {
-    return ldl_be_p(b + 6);
+    return ldl_be_p((const uint8_t *)b + 6);
 }
 
 static inline uint32_t tpm_cmd_get_errcode(const void *b)
 {
-    return ldl_be_p(b + 6);
+    return ldl_be_p((const uint8_t *)b + 6);
 }
 
 static inline void tpm_cmd_set_error(void *b, uint32_t error)
 {
-    stl_be_p(b + 6, error);
+    stl_be_p((uint8_t *)b + 6, error);
 }
 
 void tpm_util_show_buffer(const unsigned char *buffer,

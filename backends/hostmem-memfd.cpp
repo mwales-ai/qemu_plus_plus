@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/hostmem.h"
 #include "qom/object_interfaces.h"
 #include "qemu/memfd.h"
@@ -162,9 +167,9 @@ memfd_backend_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo memfd_backend_info = {
     .name = TYPE_MEMORY_BACKEND_MEMFD,
     .parent = TYPE_MEMORY_BACKEND,
+    .instance_size = sizeof(HostMemoryBackendMemfd),
     .instance_init = memfd_backend_instance_init,
     .class_init = memfd_backend_class_init,
-    .instance_size = sizeof(HostMemoryBackendMemfd),
 };
 
 static void register_types(void)
@@ -175,3 +180,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/hostmem.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
@@ -56,3 +61,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

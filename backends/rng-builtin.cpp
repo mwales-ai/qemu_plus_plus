@@ -6,6 +6,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/rng.h"
 #include "qemu/main-loop.h"
 #include "qemu/guest-random.h"
@@ -21,7 +26,7 @@ struct RngBuiltin {
 
 static void rng_builtin_receive_entropy_bh(void *opaque)
 {
-    RngBuiltin *s = opaque;
+    RngBuiltin *s = static_cast<RngBuiltin *>(opaque);
 
     while (!QSIMPLEQ_EMPTY(&s->parent.requests)) {
         RngRequest *req = QSIMPLEQ_FIRST(&s->parent.requests);
@@ -77,3 +82,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

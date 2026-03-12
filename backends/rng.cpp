@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/rng.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
@@ -24,13 +29,13 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
     RngRequest *req;
 
     if (k->request_entropy) {
-        req = g_malloc(sizeof(*req));
+        req = static_cast<RngRequest *>(g_malloc(sizeof(*req)));
 
         req->offset = 0;
         req->size = size;
         req->receive_entropy = receive_entropy;
         req->opaque = opaque;
-        req->data = g_malloc(req->size);
+        req->data = static_cast<uint8_t *>(g_malloc(req->size));
 
         k->request_entropy(s, req);
 
@@ -116,9 +121,9 @@ static const TypeInfo rng_backend_info = {
     .instance_size = sizeof(RngBackend),
     .instance_init = rng_backend_init,
     .instance_finalize = rng_backend_finalize,
+    .is_abstract = true,
     .class_size = sizeof(RngBackendClass),
     .class_init = rng_backend_class_init,
-    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
@@ -131,3 +136,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

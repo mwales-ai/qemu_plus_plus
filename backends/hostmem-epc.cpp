@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include <sys/ioctl.h>
 #include "qom/object_interfaces.h"
 #include "qapi/error.h"
@@ -60,9 +65,9 @@ static void sgx_epc_backend_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo sgx_epc_backed_info = {
     .name = TYPE_MEMORY_BACKEND_EPC,
     .parent = TYPE_MEMORY_BACKEND,
+    .instance_size = sizeof(HostMemoryBackendEpc),
     .instance_init = sgx_epc_backend_instance_init,
     .class_init = sgx_epc_backend_class_init,
-    .instance_size = sizeof(HostMemoryBackendEpc),
 };
 
 static void register_types(void)
@@ -76,3 +81,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

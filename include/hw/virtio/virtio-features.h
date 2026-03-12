@@ -11,7 +11,7 @@
 
 #include "qemu/bitops.h"
 
-#define VIRTIO_FEATURES_FMT        "%016"PRIx64"%016"PRIx64
+#define VIRTIO_FEATURES_FMT        "%016" PRIx64 "%016" PRIx64
 #define VIRTIO_FEATURES_PR(f)      (f)[1], (f)[0]
 
 #define VIRTIO_FEATURES_MAX        128

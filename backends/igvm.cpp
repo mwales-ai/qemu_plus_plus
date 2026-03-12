@@ -10,6 +10,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "qapi/error.h"
 #include "qemu/target-info-qapi.h"
@@ -994,3 +999,5 @@ cleanup:
 
     return retval;
 }
+
+} /* extern "C" */

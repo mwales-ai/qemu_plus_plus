@@ -22,6 +22,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/cryptodev.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -196,7 +201,7 @@ static int cryptodev_builtin_set_rsa_options(
         if (hash_alg < 0) {
             return -1;
         }
-        opt->hash_alg = hash_alg;
+        opt->hash_alg = static_cast<QCryptoHashAlgo>(hash_alg);
         opt->padding_alg = QCRYPTO_RSA_PADDING_ALGO_PKCS1;
         return 0;
     }
@@ -284,7 +289,8 @@ static int cryptodev_builtin_create_cipher_session(
         return -1;
     }
 
-    cipher = qcrypto_cipher_new(algo, mode,
+    cipher = qcrypto_cipher_new(static_cast<QCryptoCipherAlgo>(algo),
+                               static_cast<QCryptoCipherMode>(mode),
                                sess_info->cipher_key,
                                sess_info->key_len,
                                errp);
@@ -524,7 +530,7 @@ static int cryptodev_builtin_asym_operation(
     }
 
     /* Buffer is too short, typically the driver should handle this case */
-    if (unlikely(ret > op_info->dst_len)) {
+    if (unlikely(ret > static_cast<int>(op_info->dst_len))) {
         if (errp && !*errp) {
             error_setg(errp, "dst buffer too short");
         }
@@ -593,7 +599,7 @@ static void cryptodev_builtin_cleanup(
         }
     }
 
-    for (i = 0; i < queues; i++) {
+    for (i = 0; i < static_cast<size_t>(queues); i++) {
         cc = backend->conf.peers.ccs[i];
         if (cc) {
             cryptodev_backend_free_client(cc);
@@ -619,8 +625,8 @@ cryptodev_builtin_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo cryptodev_builtin_info = {
     .name = TYPE_CRYPTODEV_BACKEND_BUILTIN,
     .parent = TYPE_CRYPTODEV_BACKEND,
-    .class_init = cryptodev_builtin_class_init,
     .instance_size = sizeof(CryptoDevBackendBuiltin),
+    .class_init = cryptodev_builtin_class_init,
 };
 
 static void
@@ -630,3 +636,5 @@ cryptodev_builtin_register_types(void)
 }
 
 type_init(cryptodev_builtin_register_types);
+
+} /* extern "C" */

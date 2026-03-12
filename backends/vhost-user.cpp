@@ -12,6 +12,11 @@
 
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qom/object_interfaces.h"
@@ -83,7 +88,7 @@ vhost_user_backend_start(VhostUserBackend *b)
      * everything here.  virtio-pci will do the right thing by
      * enabling/disabling irqfd.
      */
-    for (i = 0; i < b->dev.nvqs; i++) {
+    for (i = 0; i < static_cast<int>(b->dev.nvqs); i++) {
         vhost_virtqueue_mask(&b->dev, b->vdev,
                              b->dev.vq_index + i, false);
     }
@@ -166,7 +171,7 @@ static void vhost_user_backend_class_init(ObjectClass *oc, const void *data)
     object_class_property_add_str(oc, "chardev", get_chardev, set_chardev);
 }
 
-static void vhost_user_backend_finalize(Object *obj)
+static void __attribute__((used)) vhost_user_backend_finalize(Object *obj)
 {
     VhostUserBackend *b = VHOST_USER_BACKEND(obj);
 
@@ -181,8 +186,8 @@ static const TypeInfo vhost_user_backend_info = {
     .name = TYPE_VHOST_USER_BACKEND,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(VhostUserBackend),
-    .class_init = vhost_user_backend_class_init,
     .instance_finalize = vhost_user_backend_finalize,
+    .class_init = vhost_user_backend_class_init,
 };
 
 static void register_types(void)
@@ -191,3 +196,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

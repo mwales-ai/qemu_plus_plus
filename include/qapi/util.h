@@ -37,7 +37,7 @@ int parse_qapi_name(const char *name, bool complete);
  * to have side-effects with that argument.
  */
 #define QAPI_LIST_PREPEND(list, element) do { \
-    typeof(list) _tmp = g_malloc(sizeof(*(list))); \
+    typeof(list) _tmp = (typeof(list))g_malloc(sizeof(*(list))); \
     _tmp->value = (element); \
     _tmp->next = (list); \
     (list) = _tmp; \

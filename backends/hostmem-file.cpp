@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -304,7 +309,7 @@ file_backend_class_init(ObjectClass *oc, const void *data)
         "Whether to create Read Only Memory (ROM)");
 }
 
-static void file_backend_instance_finalize(Object *o)
+static void __attribute__((used)) file_backend_instance_finalize(Object *o)
 {
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
 
@@ -314,9 +319,9 @@ static void file_backend_instance_finalize(Object *o)
 static const TypeInfo file_backend_info = {
     .name = TYPE_MEMORY_BACKEND_FILE,
     .parent = TYPE_MEMORY_BACKEND,
-    .class_init = file_backend_class_init,
-    .instance_finalize = file_backend_instance_finalize,
     .instance_size = sizeof(HostMemoryBackendFile),
+    .instance_finalize = file_backend_instance_finalize,
+    .class_init = file_backend_class_init,
 };
 
 static void register_types(void)
@@ -325,3 +330,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

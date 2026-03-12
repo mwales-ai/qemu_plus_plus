@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/rng.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
@@ -135,7 +140,7 @@ static char *rng_egd_get_chardev(Object *obj, Error **errp)
     return NULL;
 }
 
-static void rng_egd_finalize(Object *obj)
+static void __attribute__((used)) rng_egd_finalize(Object *obj)
 {
     RngEgd *s = RNG_EGD(obj);
 
@@ -157,8 +162,8 @@ static const TypeInfo rng_egd_info = {
     .name = TYPE_RNG_EGD,
     .parent = TYPE_RNG_BACKEND,
     .instance_size = sizeof(RngEgd),
-    .class_init = rng_egd_class_init,
     .instance_finalize = rng_egd_finalize,
+    .class_init = rng_egd_class_init,
 };
 
 static void register_types(void)
@@ -167,3 +172,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

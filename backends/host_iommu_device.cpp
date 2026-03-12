@@ -10,6 +10,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/host_iommu_device.h"
 
 OBJECT_DEFINE_ABSTRACT_TYPE(HostIOMMUDevice,
@@ -31,3 +36,5 @@ static void host_iommu_device_finalize(Object *obj)
 
     g_free(hiod->name);
 }
+
+} /* extern "C" */

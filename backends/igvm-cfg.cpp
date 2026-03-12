@@ -10,6 +10,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "system/igvm-cfg.h"
 #include "system/igvm.h"
@@ -49,3 +54,5 @@ static void igvm_cfg_init(Object *obj)
 static void igvm_cfg_finalize(Object *obj)
 {
 }
+
+} /* extern "C" */

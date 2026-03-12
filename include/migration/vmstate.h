@@ -332,50 +332,50 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_SINGLE_TEST(_field, _state, _test, _version, _info, _type) { \
     .name         = (stringify(_field)),                             \
-    .version_id   = (_version),                                      \
-    .field_exists = (_test),                                         \
+    .offset       = vmstate_offset_value(_state, _field, _type),     \
     .size         = sizeof(_type),                                   \
     .info         = &(_info),                                        \
     .flags        = VMS_SINGLE,                                      \
-    .offset       = vmstate_offset_value(_state, _field, _type),     \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_SINGLE_FULL(_field, _state, _test, _version, _info,  \
                             _type, _err_hint) {                      \
     .name         = (stringify(_field)),                             \
     .err_hint     = (_err_hint),                                     \
-    .version_id   = (_version),                                      \
-    .field_exists = (_test),                                         \
+    .offset       = vmstate_offset_value(_state, _field, _type),     \
     .size         = sizeof(_type),                                   \
     .info         = &(_info),                                        \
     .flags        = VMS_SINGLE,                                      \
-    .offset       = vmstate_offset_value(_state, _field, _type),     \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 /* Validate state using a boolean predicate. */
 #define VMSTATE_VALIDATE(_name, _test) { \
     .name         = (_name),                                         \
-    .field_exists = (_test),                                         \
-    .flags        = VMS_ARRAY | VMS_MUST_EXIST,                      \
     .num          = 0, /* 0 elements: no data, only run _test */     \
+    .flags        = VMS_ARRAY | VMS_MUST_EXIST,                      \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_POINTER(_field, _state, _version, _info, _type) {    \
     .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
-    .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_SINGLE|VMS_POINTER,                            \
     .offset     = vmstate_offset_value(_state, _field, _type),       \
+    .size       = sizeof(_type),                                     \
+    .info       = &(_info),                                          \
+    .flags      = VMS_SINGLE|VMS_POINTER,                            \
+    .version_id = (_version),                                        \
 }
 
 #define VMSTATE_POINTER_TEST(_field, _state, _test, _info, _type) {  \
     .name       = (stringify(_field)),                               \
-    .info       = &(_info),                                          \
-    .field_exists = (_test),                                         \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_SINGLE|VMS_POINTER,                            \
     .offset     = vmstate_offset_value(_state, _field, _type),       \
+    .size       = sizeof(_type),                                     \
+    .info       = &(_info),                                          \
+    .flags      = VMS_SINGLE|VMS_POINTER,                            \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_ARRAY(_field, _state, _num, _version, _info, _type) {\
@@ -709,12 +709,12 @@ extern const VMStateInfo vmstate_info_qlist;
 #define VMSTATE_VBUFFER_ALLOC_UINT32(_field, _state, _version,       \
                                      _test, _field_size) {           \
     .name         = (stringify(_field)),                             \
-    .version_id   = (_version),                                      \
-    .field_exists = (_test),                                         \
+    .offset       = offsetof(_state, _field),                        \
     .size_offset  = vmstate_offset_value(_state, _field_size, uint32_t),\
     .info         = &vmstate_info_buffer,                            \
-    .flags        = VMS_VBUFFER|VMS_POINTER|VMS_ALLOC,               \
-    .offset       = offsetof(_state, _field),                        \
+    .flags        = (enum VMStateFlags)(VMS_VBUFFER|VMS_POINTER|VMS_ALLOC), \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_BUFFER_UNSAFE_INFO_TEST(_field, _state, _test, _version, _info, _size) { \

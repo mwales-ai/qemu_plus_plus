@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/rng-random.h"
 #include "system/rng.h"
 #include "qapi/error.h"
@@ -101,7 +106,7 @@ static void rng_random_set_filename(Object *obj, const char *filename,
     s->filename = g_strdup(filename);
 }
 
-static void rng_random_init(Object *obj)
+static void __attribute__((used)) rng_random_init(Object *obj)
 {
     RngRandom *s = RNG_RANDOM(obj);
 
@@ -109,7 +114,7 @@ static void rng_random_init(Object *obj)
     s->fd = -1;
 }
 
-static void rng_random_finalize(Object *obj)
+static void __attribute__((used)) rng_random_finalize(Object *obj)
 {
     RngRandom *s = RNG_RANDOM(obj);
 
@@ -137,9 +142,9 @@ static const TypeInfo rng_random_info = {
     .name = TYPE_RNG_RANDOM,
     .parent = TYPE_RNG_BACKEND,
     .instance_size = sizeof(RngRandom),
-    .class_init = rng_random_class_init,
     .instance_init = rng_random_init,
     .instance_finalize = rng_random_finalize,
+    .class_init = rng_random_class_init,
 };
 
 static void register_types(void)
@@ -148,3 +153,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

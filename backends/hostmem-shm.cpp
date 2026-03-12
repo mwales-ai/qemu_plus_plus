@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/hostmem.h"
 #include "qapi/error.h"
 #include "migration/cpr.h"
@@ -80,9 +85,9 @@ shm_backend_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo shm_backend_info = {
     .name = TYPE_MEMORY_BACKEND_SHM,
     .parent = TYPE_MEMORY_BACKEND,
+    .instance_size = sizeof(HostMemoryBackendShm),
     .instance_init = shm_backend_instance_init,
     .class_init = shm_backend_class_init,
-    .instance_size = sizeof(HostMemoryBackendShm),
 };
 
 static void register_types(void)
@@ -91,3 +96,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

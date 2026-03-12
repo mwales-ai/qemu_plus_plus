@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/hostmem.h"
 #include "hw/boards.h"
 #include "qapi/error.h"
@@ -150,7 +155,7 @@ static void
 host_memory_backend_set_policy(Object *obj, int policy, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-    backend->policy = policy;
+    backend->policy = static_cast<HostMemPolicy>(policy);
 
 #ifndef CONFIG_NUMA
     if (policy != HOST_MEM_POLICY_DEFAULT) {
@@ -248,7 +253,8 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
-        if (!qemu_prealloc_mem(fd, ptr, sz, backend->prealloc_threads,
+        if (!qemu_prealloc_mem(fd, static_cast<char *>(ptr), sz,
+                               backend->prealloc_threads,
                                backend->prealloc_context, false, errp)) {
             return;
         }
@@ -280,7 +286,7 @@ static void host_memory_backend_set_prealloc_threads(Object *obj, Visitor *v,
     backend->prealloc_threads = value;
 }
 
-static void host_memory_backend_init(Object *obj)
+static void __attribute__((used)) host_memory_backend_init(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     MachineState *machine = MACHINE(qdev_get_machine());
@@ -293,7 +299,7 @@ static void host_memory_backend_init(Object *obj)
     backend->prealloc_threads = machine->smp.cpus;
 }
 
-static void host_memory_backend_post_init(Object *obj)
+static void __attribute__((used)) host_memory_backend_post_init(Object *obj)
 {
     object_apply_compat_props(obj);
 }
@@ -423,7 +429,7 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
      * specified NUMA policy in place.
      */
     if (backend->prealloc && !qemu_prealloc_mem(memory_region_get_fd(&backend->mr),
-                                                ptr, sz,
+                                                static_cast<char *>(ptr), sz,
                                                 backend->prealloc_threads,
                                                 backend->prealloc_context,
                                                 async, errp)) {
@@ -580,12 +586,12 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo host_memory_backend_info = {
     .name = TYPE_MEMORY_BACKEND,
     .parent = TYPE_OBJECT,
-    .is_abstract = true,
-    .class_size = sizeof(HostMemoryBackendClass),
-    .class_init = host_memory_backend_class_init,
     .instance_size = sizeof(HostMemoryBackend),
     .instance_init = host_memory_backend_init,
     .instance_post_init = host_memory_backend_post_init,
+    .is_abstract = true,
+    .class_size = sizeof(HostMemoryBackendClass),
+    .class_init = host_memory_backend_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
@@ -598,3 +604,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

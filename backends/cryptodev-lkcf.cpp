@@ -22,6 +22,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "crypto/cipher.h"
 #include "crypto/akcipher.h"
 #include "qapi/error.h"
@@ -642,3 +647,5 @@ static void cryptodev_lkcf_register_types(void)
 }
 
 type_init(cryptodev_lkcf_register_types);
+
+} /* extern "C" */

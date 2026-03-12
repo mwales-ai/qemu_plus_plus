@@ -27,6 +27,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/sockets.h"
@@ -132,7 +137,7 @@ static int tpm_emulator_ctrlcmd(TPMEmulator *tpm, unsigned long cmd, void *msg,
     ptm_res res;
 
     WITH_QEMU_LOCK_GUARD(&tpm->mutex) {
-        g_autofree uint8_t *buf = g_malloc(n);
+        g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(n));
 
         memcpy(buf, &cmd_no, sizeof(cmd_no));
         memcpy(buf + sizeof(cmd_no), msg, msg_len_in);
@@ -407,9 +412,9 @@ static int tpm_emulator_startup_tpm_resume(TPMBackend *tb, size_t buffersize,
                                            bool is_resume, Error **errp)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
-    ptm_init init = {
-        .u.req.init_flags = 0,
-    };
+    ptm_init init;
+    memset(&init, 0, sizeof(init));
+    init.u.req.init_flags = 0;
     ptm_res res;
 
     trace_tpm_emulator_startup_tpm_resume(is_resume, buffersize);
@@ -775,7 +780,7 @@ static int tpm_emulator_get_state_blob(TPMEmulator *tpm_emu,
     *flags = be32_to_cpu(pgs.u.resp.state_flags);
 
     if (totlength > 0) {
-        tsb->buffer = g_try_malloc(totlength);
+        tsb->buffer = static_cast<uint8_t *>(g_try_malloc(totlength));
         if (!tsb->buffer) {
             error_report("tpm-emulator: Out of memory allocating %u bytes",
                          totlength);
@@ -845,11 +850,10 @@ static int tpm_emulator_set_state_blob(TPMEmulator *tpm_emu,
         return 0;
     }
 
-    pss = (ptm_setstate) {
-        .u.req.state_flags = cpu_to_be32(flags),
-        .u.req.type = cpu_to_be32(type),
-        .u.req.length = cpu_to_be32(tsb->size),
-    };
+    memset(&pss, 0, sizeof(pss));
+    pss.u.req.state_flags = cpu_to_be32(flags);
+    pss.u.req.type = cpu_to_be32(type);
+    pss.u.req.length = cpu_to_be32(tsb->size);
 
     /* write the header only */
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_SET_STATEBLOB, &pss,
@@ -928,7 +932,7 @@ static int tpm_emulator_set_state_blobs(TPMBackend *tb, Error **errp)
 
 static int tpm_emulator_pre_save(void *opaque)
 {
-    TPMBackend *tb = opaque;
+    TPMBackend *tb = static_cast<TPMBackend *>(opaque);
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
     int ret;
 
@@ -947,7 +951,7 @@ static int tpm_emulator_pre_save(void *opaque)
 static void tpm_emulator_vm_state_change(void *opaque, bool running,
                                          RunState state)
 {
-    TPMBackend *tb = opaque;
+    TPMBackend *tb = static_cast<TPMBackend *>(opaque);
     TPMEmulator *tpm_emu = TPM_EMULATOR(tb);
 
     trace_tpm_emulator_vm_state_change(running, state);
@@ -963,9 +967,9 @@ static void tpm_emulator_vm_state_change(void *opaque, bool running,
 /*
  * Load the TPM state blobs into the TPM.
  */
-static bool tpm_emulator_post_load(void *opaque, int version_id, Error **errp)
+static bool __attribute__((used)) tpm_emulator_post_load(void *opaque, int version_id, Error **errp)
 {
-    TPMBackend *tb = opaque;
+    TPMBackend *tb = static_cast<TPMBackend *>(opaque);
     int ret;
 
     ret = tpm_emulator_set_state_blobs(tb, errp);
@@ -983,8 +987,8 @@ static bool tpm_emulator_post_load(void *opaque, int version_id, Error **errp)
 static const VMStateDescription vmstate_tpm_emulator = {
     .name = "tpm-emulator",
     .version_id = 0,
-    .pre_save = tpm_emulator_pre_save,
     .post_load_errp = tpm_emulator_post_load,
+    .pre_save = tpm_emulator_pre_save,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(state_blobs.permanent_flags, TPMEmulator),
         VMSTATE_UINT32(state_blobs.permanent.size, TPMEmulator),
@@ -1008,7 +1012,7 @@ static const VMStateDescription vmstate_tpm_emulator = {
     }
 };
 
-static void tpm_emulator_inst_init(Object *obj)
+static void __attribute__((used)) tpm_emulator_inst_init(Object *obj)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(obj);
 
@@ -1046,7 +1050,7 @@ static void tpm_emulator_shutdown(TPMEmulator *tpm_emu)
     }
 }
 
-static void tpm_emulator_inst_finalize(Object *obj)
+static void __attribute__((used)) tpm_emulator_inst_finalize(Object *obj)
 {
     TPMEmulator *tpm_emu = TPM_EMULATOR(obj);
     TPMBlobBuffers *state_blobs = &tpm_emu->state_blobs;
@@ -1094,9 +1098,9 @@ static const TypeInfo tpm_emulator_info = {
     .name = TYPE_TPM_EMULATOR,
     .parent = TYPE_TPM_BACKEND,
     .instance_size = sizeof(TPMEmulator),
-    .class_init = tpm_emulator_class_init,
     .instance_init = tpm_emulator_inst_init,
     .instance_finalize = tpm_emulator_inst_finalize,
+    .class_init = tpm_emulator_class_init,
 };
 
 static void tpm_emulator_register(void)
@@ -1105,3 +1109,5 @@ static void tpm_emulator_register(void)
 }
 
 type_init(tpm_emulator_register)
+
+} /* extern "C" */

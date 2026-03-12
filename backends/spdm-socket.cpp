@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/spdm-socket.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
@@ -23,7 +28,7 @@ static bool read_bytes(const int socket, uint8_t *buffer,
     ssize_t number_received = 0;
     ssize_t result;
 
-    while (number_received < number_of_bytes) {
+    while (number_received < static_cast<ssize_t>(number_of_bytes)) {
         result = recv(socket, buffer + number_received,
                       number_of_bytes - number_received, 0);
         if (result <= 0) {
@@ -225,8 +230,8 @@ uint32_t spdm_socket_receive(const int socket, uint32_t transport_type,
 bool spdm_socket_send(const int socket, uint32_t socket_cmd,
                       uint32_t transport_type, void *req, uint32_t req_len)
 {
-    return send_platform_data(socket, transport_type, socket_cmd, req,
-                              req_len);
+    return send_platform_data(socket, transport_type, socket_cmd,
+                              static_cast<const uint8_t *>(req), req_len);
 }
 
 uint32_t spdm_socket_rsp(const int socket, uint32_t transport_type,
@@ -261,11 +266,14 @@ const QEnumLookup SpdmTransport_lookup = {
     .size = SPDM_SOCKET_TRANSPORT_TYPE_MAX
 };
 
+extern const PropertyInfo qdev_prop_spdm_trans;
 const PropertyInfo qdev_prop_spdm_trans = {
     .type = "SpdmTransportType",
     .description = "Spdm Transport, doe/nvme/mctp/scsi/unspecified",
     .enum_table = &SpdmTransport_lookup,
+    .set_default_value = qdev_propinfo_set_default_value_enum,
     .get = qdev_propinfo_get_enum,
     .set = qdev_propinfo_set_enum,
-    .set_default_value = qdev_propinfo_set_default_value_enum,
 };
+
+} /* extern "C" */
