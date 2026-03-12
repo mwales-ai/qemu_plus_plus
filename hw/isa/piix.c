@@ -443,7 +443,7 @@ static const TypeInfo piix_pci_type_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIXState),
     .instance_init = pci_piix_init,
-    .abstract = true,
+    .is_abstract = true,
     .class_init = pci_piix_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

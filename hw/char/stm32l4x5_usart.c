@@ -635,7 +635,7 @@ static const TypeInfo stm32l4x5_usart_types[] = {
         .instance_init  = stm32l4x5_usart_base_init,
         .class_size     = sizeof(Stm32l4x5UsartBaseClass),
         .class_init     = stm32l4x5_usart_base_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = TYPE_STM32L4X5_USART,
         .parent         = TYPE_STM32L4X5_USART_BASE,

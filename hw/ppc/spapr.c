@@ -4695,7 +4695,7 @@ static void spapr_machine_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo spapr_machine_info = {
     .name          = TYPE_SPAPR_MACHINE,
     .parent        = TYPE_MACHINE,
-    .abstract      = true,
+    .is_abstract      = true,
     .instance_size = sizeof(SpaprMachineState),
     .instance_init = spapr_instance_init,
     .instance_finalize = spapr_machine_finalizefn,

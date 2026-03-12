@@ -486,7 +486,7 @@ static const TypeInfo s390_skeys_types[] = {
         .instance_size  = sizeof(S390SKeysState),
         .class_init     = s390_skeys_class_init,
         .class_size     = sizeof(S390SKeysClass),
-        .abstract       = true,
+        .is_abstract       = true,
     },
     {
         .name           = TYPE_QEMU_S390_SKEYS,

@@ -271,7 +271,7 @@ static const TypeInfo char_win_stdio_type_info = {
     .instance_size = sizeof(WinStdioChardev),
     .instance_finalize = char_win_stdio_finalize,
     .class_init = char_win_stdio_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void register_types(void)

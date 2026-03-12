@@ -243,7 +243,7 @@ static const TypeInfo pca954x_info[] = {
         .instance_init = pca954x_init,
         .class_size    = sizeof(Pca954xClass),
         .class_init    = pca954x_class_init,
-        .abstract      = true,
+        .is_abstract      = true,
     },
     {
         .name          = TYPE_PCA9546,

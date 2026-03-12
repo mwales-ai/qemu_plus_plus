@@ -401,7 +401,7 @@ static const TypeInfo pnv_sbe_type_info = {
     .instance_size = sizeof(PnvSBE),
     .class_init    = pnv_sbe_class_init,
     .class_size    = sizeof(PnvSBEClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void pnv_sbe_register_types(void)

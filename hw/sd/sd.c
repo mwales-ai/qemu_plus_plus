@@ -3229,7 +3229,7 @@ static const TypeInfo sd_types[] = {
     {
         .name           = TYPE_SDMMC_COMMON,
         .parent         = TYPE_DEVICE,
-        .abstract       = true,
+        .is_abstract       = true,
         .instance_size  = sizeof(SDState),
         .class_size     = sizeof(SDCardClass),
         .class_init     = sdmmc_common_class_init,

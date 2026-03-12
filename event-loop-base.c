@@ -125,7 +125,7 @@ static const TypeInfo event_loop_base_info = {
     .instance_init = event_loop_base_instance_init,
     .class_size = sizeof(EventLoopBaseClass),
     .class_init = event_loop_base_class_init,
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }

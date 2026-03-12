@@ -1311,7 +1311,7 @@ static const TypeInfo aspeed_smc_info = {
     .instance_size  = sizeof(AspeedSMCState),
     .class_size     = sizeof(AspeedSMCClass),
     .class_init     = aspeed_smc_class_init,
-    .abstract       = true,
+    .is_abstract       = true,
 };
 
 static void aspeed_smc_flash_realize(DeviceState *dev, Error **errp)

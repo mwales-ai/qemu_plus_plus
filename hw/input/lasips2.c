@@ -366,7 +366,7 @@ static const TypeInfo lasips2_port_info = {
     .instance_size = sizeof(LASIPS2Port),
     .class_init    = lasips2_port_class_init,
     .class_size    = sizeof(LASIPS2PortDeviceClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void lasips2_kbd_port_realize(DeviceState *dev, Error **errp)

@@ -1450,7 +1450,7 @@ static void mps3tz_an547_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo mps2tz_info = {
     .name = TYPE_MPS2TZ_MACHINE,
     .parent = TYPE_MACHINE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(MPS2TZMachineState),
     .class_size = sizeof(MPS2TZMachineClass),
     .class_init = mps2tz_class_init,

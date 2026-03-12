@@ -128,7 +128,7 @@ static const TypeInfo loongarch_pic_common_types[] = {
         .instance_size      = sizeof(LoongArchPICCommonState),
         .class_size         = sizeof(LoongArchPICCommonClass),
         .class_init         = loongarch_pic_common_class_init,
-        .abstract           = true,
+        .is_abstract           = true,
     }
 };
 

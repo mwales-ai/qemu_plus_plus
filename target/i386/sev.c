@@ -2773,7 +2773,7 @@ static const TypeInfo sev_common_info = {
     .instance_init = sev_common_instance_init,
     .class_size = sizeof(SevCommonStateClass),
     .class_init = sev_common_class_init,
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }

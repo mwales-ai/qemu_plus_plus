@@ -364,7 +364,7 @@ static const TypeInfo virtio_bus_info = {
     .name = TYPE_VIRTIO_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(VirtioBusState),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(VirtioBusClass),
     .class_init = virtio_bus_class_init
 };

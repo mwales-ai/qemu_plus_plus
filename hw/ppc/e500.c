@@ -1284,7 +1284,7 @@ static const TypeInfo e500_ccsr_info = {
 static const TypeInfo ppce500_info = {
     .name          = TYPE_PPCE500_MACHINE,
     .parent        = TYPE_MACHINE,
-    .abstract      = true,
+    .is_abstract      = true,
     .instance_size = sizeof(PPCE500MachineState),
     .class_size    = sizeof(PPCE500MachineClass),
 };

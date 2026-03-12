@@ -648,7 +648,7 @@ static void musca_b1_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo musca_info = {
     .name = TYPE_MUSCA_MACHINE,
     .parent = TYPE_MACHINE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(MuscaMachineState),
     .class_size = sizeof(MuscaMachineClass),
     .class_init = musca_class_init,

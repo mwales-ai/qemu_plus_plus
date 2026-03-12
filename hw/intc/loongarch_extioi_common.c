@@ -250,7 +250,7 @@ static const TypeInfo loongarch_extioi_common_types[] = {
             { TYPE_HOTPLUG_HANDLER },
             { }
         },
-        .abstract           = true,
+        .is_abstract           = true,
     }
 };
 

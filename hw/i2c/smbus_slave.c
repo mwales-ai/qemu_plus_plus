@@ -232,7 +232,7 @@ static const TypeInfo smbus_device_type_info = {
     .name = TYPE_SMBUS_DEVICE,
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(SMBusDevice),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(SMBusDeviceClass),
     .class_init = smbus_device_class_init,
 };

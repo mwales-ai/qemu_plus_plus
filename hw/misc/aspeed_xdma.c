@@ -232,7 +232,7 @@ static const TypeInfo aspeed_xdma_info = {
     .instance_size = sizeof(AspeedXDMAState),
     .class_init    = aspeed_xdma_class_init,
     .class_size    = sizeof(AspeedXDMAClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void aspeed_xdma_register_type(void)

@@ -390,7 +390,7 @@ static const TypeInfo hexagon_cpu_type_infos[] = {
         .instance_size = sizeof(HexagonCPU),
         .instance_align = __alignof(HexagonCPU),
         .instance_init = hexagon_cpu_init,
-        .abstract = true,
+        .is_abstract = true,
         .class_size = sizeof(HexagonCPUClass),
         .class_init = hexagon_cpu_class_init,
     },

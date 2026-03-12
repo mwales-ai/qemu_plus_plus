@@ -654,7 +654,7 @@ static const TypeInfo usb_serial_dev_type_info = {
     .name = TYPE_USB_SERIAL,
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBSerialState),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = usb_serial_dev_class_init,
 };
 

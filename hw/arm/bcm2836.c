@@ -230,7 +230,7 @@ static const TypeInfo bcm283x_types[] = {
         .parent         = TYPE_BCM283X_BASE,
         .instance_size  = sizeof(BCM283XState),
         .instance_init  = bcm283x_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = TYPE_BCM283X_BASE,
         .parent         = TYPE_DEVICE,
@@ -238,7 +238,7 @@ static const TypeInfo bcm283x_types[] = {
         .instance_init  = bcm283x_base_init,
         .class_size     = sizeof(BCM283XBaseClass),
         .class_init     = bcm283x_base_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }
 };
 

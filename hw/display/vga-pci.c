@@ -367,7 +367,7 @@ static const TypeInfo vga_pci_type_info = {
     .name = TYPE_PCI_VGA,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIVGAState),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = vga_pci_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

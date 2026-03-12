@@ -2135,7 +2135,7 @@ static const TypeInfo versal_base_info = {
     .instance_finalize = versal_base_finalize,
     .class_init = versal_base_class_init,
     .class_size = sizeof(VersalClass),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static const TypeInfo versal_info = {

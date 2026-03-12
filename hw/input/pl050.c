@@ -264,7 +264,7 @@ static const TypeInfo pl050_type_info = {
     .instance_size = sizeof(PL050State),
     .class_init    = pl050_class_init,
     .class_size    = sizeof(PL050DeviceClass),
-    .abstract      = true,
+    .is_abstract      = true,
     .class_init    = pl050_class_init,
 };
 

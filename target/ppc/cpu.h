@@ -3120,7 +3120,7 @@ static inline int check_attn_none(CPUPPCState *env)
     glue(glue(ppc_, _name), _cpu_family_type_info) = {                      \
         .name = stringify(_name) "-family-" TYPE_POWERPC_CPU,               \
         .parent = TYPE_POWERPC_CPU,                                         \
-        .abstract = true,                                                   \
+        .is_abstract = true,                                                   \
         .class_init = glue(glue(ppc_, _name), _cpu_family_class_init),      \
     };                                                                      \
                                                                             \

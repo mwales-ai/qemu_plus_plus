@@ -718,7 +718,7 @@ static const TypeInfo mshv_accel_ops_type = {
     .name = ACCEL_OPS_NAME("mshv"),
     .parent = TYPE_ACCEL_OPS,
     .class_init = mshv_accel_ops_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void mshv_type_init(void)

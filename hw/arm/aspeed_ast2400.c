@@ -578,7 +578,7 @@ static const TypeInfo aspeed_soc_ast2400_types[] = {
         .parent         = TYPE_ASPEED_SOC,
         .instance_init  = aspeed_ast2400_soc_init,
         .instance_size  = sizeof(Aspeed2400SoCState),
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = "ast2400-a1",
         .parent         = TYPE_ASPEED2400_SOC,

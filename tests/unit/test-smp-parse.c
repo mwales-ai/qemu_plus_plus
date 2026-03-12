@@ -1519,7 +1519,7 @@ static const TypeInfo smp_machine_types[] = {
     {
         .name           = TYPE_MACHINE,
         .parent         = TYPE_OBJECT,
-        .abstract       = true,
+        .is_abstract    = true,
         .class_init     = machine_base_class_init,
         .class_size     = sizeof(MachineClass),
         .instance_size  = sizeof(MachineState),

@@ -606,7 +606,7 @@ static const TypeInfo usb_storage_dev_type_info = {
     .name = TYPE_USB_STORAGE,
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(MSDState),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = usb_msd_class_initfn_common,
 };
 

@@ -897,7 +897,7 @@ static const TypeInfo device_type_info = {
     .instance_finalize = device_finalize,
     .class_base_init = device_class_base_init,
     .class_init = device_class_init,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(DeviceClass),
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_VMSTATE_IF },

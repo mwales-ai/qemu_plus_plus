@@ -478,7 +478,7 @@ static const TypeInfo sclp_event_type_info = {
     .instance_size = sizeof(SCLPEvent),
     .class_init = event_class_init,
     .class_size = sizeof(SCLPEventClass),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void register_types(void)

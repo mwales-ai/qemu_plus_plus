@@ -856,7 +856,7 @@ static const TypeInfo npcm7xx_soc_types[] = {
         .instance_init  = npcm7xx_init,
         .class_size     = sizeof(NPCM7xxClass),
         .class_init     = npcm7xx_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = TYPE_NPCM730,
         .parent         = TYPE_NPCM7XX,

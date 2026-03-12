@@ -395,7 +395,7 @@ static const TypeInfo cpu_type_info = {
     .instance_size = sizeof(CPUState),
     .instance_init = cpu_common_initfn,
     .instance_finalize = cpu_common_finalize,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(CPUClass),
     .class_init = cpu_common_class_init,
 };

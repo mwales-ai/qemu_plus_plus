@@ -2509,7 +2509,7 @@ static const TypeInfo virtio_pci_info = {
     .instance_size = sizeof(VirtIOPCIProxy),
     .class_init    = virtio_pci_class_init,
     .class_size    = sizeof(VirtioPCIClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const Property virtio_pci_generic_properties[] = {
@@ -2559,7 +2559,7 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
         .instance_init = t->instance_init,
         .instance_finalize = t->instance_finalize,
         .class_size    = t->class_size,
-        .abstract      = true,
+        .is_abstract      = true,
         .interfaces    = t->interfaces,
     };
     TypeInfo generic_type_info = {

@@ -3603,7 +3603,7 @@ static const TypeInfo types[] = {
     {
         .name          = TYPE_PNV_MACHINE,
         .parent        = TYPE_MACHINE,
-        .abstract       = true,
+        .is_abstract       = true,
         .instance_size = sizeof(PnvMachineState),
         .class_init    = pnv_machine_class_init,
         .class_size    = sizeof(PnvMachineClass),
@@ -3619,7 +3619,7 @@ static const TypeInfo types[] = {
         .class_init    = pnv_chip_class_init,
         .instance_size = sizeof(PnvChip),
         .class_size    = sizeof(PnvChipClass),
-        .abstract      = true,
+        .is_abstract      = true,
     },
 
     /*

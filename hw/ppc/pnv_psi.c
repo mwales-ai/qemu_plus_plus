@@ -958,7 +958,7 @@ static const TypeInfo pnv_psi_info = {
     .instance_size = sizeof(PnvPsi),
     .class_init    = pnv_psi_class_init,
     .class_size    = sizeof(PnvPsiClass),
-    .abstract      = true,
+    .is_abstract      = true,
     .interfaces    = (const InterfaceInfo[]) {
         { TYPE_PNV_XSCOM_INTERFACE },
         { }

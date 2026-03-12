@@ -369,7 +369,7 @@ static const TypeInfo tmp421_info = {
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TMP421State),
     .class_size    = sizeof(TMP421Class),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void tmp421_register_types(void)

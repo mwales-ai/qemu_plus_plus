@@ -230,7 +230,7 @@ static const TypeInfo tc27x_soc_types[] = {
         .instance_init = tc27x_soc_init,
         .class_size    = sizeof(TC27XSoCClass),
         .class_init    = tc27x_soc_class_init,
-        .abstract      = true,
+        .is_abstract      = true,
     },
 };
 

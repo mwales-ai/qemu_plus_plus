@@ -170,7 +170,7 @@ static const TypeInfo ehci_pci_type_info = {
     .instance_size = sizeof(EHCIPCIState),
     .instance_init = usb_ehci_pci_init,
     .instance_finalize = usb_ehci_pci_finalize,
-    .abstract = true,
+    .is_abstract = true,
     .class_init = ehci_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

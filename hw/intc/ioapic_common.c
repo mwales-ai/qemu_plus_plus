@@ -214,7 +214,7 @@ static const TypeInfo ioapic_common_type = {
     .instance_size = sizeof(IOAPICCommonState),
     .class_size = sizeof(IOAPICCommonClass),
     .class_init = ioapic_common_class_init,
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_INTERRUPT_STATS_PROVIDER },
         { }

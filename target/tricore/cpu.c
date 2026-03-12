@@ -235,7 +235,7 @@ static const TypeInfo tricore_cpu_type_infos[] = {
         .parent = TYPE_CPU,
         .instance_size = sizeof(TriCoreCPU),
         .instance_align = __alignof(TriCoreCPU),
-        .abstract = true,
+        .is_abstract = true,
         .class_size = sizeof(TriCoreCPUClass),
         .class_init = tricore_cpu_class_init,
     },

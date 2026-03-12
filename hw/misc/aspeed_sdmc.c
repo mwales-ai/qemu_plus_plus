@@ -316,7 +316,7 @@ static const TypeInfo aspeed_sdmc_info = {
     .instance_init = aspeed_sdmc_initfn,
     .class_init = aspeed_sdmc_class_init,
     .class_size = sizeof(AspeedSDMCClass),
-    .abstract   = true,
+    .is_abstract   = true,
 };
 
 static int aspeed_sdmc_get_ram_bits(AspeedSDMCState *s)

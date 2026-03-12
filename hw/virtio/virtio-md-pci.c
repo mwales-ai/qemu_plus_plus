@@ -137,7 +137,7 @@ static const TypeInfo virtio_md_pci_info = {
     .parent = TYPE_VIRTIO_PCI,
     .instance_size = sizeof(VirtIOMDPCI),
     .class_size = sizeof(VirtIOMDPCIClass),
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_MEMORY_DEVICE },
         { }

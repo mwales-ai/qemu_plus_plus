@@ -859,7 +859,7 @@ static const TypeInfo pnv_lpc_info = {
     .instance_size = sizeof(PnvLpcController),
     .class_init    = pnv_lpc_class_init,
     .class_size    = sizeof(PnvLpcClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void pnv_lpc_register_types(void)

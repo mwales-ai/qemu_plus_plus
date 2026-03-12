@@ -1836,7 +1836,7 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo pc_machine_info = {
     .name = TYPE_PC_MACHINE,
     .parent = TYPE_X86_MACHINE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(PCMachineState),
     .instance_init = pc_machine_initfn,
     .class_size = sizeof(PCMachineClass),

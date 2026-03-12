@@ -338,7 +338,7 @@ static const TypeInfo u2f_key_info = {
     .name          = TYPE_U2F_KEY,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(U2FKeyState),
-    .abstract      = true,
+    .is_abstract      = true,
     .class_size    = sizeof(U2FKeyClass),
     .class_init    = u2f_key_class_init,
 };

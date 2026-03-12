@@ -799,7 +799,7 @@ static const TypeInfo crl_base_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCRLBase),
     .class_size    = sizeof(XlnxVersalCRLBaseClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo versal_crl_info = {

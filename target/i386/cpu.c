@@ -10171,7 +10171,7 @@ static const TypeInfo x86_cpu_type_info = {
     .instance_init = x86_cpu_initfn,
     .instance_post_init = x86_cpu_post_initfn,
 
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(X86CPUClass),
     .class_init = x86_cpu_common_class_init,
 };

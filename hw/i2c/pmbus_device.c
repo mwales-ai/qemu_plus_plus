@@ -1916,7 +1916,7 @@ static const TypeInfo pmbus_device_type_info = {
     .parent = TYPE_SMBUS_DEVICE,
     .instance_size = sizeof(PMBusDevice),
     .instance_finalize = pmbus_device_finalize,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(PMBusDeviceClass),
     .class_init = pmbus_device_class_init,
 };

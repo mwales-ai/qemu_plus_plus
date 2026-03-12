@@ -580,7 +580,7 @@ host_memory_backend_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo host_memory_backend_info = {
     .name = TYPE_MEMORY_BACKEND,
     .parent = TYPE_OBJECT,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(HostMemoryBackendClass),
     .class_init = host_memory_backend_class_init,
     .instance_size = sizeof(HostMemoryBackend),

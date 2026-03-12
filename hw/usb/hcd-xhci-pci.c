@@ -247,7 +247,7 @@ static const TypeInfo xhci_pci_info = {
     .instance_size = sizeof(XHCIPciState),
     .class_init    = xhci_class_init,
     .instance_init = xhci_instance_init,
-    .abstract      = true,
+    .is_abstract      = true,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

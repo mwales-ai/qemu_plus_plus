@@ -357,7 +357,7 @@ static void netfilter_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo netfilter_info = {
     .name = TYPE_NETFILTER,
     .parent = TYPE_OBJECT,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(NetFilterClass),
     .class_init = netfilter_class_init,
     .instance_size = sizeof(NetFilterState),

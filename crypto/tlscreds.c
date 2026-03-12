@@ -303,7 +303,7 @@ static const TypeInfo qcrypto_tls_creds_info = {
     .instance_finalize = qcrypto_tls_creds_finalize,
     .class_init = qcrypto_tls_creds_class_init,
     .class_size = sizeof(QCryptoTLSCredsClass),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 

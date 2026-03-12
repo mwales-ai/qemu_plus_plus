@@ -345,7 +345,7 @@ static const TypeInfo types[] = {
         .instance_finalize = vfio_container_instance_finalize,
         .instance_size = sizeof(VFIOContainer),
         .class_size = sizeof(VFIOIOMMUClass),
-        .abstract = true,
+        .is_abstract = true,
     },
 };
 

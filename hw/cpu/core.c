@@ -91,7 +91,7 @@ static void cpu_core_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo cpu_core_type_info = {
     .name = TYPE_CPU_CORE,
     .parent = TYPE_DEVICE,
-    .abstract = true,
+    .is_abstract = true,
     .class_init = cpu_core_class_init,
     .instance_size = sizeof(CPUCore),
     .instance_init = cpu_core_instance_init,

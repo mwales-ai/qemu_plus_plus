@@ -200,7 +200,7 @@ static const TypeInfo rx_gdbsim_types[] = {
         .instance_size  = sizeof(RxGdbSimMachineState),
         .class_size     = sizeof(RxGdbSimMachineClass),
         .class_init     = rx_gdbsim_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
      }
 };
 

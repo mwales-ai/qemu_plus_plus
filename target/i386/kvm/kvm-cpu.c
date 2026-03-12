@@ -246,7 +246,7 @@ static const TypeInfo kvm_cpu_accel_type_info = {
 
     .parent = TYPE_ACCEL_CPU,
     .class_init = kvm_cpu_accel_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 static void kvm_cpu_accel_register_types(void)
 {

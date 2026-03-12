@@ -90,7 +90,7 @@ static const TypeInfo can_host_info = {
     .name = TYPE_CAN_HOST,
     .instance_size = sizeof(CanHostState),
     .class_size = sizeof(CanHostClass),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = can_host_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },

@@ -698,7 +698,7 @@ static const TypeInfo xen_block_type_info = {
     .name = TYPE_XEN_BLOCK_DEVICE,
     .parent = TYPE_XEN_DEVICE,
     .instance_size = sizeof(XenBlockDevice),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(XenBlockDeviceClass),
     .class_init = xen_block_class_init,
 };

@@ -246,7 +246,7 @@ static const TypeInfo aspeed_soc_types[] = {
         .instance_size  = sizeof(AspeedSoCState),
         .class_size     = sizeof(AspeedSoCClass),
         .class_init     = aspeed_soc_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     },
 };
 

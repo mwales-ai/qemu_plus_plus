@@ -374,7 +374,7 @@ static const TypeInfo qcrypto_secret_info = {
     .instance_finalize = qcrypto_secret_finalize,
     .class_size = sizeof(QCryptoSecretCommonClass),
     .class_init = qcrypto_secret_class_init,
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }

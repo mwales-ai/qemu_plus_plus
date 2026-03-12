@@ -151,7 +151,7 @@ static const TypeInfo x86_iommu_info = {
     .instance_size = sizeof(X86IOMMUState),
     .class_init    = x86_iommu_class_init,
     .class_size    = sizeof(X86IOMMUClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void x86_iommu_register_types(void)

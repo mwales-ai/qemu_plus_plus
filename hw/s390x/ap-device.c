@@ -26,7 +26,7 @@ static const TypeInfo ap_device_info = {
     .instance_size = sizeof(APDevice),
     .class_size = sizeof(DeviceClass),
     .class_init = ap_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void ap_device_register(void)

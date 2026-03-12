@@ -434,7 +434,7 @@ static const TypeInfo s390_cpu_type_info = {
     .instance_finalize = s390_cpu_finalize,
 #endif /* !CONFIG_USER_ONLY */
 
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(S390CPUClass),
     .class_init = s390_cpu_class_init,
 };

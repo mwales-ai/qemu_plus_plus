@@ -471,7 +471,7 @@ static const TypeInfo apic_common_type = {
     .instance_init = apic_common_initfn,
     .class_size = sizeof(APICCommonClass),
     .class_init = apic_common_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void apic_common_register_types(void)

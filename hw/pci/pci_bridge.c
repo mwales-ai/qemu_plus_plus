@@ -496,7 +496,7 @@ static const TypeInfo pci_bridge_type_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBridge),
     .class_init = pci_bridge_class_init,
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_ACPI_DEV_AML_IF },
         { },

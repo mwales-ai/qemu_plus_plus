@@ -257,7 +257,7 @@ static const TypeInfo char_fd_type_info = {
     .instance_size = sizeof(FDChardev),
     .instance_finalize = char_fd_finalize,
     .class_init = char_fd_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void register_types(void)

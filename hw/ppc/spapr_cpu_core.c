@@ -397,7 +397,7 @@ static const TypeInfo spapr_cpu_core_type_infos[] = {
     {
         .name = TYPE_SPAPR_CPU_CORE,
         .parent = TYPE_CPU_CORE,
-        .abstract = true,
+        .is_abstract = true,
         .instance_size = sizeof(SpaprCpuCore),
         .class_size = sizeof(SpaprCpuCoreClass),
     },

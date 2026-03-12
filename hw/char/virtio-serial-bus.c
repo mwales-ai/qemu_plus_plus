@@ -1108,7 +1108,7 @@ static const TypeInfo virtio_serial_port_type_info = {
     .name = TYPE_VIRTIO_SERIAL_PORT,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIOSerialPort),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(VirtIOSerialPortClass),
     .class_init = virtio_serial_port_class_init,
 };

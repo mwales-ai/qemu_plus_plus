@@ -101,7 +101,7 @@ static const TypeInfo ipack_device_info = {
     .instance_size = sizeof(IPackDevice),
     .class_size    = sizeof(IPackDeviceClass),
     .class_init    = ipack_device_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo ipack_bus_info = {

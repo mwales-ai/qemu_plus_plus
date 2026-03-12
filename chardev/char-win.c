@@ -233,7 +233,7 @@ static const TypeInfo char_win_type_info = {
     .instance_size = sizeof(WinChardev),
     .instance_finalize = char_win_finalize,
     .class_init = char_win_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void register_types(void)

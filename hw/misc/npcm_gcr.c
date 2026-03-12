@@ -466,7 +466,7 @@ static const TypeInfo npcm_gcr_info[] = {
         .instance_init      = npcm_gcr_init,
         .class_size         = sizeof(NPCMGCRClass),
         .class_init         = npcm_gcr_class_init,
-        .abstract           = true,
+        .is_abstract           = true,
     },
     {
         .name               = TYPE_NPCM7XX_GCR,

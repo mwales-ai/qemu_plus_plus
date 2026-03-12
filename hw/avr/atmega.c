@@ -479,7 +479,7 @@ static const TypeInfo atmega_mcu_types[] = {
         .instance_size  = sizeof(AtmegaMcuState),
         .class_size     = sizeof(AtmegaMcuClass),
         .class_init     = atmega_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }
 };
 

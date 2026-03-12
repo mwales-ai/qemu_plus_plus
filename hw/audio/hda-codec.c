@@ -918,7 +918,7 @@ static const TypeInfo hda_audio_info = {
     .parent        = TYPE_HDA_CODEC_DEVICE,
     .instance_size = sizeof(HDAAudioState),
     .class_init    = hda_audio_base_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void hda_audio_output_class_init(ObjectClass *klass, const void *data)

@@ -502,7 +502,7 @@ static const TypeInfo pnv_core_infos[] = {
         .instance_size  = sizeof(PnvCore),
         .class_size     = sizeof(PnvCoreClass),
         .class_init = pnv_core_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     },
     DEFINE_PNV_CORE_TYPE(power8, "power8e_v2.1"),
     DEFINE_PNV_CORE_TYPE(power8, "power8_v2.0"),
@@ -752,7 +752,7 @@ static const TypeInfo pnv_quad_infos[] = {
         .instance_size = sizeof(PnvQuad),
         .class_size    = sizeof(PnvQuadClass),
         .class_init    = pnv_quad_class_init,
-        .abstract      = true,
+        .is_abstract      = true,
     },
     {
         .parent = TYPE_PNV_QUAD,

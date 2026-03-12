@@ -113,7 +113,7 @@ static void accel_ops_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo accel_ops_type_info = {
     .name = TYPE_ACCEL_OPS,
     .parent = TYPE_OBJECT,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(AccelOpsClass),
     .class_init = accel_ops_class_init,
 };

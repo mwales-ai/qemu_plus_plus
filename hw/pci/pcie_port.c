@@ -199,7 +199,7 @@ static const TypeInfo pcie_port_type_info = {
     .name = TYPE_PCIE_PORT,
     .parent = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(PCIEPort),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = pcie_port_class_init,
 };
 
@@ -228,7 +228,7 @@ static const TypeInfo pcie_slot_type_info = {
     .name = TYPE_PCIE_SLOT,
     .parent = TYPE_PCIE_PORT,
     .instance_size = sizeof(PCIESlot),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = pcie_slot_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },

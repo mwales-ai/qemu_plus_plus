@@ -324,7 +324,7 @@ static const TypeInfo char_type_info = {
     .instance_size = sizeof(Chardev),
     .instance_init = char_init,
     .instance_finalize = char_finalize,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(ChardevClass),
     .class_init = char_class_init,
 };

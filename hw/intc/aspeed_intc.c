@@ -886,7 +886,7 @@ static const TypeInfo aspeed_intc_info = {
     .instance_size = sizeof(AspeedINTCState),
     .class_init = aspeed_intc_class_init,
     .class_size = sizeof(AspeedINTCClass),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static AspeedINTCIRQ aspeed_2700_intc_irqs[ASPEED_INTC_MAX_INPINS] = {

@@ -946,7 +946,7 @@ static const TypeInfo allwinner_sdhost_info = {
     .instance_size = sizeof(AwSdHostState),
     .class_init    = allwinner_sdhost_class_init,
     .class_size    = sizeof(AwSdHostClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo allwinner_sdhost_sun4i_info = {

@@ -186,7 +186,7 @@ static const TypeInfo rp_info = {
     .parent        = TYPE_PCIE_SLOT,
     .instance_post_init = rp_instance_post_init,
     .class_init    = rp_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
     .class_size = sizeof(PCIERootPortClass),
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },

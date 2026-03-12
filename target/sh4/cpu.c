@@ -349,7 +349,7 @@ static const TypeInfo superh_cpu_type_infos[] = {
         .instance_size = sizeof(SuperHCPU),
         .instance_align = __alignof(SuperHCPU),
         .instance_init = superh_cpu_initfn,
-        .abstract = true,
+        .is_abstract = true,
         .class_size = sizeof(SuperHCPUClass),
         .class_init = superh_cpu_class_init,
     },

@@ -123,7 +123,7 @@ static const TypeInfo ccw_device_info = {
     .instance_size = sizeof(CcwDevice),
     .class_size = sizeof(CCWDeviceClass),
     .class_init = ccw_device_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void ccw_device_register(void)

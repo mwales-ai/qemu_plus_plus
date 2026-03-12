@@ -137,7 +137,7 @@ static const TypeInfo accel_types[] = {
         .parent         = TYPE_OBJECT,
         .class_size     = sizeof(AccelClass),
         .instance_size  = sizeof(AccelState),
-        .abstract       = true,
+        .is_abstract       = true,
     },
 };
 

@@ -116,14 +116,14 @@ static const TypeInfo virtio_input_pci_info = {
     .parent        = TYPE_VIRTIO_PCI,
     .instance_size = sizeof(VirtIOInputPCI),
     .class_init    = virtio_input_pci_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo virtio_input_hid_pci_info = {
     .name          = TYPE_VIRTIO_INPUT_HID_PCI,
     .parent        = TYPE_VIRTIO_INPUT_PCI,
     .instance_size = sizeof(VirtIOInputHIDPCI),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const VirtioPCIDeviceTypeInfo virtio_keyboard_pci_info = {

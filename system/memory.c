@@ -3846,7 +3846,7 @@ static const TypeInfo iommu_memory_region_info = {
     .class_size         = sizeof(IOMMUMemoryRegionClass),
     .instance_size      = sizeof(IOMMUMemoryRegion),
     .instance_init      = iommu_memory_region_initfn,
-    .abstract           = true,
+    .is_abstract           = true,
 };
 
 static const TypeInfo ram_discard_manager_info = {

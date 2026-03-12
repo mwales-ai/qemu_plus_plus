@@ -1625,7 +1625,7 @@ static const TypeInfo aspeed_gpio_info = {
     .instance_size  = sizeof(AspeedGPIOState),
     .class_size     = sizeof(AspeedGPIOClass),
     .class_init     = aspeed_gpio_class_init,
-    .abstract       = true,
+    .is_abstract       = true,
 };
 
 static const TypeInfo aspeed_gpio_ast2400_info = {

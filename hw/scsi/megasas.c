@@ -2555,7 +2555,7 @@ static const TypeInfo megasas_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MegasasState),
     .class_size = sizeof(MegasasBaseClass),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void megasas_register_types(void)

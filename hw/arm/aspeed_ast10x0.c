@@ -472,7 +472,7 @@ static const TypeInfo aspeed_soc_ast10x0_types[] = {
         .name           = TYPE_ASPEED10X0_SOC,
         .parent         = TYPE_ASPEED_SOC,
         .instance_size  = sizeof(Aspeed10x0SoCState),
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = "ast1030-a1",
         .parent         = TYPE_ASPEED10X0_SOC,

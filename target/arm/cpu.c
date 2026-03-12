@@ -2443,7 +2443,7 @@ static const TypeInfo arm_cpu_type_info = {
     .instance_align = __alignof__(ARMCPU),
     .instance_init = arm_cpu_initfn,
     .instance_finalize = arm_cpu_finalizefn,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(ARMCPUClass),
     .class_init = arm_cpu_class_init,
 };

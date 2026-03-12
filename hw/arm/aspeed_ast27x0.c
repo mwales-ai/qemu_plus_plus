@@ -1108,7 +1108,7 @@ static const TypeInfo aspeed_soc_ast27x0_types[] = {
         .name           = TYPE_ASPEED27X0_SOC,
         .parent         = TYPE_ASPEED_SOC,
         .instance_size  = sizeof(Aspeed27x0SoCState),
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = "ast2700-a0",
         .parent         = TYPE_ASPEED27X0_SOC,

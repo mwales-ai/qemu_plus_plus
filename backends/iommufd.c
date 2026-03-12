@@ -507,7 +507,7 @@ static const TypeInfo types[] = {
         .instance_size = sizeof(HostIOMMUDeviceIOMMUFD),
         .class_size = sizeof(HostIOMMUDeviceIOMMUFDClass),
         .class_init = hiod_iommufd_class_init,
-        .abstract = true,
+        .is_abstract = true,
     }
 };
 

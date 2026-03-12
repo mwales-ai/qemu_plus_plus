@@ -188,7 +188,7 @@ static const TypeInfo tpm_backend_info = {
     .instance_size = sizeof(TPMBackend),
     .instance_finalize = tpm_backend_instance_finalize,
     .class_size = sizeof(TPMBackendClass),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static const TypeInfo tpm_if_info = {

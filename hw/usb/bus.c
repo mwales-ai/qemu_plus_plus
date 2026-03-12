@@ -726,7 +726,7 @@ static const TypeInfo usb_device_type_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(USBDevice),
     .instance_init = usb_device_instance_init,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(USBDeviceClass),
     .class_init = usb_device_class_init,
 };

@@ -312,7 +312,7 @@ static const TypeInfo adb_device_type_info = {
     .parent = TYPE_DEVICE,
     .class_size = sizeof(ADBDeviceClass),
     .instance_size = sizeof(ADBDevice),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = adb_device_class_init,
 };
 

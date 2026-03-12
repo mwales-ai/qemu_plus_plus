@@ -123,7 +123,7 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
 static const TypeInfo pcie_host_type_info = {
     .name = TYPE_PCIE_HOST_BRIDGE,
     .parent = TYPE_PCI_HOST_BRIDGE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(PCIExpressHost),
     .instance_init = pcie_host_init,
 };

@@ -244,7 +244,7 @@ static const TypeInfo npcm8xx_machine_types[] = {
         .instance_size  = sizeof(NPCM8xxMachine),
         .class_size     = sizeof(NPCM8xxMachineClass),
         .class_init     = npcm8xx_machine_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = MACHINE_TYPE_NAME("npcm845-evb"),
         .parent         = TYPE_NPCM8XX_MACHINE,

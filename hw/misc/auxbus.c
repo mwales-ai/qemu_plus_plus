@@ -323,7 +323,7 @@ static const TypeInfo aux_slave_type_info = {
     .name = TYPE_AUX_SLAVE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(AUXSlave),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = aux_slave_class_init,
 };
 

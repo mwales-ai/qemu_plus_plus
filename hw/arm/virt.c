@@ -3516,7 +3516,7 @@ static void virt_instance_init(Object *obj)
 static const TypeInfo virt_machine_info = {
     .name          = TYPE_VIRT_MACHINE,
     .parent        = TYPE_MACHINE,
-    .abstract      = true,
+    .is_abstract      = true,
     .instance_size = sizeof(VirtMachineState),
     .class_size    = sizeof(VirtMachineClass),
     .class_init    = virt_machine_class_init,

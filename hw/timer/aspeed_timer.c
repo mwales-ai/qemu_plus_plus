@@ -912,7 +912,7 @@ static const TypeInfo aspeed_timer_info = {
     .instance_size = sizeof(AspeedTimerCtrlState),
     .class_init = timer_class_init,
     .class_size = sizeof(AspeedTimerClass),
-    .abstract   = true,
+    .is_abstract   = true,
 };
 
 static void aspeed_2400_timer_class_init(ObjectClass *klass, const void *data)

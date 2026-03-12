@@ -301,7 +301,7 @@ static const TypeInfo emc141x_info = {
     .instance_size = sizeof(EMC141XState),
     .class_size    = sizeof(EMC141XClass),
     .instance_init = emc141x_initfn,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo emc1413_info = {

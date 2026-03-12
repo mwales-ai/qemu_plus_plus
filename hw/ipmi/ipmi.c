@@ -123,7 +123,7 @@ static const TypeInfo ipmi_bmc_type_info = {
     .name = TYPE_IPMI_BMC,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(IPMIBmc),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(IPMIBmcClass),
     .class_init = bmc_class_init,
 };

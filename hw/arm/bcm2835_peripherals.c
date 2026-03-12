@@ -542,7 +542,7 @@ static const TypeInfo bcm2835_peripherals_types[] = {
         .instance_size = sizeof(BCMSocPeripheralBaseState),
         .instance_init = raspi_peripherals_base_init,
         .class_size = sizeof(BCMSocPeripheralBaseClass),
-        .abstract = true,
+        .is_abstract = true,
     }
 };
 

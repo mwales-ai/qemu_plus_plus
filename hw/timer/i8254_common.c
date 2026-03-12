@@ -261,7 +261,7 @@ static const TypeInfo pit_common_type = {
     .instance_size = sizeof(PITCommonState),
     .class_size    = sizeof(PITCommonClass),
     .class_init    = pit_common_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void register_devices(void)

@@ -1261,7 +1261,7 @@ static const TypeInfo intel_hda_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IntelHDAState),
     .class_init    = intel_hda_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -1294,7 +1294,7 @@ static const TypeInfo hda_codec_device_type_info = {
     .name = TYPE_HDA_CODEC_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(HDACodecDevice),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(HDACodecDeviceClass),
     .class_init = hda_codec_device_class_init,
 };

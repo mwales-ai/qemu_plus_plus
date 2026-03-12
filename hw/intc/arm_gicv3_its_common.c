@@ -150,7 +150,7 @@ static const TypeInfo gicv3_its_common_info = {
     .instance_size = sizeof(GICv3ITSState),
     .class_size = sizeof(GICv3ITSCommonClass),
     .class_init = gicv3_its_common_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void gicv3_its_common_register_types(void)

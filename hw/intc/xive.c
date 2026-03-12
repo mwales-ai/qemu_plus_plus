@@ -2265,7 +2265,7 @@ static void xive_router_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo xive_router_info = {
     .name          = TYPE_XIVE_ROUTER,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .abstract      = true,
+    .is_abstract      = true,
     .instance_size = sizeof(XiveRouter),
     .class_size    = sizeof(XiveRouterClass),
     .class_init    = xive_router_class_init,

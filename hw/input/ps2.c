@@ -1316,7 +1316,7 @@ static const TypeInfo ps2_info = {
     .instance_size = sizeof(PS2State),
     .class_init    = ps2_class_init,
     .class_size    = sizeof(PS2DeviceClass),
-    .abstract      = true
+    .is_abstract      = true
 };
 
 static void ps2_register_types(void)

@@ -629,7 +629,7 @@ static const TypeInfo pnv_chiptod_type_info = {
     .instance_size = sizeof(PnvChipTOD),
     .class_init    = pnv_chiptod_class_init,
     .class_size    = sizeof(PnvChipTODClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void pnv_chiptod_register_types(void)

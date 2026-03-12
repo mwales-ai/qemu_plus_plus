@@ -244,7 +244,7 @@ static const TypeInfo axp2xx_info = {
     .instance_size = sizeof(AXP2xxI2CState),
     .class_size = sizeof(AXP2xxClass),
     .class_init = axp2xx_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void axp209_class_init(ObjectClass *oc, const void *data)

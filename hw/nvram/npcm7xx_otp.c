@@ -424,7 +424,7 @@ static const TypeInfo npcm7xx_otp_types[] = {
         .instance_size = sizeof(NPCM7xxOTPState),
         .class_size = sizeof(NPCM7xxOTPClass),
         .class_init = npcm7xx_otp_class_init,
-        .abstract = true,
+        .is_abstract = true,
     },
     {
         .name = TYPE_NPCM7XX_KEY_STORAGE,

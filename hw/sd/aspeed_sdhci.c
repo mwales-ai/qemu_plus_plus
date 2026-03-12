@@ -261,7 +261,7 @@ static const TypeInfo aspeed_sdhci_types[] = {
         .instance_size  = sizeof(AspeedSDHCIState),
         .class_init     = aspeed_sdhci_class_init,
         .class_size = sizeof(AspeedSDHCIClass),
-        .abstract = true,
+        .is_abstract = true,
     },
     {
         .name = TYPE_ASPEED_2400_SDHCI,

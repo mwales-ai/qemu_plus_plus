@@ -1712,7 +1712,7 @@ static const TypeInfo armsse_info = {
     .instance_size = sizeof(ARMSSE),
     .class_size = sizeof(ARMSSEClass),
     .instance_init = armsse_init,
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_IDAU_INTERFACE },
         { }

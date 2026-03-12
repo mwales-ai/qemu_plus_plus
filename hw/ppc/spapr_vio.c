@@ -634,7 +634,7 @@ static const TypeInfo spapr_vio_type_info = {
     .name = TYPE_VIO_SPAPR_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SpaprVioDevice),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(SpaprVioDeviceClass),
     .class_init = vio_spapr_device_class_init,
 };

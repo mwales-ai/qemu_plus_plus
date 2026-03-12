@@ -1194,7 +1194,7 @@ static const TypeInfo npcm_clk_info = {
     .instance_init      = npcm_clk_init,
     .class_size         = sizeof(NPCMCLKClass),
     .class_init         = npcm_clk_class_init,
-    .abstract           = true,
+    .is_abstract           = true,
 };
 
 static const TypeInfo npcm7xx_clk_info = {

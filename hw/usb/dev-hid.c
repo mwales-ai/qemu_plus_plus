@@ -789,7 +789,7 @@ static const TypeInfo usb_hid_type_info = {
     .name = TYPE_USB_HID,
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHIDState),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = usb_hid_class_initfn,
 };
 

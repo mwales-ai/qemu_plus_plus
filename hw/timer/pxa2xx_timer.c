@@ -583,7 +583,7 @@ static const TypeInfo pxa2xx_timer_type_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PXA2xxTimerInfo),
     .instance_init = pxa2xx_timer_init,
-    .abstract      = true,
+    .is_abstract      = true,
     .class_init    = pxa2xx_timer_class_init,
 };
 

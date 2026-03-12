@@ -1829,7 +1829,7 @@ void qdev_machine_creation_done(void)
 static const TypeInfo machine_info = {
     .name = TYPE_MACHINE,
     .parent = TYPE_OBJECT,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(MachineClass),
     .class_init    = machine_class_init,
     .class_base_init = machine_class_base_init,

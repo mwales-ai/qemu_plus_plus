@@ -362,7 +362,7 @@ static const TypeInfo char_spice_type_info = {
     .instance_size = sizeof(SpiceChardev),
     .instance_finalize = char_spice_finalize,
     .class_init = char_spice_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 module_obj(TYPE_CHARDEV_SPICE);
 

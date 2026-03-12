@@ -747,7 +747,7 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .instance_align = __alignof(LoongArchCPU),
         .instance_init = loongarch_cpu_init,
 
-        .abstract = true,
+        .is_abstract = true,
         .class_size = sizeof(LoongArchCPUClass),
         .class_init = loongarch_cpu_class_init,
     },
@@ -755,14 +755,14 @@ static const TypeInfo loongarch_cpu_type_infos[] = {
         .name = TYPE_LOONGARCH32_CPU,
         .parent = TYPE_LOONGARCH_CPU,
 
-        .abstract = true,
+        .is_abstract = true,
         .class_init = loongarch32_cpu_class_init,
     },
     {
         .name = TYPE_LOONGARCH64_CPU,
         .parent = TYPE_LOONGARCH_CPU,
 
-        .abstract = true,
+        .is_abstract = true,
         .class_init = loongarch64_cpu_class_init,
     },
     DEFINE_LOONGARCH_CPU_TYPE(64, "la464", loongarch_la464_initfn),

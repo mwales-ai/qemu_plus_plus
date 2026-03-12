@@ -350,7 +350,7 @@ static const TypeInfo pnv_occ_type_info = {
     .instance_size = sizeof(PnvOCC),
     .class_init    = pnv_occ_class_init,
     .class_size    = sizeof(PnvOCCClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void pnv_occ_register_types(void)

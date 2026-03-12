@@ -314,7 +314,7 @@ static const TypeInfo hppa_cpu_type_infos[] = {
         .instance_size = sizeof(HPPACPU),
         .instance_align = __alignof(HPPACPU),
         .instance_init = hppa_cpu_initfn,
-        .abstract = false,
+        .is_abstract = false,
         .class_size = sizeof(HPPACPUClass),
         .class_init = hppa_cpu_class_init,
     },

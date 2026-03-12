@@ -1477,7 +1477,7 @@ static const TypeInfo ccid_card_type_info = {
     .name = TYPE_CCID_CARD,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CCIDCardState),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(CCIDCardClass),
     .class_init = ccid_card_class_init,
 };

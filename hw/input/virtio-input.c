@@ -328,7 +328,7 @@ static const TypeInfo virtio_input_info = {
     .instance_size = sizeof(VirtIOInput),
     .class_size    = sizeof(VirtIOInputClass),
     .class_init    = virtio_input_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
     .instance_finalize = virtio_input_finalize,
 };
 

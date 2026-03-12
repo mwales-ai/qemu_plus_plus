@@ -101,7 +101,7 @@ static const TypeInfo whpx_accel_ops_type = {
 
     .parent = TYPE_ACCEL_OPS,
     .class_init = whpx_accel_ops_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void whpx_accel_ops_register_types(void)

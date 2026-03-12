@@ -3675,7 +3675,7 @@ static const TypeInfo vfio_pci_device_info = {
     .name = TYPE_VFIO_PCI_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VFIOPCIDevice),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = vfio_pci_device_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },

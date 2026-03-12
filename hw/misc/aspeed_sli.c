@@ -137,7 +137,7 @@ static const TypeInfo aspeed_sli_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSLIState),
     .class_init    = aspeed_sli_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void aspeed_2700_sli_class_init(ObjectClass *klass, const void *data)

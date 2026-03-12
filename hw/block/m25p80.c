@@ -1880,7 +1880,7 @@ static const TypeInfo m25p80_info = {
     .parent         = TYPE_SSI_PERIPHERAL,
     .instance_size  = sizeof(Flash),
     .class_size     = sizeof(M25P80Class),
-    .abstract       = true,
+    .is_abstract       = true,
 };
 
 static void m25p80_register_types(void)

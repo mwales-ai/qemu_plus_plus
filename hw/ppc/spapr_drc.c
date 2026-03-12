@@ -752,7 +752,7 @@ static const TypeInfo spapr_dr_connector_info = {
     .instance_init = spapr_dr_connector_instance_init,
     .class_size    = sizeof(SpaprDrcClass),
     .class_init    = spapr_dr_connector_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo spapr_drc_physical_info = {
@@ -760,14 +760,14 @@ static const TypeInfo spapr_drc_physical_info = {
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
     .instance_size = sizeof(SpaprDrcPhysical),
     .class_init    = spapr_drc_physical_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo spapr_drc_logical_info = {
     .name          = TYPE_SPAPR_DRC_LOGICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
     .class_init    = spapr_drc_logical_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo spapr_drc_cpu_info = {

@@ -293,7 +293,7 @@ struct Object
         .instance_finalize = module_obj_name##_finalize, \
         .class_size = CLASS_SIZE, \
         .class_init = module_obj_name##_class_init, \
-        .abstract = ABSTRACT, \
+        .is_abstract = ABSTRACT, \
         .interfaces = (const InterfaceInfo[]) { __VA_ARGS__ } , \
     }; \
     \
@@ -451,8 +451,8 @@ struct Object
  *   is called before the parent @instance_finalize function has been called.
  *   An object should only free the members that are unique to its type in this
  *   function.
- * @abstract: If this field is true, then the class is considered abstract and
- *   cannot be directly instantiated.
+ * @is_abstract: If this field is true, then the class is considered abstract
+ *   and cannot be directly instantiated.
  * @class_size: The size of the class object (derivative of #ObjectClass)
  *   for this object.  If @class_size is 0, then the size of the class will be
  *   assumed to be the size of the parent class.  This allows a type to avoid
@@ -484,7 +484,7 @@ struct TypeInfo
     void (*instance_post_init)(Object *obj);
     void (*instance_finalize)(Object *obj);
 
-    bool abstract;
+    bool is_abstract;
     size_t class_size;
 
     void (*class_init)(ObjectClass *klass, const void *data);

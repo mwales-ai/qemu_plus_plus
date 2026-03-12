@@ -285,7 +285,7 @@ static void sparc32_dma_device_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo sparc32_dma_device_info = {
     .name          = TYPE_SPARC32_DMA_DEVICE,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .abstract      = true,
+    .is_abstract      = true,
     .instance_size = sizeof(DMADeviceState),
     .instance_init = sparc32_dma_device_init,
     .class_init    = sparc32_dma_device_class_init,

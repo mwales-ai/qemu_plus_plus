@@ -130,7 +130,7 @@ static const TypeInfo ssi_peripheral_info = {
     .parent = TYPE_DEVICE,
     .class_init = ssi_peripheral_class_init,
     .class_size = sizeof(SSIPeripheralClass),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 bool ssi_realize_and_unref(DeviceState *dev, SSIBus *bus, Error **errp)

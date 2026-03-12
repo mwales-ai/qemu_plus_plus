@@ -1230,7 +1230,7 @@ static const TypeInfo nvmm_cpu_accel_type = {
 
     .parent = TYPE_ACCEL_CPU,
     .class_init = nvmm_cpu_accel_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void

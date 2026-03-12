@@ -414,7 +414,7 @@ static const TypeInfo aspeed_adc_info = {
     .instance_size = sizeof(AspeedADCState),
     .class_init = aspeed_adc_class_init,
     .class_size = sizeof(AspeedADCClass),
-    .abstract   = true,
+    .is_abstract   = true,
 };
 
 static const TypeInfo aspeed_2400_adc_info = {

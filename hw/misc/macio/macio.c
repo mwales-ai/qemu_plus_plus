@@ -463,7 +463,7 @@ static const TypeInfo macio_type_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MacIOState),
     .instance_init = macio_instance_init,
-    .abstract      = true,
+    .is_abstract      = true,
     .class_init    = macio_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

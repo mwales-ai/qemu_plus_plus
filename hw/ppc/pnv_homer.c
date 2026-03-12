@@ -282,7 +282,7 @@ static const TypeInfo pnv_homer_type_info = {
     .instance_size = sizeof(PnvHomer),
     .class_init    = pnv_homer_class_init,
     .class_size    = sizeof(PnvHomerClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void pnv_homer_register_types(void)

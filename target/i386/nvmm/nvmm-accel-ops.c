@@ -98,7 +98,7 @@ static const TypeInfo nvmm_accel_ops_type = {
 
     .parent = TYPE_ACCEL_OPS,
     .class_init = nvmm_accel_ops_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void nvmm_accel_ops_register_types(void)

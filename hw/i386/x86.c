@@ -444,7 +444,7 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo x86_machine_info = {
     .name = TYPE_X86_MACHINE,
     .parent = TYPE_MACHINE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(X86MachineState),
     .instance_init = x86_machine_initfn,
     .class_size = sizeof(X86MachineClass),

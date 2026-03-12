@@ -118,7 +118,7 @@ static const TypeInfo kvm_accel_ops_type = {
 
     .parent = TYPE_ACCEL_OPS,
     .class_init = kvm_accel_ops_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void kvm_accel_ops_register_types(void)

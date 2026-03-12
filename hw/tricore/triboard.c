@@ -86,7 +86,7 @@ static const TypeInfo triboard_machine_types[] = {
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(TriBoardMachineState),
         .class_size     = sizeof(TriBoardMachineClass),
-        .abstract       = true,
+        .is_abstract       = true,
     },
 };
 

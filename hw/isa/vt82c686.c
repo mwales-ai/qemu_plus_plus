@@ -242,7 +242,7 @@ static const TypeInfo via_pm_info = {
     .name          = TYPE_VIA_PM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ViaPMState),
-    .abstract      = true,
+    .is_abstract      = true,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -352,7 +352,7 @@ static const TypeInfo via_superio_info = {
     .instance_size = sizeof(ViaSuperIOState),
     .class_size    = sizeof(ISASuperIOClass),
     .class_init    = via_superio_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 #define TYPE_VT82C686B_SUPERIO "vt82c686b-superio"
@@ -633,7 +633,7 @@ static const TypeInfo via_isa_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ViaISAState),
     .instance_init = via_isa_init,
-    .abstract      = true,
+    .is_abstract      = true,
     .interfaces    = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

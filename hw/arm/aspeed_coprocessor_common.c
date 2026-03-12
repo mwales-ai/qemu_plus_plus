@@ -49,7 +49,7 @@ static const TypeInfo aspeed_coprocessor_types[] = {
         .instance_size  = sizeof(AspeedCoprocessorState),
         .class_size     = sizeof(AspeedCoprocessorClass),
         .class_init     = aspeed_coprocessor_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     },
 };
 

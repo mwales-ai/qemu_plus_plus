@@ -1012,7 +1012,7 @@ static const TypeInfo ivshmem_common_info = {
     .name          = TYPE_IVSHMEM_COMMON,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IVShmemState),
-    .abstract      = true,
+    .is_abstract      = true,
     .class_init    = ivshmem_common_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

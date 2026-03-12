@@ -32,7 +32,7 @@ static const TypeInfo fsi_lbus_device_type_info = {
     .name = TYPE_FSI_LBUS_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(FSILBusDevice),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static uint64_t fsi_scratchpad_read(void *opaque, hwaddr addr, unsigned size)

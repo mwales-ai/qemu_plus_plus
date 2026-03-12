@@ -124,7 +124,7 @@ static void nubus_device_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo nubus_device_type_info = {
     .name = TYPE_NUBUS_DEVICE,
     .parent = TYPE_DEVICE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(NubusDevice),
     .class_init = nubus_device_class_init,
 };

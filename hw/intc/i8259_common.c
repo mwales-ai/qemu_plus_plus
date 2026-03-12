@@ -225,7 +225,7 @@ static const TypeInfo pic_common_type = {
     .instance_size = sizeof(PICCommonState),
     .class_size = sizeof(PICCommonClass),
     .class_init = pic_common_class_init,
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_INTERRUPT_STATS_PROVIDER },
         { }

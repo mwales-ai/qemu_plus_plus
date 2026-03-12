@@ -412,7 +412,7 @@ static const TypeInfo avr_cpu_type_info[] = {
         .instance_init = avr_cpu_initfn,
         .class_size = sizeof(AVRCPUClass),
         .class_init = avr_cpu_class_init,
-        .abstract = true,
+        .is_abstract = true,
     },
     DEFINE_AVR_CPU_TYPE("avr5", avr_avr5_initfn),
     DEFINE_AVR_CPU_TYPE("avr51", avr_avr51_initfn),

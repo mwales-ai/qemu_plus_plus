@@ -803,7 +803,7 @@ static const TypeInfo qio_channel_info = {
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(QIOChannel),
     .instance_finalize = qio_channel_finalize,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(QIOChannelClass),
 };
 

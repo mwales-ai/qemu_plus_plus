@@ -4455,7 +4455,7 @@ static const TypeInfo virtio_device_info = {
     .instance_size = sizeof(VirtIODevice),
     .class_init = virtio_device_class_init,
     .instance_finalize = virtio_device_instance_finalize,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(VirtioDeviceClass),
 };
 

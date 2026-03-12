@@ -185,7 +185,7 @@ static void isa_superio_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo isa_superio_type_info = {
     .name = TYPE_ISA_SUPERIO,
     .parent = TYPE_ISA_DEVICE,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(ISASuperIOClass),
     .class_init = isa_superio_class_init,
     .instance_size = sizeof(ISASuperIODevice),

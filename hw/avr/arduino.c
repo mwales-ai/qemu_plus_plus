@@ -152,7 +152,7 @@ static const TypeInfo arduino_machine_types[] = {
         .instance_size  = sizeof(ArduinoMachineState),
         .class_size     = sizeof(ArduinoMachineClass),
         .class_init     = arduino_machine_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }
 };
 

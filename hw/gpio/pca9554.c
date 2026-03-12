@@ -313,7 +313,7 @@ static const TypeInfo pca9554_info = {
     .instance_size = sizeof(PCA9554State),
     .class_init    = pca9554_class_init,
     .class_size    = sizeof(PCA9554Class),
-    .abstract      = false,
+    .is_abstract      = false,
 };
 
 static void pca9554_register_types(void)

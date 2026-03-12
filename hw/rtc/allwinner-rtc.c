@@ -375,7 +375,7 @@ static const TypeInfo allwinner_rtc_info = {
     .instance_size = sizeof(AwRtcState),
     .class_init    = allwinner_rtc_class_init,
     .class_size    = sizeof(AwRtcClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo allwinner_rtc_sun4i_info = {

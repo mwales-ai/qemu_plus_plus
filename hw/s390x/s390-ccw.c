@@ -190,7 +190,7 @@ static const TypeInfo s390_ccw_info = {
     .instance_size = sizeof(S390CCWDevice),
     .class_size    = sizeof(S390CCWDeviceClass),
     .class_init    = s390_ccw_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void register_s390_ccw_type(void)

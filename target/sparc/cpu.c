@@ -1104,7 +1104,7 @@ static const TypeInfo sparc_cpu_type_info = {
     .instance_size = sizeof(SPARCCPU),
     .instance_align = __alignof(SPARCCPU),
     .instance_init = sparc_cpu_initfn,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(SPARCCPUClass),
     .class_init = sparc_cpu_class_init,
 };

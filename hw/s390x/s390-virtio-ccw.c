@@ -837,7 +837,7 @@ static inline void s390_machine_initfn(Object *obj)
 static const TypeInfo ccw_machine_info = {
     .name          = TYPE_S390_CCW_MACHINE,
     .parent        = TYPE_MACHINE,
-    .abstract      = true,
+    .is_abstract      = true,
     .instance_size = sizeof(S390CcwMachineState),
     .instance_init = s390_machine_initfn,
     .class_size = sizeof(S390CcwMachineClass),

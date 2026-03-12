@@ -138,7 +138,7 @@ static const TypeInfo m48txx_isa_type_info = {
     .name = TYPE_M48TXX_ISA,
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(M48txxISAState),
-    .abstract = true,
+    .is_abstract = true,
     .class_init = m48txx_isa_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_NVRAM },

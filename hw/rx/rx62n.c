@@ -305,7 +305,7 @@ static const TypeInfo rx62n_types[] = {
         .instance_size  = sizeof(RX62NState),
         .class_size     = sizeof(RX62NClass),
         .class_init     = rx62n_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
      }
 };
 

@@ -691,7 +691,7 @@ static const TypeInfo m68k_cpus_type_infos[] = {
         .parent = TYPE_CPU,
         .instance_size = sizeof(M68kCPU),
         .instance_align = __alignof(M68kCPU),
-        .abstract = true,
+        .is_abstract = true,
         .class_size = sizeof(M68kCPUClass),
         .class_init = m68k_cpu_class_init,
     },

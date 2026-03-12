@@ -723,7 +723,7 @@ static const TypeInfo mos6522_type_info = {
     .instance_size = sizeof(MOS6522State),
     .instance_init = mos6522_init,
     .instance_finalize = mos6522_finalize,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(MOS6522DeviceClass),
     .class_init = mos6522_class_init,
 };

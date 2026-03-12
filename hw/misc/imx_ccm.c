@@ -75,7 +75,7 @@ static const TypeInfo imx_ccm_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IMXCCMState),
     .class_size    = sizeof(IMXCCMClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void imx_ccm_register_types(void)

@@ -7585,7 +7585,7 @@ static const TypeInfo ppc_cpu_type_info = {
     .instance_align = __alignof__(PowerPCCPU),
     .instance_init = ppc_cpu_instance_init,
     .instance_finalize = ppc_cpu_instance_finalize,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(PowerPCCPUClass),
     .class_init = ppc_cpu_class_init,
 #ifndef CONFIG_USER_ONLY

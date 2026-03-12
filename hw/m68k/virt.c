@@ -325,7 +325,7 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo virt_machine_info = {
     .name       = MACHINE_TYPE_NAME("virt"),
     .parent     = TYPE_MACHINE,
-    .abstract   = true,
+    .is_abstract   = true,
     .class_init = virt_machine_class_init,
 };
 

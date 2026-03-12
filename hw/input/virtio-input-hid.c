@@ -259,7 +259,7 @@ static const TypeInfo virtio_input_hid_info = {
     .parent        = TYPE_VIRTIO_INPUT,
     .instance_size = sizeof(VirtIOInputHID),
     .class_init    = virtio_input_hid_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 /* ----------------------------------------------------------------- */

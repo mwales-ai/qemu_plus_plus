@@ -162,7 +162,7 @@ static const TypeInfo xen_accel_ops_type = {
 
     .parent = TYPE_ACCEL_OPS,
     .class_init = xen_accel_ops_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void xen_type_init(void)

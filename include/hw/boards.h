@@ -518,7 +518,7 @@ struct MachineState {
         .parent     = TYPE_##PARENT_NAME, \
         .class_init = machine_initfn##_class_init, \
         .instance_size = sizeof(InstanceName), \
-        .abstract = ABSTRACT, \
+        .is_abstract = ABSTRACT, \
         .interfaces = ifaces, \
     }; \
     static void machine_initfn##_register_types(void) \

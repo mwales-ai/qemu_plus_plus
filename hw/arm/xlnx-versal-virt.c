@@ -395,7 +395,7 @@ static const TypeInfo versal_virt_base_machine_init_typeinfo = {
     .instance_init = versal_virt_machine_instance_init,
     .instance_size = sizeof(VersalVirt),
     .instance_finalize = versal_virt_machine_finalize,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static const TypeInfo versal_virt_machine_init_typeinfo = {

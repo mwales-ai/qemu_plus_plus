@@ -558,7 +558,7 @@ static void mps2_an511_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo mps2_info = {
     .name = TYPE_MPS2_MACHINE,
     .parent = TYPE_MACHINE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(MPS2MachineState),
     .class_size = sizeof(MPS2MachineClass),
     .class_init = mps2_class_init,

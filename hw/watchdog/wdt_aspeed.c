@@ -326,7 +326,7 @@ static const TypeInfo aspeed_wdt_info = {
     .instance_size  = sizeof(AspeedWDTState),
     .class_init = aspeed_wdt_class_init,
     .class_size    = sizeof(AspeedWDTClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void aspeed_2400_wdt_class_init(ObjectClass *klass, const void *data)

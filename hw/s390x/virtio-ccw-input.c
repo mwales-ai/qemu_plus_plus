@@ -95,14 +95,14 @@ static const TypeInfo virtio_ccw_input = {
     .parent        = TYPE_VIRTIO_CCW_DEVICE,
     .instance_size = sizeof(VirtIOInputCcw),
     .class_init    = virtio_ccw_input_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static const TypeInfo virtio_ccw_input_hid = {
     .name          = TYPE_VIRTIO_INPUT_HID_CCW,
     .parent        = TYPE_VIRTIO_INPUT_CCW,
     .instance_size = sizeof(VirtIOInputHIDCcw),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static const TypeInfo virtio_ccw_keyboard = {

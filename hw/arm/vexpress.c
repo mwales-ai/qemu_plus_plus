@@ -839,7 +839,7 @@ static void vexpress_a15_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo vexpress_info = {
     .name = TYPE_VEXPRESS_MACHINE,
     .parent = TYPE_MACHINE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(VexpressMachineState),
     .instance_init = vexpress_instance_init,
     .class_size = sizeof(VexpressMachineClass),

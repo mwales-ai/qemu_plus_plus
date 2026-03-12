@@ -191,7 +191,7 @@ static const TypeInfo sysbus_fdc_common_typeinfo = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FDCtrlSysBus),
     .instance_init = sysbus_fdc_common_instance_init,
-    .abstract      = true,
+    .is_abstract      = true,
     .class_init    = sysbus_fdc_common_class_init,
     .class_size    = sizeof(FDCtrlSysBusClass),
 };

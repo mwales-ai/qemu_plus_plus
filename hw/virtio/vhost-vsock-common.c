@@ -307,7 +307,7 @@ static const TypeInfo vhost_vsock_common_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VHostVSockCommon),
     .class_init = vhost_vsock_common_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void vhost_vsock_common_register_types(void)

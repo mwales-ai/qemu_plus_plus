@@ -1121,7 +1121,7 @@ static const TypeInfo xen_device_type_info = {
     .name = TYPE_XEN_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(XenDevice),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(XenDeviceClass),
     .class_init = xen_device_class_init,
 };

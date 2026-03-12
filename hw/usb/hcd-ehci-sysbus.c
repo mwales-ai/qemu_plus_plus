@@ -239,7 +239,7 @@ static const TypeInfo ehci_sysbus_types[] = {
         .instance_size = sizeof(EHCISysBusState),
         .instance_init = ehci_sysbus_init,
         .instance_finalize = ehci_sysbus_finalize,
-        .abstract      = true,
+        .is_abstract      = true,
         .class_init    = ehci_sysbus_class_init,
         .class_size    = sizeof(SysBusEHCIClass),
     },

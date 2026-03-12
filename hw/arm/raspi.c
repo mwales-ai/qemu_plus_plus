@@ -422,13 +422,13 @@ static const TypeInfo raspi_machine_types[] = {
         .name           = TYPE_RASPI_MACHINE,
         .parent         = TYPE_RASPI_BASE_MACHINE,
         .instance_size  = sizeof(RaspiMachineState),
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = TYPE_RASPI_BASE_MACHINE,
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(RaspiBaseMachineState),
         .class_size     = sizeof(RaspiBaseMachineClass),
-        .abstract       = true,
+        .is_abstract       = true,
     }
 };
 

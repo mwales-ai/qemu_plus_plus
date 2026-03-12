@@ -385,7 +385,7 @@ static void xen_pvh_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo xen_pvh_info = {
     .name = TYPE_XEN_PVH_MACHINE,
     .parent = TYPE_MACHINE,
-    .abstract = true,
+    .is_abstract = true,
     .instance_size = sizeof(XenPVHMachineState),
     .class_size = sizeof(XenPVHMachineClass),
     .class_init = xen_pvh_class_init,

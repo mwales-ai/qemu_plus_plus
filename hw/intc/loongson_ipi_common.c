@@ -355,7 +355,7 @@ static const TypeInfo loongarch_ipi_common_types[] = {
         .instance_size      = sizeof(LoongsonIPICommonState),
         .class_size         = sizeof(LoongsonIPICommonClass),
         .class_init         = loongson_ipi_common_class_init,
-        .abstract           = true,
+        .is_abstract           = true,
     }
 };
 

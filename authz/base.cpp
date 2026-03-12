@@ -75,7 +75,7 @@ static const TypeInfo authz_info = {
     .name = TYPE_QAUTHZ,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(QAuthZ),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(QAuthZClass),
 };
 

@@ -572,7 +572,7 @@ static const TypeInfo ppc4xx_types[] = {
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(Ppc4xxDcrDeviceState),
         .class_init     = ppc4xx_dcr_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }
 };
 

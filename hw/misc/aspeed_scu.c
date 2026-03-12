@@ -636,7 +636,7 @@ static const TypeInfo aspeed_scu_info = {
     .instance_size = sizeof(AspeedSCUState),
     .class_init = aspeed_scu_class_init,
     .class_size    = sizeof(AspeedSCUClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void aspeed_2400_scu_class_init(ObjectClass *klass, const void *data)

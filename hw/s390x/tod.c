@@ -129,7 +129,7 @@ static const TypeInfo s390_tod_info = {
     .instance_size = sizeof(S390TODState),
     .class_init = s390_tod_class_init,
     .class_size = sizeof(S390TODClass),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void register_types(void)

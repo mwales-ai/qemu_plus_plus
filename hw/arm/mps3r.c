@@ -627,7 +627,7 @@ static const TypeInfo mps3r_machine_types[] = {
     {
         .name = TYPE_MPS3R_MACHINE,
         .parent = TYPE_MACHINE,
-        .abstract = true,
+        .is_abstract = true,
         .instance_size = sizeof(MPS3RMachineState),
         .class_size = sizeof(MPS3RMachineClass),
         .class_init = mps3r_class_init,

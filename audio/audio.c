@@ -2319,7 +2319,7 @@ static const TypeInfo audio_be_info = {
     .instance_size = sizeof(AudioBackend),
     .instance_init = audio_be_init,
     .instance_finalize = audio_be_finalize,
-    .abstract = false, /* TODO: subclass drivers and make it abstract */
+    .is_abstract = false, /* TODO: subclass drivers and make it abstract */
     .class_size = sizeof(AudioBackendClass),
 };
 

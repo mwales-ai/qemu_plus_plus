@@ -29,7 +29,7 @@
 static const TypeInfo accel_cpu_type = {
     .name = TYPE_ACCEL_CPU,
     .parent = TYPE_OBJECT,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(AccelCPUClass),
 };
 

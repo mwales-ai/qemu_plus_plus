@@ -2525,7 +2525,7 @@ static const TypeInfo whpx_cpu_accel_type = {
 
     .parent = TYPE_ACCEL_CPU,
     .class_init = whpx_cpu_accel_class_init,
-    .abstract = true,
+    .is_abstract = true,
 };
 
 /*

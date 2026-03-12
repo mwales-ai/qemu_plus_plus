@@ -383,7 +383,7 @@ static const TypeInfo s390_stattrib_info = {
     .instance_size = sizeof(S390StAttribState),
     .class_init    = s390_stattrib_class_init,
     .class_size    = sizeof(S390StAttribClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static void s390_stattrib_register_types(void)

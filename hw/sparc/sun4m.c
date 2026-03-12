@@ -1471,7 +1471,7 @@ static const TypeInfo sun4m_machine_types[] = {
         .parent         = TYPE_MACHINE,
         .class_size     = sizeof(Sun4mMachineClass),
         .class_init     = sun4m_machine_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }
 };
 

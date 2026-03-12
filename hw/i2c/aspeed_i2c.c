@@ -1322,7 +1322,7 @@ static const TypeInfo aspeed_i2c_info = {
     .instance_size = sizeof(AspeedI2CState),
     .class_init    = aspeed_i2c_class_init,
     .class_size = sizeof(AspeedI2CClass),
-    .abstract   = true,
+    .is_abstract   = true,
 };
 
 static int aspeed_i2c_bus_new_slave_event(AspeedI2CBus *bus,

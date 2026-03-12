@@ -363,7 +363,7 @@ static const TypeInfo xtensa_cpu_type_info = {
     .instance_size = sizeof(XtensaCPU),
     .instance_align = __alignof(XtensaCPU),
     .instance_init = xtensa_cpu_initfn,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(XtensaCPUClass),
     .class_init = xtensa_cpu_class_init,
 };

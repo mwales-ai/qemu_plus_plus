@@ -244,7 +244,7 @@ static const TypeInfo virtio_vga_base_info = {
     .instance_size = sizeof(VirtIOVGABase),
     .class_size    = sizeof(VirtIOVGABaseClass),
     .class_init    = virtio_vga_base_class_init,
-    .abstract      = true,
+    .is_abstract      = true,
 };
 module_obj(TYPE_VIRTIO_VGA_BASE);
 module_kconfig(VIRTIO_VGA);

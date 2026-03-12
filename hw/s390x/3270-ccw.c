@@ -165,7 +165,7 @@ static const TypeInfo emulated_ccw_3270_info = {
     .instance_size = sizeof(EmulatedCcw3270Device),
     .class_init = emulated_ccw_3270_class_init,
     .class_size = sizeof(EmulatedCcw3270Class),
-    .abstract = true,
+    .is_abstract = true,
 };
 
 static void emulated_ccw_register(void)

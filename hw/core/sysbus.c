@@ -351,7 +351,7 @@ static const TypeInfo sysbus_types[] = {
         .name           = TYPE_SYS_BUS_DEVICE,
         .parent         = TYPE_DEVICE,
         .instance_size  = sizeof(SysBusDevice),
-        .abstract       = true,
+        .is_abstract       = true,
         .class_size     = sizeof(SysBusDeviceClass),
         .class_init     = sysbus_device_class_init,
     },
@@ -359,7 +359,7 @@ static const TypeInfo sysbus_types[] = {
         .name           = TYPE_DYNAMIC_SYS_BUS_DEVICE,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .class_init     = dynamic_sysbus_device_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }
 };
 

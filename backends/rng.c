@@ -118,7 +118,7 @@ static const TypeInfo rng_backend_info = {
     .instance_finalize = rng_backend_finalize,
     .class_size = sizeof(RngBackendClass),
     .class_init = rng_backend_class_init,
-    .abstract = true,
+    .is_abstract = true,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }

@@ -427,7 +427,7 @@ static const TypeInfo aspeed_machine_types[] = {
         .instance_init = aspeed_machine_instance_init,
         .class_size    = sizeof(AspeedMachineClass),
         .class_init    = aspeed_machine_class_init,
-        .abstract      = true,
+        .is_abstract      = true,
     }
 };
 

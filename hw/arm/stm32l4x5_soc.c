@@ -487,7 +487,7 @@ static const TypeInfo stm32l4x5_soc_types[] = {
         .instance_init  = stm32l4x5_soc_initfn,
         .class_size     = sizeof(Stm32l4x5SocClass),
         .class_init     = stm32l4x5_soc_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
     }
 };
 

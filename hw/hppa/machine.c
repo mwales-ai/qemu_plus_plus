@@ -845,7 +845,7 @@ static const TypeInfo hppa_machine_types[] = {
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(HppaMachineState),
         .class_init     = hppa_machine_common_class_init,
-        .abstract       = true,
+        .is_abstract       = true,
         .interfaces = (const InterfaceInfo[]) {
             { TYPE_NMI },
             { }

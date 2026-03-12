@@ -782,7 +782,7 @@ static const TypeInfo aspeed_soc_ast2600_types[] = {
         .name           = TYPE_ASPEED2600_SOC,
         .parent         = TYPE_ASPEED_SOC,
         .instance_size  = sizeof(Aspeed2600SoCState),
-        .abstract       = true,
+        .is_abstract       = true,
     }, {
         .name           = "ast2600-a3",
         .parent         = TYPE_ASPEED2600_SOC,

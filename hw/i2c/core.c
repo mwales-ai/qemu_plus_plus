@@ -415,7 +415,7 @@ static const TypeInfo i2c_slave_type_info = {
     .name = TYPE_I2C_SLAVE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(I2CSlave),
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(I2CSlaveClass),
     .class_init = i2c_slave_class_init,
 };

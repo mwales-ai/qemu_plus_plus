@@ -264,7 +264,7 @@ static const TypeInfo rx_cpu_info = {
     .instance_size = sizeof(RXCPU),
     .instance_align = __alignof(RXCPU),
     .instance_init = rx_cpu_init,
-    .abstract = true,
+    .is_abstract = true,
     .class_size = sizeof(RXCPUClass),
     .class_init = rx_cpu_class_init,
 };

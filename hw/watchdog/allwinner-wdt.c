@@ -391,7 +391,7 @@ static const TypeInfo allwinner_wdt_info = {
     .instance_size = sizeof(AwWdtState),
     .class_init    = allwinner_wdt_class_init,
     .class_size    = sizeof(AwWdtClass),
-    .abstract      = true,
+    .is_abstract      = true,
 };
 
 static const TypeInfo allwinner_wdt_sun4i_info = {

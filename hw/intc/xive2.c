@@ -2005,7 +2005,7 @@ static void xive2_router_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo xive2_router_info = {
     .name          = TYPE_XIVE2_ROUTER,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .abstract      = true,
+    .is_abstract      = true,
     .instance_size = sizeof(Xive2Router),
     .class_size    = sizeof(Xive2RouterClass),
     .class_init    = xive2_router_class_init,
