@@ -1,6 +1,6 @@
 libdecnumber = files(
-  'decContext.c',
-  'decNumber.c',
+  'decContext.cpp',
+  'decNumber.cpp',
   'dpd/decimal128.c',
   'dpd/decimal32.c',
   'dpd/decimal64.c',

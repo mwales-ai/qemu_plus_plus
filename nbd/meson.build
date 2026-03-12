@@ -1,8 +1,8 @@
 block_ss.add(files(
-  'client.c',
-  'client-connection.c',
-  'common.c',
+  'client.cpp',
+  'client-connection.cpp',
+  'common.cpp',
 ))
 blockdev_ss.add(files(
-  'server.c',
+  'server.cpp',
 ))

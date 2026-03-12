@@ -3808,13 +3808,13 @@ subdir('dump')
 
 if have_block
   block_ss.add(files(
-    'block.c',
-    'blockjob.c',
-    'job.c',
-    'qemu-io-cmds.c',
+    'block.cpp',
+    'blockjob.cpp',
+    'job.cpp',
+    'qemu-io-cmds.cpp',
   ))
   if config_host_data.get('CONFIG_REPLICATION')
-    block_ss.add(files('replication.c'))
+    block_ss.add(files('replication.cpp'))
   endif
 
   subdir('nbd')
@@ -3822,10 +3822,10 @@ if have_block
   subdir('block')
 
   blockdev_ss.add(files(
-    'blockdev.c',
-    'blockdev-nbd.c',
-    'iothread.c',
-    'job-qmp.c',
+    'blockdev.cpp',
+    'blockdev-nbd.cpp',
+    'iothread.cpp',
+    'job-qmp.cpp',
   ))
 
   # os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
@@ -3839,9 +3839,9 @@ if have_block
   endif
 endif
 
-common_ss.add(files('cpu-common.c'))
-user_ss.add(files('cpu-target.c'))
-system_ss.add(files('cpu-target.c'))
+common_ss.add(files('cpu-common.cpp'))
+user_ss.add(files('cpu-target.cpp'))
+system_ss.add(files('cpu-target.cpp'))
 
 subdir('system')
 
@@ -3852,7 +3852,7 @@ subdir('system')
 # impossible, as the alias is restricted to page-vary-common.c.  Indeed,
 # without lto, not even the alias is required -- we simply use different
 # declarations in different compilation units.
-pagevary = files('page-vary-common.c')
+pagevary = files('page-vary-common.cpp')
 if get_option('b_lto')
   pagevary_flags = ['-fno-lto']
   if get_option('cfi')
@@ -3863,10 +3863,10 @@ if get_option('b_lto')
   pagevary = declare_dependency(link_with: pagevary)
 endif
 common_ss.add(pagevary)
-specific_ss.add(files('page-vary-target.c'))
+specific_ss.add(files('page-vary-target.cpp'))
 
-common_ss.add(files('target-info.c'))
-system_ss.add(files('target-info-qom.c'))
+common_ss.add(files('target-info.cpp'))
+system_ss.add(files('target-info-qom.cpp'))
 
 subdir('backends')
 subdir('configs/targets')
@@ -4327,7 +4327,7 @@ foreach target : target_dirs
   if target in config_target_info
     arch_srcs += config_target_info[target]
   else
-    arch_srcs += files('target-info-stub.c')
+    arch_srcs += files('target-info-stub.cpp')
   endif
 
   t = target_arch[target_base_arch].apply(config_target, strict: false)
@@ -4505,13 +4505,13 @@ if xkbcommon.found()
 endif
 
 if have_tools
-  qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
+  qemu_img = executable('qemu-img', [files('qemu-img.cpp'), hxdep],
              link_args: '@block.syms', link_depends: block_syms,
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
-  qemu_io = executable('qemu-io', files('qemu-io.c'),
+  qemu_io = executable('qemu-io', files('qemu-io.cpp'),
              link_args: '@block.syms', link_depends: block_syms,
              dependencies: [block, qemuutil], install: true)
-  qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
+  qemu_nbd = executable('qemu-nbd', files('qemu-nbd.cpp'),
                link_args: '@block.syms', link_depends: block_syms,
                dependencies: [blockdev, qemuutil, selinux],
                install: true)

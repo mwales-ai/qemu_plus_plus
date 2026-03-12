@@ -6,5 +6,5 @@ qom_ss.add(files(
   'qom-qobject.cpp',
 ))
 
-qmp_ss.add(files('qom-qmp-cmds.c'))
-system_ss.add(files('qom-hmp-cmds.c'))
+qmp_ss.add(files('qom-qmp-cmds.cpp'))
+system_ss.add(files('qom-hmp-cmds.cpp'))

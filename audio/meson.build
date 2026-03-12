@@ -13,13 +13,13 @@ system_ss.add(when: dsound, if_true: files('dsoundaudio.cpp', 'audio_win_int.cpp
 
 audio_modules = {}
 foreach m : [
-  ['alsa', alsa, files('alsaaudio.c')],
-  ['oss', oss, files('ossaudio.c')],
+  ['alsa', alsa, files('alsaaudio.cpp')],
+  ['oss', oss, files('ossaudio.cpp')],
   ['pa', pulse, files('paaudio.cpp')],
   ['sdl', sdl, files('sdlaudio.cpp')],
   ['jack', jack, files('jackaudio.cpp')],
-  ['sndio', sndio, files('sndioaudio.c')],
-  ['pipewire', pipewire, files('pwaudio.c')],
+  ['sndio', sndio, files('sndioaudio.cpp')],
+  ['pipewire', pipewire, files('pwaudio.cpp')],
   ['spice', spice, files('spiceaudio.cpp')]
 ]
   if m[1].found()

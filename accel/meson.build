@@ -1,6 +1,6 @@
 common_ss.add(files('accel-common.cpp'))
-specific_ss.add(files('accel-target.c'))
-system_ss.add(files('accel-system.c', 'accel-blocker.cpp', 'accel-qmp.cpp', 'accel-irq.cpp'))
+specific_ss.add(files('accel-target.cpp'))
+system_ss.add(files('accel-system.cpp', 'accel-blocker.cpp', 'accel-qmp.cpp', 'accel-irq.cpp'))
 user_ss.add(files('accel-user.cpp'))
 
 subdir('tcg')
