@@ -14,9 +14,17 @@
 #ifndef QEMU_MIGRATION_XBZRLE_H
 #define QEMU_MIGRATION_XBZRLE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
                          uint8_t *dst, int dlen);
 
 int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

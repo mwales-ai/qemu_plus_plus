@@ -14,6 +14,10 @@
 
 #define DIRTYLIMIT_CALC_TIME_MS         1000    /* 1000ms */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int64_t vcpu_dirty_rate_get(int cpu_index);
 void vcpu_dirty_rate_stat_start(void);
 void vcpu_dirty_rate_stat_stop(void);
@@ -36,4 +40,9 @@ void dirtylimit_set_all(uint64_t quota,
 void dirtylimit_vcpu_execute(CPUState *cpu);
 uint64_t dirtylimit_throttle_time_per_round(void);
 uint64_t dirtylimit_ring_full_time(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

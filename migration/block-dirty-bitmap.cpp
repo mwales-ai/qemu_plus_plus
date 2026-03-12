@@ -182,7 +182,7 @@ typedef struct AliasMapInnerNode {
 
 static void free_alias_map_inner_node(void *amin_ptr)
 {
-    AliasMapInnerNode *amin = amin_ptr;
+    AliasMapInnerNode *amin = static_cast<AliasMapInnerNode *>(amin_ptr);
 
     g_free(amin->string);
     g_hash_table_unref(amin->subtree);
@@ -274,10 +274,8 @@ static GHashTable *construct_alias_map(const BitmapMigrationNodeAliasList *bbm,
                                             gdn);
 
         amin = g_new(AliasMapInnerNode, 1);
-        *amin = (AliasMapInnerNode){
-            .string = g_strdup(node_map_to),
-            .subtree = bitmaps_map,
-        };
+        amin->string = g_strdup(node_map_to);
+        amin->subtree = bitmaps_map;
 
         g_hash_table_insert(alias_map, g_strdup(node_map_from), amin);
 
@@ -431,7 +429,7 @@ static void send_bitmap_bits(QEMUFile *f, DBMSaveState *s,
             dbms->bitmap, start_sector << BDRV_SECTOR_BITS,
             (uint64_t)nr_sectors << BDRV_SECTOR_BITS);
     uint64_t buf_size = QEMU_ALIGN_UP(unaligned_size, align);
-    uint8_t *buf = g_malloc0(buf_size);
+    uint8_t *buf = static_cast<uint8_t *>(g_malloc0(buf_size));
     uint32_t flags = DIRTY_BITMAP_MIG_FLAG_BITS;
 
     bdrv_dirty_bitmap_serialize_part(
@@ -510,7 +508,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
     }
 
     if (alias_map) {
-        const AliasMapInnerNode *amin = g_hash_table_lookup(alias_map, bs_name);
+        const AliasMapInnerNode *amin = static_cast<const AliasMapInnerNode *>(g_hash_table_lookup(alias_map, bs_name));
 
         if (!amin) {
             /* Skip bitmaps on nodes with no alias */
@@ -545,7 +543,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
         if (bitmap_aliases) {
             BitmapMigrationBitmapAlias *bmap_inner;
 
-            bmap_inner = g_hash_table_lookup(bitmap_aliases, bitmap_name);
+            bmap_inner = static_cast<BitmapMigrationBitmapAlias *>(g_hash_table_lookup(bitmap_aliases, bitmap_name));
             if (!bmap_inner) {
                 /* Skip bitmaps with no alias */
                 continue;
@@ -867,8 +865,8 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
  */
 static void before_vm_start_handle_item(void *item, void *opaque)
 {
-    DBMLoadState *s = opaque;
-    LoadBitmapState *b = item;
+    DBMLoadState *s = static_cast<DBMLoadState *>(opaque);
+    LoadBitmapState *b = static_cast<LoadBitmapState *>(item);
 
     if (b->enabled) {
         if (b->migrated) {
@@ -910,7 +908,7 @@ static void cancel_incoming_locked(DBMLoadState *s)
 
     /* Drop all unfinished bitmaps */
     for (item = s->bitmaps; item; item = g_slist_next(item)) {
-        LoadBitmapState *b = item->data;
+        LoadBitmapState *b = static_cast<LoadBitmapState *>(item->data);
 
         /*
          * Bitmap must be unfinished, as finished bitmaps should already be
@@ -963,7 +961,7 @@ static void dirty_bitmap_load_complete(QEMUFile *f, DBMLoadState *s)
     }
 
     for (item = s->bitmaps; item; item = g_slist_next(item)) {
-        LoadBitmapState *b = item->data;
+        LoadBitmapState *b = static_cast<LoadBitmapState *>(item->data);
 
         if (b->bitmap == s->bitmap) {
             b->migrated = true;
@@ -1011,7 +1009,7 @@ static int dirty_bitmap_load_bits(QEMUFile *f, DBMLoadState *s)
             return -EIO;
         }
 
-        buf = g_malloc(buf_size);
+        buf = static_cast<uint8_t *>(g_malloc(buf_size));
         ret = qemu_get_buffer(f, buf, buf_size);
         if (ret != buf_size) {
             error_report("Failed to read bitmap bits");
@@ -1065,7 +1063,7 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
             if (alias_map) {
                 const AliasMapInnerNode *amin;
 
-                amin = g_hash_table_lookup(alias_map, s->node_alias);
+                amin = static_cast<const AliasMapInnerNode *>(g_hash_table_lookup(alias_map, s->node_alias));
                 if (!amin) {
                     error_setg(&local_err, "Error: Unknown node alias '%s'",
                                s->node_alias);
@@ -1088,7 +1086,7 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
             const AliasMapInnerNode *amin;
 
             /* Must be present in the map, or s->bs would not be set */
-            amin = g_hash_table_lookup(alias_map, s->node_alias);
+            amin = static_cast<const AliasMapInnerNode *>(g_hash_table_lookup(alias_map, s->node_alias));
             assert(amin != NULL);
 
             bitmap_alias_map = amin->subtree;
@@ -1112,7 +1110,7 @@ static int dirty_bitmap_load_header(QEMUFile *f, DBMLoadState *s,
         if (!s->cancelled && bitmap_alias_map) {
             BitmapMigrationBitmapAlias *bmap_inner;
 
-            bmap_inner = g_hash_table_lookup(bitmap_alias_map, s->bitmap_alias);
+            bmap_inner = static_cast<BitmapMigrationBitmapAlias *>(g_hash_table_lookup(bitmap_alias_map, s->bitmap_alias));
             if (!bmap_inner) {
                 error_report("Error: Unknown bitmap alias '%s' on node "
                              "'%s' (alias '%s')", s->bitmap_alias,
@@ -1248,15 +1246,15 @@ static bool dirty_bitmap_has_postcopy(void *opaque)
 
 static SaveVMHandlers savevm_dirty_bitmap_handlers = {
     .save_setup = dirty_bitmap_save_setup,
-    .save_complete = dirty_bitmap_save_complete,
-    .has_postcopy = dirty_bitmap_has_postcopy,
-    .state_pending_exact = dirty_bitmap_state_pending,
-    .state_pending_estimate = dirty_bitmap_state_pending,
-    .save_live_iterate = dirty_bitmap_save_iterate,
-    .is_active_iterate = dirty_bitmap_is_active_iterate,
-    .load_state = dirty_bitmap_load,
     .save_cleanup = dirty_bitmap_save_cleanup,
+    .save_complete = dirty_bitmap_save_complete,
     .is_active = dirty_bitmap_is_active,
+    .has_postcopy = dirty_bitmap_has_postcopy,
+    .is_active_iterate = dirty_bitmap_is_active_iterate,
+    .save_live_iterate = dirty_bitmap_save_iterate,
+    .state_pending_estimate = dirty_bitmap_state_pending,
+    .state_pending_exact = dirty_bitmap_state_pending,
+    .load_state = dirty_bitmap_load,
 };
 
 void dirty_bitmap_mig_init(void)

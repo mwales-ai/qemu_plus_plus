@@ -1015,7 +1015,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
                 flags |= BP_MEM_WRITE;
             }
 
-            if ((wp->flags & flags) && (wp->vaddr == addr)) {
+            if ((wp->flags & flags) && (wp->wp_vaddr == addr)) {
                 return true;
             }
             break;
@@ -1031,7 +1031,7 @@ bool riscv_cpu_debug_check_watchpoint(CPUState *cs, CPUWatchpoint *wp)
                 flags |= BP_MEM_WRITE;
             }
 
-            if ((wp->flags & flags) && (wp->vaddr == addr)) {
+            if ((wp->flags & flags) && (wp->wp_vaddr == addr)) {
                 return true;
             }
             break;

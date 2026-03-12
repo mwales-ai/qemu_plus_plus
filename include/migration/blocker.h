@@ -16,6 +16,10 @@
 
 #include "qapi/qapi-types-migration.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @migrate_add_blocker - prevent all modes of migration from proceeding
  *
@@ -90,5 +94,9 @@ int migrate_add_blocker_normal(Error **reasonp, Error **errp);
  * On success, the caller must not free *@reasonp before the blocker is removed.
  */
 int migrate_add_blocker_modes(Error **reasonp, unsigned modes, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

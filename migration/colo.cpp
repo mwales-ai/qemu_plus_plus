@@ -349,7 +349,7 @@ static COLOMessage colo_receive_message(QEMUFile *f, Error **errp)
     COLOMessage msg;
     int ret;
 
-    msg = qemu_get_be32(f);
+    msg = static_cast<COLOMessage>(qemu_get_be32(f));
     ret = qemu_file_get_error(f);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Can't receive COLO message");
@@ -387,7 +387,7 @@ static uint64_t colo_receive_message_value(QEMUFile *f, uint32_t expect_msg,
     uint64_t value;
     int ret;
 
-    colo_receive_check_message(f, expect_msg, &local_err);
+    colo_receive_check_message(f, static_cast<COLOMessage>(expect_msg), &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return 0;
@@ -707,7 +707,7 @@ static void colo_incoming_process_checkpoint(MigrationIncomingState *mis,
      */
     if (value > bioc->capacity) {
         bioc->capacity = value;
-        bioc->data = g_realloc(bioc->data, bioc->capacity);
+        bioc->data = static_cast<uint8_t *>(g_realloc(bioc->data, bioc->capacity));
     }
     total_size = qemu_get_buffer(mis->from_src_file, bioc->data, value);
     if (total_size != value) {
@@ -819,7 +819,7 @@ void colo_shutdown(void)
 
 static void *colo_process_incoming_thread(void *opaque)
 {
-    MigrationIncomingState *mis = opaque;
+    MigrationIncomingState *mis = static_cast<MigrationIncomingState *>(opaque);
     QEMUFile *fb = NULL;
     QIOChannelBuffer *bioc = NULL; /* Cache incoming device state */
     Error *local_err = NULL;

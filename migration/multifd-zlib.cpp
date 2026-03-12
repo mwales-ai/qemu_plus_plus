@@ -49,12 +49,12 @@ static int multifd_zlib_send_setup(MultiFDSendParams *p, Error **errp)
     }
     /* This is the maximum size of the compressed buffer */
     z->zbuff_len = compressBound(MULTIFD_PACKET_SIZE);
-    z->zbuff = g_try_malloc(z->zbuff_len);
+    z->zbuff = static_cast<uint8_t *>(g_try_malloc(z->zbuff_len));
     if (!z->zbuff) {
         err_msg = "out of memory for zbuff";
         goto err_deflate_end;
     }
-    z->buf = g_try_malloc(qemu_target_page_size());
+    z->buf = static_cast<uint8_t *>(g_try_malloc(qemu_target_page_size()));
     if (!z->buf) {
         err_msg = "out of memory for buf";
         goto err_free_zbuff;
@@ -78,7 +78,7 @@ err_free_z:
 
 static void multifd_zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
-    struct zlib_data *z = p->compress_data;
+    struct zlib_data *z = static_cast<struct zlib_data *>(p->compress_data);
 
     deflateEnd(&z->zs);
     g_free(z->zbuff);
@@ -95,7 +95,7 @@ static void multifd_zlib_send_cleanup(MultiFDSendParams *p, Error **errp)
 static int multifd_zlib_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     MultiFDPages_t *pages = &p->data->u.ram;
-    struct zlib_data *z = p->compress_data;
+    struct zlib_data *z = static_cast<struct zlib_data *>(p->compress_data);
     z_stream *zs = &z->zs;
     uint32_t out_size = 0;
     uint32_t page_size = multifd_ram_page_size();
@@ -177,7 +177,7 @@ static int multifd_zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
     }
     /* To be safe, we reserve twice the size of the packet */
     z->zbuff_len = MULTIFD_PACKET_SIZE * 2;
-    z->zbuff = g_try_malloc(z->zbuff_len);
+    z->zbuff = static_cast<uint8_t *>(g_try_malloc(z->zbuff_len));
     if (!z->zbuff) {
         inflateEnd(zs);
         error_setg(errp, "multifd %u: out of memory for zbuff", p->id);
@@ -188,7 +188,7 @@ static int multifd_zlib_recv_setup(MultiFDRecvParams *p, Error **errp)
 
 static void multifd_zlib_recv_cleanup(MultiFDRecvParams *p)
 {
-    struct zlib_data *z = p->compress_data;
+    struct zlib_data *z = static_cast<struct zlib_data *>(p->compress_data);
 
     inflateEnd(&z->zs);
     g_free(z->zbuff);
@@ -199,7 +199,7 @@ static void multifd_zlib_recv_cleanup(MultiFDRecvParams *p)
 
 static int multifd_zlib_recv(MultiFDRecvParams *p, Error **errp)
 {
-    struct zlib_data *z = p->compress_data;
+    struct zlib_data *z = static_cast<struct zlib_data *>(p->compress_data);
     z_stream *zs = &z->zs;
     uint32_t in_size = p->next_packet_size;
     /* we measure the change of total_out */
@@ -208,7 +208,7 @@ static int multifd_zlib_recv(MultiFDRecvParams *p, Error **errp)
     uint32_t expected_size = p->normal_num * page_size;
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
     int ret;
-    int i;
+    uint32_t i;
 
     if (flags != MULTIFD_FLAG_ZLIB) {
         error_setg(errp, "multifd %u: flags received %x flags expected %x",

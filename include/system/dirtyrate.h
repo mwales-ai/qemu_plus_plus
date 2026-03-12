@@ -15,6 +15,10 @@
 
 #include "qapi/qapi-types-migration.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct VcpuStat {
     int nvcpu; /* number of vcpu */
     DirtyRateVcpu *rates; /* array of dirty rate for each vcpu */
@@ -27,4 +31,9 @@ int64_t vcpu_calculate_dirtyrate(int64_t calc_time_ms,
 
 void global_dirty_log_change(unsigned int flag,
                              bool start);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

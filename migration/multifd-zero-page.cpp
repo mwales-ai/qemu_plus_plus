@@ -83,7 +83,7 @@ out:
 
 void multifd_recv_zero_page_process(MultiFDRecvParams *p)
 {
-    for (int i = 0; i < p->zero_num; i++) {
+    for (uint32_t i = 0; i < p->zero_num; i++) {
         void *page = p->host + p->zero[i];
         bool received =
                 ramblock_recv_bitmap_test_byte_offset(p->block, p->zero[i]);

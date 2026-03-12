@@ -15,6 +15,10 @@
 
 #include "qapi/qapi-types-migration.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum colo_event {
     COLO_EVENT_NONE,
     COLO_EVENT_CHECKPOINT,
@@ -52,4 +56,9 @@ void colo_checkpoint_delay_set(void);
 void coroutine_fn colo_incoming_co(void);
 
 void colo_shutdown(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

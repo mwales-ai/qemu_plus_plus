@@ -25,6 +25,10 @@
 #ifndef MIGRATION_QEMU_FILE_TYPES_H
 #define MIGRATION_QEMU_FILE_TYPES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int qemu_file_get_error(QEMUFile *f);
 
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size);
@@ -178,5 +182,9 @@ void qemu_put_counted_string(QEMUFile *f, const char *name);
  * Returns if we should stop sending data for this interval.
  */
 bool migration_rate_exceeded(QEMUFile *f);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

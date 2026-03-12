@@ -23,6 +23,10 @@
 #include "exec/target_page.h"
 #include "exec/hwaddr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern uint64_t total_dirty_pages;
 
 /**
@@ -76,7 +80,7 @@ static inline unsigned long int ramblock_recv_bitmap_offset(void *host_addr,
                                                             RAMBlock *rb)
 {
     uint64_t host_addr_offset =
-            (uint64_t)(uintptr_t)(host_addr - (void *)rb->host);
+            (uint64_t)((uintptr_t)host_addr - (uintptr_t)rb->host);
     return host_addr_offset >> TARGET_PAGE_BITS;
 }
 
@@ -131,5 +135,9 @@ static inline void qemu_ram_block_writeback(RAMBlock *block)
 {
     qemu_ram_msync(block, 0, block->used_length);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

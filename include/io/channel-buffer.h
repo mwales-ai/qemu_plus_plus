@@ -24,6 +24,10 @@
 #include "io/channel.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_QIO_CHANNEL_BUFFER "qio-channel-buffer"
 OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelBuffer, QIO_CHANNEL_BUFFER)
 
@@ -55,5 +59,9 @@ struct QIOChannelBuffer {
  */
 QIOChannelBuffer *
 qio_channel_buffer_new(size_t capacity);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_CHANNEL_BUFFER_H */

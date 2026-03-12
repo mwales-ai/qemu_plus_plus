@@ -29,6 +29,10 @@
 
 #include "hw/vmstate-if.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct VMStateInfo VMStateInfo;
 typedef struct VMStateField VMStateField;
 
@@ -391,12 +395,12 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_ARRAY(_field, _state, _num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
+    .size       = sizeof(_type),                                     \
     .num        = (_num),                                            \
     .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY,                                         \
-    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
+    .version_id = (_version),                                        \
 }
 
 #define VMSTATE_2DARRAY(_field, _state, _n1, _n2, _version, _info, _type) { \
@@ -460,12 +464,12 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_VARRAY_UINT32_ALLOC(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
+    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
+    .size       = sizeof(_type),                                     \
     .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
     .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_UINT32|VMS_POINTER|VMS_ALLOC,           \
-    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
+    .version_id = (_version),                                        \
 }
 
 #define VMSTATE_VARRAY_UINT16_ALLOC(_field, _state, _field_num, _version, _info, _type) {\
@@ -677,12 +681,12 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_STATIC_BUFFER(_field, _state, _version, _test, _start, _size) { \
     .name         = (stringify(_field)),                             \
-    .version_id   = (_version),                                      \
-    .field_exists = (_test),                                         \
+    .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
     .size         = (_size - _start),                                \
     .info         = &vmstate_info_buffer,                            \
     .flags        = VMS_BUFFER,                                      \
-    .offset       = vmstate_offset_buffer(_state, _field) + _start,  \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_VBUFFER_MULTIPLY(_field, _state, _version, _test,    \
@@ -1303,5 +1307,9 @@ void vmstate_unregister_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_register_ram_global(struct MemoryRegion *memory);
 
 bool vmstate_check_only_migratable(const VMStateDescription *vmsd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

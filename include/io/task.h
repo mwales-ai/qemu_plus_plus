@@ -21,6 +21,10 @@
 #ifndef QIO_TASK_H
 #define QIO_TASK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QIOTask QIOTask;
 
 typedef void (*QIOTaskFunc)(QIOTask *task,
@@ -346,5 +350,9 @@ gpointer qio_task_get_result_pointer(QIOTask *task);
  * Returns: the source object
  */
 Object *qio_task_get_source(QIOTask *task);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_TASK_H */

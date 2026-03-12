@@ -13,6 +13,10 @@
 #ifndef QEMU_ERROR_REPORT_H
 #define QEMU_ERROR_REPORT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Location {
     /* all members are private to qemu-error.c */
     enum { LOC_NONE, LOC_CMDLINE, LOC_FILE } kind;
@@ -73,5 +77,9 @@ void error_init(const char *argv0);
 extern bool message_with_timestamp;
 extern bool error_with_guestname;
 extern const char *error_guest_name;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

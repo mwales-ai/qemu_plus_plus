@@ -227,8 +227,8 @@ qio_channel_block_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo qio_channel_block_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_BLOCK,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelBlock),
     .instance_finalize = qio_channel_block_finalize,
     .class_init = qio_channel_block_class_init,

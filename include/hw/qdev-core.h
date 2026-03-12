@@ -10,6 +10,10 @@
 #include "hw/hotplug.h"
 #include "hw/resettable.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * DOC: The QEMU Device API
  *
@@ -1160,5 +1164,9 @@ typedef enum MachineInitPhase {
 
 bool phase_check(MachineInitPhase phase);
 void phase_advance(MachineInitPhase phase);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

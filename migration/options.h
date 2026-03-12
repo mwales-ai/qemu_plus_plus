@@ -18,6 +18,10 @@
 #include "hw/qdev-properties-system.h"
 #include "migration/client-options.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* migration properties */
 
 extern const Property migration_properties[];
@@ -92,4 +96,9 @@ ZeroPageDetection migrate_zero_page_detection(void);
 
 bool migrate_params_check(MigrationParameters *params, Error **errp);
 void migrate_params_init(MigrationParameters *params);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

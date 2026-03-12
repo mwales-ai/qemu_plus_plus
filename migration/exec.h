@@ -20,6 +20,10 @@
 #ifndef QEMU_MIGRATION_EXEC_H
 #define QEMU_MIGRATION_EXEC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef WIN32
 const char *exec_get_cmd_path(void);
 #endif
@@ -27,4 +31,9 @@ void exec_start_incoming_migration(strList *host_port, Error **errp);
 
 void exec_start_outgoing_migration(MigrationState *s, strList *host_port,
                                    Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

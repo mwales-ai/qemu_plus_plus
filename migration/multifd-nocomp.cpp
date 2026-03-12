@@ -52,11 +52,11 @@ static void multifd_set_file_bitmap(MultiFDSendParams *p)
 
     assert(pages->block);
 
-    for (int i = 0; i < pages->normal_num; i++) {
+    for (uint32_t i = 0; i < pages->normal_num; i++) {
         ramblock_set_file_bmap_atomic(pages->block, pages->offset[i], true);
     }
 
-    for (int i = pages->normal_num; i < pages->num; i++) {
+    for (uint32_t i = pages->normal_num; i < pages->num; i++) {
         ramblock_set_file_bmap_atomic(pages->block, pages->offset[i], false);
     }
 }
@@ -97,7 +97,7 @@ static void multifd_send_prepare_iovs(MultiFDSendParams *p)
     MultiFDPages_t *pages = &p->data->u.ram;
     uint32_t page_size = multifd_ram_page_size();
 
-    for (int i = 0; i < pages->normal_num; i++) {
+    for (uint32_t i = 0; i < pages->normal_num; i++) {
         p->iov[p->iovs_num].iov_base = pages->block->host + pages->offset[i];
         p->iov[p->iovs_num].iov_len = page_size;
         p->iovs_num++;
@@ -181,7 +181,7 @@ static int multifd_nocomp_recv(MultiFDRecvParams *p, Error **errp)
         return 0;
     }
 
-    for (int i = 0; i < p->normal_num; i++) {
+    for (uint32_t i = 0; i < p->normal_num; i++) {
         p->iov[i].iov_base = p->host + p->normal[i];
         p->iov[i].iov_len = multifd_ram_page_size();
         ramblock_recv_bitmap_set_offset(p->block, p->normal[i]);
@@ -215,7 +215,7 @@ void multifd_ram_fill_packet(MultiFDSendParams *p)
                 pages->block->idstr);
     }
 
-    for (int i = 0; i < pages->num; i++) {
+    for (uint32_t i = 0; i < pages->num; i++) {
         /* there are architectures where ram_addr_t is 32 bit */
         uint64_t temp = pages->offset[i];
 
@@ -232,7 +232,7 @@ int multifd_ram_unfill_packet(MultiFDRecvParams *p, Error **errp)
     uint32_t page_count = multifd_ram_page_count();
     uint32_t page_size = multifd_ram_page_size();
     uint32_t pages_per_packet = be32_to_cpu(packet->pages_alloc);
-    int i;
+    uint32_t i;
 
     if (pages_per_packet > page_count) {
         error_setg(errp, "multifd: received packet with %u pages, expected %u",

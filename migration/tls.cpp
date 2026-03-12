@@ -105,7 +105,7 @@ void migration_tls_channel_process_incoming(MigrationState *s,
 static void migration_tls_outgoing_handshake(QIOTask *task,
                                              gpointer opaque)
 {
-    MigrationState *s = opaque;
+    MigrationState *s = static_cast<MigrationState *>(opaque);
     QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 

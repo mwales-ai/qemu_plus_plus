@@ -250,7 +250,7 @@ static void qemu_iovec_release_ram(QEMUFile *f)
      */
     while ((idx = find_next_bit(f->may_free, f->iovcnt, idx + 1)) < f->iovcnt) {
         /* check for adjacent buffer and coalesce them */
-        if (iov.iov_base + iov.iov_len == f->iov[idx].iov_base) {
+        if (static_cast<char *>(iov.iov_base) + iov.iov_len == f->iov[idx].iov_base) {
             iov.iov_len += f->iov[idx].iov_len;
             continue;
         }
@@ -338,7 +338,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
     }
 
     do {
-        struct iovec iov = { f->buf + pending, IO_BUF_SIZE - pending };
+        struct iovec iov = { f->buf + pending, static_cast<size_t>(IO_BUF_SIZE - pending) };
         len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd,
                                      QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING,
                                      &local_error);
@@ -353,7 +353,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
         qemu_file_set_error_obj(f, -EIO, local_error);
     }
 
-    for (int i = 0; i < nfd; i++) {
+    for (size_t i = 0; i < nfd; i++) {
         FdEntry *fde = g_new0(FdEntry, 1);
         fde->fd = fds[i];
         QTAILQ_INSERT_TAIL(&f->fds, fde, entry);
@@ -453,7 +453,7 @@ static int add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size,
                         bool may_free)
 {
     /* check for adjacent buffer and coalesce them */
-    if (f->iovcnt > 0 && buf == f->iov[f->iovcnt - 1].iov_base +
+    if (f->iovcnt > 0 && buf == static_cast<uint8_t *>(f->iov[f->iovcnt - 1].iov_base) +
         f->iov[f->iovcnt - 1].iov_len &&
         may_free == test_bit(f->iovcnt - 1, f->may_free))
     {
@@ -664,7 +664,7 @@ size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t si
      * qemu_fill_buffer might return just a few bytes, even when there isn't
      * an error, so loop collecting them until we get enough.
      */
-    while (pending < size) {
+    while (pending < (ssize_t)size) {
         int received = qemu_fill_buffer(f);
 
         if (received <= 0) {
@@ -678,8 +678,8 @@ size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t si
     if (pending <= 0) {
         return 0;
     }
-    if (size > pending) {
-        size = pending;
+    if (size > (size_t)pending) {
+        size = (size_t)pending;
     }
 
     *buf = f->buf + index;
@@ -786,7 +786,7 @@ int coroutine_mixed_fn qemu_get_byte(QEMUFile *f)
 uint64_t qemu_file_transferred(QEMUFile *f)
 {
     uint64_t ret = stat64_get(&mig_stats.qemu_file_transferred);
-    int i;
+    unsigned int i;
 
     g_assert(qemu_file_is_writable(f));
 

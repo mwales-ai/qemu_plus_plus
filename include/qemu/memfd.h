@@ -32,6 +32,10 @@
 #define MFD_HUGE_SHIFT 26
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined CONFIG_LINUX && !defined CONFIG_MEMFD
 int memfd_create(const char *name, unsigned int flags);
 #endif
@@ -43,5 +47,9 @@ void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
                        int *fd, Error **errp);
 void qemu_memfd_free(void *ptr, size_t size, int fd);
 bool qemu_memfd_check(unsigned int flags);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_MEMFD_H */

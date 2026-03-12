@@ -9,6 +9,10 @@
 
 #include "exec/ramlist.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * struct BlockRAMRegistrar:
  *
@@ -33,5 +37,9 @@ static inline bool blk_ram_registrar_ok(BlockRAMRegistrar *r)
 {
     return r->ok;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_RAM_REGISTRAR_H */

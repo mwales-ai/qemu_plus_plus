@@ -13,7 +13,7 @@
 void migration_populate_vfio_info(MigrationInfo *info)
 {
     if (vfio_migration_active()) {
-        info->vfio = g_malloc0(sizeof(*info->vfio));
+        info->vfio = static_cast<VfioStats *>(g_malloc0(sizeof(*info->vfio)));
         info->vfio->transferred = vfio_migration_bytes_transferred();
     }
 }

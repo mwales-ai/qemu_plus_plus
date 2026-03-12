@@ -24,6 +24,10 @@
 #include "io/channel.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_QIO_CHANNEL_FILE "qio-channel-file"
 OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelFile, QIO_CHANNEL_FILE)
 
@@ -106,5 +110,9 @@ qio_channel_file_new_path(const char *path,
                           int flags,
                           mode_t mode,
                           Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_CHANNEL_FILE_H */

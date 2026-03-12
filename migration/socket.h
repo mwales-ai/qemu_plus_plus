@@ -21,6 +21,10 @@
 #include "io/task.h"
 #include "qemu/sockets.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void socket_send_channel_create(QIOTaskFunc f, void *data);
 
 void socket_start_incoming_migration(SocketAddress *saddr, Error **errp);
@@ -28,5 +32,9 @@ void socket_start_incoming_migration(SocketAddress *saddr, Error **errp);
 void socket_start_outgoing_migration(MigrationState *s,
                                      SocketAddress *saddr, Error **errp);
 void socket_cleanup_outgoing_migration(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

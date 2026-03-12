@@ -15,10 +15,18 @@
 
 #include "qapi/qapi-types-run-state.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void register_global_state(void);
 void global_state_store(void);
 void global_state_store_running(void);
 bool global_state_received(void);
 RunState global_state_get_runstate(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

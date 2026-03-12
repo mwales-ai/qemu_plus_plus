@@ -33,6 +33,10 @@
 #include "exec/cpu-common.h"
 #include "io/channel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * RAM_SAVE_FLAG_ZERO used to be named RAM_SAVE_FLAG_COMPRESS, it
  * worked for pages that were filled with the same char.  We switched
@@ -121,5 +125,9 @@ bool ram_write_tracking_compatible(void);
 void ram_write_tracking_prepare(void);
 int ram_write_tracking_start(void);
 void ram_write_tracking_stop(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

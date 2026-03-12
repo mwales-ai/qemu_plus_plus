@@ -14,6 +14,10 @@
 #include "qom/object.h"
 #include "net/queue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_NETFILTER "netfilter"
 OBJECT_DECLARE_TYPE(NetFilterState, NetFilterClass, NETFILTER)
 
@@ -78,5 +82,9 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
                                     void *opaque);
 
 void colo_notify_filters_event(int event, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_NET_FILTER_H */

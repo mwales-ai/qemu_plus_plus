@@ -30,7 +30,9 @@ static struct {
 void multifd_device_state_send_setup(void)
 {
     assert(!multifd_send_device_state);
-    multifd_send_device_state = g_malloc(sizeof(*multifd_send_device_state));
+    multifd_send_device_state =
+        static_cast<decltype(multifd_send_device_state)>(
+            g_malloc(sizeof(*multifd_send_device_state)));
 
     qemu_mutex_init(&multifd_send_device_state->queue_job_mutex);
 
@@ -112,7 +114,7 @@ bool multifd_queue_device_state(char *idstr, uint32_t instance_id,
     device_state = &multifd_send_device_state->send_data->u.device_state;
     device_state->idstr = g_strdup(idstr);
     device_state->instance_id = instance_id;
-    device_state->buf = g_memdup2(data, len);
+    device_state->buf = static_cast<char *>(g_memdup2(data, len));
     device_state->buf_len = len;
 
     if (!multifd_send(&multifd_send_device_state->send_data)) {
@@ -131,7 +133,8 @@ bool multifd_device_state_supported(void)
 
 static void multifd_device_state_save_thread_data_free(void *opaque)
 {
-    SaveCompletePrecopyThreadData *data = opaque;
+    SaveCompletePrecopyThreadData *data =
+        static_cast<SaveCompletePrecopyThreadData *>(opaque);
 
     g_clear_pointer(&data->idstr, g_free);
     g_free(data);
@@ -139,7 +142,8 @@ static void multifd_device_state_save_thread_data_free(void *opaque)
 
 static int multifd_device_state_save_thread(void *opaque)
 {
-    SaveCompletePrecopyThreadData *data = opaque;
+    SaveCompletePrecopyThreadData *data =
+        static_cast<SaveCompletePrecopyThreadData *>(opaque);
     g_autoptr(Error) local_err = NULL;
 
     if (!data->hdlr(data, &local_err)) {

@@ -10,6 +10,9 @@
 #ifndef QEMU_MIGRATION_CLIENT_OPTIONS_H
 #define QEMU_MIGRATION_CLIENT_OPTIONS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* properties */
 bool migrate_send_switchover_start(void);
@@ -25,5 +28,9 @@ bool migrate_switchover_ack(void);
 
 MigMode migrate_mode(void);
 uint64_t migrate_vcpu_dirty_limit_period(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

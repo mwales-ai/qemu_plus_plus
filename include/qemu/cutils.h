@@ -1,6 +1,10 @@
 #ifndef QEMU_CUTILS_H
 #define QEMU_CUTILS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * si_prefix:
  * @exp10: exponent of 10, a multiple of 3 between -18 and 18 inclusive.
@@ -317,5 +321,9 @@ void qemu_hexdump(FILE *fp, const char *prefix,
  */
 void qemu_hexdump_to_buffer(char *__restrict__ buffer, size_t buffer_size,
                             const uint8_t *__restrict__ data, size_t data_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

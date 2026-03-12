@@ -4,6 +4,10 @@
 #include "qapi/qapi-types-run-state.h"
 #include "qemu/notify.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 RunState runstate_get(void);
@@ -155,6 +159,10 @@ void qemu_system_guest_panicked(GuestPanicInformation *info);
 void qemu_system_guest_crashloaded(GuestPanicInformation *info);
 void qemu_system_guest_pvshutdown(void);
 bool qemu_system_dump_in_progress(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

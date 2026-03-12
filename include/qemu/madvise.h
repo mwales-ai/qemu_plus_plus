@@ -90,6 +90,14 @@
 
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int qemu_madvise(void *addr, size_t len, int advice);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

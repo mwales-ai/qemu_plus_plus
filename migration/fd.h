@@ -16,8 +16,18 @@
 
 #ifndef QEMU_MIGRATION_FD_H
 #define QEMU_MIGRATION_FD_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void fd_start_incoming_migration(const char *fdname, Error **errp);
 
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname,
                                  Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

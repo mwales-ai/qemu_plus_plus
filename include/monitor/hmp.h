@@ -17,6 +17,10 @@
 #include "qemu/readline.h"
 #include "qapi/qapi-types-common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool hmp_handle_error(Monitor *mon, Error *err);
 void hmp_help_cmd(Monitor *mon, const char *name);
 strList *hmp_split_at_comma(const char *str);
@@ -180,5 +184,9 @@ void hmp_info_mtree(Monitor *mon, const QDict *qdict);
 void hmp_info_cryptodev(Monitor *mon, const QDict *qdict);
 void hmp_dumpdtb(Monitor *mon, const QDict *qdict);
 void hmp_info_firmware_log(Monitor *mon, const QDict *qdict);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

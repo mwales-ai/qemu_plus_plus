@@ -57,12 +57,12 @@ static const gchar *format_time_str(uint64_t us)
     const char *units[] = {"us", "ms", "sec"};
     int index = 0;
 
-    while (us >= 1000 && index + 1 < ARRAY_SIZE(units)) {
+    while (us >= 1000 && (size_t)(index + 1) < ARRAY_SIZE(units)) {
         us /= 1000;
         index++;
     }
 
-    return g_strdup_printf("%"PRIu64" %s", us, units[index]);
+    return g_strdup_printf("%" PRIu64 " %s", us, units[index]);
 }
 
 static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
@@ -80,7 +80,7 @@ static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
         monitor_printf(mon, "Postcopy vCPU Blocktime (ms):\n [");
 
         while (item) {
-            monitor_printf(mon, "%s%"PRIu32, sep, item->value);
+            monitor_printf(mon, "%s%" PRIu32, sep, item->value);
             item = item->next;
             /* Each line 10 vcpu results, newline if there's more */
             sep = ((++count % 10 == 0) && item) ? ",\n  " : ", ";
@@ -106,7 +106,7 @@ static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
         monitor_printf(mon, "Postcopy vCPU Latencies (ns):\n [");
 
         while (item) {
-            monitor_printf(mon, "%s%"PRIu64, sep, item->value);
+            monitor_printf(mon, "%s%" PRIu64, sep, item->value);
             item = item->next;
             /* Each line 10 vcpu results, newline if there's more */
             sep = ((++count % 10 == 0) && item) ? ",\n  " : ", ";
@@ -124,7 +124,7 @@ static void migration_dump_blocktime(Monitor *mon, MigrationInfo *info)
             g_autofree const gchar *from = format_time_str(1UL << count);
             g_autofree const gchar *to = format_time_str(1UL << (count + 1));
 
-            monitor_printf(mon, "  [ %8s - %8s ]: %10"PRIu64"\n",
+            monitor_printf(mon, "  [ %8s - %8s ]: %10" PRIu64 "\n",
                            from, to, item->value);
             item = item->next;
             count++;
@@ -503,7 +503,7 @@ void hmp_migrate_continue(Monitor *mon, const QDict *qdict)
     int val = qapi_enum_parse(&MigrationStatus_lookup, state, -1, &err);
 
     if (val >= 0) {
-        qmp_migrate_continue(val, &err);
+        qmp_migrate_continue(static_cast<MigrationStatus>(val), &err);
     }
 
     hmp_handle_error(mon, err);
@@ -519,7 +519,7 @@ void hmp_migrate_incoming(Monitor *mon, const QDict *qdict)
     if (!migrate_uri_parse(uri, &channel, &err)) {
         goto end;
     }
-    QAPI_LIST_PREPEND(caps, g_steal_pointer(&channel));
+    QAPI_LIST_PREPEND(caps, static_cast<MigrationChannel *>(g_steal_pointer(&channel)));
 
     qmp_migrate_incoming(NULL, true, caps, true, false, &err);
     qapi_free_MigrationChannelList(caps);
@@ -562,8 +562,8 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
         goto end;
     }
 
-    value = g_malloc0(sizeof(*value));
-    value->capability = val;
+    value = static_cast<MigrationCapabilityStatus *>(g_malloc0(sizeof(*value)));
+    value->capability = static_cast<MigrationCapability>(val);
     value->state = state;
     QAPI_LIST_PREPEND(caps, value);
     qmp_migrate_set_capabilities(caps, &err);
@@ -794,7 +794,7 @@ typedef struct HMPMigrationStatus {
 
 static void hmp_migrate_status_cb(void *opaque)
 {
-    HMPMigrationStatus *status = opaque;
+    HMPMigrationStatus *status = static_cast<HMPMigrationStatus *>(opaque);
     MigrationInfo *info;
 
     info = qmp_query_migrate(NULL);
@@ -826,7 +826,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
         hmp_handle_error(mon, err);
         return;
     }
-    QAPI_LIST_PREPEND(caps, g_steal_pointer(&channel));
+    QAPI_LIST_PREPEND(caps, static_cast<MigrationChannel *>(g_steal_pointer(&channel)));
 
     qmp_migrate(NULL, true, caps, false, false, true, resume, &err);
     if (hmp_handle_error(mon, err)) {
@@ -842,7 +842,7 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
             return;
         }
 
-        status = g_malloc0(sizeof(*status));
+        status = static_cast<HMPMigrationStatus *>(g_malloc0(sizeof(*status)));
         status->mon = mon;
         status->timer = timer_new_ms(QEMU_CLOCK_REALTIME, hmp_migrate_status_cb,
                                           status);

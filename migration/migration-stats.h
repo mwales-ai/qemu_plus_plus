@@ -15,6 +15,10 @@
 
 #include "qemu/stats64.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Amount of time to allocate to each "chunk" of bandwidth-throttled
  * data.
@@ -136,4 +140,9 @@ void migration_rate_set(uint64_t new_rate);
  * channel, multifd, qemu_file, rdma, ....
  */
 uint64_t migration_transferred_bytes(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

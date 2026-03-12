@@ -12,6 +12,10 @@
 #include "hw/core/cpu.h"
 #include "hw/resettable.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_MACHINE_SUFFIX "-machine"
 
 /* Machine class name that needs to be used for class-name-based machine
@@ -884,5 +888,9 @@ extern const size_t hw_compat_2_7_len;
 
 extern GlobalProperty hw_compat_2_6[];
 extern const size_t hw_compat_2_6_len;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

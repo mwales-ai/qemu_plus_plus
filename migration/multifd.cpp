@@ -100,12 +100,12 @@ struct {
 
 MultiFDSendData *multifd_send_data_alloc(void)
 {
-    MultiFDSendData *new = g_new0(MultiFDSendData, 1);
+    MultiFDSendData *new_p = g_new0(MultiFDSendData, 1);
 
-    multifd_ram_payload_alloc(&new->u.ram);
+    multifd_ram_payload_alloc(&new_p->u.ram);
     /* Device state allocates its payload on-demand */
 
-    return new;
+    return new_p;
 }
 
 void multifd_send_data_clear(MultiFDSendData *data)
@@ -660,7 +660,7 @@ int multifd_send_sync_main(MultiFDSyncReq req)
 
 static void *multifd_send_thread(void *opaque)
 {
-    MultiFDSendParams *p = opaque;
+    MultiFDSendParams *p = static_cast<MultiFDSendParams *>(opaque);
     MigrationThread *thread = NULL;
     Error *local_err = NULL;
     int ret = 0;
@@ -798,7 +798,7 @@ typedef struct {
 
 static void *multifd_tls_handshake_thread(void *opaque)
 {
-    MultiFDTLSThreadArgs *args = opaque;
+    MultiFDTLSThreadArgs *args = static_cast<MultiFDTLSThreadArgs *>(opaque);
 
     qio_channel_tls_handshake(args->tioc,
                               multifd_new_send_channel_async,
@@ -864,7 +864,7 @@ void multifd_channel_connect(MultiFDSendParams *p, QIOChannel *ioc)
  */
 static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 {
-    MultiFDSendParams *p = opaque;
+    MultiFDSendParams *p = static_cast<MultiFDSendParams *>(opaque);
     QIOChannel *ioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *local_err = NULL;
     bool ret;
@@ -934,7 +934,7 @@ bool multifd_send_setup(void)
     }
 
     thread_count = migrate_multifd_channels();
-    multifd_send_state = g_malloc0(sizeof(*multifd_send_state));
+    multifd_send_state = static_cast<decltype(multifd_send_state)>(g_malloc0(sizeof(*multifd_send_state)));
     multifd_send_state->params = g_new0(MultiFDSendParams, thread_count);
     qemu_mutex_init(&multifd_send_state->multifd_send_mutex);
     qemu_sem_init(&multifd_send_state->channels_created, 0);
@@ -954,8 +954,8 @@ bool multifd_send_setup(void)
         if (use_packets) {
             p->packet_len = sizeof(MultiFDPacket_t)
                           + sizeof(uint64_t) * page_count;
-            p->packet = g_malloc0(p->packet_len);
-            p->packet_device_state = g_malloc0(sizeof(*p->packet_device_state));
+            p->packet = static_cast<MultiFDPacket_t *>(g_malloc0(p->packet_len));
+            p->packet_device_state = static_cast<MultiFDPacketDeviceState_t *>(g_malloc0(sizeof(*p->packet_device_state)));
             p->packet_device_state->hdr.magic = cpu_to_be32(MULTIFD_MAGIC);
             p->packet_device_state->hdr.version = cpu_to_be32(MULTIFD_VERSION);
         }
@@ -1243,7 +1243,7 @@ static int multifd_device_state_recv(MultiFDRecvParams *p, Error **errp)
     g_autofree char *dev_state_buf = NULL;
     int ret;
 
-    dev_state_buf = g_malloc(p->next_packet_size);
+    dev_state_buf = static_cast<char *>(g_malloc(p->next_packet_size));
 
     ret = qio_channel_read_all(p->c, dev_state_buf, p->next_packet_size, errp);
     if (ret != 0) {
@@ -1269,7 +1269,7 @@ static int multifd_device_state_recv(MultiFDRecvParams *p, Error **errp)
 static void *multifd_recv_thread(void *opaque)
 {
     MigrationState *s = migrate_get_current();
-    MultiFDRecvParams *p = opaque;
+    MultiFDRecvParams *p = static_cast<MultiFDRecvParams *>(opaque);
     Error *local_err = NULL;
     bool use_packets = multifd_use_packets();
     int ret;
@@ -1460,7 +1460,7 @@ int multifd_recv_setup(Error **errp)
     }
 
     thread_count = migrate_multifd_channels();
-    multifd_recv_state = g_malloc0(sizeof(*multifd_recv_state));
+    multifd_recv_state = static_cast<decltype(multifd_recv_state)>(g_malloc0(sizeof(*multifd_recv_state)));
     multifd_recv_state->params = g_new0(MultiFDRecvParams, thread_count);
 
     multifd_recv_state->data = g_new0(MultiFDRecvData, 1);
@@ -1486,8 +1486,8 @@ int multifd_recv_setup(Error **errp)
         if (use_packets) {
             p->packet_len = sizeof(MultiFDPacket_t)
                 + sizeof(uint64_t) * page_count;
-            p->packet = g_malloc0(p->packet_len);
-            p->packet_dev_state = g_malloc0(sizeof(*p->packet_dev_state));
+            p->packet = static_cast<MultiFDPacket_t *>(g_malloc0(p->packet_len));
+            p->packet_dev_state = static_cast<MultiFDPacketDeviceState_t *>(g_malloc0(sizeof(*p->packet_dev_state)));
         }
         p->name = g_strdup_printf(MIGRATION_THREAD_DST_MULTIFD, i);
         p->normal = g_new0(ram_addr_t, page_count);

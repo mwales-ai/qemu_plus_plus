@@ -26,6 +26,10 @@
 #include "crypto/tlssession.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_QIO_CHANNEL_TLS "qio-channel-tls"
 OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelTLS, QIO_CHANNEL_TLS)
 
@@ -154,5 +158,9 @@ void qio_channel_tls_handshake(QIOChannelTLS *ioc,
  */
 QCryptoTLSSession *
 qio_channel_tls_get_session(QIOChannelTLS *ioc);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_CHANNEL_TLS_H */

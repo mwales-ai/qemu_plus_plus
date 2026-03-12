@@ -9,7 +9,14 @@
  *
  */
 
+#ifndef QAPI_TYPE_HELPERS_H
+#define QAPI_TYPE_HELPERS_H
+
 #include "qapi/qapi-types-common.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 HumanReadableText *human_readable_text_from_str(GString *str);
 
@@ -20,3 +27,9 @@ HumanReadableText *human_readable_text_from_str(GString *str);
  * cleanup.
  */
 char **strv_from_str_list(const strList *list);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* QAPI_TYPE_HELPERS_H */

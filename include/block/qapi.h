@@ -29,6 +29,10 @@
 #include "block/snapshot.h"
 #include "qapi/qapi-types-block-core.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 BlockDeviceInfo * GRAPH_RDLOCK
 bdrv_block_device_info(BlockBackend *blk, BlockDriverState *bs,
                        bool flat, Error **errp);
@@ -49,4 +53,9 @@ void bdrv_image_info_specific_dump(ImageInfoSpecific *info_spec,
                                    const char *prefix,
                                    int indentation);
 void bdrv_node_info_dump(BlockNodeInfo *info, int indentation, bool protocol);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

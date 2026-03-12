@@ -77,7 +77,7 @@ static bool global_state_needed(void *opaque)
 
 static int global_state_post_load(void *opaque, int version_id)
 {
-    GlobalState *s = opaque;
+    GlobalState *s = static_cast<GlobalState *>(opaque);
     Error *local_err = NULL;
     int r;
     char *runstate = (char *)s->runstate;
@@ -104,7 +104,7 @@ static int global_state_post_load(void *opaque, int version_id)
         }
         return -EINVAL;
     }
-    s->state = r;
+    s->state = static_cast<RunState>(r);
 
     /*
      * global_state is saved on the outgoing side before forcing a stopped
@@ -119,7 +119,7 @@ static int global_state_post_load(void *opaque, int version_id)
 
 static int global_state_pre_save(void *opaque)
 {
-    GlobalState *s = opaque;
+    GlobalState *s = static_cast<GlobalState *>(opaque);
 
     trace_migrate_global_state_pre_save((char *)s->runstate);
     s->size = strnlen((char *)s->runstate, sizeof(s->runstate)) + 1;
@@ -128,6 +128,15 @@ static int global_state_pre_save(void *opaque)
     return 0;
 }
 
+static const VMStateField vmstate_globalstate_fields[] = {
+    VMSTATE_UINT32(size, GlobalState),
+    VMSTATE_BUFFER(runstate, GlobalState),
+    VMSTATE_UINT8(has_vm_was_suspended, GlobalState),
+    VMSTATE_UINT8(vm_was_suspended, GlobalState),
+    VMSTATE_BUFFER(unused, GlobalState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_globalstate = {
     .name = "globalstate",
     .version_id = 1,
@@ -135,14 +144,7 @@ static const VMStateDescription vmstate_globalstate = {
     .post_load = global_state_post_load,
     .pre_save = global_state_pre_save,
     .needed = global_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(size, GlobalState),
-        VMSTATE_BUFFER(runstate, GlobalState),
-        VMSTATE_UINT8(has_vm_was_suspended, GlobalState),
-        VMSTATE_UINT8(vm_was_suspended, GlobalState),
-        VMSTATE_BUFFER(unused, GlobalState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_globalstate_fields,
 };
 
 void register_global_state(void)

@@ -11,6 +11,10 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #include "qapi/qapi-types-sockets.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* misc helpers */
 bool fd_is_socket(int fd);
 int qemu_socket(int domain, int type, int protocol);
@@ -134,4 +138,9 @@ SocketAddress *socket_address_flatten(SocketAddressLegacy *addr);
  * Return 0 on success.
  */
 int socket_address_parse_named_fd(SocketAddress *addr, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* QEMU_SOCKETS_H */

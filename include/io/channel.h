@@ -25,6 +25,10 @@
 #include "qemu/coroutine-core.h"
 #include "block/aio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_QIO_CHANNEL "qio-channel"
 OBJECT_DECLARE_TYPE(QIOChannel, QIOChannelClass,
                     QIO_CHANNEL)
@@ -1034,5 +1038,9 @@ int qio_channel_flush(QIOChannel *ioc,
 int qio_channel_get_peerpid(QIOChannel *ioc,
                              unsigned int *pid,
                              Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_CHANNEL_H */

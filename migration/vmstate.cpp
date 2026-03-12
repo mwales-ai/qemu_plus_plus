@@ -88,13 +88,13 @@ static int vmstate_n_elems(void *opaque, const VMStateField *field)
     if (field->flags & VMS_ARRAY) {
         n_elems = field->num;
     } else if (field->flags & VMS_VARRAY_INT32) {
-        n_elems = *(int32_t *)(opaque + field->num_offset);
+        n_elems = *(int32_t *)(static_cast<char *>(opaque) + field->num_offset);
     } else if (field->flags & VMS_VARRAY_UINT32) {
-        n_elems = *(uint32_t *)(opaque + field->num_offset);
+        n_elems = *(uint32_t *)(static_cast<char *>(opaque) + field->num_offset);
     } else if (field->flags & VMS_VARRAY_UINT16) {
-        n_elems = *(uint16_t *)(opaque + field->num_offset);
+        n_elems = *(uint16_t *)(static_cast<char *>(opaque) + field->num_offset);
     } else if (field->flags & VMS_VARRAY_UINT8) {
-        n_elems = *(uint8_t *)(opaque + field->num_offset);
+        n_elems = *(uint8_t *)(static_cast<char *>(opaque) + field->num_offset);
     }
 
     if (field->flags & VMS_MULTIPLY_ELEMENTS) {
@@ -110,7 +110,7 @@ static int vmstate_size(void *opaque, const VMStateField *field)
     int size = field->size;
 
     if (field->flags & VMS_VBUFFER) {
-        size = *(int32_t *)(opaque + field->size_offset);
+        size = *(int32_t *)(static_cast<char *>(opaque) + field->size_offset);
         if (field->flags & VMS_MULTIPLY) {
             size *= field->size;
         }
@@ -175,7 +175,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
         bool exists = vmstate_field_exists(vmsd, field, opaque, version_id);
         trace_vmstate_load_state_field(vmsd->name, field->name, exists);
         if (exists) {
-            void *first_elem = opaque + field->offset;
+            void *first_elem = static_cast<char *>(opaque) + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
 
@@ -185,7 +185,7 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                 assert(first_elem || !n_elems || !size);
             }
             for (i = 0; i < n_elems; i++) {
-                void *curr_elem = first_elem + size * i;
+                void *curr_elem = static_cast<char *>(first_elem) + size * i;
                 const VMStateField *inner_field;
 
                 if (field->flags & VMS_ARRAY_OF_POINTER) {
@@ -460,7 +460,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
 
     while (field->name) {
         if (vmstate_field_exists(vmsd, field, opaque, version_id)) {
-            void *first_elem = opaque + field->offset;
+            void *first_elem = static_cast<char *>(opaque) + field->offset;
             int i, n_elems = vmstate_n_elems(opaque, field);
             int size = vmstate_size(opaque, field);
             uint64_t old_offset, written_bytes;
@@ -474,7 +474,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
             }
 
             for (i = 0; i < n_elems; i++) {
-                void *curr_elem = first_elem + size * i;
+                void *curr_elem = static_cast<char *>(first_elem) + size * i;
                 const VMStateField *inner_field;
                 bool is_null;
                 int max_elems = n_elems - i;
@@ -515,7 +515,7 @@ int vmstate_save_state_v(QEMUFile *f, const VMStateDescription *vmsd,
                     vmdesc_loop = vmdesc;
 
                     for (int j = i + 1; j < n_elems; j++) {
-                        void *elem = *(void **)(first_elem + size * j);
+                        void *elem = *(void **)(static_cast<char *>(first_elem) + size * j);
                         bool elem_is_null = !elem && size;
 
                         if (is_null != elem_is_null) {

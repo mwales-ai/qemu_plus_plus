@@ -24,6 +24,10 @@
 #include "io/channel-socket.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_QIO_NET_LISTENER "qio-net-listener"
 OBJECT_DECLARE_SIMPLE_TYPE(QIONetListener,
                            QIO_NET_LISTENER)
@@ -249,5 +253,9 @@ QIOChannelSocket *qio_net_listener_sioc(QIONetListener *listener, size_t n);
 SocketAddress *
 qio_net_listener_get_local_address(QIONetListener *listener, size_t n,
                                    Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_NET_LISTENER_H */

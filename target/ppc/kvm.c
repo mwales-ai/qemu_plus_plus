@@ -1589,7 +1589,7 @@ static int kvm_handle_hw_breakpoint(CPUState *cs,
             if (n >= 0) {
                 handle = DEBUG_RETURN_GDB;
                 cs->watchpoint_hit = &hw_watchpoint;
-                hw_watchpoint.vaddr = hw_debug_points[n].addr;
+                hw_watchpoint.wp_vaddr = hw_debug_points[n].addr;
                 hw_watchpoint.flags = flag;
             }
         }

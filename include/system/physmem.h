@@ -11,6 +11,10 @@
 #include "exec/hwaddr.h"
 #include "exec/ramlist.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define DIRTY_CLIENTS_ALL     ((1 << DIRTY_MEMORY_NUM) - 1)
 #define DIRTY_CLIENTS_NOCODE  (DIRTY_CLIENTS_ALL & ~(1 << DIRTY_MEMORY_CODE))
 
@@ -50,5 +54,9 @@ physical_memory_snapshot_and_clear_dirty(MemoryRegion *mr, hwaddr offset,
 bool physical_memory_snapshot_get_dirty(DirtyBitmapSnapshot *snap,
                                         ram_addr_t start,
                                         ram_addr_t length);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

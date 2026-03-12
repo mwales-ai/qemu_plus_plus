@@ -576,12 +576,13 @@ static void rdma_add_block(RDMAContext *rdma, const char *block_name,
     block = &local->block[local->nb_blocks];
 
     block->block_name = g_strdup(block_name);
-    block->local_host_addr = host_addr;
+    block->local_host_addr = static_cast<uint8_t *>(host_addr);
     block->offset = block_offset;
     block->length = length;
     block->index = local->nb_blocks;
     block->src_index = ~0U; /* Filled in by the receipt of the block list */
-    block->nb_chunks = ram_chunk_index(host_addr, host_addr + length) + 1UL;
+    block->nb_chunks = ram_chunk_index(block->local_host_addr,
+                                      block->local_host_addr + length) + 1UL;
     block->transit_bitmap = bitmap_new(block->nb_chunks);
     bitmap_clear(block->transit_bitmap, 0, block->nb_chunks);
     block->unregister_bitmap = bitmap_new(block->nb_chunks);
@@ -616,7 +617,8 @@ static int qemu_rdma_init_one_block(RAMBlock *rb, void *opaque)
     void *host_addr = qemu_ram_get_host_addr(rb);
     ram_addr_t block_offset = qemu_ram_get_offset(rb);
     ram_addr_t length = qemu_ram_get_used_length(rb);
-    rdma_add_block(opaque, block_name, host_addr, block_offset, length);
+    rdma_add_block(static_cast<RDMAContext *>(opaque), block_name,
+                   host_addr, block_offset, length);
     return 0;
 }
 
@@ -994,9 +996,9 @@ static void qemu_rdma_advise_prefetch_mr(struct ibv_pd *pd, uint64_t addr,
 {
 #ifdef HAVE_IBV_ADVISE_MR
     int ret;
-    int advice = wr ? IBV_ADVISE_MR_ADVICE_PREFETCH_WRITE :
+    enum ibv_advise_mr_advice advice = wr ? IBV_ADVISE_MR_ADVICE_PREFETCH_WRITE :
                  IBV_ADVISE_MR_ADVICE_PREFETCH;
-    struct ibv_sge sg_list = {.lkey = lkey, .addr = addr, .length = len};
+    struct ibv_sge sg_list = {.addr = addr, .length = len, .lkey = lkey};
 
     ret = ibv_advise_mr(pd, advice,
                         IBV_ADVISE_MR_FLAG_FLUSH, &sg_list, 1);
@@ -1080,8 +1082,9 @@ static void qemu_rdma_search_ram_block(RDMAContext *rdma,
                                        uint64_t *chunk_index)
 {
     uint64_t current_addr = block_offset + offset;
-    RDMALocalBlock *block = g_hash_table_lookup(rdma->blockmap,
-                                                (void *) block_offset);
+    RDMALocalBlock *block = static_cast<RDMALocalBlock *>(
+        g_hash_table_lookup(rdma->blockmap,
+                            (void *)(uintptr_t) block_offset));
     assert(block);
     assert(current_addr >= block->offset);
     assert((current_addr + length) <= (block->offset + block->length));
@@ -1206,7 +1209,7 @@ static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
             (wr_id & RDMA_WRID_BLOCK_MASK) >> RDMA_WRID_BLOCK_SHIFT;
         RDMALocalBlock *block =
             &(rdma->local_ram_blocks.block[index]);
-        RDMARegister reg = { .current_index = index };
+        RDMARegister reg = { .current_index = static_cast<uint32_t>(index) };
         RDMAControlHeader resp = { .type = RDMA_CONTROL_UNREGISTER_FINISHED,
                                  };
         RDMAControlHeader head = { .len = sizeof(RDMARegister),
@@ -1544,15 +1547,15 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
     struct ibv_send_wr *bad_wr;
     struct ibv_sge sge = {
                            .addr = (uintptr_t)(wr->control),
-                           .length = head->len + sizeof(RDMAControlHeader),
+                           .length = static_cast<uint32_t>(head->len + sizeof(RDMAControlHeader)),
                            .lkey = wr->control_mr->lkey,
                          };
     struct ibv_send_wr send_wr = {
                                    .wr_id = RDMA_WRID_SEND_CONTROL,
-                                   .opcode = IBV_WR_SEND,
-                                   .send_flags = IBV_SEND_SIGNALED,
                                    .sg_list = &sge,
                                    .num_sge = 1,
+                                   .opcode = IBV_WR_SEND,
+                                   .send_flags = IBV_SEND_SIGNALED,
                                 };
 
     trace_qemu_rdma_post_send_control(control_desc(head->type));
@@ -1567,7 +1570,7 @@ static int qemu_rdma_post_send_control(RDMAContext *rdma, uint8_t *buf,
      */
     assert(head->len <= RDMA_CONTROL_MAX_BUFFER - sizeof(*head));
     memcpy(wr->control, head, sizeof(RDMAControlHeader));
-    control_to_network((void *) wr->control);
+    control_to_network(reinterpret_cast<RDMAControlHeader *>(wr->control));
 
     if (buf) {
         memcpy(wr->control + sizeof(RDMAControlHeader), buf, head->len);
@@ -1605,7 +1608,7 @@ static int qemu_rdma_post_recv_control(RDMAContext *rdma, int idx,
                          };
 
     struct ibv_recv_wr recv_wr = {
-                                    .wr_id = RDMA_WRID_RECV_CONTROL + idx,
+                                    .wr_id = static_cast<uint64_t>(RDMA_WRID_RECV_CONTROL + idx),
                                     .sg_list = &sge,
                                     .num_sge = 1,
                                  };
@@ -1635,7 +1638,7 @@ static int qemu_rdma_exchange_get_response(RDMAContext *rdma,
         return -1;
     }
 
-    network_to_control((void *) rdma->wr_data[idx].control);
+    network_to_control(reinterpret_cast<RDMAControlHeader *>(rdma->wr_data[idx].control));
     memcpy(head, rdma->wr_data[idx].control, sizeof(RDMAControlHeader));
 
     trace_qemu_rdma_exchange_get_response_start(control_desc(expecting));
@@ -1906,9 +1909,9 @@ retry:
 
             if (buffer_is_zero((void *)(uintptr_t)sge.addr, length)) {
                 RDMACompress comp = {
-                                        .offset = current_addr,
                                         .value = 0,
-                                        .block_idx = current_index,
+                                        .block_idx = static_cast<uint32_t>(current_index),
+                                        .offset = current_addr,
                                         .length = length,
                                     };
 
@@ -2372,10 +2375,10 @@ static int qemu_rdma_connect(RDMAContext *rdma, bool return_path,
                                 .version = RDMA_CONTROL_VERSION_CURRENT,
                                 .flags = 0,
                            };
-    struct rdma_conn_param conn_param = { .initiator_depth = 2,
-                                          .retry_count = 5,
-                                          .private_data = &cap,
+    struct rdma_conn_param conn_param = { .private_data = &cap,
                                           .private_data_len = sizeof(cap),
+                                          .initiator_depth = 2,
+                                          .retry_count = 5,
                                         };
     struct rdma_cm_event *cm_event;
     int ret;
@@ -2606,9 +2609,9 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
         return -1;
     }
 
-    for (int i = 0; i < niov; i++) {
+    for (size_t i = 0; i < niov; i++) {
         size_t remaining = iov[i].iov_len;
-        uint8_t * data = (void *)iov[i].iov_base;
+        uint8_t *data = static_cast<uint8_t *>(iov[i].iov_base);
         while (remaining) {
             RDMAControlHeader head = {};
 
@@ -2685,9 +2688,9 @@ static ssize_t qio_channel_rdma_readv(QIOChannel *ioc,
         return -1;
     }
 
-    for (int i = 0; i < niov; i++) {
+    for (size_t i = 0; i < niov; i++) {
         size_t want = iov[i].iov_len;
-        uint8_t *data = (void *)iov[i].iov_base;
+        uint8_t *data = static_cast<uint8_t *>(iov[i].iov_base);
 
         /*
          * First, we hold on to the last SEND message we
@@ -2788,7 +2791,7 @@ qio_channel_rdma_source_prepare(GSource *source,
 {
     QIOChannelRDMASource *rsource = (QIOChannelRDMASource *)source;
     RDMAContext *rdma;
-    GIOCondition cond = 0;
+    GIOCondition cond = static_cast<GIOCondition>(0);
     *timeout = -1;
 
     RCU_READ_LOCK_GUARD();
@@ -2804,9 +2807,9 @@ qio_channel_rdma_source_prepare(GSource *source,
     }
 
     if (rdma->wr_data[0].control_len) {
-        cond |= G_IO_IN;
+        cond = static_cast<GIOCondition>(cond | G_IO_IN);
     }
-    cond |= G_IO_OUT;
+    cond = static_cast<GIOCondition>(cond | G_IO_OUT);
 
     return cond & rsource->condition;
 }
@@ -2816,7 +2819,7 @@ qio_channel_rdma_source_check(GSource *source)
 {
     QIOChannelRDMASource *rsource = (QIOChannelRDMASource *)source;
     RDMAContext *rdma;
-    GIOCondition cond = 0;
+    GIOCondition cond = static_cast<GIOCondition>(0);
 
     RCU_READ_LOCK_GUARD();
     if (rsource->condition == G_IO_IN) {
@@ -2831,9 +2834,9 @@ qio_channel_rdma_source_check(GSource *source)
     }
 
     if (rdma->wr_data[0].control_len) {
-        cond |= G_IO_IN;
+        cond = static_cast<GIOCondition>(cond | G_IO_IN);
     }
-    cond |= G_IO_OUT;
+    cond = static_cast<GIOCondition>(cond | G_IO_OUT);
 
     return cond & rsource->condition;
 }
@@ -2846,7 +2849,7 @@ qio_channel_rdma_source_dispatch(GSource *source,
     QIOChannelFunc func = (QIOChannelFunc)callback;
     QIOChannelRDMASource *rsource = (QIOChannelRDMASource *)source;
     RDMAContext *rdma;
-    GIOCondition cond = 0;
+    GIOCondition cond = static_cast<GIOCondition>(0);
 
     RCU_READ_LOCK_GUARD();
     if (rsource->condition == G_IO_IN) {
@@ -2861,12 +2864,12 @@ qio_channel_rdma_source_dispatch(GSource *source,
     }
 
     if (rdma->wr_data[0].control_len) {
-        cond |= G_IO_IN;
+        cond = static_cast<GIOCondition>(cond | G_IO_IN);
     }
-    cond |= G_IO_OUT;
+    cond = static_cast<GIOCondition>(cond | G_IO_OUT);
 
     return (*func)(QIO_CHANNEL(rsource->rioc),
-                   (cond & rsource->condition),
+                   static_cast<GIOCondition>(cond & rsource->condition),
                    user_data);
 }
 
@@ -3126,7 +3129,7 @@ static void rdma_accept_incoming_migration(void *opaque);
 
 static void rdma_cm_poll_handler(void *opaque)
 {
-    RDMAContext *rdma = opaque;
+    RDMAContext *rdma = static_cast<RDMAContext *>(opaque);
     struct rdma_cm_event *cm_event;
     MigrationIncomingState *mis = migration_incoming_get_current();
 
@@ -3160,9 +3163,9 @@ static int qemu_rdma_accept(RDMAContext *rdma)
     Error *err = NULL;
     RDMACapabilities cap;
     struct rdma_conn_param conn_param = {
-                                            .responder_resources = 2,
                                             .private_data = &cap,
                                             .private_data_len = sizeof(cap),
+                                            .responder_resources = 2,
                                          };
     RDMAContext *rdma_return_path = NULL;
     g_autoptr(InetSocketAddress) isock = g_new0(InetSocketAddress, 1);
@@ -3398,7 +3401,7 @@ int rdma_registration_handle(QEMUFile *f)
             trace_rdma_registration_handle_compress(comp->length,
                                                     comp->block_idx,
                                                     comp->offset);
-            if (comp->block_idx >= rdma->local_ram_blocks.nb_blocks) {
+            if (comp->block_idx >= (uint32_t)rdma->local_ram_blocks.nb_blocks) {
                 error_report("rdma: 'compress' bad block index %u (vs %d)",
                              (unsigned int)comp->block_idx,
                              rdma->local_ram_blocks.nb_blocks);
@@ -3488,7 +3491,7 @@ int rdma_registration_handle(QEMUFile *f)
             reg_resp.repeat = head.repeat;
             registers = (RDMARegister *) rdma->wr_data[idx].control_curr;
 
-            for (int count = 0; count < head.repeat; count++) {
+            for (uint32_t count = 0; count < head.repeat; count++) {
                 uint64_t chunk;
                 uint8_t *chunk_start, *chunk_end;
 
@@ -3500,7 +3503,7 @@ int rdma_registration_handle(QEMUFile *f)
                 trace_rdma_registration_handle_register_loop(count,
                          reg->current_index, reg->key.current_addr, reg->chunks);
 
-                if (reg->current_index >= rdma->local_ram_blocks.nb_blocks) {
+                if (reg->current_index >= (uint32_t)rdma->local_ram_blocks.nb_blocks) {
                     error_report("rdma: 'register' bad block index %u (vs %d)",
                                  (unsigned int)reg->current_index,
                                  rdma->local_ram_blocks.nb_blocks);
@@ -3563,7 +3566,7 @@ int rdma_registration_handle(QEMUFile *f)
             unreg_resp.repeat = head.repeat;
             registers = (RDMARegister *) rdma->wr_data[idx].control_curr;
 
-            for (int count = 0; count < head.repeat; count++) {
+            for (uint32_t count = 0; count < head.repeat; count++) {
                 reg = &registers[count];
                 network_to_register(reg);
 
@@ -3822,8 +3825,8 @@ static void qio_channel_rdma_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo qio_channel_rdma_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_RDMA,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelRDMA),
     .instance_finalize = qio_channel_rdma_finalize,
     .class_init = qio_channel_rdma_class_init,
@@ -3860,7 +3863,7 @@ static QEMUFile *rdma_new_output(RDMAContext *rdma)
 
 static void rdma_accept_incoming_migration(void *opaque)
 {
-    RDMAContext *rdma = opaque;
+    RDMAContext *rdma = static_cast<RDMAContext *>(opaque);
     QEMUFile *f;
 
     trace_qemu_rdma_accept_incoming_migration();
@@ -3923,7 +3926,7 @@ void rdma_start_incoming_migration(InetSocketAddress *host_port,
     trace_rdma_start_incoming_migration_after_rdma_listen();
     s->rdma_migration = true;
     qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
-                        NULL, (void *)(intptr_t)rdma);
+                        NULL, rdma);
     return;
 
 cleanup_rdma:
@@ -3938,7 +3941,7 @@ err:
 void rdma_start_outgoing_migration(void *opaque,
                             InetSocketAddress *host_port, Error **errp)
 {
-    MigrationState *s = opaque;
+    MigrationState *s = static_cast<MigrationState *>(opaque);
     RDMAContext *rdma_return_path = NULL;
     RDMAContext *rdma;
     int ret;

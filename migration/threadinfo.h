@@ -10,8 +10,15 @@
  *  See the COPYING file in the top-level directory.
  */
 
+#ifndef MIGRATION_THREADINFO_H
+#define MIGRATION_THREADINFO_H
+
 #include "qapi/error.h"
 #include "qapi/qapi-commands-migration.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct MigrationThread MigrationThread;
 
@@ -23,3 +30,9 @@ struct MigrationThread {
 
 MigrationThread *migration_threads_add(const char *name, int thread_id);
 void migration_threads_remove(MigrationThread *info);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* MIGRATION_THREADINFO_H */

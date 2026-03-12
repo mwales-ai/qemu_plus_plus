@@ -15,6 +15,10 @@
 
 #include "system/dirtyrate.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Sample 512 pages per GB as default.
  */
@@ -84,4 +88,9 @@ struct DirtyRateStat {
 };
 
 void *get_dirtyrate_thread(void *arg);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

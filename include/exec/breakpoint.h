@@ -21,7 +21,7 @@ typedef struct CPUBreakpoint {
 typedef struct CPUWatchpoint {
     vaddr len;
     vaddr hitaddr;
-    vaddr vaddr;
+    vaddr wp_vaddr;
     MemTxAttrs hitattrs;
     int flags; /* BP_* */
     QTAILQ_ENTRY(CPUWatchpoint) entry;

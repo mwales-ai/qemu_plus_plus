@@ -72,7 +72,7 @@
 #include "system/qtest.h"
 #include "options.h"
 
-const unsigned int postcopy_ram_discard_version;
+const unsigned int postcopy_ram_discard_version = 0;
 
 /* Subcommands for QEMU_VM_COMMAND */
 enum qemu_vm_cmd {
@@ -98,23 +98,25 @@ enum qemu_vm_cmd {
 };
 
 #define MAX_VM_CMD_PACKAGED_SIZE UINT32_MAX
-static struct mig_cmd_args {
+struct mig_cmd_args {
     ssize_t     len; /* -1 = variable */
     const char *name;
-} mig_cmd_args[] = {
-    [MIG_CMD_INVALID]          = { .len = -1, .name = "INVALID" },
-    [MIG_CMD_OPEN_RETURN_PATH] = { .len =  0, .name = "OPEN_RETURN_PATH" },
-    [MIG_CMD_PING]             = { .len = sizeof(uint32_t), .name = "PING" },
-    [MIG_CMD_POSTCOPY_ADVISE]  = { .len = -1, .name = "POSTCOPY_ADVISE" },
-    [MIG_CMD_POSTCOPY_LISTEN]  = { .len =  0, .name = "POSTCOPY_LISTEN" },
-    [MIG_CMD_POSTCOPY_RUN]     = { .len =  0, .name = "POSTCOPY_RUN" },
-    [MIG_CMD_POSTCOPY_RAM_DISCARD] = {
-                                   .len = -1, .name = "POSTCOPY_RAM_DISCARD" },
-    [MIG_CMD_POSTCOPY_RESUME]  = { .len =  0, .name = "POSTCOPY_RESUME" },
-    [MIG_CMD_PACKAGED]         = { .len =  4, .name = "PACKAGED" },
-    [MIG_CMD_RECV_BITMAP]      = { .len = -1, .name = "RECV_BITMAP" },
-    [MIG_CMD_SWITCHOVER_START] = { .len =  0, .name = "SWITCHOVER_START" },
-    [MIG_CMD_MAX]              = { .len = -1, .name = "MAX" },
+};
+
+static struct mig_cmd_args mig_cmd_args[] = {
+    /* [MIG_CMD_INVALID]          */ { -1, "INVALID" },
+    /* [MIG_CMD_OPEN_RETURN_PATH] */ {  0, "OPEN_RETURN_PATH" },
+    /* [MIG_CMD_PING]             */ { static_cast<ssize_t>(sizeof(uint32_t)), "PING" },
+    /* [MIG_CMD_POSTCOPY_ADVISE]  */ { -1, "POSTCOPY_ADVISE" },
+    /* [MIG_CMD_POSTCOPY_LISTEN]  */ {  0, "POSTCOPY_LISTEN" },
+    /* [MIG_CMD_POSTCOPY_RUN]     */ {  0, "POSTCOPY_RUN" },
+    /* [MIG_CMD_POSTCOPY_RAM_DISCARD] */ { -1, "POSTCOPY_RAM_DISCARD" },
+    /* [MIG_CMD_PACKAGED]         */ {  4, "PACKAGED" },
+    /* [MIG_CMD_ENABLE_COLO]      */ {  0, "ENABLE_COLO" },
+    /* [MIG_CMD_POSTCOPY_RESUME]  */ {  0, "POSTCOPY_RESUME" },
+    /* [MIG_CMD_RECV_BITMAP]      */ { -1, "RECV_BITMAP" },
+    /* [MIG_CMD_SWITCHOVER_START] */ {  0, "SWITCHOVER_START" },
+    /* [MIG_CMD_MAX]              */ { -1, "MAX" },
 };
 
 /* Note for MIG_CMD_POSTCOPY_ADVISE:
@@ -193,7 +195,7 @@ void timer_get(QEMUFile *f, QEMUTimer *ts)
     uint64_t expire_time;
 
     expire_time = qemu_get_be64(f);
-    if (expire_time != -1) {
+    if (expire_time != static_cast<uint64_t>(-1)) {
         timer_mod_ns(ts, expire_time);
     } else {
         timer_del(ts);
@@ -208,7 +210,7 @@ void timer_get(QEMUFile *f, QEMUTimer *ts)
 static int get_timer(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field)
 {
-    QEMUTimer *v = pv;
+    QEMUTimer *v = static_cast<QEMUTimer *>(pv);
     timer_get(f, v);
     return 0;
 }
@@ -216,7 +218,7 @@ static int get_timer(QEMUFile *f, void *pv, size_t size,
 static int put_timer(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field, JSONWriter *vmdesc)
 {
-    QEMUTimer *v = pv;
+    QEMUTimer *v = static_cast<QEMUTimer *>(pv);
     timer_put(f, v);
 
     return 0;
@@ -266,7 +268,7 @@ typedef struct SaveState {
 
 static SaveState savevm_state = {
     .handlers = QTAILQ_HEAD_INITIALIZER(savevm_state.handlers),
-    .handler_pri_head = { [0 ... MIG_PRI_MAX] = NULL },
+    .handler_pri_head = { },
     .global_section_id = 0,
 };
 
@@ -300,7 +302,7 @@ static uint32_t get_validatable_capabilities_count(void)
 
 static int configuration_pre_save(void *opaque)
 {
-    SaveState *state = opaque;
+    SaveState *state = static_cast<SaveState *>(opaque);
     const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
     MigrationState *s = migrate_get_current();
     int i, j;
@@ -314,7 +316,7 @@ static int configuration_pre_save(void *opaque)
                                   state->caps_count);
     for (i = j = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
         if (should_validate_capability(i) && s->capabilities[i]) {
-            state->capabilities[j++] = i;
+            state->capabilities[j++] = static_cast<MigrationCapability>(i);
         }
     }
     state->uuid = qemu_uuid;
@@ -324,7 +326,7 @@ static int configuration_pre_save(void *opaque)
 
 static int configuration_post_save(void *opaque)
 {
-    SaveState *state = opaque;
+    SaveState *state = static_cast<SaveState *>(opaque);
 
     g_free(state->capabilities);
     state->capabilities = NULL;
@@ -334,7 +336,7 @@ static int configuration_post_save(void *opaque)
 
 static int configuration_pre_load(void *opaque)
 {
-    SaveState *state = opaque;
+    SaveState *state = static_cast<SaveState *>(opaque);
 
     /* If there is no target-page-bits subsection it means the source
      * predates the variable-target-page-bits support and is using the
@@ -352,7 +354,7 @@ static bool configuration_validate_capabilities(SaveState *state)
     int i;
 
     source_caps_bm = bitmap_new(MIGRATION_CAPABILITY__MAX);
-    for (i = 0; i < state->caps_count; i++) {
+    for (i = 0; (uint32_t)i < state->caps_count; i++) {
         MigrationCapability capability = state->capabilities[i];
         set_bit(capability, source_caps_bm);
     }
@@ -380,7 +382,7 @@ static bool configuration_validate_capabilities(SaveState *state)
 
 static int configuration_post_load(void *opaque, int version_id)
 {
-    SaveState *state = opaque;
+    SaveState *state = static_cast<SaveState *>(opaque);
     const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
     int ret = 0;
 
@@ -391,7 +393,7 @@ static int configuration_post_load(void *opaque, int version_id)
         goto out;
     }
 
-    if (state->target_page_bits != qemu_target_page_bits()) {
+    if (state->target_page_bits != (uint32_t)qemu_target_page_bits()) {
         error_report("Received TARGET_PAGE_BITS is %d but local is %d",
                      state->target_page_bits, qemu_target_page_bits());
         ret = -EINVAL;
@@ -417,7 +419,7 @@ out:
 static int get_capability(QEMUFile *f, void *pv, size_t size,
                           const VMStateField *field)
 {
-    MigrationCapability *capability = pv;
+    MigrationCapability *capability = static_cast<MigrationCapability *>(pv);
     char capability_str[UINT8_MAX + 1];
     uint8_t len;
     int i;
@@ -427,7 +429,7 @@ static int get_capability(QEMUFile *f, void *pv, size_t size,
     capability_str[len] = '\0';
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
         if (!strcmp(MigrationCapability_str(i), capability_str)) {
-            *capability = i;
+            *capability = static_cast<MigrationCapability>(i);
             return 0;
         }
     }
@@ -438,7 +440,7 @@ static int get_capability(QEMUFile *f, void *pv, size_t size,
 static int put_capability(QEMUFile *f, void *pv, size_t size,
                           const VMStateField *field, JSONWriter *vmdesc)
 {
-    MigrationCapability *capability = pv;
+    MigrationCapability *capability = static_cast<MigrationCapability *>(pv);
     const char *capability_str = MigrationCapability_str(*capability);
     size_t len = strlen(capability_str);
     assert(len <= UINT8_MAX);
@@ -466,15 +468,17 @@ static bool vmstate_target_page_bits_needed(void *opaque)
     return qemu_target_page_bits() > migration_legacy_page_bits();
 }
 
+static const VMStateField vmstate_target_page_bits_fields[] = {
+    VMSTATE_UINT32(target_page_bits, SaveState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_target_page_bits = {
     .name = "configuration/target-page-bits",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_target_page_bits_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(target_page_bits, SaveState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_target_page_bits_fields,
 };
 
 static bool vmstate_capabilites_needed(void *opaque)
@@ -482,18 +486,20 @@ static bool vmstate_capabilites_needed(void *opaque)
     return get_validatable_capabilities_count() > 0;
 }
 
+static const VMStateField vmstate_capabilites_fields[] = {
+    VMSTATE_UINT32_V(caps_count, SaveState, 1),
+    VMSTATE_VARRAY_UINT32_ALLOC(capabilities, SaveState, caps_count, 1,
+                                vmstate_info_capability,
+                                MigrationCapability),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_capabilites = {
     .name = "configuration/capabilities",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_capabilites_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_V(caps_count, SaveState, 1),
-        VMSTATE_VARRAY_UINT32_ALLOC(capabilities, SaveState, caps_count, 1,
-                                    vmstate_info_capability,
-                                    MigrationCapability),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_capabilites_fields,
 };
 
 static bool vmstate_uuid_needed(void *opaque)
@@ -503,7 +509,7 @@ static bool vmstate_uuid_needed(void *opaque)
 
 static int vmstate_uuid_post_load(void *opaque, int version_id)
 {
-    SaveState *state = opaque;
+    SaveState *state = static_cast<SaveState *>(opaque);
     char uuid_src[UUID_STR_LEN];
     char uuid_dst[UUID_STR_LEN];
 
@@ -526,16 +532,31 @@ static int vmstate_uuid_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_uuid_fields[] = {
+    VMSTATE_UINT8_ARRAY_V(uuid.data, SaveState, sizeof(QemuUUID), 1),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_uuid = {
     .name = "configuration/uuid",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = vmstate_uuid_needed,
     .post_load = vmstate_uuid_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY_V(uuid.data, SaveState, sizeof(QemuUUID), 1),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = vmstate_uuid_needed,
+    .fields = vmstate_uuid_fields,
+};
+
+static const VMStateField vmstate_configuration_fields[] = {
+    VMSTATE_UINT32(len, SaveState),
+    VMSTATE_VBUFFER_ALLOC_UINT32(name, SaveState, 0, NULL, len),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_configuration_subsections[] = {
+    &vmstate_target_page_bits,
+    &vmstate_capabilites,
+    &vmstate_uuid,
+    NULL
 };
 
 static const VMStateDescription vmstate_configuration = {
@@ -545,17 +566,8 @@ static const VMStateDescription vmstate_configuration = {
     .post_load = configuration_post_load,
     .pre_save = configuration_pre_save,
     .post_save = configuration_post_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(len, SaveState),
-        VMSTATE_VBUFFER_ALLOC_UINT32(name, SaveState, 0, NULL, len),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_target_page_bits,
-        &vmstate_capabilites,
-        &vmstate_uuid,
-        NULL
-    }
+    .fields = vmstate_configuration_fields,
+    .subsections = vmstate_configuration_subsections,
 };
 
 static void dump_vmstate_vmsd(FILE *out_file,
@@ -713,7 +725,7 @@ static uint32_t calculate_new_instance_id(const char *idstr)
         }
     }
     /* Make sure we never loop over without being noticed */
-    assert(instance_id != VMSTATE_INSTANCE_ID_ANY);
+    assert(instance_id != (uint32_t)VMSTATE_INSTANCE_ID_ANY);
     return instance_id;
 }
 
@@ -758,7 +770,7 @@ static void savevm_state_handler_insert(SaveStateEntry *nse)
      */
     if (find_se(nse->idstr, nse->instance_id)) {
         error_report("%s: Detected duplicate SaveStateEntry: "
-                     "id=%s, instance_id=0x%"PRIx32, __func__,
+                     "id=%s, instance_id=0x%" PRIx32, __func__,
                      nse->idstr, nse->instance_id);
         exit(EXIT_FAILURE);
     }
@@ -823,7 +835,7 @@ int register_savevm_live(const char *idstr,
 
     pstrcat(se->idstr, sizeof(se->idstr), idstr);
 
-    if (instance_id == VMSTATE_INSTANCE_ID_ANY) {
+    if (instance_id == (uint32_t)VMSTATE_INSTANCE_ID_ANY) {
         se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
         se->instance_id = instance_id;
@@ -915,7 +927,7 @@ int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
     if (obj) {
         char *id = vmstate_if_get_id(obj);
         if (id) {
-            if (snprintf(se->idstr, sizeof(se->idstr), "%s/", id) >=
+            if ((size_t)snprintf(se->idstr, sizeof(se->idstr), "%s/", id) >=
                 sizeof(se->idstr)) {
                 error_setg(errp, "Path too long for VMState (%s)", id);
                 g_free(id);
@@ -927,14 +939,14 @@ int vmstate_register_with_alias_id(VMStateIf *obj, uint32_t instance_id,
 
             se->compat = g_new0(CompatEntry, 1);
             pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), vmsd->name);
-            se->compat->instance_id = instance_id == VMSTATE_INSTANCE_ID_ANY ?
+            se->compat->instance_id = instance_id == (uint32_t)VMSTATE_INSTANCE_ID_ANY ?
                          calculate_compat_instance_id(vmsd->name) : instance_id;
-            instance_id = VMSTATE_INSTANCE_ID_ANY;
+            instance_id = (uint32_t)VMSTATE_INSTANCE_ID_ANY;
         }
     }
     pstrcat(se->idstr, sizeof(se->idstr), vmsd->name);
 
-    if (instance_id == VMSTATE_INSTANCE_ID_ANY) {
+    if (instance_id == (uint32_t)VMSTATE_INSTANCE_ID_ANY) {
         se->instance_id = calculate_new_instance_id(se->idstr);
     } else {
         se->instance_id = instance_id;
@@ -1192,7 +1204,7 @@ void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
 
     trace_qemu_savevm_send_postcopy_ram_discard(name, len);
     assert(name_len < 256);
-    buf = g_malloc0(1 + 1 + name_len + 1 + (8 + 8) * len);
+    buf = static_cast<uint8_t *>(g_malloc0(1 + 1 + name_len + 1 + (8 + 8) * len));
     buf[0] = postcopy_ram_discard_version;
     buf[1] = name_len;
     memcpy(buf + 2, name, name_len);
@@ -1894,13 +1906,13 @@ static SaveStateEntry *find_se(const char *idstr, uint32_t instance_id)
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!strcmp(se->idstr, idstr) &&
             (instance_id == se->instance_id ||
-             instance_id == se->alias_id))
+             instance_id == (uint32_t)se->alias_id))
             return se;
         /* Migrating from an older version? */
         if (strstr(se->idstr, idstr) && se->compat) {
             if (!strcmp(se->compat->idstr, idstr) &&
-                (instance_id == se->compat->instance_id ||
-                 instance_id == se->alias_id))
+                (instance_id == (uint32_t)se->compat->instance_id ||
+                 instance_id == (uint32_t)se->alias_id))
                 return se;
         }
     }
@@ -2049,7 +2061,7 @@ static int loadvm_postcopy_ram_handle_discard(MigrationIncomingState *mis,
     }
 
     tmp = qemu_get_byte(mis->from_src_file);
-    if (tmp != postcopy_ram_discard_version) {
+    if (tmp != (int)postcopy_ram_discard_version) {
         error_setg(errp, "CMD_POSTCOPY_RAM_DISCARD invalid version (%d)", tmp);
         return -1;
     }
@@ -2122,7 +2134,7 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis,
 
 static void loadvm_postcopy_handle_run_bh(void *opaque)
 {
-    MigrationIncomingState *mis = opaque;
+    MigrationIncomingState *mis = static_cast<MigrationIncomingState *>(opaque);
 
     trace_vmstate_downtime_checkpoint("dst-postcopy-bh-enter");
 
@@ -2190,7 +2202,7 @@ static int loadvm_postcopy_handle_run(MigrationIncomingState *mis, Error **errp)
 static gboolean postcopy_sync_page_req(gpointer key, gpointer value,
                                        gpointer data)
 {
-    MigrationIncomingState *mis = data;
+    MigrationIncomingState *mis = static_cast<MigrationIncomingState *>(data);
     void *host_addr = (void *) key;
     ram_addr_t rb_offset;
     RAMBlock *rb;
@@ -2317,7 +2329,7 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis, Error **errp)
     ret = qemu_get_buffer(mis->from_src_file,
                           bioc->data,
                           length);
-    if (ret != length) {
+    if (ret != (int)length) {
         object_unref(OBJECT(bioc));
         error_setg(errp, "CMD_PACKAGED: Buffer receive fail ret=%d length=%zu",
                    ret, length);
@@ -2582,7 +2594,7 @@ static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
     }
 
     read_section_id = qemu_get_be32(f);
-    if (read_section_id != se->load_section_id) {
+    if (read_section_id != (uint32_t)se->load_section_id) {
         error_report("Mismatched section id in footer for %s -"
                      " read 0x%x expected 0x%x",
                      se->idstr, read_section_id, se->load_section_id);
@@ -2625,7 +2637,7 @@ qemu_loadvm_section_start_full(QEMUFile *f, uint8_t type, Error **errp)
     /* Find savevm section */
     se = find_se(idstr, instance_id);
     if (se == NULL) {
-        error_setg(errp, "Unknown section or instance '%s' %"PRIu32". "
+        error_setg(errp, "Unknown section or instance '%s' %" PRIu32 ". "
                    "Make sure that your current VM setup matches your "
                    "saved VM setup, including any hotplugged devices",
                    idstr, instance_id);
@@ -2633,7 +2645,7 @@ qemu_loadvm_section_start_full(QEMUFile *f, uint8_t type, Error **errp)
     }
 
     /* Validate version */
-    if (version_id > se->version_id) {
+    if (version_id > (uint32_t)se->version_id) {
         error_setg(errp, "unsupported version %d for '%s' v%d",
                    version_id, idstr, se->version_id);
         return -EINVAL;
@@ -2654,7 +2666,7 @@ qemu_loadvm_section_start_full(QEMUFile *f, uint8_t type, Error **errp)
     ret = vmstate_load(f, se, errp);
     if (ret < 0) {
         error_prepend(errp,
-                      "error while loading state for instance 0x%"PRIx32" of"
+                      "error while loading state for instance 0x%" PRIx32 " of"
                       " device '%s': ", instance_id, idstr);
         return ret;
     }
@@ -2693,7 +2705,7 @@ qemu_loadvm_section_part_end(QEMUFile *f, uint8_t type, Error **errp)
 
     trace_qemu_loadvm_state_section_partend(section_id);
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (se->load_section_id == section_id) {
+        if ((uint32_t)se->load_section_id == section_id) {
             break;
         }
     }
@@ -2821,7 +2833,7 @@ struct LoadThreadData {
 
 static int qemu_loadvm_load_thread(void *thread_opaque)
 {
-    struct LoadThreadData *data = thread_opaque;
+    struct LoadThreadData *data = static_cast<struct LoadThreadData *>(thread_opaque);
     MigrationIncomingState *mis = migration_incoming_get_current();
     g_autoptr(Error) local_err = NULL;
 
@@ -2933,7 +2945,7 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
      * proper recovery later (which will sync src dirty bitmap with receivedmap
      * on dest) these cached small pages will be resent again.
      */
-    for (i = 0; i < mis->postcopy_channels; i++) {
+    for (i = 0; (unsigned int)i < mis->postcopy_channels; i++) {
         postcopy_temp_page_reset(&mis->postcopy_tmp_pages[i]);
     }
 
@@ -3115,7 +3127,7 @@ int qemu_loadvm_state(QEMUFile *f, Error **errp)
              * we apparently have an otherwise valid VM state
              */
         } else {
-            buf = g_malloc(0x1000);
+            buf = static_cast<uint8_t *>(g_malloc(0x1000));
             size = qemu_get_be32(f);
 
             while (size > 0) {
@@ -3539,7 +3551,7 @@ static void qmp_snapshot_job_free(SnapshotJob *s)
 
 static void snapshot_load_job_bh(void *opaque)
 {
-    Job *job = opaque;
+    Job *job = static_cast<Job *>(opaque);
     SnapshotJob *s = container_of(job, SnapshotJob, common);
     RunState orig_state = runstate_get();
 
@@ -3560,7 +3572,7 @@ static void snapshot_load_job_bh(void *opaque)
 
 static void snapshot_save_job_bh(void *opaque)
 {
-    Job *job = opaque;
+    Job *job = static_cast<Job *>(opaque);
     SnapshotJob *s = container_of(job, SnapshotJob, common);
 
     job_progress_set_remaining(&s->common, 1);
@@ -3574,7 +3586,7 @@ static void snapshot_save_job_bh(void *opaque)
 
 static void snapshot_delete_job_bh(void *opaque)
 {
-    Job *job = opaque;
+    Job *job = static_cast<Job *>(opaque);
     SnapshotJob *s = container_of(job, SnapshotJob, common);
 
     job_progress_set_remaining(&s->common, 1);
@@ -3646,9 +3658,10 @@ void qmp_snapshot_save(const char *job_id,
 {
     SnapshotJob *s;
 
-    s = job_create(job_id, &snapshot_save_job_driver, NULL,
-                   qemu_get_aio_context(), JOB_MANUAL_DISMISS,
-                   NULL, NULL, errp);
+    s = static_cast<SnapshotJob *>(
+            job_create(job_id, &snapshot_save_job_driver, NULL,
+                       qemu_get_aio_context(), JOB_MANUAL_DISMISS,
+                       NULL, NULL, errp));
     if (!s) {
         return;
     }
@@ -3668,9 +3681,10 @@ void qmp_snapshot_load(const char *job_id,
 {
     SnapshotJob *s;
 
-    s = job_create(job_id, &snapshot_load_job_driver, NULL,
-                   qemu_get_aio_context(), JOB_MANUAL_DISMISS,
-                   NULL, NULL, errp);
+    s = static_cast<SnapshotJob *>(
+            job_create(job_id, &snapshot_load_job_driver, NULL,
+                       qemu_get_aio_context(), JOB_MANUAL_DISMISS,
+                       NULL, NULL, errp));
     if (!s) {
         return;
     }
@@ -3689,9 +3703,10 @@ void qmp_snapshot_delete(const char *job_id,
 {
     SnapshotJob *s;
 
-    s = job_create(job_id, &snapshot_delete_job_driver, NULL,
-                   qemu_get_aio_context(), JOB_MANUAL_DISMISS,
-                   NULL, NULL, errp);
+    s = static_cast<SnapshotJob *>(
+            job_create(job_id, &snapshot_delete_job_driver, NULL,
+                       qemu_get_aio_context(), JOB_MANUAL_DISMISS,
+                       NULL, NULL, errp));
     if (!s) {
         return;
     }

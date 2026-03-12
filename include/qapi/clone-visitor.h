@@ -14,6 +14,10 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The clone visitor is for direct use only by the QAPI_CLONE() macro;
  * it requires that the root visit occur on an object, list, or
@@ -58,5 +62,9 @@ Visitor *qapi_clone_members_visitor_new(void);
         visit_type_ ## type ## _members(v_, (type *)(dst), &error_abort); \
         visit_free(v_);                                                   \
     })
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

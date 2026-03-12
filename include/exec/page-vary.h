@@ -20,6 +20,10 @@
 #ifndef EXEC_PAGE_VARY_H
 #define EXEC_PAGE_VARY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     bool decided;
     int bits;
@@ -57,5 +61,9 @@ void finalize_target_page_bits(void);
  * TARGET_PAGE_BITS that the target had then.
  */
 int migration_legacy_page_bits(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EXEC_PAGE_VARY_H */

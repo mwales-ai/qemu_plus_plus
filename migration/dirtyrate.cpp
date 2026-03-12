@@ -258,7 +258,7 @@ query_dirty_rate_info(TimeUnit calc_time_unit)
     struct DirtyRateInfo *info = g_new0(DirtyRateInfo, 1);
     DirtyRateVcpuList *head = NULL, **tail = &head;
 
-    info->status = CalculatingState;
+    info->status = static_cast<DirtyRateStatus>(CalculatingState);
     info->start_time = DirtyStat.start_time;
     info->calc_time = convert_time_unit(DirtyStat.calc_time_ms,
                                         TIME_UNIT_MILLISECOND,
@@ -359,7 +359,7 @@ static uint32_t compute_page_hash(void *ptr)
     uint32_t i;
     uint64_t v1, v2, v3, v4;
     uint64_t res;
-    const uint64_t *p = ptr;
+    const uint64_t *p = static_cast<const uint64_t *>(ptr);
 
     v1 = QEMU_XXHASH_SEED + XXH_PRIME64_1 + XXH_PRIME64_2;
     v2 = QEMU_XXHASH_SEED + XXH_PRIME64_2;
@@ -397,7 +397,6 @@ static uint32_t get_ramblock_vfn_hash(struct RamblockDirtyInfo *info,
 static bool save_ramblock_hash(struct RamblockDirtyInfo *info)
 {
     unsigned int sample_pages_count;
-    int i;
     GRand *rand;
 
     sample_pages_count = info->sample_pages_count;
@@ -407,25 +406,27 @@ static bool save_ramblock_hash(struct RamblockDirtyInfo *info)
         return true;
     }
 
-    info->hash_result = g_try_malloc0_n(sample_pages_count,
-                                        sizeof(uint32_t));
+    info->hash_result = static_cast<uint32_t *>(
+                            g_try_malloc0_n(sample_pages_count,
+                                            sizeof(uint32_t)));
     if (!info->hash_result) {
         return false;
     }
 
-    info->sample_page_vfn = g_try_malloc0_n(sample_pages_count,
-                                            sizeof(uint64_t));
+    info->sample_page_vfn = static_cast<uint64_t *>(
+                                g_try_malloc0_n(sample_pages_count,
+                                                sizeof(uint64_t)));
     if (!info->sample_page_vfn) {
         g_free(info->hash_result);
         return false;
     }
 
     rand  = g_rand_new();
-    for (i = 0; i < sample_pages_count; i++) {
-        info->sample_page_vfn[i] = g_rand_int_range(rand, 0,
+    for (unsigned int j = 0; j < sample_pages_count; j++) {
+        info->sample_page_vfn[j] = g_rand_int_range(rand, 0,
                                                     info->ramblock_pages - 1);
-        info->hash_result[i] = get_ramblock_vfn_hash(info,
-                                                     info->sample_page_vfn[i]);
+        info->hash_result[j] = get_ramblock_vfn_hash(info,
+                                                     info->sample_page_vfn[j]);
     }
     g_rand_free(rand);
 
@@ -445,7 +446,7 @@ static void get_ramblock_dirty_info(RAMBlock *block,
     /* Right shift TARGET_PAGE_BITS to calc page count */
     info->ramblock_pages = qemu_ram_get_used_length(block) >>
                            qemu_target_page_bits();
-    info->ramblock_addr = qemu_ram_get_host_addr(block);
+    info->ramblock_addr = static_cast<uint8_t *>(qemu_ram_get_host_addr(block));
     len = g_strlcpy(info->idstr, qemu_ram_get_idstr(block),
                     sizeof(info->idstr));
     g_assert(len < sizeof(info->idstr));
@@ -498,7 +499,8 @@ static bool record_ramblock_hash_info(struct RamblockDirtyInfo **block_dinfo,
         total_count++;
     }
 
-    dinfo = g_try_malloc0_n(total_count, sizeof(struct RamblockDirtyInfo));
+    dinfo = static_cast<struct RamblockDirtyInfo *>(
+                g_try_malloc0_n(total_count, sizeof(struct RamblockDirtyInfo)));
     if (dinfo == NULL) {
         goto out;
     }
@@ -528,7 +530,7 @@ out:
 static void calc_page_dirty_rate(struct RamblockDirtyInfo *info)
 {
     uint32_t hash;
-    int i;
+    unsigned int i;
 
     for (i = 0; i < info->sample_pages_count; i++) {
         hash = get_ramblock_vfn_hash(info, info->sample_page_vfn[i]);
@@ -863,23 +865,23 @@ void hmp_info_dirty_rate(Monitor *mon, const QDict *qdict)
 
     monitor_printf(mon, "Status: %s\n",
                    DirtyRateStatus_str(info->status));
-    monitor_printf(mon, "Start Time: %"PRIi64" (ms)\n",
+    monitor_printf(mon, "Start Time: %" PRIi64 " (ms)\n",
                    info->start_time);
     if (info->mode == DIRTY_RATE_MEASURE_MODE_PAGE_SAMPLING) {
-        monitor_printf(mon, "Sample Pages: %"PRIu64" (per GB)\n",
+        monitor_printf(mon, "Sample Pages: %" PRIu64 " (per GB)\n",
                        info->sample_pages);
     }
-    monitor_printf(mon, "Period: %"PRIi64" (sec)\n",
+    monitor_printf(mon, "Period: %" PRIi64 " (sec)\n",
                    info->calc_time);
     monitor_printf(mon, "Mode: %s\n",
                    DirtyRateMeasureMode_str(info->mode));
     monitor_printf(mon, "Dirty rate: ");
     if (info->has_dirty_rate) {
-        monitor_printf(mon, "%"PRIi64" (MB/s)\n", info->dirty_rate);
+        monitor_printf(mon, "%" PRIi64 " (MB/s)\n", info->dirty_rate);
         if (info->has_vcpu_dirty_rate) {
             DirtyRateVcpuList *rate, *head = info->vcpu_dirty_rate;
             for (rate = head; rate != NULL; rate = rate->next) {
-                monitor_printf(mon, "vcpu[%"PRIi64"], Dirty rate: %"PRIi64
+                monitor_printf(mon, "vcpu[%" PRIi64 "], Dirty rate: %" PRIi64
                                " (MB/s)\n", rate->value->id,
                                rate->value->dirty_rate);
             }
@@ -929,7 +931,7 @@ void hmp_calc_dirty_rate(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    monitor_printf(mon, "Starting dirty rate measurement with period %"PRIi64
+    monitor_printf(mon, "Starting dirty rate measurement with period %" PRIi64
                    " seconds\n", sec);
     monitor_printf(mon, "[Please use 'info dirty_rate' to check results]\n");
 }

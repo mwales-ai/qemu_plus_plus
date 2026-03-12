@@ -670,8 +670,8 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
     int i;
 
     for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
-        caps = g_malloc0(sizeof(*caps));
-        caps->capability = i;
+        caps = static_cast<MigrationCapabilityStatus *>(g_malloc0(sizeof(*caps)));
+        caps->capability = static_cast<MigrationCapability>(i);
         caps->state = s->capabilities[i];
         QAPI_LIST_APPEND(tail, caps);
     }
@@ -922,7 +922,7 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     MigrationState *s = migrate_get_current();
 
     /* TODO use QAPI_CLONE() instead of duplicating it inline */
-    params = g_malloc0(sizeof(*params));
+    params = static_cast<MigrationParameters *>(g_malloc0(sizeof(*params)));
     params->has_throttle_trigger_threshold = true;
     params->throttle_trigger_threshold = s->parameters.throttle_trigger_threshold;
     params->has_cpu_throttle_initial = true;
@@ -1063,7 +1063,7 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
     if (params->has_max_bandwidth && (params->max_bandwidth > SIZE_MAX)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "max_bandwidth",
-                   "an integer in the range of 0 to "stringify(SIZE_MAX)
+                   "an integer in the range of 0 to " stringify(SIZE_MAX)
                    " bytes/second");
         return false;
     }
@@ -1072,7 +1072,7 @@ bool migrate_params_check(MigrationParameters *params, Error **errp)
         (params->avail_switchover_bandwidth > SIZE_MAX)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "avail_switchover_bandwidth",
-                   "an integer in the range of 0 to "stringify(SIZE_MAX)
+                   "an integer in the range of 0 to " stringify(SIZE_MAX)
                    " bytes/second");
         return false;
     }

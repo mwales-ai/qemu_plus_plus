@@ -241,7 +241,7 @@ blocktime_vcpu_entry_alloc(int cpu, uint64_t fault_time)
 /* Free a @GList of @BlocktimeVCPUEntry */
 static void blocktime_vcpu_list_free(gpointer data)
 {
-    g_list_free_full(data, g_free);
+    g_list_free_full(static_cast<GList *>(data), g_free);
 }
 
 static void destroy_blocktime_context(struct PostcopyBlocktimeContext *ctx)
@@ -566,7 +566,7 @@ static int test_ramblock_postcopiable(RAMBlock *rb, Error **errp)
 bool postcopy_ram_supported_by_host(MigrationIncomingState *mis, Error **errp)
 {
     ERRP_GUARD();
-    long pagesize = qemu_real_host_page_size();
+    size_t pagesize = qemu_real_host_page_size();
     int ufd = -1;
     bool ret = false; /* Error unless we change it */
     void *testarea = NULL;
@@ -681,7 +681,7 @@ out:
  */
 static int init_range(RAMBlock *rb, void *opaque)
 {
-    Error **errp = opaque;
+    Error **errp = static_cast<Error **>(opaque);
     const char *block_name = qemu_ram_get_idstr(rb);
     void *host_addr = qemu_ram_get_host_addr(rb);
     ram_addr_t offset = qemu_ram_get_offset(rb);
@@ -720,7 +720,7 @@ static int cleanup_range(RAMBlock *rb, void *opaque)
     void *host_addr = qemu_ram_get_host_addr(rb);
     ram_addr_t offset = qemu_ram_get_offset(rb);
     ram_addr_t length = rb->postcopy_length;
-    MigrationIncomingState *mis = opaque;
+    MigrationIncomingState *mis = static_cast<MigrationIncomingState *>(opaque);
     struct uffdio_range range_struct;
     trace_postcopy_cleanup_range(block_name, host_addr, offset, length);
 
@@ -763,7 +763,7 @@ int postcopy_ram_incoming_init(MigrationIncomingState *mis, Error **errp)
 
 static void postcopy_temp_pages_cleanup(MigrationIncomingState *mis)
 {
-    int i;
+    unsigned int i;
 
     if (mis->postcopy_tmp_pages) {
         for (i = 0; i < mis->postcopy_channels; i++) {
@@ -915,7 +915,7 @@ int postcopy_ram_prepare_discard(MigrationIncomingState *mis)
  */
 static int ram_block_enable_notify(RAMBlock *rb, void *opaque)
 {
-    MigrationIncomingState *mis = opaque;
+    MigrationIncomingState *mis = static_cast<MigrationIncomingState *>(opaque);
     struct uffdio_register reg_struct;
 
     reg_struct.range.start = (uintptr_t)qemu_ram_get_host_addr(rb);
@@ -1003,7 +1003,7 @@ static int blocktime_get_vcpu(PostcopyBlocktimeContext *ctx, uint32_t tid)
 {
     int *found;
 
-    found = g_hash_table_lookup(ctx->tid_to_vcpu_hash, GUINT_TO_POINTER(tid));
+    found = static_cast<int *>(g_hash_table_lookup(ctx->tid_to_vcpu_hash, GUINT_TO_POINTER(tid)));
     if (!found) {
         /*
          * NOTE: this is possible, because QEMU's non-vCPU threads can
@@ -1034,7 +1034,7 @@ static void blocktime_fault_inject(PostcopyBlocktimeContext *ctx,
     GList *head, *list;
     gboolean result;
 
-    head = g_hash_table_lookup(table, key);
+    head = static_cast<GList *>(g_hash_table_lookup(table, key));
     if (head) {
         /*
          * If existed, steal the @head for list operation rather than
@@ -1151,9 +1151,9 @@ typedef struct {
 
 static void blocktime_cpu_list_iter_fn(gpointer data, gpointer user_data)
 {
-    BlockTimeVCPUIter *iter = user_data;
+    BlockTimeVCPUIter *iter = static_cast<BlockTimeVCPUIter *>(user_data);
     PostcopyBlocktimeContext *ctx = iter->ctx;
-    BlocktimeVCPUEntry *entry = data;
+    BlocktimeVCPUEntry *entry = static_cast<BlocktimeVCPUEntry *>(data);
     uint64_t time_passed;
     int cpu = entry->cpu;
 
@@ -1222,10 +1222,10 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
     MachineState *ms = MACHINE(qdev_get_machine());
     unsigned int smp_cpus = ms->smp.cpus;
     BlockTimeVCPUIter iter = {
+        .ctx = dc,
         .current = get_current_ns(),
         .affected_cpus = 0,
         .affected_non_cpus = 0,
-        .ctx = dc,
     };
     gpointer key = (gpointer)addr;
     GHashTable *table;
@@ -1237,7 +1237,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
 
     table = dc->vcpu_addr_hash;
     /* the address wasn't tracked at all? */
-    list = g_hash_table_lookup(table, key);
+    list = static_cast<GList *>(g_hash_table_lookup(table, key));
     if (!list) {
         return;
     }
@@ -1253,7 +1253,7 @@ static void mark_postcopy_blocktime_end(uintptr_t addr)
      * If all vCPUs used to be down, and copying this page would free some
      * vCPUs, then the system-level blocktime ends here.
      */
-    if (dc->smp_cpus_down == smp_cpus && iter.affected_cpus) {
+    if (dc->smp_cpus_down == (int)smp_cpus && iter.affected_cpus) {
         dc->total_blocktime += iter.current - dc->last_begin;
     }
     dc->smp_cpus_down -= iter.affected_cpus;
@@ -1274,7 +1274,7 @@ static void postcopy_pause_fault_thread(MigrationIncomingState *mis)
  */
 static void *postcopy_ram_fault_thread(void *opaque)
 {
-    MigrationIncomingState *mis = opaque;
+    MigrationIncomingState *mis = static_cast<MigrationIncomingState *>(opaque);
     struct uffd_msg msg;
     int ret;
     size_t index;
@@ -1629,7 +1629,7 @@ static int qemu_ufd_copy_ioctl(MigrationIncomingState *mis, void *host_addr,
 
 int postcopy_notify_shared_wake(RAMBlock *rb, uint64_t offset)
 {
-    int i;
+    guint i;
     MigrationIncomingState *mis = migration_incoming_get_current();
     GArray *pcrfds = mis->postcopy_remote_fds;
 
@@ -1947,7 +1947,7 @@ static void
 postcopy_preempt_tls_handshake(QIOTask *task, gpointer opaque)
 {
     g_autoptr(QIOChannel) ioc = QIO_CHANNEL(qio_task_get_source(task));
-    MigrationState *s = opaque;
+    MigrationState *s = static_cast<MigrationState *>(opaque);
     Error *local_err = NULL;
 
     qio_task_propagate_error(task, &local_err);
@@ -1958,7 +1958,7 @@ static void
 postcopy_preempt_send_channel_new(QIOTask *task, gpointer opaque)
 {
     g_autoptr(QIOChannel) ioc = QIO_CHANNEL(qio_task_get_source(task));
-    MigrationState *s = opaque;
+    MigrationState *s = static_cast<MigrationState *>(opaque);
     QIOChannelTLS *tioc;
     Error *local_err = NULL;
 
@@ -2036,7 +2036,7 @@ static bool preempt_thread_should_run(MigrationIncomingState *mis)
 
 void *postcopy_preempt_thread(void *opaque)
 {
-    MigrationIncomingState *mis = opaque;
+    MigrationIncomingState *mis = static_cast<MigrationIncomingState *>(opaque);
     int ret;
 
     trace_postcopy_preempt_thread_entry();

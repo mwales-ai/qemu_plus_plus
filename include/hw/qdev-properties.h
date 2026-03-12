@@ -3,6 +3,10 @@
 
 #include "hw/qdev-core.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Property:
  * @set_default: true if the default value should be set from @defval,
@@ -278,5 +282,9 @@ void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
 void qdev_prop_allow_set_link_before_realize(const Object *obj,
                                              const char *name,
                                              Object *val, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

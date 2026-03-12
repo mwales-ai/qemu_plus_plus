@@ -18,6 +18,10 @@
 #include "exec/hwaddr.h"
 #include <linux/userfaultfd.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * uffd_open(): Open an userfaultfd handle for current context.
  *
@@ -39,6 +43,10 @@ int uffd_copy_page(int uffd_fd, void *dst_addr, void *src_addr,
 int uffd_zero_page(int uffd_fd, void *addr, uint64_t length, bool dont_wake);
 int uffd_wakeup(int uffd_fd, void *addr, uint64_t length);
 int uffd_read_events(int uffd_fd, struct uffd_msg *msgs, int count);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CONFIG_LINUX */
 

@@ -21,6 +21,10 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void rdma_start_outgoing_migration(void *opaque, InetSocketAddress *host_port,
                                    Error **errp);
 
@@ -58,4 +62,9 @@ int rdma_control_save_page(QEMUFile *f, ram_addr_t block_offset,
     g_assert_not_reached();
 }
 #endif
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

@@ -26,7 +26,7 @@
 static int get_bool(QEMUFile *f, void *pv, size_t size,
                     const VMStateField *field)
 {
-    bool *v = pv;
+    bool *v = static_cast<bool *>(pv);
     *v = qemu_get_byte(f);
     return 0;
 }
@@ -34,7 +34,7 @@ static int get_bool(QEMUFile *f, void *pv, size_t size,
 static int put_bool(QEMUFile *f, void *pv, size_t size,
                     const VMStateField *field, JSONWriter *vmdesc)
 {
-    bool *v = pv;
+    bool *v = static_cast<bool *>(pv);
     qemu_put_byte(f, *v);
     return 0;
 }
@@ -50,7 +50,7 @@ const VMStateInfo vmstate_info_bool = {
 static int get_int8(QEMUFile *f, void *pv, size_t size,
                     const VMStateField *field)
 {
-    int8_t *v = pv;
+    int8_t *v = static_cast<int8_t *>(pv);
     qemu_get_s8s(f, v);
     return 0;
 }
@@ -58,7 +58,7 @@ static int get_int8(QEMUFile *f, void *pv, size_t size,
 static int put_int8(QEMUFile *f, void *pv, size_t size,
                     const VMStateField *field, JSONWriter *vmdesc)
 {
-    int8_t *v = pv;
+    int8_t *v = static_cast<int8_t *>(pv);
     qemu_put_s8s(f, v);
     return 0;
 }
@@ -74,7 +74,7 @@ const VMStateInfo vmstate_info_int8 = {
 static int get_int16(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field)
 {
-    int16_t *v = pv;
+    int16_t *v = static_cast<int16_t *>(pv);
     qemu_get_sbe16s(f, v);
     return 0;
 }
@@ -82,7 +82,7 @@ static int get_int16(QEMUFile *f, void *pv, size_t size,
 static int put_int16(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field, JSONWriter *vmdesc)
 {
-    int16_t *v = pv;
+    int16_t *v = static_cast<int16_t *>(pv);
     qemu_put_sbe16s(f, v);
     return 0;
 }
@@ -98,7 +98,7 @@ const VMStateInfo vmstate_info_int16 = {
 static int get_int32(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field)
 {
-    int32_t *v = pv;
+    int32_t *v = static_cast<int32_t *>(pv);
     qemu_get_sbe32s(f, v);
     return 0;
 }
@@ -106,7 +106,7 @@ static int get_int32(QEMUFile *f, void *pv, size_t size,
 static int put_int32(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field, JSONWriter *vmdesc)
 {
-    int32_t *v = pv;
+    int32_t *v = static_cast<int32_t *>(pv);
     qemu_put_sbe32s(f, v);
     return 0;
 }
@@ -123,7 +123,7 @@ const VMStateInfo vmstate_info_int32 = {
 static int get_int32_equal(QEMUFile *f, void *pv, size_t size,
                            const VMStateField *field)
 {
-    int32_t *v = pv;
+    int32_t *v = static_cast<int32_t *>(pv);
     int32_t v2;
     qemu_get_sbe32s(f, &v2);
 
@@ -150,7 +150,7 @@ const VMStateInfo vmstate_info_int32_equal = {
 static int get_int32_le(QEMUFile *f, void *pv, size_t size,
                         const VMStateField *field)
 {
-    int32_t *cur = pv;
+    int32_t *cur = static_cast<int32_t *>(pv);
     int32_t loaded;
     qemu_get_sbe32s(f, &loaded);
 
@@ -175,7 +175,7 @@ const VMStateInfo vmstate_info_int32_le = {
 static int get_int64(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field)
 {
-    int64_t *v = pv;
+    int64_t *v = static_cast<int64_t *>(pv);
     qemu_get_sbe64s(f, v);
     return 0;
 }
@@ -183,7 +183,7 @@ static int get_int64(QEMUFile *f, void *pv, size_t size,
 static int put_int64(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field, JSONWriter *vmdesc)
 {
-    int64_t *v = pv;
+    int64_t *v = static_cast<int64_t *>(pv);
     qemu_put_sbe64s(f, v);
     return 0;
 }
@@ -199,7 +199,7 @@ const VMStateInfo vmstate_info_int64 = {
 static int get_uint8(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field)
 {
-    uint8_t *v = pv;
+    uint8_t *v = static_cast<uint8_t *>(pv);
     qemu_get_8s(f, v);
     return 0;
 }
@@ -207,7 +207,7 @@ static int get_uint8(QEMUFile *f, void *pv, size_t size,
 static int put_uint8(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field, JSONWriter *vmdesc)
 {
-    uint8_t *v = pv;
+    uint8_t *v = static_cast<uint8_t *>(pv);
     qemu_put_8s(f, v);
     return 0;
 }
@@ -223,7 +223,7 @@ const VMStateInfo vmstate_info_uint8 = {
 static int get_uint16(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field)
 {
-    uint16_t *v = pv;
+    uint16_t *v = static_cast<uint16_t *>(pv);
     qemu_get_be16s(f, v);
     return 0;
 }
@@ -231,7 +231,7 @@ static int get_uint16(QEMUFile *f, void *pv, size_t size,
 static int put_uint16(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field, JSONWriter *vmdesc)
 {
-    uint16_t *v = pv;
+    uint16_t *v = static_cast<uint16_t *>(pv);
     qemu_put_be16s(f, v);
     return 0;
 }
@@ -247,7 +247,7 @@ const VMStateInfo vmstate_info_uint16 = {
 static int get_uint32(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field)
 {
-    uint32_t *v = pv;
+    uint32_t *v = static_cast<uint32_t *>(pv);
     qemu_get_be32s(f, v);
     return 0;
 }
@@ -255,7 +255,7 @@ static int get_uint32(QEMUFile *f, void *pv, size_t size,
 static int put_uint32(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field, JSONWriter *vmdesc)
 {
-    uint32_t *v = pv;
+    uint32_t *v = static_cast<uint32_t *>(pv);
     qemu_put_be32s(f, v);
     return 0;
 }
@@ -272,7 +272,7 @@ const VMStateInfo vmstate_info_uint32 = {
 static int get_uint32_equal(QEMUFile *f, void *pv, size_t size,
                             const VMStateField *field)
 {
-    uint32_t *v = pv;
+    uint32_t *v = static_cast<uint32_t *>(pv);
     uint32_t v2;
     qemu_get_be32s(f, &v2);
 
@@ -297,7 +297,7 @@ const VMStateInfo vmstate_info_uint32_equal = {
 static int get_uint64(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field)
 {
-    uint64_t *v = pv;
+    uint64_t *v = static_cast<uint64_t *>(pv);
     qemu_get_be64s(f, v);
     return 0;
 }
@@ -305,7 +305,7 @@ static int get_uint64(QEMUFile *f, void *pv, size_t size,
 static int put_uint64(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field, JSONWriter *vmdesc)
 {
-    uint64_t *v = pv;
+    uint64_t *v = static_cast<uint64_t *>(pv);
     qemu_put_be64s(f, v);
     return 0;
 }
@@ -321,7 +321,7 @@ const VMStateInfo vmstate_info_uint64 = {
 static int get_fd(QEMUFile *f, void *pv, size_t size,
                   const VMStateField *field)
 {
-    int32_t *v = pv;
+    int32_t *v = static_cast<int32_t *>(pv);
     if (migrate_mode() == MIG_MODE_CPR_EXEC) {
         qemu_get_sbe32s(f, v);
         return 0;
@@ -333,7 +333,7 @@ static int get_fd(QEMUFile *f, void *pv, size_t size,
 static int put_fd(QEMUFile *f, void *pv, size_t size,
                   const VMStateField *field, JSONWriter *vmdesc)
 {
-    int32_t *v = pv;
+    int32_t *v = static_cast<int32_t *>(pv);
     if (migrate_mode() == MIG_MODE_CPR_EXEC) {
         qemu_put_sbe32s(f, v);
         return 0;
@@ -382,7 +382,7 @@ const VMStateInfo vmstate_info_nullptr = {
 static int get_uint64_equal(QEMUFile *f, void *pv, size_t size,
                             const VMStateField *field)
 {
-    uint64_t *v = pv;
+    uint64_t *v = static_cast<uint64_t *>(pv);
     uint64_t v2;
     qemu_get_be64s(f, &v2);
 
@@ -408,7 +408,7 @@ const VMStateInfo vmstate_info_uint64_equal = {
 static int get_uint8_equal(QEMUFile *f, void *pv, size_t size,
                            const VMStateField *field)
 {
-    uint8_t *v = pv;
+    uint8_t *v = static_cast<uint8_t *>(pv);
     uint8_t v2;
     qemu_get_8s(f, &v2);
 
@@ -434,7 +434,7 @@ const VMStateInfo vmstate_info_uint8_equal = {
 static int get_uint16_equal(QEMUFile *f, void *pv, size_t size,
                             const VMStateField *field)
 {
-    uint16_t *v = pv;
+    uint16_t *v = static_cast<uint16_t *>(pv);
     uint16_t v2;
     qemu_get_be16s(f, &v2);
 
@@ -459,7 +459,7 @@ const VMStateInfo vmstate_info_uint16_equal = {
 static int get_cpudouble(QEMUFile *f, void *pv, size_t size,
                          const VMStateField *field)
 {
-    CPU_DoubleU *v = pv;
+    CPU_DoubleU *v = static_cast<CPU_DoubleU *>(pv);
     qemu_get_be32s(f, &v->l.upper);
     qemu_get_be32s(f, &v->l.lower);
     return 0;
@@ -468,7 +468,7 @@ static int get_cpudouble(QEMUFile *f, void *pv, size_t size,
 static int put_cpudouble(QEMUFile *f, void *pv, size_t size,
                          const VMStateField *field, JSONWriter *vmdesc)
 {
-    CPU_DoubleU *v = pv;
+    CPU_DoubleU *v = static_cast<CPU_DoubleU *>(pv);
     qemu_put_be32s(f, &v->l.upper);
     qemu_put_be32s(f, &v->l.lower);
     return 0;
@@ -485,7 +485,7 @@ const VMStateInfo vmstate_info_cpudouble = {
 static int get_buffer(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field)
 {
-    uint8_t *v = pv;
+    uint8_t *v = static_cast<uint8_t *>(pv);
     qemu_get_buffer(f, v, size);
     return 0;
 }
@@ -493,7 +493,7 @@ static int get_buffer(QEMUFile *f, void *pv, size_t size,
 static int put_buffer(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field, JSONWriter *vmdesc)
 {
-    uint8_t *v = pv;
+    uint8_t *v = static_cast<uint8_t *>(pv);
     qemu_put_buffer(f, v, size);
     return 0;
 }
@@ -524,7 +524,7 @@ static int get_unused_buffer(QEMUFile *f, void *pv, size_t size,
 static int put_unused_buffer(QEMUFile *f, void *pv, size_t size,
                              const VMStateField *field, JSONWriter *vmdesc)
 {
-    static const uint8_t buf[1024];
+    static const uint8_t buf[1024] = {};
     int block_len;
 
     while (size > 0) {
@@ -602,8 +602,8 @@ const VMStateInfo vmstate_info_tmp = {
 static int get_bitmap(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field)
 {
-    unsigned long *bmp = pv;
-    int i, idx = 0;
+    unsigned long *bmp = static_cast<unsigned long *>(pv);
+    size_t i, idx = 0;
     for (i = 0; i < BITS_TO_U64S(size); i++) {
         uint64_t w = qemu_get_be64(f);
         bmp[idx++] = w;
@@ -617,8 +617,8 @@ static int get_bitmap(QEMUFile *f, void *pv, size_t size,
 static int put_bitmap(QEMUFile *f, void *pv, size_t size,
                       const VMStateField *field, JSONWriter *vmdesc)
 {
-    unsigned long *bmp = pv;
-    int i, idx = 0;
+    unsigned long *bmp = static_cast<unsigned long *>(pv);
+    size_t i, idx = 0;
     for (i = 0; i < BITS_TO_U64S(size); i++) {
         uint64_t w = bmp[idx++];
         if (sizeof(unsigned long) == 4 && idx < BITS_TO_LONGS(size)) {
@@ -766,7 +766,7 @@ static int put_gtree(QEMUFile *f, void *pv, size_t unused_size,
         .val_vmsd = val_vmsd,
         .vmdesc = vmdesc,
         .ret = 0};
-    GTree **pval = pv;
+    GTree **pval = static_cast<GTree **>(pv);
     GTree *tree = *pval;
     uint32_t nnodes = g_tree_nnodes(tree);
     int ret;
@@ -794,7 +794,7 @@ static int get_gtree(QEMUFile *f, void *pv, size_t unused_size,
     size_t key_size = field->start;
     size_t val_size = field->size;
     int nnodes, count = 0;
-    GTree **pval = pv;
+    GTree **pval = static_cast<GTree **>(pv);
     GTree *tree = *pval;
     void *key, *val;
     int ret = 0;

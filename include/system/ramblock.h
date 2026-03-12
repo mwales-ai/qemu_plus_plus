@@ -19,6 +19,10 @@
 #include "exec/ramlist.h"
 #include "system/hostmem.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_RAM_BLOCK_ATTRIBUTES "ram-block-attributes"
 OBJECT_DECLARE_SIMPLE_TYPE(RamBlockAttributes, RAM_BLOCK_ATTRIBUTES)
 
@@ -129,5 +133,9 @@ static inline void *ramblock_ptr(RAMBlock *block, ram_addr_t offset)
     assert(offset_in_ramblock(block, offset));
     return (char *)block->host + offset;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

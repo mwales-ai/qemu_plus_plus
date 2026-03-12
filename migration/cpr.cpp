@@ -35,17 +35,19 @@ typedef struct CprFd {
     QLIST_ENTRY(CprFd) next;
 } CprFd;
 
+static const VMStateField vmstate_cpr_fd_fields[] = {
+    VMSTATE_UINT32(namelen, CprFd),
+    VMSTATE_VBUFFER_ALLOC_UINT32(name, CprFd, 0, NULL, namelen),
+    VMSTATE_INT32(id, CprFd),
+    VMSTATE_FD(fd, CprFd),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cpr_fd = {
     .name = "cpr fd",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(namelen, CprFd),
-        VMSTATE_VBUFFER_ALLOC_UINT32(name, CprFd, 0, NULL, namelen),
-        VMSTATE_INT32(id, CprFd),
-        VMSTATE_FD(fd, CprFd),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cpr_fd_fields,
 };
 
 void cpr_save_fd(const char *name, int id, int fd)
@@ -137,18 +139,30 @@ bool cpr_walk_fd(cpr_walk_fd_cb cb)
 }
 
 /*************************************************************************/
+static const VMStateField vmstate_cpr_state_fields[] = {
+    {
+        .name         = (stringify(fds)),
+        .offset       = offsetof(CprState, fds),
+        .size         = sizeof(CprFd),
+        .start        = offsetof(CprFd, next),
+        .info         = &vmstate_info_qlist,
+        .vmsd         = &vmstate_cpr_fd,
+        .version_id   = 1,
+    },
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_cpr_state_subsections[] = {
+    &vmstate_cpr_vfio_devices,
+    NULL
+};
+
 static const VMStateDescription vmstate_cpr_state = {
     .name = CPR_STATE,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_QLIST_V(fds, CprState, 1, vmstate_cpr_fd, CprFd, next),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_cpr_vfio_devices,
-        NULL
-    }
+    .fields = vmstate_cpr_state_fields,
+    .subsections = vmstate_cpr_state_subsections,
 };
 /*************************************************************************/
 
@@ -228,7 +242,7 @@ int cpr_state_load(MigrationChannel *channel, Error **errp)
     int ret;
     uint32_t v;
     QEMUFile *f;
-    MigMode mode = 0;
+    MigMode mode = MIG_MODE_NONE;
 
     if (cpr_exec_has_state()) {
         mode = MIG_MODE_CPR_EXEC;

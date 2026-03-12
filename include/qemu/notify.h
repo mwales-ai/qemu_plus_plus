@@ -16,6 +16,10 @@
 
 #include "qemu/queue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Notifier Notifier;
 
 struct Notifier
@@ -74,5 +78,9 @@ void notifier_with_return_remove(NotifierWithReturn *notifier);
 
 int notifier_with_return_list_notify(NotifierWithReturnList *list,
                                      void *data, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

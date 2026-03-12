@@ -18,6 +18,10 @@
 #include "qapi/qapi-builtin-types.h"
 #include "qapi/qapi-types-run-state.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * save_snapshot: Save an internal snapshot.
  * @name: name of internal snapshot
@@ -67,5 +71,9 @@ bool delete_snapshot(const char *name,
  * @state: state to restore
  */
 void load_snapshot_resume(RunState state);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

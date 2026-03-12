@@ -348,7 +348,7 @@ typedef struct {
 static void migration_bh_dispatch_bh(void *opaque)
 {
     MigrationState *s = migrate_get_current();
-    MigrationBH *migbh = opaque;
+    MigrationBH *migbh = static_cast<MigrationBH *>(opaque);
 
     /* cleanup this BH */
     qemu_bh_delete(migbh->bh);
@@ -432,7 +432,8 @@ void migration_incoming_transport_cleanup(MigrationIncomingState *mis)
 
     if (mis->transport_cleanup) {
         mis->transport_cleanup(mis->transport_data);
-        mis->transport_data = mis->transport_cleanup = NULL;
+        mis->transport_cleanup = NULL;
+        mis->transport_data = NULL;
     }
 }
 
@@ -531,7 +532,7 @@ static int migrate_send_rp_message(MigrationIncomingState *mis,
 
     qemu_put_be16(mis->to_src_file, (unsigned int)message_type);
     qemu_put_be16(mis->to_src_file, len);
-    qemu_put_buffer(mis->to_src_file, data, len);
+    qemu_put_buffer(mis->to_src_file, static_cast<const uint8_t *>(data), len);
     return qemu_fflush(mis->to_src_file);
 }
 
@@ -715,8 +716,8 @@ bool migrate_uri_parse(const char *uri, MigrationChannel **channel,
     }
 
     val->channel_type = MIGRATION_CHANNEL_TYPE_MAIN;
-    val->addr = g_steal_pointer(&addr);
-    *channel = g_steal_pointer(&val);
+    val->addr = static_cast<MigrationAddress *>(g_steal_pointer(&addr));
+    *channel = static_cast<MigrationChannel *>(g_steal_pointer(&val));
     return true;
 }
 
@@ -813,7 +814,7 @@ static void qemu_start_incoming_migration(const char *uri, bool has_channels,
 
 static void process_incoming_migration_bh(void *opaque)
 {
-    MigrationIncomingState *mis = opaque;
+    MigrationIncomingState *mis = static_cast<MigrationIncomingState *>(opaque);
 
     trace_vmstate_downtime_checkpoint("dst-precopy-bh-enter");
 
@@ -1030,7 +1031,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
              * already does tls handshake while initializing main channel so
              * with tls this issue is not possible.
              */
-            ret = migration_channel_read_peek(ioc, (void *)&channel_magic,
+            ret = migration_channel_read_peek(ioc, reinterpret_cast<const char *>(&channel_magic),
                                               sizeof(channel_magic), errp);
             if (ret != 0) {
                 return;
@@ -1265,7 +1266,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
 {
     size_t page_size = qemu_target_page_size();
 
-    info->ram = g_malloc0(sizeof(*info->ram));
+    info->ram = static_cast<MigrationStats *>(g_malloc0(sizeof(*info->ram)));
     info->ram->transferred = migration_transferred_bytes();
     info->ram->total = ram_bytes_total();
     info->ram->duplicate = stat64_get(&mig_stats.zero_pages);
@@ -1286,7 +1287,7 @@ static void populate_ram_info(MigrationInfo *info, MigrationState *s)
     info->ram->postcopy_bytes = stat64_get(&mig_stats.postcopy_bytes);
 
     if (migrate_xbzrle()) {
-        info->xbzrle_cache = g_malloc0(sizeof(*info->xbzrle_cache));
+        info->xbzrle_cache = static_cast<XBZRLECacheStats *>(g_malloc0(sizeof(*info->xbzrle_cache)));
         info->xbzrle_cache->cache_size = migrate_xbzrle_cache_size();
         info->xbzrle_cache->bytes = xbzrle_counters.bytes;
         info->xbzrle_cache->pages = xbzrle_counters.pages;
@@ -1335,7 +1336,7 @@ static void fill_source_migration_info(MigrationInfo *info)
 
     while (cur_blocker) {
         QAPI_LIST_PREPEND(info->blocked_reasons,
-                          g_strdup(error_get_pretty(cur_blocker->data)));
+                          g_strdup(error_get_pretty(static_cast<Error *>(cur_blocker->data))));
         cur_blocker = g_slist_next(cur_blocker);
     }
     info->has_blocked_reasons = info->blocked_reasons != NULL;
@@ -1382,7 +1383,7 @@ static void fill_source_migration_info(MigrationInfo *info)
         info->has_status = true;
         break;
     }
-    info->status = state;
+    info->status = static_cast<MigrationStatus>(state);
 
     QEMU_LOCK_GUARD(&s->error_mutex);
     if (s->error) {
@@ -1434,7 +1435,7 @@ static void fill_destination_migration_info(MigrationInfo *info)
 
 MigrationInfo *qmp_query_migrate(Error **errp)
 {
-    MigrationInfo *info = g_malloc0(sizeof(*info));
+    MigrationInfo *info = static_cast<MigrationInfo *>(g_malloc0(sizeof(*info)));
 
     fill_destination_migration_info(info);
     fill_source_migration_info(info);
@@ -1545,7 +1546,7 @@ static void migration_cleanup(MigrationState *s)
 
 static void migration_cleanup_bh(void *opaque)
 {
-    migration_cleanup(opaque);
+    migration_cleanup(static_cast<MigrationState *>(opaque));
 }
 
 void migrate_set_error(MigrationState *s, const Error *error)
@@ -1632,7 +1633,7 @@ void migration_cancel(void)
         if (old_state == MIGRATION_STATUS_PRE_SWITCHOVER) {
             qemu_event_set(&s->pause_event);
         }
-        migrate_set_state(&s->state, old_state, MIGRATION_STATUS_CANCELLING);
+        migrate_set_state(&s->state, static_cast<MigrationStatus>(old_state), MIGRATION_STATUS_CANCELLING);
     } while (s->state != MIGRATION_STATUS_CANCELLING);
 
     /*
@@ -1662,7 +1663,7 @@ void migration_cancel(void)
 
 static void add_notifiers(NotifierWithReturn *notify, unsigned modes)
 {
-    for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
+    for (MigMode mode = static_cast<MigMode>(0); mode < MIG_MODE__MAX; mode = static_cast<MigMode>(mode + 1)) {
         if (modes & BIT(mode)) {
             migration_state_notifiers[mode] =
                 g_slist_prepend(migration_state_notifiers[mode], notify);
@@ -1673,7 +1674,7 @@ static void add_notifiers(NotifierWithReturn *notify, unsigned modes)
 void migration_add_notifier_modes(NotifierWithReturn *notify,
                                   MigrationNotifyFunc func, unsigned modes)
 {
-    notify->notify = (NotifierWithReturnFunc)func;
+    notify->notify = reinterpret_cast<NotifierWithReturnFunc>(func);
     add_notifiers(notify, modes);
 }
 
@@ -1692,7 +1693,7 @@ void migration_add_notifier(NotifierWithReturn *notify,
 void migration_remove_notifier(NotifierWithReturn *notify)
 {
     if (notify->notify) {
-        for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
+        for (MigMode mode = static_cast<MigMode>(0); mode < MIG_MODE__MAX; mode = static_cast<MigMode>(mode + 1)) {
             migration_state_notifiers[mode] =
                 g_slist_remove(migration_state_notifiers[mode], notify);
         }
@@ -1713,7 +1714,7 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,
 
     for (elem = migration_state_notifiers[mode]; elem; elem = next) {
         next = elem->next;
-        notifier = (NotifierWithReturn *)elem->data;
+        notifier = static_cast<NotifierWithReturn *>(elem->data);
         ret = notifier->notify(notifier, &e, errp);
         if (ret) {
             assert(type == MIG_EVENT_PRECOPY_SETUP);
@@ -1827,7 +1828,7 @@ int migrate_init(MigrationState *s, Error **errp)
 
     s->start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     s->total_time = 0;
-    s->vm_old_state = -1;
+    s->vm_old_state = static_cast<RunState>(-1);
     s->iteration_initial_bytes = 0;
     s->threshold_size = 0;
     s->switchover_acked = false;
@@ -1875,7 +1876,7 @@ static bool is_only_migratable(Error **reasonp, unsigned modes, Error **errp)
 
 static int add_blockers(Error **reasonp, unsigned modes, Error **errp)
 {
-    for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
+    for (MigMode mode = static_cast<MigMode>(0); mode < MIG_MODE__MAX; mode = static_cast<MigMode>(mode + 1)) {
         if (modes & BIT(mode)) {
             migration_blockers[mode] = g_slist_prepend(migration_blockers[mode],
                                                        *reasonp);
@@ -1917,7 +1918,7 @@ int migrate_add_blocker_internal(Error **reasonp, Error **errp)
 void migrate_del_blocker(Error **reasonp)
 {
     if (*reasonp) {
-        for (MigMode mode = 0; mode < MIG_MODE__MAX; mode++) {
+        for (MigMode mode = static_cast<MigMode>(0); mode < MIG_MODE__MAX; mode = static_cast<MigMode>(mode + 1)) {
             migration_blockers[mode] = g_slist_remove(migration_blockers[mode],
                                                       *reasonp);
         }
@@ -2055,7 +2056,7 @@ bool migration_is_blocked(Error **errp)
     }
 
     if (blockers) {
-        error_propagate(errp, error_copy(blockers->data));
+        error_propagate(errp, error_copy(static_cast<Error *>(blockers->data)));
         return true;
     }
 
@@ -2195,7 +2196,7 @@ static gboolean qmp_migrate_finish_cb(QIOChannel *channel,
                                       GIOCondition cond,
                                       void *opaque)
 {
-    MigrationAddress *addr = opaque;
+    MigrationAddress *addr = static_cast<MigrationAddress *>(opaque);
 
     qmp_migrate_finish(addr, false, NULL);
 
@@ -2283,7 +2284,7 @@ void qmp_migrate(const char *uri, bool has_channels,
      * connection, so qmp_migrate_finish will fail to connect, and then recover.
      */
     if (s->parameters.mode == MIG_MODE_CPR_TRANSFER) {
-        migrate_hup_add(s, cpr_state_ioc(), (GSourceFunc)qmp_migrate_finish_cb,
+        migrate_hup_add(s, cpr_state_ioc(), reinterpret_cast<GSourceFunc>(qmp_migrate_finish_cb),
                         QAPI_CLONE(MigrationAddress, addr));
 
     } else {
@@ -2392,19 +2393,26 @@ void migration_rp_kick(MigrationState *s)
     qemu_sem_post(&s->rp_state.rp_sem);
 }
 
-static struct rp_cmd_args {
+struct rp_cmd_args {
     ssize_t     len; /* -1 = variable */
     const char *name;
-} rp_cmd_args[] = {
-    [MIG_RP_MSG_INVALID]        = { .len = -1, .name = "INVALID" },
-    [MIG_RP_MSG_SHUT]           = { .len =  4, .name = "SHUT" },
-    [MIG_RP_MSG_PONG]           = { .len =  4, .name = "PONG" },
-    [MIG_RP_MSG_REQ_PAGES]      = { .len = 12, .name = "REQ_PAGES" },
-    [MIG_RP_MSG_REQ_PAGES_ID]   = { .len = -1, .name = "REQ_PAGES_ID" },
-    [MIG_RP_MSG_RECV_BITMAP]    = { .len = -1, .name = "RECV_BITMAP" },
-    [MIG_RP_MSG_RESUME_ACK]     = { .len =  4, .name = "RESUME_ACK" },
-    [MIG_RP_MSG_SWITCHOVER_ACK] = { .len =  0, .name = "SWITCHOVER_ACK" },
-    [MIG_RP_MSG_MAX]            = { .len = -1, .name = "MAX" },
+};
+
+/* Indexed by mig_rp_message_type enum values:
+ * [0] = INVALID, [1] = SHUT, [2] = PONG, [3] = REQ_PAGES_ID,
+ * [4] = REQ_PAGES, [5] = RECV_BITMAP, [6] = RESUME_ACK,
+ * [7] = SWITCHOVER_ACK, [8] = MAX
+ */
+static struct rp_cmd_args rp_cmd_args[] = {
+    { -1, "INVALID" },         /* MIG_RP_MSG_INVALID = 0 */
+    {  4, "SHUT" },            /* MIG_RP_MSG_SHUT = 1 */
+    {  4, "PONG" },            /* MIG_RP_MSG_PONG = 2 */
+    { -1, "REQ_PAGES_ID" },   /* MIG_RP_MSG_REQ_PAGES_ID = 3 */
+    { 12, "REQ_PAGES" },      /* MIG_RP_MSG_REQ_PAGES = 4 */
+    { -1, "RECV_BITMAP" },    /* MIG_RP_MSG_RECV_BITMAP = 5 */
+    {  4, "RESUME_ACK" },     /* MIG_RP_MSG_RESUME_ACK = 6 */
+    {  0, "SWITCHOVER_ACK" }, /* MIG_RP_MSG_SWITCHOVER_ACK = 7 */
+    { -1, "MAX" },            /* MIG_RP_MSG_MAX = 8 */
 };
 
 /*
@@ -2455,7 +2463,7 @@ static bool migrate_handle_rp_resume_ack(MigrationState *s,
     trace_source_return_path_thread_resume_ack(value);
 
     if (value != MIGRATION_RESUME_ACK_VALUE) {
-        error_setg(errp, "illegal resume_ack value %"PRIu32, value);
+        error_setg(errp, "illegal resume_ack value %" PRIu32, value);
         return false;
     }
 
@@ -2507,7 +2515,7 @@ static void migration_release_dst_files(MigrationState *ms)
  */
 static void *source_return_path_thread(void *opaque)
 {
-    MigrationState *ms = opaque;
+    MigrationState *ms = static_cast<MigrationState *>(opaque);
     QEMUFile *rp = ms->rp_state.from_dst_file;
     uint16_t header_len, header_type;
     uint8_t buf[512];
@@ -3138,7 +3146,7 @@ static void bg_migration_completion(MigrationState *s)
     return;
 
 fail:
-    migrate_set_state(&s->state, current_active_state,
+    migrate_set_state(&s->state, static_cast<MigrationStatus>(current_active_state),
                       MIGRATION_STATUS_FAILED);
 }
 
@@ -3341,7 +3349,7 @@ static MigThrError migration_detect_error(MigrationState *s)
          * For precopy (or postcopy with error outside IO, or before dest
          * starts), we fail with no time.
          */
-        migrate_set_state(&s->state, state, MIGRATION_STATUS_FAILED);
+        migrate_set_state(&s->state, static_cast<MigrationStatus>(state), MIGRATION_STATUS_FAILED);
         trace_migration_thread_file_err();
 
         /* Time to stop the migration, now. */
@@ -3717,7 +3725,7 @@ static void qemu_savevm_wait_unplug(MigrationState *s, int old_state,
                                     int new_state)
 {
     if (qemu_savevm_state_guest_unplug_pending()) {
-        migrate_set_state(&s->state, old_state, MIGRATION_STATUS_WAIT_UNPLUG);
+        migrate_set_state(&s->state, static_cast<MigrationStatus>(old_state), MIGRATION_STATUS_WAIT_UNPLUG);
 
         while (s->state == MIGRATION_STATUS_WAIT_UNPLUG &&
                qemu_savevm_state_guest_unplug_pending()) {
@@ -3740,9 +3748,9 @@ static void qemu_savevm_wait_unplug(MigrationState *s, int old_state,
             }
         }
 
-        migrate_set_state(&s->state, MIGRATION_STATUS_WAIT_UNPLUG, new_state);
+        migrate_set_state(&s->state, MIGRATION_STATUS_WAIT_UNPLUG, static_cast<MigrationStatus>(new_state));
     } else {
-        migrate_set_state(&s->state, old_state, new_state);
+        migrate_set_state(&s->state, static_cast<MigrationStatus>(old_state), static_cast<MigrationStatus>(new_state));
     }
 }
 
@@ -3752,7 +3760,7 @@ static void qemu_savevm_wait_unplug(MigrationState *s, int old_state,
  */
 static void *migration_thread(void *opaque)
 {
-    MigrationState *s = opaque;
+    MigrationState *s = static_cast<MigrationState *>(opaque);
     MigrationThread *thread = NULL;
     int64_t setup_start = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     MigThrError thr_error;
@@ -3870,7 +3878,7 @@ out:
 
 static void bg_migration_vm_start_bh(void *opaque)
 {
-    MigrationState *s = opaque;
+    MigrationState *s = static_cast<MigrationState *>(opaque);
 
     vm_resume(s->vm_old_state);
     migration_downtime_end(s);
@@ -3893,7 +3901,7 @@ static void bg_migration_vm_start_bh(void *opaque)
  */
 static void *bg_migration_thread(void *opaque)
 {
-    MigrationState *s = opaque;
+    MigrationState *s = static_cast<MigrationState *>(opaque);
     int64_t setup_start;
     MigThrError thr_error;
     QEMUFile *fb;
@@ -4209,11 +4217,11 @@ static const TypeInfo migration_type = {
      * TYPE_DEVICE's "-global" properties.
      */
     .parent = TYPE_DEVICE,
-    .class_init = migration_class_init,
-    .class_size = sizeof(MigrationClass),
     .instance_size = sizeof(MigrationState),
     .instance_init = migration_instance_init,
     .instance_finalize = migration_instance_finalize,
+    .class_size = sizeof(MigrationClass),
+    .class_init = migration_class_init,
 };
 
 static void register_migration_types(void)

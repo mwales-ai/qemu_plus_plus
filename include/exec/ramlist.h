@@ -6,6 +6,10 @@
 #include "qemu/rcu.h"
 #include "qemu/rcu_queue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct RAMBlockNotifier RAMBlockNotifier;
 
 #define DIRTY_MEMORY_VGA       0
@@ -82,5 +86,9 @@ void ram_block_notify_remove(void *host, size_t size, size_t max_size);
 void ram_block_notify_resize(void *host, size_t old_size, size_t new_size);
 
 GString *ram_block_format(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RAMLIST_H */

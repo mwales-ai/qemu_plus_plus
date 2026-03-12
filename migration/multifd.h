@@ -16,6 +16,10 @@
 #include "exec/target_page.h"
 #include "ram.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct MultiFDRecvData MultiFDRecvData;
 typedef struct MultiFDSendData MultiFDSendData;
 
@@ -414,5 +418,9 @@ void multifd_device_state_send_setup(void);
 void multifd_device_state_send_cleanup(void);
 
 void multifd_device_state_send_prepare(MultiFDSendParams *p);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

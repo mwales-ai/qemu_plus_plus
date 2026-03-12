@@ -37,6 +37,10 @@
 #include "qemu/thread.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
                                      void *opaque);
 
@@ -1210,5 +1214,9 @@ enum CacheType {
     INSTRUCTION_CACHE,
     UNIFIED_CACHE
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

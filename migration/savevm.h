@@ -14,6 +14,10 @@
 #ifndef MIGRATION_SAVEVM_H
 #define MIGRATION_SAVEVM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QEMU_VM_FILE_MAGIC           0x5145564d
 #define QEMU_VM_FILE_VERSION_COMPAT  0x00000002
 #define QEMU_VM_FILE_VERSION         0x00000003
@@ -77,5 +81,9 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
 
 bool qemu_loadvm_load_state_buffer(const char *idstr, uint32_t instance_id,
                                    char *buf, size_t len, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

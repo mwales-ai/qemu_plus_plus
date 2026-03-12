@@ -12,6 +12,10 @@
 
 #include "qapi/qapi-types-yank.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void (YankFn)(void *opaque);
 
 /**
@@ -72,6 +76,10 @@ void yank_register_function(const YankInstance *instance,
 void yank_unregister_function(const YankInstance *instance,
                               YankFn *func,
                               void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef __cplusplus
 static inline YankInstance blockdev_yank_instance_val(const char *the_node_name)

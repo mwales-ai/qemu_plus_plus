@@ -13,6 +13,10 @@
 #include "channel.h"
 #include "multifd.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void file_start_incoming_migration(FileMigrationArgs *file_args, Error **errp);
 
 void file_start_outgoing_migration(MigrationState *s,
@@ -23,4 +27,9 @@ bool file_send_channel_create(gpointer opaque, Error **errp);
 int file_write_ramblock_iov(QIOChannel *ioc, const struct iovec *iov,
                             int niov, MultiFDPages_t *pages, Error **errp);
 int multifd_file_recv_data(MultiFDRecvParams *p, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

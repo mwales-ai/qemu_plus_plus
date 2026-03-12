@@ -1,6 +1,10 @@
 #ifndef READLINE_H
 #define READLINE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define READLINE_CMD_BUF_SIZE 4095
 #define READLINE_MAX_CMDS 64
 #define READLINE_MAX_COMPLETIONS 256
@@ -62,5 +66,9 @@ ReadLineState *readline_init(ReadLinePrintfFunc *printf_func,
                              void *opaque,
                              ReadLineCompletionFunc *completion_finder);
 void readline_free(ReadLineState *rs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* READLINE_H */

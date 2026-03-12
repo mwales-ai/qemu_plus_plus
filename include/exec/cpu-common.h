@@ -14,6 +14,10 @@
 #include "tcg/debug-assert.h"
 #include "exec/page-protection.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define EXCP_INTERRUPT  0x10000 /* async interruption */
 #define EXCP_HLT        0x10001 /* hlt instruction reached */
 #define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
@@ -239,5 +243,9 @@ static inline CPUState *env_cpu(CPUArchState *env)
 {
     return (CPUState *)env_cpu_const(env);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CPU_COMMON_H */

@@ -15,6 +15,10 @@
 
 #include "qapi/qapi-types-migration.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Return true if the host supports everything we need to do postcopy-ram */
 bool postcopy_ram_supported_by_host(MigrationIncomingState *mis,
                                     Error **errp);
@@ -201,5 +205,9 @@ void mark_postcopy_blocktime_begin(uintptr_t addr, uint32_t ptid,
 
 int postcopy_incoming_setup(MigrationIncomingState *mis, Error **errp);
 int postcopy_incoming_cleanup(MigrationIncomingState *mis);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

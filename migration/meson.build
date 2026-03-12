@@ -3,53 +3,53 @@ migration_files = files(
   'migration-stats.cpp',
   'page_cache.cpp',
   'xbzrle.cpp',
-  'vmstate-types.c',
-  'vmstate.c',
-  'qemu-file.c',
+  'vmstate-types.cpp',
+  'vmstate.cpp',
+  'qemu-file.cpp',
   'yank_functions.cpp',
 )
 
 system_ss.add(files(
-  'block-dirty-bitmap.c',
+  'block-dirty-bitmap.cpp',
   'block-active.cpp',
   'channel.cpp',
-  'channel-block.c',
-  'cpr.c',
-  'cpr-transfer.c',
-  'cpr-exec.c',
-  'cpu-throttle.c',
-  'dirtyrate.c',
+  'channel-block.cpp',
+  'cpr.cpp',
+  'cpr-transfer.cpp',
+  'cpr-exec.cpp',
+  'cpu-throttle.cpp',
+  'dirtyrate.cpp',
   'exec.cpp',
   'fd.cpp',
   'file.cpp',
-  'global_state.c',
-  'migration-hmp-cmds.c',
-  'migration.c',
-  'multifd.c',
-  'multifd-device-state.c',
-  'multifd-nocomp.c',
-  'multifd-zlib.c',
-  'multifd-zero-page.c',
-  'options.c',
-  'postcopy-ram.c',
-  'ram.c',
-  'savevm.c',
+  'global_state.cpp',
+  'migration-hmp-cmds.cpp',
+  'migration.cpp',
+  'multifd.cpp',
+  'multifd-device-state.cpp',
+  'multifd-nocomp.cpp',
+  'multifd-zlib.cpp',
+  'multifd-zero-page.cpp',
+  'options.cpp',
+  'postcopy-ram.cpp',
+  'ram.cpp',
+  'savevm.cpp',
   'socket.cpp',
-  'tls.c',
+  'tls.cpp',
   'threadinfo.cpp',
 ), gnutls, zlib)
 
 if get_option('replication').allowed()
-  system_ss.add(files('colo-failover.cpp', 'colo.c'))
+  system_ss.add(files('colo-failover.cpp', 'colo.cpp'))
 else
   system_ss.add(files('colo-stubs.cpp'))
 endif
 
-system_ss.add(when: rdma, if_true: files('rdma.c'))
-system_ss.add(when: zstd, if_true: files('multifd-zstd.c'))
-system_ss.add(when: qpl, if_true: files('multifd-qpl.c'))
-system_ss.add(when: uadk, if_true: files('multifd-uadk.c'))
-system_ss.add(when: qatzip, if_true: files('multifd-qatzip.c'))
+system_ss.add(when: rdma, if_true: files('rdma.cpp'))
+system_ss.add(when: zstd, if_true: files('multifd-zstd.cpp'))
+system_ss.add(when: qpl, if_true: files('multifd-qpl.cpp'))
+system_ss.add(when: uadk, if_true: files('multifd-uadk.cpp'))
+system_ss.add(when: qatzip, if_true: files('multifd-qatzip.cpp'))
 system_ss.add(when: 'CONFIG_VFIO',
-              if_true: files('vfio.c'),
-              if_false: files('vfio-stub.c'))
+              if_true: files('vfio.cpp'),
+              if_false: files('vfio-stub.cpp'))

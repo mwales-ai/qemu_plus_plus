@@ -26,6 +26,10 @@
 #include "qemu/sockets.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_QIO_CHANNEL_SOCKET "qio-channel-socket"
 OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelSocket, QIO_CHANNEL_SOCKET)
 
@@ -280,5 +284,9 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
 int qio_channel_socket_set_send_buffer(QIOChannelSocket *ioc,
                                        size_t size,
                                        Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_CHANNEL_SOCKET_H */

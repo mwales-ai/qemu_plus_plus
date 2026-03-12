@@ -59,7 +59,7 @@ static int multifd_zstd_send_setup(MultiFDSendParams *p, Error **errp)
     }
     /* This is the maximum size of the compressed buffer */
     z->zbuff_len = ZSTD_compressBound(MULTIFD_PACKET_SIZE);
-    z->zbuff = g_try_malloc(z->zbuff_len);
+    z->zbuff = static_cast<uint8_t *>(g_try_malloc(z->zbuff_len));
     if (!z->zbuff) {
         ZSTD_freeCStream(z->zcs);
         g_free(z);
@@ -75,7 +75,7 @@ static int multifd_zstd_send_setup(MultiFDSendParams *p, Error **errp)
 
 static void multifd_zstd_send_cleanup(MultiFDSendParams *p, Error **errp)
 {
-    struct zstd_data *z = p->compress_data;
+    struct zstd_data *z = static_cast<struct zstd_data *>(p->compress_data);
 
     ZSTD_freeCStream(z->zcs);
     z->zcs = NULL;
@@ -91,7 +91,7 @@ static void multifd_zstd_send_cleanup(MultiFDSendParams *p, Error **errp)
 static int multifd_zstd_send_prepare(MultiFDSendParams *p, Error **errp)
 {
     MultiFDPages_t *pages = &p->data->u.ram;
-    struct zstd_data *z = p->compress_data;
+    struct zstd_data *z = static_cast<struct zstd_data *>(p->compress_data);
     int ret;
     uint32_t i;
 
@@ -171,7 +171,7 @@ static int multifd_zstd_recv_setup(MultiFDRecvParams *p, Error **errp)
 
     /* To be safe, we reserve twice the size of the packet */
     z->zbuff_len = MULTIFD_PACKET_SIZE * 2;
-    z->zbuff = g_try_malloc(z->zbuff_len);
+    z->zbuff = static_cast<uint8_t *>(g_try_malloc(z->zbuff_len));
     if (!z->zbuff) {
         ZSTD_freeDStream(z->zds);
         g_free(z);
@@ -183,7 +183,7 @@ static int multifd_zstd_recv_setup(MultiFDRecvParams *p, Error **errp)
 
 static void multifd_zstd_recv_cleanup(MultiFDRecvParams *p)
 {
-    struct zstd_data *z = p->compress_data;
+    struct zstd_data *z = static_cast<struct zstd_data *>(p->compress_data);
 
     ZSTD_freeDStream(z->zds);
     z->zds = NULL;
@@ -200,9 +200,9 @@ static int multifd_zstd_recv(MultiFDRecvParams *p, Error **errp)
     uint32_t page_size = multifd_ram_page_size();
     uint32_t expected_size = p->normal_num * page_size;
     uint32_t flags = p->flags & MULTIFD_FLAG_COMPRESSION_MASK;
-    struct zstd_data *z = p->compress_data;
+    struct zstd_data *z = static_cast<struct zstd_data *>(p->compress_data);
     int ret;
-    int i;
+    uint32_t i;
 
     if (flags != MULTIFD_FLAG_ZSTD) {
         error_setg(errp, "multifd %u: flags received %x flags expected %x",

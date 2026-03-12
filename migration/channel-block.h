@@ -24,6 +24,10 @@
 #include "io/channel.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_QIO_CHANNEL_BLOCK "qio-channel-block"
 OBJECT_DECLARE_SIMPLE_TYPE(QIOChannelBlock, QIO_CHANNEL_BLOCK)
 
@@ -55,5 +59,9 @@ struct QIOChannelBlock {
  */
 QIOChannelBlock *
 qio_channel_block_new(BlockDriverState *bs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_CHANNEL_BLOCK_H */

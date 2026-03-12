@@ -19,6 +19,10 @@
 #include "qapi/qapi-types-net.h"
 #include "migration/client-options.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* migration/ram.c */
 
 typedef enum PrecopyNotifyReason {
@@ -151,5 +155,9 @@ bool multifd_device_state_save_thread_should_exit(void);
 
 void multifd_abort_device_state_save_threads(void);
 bool multifd_join_device_state_save_threads(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

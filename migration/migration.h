@@ -28,6 +28,10 @@
 #include "system/runstate.h"
 #include "migration/misc.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define  MIGRATION_THREAD_SNAPSHOT          "mig/snapshot"
 #define  MIGRATION_THREAD_DIRTY_RATE        "mig/dirtyrate"
 
@@ -597,5 +601,9 @@ void migration_bitmap_sync_precopy(bool last_stage);
 /* migration/block-dirty-bitmap.c */
 void dirty_bitmap_mig_init(void);
 bool should_send_vmdesc(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

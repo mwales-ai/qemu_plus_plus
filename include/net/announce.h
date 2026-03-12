@@ -12,6 +12,10 @@
 #include "qapi/qapi-types-net.h"
 #include "qemu/timer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct AnnounceTimer {
     QEMUTimer *tm;
     AnnounceParameters params;
@@ -40,5 +44,9 @@ void qemu_announce_timer_reset(AnnounceTimer *timer,
                                void *opaque);
 
 void qemu_announce_self(AnnounceTimer *timer, AnnounceParameters *params);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

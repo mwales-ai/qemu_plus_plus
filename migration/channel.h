@@ -18,6 +18,10 @@
 
 #include "io/channel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void migration_channel_process_incoming(QIOChannel *ioc);
 
 void migration_channel_connect(MigrationState *s,
@@ -29,4 +33,9 @@ int migration_channel_read_peek(QIOChannel *ioc,
                                 const char *buf,
                                 const size_t buflen,
                                 Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

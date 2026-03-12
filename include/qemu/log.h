@@ -4,6 +4,10 @@
 /* A small part of this API is split into its own header */
 #include "qemu/log-for-trace.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* 
  * The new API:
  */
@@ -98,4 +102,8 @@ int qemu_str_to_log_mask(const char *str);
  */
 void qemu_print_log_usage(FILE *f);
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* QEMU_LOG_H */

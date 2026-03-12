@@ -7,6 +7,10 @@
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if TARGET_LONG_BITS == 64
 #define qemu_put_betl qemu_put_be64
 #define qemu_get_betl qemu_get_be64
@@ -54,5 +58,8 @@
 #define VMSTATE_UINTTL_2DARRAY(_f, _s, _n1, _n2)                      \
     VMSTATE_UINTTL_2DARRAY_V(_f, _s, _n1, _n2, 0)
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif

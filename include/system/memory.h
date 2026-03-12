@@ -27,6 +27,10 @@
 #include "qom/object.h"
 #include "qemu/rcu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define RAM_ADDR_INVALID (~(ram_addr_t)0)
 
 #define MAX_PHYS_ADDR_SPACE_BITS 62
@@ -3323,5 +3327,9 @@ bool ram_block_discard_is_required(void);
 
 void ram_block_add_cpr_blocker(RAMBlock *rb, Error **errp);
 void ram_block_del_cpr_blocker(RAMBlock *rb);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

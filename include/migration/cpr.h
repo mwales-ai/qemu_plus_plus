@@ -11,7 +11,15 @@
 #include "qapi/qapi-types-migration.h"
 #include "qemu/queue.h"
 
-#define MIG_MODE_NONE           -1
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef __cplusplus
+#define MIG_MODE_NONE           (static_cast<MigMode>(-1))
+#else
+#define MIG_MODE_NONE           ((MigMode)-1)
+#endif
 
 #define QEMU_CPR_FILE_MAGIC     0x51435052
 #define QEMU_CPR_FILE_VERSION   0x00000001
@@ -60,4 +68,9 @@ bool cpr_exec_persist_state(QEMUFile *f, Error **errp);
 bool cpr_exec_has_state(void);
 void cpr_exec_unpersist_state(void);
 void cpr_exec_unpreserve_fds(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

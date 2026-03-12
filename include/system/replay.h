@@ -18,6 +18,10 @@
 #include "block/aio.h"
 #include "qemu/audio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* replay clock kinds */
 enum ReplayClockKind {
     /* host_clock */
@@ -176,5 +180,9 @@ void replay_vmstate_init(void);
 /*! Called to ensure that replay state is consistent and VM snapshot
     can be created */
 bool replay_can_snapshot(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

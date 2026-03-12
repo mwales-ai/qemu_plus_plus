@@ -18,6 +18,10 @@
 #ifndef QEMU_LOG_FOR_TRACE_H
 #define QEMU_LOG_FOR_TRACE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Private global variable, don't use */
 extern unsigned qemu_loglevel;
 
@@ -32,4 +36,8 @@ static inline bool qemu_loglevel_mask(int mask)
 /* main logging function */
 void G_GNUC_PRINTF(1, 2) qemu_log(const char *fmt, ...);
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* QEMU_LOG_FOR_TRACE_H */

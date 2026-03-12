@@ -7,6 +7,13 @@
  * See the COPYING file in the top-level directory.
  */
 
+#ifndef MIGRATION_YANK_FUNCTIONS_H
+#define MIGRATION_YANK_FUNCTIONS_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * migration_yank_iochannel: yank function for iochannel
  *
@@ -18,3 +25,9 @@ void migration_yank_iochannel(void *opaque);
 void migration_ioc_register_yank(QIOChannel *ioc);
 void migration_ioc_unregister_yank(QIOChannel *ioc);
 void migration_ioc_unregister_yank_from_file(QEMUFile *file);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* MIGRATION_YANK_FUNCTIONS_H */

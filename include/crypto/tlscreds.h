@@ -24,6 +24,10 @@
 #include "qapi/qapi-types-crypto.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_QCRYPTO_TLS_CREDS "tls-creds"
 typedef struct QCryptoTLSCreds QCryptoTLSCreds;
 typedef struct QCryptoTLSCredsClass QCryptoTLSCredsClass;
@@ -89,5 +93,9 @@ char *qcrypto_tls_creds_get_priority(QCryptoTLSCreds *creds);
  */
 bool qcrypto_tls_creds_reload(QCryptoTLSCreds *creds,
                               Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QCRYPTO_TLSCREDS_H */

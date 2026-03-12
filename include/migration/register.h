@@ -16,6 +16,10 @@
 
 #include "hw/vmstate-if.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * struct SaveVMHandlers: handler structure to finely control
  * migration of complex subsystems and devices, such as RAM, block and
@@ -357,5 +361,9 @@ int register_savevm_live(const char *idstr,
  * @opaque: data pointer passed to register_savevm_live()
  */
 void unregister_savevm(VMStateIf *obj, const char *idstr, void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
