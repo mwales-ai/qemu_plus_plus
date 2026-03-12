@@ -16,6 +16,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "hw/pci/pci_device.h"
 #include "hw/pci/pci_bus.h"
@@ -43,7 +48,7 @@ static bool append_pci_address(char *buf, size_t buf_size, const PCIDevice *pci)
     ssize_t written = snprintf(buf + len, buf_size - len, "/%02x.%x",
         PCI_SLOT(pci->devfn), PCI_FUNC(pci->devfn));
 
-    return written > 0 && written < buf_size - len;
+    return written > 0 && (size_t)written < buf_size - len;
 }
 
 bool qemu_console_fill_device_address(QemuConsole *con,
@@ -72,3 +77,5 @@ bool qemu_console_fill_device_address(QemuConsole *con,
 
     return true;
 }
+
+} /* extern "C" */

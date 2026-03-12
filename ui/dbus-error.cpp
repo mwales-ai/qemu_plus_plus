@@ -22,6 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "dbus.h"
 
 static const GDBusErrorEntry dbus_display_error_entries[] = {
@@ -46,3 +51,5 @@ dbus_display_error_quark(void)
 
     return (GQuark)quark;
 }
+
+} /* extern "C" */

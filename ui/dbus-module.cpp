@@ -18,6 +18,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "ui/dbus-module.h"
 
@@ -33,3 +38,5 @@ qemu_dbus_display_add_client(int csock, Error **errp)
 struct QemuDBusDisplayOps qemu_dbus_display = {
     .add_client = qemu_dbus_display_add_client,
 };
+
+} /* extern "C" */

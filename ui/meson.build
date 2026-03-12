@@ -14,17 +14,17 @@ system_ss.add(files(
   'qemu-pixman.c',
   'ui-hmp-cmds.c',
   'ui-qmp-cmds.c',
-  'util.c',
+  'util.cpp',
 ))
 system_ss.add(when: pixman, if_true: files('console-vc.c'), if_false: files('console-vc-stubs.c'))
 if dbus_display
-  system_ss.add(files('dbus-module.c'))
+  system_ss.add(files('dbus-module.cpp'))
 endif
-system_ss.add([spice_headers, files('spice-module.c')])
+system_ss.add([spice_headers, files('spice-module.cpp')])
 system_ss.add(when: spice_protocol, if_true: files('vdagent.c'))
 
 if host_os == 'linux'
-  system_ss.add(files('input-linux.c', 'udmabuf.c'))
+  system_ss.add(files('input-linux.c', 'udmabuf.cpp'))
 endif
 system_ss.add(when: cocoa, if_true: files('cocoa.m'))
 
@@ -44,7 +44,7 @@ vnc_ss.add(files(
 vnc_ss.add(zlib, jpeg)
 vnc_ss.add(when: sasl, if_true: files('vnc-auth-sasl.c'))
 system_ss.add_all(when: [vnc, pixman], if_true: vnc_ss)
-system_ss.add(when: vnc, if_false: files('vnc-stubs.c'))
+system_ss.add(when: vnc, if_false: files('vnc-stubs.cpp'))
 
 ui_modules = {}
 
@@ -93,7 +93,7 @@ if dbus_display
                 'dbus-chardev.c',
                 'dbus-clipboard.c',
                 'dbus-console.c',
-                'dbus-error.c',
+                'dbus-error.cpp',
                 'dbus-listener.c',
                 'dbus.c',
               ), opengl, gbm, pixman, dbus_display1])

@@ -5,6 +5,11 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "qemu/error-report.h"
@@ -27,3 +32,5 @@ int udmabuf_fd(void)
     }
     return udmabuf;
 }
+
+} /* extern "C" */

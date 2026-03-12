@@ -18,6 +18,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi/qapi-types-ui.h"
@@ -83,3 +88,5 @@ SpiceInfo *qmp_query_spice(Error **errp)
 }
 
 #endif
+
+} /* extern "C" */
