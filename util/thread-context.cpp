@@ -11,15 +11,17 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/thread-context.h"
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/visitor.h"
 #include "qemu/config-file.h"
-#include "qapi/qapi-builtin-visit.h"
 #include "qom/object_interfaces.h"
 #include "qemu/module.h"
 #include "qemu/bitmap.h"
+} /* extern "C" */
 
 #ifdef CONFIG_NUMA
 #include <numa.h>
@@ -41,7 +43,7 @@ typedef struct ThreadContextCmdNew {
 
 static void *thread_context_run(void *opaque)
 {
-    ThreadContext *tc = opaque;
+    ThreadContext *tc = static_cast<ThreadContext *>(opaque);
 
     tc->thread_id = qemu_get_thread_id();
     qemu_sem_post(&tc->sem);
@@ -65,7 +67,8 @@ static void *thread_context_run(void *opaque)
             qemu_sem_post(&tc->sem);
             return NULL;
         case TC_CMD_NEW: {
-            ThreadContextCmdNew *cmd_new = tc->thread_cmd_data;
+            ThreadContextCmdNew *cmd_new =
+                static_cast<ThreadContextCmdNew *>(tc->thread_cmd_data);
 
             qemu_thread_create(cmd_new->thread, cmd_new->name,
                                cmd_new->start_routine, cmd_new->arg,
@@ -113,7 +116,7 @@ static void thread_context_set_cpu_affinity(Object *obj, Visitor *v,
         set_bit(l->value, bitmap);
     }
 
-    if (tc->thread_id != -1) {
+    if (tc->thread_id != (unsigned)-1) {
         /*
          * Note: we won't be adjusting the affinity of any thread that is still
          * around, but only the affinity of the context thread.
@@ -142,7 +145,7 @@ static void thread_context_get_cpu_affinity(Object *obj, Visitor *v,
     uint16List **tail = &host_cpus;
     int ret;
 
-    if (tc->thread_id == -1) {
+    if (tc->thread_id == (unsigned)-1) {
         error_setg(errp, "Object not initialized yet");
         return;
     }
@@ -155,7 +158,10 @@ static void thread_context_get_cpu_affinity(Object *obj, Visitor *v,
 
     value = find_first_bit(bitmap, nbits);
     while (value < nbits) {
-        QAPI_LIST_APPEND(tail, value);
+        /* Expand QAPI_LIST_APPEND manually for C++ void* cast safety */
+        *tail = static_cast<uint16List *>(g_malloc0(sizeof(**tail)));
+        (*tail)->value = value;
+        tail = &(*tail)->next;
 
         value = find_next_bit(bitmap, nbits, value + 1);
     }
@@ -213,7 +219,7 @@ static void thread_context_set_node_affinity(Object *obj, Visitor *v,
         goto out;
     }
 
-    if (tc->thread_id != -1) {
+    if (tc->thread_id != (unsigned)-1) {
         /*
          * Note: we won't be adjusting the affinity of any thread that is still
          * around for now, but only the affinity of the context thread.
@@ -258,7 +264,7 @@ static void thread_context_instance_complete(UserCreatable *uc, Error **errp)
     g_free(thread_name);
 
     /* Wait until initialization of the thread is done. */
-    while (tc->thread_id == -1) {
+    while (tc->thread_id == (unsigned)-1) {
         qemu_sem_wait(&tc->sem);
     }
 
@@ -292,7 +298,7 @@ static void thread_context_instance_init(Object *obj)
 {
     ThreadContext *tc = THREAD_CONTEXT(obj);
 
-    tc->thread_id = -1;
+    tc->thread_id = (unsigned)-1;
     qemu_sem_init(&tc->sem, 0);
     qemu_sem_init(&tc->sem_thread, 0);
     qemu_mutex_init(&tc->mutex);
@@ -302,7 +308,7 @@ static void thread_context_instance_finalize(Object *obj)
 {
     ThreadContext *tc = THREAD_CONTEXT(obj);
 
-    if (tc->thread_id != -1) {
+    if (tc->thread_id != (unsigned)-1) {
         tc->thread_cmd = TC_CMD_STOP;
         qemu_sem_post(&tc->sem_thread);
         qemu_thread_join(&tc->thread);
@@ -312,17 +318,25 @@ static void thread_context_instance_finalize(Object *obj)
     qemu_mutex_destroy(&tc->mutex);
 }
 
+static const InterfaceInfo thread_context_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo thread_context_info = {
     .name = TYPE_THREAD_CONTEXT,
     .parent = TYPE_OBJECT,
-    .class_init = thread_context_class_init,
     .instance_size = sizeof(ThreadContext),
+    .instance_align = 0,
     .instance_init = thread_context_instance_init,
+    .instance_post_init = NULL,
     .instance_finalize = thread_context_instance_finalize,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .abstract = false,
+    .class_size = 0,
+    .class_init = thread_context_class_init,
+    .class_base_init = NULL,
+    .class_data = NULL,
+    .interfaces = thread_context_interfaces,
 };
 
 static void thread_context_register_types(void)
@@ -331,6 +345,7 @@ static void thread_context_register_types(void)
 }
 type_init(thread_context_register_types)
 
+extern "C"
 void thread_context_create_thread(ThreadContext *tc, QemuThread *thread,
                                   const char *name,
                                   void *(*start_routine)(void *), void *arg,

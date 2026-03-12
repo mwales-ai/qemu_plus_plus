@@ -23,6 +23,12 @@
  */
 
 #include "qemu/osdep.h"
+
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/timer.h"
@@ -35,6 +41,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "qom/object.h"
+}
 
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -142,11 +149,13 @@ static void notify_event_cb(void *opaque)
      */
 }
 
+extern "C"
 AioContext *qemu_get_aio_context(void)
 {
     return qemu_aio_context;
 }
 
+extern "C"
 void qemu_notify_event(void)
 {
     if (!qemu_aio_context) {
@@ -157,6 +166,7 @@ void qemu_notify_event(void)
 
 static GArray *gpollfds;
 
+extern "C"
 int qemu_init_main_loop(Error **errp)
 {
     int ret;
@@ -202,7 +212,9 @@ static void main_loop_update_params(EventLoopBase *base, Error **errp)
                                        base->thread_pool_max, errp);
 }
 
+extern "C" {
 MainLoop *mloop;
+}
 
 static void main_loop_init(EventLoopBase *base, Error **errp)
 {
@@ -235,8 +247,8 @@ static void main_loop_class_init(ObjectClass *oc, const void *class_data)
 static const TypeInfo main_loop_info = {
     .name = TYPE_MAIN_LOOP,
     .parent = TYPE_EVENT_LOOP_BASE,
-    .class_init = main_loop_class_init,
     .instance_size = sizeof(MainLoop),
+    .class_init = main_loop_class_init,
 };
 
 static void main_loop_register_types(void)
@@ -305,7 +317,8 @@ static int os_host_main_loop_wait(int64_t timeout)
     bql_unlock();
     replay_mutex_unlock();
 
-    ret = qemu_poll_ns((GPollFD *)gpollfds->data, gpollfds->len, timeout);
+    ret = qemu_poll_ns(reinterpret_cast<GPollFD *>(gpollfds->data),
+                       gpollfds->len, timeout);
 
     replay_mutex_lock();
     bql_lock();
@@ -328,6 +341,7 @@ typedef struct PollingEntry {
 
 static PollingEntry *first_polling_entry;
 
+extern "C"
 int qemu_add_polling_cb(PollingFunc *func, void *opaque)
 {
     PollingEntry **ppe, *pe;
@@ -339,6 +353,7 @@ int qemu_add_polling_cb(PollingFunc *func, void *opaque)
     return 0;
 }
 
+extern "C"
 void qemu_del_polling_cb(PollingFunc *func, void *opaque)
 {
     PollingEntry **ppe, *pe;
@@ -364,6 +379,7 @@ typedef struct WaitObjects {
 
 static WaitObjects wait_objects = {0};
 
+extern "C"
 int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 {
     int i;
@@ -388,6 +404,7 @@ int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
     return 0;
 }
 
+extern "C"
 void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 {
     int i, found;
@@ -414,7 +431,7 @@ static int pollfds_fill(GArray *pollfds, fd_set *rfds, fd_set *wfds,
                         fd_set *xfds)
 {
     int nfds = -1;
-    int i;
+    unsigned int i;
 
     for (i = 0; i < pollfds->len; i++) {
         GPollFD *pfd = &g_array_index(pollfds, GPollFD, i);
@@ -439,7 +456,7 @@ static int pollfds_fill(GArray *pollfds, fd_set *rfds, fd_set *wfds,
 static void pollfds_poll(GArray *pollfds, int nfds, fd_set *rfds,
                          fd_set *wfds, fd_set *xfds)
 {
-    int i;
+    unsigned int i;
 
     for (i = 0; i < pollfds->len; i++) {
         GPollFD *pfd = &g_array_index(pollfds, GPollFD, i);
@@ -550,16 +567,19 @@ static int os_host_main_loop_wait(int64_t timeout)
 static NotifierList main_loop_poll_notifiers =
     NOTIFIER_LIST_INITIALIZER(main_loop_poll_notifiers);
 
+extern "C"
 void main_loop_poll_add_notifier(Notifier *notify)
 {
     notifier_list_add(&main_loop_poll_notifiers, notify);
 }
 
+extern "C"
 void main_loop_poll_remove_notifier(Notifier *notify)
 {
     notifier_remove(notify);
 }
 
+extern "C"
 void main_loop_wait(int nonblocking)
 {
     MainLoopPoll mlpoll = {
@@ -605,6 +625,7 @@ void main_loop_wait(int nonblocking)
 
 /* Functions to operate on the main QEMU AioContext.  */
 
+extern "C"
 QEMUBH *qemu_bh_new_full(QEMUBHFunc *cb, void *opaque, const char *name,
                          MemReentrancyGuard *reentrancy_guard)
 {
@@ -626,18 +647,21 @@ static void iohandler_init(void)
     }
 }
 
+extern "C"
 AioContext *iohandler_get_aio_context(void)
 {
     iohandler_init();
     return iohandler_ctx;
 }
 
+extern "C"
 GSource *iohandler_get_g_source(void)
 {
     iohandler_init();
     return aio_get_g_source(iohandler_ctx);
 }
 
+extern "C"
 void qemu_set_fd_handler(int fd,
                          IOHandler *fd_read,
                          IOHandler *fd_write,
@@ -648,6 +672,7 @@ void qemu_set_fd_handler(int fd,
                        opaque);
 }
 
+extern "C"
 void event_notifier_set_handler(EventNotifier *e,
                                 EventNotifierHandler *handler)
 {

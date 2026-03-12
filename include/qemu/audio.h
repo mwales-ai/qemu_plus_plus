@@ -86,16 +86,14 @@ void AUD_set_volume_in(SWVoiceIn *sw, Volume *vol);
 
 static inline void
 AUD_set_volume_out_lr(SWVoiceOut *sw, bool mut, uint8_t lvol, uint8_t rvol) {
-    AUD_set_volume_out(sw, &(Volume) {
-        .mute = mut, .channels = 2, .vol = { lvol, rvol }
-    });
+    Volume vol = { .mute = mut, .channels = 2, .vol = { lvol, rvol } };
+    AUD_set_volume_out(sw, &vol);
 }
 
 static inline void
 AUD_set_volume_in_lr(SWVoiceIn *sw, bool mut, uint8_t lvol, uint8_t rvol) {
-    AUD_set_volume_in(sw, &(Volume) {
-        .mute = mut, .channels = 2, .vol = { lvol, rvol }
-    });
+    Volume vol = { .mute = mut, .channels = 2, .vol = { lvol, rvol } };
+    AUD_set_volume_in(sw, &vol);
 }
 
 SWVoiceIn *AUD_open_in(
