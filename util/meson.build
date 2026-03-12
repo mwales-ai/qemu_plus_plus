@@ -89,7 +89,7 @@ if have_block or have_ga
   util_ss.add(files('thread-pool.cpp', 'qemu-timer.cpp'))
 endif
 if have_block or have_ga or have_user
-  util_ss.add(files('qemu-sockets.c'))
+  util_ss.add(files('qemu-sockets.cpp'))
 endif
 if have_block
   util_ss.add(files('aio-wait.cpp'))

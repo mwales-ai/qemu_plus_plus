@@ -16,11 +16,15 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
 
 #ifdef CONFIG_AF_VSOCK
 #include <linux/vm_sockets.h>
 #endif /* CONFIG_AF_VSOCK */
 
+extern "C" {
 #include "monitor/monitor.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/error.h"
@@ -32,6 +36,7 @@
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 #include "trace.h"
+}
 
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0
@@ -54,6 +59,8 @@
 #endif
 
 
+extern "C" {
+
 static int inet_getport(struct addrinfo *e)
 {
     struct sockaddr_in *i4;
@@ -61,10 +68,10 @@ static int inet_getport(struct addrinfo *e)
 
     switch (e->ai_family) {
     case PF_INET6:
-        i6 = (void*)e->ai_addr;
+        i6 = reinterpret_cast<struct sockaddr_in6 *>(e->ai_addr);
         return ntohs(i6->sin6_port);
     case PF_INET:
-        i4 = (void*)e->ai_addr;
+        i4 = reinterpret_cast<struct sockaddr_in *>(e->ai_addr);
         return ntohs(i4->sin_port);
     default:
         return 0;
@@ -78,11 +85,11 @@ static void inet_setport(struct addrinfo *e, int port)
 
     switch (e->ai_family) {
     case PF_INET6:
-        i6 = (void*)e->ai_addr;
+        i6 = reinterpret_cast<struct sockaddr_in6 *>(e->ai_addr);
         i6->sin6_port = htons(port);
         break;
     case PF_INET:
-        i4 = (void*)e->ai_addr;
+        i4 = reinterpret_cast<struct sockaddr_in *>(e->ai_addr);
         i4->sin_port = htons(port);
         break;
     }
@@ -647,8 +654,9 @@ err:
 
 static QemuOptsList inet_opts = {
     .name = "InetSocketAddress",
-    .head = QTAILQ_HEAD_INITIALIZER(inet_opts.head),
     .implied_opt_name = "addr",
+    .merge_lists = false,
+    .head = QTAILQ_HEAD_INITIALIZER(inet_opts.head),
     .desc = {
         {
             .name = "addr",
@@ -1516,3 +1524,4 @@ SocketAddress *socket_address_flatten(SocketAddressLegacy *addr_legacy)
 
     return addr;
 }
+} /* extern "C" */
