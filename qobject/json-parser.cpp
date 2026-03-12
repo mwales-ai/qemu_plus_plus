@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
 #include "qemu/unicode.h"
@@ -242,13 +247,13 @@ out:
 static JSONToken *parser_context_pop_token(JSONParserContext *ctxt)
 {
     g_free(ctxt->current);
-    ctxt->current = g_queue_pop_head(ctxt->buf);
+    ctxt->current = static_cast<JSONToken *>(g_queue_pop_head(ctxt->buf));
     return ctxt->current;
 }
 
 static JSONToken *parser_context_peek_token(JSONParserContext *ctxt)
 {
-    return g_queue_peek_head(ctxt->buf);
+    return static_cast<JSONToken *>(g_queue_peek_head(ctxt->buf));
 }
 
 /**
@@ -561,7 +566,7 @@ static QObject *parse_value(JSONParserContext *ctxt)
 
 JSONToken *json_token(JSONTokenType type, int x, int y, GString *tokstr)
 {
-    JSONToken *token = g_malloc(sizeof(JSONToken) + tokstr->len + 1);
+    JSONToken *token = static_cast<JSONToken *>(g_malloc(sizeof(JSONToken) + tokstr->len + 1));
 
     token->type = type;
     memcpy(token->str, tokstr->str, tokstr->len);
@@ -588,3 +593,5 @@ QObject *json_parser_parse(GQueue *tokens, va_list *ap, Error **errp)
 
     return result;
 }
+
+} /* extern "C" */

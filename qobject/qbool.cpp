@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qobject/qbool.h"
 #include "qobject-internal.h"
 
@@ -24,7 +29,7 @@ QBool *qbool_from_bool(bool value)
 {
     QBool *qb;
 
-    qb = g_malloc(sizeof(*qb));
+    qb = static_cast<QBool *>(g_malloc(sizeof(*qb)));
     qobject_init(QOBJECT(qb), QTYPE_QBOOL);
     qb->value = value;
 
@@ -61,3 +66,5 @@ void qbool_unref(QBool *q)
 {
     qobject_unref(q);
 }
+
+} /* extern "C" */

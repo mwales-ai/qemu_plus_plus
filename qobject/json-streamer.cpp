@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "json-parser-int.h"
 
@@ -23,7 +28,7 @@ static void json_message_free_tokens(JSONMessageParser *parser)
 {
     JSONToken *token;
 
-    while ((token = g_queue_pop_head(&parser->tokens))) {
+    while ((token = static_cast<JSONToken *>(g_queue_pop_head(&parser->tokens)))) {
         g_free(token);
     }
 }
@@ -132,3 +137,5 @@ void json_message_parser_destroy(JSONMessageParser *parser)
     json_lexer_destroy(&parser->lexer);
     json_message_free_tokens(parser);
 }
+
+} /* extern "C" */

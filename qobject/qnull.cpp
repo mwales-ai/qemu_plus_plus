@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qobject/qnull.h"
 #include "qobject-internal.h"
 
@@ -34,3 +39,5 @@ void qnull_unref(QNull *q)
 {
     qobject_unref(q);
 }
+
+} /* extern "C" */

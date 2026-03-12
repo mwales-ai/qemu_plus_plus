@@ -8,6 +8,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "block/qdict.h"
 #include "qobject/qbool.h"
 #include "qobject/qlist.h"
@@ -736,3 +741,5 @@ Visitor *qobject_input_visitor_new_flat_confused(QDict *qdict,
     qobject_unref(crumpled);
     return v;
 }
+
+} /* extern "C" */

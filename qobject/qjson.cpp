@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qobject/json-parser.h"
 #include "qobject/json-writer.h"
@@ -30,7 +35,7 @@ typedef struct JSONParsingState {
 
 static void consume_json(void *opaque, QObject *json, Error *err)
 {
-    JSONParsingState *s = opaque;
+    JSONParsingState *s = static_cast<JSONParsingState *>(opaque);
 
     assert(!json != !err);
     assert(!s->result || !s->err);
@@ -230,3 +235,5 @@ GString *qobject_to_json(const QObject *obj)
 {
     return qobject_to_json_pretty(obj, false);
 }
+
+} /* extern "C" */

@@ -14,6 +14,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qobject/json-writer.h"
 #include "qemu/unicode.h"
 
@@ -245,3 +250,5 @@ void json_writer_str(JSONWriter *writer, const char *name, const char *str)
     maybe_comma_name(writer, name);
     quoted_str(writer, str);
 }
+
+} /* extern "C" */

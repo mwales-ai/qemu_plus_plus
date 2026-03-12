@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "json-parser-int.h"
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
@@ -363,3 +364,4 @@ void json_lexer_destroy(JSONLexer *lexer)
 {
     g_string_free(lexer->token, true);
 }
+

@@ -13,6 +13,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qobject/qnum.h"
 #include "qobject-internal.h"
 
@@ -195,7 +200,7 @@ bool qnum_is_equal(const QObject *x, const QObject *y)
         case QNUM_U64:
             /* Implicit conversion of x to uin64_t, so we have to
              * check its sign before */
-            return num_x->u.i64 >= 0 && num_x->u.i64 == num_y->u.u64;
+            return num_x->u.i64 >= 0 && (uint64_t)num_x->u.i64 == num_y->u.u64;
         case QNUM_DOUBLE:
             return false;
         }
@@ -240,3 +245,5 @@ void qnum_unref(QNum *q)
 {
     qobject_unref(q);
 }
+
+} /* extern "C" */

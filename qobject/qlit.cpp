@@ -14,6 +14,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "qobject/qlit.h"
 #include "qobject/qbool.h"
@@ -25,7 +30,7 @@
 
 static bool qlit_equal_qdict(const QLitObject *lhs, const QDict *qdict)
 {
-    int i;
+    size_t i;
 
     for (i = 0; lhs->value.qdict[i].key; i++) {
         QObject *obj = qdict_get(qdict, lhs->value.qdict[i].key);
@@ -123,3 +128,5 @@ QObject *qobject_from_qlit(const QLitObject *qlit)
 
     return NULL;
 }
+
+} /* extern "C" */

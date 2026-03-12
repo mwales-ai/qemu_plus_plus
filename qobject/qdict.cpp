@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qobject/qnum.h"
 #include "qobject/qdict.h"
 #include "qobject/qbool.h"
@@ -27,7 +32,7 @@ QDict *qdict_new(void)
 {
     QDict *qdict;
 
-    qdict = g_malloc0(sizeof(*qdict));
+    qdict = static_cast<QDict *>(g_malloc0(sizeof(*qdict)));
     qobject_init(QOBJECT(qdict), QTYPE_QDICT);
 
     return qdict;
@@ -57,7 +62,7 @@ static QDictEntry *alloc_entry(const char *key, QObject *value)
 {
     QDictEntry *entry;
 
-    entry = g_malloc0(sizeof(*entry));
+    entry = static_cast<QDictEntry *>(g_malloc0(sizeof(*entry)));
     entry->key = g_strdup(key);
     entry->value = value;
 
@@ -460,3 +465,5 @@ void qdict_unref(QDict *q)
 {
     qobject_unref(q);
 }
+
+} /* extern "C" */

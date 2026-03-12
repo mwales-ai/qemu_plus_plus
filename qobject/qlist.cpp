@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qobject/qbool.h"
 #include "qobject/qlist.h"
 #include "qobject/qnull.h"
@@ -28,7 +33,7 @@ QList *qlist_new(void)
 {
     QList *qlist;
 
-    qlist = g_malloc(sizeof(*qlist));
+    qlist = static_cast<QList *>(g_malloc(sizeof(*qlist)));
     qobject_init(QOBJECT(qlist), QTYPE_QLIST);
     QTAILQ_INIT(&qlist->head);
 
@@ -58,7 +63,7 @@ void qlist_append_obj(QList *qlist, QObject *value)
 {
     QListEntry *entry;
 
-    entry = g_malloc(sizeof(*entry));
+    entry = static_cast<QListEntry *>(g_malloc(sizeof(*entry)));
     entry->value = value;
 
     QTAILQ_INSERT_TAIL(&qlist->head, entry, next);
@@ -187,3 +192,5 @@ void qlist_unref(QList *q)
 {
     qobject_unref(q);
 }
+
+} /* extern "C" */

@@ -8,6 +8,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qobject/qbool.h"
 #include "qobject/qnull.h"
 #include "qobject/qnum.h"
@@ -70,3 +75,5 @@ bool qobject_is_equal(const QObject *x, const QObject *y)
 
     return qis_equal[x->base.type](x, y);
 }
+
+} /* extern "C" */
