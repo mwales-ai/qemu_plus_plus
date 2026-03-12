@@ -14,6 +14,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/sockets.h"
 #include "monitor-internal.h"
 #include "monitor/qdev.h"
@@ -35,7 +40,7 @@
 
 NameInfo *qmp_query_name(Error **errp)
 {
-    NameInfo *info = g_malloc0(sizeof(*info));
+    NameInfo *info = static_cast<NameInfo *>(g_malloc0(sizeof(*info)));
 
     info->name = g_strdup(qemu_name);
     return info;
@@ -143,7 +148,7 @@ void qmp_add_client(const char *protocol, const char *fdname,
         return;
     }
 
-    for (i = 0; i < ARRAY_SIZE(protocol_table); i++) {
+    for (i = 0; i < (int)ARRAY_SIZE(protocol_table); i++) {
         if (!strcmp(protocol, protocol_table[i].name)) {
             if (!protocol_table[i].add_client(fd, has_skipauth, skipauth,
                                               has_tls, tls, errp)) {
@@ -172,7 +177,8 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
         if (ret < 0) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
                        "a CPU number");
-            goto out;
+            monitor_data_destroy(&hmp.common);
+            return output;
         }
     }
 
@@ -182,7 +188,6 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
         output = g_strdup(hmp.common.outbuf->str);
     }
 
-out:
     monitor_data_destroy(&hmp.common);
     return output;
 }
@@ -199,10 +204,12 @@ static void __attribute__((__constructor__)) monitor_init_qmp_commands(void)
     qmp_init_marshal(&qmp_commands);
 
     qmp_register_command(&qmp_commands, "device_add",
-                         qmp_device_add, 0, 0);
+                         qmp_device_add, static_cast<QmpCommandOptions>(0), 0);
 
     QTAILQ_INIT(&qmp_cap_negotiation_commands);
     qmp_register_command(&qmp_cap_negotiation_commands, "qmp_capabilities",
                          qmp_marshal_qmp_capabilities,
                          QCO_ALLOW_PRECONFIG, 0);
 }
+
+} /* extern "C" */

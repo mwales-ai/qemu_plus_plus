@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/target-info.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
@@ -15,7 +20,7 @@ static CommandLineParameterInfoList *query_option_descs(const QemuOptDesc *desc)
     int i;
 
     for (i = 0; desc[i].name != NULL; i++) {
-        info = g_malloc0(sizeof(*info));
+        info = static_cast<CommandLineParameterInfo *>(g_malloc0(sizeof(*info)));
         info->name = g_strdup(desc[i].name);
 
         switch (desc[i].type) {
@@ -66,7 +71,7 @@ static void cleanup_infolist(CommandLineParameterInfoList *head)
 
 /* merge the description items of two parameter infolists */
 static void connect_infolist(CommandLineParameterInfoList *head,
-                             CommandLineParameterInfoList *new)
+                             CommandLineParameterInfoList *new_list)
 {
     CommandLineParameterInfoList *cur;
 
@@ -74,7 +79,7 @@ static void connect_infolist(CommandLineParameterInfoList *head,
     while (cur->next) {
         cur = cur->next;
     }
-    cur->next = new;
+    cur->next = new_list;
 }
 
 /* access all the local QemuOptsLists for drive option */
@@ -100,7 +105,7 @@ static CommandLineParameterInfo *objprop_to_cmdline_prop(ObjectProperty *prop)
 {
     CommandLineParameterInfo *info;
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<CommandLineParameterInfo *>(g_malloc0(sizeof(*info)));
     info->name = g_strdup(prop->name);
 
     if (g_str_equal(prop->type, "bool") || g_str_equal(prop->type, "OnOffAuto")) {
@@ -134,7 +139,7 @@ static CommandLineParameterInfoList *query_all_machine_properties(void)
 
     /* Loop over all machine classes */
     for (curr_mach = machines; curr_mach; curr_mach = curr_mach->next) {
-        object_class_property_iter_init(&op_iter, curr_mach->data);
+        object_class_property_iter_init(&op_iter, static_cast<ObjectClass *>(curr_mach->data));
         /* ... and over the properties of each machine: */
         while ((prop = object_property_iter_next(&op_iter))) {
             if (!prop->set) {
@@ -162,7 +167,7 @@ static CommandLineParameterInfoList *query_all_machine_properties(void)
     g_slist_free(machines);
 
     /* Add entry for the "type" parameter */
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<CommandLineParameterInfo *>(g_malloc0(sizeof(*info)));
     info->name = g_strdup("type");
     info->type = COMMAND_LINE_PARAMETER_TYPE_STRING;
     info->help = g_strdup("machine type");
@@ -180,7 +185,7 @@ CommandLineOptionInfoList *qmp_query_command_line_options(const char *option,
 
     for (i = 0; vm_config_groups[i] != NULL; i++) {
         if (!option || !strcmp(option, vm_config_groups[i]->name)) {
-            info = g_malloc0(sizeof(*info));
+            info = static_cast<CommandLineOptionInfo *>(g_malloc0(sizeof(*info)));
             info->option = g_strdup(vm_config_groups[i]->name);
             if (!strcmp("drive", vm_config_groups[i]->name)) {
                 info->parameters = get_drive_infolist();
@@ -193,7 +198,7 @@ CommandLineOptionInfoList *qmp_query_command_line_options(const char *option,
     }
 
     if (!option || !strcmp(option, "machine")) {
-        info = g_malloc0(sizeof(*info));
+        info = static_cast<CommandLineOptionInfo *>(g_malloc0(sizeof(*info)));
         info->option = g_strdup("machine");
         info->parameters = query_all_machine_properties();
         QAPI_LIST_PREPEND(conf_list, info);
@@ -205,3 +210,5 @@ CommandLineOptionInfoList *qmp_query_command_line_options(const char *option,
 
     return conf_list;
 }
+
+} /* extern "C" */

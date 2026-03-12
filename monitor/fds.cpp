@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "monitor-internal.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
@@ -311,14 +316,14 @@ FdsetInfoList *qmp_query_fdsets(Error **errp)
 
     QEMU_LOCK_GUARD(&mon_fdsets_lock);
     QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
-        FdsetInfo *fdset_info = g_malloc0(sizeof(*fdset_info));
+        FdsetInfo *fdset_info = static_cast<FdsetInfo *>(g_malloc0(sizeof(*fdset_info)));
 
         fdset_info->fdset_id = mon_fdset->id;
 
         QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
             FdsetFdInfo *fdsetfd_info;
 
-            fdsetfd_info = g_malloc0(sizeof(*fdsetfd_info));
+            fdsetfd_info = static_cast<FdsetFdInfo *>(g_malloc0(sizeof(*fdsetfd_info)));
             fdsetfd_info->fd = mon_fdset_fd->fd;
             fdsetfd_info->opaque = g_strdup(mon_fdset_fd->opaque);
 
@@ -380,7 +385,7 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
             }
         }
 
-        mon_fdset = g_malloc0(sizeof(*mon_fdset));
+        mon_fdset = static_cast<MonFdset *>(g_malloc0(sizeof(*mon_fdset)));
         if (has_fdset_id) {
             mon_fdset->id = fdset_id;
         } else {
@@ -397,12 +402,12 @@ AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
         }
     }
 
-    mon_fdset_fd = g_malloc0(sizeof(*mon_fdset_fd));
+    mon_fdset_fd = static_cast<MonFdsetFd *>(g_malloc0(sizeof(*mon_fdset_fd)));
     mon_fdset_fd->fd = fd;
     mon_fdset_fd->opaque = g_strdup(opaque);
     QLIST_INSERT_HEAD(&mon_fdset->fds, mon_fdset_fd, next);
 
-    fdinfo = g_malloc0(sizeof(*fdinfo));
+    fdinfo = static_cast<AddfdInfo *>(g_malloc0(sizeof(*fdinfo)));
     fdinfo->fdset_id = mon_fdset->id;
     fdinfo->fd = mon_fdset_fd->fd;
 
@@ -462,7 +467,7 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int flags, Error **errp)
             return -1;
         }
 
-        mon_fdset_fd_dup = g_malloc0(sizeof(*mon_fdset_fd_dup));
+        mon_fdset_fd_dup = static_cast<MonFdsetFd *>(g_malloc0(sizeof(*mon_fdset_fd_dup)));
         mon_fdset_fd_dup->fd = dup_fd;
         QLIST_INSERT_HEAD(&mon_fdset->dup_fds, mon_fdset_fd_dup, next);
         return dup_fd;
@@ -513,3 +518,5 @@ static void __attribute__((__constructor__)) monitor_fds_init(void)
 {
     qemu_mutex_init(&mon_fdsets_lock);
 }
+
+} /* extern "C" */

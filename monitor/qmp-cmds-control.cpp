@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "monitor-internal.h"
 #include "qemu-version.h"
@@ -108,13 +113,13 @@ VersionInfo *qmp_query_version(Error **errp)
 static void query_commands_cb(const QmpCommand *cmd, void *opaque)
 {
     CommandInfo *info;
-    CommandInfoList **list = opaque;
+    CommandInfoList **list = static_cast<CommandInfoList **>(opaque);
 
     if (!cmd->enabled) {
         return;
     }
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<CommandInfo *>(g_malloc0(sizeof(*info)));
     info->name = g_strdup(cmd->name);
     QAPI_LIST_PREPEND(*list, info);
 }
@@ -141,7 +146,7 @@ static void *split_off_generic_list(void *list,
     GenericList *split = NULL, **split_tailp = &split;
     GenericList *tail;
 
-    for (tail = list; tail; tail = tail->next) {
+    for (tail = static_cast<GenericList *>(list); tail; tail = tail->next) {
         if (splitp(tail)) {
             *split_tailp = tail;
             split_tailp = &tail->next;
@@ -185,16 +190,16 @@ static SchemaInfoList *zap_deprecated(SchemaInfoList *schema)
     SchemaInfoList *tail;
     SchemaInfo *ent;
 
-    schema = split_off_generic_list(schema, is_entity_deprecated, &to_zap);
-    qapi_free_SchemaInfoList(to_zap);
+    schema = static_cast<SchemaInfoList *>(split_off_generic_list(schema, is_entity_deprecated, &to_zap));
+    qapi_free_SchemaInfoList(static_cast<SchemaInfoList *>(to_zap));
 
     for (tail = schema; tail; tail = tail->next) {
         ent = tail->value;
         if (ent->meta_type == SCHEMA_META_TYPE_OBJECT) {
             ent->u.object.members
-                = split_off_generic_list(ent->u.object.members,
-                                         is_member_deprecated, &to_zap);
-            qapi_free_SchemaInfoObjectMemberList(to_zap);
+                = static_cast<SchemaInfoObjectMemberList *>(split_off_generic_list(ent->u.object.members,
+                                         is_member_deprecated, &to_zap));
+            qapi_free_SchemaInfoObjectMemberList(static_cast<SchemaInfoObjectMemberList *>(to_zap));
         }
     }
 
@@ -219,3 +224,5 @@ SchemaInfoList *qmp_query_qmp_schema(Error **errp)
     }
     return schema;
 }
+
+} /* extern "C" */
