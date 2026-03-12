@@ -6,16 +6,16 @@
 
 # We build two versions of gdbstub, one for each mode
 user_ss.add(files(
-  'gdbstub.c',
-  'syscalls.c',
-  'user.c'
+  'gdbstub.cpp',
+  'syscalls.cpp',
+  'user.cpp'
 ))
 
 system_ss.add(files(
-  'gdbstub.c',
-  'syscalls.c',
-  'system.c'
+  'gdbstub.cpp',
+  'syscalls.cpp',
+  'system.cpp'
 ))
 
 # The user-target is specialised by the guest
-specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-target.c'))
+specific_ss.add(when: 'CONFIG_USER_ONLY', if_true: files('user-target.cpp'))

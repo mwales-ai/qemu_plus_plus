@@ -1,33 +1,33 @@
 specific_ss.add(when: 'CONFIG_SYSTEM_ONLY', if_true: [files(
-  'arch_init.c',
-  'globals-target.c',
+  'arch_init.cpp',
+  'globals-target.cpp',
 )])
 
 system_ss.add(files(
-  'vl.c',
+  'vl.cpp',
 ), sdl, libpmem, libdaxctl)
 
 system_ss.add(files(
-  'balloon.c',
+  'balloon.cpp',
   'bootdevice.cpp',
-  'cpus.c',
+  'cpus.cpp',
   'cpu-timers.cpp',
-  'datadir.c',
-  'dirtylimit.c',
-  'dma-helpers.c',
+  'datadir.cpp',
+  'dirtylimit.cpp',
+  'dma-helpers.cpp',
   'exit-with-parent.cpp',
   'globals.cpp',
-  'ioport.c',
-  'ram-block-attributes.c',
+  'ioport.cpp',
+  'ram-block-attributes.cpp',
   'memory_mapping.cpp',
-  'memory.c',
-  'physmem.c',
+  'memory.cpp',
+  'physmem.cpp',
   'qdev-monitor.cpp',
   'qtest.cpp',
   'rtc.cpp',
   'runstate-action.cpp',
   'runstate-hmp-cmds.cpp',
-  'runstate.c',
+  'runstate.cpp',
   'tpm-hmp-cmds.cpp',
   'watchpoint.cpp',
 ))

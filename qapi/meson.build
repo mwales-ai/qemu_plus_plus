@@ -1,23 +1,23 @@
 util_ss.add(files(
-  'opts-visitor.c',
-  'qapi-clone-visitor.c',
-  'qapi-dealloc-visitor.c',
-  'qapi-forward-visitor.c',
-  'qapi-util.c',
-  'qapi-visit-core.c',
-  'qobject-input-visitor.c',
-  'qobject-output-visitor.c',
-  'string-input-visitor.c',
-  'string-output-visitor.c',
+  'opts-visitor.cpp',
+  'qapi-clone-visitor.cpp',
+  'qapi-dealloc-visitor.cpp',
+  'qapi-forward-visitor.cpp',
+  'qapi-util.cpp',
+  'qapi-visit-core.cpp',
+  'qobject-input-visitor.cpp',
+  'qobject-output-visitor.cpp',
+  'string-input-visitor.cpp',
+  'string-output-visitor.cpp',
 ))
 if have_system
-  util_ss.add(files('qapi-type-helpers.c'))
+  util_ss.add(files('qapi-type-helpers.cpp'))
 endif
 if have_system or have_tools or have_ga
   util_ss.add(files(
-    'qmp-dispatch.c',
-    'qmp-event.c',
-    'qmp-registry.c',
+    'qmp-dispatch.cpp',
+    'qmp-event.cpp',
+    'qmp-registry.cpp',
   ))
 endif
 

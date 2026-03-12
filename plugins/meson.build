@@ -58,11 +58,11 @@ if host_os == 'windows'
   )
 endif
 
-user_ss.add(files('user.c', 'api-user.c'))
-system_ss.add(files('system.c', 'api-system.c'))
+user_ss.add(files('user.cpp', 'api-user.cpp'))
+system_ss.add(files('system.cpp', 'api-system.cpp'))
 
-user_ss.add(files('api.c', 'core.c'))
-system_ss.add(files('api.c', 'core.c'))
+user_ss.add(files('api.cpp', 'core.cpp'))
+system_ss.add(files('api.cpp', 'core.cpp'))
 
-common_ss.add(files('loader.c'))
+common_ss.add(files('loader.cpp'))
 

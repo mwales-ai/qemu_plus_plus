@@ -4544,7 +4544,7 @@ if have_tools
                install: true,
                install_dir: get_option('libexecdir'))
 
-    executable('qemu-pr-helper', files('scsi/qemu-pr-helper.c', 'scsi/utils.c'),
+    executable('qemu-pr-helper', files('scsi/qemu-pr-helper.cpp', 'scsi/utils.cpp'),
                dependencies: [authz, crypto, io, qom, qemuutil,
                               libcap_ng, mpathpersist],
                install: true)
