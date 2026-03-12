@@ -8,6 +8,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/accel.h"
 #include "accel-internal.h"
 
@@ -28,3 +33,5 @@ AccelState *current_accel(void)
     }
     return accel;
 }
+
+} /* extern "C" */

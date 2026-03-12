@@ -25,6 +25,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/lockcnt.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
@@ -153,3 +158,5 @@ void accel_ioctl_inhibit_end(void)
     }
 }
 
+
+} /* extern "C" */

@@ -7,6 +7,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/accel.h"
 #include "qapi/type-helpers.h"
 #include "qapi/qapi-commands-accelerator.h"
@@ -33,3 +38,5 @@ HumanReadableText *qmp_x_accel_stats(Error **errp)
 
     return human_readable_text_from_str(buf);
 }
+
+} /* extern "C" */

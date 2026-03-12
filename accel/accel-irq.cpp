@@ -10,6 +10,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "hw/pci/msi.h"
 
 #include "system/kvm.h"
@@ -104,3 +109,5 @@ int accel_irqchip_remove_irqfd_notifier_gsi(EventNotifier *n, int virq)
     }
     return -ENOSYS;
 }
+
+} /* extern "C" */

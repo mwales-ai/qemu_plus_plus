@@ -8,6 +8,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/accel.h"
 #include "qemu/target-info.h"
 #include "accel/accel-ops.h"
@@ -35,7 +40,7 @@ const char *current_accel_name(void)
 static void accel_init_cpu_int_aux(ObjectClass *klass, void *opaque)
 {
     CPUClass *cc = CPU_CLASS(klass);
-    AccelCPUClass *accel_cpu = opaque;
+    AccelCPUClass *accel_cpu = static_cast<AccelCPUClass *>(opaque);
 
     /*
      * The first callback allows accel-cpu to run initializations
@@ -135,10 +140,12 @@ static const TypeInfo accel_types[] = {
     {
         .name           = TYPE_ACCEL,
         .parent         = TYPE_OBJECT,
-        .class_size     = sizeof(AccelClass),
         .instance_size  = sizeof(AccelState),
-        .is_abstract       = true,
+        .is_abstract    = true,
+        .class_size     = sizeof(AccelClass),
     },
 };
 
 DEFINE_TYPES(accel_types)
+
+} /* extern "C" */

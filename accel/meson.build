@@ -1,7 +1,7 @@
-common_ss.add(files('accel-common.c'))
+common_ss.add(files('accel-common.cpp'))
 specific_ss.add(files('accel-target.c'))
-system_ss.add(files('accel-system.c', 'accel-blocker.c', 'accel-qmp.c', 'accel-irq.c'))
-user_ss.add(files('accel-user.c'))
+system_ss.add(files('accel-system.c', 'accel-blocker.cpp', 'accel-qmp.cpp', 'accel-irq.cpp'))
+user_ss.add(files('accel-user.cpp'))
 
 subdir('tcg')
 if have_system
@@ -14,4 +14,4 @@ if have_system
 endif
 
 # qtest
-system_ss.add(files('dummy-cpus.c'))
+system_ss.add(files('dummy-cpus.cpp'))

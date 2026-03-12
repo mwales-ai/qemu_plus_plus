@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/rcu.h"
 #include "system/cpus.h"
 #include "qemu/guest-random.h"
@@ -21,7 +26,7 @@
 
 static void *dummy_cpu_thread_fn(void *arg)
 {
-    CPUState *cpu = arg;
+    CPUState *cpu = static_cast<CPUState *>(arg);
 
     rcu_register_thread();
 
@@ -77,3 +82,5 @@ void dummy_start_vcpu_thread(CPUState *cpu)
     qemu_sem_init(&cpu->sem, 0);
 #endif
 }
+
+} /* extern "C" */
