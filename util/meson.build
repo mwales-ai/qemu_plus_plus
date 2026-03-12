@@ -55,8 +55,8 @@ if have_membarrier
 endif
 util_ss.add(files('log.cpp'))
 util_ss.add(files('qdist.cpp'))
-util_ss.add(files('qht.c'))
-util_ss.add(files('qsp.c'))
+util_ss.add(files('qht.cpp'))
+util_ss.add(files('qsp.cpp'))
 util_ss.add(files('range.cpp'))
 util_ss.add(files('reserved-region.cpp'))
 util_ss.add(files('stats64.cpp'))

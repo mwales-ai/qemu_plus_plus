@@ -66,6 +66,8 @@
  *     https://lwn.net/Articles/612021/
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/qht.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
@@ -194,7 +196,7 @@ struct qht_map {
 /* trigger a resize when n_added_buckets > n_buckets / div */
 #define QHT_NR_ADDED_BUCKETS_THRESHOLD_DIV 8
 
-static void qht_do_resize_reset(struct qht *ht, struct qht_map *new,
+static void qht_do_resize_reset(struct qht *ht, struct qht_map *new_map,
                                 bool reset);
 static void qht_grow_maybe(struct qht *ht);
 
@@ -227,7 +229,7 @@ static void qht_bucket_debug__locked(struct qht_bucket *b)
 
 static void qht_map_debug__all_locked(struct qht_map *map)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < map->n_buckets; i++) {
         qht_bucket_debug__locked(&map->buckets[i]);
@@ -441,7 +443,7 @@ static struct qht_map *qht_map_create(size_t n_buckets)
     struct qht_map *map;
     size_t i;
 
-    map = g_malloc(sizeof(*map));
+    map = static_cast<struct qht_map *>(g_malloc(sizeof(*map)));
     map->n_buckets = n_buckets;
 
     map->n_added_buckets = 0;
@@ -453,8 +455,8 @@ static struct qht_map *qht_map_create(size_t n_buckets)
         map->n_added_buckets_threshold = 1;
     }
 
-    map->buckets = qemu_memalign(QHT_BUCKET_ALIGN,
-                                 sizeof(*map->buckets) * n_buckets);
+    map->buckets = static_cast<struct qht_bucket *>(
+        qemu_memalign(QHT_BUCKET_ALIGN, sizeof(*map->buckets) * n_buckets));
     for (i = 0; i < n_buckets; i++) {
         qht_head_init(map, &map->buckets[i]);
     }
@@ -522,19 +524,19 @@ void qht_reset(struct qht *ht)
     qht_map_unlock_buckets(map);
 }
 
-static inline void qht_do_resize(struct qht *ht, struct qht_map *new)
+static inline void qht_do_resize(struct qht *ht, struct qht_map *new_map)
 {
-    qht_do_resize_reset(ht, new, false);
+    qht_do_resize_reset(ht, new_map, false);
 }
 
-static inline void qht_do_resize_and_reset(struct qht *ht, struct qht_map *new)
+static inline void qht_do_resize_and_reset(struct qht *ht, struct qht_map *new_map)
 {
-    qht_do_resize_reset(ht, new, true);
+    qht_do_resize_reset(ht, new_map, true);
 }
 
 bool qht_reset_size(struct qht *ht, size_t n_elems)
 {
-    struct qht_map *new = NULL;
+    struct qht_map *new_map = NULL;
     struct qht_map *map;
     size_t n_buckets;
 
@@ -543,12 +545,12 @@ bool qht_reset_size(struct qht *ht, size_t n_elems)
     qht_lock(ht);
     map = ht->map;
     if (n_buckets != map->n_buckets) {
-        new = qht_map_create(n_buckets);
+        new_map = qht_map_create(n_buckets);
     }
-    qht_do_resize_and_reset(ht, new);
+    qht_do_resize_and_reset(ht, new_map);
     qht_unlock(ht);
 
-    return !!new;
+    return !!new_map;
 }
 
 static inline
@@ -630,7 +632,7 @@ static void *qht_insert__locked(const struct qht *ht, struct qht_map *map,
 {
     struct qht_bucket *b = head;
     struct qht_bucket *prev = NULL;
-    struct qht_bucket *new = NULL;
+    struct qht_bucket *new_b = NULL;
     int i;
 
     do {
@@ -648,9 +650,9 @@ static void *qht_insert__locked(const struct qht *ht, struct qht_map *map,
         b = b->next;
     } while (b);
 
-    b = qemu_memalign(QHT_BUCKET_ALIGN, sizeof(*b));
+    b = static_cast<struct qht_bucket *>(qemu_memalign(QHT_BUCKET_ALIGN, sizeof(*b)));
     memset(b, 0, sizeof(*b));
-    new = b;
+    new_b = b;
     i = 0;
     qatomic_inc(&map->n_added_buckets);
     if (unlikely(qht_map_needs_resize(map)) && needs_resize) {
@@ -660,7 +662,7 @@ static void *qht_insert__locked(const struct qht *ht, struct qht_map *map,
  found:
     /* found an empty key: acquire the seqlock and write */
     seqlock_write_begin(&head->sequence);
-    if (new) {
+    if (new_b) {
         qatomic_rcu_set(&prev->next, b);
     }
     /* smp_wmb() implicit in seqlock_write_begin.  */
@@ -684,9 +686,9 @@ static __attribute__((noinline)) void qht_grow_maybe(struct qht *ht)
     map = ht->map;
     /* another thread might have just performed the resize we were after */
     if (qht_map_needs_resize(map)) {
-        struct qht_map *new = qht_map_create(map->n_buckets * 2);
+        struct qht_map *new_map = qht_map_create(map->n_buckets * 2);
 
-        qht_do_resize(ht, new);
+        qht_do_resize(ht, new_map);
     }
     qht_unlock(ht);
 }
@@ -879,51 +881,51 @@ do_qht_iter(struct qht *ht, const struct qht_iter *iter, void *userp)
 
 void qht_iter(struct qht *ht, qht_iter_func_t func, void *userp)
 {
-    const struct qht_iter iter = {
-        .f.retvoid = func,
-        .type = QHT_ITER_VOID,
-    };
+    struct qht_iter iter;
+    memset(&iter, 0, sizeof(iter));
+    iter.f.retvoid = func;
+    iter.type = QHT_ITER_VOID;
 
     do_qht_iter(ht, &iter, userp);
 }
 
 void qht_iter_remove(struct qht *ht, qht_iter_bool_func_t func, void *userp)
 {
-    const struct qht_iter iter = {
-        .f.retbool = func,
-        .type = QHT_ITER_RM,
-    };
+    struct qht_iter iter;
+    memset(&iter, 0, sizeof(iter));
+    iter.f.retbool = func;
+    iter.type = QHT_ITER_RM;
 
     do_qht_iter(ht, &iter, userp);
 }
 
 struct qht_map_copy_data {
     struct qht *ht;
-    struct qht_map *new;
+    struct qht_map *new_map;
 };
 
 static void qht_map_copy(void *p, uint32_t hash, void *userp)
 {
-    struct qht_map_copy_data *data = userp;
+    struct qht_map_copy_data *data = static_cast<struct qht_map_copy_data *>(userp);
     struct qht *ht = data->ht;
-    struct qht_map *new = data->new;
-    struct qht_bucket *b = qht_map_to_bucket(new, hash);
+    struct qht_map *new_map = data->new_map;
+    struct qht_bucket *b = qht_map_to_bucket(new_map, hash);
 
     /* no need to acquire b->lock because no thread has seen this map yet */
-    qht_insert__locked(ht, new, b, p, hash, NULL);
+    qht_insert__locked(ht, new_map, b, p, hash, NULL);
 }
 
 /*
  * Atomically perform a resize and/or reset.
  * Call with ht->lock held.
  */
-static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
+static void qht_do_resize_reset(struct qht *ht, struct qht_map *new_map, bool reset)
 {
     struct qht_map *old;
-    const struct qht_iter iter = {
-        .f.retvoid = qht_map_copy,
-        .type = QHT_ITER_VOID,
-    };
+    struct qht_iter iter;
+    memset(&iter, 0, sizeof(iter));
+    iter.f.retvoid = qht_map_copy;
+    iter.type = QHT_ITER_VOID;
     struct qht_map_copy_data data;
 
     old = ht->map;
@@ -933,18 +935,18 @@ static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
         qht_map_reset__all_locked(old);
     }
 
-    if (new == NULL) {
+    if (new_map == NULL) {
         qht_map_unlock_buckets(old);
         return;
     }
 
-    g_assert(new->n_buckets != old->n_buckets);
+    g_assert(new_map->n_buckets != old->n_buckets);
     data.ht = ht;
-    data.new = new;
+    data.new_map = new_map;
     qht_map_iter__all_locked(old, &iter, &data);
-    qht_map_debug__all_locked(new);
+    qht_map_debug__all_locked(new_map);
 
-    qatomic_rcu_set(&ht->map, new);
+    qatomic_rcu_set(&ht->map, new_map);
     qht_map_unlock_buckets(old);
     call_rcu(old, qht_map_destroy, rcu);
 }
@@ -952,14 +954,14 @@ static void qht_do_resize_reset(struct qht *ht, struct qht_map *new, bool reset)
 bool qht_resize(struct qht *ht, size_t n_elems)
 {
     size_t n_buckets = qht_elems_to_buckets(n_elems);
-    size_t ret = false;
+    bool ret = false;
 
     qht_lock(ht);
     if (n_buckets != ht->map->n_buckets) {
-        struct qht_map *new;
+        struct qht_map *new_map;
 
-        new = qht_map_create(n_buckets);
-        qht_do_resize(ht, new);
+        new_map = qht_map_create(n_buckets);
+        qht_do_resize(ht, new_map);
         ret = true;
     }
     qht_unlock(ht);
@@ -971,7 +973,7 @@ bool qht_resize(struct qht *ht, size_t n_elems)
 void qht_statistics_init(const struct qht *ht, struct qht_stats *stats)
 {
     const struct qht_map *map;
-    int i;
+    size_t i;
 
     map = qatomic_rcu_read(&ht->map);
 
@@ -1028,3 +1030,5 @@ void qht_statistics_destroy(struct qht_stats *stats)
     qdist_destroy(&stats->occupancy);
     qdist_destroy(&stats->chain);
 }
+
+} /* extern "C" */

@@ -58,6 +58,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/qemu-print.h"
 #include "qemu/thread.h"
 #include "qemu/timer.h"
@@ -99,7 +101,7 @@ typedef struct QSPSnapshot QSPSnapshot;
 #define QSP_INITIAL_SIZE 64
 
 /* If this file is moved, QSP_REL_PATH should be updated accordingly */
-#define QSP_REL_PATH "util/qsp.c"
+#define QSP_REL_PATH "util/qsp.cpp"
 
 /* this file's full path. Used to present all call sites with relative paths */
 static size_t qsp_qemu_path_len;
@@ -118,10 +120,10 @@ static QSPSnapshot *qsp_snapshot;
 static bool qsp_initialized, qsp_initializing;
 
 static const char * const qsp_typenames[] = {
-    [QSP_MUTEX]     = "mutex",
-    [QSP_BQL_MUTEX] = "BQL mutex",
-    [QSP_REC_MUTEX] = "rec_mutex",
-    [QSP_CONDVAR]   = "condvar",
+    "mutex",      /* QSP_MUTEX */
+    "BQL mutex",  /* QSP_BQL_MUTEX */
+    "rec_mutex",  /* QSP_REC_MUTEX */
+    "condvar",    /* QSP_CONDVAR */
 };
 
 QemuMutexLockFunc bql_mutex_lock_func = qemu_mutex_lock_impl;
@@ -181,8 +183,8 @@ static uint32_t qsp_entry_no_thread_obj_hash(const QSPEntry *entry)
 
 static bool qsp_callsite_cmp(const void *ap, const void *bp)
 {
-    const QSPCallSite *a = ap;
-    const QSPCallSite *b = bp;
+    const QSPCallSite *a = static_cast<const QSPCallSite *>(ap);
+    const QSPCallSite *b = static_cast<const QSPCallSite *>(bp);
 
     return a == b ||
         (a->obj == b->obj &&
@@ -193,8 +195,8 @@ static bool qsp_callsite_cmp(const void *ap, const void *bp)
 
 static bool qsp_callsite_no_obj_cmp(const void *ap, const void *bp)
 {
-    const QSPCallSite *a = ap;
-    const QSPCallSite *b = bp;
+    const QSPCallSite *a = static_cast<const QSPCallSite *>(ap);
+    const QSPCallSite *b = static_cast<const QSPCallSite *>(bp);
 
     return a == b ||
         (a->line == b->line &&
@@ -204,24 +206,24 @@ static bool qsp_callsite_no_obj_cmp(const void *ap, const void *bp)
 
 static bool qsp_entry_no_thread_cmp(const void *ap, const void *bp)
 {
-    const QSPEntry *a = ap;
-    const QSPEntry *b = bp;
+    const QSPEntry *a = static_cast<const QSPEntry *>(ap);
+    const QSPEntry *b = static_cast<const QSPEntry *>(bp);
 
     return qsp_callsite_cmp(a->callsite, b->callsite);
 }
 
 static bool qsp_entry_no_thread_obj_cmp(const void *ap, const void *bp)
 {
-    const QSPEntry *a = ap;
-    const QSPEntry *b = bp;
+    const QSPEntry *a = static_cast<const QSPEntry *>(ap);
+    const QSPEntry *b = static_cast<const QSPEntry *>(bp);
 
     return qsp_callsite_no_obj_cmp(a->callsite, b->callsite);
 }
 
 static bool qsp_entry_cmp(const void *ap, const void *bp)
 {
-    const QSPEntry *a = ap;
-    const QSPEntry *b = bp;
+    const QSPEntry *a = static_cast<const QSPEntry *>(ap);
+    const QSPEntry *b = static_cast<const QSPEntry *>(bp);
 
     return a->thread_ptr == b->thread_ptr &&
         qsp_callsite_cmp(a->callsite, b->callsite);
@@ -270,7 +272,7 @@ static QSPCallSite *qsp_callsite_find(const QSPCallSite *orig)
     uint32_t hash;
 
     hash = qsp_callsite_hash(orig);
-    callsite = qht_lookup(&qsp_callsite_ht, orig, hash);
+    callsite = static_cast<QSPCallSite *>(qht_lookup(&qsp_callsite_ht, orig, hash));
     if (callsite == NULL) {
         void *existing = NULL;
 
@@ -279,7 +281,7 @@ static QSPCallSite *qsp_callsite_find(const QSPCallSite *orig)
         qht_insert(&qsp_callsite_ht, callsite, hash, &existing);
         if (unlikely(existing)) {
             g_free(callsite);
-            callsite = existing;
+            callsite = static_cast<QSPCallSite *>(existing);
         }
     }
     return callsite;
@@ -298,7 +300,7 @@ qsp_entry_create(struct qht *ht, const QSPEntry *entry, uint32_t hash)
     qht_insert(ht, e, hash, &existing);
     if (unlikely(existing)) {
         g_free(e);
-        e = existing;
+        e = static_cast<QSPEntry *>(existing);
     }
     return e;
 }
@@ -308,7 +310,7 @@ qsp_entry_find(struct qht *ht, const QSPEntry *entry, uint32_t hash)
 {
     QSPEntry *e;
 
-    e = qht_lookup(ht, entry, hash);
+    e = static_cast<QSPEntry *>(qht_lookup(ht, entry, hash));
     if (e == NULL) {
         e = qsp_entry_create(ht, entry, hash);
     }
@@ -432,36 +434,36 @@ qsp_cond_timedwait(QemuCond *cond, QemuMutex *mutex, int ms,
 
 bool qsp_is_enabled(void)
 {
-    return qatomic_read(&qemu_mutex_lock_func) == qsp_mutex_lock;
+    return qatomic_read(&qemu_mutex_lock_func) == &qsp_mutex_lock;
 }
 
 void qsp_enable(void)
 {
-    qatomic_set(&qemu_mutex_lock_func, qsp_mutex_lock);
-    qatomic_set(&qemu_mutex_trylock_func, qsp_mutex_trylock);
-    qatomic_set(&bql_mutex_lock_func, qsp_bql_mutex_lock);
-    qatomic_set(&qemu_rec_mutex_lock_func, qsp_rec_mutex_lock);
-    qatomic_set(&qemu_rec_mutex_trylock_func, qsp_rec_mutex_trylock);
-    qatomic_set(&qemu_cond_wait_func, qsp_cond_wait);
-    qatomic_set(&qemu_cond_timedwait_func, qsp_cond_timedwait);
+    qatomic_set(&qemu_mutex_lock_func, &qsp_mutex_lock);
+    qatomic_set(&qemu_mutex_trylock_func, &qsp_mutex_trylock);
+    qatomic_set(&bql_mutex_lock_func, &qsp_bql_mutex_lock);
+    qatomic_set(&qemu_rec_mutex_lock_func, &qsp_rec_mutex_lock);
+    qatomic_set(&qemu_rec_mutex_trylock_func, &qsp_rec_mutex_trylock);
+    qatomic_set(&qemu_cond_wait_func, &qsp_cond_wait);
+    qatomic_set(&qemu_cond_timedwait_func, &qsp_cond_timedwait);
 }
 
 void qsp_disable(void)
 {
-    qatomic_set(&qemu_mutex_lock_func, qemu_mutex_lock_impl);
-    qatomic_set(&qemu_mutex_trylock_func, qemu_mutex_trylock_impl);
-    qatomic_set(&bql_mutex_lock_func, qemu_mutex_lock_impl);
-    qatomic_set(&qemu_rec_mutex_lock_func, qemu_rec_mutex_lock_impl);
-    qatomic_set(&qemu_rec_mutex_trylock_func, qemu_rec_mutex_trylock_impl);
-    qatomic_set(&qemu_cond_wait_func, qemu_cond_wait_impl);
-    qatomic_set(&qemu_cond_timedwait_func, qemu_cond_timedwait_impl);
+    qatomic_set(&qemu_mutex_lock_func, &qemu_mutex_lock_impl);
+    qatomic_set(&qemu_mutex_trylock_func, &qemu_mutex_trylock_impl);
+    qatomic_set(&bql_mutex_lock_func, &qemu_mutex_lock_impl);
+    qatomic_set(&qemu_rec_mutex_lock_func, &qemu_rec_mutex_lock_impl);
+    qatomic_set(&qemu_rec_mutex_trylock_func, &qemu_rec_mutex_trylock_impl);
+    qatomic_set(&qemu_cond_wait_func, &qemu_cond_wait_impl);
+    qatomic_set(&qemu_cond_timedwait_func, &qemu_cond_timedwait_impl);
 }
 
 static gint qsp_tree_cmp(gconstpointer ap, gconstpointer bp, gpointer up)
 {
-    const QSPEntry *a = ap;
-    const QSPEntry *b = bp;
-    enum QSPSortBy sort_by = *(enum QSPSortBy *)up;
+    const QSPEntry *a = static_cast<const QSPEntry *>(ap);
+    const QSPEntry *b = static_cast<const QSPEntry *>(bp);
+    enum QSPSortBy sort_by = *static_cast<enum QSPSortBy *>(up);
     const QSPCallSite *ca;
     const QSPCallSite *cb;
 
@@ -519,16 +521,16 @@ static gint qsp_tree_cmp(gconstpointer ap, gconstpointer bp, gpointer up)
 
 static void qsp_sort(void *p, uint32_t h, void *userp)
 {
-    QSPEntry *e = p;
-    GTree *tree = userp;
+    QSPEntry *e = static_cast<QSPEntry *>(p);
+    GTree *tree = static_cast<GTree *>(userp);
 
     g_tree_insert(tree, e, NULL);
 }
 
 static void qsp_aggregate(void *p, uint32_t h, void *up)
 {
-    struct qht *ht = up;
-    const QSPEntry *e = p;
+    struct qht *ht = static_cast<struct qht *>(up);
+    const QSPEntry *e = static_cast<const QSPEntry *>(p);
     QSPEntry *agg;
     uint32_t hash;
 
@@ -544,43 +546,43 @@ static void qsp_aggregate(void *p, uint32_t h, void *up)
 
 static void qsp_iter_diff(void *p, uint32_t hash, void *htp)
 {
-    struct qht *ht = htp;
-    QSPEntry *old = p;
-    QSPEntry *new;
+    struct qht *ht = static_cast<struct qht *>(htp);
+    QSPEntry *old = static_cast<QSPEntry *>(p);
+    QSPEntry *cur;
 
-    new = qht_lookup(ht, old, hash);
+    cur = static_cast<QSPEntry *>(qht_lookup(ht, old, hash));
     /* entries are never deleted, so we must have this one */
-    g_assert(new != NULL);
+    g_assert(cur != NULL);
     /* our reading of the stats happened after the snapshot was taken */
-    g_assert(new->n_acqs >= old->n_acqs);
-    g_assert(new->ns >= old->ns);
+    g_assert(cur->n_acqs >= old->n_acqs);
+    g_assert(cur->ns >= old->ns);
 
-    new->n_acqs -= old->n_acqs;
-    new->ns -= old->ns;
+    cur->n_acqs -= old->n_acqs;
+    cur->ns -= old->ns;
 
     /* No point in reporting an empty entry */
-    if (new->n_acqs == 0 && new->ns == 0) {
-        bool removed = qht_remove(ht, new, hash);
+    if (cur->n_acqs == 0 && cur->ns == 0) {
+        bool removed = qht_remove(ht, cur, hash);
 
         g_assert(removed);
-        g_free(new);
+        g_free(cur);
     }
 }
 
-static void qsp_diff(struct qht *orig, struct qht *new)
+static void qsp_diff(struct qht *orig, struct qht *dest)
 {
-    qht_iter(orig, qsp_iter_diff, new);
+    qht_iter(orig, qsp_iter_diff, dest);
 }
 
 static void qsp_iter_callsite_coalesce(void *p, uint32_t h, void *htp)
 {
-    struct qht *ht = htp;
-    QSPEntry *old = p;
+    struct qht *ht = static_cast<struct qht *>(htp);
+    QSPEntry *old = static_cast<QSPEntry *>(p);
     QSPEntry *e;
     uint32_t hash;
 
     hash = qsp_entry_no_thread_obj_hash(old);
-    e = qht_lookup(ht, old, hash);
+    e = static_cast<QSPEntry *>(qht_lookup(ht, old, hash));
     if (e == NULL) {
         e = qsp_entry_create(ht, old, hash);
         e->n_objs = 1;
@@ -661,7 +663,7 @@ static char *qsp_at(const QSPCallSite *callsite)
 struct QSPReportEntry {
     const void *obj;
     char *callsite_at;
-    const char *typename;
+    const char *type_name;
     double time_s;
     double ns_avg;
     uint64_t n_acqs;
@@ -678,8 +680,8 @@ typedef struct QSPReport QSPReport;
 
 static gboolean qsp_tree_report(gpointer key, gpointer value, gpointer udata)
 {
-    const QSPEntry *e = key;
-    QSPReport *report = udata;
+    const QSPEntry *e = static_cast<const QSPEntry *>(key);
+    QSPReport *report = static_cast<QSPReport *>(udata);
     QSPReportEntry *entry;
 
     if (report->n_entries == report->max_n_entries) {
@@ -691,7 +693,7 @@ static gboolean qsp_tree_report(gpointer key, gpointer value, gpointer udata)
     entry->obj = e->callsite->obj;
     entry->n_objs = e->n_objs;
     entry->callsite_at = qsp_at(e->callsite);
-    entry->typename = qsp_typenames[e->callsite->type];
+    entry->type_name = qsp_typenames[e->callsite->type];
     entry->time_s = e->ns * 1e-9;
     entry->n_acqs = e->n_acqs;
     entry->ns_avg = e->n_acqs ? e->ns / e->n_acqs : 0;
@@ -726,7 +728,7 @@ static void pr_report(const QSPReport *rep)
 
     /* build a horizontal rule with dashes */
     n_dashes = 79 + callsite_rspace;
-    dashes = g_malloc(n_dashes + 1);
+    dashes = static_cast<char *>(g_malloc(n_dashes + 1));
     memset(dashes, '-', n_dashes);
     dashes[n_dashes] = '\0';
     qemu_printf("%s\n", dashes);
@@ -735,7 +737,7 @@ static void pr_report(const QSPReport *rep)
         const QSPReportEntry *e = &rep->entries[i];
         GString *s = g_string_new(NULL);
 
-        g_string_append_printf(s, "%-9s  ", e->typename);
+        g_string_append_printf(s, "%-9s  ", e->type_name);
         if (e->n_objs > 1) {
             g_string_append_printf(s, "[%12u]", e->n_objs);
         } else {
@@ -794,20 +796,22 @@ static void qsp_snapshot_destroy(QSPSnapshot *snap)
 
 void qsp_reset(void)
 {
-    QSPSnapshot *new = g_new(QSPSnapshot, 1);
+    QSPSnapshot *snap = g_new(QSPSnapshot, 1);
     QSPSnapshot *old;
 
     qsp_init();
 
-    qht_init(&new->ht, qsp_entry_cmp, QSP_INITIAL_SIZE,
+    qht_init(&snap->ht, qsp_entry_cmp, QSP_INITIAL_SIZE,
              QHT_MODE_AUTO_RESIZE | QHT_MODE_RAW_MUTEXES);
 
     /* take a snapshot of the current state */
-    qht_iter(&qsp_ht, qsp_aggregate, &new->ht);
+    qht_iter(&qsp_ht, qsp_aggregate, &snap->ht);
 
     /* replace the previous snapshot, if any */
-    old = qatomic_xchg(&qsp_snapshot, new);
+    old = qatomic_xchg(&qsp_snapshot, snap);
     if (old) {
         call_rcu(old, qsp_snapshot_destroy, rcu);
     }
 }
+
+} /* extern "C" */

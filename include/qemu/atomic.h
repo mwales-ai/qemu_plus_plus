@@ -249,6 +249,29 @@ typedef uint64_t aligned_uint64_t __attribute__((aligned(8)));
 
 #ifdef CONFIG_ATOMIC64
 /* Use __nocheck because sizeof(void *) might be < sizeof(u64) */
+#ifdef __cplusplus
+/*
+ * C++ does not support _Generic. Use inline functions with type checking
+ * instead. The __nocheck variants are used because sizeof(void *) might
+ * be < sizeof(u64).
+ */
+static inline int64_t qatomic_read_i64(const int64_t *p)
+{
+    return qatomic_read__nocheck(p);
+}
+static inline uint64_t qatomic_read_u64(const uint64_t *p)
+{
+    return qatomic_read__nocheck(p);
+}
+static inline void qatomic_set_i64(int64_t *p, int64_t v)
+{
+    qatomic_set__nocheck(p, v);
+}
+static inline void qatomic_set_u64(uint64_t *p, uint64_t v)
+{
+    qatomic_set__nocheck(p, v);
+}
+#else
 #define qatomic_read_i64(P) \
     _Generic(*(P), int64_t: qatomic_read__nocheck(P))
 #define qatomic_read_u64(P) \
@@ -257,6 +280,7 @@ typedef uint64_t aligned_uint64_t __attribute__((aligned(8)));
     _Generic(*(P), int64_t: qatomic_set__nocheck(P, V))
 #define qatomic_set_u64(P, V) \
     _Generic(*(P), uint64_t: qatomic_set__nocheck(P, V))
+#endif /* __cplusplus */
 
 static inline void qatomic64_init(void)
 {
