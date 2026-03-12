@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/stats64.h"
 #include "qemu-file.h"
 #include "trace.h"
@@ -68,3 +73,5 @@ uint64_t migration_transferred_bytes(void)
     trace_migration_transferred_bytes(qemu_file, multifd, rdma);
     return qemu_file + multifd + rdma;
 }
+
+} /* extern "C" */

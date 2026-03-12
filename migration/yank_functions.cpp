@@ -8,6 +8,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/channel.h"
 #include "yank_functions.h"
 #include "qemu/yank.h"
@@ -56,3 +61,5 @@ void migration_ioc_unregister_yank_from_file(QEMUFile *file)
         migration_ioc_unregister_yank(ioc);
     }
 }
+
+} /* extern "C" */

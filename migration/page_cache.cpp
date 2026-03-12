@@ -13,6 +13,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
@@ -58,7 +63,7 @@ PageCache *cache_init(uint64_t new_size, size_t page_size, Error **errp)
     }
 
     /* We prefer not to abort if there is no memory */
-    cache = g_try_malloc(sizeof(*cache));
+    cache = static_cast<PageCache *>(g_try_malloc(sizeof(*cache)));
     if (!cache) {
         error_setg(errp, "Failed to allocate cache");
         return NULL;
@@ -70,15 +75,15 @@ PageCache *cache_init(uint64_t new_size, size_t page_size, Error **errp)
     trace_migration_pagecache_init(cache->max_num_items);
 
     /* We prefer not to abort if there is no memory */
-    cache->page_cache = g_try_malloc((cache->max_num_items) *
-                                     sizeof(*cache->page_cache));
+    cache->page_cache = static_cast<CacheItem *>(g_try_malloc((cache->max_num_items) *
+                                     sizeof(*cache->page_cache)));
     if (!cache->page_cache) {
         error_setg(errp, "Failed to allocate page cache");
         g_free(cache);
         return NULL;
     }
 
-    for (i = 0; i < cache->max_num_items; i++) {
+    for (i = 0; i < (int64_t)cache->max_num_items; i++) {
         cache->page_cache[i].it_data = NULL;
         cache->page_cache[i].it_age = 0;
         cache->page_cache[i].it_addr = -1;
@@ -94,7 +99,7 @@ void cache_fini(PageCache *cache)
     g_assert(cache);
     g_assert(cache->page_cache);
 
-    for (i = 0; i < cache->max_num_items; i++) {
+    for (i = 0; i < (int64_t)cache->max_num_items; i++) {
         g_free(cache->page_cache[i].it_data);
     }
 
@@ -158,7 +163,7 @@ int cache_insert(PageCache *cache, uint64_t addr, const uint8_t *pdata,
     }
     /* allocate page */
     if (!it->it_data) {
-        it->it_data = g_try_malloc(cache->page_size);
+        it->it_data = static_cast<uint8_t *>(g_try_malloc(cache->page_size));
         if (!it->it_data) {
             trace_migration_pagecache_insert();
             return -1;
@@ -173,3 +178,5 @@ int cache_insert(PageCache *cache, uint64_t addr, const uint8_t *pdata,
 
     return 0;
 }
+
+} /* extern "C" */

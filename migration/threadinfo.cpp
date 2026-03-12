@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/queue.h"
 #include "qemu/lockable.h"
 #include "threadinfo.h"
@@ -25,7 +30,7 @@ static void __attribute__((constructor)) migration_threads_init(void)
 
 MigrationThread *migration_threads_add(const char *name, int thread_id)
 {
-    MigrationThread *thread =  g_new0(MigrationThread, 1);
+    MigrationThread *thread = static_cast<MigrationThread *>(g_new0(MigrationThread, 1));
     thread->name = name;
     thread->thread_id = thread_id;
 
@@ -53,7 +58,7 @@ MigrationThreadInfoList *qmp_query_migrationthreads(Error **errp)
 
     QEMU_LOCK_GUARD(&migration_threads_lock);
     QLIST_FOREACH(thread, &migration_threads, node) {
-        MigrationThreadInfo *info = g_new0(MigrationThreadInfo, 1);
+        MigrationThreadInfo *info = static_cast<MigrationThreadInfo *>(g_new0(MigrationThreadInfo, 1));
         info->name = g_strdup(thread->name);
         info->thread_id = thread->thread_id;
 
@@ -62,3 +67,5 @@ MigrationThreadInfoList *qmp_query_migrationthreads(Error **errp)
 
     return head;
 }
+
+} /* extern "C" */

@@ -1,4 +1,9 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/notify.h"
 #include "net/colo-compare.h"
 #include "migration/colo.h"
@@ -33,3 +38,5 @@ bool migration_incoming_in_colo_state(void)
 {
     return false;
 }
+
+} /* extern "C" */

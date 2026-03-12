@@ -51,7 +51,7 @@ int parse_qapi_name(const char *name, bool complete);
  * to have side-effects with that argument.
  */
 #define QAPI_LIST_APPEND(tail, element) do { \
-    *(tail) = g_malloc0(sizeof(**(tail))); \
+    *(tail) = (typeof(**(tail)) *)g_malloc0(sizeof(**(tail))); \
     (*(tail))->value = (element); \
     (tail) = &(*(tail))->next; \
 } while (0)

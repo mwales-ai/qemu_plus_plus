@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "channel.h"
 #include "tls.h"
 #include "migration.h"
@@ -131,7 +136,7 @@ int migration_channel_read_peek(QIOChannel *ioc,
             return -1;
         }
 
-        if (len == buflen) {
+        if (len == (ssize_t)buflen) {
             break;
         }
 
@@ -140,3 +145,5 @@ int migration_channel_read_peek(QIOChannel *ioc,
 
     return 0;
 }
+
+} /* extern "C" */

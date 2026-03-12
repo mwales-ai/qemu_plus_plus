@@ -6,6 +6,11 @@
  * Copyright (C) 2024 Red Hat, Inc.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "block/block.h"
 #include "qapi/error.h"
 #include "migration/migration.h"
@@ -46,3 +51,5 @@ bool migration_block_inactivate(void)
 
     return true;
 }
+
+} /* extern "C" */

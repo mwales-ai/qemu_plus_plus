@@ -18,6 +18,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/type-helpers.h"
 #include "qemu/error-report.h"
 #include "channel.h"
@@ -87,3 +92,5 @@ void exec_start_incoming_migration(strList *command, Error **errp)
                                NULL, NULL,
                                g_main_context_get_thread_default());
 }
+
+} /* extern "C" */

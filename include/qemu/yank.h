@@ -73,6 +73,37 @@ void yank_unregister_function(const YankInstance *instance,
                               YankFn *func,
                               void *opaque);
 
+#ifdef __cplusplus
+static inline YankInstance blockdev_yank_instance_val(const char *the_node_name)
+{
+    YankInstance inst;
+    memset(&inst, 0, sizeof(inst));
+    inst.type = YANK_INSTANCE_TYPE_BLOCK_NODE;
+    inst.u.block_node.node_name = (char *)the_node_name;
+    return inst;
+}
+static inline YankInstance chardev_yank_instance_val(const char *the_id)
+{
+    YankInstance inst;
+    memset(&inst, 0, sizeof(inst));
+    inst.type = YANK_INSTANCE_TYPE_CHARDEV;
+    inst.u.chardev.id = (char *)the_id;
+    return inst;
+}
+static inline YankInstance migration_yank_instance_val(void)
+{
+    YankInstance inst;
+    memset(&inst, 0, sizeof(inst));
+    inst.type = YANK_INSTANCE_TYPE_MIGRATION;
+    return inst;
+}
+#define BLOCKDEV_YANK_INSTANCE(the_node_name) \
+    (&(const YankInstance &)blockdev_yank_instance_val(the_node_name))
+#define CHARDEV_YANK_INSTANCE(the_id) \
+    (&(const YankInstance &)chardev_yank_instance_val(the_id))
+#define MIGRATION_YANK_INSTANCE \
+    (&(const YankInstance &)migration_yank_instance_val())
+#else
 #define BLOCKDEV_YANK_INSTANCE(the_node_name) (&(YankInstance) { \
         .type = YANK_INSTANCE_TYPE_BLOCK_NODE, \
         .u.block_node.node_name = (the_node_name) })
@@ -83,5 +114,6 @@ void yank_unregister_function(const YankInstance *instance,
 
 #define MIGRATION_YANK_INSTANCE (&(YankInstance) { \
         .type = YANK_INSTANCE_TYPE_MIGRATION })
+#endif
 
 #endif

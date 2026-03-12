@@ -15,6 +15,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "channel.h"
 #include "fd.h"
 #include "file.h"
@@ -110,3 +115,5 @@ void fd_start_incoming_migration(const char *fdname, Error **errp)
                                NULL, NULL,
                                g_main_context_get_thread_default());
 }
+
+} /* extern "C" */
