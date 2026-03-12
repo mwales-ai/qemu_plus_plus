@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/channel-null.h"
 #include "io/channel-watch.h"
 #include "qapi/error.h"
@@ -222,8 +227,8 @@ qio_channel_null_class_init(ObjectClass *klass,
 
 
 static const TypeInfo qio_channel_null_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_NULL,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelNull),
     .instance_init = qio_channel_null_init,
     .class_init = qio_channel_null_class_init,
@@ -237,3 +242,5 @@ qio_channel_null_register_types(void)
 }
 
 type_init(qio_channel_null_register_types);
+
+} /* extern "C" */

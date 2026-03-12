@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "io/channel-tls.h"
@@ -185,7 +190,7 @@ static void qio_channel_tls_handshake_task(QIOChannelTLS *ioc,
         qio_task_complete(task);
     } else {
         GIOCondition condition;
-        QIOChannelTLSData *data = g_new0(typeof(*data), 1);
+        QIOChannelTLSData *data = static_cast<QIOChannelTLSData *>(g_new0(typeof(*data), 1));
 
         data->task = task;
         data->context = context;
@@ -216,7 +221,7 @@ static gboolean qio_channel_tls_handshake_io(QIOChannel *ioc,
                                              GIOCondition condition,
                                              gpointer user_data)
 {
-    QIOChannelTLSData *data = user_data;
+    QIOChannelTLSData *data = static_cast<QIOChannelTLSData *>(user_data);
     QIOTask *task = data->task;
     GMainContext *context = data->context;
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(
@@ -278,7 +283,7 @@ static void qio_channel_tls_bye_task(QIOChannelTLS *ioc, QIOTask *task,
         return;
     }
 
-    data = g_new0(typeof(*data), 1);
+    data = static_cast<QIOChannelTLSData *>(g_new0(typeof(*data), 1));
     data->task = task;
     data->context = context;
 
@@ -302,7 +307,7 @@ static void qio_channel_tls_bye_task(QIOChannelTLS *ioc, QIOTask *task,
 static gboolean qio_channel_tls_bye_io(QIOChannel *ioc, GIOCondition condition,
                                        gpointer user_data)
 {
-    QIOChannelTLSData *data = user_data;
+    QIOChannelTLSData *data = static_cast<QIOChannelTLSData *>(user_data);
     QIOTask *task = data->task;
     GMainContext *context = data->context;
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(qio_task_get_source(task));
@@ -320,7 +325,7 @@ static gboolean qio_channel_tls_bye_io(QIOChannel *ioc, GIOCondition condition,
 
 static void propagate_error(QIOTask *task, gpointer opaque)
 {
-    qio_task_propagate_error(task, opaque);
+    qio_task_propagate_error(task, static_cast<Error **>(opaque));
 }
 
 void qio_channel_tls_bye(QIOChannelTLS *ioc, Error **errp)
@@ -386,7 +391,7 @@ static ssize_t qio_channel_tls_readv(QIOChannel *ioc,
     for (i = 0 ; i < niov ; i++) {
         ssize_t ret = qcrypto_tls_session_read(
             tioc->session,
-            iov[i].iov_base,
+            static_cast<char *>(iov[i].iov_base),
             iov[i].iov_len,
             errp);
         if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
@@ -405,7 +410,7 @@ static ssize_t qio_channel_tls_readv(QIOChannel *ioc,
             return -1;
         }
         got += ret;
-        if (ret < iov[i].iov_len) {
+        if (ret < (ssize_t)iov[i].iov_len) {
             break;
         }
     }
@@ -427,7 +432,7 @@ static ssize_t qio_channel_tls_writev(QIOChannel *ioc,
 
     for (i = 0 ; i < niov ; i++) {
         ssize_t ret = qcrypto_tls_session_write(tioc->session,
-                                                iov[i].iov_base,
+                                                static_cast<const char *>(iov[i].iov_base),
                                                 iov[i].iov_len,
                                                 errp);
         if (ret == QCRYPTO_TLS_SESSION_ERR_BLOCK) {
@@ -440,7 +445,7 @@ static ssize_t qio_channel_tls_writev(QIOChannel *ioc,
             return -1;
         }
         done += ret;
-        if (ret < iov[i].iov_len) {
+        if (ret < (ssize_t)iov[i].iov_len) {
             break;
         }
     }
@@ -610,8 +615,8 @@ static void qio_channel_tls_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo qio_channel_tls_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_TLS,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelTLS),
     .instance_init = qio_channel_tls_init,
     .instance_finalize = qio_channel_tls_finalize,
@@ -624,3 +629,5 @@ static void qio_channel_tls_register_types(void)
 }
 
 type_init(qio_channel_tls_register_types);
+
+} /* extern "C" */

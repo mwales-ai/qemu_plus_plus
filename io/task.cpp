@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/task.h"
 #include "qapi/error.h"
 #include "qemu/thread.h"
@@ -55,7 +60,7 @@ QIOTask *qio_task_new(Object *source,
 {
     QIOTask *task;
 
-    task = g_new0(QIOTask, 1);
+    task = static_cast<QIOTask *>(g_new0(QIOTask, 1));
 
     task->source = source;
     object_ref(source);
@@ -65,7 +70,7 @@ QIOTask *qio_task_new(Object *source,
     qemu_mutex_init(&task->thread_lock);
     qemu_cond_init(&task->thread_cond);
 
-    trace_qio_task_new(task, source, func, opaque);
+    trace_qio_task_new(task, source, reinterpret_cast<void *>(func), opaque);
 
     return task;
 }
@@ -106,7 +111,7 @@ static void qio_task_free(QIOTask *task)
 
 static gboolean qio_task_thread_result(gpointer opaque)
 {
-    QIOTask *task = opaque;
+    QIOTask *task = static_cast<QIOTask *>(opaque);
 
     trace_qio_task_thread_result(task);
     qio_task_complete(task);
@@ -117,7 +122,7 @@ static gboolean qio_task_thread_result(gpointer opaque)
 
 static gpointer qio_task_thread_worker(gpointer opaque)
 {
-    QIOTask *task = opaque;
+    QIOTask *task = static_cast<QIOTask *>(opaque);
 
     trace_qio_task_thread_run(task);
 
@@ -153,7 +158,7 @@ void qio_task_run_in_thread(QIOTask *task,
                             GDestroyNotify destroy,
                             GMainContext *context)
 {
-    struct QIOTaskThreadData *data = g_new0(struct QIOTaskThreadData, 1);
+    struct QIOTaskThreadData *data = static_cast<struct QIOTaskThreadData *>(g_new0(struct QIOTaskThreadData, 1));
     QemuThread thread;
 
     if (context) {
@@ -167,7 +172,7 @@ void qio_task_run_in_thread(QIOTask *task,
 
     task->thread = data;
 
-    trace_qio_task_thread_start(task, worker, opaque);
+    trace_qio_task_thread_start(task, reinterpret_cast<void *>(worker), opaque);
     qemu_thread_create(&thread,
                        "io-task-worker",
                        qio_task_thread_worker,
@@ -239,3 +244,5 @@ Object *qio_task_get_source(QIOTask *task)
 {
     return task->source;
 }
+
+} /* extern "C" */

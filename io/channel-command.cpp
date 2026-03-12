@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/channel-command.h"
 #include "io/channel-util.h"
 #include "io/channel-watch.h"
@@ -77,11 +82,11 @@ qio_channel_command_new_spawn(const char *const argv[],
 {
     g_autoptr(GError) err = NULL;
     GPid pid = 0;
-    GSpawnFlags gflags = G_SPAWN_CLOEXEC_PIPES | G_SPAWN_DO_NOT_REAP_CHILD;
+    GSpawnFlags gflags = static_cast<GSpawnFlags>(G_SPAWN_CLOEXEC_PIPES | G_SPAWN_DO_NOT_REAP_CHILD);
     int stdinfd = -1, stdoutfd = -1;
 
     flags = flags & O_ACCMODE;
-    gflags |= flags == O_WRONLY ? G_SPAWN_STDOUT_TO_DEV_NULL : 0;
+    gflags = static_cast<GSpawnFlags>(gflags | (flags == O_WRONLY ? G_SPAWN_STDOUT_TO_DEV_NULL : 0));
 
     if (!g_spawn_async_with_pipes(NULL, (char **)argv, NULL, gflags, NULL, NULL,
                                   &pid,
@@ -374,8 +379,8 @@ static void qio_channel_command_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo qio_channel_command_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_COMMAND,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelCommand),
     .instance_init = qio_channel_command_init,
     .instance_finalize = qio_channel_command_finalize,
@@ -388,3 +393,5 @@ static void qio_channel_command_register_types(void)
 }
 
 type_init(qio_channel_command_register_types);
+
+} /* extern "C" */

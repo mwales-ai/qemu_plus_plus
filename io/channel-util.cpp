@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/channel-util.h"
 #include "io/channel-file.h"
 #include "io/channel-socket.h"
@@ -60,3 +65,5 @@ void qio_channel_util_set_aio_fd_handler(int read_fd,
         }
     }
 }
+
+} /* extern "C" */

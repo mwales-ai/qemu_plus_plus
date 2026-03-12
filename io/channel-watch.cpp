@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/channel-watch.h"
 
 typedef struct QIOChannelFDSource QIOChannelFDSource;
@@ -82,7 +87,7 @@ qio_channel_fd_source_dispatch(GSource *source,
     QIOChannelFDSource *ssource = (QIOChannelFDSource *)source;
 
     return (*func)(ssource->ioc,
-                   ssource->fd.revents & ssource->condition,
+                   static_cast<GIOCondition>(ssource->fd.revents & ssource->condition),
                    user_data);
 }
 
@@ -197,8 +202,8 @@ static gboolean
 qio_channel_fd_pair_source_check(GSource *source)
 {
     QIOChannelFDPairSource *ssource = (QIOChannelFDPairSource *)source;
-    GIOCondition poll_condition = ssource->fdread.revents |
-        ssource->fdwrite.revents;
+    GIOCondition poll_condition = static_cast<GIOCondition>(ssource->fdread.revents |
+        ssource->fdwrite.revents);
 
     return poll_condition & ssource->condition;
 }
@@ -211,11 +216,11 @@ qio_channel_fd_pair_source_dispatch(GSource *source,
 {
     QIOChannelFunc func = (QIOChannelFunc)callback;
     QIOChannelFDPairSource *ssource = (QIOChannelFDPairSource *)source;
-    GIOCondition poll_condition = ssource->fdread.revents |
-        ssource->fdwrite.revents;
+    GIOCondition poll_condition = static_cast<GIOCondition>(ssource->fdread.revents |
+        ssource->fdwrite.revents);
 
     return (*func)(ssource->ioc,
-                   poll_condition & ssource->condition,
+                   static_cast<GIOCondition>(poll_condition & ssource->condition),
                    user_data);
 }
 
@@ -345,3 +350,5 @@ GSource *qio_channel_create_fd_pair_watch(QIOChannel *ioc,
 
     return source;
 }
+
+} /* extern "C" */

@@ -18,6 +18,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qemu/module.h"
@@ -204,7 +209,7 @@ static void qio_channel_socket_connect_worker(QIOTask *task,
                                               gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
-    SocketAddress *addr = opaque;
+    SocketAddress *addr = static_cast<SocketAddress *>(opaque);
     Error *err = NULL;
 
     qio_channel_socket_connect_sync(ioc, addr, &err);
@@ -269,7 +274,7 @@ struct QIOChannelListenWorkerData {
 
 static void qio_channel_listen_worker_free(gpointer opaque)
 {
-    struct QIOChannelListenWorkerData *data = opaque;
+    struct QIOChannelListenWorkerData *data = static_cast<struct QIOChannelListenWorkerData *>(opaque);
 
     qapi_free_SocketAddress(data->addr);
     g_free(data);
@@ -279,7 +284,7 @@ static void qio_channel_socket_listen_worker(QIOTask *task,
                                              gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
-    struct QIOChannelListenWorkerData *data = opaque;
+    struct QIOChannelListenWorkerData *data = static_cast<struct QIOChannelListenWorkerData *>(opaque);
     Error *err = NULL;
 
     qio_channel_socket_listen_sync(ioc, data->addr, data->num, &err);
@@ -300,7 +305,7 @@ void qio_channel_socket_listen_async(QIOChannelSocket *ioc,
         OBJECT(ioc), callback, opaque, destroy);
     struct QIOChannelListenWorkerData *data;
 
-    data = g_new0(struct QIOChannelListenWorkerData, 1);
+    data = static_cast<struct QIOChannelListenWorkerData *>(g_new0(struct QIOChannelListenWorkerData, 1));
     data->addr = QAPI_CLONE(SocketAddress, addr);
     data->num = num;
 
@@ -346,7 +351,7 @@ struct QIOChannelSocketDGramWorkerData {
 
 static void qio_channel_socket_dgram_worker_free(gpointer opaque)
 {
-    struct QIOChannelSocketDGramWorkerData *data = opaque;
+    struct QIOChannelSocketDGramWorkerData *data = static_cast<struct QIOChannelSocketDGramWorkerData *>(opaque);
     qapi_free_SocketAddress(data->localAddr);
     qapi_free_SocketAddress(data->remoteAddr);
     g_free(data);
@@ -356,7 +361,7 @@ static void qio_channel_socket_dgram_worker(QIOTask *task,
                                             gpointer opaque)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(qio_task_get_source(task));
-    struct QIOChannelSocketDGramWorkerData *data = opaque;
+    struct QIOChannelSocketDGramWorkerData *data = static_cast<struct QIOChannelSocketDGramWorkerData *>(opaque);
     Error *err = NULL;
 
     /* socket_dgram() blocks in DNS lookups, so we must use a thread */
@@ -377,8 +382,8 @@ void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
 {
     QIOTask *task = qio_task_new(
         OBJECT(ioc), callback, opaque, destroy);
-    struct QIOChannelSocketDGramWorkerData *data = g_new0(
-        struct QIOChannelSocketDGramWorkerData, 1);
+    struct QIOChannelSocketDGramWorkerData *data = static_cast<struct QIOChannelSocketDGramWorkerData *>(g_new0(
+        struct QIOChannelSocketDGramWorkerData, 1));
 
     data->localAddr = QAPI_CLONE(SocketAddress, localAddr);
     data->remoteAddr = QAPI_CLONE(SocketAddress, remoteAddr);
@@ -496,7 +501,7 @@ static void qio_channel_socket_copy_fds(struct msghdr *msg,
         }
 
         gotfds = fd_size / sizeof(int);
-        *fds = g_renew(int, *fds, *nfds + gotfds);
+        *fds = static_cast<int *>(g_renew(int, *fds, *nfds + gotfds));
         memcpy(*fds + *nfds, CMSG_DATA(cmsg), fd_size);
         *nfds += gotfds;
     }
@@ -860,7 +865,7 @@ static int qio_channel_socket_flush_internal(QIOChannel *ioc,
             return -1;
         }
 
-        serr = (void *) CMSG_DATA(cm);
+        serr = static_cast<struct sock_extended_err *>((void *) CMSG_DATA(cm));
         if (serr->ee_errno != SO_EE_ORIGIN_NONE) {
             error_setg_errno(errp, serr->ee_errno,
                              "Error on socket");
@@ -1077,8 +1082,8 @@ static void qio_channel_socket_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo qio_channel_socket_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_SOCKET,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelSocket),
     .instance_init = qio_channel_socket_init,
     .instance_finalize = qio_channel_socket_finalize,
@@ -1091,3 +1096,5 @@ static void qio_channel_socket_register_types(void)
 }
 
 type_init(qio_channel_socket_register_types);
+
+} /* extern "C" */

@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/dns-resolver.h"
 #include "qapi/clone-visitor.h"
 #include "qapi/qapi-visit-sockets.h"
@@ -99,11 +104,11 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
         (*naddrs)++;
     }
 
-    *addrs = g_new0(SocketAddress *, *naddrs);
+    *addrs = static_cast<SocketAddress **>(g_new0(SocketAddress *, *naddrs));
 
     /* create socket + bind */
     for (i = 0, e = res; e != NULL; i++, e = e->ai_next) {
-        SocketAddress *newaddr = g_new0(SocketAddress, 1);
+        SocketAddress *newaddr = static_cast<SocketAddress *>(g_new0(SocketAddress, 1));
 
         newaddr->type = SOCKET_ADDRESS_TYPE_INET;
 
@@ -131,7 +136,7 @@ static int qio_dns_resolver_lookup_sync_nop(QIODNSResolver *resolver,
                                             Error **errp)
 {
     *naddrs = 1;
-    *addrs = g_new0(SocketAddress *, 1);
+    *addrs = static_cast<SocketAddress **>(g_new0(SocketAddress *, 1));
     (*addrs)[0] = QAPI_CLONE(SocketAddress, addr);
 
     return 0;
@@ -176,7 +181,7 @@ struct QIODNSResolverLookupData {
 
 static void qio_dns_resolver_lookup_data_free(gpointer opaque)
 {
-    struct QIODNSResolverLookupData *data = opaque;
+    struct QIODNSResolverLookupData *data = static_cast<struct QIODNSResolverLookupData *>(opaque);
     size_t i;
 
     qapi_free_SocketAddress(data->addr);
@@ -193,7 +198,7 @@ static void qio_dns_resolver_lookup_worker(QIOTask *task,
                                            gpointer opaque)
 {
     QIODNSResolver *resolver = QIO_DNS_RESOLVER(qio_task_get_source(task));
-    struct QIODNSResolverLookupData *data = opaque;
+    struct QIODNSResolverLookupData *data = static_cast<struct QIODNSResolverLookupData *>(opaque);
     Error *err = NULL;
 
     qio_dns_resolver_lookup_sync(resolver,
@@ -219,7 +224,7 @@ void qio_dns_resolver_lookup_async(QIODNSResolver *resolver,
 {
     QIOTask *task;
     struct QIODNSResolverLookupData *data =
-        g_new0(struct QIODNSResolverLookupData, 1);
+        static_cast<struct QIODNSResolverLookupData *>(g_new0(struct QIODNSResolverLookupData, 1));
 
     data->addr = QAPI_CLONE(SocketAddress, addr);
 
@@ -239,7 +244,7 @@ void qio_dns_resolver_lookup_result(QIODNSResolver *resolver,
                                     SocketAddress ***addrs)
 {
     struct QIODNSResolverLookupData *data =
-        qio_task_get_result_pointer(task);
+        static_cast<struct QIODNSResolverLookupData *>(qio_task_get_result_pointer(task));
     size_t i;
 
     *naddrs = 0;
@@ -249,7 +254,7 @@ void qio_dns_resolver_lookup_result(QIODNSResolver *resolver,
     }
 
     *naddrs = data->naddrs;
-    *addrs = g_new0(SocketAddress *, data->naddrs);
+    *addrs = static_cast<SocketAddress **>(g_new0(SocketAddress *, data->naddrs));
     for (i = 0; i < data->naddrs; i++) {
         (*addrs)[i] = QAPI_CLONE(SocketAddress, data->addrs[i]);
     }
@@ -257,8 +262,8 @@ void qio_dns_resolver_lookup_result(QIODNSResolver *resolver,
 
 
 static const TypeInfo qio_dns_resolver_info = {
-    .parent = TYPE_OBJECT,
     .name = TYPE_QIO_DNS_RESOLVER,
+    .parent = TYPE_OBJECT,
     .instance_size = sizeof(QIODNSResolver),
 };
 
@@ -270,3 +275,5 @@ static void qio_dns_resolver_register_types(void)
 
 
 type_init(qio_dns_resolver_register_types);
+
+} /* extern "C" */

@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/bswap.h"
 #include "io/channel-websock.h"
@@ -530,7 +535,7 @@ static gboolean qio_channel_websock_handshake_send(QIOChannel *ioc,
                                                    GIOCondition condition,
                                                    gpointer user_data)
 {
-    QIOTask *task = user_data;
+    QIOTask *task = static_cast<QIOTask *>(user_data);
     QIOChannelWebsock *wioc = QIO_CHANNEL_WEBSOCK(
         qio_task_get_source(task));
     Error *err = NULL;
@@ -572,7 +577,7 @@ static gboolean qio_channel_websock_handshake_io(QIOChannel *ioc,
                                                  GIOCondition condition,
                                                  gpointer user_data)
 {
-    QIOTask *task = user_data;
+    QIOTask *task = static_cast<QIOTask *>(user_data);
     QIOChannelWebsock *wioc = QIO_CHANNEL_WEBSOCK(
         qio_task_get_source(task));
     Error *err = NULL;
@@ -1001,7 +1006,7 @@ static ssize_t qio_channel_websock_write_wire(QIOChannelWebsock *ioc,
         }
         buffer_advance(&ioc->encoutput, ret);
         done += ret;
-        if (ioc->pong_remain < ret) {
+        if (ioc->pong_remain < (size_t)ret) {
             ioc->pong_remain = 0;
         } else {
             ioc->pong_remain -= ret;
@@ -1056,7 +1061,7 @@ static void qio_channel_websock_unset_watch(QIOChannelWebsock *ioc)
 
 static void qio_channel_websock_set_watch(QIOChannelWebsock *ioc)
 {
-    GIOCondition cond = 0;
+    GIOCondition cond = static_cast<GIOCondition>(0);
 
     qio_channel_websock_unset_watch(ioc);
 
@@ -1065,11 +1070,11 @@ static void qio_channel_websock_set_watch(QIOChannelWebsock *ioc)
     }
 
     if (ioc->encoutput.offset) {
-        cond |= G_IO_OUT;
+        cond = static_cast<GIOCondition>(cond | G_IO_OUT);
     }
     if (ioc->encinput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER &&
         !ioc->io_eof) {
-        cond |= G_IO_IN;
+        cond = static_cast<GIOCondition>(cond | G_IO_IN);
     }
 
     if (cond) {
@@ -1251,19 +1256,19 @@ static gboolean
 qio_channel_websock_source_check(GSource *source)
 {
     QIOChannelWebsockSource *wsource = (QIOChannelWebsockSource *)source;
-    GIOCondition cond = 0;
+    GIOCondition cond = static_cast<GIOCondition>(0);
 
     if (wsource->wioc->rawinput.offset) {
-        cond |= G_IO_IN;
+        cond = static_cast<GIOCondition>(cond | G_IO_IN);
     }
     if (wsource->wioc->encoutput.offset < QIO_CHANNEL_WEBSOCK_MAX_BUFFER) {
-        cond |= G_IO_OUT;
+        cond = static_cast<GIOCondition>(cond | G_IO_OUT);
     }
     if (wsource->wioc->io_eof) {
-        cond |= G_IO_HUP;
+        cond = static_cast<GIOCondition>(cond | G_IO_HUP);
     }
     if (wsource->wioc->io_err) {
-        cond |= G_IO_ERR;
+        cond = static_cast<GIOCondition>(cond | G_IO_ERR);
     }
 
     return cond & wsource->condition;
@@ -1286,7 +1291,7 @@ qio_channel_websock_source_dispatch(GSource *source,
     QIOChannelWebsockSource *wsource = (QIOChannelWebsockSource *)source;
 
     return (*func)(QIO_CHANNEL(wsource->wioc),
-                   qio_channel_websock_source_check(source),
+                   static_cast<GIOCondition>(qio_channel_websock_source_check(source)),
                    user_data);
 }
 
@@ -1341,8 +1346,8 @@ static void qio_channel_websock_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo qio_channel_websock_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_WEBSOCK,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelWebsock),
     .instance_finalize = qio_channel_websock_finalize,
     .class_init = qio_channel_websock_class_init,
@@ -1354,3 +1359,5 @@ static void qio_channel_websock_register_types(void)
 }
 
 type_init(qio_channel_websock_register_types);
+
+} /* extern "C" */

@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/channel-file.h"
 #include "io/channel-util.h"
 #include "io/channel-watch.h"
@@ -307,8 +312,8 @@ static void qio_channel_file_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo qio_channel_file_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_FILE,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelFile),
     .instance_init = qio_channel_file_init,
     .instance_finalize = qio_channel_file_finalize,
@@ -321,3 +326,5 @@ static void qio_channel_file_register_types(void)
 }
 
 type_init(qio_channel_file_register_types);
+
+} /* extern "C" */

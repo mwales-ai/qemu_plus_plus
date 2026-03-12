@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/channel-buffer.h"
 #include "io/channel-watch.h"
 #include "qemu/module.h"
@@ -33,7 +38,7 @@ qio_channel_buffer_new(size_t capacity)
     ioc = QIO_CHANNEL_BUFFER(object_new(TYPE_QIO_CHANNEL_BUFFER));
 
     if (capacity) {
-        ioc->data = g_new0(uint8_t, capacity);
+        ioc->data = static_cast<uint8_t *>(g_new0(uint8_t, capacity));
         ioc->capacity = capacity;
     }
 
@@ -96,7 +101,7 @@ static ssize_t qio_channel_buffer_writev(QIOChannel *ioc,
 
     if ((bioc->offset + towrite) > bioc->capacity) {
         bioc->capacity = bioc->offset + towrite;
-        bioc->data = g_realloc(bioc->data, bioc->capacity);
+        bioc->data = static_cast<uint8_t *>(g_realloc(bioc->data, bioc->capacity));
     }
 
     if (bioc->offset > bioc->usage) {
@@ -185,7 +190,7 @@ qio_channel_buffer_source_dispatch(GSource *source,
     QIOChannelBufferSource *bsource = (QIOChannelBufferSource *)source;
 
     return (*func)(QIO_CHANNEL(bsource->bioc),
-                   ((G_IO_IN | G_IO_OUT) & bsource->condition),
+                   static_cast<GIOCondition>((G_IO_IN | G_IO_OUT) & bsource->condition),
                    user_data);
 }
 
@@ -238,8 +243,8 @@ static void qio_channel_buffer_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo qio_channel_buffer_info = {
-    .parent = TYPE_QIO_CHANNEL,
     .name = TYPE_QIO_CHANNEL_BUFFER,
+    .parent = TYPE_QIO_CHANNEL,
     .instance_size = sizeof(QIOChannelBuffer),
     .instance_finalize = qio_channel_buffer_finalize,
     .class_init = qio_channel_buffer_class_init,
@@ -251,3 +256,5 @@ static void qio_channel_buffer_register_types(void)
 }
 
 type_init(qio_channel_buffer_register_types);
+
+} /* extern "C" */

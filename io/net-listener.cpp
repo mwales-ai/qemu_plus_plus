@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "io/net-listener.h"
 #include "io/dns-resolver.h"
 #include "qapi/error.h"
@@ -74,7 +79,7 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
         aio_context = listener->aio_context;
     }
 
-    trace_qio_net_listener_callback(listener, io_func, context, aio_context);
+    trace_qio_net_listener_callback(listener, reinterpret_cast<void *>(io_func), context, aio_context);
     if (io_func) {
         io_func(listener, sioc, io_data);
     }
@@ -87,7 +92,7 @@ static gboolean qio_net_listener_channel_func(QIOChannel *ioc,
 
 static void qio_net_listener_aio_func(void *opaque)
 {
-    QIONetListenerSource *data = opaque;
+    QIONetListenerSource *data = static_cast<QIONetListenerSource *>(opaque);
 
     assert(data->io_source == NULL);
     assert(data->listener->aio_context != NULL);
@@ -153,7 +158,7 @@ qio_net_listener_watch(QIONetListener *listener, size_t i, const char *caller)
         return;
     }
 
-    trace_qio_net_listener_watch(listener, listener->io_func,
+    trace_qio_net_listener_watch(listener, reinterpret_cast<void *>(listener->io_func),
                                  listener->context, listener->aio_context,
                                  caller);
     for ( ; i < listener->nsioc; i++) {
@@ -202,7 +207,7 @@ qio_net_listener_unwatch(QIONetListener *listener, const char *caller)
         return;
     }
 
-    trace_qio_net_listener_unwatch(listener, listener->io_func,
+    trace_qio_net_listener_unwatch(listener, reinterpret_cast<void *>(listener->io_func),
                                    listener->context, listener->aio_context,
                                    caller);
     for (i = 0; i < listener->nsioc; i++) {
@@ -231,10 +236,10 @@ void qio_net_listener_add(QIONetListener *listener,
         qio_channel_set_name(QIO_CHANNEL(sioc), listener->name);
     }
 
-    listener->source = g_renew(typeof(listener->source[0]),
+    listener->source = static_cast<QIONetListenerSource **>(g_renew(typeof(listener->source[0]),
                                listener->source,
-                               listener->nsioc + 1);
-    listener->source[listener->nsioc] = g_new0(QIONetListenerSource, 1);
+                               listener->nsioc + 1));
+    listener->source[listener->nsioc] = static_cast<QIONetListenerSource *>(g_new0(QIONetListenerSource, 1));
     listener->source[listener->nsioc]->sioc = sioc;
     listener->source[listener->nsioc]->listener = listener;
 
@@ -329,7 +334,7 @@ static gboolean qio_net_listener_wait_client_func(QIOChannel *ioc,
                                                   GIOCondition condition,
                                                   gpointer opaque)
 {
-    struct QIONetListenerClientWaitData *data = opaque;
+    struct QIONetListenerClientWaitData *data = static_cast<struct QIONetListenerClientWaitData *>(opaque);
     QIOChannelSocket *sioc;
 
     sioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
@@ -363,7 +368,7 @@ QIOChannelSocket *qio_net_listener_wait_client(QIONetListener *listener)
         qio_net_listener_unwatch(listener, "wait_client");
     }
 
-    sources = g_new0(GSource *, listener->nsioc);
+    sources = static_cast<GSource **>(g_new0(GSource *, listener->nsioc));
     for (i = 0; i < listener->nsioc; i++) {
         sources[i] = qio_channel_create_watch(
             QIO_CHANNEL(listener->source[i]->sioc), G_IO_IN);
@@ -460,8 +465,8 @@ static void qio_net_listener_finalize(Object *obj)
 }
 
 static const TypeInfo qio_net_listener_info = {
-    .parent = TYPE_OBJECT,
     .name = TYPE_QIO_NET_LISTENER,
+    .parent = TYPE_OBJECT,
     .instance_size = sizeof(QIONetListener),
     .instance_finalize = qio_net_listener_finalize,
 };
@@ -474,3 +479,5 @@ static void qio_net_listener_register_types(void)
 
 
 type_init(qio_net_listener_register_types);
+
+} /* extern "C" */

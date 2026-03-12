@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "block/aio-wait.h"
 #include "io/channel.h"
 #include "qapi/error.h"
@@ -135,7 +140,7 @@ int coroutine_mixed_fn qio_channel_readv_full_all_eof(QIOChannel *ioc,
                                                       Error **errp)
 {
     int ret = -1;
-    struct iovec *local_iov = g_new(struct iovec, niov);
+    struct iovec *local_iov = static_cast<struct iovec *>(g_new(struct iovec, niov));
     struct iovec *local_iov_head = local_iov;
     unsigned int nlocal_iov = niov;
     int **local_fds = fds;
@@ -249,7 +254,7 @@ int coroutine_mixed_fn qio_channel_writev_full_all(QIOChannel *ioc,
                                                    int flags, Error **errp)
 {
     int ret = -1;
-    struct iovec *local_iov = g_new(struct iovec, niov);
+    struct iovec *local_iov = static_cast<struct iovec *>(g_new(struct iovec, niov));
     struct iovec *local_iov_head = local_iov;
     unsigned int nlocal_iov = niov;
 
@@ -588,7 +593,7 @@ int qio_channel_flush(QIOChannel *ioc,
 
 static void qio_channel_restart_read(void *opaque)
 {
-    QIOChannel *ioc = opaque;
+    QIOChannel *ioc = static_cast<QIOChannel *>(opaque);
     Coroutine *co = qatomic_xchg(&ioc->read_coroutine, NULL);
 
     if (!co) {
@@ -603,7 +608,7 @@ static void qio_channel_restart_read(void *opaque)
 
 static void qio_channel_restart_write(void *opaque)
 {
-    QIOChannel *ioc = opaque;
+    QIOChannel *ioc = static_cast<QIOChannel *>(opaque);
     Coroutine *co = qatomic_xchg(&ioc->write_coroutine, NULL);
 
     if (!co) {
@@ -736,7 +741,7 @@ static gboolean qio_channel_wait_complete(QIOChannel *ioc,
                                           GIOCondition condition,
                                           gpointer opaque)
 {
-    GMainLoop *loop = opaque;
+    GMainLoop *loop = static_cast<GMainLoop *>(opaque);
 
     g_main_loop_quit(loop);
     return FALSE;
@@ -794,8 +799,8 @@ static void qio_channel_finalize(Object *obj)
 }
 
 static const TypeInfo qio_channel_info = {
-    .parent = TYPE_OBJECT,
     .name = TYPE_QIO_CHANNEL,
+    .parent = TYPE_OBJECT,
     .instance_size = sizeof(QIOChannel),
     .instance_finalize = qio_channel_finalize,
     .abstract = true,
@@ -810,3 +815,5 @@ static void qio_channel_register_types(void)
 
 
 type_init(qio_channel_register_types);
+
+} /* extern "C" */
