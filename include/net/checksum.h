@@ -82,14 +82,14 @@ void net_toeplitz_add(uint32_t *result,
                       uint32_t len,
                       net_toeplitz_key *key)
 {
-    register uint32_t accumulator = *result;
-    register uint32_t leftmost_32_bits = key->leftmost_32_bits;
-    register uint32_t byte;
+    uint32_t accumulator = *result;
+    uint32_t leftmost_32_bits = key->leftmost_32_bits;
+    uint32_t byte;
 
     for (byte = 0; byte < len; byte++) {
-        register uint8_t input_byte = input[byte];
-        register uint8_t key_byte = *(key->next_byte++);
-        register uint8_t bit;
+        uint8_t input_byte = input[byte];
+        uint8_t key_byte = *(key->next_byte++);
+        uint8_t bit;
 
         for (bit = 0; bit < 8; bit++) {
             if (input_byte & (1 << 7)) {

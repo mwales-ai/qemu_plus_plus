@@ -246,7 +246,11 @@ struct virtio_net_hdr_mrg_rxbuf {
  * command goes in between.
  */
 struct virtio_net_ctrl_hdr {
+#ifdef __cplusplus
+	uint8_t klass;
+#else
 	uint8_t class;
+#endif
 	uint8_t cmd;
 } QEMU_PACKED;
 
