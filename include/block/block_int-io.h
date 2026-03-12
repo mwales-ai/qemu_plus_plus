@@ -60,7 +60,7 @@ int coroutine_fn GRAPH_RDLOCK bdrv_co_pwritev_part(BdrvChild *child,
 static inline int coroutine_fn GRAPH_RDLOCK bdrv_co_pread(BdrvChild *child,
     int64_t offset, int64_t bytes, void *buf, BdrvRequestFlags flags)
 {
-    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, (size_t)bytes);
     IO_CODE();
     assert_bdrv_graph_readable();
 
@@ -70,7 +70,7 @@ static inline int coroutine_fn GRAPH_RDLOCK bdrv_co_pread(BdrvChild *child,
 static inline int coroutine_fn GRAPH_RDLOCK bdrv_co_pwrite(BdrvChild *child,
     int64_t offset, int64_t bytes, const void *buf, BdrvRequestFlags flags)
 {
-    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, (size_t)bytes);
     IO_CODE();
     assert_bdrv_graph_readable();
 

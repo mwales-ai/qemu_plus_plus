@@ -62,7 +62,7 @@ static bool ct3_build_cdat(CDATObject *cdat, Error **errp)
     }
 
     cdat->built_buf_len = cdat->build_cdat_table(&cdat->built_buf,
-                                                 cdat->private);
+                                                 cdat->priv);
 
     if (cdat->built_buf_len <= 0) {
         /* Build later as not all data available yet */
@@ -216,7 +216,7 @@ void cxl_doe_cdat_release(CXLComponentState *cxl_cstate)
     free(cdat->entry);
     if (cdat->built_buf) {
         cdat->free_cdat_table(cdat->built_buf, cdat->built_buf_len,
-                              cdat->private);
+                              cdat->priv);
     }
     g_free(cdat->buf);
 }

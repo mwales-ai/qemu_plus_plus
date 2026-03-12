@@ -886,6 +886,6 @@ const BlockExportDriver blk_exp_fuse = {
     .type               = BLOCK_EXPORT_TYPE_FUSE,
     .instance_size      = sizeof(FuseExport),
     .create             = fuse_export_create,
-    .delete             = fuse_export_delete,
+    .destroy            = fuse_export_delete,
     .request_shutdown   = fuse_export_shutdown,
 };

@@ -411,7 +411,7 @@ REG64(CXL_MEM_DEV_STS, 0)
     FIELD(CXL_MEM_DEV_STS, MBOX_READY, 4, 1)
     FIELD(CXL_MEM_DEV_STS, RESET_NEEDED, 5, 3)
 
-static inline void __toggle_media(CXLDeviceState *cxl_dstate, int val)
+static inline void __toggle_media(CXLDeviceState *cxl_dstate, uint64_t val)
 {
     uint64_t dev_status_reg;
 

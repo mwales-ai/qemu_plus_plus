@@ -929,7 +929,7 @@ static void ct3_realize(PCIDevice *pci_dev, Error **errp)
 
     cxl_cstate->cdat.build_cdat_table = ct3_build_cdat_table;
     cxl_cstate->cdat.free_cdat_table = ct3_free_cdat_table;
-    cxl_cstate->cdat.private = ct3d;
+    cxl_cstate->cdat.priv = ct3d;
     if (!cxl_doe_cdat_init(cxl_cstate, errp)) {
         goto err_msix_uninit;
     }

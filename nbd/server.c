@@ -2030,7 +2030,7 @@ const BlockExportDriver blk_exp_nbd = {
     .instance_size      = sizeof(NBDExport),
     .supports_inactive  = true,
     .create             = nbd_export_create,
-    .delete             = nbd_export_delete,
+    .destroy            = nbd_export_delete,
     .request_shutdown   = nbd_export_request_shutdown,
 };
 

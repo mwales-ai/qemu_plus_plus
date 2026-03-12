@@ -377,6 +377,6 @@ const BlockExportDriver blk_exp_vhost_user_blk = {
     .type               = BLOCK_EXPORT_TYPE_VHOST_USER_BLK,
     .instance_size      = sizeof(VuBlkExport),
     .create             = vu_blk_exp_create,
-    .delete             = vu_blk_exp_delete,
+    .destroy            = vu_blk_exp_delete,
     .request_shutdown   = vu_blk_exp_request_shutdown,
 };

@@ -1882,9 +1882,9 @@ PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin)
     return bus->route_intx_to_irq(bus->irq_opaque, pin);
 }
 
-bool pci_intx_route_changed(PCIINTxRoute *old, PCIINTxRoute *new)
+bool pci_intx_route_changed(PCIINTxRoute *old, PCIINTxRoute *cur)
 {
-    return old->mode != new->mode || old->irq != new->irq;
+    return old->mode != cur->mode || old->irq != cur->irq;
 }
 
 void pci_bus_fire_intx_routing_notifier(PCIBus *bus)

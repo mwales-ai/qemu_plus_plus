@@ -318,7 +318,7 @@ Chardev *qemu_chardev_new(const char *id, const char *type_name,
 extern int term_escape_char;
 
 GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
-                                 GSourceFunc func, void *private);
+                                 GSourceFunc func, void *opaque);
 
 void suspend_mux_open(void);
 void resume_mux_open(void);

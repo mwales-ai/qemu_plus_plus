@@ -163,7 +163,7 @@ typedef struct CDATObject {
     int (*build_cdat_table)(CDATSubHeader ***cdat_table, void *priv);
     void (*free_cdat_table)(CDATSubHeader **cdat_table, int num, void *priv);
     bool to_update;
-    void *private;
+    void *priv;
     char *filename;
     uint8_t *buf;
     struct CDATSubHeader **built_buf;

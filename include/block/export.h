@@ -39,7 +39,7 @@ typedef struct BlockExportDriver {
      * Frees a removed block export. This function is only called after all
      * references have been dropped.
      */
-    void (*delete)(BlockExport *);
+    void (*destroy)(BlockExport *);
 
     /*
      * Start to disconnect all clients and drop other references held
@@ -83,7 +83,7 @@ struct BlockExport {
     QLIST_ENTRY(BlockExport) next;
 };
 
-BlockExport *blk_exp_add(BlockExportOptions *export, Error **errp);
+BlockExport *blk_exp_add(BlockExportOptions *exp, Error **errp);
 BlockExport *blk_exp_find(const char *id);
 void blk_exp_ref(BlockExport *exp);
 void blk_exp_unref(BlockExport *exp);

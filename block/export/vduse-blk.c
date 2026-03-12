@@ -414,6 +414,6 @@ const BlockExportDriver blk_exp_vduse_blk = {
     .type               = BLOCK_EXPORT_TYPE_VDUSE_BLK,
     .instance_size      = sizeof(VduseBlkExport),
     .create             = vduse_blk_exp_create,
-    .delete             = vduse_blk_exp_delete,
+    .destroy            = vduse_blk_exp_delete,
     .request_shutdown   = vduse_blk_exp_request_shutdown,
 };

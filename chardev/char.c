@@ -1261,12 +1261,12 @@ bool qmp_add_client_char(int fd, bool has_skipauth, bool skipauth,
  * make sure the gcontext that the task bound to is correct.
  */
 GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
-                                 GSourceFunc func, void *private)
+                                 GSourceFunc func, void *opaque)
 {
     GSource *source = g_timeout_source_new(ms);
 
     assert(func);
-    g_source_set_callback(source, func, private, NULL);
+    g_source_set_callback(source, func, opaque, NULL);
     g_source_attach(source, chr->gcontext);
 
     return source;
