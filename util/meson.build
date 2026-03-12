@@ -4,10 +4,10 @@ if not config_host_data.get('CONFIG_ATOMIC64')
   util_ss.add(files('atomic64.c'))
 endif
 if host_os != 'windows'
-  util_ss.add(files('aio-posix.c'))
-  util_ss.add(files('fdmon-poll.c'))
+  util_ss.add(files('aio-posix.cpp'))
+  util_ss.add(files('fdmon-poll.cpp'))
   if config_host_data.get('CONFIG_EPOLL_CREATE1')
-    util_ss.add(files('fdmon-epoll.c'))
+    util_ss.add(files('fdmon-epoll.cpp'))
   endif
   util_ss.add(files('compatfd.cpp'))
   util_ss.add(files('event_notifier-posix.cpp'))

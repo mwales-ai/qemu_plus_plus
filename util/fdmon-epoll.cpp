@@ -5,6 +5,11 @@
 
 #include "qemu/osdep.h"
 #include <sys/epoll.h>
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/lockcnt.h"
 #include "qemu/rcu_queue.h"
 #include "aio-posix.h"
@@ -39,10 +44,10 @@ static void fdmon_epoll_update(AioContext *ctx,
                                AioHandler *old_node,
                                AioHandler *new_node)
 {
-    struct epoll_event event = {
-        .data.ptr = new_node,
-        .events = new_node ? epoll_events_from_pfd(new_node->pfd.events) : 0,
-    };
+    struct epoll_event event;
+    memset(&event, 0, sizeof(event));
+    event.events = new_node ? epoll_events_from_pfd(new_node->pfd.events) : 0;
+    event.data.ptr = new_node;
     int r;
 
     if (!new_node) {
@@ -61,10 +66,10 @@ static void fdmon_epoll_update(AioContext *ctx,
 static int fdmon_epoll_wait(AioContext *ctx, AioHandlerList *ready_list,
                             int64_t timeout)
 {
-    GPollFD pfd = {
-        .fd = ctx->epollfd,
-        .events = G_IO_IN | G_IO_OUT | G_IO_HUP | G_IO_ERR,
-    };
+    GPollFD pfd;
+    memset(&pfd, 0, sizeof(pfd));
+    pfd.fd = ctx->epollfd;
+    pfd.events = G_IO_IN | G_IO_OUT | G_IO_HUP | G_IO_ERR;
     AioHandler *node;
     int i, ret = 0;
     struct epoll_event events[128];
@@ -89,7 +94,7 @@ static int fdmon_epoll_wait(AioContext *ctx, AioHandlerList *ready_list,
                           (ev & EPOLLHUP ? G_IO_HUP : 0) |
                           (ev & EPOLLERR ? G_IO_ERR : 0);
 
-            node = events[i].data.ptr;
+            node = static_cast<AioHandler *>(events[i].data.ptr);
             aio_add_ready_handler(ready_list, node, revents);
         }
     }
@@ -179,3 +184,5 @@ void fdmon_epoll_setup(AioContext *ctx)
         fprintf(stderr, "Failed to create epoll instance: %s", strerror(errno));
     }
 }
+
+} /* extern "C" */

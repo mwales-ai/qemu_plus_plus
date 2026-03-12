@@ -14,6 +14,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "block/block.h"
 #include "block/thread-pool.h"
 #include "qapi/error.h"
@@ -815,3 +820,5 @@ void aio_add_sqe(void (*prep_sqe)(struct io_uring_sqe *sqe, void *opaque),
     ctx->fdmon_ops->add_sqe(ctx, prep_sqe, opaque, cqe_handler);
 }
 #endif /* CONFIG_LINUX_IO_URING */
+
+} /* extern "C" */

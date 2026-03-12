@@ -6,6 +6,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "aio-posix.h"
 #include "qemu/rcu_queue.h"
 
@@ -49,10 +54,9 @@ static void add_pollfd(AioHandler *node)
         nodes = g_renew(AioHandler *, nodes, nalloc);
     }
     nodes[npfd] = node;
-    pollfds[npfd] = (GPollFD) {
-        .fd = node->pfd.fd,
-        .events = node->pfd.events,
-    };
+    memset(&pollfds[npfd], 0, sizeof(pollfds[npfd]));
+    pollfds[npfd].fd = node->pfd.fd;
+    pollfds[npfd].events = node->pfd.events;
     npfd++;
 }
 
@@ -85,7 +89,7 @@ static int fdmon_poll_wait(AioContext *ctx, AioHandlerList *ready_list,
     if (ret > 0) {
         int i;
 
-        for (i = 0; i < npfd; i++) {
+        for (i = 0; (unsigned)i < npfd; i++) {
             int revents = pollfds[i].revents;
 
             if (revents) {
@@ -188,3 +192,5 @@ void fdmon_poll_downgrade(AioContext *ctx)
         }
     }
 }
+
+} /* extern "C" */

@@ -33,14 +33,20 @@ struct AioHandler {
     QLIST_ENTRY(AioHandler) node_ready; /* only used during aio_poll() */
     QLIST_ENTRY(AioHandler) node_deleted;
     QLIST_ENTRY(AioHandler) node_poll;
-#ifdef CONFIG_LINUX_IO_URING
-    QSLIST_ENTRY(AioHandler) node_submitted;
-    unsigned flags; /* see fdmon-io_uring.c */
-    CqeHandler internal_cqe_handler; /* used for POLL_ADD/POLL_REMOVE */
-#endif
     int64_t poll_idle_timeout; /* when to stop userspace polling */
     bool poll_ready; /* has polling detected an event? */
     AioPolledEvent poll;
+#ifdef CONFIG_LINUX_IO_URING
+    QSLIST_ENTRY(AioHandler) node_submitted;
+    unsigned flags; /* see fdmon-io_uring.c */
+    /*
+     * internal_cqe_handler must be the last field because CqeHandler
+     * contains struct io_uring_cqe which has a flexible array member
+     * (big_cqe[]). C++ requires flexible array members to be at the
+     * end of a struct.
+     */
+    CqeHandler internal_cqe_handler; /* used for POLL_ADD/POLL_REMOVE */
+#endif
 };
 
 /* Add a handler to a ready list */
