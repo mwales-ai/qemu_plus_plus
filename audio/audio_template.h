@@ -286,7 +286,7 @@ static HW *glue(audio_pcm_hw_add_new_, TYPE)(AudioBackend *s,
      * Since glue(s->nb_hw_voices_, TYPE) is != 0, glue(drv->voice_size_, TYPE)
      * is guaranteed to be != 0. See the audio_init_nb_voices_* functions.
      */
-    hw = g_malloc0(glue(drv->voice_size_, TYPE));
+    hw = static_cast<HW *>(g_malloc0(glue(drv->voice_size_, TYPE)));
     hw->s = s;
     hw->pcm_ops = drv->pcm_ops;
 

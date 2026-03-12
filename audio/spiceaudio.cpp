@@ -18,6 +18,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
@@ -59,17 +64,21 @@ typedef struct SpiceVoiceIn {
 } SpiceVoiceIn;
 
 static const SpicePlaybackInterface playback_sif = {
-    .base.type          = SPICE_INTERFACE_PLAYBACK,
-    .base.description   = "playback",
-    .base.major_version = SPICE_INTERFACE_PLAYBACK_MAJOR,
-    .base.minor_version = SPICE_INTERFACE_PLAYBACK_MINOR,
+    .base = {
+        .type          = SPICE_INTERFACE_PLAYBACK,
+        .description   = "playback",
+        .major_version = SPICE_INTERFACE_PLAYBACK_MAJOR,
+        .minor_version = SPICE_INTERFACE_PLAYBACK_MINOR,
+    },
 };
 
 static const SpiceRecordInterface record_sif = {
-    .base.type          = SPICE_INTERFACE_RECORD,
-    .base.description   = "record",
-    .base.major_version = SPICE_INTERFACE_RECORD_MAJOR,
-    .base.minor_version = SPICE_INTERFACE_RECORD_MINOR,
+    .base = {
+        .type          = SPICE_INTERFACE_RECORD,
+        .description   = "record",
+        .major_version = SPICE_INTERFACE_RECORD_MAJOR,
+        .minor_version = SPICE_INTERFACE_RECORD_MINOR,
+    },
 };
 
 static void *spice_audio_init(Audiodev *dev, Error **errp)
@@ -79,7 +88,7 @@ static void *spice_audio_init(Audiodev *dev, Error **errp)
         return NULL;
     }
 
-    return &spice_audio_init;
+    return reinterpret_cast<void *>(&spice_audio_init);
 }
 
 static void spice_audio_fini (void *opaque)
@@ -243,7 +252,7 @@ static size_t line_in_read(HWVoiceIn *hw, void *buf, size_t len)
 {
     SpiceVoiceIn *in = container_of (hw, SpiceVoiceIn, hw);
     uint64_t to_read = audio_rate_get_bytes(&in->rate, &hw->info, len) >> 2;
-    size_t ready = spice_server_record_get_samples(&in->sin, buf, to_read);
+    size_t ready = spice_server_record_get_samples(&in->sin, static_cast<uint32_t *>(buf), to_read);
 
     /*
      * If the client didn't send new frames, it most likely disconnected.
@@ -332,3 +341,5 @@ static void register_audio_spice(void)
 type_init(register_audio_spice);
 
 module_dep("ui-spice-core");
+
+} /* extern "C" */

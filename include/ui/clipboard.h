@@ -20,9 +20,11 @@
  * is supported for now.
  */
 
+#ifndef __cplusplus
 typedef enum QemuClipboardType QemuClipboardType;
 typedef enum QemuClipboardNotifyType QemuClipboardNotifyType;
 typedef enum QemuClipboardSelection QemuClipboardSelection;
+#endif
 typedef struct QemuClipboardPeer QemuClipboardPeer;
 typedef struct QemuClipboardNotify QemuClipboardNotify;
 typedef struct QemuClipboardInfo QemuClipboardInfo;

@@ -23,6 +23,11 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/bswap.h"
 #include "qemu/audio.h"
 
@@ -293,7 +298,7 @@ static const float float_scale_reciprocal = 1.f / ((int64_t)INT32_MAX + 1);
 static void conv_natural_float_to_mono(struct st_sample *dst, const void *src,
                                        int samples)
 {
-    const float *in = src;
+    const float *in = static_cast<const float *>(src);
 
     while (samples--) {
         dst->r = dst->l = CONV_NATURAL_FLOAT(*in++);
@@ -304,7 +309,7 @@ static void conv_natural_float_to_mono(struct st_sample *dst, const void *src,
 static void conv_swap_float_to_mono(struct st_sample *dst, const void *src,
                                     int samples)
 {
-    const uint32_t *in_f32s = src;
+    const uint32_t *in_f32s = static_cast<const uint32_t *>(src);
 
     while (samples--) {
         dst->r = dst->l = CONV_NATURAL_FLOAT(F32S_TO_F32(*in_f32s++));
@@ -315,7 +320,7 @@ static void conv_swap_float_to_mono(struct st_sample *dst, const void *src,
 static void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
                                          int samples)
 {
-    const float *in = src;
+    const float *in = static_cast<const float *>(src);
 
     while (samples--) {
         dst->l = CONV_NATURAL_FLOAT(*in++);
@@ -327,7 +332,7 @@ static void conv_natural_float_to_stereo(struct st_sample *dst, const void *src,
 static void conv_swap_float_to_stereo(struct st_sample *dst, const void *src,
                                       int samples)
 {
-    const uint32_t *in_f32s = src;
+    const uint32_t *in_f32s = static_cast<const uint32_t *>(src);
 
     while (samples--) {
         dst->l = CONV_NATURAL_FLOAT(F32S_TO_F32(*in_f32s++));
@@ -350,7 +355,7 @@ t_sample *mixeng_conv_float[2][2] = {
 static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
                                          int samples)
 {
-    float *out = dst;
+    float *out = static_cast<float *>(dst);
 
     while (samples--) {
         *out++ = CLIP_NATURAL_FLOAT(src->l + src->r);
@@ -361,7 +366,7 @@ static void clip_natural_float_from_mono(void *dst, const struct st_sample *src,
 static void clip_swap_float_from_mono(void *dst, const struct st_sample *src,
                                       int samples)
 {
-    uint32_t *out_f32s = dst;
+    uint32_t *out_f32s = static_cast<uint32_t *>(dst);
 
     while (samples--) {
         *out_f32s++ = F32_TO_F32S(CLIP_NATURAL_FLOAT(src->l + src->r));
@@ -372,7 +377,7 @@ static void clip_swap_float_from_mono(void *dst, const struct st_sample *src,
 static void clip_natural_float_from_stereo(
     void *dst, const struct st_sample *src, int samples)
 {
-    float *out = dst;
+    float *out = static_cast<float *>(dst);
 
     while (samples--) {
         *out++ = CLIP_NATURAL_FLOAT(src->l);
@@ -384,7 +389,7 @@ static void clip_natural_float_from_stereo(
 static void clip_swap_float_from_stereo(
     void *dst, const struct st_sample *src, int samples)
 {
-    uint32_t *out_f32s = dst;
+    uint32_t *out_f32s = static_cast<uint32_t *>(dst);
 
     while (samples--) {
         *out_f32s++ = F32_TO_F32S(CLIP_NATURAL_FLOAT(src->l));
@@ -516,7 +521,7 @@ void st_rate_stop (void *opaque)
  */
 uint32_t st_rate_frames_out(void *opaque, uint32_t frames_in)
 {
-    struct rate *rate = opaque;
+    struct rate *rate = static_cast<struct rate *>(opaque);
     uint64_t opos_end, opos_delta;
     uint32_t ipos_end;
     uint32_t frames_out;
@@ -556,7 +561,7 @@ uint32_t st_rate_frames_out(void *opaque, uint32_t frames_in)
  */
 uint32_t st_rate_frames_in(void *opaque, uint32_t frames_out)
 {
-    struct rate *rate = opaque;
+    struct rate *rate = static_cast<struct rate *>(opaque);
     uint64_t opos_start, opos_end;
     uint32_t ipos_start, ipos_end;
 
@@ -606,3 +611,5 @@ void mixeng_volume (struct st_sample *buf, int len, struct mixeng_volume *vol)
         buf += 1;
     }
 }
+
+} /* extern "C" */

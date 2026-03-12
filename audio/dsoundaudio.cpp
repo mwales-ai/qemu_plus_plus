@@ -27,6 +27,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/audio.h"
 
 #define AUDIO_CAP "dsound"
@@ -699,3 +704,5 @@ static void register_audio_dsound(void)
     audio_driver_register(&dsound_audio_driver);
 }
 type_init(register_audio_dsound);
+
+} /* extern "C" */

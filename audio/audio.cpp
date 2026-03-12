@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/audio.h"
 #include "migration/vmstate.h"
 #include "qemu/timer.h"
@@ -340,7 +345,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
         case 16:
             {
                 int i;
-                uint16_t *p = buf;
+                uint16_t *p = static_cast<uint16_t *>(buf);
                 short s = INT16_MAX;
 
                 if (info->swap_endianness) {
@@ -356,7 +361,7 @@ void audio_pcm_info_clear_buf (struct audio_pcm_info *info, void *buf, int len)
         case 32:
             {
                 int i;
-                uint32_t *p = buf;
+                uint32_t *p = static_cast<uint32_t *>(buf);
                 int32_t s = INT32_MAX;
 
                 if (info->swap_endianness) {
@@ -469,7 +474,7 @@ static int audio_attach_capture (HWVoiceOut *hw)
         SWVoiceOut *sw;
         HWVoiceOut *hw_cap = &cap->hw;
 
-        sc = g_malloc0(sizeof(*sc));
+        sc = static_cast<SWVoiceCap *>(g_malloc0(sizeof(*sc)));
 
         sc->cap = cap;
         sw = &sc->sw;
@@ -526,7 +531,7 @@ static size_t audio_pcm_hw_conv_in(HWVoiceIn *hw, void *pcm_buf, size_t samples)
     STSampleBuffer *conv_buf = &hw->conv_buf;
 
     while (samples) {
-        uint8_t *src = advance(pcm_buf, conv * hw->info.bytes_per_frame);
+        uint8_t *src = static_cast<uint8_t *>(advance(pcm_buf, conv * hw->info.bytes_per_frame));
         size_t proc = MIN(samples, conv_buf->size - conv_buf->pos);
 
         hw->conv(conv_buf->buffer + conv_buf->pos, src, proc);
@@ -657,7 +662,7 @@ static void audio_pcm_hw_clip_out(HWVoiceOut *hw, void *pcm_buf, size_t len)
 
     while (len) {
         st_sample *src = hw->mix_buf.buffer + pos;
-        uint8_t *dst = advance(pcm_buf, clipped * hw->info.bytes_per_frame);
+        uint8_t *dst = static_cast<uint8_t *>(advance(pcm_buf, clipped * hw->info.bytes_per_frame));
         size_t samples_till_end_of_buf = hw->mix_buf.size - pos;
         size_t samples_to_clip = MIN(len, samples_till_end_of_buf);
 
@@ -838,7 +843,7 @@ static void audio_reset_timer(AudioBackend *s)
 static void audio_timer (void *opaque)
 {
     int64_t now, diff;
-    AudioBackend *s = opaque;
+    AudioBackend *s = static_cast<AudioBackend *>(opaque);
 
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     diff = now - s->timer_last;
@@ -1421,7 +1426,7 @@ void audio_generic_run_buffer_in(HWVoiceIn *hw)
     while (hw->pending_emul < hw->size_emul) {
         size_t read_len = MIN(hw->size_emul - hw->pos_emul,
                               hw->size_emul - hw->pending_emul);
-        size_t read = hw->pcm_ops->read(hw, hw->buf_emul + hw->pos_emul,
+        size_t read = hw->pcm_ops->read(hw, static_cast<char *>(hw->buf_emul) + hw->pos_emul,
                                         read_len);
         hw->pending_emul += read;
         hw->pos_emul = (hw->pos_emul + read) % hw->size_emul;
@@ -1440,7 +1445,7 @@ void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
 
     *size = MIN(*size, hw->pending_emul);
     *size = MIN(*size, hw->size_emul - start);
-    return hw->buf_emul + start;
+    return static_cast<char *>(hw->buf_emul) + start;
 }
 
 void audio_generic_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
@@ -1468,7 +1473,7 @@ void audio_generic_run_buffer_out(HWVoiceOut *hw)
 
         write_len = MIN(hw->pending_emul, hw->size_emul - start);
 
-        written = hw->pcm_ops->write(hw, hw->buf_emul + start, write_len);
+        written = hw->pcm_ops->write(hw, static_cast<char *>(hw->buf_emul) + start, write_len);
         hw->pending_emul -= written;
 
         if (written < write_len) {
@@ -1487,12 +1492,12 @@ void *audio_generic_get_buffer_out(HWVoiceOut *hw, size_t *size)
 
     *size = MIN(hw->size_emul - hw->pending_emul,
                 hw->size_emul - hw->pos_emul);
-    return hw->buf_emul + hw->pos_emul;
+    return static_cast<char *>(hw->buf_emul) + hw->pos_emul;
 }
 
 size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
 {
-    assert(buf == hw->buf_emul + hw->pos_emul &&
+    assert(buf == static_cast<char *>(hw->buf_emul) + hw->pos_emul &&
            size + hw->pending_emul <= hw->size_emul);
 
     hw->pending_emul += size;
@@ -1592,7 +1597,7 @@ static bool audio_driver_init(AudioBackend *s, struct audio_driver *drv,
 static void audio_vm_change_state_handler (void *opaque, bool running,
                                            RunState state)
 {
-    AudioBackend *s = opaque;
+    AudioBackend *s = static_cast<AudioBackend *>(opaque);
     HWVoiceOut *hwo = NULL;
     HWVoiceIn *hwi = NULL;
 
@@ -1611,7 +1616,26 @@ static void audio_vm_change_state_handler (void *opaque, bool running,
     audio_reset_timer (s);
 }
 
-static const VMStateDescription vmstate_audio;
+static bool vmstate_audio_needed(void *opaque)
+{
+    /*
+     * Never needed, this vmstate only exists in case
+     * an old qemu sends it to us.
+     */
+    return false;
+}
+
+static const VMStateField vmstate_audio_fields[] = {
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription vmstate_audio = {
+    .name = "audio",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmstate_audio_needed,
+    .fields = vmstate_audio_fields,
+};
 
 static void audio_be_init(Object *obj)
 {
@@ -1695,25 +1719,6 @@ void audio_cleanup(void)
 
     object_unparent(get_audiodevs_root());
 }
-
-static bool vmstate_audio_needed(void *opaque)
-{
-    /*
-     * Never needed, this vmstate only exists in case
-     * an old qemu sends it to us.
-     */
-    return false;
-}
-
-static const VMStateDescription vmstate_audio = {
-    .name = "audio",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = vmstate_audio_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    }
-};
 
 void audio_create_default_audiodevs(void)
 {
@@ -1853,7 +1858,7 @@ CaptureVoiceOut *AUD_add_capture(
         return NULL;
     }
 
-    cb = g_malloc0(sizeof(*cb));
+    cb = static_cast<capture_callback *>(g_malloc0(sizeof(*cb)));
     cb->ops = *ops;
     cb->opaque = cb_opaque;
 
@@ -1863,7 +1868,7 @@ CaptureVoiceOut *AUD_add_capture(
     } else {
         HWVoiceOut *hw;
 
-        cap = g_malloc0(sizeof(*cap));
+        cap = static_cast<CaptureVoiceOut *>(g_malloc0(sizeof(*cap)));
 
         hw = &cap->hw;
         hw->s = s;
@@ -1978,12 +1983,16 @@ void audio_create_pdos(Audiodev *dev)
 #define CASE(DRIVER, driver, pdo_name)                              \
     case AUDIODEV_DRIVER_##DRIVER:                                  \
         if (!dev->u.driver.in) {                                    \
-            dev->u.driver.in = g_malloc0(                           \
-                sizeof(Audiodev##pdo_name##PerDirectionOptions));   \
+            dev->u.driver.in =                                      \
+                static_cast<Audiodev##pdo_name##PerDirectionOptions *>( \
+                    g_malloc0(                                      \
+                        sizeof(Audiodev##pdo_name##PerDirectionOptions))); \
         }                                                           \
         if (!dev->u.driver.out) {                                   \
-            dev->u.driver.out = g_malloc0(                          \
-                sizeof(Audiodev##pdo_name##PerDirectionOptions));   \
+            dev->u.driver.out =                                     \
+                static_cast<Audiodev##pdo_name##PerDirectionOptions *>( \
+                    g_malloc0(                                      \
+                        sizeof(Audiodev##pdo_name##PerDirectionOptions))); \
         }                                                           \
         break
 
@@ -2155,8 +2164,8 @@ void audio_init_audiodevs(void)
 audsettings audiodev_to_audsettings(AudiodevPerDirectionOptions *pdo)
 {
     return (audsettings) {
-        .freq = pdo->frequency,
-        .nchannels = pdo->channels,
+        .freq = static_cast<int>(pdo->frequency),
+        .nchannels = static_cast<int>(pdo->channels),
         .fmt = pdo->format,
         .endianness = HOST_BIG_ENDIAN,
     };
@@ -2329,3 +2338,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

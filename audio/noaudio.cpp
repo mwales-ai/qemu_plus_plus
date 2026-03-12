@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/audio.h"
 
@@ -104,7 +109,7 @@ static void no_enable_in(HWVoiceIn *hw, bool enable)
 
 static void *no_audio_init(Audiodev *dev, Error **errp)
 {
-    return &no_audio_init;
+    return reinterpret_cast<void *>(&no_audio_init);
 }
 
 static void no_audio_fini (void *opaque)
@@ -116,8 +121,8 @@ static struct audio_pcm_ops no_pcm_ops = {
     .init_out = no_init_out,
     .fini_out = no_fini_out,
     .write    = no_write,
-    .buffer_get_free = audio_generic_buffer_get_free,
     .run_buffer_out = audio_generic_run_buffer_out,
+    .buffer_get_free = audio_generic_buffer_get_free,
     .enable_out = no_enable_out,
 
     .init_in  = no_init_in,
@@ -143,3 +148,5 @@ static void register_audio_none(void)
     audio_driver_register(&no_audio_driver);
 }
 type_init(register_audio_none);
+
+} /* extern "C" */

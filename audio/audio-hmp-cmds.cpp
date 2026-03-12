@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "audio_int.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
@@ -81,7 +86,7 @@ void hmp_wavcapture(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    s = g_malloc0 (sizeof (*s));
+    s = static_cast<CaptureState *>(g_malloc0 (sizeof (*s)));
 
     if (wav_start_capture(as, s, path, freq, bits, nchannels)) {
         monitor_printf(mon, "Failed to add wave capture\n");
@@ -90,3 +95,5 @@ void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     }
     QLIST_INSERT_HEAD (&capture_head, s, entries);
 }
+
+} /* extern "C" */

@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/atomic.h"
 #include "qemu/main-loop.h"
@@ -702,3 +707,5 @@ static void register_audio_jack(void)
     jack_set_info_function(qjack_info);
 }
 type_init(register_audio_jack);
+
+} /* extern "C" */

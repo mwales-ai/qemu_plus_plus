@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/audio.h"
 
@@ -72,7 +77,7 @@ static int wav_init_out(HWVoiceOut *hw, struct audsettings *as,
         0x02, 0x00, 0x44, 0xac, 0x00, 0x00, 0x10, 0xb1, 0x02, 0x00, 0x04,
         0x00, 0x10, 0x00, 0x64, 0x61, 0x74, 0x61, 0x00, 0x00, 0x00, 0x00
     };
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = static_cast<Audiodev *>(drv_opaque);
     AudiodevWavOptions *wopts = &dev->u.wav;
     struct audsettings wav_as = audiodev_to_audsettings(dev->u.wav.out);
     const char *wav_path = wopts->path ?: "qemu.wav";
@@ -198,8 +203,8 @@ static struct audio_pcm_ops wav_pcm_ops = {
     .init_out = wav_init_out,
     .fini_out = wav_fini_out,
     .write    = wav_write_out,
-    .buffer_get_free = audio_generic_buffer_get_free,
     .run_buffer_out = audio_generic_run_buffer_out,
+    .buffer_get_free = audio_generic_buffer_get_free,
     .enable_out = wav_enable_out,
 };
 
@@ -219,3 +224,5 @@ static void register_audio_wav(void)
     audio_driver_register(&wav_audio_driver);
 }
 type_init(register_audio_wav);
+
+} /* extern "C" */

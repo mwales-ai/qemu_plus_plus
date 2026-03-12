@@ -1,6 +1,11 @@
 /* public domain */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/audio.h"
 #include "qapi/error.h"
@@ -137,7 +142,7 @@ static void qpa_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
 
     assert(buf == p->read_data && size <= p->read_length);
 
-    p->read_data += size;
+    p->read_data = static_cast<const char *>(p->read_data) + size;
     p->read_length -= size;
 
     if (size && !p->read_length) {
@@ -181,7 +186,7 @@ static size_t qpa_read(HWVoiceIn *hw, void *data, size_t length)
         l = MIN(p->read_length, length - total);
         memcpy((char *)data + total, p->read_data, l);
 
-        p->read_data += l;
+        p->read_data = static_cast<const char *>(p->read_data) + l;
         p->read_length -= l;
         total += l;
 
@@ -318,7 +323,7 @@ unlock_and_fail:
 
 static pa_sample_format_t audfmt_to_pa(AudioFormat afmt, bool big_endian)
 {
-    int format;
+    pa_sample_format_t format;
 
     switch (afmt) {
     case AUDIO_FORMAT_S8:
@@ -375,7 +380,7 @@ static AudioFormat pa_to_audfmt (pa_sample_format_t fmt, int *endianness)
 
 static void context_state_cb (pa_context *c, void *userdata)
 {
-    PAConnection *conn = userdata;
+    PAConnection *conn = static_cast<PAConnection *>(userdata);
 
     switch (pa_context_get_state(c)) {
     case PA_CONTEXT_READY:
@@ -394,7 +399,7 @@ static void context_state_cb (pa_context *c, void *userdata)
 
 static void stream_state_cb (pa_stream *s, void * userdata)
 {
-    PAConnection *c = userdata;
+    PAConnection *c = static_cast<PAConnection *>(userdata);
 
     switch (pa_stream_get_state (s)) {
 
@@ -480,7 +485,7 @@ static pa_stream *qpa_simple_new (
 
     if (dev) {
         /* don't move the stream if the user specified a sink/source */
-        flags |= PA_STREAM_DONT_MOVE;
+        flags = static_cast<pa_stream_flags_t>(flags | PA_STREAM_DONT_MOVE);
     }
 
     if (dir == PA_STREAM_PLAYBACK) {
@@ -517,7 +522,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
     pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceOut *pa = (PAVoiceOut *) hw;
-    paaudio *g = pa->g = drv_opaque;
+    paaudio *g = pa->g = static_cast<paaudio *>(drv_opaque);
     AudiodevPaOptions *popts = &g->dev->u.pa;
     AudiodevPaPerDirectionOptions *ppdo = popts->out;
     PAConnection *c = g->conn;
@@ -566,7 +571,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     pa_buffer_attr ba;
     struct audsettings obt_as = *as;
     PAVoiceIn *pa = (PAVoiceIn *) hw;
-    paaudio *g = pa->g = drv_opaque;
+    paaudio *g = pa->g = static_cast<paaudio *>(drv_opaque);
     AudiodevPaOptions *popts = &g->dev->u.pa;
     AudiodevPaPerDirectionOptions *ppdo = popts->in;
     PAConnection *c = g->conn;
@@ -775,7 +780,7 @@ static void *qpa_conn_init(const char *server)
 
     pa_context_set_state_callback(c->context, context_state_cb, c);
 
-    if (pa_context_connect(c->context, server, 0, NULL) < 0) {
+    if (pa_context_connect(c->context, server, static_cast<pa_context_flags_t>(0), NULL) < 0) {
         qpa_logerr(pa_context_errno(c->context),
                    "pa_context_connect() failed\n");
         goto fail;
@@ -860,7 +865,7 @@ static void *qpa_audio_init(Audiodev *dev, Error **errp)
         }
     }
     if (!g->conn) {
-        g->conn = qpa_conn_init(server);
+        g->conn = static_cast<PAConnection *>(qpa_conn_init(server));
     }
     if (!g->conn) {
         g_free(g);
@@ -893,7 +898,7 @@ static void qpa_conn_fini(PAConnection *c)
 
 static void qpa_audio_fini (void *opaque)
 {
-    paaudio *g = opaque;
+    paaudio *g = static_cast<paaudio *>(opaque);
     PAConnection *c = g->conn;
 
     if (--c->refcount == 0) {
@@ -936,3 +941,5 @@ static void register_audio_pa(void)
     audio_driver_register(&pa_audio_driver);
 }
 type_init(register_audio_pa);
+
+} /* extern "C" */

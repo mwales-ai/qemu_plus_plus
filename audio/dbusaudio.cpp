@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qemu/dbus.h"
@@ -30,10 +35,17 @@
 #ifdef G_OS_UNIX
 #include <gio/gunixfdlist.h>
 #endif
+} /* extern "C" - close before C++ problematic headers */
 
+/*
+ * These headers pull in ui/clipboard.h which has typedef-enum forward
+ * declarations that are not valid inside extern "C" in C++. Include
+ * them outside the extern "C" block.
+ */
 #include "ui/dbus.h"
 #include "ui/dbus-display1.h"
 
+extern "C" {
 #define AUDIO_CAP "dbus"
 #include "qemu/audio.h"
 #include "audio_int.h"
@@ -88,7 +100,7 @@ static void *dbus_get_buffer_out(HWVoiceOut *hw, size_t *size)
     *size = MIN(vo->buf_size - vo->buf_pos, *size);
     *size = audio_rate_get_bytes(&vo->rate, &hw->info, *size);
 
-    return vo->buf + vo->buf_pos;
+    return static_cast<char *>(vo->buf) + vo->buf_pos;
 
 }
 
@@ -101,7 +113,7 @@ static size_t dbus_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
     g_autoptr(GBytes) bytes = NULL;
     g_autoptr(GVariant) v_data = NULL;
 
-    assert(buf == vo->buf + vo->buf_pos && vo->buf_pos + size <= vo->buf_size);
+    assert(buf == static_cast<char *>(vo->buf) + vo->buf_pos && vo->buf_pos + size <= vo->buf_size);
     vo->buf_pos += size;
 
     trace_dbus_audio_put_buffer_out(vo->buf_pos, vo->buf_size);
@@ -110,7 +122,11 @@ static size_t dbus_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
         return size;
     }
 
-    bytes = g_bytes_new_take(g_steal_pointer(&vo->buf), vo->buf_size);
+    {
+        void *stolen_buf = vo->buf;
+        vo->buf = NULL;
+        bytes = g_bytes_new_take(stolen_buf, vo->buf_size);
+    }
     v_data = g_variant_new_from_bytes(G_VARIANT_TYPE("ay"), bytes, TRUE);
     g_variant_ref_sink(v_data);
 
@@ -234,7 +250,7 @@ dbus_volume_out_listener(HWVoiceOut *hw,
         return;
     }
 
-    assert(vol->channels < sizeof(vol->vol));
+    assert((size_t)vol->channels < sizeof(vol->vol));
     bytes = g_bytes_new(vol->vol, vol->channels);
     v_vol = g_variant_new_from_bytes(G_VARIANT_TYPE("ay"), bytes, TRUE);
     qemu_dbus_display1_audio_out_listener_call_set_volume(
@@ -324,7 +340,7 @@ dbus_volume_in_listener(HWVoiceIn *hw,
         return;
     }
 
-    assert(vol->channels < sizeof(vol->vol));
+    assert((size_t)vol->channels < sizeof(vol->vol));
     bytes = g_bytes_new(vol->vol, vol->channels);
     v_vol = g_variant_new_from_bytes(G_VARIANT_TYPE("ay"), bytes, TRUE);
     qemu_dbus_display1_audio_in_listener_call_set_volume(
@@ -373,7 +389,7 @@ dbus_read(HWVoiceIn *hw, void *buf, size_t size)
                 size,
                 G_DBUS_CALL_FLAGS_NONE, -1,
                 &v_data, NULL, NULL)) {
-            data = g_variant_get_fixed_array(v_data, &n, 1);
+            data = static_cast<const char *>(g_variant_get_fixed_array(v_data, &n, 1));
             g_warn_if_fail(n <= size);
             size = MIN(n, size);
             memcpy(buf, data, size);
@@ -421,7 +437,7 @@ dbus_audio_init(Audiodev *dev, Error **errp)
 static void
 dbus_audio_fini(void *opaque)
 {
-    DBusAudio *da = opaque;
+    DBusAudio *da = static_cast<DBusAudio *>(opaque);
 
     if (da->server) {
         g_dbus_object_manager_server_unexport(da->server,
@@ -441,7 +457,7 @@ listener_out_vanished_cb(GDBusConnection *connection,
                          GError *error,
                          DBusAudio *da)
 {
-    char *name = g_object_get_data(G_OBJECT(connection), "name");
+    char *name = static_cast<char *>(g_object_get_data(G_OBJECT(connection), "name"));
 
     g_hash_table_remove(da->out_listeners, name);
 }
@@ -452,7 +468,7 @@ listener_in_vanished_cb(GDBusConnection *connection,
                         GError *error,
                         DBusAudio *da)
 {
-    char *name = g_object_get_data(G_OBJECT(connection), "name");
+    char *name = static_cast<char *>(g_object_get_data(G_OBJECT(connection), "name"));
 
     g_hash_table_remove(da->in_listeners, name);
 }
@@ -466,7 +482,7 @@ dbus_audio_register_listener(AudioBackend *s,
                              GVariant *arg_listener,
                              bool out)
 {
-    DBusAudio *da = s->drv_opaque;
+    DBusAudio *da = static_cast<DBusAudio *>(s->drv_opaque);
     const char *sender =
         da->p2p ? "p2p" : g_dbus_method_invocation_get_sender(invocation);
     g_autoptr(GDBusConnection) listener_conn = NULL;
@@ -651,12 +667,12 @@ dbus_audio_set_server(AudioBackend *s,
                       bool p2p,
                       Error **errp)
 {
-    DBusAudio *da = s->drv_opaque;
+    DBusAudio *da = static_cast<DBusAudio *>(s->drv_opaque);
 
     g_assert(da);
     g_assert(!da->server);
 
-    da->server = g_object_ref(server);
+    da->server = static_cast<GDBusObjectManagerServer *>(g_object_ref(server));
     da->p2p = p2p;
 
     da->audio = g_dbus_object_skeleton_new(DBUS_DISPLAY1_AUDIO_PATH);
@@ -712,3 +728,5 @@ static void register_audio_dbus(void)
 type_init(register_audio_dbus);
 
 module_dep("ui-dbus")
+
+} /* extern "C" */

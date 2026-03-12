@@ -1,6 +1,11 @@
 /* public domain */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #define AUDIO_CAP "win-int"
 #include <windows.h>
@@ -128,3 +133,5 @@ int waveformat_to_audio_settings (WAVEFORMATEX *wfx,
     return 0;
 }
 
+
+} /* extern "C" */

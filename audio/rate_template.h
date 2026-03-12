@@ -30,7 +30,7 @@
 void NAME (void *opaque, struct st_sample *ibuf, struct st_sample *obuf,
            size_t *isamp, size_t *osamp)
 {
-    struct rate *rate = opaque;
+    struct rate *rate = static_cast<struct rate *>(opaque);
     struct st_sample *istart, *iend;
     struct st_sample *ostart, *oend;
     struct st_sample ilast, icur, out;

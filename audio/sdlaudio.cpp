@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include <SDL.h>
 #include <SDL_thread.h>
 #include "qemu/module.h"
@@ -166,15 +171,15 @@ static SDL_AudioDeviceID sdl_open(SDL_AudioSpec *req, SDL_AudioSpec *obt,
     SDL_AudioDeviceID devid;
 #ifndef _WIN32
     int err;
-    sigset_t new, old;
+    sigset_t new_mask, old_mask;
 
     /* Make sure potential threads created by SDL don't hog signals.  */
-    err = sigfillset (&new);
+    err = sigfillset (&new_mask);
     if (err) {
         dolog ("sdl_open: sigfillset failed: %s\n", strerror (errno));
         return 0;
     }
-    err = pthread_sigmask (SIG_BLOCK, &new, &old);
+    err = pthread_sigmask (SIG_BLOCK, &new_mask, &old_mask);
     if (err) {
         dolog ("sdl_open: pthread_sigmask failed: %s\n", strerror (err));
         return 0;
@@ -188,7 +193,7 @@ static SDL_AudioDeviceID sdl_open(SDL_AudioSpec *req, SDL_AudioSpec *obt,
     }
 
 #ifndef _WIN32
-    err = pthread_sigmask (SIG_SETMASK, &old, NULL);
+    err = pthread_sigmask (SIG_SETMASK, &old_mask, NULL);
     if (err) {
         dolog ("sdl_open: pthread_sigmask (restore) failed: %s\n",
                strerror (errno));
@@ -217,7 +222,7 @@ static void sdl_close_out(SDLVoiceOut *sdl)
 
 static void sdl_callback_out(void *opaque, Uint8 *buf, int len)
 {
-    SDLVoiceOut *sdl = opaque;
+    SDLVoiceOut *sdl = static_cast<SDLVoiceOut *>(opaque);
     HWVoiceOut *hw = &sdl->hw;
 
     if (!sdl->exit) {
@@ -234,7 +239,7 @@ static void sdl_callback_out(void *opaque, Uint8 *buf, int len)
             write_len = MIN(MIN(hw->pending_emul, len),
                             hw->size_emul - start);
 
-            memcpy(buf, hw->buf_emul + start, write_len);
+            memcpy(buf, static_cast<char *>(hw->buf_emul) + start, write_len);
             hw->pending_emul -= write_len;
             len -= write_len;
             buf += write_len;
@@ -265,7 +270,7 @@ static void sdl_close_in(SDLVoiceIn *sdl)
 
 static void sdl_callback_in(void *opaque, Uint8 *buf, int len)
 {
-    SDLVoiceIn *sdl = opaque;
+    SDLVoiceIn *sdl = static_cast<SDLVoiceIn *>(opaque);
     HWVoiceIn *hw = &sdl->hw;
 
     if (sdl->exit) {
@@ -278,7 +283,7 @@ static void sdl_callback_in(void *opaque, Uint8 *buf, int len)
         size_t read_len = MIN(len, MIN(hw->size_emul - hw->pos_emul,
                                        hw->size_emul - hw->pending_emul));
 
-        memcpy(hw->buf_emul + hw->pos_emul, buf, read_len);
+        memcpy(static_cast<char *>(hw->buf_emul) + hw->pos_emul, buf, read_len);
 
         hw->pending_emul += read_len;
         hw->pos_emul = (hw->pos_emul + read_len) % hw->size_emul;
@@ -339,7 +344,7 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
     SDLVoiceOut *sdl = (SDLVoiceOut *)hw;
     SDL_AudioSpec req, obt;
     int err;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = static_cast<Audiodev *>(drv_opaque);
     AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.out;
     struct audsettings obt_as;
 
@@ -395,7 +400,7 @@ static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
     SDLVoiceIn *sdl = (SDLVoiceIn *)hw;
     SDL_AudioSpec req, obt;
     int err;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = static_cast<Audiodev *>(drv_opaque);
     AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.in;
     struct audsettings obt_as;
 
@@ -496,3 +501,5 @@ static void register_audio_sdl(void)
     audio_driver_register(&sdl_audio_driver);
 }
 type_init(register_audio_sdl);
+
+} /* extern "C" */

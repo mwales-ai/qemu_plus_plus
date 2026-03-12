@@ -1,4 +1,9 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/qemu-print.h"
 #include "qemu/error-report.h"
 #include "audio_int.h"
@@ -31,7 +36,7 @@ static void wav_notify (void *opaque, audcnotification_e cmd)
 
 static void wav_destroy (void *opaque)
 {
-    WAVState *wav = opaque;
+    WAVState *wav = static_cast<WAVState *>(opaque);
     uint8_t rlen[4];
     uint8_t dlen[4];
     uint32_t datalen = wav->bytes;
@@ -72,7 +77,7 @@ static void wav_destroy (void *opaque)
 
 static void wav_capture(void *opaque, const void *buf, int size)
 {
-    WAVState *wav = opaque;
+    WAVState *wav = static_cast<WAVState *>(opaque);
 
     if (fwrite (buf, size, 1, wav->f) != 1) {
         error_report("wav_capture: fwrite error: %s", strerror(errno));
@@ -82,7 +87,7 @@ static void wav_capture(void *opaque, const void *buf, int size)
 
 static void wav_capture_destroy (void *opaque)
 {
-    WAVState *wav = opaque;
+    WAVState *wav = static_cast<WAVState *>(opaque);
 
     AUD_del_capture (wav->cap, wav);
     g_free (wav);
@@ -90,7 +95,7 @@ static void wav_capture_destroy (void *opaque)
 
 static void wav_capture_info (void *opaque)
 {
-    WAVState *wav = opaque;
+    WAVState *wav = static_cast<WAVState *>(opaque);
     char *path = wav->path;
 
     qemu_printf("Capturing audio(%d,%d,%d) to %s: %d bytes\n",
@@ -99,8 +104,8 @@ static void wav_capture_info (void *opaque)
 }
 
 static struct capture_ops wav_capture_ops = {
-    .destroy = wav_capture_destroy,
-    .info = wav_capture_info
+    .info = wav_capture_info,
+    .destroy = wav_capture_destroy
 };
 
 int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
@@ -141,7 +146,7 @@ int wav_start_capture(AudioBackend *state, CaptureState *s, const char *path,
     ops.capture = wav_capture;
     ops.destroy = wav_destroy;
 
-    wav = g_malloc0 (sizeof (*wav));
+    wav = static_cast<WAVState *>(g_malloc0 (sizeof (*wav)));
 
     shift = bits16 + stereo;
     hdr[34] = bits16 ? 0x10 : 0x08;
@@ -188,3 +193,5 @@ error_free:
     g_free (wav);
     return -1;
 }
+
+} /* extern "C" */
