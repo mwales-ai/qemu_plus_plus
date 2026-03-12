@@ -53,7 +53,7 @@ util_ss.add(files('rcu.c'))
 if have_membarrier
   util_ss.add(files('sys_membarrier.cpp'))
 endif
-util_ss.add(files('log.c'))
+util_ss.add(files('log.cpp'))
 util_ss.add(files('qdist.cpp'))
 util_ss.add(files('qht.c'))
 util_ss.add(files('qsp.c'))

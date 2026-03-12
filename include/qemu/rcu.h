@@ -146,6 +146,20 @@ void drain_call_rcu(void);
 /* The operands of the minus operator must have the same type,
  * which must be the one that we specify in the cast.
  */
+#ifdef __cplusplus
+/*
+ * C++ does not allow function pointer arithmetic. Use a sizeof trick
+ * to verify that func is assignable to the expected signature.
+ */
+#define call_rcu(head, func, field)                                      \
+    call_rcu1(({                                                         \
+         char __attribute__((unused))                                    \
+            offset_must_be_zero[-offsetof(typeof(*(head)), field)];      \
+         (void)sizeof((void (*)(typeof(head)))(func));                   \
+         &(head)->field;                                                 \
+      }),                                                                \
+      (RCUCBFunc *)(func))
+#else
 #define call_rcu(head, func, field)                                      \
     call_rcu1(({                                                         \
          char __attribute__((unused))                                    \
@@ -154,6 +168,7 @@ void drain_call_rcu(void);
          &(head)->field;                                                 \
       }),                                                                \
       (RCUCBFunc *)(func))
+#endif
 
 #define g_free_rcu(obj, field) \
     call_rcu1(({                                                         \
@@ -176,7 +191,13 @@ static inline void rcu_read_auto_unlock(RCUReadAuto *r)
     rcu_read_unlock();
 }
 
+#ifdef __cplusplus
+extern "C++" {
+#endif
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(RCUReadAuto, rcu_read_auto_unlock)
+#ifdef __cplusplus
+} /* extern "C++" */
+#endif
 
 #define WITH_RCU_READ_LOCK_GUARD() \
     WITH_RCU_READ_LOCK_GUARD_(glue(_rcu_read_auto, __COUNTER__))

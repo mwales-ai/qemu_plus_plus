@@ -18,6 +18,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
@@ -25,12 +27,16 @@
 #include "qemu/cutils.h"
 #include "trace/control.h"
 #include "qemu/thread.h"
+}
 #include "qemu/lockable.h"
+extern "C" {
 #include "qemu/rcu.h"
+}
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
 #endif
 
+extern "C" {
 
 typedef struct RCUCloseFILE {
     struct rcu_head rcu;
@@ -115,7 +121,7 @@ static FILE *qemu_log_trylock_with_err(Error **errp)
              * Since all we want is a read of a pointer, cast to void**,
              * which does work with typeof_strip_qual.
              */
-            logfile = qatomic_rcu_read((void **)&global_file);
+            logfile = static_cast<FILE *>(qatomic_rcu_read((void **)&global_file));
             if (!logfile) {
                 rcu_read_unlock();
                 return NULL;
@@ -209,7 +215,7 @@ valid_filename_template(const char *filename, bool per_thread, Error **errp)
             /* We only accept one %d, no other format strings */
             if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
                 error_setg(errp, "Bad logfile template: %s", filename);
-                return 0;
+                return vft_error;
             }
             return per_thread ? vft_strdup : vft_pid_printf;
         }
@@ -387,7 +393,7 @@ bool qemu_set_log_filename_flags(const char *name, int flags, Error **errp)
 bool qemu_log_in_addr_range(uint64_t addr)
 {
     if (debug_regions) {
-        int i = 0;
+        guint i = 0;
         for (i = 0; i < debug_regions->len; i++) {
             Range *range = &g_array_index(debug_regions, Range, i);
             if (range_contains(range, addr)) {
@@ -588,3 +594,4 @@ ssize_t rust_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
     return ret < 0 ? -errno : 0;
 }
 #endif
+} /* extern "C" */
