@@ -15,6 +15,11 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/defer-call.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
@@ -22,8 +27,7 @@
 #include "trace.h"
 #include "block/thread-pool.h"
 #include "qemu/main-loop.h"
-
-static void do_spawn_thread(ThreadPoolAio *pool);
+}
 
 typedef struct ThreadPoolElementAio ThreadPoolElementAio;
 
@@ -74,9 +78,13 @@ struct ThreadPoolAio {
     int max_threads;
 };
 
+extern "C" {
+
+static void do_spawn_thread(ThreadPoolAio *pool);
+
 static void *worker_thread(void *opaque)
 {
-    ThreadPoolAio *pool = opaque;
+    ThreadPoolAio *pool = static_cast<ThreadPoolAio *>(opaque);
 
     qemu_mutex_lock(&pool->lock);
     pool->pending_threads--;
@@ -148,7 +156,7 @@ static void do_spawn_thread(ThreadPoolAio *pool)
 
 static void spawn_thread_bh_fn(void *opaque)
 {
-    ThreadPoolAio *pool = opaque;
+    ThreadPoolAio *pool = static_cast<ThreadPoolAio *>(opaque);
 
     qemu_mutex_lock(&pool->lock);
     do_spawn_thread(pool);
@@ -173,7 +181,7 @@ static void spawn_thread(ThreadPoolAio *pool)
 
 static void thread_pool_completion_bh(void *opaque)
 {
-    ThreadPoolAio *pool = opaque;
+    ThreadPoolAio *pool = static_cast<ThreadPoolAio *>(opaque);
     ThreadPoolElementAio *elem, *next;
 
     defer_call_begin(); /* cb() may use defer_call() to coalesce work */
@@ -217,7 +225,7 @@ restart:
 
 static void thread_pool_cancel(BlockAIOCB *acb)
 {
-    ThreadPoolElementAio *elem = (ThreadPoolElementAio *)acb;
+    ThreadPoolElementAio *elem = reinterpret_cast<ThreadPoolElementAio *>(acb);
     ThreadPoolAio *pool = elem->pool;
 
     trace_thread_pool_cancel_aio(elem, elem->common.opaque);
@@ -234,8 +242,8 @@ static void thread_pool_cancel(BlockAIOCB *acb)
 }
 
 static const AIOCBInfo thread_pool_aiocb_info = {
-    .aiocb_size         = sizeof(ThreadPoolElementAio),
     .cancel_async       = thread_pool_cancel,
+    .aiocb_size         = sizeof(ThreadPoolElementAio),
 };
 
 BlockAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
@@ -248,7 +256,8 @@ BlockAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
     /* Assert that the thread submitting work is the same running the pool */
     assert(pool->ctx == qemu_get_current_aio_context());
 
-    req = qemu_aio_get(&thread_pool_aiocb_info, NULL, cb, opaque);
+    req = static_cast<ThreadPoolElementAio *>(
+        qemu_aio_get(&thread_pool_aiocb_info, NULL, cb, opaque));
     req->func = func;
     req->arg = arg;
     req->state = THREAD_QUEUED;
@@ -275,7 +284,7 @@ typedef struct ThreadPoolCo {
 
 static void thread_pool_co_cb(void *opaque, int ret)
 {
-    ThreadPoolCo *co = opaque;
+    ThreadPoolCo *co = static_cast<ThreadPoolCo *>(opaque);
 
     co->ret = ret;
     aio_co_wake(co->co);
@@ -390,8 +399,8 @@ typedef struct {
 
 static void thread_pool_func(gpointer data, gpointer user_data)
 {
-    ThreadPool *pool = user_data;
-    g_autofree ThreadPoolElement *el = data;
+    ThreadPool *pool = static_cast<ThreadPool *>(user_data);
+    g_autofree ThreadPoolElement *el = static_cast<ThreadPoolElement *>(data);
 
     el->func(el->opaque);
 
@@ -493,3 +502,5 @@ bool thread_pool_adjust_max_threads_to_work(ThreadPool *pool)
 
     return thread_pool_set_max_threads(pool, pool->cur_work);
 }
+
+} /* extern "C" */

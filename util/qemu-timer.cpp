@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "qemu/lockable.h"
@@ -30,6 +35,7 @@
 #include "exec/icount.h"
 #include "system/replay.h"
 #include "system/cpus.h"
+}
 
 #ifdef CONFIG_POSIX
 #include <pthread.h>
@@ -42,6 +48,8 @@
 #ifdef CONFIG_PRCTL_PR_SET_TIMERSLACK
 #include <sys/prctl.h>
 #endif
+
+extern "C" {
 
 /***********************************************************/
 /* timers */
@@ -581,7 +589,7 @@ void timerlistgroup_init(QEMUTimerListGroup *tlg,
                          QEMUTimerListNotifyCB *cb, void *opaque)
 {
     QEMUClockType type;
-    for (type = 0; type < QEMU_CLOCK_MAX; type++) {
+    for (type = static_cast<QEMUClockType>(0); type < QEMU_CLOCK_MAX; type = static_cast<QEMUClockType>(type + 1)) {
         tlg->tl[type] = timerlist_new(type, cb, opaque);
     }
 }
@@ -589,7 +597,7 @@ void timerlistgroup_init(QEMUTimerListGroup *tlg,
 void timerlistgroup_deinit(QEMUTimerListGroup *tlg)
 {
     QEMUClockType type;
-    for (type = 0; type < QEMU_CLOCK_MAX; type++) {
+    for (type = static_cast<QEMUClockType>(0); type < QEMU_CLOCK_MAX; type = static_cast<QEMUClockType>(type + 1)) {
         timerlist_free(tlg->tl[type]);
     }
 }
@@ -598,7 +606,7 @@ bool timerlistgroup_run_timers(QEMUTimerListGroup *tlg)
 {
     QEMUClockType type;
     bool progress = false;
-    for (type = 0; type < QEMU_CLOCK_MAX; type++) {
+    for (type = static_cast<QEMUClockType>(0); type < QEMU_CLOCK_MAX; type = static_cast<QEMUClockType>(type + 1)) {
         progress |= timerlist_run_timers(tlg->tl[type]);
     }
     return progress;
@@ -608,7 +616,7 @@ int64_t timerlistgroup_deadline_ns(QEMUTimerListGroup *tlg)
 {
     int64_t deadline = -1;
     QEMUClockType type;
-    for (type = 0; type < QEMU_CLOCK_MAX; type++) {
+    for (type = static_cast<QEMUClockType>(0); type < QEMU_CLOCK_MAX; type = static_cast<QEMUClockType>(type + 1)) {
         if (qemu_clock_use_for_deadline(type)) {
             deadline = qemu_soonest_timeout(deadline,
                                             timerlist_deadline_ns(tlg->tl[type]));
@@ -640,7 +648,7 @@ static void qemu_virtual_clock_set_ns(int64_t time)
 void qemu_init_clocks(QEMUTimerListNotifyCB *notify_cb)
 {
     QEMUClockType type;
-    for (type = 0; type < QEMU_CLOCK_MAX; type++) {
+    for (type = static_cast<QEMUClockType>(0); type < QEMU_CLOCK_MAX; type = static_cast<QEMUClockType>(type + 1)) {
         qemu_clock_init(type, notify_cb);
     }
 
@@ -659,7 +667,7 @@ bool qemu_clock_run_all_timers(void)
     bool progress = false;
     QEMUClockType type;
 
-    for (type = 0; type < QEMU_CLOCK_MAX; type++) {
+    for (type = static_cast<QEMUClockType>(0); type < QEMU_CLOCK_MAX; type = static_cast<QEMUClockType>(type + 1)) {
         if (qemu_clock_use_for_deadline(type)) {
             progress |= qemu_clock_run_timers(type);
         }
@@ -688,3 +696,5 @@ int64_t qemu_clock_advance_virtual_time(int64_t dest)
 
     return clock;
 }
+
+} /* extern "C" */

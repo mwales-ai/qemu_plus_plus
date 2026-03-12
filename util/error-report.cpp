@@ -11,8 +11,14 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
+}
 
 /*
  * @report_type is the type of message: error, warning or
@@ -23,6 +29,9 @@ typedef enum {
     REPORT_TYPE_WARNING,
     REPORT_TYPE_INFO,
 } report_type;
+
+/* Wrap all globals and function definitions in extern "C" for C linkage */
+extern "C" {
 
 /* Prepend timestamp to messages */
 bool message_with_timestamp;
@@ -41,7 +50,7 @@ int error_printf(const char *fmt, ...)
 }
 
 static Location std_loc = {
-    .kind = LOC_NONE
+    .kind = Location::LOC_NONE
 };
 static Location *cur_loc = &std_loc;
 
@@ -66,7 +75,7 @@ Location *loc_push_restore(Location *loc)
  */
 Location *loc_push_none(Location *loc)
 {
-    loc->kind = LOC_NONE;
+    loc->kind = Location::LOC_NONE;
     loc->prev = NULL;
     return loc_push_restore(loc);
 }
@@ -109,7 +118,7 @@ void loc_restore(Location *loc)
  */
 void loc_set_none(void)
 {
-    cur_loc->kind = LOC_NONE;
+    cur_loc->kind = Location::LOC_NONE;
 }
 
 /*
@@ -117,7 +126,7 @@ void loc_set_none(void)
  */
 void loc_set_cmdline(char **argv, int idx, int cnt)
 {
-    cur_loc->kind = LOC_CMDLINE;
+    cur_loc->kind = Location::LOC_CMDLINE;
     cur_loc->num = cnt;
     cur_loc->ptr = argv + idx;
 }
@@ -127,8 +136,8 @@ void loc_set_cmdline(char **argv, int idx, int cnt)
  */
 void loc_set_file(const char *fname, int lno)
 {
-    assert (fname || cur_loc->kind == LOC_FILE);
-    cur_loc->kind = LOC_FILE;
+    assert (fname || cur_loc->kind == Location::LOC_FILE);
+    cur_loc->kind = Location::LOC_FILE;
     cur_loc->num = lno;
     if (fname) {
         cur_loc->ptr = fname;
@@ -149,15 +158,15 @@ static void print_loc(void)
         sep = " ";
     }
     switch (cur_loc->kind) {
-    case LOC_CMDLINE:
-        argp = cur_loc->ptr;
+    case Location::LOC_CMDLINE:
+        argp = static_cast<const char *const *>(cur_loc->ptr);
         for (i = 0; i < cur_loc->num; i++) {
             error_printf("%s%s", sep, argp[i]);
             sep = " ";
         }
         error_printf(": ");
         break;
-    case LOC_FILE:
+    case Location::LOC_FILE:
         error_printf("%s:", (const char *)cur_loc->ptr);
         if (cur_loc->num) {
             error_printf("%d:", cur_loc->num);
@@ -392,3 +401,5 @@ void error_init(const char *argv0)
     g_warn_if_fail(qemu_glog_domains == NULL);
     qemu_glog_domains = g_strdup(g_getenv("G_MESSAGES_DEBUG"));
 }
+
+} /* extern "C" */

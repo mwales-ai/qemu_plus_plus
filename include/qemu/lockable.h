@@ -106,7 +106,11 @@ QML_FUNC_(spin, QemuSpin)
 /*
  * C++ uses function overloading instead of _Generic, and GCC statement
  * expressions to create QemuLockable values with expression-scoped lifetime.
+ *
+ * extern "C++" ensures these overloads have C++ linkage even when lockable.h
+ * is transitively included inside an extern "C" block.
  */
+extern "C++" {
 static inline QemuLockable qemu_lockable_init_(QemuMutex *x) {
     QemuLockable l = { x, qemu_lockable_mutex_lock, qemu_lockable_mutex_unlock };
     return l;
@@ -138,6 +142,7 @@ static inline QemuLockable *qemu_lockable_init_(QemuLockable *x) {
         QemuLockable qml_lockable_ = qemu_lockable_init_(x);           \
         &qml_lockable_;                                                 \
     })
+} /* extern "C++" */
 #else
 #define QEMU_MAKE_LOCKABLE(x)                                           \
     _Generic((x), QemuLockable *: (x),                                  \

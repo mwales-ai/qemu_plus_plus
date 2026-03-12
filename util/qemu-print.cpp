@@ -11,8 +11,20 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "monitor/monitor.h"
 #include "qemu/qemu-print.h"
+}
+
+/*
+ * Print like vprintf().
+ * Print to current monitor if we have one, else to stdout.
+ */
+extern "C" {
 
 /*
  * Print like vprintf().
@@ -68,3 +80,5 @@ int qemu_fprintf(FILE *stream, const char *fmt, ...)
     va_end(ap);
     return ret;
 }
+
+} /* extern "C" */
