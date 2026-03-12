@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "chardev/char.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-char.h"
@@ -85,7 +90,7 @@ static int ringbuf_chr_read(Chardev *chr, uint8_t *buf, int len)
     return i;
 }
 
-static void char_ringbuf_finalize(Object *obj)
+static void __attribute__((used)) char_ringbuf_finalize(Object *obj)
 {
     RingBufChardev *d = RINGBUF_CHARDEV(obj);
 
@@ -110,7 +115,7 @@ static void qemu_chr_open_ringbuf(Chardev *chr,
 
     d->prod = 0;
     d->cons = 0;
-    d->cbuf = g_malloc0(d->size);
+    d->cbuf = static_cast<uint8_t *>(g_malloc0(d->size));
 }
 
 void qmp_ringbuf_write(const char *device, const char *data,
@@ -183,8 +188,8 @@ char *qmp_ringbuf_read(const char *device, int64_t size,
     }
 
     count = ringbuf_count(chr);
-    size = size > count ? count : size;
-    read_data = g_malloc(size + 1);
+    size = size > static_cast<int64_t>(count) ? count : size;
+    read_data = static_cast<uint8_t *>(g_malloc(size + 1));
 
     ringbuf_chr_read(chr, read_data, size);
 
@@ -235,9 +240,9 @@ static void char_ringbuf_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo char_ringbuf_type_info = {
     .name = TYPE_CHARDEV_RINGBUF,
     .parent = TYPE_CHARDEV,
-    .class_init = char_ringbuf_class_init,
     .instance_size = sizeof(RingBufChardev),
     .instance_finalize = char_ringbuf_finalize,
+    .class_init = char_ringbuf_class_init,
 };
 
 /* Bug-compatibility: */
@@ -253,3 +258,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

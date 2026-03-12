@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/sockets.h"
@@ -173,3 +178,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

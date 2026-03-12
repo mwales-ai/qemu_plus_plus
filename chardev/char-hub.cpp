@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/option.h"
 #include "chardev/char.h"
@@ -53,7 +58,7 @@ static int hub_chr_write(Chardev *chr, const uint8_t *buf, int len)
     /* Invalidate index on every write */
     d->be_eagain_ind = -1;
 
-    for (i = 0; i < d->be_cnt; i++) {
+    for (i = 0; i < (int)d->be_cnt; i++) {
         if (!d->backends[i].fe.chr->be_open) {
             /* Skip closed backend */
             continue;
@@ -83,7 +88,7 @@ static int hub_chr_write(Chardev *chr, const uint8_t *buf, int len)
 
 static int hub_chr_can_read(void *opaque)
 {
-    HubCharBackend *backend = opaque;
+    HubCharBackend *backend = static_cast<HubCharBackend *>(opaque);
     CharFrontend *fe = backend->hub->parent.fe;
 
     if (fe && fe->chr_can_read) {
@@ -95,7 +100,7 @@ static int hub_chr_can_read(void *opaque)
 
 static void hub_chr_read(void *opaque, const uint8_t *buf, int size)
 {
-    HubCharBackend *backend = opaque;
+    HubCharBackend *backend = static_cast<HubCharBackend *>(opaque);
     CharFrontend *fe = backend->hub->parent.fe;
 
     if (fe && fe->chr_read) {
@@ -105,7 +110,7 @@ static void hub_chr_read(void *opaque, const uint8_t *buf, int size)
 
 static void hub_chr_event(void *opaque, QEMUChrEvent event)
 {
-    HubCharBackend *backend = opaque;
+    HubCharBackend *backend = static_cast<HubCharBackend *>(opaque);
     HubChardev *d = backend->hub;
     CharFrontend *fe = d->parent.fe;
 
@@ -146,7 +151,7 @@ static GSource *hub_chr_add_watch(Chardev *s, GIOCondition cond)
         return NULL;
     }
 
-    assert(d->be_eagain_ind < d->be_cnt);
+    assert(d->be_eagain_ind < (int)d->be_cnt);
     chr = qemu_chr_fe_get_driver(&d->backends[d->be_eagain_ind].fe);
     cc = CHARDEV_GET_CLASS(chr);
     if (!cc->chr_add_watch) {
@@ -177,12 +182,12 @@ static bool hub_chr_attach_chardev(HubChardev *d, Chardev *chr,
     return ret;
 }
 
-static void char_hub_finalize(Object *obj)
+static void __attribute__((used)) char_hub_finalize(Object *obj)
 {
     HubChardev *d = HUB_CHARDEV(obj);
     int i;
 
-    for (i = 0; i < d->be_cnt; i++) {
+    for (i = 0; i < (int)d->be_cnt; i++) {
         qemu_chr_fe_deinit(&d->backends[i].fe, false);
     }
 }
@@ -192,7 +197,7 @@ static void hub_chr_update_read_handlers(Chardev *chr)
     HubChardev *d = HUB_CHARDEV(chr);
     int i;
 
-    for (i = 0; i < d->be_cnt; i++) {
+    for (i = 0; i < (int)d->be_cnt; i++) {
         qemu_chr_fe_set_handlers_full(&d->backends[i].fe,
                                       hub_chr_can_read,
                                       hub_chr_read,
@@ -288,9 +293,9 @@ static void char_hub_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo char_hub_type_info = {
     .name = TYPE_CHARDEV_HUB,
     .parent = TYPE_CHARDEV,
-    .class_init = char_hub_class_init,
     .instance_size = sizeof(HubChardev),
     .instance_finalize = char_hub_finalize,
+    .class_init = char_hub_class_init,
 };
 
 static void register_types(void)
@@ -299,3 +304,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

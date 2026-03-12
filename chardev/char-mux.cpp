@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -234,7 +239,7 @@ static void mux_chr_read(void *opaque, const uint8_t *buf, int size)
     CharFrontend *fe = d->frontends[m];
     int i;
 
-    mux_chr_accept_input(opaque);
+    mux_chr_accept_input(static_cast<Chardev *>(opaque));
 
     for (i = 0; i < size; i++)
         if (mux_proc_byte(chr, d, buf[i])) {
@@ -282,7 +287,7 @@ static GSource *mux_chr_add_watch(Chardev *s, GIOCondition cond)
     return cc->chr_add_watch(chr, cond);
 }
 
-static void char_mux_finalize(Object *obj)
+static void __attribute__((used)) char_mux_finalize(Object *obj)
 {
     MuxChardev *d = MUX_CHARDEV(obj);
     int bit;
@@ -463,9 +468,9 @@ static void char_mux_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo char_mux_type_info = {
     .name = TYPE_CHARDEV_MUX,
     .parent = TYPE_CHARDEV,
-    .class_init = char_mux_class_init,
     .instance_size = sizeof(MuxChardev),
     .instance_finalize = char_mux_finalize,
+    .class_init = char_mux_class_init,
 };
 
 static void register_types(void)
@@ -474,3 +479,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

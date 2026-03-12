@@ -22,6 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "system/replay.h"
@@ -377,3 +382,5 @@ void qemu_chr_fe_disconnect(CharFrontend *c)
         CHARDEV_GET_CLASS(chr)->chr_disconnect(chr);
     }
 }
+
+} /* extern "C" */

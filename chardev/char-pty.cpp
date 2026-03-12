@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "chardev/char.h"
 #include "io/channel-file.h"
@@ -158,7 +163,7 @@ static gboolean pty_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     ssize_t ret;
 
     len = sizeof(buf);
-    if (len > s->read_bytes) {
+    if (len > (gsize)s->read_bytes) {
         len = s->read_bytes;
     }
     if (len == 0) {
@@ -415,3 +420,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

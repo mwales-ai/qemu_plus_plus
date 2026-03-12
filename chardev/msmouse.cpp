@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/fifo8.h"
 #include "chardev/char.h"
@@ -114,7 +119,7 @@ static void msmouse_queue_event(MouseChardev *mouse)
         count++;
     }
 
-    if (fifo8_num_free(&mouse->outbuf) >= count) {
+    if (fifo8_num_free(&mouse->outbuf) >= (uint32_t)count) {
         fifo8_push_all(&mouse->outbuf, bytes, count);
     } else {
         /* queue full -> drop event */
@@ -211,7 +216,7 @@ static int msmouse_ioctl(Chardev *chr, int cmd, void *arg)
                     c += bytes[i];
                 }
                 /* Calc more of checksum */
-                for (j = 0; j < sizeof(pnp_data); j++) {
+                for (j = 0; j < (int)sizeof(pnp_data); j++) {
                     c += pnp_data[j];
                 }
                 c &= 0xff;
@@ -291,3 +296,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "chardev/char.h"
 #include "io/channel-socket.h"
 #include "qapi/error.h"
@@ -170,9 +175,9 @@ static void qemu_chr_parse_udp(QemuOpts *opts, ChardevBackend *backend,
     *addr->u.inet.data = (InetSocketAddress) {
         .host = g_strdup(host),
         .port = g_strdup(port),
-        .has_ipv4 = qemu_opt_get(opts, "ipv4"),
+        .has_ipv4 = (bool)qemu_opt_get(opts, "ipv4"),
         .ipv4 = qemu_opt_get_bool(opts, "ipv4", 0),
-        .has_ipv6 = qemu_opt_get(opts, "ipv6"),
+        .has_ipv6 = (bool)qemu_opt_get(opts, "ipv6"),
         .ipv6 = qemu_opt_get_bool(opts, "ipv6", 0),
     };
     udp->remote = addr;
@@ -243,3 +248,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

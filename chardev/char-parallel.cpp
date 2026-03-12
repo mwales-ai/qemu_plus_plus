@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "chardev/char.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
@@ -117,7 +122,7 @@ static int pp_ioctl(Chardev *chr, int cmd, void *arg)
         break;
     case CHR_IOCTL_PP_EPP_READ_ADDR:
         if (pp_hw_mode(drv, IEEE1284_MODE_EPP | IEEE1284_ADDR)) {
-            struct ParallelIOArg *parg = arg;
+            struct ParallelIOArg *parg = static_cast<struct ParallelIOArg *>(arg);
             int n = read(fd, parg->buffer, parg->count);
             if (n != parg->count) {
                 return -EIO;
@@ -126,7 +131,7 @@ static int pp_ioctl(Chardev *chr, int cmd, void *arg)
         break;
     case CHR_IOCTL_PP_EPP_READ:
         if (pp_hw_mode(drv, IEEE1284_MODE_EPP)) {
-            struct ParallelIOArg *parg = arg;
+            struct ParallelIOArg *parg = static_cast<struct ParallelIOArg *>(arg);
             int n = read(fd, parg->buffer, parg->count);
             if (n != parg->count) {
                 return -EIO;
@@ -135,7 +140,7 @@ static int pp_ioctl(Chardev *chr, int cmd, void *arg)
         break;
     case CHR_IOCTL_PP_EPP_WRITE_ADDR:
         if (pp_hw_mode(drv, IEEE1284_MODE_EPP | IEEE1284_ADDR)) {
-            struct ParallelIOArg *parg = arg;
+            struct ParallelIOArg *parg = static_cast<struct ParallelIOArg *>(arg);
             int n = write(fd, parg->buffer, parg->count);
             if (n != parg->count) {
                 return -EIO;
@@ -144,7 +149,7 @@ static int pp_ioctl(Chardev *chr, int cmd, void *arg)
         break;
     case CHR_IOCTL_PP_EPP_WRITE:
         if (pp_hw_mode(drv, IEEE1284_MODE_EPP)) {
-            struct ParallelIOArg *parg = arg;
+            struct ParallelIOArg *parg = static_cast<struct ParallelIOArg *>(arg);
             int n = write(fd, parg->buffer, parg->count);
             if (n != parg->count) {
                 return -EIO;
@@ -309,3 +314,5 @@ static void register_types(void)
 type_init(register_types);
 
 #endif  /* HAVE_CHARDEV_PARALLEL */
+
+} /* extern "C" */

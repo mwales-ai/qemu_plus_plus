@@ -27,6 +27,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "chardev/char-serial.h"
 #include "ui/console.h"
@@ -101,7 +106,7 @@ static void wctablet_shift_input(TabletChardev *tablet, int count)
 
 static void wctablet_queue_output(TabletChardev *tablet, uint8_t *buf, int count)
 {
-    if (tablet->outlen + count > sizeof(tablet->outbuf)) {
+    if (tablet->outlen + count > (int)sizeof(tablet->outbuf)) {
         return;
     }
 
@@ -215,7 +220,7 @@ static int wctablet_chr_write(struct Chardev *chr,
     if (tablet->line_speed != 9600) {
         return len;
     }
-    for (i = 0; i < len && tablet->query_index < sizeof(tablet->query) - 1; i++) {
+    for (i = 0; i < (unsigned int)len && tablet->query_index < (int)(sizeof(tablet->query) - 1); i++) {
         tablet->query[tablet->query_index++] = buf[i];
     }
     tablet->query[tablet->query_index] = 0;
@@ -274,8 +279,8 @@ static int wctablet_chr_write(struct Chardev *chr,
         unsigned int input = tablet->query[2];
         uint8_t codes[7] = {
             0xa3,
-            ((input & 0x80) == 0) ? 0x7e : 0x7f,
-            (((WC_H4(input) & 0x7) ^ 0x5) << 4) | (WC_L4(input) ^ 0x7),
+            static_cast<uint8_t>(((input & 0x80) == 0) ? 0x7e : 0x7f),
+            static_cast<uint8_t>((((WC_H4(input) & 0x7) ^ 0x5) << 4) | (WC_L4(input) ^ 0x7)),
             0x03,
             0x7f,
             0x7f,
@@ -302,7 +307,7 @@ static int wctablet_chr_ioctl(Chardev *chr, int cmd, void *arg)
 
     switch (cmd) {
     case CHR_IOCTL_SERIAL_SET_PARAMS:
-        ssp = arg;
+        ssp = static_cast<QEMUSerialSetParams *>(arg);
         if (tablet->line_speed != ssp->speed) {
             trace_wct_speed(ssp->speed);
             wctablet_reset(tablet);
@@ -366,3 +371,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

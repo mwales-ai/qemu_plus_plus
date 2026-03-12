@@ -1,16 +1,16 @@
 chardev_ss.add(files(
-  'char-fe.c',
-  'char-file.c',
-  'char-io.c',
-  'char-mux.c',
-  'char-hub.c',
-  'char-null.c',
+  'char-fe.cpp',
+  'char-file.cpp',
+  'char-io.cpp',
+  'char-mux.cpp',
+  'char-hub.cpp',
+  'char-null.cpp',
   'char-pipe.c',
-  'char-ringbuf.c',
-  'char-serial.c',
+  'char-ringbuf.cpp',
+  'char-serial.cpp',
   'char-socket.c',
-  'char-stdio.c',
-  'char-udp.c',
+  'char-stdio.cpp',
+  'char-udp.cpp',
   'char.c',
 ))
 if host_os == 'windows'
@@ -21,9 +21,9 @@ if host_os == 'windows'
   ))
 else
   chardev_ss.add(files(
-      'char-fd.c',
-      'char-parallel.c',
-      'char-pty.c',
+      'char-fd.cpp',
+      'char-parallel.cpp',
+      'char-pty.cpp',
     ), util)
 endif
 
@@ -31,21 +31,21 @@ chardev_ss = chardev_ss.apply({})
 
 system_ss.add(files(
     'char-hmp-cmds.c',
-    'msmouse.c',
-    'wctablet.c',
-    'testdev.c'))
+    'msmouse.cpp',
+    'wctablet.cpp',
+    'testdev.cpp'))
 
 chardev_modules = {}
 
 if brlapi.found()
   module_ss = ss.source_set()
-  module_ss.add(when: [brlapi], if_true: [files('baum.c'), pixman])
+  module_ss.add(when: [brlapi], if_true: [files('baum.cpp'), pixman])
   chardev_modules += { 'baum': module_ss }
 endif
 
 if spice.found()
   module_ss = ss.source_set()
-  module_ss.add(when: [spice], if_true: files('spice.c'))
+  module_ss.add(when: [spice], if_true: files('spice.cpp'))
   chardev_modules += { 'spice': module_ss }
 endif
 

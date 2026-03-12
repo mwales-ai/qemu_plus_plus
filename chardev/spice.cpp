@@ -1,4 +1,9 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "trace.h"
 #include "ui/qemu-spice.h"
 #include "chardev/char.h"
@@ -14,7 +19,7 @@ typedef struct SpiceCharSource {
     SpiceChardev       *scd;
 } SpiceCharSource;
 
-static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
+static int __attribute__((used)) vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
 {
     SpiceChardev *scd = container_of(sin, SpiceChardev, sin);
     Chardev *chr = CHARDEV(scd);
@@ -38,7 +43,7 @@ static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
     return out;
 }
 
-static int vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
+static int __attribute__((used)) vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
 {
     SpiceChardev *scd = container_of(sin, SpiceChardev, sin);
     int bytes = MIN(len, scd->datalen);
@@ -57,11 +62,11 @@ static int vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
     return bytes;
 }
 
-static void vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
+static void __attribute__((used)) vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
 {
     SpiceChardev *scd = container_of(sin, SpiceChardev, sin);
     Chardev *chr = CHARDEV(scd);
-    int chr_event;
+    QEMUChrEvent chr_event;
 
     switch (event) {
     case SPICE_PORT_EVENT_BREAK:
@@ -75,7 +80,7 @@ static void vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
     qemu_chr_be_event(chr, chr_event);
 }
 
-static void vmc_state(SpiceCharDeviceInstance *sin, int connected)
+static void __attribute__((used)) vmc_state(SpiceCharDeviceInstance *sin, int connected)
 {
     SpiceChardev *scd = container_of(sin, SpiceChardev, sin);
     Chardev *chr = CHARDEV(scd);
@@ -89,17 +94,21 @@ static void vmc_state(SpiceCharDeviceInstance *sin, int connected)
                       connected ? CHR_EVENT_OPENED : CHR_EVENT_CLOSED);
 }
 
-static SpiceCharDeviceInterface vmc_interface = {
-    .base.type          = SPICE_INTERFACE_CHAR_DEVICE,
-    .base.description   = "spice virtual channel char device",
-    .base.major_version = SPICE_INTERFACE_CHAR_DEVICE_MAJOR,
-    .base.minor_version = SPICE_INTERFACE_CHAR_DEVICE_MINOR,
-    .state              = vmc_state,
-    .write              = vmc_write,
-    .read               = vmc_read,
-    .event              = vmc_event,
-    .flags              = SPICE_CHAR_DEVICE_NOTIFY_WRITABLE,
-};
+static SpiceCharDeviceInterface vmc_interface;
+
+static void __attribute__((constructor)) vmc_interface_init(void)
+{
+    memset(&vmc_interface, 0, sizeof(vmc_interface));
+    vmc_interface.base.type          = SPICE_INTERFACE_CHAR_DEVICE;
+    vmc_interface.base.description   = "spice virtual channel char device";
+    vmc_interface.base.major_version = SPICE_INTERFACE_CHAR_DEVICE_MAJOR;
+    vmc_interface.base.minor_version = SPICE_INTERFACE_CHAR_DEVICE_MINOR;
+    vmc_interface.state              = vmc_state;
+    vmc_interface.write              = vmc_write;
+    vmc_interface.read               = vmc_read;
+    vmc_interface.event              = vmc_event;
+    vmc_interface.flags              = SPICE_CHAR_DEVICE_NOTIFY_WRITABLE;
+}
 
 
 static void vmc_register_interface(SpiceChardev *scd)
@@ -361,8 +370,8 @@ static const TypeInfo char_spice_type_info = {
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(SpiceChardev),
     .instance_finalize = char_spice_finalize,
-    .class_init = char_spice_class_init,
     .is_abstract = true,
+    .class_init = char_spice_class_init,
 };
 module_obj(TYPE_CHARDEV_SPICE);
 
@@ -408,3 +417,5 @@ static void register_types(void)
 type_init(register_types);
 
 module_dep("ui-spice-core");
+
+} /* extern "C" */

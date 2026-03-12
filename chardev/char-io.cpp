@@ -22,6 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "chardev/char-io.h"
 
 typedef struct IOWatchPoll {
@@ -63,7 +68,7 @@ static gboolean io_watch_poll_prepare(GSource *source,
      */
     if (now_active) {
         iwp->src = qio_channel_create_watch(
-            iwp->ioc, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL);
+            iwp->ioc, static_cast<GIOCondition>(G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL));
         g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
         g_source_attach(iwp->src, iwp->context);
     } else {
@@ -190,3 +195,5 @@ void remove_listener_fd_in_watch(Chardev *chr)
         cc->chr_listener_cleanup(chr);
     }
 }
+
+} /* extern "C" */

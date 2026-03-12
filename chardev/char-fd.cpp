@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/sockets.h"
 #include "qapi/error.h"
@@ -117,7 +122,7 @@ fd_source_dispatch(GSource *source, GSourceFunc callback,
 
     if (src->cond) {
         ret = func(NULL, src->cond, user_data);
-        src->cond = 0;
+        src->cond = static_cast<GIOCondition>(0);
     }
 
     return ret;
@@ -139,9 +144,9 @@ static gboolean child_func(GIOChannel *source,
                            GIOCondition condition,
                            gpointer data)
 {
-    FDSource *parent = data;
+    FDSource *parent = static_cast<FDSource *>(data);
 
-    parent->cond |= condition;
+    parent->cond = static_cast<GIOCondition>(parent->cond | condition);
 
     return G_SOURCE_CONTINUE;
 }
@@ -152,17 +157,19 @@ static GSource *fd_chr_add_watch(Chardev *chr, GIOCondition cond)
     g_autoptr(GSource) source = fd_source_new(s);
 
     if (s->ioc_out) {
-        g_autoptr(GSource) child = qio_channel_create_watch(s->ioc_out, cond & ~G_IO_IN);
+        g_autoptr(GSource) child = qio_channel_create_watch(s->ioc_out, static_cast<GIOCondition>(cond & ~G_IO_IN));
         g_source_set_callback(child, (GSourceFunc)child_func, source, NULL);
         g_source_add_child_source(source, child);
     }
     if (s->ioc_in) {
-        g_autoptr(GSource) child = qio_channel_create_watch(s->ioc_in, cond & ~G_IO_OUT);
+        g_autoptr(GSource) child = qio_channel_create_watch(s->ioc_in, static_cast<GIOCondition>(cond & ~G_IO_OUT));
         g_source_set_callback(child, (GSourceFunc)child_func, source, NULL);
         g_source_add_child_source(source, child);
     }
 
-    return g_steal_pointer(&source);
+    GSource *ret = source;
+    source = NULL;
+    return ret;
 }
 
 static void fd_chr_update_read_handler(Chardev *chr)
@@ -256,8 +263,8 @@ static const TypeInfo char_fd_type_info = {
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(FDChardev),
     .instance_finalize = char_fd_finalize,
-    .class_init = char_fd_class_init,
     .is_abstract = true,
+    .class_init = char_fd_class_init,
 };
 
 static void register_types(void)
@@ -266,3 +273,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

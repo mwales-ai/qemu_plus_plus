@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/sockets.h"
@@ -184,7 +189,7 @@ static int tty_serial_ioctl(Chardev *chr, int cmd, void *arg)
     switch (cmd) {
     case CHR_IOCTL_SERIAL_SET_PARAMS:
         {
-            QEMUSerialSetParams *ssp = arg;
+            QEMUSerialSetParams *ssp = static_cast<QEMUSerialSetParams *>(arg);
             tty_serial_init(fioc->fd,
                             ssp->speed, ssp->parity,
                             ssp->data_bits, ssp->stop_bits);
@@ -331,3 +336,5 @@ static void register_types(void)
 type_init(register_types);
 
 #endif
+
+} /* extern "C" */
