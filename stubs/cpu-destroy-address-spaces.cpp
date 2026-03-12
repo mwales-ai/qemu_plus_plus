@@ -1,7 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "exec/cpu-common.h"
+
 
 /*
  * user-mode CPUs never create address spaces with
@@ -13,3 +20,6 @@
 void cpu_destroy_address_spaces(CPUState *cpu)
 {
 }
+
+
+} /* extern "C" */

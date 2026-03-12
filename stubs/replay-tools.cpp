@@ -1,6 +1,13 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "system/replay.h"
 #include "block/aio.h"
+
 
 bool replay_events_enabled(void)
 {
@@ -82,3 +89,6 @@ void replay_char_read_all_save_buf(uint8_t *buf, int offset)
 {
     abort();
 }
+
+
+} /* extern "C" */

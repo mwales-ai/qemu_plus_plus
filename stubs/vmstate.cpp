@@ -1,7 +1,14 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "migration/vmstate.h"
 #include "qapi/qapi-types-migration.h"
 #include "migration/client-options.h"
+
 
 int vmstate_register_with_alias_id(VMStateIf *obj,
                                    uint32_t instance_id,
@@ -28,3 +35,6 @@ MigMode migrate_mode(void)
 {
     return MIG_MODE_NORMAL;
 }
+
+
+} /* extern "C" */

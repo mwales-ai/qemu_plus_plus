@@ -1,8 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine-s390x.h"
+
 
 void qmp_set_cpu_topology(uint16_t core,
                           bool has_socket, uint16_t socket,
@@ -20,3 +27,6 @@ CpuPolarizationInfo *qmp_query_s390x_cpu_polarization(Error **errp)
     error_setg(errp, "CPU polarization is not supported on this target");
     return NULL;
 }
+
+
+} /* extern "C" */

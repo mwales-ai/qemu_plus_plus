@@ -8,8 +8,15 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "block/aio.h"
 #include "block/raw-aio.h"
+
 
 void laio_detach_aio_context(LinuxAioState *s, AioContext *old_context)
 {
@@ -30,3 +37,6 @@ void laio_cleanup(LinuxAioState *s)
 {
     abort();
 }
+
+
+} /* extern "C" */

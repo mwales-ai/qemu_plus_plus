@@ -1,7 +1,14 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "exec/ramlist.h"
 #include "exec/cpu-common.h"
 #include "system/memory.h"
+
 
 void *qemu_ram_get_host_addr(RAMBlock *rb)
 {
@@ -35,3 +42,6 @@ int ram_block_discard_disable(bool state)
 {
     return 0;
 }
+
+
+} /* extern "C" */

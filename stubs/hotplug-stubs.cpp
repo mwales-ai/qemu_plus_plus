@@ -12,7 +12,14 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "hw/qdev-core.h"
+
 
 HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
 {
@@ -32,3 +39,6 @@ void hotplug_handler_plug(HotplugHandler *plug_handler,
 {
     g_assert_not_reached();
 }
+
+
+} /* extern "C" */

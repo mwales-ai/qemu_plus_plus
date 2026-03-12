@@ -8,7 +8,14 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "trace/control.h"
+
 
 
 void trace_event_set_state_dynamic_init(TraceEvent *ev, bool state)
@@ -36,3 +43,6 @@ void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
         }
     }
 }
+
+
+} /* extern "C" */

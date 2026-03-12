@@ -1,8 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc-i386.h"
+
 
 SevInfo *qmp_query_sev(Error **errp)
 {
@@ -34,3 +41,6 @@ SevAttestationReport *qmp_query_sev_attestation_report(const char *mnonce,
     error_setg(errp, "SEV is not available in this QEMU");
     return NULL;
 }
+
+
+} /* extern "C" */

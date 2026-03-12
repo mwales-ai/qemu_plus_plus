@@ -13,9 +13,19 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "hw/nvram/fw_cfg.h"
+
 
 const char *fw_cfg_arch_key_name(uint16_t key)
 {
     return NULL;
 }
+
+
+} /* extern "C" */

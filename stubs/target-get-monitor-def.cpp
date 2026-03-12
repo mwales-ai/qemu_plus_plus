@@ -20,6 +20,13 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
+
 
 int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval);
 
@@ -27,3 +34,6 @@ int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval)
 {
     return -1;
 }
+
+
+} /* extern "C" */

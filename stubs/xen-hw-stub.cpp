@@ -7,8 +7,15 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "hw/xen/xen.h"
 #include "hw/xen/xen-x86.h"
+
 
 int xen_pci_slot_get_pirq(PCIDevice *pci_dev, int irq_num)
 {
@@ -41,3 +48,6 @@ void xen_register_framebuffer(MemoryRegion *mr)
 void xen_hvm_init_pc(PCMachineState *pcms, MemoryRegion **ram_memory)
 {
 }
+
+
+} /* extern "C" */

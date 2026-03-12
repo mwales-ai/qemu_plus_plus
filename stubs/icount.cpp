@@ -1,6 +1,13 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "qapi/error.h"
 #include "exec/icount.h"
+
 
 /* icount - Instruction Counter API */
 
@@ -30,3 +37,6 @@ void icount_notify_exit(void)
 {
     abort();
 }
+
+
+} /* extern "C" */

@@ -13,10 +13,20 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "qapi/qapi-events-qdev.h"
+
 
 void qapi_event_send_device_deleted(const char *device,
                                     const char *path)
 {
     /* Nothing to do. */
 }
+
+
+} /* extern "C" */

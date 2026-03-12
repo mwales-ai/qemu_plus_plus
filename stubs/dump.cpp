@@ -12,7 +12,14 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "system/dump-arch.h"
+
 
 int cpu_get_dump_info(ArchDumpInfo *info,
                       const struct GuestPhysBlockList *guest_phys_blocks)
@@ -20,8 +27,10 @@ int cpu_get_dump_info(ArchDumpInfo *info,
     return -1;
 }
 
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
+ssize_t cpu_get_note_size(int elf_class, int machine, int nr_cpus)
 {
     return -1;
 }
 
+
+} /* extern "C" */

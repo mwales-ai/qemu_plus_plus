@@ -1,5 +1,12 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "exec/replay-core.h"
+
 
 void replay_finish(void)
 {
@@ -23,3 +30,6 @@ bool replay_reverse_continue(void)
 {
     return false;
 }
+
+
+} /* extern "C" */

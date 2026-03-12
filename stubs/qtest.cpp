@@ -9,7 +9,17 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "system/qtest.h"
+
 
 /* Needed for qtest_allowed() */
 bool qtest_allowed;
+
+
+} /* extern "C" */

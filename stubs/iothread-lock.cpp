@@ -1,5 +1,12 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "qemu/main-loop.h"
+
 
 static bool bql_is_locked = false;
 static uint32_t bql_unlock_blocked;
@@ -43,3 +50,6 @@ bool mutex_is_bql(QemuMutex *mutex)
 void bql_update_status(bool locked)
 {
 }
+
+
+} /* extern "C" */

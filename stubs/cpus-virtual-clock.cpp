@@ -1,6 +1,13 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
+
 #include "system/cpu-timers.h"
 #include "qemu/main-loop.h"
+
 
 int64_t cpus_get_virtual_clock(void)
 {
@@ -11,3 +18,6 @@ void cpus_set_virtual_clock(int64_t new_time)
 {
     /* do nothing */
 }
+
+
+} /* extern "C" */
