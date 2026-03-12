@@ -9,37 +9,37 @@ system_ss.add(files(
 
 system_ss.add(files(
   'balloon.c',
-  'bootdevice.c',
+  'bootdevice.cpp',
   'cpus.c',
-  'cpu-timers.c',
+  'cpu-timers.cpp',
   'datadir.c',
   'dirtylimit.c',
   'dma-helpers.c',
-  'exit-with-parent.c',
-  'globals.c',
+  'exit-with-parent.cpp',
+  'globals.cpp',
   'ioport.c',
   'ram-block-attributes.c',
-  'memory_mapping.c',
+  'memory_mapping.cpp',
   'memory.c',
   'physmem.c',
-  'qdev-monitor.c',
-  'qtest.c',
-  'rtc.c',
-  'runstate-action.c',
-  'runstate-hmp-cmds.c',
+  'qdev-monitor.cpp',
+  'qtest.cpp',
+  'rtc.cpp',
+  'runstate-action.cpp',
+  'runstate-hmp-cmds.cpp',
   'runstate.c',
-  'tpm-hmp-cmds.c',
-  'watchpoint.c',
+  'tpm-hmp-cmds.cpp',
+  'watchpoint.cpp',
 ))
 
 if have_tpm
-  system_ss.add(files('tpm.c'))
+  system_ss.add(files('tpm.cpp'))
 endif
 
-system_ss.add(when: seccomp, if_true: files('qemu-seccomp.c'))
+system_ss.add(when: seccomp, if_true: files('qemu-seccomp.cpp'))
 system_ss.add(when: 'CONFIG_DEVICE_TREE',
-              if_true: [fdt, files('device_tree.c')],
-              if_false: files('device_tree-stub.c'))
+              if_true: [fdt, files('device_tree.cpp')],
+              if_false: files('device_tree-stub.cpp'))
 if host_os == 'linux'
-  system_ss.add(files('async-teardown.c'))
+  system_ss.add(files('async-teardown.cpp'))
 endif

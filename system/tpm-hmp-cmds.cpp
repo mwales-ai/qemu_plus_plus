@@ -6,6 +6,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/qapi-commands-tpm.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp.h"
@@ -63,3 +68,5 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "TPM device not supported\n");
 #endif /* CONFIG_TPM */
 }
+
+} /* extern "C" */

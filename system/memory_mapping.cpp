@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/range.h"
 #include "qapi/error.h"
 
@@ -200,7 +205,8 @@ static void guest_phys_block_add_section(GuestPhysListener *g,
 {
     const hwaddr target_start = section->offset_within_address_space;
     const hwaddr target_end = target_start + int128_get64(section->size);
-    uint8_t *host_addr = memory_region_get_ram_ptr(section->mr) +
+    uint8_t *host_addr = static_cast<uint8_t *>(
+                             memory_region_get_ram_ptr(section->mr)) +
                          section->offset_within_region;
     GuestPhysBlock *predecessor = NULL;
 
@@ -224,7 +230,7 @@ static void guest_phys_block_add_section(GuestPhysListener *g,
 
     if (predecessor == NULL) {
         /* isolated mapping, allocate it and add it to the list */
-        GuestPhysBlock *block = g_malloc0(sizeof *block);
+        GuestPhysBlock *block = static_cast<GuestPhysBlock *>(g_malloc0(sizeof *block));
 
         block->target_start = target_start;
         block->target_end   = target_end;
@@ -251,7 +257,7 @@ static void guest_phys_block_add_section(GuestPhysListener *g,
 static int guest_phys_ram_populate_cb(MemoryRegionSection *section,
                                       void *opaque)
 {
-    GuestPhysListener *g = opaque;
+    GuestPhysListener *g = static_cast<GuestPhysListener *>(opaque);
 
     guest_phys_block_add_section(g, section);
     return 0;
@@ -361,7 +367,7 @@ void memory_mapping_filter(MemoryMappingList *list, int64_t begin,
             continue;
         }
 
-        if (cur->phys_addr < begin) {
+        if (cur->phys_addr < (hwaddr)begin) {
             cur->length -= begin - cur->phys_addr;
             if (cur->virt_addr) {
                 cur->virt_addr += begin - cur->phys_addr;
@@ -369,8 +375,10 @@ void memory_mapping_filter(MemoryMappingList *list, int64_t begin,
             cur->phys_addr = begin;
         }
 
-        if (cur->phys_addr + cur->length > begin + length) {
+        if (cur->phys_addr + cur->length > (hwaddr)(begin + length)) {
             cur->length -= cur->phys_addr + cur->length - begin - length;
         }
     }
 }
+
+} /* extern "C" */

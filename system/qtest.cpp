@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "system/qtest.h"
 #include "system/runstate.h"
@@ -585,7 +590,7 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
         /* We'd send garbage to libqtest if len is 0 */
         g_assert(len);
 
-        data = g_malloc(len);
+        data = static_cast<uint8_t *>(g_malloc(len));
         address_space_read(first_cpu->as, addr, MEMTXATTRS_UNSPECIFIED, data,
                            len);
 
@@ -606,7 +611,7 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
         ret = qemu_strtou64(words[2], NULL, 0, &len);
         g_assert(ret == 0);
 
-        data = g_malloc(len);
+        data = static_cast<uint8_t *>(g_malloc(len));
         address_space_read(first_cpu->as, addr, MEMTXATTRS_UNSPECIFIED, data,
                            len);
         b64_data = g_base64_encode(data, len);
@@ -632,7 +637,7 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
             return;
         }
 
-        data = g_malloc(len);
+        data = static_cast<uint8_t *>(g_malloc(len));
         for (i = 0; i < len; i++) {
             if ((i * 2 + 4) <= data_len) {
                 data[i] = hex2nib(words[3][i * 2 + 2]) << 4;
@@ -661,7 +666,7 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
         g_assert(ret == 0);
 
         if (len) {
-            data = g_malloc(len);
+            data = static_cast<uint8_t *>(g_malloc(len));
             memset(data, pattern, len);
             address_space_write(first_cpu->as, addr, MEMTXATTRS_UNSPECIFIED,
                                 data, len);
@@ -690,7 +695,7 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
 
         data = g_base64_decode_inplace(words[3], &out_len);
         if (out_len != len) {
-            qtest_log_send("b64write: data length mismatch (told %"PRIu64", "
+            qtest_log_send("b64write: data length mismatch (told %" PRIu64 ", "
                            "found %zu)\n",
                            len, out_len);
             out_len = MIN(out_len, len);
@@ -725,7 +730,7 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
         }
         new_ns = qemu_clock_advance_virtual_time(old_ns + ns);
         if (new_ns > old_ns) {
-            qtest_sendf(chr, "OK %"PRIi64"\n", new_ns);
+            qtest_sendf(chr, "OK %" PRIi64 "\n", new_ns);
         } else {
             qtest_sendf(chr, "FAIL could not advance time\n");
         }
@@ -751,7 +756,7 @@ static void qtest_process_command(CharFrontend *chr, gchar **words)
         ret = qemu_strtoi64(words[1], NULL, 0, &ns);
         g_assert(ret == 0);
         new_ns = qemu_clock_advance_virtual_time(ns);
-        qtest_sendf(chr, "%s %"PRIi64"\n",
+        qtest_sendf(chr, "%s %" PRIi64 "\n",
                     new_ns == ns ? "OK" : "FAIL", new_ns);
     } else if (process_command_cb && process_command_cb(chr, words)) {
         /* Command got consumed by the callback handler */
@@ -780,7 +785,7 @@ static void qtest_process_inbuf(CharFrontend *chr, GString *inbuf)
 
 static void qtest_read(void *opaque, const uint8_t *buf, int size)
 {
-    CharFrontend *chr = opaque;
+    CharFrontend *chr = static_cast<CharFrontend *>(opaque);
 
     g_string_append_len(inbuf, (const gchar *)buf, size);
     qtest_process_inbuf(chr, inbuf);
@@ -793,7 +798,7 @@ static int qtest_can_read(void *opaque)
 
 static void qtest_event(void *opaque, QEMUChrEvent event)
 {
-    int i;
+    size_t i;
 
     switch (event) {
     case CHR_EVENT_OPENED:
@@ -1019,15 +1024,17 @@ static void qtest_class_init(ObjectClass *oc, const void *data)
                                   qtest_get_log, qtest_set_log);
 }
 
+static const InterfaceInfo qtest_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo qtest_info = {
     .name = TYPE_QTEST,
     .parent = TYPE_OBJECT,
-    .class_init = qtest_class_init,
     .instance_size = sizeof(QTest),
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .class_init = qtest_class_init,
+    .interfaces = qtest_interfaces,
 };
 
 static void register_types(void)
@@ -1036,3 +1043,5 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+} /* extern "C" */

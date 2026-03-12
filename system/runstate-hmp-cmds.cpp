@@ -14,6 +14,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "exec/cpu-common.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
@@ -72,7 +77,7 @@ void hmp_watchdog_action(Monitor *mon, const QDict *qdict)
     char *qapi_value;
 
     qapi_value = g_ascii_strdown(qdict_get_str(qdict, "action"), -1);
-    action = qapi_enum_parse(&WatchdogAction_lookup, qapi_value, -1, &err);
+    action = static_cast<WatchdogAction>(qapi_enum_parse(&WatchdogAction_lookup, qapi_value, -1, &err));
     g_free(qapi_value);
     if (err) {
         hmp_handle_error(mon, err);
@@ -93,3 +98,5 @@ void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
         readline_add_completion_of(rs, str, WatchdogAction_str(i));
     }
 }
+
+} /* extern "C" */

@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu-main.h"
 #include "qemu/main-loop.h"
 #include "system/replay.h"
@@ -94,3 +99,5 @@ int main(int argc, char **argv)
         g_assert_not_reached();
     }
 }
+
+} /* extern "C" */

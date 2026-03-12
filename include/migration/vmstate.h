@@ -154,6 +154,15 @@ enum VMStateFlags {
     VMS_END = 0x10000
 };
 
+#ifdef __cplusplus
+static inline enum VMStateFlags operator|(enum VMStateFlags a,
+                                          enum VMStateFlags b)
+{
+    return static_cast<enum VMStateFlags>(static_cast<int>(a) |
+                                          static_cast<int>(b));
+}
+#endif
+
 typedef enum {
     MIG_PRI_UNINITIALIZED = 0,  /* An uninitialized priority field maps to */
                                 /* MIG_PRI_DEFAULT in save_state_priority */
@@ -760,22 +769,22 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_UNUSED_BUFFER(_test, _version, _size) {              \
     .name         = "unused",                                        \
-    .field_exists = (_test),                                         \
-    .version_id   = (_version),                                      \
     .size         = (_size),                                         \
     .info         = &vmstate_info_unused_buffer,                     \
     .flags        = VMS_BUFFER,                                      \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 /* Discard size * field_num bytes, where field_num is a uint32 member */
 #define VMSTATE_UNUSED_VARRAY_UINT32(_state, _test, _version, _field_num, _size) {\
     .name         = "unused",                                        \
-    .field_exists = (_test),                                         \
-    .num_offset   = vmstate_offset_value(_state, _field_num, uint32_t),\
-    .version_id   = (_version),                                      \
     .size         = (_size),                                         \
+    .num_offset   = vmstate_offset_value(_state, _field_num, uint32_t),\
     .info         = &vmstate_info_unused_buffer,                     \
     .flags        = VMS_VARRAY_UINT32 | VMS_BUFFER,                  \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 /* _field_size should be a int32_t field in the _state struct giving the

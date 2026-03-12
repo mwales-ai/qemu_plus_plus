@@ -18,6 +18,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/error-report.h"
 #include "exec/cputlb.h"
 #include "exec/target_page.h"
@@ -37,7 +42,7 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                      VADDR_PRIx ", len=%" VADDR_PRIu, addr, len);
         return -EINVAL;
     }
-    wp = g_malloc(sizeof(*wp));
+    wp = static_cast<CPUWatchpoint *>(g_malloc(sizeof(*wp)));
 
     wp->vaddr = addr;
     wp->len = len;
@@ -100,3 +105,5 @@ void cpu_watchpoint_remove_all(CPUState *cpu, int mask)
         }
     }
 }
+
+} /* extern "C" */

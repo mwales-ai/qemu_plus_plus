@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "exec/cpu-common.h"
 #include "hw/display/vga.h"
 #include "hw/loader.h"
@@ -72,3 +77,5 @@ struct evtchn_backend_ops *xen_evtchn_ops;
 struct gnttab_backend_ops *xen_gnttab_ops;
 struct foreignmem_backend_ops *xen_foreignmem_ops;
 struct xenstore_backend_ops *xen_xenstore_ops;
+
+} /* extern "C" */

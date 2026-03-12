@@ -13,6 +13,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "qapi/error.h"
 #include "qapi/qapi-commands-tpm.h"
@@ -52,7 +57,7 @@ static void tpm_display_backend_drivers(void)
     int i;
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
-        const TPMBackendClass *bc = tpm_be_find_by_type(i);
+        const TPMBackendClass *bc = tpm_be_find_by_type(static_cast<TpmType>(i));
         if (!bc) {
             continue;
         }
@@ -119,7 +124,7 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     }
 
     i = qapi_enum_parse(&TpmType_lookup, value, -1, NULL);
-    be = i >= 0 ? tpm_be_find_by_type(i) : NULL;
+    be = i >= 0 ? tpm_be_find_by_type(static_cast<TpmType>(i)) : NULL;
     if (be == NULL) {
         error_report(QERR_INVALID_PARAMETER_VALUE,
                      "type", "a TPM backend type");
@@ -216,10 +221,10 @@ TpmTypeList *qmp_query_tpm_types(Error **errp)
     TpmTypeList *head = NULL, **tail = &head;
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
-        if (!tpm_be_find_by_type(i)) {
+        if (!tpm_be_find_by_type(static_cast<TpmType>(i))) {
             continue;
         }
-        QAPI_LIST_APPEND(tail, i);
+        QAPI_LIST_APPEND(tail, static_cast<TpmType>(i));
     }
 
     return head;
@@ -238,3 +243,5 @@ TpmModelList *qmp_query_tpm_models(Error **errp)
 
     return head;
 }
+
+} /* extern "C" */

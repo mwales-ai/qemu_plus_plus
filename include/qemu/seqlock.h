@@ -52,8 +52,15 @@ static inline void seqlock_write_lock_impl(QemuSeqLock *sl, QemuLockable *lock)
     qemu_lockable_lock(lock);
     seqlock_write_begin(sl);
 }
+#ifdef __cplusplus
+#define seqlock_write_lock(sl, lock) do {                               \
+    QemuLockable seqlock_lockable_ = qemu_lockable_init_(lock);         \
+    seqlock_write_lock_impl(sl, &seqlock_lockable_);                    \
+} while (0)
+#else
 #define seqlock_write_lock(sl, lock) \
     seqlock_write_lock_impl(sl, QEMU_MAKE_LOCKABLE(lock))
+#endif
 
 /* Update the count and release the lock.  */
 static inline void seqlock_write_unlock_impl(QemuSeqLock *sl, QemuLockable *lock)
@@ -61,8 +68,15 @@ static inline void seqlock_write_unlock_impl(QemuSeqLock *sl, QemuLockable *lock
     seqlock_write_end(sl);
     qemu_lockable_unlock(lock);
 }
+#ifdef __cplusplus
+#define seqlock_write_unlock(sl, lock) do {                             \
+    QemuLockable seqlock_lockable_ = qemu_lockable_init_(lock);         \
+    seqlock_write_unlock_impl(sl, &seqlock_lockable_);                  \
+} while (0)
+#else
 #define seqlock_write_unlock(sl, lock) \
     seqlock_write_unlock_impl(sl, QEMU_MAKE_LOCKABLE(lock))
+#endif
 
 
 static inline unsigned seqlock_read_begin(const QemuSeqLock *sl)

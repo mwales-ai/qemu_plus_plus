@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -142,13 +147,13 @@ static bool icount_state_needed(void *opaque)
 
 static bool warp_timer_state_needed(void *opaque)
 {
-    TimersState *s = opaque;
+    TimersState *s = static_cast<TimersState *>(opaque);
     return s->icount_warp_timer != NULL;
 }
 
 static bool adjust_timers_state_needed(void *opaque)
 {
-    TimersState *s = opaque;
+    TimersState *s = static_cast<TimersState *>(opaque);
     return s->icount_rt_timer != NULL;
 }
 
@@ -160,16 +165,24 @@ static bool icount_shift_state_needed(void *opaque)
 /*
  * Subsection for warp timer migration is optional, because may not be created
  */
+static const VMStateField icount_warp_timer_fields[] = {
+    VMSTATE_INT64(vm_clock_warp_start, TimersState),
+    VMSTATE_TIMER_PTR(icount_warp_timer, TimersState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription icount_vmstate_warp_timer = {
     .name = "timer/icount/warp_timer",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = warp_timer_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT64(vm_clock_warp_start, TimersState),
-        VMSTATE_TIMER_PTR(icount_warp_timer, TimersState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = icount_warp_timer_fields,
+};
+
+static const VMStateField icount_adjust_timers_fields[] = {
+    VMSTATE_TIMER_PTR(icount_rt_timer, TimersState),
+    VMSTATE_TIMER_PTR(icount_vm_timer, TimersState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription icount_vmstate_adjust_timers = {
@@ -177,11 +190,13 @@ static const VMStateDescription icount_vmstate_adjust_timers = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = adjust_timers_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(icount_rt_timer, TimersState),
-        VMSTATE_TIMER_PTR(icount_vm_timer, TimersState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = icount_adjust_timers_fields,
+};
+
+static const VMStateField icount_shift_fields[] = {
+    VMSTATE_INT16(icount_time_shift, TimersState),
+    VMSTATE_INT64(last_delta, TimersState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription icount_vmstate_shift = {
@@ -189,48 +204,52 @@ static const VMStateDescription icount_vmstate_shift = {
     .version_id = 2,
     .minimum_version_id = 2,
     .needed = icount_shift_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT16(icount_time_shift, TimersState),
-        VMSTATE_INT64(last_delta, TimersState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = icount_shift_fields,
 };
 
 /*
  * This is a subsection for icount migration.
  */
+static const VMStateField icount_timers_fields[] = {
+    VMSTATE_INT64(qemu_icount_bias, TimersState),
+    VMSTATE_INT64(qemu_icount, TimersState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const icount_timers_subsections[] = {
+    &icount_vmstate_warp_timer,
+    &icount_vmstate_adjust_timers,
+    &icount_vmstate_shift,
+    NULL
+};
+
 static const VMStateDescription icount_vmstate_timers = {
     .name = "timer/icount",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = icount_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT64(qemu_icount_bias, TimersState),
-        VMSTATE_INT64(qemu_icount, TimersState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &icount_vmstate_warp_timer,
-        &icount_vmstate_adjust_timers,
-        &icount_vmstate_shift,
-        NULL
-    }
+    .fields = icount_timers_fields,
+    .subsections = icount_timers_subsections,
+};
+
+static const VMStateField vmstate_timers_fields[] = {
+    VMSTATE_INT64(cpu_ticks_offset, TimersState),
+    VMSTATE_UNUSED(8),
+    VMSTATE_INT64_V(cpu_clock_offset, TimersState, 2),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_timers_subsections[] = {
+    &icount_vmstate_timers,
+    NULL
 };
 
 static const VMStateDescription vmstate_timers = {
     .name = "timer",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT64(cpu_ticks_offset, TimersState),
-        VMSTATE_UNUSED(8),
-        VMSTATE_INT64_V(cpu_clock_offset, TimersState, 2),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &icount_vmstate_timers,
-        NULL
-    }
+    .fields = vmstate_timers_fields,
+    .subsections = vmstate_timers_subsections,
 };
 
 static void do_nothing(CPUState *cpu, run_on_cpu_data unused)
@@ -273,3 +292,5 @@ void cpu_timers_init(void)
     qemu_spin_init(&timers_state.vm_clock_lock);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
 }
+
+} /* extern "C" */

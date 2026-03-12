@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #ifdef CONFIG_LINUX
 #include <dirent.h>
@@ -262,11 +267,11 @@ char **qemu_fdt_node_unit_path(void *fdt, const char *name, Error **errp)
         if (!strcmp(iter_name, name) || g_str_has_prefix(iter_name, prefix)) {
             char *path;
 
-            path = g_malloc(path_len);
+            path = static_cast<char *>(g_malloc(path_len));
             while ((ret = fdt_get_path(fdt, offset, path, path_len))
                   == -FDT_ERR_NOSPACE) {
                 path_len += 16;
-                path = g_realloc(path, path_len);
+                path = static_cast<char *>(g_realloc(path, path_len));
             }
             path_list = g_slist_prepend(path_list, path);
             n++;
@@ -289,7 +294,7 @@ char **qemu_fdt_node_unit_path(void *fdt, const char *name, Error **errp)
     path_array[n--] = NULL;
 
     for (iter = path_list; iter; iter = iter->next) {
-        path_array[n--] = iter->data;
+        path_array[n--] = static_cast<char *>(iter->data);
     }
 
     g_slist_free(path_list);
@@ -317,11 +322,11 @@ char **qemu_fdt_node_path(void *fdt, const char *name, const char *compat,
         if (!name || !strcmp(iter_name, name)) {
             char *path;
 
-            path = g_malloc(path_len);
+            path = static_cast<char *>(g_malloc(path_len));
             while ((ret = fdt_get_path(fdt, offset, path, path_len))
                   == -FDT_ERR_NOSPACE) {
                 path_len += 16;
-                path = g_realloc(path, path_len);
+                path = static_cast<char *>(g_realloc(path, path_len));
             }
             path_list = g_slist_prepend(path_list, path);
             n++;
@@ -343,7 +348,7 @@ char **qemu_fdt_node_path(void *fdt, const char *name, const char *compat,
     path_array[n--] = NULL;
 
     for (iter = path_list; iter; iter = iter->next) {
-        path_array[n--] = iter->data;
+        path_array[n--] = static_cast<char *>(iter->data);
     }
 
     g_slist_free(path_list);
@@ -416,7 +421,7 @@ int qemu_fdt_setprop_string_array(void *fdt, const char *node_path,
     for (i = 0; i < len; i++) {
         total_len += strlen(array[i]) + 1;
     }
-    p = str = g_malloc0(total_len);
+    p = str = static_cast<char *>(g_malloc0(total_len));
     for (i = 0; i < len; i++) {
         int offset = strlen(array[i]) + 1;
         pstrcpy(p, offset, array[i]);
@@ -454,7 +459,7 @@ uint32_t qemu_fdt_getprop_cell(void *fdt, const char *node_path,
     if (!lenp) {
         lenp = &len;
     }
-    p = qemu_fdt_getprop(fdt, node_path, property, lenp, errp);
+    p = static_cast<const uint32_t *>(qemu_fdt_getprop(fdt, node_path, property, lenp, errp));
     if (!p) {
         return 0;
     } else if (*lenp != 4) {
@@ -652,7 +657,7 @@ void qmp_dumpdtb(const char *filename, Error **errp)
 
     g_assert(size > 0);
 
-    if (!g_file_set_contents(filename, current_machine->fdt, size, &err)) {
+    if (!g_file_set_contents(filename, static_cast<const gchar *>(current_machine->fdt), size, &err)) {
         error_setg(errp, "Error saving FDT to file %s: %s",
                    filename, err->message);
     }
@@ -677,3 +682,5 @@ void qemu_fdt_randomize_seeds(void *fdt)
         }
     }
 }
+
+} /* extern "C" */

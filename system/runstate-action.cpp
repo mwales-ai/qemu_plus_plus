@@ -7,6 +7,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/runstate-action.h"
 #include "system/watchdog.h"
 #include "qemu/config-file.h"
@@ -44,3 +49,5 @@ void qmp_set_action(bool has_reboot, RebootAction reboot,
         shutdown_action = shutdown;
     }
 }
+
+} /* extern "C" */

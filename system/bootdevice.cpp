@@ -23,6 +23,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "system/system.h"
 #include "qapi/visitor.h"
@@ -100,7 +105,7 @@ void validate_bootdevices(const char *devices, Error **errp)
 
 void restore_boot_order(void *opaque)
 {
-    char *normal_boot_order = opaque;
+    char *normal_boot_order = static_cast<char *>(opaque);
     static int bootcount;
 
     switch (bootcount++) {
@@ -263,7 +268,7 @@ char *get_boot_devices_list(size_t *size)
             list[total-1] = '\n';
         }
         len = strlen(bootpath) + 1;
-        list = g_realloc(list, total + len);
+        list = static_cast<char *>(g_realloc(list, total + len));
         memcpy(&list[total], bootpath, len);
         total += len;
         g_free(bootpath);
@@ -274,7 +279,7 @@ char *get_boot_devices_list(size_t *size)
     if (current_machine->boot_config.has_strict &&
         current_machine->boot_config.strict && *size > 0) {
         list[total-1] = '\n';
-        list = g_realloc(list, total + 5);
+        list = static_cast<char *>(g_realloc(list, total + 5));
         memcpy(&list[total], "HALT", 5);
         *size = total + 5;
     }
@@ -290,14 +295,14 @@ typedef struct {
 static void device_get_bootindex(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
-    BootIndexProperty *prop = opaque;
+    BootIndexProperty *prop = static_cast<BootIndexProperty *>(opaque);
     visit_type_int32(v, name, prop->bootindex, errp);
 }
 
 static void device_set_bootindex(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
-    BootIndexProperty *prop = opaque;
+    BootIndexProperty *prop = static_cast<BootIndexProperty *>(opaque);
     int32_t boot_index;
     Error *local_err = NULL;
 
@@ -320,7 +325,7 @@ static void property_release_bootindex(Object *obj, const char *name,
                                        void *opaque)
 
 {
-    BootIndexProperty *prop = opaque;
+    BootIndexProperty *prop = static_cast<BootIndexProperty *>(opaque);
 
     del_boot_device_path(prop->dev, prop->suffix);
     g_free(prop);
@@ -330,7 +335,7 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                                    const char *name, const char *suffix,
                                    DeviceState *dev)
 {
-    BootIndexProperty *prop = g_malloc0(sizeof(*prop));
+    BootIndexProperty *prop = static_cast<BootIndexProperty *>(g_malloc0(sizeof(*prop)));
 
     prop->bootindex = bootindex;
     prop->suffix = suffix;
@@ -420,7 +425,7 @@ char *get_boot_devices_lchs_list(size_t *size)
             list[total - 1] = '\n';
         }
         len = strlen(chs_string) + 1;
-        list = g_realloc(list, total + len);
+        list = static_cast<char *>(g_realloc(list, total + len));
         memcpy(&list[total], chs_string, len);
         total += len;
         g_free(chs_string);
@@ -431,3 +436,5 @@ char *get_boot_devices_lchs_list(size_t *size)
 
     return list;
 }
+
+} /* extern "C" */

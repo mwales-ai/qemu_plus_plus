@@ -14,6 +14,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
@@ -80,7 +85,7 @@ const struct scmp_arg_cmp sched_setscheduler_arg[] = {
 const struct scmp_arg_cmp clone_arg_none[] = {
     { .arg = CLONE_FLAGS_ARG,
       .op = SCMP_CMP_MASKED_EQ,
-      .datum_a = ~(CSIGNAL), .datum_b = 0 }
+      .datum_a = (scmp_datum_t)~(CSIGNAL), .datum_b = 0 }
 };
 
 /*
@@ -484,3 +489,5 @@ static void seccomp_register(void)
     }
 }
 opts_init(seccomp_register);
+
+} /* extern "C" */

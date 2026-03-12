@@ -18,6 +18,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "hw/sysbus.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
@@ -50,7 +55,7 @@
  */
 typedef struct QDevAlias
 {
-    const char *typename;
+    const char *type_name_;
     const char *alias;
     uint32_t arch_mask;
 } QDevAlias;
@@ -130,13 +135,13 @@ static const char *qdev_class_get_alias(DeviceClass *dc)
     const char *type_name = object_class_get_name(OBJECT_CLASS(dc));
     int i;
 
-    for (i = 0; qdev_alias_table[i].typename; i++) {
+    for (i = 0; qdev_alias_table[i].type_name_; i++) {
         if (qdev_alias_table[i].arch_mask &&
             !qemu_arch_available(qdev_alias_table[i].arch_mask)) {
             continue;
         }
 
-        if (strcmp(qdev_alias_table[i].typename, type_name) == 0) {
+        if (strcmp(qdev_alias_table[i].type_name_, type_name) == 0) {
             return qdev_alias_table[i].alias;
         }
     }
@@ -223,7 +228,7 @@ static const char *find_typename_by_alias(const char *alias)
         }
 
         if (strcmp(qdev_alias_table[i].alias, alias) == 0) {
-            return qdev_alias_table[i].typename;
+            return qdev_alias_table[i].type_name_;
         }
     }
 
@@ -290,7 +295,7 @@ int qdev_device_help(QemuOpts *opts)
     ObjectPropertyInfoList *prop_list;
     ObjectPropertyInfoList *prop;
     GPtrArray *array;
-    int i;
+    guint i;
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && is_help_option(driver)) {
@@ -792,7 +797,7 @@ static void bus_print_dev(BusState *bus, Monitor *mon, DeviceState *dev, int ind
 
 static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
-    ObjectClass *class;
+    ObjectClass *klass;
     NamedGPIOList *ngl;
     NamedClockList *ncl;
 
@@ -813,11 +818,11 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
                     ncl->alias ? " (alias)" : "",
                     ncl->name, freq_str);
     }
-    class = object_get_class(OBJECT(dev));
+    klass = object_get_class(OBJECT(dev));
     do {
-        qdev_print_props(mon, dev, DEVICE_CLASS(class), indent);
-        class = object_class_get_parent(class);
-    } while (class != object_class_by_name(TYPE_DEVICE));
+        qdev_print_props(mon, dev, DEVICE_CLASS(klass), indent);
+        klass = object_class_get_parent(klass);
+    } while (klass != object_class_by_name(TYPE_DEVICE));
     bus_print_dev(dev->parent_bus, mon, dev, indent);
 }
 
@@ -1063,7 +1068,7 @@ void device_add_completion(ReadLineState *rs, int nb_args, const char *str)
 
 static int qdev_add_hotpluggable_device(Object *obj, void *opaque)
 {
-    GSList **list = opaque;
+    GSList **list = static_cast<GSList **>(opaque);
     DeviceState *dev = (DeviceState *)object_dynamic_cast(obj, TYPE_DEVICE);
 
     if (dev == NULL) {
@@ -1098,7 +1103,7 @@ static void peripheral_device_del_completion(ReadLineState *rs,
     }
 
     for (item = list; item; item = g_slist_next(item)) {
-        DeviceState *dev = item->data;
+        DeviceState *dev = static_cast<DeviceState *>(item->data);
 
         if (dev->id) {
             readline_add_completion_of(rs, str, dev->id);
@@ -1209,3 +1214,5 @@ bool qmp_command_available(const QmpCommand *cmd, Error **errp)
     }
     return true;
 }
+
+} /* extern "C" */

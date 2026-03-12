@@ -38,6 +38,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/exit-with-parent.h"
 
 #if defined(__linux__)
@@ -138,3 +143,5 @@ set_exit_with_parent(void)
 }
 
 #endif
+
+} /* extern "C" */

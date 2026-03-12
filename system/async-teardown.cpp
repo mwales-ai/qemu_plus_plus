@@ -12,6 +12,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include <dirent.h>
 #include <sys/prctl.h>
 #include <sched.h>
@@ -40,7 +45,9 @@ static void hup_handler(int signal)
 
 static int async_teardown_fn(void *arg)
 {
-    struct sigaction sa = { .sa_handler = hup_handler };
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = hup_handler;
     sigset_t hup_signal;
     char name[16];
 
@@ -85,7 +92,7 @@ static void *new_stack_for_clone(void)
     char *stack_ptr;
 
     /* Allocate a new stack and get a pointer to its top. */
-    stack_ptr = qemu_alloc_stack(&stack_size);
+    stack_ptr = static_cast<char *>(qemu_alloc_stack(&stack_size));
     stack_ptr += stack_size;
 
     return stack_ptr;
@@ -106,3 +113,5 @@ void init_async_teardown(void)
     clone(async_teardown_fn, new_stack_for_clone(), CLONE_VM, NULL);
     sigprocmask(SIG_SETMASK, &old_signals, NULL);
 }
+
+} /* extern "C" */

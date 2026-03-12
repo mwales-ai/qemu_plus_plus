@@ -4105,6 +4105,8 @@ libuser = static_library('user',
                          user_ss.all_sources() + genh,
                          c_args: ['-DCONFIG_USER_ONLY',
                                   '-DCOMPILING_SYSTEM_VS_USER'],
+                         cpp_args: ['-DCONFIG_USER_ONLY',
+                                    '-DCOMPILING_SYSTEM_VS_USER'],
                          include_directories: common_user_inc,
                          dependencies: user_ss.all_dependencies(),
                          build_by_default: false)
@@ -4113,6 +4115,8 @@ libsystem = static_library('system',
                            system_ss.all_sources() + genh,
                            c_args: ['-DCONFIG_SOFTMMU',
                                     '-DCOMPILING_SYSTEM_VS_USER'],
+                           cpp_args: ['-DCONFIG_SOFTMMU',
+                                      '-DCOMPILING_SYSTEM_VS_USER'],
                            dependencies: system_ss.all_dependencies(),
                            build_by_default: false)
 
@@ -4402,14 +4406,14 @@ foreach target : target_dirs
     execs = [{
       'name': 'qemu-system-' + target_name,
       'win_subsystem': 'console',
-      'sources': files('system/main.c'),
+      'sources': files('system/main.cpp'),
       'dependencies': [sdl]
     }]
     if host_os == 'windows' and (sdl.found() or gtk.found())
       execs += [{
         'name': 'qemu-system-' + target_name + 'w',
         'win_subsystem': 'windows',
-        'sources': files('system/main.c'),
+        'sources': files('system/main.cpp'),
         'dependencies': [sdl]
       }]
     endif

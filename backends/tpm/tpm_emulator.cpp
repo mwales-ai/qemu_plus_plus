@@ -984,32 +984,34 @@ static bool __attribute__((used)) tpm_emulator_post_load(void *opaque, int versi
     return true;
 }
 
+static const VMStateField vmstate_tpm_emulator_fields[] = {
+    VMSTATE_UINT32(state_blobs.permanent_flags, TPMEmulator),
+    VMSTATE_UINT32(state_blobs.permanent.size, TPMEmulator),
+    VMSTATE_VBUFFER_ALLOC_UINT32(state_blobs.permanent.buffer,
+                                 TPMEmulator, 0, 0,
+                                 state_blobs.permanent.size),
+
+    VMSTATE_UINT32(state_blobs.volatil_flags, TPMEmulator),
+    VMSTATE_UINT32(state_blobs.volatil.size, TPMEmulator),
+    VMSTATE_VBUFFER_ALLOC_UINT32(state_blobs.volatil.buffer,
+                                 TPMEmulator, 0, 0,
+                                 state_blobs.volatil.size),
+
+    VMSTATE_UINT32(state_blobs.savestate_flags, TPMEmulator),
+    VMSTATE_UINT32(state_blobs.savestate.size, TPMEmulator),
+    VMSTATE_VBUFFER_ALLOC_UINT32(state_blobs.savestate.buffer,
+                                 TPMEmulator, 0, 0,
+                                 state_blobs.savestate.size),
+
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_tpm_emulator = {
     .name = "tpm-emulator",
     .version_id = 0,
     .post_load_errp = tpm_emulator_post_load,
     .pre_save = tpm_emulator_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(state_blobs.permanent_flags, TPMEmulator),
-        VMSTATE_UINT32(state_blobs.permanent.size, TPMEmulator),
-        VMSTATE_VBUFFER_ALLOC_UINT32(state_blobs.permanent.buffer,
-                                     TPMEmulator, 0, 0,
-                                     state_blobs.permanent.size),
-
-        VMSTATE_UINT32(state_blobs.volatil_flags, TPMEmulator),
-        VMSTATE_UINT32(state_blobs.volatil.size, TPMEmulator),
-        VMSTATE_VBUFFER_ALLOC_UINT32(state_blobs.volatil.buffer,
-                                     TPMEmulator, 0, 0,
-                                     state_blobs.volatil.size),
-
-        VMSTATE_UINT32(state_blobs.savestate_flags, TPMEmulator),
-        VMSTATE_UINT32(state_blobs.savestate.size, TPMEmulator),
-        VMSTATE_VBUFFER_ALLOC_UINT32(state_blobs.savestate.buffer,
-                                     TPMEmulator, 0, 0,
-                                     state_blobs.savestate.size),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_tpm_emulator_fields,
 };
 
 static void __attribute__((used)) tpm_emulator_inst_init(Object *obj)
