@@ -10,6 +10,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qom/object.h"
 #include "qom/qom-qobject.h"
@@ -43,3 +48,5 @@ QObject *object_property_get_qobject(Object *obj, const char *name,
     visit_free(v);
     return ret;
 }
+
+} /* extern "C" */

@@ -1,5 +1,9 @@
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
 
+extern "C" {
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qapi/qapi-visit-qom.h"
@@ -221,7 +225,7 @@ bool type_print_class_properties(const char *type)
     ObjectPropertyIterator iter;
     ObjectProperty *prop;
     GPtrArray *array;
-    int i;
+    guint i;
 
     klass = object_class_by_name(type);
     if (!klass) {
@@ -383,3 +387,5 @@ static void register_types(void)
 }
 
 type_init(register_types)
+
+} /* extern "C" */

@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qom/object.h"
 #include "qemu/module.h"
 
@@ -35,3 +40,5 @@ Object *object_property_add_new_container(Object *obj, const char *name)
 }
 
 type_init(container_register_types)
+
+} /* extern "C" */
