@@ -115,10 +115,26 @@ typedef enum {
  * caller of the coroutine.  The mutex is unlocked during the wait and
  * locked again afterwards.
  */
+#ifdef __cplusplus
+/*
+ * In C++, QEMU_MAKE_LOCKABLE uses a statement expression whose local
+ * QemuLockable is destroyed at the end of the expression, creating a
+ * dangling pointer.  Use do-while to keep it alive through the call.
+ */
+#define qemu_co_queue_wait(queue, lock) do { \
+    QemuLockable qml_lockable_ = qemu_lockable_init_(lock); \
+    qemu_co_queue_wait_impl(queue, &qml_lockable_, (CoQueueWaitFlags)0); \
+} while(0)
+#define qemu_co_queue_wait_flags(queue, lock, flags) do { \
+    QemuLockable qml_lockable_ = qemu_lockable_init_(lock); \
+    qemu_co_queue_wait_impl(queue, &qml_lockable_, (flags)); \
+} while(0)
+#else
 #define qemu_co_queue_wait(queue, lock) \
     qemu_co_queue_wait_impl(queue, QEMU_MAKE_LOCKABLE(lock), 0)
 #define qemu_co_queue_wait_flags(queue, lock, flags) \
     qemu_co_queue_wait_impl(queue, QEMU_MAKE_LOCKABLE(lock), (flags))
+#endif
 void coroutine_fn qemu_co_queue_wait_impl(CoQueue *queue, QemuLockable *lock,
                                           CoQueueWaitFlags flags);
 
@@ -146,8 +162,15 @@ void coroutine_fn qemu_co_queue_restart_all(CoQueue *queue);
  * If used in coroutine context, qemu_co_enter_next is equivalent to
  * qemu_co_queue_next.
  */
+#ifdef __cplusplus
+#define qemu_co_enter_next(queue, lock) __extension__ ({  \
+    QemuLockable qml_lockable_ = qemu_lockable_init_(lock); \
+    qemu_co_enter_next_impl(queue, &qml_lockable_);       \
+})
+#else
 #define qemu_co_enter_next(queue, lock) \
     qemu_co_enter_next_impl(queue, QEMU_MAKE_LOCKABLE(lock))
+#endif
 bool qemu_co_enter_next_impl(CoQueue *queue, QemuLockable *lock);
 
 /**
@@ -159,8 +182,15 @@ bool qemu_co_enter_next_impl(CoQueue *queue, QemuLockable *lock);
  * If used in coroutine context, qemu_co_enter_all is equivalent to
  * qemu_co_queue_all.
  */
+#ifdef __cplusplus
+#define qemu_co_enter_all(queue, lock) do { \
+    QemuLockable qml_lockable_ = qemu_lockable_init_(lock); \
+    qemu_co_enter_all_impl(queue, &qml_lockable_);          \
+} while(0)
+#else
 #define qemu_co_enter_all(queue, lock) \
     qemu_co_enter_all_impl(queue, QEMU_MAKE_LOCKABLE(lock))
+#endif
 void qemu_co_enter_all_impl(CoQueue *queue, QemuLockable *lock);
 
 /**

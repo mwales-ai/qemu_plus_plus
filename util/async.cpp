@@ -24,6 +24,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "block/aio.h"
 #include "block/thread-pool.h"
@@ -37,6 +42,9 @@
 #include "qemu/coroutine-tls.h"
 #include "exec/icount.h"
 #include "trace.h"
+}
+
+extern "C" {
 
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */
@@ -131,12 +139,11 @@ void aio_bh_schedule_oneshot_full(AioContext *ctx, QEMUBHFunc *cb,
 {
     QEMUBH *bh;
     bh = g_new(QEMUBH, 1);
-    *bh = (QEMUBH){
-        .ctx = ctx,
-        .cb = cb,
-        .opaque = opaque,
-        .name = name,
-    };
+    memset(bh, 0, sizeof(*bh));
+    bh->ctx = ctx;
+    bh->name = name;
+    bh->cb = cb;
+    bh->opaque = opaque;
     aio_bh_enqueue(bh, BH_SCHEDULED | BH_ONESHOT);
 }
 
@@ -145,13 +152,12 @@ QEMUBH *aio_bh_new_full(AioContext *ctx, QEMUBHFunc *cb, void *opaque,
 {
     QEMUBH *bh;
     bh = g_new(QEMUBH, 1);
-    *bh = (QEMUBH){
-        .ctx = ctx,
-        .cb = cb,
-        .opaque = opaque,
-        .name = name,
-        .reentrancy_guard = reentrancy_guard,
-    };
+    memset(bh, 0, sizeof(*bh));
+    bh->ctx = ctx;
+    bh->name = name;
+    bh->cb = cb;
+    bh->opaque = opaque;
+    bh->reentrancy_guard = reentrancy_guard;
     return bh;
 }
 
@@ -303,7 +309,7 @@ aio_compute_timeout(AioContext *ctx)
 static gboolean
 aio_ctx_prepare(GSource *source, gint    *timeout)
 {
-    AioContext *ctx = (AioContext *) source;
+    AioContext *ctx = reinterpret_cast<AioContext *>(source);
 
     qatomic_set(&ctx->notify_me, qatomic_read(&ctx->notify_me) | 1);
 
@@ -327,7 +333,7 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 static gboolean
 aio_ctx_check(GSource *source)
 {
-    AioContext *ctx = (AioContext *) source;
+    AioContext *ctx = reinterpret_cast<AioContext *>(source);
     QEMUBH *bh;
     BHListSlice *s;
 
@@ -358,7 +364,7 @@ aio_ctx_dispatch(GSource     *source,
                  GSourceFunc  callback,
                  gpointer     user_data)
 {
-    AioContext *ctx = (AioContext *) source;
+    AioContext *ctx = reinterpret_cast<AioContext *>(source);
 
     assert(callback == NULL);
     aio_dispatch(ctx);
@@ -368,7 +374,7 @@ aio_ctx_dispatch(GSource     *source,
 static void
 aio_ctx_finalize(GSource *source)
 {
-    AioContext *ctx = (AioContext *) source;
+    AioContext *ctx = reinterpret_cast<AioContext *>(source);
     QEMUBH *bh;
     unsigned flags;
 
@@ -494,7 +500,7 @@ void aio_notify_accept(AioContext *ctx)
 
 static void aio_timerlist_notify(void *opaque, QEMUClockType type)
 {
-    aio_notify(opaque);
+    aio_notify(static_cast<AioContext *>(opaque));
 }
 
 static void aio_context_notifier_cb(EventNotifier *e)
@@ -507,7 +513,7 @@ static void aio_context_notifier_cb(EventNotifier *e)
 /* Returns true if aio_notify() was called (e.g. a BH was scheduled) */
 static bool aio_context_notifier_poll(void *opaque)
 {
-    EventNotifier *e = opaque;
+    EventNotifier *e = static_cast<EventNotifier *>(opaque);
     AioContext *ctx = container_of(e, AioContext, notifier);
 
     /*
@@ -525,7 +531,7 @@ static void aio_context_notifier_poll_ready(EventNotifier *e)
 
 static void co_schedule_bh_cb(void *opaque)
 {
-    AioContext *ctx = opaque;
+    AioContext *ctx = static_cast<AioContext *>(opaque);
     QSLIST_HEAD(, Coroutine) straight, reversed;
 
     QSLIST_MOVE_ATOMIC(&reversed, &ctx->scheduled_coroutines);
@@ -566,7 +572,8 @@ AioContext *aio_context_new(Error **errp)
      *
      * Be careful to free resources in both cases!
      */
-    ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    ctx = reinterpret_cast<AioContext *>(
+        g_source_new(&aio_source_funcs, sizeof(AioContext)));
     QSLIST_INIT(&ctx->bh_list);
     QSIMPLEQ_INIT(&ctx->bh_slice_list);
 
@@ -626,8 +633,9 @@ fail:
 void aio_co_schedule(AioContext *ctx, Coroutine *co)
 {
     trace_aio_co_schedule(ctx, co);
+    const char *func_name = __func__;
     const char *scheduled = qatomic_cmpxchg(&co->scheduled, NULL,
-                                           __func__);
+                                           func_name);
 
     if (scheduled) {
         fprintf(stderr,
@@ -656,7 +664,7 @@ typedef struct AioCoRescheduleSelf {
 
 static void aio_co_reschedule_self_bh(void *opaque)
 {
-    AioCoRescheduleSelf *data = opaque;
+    AioCoRescheduleSelf *data = static_cast<AioCoRescheduleSelf *>(opaque);
     aio_co_schedule(data->new_ctx, data->co);
 }
 
@@ -755,3 +763,5 @@ void aio_context_set_thread_pool_params(AioContext *ctx, int64_t min,
         thread_pool_update_params(ctx->thread_pool, ctx);
     }
 }
+
+} /* extern "C" */

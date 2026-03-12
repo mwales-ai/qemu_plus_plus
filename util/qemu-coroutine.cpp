@@ -13,6 +13,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "trace.h"
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
@@ -20,6 +25,9 @@
 #include "qemu/coroutine-tls.h"
 #include "qemu/cutils.h"
 #include "block/aio.h"
+}
+
+extern "C" {
 
 enum {
     COROUTINE_POOL_BATCH_MAX_SIZE = 128,
@@ -399,3 +407,5 @@ static void __attribute__((constructor)) qemu_coroutine_init(void)
     qemu_mutex_init(&global_pool_lock);
     global_pool_hard_max_size = get_global_pool_hard_max_size();
 }
+
+} /* extern "C" */

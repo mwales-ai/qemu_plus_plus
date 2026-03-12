@@ -12,9 +12,17 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/coroutine_int.h"
 #include "qemu/timer.h"
 #include "block/aio.h"
+}
+
+extern "C" {
 
 static const char *qemu_co_sleep_ns__scheduled = "qemu_co_sleep_ns";
 
@@ -36,7 +44,7 @@ void qemu_co_sleep_wake(QemuCoSleep *w)
 
 static void co_sleep_cb(void *opaque)
 {
-    QemuCoSleep *w = opaque;
+    QemuCoSleep *w = static_cast<QemuCoSleep *>(opaque);
     qemu_co_sleep_wake(w);
 }
 
@@ -77,3 +85,5 @@ void coroutine_fn qemu_co_sleep_ns_wakeable(QemuCoSleep *w,
     qemu_co_sleep(w);
     timer_del(&ts);
 }
+
+} /* extern "C" */

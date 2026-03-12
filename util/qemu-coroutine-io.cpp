@@ -23,10 +23,18 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/sockets.h"
 #include "qemu/coroutine.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"
+}
+
+extern "C" {
 
 ssize_t coroutine_fn
 qemu_co_sendv_recvv(int sockfd, struct iovec *iov, unsigned iov_cnt,
@@ -73,7 +81,7 @@ typedef struct {
 
 static void fd_coroutine_enter(void *opaque)
 {
-    FDYieldUntilData *data = opaque;
+    FDYieldUntilData *data = static_cast<FDYieldUntilData *>(opaque);
     aio_set_fd_handler(data->ctx, data->fd, NULL, NULL, NULL, NULL, NULL);
     qemu_coroutine_enter(data->co);
 }
@@ -90,3 +98,5 @@ void coroutine_fn yield_until_fd_readable(int fd)
                        &data);
     qemu_coroutine_yield();
 }
+
+} /* extern "C" */

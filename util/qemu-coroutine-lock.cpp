@@ -27,11 +27,19 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/coroutine_int.h"
 #include "qemu/processor.h"
 #include "qemu/queue.h"
 #include "block/aio.h"
 #include "trace.h"
+}
+
+extern "C" {
 
 void qemu_co_queue_init(CoQueue *queue)
 {
@@ -467,3 +475,5 @@ void coroutine_fn qemu_co_rwlock_upgrade(CoRwlock *lock)
         assert(lock->owners == -1);
     }
 }
+
+} /* extern "C" */

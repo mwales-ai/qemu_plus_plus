@@ -24,8 +24,16 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/coroutine.h"
 #include "block/aio.h"
+}
+
+extern "C" {
 
 typedef struct QemuCoTimeoutState {
     CoroutineEntry *entry;
@@ -37,7 +45,7 @@ typedef struct QemuCoTimeoutState {
 
 static void coroutine_fn qemu_co_timeout_entry(void *opaque)
 {
-    QemuCoTimeoutState *s = opaque;
+    QemuCoTimeoutState *s = static_cast<QemuCoTimeoutState *>(opaque);
 
     s->entry(s->opaque);
 
@@ -66,11 +74,10 @@ int coroutine_fn qemu_co_timeout(CoroutineEntry *entry, void *opaque,
     }
 
     s = g_new(QemuCoTimeoutState, 1);
-    *s = (QemuCoTimeoutState) {
-        .entry = entry,
-        .opaque = opaque,
-        .clean = clean
-    };
+    memset(s, 0, sizeof(*s));
+    s->entry = entry;
+    s->opaque = opaque;
+    s->clean = clean;
 
     co = qemu_coroutine_create(qemu_co_timeout_entry, s);
 
@@ -87,3 +94,5 @@ int coroutine_fn qemu_co_timeout(CoroutineEntry *entry, void *opaque,
     s->marker = true;
     return -ETIMEDOUT;
 }
+
+} /* extern "C" */

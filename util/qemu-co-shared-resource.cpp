@@ -24,8 +24,16 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/coroutine.h"
 #include "qemu/co-shared-resource.h"
+}
+
+extern "C" {
 
 struct SharedResource {
     uint64_t total; /* Set in shres_create() and not changed anymore */
@@ -82,3 +90,5 @@ void coroutine_fn co_put_to_shres(SharedResource *s, uint64_t n)
     s->available += n;
     qemu_co_queue_restart_all(&s->queue);
 }
+
+} /* extern "C" */

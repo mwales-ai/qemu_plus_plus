@@ -81,10 +81,10 @@ if have_system
 endif
 
 if have_block or have_ga
-  util_ss.add(files('aiocb.cpp', 'async.c'))
+  util_ss.add(files('aiocb.cpp', 'async.cpp'))
   util_ss.add(files('base64.cpp'))
   util_ss.add(files('main-loop.cpp'))
-  util_ss.add(files('qemu-coroutine.c', 'qemu-coroutine-lock.c', 'qemu-coroutine-io.c'))
+  util_ss.add(files('qemu-coroutine.cpp', 'qemu-coroutine-lock.cpp', 'qemu-coroutine-io.cpp'))
   util_ss.add(files(f'coroutine-@coroutine_backend@.c'))
   util_ss.add(files('thread-pool.cpp', 'qemu-timer.cpp'))
 endif
@@ -101,9 +101,9 @@ if have_block
   util_ss.add(files('iov.cpp'))
   util_ss.add(files('nvdimm-utils.c'))
   util_ss.add(files('block-helpers.cpp'))
-  util_ss.add(files('qemu-coroutine-sleep.c'))
-  util_ss.add(files('qemu-co-shared-resource.c'))
-  util_ss.add(files('qemu-co-timeout.c'))
+  util_ss.add(files('qemu-coroutine-sleep.cpp'))
+  util_ss.add(files('qemu-co-shared-resource.cpp'))
+  util_ss.add(files('qemu-co-timeout.cpp'))
   util_ss.add(files('readline.cpp'))
   util_ss.add(files('throttle.cpp'))
   util_ss.add(files('timed-average.cpp'))
