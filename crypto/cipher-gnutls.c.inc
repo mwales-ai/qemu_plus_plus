@@ -106,7 +106,8 @@ qcrypto_gnutls_cipher_encrypt(QCryptoCipher *cipher,
         g_autofree unsigned char *iv = g_new0(unsigned char, ctx->blocksize);
         while (len) {
             gnutls_cipher_hd_t handle;
-            gnutls_datum_t gkey = { (unsigned char *)ctx->key, ctx->nkey };
+            gnutls_datum_t gkey = { (unsigned char *)ctx->key,
+                                    (unsigned int)ctx->nkey };
             err = gnutls_cipher_init(&handle, ctx->galg, &gkey, NULL);
             if (err != 0) {
                 error_setg(errp, "Cannot initialize cipher: %s",
@@ -128,8 +129,8 @@ qcrypto_gnutls_cipher_encrypt(QCryptoCipher *cipher,
             gnutls_cipher_deinit(handle);
 
             len -= ctx->blocksize;
-            in += ctx->blocksize;
-            out += ctx->blocksize;
+            in = static_cast<const char *>(in) + ctx->blocksize;
+            out = static_cast<char *>(out) + ctx->blocksize;
         }
     }
 
@@ -167,7 +168,8 @@ qcrypto_gnutls_cipher_decrypt(QCryptoCipher *cipher,
         g_autofree unsigned char *iv = g_new0(unsigned char, ctx->blocksize);
         while (len) {
             gnutls_cipher_hd_t handle;
-            gnutls_datum_t gkey = { (unsigned char *)ctx->key, ctx->nkey };
+            gnutls_datum_t gkey = { (unsigned char *)ctx->key,
+                                    (unsigned int)ctx->nkey };
             err = gnutls_cipher_init(&handle, ctx->galg, &gkey, NULL);
             if (err != 0) {
                 error_setg(errp, "Cannot initialize cipher: %s",
@@ -189,8 +191,8 @@ qcrypto_gnutls_cipher_decrypt(QCryptoCipher *cipher,
             gnutls_cipher_deinit(handle);
 
             len -= ctx->blocksize;
-            in += ctx->blocksize;
-            out += ctx->blocksize;
+            in = static_cast<const char *>(in) + ctx->blocksize;
+            out = static_cast<char *>(out) + ctx->blocksize;
         }
     }
 
@@ -230,7 +232,7 @@ static QCryptoCipher *qcrypto_cipher_ctx_new(QCryptoCipherAlgo alg,
                                              Error **errp)
 {
     QCryptoCipherGnutls *ctx;
-    gnutls_datum_t gkey = { (unsigned char *)key, nkey };
+    gnutls_datum_t gkey = { (unsigned char *)key, (unsigned int)nkey };
     gnutls_cipher_algorithm_t galg = GNUTLS_CIPHER_UNKNOWN;
     int err;
 

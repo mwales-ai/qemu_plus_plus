@@ -72,7 +72,7 @@ typedef struct QCryptoBlockLUKSKeySlot QCryptoBlockLUKSKeySlot;
 #define QCRYPTO_BLOCK_LUKS_ERASE_ITERATIONS 40
 
 static const char qcrypto_block_luks_magic[QCRYPTO_BLOCK_LUKS_MAGIC_LEN] = {
-    'L', 'U', 'K', 'S', 0xBA, 0xBE
+    'L', 'U', 'K', 'S', (char)0xBA, (char)0xBE
 };
 
 /*

@@ -30,7 +30,7 @@ static int extract_mpi(void *ctx, const uint8_t *value,
         error_setg(errp, "Empty mpi field");
         return -1;
     }
-    mpi->data = g_memdup2(value, vlen);
+    mpi->data = static_cast<uint8_t *>(g_memdup2(value, vlen));
     mpi->len = vlen;
     return 0;
 }

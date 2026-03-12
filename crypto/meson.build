@@ -1,19 +1,19 @@
 crypto_ss.add(genh)
 crypto_ss.add(files(
-  'afsplit.c',
-  'akcipher.c',
-  'block-luks.c',
-  'block-qcow.c',
-  'block.c',
-  'cipher.c',
-  'der.c',
-  'hash.c',
-  'hmac.c',
-  'ivgen-essiv.c',
-  'ivgen-plain.c',
-  'ivgen-plain64.c',
-  'ivgen.c',
-  'pbkdf.c',
+  'afsplit.cpp',
+  'akcipher.cpp',
+  'block-luks.cpp',
+  'block-qcow.cpp',
+  'block.cpp',
+  'cipher.cpp',
+  'der.cpp',
+  'hash.cpp',
+  'hmac.cpp',
+  'ivgen-essiv.cpp',
+  'ivgen-plain.cpp',
+  'ivgen-plain64.cpp',
+  'ivgen.cpp',
+  'pbkdf.cpp',
   'secret_common.c',
   'secret.c',
   'tlscreds.c',
@@ -21,34 +21,34 @@ crypto_ss.add(files(
   'tlscredspsk.c',
   'tlscredsx509.c',
   'tlssession.c',
-  'rsakey.c',
+  'rsakey.cpp',
 ))
 
 if gnutls.found()
   crypto_ss.add(files(
-    'tlscredsbox.c',
-    'x509-utils.c',
+    'tlscredsbox.cpp',
+    'x509-utils.cpp',
   ))
 endif
 
 if nettle.found()
-  crypto_ss.add(nettle, files('hash-nettle.c', 'hmac-nettle.c', 'pbkdf-nettle.c'))
+  crypto_ss.add(nettle, files('hash-nettle.cpp', 'hmac-nettle.cpp', 'pbkdf-nettle.cpp'))
   if hogweed.found()
     crypto_ss.add(gmp, hogweed)
   endif
 elif gcrypt.found()
-  crypto_ss.add(gcrypt, files('hash-gcrypt.c', 'hmac-gcrypt.c', 'pbkdf-gcrypt.c'))
+  crypto_ss.add(gcrypt, files('hash-gcrypt.cpp', 'hmac-gcrypt.cpp', 'pbkdf-gcrypt.cpp'))
 elif gnutls.found()
-  crypto_ss.add(gnutls, files('hash-gnutls.c', 'hmac-gnutls.c', 'pbkdf-gnutls.c'))
+  crypto_ss.add(gnutls, files('hash-gnutls.cpp', 'hmac-gnutls.cpp', 'pbkdf-gnutls.cpp'))
 else
-  crypto_ss.add(files('hash-glib.c', 'hmac-glib.c', 'pbkdf-stub.c'))
+  crypto_ss.add(files('hash-glib.cpp', 'hmac-glib.cpp', 'pbkdf-stub.cpp'))
 endif
 
 if have_keyring
   crypto_ss.add(files('secret_keyring.c'))
 endif
 if have_afalg
-  crypto_ss.add(if_true: files('afalg.c', 'cipher-afalg.c', 'hash-afalg.c'))
+  crypto_ss.add(if_true: files('afalg.cpp', 'cipher-afalg.c', 'hash-afalg.cpp'))
 endif
 
 system_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
@@ -64,11 +64,11 @@ if gnutls.found()
 endif
 
 if gcrypt.found()
-  util_ss.add(gcrypt, files('random-gcrypt.c'))
+  util_ss.add(gcrypt, files('random-gcrypt.cpp'))
 elif gnutls.found()
-  util_ss.add(gnutls, files('random-gnutls.c'))
+  util_ss.add(gnutls, files('random-gnutls.cpp'))
 elif get_option('rng_none')
-  util_ss.add(files('random-none.c'))
+  util_ss.add(files('random-none.cpp'))
 else
   util_ss.add(files('random-platform.cpp'))
 endif

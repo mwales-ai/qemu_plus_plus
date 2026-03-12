@@ -1,5 +1,5 @@
 /*
- * QEMU Crypto block IV generator
+ * QEMU Crypto random number provider
  *
  * Copyright (c) 2015-2016 Red Hat, Inc.
  *
@@ -18,32 +18,25 @@
  *
  */
 
-#ifndef QCRYPTO_IVGENPRIV_H
-#define QCRYPTO_IVGENPRIV_H
+#include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
 
-#include "crypto/ivgen.h"
+extern "C" {
 
-typedef struct QCryptoIVGenDriver QCryptoIVGenDriver;
+#include "crypto/random.h"
 
-struct QCryptoIVGenDriver {
-    int (*init)(QCryptoIVGen *ivgen,
-                const uint8_t *key, size_t nkey,
-                Error **errp);
-    int (*calculate)(QCryptoIVGen *ivgen,
-                     uint64_t sector,
-                     uint8_t *iv, size_t niv,
-                     Error **errp);
-    void (*cleanup)(QCryptoIVGen *ivgen);
-};
+#include <gcrypt.h>
 
-struct QCryptoIVGen {
-    QCryptoIVGenDriver *driver;
-    void *priv;
+int qcrypto_random_bytes(void *buf,
+                         size_t buflen,
+                         Error **errp G_GNUC_UNUSED)
+{
+    gcry_randomize(buf, buflen, GCRY_STRONG_RANDOM);
+    return 0;
+}
 
-    QCryptoIVGenAlgo algorithm;
-    QCryptoCipherAlgo cipher;
-    QCryptoHashAlgo hash;
-};
+int qcrypto_random_init(Error **errp G_GNUC_UNUSED) { return 0; }
 
-
-#endif /* QCRYPTO_IVGENPRIV_H */
+} /* extern "C" */
