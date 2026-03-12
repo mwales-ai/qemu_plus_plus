@@ -11,16 +11,24 @@
  *
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 #include "qemu/notify.h"
 #include "qemu-thread-common.h"
 #include "qemu/tsan.h"
 #include "qemu/bitmap.h"
+}
 
 #ifdef CONFIG_PTHREAD_SET_NAME_NP
 #include <pthread_np.h>
 #endif
+
+extern "C" {
 
 static bool name_threads;
 
@@ -353,7 +361,7 @@ typedef struct {
 
 static void *qemu_thread_start(void *args)
 {
-    QemuThreadArgs *qemu_thread_args = args;
+    QemuThreadArgs *qemu_thread_args = static_cast<QemuThreadArgs *>(args);
     void *(*start_routine)(void *) = qemu_thread_args->start_routine;
     void *arg = qemu_thread_args->arg;
     void *r;
@@ -475,7 +483,8 @@ int qemu_thread_get_affinity(QemuThread *thread, unsigned long **host_cpus,
     unsigned long tmpbits;
     cpu_set_t *cpuset;
     size_t setsize;
-    int i, err;
+    unsigned long i;
+    int err;
 
     tmpbits = CPU_SETSIZE;
     while (true) {
@@ -536,3 +545,5 @@ void *qemu_thread_join(QemuThread *thread)
     }
     return ret;
 }
+
+} /* extern "C" */

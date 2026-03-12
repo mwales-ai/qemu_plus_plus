@@ -8,6 +8,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/thread.h"
 #include "qemu/queue.h"
@@ -16,6 +18,9 @@
 #include "qapi/qapi-visit-yank.h"
 #include "qapi/clone-visitor.h"
 #include "qemu/yank.h"
+}
+
+extern "C" {
 
 struct YankFuncAndParam {
     YankFn *func;
@@ -197,3 +202,5 @@ static void __attribute__((__constructor__)) yank_init(void)
 {
     qemu_mutex_init(&yank_lock);
 }
+
+} /* extern "C" */

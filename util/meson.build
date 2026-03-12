@@ -18,8 +18,8 @@ if host_os != 'windows'
   if host_os == 'freebsd'
     freebsd_dep = util
   endif
-  util_ss.add(files('oslib-posix.c'), freebsd_dep)
-  util_ss.add(files('qemu-thread-posix.c'))
+  util_ss.add(files('oslib-posix.cpp'), freebsd_dep)
+  util_ss.add(files('qemu-thread-posix.cpp'))
   util_ss.add(files('memfd.cpp'))
   util_ss.add(files('drm.cpp'))
 else
@@ -31,7 +31,7 @@ else
 endif
 util_ss.add(when: linux_io_uring, if_true: files('fdmon-io_uring.c'))
 if glib_has_gslice
-  util_ss.add(files('qtree.c'))
+  util_ss.add(files('qtree.cpp'))
 endif
 util_ss.add(files('defer-call.cpp'))
 util_ss.add(files('envlist.cpp', 'path.cpp', 'module.cpp'))
@@ -121,7 +121,7 @@ if have_block
     util_ss.add(files('vfio-helpers.c'))
     util_ss.add(files('chardev_open.cpp'))
   endif
-  util_ss.add(files('yank.c'))
+  util_ss.add(files('yank.cpp'))
 endif
 
 if cpu == 'aarch64'

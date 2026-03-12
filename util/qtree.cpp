@@ -30,7 +30,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/qtree.h"
+}
+
+extern "C" {
 
 /**
  * SECTION:trees-binary
@@ -1388,3 +1393,5 @@ static void q_tree_node_check(QTreeNode *node)
     }
 }
 #endif
+
+} /* extern "C" */

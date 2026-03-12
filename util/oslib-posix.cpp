@@ -28,9 +28,13 @@
 
 #include "qemu/osdep.h"
 #include <termios.h>
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
 
 #include <glib/gprintf.h>
 
+extern "C" {
 #include "system/system.h"
 #include "trace.h"
 #include "qapi/error.h"
@@ -38,11 +42,14 @@
 #include "qemu/madvise.h"
 #include "qemu/sockets.h"
 #include "qemu/thread.h"
+}
 #include <libgen.h>
+extern "C" {
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include "qemu/thread-context.h"
 #include "qemu/main-loop.h"
+}
 
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
@@ -58,8 +65,12 @@
 #include <lwp.h>
 #endif
 
+extern "C" {
 #include "qemu/memalign.h"
 #include "qemu/mmap-alloc.h"
+}
+
+extern "C" {
 
 #define MAX_MEM_PREALLOC_THREAD_COUNT 16
 
@@ -139,11 +150,11 @@ bool qemu_write_pidfile(const char *path, Error **errp)
 
     while (1) {
         struct stat a, b;
-        struct flock lock = {
-            .l_type = F_WRLCK,
-            .l_whence = SEEK_SET,
-            .l_len = 0,
-        };
+        struct flock lock;
+        memset(&lock, 0, sizeof(lock));
+        lock.l_type = F_WRLCK;
+        lock.l_whence = SEEK_SET;
+        lock.l_len = 0;
 
         fd = qemu_create(path, O_WRONLY, S_IRUSR | S_IWUSR, errp);
         if (fd == -1) {
@@ -190,7 +201,7 @@ bool qemu_write_pidfile(const char *path, Error **errp)
     }
 
     snprintf(pidstr, sizeof(pidstr), FMT_pid "\n", getpid());
-    if (qemu_write_full(fd, pidstr, strlen(pidstr)) != strlen(pidstr)) {
+    if ((size_t)qemu_write_full(fd, pidstr, strlen(pidstr)) != strlen(pidstr)) {
         error_setg(errp, "Failed to write pid file");
         goto fail_unlink;
     }
@@ -480,7 +491,7 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
                            bool use_madv_populate_write)
 {
     static gsize initialized = 0;
-    MemsetContext *context = g_malloc0(sizeof(MemsetContext));
+    MemsetContext *context = static_cast<MemsetContext *>(g_malloc0(sizeof(MemsetContext)));
     size_t numpages_per_thread, leftover;
     void *(*touch_fn)(void *);
     int ret, i = 0;
@@ -527,7 +538,7 @@ static int touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     leftover = numpages % context->num_threads;
     for (i = 0; i < context->num_threads; i++) {
         context->threads[i].addr = addr;
-        context->threads[i].numpages = numpages_per_thread + (i < leftover);
+        context->threads[i].numpages = numpages_per_thread + ((size_t)i < leftover);
         context->threads[i].hpagesize = hpagesize;
         context->threads[i].context = context;
         if (tc) {
@@ -749,7 +760,9 @@ void *qemu_alloc_stack(size_t *sz)
     }
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
-    for (ptr2 = ptr + pagesz; ptr2 < ptr + *sz; ptr2 += sizeof(uint32_t)) {
+    for (ptr2 = static_cast<char *>(ptr) + pagesz;
+         ptr2 < static_cast<char *>(ptr) + *sz;
+         ptr2 = static_cast<char *>(ptr2) + sizeof(uint32_t)) {
         *(uint32_t *)ptr2 = 0xdeadbeaf;
     }
 #endif
@@ -767,13 +780,14 @@ void qemu_free_stack(void *stack, size_t sz)
     unsigned int usage;
     void *ptr;
 
-    for (ptr = stack + qemu_real_host_page_size(); ptr < stack + sz;
-         ptr += sizeof(uint32_t)) {
+    for (ptr = static_cast<char *>(stack) + qemu_real_host_page_size();
+         ptr < static_cast<char *>(stack) + sz;
+         ptr = static_cast<char *>(ptr) + sizeof(uint32_t)) {
         if (*(uint32_t *)ptr != 0xdeadbeaf) {
             break;
         }
     }
-    usage = sz - (uintptr_t) (ptr - stack);
+    usage = sz - (uintptr_t) (static_cast<char *>(ptr) - static_cast<char *>(stack));
     if (usage > max_stack_usage) {
         error_report("thread %d max stack usage increased from %u to %u",
                      qemu_get_thread_id(), max_stack_usage, usage);
@@ -830,7 +844,7 @@ size_t qemu_get_host_physmem(void)
 #ifdef _SC_PHYS_PAGES
     long pages = sysconf(_SC_PHYS_PAGES);
     if (pages > 0) {
-        if (pages > SIZE_MAX / qemu_real_host_page_size()) {
+        if ((size_t)pages > SIZE_MAX / qemu_real_host_page_size()) {
             return SIZE_MAX;
         } else {
             return pages * qemu_real_host_page_size();
@@ -1033,3 +1047,5 @@ int qemu_shm_alloc(size_t size, Error **errp)
 
     return fd;
 }
+
+} /* extern "C" */
