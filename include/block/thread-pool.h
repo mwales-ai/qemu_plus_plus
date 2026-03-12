@@ -20,6 +20,10 @@
 
 #include "block/aio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define THREAD_POOL_MAX_THREADS_DEFAULT         64
 
 typedef int ThreadPoolFunc(void *opaque);
@@ -89,5 +93,9 @@ bool thread_pool_set_max_threads(ThreadPool *pool, int max_threads);
  * own thread (exactly one thread per task).
  */
 bool thread_pool_adjust_max_threads_to_work(ThreadPool *pool);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

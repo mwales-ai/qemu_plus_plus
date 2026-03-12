@@ -30,6 +30,10 @@
 
 #include "qemu/timer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct TimedAverageWindow TimedAverageWindow;
 typedef struct TimedAverage TimedAverage;
 
@@ -61,5 +65,9 @@ uint64_t timed_average_min(TimedAverage *ta);
 uint64_t timed_average_avg(TimedAverage *ta);
 uint64_t timed_average_max(TimedAverage *ta);
 uint64_t timed_average_sum(TimedAverage *ta, uint64_t *elapsed);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

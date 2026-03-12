@@ -17,6 +17,10 @@
 
 #include "qemu/coroutine.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void hmp_drive_add(Monitor *mon, const QDict *qdict);
 
 void hmp_commit(Monitor *mon, const QDict *qdict);
@@ -52,5 +56,9 @@ void hmp_info_block(Monitor *mon, const QDict *qdict);
 void hmp_info_blockstats(Monitor *mon, const QDict *qdict);
 void hmp_info_block_jobs(Monitor *mon, const QDict *qdict);
 void hmp_info_snapshots(Monitor *mon, const QDict *qdict);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

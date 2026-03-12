@@ -30,6 +30,10 @@
 #include "qemu/hbitmap.h"
 #include "qemu/main-loop.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Global state (GS) API. These functions run under the BQL.
  *
@@ -324,5 +328,9 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
  * should call it.
  */
 void bdrv_drain_all_end_quiesce(BlockDriverState *bs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_INT_GLOBAL_STATE_H */

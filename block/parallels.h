@@ -33,6 +33,10 @@
 #define BLOCK_PARALLELS_H
 #include "qemu/coroutine.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define HEADS_NUMBER 16
 #define SEC_IN_CYL 32
 #define DEFAULT_CLUSTER_SIZE 1048576        /* 1 MiB */
@@ -93,5 +97,9 @@ typedef struct BDRVParallelsState {
 int GRAPH_RDLOCK
 parallels_read_format_extension(BlockDriverState *bs, int64_t ext_off,
                                 Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

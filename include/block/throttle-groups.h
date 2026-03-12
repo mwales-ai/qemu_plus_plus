@@ -29,6 +29,10 @@
 #include "qemu/throttle.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The ThrottleGroupMember structure indicates membership in a ThrottleGroup
  * and holds related data.
  */
@@ -87,5 +91,9 @@ void throttle_group_detach_aio_context(ThrottleGroupMember *tgm);
  * mutex.
  */
 bool throttle_group_exists(const char *name);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

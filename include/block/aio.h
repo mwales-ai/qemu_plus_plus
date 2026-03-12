@@ -26,6 +26,10 @@
 #include "block/graph-lock.h"
 #include "hw/qdev-core.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef struct BlockAIOCB BlockAIOCB;
 typedef void BlockCompletionFunc(void *opaque, int ret);
@@ -870,5 +874,9 @@ static inline bool aio_has_io_uring(void)
 void aio_add_sqe(void (*prep_sqe)(struct io_uring_sqe *sqe, void *opaque),
                  void *opaque, CqeHandler *cqe_handler);
 #endif /* CONFIG_LINUX_IO_URING */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

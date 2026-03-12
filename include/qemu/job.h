@@ -32,6 +32,10 @@
 #include "qemu/coroutine.h"
 #include "block/aio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct JobDriver JobDriver;
 typedef struct JobTxn JobTxn;
 
@@ -730,5 +734,9 @@ int job_finish_sync_locked(Job *job, void (*finish)(Job *, Error **errp),
  * be called when the job is quiescent.
  */
 void job_set_aio_context(Job *job, AioContext *ctx);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

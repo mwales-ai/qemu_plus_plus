@@ -15,6 +15,14 @@
 
 #include "block/export.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern const BlockExportDriver blk_exp_vduse_blk;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VDUSE_BLK_H */

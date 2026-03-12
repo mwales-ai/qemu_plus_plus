@@ -274,6 +274,10 @@
 
 #include "qapi/qapi-types-error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Overall category of an error.
  * Based on the qapi type QapiErrorClass, but reproduced here for nicer
@@ -544,5 +548,9 @@ extern Error *error_abort;
  * See error_setg() and error_propagate() for details.
  */
 extern Error *error_fatal;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

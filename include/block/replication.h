@@ -19,6 +19,10 @@
 #include "qemu/module.h"
 #include "qemu/queue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct ReplicationOps ReplicationOps;
 typedef struct ReplicationState ReplicationState;
 
@@ -171,5 +175,9 @@ void replication_get_error_all(Error **errp);
  * use this API to shutdown the guest, or other things except failover
  */
 void replication_stop_all(bool failover, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* REPLICATION_H */

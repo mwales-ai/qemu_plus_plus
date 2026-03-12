@@ -21,6 +21,10 @@
 #ifndef BLOCK_CRYPTO_H
 #define BLOCK_CRYPTO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BLOCK_CRYPTO_OPT_DEF_KEY_SECRET(prefix, helpstr)                \
     {                                                                   \
         .name = prefix BLOCK_CRYPTO_OPT_QCOW_KEY_SECRET,                \
@@ -138,5 +142,9 @@ block_crypto_amend_opts_init(QDict *opts, Error **errp);
 
 QCryptoBlockOpenOptions *
 block_crypto_open_opts_init(QDict *opts, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_CRYPTO_H */

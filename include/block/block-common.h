@@ -77,6 +77,10 @@
 
 #include "block/blockjob.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* block.c */
 typedef struct BlockDriver BlockDriver;
 typedef struct BdrvChild BdrvChild;
@@ -218,6 +222,23 @@ typedef enum {
     /* Mask of valid flags */
     BDRV_REQ_MASK               = 0x7ff,
 } BdrvRequestFlags;
+
+#ifdef __cplusplus
+extern "C++" {
+static inline BdrvRequestFlags operator|(BdrvRequestFlags a, BdrvRequestFlags b)
+{
+    return static_cast<BdrvRequestFlags>(static_cast<int>(a) | static_cast<int>(b));
+}
+static inline BdrvRequestFlags operator&(BdrvRequestFlags a, BdrvRequestFlags b)
+{
+    return static_cast<BdrvRequestFlags>(static_cast<int>(a) & static_cast<int>(b));
+}
+static inline BdrvRequestFlags operator~(BdrvRequestFlags a)
+{
+    return static_cast<BdrvRequestFlags>(~static_cast<int>(a));
+}
+}
+#endif
 
 #define BDRV_O_NO_SHARE    0x0001 /* don't share permissions */
 #define BDRV_O_RDWR        0x0002
@@ -574,5 +595,9 @@ char *path_combine(const char *base_path, const char *filename);
 char *bdrv_get_full_backing_filename_from_filename(const char *backed,
                                                    const char *backing,
                                                    Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_COMMON_H */

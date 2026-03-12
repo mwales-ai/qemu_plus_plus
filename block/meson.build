@@ -1,91 +1,91 @@
 block_ss.add(genh)
 block_ss.add(files(
-  'accounting.c',
+  'accounting.cpp',
   'aio_task.c',
-  'amend.c',
-  'backup.c',
+  'amend.cpp',
+  'backup.cpp',
   'blkdebug.c',
   'blklogwrites.c',
   'blkverify.c',
   'block-backend.c',
   'block-copy.c',
-  'commit.c',
+  'commit.cpp',
   'copy-before-write.c',
-  'copy-on-read.c',
-  'create.c',
+  'copy-on-read.cpp',
+  'create.cpp',
   'crypto.c',
-  'dirty-bitmap.c',
-  'filter-compress.c',
-  'graph-lock.c',
+  'dirty-bitmap.cpp',
+  'filter-compress.cpp',
+  'graph-lock.cpp',
   'io.c',
   'mirror.c',
   'nbd.c',
-  'null.c',
-  'preallocate.c',
-  'progress_meter.c',
+  'null.cpp',
+  'preallocate.cpp',
+  'progress_meter.cpp',
   'qapi.c',
   'qcow2.c',
-  'qcow2-bitmap.c',
-  'qcow2-cache.c',
+  'qcow2-bitmap.cpp',
+  'qcow2-cache.cpp',
   'qcow2-cluster.c',
   'qcow2-refcount.c',
-  'qcow2-snapshot.c',
-  'qcow2-threads.c',
+  'qcow2-snapshot.cpp',
+  'qcow2-threads.cpp',
   'quorum.c',
-  'raw-format.c',
+  'raw-format.cpp',
   'reqlist.c',
   'snapshot.c',
-  'snapshot-access.c',
-  'throttle.c',
-  'throttle-groups.c',
-  'write-threshold.c',
+  'snapshot-access.cpp',
+  'throttle.cpp',
+  'throttle-groups.cpp',
+  'write-threshold.cpp',
 ), zstd, zlib)
 
 system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 system_ss.add(files('block-ram-registrar.c'))
 
 if get_option('qcow1').allowed()
-  block_ss.add(files('qcow.c'))
+  block_ss.add(files('qcow.cpp'))
 endif
 if get_option('vdi').allowed()
-  block_ss.add(files('vdi.c'))
+  block_ss.add(files('vdi.cpp'))
 endif
 if get_option('vhdx').allowed()
   block_ss.add(files(
-    'vhdx-endian.c',
+    'vhdx-endian.cpp',
     'vhdx-log.c',
-    'vhdx.c'
+    'vhdx.cpp'
   ))
 endif
 if get_option('vmdk').allowed()
   block_ss.add(files('vmdk.c'))
 endif
 if get_option('vpc').allowed()
-  block_ss.add(files('vpc.c'))
+  block_ss.add(files('vpc.cpp'))
 endif
 if get_option('cloop').allowed()
-  block_ss.add(files('cloop.c'))
+  block_ss.add(files('cloop.cpp'))
 endif
 if get_option('bochs').allowed()
-  block_ss.add(files('bochs.c'))
+  block_ss.add(files('bochs.cpp'))
 endif
 if get_option('vvfat').allowed()
   block_ss.add(files('vvfat.c'))
 endif
 if get_option('dmg').allowed()
-  block_ss.add(files('dmg.c'))
+  block_ss.add(files('dmg.cpp'))
 endif
 if get_option('qed').allowed()
   block_ss.add(files(
-    'qed-check.c',
-    'qed-cluster.c',
-    'qed-l2-cache.c',
-    'qed-table.c',
+    'qed-check.cpp',
+    'qed-cluster.cpp',
+    'qed-l2-cache.cpp',
+    'qed-table.cpp',
     'qed.c',
   ))
 endif
 if get_option('parallels').allowed()
-  block_ss.add(files('parallels.c', 'parallels-ext.c'))
+  block_ss.add(files('parallels.cpp', 'parallels-ext.cpp'))
 endif
 
 if host_os == 'windows'
@@ -93,12 +93,12 @@ if host_os == 'windows'
 else
   block_ss.add(files('file-posix.c'), coref, iokit)
 endif
-block_ss.add(when: libiscsi, if_true: files('iscsi-opts.c'))
+block_ss.add(when: libiscsi, if_true: files('iscsi-opts.cpp'))
 if host_os == 'linux'
   block_ss.add(files('nvme.c'))
 endif
 if get_option('replication').allowed()
-  block_ss.add(files('replication.c'))
+  block_ss.add(files('replication.cpp'))
 endif
 block_ss.add(when: libaio, if_true: files('linux-aio.c'))
 block_ss.add(when: linux_io_uring, if_true: files('io_uring.c'))
@@ -108,11 +108,11 @@ block_modules = {}
 modsrc = []
 foreach m : [
   [blkio, 'blkio', files('blkio.c')],
-  [curl, 'curl', files('curl.c')],
-  [glusterfs, 'gluster', files('gluster.c')],
+  [curl, 'curl', files('curl.cpp')],
+  [glusterfs, 'gluster', files('gluster.cpp')],
   [libiscsi, 'iscsi', files('iscsi.c')],
   [libnfs, 'nfs', files('nfs.c')],
-  [libssh, 'ssh', files('ssh.c')],
+  [libssh, 'ssh', files('ssh.cpp')],
   [rbd, 'rbd', files('rbd.c')],
 ]
   if m[0].found()
@@ -128,8 +128,8 @@ endforeach
 # those are not exactly regular block modules, so treat them apart
 if get_option('dmg').allowed()
   foreach m : [
-    [liblzfse, 'dmg-lzfse', liblzfse, 'dmg-lzfse.c'],
-    [libbzip2, 'dmg-bz2', [glib, libbzip2], 'dmg-bz2.c']
+    [liblzfse, 'dmg-lzfse', liblzfse, 'dmg-lzfse.cpp'],
+    [libbzip2, 'dmg-bz2', [glib, libbzip2], 'dmg-bz2.cpp']
   ]
     if m[0].found()
       module_ss = ss.source_set()
@@ -161,9 +161,9 @@ block_gen_c = custom_target('block-gen.c',
                             command: [wrapper_py, '@OUTPUT@', '@INPUT@'])
 block_ss.add(block_gen_c)
 
-block_ss.add(files('stream.c'))
+block_ss.add(files('stream.cpp'))
 
-system_ss.add(files('qapi-system.c'))
+system_ss.add(files('qapi-system.cpp'))
 
 subdir('export')
 subdir('monitor')

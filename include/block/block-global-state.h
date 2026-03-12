@@ -28,6 +28,10 @@
 #include "qemu/coroutine.h"
 #include "qemu/transactions.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Global state (GS) API. These functions run under the BQL.
  *
@@ -315,5 +319,9 @@ bool bdrv_register_buf(BlockDriverState *bs, void *host, size_t size,
 void bdrv_unregister_buf(BlockDriverState *bs, void *host, size_t size);
 
 void bdrv_cancel_in_flight(BlockDriverState *bs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_GLOBAL_STATE_H */

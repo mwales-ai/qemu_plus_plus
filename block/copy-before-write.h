@@ -29,6 +29,10 @@
 #include "block/block_int.h"
 #include "block/block-copy.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Global state (GS) API. These functions run under the BQL.
  *
@@ -45,5 +49,9 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
                                   OnCbwError on_cbw_error,
                                   Error **errp);
 void bdrv_cbw_drop(BlockDriverState *bs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* COPY_BEFORE_WRITE_H */

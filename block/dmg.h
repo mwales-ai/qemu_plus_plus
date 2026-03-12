@@ -29,6 +29,10 @@
 #include "block/block_int.h"
 #include <zlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct BDRVDMGState {
     CoMutex lock;
     /* each chunk contains a certain number of sectors,
@@ -56,5 +60,9 @@ typedef int BdrvDmgUncompressFunc(char *next_in, unsigned int avail_in,
 
 extern BdrvDmgUncompressFunc *dmg_uncompress_bz2;
 extern BdrvDmgUncompressFunc *dmg_uncompress_lzfse;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

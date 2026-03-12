@@ -26,6 +26,10 @@
 #include "qapi/error.h"
 #include "qemu/bswap.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 typedef struct NBDClientConnection NBDClientConnection;
@@ -505,5 +509,9 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
                             bool blocking, Error **errp);
 
 void nbd_co_establish_connection_cancel(NBDClientConnection *conn);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

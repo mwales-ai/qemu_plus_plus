@@ -15,6 +15,10 @@
 
 #include "qemu/bitops.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The available bitmap operations and their rough meaning in the
  * case that the bitmap is a single unsigned long are thus:
@@ -285,5 +289,9 @@ void bitmap_copy_with_src_offset(unsigned long *dst, const unsigned long *src,
                                  unsigned long offset, unsigned long nbits);
 void bitmap_copy_with_dst_offset(unsigned long *dst, const unsigned long *src,
                                  unsigned long shift, unsigned long nbits);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BITMAP_H */

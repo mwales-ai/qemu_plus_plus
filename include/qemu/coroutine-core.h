@@ -15,6 +15,10 @@
 #ifndef QEMU_COROUTINE_CORE_H
 #define QEMU_COROUTINE_CORE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Coroutines are a mechanism for stack switching and can be used for
  * cooperative userspace threading.  These functions provide a simple but
@@ -150,5 +154,9 @@ void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
  * lock to be run.
  */
 void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

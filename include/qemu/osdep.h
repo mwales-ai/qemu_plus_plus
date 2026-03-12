@@ -432,7 +432,7 @@ void QEMU_ERROR("code path is reachable")
 #define MAX(a, b) \
     MAX_INTERNAL((a), (b), MAKE_IDENTIFIER(_a), MAKE_IDENTIFIER(_b))
 
-#ifdef __COVERITY__
+#if defined(__COVERITY__) || defined(__cplusplus)
 # define MIN_CONST(a, b) ((a) < (b) ? (a) : (b))
 # define MAX_CONST(a, b) ((a) > (b) ? (a) : (b))
 #else

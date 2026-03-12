@@ -11,6 +11,10 @@
 #ifndef QAPI_UTIL_H
 #define QAPI_UTIL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     QAPI_DEPRECATED,
     QAPI_UNSTABLE,
@@ -68,5 +72,9 @@ int parse_qapi_name(const char *name, bool complete);
         }                                                           \
         _len;                                                       \
     })
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

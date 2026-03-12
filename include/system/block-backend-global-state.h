@@ -15,6 +15,10 @@
 
 #include "block-backend-common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Global state (GS) API. These functions run under the BQL.
  *
@@ -120,5 +124,9 @@ void blk_unregister_buf(BlockBackend *blk, void *host, size_t size);
 const BdrvChild *blk_root(BlockBackend *blk);
 
 int blk_make_empty(BlockBackend *blk, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_BACKEND_GLOBAL_STATE_H */

@@ -20,6 +20,10 @@
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Coroutines are a mechanism for stack switching and can be used for
  * cooperative userspace threading.  These functions provide a simple but
@@ -338,5 +342,9 @@ ssize_t coroutine_fn qemu_co_send_recv(int sockfd, void *buf, size_t bytes,
   qemu_co_send_recv(sockfd, buf, bytes, false)
 #define qemu_co_send(sockfd, buf, bytes) \
   qemu_co_send_recv(sockfd, buf, bytes, true)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_COROUTINE_H */

@@ -25,6 +25,10 @@
  */
 #include "block/block.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Callbacks for block device models */
 typedef struct BlockDevOps {
 
@@ -99,5 +103,9 @@ typedef struct BlockDevOps {
 typedef struct BlockBackendPublic {
     ThrottleGroupMember throttle_group_member;
 } BlockBackendPublic;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_BACKEND_COMMON_H */

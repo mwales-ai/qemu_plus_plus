@@ -41,9 +41,15 @@
 #endif
 
 #ifndef container_of
+#ifdef __cplusplus
+#define container_of(ptr, type, member) ({                              \
+        const decltype(((type *) 0)->member) *__cmptr = (ptr);          \
+        (type *) ((char *) __cmptr - offsetof(type, member));})
+#else
 #define container_of(ptr, type, member) ({                      \
         const typeof(((type *) 0)->member) *__mptr = (ptr);     \
         (type *) ((char *) __mptr - offsetof(type, member));})
+#endif
 #endif
 
 #define sizeof_field(type, field) sizeof(((type *)0)->field)

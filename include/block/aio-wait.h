@@ -28,6 +28,10 @@
 #include "block/aio.h"
 #include "qemu/main-loop.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * AioWait:
  *
@@ -148,5 +152,9 @@ static inline bool in_aio_context_home_thread(AioContext *ctx)
         return false;
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_AIO_WAIT_H */

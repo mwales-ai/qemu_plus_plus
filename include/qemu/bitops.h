@@ -16,6 +16,10 @@
 #include "host-utils.h"
 #include "atomic.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BITS_PER_BYTE           CHAR_BIT
 #define BITS_PER_LONG           (sizeof (unsigned long) * BITS_PER_BYTE)
 #define BITS_TO_LONGS(nr)       DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
@@ -796,5 +800,9 @@ static inline uint64_t half_unshuffle64(uint64_t x)
     x = ((x >> 16) | x) & 0x00000000FFFFFFFFULL;
     return x;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

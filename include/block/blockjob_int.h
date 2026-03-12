@@ -28,6 +28,10 @@
 
 #include "block/blockjob.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * BlockJobDriver:
  *
@@ -164,5 +168,9 @@ void block_job_ratelimit_sleep(BlockJob *job);
  */
 BlockErrorAction block_job_error_action(BlockJob *job, BlockdevOnError on_err,
                                         int is_read, int error);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

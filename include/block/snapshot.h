@@ -28,6 +28,10 @@
 #include "block/graph-lock.h"
 #include "qapi/qapi-builtin-types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SNAPSHOT_OPT_BASE       "snapshot."
 #define SNAPSHOT_OPT_ID         "snapshot.id"
 #define SNAPSHOT_OPT_NAME       "snapshot.name"
@@ -109,5 +113,9 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
 BlockDriverState *bdrv_all_find_vmstate_bs(const char *vmstate_bs,
                                            bool has_devices, strList *devices,
                                            Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

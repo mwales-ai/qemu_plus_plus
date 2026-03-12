@@ -27,7 +27,15 @@
 
 #include "block/block_int.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void no_coroutine_fn GRAPH_UNLOCKED
 bdrv_cor_filter_drop(BlockDriverState *cor_filter_bs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_COPY_ON_READ_H */

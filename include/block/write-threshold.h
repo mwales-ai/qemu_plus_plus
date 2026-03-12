@@ -13,6 +13,10 @@
 #ifndef BLOCK_WRITE_THRESHOLD_H
 #define BLOCK_WRITE_THRESHOLD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * bdrv_write_threshold_set:
  *
@@ -41,5 +45,9 @@ uint64_t bdrv_write_threshold_get(const BlockDriverState *bs);
  */
 void bdrv_write_threshold_check_write(BlockDriverState *bs, int64_t offset,
                                       int64_t bytes);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

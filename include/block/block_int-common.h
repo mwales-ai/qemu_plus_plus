@@ -32,6 +32,10 @@
 #include "qemu/rcu.h"
 #include "qemu/stats64.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BLOCK_FLAG_LAZY_REFCOUNTS   8
 
 #define BLOCK_OPT_SIZE              "size"
@@ -1348,6 +1352,10 @@ int bdrv_check_qiov_request(int64_t offset, int64_t bytes,
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* BLOCK_INT_COMMON_H */

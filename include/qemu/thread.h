@@ -38,6 +38,10 @@ typedef struct QemuEvent {
 /* include QSP header once QemuMutex, QemuCond etc. are defined */
 #include "qemu/qsp.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QEMU_THREAD_JOINABLE 0
 #define QEMU_THREAD_DETACHED 1
 
@@ -310,5 +314,9 @@ static inline void qemu_spin_unlock(QemuSpin *spin)
     __tsan_mutex_post_unlock(spin, 0);
 #endif
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -17,6 +17,10 @@
 
 #include "qemu/coroutine.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The API is not thread-safe and shouldn't be. The struct is public to be part
  * of other structures and protected by third-party locks, see
@@ -71,5 +75,9 @@ void coroutine_fn reqlist_shrink_req(BlockReq *req, int64_t new_bytes);
  * Remove request and wake all waiting coroutines. Do not release any memory.
  */
 void coroutine_fn reqlist_remove_req(BlockReq *req);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* REQLIST_H */

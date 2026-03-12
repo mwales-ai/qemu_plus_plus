@@ -16,6 +16,10 @@
 #include "block-backend-common.h"
 #include "block/accounting.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * I/O API functions. These functions are thread-safe.
  *
@@ -234,5 +238,9 @@ int co_wrapper_mixed blk_truncate(BlockBackend *blk, int64_t offset,
 int coroutine_fn blk_co_truncate(BlockBackend *blk, int64_t offset, bool exact,
                                  PreallocMode prealloc, BdrvRequestFlags flags,
                                  Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_BACKEND_IO_H */

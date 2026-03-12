@@ -51,6 +51,10 @@
  * reader count. In that case we transfer the count to a global shared counter
  * so that the writer is always aware of all readers.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct BdrvGraphRWlock BdrvGraphRWlock;
 
 /* Dummy lock object to use for Thread Safety Analysis (TSA) */
@@ -210,7 +214,15 @@ typedef struct GraphLockable { } GraphLockable;
  * In C++ it would be different, but then C++ wouldn't need QemuLockable
  * either...
  */
+#ifdef __cplusplus
+static inline GraphLockable *GML_OBJ_(void)
+{
+    static GraphLockable gml_obj;
+    return &gml_obj;
+}
+#else
 #define GML_OBJ_() (&(GraphLockable) { })
+#endif
 
 /*
  * This is not marked as TSA_ACQUIRE_SHARED() because TSA doesn't understand the
@@ -261,7 +273,15 @@ typedef struct GraphLockableMainloop { } GraphLockableMainloop;
  * In C++ it would be different, but then C++ wouldn't need QemuLockable
  * either...
  */
+#ifdef __cplusplus
+static inline GraphLockableMainloop *GMLML_OBJ_(void)
+{
+    static GraphLockableMainloop gmlml_obj;
+    return &gmlml_obj;
+}
+#else
 #define GMLML_OBJ_() (&(GraphLockableMainloop) { })
+#endif
 
 /*
  * This is not marked as TSA_ACQUIRE_SHARED() because TSA doesn't understand the
@@ -289,6 +309,10 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(GraphLockableMainloop,
     g_autoptr(GraphLockableMainloop)                                \
     glue(graph_lockable_auto, __COUNTER__) G_GNUC_UNUSED =          \
             graph_lockable_auto_lock_mainloop(GMLML_OBJ_())
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GRAPH_LOCK_H */
 

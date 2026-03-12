@@ -155,11 +155,13 @@ enum VMStateFlags {
 };
 
 #ifdef __cplusplus
+extern "C++" {
 static inline enum VMStateFlags operator|(enum VMStateFlags a,
                                           enum VMStateFlags b)
 {
     return static_cast<enum VMStateFlags>(static_cast<int>(a) |
                                           static_cast<int>(b));
+}
 }
 #endif
 

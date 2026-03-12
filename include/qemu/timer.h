@@ -5,6 +5,10 @@
 #include "qemu/notify.h"
 #include "qemu/host-utils.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NANOSECONDS_PER_SECOND 1000000000LL
 
 /* timers */
@@ -1011,6 +1015,10 @@ static inline int64_t cpu_get_host_ticks(void)
 static inline int64_t cpu_get_host_ticks(void)
 {
     return get_clock();
+}
+#endif
+
+#ifdef __cplusplus
 }
 #endif
 

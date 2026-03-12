@@ -5,6 +5,10 @@
 #include "qapi/qapi-types-block-core.h"
 #include "qemu/hbitmap.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum BitmapCheckFlags {
     BDRV_BITMAP_BUSY = 1,
     BDRV_BITMAP_RO = 2,
@@ -126,5 +130,9 @@ bool bdrv_dirty_bitmap_status(BdrvDirtyBitmap *bitmap, int64_t offset,
                               int64_t bytes, int64_t *count);
 BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap_locked(BdrvDirtyBitmap *bitmap,
                                                   Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

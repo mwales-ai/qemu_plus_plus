@@ -24,6 +24,10 @@
 #include "crypto/cipher.h"
 #include "crypto/ivgen.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QCryptoBlock QCryptoBlock;
 
 /* See also QCryptoBlockFormat, QCryptoBlockCreateOptions
@@ -325,5 +329,9 @@ uint64_t qcrypto_block_get_sector_size(QCryptoBlock *block);
 void qcrypto_block_free(QCryptoBlock *block);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoBlock, qcrypto_block_free)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QCRYPTO_BLOCK_H */

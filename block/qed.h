@@ -18,6 +18,10 @@
 #include "block/block_int.h"
 #include "qemu/cutils.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The layout of a QED file is as follows:
  *
  * +--------+----------+----------+----------+-----+
@@ -321,5 +325,9 @@ static inline bool qed_offset_is_zero_cluster(uint64_t offset)
     }
     return false;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_QED_H */

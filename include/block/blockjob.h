@@ -30,6 +30,10 @@
 #include "qemu/job.h"
 #include "qemu/ratelimit.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BLOCK_JOB_SLICE_TIME 100000000ULL /* ns */
 
 typedef struct BlockJobDriver BlockJobDriver;
@@ -236,5 +240,9 @@ bool block_job_is_internal(BlockJob *job);
  * Returns the driver associated with a block job.
  */
 const BlockJobDriver *block_job_driver(BlockJob *job);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

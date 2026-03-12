@@ -15,6 +15,10 @@
 #include "bitops.h"
 #include "host-utils.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct HBitmap HBitmap;
 typedef struct HBitmapIter HBitmapIter;
 
@@ -349,5 +353,9 @@ bool hbitmap_status(const HBitmap *hb, int64_t start, int64_t count,
  * or -1 if all remaining bits are zero.
  */
 int64_t hbitmap_iter_next(HBitmapIter *hbi);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

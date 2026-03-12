@@ -29,6 +29,10 @@
 #include "qemu/thread.h"
 #include "qapi/qapi-types-common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct BlockAcctTimedStats BlockAcctTimedStats;
 typedef struct BlockAcctStats BlockAcctStats;
 
@@ -121,5 +125,9 @@ double block_acct_queue_depth(BlockAcctTimedStats *stats,
 int block_latency_histogram_set(BlockAcctStats *stats, enum BlockAcctType type,
                                 uint64List *boundaries);
 void block_latency_histograms_clear(BlockAcctStats *stats);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

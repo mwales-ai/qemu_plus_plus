@@ -15,6 +15,10 @@
 #ifndef IOV_H
 #define IOV_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * count and return data size, in bytes, of an iovec
  * starting at `iov' of `iov_cnt' number of elements.
@@ -274,5 +278,9 @@ size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
 ssize_t qemu_iovec_compare(QEMUIOVector *a, QEMUIOVector *b);
 void qemu_iovec_clone(QEMUIOVector *dest, const QEMUIOVector *src, void *buf);
 void qemu_iovec_discard_back(QEMUIOVector *qiov, size_t bytes);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

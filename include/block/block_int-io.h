@@ -28,6 +28,10 @@
 #include "qemu/hbitmap.h"
 #include "qemu/main-loop.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * I/O API functions. These functions are thread-safe.
  *
@@ -196,5 +200,9 @@ void bdrv_bsc_fill(BlockDriverState *bs, int64_t offset, int64_t bytes);
  */
 void coroutine_fn GRAPH_RDLOCK
 bdrv_co_parent_cb_resize(BlockDriverState *bs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_INT_IO_H */

@@ -29,6 +29,10 @@
 #include "qom/object.h"
 #include "system/event-loop-base.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SIG_IPI SIGUSR1
 
 #define TYPE_MAIN_LOOP  "main-loop"
@@ -448,5 +452,9 @@ typedef struct MainLoopPoll {
 
 void main_loop_poll_add_notifier(Notifier *notify);
 void main_loop_poll_remove_notifier(Notifier *notify);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -35,6 +35,10 @@
 #include "qemu/atomic.h"
 #include "qapi/qapi-builtin-types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Not for use outside include/qobject/ */
 struct QObjectBase_ {
     QType type;
@@ -141,5 +145,9 @@ static inline QObject *qobject_check_type(const QObject *obj, QType type)
         return NULL;
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QOBJECT_H */

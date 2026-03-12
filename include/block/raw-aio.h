@@ -20,6 +20,10 @@
 #include "block/block-common.h"
 #include "qemu/iov.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* AIO request types */
 #define QEMU_AIO_READ         0x0001
 #define QEMU_AIO_WRITE        0x0002
@@ -99,6 +103,10 @@ void win32_aio_detach_aio_context(QEMUWin32AIOState *aio,
                                   AioContext *old_context);
 void win32_aio_attach_aio_context(QEMUWin32AIOState *aio,
                                   AioContext *new_context);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* QEMU_RAW_AIO_H */

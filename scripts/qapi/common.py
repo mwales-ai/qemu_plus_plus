@@ -195,12 +195,20 @@ def guardstart(name: str) -> str:
 #ifndef %(name)s
 #define %(name)s
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 ''',
                  name=c_fname(name).upper())
 
 
 def guardend(name: str) -> str:
     return mcgen('''
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* %(name)s */
 ''',

@@ -30,6 +30,10 @@
 #include "qemu/units.h"
 #include "block/block_int.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //#define DEBUG_ALLOC
 //#define DEBUG_ALLOC2
 //#define DEBUG_EXT
@@ -646,13 +650,13 @@ static inline void set_l2_bitmap(BDRVQcow2State *s, uint64_t *l2_slice,
 
 static inline bool GRAPH_RDLOCK has_data_file(BlockDriverState *bs)
 {
-    BDRVQcow2State *s = bs->opaque;
+    BDRVQcow2State *s = ((BDRVQcow2State *)bs->opaque);
     return (s->data_file != bs->file);
 }
 
 static inline bool data_file_is_raw(BlockDriverState *bs)
 {
-    BDRVQcow2State *s = bs->opaque;
+    BDRVQcow2State *s = ((BDRVQcow2State *)bs->opaque);
     return !!(s->autoclear_features & QCOW2_AUTOCLEAR_DATA_FILE_RAW);
 }
 
@@ -715,7 +719,7 @@ static inline int64_t qcow2_vm_state_offset(BDRVQcow2State *s)
 static inline QCow2ClusterType GRAPH_RDLOCK
 qcow2_get_cluster_type(BlockDriverState *bs, uint64_t l2_entry)
 {
-    BDRVQcow2State *s = bs->opaque;
+    BDRVQcow2State *s = ((BDRVQcow2State *)bs->opaque);
 
     if (l2_entry & QCOW_OFLAG_COMPRESSED) {
         return QCOW2_CLUSTER_COMPRESSED;
@@ -752,9 +756,9 @@ QCow2SubclusterType qcow2_get_subcluster_type(BlockDriverState *bs,
                                               uint64_t l2_bitmap,
                                               unsigned sc_index)
 {
-    BDRVQcow2State *s = bs->opaque;
+    BDRVQcow2State *s = ((BDRVQcow2State *)bs->opaque);
     QCow2ClusterType type = qcow2_get_cluster_type(bs, l2_entry);
-    assert(sc_index < s->subclusters_per_cluster);
+    assert(sc_index < (unsigned int)s->subclusters_per_cluster);
 
     if (has_subclusters(s)) {
         switch (type) {
@@ -1077,5 +1081,9 @@ qcow2_co_encrypt(BlockDriverState *bs, uint64_t host_offset,
 int coroutine_fn
 qcow2_co_decrypt(BlockDriverState *bs, uint64_t host_offset,
                  uint64_t guest_offset, void *buf, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

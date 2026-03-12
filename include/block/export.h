@@ -17,6 +17,10 @@
 #include "qapi/qapi-types-block-export.h"
 #include "qemu/queue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct BlockExport BlockExport;
 
 typedef struct BlockExportDriver {
@@ -90,5 +94,9 @@ void blk_exp_unref(BlockExport *exp);
 void blk_exp_request_shutdown(BlockExport *exp);
 void blk_exp_close_all(void);
 void blk_exp_close_all_type(BlockExportType type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

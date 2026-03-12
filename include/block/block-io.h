@@ -29,6 +29,10 @@
 #include "qemu/coroutine.h"
 #include "qemu/iov.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * I/O API functions. These functions are thread-safe, and therefore
  * can run in any thread.
@@ -453,5 +457,9 @@ void bdrv_do_drained_begin_quiesce(BlockDriverState *bs, BdrvChild *parent);
  * However, it cannot be directly called by an Iothread.
  */
 void bdrv_drained_end(BlockDriverState *bs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_IO_H */

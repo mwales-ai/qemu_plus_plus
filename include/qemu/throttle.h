@@ -28,6 +28,10 @@
 #include "qapi/qapi-types-block-core.h"
 #include "qemu/timer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define THROTTLE_VALUE_MAX 1000000000000000LL
 
 typedef enum {
@@ -161,5 +165,9 @@ void throttle_account(ThrottleState *ts, ThrottleDirection direction,
 void throttle_limits_to_config(ThrottleLimits *arg, ThrottleConfig *cfg,
                                Error **errp);
 void throttle_config_to_limits(ThrottleConfig *cfg, ThrottleLimits *var);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

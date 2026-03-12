@@ -17,6 +17,10 @@
 #include "qapi/qapi-builtin-types.h"
 #include "qemu/module.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct TypeImpl;
 typedef struct TypeImpl *Type;
 
@@ -2048,5 +2052,9 @@ char *object_property_help(const char *name, const char *type,
                            QObject *defval, const char *description);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(Object, object_unref)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

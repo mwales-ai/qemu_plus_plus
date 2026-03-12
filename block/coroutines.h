@@ -30,6 +30,10 @@
 /* For blk_bs() in generated block/block-gen.c */
 #include "system/block-backend.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * I/O API functions. These functions are thread-safe.
  *
@@ -88,5 +92,9 @@ bdrv_common_block_status_above(BlockDriverState *bs,
 
 int co_wrapper_mixed_bdrv_rdlock
 nbd_do_establish_connection(BlockDriverState *bs, bool blocking, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_COROUTINES_H */

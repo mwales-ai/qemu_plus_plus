@@ -12,6 +12,10 @@
 
 #include "qobject/qdict.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 QObject *qdict_crumple(const QDict *src, Error **errp);
 void qdict_flatten(QDict *qdict);
 
@@ -32,4 +36,9 @@ bool qdict_rename_keys(QDict *qdict, const QDictRenames *renames, Error **errp);
 
 Visitor *qobject_input_visitor_new_flat_confused(QDict *qdict,
                                                  Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

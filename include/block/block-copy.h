@@ -18,6 +18,10 @@
 #include "block/block-common.h"
 #include "qemu/progress_meter.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* All APIs are thread-safe */
 
 typedef void (*BlockCopyAsyncCallbackFunc)(void *opaque);
@@ -100,5 +104,9 @@ void block_copy_call_cancel(BlockCopyCallState *call_state);
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s);
 int64_t block_copy_cluster_size(BlockCopyState *s);
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_COPY_H */
