@@ -102,6 +102,43 @@ QML_FUNC_(spin, QemuSpin)
  *
  * Note the special case for void *, so that we may pass "NULL".
  */
+#ifdef __cplusplus
+/*
+ * C++ uses function overloading instead of _Generic, and GCC statement
+ * expressions to create QemuLockable values with expression-scoped lifetime.
+ */
+static inline QemuLockable qemu_lockable_init_(QemuMutex *x) {
+    QemuLockable l = { x, qemu_lockable_mutex_lock, qemu_lockable_mutex_unlock };
+    return l;
+}
+static inline QemuLockable qemu_lockable_init_(QemuRecMutex *x) {
+    QemuLockable l = { x, qemu_lockable_rec_mutex_lock,
+                        qemu_lockable_rec_mutex_unlock };
+    return l;
+}
+static inline QemuLockable qemu_lockable_init_(CoMutex *x) {
+    QemuLockable l = { x, qemu_lockable_co_mutex_lock,
+                        qemu_lockable_co_mutex_unlock };
+    return l;
+}
+static inline QemuLockable qemu_lockable_init_(QemuSpin *x) {
+    QemuLockable l = { x, qemu_lockable_spin_lock, qemu_lockable_spin_unlock };
+    return l;
+}
+static inline QemuLockable *qemu_lockable_init_(QemuLockable *x) {
+    return x;
+}
+
+#define QEMU_MAKE_LOCKABLE(x) __extension__ ({                          \
+        QemuLockable qml_lockable_ = qemu_lockable_init_(x);           \
+        qemu_make_lockable(static_cast<void *>(x), &qml_lockable_);    \
+    })
+
+#define QEMU_MAKE_LOCKABLE_NONNULL(x) __extension__ ({                 \
+        QemuLockable qml_lockable_ = qemu_lockable_init_(x);           \
+        &qml_lockable_;                                                 \
+    })
+#else
 #define QEMU_MAKE_LOCKABLE(x)                                           \
     _Generic((x), QemuLockable *: (x),                                  \
              void *: qemu_null_lockable(x),                             \
@@ -125,6 +162,7 @@ QML_FUNC_(spin, QemuSpin)
                   QemuRecMutex *: QML_OBJ_(x, rec_mutex),       \
                   CoMutex *: QML_OBJ_(x, co_mutex),             \
                   QemuSpin *: QML_OBJ_(x, spin))
+#endif
 
 static inline void qemu_lockable_lock(QemuLockable *x)
 {
@@ -150,6 +188,39 @@ static inline void qemu_lockable_auto_unlock(QemuLockable *x)
 }
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuLockable, qemu_lockable_auto_unlock)
+
+/*
+ * In C++, the statement-expression-based QEMU_MAKE_LOCKABLE creates a
+ * QemuLockable with expression-scoped lifetime, which is fine for passing
+ * to functions but not for the LOCK_GUARD macros where the lockable must
+ * outlive the guard variable. So provide C++ specific guard macros that
+ * create named QemuLockable locals with proper block scope.
+ */
+#ifdef __cplusplus
+
+#define WITH_QEMU_LOCK_GUARD_(x, id)                                    \
+    QemuLockable glue(qemu_lockable_obj_, id) =                         \
+        qemu_lockable_init_(x);                                         \
+    for (g_autoptr(QemuLockable) glue(qemu_lockable_auto_, id) =        \
+                qemu_lockable_auto_lock(                                \
+                    &glue(qemu_lockable_obj_, id));                      \
+         glue(qemu_lockable_auto_, id);                                  \
+         qemu_lockable_auto_unlock(glue(qemu_lockable_auto_, id)),       \
+            glue(qemu_lockable_auto_, id) = NULL)
+
+#define WITH_QEMU_LOCK_GUARD(x) \
+    WITH_QEMU_LOCK_GUARD_((x), __COUNTER__)
+
+#define QEMU_LOCK_GUARD_(x, id)                                          \
+    QemuLockable glue(qemu_lockable_obj_, id) =                          \
+        qemu_lockable_init_(x);                                          \
+    g_autoptr(QemuLockable)                                              \
+    glue(qemu_lockable_auto_, id) G_GNUC_UNUSED =                        \
+            qemu_lockable_auto_lock(&glue(qemu_lockable_obj_, id))
+
+#define QEMU_LOCK_GUARD(x) QEMU_LOCK_GUARD_((x), __COUNTER__)
+
+#else /* !__cplusplus */
 
 #define WITH_QEMU_LOCK_GUARD_(x, var) \
     for (g_autoptr(QemuLockable) var = \
@@ -201,5 +272,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuLockable, qemu_lockable_auto_unlock)
     g_autoptr(QemuLockable)                                      \
     glue(qemu_lockable_auto, __COUNTER__) G_GNUC_UNUSED =        \
             qemu_lockable_auto_lock(QEMU_MAKE_LOCKABLE((x)))
+
+#endif /* __cplusplus */
 
 #endif
