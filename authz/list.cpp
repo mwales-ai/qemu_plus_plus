@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "authz/list.h"
 #include "trace.h"
 #include "qom/object_interfaces.h"
@@ -69,7 +74,7 @@ qauthz_list_prop_set_policy(Object *obj,
 {
     QAuthZList *lauthz = QAUTHZ_LIST(obj);
 
-    lauthz->policy = value;
+    lauthz->policy = static_cast<QAuthZListPolicy>(value);
 }
 
 
@@ -157,13 +162,13 @@ ssize_t qauthz_list_append_rule(QAuthZList *auth,
     QAuthZListRuleList *rules, *tmp;
     size_t i = 0;
 
-    rule = g_new0(QAuthZListRule, 1);
+    rule = static_cast<QAuthZListRule *>(g_new0(QAuthZListRule, 1));
     rule->policy = policy;
     rule->match = g_strdup(match);
     rule->format = format;
     rule->has_format = true;
 
-    tmp = g_new0(QAuthZListRuleList, 1);
+    tmp = static_cast<QAuthZListRuleList *>(g_new0(QAuthZListRuleList, 1));
     tmp->value = rule;
 
     rules = auth->rules;
@@ -192,13 +197,13 @@ ssize_t qauthz_list_insert_rule(QAuthZList *auth,
     QAuthZListRuleList *rules, *tmp;
     size_t i = 0;
 
-    rule = g_new0(QAuthZListRule, 1);
+    rule = static_cast<QAuthZListRule *>(g_new0(QAuthZListRule, 1));
     rule->policy = policy;
     rule->match = g_strdup(match);
     rule->format = format;
     rule->has_format = true;
 
-    tmp = g_new0(QAuthZListRuleList, 1);
+    tmp = static_cast<QAuthZListRuleList *>(g_new0(QAuthZListRuleList, 1));
     tmp->value = rule;
 
     rules = auth->rules;
@@ -247,16 +252,18 @@ ssize_t qauthz_list_delete_rule(QAuthZList *auth, const char *match)
 }
 
 
+static const InterfaceInfo qauthz_list_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo qauthz_list_info = {
-    .parent = TYPE_QAUTHZ,
     .name = TYPE_QAUTHZ_LIST,
+    .parent = TYPE_QAUTHZ,
     .instance_size = sizeof(QAuthZList),
     .instance_finalize = qauthz_list_finalize,
     .class_init = qauthz_list_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = qauthz_list_interfaces,
 };
 
 
@@ -268,3 +275,5 @@ qauthz_list_register_types(void)
 
 
 type_init(qauthz_list_register_types);
+
+} /* extern "C" */

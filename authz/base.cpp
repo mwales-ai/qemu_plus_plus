@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "authz/base.h"
 #include "qemu/module.h"
 #include "trace.h"
@@ -67,11 +72,11 @@ bool qauthz_is_allowed_by_id(const char *authzid,
 
 
 static const TypeInfo authz_info = {
-    .parent = TYPE_OBJECT,
     .name = TYPE_QAUTHZ,
+    .parent = TYPE_OBJECT,
     .instance_size = sizeof(QAuthZ),
-    .class_size = sizeof(QAuthZClass),
     .abstract = true,
+    .class_size = sizeof(QAuthZClass),
 };
 
 static void qauthz_register_types(void)
@@ -81,3 +86,4 @@ static void qauthz_register_types(void)
 
 type_init(qauthz_register_types)
 
+} /* extern "C" */

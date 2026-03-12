@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "authz/listfile.h"
 #include "trace.h"
 #include "qemu/error-report.h"
@@ -99,7 +104,7 @@ qauthz_list_file_event(int64_t wd G_GNUC_UNUSED,
                        const char *name G_GNUC_UNUSED,
                        void *opaque)
 {
-    QAuthZListFile *fauthz = opaque;
+    QAuthZListFile *fauthz = static_cast<QAuthZListFile *>(opaque);
     Error *err = NULL;
 
     if (ev != QFILE_MONITOR_EVENT_MODIFIED &&
@@ -265,17 +270,19 @@ QAuthZListFile *qauthz_list_file_new(const char *id,
 }
 
 
+static const InterfaceInfo qauthz_list_file_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo qauthz_list_file_info = {
-    .parent = TYPE_QAUTHZ,
     .name = TYPE_QAUTHZ_LIST_FILE,
-    .instance_init = qauthz_list_file_init,
+    .parent = TYPE_QAUTHZ,
     .instance_size = sizeof(QAuthZListFile),
+    .instance_init = qauthz_list_file_init,
     .instance_finalize = qauthz_list_file_finalize,
     .class_init = qauthz_list_file_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = qauthz_list_file_interfaces,
 };
 
 
@@ -287,3 +294,5 @@ qauthz_list_file_register_types(void)
 
 
 type_init(qauthz_list_file_register_types);
+
+} /* extern "C" */

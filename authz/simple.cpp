@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "authz/simple.h"
 #include "trace.h"
 #include "qemu/module.h"
@@ -105,16 +110,18 @@ QAuthZSimple *qauthz_simple_new(const char *id,
 }
 
 
+static const InterfaceInfo qauthz_simple_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo qauthz_simple_info = {
-    .parent = TYPE_QAUTHZ,
     .name = TYPE_QAUTHZ_SIMPLE,
+    .parent = TYPE_QAUTHZ,
     .instance_size = sizeof(QAuthZSimple),
     .instance_finalize = qauthz_simple_finalize,
     .class_init = qauthz_simple_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = qauthz_simple_interfaces,
 };
 
 
@@ -126,3 +133,5 @@ qauthz_simple_register_types(void)
 
 
 type_init(qauthz_simple_register_types);
+
+} /* extern "C" */

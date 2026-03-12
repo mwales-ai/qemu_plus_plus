@@ -1,9 +1,9 @@
 authz_ss.add(genh)
 authz_ss.add(files(
-  'base.c',
-  'list.c',
-  'listfile.c',
-  'simple.c',
+  'base.cpp',
+  'list.cpp',
+  'listfile.cpp',
+  'simple.cpp',
 ))
 
-authz_ss.add(when: pam, if_true: files('pamacct.c'))
+authz_ss.add(when: pam, if_true: files('pamacct.cpp'))

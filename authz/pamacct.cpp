@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "authz/pamacct.h"
 #include "trace.h"
 #include "qemu/module.h"
@@ -130,16 +135,18 @@ QAuthZPAM *qauthz_pam_new(const char *id,
 }
 
 
+static const InterfaceInfo qauthz_pam_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo qauthz_pam_info = {
-    .parent = TYPE_QAUTHZ,
     .name = TYPE_QAUTHZ_PAM,
+    .parent = TYPE_QAUTHZ,
     .instance_size = sizeof(QAuthZPAM),
     .instance_finalize = qauthz_pam_finalize,
     .class_init = qauthz_pam_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = qauthz_pam_interfaces,
 };
 
 
@@ -151,3 +158,5 @@ qauthz_pam_register_types(void)
 
 
 type_init(qauthz_pam_register_types);
+
+} /* extern "C" */
