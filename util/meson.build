@@ -105,14 +105,14 @@ if have_block
   util_ss.add(files('qemu-co-shared-resource.c'))
   util_ss.add(files('qemu-co-timeout.c'))
   util_ss.add(files('readline.cpp'))
-  util_ss.add(files('throttle.c'))
+  util_ss.add(files('throttle.cpp'))
   util_ss.add(files('timed-average.cpp'))
   if config_host_data.get('CONFIG_INOTIFY1')
     freebsd_dep = []
     if host_os == 'freebsd'
       freebsd_dep = inotify
     endif
-    util_ss.add(files('filemonitor-inotify.c'), freebsd_dep)
+    util_ss.add(files('filemonitor-inotify.cpp'), freebsd_dep)
   else
     util_ss.add(files('filemonitor-stub.cpp'))
   endif

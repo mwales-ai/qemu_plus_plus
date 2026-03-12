@@ -19,11 +19,17 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/filemonitor.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "trace.h"
+}
 
 #include <sys/inotify.h>
 
@@ -53,7 +59,7 @@ typedef struct {
 
 static void qemu_file_monitor_watch(void *arg)
 {
-    QFileMonitor *mon = arg;
+    QFileMonitor *mon = static_cast<QFileMonitor *>(arg);
     char buf[4096]
         __attribute__ ((aligned(__alignof__(struct inotify_event))));
     int used = 0;
@@ -84,19 +90,21 @@ static void qemu_file_monitor_watch(void *arg)
         const char *name;
         QFileMonitorDir *dir;
         uint32_t iev;
-        int qev;
+        QFileMonitorEvent qev;
         gsize i;
-        struct inotify_event *ev = (struct inotify_event *)(buf + used);
+        struct inotify_event *ev =
+            reinterpret_cast<struct inotify_event *>(buf + used);
 
         /*
          * We trust the kernel to provide valid buffer with complete event
          * records.
          */
-        assert(len - used >= sizeof(struct inotify_event));
-        assert(len - used - sizeof(struct inotify_event) >= ev->len);
+        assert((size_t)(len - used) >= sizeof(struct inotify_event));
+        assert((size_t)(len - used) - sizeof(struct inotify_event) >= ev->len);
 
         name = ev->len ? ev->name : "";
-        dir = g_hash_table_lookup(mon->idmap, GINT_TO_POINTER(ev->wd));
+        dir = static_cast<QFileMonitorDir *>(
+            g_hash_table_lookup(mon->idmap, GINT_TO_POINTER(ev->wd)));
         iev = ev->mask &
             (IN_CREATE | IN_MODIFY | IN_DELETE | IN_IGNORED |
              IN_MOVED_TO | IN_MOVED_FROM | IN_ATTRIB);
@@ -145,7 +153,8 @@ static void qemu_file_monitor_watch(void *arg)
             if (watch->filename == NULL ||
                 (name && g_str_equal(watch->filename, name))) {
                 trace_qemu_file_monitor_dispatch(mon, dir->path, name,
-                                                 qev, watch->cb,
+                                                 qev,
+                                                 reinterpret_cast<void *>(watch->cb),
                                                  watch->opaque, watch->id);
                 watch->cb(watch->id, qev, name, watch->opaque);
             }
@@ -160,7 +169,7 @@ static void qemu_file_monitor_watch(void *arg)
 static void
 qemu_file_monitor_dir_free(void *data)
 {
-    QFileMonitorDir *dir = data;
+    QFileMonitorDir *dir = static_cast<QFileMonitorDir *>(data);
     gsize i;
 
     for (i = 0; i < dir->watches->len; i++) {
@@ -174,6 +183,7 @@ qemu_file_monitor_dir_free(void *data)
 }
 
 
+extern "C"
 QFileMonitor *
 qemu_file_monitor_new(Error **errp)
 {
@@ -203,7 +213,7 @@ qemu_file_monitor_new(Error **errp)
 static gboolean
 qemu_file_monitor_free_idle(void *opaque)
 {
-    QFileMonitor *mon = opaque;
+    QFileMonitor *mon = static_cast<QFileMonitor *>(opaque);
 
     if (!mon) {
         return G_SOURCE_REMOVE;
@@ -222,6 +232,7 @@ qemu_file_monitor_free_idle(void *opaque)
     return G_SOURCE_REMOVE;
 }
 
+extern "C"
 void
 qemu_file_monitor_free(QFileMonitor *mon)
 {
@@ -244,9 +255,11 @@ qemu_file_monitor_free(QFileMonitor *mon)
      * source ensures we'll only free after the
      * pending callback is done
      */
-    g_idle_add((GSourceFunc)qemu_file_monitor_free_idle, mon);
+    g_idle_add(reinterpret_cast<GSourceFunc>(qemu_file_monitor_free_idle),
+               mon);
 }
 
+extern "C"
 int64_t
 qemu_file_monitor_add_watch(QFileMonitor *mon,
                             const char *dirpath,
@@ -260,7 +273,8 @@ qemu_file_monitor_add_watch(QFileMonitor *mon,
     int64_t ret = -1;
 
     qemu_mutex_lock(&mon->lock);
-    dir = g_hash_table_lookup(mon->dirs, dirpath);
+    dir = static_cast<QFileMonitorDir *>(
+        g_hash_table_lookup(mon->dirs, dirpath));
     if (!dir) {
         int rv = inotify_add_watch(mon->fd, dirpath,
                                    IN_CREATE | IN_DELETE | IN_MODIFY |
@@ -295,7 +309,8 @@ qemu_file_monitor_add_watch(QFileMonitor *mon,
 
     trace_qemu_file_monitor_add_watch(mon, dirpath,
                                       filename ? filename : "<none>",
-                                      cb, opaque, watch.id);
+                                      reinterpret_cast<void *>(cb),
+                                      opaque, watch.id);
 
     ret = watch.id;
 
@@ -305,6 +320,7 @@ qemu_file_monitor_add_watch(QFileMonitor *mon,
 }
 
 
+extern "C"
 void qemu_file_monitor_remove_watch(QFileMonitor *mon,
                                     const char *dirpath,
                                     int64_t id)
@@ -316,7 +332,8 @@ void qemu_file_monitor_remove_watch(QFileMonitor *mon,
 
     trace_qemu_file_monitor_remove_watch(mon, dirpath, id);
 
-    dir = g_hash_table_lookup(mon->dirs, dirpath);
+    dir = static_cast<QFileMonitorDir *>(
+        g_hash_table_lookup(mon->dirs, dirpath));
     if (!dir) {
         goto cleanup;
     }

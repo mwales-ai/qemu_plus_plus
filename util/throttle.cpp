@@ -23,17 +23,24 @@
  */
 
 #include "qemu/osdep.h"
+
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/throttle.h"
 #include "qemu/timer.h"
 #include "block/aio.h"
+}
 
 /* This function make a bucket leak
  *
  * @bkt:   the bucket to make leak
  * @delta_ns: the time delta
  */
-void throttle_leak_bucket(LeakyBucket *bkt, int64_t delta_ns)
+extern "C" void throttle_leak_bucket(LeakyBucket *bkt, int64_t delta_ns)
 {
     double leak;
 
@@ -92,7 +99,7 @@ static int64_t throttle_do_compute_wait(double limit, double extra)
  * @bkt: the leaky bucket we operate on
  * @ret: the resulting wait time in ns or 0 if the operation can go through
  */
-int64_t throttle_compute_wait(LeakyBucket *bkt)
+extern "C" int64_t throttle_compute_wait(LeakyBucket *bkt)
 {
     double extra; /* the number of extra units blocking the io */
     double bucket_size;   /* I/O before throttling to bkt->avg */
@@ -154,7 +161,7 @@ static int64_t throttle_compute_wait_for(ThrottleState *ts,
     int64_t wait, max_wait = 0;
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(to_check[THROTTLE_READ]); i++) {
+    for (i = 0; i < (int) ARRAY_SIZE(to_check[THROTTLE_READ]); i++) {
         BucketType index = to_check[direction][i];
         wait = throttle_compute_wait(&ts->cfg.buckets[index]);
         if (wait > max_wait) {
@@ -197,12 +204,13 @@ static bool throttle_compute_timer(ThrottleState *ts,
 }
 
 /* Add timers to event loop */
-void throttle_timers_attach_aio_context(ThrottleTimers *tt,
+extern "C" void throttle_timers_attach_aio_context(ThrottleTimers *tt,
                                         AioContext *new_context)
 {
     ThrottleDirection dir;
 
-    for (dir = THROTTLE_READ; dir < THROTTLE_MAX; dir++) {
+    for (dir = THROTTLE_READ; dir < THROTTLE_MAX;
+         dir = static_cast<ThrottleDirection>(dir + 1)) {
         if (tt->timer_cb[dir]) {
             tt->timers[dir] =
                 aio_timer_new(new_context, tt->clock_type, SCALE_NS,
@@ -215,7 +223,7 @@ void throttle_timers_attach_aio_context(ThrottleTimers *tt,
  * Initialize the ThrottleConfig structure to a valid state
  * @cfg: the config to initialize
  */
-void throttle_config_init(ThrottleConfig *cfg)
+extern "C" void throttle_config_init(ThrottleConfig *cfg)
 {
     unsigned i;
     memset(cfg, 0, sizeof(*cfg));
@@ -225,14 +233,14 @@ void throttle_config_init(ThrottleConfig *cfg)
 }
 
 /* To be called first on the ThrottleState */
-void throttle_init(ThrottleState *ts)
+extern "C" void throttle_init(ThrottleState *ts)
 {
     memset(ts, 0, sizeof(ThrottleState));
     throttle_config_init(&ts->cfg);
 }
 
 /* To be called first on the ThrottleTimers */
-void throttle_timers_init(ThrottleTimers *tt,
+extern "C" void throttle_timers_init(ThrottleTimers *tt,
                           AioContext *aio_context,
                           QEMUClockType clock_type,
                           QEMUTimerCB *read_timer_cb,
@@ -261,27 +269,29 @@ static void throttle_timer_destroy(QEMUTimer **timer)
 }
 
 /* Remove timers from event loop */
-void throttle_timers_detach_aio_context(ThrottleTimers *tt)
+extern "C" void throttle_timers_detach_aio_context(ThrottleTimers *tt)
 {
     ThrottleDirection dir;
 
-    for (dir = THROTTLE_READ; dir < THROTTLE_MAX; dir++) {
+    for (dir = THROTTLE_READ; dir < THROTTLE_MAX;
+         dir = static_cast<ThrottleDirection>(dir + 1)) {
         throttle_timer_destroy(&tt->timers[dir]);
     }
 }
 
 /* To be called last on the ThrottleTimers */
-void throttle_timers_destroy(ThrottleTimers *tt)
+extern "C" void throttle_timers_destroy(ThrottleTimers *tt)
 {
     throttle_timers_detach_aio_context(tt);
 }
 
 /* is any throttling timer configured */
-bool throttle_timers_are_initialized(ThrottleTimers *tt)
+extern "C" bool throttle_timers_are_initialized(ThrottleTimers *tt)
 {
     ThrottleDirection dir;
 
-    for (dir = THROTTLE_READ; dir < THROTTLE_MAX; dir++) {
+    for (dir = THROTTLE_READ; dir < THROTTLE_MAX;
+         dir = static_cast<ThrottleDirection>(dir + 1)) {
         if (tt->timers[dir]) {
             return true;
         }
@@ -295,7 +305,7 @@ bool throttle_timers_are_initialized(ThrottleTimers *tt)
  * @cfg: the throttling configuration to inspect
  * @ret: true if throttling must be done else false
  */
-bool throttle_enabled(ThrottleConfig *cfg)
+extern "C" bool throttle_enabled(ThrottleConfig *cfg)
 {
     int i;
 
@@ -313,7 +323,7 @@ bool throttle_enabled(ThrottleConfig *cfg)
  * @ret: true if valid else false
  * @errp: error object
  */
-bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
+extern "C" bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
 {
     int i;
     bool bps_flag, ops_flag;
@@ -393,7 +403,7 @@ bool throttle_is_valid(ThrottleConfig *cfg, Error **errp)
  * @clock_type: the group's clock_type
  * @cfg: the config to set
  */
-void throttle_config(ThrottleState *ts,
+extern "C" void throttle_config(ThrottleState *ts,
                      QEMUClockType clock_type,
                      ThrottleConfig *cfg)
 {
@@ -415,7 +425,7 @@ void throttle_config(ThrottleState *ts,
  * @ts:  the throttle state we are working on
  * @cfg: the config to write
  */
-void throttle_get_config(ThrottleState *ts, ThrottleConfig *cfg)
+extern "C" void throttle_get_config(ThrottleState *ts, ThrottleConfig *cfg)
 {
     *cfg = ts->cfg;
 }
@@ -429,7 +439,7 @@ void throttle_get_config(ThrottleState *ts, ThrottleConfig *cfg)
  * @direction: throttle direction
  * @ret:      true if the timer has been scheduled else false
  */
-bool throttle_schedule_timer(ThrottleState *ts,
+extern "C" bool throttle_schedule_timer(ThrottleState *ts,
                              ThrottleTimers *tt,
                              ThrottleDirection direction)
 {
@@ -467,7 +477,7 @@ bool throttle_schedule_timer(ThrottleState *ts,
  * @direction: throttle direction
  * @size:     the size of the operation
  */
-void throttle_account(ThrottleState *ts, ThrottleDirection direction,
+extern "C" void throttle_account(ThrottleState *ts, ThrottleDirection direction,
                       uint64_t size)
 {
     static const BucketType bucket_types_size[THROTTLE_MAX][2] = {
@@ -510,7 +520,7 @@ void throttle_account(ThrottleState *ts, ThrottleDirection direction,
  * @cfg:    the ThrottleConfig to edit
  * @errp:   error object
  */
-void throttle_limits_to_config(ThrottleLimits *arg, ThrottleConfig *cfg,
+extern "C" void throttle_limits_to_config(ThrottleLimits *arg, ThrottleConfig *cfg,
                                Error **errp)
 {
     if (arg->has_bps_total) {
@@ -613,7 +623,7 @@ void throttle_limits_to_config(ThrottleLimits *arg, ThrottleConfig *cfg,
  * @cfg:    the ThrottleConfig to read from
  * @var:    the ThrottleLimits to write to
  */
-void throttle_config_to_limits(ThrottleConfig *cfg, ThrottleLimits *var)
+extern "C" void throttle_config_to_limits(ThrottleConfig *cfg, ThrottleLimits *var)
 {
     var->bps_total               = cfg->buckets[THROTTLE_BPS_TOTAL].avg;
     var->bps_read                = cfg->buckets[THROTTLE_BPS_READ].avg;
