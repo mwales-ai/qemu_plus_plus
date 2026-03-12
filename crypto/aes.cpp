@@ -28,6 +28,11 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/bswap.h"
 #include "qemu/bitops.h"
 #include "crypto/aes.h"
@@ -1823,3 +1828,5 @@ void AES_decrypt(const unsigned char *in, unsigned char *out,
 }
 
 #endif /* AES_ASM */
+
+} /* extern "C" */

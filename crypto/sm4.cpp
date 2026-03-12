@@ -10,6 +10,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "crypto/sm4.h"
 
 uint8_t const sm4_sbox[] = {
@@ -57,3 +62,5 @@ uint32_t const sm4_ck[] = {
     0xa0a7aeb5, 0xbcc3cad1, 0xd8dfe6ed, 0xf4fb0209,
     0x10171e25, 0x2c333a41, 0x484f565d, 0x646b7279
 };
+
+} /* extern "C" */

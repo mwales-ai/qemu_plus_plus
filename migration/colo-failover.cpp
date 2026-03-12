@@ -11,6 +11,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "migration/colo.h"
 #include "migration/failover.h"
 #include "qemu/main-loop.h"
@@ -83,3 +88,5 @@ void qmp_x_colo_lost_heartbeat(Error **errp)
 
     failover_request_active(errp);
 }
+
+} /* extern "C" */

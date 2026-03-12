@@ -11,6 +11,11 @@
  *
  */
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "qemu/host-utils.h"
 #include "xbzrle.h"
@@ -23,7 +28,7 @@ static int __attribute__((target("avx512bw")))
 xbzrle_encode_buffer_avx512(uint8_t *old_buf, uint8_t *new_buf, int slen,
                             uint8_t *dst, int dlen)
 {
-    uint32_t zrun_len = 0, nzrun_len = 0;
+    int zrun_len = 0, nzrun_len = 0;
     int d = 0, i = 0, num = 0;
     uint8_t *nzrun_start = NULL;
     /* add 1 to include residual part in main loop */
@@ -174,7 +179,7 @@ int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
 int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
                          uint8_t *dst, int dlen)
 {
-    uint32_t zrun_len = 0, nzrun_len = 0;
+    int zrun_len = 0, nzrun_len = 0;
     int d = 0, i = 0;
     long res;
     uint8_t *nzrun_start = NULL;
@@ -243,10 +248,10 @@ int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
             /* truncation to 32-bit long okay */
             unsigned long mask = (unsigned long)0x0101010101010101ULL;
             while (i < slen) {
-                unsigned long xor;
-                xor = *(unsigned long *)(old_buf + i)
+                unsigned long xor_val;
+                xor_val = *(unsigned long *)(old_buf + i)
                     ^ *(unsigned long *)(new_buf + i);
-                if ((xor - mask) & ~xor & (mask << 7)) {
+                if ((xor_val - mask) & ~xor_val & (mask << 7)) {
                     /* found the end of an nzrun within the current long */
                     while (old_buf[i] != new_buf[i]) {
                         nzrun_len++;
@@ -291,7 +296,7 @@ int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen)
             return -1;
         }
         i += ret;
-        d += count;
+        d += (int)count;
 
         /* overflow */
         if (d > dlen) {
@@ -310,14 +315,16 @@ int xbzrle_decode_buffer(uint8_t *src, int slen, uint8_t *dst, int dlen)
         i += ret;
 
         /* overflow */
-        if (d + count > dlen || i + count > slen) {
+        if (d + (int)count > dlen || i + (int)count > slen) {
             return -1;
         }
 
         memcpy(dst + d, src + i, count);
-        d += count;
-        i += count;
+        d += (int)count;
+        i += (int)count;
     }
 
     return d;
 }
+
+} /* extern "C" */

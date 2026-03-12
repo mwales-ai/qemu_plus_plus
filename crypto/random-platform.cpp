@@ -19,6 +19,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 
 #include "crypto/random.h"
 #include "qapi/error.h"
@@ -112,3 +117,5 @@ int qcrypto_random_bytes(void *buf,
 #endif
     return 0;
 }
+
+} /* extern "C" */

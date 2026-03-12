@@ -6,6 +6,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "system/ramblock.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -81,7 +86,7 @@ bool file_send_channel_create(gpointer opaque, Error **errp)
         goto out;
     }
 
-    multifd_channel_connect(opaque, QIO_CHANNEL(ioc));
+    multifd_channel_connect(static_cast<MultiFDSendParams *>(opaque), QIO_CHANNEL(ioc));
 
 out:
     /*
@@ -148,7 +153,7 @@ static void file_create_incoming_channels(QIOChannel *ioc, char *filename,
         }
     }
 
-    iocs = g_new0(QIOChannel *, channels);
+    iocs = static_cast<QIOChannel **>(g_new0(QIOChannel *, channels));
     iocs[0] = ioc;
 
     for (i = 1; i < channels; i++) {
@@ -266,3 +271,5 @@ int multifd_file_recv_data(MultiFDRecvParams *p, Error **errp)
 
     return 0;
 }
+
+} /* extern "C" */

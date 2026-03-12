@@ -2,7 +2,7 @@
 migration_files = files(
   'migration-stats.cpp',
   'page_cache.cpp',
-  'xbzrle.c',
+  'xbzrle.cpp',
   'vmstate-types.c',
   'vmstate.c',
   'qemu-file.c',
@@ -21,7 +21,7 @@ system_ss.add(files(
   'dirtyrate.c',
   'exec.cpp',
   'fd.cpp',
-  'file.c',
+  'file.cpp',
   'global_state.c',
   'migration-hmp-cmds.c',
   'migration.c',
@@ -34,13 +34,13 @@ system_ss.add(files(
   'postcopy-ram.c',
   'ram.c',
   'savevm.c',
-  'socket.c',
+  'socket.cpp',
   'tls.c',
   'threadinfo.cpp',
 ), gnutls, zlib)
 
 if get_option('replication').allowed()
-  system_ss.add(files('colo-failover.c', 'colo.c'))
+  system_ss.add(files('colo-failover.cpp', 'colo.c'))
 else
   system_ss.add(files('colo-stubs.cpp'))
 endif

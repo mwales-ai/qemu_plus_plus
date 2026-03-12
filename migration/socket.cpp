@@ -15,6 +15,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "qemu/cutils.h"
 
 #include "qemu/error-report.h"
@@ -49,7 +54,7 @@ struct SocketConnectData {
 
 static void socket_connect_data_free(void *opaque)
 {
-    struct SocketConnectData *data = opaque;
+    struct SocketConnectData *data = static_cast<struct SocketConnectData *>(opaque);
     if (!data) {
         return;
     }
@@ -60,7 +65,7 @@ static void socket_connect_data_free(void *opaque)
 static void socket_outgoing_migration(QIOTask *task,
                                       gpointer opaque)
 {
-    struct SocketConnectData *data = opaque;
+    struct SocketConnectData *data = static_cast<struct SocketConnectData *>(opaque);
     QIOChannel *sioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *err = NULL;
 
@@ -86,7 +91,7 @@ void socket_start_outgoing_migration(MigrationState *s,
                                      Error **errp)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
-    struct SocketConnectData *data = g_new0(struct SocketConnectData, 1);
+    struct SocketConnectData *data = static_cast<struct SocketConnectData *>(g_new0(struct SocketConnectData, 1));
     SocketAddress *addr = QAPI_CLONE(SocketAddress, saddr);
 
     data->s = s;
@@ -135,7 +140,7 @@ static void socket_accept_incoming_migration(QIONetListener *listener,
 static void
 socket_incoming_migration_end(void *opaque)
 {
-    QIONetListener *listener = opaque;
+    QIONetListener *listener = static_cast<QIONetListener *>(opaque);
 
     qio_net_listener_disconnect(listener);
     object_unref(OBJECT(listener));
@@ -181,3 +186,4 @@ void socket_start_incoming_migration(SocketAddress *saddr,
     }
 }
 
+} /* extern "C" */

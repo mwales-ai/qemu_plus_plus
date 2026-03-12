@@ -54,10 +54,10 @@ endif
 system_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
 
 util_ss.add(files(
-  'aes.c',
-  'clmul.c',
-  'init.c',
-  'sm4.c',
+  'aes.cpp',
+  'clmul.cpp',
+  'init.cpp',
+  'sm4.cpp',
 ))
 if gnutls.found()
   util_ss.add(gnutls)
@@ -70,6 +70,6 @@ elif gnutls.found()
 elif get_option('rng_none')
   util_ss.add(files('random-none.c'))
 else
-  util_ss.add(files('random-platform.c'))
+  util_ss.add(files('random-platform.cpp'))
 endif
 

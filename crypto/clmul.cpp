@@ -6,6 +6,11 @@
  */
 
 #include "qemu/osdep.h"
+#ifdef CONFIG_LINUX_IO_URING
+#include <liburing.h>
+#endif
+
+extern "C" {
 #include "crypto/clmul.h"
 
 uint64_t clmul_8x8_low(uint64_t n, uint64_t m)
@@ -109,3 +114,5 @@ Int128 clmul_64_gen(uint64_t n, uint64_t m)
     }
     return int128_make128(rl, rh);
 }
+
+} /* extern "C" */
