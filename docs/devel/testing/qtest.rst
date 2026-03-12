@@ -83,7 +83,7 @@ which you can run manually.
 QTest Protocol
 --------------
 
-.. kernel-doc:: system/qtest.c
+.. kernel-doc:: system/qtest.cpp
    :doc: QTest Protocol
 
 
