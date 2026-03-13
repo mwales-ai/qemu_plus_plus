@@ -108,7 +108,7 @@ static OptsVisitor *to_ov(Visitor *v)
 static void
 destroy_list(gpointer list)
 {
-  g_queue_free(list);
+  g_queue_free(static_cast<GQueue *>(list));
 }
 
 
@@ -117,7 +117,7 @@ opts_visitor_insert(GHashTable *unprocessed_opts, const QemuOpt *opt)
 {
     GQueue *list;
 
-    list = g_hash_table_lookup(unprocessed_opts, opt->name);
+    list = static_cast<GQueue *>(g_hash_table_lookup(unprocessed_opts, opt->name));
     if (list == NULL) {
         list = g_queue_new();
 
@@ -157,7 +157,7 @@ opts_start_struct(Visitor *v, const char *name, void **obj,
     }
 
     if (ov->opts_root->id != NULL) {
-        ov->fake_id_opt = g_malloc0(sizeof *ov->fake_id_opt);
+        ov->fake_id_opt = static_cast<QemuOpt *>(g_malloc0(sizeof *ov->fake_id_opt));
 
         ov->fake_id_opt->name = g_strdup("id");
         ov->fake_id_opt->str = g_strdup(ov->opts_root->id);
@@ -183,7 +183,7 @@ opts_check_struct(Visitor *v, Error **errp)
     if (g_hash_table_iter_next(&iter, NULL, (void **)&any)) {
         const QemuOpt *first;
 
-        first = g_queue_peek_head(any);
+        first = static_cast<const QemuOpt *>(g_queue_peek_head(any));
         error_setg(errp, "Invalid parameter '%s'", first->name);
         return false;
     }
@@ -216,7 +216,7 @@ lookup_distinct(const OptsVisitor *ov, const char *name, Error **errp)
 {
     GQueue *list;
 
-    list = g_hash_table_lookup(ov->unprocessed_opts, name);
+    list = static_cast<GQueue *>(g_hash_table_lookup(ov->unprocessed_opts, name));
     if (!list) {
         error_setg(errp, QERR_MISSING_PARAMETER, name);
     }
@@ -240,7 +240,7 @@ opts_start_list(Visitor *v, const char *name, GenericList **list, size_t size,
         return false;
     }
     ov->list_mode = LM_IN_PROGRESS;
-    *list = g_malloc0(size);
+    *list = static_cast<GenericList *>(g_malloc0(size));
     return true;
 }
 
@@ -270,7 +270,7 @@ opts_next_list(Visitor *v, GenericList *tail, size_t size)
     case LM_IN_PROGRESS: {
         const QemuOpt *opt;
 
-        opt = g_queue_pop_head(ov->repeated_opts);
+        opt = static_cast<const QemuOpt *>(g_queue_pop_head(ov->repeated_opts));
         if (g_queue_is_empty(ov->repeated_opts)) {
             g_hash_table_remove(ov->unprocessed_opts, opt->name);
             ov->repeated_opts = NULL;
@@ -284,7 +284,7 @@ opts_next_list(Visitor *v, GenericList *tail, size_t size)
         abort();
     }
 
-    tail->next = g_malloc0(size);
+    tail->next = static_cast<GenericList *>(g_malloc0(size));
     return tail->next;
 }
 
@@ -323,14 +323,14 @@ lookup_scalar(const OptsVisitor *ov, const char *name, Error **errp)
         /* the last occurrence of any QemuOpt takes effect when queried by name
          */
         list = lookup_distinct(ov, name, errp);
-        return list ? g_queue_peek_tail(list) : NULL;
+        return list ? static_cast<const QemuOpt *>(g_queue_peek_tail(list)) : NULL;
     }
     if (ov->list_mode == LM_TRAVERSED) {
         error_setg(errp, "Fewer list elements than expected");
         return NULL;
     }
     assert(ov->list_mode == LM_IN_PROGRESS);
-    return g_queue_peek_head(ov->repeated_opts);
+    return static_cast<const QemuOpt *>(g_queue_peek_head(ov->repeated_opts));
 }
 
 
@@ -555,7 +555,7 @@ opts_visitor_new(const QemuOpts *opts)
     OptsVisitor *ov;
 
     assert(opts);
-    ov = g_malloc0(sizeof *ov);
+    ov = static_cast<OptsVisitor *>(g_malloc0(sizeof *ov));
 
     ov->visitor.type = VISITOR_INPUT;
 

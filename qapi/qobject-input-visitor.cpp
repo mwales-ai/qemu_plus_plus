@@ -333,7 +333,7 @@ static bool qobject_input_start_list(Visitor *v, const char *name,
 
     entry = qobject_input_push(qiv, name, qobj, list);
     if (entry && list) {
-        *list = g_malloc0(size);
+        *list = static_cast<GenericList *>(g_malloc0(size));
     }
     return true;
 }
@@ -349,7 +349,7 @@ static GenericList *qobject_input_next_list(Visitor *v, GenericList *tail,
     if (!tos->entry) {
         return NULL;
     }
-    tail->next = g_malloc0(size);
+    tail->next = static_cast<GenericList *>(g_malloc0(size));
     return tail->next;
 }
 
@@ -388,7 +388,7 @@ static bool qobject_input_start_alternate(Visitor *v, const char *name,
         *obj = NULL;
         return false;
     }
-    *obj = g_malloc0(size);
+    *obj = static_cast<GenericAlternate *>(g_malloc0(size));
     (*obj)->type = qobject_type(qobj);
     return true;
 }
@@ -692,7 +692,7 @@ static void qobject_input_free(Visitor *v)
 
 static QObjectInputVisitor *qobject_input_visitor_base_new(QObject *obj)
 {
-    QObjectInputVisitor *v = g_malloc0(sizeof(*v));
+    QObjectInputVisitor *v = static_cast<QObjectInputVisitor *>(g_malloc0(sizeof(*v)));
 
     assert(obj);
 

@@ -66,7 +66,7 @@ static GenericList *qapi_clone_next_list(Visitor *v, GenericList *tail,
 
     assert(qcv->depth);
     /* Unshare the tail of the list cloned by g_memdup() */
-    tail->next = g_memdup(tail->next, size);
+    tail->next = static_cast<GenericList *>(g_memdup(tail->next, size));
     return tail->next;
 }
 
@@ -153,7 +153,7 @@ Visitor *qapi_clone_visitor_new(void)
 {
     QapiCloneVisitor *v;
 
-    v = g_malloc0(sizeof(*v));
+    v = static_cast<QapiCloneVisitor *>(g_malloc0(sizeof(*v)));
 
     v->visitor.type = VISITOR_CLONE;
     v->visitor.start_struct = qapi_clone_start_struct;

@@ -52,7 +52,7 @@ static QObjectOutputVisitor *to_qov(Visitor *v)
 static void qobject_output_push_obj(QObjectOutputVisitor *qov, QObject *value,
                                     void *qapi)
 {
-    QStackEntry *e = g_malloc0(sizeof(*e));
+    QStackEntry *e = static_cast<QStackEntry *>(g_malloc0(sizeof(*e)));
 
     assert(qov->root);
     assert(value);
@@ -254,7 +254,7 @@ Visitor *qobject_output_visitor_new(QObject **result)
 {
     QObjectOutputVisitor *v;
 
-    v = g_malloc0(sizeof(*v));
+    v = static_cast<QObjectOutputVisitor *>(g_malloc0(sizeof(*v)));
 
     v->visitor.type = VISITOR_OUTPUT;
     v->visitor.start_struct = qobject_output_start_struct;
