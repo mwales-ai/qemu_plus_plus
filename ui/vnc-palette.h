@@ -31,6 +31,10 @@
 
 #include "qemu/queue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VNC_PALETTE_HASH_SIZE 256
 #define VNC_PALETTE_MAX_SIZE  256
 
@@ -62,5 +66,9 @@ void palette_iter(const VncPalette *palette,
 uint32_t palette_color(const VncPalette *palette, int idx, bool *found);
 size_t palette_fill(const VncPalette *palette,
                     uint32_t colors[VNC_PALETTE_MAX_SIZE]);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VNC_PALETTE_H */

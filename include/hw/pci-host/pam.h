@@ -52,6 +52,10 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SMRAM_C_BASE    0xa0000
 #define SMRAM_C_END     0xc0000
 #define SMRAM_C_SIZE    0x20000
@@ -91,5 +95,9 @@ void init_pam(PAMMemoryRegion *mem, Object *owner, MemoryRegion *ram,
               MemoryRegion *system, MemoryRegion *pci,
               uint32_t start, uint32_t size);
 void pam_update(PAMMemoryRegion *mem, int idx, uint8_t val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_PAM_H */

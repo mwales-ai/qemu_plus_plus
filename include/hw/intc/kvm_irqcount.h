@@ -3,8 +3,16 @@
 #ifndef KVM_IRQCOUNT_H
 #define KVM_IRQCOUNT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void kvm_report_irq_delivered(int delivered);
 void kvm_reset_irq_delivered(void);
 int kvm_get_irq_delivered(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -4,6 +4,10 @@
 #include "block/aio.h"
 #include "qemu/iov.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct IDEState IDEState;
 typedef struct IDEDMAOps IDEDMAOps;
 typedef struct IDEDMA IDEDMA;
@@ -33,5 +37,9 @@ struct IDEDMA {
     QEMUIOVector qiov;
     BlockAIOCB *aiocb;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

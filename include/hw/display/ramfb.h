@@ -3,6 +3,10 @@
 
 #include "migration/vmstate.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ramfb.c */
 typedef struct RAMFBState RAMFBState;
 void ramfb_display_update(QemuConsole *con, RAMFBState *s);
@@ -12,5 +16,9 @@ extern const VMStateDescription ramfb_vmstate;
 
 /* ramfb-standalone.c */
 #define TYPE_RAMFB_DEVICE "ramfb"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RAMFB_H */

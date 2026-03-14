@@ -21,6 +21,10 @@
 #include "hw/acpi/aml-build.h"
 #include "system/tpm.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef CONFIG_TPM
 
 #define TPM_TIS_ADDR_BASE           0xFED40000
@@ -253,5 +257,9 @@ REG32(CRB_DATA_BUFFER, 0x80)
 void tpm_build_ppi_acpi(TPMIf *tpm, Aml *dev);
 
 #endif /* CONFIG_TPM */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_ACPI_TPM_H */

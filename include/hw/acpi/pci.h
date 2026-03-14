@@ -29,6 +29,10 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/acpi/acpi_aml_interface.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct AcpiMcfgInfo {
     uint64_t base;
     uint32_t size;
@@ -43,5 +47,9 @@ void build_srat_generic_affinity_structures(GArray *table_data);
 
 Aml *build_pci_host_bridge_osc_method(bool enable_native_pcie_hotplug);
 Aml *build_pci_bridge_edsm(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

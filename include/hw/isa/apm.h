@@ -3,6 +3,10 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define APM_CNT_IOPORT  0xb2
 #define ACPI_PORT_SMI_CMD APM_CNT_IOPORT
 
@@ -21,5 +25,9 @@ void apm_init(PCIDevice *dev, APMState *s, apm_ctrl_changed_t callback,
               void *arg);
 
 extern const VMStateDescription vmstate_apm;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* APM_H */

@@ -105,6 +105,10 @@ typedef struct VncDisplay VncDisplay;
 #endif
 #include "vnc-ws.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct VncRectStat
 {
     /* time of last 10 updates, to find update frequency */
@@ -644,5 +648,9 @@ void vnc_zrle_clear(VncWorker *worker);
 void vnc_server_cut_text_caps(VncState *vs);
 void vnc_client_cut_text(VncState *vs, size_t len, uint8_t *text);
 void vnc_client_cut_text_ext(VncState *vs, int32_t len, uint32_t flags, uint8_t *data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VNC_H */

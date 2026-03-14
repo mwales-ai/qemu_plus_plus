@@ -51,7 +51,7 @@ static void handle_event(int event)
 /* return supported events on read */
 static uint64_t pvpanic_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PVPanicState *pvp = opaque;
+    PVPanicState *pvp = static_cast<PVPanicState *>(opaque);
     return pvp->events;
 }
 

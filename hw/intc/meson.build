@@ -34,7 +34,7 @@ system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_PMU', if_true: files('xlnx-pmu-iomod-int
 if config_all_devices.has_key('CONFIG_APIC') or \
    config_all_devices.has_key('CONFIG_I8259') or \
    config_all_devices.has_key('CONFIG_MC146818RTC')
-    system_ss.add(files('kvm_irqcount.c'))
+    system_ss.add(files('kvm_irqcount.cpp'))
 endif
 
 specific_ss.add(when: 'CONFIG_APIC', if_true: files('apic.c', 'apic_common.c'))

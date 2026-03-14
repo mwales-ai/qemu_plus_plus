@@ -26,6 +26,10 @@
 #include "qapi/error.h"
 #include "qemu/notify.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern NotifierList acpi_generic_error_notifiers;
 
 /*
@@ -110,4 +114,8 @@ void ghes_record_cper_errors(AcpiGhesState *ags, const void *cper, size_t len,
  * NULL, otherwise.
  */
 AcpiGhesState *acpi_ghes_get_state(void);
+#ifdef __cplusplus
+}
+#endif
+
 #endif

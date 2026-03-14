@@ -20,6 +20,10 @@
 
 #include "standard-headers/misc/pvpanic.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PVPANIC_EVENTS (PVPANIC_PANICKED | \
                         PVPANIC_CRASH_LOADED | \
                         PVPANIC_SHUTDOWN)
@@ -40,5 +44,9 @@ struct PVPanicState {
 };
 
 void pvpanic_setup_io(PVPanicState *s, DeviceState *dev, unsigned size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -21,11 +21,19 @@
 #ifndef QEMU_UI_VNC_WS_H
 #define QEMU_UI_VNC_WS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 gboolean vncws_tls_handshake_io(QIOChannel *ioc,
                                 GIOCondition condition,
                                 void *opaque);
 gboolean vncws_handshake_io(QIOChannel *ioc,
                             GIOCondition condition,
                             void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_UI_VNC_WS_H */

@@ -109,14 +109,14 @@ void egl_fb_setup_default(egl_fb *fb, int width, int height, int x, int y)
 }
 
 void egl_fb_setup_for_tex(egl_fb *fb, int width, int height,
-                          GLuint texture, bool delete)
+                          GLuint texture, bool do_delete)
 {
     egl_fb_delete_texture(fb);
 
     fb->width = width;
     fb->height = height;
     fb->texture = texture;
-    fb->delete_texture = delete;
+    fb->delete_texture = do_delete;
     if (!fb->framebuffer) {
         glGenFramebuffers(1, &fb->framebuffer);
     }

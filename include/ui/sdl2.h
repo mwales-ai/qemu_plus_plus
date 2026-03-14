@@ -22,6 +22,10 @@
 #endif
 
 #include "ui/kbd-state.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef CONFIG_OPENGL
 # include "ui/egl-helpers.h"
 #endif
@@ -96,5 +100,9 @@ void sdl2_gl_scanout_texture(DisplayChangeListener *dcl,
                              void *d3d_tex2d);
 void sdl2_gl_scanout_flush(DisplayChangeListener *dcl,
                            uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SDL2_H */

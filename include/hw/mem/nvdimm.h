@@ -29,6 +29,10 @@
 #include "hw/acpi/aml-build.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The minimum label data size is required by NVDIMM Namespace
  * specification, see the chapter 2 Namespaces:
@@ -158,4 +162,8 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        const char *oem_table_id);
 void nvdimm_plug(NVDIMMState *state);
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev);
+#ifdef __cplusplus
+}
+#endif
+
 #endif

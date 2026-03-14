@@ -11,6 +11,10 @@
 #include "qom/object.h"
 #include "hw/qdev-core.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_LED "led"
 
 /**
@@ -94,5 +98,9 @@ LEDState *led_create_simple(Object *parentobj,
                             GpioPolarity gpio_polarity,
                             LEDColor color,
                             const char *description);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_MISC_LED_H */

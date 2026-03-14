@@ -6,6 +6,10 @@
 #include "qemu/uuid.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VMCLOCK    "vmclock"
 
 #define VMCLOCK_ADDR    0xfeffb000
@@ -30,5 +34,9 @@ static inline Object *find_vmclock_dev(void)
 
 void vmclock_build_acpi(VmclockState *vms, GArray *table_data,
                         BIOSLinker *linker, const char *oem_id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

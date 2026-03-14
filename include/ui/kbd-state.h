@@ -9,8 +9,6 @@
 
 #include "qapi/qapi-types-ui.h"
 
-typedef enum QKbdModifier QKbdModifier;
-
 enum QKbdModifier {
     QKBD_MOD_NONE = 0,
 
@@ -24,6 +22,7 @@ enum QKbdModifier {
 
     QKBD_MOD__MAX
 };
+typedef enum QKbdModifier QKbdModifier;
 
 typedef struct QKbdState QKbdState;
 

@@ -5,6 +5,10 @@
 #include "hw/ide/ide-dev.h"
 #include "hw/ide/ide-dma.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct IDEBus {
     BusState qbus;
     IDEDevice *master;
@@ -38,5 +42,9 @@ IDEDevice *ide_bus_create_drive(IDEBus *bus, int unit, DriveInfo *drive);
 int ide_get_geometry(BusState *bus, int unit,
                      int16_t *cyls, int8_t *heads, int8_t *secs);
 int ide_get_bios_chs_trans(BusState *bus, int unit);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

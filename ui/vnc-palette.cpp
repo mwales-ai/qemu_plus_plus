@@ -56,7 +56,7 @@ VncPalette *palette_new(size_t max, int bpp)
 {
     VncPalette *palette;
 
-    palette = g_malloc0(sizeof(*palette));
+    palette = static_cast<VncPalette *>(g_malloc0(sizeof(*palette)));
     palette_init(palette, max, bpp);
     return palette;
 }
@@ -144,7 +144,7 @@ uint32_t palette_color(const VncPalette *palette, int idx, bool *found)
 
 static void palette_fill_cb(int idx, uint32_t color, void *opaque)
 {
-    uint32_t *colors = opaque;
+    uint32_t *colors = static_cast<uint32_t *>(opaque);
 
     colors[idx] = color;
 }

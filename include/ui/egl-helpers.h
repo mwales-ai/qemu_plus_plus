@@ -9,6 +9,10 @@
 #include "ui/console.h"
 #include "ui/shader.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern EGLDisplay *qemu_egl_display;
 extern EGLConfig qemu_egl_config;
 extern DisplayGLMode qemu_egl_mode;
@@ -30,7 +34,7 @@ typedef struct egl_fb {
 void egl_fb_destroy(egl_fb *fb);
 void egl_fb_setup_default(egl_fb *fb, int width, int height, int x, int y);
 void egl_fb_setup_for_tex(egl_fb *fb, int width, int height,
-                          GLuint texture, bool delete);
+                          GLuint texture, bool do_delete);
 void egl_fb_setup_new_tex(egl_fb *fb, int width, int height);
 void egl_fb_blit(egl_fb *dst, egl_fb *src, bool flip);
 void egl_fb_read(DisplaySurface *dst, egl_fb *src);
@@ -78,5 +82,9 @@ bool qemu_egl_has_dmabuf(void);
 bool egl_init(const char *rendernode, DisplayGLMode mode, Error **errp);
 
 const char *qemu_egl_get_error_string(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EGL_HELPERS_H */

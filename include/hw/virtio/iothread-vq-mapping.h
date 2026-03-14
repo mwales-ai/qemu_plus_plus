@@ -12,6 +12,10 @@
 #include "qapi/error.h"
 #include "qapi/qapi-types-virtio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * iothread_vq_mapping_apply:
  * @list: The mapping of virtqueues to IOThreads.
@@ -41,5 +45,9 @@ bool iothread_vq_mapping_apply(
  * iothread_vq_mapping_apply().
  */
 void iothread_vq_mapping_cleanup(IOThreadVirtQueueMappingList *list);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VIRTIO_IOTHREAD_VQ_MAPPING_H */

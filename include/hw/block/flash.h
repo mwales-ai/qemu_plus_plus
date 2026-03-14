@@ -6,6 +6,10 @@
 #include "exec/hwaddr.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* pflash_cfi01.c */
 
 #define TYPE_PFLASH_CFI01 "cfi.pflash01"
@@ -49,5 +53,9 @@ PFlashCFI02 *pflash_cfi02_register(hwaddr base,
 #define TYPE_M25P80 "m25p80-generic"
 
 BlockBackend *m25p80_get_blk(DeviceState *dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
