@@ -16,6 +16,10 @@
 #include "hw/registerfields.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct RegisterInfo RegisterInfo;
 typedef struct RegisterAccessInfo RegisterAccessInfo;
 typedef struct RegisterInfoArray RegisterInfoArray;
@@ -208,5 +212,9 @@ RegisterInfoArray *register_init_block64(DeviceState *owner,
                                          const MemoryRegionOps *ops,
                                          bool debug_enabled,
                                          uint64_t memory_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

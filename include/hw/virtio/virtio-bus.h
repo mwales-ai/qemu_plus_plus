@@ -29,6 +29,10 @@
 #include "hw/virtio/virtio.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VIRTIO_BUS "virtio-bus"
 typedef struct VirtioBusClass VirtioBusClass;
 typedef struct VirtioBusState VirtioBusState;
@@ -157,4 +161,9 @@ int virtio_bus_set_host_notifier(VirtioBusState *bus, int n, bool assign);
 void virtio_bus_cleanup_host_notifier(VirtioBusState *bus, int n);
 /* Whether the IOMMU is enabled for this device */
 bool virtio_bus_device_iommu_enabled(VirtIODevice *vdev);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* VIRTIO_BUS_H */

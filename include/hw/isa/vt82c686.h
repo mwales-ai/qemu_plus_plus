@@ -4,6 +4,10 @@
 #include "hw/pci/pci_device.h"
 #include "qemu/audio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VT82C686B_ISA "vt82c686b-isa"
 #define TYPE_VT82C686B_USB_UHCI "vt82c686b-usb-uhci"
 #define TYPE_VT8231_ISA "vt8231-isa"
@@ -35,5 +39,9 @@ struct ViaAC97State {
 };
 
 void via_isa_set_irq(PCIDevice *d, int n, int level);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

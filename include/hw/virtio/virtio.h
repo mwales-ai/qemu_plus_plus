@@ -25,6 +25,10 @@
 #include "qom/object.h"
 #include "block/aio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * A guest should never accept this. It implies negotiation is broken
  * between the driver frontend and the device. This bit is re-used for
@@ -546,5 +550,9 @@ QEMUBH *virtio_bh_new_guarded_full(DeviceState *dev,
                                    const char *name);
 #define virtio_bh_new_guarded(dev, cb, opaque) \
     virtio_bh_new_guarded_full((dev), (cb), (opaque), (stringify(cb)))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

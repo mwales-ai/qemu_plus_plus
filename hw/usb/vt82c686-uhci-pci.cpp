@@ -5,7 +5,7 @@
 
 static void uhci_isa_set_irq(void *opaque, int irq_num, int level)
 {
-    UHCIState *s = opaque;
+    UHCIState *s = static_cast<UHCIState *>(opaque);
     via_isa_set_irq(&s->dev, 0, level);
 }
 
@@ -41,8 +41,8 @@ static UHCIInfo uhci_info[] = {
 };
 
 static const TypeInfo vt82c686b_usb_uhci_type_info = {
-    .parent         = TYPE_UHCI,
     .name           = TYPE_VT82C686B_USB_UHCI,
+    .parent         = TYPE_UHCI,
     .class_init     = uhci_data_class_init,
     .class_data     = uhci_info,
 };

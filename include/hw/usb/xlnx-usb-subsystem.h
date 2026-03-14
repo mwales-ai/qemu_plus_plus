@@ -30,6 +30,10 @@
 #include "hw/usb/xlnx-versal-usb2-ctrl-regs.h"
 #include "hw/usb/hcd-dwc3.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_XILINX_VERSAL_USB2 "xlnx.versal-usb2"
 
 #define VERSAL_USB2(obj) \
@@ -43,5 +47,9 @@ typedef struct VersalUsb2 {
     VersalUsb2CtrlRegs usb2Ctrl;
     USBDWC3 dwc3;
 } VersalUsb2;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

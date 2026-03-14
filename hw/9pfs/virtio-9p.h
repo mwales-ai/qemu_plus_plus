@@ -6,6 +6,10 @@
 #include "9p.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct V9fsVirtioState {
     VirtIODevice parent_obj;
     VirtQueue *vq;
@@ -16,5 +20,9 @@ struct V9fsVirtioState {
 
 #define TYPE_VIRTIO_9P "virtio-9p-device"
 OBJECT_DECLARE_SIMPLE_TYPE(V9fsVirtioState, VIRTIO_9P)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -10,6 +10,10 @@
 #include "hw/usb.h"
 #include "hw/scsi/scsi.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum USBMSDMode {
     USB_MSDM_CBW, /* Command Block.  */
     USB_MSDM_DATAOUT, /* Transfer data to device.  */
@@ -53,3 +57,7 @@ void usb_msd_command_complete(SCSIRequest *req, size_t resid);
 void usb_msd_request_cancelled(SCSIRequest *req);
 void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req);
 void usb_msd_handle_reset(USBDevice *dev);
+
+#ifdef __cplusplus
+}
+#endif

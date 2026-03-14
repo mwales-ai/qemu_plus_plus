@@ -17,6 +17,10 @@
 #include "standard-headers/linux/virtio_rng.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VIRTIO_RNG "virtio-rng-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIORNG, VIRTIO_RNG)
 #define VIRTIO_RNG_GET_PARENT_CLASS(obj) \
@@ -47,5 +51,9 @@ struct VirtIORNG {
 
     VMChangeStateEntry *vmstate;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

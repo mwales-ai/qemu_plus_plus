@@ -19,6 +19,9 @@
 #include "hw/virtio/virtio-bus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* virtio-pci-bus */
 
@@ -269,5 +272,9 @@ void virtio_pci_set_guest_notifier_fd_handler(VirtIODevice *vdev, VirtQueue *vq,
 
 int virtio_pci_add_shm_cap(VirtIOPCIProxy *proxy, uint8_t bar, uint64_t offset,
                            uint64_t length, uint8_t id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

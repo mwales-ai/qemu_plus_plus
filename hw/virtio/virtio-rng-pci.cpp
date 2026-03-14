@@ -44,7 +44,7 @@ static void virtio_rng_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIORngPCI *vrng = VIRTIO_RNG_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&vrng->vdev);
 
-    if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
+    if (vpci_dev->nvectors == static_cast<uint32_t>(DEV_NVECTORS_UNSPECIFIED)) {
         vpci_dev->nvectors = 2;
     }
 

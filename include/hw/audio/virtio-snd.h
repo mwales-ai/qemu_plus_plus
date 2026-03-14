@@ -21,6 +21,10 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_snd.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VIRTIO_SND "virtio-sound-device"
 #define VIRTIO_SND(obj) \
         OBJECT_CHECK(VirtIOSound, (obj), TYPE_VIRTIO_SND)
@@ -247,4 +251,9 @@ struct virtio_snd_ctrl_command {
     size_t payload_size;
     QTAILQ_ENTRY(virtio_snd_ctrl_command) next;
 };
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

@@ -80,8 +80,8 @@ static const TypeInfo versal_usb2_info = {
     .name          = TYPE_XILINX_VERSAL_USB2,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VersalUsb2),
-    .class_init    = versal_usb2_class_init,
     .instance_init = versal_usb2_init,
+    .class_init    = versal_usb2_class_init,
 };
 
 static void versal_usb_types(void)

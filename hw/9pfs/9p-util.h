@@ -15,6 +15,10 @@
 
 #include "qemu/error-report.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef O_PATH
 #define O_PATH_9P_UTIL O_PATH
 #else
@@ -265,7 +269,7 @@ static inline struct dirent *qemu_dirent_dup(struct dirent *dent)
         sz = offsetof(struct dirent, d_name) +
                       strlen(dent->d_name) + 1;
     }
-    return g_memdup(dent, sz);
+    return (struct dirent *)g_memdup(dent, sz);
 }
 
 /*
@@ -285,5 +289,9 @@ int qemu_mknodat(int dirfd, const char *filename, mode_t mode, dev_t dev);
  * for debugging (tracing) purposes only.
  */
 char *qemu_open_flags_tostr(int flags);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
