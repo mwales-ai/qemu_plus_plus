@@ -17,6 +17,10 @@
 #include "qapi/qapi-types-machine.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_MEMORY_DEVICE "memory-device"
 
 typedef struct MemoryDeviceClass MemoryDeviceClass;
@@ -174,5 +178,9 @@ void memory_device_plug(MemoryDeviceState *md, MachineState *ms);
 void memory_device_unplug(MemoryDeviceState *md, MachineState *ms);
 uint64_t memory_device_get_region_size(const MemoryDeviceState *md,
                                        Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

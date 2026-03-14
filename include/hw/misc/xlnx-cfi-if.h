@@ -13,6 +13,10 @@
 #include "qemu/help-texts.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_XLNX_CFI_IF "xlnx-cfi-if"
 typedef struct XlnxCfiIfClass XlnxCfiIfClass;
 DECLARE_CLASS_CHECKERS(XlnxCfiIfClass, XLNX_CFI_IF, TYPE_XLNX_CFI_IF)
@@ -54,5 +58,9 @@ typedef struct XlnxCfiIfClass {
  * @XlnxCfiPacket: a pointer to the XlnxCfiPacket to transfer
  */
 void xlnx_cfi_transfer_packet(XlnxCfiIf *cfi_if, XlnxCfiPacket *pkt);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* XLNX_CFI_IF_H */

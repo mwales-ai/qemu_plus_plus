@@ -1,6 +1,10 @@
 #ifndef HW_SCSI_EMULATION_H
 #define HW_SCSI_EMULATION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct SCSIBlockLimits {
     bool wsnz;
     uint16_t min_io_size;
@@ -12,5 +16,9 @@ typedef struct SCSIBlockLimits {
 } SCSIBlockLimits;
 
 int scsi_emulate_block_limits(uint8_t *outbuf, const SCSIBlockLimits *bl);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

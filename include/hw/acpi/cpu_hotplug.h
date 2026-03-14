@@ -19,6 +19,10 @@
 #include "hw/hotplug.h"
 #include "hw/acpi/cpu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct AcpiCpuHotplug {
     Object *device;
     MemoryRegion io;
@@ -37,4 +41,8 @@ void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
 
 void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
                                   uint16_t io_base);
+#ifdef __cplusplus
+}
+#endif
+
 #endif

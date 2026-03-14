@@ -27,6 +27,14 @@
 #ifndef QEMU_VNC_AUTH_VENCRYPT_H
 #define QEMU_VNC_AUTH_VENCRYPT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void start_auth_vencrypt(VncState *vs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VNC_AUTH_VENCRYPT_H */

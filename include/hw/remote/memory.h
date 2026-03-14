@@ -14,6 +14,14 @@
 #include "exec/hwaddr.h"
 #include "hw/remote/mpqemu-link.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void remote_sysmem_reconfig(MPQemuMsg *msg, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

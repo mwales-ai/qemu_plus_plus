@@ -30,6 +30,10 @@
 #include "system/block-backend.h"
 #include "hw/qdev-core.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_XLNX_EFUSE "xlnx-efuse"
 OBJECT_DECLARE_SIMPLE_TYPE(XlnxEFuse, XLNX_EFUSE);
 
@@ -128,5 +132,9 @@ static inline uint32_t xlnx_efuse_get_row(XlnxEFuse *s, unsigned int bit)
         return s->fuse32[row_idx];
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -32,6 +32,10 @@ typedef struct VncDisplaySASL VncDisplaySASL;
 
 #include "authz/base.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct VncStateSASL {
     sasl_conn_t *conn;
     /* If we want to negotiate an SSF layer with client */
@@ -70,5 +74,9 @@ size_t vnc_client_read_sasl(VncState *vs);
 size_t vnc_client_write_sasl(VncState *vs);
 
 void start_auth_sasl(VncState *vs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VNC_AUTH_SASL_H */

@@ -12,6 +12,10 @@
 #include "migration/misc.h"
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct VFIOLegacyContainer;
 struct VFIOContainer;
 struct VFIOGroup;
@@ -84,5 +88,9 @@ extern const VMStateDescription vmstate_cpr_vfio_devices;
 void vfio_cpr_add_kvm_notifier(void);
 void vfio_cpr_pci_register_device(struct VFIOPCIDevice *vdev);
 void vfio_cpr_pci_unregister_device(struct VFIOPCIDevice *vdev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VFIO_VFIO_CPR_H */

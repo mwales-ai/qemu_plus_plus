@@ -15,6 +15,10 @@
 #include "vga_int.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*#define DEBUG_ATI*/
 
 #ifdef DEBUG_ATI
@@ -105,5 +109,9 @@ struct ATIVGAState {
 const char *ati_reg_name(int num);
 
 void ati_2d_blt(ATIVGAState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATI_INT_H */
