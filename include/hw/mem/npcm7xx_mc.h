@@ -19,6 +19,10 @@
 #include "system/memory.h"
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * struct NPCM7xxMCState - Device state for the memory controller.
  * @parent: System bus device.
@@ -32,5 +36,9 @@ typedef struct NPCM7xxMCState {
 
 #define TYPE_NPCM7XX_MC "npcm7xx-mc"
 #define NPCM7XX_MC(obj) OBJECT_CHECK(NPCM7xxMCState, (obj), TYPE_NPCM7XX_MC)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NPCM7XX_MC_H */

@@ -40,7 +40,7 @@ REG32(CONTROL_CLR, 4)
 static uint64_t arm_sbcon_i2c_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    ArmSbconI2CState *s = opaque;
+    ArmSbconI2CState *s = static_cast<ArmSbconI2CState *>(opaque);
 
     switch (offset) {
     case A_CONTROL_SET:
@@ -55,7 +55,7 @@ static uint64_t arm_sbcon_i2c_read(void *opaque, hwaddr offset,
 static void arm_sbcon_i2c_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    ArmSbconI2CState *s = opaque;
+    ArmSbconI2CState *s = static_cast<ArmSbconI2CState *>(opaque);
 
     switch (offset) {
     case A_CONTROL_SET:

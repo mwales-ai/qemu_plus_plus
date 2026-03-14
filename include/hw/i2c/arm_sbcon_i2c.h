@@ -17,6 +17,10 @@
 #include "hw/i2c/bitbang_i2c.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ARM_SBCON_I2C "versatile_i2c"
 
 typedef struct ArmSbconI2CState ArmSbconI2CState;
@@ -32,5 +36,9 @@ struct ArmSbconI2CState {
     int out;
     int in;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_I2C_ARM_SBCON_I2C_H */

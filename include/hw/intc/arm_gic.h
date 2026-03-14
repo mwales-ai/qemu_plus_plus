@@ -70,6 +70,10 @@
 #include "arm_gic_common.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Number of SGI target-list bits */
 #define GIC_TARGETLIST_BITS 8
 #define GIC_MAX_PRIORITY_BITS 8
@@ -90,5 +94,9 @@ struct ARMGICClass {
 };
 
 const char *gic_class_name(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

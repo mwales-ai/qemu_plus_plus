@@ -4,6 +4,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The QEMU I2C implementation only supports simple transfers that complete
    immediately.  It does not support slave devices that need to be able to
    defer their response (eg. CPU slave interfaces where the data is supplied
@@ -222,5 +226,9 @@ extern const VMStateDescription vmstate_i2c_slave;
     .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, I2CSlave),    \
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

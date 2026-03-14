@@ -25,6 +25,10 @@
 #include "system/memory.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PCIE_HOST_BRIDGE "pcie-host-bridge"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIExpressHost, PCIE_HOST_BRIDGE)
 
@@ -77,5 +81,9 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
 #define PCIE_MMCFG_DEVFN(addr)          (((addr) >> PCIE_MMCFG_DEVFN_BIT) & \
                                          PCIE_MMCFG_DEVFN_MASK)
 #define PCIE_MMCFG_CONFOFFSET(addr)     ((addr) & PCIE_MMCFG_CONFOFFSET_MASK)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PCIE_HOST_H */

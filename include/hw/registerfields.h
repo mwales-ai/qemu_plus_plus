@@ -13,6 +13,10 @@
 
 #include "qemu/bitops.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Define constants for a 32 bit register */
 
 /* This macro will define A_FOO, for the byte address of a register
@@ -223,5 +227,9 @@
     (regs)[(offset)] = SHARED_FIELD_DP32((regs)[(offset)], field, val);
 #define SHARED_ARRAY_FIELD_DP64(regs, offset, field, val) \
     (regs)[(offset)] = SHARED_FIELD_DP64((regs)[(offset)], field, val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

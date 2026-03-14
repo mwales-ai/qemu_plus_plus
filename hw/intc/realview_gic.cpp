@@ -16,7 +16,7 @@
 
 static void realview_gic_set_irq(void *opaque, int irq, int level)
 {
-    RealViewGICState *s = (RealViewGICState *)opaque;
+    RealViewGICState *s = static_cast<RealViewGICState *>(opaque);
 
     qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }

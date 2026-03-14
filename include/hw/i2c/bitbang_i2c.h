@@ -3,6 +3,10 @@
 
 #include "hw/i2c/i2c.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_GPIO_I2C "gpio_i2c"
 
 typedef struct bitbang_i2c_interface bitbang_i2c_interface;
@@ -48,5 +52,9 @@ struct bitbang_i2c_interface {
  */
 void bitbang_i2c_init(bitbang_i2c_interface *s, I2CBus *bus);
 int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

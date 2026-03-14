@@ -6,6 +6,10 @@
 #include "hw/pci/pcie_doe.h"
 #include "system/spdm-socket.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PCI_DEVICE "pci-device"
 typedef struct PCIDeviceClass PCIDeviceClass;
 DECLARE_OBJ_CHECKERS(PCIDevice, PCIDeviceClass,
@@ -370,5 +374,9 @@ extern const VMStateDescription vmstate_pci_device;
     .flags      = VMS_STRUCT | VMS_POINTER,                          \
     .offset     = vmstate_offset_pointer(_state, _field, PCIDevice), \
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

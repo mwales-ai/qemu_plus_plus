@@ -183,6 +183,10 @@ enum {
 
 #include "hw/pci/pci_regs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* PCI HEADER_TYPE */
 #define  PCI_HEADER_TYPE_MULTI_FUNCTION 0x80
 
@@ -1012,5 +1016,9 @@ MSIMessage pci_get_msi_message(PCIDevice *dev, int vector);
 void pci_set_enabled(PCIDevice *pci_dev, bool state);
 void pci_set_power(PCIDevice *pci_dev, bool state);
 int pci_pm_init(PCIDevice *pci_dev, uint8_t offset, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

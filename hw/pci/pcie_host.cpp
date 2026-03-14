@@ -35,7 +35,7 @@ static inline PCIDevice *pcie_dev_find_by_mmcfg_addr(PCIBus *s,
 static void pcie_mmcfg_data_write(void *opaque, hwaddr mmcfg_addr,
                                   uint64_t val, unsigned len)
 {
-    PCIExpressHost *e = opaque;
+    PCIExpressHost *e = static_cast<PCIExpressHost *>(opaque);
     PCIBus *s = e->pci.bus;
     PCIDevice *pci_dev = pcie_dev_find_by_mmcfg_addr(s, mmcfg_addr);
     uint32_t addr;
@@ -53,7 +53,7 @@ static uint64_t pcie_mmcfg_data_read(void *opaque,
                                      hwaddr mmcfg_addr,
                                      unsigned len)
 {
-    PCIExpressHost *e = opaque;
+    PCIExpressHost *e = static_cast<PCIExpressHost *>(opaque);
     PCIBus *s = e->pci.bus;
     PCIDevice *pci_dev = pcie_dev_find_by_mmcfg_addr(s, mmcfg_addr);
     uint32_t addr;
@@ -123,9 +123,9 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
 static const TypeInfo pcie_host_type_info = {
     .name = TYPE_PCIE_HOST_BRIDGE,
     .parent = TYPE_PCI_HOST_BRIDGE,
-    .is_abstract = true,
     .instance_size = sizeof(PCIExpressHost),
     .instance_init = pcie_host_init,
+    .is_abstract = true,
 };
 
 static void pcie_host_register_types(void)

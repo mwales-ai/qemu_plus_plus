@@ -3,6 +3,10 @@
 
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Generic IRQ/GPIO pin infrastructure.  */
 
 #define TYPE_IRQ "irq"
@@ -117,5 +121,9 @@ static inline bool qemu_irq_is_connected(qemu_irq irq)
 {
     return irq != NULL;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

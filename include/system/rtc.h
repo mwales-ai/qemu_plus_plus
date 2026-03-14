@@ -25,6 +25,10 @@
 #ifndef SYSTEM_RTC_H
 #define SYSTEM_RTC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * qemu_get_timedate: Get the current RTC time
  * @tm: struct tm to fill in with RTC time
@@ -54,5 +58,9 @@ void qemu_get_timedate(struct tm *tm, time_t offset);
  * then this function will return 3600.
  */
 time_t qemu_timedate_diff(struct tm *tm);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

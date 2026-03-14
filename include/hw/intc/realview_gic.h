@@ -14,6 +14,10 @@
 #include "hw/intc/arm_gic.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_REALVIEW_GIC "realview_gic"
 OBJECT_DECLARE_SIMPLE_TYPE(RealViewGICState, REALVIEW_GIC)
 
@@ -24,5 +28,9 @@ struct RealViewGICState {
 
     GICState gic;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

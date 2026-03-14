@@ -14,6 +14,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * QEMU interface:
  *  + QOM array property "keycodes": uint32_t QEMU keycodes to handle
@@ -33,5 +37,9 @@ struct StellarisGamepad {
     uint32_t *keycodes;
     uint8_t *pressed;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

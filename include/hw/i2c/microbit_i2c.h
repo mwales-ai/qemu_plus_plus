@@ -15,6 +15,10 @@
 #include "hw/arm/nrf51.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NRF51_TWI_TASK_STARTRX 0x000
 #define NRF51_TWI_TASK_STARTTX 0x008
 #define NRF51_TWI_TASK_STOP 0x014
@@ -38,5 +42,9 @@ struct MicrobitI2CState {
     uint32_t regs[MICROBIT_I2C_NREGS];
     uint32_t read_idx;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MICROBIT_I2C_H */

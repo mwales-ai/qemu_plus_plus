@@ -27,6 +27,10 @@
 #include "hw/pci/pcie_sriov.h"
 #include "hw/hotplug.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct PCIEPort PCIEPort;
 typedef struct PCIESlot PCIESlot;
 
@@ -162,4 +166,9 @@ uint32_t pcie_pri_get_req_alloc(const PCIDevice *dev);
 bool pcie_pri_enabled(const PCIDevice *dev);
 bool pcie_pasid_enabled(const PCIDevice *dev);
 bool pcie_ats_enabled(const PCIDevice *dev);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* QEMU_PCIE_H */

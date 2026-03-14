@@ -13,6 +13,10 @@
 #include "qemu/range.h"
 #include "hw/register.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Reference:
  * PCIe r6.0 - 7.9.24 Data Object Exchange Extended Capability
@@ -124,4 +128,9 @@ uint32_t pcie_doe_build_protocol(DOEProtocol *p);
 void *pcie_doe_get_write_mbox_ptr(DOECap *doe_cap);
 void pcie_doe_set_rsp(DOECap *doe_cap, void *rsp);
 uint32_t pcie_doe_get_obj_len(void *obj);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* PCIE_DOE_H */
