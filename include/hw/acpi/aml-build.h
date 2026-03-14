@@ -4,6 +4,10 @@
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/bios-linker-loader.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ACPI_BUILD_APPNAME6 "BOCHS "
 #define ACPI_BUILD_APPNAME8 "BXPC    "
 
@@ -510,4 +514,9 @@ void build_tpm2(GArray *table_data, BIOSLinker *linker, GArray *tcpalog,
 void build_spcr(GArray *table_data, BIOSLinker *linker,
                 const AcpiSpcrData *f, const uint8_t rev,
                 const char *oem_id, const char *oem_table_id, const char *name);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

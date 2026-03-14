@@ -5,6 +5,10 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/qdev-core.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ACPI_DEV_AML_IF "acpi-dev-aml-interface"
 typedef struct AcpiDevAmlIfClass AcpiDevAmlIfClass;
 DECLARE_CLASS_CHECKERS(AcpiDevAmlIfClass, ACPI_DEV_AML_IF, TYPE_ACPI_DEV_AML_IF)
@@ -48,5 +52,9 @@ static inline void call_dev_aml_func(DeviceState *dev, Aml *scope)
 }
 
 void qbus_build_aml(BusState *bus, Aml *scope);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

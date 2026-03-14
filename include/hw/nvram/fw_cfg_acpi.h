@@ -9,6 +9,14 @@
 
 #include "exec/hwaddr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void fw_cfg_acpi_dsdt_add(Aml *scope, const MemMapEntry *fw_cfg_memmap);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

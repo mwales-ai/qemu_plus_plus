@@ -19,6 +19,10 @@
 #ifndef QEMU_SMBIOS_BUILD_H
 #define QEMU_SMBIOS_BUILD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool smbios_skip_table(uint8_t type, bool required_table);
 
 extern uint8_t *smbios_tables;
@@ -104,5 +108,9 @@ extern unsigned smbios_table_cnt;
 
 /* IPMI SMBIOS firmware handling */
 void smbios_build_type_38_table(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_SMBIOS_BUILD_H */

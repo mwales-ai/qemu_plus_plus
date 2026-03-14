@@ -21,7 +21,9 @@
 #ifndef QEMU_BASE64_H
 #define QEMU_BASE64_H
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * qbase64_decode:
@@ -53,5 +55,9 @@ uint8_t *qbase64_decode(const char *input,
                         size_t *out_len,
                         Error **errp);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_BASE64_H */

@@ -1,10 +1,10 @@
 acpi_ss = ss.source_set()
 acpi_ss.add(files(
-  'acpi_interface.c',
+  'acpi_interface.cpp',
   'aml-build.c',
   'bios-linker-loader.c',
   'core.c',
-  'utils.c',
+  'utils.cpp',
 ))
 acpi_ss.add(when: 'CONFIG_ACPI_CPU_HOTPLUG', if_true: files('cpu.c', 'cpu_hotplug.c'))
 acpi_ss.add(when: 'CONFIG_ACPI_CPU_HOTPLUG', if_false: files('acpi-cpu-hotplug-stub.c'))
@@ -31,9 +31,9 @@ acpi_ss.add(when: 'CONFIG_PC', if_false: files('acpi-x86-stub.cpp'))
 if have_tpm
   acpi_ss.add(files('tpm.c'))
 endif
-system_ss.add(when: 'CONFIG_ACPI', if_false: files('acpi-stub.cpp', 'aml-build-stub.cpp', 'ghes-stub.cpp', 'acpi_interface.c'))
+system_ss.add(when: 'CONFIG_ACPI', if_false: files('acpi-stub.cpp', 'aml-build-stub.cpp', 'ghes-stub.cpp', 'acpi_interface.cpp'))
 system_ss.add(when: 'CONFIG_ACPI_PCI_BRIDGE', if_false: files('pci-bridge-stub.cpp'))
 system_ss.add_all(when: 'CONFIG_ACPI', if_true: acpi_ss)
-system_ss.add(when: 'CONFIG_GHES_CPER', if_true: files('ghes_cper.c'))
+system_ss.add(when: 'CONFIG_GHES_CPER', if_true: files('ghes_cper.cpp'))
 system_ss.add(when: 'CONFIG_GHES_CPER', if_false: files('ghes_cper_stub.cpp'))
 system_ss.add(files('acpi-qmp-cmds.cpp'))

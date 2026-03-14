@@ -4,7 +4,7 @@ virtio_scsi_ss = ss.source_set()
 specific_virtio_scsi_ss = ss.source_set()
 
 scsi_ss.add(files(
-  'emulation.c',
+  'emulation.cpp',
   'scsi-bus.c',
   'scsi-disk.c',
   'scsi-generic.c',
