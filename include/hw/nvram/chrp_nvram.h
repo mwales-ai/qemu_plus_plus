@@ -20,6 +20,10 @@
 
 #include "qemu/bswap.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* OpenBIOS NVRAM partition */
 typedef struct {
     uint8_t signature;
@@ -53,5 +57,9 @@ chrp_nvram_finish_partition(ChrpNvramPartHdr *header, uint32_t size)
 /* chrp_nvram_create_system_partition() failure is fatal */
 int chrp_nvram_create_system_partition(uint8_t *data, int min_len, int max_len);
 int chrp_nvram_create_free_partition(uint8_t *data, int len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

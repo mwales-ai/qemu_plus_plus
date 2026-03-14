@@ -51,7 +51,7 @@ int chrp_nvram_create_system_partition(uint8_t *data, int min_len, int max_len)
     unsigned int i;
     int end;
 
-    if (max_len < sizeof(*part_header)) {
+    if (static_cast<unsigned int>(max_len) < sizeof(*part_header)) {
         goto fail;
     }
 

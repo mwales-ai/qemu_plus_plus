@@ -10,8 +10,8 @@
 #include "hw/nvram/fw_cfg.h"
 
 static const TypeInfo fw_cfg_data_generator_interface_info = {
-    .parent = TYPE_INTERFACE,
     .name = TYPE_FW_CFG_DATA_GENERATOR_INTERFACE,
+    .parent = TYPE_INTERFACE,
     .class_size = sizeof(FWCfgDataGeneratorClass),
 };
 

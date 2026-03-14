@@ -13,6 +13,10 @@
 
 #include "hw/xen/xen-host-pci-device.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct XenPCIPassthroughState XenPCIPassthroughState;
 
 bool xen_igd_gfx_pt_enabled(void);
@@ -29,5 +33,9 @@ static inline bool is_igd_vga_passthrough(XenHostPCIDevice *dev)
     return (xen_igd_gfx_pt_enabled()
             && ((dev->class_code >> 0x8) == PCI_CLASS_DISPLAY_VGA));
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

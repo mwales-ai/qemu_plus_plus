@@ -14,6 +14,10 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct TPMPPI {
     MemoryRegion ram;
     uint8_t *buf;
@@ -41,5 +45,9 @@ void tpm_ppi_init(TPMPPI *tpmppi, MemoryRegion *m,
  * memory if requested.
  **/
 void tpm_ppi_reset(TPMPPI *tpmppi);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TPM_TPM_PPI_H */

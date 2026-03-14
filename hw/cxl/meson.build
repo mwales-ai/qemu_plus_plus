@@ -9,5 +9,5 @@ system_ss.add(when: 'CONFIG_CXL',
                    'switch-mailbox-cci.c',
                ),
                if_false: files(
-                   'cxl-host-stubs.c',
+                   'cxl-host-stubs.cpp',
                ))

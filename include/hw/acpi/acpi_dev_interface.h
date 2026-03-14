@@ -5,6 +5,10 @@
 #include "qom/object.h"
 #include "hw/qdev-core.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* These values are part of guest ABI, and can not be changed */
 typedef enum {
     ACPI_PCI_HOTPLUG_STATUS = 2,
@@ -53,4 +57,9 @@ struct AcpiDeviceIfClass {
     void (*ospm_status)(AcpiDeviceIf *adev, ACPIOSTInfoList ***list);
     void (*send_event)(AcpiDeviceIf *adev, AcpiEventStatusBits ev);
 };
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

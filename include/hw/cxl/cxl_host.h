@@ -13,6 +13,10 @@
 #ifndef CXL_HOST_H
 #define CXL_HOST_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void cxl_machine_init(Object *obj, CXLState *state);
 void cxl_fmws_link_targets(Error **errp);
 void cxl_hook_up_pxb_registers(PCIBus *bus, CXLState *state, Error **errp);
@@ -21,5 +25,9 @@ void cxl_fmws_update_mmio(void);
 GSList *cxl_fmws_get_all_sorted(void);
 
 extern const MemoryRegionOps cfmws_ops;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

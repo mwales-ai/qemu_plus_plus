@@ -24,8 +24,8 @@ static void fsi_lbus_init(Object *o)
 static const TypeInfo fsi_lbus_info = {
     .name = TYPE_FSI_LBUS,
     .parent = TYPE_BUS,
-    .instance_init = fsi_lbus_init,
     .instance_size = sizeof(FSILBus),
+    .instance_init = fsi_lbus_init,
 };
 
 static const TypeInfo fsi_lbus_device_type_info = {

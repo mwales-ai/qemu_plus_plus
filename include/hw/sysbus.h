@@ -7,6 +7,10 @@
 #include "system/memory.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QDEV_MAX_MMIO 32
 #define QDEV_MAX_PIO 32
 
@@ -102,5 +106,9 @@ static inline DeviceState *sysbus_create_simple(const char *name,
 {
     return sysbus_create_varargs(name, addr, irq, NULL);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SYSBUS_H */

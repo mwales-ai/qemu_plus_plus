@@ -25,7 +25,7 @@ if have_xen_pci_passthrough
     'xen_pt_msi.c',
   ))
 else
-  xen_common_ss.add(files('xen_pt_stub.c'))
+  xen_common_ss.add(files('xen_pt_stub.cpp'))
 endif
 
 system_ss.add_all(when: ['CONFIG_XEN', xen], if_true: xen_common_ss)

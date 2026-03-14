@@ -36,8 +36,8 @@ typedef struct CallbackData {
 
 static int add_cpu_to_cluster(Object *obj, void *opaque)
 {
-    CallbackData *cbdata = opaque;
-    CPUState *cpu = (CPUState *)object_dynamic_cast(obj, TYPE_CPU);
+    CallbackData *cbdata = static_cast<CallbackData *>(opaque);
+    CPUState *cpu = reinterpret_cast<CPUState *>(object_dynamic_cast(obj, TYPE_CPU));
 
     if (cpu) {
         cpu->cluster_index = cbdata->cluster->cluster_id;

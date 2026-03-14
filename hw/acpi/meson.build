@@ -36,4 +36,4 @@ system_ss.add(when: 'CONFIG_ACPI_PCI_BRIDGE', if_false: files('pci-bridge-stub.c
 system_ss.add_all(when: 'CONFIG_ACPI', if_true: acpi_ss)
 system_ss.add(when: 'CONFIG_GHES_CPER', if_true: files('ghes_cper.c'))
 system_ss.add(when: 'CONFIG_GHES_CPER', if_false: files('ghes_cper_stub.cpp'))
-system_ss.add(files('acpi-qmp-cmds.c'))
+system_ss.add(files('acpi-qmp-cmds.cpp'))
