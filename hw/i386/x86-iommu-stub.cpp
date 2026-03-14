@@ -1,7 +1,9 @@
 /*
- * Stubs for AMD IOMMU emulation
+ * Stubs for X86 IOMMU emulation
  *
- * Copyright (C) 2023 Bui Quang Minh <minhquangbui99@gmail.com>
+ * Copyright (C) 2019 Red Hat, Inc.
+ *
+ * Author: Paolo Bonzini <pbonzini@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +20,19 @@
  */
 
 #include "qemu/osdep.h"
-#include "amd_iommu.h"
+#include "hw/i386/x86-iommu.h"
 
-uint64_t amdvi_extended_feature_register(AMDVIState *s)
+extern "C" void x86_iommu_iec_register_notifier(X86IOMMUState *iommu,
+                                     iec_notify_fn fn, void *data)
 {
-    return AMDVI_DEFAULT_EXT_FEATURES;
+}
+
+extern "C" X86IOMMUState *x86_iommu_get_default(void)
+{
+    return NULL;
+}
+
+extern "C" bool x86_iommu_ir_supported(X86IOMMUState *s)
+{
+    return false;
 }

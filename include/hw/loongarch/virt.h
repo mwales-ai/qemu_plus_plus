@@ -13,6 +13,10 @@
 #include "hw/block/flash.h"
 #include "hw/loongarch/boot.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* IOCSR region */
 #define VERSION_REG             0x0
 #define FEATURE_REG             0x8
@@ -148,5 +152,9 @@ static inline bool virt_is_veiointc_enabled(LoongArchVirtMachineState *lvms)
     }
     return true;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -24,6 +24,10 @@
 #include "hw/pci/msi.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define  TYPE_X86_IOMMU_DEVICE  ("x86-iommu")
 OBJECT_DECLARE_TYPE(X86IOMMUState, X86IOMMUClass, X86_IOMMU_DEVICE)
 
@@ -162,4 +166,9 @@ void x86_iommu_iec_notify_all(X86IOMMUState *iommu, bool global,
  * @out: Output MSI message
  */
 void x86_iommu_irq_to_msi_message(X86IOMMUIrq *irq, MSIMessage *out);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

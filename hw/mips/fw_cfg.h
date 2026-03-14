@@ -12,8 +12,16 @@
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Data for BIOS to identify machine */
 #define FW_CFG_MACHINE_VERSION  (FW_CFG_ARCH_LOCAL + 0)
 #define FW_CFG_CPU_FREQ         (FW_CFG_ARCH_LOCAL + 1)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

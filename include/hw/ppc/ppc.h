@@ -3,6 +3,10 @@
 
 #include "target/ppc/cpu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level);
 PowerPCCPU *ppc_get_vcpu_by_pir(int pir);
 int ppc_cpu_pir(PowerPCCPU *cpu);
@@ -126,4 +130,9 @@ void booke_set_tlb(ppcemb_tlb_t *tlb, target_ulong va, hwaddr pa,
 
 /* ppc_booke.c */
 void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

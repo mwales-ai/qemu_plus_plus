@@ -19,6 +19,10 @@
 #include "hw/boards.h"
 #include "hw/hotplug.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ACPI_CPU_HOTPLUG_REG_LEN 12
 
 typedef struct AcpiCpuStatus {
@@ -74,5 +78,9 @@ extern const VMStateDescription vmstate_cpu_hotplug;
 #define VMSTATE_CPU_HOTPLUG(cpuhp, state) \
     VMSTATE_STRUCT(cpuhp, state, 1, \
                    vmstate_cpu_hotplug, CPUHotplugState)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

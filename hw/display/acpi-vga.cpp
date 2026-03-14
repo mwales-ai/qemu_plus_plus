@@ -3,7 +3,7 @@
 #include "hw/pci/pci.h"
 #include "vga_int.h"
 
-void build_vga_aml(AcpiDevAmlIf *adev, Aml *scope)
+extern "C" void build_vga_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
     int s3d = 0;
     Aml *method;

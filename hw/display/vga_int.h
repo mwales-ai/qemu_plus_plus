@@ -32,6 +32,10 @@
 #include "hw/display/bochs-vbe.h"
 #include "hw/acpi/acpi_aml_interface.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ST01_V_RETRACE      0x08
 #define ST01_DISP_ENABLE    0x01
 
@@ -201,4 +205,9 @@ void pci_std_vga_mmio_region_init(VGACommonState *s,
                                   bool qext, bool edid);
 
 void build_vga_aml(AcpiDevAmlIf *adev, Aml *scope);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

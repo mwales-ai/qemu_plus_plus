@@ -2,7 +2,7 @@ loongarch_ss = ss.source_set()
 loongarch_ss.add(files(
     'boot.c',
 ))
-common_ss.add(when: 'CONFIG_LOONGARCH_VIRT', if_true: files('fw_cfg.c'))
+common_ss.add(when: 'CONFIG_LOONGARCH_VIRT', if_true: files('fw_cfg.cpp'))
 loongarch_ss.add(when: 'CONFIG_LOONGARCH_VIRT', if_true: files(
   'virt-fdt-build.c',
   'virt.c'))

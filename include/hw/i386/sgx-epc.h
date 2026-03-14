@@ -15,6 +15,10 @@
 #include "hw/qdev-core.h"
 #include "hw/i386/hostmem-epc.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SGX_EPC "sgx-epc"
 #define SGX_EPC(obj) \
     OBJECT_CHECK(SGXEPCDevice, (obj), TYPE_SGX_EPC)
@@ -68,5 +72,9 @@ static inline uint64_t sgx_epc_above_4g_end(SGXEPCState *sgx_epc)
 
     return sgx_epc->base + sgx_epc->size;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

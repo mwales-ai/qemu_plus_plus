@@ -4,7 +4,7 @@
 
 
 /* Following stubs are all related to ACPI cpu hotplug */
-const VMStateDescription vmstate_cpu_hotplug;
+const VMStateDescription vmstate_cpu_hotplug = {};
 
 void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
                                 CPUHotplugState *cpuhp_state,

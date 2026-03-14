@@ -14,6 +14,10 @@
 #include "hw/i386/sgx-epc.h"
 #include "hw/cxl/cxl.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_IDE_BUS 2
 
 /**
@@ -349,5 +353,9 @@ extern const size_t pc_compat_2_6_len;
         type_register_static(&MACHINE_VER_SYM(info, namesym, __VA_ARGS__)); \
     } \
     type_init(MACHINE_VER_SYM(register, namesym, __VA_ARGS__));
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

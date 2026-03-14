@@ -25,6 +25,10 @@
 #include "hw/i386/x86-iommu.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define GENMASK64(h, l)  (((~0ULL) >> (63 - (h) + (l))) << (l))
 
 /* Capability registers */
@@ -425,5 +429,9 @@ struct AMDVIState {
 };
 
 uint64_t amdvi_extended_feature_register(AMDVIState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -11,5 +11,14 @@
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 FWCfgState *virt_fw_cfg_init(ram_addr_t ram_size, MachineState *ms);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
