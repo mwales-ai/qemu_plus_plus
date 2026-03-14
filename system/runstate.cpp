@@ -37,7 +37,7 @@
 #include "migration/postcopy-ram.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
-#include "net/vhost_net.h"
+/* net/vhost_net.h excluded: triggers -Wchanges-meaning in C++ */
 #include "qapi/error.h"
 #include "qapi/qapi-commands-run-state.h"
 #include "qapi/qapi-events-run-state.h"
@@ -264,7 +264,7 @@ bool runstate_needs_reset(void)
 
 StatusInfo *qmp_query_status(Error **errp)
 {
-    StatusInfo *info = g_malloc0(sizeof(*info));
+    StatusInfo *info = static_cast<StatusInfo *>(g_malloc0(sizeof(*info)));
 
     info->running = runstate_is_running();
     info->status = current_run_state;
@@ -320,7 +320,7 @@ qemu_add_vm_change_state_handler_prio_full(VMChangeStateHandler *cb,
     VMChangeStateEntry *e;
     VMChangeStateEntry *other;
 
-    e = g_malloc0(sizeof(*e));
+    e = static_cast<VMChangeStateEntry *>(g_malloc0(sizeof(*e)));
     e->cb = cb;
     e->prepare_cb = prepare_cb;
     e->cb_ret = cb_ret;
@@ -436,9 +436,10 @@ ShutdownCause qemu_reset_requested_get(void)
     return reset_requested;
 }
 
-static int qemu_shutdown_requested(void)
+static ShutdownCause qemu_shutdown_requested(void)
 {
-    return qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE);
+    return static_cast<ShutdownCause>(
+        qatomic_xchg(&shutdown_requested, SHUTDOWN_CAUSE_NONE));
 }
 
 static void qemu_kill_report(void)
@@ -589,12 +590,12 @@ static char *tdx_parse_panic_message(char *message)
     }
 
     if (len == 0) {
-        buf = g_malloc(1);
+        buf = static_cast<char *>(g_malloc(1));
         buf[0] = '\0';
     } else {
         if (!printable) {
             /* 3 = length of "%02x " */
-            buf = g_malloc(len * 3);
+            buf = static_cast<char *>(g_malloc(len * 3));
             for (i = 0; i < len; i++) {
                 if (message[i] == '\0') {
                     break;
@@ -643,8 +644,8 @@ void qemu_system_guest_panicked(GuestPanicInformation *info)
 
     if (info) {
         if (info->type == GUEST_PANIC_INFORMATION_TYPE_HYPER_V) {
-            qemu_log_mask(LOG_GUEST_ERROR, "\nHV crash parameters: (%#"PRIx64
-                          " %#"PRIx64" %#"PRIx64" %#"PRIx64" %#"PRIx64")\n",
+            qemu_log_mask(LOG_GUEST_ERROR, "\nHV crash parameters: (%#" PRIx64
+                          " %#" PRIx64 " %#" PRIx64 " %#" PRIx64 " %#" PRIx64 ")\n",
                           info->u.hyper_v.arg1,
                           info->u.hyper_v.arg2,
                           info->u.hyper_v.arg3,

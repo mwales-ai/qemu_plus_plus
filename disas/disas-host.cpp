@@ -104,7 +104,7 @@ void disas(FILE *out, const void *code, size_t size)
     initialize_debug_host(&s);
     s.info.fprintf_func = fprintf;
     s.info.stream = out;
-    s.info.buffer = code;
+    s.info.buffer = static_cast<const bfd_byte *>(code);
     s.info.buffer_vma = (uintptr_t)code;
     s.info.buffer_length = size;
     s.info.show_opcodes = true;

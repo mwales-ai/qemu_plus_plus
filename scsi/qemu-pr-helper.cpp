@@ -133,7 +133,7 @@ typedef struct PRHelperSGIOData {
 
 static int do_sgio_worker(void *opaque)
 {
-    PRHelperSGIOData *data = opaque;
+    PRHelperSGIOData *data = static_cast<PRHelperSGIOData *>(opaque);
     struct sg_io_hdr io_hdr;
     int ret;
     int status;
@@ -623,7 +623,7 @@ static int coroutine_fn prh_read(PRHelperClient *client, void *buf, int sz,
         /* Stash one file descriptor per request.  */
         if (nfds) {
             bool too_many = false;
-            for (i = 0; i < nfds; i++) {
+            for (i = 0; (size_t)i < nfds; i++) {
                 if (client->fd == -1) {
                     client->fd = fds[i];
                 } else {
@@ -638,7 +638,7 @@ static int coroutine_fn prh_read(PRHelperClient *client, void *buf, int sz,
             }
         }
 
-        buf += n_read;
+        buf = static_cast<char *>(buf) + n_read;
         sz -= n_read;
     }
 
@@ -705,7 +705,7 @@ static int coroutine_fn prh_write_response(PRHelperClient *client,
     size_t sz;
 
     if (req->cdb[0] == PERSISTENT_RESERVE_IN && resp->result == GOOD) {
-        assert(resp->sz <= req->sz && resp->sz <= sizeof(client->data));
+        assert((size_t)resp->sz <= (size_t)req->sz && (size_t)resp->sz <= sizeof(client->data));
     } else {
         assert(resp->sz == 0);
     }
@@ -728,7 +728,7 @@ static int coroutine_fn prh_write_response(PRHelperClient *client,
 
 static void coroutine_fn prh_co_entry(void *opaque)
 {
-    PRHelperClient *client = opaque;
+    PRHelperClient *client = static_cast<PRHelperClient *>(opaque);
     Error *local_err = NULL;
     uint32_t flags;
     int r;
@@ -844,14 +844,14 @@ static int drop_privileges(void)
     /* clear all capabilities */
     capng_clear(CAPNG_SELECT_BOTH);
 
-    if (capng_update(CAPNG_ADD, CAPNG_EFFECTIVE | CAPNG_PERMITTED,
+    if (capng_update(CAPNG_ADD, static_cast<capng_type_t>(CAPNG_EFFECTIVE | CAPNG_PERMITTED),
                      CAP_SYS_RAWIO) < 0) {
         return -1;
     }
 
 #ifdef CONFIG_MPATH
     /* For /dev/mapper/control ioctls */
-    if (capng_update(CAPNG_ADD, CAPNG_EFFECTIVE | CAPNG_PERMITTED,
+    if (capng_update(CAPNG_ADD, static_cast<capng_type_t>(CAPNG_EFFECTIVE | CAPNG_PERMITTED),
                      CAP_SYS_ADMIN) < 0) {
         return -1;
     }
@@ -863,7 +863,7 @@ static int drop_privileges(void)
      */
     if (capng_change_id(uid != -1 ? uid : getuid(),
                         gid != -1 ? gid : getgid(),
-                        CAPNG_DROP_SUPP_GRP | CAPNG_CLEAR_BOUNDING)) {
+                        static_cast<capng_flags_t>(CAPNG_DROP_SUPP_GRP | CAPNG_CLEAR_BOUNDING))) {
         return -1;
     }
 
@@ -1009,10 +1009,9 @@ int main(int argc, char **argv)
     socket_activation = check_socket_activation();
     if (socket_activation == 0) {
         SocketAddress saddr;
-        saddr = (SocketAddress){
-            .type = SOCKET_ADDRESS_TYPE_UNIX,
-            .u.q_unix.path = socket_path,
-        };
+        memset(&saddr, 0, sizeof(saddr));
+        saddr.type = SOCKET_ADDRESS_TYPE_UNIX;
+        saddr.u.q_unix.path = socket_path;
         server_ioc = qio_channel_socket_new();
         if (qio_channel_socket_listen_sync(server_ioc, &saddr,
                                            1, &local_err) < 0) {

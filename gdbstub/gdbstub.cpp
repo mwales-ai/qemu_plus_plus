@@ -106,7 +106,7 @@ static void hexdump(const char *buf, int len,
     char line_buffer[3 * 16 + 4 + 16 + 1];
 
     size_t i;
-    for (i = 0; i < len || (i & 0xF); ++i) {
+    for (i = 0; i < static_cast<size_t>(len) || (i & 0xF); ++i) {
         size_t byte_ofs = i & 15;
 
         if (byte_ofs == 0) {
@@ -118,7 +118,7 @@ static void hexdump(const char *buf, int len,
         size_t hex_col = byte_ofs * 3 + col_group;
         size_t txt_col = 3 * 16 + 4 + byte_ofs;
 
-        if (i < len) {
+        if (i < static_cast<size_t>(len)) {
             char value = buf[i];
 
             line_buffer[hex_col + 0] = tohex((value >> 4) & 0xF);
@@ -242,7 +242,7 @@ static CPUState *find_cpu(uint32_t thread_id)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        if (gdb_get_cpu_index(cpu) == thread_id) {
+        if (static_cast<uint32_t>(gdb_get_cpu_index(cpu)) == thread_id) {
             return cpu;
         }
     }
@@ -393,7 +393,7 @@ static const char *get_feature_xml(const char *p, const char **newp,
             g_ptr_array_add(xml, g_strdup("</target>"));
             g_ptr_array_add(xml, NULL);
 
-            process->target_xml = g_strjoinv(NULL, (void *)xml->pdata);
+            process->target_xml = g_strjoinv(NULL, reinterpret_cast<gchar **>(xml->pdata));
         }
         return process->target_xml;
     }
@@ -444,7 +444,7 @@ void gdb_feature_builder_append_reg(const GDBFeatureBuilder *builder,
                                     const char *type,
                                     const char *group)
 {
-    if (builder->regs->len <= regnum) {
+    if (builder->regs->len <= static_cast<guint>(regnum)) {
         g_ptr_array_set_size(builder->regs, regnum + 1);
     }
 
@@ -468,7 +468,7 @@ void gdb_feature_builder_end(const GDBFeatureBuilder *builder)
     g_ptr_array_add(builder->xml, (void *)"</feature>");
     g_ptr_array_add(builder->xml, NULL);
 
-    builder->feature->xml = g_strjoinv(NULL, (void *)builder->xml->pdata);
+    builder->feature->xml = g_strjoinv(NULL, reinterpret_cast<gchar **>(builder->xml->pdata));
 
     for (guint i = 0; i < builder->xml->len - 2; i++) {
         g_free(g_ptr_array_index(builder->xml, i));
@@ -477,7 +477,11 @@ void gdb_feature_builder_end(const GDBFeatureBuilder *builder)
     g_ptr_array_free(builder->xml, TRUE);
 
     builder->feature->num_regs = builder->regs->len;
-    builder->feature->regs = (void *)g_ptr_array_free(builder->regs, FALSE);
+    {
+        gpointer *raw_regs = g_ptr_array_free(builder->regs, FALSE);
+        builder->feature->regs = static_cast<const char * const *>(
+            static_cast<void *>(raw_regs));
+    }
 }
 
 const GDBFeature *gdb_find_static_feature(const char *xmlname)
@@ -502,7 +506,7 @@ GArray *gdb_get_register_list(CPUState *cpu)
         return results;
     }
 
-    for (int f = 0; f < cpu->gdb_regs->len; f++) {
+    for (guint f = 0; f < cpu->gdb_regs->len; f++) {
         GDBRegisterState *r = &g_array_index(cpu->gdb_regs, GDBRegisterState, f);
         for (int i = 0; i < r->feature->num_regs; i++) {
             const char *name = r->feature->regs[i];
@@ -701,7 +705,7 @@ static GDBThreadIdKind read_thread_id(const char *buf, const char **end_buf,
 
     *end_buf = buf;
 
-    if (p == -1) {
+    if (p == static_cast<unsigned long>(-1)) {
         return GDB_ALL_PROCESSES;
     }
 
@@ -709,7 +713,7 @@ static GDBThreadIdKind read_thread_id(const char *buf, const char **end_buf,
         *pid = p;
     }
 
-    if (t == -1) {
+    if (t == static_cast<unsigned long>(-1)) {
         return GDB_ALL_THREADS;
     }
 
@@ -1465,15 +1469,15 @@ static const GdbCmdParseEntry gdb_v_commands_table[] = {
         .handler = handle_v_cont,
         .cmd = "Cont",
         .cmd_startswith = true,
-        .allow_stop_reply = true,
-        .schema = "s0"
+        .schema = "s0",
+        .allow_stop_reply = true
     },
     {
         .handler = handle_v_attach,
         .cmd = "Attach;",
         .cmd_startswith = true,
-        .allow_stop_reply = true,
-        .schema = "l0"
+        .schema = "l0",
+        .allow_stop_reply = true
     },
     {
         .handler = handle_v_kill,
@@ -1663,8 +1667,8 @@ void gdb_extend_qsupported_features(char *qflags)
     } else if (!g_strv_contains((const gchar * const *) extra_query_flags,
                                 qflags)) {
         int len = g_strv_length(extra_query_flags);
-        extra_query_flags = g_realloc_n(extra_query_flags, len + 2,
-                                        sizeof(char *));
+        extra_query_flags = static_cast<char **>(g_realloc_n(extra_query_flags, len + 2,
+                                        sizeof(char *)));
         extra_query_flags[len] = g_strdup(qflags);
     }
 }
@@ -1809,7 +1813,7 @@ static GPtrArray *extend_table(GPtrArray *table, GPtrArray *extensions)
         table = g_ptr_array_new();
     }
 
-    for (int i = 0; i < extensions->len; i++) {
+    for (guint i = 0; i < extensions->len; i++) {
         gpointer entry = g_ptr_array_index(extensions, i);
         if (!g_ptr_array_find(table, entry, NULL)) {
             g_ptr_array_add(table, entry);
@@ -1828,8 +1832,8 @@ static GPtrArray *extend_table(GPtrArray *table, GPtrArray *extensions)
  */
 static bool process_extended_table(GPtrArray *table, const char *data)
 {
-    for (int i = 0; i < table->len; i++) {
-        const GdbCmdParseEntry *entry = g_ptr_array_index(table, i);
+    for (guint i = 0; i < table->len; i++) {
+        const GdbCmdParseEntry *entry = static_cast<const GdbCmdParseEntry *>(g_ptr_array_index(table, i));
         if (process_string_cmd(data, entry, 1)) {
             return true;
         }
@@ -2082,8 +2086,8 @@ static int gdb_handle_packet(const char *line_buf)
                 .handler = handle_continue,
                 .cmd = "c",
                 .cmd_startswith = true,
-                .allow_stop_reply = true,
-                .schema = "L0"
+                .schema = "L0",
+                .allow_stop_reply = true
             };
             cmd_parser = &continue_cmd_desc;
         }
@@ -2094,8 +2098,8 @@ static int gdb_handle_packet(const char *line_buf)
                 .handler = handle_cont_with_sig,
                 .cmd = "C",
                 .cmd_startswith = true,
-                .allow_stop_reply = true,
-                .schema = "l0"
+                .schema = "l0",
+                .allow_stop_reply = true
             };
             cmd_parser = &cont_with_sig_cmd_desc;
         }
@@ -2134,8 +2138,8 @@ static int gdb_handle_packet(const char *line_buf)
                 .handler = handle_step,
                 .cmd = "s",
                 .cmd_startswith = true,
-                .allow_stop_reply = true,
-                .schema = "L0"
+                .schema = "L0",
+                .allow_stop_reply = true
             };
             cmd_parser = &step_cmd_desc;
         }
@@ -2146,8 +2150,8 @@ static int gdb_handle_packet(const char *line_buf)
                 .handler = handle_backward,
                 .cmd = "b",
                 .cmd_startswith = true,
-                .allow_stop_reply = true,
-                .schema = "o0"
+                .schema = "o0",
+                .allow_stop_reply = true
             };
             cmd_parser = &backward_cmd_desc;
         }
@@ -2393,7 +2397,7 @@ void gdb_read_byte(uint8_t ch)
             } else if (ch == '#') {
                 /* end of command, start of checksum*/
                 gdbserver_state.state = RS_CHKSUM1;
-            } else if (gdbserver_state.line_buf_index >= sizeof(gdbserver_state.line_buf) - 1) {
+            } else if ((size_t)gdbserver_state.line_buf_index >= sizeof(gdbserver_state.line_buf) - 1) {
                 trace_gdbstub_err_overrun();
                 gdbserver_state.state = RS_IDLE;
             } else {
@@ -2406,7 +2410,7 @@ void gdb_read_byte(uint8_t ch)
             if (ch == '#') {
                 /* unexpected end of command in escape sequence */
                 gdbserver_state.state = RS_CHKSUM1;
-            } else if (gdbserver_state.line_buf_index >= sizeof(gdbserver_state.line_buf) - 1) {
+            } else if ((size_t)gdbserver_state.line_buf_index >= sizeof(gdbserver_state.line_buf) - 1) {
                 /* command buffer overrun */
                 trace_gdbstub_err_overrun();
                 gdbserver_state.state = RS_IDLE;
@@ -2429,7 +2433,7 @@ void gdb_read_byte(uint8_t ch)
             } else {
                 /* decode repeat length */
                 int repeat = ch - ' ' + 3;
-                if (gdbserver_state.line_buf_index + repeat >= sizeof(gdbserver_state.line_buf) - 1) {
+                if ((size_t)(gdbserver_state.line_buf_index + repeat) >= sizeof(gdbserver_state.line_buf) - 1) {
                     /* that many repeats would overrun the command buffer */
                     trace_gdbstub_err_overrun();
                     gdbserver_state.state = RS_IDLE;
@@ -2477,7 +2481,7 @@ void gdb_read_byte(uint8_t ch)
                 /* send ACK reply */
                 reply = '+';
                 gdb_put_buffer(&reply, 1);
-                gdbserver_state.state = gdb_handle_packet(gdbserver_state.line_buf);
+                gdbserver_state.state = static_cast<RSState>(gdb_handle_packet(gdbserver_state.line_buf));
             }
             break;
         default:
@@ -2506,7 +2510,7 @@ void gdb_create_default_process(GDBState *s)
         pid = 0;
     }
     /* We need an available PID slot for this process */
-    assert(pid < UINT32_MAX);
+    assert((unsigned int)pid < UINT32_MAX);
     pid++;
 #endif
 

@@ -11,6 +11,9 @@
 #include "qemu/thread.h"
 #include "qemu/qdist.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef bool (*qht_cmp_func_t)(const void *a, const void *b);
 
 struct qht {
@@ -220,5 +223,9 @@ void qht_statistics_init(const struct qht *ht, struct qht_stats *stats);
  * See also: qht_statistics_init().
  */
 void qht_statistics_destroy(struct qht_stats *stats);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_QHT_H */

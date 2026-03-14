@@ -128,7 +128,7 @@ TraceEvent *trace_event_iter_next(TraceEventIter *iter)
             !g_pattern_match_simple(iter->pattern, trace_event_get_name(ev))) {
             continue;
         }
-        if (iter->group_id != -1 &&
+        if (iter->group_id != (size_t)-1 &&
             iter->group_id != group) {
             continue;
         }

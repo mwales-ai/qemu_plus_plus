@@ -156,7 +156,7 @@ void vcpu_dirty_rate_stat_initialize(void)
     int max_cpus = ms->smp.max_cpus;
 
     vcpu_dirty_rate_stat =
-        g_malloc0(sizeof(*vcpu_dirty_rate_stat));
+        static_cast<decltype(vcpu_dirty_rate_stat)>(g_malloc0(sizeof(*vcpu_dirty_rate_stat)));
 
     vcpu_dirty_rate_stat->stat.nvcpu = max_cpus;
     vcpu_dirty_rate_stat->stat.rates =
@@ -201,7 +201,7 @@ void dirtylimit_state_initialize(void)
     int max_cpus = ms->smp.max_cpus;
     int i;
 
-    dirtylimit_state = g_malloc0(sizeof(*dirtylimit_state));
+    dirtylimit_state = static_cast<decltype(dirtylimit_state)>(g_malloc0(sizeof(*dirtylimit_state)));
 
     dirtylimit_state->states =
             g_new0(VcpuDirtyLimitState, max_cpus);
@@ -235,7 +235,7 @@ bool dirtylimit_vcpu_index_valid(int cpu_index)
     MachineState *ms = MACHINE(qdev_get_machine());
 
     return !(cpu_index < 0 ||
-             cpu_index >= ms->smp.max_cpus);
+             cpu_index >= static_cast<int>(ms->smp.max_cpus));
 }
 
 static uint64_t dirtylimit_dirty_ring_full_time(uint64_t dirtyrate)
@@ -608,7 +608,7 @@ static struct DirtyLimitInfo *dirtylimit_query_vcpu(int cpu_index)
 {
     DirtyLimitInfo *info = NULL;
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<DirtyLimitInfo *>(g_malloc0(sizeof(*info)));
     info->cpu_index = cpu_index;
     info->limit_rate = dirtylimit_vcpu_get_state(cpu_index)->quota;
     info->current_rate = vcpu_dirty_rate_get(cpu_index);
@@ -665,8 +665,8 @@ void hmp_info_vcpu_dirty_limit(Monitor *mon, const QDict *qdict)
     }
 
     for (info = head; info != NULL; info = info->next) {
-        monitor_printf(mon, "vcpu[%"PRIi64"], limit rate %"PRIi64 " (MB/s),"
-                            " current rate %"PRIi64 " (MB/s)\n",
+        monitor_printf(mon, "vcpu[%" PRIi64 "], limit rate %" PRIi64 " (MB/s),"
+                            " current rate %" PRIi64 " (MB/s)\n",
                             info->value->cpu_index,
                             info->value->limit_rate,
                             info->value->current_rate);

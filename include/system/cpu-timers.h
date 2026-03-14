@@ -12,7 +12,9 @@
 
 #include "qemu/timer.h"
 
-/* init the whole cpu timers API, including icount, ticks, and cpu_throttle */
+#ifdef __cplusplus
+extern "C" {
+#endif
 void cpu_timers_init(void);
 
 /*
@@ -42,5 +44,9 @@ void qemu_timer_notify_cb(void *opaque, QEMUClockType type);
 int64_t cpus_get_virtual_clock(void);
 void cpus_set_virtual_clock(int64_t new_time);
 int64_t cpus_get_elapsed_ticks(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SYSTEM_CPU_TIMERS_H */

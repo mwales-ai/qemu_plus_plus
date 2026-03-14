@@ -9,6 +9,10 @@
 #ifndef QEMU_TARGET_INFO_H
 #define QEMU_TARGET_INFO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * target_name:
  *
@@ -70,5 +74,9 @@ bool target_arm(void);
  * Returns whether the target architecture is Aarch64.
  */
 bool target_aarch64(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

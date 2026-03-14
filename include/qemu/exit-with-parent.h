@@ -35,6 +35,10 @@
 #ifndef NBDKIT_EXIT_WITH_PARENT_H
 #define NBDKIT_EXIT_WITH_PARENT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Test if the feature is available on the platform. */
 static inline bool can_exit_with_parent(void)
 {
@@ -53,5 +57,9 @@ static inline bool can_exit_with_parent(void)
  * returned false.
  */
 extern int set_exit_with_parent(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NBDKIT_EXIT_WITH_PARENT_H */

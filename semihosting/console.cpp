@@ -43,7 +43,7 @@ static SemihostingConsole console;
 
 static int console_can_read(void *opaque)
 {
-    SemihostingConsole *c = opaque;
+    SemihostingConsole *c = static_cast<SemihostingConsole *>(opaque);
     g_assert(bql_locked());
     return (int)fifo8_num_free(&c->fifo);
 }
@@ -58,7 +58,7 @@ static void console_wake_up(gpointer data, gpointer user_data)
 
 static void console_read(void *opaque, const uint8_t *buf, int size)
 {
-    SemihostingConsole *c = opaque;
+    SemihostingConsole *c = static_cast<SemihostingConsole *>(opaque);
     g_assert(bql_locked());
     while (size-- && !fifo8_is_full(&c->fifo)) {
         fifo8_push(&c->fifo, *buf++);
@@ -100,7 +100,7 @@ int qemu_semihosting_console_read(CPUState *cs, void *buf, int len)
 
     /* Read until buffer full or fifo exhausted. */
     do {
-        *(char *)(buf + ret) = fifo8_pop(&c->fifo);
+        *(static_cast<char *>(buf) + ret) = fifo8_pop(&c->fifo);
         ret++;
     } while (ret < len && !fifo8_is_empty(&c->fifo));
 

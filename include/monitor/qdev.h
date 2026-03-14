@@ -3,8 +3,9 @@
 
 #include "hw/qdev-core.h"
 
-/*** monitor commands ***/
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 void hmp_info_qtree(Monitor *mon, const QDict *qdict);
 void hmp_info_qdm(Monitor *mon, const QDict *qdict);
 void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp);
@@ -38,5 +39,9 @@ BusState *qdev_find_default_bus(DeviceClass *dc, Error **errp);
  * not be freed by the caller.
  */
 const char *qdev_set_id(DeviceState *dev, char *id, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

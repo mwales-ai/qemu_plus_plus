@@ -126,13 +126,13 @@ static const char *replay_event_name(enum ReplayEvents event)
 #undef EVENT
     default:
         if (event >= EVENT_ASYNC && event <= EVENT_ASYNC_LAST) {
-            return replay_async_event_name(event - EVENT_ASYNC);
+            return replay_async_event_name(static_cast<ReplayAsyncEventKind>(event - EVENT_ASYNC));
         } else if (event >= EVENT_SHUTDOWN && event <= EVENT_SHUTDOWN_LAST) {
-            return replay_shutdown_event_name(event - EVENT_SHUTDOWN);
+            return replay_shutdown_event_name(static_cast<ShutdownCause>(event - EVENT_SHUTDOWN));
         } else if (event >= EVENT_CLOCK && event <= EVENT_CLOCK_LAST) {
-            return replay_clock_event_name(event - EVENT_CLOCK);
+            return replay_clock_event_name(static_cast<ReplayClockKind>(event - EVENT_CLOCK));
         } else if (event >= EVENT_CHECKPOINT && event <= EVENT_CHECKPOINT_LAST) {
-            return replay_checkpoint_event_name(event - EVENT_CHECKPOINT);
+            return replay_checkpoint_event_name(static_cast<ReplayCheckpoint>(event - EVENT_CHECKPOINT));
         }
     }
 
@@ -151,13 +151,13 @@ bool replay_next_event_is(int event)
 
     while (true) {
         unsigned int data_kind = replay_state.data_kind;
-        if (event == data_kind) {
+        if (static_cast<unsigned int>(event) == data_kind) {
             res = true;
         }
         switch (data_kind) {
         case EVENT_SHUTDOWN ... EVENT_SHUTDOWN_LAST:
             replay_finish_event();
-            qemu_system_shutdown_request(data_kind - EVENT_SHUTDOWN);
+            qemu_system_shutdown_request(static_cast<ShutdownCause>(data_kind - EVENT_SHUTDOWN));
             break;
         default:
             /* clock, time_t, checkpoint and other events */
@@ -178,7 +178,7 @@ int replay_get_instructions(void)
     g_assert(replay_mutex_locked());
     if (replay_next_event_is(EVENT_INSTRUCTION)) {
         res = replay_state.instruction_count;
-        if (replay_break_icount != -1LL) {
+        if (replay_break_icount != static_cast<uint64_t>(-1LL)) {
             uint64_t current = replay_get_current_icount();
             assert(replay_break_icount >= current);
             if (current + res > replay_break_icount) {
@@ -331,10 +331,10 @@ bool replay_has_event(void)
 
 G_NORETURN void replay_sync_error(const char *error)
 {
-    error_report("%s (insn total %"PRId64"/%d left, event %d is %s)", error,
+    error_report("%s (insn total %" PRId64 "/%d left, event %d is %s)", error,
                  replay_state.current_icount, replay_state.instruction_count,
                  replay_state.current_event,
-                 replay_event_name(replay_state.data_kind));
+                 replay_event_name(static_cast<ReplayEvents>(replay_state.data_kind)));
     abort();
 }
 
@@ -364,7 +364,7 @@ static void replay_enable(const char *fname, int mode)
     }
 
     replay_filename = g_strdup(fname);
-    replay_mode = mode;
+    replay_mode = static_cast<ReplayMode>(mode);
     replay_mutex_init();
 
     replay_state.data_kind = -1;
@@ -440,7 +440,7 @@ void replay_start(void)
     }
 
     if (replay_blockers) {
-        error_reportf_err(replay_blockers->data, "Record/replay: ");
+        error_reportf_err(static_cast<Error *>(replay_blockers->data), "Record/replay: ");
         exit(1);
     }
     if (!icount_enabled()) {

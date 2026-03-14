@@ -78,7 +78,7 @@ static void do_dealloc_guestfd(GuestFD *gf)
  */
 static GuestFD *do_get_guestfd(int guestfd)
 {
-    if (guestfd < 0 || guestfd >= guestfd_array->len) {
+    if (guestfd < 0 || static_cast<guint>(guestfd) >= guestfd_array->len) {
         return NULL;
     }
 

@@ -43,8 +43,9 @@ void replay_register_char_driver(Chardev *chr)
     if (replay_mode == REPLAY_MODE_NONE) {
         return;
     }
-    char_drivers = g_realloc(char_drivers,
-                             sizeof(*char_drivers) * (drivers_count + 1));
+    char_drivers = static_cast<Chardev **>(
+        g_realloc(char_drivers,
+                  sizeof(*char_drivers) * (drivers_count + 1)));
     char_drivers[drivers_count++] = chr;
 }
 
@@ -57,7 +58,7 @@ void replay_chr_be_write(Chardev *s, const uint8_t *buf, int len)
         fprintf(stderr, "Replay: cannot find char driver\n");
         exit(1);
     }
-    event->buf = g_malloc(len);
+    event->buf = static_cast<uint8_t *>(g_malloc(len));
     memcpy(event->buf, buf, len);
     event->len = len;
 

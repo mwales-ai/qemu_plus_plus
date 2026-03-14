@@ -4,6 +4,9 @@
 #include "qemu/bitmap.h"
 #include "qapi/qapi-types-machine.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct CPUArchId;
 
 #define MAX_NODES 128
@@ -109,5 +112,9 @@ extern QemuOptsList qemu_numa_opts;
 void numa_cpu_pre_plug(const struct CPUArchId *slot, DeviceState *dev,
                        Error **errp);
 bool numa_uses_legacy_mem(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

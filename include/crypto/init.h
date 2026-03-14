@@ -23,6 +23,13 @@
 
 #include "qapi/error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 int qcrypto_init(Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QCRYPTO_INIT_H */

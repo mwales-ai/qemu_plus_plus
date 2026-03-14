@@ -25,6 +25,9 @@
 #include "exec/memattrs.h"
 #include "exec/vaddr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #if defined(CONFIG_TCG) && !defined(CONFIG_USER_ONLY)
 void tlb_protect_code(ram_addr_t ram_addr);
 void tlb_unprotect_code(ram_addr_t ram_addr);
@@ -283,4 +286,8 @@ static inline void tlb_flush_range_by_mmuidx_all_cpus_synced(CPUState *cpu,
 {
 }
 #endif /* CONFIG_TCG && !CONFIG_USER_ONLY */
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* CPUTLB_H */

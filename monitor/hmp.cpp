@@ -41,7 +41,7 @@
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque)
 {
-    MonitorHMP *mon = opaque;
+    MonitorHMP *mon = static_cast<MonitorHMP *>(opaque);
 
     monitor_suspend(&mon->common);
     handle_hmp_command(mon, cmdline);
@@ -240,7 +240,7 @@ static void help_cmd_dump(Monitor *mon, const HMPCommand *cmds,
                           char **args, int nb_args, int arg_index)
 {
     const HMPCommand *cmd;
-    size_t i;
+    int i;
 
     /* No valid arg need to compare with, dump all in *cmds */
     if (arg_index >= nb_args) {
@@ -311,8 +311,8 @@ void hmp_help_cmd(Monitor *mon, const char *name)
 static const char *pch;
 static sigjmp_buf expr_env;
 
-static G_NORETURN G_GNUC_PRINTF(2, 3)
-void expr_error(Monitor *mon, const char *fmt, ...)
+G_GNUC_PRINTF(2, 3)
+[[noreturn]] static void expr_error(Monitor *mon, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -384,7 +384,7 @@ static int64_t expr_unary(Monitor *mon)
                    (*pch >= 'A' && *pch <= 'Z') ||
                    (*pch >= '0' && *pch <= '9') ||
                    *pch == '_' || *pch == '.') {
-                if ((q - buf) < sizeof(buf) - 1) {
+                if ((q - buf) < static_cast<long>(sizeof(buf) - 1)) {
                     *q++ = *pch;
                 }
                 pch++;
@@ -594,7 +594,7 @@ static const char *key_get_info(const char *type, char **key)
     }
     len = p - type;
 
-    str = g_malloc(len + 1);
+    str = static_cast<char *>(g_malloc(len + 1));
     memcpy(str, type, len);
     str[len] = '\0';
 
@@ -1117,13 +1117,13 @@ typedef struct HandleHmpCommandCo {
 
 static void handle_hmp_command_co(void *opaque)
 {
-    HandleHmpCommandCo *data = opaque;
+    HandleHmpCommandCo *data = static_cast<HandleHmpCommandCo *>(opaque);
     handle_hmp_command_exec(data->mon, data->cmd, data->qdict);
     monitor_set_cur(qemu_coroutine_self(), NULL);
     data->done = true;
 }
 
-void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
+extern "C" void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 {
     QDict *qdict;
     const HMPCommand *cmd;
@@ -1178,7 +1178,7 @@ static void cmd_completion(MonitorHMP *mon, const char *name, const char *list)
 {
     const char *p, *pstart;
     char cmd[128];
-    int len;
+    size_t len;
 
     p = list;
     for (;;) {
@@ -1204,7 +1204,7 @@ static void file_completion(MonitorHMP *mon, const char *input)
     struct dirent *d;
     char path[1024];
     char file[1024], file_prefix[1024];
-    int input_path_len;
+    size_t input_path_len;
     const char *p;
 
     p = strrchr(input, '/');
@@ -1353,7 +1353,7 @@ static void monitor_find_completion_by_table(MonitorHMP *mon,
 static void monitor_find_completion(void *opaque,
                                     const char *cmdline)
 {
-    MonitorHMP *mon = opaque;
+    MonitorHMP *mon = static_cast<MonitorHMP *>(opaque);
     char *args[MAX_ARGS];
     int nb_args, len;
 
@@ -1383,7 +1383,7 @@ cleanup:
 
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
-    MonitorHMP *mon = container_of(opaque, MonitorHMP, common);
+    MonitorHMP *mon = container_of(static_cast<Monitor *>(opaque), MonitorHMP, common);
     int i;
 
     if (mon->rs) {
@@ -1401,7 +1401,7 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
 
 static void monitor_event(void *opaque, QEMUChrEvent event)
 {
-    Monitor *mon = opaque;
+    Monitor *mon = static_cast<Monitor *>(opaque);
 
     switch (event) {
     case CHR_EVENT_MUX_IN:
@@ -1458,7 +1458,7 @@ static void monitor_event(void *opaque, QEMUChrEvent event)
 static void G_GNUC_PRINTF(2, 3) monitor_readline_printf(void *opaque,
                                                        const char *fmt, ...)
 {
-    MonitorHMP *mon = opaque;
+    MonitorHMP *mon = static_cast<MonitorHMP *>(opaque);
     va_list ap;
     va_start(ap, fmt);
     monitor_vprintf(&mon->common, fmt, ap);
@@ -1467,7 +1467,7 @@ static void G_GNUC_PRINTF(2, 3) monitor_readline_printf(void *opaque,
 
 static void monitor_readline_flush(void *opaque)
 {
-    MonitorHMP *mon = opaque;
+    MonitorHMP *mon = static_cast<MonitorHMP *>(opaque);
     monitor_flush(&mon->common);
 }
 

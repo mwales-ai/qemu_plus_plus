@@ -156,7 +156,7 @@ static void alsa_poll_handler (void *opaque)
 {
     int err, count;
     snd_pcm_state_t state;
-    struct pollhlp *hlp = opaque;
+    struct pollhlp *hlp = static_cast<struct pollhlp *>(opaque);
     unsigned short revents;
 
     count = poll (hlp->pfds, hlp->count, 0);
@@ -552,7 +552,7 @@ static int alsa_open(bool in, struct alsa_params_req *req,
     }
 
     if (!in && aopts->has_threshold && aopts->threshold) {
-        struct audsettings as = { .freq = freq };
+        struct audsettings as = { .freq = static_cast<int>(freq) };
         alsa_set_threshold(
             handle,
             audio_buffer_frames(qapi_AudiodevAlsaPerDirectionOptions_base(apdo),
@@ -621,7 +621,7 @@ static size_t alsa_write(HWVoiceOut *hw, void *buf, size_t len)
     size_t len_frames = len / hw->info.bytes_per_frame;
 
     while (len_frames) {
-        char *src = advance(buf, pos);
+        char *src = static_cast<char *>(advance(buf, pos));
         snd_pcm_sframes_t written;
 
         written = snd_pcm_writei(alsa->handle, src, len_frames);
@@ -665,7 +665,7 @@ static size_t alsa_write(HWVoiceOut *hw, void *buf, size_t len)
         }
 
         pos += written * hw->info.bytes_per_frame;
-        if (written < len_frames) {
+        if (static_cast<size_t>(written) < len_frames) {
             break;
         }
         len_frames -= written;
@@ -690,7 +690,7 @@ static int alsa_init_out(HWVoiceOut *hw, struct audsettings *as,
     struct alsa_params_obt obt;
     snd_pcm_t *handle;
     struct audsettings obt_as;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = static_cast<Audiodev *>(drv_opaque);
 
     req.fmt = aud_to_alsafmt (as->fmt, as->endianness);
     req.freq = as->freq;
@@ -777,7 +777,7 @@ static int alsa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     struct alsa_params_obt obt;
     snd_pcm_t *handle;
     struct audsettings obt_as;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = static_cast<Audiodev *>(drv_opaque);
 
     req.fmt = aud_to_alsafmt (as->fmt, as->endianness);
     req.freq = as->freq;
@@ -923,8 +923,8 @@ static struct audio_pcm_ops alsa_pcm_ops = {
     .init_out = alsa_init_out,
     .fini_out = alsa_fini_out,
     .write    = alsa_write,
-    .buffer_get_free = alsa_buffer_get_free,
     .run_buffer_out = audio_generic_run_buffer_out,
+    .buffer_get_free = alsa_buffer_get_free,
     .enable_out = alsa_enable_out,
 
     .init_in  = alsa_init_in,

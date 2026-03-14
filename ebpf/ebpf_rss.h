@@ -16,6 +16,9 @@
 
 #include "qapi/error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define EBPF_RSS_MAX_FDS 4
 
 struct EBPFRSSContext {
@@ -54,5 +57,9 @@ bool ebpf_rss_set_all(struct EBPFRSSContext *ctx, struct EBPFRSSConfig *config,
                       Error **errp);
 
 void ebpf_rss_unload(struct EBPFRSSContext *ctx);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_EBPF_RSS_H */

@@ -8,6 +8,10 @@
 #ifndef QEMU_MEMALIGN_H
 #define QEMU_MEMALIGN_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * qemu_try_memalign: Allocate aligned memory
  * @alignment: required alignment, in bytes
@@ -57,5 +61,9 @@ static inline void qemu_cleanup_generic_vfree(void *p)
  * Analog of g_autofree, but qemu_vfree is called on cleanup instead of g_free.
  */
 #define QEMU_AUTO_VFREE __attribute__((cleanup(qemu_cleanup_generic_vfree)))
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

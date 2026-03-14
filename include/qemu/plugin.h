@@ -17,10 +17,9 @@
 #include "exec/memopidx.h"
 #include "hw/core/cpu.h"
 
-/*
- * Option parsing/processing.
- * Note that we can load an arbitrary number of plugins.
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct qemu_plugin_desc;
 typedef QTAILQ_HEAD(, qemu_plugin_desc) QemuPluginList;
 
@@ -310,5 +309,9 @@ static inline void qemu_plugin_user_postfork(bool is_child)
 { }
 
 #endif /* !CONFIG_PLUGIN */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_PLUGIN_H */

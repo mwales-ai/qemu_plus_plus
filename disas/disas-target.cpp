@@ -13,7 +13,7 @@
 static int translator_read_memory(bfd_vma memaddr, bfd_byte *myaddr,
                                   int length, struct disassemble_info *info)
 {
-    const DisasContextBase *db = info->application_data;
+    const DisasContextBase *db = static_cast<const DisasContextBase *>(info->application_data);
     return translator_st(db, myaddr, memaddr, length) ? 0 : EIO;
 }
 
@@ -49,7 +49,7 @@ void target_disas(FILE *out, CPUState *cpu, const struct DisasContextBase *db)
         if (count < 0) {
             break;
         }
-        if (size < count) {
+        if (size < static_cast<size_t>(count)) {
             fprintf(out,
                     "Disassembler disagrees with translator over instruction "
                     "decoding\n"

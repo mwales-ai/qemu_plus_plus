@@ -29,6 +29,9 @@
 #include "qemu/option.h"
 #include "qemu/error-report.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct QemuOpt {
     char *name;
     char *str;
@@ -50,5 +53,9 @@ struct QemuOpts {
     QTAILQ_HEAD(, QemuOpt) head;
     QTAILQ_ENTRY(QemuOpts) next;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

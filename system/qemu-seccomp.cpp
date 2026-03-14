@@ -364,7 +364,7 @@ static int seccomp_start(uint32_t seccomp_opts, Error **errp)
     return rc < 0 ? -1 : 0;
 }
 
-int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
+extern "C" int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
 {
     if (qemu_opt_get_bool(opts, "enable", false)) {
         uint32_t seccomp_opts = QEMU_SECCOMP_SET_DEFAULT

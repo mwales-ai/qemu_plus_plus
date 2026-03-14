@@ -17,6 +17,9 @@
 #include "qemu/queue.h"
 #include "exec/cpu-common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct GuestPhysBlock {
     /* visible to guest, reflects PCI hole, etc */
     hwaddr target_start;
@@ -81,5 +84,9 @@ void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list,
 
 void memory_mapping_filter(MemoryMappingList *list, int64_t begin,
                            int64_t length);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

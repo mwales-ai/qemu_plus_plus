@@ -346,7 +346,7 @@ static void readline_flush_func(void *opaque)
 
 static void readline_func(void *opaque, const char *str, void *readline_opaque)
 {
-    char **line = readline_opaque;
+    char **line = static_cast<char **>(readline_opaque);
     *line = g_strdup(str);
 }
 
@@ -380,7 +380,7 @@ static char *fetchline_readline(void)
 #define MAXREADLINESZ 1024
 static char *fetchline_fgets(void)
 {
-    char *p, *line = g_malloc(MAXREADLINESZ);
+    char *p, *line = static_cast<char *>(g_malloc(MAXREADLINESZ));
 
     if (!fgets(line, MAXREADLINESZ, stdin)) {
         g_free(line);
@@ -406,7 +406,7 @@ static char *fetchline(void)
 
 static void prep_fetchline(void *opaque)
 {
-    int *fetchable = opaque;
+    int *fetchable = static_cast<int *>(opaque);
 
     qemu_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL);
     *fetchable= 1;

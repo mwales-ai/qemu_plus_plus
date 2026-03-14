@@ -76,7 +76,7 @@ void accel_pre_resume(MachineState *ms, bool step_pending)
 }
 
 /* initialize the arch-independent accel operation interfaces */
-void accel_init_ops_interfaces(AccelClass *ac)
+extern "C" void accel_init_ops_interfaces(AccelClass *ac)
 {
     const char *ac_name;
     char *ops_name;

@@ -20,6 +20,10 @@
 #ifndef SEMIHOST_H
 #define SEMIHOST_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum SemihostingTarget {
     SEMIHOSTING_TARGET_AUTO = 0,
     SEMIHOSTING_TARGET_NATIVE,
@@ -48,5 +52,9 @@ int qemu_semihosting_config_options(const char *optstr);
 void qemu_semihosting_chardev_init(void);
 void qemu_semihosting_console_init(Chardev *);
 void qemu_semihosting_guestfd_init(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SEMIHOST_H */

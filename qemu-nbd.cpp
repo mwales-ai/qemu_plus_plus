@@ -97,7 +97,7 @@ static void usage(const char *name)
 "  -p, --port=PORT           port to listen on (default `%d')\n"
 "  -b, --bind=IFACE          interface to bind to (default `0.0.0.0')\n"
 "  -k, --socket=PATH         path to the unix socket\n"
-"                            (default '"SOCKET_PATH"')\n"
+"                            (default '" SOCKET_PATH "')\n"
 "  -e, --shared=NUM          device can be shared by NUM clients (default '1')\n"
 "  -t, --persistent          don't exit on the last connection\n"
 "  -v, --verbose             display extra debugging information\n"
@@ -212,18 +212,19 @@ static int qemu_nbd_client_list(SocketAddress *saddr, QCryptoTLSCreds *tls,
         }
         if (list[i].flags & NBD_FLAG_HAS_FLAGS) {
             static const char *const flag_names[] = {
-                [NBD_FLAG_READ_ONLY_BIT]            = "readonly",
-                [NBD_FLAG_SEND_FLUSH_BIT]           = "flush",
-                [NBD_FLAG_SEND_FUA_BIT]             = "fua",
-                [NBD_FLAG_ROTATIONAL_BIT]           = "rotational",
-                [NBD_FLAG_SEND_TRIM_BIT]            = "trim",
-                [NBD_FLAG_SEND_WRITE_ZEROES_BIT]    = "zeroes",
-                [NBD_FLAG_SEND_DF_BIT]              = "df",
-                [NBD_FLAG_CAN_MULTI_CONN_BIT]       = "multi",
-                [NBD_FLAG_SEND_RESIZE_BIT]          = "resize",
-                [NBD_FLAG_SEND_CACHE_BIT]           = "cache",
-                [NBD_FLAG_SEND_FAST_ZERO_BIT]       = "fast-zero",
-                [NBD_FLAG_BLOCK_STAT_PAYLOAD_BIT]   = "block-status-payload",
+                /* [0]  */ NULL,
+                /* [1]  NBD_FLAG_READ_ONLY_BIT */            "readonly",
+                /* [2]  NBD_FLAG_SEND_FLUSH_BIT */           "flush",
+                /* [3]  NBD_FLAG_SEND_FUA_BIT */             "fua",
+                /* [4]  NBD_FLAG_ROTATIONAL_BIT */           "rotational",
+                /* [5]  NBD_FLAG_SEND_TRIM_BIT */            "trim",
+                /* [6]  NBD_FLAG_SEND_WRITE_ZEROES_BIT */    "zeroes",
+                /* [7]  NBD_FLAG_SEND_DF_BIT */              "df",
+                /* [8]  NBD_FLAG_CAN_MULTI_CONN_BIT */       "multi",
+                /* [9]  NBD_FLAG_SEND_RESIZE_BIT */          "resize",
+                /* [10] NBD_FLAG_SEND_CACHE_BIT */           "cache",
+                /* [11] NBD_FLAG_SEND_FAST_ZERO_BIT */       "fast-zero",
+                /* [12] NBD_FLAG_BLOCK_STAT_PAYLOAD_BIT */   "block-status-payload",
             };
 
             printf("  size:  %" PRIu64 "\n", list[i].size);
@@ -285,7 +286,7 @@ static void nbd_client_release_pipe(int old_stderr)
 #if HAVE_NBD_DEVICE
 static void *show_parts(void *arg)
 {
-    char *device = arg;
+    char *device = static_cast<char *>(arg);
     int nbd;
 
     /* linux just needs an open() to trigger
@@ -302,7 +303,7 @@ static void *show_parts(void *arg)
 
 static void *nbd_client_thread(void *arg)
 {
-    struct NbdClientOpts *opts = arg;
+    struct NbdClientOpts *opts = static_cast<struct NbdClientOpts *>(arg);
     /* TODO: Revisit this if nbd.ko ever gains support for structured reply */
     NBDExportInfo info = { .request_sizes = false, .name = g_strdup(""),
                            .mode = NBD_MODE_SIMPLE };
@@ -611,12 +612,12 @@ int main(int argc, char **argv)
     const char *selinux_label = NULL;
     BlockExportOptions *export_opts;
     struct NbdClientOpts opts = {
-        .fork_process = false,
-        .verbose = false,
         .device = NULL,
         .srcpath = NULL,
         .saddr = NULL,
         .old_stderr = STDOUT_FILENO,
+        .fork_process = false,
+        .verbose = false,
     };
 
 #ifdef CONFIG_POSIX
@@ -676,10 +677,11 @@ int main(int argc, char **argv)
             break;
         case QEMU_NBD_OPT_DETECT_ZEROES:
             detect_zeroes =
+                static_cast<BlockdevDetectZeroesOptions>(
                 qapi_enum_parse(&BlockdevDetectZeroesOptions_lookup,
                                 optarg,
                                 BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
-                                &local_err);
+                                &local_err));
             if (local_err) {
                 error_reportf_err(local_err,
                                   "Failed to parse detect_zeroes mode: ");
@@ -727,10 +729,9 @@ int main(int argc, char **argv)
         case 'B':
             {
                 BlockDirtyBitmapOrStr *el = g_new(BlockDirtyBitmapOrStr, 1);
-                *el = (BlockDirtyBitmapOrStr) {
-                    .type = QTYPE_QSTRING,
-                    .u.local = g_strdup(optarg),
-                };
+                memset(el, 0, sizeof(*el));
+                el->type = QTYPE_QSTRING;
+                el->u.local = g_strdup(optarg);
                 QAPI_LIST_PREPEND(bitmaps, el);
             }
             break;
@@ -1016,7 +1017,7 @@ int main(int argc, char **argv)
              * it closes the pipe.
              */
             close(stderr_fd[1]);
-            buf = g_malloc(1024);
+            buf = static_cast<char *>(g_malloc(1024));
             while ((ret = read(stderr_fd[0], buf, 1024)) > 0) {
                 errors = true;
                 ret = qemu_write_full(STDERR_FILENO, buf, ret);
@@ -1054,7 +1055,7 @@ int main(int argc, char **argv)
     trace_init_file();
 
     if (opts.device != NULL && sockpath == NULL) {
-        sockpath = g_malloc(128);
+        sockpath = static_cast<char *>(g_malloc(128));
         snprintf(sockpath, 128, SOCKET_PATH, basename(opts.device));
     }
 
@@ -1174,23 +1175,20 @@ int main(int argc, char **argv)
     nbd_server_is_qemu_nbd(shared);
 
     export_opts = g_new(BlockExportOptions, 1);
-    *export_opts = (BlockExportOptions) {
-        .type               = BLOCK_EXPORT_TYPE_NBD,
-        .id                 = g_strdup("qemu-nbd-export"),
-        .node_name          = g_strdup(bdrv_get_node_name(bs)),
-        .has_writethrough   = true,
-        .writethrough       = writethrough,
-        .has_writable       = true,
-        .writable           = !readonly,
-        .u.nbd = {
-            .name                 = g_strdup(export_name),
-            .description          = g_strdup(export_description),
-            .has_bitmaps          = !!bitmaps,
-            .bitmaps              = bitmaps,
-            .has_allocation_depth = alloc_depth,
-            .allocation_depth     = alloc_depth,
-        },
-    };
+    memset(export_opts, 0, sizeof(*export_opts));
+    export_opts->type               = BLOCK_EXPORT_TYPE_NBD;
+    export_opts->id                 = g_strdup("qemu-nbd-export");
+    export_opts->node_name          = g_strdup(bdrv_get_node_name(bs));
+    export_opts->has_writethrough   = true;
+    export_opts->writethrough       = writethrough;
+    export_opts->has_writable       = true;
+    export_opts->writable           = !readonly;
+    export_opts->u.nbd.name                 = g_strdup(export_name);
+    export_opts->u.nbd.description          = g_strdup(export_description);
+    export_opts->u.nbd.has_bitmaps          = !!bitmaps;
+    export_opts->u.nbd.bitmaps              = bitmaps;
+    export_opts->u.nbd.has_allocation_depth = alloc_depth;
+    export_opts->u.nbd.allocation_depth     = alloc_depth;
     blk_exp_add(export_opts, &error_fatal);
     qapi_free_BlockExportOptions(export_opts);
 

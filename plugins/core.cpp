@@ -19,9 +19,35 @@
 #include "qemu/queue.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/rcu.h"
+
+extern "C" {
 #include "exec/tb-flush.h"
-#include "tcg/tcg-op-common.h"
+}
+
+/*
+ * Include TCG helper info without pulling in full tcg.h (which has
+ * poisoned macros that block compilation in system builds).
+ */
+#include "tcg/helper-info.h"
+#include "exec/helper-head.h.inc"
+
+/* TCG call flags - duplicated from tcg/tcg.h to avoid poisoned macros */
+#ifndef TCG_CALL_NO_READ_GLOBALS
+#define TCG_CALL_NO_READ_GLOBALS    0x0001
+#endif
+#ifndef TCG_CALL_NO_WRITE_GLOBALS
+#define TCG_CALL_NO_WRITE_GLOBALS   0x0002
+#endif
+#ifndef TCG_CALL_NO_RWG
+#define TCG_CALL_NO_RWG         TCG_CALL_NO_READ_GLOBALS
+#endif
+#ifndef TCG_CALL_NO_WG
+#define TCG_CALL_NO_WG          TCG_CALL_NO_WRITE_GLOBALS
+#endif
+
 #include "plugin.h"
+
+#include <type_traits>
 
 struct qemu_plugin_cb {
     struct qemu_plugin_ctx *ctx;
@@ -37,7 +63,7 @@ struct qemu_plugin_ctx *plugin_id_to_ctx_locked(qemu_plugin_id_t id)
     struct qemu_plugin_ctx *ctx;
     qemu_plugin_id_t *id_p;
 
-    id_p = g_hash_table_lookup(plugin.id_ht, &id);
+    id_p = static_cast<qemu_plugin_id_t *>(g_hash_table_lookup(plugin.id_ht, &id));
     ctx = container_of(id_p, struct qemu_plugin_ctx, id);
     if (ctx == NULL) {
         error_report("plugin: invalid plugin id %" PRIu64, id);
@@ -55,7 +81,7 @@ static void plugin_cpu_update__async(CPUState *cpu, run_on_cpu_data data)
 
 static void plugin_cpu_update__locked(gpointer k, gpointer v, gpointer udata)
 {
-    CPUState *cpu = container_of(k, CPUState, cpu_index);
+    CPUState *cpu = container_of(static_cast<const int *>(k), CPUState, cpu_index);
     run_on_cpu_data mask = RUN_ON_CPU_HOST_ULONG(*plugin.mask);
 
     async_run_on_cpu(cpu, plugin_cpu_update__async, mask);
@@ -236,11 +262,11 @@ static void plugin_grow_scoreboards__locked(CPUState *cpu)
     size_t scoreboard_size = plugin.scoreboard_alloc_size;
     bool need_realloc = false;
 
-    if (cpu->cpu_index < scoreboard_size) {
+    if ((size_t)cpu->cpu_index < scoreboard_size) {
         return;
     }
 
-    while (cpu->cpu_index >= scoreboard_size) {
+    while ((size_t)cpu->cpu_index >= scoreboard_size) {
         scoreboard_size *= 2;
         need_realloc = true;
     }
@@ -326,8 +352,8 @@ struct plugin_for_each_args {
 
 static void plugin_vcpu_for_each(gpointer k, gpointer v, gpointer udata)
 {
-    struct plugin_for_each_args *args = udata;
-    int cpu_index = *(int *)k;
+    struct plugin_for_each_args *args = static_cast<struct plugin_for_each_args *>(udata);
+    int cpu_index = *static_cast<int *>(k);
 
     args->cb(args->ctx->id, cpu_index);
 }
@@ -382,9 +408,10 @@ void plugin_register_inline_op_on_entry(GArray **arr,
 {
     struct qemu_plugin_dyn_cb *dyn_cb;
 
-    struct qemu_plugin_inline_cb inline_cb = { .rw = rw,
-                                               .entry = entry,
-                                               .imm = imm };
+    /* qemu_plugin_inline_cb fields: entry, imm, rw */
+    struct qemu_plugin_inline_cb inline_cb = { .entry = entry,
+                                               .imm = imm,
+                                               .rw = rw };
     dyn_cb = plugin_get_dyn_cb(arr);
     dyn_cb->type = op_to_cb_type(op);
     dyn_cb->inline_insn = inline_cb;
@@ -395,24 +422,30 @@ void plugin_register_dyn_cb__udata(GArray **arr,
                                    enum qemu_plugin_cb_flags flags,
                                    void *udata)
 {
-    static TCGHelperInfo info[3] = {
-        [QEMU_PLUGIN_CB_NO_REGS].flags = TCG_CALL_NO_RWG,
-        [QEMU_PLUGIN_CB_R_REGS].flags = TCG_CALL_NO_WG,
-        [QEMU_PLUGIN_CB_RW_REGS].flags = 0,
-        /*
-         * Match qemu_plugin_vcpu_udata_cb_t:
-         *   void (*)(uint32_t, void *)
-         */
-        [0 ... 2].typemask = (dh_typemask(void, 0) |
-                              dh_typemask(i32, 1) |
-                              dh_typemask(ptr, 2))
-    };
+    /*
+     * Match qemu_plugin_vcpu_udata_cb_t:
+     *   void (*)(uint32_t, void *)
+     */
+    static const unsigned common_typemask =
+        (dh_typemask(void, 0) | dh_typemask(i32, 1) | dh_typemask(ptr, 2));
+    static TCGHelperInfo info[3] = {};
+    static bool info_init = false;
+    if (!info_init) {
+        info[QEMU_PLUGIN_CB_NO_REGS].flags = TCG_CALL_NO_RWG;
+        info[QEMU_PLUGIN_CB_R_REGS].flags = TCG_CALL_NO_WG;
+        info[QEMU_PLUGIN_CB_RW_REGS].flags = 0;
+        info[0].typemask = common_typemask;
+        info[1].typemask = common_typemask;
+        info[2].typemask = common_typemask;
+        info_init = true;
+    }
     assert((unsigned)flags < ARRAY_SIZE(info));
 
     struct qemu_plugin_dyn_cb *dyn_cb = plugin_get_dyn_cb(arr);
-    struct qemu_plugin_regular_cb regular_cb = { .f.vcpu_udata = cb,
-                                                 .userp = udata,
-                                                 .info = &info[flags] };
+    struct qemu_plugin_regular_cb regular_cb = {};
+    regular_cb.f.vcpu_udata = cb;
+    regular_cb.userp = udata;
+    regular_cb.info = &info[flags];
     dyn_cb->type = PLUGIN_CB_REGULAR;
     dyn_cb->regular = regular_cb;
 }
@@ -425,27 +458,34 @@ void plugin_register_dyn_cond_cb__udata(GArray **arr,
                                         uint64_t imm,
                                         void *udata)
 {
-    static TCGHelperInfo info[3] = {
-        [QEMU_PLUGIN_CB_NO_REGS].flags = TCG_CALL_NO_RWG,
-        [QEMU_PLUGIN_CB_R_REGS].flags = TCG_CALL_NO_WG,
-        [QEMU_PLUGIN_CB_RW_REGS].flags = 0,
-        /*
-         * Match qemu_plugin_vcpu_udata_cb_t:
-         *   void (*)(uint32_t, void *)
-         */
-        [0 ... 2].typemask = (dh_typemask(void, 0) |
-                              dh_typemask(i32, 1) |
-                              dh_typemask(ptr, 2))
-    };
+    /*
+     * Match qemu_plugin_vcpu_udata_cb_t:
+     *   void (*)(uint32_t, void *)
+     */
+    static const unsigned common_typemask2 =
+        (dh_typemask(void, 0) | dh_typemask(i32, 1) | dh_typemask(ptr, 2));
+    static TCGHelperInfo info[3] = {};
+    static bool info_init = false;
+    if (!info_init) {
+        info[QEMU_PLUGIN_CB_NO_REGS].flags = TCG_CALL_NO_RWG;
+        info[QEMU_PLUGIN_CB_R_REGS].flags = TCG_CALL_NO_WG;
+        info[QEMU_PLUGIN_CB_RW_REGS].flags = 0;
+        info[0].typemask = common_typemask2;
+        info[1].typemask = common_typemask2;
+        info[2].typemask = common_typemask2;
+        info_init = true;
+    }
     assert((unsigned)flags < ARRAY_SIZE(info));
 
     struct qemu_plugin_dyn_cb *dyn_cb = plugin_get_dyn_cb(arr);
-    struct qemu_plugin_conditional_cb cond_cb = { .userp = udata,
-                                                  .f.vcpu_udata = cb,
-                                                  .cond = cond,
-                                                  .entry = entry,
-                                                  .imm = imm,
-                                                  .info = &info[flags] };
+    /* qemu_plugin_conditional_cb fields: f, info, userp, entry, cond, imm */
+    struct qemu_plugin_conditional_cb cond_cb = {};
+    cond_cb.f.vcpu_udata = cb;
+    cond_cb.info = &info[flags];
+    cond_cb.userp = udata;
+    cond_cb.entry = entry;
+    cond_cb.cond = cond;
+    cond_cb.imm = imm;
     dyn_cb->type = PLUGIN_CB_COND;
     dyn_cb->cond = cond_cb;
 }
@@ -457,36 +497,45 @@ void plugin_register_vcpu_mem_cb(GArray **arr,
                                  void *udata)
 {
     /*
-     * Expect that the underlying type for enum qemu_plugin_meminfo_t
+     * Expect that the underlying type for qemu_plugin_meminfo_t
      * is either int32_t or uint32_t, aka int or unsigned int.
+     * In C++ we use std::is_same instead of __builtin_types_compatible_p.
      */
-    QEMU_BUILD_BUG_ON(
-        !__builtin_types_compatible_p(qemu_plugin_meminfo_t, uint32_t) &&
-        !__builtin_types_compatible_p(qemu_plugin_meminfo_t, int32_t));
+    static_assert(std::is_same<qemu_plugin_meminfo_t, uint32_t>::value ||
+                  std::is_same<qemu_plugin_meminfo_t, int32_t>::value,
+                  "qemu_plugin_meminfo_t must be int32_t or uint32_t");
 
-    static TCGHelperInfo info[3] = {
-        [QEMU_PLUGIN_CB_NO_REGS].flags = TCG_CALL_NO_RWG,
-        [QEMU_PLUGIN_CB_R_REGS].flags = TCG_CALL_NO_WG,
-        [QEMU_PLUGIN_CB_RW_REGS].flags = 0,
-        /*
-         * Match qemu_plugin_vcpu_mem_cb_t:
-         *   void (*)(uint32_t, qemu_plugin_meminfo_t, uint64_t, void *)
-         */
-        [0 ... 2].typemask =
-            (dh_typemask(void, 0) |
-             dh_typemask(i32, 1) |
-             (__builtin_types_compatible_p(qemu_plugin_meminfo_t, uint32_t)
-              ? dh_typemask(i32, 2) : dh_typemask(s32, 2)) |
-             dh_typemask(i64, 3) |
-             dh_typemask(ptr, 4))
-    };
+    /*
+     * Match qemu_plugin_vcpu_mem_cb_t:
+     *   void (*)(uint32_t, qemu_plugin_meminfo_t, uint64_t, void *)
+     */
+    static const unsigned mem_typemask =
+        (dh_typemask(void, 0) |
+         dh_typemask(i32, 1) |
+         (std::is_same<qemu_plugin_meminfo_t, uint32_t>::value
+          ? dh_typemask(i32, 2) : dh_typemask(s32, 2)) |
+         dh_typemask(i64, 3) |
+         dh_typemask(ptr, 4));
+    static TCGHelperInfo info[3] = {};
+    static bool info_init = false;
+    if (!info_init) {
+        info[QEMU_PLUGIN_CB_NO_REGS].flags = TCG_CALL_NO_RWG;
+        info[QEMU_PLUGIN_CB_R_REGS].flags = TCG_CALL_NO_WG;
+        info[QEMU_PLUGIN_CB_RW_REGS].flags = 0;
+        info[0].typemask = mem_typemask;
+        info[1].typemask = mem_typemask;
+        info[2].typemask = mem_typemask;
+        info_init = true;
+    }
     assert((unsigned)flags < ARRAY_SIZE(info));
 
     struct qemu_plugin_dyn_cb *dyn_cb = plugin_get_dyn_cb(arr);
-    struct qemu_plugin_regular_cb regular_cb = { .userp = udata,
-                                                 .rw = rw,
-                                                 .f.vcpu_mem = cb,
-                                                 .info = &info[flags] };
+    /* qemu_plugin_regular_cb fields: f, info, userp, rw */
+    struct qemu_plugin_regular_cb regular_cb = {};
+    regular_cb.f.vcpu_mem = reinterpret_cast<qemu_plugin_vcpu_mem_cb_t>(cb);
+    regular_cb.info = &info[flags];
+    regular_cb.userp = udata;
+    regular_cb.rw = rw;
     dyn_cb->type = PLUGIN_CB_MEM_REGULAR;
     dyn_cb->regular = regular_cb;
 }
@@ -604,13 +653,15 @@ void qemu_plugin_vcpu_hostcall_cb(CPUState *cpu, uint64_t from)
 void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
                                        qemu_plugin_vcpu_simple_cb_t cb)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_IDLE, cb);
+    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_IDLE,
+                       reinterpret_cast<void *>(cb));
 }
 
 void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_simple_cb_t cb)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_RESUME, cb);
+    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_RESUME,
+                       reinterpret_cast<void *>(cb));
 }
 
 void qemu_plugin_register_vcpu_discon_cb(qemu_plugin_id_t id,
@@ -618,20 +669,24 @@ void qemu_plugin_register_vcpu_discon_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_discon_cb_t cb)
 {
     if (type & QEMU_PLUGIN_DISCON_INTERRUPT) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_INTERRUPT, cb);
+        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_INTERRUPT,
+                           reinterpret_cast<void *>(cb));
     }
     if (type & QEMU_PLUGIN_DISCON_EXCEPTION) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXCEPTION, cb);
+        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXCEPTION,
+                           reinterpret_cast<void *>(cb));
     }
     if (type & QEMU_PLUGIN_DISCON_HOSTCALL) {
-        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_HOSTCALL, cb);
+        plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_HOSTCALL,
+                           reinterpret_cast<void *>(cb));
     }
 }
 
 void qemu_plugin_register_flush_cb(qemu_plugin_id_t id,
                                    qemu_plugin_simple_cb_t cb)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_FLUSH, cb);
+    plugin_register_cb(id, QEMU_PLUGIN_EV_FLUSH,
+                       reinterpret_cast<void *>(cb));
 }
 
 static bool free_dyn_cb_arr(void *p, uint32_t h, void *userp)
@@ -723,7 +778,8 @@ void qemu_plugin_register_atexit_cb(qemu_plugin_id_t id,
                                     qemu_plugin_udata_cb_t cb,
                                     void *udata)
 {
-    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_ATEXIT, cb, udata);
+    plugin_register_cb_udata(id, QEMU_PLUGIN_EV_ATEXIT,
+                             reinterpret_cast<void *>(cb), udata);
 }
 
 /*
@@ -736,7 +792,7 @@ void qemu_plugin_register_atexit_cb(qemu_plugin_id_t id,
 
 void qemu_plugin_user_exit(void)
 {
-    enum qemu_plugin_event ev;
+    int ev;
     CPUState *cpu;
 
     /*
@@ -754,7 +810,7 @@ void qemu_plugin_user_exit(void)
             struct qemu_plugin_cb *cb, *next;
 
             QLIST_FOREACH_SAFE_RCU(cb, &plugin.cb_lists[ev], entry, next) {
-                plugin_unregister_cb__locked(cb->ctx, ev);
+                plugin_unregister_cb__locked(cb->ctx, static_cast<enum qemu_plugin_event>(ev));
             }
         }
     }
@@ -820,7 +876,7 @@ int plugin_num_vcpus(void)
 struct qemu_plugin_scoreboard *plugin_scoreboard_new(size_t element_size)
 {
     struct qemu_plugin_scoreboard *score =
-        g_malloc0(sizeof(struct qemu_plugin_scoreboard));
+        static_cast<struct qemu_plugin_scoreboard *>(g_malloc0(sizeof(struct qemu_plugin_scoreboard)));
     score->data = g_array_new(FALSE, TRUE, element_size);
     g_array_set_size(score->data, plugin.scoreboard_alloc_size);
 

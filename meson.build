@@ -3863,7 +3863,7 @@ if get_option('b_lto')
   pagevary = declare_dependency(link_with: pagevary)
 endif
 common_ss.add(pagevary)
-specific_ss.add(files('page-vary-target.cpp'))
+specific_ss.add(files('page-vary-target.c'))
 
 common_ss.add(files('target-info.cpp'))
 system_ss.add(files('target-info-qom.cpp'))
@@ -4327,7 +4327,7 @@ foreach target : target_dirs
   if target in config_target_info
     arch_srcs += config_target_info[target]
   else
-    arch_srcs += files('target-info-stub.cpp')
+    arch_srcs += files('target-info-stub.c')
   endif
 
   t = target_arch[target_base_arch].apply(config_target, strict: false)

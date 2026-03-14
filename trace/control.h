@@ -12,6 +12,9 @@
 
 #include "event-internal.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct TraceEventIter {
     /* iter state */
     size_t event;
@@ -212,5 +215,9 @@ uint32_t trace_get_vcpu_event_count(void);
 
 
 #include "control-internal.h"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TRACE__CONTROL_H */

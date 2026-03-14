@@ -20,6 +20,9 @@
 #include "qemu/bitmap.h"
 #include "qemu/thread-context.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define TYPE_MEMORY_BACKEND "memory-backend"
 OBJECT_DECLARE_TYPE(HostMemoryBackend, HostMemoryBackendClass,
                     MEMORY_BACKEND)
@@ -95,5 +98,9 @@ char *host_memory_backend_get_name(HostMemoryBackend *backend);
 
 long qemu_minrampagesize(void);
 long qemu_maxrampagesize(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

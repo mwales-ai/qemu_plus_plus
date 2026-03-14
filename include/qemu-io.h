@@ -18,6 +18,10 @@
 #ifndef QEMU_IO_H
 #define QEMU_IO_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define CMD_FLAG_GLOBAL ((int)0x80000000) /* don't iterate "args" */
 
@@ -52,5 +56,9 @@ void qemuio_command_usage(const cmdinfo_t *ci);
 void qemuio_complete_command(const char *input,
                              void (*fn)(const char *cmd, void *opaque),
                              void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_IO_H */

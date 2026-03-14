@@ -2,7 +2,7 @@
 
 # client.c
 nbd_send_option_request(uint32_t opt, const char *name, uint32_t len) "Sending option request %" PRIu32" (%s), len %" PRIu32
-nbd_receive_option_reply(uint32_t option, const char *optname, uint32_t type, const char *typename, uint32_t length) "Received option reply %" PRIu32" (%s), type %" PRIu32" (%s), len %" PRIu32
+nbd_receive_option_reply(uint32_t option, const char *optname, uint32_t type, const char *type_name, uint32_t length) "Received option reply %" PRIu32" (%s), type %" PRIu32" (%s), len %" PRIu32
 nbd_server_error_msg(uint32_t err, const char *type, const char *msg) "server reported error 0x%" PRIx32 " (%s) with additional message: %s"
 nbd_reply_err_ignored(uint32_t option, const char *name, uint32_t reply, const char *reply_name) "server failed request %" PRIu32 " (%s) with error 0x%" PRIx32 " (%s), attempting fallback"
 nbd_receive_list(const char *name, const char *desc) "export list includes '%s', description '%s'"
@@ -14,7 +14,7 @@ nbd_receive_query_exports_start(const char *wantname) "Querying export list for 
 nbd_receive_query_exports_success(const char *wantname) "Found desired export name '%s'"
 nbd_receive_starttls_new_client(void) "Setting up TLS"
 nbd_receive_starttls_tls_handshake(void) "Starting TLS handshake"
-nbd_opt_meta_request(const char *optname, const char *context, const char *export) "Requesting %s %s for export %s"
+nbd_opt_meta_request(const char *optname, const char *context, const char *export_name) "Requesting %s %s for export %s"
 nbd_opt_meta_reply(const char *optname, const char *context, uint32_t id) "Received %s mapping of %s to id %" PRIu32
 nbd_start_negotiate(void *tlscreds, const char *hostname) "Receiving negotiation tlscreds=%p hostname=%s"
 nbd_receive_negotiate_magic(uint64_t magic) "Magic is 0x%" PRIx64
@@ -40,7 +40,7 @@ nbd_receive_wrong_header(uint32_t magic, const char *mode) "Server sent unexpect
 nbd_unknown_error(int err) "Squashing unexpected error %d to EINVAL"
 
 # server.c
-nbd_negotiate_send_rep_len(uint32_t opt, const char *optname, uint32_t type, const char *typename, uint32_t len) "Reply opt=%" PRIu32 " (%s), type=%" PRIu32 " (%s), len=%" PRIu32
+nbd_negotiate_send_rep_len(uint32_t opt, const char *optname, uint32_t type, const char *type_name, uint32_t len) "Reply opt=%" PRIu32 " (%s), type=%" PRIu32 " (%s), len=%" PRIu32
 nbd_negotiate_send_rep_err(const char *msg) "sending error message \"%s\""
 nbd_negotiate_send_rep_list(const char *name, const char *desc) "Advertising export name '%s' description '%s'"
 nbd_negotiate_handle_export_name(void) "Checking length"
@@ -51,7 +51,7 @@ nbd_negotiate_handle_info_request(int request, const char *name) "Client request
 nbd_negotiate_handle_info_block_size(uint32_t minimum, uint32_t preferred, uint32_t maximum) "advertising minimum 0x%" PRIx32 ", preferred 0x%" PRIx32 ", maximum 0x%" PRIx32
 nbd_negotiate_handle_starttls(void) "Setting up TLS"
 nbd_negotiate_handle_starttls_handshake(void) "Starting TLS handshake"
-nbd_negotiate_meta_context(const char *optname, const char *export, uint32_t queries) "Client requested %s for export %s, with %" PRIu32 " queries"
+nbd_negotiate_meta_context(const char *optname, const char *export_name, uint32_t queries) "Client requested %s for export %s, with %" PRIu32 " queries"
 nbd_negotiate_meta_query_skip(const char *reason) "Skipping meta query: %s"
 nbd_negotiate_meta_query_parse(const char *query) "Parsed meta query '%s'"
 nbd_negotiate_meta_query_reply(const char *context, uint32_t id) "Replying with meta context '%s' id %" PRIu32

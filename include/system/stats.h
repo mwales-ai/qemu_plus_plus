@@ -10,6 +10,9 @@
 
 #include "qapi/qapi-types-stats.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef void StatRetrieveFunc(StatsResultList **result, StatsTarget target,
                               strList *names, strList *targets, Error **errp);
 typedef void SchemaRetrieveFunc(StatsSchemaList **result, Error **errp);
@@ -41,5 +44,9 @@ void add_stats_schema(StatsSchemaList **, StatsProvider, StatsTarget,
  * return true.
  */
 bool apply_str_list_filter(const char *string, strList *list);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* STATS_H */

@@ -153,11 +153,11 @@ QObject *qmp_qom_get(const char *path, const char *property, Error **errp)
 
 static void qom_list_types_tramp(ObjectClass *klass, void *data)
 {
-    ObjectTypeInfoList **pret = data;
+    ObjectTypeInfoList **pret = static_cast<ObjectTypeInfoList **>(data);
     ObjectTypeInfo *info;
     ObjectClass *parent = object_class_get_parent(klass);
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<ObjectTypeInfo *>(g_malloc0(sizeof(*info)));
     info->name = g_strdup(object_class_get_name(klass));
     info->has_abstract = info->abstract = object_class_is_abstract(klass);
     if (parent) {
@@ -180,7 +180,7 @@ ObjectTypeInfoList *qmp_qom_list_types(const char *implements,
     return ret;
 }
 
-ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
+ObjectPropertyInfoList *qmp_device_list_properties(const char *type_name,
                                                 Error **errp)
 {
     ObjectClass *klass;
@@ -189,10 +189,10 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
     ObjectPropertyIterator iter;
     ObjectPropertyInfoList *prop_list = NULL;
 
-    klass = module_object_class_by_name(typename);
+    klass = module_object_class_by_name(type_name);
     if (klass == NULL) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", typename);
+                  "Device '%s' not found", type_name);
         return NULL;
     }
 
@@ -239,7 +239,7 @@ ObjectPropertyInfoList *qmp_device_list_properties(const char *typename,
     return prop_list;
 }
 
-ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
+ObjectPropertyInfoList *qmp_qom_list_properties(const char *type_name,
                                              Error **errp)
 {
     ObjectClass *klass;
@@ -248,10 +248,10 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
     ObjectPropertyIterator iter;
     ObjectPropertyInfoList *prop_list = NULL;
 
-    klass = module_object_class_by_name(typename);
+    klass = module_object_class_by_name(type_name);
     if (klass == NULL) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Class '%s' not found", typename);
+                  "Class '%s' not found", type_name);
         return NULL;
     }
 
@@ -264,13 +264,13 @@ ObjectPropertyInfoList *qmp_qom_list_properties(const char *typename,
     if (object_class_is_abstract(klass)) {
         object_class_property_iter_init(&iter, klass);
     } else {
-        obj = object_new(typename);
+        obj = object_new(type_name);
         object_property_iter_init(&iter, obj);
     }
     while ((prop = object_property_iter_next(&iter))) {
         ObjectPropertyInfo *info;
 
-        info = g_malloc0(sizeof(*info));
+        info = static_cast<ObjectPropertyInfo *>(g_malloc0(sizeof(*info)));
         info->name = g_strdup(prop->name);
         info->type = g_strdup(prop->type);
         info->description = g_strdup(prop->description);

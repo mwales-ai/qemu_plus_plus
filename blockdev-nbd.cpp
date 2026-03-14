@@ -58,7 +58,7 @@ int nbd_server_max_connections(void)
 
 static void nbd_blockdev_client_closed(NBDClient *client, bool ignored)
 {
-    NBDConn *conn = nbd_client_owner(client);
+    NBDConn *conn = static_cast<NBDConn *>(nbd_client_owner(client));
 
     assert(qemu_in_main_thread() && nbd_server);
 
@@ -243,7 +243,7 @@ void qmp_nbd_server_start(bool has_handshake_max_secs,
 
 void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
 {
-    BlockExport *export;
+    BlockExport *blk_export;
     BlockDriverState *bs;
     BlockBackend *on_eject_blk;
     BlockExportOptions *export_opts;
@@ -262,22 +262,20 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
     }
 
     export_opts = g_new(BlockExportOptions, 1);
-    *export_opts = (BlockExportOptions) {
-        .type                   = BLOCK_EXPORT_TYPE_NBD,
-        .id                     = g_strdup(arg->name),
-        .node_name              = g_strdup(bdrv_get_node_name(bs)),
-        .has_writable           = arg->has_writable,
-        .writable               = arg->writable,
-    };
+    memset(export_opts, 0, sizeof(*export_opts));
+    export_opts->type                   = BLOCK_EXPORT_TYPE_NBD;
+    export_opts->id                     = g_strdup(arg->name);
+    export_opts->node_name              = g_strdup(bdrv_get_node_name(bs));
+    export_opts->has_writable           = arg->has_writable;
+    export_opts->writable               = arg->writable;
     QAPI_CLONE_MEMBERS(BlockExportOptionsNbdBase, &export_opts->u.nbd,
                        qapi_NbdServerAddOptions_base(arg));
     if (arg->bitmap) {
         BlockDirtyBitmapOrStr *el = g_new(BlockDirtyBitmapOrStr, 1);
 
-        *el = (BlockDirtyBitmapOrStr) {
-            .type = QTYPE_QSTRING,
-            .u.local = g_strdup(arg->bitmap),
-        };
+        memset(el, 0, sizeof(*el));
+        el->type = QTYPE_QSTRING;
+        el->u.local = g_strdup(arg->bitmap);
         export_opts->u.nbd.has_bitmaps = true;
         QAPI_LIST_PREPEND(export_opts->u.nbd.bitmaps, el);
     }
@@ -292,8 +290,8 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
         export_opts->writable = false;
     }
 
-    export = blk_exp_add(export_opts, errp);
-    if (!export) {
+    blk_export = blk_exp_add(export_opts, errp);
+    if (!blk_export) {
         goto fail;
     }
 
@@ -303,7 +301,7 @@ void qmp_nbd_server_add(NbdServerAddOptions *arg, Error **errp)
      */
     on_eject_blk = blk_by_name(arg->device);
     if (on_eject_blk) {
-        nbd_export_set_on_eject_blk(export, on_eject_blk);
+        nbd_export_set_on_eject_blk(blk_export, on_eject_blk);
     }
 
 fail:

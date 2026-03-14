@@ -21,7 +21,7 @@
 
 static int replay_pre_save(void *opaque)
 {
-    ReplayState *state = opaque;
+    ReplayState *state = static_cast<ReplayState *>(opaque);
     state->file_offset = ftell(replay_file);
 
     return 0;
@@ -29,7 +29,7 @@ static int replay_pre_save(void *opaque)
 
 static int replay_post_load(void *opaque, int version_id)
 {
-    ReplayState *state = opaque;
+    ReplayState *state = static_cast<ReplayState *>(opaque);
     if (replay_mode == REPLAY_MODE_PLAY) {
         fseek(replay_file, state->file_offset, SEEK_SET);
         /* If this was a vmstate, saved in recording mode,
@@ -45,24 +45,26 @@ static int replay_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_replay_fields[] = {
+    VMSTATE_INT64_ARRAY(cached_clock, ReplayState, REPLAY_CLOCK_COUNT),
+    VMSTATE_UINT64(current_icount, ReplayState),
+    VMSTATE_INT32(instruction_count, ReplayState),
+    VMSTATE_UINT32(current_event, ReplayState),
+    VMSTATE_UINT32(data_kind, ReplayState),
+    VMSTATE_BOOL(has_unread_data, ReplayState),
+    VMSTATE_UINT64(file_offset, ReplayState),
+    VMSTATE_UINT64(block_request_id, ReplayState),
+    VMSTATE_UINT64(read_event_id, ReplayState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_replay = {
     .name = "replay",
     .version_id = 3,
     .minimum_version_id = 3,
-    .pre_save = replay_pre_save,
     .post_load = replay_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT64_ARRAY(cached_clock, ReplayState, REPLAY_CLOCK_COUNT),
-        VMSTATE_UINT64(current_icount, ReplayState),
-        VMSTATE_INT32(instruction_count, ReplayState),
-        VMSTATE_UINT32(current_event, ReplayState),
-        VMSTATE_UINT32(data_kind, ReplayState),
-        VMSTATE_BOOL(has_unread_data, ReplayState),
-        VMSTATE_UINT64(file_offset, ReplayState),
-        VMSTATE_UINT64(block_request_id, ReplayState),
-        VMSTATE_UINT64(read_event_id, ReplayState),
-        VMSTATE_END_OF_LIST()
-    },
+    .pre_save = replay_pre_save,
+    .fields = vmstate_replay_fields,
 };
 
 void replay_vmstate_register(void)

@@ -34,6 +34,10 @@
 #ifndef DECNUMBER_H
 #define DECNUMBER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
   #define DECNAME     "decNumber"			/* Short name */
   #define DECFULLNAME "Decimal Number Module"	      /* Verbose name */
   #define DECAUTHOR   "Mike Cowlishaw"		      /* Who to blame */
@@ -200,5 +204,9 @@
 				    && (dn)->digits==1 \
 				    && (((dn)->bits&DECSPECIAL)==0))
   #define decNumberRadix(dn)	   (10)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

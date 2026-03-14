@@ -14,6 +14,10 @@
 #ifndef DUMP_ARCH_H
 #define DUMP_ARCH_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct ArchDumpInfo {
     int d_machine;           /* Architecture */
     int d_endian;            /* ELFDATA2LSB or ELFDATA2MSB */
@@ -31,5 +35,9 @@ struct GuestPhysBlockList; /* memory_mapping.h */
 int cpu_get_dump_info(ArchDumpInfo *info,
                       const struct GuestPhysBlockList *guest_phys_blocks);
 ssize_t cpu_get_note_size(int elf_class, int machine, int nr_cpus);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

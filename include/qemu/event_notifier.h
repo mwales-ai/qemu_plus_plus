@@ -13,6 +13,10 @@
 #ifndef QEMU_EVENT_NOTIFIER_H
 #define QEMU_EVENT_NOTIFIER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #ifdef _WIN32
 #include <windows.h>
@@ -41,6 +45,10 @@ int event_notifier_get_fd(const EventNotifier *);
 int event_notifier_get_wfd(const EventNotifier *);
 #else
 HANDLE event_notifier_get_handle(EventNotifier *);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif

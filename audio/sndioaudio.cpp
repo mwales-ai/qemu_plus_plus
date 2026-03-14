@@ -27,6 +27,13 @@
 /* default latency in microseconds if no option is set */
 #define SNDIO_LATENCY_US   50000
 
+struct SndioVoice;
+
+struct pollindex {
+    struct SndioVoice *self;
+    int index;
+};
+
 typedef struct SndioVoice {
     union {
         HWVoiceOut out;
@@ -35,10 +42,7 @@ typedef struct SndioVoice {
     struct sio_par par;
     struct sio_hdl *hdl;
     struct pollfd *pfds;
-    struct pollindex {
-        struct SndioVoice *self;
-        int index;
-    } *pindexes;
+    struct pollindex *pindexes;
     unsigned char *buf;
     size_t buf_size;
     size_t sndio_pos;
@@ -63,7 +67,7 @@ static void sndio_poll_out(void *arg);
 static void sndio_poll_clear(SndioVoice *self)
 {
     struct pollfd *pfd;
-    int i;
+    unsigned int i;
 
     for (i = 0; i < self->nfds; i++) {
         pfd = &self->pfds[i];
@@ -134,7 +138,8 @@ static void sndio_read(SndioVoice *self)
 static void sndio_poll_wait(SndioVoice *self)
 {
     struct pollfd *pfd;
-    int events, i;
+    int events;
+    unsigned int i;
 
     events = 0;
     if (self->mode == SIO_PLAY) {
@@ -409,7 +414,7 @@ static int sndio_init(SndioVoice *self,
      */
     if (self->par.bits != req.bits || self->par.bps != req.bits / 8 ||
         self->par.sig != req.sig || (req.bits > 8 && self->par.le != req.le) ||
-        self->par.rate != as->freq || nch != as->nchannels) {
+        self->par.rate != (unsigned int)as->freq || nch != (unsigned int)as->nchannels) {
         dolog("unsupported audio params\n");
         goto fail;
     }
@@ -420,7 +425,7 @@ static int sndio_init(SndioVoice *self,
      */
     self->buf_size = self->par.round * self->par.bps * nch;
 
-    self->buf = g_malloc(self->buf_size);
+    self->buf = static_cast<unsigned char *>(g_malloc(self->buf_size));
     if (self->buf == NULL) {
         dolog("failed to allocate audio buffer\n");
         goto fail;
@@ -428,13 +433,13 @@ static int sndio_init(SndioVoice *self,
 
     nfds = sio_nfds(self->hdl);
 
-    self->pfds = g_malloc_n(nfds, sizeof(struct pollfd));
+    self->pfds = static_cast<struct pollfd *>(g_malloc_n(nfds, sizeof(struct pollfd)));
     if (self->pfds == NULL) {
         dolog("failed to allocate pollfd structures\n");
         goto fail;
     }
 
-    self->pindexes = g_malloc_n(nfds, sizeof(struct pollindex));
+    self->pindexes = static_cast<struct pollindex *>(g_malloc_n(nfds, sizeof(struct pollindex)));
     if (self->pindexes == NULL) {
         dolog("failed to allocate pollindex structures\n");
         goto fail;
@@ -482,7 +487,7 @@ static int sndio_init_out(HWVoiceOut *hw, struct audsettings *as, void *opaque)
 {
     SndioVoice *self = (SndioVoice *) hw;
 
-    if (sndio_init(self, as, SIO_PLAY, opaque) == -1) {
+    if (sndio_init(self, as, SIO_PLAY, static_cast<Audiodev *>(opaque)) == -1) {
         return -1;
     }
 
@@ -495,7 +500,7 @@ static int sndio_init_in(HWVoiceIn *hw, struct audsettings *as, void *opaque)
 {
     SndioVoice *self = (SndioVoice *) hw;
 
-    if (sndio_init(self, as, SIO_REC, opaque) == -1) {
+    if (sndio_init(self, as, SIO_REC, static_cast<Audiodev *>(opaque)) == -1) {
         return -1;
     }
 
@@ -531,17 +536,18 @@ static void sndio_audio_fini(void *opaque)
 static struct audio_pcm_ops sndio_pcm_ops = {
     .init_out        = sndio_init_out,
     .fini_out        = sndio_fini_out,
-    .enable_out      = sndio_enable_out,
     .write           = audio_generic_write,
     .buffer_get_free = sndio_buffer_get_free,
     .get_buffer_out  = sndio_get_buffer_out,
     .put_buffer_out  = sndio_put_buffer_out,
+    .enable_out      = sndio_enable_out,
+
     .init_in         = sndio_init_in,
     .fini_in         = sndio_fini_in,
     .read            = audio_generic_read,
-    .enable_in       = sndio_enable_in,
     .get_buffer_in   = sndio_get_buffer_in,
     .put_buffer_in   = sndio_put_buffer_in,
+    .enable_in       = sndio_enable_in,
 };
 
 static struct audio_driver sndio_audio_driver = {

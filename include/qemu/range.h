@@ -22,12 +22,9 @@
 
 #include "qemu/bitops.h"
 
-/*
- * Operations on 64 bit address ranges.
- * Notes:
- * - Ranges must not wrap around 0, but can include UINT64_MAX.
- */
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct Range {
     /*
      * Do not access members directly, use the functions!
@@ -243,5 +240,9 @@ GList *range_list_insert(GList *list, Range *data);
 void range_inverse_array(GList *in_ranges,
                          GList **out_ranges,
                          uint64_t low, uint64_t high);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

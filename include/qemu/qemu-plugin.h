@@ -16,12 +16,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/*
- * For best performance, build the plugin with -fvisibility=hidden so that
- * QEMU_PLUGIN_LOCAL is implicit. Then, just mark qemu_plugin_install with
- * QEMU_PLUGIN_EXPORT. For more info, see
- *   https://gcc.gnu.org/wiki/Visibility
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 #if defined _WIN32 || defined __CYGWIN__
   #ifdef CONFIG_PLUGIN
     #define QEMU_PLUGIN_EXPORT __declspec(dllimport)
@@ -1209,5 +1206,9 @@ void qemu_plugin_u64_set(qemu_plugin_u64 entry, unsigned int vcpu_index,
  */
 QEMU_PLUGIN_API
 uint64_t qemu_plugin_u64_sum(qemu_plugin_u64 entry);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_QEMU_PLUGIN_H */

@@ -35,13 +35,13 @@ static ssize_t v9fs_packunpack(void *addr, struct iovec *sg, int sg_count,
         } else {
             len = MIN(sg[i].iov_len - offset, size);
             if (pack) {
-                memcpy(sg[i].iov_base + offset, addr, len);
+                memcpy(static_cast<char *>(sg[i].iov_base) + offset, addr, len);
             } else {
-                memcpy(addr, sg[i].iov_base + offset, len);
+                memcpy(addr, static_cast<char *>(sg[i].iov_base) + offset, len);
             }
             size -= len;
             copied += len;
-            addr += len;
+            addr = static_cast<char *>(addr) + len;
             if (size) {
                 offset = 0;
                 continue;
@@ -131,7 +131,7 @@ ssize_t v9fs_iov_vunmarshal(struct iovec *out_sg, int out_num, size_t offset,
                                         "w", &str->size);
             if (copied > 0) {
                 offset += copied;
-                str->data = g_malloc(str->size + 1);
+                str->data = static_cast<char *>(g_malloc(str->size + 1));
                 copied = v9fs_unpack(str->data, out_sg, out_num, offset,
                                      str->size);
                 if (copied >= 0) {

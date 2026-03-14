@@ -106,7 +106,11 @@ struct FsContext {
     ExtendedOps exops;
     FsThrottle *fst;
     /* fs driver specific data */
+#ifdef __cplusplus
+    void *priv_data;
+#else
     void *private;
+#endif
     mode_t fmode;
     mode_t dmode;
 };

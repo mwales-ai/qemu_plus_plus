@@ -232,8 +232,8 @@ static const struct {
 
 static QemuOptsList qemu_rtc_opts = {
     .name = "rtc",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_rtc_opts.head),
     .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_rtc_opts.head),
     .desc = {
         {
             .name = "base",
@@ -415,8 +415,8 @@ static QemuOptsList qemu_name_opts = {
 static QemuOptsList qemu_mem_opts = {
     .name = "memory",
     .implied_opt_name = "size",
-    .head = QTAILQ_HEAD_INITIALIZER(qemu_mem_opts.head),
     .merge_lists = true,
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_mem_opts.head),
     .desc = {
         {
             .name = "size",
@@ -520,7 +520,7 @@ const char *qemu_get_vm_name(void)
 
 static void default_driver_disable(const char *driver)
 {
-    int i;
+    size_t i;
 
     if (!driver) {
         return;
@@ -654,7 +654,7 @@ static int cleanup_add_fd(void *opaque, QemuOpts *opts, Error **errp)
 
 static int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    BlockInterfaceType *block_default_type = opaque;
+    BlockInterfaceType *block_default_type = static_cast<BlockInterfaceType *>(opaque);
 
     return drive_new(opts, *block_default_type, errp) == NULL;
 }
@@ -844,7 +844,7 @@ static MachineClass *find_machine(const char *name, GSList *machines)
     GSList *el;
 
     for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
+        MachineClass *mc = static_cast<MachineClass *>(el->data);
 
         if (!strcmp(mc->name, name) || !g_strcmp0(mc->alias, name)) {
             return mc;
@@ -860,7 +860,7 @@ static MachineClass *find_default_machine(GSList *machines)
     MachineClass *default_machineclass = NULL;
 
     for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
+        MachineClass *mc = static_cast<MachineClass *>(el->data);
 
         if (mc->is_default) {
             assert(default_machineclass == NULL && "Multiple default machines");
@@ -928,10 +928,10 @@ typedef struct QEMUOption {
 } QEMUOption;
 
 static const QEMUOption qemu_options[] = {
-    { "h", 0, QEMU_OPTION_h, QEMU_ARCH_ALL },
+    { "h", 0, QEMU_OPTION_h, static_cast<uint32_t>(QEMU_ARCH_ALL) },
 
 #define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
-    { option, opt_arg, opt_enum, arch_mask },
+    { option, opt_arg, opt_enum, static_cast<uint32_t>(arch_mask) },
 #define DEFHEADING(text)
 #define ARCHHEADING(text, arch_mask)
 
@@ -947,52 +947,36 @@ typedef struct VGAInterfaceInfo {
     const char *class_names[2];
 } VGAInterfaceInfo;
 
+/*
+ * Indexed by VGAInterfaceType enum values:
+ * VGA_NONE=0, VGA_STD=1, VGA_CIRRUS=2, VGA_VMWARE=3, VGA_XENFB=4,
+ * VGA_QXL=5, VGA_TCX=6, VGA_CG3=7, VGA_DEVICE=8, VGA_VIRTIO=9
+ */
 static const VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
-    [VGA_NONE] = {
-        .opt_name = "none",
-        .name = "no graphic card",
-    },
-    [VGA_STD] = {
-        .opt_name = "std",
-        .name = "standard VGA",
-        .class_names = { "VGA", "isa-vga" },
-    },
-    [VGA_CIRRUS] = {
-        .opt_name = "cirrus",
-        .name = "Cirrus VGA",
-        .class_names = { "cirrus-vga", "isa-cirrus-vga" },
-    },
-    [VGA_VMWARE] = {
-        .opt_name = "vmware",
-        .name = "VMWare SVGA",
-        .class_names = { "vmware-svga" },
-    },
-    [VGA_VIRTIO] = {
-        .opt_name = "virtio",
-        .name = "Virtio VGA",
-        .class_names = { "virtio-vga" },
-    },
-    [VGA_QXL] = {
-        .opt_name = "qxl",
-        .name = "QXL VGA",
-        .class_names = { "qxl-vga" },
-    },
-    [VGA_TCX] = {
-        .opt_name = "tcx",
-        .name = "TCX framebuffer",
-        .class_names = { "sun-tcx" },
-    },
-    [VGA_CG3] = {
-        .opt_name = "cg3",
-        .name = "CG3 framebuffer",
-        .class_names = { "cgthree" },
-    },
+    /* [VGA_NONE] */
+    { "none", "no graphic card", { NULL, NULL } },
+    /* [VGA_STD] */
+    { "std", "standard VGA", { "VGA", "isa-vga" } },
+    /* [VGA_CIRRUS] */
+    { "cirrus", "Cirrus VGA", { "cirrus-vga", "isa-cirrus-vga" } },
+    /* [VGA_VMWARE] */
+    { "vmware", "VMWare SVGA", { "vmware-svga", NULL } },
+    /* [VGA_XENFB] */
 #ifdef CONFIG_XEN_BACKEND
-    [VGA_XENFB] = {
-        .opt_name = "xenfb",
-        .name = "Xen paravirtualized framebuffer",
-    },
+    { "xenfb", "Xen paravirtualized framebuffer", { NULL, NULL } },
+#else
+    { NULL, NULL, { NULL, NULL } },
 #endif
+    /* [VGA_QXL] */
+    { "qxl", "QXL VGA", { "qxl-vga", NULL } },
+    /* [VGA_TCX] */
+    { "tcx", "TCX framebuffer", { "sun-tcx", NULL } },
+    /* [VGA_CG3] */
+    { "cg3", "CG3 framebuffer", { "cgthree", NULL } },
+    /* [VGA_DEVICE] */
+    { NULL, NULL, { NULL, NULL } },
+    /* [VGA_VIRTIO] */
+    { "virtio", "Virtio VGA", { "virtio-vga", NULL } },
 };
 
 static bool vga_interface_available(VGAInterfaceType t)
@@ -1019,7 +1003,7 @@ get_default_vga_model(const MachineClass *machine_class)
         for (int t = 0; t < VGA_TYPE_MAX; t++) {
             const VGAInterfaceInfo *ti = &vga_interfaces[t];
 
-            if (ti->opt_name && vga_interface_available(t) &&
+            if (ti->opt_name && vga_interface_available(static_cast<VGAInterfaceType>(t)) &&
                 g_str_equal(ti->opt_name, machine_class->default_display)) {
                 return machine_class->default_display;
             }
@@ -1048,7 +1032,7 @@ static void select_vgahw(const MachineClass *machine_class, const char *p)
         for (t = 0; t < VGA_TYPE_MAX; t++) {
             const VGAInterfaceInfo *ti = &vga_interfaces[t];
 
-            if (vga_interface_available(t) && ti->opt_name) {
+            if (vga_interface_available(static_cast<VGAInterfaceType>(t)) && ti->opt_name) {
                 printf("%-20s %s%s\n", ti->opt_name, ti->name ?: "",
                         (def && g_str_equal(ti->opt_name, def)) ?
                         " (default)" : "");
@@ -1061,7 +1045,7 @@ static void select_vgahw(const MachineClass *machine_class, const char *p)
     for (t = 0; t < VGA_TYPE_MAX; t++) {
         const VGAInterfaceInfo *ti = &vga_interfaces[t];
         if (ti->opt_name && strstart(p, ti->opt_name, &opts)) {
-            if (!vga_interface_available(t)) {
+            if (!vga_interface_available(static_cast<VGAInterfaceType>(t))) {
                 error_report("%s not available", ti->name);
                 exit(1);
             }
@@ -1182,7 +1166,7 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     }
     if (nonempty_str(str)) {
         size = strlen(str); /* NUL terminator NOT included in fw_cfg blob */
-        buf = g_memdup(str, size);
+        buf = static_cast<gchar *>(g_memdup(str, size));
     } else if (nonempty_str(gen_id)) {
         if (!fw_cfg_add_file_from_generator(fw_cfg, object_get_objects_root(),
                                             gen_id, name, errp)) {
@@ -1276,15 +1260,17 @@ static void monitor_parse(const char *str, const char *mode, bool pretty)
     monitor_device_index++;
 }
 
+enum DeviceConfigType {
+    DEV_USB,       /* -usbdevice     */
+    DEV_SERIAL,    /* -serial        */
+    DEV_PARALLEL,  /* -parallel      */
+    DEV_DEBUGCON,  /* -debugcon */
+    DEV_GDB,       /* -gdb, -s */
+    DEV_SCLP,      /* s390 sclp */
+};
+
 struct device_config {
-    enum {
-        DEV_USB,       /* -usbdevice     */
-        DEV_SERIAL,    /* -serial        */
-        DEV_PARALLEL,  /* -parallel      */
-        DEV_DEBUGCON,  /* -debugcon */
-        DEV_GDB,       /* -gdb, -s */
-        DEV_SCLP,      /* s390 sclp */
-    } type;
+    int type;
     const char *cmdline;
     Location loc;
     QTAILQ_ENTRY(device_config) next;
@@ -1297,7 +1283,7 @@ static void add_device_config(int type, const char *cmdline)
 {
     struct device_config *conf;
 
-    conf = g_malloc0(sizeof(*conf));
+    conf = static_cast<struct device_config *>(g_malloc0(sizeof(*conf)));
     conf->type = type;
     conf->cmdline = cmdline;
     loc_save(&conf->loc);
@@ -1529,7 +1515,8 @@ static bool debugcon_parse(const char *devname, Error **errp)
 
 static gint machine_class_cmp(gconstpointer a, gconstpointer b, gpointer d)
 {
-    const MachineClass *mc1 = a, *mc2 = b;
+    const MachineClass *mc1 = static_cast<const MachineClass *>(a),
+                       *mc2 = static_cast<const MachineClass *>(b);
     int res;
 
     if (mc1->family == NULL) {
@@ -1579,7 +1566,7 @@ static void machine_help_func(const QDict *qdict)
     printf("Supported machines are:\n");
     machines = g_slist_sort_with_data(machines, machine_class_cmp, NULL);
     for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
+        MachineClass *mc = static_cast<MachineClass *>(el->data);
         if (mc->alias) {
             printf("%-20s %s (alias of %s)\n", mc->alias, mc->desc, mc->name);
         }
@@ -2234,7 +2221,7 @@ static int global_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     GlobalProperty *g;
 
-    g = g_malloc0(sizeof(*g));
+    g = static_cast<GlobalProperty *>(g_malloc0(sizeof(*g)));
     g->driver   = qemu_opt_get(opts, "driver");
     g->property = qemu_opt_get(opts, "property");
     g->value    = qemu_opt_get(opts, "value");
@@ -2378,12 +2365,12 @@ static int accelerator_set_property(void *opaque,
                                 const char *name, const char *value,
                                 Error **errp)
 {
-    return object_parse_property_opt(opaque, name, value, "accel", errp);
+    return object_parse_property_opt(static_cast<Object *>(opaque), name, value, "accel", errp);
 }
 
 static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
 {
-    bool *p_init_failed = opaque;
+    bool *p_init_failed = static_cast<bool *>(opaque);
     const char *acc = qemu_opt_get(opts, "accel");
     AccelClass *ac = accel_find(acc);
     AccelState *accel;
@@ -2664,7 +2651,7 @@ static void qemu_maybe_daemonize(const char *pid_file)
             exit(1);
         }
 
-        pid_file_realpath = g_malloc0(PATH_MAX);
+        pid_file_realpath = static_cast<char *>(g_malloc0(PATH_MAX));
         if (!realpath(pid_file, pid_file_realpath)) {
             if (errno != ENOENT) {
                 warn_report("not removing PID file on exit: cannot resolve PID "
@@ -2673,12 +2660,9 @@ static void qemu_maybe_daemonize(const char *pid_file)
             return;
         }
 
-        qemu_unlink_pidfile_notifier = (struct UnlinkPidfileNotifier) {
-            .notifier = {
-                .notify = qemu_unlink_pidfile,
-            },
-            .pid_file_realpath = pid_file_realpath,
-        };
+        memset(&qemu_unlink_pidfile_notifier, 0, sizeof(qemu_unlink_pidfile_notifier));
+        qemu_unlink_pidfile_notifier.notifier.notify = qemu_unlink_pidfile;
+        qemu_unlink_pidfile_notifier.pid_file_realpath = pid_file_realpath;
         qemu_add_exit_notifier(&qemu_unlink_pidfile_notifier.notifier);
     }
 }

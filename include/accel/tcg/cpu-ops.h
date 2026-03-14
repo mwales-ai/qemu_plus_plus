@@ -19,6 +19,9 @@
 #include "accel/tcg/tb-cpu-state.h"
 #include "tcg/tcg-mo.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct TCGCPUOps {
     /**
      * mttcg_supported: multi-threaded TCG is supported
@@ -328,6 +331,10 @@ int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len);
 vaddr cpu_pointer_wrap_notreached(CPUState *, int, vaddr, vaddr);
 vaddr cpu_pointer_wrap_uint32(CPUState *, int, vaddr, vaddr);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* TCG_CPU_OPS_H */

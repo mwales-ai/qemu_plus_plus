@@ -9,4 +9,4 @@ system_ss.add(files(
 system_ss.add([spice_headers, files('qmp-cmds.cpp')])
 
 specific_ss.add(when: 'CONFIG_SYSTEM_ONLY',
-		if_true: [files( 'hmp-cmds-target.cpp', 'hmp-target.cpp'), spice])
+		if_true: [files( 'hmp-cmds-target.c', 'hmp-target.c'), spice])

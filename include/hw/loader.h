@@ -1,16 +1,12 @@
 #ifndef LOADER_H
 #define LOADER_H
+
 #include "hw/nvram/fw_cfg.h"
 #include "qemu/typedefs.h"
 
-/* loader.c */
-/**
- * get_image_size: retrieve size of an image file
- * @filename: Path to the image file
- *
- * Returns the size of the image file on success, -1 otherwise.
- * On error, errno is also set as appropriate.
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 int64_t get_image_size(const char *filename, Error **errp);
 /**
  * load_image_size: load an image file into specified buffer
@@ -358,5 +354,9 @@ typedef struct RomGap {
  * it finds the biggest gap which is free for use for other things.
  */
 RomGap rom_find_largest_gap_between(hwaddr base, size_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

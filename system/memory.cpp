@@ -237,10 +237,10 @@ static inline MemoryRegionSection
 section_from_flat_range(FlatRange *fr, FlatView *fv)
 {
     return (MemoryRegionSection) {
+        .size = fr->addr.size,
         .mr = fr->mr,
         .fv = fv,
         .offset_within_region = fr->offset_in_region,
-        .size = fr->addr.size,
         .offset_within_address_space = int128_get64(fr->addr.start),
         .readonly = fr->readonly,
         .nonvolatile = fr->nonvolatile,
@@ -279,8 +279,8 @@ static void flatview_insert(FlatView *view, unsigned pos, FlatRange *range)
 {
     if (view->nr == view->nr_allocated) {
         view->nr_allocated = MAX(2 * view->nr, 10);
-        view->ranges = g_realloc(view->ranges,
-                                    view->nr_allocated * sizeof(*view->ranges));
+        view->ranges = static_cast<FlatRange *>(g_realloc(view->ranges,
+                                    view->nr_allocated * sizeof(*view->ranges)));
     }
     memmove(view->ranges + pos + 1, view->ranges + pos,
             (view->nr - pos) * sizeof(FlatRange));
@@ -297,7 +297,7 @@ static void flatview_destroy(FlatView *view)
     if (view->dispatch) {
         address_space_dispatch_free(view->dispatch);
     }
-    for (i = 0; i < view->nr; i++) {
+    for (i = 0; i < static_cast<int>(view->nr); i++) {
         memory_region_unref(view->ranges[i].mr);
     }
     g_free(view->ranges);
@@ -759,7 +759,7 @@ static FlatView *generate_memory_topology(MemoryRegion *mr)
     flatview_simplify(view);
 
     view->dispatch = address_space_dispatch_new(view);
-    for (i = 0; i < view->nr; i++) {
+    for (i = 0; i < static_cast<int>(view->nr); i++) {
         MemoryRegionSection mrs =
             section_from_flat_range(&view->ranges[i], view);
         flatview_add_to_dispatch(view, &mrs);
@@ -792,9 +792,9 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                                                   &fds_new[inew]))) {
             fd = &fds_old[iold];
             section = (MemoryRegionSection) {
+                .size = fd->addr.size,
                 .fv = address_space_to_flatview(as),
                 .offset_within_address_space = int128_get64(fd->addr.start),
-                .size = fd->addr.size,
             };
             MEMORY_LISTENER_CALL(as, eventfd_del, Forward, &section,
                                  fd->match_data, fd->data, fd->e);
@@ -805,9 +805,9 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                                                          &fds_old[iold]))) {
             fd = &fds_new[inew];
             section = (MemoryRegionSection) {
+                .size = fd->addr.size,
                 .fv = address_space_to_flatview(as),
                 .offset_within_address_space = int128_get64(fd->addr.start),
-                .size = fd->addr.size,
             };
             MEMORY_LISTENER_CALL(as, eventfd_add, Reverse, &section,
                                  fd->match_data, fd->data, fd->e);
@@ -865,8 +865,8 @@ static void address_space_update_ioeventfds(AddressSpace *as)
                 ++ioeventfd_nb;
                 if (ioeventfd_nb > ioeventfd_max) {
                     ioeventfd_max = MAX(ioeventfd_max * 2, 4);
-                    ioeventfds = g_realloc(ioeventfds,
-                            ioeventfd_max * sizeof(*ioeventfds));
+                    ioeventfds = static_cast<MemoryRegionIoeventfd *>(g_realloc(ioeventfds,
+                            ioeventfd_max * sizeof(*ioeventfds)));
                 }
                 ioeventfds[ioeventfd_nb-1] = fr->mr->ioeventfds[i];
                 ioeventfds[ioeventfd_nb-1].addr = tmp;
@@ -1082,7 +1082,7 @@ static void address_space_set_flatview(AddressSpace *as)
 {
     FlatView *old_view = address_space_to_flatview(as);
     MemoryRegion *physmr = memory_region_get_flatview_root(as->root);
-    FlatView *new_view = g_hash_table_lookup(flat_views, physmr);
+    FlatView *new_view = static_cast<FlatView *>(g_hash_table_lookup(flat_views, physmr));
 
     assert(new_view);
 
@@ -1194,11 +1194,11 @@ static char *memory_region_escape_name(const char *name)
     for (p = name; *p; p++) {
         bytes += memory_region_need_escape(*p) ? 4 : 1;
     }
-    if (bytes == p - name) {
-       return g_memdup(name, bytes + 1);
+    if (bytes == static_cast<size_t>(p - name)) {
+       return static_cast<char *>(g_memdup(name, bytes + 1));
     }
 
-    escaped = g_malloc(bytes + 1);
+    escaped = static_cast<char *>(g_malloc(bytes + 1));
     for (p = name, q = escaped; *p; p++) {
         c = *p;
         if (unlikely(memory_region_need_escape(c))) {
@@ -1357,14 +1357,18 @@ static bool unassigned_mem_accepts(void *opaque, hwaddr addr,
 }
 
 const MemoryRegionOps unassigned_mem_ops = {
-    .valid.accepts = unassigned_mem_accepts,
+    .read = unassigned_mem_read,
+    .write = unassigned_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .accepts = unassigned_mem_accepts,
+    },
 };
 
 static uint64_t memory_region_ram_device_read(void *opaque,
                                               hwaddr addr, unsigned size)
 {
-    MemoryRegion *mr = opaque;
+    MemoryRegion *mr = static_cast<MemoryRegion *>(opaque);
     uint64_t data = ldn_he_p(mr->ram_block->host + addr, size);
 
     trace_memory_region_ram_device_read(get_cpu_index(), mr, addr, data, size);
@@ -1375,7 +1379,7 @@ static uint64_t memory_region_ram_device_read(void *opaque,
 static void memory_region_ram_device_write(void *opaque, hwaddr addr,
                                            uint64_t data, unsigned size)
 {
-    MemoryRegion *mr = opaque;
+    MemoryRegion *mr = static_cast<MemoryRegion *>(opaque);
 
     trace_memory_region_ram_device_write(get_cpu_index(), mr, addr, data, size);
 
@@ -1933,7 +1937,7 @@ static int memory_region_update_iommu_notify_flags(IOMMUMemoryRegion *iommu_mr,
     int ret = 0;
 
     IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommu_mr) {
-        flags |= iommu_notifier->notifier_flags;
+        flags = static_cast<IOMMUNotifierFlag>(flags | iommu_notifier->notifier_flags);
     }
 
     if (flags != iommu_mr->iommu_notify_flags && imrc->notify_flag_changed) {
@@ -2219,9 +2223,9 @@ MemoryRegion *memory_translate_iotlb(IOMMUTLBEntry *iotlb, hwaddr *xlat_p,
     } else if (memory_region_has_ram_discard_manager(mr)) {
         RamDiscardManager *rdm = memory_region_get_ram_discard_manager(mr);
         MemoryRegionSection tmp = {
+            .size = int128_make64(len),
             .mr = mr,
             .offset_within_region = xlat,
-            .size = int128_make64(len),
         };
         /*
          * Malicious VMs can map memory into the IOMMU, which is expected
@@ -2524,7 +2528,7 @@ void memory_region_add_coalescing(MemoryRegion *mr,
                                   hwaddr offset,
                                   uint64_t size)
 {
-    CoalescedMemoryRange *cmr = g_malloc(sizeof(*cmr));
+    CoalescedMemoryRange *cmr = static_cast<CoalescedMemoryRange *>(g_malloc(sizeof(*cmr)));
 
     cmr->addr = addrrange_make(int128_make64(offset), int128_make64(size));
     QTAILQ_INSERT_TAIL(&mr->coalesced, cmr, link);
@@ -2587,8 +2591,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
                                EventNotifier *e)
 {
     MemoryRegionIoeventfd mrfd = {
-        .addr.start = int128_make64(addr),
-        .addr.size = int128_make64(size),
+        .addr = { .start = int128_make64(addr), .size = int128_make64(size) },
         .match_data = match_data,
         .data = data,
         .e = e,
@@ -2596,7 +2599,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     unsigned i;
 
     if (size) {
-        MemOp mop = (target_big_endian() ? MO_BE : MO_LE) | size_memop(size);
+        MemOp mop = static_cast<MemOp>((target_big_endian() ? MO_BE : MO_LE) | size_memop(size));
         adjust_endianness(mr, &mrfd.data, mop);
     }
     memory_region_transaction_begin();
@@ -2606,8 +2609,8 @@ void memory_region_add_eventfd(MemoryRegion *mr,
         }
     }
     ++mr->ioeventfd_nb;
-    mr->ioeventfds = g_realloc(mr->ioeventfds,
-                                  sizeof(*mr->ioeventfds) * mr->ioeventfd_nb);
+    mr->ioeventfds = static_cast<MemoryRegionIoeventfd *>(g_realloc(mr->ioeventfds,
+                                  sizeof(*mr->ioeventfds) * mr->ioeventfd_nb));
     memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
@@ -2623,8 +2626,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
                                EventNotifier *e)
 {
     MemoryRegionIoeventfd mrfd = {
-        .addr.start = int128_make64(addr),
-        .addr.size = int128_make64(size),
+        .addr = { .start = int128_make64(addr), .size = int128_make64(size) },
         .match_data = match_data,
         .data = data,
         .e = e,
@@ -2632,7 +2634,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     unsigned i;
 
     if (size) {
-        MemOp mop = (target_big_endian() ? MO_BE : MO_LE) | size_memop(size);
+        MemOp mop = static_cast<MemOp>((target_big_endian() ? MO_BE : MO_LE) | size_memop(size));
         adjust_endianness(mr, &mrfd.data, mop);
     }
     memory_region_transaction_begin();
@@ -2645,8 +2647,8 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     memmove(&mr->ioeventfds[i], &mr->ioeventfds[i+1],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb - (i+1)));
     --mr->ioeventfd_nb;
-    mr->ioeventfds = g_realloc(mr->ioeventfds,
-                                  sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
+    mr->ioeventfds = static_cast<MemoryRegionIoeventfd *>(g_realloc(mr->ioeventfds,
+                                  sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1));
     ioeventfd_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
@@ -2810,8 +2812,8 @@ uint64_t memory_region_get_alignment(const MemoryRegion *mr)
 
 static int cmp_flatrange_addr(const void *addr_, const void *fr_)
 {
-    const AddrRange *addr = addr_;
-    const FlatRange *fr = fr_;
+    const AddrRange *addr = static_cast<const AddrRange *>(addr_);
+    const FlatRange *fr = static_cast<const FlatRange *>(fr_);
 
     if (int128_le(addrrange_end(*addr), fr->addr.start)) {
         return -1;
@@ -2823,8 +2825,8 @@ static int cmp_flatrange_addr(const void *addr_, const void *fr_)
 
 static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
 {
-    return bsearch(&addr, view->ranges, view->nr,
-                   sizeof(FlatRange), cmp_flatrange_addr);
+    return static_cast<FlatRange *>(bsearch(&addr, view->ranges, view->nr,
+                   sizeof(FlatRange), cmp_flatrange_addr));
 }
 
 bool memory_region_is_mapped(MemoryRegion *mr)
@@ -3110,12 +3112,12 @@ static void listener_add_address_space(MemoryListener *listener,
      * register all eventfds for this address space for the newly registered
      * listener.
      */
-    for (i = 0; i < as->ioeventfd_nb; i++) {
+    for (i = 0; i < static_cast<unsigned>(as->ioeventfd_nb); i++) {
         fd = &as->ioeventfds[i];
         MemoryRegionSection section = (MemoryRegionSection) {
+            .size = fd->addr.size,
             .fv = view,
             .offset_within_address_space = int128_get64(fd->addr.start),
-            .size = fd->addr.size,
         };
 
         if (listener->eventfd_add) {
@@ -3161,12 +3163,12 @@ static void listener_del_address_space(MemoryListener *listener,
      * de-register all eventfds for this address space for the current
      * listener.
      */
-    for (i = 0; i < as->ioeventfd_nb; i++) {
+    for (i = 0; i < static_cast<unsigned>(as->ioeventfd_nb); i++) {
         fd = &as->ioeventfds[i];
         MemoryRegionSection section = (MemoryRegionSection) {
+            .size = fd->addr.size,
             .fv = view,
             .offset_within_address_space = int128_get64(fd->addr.start),
-            .size = fd->addr.size,
         };
 
         if (listener->eventfd_del) {
@@ -3500,13 +3502,13 @@ struct FlatViewInfo {
 static void mtree_print_flatview(gpointer key, gpointer value,
                                  gpointer user_data)
 {
-    FlatView *view = key;
-    GArray *fv_address_spaces = value;
-    struct FlatViewInfo *fvi = user_data;
+    FlatView *view = static_cast<FlatView *>(key);
+    GArray *fv_address_spaces = static_cast<GArray *>(value);
+    struct FlatViewInfo *fvi = static_cast<struct FlatViewInfo *>(user_data);
     FlatRange *range = &view->ranges[0];
     MemoryRegion *mr;
-    int n = view->nr;
-    int i;
+    unsigned n = view->nr;
+    unsigned i;
     AddressSpace *as;
 
     qemu_printf("FlatView #%d\n", fvi->counter);
@@ -3584,8 +3586,8 @@ static void mtree_print_flatview(gpointer key, gpointer value,
 static gboolean mtree_info_flatview_free(gpointer key, gpointer value,
                                       gpointer user_data)
 {
-    FlatView *view = key;
-    GArray *fv_address_spaces = value;
+    FlatView *view = static_cast<FlatView *>(key);
+    GArray *fv_address_spaces = static_cast<GArray *>(value);
 
     g_array_unref(fv_address_spaces);
     flatview_unref(view);
@@ -3614,7 +3616,7 @@ static void mtree_info_flatview(bool dispatch_tree, bool owner)
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
         view = address_space_get_flatview(as);
 
-        fv_address_spaces = g_hash_table_lookup(views, view);
+        fv_address_spaces = static_cast<GArray *>(g_hash_table_lookup(views, view));
         if (!fv_address_spaces) {
             fv_address_spaces = g_array_new(false, false, sizeof(as));
             g_hash_table_insert(views, view, fv_address_spaces);
@@ -3640,24 +3642,24 @@ struct AddressSpaceInfo {
 /* Returns negative value if a < b; zero if a = b; positive value if a > b. */
 static gint address_space_compare_name(gconstpointer a, gconstpointer b)
 {
-    const AddressSpace *as_a = a;
-    const AddressSpace *as_b = b;
+    const AddressSpace *as_a = static_cast<const AddressSpace *>(a);
+    const AddressSpace *as_b = static_cast<const AddressSpace *>(b);
 
     return g_strcmp0(as_a->name, as_b->name);
 }
 
 static void mtree_print_as_name(gpointer data, gpointer user_data)
 {
-    AddressSpace *as = data;
+    AddressSpace *as = static_cast<AddressSpace *>(data);
 
     qemu_printf("address-space: %s\n", as->name);
 }
 
 static void mtree_print_as(gpointer key, gpointer value, gpointer user_data)
 {
-    MemoryRegion *mr = key;
-    GSList *as_same_root_mr_list = value;
-    struct AddressSpaceInfo *asi = user_data;
+    MemoryRegion *mr = static_cast<MemoryRegion *>(key);
+    GSList *as_same_root_mr_list = static_cast<GSList *>(value);
+    struct AddressSpaceInfo *asi = static_cast<struct AddressSpaceInfo *>(user_data);
 
     g_slist_foreach(as_same_root_mr_list, mtree_print_as_name, NULL);
     mtree_print_mr(mr, 1, 0, asi->ml_head, asi->owner, asi->disabled);
@@ -3667,7 +3669,7 @@ static void mtree_print_as(gpointer key, gpointer value, gpointer user_data)
 static gboolean mtree_info_as_free(gpointer key, gpointer value,
                                    gpointer user_data)
 {
-    GSList *as_same_root_mr_list = value;
+    GSList *as_same_root_mr_list = static_cast<GSList *>(value);
 
     g_slist_free(as_same_root_mr_list);
 
@@ -3691,7 +3693,7 @@ static void mtree_info_as(bool dispatch_tree, bool owner, bool disabled)
 
     QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
         /* Create hashtable, key=AS root MR, value = list of AS */
-        as_same_root_mr_list = g_hash_table_lookup(views, as->root);
+        as_same_root_mr_list = static_cast<GSList *>(g_hash_table_lookup(views, as->root));
         as_same_root_mr_list = g_slist_insert_sorted(as_same_root_mr_list, as,
                                                      address_space_compare_name);
         g_hash_table_insert(views, as->root, as_same_root_mr_list);
@@ -3832,26 +3834,26 @@ void __attribute__((weak)) fuzz_dma_read_cb(size_t addr,
 #endif
 
 static const TypeInfo memory_region_info = {
-    .parent             = TYPE_OBJECT,
     .name               = TYPE_MEMORY_REGION,
-    .class_size         = sizeof(MemoryRegionClass),
+    .parent             = TYPE_OBJECT,
     .instance_size      = sizeof(MemoryRegion),
     .instance_init      = memory_region_initfn,
     .instance_finalize  = memory_region_finalize,
+    .class_size         = sizeof(MemoryRegionClass),
 };
 
 static const TypeInfo iommu_memory_region_info = {
-    .parent             = TYPE_MEMORY_REGION,
     .name               = TYPE_IOMMU_MEMORY_REGION,
-    .class_size         = sizeof(IOMMUMemoryRegionClass),
+    .parent             = TYPE_MEMORY_REGION,
     .instance_size      = sizeof(IOMMUMemoryRegion),
     .instance_init      = iommu_memory_region_initfn,
-    .is_abstract           = true,
+    .is_abstract        = true,
+    .class_size         = sizeof(IOMMUMemoryRegionClass),
 };
 
 static const TypeInfo ram_discard_manager_info = {
-    .parent             = TYPE_INTERFACE,
     .name               = TYPE_RAM_DISCARD_MANAGER,
+    .parent             = TYPE_INTERFACE,
     .class_size         = sizeof(RamDiscardManagerClass),
 };
 

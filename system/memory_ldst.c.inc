@@ -39,11 +39,11 @@ static inline uint32_t glue(address_space_ldl_internal, SUFFIX)(ARG1_DECL,
 
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val,
-                                        MO_32 | devend_memop(endian), attrs);
+                                        static_cast<MemOp>(MO_32 | devend_memop(endian)), attrs);
     } else {
         /* RAM case */
         fuzz_dma_read_cb(addr, 4, mr);
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             val = ldl_le_p(ptr);
@@ -108,11 +108,11 @@ static inline uint64_t glue(address_space_ldq_internal, SUFFIX)(ARG1_DECL,
 
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val,
-                                        MO_64 | devend_memop(endian), attrs);
+                                        static_cast<MemOp>(MO_64 | devend_memop(endian)), attrs);
     } else {
         /* RAM case */
         fuzz_dma_read_cb(addr, 8, mr);
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             val = ldq_le_p(ptr);
@@ -178,7 +178,7 @@ uint8_t glue(address_space_ldub, SUFFIX)(ARG1_DECL,
     } else {
         /* RAM case */
         fuzz_dma_read_cb(addr, 1, mr);
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         val = ldub_p(ptr);
         r = MEMTX_OK;
     }
@@ -212,11 +212,11 @@ static inline uint16_t glue(address_space_lduw_internal, SUFFIX)(ARG1_DECL,
 
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val,
-                                        MO_16 | devend_memop(endian), attrs);
+                                        static_cast<MemOp>(MO_16 | devend_memop(endian)), attrs);
     } else {
         /* RAM case */
         fuzz_dma_read_cb(addr, 2, mr);
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             val = lduw_le_p(ptr);
@@ -282,7 +282,7 @@ void glue(address_space_stl_notdirty, SUFFIX)(ARG1_DECL,
 
         r = memory_region_dispatch_write(mr, addr1, val, MO_32, attrs);
     } else {
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         stl_p(ptr, val);
 
         dirty_log_mask = memory_region_get_dirty_log_mask(mr);
@@ -317,10 +317,10 @@ static inline void glue(address_space_stl_internal, SUFFIX)(ARG1_DECL,
     if (l < 4 || !memory_access_is_direct(mr, true, attrs)) {
         release_lock |= prepare_mmio_access(mr);
         r = memory_region_dispatch_write(mr, addr1, val,
-                                         MO_32 | devend_memop(endian), attrs);
+                                         static_cast<MemOp>(MO_32 | devend_memop(endian)), attrs);
     } else {
         /* RAM case */
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             stl_le_p(ptr, val);
@@ -382,7 +382,7 @@ void glue(address_space_stb, SUFFIX)(ARG1_DECL,
         r = memory_region_dispatch_write(mr, addr1, val, MO_8, attrs);
     } else {
         /* RAM case */
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         stb_p(ptr, val);
         invalidate_and_set_dirty(mr, addr1, 1);
         r = MEMTX_OK;
@@ -413,10 +413,10 @@ static inline void glue(address_space_stw_internal, SUFFIX)(ARG1_DECL,
     if (l < 2 || !memory_access_is_direct(mr, true, attrs)) {
         release_lock |= prepare_mmio_access(mr);
         r = memory_region_dispatch_write(mr, addr1, val,
-                                         MO_16 | devend_memop(endian), attrs);
+                                         static_cast<MemOp>(MO_16 | devend_memop(endian)), attrs);
     } else {
         /* RAM case */
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             stw_le_p(ptr, val);
@@ -477,10 +477,10 @@ static void glue(address_space_stq_internal, SUFFIX)(ARG1_DECL,
     if (l < 8 || !memory_access_is_direct(mr, true, attrs)) {
         release_lock |= prepare_mmio_access(mr);
         r = memory_region_dispatch_write(mr, addr1, val,
-                                         MO_64 | devend_memop(endian), attrs);
+                                         static_cast<MemOp>(MO_64 | devend_memop(endian)), attrs);
     } else {
         /* RAM case */
-        ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+        ptr = static_cast<uint8_t *>(qemu_map_ram_ptr(mr->ram_block, addr1));
         switch (endian) {
         case DEVICE_LITTLE_ENDIAN:
             stq_le_p(ptr, val);

@@ -1,6 +1,10 @@
 #ifndef QEMU_FIFO8_H
 #define QEMU_FIFO8_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef struct {
     /* All fields are private */
@@ -226,5 +230,9 @@ extern const VMStateDescription vmstate_fifo8;
 
 #define VMSTATE_FIFO8(_field, _state)                                \
     VMSTATE_FIFO8_TEST(_field, _state, NULL)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_FIFO8_H */

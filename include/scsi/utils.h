@@ -1,6 +1,10 @@
 #ifndef SCSI_UTILS_H
 #define SCSI_UTILS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef CONFIG_LINUX
 #include <scsi/sg.h>
 #endif
@@ -143,5 +147,9 @@ int scsi_cdb_length(uint8_t *buf);
 
 int scsi_sense_from_errno(int errno_value, SCSISense *sense);
 int scsi_sense_from_host_status(uint8_t host_status, SCSISense *sense);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

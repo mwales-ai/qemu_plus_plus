@@ -52,6 +52,10 @@
 #ifndef DECCONTEXT_H
 #define DECCONTEXT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
   #define DECCNAME     "decContext"			/* Short name */
   #define DECCFULLNAME "Decimal Context Descriptor"   /* Verbose name */
   #define DECCAUTHOR   "Mike Cowlishaw"		      /* Who to blame */
@@ -250,5 +254,9 @@
   extern uint32_t      decContextTestSavedStatus(uint32_t, uint32_t);
   extern uint32_t      decContextTestStatus(decContext *, uint32_t);
   extern decContext  * decContextZeroStatus(decContext *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

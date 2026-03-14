@@ -28,19 +28,9 @@
 
 #include "qemu/queue.h"
 
-/**
- * get_opt_value
- * @p: a pointer to the option name, delimited by commas
- * @value: a non-NULL pointer that will received the delimited options
- *
- * The @value char pointer will be allocated and filled with
- * the delimited options.
- *
- * Returns the position of the comma delimiter/zero byte after the
- * option name in @p.
- * The memory pointer in @value must be released with a call to g_free()
- * when no longer required.
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 const char *get_opt_value(const char *p, char **value);
 
 bool parse_option_size(const char *name, const char *value,
@@ -147,5 +137,9 @@ void qemu_opts_free(QemuOptsList *list);
 QemuOptsList *qemu_opts_append(QemuOptsList *dst, QemuOptsList *list);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuOpts, qemu_opts_del)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

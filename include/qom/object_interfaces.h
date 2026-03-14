@@ -5,6 +5,9 @@
 #include "qapi/qapi-types-qom.h"
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define TYPE_USER_CREATABLE "user-creatable"
 
 typedef struct UserCreatableClass UserCreatableClass;
@@ -176,5 +179,9 @@ bool user_creatable_del(const char *id, Error **errp);
  * objects container.
  */
 void user_creatable_cleanup(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

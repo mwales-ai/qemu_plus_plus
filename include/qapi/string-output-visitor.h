@@ -15,6 +15,9 @@
 
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct StringOutputVisitor StringOutputVisitor;
 
 /*
@@ -31,5 +34,9 @@ typedef struct StringOutputVisitor StringOutputVisitor;
  * non-null list argument to visit_start_list().
  */
 Visitor *string_output_visitor_new(bool human, char **result);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

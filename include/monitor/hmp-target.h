@@ -25,6 +25,10 @@
 #ifndef MONITOR_HMP_TARGET_H
 #define MONITOR_HMP_TARGET_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct MonitorDef MonitorDef;
 
 #ifdef COMPILING_PER_TARGET
@@ -60,5 +64,9 @@ void hmp_info_registers(Monitor *mon, const QDict *qdict);
 void hmp_gva2gpa(Monitor *mon, const QDict *qdict);
 void hmp_gpa2hva(Monitor *mon, const QDict *qdict);
 void hmp_gpa2hpa(Monitor *mon, const QDict *qdict);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MONITOR_HMP_TARGET_H */

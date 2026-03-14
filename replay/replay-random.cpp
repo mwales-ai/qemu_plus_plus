@@ -21,7 +21,7 @@ void replay_save_random(int ret, void *buf, size_t len)
     replay_save_instructions();
     replay_put_event(EVENT_RANDOM);
     replay_put_dword(ret);
-    replay_put_array(buf, len);
+    replay_put_array(static_cast<const uint8_t *>(buf), len);
 }
 
 int replay_read_random(void *buf, size_t len)
@@ -33,7 +33,7 @@ int replay_read_random(void *buf, size_t len)
     if (replay_next_event_is(EVENT_RANDOM)) {
         size_t buf_size = 0;
         ret = replay_get_dword();
-        replay_get_array(buf, &buf_size);
+        replay_get_array(static_cast<uint8_t *>(buf), &buf_size);
         replay_finish_event();
         g_assert(buf_size == len);
     } else {

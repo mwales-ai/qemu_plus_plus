@@ -28,7 +28,9 @@
 #include "chardev/char.h"
 #include "qemu/main-loop.h"
 
-/* Can only be used for read */
+#ifdef __cplusplus
+extern "C" {
+#endif
 GSource *io_add_watch_poll(Chardev *chr,
                         QIOChannel *ioc,
                         IOCanReadHandler *fd_can_read,
@@ -44,5 +46,9 @@ int io_channel_send_full(QIOChannel *ioc, const void *buf, size_t len,
                          int *fds, size_t nfds);
 
 void remove_listener_fd_in_watch(Chardev *chr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CHAR_IO_H */

@@ -6,6 +6,9 @@
 #include "qemu/thread.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define IAC_EOR 239
 #define IAC_SE 240
 #define IAC_NOP 241
@@ -322,5 +325,9 @@ GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
 
 void suspend_mux_open(void);
 void resume_mux_open(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

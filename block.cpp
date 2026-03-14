@@ -228,7 +228,7 @@ char *path_combine(const char *base_path, const char *filename)
     }
     len = p - base_path;
 
-    result = g_malloc(len + strlen(filename) + 1);
+    result = static_cast<char *>(g_malloc(len + strlen(filename) + 1));
     memcpy(result, base_path, len);
     strcpy(result + len, filename);
 
@@ -430,7 +430,7 @@ BlockDriverState *bdrv_new(void)
     qemu_co_mutex_init(&bs->bsc_modify_lock);
     bs->block_status_cache = g_new0(BdrvBlockStatusCache, 1);
 
-    for (i = 0; i < bdrv_drain_all_count; i++) {
+    for (i = 0; i < (int)bdrv_drain_all_count; i++) {
         bdrv_do_drained_begin_quiesce(bs, NULL);
     }
 
@@ -570,8 +570,8 @@ create_file_fallback_truncate(BlockBackend *blk, int64_t minimum_size,
 
     GLOBAL_STATE_CODE();
 
-    ret = blk_co_truncate(blk, minimum_size, false, PREALLOC_MODE_OFF, 0,
-                          &local_err);
+    ret = blk_co_truncate(blk, minimum_size, false, PREALLOC_MODE_OFF,
+                          static_cast<BdrvRequestFlags>(0), &local_err);
     if (ret < 0 && ret != -ENOTSUP) {
         error_propagate(errp, local_err);
         return ret;
@@ -648,8 +648,9 @@ int coroutine_fn bdrv_co_create_opts_simple(BlockDriver *drv,
 
     size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
-    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
-                               PREALLOC_MODE_OFF, &local_err);
+    prealloc = static_cast<PreallocMode>(
+        qapi_enum_parse(&PreallocMode_lookup, buf,
+                        PREALLOC_MODE_OFF, &local_err));
     g_free(buf);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -877,7 +878,7 @@ char *create_tmp_file(Error **errp)
     }
     close(fd);
 
-    return g_steal_pointer(&filename);
+    return static_cast<char *>(g_steal_pointer(&filename));
 }
 
 /*
@@ -948,7 +949,7 @@ BlockDriver *bdrv_find_protocol(const char *filename,
     p = strchr(filename, ':');
     assert(p != NULL);
     len = p - filename;
-    if (len > sizeof(protocol) - 1)
+    if (len > (int)(sizeof(protocol) - 1))
         len = sizeof(protocol) - 1;
     memcpy(protocol, filename, len);
     protocol[len] = '\0';
@@ -1026,7 +1027,7 @@ static int find_image_format(BlockBackend *file, const char *filename,
         return ret;
     }
 
-    ret = blk_pread(file, 0, sizeof(buf), buf, 0);
+    ret = blk_pread(file, 0, sizeof(buf), buf, static_cast<BdrvRequestFlags>(0));
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read image for determining its "
                          "format");
@@ -1105,8 +1106,9 @@ static BlockdevDetectZeroesOptions bdrv_parse_detect_zeroes(QemuOpts *opts,
     Error *local_err = NULL;
     char *value = qemu_opt_get_del(opts, "detect-zeroes");
     BlockdevDetectZeroesOptions detect_zeroes =
-        qapi_enum_parse(&BlockdevDetectZeroesOptions_lookup, value,
-                        BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF, &local_err);
+        static_cast<BlockdevDetectZeroesOptions>(
+            qapi_enum_parse(&BlockdevDetectZeroesOptions_lookup, value,
+                            BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF, &local_err));
     GLOBAL_STATE_CODE();
     g_free(value);
     if (local_err) {
@@ -1197,31 +1199,31 @@ int bdrv_parse_cache_mode(const char *mode, int *flags, bool *writethrough)
 
 static char *bdrv_child_get_parent_desc(BdrvChild *c)
 {
-    BlockDriverState *parent = c->opaque;
+    BlockDriverState *parent = static_cast<BlockDriverState *>(c->opaque);
     return g_strdup_printf("node '%s'", bdrv_get_node_name(parent));
 }
 
 static void GRAPH_RDLOCK bdrv_child_cb_drained_begin(BdrvChild *child)
 {
-    BlockDriverState *bs = child->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(child->opaque);
     bdrv_do_drained_begin_quiesce(bs, NULL);
 }
 
 static bool GRAPH_RDLOCK bdrv_child_cb_drained_poll(BdrvChild *child)
 {
-    BlockDriverState *bs = child->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(child->opaque);
     return bdrv_drain_poll(bs, NULL, false);
 }
 
 static void GRAPH_RDLOCK bdrv_child_cb_drained_end(BdrvChild *child)
 {
-    BlockDriverState *bs = child->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(child->opaque);
     bdrv_drained_end(bs);
 }
 
 static int bdrv_child_cb_inactivate(BdrvChild *child)
 {
-    BlockDriverState *bs = child->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(child->opaque);
     GLOBAL_STATE_CODE();
     assert(bs->open_flags & BDRV_O_INACTIVE);
     return 0;
@@ -1232,7 +1234,7 @@ bdrv_child_cb_change_aio_ctx(BdrvChild *child, AioContext *ctx,
                              GHashTable *visited, Transaction *tran,
                              Error **errp)
 {
-    BlockDriverState *bs = child->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(child->opaque);
     return bdrv_change_aio_context(bs, ctx, visited, tran, errp);
 }
 
@@ -1262,7 +1264,7 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
 
 static void GRAPH_WRLOCK bdrv_backing_attach(BdrvChild *c)
 {
-    BlockDriverState *parent = c->opaque;
+    BlockDriverState *parent = static_cast<BlockDriverState *>(c->opaque);
     BlockDriverState *backing_hd = c->bs;
 
     GLOBAL_STATE_CODE();
@@ -1302,7 +1304,7 @@ static void GRAPH_WRLOCK bdrv_backing_attach(BdrvChild *c)
 
 static void bdrv_backing_detach(BdrvChild *c)
 {
-    BlockDriverState *parent = c->opaque;
+    BlockDriverState *parent = static_cast<BlockDriverState *>(c->opaque);
 
     GLOBAL_STATE_CODE();
     assert(parent->backing_blocker);
@@ -1316,7 +1318,7 @@ static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
                                         bool backing_mask_protocol,
                                         Error **errp)
 {
-    BlockDriverState *parent = c->opaque;
+    BlockDriverState *parent = static_cast<BlockDriverState *>(c->opaque);
     bool read_only = bdrv_is_read_only(parent);
     int ret;
     const char *format_name;
@@ -1440,7 +1442,7 @@ static void bdrv_inherited_options(BdrvChildRole role, bool parent_is_format,
 
 static void GRAPH_WRLOCK bdrv_child_cb_attach(BdrvChild *child)
 {
-    BlockDriverState *bs = child->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(child->opaque);
 
     assert_bdrv_graph_writable();
     QLIST_INSERT_HEAD(&bs->children, child, next);
@@ -1482,7 +1484,7 @@ static void GRAPH_WRLOCK bdrv_child_cb_attach(BdrvChild *child)
 
 static void GRAPH_WRLOCK bdrv_child_cb_detach(BdrvChild *child)
 {
-    BlockDriverState *bs = child->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(child->opaque);
 
     if (child->role & BDRV_CHILD_COW) {
         bdrv_backing_detach(child);
@@ -1500,7 +1502,7 @@ static void GRAPH_WRLOCK bdrv_child_cb_detach(BdrvChild *child)
 
 static void coroutine_fn GRAPH_RDLOCK bdrv_child_cb_resize(BdrvChild *child)
 {
-    BlockDriverState *bs = child->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(child->opaque);
 
     if (child->role & BDRV_CHILD_FILTERED) {
         /* Best effort, ignore errors. */
@@ -1524,7 +1526,7 @@ static int bdrv_child_cb_update_filename(BdrvChild *c, BlockDriverState *base,
 
 AioContext *child_of_bds_get_parent_aio_context(BdrvChild *c)
 {
-    BlockDriverState *bs = c->opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(c->opaque);
     IO_CODE();
 
     return bdrv_get_aio_context(bs);
@@ -1532,17 +1534,17 @@ AioContext *child_of_bds_get_parent_aio_context(BdrvChild *c)
 
 const BdrvChildClass child_of_bds = {
     .parent_is_bds   = true,
-    .get_parent_desc = bdrv_child_get_parent_desc,
     .inherit_options = bdrv_inherited_options,
-    .drained_begin   = bdrv_child_cb_drained_begin,
-    .drained_poll    = bdrv_child_cb_drained_poll,
-    .drained_end     = bdrv_child_cb_drained_end,
+    .get_parent_desc = bdrv_child_get_parent_desc,
+    .inactivate      = bdrv_child_cb_inactivate,
     .attach          = bdrv_child_cb_attach,
     .detach          = bdrv_child_cb_detach,
-    .inactivate      = bdrv_child_cb_inactivate,
+    .drained_begin   = bdrv_child_cb_drained_begin,
+    .drained_end     = bdrv_child_cb_drained_end,
+    .drained_poll    = bdrv_child_cb_drained_poll,
+    .update_filename = bdrv_child_cb_update_filename,
     .change_aio_ctx  = bdrv_child_cb_change_aio_ctx,
     .resize          = bdrv_child_cb_resize,
-    .update_filename = bdrv_child_cb_update_filename,
     .get_parent_aio_context = child_of_bds_get_parent_aio_context,
 };
 
@@ -1702,8 +1704,10 @@ bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv, const char *node_name,
      * Drivers must not propagate this flag accidentally when they initiate I/O
      * to a bounce buffer. That case should be rare though.
      */
-    bs->supported_read_flags |= BDRV_REQ_REGISTERED_BUF;
-    bs->supported_write_flags |= BDRV_REQ_REGISTERED_BUF;
+    bs->supported_read_flags = static_cast<BdrvRequestFlags>(
+        bs->supported_read_flags | BDRV_REQ_REGISTERED_BUF);
+    bs->supported_write_flags = static_cast<BdrvRequestFlags>(
+        bs->supported_write_flags | BDRV_REQ_REGISTERED_BUF);
 
     ret = bdrv_refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
@@ -2342,7 +2346,7 @@ typedef struct BdrvChildSetPermState {
 
 static void bdrv_child_set_perm_abort(void *opaque)
 {
-    BdrvChildSetPermState *s = opaque;
+    BdrvChildSetPermState *s = static_cast<BdrvChildSetPermState *>(opaque);
 
     GLOBAL_STATE_CODE();
 
@@ -2375,7 +2379,7 @@ static void bdrv_child_set_perm(BdrvChild *c, uint64_t perm,
 
 static void GRAPH_RDLOCK bdrv_drv_set_perm_commit(void *opaque)
 {
-    BlockDriverState *bs = opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(opaque);
     uint64_t cumulative_perms, cumulative_shared_perms;
     GLOBAL_STATE_CODE();
 
@@ -2388,7 +2392,7 @@ static void GRAPH_RDLOCK bdrv_drv_set_perm_commit(void *opaque)
 
 static void GRAPH_RDLOCK bdrv_drv_set_perm_abort(void *opaque)
 {
-    BlockDriverState *bs = opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(opaque);
     GLOBAL_STATE_CODE();
 
     if (bs->drv->bdrv_abort_perm_update) {
@@ -2435,7 +2439,7 @@ typedef struct BdrvReplaceChildState {
 
 static void GRAPH_WRLOCK bdrv_replace_child_commit(void *opaque)
 {
-    BdrvReplaceChildState *s = opaque;
+    BdrvReplaceChildState *s = static_cast<BdrvReplaceChildState *>(opaque);
     GLOBAL_STATE_CODE();
 
     bdrv_schedule_unref(s->old_bs);
@@ -2443,7 +2447,7 @@ static void GRAPH_WRLOCK bdrv_replace_child_commit(void *opaque)
 
 static void GRAPH_WRLOCK bdrv_replace_child_abort(void *opaque)
 {
-    BdrvReplaceChildState *s = opaque;
+    BdrvReplaceChildState *s = static_cast<BdrvReplaceChildState *>(opaque);
     BlockDriverState *new_bs = s->child->bs;
 
     GLOBAL_STATE_CODE();
@@ -2470,8 +2474,8 @@ static void GRAPH_WRLOCK bdrv_replace_child_abort(void *opaque)
 }
 
 static TransactionActionDrv bdrv_replace_child_drv = {
-    .commit = bdrv_replace_child_commit,
     .abort = bdrv_replace_child_abort,
+    .commit = bdrv_replace_child_commit,
     .clean = g_free,
 };
 
@@ -2606,7 +2610,7 @@ bdrv_do_refresh_perms(GSList *list, BlockReopenQueue *q, Transaction *tran,
     GLOBAL_STATE_CODE();
 
     for ( ; list; list = list->next) {
-        bs = list->data;
+        bs = static_cast<BlockDriverState *>(list->data);
 
         if (bdrv_parent_perms_conflict(bs, errp)) {
             return -EINVAL;
@@ -2637,7 +2641,7 @@ bdrv_list_refresh_perms(GSList *list, BlockReopenQueue *q, Transaction *tran,
     g_autoptr(GSList) refresh_list = NULL;
 
     for ( ; list; list = list->next) {
-        refresh_list = bdrv_topological_dfs(refresh_list, found, list->data);
+        refresh_list = bdrv_topological_dfs(refresh_list, found, static_cast<BlockDriverState *>(list->data));
     }
 
     return bdrv_do_refresh_perms(refresh_list, q, tran, errp);
@@ -3032,7 +3036,7 @@ typedef struct BdrvAttachChildCommonState {
 
 static void GRAPH_WRLOCK bdrv_attach_child_common_abort(void *opaque)
 {
-    BdrvAttachChildCommonState *s = opaque;
+    BdrvAttachChildCommonState *s = static_cast<BdrvAttachChildCommonState *>(opaque);
     BlockDriverState *bs = s->child->bs;
 
     GLOBAL_STATE_CODE();
@@ -3117,9 +3121,9 @@ bdrv_attach_child_common(BlockDriverState *child_bs,
         .name           = g_strdup(child_name),
         .klass          = child_class,
         .role           = child_role,
+        .opaque         = opaque,
         .perm           = perm,
         .shared_perm    = shared_perm,
-        .opaque         = opaque,
     };
 
     /*
@@ -3357,7 +3361,7 @@ typedef struct BdrvSetInheritsFrom {
 
 static void bdrv_set_inherits_from_abort(void *opaque)
 {
-    BdrvSetInheritsFrom *s = opaque;
+    BdrvSetInheritsFrom *s = static_cast<BdrvSetInheritsFrom *>(opaque);
 
     s->bs->inherits_from = s->old_inherits_from;
 }
@@ -5023,12 +5027,12 @@ bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
         GRAPH_RDLOCK_GUARD_MAINLOOP();
 
         do {
-            QObject *new = entry->value;
+            QObject *new_val = entry->value;
             QObject *old = qdict_get(reopen_state->bs->options, entry->key);
 
             /* Allow child references (child_name=node_name) as long as they
              * point to the current child (i.e. everything stays the same). */
-            if (qobject_type(new) == QTYPE_QSTRING) {
+            if (qobject_type(new_val) == QTYPE_QSTRING) {
                 BdrvChild *child;
                 QLIST_FOREACH(child, &reopen_state->bs->children, next) {
                     if (!strcmp(child->name, entry->key)) {
@@ -5038,7 +5042,7 @@ bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
 
                 if (child) {
                     if (!strcmp(child->bs->node_name,
-                                qstring_get_str(qobject_to(QString, new)))) {
+                                qstring_get_str(qobject_to(QString, new_val)))) {
                         continue; /* Found child with this name, skip option */
                     }
                 }
@@ -5060,7 +5064,7 @@ bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
              * the user can simply omit options which cannot be changed anyway,
              * so they will stay unchanged.
              */
-            if (!qobject_is_equal(new, old)) {
+            if (!qobject_is_equal(new_val, old)) {
                 error_setg(errp, "Cannot change the option '%s'", entry->key);
                 ret = -EINVAL;
                 goto error;
@@ -5293,7 +5297,7 @@ static bool GRAPH_RDLOCK should_update_child(BdrvChild *c, BlockDriverState *to)
     g_queue_push_tail(queue, to);
 
     while (!g_queue_is_empty(queue)) {
-        BlockDriverState *v = g_queue_pop_head(queue);
+        BlockDriverState *v = static_cast<BlockDriverState *>(g_queue_pop_head(queue));
         BdrvChild *c2;
 
         QLIST_FOREACH(c2, &v->children, next) {
@@ -5320,7 +5324,7 @@ static bool GRAPH_RDLOCK should_update_child(BdrvChild *c, BlockDriverState *to)
 static void bdrv_remove_child_commit(void *opaque)
 {
     GLOBAL_STATE_CODE();
-    bdrv_child_free(opaque);
+    bdrv_child_free(static_cast<BdrvChild *>(opaque));
 }
 
 static TransactionActionDrv bdrv_remove_child_drv = {
@@ -5919,7 +5923,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     }
 
     for (p = updated_children; p; p = p->next) {
-        c = p->data;
+        c = static_cast<BdrvChild *>(p->data);
 
         if (c->klass->update_filename) {
             ret = c->klass->update_filename(c, base, backing_file_str,
@@ -6108,7 +6112,7 @@ int64_t coroutine_fn bdrv_co_getlength(BlockDriverState *bs)
     if (ret < 0) {
         return ret;
     }
-    if (ret > INT64_MAX / BDRV_SECTOR_SIZE) {
+    if (ret > (int64_t)(INT64_MAX / BDRV_SECTOR_SIZE)) {
         return -EFBIG;
     }
     return ret * BDRV_SECTOR_SIZE;
@@ -6326,7 +6330,7 @@ static void xdbg_graph_add_edge(XDbgBlockGraphConstructor *gr, void *parent,
     edge->child = xdbg_graph_node_num(gr, child->bs);
     edge->name = g_strdup(child->name);
 
-    for (qapi_perm = 0; qapi_perm < BLOCK_PERMISSION__MAX; qapi_perm++) {
+    for (qapi_perm = static_cast<BlockPermission>(0); qapi_perm < BLOCK_PERMISSION__MAX; qapi_perm = static_cast<BlockPermission>(qapi_perm + 1)) {
         uint64_t flag = bdrv_qapi_perm_to_blk_perm(qapi_perm);
 
         if (flag & child->perm) {
@@ -6725,8 +6729,8 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
         return NULL;
     }
 
-    filename_full     = g_malloc(PATH_MAX);
-    backing_file_full = g_malloc(PATH_MAX);
+    filename_full     = static_cast<char *>(g_malloc(PATH_MAX));
+    backing_file_full = static_cast<char *>(g_malloc(PATH_MAX));
 
     is_protocol = path_has_protocol(backing_file);
 
@@ -6956,7 +6960,7 @@ bdrv_has_bds_parent(BlockDriverState *bs, bool only_active)
 
     QLIST_FOREACH(parent, &bs->parents, next_parent) {
         if (parent->klass->parent_is_bds) {
-            BlockDriverState *parent_bs = parent->opaque;
+            BlockDriverState *parent_bs = static_cast<BlockDriverState *>(parent->opaque);
             if (!only_active || !(parent_bs->open_flags & BDRV_O_INACTIVE)) {
                 return true;
             }
@@ -7173,7 +7177,7 @@ void bdrv_unref(BlockDriverState *bs)
 
 static void bdrv_schedule_unref_bh(void *opaque)
 {
-    BlockDriverState *bs = opaque;
+    BlockDriverState *bs = static_cast<BlockDriverState *>(opaque);
 
     bdrv_unref(bs);
 }
@@ -7244,7 +7248,7 @@ void bdrv_op_block_all(BlockDriverState *bs, Error *reason)
     int i;
     GLOBAL_STATE_CODE();
     for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
-        bdrv_op_block(bs, i, reason);
+        bdrv_op_block(bs, static_cast<BlockOpType>(i), reason);
     }
 }
 
@@ -7253,7 +7257,7 @@ void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason)
     int i;
     GLOBAL_STATE_CODE();
     for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
-        bdrv_op_unblock(bs, i, reason);
+        bdrv_op_unblock(bs, static_cast<BlockOpType>(i), reason);
     }
 }
 
@@ -8148,7 +8152,7 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     } else {
         GString *json = qobject_to_json(QOBJECT(bs->full_open_options));
         if (snprintf(bs->filename, sizeof(bs->filename), "json:%s",
-                     json->str) >= sizeof(bs->filename)) {
+                     json->str) >= (int)sizeof(bs->filename)) {
             /* Give user a hint if we truncated things. */
             strcpy(bs->filename + sizeof(bs->filename) - 4, "...");
         }

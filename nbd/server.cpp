@@ -336,7 +336,7 @@ nbd_opt_read(NBDClient *client, void *buffer, size_t size,
         return -EIO;
     }
 
-    if (check_nul && strnlen(buffer, size) != size) {
+    if (check_nul && strnlen(static_cast<const char *>(buffer), size) != size) {
         return nbd_opt_invalid(client, errp,
                                "Unexpected embedded NUL in option %s",
                                nbd_opt_lookup(client->opt));
@@ -391,7 +391,7 @@ nbd_opt_read_name(NBDClient *client, char **name, uint32_t *length,
                                "Invalid name length: %" PRIu32, len);
     }
 
-    local_name = g_malloc(len + 1);
+    local_name = static_cast<char *>(g_malloc(len + 1));
     ret = nbd_opt_read(client, local_name, len, true, errp);
     if (ret <= 0) {
         return ret;
@@ -401,7 +401,7 @@ nbd_opt_read_name(NBDClient *client, char **name, uint32_t *length,
     if (length) {
         *length = len;
     }
-    *name = g_steal_pointer(&local_name);
+    *name = static_cast<char *>(g_steal_pointer(&local_name));
 
     return 1;
 }
@@ -503,7 +503,7 @@ nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
         error_setg(errp, "Bad length received");
         return -EINVAL;
     }
-    name = g_malloc(client->optlen + 1);
+    name = static_cast<char *>(g_malloc(client->optlen + 1));
     if (nbd_read(client->ioc, name, client->optlen, "export name", errp) < 0) {
         return -EIO;
     }
@@ -769,7 +769,7 @@ struct NBDTLSServerHandshakeData {
 static void
 nbd_server_tls_handshake(QIOTask *task, void *opaque)
 {
-    struct NBDTLSServerHandshakeData *data = opaque;
+    struct NBDTLSServerHandshakeData *data = static_cast<struct NBDTLSServerHandshakeData *>(opaque);
 
     qio_task_propagate_error(task, &data->error);
     data->complete = true;
@@ -1002,7 +1002,7 @@ nbd_negotiate_meta_query(NBDClient *client,
         return nbd_opt_skip(client, len, errp);
     }
 
-    query = g_malloc(len + 1);
+    query = static_cast<char *>(g_malloc(len + 1));
     ret = nbd_opt_read(client, query, len, true, errp);
     if (ret <= 0) {
         return ret;
@@ -1671,7 +1671,7 @@ static void nbd_request_put(NBDRequestData *req)
 
 static void blk_aio_attached(AioContext *ctx, void *opaque)
 {
-    NBDExport *exp = opaque;
+    NBDExport *exp = static_cast<NBDExport *>(opaque);
     NBDClient *client;
 
     assert(qemu_in_main_thread());
@@ -1691,7 +1691,7 @@ static void blk_aio_attached(AioContext *ctx, void *opaque)
 
 static void blk_aio_detach(void *opaque)
 {
-    NBDExport *exp = opaque;
+    NBDExport *exp = static_cast<NBDExport *>(opaque);
 
     assert(qemu_in_main_thread());
 
@@ -1702,7 +1702,7 @@ static void blk_aio_detach(void *opaque)
 
 static void nbd_drained_begin(void *opaque)
 {
-    NBDExport *exp = opaque;
+    NBDExport *exp = static_cast<NBDExport *>(opaque);
     NBDClient *client;
 
     assert(qemu_in_main_thread());
@@ -1716,7 +1716,7 @@ static void nbd_drained_begin(void *opaque)
 
 static void nbd_drained_end(void *opaque)
 {
-    NBDExport *exp = opaque;
+    NBDExport *exp = static_cast<NBDExport *>(opaque);
     NBDClient *client;
 
     assert(qemu_in_main_thread());
@@ -1732,13 +1732,13 @@ static void nbd_drained_end(void *opaque)
 /* Runs in export AioContext */
 static void nbd_wake_read_bh(void *opaque)
 {
-    NBDClient *client = opaque;
+    NBDClient *client = static_cast<NBDClient *>(opaque);
     qio_channel_wake_read(client->ioc);
 }
 
 static bool nbd_drained_poll(void *opaque)
 {
-    NBDExport *exp = opaque;
+    NBDExport *exp = static_cast<NBDExport *>(opaque);
     NBDClient *client;
 
     assert(qemu_in_main_thread());
@@ -2105,7 +2105,7 @@ static inline void set_be_chunk(NBDClient *client, struct iovec *iov,
     assert(length <= NBD_MAX_BUFFER_SIZE + sizeof(NBDStructuredReadData));
 
     if (client->mode >= NBD_MODE_EXTENDED) {
-        NBDExtendedReplyChunk *chunk = iov->iov_base;
+        NBDExtendedReplyChunk *chunk = static_cast<NBDExtendedReplyChunk *>(iov->iov_base);
 
         iov[0].iov_len = sizeof(*chunk);
         stl_be_p(&chunk->magic, NBD_EXTENDED_REPLY_MAGIC);
@@ -2115,7 +2115,7 @@ static inline void set_be_chunk(NBDClient *client, struct iovec *iov,
         stq_be_p(&chunk->offset, request->from);
         stq_be_p(&chunk->length, length);
     } else {
-        NBDStructuredReplyChunk *chunk = iov->iov_base;
+        NBDStructuredReplyChunk *chunk = static_cast<NBDStructuredReplyChunk *>(iov->iov_base);
 
         iov[0].iov_len = sizeof(*chunk);
         stl_be_p(&chunk->magic, NBD_STRUCTURED_REPLY_MAGIC);
@@ -2224,7 +2224,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
             g_free(msg);
             return ret;
         }
-        assert(pnum && pnum <= size - progress);
+        assert(pnum && static_cast<uint64_t>(pnum) <= size - progress);
         final = progress + pnum == size;
         if (status & BDRV_BLOCK_ZERO) {
             NBDReply hdr;
@@ -2244,7 +2244,7 @@ static int coroutine_fn nbd_co_send_sparse_read(NBDClient *client,
             ret = nbd_co_send_iov(client, iov, 2, errp);
         } else {
             ret = blk_co_pread(exp->common.blk, offset + progress, pnum,
-                               data + progress, 0);
+                               data + progress, static_cast<BdrvRequestFlags>(0));
             if (ret < 0) {
                 error_setg_errno(errp, -ret, "reading from file failed");
                 break;
@@ -2295,7 +2295,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(NBDExtentArray, nbd_extent_array_free)
 /* Further modifications of the array after conversion are abandoned */
 static void nbd_extent_array_convert_to_be(NBDExtentArray *ea)
 {
-    int i;
+    unsigned int i;
 
     assert(!ea->converted_to_be);
     assert(ea->extended);
@@ -2311,7 +2311,7 @@ static void nbd_extent_array_convert_to_be(NBDExtentArray *ea)
 /* Further modifications of the array after conversion are abandoned */
 static NBDExtent32 *nbd_extent_array_convert_to_narrow(NBDExtentArray *ea)
 {
-    int i;
+    unsigned int i;
     NBDExtent32 *extents = g_new(NBDExtent32, ea->count);
 
     assert(!ea->converted_to_be);
@@ -2590,7 +2590,7 @@ nbd_co_block_status_payload_read(NBDClient *client, NBDRequest *request,
         goto skip;
     }
 
-    buf = g_malloc(payload_len);
+    buf = static_cast<char *>(g_malloc(payload_len));
     if (nbd_read(client->ioc, buf, payload_len,
                  "CMD_BLOCK_STATUS data", errp) < 0) {
         return -EIO;
@@ -2763,8 +2763,8 @@ static int coroutine_fn nbd_co_receive_request(NBDRequestData *req,
     }
     if (allocate_buffer) {
         /* READ, WRITE */
-        req->data = blk_try_blockalign(client->exp->common.blk,
-                                       request->len);
+        req->data = static_cast<uint8_t *>(blk_try_blockalign(client->exp->common.blk,
+                                       request->len));
         if (req->data == NULL) {
             error_setg(errp, "No memory");
             return -ENOMEM;
@@ -2869,7 +2869,7 @@ static coroutine_fn int nbd_do_cmd_read(NBDClient *client, NBDRequest *request,
                                        data, request->len, errp);
     }
 
-    ret = blk_co_pread(exp->common.blk, request->from, request->len, data, 0);
+    ret = blk_co_pread(exp->common.blk, request->from, request->len, data, static_cast<BdrvRequestFlags>(0));
     if (ret < 0) {
         return nbd_send_generic_reply(client, request, ret,
                                       "reading from file failed", errp);
@@ -2919,7 +2919,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                            uint8_t *data, Error **errp)
 {
     int ret;
-    int flags;
+    BdrvRequestFlags flags;
     NBDExport *exp = client->exp;
     char *msg;
     size_t i;
@@ -2948,9 +2948,9 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         return nbd_do_cmd_read(client, request, data, errp);
 
     case NBD_CMD_WRITE:
-        flags = 0;
+        flags = static_cast<BdrvRequestFlags>(0);
         if (request->flags & NBD_CMD_FLAG_FUA) {
-            flags |= BDRV_REQ_FUA;
+            flags = static_cast<BdrvRequestFlags>(flags | BDRV_REQ_FUA);
         }
         assert(request->len <= NBD_MAX_BUFFER_SIZE);
         ret = blk_co_pwrite(exp->common.blk, request->from, request->len, data,
@@ -2959,15 +2959,15 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                       "writing to file failed", errp);
 
     case NBD_CMD_WRITE_ZEROES:
-        flags = 0;
+        flags = static_cast<BdrvRequestFlags>(0);
         if (request->flags & NBD_CMD_FLAG_FUA) {
-            flags |= BDRV_REQ_FUA;
+            flags = static_cast<BdrvRequestFlags>(flags | BDRV_REQ_FUA);
         }
         if (!(request->flags & NBD_CMD_FLAG_NO_HOLE)) {
-            flags |= BDRV_REQ_MAY_UNMAP;
+            flags = static_cast<BdrvRequestFlags>(flags | BDRV_REQ_MAY_UNMAP);
         }
         if (request->flags & NBD_CMD_FLAG_FAST_ZERO) {
-            flags |= BDRV_REQ_NO_FALLBACK;
+            flags = static_cast<BdrvRequestFlags>(flags | BDRV_REQ_NO_FALLBACK);
         }
         ret = blk_co_pwrite_zeroes(exp->common.blk, request->from, request->len,
                                    flags);
@@ -3070,7 +3070,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
 /* Owns a reference to the NBDClient passed as opaque.  */
 static coroutine_fn void nbd_trip(void *opaque)
 {
-    NBDRequestData *req = opaque;
+    NBDRequestData *req = static_cast<NBDRequestData *>(opaque);
     NBDClient *client = req->client;
     NBDRequest request = { 0 };    /* GCC thinks it can be used uninitialized */
     int ret;
@@ -3215,7 +3215,7 @@ static void nbd_client_receive_next_request(NBDClient *client)
 
 static void nbd_handshake_timer_cb(void *opaque)
 {
-    QIOChannel *ioc = opaque;
+    QIOChannel *ioc = static_cast<QIOChannel *>(opaque);
 
     trace_nbd_handshake_timer_cb();
     qio_channel_shutdown(ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
@@ -3223,7 +3223,7 @@ static void nbd_handshake_timer_cb(void *opaque)
 
 static coroutine_fn void nbd_co_client_start(void *opaque)
 {
-    NBDClient *client = opaque;
+    NBDClient *client = static_cast<NBDClient *>(opaque);
     Error *local_err = NULL;
     QEMUTimer *handshake_timer = NULL;
 

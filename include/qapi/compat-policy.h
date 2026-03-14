@@ -16,6 +16,9 @@
 #include "qapi/error.h"
 #include "qapi/qapi-types-compat.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern CompatPolicy compat_policy;
 
 bool compat_policy_input_ok(uint64_t features,
@@ -41,5 +44,9 @@ Visitor *qobject_input_visitor_new_qmp(QObject *obj);
  * -compat.
  */
 Visitor *qobject_output_visitor_new_qmp(QObject **result);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

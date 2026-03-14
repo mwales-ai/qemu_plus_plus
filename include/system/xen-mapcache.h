@@ -12,6 +12,9 @@
 #include "exec/cpu-common.h"
 #include "system/xen.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef hwaddr (*phys_offset_to_gaddr_t)(hwaddr phys_offset,
                                          ram_addr_t size);
 void xen_map_cache_init(phys_offset_to_gaddr_t f,
@@ -26,5 +29,9 @@ void xen_invalidate_map_cache(void);
 uint8_t *xen_replace_cache_entry(hwaddr old_phys_addr,
                                  hwaddr new_phys_addr,
                                  hwaddr size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* XEN_MAPCACHE_H */

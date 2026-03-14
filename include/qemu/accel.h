@@ -26,6 +26,9 @@
 #include "qom/object.h"
 #include "exec/hwaddr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct AccelState AccelState;
 typedef struct AccelClass AccelClass;
 
@@ -80,5 +83,9 @@ void accel_cpu_common_unrealize(CPUState *cpu);
  * accelerator.
  */
 int accel_supported_gdbstub_sstep_flags(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_ACCEL_H */

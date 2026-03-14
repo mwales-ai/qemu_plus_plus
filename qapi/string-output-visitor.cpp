@@ -100,7 +100,7 @@ static void string_output_set(StringOutputVisitor *sov, char *string)
 
 static void string_output_append(StringOutputVisitor *sov, int64_t a)
 {
-    Range *r = g_malloc0(sizeof(*r));
+    Range *r = static_cast<Range *>(g_malloc0(sizeof(*r)));
 
     range_set_bounds(r, a, a);
     sov->ranges = range_list_insert(sov->ranges, r);
@@ -109,7 +109,7 @@ static void string_output_append(StringOutputVisitor *sov, int64_t a)
 static void string_output_append_range(StringOutputVisitor *sov,
                                        int64_t s, int64_t e)
 {
-    Range *r = g_malloc0(sizeof(*r));
+    Range *r = static_cast<Range *>(g_malloc0(sizeof(*r)));
 
     range_set_bounds(r, s, e);
     sov->ranges = range_list_insert(sov->ranges, r);
@@ -202,7 +202,7 @@ static bool print_type_int64(Visitor *v, const char *name, int64_t *obj,
 
     l = sov->ranges;
     while (l) {
-        Range *r = l->data;
+        Range *r = static_cast<Range *>(l->data);
         format_string(sov, r, l->next != NULL, false);
         l = l->next;
     }
@@ -211,7 +211,7 @@ static bool print_type_int64(Visitor *v, const char *name, int64_t *obj,
         l = sov->ranges;
         g_string_append(sov->string, " (");
         while (l) {
-            Range *r = l->data;
+            Range *r = static_cast<Range *>(l->data);
             format_string(sov, r, l->next != NULL, true);
             l = l->next;
         }
@@ -241,14 +241,14 @@ static bool print_type_size(Visitor *v, const char *name, uint64_t *obj,
     }
 
     if (!sov->human) {
-        out = g_strdup_printf("%"PRIu64, *obj);
+        out = g_strdup_printf("%" PRIu64, *obj);
         string_output_set(sov, out);
         return true;
     }
 
     val = *obj;
     psize = size_to_str(val);
-    out = g_strdup_printf("%"PRIu64" (%s)", val, psize);
+    out = g_strdup_printf("%" PRIu64 " (%s)", val, psize);
     string_output_set(sov, out);
 
     g_free(psize);
@@ -424,7 +424,7 @@ Visitor *string_output_visitor_new(bool human, char **result)
 {
     StringOutputVisitor *v;
 
-    v = g_malloc0(sizeof(*v));
+    v = static_cast<StringOutputVisitor *>(g_malloc0(sizeof(*v)));
 
     v->string = g_string_new(NULL);
     v->human = human;

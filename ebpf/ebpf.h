@@ -12,6 +12,10 @@
 #ifndef EBPF_H
 #define EBPF_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void ebpf_register_binary_data(int id, const void *data,
                                size_t datalen);
@@ -25,5 +29,9 @@ static void __attribute__((constructor)) ebpf_binary_init_ ## fn(void)     \
     const void *data = fn(&datalen);                                       \
     ebpf_register_binary_data(id, data, datalen);                          \
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EBPF_H */

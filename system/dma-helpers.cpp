@@ -99,7 +99,7 @@ static void dma_blk_unmap(DMAAIOCB *dbs)
 
 static void dma_complete(DMAAIOCB *dbs, int ret)
 {
-    trace_dma_complete(dbs, ret, dbs->common.cb);
+    trace_dma_complete(dbs, ret, reinterpret_cast<void *>(dbs->common.cb));
 
     assert(!dbs->acb && !dbs->bh);
     dma_blk_unmap(dbs);
@@ -207,8 +207,8 @@ static void dma_aio_cancel(BlockAIOCB *acb)
 }
 
 static const AIOCBInfo dma_aiocb_info = {
-    .aiocb_size         = sizeof(DMAAIOCB),
     .cancel_async       = dma_aio_cancel,
+    .aiocb_size         = sizeof(DMAAIOCB),
 };
 
 BlockAIOCB *dma_blk_io(
@@ -217,7 +217,7 @@ BlockAIOCB *dma_blk_io(
     BlockCompletionFunc *cb,
     void *opaque, DMADirection dir)
 {
-    DMAAIOCB *dbs = qemu_aio_get(&dma_aiocb_info, NULL, cb, opaque);
+    DMAAIOCB *dbs = static_cast<DMAAIOCB *>(qemu_aio_get(&dma_aiocb_info, NULL, cb, opaque));
 
     trace_dma_blk_io(dbs, io_func_opaque, offset, (dir == DMA_DIRECTION_TO_DEVICE));
 
@@ -243,8 +243,8 @@ BlockAIOCB *dma_blk_read_io_func(int64_t offset, QEMUIOVector *iov,
                                  BlockCompletionFunc *cb, void *cb_opaque,
                                  void *opaque)
 {
-    BlockBackend *blk = opaque;
-    return blk_aio_preadv(blk, offset, iov, 0, cb, cb_opaque);
+    BlockBackend *blk = static_cast<BlockBackend *>(opaque);
+    return blk_aio_preadv(blk, offset, iov, static_cast<BdrvRequestFlags>(0), cb, cb_opaque);
 }
 
 BlockAIOCB *dma_blk_read(BlockBackend *blk,
@@ -261,8 +261,8 @@ BlockAIOCB *dma_blk_write_io_func(int64_t offset, QEMUIOVector *iov,
                                   BlockCompletionFunc *cb, void *cb_opaque,
                                   void *opaque)
 {
-    BlockBackend *blk = opaque;
-    return blk_aio_pwritev(blk, offset, iov, 0, cb, cb_opaque);
+    BlockBackend *blk = static_cast<BlockBackend *>(opaque);
+    return blk_aio_pwritev(blk, offset, iov, static_cast<BdrvRequestFlags>(0), cb, cb_opaque);
 }
 
 BlockAIOCB *dma_blk_write(BlockBackend *blk,
@@ -279,7 +279,7 @@ static MemTxResult dma_buf_rw(void *buf, dma_addr_t len, dma_addr_t *residual,
                               QEMUSGList *sg, DMADirection dir,
                               MemTxAttrs attrs)
 {
-    uint8_t *ptr = buf;
+    uint8_t *ptr = static_cast<uint8_t *>(buf);
     dma_addr_t xresidual;
     int sg_cur_index;
     MemTxResult res = MEMTX_OK;

@@ -5,6 +5,9 @@
 #include "hw/virtio/virtio-features.h"
 #include "hw/virtio/vhost-backend.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct vhost_net;
 typedef struct vhost_net VHostNetState;
 
@@ -88,4 +91,8 @@ int vhost_net_virtqueue_restart(VirtIODevice *vdev, NetClientState *nc,
                                 int vq_index);
 
 void vhost_net_save_acked_features(NetClientState *nc);
+#ifdef __cplusplus
+}
+#endif
+
 #endif

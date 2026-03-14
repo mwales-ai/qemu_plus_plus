@@ -1,6 +1,10 @@
 #ifndef QEMU_DISAS_H
 #define QEMU_DISAS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Disassemble this for me please... (debugging). */
 #ifdef CONFIG_TCG
 void disas(FILE *out, const void *code, size_t size);
@@ -37,5 +41,9 @@ struct syminfo {
 
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 extern struct syminfo *syminfos;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_DISAS_H */

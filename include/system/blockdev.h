@@ -13,6 +13,9 @@
 #include "block/block.h"
 #include "qemu/queue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef enum {
     IF_DEFAULT = -1,            /* for use with drive_add() only */
     /*
@@ -60,5 +63,9 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);
 DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type,
                      Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

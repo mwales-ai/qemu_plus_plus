@@ -11,6 +11,10 @@
 #include "qemu/thread.h"
 #include "exec/cpu-common.h"
 #include "exec/vaddr.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef CONFIG_USER_ONLY
 #include "qemu/interval-tree.h"
 #include "exec/target_page.h"
@@ -210,5 +214,9 @@ static inline void tb_set_page_addr1(TranslationBlock *tb,
 /* TranslationBlock invalidate API */
 void tb_invalidate_phys_range(CPUState *cpu, tb_page_addr_t start,
                               tb_page_addr_t last);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EXEC_TRANSLATION_BLOCK_H */

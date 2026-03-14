@@ -19,6 +19,10 @@
 #include "qom/object.h"
 #include "system/event-loop-base.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_IOTHREAD "iothread"
 
 struct IOThread {
@@ -63,5 +67,9 @@ void iothread_destroy(IOThread *iothread);
  * false otherwise.
  */
 bool qemu_in_iothread(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* IOTHREAD_H */

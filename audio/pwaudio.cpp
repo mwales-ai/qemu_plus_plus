@@ -81,7 +81,7 @@ stream_destroy(void *data)
 static void
 playback_on_process(void *data)
 {
-    PWVoice *v = data;
+    PWVoice *v = static_cast<PWVoice *>(data);
     void *p;
     struct pw_buffer *b;
     struct spa_buffer *buf;
@@ -113,7 +113,7 @@ playback_on_process(void *data)
     avail = spa_ringbuffer_get_read_index(&v->ring, &index);
 
     if (avail <= 0) {
-        PWVoiceOut *vo = container_of(data, PWVoiceOut, v);
+        PWVoiceOut *vo = container_of(v, PWVoiceOut, v);
         audio_pcm_info_clear_buf(&vo->hw.info, p, n_bytes / v->frame_size);
     } else {
         if ((uint32_t) avail < n_bytes) {
@@ -299,7 +299,7 @@ qpw_write(HWVoiceOut *hw, void *data, size_t len)
 
     trace_pw_write(filled, avail, index, len);
 
-    if (len > avail) {
+    if (len > static_cast<size_t>(avail)) {
         len = avail;
     }
 
@@ -323,10 +323,10 @@ done_unlock:
     return len;
 }
 
-static int
+static enum spa_audio_format
 audfmt_to_pw(AudioFormat fmt, bool big_endian)
 {
-    int format;
+    enum spa_audio_format format;
 
     switch (fmt) {
     case AUDIO_FORMAT_S8:
@@ -469,10 +469,11 @@ qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
                             dir ==
                             SPA_DIRECTION_INPUT ? PW_DIRECTION_INPUT :
                             PW_DIRECTION_OUTPUT, PW_ID_ANY,
+                            static_cast<pw_stream_flags>(
                             PW_STREAM_FLAG_AUTOCONNECT |
                             PW_STREAM_FLAG_INACTIVE |
                             PW_STREAM_FLAG_MAP_BUFFERS |
-                            PW_STREAM_FLAG_RT_PROCESS, params, n_params);
+                            PW_STREAM_FLAG_RT_PROCESS), params, n_params);
     if (res < 0) {
         error_report("Failed to connect PW stream: %s", g_strerror(errno));
         pw_stream_destroy(v->stream);
@@ -485,8 +486,10 @@ qpw_stream_new(pwaudio *c, PWVoice *v, const char *stream_name,
 static void
 qpw_set_position(uint32_t channels, uint32_t position[SPA_AUDIO_MAX_CHANNELS])
 {
-    memcpy(position, (uint32_t[SPA_AUDIO_MAX_CHANNELS]) { SPA_AUDIO_CHANNEL_UNKNOWN, },
-           sizeof(uint32_t) * SPA_AUDIO_MAX_CHANNELS);
+    static const uint32_t default_pos[SPA_AUDIO_MAX_CHANNELS] = {
+        SPA_AUDIO_CHANNEL_UNKNOWN,
+    };
+    memcpy(position, default_pos, sizeof(uint32_t) * SPA_AUDIO_MAX_CHANNELS);
     /*
      * TODO: This currently expects the only frontend supporting more than 2
      * channels is the usb-audio.  We will need some means to set channel
@@ -521,7 +524,7 @@ qpw_init_out(HWVoiceOut *hw, struct audsettings *as, void *drv_opaque)
     PWVoiceOut *pw = (PWVoiceOut *) hw;
     PWVoice *v = &pw->v;
     struct audsettings obt_as = *as;
-    pwaudio *c = v->g = drv_opaque;
+    pwaudio *c = v->g = static_cast<pwaudio *>(drv_opaque);
     AudiodevPipewireOptions *popts = &c->dev->u.pipewire;
     AudiodevPipewirePerDirectionOptions *ppdo = popts->out;
     int r;
@@ -568,7 +571,7 @@ qpw_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     PWVoiceIn *pw = (PWVoiceIn *) hw;
     PWVoice *v = &pw->v;
     struct audsettings obt_as = *as;
-    pwaudio *c = v->g = drv_opaque;
+    pwaudio *c = v->g = static_cast<pwaudio *>(drv_opaque);
     AudiodevPipewireOptions *popts = &c->dev->u.pipewire;
     AudiodevPipewirePerDirectionOptions *ppdo = popts->in;
     int r;
@@ -708,7 +711,7 @@ static int wait_resync(pwaudio *pw)
 static void
 on_core_error(void *data, uint32_t id, int seq, int res, const char *message)
 {
-    pwaudio *pw = data;
+    pwaudio *pw = static_cast<pwaudio *>(data);
 
     error_report("error id:%u seq:%d res:%d (%s): %s",
                 id, seq, res, spa_strerror(res), message);
@@ -720,7 +723,7 @@ on_core_error(void *data, uint32_t id, int seq, int res, const char *message)
 static void
 on_core_done(void *data, uint32_t id, int seq)
 {
-    pwaudio *pw = data;
+    pwaudio *pw = static_cast<pwaudio *>(data);
     assert(id == PW_ID_CORE);
     pw->last_seq = seq;
     if (pw->pending_seq == seq) {
@@ -799,7 +802,7 @@ fail:
 static void
 qpw_audio_fini(void *opaque)
 {
-    pwaudio *pw = opaque;
+    pwaudio *pw = static_cast<pwaudio *>(opaque);
 
     if (pw->thread_loop) {
         pw_thread_loop_stop(pw->thread_loop);
@@ -823,17 +826,17 @@ static struct audio_pcm_ops qpw_pcm_ops = {
     .init_out = qpw_init_out,
     .fini_out = qpw_fini_out,
     .write = qpw_write,
-    .buffer_get_free = qpw_buffer_get_free,
     .run_buffer_out = audio_generic_run_buffer_out,
+    .buffer_get_free = qpw_buffer_get_free,
     .enable_out = qpw_enable_out,
     .volume_out = qpw_volume_out,
-    .volume_in = qpw_volume_in,
 
     .init_in = qpw_init_in,
     .fini_in = qpw_fini_in,
     .read = qpw_read,
     .run_buffer_in = audio_generic_run_buffer_in,
-    .enable_in = qpw_enable_in
+    .enable_in = qpw_enable_in,
+    .volume_in = qpw_volume_in,
 };
 
 static struct audio_driver pw_audio_driver = {

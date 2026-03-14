@@ -181,7 +181,7 @@ void replay_get_array_alloc(uint8_t **buf, size_t *size)
 {
     if (replay_file) {
         *size = replay_get_dword();
-        *buf = g_malloc(*size);
+        *buf = static_cast<uint8_t *>(g_malloc(*size));
         if (fread(*buf, 1, *size, replay_file) != *size) {
             replay_read_error();
         }

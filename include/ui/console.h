@@ -9,6 +9,9 @@
 #include "ui/surface.h"
 #include "ui/dmabuf.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define TYPE_QEMU_CONSOLE "qemu-console"
 OBJECT_DECLARE_TYPE(QemuConsole, QemuConsoleClass, QEMU_CONSOLE)
 
@@ -477,5 +480,9 @@ bool qemu_console_fill_device_address(QemuConsole *con,
                                       char *device_address,
                                       size_t size,
                                       Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

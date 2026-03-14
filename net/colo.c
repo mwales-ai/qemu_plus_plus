@@ -219,7 +219,6 @@ Connection *connection_get(GHashTable *connection_track_table,
                            GQueue *conn_list)
 {
     Connection *conn = g_hash_table_lookup(connection_track_table, key);
-
     if (conn == NULL) {
         ConnectionKey *new_key = g_memdup(key, sizeof(*key));
 
@@ -247,6 +246,5 @@ bool connection_has_tracked(GHashTable *connection_track_table,
                             ConnectionKey *key)
 {
     Connection *conn = g_hash_table_lookup(connection_track_table, key);
-
     return conn ? true : false;
 }

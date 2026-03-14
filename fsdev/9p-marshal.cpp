@@ -18,6 +18,8 @@
 
 #include "9p-marshal.h"
 
+extern "C" {
+
 P9ARRAY_DEFINE_TYPE(V9fsString, v9fs_string_free);
 
 void v9fs_string_free(V9fsString *str)
@@ -43,3 +45,5 @@ void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
     v9fs_string_free(lhs);
     v9fs_string_sprintf(lhs, "%s", rhs->data);
 }
+
+} /* extern "C" */

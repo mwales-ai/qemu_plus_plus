@@ -91,7 +91,7 @@ static struct qemu_plugin_desc *plugin_find_desc(QemuPluginList *head,
 static int plugin_add(void *opaque, const char *name, const char *value,
                       Error **errp)
 {
-    struct qemu_plugin_parse_arg *arg = opaque;
+    struct qemu_plugin_parse_arg *arg = static_cast<struct qemu_plugin_parse_arg *>(opaque);
     struct qemu_plugin_desc *p;
     bool is_on;
     char *fullarg;
@@ -135,7 +135,7 @@ static int plugin_add(void *opaque, const char *name, const char *value,
 
         p = arg->curr;
         p->argc++;
-        p->argv = g_realloc_n(p->argv, p->argc, sizeof(char *));
+        p->argv = static_cast<char **>(g_realloc_n(p->argv, p->argc, sizeof(char *)));
         p->argv[p->argc - 1] = fullarg;
     }
 
@@ -183,7 +183,7 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
     gpointer sym;
     int rc;
 
-    ctx = qemu_memalign(qemu_dcache_linesize, sizeof(*ctx));
+    ctx = static_cast<struct qemu_plugin_ctx *>(qemu_memalign(qemu_dcache_linesize, sizeof(*ctx)));
     memset(ctx, 0, sizeof(*ctx));
     ctx->desc = desc;
 
@@ -331,7 +331,7 @@ static void plugin_reset_destroy__locked(struct qemu_plugin_reset_data *data)
      * work environment (i.e. all vCPUs are asleep), or no vCPUs have yet been
      * created.
      */
-    for (ev = 0; ev < QEMU_PLUGIN_EV_MAX; ev++) {
+    for (ev = static_cast<enum qemu_plugin_event>(0); ev < QEMU_PLUGIN_EV_MAX; ev = static_cast<enum qemu_plugin_event>(ev + 1)) {
         plugin_unregister_cb__locked(ctx, ev);
     }
 
@@ -376,7 +376,7 @@ static void plugin_reset_destroy(struct qemu_plugin_reset_data *data)
 
 static void plugin_flush_destroy(CPUState *cpu, run_on_cpu_data arg)
 {
-    struct qemu_plugin_reset_data *data = arg.host_ptr;
+    struct qemu_plugin_reset_data *data = static_cast<struct qemu_plugin_reset_data *>(arg.host_ptr);
 
     tb_flush__exclusive_or_serial();
     plugin_reset_destroy(data);

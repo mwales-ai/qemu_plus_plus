@@ -11,10 +11,9 @@
 #include "qemu/bswap.h"
 #include "qemu/target-info.h"
 
-/*
- * If we're in target-specific code, we can hard-code the swapping
- * condition, otherwise we have to do (slower) run-time checks.
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef COMPILING_PER_TARGET
 #define target_needs_bswap()  (HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN)
 #else
@@ -68,5 +67,9 @@ static inline void tswap64s(uint64_t *s)
         *s = bswap64(*s);
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* TSWAP_H */

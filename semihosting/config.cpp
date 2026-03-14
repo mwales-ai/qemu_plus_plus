@@ -27,8 +27,8 @@
 
 QemuOptsList qemu_semihosting_config_opts = {
     .name = "semihosting-config",
-    .merge_lists = true,
     .implied_opt_name = "enable",
+    .merge_lists = true,
     .head = QTAILQ_HEAD_INITIALIZER(qemu_semihosting_config_opts.head),
     .desc = {
         {
@@ -98,7 +98,7 @@ static int add_semihosting_arg(void *opaque,
                                const char *name, const char *val,
                                Error **errp)
 {
-    SemihostingConfig *s = opaque;
+    SemihostingConfig *s = static_cast<SemihostingConfig *>(opaque);
     if (strcmp(name, "arg") == 0) {
         s->argc++;
         /* one extra element as g_strjoinv() expects NULL-terminated array */

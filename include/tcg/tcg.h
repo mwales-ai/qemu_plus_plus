@@ -477,12 +477,20 @@ void *tcg_splitwx_to_rw(const void *rx);
 #else
 static inline const void *tcg_splitwx_to_rx(void *rw)
 {
+#ifdef __cplusplus
+    return rw ? static_cast<char *>(rw) + tcg_splitwx_diff : NULL;
+#else
     return rw ? rw + tcg_splitwx_diff : NULL;
+#endif
 }
 
 static inline void *tcg_splitwx_to_rw(const void *rx)
 {
+#ifdef __cplusplus
+    return rx ? const_cast<char *>(static_cast<const char *>(rx)) - tcg_splitwx_diff : NULL;
+#else
     return rx ? (void *)rx - tcg_splitwx_diff : NULL;
+#endif
 }
 #endif
 
@@ -512,7 +520,11 @@ static inline size_t temp_idx(TCGTemp *ts)
  */
 static inline TCGTemp *tcgv_i32_temp(TCGv_i32 v)
 {
+#ifdef __cplusplus
+    return reinterpret_cast<TCGTemp *>(reinterpret_cast<char *>(tcg_ctx) + reinterpret_cast<uintptr_t>(v));
+#else
     return (void *)tcg_ctx + (uintptr_t)v;
+#endif
 }
 #endif
 
@@ -564,7 +576,11 @@ static inline TCGArg tcgv_vec_arg(TCGv_vec v)
 static inline TCGv_i32 temp_tcgv_i32(TCGTemp *t)
 {
     (void)temp_idx(t); /* trigger embedded assert */
+#ifdef __cplusplus
+    return (TCGv_i32)(reinterpret_cast<char *>(t) - reinterpret_cast<char *>(tcg_ctx));
+#else
     return (TCGv_i32)((void *)t - (void *)tcg_ctx);
+#endif
 }
 
 static inline TCGv_i64 temp_tcgv_i64(TCGTemp *t)
@@ -869,7 +885,11 @@ static inline TCGLabel *arg_label(TCGArg i)
 
 static inline ptrdiff_t tcg_ptr_byte_diff(const void *a, const void *b)
 {
+#ifdef __cplusplus
+    return static_cast<const char *>(a) - static_cast<const char *>(b);
+#else
     return a - b;
+#endif
 }
 
 /**

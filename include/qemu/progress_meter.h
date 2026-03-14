@@ -29,6 +29,9 @@
 
 #include "qemu/thread.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct ProgressMeter {
     /**
      * Current progress. The unit is arbitrary as long as the ratio between
@@ -58,5 +61,9 @@ void progress_set_remaining(ProgressMeter *pm, uint64_t remaining);
 
 /* Increases the total work to do by @delta */
 void progress_increase_remaining(ProgressMeter *pm, uint64_t delta);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_PROGRESS_METER_H */

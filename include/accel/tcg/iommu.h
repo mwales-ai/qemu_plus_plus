@@ -7,6 +7,10 @@
 #ifndef ACCEL_TCG_IOMMU_H
 #define ACCEL_TCG_IOMMU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef CONFIG_USER_ONLY
 #error Cannot include accel/tcg/iommu.h from user emulation
 #endif
@@ -36,6 +40,10 @@ MemoryRegionSection *address_space_translate_for_iotlb(CPUState *cpu,
 
 hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        MemoryRegionSection *section);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

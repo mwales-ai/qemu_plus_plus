@@ -8,6 +8,9 @@
 
 #include "audio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct CaptureVoiceOut CaptureVoiceOut;
 
 typedef enum {
@@ -39,5 +42,9 @@ CaptureVoiceOut *AUD_add_capture(
     void *opaque
     );
 void AUD_del_capture (CaptureVoiceOut *cap, void *cb_opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_AUDIO_CAPTURE_H */

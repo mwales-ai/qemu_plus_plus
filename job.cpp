@@ -56,31 +56,31 @@ QemuMutex job_mutex;
 static QLIST_HEAD(, Job) jobs = QLIST_HEAD_INITIALIZER(jobs);
 
 /* Job State Transition Table */
+/*                                       U, C, R, P, Y, S, W, D, X, E, N */
 bool JobSTT[JOB_STATUS__MAX][JOB_STATUS__MAX] = {
-                                    /* U, C, R, P, Y, S, W, D, X, E, N */
-    /* U: */ [JOB_STATUS_UNDEFINED] = {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* C: */ [JOB_STATUS_CREATED]   = {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
-    /* R: */ [JOB_STATUS_RUNNING]   = {0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0},
-    /* P: */ [JOB_STATUS_PAUSED]    = {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
-    /* Y: */ [JOB_STATUS_READY]     = {0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0},
-    /* S: */ [JOB_STATUS_STANDBY]   = {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-    /* W: */ [JOB_STATUS_WAITING]   = {0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
-    /* D: */ [JOB_STATUS_PENDING]   = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
-    /* X: */ [JOB_STATUS_ABORTING]  = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
-    /* E: */ [JOB_STATUS_CONCLUDED] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-    /* N: */ [JOB_STATUS_NULL]      = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* U: */ {0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* C: */ {0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
+    /* R: */ {0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0},
+    /* P: */ {0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+    /* Y: */ {0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0},
+    /* S: */ {0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+    /* W: */ {0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0},
+    /* D: */ {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
+    /* X: */ {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0},
+    /* E: */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    /* N: */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 };
 
+/*                                       U, C, R, P, Y, S, W, D, X, E, N */
 bool JobVerbTable[JOB_VERB__MAX][JOB_STATUS__MAX] = {
-                                    /* U, C, R, P, Y, S, W, D, X, E, N */
-    [JOB_VERB_CANCEL]               = {0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0},
-    [JOB_VERB_PAUSE]                = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-    [JOB_VERB_RESUME]               = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-    [JOB_VERB_SET_SPEED]            = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
-    [JOB_VERB_COMPLETE]             = {0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0},
-    [JOB_VERB_FINALIZE]             = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
-    [JOB_VERB_DISMISS]              = {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
-    [JOB_VERB_CHANGE]               = {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    /* CANCEL    */ {0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0},
+    /* PAUSE     */ {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    /* RESUME    */ {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    /* SET_SPEED */ {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
+    /* COMPLETE  */ {0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0},
+    /* FINALIZE  */ {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+    /* DISMISS   */ {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0},
+    /* CHANGE    */ {0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0},
 };
 
 /* Transactional group of jobs */
@@ -383,7 +383,7 @@ void job_set_aio_context(Job *job, AioContext *ctx)
 /* Called with job_mutex *not* held. */
 static void job_sleep_timer_cb(void *opaque)
 {
-    Job *job = opaque;
+    Job *job = static_cast<Job *>(opaque);
 
     job_enter(job);
 }
@@ -414,7 +414,7 @@ void *job_create(const char *job_id, const JobDriver *driver, JobTxn *txn,
         return NULL;
     }
 
-    job = g_malloc0(driver->instance_size);
+    job = static_cast<Job *>(g_malloc0(driver->instance_size));
     job->driver        = driver;
     job->id            = g_strdup(job_id);
     job->refcnt        = 1;
@@ -579,7 +579,7 @@ static void coroutine_fn job_do_yield_locked(Job *job, uint64_t ns)
 {
     AioContext *next_aio_context;
 
-    if (ns != -1) {
+    if (ns != static_cast<uint64_t>(-1)) {
         timer_mod(&job->sleep_timer, ns);
     }
     job->busy = false;
@@ -1101,7 +1101,7 @@ static void job_exit(void *opaque)
  */
 static void coroutine_fn job_co_entry(void *opaque)
 {
-    Job *job = opaque;
+    Job *job = static_cast<Job *>(opaque);
     int ret;
 
     assert(job && job->driver && job->driver->run);

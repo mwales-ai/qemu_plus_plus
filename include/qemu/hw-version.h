@@ -7,6 +7,10 @@
 #ifndef QEMU_HW_VERSION_H
 #define QEMU_HW_VERSION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Starting on QEMU 2.5, qemu_hw_version() returns "2.5+" by default
  * instead of QEMU_VERSION, so setting hw_version on MachineClass
@@ -23,5 +27,9 @@
  */
 void qemu_set_hw_version(const char *);
 const char *qemu_hw_version(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -4,19 +4,9 @@
 #include "qapi/qapi-types-machine.h"
 #include "qemu/bitmap.h"
 
-/*
- * SMBIOS Support
- *
- * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
- *
- * Authors:
- *  Alex Williamson <alex.williamson@hp.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
- *
- */
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern uint8_t *usr_blobs;
 extern GArray *usr_blobs_sizes;
 
@@ -341,4 +331,8 @@ void smbios_get_tables(MachineState *ms,
                        uint8_t **tables, size_t *tables_len,
                        uint8_t **anchor, size_t *anchor_len,
                        Error **errp);
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* QEMU_SMBIOS_H */

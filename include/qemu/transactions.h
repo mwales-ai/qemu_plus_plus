@@ -41,6 +41,9 @@
 
 #include <gmodule.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct TransactionActionDrv {
     void (*abort)(void *opaque);
     void (*commit)(void *opaque);
@@ -62,5 +65,9 @@ static inline void tran_finalize(Transaction *tran, int ret)
         tran_commit(tran);
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_TRANSACTIONS_H */

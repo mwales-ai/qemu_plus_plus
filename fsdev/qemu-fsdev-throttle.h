@@ -19,6 +19,10 @@
 #include "qemu/coroutine.h"
 #include "qemu/throttle.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct FsThrottle {
     ThrottleState ts;
     ThrottleTimers tt;
@@ -34,5 +38,9 @@ void coroutine_fn fsdev_co_throttle_request(FsThrottle *, ThrottleDirection ,
                                             struct iovec *, int);
 
 void fsdev_throttle_cleanup(FsThrottle *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_FSDEV_THROTTLE_H */

@@ -86,19 +86,19 @@ void block_job_free(Job *job)
 
 static char *child_job_get_parent_desc(BdrvChild *c)
 {
-    BlockJob *job = c->opaque;
+    BlockJob *job = static_cast<BlockJob *>(c->opaque);
     return g_strdup_printf("%s job '%s'", job_type_str(&job->job), job->job.id);
 }
 
 static void child_job_drained_begin(BdrvChild *c)
 {
-    BlockJob *job = c->opaque;
+    BlockJob *job = static_cast<BlockJob *>(c->opaque);
     job_pause(&job->job);
 }
 
 static bool child_job_drained_poll(BdrvChild *c)
 {
-    BlockJob *bjob = c->opaque;
+    BlockJob *bjob = static_cast<BlockJob *>(c->opaque);
     Job *job = &bjob->job;
     const BlockJobDriver *drv = block_job_driver(bjob);
 
@@ -122,7 +122,7 @@ static bool child_job_drained_poll(BdrvChild *c)
 
 static void child_job_drained_end(BdrvChild *c)
 {
-    BlockJob *job = c->opaque;
+    BlockJob *job = static_cast<BlockJob *>(c->opaque);
     job_resume(&job->job);
 }
 
@@ -133,7 +133,7 @@ typedef struct BdrvStateChildJobContext {
 
 static void child_job_set_aio_ctx_commit(void *opaque)
 {
-    BdrvStateChildJobContext *s = opaque;
+    BdrvStateChildJobContext *s = static_cast<BdrvStateChildJobContext *>(opaque);
     BlockJob *job = s->job;
 
     job_set_aio_context(&job->job, s->new_ctx);
@@ -148,12 +148,12 @@ static bool GRAPH_RDLOCK
 child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx, GHashTable *visited,
                          Transaction *tran, Error **errp)
 {
-    BlockJob *job = c->opaque;
+    BlockJob *job = static_cast<BlockJob *>(c->opaque);
     BdrvStateChildJobContext *s;
     GSList *l;
 
     for (l = job->nodes; l; l = l->next) {
-        BdrvChild *sibling = l->data;
+        BdrvChild *sibling = static_cast<BdrvChild *>(l->data);
         if (!bdrv_child_change_aio_context(sibling, ctx, visited,
                                            tran, errp)) {
             return false;
@@ -161,10 +161,8 @@ child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx, GHashTable *visited,
     }
 
     s = g_new(BdrvStateChildJobContext, 1);
-    *s = (BdrvStateChildJobContext) {
-        .new_ctx = ctx,
-        .job = job,
-    };
+    s->new_ctx = ctx;
+    s->job = job;
 
     tran_add(tran, &change_child_job_context, s);
     return true;
@@ -172,7 +170,7 @@ child_job_change_aio_ctx(BdrvChild *c, AioContext *ctx, GHashTable *visited,
 
 static AioContext *child_job_get_parent_aio_context(BdrvChild *c)
 {
-    BlockJob *job = c->opaque;
+    BlockJob *job = static_cast<BlockJob *>(c->opaque);
     IO_CODE();
     JOB_LOCK_GUARD();
 
@@ -180,12 +178,12 @@ static AioContext *child_job_get_parent_aio_context(BdrvChild *c)
 }
 
 static const BdrvChildClass child_job = {
+    .stay_at_node       = true,
     .get_parent_desc    = child_job_get_parent_desc,
     .drained_begin      = child_job_drained_begin,
-    .drained_poll       = child_job_drained_poll,
     .drained_end        = child_job_drained_end,
+    .drained_poll       = child_job_drained_poll,
     .change_aio_ctx     = child_job_change_aio_ctx,
-    .stay_at_node       = true,
     .get_parent_aio_context = child_job_get_parent_aio_context,
 };
 
@@ -201,7 +199,7 @@ void block_job_remove_all_bdrv(BlockJob *job)
     bdrv_graph_wrlock_drained();
     while (job->nodes) {
         GSList *l = job->nodes;
-        BdrvChild *c = l->data;
+        BdrvChild *c = static_cast<BdrvChild *>(l->data);
 
         job->nodes = l->next;
 
@@ -219,7 +217,7 @@ bool block_job_has_bdrv(BlockJob *job, BlockDriverState *bs)
     GLOBAL_STATE_CODE();
 
     for (el = job->nodes; el; el = el->next) {
-        BdrvChild *c = el->data;
+        BdrvChild *c = static_cast<BdrvChild *>(el->data);
         if (c->bs == bs) {
             return true;
         }
@@ -410,7 +408,7 @@ static void block_job_iostatus_set_err_locked(BlockJob *job, int error)
 /* Called with job_mutex lock held. */
 static void block_job_event_cancelled_locked(Notifier *n, void *opaque)
 {
-    BlockJob *job = opaque;
+    BlockJob *job = static_cast<BlockJob *>(opaque);
     uint64_t progress_current, progress_total;
 
     if (block_job_is_internal(job)) {
@@ -430,7 +428,7 @@ static void block_job_event_cancelled_locked(Notifier *n, void *opaque)
 /* Called with job_mutex lock held. */
 static void block_job_event_completed_locked(Notifier *n, void *opaque)
 {
-    BlockJob *job = opaque;
+    BlockJob *job = static_cast<BlockJob *>(opaque);
     const char *msg = NULL;
     uint64_t progress_current, progress_total;
 
@@ -456,7 +454,7 @@ static void block_job_event_completed_locked(Notifier *n, void *opaque)
 /* Called with job_mutex lock held. */
 static void block_job_event_pending_locked(Notifier *n, void *opaque)
 {
-    BlockJob *job = opaque;
+    BlockJob *job = static_cast<BlockJob *>(opaque);
 
     if (block_job_is_internal(job)) {
         return;
@@ -469,7 +467,7 @@ static void block_job_event_pending_locked(Notifier *n, void *opaque)
 /* Called with job_mutex lock held. */
 static void block_job_event_ready_locked(Notifier *n, void *opaque)
 {
-    BlockJob *job = opaque;
+    BlockJob *job = static_cast<BlockJob *>(opaque);
     uint64_t progress_current, progress_total;
 
     if (block_job_is_internal(job)) {
@@ -502,8 +500,8 @@ void *block_job_create(const char *job_id, const BlockJobDriver *driver,
         job_id = bdrv_get_device_name(bs);
     }
 
-    job = job_create(job_id, &driver->job_driver, txn, bdrv_get_aio_context(bs),
-                     flags, cb, opaque, errp);
+    job = static_cast<BlockJob *>(job_create(job_id, &driver->job_driver, txn,
+                     bdrv_get_aio_context(bs), flags, cb, opaque, errp));
     if (job == NULL) {
         bdrv_graph_wrunlock();
         return NULL;

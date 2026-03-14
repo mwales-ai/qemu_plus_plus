@@ -12,6 +12,9 @@
 #include "qapi/qapi-types-common.h"
 #include "qapi/qapi-types-machine.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct TargetInfo {
     /* runtime equivalent of TARGET_NAME definition */
     const char *target_name;
@@ -33,5 +36,9 @@ typedef struct TargetInfo {
  * Returns: The TargetInfo structure definition for this target binary.
  */
 const TargetInfo *target_info(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

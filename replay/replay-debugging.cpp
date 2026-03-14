@@ -37,7 +37,7 @@ void hmp_info_replay(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Record/replay is not active\n");
     } else {
         monitor_printf(mon,
-            "%s execution '%s': instruction count = %"PRId64"\n",
+            "%s execution '%s': instruction count = %" PRId64 "\n",
             replay_mode == REPLAY_MODE_RECORD ? "Recording" : "Replaying",
             replay_get_filename(), replay_get_current_icount());
     }
@@ -92,7 +92,7 @@ static void replay_stop_vm(void *opaque)
 void qmp_replay_break(int64_t icount, Error **errp)
 {
     if (replay_mode == REPLAY_MODE_PLAY) {
-        if (icount >= replay_get_current_icount()) {
+        if (static_cast<uint64_t>(icount) >= replay_get_current_icount()) {
             replay_break(icount, replay_stop_vm, NULL);
         } else {
             error_setg(errp,
@@ -160,7 +160,7 @@ static char *replay_find_nearest_snapshot(int64_t icount,
             goto fail;
         if (rv == 1) {
             if (sn_tab[i].icount != -1ULL
-                && sn_tab[i].icount <= icount
+                && sn_tab[i].icount <= static_cast<uint64_t>(icount)
                 && (!nearest || nearest->icount < sn_tab[i].icount)) {
                 nearest = &sn_tab[i];
             }
@@ -188,14 +188,14 @@ static void replay_seek(int64_t icount, QEMUTimerCB callback, Error **errp)
 
     snapshot = replay_find_nearest_snapshot(icount, &snapshot_icount);
     if (snapshot) {
-        if (icount < replay_get_current_icount()
-            || replay_get_current_icount() < snapshot_icount) {
+        if (static_cast<uint64_t>(icount) < replay_get_current_icount()
+            || replay_get_current_icount() < static_cast<uint64_t>(snapshot_icount)) {
             vm_stop(RUN_STATE_RESTORE_VM);
             load_snapshot(snapshot, NULL, false, NULL, errp);
         }
         g_free(snapshot);
     }
-    if (replay_get_current_icount() <= icount) {
+    if (replay_get_current_icount() <= static_cast<uint64_t>(icount)) {
         replay_break(icount, callback, NULL);
         vm_start();
     } else {

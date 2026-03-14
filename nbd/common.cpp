@@ -31,7 +31,7 @@ int nbd_drop(QIOChannel *ioc, size_t size, Error **errp)
     char small[1024];
     char *buffer;
 
-    buffer = sizeof(small) >= size ? small : g_malloc(MIN(65536, size));
+    buffer = sizeof(small) >= size ? small : static_cast<char *>(g_malloc(MIN(65536, size)));
     while (size > 0) {
         ssize_t count = MIN(65536, size);
         ret = nbd_read(ioc, buffer, MIN(65536, size), NULL, errp);

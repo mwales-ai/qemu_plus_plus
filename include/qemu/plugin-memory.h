@@ -11,6 +11,9 @@
 
 #include "exec/hwaddr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct qemu_plugin_hwaddr {
     bool is_io;
     bool is_store;
@@ -31,5 +34,9 @@ struct qemu_plugin_hwaddr {
  */
 bool tlb_plugin_lookup(CPUState *cpu, vaddr addr, int mmu_idx,
                        bool is_store, struct qemu_plugin_hwaddr *data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PLUGIN_MEMORY_H */

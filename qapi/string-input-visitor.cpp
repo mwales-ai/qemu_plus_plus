@@ -76,7 +76,7 @@ static bool start_list(Visitor *v, const char *name, GenericList **list,
         siv->lm = LM_END;
     } else {
         if (list) {
-            *list = g_malloc0(size);
+            *list = static_cast<GenericList *>(g_malloc0(size));
         }
         siv->lm = LM_UNPARSED;
     }
@@ -99,7 +99,7 @@ static GenericList *next_list(Visitor *v, GenericList *tail, size_t size)
         abort();
     }
 
-    tail->next = g_malloc0(size);
+    tail->next = static_cast<GenericList *>(g_malloc0(size));
     return tail->next;
 }
 
@@ -392,7 +392,7 @@ Visitor *string_input_visitor_new(const char *str)
     StringInputVisitor *v;
 
     assert(str);
-    v = g_malloc0(sizeof(*v));
+    v = static_cast<StringInputVisitor *>(g_malloc0(sizeof(*v)));
 
     v->visitor.type = VISITOR_INPUT;
     v->visitor.type_int64 = parse_type_int64;

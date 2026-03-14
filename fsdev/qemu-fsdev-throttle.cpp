@@ -21,14 +21,14 @@
 
 static void fsdev_throttle_read_timer_cb(void *opaque)
 {
-    FsThrottle *fst = opaque;
-    qemu_co_enter_next(&fst->throttled_reqs[false], NULL);
+    FsThrottle *fst = static_cast<FsThrottle *>(opaque);
+    qemu_co_enter_next_impl(&fst->throttled_reqs[false], nullptr);
 }
 
 static void fsdev_throttle_write_timer_cb(void *opaque)
 {
-    FsThrottle *fst = opaque;
-    qemu_co_enter_next(&fst->throttled_reqs[true], NULL);
+    FsThrottle *fst = static_cast<FsThrottle *>(opaque);
+    qemu_co_enter_next_impl(&fst->throttled_reqs[true], nullptr);
 }
 
 int fsdev_throttle_parse_opts(QemuOpts *opts, FsThrottle *fst, Error **errp)
@@ -102,7 +102,8 @@ void coroutine_fn fsdev_co_throttle_request(FsThrottle *fst,
     if (throttle_enabled(&fst->cfg)) {
         if (throttle_schedule_timer(&fst->ts, &fst->tt, direction) ||
             !qemu_co_queue_empty(&fst->throttled_reqs[direction])) {
-            qemu_co_queue_wait(&fst->throttled_reqs[direction], NULL);
+            qemu_co_queue_wait_impl(&fst->throttled_reqs[direction], nullptr,
+                                    static_cast<CoQueueWaitFlags>(0));
         }
 
         throttle_account(&fst->ts, direction, iov_size(iov, iovcnt));

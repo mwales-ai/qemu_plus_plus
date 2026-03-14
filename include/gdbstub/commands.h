@@ -1,6 +1,10 @@
 #ifndef GDBSTUB_COMMANDS_H
 #define GDBSTUB_COMMANDS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void (*GdbCmdHandler)(GArray *params, void *user_ctx);
 
 typedef enum GDBThreadIdKind {
@@ -104,5 +108,9 @@ void gdb_extend_qsupported_features(char *qsupported_features);
  * are converted to 1 byte. Invalid hex digits are treated as 0 digits.
  */
 void gdb_hextomem(GByteArray *mem, const char *buf, int len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GDBSTUB_COMMANDS_H */

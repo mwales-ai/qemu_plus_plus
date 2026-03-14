@@ -20,7 +20,7 @@ void monitor_fdset_dup_fd_remove(int dupfd)
 {
 }
 
-void monitor_fdsets_cleanup(void)
+extern "C" void monitor_fdsets_cleanup(void)
 {
 }
 

@@ -6,6 +6,10 @@
 #include "qom/object_interfaces.h"
 #include "block/aio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PR_MANAGER "pr-manager"
 
 OBJECT_DECLARE_TYPE(PRManager, PRManagerClass,
@@ -37,5 +41,9 @@ int coroutine_fn pr_manager_execute(PRManager *pr_mgr, AioContext *ctx, int fd,
                                     struct sg_io_hdr *hdr);
 
 PRManager *pr_manager_lookup(const char *id, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

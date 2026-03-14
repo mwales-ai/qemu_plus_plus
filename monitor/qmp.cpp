@@ -94,7 +94,7 @@ static void qmp_request_free(QMPRequest *req)
 static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon)
 {
     while (!g_queue_is_empty(mon->qmp_requests)) {
-        qmp_request_free(g_queue_pop_head(mon->qmp_requests));
+        qmp_request_free(static_cast<QMPRequest *>(g_queue_pop_head(mon->qmp_requests)));
     }
 }
 
@@ -209,7 +209,7 @@ static QMPRequest *monitor_qmp_requests_pop_any_with_lock(void)
 
         qmp_mon = container_of(mon, MonitorQMP, common);
         qemu_mutex_lock(&qmp_mon->qmp_queue_lock);
-        req_obj = g_queue_pop_head(qmp_mon->qmp_requests);
+        req_obj = static_cast<QMPRequest *>(g_queue_pop_head(qmp_mon->qmp_requests));
         if (req_obj) {
             /* With the lock of corresponding queue held */
             break;
@@ -364,7 +364,7 @@ void qmp_dispatcher_co_wake(void)
 
 static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 {
-    MonitorQMP *mon = opaque;
+    MonitorQMP *mon = static_cast<MonitorQMP *>(opaque);
     QDict *qdict = qobject_to(QDict, req);
     QMPRequest *req_obj;
 
@@ -428,7 +428,7 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 {
-    MonitorQMP *mon = opaque;
+    MonitorQMP *mon = static_cast<MonitorQMP *>(opaque);
 
     json_message_parser_feed(&mon->parser, (const char *) buf, size);
 }
@@ -444,7 +444,7 @@ static QDict *qmp_greeting(MonitorQMP *mon)
     qmp_marshal_query_version(args, &ver, NULL);
     qobject_unref(args);
 
-    for (cap = 0; cap < QMP_CAPABILITY__MAX; cap++) {
+    for (cap = static_cast<QMPCapability>(0); cap < QMP_CAPABILITY__MAX; cap = static_cast<QMPCapability>(cap + 1)) {
         if (mon->capab_offered[cap]) {
             qlist_append_str(cap_list, QMPCapability_str(cap));
         }
@@ -458,7 +458,7 @@ static QDict *qmp_greeting(MonitorQMP *mon)
 static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
 {
     QDict *data;
-    MonitorQMP *mon = opaque;
+    MonitorQMP *mon = static_cast<MonitorQMP *>(opaque);
 
     switch (event) {
     case CHR_EVENT_OPENED:
@@ -499,7 +499,7 @@ void monitor_data_destroy_qmp(MonitorQMP *mon)
 
 static void monitor_qmp_setup_handlers_bh(void *opaque)
 {
-    MonitorQMP *mon = opaque;
+    MonitorQMP *mon = static_cast<MonitorQMP *>(opaque);
     GMainContext *context;
 
     assert(mon->common.use_io_thread);

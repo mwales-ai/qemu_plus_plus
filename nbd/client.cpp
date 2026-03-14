@@ -72,7 +72,7 @@ static int nbd_send_option_request(QIOChannel *ioc, uint32_t opt,
     NBDOption req;
     QEMU_BUILD_BUG_ON(sizeof(req) != 16);
 
-    if (len == -1) {
+    if (len == (uint32_t)-1) {
         req.length = len = strlen(data);
     }
     trace_nbd_send_option_request(opt, nbd_opt_lookup(opt), len);
@@ -168,7 +168,7 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
                        reply->type, nbd_rep_lookup(reply->type));
             goto err;
         }
-        msg = g_malloc(reply->length + 1);
+        msg = static_cast<char *>(g_malloc(reply->length + 1));
         if (nbd_read(ioc, msg, reply->length, NULL, errp) < 0) {
             error_prepend(errp, "Failed to read option error %" PRIu32
                           " (%s) message: ",
@@ -297,7 +297,7 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
         return -1;
     }
 
-    local_name = g_malloc(namelen + 1);
+    local_name = static_cast<char *>(g_malloc(namelen + 1));
     if (nbd_read(ioc, local_name, namelen, "export name", errp) < 0) {
         nbd_send_opt_abort(ioc);
         return -1;
@@ -311,7 +311,7 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
             nbd_send_opt_abort(ioc);
             return -1;
         }
-        local_desc = g_malloc(len + 1);
+        local_desc = static_cast<char *>(g_malloc(len + 1));
         if (nbd_read(ioc, local_desc, len, "export description", errp) < 0) {
             nbd_send_opt_abort(ioc);
             return -1;
@@ -320,9 +320,9 @@ static int nbd_receive_list(QIOChannel *ioc, char **name, char **description,
     }
 
     trace_nbd_receive_list(local_name, local_desc ?: "");
-    *name = g_steal_pointer(&local_name);
+    *name = static_cast<char *>(g_steal_pointer(&local_name));
     if (description) {
-        *description = g_steal_pointer(&local_desc);
+        *description = static_cast<char *>(g_steal_pointer(&local_desc));
     }
     return 1;
 }
@@ -353,7 +353,7 @@ static int nbd_opt_info_or_go(QIOChannel *ioc, uint32_t opt,
 
     assert(opt == NBD_OPT_GO || opt == NBD_OPT_INFO);
     trace_nbd_opt_info_go_start(nbd_opt_lookup(opt), info->name);
-    buf = g_malloc(4 + len + 2 + 2 * info->request_sizes + 1);
+    buf = static_cast<char *>(g_malloc(4 + len + 2 + 2 * info->request_sizes + 1));
     stl_be_p(buf, len);
     memcpy(buf + 4, info->name, len);
     /* At most one request, everything else up to server */
@@ -605,7 +605,7 @@ struct NBDTLSClientHandshakeData {
 
 static void nbd_client_tls_handshake(QIOTask *task, void *opaque)
 {
-    struct NBDTLSClientHandshakeData *data = opaque;
+    struct NBDTLSClientHandshakeData *data = static_cast<struct NBDTLSClientHandshakeData *>(opaque);
 
     qio_task_propagate_error(task, &data->error);
     data->complete = true;
@@ -666,7 +666,7 @@ static QIOChannel *nbd_receive_starttls(QIOChannel *ioc,
  * Return 0 on success, -1 with errp set for any error
  */
 static int nbd_send_meta_query(QIOChannel *ioc, uint32_t opt,
-                               const char *export, const char *query,
+                               const char *export_name, const char *query,
                                Error **errp)
 {
     int ret;
@@ -677,8 +677,8 @@ static int nbd_send_meta_query(QIOChannel *ioc, uint32_t opt,
     char *data;
     char *p;
 
-    assert(strnlen(export, NBD_MAX_STRING_SIZE + 1) <= NBD_MAX_STRING_SIZE);
-    export_len = strlen(export);
+    assert(strnlen(export_name, NBD_MAX_STRING_SIZE + 1) <= NBD_MAX_STRING_SIZE);
+    export_len = strlen(export_name);
     data_len = sizeof(export_len) + export_len + sizeof(queries);
     if (query) {
         assert(strnlen(query, NBD_MAX_STRING_SIZE + 1) <= NBD_MAX_STRING_SIZE);
@@ -687,11 +687,11 @@ static int nbd_send_meta_query(QIOChannel *ioc, uint32_t opt,
     } else {
         assert(opt == NBD_OPT_LIST_META_CONTEXT);
     }
-    p = data = g_malloc(data_len);
+    p = data = static_cast<char *>(g_malloc(data_len));
 
-    trace_nbd_opt_meta_request(nbd_opt_lookup(opt), query ?: "(all)", export);
+    trace_nbd_opt_meta_request(nbd_opt_lookup(opt), query ?: "(all)", export_name);
     stl_be_p(p, export_len);
-    memcpy(p += sizeof(export_len), export, export_len);
+    memcpy(p += sizeof(export_len), export_name, export_len);
     stl_be_p(p += export_len, queries);
     if (query) {
         stl_be_p(p += sizeof(queries), query_len);
@@ -761,7 +761,7 @@ static int nbd_receive_one_meta_context(QIOChannel *ioc,
     }
 
     reply.length -= sizeof(local_id);
-    local_name = g_malloc(reply.length + 1);
+    local_name = static_cast<char *>(g_malloc(reply.length + 1));
     if (nbd_read(ioc, local_name, reply.length, "context name", errp) < 0) {
         g_free(local_name);
         return -1;
@@ -1055,7 +1055,7 @@ int nbd_receive_negotiate(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
         return result;
     }
 
-    info->mode = result;
+    info->mode = static_cast<NBDMode>(result);
     info->base_allocation = false;
     if (tlscreds && *outioc) {
         ioc = *outioc;
@@ -1205,7 +1205,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
             memset(&array[count - 1], 0, sizeof(*array));
             array[count - 1].name = name;
             array[count - 1].description = desc;
-            array[count - 1].mode = result;
+            array[count - 1].mode = static_cast<NBDMode>(result);
         }
 
         for (i = 0; i < count; i++) {
@@ -1248,7 +1248,7 @@ int nbd_receive_export_list(QIOChannel *ioc, QCryptoTLSCreds *tlscreds,
         /* Send NBD_CMD_DISC as a courtesy to the server, but ignore all
          * errors now that we have the information we wanted. */
         if (nbd_drop(ioc, 124, NULL) == 0) {
-            NBDRequest request = { .type = NBD_CMD_DISC, .mode = result };
+            NBDRequest request = { .type = NBD_CMD_DISC, .mode = static_cast<NBDMode>(result) };
 
             nbd_send_request(ioc, &request);
         }

@@ -17,6 +17,10 @@
 #include "monitor/monitor.h"
 #include "qemu/queue.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 
 typedef enum QmpCommandOptions
@@ -63,5 +67,9 @@ typedef void (*qmp_cmd_callback_fn)(const QmpCommand *cmd, void *opaque);
 
 void qmp_for_each_command(const QmpCommandList *cmds, qmp_cmd_callback_fn fn,
                           void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

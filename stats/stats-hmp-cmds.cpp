@@ -136,7 +136,7 @@ static void print_stats_results(Monitor *mon, StatsTarget target,
 static StatsFilter *stats_filter(StatsTarget target, const char *names,
                                  int cpu_index, StatsProvider provider)
 {
-    StatsFilter *filter = g_malloc0(sizeof(*filter));
+    StatsFilter *filter = static_cast<StatsFilter *>(g_malloc0(sizeof(*filter)));
     StatsProvider provider_idx;
     StatsRequestList *request_list = NULL;
 
@@ -170,7 +170,9 @@ static StatsFilter *stats_filter(StatsTarget target, const char *names,
      * by name, but not by provider, requires the creation of one filter per
      * provider.
      */
-    for (provider_idx = 0; provider_idx < STATS_PROVIDER__MAX; provider_idx++) {
+    for (provider_idx = static_cast<StatsProvider>(0);
+         provider_idx < STATS_PROVIDER__MAX;
+         provider_idx = static_cast<StatsProvider>(provider_idx + 1)) {
         if (provider == STATS_PROVIDER__MAX || provider == provider_idx) {
             StatsRequest *request = g_new0(StatsRequest, 1);
             request->provider = provider_idx;
@@ -201,13 +203,13 @@ void hmp_info_stats(Monitor *mon, const QDict *qdict)
     g_autoptr(StatsFilter) filter = NULL;
     StatsResultList *entry;
 
-    target = qapi_enum_parse(&StatsTarget_lookup, target_str, -1, &err);
+    target = static_cast<StatsTarget>(qapi_enum_parse(&StatsTarget_lookup, target_str, -1, &err));
     if (err) {
         monitor_printf(mon, "invalid stats target %s\n", target_str);
         goto exit_no_print;
     }
     if (provider_str) {
-        provider = qapi_enum_parse(&StatsProvider_lookup, provider_str, -1, &err);
+        provider = static_cast<StatsProvider>(qapi_enum_parse(&StatsProvider_lookup, provider_str, -1, &err));
         if (err) {
             monitor_printf(mon, "invalid stats provider %s\n", provider_str);
             goto exit_no_print;
@@ -224,13 +226,16 @@ void hmp_info_stats(Monitor *mon, const QDict *qdict)
     case STATS_TARGET_VM:
         filter = stats_filter(target, names, -1, provider);
         break;
-    case STATS_TARGET_VCPU: {}
+    case STATS_TARGET_VCPU:
+    {
         int cpu_index = monitor_get_cpu_index(mon);
         filter = stats_filter(target, names, cpu_index, provider);
         break;
+    }
     case STATS_TARGET_CRYPTODEV:
         filter = stats_filter(target, names, -1, provider);
         break;
+    case STATS_TARGET__MAX:
     default:
         abort();
     }

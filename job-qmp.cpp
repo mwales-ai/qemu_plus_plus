@@ -149,16 +149,14 @@ static JobInfo *job_query_single_locked(Job *job, Error **errp)
     progress_get_snapshot(&job->progress, &progress_current,
                           &progress_total);
 
-    info = g_new(JobInfo, 1);
-    *info = (JobInfo) {
-        .id                 = g_strdup(job->id),
-        .type               = job_type(job),
-        .status             = job->status,
-        .current_progress   = progress_current,
-        .total_progress     = progress_total,
-        .error              = job->err ?
-                              g_strdup(error_get_pretty(job->err)) : NULL,
-    };
+    info = g_new0(JobInfo, 1);
+    info->id                 = g_strdup(job->id);
+    info->type               = job_type(job);
+    info->status             = job->status;
+    info->current_progress   = static_cast<int64_t>(progress_current);
+    info->total_progress     = static_cast<int64_t>(progress_total);
+    info->error              = job->err ?
+                              g_strdup(error_get_pretty(job->err)) : NULL;
 
     return info;
 }

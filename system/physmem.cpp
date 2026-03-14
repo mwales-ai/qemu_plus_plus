@@ -625,13 +625,13 @@ static void tcg_register_iommu_notifier(CPUState *cpu,
     TCGIOMMUNotifier *notifier = NULL;
     int i;
 
-    for (i = 0; i < cpu->iommu_notifiers->len; i++) {
+    for (i = 0; i < static_cast<int>(cpu->iommu_notifiers->len); i++) {
         notifier = g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier *, i);
         if (notifier->mr == mr && notifier->iommu_idx == iommu_idx) {
             break;
         }
     }
-    if (i == cpu->iommu_notifiers->len) {
+    if (i == static_cast<int>(cpu->iommu_notifiers->len)) {
         /* Not found, add a new entry at the end of the array */
         cpu->iommu_notifiers = g_array_set_size(cpu->iommu_notifiers, i + 1);
         notifier = g_new0(TCGIOMMUNotifier, 1);
@@ -667,7 +667,7 @@ void tcg_iommu_free_notifier_list(CPUState *cpu)
     int i;
     TCGIOMMUNotifier *notifier;
 
-    for (i = 0; i < cpu->iommu_notifiers->len; i++) {
+    for (i = 0; i < static_cast<int>(cpu->iommu_notifiers->len); i++) {
         notifier = g_array_index(cpu->iommu_notifiers, TCGIOMMUNotifier *, i);
         memory_region_unregister_iommu_notifier(notifier->mr, &notifier->n);
         g_free(notifier);
@@ -757,7 +757,7 @@ MemoryRegionSection *iotlb_to_section(CPUState *cpu,
     int section_index = index & ~TARGET_PAGE_MASK;
     MemoryRegionSection *ret;
 
-    assert(section_index < d->map.sections_nb);
+    assert(section_index < static_cast<int>(d->map.sections_nb));
     ret = d->map.sections + section_index;
     assert(ret->mr);
     assert(ret->mr->ops);
@@ -1162,8 +1162,8 @@ DirtyBitmapSnapshot *physical_memory_snapshot_and_clear_dirty
     first = QEMU_ALIGN_DOWN(start, align);
     last  = QEMU_ALIGN_UP(start + length, align);
 
-    snap = g_malloc0(sizeof(*snap) +
-                     ((last - first) >> (TARGET_PAGE_BITS + 3)));
+    snap = static_cast<DirtyBitmapSnapshot *>(g_malloc0(sizeof(*snap) +
+                     ((last - first) >> (TARGET_PAGE_BITS + 3))));
     snap->start = first;
     snap->end   = last;
 
@@ -1334,7 +1334,7 @@ static uint16_t phys_section_add(PhysPageMap *map,
      * pointer to produce the iotlb entries.  Thus it should
      * never overflow into the page-aligned value.
      */
-    assert(map->sections_nb < TARGET_PAGE_SIZE);
+    assert(map->sections_nb < static_cast<unsigned>(TARGET_PAGE_SIZE));
 
     if (map->sections_nb == map->sections_nb_alloc) {
         map->sections_nb_alloc = MAX(map->sections_nb_alloc * 2, 16);
@@ -1377,8 +1377,8 @@ static void register_subpage(FlatView *fv, MemoryRegionSection *section)
         & TARGET_PAGE_MASK;
     MemoryRegionSection *existing = phys_page_find(d, base);
     MemoryRegionSection subsection = {
-        .offset_within_address_space = base,
         .size = int128_make64(TARGET_PAGE_SIZE),
+        .offset_within_address_space = base,
     };
     hwaddr start, end;
 
@@ -1504,7 +1504,7 @@ GString *ram_block_format(void)
 
 static int find_min_backend_pagesize(Object *obj, void *opaque)
 {
-    long *hpsize_min = opaque;
+    long *hpsize_min = static_cast<long *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
         HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -1520,7 +1520,7 @@ static int find_min_backend_pagesize(Object *obj, void *opaque)
 
 static int find_max_backend_pagesize(Object *obj, void *opaque)
 {
-    long *hpsize_max = opaque;
+    long *hpsize_max = static_cast<long *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
         HostMemoryBackend *backend = MEMORY_BACKEND(obj);
@@ -2143,15 +2143,15 @@ static void dirty_memory_extend(ram_addr_t new_ram_size)
         int j;
 
         old_blocks = qatomic_rcu_read(&ram_list.dirty_memory[i]);
-        new_blocks = g_malloc(sizeof(*new_blocks) +
-                              sizeof(new_blocks->blocks[0]) * new_num_blocks);
+        new_blocks = static_cast<DirtyMemoryBlocks *>(g_malloc(sizeof(*new_blocks) +
+                              sizeof(new_blocks->blocks[0]) * new_num_blocks));
 
         if (old_num_blocks) {
             memcpy(new_blocks->blocks, old_blocks->blocks,
                    old_num_blocks * sizeof(old_blocks->blocks[0]));
         }
 
-        for (j = old_num_blocks; j < new_num_blocks; j++) {
+        for (j = old_num_blocks; j < static_cast<int>(new_num_blocks); j++) {
             new_blocks->blocks[j] = bitmap_new(DIRTY_MEMORY_BLOCK_SIZE);
         }
 
@@ -2188,9 +2188,9 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
                 return;
             }
         } else {
-            new_block->host = qemu_anon_ram_alloc(new_block->max_length,
+            new_block->host = static_cast<uint8_t *>(qemu_anon_ram_alloc(new_block->max_length,
                                                   &new_block->mr->align,
-                                                  shared, noreserve);
+                                                  shared, noreserve));
             if (!new_block->host) {
                 error_setg_errno(errp, errno,
                                  "cannot set up guest memory '%s'",
@@ -2354,7 +2354,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, ram_addr_t max_size,
     max_size = REAL_HOST_PAGE_ALIGN(max_size);
 
     file_size = get_file_size(fd);
-    if (file_size && file_size < offset + max_size && !grow) {
+    if (file_size && file_size < static_cast<int64_t>(offset + max_size) && !grow) {
         error_setg(errp, "%s backing store size 0x%" PRIx64
                    " is too small for 'size' option 0x" RAM_ADDR_FMT
                    " plus 'offset' option 0x%" PRIx64,
@@ -2364,23 +2364,23 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, ram_addr_t max_size,
     }
 
     file_align = get_file_align(fd);
-    if (file_align > 0 && file_align > mr->align) {
+    if (file_align > 0 && file_align > static_cast<int64_t>(mr->align)) {
         error_setg(errp, "backing store align 0x%" PRIx64
                    " is larger than 'align' option 0x%" PRIx64,
                    file_align, mr->align);
         return NULL;
     }
 
-    new_block = g_malloc0(sizeof(*new_block));
+    new_block = static_cast<RAMBlock *>(g_malloc0(sizeof(*new_block)));
     new_block->mr = mr;
     new_block->used_length = size;
     new_block->max_length = max_size;
     new_block->resized = resized;
     new_block->flags = ram_flags;
     new_block->guest_memfd = -1;
-    new_block->host = file_ram_alloc(new_block, max_size, fd,
-                                     file_size < offset + max_size,
-                                     offset, errp);
+    new_block->host = static_cast<uint8_t *>(file_ram_alloc(new_block, max_size, fd,
+                                     file_size < static_cast<int64_t>(offset + max_size),
+                                     offset, errp));
     if (!new_block->host) {
         g_free(new_block);
         return NULL;
@@ -2544,7 +2544,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     size = ROUND_UP(size, align);
     max_size = ROUND_UP(max_size, align);
 
-    new_block = g_malloc0(sizeof(*new_block));
+    new_block = static_cast<RAMBlock *>(g_malloc0(sizeof(*new_block)));
     new_block->mr = mr;
     new_block->resized = resized;
     new_block->used_length = size;
@@ -2552,7 +2552,7 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     new_block->fd = -1;
     new_block->guest_memfd = -1;
     new_block->page_size = qemu_real_host_page_size();
-    new_block->host = host;
+    new_block->host = static_cast<uint8_t *>(host);
     new_block->flags = ram_flags;
     ram_block_add(new_block, &local_err);
     if (local_err) {
@@ -2796,7 +2796,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
                                    ram_addr_t *offset)
 {
     RAMBlock *block;
-    uint8_t *host = ptr;
+    uint8_t *host = static_cast<uint8_t *>(ptr);
 
     if (xen_enabled()) {
         ram_addr_t ram_addr;
@@ -2815,7 +2815,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
 
     RCU_READ_LOCK_GUARD();
     block = qatomic_rcu_read(&ram_list.mru_block);
-    if (block && block->host && host - block->host < block->max_length) {
+    if (block && block->host && static_cast<ram_addr_t>(host - block->host) < block->max_length) {
         goto found;
     }
 
@@ -2824,7 +2824,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
         if (block->host == NULL) {
             continue;
         }
-        if (host - block->host < block->max_length) {
+        if (static_cast<ram_addr_t>(host - block->host) < block->max_length) {
             goto found;
         }
     }
@@ -2898,7 +2898,7 @@ static bool flatview_access_valid(FlatView *fv, hwaddr addr, hwaddr len,
 static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
                                 unsigned len, MemTxAttrs attrs)
 {
-    subpage_t *subpage = opaque;
+    subpage_t *subpage = static_cast<subpage_t *>(opaque);
     uint8_t buf[8];
     MemTxResult res;
 
@@ -2917,7 +2917,7 @@ static MemTxResult subpage_read(void *opaque, hwaddr addr, uint64_t *data,
 static MemTxResult subpage_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned len, MemTxAttrs attrs)
 {
-    subpage_t *subpage = opaque;
+    subpage_t *subpage = static_cast<subpage_t *>(opaque);
     uint8_t buf[8];
 
 #if defined(DEBUG_SUBPAGE)
@@ -2933,7 +2933,7 @@ static bool subpage_accepts(void *opaque, hwaddr addr,
                             unsigned len, bool is_write,
                             MemTxAttrs attrs)
 {
-    subpage_t *subpage = opaque;
+    subpage_t *subpage = static_cast<subpage_t *>(opaque);
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p %c len %u addr " HWADDR_FMT_plx "\n",
            __func__, subpage, is_write ? 'w' : 'r', len, addr);
@@ -2946,12 +2946,16 @@ static bool subpage_accepts(void *opaque, hwaddr addr,
 static const MemoryRegionOps subpage_ops = {
     .read_with_attrs = subpage_read,
     .write_with_attrs = subpage_write,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 8,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
-    .valid.accepts = subpage_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+        .accepts = subpage_accepts,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
 };
 
 static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
@@ -2959,7 +2963,7 @@ static int subpage_register(subpage_t *mmio, uint32_t start, uint32_t end,
 {
     int idx, eidx;
 
-    if (start >= TARGET_PAGE_SIZE || end >= TARGET_PAGE_SIZE)
+    if (start >= static_cast<uint32_t>(TARGET_PAGE_SIZE) || end >= static_cast<uint32_t>(TARGET_PAGE_SIZE))
         return -1;
     idx = SUBPAGE_IDX(start);
     eidx = SUBPAGE_IDX(end);
@@ -2979,7 +2983,7 @@ static subpage_t *subpage_init(FlatView *fv, hwaddr base)
     subpage_t *mmio;
 
     /* mmio->sub_section is set to PHYS_SECTION_UNASSIGNED with g_malloc0 */
-    mmio = g_malloc0(sizeof(subpage_t) + TARGET_PAGE_SIZE * sizeof(uint16_t));
+    mmio = static_cast<subpage_t *>(g_malloc0(sizeof(subpage_t) + TARGET_PAGE_SIZE * sizeof(uint16_t)));
     mmio->fv = fv;
     mmio->base = base;
     memory_region_init_io(&mmio->iomem, NULL, &subpage_ops, mmio,
@@ -2997,11 +3001,11 @@ static uint16_t dummy_section(PhysPageMap *map, FlatView *fv, MemoryRegion *mr)
 {
     assert(fv);
     MemoryRegionSection section = {
-        .fv = fv,
-        .mr = mr,
-        .offset_within_address_space = 0,
-        .offset_within_region = 0,
         .size = int128_2_64(),
+        .mr = mr,
+        .fv = fv,
+        .offset_within_region = 0,
+        .offset_within_address_space = 0,
     };
 
     return phys_section_add(map, &section);
@@ -3024,7 +3028,7 @@ AddressSpaceDispatch *address_space_dispatch_new(FlatView *fv)
     n = dummy_section(&d->map, fv, &io_mem_unassigned);
     assert(n == PHYS_SECTION_UNASSIGNED);
 
-    d->phys_map  = (PhysPageEntry) { .ptr = PHYS_MAP_NODE_NIL, .skip = 1 };
+    d->phys_map  = (PhysPageEntry) { .skip = 1, .ptr = PHYS_MAP_NODE_NIL };
 
     return d;
 }
@@ -3106,12 +3110,12 @@ static void tcg_commit(MemoryListener *listener)
 
 static void memory_map_init(void)
 {
-    system_memory = g_malloc(sizeof(*system_memory));
+    system_memory = static_cast<MemoryRegion *>(g_malloc(sizeof(*system_memory)));
 
     memory_region_init(system_memory, NULL, "system", UINT64_MAX);
     address_space_init(&address_space_memory, system_memory, "memory");
 
-    system_io = g_malloc(sizeof(*system_io));
+    system_io = static_cast<MemoryRegion *>(g_malloc(sizeof(*system_io)));
     memory_region_init_io(system_io, NULL, &unassigned_io_ops, NULL, "io",
                           65536);
     address_space_init(&address_space_io, system_io, "I/O");
@@ -3275,8 +3279,8 @@ static MemTxResult flatview_write_continue_step(MemTxAttrs attrs,
         return result;
     } else {
         /* RAM case */
-        uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
-                                               false, true);
+        uint8_t *ram_ptr = static_cast<uint8_t *>(qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
+                                               false, true));
 
         memmove(ram_ptr, buf, *l);
         invalidate_and_set_dirty(mr, mr_addr, *l);
@@ -3293,7 +3297,7 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
                                            hwaddr l, MemoryRegion *mr)
 {
     MemTxResult result = MEMTX_OK;
-    const uint8_t *buf = ptr;
+    const uint8_t *buf = static_cast<const uint8_t *>(ptr);
 
     for (;;) {
         result |= flatview_write_continue_step(attrs, buf, len, mr_addr, &l,
@@ -3368,8 +3372,8 @@ static MemTxResult flatview_read_continue_step(MemTxAttrs attrs, uint8_t *buf,
         return result;
     } else {
         /* RAM case */
-        uint8_t *ram_ptr = qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
-                                               false, false);
+        uint8_t *ram_ptr = static_cast<uint8_t *>(qemu_ram_ptr_length(mr->ram_block, mr_addr, l,
+                                               false, false));
 
         memcpy(buf, ram_ptr, *l);
 
@@ -3384,7 +3388,7 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    MemoryRegion *mr)
 {
     MemTxResult result = MEMTX_OK;
-    uint8_t *buf = ptr;
+    uint8_t *buf = static_cast<uint8_t *>(ptr);
 
     fuzz_dma_read_cb(addr, len, mr);
     for (;;) {
@@ -3499,6 +3503,7 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs,
                                     const void *buf, hwaddr len)
 {
+    const uint8_t *buf8 = static_cast<const uint8_t *>(buf);
     RCU_READ_LOCK_GUARD();
     while (len > 0) {
         hwaddr addr1, l = len;
@@ -3510,12 +3515,12 @@ MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
         } else {
             /* ROM/RAM case */
             void *ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
-            memcpy(ram_ptr, buf, l);
+            memcpy(ram_ptr, buf8, l);
             invalidate_and_set_dirty(mr, addr1, l);
         }
         len -= l;
         addr += l;
-        buf += l;
+        buf8 += l;
     }
     return MEMTX_OK;
 }
@@ -3584,7 +3589,7 @@ static void address_space_notify_map_clients_locked(AddressSpace *as)
 
 void address_space_register_map_client(AddressSpace *as, QEMUBH *bh)
 {
-    AddressSpaceMapClient *client = g_malloc(sizeof(*client));
+    AddressSpaceMapClient *client = static_cast<AddressSpaceMapClient *>(g_malloc(sizeof(*client)));
 
     QEMU_LOCK_GUARD(&as->map_client_list_lock);
     client->bh = bh;
@@ -3749,7 +3754,7 @@ void *address_space_map(AddressSpace *as,
             return NULL;
         }
 
-        BounceBuffer *bounce = g_malloc0(l + sizeof(BounceBuffer));
+        BounceBuffer *bounce = static_cast<BounceBuffer *>(g_malloc0(l + sizeof(BounceBuffer)));
         bounce->magic = BOUNCE_BUFFER_MAGIC;
         memory_region_ref(mr);
         bounce->mr = mr;
@@ -3788,14 +3793,15 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
             invalidate_and_set_dirty(mr, addr1, access_len);
         }
         if (xen_enabled()) {
-            xen_invalidate_map_cache_entry(buffer);
+            xen_invalidate_map_cache_entry(static_cast<uint8_t *>(buffer));
         }
         memory_region_unref(mr);
         return;
     }
 
 
-    BounceBuffer *bounce = container_of(buffer, BounceBuffer, buffer);
+    BounceBuffer *bounce = reinterpret_cast<BounceBuffer *>(
+        static_cast<char *>(buffer) - offsetof(BounceBuffer, buffer));
     assert(bounce->magic == BOUNCE_BUFFER_MAGIC);
 
     if (is_write) {
@@ -3871,8 +3877,8 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
         l = flatview_extend_translation(cache->fv, addr, len, mr,
                                         cache->xlat, l, is_write,
                                         MEMTXATTRS_UNSPECIFIED);
-        cache->ptr = qemu_ram_ptr_length(mr->ram_block, cache->xlat, &l, true,
-                                         is_write);
+        cache->ptr = static_cast<uint8_t *>(qemu_ram_ptr_length(mr->ram_block, cache->xlat, &l, true,
+                                         is_write));
     } else {
         cache->ptr = NULL;
     }
@@ -3946,7 +3952,7 @@ static MemTxResult address_space_write_continue_cached(MemTxAttrs attrs,
                                                        MemoryRegion *mr)
 {
     MemTxResult result = MEMTX_OK;
-    const uint8_t *buf = ptr;
+    const uint8_t *buf = static_cast<const uint8_t *>(ptr);
 
     for (;;) {
         result |= flatview_write_continue_step(attrs, buf, len, mr_addr, &l,
@@ -3973,7 +3979,7 @@ static MemTxResult address_space_read_continue_cached(MemTxAttrs attrs,
                                                       MemoryRegion *mr)
 {
     MemTxResult result = MEMTX_OK;
-    uint8_t *buf = ptr;
+    uint8_t *buf = static_cast<uint8_t *>(ptr);
 
     for (;;) {
         result |= flatview_read_continue_step(attrs, buf, len, mr_addr, &l, mr);
@@ -4038,7 +4044,7 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
 {
     hwaddr phys_addr;
     vaddr l, page;
-    uint8_t *buf = ptr;
+    uint8_t *buf = static_cast<uint8_t *>(ptr);
 
     cpu_synchronize_state(cpu);
     while (len > 0) {
@@ -4050,7 +4056,7 @@ int cpu_memory_rw_debug(CPUState *cpu, vaddr addr,
         phys_addr = cpu_get_phys_page_attrs_debug(cpu, page, &attrs);
         asidx = cpu_asidx_from_attrs(cpu, attrs);
         /* if no physical page mapped, return an error */
-        if (phys_addr == -1)
+        if (phys_addr == static_cast<hwaddr>(-1))
             return -1;
         l = (page + TARGET_PAGE_SIZE) - addr;
         if (l > len)
@@ -4259,7 +4265,7 @@ static void mtree_print_phys_entries(int start, int end, int skip, int ptr)
 
 void mtree_print_dispatch(AddressSpaceDispatch *d, MemoryRegion *root)
 {
-    int i;
+    unsigned i;
 
     qemu_printf("  Dispatch\n");
     qemu_printf("    Physical sections\n");
@@ -4269,7 +4275,7 @@ void mtree_print_dispatch(AddressSpaceDispatch *d, MemoryRegion *root)
         const char *names[] = { " [unassigned]", " [not dirty]",
                                 " [ROM]", " [watch]" };
 
-        qemu_printf("      #%d @" HWADDR_FMT_plx ".." HWADDR_FMT_plx
+        qemu_printf("      #%u @" HWADDR_FMT_plx ".." HWADDR_FMT_plx
                     " %s%s%s%s%s",
             i,
             s->offset_within_address_space,
@@ -4290,11 +4296,11 @@ void mtree_print_dispatch(AddressSpaceDispatch *d, MemoryRegion *root)
     qemu_printf("    Nodes (%d bits per level, %d levels) ptr=[%d] skip=%d\n",
                P_L2_BITS, P_L2_LEVELS, d->phys_map.ptr, d->phys_map.skip);
     for (i = 0; i < d->map.nodes_nb; ++i) {
-        int j, jprev;
+        unsigned j, jprev;
         PhysPageEntry prev;
         Node *n = d->map.nodes + i;
 
-        qemu_printf("      [%d]\n", i);
+        qemu_printf("      [%u]\n", i);
 
         for (j = 0, jprev = 0, prev = *n[0]; j < ARRAY_SIZE(*n); ++j) {
             PhysPageEntry *pe = *n + j;

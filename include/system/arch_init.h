@@ -1,6 +1,10 @@
 #ifndef QEMU_ARCH_INIT_H
 #define QEMU_ARCH_INIT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 enum {
     QEMU_ARCH_ALL = -1,
@@ -26,5 +30,9 @@ enum {
 };
 
 bool qemu_arch_available(unsigned qemu_arch_mask);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

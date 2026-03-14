@@ -40,7 +40,7 @@ int range_compare(Range *a, Range *b)
 
 /* Insert @data into @list of ranges; caller no longer owns @data */
 extern "C"
-GList *range_list_insert(GList *list, Range *data)
+extern "C" GList *range_list_insert(GList *list, Range *data)
 {
     GList *l;
 

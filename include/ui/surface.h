@@ -7,6 +7,9 @@
 
 #include "ui/qemu-pixman.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef CONFIG_OPENGL
 # include <epoxy/gl.h>
 # include "ui/shader.h"
@@ -90,5 +93,9 @@ static inline int surface_bytes_per_pixel(DisplaySurface *s)
     int bits = PIXMAN_FORMAT_BPP(surface_format(s));
     return DIV_ROUND_UP(bits, 8);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

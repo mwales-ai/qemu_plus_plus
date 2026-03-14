@@ -213,7 +213,7 @@ static bool ebpf_rss_set_indirections_table(struct EBPFRSSContext *ctx,
                                             size_t len,
                                             Error **errp)
 {
-    char *cursor = ctx->mmap_indirections_table;
+    char *cursor = static_cast<char *>(ctx->mmap_indirections_table);
 
     if (len > VIRTIO_NET_RSS_MAX_TABLE_LEN) {
         error_setg(errp, "Indirections table length %zu exceeds limit %d",
@@ -286,7 +286,7 @@ void ebpf_rss_unload(struct EBPFRSSContext *ctx)
     ebpf_rss_munmap(ctx);
 
     if (ctx->obj) {
-        rss_bpf__destroy(ctx->obj);
+        rss_bpf__destroy(static_cast<struct rss_bpf *>(ctx->obj));
     } else {
         close(ctx->program_fd);
         close(ctx->map_configuration);

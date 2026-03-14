@@ -175,7 +175,7 @@ static const MemoryRegionPortio *find_portio(MemoryRegionPortioList *mrpio,
 
 static uint64_t portio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MemoryRegionPortioList *mrpio = opaque;
+    MemoryRegionPortioList *mrpio = static_cast<MemoryRegionPortioList *>(opaque);
     const MemoryRegionPortio *mrp = find_portio(mrpio, addr, size, false);
     uint64_t data;
 
@@ -199,7 +199,7 @@ static uint64_t portio_read(void *opaque, hwaddr addr, unsigned size)
 static void portio_write(void *opaque, hwaddr addr, uint64_t data,
                          unsigned size)
 {
-    MemoryRegionPortioList *mrpio = opaque;
+    MemoryRegionPortioList *mrpio = static_cast<MemoryRegionPortioList *>(opaque);
     const MemoryRegionPortio *mrp = find_portio(mrpio, addr, size, true);
 
     if (mrp) {
@@ -218,9 +218,19 @@ static void portio_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps portio_ops = {
     .read = portio_read,
     .write = portio_write,
+    .read_with_attrs = nullptr,
+    .write_with_attrs = nullptr,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.unaligned = true,
-    .impl.unaligned = true,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = true,
+    },
+    .impl = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = true,
+    },
 };
 
 static void portio_list_add_1(PortioList *piolist,
@@ -237,7 +247,7 @@ static void portio_list_add_1(PortioList *piolist,
     mrpio = MEMORY_REGION_PORTIO_LIST(
                 object_new(TYPE_MEMORY_REGION_PORTIO_LIST));
     mrpio->portio_opaque = piolist->opaque;
-    mrpio->ports = g_malloc0(sizeof(MemoryRegionPortio) * (count + 1));
+    mrpio->ports = static_cast<MemoryRegionPortio *>(g_malloc0(sizeof(MemoryRegionPortio) * (count + 1)));
     memcpy(mrpio->ports, pio_init, sizeof(MemoryRegionPortio) * count);
     memset(mrpio->ports + count, 0, sizeof(MemoryRegionPortio));
 
@@ -358,9 +368,12 @@ static void memory_region_portio_list_finalize(Object *obj)
 }
 
 static const TypeInfo memory_region_portio_list_info = {
-    .parent             = TYPE_OBJECT,
     .name               = TYPE_MEMORY_REGION_PORTIO_LIST,
+    .parent             = TYPE_OBJECT,
     .instance_size      = sizeof(MemoryRegionPortioList),
+    .instance_align     = 0,
+    .instance_init      = nullptr,
+    .instance_post_init = nullptr,
     .instance_finalize  = memory_region_portio_list_finalize,
 };
 

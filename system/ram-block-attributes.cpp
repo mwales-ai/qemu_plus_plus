@@ -56,7 +56,7 @@ static int
 ram_block_attributes_notify_populate_cb(MemoryRegionSection *section,
                                         void *arg)
 {
-    RamDiscardListener *rdl = arg;
+    RamDiscardListener *rdl = static_cast<RamDiscardListener *>(arg);
 
     return rdl->notify_populate(rdl, section);
 }
@@ -65,7 +65,7 @@ static int
 ram_block_attributes_notify_discard_cb(MemoryRegionSection *section,
                                        void *arg)
 {
-    RamDiscardListener *rdl = arg;
+    RamDiscardListener *rdl = static_cast<RamDiscardListener *>(arg);
 
     rdl->notify_discard(rdl, section);
     return 0;
@@ -221,7 +221,7 @@ typedef struct RamBlockAttributesReplayData {
 static int ram_block_attributes_rdm_replay_cb(MemoryRegionSection *section,
                                               void *arg)
 {
-    RamBlockAttributesReplayData *data = arg;
+    RamBlockAttributesReplayData *data = static_cast<RamBlockAttributesReplayData *>(arg);
 
     return data->fn(section, data->opaque);
 }

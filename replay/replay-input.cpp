@@ -84,11 +84,11 @@ InputEvent *replay_read_input_event(void)
     InputMoveEvent abs;
     InputMultiTouchEvent mtt;
 
-    evt.type = replay_get_dword();
+    evt.type = static_cast<InputEventKind>(replay_get_dword());
     switch (evt.type) {
     case INPUT_EVENT_KIND_KEY:
         evt.u.key.data = &key;
-        evt.u.key.data->key->type = replay_get_dword();
+        evt.u.key.data->key->type = static_cast<KeyValueKind>(replay_get_dword());
 
         switch (evt.u.key.data->key->type) {
         case KEY_VALUE_KIND_NUMBER:

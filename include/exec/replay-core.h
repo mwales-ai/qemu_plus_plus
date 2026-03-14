@@ -13,6 +13,9 @@
 
 #include "qapi/qapi-types-replay.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern ReplayMode replay_mode;
 
 /* Replay process control functions */
@@ -76,5 +79,9 @@ bool replay_has_interrupt(void);
 void replay_save_random(int ret, void *buf, size_t len);
 /* Loads the saved values for the random number generator */
 int replay_read_random(void *buf, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

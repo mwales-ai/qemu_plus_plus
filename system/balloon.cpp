@@ -85,7 +85,7 @@ BalloonInfo *qmp_query_balloon(Error **errp)
         return NULL;
     }
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<BalloonInfo *>(g_malloc0(sizeof(*info)));
     balloon_stat_fn(balloon_opaque, info);
     return info;
 }

@@ -16,6 +16,9 @@
 
 #include "chardev/char.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern bool qtest_allowed;
 
 static inline bool qtest_enabled(void)
@@ -32,5 +35,9 @@ void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **
 void qtest_server_set_send_handler(void (*send)(void *, const char *),
                                  void *opaque);
 void qtest_server_inproc_recv(void *opaque, const char *buf);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

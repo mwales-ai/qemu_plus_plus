@@ -9,6 +9,10 @@
 #ifndef EXEC_ICOUNT_H
 #define EXEC_ICOUNT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * ICountMode: icount enablement state:
  *
@@ -72,5 +76,9 @@ int64_t icount_round(int64_t count);
 void icount_start_warp_timer(void);
 void icount_account_warp_timer(void);
 void icount_notify_exit(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EXEC_ICOUNT_H */

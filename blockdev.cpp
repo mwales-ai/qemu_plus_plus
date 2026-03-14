@@ -100,9 +100,12 @@ static int if_max_devs[IF_COUNT] = {
      * if=scsi,index=12 no longer means bus=1,unit=5, but
      * bus=0,unit=12.  With an lsi53c895a controller (7 units max),
      * the drive can't be set up.  Regression.
+     *
+     * IF_NONE=0, IF_IDE=1, IF_SCSI=2, ...
      */
-    [IF_IDE] = 2,
-    [IF_SCSI] = 7,
+    0,  /* IF_NONE */
+    2,  /* IF_IDE */
+    7,  /* IF_SCSI */
 };
 
 /**
@@ -453,10 +456,11 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
 
     if (detect_zeroes) {
         *detect_zeroes =
-            qapi_enum_parse(&BlockdevDetectZeroesOptions_lookup,
-                            qemu_opt_get(opts, "detect-zeroes"),
-                            BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
-                            &local_error);
+            static_cast<BlockdevDetectZeroesOptions>(
+                qapi_enum_parse(&BlockdevDetectZeroesOptions_lookup,
+                                qemu_opt_get(opts, "detect-zeroes"),
+                                BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
+                                &local_error));
         if (local_error) {
             error_propagate(errp, local_error);
             return;
@@ -481,7 +485,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 {
     const char *buf;
     int bdrv_flags = 0;
-    int on_read_error, on_write_error;
+    BlockdevOnError on_read_error, on_write_error;
     OnOffAuto account_invalid, account_failed;
     bool writethrough, read_only;
     BlockBackend *blk;
@@ -558,7 +562,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
-        on_write_error = parse_block_error_action(buf, 0, &error);
+        on_write_error = static_cast<BlockdevOnError>(
+            parse_block_error_action(buf, 0, &error));
         if (error) {
             error_propagate(errp, error);
             goto early_err;
@@ -567,7 +572,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     on_read_error = BLOCKDEV_ON_ERROR_REPORT;
     if ((buf = qemu_opt_get(opts, "rerror")) != NULL) {
-        on_read_error = parse_block_error_action(buf, 1, &error);
+        on_read_error = static_cast<BlockdevOnError>(
+            parse_block_error_action(buf, 1, &error));
         if (error) {
             error_propagate(errp, error);
             goto early_err;
@@ -789,7 +795,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     bool read_only = false;
     bool copy_on_read;
     const char *filename;
-    int i;
+    size_t i;
 
     GLOBAL_STATE_CODE();
 
@@ -893,9 +899,9 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     /* Controller type */
     value = qemu_opt_get(legacy_opts, "if");
     if (value) {
-        for (type = 0;
+        for (type = static_cast<BlockInterfaceType>(0);
              type < IF_COUNT && strcmp(value, if_name[type]);
-             type++) {
+             type = static_cast<BlockInterfaceType>(type + 1)) {
         }
         if (type == IF_COUNT) {
             error_setg(errp, "unsupported bus type '%s'", value);
@@ -1012,7 +1018,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
     }
 
     /* Create legacy DriveInfo */
-    dinfo = g_malloc0(sizeof(*dinfo));
+    dinfo = static_cast<DriveInfo *>(g_malloc0(sizeof(*dinfo)));
     dinfo->opts = all_opts;
 
     dinfo->type = type;
@@ -1086,10 +1092,9 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *node_name,
         .has_mode = has_mode,
         .mode = mode,
     };
-    TransactionAction action = {
-        .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC,
-        .u.blockdev_snapshot_sync.data = &snapshot,
-    };
+    TransactionAction action = {};
+    action.type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC;
+    action.u.blockdev_snapshot_sync.data = &snapshot;
     blockdev_do_action(&action, errp);
 }
 
@@ -1100,10 +1105,9 @@ void qmp_blockdev_snapshot(const char *node, const char *overlay,
         .node = (char *) node,
         .overlay = (char *) overlay
     };
-    TransactionAction action = {
-        .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT,
-        .u.blockdev_snapshot.data = &snapshot_data,
-    };
+    TransactionAction action = {};
+    action.type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT;
+    action.u.blockdev_snapshot.data = &snapshot_data;
     blockdev_do_action(&action, errp);
 }
 
@@ -1115,10 +1119,9 @@ void qmp_blockdev_snapshot_internal_sync(const char *device,
         .device = (char *) device,
         .name = (char *) name
     };
-    TransactionAction action = {
-        .type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC,
-        .u.blockdev_snapshot_internal_sync.data = &snapshot,
-    };
+    TransactionAction action = {};
+    action.type = TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC;
+    action.u.blockdev_snapshot_internal_sync.data = &snapshot;
     blockdev_do_action(&action, errp);
 }
 
@@ -1311,7 +1314,7 @@ static void internal_snapshot_action(BlockdevSnapshotInternal *internal,
 
 static void internal_snapshot_abort(void *opaque)
 {
-    InternalSnapshotState *state = opaque;
+    InternalSnapshotState *state = static_cast<InternalSnapshotState *>(opaque);
     BlockDriverState *bs = state->bs;
     QEMUSnapshotInfo *sn = &state->sn;
     Error *local_error = NULL;
@@ -1338,7 +1341,8 @@ static void internal_snapshot_abort(void *opaque)
 
 static void internal_snapshot_clean(void *opaque)
 {
-    g_autofree InternalSnapshotState *state = opaque;
+    g_autofree InternalSnapshotState *state =
+        static_cast<InternalSnapshotState *>(opaque);
 
     if (!state->bs) {
         return;
@@ -1358,8 +1362,8 @@ static void external_snapshot_commit(void *opaque);
 static void external_snapshot_abort(void *opaque);
 static void external_snapshot_clean(void *opaque);
 TransactionActionDrv external_snapshot_drv = {
-    .commit = external_snapshot_commit,
     .abort = external_snapshot_abort,
+    .commit = external_snapshot_commit,
     .clean = external_snapshot_clean,
 };
 
@@ -1569,7 +1573,7 @@ unlock:
 
 static void external_snapshot_commit(void *opaque)
 {
-    ExternalSnapshotState *state = opaque;
+    ExternalSnapshotState *state = static_cast<ExternalSnapshotState *>(opaque);
 
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
@@ -1581,7 +1585,7 @@ static void external_snapshot_commit(void *opaque)
 
 static void external_snapshot_abort(void *opaque)
 {
-    ExternalSnapshotState *state = opaque;
+    ExternalSnapshotState *state = static_cast<ExternalSnapshotState *>(opaque);
     if (state->new_bs) {
         if (state->overlay_appended) {
             AioContext *aio_context;
@@ -1625,7 +1629,8 @@ static void external_snapshot_abort(void *opaque)
 
 static void external_snapshot_clean(void *opaque)
 {
-    g_autofree ExternalSnapshotState *state = opaque;
+    g_autofree ExternalSnapshotState *state =
+        static_cast<ExternalSnapshotState *>(opaque);
 
     if (!state->old_bs) {
         return;
@@ -1650,8 +1655,8 @@ static void drive_backup_commit(void *opaque);
 static void drive_backup_abort(void *opaque);
 static void drive_backup_clean(void *opaque);
 TransactionActionDrv drive_backup_drv = {
-    .commit = drive_backup_commit,
     .abort = drive_backup_abort,
+    .commit = drive_backup_commit,
     .clean = drive_backup_clean,
 };
 
@@ -1802,7 +1807,7 @@ unref:
 
 static void drive_backup_commit(void *opaque)
 {
-    DriveBackupState *state = opaque;
+    DriveBackupState *state = static_cast<DriveBackupState *>(opaque);
 
     assert(state->job);
     job_start(&state->job->job);
@@ -1810,7 +1815,7 @@ static void drive_backup_commit(void *opaque)
 
 static void drive_backup_abort(void *opaque)
 {
-    DriveBackupState *state = opaque;
+    DriveBackupState *state = static_cast<DriveBackupState *>(opaque);
 
     if (state->job) {
         job_cancel_sync(&state->job->job, true);
@@ -1819,7 +1824,8 @@ static void drive_backup_abort(void *opaque)
 
 static void drive_backup_clean(void *opaque)
 {
-    g_autofree DriveBackupState *state = opaque;
+    g_autofree DriveBackupState *state =
+        static_cast<DriveBackupState *>(opaque);
 
     if (!state->bs) {
         return;
@@ -1837,8 +1843,8 @@ static void blockdev_backup_commit(void *opaque);
 static void blockdev_backup_abort(void *opaque);
 static void blockdev_backup_clean(void *opaque);
 TransactionActionDrv blockdev_backup_drv = {
-    .commit = blockdev_backup_commit,
     .abort = blockdev_backup_abort,
+    .commit = blockdev_backup_commit,
     .clean = blockdev_backup_clean,
 };
 
@@ -1884,7 +1890,7 @@ static void blockdev_backup_action(BlockdevBackup *backup,
 
 static void blockdev_backup_commit(void *opaque)
 {
-    BlockdevBackupState *state = opaque;
+    BlockdevBackupState *state = static_cast<BlockdevBackupState *>(opaque);
 
     assert(state->job);
     job_start(&state->job->job);
@@ -1892,7 +1898,7 @@ static void blockdev_backup_commit(void *opaque)
 
 static void blockdev_backup_abort(void *opaque)
 {
-    BlockdevBackupState *state = opaque;
+    BlockdevBackupState *state = static_cast<BlockdevBackupState *>(opaque);
 
     if (state->job) {
         job_cancel_sync(&state->job->job, true);
@@ -1901,7 +1907,8 @@ static void blockdev_backup_abort(void *opaque)
 
 static void blockdev_backup_clean(void *opaque)
 {
-    g_autofree BlockdevBackupState *state = opaque;
+    g_autofree BlockdevBackupState *state =
+        static_cast<BlockdevBackupState *>(opaque);
 
     if (!state->bs) {
         return;
@@ -1948,7 +1955,7 @@ static void block_dirty_bitmap_add_action(BlockDirtyBitmapAdd *action,
 
 static void block_dirty_bitmap_add_abort(void *opaque)
 {
-    BlockDirtyBitmapState *state = opaque;
+    BlockDirtyBitmapState *state = static_cast<BlockDirtyBitmapState *>(opaque);
 
     if (state->bitmap) {
         bdrv_release_dirty_bitmap(state->bitmap);
@@ -1987,7 +1994,7 @@ static void block_dirty_bitmap_clear_action(BlockDirtyBitmap *action,
 
 static void block_dirty_bitmap_restore(void *opaque)
 {
-    BlockDirtyBitmapState *state = opaque;
+    BlockDirtyBitmapState *state = static_cast<BlockDirtyBitmapState *>(opaque);
 
     if (state->backup) {
         bdrv_restore_dirty_bitmap(state->bitmap, state->backup);
@@ -1996,7 +2003,7 @@ static void block_dirty_bitmap_restore(void *opaque)
 
 static void block_dirty_bitmap_free_backup(void *opaque)
 {
-    BlockDirtyBitmapState *state = opaque;
+    BlockDirtyBitmapState *state = static_cast<BlockDirtyBitmapState *>(opaque);
 
     hbitmap_free(state->backup);
 }
@@ -2032,7 +2039,7 @@ static void block_dirty_bitmap_enable_action(BlockDirtyBitmap *action,
 
 static void block_dirty_bitmap_enable_abort(void *opaque)
 {
-    BlockDirtyBitmapState *state = opaque;
+    BlockDirtyBitmapState *state = static_cast<BlockDirtyBitmapState *>(opaque);
 
     if (!state->was_enabled) {
         bdrv_disable_dirty_bitmap(state->bitmap);
@@ -2070,7 +2077,7 @@ static void block_dirty_bitmap_disable_action(BlockDirtyBitmap *action,
 
 static void block_dirty_bitmap_disable_abort(void *opaque)
 {
-    BlockDirtyBitmapState *state = opaque;
+    BlockDirtyBitmapState *state = static_cast<BlockDirtyBitmapState *>(opaque);
 
     if (state->was_enabled) {
         bdrv_enable_dirty_bitmap(state->bitmap);
@@ -2078,8 +2085,8 @@ static void block_dirty_bitmap_disable_abort(void *opaque)
 }
 
 TransactionActionDrv block_dirty_bitmap_merge_drv = {
-    .commit = block_dirty_bitmap_free_backup,
     .abort = block_dirty_bitmap_restore,
+    .commit = block_dirty_bitmap_free_backup,
     .clean = g_free,
 };
 
@@ -2098,8 +2105,8 @@ static void block_dirty_bitmap_merge_action(BlockDirtyBitmapMerge *action,
 static void block_dirty_bitmap_remove_commit(void *opaque);
 static void block_dirty_bitmap_remove_abort(void *opaque);
 TransactionActionDrv block_dirty_bitmap_remove_drv = {
-    .commit = block_dirty_bitmap_remove_commit,
     .abort = block_dirty_bitmap_remove_abort,
+    .commit = block_dirty_bitmap_remove_commit,
     .clean = g_free,
 };
 
@@ -2121,7 +2128,7 @@ static void block_dirty_bitmap_remove_action(BlockDirtyBitmap *action,
 
 static void block_dirty_bitmap_remove_abort(void *opaque)
 {
-    BlockDirtyBitmapState *state = opaque;
+    BlockDirtyBitmapState *state = static_cast<BlockDirtyBitmapState *>(opaque);
 
     if (state->bitmap) {
         bdrv_dirty_bitmap_skip_store(state->bitmap, false);
@@ -2131,7 +2138,7 @@ static void block_dirty_bitmap_remove_abort(void *opaque)
 
 static void block_dirty_bitmap_remove_commit(void *opaque)
 {
-    BlockDirtyBitmapState *state = opaque;
+    BlockDirtyBitmapState *state = static_cast<BlockDirtyBitmapState *>(opaque);
 
     bdrv_dirty_bitmap_set_busy(state->bitmap, false);
     bdrv_release_dirty_bitmap(state->bitmap);
@@ -2341,7 +2348,8 @@ void coroutine_fn qmp_block_resize(const char *device, const char *node_name,
     bdrv_drained_begin(bs);
 
     old_ctx = bdrv_co_enter(bs);
-    blk_co_truncate(blk, size, false, PREALLOC_MODE_OFF, 0, errp);
+    blk_co_truncate(blk, size, false, PREALLOC_MODE_OFF,
+                    static_cast<BdrvRequestFlags>(0), errp);
     bdrv_co_leave(bs, old_ctx);
 
     bdrv_drained_end(bs);
@@ -2820,10 +2828,9 @@ static BlockJob *do_backup_common(BackupCommon *backup,
 
 void qmp_drive_backup(DriveBackup *backup, Error **errp)
 {
-    TransactionAction action = {
-        .type = TRANSACTION_ACTION_KIND_DRIVE_BACKUP,
-        .u.drive_backup.data = backup,
-    };
+    TransactionAction action = {};
+    action.type = TRANSACTION_ACTION_KIND_DRIVE_BACKUP;
+    action.u.drive_backup.data = backup;
     blockdev_do_action(&action, errp);
 }
 
@@ -2845,10 +2852,9 @@ XDbgBlockGraph *qmp_x_debug_query_block_graph(Error **errp)
 
 void qmp_blockdev_backup(BlockdevBackup *backup, Error **errp)
 {
-    TransactionAction action = {
-        .type = TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP,
-        .u.blockdev_backup.data = backup,
-    };
+    TransactionAction action = {};
+    action.type = TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP;
+    action.u.blockdev_backup.data = backup;
     blockdev_do_action(&action, errp);
 }
 

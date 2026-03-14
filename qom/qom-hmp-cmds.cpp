@@ -103,7 +103,8 @@ static int qom_composition_compare(const void *a, const void *b)
 
 static int insert_qom_composition_child(Object *obj, void *opaque)
 {
-    g_array_append_val(opaque, obj);
+    GArray *arr = static_cast<GArray *>(opaque);
+    g_array_append_val(arr, obj);
     return 0;
 }
 
@@ -111,7 +112,7 @@ static void print_qom_composition(Monitor *mon, Object *obj, int indent)
 {
     GArray *children = g_array_new(false, false, sizeof(Object *));
     const char *name;
-    int i;
+    guint i;
 
     if (obj == object_get_root()) {
         name = "";

@@ -61,13 +61,14 @@ static const cs_opt_skipdata cap_skipdata_s390x = {
  */
 static cs_err cap_disas_start(disassemble_info *info, csh *handle)
 {
-    cs_mode cap_mode = info->cap_mode;
+    cs_mode cap_mode = static_cast<cs_mode>(info->cap_mode);
     cs_err err;
 
-    cap_mode += (info->endian == BFD_ENDIAN_BIG ? CS_MODE_BIG_ENDIAN
-                 : CS_MODE_LITTLE_ENDIAN);
+    cap_mode = static_cast<cs_mode>(cap_mode
+                 + (info->endian == BFD_ENDIAN_BIG ? CS_MODE_BIG_ENDIAN
+                    : CS_MODE_LITTLE_ENDIAN));
 
-    err = cs_open(info->cap_arch, cap_mode, handle);
+    err = cs_open(static_cast<cs_arch>(info->cap_arch), cap_mode, handle);
     if (err != CS_ERR_OK) {
         return err;
     }
@@ -247,7 +248,7 @@ bool cap_disas_host(disassemble_info *info, const void *code, size_t size)
     }
     insn = cap_insn;
 
-    cbuf = code;
+    cbuf = static_cast<const uint8_t *>(code);
     pc = (uintptr_t)code;
 
     while (cs_disasm_iter(handle, &cbuf, &size, &pc, insn)) {

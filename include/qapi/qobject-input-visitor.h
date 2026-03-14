@@ -17,6 +17,9 @@
 
 #include "qapi/visitor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct QObjectInputVisitor QObjectInputVisitor;
 
 /*
@@ -78,5 +81,9 @@ Visitor *qobject_input_visitor_new_keyval(QObject *obj);
 Visitor *qobject_input_visitor_new_str(const char *str,
                                        const char *implied_key,
                                        Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

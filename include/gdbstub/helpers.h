@@ -12,6 +12,10 @@
 #ifndef _GDBSTUB_HELPERS_H_
 #define _GDBSTUB_HELPERS_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef COMPILING_PER_TARGET
 #error "gdbstub helpers should only be included by target specific code"
 #endif
@@ -112,6 +116,10 @@ static inline uint8_t *gdb_get_reg_ptr(GByteArray *buf, int len)
 #define ldtul_p(addr) ldl_p(addr)
 #define ldtul_le_p(addr) ldl_le_p(addr)
 #define ldtul_be_p(addr) ldl_be_p(addr)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* _GDBSTUB_HELPERS_H_ */

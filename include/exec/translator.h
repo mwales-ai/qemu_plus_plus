@@ -10,26 +10,12 @@
 #ifndef EXEC__TRANSLATOR_H
 #define EXEC__TRANSLATOR_H
 
-/*
- * Include this header from a target-specific file, and add a
- *
- *     DisasContextBase base;
- *
- * member in your target-specific DisasContext.
- */
-
 #include "exec/memop.h"
 #include "exec/vaddr.h"
 
-/**
- * DisasJumpType:
- * @DISAS_NEXT: Next instruction in program order.
- * @DISAS_TOO_MANY: Too many instructions translated.
- * @DISAS_NORETURN: Following code is dead.
- * @DISAS_TARGET_*: Start of target-specific conditions.
- *
- * What instruction to disassemble next.
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef enum DisasJumpType {
     DISAS_NEXT,
     DISAS_TOO_MANY,
@@ -275,5 +261,9 @@ size_t translator_st_len(const DisasContextBase *db);
  * translation blocks are allowed to cross page boundaries.
  */
 bool translator_is_same_page(const DisasContextBase *db, vaddr addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EXEC__TRANSLATOR_H */

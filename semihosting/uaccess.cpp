@@ -61,7 +61,7 @@ ssize_t uaccess_strlen_user(CPUArchState *env, vaddr addr)
                 }
             } while (--left_in_page != 0);
         } else {
-            char *p = memchr(h, 0, left_in_page);
+            char *p = static_cast<char *>(memchr(h, 0, left_in_page));
             if (p) {
                 len += p - (char *)h;
                 return len <= INT32_MAX ? (ssize_t)len : -1;
@@ -81,7 +81,7 @@ char *uaccess_lock_user_string(CPUArchState *env, vaddr addr)
     if (len < 0) {
         return NULL;
     }
-    return uaccess_lock_user(env, addr, len + 1, true);
+    return static_cast<char *>(uaccess_lock_user(env, addr, len + 1, true));
 }
 
 void uaccess_unlock_user(CPUArchState *env, void *p,

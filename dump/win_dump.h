@@ -13,9 +13,15 @@
 
 #include "system/dump.h"
 
-/* Check Windows dump availability for the current target */
+#ifdef __cplusplus
+extern "C" {
+#endif
 bool win_dump_available(Error **errp);
 
 void create_win_dump(DumpState *s, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* WIN_DUMP_H */

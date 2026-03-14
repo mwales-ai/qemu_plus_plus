@@ -3,6 +3,10 @@
 
 #include "p9array.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct V9fsString {
     uint16_t size;
     char *data;
@@ -79,5 +83,9 @@ void v9fs_string_free(V9fsString *str);
 void G_GNUC_PRINTF(2, 3) v9fs_string_sprintf(V9fsString *str, const char *fmt,
                                              ...);
 void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

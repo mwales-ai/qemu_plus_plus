@@ -38,7 +38,7 @@
 
 static void *iothread_run(void *opaque)
 {
-    IOThread *iothread = opaque;
+    IOThread *iothread = static_cast<IOThread *>(opaque);
 
     rcu_register_thread();
     /*
@@ -79,7 +79,7 @@ static void *iothread_run(void *opaque)
 /* Runs in iothread_run() thread */
 static void iothread_stop_bh(void *opaque)
 {
-    IOThread *iothread = opaque;
+    IOThread *iothread = static_cast<IOThread *>(opaque);
 
     iothread->running = false; /* stop iothread_run() */
 
@@ -88,7 +88,7 @@ static void iothread_stop_bh(void *opaque)
     }
 }
 
-void iothread_stop(IOThread *iothread)
+extern "C" void iothread_stop(IOThread *iothread)
 {
     if (!iothread->ctx || iothread->stopping) {
         return;
@@ -238,7 +238,8 @@ static void iothread_get_param(Object *obj, Visitor *v,
         const char *name, IOThreadParamInfo *info, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
-    int64_t *field = (void *)iothread + info->offset;
+    int64_t *field = reinterpret_cast<int64_t *>(
+                         reinterpret_cast<char *>(iothread) + info->offset);
 
     visit_type_int64(v, name, field, errp);
 }
@@ -247,7 +248,8 @@ static bool iothread_set_param(Object *obj, Visitor *v,
         const char *name, IOThreadParamInfo *info, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
-    int64_t *field = (void *)iothread + info->offset;
+    int64_t *field = reinterpret_cast<int64_t *>(
+                         reinterpret_cast<char *>(iothread) + info->offset);
     int64_t value;
 
     if (!visit_type_int64(v, name, &value, errp)) {
@@ -268,7 +270,7 @@ static bool iothread_set_param(Object *obj, Visitor *v,
 static void iothread_get_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
-    IOThreadParamInfo *info = opaque;
+    IOThreadParamInfo *info = static_cast<IOThreadParamInfo *>(opaque);
 
     iothread_get_param(obj, v, name, info, errp);
 }
@@ -277,7 +279,7 @@ static void iothread_set_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
-    IOThreadParamInfo *info = opaque;
+    IOThreadParamInfo *info = static_cast<IOThreadParamInfo *>(opaque);
 
     if (!iothread_set_param(obj, v, name, info, errp)) {
         return;
@@ -316,10 +318,10 @@ static void iothread_class_init(ObjectClass *klass, const void *class_data)
 static const TypeInfo iothread_info = {
     .name = TYPE_IOTHREAD,
     .parent = TYPE_EVENT_LOOP_BASE,
-    .class_init = iothread_class_init,
     .instance_size = sizeof(IOThread),
     .instance_init = iothread_instance_init,
     .instance_finalize = iothread_instance_finalize,
+    .class_init = iothread_class_init,
 };
 
 static void iothread_register_types(void)
@@ -329,23 +331,23 @@ static void iothread_register_types(void)
 
 type_init(iothread_register_types)
 
-char *iothread_get_id(IOThread *iothread)
+extern "C" char *iothread_get_id(IOThread *iothread)
 {
     return g_strdup(object_get_canonical_path_component(OBJECT(iothread)));
 }
 
-AioContext *iothread_get_aio_context(IOThread *iothread)
+extern "C" AioContext *iothread_get_aio_context(IOThread *iothread)
 {
     return iothread->ctx;
 }
 
 static int query_one_iothread(Object *object, void *opaque)
 {
-    IOThreadInfoList ***tail = opaque;
+    IOThreadInfoList ***tail = static_cast<IOThreadInfoList ***>(opaque);
     IOThreadInfo *info;
     IOThread *iothread;
 
-    iothread = (IOThread *)object_dynamic_cast(object, TYPE_IOTHREAD);
+    iothread = reinterpret_cast<IOThread *>(object_dynamic_cast(object, TYPE_IOTHREAD));
     if (!iothread) {
         return 0;
     }
@@ -362,7 +364,7 @@ static int query_one_iothread(Object *object, void *opaque)
     return 0;
 }
 
-IOThreadInfoList *qmp_query_iothreads(Error **errp)
+extern "C" IOThreadInfoList *qmp_query_iothreads(Error **errp)
 {
     IOThreadInfoList *head = NULL;
     IOThreadInfoList **prev = &head;
@@ -372,14 +374,14 @@ IOThreadInfoList *qmp_query_iothreads(Error **errp)
     return head;
 }
 
-GMainContext *iothread_get_g_main_context(IOThread *iothread)
+extern "C" GMainContext *iothread_get_g_main_context(IOThread *iothread)
 {
     qatomic_set(&iothread->run_gcontext, 1);
     aio_notify(iothread->ctx);
     return iothread->worker_context;
 }
 
-IOThread *iothread_create(const char *id, Error **errp)
+extern "C" IOThread *iothread_create(const char *id, Error **errp)
 {
     Object *obj;
 
@@ -390,19 +392,19 @@ IOThread *iothread_create(const char *id, Error **errp)
     return IOTHREAD(obj);
 }
 
-void iothread_destroy(IOThread *iothread)
+extern "C" void iothread_destroy(IOThread *iothread)
 {
     object_unparent(OBJECT(iothread));
 }
 
 /* Lookup IOThread by its id.  Only finds user-created objects, not internal
  * iothread_create() objects. */
-IOThread *iothread_by_id(const char *id)
+extern "C" IOThread *iothread_by_id(const char *id)
 {
     return IOTHREAD(object_resolve_path_type(id, TYPE_IOTHREAD, NULL));
 }
 
-bool qemu_in_iothread(void)
+extern "C" bool qemu_in_iothread(void)
 {
     return qemu_get_current_aio_context() != qemu_get_aio_context();
 }

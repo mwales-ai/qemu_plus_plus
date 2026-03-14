@@ -24,6 +24,9 @@
 
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define TYPE_NMI "nmi"
 
 typedef struct NMIClass NMIClass;
@@ -41,5 +44,9 @@ struct NMIClass {
 };
 
 void nmi_monitor_handle(int cpu_index, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NMI_H */

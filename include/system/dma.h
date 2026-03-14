@@ -15,6 +15,9 @@
 #include "block/block.h"
 #include "block/accounting.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef enum {
     DMA_DIRECTION_TO_DEVICE = 0,
     DMA_DIRECTION_FROM_DEVICE = 1,
@@ -318,5 +321,9 @@ void dma_acct_start(BlockBackend *blk, BlockAcctCookie *cookie,
  */
 uint64_t dma_aligned_pow2_mask(uint64_t start, uint64_t end,
                                int max_addr_bits);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

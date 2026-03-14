@@ -88,18 +88,16 @@ NBDClientConnection *nbd_client_connection_new(const SocketAddress *saddr,
     NBDClientConnection *conn = g_new(NBDClientConnection, 1);
 
     object_ref(OBJECT(tlscreds));
-    *conn = (NBDClientConnection) {
-        .saddr = QAPI_CLONE(SocketAddress, saddr),
-        .tlscreds = tlscreds,
-        .tlshostname = g_strdup(tlshostname),
-        .do_negotiation = do_negotiation,
-
-        .initial_info.request_sizes = true,
-        .initial_info.mode = NBD_MODE_EXTENDED,
-        .initial_info.base_allocation = true,
-        .initial_info.x_dirty_bitmap = g_strdup(x_dirty_bitmap),
-        .initial_info.name = g_strdup(export_name ?: "")
-    };
+    memset(conn, 0, sizeof(*conn));
+    conn->saddr = QAPI_CLONE(SocketAddress, saddr);
+    conn->tlscreds = tlscreds;
+    conn->tlshostname = g_strdup(tlshostname);
+    conn->do_negotiation = do_negotiation;
+    conn->initial_info.request_sizes = true;
+    conn->initial_info.mode = NBD_MODE_EXTENDED;
+    conn->initial_info.base_allocation = true;
+    conn->initial_info.x_dirty_bitmap = g_strdup(x_dirty_bitmap);
+    conn->initial_info.name = g_strdup(export_name ?: "");
 
     qemu_mutex_init(&conn->mutex);
 
@@ -173,7 +171,7 @@ static int nbd_connect(QIOChannelSocket *sioc, SocketAddress *addr,
 
 static void *connect_thread_func(void *opaque)
 {
-    NBDClientConnection *conn = opaque;
+    NBDClientConnection *conn = static_cast<NBDClientConnection *>(opaque);
     int ret;
     bool do_free;
     uint64_t timeout = 1;
@@ -318,7 +316,7 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
                         object_unref(OBJECT(conn->sioc));
                         conn->sioc = NULL;
 
-                        return g_steal_pointer(&conn->ioc);
+                        return static_cast<QIOChannel *>(g_steal_pointer(&conn->ioc));
                     }
                 }
 
@@ -390,7 +388,7 @@ nbd_co_establish_connection(NBDClientConnection *conn, NBDExportInfo *info,
                     object_unref(OBJECT(conn->sioc));
                     conn->sioc = NULL;
 
-                    return g_steal_pointer(&conn->ioc);
+                    return static_cast<QIOChannel *>(g_steal_pointer(&conn->ioc));
                 }
             }
 
@@ -416,7 +414,7 @@ void nbd_co_establish_connection_cancel(NBDClientConnection *conn)
     Coroutine *wait_co = NULL;
 
     WITH_QEMU_LOCK_GUARD(&conn->mutex) {
-        wait_co = g_steal_pointer(&conn->wait_co);
+        wait_co = static_cast<Coroutine *>(g_steal_pointer(&conn->wait_co));
     }
 
     if (wait_co) {

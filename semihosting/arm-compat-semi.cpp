@@ -539,12 +539,12 @@ void do_common_semihosting(CPUState *cs)
         /* Allow for trailing NUL */
         len++;
         /* Make sure there's enough space in the buffer */
-        if (len > arg2) {
+        if (static_cast<uint64_t>(len) > arg2) {
             free(s);
             common_semi_set_ret(cs, -1);
             break;
         }
-        p = lock_user(VERIFY_WRITE, arg0, len, 0);
+        p = static_cast<char *>(lock_user(VERIFY_WRITE, arg0, len, 0));
         if (!p) {
             free(s);
             goto do_fault;
@@ -576,7 +576,7 @@ void do_common_semihosting(CPUState *cs)
 
     case TARGET_SYS_TIME:
         ul_ret = time(NULL);
-        common_semi_cb(cs, ul_ret, ul_ret == -1 ? errno : 0);
+        common_semi_cb(cs, ul_ret, ul_ret == static_cast<uint64_t>(-1) ? errno : 0);
         break;
 
     case TARGET_SYS_SYSTEM:
@@ -650,7 +650,7 @@ void do_common_semihosting(CPUState *cs)
             }
 
             /* Lock the buffer on the ARM side.  */
-            output_buffer = lock_user(VERIFY_WRITE, arg0, output_size, 0);
+            output_buffer = static_cast<char *>(lock_user(VERIFY_WRITE, arg0, output_size, 0));
             if (!output_buffer) {
                 goto do_fault;
             }
@@ -730,7 +730,7 @@ void do_common_semihosting(CPUState *cs)
             retvals[3] = info.heapbase;  /* Stack limit.  */
 #endif
 
-            for (i = 0; i < ARRAY_SIZE(retvals); i++) {
+            for (i = 0; i < static_cast<int>(ARRAY_SIZE(retvals)); i++) {
                 bool fail;
 
                 if (is_64bit_semihosting(env)) {

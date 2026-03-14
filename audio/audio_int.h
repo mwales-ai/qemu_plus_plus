@@ -25,6 +25,10 @@
 #ifndef QEMU_AUDIO_INT_H
 #define QEMU_AUDIO_INT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef CONFIG_AUDIO_COREAUDIO
 #define FLOAT_MIXENG
 /* #define RECIPROCAL */
@@ -325,5 +329,9 @@ typedef QSIMPLEQ_HEAD(, AudiodevListEntry) AudiodevListHead;
 void audio_create_pdos(Audiodev *dev);
 AudiodevPerDirectionOptions *audio_get_pdo_in(Audiodev *dev);
 AudiodevPerDirectionOptions *audio_get_pdo_out(Audiodev *dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_AUDIO_INT_H */

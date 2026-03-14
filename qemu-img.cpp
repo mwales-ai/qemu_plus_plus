@@ -97,15 +97,14 @@ typedef enum OutputFormat {
 /* Default to cache=writeback as data integrity is not important for qemu-img */
 #define BDRV_DEFAULT_CACHE "writeback"
 
-static G_NORETURN
-void tryhelp(const char *argv0)
+G_GNUC_NORETURN static void tryhelp(const char *argv0)
 {
     error_printf("Try '%s --help' for more information\n", argv0);
     exit(EXIT_FAILURE);
 }
 
-static G_NORETURN G_GNUC_PRINTF(2, 3)
-void error_exit(const char *argv0, const char *fmt, ...)
+G_GNUC_NORETURN G_GNUC_PRINTF(2, 3)
+static void error_exit(const char *argv0, const char *fmt, ...)
 {
     va_list ap;
 
@@ -124,8 +123,7 @@ void error_exit(const char *argv0, const char *fmt, ...)
  * @description is indented by 2 chars for argument on each own line,
  * and with 5 chars for argument description (like -h arg below).
  */
-static G_NORETURN
-void cmd_help(const img_cmd_t *ccmd,
+G_GNUC_NORETURN static void cmd_help(const img_cmd_t *ccmd,
               const char *syntax, const char *arguments)
 {
     printf(
@@ -335,7 +333,7 @@ static int img_add_key_secrets(void *opaque,
                                const char *name, const char *value,
                                Error **errp)
 {
-    QDict *options = opaque;
+    QDict *options = static_cast<QDict *>(opaque);
 
     if (g_str_has_suffix(name, "key-secret")) {
         qdict_put_str(options, name, value);
@@ -411,7 +409,7 @@ static int64_t cvtnum_full(const char *name, const char *value,
         error_report("Invalid %s specified: '%s'", name, value);
         return err;
     }
-    if (err == -ERANGE || res > max || res < min) {
+    if (err == -ERANGE || res > (uint64_t)max || res < (uint64_t)min) {
         error_report("Invalid %s specified. Must be between %" PRId64
                      " and %" PRId64 ".", name, min, max);
         return -ERANGE;
@@ -616,7 +614,7 @@ static int collect_image_check(BlockDriverState *bs,
     int ret;
     BdrvCheckResult result;
 
-    ret = bdrv_check(bs, &result, fix);
+    ret = bdrv_check(bs, &result, static_cast<BdrvCheckMode>(fix));
     if (ret < 0) {
         return ret;
     }
@@ -856,7 +854,7 @@ typedef struct CommonBlockJobCBInfo {
 
 static void common_block_job_cb(void *opaque, int ret)
 {
-    CommonBlockJobCBInfo *cbi = opaque;
+    CommonBlockJobCBInfo *cbi = static_cast<CommonBlockJobCBInfo *>(opaque);
 
     if (ret < 0) {
         error_setg_errno(cbi->errp, -ret, "Block job failed");
@@ -1052,10 +1050,9 @@ static int img_commit(const img_cmd_t *ccmd, int argc, char **argv)
     }
     bdrv_graph_rdunlock_main_loop();
 
-    cbi = (CommonBlockJobCBInfo){
-        .errp = &local_err,
-        .bs   = bs,
-    };
+    memset(&cbi, 0, sizeof(cbi));
+    cbi.bs = bs;
+    cbi.errp = &local_err;
 
     commit_active_start("commit", bs, base_bs, JOB_DEFAULT, rate_limit,
                         BLOCKDEV_ON_ERROR_REPORT, NULL, common_block_job_cb,
@@ -1312,7 +1309,7 @@ static int check_empty_sectors(BlockBackend *blk, int64_t offset,
     int ret = 0;
     int64_t idx;
 
-    ret = blk_pread(blk, offset, bytes, buffer, 0);
+    ret = blk_pread(blk, offset, bytes, buffer, static_cast<BdrvRequestFlags>(0));
     if (ret < 0) {
         error_report("Error while reading offset %" PRId64 " of %s: %s",
                      offset, filename, strerror(-ret));
@@ -1477,8 +1474,8 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
     bs1 = blk_bs(blk1);
     bs2 = blk_bs(blk2);
 
-    buf1 = blk_blockalign(blk1, IO_BUF_SIZE);
-    buf2 = blk_blockalign(blk2, IO_BUF_SIZE);
+    buf1 = static_cast<uint8_t *>(blk_blockalign(blk1, IO_BUF_SIZE));
+    buf2 = static_cast<uint8_t *>(blk_blockalign(blk2, IO_BUF_SIZE));
     total_size1 = blk_getlength(blk1);
     if (total_size1 < 0) {
         error_report("Can't get size of %s: %s",
@@ -1545,7 +1542,7 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
                 int64_t pnum;
 
                 chunk = MIN(chunk, IO_BUF_SIZE);
-                ret = blk_pread(blk1, offset, chunk, buf1, 0);
+                ret = blk_pread(blk1, offset, chunk, buf1, static_cast<BdrvRequestFlags>(0));
                 if (ret < 0) {
                     error_report("Error while reading offset %" PRId64
                                  " of %s: %s",
@@ -1553,7 +1550,7 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
                     ret = 4;
                     goto out;
                 }
-                ret = blk_pread(blk2, offset, chunk, buf2, 0);
+                ret = blk_pread(blk2, offset, chunk, buf2, static_cast<BdrvRequestFlags>(0));
                 if (ret < 0) {
                     error_report("Error while reading offset %" PRId64
                                  " of %s: %s",
@@ -1599,7 +1596,7 @@ static int img_compare(const img_cmd_t *ccmd, int argc, char **argv)
             filename_over = filename2;
         }
 
-        while (offset < progress_base) {
+        while ((uint64_t)offset < progress_base) {
             ret = bdrv_block_status_above(blk_bs(blk_over), NULL, offset,
                                           progress_base - offset, &chunk,
                                           NULL, NULL);
@@ -1805,8 +1802,8 @@ convert_iteration_sectors(ImgConvertState *s, int64_t sector_num)
      * unallocated area is shorter than that, we must consider the whole
      * cluster allocated. */
     if (s->compressed) {
-        if (n < s->cluster_sectors) {
-            n = MIN(s->cluster_sectors, s->total_sectors - sector_num);
+        if ((size_t)n < s->cluster_sectors) {
+            n = MIN(s->cluster_sectors, (size_t)(s->total_sectors - sector_num));
             s->status = BLK_DATA;
         } else {
             n = QEMU_ALIGN_DOWN(n, s->cluster_sectors);
@@ -1822,7 +1819,7 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
     uint64_t single_read_until = 0;
     int n, ret;
 
-    assert(nb_sectors <= s->buf_sectors);
+    assert((size_t)nb_sectors <= s->buf_sectors);
     while (nb_sectors > 0) {
         BlockBackend *blk;
         int src_cur;
@@ -1843,7 +1840,7 @@ static int coroutine_fn convert_co_read(ImgConvertState *s, int64_t sector_num,
             n = 1;
         }
 
-        ret = blk_co_pread(blk, offset, n << BDRV_SECTOR_BITS, buf, 0);
+        ret = blk_co_pread(blk, offset, n << BDRV_SECTOR_BITS, buf, static_cast<BdrvRequestFlags>(0));
         if (ret < 0) {
             if (s->salvage) {
                 if (n > 1) {
@@ -1878,7 +1875,7 @@ static int coroutine_fn convert_co_write(ImgConvertState *s, int64_t sector_num,
 
     while (nb_sectors > 0) {
         int n = nb_sectors;
-        BdrvRequestFlags flags = s->compressed ? BDRV_REQ_WRITE_COMPRESSED : 0;
+        BdrvRequestFlags flags = s->compressed ? BDRV_REQ_WRITE_COMPRESSED : static_cast<BdrvRequestFlags>(0);
 
         switch (status) {
         case BLK_BACKING_FILE:
@@ -1954,7 +1951,7 @@ static int coroutine_fn convert_co_copy_range(ImgConvertState *s, int64_t sector
 
         ret = blk_co_copy_range(blk, offset, s->target,
                                 sector_num << BDRV_SECTOR_BITS,
-                                n << BDRV_SECTOR_BITS, 0, 0);
+                                n << BDRV_SECTOR_BITS, static_cast<BdrvRequestFlags>(0), static_cast<BdrvRequestFlags>(0));
         if (ret < 0) {
             return ret;
         }
@@ -1967,7 +1964,7 @@ static int coroutine_fn convert_co_copy_range(ImgConvertState *s, int64_t sector
 
 static void coroutine_fn convert_co_do_copy(void *opaque)
 {
-    ImgConvertState *s = opaque;
+    ImgConvertState *s = static_cast<ImgConvertState *>(opaque);
     uint8_t *buf = NULL;
     int ret, i;
     int index = -1;
@@ -1981,7 +1978,7 @@ static void coroutine_fn convert_co_do_copy(void *opaque)
     assert(index >= 0);
 
     s->running_coroutines++;
-    buf = blk_blockalign(s->target, s->buf_sectors * BDRV_SECTOR_SIZE);
+    buf = static_cast<uint8_t *>(blk_blockalign(s->target, s->buf_sectors * BDRV_SECTOR_SIZE));
 
     while (1) {
         int n;
@@ -2251,14 +2248,14 @@ static int img_convert(const img_cmd_t *ccmd, int argc, char **argv)
     bool skip_broken = false;
     int64_t rate_limit = 0;
 
-    ImgConvertState s = (ImgConvertState) {
-        /* Need at least 4k of zeros for sparse detection */
-        .min_sparse         = 8,
-        .copy_range         = false,
-        .buf_sectors        = IO_BUF_SIZE / BDRV_SECTOR_SIZE,
-        .wr_in_order        = true,
-        .num_coroutines     = 8,
-    };
+    ImgConvertState s;
+    memset(&s, 0, sizeof(s));
+    s.wr_in_order = true;
+    s.copy_range = false;
+    /* Need at least 4k of zeros for sparse detection */
+    s.min_sparse = 8;
+    s.buf_sectors = IO_BUF_SIZE / BDRV_SECTOR_SIZE;
+    s.num_coroutines = 8;
 
     for(;;) {
         static const struct option long_options[] = {
@@ -2985,7 +2982,7 @@ static void dump_human_image_info_list(BlockGraphInfoList *list)
 
 static gboolean str_equal_func(gconstpointer a, gconstpointer b)
 {
-    return strcmp(a, b) == 0;
+    return strcmp(static_cast<const char *>(a), static_cast<const char *>(b)) == 0;
 }
 
 /**
@@ -3214,7 +3211,7 @@ static int dump_map_entry(OutputFormat output_format, MapEntry *e,
             return -1;
         }
         if (e->data && !e->zero) {
-            printf("%#-16"PRIx64"%#-16"PRIx64"%#-16"PRIx64"%s\n",
+            printf("%#-16" PRIx64 "%#-16" PRIx64 "%#-16" PRIx64 "%s\n",
                    e->start, e->length,
                    e->has_offset ? e->offset : 0,
                    e->filename ?: "");
@@ -3228,8 +3225,8 @@ static int dump_map_entry(OutputFormat output_format, MapEntry *e,
         }
         break;
     case OFORMAT_JSON:
-        printf("{ \"start\": %"PRId64", \"length\": %"PRId64","
-               " \"depth\": %"PRId64", \"present\": %s, \"zero\": %s,"
+        printf("{ \"start\": %" PRId64 ", \"length\": %" PRId64 ","
+               " \"depth\": %" PRId64 ", \"present\": %s, \"zero\": %s,"
                " \"data\": %s, \"compressed\": %s",
                e->start, e->length, e->depth,
                e->present ? "true" : "false",
@@ -3237,7 +3234,7 @@ static int dump_map_entry(OutputFormat output_format, MapEntry *e,
                e->data ? "true" : "false",
                e->compressed ? "true" : "false");
         if (e->has_offset) {
-            printf(", \"offset\": %"PRId64"", e->offset);
+            printf(", \"offset\": %" PRId64 "", e->offset);
         }
         putchar('}');
 
@@ -3300,10 +3297,10 @@ static int get_block_status(BlockDriverState *bs, int64_t offset,
         .data = !!(ret & BDRV_BLOCK_DATA),
         .zero = !!(ret & BDRV_BLOCK_ZERO),
         .compressed = !!(ret & BDRV_BLOCK_COMPRESSED),
-        .offset = map,
-        .has_offset = has_offset,
         .depth = depth,
         .present = !!(ret & BDRV_BLOCK_ALLOCATED),
+        .has_offset = has_offset,
+        .offset = map,
         .filename = filename,
     };
 
@@ -3675,7 +3672,7 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
     char *filename;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
     int c, flags, src_flags, ret;
-    BdrvRequestFlags write_flags = 0;
+    BdrvRequestFlags write_flags = static_cast<BdrvRequestFlags>(0);
     bool writethrough, src_writethrough;
     int unsafe = 0;
     bool force_share = false;
@@ -3850,7 +3847,7 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
         ret = -1;
         goto out;
     } else if (compress) {
-        write_flags |= BDRV_REQ_WRITE_COMPRESSED;
+        write_flags = write_flags | BDRV_REQ_WRITE_COMPRESSED;
     }
 
     if (out_basefmt != NULL) {
@@ -3983,11 +3980,11 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
 
         if (blk_old_backing && bdrv_opt_mem_align(blk_bs(blk_old_backing)) >
             bdrv_opt_mem_align(blk_bs(blk))) {
-            buf_old = blk_blockalign(blk_old_backing, IO_BUF_SIZE);
+            buf_old = static_cast<uint8_t *>(blk_blockalign(blk_old_backing, IO_BUF_SIZE));
         } else {
-            buf_old = blk_blockalign(blk, IO_BUF_SIZE);
+            buf_old = static_cast<uint8_t *>(blk_blockalign(blk, IO_BUF_SIZE));
         }
-        buf_new = blk_blockalign(blk_new_backing, IO_BUF_SIZE);
+        buf_new = static_cast<uint8_t *>(blk_blockalign(blk_new_backing, IO_BUF_SIZE));
 
         size = blk_getlength(blk);
         if (size < 0) {
@@ -4023,7 +4020,7 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
             local_progress = (float)100 / (size / MIN(size, IO_BUF_SIZE));
         }
 
-        for (offset = 0; offset < size; offset += n) {
+        for (offset = 0; offset < (uint64_t)size; offset += n) {
             bool old_backing_eof = false;
             int64_t n_alloc;
 
@@ -4100,7 +4097,7 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
             if (!n_old) {
                 old_backing_eof = true;
             } else {
-                ret = blk_pread(blk_old_backing, offset, n_old, buf_old, 0);
+                ret = blk_pread(blk_old_backing, offset, n_old, buf_old, static_cast<BdrvRequestFlags>(0));
                 if (ret < 0) {
                     error_report("error while reading from old backing file");
                     goto out;
@@ -4109,7 +4106,7 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
 
             memset(buf_new + n_new, 0, n - n_new);
             if (n_new) {
-                ret = blk_pread(blk_new_backing, offset, n_new, buf_new, 0);
+                ret = blk_pread(blk_new_backing, offset, n_new, buf_new, static_cast<BdrvRequestFlags>(0));
                 if (ret < 0) {
                     error_report("error while reading from new backing file");
                     goto out;
@@ -4119,14 +4116,14 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
             /* If they differ, we need to write to the COW file */
             uint64_t written = 0;
 
-            while (written < n) {
+            while (written < (uint64_t)n) {
                 int64_t pnum;
 
                 if (compare_buffers(buf_old + written, buf_new + written,
                                     n - written, write_align, &pnum))
                 {
                     if (old_backing_eof) {
-                        ret = blk_pwrite_zeroes(blk, offset + written, pnum, 0);
+                        ret = blk_pwrite_zeroes(blk, offset + written, pnum, static_cast<BdrvRequestFlags>(0));
                     } else {
                         assert(written + pnum <= IO_BUF_SIZE);
                         ret = blk_pwrite(blk, offset + written, pnum,
@@ -4140,7 +4137,7 @@ static int img_rebase(const img_cmd_t *ccmd, int argc, char **argv)
                 }
 
                 written += pnum;
-                if (offset + written >= old_backing_size) {
+                if (offset + written >= (uint64_t)old_backing_size) {
                     old_backing_eof = true;
                 }
             }
@@ -4272,8 +4269,8 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
             image_opts = true;
             break;
         case OPTION_PREALLOCATION:
-            prealloc = qapi_enum_parse(&PreallocMode_lookup, optarg,
-                                       PREALLOC_MODE__MAX, NULL);
+            prealloc = static_cast<PreallocMode>(qapi_enum_parse(&PreallocMode_lookup, optarg,
+                                       PREALLOC_MODE__MAX, NULL));
             if (prealloc == PREALLOC_MODE__MAX) {
                 error_report("Invalid preallocation mode '%s'", optarg);
                 return 1;
@@ -4393,7 +4390,7 @@ static int img_resize(const img_cmd_t *ccmd, int argc, char **argv)
      * resizing, so pass @exact=true.  It is of no use to report
      * success when the image has not actually been resized.
      */
-    ret = blk_truncate(blk, total_size, true, prealloc, 0, &err);
+    ret = blk_truncate(blk, total_size, true, prealloc, static_cast<BdrvRequestFlags>(0), &err);
     if (!ret) {
         qprintf(quiet, "Image resized.\n");
     } else {
@@ -4666,7 +4663,7 @@ static void bench_undrained_flush_cb(void *opaque, int ret)
 
 static void bench_cb(void *opaque, int ret)
 {
-    BenchData *b = opaque;
+    BenchData *b = static_cast<BenchData *>(opaque);
     BlockAIOCB *acb;
 
     if (ret < 0) {
@@ -4716,15 +4713,15 @@ static void bench_cb(void *opaque, int ret)
          */
         b->in_flight++;
         b->offset += b->step;
-        if (b->image_size <= b->bufsize) {
+        if (b->image_size <= (uint64_t)b->bufsize) {
             b->offset = 0;
         } else {
             b->offset %= b->image_size - b->bufsize;
         }
         if (b->write) {
-            acb = blk_aio_pwritev(b->blk, offset, b->qiov, 0, bench_cb, b);
+            acb = blk_aio_pwritev(b->blk, offset, b->qiov, static_cast<BdrvRequestFlags>(0), bench_cb, b);
         } else {
-            acb = blk_aio_preadv(b->blk, offset, b->qiov, 0, bench_cb, b);
+            acb = blk_aio_preadv(b->blk, offset, b->qiov, static_cast<BdrvRequestFlags>(0), bench_cb, b);
         }
         if (!acb) {
             error_report("Failed to issue request");
@@ -4955,15 +4952,15 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
 
     data = (BenchData) {
         .blk            = blk,
-        .image_size     = image_size,
-        .bufsize        = bufsize,
-        .step           = step ?: bufsize,
+        .image_size     = static_cast<uint64_t>(image_size),
+        .write          = is_write,
+        .bufsize        = static_cast<int>(bufsize),
+        .step           = static_cast<int>(step ? step : bufsize),
         .nrreq          = depth,
         .n              = count,
-        .offset         = offset,
-        .write          = is_write,
         .flush_interval = flush_interval,
         .drain_on_flush = drain_on_flush,
+        .offset         = static_cast<uint64_t>(offset),
     };
     printf("Sending %d %s requests, %d bytes each, %d in parallel "
            "(starting at offset %" PRId64 ", step size %d)\n",
@@ -4974,7 +4971,7 @@ static int img_bench(const img_cmd_t *ccmd, int argc, char **argv)
     }
 
     buf_size = data.nrreq * data.bufsize;
-    data.buf = blk_blockalign(blk, buf_size);
+    data.buf = static_cast<uint8_t *>(blk_blockalign(blk, buf_size));
     memset(data.buf, pattern, data.nrreq * data.bufsize);
 
     blk_register_buf(blk, data.buf, buf_size, &error_fatal);
@@ -5597,7 +5594,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
     for (out_pos = 0; in_pos < size; ) {
         int bytes = (in_pos + in.bsz > size) ? size - in_pos : in.bsz;
 
-        ret = blk_pread(blk1, in_pos, bytes, in.buf, 0);
+        ret = blk_pread(blk1, in_pos, bytes, in.buf, static_cast<BdrvRequestFlags>(0));
         if (ret < 0) {
             error_report("error while reading from input image file: %s",
                          strerror(-ret));
@@ -5605,7 +5602,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
         }
         in_pos += bytes;
 
-        ret = blk_pwrite(blk2, out_pos, bytes, in.buf, 0);
+        ret = blk_pwrite(blk2, out_pos, bytes, in.buf, static_cast<BdrvRequestFlags>(0));
         if (ret < 0) {
             error_report("error while writing to output image file: %s",
                          strerror(-ret));
@@ -5898,7 +5895,7 @@ static const img_cmd_t img_cmds[] = {
 
 static void format_print(void *opaque, const char *name)
 {
-    int *np = opaque;
+    int *np = static_cast<int *>(opaque);
     if (*np + strlen(name) > 75) {
         printf("\n ");
         *np = 1;

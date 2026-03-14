@@ -14,6 +14,10 @@
 #ifndef QAPI_QMP_JSON_PARSER_H
 #define QAPI_QMP_JSON_PARSER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct JSONLexer {
     int start_state, state;
     GString *token;
@@ -42,5 +46,9 @@ void json_message_parser_feed(JSONMessageParser *parser,
 void json_message_parser_flush(JSONMessageParser *parser);
 
 void json_message_parser_destroy(JSONMessageParser *parser);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

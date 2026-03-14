@@ -126,6 +126,6 @@ void qemu_plugin_update_ns(const void *handle, int64_t new_time)
         /* Need to execute out of cpu_exec, so bql can be locked. */
         async_run_on_cpu(current_cpu,
                          advance_virtual_time__async,
-                         RUN_ON_CPU_HOST_ULONG(new_time));
+                         RUN_ON_CPU_HOST_ULONG(static_cast<unsigned long>(new_time)));
     }
 }

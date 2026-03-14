@@ -26,6 +26,9 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define MAX_IOPORTS     (64 * 1024)
 #define IOPORTS_MASK    (MAX_IOPORTS - 1)
 
@@ -71,5 +74,9 @@ void portio_list_add(PortioList *piolist,
 void portio_list_del(PortioList *piolist);
 void portio_list_set_enabled(PortioList *piolist, bool enabled);
 void portio_list_set_address(PortioList *piolist, uint32_t addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* IOPORT_H */

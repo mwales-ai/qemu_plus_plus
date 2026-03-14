@@ -78,7 +78,7 @@ Monitor *monitor_cur(void)
     Monitor *mon;
 
     qemu_mutex_lock(&monitor_lock);
-    mon = g_hash_table_lookup(coroutine_mon, qemu_coroutine_self());
+    mon = static_cast<Monitor *>(g_hash_table_lookup(coroutine_mon, qemu_coroutine_self()));
     qemu_mutex_unlock(&monitor_lock);
 
     return mon;
@@ -138,7 +138,7 @@ static inline bool monitor_is_hmp_non_interactive(const Monitor *mon)
 static gboolean monitor_unblocked(void *do_not_use, GIOCondition cond,
                                   void *opaque)
 {
-    Monitor *mon = opaque;
+    Monitor *mon = static_cast<Monitor *>(opaque);
 
     QEMU_LOCK_GUARD(&mon->mon_lock);
     mon->out_watch = 0;
@@ -162,7 +162,7 @@ void monitor_flush_locked(Monitor *mon)
 
     if (len && !mon->mux_out) {
         rc = qemu_chr_fe_write(&mon->chr, (const uint8_t *) buf, len);
-        if ((rc < 0 && errno != EAGAIN) || (rc == len)) {
+        if ((rc < 0 && errno != EAGAIN) || (rc == static_cast<int>(len))) {
             /* all flushed or error */
             g_string_truncate(mon->outbuf, 0);
             return;
@@ -173,7 +173,7 @@ void monitor_flush_locked(Monitor *mon)
         }
         if (mon->out_watch == 0) {
             mon->out_watch =
-                qemu_chr_fe_add_watch(&mon->chr, G_IO_OUT | G_IO_HUP,
+                qemu_chr_fe_add_watch(&mon->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                       monitor_unblocked, mon);
         }
     }
@@ -305,18 +305,21 @@ int error_printf_unless_qmp(const char *fmt, ...)
     return ret;
 }
 
-static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
+static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {};
+
+static void __attribute__((constructor)) init_monitor_qapi_event_conf(void)
+{
     /* Limit guest-triggerable events to 1 per second */
-    [QAPI_EVENT_RTC_CHANGE]        = { 1000 * SCALE_MS },
-    [QAPI_EVENT_BLOCK_IO_ERROR]    = { 1000 * SCALE_MS },
-    [QAPI_EVENT_WATCHDOG]          = { 1000 * SCALE_MS },
-    [QAPI_EVENT_BALLOON_CHANGE]    = { 1000 * SCALE_MS },
-    [QAPI_EVENT_QUORUM_REPORT_BAD] = { 1000 * SCALE_MS },
-    [QAPI_EVENT_QUORUM_FAILURE]    = { 1000 * SCALE_MS },
-    [QAPI_EVENT_VSERPORT_CHANGE]   = { 1000 * SCALE_MS },
-    [QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE] = { 1000 * SCALE_MS },
-    [QAPI_EVENT_HV_BALLOON_STATUS_REPORT] = { 1000 * SCALE_MS },
-};
+    monitor_qapi_event_conf[QAPI_EVENT_RTC_CHANGE]        = { 1000 * SCALE_MS };
+    monitor_qapi_event_conf[QAPI_EVENT_BLOCK_IO_ERROR]    = { 1000 * SCALE_MS };
+    monitor_qapi_event_conf[QAPI_EVENT_WATCHDOG]          = { 1000 * SCALE_MS };
+    monitor_qapi_event_conf[QAPI_EVENT_BALLOON_CHANGE]    = { 1000 * SCALE_MS };
+    monitor_qapi_event_conf[QAPI_EVENT_QUORUM_REPORT_BAD] = { 1000 * SCALE_MS };
+    monitor_qapi_event_conf[QAPI_EVENT_QUORUM_FAILURE]    = { 1000 * SCALE_MS };
+    monitor_qapi_event_conf[QAPI_EVENT_VSERPORT_CHANGE]   = { 1000 * SCALE_MS };
+    monitor_qapi_event_conf[QAPI_EVENT_MEMORY_DEVICE_SIZE_CHANGE] = { 1000 * SCALE_MS };
+    monitor_qapi_event_conf[QAPI_EVENT_HV_BALLOON_STATUS_REPORT] = { 1000 * SCALE_MS };
+}
 
 /*
  * Return the clock to use for recording an event's time.
@@ -375,9 +378,11 @@ monitor_qapi_event_queue_no_reenter(QAPIEvent event, QDict *qdict)
         monitor_qapi_event_emit(event, qdict);
     } else {
         QDict *data = qobject_to(QDict, qdict_get(qdict, "data"));
-        MonitorQAPIEventState key = { .event = event, .data = data };
+        MonitorQAPIEventState key = {};
+        key.event = event;
+        key.data = data;
 
-        evstate = g_hash_table_lookup(monitor_qapi_event_state, &key);
+        evstate = static_cast<MonitorQAPIEventState *>(g_hash_table_lookup(monitor_qapi_event_state, &key));
         assert(!evstate || timer_pending(evstate->timer));
 
         if (evstate) {
@@ -420,11 +425,11 @@ void qapi_event_emit(QAPIEvent event, QDict *qdict)
      * events in thread-local storage.
      * TODO: remove this, make it re-enter safe.
      */
-    typedef struct MonitorQapiEvent {
+    struct MonitorQapiEvent {
         QAPIEvent event;
         QDict *qdict;
         QSIMPLEQ_ENTRY(MonitorQapiEvent) entry;
-    } MonitorQapiEvent;
+    };
     static __thread QSIMPLEQ_HEAD(, MonitorQapiEvent) event_queue;
     static __thread bool reentered;
     MonitorQapiEvent *ev;
@@ -460,7 +465,7 @@ void qapi_event_emit(QAPIEvent event, QDict *qdict)
  */
 static void monitor_qapi_event_handler(void *opaque)
 {
-    MonitorQAPIEventState *evstate = opaque;
+    MonitorQAPIEventState *evstate = static_cast<MonitorQAPIEventState *>(opaque);
     MonitorQAPIEventConf *evconf = &monitor_qapi_event_conf[evstate->event];
 
     trace_monitor_protocol_event_handler(evstate->event, evstate->qdict);
@@ -483,7 +488,7 @@ static void monitor_qapi_event_handler(void *opaque)
 
 static unsigned int qapi_event_throttle_hash(const void *key)
 {
-    const MonitorQAPIEventState *evstate = key;
+    const MonitorQAPIEventState *evstate = static_cast<const MonitorQAPIEventState *>(key);
     unsigned int hash = evstate->event * 255;
 
     if (evstate->event == QAPI_EVENT_VSERPORT_CHANGE) {
@@ -504,8 +509,8 @@ static unsigned int qapi_event_throttle_hash(const void *key)
 
 static gboolean qapi_event_throttle_equal(const void *a, const void *b)
 {
-    const MonitorQAPIEventState *eva = a;
-    const MonitorQAPIEventState *evb = b;
+    const MonitorQAPIEventState *eva = static_cast<const MonitorQAPIEventState *>(a);
+    const MonitorQAPIEventState *evb = static_cast<const MonitorQAPIEventState *>(b);
 
     if (eva->event != evb->event) {
         return FALSE;
@@ -552,7 +557,7 @@ int monitor_suspend(Monitor *mon)
 
 static void monitor_accept_input(void *opaque)
 {
-    Monitor *mon = opaque;
+    Monitor *mon = static_cast<Monitor *>(opaque);
 
     qemu_mutex_lock(&mon->mon_lock);
     if (!monitor_is_qmp(mon) && mon->reset_seen) {
@@ -591,7 +596,7 @@ void monitor_resume(Monitor *mon)
 
 int monitor_can_read(void *opaque)
 {
-    Monitor *mon = opaque;
+    Monitor *mon = static_cast<Monitor *>(opaque);
 
     return !qatomic_read(&mon->suspend_cnt);
 }
@@ -621,7 +626,7 @@ static void monitor_iothread_init(void)
     mon_iothread = iothread_create("mon_iothread", &error_abort);
 }
 
-void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
+extern "C" void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
                        bool use_io_thread)
 {
     if (use_io_thread && !mon_iothread) {
@@ -634,7 +639,7 @@ void monitor_data_init(Monitor *mon, bool is_qmp, bool skip_flush,
     mon->use_io_thread = use_io_thread;
 }
 
-void monitor_data_destroy(Monitor *mon)
+extern "C" void monitor_data_destroy(Monitor *mon)
 {
     g_free(mon->mon_cpu_path);
     qemu_chr_fe_deinit(&mon->chr, false);

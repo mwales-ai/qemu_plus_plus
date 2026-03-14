@@ -15,6 +15,9 @@
 #include "qapi/qapi-types-tpm.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef CONFIG_TPM
 
 int tpm_config_parse(QemuOptsList *opts_list, const char *optstr);
@@ -90,5 +93,9 @@ static inline Object *TPM_IS_CRB(Object *obj)
 }
 
 #endif /* CONFIG_TPM */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_TPM_H */

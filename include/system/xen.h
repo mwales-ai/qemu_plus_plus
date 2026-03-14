@@ -12,6 +12,9 @@
 
 #include "exec/cpu-common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef COMPILING_PER_TARGET
 # ifdef CONFIG_XEN
 #  define CONFIG_XEN_IS_POSSIBLE
@@ -32,4 +35,8 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
                    struct MemoryRegion *mr, Error **errp);
 bool xen_mr_is_memory(MemoryRegion *mr);
 bool xen_mr_is_grants(MemoryRegion *mr);
+#ifdef __cplusplus
+}
+#endif
+
 #endif

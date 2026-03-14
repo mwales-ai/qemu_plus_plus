@@ -30,6 +30,9 @@
 #include "hw/resettable.h"
 #include "qapi/qapi-events-run-state.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef void QEMUResetHandler(void *opaque);
 
 /**
@@ -123,5 +126,9 @@ void qemu_unregister_reset(QEMUResetHandler *func, void *opaque);
  * model, don't use this function. Use qemu_system_reset_request().
  */
 void qemu_devices_reset(ResetType type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

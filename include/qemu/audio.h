@@ -28,6 +28,10 @@
 #include "qemu/queue.h"
 #include "qapi/qapi-types-audio.h"
 #include "hw/qdev-properties-system.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifdef CONFIG_GIO
 #include "gio/gio.h"
 #endif
@@ -144,5 +148,9 @@ bool audio_be_set_dbus_server(AudioBackend *be,
 
 #define TYPE_AUDIO_BACKEND "audio-backend"
 OBJECT_DECLARE_TYPE(AudioBackend, AudioBackendClass, AUDIO_BACKEND)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_AUDIO_H */

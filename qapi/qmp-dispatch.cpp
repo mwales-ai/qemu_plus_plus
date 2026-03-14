@@ -25,7 +25,7 @@
 #include "qemu/coroutine.h"
 #include "qemu/main-loop.h"
 
-Visitor *qobject_input_visitor_new_qmp(QObject *obj)
+extern "C" Visitor *qobject_input_visitor_new_qmp(QObject *obj)
 {
     Visitor *v = qobject_input_visitor_new(obj);
 
@@ -33,7 +33,7 @@ Visitor *qobject_input_visitor_new_qmp(QObject *obj)
     return v;
 }
 
-Visitor *qobject_output_visitor_new_qmp(QObject **result)
+extern "C" Visitor *qobject_output_visitor_new_qmp(QObject **result)
 {
     Visitor *v = qobject_output_visitor_new(result);
 
@@ -121,7 +121,7 @@ typedef struct QmpDispatchBH {
 
 static void do_qmp_dispatch_bh(void *opaque)
 {
-    QmpDispatchBH *data = opaque;
+    QmpDispatchBH *data = static_cast<QmpDispatchBH *>(opaque);
 
     assert(monitor_cur() == NULL);
     monitor_set_cur(qemu_coroutine_self(), data->cur_mon);
@@ -247,8 +247,8 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
         assert(!oob && qemu_in_coroutine() && !(cmd->options & QCO_COROUTINE));
 
         QmpDispatchBH data = {
-            .cur_mon    = cur_mon,
             .cmd        = cmd,
+            .cur_mon    = cur_mon,
             .args       = args,
             .ret        = &ret,
             .errp       = &err,

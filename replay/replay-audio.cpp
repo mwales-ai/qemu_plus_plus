@@ -37,7 +37,7 @@ void replay_audio_out(size_t *played)
 
 void replay_audio_in(size_t *recorded, st_sample *samples, size_t *wpos, size_t size)
 {
-    int pos;
+    size_t pos;
     uint64_t left, right;
     if (replay_mode == REPLAY_MODE_RECORD) {
         g_assert(replay_mutex_locked());

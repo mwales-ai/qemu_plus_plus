@@ -10,10 +10,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/queue.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-ebpf.h"
 #include "ebpf/ebpf.h"
+}
 
 typedef struct ElfBinaryDataEntry {
     int id;
@@ -26,6 +29,7 @@ typedef struct ElfBinaryDataEntry {
 static QSLIST_HEAD(, ElfBinaryDataEntry) ebpf_elf_obj_list =
                                             QSLIST_HEAD_INITIALIZER();
 
+extern "C"
 void ebpf_register_binary_data(int id, const void *data, size_t datalen)
 {
     struct ElfBinaryDataEntry *dataentry = NULL;
@@ -38,6 +42,7 @@ void ebpf_register_binary_data(int id, const void *data, size_t datalen)
     QSLIST_INSERT_HEAD(&ebpf_elf_obj_list, dataentry, node);
 }
 
+extern "C"
 const void *ebpf_find_binary_by_id(int id, size_t *sz, Error **errp)
 {
     struct ElfBinaryDataEntry *it = NULL;
@@ -53,6 +58,7 @@ const void *ebpf_find_binary_by_id(int id, size_t *sz, Error **errp)
     return NULL;
 }
 
+extern "C"
 EbpfObject *qmp_request_ebpf(EbpfProgramID id, Error **errp)
 {
     EbpfObject *ret = NULL;
@@ -63,7 +69,7 @@ EbpfObject *qmp_request_ebpf(EbpfProgramID id, Error **errp)
     }
 
     ret = g_new0(EbpfObject, 1);
-    ret->object = g_base64_encode(data, size);
+    ret->object = g_base64_encode(static_cast<const guchar *>(data), size);
 
     return ret;
 }

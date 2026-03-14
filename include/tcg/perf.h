@@ -7,6 +7,10 @@
 #ifndef TCG_PERF_H
 #define TCG_PERF_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(CONFIG_TCG) && defined(CONFIG_LINUX)
 /* Start writing perf-<pid>.map. */
 void perf_enable_perfmap(void);
@@ -43,6 +47,10 @@ static inline void perf_report_code(uint64_t guest_pc, TranslationBlock *tb,
 
 static inline void perf_exit(void)
 {
+}
+#endif
+
+#ifdef __cplusplus
 }
 #endif
 

@@ -107,13 +107,13 @@ static void oss_anal_close (int *fdp)
 
 static void oss_helper_poll_out (void *opaque)
 {
-    AudioBackend *s = opaque;
+    AudioBackend *s = static_cast<AudioBackend *>(opaque);
     audio_run(s, "oss_poll_out");
 }
 
 static void oss_helper_poll_in (void *opaque)
 {
-    AudioBackend *s = opaque;
+    AudioBackend *s = static_cast<AudioBackend *>(opaque);
     audio_run(s, "oss_poll_in");
 }
 
@@ -399,7 +399,7 @@ static void *oss_get_buffer_out(HWVoiceOut *hw, size_t *size)
 
     if (oss->mmapped) {
         *size = hw->size_emul - hw->pos_emul;
-        return hw->buf_emul + hw->pos_emul;
+        return static_cast<uint8_t *>(hw->buf_emul) + hw->pos_emul;
     } else {
         return audio_generic_get_buffer_out(hw, size);
     }
@@ -409,7 +409,7 @@ static size_t oss_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     if (oss->mmapped) {
-        assert(buf == hw->buf_emul + hw->pos_emul && size < hw->size_emul);
+        assert(buf == static_cast<uint8_t *>(hw->buf_emul) + hw->pos_emul && size < hw->size_emul);
 
         hw->pos_emul = (hw->pos_emul + size) % hw->size_emul;
         return size;
@@ -430,10 +430,10 @@ static size_t oss_write(HWVoiceOut *hw, void *buf, size_t len)
         total_len = len;
         while (len) {
             size_t to_copy = MIN(len, hw->size_emul - hw->pos_emul);
-            memcpy(hw->buf_emul + hw->pos_emul, buf, to_copy);
+            memcpy(static_cast<uint8_t *>(hw->buf_emul) + hw->pos_emul, buf, to_copy);
 
             hw->pos_emul = (hw->pos_emul + to_copy) % hw->size_emul;
-            buf += to_copy;
+            buf = static_cast<uint8_t *>(buf) + to_copy;
             len -= to_copy;
         }
         return total_len;
@@ -454,7 +454,7 @@ static size_t oss_write(HWVoiceOut *hw, void *buf, size_t len)
         }
 
         pos += bytes_written;
-        if (bytes_written < len) {
+        if (static_cast<size_t>(bytes_written) < len) {
             break;
         }
         len -= bytes_written;
@@ -488,7 +488,7 @@ static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
     int err;
     int fd;
     struct audsettings obt_as;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = static_cast<Audiodev *>(drv_opaque);
     AudiodevOssOptions *oopts = &dev->u.oss;
 
     oss->fd = -1;
@@ -619,7 +619,7 @@ static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
     int err;
     int fd;
     struct audsettings obt_as;
-    Audiodev *dev = drv_opaque;
+    Audiodev *dev = static_cast<Audiodev *>(drv_opaque);
 
     oss->fd = -1;
 
@@ -748,8 +748,8 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .init_out = oss_init_out,
     .fini_out = oss_fini_out,
     .write    = oss_write,
-    .buffer_get_free = oss_buffer_get_free,
     .run_buffer_out = oss_run_buffer_out,
+    .buffer_get_free = oss_buffer_get_free,
     .get_buffer_out = oss_get_buffer_out,
     .put_buffer_out = oss_put_buffer_out,
     .enable_out = oss_enable_out,

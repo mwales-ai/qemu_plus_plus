@@ -31,7 +31,7 @@ typedef struct PRManagerData {
 
 static int pr_manager_worker(void *opaque)
 {
-    PRManagerData *data = opaque;
+    PRManagerData *data = static_cast<PRManagerData *>(opaque);
     PRManager *pr_mgr = data->pr_mgr;
     PRManagerClass *pr_mgr_class =
         PR_MANAGER_GET_CLASS(pr_mgr);
@@ -53,8 +53,8 @@ int coroutine_fn pr_manager_execute(PRManager *pr_mgr, AioContext *ctx, int fd,
 {
     PRManagerData data = {
         .pr_mgr = pr_mgr,
-        .fd     = fd,
         .hdr    = hdr,
+        .fd     = fd,
     };
 
     trace_pr_manager_execute(fd, hdr->cmdp[0], hdr->cmdp[1]);
@@ -72,15 +72,17 @@ bool pr_manager_is_connected(PRManager *pr_mgr)
     return !pr_mgr_class->is_connected || pr_mgr_class->is_connected(pr_mgr);
 }
 
+static const InterfaceInfo pr_manager_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo pr_manager_info = {
-    .parent = TYPE_OBJECT,
     .name = TYPE_PR_MANAGER,
-    .class_size = sizeof(PRManagerClass),
+    .parent = TYPE_OBJECT,
     .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .class_size = sizeof(PRManagerClass),
+    .interfaces = pr_manager_interfaces,
 };
 
 PRManager *pr_manager_lookup(const char *id, Error **errp)
@@ -115,7 +117,7 @@ pr_manager_register_types(void)
 
 static int query_one_pr_manager(Object *object, void *opaque)
 {
-    PRManagerInfoList ***tail = opaque;
+    PRManagerInfoList ***tail = static_cast<PRManagerInfoList ***>(opaque);
     PRManagerInfo *info;
     PRManager *pr_mgr;
 

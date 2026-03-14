@@ -70,13 +70,15 @@ void qemu_plugin_reset(qemu_plugin_id_t id, qemu_plugin_simple_cb_t cb)
 void qemu_plugin_register_vcpu_init_cb(qemu_plugin_id_t id,
                                        qemu_plugin_vcpu_simple_cb_t cb)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_INIT, cb);
+    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_INIT,
+                       reinterpret_cast<void *>(cb));
 }
 
 void qemu_plugin_register_vcpu_exit_cb(qemu_plugin_id_t id,
                                        qemu_plugin_vcpu_simple_cb_t cb)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXIT, cb);
+    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_EXIT,
+                       reinterpret_cast<void *>(cb));
 }
 
 static bool tb_is_mem_only(void)
@@ -120,7 +122,7 @@ void qemu_plugin_register_vcpu_tb_exec_inline_per_vcpu(
     uint64_t imm)
 {
     if (!tb_is_mem_only()) {
-        plugin_register_inline_op_on_entry(&tb->cbs, 0, op, entry, imm);
+        plugin_register_inline_op_on_entry(&tb->cbs, static_cast<qemu_plugin_mem_rw>(0), op, entry, imm);
     }
 }
 
@@ -161,7 +163,7 @@ void qemu_plugin_register_vcpu_insn_exec_inline_per_vcpu(
     uint64_t imm)
 {
     if (!tb_is_mem_only()) {
-        plugin_register_inline_op_on_entry(&insn->insn_cbs, 0, op, entry, imm);
+        plugin_register_inline_op_on_entry(&insn->insn_cbs, static_cast<qemu_plugin_mem_rw>(0), op, entry, imm);
     }
 }
 
@@ -176,7 +178,7 @@ void qemu_plugin_register_vcpu_mem_cb(struct qemu_plugin_insn *insn,
                                       enum qemu_plugin_mem_rw rw,
                                       void *udata)
 {
-    plugin_register_vcpu_mem_cb(&insn->mem_cbs, cb, flags, rw, udata);
+    plugin_register_vcpu_mem_cb(&insn->mem_cbs, reinterpret_cast<void *>(cb), flags, rw, udata);
 }
 
 void qemu_plugin_register_vcpu_mem_inline_per_vcpu(
@@ -192,20 +194,23 @@ void qemu_plugin_register_vcpu_mem_inline_per_vcpu(
 void qemu_plugin_register_vcpu_tb_trans_cb(qemu_plugin_id_t id,
                                            qemu_plugin_vcpu_tb_trans_cb_t cb)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_TB_TRANS, cb);
+    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_TB_TRANS,
+                       reinterpret_cast<void *>(cb));
 }
 
 void qemu_plugin_register_vcpu_syscall_cb(qemu_plugin_id_t id,
                                           qemu_plugin_vcpu_syscall_cb_t cb)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_SYSCALL, cb);
+    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_SYSCALL,
+                       reinterpret_cast<void *>(cb));
 }
 
 void
 qemu_plugin_register_vcpu_syscall_ret_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_syscall_ret_cb_t cb)
 {
-    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_SYSCALL_RET, cb);
+    plugin_register_cb(id, QEMU_PLUGIN_EV_VCPU_SYSCALL_RET,
+                       reinterpret_cast<void *>(cb));
 }
 
 /*
@@ -241,7 +246,7 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
     if (unlikely(idx >= tb->n)) {
         return NULL;
     }
-    return g_ptr_array_index(tb->insns, idx);
+    return static_cast<struct qemu_plugin_insn *>(g_ptr_array_index(tb->insns, idx));
 }
 
 /*
@@ -289,12 +294,12 @@ void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn)
         if (db->host_addr[0] == NULL) {
             return NULL;
         }
-        return db->host_addr[0] + insn->vaddr - db->pc_first;
+        return static_cast<char *>(db->host_addr[0]) + insn->vaddr - db->pc_first;
     } else {
         if (db->host_addr[1] == NULL) {
             return NULL;
         }
-        return db->host_addr[1] + insn->vaddr - (page0_last + 1);
+        return static_cast<char *>(db->host_addr[1]) + insn->vaddr - (page0_last + 1);
     }
 }
 
@@ -407,7 +412,7 @@ static GArray *create_register_handles(GArray *gdbstub_regs)
     GArray *find_data = g_array_new(true, true,
                                     sizeof(qemu_plugin_reg_descriptor));
 
-    for (int i = 0; i < gdbstub_regs->len; i++) {
+    for (guint i = 0; i < gdbstub_regs->len; i++) {
         GDBRegDesc *grd = &g_array_index(gdbstub_regs, GDBRegDesc, i);
         qemu_plugin_reg_descriptor desc;
 
@@ -417,7 +422,7 @@ static GArray *create_register_handles(GArray *gdbstub_regs)
         }
 
         /* Create a record for the plugin */
-        desc.handle = GINT_TO_POINTER(grd->gdb_reg + 1);
+        desc.handle = static_cast<qemu_plugin_register *>(GINT_TO_POINTER(grd->gdb_reg + 1));
         desc.name = g_intern_string(grd->name);
         desc.feature = g_intern_string(grd->feature_name);
         g_array_append_val(find_data, desc);
@@ -604,7 +609,7 @@ void qemu_plugin_scoreboard_free(struct qemu_plugin_scoreboard *score)
 void *qemu_plugin_scoreboard_find(struct qemu_plugin_scoreboard *score,
                                   unsigned int vcpu_index)
 {
-    g_assert(vcpu_index < qemu_plugin_num_vcpus());
+    g_assert(vcpu_index < static_cast<unsigned int>(qemu_plugin_num_vcpus()));
     /* we can't use g_array_index since entry size is not statically known */
     char *base_ptr = score->data->data;
     return base_ptr + vcpu_index * g_array_get_element_size(score->data);
@@ -613,7 +618,7 @@ void *qemu_plugin_scoreboard_find(struct qemu_plugin_scoreboard *score,
 static uint64_t *plugin_u64_address(qemu_plugin_u64 entry,
                                     unsigned int vcpu_index)
 {
-    char *ptr = qemu_plugin_scoreboard_find(entry.score, vcpu_index);
+    char *ptr = static_cast<char *>(qemu_plugin_scoreboard_find(entry.score, vcpu_index));
     return (uint64_t *)(ptr + entry.offset);
 }
 

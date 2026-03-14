@@ -6,6 +6,9 @@
 #include "net/queue.h"
 #include "hw/qdev-properties-system.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define MAC_FMT "%02X:%02X:%02X:%02X:%02X:%02X"
 #define MAC_ARG(x) ((uint8_t *)(x))[0], ((uint8_t *)(x))[1], \
                    ((uint8_t *)(x))[2], ((uint8_t *)(x))[3], \
@@ -353,5 +356,9 @@ static inline bool net_peer_needs_padding(NetClientState *nc)
 {
   return nc->peer && !nc->peer->do_not_pad;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -37,9 +37,10 @@ ReplayNetState *replay_register_net(NetFilterState *nfs)
     ReplayNetState *rns = g_new0(ReplayNetState, 1);
     rns->nfs = nfs;
     rns->id = network_filters_count++;
-    network_filters = g_realloc(network_filters,
-                                network_filters_count
-                                    * sizeof(*network_filters));
+    network_filters = static_cast<NetFilterState **>(
+        g_realloc(network_filters,
+                  network_filters_count
+                      * sizeof(*network_filters)));
     network_filters[network_filters_count - 1] = nfs;
     return rns;
 }
@@ -55,7 +56,7 @@ void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
 {
     NetEvent *event = g_new(NetEvent, 1);
     event->flags = flags;
-    event->data = g_malloc(iov_size(iov, iovcnt));
+    event->data = static_cast<uint8_t *>(g_malloc(iov_size(iov, iovcnt)));
     event->size = iov_size(iov, iovcnt);
     event->id = rns->id;
     iov_to_buf(iov, iovcnt, 0, event->data, event->size);
@@ -65,7 +66,7 @@ void replay_net_packet_event(ReplayNetState *rns, unsigned flags,
 
 void replay_event_net_run(void *opaque)
 {
-    NetEvent *event = opaque;
+    NetEvent *event = static_cast<NetEvent *>(opaque);
     struct iovec iov = {
         .iov_base = (void *)event->data,
         .iov_len = event->size
@@ -82,7 +83,7 @@ void replay_event_net_run(void *opaque)
 
 void replay_event_net_save(void *opaque)
 {
-    NetEvent *event = opaque;
+    NetEvent *event = static_cast<NetEvent *>(opaque);
 
     replay_put_byte(event->id);
     replay_put_dword(event->flags);

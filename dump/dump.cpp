@@ -123,7 +123,7 @@ static int dump_cleanup(DumpState *s)
 
 static int fd_write_vmcore(const void *buf, size_t size, void *opaque)
 {
-    DumpState *s = opaque;
+    DumpState *s = static_cast<DumpState *>(opaque);
     size_t written_size;
 
     written_size = qemu_write_full(s->fd, buf, size);
@@ -385,11 +385,11 @@ static void write_elf_phdr_note(DumpState *s, Error **errp)
 static void prepare_elf_section_hdr_zero(DumpState *s)
 {
     if (dump_is_64bit(s)) {
-        Elf64_Shdr *shdr64 = s->elf_section_hdrs;
+        Elf64_Shdr *shdr64 = static_cast<Elf64_Shdr *>(s->elf_section_hdrs);
 
         shdr64->sh_info = cpu_to_dump32(s, s->phdr_num);
     } else {
-        Elf32_Shdr *shdr32 = s->elf_section_hdrs;
+        Elf32_Shdr *shdr32 = static_cast<Elf32_Shdr *>(s->elf_section_hdrs);
 
         shdr32->sh_info = cpu_to_dump32(s, s->phdr_num);
     }
@@ -426,7 +426,7 @@ static void prepare_elf_section_hdr_string(DumpState *s, void *buff)
 static bool prepare_elf_section_hdrs(DumpState *s, Error **errp)
 {
     size_t len, sizeof_shdr;
-    void *buff_hdr;
+    uint8_t *buff_hdr;
 
     /*
      * Section ordering:
@@ -437,7 +437,7 @@ static bool prepare_elf_section_hdrs(DumpState *s, Error **errp)
     sizeof_shdr = dump_is_64bit(s) ? sizeof(Elf64_Shdr) : sizeof(Elf32_Shdr);
     len = sizeof_shdr * s->shdr_num;
     s->elf_section_hdrs = g_malloc0(len);
-    buff_hdr = s->elf_section_hdrs;
+    buff_hdr = static_cast<uint8_t *>(s->elf_section_hdrs);
 
     /*
      * The first section header is ALWAYS a special initial section
@@ -560,15 +560,15 @@ static void get_offset_range(hwaddr phys_addr,
 {
     GuestPhysBlock *block;
     hwaddr offset = s->memory_offset;
-    int64_t size_in_block, start;
+    hwaddr size_in_block, start;
 
     /* When the memory is not stored into vmcore, offset will be -1 */
     *p_offset = -1;
     *p_filesz = 0;
 
     if (dump_has_filter(s)) {
-        if (phys_addr < s->filter_area_begin ||
-            phys_addr >= s->filter_area_begin + s->filter_area_length) {
+        if (phys_addr < static_cast<hwaddr>(s->filter_area_begin) ||
+            phys_addr >= static_cast<hwaddr>(s->filter_area_begin) + s->filter_area_length) {
             return;
         }
     }
@@ -583,15 +583,15 @@ static void get_offset_range(hwaddr phys_addr,
                 continue;
             }
 
-            if (s->filter_area_begin <= block->target_start) {
+            if (static_cast<hwaddr>(s->filter_area_begin) <= block->target_start) {
                 start = block->target_start;
             } else {
                 start = s->filter_area_begin;
             }
 
             size_in_block = block->target_end - start;
-            if (s->filter_area_begin + s->filter_area_length < block->target_end) {
-                size_in_block -= block->target_end - (s->filter_area_begin + s->filter_area_length);
+            if (static_cast<hwaddr>(s->filter_area_begin) + s->filter_area_length < block->target_end) {
+                size_in_block -= block->target_end - (static_cast<hwaddr>(s->filter_area_begin) + s->filter_area_length);
             }
         } else {
             start = block->target_start;
@@ -743,8 +743,8 @@ int64_t dump_filtered_memblock_start(GuestPhysBlock *block,
             return -1;
         }
 
-        if (filter_area_start > block->target_start) {
-            return filter_area_start - block->target_start;
+        if (static_cast<hwaddr>(filter_area_start) > block->target_start) {
+            return filter_area_start - static_cast<int64_t>(block->target_start);
         }
     }
 
@@ -785,7 +785,7 @@ static void dump_end(DumpState *s, Error **errp)
     /* Adds the architecture defined section data to s->elf_section_data  */
     if (s->dump_info.arch_sections_write_fn &&
         s->elf_section_data_size) {
-        rc = s->dump_info.arch_sections_write_fn(s, s->elf_section_data);
+        rc = s->dump_info.arch_sections_write_fn(s, static_cast<uint8_t *>(s->elf_section_data));
         if (rc) {
             error_setg_errno(errp, rc,
                              "dump: failed to get arch section data");
@@ -827,7 +827,7 @@ static int write_start_flat_header(DumpState *s)
     }
 
     QEMU_BUILD_BUG_ON(sizeof *mh > MAX_SIZE_MDF_HEADER);
-    mh = g_malloc0(MAX_SIZE_MDF_HEADER);
+    mh = static_cast<MakedumpfileHeader *>(g_malloc0(MAX_SIZE_MDF_HEADER));
 
     memcpy(mh->signature, MAKEDUMPFILE_SIGNATURE,
            MIN(sizeof mh->signature, sizeof MAKEDUMPFILE_SIGNATURE));
@@ -896,10 +896,10 @@ static int write_buffer(DumpState *s, off_t offset, const void *buf, size_t size
 
 static int buf_write_note(const void *buf, size_t size, void *opaque)
 {
-    DumpState *s = opaque;
+    DumpState *s = static_cast<DumpState *>(opaque);
 
     /* note_buf is not enough */
-    if (s->note_buf_offset + size > s->note_size) {
+    if (s->note_buf_offset + size > static_cast<size_t>(s->note_size)) {
         return -1;
     }
 
@@ -926,12 +926,12 @@ static void get_note_sizes(DumpState *s, const void *note,
     uint64_t desc_sz;
 
     if (dump_is_64bit(s)) {
-        const Elf64_Nhdr *hdr = note;
+        const Elf64_Nhdr *hdr = static_cast<const Elf64_Nhdr *>(note);
         note_head_sz = sizeof(Elf64_Nhdr);
         name_sz = cpu_to_dump64(s, hdr->n_namesz);
         desc_sz = cpu_to_dump64(s, hdr->n_descsz);
     } else {
-        const Elf32_Nhdr *hdr = note;
+        const Elf32_Nhdr *hdr = static_cast<const Elf32_Nhdr *>(note);
         note_head_sz = sizeof(Elf32_Nhdr);
         name_sz = cpu_to_dump32(s, hdr->n_namesz);
         desc_sz = cpu_to_dump32(s, hdr->n_descsz);
@@ -957,7 +957,7 @@ static bool note_name_equal(DumpState *s,
     get_note_sizes(s, note, &head_size, &name_size, NULL);
     head_size = ROUND_UP(head_size, 4);
 
-    return name_size == len && memcmp(note + head_size, name, len) == 0;
+    return name_size == static_cast<uint64_t>(len) && memcmp(note + head_size, name, len) == 0;
 }
 
 /* write common header, sub header and elf note to vmcore */
@@ -975,7 +975,7 @@ static void create_header32(DumpState *s, Error **errp)
 
     /* write common header, the version of kdump-compressed format is 6th */
     size = sizeof(DiskDumpHeader32);
-    dh = g_malloc0(size);
+    dh = static_cast<DiskDumpHeader32 *>(g_malloc0(size));
 
     memcpy(dh->signature, KDUMP_SIGNATURE, SIG_LEN);
     dh->header_version = cpu_to_dump32(s, 6);
@@ -1013,7 +1013,7 @@ static void create_header32(DumpState *s, Error **errp)
 
     /* write sub header */
     size = sizeof(KdumpSubHeader32);
-    kh = g_malloc0(size);
+    kh = static_cast<KdumpSubHeader32 *>(g_malloc0(size));
 
     /* 64bit max_mapnr_64 */
     kh->max_mapnr_64 = cpu_to_dump64(s, s->max_mapnr);
@@ -1043,7 +1043,7 @@ static void create_header32(DumpState *s, Error **errp)
     }
 
     /* write note */
-    s->note_buf = g_malloc0(s->note_size);
+    s->note_buf = static_cast<uint8_t *>(g_malloc0(s->note_size));
     s->note_buf_offset = 0;
 
     /* use s->note_buf to store notes temporarily */
@@ -1086,7 +1086,7 @@ static void create_header64(DumpState *s, Error **errp)
 
     /* write common header, the version of kdump-compressed format is 6th */
     size = sizeof(DiskDumpHeader64);
-    dh = g_malloc0(size);
+    dh = static_cast<DiskDumpHeader64 *>(g_malloc0(size));
 
     memcpy(dh->signature, KDUMP_SIGNATURE, SIG_LEN);
     dh->header_version = cpu_to_dump32(s, 6);
@@ -1124,7 +1124,7 @@ static void create_header64(DumpState *s, Error **errp)
 
     /* write sub header */
     size = sizeof(KdumpSubHeader64);
-    kh = g_malloc0(size);
+    kh = static_cast<KdumpSubHeader64 *>(g_malloc0(size));
 
     /* 64bit max_mapnr_64 */
     kh->max_mapnr_64 = cpu_to_dump64(s, s->max_mapnr);
@@ -1154,7 +1154,7 @@ static void create_header64(DumpState *s, Error **errp)
     }
 
     /* write note */
-    s->note_buf = g_malloc0(s->note_size);
+    s->note_buf = static_cast<uint8_t *>(g_malloc0(s->note_size));
     s->note_buf_offset = 0;
 
     /* use s->note_buf to store notes temporarily */
@@ -1353,14 +1353,14 @@ static void write_dump_bitmap(DumpState *s, Error **errp)
 {
     int ret = 0;
     uint64_t last_pfn, pfn;
-    void *dump_bitmap_buf;
+    uint8_t *dump_bitmap_buf;
     size_t num_dumpable;
     GuestPhysBlock *block_iter = NULL;
     size_t bitmap_bufsize = dump_bitmap_get_bufsize(s);
     size_t bits_per_buf = bitmap_bufsize * CHAR_BIT;
 
     /* dump_bitmap_buf is used to store dump_bitmap temporarily */
-    dump_bitmap_buf = g_malloc0(bitmap_bufsize);
+    dump_bitmap_buf = static_cast<uint8_t *>(g_malloc0(bitmap_bufsize));
 
     num_dumpable = 0;
     last_pfn = 0;
@@ -1407,7 +1407,7 @@ static void prepare_data_cache(DataCache *data_cache, DumpState *s,
     data_cache->state = s;
     data_cache->data_size = 0;
     data_cache->buf_size = 4 * dump_bitmap_get_bufsize(s);
-    data_cache->buf = g_malloc0(data_cache->buf_size);
+    data_cache->buf = static_cast<uint8_t *>(g_malloc0(data_cache->buf_size));
     data_cache->offset = offset;
 }
 
@@ -1498,10 +1498,10 @@ static void write_dump_pages(DumpState *s, Error **errp)
     assert(len_buf_out != 0);
 
 #ifdef CONFIG_LZO
-    wrkmem = g_malloc(LZO1X_1_MEM_COMPRESS);
+    wrkmem = static_cast<lzo_bytep>(g_malloc(LZO1X_1_MEM_COMPRESS));
 #endif
 
-    buf_out = g_malloc(len_buf_out);
+    buf_out = static_cast<uint8_t *>(g_malloc(len_buf_out));
 
     /*
      * init zero page's page_desc and page_data, because every zero page
@@ -1511,7 +1511,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
     pd_zero.flags = cpu_to_dump32(s, 0);
     pd_zero.offset = cpu_to_dump64(s, offset_data);
     pd_zero.page_flags = cpu_to_dump64(s, 0);
-    buf = g_malloc0(s->dump_info.page_size);
+    buf = static_cast<uint8_t *>(g_malloc0(s->dump_info.page_size));
     ret = write_cache(&page_data, buf, s->dump_info.page_size, false);
     g_free(buf);
     if (ret < 0) {
@@ -1520,7 +1520,7 @@ static void write_dump_pages(DumpState *s, Error **errp)
     }
 
     offset_data += s->dump_info.page_size;
-    page = g_malloc(s->dump_info.page_size);
+    page = static_cast<uint8_t *>(g_malloc(s->dump_info.page_size));
 
     /*
      * dump memory to vmcore page by page. zero page will all be resided in the
@@ -1887,7 +1887,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
         } else if (guest_format != FW_CFG_VMCOREINFO_FORMAT_ELF) {
             warn_report("guest note format is unsupported: %" PRIu16, guest_format);
         } else {
-            s->guest_note = g_malloc(size + 1); /* +1 for adding \0 */
+            s->guest_note = static_cast<uint8_t *>(g_malloc(size + 1)); /* +1 for adding \0 */
             cpu_physical_memory_read(addr, s->guest_note, size);
 
             get_note_sizes(s, s->guest_note, NULL, &name_size, &desc_size);

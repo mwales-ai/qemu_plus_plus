@@ -22,8 +22,12 @@
 #include "exec/cpu-common.h"
 #include "hw/core/cpu.h"
 #include "qemu/lockable.h"
-#include "trace/trace-root.h"
 
+extern "C" {
+#include "trace/trace-root.h"
+}
+
+extern "C" QemuMutex qemu_cpu_list_lock;
 QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
 static QemuCond exclusive_resume;
@@ -34,7 +38,7 @@ static QemuCond qemu_work_cond;
  */
 static int pending_cpus;
 
-void qemu_init_cpu_list(void)
+extern "C" void qemu_init_cpu_list(void)
 {
     /* This is needed because qemu_init_cpu_list is also called by the
      * child process in a fork.  */
@@ -46,18 +50,18 @@ void qemu_init_cpu_list(void)
     qemu_cond_init(&qemu_work_cond);
 }
 
-void cpu_list_lock(void)
+extern "C" void cpu_list_lock(void)
 {
     qemu_mutex_lock(&qemu_cpu_list_lock);
 }
 
-void cpu_list_unlock(void)
+extern "C" void cpu_list_unlock(void)
 {
     qemu_mutex_unlock(&qemu_cpu_list_lock);
 }
 
 
-int cpu_get_free_index(void)
+extern "C" int cpu_get_free_index(void)
 {
     CPUState *some_cpu;
     int max_cpu_index = 0;
@@ -73,12 +77,12 @@ int cpu_get_free_index(void)
 CPUTailQ cpus_queue = QTAILQ_HEAD_INITIALIZER(cpus_queue);
 static unsigned int cpu_list_generation_id;
 
-unsigned int cpu_list_generation_id_get(void)
+extern "C" unsigned int cpu_list_generation_id_get(void)
 {
     return cpu_list_generation_id;
 }
 
-void cpu_list_add(CPUState *cpu)
+extern "C" void cpu_list_add(CPUState *cpu)
 {
     static bool cpu_index_auto_assigned;
 
@@ -94,7 +98,7 @@ void cpu_list_add(CPUState *cpu)
     cpu_list_generation_id++;
 }
 
-void cpu_list_remove(CPUState *cpu)
+extern "C" void cpu_list_remove(CPUState *cpu)
 {
     QEMU_LOCK_GUARD(&qemu_cpu_list_lock);
     if (!QTAILQ_IN_USE(cpu, node)) {
@@ -107,7 +111,7 @@ void cpu_list_remove(CPUState *cpu)
     cpu_list_generation_id++;
 }
 
-CPUState *qemu_get_cpu(int index)
+extern "C" CPUState *qemu_get_cpu(int index)
 {
     CPUState *cpu;
 
@@ -121,6 +125,7 @@ CPUState *qemu_get_cpu(int index)
 }
 
 /* current CPU in the current thread. It is only valid inside cpu_exec() */
+extern "C" __thread CPUState *current_cpu;
 __thread CPUState *current_cpu;
 
 struct qemu_work_item {
@@ -141,8 +146,8 @@ static void queue_work_on_cpu(CPUState *cpu, struct qemu_work_item *wi)
     cpu_exit(cpu);
 }
 
-void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
-                   QemuMutex *mutex)
+extern "C" void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
+                              run_on_cpu_data data, QemuMutex *mutex)
 {
     struct qemu_work_item wi;
 
@@ -166,7 +171,8 @@ void do_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data,
     }
 }
 
-void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func, run_on_cpu_data data)
+extern "C" void async_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
+                                 run_on_cpu_data data)
 {
     struct qemu_work_item *wi;
 
@@ -189,7 +195,7 @@ static inline void exclusive_idle(void)
 
 /* Start an exclusive operation.
    Must only be called from outside cpu_exec.  */
-void start_exclusive(void)
+extern "C" void start_exclusive(void)
 {
     CPUState *other_cpu;
     int running_cpus;
@@ -233,7 +239,7 @@ void start_exclusive(void)
 }
 
 /* Finish an exclusive operation.  */
-void end_exclusive(void)
+extern "C" void end_exclusive(void)
 {
     current_cpu->exclusive_context_count--;
     if (current_cpu->exclusive_context_count) {
@@ -247,7 +253,7 @@ void end_exclusive(void)
 }
 
 /* Wait for exclusive ops to finish, and begin cpu execution.  */
-void cpu_exec_start(CPUState *cpu)
+extern "C" void cpu_exec_start(CPUState *cpu)
 {
     trace_cpu_exec_start(cpu->cpu_index);
 
@@ -289,7 +295,7 @@ void cpu_exec_start(CPUState *cpu)
 }
 
 /* Mark cpu as not executing, and release pending exclusive ops.  */
-void cpu_exec_end(CPUState *cpu)
+extern "C" void cpu_exec_end(CPUState *cpu)
 {
     qatomic_set(&cpu->running, false);
 
@@ -324,8 +330,8 @@ void cpu_exec_end(CPUState *cpu)
     trace_cpu_exec_end(cpu->cpu_index);
 }
 
-void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
-                           run_on_cpu_data data)
+extern "C" void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
+                                      run_on_cpu_data data)
 {
     struct qemu_work_item *wi;
 
@@ -338,7 +344,7 @@ void async_safe_run_on_cpu(CPUState *cpu, run_on_cpu_func func,
     queue_work_on_cpu(cpu, wi);
 }
 
-void free_queued_cpu_work(CPUState *cpu)
+extern "C" void free_queued_cpu_work(CPUState *cpu)
 {
     while (!QSIMPLEQ_EMPTY(&cpu->work_list)) {
         struct qemu_work_item *wi = QSIMPLEQ_FIRST(&cpu->work_list);
@@ -349,7 +355,7 @@ void free_queued_cpu_work(CPUState *cpu)
     }
 }
 
-void process_queued_cpu_work(CPUState *cpu)
+extern "C" void process_queued_cpu_work(CPUState *cpu)
 {
     struct qemu_work_item *wi;
 
@@ -389,8 +395,8 @@ void process_queued_cpu_work(CPUState *cpu)
 }
 
 /* Add a breakpoint.  */
-int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
-                          CPUBreakpoint **breakpoint)
+extern "C" int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
+                                     CPUBreakpoint **breakpoint)
 {
     CPUBreakpoint *bp;
 
@@ -398,7 +404,7 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
         pc = cpu->cc->gdb_adjust_breakpoint(cpu, pc);
     }
 
-    bp = g_malloc(sizeof(*bp));
+    bp = static_cast<CPUBreakpoint *>(g_malloc(sizeof(*bp)));
 
     bp->pc = pc;
     bp->flags = flags;
@@ -419,7 +425,7 @@ int cpu_breakpoint_insert(CPUState *cpu, vaddr pc, int flags,
 }
 
 /* Remove a specific breakpoint.  */
-int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
+extern "C" int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
 {
     CPUBreakpoint *bp;
 
@@ -437,7 +443,7 @@ int cpu_breakpoint_remove(CPUState *cpu, vaddr pc, int flags)
 }
 
 /* Remove a specific breakpoint by reference.  */
-void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *bp)
+extern "C" void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *bp)
 {
     QTAILQ_REMOVE(&cpu->breakpoints, bp, entry);
 
@@ -446,7 +452,7 @@ void cpu_breakpoint_remove_by_ref(CPUState *cpu, CPUBreakpoint *bp)
 }
 
 /* Remove all matching breakpoints. */
-void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
+extern "C" void cpu_breakpoint_remove_all(CPUState *cpu, int mask)
 {
     CPUBreakpoint *bp, *next;
 

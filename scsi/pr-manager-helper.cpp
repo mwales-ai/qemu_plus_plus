@@ -74,7 +74,7 @@ static int pr_manager_helper_write(PRManagerHelper *pr_mgr,
         struct iovec iov;
         ssize_t n_written;
 
-        iov.iov_base = (void *)buf;
+        iov.iov_base = const_cast<void *>(buf);
         iov.iov_len = sz;
         n_written = qio_channel_writev_full(QIO_CHANNEL(pr_mgr->ioc), &iov, 1,
                                             nfds ? &fd : NULL, nfds, 0, errp);
@@ -88,7 +88,7 @@ static int pr_manager_helper_write(PRManagerHelper *pr_mgr,
         }
 
         nfds = 0;
-        buf += n_written;
+        buf = static_cast<const char *>(buf) + n_written;
         sz -= n_written;
     }
 
@@ -100,10 +100,9 @@ static int pr_manager_helper_initialize(PRManagerHelper *pr_mgr,
                                         Error **errp)
 {
     char *path = g_strdup(pr_mgr->path);
-    SocketAddress saddr = {
-        .type = SOCKET_ADDRESS_TYPE_UNIX,
-        .u.q_unix.path = path
-    };
+    SocketAddress saddr = {};
+    saddr.type = SOCKET_ADDRESS_TYPE_UNIX;
+    saddr.u.q_unix.path = path;
     QIOChannelSocket *sioc = qio_channel_socket_new();
     uint32_t flags;
     int r;
@@ -214,7 +213,7 @@ static int pr_manager_helper_run(PRManager *p,
     resp.result = be32_to_cpu(resp.result);
     resp.sz = be32_to_cpu(resp.sz);
     if (io_hdr->dxfer_direction == SG_DXFER_FROM_DEV) {
-        assert(resp.sz <= io_hdr->dxfer_len);
+        assert(static_cast<uint32_t>(resp.sz) <= static_cast<uint32_t>(io_hdr->dxfer_len));
         ret = pr_manager_helper_read(pr_mgr, io_hdr->dxferp, resp.sz, NULL);
         if (ret < 0) {
             goto out;
@@ -307,8 +306,8 @@ static void pr_manager_helper_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo pr_manager_helper_info = {
-    .parent = TYPE_PR_MANAGER,
     .name = TYPE_PR_MANAGER_HELPER,
+    .parent = TYPE_PR_MANAGER,
     .instance_size = sizeof(PRManagerHelper),
     .instance_init = pr_manager_helper_instance_init,
     .instance_finalize = pr_manager_helper_instance_finalize,

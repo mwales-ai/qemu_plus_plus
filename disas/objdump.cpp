@@ -11,7 +11,7 @@ static int print_insn_objdump(bfd_vma pc, disassemble_info *info,
                               const char *prefix)
 {
     int i, n = info->buffer_length;
-    g_autofree uint8_t *buf = g_malloc(n);
+    g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(n));
 
     if (info->read_memory_func(pc, buf, n, info) == 0) {
         for (i = 0; i < n; ++i) {

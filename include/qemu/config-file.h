@@ -1,6 +1,10 @@
 #ifndef QEMU_CONFIG_FILE_H
 #define QEMU_CONFIG_FILE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef void QEMUConfigCB(const char *group, QDict *qdict, void *opaque, Error **errp);
 
 void qemu_load_module_for_opts(const char *group);
@@ -27,5 +31,9 @@ int qemu_read_config_file(const char *filename, QEMUConfigCB *f, Error **errp);
    enumerated (0..(n-1)) configuration "sections") */
 bool qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
                              Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_CONFIG_FILE_H */

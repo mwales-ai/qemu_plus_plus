@@ -14,8 +14,17 @@
 #define QEMU_FSDEV_H
 #include "file-op-9p.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int qemu_fsdev_add(QemuOpts *opts, Error **errp);
 FsDriverEntry *get_fsdev_fsentry(char *id);
 extern FileOperations local_ops;
 extern FileOperations synth_ops;
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

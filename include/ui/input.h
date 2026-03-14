@@ -4,6 +4,9 @@
 #include "qapi/qapi-types-ui.h"
 #include "qemu/notify.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define INPUT_EVENT_MASK_KEY   (1<<INPUT_EVENT_KIND_KEY)
 #define INPUT_EVENT_MASK_BTN   (1<<INPUT_EVENT_KIND_BTN)
 #define INPUT_EVENT_MASK_REL   (1<<INPUT_EVENT_KIND_REL)
@@ -124,5 +127,9 @@ extern const guint16 qemu_input_map_xorgxwin_to_qcode[];
 
 extern const guint qemu_input_map_osx_to_qcode_len;
 extern const guint16 qemu_input_map_osx_to_qcode[];
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* INPUT_H */

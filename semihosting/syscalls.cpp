@@ -58,7 +58,7 @@ static int validate_lock_user_string(char **pstr, CPUState *cs,
     char *str = NULL;
 
     if (ret > 0) {
-        str = lock_user(VERIFY_READ, tstr, ret, true);
+        str = static_cast<char *>(lock_user(VERIFY_READ, tstr, ret, true));
         ret = str ? 0 : -EFAULT;
     }
     *pstr = str;
@@ -82,7 +82,7 @@ static int copy_stat_to_user(CPUState *cs, vaddr addr,
         return -EOVERFLOW;
     }
 
-    p = lock_user(VERIFY_WRITE, addr, sizeof(struct gdb_stat), 0);
+    p = static_cast<struct gdb_stat *>(lock_user(VERIFY_WRITE, addr, sizeof(struct gdb_stat), 0));
     if (!p) {
         return -EFAULT;
     }
@@ -513,7 +513,7 @@ static void host_gettimeofday(CPUState *cs, gdb_syscall_complete_cb complete,
         return;
     }
 
-    p = lock_user(VERIFY_WRITE, tv_addr, sizeof(struct gdb_timeval), 0);
+    p = static_cast<struct gdb_timeval *>(lock_user(VERIFY_WRITE, tv_addr, sizeof(struct gdb_timeval), 0));
     if (!p) {
         complete(cs, -1, EFAULT);
         return;
@@ -537,7 +537,7 @@ static void host_poll_one(CPUState *cs, gdb_syscall_complete_cb complete,
      * must be a normal file.  Normal files never block and are thus
      * always ready.
      */
-    complete(cs, cond & (G_IO_IN | G_IO_OUT), 0);
+    complete(cs, static_cast<GIOCondition>(cond & (G_IO_IN | G_IO_OUT)), 0);
 }
 #endif
 
@@ -585,7 +585,7 @@ static void staticfile_lseek(CPUState *cs, gdb_syscall_complete_cb complete,
         ret = -1;
         break;
     }
-    if (ret >= 0 && ret <= gf->staticfile.len) {
+    if (ret >= 0 && ret <= static_cast<int64_t>(gf->staticfile.len)) {
         gf->staticfile.off = ret;
         complete(cs, ret, 0);
     } else {
@@ -610,7 +610,7 @@ static void console_read(CPUState *cs, gdb_syscall_complete_cb complete,
     char *ptr;
     int ret;
 
-    ptr = lock_user(VERIFY_WRITE, buf, len, 0);
+    ptr = static_cast<char *>(lock_user(VERIFY_WRITE, buf, len, 0));
     if (!ptr) {
         complete(cs, -1, EFAULT);
         return;
@@ -624,7 +624,7 @@ static void console_write(CPUState *cs, gdb_syscall_complete_cb complete,
                           GuestFD *gf, vaddr buf, uint64_t len)
 {
     CPUArchState *env G_GNUC_UNUSED = cpu_env(cs);
-    char *ptr = lock_user(VERIFY_READ, buf, len, 1);
+    char *ptr = static_cast<char *>(lock_user(VERIFY_READ, buf, len, 1));
     int ret;
 
     if (!ptr) {
@@ -654,7 +654,7 @@ static void console_poll_one(CPUState *cs, gdb_syscall_complete_cb complete,
                              GuestFD *gf, GIOCondition cond, int timeout)
 {
     /* The semihosting console does not support urgent data or errors. */
-    cond &= G_IO_IN | G_IO_OUT;
+    cond = static_cast<GIOCondition>(cond & (G_IO_IN | G_IO_OUT));
 
     /*
      * Since qemu_semihosting_console_write never blocks, we can
@@ -670,7 +670,7 @@ static void console_poll_one(CPUState *cs, gdb_syscall_complete_cb complete,
         qemu_semihosting_console_block_until_ready(cs);
         /* We returned -- input must be ready. */
     } else if ((cond & G_IO_IN) && !qemu_semihosting_console_ready()) {
-        cond &= ~G_IO_IN;
+        cond = static_cast<GIOCondition>(cond & ~G_IO_IN);
     }
 
     complete(cs, cond, 0);

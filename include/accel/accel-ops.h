@@ -11,6 +11,9 @@
 #include "qemu/accel.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct AccelState {
     Object parent_obj;
 };
@@ -47,5 +50,9 @@ struct AccelClass {
      */
     GPtrArray *compat_props;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ACCEL_OPS_H */

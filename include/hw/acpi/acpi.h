@@ -1,32 +1,13 @@
 #ifndef QEMU_HW_ACPI_H
 #define QEMU_HW_ACPI_H
 
-/*
- *  Copyright (c) 2009 Isaku Yamahata <yamahata at valinux co jp>
- *                     VA Linux Systems Japan K.K.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, see
- * <http://www.gnu.org/licenses/>.
- */
-
 #include "qemu/notify.h"
 #include "system/memory.h"
 #include "hw/acpi/acpi_dev_interface.h"
 
-/*
- * current device naming scheme supports up to 256 memory devices
- */
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define ACPI_MAX_RAM_SLOTS 256
 
 /* from linux include/acpi/actype.h */
@@ -202,5 +183,9 @@ struct AcpiSlicOem {
   char *table_id;
 };
 int acpi_get_slic_oem(AcpiSlicOem *oem);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_HW_ACPI_H */

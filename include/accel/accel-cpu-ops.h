@@ -14,6 +14,9 @@
 #include "exec/vaddr.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define ACCEL_OPS_SUFFIX "-ops"
 #define TYPE_ACCEL_OPS "accel" ACCEL_OPS_SUFFIX
 #define ACCEL_OPS_NAME(name) (name "-" TYPE_ACCEL_OPS)
@@ -91,5 +94,9 @@ struct AccelOpsClass {
 };
 
 void generic_handle_interrupt(CPUState *cpu, int mask);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_ACCEL_CPU_OPS_H */

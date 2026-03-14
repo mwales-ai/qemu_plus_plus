@@ -12,6 +12,13 @@
 
 #include "qemu/accel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void accel_init_ops_interfaces(AccelClass *ac);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ACCEL_SYSTEM_H */

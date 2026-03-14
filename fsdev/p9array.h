@@ -108,7 +108,7 @@
     void p9array_new_##scalar_type(scalar_type **auto_var, size_t len) \
     { \
         p9array_auto_free_##scalar_type(auto_var); \
-        P9Array##scalar_type *arr = g_malloc0(sizeof(P9Array##scalar_type) + \
+        P9Array##scalar_type *arr = (P9Array##scalar_type *)g_malloc0(sizeof(P9Array##scalar_type) + \
             len * sizeof(scalar_type)); \
         arr->len = len; \
         *auto_var = &arr->first[0]; \
@@ -152,11 +152,16 @@
  * elements and assigns the created array to the reference variable
  * @auto_var.
  */
+#ifdef __cplusplus
+#define P9ARRAY_NEW(scalar_type, auto_var, len) \
+    p9array_new_##scalar_type((&auto_var), len)
+#else
 #define P9ARRAY_NEW(scalar_type, auto_var, len) \
     QEMU_BUILD_BUG_MSG( \
         !__builtin_types_compatible_p(scalar_type, typeof(*auto_var)), \
         "P9Array scalar type mismatch" \
     ); \
     p9array_new_##scalar_type((&auto_var), len)
+#endif
 
 #endif /* QEMU_P9ARRAY_H */

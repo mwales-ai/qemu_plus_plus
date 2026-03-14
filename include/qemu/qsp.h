@@ -11,6 +11,10 @@
 #ifndef QEMU_QSP_H
 #define QEMU_QSP_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum QSPSortBy {
     QSP_SORT_BY_TOTAL_WAIT_TIME,
     QSP_SORT_BY_AVG_WAIT_TIME,
@@ -23,5 +27,9 @@ bool qsp_is_enabled(void);
 void qsp_enable(void);
 void qsp_disable(void);
 void qsp_reset(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_QSP_H */

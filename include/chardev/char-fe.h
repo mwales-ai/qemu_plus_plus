@@ -4,6 +4,9 @@
 #include "chardev/char.h"
 #include "qemu/main-loop.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef void IOEventHandler(void *opaque, QEMUChrEvent event);
 typedef int BackendChangeHandler(void *opaque);
 
@@ -309,5 +312,9 @@ int qemu_chr_fe_get_msgfds(CharFrontend *c, int *fds, int num);
  * Returns: -1 if fd passing isn't supported or no associated Chardev.
  */
 int qemu_chr_fe_set_msgfds(CharFrontend *c, int *fds, int num);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_CHAR_FE_H */

@@ -35,14 +35,14 @@ static void replay_run_event(Event *event)
 {
     switch (event->event_kind) {
     case REPLAY_ASYNC_EVENT_BH:
-        aio_bh_call(event->opaque);
+        aio_bh_call(static_cast<QEMUBH *>(event->opaque));
         break;
     case REPLAY_ASYNC_EVENT_BH_ONESHOT:
-        ((QEMUBHFunc *)event->opaque)(event->opaque2);
+        (reinterpret_cast<QEMUBHFunc *>(event->opaque))(event->opaque2);
         break;
     case REPLAY_ASYNC_EVENT_INPUT:
-        qemu_input_event_send_impl(NULL, (InputEvent *)event->opaque);
-        qapi_free_InputEvent((InputEvent *)event->opaque);
+        qemu_input_event_send_impl(NULL, static_cast<InputEvent *>(event->opaque));
+        qapi_free_InputEvent(static_cast<InputEvent *>(event->opaque));
         break;
     case REPLAY_ASYNC_EVENT_INPUT_SYNC:
         qemu_input_event_sync_impl();
@@ -51,7 +51,7 @@ static void replay_run_event(Event *event)
         replay_event_char_read_run(event->opaque);
         break;
     case REPLAY_ASYNC_EVENT_BLOCK:
-        aio_bh_call(event->opaque);
+        aio_bh_call(static_cast<QEMUBH *>(event->opaque));
         break;
     case REPLAY_ASYNC_EVENT_NET:
         replay_event_net_run(event->opaque);
@@ -137,7 +137,8 @@ void replay_bh_schedule_oneshot_event(AioContext *ctx,
 {
     if (events_enabled) {
         uint64_t id = replay_get_current_icount();
-        replay_add_event(REPLAY_ASYNC_EVENT_BH_ONESHOT, cb, opaque, id);
+        replay_add_event(REPLAY_ASYNC_EVENT_BH_ONESHOT,
+                         reinterpret_cast<void *>(cb), opaque, id);
     } else {
         aio_bh_schedule_oneshot(ctx, cb, opaque);
     }
@@ -176,7 +177,7 @@ static void replay_save_event(Event *event)
             replay_put_qword(event->id);
             break;
         case REPLAY_ASYNC_EVENT_INPUT:
-            replay_save_input_event(event->opaque);
+            replay_save_input_event(static_cast<InputEvent *>(event->opaque));
             break;
         case REPLAY_ASYNC_EVENT_INPUT_SYNC:
             break;
@@ -212,13 +213,14 @@ void replay_save_events(void)
 static Event *replay_read_event(void)
 {
     Event *event;
-    ReplayAsyncEventKind event_kind = replay_state.data_kind - EVENT_ASYNC;
+    ReplayAsyncEventKind event_kind = static_cast<ReplayAsyncEventKind>(
+        replay_state.data_kind - EVENT_ASYNC);
 
     /* Events that has not to be in the queue */
     switch (event_kind) {
     case REPLAY_ASYNC_EVENT_BH:
     case REPLAY_ASYNC_EVENT_BH_ONESHOT:
-        if (replay_state.read_event_id == -1) {
+        if (replay_state.read_event_id == static_cast<uint64_t>(-1)) {
             replay_state.read_event_id = replay_get_qword();
         }
         break;
@@ -230,7 +232,7 @@ static Event *replay_read_event(void)
     case REPLAY_ASYNC_EVENT_INPUT_SYNC:
         event = g_new0(Event, 1);
         event->event_kind = event_kind;
-        event->opaque = 0;
+        event->opaque = NULL;
         return event;
     case REPLAY_ASYNC_EVENT_CHAR_READ:
         event = g_new0(Event, 1);
@@ -238,7 +240,7 @@ static Event *replay_read_event(void)
         event->opaque = replay_event_char_read_load();
         return event;
     case REPLAY_ASYNC_EVENT_BLOCK:
-        if (replay_state.read_event_id == -1) {
+        if (replay_state.read_event_id == static_cast<uint64_t>(-1)) {
             replay_state.read_event_id = replay_get_qword();
         }
         break;
@@ -255,7 +257,7 @@ static Event *replay_read_event(void)
 
     QTAILQ_FOREACH(event, &events_list, events) {
         if (event->event_kind == event_kind
-            && (replay_state.read_event_id == -1
+            && (replay_state.read_event_id == static_cast<uint64_t>(-1)
                 || replay_state.read_event_id == event->id)) {
             break;
         }
@@ -279,7 +281,7 @@ void replay_read_events(void)
             break;
         }
         replay_finish_event();
-        replay_state.read_event_id = -1;
+        replay_state.read_event_id = static_cast<uint64_t>(-1);
         replay_run_event(event);
 
         g_free(event);
@@ -288,7 +290,7 @@ void replay_read_events(void)
 
 void replay_init_events(void)
 {
-    replay_state.read_event_id = -1;
+    replay_state.read_event_id = static_cast<uint64_t>(-1);
 }
 
 void replay_finish_events(void)

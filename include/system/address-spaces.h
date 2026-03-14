@@ -14,6 +14,10 @@
 #ifndef SYSTEM_ADDRESS_SPACES_H
 #define SYSTEM_ADDRESS_SPACES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Internal interfaces between memory.c/exec.c/vl.c.  Do not #include unless
  * you're one of them.
@@ -31,5 +35,9 @@ MemoryRegion *get_system_io(void);
 
 extern AddressSpace address_space_memory;
 extern AddressSpace address_space_io;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
