@@ -56,7 +56,7 @@ struct OR1KOMPICState {
 
 static uint64_t ompic_read(void *opaque, hwaddr addr, unsigned size)
 {
-    OR1KOMPICState *s = opaque;
+    OR1KOMPICState *s = static_cast<OR1KOMPICState *>(opaque);
     int src_cpu = OMPIC_SRC_CPU(addr);
 
     /* We can only write to control control, write control + update status */
@@ -70,7 +70,7 @@ static uint64_t ompic_read(void *opaque, hwaddr addr, unsigned size)
 
 static void ompic_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    OR1KOMPICState *s = opaque;
+    OR1KOMPICState *s = static_cast<OR1KOMPICState *>(opaque);
     /* We can only write to control control, write control + update status */
     if (OMPIC_REG(addr) == OMPIC_CONTROL) {
         int src_cpu = OMPIC_SRC_CPU(addr);

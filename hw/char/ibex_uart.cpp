@@ -103,7 +103,7 @@ static void ibex_uart_update_irqs(IbexUartState *s)
 
 static int ibex_uart_can_receive(void *opaque)
 {
-    IbexUartState *s = opaque;
+    IbexUartState *s = static_cast<IbexUartState *>(opaque);
 
     if ((s->uart_ctrl & R_CTRL_RX_ENABLE_MASK)
            && !(s->uart_status & R_STATUS_RXFULL_MASK)) {
@@ -115,7 +115,7 @@ static int ibex_uart_can_receive(void *opaque)
 
 static void ibex_uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    IbexUartState *s = opaque;
+    IbexUartState *s = static_cast<IbexUartState *>(opaque);
     uint8_t rx_fifo_level = (s->uart_fifo_ctrl & R_FIFO_CTRL_RXILVL_MASK)
                             >> R_FIFO_CTRL_RXILVL_SHIFT;
 
@@ -139,7 +139,7 @@ static void ibex_uart_receive(void *opaque, const uint8_t *buf, int size)
 static gboolean ibex_uart_xmit(void *do_not_use, GIOCondition cond,
                                void *opaque)
 {
-    IbexUartState *s = opaque;
+    IbexUartState *s = static_cast<IbexUartState *>(opaque);
     uint8_t tx_fifo_level = (s->uart_fifo_ctrl & R_FIFO_CTRL_TXILVL_MASK)
                             >> R_FIFO_CTRL_TXILVL_SHIFT;
     int ret;
@@ -265,7 +265,7 @@ static uint64_t ibex_uart_get_baud(IbexUartState *s)
 static uint64_t ibex_uart_read(void *opaque, hwaddr addr,
                                        unsigned int size)
 {
-    IbexUartState *s = opaque;
+    IbexUartState *s = static_cast<IbexUartState *>(opaque);
     uint64_t retvalue = 0;
 
     switch (addr >> 2) {
@@ -335,7 +335,7 @@ static uint64_t ibex_uart_read(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
         return 0;
     }
 
@@ -345,7 +345,7 @@ static uint64_t ibex_uart_read(void *opaque, hwaddr addr,
 static void ibex_uart_write(void *opaque, hwaddr addr,
                                   uint64_t val64, unsigned int size)
 {
-    IbexUartState *s = opaque;
+    IbexUartState *s = static_cast<IbexUartState *>(opaque);
     uint32_t value = val64;
 
     switch (addr >> 2) {
@@ -444,13 +444,13 @@ static void ibex_uart_write(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
     }
 }
 
 static void ibex_uart_clk_update(void *opaque, ClockEvent event)
 {
-    IbexUartState *s = opaque;
+    IbexUartState *s = static_cast<IbexUartState *>(opaque);
 
     /* recompute uart's speed on clock change */
     uint64_t baud = ibex_uart_get_baud(s);
@@ -460,7 +460,7 @@ static void ibex_uart_clk_update(void *opaque, ClockEvent event)
 
 static void fifo_trigger_update(void *opaque)
 {
-    IbexUartState *s = opaque;
+    IbexUartState *s = static_cast<IbexUartState *>(opaque);
 
     if (s->uart_ctrl & R_CTRL_TX_ENABLE_MASK) {
         ibex_uart_xmit(NULL, G_IO_OUT, s);
@@ -477,7 +477,7 @@ static const MemoryRegionOps ibex_uart_ops = {
 
 static int ibex_uart_post_load(void *opaque, int version_id)
 {
-    IbexUartState *s = opaque;
+    IbexUartState *s = static_cast<IbexUartState *>(opaque);
 
     ibex_uart_update_irqs(s);
     return 0;

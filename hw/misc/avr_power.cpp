@@ -44,7 +44,7 @@ static uint64_t avr_mask_read(void *opaque, hwaddr offset, unsigned size)
 {
     assert(size == 1);
     assert(offset == 0);
-    AVRMaskState *s = opaque;
+    AVRMaskState *s = static_cast<AVRMaskState *>(opaque);
 
     trace_avr_power_read(s->val);
 
@@ -56,7 +56,7 @@ static void avr_mask_write(void *opaque, hwaddr offset,
 {
     assert(size == 1);
     assert(offset == 0);
-    AVRMaskState *s = opaque;
+    AVRMaskState *s = static_cast<AVRMaskState *>(opaque);
     uint8_t val8 = val64;
 
     trace_avr_power_write(val8);

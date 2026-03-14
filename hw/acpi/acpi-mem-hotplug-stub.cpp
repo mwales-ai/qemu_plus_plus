@@ -2,7 +2,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "migration/vmstate.h"
 
-const VMStateDescription vmstate_memory_hotplug;
+const VMStateDescription vmstate_memory_hotplug = {};
 
 void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
                               MemHotplugState *state, hwaddr io_base)

@@ -9,6 +9,10 @@
 
 #include "hw/ide/ide-bus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* debug IDE devices */
 #define USE_DMA_CDROM
 
@@ -444,5 +448,9 @@ void ide_atapi_cmd(IDEState *s);
 void ide_atapi_cmd_reply_end(IDEState *s);
 
 int ide_handle_rw_error(IDEState *s, int error, int op);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_IDE_INTERNAL_H */

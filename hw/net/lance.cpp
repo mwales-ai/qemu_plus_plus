@@ -48,7 +48,7 @@
 
 static void parent_lance_reset(void *opaque, int irq, int level)
 {
-    SysBusPCNetState *d = opaque;
+    SysBusPCNetState *d = static_cast<SysBusPCNetState *>(opaque);
     if (level)
         pcnet_h_reset(&d->state);
 }
@@ -56,7 +56,7 @@ static void parent_lance_reset(void *opaque, int irq, int level)
 static void lance_mem_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
-    SysBusPCNetState *d = opaque;
+    SysBusPCNetState *d = static_cast<SysBusPCNetState *>(opaque);
 
     trace_lance_mem_writew(addr, val & 0xffff);
     pcnet_ioport_writew(&d->state, addr, val & 0xffff);
@@ -65,7 +65,7 @@ static void lance_mem_write(void *opaque, hwaddr addr,
 static uint64_t lance_mem_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    SysBusPCNetState *d = opaque;
+    SysBusPCNetState *d = static_cast<SysBusPCNetState *>(opaque);
     uint32_t val;
 
     val = pcnet_ioport_readw(&d->state, addr);

@@ -62,7 +62,7 @@ static void sh_timer_update(SHTimerState *s)
 
 static uint32_t sh_timer_read(void *opaque, hwaddr offset)
 {
-    SHTimerState *s = opaque;
+    SHTimerState *s = static_cast<SHTimerState *>(opaque);
 
     switch (offset >> 2) {
     case OFFSET_TCOR:
@@ -83,7 +83,7 @@ static uint32_t sh_timer_read(void *opaque, hwaddr offset)
 
 static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
 {
-    SHTimerState *s = opaque;
+    SHTimerState *s = static_cast<SHTimerState *>(opaque);
     int freq;
 
     switch (offset >> 2) {
@@ -204,7 +204,7 @@ static void sh_timer_write(void *opaque, hwaddr offset, uint32_t value)
 
 static void sh_timer_start_stop(void *opaque, int enable)
 {
-    SHTimerState *s = opaque;
+    SHTimerState *s = static_cast<SHTimerState *>(opaque);
 
     trace_sh_timer_start_stop(enable, s->enabled);
     ptimer_transaction_begin(s->timer);
@@ -220,7 +220,7 @@ static void sh_timer_start_stop(void *opaque, int enable)
 
 static void sh_timer_tick(void *opaque)
 {
-    SHTimerState *s = opaque;
+    SHTimerState *s = static_cast<SHTimerState *>(opaque);
     s->int_level = s->enabled;
     sh_timer_update(s);
 }
@@ -262,7 +262,7 @@ typedef struct {
 
 static uint64_t tmu012_read(void *opaque, hwaddr offset, unsigned size)
 {
-    tmu012_state *s = opaque;
+    tmu012_state *s = static_cast<tmu012_state *>(opaque);
 
     trace_sh_timer_read(offset);
     if (offset >= 0x20) {
@@ -295,7 +295,7 @@ static uint64_t tmu012_read(void *opaque, hwaddr offset, unsigned size)
 static void tmu012_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    tmu012_state *s = opaque;
+    tmu012_state *s = static_cast<tmu012_state *>(opaque);
 
     trace_sh_timer_write(offset, value);
     if (offset >= 0x20) {

@@ -71,7 +71,7 @@ static void diva_pci_exit(PCIDevice *dev)
 
 static void multi_serial_irq_mux(void *opaque, int n, int level)
 {
-    PCIDivaSerialState *pci = opaque;
+    PCIDivaSerialState *pci = static_cast<PCIDivaSerialState *>(opaque);
     int i, pending = 0;
 
     pci->level[n] = level;

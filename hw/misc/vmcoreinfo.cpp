@@ -20,7 +20,7 @@
 
 static void fw_cfg_vmci_write(void *opaque, off_t offset, size_t len)
 {
-    VMCoreInfoState *s = opaque;
+    VMCoreInfoState *s = static_cast<VMCoreInfoState *>(opaque);
 
     s->has_vmcoreinfo = offset == 0 && len == sizeof(s->vmcoreinfo)
         && s->vmcoreinfo.guest_format != FW_CFG_VMCOREINFO_FORMAT_NONE;

@@ -12,7 +12,7 @@ xen_common_ss.add(files(
   'xen-hvm-common.c',
   'xen-mapcache.c',
   'xen-operations.c',
-  'xen-pvh-common.c',
+  'xen-pvh-common.cpp',
 ))
 
 if have_xen_pci_passthrough
@@ -21,7 +21,7 @@ if have_xen_pci_passthrough
     'xen_pt.c',
     'xen_pt_config_init.c',
     'xen_pt_graphics.c',
-    'xen_pt_load_rom.c',
+    'xen_pt_load_rom.cpp',
     'xen_pt_msi.c',
   ))
 else
@@ -29,4 +29,4 @@ else
 endif
 
 system_ss.add_all(when: ['CONFIG_XEN', xen], if_true: xen_common_ss)
-system_ss.add(when: ['CONFIG_XEN', xen], if_false: files('xen_stubs.c'))
+system_ss.add(when: ['CONFIG_XEN', xen], if_false: files('xen_stubs.cpp'))

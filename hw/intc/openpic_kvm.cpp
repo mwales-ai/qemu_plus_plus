@@ -59,7 +59,7 @@ static void kvm_openpic_set_irq(void *opaque, int n_IRQ, int level)
 static void kvm_openpic_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    KVMOpenPICState *opp = opaque;
+    KVMOpenPICState *opp = static_cast<KVMOpenPICState *>(opaque);
     struct kvm_device_attr attr;
     uint32_t val32 = val;
     int ret;
@@ -85,7 +85,7 @@ static void kvm_openpic_reset(DeviceState *d)
 
 static uint64_t kvm_openpic_read(void *opaque, hwaddr addr, unsigned size)
 {
-    KVMOpenPICState *opp = opaque;
+    KVMOpenPICState *opp = static_cast<KVMOpenPICState *>(opaque);
     struct kvm_device_attr attr;
     uint32_t val = 0xdeadbeef;
     int ret;

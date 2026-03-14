@@ -167,7 +167,7 @@ static void input_linux_handle_keyboard(InputLinux *il,
 
         /* send event to guest when grab is active */
         if (il->grab_active && !input_linux_should_skip(il, event)) {
-            int qcode = qemu_input_linux_to_qcode(event->code);
+            QKeyCode qcode = static_cast<QKeyCode>(qemu_input_linux_to_qcode(event->code));
             qemu_input_event_send_key_qcode(NULL, qcode, event->value);
         }
 
@@ -188,7 +188,7 @@ static void input_linux_handle_keyboard(InputLinux *il,
     }
 }
 
-static void input_linux_event_mouse_button(int button)
+static void input_linux_event_mouse_button(InputButton button)
 {
     qemu_input_queue_btn(NULL, button, true);
     qemu_input_event_sync();
@@ -268,7 +268,7 @@ static void input_linux_handle_mouse(InputLinux *il, struct input_event *event)
 
 static void input_linux_event(void *opaque)
 {
-    InputLinux *il = opaque;
+    InputLinux *il = static_cast<InputLinux *>(opaque);
     int rc;
     int read_size;
     uint8_t *p = (uint8_t *)&il->event;
@@ -486,7 +486,7 @@ static void input_linux_set_grab_toggle(Object *obj, int value,
 {
     InputLinux *il = INPUT_LINUX(obj);
 
-    il->grab_toggle = value;
+    il->grab_toggle = static_cast<GrabToggleKeys>(value);
 }
 
 static void input_linux_instance_init(Object *obj)
@@ -514,17 +514,19 @@ static void input_linux_class_init(ObjectClass *oc, const void *data)
                                    input_linux_set_grab_toggle);
 }
 
+static const InterfaceInfo input_linux_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo input_linux_info = {
     .name = TYPE_INPUT_LINUX,
     .parent = TYPE_OBJECT,
-    .class_init = input_linux_class_init,
     .instance_size = sizeof(InputLinux),
     .instance_init = input_linux_instance_init,
     .instance_finalize = input_linux_instance_finalize,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .class_init = input_linux_class_init,
+    .interfaces = input_linux_interfaces,
 };
 
 static void register_types(void)

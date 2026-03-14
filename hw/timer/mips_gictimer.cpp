@@ -43,7 +43,7 @@ static void gic_vptimer_expire(MIPSGICTimerState *gictimer, uint32_t vp_index,
 
 static void gic_vptimer_cb(void *opaque)
 {
-    MIPSGICTimerVPState *vptimer = opaque;
+    MIPSGICTimerVPState *vptimer = static_cast<MIPSGICTimerVPState *>(opaque);
     MIPSGICTimerState *gictimer = vptimer->gictimer;
     gic_vptimer_expire(gictimer, vptimer->vp_index,
                        qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));

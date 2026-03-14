@@ -142,7 +142,7 @@ struct ECCState {
 static void ecc_mem_write(void *opaque, hwaddr addr, uint64_t val,
                           unsigned size)
 {
-    ECCState *s = opaque;
+    ECCState *s = static_cast<ECCState *>(opaque);
 
     switch (addr >> 2) {
     case ECC_MER:
@@ -185,7 +185,7 @@ static void ecc_mem_write(void *opaque, hwaddr addr, uint64_t val,
 static uint64_t ecc_mem_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    ECCState *s = opaque;
+    ECCState *s = static_cast<ECCState *>(opaque);
     uint32_t ret = 0;
 
     switch (addr >> 2) {
@@ -242,7 +242,7 @@ static const MemoryRegionOps ecc_mem_ops = {
 static void ecc_diag_mem_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    ECCState *s = opaque;
+    ECCState *s = static_cast<ECCState *>(opaque);
 
     trace_ecc_diag_mem_writeb(addr, val);
     s->diag[addr & ECC_DIAG_MASK] = val;
@@ -251,7 +251,7 @@ static void ecc_diag_mem_write(void *opaque, hwaddr addr,
 static uint64_t ecc_diag_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    ECCState *s = opaque;
+    ECCState *s = static_cast<ECCState *>(opaque);
     uint32_t ret = s->diag[(int)addr];
 
     trace_ecc_diag_mem_readb(addr, ret);

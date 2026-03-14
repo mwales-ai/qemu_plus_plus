@@ -433,7 +433,7 @@ static void create_pcie(VMAppleMachineState *vms)
 
 static void vmapple_reset(void *opaque)
 {
-    VMAppleMachineState *vms = opaque;
+    VMAppleMachineState *vms = static_cast<VMAppleMachineState *>(opaque);
     hwaddr base = vms->memmap[VMAPPLE_FIRMWARE].base;
 
     cpu_set_pc(first_cpu, base);

@@ -14,7 +14,7 @@ system_ss.add(files(
   'block-active.cpp',
   'channel.cpp',
   'channel-block.cpp',
-  'cpr.cpp',
+  'cpr.c',
   'cpr-transfer.cpp',
   'cpr-exec.cpp',
   'cpu-throttle.cpp',

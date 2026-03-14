@@ -23,11 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#ifdef CONFIG_LINUX_IO_URING
-#include <liburing.h>
-#endif
-
-extern "C" {
 #include "qemu/units.h"
 #include "system/hostmem.h"
 #include "system/numa.h"
@@ -213,8 +208,7 @@ void parse_numa_distance(MachineState *ms, NumaDistOptions *dist, Error **errp)
 void parse_numa_hmat_lb(NumaState *numa_state, NumaHmatLBOptions *node,
                         Error **errp)
 {
-    guint i;
-    int first_bit, last_bit;
+    int i, first_bit, last_bit;
     uint64_t max_entry, temp_base, bitmap_copy;
     NodeInfo *numa_info = numa_state->nodes;
     HMAT_LB_Info *hmat_lb =
@@ -246,7 +240,7 @@ void parse_numa_hmat_lb(NumaState *numa_state, NumaHmatLBOptions *node,
     }
 
     if (!hmat_lb) {
-        hmat_lb = static_cast<HMAT_LB_Info *>(g_malloc0(sizeof(*hmat_lb)));
+        hmat_lb = g_malloc0(sizeof(*hmat_lb));
         numa_state->hmat_lb[node->hierarchy][node->data_type] = hmat_lb;
         hmat_lb->list = g_array_new(false, true, sizeof(HMAT_LB_Data));
     }
@@ -399,7 +393,7 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
     NodeInfo *numa_info = ms->numa_state->nodes;
     NumaHmatCacheOptions *hmat_cache = NULL;
 
-    if (node->node_id >= (uint32_t)nb_numa_nodes) {
+    if (node->node_id >= nb_numa_nodes) {
         error_setg(errp, "Invalid node-id=%" PRIu32 ", it should be less "
                    "than %d", node->node_id, nb_numa_nodes);
         return;
@@ -460,7 +454,7 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
         return;
     }
 
-    hmat_cache = static_cast<NumaHmatCacheOptions *>(g_malloc0(sizeof(*hmat_cache)));
+    hmat_cache = g_malloc0(sizeof(*hmat_cache));
     memcpy(hmat_cache, node, sizeof(*hmat_cache));
     ms->numa_state->hmat_cache[node->node_id][node->level] = hmat_cache;
 }
@@ -756,7 +750,7 @@ void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp)
                                     slot->props.node_id, errp);
         }
     } else if (node_id != slot->props.node_id) {
-        error_setg(errp, "invalid node-id, must be %" PRId64,
+        error_setg(errp, "invalid node-id, must be %"PRId64,
                    slot->props.node_id);
     }
 }
@@ -826,7 +820,7 @@ static int ram_block_notify_add_single(RAMBlock *rb, void *opaque)
     const ram_addr_t max_size = qemu_ram_get_max_length(rb);
     const ram_addr_t size = qemu_ram_get_used_length(rb);
     void *host = qemu_ram_get_host_addr(rb);
-    RAMBlockNotifier *notifier = static_cast<RAMBlockNotifier *>(opaque);
+    RAMBlockNotifier *notifier = opaque;
 
     if (host) {
         notifier->ram_block_added(notifier, host, size, max_size);
@@ -839,7 +833,7 @@ static int ram_block_notify_remove_single(RAMBlock *rb, void *opaque)
     const ram_addr_t max_size = qemu_ram_get_max_length(rb);
     const ram_addr_t size = qemu_ram_get_used_length(rb);
     void *host = qemu_ram_get_host_addr(rb);
-    RAMBlockNotifier *notifier = static_cast<RAMBlockNotifier *>(opaque);
+    RAMBlockNotifier *notifier = opaque;
 
     if (host) {
         notifier->ram_block_removed(notifier, host, size, max_size);
@@ -901,5 +895,3 @@ void ram_block_notify_resize(void *host, size_t old_size, size_t new_size)
         }
     }
 }
-
-} /* extern "C" */

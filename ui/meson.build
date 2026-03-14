@@ -16,7 +16,7 @@ system_ss.add(files(
   'ui-qmp-cmds.c',
   'util.cpp',
 ))
-system_ss.add(when: pixman, if_true: files('console-vc.c'), if_false: files('console-vc-stubs.c'))
+system_ss.add(when: pixman, if_true: files('console-vc.c'), if_false: files('console-vc-stubs.cpp'))
 if dbus_display
   system_ss.add(files('dbus-module.cpp'))
 endif
@@ -24,7 +24,7 @@ system_ss.add([spice_headers, files('spice-module.cpp')])
 system_ss.add(when: spice_protocol, if_true: files('vdagent.c'))
 
 if host_os == 'linux'
-  system_ss.add(files('input-linux.c', 'udmabuf.cpp'))
+  system_ss.add(files('input-linux.cpp', 'udmabuf.cpp'))
 endif
 system_ss.add(when: cocoa, if_true: files('cocoa.m'))
 

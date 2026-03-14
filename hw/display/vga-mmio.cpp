@@ -53,7 +53,7 @@ struct VGAMmioState {
 
 static uint64_t vga_mm_read(void *opaque, hwaddr addr, unsigned size)
 {
-    VGAMmioState *s = opaque;
+    VGAMmioState *s = static_cast<VGAMmioState *>(opaque);
 
     return vga_ioport_read(&s->vga, addr >> s->it_shift) &
         MAKE_64BIT_MASK(0, size * 8);
@@ -62,7 +62,7 @@ static uint64_t vga_mm_read(void *opaque, hwaddr addr, unsigned size)
 static void vga_mm_write(void *opaque, hwaddr addr, uint64_t value,
                          unsigned size)
 {
-    VGAMmioState *s = opaque;
+    VGAMmioState *s = static_cast<VGAMmioState *>(opaque);
 
     vga_ioport_write(&s->vga, addr >> s->it_shift,
                      value & MAKE_64BIT_MASK(0, size * 8));

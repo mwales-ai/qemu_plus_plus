@@ -105,7 +105,7 @@ static void ibex_timer_update_irqs(IbexTimerState *s)
 
 static void ibex_timer_cb(void *opaque)
 {
-    IbexTimerState *s = opaque;
+    IbexTimerState *s = static_cast<IbexTimerState *>(opaque);
 
     qemu_irq_raise(s->m_timer_irq);
     if (s->timer_intr_enable & R_INTR_ENABLE_IE_0_MASK) {
@@ -135,7 +135,7 @@ static void ibex_timer_reset(DeviceState *dev)
 static uint64_t ibex_timer_read(void *opaque, hwaddr addr,
                                        unsigned int size)
 {
-    IbexTimerState *s = opaque;
+    IbexTimerState *s = static_cast<IbexTimerState *>(opaque);
     uint64_t now = cpu_riscv_read_rtc(s->timebase_freq);
     uint64_t retvalue = 0;
 
@@ -174,7 +174,7 @@ static uint64_t ibex_timer_read(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
         return 0;
     }
 
@@ -184,7 +184,7 @@ static uint64_t ibex_timer_read(void *opaque, hwaddr addr,
 static void ibex_timer_write(void *opaque, hwaddr addr,
                              uint64_t val64, unsigned int size)
 {
-    IbexTimerState *s = opaque;
+    IbexTimerState *s = static_cast<IbexTimerState *>(opaque);
     uint32_t val = val64;
 
     switch (addr >> 2) {
@@ -227,7 +227,7 @@ static void ibex_timer_write(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
     }
 }
 
@@ -241,7 +241,7 @@ static const MemoryRegionOps ibex_timer_ops = {
 
 static int ibex_timer_post_load(void *opaque, int version_id)
 {
-    IbexTimerState *s = opaque;
+    IbexTimerState *s = static_cast<IbexTimerState *>(opaque);
 
     ibex_timer_update_irqs(s);
     return 0;

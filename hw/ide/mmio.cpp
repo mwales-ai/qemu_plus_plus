@@ -61,7 +61,7 @@ static void mmio_ide_reset(DeviceState *dev)
 static uint64_t mmio_ide_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    MMIOIDEState *s = opaque;
+    MMIOIDEState *s = static_cast<MMIOIDEState *>(opaque);
     addr >>= s->shift;
     if (addr & 7)
         return ide_ioport_read(&s->bus, addr);
@@ -72,7 +72,7 @@ static uint64_t mmio_ide_read(void *opaque, hwaddr addr,
 static void mmio_ide_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    MMIOIDEState *s = opaque;
+    MMIOIDEState *s = static_cast<MMIOIDEState *>(opaque);
     addr >>= s->shift;
     if (addr & 7)
         ide_ioport_write(&s->bus, addr, val);
@@ -89,14 +89,14 @@ static const MemoryRegionOps mmio_ide_ops = {
 static uint64_t mmio_ide_status_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    MMIOIDEState *s = opaque;
+    MMIOIDEState *s = static_cast<MMIOIDEState *>(opaque);
     return ide_status_read(&s->bus, 0);
 }
 
 static void mmio_ide_ctrl_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    MMIOIDEState *s = opaque;
+    MMIOIDEState *s = static_cast<MMIOIDEState *>(opaque);
     ide_ctrl_write(&s->bus, 0, val);
 }
 

@@ -4,6 +4,10 @@
 #include "mpi.h"
 #include "hw/pci/pci_device.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MPTSAS_NUM_PORTS 8
 #define MPTSAS_MAX_FRAMES 2048     /* Firmware limit at 65535 */
 
@@ -101,5 +105,9 @@ void mptsas_fix_event_notification_reply_endianness(MPIMsgEventNotifyReply *repl
 void mptsas_reply(MPTSASState *s, MPIDefaultReply *reply);
 
 void mptsas_process_config(MPTSASState *s, MPIMsgConfig *req);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MPTSAS_H */
