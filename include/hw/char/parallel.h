@@ -7,6 +7,10 @@
 #include "chardev/char-fe.h"
 #include "chardev/char.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct ParallelState {
     MemoryRegion iomem;
     uint8_t dataw;
@@ -28,5 +32,9 @@ void parallel_hds_isa_init(ISABus *bus, int n);
 bool parallel_mm_init(MemoryRegion *address_space,
                       hwaddr base, int it_shift, qemu_irq irq,
                       Chardev *chr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

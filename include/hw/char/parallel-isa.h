@@ -16,6 +16,10 @@
 #include "hw/isa/isa.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ISA_PARALLEL "isa-parallel"
 OBJECT_DECLARE_SIMPLE_TYPE(ISAParallelState, ISA_PARALLEL)
 
@@ -31,5 +35,9 @@ struct ISAParallelState {
 
 void isa_parallel_set_iobase(ISADevice *parallel, hwaddr iobase);
 void isa_parallel_set_enabled(ISADevice *parallel, bool enabled);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_PARALLEL_ISA_H */

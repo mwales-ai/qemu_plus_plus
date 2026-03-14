@@ -21,6 +21,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
     SIFIVE_E_PRCI_HFROSCCFG = 0x0,
     SIFIVE_E_PRCI_HFXOSCCFG = 0x4,
@@ -70,5 +74,9 @@ struct SiFiveEPRCIState {
 };
 
 DeviceState *sifive_e_prci_create(hwaddr addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -14,6 +14,14 @@
 #ifndef ARM_INTEGRATOR_DEBUG_H
 #define ARM_INTEGRATOR_DEBUG_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_INTEGRATOR_DEBUG "integrator_debug"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

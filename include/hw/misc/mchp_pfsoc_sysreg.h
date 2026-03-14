@@ -25,6 +25,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MCHP_PFSOC_SYSREG_REG_SIZE  0x2000
 
 typedef struct MchpPfSoCSysregState {
@@ -38,5 +42,9 @@ typedef struct MchpPfSoCSysregState {
 #define MCHP_PFSOC_SYSREG(obj) \
     OBJECT_CHECK(MchpPfSoCSysregState, (obj), \
                  TYPE_MCHP_PFSOC_SYSREG)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MCHP_PFSOC_SYSREG_H */

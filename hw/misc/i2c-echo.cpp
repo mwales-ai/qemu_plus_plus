@@ -38,7 +38,7 @@ typedef struct I2CEchoState {
 
 static void i2c_echo_bh(void *opaque)
 {
-    I2CEchoState *state = opaque;
+    I2CEchoState *state = static_cast<I2CEchoState *>(opaque);
 
     switch (state->state) {
     case I2C_ECHO_STATE_IDLE:

@@ -11,7 +11,7 @@ system_ss.add(when: 'CONFIG_PVPANIC_COMMON', if_true: files('pvpanic.cpp'))
 
 # ARM devices
 system_ss.add(when: 'CONFIG_PL310', if_true: files('arm_l2x0.c'))
-system_ss.add(when: 'CONFIG_INTEGRATOR_DEBUG', if_true: files('arm_integrator_debug.c'))
+system_ss.add(when: 'CONFIG_INTEGRATOR_DEBUG', if_true: files('arm_integrator_debug.cpp'))
 system_ss.add(when: 'CONFIG_A9SCU', if_true: files('a9scu.c'))
 system_ss.add(when: 'CONFIG_ARM11SCU', if_true: files('arm11scu.cpp'))
 
@@ -28,7 +28,7 @@ system_ss.add(when: 'CONFIG_VIRT_CTRL', if_true: files('virt_ctrl.c'))
 # RISC-V devices
 system_ss.add(when: 'CONFIG_MCHP_PFSOC_DMC', if_true: files('mchp_pfsoc_dmc.c'))
 system_ss.add(when: 'CONFIG_MCHP_PFSOC_IOSCB', if_true: files('mchp_pfsoc_ioscb.c'))
-system_ss.add(when: 'CONFIG_MCHP_PFSOC_SYSREG', if_true: files('mchp_pfsoc_sysreg.c'))
+system_ss.add(when: 'CONFIG_MCHP_PFSOC_SYSREG', if_true: files('mchp_pfsoc_sysreg.cpp'))
 system_ss.add(when: 'CONFIG_SIFIVE_TEST', if_true: files('sifive_test.c'))
 system_ss.add(when: 'CONFIG_SIFIVE_E_PRCI', if_true: files('sifive_e_prci.c'))
 system_ss.add(when: 'CONFIG_SIFIVE_E_AON', if_true: files('sifive_e_aon.c'))
@@ -67,7 +67,7 @@ system_ss.add(when: 'CONFIG_IMX', if_true: files(
   'imx7_src.c',
   'imx7_gpr.c',
   'imx7_snvs.c',
-  'imx_ccm.c',
+  'imx_ccm.cpp',
   'imx_rngc.c',
 ))
 system_ss.add(when: 'CONFIG_MAX78000_AES', if_true: files('max78000_aes.c'))
@@ -148,7 +148,7 @@ system_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_rng.c'))
 
 system_ss.add(when: 'CONFIG_GRLIB', if_true: files('grlib_ahb_apb_pnp.c'))
 
-system_ss.add(when: 'CONFIG_I2C_ECHO', if_true: files('i2c-echo.c'))
+system_ss.add(when: 'CONFIG_I2C_ECHO', if_true: files('i2c-echo.cpp'))
 
 specific_ss.add(when: 'CONFIG_AVR_POWER', if_true: files('avr_power.cpp'))
 

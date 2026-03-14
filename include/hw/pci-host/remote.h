@@ -14,6 +14,10 @@
 #include "system/memory.h"
 #include "hw/pci/pcie_host.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_REMOTE_PCIHOST "remote-pcihost"
 OBJECT_DECLARE_SIMPLE_TYPE(RemotePCIHost, REMOTE_PCIHOST)
 
@@ -26,5 +30,9 @@ struct RemotePCIHost {
     MemoryRegion *mr_sys_io;
     MemoryRegion *mr_sys_mem;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

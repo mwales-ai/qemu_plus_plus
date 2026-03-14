@@ -14,6 +14,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CKIL_FREQ 32768 /* nominal 32khz clock */
 
 /* PLL control registers */
@@ -59,5 +63,9 @@ struct IMXCCMClass {
 uint32_t imx_ccm_calc_pll(uint32_t pllreg, uint32_t base_freq);
 
 uint32_t imx_ccm_get_clock_frequency(IMXCCMState *s, IMXClk clock);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* IMX_CCM_H */

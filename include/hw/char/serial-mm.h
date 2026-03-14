@@ -32,6 +32,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SERIAL_MM "serial-mm"
 OBJECT_DECLARE_SIMPLE_TYPE(SerialMM, SERIAL_MM)
 
@@ -48,5 +52,9 @@ SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,
                          qemu_irq irq, int baudbase,
                          Chardev *chr, enum device_endian end);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

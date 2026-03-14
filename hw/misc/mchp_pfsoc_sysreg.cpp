@@ -56,7 +56,7 @@ static uint64_t mchp_pfsoc_sysreg_read(void *opaque, hwaddr offset,
 static void mchp_pfsoc_sysreg_write(void *opaque, hwaddr offset,
                                     uint64_t value, unsigned size)
 {
-    MchpPfSoCSysregState *s = opaque;
+    MchpPfSoCSysregState *s = static_cast<MchpPfSoCSysregState *>(opaque);
     switch (offset) {
     case MSS_RESET_CR:
         if (value == 0xdead) {

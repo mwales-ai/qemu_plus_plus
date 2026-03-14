@@ -8,6 +8,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ISA_NUM_IRQS 16
 
 #define TYPE_ISA_DEVICE "isa-device"
@@ -128,5 +132,9 @@ int isa_register_portio_list(ISADevice *dev,
                              uint16_t start,
                              const MemoryRegionPortio *portio,
                              void *opaque, const char *name);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
