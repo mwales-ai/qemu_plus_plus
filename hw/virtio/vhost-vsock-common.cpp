@@ -19,7 +19,7 @@
 #include "qemu/iov.h"
 #include "monitor/monitor.h"
 
-const int feature_bits[] = {
+extern const int feature_bits[] = {
     VIRTIO_VSOCK_F_SEQPACKET,
     VIRTIO_F_RING_RESET,
     VIRTIO_F_RING_PACKED,
@@ -82,7 +82,7 @@ int vhost_vsock_common_start(VirtIODevice *vdev)
      * everything here.  virtio-pci will do the right thing by
      * enabling/disabling irqfd.
      */
-    for (i = 0; i < vvc->vhost_dev.nvqs; i++) {
+    for (i = 0; i < static_cast<int>(vvc->vhost_dev.nvqs); i++) {
         vhost_virtqueue_mask(&vvc->vhost_dev, vdev, i, false);
     }
 
@@ -161,11 +161,11 @@ static void vhost_vsock_common_send_transport_reset(VHostVSockCommon *vvc)
 {
     VirtQueueElement *elem;
     VirtQueue *vq = vvc->event_vq;
-    struct virtio_vsock_event event = {
-        .id = cpu_to_le32(VIRTIO_VSOCK_EVENT_TRANSPORT_RESET),
-    };
+    struct virtio_vsock_event event;
+    memset(&event, 0, sizeof(event));
+    event.id = cpu_to_le32(VIRTIO_VSOCK_EVENT_TRANSPORT_RESET);
 
-    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
     if (!elem) {
         error_report("vhost-vsock missed transport reset event");
         return;
@@ -206,7 +206,7 @@ static void vhost_vsock_common_post_load_timer_cleanup(VHostVSockCommon *vvc)
 
 static void vhost_vsock_common_post_load_timer_cb(void *opaque)
 {
-    VHostVSockCommon *vvc = opaque;
+    VHostVSockCommon *vvc = static_cast<VHostVSockCommon *>(opaque);
 
     vhost_vsock_common_post_load_timer_cleanup(vvc);
     vhost_vsock_common_send_transport_reset(vvc);
@@ -214,7 +214,7 @@ static void vhost_vsock_common_post_load_timer_cb(void *opaque)
 
 int vhost_vsock_common_pre_save(void *opaque)
 {
-    VHostVSockCommon *vvc = opaque;
+    VHostVSockCommon *vvc = static_cast<VHostVSockCommon *>(opaque);
 
     /*
      * At this point, backend must be stopped, otherwise
@@ -227,7 +227,7 @@ int vhost_vsock_common_pre_save(void *opaque)
 
 int vhost_vsock_common_post_load(void *opaque, int version_id)
 {
-    VHostVSockCommon *vvc = opaque;
+    VHostVSockCommon *vvc = static_cast<VHostVSockCommon *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(vvc);
 
     if (virtio_queue_get_addr(vdev, 2)) {
@@ -306,8 +306,8 @@ static const TypeInfo vhost_vsock_common_info = {
     .name = TYPE_VHOST_VSOCK_COMMON,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VHostVSockCommon),
-    .class_init = vhost_vsock_common_class_init,
     .is_abstract = true,
+    .class_init = vhost_vsock_common_class_init,
 };
 
 static void vhost_vsock_common_register_types(void)

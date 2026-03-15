@@ -20,6 +20,10 @@
 #include "qom/object.h"
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_VDPA_DEVICE "vhost-vdpa-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VhostVdpaDevice, VHOST_VDPA_DEVICE)
 
@@ -39,5 +43,9 @@ struct VhostVdpaDevice {
     bool started;
     int (*post_init)(VhostVdpaDevice *v, Error **errp);
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -28,7 +28,7 @@ virtio_gpu_base_reset(VirtIOGPUBase *g)
 
     g->enable = 0;
 
-    for (i = 0; i < g->conf.max_outputs; i++) {
+    for (i = 0; i < static_cast<int>(g->conf.max_outputs); i++) {
         g->scanout[i].resource_id = 0;
         g->scanout[i].width = 0;
         g->scanout[i].height = 0;
@@ -44,7 +44,7 @@ virtio_gpu_base_fill_display_info(VirtIOGPUBase *g,
 {
     int i;
 
-    for (i = 0; i < g->conf.max_outputs; i++) {
+    for (i = 0; i < static_cast<int>(g->conf.max_outputs); i++) {
         if (g->enabled_output_bitmask & (1 << i)) {
             dpy_info->pmodes[i].enabled = 1;
             dpy_info->pmodes[i].r.width = cpu_to_le32(g->req_state[i].width);
@@ -59,17 +59,17 @@ virtio_gpu_base_generate_edid(VirtIOGPUBase *g, int scanout,
 {
     size_t output_idx;
     VirtIOGPUOutputList *node;
-    qemu_edid_info info = {
-        .width_mm = g->req_state[scanout].width_mm,
-        .height_mm = g->req_state[scanout].height_mm,
-        .prefx = g->req_state[scanout].width,
-        .prefy = g->req_state[scanout].height,
-        .refresh_rate = g->req_state[scanout].refresh_rate,
-    };
+    qemu_edid_info info;
+    memset(&info, 0, sizeof(info));
+    info.width_mm = g->req_state[scanout].width_mm;
+    info.height_mm = g->req_state[scanout].height_mm;
+    info.prefx = g->req_state[scanout].width;
+    info.prefy = g->req_state[scanout].height;
+    info.refresh_rate = g->req_state[scanout].refresh_rate;
 
     for (output_idx = 0, node = g->conf.outputs;
-         output_idx <= scanout && node; output_idx++, node = node->next) {
-        if (output_idx == scanout && node->value && node->value->name) {
+         output_idx <= static_cast<size_t>(scanout) && node; output_idx++, node = node->next) {
+        if (output_idx == static_cast<size_t>(scanout) && node->value && node->value->name) {
             info.name = node->value->name;
             break;
         }
@@ -99,7 +99,7 @@ static void virtio_gpu_notify_event(VirtIOGPUBase *g, uint32_t event_type)
 
 static void virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
 {
-    VirtIOGPUBase *g = opaque;
+    VirtIOGPUBase *g = static_cast<VirtIOGPUBase *>(opaque);
 
     if (idx >= g->conf.max_outputs) {
         return;
@@ -126,7 +126,7 @@ static void virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
 static void
 virtio_gpu_gl_flushed(void *opaque)
 {
-    VirtIOGPUBase *g = opaque;
+    VirtIOGPUBase *g = static_cast<VirtIOGPUBase *>(opaque);
     VirtIOGPUBaseClass *vgc = VIRTIO_GPU_BASE_GET_CLASS(g);
 
     if (vgc->gl_flushed) {
@@ -137,7 +137,7 @@ virtio_gpu_gl_flushed(void *opaque)
 static void
 virtio_gpu_gl_block(void *opaque, bool block)
 {
-    VirtIOGPUBase *g = opaque;
+    VirtIOGPUBase *g = static_cast<VirtIOGPUBase *>(opaque);
 
     if (block) {
         g->renderer_blocked++;
@@ -154,7 +154,7 @@ virtio_gpu_gl_block(void *opaque, bool block)
 static int
 virtio_gpu_get_flags(void *opaque)
 {
-    VirtIOGPUBase *g = opaque;
+    VirtIOGPUBase *g = static_cast<VirtIOGPUBase *>(opaque);
     int flags = GRAPHIC_FLAGS_NONE;
 
     if (virtio_gpu_virgl_enabled(g->conf)) {
@@ -234,7 +234,7 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
     g->req_state[0].height = g->conf.yres;
 
     g->hw_ops = &virtio_gpu_ops;
-    for (i = 0; i < g->conf.max_outputs; i++) {
+    for (i = 0; i < static_cast<int>(g->conf.max_outputs); i++) {
         g->scanout[i].con =
             graphic_console_init(DEVICE(g), i, &virtio_gpu_ops, g);
     }
@@ -306,9 +306,9 @@ static const TypeInfo virtio_gpu_base_info = {
     .name = TYPE_VIRTIO_GPU_BASE,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOGPUBase),
+    .is_abstract = true,
     .class_size = sizeof(VirtIOGPUBaseClass),
     .class_init = virtio_gpu_base_class_init,
-    .is_abstract = true
 };
 module_obj(TYPE_VIRTIO_GPU_BASE);
 module_kconfig(VIRTIO_GPU);

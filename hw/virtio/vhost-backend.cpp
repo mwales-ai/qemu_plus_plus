@@ -263,7 +263,7 @@ static int vhost_kernel_set_owner(struct vhost_dev *dev)
 
 static int vhost_kernel_get_vq_index(struct vhost_dev *dev, int idx)
 {
-    assert(idx >= dev->vq_index && idx < dev->vq_index + dev->nvqs);
+    assert(idx >= dev->vq_index && idx < dev->vq_index + static_cast<int>(dev->nvqs));
 
     return idx - dev->vq_index;
 }
@@ -281,7 +281,7 @@ static int vhost_kernel_vsock_set_running(struct vhost_dev *dev, int start)
 
 static void vhost_kernel_iotlb_read(void *opaque)
 {
-    struct vhost_dev *dev = opaque;
+    struct vhost_dev *dev = static_cast<struct vhost_dev *>(opaque);
     ssize_t len;
 
     if (dev->backend_cap &
@@ -289,7 +289,7 @@ static void vhost_kernel_iotlb_read(void *opaque)
         struct vhost_msg_v2 msg;
 
         while ((len = read((uintptr_t)dev->opaque, &msg, sizeof msg)) > 0) {
-            if (len < sizeof msg) {
+            if (len < static_cast<ssize_t>(sizeof msg)) {
                 error_report("Wrong vhost message len: %d", (int)len);
                 break;
             }
@@ -304,7 +304,7 @@ static void vhost_kernel_iotlb_read(void *opaque)
         struct vhost_msg msg;
 
         while ((len = read((uintptr_t)dev->opaque, &msg, sizeof msg)) > 0) {
-            if (len < sizeof msg) {
+            if (len < static_cast<ssize_t>(sizeof msg)) {
                 error_report("Wrong vhost message len: %d", (int)len);
                 break;
             }
@@ -356,7 +356,7 @@ static void vhost_kernel_set_iotlb_callback(struct vhost_dev *dev,
         qemu_set_fd_handler((uintptr_t)dev->opaque, NULL, NULL, NULL);
 }
 
-const VhostOps kernel_ops = {
+extern const VhostOps kernel_ops = {
         .backend_type = VHOST_BACKEND_TYPE_KERNEL,
         .vhost_backend_init = vhost_kernel_init,
         .vhost_backend_cleanup = vhost_kernel_cleanup,
@@ -377,10 +377,10 @@ const VhostOps kernel_ops = {
         .vhost_set_vring_err = vhost_kernel_set_vring_err,
         .vhost_set_vring_busyloop_timeout =
                                 vhost_kernel_set_vring_busyloop_timeout,
-        .vhost_get_vring_worker = vhost_kernel_get_vring_worker,
-        .vhost_attach_vring_worker = vhost_kernel_attach_vring_worker,
         .vhost_new_worker = vhost_kernel_new_worker,
         .vhost_free_worker = vhost_kernel_free_worker,
+        .vhost_get_vring_worker = vhost_kernel_get_vring_worker,
+        .vhost_attach_vring_worker = vhost_kernel_attach_vring_worker,
         .vhost_set_features_ex = vhost_kernel_set_features,
         .vhost_get_features_ex = vhost_kernel_get_features,
         .vhost_set_backend_cap = vhost_kernel_set_backend_cap,

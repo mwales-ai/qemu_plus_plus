@@ -19,6 +19,10 @@
 #include "hw/fw-path-provider.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_SCSI_COMMON "vhost-scsi-common"
 OBJECT_DECLARE_SIMPLE_TYPE(VHostSCSICommon, VHOST_SCSI_COMMON)
 
@@ -46,5 +50,9 @@ char *vhost_scsi_common_get_fw_dev_path(FWPathProvider *p, BusState *bus,
 void vhost_scsi_common_set_config(VirtIODevice *vdev, const uint8_t *config);
 uint64_t vhost_scsi_common_get_features(VirtIODevice *vdev, uint64_t features,
                                         Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VHOST_SCSI_COMMON_H */

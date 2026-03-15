@@ -6,6 +6,10 @@
 #include "hw/virtio/virtio.h"
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VHOST_F_DEVICE_IOTLB 63
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 
@@ -551,6 +555,10 @@ static inline int vhost_load_backend_state(struct vhost_dev *dev, QEMUFile *f,
                                            Error **errp)
 {
     return -ENOSYS;
+}
+#endif
+
+#ifdef __cplusplus
 }
 #endif
 

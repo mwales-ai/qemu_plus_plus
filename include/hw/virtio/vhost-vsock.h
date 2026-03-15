@@ -17,6 +17,10 @@
 #include "hw/virtio/vhost-vsock-common.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_VSOCK "vhost-vsock-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VHostVSock, VHOST_VSOCK)
 
@@ -32,5 +36,9 @@ struct VHostVSock {
 
     /*< public >*/
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VHOST_VSOCK_H */

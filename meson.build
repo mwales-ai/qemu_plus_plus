@@ -3969,6 +3969,7 @@ foreach d, list : target_modules
                                 dependencies: target_module_ss.dependencies(),
                                 include_directories: target_inc,
                                 c_args: c_args,
+                                cpp_args: c_args,
                                 pic: true)
             system_mods += sl
             emulator_modules += shared_module(sl.name(),
@@ -4400,6 +4401,7 @@ foreach target : target_dirs
                  objects: objects,
                  include_directories: target_inc,
                  c_args: c_args,
+                 cpp_args: c_args,
                  build_by_default: false)
 
   if target.endswith('-softmmu')

@@ -16,6 +16,10 @@
 #include "hw/virtio/vhost.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_VSOCK_COMMON "vhost-vsock-common"
 OBJECT_DECLARE_SIMPLE_TYPE(VHostVSockCommon, VHOST_VSOCK_COMMON)
 
@@ -49,5 +53,9 @@ void vhost_vsock_common_realize(VirtIODevice *vdev);
 void vhost_vsock_common_unrealize(VirtIODevice *vdev);
 uint64_t vhost_vsock_common_get_features(VirtIODevice *vdev, uint64_t features,
                                          Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VHOST_VSOCK_COMMON_H */

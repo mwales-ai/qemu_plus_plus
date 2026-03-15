@@ -33,7 +33,7 @@ int vhost_scsi_common_start(VHostSCSICommon *vsc, Error **errp)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
-    VirtIOSCSICommon *vs = (VirtIOSCSICommon *)vsc;
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(vsc);
 
     if (!k->set_guest_notifiers) {
         error_setg(errp, "binding does not support guest notifiers");
@@ -88,7 +88,7 @@ int vhost_scsi_common_start(VHostSCSICommon *vsc, Error **errp)
      * everything here.  virtio-pci will do the right thing by
      * enabling/disabling irqfd.
      */
-    for (i = 0; i < vsc->dev.nvqs; i++) {
+    for (i = 0; i < static_cast<int>(vsc->dev.nvqs); i++) {
         vhost_virtqueue_mask(&vsc->dev, vdev, vsc->dev.vq_index + i, false);
     }
 
@@ -135,7 +135,8 @@ uint64_t vhost_scsi_common_get_features(VirtIODevice *vdev, uint64_t features,
 
 void vhost_scsi_common_set_config(VirtIODevice *vdev, const uint8_t *config)
 {
-    VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
+    const VirtIOSCSIConfig *scsiconf =
+        reinterpret_cast<const VirtIOSCSIConfig *>(config);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
     if ((uint32_t)virtio_ldl_p(vdev, &scsiconf->sense_size) != vs->sense_size ||

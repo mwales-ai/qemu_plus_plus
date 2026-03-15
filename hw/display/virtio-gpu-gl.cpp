@@ -23,7 +23,9 @@
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/qdev-properties.h"
 
+extern "C" {
 #include <virglrenderer.h>
+}
 
 static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
                                              struct virtio_gpu_scanout *s,
@@ -37,7 +39,8 @@ static void virtio_gpu_gl_update_cursor_data(VirtIOGPU *g,
         return;
     }
 
-    data = virgl_renderer_get_cursor_data(resource_id, &width, &height);
+    data = static_cast<uint32_t *>(
+        virgl_renderer_get_cursor_data(resource_id, &width, &height));
     if (!data) {
         return;
     }
@@ -88,13 +91,15 @@ static void virtio_gpu_gl_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         break;
     }
 
-    cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
+    cmd = static_cast<struct virtio_gpu_ctrl_command *>(
+        virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command)));
     while (cmd) {
         cmd->vq = vq;
         cmd->error = 0;
         cmd->finished = false;
         QTAILQ_INSERT_TAIL(&g->cmdq, cmd, next);
-        cmd = virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command));
+        cmd = static_cast<struct virtio_gpu_ctrl_command *>(
+        virtqueue_pop(vq, sizeof(struct virtio_gpu_ctrl_command)));
     }
 
     virtio_gpu_process_cmdq(g);

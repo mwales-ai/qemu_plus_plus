@@ -17,6 +17,10 @@
 #include "ui/qemu-pixman.h"
 #include "standard-headers/linux/virtio_gpu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline pixman_format_code_t
 virtio_gpu_get_pixman_format(uint32_t virtio_gpu_format)
 {
@@ -38,8 +42,12 @@ virtio_gpu_get_pixman_format(uint32_t virtio_gpu_format)
     case VIRTIO_GPU_FORMAT_A8B8G8R8_UNORM:
         return PIXMAN_BE_a8b8g8r8;
     default:
-        return 0;
+        return (pixman_format_code_t)0;
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

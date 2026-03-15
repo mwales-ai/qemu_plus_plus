@@ -26,6 +26,10 @@
 #include "standard-headers/linux/virtio_ids.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VIRTIO_GPU_BASE "virtio-gpu-base"
 OBJECT_DECLARE_TYPE(VirtIOGPUBase, VirtIOGPUBaseClass,
                     VIRTIO_GPU_BASE)
@@ -379,5 +383,9 @@ void virtio_gpu_virgl_reset_scanout(VirtIOGPU *g);
 void virtio_gpu_virgl_reset(VirtIOGPU *g);
 int virtio_gpu_virgl_init(VirtIOGPU *g);
 GArray *virtio_gpu_virgl_get_capsets(VirtIOGPU *g);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

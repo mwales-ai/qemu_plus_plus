@@ -20,6 +20,10 @@
 
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_FW_PATH_PROVIDER "fw-path-provider"
 
 typedef struct FWPathProviderClass FWPathProviderClass;
@@ -40,5 +44,9 @@ char *fw_path_provider_get_dev_path(FWPathProvider *p, BusState *bus,
                                     DeviceState *dev);
 char *fw_path_provider_try_get_dev_path(Object *o, BusState *bus,
                                         DeviceState *dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FW_PATH_PROVIDER_H */

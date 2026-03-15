@@ -17,6 +17,10 @@
 #include "qemu/bswap.h"
 #include "standard-headers/linux/virtio_gpu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline void
 virtio_gpu_ctrl_hdr_bswap(struct virtio_gpu_ctrl_hdr *hdr)
 {
@@ -91,5 +95,9 @@ virtio_gpu_scanout_blob_bswap(struct virtio_gpu_set_scanout_blob *ssb)
     virtio_gpu_bswap_32(ssb, sizeof(*ssb) - sizeof(ssb->offsets[3]));
     le32_to_cpus(&ssb->offsets[3]);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

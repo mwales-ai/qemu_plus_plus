@@ -19,6 +19,10 @@
 #include "hw/virtio/virtio.h"
 #include "standard-headers/linux/vhost_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * ASID dedicated to map guest's addresses.  If SVQ is disabled it maps GPA to
  * qemu's IOVA.  If SVQ is enabled it maps also the SVQ vring here
@@ -115,5 +119,8 @@ typedef struct vdpa_iommu {
     QLIST_ENTRY(vdpa_iommu) iommu_next;
 } VDPAIOMMUState;
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif

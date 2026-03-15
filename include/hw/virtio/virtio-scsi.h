@@ -15,6 +15,10 @@
 #define QEMU_VIRTIO_SCSI_H
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Override CDB/sense data size: they are dynamic (guest controlled) in QEMU */
 #define VIRTIO_SCSI_CDB_SIZE 0
 #define VIRTIO_SCSI_SENSE_SIZE 0
@@ -112,5 +116,9 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp);
 void virtio_scsi_dataplane_cleanup(VirtIOSCSI *s);
 int virtio_scsi_dataplane_start(VirtIODevice *s);
 void virtio_scsi_dataplane_stop(VirtIODevice *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VIRTIO_SCSI_H */
