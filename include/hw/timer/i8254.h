@@ -30,6 +30,10 @@
 #include "qapi/error.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PIT_FREQ 1193182
 
 typedef struct PITChannelInfo {
@@ -77,5 +81,9 @@ static inline ISADevice *kvm_pit_init(ISABus *bus, int base)
 
 void pit_set_gate(PITCommonState *pit, int channel, int val);
 void pit_get_channel_info(PITCommonState *pit, int channel, PITChannelInfo *info);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_I8254_H */

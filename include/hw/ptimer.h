@@ -10,6 +10,10 @@
 
 #include "qemu/timer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The ptimer API implements a simple periodic countdown timer.
  * The countdown timer has a value (which can be read and written via
@@ -305,5 +309,9 @@ extern const VMStateDescription vmstate_ptimer;
 #define VMSTATE_PTIMER_ARRAY(_f, _s, _n)                                \
     VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(_f, _s, _n, 0,                   \
                                        vmstate_ptimer, ptimer_state)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

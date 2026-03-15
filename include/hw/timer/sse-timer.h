@@ -29,6 +29,10 @@
 #include "qom/object.h"
 #include "hw/timer/sse-counter.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SSE_TIMER "sse-timer"
 OBJECT_DECLARE_SIMPLE_TYPE(SSETimer, SSE_TIMER)
 
@@ -50,5 +54,9 @@ struct SSETimer {
     uint32_t cntp_aival_ctl;
     uint32_t cntp_aival_reload;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "hw/sysbus.h"
 #include "hw/sh4/sh.h"
 #include "hw/irq.h"
@@ -50,7 +51,7 @@ struct SHPCIState {
 
 static void sh_pci_reg_write(void *p, hwaddr addr, uint64_t val, unsigned size)
 {
-    SHPCIState *pcic = p;
+    SHPCIState *pcic = static_cast<SHPCIState *>(p);
     PCIHostState *phb = PCI_HOST_BRIDGE(pcic);
 
     switch (addr) {
@@ -75,7 +76,7 @@ static void sh_pci_reg_write(void *p, hwaddr addr, uint64_t val, unsigned size)
 
 static uint64_t sh_pci_reg_read(void *p, hwaddr addr, unsigned size)
 {
-    SHPCIState *pcic = p;
+    SHPCIState *pcic = static_cast<SHPCIState *>(p);
     PCIHostState *phb = PCI_HOST_BRIDGE(pcic);
 
     switch (addr) {
@@ -110,7 +111,7 @@ static int sh_pci_map_irq(PCIDevice *d, int irq_num)
 
 static void sh_pci_set_irq(void *opaque, int irq_num, int level)
 {
-    qemu_irq *pic = opaque;
+    qemu_irq *pic = static_cast<qemu_irq *>(opaque);
 
     qemu_set_irq(pic[irq_num], level);
 }
@@ -174,6 +175,11 @@ static void sh_pcic_host_class_init(ObjectClass *klass, const void *data)
     dc->realize = sh_pcic_host_realize;
 }
 
+static const InterfaceInfo sh_pci_host_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo sh_pcic_types[] = {
     {
         .name           = TYPE_SH_PCI_HOST_BRIDGE,
@@ -185,10 +191,7 @@ static const TypeInfo sh_pcic_types[] = {
         .parent         = TYPE_PCI_DEVICE,
         .instance_size  = sizeof(PCIDevice),
         .class_init     = sh_pcic_pci_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        },
+        .interfaces     = sh_pci_host_interfaces,
     },
 };
 

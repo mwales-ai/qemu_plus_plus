@@ -27,6 +27,7 @@
  * the HWCLKSW=0 configuration.
  */
 #include "qemu/osdep.h"
+
 #include "qemu/log.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"
@@ -111,7 +112,7 @@ static bool sse_counter_enabled(SSECounter *s)
     return (s->cntcr & R_CNTCR_EN_MASK) != 0;
 }
 
-uint64_t sse_counter_tick_to_time(SSECounter *s, uint64_t tick)
+extern "C" uint64_t sse_counter_tick_to_time(SSECounter *s, uint64_t tick)
 {
     if (!sse_counter_enabled(s)) {
         return UINT64_MAX;
@@ -127,7 +128,7 @@ uint64_t sse_counter_tick_to_time(SSECounter *s, uint64_t tick)
     return s->ns_then + clock_ticks_to_ns(s->clk, tick);
 }
 
-void sse_counter_register_consumer(SSECounter *s, Notifier *notifier)
+extern "C" void sse_counter_register_consumer(SSECounter *s, Notifier *notifier)
 {
     /*
      * For the moment we assume that both we and the devices
@@ -137,7 +138,7 @@ void sse_counter_register_consumer(SSECounter *s, Notifier *notifier)
     notifier_list_add(&s->notifier_list, notifier);
 }
 
-uint64_t sse_counter_for_timestamp(SSECounter *s, uint64_t now)
+extern "C" uint64_t sse_counter_for_timestamp(SSECounter *s, uint64_t now)
 {
     /* Return the CNTCV value for a particular timestamp (clock ns value). */
     uint64_t ticks;
@@ -361,16 +362,20 @@ static const MemoryRegionOps sse_counter_control_ops = {
     .read = sse_counter_control_read,
     .write = sse_counter_control_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static const MemoryRegionOps sse_counter_status_ops = {
     .read = sse_counter_status_read,
     .write = sse_counter_status_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void sse_counter_reset(DeviceState *dev)
@@ -438,14 +443,16 @@ static void sse_counter_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField sse_counter_vmstate_fields[] = {
+    VMSTATE_CLOCK(clk, SSECounter),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription sse_counter_vmstate = {
     .name = "sse-counter",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(clk, SSECounter),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = sse_counter_vmstate_fields,
 };
 
 static void sse_counter_class_init(ObjectClass *klass, const void *data)

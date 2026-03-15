@@ -34,6 +34,10 @@
 #include "qom/object.h"
 #include "qemu/notify.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SSE_COUNTER "sse-counter"
 OBJECT_DECLARE_SIMPLE_TYPE(SSECounter, SSE_COUNTER)
 
@@ -101,5 +105,9 @@ uint64_t sse_counter_tick_to_time(SSECounter *counter, uint64_t tick);
  * a cue to recalculate timer events.
  */
 void sse_counter_register_consumer(SSECounter *counter, Notifier *notifier);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

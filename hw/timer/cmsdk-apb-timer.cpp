@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -246,19 +247,21 @@ static void cmsdk_apb_timer_realize(DeviceState *dev, Error **errp)
     ptimer_transaction_commit(s->timer);
 }
 
+static const VMStateField cmsdk_apb_timer_vmstate_fields[] = {
+    VMSTATE_PTIMER(timer, CMSDKAPBTimer),
+    VMSTATE_CLOCK(pclk, CMSDKAPBTimer),
+    VMSTATE_UINT32(ctrl, CMSDKAPBTimer),
+    VMSTATE_UINT32(value, CMSDKAPBTimer),
+    VMSTATE_UINT32(reload, CMSDKAPBTimer),
+    VMSTATE_UINT32(intstatus, CMSDKAPBTimer),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription cmsdk_apb_timer_vmstate = {
     .name = "cmsdk-apb-timer",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PTIMER(timer, CMSDKAPBTimer),
-        VMSTATE_CLOCK(pclk, CMSDKAPBTimer),
-        VMSTATE_UINT32(ctrl, CMSDKAPBTimer),
-        VMSTATE_UINT32(value, CMSDKAPBTimer),
-        VMSTATE_UINT32(reload, CMSDKAPBTimer),
-        VMSTATE_UINT32(intstatus, CMSDKAPBTimer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = cmsdk_apb_timer_vmstate_fields,
 };
 
 static void cmsdk_apb_timer_class_init(ObjectClass *klass, const void *data)

@@ -30,6 +30,10 @@
 #include "hw/sh4/sh_intc.h"
 #include "target/sh4/cpu-qom.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define A7ADDR(x) ((x) & 0x1fffffff)
 #define P4ADDR(x) ((x) | 0xe0000000)
 
@@ -43,5 +47,9 @@ struct SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem);
 
 /* sh7750.c */
 qemu_irq sh7750_irl(struct SH7750State *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

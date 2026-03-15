@@ -34,6 +34,7 @@
  * via the compare/timervalue registers is disabled.
  */
 #include "qemu/osdep.h"
+
 #include "qemu/log.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"
@@ -365,8 +366,10 @@ static const MemoryRegionOps sse_timer_ops = {
     .read = sse_timer_read,
     .write = sse_timer_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void sse_timer_reset(DeviceState *dev)
@@ -424,20 +427,22 @@ static void sse_timer_realize(DeviceState *dev, Error **errp)
     timer_init_ns(&s->timer, QEMU_CLOCK_VIRTUAL, sse_timer_cb, s);
 }
 
+static const VMStateField sse_timer_vmstate_fields[] = {
+    VMSTATE_TIMER(timer, SSETimer),
+    VMSTATE_UINT32(cntfrq, SSETimer),
+    VMSTATE_UINT32(cntp_ctl, SSETimer),
+    VMSTATE_UINT64(cntp_cval, SSETimer),
+    VMSTATE_UINT64(cntp_aival, SSETimer),
+    VMSTATE_UINT32(cntp_aival_ctl, SSETimer),
+    VMSTATE_UINT32(cntp_aival_reload, SSETimer),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription sse_timer_vmstate = {
     .name = "sse-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER(timer, SSETimer),
-        VMSTATE_UINT32(cntfrq, SSETimer),
-        VMSTATE_UINT32(cntp_ctl, SSETimer),
-        VMSTATE_UINT64(cntp_cval, SSETimer),
-        VMSTATE_UINT64(cntp_aival, SSETimer),
-        VMSTATE_UINT32(cntp_aival_ctl, SSETimer),
-        VMSTATE_UINT32(cntp_aival_reload, SSETimer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = sse_timer_vmstate_fields,
 };
 
 static const Property sse_timer_properties[] = {

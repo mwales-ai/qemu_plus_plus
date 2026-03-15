@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "hw/irq.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
@@ -127,7 +128,7 @@ static void pit_latch_count(PITChannelState *s)
 static void pit_ioport_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
-    PITCommonState *pit = opaque;
+    PITCommonState *pit = static_cast<PITCommonState *>(opaque);
     int channel, access;
     PITChannelState *s;
 
@@ -197,7 +198,7 @@ static void pit_ioport_write(void *opaque, hwaddr addr,
 static uint64_t pit_ioport_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    PITCommonState *pit = opaque;
+    PITCommonState *pit = static_cast<PITCommonState *>(opaque);
     int ret, count;
     PITChannelState *s;
 
@@ -282,7 +283,7 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
 
 static void pit_irq_timer(void *opaque)
 {
-    PITChannelState *s = opaque;
+    PITChannelState *s = static_cast<PITChannelState *>(opaque);
 
     pit_irq_timer_update(s, s->next_transition_time);
 }
@@ -304,7 +305,7 @@ static void pit_reset(DeviceState *dev)
  * reenable it when legacy mode is left again. */
 static void pit_irq_control(void *opaque, int n, int enable)
 {
-    PITCommonState *pit = opaque;
+    PITCommonState *pit = static_cast<PITCommonState *>(opaque);
     PITChannelState *s = &pit->channels[0];
 
     if (enable) {
@@ -319,11 +320,11 @@ static void pit_irq_control(void *opaque, int n, int enable)
 static const MemoryRegionOps pit_ioport_ops = {
     .read = pit_ioport_read,
     .write = pit_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pit_post_load(PITCommonState *s)
@@ -373,8 +374,8 @@ static const TypeInfo pit_info = {
     .name          = TYPE_I8254,
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(PITCommonState),
-    .class_init    = pit_class_initfn,
     .class_size    = sizeof(PITClass),
+    .class_init    = pit_class_initfn,
 };
 
 static void pit_register_types(void)

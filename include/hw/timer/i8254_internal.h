@@ -29,6 +29,10 @@
 #include "hw/timer/i8254.h"
 #include "qemu/timer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct PITChannelState {
     int count; /* can be 65536 */
     uint16_t latched_count;
@@ -72,5 +76,9 @@ int64_t pit_get_next_transition_time(PITChannelState *s, int64_t current_time);
 void pit_get_channel_info_common(PITCommonState *s, PITChannelState *sc,
                                  PITChannelInfo *info);
 void pit_reset_common(PITCommonState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_I8254_INTERNAL_H */

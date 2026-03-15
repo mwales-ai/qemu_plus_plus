@@ -17,6 +17,10 @@
 #include "hw/clock.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_CMSDK_APB_TIMER "cmsdk-apb-timer"
 OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBTimer, CMSDK_APB_TIMER)
 
@@ -41,5 +45,9 @@ struct CMSDKAPBTimer {
     uint32_t reload;
     uint32_t intstatus;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

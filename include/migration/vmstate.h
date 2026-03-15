@@ -494,42 +494,42 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_VSTRUCT_TEST(_field, _state, _test, _version, _vmsd, _type, _struct_version) { \
     .name         = (stringify(_field)),                             \
+    .offset       = vmstate_offset_value(_state, _field, _type),     \
+    .size         = sizeof(_type),                                   \
+    .flags        = VMS_VSTRUCT,                                     \
+    .vmsd         = &(_vmsd),                                        \
     .version_id   = (_version),                                      \
     .struct_version_id = (_struct_version),                          \
     .field_exists = (_test),                                         \
-    .vmsd         = &(_vmsd),                                        \
-    .size         = sizeof(_type),                                   \
-    .flags        = VMS_VSTRUCT,                                     \
-    .offset       = vmstate_offset_value(_state, _field, _type),     \
 }
 
 #define VMSTATE_STRUCT_TEST(_field, _state, _test, _version, _vmsd, _type) { \
     .name         = (stringify(_field)),                             \
-    .version_id   = (_version),                                      \
-    .field_exists = (_test),                                         \
-    .vmsd         = &(_vmsd),                                        \
+    .offset       = vmstate_offset_value(_state, _field, _type),     \
     .size         = sizeof(_type),                                   \
     .flags        = VMS_STRUCT,                                      \
-    .offset       = vmstate_offset_value(_state, _field, _type),     \
+    .vmsd         = &(_vmsd),                                        \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_STRUCT_POINTER_V(_field, _state, _version, _vmsd, _type) { \
     .name         = (stringify(_field)),                             \
-    .version_id   = (_version),                                        \
-    .vmsd         = &(_vmsd),                                        \
+    .offset       = vmstate_offset_pointer(_state, _field, _type),   \
     .size         = sizeof(_type *),                                 \
     .flags        = VMS_STRUCT|VMS_POINTER,                          \
-    .offset       = vmstate_offset_pointer(_state, _field, _type),   \
+    .vmsd         = &(_vmsd),                                        \
+    .version_id   = (_version),                                        \
 }
 
 #define VMSTATE_STRUCT_POINTER_TEST_V(_field, _state, _test, _version, _vmsd, _type) { \
     .name         = (stringify(_field)),                             \
-    .version_id   = (_version),                                        \
-    .field_exists = (_test),                                         \
-    .vmsd         = &(_vmsd),                                        \
+    .offset       = vmstate_offset_pointer(_state, _field, _type),   \
     .size         = sizeof(_type *),                                 \
     .flags        = VMS_STRUCT|VMS_POINTER,                          \
-    .offset       = vmstate_offset_pointer(_state, _field, _type),   \
+    .vmsd         = &(_vmsd),                                        \
+    .version_id   = (_version),                                        \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_ARRAY_OF_POINTER(_field, _state, _num, _version, _info, _type) {\
