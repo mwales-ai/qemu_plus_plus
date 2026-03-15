@@ -25,6 +25,10 @@
 #ifndef GUSTATE_H
 #define GUSTATE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*state block offset*/
 #define gusdata (0)
 
@@ -128,5 +132,9 @@
 #define portaccesses (VSRegsEnd) /* statistics / suspend mode */
 
 #define gusdataend (VSRegsEnd+4)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GUSTATE_H */

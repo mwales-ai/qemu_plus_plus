@@ -10,17 +10,17 @@
 
 #include "hw/uefi/var-service.h"
 
-static const uint16_t name_pk[]           = u"PK";
-static const uint16_t name_kek[]          = u"KEK";
-static const uint16_t name_db[]           = u"db";
-static const uint16_t name_dbx[]          = u"dbx";
-static const uint16_t name_setup_mode[]   = u"SetupMode";
-static const uint16_t name_sigs_support[] = u"SignatureSupport";
-static const uint16_t name_sb[]           = u"SecureBoot";
-static const uint16_t name_sb_enable[]    = u"SecureBootEnable";
-static const uint16_t name_custom_mode[]  = u"CustomMode";
-static const uint16_t name_vk[]           = u"VendorKeys";
-static const uint16_t name_vk_nv[]        = u"VendorKeysNv";
+static const uint16_t name_pk[]           = { 'P', 'K', 0 };
+static const uint16_t name_kek[]          = { 'K', 'E', 'K', 0 };
+static const uint16_t name_db[]           = { 'd', 'b', 0 };
+static const uint16_t name_dbx[]          = { 'd', 'b', 'x', 0 };
+static const uint16_t name_setup_mode[]   = { 'S', 'e', 't', 'u', 'p', 'M', 'o', 'd', 'e', 0 };
+static const uint16_t name_sigs_support[] = { 'S', 'i', 'g', 'n', 'a', 't', 'u', 'r', 'e', 'S', 'u', 'p', 'p', 'o', 'r', 't', 0 };
+static const uint16_t name_sb[]           = { 'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 0 };
+static const uint16_t name_sb_enable[]    = { 'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 'E', 'n', 'a', 'b', 'l', 'e', 0 };
+static const uint16_t name_custom_mode[]  = { 'C', 'u', 's', 't', 'o', 'm', 'M', 'o', 'd', 'e', 0 };
+static const uint16_t name_vk[]           = { 'V', 'e', 'n', 'd', 'o', 'r', 'K', 'e', 'y', 's', 0 };
+static const uint16_t name_vk_nv[]        = { 'V', 'e', 'n', 'd', 'o', 'r', 'K', 'e', 'y', 's', 'N', 'v', 0 };
 
 static const uint32_t sigdb_attrs =
     EFI_VARIABLE_NON_VOLATILE |
@@ -89,7 +89,7 @@ static bool setup_mode_is_active(uefi_vars_state *uv)
     var = uefi_vars_find_variable(uv, EfiGlobalVariable,
                                   name_setup_mode, sizeof(name_setup_mode));
     if (var) {
-        value = var->data;
+        value = static_cast<uint8_t *>(var->data);
         if (value[0] == SETUP_MODE) {
             return true;
         }
@@ -105,7 +105,7 @@ static bool custom_mode_is_active(uefi_vars_state *uv)
     var = uefi_vars_find_variable(uv, EfiCustomModeEnable,
                                   name_custom_mode, sizeof(name_custom_mode));
     if (var) {
-        value = var->data;
+        value = static_cast<uint8_t *>(var->data);
         if (value[0] == CUSTOM_SECURE_BOOT_MODE) {
             return true;
         }
@@ -113,7 +113,7 @@ static bool custom_mode_is_active(uefi_vars_state *uv)
     return false;
 }
 
-bool uefi_vars_is_sb_pk(uefi_variable *var)
+extern "C" bool uefi_vars_is_sb_pk(uefi_variable *var)
 {
     if (qemu_uuid_is_equal(&var->guid, &EfiGlobalVariable) &&
         uefi_str_equal(var->name, var->name_size, name_pk, sizeof(name_pk))) {
@@ -145,7 +145,7 @@ static bool uefi_vars_is_sb_db(uefi_variable *var)
     return false;
 }
 
-bool uefi_vars_is_sb_any(uefi_variable *var)
+extern "C" bool uefi_vars_is_sb_any(uefi_variable *var)
 {
     if (uefi_vars_is_sb_pk(var) ||
         uefi_vars_is_sb_kek(var) ||
@@ -180,7 +180,7 @@ static efi_status uefi_vars_check_auth_2_sb(uefi_vars_state *uv,
                                             void *data,
                                             uint64_t data_offset)
 {
-    variable_auth_2 *auth = data;
+    variable_auth_2 *auth = static_cast<variable_auth_2 *>(data);
     uefi_variable *siglist;
 
     if (custom_mode_is_active(uv)) {
@@ -201,24 +201,25 @@ static efi_status uefi_vars_check_auth_2_sb(uefi_vars_state *uv,
     siglist = uefi_vars_find_siglist(uv, var);
     if (!siglist && setup_mode_is_active(uv) && uefi_vars_is_sb_pk(var)) {
         /* check PK is self-signed */
-        uefi_variable tmp = {
-            .guid       = EfiGlobalVariable,
-            .name       = (uint16_t *)name_pk,
-            .name_size  = sizeof(name_pk),
-            .attributes = sigdb_attrs,
-            .data       = data + data_offset,
-            .data_size  = va->data_size - data_offset,
-        };
+        uefi_variable tmp;
+        memset(&tmp, 0, sizeof(tmp));
+        tmp.guid       = EfiGlobalVariable;
+        tmp.name       = const_cast<uint16_t *>(name_pk);
+        tmp.name_size  = sizeof(name_pk);
+        tmp.attributes = sigdb_attrs;
+        tmp.data       = static_cast<uint8_t *>(data) + data_offset;
+        tmp.data_size  = va->data_size - data_offset;
         return uefi_vars_check_pkcs7_2(&tmp, NULL, NULL, va, data);
     }
 
     return uefi_vars_check_pkcs7_2(siglist, NULL, NULL, va, data);
 }
 
-efi_status uefi_vars_check_auth_2(uefi_vars_state *uv, uefi_variable *var,
+extern "C" efi_status uefi_vars_check_auth_2(uefi_vars_state *uv,
+                                  uefi_variable *var,
                                   mm_variable_access *va, void *data)
 {
-    variable_auth_2 *auth = data;
+    variable_auth_2 *auth = static_cast<variable_auth_2 *>(data);
     uint64_t data_offset;
     efi_status status;
 
@@ -258,16 +259,17 @@ efi_status uefi_vars_check_auth_2(uefi_vars_state *uv, uefi_variable *var,
     var->time = auth->timestamp;
     if (va->data_size - data_offset > 0) {
         var->data = g_malloc(va->data_size - data_offset);
-        memcpy(var->data, data + data_offset, va->data_size - data_offset);
+        memcpy(var->data, static_cast<uint8_t *>(data) + data_offset,
+               va->data_size - data_offset);
         var->data_size = va->data_size - data_offset;
     }
 
     return EFI_SUCCESS;
 }
 
-efi_status uefi_vars_check_secure_boot(uefi_vars_state *uv, uefi_variable *var)
+extern "C" efi_status uefi_vars_check_secure_boot(uefi_vars_state *uv, uefi_variable *var)
 {
-    uint8_t *value = var->data;
+    uint8_t *value = static_cast<uint8_t *>(var->data);
 
     if (uefi_vars_is_sb_any(var)) {
         if (var->attributes != sigdb_attrs) {
@@ -296,7 +298,7 @@ efi_status uefi_vars_check_secure_boot(uefi_vars_state *uv, uefi_variable *var)
 }
 
 /* AuthVariableLibInitialize */
-void uefi_vars_auth_init(uefi_vars_state *uv)
+extern "C" void uefi_vars_auth_init(uefi_vars_state *uv)
 {
     uefi_variable *pk_var, *sbe_var;
     uint8_t platform_mode, sb, sbe, vk;
@@ -320,7 +322,7 @@ void uefi_vars_auth_init(uefi_vars_state *uv)
                                       name_sb_enable, sizeof(name_sb_enable));
     if (sbe_var) {
         if (platform_mode == USER_MODE) {
-            sbe = ((uint8_t *)sbe_var->data)[0];
+            sbe = (static_cast<uint8_t *>(sbe_var->data))[0];
         }
     } else if (platform_mode == USER_MODE) {
         sbe = SECURE_BOOT_ENABLE;

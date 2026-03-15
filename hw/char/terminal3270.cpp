@@ -45,7 +45,7 @@ DECLARE_INSTANCE_CHECKER(Terminal3270, TERMINAL_3270,
 
 static int terminal_can_read(void *opaque)
 {
-    Terminal3270 *t = opaque;
+    Terminal3270 *t = static_cast<Terminal3270 *>(opaque);
 
     return INPUT_BUFFER_SIZE - t->in_len;
 }
@@ -78,7 +78,7 @@ static void TN3270_handshake_done(Terminal3270 *t)
  */
 static gboolean send_timing_mark_cb(gpointer opaque)
 {
-    Terminal3270 *t = opaque;
+    Terminal3270 *t = static_cast<Terminal3270 *>(opaque);
     const uint8_t timing[] = {0xff, 0xfd, 0x06};
 
     qemu_chr_fe_write_all(&t->chr, timing, sizeof(timing));
@@ -96,7 +96,7 @@ static gboolean send_timing_mark_cb(gpointer opaque)
  */
 static void terminal_read(void *opaque, const uint8_t *buf, int size)
 {
-    Terminal3270 *t = opaque;
+    Terminal3270 *t = static_cast<Terminal3270 *>(opaque);
     CcwDevice *ccw_dev = CCW_DEVICE(t);
     SubchDev *sch = ccw_dev->sch;
     int end;
@@ -147,7 +147,7 @@ static void terminal_read(void *opaque, const uint8_t *buf, int size)
 
 static void chr_event(void *opaque, QEMUChrEvent event)
 {
-    Terminal3270 *t = opaque;
+    Terminal3270 *t = static_cast<Terminal3270 *>(opaque);
     CcwDevice *ccw_dev = CCW_DEVICE(t);
     SubchDev *sch = ccw_dev->sch;
 

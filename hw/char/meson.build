@@ -23,7 +23,7 @@ system_ss.add(when: 'CONFIG_XILINX', if_true: files('xilinx_uartlite.c'))
 system_ss.add(when: 'CONFIG_DIVA_GSP', if_true: files('diva-gsp.cpp'))
 
 system_ss.add(when: 'CONFIG_AVR_USART', if_true: files('avr_usart.c'))
-system_ss.add(when: 'CONFIG_COLDFIRE', if_true: files('mcf_uart.c'))
+system_ss.add(when: 'CONFIG_COLDFIRE', if_true: files('mcf_uart.cpp'))
 system_ss.add(when: 'CONFIG_DIGIC', if_true: files('digic-uart.c'))
 system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_uart.c'))
 system_ss.add(when: 'CONFIG_MAX78000_UART', if_true: files('max78000_uart.c'))
@@ -38,6 +38,6 @@ system_ss.add(when: 'CONFIG_MCHP_PFSOC_MMUART', if_true: files('mchp_pfsoc_mmuar
 system_ss.add(when: 'CONFIG_HTIF', if_true: files('riscv_htif.c'))
 system_ss.add(when: 'CONFIG_GOLDFISH_TTY', if_true: files('goldfish_tty.cpp'))
 
-specific_ss.add(when: 'CONFIG_TERMINAL3270', if_true: files('terminal3270.c'))
+specific_ss.add(when: 'CONFIG_TERMINAL3270', if_true: files('terminal3270.cpp'))
 specific_ss.add(when: 'CONFIG_VIRTIO', if_true: files('virtio-serial-bus.c'))
 specific_ss.add(when: 'CONFIG_PSERIES', if_true: files('spapr_vty.c'))

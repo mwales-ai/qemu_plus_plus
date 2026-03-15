@@ -181,7 +181,7 @@ static uint64_t mchp_pfsoc_ctrl_read(void *opaque, hwaddr offset,
 static void mchp_pfsoc_ctrl_write(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
-    MchpPfSoCIoscbState *s = opaque;
+    MchpPfSoCIoscbState *s = static_cast<MchpPfSoCIoscbState *>(opaque);
 
     switch (offset) {
     case SERVICES_CR:

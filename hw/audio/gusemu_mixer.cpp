@@ -33,7 +33,7 @@
 #define GUSvoice(position) (*(uint16_t *)(voiceptr+(position)))
 
 /* samples are always 16bit stereo (4 bytes each, first right then left interleaved) */
-void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int numsamples,
+extern "C" void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int numsamples,
                    int16_t *bufferpos)
 {
     /* note that byte registers are stored in the upper half of each voice register! */
@@ -183,7 +183,7 @@ void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int
     }
 }
 
-void gus_irqgen(GUSEmuState * state, unsigned int elapsed_time)
+extern "C" void gus_irqgen(GUSEmuState * state, unsigned int elapsed_time)
 /* time given in microseconds */
 {
     int             requestedIRQs = 0;

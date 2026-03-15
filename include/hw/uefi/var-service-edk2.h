@@ -11,6 +11,10 @@
 
 #include "qemu/uuid.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_BIT                   0x8000000000000000ULL
 #define ENCODE_ERROR(StatusCode)  (MAX_BIT | (StatusCode))
 #define EFI_SUCCESS               0
@@ -162,7 +166,11 @@ struct variable_policy_entry {
     uint32_t      version;
     uint16_t      size;
     uint16_t      offset_to_name;
+#ifdef __cplusplus
+    QemuUUID      name_space;
+#else
     QemuUUID      namespace;
+#endif
     uint32_t      min_size;
     uint32_t      max_size;
     uint32_t      attributes_must_have;
@@ -175,7 +183,11 @@ struct variable_policy_entry {
 
 /* VARIABLE_LOCK_ON_VAR_STATE_POLICY */
 struct variable_lock_on_var_state {
+#ifdef __cplusplus
+    QemuUUID      name_space;
+#else
     QemuUUID      namespace;
+#endif
     uint8_t       value;
     uint8_t       padding;
     /* Name */
@@ -223,5 +235,9 @@ struct variable_auth_2 {
     QemuUUID  guid_cert_type;
     uint8_t   cert_data[];
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_UEFI_VAR_SERVICE_EDK2_H */

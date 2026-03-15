@@ -12,6 +12,10 @@
 #include "system/memory.h"
 #include "hw/uefi/var-service-edk2.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_BUFFER_SIZE (64 * 1024)
 
 typedef struct uefi_variable uefi_variable;
@@ -188,5 +192,9 @@ void uefi_vars_policies_clear(uefi_vars_state *uv);
 uefi_var_policy *uefi_vars_add_policy(uefi_vars_state *uv,
                                       variable_policy_entry *pe);
 uint32_t uefi_vars_mm_check_policy_proto(uefi_vars_state *uv);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_UEFI_VAR_SERVICE_H */

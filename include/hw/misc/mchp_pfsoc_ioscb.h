@@ -25,6 +25,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct MchpPfSoCIoscbState {
     SysBusDevice parent;
     MemoryRegion container;
@@ -52,5 +56,9 @@ typedef struct MchpPfSoCIoscbState {
 
 #define MCHP_PFSOC_IOSCB(obj) \
     OBJECT_CHECK(MchpPfSoCIoscbState, (obj), TYPE_MCHP_PFSOC_IOSCB)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MCHP_PFSOC_IOSCB_H */

@@ -25,6 +25,10 @@
 #ifndef GUSEMU_H
 #define GUSEMU_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _GUSEmuState
 {
  uint8_t *himemaddr; /* 1024*1024 bytes used for storing uploaded samples (+32 additional bytes for read padding) */
@@ -84,5 +88,9 @@ void gus_irqgen(GUSEmuState *state, unsigned int elapsed_time);
 /* recommended range: 80us < elapsed_time < max(1000us, numsamples/playback_freq) */
 /* lower values won´t provide any benefit at all, higher values can cause audible timing delays */
 /* note: masked timers are also calculated by this function, thus it might be needed even without any IRQs in use! */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GUSEMU_H */

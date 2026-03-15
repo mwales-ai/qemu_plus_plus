@@ -80,10 +80,10 @@ static void mcf_uart_update(mcf_uart_state *s)
     qemu_set_irq(s->irq, (s->isr & s->imr) != 0);
 }
 
-uint64_t mcf_uart_read(void *opaque, hwaddr addr,
+extern "C" uint64_t mcf_uart_read(void *opaque, hwaddr addr,
                        unsigned size)
 {
-    mcf_uart_state *s = (mcf_uart_state *)opaque;
+    mcf_uart_state *s = static_cast<mcf_uart_state *>(opaque);
     switch (addr & 0x3f) {
     case 0x00:
         return s->mr[s->current_mr];
@@ -200,10 +200,10 @@ static void mcf_do_command(mcf_uart_state *s, uint8_t cmd)
     }
 }
 
-void mcf_uart_write(void *opaque, hwaddr addr,
+extern "C" void mcf_uart_write(void *opaque, hwaddr addr,
                     uint64_t val, unsigned size)
 {
-    mcf_uart_state *s = (mcf_uart_state *)opaque;
+    mcf_uart_state *s = static_cast<mcf_uart_state *>(opaque);
     switch (addr & 0x3f) {
     case 0x00:
         s->mr[s->current_mr] = val;
@@ -265,7 +265,7 @@ static void mcf_uart_push_byte(mcf_uart_state *s, uint8_t data)
 
 static void mcf_uart_event(void *opaque, QEMUChrEvent event)
 {
-    mcf_uart_state *s = (mcf_uart_state *)opaque;
+    mcf_uart_state *s = static_cast<mcf_uart_state *>(opaque);
 
     switch (event) {
     case CHR_EVENT_BREAK:
@@ -279,14 +279,14 @@ static void mcf_uart_event(void *opaque, QEMUChrEvent event)
 
 static int mcf_uart_can_receive(void *opaque)
 {
-    mcf_uart_state *s = (mcf_uart_state *)opaque;
+    mcf_uart_state *s = static_cast<mcf_uart_state *>(opaque);
 
     return s->rx_enabled ? FIFO_DEPTH - s->fifo_len : 0;
 }
 
 static void mcf_uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    mcf_uart_state *s = (mcf_uart_state *)opaque;
+    mcf_uart_state *s = static_cast<mcf_uart_state *>(opaque);
 
     for (int i = 0; i < size; i++) {
         mcf_uart_push_byte(s, buf[i]);
@@ -347,7 +347,7 @@ static void mcf_uart_register(void)
 
 type_init(mcf_uart_register)
 
-DeviceState *mcf_uart_create(qemu_irq irq, Chardev *chrdrv)
+extern "C" DeviceState *mcf_uart_create(qemu_irq irq, Chardev *chrdrv)
 {
     DeviceState *dev;
 
@@ -361,7 +361,7 @@ DeviceState *mcf_uart_create(qemu_irq irq, Chardev *chrdrv)
     return dev;
 }
 
-DeviceState *mcf_uart_create_mmap(hwaddr base, qemu_irq irq, Chardev *chrdrv)
+extern "C" DeviceState *mcf_uart_create_mmap(hwaddr base, qemu_irq irq, Chardev *chrdrv)
 {
     DeviceState *dev;
 

@@ -21,8 +21,8 @@ static AddressSpace *get_iocsr_as(CPUState *cpu)
 
 static int loongarch_ipi_cmp(const void *a, const void *b)
 {
-   IPICore *ipi_a = (IPICore *)a;
-   IPICore *ipi_b = (IPICore *)b;
+   const IPICore *ipi_a = static_cast<const IPICore *>(a);
+   const IPICore *ipi_b = static_cast<const IPICore *>(b);
 
    return ipi_a->arch_id - ipi_b->arch_id;
 }
@@ -33,8 +33,8 @@ static int loongarch_cpu_by_arch_id(LoongsonIPICommonState *lics,
     IPICore ipi, *found;
 
     ipi.arch_id = arch_id;
-    found = bsearch(&ipi, lics->cpu, lics->num_cpu, sizeof(IPICore),
-                    loongarch_ipi_cmp);
+    found = static_cast<IPICore *>(bsearch(&ipi, lics->cpu, lics->num_cpu,
+                    sizeof(IPICore), loongarch_ipi_cmp));
     if (found && found->cpu) {
         if (index) {
             *index = found - lics->cpu;
@@ -213,6 +213,11 @@ static void loongarch_ipi_class_init(ObjectClass *klass, const void *data)
     licc->post_load = loongarch_ipi_post_load;
 }
 
+static const InterfaceInfo loongarch_ipi_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo loongarch_ipi_types[] = {
     {
         .name               = TYPE_LOONGARCH_IPI,
@@ -220,10 +225,7 @@ static const TypeInfo loongarch_ipi_types[] = {
         .instance_size      = sizeof(LoongarchIPIState),
         .class_size         = sizeof(LoongarchIPIClass),
         .class_init         = loongarch_ipi_class_init,
-        .interfaces         = (const InterfaceInfo[]) {
-            { TYPE_HOTPLUG_HANDLER },
-            { }
-        },
+        .interfaces         = loongarch_ipi_interfaces,
     }
 };
 

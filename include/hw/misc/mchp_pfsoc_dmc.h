@@ -25,6 +25,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* DDR SGMII PHY module */
 
 #define MCHP_PFSOC_DDR_SGMII_PHY_REG_SIZE   0x1000
@@ -54,5 +58,9 @@ typedef struct MchpPfSoCDdrCfgState {
 #define MCHP_PFSOC_DDR_CFG(obj) \
     OBJECT_CHECK(MchpPfSoCDdrCfgState, (obj), \
                  TYPE_MCHP_PFSOC_DDR_CFG)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MCHP_PFSOC_DMC_H */

@@ -30,11 +30,11 @@ static char *generate_hexstr(void *data, size_t len)
         '0', '1', '2', '3', '4', '5', '6', '7',
         '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
     };
-    uint8_t *src = data;
+    uint8_t *src = static_cast<uint8_t *>(data);
     char *dest;
     size_t i;
 
-    dest = g_malloc(len * 2 + 1);
+    dest = static_cast<char *>(g_malloc(len * 2 + 1));
     for (i = 0; i < len * 2;) {
         dest[i++] = hex[*src >> 4];
         dest[i++] = hex[*src & 15];
@@ -85,17 +85,20 @@ static UefiVarStore *uefi_vars_to_qapi(uefi_vars_state *uv)
 
 static unsigned parse_hexchar(char c)
 {
-    switch (c) {
-    case '0' ... '9': return c - '0';
-    case 'a' ... 'f': return c - 'a' + 0xa;
-    case 'A' ... 'F': return c - 'A' + 0xA;
-    default: return 0;
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    } else if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 0xa;
+    } else if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 0xA;
+    } else {
+        return 0;
     }
 }
 
-static void parse_hexstr(void *dest, char *src, int len)
+static void parse_hexstr(void *dest, char *src, size_t len)
 {
-    uint8_t *data = dest;
+    uint8_t *data = static_cast<uint8_t *>(dest);
     size_t i;
 
     for (i = 0; i < len; i += 2) {
@@ -124,14 +127,14 @@ static void uefi_vars_from_qapi(uefi_vars_state *uv, UefiVarStore *vs)
 
         len = strlen(v->name);
         var->name_size = len * 2 + 2;
-        var->name = g_malloc(var->name_size);
+        var->name = static_cast<uint16_t *>(g_malloc(var->name_size));
         for (i = 0; i <= len; i++) {
             var->name[i] = v->name[i];
         }
 
         len = strlen(v->data);
         var->data_size = len / 2;
-        var->data = data = g_malloc(var->data_size);
+        var->data = data = static_cast<uint8_t *>(g_malloc(var->data_size));
         parse_hexstr(var->data, v->data, len);
 
         if (v->time && strlen(v->time) == 32) {
@@ -169,14 +172,14 @@ static GString *uefi_vars_to_json(uefi_vars_state *uv)
     return gstr;
 }
 
-void uefi_vars_json_init(uefi_vars_state *uv, Error **errp)
+extern "C" void uefi_vars_json_init(uefi_vars_state *uv, Error **errp)
 {
     if (uv->jsonfile) {
         uv->jsonfd = qemu_create(uv->jsonfile, O_RDWR | O_BINARY, 0666, errp);
     }
 }
 
-void uefi_vars_json_save(uefi_vars_state *uv)
+extern "C" void uefi_vars_json_save(uefi_vars_state *uv)
 {
     g_autoptr(GString) gstr = NULL;
     int rc;
@@ -200,7 +203,7 @@ void uefi_vars_json_save(uefi_vars_state *uv)
     }
 
     rc = write(uv->jsonfd, gstr->str, gstr->len);
-    if (rc != gstr->len) {
+    if (rc != static_cast<int>(gstr->len)) {
         warn_report("%s: write error", __func__);
         return;
     }
@@ -208,7 +211,7 @@ void uefi_vars_json_save(uefi_vars_state *uv)
     fsync(uv->jsonfd);
 }
 
-void uefi_vars_json_load(uefi_vars_state *uv, Error **errp)
+extern "C" void uefi_vars_json_load(uefi_vars_state *uv, Error **errp)
 {
     UefiVarStore *vs;
     QObject *qobj;
@@ -231,7 +234,7 @@ void uefi_vars_json_load(uefi_vars_state *uv, Error **errp)
         return;
     }
 
-    str = g_malloc(len + 1);
+    str = static_cast<char *>(g_malloc(len + 1));
     lseek(uv->jsonfd, 0, SEEK_SET);
     rc = read(uv->jsonfd, str, len);
     if (rc != len) {

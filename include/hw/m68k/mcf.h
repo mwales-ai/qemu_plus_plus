@@ -5,6 +5,10 @@
 #include "exec/hwaddr.h"
 #include "target/m68k/cpu-qom.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* mcf_uart.c */
 uint64_t mcf_uart_read(void *opaque, hwaddr addr,
                        unsigned size);
@@ -20,5 +24,9 @@ qemu_irq *mcf_intc_init(struct MemoryRegion *sysmem,
 
 /* mcf5206.c */
 #define TYPE_MCF5206_MBAR "mcf5206-mbar"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
