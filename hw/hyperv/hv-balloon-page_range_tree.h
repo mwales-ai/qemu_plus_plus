@@ -10,6 +10,9 @@
 #ifndef HW_HYPERV_HV_BALLOON_PAGE_RANGE_TREE_H
 #define HW_HYPERV_HV_BALLOON_PAGE_RANGE_TREE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* PageRange */
 typedef struct PageRange {
@@ -113,5 +116,9 @@ bool hvb_page_range_tree_pop(PageRangeTree tree, PageRange *out,
 void hvb_page_range_tree_insert(PageRangeTree tree,
                                 uint64_t start, uint64_t count,
                                 uint64_t *dupcount);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

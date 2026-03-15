@@ -28,11 +28,19 @@
 
 #include "hw/isa/isa.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_ISA_SERIAL_PORTS 4
 
 #define TYPE_ISA_SERIAL "isa-serial"
 void serial_hds_isa_init(ISABus *bus, int from, int to);
 void isa_serial_set_iobase(ISADevice *serial, hwaddr iobase);
 void isa_serial_set_enabled(ISADevice *serial, bool enabled);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

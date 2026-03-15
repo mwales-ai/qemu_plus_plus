@@ -1,6 +1,6 @@
 system_ss.add(when: ['CONFIG_XEN_BUS'], if_true: files(
   'xen-backend.cpp',
-  'xen-bus-helper.c',
+  'xen-bus-helper.cpp',
   'xen-bus.c',
   'xen-legacy-backend.c',
   'xen_devconfig.c',

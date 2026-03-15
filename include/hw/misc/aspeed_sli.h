@@ -10,6 +10,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ASPEED_SLI "aspeed.sli"
 #define TYPE_ASPEED_2700_SLI TYPE_ASPEED_SLI "-ast2700"
 #define TYPE_ASPEED_2700_SLIIO TYPE_ASPEED_SLI "io" "-ast2700"
@@ -23,5 +27,9 @@ struct AspeedSLIState {
 
     uint32_t regs[ASPEED_SLI_NR_REGS];
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ASPEED_SLI_H */

@@ -4,6 +4,10 @@
 #include "exec/hwaddr.h"
 #include "qapi/qapi-types-block.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* fdc.c */
 #define MAX_FD 2
 
@@ -19,5 +23,9 @@ void isa_fdc_set_enabled(ISADevice *fdc, bool enabled);
 
 FloppyDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i);
 int cmos_get_fd_drive_type(FloppyDriveType fd0);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

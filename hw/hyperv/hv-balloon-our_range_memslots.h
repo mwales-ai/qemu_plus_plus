@@ -10,10 +10,13 @@
 #ifndef HW_HYPERV_HV_BALLOON_OUR_RANGE_MEMSLOTS_H
 #define HW_HYPERV_HV_BALLOON_OUR_RANGE_MEMSLOTS_H
 
-
 #include "system/memory.h"
 #include "qom/object.h"
 #include "hv-balloon-page_range_tree.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* OurRange */
 #define OUR_RANGE(ptr) ((OurRange *)(ptr))
@@ -105,5 +108,9 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(OurRangeMemslots, hvb_our_range_memslots_free)
 
 void hvb_our_range_memslots_ensure_mapped_additional(OurRangeMemslots *our_range,
                                                      uint64_t additional_map_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

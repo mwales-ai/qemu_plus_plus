@@ -10,6 +10,10 @@
 
 #include "hw/xen/xen_backend_ops.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const char *xs_strstate(enum xenbus_state state);
 
 void xs_node_create(struct qemu_xs_handle *h,  xs_transaction_t tid,
@@ -52,5 +56,9 @@ struct qemu_xs_watch *xs_node_watch(struct qemu_xs_handle *h, const char *node,
                                     const char *key, xs_watch_fn fn,
                                     void *opaque, Error **errp);
 void xs_node_unwatch(struct qemu_xs_handle *h, struct qemu_xs_watch *w);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_XEN_BUS_HELPER_H */

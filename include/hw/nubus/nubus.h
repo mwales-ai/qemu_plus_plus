@@ -15,6 +15,10 @@
 #include "qom/object.h"
 #include "qemu/units.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NUBUS_SUPER_SLOT_SIZE 0x10000000U
 #define NUBUS_SUPER_SLOT_NB   0xe
 
@@ -71,5 +75,9 @@ struct NubusBridge {
 
     NubusBus bus;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

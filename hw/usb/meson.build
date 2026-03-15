@@ -3,7 +3,7 @@ hw_usb_modules = {}
 # usb subsystem core
 system_ss.add(when: 'CONFIG_USB', if_true: files(
   'bus.c',
-  'combined-packet.c',
+  'combined-packet.cpp',
   'core.c',
   'desc.c',
   'desc-msos.c',

@@ -10,6 +10,9 @@
 #ifndef HW_HYPERV_HV_BALLOON_INTERNAL_H
 #define HW_HYPERV_HV_BALLOON_INTERNAL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define HV_BALLOON_PFN_SHIFT 12
 #define HV_BALLOON_PAGE_SIZE (1 << HV_BALLOON_PFN_SHIFT)
@@ -28,5 +31,9 @@
                                                 \
         _result;                                \
     })
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

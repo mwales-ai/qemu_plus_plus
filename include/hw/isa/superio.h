@@ -14,6 +14,10 @@
 #include "hw/isa/isa.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ISA_SUPERIO "isa-superio"
 typedef struct ISASuperIOClass ISASuperIOClass;
 typedef struct ISASuperIODevice ISASuperIODevice;
@@ -56,5 +60,9 @@ struct ISASuperIOClass {
 
 #define TYPE_FDC37M81X_SUPERIO  "fdc37m81x-superio"
 #define TYPE_SMC37C669_SUPERIO  "smc37c669-superio"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_ISA_SUPERIO_H */

@@ -13,6 +13,10 @@
 #include "hw/input/ps2.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define I8042_KBD_IRQ      0
 #define I8042_MOUSE_IRQ    1
 
@@ -104,5 +108,9 @@ static inline uint16_t iapc_boot_arch_8042(void)
 {
     return i8042_present() ? 0x1 << 1 : 0x0 ;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_INPUT_I8042_H */

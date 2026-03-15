@@ -68,7 +68,7 @@ void usb_combined_input_packet_complete(USBDevice *dev, USBPacket *p)
     QTAILQ_FOREACH_SAFE(p, &combined->packets, combined_entry, next) {
         if (!done) {
             /* Distribute data over uncombined packets */
-            if (actual_length >= p->iov.size) {
+            if (static_cast<size_t>(actual_length) >= p->iov.size) {
                 p->actual_length = p->iov.size;
             } else {
                 /* Send short or error packet to complete the transfer */

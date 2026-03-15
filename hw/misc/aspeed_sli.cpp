@@ -21,7 +21,7 @@
 static uint64_t aspeed_sli_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSLIState *s = ASPEED_SLI(opaque);
-    int reg = TO_REG(addr);
+    unsigned int reg = TO_REG(addr);
 
     if (reg >= ARRAY_SIZE(s->regs)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -38,7 +38,7 @@ static void aspeed_sli_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned int size)
 {
     AspeedSLIState *s = ASPEED_SLI(opaque);
-    int reg = TO_REG(addr);
+    unsigned int reg = TO_REG(addr);
 
     if (reg >= ARRAY_SIZE(s->regs)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -54,7 +54,7 @@ static void aspeed_sli_write(void *opaque, hwaddr addr, uint64_t data,
 static uint64_t aspeed_sliio_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSLIState *s = ASPEED_SLI(opaque);
-    int reg = TO_REG(addr);
+    unsigned int reg = TO_REG(addr);
 
     if (reg >= ARRAY_SIZE(s->regs)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -71,7 +71,7 @@ static void aspeed_sliio_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned int size)
 {
     AspeedSLIState *s = ASPEED_SLI(opaque);
-    int reg = TO_REG(addr);
+    unsigned int reg = TO_REG(addr);
 
     if (reg >= ARRAY_SIZE(s->regs)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -136,8 +136,8 @@ static const TypeInfo aspeed_sli_info = {
     .name          = TYPE_ASPEED_SLI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSLIState),
+    .is_abstract   = true,
     .class_init    = aspeed_sli_class_init,
-    .is_abstract      = true,
 };
 
 static void aspeed_2700_sli_class_init(ObjectClass *klass, const void *data)

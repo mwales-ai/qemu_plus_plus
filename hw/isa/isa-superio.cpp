@@ -39,8 +39,8 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     int i;
 
     /* Parallel port */
-    for (i = 0; i < k->parallel.count; i++) {
-        if (i >= ARRAY_SIZE(sio->parallel)) {
+    for (i = 0; static_cast<size_t>(i) < k->parallel.count; i++) {
+        if (static_cast<size_t>(i) >= ARRAY_SIZE(sio->parallel)) {
             warn_report("superio: ignoring %td parallel controllers",
                         k->parallel.count - ARRAY_SIZE(sio->parallel));
             break;
@@ -78,8 +78,8 @@ static void isa_superio_realize(DeviceState *dev, Error **errp)
     }
 
     /* Serial */
-    for (i = 0; i < k->serial.count; i++) {
-        if (i >= ARRAY_SIZE(sio->serial)) {
+    for (i = 0; static_cast<size_t>(i) < k->serial.count; i++) {
+        if (static_cast<size_t>(i) >= ARRAY_SIZE(sio->serial)) {
             warn_report("superio: ignoring %td serial controllers",
                         k->serial.count - ARRAY_SIZE(sio->serial));
             break;
@@ -185,10 +185,10 @@ static void isa_superio_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo isa_superio_type_info = {
     .name = TYPE_ISA_SUPERIO,
     .parent = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(ISASuperIODevice),
     .is_abstract = true,
     .class_size = sizeof(ISASuperIOClass),
     .class_init = isa_superio_class_init,
-    .instance_size = sizeof(ISASuperIODevice),
 };
 
 static void isa_superio_register_types(void)
