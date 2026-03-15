@@ -12,6 +12,10 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef INT2VOIDP
 #define INT2VOIDP(i) (void *)(uintptr_t)(i)
 #endif
@@ -36,5 +40,9 @@ struct RemoteIommu {
 void remote_iommu_setup(PCIBus *pci_bus);
 
 void remote_iommu_unplug_dev(PCIDevice *pci_dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

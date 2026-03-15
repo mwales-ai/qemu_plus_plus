@@ -53,12 +53,12 @@ struct X86IOMMUClass {
  * @index: IRTE index to invalidate (start from)
  * @mask: invalidation mask
  */
-typedef void (*iec_notify_fn)(void *private, bool global,
+typedef void (*iec_notify_fn)(void *priv_data, bool global,
                               uint32_t index, uint32_t mask);
 
 struct IEC_Notifier {
     iec_notify_fn iec_notify;
-    void *private;
+    void *priv_data;
     QLIST_ENTRY(IEC_Notifier) list;
 };
 typedef struct IEC_Notifier IEC_Notifier;

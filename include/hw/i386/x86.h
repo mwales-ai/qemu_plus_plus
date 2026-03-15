@@ -27,6 +27,10 @@
 #include "qom/object.h"
 #include "system/igvm-cfg.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct X86MachineClass {
     MachineClass parent;
 
@@ -153,5 +157,9 @@ DeviceState *ioapic_init_secondary(GSIState *gsi_state);
 
 /* pc_sysfw.c */
 void x86_firmware_configure(hwaddr gpa, void *ptr, int size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

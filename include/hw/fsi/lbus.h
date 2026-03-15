@@ -11,6 +11,10 @@
 #include "qemu/units.h"
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_FSI_LBUS_DEVICE "fsi.lbus.device"
 OBJECT_DECLARE_SIMPLE_TYPE(FSILBusDevice, FSI_LBUS_DEVICE)
 
@@ -39,5 +43,9 @@ typedef struct FSIScratchPad {
 
         uint32_t regs[FSI_SCRATCHPAD_NR_REGS];
 } FSIScratchPad;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FSI_LBUS_H */

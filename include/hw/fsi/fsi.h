@@ -12,6 +12,10 @@
 #include "hw/fsi/lbus.h"
 #include "qemu/bitops.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Bitwise operations at the word level. */
 #define BE_GENMASK(hb, lb)  MAKE_64BIT_MASK((lb), ((hb) - (lb) + 1))
 
@@ -33,5 +37,9 @@ typedef struct FSISlaveState {
     MemoryRegion iomem;
     uint32_t regs[FSI_SLAVE_CONTROL_NR_REGS];
 } FSISlaveState;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FSI_FSI_H */

@@ -43,14 +43,14 @@ const MemoryRegionOps alpha_pci_ignore_ops = {
 static uint64_t bw_conf1_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    PCIBus *b = opaque;
+    PCIBus *b = static_cast<PCIBus *>(opaque);
     return pci_data_read(b, addr, size);
 }
 
 static void bw_conf1_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    PCIBus *b = opaque;
+    PCIBus *b = static_cast<PCIBus *>(opaque);
     pci_data_write(b, addr, val, size);
 }
 

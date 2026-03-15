@@ -27,18 +27,18 @@
 #include "trace.h"
 #include "system/kvm.h"
 
-void x86_iommu_iec_register_notifier(X86IOMMUState *iommu,
+extern "C" void x86_iommu_iec_register_notifier(X86IOMMUState *iommu,
                                      iec_notify_fn fn, void *data)
 {
     IEC_Notifier *notifier = g_new0(IEC_Notifier, 1);
 
     notifier->iec_notify = fn;
-    notifier->private = data;
+    notifier->priv_data = data;
 
     QLIST_INSERT_HEAD(&iommu->iec_notifiers, notifier, list);
 }
 
-void x86_iommu_iec_notify_all(X86IOMMUState *iommu, bool global,
+extern "C" void x86_iommu_iec_notify_all(X86IOMMUState *iommu, bool global,
                               uint32_t index, uint32_t mask)
 {
     IEC_Notifier *notifier;
@@ -47,14 +47,14 @@ void x86_iommu_iec_notify_all(X86IOMMUState *iommu, bool global,
 
     QLIST_FOREACH(notifier, &iommu->iec_notifiers, list) {
         if (notifier->iec_notify) {
-            notifier->iec_notify(notifier->private, global,
+            notifier->iec_notify(notifier->priv_data, global,
                                  index, mask);
         }
     }
 }
 
 /* Generate one MSI message from VTDIrq info */
-void x86_iommu_irq_to_msi_message(X86IOMMUIrq *irq, MSIMessage *msg_out)
+extern "C" void x86_iommu_irq_to_msi_message(X86IOMMUIrq *irq, MSIMessage *msg_out)
 {
     X86IOMMU_MSIMessage msg = {};
 
@@ -77,7 +77,7 @@ void x86_iommu_irq_to_msi_message(X86IOMMUIrq *irq, MSIMessage *msg_out)
     msg_out->data = msg.msi_data;
 }
 
-X86IOMMUState *x86_iommu_get_default(void)
+extern "C" X86IOMMUState *x86_iommu_get_default(void)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     PCMachineState *pcms =
@@ -98,8 +98,8 @@ static void x86_iommu_realize(DeviceState *dev, Error **errp)
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     PCMachineState *pcms =
         PC_MACHINE(object_dynamic_cast(OBJECT(ms), TYPE_PC_MACHINE));
-    QLIST_INIT(&x86_iommu->iec_notifiers);
     bool irq_all_kernel = kvm_irqchip_in_kernel() && !kvm_irqchip_is_split();
+    QLIST_INIT(&x86_iommu->iec_notifiers);
 
     if (!pcms || !pcms->pcibus) {
         error_setg(errp, "Machine-type '%s' not supported by IOMMU",
@@ -140,7 +140,7 @@ static void x86_iommu_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, x86_iommu_properties);
 }
 
-bool x86_iommu_ir_supported(X86IOMMUState *s)
+extern "C" bool x86_iommu_ir_supported(X86IOMMUState *s)
 {
     return s->intr_supported == ON_OFF_AUTO_ON;
 }
@@ -149,9 +149,9 @@ static const TypeInfo x86_iommu_info = {
     .name          = TYPE_X86_IOMMU_DEVICE,
     .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
     .instance_size = sizeof(X86IOMMUState),
-    .class_init    = x86_iommu_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(X86IOMMUClass),
-    .is_abstract      = true,
+    .class_init    = x86_iommu_class_init,
 };
 
 static void x86_iommu_register_types(void)

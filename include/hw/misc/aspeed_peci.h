@@ -12,6 +12,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ASPEED_PECI_NR_REGS ((0xFC + 4) >> 2)
 #define TYPE_ASPEED_PECI "aspeed.peci"
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedPECIState, ASPEED_PECI);
@@ -25,5 +29,9 @@ struct AspeedPECIState {
 
     uint32_t regs[ASPEED_PECI_NR_REGS];
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -12,6 +12,10 @@
 #include "hw/fsi/fsi.h"
 #include "hw/fsi/lbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_FSI_CFAM "cfam"
 #define FSI_CFAM(obj) OBJECT_CHECK(FSICFAMState, (obj), TYPE_FSI_CFAM)
 
@@ -30,5 +34,9 @@ typedef struct FSICFAMState {
     FSILBus lbus;
     FSIScratchPad scratchpad;
 } FSICFAMState;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FSI_CFAM_H */

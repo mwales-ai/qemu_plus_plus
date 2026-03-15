@@ -1,7 +1,7 @@
 alpha_ss = ss.source_set()
 alpha_ss.add(when: 'CONFIG_DP264', if_true: files(
   'dp264.c',
-  'pci.c',
+  'pci.cpp',
   'typhoon.c',
 ))
 

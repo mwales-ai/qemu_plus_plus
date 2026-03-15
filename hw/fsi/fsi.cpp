@@ -28,7 +28,7 @@ static uint64_t fsi_slave_read(void *opaque, hwaddr addr, unsigned size)
 
     if (reg >= FSI_SLAVE_CONTROL_NR_REGS) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out of bounds read: 0x%"HWADDR_PRIx" for %u\n",
+                      "%s: Out of bounds read: 0x%" HWADDR_PRIx " for %u\n",
                       __func__, addr, size);
         return 0;
     }
@@ -46,7 +46,7 @@ static void fsi_slave_write(void *opaque, hwaddr addr, uint64_t data,
 
     if (reg >= FSI_SLAVE_CONTROL_NR_REGS) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out of bounds write: 0x%"HWADDR_PRIx" for %u\n",
+                      "%s: Out of bounds write: 0x%" HWADDR_PRIx " for %u\n",
                       __func__, addr, size);
         return;
     }
@@ -88,8 +88,8 @@ static void fsi_slave_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo fsi_slave_info = {
     .name = TYPE_FSI_SLAVE,
     .parent = TYPE_DEVICE,
-    .instance_init = fsi_slave_init,
     .instance_size = sizeof(FSISlaveState),
+    .instance_init = fsi_slave_init,
     .class_init = fsi_slave_class_init,
 };
 

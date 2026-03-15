@@ -144,8 +144,8 @@ static const TypeInfo aspeed_peci_types[] = {
         .name = TYPE_ASPEED_PECI,
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(AspeedPECIState),
-        .class_init = aspeed_peci_class_init,
         .is_abstract = false,
+        .class_init = aspeed_peci_class_init,
     },
 };
 

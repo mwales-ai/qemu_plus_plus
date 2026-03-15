@@ -43,7 +43,7 @@ static uint64_t fsi_master_read(void *opaque, hwaddr addr, unsigned size)
 
     if (reg >= FSI_MASTER_NR_REGS) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out of bounds read: 0x%"HWADDR_PRIx" for %u\n",
+                      "%s: Out of bounds read: 0x%" HWADDR_PRIx " for %u\n",
                       __func__, addr, size);
         return 0;
     }
@@ -61,7 +61,7 @@ static void fsi_master_write(void *opaque, hwaddr addr, uint64_t data,
 
     if (reg >= FSI_MASTER_NR_REGS) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out of bounds write: %"HWADDR_PRIx" for %u\n",
+                      "%s: Out of bounds write: %" HWADDR_PRIx " for %u\n",
                       __func__, addr, size);
         return;
     }
@@ -157,8 +157,8 @@ static void fsi_master_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo fsi_master_info = {
     .name = TYPE_FSI_MASTER,
     .parent = TYPE_DEVICE,
-    .instance_init = fsi_master_init,
     .instance_size = sizeof(FSIMasterState),
+    .instance_init = fsi_master_init,
     .class_init = fsi_master_class_init,
 };
 

@@ -12,6 +12,10 @@
 #include "hw/fsi/fsi.h"
 #include "hw/fsi/cfam.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_FSI_MASTER "fsi.master"
 OBJECT_DECLARE_SIMPLE_TYPE(FSIMasterState, FSI_MASTER)
 
@@ -28,5 +32,8 @@ typedef struct FSIMasterState {
     FSICFAMState cfam;
 } FSIMasterState;
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FSI_FSI_H */

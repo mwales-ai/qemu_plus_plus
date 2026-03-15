@@ -26,6 +26,10 @@
 #include "hw/usb.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Number of Downstream Ports on the root hub: */
 #define OHCI_MAX_PORTS 15
 
@@ -120,5 +124,9 @@ void ohci_bus_stop(OHCIState *ohci);
 void ohci_stop_endpoints(OHCIState *ohci);
 void ohci_hard_reset(OHCIState *ohci);
 void ohci_sysbus_die(struct OHCIState *ohci);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

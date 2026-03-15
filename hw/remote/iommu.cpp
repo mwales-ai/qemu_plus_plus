@@ -39,12 +39,12 @@
 static AddressSpace *remote_iommu_find_add_as(PCIBus *pci_bus,
                                               void *opaque, int devfn)
 {
-    RemoteIommu *iommu = opaque;
+    RemoteIommu *iommu = static_cast<RemoteIommu *>(opaque);
     RemoteIommuElem *elem = NULL;
 
     qemu_mutex_lock(&iommu->lock);
 
-    elem = g_hash_table_lookup(iommu->elem_by_devfn, INT2VOIDP(devfn));
+    elem = static_cast<RemoteIommuElem *>(g_hash_table_lookup(iommu->elem_by_devfn, INT2VOIDP(devfn)));
 
     if (!elem) {
         elem = g_new0(RemoteIommuElem, 1);
@@ -62,7 +62,7 @@ static AddressSpace *remote_iommu_find_add_as(PCIBus *pci_bus,
     return &elem->as;
 }
 
-void remote_iommu_unplug_dev(PCIDevice *pci_dev)
+extern "C" void remote_iommu_unplug_dev(PCIDevice *pci_dev)
 {
     AddressSpace *as = pci_device_iommu_address_space(pci_dev);
     RemoteIommuElem *elem = NULL;
@@ -104,7 +104,7 @@ static const PCIIOMMUOps remote_iommu_ops = {
     .get_address_space = remote_iommu_find_add_as,
 };
 
-void remote_iommu_setup(PCIBus *pci_bus)
+extern "C" void remote_iommu_setup(PCIBus *pci_bus)
 {
     RemoteIommu *iommu = NULL;
 

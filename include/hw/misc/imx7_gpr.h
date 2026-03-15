@@ -16,6 +16,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_IMX7_GPR "imx7.gpr"
 OBJECT_DECLARE_SIMPLE_TYPE(IMX7GPRState, IMX7_GPR)
 
@@ -25,5 +29,9 @@ struct IMX7GPRState {
 
     MemoryRegion mmio;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* IMX7_GPR_H */
