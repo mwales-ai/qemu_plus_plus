@@ -3,7 +3,7 @@ system_ss.add(when: ['CONFIG_XEN_BUS'], if_true: files(
   'xen-bus-helper.cpp',
   'xen-bus.c',
   'xen-legacy-backend.c',
-  'xen_devconfig.c',
+  'xen_devconfig.cpp',
   'xen_pvdev.c',
 ))
 

@@ -4,6 +4,10 @@
 #include "hw/sysbus.h"
 #include "hw/xen/xen_backend_ops.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ------------------------------------------------------------- */
 
 #define XEN_BUFSIZE 1024
@@ -79,5 +83,9 @@ int xen_pv_send_notify(struct XenLegacyDevice *xendev);
 
 void xen_pv_printf(struct XenLegacyDevice *xendev, int msg_level,
                    const char *fmt, ...)  G_GNUC_PRINTF(3, 4);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_HW_XEN_PVDEV_H */

@@ -20,6 +20,10 @@
 #include "hw/virtio/virtio.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct virtio_serial_conf {
     /* Max. number of ports we can have for a virtio-serial device */
     uint32_t max_virtserial_ports;
@@ -221,6 +225,10 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port);
  * value here.
  */
 void virtio_serial_throttle_port(VirtIOSerialPort *port, bool throttle);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif

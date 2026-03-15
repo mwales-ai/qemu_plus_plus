@@ -21,6 +21,10 @@
 #include "system/iothread.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VIRTIO_BALLOON "virtio-balloon-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIOBalloon, VIRTIO_BALLOON)
 
@@ -76,5 +80,9 @@ struct VirtIOBalloon {
     /* State of the resettable container */
     ResettableState reset_state;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

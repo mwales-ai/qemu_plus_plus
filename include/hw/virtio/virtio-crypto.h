@@ -20,6 +20,9 @@
 #include "system/cryptodev.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define DEBUG_VIRTIO_CRYPTO 0
 
@@ -97,5 +100,9 @@ struct VirtIOCrypto {
     size_t config_size;
     uint8_t vhost_started;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VIRTIO_CRYPTO_H */

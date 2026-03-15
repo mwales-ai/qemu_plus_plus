@@ -23,6 +23,10 @@
 
 #include "ebpf/ebpf_rss.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VIRTIO_NET "virtio-net-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIONet, VIRTIO_NET)
 
@@ -240,5 +244,9 @@ size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);
 uint64_t virtio_net_supported_guest_offloads(const VirtIONet *n);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

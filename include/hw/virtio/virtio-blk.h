@@ -23,6 +23,10 @@
 #include "qom/object.h"
 #include "qapi/qapi-types-virtio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VIRTIO_BLK "virtio-blk-device"
 OBJECT_DECLARE_TYPE(VirtIOBlock, VirtIOBlkClass, VIRTIO_BLK)
 
@@ -110,5 +114,9 @@ typedef struct VirtIOBlkClass {
 
 void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq);
 void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

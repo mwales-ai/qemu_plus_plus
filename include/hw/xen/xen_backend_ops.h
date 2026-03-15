@@ -16,6 +16,10 @@
 #include "hw/xen/interface/xen.h"
 #include "hw/xen/interface/io/xenbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * For the time being, these operations map fairly closely to the API of
  * the actual Xen libraries, e.g. libxenevtchn. As we complete the migration
@@ -404,5 +408,9 @@ static inline bool qemu_xen_xs_transaction_end(struct qemu_xs_handle *h,
 }
 
 void setup_xen_backend_ops(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_XEN_BACKEND_OPS_H */
