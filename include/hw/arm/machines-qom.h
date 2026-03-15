@@ -11,6 +11,10 @@
 
 #include "hw/boards.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_TARGET_ARM_MACHINE \
         "target-info-arm-machine"
 
@@ -42,5 +46,9 @@ extern const InterfaceInfo aarch64_machine_interfaces[];
 #define DEFINE_MACHINE_AARCH64(namestr, machine_initfn) \
         DEFINE_MACHINE_WITH_INTERFACE_ARRAY(namestr, machine_initfn, \
                                             aarch64_machine_interfaces)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

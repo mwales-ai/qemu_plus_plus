@@ -15,6 +15,10 @@
 #include "hw/virtio/virtio.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NSM_MAX_PCRS 32
 
 #define TYPE_VIRTIO_NSM "virtio-nsm-device"
@@ -45,5 +49,9 @@ struct VirtIONSM {
     bool (*extend_pcr)(VirtIONSM *vnsm, int ind, uint8_t *data, uint16_t len);
     void (*lock_pcr)(VirtIONSM *vnsm, int ind);
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

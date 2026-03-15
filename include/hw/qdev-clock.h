@@ -16,6 +16,10 @@
 
 #include "hw/clock.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * qdev_init_clock_in:
  * @dev: the device to add an input clock to
@@ -160,5 +164,9 @@ typedef struct ClockPortInitElem ClockPortInitArray[];
  * clocks information.
  */
 void qdev_init_clocks(DeviceState *dev, const ClockPortInitArray clocks);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QDEV_CLOCK_H */

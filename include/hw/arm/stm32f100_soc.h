@@ -31,6 +31,10 @@
 #include "qom/object.h"
 #include "hw/clock.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_STM32F100_SOC "stm32f100-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(STM32F100State, STM32F100_SOC)
 
@@ -57,5 +61,9 @@ struct STM32F100State {
     Clock *sysclk;
     Clock *refclk;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

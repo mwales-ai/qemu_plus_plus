@@ -9,17 +9,18 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qapi/error.h"
 #include "hw/boards.h"
-#include "hw/arm/boot.h"
-#include "hw/arm/machines-qom.h"
 #include "system/system.h"
 #include "system/address-spaces.h"
-
-#include "hw/arm/nrf51_soc.h"
 #include "hw/i2c/microbit_i2c.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
+
+#include "hw/arm/boot.h"
+#include "hw/arm/machines-qom.h"
+#include "hw/arm/nrf51_soc.h"
 
 struct MicrobitMachineState {
     MachineState parent;

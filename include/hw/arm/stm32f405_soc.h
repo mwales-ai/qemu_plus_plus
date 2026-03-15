@@ -36,6 +36,10 @@
 #include "hw/arm/armv7m.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_STM32F405_SOC "stm32f405-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(STM32F405State, STM32F405_SOC)
 
@@ -73,5 +77,9 @@ struct STM32F405State {
     Clock *sysclk;
     Clock *refclk;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

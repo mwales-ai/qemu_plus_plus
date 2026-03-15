@@ -20,6 +20,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_TRICORE_TESTDEVICE "tricore_testdevice"
 #define TRICORE_TESTDEVICE(obj) \
     OBJECT_CHECK(TriCoreTestDeviceState, (obj), TYPE_TRICORE_TESTDEVICE)
@@ -29,5 +33,9 @@ typedef struct {
 
     MemoryRegion iomem;
 } TriCoreTestDeviceState;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

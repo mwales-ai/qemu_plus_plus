@@ -19,6 +19,10 @@
 #include "qemu/host-utils.h"
 #include "qemu/bitops.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_CLOCK "clock"
 OBJECT_DECLARE_SIMPLE_TYPE(Clock, CLOCK)
 
@@ -369,5 +373,9 @@ char *clock_display_freq(Clock *clk);
  * caller should do that if necessary.
  */
 bool clock_set_mul_div(Clock *clk, uint32_t multiplier, uint32_t divider);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_HW_CLOCK_H */

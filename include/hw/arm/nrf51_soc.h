@@ -20,6 +20,10 @@
 #include "hw/clock.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_NRF51_SOC "nrf51-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(NRF51State, NRF51_SOC)
 
@@ -53,5 +57,9 @@ struct NRF51State {
 
     Clock *sysclk;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

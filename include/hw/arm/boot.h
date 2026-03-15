@@ -14,6 +14,10 @@
 #include "target/arm/cpu-qom.h"
 #include "qemu/notify.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     ARM_ENDIANNESS_UNKNOWN = 0,
     ARM_ENDIANNESS_LE,
@@ -236,5 +240,9 @@ void arm_write_bootloader(const char *name,
                           AddressSpace *as, hwaddr addr,
                           const ARMInsnFixup *insns,
                           const uint32_t *fixupcontext);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_ARM_BOOT_H */

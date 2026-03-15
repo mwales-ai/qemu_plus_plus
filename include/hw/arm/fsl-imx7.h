@@ -41,6 +41,10 @@
 #include "qom/object.h"
 #include "qemu/units.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_FSL_IMX7 "fsl-imx7"
 OBJECT_DECLARE_SIMPLE_TYPE(FslIMX7State, FSL_IMX7)
 
@@ -438,5 +442,9 @@ enum FslIMX7IRQs {
 
     FSL_IMX7_MAX_IRQ      = 128,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FSL_IMX7_H */

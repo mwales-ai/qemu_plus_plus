@@ -14,6 +14,10 @@
 #include "qemu/queue.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct XenEventChannel XenEventChannel;
 
 struct XenDevice {
@@ -134,5 +138,9 @@ void xen_device_unbind_event_channel(XenDevice *xendev,
                                      XenEventChannel *channel,
                                      Error **errp);
 unsigned int xen_event_channel_get_local_port(XenEventChannel *channel);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_XEN_BUS_H */

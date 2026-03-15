@@ -38,6 +38,10 @@
 #include "qom/object.h"
 #include "qemu/units.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_FSL_IMX6UL "fsl-imx6ul"
 OBJECT_DECLARE_SIMPLE_TYPE(FslIMX6ULState, FSL_IMX6UL)
 
@@ -459,5 +463,9 @@ enum FslIMX6ULIRQs {
     FSL_IMX6UL_PMU_CORE_IRQ = 127,
     FSL_IMX6UL_MAX_IRQ      = 128,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* FSL_IMX6UL_H */

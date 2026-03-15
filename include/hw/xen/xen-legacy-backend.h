@@ -5,6 +5,10 @@
 #include "hw/xen/xen_pvdev.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_XENSYSDEV "xen-sysdev"
 #define TYPE_XENSYSBUS "xen-sysbus"
 #define TYPE_XENBACKEND "xen-backend"
@@ -65,5 +69,9 @@ static inline void xen_be_unmap_grant_ref(struct XenLegacyDevice *xendev,
 void xen_config_cleanup(void);
 int xen_config_dev_vfb(int vdev, const char *type);
 int xen_config_dev_vkbd(int vdev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_XEN_LEGACY_BACKEND_H */
