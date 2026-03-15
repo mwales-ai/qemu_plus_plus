@@ -11,6 +11,14 @@
 
 #include "hw/acpi/acpi_aml_interface.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void build_ipmi_dev_aml(AcpiDevAmlIf *adev, Aml *scope);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_ACPI_IPMI_H */

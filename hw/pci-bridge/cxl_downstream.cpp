@@ -98,37 +98,42 @@ static void build_dvsecs(CXLComponentState *cxl)
 {
     uint8_t *dvsec;
 
-    dvsec = (uint8_t *)&(CXLDVSECPortExt){ 0 };
+    CXLDVSECPortExt port_ext;
+    memset(&port_ext, 0, sizeof(port_ext));
+    dvsec = reinterpret_cast<uint8_t *>(&port_ext);
     cxl_component_create_dvsec(cxl, CXL2_DOWNSTREAM_PORT,
                                EXTENSIONS_PORT_DVSEC_LENGTH,
                                EXTENSIONS_PORT_DVSEC,
                                EXTENSIONS_PORT_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECPortFlexBus){
-        .cap                     = 0x27, /* Cache, IO, Mem, non-MLD */
-        .ctrl                    = 0x02, /* IO always enabled */
-        .status                  = 0x26, /* same */
-        .rcvd_mod_ts_data_phase1 = 0xef, /* WTF? */
-    };
+    CXLDVSECPortFlexBus flex_bus;
+    memset(&flex_bus, 0, sizeof(flex_bus));
+    flex_bus.cap                     = 0x27; /* Cache, IO, Mem, non-MLD */
+    flex_bus.ctrl                    = 0x02; /* IO always enabled */
+    flex_bus.status                  = 0x26; /* same */
+    flex_bus.rcvd_mod_ts_data_phase1 = 0xef; /* WTF? */
+    dvsec = reinterpret_cast<uint8_t *>(&flex_bus);
     cxl_component_create_dvsec(cxl, CXL2_DOWNSTREAM_PORT,
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_LENGTH,
                                PCIE_FLEXBUS_PORT_DVSEC,
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECPortGPF){
-        .rsvd        = 0,
-        .phase1_ctrl = 1, /* 1μs timeout */
-        .phase2_ctrl = 1, /* 1μs timeout */
-    };
+    CXLDVSECPortGPF port_gpf;
+    memset(&port_gpf, 0, sizeof(port_gpf));
+    port_gpf.rsvd        = 0;
+    port_gpf.phase1_ctrl = 1; /* 1us timeout */
+    port_gpf.phase2_ctrl = 1; /* 1us timeout */
+    dvsec = reinterpret_cast<uint8_t *>(&port_gpf);
     cxl_component_create_dvsec(cxl, CXL2_DOWNSTREAM_PORT,
                                GPF_PORT_DVSEC_LENGTH, GPF_PORT_DVSEC,
                                GPF_PORT_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECRegisterLocator){
-        .rsvd         = 0,
-        .reg0_base_lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX,
-        .reg0_base_hi = 0,
-    };
+    CXLDVSECRegisterLocator reg_loc;
+    memset(&reg_loc, 0, sizeof(reg_loc));
+    reg_loc.rsvd         = 0;
+    reg_loc.reg0_base_lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX;
+    reg_loc.reg0_base_hi = 0;
+    dvsec = reinterpret_cast<uint8_t *>(&reg_loc);
     cxl_component_create_dvsec(cxl, CXL2_DOWNSTREAM_PORT,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,
                                REG_LOC_DVSEC_REVID, dvsec);
@@ -236,16 +241,18 @@ static void cxl_dsp_class_init(ObjectClass *oc, const void *data)
     device_class_set_legacy_reset(dc, cxl_dsp_reset);
 }
 
+static const InterfaceInfo cxl_dsp_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { INTERFACE_CXL_DEVICE },
+    { }
+};
+
 static const TypeInfo cxl_dsp_info = {
     .name = TYPE_CXL_DSP,
-    .instance_size = sizeof(CXLDownstreamPort),
     .parent = TYPE_PCIE_SLOT,
+    .instance_size = sizeof(CXLDownstreamPort),
     .class_init = cxl_dsp_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { INTERFACE_CXL_DEVICE },
-        { }
-    },
+    .interfaces = cxl_dsp_interfaces,
 };
 
 static void cxl_dsp_register_type(void)

@@ -13,6 +13,10 @@
 #include "hw/cxl/cxl_pci.h"
 #include "hw/pci/pcie_doe.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Reference:
  *   Coherent Device Attribute Table (CDAT) Specification, Rev. 1.03, July. 2022
@@ -169,4 +173,8 @@ typedef struct CDATObject {
     struct CDATSubHeader **built_buf;
     int built_buf_len;
 } CDATObject;
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* CXL_CDAT_H */

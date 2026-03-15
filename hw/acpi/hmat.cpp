@@ -77,7 +77,8 @@ static void build_hmat_lb(GArray *table_data, HMAT_LB_Info *hmat_lb,
                           uint32_t num_initiator, uint32_t num_target,
                           uint32_t *initiator_list)
 {
-    int i, index;
+    uint32_t i;
+    int index;
     uint32_t initiator_to_index[MAX_NODES] = {};
     HMAT_LB_Data *lb_data;
     uint16_t *entry_list;

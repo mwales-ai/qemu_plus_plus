@@ -18,6 +18,10 @@
 #include "cxl_component.h"
 #include "cxl_device.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CXL_CACHE_LINE_SIZE 64
 #define CXL_COMPONENT_REG_BAR_IDX 0
 #define CXL_DEVICE_REG_BAR_IDX 2
@@ -70,5 +74,9 @@ CXLComponentState *cxl_usp_to_cstate(CXLUpstreamPort *usp);
 
 typedef struct CXLDownstreamPort CXLDownstreamPort;
 DECLARE_INSTANCE_CHECKER(CXLDownstreamPort, CXL_DSP, TYPE_CXL_DSP)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

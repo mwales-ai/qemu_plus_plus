@@ -1,6 +1,9 @@
 #ifndef BIOS_LINKER_LOADER_H
 #define BIOS_LINKER_LOADER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct BIOSLinker {
     GArray *cmd_blob;
@@ -36,4 +39,9 @@ void bios_linker_loader_write_pointer(BIOSLinker *linker,
                                       uint32_t src_offset);
 
 void bios_linker_loader_cleanup(BIOSLinker *linker);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

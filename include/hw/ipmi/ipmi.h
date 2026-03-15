@@ -29,6 +29,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_IPMI_MSG_SIZE 300
 
 enum ipmi_op {
@@ -80,6 +84,24 @@ enum ipmi_op {
  * Used for transferring information to interfaces that add
  * entries to firmware tables.
  */
+enum IPMIMemspace {
+    IPMI_MEMSPACE_IO,
+    IPMI_MEMSPACE_MEM32,
+    IPMI_MEMSPACE_MEM64,
+    IPMI_MEMSPACE_SMBUS
+};
+
+enum IPMIIrqSource {
+    IPMI_NO_IRQ = 0,
+    IPMI_ISA_IRQ,
+    IPMI_PCI_IRQ,
+};
+
+enum IPMIIrqType {
+    IPMI_LEVEL_IRQ,
+    IPMI_EDGE_IRQ
+};
+
 typedef struct IPMIFwInfo {
     const char *interface_name;
     int interface_type;
@@ -92,23 +114,11 @@ typedef struct IPMIFwInfo {
     uint64_t base_address;
     uint64_t register_length;
     uint8_t register_spacing;
-    enum {
-        IPMI_MEMSPACE_IO,
-        IPMI_MEMSPACE_MEM32,
-        IPMI_MEMSPACE_MEM64,
-        IPMI_MEMSPACE_SMBUS
-    } memspace;
+    enum IPMIMemspace memspace;
 
     int interrupt_number;
-    enum {
-        IPMI_NO_IRQ = 0,
-        IPMI_ISA_IRQ,
-        IPMI_PCI_IRQ,
-    } irq_source;
-    enum {
-        IPMI_LEVEL_IRQ,
-        IPMI_EDGE_IRQ
-    } irq_type;
+    enum IPMIIrqSource irq_source;
+    enum IPMIIrqType irq_type;
 } IPMIFwInfo;
 
 /*
@@ -316,5 +326,9 @@ typedef struct IPMINetfn {
 
 int ipmi_sim_register_netfn(IPMIBmcSim *s, unsigned int netfn,
                             const IPMINetfn *netfnd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -26,6 +26,10 @@
 #include "hw/pci/pci_device.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PCIE_PORT "pcie-port"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIEPort, PCIE_PORT)
 
@@ -95,5 +99,9 @@ struct PCIERootPortClass {
     int acs_offset;    /* If nonzero, optional ACS capability offset */
     int ssid;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_PCIE_PORT_H */

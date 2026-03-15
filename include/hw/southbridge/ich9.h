@@ -11,6 +11,10 @@
 #include "qemu/notify.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ich9_generate_smi(void);
 
 #define ICH9_CC_SIZE (16 * 1024) /* 16KB. Chipset configuration registers */
@@ -247,5 +251,9 @@ struct ICH9LPCState {
 #define ICH9_LPC_SMI_F_BROADCAST_BIT            0
 #define ICH9_LPC_SMI_F_CPU_HOTPLUG_BIT          1
 #define ICH9_LPC_SMI_F_CPU_HOT_UNPLUG_BIT       2
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SOUTHBRIDGE_ICH9_H */

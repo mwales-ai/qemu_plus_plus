@@ -10,6 +10,9 @@
 #ifndef CXL_PCI_H
 #define CXL_PCI_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define CXL_VENDOR_ID 0x1e98
 
@@ -190,5 +193,9 @@ QEMU_BUILD_BUG_ON(sizeof(CXLDVSECRegisterLocator) != 0x24);
 #define RBI_COMPONENT_REG  (1 << 8)
 #define RBI_BAR_VIRT_ACL   (2 << 8)
 #define RBI_CXL_DEVICE_REG (3 << 8)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

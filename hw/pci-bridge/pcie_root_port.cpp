@@ -181,17 +181,19 @@ static void rp_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, rp_props);
 }
 
+static const InterfaceInfo rp_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
+};
+
 static const TypeInfo rp_info = {
     .name          = TYPE_PCIE_ROOT_PORT,
     .parent        = TYPE_PCIE_SLOT,
     .instance_post_init = rp_instance_post_init,
-    .class_init    = rp_class_init,
     .is_abstract      = true,
     .class_size = sizeof(PCIERootPortClass),
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+    .class_init    = rp_class_init,
+    .interfaces = rp_interfaces,
 };
 
 static void rp_register_types(void)

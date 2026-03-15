@@ -23,6 +23,10 @@
 
 #include "hw/pci/pci_regs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* definitions which PCIExpressDevice uses */
 
 /* error */
@@ -101,4 +105,8 @@ void pcie_aer_root_write_config(PCIDevice *dev,
                                 uint32_t root_cmd_prev);
 
 int pcie_aer_inject_error(PCIDevice *dev, const PCIEAERErr *err);
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* QEMU_PCIE_AER_H */

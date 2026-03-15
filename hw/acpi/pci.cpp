@@ -81,10 +81,37 @@ typedef struct AcpiGenericInitiatorClass {
 
 #define TYPE_ACPI_GENERIC_INITIATOR "acpi-generic-initiator"
 
-OBJECT_DEFINE_TYPE_WITH_INTERFACES(AcpiGenericInitiator, acpi_generic_initiator,
-                   ACPI_GENERIC_INITIATOR, OBJECT,
-                   { TYPE_USER_CREATABLE },
-                   { NULL })
+static void
+acpi_generic_initiator_finalize(Object *obj);
+static void
+acpi_generic_initiator_class_init(ObjectClass *oc, const void *data);
+static void
+acpi_generic_initiator_init(Object *obj);
+
+static const InterfaceInfo acpi_generic_initiator_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { NULL }
+};
+
+static const TypeInfo acpi_generic_initiator_info = {
+    .name = TYPE_ACPI_GENERIC_INITIATOR,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(AcpiGenericInitiator),
+    .instance_align = __alignof__(AcpiGenericInitiator),
+    .instance_init = acpi_generic_initiator_init,
+    .instance_finalize = acpi_generic_initiator_finalize,
+    .is_abstract = false,
+    .class_size = sizeof(AcpiGenericInitiatorClass),
+    .class_init = acpi_generic_initiator_class_init,
+    .interfaces = acpi_generic_initiator_interfaces,
+};
+
+static void
+acpi_generic_initiator_register_types(void)
+{
+    type_register_static(&acpi_generic_initiator_info);
+}
+type_init(acpi_generic_initiator_register_types);
 
 OBJECT_DECLARE_SIMPLE_TYPE(AcpiGenericInitiator, ACPI_GENERIC_INITIATOR)
 
@@ -149,7 +176,7 @@ static int build_acpi_generic_initiator(Object *obj, void *opaque)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     AcpiGenericInitiator *gi;
-    GArray *table_data = opaque;
+    GArray *table_data = static_cast<GArray *>(opaque);
     int32_t devfn;
     uint8_t bus;
     Object *o;
@@ -159,7 +186,7 @@ static int build_acpi_generic_initiator(Object *obj, void *opaque)
     }
 
     gi = ACPI_GENERIC_INITIATOR(obj);
-    if (gi->node >= ms->numa_state->num_nodes) {
+    if (gi->node >= static_cast<uint32_t>(ms->numa_state->num_nodes)) {
         error_printf("%s: Specified node %d is invalid.\n",
                      TYPE_ACPI_GENERIC_INITIATOR, gi->node);
         exit(1);
@@ -197,10 +224,37 @@ typedef struct AcpiGenericPortClass {
 
 #define TYPE_ACPI_GENERIC_PORT "acpi-generic-port"
 
-OBJECT_DEFINE_TYPE_WITH_INTERFACES(AcpiGenericPort, acpi_generic_port,
-                   ACPI_GENERIC_PORT, OBJECT,
-                   { TYPE_USER_CREATABLE },
-                   { NULL })
+static void
+acpi_generic_port_finalize(Object *obj);
+static void
+acpi_generic_port_class_init(ObjectClass *oc, const void *data);
+static void
+acpi_generic_port_init(Object *obj);
+
+static const InterfaceInfo acpi_generic_port_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { NULL }
+};
+
+static const TypeInfo acpi_generic_port_info = {
+    .name = TYPE_ACPI_GENERIC_PORT,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(AcpiGenericPort),
+    .instance_align = __alignof__(AcpiGenericPort),
+    .instance_init = acpi_generic_port_init,
+    .instance_finalize = acpi_generic_port_finalize,
+    .is_abstract = false,
+    .class_size = sizeof(AcpiGenericPortClass),
+    .class_init = acpi_generic_port_class_init,
+    .interfaces = acpi_generic_port_interfaces,
+};
+
+static void
+acpi_generic_port_register_types(void)
+{
+    type_register_static(&acpi_generic_port_info);
+}
+type_init(acpi_generic_port_register_types);
 
 OBJECT_DECLARE_SIMPLE_TYPE(AcpiGenericPort, ACPI_GENERIC_PORT)
 
@@ -263,7 +317,7 @@ static int build_acpi_generic_port(Object *obj, void *opaque)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     const char *hid = "ACPI0016";
-    GArray *table_data = opaque;
+    GArray *table_data = static_cast<GArray *>(opaque);
     AcpiGenericPort *gp;
     uint32_t uid;
     Object *o;
@@ -274,7 +328,7 @@ static int build_acpi_generic_port(Object *obj, void *opaque)
 
     gp = ACPI_GENERIC_PORT(obj);
 
-    if (gp->node >= ms->numa_state->num_nodes) {
+    if (gp->node >= static_cast<uint32_t>(ms->numa_state->num_nodes)) {
         error_printf("%s: node %d is invalid.\n",
                      TYPE_ACPI_GENERIC_PORT, gp->node);
         exit(1);

@@ -20,6 +20,10 @@
 #include "hw/register.h"
 #include "qapi/error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum reg_type {
     CXL2_DEVICE,
     CXL2_TYPE3_DEVICE,
@@ -276,5 +280,9 @@ bool cxl_get_hb_passthrough(PCIHostState *hb);
 bool cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp);
 void cxl_doe_cdat_release(CXLComponentState *cxl_cstate);
 void cxl_doe_cdat_update(CXLComponentState *cxl_cstate, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

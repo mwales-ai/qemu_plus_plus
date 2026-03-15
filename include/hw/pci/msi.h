@@ -23,6 +23,10 @@
 
 #include "hw/pci/pci_device.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct MSIMessage {
     uint64_t address;
     uint32_t data;
@@ -50,5 +54,9 @@ static inline bool msi_present(const PCIDevice *dev)
 {
     return dev->cap_present & QEMU_PCI_CAP_MSI;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_MSI_H */

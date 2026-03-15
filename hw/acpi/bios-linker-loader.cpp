@@ -137,7 +137,7 @@ BIOSLinker *bios_linker_loader_init(void)
 /* Free linker wrapper */
 void bios_linker_loader_cleanup(BIOSLinker *linker)
 {
-    int i;
+    guint i;
     BiosLinkerFileEntry *entry;
 
     g_array_free(linker->cmd_blob, true);
@@ -153,7 +153,7 @@ void bios_linker_loader_cleanup(BIOSLinker *linker)
 static const BiosLinkerFileEntry *
 bios_linker_find_file(const BIOSLinker *linker, const char *name)
 {
-    int i;
+    guint i;
     BiosLinkerFileEntry *entry;
 
     for (i = 0; i < linker->file_list->len; i++) {

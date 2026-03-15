@@ -41,7 +41,7 @@ void ich9_pm_update_swsmi_timer(ICH9LPCPMRegs *pm, bool enable)
 
 static void ich9_pm_swsmi_timer_expired(void *opaque)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
 
     pm->smi_sts |= ICH9_PMIO_SMI_STS_SWSMI_STS;
     ich9_generate_smi();
@@ -76,7 +76,7 @@ void ich9_pm_update_periodic_timer(ICH9LPCPMRegs *pm, bool enable)
 
 static void ich9_pm_periodic_timer_expired(void *opaque)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
 
     pm->smi_sts = ICH9_PMIO_SMI_STS_PERIODIC_STS;
     ich9_generate_smi();

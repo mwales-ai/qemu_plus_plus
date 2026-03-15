@@ -12,6 +12,10 @@
 
 #include "hw/acpi/ich9.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ich9_pm_update_swsmi_timer(ICH9LPCPMRegs *pm, bool enable);
 
 void ich9_pm_swsmi_timer_init(ICH9LPCPMRegs *pm);
@@ -19,5 +23,9 @@ void ich9_pm_swsmi_timer_init(ICH9LPCPMRegs *pm);
 void ich9_pm_update_periodic_timer(ICH9LPCPMRegs *pm, bool enable);
 
 void ich9_pm_periodic_timer_init(ICH9LPCPMRegs *pm);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

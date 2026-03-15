@@ -12,6 +12,10 @@
 
 #include "qemu/uuid.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * CXL r3.1 section 8.2.9.2.2: Get Event Records (Opcode 0100h); Table 8-52
  *
@@ -198,5 +202,9 @@ typedef enum CXLDCEventType {
     DC_EVENT_ADD_CAPACITY_RSP = 0x4,
     DC_EVENT_CAPACITY_RELEASED = 0x5,
 } CXLDCEventType;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CXL_EVENTS_H */

@@ -31,6 +31,10 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/hotplug.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ACPI_PCIHP_IO_BASE_PROP "acpi-pcihp-io-base"
 #define ACPI_PCIHP_IO_LEN_PROP "acpi-pcihp-io-len"
 
@@ -88,6 +92,10 @@ void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus);
 void acpi_pcihp_reset(AcpiPciHpState *s);
 
 void build_append_pcihp_slots(Aml *parent_scope, PCIBus *bus);
+
+#ifdef __cplusplus
+}
+#endif
 
 extern const VMStateDescription vmstate_acpi_pcihp_pci_status;
 

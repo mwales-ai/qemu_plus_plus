@@ -43,7 +43,7 @@ static void build_pci_host_range(GArray *table_data, int min_bus, int max_bus,
 /* Build PCI range for a given PCI host bridge */
 static int enumerate_pci_host_bridges(Object *obj, void *opaque)
 {
-    GArray *pci_host_ranges = opaque;
+    GArray *pci_host_ranges = static_cast<GArray *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
         PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
@@ -95,7 +95,7 @@ void build_viot(MachineState *ms, GArray *table_data, BIOSLinker *linker,
     GArray *pci_host_ranges =  g_array_new(false, true,
                                            sizeof(struct viot_pci_host_range));
     struct viot_pci_host_range *pci_host_range;
-    int i;
+    guint i;
 
     /* Build the list of PCI ranges that this viommu manages */
     object_child_foreach_recursive(OBJECT(ms), enumerate_pci_host_bridges,

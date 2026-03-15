@@ -30,6 +30,10 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "system/numa.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * ACPI 6.3: 5.2.27.3 Memory Proximity Domain Attributes Structure,
  * Table 5-145, Field "flag", Bit [0]: set to 1 to indicate that data in
@@ -40,5 +44,9 @@
 
 void build_hmat(GArray *table_data, BIOSLinker *linker, NumaState *numa_state,
                 const char *oem_id, const char *oem_table_id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

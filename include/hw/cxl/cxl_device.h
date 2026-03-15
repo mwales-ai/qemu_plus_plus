@@ -15,6 +15,10 @@
 #include "hw/register.h"
 #include "hw/cxl/cxl_events.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The following is how a CXL device's Memory Device registers are laid out.
  * The only requirement from the spec is that the capabilities array and the
@@ -732,4 +736,9 @@ bool cxl_extents_overlaps_dpa_range(CXLDCExtentList *list,
                                     uint64_t dpa, uint64_t len);
 bool cxl_extent_groups_overlaps_dpa_range(CXLDCExtentGroupList *list,
                                           uint64_t dpa, uint64_t len);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
