@@ -29,7 +29,7 @@ static void update_output_irq(SIFIVEGPIOState *s)
     pending |= s->rise_ip & s->rise_ie;
     pending |= s->fall_ip & s->fall_ie;
 
-    for (int i = 0; i < s->ngpio; i++) {
+    for (uint32_t i = 0; i < s->ngpio; i++) {
         pin = 1 << i;
         qemu_set_irq(s->irq[i], (pending & pin) != 0);
         trace_sifive_gpio_update_output_irq(i, (pending & pin) != 0);
@@ -277,8 +277,10 @@ static const MemoryRegionOps gpio_ops = {
     .read =  sifive_gpio_read,
     .write = sifive_gpio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void sifive_gpio_set(void *opaque, int line, int value)
@@ -322,31 +324,33 @@ static void sifive_gpio_reset(DeviceState *dev)
     s->in_mask = 0;
 }
 
+static const VMStateField vmstate_sifive_gpio_fields[] = {
+    VMSTATE_UINT32(value,     SIFIVEGPIOState),
+    VMSTATE_UINT32(input_en,  SIFIVEGPIOState),
+    VMSTATE_UINT32(output_en, SIFIVEGPIOState),
+    VMSTATE_UINT32(port,      SIFIVEGPIOState),
+    VMSTATE_UINT32(pue,       SIFIVEGPIOState),
+    VMSTATE_UINT32(rise_ie,   SIFIVEGPIOState),
+    VMSTATE_UINT32(rise_ip,   SIFIVEGPIOState),
+    VMSTATE_UINT32(fall_ie,   SIFIVEGPIOState),
+    VMSTATE_UINT32(fall_ip,   SIFIVEGPIOState),
+    VMSTATE_UINT32(high_ie,   SIFIVEGPIOState),
+    VMSTATE_UINT32(high_ip,   SIFIVEGPIOState),
+    VMSTATE_UINT32(low_ie,    SIFIVEGPIOState),
+    VMSTATE_UINT32(low_ip,    SIFIVEGPIOState),
+    VMSTATE_UINT32(iof_en,    SIFIVEGPIOState),
+    VMSTATE_UINT32(iof_sel,   SIFIVEGPIOState),
+    VMSTATE_UINT32(out_xor,   SIFIVEGPIOState),
+    VMSTATE_UINT32(in,        SIFIVEGPIOState),
+    VMSTATE_UINT32(in_mask,   SIFIVEGPIOState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sifive_gpio = {
     .name = TYPE_SIFIVE_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(value,     SIFIVEGPIOState),
-        VMSTATE_UINT32(input_en,  SIFIVEGPIOState),
-        VMSTATE_UINT32(output_en, SIFIVEGPIOState),
-        VMSTATE_UINT32(port,      SIFIVEGPIOState),
-        VMSTATE_UINT32(pue,       SIFIVEGPIOState),
-        VMSTATE_UINT32(rise_ie,   SIFIVEGPIOState),
-        VMSTATE_UINT32(rise_ip,   SIFIVEGPIOState),
-        VMSTATE_UINT32(fall_ie,   SIFIVEGPIOState),
-        VMSTATE_UINT32(fall_ip,   SIFIVEGPIOState),
-        VMSTATE_UINT32(high_ie,   SIFIVEGPIOState),
-        VMSTATE_UINT32(high_ip,   SIFIVEGPIOState),
-        VMSTATE_UINT32(low_ie,    SIFIVEGPIOState),
-        VMSTATE_UINT32(low_ip,    SIFIVEGPIOState),
-        VMSTATE_UINT32(iof_en,    SIFIVEGPIOState),
-        VMSTATE_UINT32(iof_sel,   SIFIVEGPIOState),
-        VMSTATE_UINT32(out_xor,   SIFIVEGPIOState),
-        VMSTATE_UINT32(in,        SIFIVEGPIOState),
-        VMSTATE_UINT32(in_mask,   SIFIVEGPIOState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_sifive_gpio_fields,
 };
 
 static const Property sifive_gpio_properties[] = {
@@ -362,7 +366,7 @@ static void sifive_gpio_realize(DeviceState *dev, Error **errp)
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
 
-    for (int i = 0; i < s->ngpio; i++) {
+    for (uint32_t i = 0; i < s->ngpio; i++) {
         sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
     }
 

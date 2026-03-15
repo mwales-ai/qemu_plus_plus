@@ -345,18 +345,20 @@ static void pca955x_set_led(Object *obj, Visitor *v, const char *name,
     pca955x_write(s, reg, val);
 }
 
+static const VMStateField pca9552_vmstate_fields[] = {
+    VMSTATE_UINT8(len, PCA955xState),
+    VMSTATE_UINT8(pointer, PCA955xState),
+    VMSTATE_UINT8_ARRAY(regs, PCA955xState, PCA955X_NR_REGS),
+    VMSTATE_UINT8_ARRAY(ext_state, PCA955xState, PCA955X_PIN_COUNT_MAX),
+    VMSTATE_I2C_SLAVE(i2c, PCA955xState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription pca9552_vmstate = {
     .name = "PCA9552",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(len, PCA955xState),
-        VMSTATE_UINT8(pointer, PCA955xState),
-        VMSTATE_UINT8_ARRAY(regs, PCA955xState, PCA955X_NR_REGS),
-        VMSTATE_UINT8_ARRAY(ext_state, PCA955xState, PCA955X_PIN_COUNT_MAX),
-        VMSTATE_I2C_SLAVE(i2c, PCA955xState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = pca9552_vmstate_fields,
 };
 
 static void pca9552_reset(DeviceState *dev)
@@ -447,11 +449,11 @@ static void pca955x_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo pca955x_info = {
     .name          = TYPE_PCA955X,
     .parent        = TYPE_I2C_SLAVE,
-    .instance_init = pca955x_initfn,
     .instance_size = sizeof(PCA955xState),
-    .class_init    = pca955x_class_init,
-    .class_size    = sizeof(PCA955xClass),
+    .instance_init = pca955x_initfn,
     .is_abstract      = true,
+    .class_size    = sizeof(PCA955xClass),
+    .class_init    = pca955x_class_init,
 };
 
 static void pca9552_class_init(ObjectClass *oc, const void *data)

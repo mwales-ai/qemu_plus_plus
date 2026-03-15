@@ -12,6 +12,10 @@
 #include "hw/i2c/i2c.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PCA9552 "pca9552"
 #define TYPE_PCA955X "pca955x"
 typedef struct PCA955xState PCA955xState;
@@ -34,5 +38,9 @@ struct PCA955xState {
     uint8_t ext_state[PCA955X_PIN_COUNT_MAX];
     char *description; /* For debugging purpose only */
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -119,8 +119,8 @@ static void edu_check_range(uint64_t xfer_start, uint64_t xfer_size,
     }
 
     qemu_log_mask(LOG_GUEST_ERROR,
-                  "EDU: DMA range 0x%016"PRIx64"-0x%016"PRIx64
-                  " out of bounds (0x%016"PRIx64"-0x%016"PRIx64")!",
+                  "EDU: DMA range 0x%016" PRIx64 "-0x%016" PRIx64
+                  " out of bounds (0x%016" PRIx64 "-0x%016" PRIx64 ")!",
                   xfer_start, xfer_end - 1, dma_start, dma_end - 1);
 }
 
@@ -130,7 +130,7 @@ static dma_addr_t edu_clamp_addr(const EduState *edu, dma_addr_t addr)
 
     if (addr != res) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "EDU: clamping DMA 0x%016"PRIx64" to 0x%016"PRIx64"!",
+                      "EDU: clamping DMA 0x%016" PRIx64 " to 0x%016" PRIx64 "!",
                       addr, res);
     }
 
@@ -139,7 +139,7 @@ static dma_addr_t edu_clamp_addr(const EduState *edu, dma_addr_t addr)
 
 static void edu_dma_timer(void *opaque)
 {
-    EduState *edu = opaque;
+    EduState *edu = static_cast<EduState *>(opaque);
     bool raise_irq = false;
 
     if (!(edu->dma.cmd & EDU_DMA_RUN)) {
@@ -190,7 +190,7 @@ static void dma_rw(EduState *edu, bool write, dma_addr_t *val, dma_addr_t *dma,
 
 static uint64_t edu_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    EduState *edu = opaque;
+    EduState *edu = static_cast<EduState *>(opaque);
     uint64_t val = ~0ULL;
 
     if (addr < 0x80 && size != 4) {
@@ -239,7 +239,7 @@ static uint64_t edu_mmio_read(void *opaque, hwaddr addr, unsigned size)
 static void edu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                 unsigned size)
 {
-    EduState *edu = opaque;
+    EduState *edu = static_cast<EduState *>(opaque);
 
     if (addr < 0x80 && size != 4) {
         return;
@@ -311,7 +311,6 @@ static const MemoryRegionOps edu_mmio_ops = {
         .min_access_size = 4,
         .max_access_size = 8,
     },
-
 };
 
 /*
@@ -320,7 +319,7 @@ static const MemoryRegionOps edu_mmio_ops = {
  */
 static void *edu_fact_thread(void *opaque)
 {
-    EduState *edu = opaque;
+    EduState *edu = static_cast<EduState *>(opaque);
 
     while (1) {
         uint32_t val, ret = 1;
@@ -415,10 +414,10 @@ static void edu_instance_init(Object *obj)
                                    &edu->dma_mask, OBJ_PROP_FLAG_READWRITE);
 }
 
-static void edu_class_init(ObjectClass *class, const void *data)
+static void edu_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(class);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(class);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->realize = pci_edu_realize;
     k->exit = pci_edu_uninit;
@@ -429,6 +428,11 @@ static void edu_class_init(ObjectClass *class, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
+static const InterfaceInfo edu_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo edu_types[] = {
     {
         .name          = TYPE_PCI_EDU_DEVICE,
@@ -436,10 +440,7 @@ static const TypeInfo edu_types[] = {
         .instance_size = sizeof(EduState),
         .instance_init = edu_instance_init,
         .class_init    = edu_class_init,
-        .interfaces    = (const InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        },
+        .interfaces    = edu_interfaces,
     }
 };
 

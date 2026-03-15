@@ -17,6 +17,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SIFIVE_GPIO "sifive_soc.gpio"
 typedef struct SIFIVEGPIOState SIFIVEGPIOState;
 DECLARE_INSTANCE_CHECKER(SIFIVEGPIOState, SIFIVE_GPIO,
@@ -75,5 +79,9 @@ struct SIFIVEGPIOState {
     /* config */
     uint32_t ngpio;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SIFIVE_GPIO_H */

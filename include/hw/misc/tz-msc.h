@@ -54,6 +54,10 @@
 #include "target/arm/idau.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_TZ_MSC "tz-msc"
 OBJECT_DECLARE_SIMPLE_TYPE(TZMSC, TZ_MSC)
 
@@ -76,5 +80,9 @@ struct TZMSC {
     MemoryRegion upstream;
     IDAUInterface *idau;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

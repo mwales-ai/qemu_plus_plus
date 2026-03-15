@@ -215,18 +215,20 @@ static void pca9554_set_pin(Object *obj, Visitor *v, const char *name,
     pca9554_write(s, PCA9554_CONFIG, val);
 }
 
+static const VMStateField pca9554_vmstate_fields[] = {
+    VMSTATE_UINT8(len, PCA9554State),
+    VMSTATE_UINT8(pointer, PCA9554State),
+    VMSTATE_UINT8_ARRAY(regs, PCA9554State, PCA9554_NR_REGS),
+    VMSTATE_UINT8_ARRAY(ext_state, PCA9554State, PCA9554_PIN_COUNT),
+    VMSTATE_I2C_SLAVE(i2c, PCA9554State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription pca9554_vmstate = {
     .name = "PCA9554",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8(len, PCA9554State),
-        VMSTATE_UINT8(pointer, PCA9554State),
-        VMSTATE_UINT8_ARRAY(regs, PCA9554State, PCA9554_NR_REGS),
-        VMSTATE_UINT8_ARRAY(ext_state, PCA9554State, PCA9554_PIN_COUNT),
-        VMSTATE_I2C_SLAVE(i2c, PCA9554State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = pca9554_vmstate_fields,
 };
 
 static void pca9554_reset(DeviceState *dev)
@@ -309,11 +311,11 @@ static void pca9554_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo pca9554_info = {
     .name          = TYPE_PCA9554,
     .parent        = TYPE_I2C_SLAVE,
-    .instance_init = pca9554_initfn,
     .instance_size = sizeof(PCA9554State),
-    .class_init    = pca9554_class_init,
-    .class_size    = sizeof(PCA9554Class),
+    .instance_init = pca9554_initfn,
     .is_abstract      = false,
+    .class_size    = sizeof(PCA9554Class),
+    .class_init    = pca9554_class_init,
 };
 
 static void pca9554_register_types(void)

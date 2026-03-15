@@ -14,6 +14,10 @@
 #include "chardev/char-fe.h"
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_GOLDFISH_TTY "goldfish_tty"
 OBJECT_DECLARE_SIMPLE_TYPE(GoldfishTTYState, GOLDFISH_TTY)
 
@@ -32,5 +36,9 @@ struct GoldfishTTYState {
 
     Fifo8 rx_fifo;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

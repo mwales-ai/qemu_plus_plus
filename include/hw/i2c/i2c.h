@@ -221,10 +221,10 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_I2C_SLAVE(_field, _state) {                          \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(I2CSlave),                                  \
-    .vmsd       = &vmstate_i2c_slave,                                \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, I2CSlave),    \
+    .size       = sizeof(I2CSlave),                                  \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_i2c_slave,                                \
 }
 
 #ifdef __cplusplus

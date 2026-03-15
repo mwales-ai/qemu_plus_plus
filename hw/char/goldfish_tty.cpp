@@ -45,7 +45,7 @@ enum {
 static uint64_t goldfish_tty_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    GoldfishTTYState *s = opaque;
+    GoldfishTTYState *s = static_cast<GoldfishTTYState *>(opaque);
     uint64_t value = 0;
 
     switch (addr) {
@@ -126,7 +126,7 @@ static void goldfish_tty_cmd(GoldfishTTYState *s, uint32_t cmd)
 static void goldfish_tty_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
-    GoldfishTTYState *s = opaque;
+    GoldfishTTYState *s = static_cast<GoldfishTTYState *>(opaque);
     unsigned char c;
 
     trace_goldfish_tty_write(s, addr, size, value);
@@ -160,14 +160,18 @@ static const MemoryRegionOps goldfish_tty_ops = {
     .read = goldfish_tty_read,
     .write = goldfish_tty_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.max_access_size = 4,
-    .impl.max_access_size = 4,
-    .impl.min_access_size = 4,
+    .valid = {
+        .max_access_size = 4,
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static int goldfish_tty_can_receive(void *opaque)
 {
-    GoldfishTTYState *s = opaque;
+    GoldfishTTYState *s = static_cast<GoldfishTTYState *>(opaque);
     int available = fifo8_num_free(&s->rx_fifo);
 
     trace_goldfish_tty_can_receive(s, available);
@@ -177,7 +181,7 @@ static int goldfish_tty_can_receive(void *opaque)
 
 static void goldfish_tty_receive(void *opaque, const uint8_t *buffer, int size)
 {
-    GoldfishTTYState *s = opaque;
+    GoldfishTTYState *s = static_cast<GoldfishTTYState *>(opaque);
 
     trace_goldfish_tty_receive(s, size);
 
@@ -228,17 +232,19 @@ static void goldfish_tty_unrealize(DeviceState *dev)
     fifo8_destroy(&s->rx_fifo);
 }
 
+static const VMStateField vmstate_goldfish_tty_fields[] = {
+    VMSTATE_UINT32(data_len, GoldfishTTYState),
+    VMSTATE_UINT64(data_ptr, GoldfishTTYState),
+    VMSTATE_BOOL(int_enabled, GoldfishTTYState),
+    VMSTATE_FIFO8(rx_fifo, GoldfishTTYState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_goldfish_tty = {
     .name = "goldfish_tty",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(data_len, GoldfishTTYState),
-        VMSTATE_UINT64(data_ptr, GoldfishTTYState),
-        VMSTATE_BOOL(int_enabled, GoldfishTTYState),
-        VMSTATE_FIFO8(rx_fifo, GoldfishTTYState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_goldfish_tty_fields
 };
 
 static const Property goldfish_tty_properties[] = {
@@ -271,9 +277,9 @@ static void goldfish_tty_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo goldfish_tty_info = {
     .name = TYPE_GOLDFISH_TTY,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .class_init = goldfish_tty_class_init,
-    .instance_init = goldfish_tty_instance_init,
     .instance_size = sizeof(GoldfishTTYState),
+    .instance_init = goldfish_tty_instance_init,
+    .class_init = goldfish_tty_class_init,
 };
 
 static void goldfish_tty_register_types(void)

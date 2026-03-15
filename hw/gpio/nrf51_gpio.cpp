@@ -238,8 +238,10 @@ static const MemoryRegionOps gpio_ops = {
     .read =  nrf51_gpio_read,
     .write = nrf51_gpio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void nrf51_gpio_set(void *opaque, int line, int value)
@@ -275,20 +277,22 @@ static void nrf51_gpio_reset(DeviceState *dev)
     }
 }
 
+static const VMStateField vmstate_nrf51_gpio_fields[] = {
+    VMSTATE_UINT32(out, NRF51GPIOState),
+    VMSTATE_UINT32(in, NRF51GPIOState),
+    VMSTATE_UINT32(in_mask, NRF51GPIOState),
+    VMSTATE_UINT32(dir, NRF51GPIOState),
+    VMSTATE_UINT32_ARRAY(cnf, NRF51GPIOState, NRF51_GPIO_PINS),
+    VMSTATE_UINT32(old_out, NRF51GPIOState),
+    VMSTATE_UINT32(old_out_connected, NRF51GPIOState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_nrf51_gpio = {
     .name = TYPE_NRF51_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(out, NRF51GPIOState),
-        VMSTATE_UINT32(in, NRF51GPIOState),
-        VMSTATE_UINT32(in_mask, NRF51GPIOState),
-        VMSTATE_UINT32(dir, NRF51GPIOState),
-        VMSTATE_UINT32_ARRAY(cnf, NRF51GPIOState, NRF51_GPIO_PINS),
-        VMSTATE_UINT32(old_out, NRF51GPIOState),
-        VMSTATE_UINT32(old_out_connected, NRF51GPIOState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_nrf51_gpio_fields,
 };
 
 static void nrf51_gpio_init(Object *obj)

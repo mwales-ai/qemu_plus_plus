@@ -16,6 +16,10 @@
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_CMSDK_APB_UART "cmsdk-apb-uart"
 OBJECT_DECLARE_SIMPLE_TYPE(CMSDKAPBUART, CMSDK_APB_UART)
 
@@ -42,5 +46,9 @@ struct CMSDKAPBUART {
     uint8_t txbuf;
     uint8_t rxbuf;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

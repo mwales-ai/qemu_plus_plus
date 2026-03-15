@@ -28,6 +28,11 @@
 
 #include "hw/sysbus.h"
 #include "qom/object.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_NRF51_GPIO "nrf51_soc.gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(NRF51GPIOState, NRF51_GPIO)
 
@@ -66,6 +71,10 @@ struct NRF51GPIOState {
     qemu_irq output[NRF51_GPIO_PINS];
     qemu_irq detect;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif

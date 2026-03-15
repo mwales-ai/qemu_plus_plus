@@ -204,7 +204,7 @@ static gboolean uart_transmit(void *do_not_use, GIOCondition cond, void *opaque)
 
     ret = qemu_chr_fe_write(&s->chr, &s->txbuf, 1);
     if (ret <= 0) {
-        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                              uart_transmit, s);
         if (!s->watch_tag) {
             /* Most common reason to be here is "no chardev backend":
@@ -350,31 +350,33 @@ static void cmsdk_apb_uart_realize(DeviceState *dev, Error **errp)
 
 static int cmsdk_apb_uart_post_load(void *opaque, int version_id)
 {
-    CMSDKAPBUART *s = CMSDK_APB_UART(opaque);
+    CMSDKAPBUART *s = static_cast<CMSDKAPBUART *>(opaque);
 
     /* If we have a pending character, arrange to resend it. */
     if (s->state & R_STATE_TXFULL_MASK) {
-        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                              uart_transmit, s);
     }
     uart_update_parameters(s);
     return 0;
 }
 
+static const VMStateField cmsdk_apb_uart_vmstate_fields[] = {
+    VMSTATE_UINT32(state, CMSDKAPBUART),
+    VMSTATE_UINT32(ctrl, CMSDKAPBUART),
+    VMSTATE_UINT32(intstatus, CMSDKAPBUART),
+    VMSTATE_UINT32(bauddiv, CMSDKAPBUART),
+    VMSTATE_UINT8(txbuf, CMSDKAPBUART),
+    VMSTATE_UINT8(rxbuf, CMSDKAPBUART),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription cmsdk_apb_uart_vmstate = {
     .name = "cmsdk-apb-uart",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = cmsdk_apb_uart_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(state, CMSDKAPBUART),
-        VMSTATE_UINT32(ctrl, CMSDKAPBUART),
-        VMSTATE_UINT32(intstatus, CMSDKAPBUART),
-        VMSTATE_UINT32(bauddiv, CMSDKAPBUART),
-        VMSTATE_UINT8(txbuf, CMSDKAPBUART),
-        VMSTATE_UINT8(rxbuf, CMSDKAPBUART),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = cmsdk_apb_uart_vmstate_fields
 };
 
 static const Property cmsdk_apb_uart_properties[] = {

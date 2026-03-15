@@ -89,24 +89,26 @@ static int eeprom_write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
 static bool smbus_eeprom_vmstate_needed(void *opaque)
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
-    SMBusEEPROMDevice *eeprom = opaque;
+    SMBusEEPROMDevice *eeprom = static_cast<SMBusEEPROMDevice *>(opaque);
 
     return (eeprom->accessed || smbus_vmstate_needed(&eeprom->smbusdev)) &&
         !mc->smbus_no_migration_support;
 }
+
+static const VMStateField vmstate_smbus_eeprom_fields[] = {
+    VMSTATE_SMBUS_DEVICE(smbusdev, SMBusEEPROMDevice),
+    VMSTATE_UINT8_ARRAY(data, SMBusEEPROMDevice, SMBUS_EEPROM_SIZE),
+    VMSTATE_UINT8(offset, SMBusEEPROMDevice),
+    VMSTATE_BOOL(accessed, SMBusEEPROMDevice),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_smbus_eeprom = {
     .name = "smbus-eeprom",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = smbus_eeprom_vmstate_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_SMBUS_DEVICE(smbusdev, SMBusEEPROMDevice),
-        VMSTATE_UINT8_ARRAY(data, SMBusEEPROMDevice, SMBUS_EEPROM_SIZE),
-        VMSTATE_UINT8(offset, SMBusEEPROMDevice),
-        VMSTATE_BOOL(accessed, SMBusEEPROMDevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_smbus_eeprom_fields,
 };
 
 /*
@@ -162,6 +164,7 @@ static const TypeInfo smbus_eeprom_types[] = {
 
 DEFINE_TYPES(smbus_eeprom_types)
 
+extern "C"
 void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
 {
     DeviceState *dev;
@@ -170,9 +173,10 @@ void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
     qdev_prop_set_uint8(dev, "address", address);
     /* FIXME: use an array of byte or block backend property? */
     SMBUS_EEPROM(dev)->init_data = eeprom_buf;
-    qdev_realize_and_unref(dev, (BusState *)smbus, &error_fatal);
+    qdev_realize_and_unref(dev, reinterpret_cast<BusState *>(smbus), &error_fatal);
 }
 
+extern "C"
 void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int eeprom_spd_size)
 {
@@ -180,7 +184,7 @@ void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
      /* XXX: make this persistent */
 
     assert(nb_eeprom <= 8);
-    uint8_t *eeprom_buf = g_malloc0(8 * SMBUS_EEPROM_SIZE);
+    uint8_t *eeprom_buf = static_cast<uint8_t *>(g_malloc0(8 * SMBUS_EEPROM_SIZE));
     if (eeprom_spd_size > 0) {
         memcpy(eeprom_buf, eeprom_spd, eeprom_spd_size);
     }
@@ -192,6 +196,7 @@ void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
 }
 
 /* Generate SDRAM SPD EEPROM data describing a module of type and size */
+extern "C"
 uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t ram_size)
 {
     uint8_t *spd;
@@ -251,7 +256,7 @@ uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t ram_size)
         break;
     }
 
-    spd = g_malloc0(256);
+    spd = static_cast<uint8_t *>(g_malloc0(256));
     spd[0] = 128;   /* data bytes in EEPROM */
     spd[1] = 8;     /* log2 size of EEPROM */
     spd[2] = type;

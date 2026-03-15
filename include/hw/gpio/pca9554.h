@@ -11,6 +11,10 @@
 #include "hw/i2c/i2c.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PCA9554 "pca9554"
 typedef struct PCA9554State PCA9554State;
 DECLARE_INSTANCE_CHECKER(PCA9554State, PCA9554,
@@ -32,5 +36,9 @@ struct PCA9554State {
     uint8_t ext_state[PCA9554_PIN_COUNT];
     char *description; /* For debugging purpose only */
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

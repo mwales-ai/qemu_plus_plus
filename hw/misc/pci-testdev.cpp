@@ -153,7 +153,7 @@ static void
 pci_testdev_write(void *opaque, hwaddr addr, uint64_t val,
                   unsigned size, int type)
 {
-    PCITestDevState *d = opaque;
+    PCITestDevState *d = static_cast<PCITestDevState *>(opaque);
     IOTest *test;
     int t, r;
 
@@ -189,7 +189,7 @@ pci_testdev_write(void *opaque, hwaddr addr, uint64_t val,
 static uint64_t
 pci_testdev_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PCITestDevState *d = opaque;
+    PCITestDevState *d = static_cast<PCITestDevState *>(opaque);
     const char *buf;
     IOTest *test;
     if (d->current < 0) {
@@ -245,7 +245,8 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
     PCITestDevState *d = PCI_TEST_DEV(pci_dev);
     uint8_t *pci_conf;
     char *name;
-    int r, i;
+    int r;
+    size_t i;
 
     pci_conf = pci_dev->config;
 
@@ -275,12 +276,12 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
     }
 
     d->current = -1;
-    d->tests = g_malloc0(IOTEST_MAX * sizeof *d->tests);
+    d->tests = static_cast<IOTest *>(g_malloc0(IOTEST_MAX * sizeof *d->tests));
     for (i = 0; i < IOTEST_MAX; ++i) {
         IOTest *test = &d->tests[i];
         name = g_strdup_printf("%s-%s", IOTEST_TYPE(i), IOTEST_TEST(i));
         test->bufsize = sizeof(PCITestDevHdr) + strlen(name) + 1;
-        test->hdr = g_malloc0(test->bufsize);
+        test->hdr = static_cast<PCITestDevHdr *>(g_malloc0(test->bufsize));
         memcpy(test->hdr->name, name, strlen(name) + 1);
         g_free(name);
         test->hdr->offset = cpu_to_le32(IOTEST_SIZE(i) + i * IOTEST_ACCESS_WIDTH);
@@ -308,7 +309,7 @@ static void
 pci_testdev_uninit(PCIDevice *dev)
 {
     PCITestDevState *d = PCI_TEST_DEV(dev);
-    int i;
+    size_t i;
 
     pci_testdev_reset(d);
     for (i = 0; i < IOTEST_MAX; ++i) {
@@ -348,15 +349,17 @@ static void pci_testdev_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pci_testdev_properties);
 }
 
+static const InterfaceInfo pci_testdev_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo pci_testdev_info = {
     .name          = TYPE_PCI_TEST_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCITestDevState),
     .class_init    = pci_testdev_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = pci_testdev_interfaces,
 };
 
 static void pci_testdev_register_types(void)

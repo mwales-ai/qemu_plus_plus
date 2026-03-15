@@ -28,6 +28,10 @@
 #include "hw/i2c/i2c.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SMBUS_DEVICE "smbus-device"
 OBJECT_DECLARE_TYPE(SMBusDevice, SMBusDeviceClass,
                     SMBUS_DEVICE)
@@ -80,10 +84,10 @@ extern const VMStateDescription vmstate_smbus_device;
 
 #define VMSTATE_SMBUS_DEVICE(_field, _state) {                       \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(SMBusDevice),                               \
-    .vmsd       = &vmstate_smbus_device,                             \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, SMBusDevice), \
+    .size       = sizeof(SMBusDevice),                               \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_smbus_device,                             \
 }
 
 /*
@@ -91,5 +95,9 @@ extern const VMStateDescription vmstate_smbus_device;
  * SMBus slave data needs to be transferred.
  */
 bool smbus_vmstate_needed(SMBusDevice *dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

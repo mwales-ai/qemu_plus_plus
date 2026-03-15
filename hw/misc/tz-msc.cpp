@@ -124,7 +124,7 @@ static MSCAction tz_msc_check(TZMSC *s, hwaddr addr)
 static MemTxResult tz_msc_read(void *opaque, hwaddr addr, uint64_t *pdata,
                                unsigned size, MemTxAttrs attrs)
 {
-    TZMSC *s = opaque;
+    TZMSC *s = static_cast<TZMSC *>(opaque);
     AddressSpace *as = &s->downstream_as;
     uint64_t data;
     MemTxResult res;
@@ -168,7 +168,7 @@ static MemTxResult tz_msc_read(void *opaque, hwaddr addr, uint64_t *pdata,
 static MemTxResult tz_msc_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned size, MemTxAttrs attrs)
 {
-    TZMSC *s = opaque;
+    TZMSC *s = static_cast<TZMSC *>(opaque);
     AddressSpace *as = &s->downstream_as;
     MemTxResult res;
 
@@ -265,17 +265,19 @@ static void tz_msc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->upstream);
 }
 
+static const VMStateField tz_msc_vmstate_fields[] = {
+    VMSTATE_BOOL(cfg_nonsec, TZMSC),
+    VMSTATE_BOOL(cfg_sec_resp, TZMSC),
+    VMSTATE_BOOL(irq_clear, TZMSC),
+    VMSTATE_BOOL(irq_status, TZMSC),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription tz_msc_vmstate = {
     .name = "tz-msc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(cfg_nonsec, TZMSC),
-        VMSTATE_BOOL(cfg_sec_resp, TZMSC),
-        VMSTATE_BOOL(irq_clear, TZMSC),
-        VMSTATE_BOOL(irq_status, TZMSC),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = tz_msc_vmstate_fields,
 };
 
 static const Property tz_msc_properties[] = {
