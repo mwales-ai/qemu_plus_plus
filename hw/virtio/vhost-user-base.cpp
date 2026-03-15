@@ -22,7 +22,8 @@ static void vub_start(VirtIODevice *vdev)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     VHostUserBase *vub = VHOST_USER_BASE(vdev);
-    int ret, i;
+    int ret;
+    unsigned int i;
 
     if (!k->set_guest_notifiers) {
         error_report("binding does not support guest notifiers");
@@ -171,7 +172,7 @@ static int vub_config_notifier(struct vhost_dev *dev)
     return 0;
 }
 
-const VhostDevConfigOps vub_config_ops = {
+static const VhostDevConfigOps vub_config_ops = {
     .vhost_dev_config_notifier = vub_config_notifier,
 };
 
@@ -187,8 +188,8 @@ static void do_vhost_user_cleanup(VirtIODevice *vdev, VHostUserBase *vub)
 {
     vhost_user_cleanup(&vub->vhost_user);
 
-    for (int i = 0; i < vub->num_vqs; i++) {
-        VirtQueue *vq = g_ptr_array_index(vub->vqs, i);
+    for (uint32_t i = 0; i < vub->num_vqs; i++) {
+        VirtQueue *vq = static_cast<VirtQueue *>(g_ptr_array_index(vub->vqs, i));
         virtio_delete_queue(vq);
     }
 
@@ -248,7 +249,7 @@ done:
 
 static void vub_event(void *opaque, QEMUChrEvent event)
 {
-    DeviceState *dev = opaque;
+    DeviceState *dev = static_cast<DeviceState *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBase *vub = VHOST_USER_BASE(vdev);
 
@@ -319,7 +320,7 @@ static void vub_device_realize(DeviceState *dev, Error **errp)
 
     /* Allocate queues */
     vub->vqs = g_ptr_array_sized_new(vub->num_vqs);
-    for (int i = 0; i < vub->num_vqs; i++) {
+    for (uint32_t i = 0; i < vub->num_vqs; i++) {
         g_ptr_array_add(vub->vqs,
                         virtio_add_queue(vdev, vub->vq_size,
                                          vub_handle_output));
@@ -370,9 +371,9 @@ static const TypeInfo vub_types[] = {
         .name = TYPE_VHOST_USER_BASE,
         .parent = TYPE_VIRTIO_DEVICE,
         .instance_size = sizeof(VHostUserBase),
-        .class_init = vub_class_init,
+        .is_abstract = true,
         .class_size = sizeof(VHostUserBaseClass),
-        .is_abstract = true
+        .class_init = vub_class_init,
     }
 };
 

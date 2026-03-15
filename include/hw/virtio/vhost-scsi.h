@@ -19,6 +19,10 @@
 #include "hw/virtio/vhost-scsi-common.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum vhost_scsi_vq_list {
     VHOST_SCSI_VQ_CONTROL = 0,
     VHOST_SCSI_VQ_EVENT = 1,
@@ -31,5 +35,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostSCSI, VHOST_SCSI)
 struct VHostSCSI {
     VHostSCSICommon parent_obj;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

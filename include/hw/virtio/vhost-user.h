@@ -11,6 +11,10 @@
 #include "chardev/char-fe.h"
 #include "hw/virtio/virtio.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_MQ = 0,
     VHOST_USER_PROTOCOL_F_LOG_SHMFD = 1,
@@ -110,5 +114,9 @@ typedef void (*vu_async_close_fn)(DeviceState *cb);
 void vhost_user_async_close(DeviceState *d,
                             CharFrontend *chardev, struct vhost_dev *vhost,
                             vu_async_close_fn cb);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

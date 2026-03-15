@@ -13,6 +13,10 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_USER_SCMI "vhost-user-scmi"
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserSCMI, VHOST_USER_SCMI);
 
@@ -27,5 +31,9 @@ struct VHostUserSCMI {
     bool connected;
     bool started_vu;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _QEMU_VHOST_USER_SCMI_H */

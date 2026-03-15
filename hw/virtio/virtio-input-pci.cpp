@@ -115,31 +115,31 @@ static const TypeInfo virtio_input_pci_info = {
     .name          = TYPE_VIRTIO_INPUT_PCI,
     .parent        = TYPE_VIRTIO_PCI,
     .instance_size = sizeof(VirtIOInputPCI),
+    .is_abstract   = true,
     .class_init    = virtio_input_pci_class_init,
-    .is_abstract      = true,
 };
 
 static const TypeInfo virtio_input_hid_pci_info = {
     .name          = TYPE_VIRTIO_INPUT_HID_PCI,
     .parent        = TYPE_VIRTIO_INPUT_PCI,
     .instance_size = sizeof(VirtIOInputHIDPCI),
-    .is_abstract      = true,
+    .is_abstract   = true,
 };
 
 static const VirtioPCIDeviceTypeInfo virtio_keyboard_pci_info = {
     .generic_name  = TYPE_VIRTIO_KEYBOARD_PCI,
     .parent        = TYPE_VIRTIO_INPUT_HID_PCI,
-    .class_init    = virtio_input_hid_kbd_pci_class_init,
     .instance_size = sizeof(VirtIOInputHIDPCI),
     .instance_init = virtio_keyboard_initfn,
+    .class_init    = virtio_input_hid_kbd_pci_class_init,
 };
 
 static const VirtioPCIDeviceTypeInfo virtio_mouse_pci_info = {
     .generic_name  = TYPE_VIRTIO_MOUSE_PCI,
     .parent        = TYPE_VIRTIO_INPUT_HID_PCI,
-    .class_init    = virtio_input_hid_mouse_pci_class_init,
     .instance_size = sizeof(VirtIOInputHIDPCI),
     .instance_init = virtio_mouse_initfn,
+    .class_init    = virtio_input_hid_mouse_pci_class_init,
 };
 
 static const VirtioPCIDeviceTypeInfo virtio_tablet_pci_info = {

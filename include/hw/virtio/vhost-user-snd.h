@@ -14,11 +14,19 @@
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-user-base.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_USER_SND "vhost-user-snd"
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserSound, VHOST_USER_SND)
 
 struct VHostUserSound {
     VHostUserBase parent_obj;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VHOST_USER_SND_H */

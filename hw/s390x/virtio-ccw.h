@@ -20,6 +20,10 @@
 #include "ccw-device.h"
 #include "hw/s390x/css-bridge.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VIRTIO_CCW_CU_TYPE 0x3832
 #define VIRTIO_CCW_CHPID_TYPE 0x32
 
@@ -89,5 +93,9 @@ static inline int virtio_ccw_rev_max(VirtioCcwDevice *dev)
 }
 
 VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

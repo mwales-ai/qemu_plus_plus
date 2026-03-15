@@ -20,6 +20,10 @@
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_USER_FS "vhost-user-fs-device"
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserFS, VHOST_USER_FS)
 
@@ -43,5 +47,9 @@ struct VHostUserFS {
 
     /*< public >*/
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VHOST_USER_FS_H */
