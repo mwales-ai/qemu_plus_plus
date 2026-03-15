@@ -15,6 +15,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     uint16_t id;
     uint16_t command;
@@ -238,5 +242,9 @@ typedef struct {
     uint64_t wr_cnt;
     VFIOUserWROne wrs[VFIO_USER_MULTI_MAX];
 } VFIOUserWRMulti;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VFIO_USER_PROTOCOL_H */

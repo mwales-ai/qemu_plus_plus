@@ -9,7 +9,15 @@
 #ifndef HW_VFIO_VFIO_LISTENER_H
 #define HW_VFIO_VFIO_LISTENER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool vfio_listener_register(VFIOContainer *bcontainer, Error **errp);
 void vfio_listener_unregister(VFIOContainer *bcontainer);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VFIO_VFIO_LISTENER_H */

@@ -30,6 +30,10 @@
 #include "hw/sd/sd.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* SD/MMC host controller state */
 struct SDHCIState {
     /*< private >*/
@@ -131,5 +135,9 @@ DECLARE_INSTANCE_CHECKER(SDHCIState, SYSBUS_SDHCI,
 #define TYPE_IMX_USDHC "imx-usdhc"
 
 #define TYPE_S3C_SDHCI "s3c-sdhci"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SDHCI_H */

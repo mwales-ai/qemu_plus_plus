@@ -26,6 +26,10 @@
 
 #include "hw/registerfields.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* R/W SDMA System Address register 0x0 */
 #define SDHC_SYSAD                     0x00
 
@@ -323,5 +327,9 @@ void sdhci_uninitfn(SDHCIState *s);
 void sdhci_common_realize(SDHCIState *s, Error **errp);
 void sdhci_common_unrealize(SDHCIState *s);
 void sdhci_common_class_init(ObjectClass *klass, const void *data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

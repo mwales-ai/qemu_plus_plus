@@ -11,6 +11,10 @@
 #include "hw/vfio/vfio-container.h"
 #include "hw/vfio-user/proxy.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* MMU container sub-class for vfio-user. */
 struct VFIOUserContainer {
     VFIOContainer parent_obj;
@@ -19,5 +23,9 @@ struct VFIOUserContainer {
 };
 
 OBJECT_DECLARE_SIMPLE_TYPE(VFIOUserContainer, VFIO_IOMMU_USER);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VFIO_USER_CONTAINER_H */

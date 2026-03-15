@@ -16,6 +16,10 @@
 #include "monitor/monitor.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_S390_STATTRIB "s390-storage_attributes"
 #define TYPE_QEMU_S390_STATTRIB "s390-storage_attributes-qemu"
 #define TYPE_KVM_S390_STATTRIB "s390-storage_attributes-kvm"
@@ -74,5 +78,9 @@ static inline Object *kvm_s390_stattrib_create(void)
 
 void hmp_info_cmma(Monitor *mon, const QDict *qdict);
 void hmp_migrationmode(Monitor *mon, const QDict *qdict);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* S390_STORAGE_ATTRIBUTES_H */

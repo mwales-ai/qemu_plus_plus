@@ -18,6 +18,10 @@
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio-user/protocol.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     int send_fds;
     int recv_fds;
@@ -131,5 +135,9 @@ void vfio_user_flush_multi(VFIOUserProxy *proxy);
 void vfio_user_create_multi(VFIOUserProxy *proxy);
 void vfio_user_add_multi(VFIOUserProxy *proxy, uint8_t index,
                          off_t offset, uint32_t count, void *data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VFIO_USER_PROXY_H */

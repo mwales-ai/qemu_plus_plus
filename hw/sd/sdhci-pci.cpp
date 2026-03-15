@@ -69,16 +69,18 @@ static void sdhci_pci_class_init(ObjectClass *klass, const void *data)
     sdhci_common_class_init(klass, data);
 }
 
+static const InterfaceInfo sdhci_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo sdhci_pci_types[] = {
     {
         .name           = TYPE_PCI_SDHCI,
         .parent         = TYPE_PCI_DEVICE,
         .instance_size  = sizeof(SDHCIState),
         .class_init     = sdhci_pci_class_init,
-        .interfaces     = (const InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        },
+        .interfaces     = sdhci_pci_interfaces,
     },
 };
 

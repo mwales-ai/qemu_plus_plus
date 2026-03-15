@@ -50,7 +50,7 @@ if have_virtfs
   virtio_ss.add(when: 'CONFIG_VIRTIO_9P', if_true: files('virtio-ccw-9p.c'))
 endif
 virtio_ss.add(when: 'CONFIG_VHOST_SCSI', if_true: files('vhost-scsi-ccw.cpp'))
-virtio_ss.add(when: 'CONFIG_VHOST_VSOCK', if_true: files('vhost-vsock-ccw.c'))
+virtio_ss.add(when: 'CONFIG_VHOST_VSOCK', if_true: files('vhost-vsock-ccw.cpp'))
 virtio_ss.add(when: 'CONFIG_VHOST_USER_FS', if_true: files('vhost-user-fs-ccw.cpp'))
 virtio_ss.add(when: 'CONFIG_VIRTIO_MD', if_true: files('virtio-ccw-md.c'))
 virtio_ss.add(when: 'CONFIG_VIRTIO_MEM', if_true: files('virtio-ccw-mem.c'))
@@ -63,6 +63,6 @@ hw_arch += {'s390x': s390x_ss}
 hw_s390x_modules = {}
 virtio_gpu_ccw_ss = ss.source_set()
 virtio_gpu_ccw_ss.add(when: ['CONFIG_VIRTIO_GPU', 'CONFIG_VIRTIO_CCW'],
-                      if_true: [files('virtio-ccw-gpu.c'), pixman])
+                      if_true: [files('virtio-ccw-gpu.cpp'), pixman])
 hw_s390x_modules += {'virtio-gpu-ccw': virtio_gpu_ccw_ss}
 modules += {'hw-s390x': hw_s390x_modules}
