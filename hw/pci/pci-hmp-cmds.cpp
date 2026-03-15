@@ -59,17 +59,17 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
         monitor_printf(mon, "      subordinate bus %" PRId64 ".\n",
                        dev->pci_bridge->bus->subordinate);
 
-        monitor_printf(mon, "      IO range [0x%04"PRIx64", 0x%04"PRIx64"]\n",
+        monitor_printf(mon, "      IO range [0x%04" PRIx64 ", 0x%04" PRIx64 "]\n",
                        dev->pci_bridge->bus->io_range->base,
                        dev->pci_bridge->bus->io_range->limit);
 
         monitor_printf(mon,
-                       "      memory range [0x%08"PRIx64", 0x%08"PRIx64"]\n",
+                       "      memory range [0x%08" PRIx64 ", 0x%08" PRIx64 "]\n",
                        dev->pci_bridge->bus->memory_range->base,
                        dev->pci_bridge->bus->memory_range->limit);
 
         monitor_printf(mon, "      prefetchable memory range "
-                       "[0x%08"PRIx64", 0x%08"PRIx64"]\n",
+                       "[0x%08" PRIx64 ", 0x%08" PRIx64 "]\n",
                        dev->pci_bridge->bus->prefetchable_range->base,
                        dev->pci_bridge->bus->prefetchable_range->limit);
     }
@@ -117,7 +117,7 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
     }
 }
 
-void hmp_info_pci(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_info_pci(Monitor *mon, const QDict *qdict)
 {
     PciInfoList *info_list, *info;
 
@@ -134,9 +134,9 @@ void hmp_info_pci(Monitor *mon, const QDict *qdict)
     qapi_free_PciInfoList(info_list);
 }
 
-void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
+extern "C" void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
-    PCIDevice *d = (PCIDevice *)dev;
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(dev);
     int klass = pci_get_word(d->config + PCI_CLASS_DEVICE);
     const pci_class_desc *desc = get_class_desc(klass);
     char ctxt[64];
@@ -162,15 +162,15 @@ void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
         if (!r->size) {
             continue;
         }
-        monitor_printf(mon, "%*sbar %d: %s at 0x%"FMT_PCIBUS
-                       " [0x%"FMT_PCIBUS"]\n",
+        monitor_printf(mon, "%*sbar %d: %s at 0x%" FMT_PCIBUS
+                       " [0x%" FMT_PCIBUS "]\n",
                        indent, "",
                        i, r->type & PCI_BASE_ADDRESS_SPACE_IO ? "i/o" : "mem",
                        r->addr, r->addr + r->size - 1);
     }
 }
 
-void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     const char *id = qdict_get_str(qdict, "id");

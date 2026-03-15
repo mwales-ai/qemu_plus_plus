@@ -63,8 +63,8 @@ system_ss.add(when: 'CONFIG_ETSEC', if_true: files(
 
 system_ss.add(when: 'CONFIG_ROCKER', if_true: files(
   'rocker/rocker.c',
-  'rocker/rocker_desc.c',
-  'rocker/rocker_fp.c',
+  'rocker/rocker_desc.cpp',
+  'rocker/rocker_fp.cpp',
   'rocker/rocker_of_dpa.c',
   'rocker/rocker_world.c',
 ), if_false: files('rocker/qmp-norocker.cpp'))

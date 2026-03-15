@@ -22,6 +22,10 @@
 
 #include "hw/core/cpu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ARM_CPU "arm-cpu"
 
 OBJECT_DECLARE_CPU_TYPE(ARMCPU, ARMCPUClass, ARM_CPU)
@@ -54,5 +58,9 @@ enum {
     M_REG_S = 1,
     M_REG_NUM_BANKS = 2,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -53,14 +53,14 @@ bool fp_port_get_link_up(FpPort *port)
 
 RockerPort *fp_port_get_info(FpPort *port)
 {
-    RockerPort *value = g_malloc0(sizeof(*value));
+    RockerPort *value = static_cast<RockerPort *>(g_malloc0(sizeof(*value)));
 
     value->name = g_strdup(port->name);
     value->enabled = port->enabled;
     value->link_up = fp_port_get_link_up(port);
     value->speed = port->speed;
-    value->duplex = port->duplex;
-    value->autoneg = port->autoneg;
+    value->duplex = static_cast<RockerPortDuplex>(port->duplex);
+    value->autoneg = static_cast<RockerPortAutoneg>(port->autoneg);
     return value;
 }
 
@@ -131,7 +131,7 @@ int fp_port_eg(FpPort *port, const struct iovec *iov, int iovcnt)
 static ssize_t fp_port_receive_iov(NetClientState *nc, const struct iovec *iov,
                                    int iovcnt)
 {
-    FpPort *port = qemu_get_nic_opaque(nc);
+    FpPort *port = static_cast<FpPort *>(qemu_get_nic_opaque(nc));
 
     /* If the port is disabled, we want to drop this pkt
      * now rather than queueing it for later.  We don't want
@@ -149,10 +149,10 @@ static ssize_t fp_port_receive_iov(NetClientState *nc, const struct iovec *iov,
 static ssize_t fp_port_receive(NetClientState *nc, const uint8_t *buf,
                                size_t size)
 {
-    const struct iovec iov = {
-        .iov_base = (uint8_t *)buf,
-        .iov_len = size
-    };
+    struct iovec iov;
+    memset(&iov, 0, sizeof(iov));
+    iov.iov_base = const_cast<uint8_t *>(buf);
+    iov.iov_len = size;
 
     return fp_port_receive_iov(nc, &iov, 1);
 }
@@ -163,19 +163,23 @@ static void fp_port_cleanup(NetClientState *nc)
 
 static void fp_port_set_link_status(NetClientState *nc)
 {
-    FpPort *port = qemu_get_nic_opaque(nc);
+    FpPort *port = static_cast<FpPort *>(qemu_get_nic_opaque(nc));
 
     rocker_event_link_changed(port->r, port->pport, !nc->link_down);
 }
 
-static NetClientInfo fp_port_info = {
-    .type = NET_CLIENT_DRIVER_NIC,
-    .size = sizeof(NICState),
-    .receive = fp_port_receive,
-    .receive_iov = fp_port_receive_iov,
-    .cleanup = fp_port_cleanup,
-    .link_status_changed = fp_port_set_link_status,
-};
+static NetClientInfo fp_port_info;
+
+static void __attribute__((constructor)) init_fp_port_info(void)
+{
+    memset(&fp_port_info, 0, sizeof(fp_port_info));
+    fp_port_info.type = NET_CLIENT_DRIVER_NIC;
+    fp_port_info.size = sizeof(NICState);
+    fp_port_info.receive = fp_port_receive;
+    fp_port_info.receive_iov = fp_port_receive_iov;
+    fp_port_info.cleanup = fp_port_cleanup;
+    fp_port_info.link_status_changed = fp_port_set_link_status;
+}
 
 World *fp_port_get_world(FpPort *port)
 {

@@ -19,6 +19,10 @@
 
 #include "rocker_hw.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef int (desc_ring_consume)(Rocker *r, DescInfo *info);
 
 uint16_t desc_buf_size(DescInfo *info);
@@ -32,7 +36,7 @@ bool desc_ring_set_base_addr(DescRing *ring, uint64_t base_addr);
 uint64_t desc_ring_get_base_addr(DescRing *ring);
 bool desc_ring_set_size(DescRing *ring, uint32_t size);
 uint32_t desc_ring_get_size(DescRing *ring);
-bool desc_ring_set_head(DescRing *ring, uint32_t new);
+bool desc_ring_set_head(DescRing *ring, uint32_t new_val);
 uint32_t desc_ring_get_head(DescRing *ring);
 uint32_t desc_ring_get_tail(DescRing *ring);
 void desc_ring_set_ctrl(DescRing *ring, uint32_t val);
@@ -48,5 +52,9 @@ unsigned desc_ring_get_msix_vector(DescRing *ring);
 DescRing *desc_ring_alloc(Rocker *r, int index);
 void desc_ring_free(DescRing *ring);
 void desc_ring_reset(DescRing *ring);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

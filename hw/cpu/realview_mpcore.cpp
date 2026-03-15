@@ -43,7 +43,7 @@ static const int mpcore_irq_map[32] = {
 
 static void mpcore_rirq_set_irq(void *opaque, int irq, int level)
 {
-    mpcore_rirq_state *s = (mpcore_rirq_state *)opaque;
+    mpcore_rirq_state *s = static_cast<mpcore_rirq_state *>(opaque);
     int i;
 
     for (i = 0; i < 4; i++) {

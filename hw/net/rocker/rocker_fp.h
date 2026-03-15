@@ -20,6 +20,10 @@
 #include "net/net.h"
 #include "qemu/iov.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ROCKER_FP_PORTS_MAX 62
 
 typedef struct fp_port FpPort;
@@ -50,5 +54,9 @@ FpPort *fp_port_alloc(Rocker *r, char *sw_name,
                       NICPeers *peers);
 void fp_port_free(FpPort *port);
 void fp_port_reset(FpPort *port);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ROCKER_FP_H */

@@ -24,6 +24,10 @@
 #include "hw/intc/arm_gic.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* A15MP private memory region.  */
 
 #define TYPE_A15MPCORE_PRIV "a15mpcore_priv"
@@ -40,5 +44,9 @@ struct A15MPPrivState {
 
     GICState gic;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -19,6 +19,10 @@
 
 #include "rocker_hw.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum rocker_world_type {
     ROCKER_WORLD_TYPE_OF_DPA = ROCKER_PORT_MODE_OF_DPA,
     ROCKER_WORLD_TYPE_MAX,
@@ -57,5 +61,9 @@ enum rocker_world_type world_type(World *world);
 const char *world_name(World *world);
 
 World *rocker_get_world(Rocker *r, enum rocker_world_type type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ROCKER_WORLD_H */

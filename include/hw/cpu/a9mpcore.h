@@ -17,6 +17,10 @@
 #include "hw/timer/a9gtimer.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_A9MPCORE_PRIV "a9mpcore_priv"
 OBJECT_DECLARE_SIMPLE_TYPE(A9MPPrivState, A9MPCORE_PRIV)
 
@@ -35,5 +39,9 @@ struct A9MPPrivState {
     ARMMPTimerState mptimer;
     ARMMPTimerState wdt;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

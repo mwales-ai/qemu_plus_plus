@@ -21,7 +21,7 @@
 
 static void a9mp_priv_set_irq(void *opaque, int irq, int level)
 {
-    A9MPPrivState *s = (A9MPPrivState *)opaque;
+    A9MPPrivState *s = static_cast<A9MPPrivState *>(opaque);
 
     qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }
@@ -152,7 +152,7 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
      * For each core the global timer is PPI 27, the private
      * timer is PPI 29 and the watchdog PPI 30.
      */
-    for (i = 0; i < s->num_cpu; i++) {
+    for (i = 0; i < static_cast<int>(s->num_cpu); i++) {
         int ppibase = (s->num_irq - 32) + i * 32;
         sysbus_connect_irq(gtimerbusdev, i,
                            qdev_get_gpio_in(gicdev, ppibase + 27));

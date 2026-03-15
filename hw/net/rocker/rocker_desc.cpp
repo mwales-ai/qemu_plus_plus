@@ -60,7 +60,7 @@ char *desc_get_buf(DescInfo *info, bool read_only)
                               le16_to_cpu(info->desc.buf_size);
 
     if (size > info->buf_size) {
-        info->buf = g_realloc(info->buf, size);
+        info->buf = static_cast<char *>(g_realloc(info->buf, size));
         info->buf_size = size;
     }
 
@@ -121,7 +121,7 @@ uint64_t desc_ring_get_base_addr(DescRing *ring)
 
 bool desc_ring_set_size(DescRing *ring, uint32_t size)
 {
-    int i;
+    uint32_t i;
 
     if (size < 2 || size > 0x10000 || (size & (size - 1))) {
         DPRINTF("ERROR: ring[%d] size (%d) not a power of 2 "
@@ -249,7 +249,7 @@ static bool ring_pump(DescRing *ring)
     return primed;
 }
 
-bool desc_ring_set_head(DescRing *ring, uint32_t new)
+bool desc_ring_set_head(DescRing *ring, uint32_t new_val)
 {
     uint32_t tail = ring->tail;
     uint32_t head = ring->head;
@@ -258,25 +258,25 @@ bool desc_ring_set_head(DescRing *ring, uint32_t new)
         return false;
     }
 
-    if (new >= ring->size) {
+    if (new_val >= ring->size) {
         DPRINTF("ERROR: trying to set head (%d) past ring[%d] size (%d)\n",
-                new, ring->index, ring->size);
+                new_val, ring->index, ring->size);
         return false;
     }
 
-    if (((head < tail) && ((new >= tail) || (new < head))) ||
-        ((head > tail) && ((new >= tail) && (new < head)))) {
+    if (((head < tail) && ((new_val >= tail) || (new_val < head))) ||
+        ((head > tail) && ((new_val >= tail) && (new_val < head)))) {
         DPRINTF("ERROR: trying to wrap ring[%d] "
                 "(head %d, tail %d, new head %d)\n",
-                ring->index, head, tail, new);
+                ring->index, head, tail, new_val);
         return false;
     }
 
-    if (new == ring->head) {
-        DPRINTF("WARNING: setting head (%d) to current head position\n", new);
+    if (new_val == ring->head) {
+        DPRINTF("WARNING: setting head (%d) to current head position\n", new_val);
     }
 
-    ring->head = new;
+    ring->head = new_val;
 
     return ring_pump(ring);
 }

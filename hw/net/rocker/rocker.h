@@ -22,6 +22,10 @@
 #include "qemu/sockets.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if defined(DEBUG_ROCKER)
 #  define DPRINTF(fmt, ...) \
     do {                                                           \
@@ -71,5 +75,9 @@ int rx_produce(World *world, uint32_t pport,
                const struct iovec *iov, int iovcnt, uint8_t copy_to_cpu);
 int rocker_port_eg(Rocker *r, uint32_t pport,
                    const struct iovec *iov, int iovcnt);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ROCKER_H */
