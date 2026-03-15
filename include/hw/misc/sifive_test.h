@@ -22,6 +22,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SIFIVE_TEST "riscv.sifive.test"
 
 typedef struct SiFiveTestState SiFiveTestState;
@@ -43,5 +47,9 @@ enum {
 };
 
 DeviceState *sifive_test_create(hwaddr addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

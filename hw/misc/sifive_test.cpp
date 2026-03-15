@@ -55,7 +55,7 @@ static void sifive_test_write(void *opaque, hwaddr addr,
         }
     }
     qemu_log_mask(LOG_GUEST_ERROR, "%s: write: addr=0x%x val=0x%016" PRIx64 "\n",
-                  __func__, (int)addr, val64);
+                  __func__, static_cast<int>(addr), val64);
 }
 
 static const MemoryRegionOps sifive_test_ops = {

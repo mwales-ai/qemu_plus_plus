@@ -3,6 +3,10 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Framebuffer device helper routines.  */
 
 typedef void (*drawfn)(void *, uint8_t *, const uint8_t *, int, int);
@@ -61,5 +65,9 @@ void framebuffer_update_display(
     void *opaque,
     int *first_row,
     int *last_row);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

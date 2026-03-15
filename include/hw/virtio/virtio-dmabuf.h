@@ -16,6 +16,10 @@
 #include "qemu/uuid.h"
 #include "vhost.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum SharedObjectType {
     TYPE_INVALID = 0,
     TYPE_DMABUF,
@@ -96,5 +100,9 @@ SharedObjectType virtio_object_type(const QemuUUID *uuid);
  * resources lookup table, and frees them
  */
 void virtio_free_resources(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VIRTIO_DMABUF_H */

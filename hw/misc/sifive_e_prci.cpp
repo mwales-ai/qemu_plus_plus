@@ -27,7 +27,7 @@
 
 static uint64_t sifive_e_prci_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    SiFiveEPRCIState *s = opaque;
+    SiFiveEPRCIState *s = static_cast<SiFiveEPRCIState *>(opaque);
     switch (addr) {
     case SIFIVE_E_PRCI_HFROSCCFG:
         return s->hfrosccfg;
@@ -39,36 +39,36 @@ static uint64_t sifive_e_prci_read(void *opaque, hwaddr addr, unsigned int size)
         return s->plloutdiv;
     }
     qemu_log_mask(LOG_GUEST_ERROR, "%s: read: addr=0x%x\n",
-                  __func__, (int)addr);
+                  __func__, static_cast<int>(addr));
     return 0;
 }
 
 static void sifive_e_prci_write(void *opaque, hwaddr addr,
                                 uint64_t val64, unsigned int size)
 {
-    SiFiveEPRCIState *s = opaque;
+    SiFiveEPRCIState *s = static_cast<SiFiveEPRCIState *>(opaque);
     switch (addr) {
     case SIFIVE_E_PRCI_HFROSCCFG:
-        s->hfrosccfg = (uint32_t) val64;
+        s->hfrosccfg = static_cast<uint32_t>(val64);
         /* OSC stays ready */
         s->hfrosccfg |= SIFIVE_E_PRCI_HFROSCCFG_RDY;
         break;
     case SIFIVE_E_PRCI_HFXOSCCFG:
-        s->hfxosccfg = (uint32_t) val64;
+        s->hfxosccfg = static_cast<uint32_t>(val64);
         /* OSC stays ready */
         s->hfxosccfg |= SIFIVE_E_PRCI_HFXOSCCFG_RDY;
         break;
     case SIFIVE_E_PRCI_PLLCFG:
-        s->pllcfg = (uint32_t) val64;
+        s->pllcfg = static_cast<uint32_t>(val64);
         /* PLL stays locked */
         s->pllcfg |= SIFIVE_E_PRCI_PLLCFG_LOCK;
         break;
     case SIFIVE_E_PRCI_PLLOUTDIV:
-        s->plloutdiv = (uint32_t) val64;
+        s->plloutdiv = static_cast<uint32_t>(val64);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: bad write: addr=0x%x v=0x%x\n",
-                      __func__, (int)addr, (int)val64);
+                      __func__, static_cast<int>(addr), static_cast<int>(val64));
     }
 }
 

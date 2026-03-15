@@ -81,7 +81,7 @@ static uint32_t xlnx_efuse_u37_crc(uint32_t prev_crc, uint32_t data,
     uint32_t i, r;
     uint64_t w;
 
-    w = (uint64_t)(addr) << 32;
+    w = static_cast<uint64_t>(addr) << 32;
     w |= data;
 
     /* Feed 35 bits, in 5 rounds, each a slice of 7 bits */

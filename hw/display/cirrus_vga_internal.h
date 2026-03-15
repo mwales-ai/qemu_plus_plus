@@ -28,6 +28,10 @@
 
 #include "vga_int.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* IDs */
 #define CIRRUS_ID_CLGD5422  (0x23 << 2)
 #define CIRRUS_ID_CLGD5426  (0x24 << 2)
@@ -99,5 +103,9 @@ typedef struct CirrusVGAState {
 void cirrus_init_common(CirrusVGAState *s, Object *owner,
                         int device_id, int is_pci,
                         MemoryRegion *system_memory, MemoryRegion *system_io);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

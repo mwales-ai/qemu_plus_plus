@@ -84,9 +84,9 @@ void framebuffer_update_display(
     }
 
     addr = mem_section->offset_within_region;
-    src = memory_region_get_ram_ptr(mem) + addr;
+    src = static_cast<uint8_t *>(memory_region_get_ram_ptr(mem)) + addr;
 
-    dest = surface_data(ds);
+    dest = static_cast<uint8_t *>(surface_data(ds));
     if (dest_col_pitch < 0) {
         dest -= dest_col_pitch * (cols - 1);
     }
