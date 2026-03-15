@@ -56,7 +56,7 @@ struct RISCVIOMMUStateSys {
 static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    RISCVIOMMUStateSys *s = opaque;
+    RISCVIOMMUStateSys *s = static_cast<RISCVIOMMUStateSys *>(opaque);
 
     g_assert(addr + size <= RISCV_IOMMU_PCI_MSIX_VECTORS * PCI_MSIX_ENTRY_SIZE);
     return pci_get_long(s->msix_table + addr);
@@ -65,7 +65,7 @@ static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
 static void msix_table_mmio_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
-    RISCVIOMMUStateSys *s = opaque;
+    RISCVIOMMUStateSys *s = static_cast<RISCVIOMMUStateSys *>(opaque);
 
     g_assert(addr + size <= RISCV_IOMMU_PCI_MSIX_VECTORS * PCI_MSIX_ENTRY_SIZE);
     pci_set_long(s->msix_table + addr, val);
@@ -87,7 +87,7 @@ static const MemoryRegionOps msix_table_mmio_ops = {
 static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    RISCVIOMMUStateSys *s = opaque;
+    RISCVIOMMUStateSys *s = static_cast<RISCVIOMMUStateSys *>(opaque);
 
     return pci_get_long(s->msix_pba + addr);
 }
@@ -119,8 +119,8 @@ static void riscv_iommu_sysdev_init_msi(RISCVIOMMUStateSys *s,
     uint32_t pba_size = QEMU_ALIGN_UP(n_vectors, 64) / 8;
     uint32_t pba_offset = RISCV_IOMMU_REG_MSI_CONFIG + 256;
 
-    s->msix_table = g_malloc0(table_size);
-    s->msix_pba = g_malloc0(pba_size);
+    s->msix_table = static_cast<uint8_t *>(g_malloc0(table_size));
+    s->msix_pba = static_cast<uint8_t *>(g_malloc0(pba_size));
 
     memory_region_init_io(&s->msix_table_mmio, OBJECT(s), &msix_table_mmio_ops,
                           s, "msix-table", table_size);
@@ -235,9 +235,9 @@ static void riscv_iommu_sys_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo riscv_iommu_sys = {
     .name          = TYPE_RISCV_IOMMU_SYS,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .class_init    = riscv_iommu_sys_class_init,
-    .instance_init = riscv_iommu_sys_init,
     .instance_size = sizeof(RISCVIOMMUStateSys),
+    .instance_init = riscv_iommu_sys_init,
+    .class_init    = riscv_iommu_sys_class_init,
 };
 
 static void riscv_iommu_register_sys(void)

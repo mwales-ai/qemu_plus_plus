@@ -25,6 +25,10 @@
 #include "hw/riscv/iommu.h"
 #include "hw/riscv/riscv-iommu-bits.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum riscv_iommu_igs_modes riscv_iommu_igs_mode;
 
 struct RISCVIOMMUState {
@@ -154,4 +158,9 @@ static inline uint64_t riscv_iommu_reg_get64(RISCVIOMMUState *s,
 {
     return ldq_le_p(s->regs_rw + idx);
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

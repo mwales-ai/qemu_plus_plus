@@ -173,7 +173,7 @@ static void vblk_cmd(uint64_t devid, BlockBackend *blk, uint64_t gp_addr,
         goto out;
     }
 
-    buf = g_malloc0(req.data.len);
+    buf = static_cast<char *>(g_malloc0(req.data.len));
     switch (req.data.flags) {
     case VBLK_DATA_FLAGS_READ:
         r = blk_pread(blk, off, req.data.len, buf, 0);
@@ -203,7 +203,7 @@ out:
 static void bdif_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
-    VMAppleBdifState *s = opaque;
+    VMAppleBdifState *s = static_cast<VMAppleBdifState *>(opaque);
     uint64_t devid = (offset & REG_DEVID_MASK);
 
     trace_bdif_write(offset, size, value);

@@ -22,6 +22,10 @@
 #include "qemu/osdep.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_RISCV_IOMMU "riscv-iommu"
 OBJECT_DECLARE_SIMPLE_TYPE(RISCVIOMMUState, RISCV_IOMMU)
 
@@ -35,5 +39,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(RISCVIOMMUStatePci, RISCV_IOMMU_PCI)
 OBJECT_DECLARE_SIMPLE_TYPE(RISCVIOMMUStateSys, RISCV_IOMMU_SYS)
 
 #define FDT_IRQ_TYPE_EDGE_LOW 1
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

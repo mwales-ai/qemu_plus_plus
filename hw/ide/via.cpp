@@ -39,7 +39,7 @@
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
     uint32_t val;
 
     if (size != 1) {
@@ -65,7 +65,7 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
 static void bmdma_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
 
     if (size != 1) {
         return;
@@ -90,7 +90,7 @@ static const MemoryRegionOps via_bmdma_ops = {
 
 static void bmdma_setup_bar(PCIIDEState *d)
 {
-    int i;
+    size_t i;
 
     memory_region_init(&d->bmdma_bar, OBJECT(d), "via-bmdma-container", 16);
     for (i = 0; i < ARRAY_SIZE(d->bmdma); i++) {
@@ -107,7 +107,7 @@ static void bmdma_setup_bar(PCIIDEState *d)
 
 static void via_ide_set_irq(void *opaque, int n, int level)
 {
-    PCIIDEState *s = opaque;
+    PCIIDEState *s = static_cast<PCIIDEState *>(opaque);
     PCIDevice *d = PCI_DEVICE(s);
 
     if (level) {
@@ -124,7 +124,7 @@ static void via_ide_reset(DeviceState *dev)
     PCIIDEState *d = PCI_IDE(dev);
     PCIDevice *pd = PCI_DEVICE(dev);
     uint8_t *pci_conf = pd->config;
-    int i;
+    size_t i;
 
     for (i = 0; i < ARRAY_SIZE(d->bus); i++) {
         ide_bus_reset(&d->bus[i]);
@@ -167,7 +167,7 @@ static uint32_t via_ide_cfg_read(PCIDevice *pd, uint32_t addr, int len)
     if ((mode & 0xf) == 0xa) {
         if (ranges_overlap(addr, len, PCI_BASE_ADDRESS_0, 16)) {
             /* BARs 0-3 always read back zero in legacy mode */
-            for (int i = addr; i < addr + len; i++) {
+            for (uint32_t i = addr; i < addr + len; i++) {
                 if (i >= PCI_BASE_ADDRESS_0 && i < PCI_BASE_ADDRESS_0 + 16) {
                     val &= ~(0xffULL << ((i - addr) << 3));
                 }
@@ -199,7 +199,7 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
     PCIIDEState *d = PCI_IDE(dev);
     DeviceState *ds = DEVICE(dev);
     uint8_t *pci_conf = dev->config;
-    int i;
+    size_t i;
 
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
     dev->wmask[PCI_INTERRUPT_LINE] = 0;
