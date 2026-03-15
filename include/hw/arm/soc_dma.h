@@ -23,6 +23,10 @@
 
 #include "exec/hwaddr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct soc_dma_s;
 struct soc_dma_ch_s;
 typedef void (*soc_dma_io_t)(void *opaque, uint8_t *buf, int len);
@@ -110,5 +114,9 @@ static inline void soc_dma_port_add_fifo_out(struct soc_dma_s *dma,
 {
     return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 1);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

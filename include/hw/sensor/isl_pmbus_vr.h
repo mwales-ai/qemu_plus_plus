@@ -12,6 +12,10 @@
 #include "hw/i2c/pmbus_device.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ISL69259   "isl69259"
 #define TYPE_ISL69260   "isl69260"
 #define TYPE_RAA228000  "raa228000"
@@ -53,5 +57,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(ISLState, ISL69260)
 #define ISL_READ_VIN_DEFAULT                   1100
 #define ISL_READ_IIN_DEFAULT                   40
 #define ISL_READ_PIN_DEFAULT                   4
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

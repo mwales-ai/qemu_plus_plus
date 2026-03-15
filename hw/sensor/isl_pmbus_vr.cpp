@@ -46,14 +46,14 @@ static int isl_pmbus_vr_write_data(PMBusDevice *pmdev, const uint8_t *buf,
 static void isl_pmbus_vr_get(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
-    visit_type_uint16(v, name, (uint16_t *)opaque, errp);
+    visit_type_uint16(v, name, static_cast<uint16_t *>(opaque), errp);
 }
 
 static void isl_pmbus_vr_set(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
-    uint16_t *internal = opaque;
+    uint16_t *internal = static_cast<uint16_t *>(opaque);
     uint16_t value;
     if (!visit_type_uint16(v, name, &value, errp)) {
         return;

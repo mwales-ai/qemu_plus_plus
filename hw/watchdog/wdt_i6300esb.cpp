@@ -177,7 +177,7 @@ static void i6300esb_reset(DeviceState *dev)
  */
 static void i6300esb_timer_expired(void *vp)
 {
-    I6300State *d = vp;
+    I6300State *d = static_cast<I6300State *>(vp);
 
     i6300esb_debug("stage %d\n", d->stage);
 
@@ -271,7 +271,7 @@ static uint32_t i6300esb_mem_readb(void *vp, hwaddr addr)
 static uint32_t i6300esb_mem_readw(void *vp, hwaddr addr)
 {
     uint32_t data = 0;
-    I6300State *d = vp;
+    I6300State *d = static_cast<I6300State *>(vp);
 
     i6300esb_debug("addr = %x\n", (int) addr);
 
@@ -295,7 +295,7 @@ static uint32_t i6300esb_mem_readl(void *vp, hwaddr addr)
 
 static void i6300esb_mem_writeb(void *vp, hwaddr addr, uint32_t val)
 {
-    I6300State *d = vp;
+    I6300State *d = static_cast<I6300State *>(vp);
 
     i6300esb_debug("addr = %x, val = %x\n", (int) addr, val);
 
@@ -307,7 +307,7 @@ static void i6300esb_mem_writeb(void *vp, hwaddr addr, uint32_t val)
 
 static void i6300esb_mem_writew(void *vp, hwaddr addr, uint32_t val)
 {
-    I6300State *d = vp;
+    I6300State *d = static_cast<I6300State *>(vp);
 
     i6300esb_debug("addr = %x, val = %x\n", (int) addr, val);
 
@@ -340,7 +340,7 @@ static void i6300esb_mem_writew(void *vp, hwaddr addr, uint32_t val)
 
 static void i6300esb_mem_writel(void *vp, hwaddr addr, uint32_t val)
 {
-    I6300State *d = vp;
+    I6300State *d = static_cast<I6300State *>(vp);
 
     i6300esb_debug ("addr = %x, val = %x\n", (int) addr, val);
 
@@ -395,9 +395,28 @@ static void i6300esb_mem_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps i6300esb_ops = {
     .read = i6300esb_mem_readfn,
     .write = i6300esb_mem_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+};
+
+static const VMStateField vmstate_i6300esb_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, I6300State),
+    VMSTATE_INT32(reboot_enabled, I6300State),
+    VMSTATE_INT32(clock_scale, I6300State),
+    VMSTATE_INT32(int_type, I6300State),
+    VMSTATE_INT32(free_run, I6300State),
+    VMSTATE_INT32(locked, I6300State),
+    VMSTATE_INT32(enabled, I6300State),
+    VMSTATE_TIMER_PTR(timer, I6300State),
+    VMSTATE_UINT32(timer1_preload, I6300State),
+    VMSTATE_UINT32(timer2_preload, I6300State),
+    VMSTATE_INT32(stage, I6300State),
+    VMSTATE_INT32(unlock_state, I6300State),
+    VMSTATE_INT32(previous_reboot_flag, I6300State),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_i6300esb = {
@@ -418,22 +437,7 @@ static const VMStateDescription vmstate_i6300esb = {
      */
     .version_id = 10000,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, I6300State),
-        VMSTATE_INT32(reboot_enabled, I6300State),
-        VMSTATE_INT32(clock_scale, I6300State),
-        VMSTATE_INT32(int_type, I6300State),
-        VMSTATE_INT32(free_run, I6300State),
-        VMSTATE_INT32(locked, I6300State),
-        VMSTATE_INT32(enabled, I6300State),
-        VMSTATE_TIMER_PTR(timer, I6300State),
-        VMSTATE_UINT32(timer1_preload, I6300State),
-        VMSTATE_UINT32(timer2_preload, I6300State),
-        VMSTATE_INT32(stage, I6300State),
-        VMSTATE_INT32(unlock_state, I6300State),
-        VMSTATE_INT32(previous_reboot_flag, I6300State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_i6300esb_fields
 };
 
 static void i6300esb_realize(PCIDevice *dev, Error **errp)
@@ -475,15 +479,17 @@ static void i6300esb_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Intel 6300ESB";
 }
 
+static const InterfaceInfo i6300esb_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo i6300esb_info = {
     .name          = TYPE_WATCHDOG_I6300ESB_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(I6300State),
     .class_init    = i6300esb_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = i6300esb_interfaces,
 };
 
 static void i6300esb_register_types(void)

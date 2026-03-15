@@ -1,7 +1,7 @@
 system_ss.add(files('watchdog.cpp'))
 system_ss.add(when: 'CONFIG_ALLWINNER_WDT', if_true: files('allwinner-wdt.c'))
 system_ss.add(when: 'CONFIG_CMSDK_APB_WATCHDOG', if_true: files('cmsdk-apb-watchdog.c'))
-system_ss.add(when: 'CONFIG_WDT_IB6300ESB', if_true: files('wdt_i6300esb.c'))
+system_ss.add(when: 'CONFIG_WDT_IB6300ESB', if_true: files('wdt_i6300esb.cpp'))
 system_ss.add(when: 'CONFIG_WDT_IB700', if_true: files('wdt_ib700.cpp'))
 system_ss.add(when: 'CONFIG_WDT_DIAG288', if_true: files('wdt_diag288.cpp'))
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files('wdt_aspeed.c'))

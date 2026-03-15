@@ -14,6 +14,10 @@
 #include "hw/hyperv/vmbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VMBUS_BRIDGE "vmbus-bridge"
 
 struct VMBusBridge {
@@ -30,5 +34,9 @@ static inline VMBusBridge *vmbus_bridge_find(void)
 {
     return VMBUS_BRIDGE(object_resolve_path_type("", TYPE_VMBUS_BRIDGE, NULL));
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

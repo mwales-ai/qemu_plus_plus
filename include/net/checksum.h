@@ -21,6 +21,10 @@
 #include "qemu/bswap.h"
 struct iovec;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CSUM_IP     0x01
 #define CSUM_TCP    0x02
 #define CSUM_UDP    0x04
@@ -107,5 +111,9 @@ void net_toeplitz_add(uint32_t *result,
     key->leftmost_32_bits = leftmost_32_bits;
     *result = accumulator;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_NET_CHECKSUM_H */

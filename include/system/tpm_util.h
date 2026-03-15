@@ -25,6 +25,10 @@
 #include "system/tpm.h"
 #include "qemu/bswap.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void tpm_util_write_fatal_error_response(uint8_t *out, uint32_t out_len);
 
 bool tpm_util_is_selftest(const uint8_t *in, uint32_t in_len);
@@ -68,5 +72,9 @@ static inline void tpm_cmd_set_error(void *b, uint32_t error)
 
 void tpm_util_show_buffer(const unsigned char *buffer,
                           size_t buffer_size, const char *string);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SYSTEM_TPM_UTIL_H */

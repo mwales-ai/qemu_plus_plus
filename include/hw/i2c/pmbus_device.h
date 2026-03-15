@@ -12,6 +12,10 @@
 #include "qemu/bitops.h"
 #include "hw/i2c/smbus_slave.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum pmbus_registers {
     PMBUS_PAGE                      = 0x00, /* R/W byte */
     PMBUS_OPERATION                 = 0x01, /* R/W byte */
@@ -560,5 +564,9 @@ extern const VMStateDescription vmstate_pmbus_device;
     .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, PMBusDevice), \
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

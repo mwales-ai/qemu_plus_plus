@@ -12,6 +12,10 @@
 
 #include "qemu/bitmap.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Hypercall status code
  */
@@ -191,4 +195,9 @@ struct hyperv_retrieve_debug_data_output {
     uint32_t retrieved_count;
     uint32_t remaining_count;
 } __attribute__ ((__packed__));
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

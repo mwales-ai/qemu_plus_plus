@@ -14,6 +14,10 @@
 #ifndef EXEC_TARGET_PAGE_H
 #define EXEC_TARGET_PAGE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * If compiling per-target, get the real values.
  * For generic code, reuse the mechanism for variable page size.
@@ -72,5 +76,9 @@ static inline size_t qemu_target_pages_to_MiB(size_t pages)
 
     return pages >> (20 - page_bits);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

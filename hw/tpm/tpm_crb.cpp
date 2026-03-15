@@ -88,9 +88,9 @@ static uint64_t tpm_crb_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     CRBState *s = CRB(opaque);
-    void *regs = (void *)&s->regs + (addr & ~3);
+    void *regs = static_cast<void *>(reinterpret_cast<char *>(&s->regs) + (addr & ~3));
     unsigned offset = addr & 3;
-    uint32_t val = *(uint32_t *)regs >> (8 * offset);
+    uint32_t val = *static_cast<uint32_t *>(regs) >> (8 * offset);
 
     switch (addr) {
     case A_CRB_LOC_STATE:
@@ -145,12 +145,11 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
             void *mem = memory_region_get_ram_ptr(&s->cmdmem);
 
             s->regs[R_CRB_CTRL_START] |= CRB_START_INVOKE;
-            s->cmd = (TPMBackendCmd) {
-                .in = mem,
-                .in_len = MIN(tpm_cmd_get_size(mem), s->be_buffer_size),
-                .out = mem,
-                .out_len = s->be_buffer_size,
-            };
+            memset(&s->cmd, 0, sizeof(s->cmd));
+            s->cmd.in = static_cast<const uint8_t *>(mem);
+            s->cmd.in_len = MIN(tpm_cmd_get_size(mem), s->be_buffer_size);
+            s->cmd.out = static_cast<uint8_t *>(mem);
+            s->cmd.out_len = s->be_buffer_size;
 
             tpm_backend_deliver_request(s->tpmbe, &s->cmd);
         }
@@ -210,20 +209,22 @@ static enum TPMVersion tpm_crb_get_version(TPMIf *ti)
 
 static int tpm_crb_pre_save(void *opaque)
 {
-    CRBState *s = opaque;
+    CRBState *s = static_cast<CRBState *>(opaque);
 
     tpm_backend_finish_sync(s->tpmbe);
 
     return 0;
 }
 
+static const VMStateField vmstate_tpm_crb_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, CRBState, TPM_CRB_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_tpm_crb = {
     .name = "tpm-crb",
     .pre_save = tpm_crb_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, CRBState, TPM_CRB_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_tpm_crb_fields
 };
 
 static const Property tpm_crb_properties[] = {
@@ -331,16 +332,18 @@ static void tpm_crb_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
+static const InterfaceInfo tpm_crb_interfaces[] = {
+    { TYPE_TPM_IF },
+    { }
+};
+
 static const TypeInfo tpm_crb_info = {
     .name = TYPE_TPM_CRB,
     /* could be TYPE_SYS_BUS_DEVICE (or LPC etc) */
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CRBState),
     .class_init  = tpm_crb_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_TPM_IF },
-        { }
-    }
+    .interfaces = tpm_crb_interfaces
 };
 
 static void tpm_crb_register(void)

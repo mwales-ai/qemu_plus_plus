@@ -29,6 +29,10 @@
 #include "qemu/bswap.h"
 #include "qemu/iov.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define ETH_ALEN 6
 #define ETH_HLEN 14
 #define ETH_ZLEN 60     /* Min. octets in frame without FCS */
@@ -436,5 +440,9 @@ eth_parse_ipv6_hdr(const struct iovec *pkt, int pkt_frags,
  */
 bool eth_pad_short_frame(uint8_t *padded_pkt, size_t *padded_buflen,
                          const void *pkt, size_t pkt_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -14,6 +14,10 @@
 #include "hw/core/cpu.h"
 #include "hw/hyperv/hyperv-proto.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct HvSintRoute HvSintRoute;
 
 /*
@@ -143,5 +147,9 @@ void hyperv_set_syndbg_handler(HvSynDbgHandler handler, void *context);
 
 bool hyperv_are_vmbus_recommended_features_enabled(void);
 void hyperv_set_vmbus_recommended_features_enabled(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

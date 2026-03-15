@@ -63,7 +63,7 @@ static void set_pending_state(HvSynDbg *syndbg, bool has_pending)
     out_len = 1;
     out_data = cpu_physical_memory_map(syndbg->pending_page_gpa, &out_len, 1);
     if (out_data) {
-        *(uint8_t *)out_data = !!has_pending;
+        *static_cast<uint8_t *>(out_data) = !!has_pending;
         cpu_physical_memory_unmap(out_data, out_len, 1, out_len);
     }
 }
@@ -250,7 +250,7 @@ cleanup_out_data:
 
 static uint16_t hv_syndbg_handler(void *context, HvSynDbgMsg *msg)
 {
-    HvSynDbg *syndbg = context;
+    HvSynDbg *syndbg = static_cast<HvSynDbg *>(context);
     uint16_t ret = HV_STATUS_INVALID_HYPERCALL_CODE;
 
     switch (msg->type) {
@@ -291,7 +291,7 @@ static uint16_t hv_syndbg_handler(void *context, HvSynDbgMsg *msg)
 
 static void hv_syndbg_recv_event(void *opaque)
 {
-    HvSynDbg *syndbg = opaque;
+    HvSynDbg *syndbg = static_cast<HvSynDbg *>(opaque);
     struct timeval tv;
     fd_set rfds;
 
@@ -329,7 +329,7 @@ static void hv_syndbg_realize(DeviceState *dev, Error **errp)
                        TYPE_HV_SYNDBG, syndbg->host_ip);
             return;
         }
-        syndbg->servaddr.sin_addr = *(struct in_addr *)he->h_addr;
+        syndbg->servaddr.sin_addr = *reinterpret_cast<struct in_addr *>(he->h_addr);
     }
 
     syndbg->socket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -344,7 +344,7 @@ static void hv_syndbg_realize(DeviceState *dev, Error **errp)
 
     syndbg->servaddr.sin_port = htons(syndbg->host_port);
     syndbg->servaddr.sin_family = AF_INET;
-    if (connect(syndbg->socket, (struct sockaddr *)&syndbg->servaddr,
+    if (connect(syndbg->socket, reinterpret_cast<struct sockaddr *>(&syndbg->servaddr),
                 sizeof(syndbg->servaddr)) < 0) {
         close(syndbg->socket);
         error_setg(errp, "%s failed to connect to socket", TYPE_HV_SYNDBG);

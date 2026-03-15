@@ -25,20 +25,20 @@
 static void transfer_mem2mem(struct soc_dma_ch_s *ch)
 {
     memcpy(ch->paddr[0], ch->paddr[1], ch->bytes);
-    ch->paddr[0] += ch->bytes;
-    ch->paddr[1] += ch->bytes;
+    ch->paddr[0] = static_cast<uint8_t *>(ch->paddr[0]) + ch->bytes;
+    ch->paddr[1] = static_cast<uint8_t *>(ch->paddr[1]) + ch->bytes;
 }
 
 static void transfer_mem2fifo(struct soc_dma_ch_s *ch)
 {
-    ch->io_fn[1](ch->io_opaque[1], ch->paddr[0], ch->bytes);
-    ch->paddr[0] += ch->bytes;
+    ch->io_fn[1](ch->io_opaque[1], static_cast<uint8_t *>(ch->paddr[0]), ch->bytes);
+    ch->paddr[0] = static_cast<uint8_t *>(ch->paddr[0]) + ch->bytes;
 }
 
 static void transfer_fifo2mem(struct soc_dma_ch_s *ch)
 {
-    ch->io_fn[0](ch->io_opaque[0], ch->paddr[1], ch->bytes);
-    ch->paddr[1] += ch->bytes;
+    ch->io_fn[0](ch->io_opaque[0], static_cast<uint8_t *>(ch->paddr[1]), ch->bytes);
+    ch->paddr[1] = static_cast<uint8_t *>(ch->paddr[1]) + ch->bytes;
 }
 
 /* This is further optimisable but isn't very important because often
@@ -52,9 +52,25 @@ static void transfer_fifo2fifo(struct soc_dma_ch_s *ch)
         fifo_buf = g_realloc(fifo_buf, fifo_size = ch->bytes);
 
     /* Implement as transfer_fifo2linear + transfer_linear2fifo.  */
-    ch->io_fn[0](ch->io_opaque[0], fifo_buf, ch->bytes);
-    ch->io_fn[1](ch->io_opaque[1], fifo_buf, ch->bytes);
+    ch->io_fn[0](ch->io_opaque[0], static_cast<uint8_t *>(fifo_buf), ch->bytes);
+    ch->io_fn[1](ch->io_opaque[1], static_cast<uint8_t *>(fifo_buf), ch->bytes);
 }
+
+struct memmap_entry_s {
+    enum soc_dma_port_type type;
+    hwaddr addr;
+    union {
+       struct {
+           void *opaque;
+           soc_dma_io_t fn;
+           int out;
+       } fifo;
+       struct {
+           void *base;
+           size_t size;
+       } mem;
+    } u;
+};
 
 struct dma_s {
     struct soc_dma_s soc;
@@ -63,21 +79,7 @@ struct dma_s {
     int64_t channel_freq;
     int enabled_count;
 
-    struct memmap_entry_s {
-        enum soc_dma_port_type type;
-        hwaddr addr;
-        union {
-           struct {
-               void *opaque;
-               soc_dma_io_t fn;
-               int out;
-           } fifo;
-           struct {
-               void *base;
-               size_t size;
-           } mem;
-        } u;
-    } *memmap;
+    struct memmap_entry_s *memmap;
     int memmap_size;
 
     struct soc_dma_ch_s ch[];
@@ -152,7 +154,7 @@ static inline enum soc_dma_port_type soc_dma_ch_update_type(
         if (ch->type[port] != soc_dma_access_const)
             return soc_dma_port_other;
 
-        ch->paddr[port] = (uint8_t *) entry->u.mem.base +
+        ch->paddr[port] = static_cast<uint8_t *>(entry->u.mem.base) +
                 (ch->vaddr[port] - entry->addr);
         /* TODO: save bytes left to the end of the mapping somewhere so we
          * can check we're not reading beyond it.  */
@@ -161,7 +163,7 @@ static inline enum soc_dma_port_type soc_dma_ch_update_type(
         return soc_dma_port_other;
 }
 
-void soc_dma_ch_update(struct soc_dma_ch_s *ch)
+extern "C" void soc_dma_ch_update(struct soc_dma_ch_s *ch)
 {
     enum soc_dma_port_type src, dst;
 
@@ -202,7 +204,7 @@ static void soc_dma_ch_freq_update(struct dma_s *s)
     }
 }
 
-void soc_dma_set_request(struct soc_dma_ch_s *ch, int level)
+extern "C" void soc_dma_set_request(struct soc_dma_ch_s *ch, int level)
 {
     struct dma_s *dma = (struct dma_s *) ch->dma;
 
@@ -226,7 +228,7 @@ void soc_dma_set_request(struct soc_dma_ch_s *ch, int level)
     }
 }
 
-void soc_dma_reset(struct soc_dma_s *soc)
+extern "C" void soc_dma_reset(struct soc_dma_s *soc)
 {
     struct dma_s *s = (struct dma_s *) soc;
 
@@ -237,10 +239,10 @@ void soc_dma_reset(struct soc_dma_s *soc)
 }
 
 /* TODO: take a functional-clock argument */
-struct soc_dma_s *soc_dma_init(int n)
+extern "C" struct soc_dma_s *soc_dma_init(int n)
 {
     int i;
-    struct dma_s *s = g_malloc0(sizeof(*s) + n * sizeof(*s->ch));
+    struct dma_s *s = static_cast<struct dma_s *>(g_malloc0(sizeof(*s) + n * sizeof(*s->ch)));
 
     s->chnum = n;
     s->soc.ch = s->ch;
@@ -256,23 +258,23 @@ struct soc_dma_s *soc_dma_init(int n)
     return &s->soc;
 }
 
-void soc_dma_port_add_fifo(struct soc_dma_s *soc, hwaddr virt_base,
+extern "C" void soc_dma_port_add_fifo(struct soc_dma_s *soc, hwaddr virt_base,
                 soc_dma_io_t fn, void *opaque, int out)
 {
     struct memmap_entry_s *entry;
     struct dma_s *dma = (struct dma_s *) soc;
 
-    dma->memmap = g_realloc(dma->memmap, sizeof(*entry) *
-                    (dma->memmap_size + 1));
+    dma->memmap = static_cast<struct memmap_entry_s *>(g_realloc(dma->memmap, sizeof(*entry) *
+                    (dma->memmap_size + 1)));
     entry = soc_dma_lookup(dma, virt_base);
 
     if (dma->memmap_size) {
         if (entry->type == soc_dma_port_mem) {
             if (entry->addr <= virt_base &&
                             entry->addr + entry->u.mem.size > virt_base) {
-                error_report("%s: FIFO at %"PRIx64
-                             " collides with RAM region at %"PRIx64
-                             "-%"PRIx64, __func__,
+                error_report("%s: FIFO at %" PRIx64
+                             " collides with RAM region at %" PRIx64
+                             "-%" PRIx64, __func__,
                              virt_base, entry->addr,
                              (entry->addr + entry->u.mem.size));
                 exit(-1);
@@ -284,8 +286,8 @@ void soc_dma_port_add_fifo(struct soc_dma_s *soc, hwaddr virt_base,
             while (entry < dma->memmap + dma->memmap_size &&
                             entry->addr <= virt_base) {
                 if (entry->addr == virt_base && entry->u.fifo.out == out) {
-                    error_report("%s: FIFO at %"PRIx64
-                                 " collides FIFO at %"PRIx64,
+                    error_report("%s: FIFO at %" PRIx64
+                                 " collides FIFO at %" PRIx64,
                                  __func__, virt_base, entry->addr);
                     exit(-1);
                 }
@@ -306,14 +308,14 @@ void soc_dma_port_add_fifo(struct soc_dma_s *soc, hwaddr virt_base,
     entry->u.fifo.out    = out;
 }
 
-void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
+extern "C" void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
                 hwaddr virt_base, size_t size)
 {
     struct memmap_entry_s *entry;
     struct dma_s *dma = (struct dma_s *) soc;
 
-    dma->memmap = g_realloc(dma->memmap, sizeof(*entry) *
-                    (dma->memmap_size + 1));
+    dma->memmap = static_cast<struct memmap_entry_s *>(g_realloc(dma->memmap, sizeof(*entry) *
+                    (dma->memmap_size + 1)));
     entry = soc_dma_lookup(dma, virt_base);
 
     if (dma->memmap_size) {
@@ -321,9 +323,9 @@ void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
             if ((entry->addr >= virt_base && entry->addr < virt_base + size) ||
                             (entry->addr <= virt_base &&
                              entry->addr + entry->u.mem.size > virt_base)) {
-                error_report("%s: RAM at %"PRIx64 "-%"PRIx64
-                             " collides with RAM region at %"PRIx64
-                             "-%"PRIx64, __func__,
+                error_report("%s: RAM at %" PRIx64 "-%" PRIx64
+                             " collides with RAM region at %" PRIx64
+                             "-%" PRIx64, __func__,
                              virt_base, virt_base + size,
                              entry->addr, entry->addr + entry->u.mem.size);
                 exit(-1);
@@ -334,8 +336,8 @@ void soc_dma_port_add_mem(struct soc_dma_s *soc, uint8_t *phys_base,
         } else {
             if (entry->addr >= virt_base &&
                             entry->addr < virt_base + size) {
-                error_report("%s: RAM at %"PRIx64 "-%"PRIx64
-                             " collides with FIFO at %"PRIx64,
+                error_report("%s: RAM at %" PRIx64 "-%" PRIx64
+                             " collides with FIFO at %" PRIx64,
                              __func__, virt_base, virt_base + size,
                              entry->addr);
                 exit(-1);
