@@ -55,9 +55,9 @@ static void stm32f2xx_syscfg_reset(DeviceState *dev)
 static uint64_t stm32f2xx_syscfg_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    STM32F2XXSyscfgState *s = opaque;
+    STM32F2XXSyscfgState *s = static_cast<STM32F2XXSyscfgState *>(opaque);
 
-    DB_PRINT("0x%"HWADDR_PRIx"\n", addr);
+    DB_PRINT("0x%" HWADDR_PRIx "\n", addr);
 
     switch (addr) {
     case SYSCFG_MEMRMP:
@@ -76,7 +76,7 @@ static uint64_t stm32f2xx_syscfg_read(void *opaque, hwaddr addr,
         return s->syscfg_cmpcr;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
         return 0;
     }
 
@@ -86,10 +86,10 @@ static uint64_t stm32f2xx_syscfg_read(void *opaque, hwaddr addr,
 static void stm32f2xx_syscfg_write(void *opaque, hwaddr addr,
                        uint64_t val64, unsigned int size)
 {
-    STM32F2XXSyscfgState *s = opaque;
+    STM32F2XXSyscfgState *s = static_cast<STM32F2XXSyscfgState *>(opaque);
     uint32_t value = val64;
 
-    DB_PRINT("0x%x, 0x%"HWADDR_PRIx"\n", value, addr);
+    DB_PRINT("0x%x, 0x%" HWADDR_PRIx "\n", value, addr);
 
     switch (addr) {
     case SYSCFG_MEMRMP:
@@ -119,7 +119,7 @@ static void stm32f2xx_syscfg_write(void *opaque, hwaddr addr,
         return;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
     }
 }
 

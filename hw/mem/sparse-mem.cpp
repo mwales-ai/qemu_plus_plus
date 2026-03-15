@@ -39,13 +39,14 @@ typedef struct sparse_mem_block {
 
 static uint64_t sparse_mem_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    SparseMemState *s = opaque;
+    SparseMemState *s = static_cast<SparseMemState *>(opaque);
     uint64_t ret = 0;
     size_t pfn = addr / SPARSE_BLOCK_SIZE;
     size_t offset = addr % SPARSE_BLOCK_SIZE;
     sparse_mem_block *block;
 
-    block = g_hash_table_lookup(s->mapped, (void *)pfn);
+    block = static_cast<sparse_mem_block *>(
+        g_hash_table_lookup(s->mapped, reinterpret_cast<void *>(pfn)));
     if (block) {
         assert(offset + size <= sizeof(block->data));
         memcpy(&ret, block->data + offset, size);
@@ -56,18 +57,19 @@ static uint64_t sparse_mem_read(void *opaque, hwaddr addr, unsigned int size)
 static void sparse_mem_write(void *opaque, hwaddr addr, uint64_t v,
                              unsigned int size)
 {
-    SparseMemState *s = opaque;
+    SparseMemState *s = static_cast<SparseMemState *>(opaque);
     size_t pfn = addr / SPARSE_BLOCK_SIZE;
     size_t offset = addr % SPARSE_BLOCK_SIZE;
     sparse_mem_block *block;
 
-    if (!g_hash_table_lookup(s->mapped, (void *)pfn) &&
+    if (!g_hash_table_lookup(s->mapped, reinterpret_cast<void *>(pfn)) &&
         s->size_used + SPARSE_BLOCK_SIZE < s->maxsize && v) {
-        g_hash_table_insert(s->mapped, (void *)pfn,
+        g_hash_table_insert(s->mapped, reinterpret_cast<void *>(pfn),
                             g_new0(sparse_mem_block, 1));
         s->size_used += sizeof(block->data);
     }
-    block = g_hash_table_lookup(s->mapped, (void *)pfn);
+    block = static_cast<sparse_mem_block *>(
+        g_hash_table_lookup(s->mapped, reinterpret_cast<void *>(pfn)));
     if (!block) {
         return;
     }

@@ -26,7 +26,7 @@
 
 static uint64_t sifive_u_prci_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    SiFiveUPRCIState *s = opaque;
+    SiFiveUPRCIState *s = static_cast<SiFiveUPRCIState *>(opaque);
 
     switch (addr) {
     case SIFIVE_U_PRCI_HFXOSCCFG:
@@ -58,8 +58,8 @@ static uint64_t sifive_u_prci_read(void *opaque, hwaddr addr, unsigned int size)
 static void sifive_u_prci_write(void *opaque, hwaddr addr,
                                 uint64_t val64, unsigned int size)
 {
-    SiFiveUPRCIState *s = opaque;
-    uint32_t val32 = (uint32_t)val64;
+    SiFiveUPRCIState *s = static_cast<SiFiveUPRCIState *>(opaque);
+    uint32_t val32 = static_cast<uint32_t>(val64);
 
     switch (addr) {
     case SIFIVE_U_PRCI_HFXOSCCFG:

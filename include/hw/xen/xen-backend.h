@@ -10,6 +10,10 @@
 
 #include "hw/xen/xen-bus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct XenBackendInstance XenBackendInstance;
 
 typedef void (*XenBackendDeviceCreate)(XenBackendInstance *backend,
@@ -37,5 +41,9 @@ bool xen_backend_exists(const char *type, const char *name);
 void xen_backend_device_create(XenBus *xenbus, const char *type,
                                const char *name, QDict *opts, Error **errp);
 bool xen_backend_try_device_destroy(XenDevice *xendev, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_XEN_BACKEND_H */

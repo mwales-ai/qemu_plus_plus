@@ -14,6 +14,14 @@
 #define SPARSE_MEM_H
 #define TYPE_SPARSE_MEM "sparse-mem"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 MemoryRegion *sparse_mem_init(uint64_t addr, uint64_t length);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

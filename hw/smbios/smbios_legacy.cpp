@@ -59,11 +59,12 @@ static void smbios_add_field(int type, int offset, const void *data, size_t len)
 
     if (!smbios_entries) {
         smbios_entries_len = sizeof(uint16_t);
-        smbios_entries = g_malloc0(smbios_entries_len);
+        smbios_entries = static_cast<uint8_t *>(g_malloc0(smbios_entries_len));
     }
-    smbios_entries = g_realloc(smbios_entries, smbios_entries_len +
-                                                  sizeof(*field) + len);
-    field = (struct smbios_field *)(smbios_entries + smbios_entries_len);
+    smbios_entries = static_cast<uint8_t *>(
+        g_realloc(smbios_entries, smbios_entries_len +
+                                  sizeof(*field) + len));
+    field = reinterpret_cast<struct smbios_field *>(smbios_entries + smbios_entries_len);
     field->header.type = SMBIOS_FIELD_ENTRY;
     field->header.length = cpu_to_le16(sizeof(*field) + len);
 
@@ -72,8 +73,8 @@ static void smbios_add_field(int type, int offset, const void *data, size_t len)
     memcpy(field->data, data, len);
 
     smbios_entries_len += sizeof(*field) + len;
-    (*(uint16_t *)smbios_entries) =
-            cpu_to_le16(le16_to_cpu(*(uint16_t *)smbios_entries) + 1);
+    (*reinterpret_cast<uint16_t *>(smbios_entries)) =
+            cpu_to_le16(le16_to_cpu(*reinterpret_cast<uint16_t *>(smbios_entries)) + 1);
 }
 
 static void smbios_maybe_add_str(int type, int offset, const char *data)
@@ -149,22 +150,23 @@ uint8_t *smbios_get_table_legacy(size_t *length, Error **errp)
 
     g_free(smbios_entries);
     smbios_entries_len = sizeof(uint16_t);
-    smbios_entries = g_malloc0(smbios_entries_len);
+    smbios_entries = static_cast<uint8_t *>(g_malloc0(smbios_entries_len));
 
     /*
      * build a set of legacy smbios_table entries using user provided blobs
      */
-    for (i = 0, usr_offset = 0; usr_blobs_sizes && i < usr_blobs_sizes->len;
+    for (i = 0, usr_offset = 0; usr_blobs_sizes && static_cast<guint>(i) < usr_blobs_sizes->len;
          i++)
     {
         struct smbios_table *table;
         struct smbios_structure_header *header;
         size_t size = g_array_index(usr_blobs_sizes, size_t, i);
 
-        header = (struct smbios_structure_header *)(usr_blobs + usr_offset);
-        smbios_entries = g_realloc(smbios_entries, smbios_entries_len +
-                                                   size + sizeof(*table));
-        table = (struct smbios_table *)(smbios_entries + smbios_entries_len);
+        header = reinterpret_cast<struct smbios_structure_header *>(usr_blobs + usr_offset);
+        smbios_entries = static_cast<uint8_t *>(
+            g_realloc(smbios_entries, smbios_entries_len +
+                                      size + sizeof(*table)));
+        table = reinterpret_cast<struct smbios_table *>(smbios_entries + smbios_entries_len);
         table->header.type = SMBIOS_TABLE_ENTRY;
         table->header.length = cpu_to_le16(sizeof(*table) + size);
         memcpy(table->data, header, size);
@@ -173,8 +175,8 @@ uint8_t *smbios_get_table_legacy(size_t *length, Error **errp)
          * update number of entries in the blob,
          * see SeaBIOS: qemu_cfg_legacy():QEMU_CFG_SMBIOS_ENTRIES
          */
-        (*(uint16_t *)smbios_entries) =
-            cpu_to_le16(le16_to_cpu(*(uint16_t *)smbios_entries) + 1);
+        (*reinterpret_cast<uint16_t *>(smbios_entries)) =
+            cpu_to_le16(le16_to_cpu(*reinterpret_cast<uint16_t *>(smbios_entries)) + 1);
         usr_offset += size;
     }
 

@@ -137,8 +137,8 @@ void hmp_info_pci(Monitor *mon, const QDict *qdict)
 void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     PCIDevice *d = (PCIDevice *)dev;
-    int class = pci_get_word(d->config + PCI_CLASS_DEVICE);
-    const pci_class_desc *desc = get_class_desc(class);
+    int klass = pci_get_word(d->config + PCI_CLASS_DEVICE);
+    const pci_class_desc *desc = get_class_desc(klass);
     char ctxt[64];
     PCIIORegion *r;
     int i;
@@ -146,7 +146,7 @@ void pcibus_dev_print(Monitor *mon, DeviceState *dev, int indent)
     if (desc->desc) {
         snprintf(ctxt, sizeof(ctxt), "%s", desc->desc);
     } else {
-        snprintf(ctxt, sizeof(ctxt), "Class %04x", class);
+        snprintf(ctxt, sizeof(ctxt), "Class %04x", klass);
     }
 
     monitor_printf(mon, "%*sclass %s, addr %02x:%02x.%x, "

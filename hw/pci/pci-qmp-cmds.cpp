@@ -43,7 +43,7 @@ static PciMemoryRegionList *qmp_query_pci_regions(const PCIDevice *dev)
             continue;
         }
 
-        region = g_malloc0(sizeof(*region));
+        region = static_cast<PciMemoryRegion *>(g_malloc0(sizeof(*region)));
 
         if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
             region->type = g_strdup("io");
@@ -109,7 +109,7 @@ static PciDeviceInfo *qmp_query_pci_device(PCIDevice *dev, PCIBus *bus,
     const pci_class_desc *desc;
     PciDeviceInfo *info;
     uint8_t type;
-    int class;
+    int klass;
 
     info = g_new0(PciDeviceInfo, 1);
     info->bus = bus_num;
@@ -117,9 +117,9 @@ static PciDeviceInfo *qmp_query_pci_device(PCIDevice *dev, PCIBus *bus,
     info->function = PCI_FUNC(dev->devfn);
 
     info->class_info = g_new0(PciDeviceClass, 1);
-    class = pci_get_word(dev->config + PCI_CLASS_DEVICE);
-    info->class_info->q_class = class;
-    desc = get_class_desc(class);
+    klass = pci_get_word(dev->config + PCI_CLASS_DEVICE);
+    info->class_info->q_class = klass;
+    desc = get_class_desc(klass);
     if (desc->desc) {
         info->class_info->desc = g_strdup(desc->desc);
     }
@@ -160,7 +160,7 @@ static PciDeviceInfoList *qmp_query_pci_devices(PCIBus *bus, int bus_num)
     PCIDevice *dev;
     int devfn;
 
-    for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+    for (devfn = 0; static_cast<size_t>(devfn) < ARRAY_SIZE(bus->devices); devfn++) {
         dev = bus->devices[devfn];
         if (dev) {
             QAPI_LIST_APPEND(tail, qmp_query_pci_device(dev, bus, bus_num));
@@ -176,7 +176,7 @@ static PciInfo *qmp_query_pci_bus(PCIBus *bus, int bus_num)
 
     bus = pci_find_bus_nr(bus, bus_num);
     if (bus) {
-        info = g_malloc0(sizeof(*info));
+        info = static_cast<PciInfo *>(g_malloc0(sizeof(*info)));
         info->bus = bus_num;
         info->devices = qmp_query_pci_devices(bus, bus_num);
     }

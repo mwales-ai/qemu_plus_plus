@@ -6,7 +6,7 @@ pci_ss.add(files(
   'pci_bridge.c',
   'pci_host.c',
   'pci-hmp-cmds.c',
-  'pci-qmp-cmds.c',
+  'pci-qmp-cmds.cpp',
   'pcie_sriov.c',
   'shpc.c',
   'slotid_cap.cpp'

@@ -25,6 +25,10 @@
 #include "qemu/log.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define OMAP_EMIFS_BASE    0x00000000
 #define OMAP_CS0_BASE      0x00000000
 #define OMAP_CS1_BASE      0x04000000
@@ -686,7 +690,7 @@ void omap_badwidth_write32(void *opaque, hwaddr addr,
 void omap_mpu_wakeup(void *opaque, int irq, int req);
 
 #define OMAP_BAD_REG(paddr)        \
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad register %#08"HWADDR_PRIx"\n", \
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad register %#08" HWADDR_PRIx "\n", \
                       __func__, paddr)
 #define OMAP_RO_REG(paddr)     \
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Read-only register %#08" \
@@ -694,5 +698,9 @@ void omap_mpu_wakeup(void *opaque, int irq, int req);
                       __func__, paddr)
 
 #define OMAP_MPUI_REG_MASK     0x000007ff
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

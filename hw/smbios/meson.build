@@ -5,7 +5,7 @@ smbios_ss.add(when: 'CONFIG_IPMI',
               if_false: files('smbios_type_38-stub.cpp'))
 
 smbios_ss.add(when: 'CONFIG_SMBIOS_LEGACY',
-              if_true: files('smbios_legacy.c'),
+              if_true: files('smbios_legacy.cpp'),
               if_false: files('smbios_legacy_stub.cpp'))
 
 system_ss.add_all(when: 'CONFIG_SMBIOS', if_true: smbios_ss)

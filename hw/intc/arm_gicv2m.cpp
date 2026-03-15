@@ -61,7 +61,7 @@ struct ARMGICv2mState {
 
 static void gicv2m_set_irq(void *opaque, int irq)
 {
-    ARMGICv2mState *s = (ARMGICv2mState *)opaque;
+    ARMGICv2mState *s = static_cast<ARMGICv2mState *>(opaque);
 
     qemu_irq_pulse(s->spi[irq]);
 }
@@ -69,7 +69,7 @@ static void gicv2m_set_irq(void *opaque, int irq)
 static uint64_t gicv2m_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
-    ARMGICv2mState *s = (ARMGICv2mState *)opaque;
+    ARMGICv2mState *s = static_cast<ARMGICv2mState *>(opaque);
     uint32_t val;
 
     if (size != 4) {
@@ -103,7 +103,7 @@ static uint64_t gicv2m_read(void *opaque, hwaddr offset,
 static void gicv2m_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    ARMGICv2mState *s = (ARMGICv2mState *)opaque;
+    ARMGICv2mState *s = static_cast<ARMGICv2mState *>(opaque);
 
     if (size != 2 && size != 4) {
         qemu_log_mask(LOG_GUEST_ERROR, "gicv2m_write: bad size %u\n", size);
@@ -115,7 +115,7 @@ static void gicv2m_write(void *opaque, hwaddr offset,
         int spi;
 
         spi = (value & 0x3ff) - (s->base_spi + 32);
-        if (spi >= 0 && spi < s->num_spi) {
+        if (spi >= 0 && static_cast<uint32_t>(spi) < s->num_spi) {
             gicv2m_set_irq(s, spi);
         }
         return;
@@ -151,7 +151,7 @@ static void gicv2m_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    for (i = 0; i < s->num_spi; i++) {
+    for (i = 0; static_cast<uint32_t>(i) < s->num_spi; i++) {
         sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->spi[i]);
     }
 

@@ -28,6 +28,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SYSCFG_MEMRMP  0x00
 #define SYSCFG_PMC     0x04
 #define SYSCFG_EXTICR1 0x08
@@ -54,5 +58,9 @@ struct STM32F2XXSyscfgState {
     uint32_t syscfg_exticr4;
     uint32_t syscfg_cmpcr;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_STM32F2XX_SYSCFG_H */

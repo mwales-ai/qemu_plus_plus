@@ -13,6 +13,10 @@
 #include "standard-headers/linux/virtio_input.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct virtio_input_absinfo virtio_input_absinfo;
 typedef struct virtio_input_config virtio_input_config;
 typedef struct virtio_input_event virtio_input_event;
@@ -112,5 +116,9 @@ void virtio_input_add_config(VirtIOInput *vinput,
                              virtio_input_config *config);
 void virtio_input_idstr_config(VirtIOInput *vinput,
                                uint8_t select, const char *string);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VIRTIO_INPUT_H */

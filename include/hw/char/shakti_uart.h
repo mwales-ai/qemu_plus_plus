@@ -28,6 +28,10 @@
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SHAKTI_UART_BAUD        0x00
 #define SHAKTI_UART_TX          0x04
 #define SHAKTI_UART_RX          0x08
@@ -70,5 +74,9 @@ typedef struct {
 
     CharFrontend chr;
 } ShaktiUartState;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SHAKTI_UART_H */

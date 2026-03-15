@@ -31,6 +31,10 @@
 #include "hw/cxl/cxl.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct PCIBridgeWindows PCIBridgeWindows;
 
 /*
@@ -202,5 +206,9 @@ typedef struct PCIResReserve {
 
 int pci_bridge_qemu_reserve_cap_init(PCIDevice *dev, int cap_offset,
                                PCIResReserve res_reserve, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_PCI_BRIDGE_H */

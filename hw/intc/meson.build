@@ -2,7 +2,7 @@ system_ss.add(files('intc.cpp'))
 system_ss.add(when: 'CONFIG_ARM_GIC', if_true: files(
   'arm_gic.c',
   'arm_gic_common.c',
-  'arm_gicv2m.c',
+  'arm_gicv2m.cpp',
   'arm_gicv3_common.c',
   'arm_gicv3_its_common.c',
 ))

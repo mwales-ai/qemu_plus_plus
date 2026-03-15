@@ -38,18 +38,20 @@ static GHashTable *xen_backend_table_get(void)
 
 static void xen_backend_table_add(XenBackendImpl *impl)
 {
-    g_hash_table_insert(xen_backend_table_get(), (void *)impl->type, impl);
+    g_hash_table_insert(xen_backend_table_get(),
+                        const_cast<char *>(impl->type), impl);
 }
 
 static const char **xen_backend_table_keys(unsigned int *count)
 {
-    return (const char **)g_hash_table_get_keys_as_array(
-        xen_backend_table_get(), count);
+    return static_cast<const char **>(static_cast<void *>(
+        g_hash_table_get_keys_as_array(xen_backend_table_get(), count)));
 }
 
 static const XenBackendImpl *xen_backend_table_lookup(const char *type)
 {
-    return g_hash_table_lookup(xen_backend_table_get(), type);
+    return static_cast<const XenBackendImpl *>(
+        g_hash_table_lookup(xen_backend_table_get(), type));
 }
 
 void xen_backend_register(const XenBackendInfo *info)

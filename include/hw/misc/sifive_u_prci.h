@@ -21,6 +21,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SIFIVE_U_PRCI_HFXOSCCFG     0x00
 #define SIFIVE_U_PRCI_COREPLLCFG0   0x04
 #define SIFIVE_U_PRCI_DDRPLLCFG0    0x0C
@@ -90,5 +94,9 @@ struct SiFiveUPRCIState {
 #define PRCI_CLK_DDRPLL         1
 #define PRCI_CLK_GEMGXLPLL      2
 #define PRCI_CLK_TLCLK          3
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SIFIVE_U_PRCI_H */

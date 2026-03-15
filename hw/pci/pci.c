@@ -2039,12 +2039,12 @@ void pci_for_each_device(PCIBus *bus, int bus_num,
     }
 }
 
-const pci_class_desc *get_class_desc(int class)
+const pci_class_desc *get_class_desc(int klass)
 {
     const pci_class_desc *desc;
 
     desc = pci_class_descriptions;
-    while (desc->desc && class != desc->class) {
+    while (desc->desc && klass != desc->klass) {
         desc++;
     }
 
@@ -2704,11 +2704,11 @@ static char *pci_dev_fw_name(DeviceState *dev, char *buf, int len)
     PCIDevice *d = (PCIDevice *)dev;
     const char *name = NULL;
     const pci_class_desc *desc =  pci_class_descriptions;
-    int class = pci_get_word(d->config + PCI_CLASS_DEVICE);
+    int klass = pci_get_word(d->config + PCI_CLASS_DEVICE);
 
     while (desc->desc &&
-          (class & ~desc->fw_ign_bits) !=
-          (desc->class & ~desc->fw_ign_bits)) {
+          (klass & ~desc->fw_ign_bits) !=
+          (desc->klass & ~desc->fw_ign_bits)) {
         desc++;
     }
 

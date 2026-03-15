@@ -27,6 +27,10 @@
 
 #include "hw/i2c/i2c.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Master device commands.  */
 int smbus_quick_command(I2CBus *bus, uint8_t addr, int read);
 int smbus_receive_byte(I2CBus *bus, uint8_t addr);
@@ -51,5 +55,9 @@ int smbus_read_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
  */
 int smbus_write_block(I2CBus *bus, uint8_t addr, uint8_t command, uint8_t *data,
                       int len, bool send_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
