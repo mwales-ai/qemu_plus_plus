@@ -7,7 +7,7 @@ if (config_all_devices.has_key('CONFIG_UEFI_VARS'))
                          'var-service-vars.c',
                          'var-service-auth.cpp',
                          'var-service-guid.cpp',
-                         'var-service-utils.c',
+                         'var-service-utils.cpp',
                          'var-service-policy.c',
                          'var-service-sysbus.c'))
   uefi_vars_ss.add(when: gnutls,

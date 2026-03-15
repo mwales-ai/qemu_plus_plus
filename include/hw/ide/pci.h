@@ -5,6 +5,10 @@
 #include "hw/pci/pci_device.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define BM_STATUS_DMAING 0x01
 #define BM_STATUS_ERROR  0x02
 #define BM_STATUS_INT    0x04
@@ -66,4 +70,9 @@ void pci_ide_update_mode(PCIIDEState *s);
 extern const VMStateDescription vmstate_ide_pci;
 extern const MemoryRegionOps pci_ide_cmd_le_ops;
 extern const MemoryRegionOps pci_ide_data_le_ops;
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

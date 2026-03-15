@@ -34,7 +34,7 @@
 
 static int stm32f2xx_usart_can_receive(void *opaque)
 {
-    STM32F2XXUsartState *s = opaque;
+    STM32F2XXUsartState *s = static_cast<STM32F2XXUsartState *>(opaque);
 
     if (!(s->usart_sr & USART_SR_RXNE)) {
         return 1;
@@ -56,7 +56,7 @@ static void stm32f2xx_update_irq(STM32F2XXUsartState *s)
 
 static void stm32f2xx_usart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    STM32F2XXUsartState *s = opaque;
+    STM32F2XXUsartState *s = static_cast<STM32F2XXUsartState *>(opaque);
     DeviceState *d = DEVICE(s);
 
     if (!(s->usart_cr1 & USART_CR1_UE && s->usart_cr1 & USART_CR1_RE)) {
@@ -91,7 +91,7 @@ static void stm32f2xx_usart_reset(DeviceState *dev)
 static uint64_t stm32f2xx_usart_read(void *opaque, hwaddr addr,
                                        unsigned int size)
 {
-    STM32F2XXUsartState *s = opaque;
+    STM32F2XXUsartState *s = static_cast<STM32F2XXUsartState *>(opaque);
     DeviceState *d = DEVICE(s);
     uint64_t retvalue = 0;
 
@@ -123,7 +123,7 @@ static uint64_t stm32f2xx_usart_read(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
         return 0;
     }
 
@@ -135,7 +135,7 @@ static uint64_t stm32f2xx_usart_read(void *opaque, hwaddr addr,
 static void stm32f2xx_usart_write(void *opaque, hwaddr addr,
                                   uint64_t val64, unsigned int size)
 {
-    STM32F2XXUsartState *s = opaque;
+    STM32F2XXUsartState *s = static_cast<STM32F2XXUsartState *>(opaque);
     DeviceState *d = DEVICE(s);
     uint32_t value = val64;
     unsigned char ch;
@@ -186,7 +186,7 @@ static void stm32f2xx_usart_write(void *opaque, hwaddr addr,
         return;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
     }
 }
 

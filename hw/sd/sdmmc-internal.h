@@ -11,6 +11,10 @@
 #ifndef SDMMC_INTERNAL_H
 #define SDMMC_INTERNAL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SDMMC_COMMON "sdmmc-common"
 DECLARE_OBJ_CHECKERS(SDState, SDCardClass, SDMMC_COMMON, TYPE_SDMMC_COMMON)
 
@@ -144,5 +148,9 @@ DECLARE_OBJ_CHECKERS(SDState, SDCardClass, SDMMC_COMMON, TYPE_SDMMC_COMMON)
 #define RPMB_RESULT_NO_AUTH_KEY         (7)
 
 #define RPMB_RESULT_COUTER_EXPIRED      (0x80)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -18,6 +18,10 @@
 #include "io/channel-socket.h"
 #include "hw/remote/proxy.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define REMOTE_MAX_FDS 8
 
 #define MPQEMU_MSG_HDR_SIZE offsetof(MPQemuMsg, data.u64)
@@ -95,5 +99,9 @@ bool mpqemu_msg_recv(MPQemuMsg *msg, QIOChannel *ioc, Error **errp);
 uint64_t mpqemu_msg_send_and_await_reply(MPQemuMsg *msg, PCIProxyDev *pdev,
                                          Error **errp);
 bool mpqemu_msg_valid(MPQemuMsg *msg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

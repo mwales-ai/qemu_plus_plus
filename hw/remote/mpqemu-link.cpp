@@ -95,7 +95,10 @@ bool mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
 static ssize_t mpqemu_read(QIOChannel *ioc, void *buf, size_t len, int **fds,
                            size_t *nfds, Error **errp)
 {
-    struct iovec iov = { .iov_base = buf, .iov_len = len };
+    struct iovec iov;
+    memset(&iov, 0, sizeof(iov));
+    iov.iov_base = buf;
+    iov.iov_len = len;
     bool drop_bql = bql_locked();
     bool iothread = qemu_in_iothread();
     int ret = -1;
@@ -148,7 +151,7 @@ bool mpqemu_msg_recv(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
     if (len <= 0) {
         goto fail;
     }
-    if (len != msg->size) {
+    if (len != static_cast<ssize_t>(msg->size)) {
         error_setg(errp, "Unable to read full message");
         goto fail;
     }
@@ -189,7 +192,8 @@ fail:
 uint64_t mpqemu_msg_send_and_await_reply(MPQemuMsg *msg, PCIProxyDev *pdev,
                                          Error **errp)
 {
-    MPQemuMsg msg_reply = {0};
+    MPQemuMsg msg_reply;
+    memset(&msg_reply, 0, sizeof(msg_reply));
     uint64_t ret = UINT64_MAX;
 
     assert(!qemu_in_coroutine());

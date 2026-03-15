@@ -29,6 +29,10 @@
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define USART_SR   0x00
 #define USART_DR   0x04
 #define USART_BRR  0x08
@@ -76,4 +80,9 @@ struct STM32F2XXUsartState {
     CharFrontend chr;
     qemu_irq irq;
 };
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* HW_STM32F2XX_USART_H */

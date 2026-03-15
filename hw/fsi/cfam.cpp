@@ -82,11 +82,9 @@ static void fsi_cfam_config_write(void *opaque, hwaddr addr, uint64_t data,
 static const struct MemoryRegionOps cfam_config_ops = {
     .read = fsi_cfam_config_read,
     .write = fsi_cfam_config_write,
-    .valid.max_access_size = 4,
-    .valid.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .impl.min_access_size = 4,
     .endianness = DEVICE_BIG_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4 },
+    .impl = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static uint64_t fsi_cfam_unimplemented_read(void *opaque, hwaddr addr,
@@ -155,8 +153,8 @@ static void fsi_cfam_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo fsi_cfam_info = {
     .name = TYPE_FSI_CFAM,
     .parent = TYPE_FSI_SLAVE,
-    .instance_init = fsi_cfam_instance_init,
     .instance_size = sizeof(FSICFAMState),
+    .instance_init = fsi_cfam_instance_init,
     .class_init = fsi_cfam_class_init,
 };
 

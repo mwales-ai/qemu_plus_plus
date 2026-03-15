@@ -25,6 +25,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_IOTKIT_SYSINFO "iotkit-sysinfo"
 OBJECT_DECLARE_SIMPLE_TYPE(IoTKitSysInfo, IOTKIT_SYSINFO)
 
@@ -41,5 +45,9 @@ struct IoTKitSysInfo {
     uint32_t sse_version;
     uint32_t iidr;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

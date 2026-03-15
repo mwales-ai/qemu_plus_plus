@@ -13,6 +13,10 @@
 #include "hw/block/block.h"
 #include "system/address-spaces.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ASPEED_OTP "aspeed-otp"
 OBJECT_DECLARE_SIMPLE_TYPE(AspeedOTPState, ASPEED_OTP)
 
@@ -29,5 +33,9 @@ typedef struct AspeedOTPState {
 
     uint8_t *storage;
 } AspeedOTPState;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ASPEED_OTP_H */

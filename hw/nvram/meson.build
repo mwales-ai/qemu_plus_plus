@@ -21,5 +21,5 @@ specific_ss.add(when: 'CONFIG_PSERIES', if_true: files('spapr_nvram.c'))
 specific_ss.add(when: 'CONFIG_ACPI', if_true: files('fw_cfg-acpi.cpp'))
 
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
-  'aspeed_otp.c',
+  'aspeed_otp.cpp',
   ))

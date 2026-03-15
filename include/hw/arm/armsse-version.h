@@ -12,6 +12,9 @@
 #ifndef ARMSSE_VERSION_H
 #define ARMSSE_VERSION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * Define an enumeration of the possible values of the sse-version
@@ -38,5 +41,9 @@ static inline bool armsse_version_valid(uint32_t sse_version)
         return false;
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

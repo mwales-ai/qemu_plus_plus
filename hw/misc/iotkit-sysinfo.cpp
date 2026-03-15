@@ -125,10 +125,8 @@ static const MemoryRegionOps iotkit_sysinfo_ops = {
     .write = iotkit_sysinfo_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     /* byte/halfword accesses are just zero-padded on reads and writes */
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4 },
+    .impl = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static const Property iotkit_sysinfo_props[] = {

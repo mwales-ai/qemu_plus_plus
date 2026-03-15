@@ -14,6 +14,10 @@
 #include "hw/remote/proxy-memory-listener.h"
 #include "qemu/event_notifier.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PCI_PROXY_DEV "x-pci-proxy-dev"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIProxyDev, PCI_PROXY_DEV)
 
@@ -44,5 +48,9 @@ struct PCIProxyDev {
     EventNotifier resample;
     ProxyMemoryRegion region[PCI_NUM_REGIONS];
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PROXY_H */

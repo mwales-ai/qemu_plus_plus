@@ -16,7 +16,7 @@
 
 static uint64_t aspeed_otp_read(void *opaque, hwaddr offset, unsigned size)
 {
-    AspeedOTPState *s = opaque;
+    AspeedOTPState *s = static_cast<AspeedOTPState *>(opaque);
     uint64_t val = 0;
 
     memcpy(&val, s->storage + offset, size);
@@ -60,7 +60,7 @@ static bool valid_program_data(uint32_t otp_addr,
 static bool program_otpmem_data(void *opaque, uint32_t otp_addr,
                              uint32_t prog_bit, uint32_t *value)
 {
-    AspeedOTPState *s = opaque;
+    AspeedOTPState *s = static_cast<AspeedOTPState *>(opaque);
     bool is_odd = otp_addr & 1;
     uint32_t otp_offset = otp_addr << 2;
 
@@ -82,12 +82,12 @@ static bool program_otpmem_data(void *opaque, uint32_t otp_addr,
 static void aspeed_otp_write(void *opaque, hwaddr otp_addr,
                                 uint64_t val, unsigned size)
 {
-    AspeedOTPState *s = opaque;
+    AspeedOTPState *s = static_cast<AspeedOTPState *>(opaque);
     uint32_t otp_offset, value;
 
     if (!program_otpmem_data(s, otp_addr, val, &value)) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Failed to program data, value = %x, bit = %"PRIx64"\n",
+                      "%s: Failed to program data, value = %x, bit = %" PRIx64 "\n",
                       __func__, value, val);
         return;
     }
@@ -96,7 +96,7 @@ static void aspeed_otp_write(void *opaque, hwaddr otp_addr,
     memcpy(s->storage + otp_offset, &value, size);
 
     if (s->blk) {
-        if (blk_pwrite(s->blk, otp_offset, size, &value, 0) < 0) {
+        if (blk_pwrite(s->blk, otp_offset, size, &value, static_cast<BdrvRequestFlags>(0)) < 0) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: Failed to write %x to %x\n",
                           __func__, value, otp_offset);
@@ -119,7 +119,7 @@ static bool aspeed_otp_init_storage(AspeedOTPState *s, Error **errp)
         if (blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp) < 0) {
             return false;
         }
-        if (blk_pread(s->blk, 0, s->size, s->storage, 0) < 0) {
+        if (blk_pread(s->blk, 0, s->size, s->storage, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "Failed to read the initial flash content");
             return false;
         }
@@ -137,10 +137,8 @@ static const MemoryRegionOps aspeed_otp_ops = {
     .read = aspeed_otp_read,
     .write = aspeed_otp_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .valid.unaligned = true,
-    .impl.unaligned = true
+    .valid = { .min_access_size = 1, .max_access_size = 4, .unaligned = true },
+    .impl = { .unaligned = true },
 };
 
 static void aspeed_otp_realize(DeviceState *dev, Error **errp)
@@ -152,7 +150,7 @@ static void aspeed_otp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->storage = blk_blockalign(s->blk, s->size);
+    s->storage = static_cast<uint8_t *>(blk_blockalign(s->blk, s->size));
 
     if (!aspeed_otp_init_storage(s, errp)) {
         return;

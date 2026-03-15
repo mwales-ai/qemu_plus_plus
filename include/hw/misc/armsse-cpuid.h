@@ -25,6 +25,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ARMSSE_CPUID "armsse-cpuid"
 OBJECT_DECLARE_SIMPLE_TYPE(ARMSSECPUID, ARMSSE_CPUID)
 
@@ -38,5 +42,9 @@ struct ARMSSECPUID {
     /* Properties */
     uint32_t cpuid;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

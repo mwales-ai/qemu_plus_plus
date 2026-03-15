@@ -108,10 +108,10 @@ gboolean uefi_str_equal(const uint16_t *a, size_t alen,
 
 char *uefi_ucs2_to_ascii(const uint16_t *ucs2, uint64_t ucs2_size)
 {
-    char *str = g_malloc0(ucs2_size / 2 + 1);
+    char *str = static_cast<char *>(g_malloc0(ucs2_size / 2 + 1));
     int i;
 
-    for (i = 0; i * 2 < ucs2_size; i++) {
+    for (i = 0; static_cast<uint64_t>(i) * 2 < ucs2_size; i++) {
         if (ucs2[i] == 0) {
             break;
         }

@@ -37,7 +37,7 @@
 
 static uint64_t bmdma_read(void *opaque, hwaddr addr, unsigned size)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
     uint32_t val;
 
     if (size != 1) {
@@ -63,7 +63,7 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr, unsigned size)
 static void bmdma_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
 
     if (size != 1) {
         return;

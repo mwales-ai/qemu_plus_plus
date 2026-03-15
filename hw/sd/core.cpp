@@ -120,7 +120,7 @@ void sdbus_write_byte(SDBus *sdbus, uint8_t value)
 void sdbus_write_data(SDBus *sdbus, const void *buf, size_t length)
 {
     SDState *card = get_card(sdbus);
-    const uint8_t *data = buf;
+    const uint8_t *data = static_cast<const uint8_t *>(buf);
 
     if (card) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(card);
@@ -150,7 +150,7 @@ uint8_t sdbus_read_byte(SDBus *sdbus)
 void sdbus_read_data(SDBus *sdbus, void *buf, size_t length)
 {
     SDState *card = get_card(sdbus);
-    uint8_t *data = buf;
+    uint8_t *data = static_cast<uint8_t *>(buf);
 
     if (card) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(card);
