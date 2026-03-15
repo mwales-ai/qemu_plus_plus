@@ -19,6 +19,10 @@
 #include "qom/object.h"
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * virtio-gpu-pci-base: This extends VirtioPCIProxy.
  */
@@ -35,5 +39,9 @@ struct VirtIOGPUPCIBase {
     DEFINE_PROP_BIT("ioeventfd", _state, flags,                 \
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),  \
         DEFINE_PROP_UINT32("vectors", _state, nvectors, 3)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VIRTIO_GPU_PCI_H */

@@ -14,6 +14,10 @@
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-user-base.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_USER_I2C "vhost-user-i2c-device"
 
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserI2C, VHOST_USER_I2C)
@@ -21,5 +25,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(VHostUserI2C, VHOST_USER_I2C)
 struct VHostUserI2C {
     VHostUserBase parent_obj;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VHOST_USER_I2C_H */

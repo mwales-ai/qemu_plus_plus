@@ -14,11 +14,19 @@
 #include "hw/virtio/vhost-user.h"
 #include "hw/virtio/vhost-user-base.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_USER_RNG "vhost-user-rng"
 OBJECT_DECLARE_SIMPLE_TYPE(VHostUserRNG, VHOST_USER_RNG)
 
 struct VHostUserRNG {
     VHostUserBase parent_obj;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VHOST_USER_RNG_H */

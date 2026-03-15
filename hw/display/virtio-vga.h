@@ -5,6 +5,10 @@
 #include "vga_int.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * virtio-vga-base: This extends VirtioPCIProxy.
  */
@@ -25,5 +29,9 @@ struct VirtIOVGABaseClass {
 
     ResettablePhases parent_phases;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VIRTIO_VGA_H */

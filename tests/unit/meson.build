@@ -128,7 +128,7 @@ if have_system
     'test-iov': [],
     'test-opts-visitor': [testqapi],
     'test-xs-node': [qom],
-    'test-virtio-dmabuf': [meson.project_source_root() / 'hw/display/virtio-dmabuf.c'],
+    'test-virtio-dmabuf': [meson.project_source_root() / 'hw/display/virtio-dmabuf.cpp'],
     'test-qmp-cmds': [testqapi],
     'test-xbzrle': [migration],
     'test-util-sockets': ['socket-helpers.c'],

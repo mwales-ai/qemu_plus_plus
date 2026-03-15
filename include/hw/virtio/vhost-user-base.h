@@ -12,6 +12,10 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VHOST_USER_BASE "vhost-user-base"
 
 OBJECT_DECLARE_TYPE(VHostUserBase, VHostUserBaseClass, VHOST_USER_BASE)
@@ -45,5 +49,9 @@ struct VHostUserBaseClass {
 
 
 #define TYPE_VHOST_USER_TEST_DEVICE "vhost-user-test-device"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_VHOST_USER_BASE_H */

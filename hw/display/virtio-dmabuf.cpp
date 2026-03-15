@@ -24,7 +24,8 @@ static GHashTable *resource_uuids;
  */
 static int uuid_equal_func(const void *lhv, const void *rhv)
 {
-    return qemu_uuid_is_equal(lhv, rhv);
+    return qemu_uuid_is_equal(static_cast<const QemuUUID *>(lhv),
+                              static_cast<const QemuUUID *>(rhv));
 }
 
 static bool virtio_add_resource(QemuUUID *uuid, VirtioSharedObject *value)
@@ -106,7 +107,7 @@ static VirtioSharedObject *get_shared_object(const QemuUUID *uuid)
     }
     g_mutex_unlock(&lock);
 
-    return (VirtioSharedObject *) lookup_res;
+    return static_cast<VirtioSharedObject *>(lookup_res);
 }
 
 int virtio_lookup_dmabuf(const QemuUUID *uuid)
@@ -126,7 +127,7 @@ struct vhost_dev *virtio_lookup_vhost_device(const QemuUUID *uuid)
         return NULL;
     }
     assert(vso->type == TYPE_VHOST_DEV);
-    return (struct vhost_dev *) vso->value;
+    return static_cast<struct vhost_dev *>(vso->value);
 }
 
 SharedObjectType virtio_object_type(const QemuUUID *uuid)
