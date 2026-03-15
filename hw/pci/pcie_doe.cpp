@@ -35,7 +35,7 @@ typedef struct DoeDiscoveryRsp {
 
 static bool pcie_doe_discovery(DOECap *doe_cap)
 {
-    DoeDiscoveryReq *req = pcie_doe_get_write_mbox_ptr(doe_cap);
+    DoeDiscoveryReq *req = static_cast<DoeDiscoveryReq *>(pcie_doe_get_write_mbox_ptr(doe_cap));
     DoeDiscoveryRsp rsp;
     uint8_t index = req->index;
     DOEProtocol *prot;
@@ -46,11 +46,10 @@ static bool pcie_doe_discovery(DOECap *doe_cap)
         return false;
     }
 
-    rsp.header = (DOEHeader) {
-        .vendor_id = PCI_VENDOR_ID_PCI_SIG,
-        .data_obj_type = PCI_SIG_DOE_DISCOVERY,
-        .length = DIV_ROUND_UP(sizeof(DoeDiscoveryRsp), DWORD_BYTE),
-    };
+    memset(&rsp.header, 0, sizeof(rsp.header));
+    rsp.header.vendor_id = PCI_VENDOR_ID_PCI_SIG;
+    rsp.header.data_obj_type = PCI_SIG_DOE_DISCOVERY;
+    rsp.header.length = DIV_ROUND_UP(sizeof(DoeDiscoveryRsp), DWORD_BYTE);
 
     /* Point to the requested protocol, index 0 must be Discovery */
     if (index == 0) {
@@ -102,8 +101,8 @@ void pcie_doe_init(PCIDevice *dev, DOECap *doe_cap, uint16_t offset,
         doe_cap->cap.vec = vec;
     }
 
-    doe_cap->write_mbox = g_malloc0(PCI_DOE_DW_SIZE_MAX * DWORD_BYTE);
-    doe_cap->read_mbox = g_malloc0(PCI_DOE_DW_SIZE_MAX * DWORD_BYTE);
+    doe_cap->write_mbox = static_cast<uint32_t *>(g_malloc0(PCI_DOE_DW_SIZE_MAX * DWORD_BYTE));
+    doe_cap->read_mbox = static_cast<uint32_t *>(g_malloc0(PCI_DOE_DW_SIZE_MAX * DWORD_BYTE));
 
     pcie_doe_reset_mbox(doe_cap);
 

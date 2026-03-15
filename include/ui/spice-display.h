@@ -33,6 +33,10 @@
 #  include "ui/egl-context.h"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NUM_MEMSLOTS 8
 #define MEMSLOT_GENERATION_BITS 8
 #define MEMSLOT_SLOT_BITS 8
@@ -186,5 +190,9 @@ void qemu_spice_wakeup(SimpleSpiceDisplay *ssd);
 void qemu_spice_display_start(void);
 void qemu_spice_display_stop(void);
 int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

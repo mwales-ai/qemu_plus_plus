@@ -89,7 +89,7 @@ static void cmd646_update_udma_interrupts(PCIDevice *pd)
 static uint64_t bmdma_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
     PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
     uint32_t val;
 
@@ -126,7 +126,7 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr,
 static void bmdma_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
     PCIDevice *pci_dev = PCI_DEVICE(bm->pci_dev);
 
     if (size != 1) {
@@ -194,7 +194,7 @@ static void cmd646_update_irq(PCIDevice *pd)
 /* the PCI irq level is the logical OR of the two channels */
 static void cmd646_set_irq(void *opaque, int channel, int level)
 {
-    PCIIDEState *d = opaque;
+    PCIIDEState *d = static_cast<PCIIDEState *>(opaque);
     PCIDevice *pd = PCI_DEVICE(d);
     int irq_mask;
 

@@ -27,7 +27,7 @@
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
     DisplaySurface *surface = qemu_console_surface(qxl->vga.con);
-    uint8_t *dst = surface_data(surface);
+    uint8_t *dst = static_cast<uint8_t *>(surface_data(surface));
     uint8_t *src;
     int len, i;
 
@@ -105,11 +105,11 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
 
     if (qxl->guest_primary.resized) {
         qxl->guest_primary.resized = 0;
-        qxl->guest_primary.data = qxl_phys2virt(qxl,
+        qxl->guest_primary.data = static_cast<uint8_t *>(qxl_phys2virt(qxl,
                                                 qxl->guest_primary.surface.mem,
                                                 MEMSLOT_GROUP_GUEST,
                                                 qxl->guest_primary.abs_stride
-                                                * height);
+                                                * height));
         if (!qxl->guest_primary.data) {
             goto end;
         }
@@ -197,9 +197,9 @@ void qxl_render_update(PCIQXLDevice *qxl)
                           0, 1 /* clear_dirty_region */, QXL_ASYNC, cookie);
 }
 
-void qxl_render_update_area_bh(void *opaque)
+extern "C" void qxl_render_update_area_bh(void *opaque)
 {
-    PCIQXLDevice *qxl = opaque;
+    PCIQXLDevice *qxl = static_cast<PCIQXLDevice *>(opaque);
 
     qemu_mutex_lock(&qxl->ssd.lock);
     qxl_render_update_area_unlocked(qxl);
@@ -226,21 +226,21 @@ static void qxl_unpack_chunks(void *dest, size_t size, PCIQXLDevice *qxl,
 
     for (;;) {
         bytes = MIN(size - offset, chunk->data_size);
-        memcpy(dest + offset, chunk->data, bytes);
+        memcpy(static_cast<uint8_t *>(dest) + offset, chunk->data, bytes);
         offset += bytes;
         if (offset == size) {
             return;
         }
         next_chunk_phys = chunk->next_chunk;
         /* fist time, only get the next chunk's data size */
-        chunk = qxl_phys2virt(qxl, next_chunk_phys, group_id,
-                              sizeof(QXLDataChunk));
+        chunk = static_cast<QXLDataChunk *>(qxl_phys2virt(qxl, next_chunk_phys, group_id,
+                              sizeof(QXLDataChunk)));
         if (!chunk) {
             return;
         }
         /* second time, check data size and get data */
-        chunk = qxl_phys2virt(qxl, next_chunk_phys, group_id,
-                              sizeof(QXLDataChunk) + chunk->data_size);
+        chunk = static_cast<QXLDataChunk *>(qxl_phys2virt(qxl, next_chunk_phys, group_id,
+                              sizeof(QXLDataChunk) + chunk->data_size));
         if (!chunk) {
             return;
         }
@@ -307,8 +307,8 @@ fail:
 /* called from spice server thread context only */
 int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
 {
-    QXLCursorCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id,
-                                      sizeof(QXLCursorCmd));
+    QXLCursorCmd *cmd = static_cast<QXLCursorCmd *>(qxl_phys2virt(qxl, ext->cmd.data, ext->group_id,
+                                      sizeof(QXLCursorCmd)));
     QXLCursor *cursor;
     QEMUCursor *c;
 
@@ -324,14 +324,14 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
     switch (cmd->type) {
     case QXL_CURSOR_SET:
         /* First read the QXLCursor to get QXLDataChunk::data_size ... */
-        cursor = qxl_phys2virt(qxl, cmd->u.set.shape, ext->group_id,
-                               sizeof(QXLCursor));
+        cursor = static_cast<QXLCursor *>(qxl_phys2virt(qxl, cmd->u.set.shape, ext->group_id,
+                               sizeof(QXLCursor)));
         if (!cursor) {
             return 1;
         }
         /* Then read including the chunked data following QXLCursor. */
-        cursor = qxl_phys2virt(qxl, cmd->u.set.shape, ext->group_id,
-                               sizeof(QXLCursor) + cursor->chunk.data_size);
+        cursor = static_cast<QXLCursor *>(qxl_phys2virt(qxl, cmd->u.set.shape, ext->group_id,
+                               sizeof(QXLCursor) + cursor->chunk.data_size));
         if (!cursor) {
             return 1;
         }

@@ -13,6 +13,10 @@
 
 #include <cbor.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool qemu_cbor_map_add(cbor_item_t *map, cbor_item_t *key, cbor_item_t *value);
 
 bool qemu_cbor_array_push(cbor_item_t *array, cbor_item_t *value);
@@ -42,4 +46,9 @@ bool qemu_cbor_add_uint8_key_bytestring_to_map(cbor_item_t *map, uint8_t key,
 
 bool qemu_cbor_add_uint64_to_map(cbor_item_t *map, const char *key,
                                  uint64_t value);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

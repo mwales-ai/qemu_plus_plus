@@ -32,6 +32,10 @@
 #include "system/host_iommu_device.h"
 #include "system/iommufd.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VFIO_MSG_PREFIX "vfio %s: "
 
 enum {
@@ -288,4 +292,8 @@ void vfio_device_init(VFIODevice *vbasedev, int type, VFIODeviceOps *ops,
 int vfio_device_get_aw_bits(VFIODevice *vdev);
 
 void vfio_kvm_device_close(void);
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* HW_VFIO_VFIO_DEVICE_H */

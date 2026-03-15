@@ -8,15 +8,16 @@
  * top-level directory.
  */
 
+#include "qemu/osdep.h"
 #include "hw/virtio/cbor-helpers.h"
 
 bool qemu_cbor_map_add(cbor_item_t *map, cbor_item_t *key, cbor_item_t *value)
 {
     bool success = false;
-    struct cbor_pair pair = (struct cbor_pair) {
-        .key = cbor_move(key),
-        .value = cbor_move(value)
-    };
+    struct cbor_pair pair;
+    memset(&pair, 0, sizeof(pair));
+    pair.key = cbor_move(key);
+    pair.value = cbor_move(value);
 
     success = cbor_map_add(map, pair);
     if (!success) {
@@ -234,7 +235,7 @@ bool qemu_cbor_add_uint8_array_to_map(cbor_item_t *map, const char *key,
         goto cleanup;
     }
 
-    for (int i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         cbor_item_t *tmp = cbor_build_uint8(arr[i]);
         if (!tmp) {
             goto cleanup;

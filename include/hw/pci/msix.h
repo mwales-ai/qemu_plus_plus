@@ -3,6 +3,10 @@
 
 #include "hw/pci/pci.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MSIX_CAP_LENGTH 12
 
 void msix_set_message(PCIDevice *dev, int vector, MSIMessage msg);
@@ -62,5 +66,9 @@ extern const VMStateDescription vmstate_msix;
 
 #define VMSTATE_MSIX(_f, _s)                                         \
     VMSTATE_MSIX_TEST(_f, _s, NULL)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

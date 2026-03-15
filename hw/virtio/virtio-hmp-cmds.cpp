@@ -25,7 +25,7 @@ static void hmp_virtio_dump_protocols(Monitor *mon,
     }
     monitor_printf(mon, "\n");
     if (pcol->has_unknown_protocols) {
-        monitor_printf(mon, "  unknown-protocols(0x%016"PRIx64")\n",
+        monitor_printf(mon, "  unknown-protocols(0x%016" PRIx64")\n",
                        pcol->unknown_protocols);
     }
 }
@@ -43,7 +43,7 @@ static void hmp_virtio_dump_status(Monitor *mon,
     }
     monitor_printf(mon, "\n");
     if (status->has_unknown_statuses) {
-        monitor_printf(mon, "  unknown-statuses(0x%016"PRIx32")\n",
+        monitor_printf(mon, "  unknown-statuses(0x%016" PRIx32")\n",
                        status->unknown_statuses);
     }
 }
@@ -74,13 +74,13 @@ static void hmp_virtio_dump_features(Monitor *mon,
     }
 
     if (features->has_unknown_dev_features) {
-        monitor_printf(mon, "  unknown-features(0x%016"PRIx64"%016"PRIx64")\n",
+        monitor_printf(mon, "  unknown-features(0x%016" PRIx64"%016" PRIx64")\n",
                        features->unknown_dev_features2,
                        features->unknown_dev_features);
     }
 }
 
-void hmp_virtio_query(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_virtio_query(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     VirtioInfoList *list = qmp_x_query_virtio(&err);
@@ -105,7 +105,7 @@ void hmp_virtio_query(Monitor *mon, const QDict *qdict)
     qapi_free_VirtioInfoList(list);
 }
 
-void hmp_virtio_status(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_virtio_status(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
@@ -139,7 +139,7 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
                    s->use_guest_notifier_mask ? "true" : "false");
     monitor_printf(mon, "  vm_running:              %s\n",
                    s->vm_running ? "true" : "false");
-    monitor_printf(mon, "  num_vqs:                 %"PRId64"\n", s->num_vqs);
+    monitor_printf(mon, "  num_vqs:                 %" PRId64"\n", s->num_vqs);
     monitor_printf(mon, "  queue_sel:               %d\n",
                    s->queue_sel);
     monitor_printf(mon, "  isr:                     %d\n", s->isr);
@@ -158,19 +158,19 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "  VHost:\n");
         monitor_printf(mon, "    nvqs:           %d\n",
                        s->vhost_dev->nvqs);
-        monitor_printf(mon, "    vq_index:       %"PRId64"\n",
+        monitor_printf(mon, "    vq_index:       %" PRId64"\n",
                        s->vhost_dev->vq_index);
-        monitor_printf(mon, "    max_queues:     %"PRId64"\n",
+        monitor_printf(mon, "    max_queues:     %" PRId64"\n",
                        s->vhost_dev->max_queues);
-        monitor_printf(mon, "    n_mem_sections: %"PRId64"\n",
+        monitor_printf(mon, "    n_mem_sections: %" PRId64"\n",
                        s->vhost_dev->n_mem_sections);
-        monitor_printf(mon, "    n_tmp_sections: %"PRId64"\n",
+        monitor_printf(mon, "    n_tmp_sections: %" PRId64"\n",
                        s->vhost_dev->n_tmp_sections);
-        monitor_printf(mon, "    backend_cap:    %"PRId64"\n",
+        monitor_printf(mon, "    backend_cap:    %" PRId64"\n",
                        s->vhost_dev->backend_cap);
         monitor_printf(mon, "    log_enabled:    %s\n",
                        s->vhost_dev->log_enabled ? "true" : "false");
-        monitor_printf(mon, "    log_size:       %"PRId64"\n",
+        monitor_printf(mon, "    log_size:       %" PRId64"\n",
                        s->vhost_dev->log_size);
         monitor_printf(mon, "    Features:\n");
         hmp_virtio_dump_features(mon, s->vhost_dev->features);
@@ -185,7 +185,7 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
     qapi_free_VirtioStatus(s);
 }
 
-void hmp_vhost_queue_status(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_vhost_queue_status(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
@@ -201,27 +201,27 @@ void hmp_vhost_queue_status(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "%s:\n", path);
     monitor_printf(mon, "  device_name:          %s (vhost)\n",
                    s->name);
-    monitor_printf(mon, "  kick:                 %"PRId64"\n", s->kick);
-    monitor_printf(mon, "  call:                 %"PRId64"\n", s->call);
+    monitor_printf(mon, "  kick:                 %" PRId64"\n", s->kick);
+    monitor_printf(mon, "  call:                 %" PRId64"\n", s->call);
     monitor_printf(mon, "  VRing:\n");
-    monitor_printf(mon, "    num:         %"PRId64"\n", s->num);
-    monitor_printf(mon, "    desc:        0x%016"PRIx64"\n", s->desc);
-    monitor_printf(mon, "    desc_phys:   0x%016"PRIx64"\n",
+    monitor_printf(mon, "    num:         %" PRId64"\n", s->num);
+    monitor_printf(mon, "    desc:        0x%016" PRIx64"\n", s->desc);
+    monitor_printf(mon, "    desc_phys:   0x%016" PRIx64"\n",
                    s->desc_phys);
-    monitor_printf(mon, "    desc_size:   %"PRId32"\n", s->desc_size);
-    monitor_printf(mon, "    avail:       0x%016"PRIx64"\n", s->avail);
-    monitor_printf(mon, "    avail_phys:  0x%016"PRIx64"\n",
+    monitor_printf(mon, "    desc_size:   %" PRId32"\n", s->desc_size);
+    monitor_printf(mon, "    avail:       0x%016" PRIx64"\n", s->avail);
+    monitor_printf(mon, "    avail_phys:  0x%016" PRIx64"\n",
                    s->avail_phys);
-    monitor_printf(mon, "    avail_size:  %"PRId32"\n", s->avail_size);
-    monitor_printf(mon, "    used:        0x%016"PRIx64"\n", s->used);
-    monitor_printf(mon, "    used_phys:   0x%016"PRIx64"\n",
+    monitor_printf(mon, "    avail_size:  %" PRId32"\n", s->avail_size);
+    monitor_printf(mon, "    used:        0x%016" PRIx64"\n", s->used);
+    monitor_printf(mon, "    used_phys:   0x%016" PRIx64"\n",
                    s->used_phys);
-    monitor_printf(mon, "    used_size:   %"PRId32"\n", s->used_size);
+    monitor_printf(mon, "    used_size:   %" PRId32"\n", s->used_size);
 
     qapi_free_VirtVhostQueueStatus(s);
 }
 
-void hmp_virtio_queue_status(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_virtio_queue_status(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
@@ -251,22 +251,22 @@ void hmp_virtio_queue_status(Monitor *mon, const QDict *qdict)
                        s->shadow_avail_idx);
     }
     monitor_printf(mon, "  VRing:\n");
-    monitor_printf(mon, "    num:          %"PRId32"\n", s->vring_num);
-    monitor_printf(mon, "    num_default:  %"PRId32"\n",
+    monitor_printf(mon, "    num:          %" PRId32"\n", s->vring_num);
+    monitor_printf(mon, "    num_default:  %" PRId32"\n",
                    s->vring_num_default);
-    monitor_printf(mon, "    align:        %"PRId32"\n",
+    monitor_printf(mon, "    align:        %" PRId32"\n",
                    s->vring_align);
-    monitor_printf(mon, "    desc:         0x%016"PRIx64"\n",
+    monitor_printf(mon, "    desc:         0x%016" PRIx64"\n",
                    s->vring_desc);
-    monitor_printf(mon, "    avail:        0x%016"PRIx64"\n",
+    monitor_printf(mon, "    avail:        0x%016" PRIx64"\n",
                    s->vring_avail);
-    monitor_printf(mon, "    used:         0x%016"PRIx64"\n",
+    monitor_printf(mon, "    used:         0x%016" PRIx64"\n",
                    s->vring_used);
 
     qapi_free_VirtQueueStatus(s);
 }
 
-void hmp_virtio_queue_element(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_virtio_queue_element(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     const char *path = qdict_get_try_str(qdict, "path");
@@ -290,7 +290,7 @@ void hmp_virtio_queue_element(Monitor *mon, const QDict *qdict)
 
     list = e->descs;
     while (list) {
-        monitor_printf(mon, "        addr 0x%"PRIx64" len %d",
+        monitor_printf(mon, "        addr 0x%" PRIx64" len %d",
                        list->value->addr, list->value->len);
         if (list->value->flags) {
             strList *flag = list->value->flags;

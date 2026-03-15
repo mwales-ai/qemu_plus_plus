@@ -20,7 +20,7 @@
 #include "qapi/qapi-commands-rocker.h"
 #include "qobject/qdict.h"
 
-void hmp_rocker(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_rocker(Monitor *mon, const QDict *qdict)
 {
     const char *name = qdict_get_str(qdict, "name");
     RockerSwitch *rocker;
@@ -38,7 +38,7 @@ void hmp_rocker(Monitor *mon, const QDict *qdict)
     qapi_free_RockerSwitch(rocker);
 }
 
-void hmp_rocker_ports(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_rocker_ports(Monitor *mon, const QDict *qdict)
 {
     RockerPortList *list, *port;
     const char *name = qdict_get_str(qdict, "name");
@@ -65,14 +65,14 @@ void hmp_rocker_ports(Monitor *mon, const QDict *qdict)
     qapi_free_RockerPortList(list);
 }
 
-void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict)
 {
     RockerOfDpaFlowList *list, *info;
     const char *name = qdict_get_str(qdict, "name");
     uint32_t tbl_id = qdict_get_try_int(qdict, "tbl_id", -1);
     Error *err = NULL;
 
-    list = qmp_query_rocker_of_dpa_flows(name, tbl_id != -1, tbl_id, &err);
+    list = qmp_query_rocker_of_dpa_flows(name, tbl_id != static_cast<uint32_t>(-1), tbl_id, &err);
     if (hmp_handle_error(mon, err)) {
         return;
     }
@@ -214,7 +214,7 @@ void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict)
     qapi_free_RockerOfDpaFlowList(list);
 }
 
-void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
 {
     RockerOfDpaGroupList *list, *g;
     const char *name = qdict_get_str(qdict, "name");

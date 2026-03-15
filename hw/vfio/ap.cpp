@@ -73,7 +73,7 @@ struct VFIODeviceOps vfio_ap_ops = {
 
 static void vfio_ap_req_notifier_handler(void *opaque)
 {
-    VFIOAPDevice *vapdev = opaque;
+    VFIOAPDevice *vapdev = static_cast<VFIOAPDevice *>(opaque);
     Error *err = NULL;
 
     if (!event_notifier_test_and_clear(&vapdev->req_notifier)) {
@@ -90,7 +90,7 @@ static void vfio_ap_req_notifier_handler(void *opaque)
 static void vfio_ap_cfg_chg_notifier_handler(void *opaque)
 {
     APConfigChgEvent *cfg_chg_event;
-    VFIOAPDevice *vapdev = opaque;
+    VFIOAPDevice *vapdev = static_cast<VFIOAPDevice *>(opaque);
 
     if (!event_notifier_test_and_clear(&vapdev->cfg_notifier)) {
         return;
@@ -106,7 +106,7 @@ static void vfio_ap_cfg_chg_notifier_handler(void *opaque)
 
 }
 
-int ap_chsc_sei_nt0_get_event(void *res)
+extern "C" int ap_chsc_sei_nt0_get_event(void *res)
 {
     ChscSeiNt0Res *nt0_res  = (ChscSeiNt0Res *)res;
     APConfigChgEvent *cfg_chg_event;
@@ -132,7 +132,7 @@ int ap_chsc_sei_nt0_get_event(void *res)
     return EVENT_INFORMATION_STORED;
 }
 
-bool ap_chsc_sei_nt0_have_event(void)
+extern "C" bool ap_chsc_sei_nt0_have_event(void)
 {
     QEMU_LOCK_GUARD(&cfg_chg_events_lock);
     return !QTAILQ_EMPTY(&cfg_chg_events);

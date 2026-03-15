@@ -9,6 +9,10 @@
 #ifndef HW_VFIO_VFIO_HELPERS_H
 #define HW_VFIO_VFIO_HELPERS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 
@@ -33,5 +37,9 @@ int vfio_kvm_device_add_fd(int fd, Error **errp);
 int vfio_kvm_device_del_fd(int fd, Error **errp);
 
 bool vfio_arch_wants_loading_config_after_iter(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VFIO_VFIO_HELPERS_H */

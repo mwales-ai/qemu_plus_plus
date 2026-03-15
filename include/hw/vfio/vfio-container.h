@@ -15,6 +15,10 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct VFIODevice VFIODevice;
 typedef struct VFIOIOMMUClass VFIOIOMMUClass;
 
@@ -276,5 +280,9 @@ VFIORamDiscardListener *vfio_find_ram_discard_listener(
 
 void vfio_container_region_add(VFIOContainer *bcontainer,
                                MemoryRegionSection *section, bool cpr_remap);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VFIO_VFIO_CONTAINER_H */

@@ -29,7 +29,7 @@
 static QLIST_HEAD(, VFIOAddressSpace) vfio_address_spaces =
     QLIST_HEAD_INITIALIZER(vfio_address_spaces);
 
-VFIOAddressSpace *vfio_address_space_get(AddressSpace *as)
+extern "C" VFIOAddressSpace *vfio_address_space_get(AddressSpace *as)
 {
     VFIOAddressSpace *space;
 
@@ -40,7 +40,7 @@ VFIOAddressSpace *vfio_address_space_get(AddressSpace *as)
     }
 
     /* No suitable VFIOAddressSpace, create a new one */
-    space = g_malloc0(sizeof(*space));
+    space = static_cast<VFIOAddressSpace *>(g_malloc0(sizeof(*space)));
     space->as = as;
     QLIST_INIT(&space->containers);
 
@@ -53,7 +53,7 @@ VFIOAddressSpace *vfio_address_space_get(AddressSpace *as)
     return space;
 }
 
-void vfio_address_space_put(VFIOAddressSpace *space)
+extern "C" void vfio_address_space_put(VFIOAddressSpace *space)
 {
     if (!QLIST_EMPTY(&space->containers)) {
         return;
@@ -67,14 +67,14 @@ void vfio_address_space_put(VFIOAddressSpace *space)
     }
 }
 
-void vfio_address_space_insert(VFIOAddressSpace *space,
+extern "C" void vfio_address_space_insert(VFIOAddressSpace *space,
                                VFIOContainer *bcontainer)
 {
     QLIST_INSERT_HEAD(&space->containers, bcontainer, next);
     bcontainer->space = space;
 }
 
-int vfio_container_dma_map(VFIOContainer *bcontainer,
+extern "C" int vfio_container_dma_map(VFIOContainer *bcontainer,
                            hwaddr iova, uint64_t size,
                            void *vaddr, bool readonly, MemoryRegion *mr)
 {
@@ -83,7 +83,7 @@ int vfio_container_dma_map(VFIOContainer *bcontainer,
     int mfd = rb ? qemu_ram_get_fd(rb) : -1;
 
     if (mfd >= 0 && vioc->dma_map_file) {
-        unsigned long start = vaddr - qemu_ram_get_host_addr(rb);
+        unsigned long start = static_cast<uint8_t *>(vaddr) - static_cast<uint8_t *>(qemu_ram_get_host_addr(rb));
         unsigned long offset = qemu_ram_get_fd_offset(rb);
 
         return vioc->dma_map_file(bcontainer, iova, size, mfd, start + offset,
@@ -93,7 +93,7 @@ int vfio_container_dma_map(VFIOContainer *bcontainer,
     return vioc->dma_map(bcontainer, iova, size, vaddr, readonly, mr);
 }
 
-int vfio_container_dma_unmap(VFIOContainer *bcontainer,
+extern "C" int vfio_container_dma_unmap(VFIOContainer *bcontainer,
                              hwaddr iova, uint64_t size,
                              IOMMUTLBEntry *iotlb, bool unmap_all)
 {
@@ -103,7 +103,7 @@ int vfio_container_dma_unmap(VFIOContainer *bcontainer,
     return vioc->dma_unmap(bcontainer, iova, size, iotlb, unmap_all);
 }
 
-bool vfio_container_add_section_window(VFIOContainer *bcontainer,
+extern "C" bool vfio_container_add_section_window(VFIOContainer *bcontainer,
                                        MemoryRegionSection *section,
                                        Error **errp)
 {
@@ -116,7 +116,7 @@ bool vfio_container_add_section_window(VFIOContainer *bcontainer,
     return vioc->add_window(bcontainer, section, errp);
 }
 
-void vfio_container_del_section_window(VFIOContainer *bcontainer,
+extern "C" void vfio_container_del_section_window(VFIOContainer *bcontainer,
                                        MemoryRegionSection *section)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
@@ -128,7 +128,7 @@ void vfio_container_del_section_window(VFIOContainer *bcontainer,
     return vioc->del_window(bcontainer, section);
 }
 
-int vfio_container_set_dirty_page_tracking(VFIOContainer *bcontainer,
+extern "C" int vfio_container_set_dirty_page_tracking(VFIOContainer *bcontainer,
                                            bool start, Error **errp)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
@@ -165,14 +165,14 @@ static bool vfio_container_devices_dirty_tracking_is_started(
     return true;
 }
 
-bool vfio_container_dirty_tracking_is_started(
+extern "C" bool vfio_container_dirty_tracking_is_started(
     const VFIOContainer *bcontainer)
 {
     return vfio_container_devices_dirty_tracking_is_started(bcontainer) ||
            bcontainer->dirty_pages_started;
 }
 
-bool vfio_container_devices_dirty_tracking_is_supported(
+extern "C" bool vfio_container_devices_dirty_tracking_is_supported(
     const VFIOContainer *bcontainer)
 {
     VFIODevice *vbasedev;
@@ -245,7 +245,7 @@ static int vfio_container_devices_query_dirty_bitmap(
     return 0;
 }
 
-int vfio_container_query_dirty_bitmap(const VFIOContainer *bcontainer,
+extern "C" int vfio_container_query_dirty_bitmap(const VFIOContainer *bcontainer,
                                       uint64_t iova, uint64_t size,
                                       hwaddr translated_addr, Error **errp)
 {
@@ -295,14 +295,14 @@ out:
 
 static gpointer copy_iova_range(gconstpointer src, gpointer data)
 {
-     Range *source = (Range *)src;
+     Range *source = const_cast<Range *>(static_cast<const Range *>(src));
      Range *dest = g_new(Range, 1);
 
      range_set_bounds(dest, range_lob(source), range_upb(source));
      return dest;
 }
 
-GList *vfio_container_get_iova_ranges(const VFIOContainer *bcontainer)
+extern "C" GList *vfio_container_get_iova_ranges(const VFIOContainer *bcontainer)
 {
     assert(bcontainer);
     return g_list_copy_deep(bcontainer->iova_ranges, copy_iova_range, NULL);
@@ -341,11 +341,11 @@ static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU,
         .parent = TYPE_OBJECT,
+        .instance_size = sizeof(VFIOContainer),
         .instance_init = vfio_container_instance_init,
         .instance_finalize = vfio_container_instance_finalize,
-        .instance_size = sizeof(VFIOContainer),
-        .class_size = sizeof(VFIOIOMMUClass),
         .is_abstract = true,
+        .class_size = sizeof(VFIOIOMMUClass),
     },
 };
 

@@ -42,7 +42,7 @@ struct SiI3112PCIState {
 static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
                                 unsigned int size)
 {
-    SiI3112PCIState *d = opaque;
+    SiI3112PCIState *d = static_cast<SiI3112PCIState *>(opaque);
     uint64_t val;
 
     switch (addr) {
@@ -136,7 +136,7 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
 static void sii3112_reg_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned int size)
 {
-    SiI3112PCIState *d = opaque;
+    SiI3112PCIState *d = static_cast<SiI3112PCIState *>(opaque);
 
     trace_sii3112_write(size, addr, val);
     switch (addr) {
@@ -224,7 +224,7 @@ static void sii3112_update_irq(SiI3112PCIState *s)
 
 static void sii3112_set_irq(void *opaque, int channel, int level)
 {
-    SiI3112PCIState *s = opaque;
+    SiI3112PCIState *s = static_cast<SiI3112PCIState *>(opaque);
 
     trace_sii3112_set_irq(channel, level);
     if (level) {
