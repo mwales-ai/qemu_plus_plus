@@ -27,6 +27,10 @@
 
 #include "e1000_regs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define defreg(x)   x = (E1000_##x >> 2)
 enum {
     defreg(CTRL),    defreg(EECD),    defreg(EERD),    defreg(GPRC),
@@ -98,5 +102,9 @@ enum {
     defreg(TDBAL_A), defreg(TDLEN_A), defreg(VFTA_A),  defreg(RDLEN0_A),
     defreg(FCRTL_A), defreg(FCRTH_A)
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

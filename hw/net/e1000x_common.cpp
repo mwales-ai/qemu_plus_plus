@@ -34,6 +34,7 @@
 
 #include "trace.h"
 
+extern "C"
 bool e1000x_rx_ready(PCIDevice *d, uint32_t *mac)
 {
     bool link_up = mac[STATUS] & E1000_STATUS_LU;
@@ -48,6 +49,7 @@ bool e1000x_rx_ready(PCIDevice *d, uint32_t *mac)
     return true;
 }
 
+extern "C"
 bool e1000x_is_vlan_packet(const void *buf, uint16_t vet)
 {
     uint16_t eth_proto = lduw_be_p(&PKT_GET_ETH_HDR(buf)->h_proto);
@@ -58,6 +60,7 @@ bool e1000x_is_vlan_packet(const void *buf, uint16_t vet)
     return res;
 }
 
+extern "C"
 bool e1000x_rx_vlan_filter(uint32_t *mac, const struct vlan_header *vhdr)
 {
     if (e1000x_vlan_rx_filter_enabled(mac)) {
@@ -76,6 +79,7 @@ bool e1000x_rx_vlan_filter(uint32_t *mac, const struct vlan_header *vhdr)
     return true;
 }
 
+extern "C"
 bool e1000x_rx_group_filter(uint32_t *mac, const struct eth_header *ehdr)
 {
     static const int mta_shift[] = { 4, 3, 2, 0 };
@@ -123,6 +127,7 @@ bool e1000x_rx_group_filter(uint32_t *mac, const struct eth_header *ehdr)
     return false;
 }
 
+extern "C"
 bool e1000x_hw_rx_enabled(uint32_t *mac)
 {
     if (!(mac[STATUS] & E1000_STATUS_LU)) {
@@ -138,6 +143,7 @@ bool e1000x_hw_rx_enabled(uint32_t *mac)
     return true;
 }
 
+extern "C"
 bool e1000x_is_oversized(uint32_t *mac, size_t size)
 {
     size_t header_size = sizeof(struct eth_header) + sizeof(struct vlan_header);
@@ -159,6 +165,7 @@ bool e1000x_is_oversized(uint32_t *mac, size_t size)
     return false;
 }
 
+extern "C"
 void e1000x_restart_autoneg(uint32_t *mac, uint16_t *phy, QEMUTimer *timer)
 {
     e1000x_update_regs_on_link_down(mac, phy);
@@ -166,6 +173,7 @@ void e1000x_restart_autoneg(uint32_t *mac, uint16_t *phy, QEMUTimer *timer)
     timer_mod(timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
 }
 
+extern "C"
 void e1000x_reset_mac_addr(NICState *nic, uint32_t *mac_regs,
                            uint8_t *mac_addr)
 {
@@ -183,6 +191,7 @@ void e1000x_reset_mac_addr(NICState *nic, uint32_t *mac_regs,
     trace_e1000x_mac_indicate(MAC_ARG(mac_addr));
 }
 
+extern "C"
 void e1000x_update_regs_on_autoneg_done(uint32_t *mac, uint16_t *phy)
 {
     e1000x_update_regs_on_link_up(mac, phy);
@@ -191,6 +200,7 @@ void e1000x_update_regs_on_autoneg_done(uint32_t *mac, uint16_t *phy)
     trace_e1000x_link_negotiation_done();
 }
 
+extern "C"
 void
 e1000x_core_prepare_eeprom(uint16_t       *eeprom,
                            const uint16_t *templ,
@@ -218,6 +228,7 @@ e1000x_core_prepare_eeprom(uint16_t       *eeprom,
     eeprom[EEPROM_CHECKSUM_REG] = checksum;
 }
 
+extern "C"
 uint32_t
 e1000x_rxbufsize(uint32_t rctl)
 {
@@ -241,6 +252,7 @@ e1000x_rxbufsize(uint32_t rctl)
     return 2048;
 }
 
+extern "C"
 void
 e1000x_update_rx_total_stats(uint32_t *mac,
                              eth_pkt_types_e pkt_type,
@@ -275,6 +287,7 @@ e1000x_update_rx_total_stats(uint32_t *mac,
     }
 }
 
+extern "C"
 void
 e1000x_increase_size_stats(uint32_t *mac, const int *size_regs, int size)
 {
@@ -293,6 +306,7 @@ e1000x_increase_size_stats(uint32_t *mac, const int *size_regs, int size)
     }
 }
 
+extern "C"
 void
 e1000x_read_tx_ctx_descr(struct e1000_context_desc *d,
                          e1000x_txd_props *props)
@@ -313,6 +327,7 @@ e1000x_read_tx_ctx_descr(struct e1000_context_desc *d,
     props->tse = (op & E1000_TXD_CMD_TSE) ? 1 : 0;
 }
 
+extern "C"
 void e1000x_timestamp(uint32_t *mac, int64_t timadj, size_t lo, size_t hi)
 {
     int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -325,6 +340,7 @@ void e1000x_timestamp(uint32_t *mac, int64_t timadj, size_t lo, size_t hi)
     mac[hi] = timestamp >> 32;
 }
 
+extern "C"
 void e1000x_set_timinca(uint32_t *mac, int64_t *timadj, uint32_t val)
 {
     int64_t ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);

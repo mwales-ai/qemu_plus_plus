@@ -257,43 +257,51 @@ static uint32_t ssi_sd_transfer(SSIPeripheral *dev, uint32_t val)
 
 static int ssi_sd_post_load(void *opaque, int version_id)
 {
-    ssi_sd_state *s = (ssi_sd_state *)opaque;
+    ssi_sd_state *s = static_cast<ssi_sd_state *>(opaque);
 
     if (s->mode > SSI_SD_SKIP_CRC16) {
         return -EINVAL;
     }
     if (s->mode == SSI_SD_CMDARG &&
-        (s->arglen >= ARRAY_SIZE(s->cmdarg))) {
+        (s->arglen >= static_cast<int32_t>(ARRAY_SIZE(s->cmdarg)))) {
         return -EINVAL;
     }
     if (s->mode == SSI_SD_RESPONSE &&
-        (s->response_pos < 0 || s->response_pos >= ARRAY_SIZE(s->response) ||
-        (!s->stopping && s->arglen > ARRAY_SIZE(s->response)))) {
+        (s->response_pos < 0 || s->response_pos >= static_cast<int32_t>(ARRAY_SIZE(s->response)) ||
+        (!s->stopping && s->arglen > static_cast<int32_t>(ARRAY_SIZE(s->response))))) {
         return -EINVAL;
     }
 
     return 0;
 }
 
+static const VMStateField vmstate_ssi_sd_fields[] = {
+    VMSTATE_UINT32(mode, ssi_sd_state),
+    VMSTATE_INT32(cmd, ssi_sd_state),
+    VMSTATE_UINT8_ARRAY(cmdarg, ssi_sd_state, 4),
+    VMSTATE_UINT8_ARRAY(response, ssi_sd_state, 5),
+    VMSTATE_UINT16(crc16, ssi_sd_state),
+    VMSTATE_INT32(read_bytes, ssi_sd_state),
+    VMSTATE_INT32(write_bytes, ssi_sd_state),
+    VMSTATE_INT32(arglen, ssi_sd_state),
+    VMSTATE_INT32(response_pos, ssi_sd_state),
+    VMSTATE_INT32(stopping, ssi_sd_state),
+    {
+        .name       = stringify(ssidev),
+        .offset     = vmstate_offset_value(ssi_sd_state, ssidev, SSIPeripheral),
+        .size       = sizeof(SSIPeripheral),
+        .flags      = static_cast<VMStateFlags>(VMS_STRUCT),
+        .vmsd       = &vmstate_ssi_peripheral,
+    },
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ssi_sd = {
     .name = "ssi_sd",
     .version_id = 7,
     .minimum_version_id = 7,
     .post_load = ssi_sd_post_load,
-    .fields = (const VMStateField []) {
-        VMSTATE_UINT32(mode, ssi_sd_state),
-        VMSTATE_INT32(cmd, ssi_sd_state),
-        VMSTATE_UINT8_ARRAY(cmdarg, ssi_sd_state, 4),
-        VMSTATE_UINT8_ARRAY(response, ssi_sd_state, 5),
-        VMSTATE_UINT16(crc16, ssi_sd_state),
-        VMSTATE_INT32(read_bytes, ssi_sd_state),
-        VMSTATE_INT32(write_bytes, ssi_sd_state),
-        VMSTATE_INT32(arglen, ssi_sd_state),
-        VMSTATE_INT32(response_pos, ssi_sd_state),
-        VMSTATE_INT32(stopping, ssi_sd_state),
-        VMSTATE_SSI_PERIPHERAL(ssidev, ssi_sd_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ssi_sd_fields,
 };
 
 static void ssi_sd_realize(SSIPeripheral *d, Error **errp)

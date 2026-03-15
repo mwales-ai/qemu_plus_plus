@@ -25,6 +25,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_GOLDFISH_RTC "goldfish_rtc"
 OBJECT_DECLARE_SIMPLE_TYPE(GoldfishRTCState, GOLDFISH_RTC)
 
@@ -45,5 +49,9 @@ struct GoldfishRTCState {
 
     bool big_endian;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

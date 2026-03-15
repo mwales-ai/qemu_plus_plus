@@ -16,6 +16,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum SSICSMode {
     SSI_CS_NONE = 0,
     SSI_CS_LOW,
@@ -126,5 +130,9 @@ SSIBus *ssi_create_bus(DeviceState *parent, const char *name);
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val);
 
 DeviceState *ssi_get_cs(SSIBus *bus, uint8_t cs_index);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -26,6 +26,10 @@
 #ifndef HW_M48T59_INTERNAL_H
 #define HW_M48T59_INTERNAL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The M48T02, M48T08 and M48T59 chips are very similar. The newer '59 has
  * alarm and a watchdog timer and related control registers. In the
@@ -71,5 +75,9 @@ static inline void m48t59_toggle_lock(M48t59State *NVRAM, int lock)
 }
 
 extern const MemoryRegionOps m48t59_io_ops;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_M48T59_INTERNAL_H */

@@ -29,6 +29,10 @@
 #include "exec/hwaddr.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_NVRAM "nvram"
 
 typedef struct NvramClass NvramClass;
@@ -46,5 +50,9 @@ struct NvramClass {
     void (*write)(Nvram *obj, uint32_t addr, uint32_t val);
     void (*toggle_lock)(Nvram *obj, int lock);
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_RTC_M48T59_H */

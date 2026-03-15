@@ -19,15 +19,17 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 
+static const VMStateField vmstate_diag288_fields[] = {
+    VMSTATE_TIMER_PTR(timer, DIAG288State),
+    VMSTATE_BOOL(enabled, DIAG288State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_diag288 = {
     .name = "vmstate_diag288",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, DIAG288State),
-        VMSTATE_BOOL(enabled, DIAG288State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_diag288_fields,
 };
 
 static void wdt_diag288_reset(DeviceState *dev)
@@ -40,7 +42,7 @@ static void wdt_diag288_reset(DeviceState *dev)
 
 static void diag288_reset(void *opaque)
 {
-    DeviceState *diag288 = opaque;
+    DeviceState *diag288 = static_cast<DeviceState *>(opaque);
 
     wdt_diag288_reset(diag288);
 }
@@ -58,7 +60,7 @@ static void diag288_timer_expired(void *dev)
     case WATCHDOG_ACTION_PAUSE:
         break;
     default:
-        wdt_diag288_reset(dev);
+        wdt_diag288_reset(static_cast<DeviceState *>(dev));
     }
     watchdog_perform_action();
 }

@@ -50,7 +50,7 @@ static void goldfish_rtc_update(GoldfishRTCState *s)
 
 static void goldfish_rtc_interrupt(void *opaque)
 {
-    GoldfishRTCState *s = (GoldfishRTCState *)opaque;
+    GoldfishRTCState *s = static_cast<GoldfishRTCState *>(opaque);
 
     s->alarm_running = 0;
     s->irq_pending = 1;
@@ -91,7 +91,7 @@ static void goldfish_rtc_set_alarm(GoldfishRTCState *s)
 static uint64_t goldfish_rtc_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
-    GoldfishRTCState *s = opaque;
+    GoldfishRTCState *s = static_cast<GoldfishRTCState *>(opaque);
     uint64_t r = 0;
 
     /*
@@ -137,7 +137,7 @@ static uint64_t goldfish_rtc_read(void *opaque, hwaddr offset,
 static void goldfish_rtc_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
-    GoldfishRTCState *s = opaque;
+    GoldfishRTCState *s = static_cast<GoldfishRTCState *>(opaque);
     uint64_t current_tick, new_tick;
 
     switch (offset) {
@@ -180,7 +180,7 @@ static void goldfish_rtc_write(void *opaque, hwaddr offset,
 
 static int goldfish_rtc_post_load(void *opaque, int version_id)
 {
-    GoldfishRTCState *s = opaque;
+    GoldfishRTCState *s = static_cast<GoldfishRTCState *>(opaque);
 
     if (version_id < 3) {
         /*
@@ -199,41 +199,47 @@ static int goldfish_rtc_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const MemoryRegionOps goldfish_rtc_ops[2] = {
-    [false] = {
-        .read = goldfish_rtc_read,
-        .write = goldfish_rtc_write,
-        .endianness = DEVICE_LITTLE_ENDIAN,
-        .valid = {
-            .min_access_size = 4,
-            .max_access_size = 4
-        }
-    },
-    [true] = {
-        .read = goldfish_rtc_read,
-        .write = goldfish_rtc_write,
-        .endianness = DEVICE_BIG_ENDIAN,
-        .valid = {
-            .min_access_size = 4,
-            .max_access_size = 4
-        }
-    },
+static const MemoryRegionOps goldfish_rtc_ops_le = {
+    .read = goldfish_rtc_read,
+    .write = goldfish_rtc_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
+};
+
+static const MemoryRegionOps goldfish_rtc_ops_be = {
+    .read = goldfish_rtc_read,
+    .write = goldfish_rtc_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
+};
+
+static const MemoryRegionOps *goldfish_rtc_ops[2] = {
+    &goldfish_rtc_ops_le,   /* [false] = little endian */
+    &goldfish_rtc_ops_be,   /* [true] = big endian */
+};
+
+static const VMStateField goldfish_rtc_vmstate_fields[] = {
+    VMSTATE_UINT64(tick_offset_vmstate, GoldfishRTCState),
+    VMSTATE_UINT64(alarm_next, GoldfishRTCState),
+    VMSTATE_UINT32(alarm_running, GoldfishRTCState),
+    VMSTATE_UINT32(irq_pending, GoldfishRTCState),
+    VMSTATE_UINT32(irq_enabled, GoldfishRTCState),
+    VMSTATE_UINT32(time_high, GoldfishRTCState),
+    VMSTATE_UINT64_V(tick_offset, GoldfishRTCState, 3),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription goldfish_rtc_vmstate = {
     .name = TYPE_GOLDFISH_RTC,
     .version_id = 3,
     .post_load = goldfish_rtc_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(tick_offset_vmstate, GoldfishRTCState),
-        VMSTATE_UINT64(alarm_next, GoldfishRTCState),
-        VMSTATE_UINT32(alarm_running, GoldfishRTCState),
-        VMSTATE_UINT32(irq_pending, GoldfishRTCState),
-        VMSTATE_UINT32(irq_enabled, GoldfishRTCState),
-        VMSTATE_UINT32(time_high, GoldfishRTCState),
-        VMSTATE_UINT64_V(tick_offset, GoldfishRTCState, 3),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = goldfish_rtc_vmstate_fields,
 };
 
 static void goldfish_rtc_reset(DeviceState *dev)
@@ -254,7 +260,7 @@ static void goldfish_rtc_realize(DeviceState *d, Error **errp)
     struct tm tm;
 
     memory_region_init_io(&s->iomem, OBJECT(s),
-                          &goldfish_rtc_ops[s->big_endian], s,
+                          goldfish_rtc_ops[s->big_endian], s,
                           "goldfish_rtc", 0x24);
     sysbus_init_mmio(dev, &s->iomem);
 

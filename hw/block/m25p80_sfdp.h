@@ -10,6 +10,10 @@
 #ifndef HW_M25P80_SFDP_H
 #define HW_M25P80_SFDP_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * SFDP area has a 3 bytes address space.
  */
@@ -29,5 +33,9 @@ uint8_t m25p80_sfdp_w25q80bl(uint32_t addr);
 uint8_t m25p80_sfdp_w25q01jvq(uint32_t addr);
 
 uint8_t m25p80_sfdp_is25wp256(uint32_t addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

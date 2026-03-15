@@ -40,7 +40,8 @@ static int blk_pread_nonzeroes(BlockBackend *blk, hwaddr size, void *buf)
             return ret;
         }
         if (!(ret & BDRV_BLOCK_ZERO)) {
-            ret = blk_pread(blk, offset, bytes, (uint8_t *) buf + offset, 0);
+            ret = blk_pread(blk, offset, bytes, (uint8_t *) buf + offset,
+                          static_cast<BdrvRequestFlags>(0));
             if (ret < 0) {
                 return ret;
             }
@@ -60,6 +61,7 @@ static int blk_pread_nonzeroes(BlockBackend *blk, hwaddr size, void *buf)
  * demand.  It's for things like memory devices that (ab)use a block
  * backend to provide persistence.
  */
+extern "C"
 bool blk_check_size_and_read_all(BlockBackend *blk, DeviceState *dev,
                                  void *buf, hwaddr size, Error **errp)
 {
@@ -77,7 +79,7 @@ bool blk_check_size_and_read_all(BlockBackend *blk, DeviceState *dev,
                          "can't get size of %s block backend", blk_name(blk));
         return false;
     }
-    if (blk_len != size) {
+    if (blk_len != static_cast<int64_t>(size)) {
         dev_id = qdev_get_human_name(dev);
         error_setg(errp, "%s device '%s' requires %" HWADDR_PRIu
                    " bytes, %s block backend provides %" PRIu64 " bytes",
@@ -105,6 +107,7 @@ bool blk_check_size_and_read_all(BlockBackend *blk, DeviceState *dev,
     return true;
 }
 
+extern "C"
 bool blkconf_blocksizes(BlockConf *conf, Error **errp)
 {
     BlockBackend *blk = conf->blk;
@@ -153,7 +156,7 @@ bool blkconf_blocksizes(BlockConf *conf, Error **errp)
         if (!conf->opt_io_size) {
             conf->opt_io_size = bs->bl.opt_transfer;
         }
-        if (conf->discard_granularity == -1) {
+        if (conf->discard_granularity == static_cast<uint32_t>(-1)) {
             if (bs->bl.pdiscard_alignment) {
                 conf->discard_granularity = bs->bl.pdiscard_alignment;
             } else if (bs->bl.request_alignment != 1) {
@@ -190,7 +193,7 @@ bool blkconf_blocksizes(BlockConf *conf, Error **errp)
         return false;
     }
 
-    if (conf->discard_granularity != -1 &&
+    if (conf->discard_granularity != static_cast<uint32_t>(-1) &&
         !QEMU_IS_ALIGNED(conf->discard_granularity,
                          conf->logical_block_size)) {
         error_setg(errp, "discard_granularity must be "
@@ -201,6 +204,7 @@ bool blkconf_blocksizes(BlockConf *conf, Error **errp)
     return true;
 }
 
+extern "C"
 bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
                                    bool resizable, Error **errp)
 {
@@ -257,6 +261,7 @@ bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
     return true;
 }
 
+extern "C"
 bool blkconf_geometry(BlockConf *conf, int *ptrans,
                       unsigned cyls_max, unsigned heads_max, unsigned secs_max,
                       Error **errp)

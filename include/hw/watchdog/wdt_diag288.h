@@ -4,6 +4,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_WDT_DIAG288 "diag288"
 typedef struct DIAG288Class DIAG288Class;
 typedef struct DIAG288State DIAG288State;
@@ -31,5 +35,9 @@ struct DIAG288Class {
     int (*handle_timer)(DIAG288State *dev,
                         uint64_t func, uint64_t timeout);
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* WDT_DIAG288_H */

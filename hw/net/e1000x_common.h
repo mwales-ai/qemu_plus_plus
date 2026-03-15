@@ -25,6 +25,10 @@
 #ifndef HW_NET_E1000X_COMMON_H
 #define HW_NET_E1000X_COMMON_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline void
 e1000x_inc_reg_if_not_full(uint32_t *mac, int index)
 {
@@ -144,5 +148,9 @@ void e1000x_read_tx_ctx_descr(struct e1000_context_desc *d,
 
 void e1000x_timestamp(uint32_t *mac, int64_t timadj, size_t lo, size_t hi);
 void e1000x_set_timinca(uint32_t *mac, int64_t *timadj, uint32_t val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

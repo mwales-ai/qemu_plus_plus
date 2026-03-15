@@ -25,9 +25,17 @@
 #include "system/tpm_backend.h"
 #include "hw/qdev-properties.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern const PropertyInfo qdev_prop_tpm;
 
 #define DEFINE_PROP_TPMBE(_n, _s, _f)                     \
     DEFINE_PROP(_n, _s, _f, qdev_prop_tpm, TPMBackend *)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_TPM_PROP_H */

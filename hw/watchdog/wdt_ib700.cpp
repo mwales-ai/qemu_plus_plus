@@ -57,7 +57,7 @@ struct IB700state {
 /* A write to this register enables the timer. */
 static void ib700_write_enable_reg(void *vp, uint32_t addr, uint32_t data)
 {
-    IB700State *s = vp;
+    IB700State *s = static_cast<IB700State *>(vp);
     static int time_map[] = {
         30, 28, 26, 24, 22, 20, 18, 16,
         14, 12, 10,  8,  6,  4,  2,  0
@@ -73,7 +73,7 @@ static void ib700_write_enable_reg(void *vp, uint32_t addr, uint32_t data)
 /* A write (of any value) to this register disables the timer. */
 static void ib700_write_disable_reg(void *vp, uint32_t addr, uint32_t data)
 {
-    IB700State *s = vp;
+    IB700State *s = static_cast<IB700State *>(vp);
 
     ib700_debug("addr = %x, data = %x\n", addr, data);
 
@@ -83,7 +83,7 @@ static void ib700_write_disable_reg(void *vp, uint32_t addr, uint32_t data)
 /* This is called when the watchdog expires. */
 static void ib700_timer_expired(void *vp)
 {
-    IB700State *s = vp;
+    IB700State *s = static_cast<IB700State *>(vp);
 
     ib700_debug("watchdog expired\n");
 
@@ -91,14 +91,16 @@ static void ib700_timer_expired(void *vp)
     timer_del(s->timer);
 }
 
+static const VMStateField vmstate_ib700_fields[] = {
+    VMSTATE_TIMER_PTR(timer, IB700State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ib700 = {
     .name = "ib700_wdt",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, IB700State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ib700_fields,
 };
 
 static const MemoryRegionPortio wdt_portio_list[] = {

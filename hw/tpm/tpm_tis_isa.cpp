@@ -44,27 +44,36 @@ OBJECT_DECLARE_SIMPLE_TYPE(TPMStateISA, TPM_TIS_ISA)
 
 static int tpm_tis_pre_save_isa(void *opaque)
 {
-    TPMStateISA *isadev = opaque;
+    TPMStateISA *isadev = static_cast<TPMStateISA *>(opaque);
 
     return tpm_tis_pre_save(&isadev->state);
 }
+
+static const VMStateField vmstate_tpm_tis_isa_fields[] = {
+    VMSTATE_BUFFER(state.buffer, TPMStateISA),
+    VMSTATE_UINT16(state.rw_offset, TPMStateISA),
+    VMSTATE_UINT8(state.active_locty, TPMStateISA),
+    VMSTATE_UINT8(state.aborting_locty, TPMStateISA),
+    VMSTATE_UINT8(state.next_locty, TPMStateISA),
+
+    {
+        .name         = stringify(state.loc),
+        .offset       = vmstate_offset_array(TPMStateISA, state.loc, TPMLocality, TPM_TIS_NUM_LOCALITIES),
+        .size         = sizeof(TPMLocality),
+        .num          = TPM_TIS_NUM_LOCALITIES,
+        .flags        = static_cast<VMStateFlags>(VMS_STRUCT|VMS_ARRAY),
+        .vmsd         = &vmstate_locty,
+        .version_id   = 0,
+    },
+
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_tpm_tis_isa = {
     .name = "tpm-tis",
     .version_id = 0,
     .pre_save  = tpm_tis_pre_save_isa,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(state.buffer, TPMStateISA),
-        VMSTATE_UINT16(state.rw_offset, TPMStateISA),
-        VMSTATE_UINT8(state.active_locty, TPMStateISA),
-        VMSTATE_UINT8(state.aborting_locty, TPMStateISA),
-        VMSTATE_UINT8(state.next_locty, TPMStateISA),
-
-        VMSTATE_STRUCT_ARRAY(state.loc, TPMStateISA, TPM_TIS_NUM_LOCALITIES, 0,
-                             vmstate_locty, TPMLocality),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_tpm_tis_isa_fields,
 };
 
 static void tpm_tis_isa_request_completed(TPMIf *ti, int ret)
@@ -183,17 +192,19 @@ static void tpm_tis_isa_class_init(ObjectClass *klass, const void *data)
     adevc->build_dev_aml = build_tpm_tis_isa_aml;
 }
 
+static const InterfaceInfo tpm_tis_isa_interfaces[] = {
+    { TYPE_TPM_IF },
+    { TYPE_ACPI_DEV_AML_IF },
+    { }
+};
+
 static const TypeInfo tpm_tis_isa_info = {
     .name = TYPE_TPM_TIS_ISA,
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(TPMStateISA),
     .instance_init = tpm_tis_isa_initfn,
     .class_init  = tpm_tis_isa_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_TPM_IF },
-        { TYPE_ACPI_DEV_AML_IF },
-        { }
-    }
+    .interfaces = tpm_tis_isa_interfaces,
 };
 
 static void tpm_tis_isa_register(void)

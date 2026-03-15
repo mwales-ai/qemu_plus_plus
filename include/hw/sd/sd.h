@@ -33,6 +33,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define OUT_OF_RANGE            (1 << 31)
 #define ADDRESS_ERROR           (1 << 30)
 #define BLOCK_LEN_ERROR         (1 << 29)
@@ -226,5 +230,9 @@ void sdbus_reparent_card(SDBus *from, SDBus *to);
 /* Functions to be used by SD devices to report back to qdevified controllers */
 void sdbus_set_inserted(SDBus *sd, bool inserted);
 void sdbus_set_readonly(SDBus *sd, bool inserted);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SD_H */

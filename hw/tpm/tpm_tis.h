@@ -27,6 +27,10 @@
 #include "system/tpm_backend.h"
 #include "tpm_ppi.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
 #define TPM_TIS_LOCALITY_SHIFT      12
 #define TPM_TIS_NO_LOCALITY         0xff
@@ -89,5 +93,9 @@ void tpm_tis_request_completed(TPMState *s, int ret);
 uint32_t tpm_tis_read_data(TPMState *s, hwaddr addr, unsigned size);
 void tpm_tis_write_data(TPMState *s, hwaddr addr, uint64_t val, uint32_t size);
 uint16_t tpm_tis_get_checksum(TPMState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TPM_TPM_TIS_H */

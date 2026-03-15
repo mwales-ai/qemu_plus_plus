@@ -12,6 +12,7 @@
 #include "m25p80_sfdp.h"
 
 #define define_sfdp_read(model)                                       \
+    extern "C"                                                        \
     uint8_t m25p80_sfdp_##model(uint32_t addr)                        \
     {                                                                 \
         assert(is_power_of_2(sizeof(sfdp_##model)));                  \

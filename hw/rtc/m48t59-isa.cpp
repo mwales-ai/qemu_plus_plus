@@ -2,7 +2,7 @@
  * QEMU M48T59 and M48T08 NVRAM emulation (ISA bus interface)
  *
  * Copyright (c) 2003-2005, 2007 Jocelyn Mayer
- * Copyright (c) 2013 Hervé Poussineau
+ * Copyright (c) 2013 Herve Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -129,10 +129,15 @@ static void m48txx_isa_class_init(ObjectClass *klass, const void *data)
 static void m48txx_isa_concrete_class_init(ObjectClass *klass, const void *data)
 {
     M48txxISADeviceClass *u = M48TXX_ISA_CLASS(klass);
-    const M48txxInfo *info = data;
+    const M48txxInfo *info = static_cast<const M48txxInfo *>(data);
 
     u->info = *info;
 }
+
+static const InterfaceInfo m48txx_isa_interfaces[] = {
+    { TYPE_NVRAM },
+    { }
+};
 
 static const TypeInfo m48txx_isa_type_info = {
     .name = TYPE_M48TXX_ISA,
@@ -140,10 +145,7 @@ static const TypeInfo m48txx_isa_type_info = {
     .instance_size = sizeof(M48txxISAState),
     .is_abstract = true,
     .class_init = m48txx_isa_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_NVRAM },
-        { }
-    }
+    .interfaces = m48txx_isa_interfaces,
 };
 
 static void m48t59_isa_register_types(void)
@@ -153,7 +155,7 @@ static void m48t59_isa_register_types(void)
         .class_size = sizeof(M48txxISADeviceClass),
         .class_init = m48txx_isa_concrete_class_init,
     };
-    int i;
+    size_t i;
 
     type_register_static(&m48txx_isa_type_info);
 
