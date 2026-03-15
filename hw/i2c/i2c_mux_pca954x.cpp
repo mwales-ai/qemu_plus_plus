@@ -163,7 +163,7 @@ static void pca954x_enter_reset(Object *obj, ResetType type)
     pca954x_write(s, 0);
 }
 
-I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel)
+extern "C" I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel)
 {
     Pca954xClass *pc = PCA954X_GET_CLASS(mux);
     Pca954xState *pca954x = PCA954X(mux);
@@ -241,9 +241,9 @@ static const TypeInfo pca954x_info[] = {
         .parent        = TYPE_SMBUS_DEVICE,
         .instance_size = sizeof(Pca954xState),
         .instance_init = pca954x_init,
+        .is_abstract   = true,
         .class_size    = sizeof(Pca954xClass),
         .class_init    = pca954x_class_init,
-        .is_abstract      = true,
     },
     {
         .name          = TYPE_PCA9546,

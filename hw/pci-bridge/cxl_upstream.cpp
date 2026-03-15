@@ -32,7 +32,7 @@
 #define CXL_UPSTREAM_PORT_DVSEC_OFFSET \
     (CXL_UPSTREAM_PORT_SN_OFFSET + PCI_EXT_CAP_DSN_SIZEOF)
 
-CXLComponentState *cxl_usp_to_cstate(CXLUpstreamPort *usp)
+extern "C" CXLComponentState *cxl_usp_to_cstate(CXLUpstreamPort *usp)
 {
     return &usp->cxl_cstate;
 }
@@ -109,29 +109,30 @@ static void build_dvsecs(CXLComponentState *cxl)
 {
     uint8_t *dvsec;
 
-    dvsec = (uint8_t *)&(CXLDVSECPortExt){
-        .status = 0x1, /* Port Power Management Init Complete */
-    };
+    CXLDVSECPortExt port_ext = {};
+    port_ext.status = 0x1; /* Port Power Management Init Complete */
+    dvsec = reinterpret_cast<uint8_t *>(&port_ext);
     cxl_component_create_dvsec(cxl, CXL2_UPSTREAM_PORT,
                                EXTENSIONS_PORT_DVSEC_LENGTH,
                                EXTENSIONS_PORT_DVSEC,
                                EXTENSIONS_PORT_DVSEC_REVID, dvsec);
-    dvsec = (uint8_t *)&(CXLDVSECPortFlexBus){
-        .cap                     = 0x27, /* Cache, IO, Mem, non-MLD */
-        .ctrl                    = 0x27, /* Cache, IO, Mem */
-        .status                  = 0x26, /* same */
-        .rcvd_mod_ts_data_phase1 = 0xef, /* WTF? */
-    };
+
+    CXLDVSECPortFlexBus flexbus = {};
+    flexbus.cap                     = 0x27; /* Cache, IO, Mem, non-MLD */
+    flexbus.ctrl                    = 0x27; /* Cache, IO, Mem */
+    flexbus.status                  = 0x26; /* same */
+    flexbus.rcvd_mod_ts_data_phase1 = 0xef; /* WTF? */
+    dvsec = reinterpret_cast<uint8_t *>(&flexbus);
     cxl_component_create_dvsec(cxl, CXL2_UPSTREAM_PORT,
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_LENGTH,
                                PCIE_FLEXBUS_PORT_DVSEC,
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECRegisterLocator){
-        .rsvd         = 0,
-        .reg0_base_lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX,
-        .reg0_base_hi = 0,
-    };
+    CXLDVSECRegisterLocator reg_loc = {};
+    reg_loc.rsvd         = 0;
+    reg_loc.reg0_base_lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX;
+    reg_loc.reg0_base_hi = 0;
+    dvsec = reinterpret_cast<uint8_t *>(&reg_loc);
     cxl_component_create_dvsec(cxl, CXL2_UPSTREAM_PORT,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,
                                REG_LOC_DVSEC_REVID, dvsec);
@@ -143,7 +144,7 @@ static bool cxl_doe_cdat_rsp(DOECap *doe_cap)
     uint16_t ent;
     void *base;
     uint32_t len;
-    CDATReq *req = pcie_doe_get_write_mbox_ptr(doe_cap);
+    CDATReq *req = static_cast<CDATReq *>(pcie_doe_get_write_mbox_ptr(doe_cap));
     CDATRsp rsp;
 
     cxl_doe_cdat_update(&CXL_USP(doe_cap->pdev)->cxl_cstate, &error_fatal);
@@ -159,18 +160,15 @@ static bool cxl_doe_cdat_rsp(DOECap *doe_cap)
     base = cdat->entry[ent].base;
     len = cdat->entry[ent].length;
 
-    rsp = (CDATRsp) {
-        .header = {
-            .vendor_id = CXL_VENDOR_ID,
-            .data_obj_type = CXL_DOE_TABLE_ACCESS,
-            .reserved = 0x0,
-            .length = DIV_ROUND_UP((sizeof(rsp) + len), sizeof(uint32_t)),
-        },
-        .rsp_code = CXL_DOE_TAB_RSP,
-        .table_type = CXL_DOE_TAB_TYPE_CDAT,
-        .entry_handle = (ent < cdat->entry_len - 1) ?
-                        ent + 1 : CXL_DOE_TAB_ENT_MAX,
-    };
+    memset(&rsp, 0, sizeof(rsp));
+    rsp.header.vendor_id = CXL_VENDOR_ID;
+    rsp.header.data_obj_type = CXL_DOE_TABLE_ACCESS;
+    rsp.header.reserved = 0x0;
+    rsp.header.length = DIV_ROUND_UP((sizeof(rsp) + len), sizeof(uint32_t));
+    rsp.rsp_code = CXL_DOE_TAB_RSP;
+    rsp.table_type = CXL_DOE_TAB_TYPE_CDAT;
+    rsp.entry_handle = (ent < cdat->entry_len - 1) ?
+                    ent + 1 : CXL_DOE_TAB_ENT_MAX;
 
     memcpy(doe_cap->read_mbox, &rsp, sizeof(rsp));
         memcpy(doe_cap->read_mbox + DIV_ROUND_UP(sizeof(rsp), sizeof(uint32_t)),
@@ -183,7 +181,7 @@ static bool cxl_doe_cdat_rsp(DOECap *doe_cap)
 
 static DOEProtocol doe_cdat_prot[] = {
     { CXL_VENDOR_ID, CXL_DOE_TABLE_ACCESS, cxl_doe_cdat_rsp },
-    { }
+    { 0, 0, NULL }
 };
 
 enum {
@@ -202,7 +200,7 @@ static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     int count = 0;
     uint16_t port_ids[256];
 
-    for (devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
+    for (devfn = 0; devfn < static_cast<int>(ARRAY_SIZE(bus->devices)); devfn++) {
         PCIDevice *d = bus->devices[devfn];
         PCIEPort *port;
 
@@ -229,44 +227,32 @@ static int build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
     }
 
     sslbis_size = sizeof(CDATSslbis) + sizeof(*sslbis_latency->sslbe) * count;
-    sslbis_latency = g_malloc(sslbis_size);
-    *sslbis_latency = (CDATSslbis) {
-        .sslbis_header = {
-            .header = {
-                .type = CDAT_TYPE_SSLBIS,
-                .length = sslbis_size,
-            },
-            .data_type = HMAT_LB_DATA_TYPE_ACCESS_LATENCY,
-            .entry_base_unit = 10000,
-        },
-    };
+    sslbis_latency = static_cast<CDATSslbis *>(g_malloc(sslbis_size));
+    memset(sslbis_latency, 0, sslbis_size);
+    sslbis_latency->sslbis_header.header.type = CDAT_TYPE_SSLBIS;
+    sslbis_latency->sslbis_header.header.length = sslbis_size;
+    sslbis_latency->sslbis_header.data_type = HMAT_LB_DATA_TYPE_ACCESS_LATENCY;
+    sslbis_latency->sslbis_header.entry_base_unit = 10000;
 
     for (i = 0; i < count; i++) {
-        sslbis_latency->sslbe[i] = (CDATSslbe) {
-            .port_x_id = CDAT_PORT_ID_USP,
-            .port_y_id = port_ids[i],
-            .latency_bandwidth = 15, /* 150ns */
-        };
+        memset(&sslbis_latency->sslbe[i], 0, sizeof(CDATSslbe));
+        sslbis_latency->sslbe[i].port_x_id = CDAT_PORT_ID_USP;
+        sslbis_latency->sslbe[i].port_y_id = port_ids[i];
+        sslbis_latency->sslbe[i].latency_bandwidth = 15; /* 150ns */
     }
 
-    sslbis_bandwidth = g_malloc(sslbis_size);
-    *sslbis_bandwidth = (CDATSslbis) {
-        .sslbis_header = {
-            .header = {
-                .type = CDAT_TYPE_SSLBIS,
-                .length = sslbis_size,
-            },
-            .data_type = HMAT_LB_DATA_TYPE_ACCESS_BANDWIDTH,
-            .entry_base_unit = 1024,
-        },
-    };
+    sslbis_bandwidth = static_cast<CDATSslbis *>(g_malloc(sslbis_size));
+    memset(sslbis_bandwidth, 0, sslbis_size);
+    sslbis_bandwidth->sslbis_header.header.type = CDAT_TYPE_SSLBIS;
+    sslbis_bandwidth->sslbis_header.header.length = sslbis_size;
+    sslbis_bandwidth->sslbis_header.data_type = HMAT_LB_DATA_TYPE_ACCESS_BANDWIDTH;
+    sslbis_bandwidth->sslbis_header.entry_base_unit = 1024;
 
     for (i = 0; i < count; i++) {
-        sslbis_bandwidth->sslbe[i] = (CDATSslbe) {
-            .port_x_id = CDAT_PORT_ID_USP,
-            .port_y_id = port_ids[i],
-            .latency_bandwidth = 16, /* 16 GB/s */
-        };
+        memset(&sslbis_bandwidth->sslbe[i], 0, sizeof(CDATSslbe));
+        sslbis_bandwidth->sslbe[i].port_x_id = CDAT_PORT_ID_USP;
+        sslbis_bandwidth->sslbe[i].port_y_id = port_ids[i];
+        sslbis_bandwidth->sslbe[i].latency_bandwidth = 16; /* 16 GB/s */
     }
 
     *cdat_table = g_new0(CDATSubHeader *, CXL_USP_CDAT_NUM_ENTRIES);
@@ -389,16 +375,18 @@ static void cxl_upstream_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, cxl_upstream_props);
 }
 
+static const InterfaceInfo cxl_usp_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { INTERFACE_CXL_DEVICE },
+    { }
+};
+
 static const TypeInfo cxl_usp_info = {
     .name = TYPE_CXL_USP,
     .parent = TYPE_PCIE_PORT,
     .instance_size = sizeof(CXLUpstreamPort),
     .class_init = cxl_upstream_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { INTERFACE_CXL_DEVICE },
-        { }
-    },
+    .interfaces = cxl_usp_interfaces,
 };
 
 static void cxl_usp_register_type(void)

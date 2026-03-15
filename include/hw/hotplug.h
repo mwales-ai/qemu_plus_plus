@@ -14,6 +14,10 @@
 
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_HOTPLUG_HANDLER "hotplug-handler"
 
 typedef struct HotplugHandlerClass HotplugHandlerClass;
@@ -96,4 +100,9 @@ void hotplug_handler_unplug_request(HotplugHandler *plug_handler,
 void hotplug_handler_unplug(HotplugHandler *plug_handler,
                             DeviceState *plugged_dev,
                             Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

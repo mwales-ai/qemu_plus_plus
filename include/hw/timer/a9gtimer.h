@@ -91,7 +91,7 @@ struct A9GTimerState {
 
 typedef struct A9GTimerUpdate {
     uint64_t now;
-    uint64_t new;
+    uint64_t new_val;
 } A9GTimerUpdate;
 
 #endif /* A9GTIMER_H */

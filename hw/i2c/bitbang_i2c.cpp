@@ -77,7 +77,7 @@ static int bitbang_i2c_nop(bitbang_i2c_interface *i2c)
 }
 
 /* Returns data line level.  */
-int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
+extern "C" int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
 {
     int data;
 
@@ -122,7 +122,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
     case SENDING_BIT7 ... SENDING_BIT0:
         i2c->buffer = (i2c->buffer << 1) | data;
         /* will end up in WAITING_FOR_ACK */
-        bitbang_i2c_set_state(i2c, i2c->state + 1);
+        bitbang_i2c_set_state(i2c, static_cast<bitbang_i2c_state>(i2c->state + 1));
         return bitbang_i2c_ret(i2c, 1);
 
     case WAITING_FOR_ACK:
@@ -160,7 +160,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
     case RECEIVING_BIT6 ... RECEIVING_BIT0:
         data = i2c->buffer >> 7;
         /* will end up in SENDING_ACK */
-        bitbang_i2c_set_state(i2c, i2c->state + 1);
+        bitbang_i2c_set_state(i2c, static_cast<bitbang_i2c_state>(i2c->state + 1));
         i2c->buffer <<= 1;
         return bitbang_i2c_ret(i2c, data);
 
@@ -176,7 +176,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
     abort();
 }
 
-void bitbang_i2c_init(bitbang_i2c_interface *s, I2CBus *bus)
+extern "C" void bitbang_i2c_init(bitbang_i2c_interface *s, I2CBus *bus)
 {
     s->bus = bus;
     s->last_data = 1;
@@ -200,7 +200,7 @@ struct GPIOI2CState {
 
 static void bitbang_i2c_gpio_set(void *opaque, int irq, int level)
 {
-    GPIOI2CState *s = opaque;
+    GPIOI2CState *s = static_cast<GPIOI2CState *>(opaque);
 
     level = bitbang_i2c_set(&s->bitbang, irq, level);
     if (level != s->last_level) {

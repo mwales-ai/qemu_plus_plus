@@ -3,6 +3,10 @@
 
 #include "hw/i2c/i2c.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PCA9546 "pca9546"
 #define TYPE_PCA9548 "pca9548"
 
@@ -15,5 +19,9 @@
  * Returns: a pointer to the associated i2c bus.
  */
 I2CBus *pca954x_i2c_get_bus(I2CSlave *mux, uint8_t channel);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -26,7 +26,7 @@
 
 static uint64_t cpu_status_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    AcpiCpuHotplug *cpus = opaque;
+    AcpiCpuHotplug *cpus = static_cast<AcpiCpuHotplug *>(opaque);
     uint64_t val = cpus->sts[addr];
 
     return val;
@@ -40,7 +40,7 @@ static void cpu_status_write(void *opaque, hwaddr addr, uint64_t data,
        mode by writing 0 at the beginning of legacy CPU bitmap
      */
     if (addr == 0 && data == 0) {
-        AcpiCpuHotplug *cpus = opaque;
+        AcpiCpuHotplug *cpus = static_cast<AcpiCpuHotplug *>(opaque);
         object_property_set_bool(cpus->device, "cpu-hotplug-legacy", false,
                                  &error_abort);
     }
@@ -50,13 +50,8 @@ static const MemoryRegionOps AcpiCpuHotplug_ops = {
     .read = cpu_status_read,
     .write = cpu_status_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
-    .impl = {
-        .max_access_size = 1,
-    },
+    .valid = { 1, 4 },
+    .impl = { 0, 1 },
 };
 
 static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu,
@@ -76,7 +71,7 @@ static void acpi_set_cpu_present_bit(AcpiCpuHotplug *g, CPUState *cpu,
     g->sts[cpu_id / 8] |= (1 << (cpu_id % 8));
 }
 
-void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
+extern "C" void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
                              AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
 {
     bool swtchd_to_modern;
@@ -91,7 +86,7 @@ void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
     }
 }
 
-void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
+extern "C" void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
                                   AcpiCpuHotplug *gpe_cpu, uint16_t base)
 {
     CPUState *cpu;
@@ -107,7 +102,7 @@ void legacy_acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
     }
 }
 
-void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
+extern "C" void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
                                 CPUHotplugState *cpuhp_state,
                                 uint16_t io_port)
 {
@@ -117,7 +112,7 @@ void acpi_switch_to_modern_cphp(AcpiCpuHotplug *gpe_cpu,
     cpu_hotplug_hw_init(parent, gpe_cpu->device, cpuhp_state, io_port);
 }
 
-void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
+extern "C" void build_legacy_cpu_hotplug_aml(Aml *ctx, MachineState *machine,
                                   uint16_t io_base)
 {
     Aml *dev;

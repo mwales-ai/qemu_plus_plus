@@ -73,7 +73,7 @@ static A9GTimerUpdate a9_gtimer_get_update(A9GTimerState *s)
     A9GTimerUpdate ret;
 
     ret.now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    ret.new = s->ref_counter +
+    ret.new_val = s->ref_counter +
               (ret.now - s->cpu_ref_time) / a9_gtimer_get_conv(s);
     return ret;
 }
@@ -92,18 +92,18 @@ static void a9_gtimer_update(A9GTimerState *s, bool sync)
         if ((s->control & R_CONTROL_TIMER_ENABLE) &&
                 (gtb->control & R_CONTROL_COMP_ENABLE)) {
             /* R2p0+, where the compare function is >= */
-            if (gtb->compare < update.new) {
+            if (gtb->compare < update.new_val) {
                 DB_PRINT("Compare event happened for CPU %d\n", i);
                 gtb->status = 1;
                 if (gtb->control & R_CONTROL_AUTO_INCREMENT && gtb->inc) {
                     uint64_t inc =
-                        QEMU_ALIGN_UP(update.new - gtb->compare, gtb->inc);
+                        QEMU_ALIGN_UP(update.new_val - gtb->compare, gtb->inc);
                     DB_PRINT("Auto incrementing timer compare by %"
                                                         PRId64 "\n", inc);
                     gtb->compare += inc;
                 }
             }
-            cdiff = (int64_t)gtb->compare - (int64_t)update.new + 1;
+            cdiff = (int64_t)gtb->compare - (int64_t)update.new_val + 1;
             if (cdiff > 0 && (cdiff < next_cdiff || !next_cdiff)) {
                 next_cdiff = cdiff;
             }
@@ -121,7 +121,7 @@ static void a9_gtimer_update(A9GTimerState *s, bool sync)
     }
 
     if (s->control & R_CONTROL_TIMER_ENABLE) {
-        s->counter = update.new;
+        s->counter = update.new_val;
     }
 
     if (sync) {
@@ -151,7 +151,7 @@ static uint64_t a9_gtimer_read(void *opaque, hwaddr addr, unsigned size)
         /* fallthrough */
     case R_COUNTER_LO:
         update = a9_gtimer_get_update(s);
-        ret = extract64(update.new, shift, 32);
+        ret = extract64(update.new_val, shift, 32);
         break;
     case R_CONTROL:
         ret = s->control | gtb->control;

@@ -85,14 +85,14 @@ static void acpi_dsdt_add_host_bridge_methods(Aml *dev,
     aml_append(dev, build_pci_host_bridge_dsm_method());
 }
 
-void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
+extern "C" void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
 {
     int nr_pcie_buses = cfg->ecam.size / PCIE_MMCFG_SIZE_MIN;
     Aml *method, *crs, *dev, *rbuf;
     PCIBus *bus = cfg->bus;
     CrsRangeSet crs_range_set;
     CrsRangeEntry *entry;
-    int i;
+    guint i;
 
     /* start to construct the tables for pxb */
     crs_range_set_init(&crs_range_set);
@@ -190,7 +190,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
                                      cfg->mmio32.base,
                                      cfg->mmio32.base + cfg->mmio32.size - 1);
         for (i = 0; i < crs_range_set.mem_ranges->len; i++) {
-            entry = g_ptr_array_index(crs_range_set.mem_ranges, i);
+            entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(crs_range_set.mem_ranges, i));
             aml_append(rbuf,
                 aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                                  AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
@@ -203,7 +203,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
                                      0x0000,
                                      cfg->pio.size - 1);
         for (i = 0; i < crs_range_set.io_ranges->len; i++) {
-            entry = g_ptr_array_index(crs_range_set.io_ranges, i);
+            entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(crs_range_set.io_ranges, i));
             aml_append(rbuf,
                 aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
                              AML_ENTIRE_RANGE, 0x0000, entry->base,
@@ -216,7 +216,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
                                      cfg->mmio64.base,
                                      cfg->mmio64.base + cfg->mmio64.size - 1);
         for (i = 0; i < crs_range_set.mem_64bit_ranges->len; i++) {
-            entry = g_ptr_array_index(crs_range_set.mem_64bit_ranges, i);
+            entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(crs_range_set.mem_64bit_ranges, i));
             aml_append(rbuf,
                 aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                                  AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
@@ -246,7 +246,7 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
     crs_range_set_free(&crs_range_set);
 }
 
-void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq)
+extern "C" void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq)
 {
     bool ambig;
     Object *obj = object_resolve_path_type("", TYPE_GPEX_HOST, &ambig);

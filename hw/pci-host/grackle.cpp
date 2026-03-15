@@ -41,7 +41,7 @@ static int pci_grackle_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pci_grackle_set_irq(void *opaque, int irq_num, int level)
 {
-    GrackleState *s = opaque;
+    GrackleState *s = static_cast<GrackleState *>(opaque);
 
     trace_grackle_set_irq(irq_num, level);
     qemu_set_irq(s->irqs[irq_num], level);
@@ -111,15 +111,17 @@ static void grackle_pci_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo grackle_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo grackle_pci_info = {
     .name          = "grackle",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = grackle_pci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = grackle_pci_interfaces,
 };
 
 static char *grackle_ofw_unit_address(const SysBusDevice *dev)

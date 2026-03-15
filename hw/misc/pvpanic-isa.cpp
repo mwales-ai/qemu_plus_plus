@@ -55,7 +55,7 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    pvpanic_port = g_malloc(sizeof(*pvpanic_port));
+    pvpanic_port = static_cast<uint16_t *>(g_malloc(sizeof(*pvpanic_port)));
     *pvpanic_port = cpu_to_le16(s->ioport);
     fw_cfg_add_file(fw_cfg, "etc/pvpanic-port", pvpanic_port,
                     sizeof(*pvpanic_port));
@@ -115,16 +115,18 @@ static void pvpanic_isa_class_init(ObjectClass *klass, const void *data)
     adevc->build_dev_aml = build_pvpanic_isa_aml;
 }
 
+static const InterfaceInfo pvpanic_isa_interfaces[] = {
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
+};
+
 static const TypeInfo pvpanic_isa_info = {
     .name          = TYPE_PVPANIC_ISA_DEVICE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PVPanicISAState),
     .instance_init = pvpanic_isa_initfn,
     .class_init    = pvpanic_isa_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+    .interfaces = pvpanic_isa_interfaces,
 };
 
 static void pvpanic_register_types(void)

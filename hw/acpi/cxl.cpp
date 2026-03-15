@@ -31,7 +31,7 @@
 #include "qapi/error.h"
 #include "qemu/uuid.h"
 
-void build_cxl_dsm_method(Aml *dev)
+extern "C" void build_cxl_dsm_method(Aml *dev)
 {
     Aml *method, *ifctx, *ifctx2;
 
@@ -187,7 +187,7 @@ static void cedt_build_cfmws(CXLFixedWindow *fw, Aml *cedt)
 
 static int cxl_foreach_pxb_hb(Object *obj, void *opaque)
 {
-    Aml *cedt = opaque;
+    Aml *cedt = static_cast<Aml *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_PXB_CXL_DEV)) {
         cedt_build_chbs(cedt->buf, PXB_CXL_DEV(obj));
@@ -196,14 +196,13 @@ static int cxl_foreach_pxb_hb(Object *obj, void *opaque)
     return 0;
 }
 
-void cxl_build_cedt(GArray *table_offsets, GArray *table_data,
+extern "C" void cxl_build_cedt(GArray *table_offsets, GArray *table_data,
                     BIOSLinker *linker, const char *oem_id,
                     const char *oem_table_id, CXLState *cxl_state)
 {
     GSList *cfmws_list, *iter;
     Aml *cedt;
-    AcpiTable table = { .sig = "CEDT", .rev = 1, .oem_id = oem_id,
-                        .oem_table_id = oem_table_id };
+    AcpiTable table = { "CEDT", 1, oem_id, oem_table_id, NULL, 0 };
 
     acpi_add_table(table_offsets, table_data);
     acpi_table_begin(&table, table_data);
@@ -320,7 +319,7 @@ static Aml *__build_cxl_osc_method(void)
     return method;
 }
 
-void build_cxl_osc_method(Aml *dev)
+extern "C" void build_cxl_osc_method(Aml *dev)
 {
     aml_append(dev, aml_name_decl("SUPP", aml_int(0)));
     aml_append(dev, aml_name_decl("CTRL", aml_int(0)));

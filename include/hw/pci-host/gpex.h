@@ -26,6 +26,10 @@
 #include "hw/pci/pcie_host.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_GPEX_HOST "gpex-pcihost"
 OBJECT_DECLARE_SIMPLE_TYPE(GPEXHost, GPEX_HOST)
 
@@ -81,5 +85,9 @@ void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq);
 #define PCI_HOST_BELOW_4G_MMIO_SIZE     "x-below-4g-mmio-size"
 #define PCI_HOST_ABOVE_4G_MMIO_BASE     "x-above-4g-mmio-base"
 #define PCI_HOST_ABOVE_4G_MMIO_SIZE     "x-above-4g-mmio-size"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_GPEX_H */

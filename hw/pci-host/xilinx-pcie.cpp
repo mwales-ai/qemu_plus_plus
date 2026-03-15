@@ -309,15 +309,17 @@ static void xilinx_pcie_root_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo xilinx_pcie_root_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
+};
+
 static const TypeInfo xilinx_pcie_root_info = {
     .name = TYPE_XILINX_PCIE_ROOT,
     .parent = TYPE_PCI_BRIDGE,
     .instance_size = sizeof(XilinxPCIERoot),
     .class_init = xilinx_pcie_root_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+    .interfaces = xilinx_pcie_root_interfaces,
 };
 
 static void xilinx_pcie_register(void)
