@@ -13,6 +13,10 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum VhostBackendType {
     VHOST_BACKEND_TYPE_NONE = 0,
     VHOST_BACKEND_TYPE_KERNEL = 1,
@@ -51,10 +55,10 @@ struct vhost_scsi_target;
 struct vhost_iotlb_msg;
 struct vhost_virtqueue;
 
-typedef int (*vhost_backend_init)(struct vhost_dev *dev, void *opaque,
-                                  Error **errp);
-typedef int (*vhost_backend_cleanup)(struct vhost_dev *dev);
-typedef int (*vhost_backend_memslots_limit)(struct vhost_dev *dev);
+typedef int (*vhost_backend_init_op)(struct vhost_dev *dev, void *opaque,
+                                     Error **errp);
+typedef int (*vhost_backend_cleanup_op)(struct vhost_dev *dev);
+typedef int (*vhost_backend_memslots_limit_op)(struct vhost_dev *dev);
 
 typedef int (*vhost_net_set_backend_op)(struct vhost_dev *dev,
                                 struct vhost_vring_file *file);
@@ -166,9 +170,9 @@ typedef int (*vhost_check_device_state_op)(struct vhost_dev *dev, Error **errp);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
-    vhost_backend_init vhost_backend_init;
-    vhost_backend_cleanup vhost_backend_cleanup;
-    vhost_backend_memslots_limit vhost_backend_memslots_limit;
+    vhost_backend_init_op vhost_backend_init;
+    vhost_backend_cleanup_op vhost_backend_cleanup;
+    vhost_backend_memslots_limit_op vhost_backend_memslots_limit;
     vhost_backend_no_private_memslots_op vhost_backend_no_private_memslots;
     vhost_net_set_backend_op vhost_net_set_backend;
     vhost_net_set_mtu_op vhost_net_set_mtu;
@@ -237,5 +241,9 @@ int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd);
 
 int vhost_user_get_shared_object(struct vhost_dev *dev, unsigned char *uuid,
                                         int *dmabuf_fd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* VHOST_BACKEND_H */
