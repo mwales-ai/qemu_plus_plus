@@ -18,6 +18,10 @@
 #include "hw/misc/max78000_trng.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_MAX78000_SOC "max78000-soc"
 OBJECT_DECLARE_SIMPLE_TYPE(MAX78000State, MAX78000_SOC)
 
@@ -46,5 +50,9 @@ struct MAX78000State {
 
     Clock *sysclk;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

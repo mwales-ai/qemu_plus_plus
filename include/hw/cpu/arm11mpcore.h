@@ -16,6 +16,10 @@
 #include "hw/timer/arm_mptimer.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ARM11MPCORE_PRIV "arm11mpcore_priv"
 OBJECT_DECLARE_SIMPLE_TYPE(ARM11MPCorePriveState, ARM11MPCORE_PRIV)
 
@@ -31,5 +35,9 @@ struct ARM11MPCorePriveState {
     ARMMPTimerState mptimer;
     ARMMPTimerState wdtimer;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -30,6 +30,14 @@ typedef struct {
 
 /* qemu functions */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void hardware_info_register(HARDWARE_INFO_TYPE type, void *info, uint64_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_UEFI_HARDWARE_INFO_H */

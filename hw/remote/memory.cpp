@@ -27,6 +27,7 @@ static void remote_sysmem_reset(void)
     }
 }
 
+extern "C"
 void remote_sysmem_reconfig(MPQemuMsg *msg, Error **errp)
 {
     ERRP_GUARD();

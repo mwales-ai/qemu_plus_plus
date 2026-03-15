@@ -58,6 +58,10 @@
         qemu_coroutine_yield();                                         \
     } while (0)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void co_run_in_worker_bh(void *);
 int coroutine_fn v9fs_co_readlink(V9fsPDU *, V9fsPath *, V9fsString *);
 int coroutine_fn v9fs_co_readdir(V9fsPDU *, V9fsFidState *, struct dirent **);
@@ -113,5 +117,9 @@ int coroutine_fn v9fs_co_name_to_path(V9fsPDU *, V9fsPath *,
                                       const char *, V9fsPath *);
 int coroutine_fn v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t,
                                 V9fsStatDotl *v9stat);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

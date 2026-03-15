@@ -30,8 +30,16 @@
 
 #include "cpu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xtensa_create_memory_regions(const XtensaMemory *memory,
                                   const char *name,
                                   MemoryRegion *super);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

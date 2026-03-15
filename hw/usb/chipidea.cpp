@@ -95,7 +95,7 @@ static void chipidea_init(Object *obj)
     ChipideaState *ci = CHIPIDEA(obj);
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(ci->iomem); i++) {
+    for (i = 0; static_cast<size_t>(i) < ARRAY_SIZE(ci->iomem); i++) {
         const struct {
             const char *name;
             hwaddr offset;

@@ -24,6 +24,10 @@
 #include "hw/pci/pci_device.h"
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0
 #endif
@@ -378,5 +382,9 @@ struct FUSBH200EHCIState {
 
     MemoryRegion mem_vendor;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

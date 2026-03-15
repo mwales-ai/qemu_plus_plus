@@ -12,6 +12,10 @@
 #include "qom/object.h"
 #include "hw/arm/aspeed_soc.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct AspeedCoprocessorState {
     DeviceState parent;
 
@@ -59,5 +63,9 @@ OBJECT_DECLARE_SIMPLE_TYPE(Aspeed27x0CoprocessorState,
 #define TYPE_ASPEED27X0TSP_COPROCESSOR "aspeed27x0tsp-coprocessor"
 DECLARE_OBJ_CHECKERS(Aspeed27x0CoprocessorState, AspeedCoprocessorClass,
                      ASPEED27X0TSP_COPROCESSOR, TYPE_ASPEED27X0TSP_COPROCESSOR)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ASPEED_COPROCESSOR_H */

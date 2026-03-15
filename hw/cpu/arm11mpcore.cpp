@@ -19,14 +19,14 @@
 
 static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 {
-    ARM11MPCorePriveState *s = (ARM11MPCorePriveState *)opaque;
+    ARM11MPCorePriveState *s = static_cast<ARM11MPCorePriveState *>(opaque);
 
     qemu_set_irq(qdev_get_gpio_in(DEVICE(&s->gic), irq), level);
 }
 
 static void mpcore_priv_map_setup(ARM11MPCorePriveState *s)
 {
-    int i;
+    uint32_t i;
     SysBusDevice *scubusdev = SYS_BUS_DEVICE(&s->scu);
     DeviceState *gicdev = DEVICE(&s->gic);
     SysBusDevice *gicbusdev = SYS_BUS_DEVICE(&s->gic);

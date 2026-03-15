@@ -31,6 +31,7 @@
 #include "qemu/error-report.h"
 #include "xtensa_memory.h"
 
+extern "C"
 void xtensa_create_memory_regions(const XtensaMemory *memory,
                                   const char *name,
                                   MemoryRegion *super)
