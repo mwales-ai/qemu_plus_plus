@@ -33,6 +33,7 @@
 
 static uint32_t ipmi_current_uuid = 1;
 
+extern "C"
 uint32_t ipmi_next_uuid(void)
 {
     return ipmi_current_uuid++;
@@ -78,9 +79,9 @@ static int ipmi_do_hw_op(IPMIInterface *s, enum ipmi_op op, int checkonly)
     }
 }
 
-static void ipmi_interface_class_init(ObjectClass *class, const void *data)
+static void ipmi_interface_class_init(ObjectClass *klass, const void *data)
 {
-    IPMIInterfaceClass *ik = IPMI_INTERFACE_CLASS(class);
+    IPMIInterfaceClass *ik = IPMI_INTERFACE_CLASS(klass);
 
     ik->do_hw_op = ipmi_do_hw_op;
 }
@@ -101,6 +102,7 @@ static void isa_ipmi_bmc_check(const Object *obj, const char *name,
         error_setg(errp, "BMC object is already in use");
 }
 
+extern "C"
 void ipmi_bmc_find_and_link(Object *obj, Object **bmc)
 {
     object_property_add_link(obj, "bmc", TYPE_IPMI_BMC, bmc,

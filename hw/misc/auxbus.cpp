@@ -60,6 +60,7 @@ static void aux_bus_class_init(ObjectClass *klass, const void *data)
     k->print_dev = aux_slave_dev_print;
 }
 
+extern "C"
 AUXBus *aux_bus_init(DeviceState *parent, const char *name)
 {
     AUXBus *bus;
@@ -72,17 +73,19 @@ AUXBus *aux_bus_init(DeviceState *parent, const char *name)
     bus->bridge = AUXTOI2C(auxtoi2c);
 
     /* Memory related. */
-    bus->aux_io = g_malloc(sizeof(*bus->aux_io));
+    bus->aux_io = static_cast<MemoryRegion *>(g_malloc(sizeof(*bus->aux_io)));
     memory_region_init(bus->aux_io, OBJECT(bus), "aux-io", 1 * MiB);
     address_space_init(&bus->aux_addr_space, bus->aux_io, "aux-io");
     return bus;
 }
 
+extern "C"
 void aux_bus_realize(AUXBus *bus)
 {
     qdev_realize(DEVICE(bus->bridge), BUS(bus), &error_fatal);
 }
 
+extern "C"
 void aux_map_slave(AUXSlave *aux_dev, hwaddr addr)
 {
     DeviceState *dev = DEVICE(aux_dev);
@@ -95,11 +98,13 @@ static bool aux_bus_is_bridge(AUXBus *bus, DeviceState *dev)
     return (dev == DEVICE(bus->bridge));
 }
 
+extern "C"
 I2CBus *aux_get_i2c_bus(AUXBus *bus)
 {
     return aux_bridge_get_i2c_bus(bus->bridge);
 }
 
+extern "C"
 AUXReply aux_request(AUXBus *bus, AUXCommand cmd, uint32_t address,
                       uint8_t len, uint8_t *data)
 {
@@ -281,9 +286,9 @@ static inline I2CBus *aux_bridge_get_i2c_bus(AUXTOI2CState *bridge)
 static const TypeInfo aux_to_i2c_type_info = {
     .name = TYPE_AUXTOI2C,
     .parent = TYPE_AUX_SLAVE,
-    .class_init = aux_bridge_class_init,
     .instance_size = sizeof(AUXTOI2CState),
-    .instance_init = aux_bridge_init
+    .instance_init = aux_bridge_init,
+    .class_init = aux_bridge_class_init,
 };
 
 /* aux-slave implementation */
@@ -305,6 +310,7 @@ static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent)
                    memory_region_size(s->mmio));
 }
 
+extern "C"
 void aux_init_mmio(AUXSlave *aux_slave, MemoryRegion *mmio)
 {
     assert(!aux_slave->mmio);

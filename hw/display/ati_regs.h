@@ -24,6 +24,10 @@
 #ifndef ATI_REGS_H
 #define ATI_REGS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #undef DEFAULT_PITCH /* needed for mingw builds */
 
 #define MM_INDEX                                0x0000
@@ -479,5 +483,9 @@
 
 /* used by ATI bug fix for hardware ROM */
 #define RAGE128_MPP_TB_CONFIG                   0x01c0
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ATI_REGS_H */

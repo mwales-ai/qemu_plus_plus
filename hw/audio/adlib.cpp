@@ -107,7 +107,7 @@ static void adlib_kill_timers (AdlibState *s)
 
 static void adlib_write(void *opaque, uint32_t nport, uint32_t val)
 {
-    AdlibState *s = opaque;
+    AdlibState *s = static_cast<AdlibState *>(opaque);
     int a = nport & 3;
 
     s->active = 1;
@@ -120,7 +120,7 @@ static void adlib_write(void *opaque, uint32_t nport, uint32_t val)
 
 static uint32_t adlib_read(void *opaque, uint32_t nport)
 {
-    AdlibState *s = opaque;
+    AdlibState *s = static_cast<AdlibState *>(opaque);
     int a = nport & 3;
 
     adlib_kill_timers (s);
@@ -129,7 +129,7 @@ static uint32_t adlib_read(void *opaque, uint32_t nport)
 
 static void timer_handler (void *opaque, int c, double interval_Sec)
 {
-    AdlibState *s = opaque;
+    AdlibState *s = static_cast<AdlibState *>(opaque);
     unsigned n = c & 1;
 #if DEBUG
     double interval;
@@ -185,7 +185,7 @@ static int write_audio (AdlibState *s, int samples)
 
 static void adlib_callback (void *opaque, int free)
 {
-    AdlibState *s = opaque;
+    AdlibState *s = static_cast<AdlibState *>(opaque);
     int samples, to_play, written;
 
     samples = free >> SHIFT;
@@ -243,9 +243,9 @@ static void Adlib_fini (AdlibState *s)
 }
 
 static MemoryRegionPortio adlib_portio_list[] = {
-    { 0, 4, 1, .read = adlib_read, .write = adlib_write, },
-    { 0, 2, 1, .read = adlib_read, .write = adlib_write, },
-    { 0x388, 4, 1, .read = adlib_read, .write = adlib_write, },
+    { 0, 4, 1, adlib_read, adlib_write },
+    { 0, 2, 1, adlib_read, adlib_write },
+    { 0x388, 4, 1, adlib_read, adlib_write },
     PORTIO_END_OF_LIST(),
 };
 
@@ -288,7 +288,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     }
 
     s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
-    s->mixbuf = g_malloc0 (s->samples << SHIFT);
+    s->mixbuf = static_cast<int16_t *>(g_malloc0 (s->samples << SHIFT));
 
     adlib_portio_list[0].offset = s->port;
     adlib_portio_list[1].offset = s->port + 8;

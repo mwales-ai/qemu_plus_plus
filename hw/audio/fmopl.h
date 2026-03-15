@@ -1,6 +1,10 @@
 #ifndef FMOPL_H
 #define FMOPL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef void (*OPL_TIMERHANDLER)(void *param, int channel, double interval_Sec);
 
@@ -100,4 +104,9 @@ unsigned char OPLRead(FM_OPL *OPL,int a);
 int OPLTimerOver(FM_OPL *OPL,int c);
 
 void YM3812UpdateOne(FM_OPL *OPL, int16_t *buffer, int length);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

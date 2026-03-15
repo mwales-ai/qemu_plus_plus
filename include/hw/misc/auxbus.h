@@ -29,14 +29,9 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
-typedef enum AUXCommand AUXCommand;
-typedef enum AUXReply AUXReply;
-
-#define TYPE_AUXTOI2C "aux-to-i2c-bridge"
-OBJECT_DECLARE_SIMPLE_TYPE(AUXTOI2CState, AUXTOI2C)
-
-#define TYPE_AUX_SLAVE "aux-slave"
-OBJECT_DECLARE_SIMPLE_TYPE(AUXSlave, AUX_SLAVE)
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum AUXCommand {
     WRITE_I2C = 0,
@@ -55,6 +50,17 @@ enum AUXReply {
     AUX_I2C_NACK = 4,
     AUX_I2C_DEFER = 8
 };
+
+#ifndef __cplusplus
+typedef enum AUXCommand AUXCommand;
+typedef enum AUXReply AUXReply;
+#endif
+
+#define TYPE_AUXTOI2C "aux-to-i2c-bridge"
+OBJECT_DECLARE_SIMPLE_TYPE(AUXTOI2CState, AUXTOI2C)
+
+#define TYPE_AUX_SLAVE "aux-slave"
+OBJECT_DECLARE_SIMPLE_TYPE(AUXSlave, AUX_SLAVE)
 
 #define TYPE_AUX_BUS "aux-bus"
 OBJECT_DECLARE_SIMPLE_TYPE(AUXBus, AUX_BUS)
@@ -137,5 +143,9 @@ void aux_init_mmio(AUXSlave *aux_slave, MemoryRegion *mmio);
  * @addr The address for the slave's mmio.
  */
 void aux_map_slave(AUXSlave *dev, hwaddr addr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_MISC_AUXBUS_H */

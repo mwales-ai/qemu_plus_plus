@@ -38,6 +38,7 @@ static void lba_to_msf(uint8_t *buf, int lba)
 
 /* same toc as bochs. Return -1 if error or the toc length */
 /* XXX: check this */
+extern "C"
 int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track)
 {
     uint8_t *q;
@@ -82,6 +83,7 @@ int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track)
 }
 
 /* mostly same info as PearPc */
+extern "C"
 int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num)
 {
     uint8_t *q;

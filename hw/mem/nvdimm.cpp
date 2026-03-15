@@ -132,7 +132,7 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
     size = memory_region_size(mr);
 
     pmem_size = size - nvdimm->label_size;
-    nvdimm->label_data = memory_region_get_ram_ptr(mr) + pmem_size;
+    nvdimm->label_data = static_cast<char *>(memory_region_get_ram_ptr(mr)) + pmem_size;
     pmem_size = QEMU_ALIGN_DOWN(pmem_size, align);
 
     if (size <= nvdimm->label_size || !pmem_size) {
@@ -221,7 +221,7 @@ static void nvdimm_read_label_data(NVDIMMDevice *nvdimm, void *buf,
 {
     nvdimm_validate_rw_label_data(nvdimm, size, offset, false);
 
-    memcpy(buf, nvdimm->label_data + offset, size);
+    memcpy(buf, static_cast<char *>(nvdimm->label_data) + offset, size);
 }
 
 static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
@@ -236,9 +236,9 @@ static void nvdimm_write_label_data(NVDIMMDevice *nvdimm, const void *buf,
     nvdimm_validate_rw_label_data(nvdimm, size, offset, true);
 
     if (!is_pmem) {
-        memcpy(nvdimm->label_data + offset, buf, size);
+        memcpy(static_cast<char *>(nvdimm->label_data) + offset, buf, size);
     } else {
-        pmem_memcpy_persist(nvdimm->label_data + offset, buf, size);
+        pmem_memcpy_persist(static_cast<char *>(nvdimm->label_data) + offset, buf, size);
     }
 
     mr = host_memory_backend_get_memory(dimm->hostmem);
@@ -270,11 +270,11 @@ static void nvdimm_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo nvdimm_info = {
     .name          = TYPE_NVDIMM,
     .parent        = TYPE_PC_DIMM,
-    .class_size    = sizeof(NVDIMMClass),
-    .class_init    = nvdimm_class_init,
     .instance_size = sizeof(NVDIMMDevice),
     .instance_init = nvdimm_init,
     .instance_finalize = nvdimm_finalize,
+    .class_size    = sizeof(NVDIMMClass),
+    .class_init    = nvdimm_class_init,
 };
 
 static void nvdimm_register_types(void)

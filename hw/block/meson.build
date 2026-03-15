@@ -1,6 +1,6 @@
 system_ss.add(files(
   'block.cpp',
-  'cdrom.c',
+  'cdrom.cpp',
   'hd-geometry.c'
 ))
 system_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.c'))

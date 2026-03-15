@@ -9,6 +9,10 @@
 
 #include "hw/i2c/i2c.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Create and realize an AT24C EEPROM device on the heap.
  * @bus: I2C bus to put it on
@@ -35,5 +39,9 @@ I2CSlave *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size);
  */
 I2CSlave *at24c_eeprom_init_rom(I2CBus *bus, uint8_t address, uint32_t rom_size,
                                 const uint8_t *init_rom, uint32_t init_rom_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

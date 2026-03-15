@@ -71,7 +71,7 @@ int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
     case I2C_START_RECV:
         DPRINTK("clear\n");
         if (ee->blk && ee->changed) {
-            int ret = blk_pwrite(ee->blk, 0, ee->rsize, ee->mem, 0);
+            int ret = blk_pwrite(ee->blk, 0, ee->rsize, ee->mem, static_cast<BdrvRequestFlags>(0));
             if (ret < 0) {
                 error_report("%s: failed to write backing file", __func__);
             }
@@ -138,11 +138,13 @@ int at24c_eeprom_send(I2CSlave *s, uint8_t data)
     return 0;
 }
 
+extern "C"
 I2CSlave *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size)
 {
     return at24c_eeprom_init_rom(bus, address, rom_size, NULL, 0);
 }
 
+extern "C"
 I2CSlave *at24c_eeprom_init_rom(I2CBus *bus, uint8_t address, uint32_t rom_size,
                                 const uint8_t *init_rom, uint32_t init_rom_size)
 {
@@ -189,10 +191,10 @@ static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    ee->mem = g_malloc0(ee->rsize);
+    ee->mem = static_cast<uint8_t *>(g_malloc0(ee->rsize));
 
     if (ee->blk) {
-        int ret = blk_pread(ee->blk, 0, ee->rsize, ee->mem, 0);
+        int ret = blk_pread(ee->blk, 0, ee->rsize, ee->mem, static_cast<BdrvRequestFlags>(0));
 
         if (ret < 0) {
             error_setg(errp, "%s: Failed initial sync with backing file",

@@ -24,77 +24,81 @@
 #include "qxl.h"
 
 static const char *const qxl_type[] = {
-    [ QXL_CMD_NOP ]     = "nop",
-    [ QXL_CMD_DRAW ]    = "draw",
-    [ QXL_CMD_UPDATE ]  = "update",
-    [ QXL_CMD_CURSOR ]  = "cursor",
-    [ QXL_CMD_MESSAGE ] = "message",
-    [ QXL_CMD_SURFACE ] = "surface",
+    /* QXL_CMD_NOP */     "nop",
+    /* QXL_CMD_DRAW */    "draw",
+    /* QXL_CMD_UPDATE */  "update",
+    /* QXL_CMD_CURSOR */  "cursor",
+    /* QXL_CMD_MESSAGE */ "message",
+    /* QXL_CMD_SURFACE */ "surface",
 };
 
 static const char *const qxl_draw_type[] = {
-    [ QXL_DRAW_NOP         ] = "nop",
-    [ QXL_DRAW_FILL        ] = "fill",
-    [ QXL_DRAW_OPAQUE      ] = "opaque",
-    [ QXL_DRAW_COPY        ] = "copy",
-    [ QXL_COPY_BITS        ] = "copy-bits",
-    [ QXL_DRAW_BLEND       ] = "blend",
-    [ QXL_DRAW_BLACKNESS   ] = "blackness",
-    [ QXL_DRAW_WHITENESS   ] = "whitemess",
-    [ QXL_DRAW_INVERS      ] = "invers",
-    [ QXL_DRAW_ROP3        ] = "rop3",
-    [ QXL_DRAW_STROKE      ] = "stroke",
-    [ QXL_DRAW_TEXT        ] = "text",
-    [ QXL_DRAW_TRANSPARENT ] = "transparent",
-    [ QXL_DRAW_ALPHA_BLEND ] = "alpha-blend",
+    /* QXL_DRAW_NOP */         "nop",
+    /* QXL_DRAW_FILL */        "fill",
+    /* QXL_DRAW_OPAQUE */      "opaque",
+    /* QXL_DRAW_COPY */        "copy",
+    /* QXL_COPY_BITS */        "copy-bits",
+    /* QXL_DRAW_BLEND */       "blend",
+    /* QXL_DRAW_BLACKNESS */   "blackness",
+    /* QXL_DRAW_WHITENESS */   "whitemess",
+    /* QXL_DRAW_INVERS */      "invers",
+    /* QXL_DRAW_ROP3 */        "rop3",
+    /* QXL_DRAW_STROKE */      "stroke",
+    /* QXL_DRAW_TEXT */        "text",
+    /* QXL_DRAW_TRANSPARENT */ "transparent",
+    /* QXL_DRAW_ALPHA_BLEND */ "alpha-blend",
 };
 
 static const char *const qxl_draw_effect[] = {
-    [ QXL_EFFECT_BLEND            ] = "blend",
-    [ QXL_EFFECT_OPAQUE           ] = "opaque",
-    [ QXL_EFFECT_REVERT_ON_DUP    ] = "revert-on-dup",
-    [ QXL_EFFECT_BLACKNESS_ON_DUP ] = "blackness-on-dup",
-    [ QXL_EFFECT_WHITENESS_ON_DUP ] = "whiteness-on-dup",
-    [ QXL_EFFECT_NOP_ON_DUP       ] = "nop-on-dup",
-    [ QXL_EFFECT_NOP              ] = "nop",
-    [ QXL_EFFECT_OPAQUE_BRUSH     ] = "opaque-brush",
+    /* QXL_EFFECT_BLEND */            "blend",
+    /* QXL_EFFECT_OPAQUE */           "opaque",
+    /* QXL_EFFECT_REVERT_ON_DUP */    "revert-on-dup",
+    /* QXL_EFFECT_BLACKNESS_ON_DUP */ "blackness-on-dup",
+    /* QXL_EFFECT_WHITENESS_ON_DUP */ "whiteness-on-dup",
+    /* QXL_EFFECT_NOP_ON_DUP */       "nop-on-dup",
+    /* QXL_EFFECT_NOP */              "nop",
+    /* QXL_EFFECT_OPAQUE_BRUSH */     "opaque-brush",
 };
 
 static const char *const qxl_surface_cmd[] = {
-   [ QXL_SURFACE_CMD_CREATE  ] = "create",
-   [ QXL_SURFACE_CMD_DESTROY ] = "destroy",
+   /* QXL_SURFACE_CMD_CREATE */  "create",
+   /* QXL_SURFACE_CMD_DESTROY */ "destroy",
 };
 
-static const char *const spice_surface_fmt[] = {
-   [ SPICE_SURFACE_FMT_INVALID  ] = "invalid",
-   [ SPICE_SURFACE_FMT_1_A      ] = "alpha/1",
-   [ SPICE_SURFACE_FMT_8_A      ] = "alpha/8",
-   [ SPICE_SURFACE_FMT_16_555   ] = "555/16",
-   [ SPICE_SURFACE_FMT_16_565   ] = "565/16",
-   [ SPICE_SURFACE_FMT_32_xRGB  ] = "xRGB/32",
-   [ SPICE_SURFACE_FMT_32_ARGB  ] = "ARGB/32",
-};
+static const char *spice_surface_fmt_lookup(int v)
+{
+    switch (v) {
+    case SPICE_SURFACE_FMT_INVALID:  return "invalid";
+    case SPICE_SURFACE_FMT_1_A:      return "alpha/1";
+    case SPICE_SURFACE_FMT_8_A:      return "alpha/8";
+    case SPICE_SURFACE_FMT_16_555:   return "555/16";
+    case SPICE_SURFACE_FMT_16_565:   return "565/16";
+    case SPICE_SURFACE_FMT_32_xRGB:  return "xRGB/32";
+    case SPICE_SURFACE_FMT_32_ARGB:  return "ARGB/32";
+    default:                         return "???";
+    }
+}
 
 static const char *const qxl_cursor_cmd[] = {
-   [ QXL_CURSOR_SET   ] = "set",
-   [ QXL_CURSOR_MOVE  ] = "move",
-   [ QXL_CURSOR_HIDE  ] = "hide",
-   [ QXL_CURSOR_TRAIL ] = "trail",
+   /* QXL_CURSOR_SET */   "set",
+   /* QXL_CURSOR_MOVE */  "move",
+   /* QXL_CURSOR_HIDE */  "hide",
+   /* QXL_CURSOR_TRAIL */ "trail",
 };
 
 static const char *const spice_cursor_type[] = {
-   [ SPICE_CURSOR_TYPE_ALPHA   ] = "alpha",
-   [ SPICE_CURSOR_TYPE_MONO    ] = "mono",
-   [ SPICE_CURSOR_TYPE_COLOR4  ] = "color4",
-   [ SPICE_CURSOR_TYPE_COLOR8  ] = "color8",
-   [ SPICE_CURSOR_TYPE_COLOR16 ] = "color16",
-   [ SPICE_CURSOR_TYPE_COLOR24 ] = "color24",
-   [ SPICE_CURSOR_TYPE_COLOR32 ] = "color32",
+   /* SPICE_CURSOR_TYPE_ALPHA */   "alpha",
+   /* SPICE_CURSOR_TYPE_MONO */    "mono",
+   /* SPICE_CURSOR_TYPE_COLOR4 */  "color4",
+   /* SPICE_CURSOR_TYPE_COLOR8 */  "color8",
+   /* SPICE_CURSOR_TYPE_COLOR16 */ "color16",
+   /* SPICE_CURSOR_TYPE_COLOR24 */ "color24",
+   /* SPICE_CURSOR_TYPE_COLOR32 */ "color32",
 };
 
 static const char *qxl_v2n(const char *const n[], size_t l, int v)
 {
-    if (v >= l || !n[v]) {
+    if (v < 0 || static_cast<size_t>(v) >= l || !n[v]) {
         return "???";
     }
     return n[v];
@@ -106,7 +110,7 @@ static int qxl_log_image(PCIQXLDevice *qxl, QXLPHYSICAL addr, int group_id)
     QXLImage *image;
     QXLImageDescriptor *desc;
 
-    image = qxl_phys2virt(qxl, addr, group_id, sizeof(QXLImage));
+    image = static_cast<QXLImage *>(qxl_phys2virt(qxl, addr, group_id, sizeof(QXLImage)));
     if (!image) {
         return 1;
     }
@@ -193,7 +197,7 @@ static void qxl_log_cmd_surface(PCIQXLDevice *qxl, QXLSurfaceCmd *cmd)
                 cmd->u.surface_create.width,
                 cmd->u.surface_create.height,
                 cmd->u.surface_create.stride,
-                qxl_name(spice_surface_fmt, cmd->u.surface_create.format),
+                spice_surface_fmt_lookup(cmd->u.surface_create.format),
                 qxl->guest_surfaces.count, qxl->guest_surfaces.max);
     }
     if (cmd->type == QXL_SURFACE_CMD_DESTROY) {
@@ -201,6 +205,7 @@ static void qxl_log_cmd_surface(PCIQXLDevice *qxl, QXLSurfaceCmd *cmd)
     }
 }
 
+extern "C"
 int qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id)
 {
     QXLCursor *cursor;
@@ -214,8 +219,8 @@ int qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id)
                 cmd->u.set.position.y,
                 cmd->u.set.visible ? "yes" : "no",
                 cmd->u.set.shape);
-        cursor = qxl_phys2virt(qxl, cmd->u.set.shape, group_id,
-                               sizeof(QXLCursor));
+        cursor = static_cast<QXLCursor *>(qxl_phys2virt(qxl, cmd->u.set.shape, group_id,
+                               sizeof(QXLCursor)));
         if (!cursor) {
             return 1;
         }
@@ -233,6 +238,7 @@ int qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id)
     return 0;
 }
 
+extern "C"
 int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
 {
     bool compat = ext->flags & QXL_COMMAND_FLAG_COMPAT;
@@ -269,19 +275,19 @@ int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
     switch (ext->cmd.type) {
     case QXL_CMD_DRAW:
         if (!compat) {
-            ret = qxl_log_cmd_draw(qxl, data, ext->group_id);
+            ret = qxl_log_cmd_draw(qxl, static_cast<QXLDrawable *>(data), ext->group_id);
         } else {
-            ret = qxl_log_cmd_draw_compat(qxl, data, ext->group_id);
+            ret = qxl_log_cmd_draw_compat(qxl, static_cast<QXLCompatDrawable *>(data), ext->group_id);
         }
         if (ret) {
             return ret;
         }
         break;
     case QXL_CMD_SURFACE:
-        qxl_log_cmd_surface(qxl, data);
+        qxl_log_cmd_surface(qxl, static_cast<QXLSurfaceCmd *>(data));
         break;
     case QXL_CMD_CURSOR:
-        qxl_log_cmd_cursor(qxl, data, ext->group_id);
+        qxl_log_cmd_cursor(qxl, static_cast<QXLCursorCmd *>(data), ext->group_id);
         break;
     }
 out:

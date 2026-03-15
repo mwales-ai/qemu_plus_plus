@@ -135,8 +135,8 @@ void ati_2d_blt(ATIVGAState *s)
             /* FIXME: We only really need a temporary if src and dst overlap */
             int llb = s->regs.dst_width * (bpp / 8);
             int tmp_stride = DIV_ROUND_UP(llb, sizeof(uint32_t));
-            uint32_t *tmp = g_malloc(tmp_stride * sizeof(uint32_t) *
-                                     s->regs.dst_height);
+            uint32_t *tmp = static_cast<uint32_t *>(g_malloc(tmp_stride * sizeof(uint32_t) *
+                                     s->regs.dst_height));
             fallback = !pixman_blt((uint32_t *)src_bits, tmp,
                                    src_stride, tmp_stride, bpp, bpp,
                                    src_x, src_y, 0, 0,

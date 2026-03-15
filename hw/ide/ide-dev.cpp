@@ -40,11 +40,11 @@ static void ide_qdev_realize(DeviceState *qdev, Error **errp)
     IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
 
-    if (dev->unit == -1) {
+    if (dev->unit == static_cast<uint32_t>(-1)) {
         dev->unit = bus->master ? 1 : 0;
     }
 
-    if (dev->unit >= bus->max_units) {
+    if (dev->unit >= static_cast<uint32_t>(bus->max_units)) {
         error_setg(errp, "Can't create IDE unit %d, bus supports only %d units",
                      dev->unit, bus->max_units);
         return;
@@ -72,6 +72,7 @@ static void ide_qdev_realize(DeviceState *qdev, Error **errp)
     dc->realize(dev, errp);
 }
 
+extern "C"
 void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
@@ -90,7 +91,7 @@ void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
         }
     }
 
-    if (dev->conf.discard_granularity == -1) {
+    if (dev->conf.discard_granularity == static_cast<uint32_t>(-1)) {
         dev->conf.discard_granularity = 512;
     } else if (dev->conf.discard_granularity &&
                dev->conf.discard_granularity != 512) {
@@ -164,7 +165,7 @@ static void ide_dev_set_bootindex(Object *obj, Visitor *v, const char *name,
     /* change bootindex to a new one */
     d->conf.bootindex = boot_index;
 
-    if (d->unit != -1) {
+    if (d->unit != static_cast<uint32_t>(-1)) {
         add_boot_device_path(d->conf.bootindex, &d->qdev,
                              d->unit ? "/disk@1" : "/disk@0");
     }
@@ -251,10 +252,10 @@ static const TypeInfo ide_device_type_info = {
     .name = TYPE_IDE_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(IDEDevice),
+    .instance_init = ide_dev_instance_init,
     .is_abstract = true,
     .class_size = sizeof(IDEDeviceClass),
     .class_init = ide_device_class_init,
-    .instance_init = ide_dev_instance_init,
 };
 
 static void ide_register_types(void)

@@ -9,6 +9,10 @@
 #include "ui/spice-display.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum qxl_mode {
     QXL_MODE_UNDEFINED,
     QXL_MODE_VGA,
@@ -191,5 +195,9 @@ void qxl_render_update(PCIQXLDevice *qxl);
 int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext);
 void qxl_render_update_area_done(PCIQXLDevice *qxl, QXLCookie *cookie);
 void qxl_render_update_area_bh(void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
