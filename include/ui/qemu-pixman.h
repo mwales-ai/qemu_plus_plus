@@ -53,6 +53,10 @@
 # define PIXMAN_LE_x8b8g8r8   PIXMAN_x8b8g8r8
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QEMU_PIXMAN_COLOR(r, g, b)                                               \
     { .red = r << 8, .green = g << 8, .blue = b << 8, .alpha = 0xffff }
 
@@ -122,5 +126,9 @@ bool qemu_pixman_image_new_shareable(
     Error **errp);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(pixman_image_t, qemu_pixman_image_unref)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_PIXMAN_H */

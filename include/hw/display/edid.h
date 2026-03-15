@@ -1,6 +1,10 @@
 #ifndef EDID_H
 #define EDID_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define EDID_NAME_MAX_LENGTH 12
 
 typedef struct qemu_edid_info {
@@ -30,5 +34,9 @@ uint32_t qemu_edid_dpi_to_mm(uint32_t dpi, uint32_t res);
     DEFINE_PROP_UINT32("xmax", _state, _edid_info.maxx, 0),                \
     DEFINE_PROP_UINT32("ymax", _state, _edid_info.maxy, 0),                \
     DEFINE_PROP_UINT32("refresh_rate", _state, _edid_info.refresh_rate, 0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EDID_H */

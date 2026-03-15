@@ -574,13 +574,13 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_STRUCT_ARRAY_TEST(_field, _state, _num, _test, _version, _vmsd, _type) { \
     .name         = (stringify(_field)),                             \
-    .num          = (_num),                                          \
-    .field_exists = (_test),                                         \
-    .version_id   = (_version),                                      \
-    .vmsd         = &(_vmsd),                                        \
-    .size         = sizeof(_type),                                   \
-    .flags        = VMS_STRUCT|VMS_ARRAY,                            \
     .offset       = vmstate_offset_array(_state, _field, _type, _num),\
+    .size         = sizeof(_type),                                   \
+    .num          = (_num),                                          \
+    .flags        = VMS_STRUCT|VMS_ARRAY,                            \
+    .vmsd         = &(_vmsd),                                        \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_STRUCT_2DARRAY_TEST(_field, _state, _n1, _n2, _test, \

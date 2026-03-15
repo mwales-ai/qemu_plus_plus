@@ -59,20 +59,22 @@ struct BochsDisplayState {
 #define TYPE_BOCHS_DISPLAY "bochs-display"
 OBJECT_DECLARE_SIMPLE_TYPE(BochsDisplayState, BOCHS_DISPLAY)
 
+static const VMStateField vmstate_bochs_display_fields[] = {
+    VMSTATE_PCI_DEVICE(pci, BochsDisplayState),
+    VMSTATE_UINT16_ARRAY(vbe_regs, BochsDisplayState, VBE_DISPI_INDEX_NB),
+    VMSTATE_BOOL(big_endian_fb, BochsDisplayState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bochs_display = {
     .name = "bochs-display",
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(pci, BochsDisplayState),
-        VMSTATE_UINT16_ARRAY(vbe_regs, BochsDisplayState, VBE_DISPI_INDEX_NB),
-        VMSTATE_BOOL(big_endian_fb, BochsDisplayState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bochs_display_fields,
 };
 
 static uint64_t bochs_display_vbe_read(void *ptr, hwaddr addr,
                                        unsigned size)
 {
-    BochsDisplayState *s = ptr;
+    BochsDisplayState *s = static_cast<BochsDisplayState *>(ptr);
     unsigned int index = addr >> 1;
 
     switch (index) {
@@ -91,7 +93,7 @@ static uint64_t bochs_display_vbe_read(void *ptr, hwaddr addr,
 static void bochs_display_vbe_write(void *ptr, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
-    BochsDisplayState *s = ptr;
+    BochsDisplayState *s = static_cast<BochsDisplayState *>(ptr);
     unsigned int index = addr >> 1;
 
     if (index >= ARRAY_SIZE(s->vbe_regs)) {
@@ -103,17 +105,15 @@ static void bochs_display_vbe_write(void *ptr, hwaddr addr,
 static const MemoryRegionOps bochs_display_vbe_ops = {
     .read = bochs_display_vbe_read,
     .write = bochs_display_vbe_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 2,
-    .impl.max_access_size = 2,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4 },
+    .impl = { .min_access_size = 2, .max_access_size = 2 },
 };
 
 static uint64_t bochs_display_qext_read(void *ptr, hwaddr addr,
                                         unsigned size)
 {
-    BochsDisplayState *s = ptr;
+    BochsDisplayState *s = static_cast<BochsDisplayState *>(ptr);
 
     switch (addr) {
     case PCI_VGA_QEXT_REG_SIZE:
@@ -129,7 +129,7 @@ static uint64_t bochs_display_qext_read(void *ptr, hwaddr addr,
 static void bochs_display_qext_write(void *ptr, hwaddr addr,
                                      uint64_t val, unsigned size)
 {
-    BochsDisplayState *s = ptr;
+    BochsDisplayState *s = static_cast<BochsDisplayState *>(ptr);
 
     switch (addr) {
     case PCI_VGA_QEXT_REG_BYTEORDER:
@@ -146,9 +146,8 @@ static void bochs_display_qext_write(void *ptr, hwaddr addr,
 static const MemoryRegionOps bochs_display_qext_ops = {
     .read = bochs_display_qext_read,
     .write = bochs_display_qext_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static int bochs_display_get_mode(BochsDisplayState *s,
@@ -185,9 +184,11 @@ static int bochs_display_get_mode(BochsDisplayState *s,
         virt_width = mode->width;
     }
     mode->stride = virt_width * mode->bytepp;
-    mode->size   = (uint64_t)mode->stride * mode->height;
-    mode->offset = ((uint64_t)vbe[VBE_DISPI_INDEX_X_OFFSET] * mode->bytepp +
-                    (uint64_t)vbe[VBE_DISPI_INDEX_Y_OFFSET] * mode->stride);
+    mode->size   = static_cast<uint64_t>(mode->stride) * mode->height;
+    mode->offset = (static_cast<uint64_t>(vbe[VBE_DISPI_INDEX_X_OFFSET]) *
+                    mode->bytepp +
+                    static_cast<uint64_t>(vbe[VBE_DISPI_INDEX_Y_OFFSET]) *
+                    mode->stride);
 
     if (mode->width < 64 || mode->height < 64) {
         return -1;
@@ -200,7 +201,7 @@ static int bochs_display_get_mode(BochsDisplayState *s,
 
 static void bochs_display_update(void *opaque)
 {
-    BochsDisplayState *s = opaque;
+    BochsDisplayState *s = static_cast<BochsDisplayState *>(opaque);
     DirtyBitmapSnapshot *snap = NULL;
     bool full_update = false;
     BochsDisplayMode mode;
@@ -218,7 +219,7 @@ static void bochs_display_update(void *opaque)
     if (memcmp(&s->mode, &mode, sizeof(mode)) != 0) {
         /* video mode switch */
         s->mode = mode;
-        ptr = memory_region_get_ram_ptr(&s->vram);
+        ptr = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->vram));
         ds = qemu_create_displaysurface_from(mode.width,
                                              mode.height,
                                              mode.format,
@@ -235,7 +236,7 @@ static void bochs_display_update(void *opaque)
                                                       mode.offset, mode.size,
                                                       DIRTY_MEMORY_VGA);
         ys = -1;
-        for (y = 0; y < mode.height; y++) {
+        for (y = 0; y < static_cast<int>(mode.height); y++) {
             dirty = memory_region_snapshot_get_dirty(&s->vram, snap,
                                                      mode.offset + mode.stride * y,
                                                      mode.stride);
@@ -368,17 +369,19 @@ static void bochs_display_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
+static const InterfaceInfo bochs_display_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo bochs_display_type_info = {
     .name           = TYPE_BOCHS_DISPLAY,
     .parent         = TYPE_PCI_DEVICE,
     .instance_size  = sizeof(BochsDisplayState),
     .instance_init  = bochs_display_init,
     .class_init     = bochs_display_class_init,
-    .interfaces     = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces     = bochs_display_interfaces,
 };
 
 static void bochs_display_register_types(void)
