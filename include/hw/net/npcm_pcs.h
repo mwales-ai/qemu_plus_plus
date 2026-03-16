@@ -19,6 +19,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NPCM_PCS_NR_SR_CTLS     (0x12 / sizeof(uint16_t))
 #define NPCM_PCS_NR_SR_MIIS     (0x20 / sizeof(uint16_t))
 #define NPCM_PCS_NR_SR_TIMS     (0x22 / sizeof(uint16_t))
@@ -38,5 +42,9 @@ struct NPCMPCSState {
 
 #define TYPE_NPCM_PCS "npcm-pcs"
 OBJECT_DECLARE_SIMPLE_TYPE(NPCMPCSState, NPCM_PCS)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NPCM_PCS_H */

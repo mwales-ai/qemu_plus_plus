@@ -37,8 +37,11 @@
 #include "system/hw_accel.h"
 #include "system/qtest.h"
 #include "qemu/log.h"
-#include "trace.h"
 #include "qom/object.h"
+
+extern "C" {
+#include "trace.h"
+}
 
 #define VMPORT_MAGIC   0x564D5868
 
@@ -80,12 +83,12 @@ struct VMPortState {
 
 static VMPortState *port_state;
 
-void vmport_register(VMPortCommand command, VMPortReadFunc *func, void *opaque)
+extern "C" void vmport_register(VMPortCommand command, VMPortReadFunc *func, void *opaque)
 {
     assert(command < VMPORT_ENTRIES);
     assert(port_state);
 
-    trace_vmport_register(command, func, opaque);
+    trace_vmport_register(command, reinterpret_cast<void *>(func), opaque);
     port_state->func[command] = func;
     port_state->opaque[command] = opaque;
 }
@@ -93,7 +96,7 @@ void vmport_register(VMPortCommand command, VMPortReadFunc *func, void *opaque)
 static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    VMPortState *s = opaque;
+    VMPortState *s = static_cast<VMPortState *>(opaque);
     CPUState *cs = current_cpu;
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env;
@@ -224,11 +227,11 @@ static uint32_t vmport_cmd_get_vcpu_info(void *opaque, uint32_t addr)
 static const MemoryRegionOps vmport_ops = {
     .read = vmport_ioport_read,
     .write = vmport_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void vmport_realizefn(DeviceState *dev, Error **errp)

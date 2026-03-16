@@ -29,7 +29,10 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/units.h"
+
+extern "C" {
 #include "trace.h"
+}
 
 #define NPCM_PCS_IND_AC_BA      0x1fe
 #define NPCM_PCS_IND_SR_CTL     0x1e00
@@ -95,47 +98,81 @@ REG16(NPCM_PCS_VR_MII_DIG_ERRCNT_SEL, 0x1c4)
 /* Register Fields */
 #define NPCM_PCS_SR_MII_CTRL_RST            BIT(15)
 
-static const uint16_t npcm_pcs_sr_ctl_cold_reset_values[NPCM_PCS_NR_SR_CTLS] = {
-    [R_NPCM_PCS_SR_CTL_ID1]                 = 0x699e,
-    [R_NPCM_PCS_SR_CTL_STS]                 = 0x8000,
-};
+/*
+ * Cold reset value arrays.
+ * C++ does not support sparse designated array initializers, so we
+ * populate them with a helper function instead.
+ */
+static uint16_t npcm_pcs_sr_ctl_cold_reset_values[NPCM_PCS_NR_SR_CTLS];
+static uint16_t npcm_pcs_sr_mii_cold_reset_values[NPCM_PCS_NR_SR_MIIS];
+static uint16_t npcm_pcs_sr_tim_cold_reset_values[NPCM_PCS_NR_SR_TIMS];
+static uint16_t npcm_pcs_vr_mii_cold_reset_values[NPCM_PCS_NR_VR_MIIS];
 
-static const uint16_t npcm_pcs_sr_mii_cold_reset_values[NPCM_PCS_NR_SR_MIIS] = {
-    [R_NPCM_PCS_SR_MII_CTRL]                = 0x1140,
-    [R_NPCM_PCS_SR_MII_STS]                 = 0x0109,
-    [R_NPCM_PCS_SR_MII_DEV_ID1]             = 0x699e,
-    [R_NPCM_PCS_SR_MII_DEV_ID2]             = 0xced0,
-    [R_NPCM_PCS_SR_MII_AN_ADV]              = 0x0020,
-    [R_NPCM_PCS_SR_MII_EXT_STS]             = 0xc000,
-};
+static bool npcm_pcs_cold_reset_values_initialized;
 
-static const uint16_t npcm_pcs_sr_tim_cold_reset_values[NPCM_PCS_NR_SR_TIMS] = {
-    [R_NPCM_PCS_SR_TIM_SYNC_ABL]            = 0x0003,
-    [R_NPCM_PCS_SR_TIM_SYNC_TX_MAX_DLY_LWR] = 0x0038,
-    [R_NPCM_PCS_SR_TIM_SYNC_TX_MIN_DLY_LWR] = 0x0038,
-    [R_NPCM_PCS_SR_TIM_SYNC_RX_MAX_DLY_LWR] = 0x0058,
-    [R_NPCM_PCS_SR_TIM_SYNC_RX_MIN_DLY_LWR] = 0x0048,
-};
+static void npcm_pcs_init_cold_reset_values(void)
+{
+    if (npcm_pcs_cold_reset_values_initialized) {
+        return;
+    }
+    npcm_pcs_cold_reset_values_initialized = true;
 
-static const uint16_t npcm_pcs_vr_mii_cold_reset_values[NPCM_PCS_NR_VR_MIIS] = {
-    [R_NPCM_PCS_VR_MII_MMD_DIG_CTRL1]         = 0x2400,
-    [R_NPCM_PCS_VR_MII_AN_INTR_STS]           = 0x000a,
-    [R_NPCM_PCS_VR_MII_EEE_MCTRL0]            = 0x899c,
-    [R_NPCM_PCS_VR_MII_DIG_STS]               = 0x0010,
-    [R_NPCM_PCS_VR_MII_MP_TX_BSTCTRL0]        = 0x000a,
-    [R_NPCM_PCS_VR_MII_MP_TX_LVLCTRL0]        = 0x007f,
-    [R_NPCM_PCS_VR_MII_MP_TX_GENCTRL0]        = 0x0001,
-    [R_NPCM_PCS_VR_MII_MP_RX_GENCTRL0]        = 0x0100,
-    [R_NPCM_PCS_VR_MII_MP_RX_GENCTRL1]        = 0x1100,
-    [R_NPCM_PCS_VR_MII_MP_RX_LOS_CTRL0]       = 0x000e,
-    [R_NPCM_PCS_VR_MII_MP_MPLL_CTRL0]         = 0x0100,
-    [R_NPCM_PCS_VR_MII_MP_MPLL_CTRL1]         = 0x0032,
-    [R_NPCM_PCS_VR_MII_MP_MPLL_STS]           = 0x0001,
-    [R_NPCM_PCS_VR_MII_MP_LVL_CTRL]           = 0x0019,
-};
+    memset(npcm_pcs_sr_ctl_cold_reset_values, 0,
+           sizeof(npcm_pcs_sr_ctl_cold_reset_values));
+    npcm_pcs_sr_ctl_cold_reset_values[R_NPCM_PCS_SR_CTL_ID1] = 0x699e;
+    npcm_pcs_sr_ctl_cold_reset_values[R_NPCM_PCS_SR_CTL_STS] = 0x8000;
+
+    memset(npcm_pcs_sr_mii_cold_reset_values, 0,
+           sizeof(npcm_pcs_sr_mii_cold_reset_values));
+    npcm_pcs_sr_mii_cold_reset_values[R_NPCM_PCS_SR_MII_CTRL] = 0x1140;
+    npcm_pcs_sr_mii_cold_reset_values[R_NPCM_PCS_SR_MII_STS] = 0x0109;
+    npcm_pcs_sr_mii_cold_reset_values[R_NPCM_PCS_SR_MII_DEV_ID1] = 0x699e;
+    npcm_pcs_sr_mii_cold_reset_values[R_NPCM_PCS_SR_MII_DEV_ID2] = 0xced0;
+    npcm_pcs_sr_mii_cold_reset_values[R_NPCM_PCS_SR_MII_AN_ADV] = 0x0020;
+    npcm_pcs_sr_mii_cold_reset_values[R_NPCM_PCS_SR_MII_EXT_STS] = 0xc000;
+
+    memset(npcm_pcs_sr_tim_cold_reset_values, 0,
+           sizeof(npcm_pcs_sr_tim_cold_reset_values));
+    npcm_pcs_sr_tim_cold_reset_values[R_NPCM_PCS_SR_TIM_SYNC_ABL] = 0x0003;
+    npcm_pcs_sr_tim_cold_reset_values[R_NPCM_PCS_SR_TIM_SYNC_TX_MAX_DLY_LWR] =
+        0x0038;
+    npcm_pcs_sr_tim_cold_reset_values[R_NPCM_PCS_SR_TIM_SYNC_TX_MIN_DLY_LWR] =
+        0x0038;
+    npcm_pcs_sr_tim_cold_reset_values[R_NPCM_PCS_SR_TIM_SYNC_RX_MAX_DLY_LWR] =
+        0x0058;
+    npcm_pcs_sr_tim_cold_reset_values[R_NPCM_PCS_SR_TIM_SYNC_RX_MIN_DLY_LWR] =
+        0x0048;
+
+    memset(npcm_pcs_vr_mii_cold_reset_values, 0,
+           sizeof(npcm_pcs_vr_mii_cold_reset_values));
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MMD_DIG_CTRL1] =
+        0x2400;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_AN_INTR_STS] = 0x000a;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_EEE_MCTRL0] = 0x899c;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_DIG_STS] = 0x0010;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_TX_BSTCTRL0] =
+        0x000a;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_TX_LVLCTRL0] =
+        0x007f;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_TX_GENCTRL0] =
+        0x0001;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_RX_GENCTRL0] =
+        0x0100;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_RX_GENCTRL1] =
+        0x1100;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_RX_LOS_CTRL0] =
+        0x000e;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_MPLL_CTRL0] =
+        0x0100;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_MPLL_CTRL1] =
+        0x0032;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_MPLL_STS] = 0x0001;
+    npcm_pcs_vr_mii_cold_reset_values[R_NPCM_PCS_VR_MII_MP_LVL_CTRL] = 0x0019;
+}
 
 static void npcm_pcs_soft_reset(NPCMPCSState *s)
 {
+    npcm_pcs_init_cold_reset_values();
     memcpy(s->sr_ctl, npcm_pcs_sr_ctl_cold_reset_values,
            NPCM_PCS_NR_SR_CTLS * sizeof(uint16_t));
     memcpy(s->sr_mii, npcm_pcs_sr_mii_cold_reset_values,
@@ -273,7 +310,7 @@ static void npcm_pcs_write_vr_mii(NPCMPCSState *s, hwaddr offset, uint16_t v)
 
 static uint64_t npcm_pcs_read(void *opaque, hwaddr offset, unsigned size)
 {
-    NPCMPCSState *s = opaque;
+    NPCMPCSState *s = static_cast<NPCMPCSState *>(opaque);
     uint16_t v = 0;
 
     if (offset == NPCM_PCS_IND_AC_BA) {
@@ -312,7 +349,7 @@ static uint64_t npcm_pcs_read(void *opaque, hwaddr offset, unsigned size)
 static void npcm_pcs_write(void *opaque, hwaddr offset,
                               uint64_t v, unsigned size)
 {
-    NPCMPCSState *s = opaque;
+    NPCMPCSState *s = static_cast<NPCMPCSState *>(opaque);
 
     trace_npcm_pcs_reg_write(DEVICE(s)->canonical_path, s->indirect_access_base,
                              offset, v);
@@ -373,18 +410,20 @@ static void npcm_pcs_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &pcs->iomem);
 }
 
+static const VMStateField vmstate_npcm_pcs_fields[] = {
+    VMSTATE_UINT16(indirect_access_base, NPCMPCSState),
+    VMSTATE_UINT16_ARRAY(sr_ctl, NPCMPCSState, NPCM_PCS_NR_SR_CTLS),
+    VMSTATE_UINT16_ARRAY(sr_mii, NPCMPCSState, NPCM_PCS_NR_SR_MIIS),
+    VMSTATE_UINT16_ARRAY(sr_tim, NPCMPCSState, NPCM_PCS_NR_SR_TIMS),
+    VMSTATE_UINT16_ARRAY(vr_mii, NPCMPCSState, NPCM_PCS_NR_VR_MIIS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm_pcs = {
     .name = TYPE_NPCM_PCS,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT16(indirect_access_base, NPCMPCSState),
-        VMSTATE_UINT16_ARRAY(sr_ctl, NPCMPCSState, NPCM_PCS_NR_SR_CTLS),
-        VMSTATE_UINT16_ARRAY(sr_mii, NPCMPCSState, NPCM_PCS_NR_SR_MIIS),
-        VMSTATE_UINT16_ARRAY(sr_tim, NPCMPCSState, NPCM_PCS_NR_SR_TIMS),
-        VMSTATE_UINT16_ARRAY(vr_mii, NPCMPCSState, NPCM_PCS_NR_VR_MIIS),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm_pcs_fields,
 };
 
 static void npcm_pcs_class_init(ObjectClass *klass, const void *data)

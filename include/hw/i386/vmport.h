@@ -3,6 +3,10 @@
 
 #include "hw/isa/isa.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VMPORT "vmport"
 typedef uint32_t VMPortReadFunc(void *opaque, uint32_t address);
 
@@ -24,5 +28,9 @@ static inline void vmport_init(ISABus *bus)
 }
 
 void vmport_register(VMPortCommand command, VMPortReadFunc *func, void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
