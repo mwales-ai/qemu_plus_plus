@@ -21,12 +21,15 @@
 #include "system/system.h"
 #include "system/block-backend.h"
 
+extern "C" {
 #include "nvme.h"
+}
 #include "trace.h"
 
 #define MIN_DISCARD_GRANULARITY (4 * KiB)
 #define NVME_DEFAULT_ZONE_SIZE   (128 * MiB)
 
+extern "C"
 void nvme_ns_init_format(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
@@ -53,7 +56,7 @@ void nvme_ns_init_format(NvmeNamespace *ns)
     npdg = ns->blkconf.discard_granularity / ns->lbasz;
 
     ret = bdrv_get_info(blk_bs(ns->blkconf.blk), &bdi);
-    if (ret >= 0 && bdi.cluster_size > ns->blkconf.discard_granularity) {
+    if (ret >= 0 && static_cast<uint32_t>(bdi.cluster_size) > ns->blkconf.discard_granularity) {
         npdg = bdi.cluster_size / ns->lbasz;
     }
 
@@ -70,7 +73,7 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     NvmeIdNsInd *id_ns_ind = &ns->id_ns_ind;
     uint8_t ds;
     uint16_t ms;
-    int i;
+    unsigned int i;
 
     ns->csi = NVME_CSI_NVM;
     ns->status = 0x0;
@@ -115,14 +118,15 @@ static int nvme_ns_init(NvmeNamespace *ns, Error **errp)
     }
 
     static const NvmeLBAF defaults[16] = {
-        [0] = { .ds =  9           },
-        [1] = { .ds =  9, .ms =  8 },
-        [2] = { .ds =  9, .ms = 16 },
-        [3] = { .ds =  9, .ms = 64 },
-        [4] = { .ds = 12           },
-        [5] = { .ds = 12, .ms =  8 },
-        [6] = { .ds = 12, .ms = 16 },
-        [7] = { .ds = 12, .ms = 64 },
+        /* NvmeLBAF: { .ms, .ds, .rp } */
+        [0] = { .ms =  0, .ds =  9 },
+        [1] = { .ms =  8, .ds =  9 },
+        [2] = { .ms = 16, .ds =  9 },
+        [3] = { .ms = 64, .ds =  9 },
+        [4] = { .ms =  0, .ds = 12 },
+        [5] = { .ms =  8, .ds = 12 },
+        [6] = { .ms = 16, .ds = 12 },
+        [7] = { .ms = 64, .ds = 12 },
     };
 
     ns->nlbaf = 8;
@@ -175,7 +179,7 @@ static int nvme_ns_init_blk(NvmeNamespace *ns, Error **errp)
         return -1;
     }
 
-    if (ns->blkconf.discard_granularity == -1) {
+    if (static_cast<int>(ns->blkconf.discard_granularity) == -1) {
         ns->blkconf.discard_granularity =
             MAX(ns->blkconf.logical_block_size, MIN_DISCARD_GRANULARITY);
     }
@@ -244,12 +248,12 @@ static void nvme_ns_zoned_init_state(NvmeNamespace *ns)
     uint64_t start = 0, zone_size = ns->zone_size;
     uint64_t capacity = ns->num_zones * zone_size;
     NvmeZone *zone;
-    int i;
+    uint64_t i;
 
     ns->zone_array = g_new0(NvmeZone, ns->num_zones);
     if (ns->params.zd_extension_size) {
-        ns->zd_extensions = g_malloc0(ns->params.zd_extension_size *
-                                      ns->num_zones);
+        ns->zd_extensions = static_cast<uint8_t *>(g_malloc0(ns->params.zd_extension_size *
+                                      ns->num_zones));
     }
 
     QTAILQ_INIT(&ns->exp_open_zones);
@@ -632,7 +636,7 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
                 return -1;
             }
 
-            if (ns->params.zrwafg == -1) {
+            if (static_cast<int64_t>(ns->params.zrwafg) == -1) {
                 ns->params.zrwafg = ns->blkconf.logical_block_size;
             }
 
@@ -661,6 +665,7 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
+extern "C"
 int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
 {
     if (nvme_ns_check_constraints(ns, errp)) {
@@ -690,11 +695,13 @@ int nvme_ns_setup(NvmeNamespace *ns, Error **errp)
     return 0;
 }
 
+extern "C"
 void nvme_ns_drain(NvmeNamespace *ns)
 {
     blk_drain(ns->blkconf.blk);
 }
 
+extern "C"
 void nvme_ns_shutdown(NvmeNamespace *ns)
 {
     blk_flush(ns->blkconf.blk);
@@ -703,6 +710,7 @@ void nvme_ns_shutdown(NvmeNamespace *ns)
     }
 }
 
+extern "C"
 void nvme_ns_cleanup(NvmeNamespace *ns)
 {
     if (ns->params.zoned) {
@@ -725,6 +733,7 @@ static void nvme_ns_unrealize(DeviceState *dev)
     nvme_ns_cleanup(ns);
 }
 
+extern "C"
 void nvme_ns_atomic_configure_boundary(bool dn, uint16_t nabsn,
                                        uint16_t nabspf, NvmeAtomic *atomic)
 {
@@ -954,9 +963,9 @@ static void nvme_ns_instance_init(Object *obj)
 static const TypeInfo nvme_ns_info = {
     .name = TYPE_NVME_NS,
     .parent = TYPE_DEVICE,
-    .class_init = nvme_ns_class_init,
     .instance_size = sizeof(NvmeNamespace),
     .instance_init = nvme_ns_instance_init,
+    .class_init = nvme_ns_class_init,
 };
 
 static void nvme_ns_register_types(void)

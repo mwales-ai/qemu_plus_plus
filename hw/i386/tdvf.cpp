@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-
 #include "hw/i386/pc.h"
 #include "hw/i386/tdvf.h"
 #include "system/kvm.h"
@@ -50,14 +49,14 @@ static TdvfMetadata *tdvf_get_metadata(void *flash_ptr, int size)
     uint32_t offset = 0;
     uint8_t *data;
 
-    if ((uint32_t) size != size) {
+    if (size < 0) {
         return NULL;
     }
 
     if (pc_system_ovmf_table_find(TDX_METADATA_OFFSET_GUID, &data, NULL)) {
         offset = size - le32_to_cpu(((struct tdx_metadata_offset *)data)->offset);
 
-        if (offset + sizeof(*metadata) > size) {
+        if (offset + sizeof(*metadata) > static_cast<uint32_t>(size)) {
             return NULL;
         }
     } else {
@@ -65,7 +64,7 @@ static TdvfMetadata *tdvf_get_metadata(void *flash_ptr, int size)
         return NULL;
     }
 
-    metadata = flash_ptr + offset;
+    metadata = reinterpret_cast<TdvfMetadata *>(static_cast<char *>(flash_ptr) + offset);
 
     /* Finally, verify the signature to determine if this is a TDVF image. */
     metadata->Signature = le32_to_cpu(metadata->Signature);
@@ -76,7 +75,7 @@ static TdvfMetadata *tdvf_get_metadata(void *flash_ptr, int size)
 
     /* Sanity check that the TDVF doesn't overlap its own metadata. */
     metadata->Length = le32_to_cpu(metadata->Length);
-    if (offset + metadata->Length > size) {
+    if (offset + metadata->Length > static_cast<uint32_t>(size)) {
         return NULL;
     }
 
@@ -101,16 +100,16 @@ static int tdvf_parse_and_check_section_entry(const TdvfSectionEntry *src,
 
     /* sanity check */
     if (entry->size < entry->data_len) {
-        error_report("Broken metadata RawDataSize 0x%x MemoryDataSize 0x%"PRIx64,
+        error_report("Broken metadata RawDataSize 0x%x MemoryDataSize 0x%" PRIx64,
                      entry->data_len, entry->size);
         return -1;
     }
     if (!QEMU_IS_ALIGNED(entry->address, TDVF_ALIGNMENT)) {
-        error_report("MemoryAddress 0x%"PRIx64" not page aligned", entry->address);
+        error_report("MemoryAddress 0x%" PRIx64 " not page aligned", entry->address);
         return -1;
     }
     if (!QEMU_IS_ALIGNED(entry->size, TDVF_ALIGNMENT)) {
-        error_report("MemoryDataSize 0x%"PRIx64" not page aligned", entry->size);
+        error_report("MemoryDataSize 0x%" PRIx64 " not page aligned", entry->size);
         return -1;
     }
 
@@ -140,12 +139,13 @@ static int tdvf_parse_and_check_section_entry(const TdvfSectionEntry *src,
     return 0;
 }
 
+extern "C"
 int tdvf_parse_metadata(TdxFirmware *fw, void *flash_ptr, int size)
 {
     g_autofree TdvfSectionEntry *sections = NULL;
     TdvfMetadata *metadata;
     ssize_t entries_size;
-    int i;
+    uint32_t i;
 
     metadata = tdvf_get_metadata(flash_ptr, size);
     if (!metadata) {
@@ -171,7 +171,7 @@ int tdvf_parse_metadata(TdxFirmware *fw, void *flash_ptr, int size)
     fw->entries = g_new(TdxFirmwareEntry, fw->nr_entries);
     sections = g_new(TdvfSectionEntry, fw->nr_entries);
 
-    memcpy(sections, (void *)metadata + sizeof(*metadata), entries_size);
+    memcpy(sections, reinterpret_cast<char *>(metadata) + sizeof(*metadata), entries_size);
 
     for (i = 0; i < fw->nr_entries; i++) {
         if (tdvf_parse_and_check_section_entry(&sections[i], &fw->entries[i])) {
@@ -183,7 +183,7 @@ int tdvf_parse_metadata(TdxFirmware *fw, void *flash_ptr, int size)
     return 0;
 
 err:
-    fw->entries = 0;
+    fw->entries = NULL;
     g_free(fw->entries);
     return -EINVAL;
 }

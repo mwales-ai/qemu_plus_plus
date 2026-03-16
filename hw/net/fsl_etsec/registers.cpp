@@ -22,7 +22,10 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "registers.h"
+}
 
 const eTSEC_Register_Definition eTSEC_registers_def[] = {
 {0x000, "TSEC_ID",  "Controller ID register",    ACC_RO,  0x01240000},
@@ -292,5 +295,5 @@ const eTSEC_Register_Definition eTSEC_registers_def[] = {
 {0xEAC, "TMR_ETTS2_L",  "Time stamp of general purpose external trigger",  ACC_RW,  0x00000000},
 
 /* End Of Table */
-{0x0, 0x0, 0x0, 0x0, 0x0}
+{0x0, nullptr, nullptr, static_cast<eTSEC_Register_Access_Type>(0), 0x0}
 };

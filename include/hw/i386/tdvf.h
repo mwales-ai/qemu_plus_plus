@@ -11,6 +11,10 @@
 
 #include "qemu/osdep.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TDVF_SECTION_TYPE_BFV               0
 #define TDVF_SECTION_TYPE_CFV               1
 #define TDVF_SECTION_TYPE_TD_HOB            2
@@ -41,5 +45,9 @@ typedef struct TdxFirmware {
     for (e = (fw)->entries; e != (fw)->entries + (fw)->nr_entries; e++)
 
 int tdvf_parse_metadata(TdxFirmware *fw, void *flash_ptr, int size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_I386_TDVF_H */

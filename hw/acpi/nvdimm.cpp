@@ -34,8 +34,10 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/mem/nvdimm.h"
+extern "C" {
 #include "qemu/nvdimm-utils.h"
 #include "trace.h"
+}
 
 /*
  * define Byte Addressable Persistent Memory (PM) Region according to
@@ -190,7 +192,7 @@ static NVDIMMDevice *nvdimm_get_device_by_handle(uint32_t handle)
     GSList *list, *device_list = nvdimm_get_device_list();
 
     for (list = device_list; list; list = list->next) {
-        NVDIMMDevice *nvd = list->data;
+        NVDIMMDevice *nvd = static_cast<NVDIMMDevice *>(list->data);
         int slot = object_property_get_int(OBJECT(nvd), PC_DIMM_SLOT_PROP,
                                            NULL);
 
@@ -218,7 +220,7 @@ nvdimm_build_structure_spa(GArray *structures, DeviceState *dev)
     int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
                                        NULL);
 
-    nfit_spa = acpi_data_push(structures, sizeof(*nfit_spa));
+    nfit_spa = static_cast<NvdimmNfitSpa *>(acpi_data_push(structures, sizeof(*nfit_spa)));
 
     nfit_spa->type = cpu_to_le16(0 /* System Physical Address Range
                                       Structure */);
@@ -264,7 +266,7 @@ nvdimm_build_structure_memdev(GArray *structures, DeviceState *dev)
                                             NULL);
     uint32_t handle = nvdimm_slot_to_handle(slot);
 
-    nfit_memdev = acpi_data_push(structures, sizeof(*nfit_memdev));
+    nfit_memdev = static_cast<NvdimmNfitMemDev *>(acpi_data_push(structures, sizeof(*nfit_memdev)));
 
     nfit_memdev->type = cpu_to_le16(1 /* Memory Device to System Address
                                          Range Map Structure*/);
@@ -302,7 +304,7 @@ static void nvdimm_build_structure_dcr(GArray *structures, DeviceState *dev)
                                        NULL);
     uint32_t sn = nvdimm_slot_to_sn(slot);
 
-    nfit_dcr = acpi_data_push(structures, sizeof(*nfit_dcr));
+    nfit_dcr = static_cast<NvdimmNfitControlRegion *>(acpi_data_push(structures, sizeof(*nfit_dcr)));
 
     nfit_dcr->type = cpu_to_le16(4 /* NVDIMM Control Region Structure */);
     nfit_dcr->length = cpu_to_le16(sizeof(*nfit_dcr));
@@ -330,7 +332,7 @@ nvdimm_build_structure_caps(GArray *structures, uint32_t capabilities)
 {
     NvdimmNfitPlatformCaps *nfit_caps;
 
-    nfit_caps = acpi_data_push(structures, sizeof(*nfit_caps));
+    nfit_caps = static_cast<NvdimmNfitPlatformCaps *>(acpi_data_push(structures, sizeof(*nfit_caps)));
 
     nfit_caps->type = cpu_to_le16(7 /* NVDIMM Platform Capabilities */);
     nfit_caps->length = cpu_to_le16(sizeof(*nfit_caps));
@@ -344,7 +346,7 @@ static GArray *nvdimm_build_device_structure(NVDIMMState *state)
     GArray *structures = g_array_new(false, true /* clear */, 1);
 
     for (device_list = list; device_list; device_list = device_list->next) {
-        DeviceState *dev = device_list->data;
+        DeviceState *dev = static_cast<DeviceState *>(device_list->data);
 
         /* build System Physical Address Range Structure. */
         nvdimm_build_structure_spa(structures, dev);
@@ -381,6 +383,7 @@ static void nvdimm_build_fit_buffer(NVDIMMState *state)
     fit_buf->dirty = true;
 }
 
+extern "C"
 void nvdimm_plug(NVDIMMState *state)
 {
     nvdimm_build_fit_buffer(state);
@@ -573,7 +576,7 @@ static void nvdimm_dsm_func_read_fit(NVDIMMState *state, NvdimmDsmIn *in,
 
 exit:
     size = sizeof(NvdimmFuncReadFITOut) + read_len;
-    read_fit_out = g_malloc(size);
+    read_fit_out = static_cast<NvdimmFuncReadFITOut *>(g_malloc(size));
 
     read_fit_out->len = cpu_to_le32(size);
     read_fit_out->func_ret_status = cpu_to_le32(func_ret_status);
@@ -726,7 +729,7 @@ static void nvdimm_dsm_get_label_data(NVDIMMDevice *nvdimm, NvdimmDsmIn *in,
 
     size = sizeof(*get_label_data_out) + get_label_data->length;
     assert(size <= NVDIMM_DSM_MEMORY_SIZE);
-    get_label_data_out = g_malloc(size);
+    get_label_data_out = static_cast<NvdimmFuncGetLabelDataOut *>(g_malloc(size));
 
     get_label_data_out->len = cpu_to_le32(size);
     get_label_data_out->func_ret_status =
@@ -832,7 +835,7 @@ nvdimm_dsm_read(void *opaque, hwaddr addr, unsigned size)
 static void
 nvdimm_dsm_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    NVDIMMState *state = opaque;
+    NVDIMMState *state = static_cast<NVDIMMState *>(opaque);
     NvdimmDsmIn *in;
     hwaddr dsm_mem_addr = val;
 
@@ -885,6 +888,7 @@ static const MemoryRegionOps nvdimm_dsm_ops = {
     },
 };
 
+extern "C"
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev)
 {
     if (dev->hotplugged) {
@@ -892,6 +896,7 @@ void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev)
     }
 }
 
+extern "C"
 void nvdimm_init_acpi_state(NVDIMMState *state, MemoryRegion *io,
                             struct AcpiGenericAddress dsm_io,
                             FWCfgState *fw_cfg, Object *owner)
@@ -1427,12 +1432,13 @@ static void nvdimm_build_ssdt(GArray *table_offsets, GArray *table_data,
     acpi_table_end(linker, &table);
 }
 
+extern "C"
 void nvdimm_build_srat(GArray *table_data)
 {
     GSList *device_list, *list = nvdimm_get_device_list();
 
     for (device_list = list; device_list; device_list = device_list->next) {
-        DeviceState *dev = device_list->data;
+        DeviceState *dev = static_cast<DeviceState *>(device_list->data);
         Object *obj = OBJECT(dev);
         uint64_t addr, size;
         int node;
@@ -1442,11 +1448,12 @@ void nvdimm_build_srat(GArray *table_data)
         size = object_property_get_uint(obj, PC_DIMM_SIZE_PROP, &error_abort);
 
         build_srat_memory(table_data, addr, size, node,
-                          MEM_AFFINITY_ENABLED | MEM_AFFINITY_NON_VOLATILE);
+                          static_cast<MemoryAffinityFlags>(MEM_AFFINITY_ENABLED | MEM_AFFINITY_NON_VOLATILE));
     }
     g_slist_free(list);
 }
 
+extern "C"
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        BIOSLinker *linker, NVDIMMState *state,
                        uint32_t ram_slots, const char *oem_id,

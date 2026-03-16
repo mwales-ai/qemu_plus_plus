@@ -5,7 +5,7 @@ system_ss.add(when: 'CONFIG_CXL',
                    'cxl-mailbox-utils.c',
                    'cxl-host.c',
                    'cxl-cdat.cpp',
-                   'cxl-events.c',
+                   'cxl-events.cpp',
                    'switch-mailbox-cci.c',
                ),
                if_false: files(

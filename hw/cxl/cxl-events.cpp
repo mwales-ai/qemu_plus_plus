@@ -24,6 +24,7 @@ static void reset_overflow(CXLEventLog *log)
     log->last_overflow_timestamp = 0;
 }
 
+extern "C"
 void cxl_event_init(CXLDeviceState *cxlds, int start_msg_num)
 {
     CXLEventLog *log;
@@ -92,6 +93,7 @@ static void cxl_event_delete_head(CXLDeviceState *cxlds,
  * return true if an interrupt should be generated as a result
  * of inserting this event.
  */
+extern "C"
 bool cxl_event_insert(CXLDeviceState *cxlds, CXLEventLogType log_type,
                       CXLEventRecordRaw *event)
 {
@@ -137,12 +139,15 @@ bool cxl_event_insert(CXLDeviceState *cxlds, CXLEventLogType log_type,
     return cxl_event_count(log) == 1;
 }
 
+extern "C"
 void cxl_discard_all_event_records(CXLDeviceState *cxlds)
 {
     CXLEventLogType log_type;
     CXLEventLog *log;
 
-    for (log_type = 0; log_type < CXL_EVENT_TYPE_MAX; log_type++) {
+    for (log_type = static_cast<CXLEventLogType>(0);
+         log_type < CXL_EVENT_TYPE_MAX;
+         log_type = static_cast<CXLEventLogType>(static_cast<int>(log_type) + 1)) {
         log = &cxlds->event_logs[log_type];
         while (!cxl_event_empty(log)) {
             cxl_event_delete_head(cxlds, log_type, log);
@@ -150,6 +155,7 @@ void cxl_discard_all_event_records(CXLDeviceState *cxlds)
     }
 }
 
+extern "C"
 CXLRetCode cxl_event_get_records(CXLDeviceState *cxlds, CXLGetEventPayload *pl,
                                  uint8_t log_type, int max_recs,
                                  size_t *len)
@@ -191,6 +197,7 @@ CXLRetCode cxl_event_get_records(CXLDeviceState *cxlds, CXLGetEventPayload *pl,
     return CXL_MBOX_SUCCESS;
 }
 
+extern "C"
 CXLRetCode cxl_event_clear_records(CXLDeviceState *cxlds,
                                    CXLClearEventPayload *pl)
 {
@@ -230,13 +237,14 @@ CXLRetCode cxl_event_clear_records(CXLDeviceState *cxlds,
 
     entry = cxl_event_get_head(log);
     for (nr = 0; entry && nr < pl->nr_recs; nr++) {
-        cxl_event_delete_head(cxlds, log_type, log);
+        cxl_event_delete_head(cxlds, static_cast<CXLEventLogType>(log_type), log);
         entry = cxl_event_get_head(log);
     }
 
     return CXL_MBOX_SUCCESS;
 }
 
+extern "C"
 void cxl_event_irq_assert(CXLType3Dev *ct3d)
 {
     CXLDeviceState *cxlds = &ct3d->cxl_dstate;
@@ -259,13 +267,14 @@ void cxl_event_irq_assert(CXLType3Dev *ct3d)
     }
 }
 
+extern "C"
 void cxl_create_dc_event_records_for_extents(CXLType3Dev *ct3d,
                                              CXLDCEventType type,
                                              CXLDCExtentRaw extents[],
                                              uint32_t ext_count)
 {
     CXLEventDynamicCapacity event_rec = {};
-    int i;
+    uint32_t i;
 
     cxl_assign_event_header(&event_rec.hdr,
                             &dynamic_capacity_uuid,
