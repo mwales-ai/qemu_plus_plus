@@ -789,7 +789,7 @@ static const MemoryRegionOps allwinner_sun8i_emac_mem_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static NetClientInfo net_allwinner_sun8i_emac_info = {

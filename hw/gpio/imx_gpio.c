@@ -262,8 +262,7 @@ static void imx_gpio_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps imx_gpio_ops = {
     .read = imx_gpio_read,
     .write = imx_gpio_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

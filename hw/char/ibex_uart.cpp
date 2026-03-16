@@ -471,8 +471,7 @@ static const MemoryRegionOps ibex_uart_ops = {
     .read = ibex_uart_read,
     .write = ibex_uart_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static int ibex_uart_post_load(void *opaque, int version_id)

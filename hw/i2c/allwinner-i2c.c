@@ -405,8 +405,7 @@ static void allwinner_i2c_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps allwinner_i2c_ops = {
     .read = allwinner_i2c_read,
     .write = allwinner_i2c_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

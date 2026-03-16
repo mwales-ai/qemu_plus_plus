@@ -159,10 +159,8 @@ static const VMStateDescription vmstate_pci_pcnet = {
 static const MemoryRegionOps pcnet_mmio_ops = {
     .read = pcnet_ioport_read,
     .write = pcnet_ioport_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

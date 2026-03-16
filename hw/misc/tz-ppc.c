@@ -211,7 +211,7 @@ static const MemoryRegionOps tz_ppc_dummy_ops = {
     /* define r/w methods to avoid assert failure in memory_region_init_io */
     .read = tz_ppc_dummy_read,
     .write = tz_ppc_dummy_write,
-    .valid.accepts = tz_ppc_dummy_accepts,
+    .valid = { .accepts = tz_ppc_dummy_accepts, },
 };
 
 static void tz_ppc_reset(DeviceState *dev)

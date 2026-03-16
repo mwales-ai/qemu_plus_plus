@@ -445,8 +445,7 @@ static void sh7750_mem_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps sh7750_mem_ops = {
     .read = sh7750_mem_readfn,
     .write = sh7750_mem_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

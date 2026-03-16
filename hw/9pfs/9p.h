@@ -266,7 +266,11 @@ union V9fsFidOpenState {
      * have its own internal representation of
      * open files.
      */
+#ifdef __cplusplus
+    void *priv_data;
+#else
     void *private;
+#endif
 };
 
 struct V9fsFidState {

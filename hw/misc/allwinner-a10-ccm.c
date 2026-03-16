@@ -152,7 +152,7 @@ static const MemoryRegionOps allwinner_a10_ccm_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static void allwinner_a10_ccm_reset_enter(Object *obj, ResetType type)

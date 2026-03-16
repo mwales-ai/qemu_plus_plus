@@ -114,8 +114,7 @@ static const MemoryRegionOps aspeed_xdma_ops = {
     .read = aspeed_xdma_read,
     .write = aspeed_xdma_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void aspeed_xdma_realize(DeviceState *dev, Error **errp)

@@ -76,8 +76,7 @@ static void allwinner_ahci_mem_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps allwinner_ahci_mem_ops = {
     .read = allwinner_ahci_mem_read,
     .write = allwinner_ahci_mem_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

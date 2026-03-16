@@ -275,7 +275,7 @@ static struct virtio_input_config virtio_keyboard_config[] = {
     {
         .select    = VIRTIO_INPUT_CFG_ID_NAME,
         .size      = sizeof(VIRTIO_ID_NAME_KEYBOARD),
-        .u.string  = VIRTIO_ID_NAME_KEYBOARD,
+        .u = { .string = VIRTIO_ID_NAME_KEYBOARD, },
     },{
         .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
         .size      = sizeof(struct virtio_input_devids),
@@ -332,7 +332,7 @@ static struct virtio_input_config virtio_mouse_config_v1[] = {
     {
         .select    = VIRTIO_INPUT_CFG_ID_NAME,
         .size      = sizeof(VIRTIO_ID_NAME_MOUSE),
-        .u.string  = VIRTIO_ID_NAME_MOUSE,
+        .u = { .string = VIRTIO_ID_NAME_MOUSE, },
     },{
         .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
         .size      = sizeof(struct virtio_input_devids),
@@ -357,7 +357,7 @@ static struct virtio_input_config virtio_mouse_config_v2[] = {
     {
         .select    = VIRTIO_INPUT_CFG_ID_NAME,
         .size      = sizeof(VIRTIO_ID_NAME_MOUSE),
-        .u.string  = VIRTIO_ID_NAME_MOUSE,
+        .u = { .string = VIRTIO_ID_NAME_MOUSE, },
     },{
         .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
         .size      = sizeof(struct virtio_input_devids),
@@ -425,7 +425,7 @@ static struct virtio_input_config virtio_tablet_config_v1[] = {
     {
         .select    = VIRTIO_INPUT_CFG_ID_NAME,
         .size      = sizeof(VIRTIO_ID_NAME_TABLET),
-        .u.string  = VIRTIO_ID_NAME_TABLET,
+        .u = { .string = VIRTIO_ID_NAME_TABLET, },
     },{
         .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
         .size      = sizeof(struct virtio_input_devids),
@@ -462,7 +462,7 @@ static struct virtio_input_config virtio_tablet_config_v2[] = {
     {
         .select    = VIRTIO_INPUT_CFG_ID_NAME,
         .size      = sizeof(VIRTIO_ID_NAME_TABLET),
-        .u.string  = VIRTIO_ID_NAME_TABLET,
+        .u = { .string = VIRTIO_ID_NAME_TABLET, },
     },{
         .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
         .size      = sizeof(struct virtio_input_devids),
@@ -549,7 +549,7 @@ static struct virtio_input_config virtio_multitouch_config[] = {
     {
         .select    = VIRTIO_INPUT_CFG_ID_NAME,
         .size      = sizeof(VIRTIO_ID_NAME_MULTITOUCH),
-        .u.string  = VIRTIO_ID_NAME_MULTITOUCH,
+        .u = { .string = VIRTIO_ID_NAME_MULTITOUCH, },
     },{
         .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
         .size      = sizeof(struct virtio_input_devids),

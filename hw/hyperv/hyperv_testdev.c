@@ -283,8 +283,7 @@ static void hv_test_dev_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps synic_test_sint_ops = {
     .read = hv_test_dev_read,
     .write = hv_test_dev_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

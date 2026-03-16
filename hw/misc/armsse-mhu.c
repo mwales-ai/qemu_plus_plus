@@ -141,8 +141,7 @@ static const MemoryRegionOps armsse_mhu_ops = {
     .read = armsse_mhu_read,
     .write = armsse_mhu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void armsse_mhu_reset(DeviceState *dev)

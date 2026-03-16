@@ -611,8 +611,7 @@ static const MemoryRegionOps macfb_ctrl_ops = {
     .read = macfb_ctrl_read,
     .write = macfb_ctrl_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static int macfb_post_load(void *opaque, int version_id)

@@ -539,8 +539,7 @@ static const MemoryRegionOps pl011_ops = {
     .read = pl011_read,
     .write = pl011_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static bool pl011_clock_needed(void *opaque)

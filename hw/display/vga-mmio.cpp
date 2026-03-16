@@ -71,10 +71,8 @@ static void vga_mm_write(void *opaque, hwaddr addr, uint64_t value,
 static const MemoryRegionOps vga_mm_ctrl_ops = {
     .read = vga_mm_read,
     .write = vga_mm_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

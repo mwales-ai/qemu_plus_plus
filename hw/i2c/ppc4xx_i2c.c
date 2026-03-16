@@ -335,10 +335,8 @@ static void ppc4xx_i2c_writeb(void *opaque, hwaddr addr, uint64_t value,
 static const MemoryRegionOps ppc4xx_i2c_ops = {
     .read = ppc4xx_i2c_readb,
     .write = ppc4xx_i2c_writeb,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

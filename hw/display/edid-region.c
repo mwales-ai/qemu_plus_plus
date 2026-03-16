@@ -18,10 +18,8 @@ static void edid_region_write(void *ptr, hwaddr addr,
 static const MemoryRegionOps edid_region_ops = {
     .read = edid_region_read,
     .write = edid_region_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

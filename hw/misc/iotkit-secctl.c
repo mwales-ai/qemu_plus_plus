@@ -592,20 +592,16 @@ static const MemoryRegionOps iotkit_secctl_s_ops = {
     .read_with_attrs = iotkit_secctl_s_read,
     .write_with_attrs = iotkit_secctl_s_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static const MemoryRegionOps iotkit_secctl_ns_ops = {
     .read_with_attrs = iotkit_secctl_ns_read,
     .write_with_attrs = iotkit_secctl_ns_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void iotkit_secctl_reset_ppc(IoTKitSecCtlPPC *ppc)

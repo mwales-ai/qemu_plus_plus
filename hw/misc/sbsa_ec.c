@@ -59,8 +59,7 @@ static const MemoryRegionOps sbsa_ec_ops = {
     .read = sbsa_ec_read,
     .write = sbsa_ec_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void sbsa_ec_init(Object *obj)

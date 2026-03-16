@@ -33,7 +33,11 @@ struct V9fsSynthNode {
     char name[NAME_MAX];
     V9fsSynthNodeAttr *attr;
     V9fsSynthNodeAttr actual_attr;
+#ifdef __cplusplus
+    void *priv_data;
+#else
     void *private;
+#endif
     int open_count;
 };
 

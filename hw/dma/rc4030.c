@@ -387,8 +387,7 @@ static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps rc4030_ops = {
     .read = rc4030_read,
     .write = rc4030_write,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -491,8 +490,7 @@ static void jazzio_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps jazzio_ops = {
     .read = jazzio_read,
     .write = jazzio_write,
-    .impl.min_access_size = 2,
-    .impl.max_access_size = 2,
+    .impl = { .min_access_size = 2, .max_access_size = 2, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

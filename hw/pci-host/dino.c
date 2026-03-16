@@ -341,8 +341,7 @@ static void dino_config_addr_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps dino_config_addr_ops = {
     .read = dino_config_addr_read,
     .write = dino_config_addr_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

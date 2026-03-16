@@ -119,8 +119,7 @@ static void mphi_reg_write(void *ptr, hwaddr addr, uint64_t val, unsigned size)
 static const MemoryRegionOps mphi_mmio_ops = {
     .read = mphi_reg_read,
     .write = mphi_reg_write,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

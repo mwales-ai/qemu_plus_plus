@@ -82,8 +82,7 @@ static void articia_gpio_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps articia_gpio_ops = {
     .read = articia_gpio_read,
     .write = articia_gpio_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -132,8 +131,7 @@ static void articia_reg_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps articia_reg_ops = {
     .read = articia_reg_read,
     .write = articia_reg_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

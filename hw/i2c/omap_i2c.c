@@ -465,8 +465,7 @@ static void omap_i2c_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps omap_i2c_ops = {
     .read = omap_i2c_readfn,
     .write = omap_i2c_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

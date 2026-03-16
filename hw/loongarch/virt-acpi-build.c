@@ -267,11 +267,7 @@ spcr_setup(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     LoongArchVirtMachineState *lvms;
     AcpiSpcrData serial = {
         .interface_type = 0,       /* 16550 compatible */
-        .base_addr.id = AML_AS_SYSTEM_MEMORY,
-        .base_addr.width = 32,
-        .base_addr.offset = 0,
-        .base_addr.size = 1,
-        .base_addr.addr = VIRT_UART_BASE,
+        .base_addr = { .id = AML_AS_SYSTEM_MEMORY, .width = 32, .offset = 0, .size = 1, .addr = VIRT_UART_BASE, },
         .interrupt_type = 0,       /* Interrupt not supported */
         .pc_interrupt = 0,
         .interrupt = VIRT_UART_IRQ,
@@ -384,12 +380,9 @@ build_la_ged_aml(Aml *dsdt, MachineState *machine)
 static void build_pci_device_aml(Aml *scope, LoongArchVirtMachineState *lvms)
 {
     struct GPEXConfig cfg = {
-        .mmio64.base = VIRT_PCI_MEM_BASE,
-        .mmio64.size = VIRT_PCI_MEM_SIZE,
-        .pio.base    = VIRT_PCI_IO_BASE,
-        .pio.size    = VIRT_PCI_IO_SIZE,
-        .ecam.base   = VIRT_PCI_CFG_BASE,
-        .ecam.size   = VIRT_PCI_CFG_SIZE,
+        .mmio64 = { .base = VIRT_PCI_MEM_BASE, .size = VIRT_PCI_MEM_SIZE, },
+        .pio = { .base = VIRT_PCI_IO_BASE, .size = VIRT_PCI_IO_SIZE, },
+        .ecam = { .base = VIRT_PCI_CFG_BASE, .size = VIRT_PCI_CFG_SIZE, },
         .irq         = VIRT_GSI_BASE + VIRT_DEVICE_IRQS,
         .bus         = lvms->pci_bus,
     };

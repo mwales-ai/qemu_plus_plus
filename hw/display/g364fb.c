@@ -435,8 +435,7 @@ static const MemoryRegionOps g364fb_ctrl_ops = {
     .read = g364fb_ctrl_read,
     .write = g364fb_ctrl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static int g364fb_post_load(void *opaque, int version_id)

@@ -170,9 +170,8 @@ static const MemoryRegionOps raven_io_ops = {
     .read = raven_io_read,
     .write = raven_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.max_access_size = 4,
-    .impl.unaligned = true,
-    .valid.unaligned = true,
+    .impl = { .max_access_size = 4, .unaligned = true, },
+    .valid = { .unaligned = true, },
 };
 
 static int raven_map_irq(PCIDevice *pci_dev, int irq_num)

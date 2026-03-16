@@ -671,10 +671,8 @@ uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size)
 static const MemoryRegionOps pnv_phb3_reg_ops = {
     .read = pnv_phb3_reg_read,
     .write = pnv_phb3_reg_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 1, .max_access_size = 8, },
+    .impl = { .min_access_size = 1, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

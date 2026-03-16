@@ -579,8 +579,7 @@ static void parallel_mm_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps parallel_mm_ops = {
     .read = parallel_mm_readfn,
     .write = parallel_mm_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

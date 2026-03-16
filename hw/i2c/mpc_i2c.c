@@ -304,7 +304,7 @@ static void mpc_i2c_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps i2c_ops = {
     .read =  mpc_i2c_read,
     .write =  mpc_i2c_write,
-    .valid.max_access_size = 1,
+    .valid = { .max_access_size = 1, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

@@ -75,8 +75,7 @@ static void test_irq_line_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps test_irq_ops = {
     .read = test_irq_line_read,
     .write = test_irq_line_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -109,10 +108,8 @@ static const MemoryRegionOps test_ioport_ops = {
 static const MemoryRegionOps test_ioport_byte_ops = {
     .read = test_ioport_read,
     .write = test_ioport_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -139,8 +136,7 @@ static void test_flush_page_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps test_flush_ops = {
     .read = test_flush_page_read,
     .write = test_flush_page_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

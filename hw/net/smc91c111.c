@@ -880,8 +880,7 @@ static const MemoryRegionOps smc91c111_mem_ops = {
      */
     .read = smc91c111_readfn,
     .write = smc91c111_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

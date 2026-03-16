@@ -1172,8 +1172,7 @@ static ssize_t imx_eth_receive(NetClientState *nc, const uint8_t *buf,
 static const MemoryRegionOps imx_eth_ops = {
     .read                  = imx_eth_read,
     .write                 = imx_eth_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness            = DEVICE_NATIVE_ENDIAN,
 };
 

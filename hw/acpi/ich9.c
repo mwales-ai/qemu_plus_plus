@@ -64,10 +64,8 @@ static void ich9_gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps ich9_gpe_ops = {
     .read = ich9_gpe_readb,
     .write = ich9_gpe_writeb,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -119,8 +117,7 @@ static void ich9_smi_writel(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps ich9_smi_ops = {
     .read = ich9_smi_readl,
     .write = ich9_smi_writel,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

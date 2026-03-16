@@ -345,8 +345,7 @@ static void pmac_ide_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps pmac_ide_ops = {
     .read = pmac_ide_read,
     .write = pmac_ide_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

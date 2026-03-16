@@ -276,10 +276,8 @@ static MemTxResult extioi_writew(void *opaque, hwaddr addr,
 static const MemoryRegionOps extioi_ops = {
     .read_with_attrs = extioi_readw,
     .write_with_attrs = extioi_writew,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 8,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 4, .max_access_size = 8, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -331,10 +329,8 @@ static MemTxResult extioi_virt_writew(void *opaque, hwaddr addr,
 static const MemoryRegionOps extioi_virt_ops = {
     .read_with_attrs = extioi_virt_readw,
     .write_with_attrs = extioi_virt_writew,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 8,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 4, .max_access_size = 8, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

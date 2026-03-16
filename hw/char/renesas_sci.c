@@ -241,8 +241,8 @@ static const MemoryRegionOps sci_ops = {
     .write = sci_write,
     .read  = sci_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.max_access_size = 1,
-    .valid.max_access_size = 1,
+    .impl = { .max_access_size = 1, },
+    .valid = { .max_access_size = 1, },
 };
 
 static void rsci_reset(DeviceState *dev)

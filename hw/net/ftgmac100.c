@@ -1150,16 +1150,14 @@ static ssize_t ftgmac100_receive(NetClientState *nc, const uint8_t *buf,
 static const MemoryRegionOps ftgmac100_ops = {
     .read = ftgmac100_read,
     .write = ftgmac100_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps ftgmac100_high_ops = {
     .read = ftgmac100_high_read,
     .write = ftgmac100_high_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -1376,8 +1374,7 @@ static void aspeed_mii_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps aspeed_mii_ops = {
     .read = aspeed_mii_read,
     .write = aspeed_mii_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

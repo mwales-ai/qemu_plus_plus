@@ -209,12 +209,8 @@ static const MemoryRegionOps stm32l4x5_syscfg_ops = {
     .read = stm32l4x5_syscfg_read,
     .write = stm32l4x5_syscfg_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .impl.unaligned = false,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
+    .impl = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
+    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
 
 static void stm32l4x5_syscfg_init(Object *obj)

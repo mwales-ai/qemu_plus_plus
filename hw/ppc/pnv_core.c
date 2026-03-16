@@ -110,10 +110,8 @@ static void pnv_core_power8_xscom_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps pnv_core_power8_xscom_ops = {
     .read = pnv_core_power8_xscom_read,
     .write = pnv_core_power8_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -173,10 +171,8 @@ static void pnv_core_power9_xscom_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps pnv_core_power9_xscom_ops = {
     .read = pnv_core_power9_xscom_read,
     .write = pnv_core_power9_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -292,10 +288,8 @@ static void pnv_core_power10_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_core_power10_xscom_ops = {
     .read = pnv_core_power10_xscom_read,
     .write = pnv_core_power10_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -557,10 +551,8 @@ static void pnv_quad_power9_xscom_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps pnv_quad_power9_xscom_ops = {
     .read = pnv_quad_power9_xscom_read,
     .write = pnv_quad_power9_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -598,10 +590,8 @@ static void pnv_quad_power10_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_quad_power10_xscom_ops = {
     .read = pnv_quad_power10_xscom_read,
     .write = pnv_quad_power10_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -663,10 +653,8 @@ static void pnv_qme_power10_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_qme_power10_xscom_ops = {
     .read = pnv_qme_power10_xscom_read,
     .write = pnv_qme_power10_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

@@ -443,11 +443,8 @@ static const MemoryRegionOps aspeed_ast2500_scu_ops = {
     .read = aspeed_scu_read,
     .write = aspeed_ast2500_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 4, .unaligned = false, },
 };
 
 static uint32_t aspeed_scu_get_clkin(AspeedSCUState *s)
@@ -798,11 +795,8 @@ static const MemoryRegionOps aspeed_ast2600_scu_ops = {
     .read = aspeed_ast2600_scu_read,
     .write = aspeed_ast2600_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 4, .unaligned = false, },
 };
 
 static const uint32_t ast2600_a3_resets[ASPEED_AST2600_SCU_NR_REGS] = {
@@ -927,11 +921,8 @@ static const MemoryRegionOps aspeed_ast2700_scu_ops = {
     .read = aspeed_ast2700_scu_read,
     .write = aspeed_ast2700_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
-    .valid.unaligned = false,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 8, .unaligned = false, },
 };
 
 static const uint32_t ast2700_a0_resets[ASPEED_AST2700_SCU_NR_REGS] = {
@@ -1055,11 +1046,8 @@ static const MemoryRegionOps aspeed_ast2700_scuio_ops = {
     .read = aspeed_ast2700_scuio_read,
     .write = aspeed_ast2700_scuio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
-    .valid.unaligned = false,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 8, .unaligned = false, },
 };
 
 static const uint32_t ast2700_a0_resets_io[ASPEED_AST2700_SCU_NR_REGS] = {

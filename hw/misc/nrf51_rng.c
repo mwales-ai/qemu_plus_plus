@@ -141,8 +141,7 @@ static const MemoryRegionOps rng_ops = {
     .read =  rng_read,
     .write = rng_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void nrf51_rng_timer_expire(void *opaque)

@@ -118,10 +118,8 @@ static void pnv_sbe_power9_xscom_ctrl_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_sbe_power9_xscom_ctrl_ops = {
     .read = pnv_sbe_power9_xscom_ctrl_read,
     .write = pnv_sbe_power9_xscom_ctrl_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -324,10 +322,8 @@ static void pnv_sbe_power9_xscom_mbox_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_sbe_power9_xscom_mbox_ops = {
     .read = pnv_sbe_power9_xscom_mbox_read,
     .write = pnv_sbe_power9_xscom_mbox_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

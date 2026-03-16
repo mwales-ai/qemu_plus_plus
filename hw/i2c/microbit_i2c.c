@@ -72,8 +72,7 @@ static const MemoryRegionOps microbit_i2c_ops = {
     .read = microbit_i2c_read,
     .write = microbit_i2c_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static const VMStateDescription microbit_i2c_vmstate = {

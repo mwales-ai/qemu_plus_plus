@@ -423,8 +423,7 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
 int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd)
 {
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_GPU_SET_SOCKET,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = VHOST_USER_GPU_SET_SOCKET, .flags = VHOST_USER_VERSION, },
     };
 
     return vhost_user_write(dev, &msg, &fd, 1);
@@ -439,11 +438,10 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
                                     VHOST_USER_PROTOCOL_F_LOG_SHMFD);
     int ret;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_SET_LOG_BASE,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = VHOST_USER_SET_LOG_BASE, .flags = VHOST_USER_VERSION, },
         .payload.log.mmap_size = log->size * sizeof(*(log->log)),
         .payload.log.mmap_offset = 0,
-        .hdr.size = sizeof(msg.payload.log),
+        .hdr = { .size = sizeof(msg.payload.log), },
     };
 
     /* Send only once with first queue pair */
@@ -898,7 +896,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
     int ret;
 
     VhostUserMsg msg = {
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .flags = VHOST_USER_VERSION, },
     };
 
     if (u->region_rb_len < dev->mem->nregions) {
@@ -1023,7 +1021,7 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
     }
 
     VhostUserMsg msg = {
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .flags = VHOST_USER_VERSION, },
     };
 
     if (reply_supported) {
@@ -1061,10 +1059,9 @@ static int vhost_user_set_vring_endian(struct vhost_dev *dev,
     bool cross_endian = virtio_has_feature(dev->protocol_features,
                                            VHOST_USER_PROTOCOL_F_CROSS_ENDIAN);
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_SET_VRING_ENDIAN,
-        .hdr.flags = VHOST_USER_VERSION,
-        .payload.state = *ring,
-        .hdr.size = sizeof(msg.payload.state),
+        .hdr = { .request = VHOST_USER_SET_VRING_ENDIAN, .flags = VHOST_USER_VERSION, },
+        .payload = { .state = *ring, },
+        .hdr = { .size = sizeof(msg.payload.state), },
     };
 
     if (!cross_endian) {
@@ -1079,8 +1076,7 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
 {
     int ret;
     VhostUserMsg msg = {
-        .hdr.request = request,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = request, .flags = VHOST_USER_VERSION, },
     };
 
     if (vhost_user_per_device_request(request) && dev->vq_index != 0) {
@@ -1166,10 +1162,9 @@ static int vhost_set_vring(struct vhost_dev *dev,
                            bool wait_for_reply)
 {
     VhostUserMsg msg = {
-        .hdr.request = request,
-        .hdr.flags = VHOST_USER_VERSION,
-        .payload.state = *ring,
-        .hdr.size = sizeof(msg.payload.state),
+        .hdr = { .request = request, .flags = VHOST_USER_VERSION, },
+        .payload = { .state = *ring, },
+        .hdr = { .size = sizeof(msg.payload.state), },
     };
 
     return vhost_user_write_sync(dev, &msg, wait_for_reply);
@@ -1287,10 +1282,9 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
 {
     int ret;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_GET_VRING_BASE,
-        .hdr.flags = VHOST_USER_VERSION,
-        .payload.state = *ring,
-        .hdr.size = sizeof(msg.payload.state),
+        .hdr = { .request = VHOST_USER_GET_VRING_BASE, .flags = VHOST_USER_VERSION, },
+        .payload = { .state = *ring, },
+        .hdr = { .size = sizeof(msg.payload.state), },
     };
     struct vhost_user *u = dev->opaque;
 
@@ -1333,10 +1327,9 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
     bool reply_supported = virtio_has_feature(dev->protocol_features,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
     VhostUserMsg msg = {
-        .hdr.request = request,
-        .hdr.flags = VHOST_USER_VERSION,
-        .payload.u64 = file->index & VHOST_USER_VRING_IDX_MASK,
-        .hdr.size = sizeof(msg.payload.u64),
+        .hdr = { .request = request, .flags = VHOST_USER_VERSION, },
+        .payload = { .u64 = file->index & VHOST_USER_VRING_IDX_MASK, },
+        .hdr = { .size = sizeof(msg.payload.u64), },
     };
 
     if (reply_supported) {
@@ -1389,10 +1382,9 @@ static int vhost_user_set_vring_addr(struct vhost_dev *dev,
                                      struct vhost_vring_addr *addr)
 {
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_SET_VRING_ADDR,
-        .hdr.flags = VHOST_USER_VERSION,
-        .payload.addr = *addr,
-        .hdr.size = sizeof(msg.payload.addr),
+        .hdr = { .request = VHOST_USER_SET_VRING_ADDR, .flags = VHOST_USER_VERSION, },
+        .payload = { .addr = *addr, },
+        .hdr = { .size = sizeof(msg.payload.addr), },
     };
 
     /*
@@ -1408,10 +1400,9 @@ static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64,
                               bool wait_for_reply)
 {
     VhostUserMsg msg = {
-        .hdr.request = request,
-        .hdr.flags = VHOST_USER_VERSION,
-        .payload.u64 = u64,
-        .hdr.size = sizeof(msg.payload.u64),
+        .hdr = { .request = request, .flags = VHOST_USER_VERSION, },
+        .payload = { .u64 = u64, },
+        .hdr = { .size = sizeof(msg.payload.u64), },
     };
 
     return vhost_user_write_sync(dev, &msg, wait_for_reply);
@@ -1494,8 +1485,7 @@ static int vhost_user_set_protocol_features(struct vhost_dev *dev,
 static int vhost_user_set_owner(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_SET_OWNER,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = VHOST_USER_SET_OWNER, .flags = VHOST_USER_VERSION, },
     };
 
     return vhost_user_write(dev, &msg, NULL, 0);
@@ -1521,8 +1511,7 @@ static int vhost_user_get_max_memslots(struct vhost_dev *dev,
 static int vhost_user_reset_device(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
-        .hdr.flags = VHOST_USER_VERSION,
-        .hdr.request = VHOST_USER_RESET_DEVICE,
+        .hdr = { .flags = VHOST_USER_VERSION, .request = VHOST_USER_RESET_DEVICE, },
     };
 
     /*
@@ -1697,8 +1686,7 @@ int vhost_user_get_shared_object(struct vhost_dev *dev, unsigned char *uuid,
     CharFrontend *chr = u->user->chr;
     int ret;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_GET_SHARED_OBJECT,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = VHOST_USER_GET_SHARED_OBJECT, .flags = VHOST_USER_VERSION, },
     };
     memcpy(msg.payload.object.uuid, uuid, sizeof(msg.payload.object.uuid));
 
@@ -1881,8 +1869,7 @@ fdcleanup:
 static int vhost_setup_backend_channel(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_SET_BACKEND_REQ_FD,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = VHOST_USER_SET_BACKEND_REQ_FD, .flags = VHOST_USER_VERSION, },
     };
     struct vhost_user *u = dev->opaque;
     int sv[2], ret = 0;
@@ -2016,8 +2003,7 @@ static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
     int ufd;
     int ret;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_POSTCOPY_ADVISE,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = VHOST_USER_POSTCOPY_ADVISE, .flags = VHOST_USER_VERSION, },
     };
 
     ret = vhost_user_write(dev, &msg, NULL, 0);
@@ -2074,8 +2060,7 @@ static int vhost_user_postcopy_listen(struct vhost_dev *dev, Error **errp)
     struct vhost_user *u = dev->opaque;
     int ret;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_POSTCOPY_LISTEN,
-        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .hdr = { .request = VHOST_USER_POSTCOPY_LISTEN, .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK, },
     };
     u->postcopy_listen = true;
 
@@ -2102,8 +2087,7 @@ static int vhost_user_postcopy_listen(struct vhost_dev *dev, Error **errp)
 static int vhost_user_postcopy_end(struct vhost_dev *dev, Error **errp)
 {
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_POSTCOPY_END,
-        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
+        .hdr = { .request = VHOST_USER_POSTCOPY_END, .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK, },
     };
     int ret;
     struct vhost_user *u = dev->opaque;
@@ -2420,10 +2404,8 @@ static int vhost_user_send_device_iotlb_msg(struct vhost_dev *dev,
 {
     int ret;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_IOTLB_MSG,
-        .hdr.size = sizeof(msg.payload.iotlb),
-        .hdr.flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK,
-        .payload.iotlb = *imsg,
+        .hdr = { .request = VHOST_USER_IOTLB_MSG, .size = sizeof(msg.payload.iotlb), .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK, },
+        .payload = { .iotlb = *imsg, },
     };
 
     ret = vhost_user_write(dev, &msg, NULL, 0);
@@ -2445,9 +2427,7 @@ static int vhost_user_get_config(struct vhost_dev *dev, uint8_t *config,
 {
     int ret;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_GET_CONFIG,
-        .hdr.flags = VHOST_USER_VERSION,
-        .hdr.size = VHOST_USER_CONFIG_HDR_SIZE + config_len,
+        .hdr = { .request = VHOST_USER_GET_CONFIG, .flags = VHOST_USER_VERSION, .size = VHOST_USER_CONFIG_HDR_SIZE + config_len, },
     };
 
     if (!virtio_has_feature(dev->protocol_features,
@@ -2498,9 +2478,7 @@ static int vhost_user_set_config(struct vhost_dev *dev, const uint8_t *data,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
 
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_SET_CONFIG,
-        .hdr.flags = VHOST_USER_VERSION,
-        .hdr.size = VHOST_USER_CONFIG_HDR_SIZE + size,
+        .hdr = { .request = VHOST_USER_SET_CONFIG, .flags = VHOST_USER_VERSION, .size = VHOST_USER_CONFIG_HDR_SIZE + size, },
     };
 
     if (!virtio_has_feature(dev->protocol_features,
@@ -2543,9 +2521,7 @@ static int vhost_user_crypto_create_session(struct vhost_dev *dev,
                                        VHOST_USER_PROTOCOL_F_CRYPTO_SESSION);
     CryptoDevBackendSessionInfo *backend_info = session_info;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_CREATE_CRYPTO_SESSION,
-        .hdr.flags = VHOST_USER_VERSION,
-        .hdr.size = sizeof(msg.payload.session),
+        .hdr = { .request = VHOST_USER_CREATE_CRYPTO_SESSION, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.session), },
     };
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
@@ -2644,9 +2620,7 @@ vhost_user_crypto_close_session(struct vhost_dev *dev, uint64_t session_id)
     bool crypto_session = virtio_has_feature(dev->protocol_features,
                                        VHOST_USER_PROTOCOL_F_CRYPTO_SESSION);
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_CLOSE_CRYPTO_SESSION,
-        .hdr.flags = VHOST_USER_VERSION,
-        .hdr.size = sizeof(msg.payload.u64),
+        .hdr = { .request = VHOST_USER_CLOSE_CRYPTO_SESSION, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.u64), },
     };
     msg.payload.u64 = session_id;
 
@@ -2680,11 +2654,10 @@ static int vhost_user_get_inflight_fd(struct vhost_dev *dev,
     struct vhost_user *u = dev->opaque;
     CharFrontend *chr = u->user->chr;
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_GET_INFLIGHT_FD,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = VHOST_USER_GET_INFLIGHT_FD, .flags = VHOST_USER_VERSION, },
         .payload.inflight.num_queues = dev->nvqs,
         .payload.inflight.queue_size = queue_size,
-        .hdr.size = sizeof(msg.payload.inflight),
+        .hdr = { .size = sizeof(msg.payload.inflight), },
     };
 
     if (!virtio_has_feature(dev->protocol_features,
@@ -2746,13 +2719,12 @@ static int vhost_user_set_inflight_fd(struct vhost_dev *dev,
                                       struct vhost_inflight *inflight)
 {
     VhostUserMsg msg = {
-        .hdr.request = VHOST_USER_SET_INFLIGHT_FD,
-        .hdr.flags = VHOST_USER_VERSION,
+        .hdr = { .request = VHOST_USER_SET_INFLIGHT_FD, .flags = VHOST_USER_VERSION, },
         .payload.inflight.mmap_size = inflight->size,
         .payload.inflight.mmap_offset = inflight->offset,
         .payload.inflight.num_queues = dev->nvqs,
         .payload.inflight.queue_size = inflight->queue_size,
-        .hdr.size = sizeof(msg.payload.inflight),
+        .hdr = { .size = sizeof(msg.payload.inflight), },
     };
 
     if (!virtio_has_feature(dev->protocol_features,

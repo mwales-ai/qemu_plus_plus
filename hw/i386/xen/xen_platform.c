@@ -484,8 +484,7 @@ static void xen_platform_ioport_writeb(void *opaque, hwaddr addr,
 static const MemoryRegionOps xen_pci_io_ops = {
     .read  = xen_platform_ioport_readb,
     .write = xen_platform_ioport_writeb,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 1,
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
 };
 
 static void platform_ioport_bar_setup(PCIXenPlatformState *d)

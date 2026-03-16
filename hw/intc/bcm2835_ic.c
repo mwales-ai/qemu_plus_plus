@@ -173,8 +173,7 @@ static const MemoryRegionOps bcm2835_ic_ops = {
     .read = bcm2835_ic_read,
     .write = bcm2835_ic_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void bcm2835_ic_reset(DeviceState *d)

@@ -195,8 +195,7 @@ static const MemoryRegionOps aspeed_sdmc_ops = {
     .read = aspeed_sdmc_read,
     .write = aspeed_sdmc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void aspeed_sdmc_reset(DeviceState *dev)

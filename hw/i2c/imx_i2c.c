@@ -264,8 +264,7 @@ static void imx_i2c_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps imx_i2c_ops = {
     .read = imx_i2c_read,
     .write = imx_i2c_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 2,
+    .valid = { .min_access_size = 1, .max_access_size = 2, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

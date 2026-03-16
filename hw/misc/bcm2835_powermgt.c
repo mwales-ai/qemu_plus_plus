@@ -101,8 +101,7 @@ static const MemoryRegionOps bcm2835_powermgt_ops = {
     .read = bcm2835_powermgt_read,
     .write = bcm2835_powermgt_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static const VMStateDescription vmstate_bcm2835_powermgt = {

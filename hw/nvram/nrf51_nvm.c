@@ -95,8 +95,7 @@ static void ficr_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps ficr_ops = {
     .read = ficr_read,
     .write = ficr_write,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN
 };
 
@@ -188,8 +187,7 @@ static void uicr_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps uicr_ops = {
     .read = uicr_read,
     .write = uicr_write,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN
 };
 
@@ -267,8 +265,7 @@ static void io_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps io_ops = {
         .read = io_read,
         .write = io_write,
-        .impl.min_access_size = 4,
-        .impl.max_access_size = 4,
+        .impl = { .min_access_size = 4, .max_access_size = 4, },
         .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -310,8 +307,7 @@ static void flash_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps flash_ops = {
     .read = flash_read,
     .write = flash_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

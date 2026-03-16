@@ -248,8 +248,7 @@ static const MemoryRegionOps bcm2835_mbox_ops = {
     .read = bcm2835_mbox_read,
     .write = bcm2835_mbox_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 /* vmstate of a single mailbox */

@@ -459,7 +459,7 @@ int xen_evtchn_set_callback_param(uint64_t param)
     XenEvtchnState *s = xen_evtchn_singleton;
     struct kvm_xen_hvm_attr xa = {
         .type = KVM_XEN_ATTR_TYPE_UPCALL_VECTOR,
-        .u.vector = 0,
+        .u = { .vector = 0, },
     };
     bool in_kernel = false;
     uint32_t gsi = 0;

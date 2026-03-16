@@ -1172,8 +1172,7 @@ static void dwc2_hsotg_write(void *ptr, hwaddr addr, uint64_t val,
 static const MemoryRegionOps dwc2_mmio_hsotg_ops = {
     .read = dwc2_hsotg_read,
     .write = dwc2_hsotg_write,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -1198,8 +1197,7 @@ static void dwc2_hreg2_write(void *ptr, hwaddr addr, uint64_t val,
 static const MemoryRegionOps dwc2_mmio_hreg2_ops = {
     .read = dwc2_hreg2_read,
     .write = dwc2_hreg2_write,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

@@ -340,10 +340,8 @@ static const MemoryRegionOps tz_mpc_reg_ops = {
     .read_with_attrs = tz_mpc_reg_read,
     .write_with_attrs = tz_mpc_reg_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static inline bool tz_mpc_cfg_ns(TZMPC *s, hwaddr addr)
@@ -416,10 +414,8 @@ static const MemoryRegionOps tz_mpc_mem_blocked_ops = {
     .read_with_attrs = tz_mpc_mem_blocked_read,
     .write_with_attrs = tz_mpc_mem_blocked_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 1, .max_access_size = 8, },
+    .impl = { .min_access_size = 1, .max_access_size = 8, },
 };
 
 static IOMMUTLBEntry tz_mpc_translate(IOMMUMemoryRegion *iommu,

@@ -160,7 +160,7 @@ static const MemoryRegionOps allwinner_h3_ccu_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static void allwinner_h3_ccu_reset(DeviceState *dev)

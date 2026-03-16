@@ -302,7 +302,7 @@ static const MemoryRegionOps allwinner_r40_dramcom_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static const MemoryRegionOps allwinner_r40_dramctl_ops = {
@@ -313,7 +313,7 @@ static const MemoryRegionOps allwinner_r40_dramctl_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static const MemoryRegionOps allwinner_r40_dramphy_ops = {
@@ -324,7 +324,7 @@ static const MemoryRegionOps allwinner_r40_dramphy_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static uint64_t allwinner_r40_detect_read(void *opaque, hwaddr offset,
@@ -363,7 +363,7 @@ static const MemoryRegionOps allwinner_r40_detect_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 /*
@@ -398,7 +398,7 @@ static const MemoryRegionOps allwinner_r40_dualrank_detect_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static void allwinner_r40_dramc_reset(DeviceState *dev)

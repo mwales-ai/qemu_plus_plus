@@ -49,22 +49,22 @@ static const MemoryRegionOps serial_mm_ops[3] = {
         .read = serial_mm_read,
         .write = serial_mm_write,
         .endianness = DEVICE_NATIVE_ENDIAN,
-        .valid.max_access_size = 8,
-        .impl.max_access_size = 8,
+        .valid = { .max_access_size = 8, },
+        .impl = { .max_access_size = 8, },
     },
     [DEVICE_LITTLE_ENDIAN] = {
         .read = serial_mm_read,
         .write = serial_mm_write,
         .endianness = DEVICE_LITTLE_ENDIAN,
-        .valid.max_access_size = 8,
-        .impl.max_access_size = 8,
+        .valid = { .max_access_size = 8, },
+        .impl = { .max_access_size = 8, },
     },
     [DEVICE_BIG_ENDIAN] = {
         .read = serial_mm_read,
         .write = serial_mm_write,
         .endianness = DEVICE_BIG_ENDIAN,
-        .valid.max_access_size = 8,
-        .impl.max_access_size = 8,
+        .valid = { .max_access_size = 8, },
+        .impl = { .max_access_size = 8, },
     },
 };
 

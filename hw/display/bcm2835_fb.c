@@ -348,8 +348,7 @@ static const MemoryRegionOps bcm2835_fb_ops = {
     .read = bcm2835_fb_read,
     .write = bcm2835_fb_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static const VMStateDescription vmstate_bcm2835_fb = {

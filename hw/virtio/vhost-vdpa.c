@@ -153,7 +153,7 @@ static void vhost_vdpa_listener_begin_batch(VhostVDPAShared *s)
     int fd = s->device_fd;
     struct vhost_msg_v2 msg = {
         .type = VHOST_IOTLB_MSG_V2,
-        .iotlb.type = VHOST_IOTLB_BATCH_BEGIN,
+        .iotlb = { .type = VHOST_IOTLB_BATCH_BEGIN, },
     };
 
     trace_vhost_vdpa_listener_begin_batch(s, fd, msg.type, msg.iotlb.type);

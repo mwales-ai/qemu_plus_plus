@@ -473,9 +473,7 @@ static const MemoryRegionOps aspeed_timer_ops = {
     .read = aspeed_timer_read,
     .write = aspeed_timer_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
+    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
 
 static uint64_t aspeed_2400_timer_read(AspeedTimerCtrlState *s, hwaddr offset)

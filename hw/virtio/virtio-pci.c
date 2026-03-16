@@ -1509,8 +1509,7 @@ int virtio_pci_add_shm_cap(VirtIOPCIProxy *proxy,
                            uint8_t id)
 {
     struct virtio_pci_cap64 cap = {
-        .cap.cap_len = sizeof cap,
-        .cap.cfg_type = VIRTIO_PCI_CAP_SHARED_MEMORY_CFG,
+        .cap = { .cap_len = sizeof cap, .cfg_type = VIRTIO_PCI_CAP_SHARED_MEMORY_CFG, },
     };
 
     cap.cap.bar = bar;
@@ -2105,16 +2104,15 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
             .cap_len = sizeof cap,
         };
         struct virtio_pci_notify_cap notify = {
-            .cap.cap_len = sizeof notify,
+            .cap = { .cap_len = sizeof notify, },
             .notify_off_multiplier =
                 cpu_to_le32(virtio_pci_queue_mem_mult(proxy)),
         };
         struct virtio_pci_cfg_cap cfg = {
-            .cap.cap_len = sizeof cfg,
-            .cap.cfg_type = VIRTIO_PCI_CAP_PCI_CFG,
+            .cap = { .cap_len = sizeof cfg, .cfg_type = VIRTIO_PCI_CAP_PCI_CFG, },
         };
         struct virtio_pci_notify_cap notify_pio = {
-            .cap.cap_len = sizeof notify,
+            .cap = { .cap_len = sizeof notify, },
             .notify_off_multiplier = cpu_to_le32(0x0),
         };
 

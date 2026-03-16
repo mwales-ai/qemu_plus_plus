@@ -1494,7 +1494,7 @@ static const MemoryRegionOps sysbus_esp_mem_ops = {
     .read = sysbus_esp_mem_read,
     .write = sysbus_esp_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.accepts = esp_mem_accepts,
+    .valid = { .accepts = esp_mem_accepts, },
 };
 
 static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
@@ -1552,10 +1552,8 @@ static const MemoryRegionOps sysbus_esp_pdma_ops = {
     .read = sysbus_esp_pdma_read,
     .write = sysbus_esp_pdma_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 2,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 2, },
 };
 
 static const struct SCSIBusInfo esp_scsi_info = {

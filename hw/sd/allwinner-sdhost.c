@@ -763,7 +763,7 @@ static const MemoryRegionOps allwinner_sdhost_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static const VMStateDescription vmstate_allwinner_sdhost = {

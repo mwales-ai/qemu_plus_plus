@@ -522,7 +522,7 @@ static const MemoryRegionOps fw_cfg_ctl_mem_ops = {
     .read = fw_cfg_ctl_mem_read,
     .write = fw_cfg_ctl_mem_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid.accepts = fw_cfg_ctl_mem_valid,
+    .valid = { .accepts = fw_cfg_ctl_mem_valid, },
 };
 
 static const MemoryRegionOps fw_cfg_data_mem_ops = {
@@ -540,16 +540,15 @@ static const MemoryRegionOps fw_cfg_comb_mem_ops = {
     .read = fw_cfg_data_read,
     .write = fw_cfg_comb_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.accepts = fw_cfg_comb_valid,
+    .valid = { .accepts = fw_cfg_comb_valid, },
 };
 
 static const MemoryRegionOps fw_cfg_dma_mem_ops = {
     .read = fw_cfg_dma_mem_read,
     .write = fw_cfg_dma_mem_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid.accepts = fw_cfg_dma_mem_valid,
-    .valid.max_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .accepts = fw_cfg_dma_mem_valid, .max_access_size = 8, },
+    .impl = { .max_access_size = 8, },
 };
 
 static void fw_cfg_reset(DeviceState *d)

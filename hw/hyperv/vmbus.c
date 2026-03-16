@@ -1586,7 +1586,7 @@ static void post_msg(VMBus *vmbus, void *msgdata, uint32_t msglen)
 {
     int ret;
     struct hyperv_message msg = {
-        .header.message_type = HV_MESSAGE_VMBUS,
+        .header = { .message_type = HV_MESSAGE_VMBUS, },
     };
 
     assert(!vmbus->msg_in_progress);
@@ -1686,7 +1686,7 @@ static void handle_initiate_contact(VMBus *vmbus,
 static void send_handshake(VMBus *vmbus)
 {
     struct vmbus_message_version_response msg = {
-        .header.message_type = VMBUS_MSG_VERSION_RESPONSE,
+        .header = { .message_type = VMBUS_MSG_VERSION_RESPONSE, },
         .version_supported = vmbus_initialized(vmbus),
     };
 
@@ -1725,7 +1725,7 @@ static void send_offer(VMBus *vmbus)
             QemuUUID classid = qemu_uuid_bswap(vdc->classid);
             QemuUUID instanceid = qemu_uuid_bswap(chan->dev->instanceid);
             struct vmbus_message_offer_channel msg = {
-                .header.message_type = VMBUS_MSG_OFFERCHANNEL,
+                .header = { .message_type = VMBUS_MSG_OFFERCHANNEL, },
                 .child_relid = chan->id,
                 .connection_id = chan_connection_id(chan),
                 .channel_flags = vdc->channel_flags,
@@ -1864,7 +1864,7 @@ static void send_create_gpadl(VMBus *vmbus)
     QTAILQ_FOREACH(gpadl, &vmbus->gpadl_list, link) {
         if (gpadl_full(gpadl) && gpadl->state == VMGPADL_INIT) {
             struct vmbus_message_gpadl_created msg = {
-                .header.message_type = VMBUS_MSG_GPADL_CREATED,
+                .header = { .message_type = VMBUS_MSG_GPADL_CREATED, },
                 .gpadl_id = gpadl->id,
                 .child_relid = gpadl->child_relid,
             };
@@ -1921,7 +1921,7 @@ static void send_teardown_gpadl(VMBus *vmbus)
     QTAILQ_FOREACH(gpadl, &vmbus->gpadl_list, link) {
         if (gpadl->state == VMGPADL_TEARINGDOWN) {
             struct vmbus_message_gpadl_torndown msg = {
-                .header.message_type = VMBUS_MSG_GPADL_TORNDOWN,
+                .header = { .message_type = VMBUS_MSG_GPADL_TORNDOWN, },
                 .gpadl_id = gpadl->id,
             };
 
@@ -1983,7 +1983,7 @@ static void send_open_channel(VMBus *vmbus)
     QTAILQ_FOREACH(chan, &vmbus->channel_list, link) {
         if (chan->state == VMCHAN_OPENING) {
             struct vmbus_message_open_result msg = {
-                .header.message_type = VMBUS_MSG_OPENCHANNEL_RESULT,
+                .header = { .message_type = VMBUS_MSG_OPENCHANNEL_RESULT, },
                 .child_relid = chan->id,
                 .open_id = chan->open_id,
                 .status = !vmbus_channel_is_open(chan),

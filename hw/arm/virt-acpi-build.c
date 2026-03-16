@@ -650,11 +650,7 @@ spcr_setup(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
     AcpiSpcrData serial = {
         .interface_type = 3,       /* ARM PL011 UART */
-        .base_addr.id = AML_AS_SYSTEM_MEMORY,
-        .base_addr.width = 32,
-        .base_addr.offset = 0,
-        .base_addr.size = 3,
-        .base_addr.addr = vms->memmap[VIRT_UART0].base,
+        .base_addr = { .id = AML_AS_SYSTEM_MEMORY, .width = 32, .offset = 0, .size = 3, .addr = vms->memmap[VIRT_UART0].base, },
         .interrupt_type = (1 << 3),/* Bit[3] ARMH GIC interrupt*/
         .pc_interrupt = 0,         /* IRQ */
         .interrupt = (vms->irqmap[VIRT_UART0] + ARM_SPI_BASE),

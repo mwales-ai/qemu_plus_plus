@@ -182,8 +182,7 @@ r2d_fpga_write(void *opaque, hwaddr addr, uint64_t value, unsigned int size)
 static const MemoryRegionOps r2d_fpga_ops = {
     .read = r2d_fpga_read,
     .write = r2d_fpga_write,
-    .impl.min_access_size = 2,
-    .impl.max_access_size = 2,
+    .impl = { .min_access_size = 2, .max_access_size = 2, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

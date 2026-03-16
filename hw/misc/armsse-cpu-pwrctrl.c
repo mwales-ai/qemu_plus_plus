@@ -92,10 +92,8 @@ static const MemoryRegionOps pwrctrl_ops = {
     .read = pwrctrl_read,
     .write = pwrctrl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void pwrctrl_reset(DeviceState *dev)

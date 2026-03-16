@@ -3189,42 +3189,36 @@ static void xhci_cap_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps xhci_cap_ops = {
     .read = xhci_cap_read,
     .write = xhci_cap_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps xhci_oper_ops = {
     .read = xhci_oper_read,
     .write = xhci_oper_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = sizeof(dma_addr_t),
+    .valid = { .min_access_size = 4, .max_access_size = sizeof(dma_addr_t), },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps xhci_port_ops = {
     .read = xhci_port_read,
     .write = xhci_port_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps xhci_runtime_ops = {
     .read = xhci_runtime_read,
     .write = xhci_runtime_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = sizeof(dma_addr_t),
+    .valid = { .min_access_size = 4, .max_access_size = sizeof(dma_addr_t), },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps xhci_doorbell_ops = {
     .read = xhci_doorbell_read,
     .write = xhci_doorbell_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

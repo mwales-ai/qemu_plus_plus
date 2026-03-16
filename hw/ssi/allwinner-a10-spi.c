@@ -500,8 +500,7 @@ static void allwinner_a10_spi_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps allwinner_a10_spi_ops = {
     .read = allwinner_a10_spi_read,
     .write = allwinner_a10_spi_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

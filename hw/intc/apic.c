@@ -1103,10 +1103,8 @@ static void apic_post_load(APICCommonState *s)
 static const MemoryRegionOps apic_io_ops = {
     .read = apic_mem_read,
     .write = apic_mem_write,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

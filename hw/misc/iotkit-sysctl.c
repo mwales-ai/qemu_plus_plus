@@ -709,10 +709,8 @@ static const MemoryRegionOps iotkit_sysctl_ops = {
     .write = iotkit_sysctl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     /* byte/halfword accesses are just zero-padded on reads and writes */
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void iotkit_sysctl_reset(DeviceState *dev)

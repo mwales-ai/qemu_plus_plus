@@ -144,20 +144,16 @@ static const MemoryRegionOps ctucan_pci_id_cra_io_ops = {
     .read = ctucan_pci_id_cra_io_read,
     .write = ctucan_pci_id_cra_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static const MemoryRegionOps ctucan_pci_cores_io_ops = {
     .read = ctucan_pci_cores_io_read,
     .write = ctucan_pci_cores_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void ctucan_pci_realize(PCIDevice *pci_dev, Error **errp)

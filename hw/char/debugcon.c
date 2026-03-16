@@ -81,8 +81,7 @@ static uint64_t debugcon_ioport_read(void *opaque, hwaddr addr, unsigned width)
 static const MemoryRegionOps debugcon_ops = {
     .read = debugcon_ioport_read,
     .write = debugcon_ioport_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

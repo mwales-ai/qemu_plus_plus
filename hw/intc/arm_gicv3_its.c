@@ -1902,20 +1902,16 @@ static MemTxResult gicv3_its_write(void *opaque, hwaddr offset, uint64_t data,
 static const MemoryRegionOps gicv3_its_control_ops = {
     .read_with_attrs = gicv3_its_read,
     .write_with_attrs = gicv3_its_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 4, .max_access_size = 8, },
+    .impl = { .min_access_size = 4, .max_access_size = 8, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const MemoryRegionOps gicv3_its_translation_ops = {
     .read_with_attrs = gicv3_its_translation_read,
     .write_with_attrs = gicv3_its_translation_write,
-    .valid.min_access_size = 2,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 2,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 2, .max_access_size = 4, },
+    .impl = { .min_access_size = 2, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

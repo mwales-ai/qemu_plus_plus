@@ -661,8 +661,7 @@ static void kbd_mm_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps i8042_mmio_ops = {
     .read = kbd_mm_readfn,
     .write = kbd_mm_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

@@ -286,9 +286,7 @@ static const MemoryRegionOps aspeed_vic_ops = {
     .read = aspeed_vic_read,
     .write = aspeed_vic_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
+    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
 
 static void aspeed_vic_reset(DeviceState *dev)

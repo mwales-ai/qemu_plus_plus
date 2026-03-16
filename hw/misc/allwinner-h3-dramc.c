@@ -224,7 +224,7 @@ static const MemoryRegionOps allwinner_h3_dramcom_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static const MemoryRegionOps allwinner_h3_dramctl_ops = {
@@ -235,7 +235,7 @@ static const MemoryRegionOps allwinner_h3_dramctl_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static const MemoryRegionOps allwinner_h3_dramphy_ops = {
@@ -246,7 +246,7 @@ static const MemoryRegionOps allwinner_h3_dramphy_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static void allwinner_h3_dramc_reset(DeviceState *dev)

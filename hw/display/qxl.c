@@ -1131,10 +1131,7 @@ static int interface_client_monitors_config(QXLInstance *sin,
 }
 
 static const QXLInterface qxl_interface = {
-    .base.type               = SPICE_INTERFACE_QXL,
-    .base.description        = "qxl gpu",
-    .base.major_version      = SPICE_INTERFACE_QXL_MAJOR,
-    .base.minor_version      = SPICE_INTERFACE_QXL_MINOR,
+    .base = { .type = SPICE_INTERFACE_QXL, .description = "qxl gpu", .major_version = SPICE_INTERFACE_QXL_MAJOR, .minor_version = SPICE_INTERFACE_QXL_MINOR, },
 
 #if SPICE_HAS_ATTACHED_WORKER
     .attached_worker         = interface_attached_worker,

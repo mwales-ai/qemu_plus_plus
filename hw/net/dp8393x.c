@@ -655,7 +655,7 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps dp8393x_ops = {
     .read = dp8393x_read,
     .write = dp8393x_write,
-    .impl.min_access_size = 2,
+    .impl = { .min_access_size = 2, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

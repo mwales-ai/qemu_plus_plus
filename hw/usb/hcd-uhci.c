@@ -1166,10 +1166,8 @@ static void uhci_frame_timer(void *opaque)
 static const MemoryRegionOps uhci_ioport_ops = {
     .read  = uhci_port_read,
     .write = uhci_port_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 2,
-    .impl.max_access_size = 2,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 2, .max_access_size = 2, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

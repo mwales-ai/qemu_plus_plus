@@ -160,8 +160,7 @@ static void kbd_writefn(void *opaque, hwaddr addr, uint64_t value,
 static const MemoryRegionOps kbd_ops = {
     .read = kbd_readfn,
     .write = kbd_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

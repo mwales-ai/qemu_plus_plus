@@ -208,30 +208,24 @@ static void pnv_pbcq_spci_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_pbcq_nest_xscom_ops = {
     .read = pnv_pbcq_nest_xscom_read,
     .write = pnv_pbcq_nest_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static const MemoryRegionOps pnv_pbcq_pci_xscom_ops = {
     .read = pnv_pbcq_pci_xscom_read,
     .write = pnv_pbcq_pci_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static const MemoryRegionOps pnv_pbcq_spci_xscom_ops = {
     .read = pnv_pbcq_spci_xscom_read,
     .write = pnv_pbcq_spci_xscom_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

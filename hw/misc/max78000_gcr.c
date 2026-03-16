@@ -275,8 +275,7 @@ static const MemoryRegionOps max78000_gcr_ops = {
     .read = max78000_gcr_read,
     .write = max78000_gcr_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static const VMStateDescription vmstate_max78000_gcr = {

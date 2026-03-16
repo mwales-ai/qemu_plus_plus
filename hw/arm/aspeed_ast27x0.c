@@ -376,7 +376,7 @@ static const MemoryRegionOps aspeed_ram_capacity_ops = {
     .read = aspeed_ram_capacity_read,
     .write = aspeed_ram_capacity_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,

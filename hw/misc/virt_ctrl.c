@@ -83,8 +83,8 @@ static const MemoryRegionOps virt_ctrl_ops = {
     .read = virt_ctrl_read,
     .write = virt_ctrl_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.max_access_size = 4,
-    .impl.max_access_size = 4,
+    .valid = { .max_access_size = 4, },
+    .impl = { .max_access_size = 4, },
 };
 
 static void virt_ctrl_reset(DeviceState *dev)

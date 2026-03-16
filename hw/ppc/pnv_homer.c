@@ -77,10 +77,8 @@ static void pnv_homer_power8_pba_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_homer_power8_pba_ops = {
     .read = pnv_homer_power8_pba_read,
     .write = pnv_homer_power8_pba_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -144,10 +142,8 @@ static void pnv_homer_power9_pba_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_homer_power9_pba_ops = {
     .read = pnv_homer_power9_pba_read,
     .write = pnv_homer_power9_pba_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -211,10 +207,8 @@ static void pnv_homer_power10_pba_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_homer_power10_pba_ops = {
     .read = pnv_homer_power10_pba_read,
     .write = pnv_homer_power10_pba_write,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

@@ -128,9 +128,8 @@ static const MemoryRegionOps goldfish_pic_ops = {
     .read = goldfish_pic_read,
     .write = goldfish_pic_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .valid = { .max_access_size = 4, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void goldfish_pic_reset(DeviceState *dev)

@@ -274,8 +274,7 @@ static void elroy_config_addr_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps elroy_config_addr_ops = {
     .read = elroy_config_addr_read,
     .write = elroy_config_addr_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 8,
+    .valid = { .min_access_size = 4, .max_access_size = 8, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

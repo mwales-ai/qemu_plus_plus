@@ -276,8 +276,7 @@ static void next_mmio_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps next_mmio_ops = {
     .read = next_mmio_read,
     .write = next_mmio_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -452,9 +451,8 @@ static uint64_t next_dma_read(void *opaque, hwaddr addr, unsigned int size)
 static const MemoryRegionOps next_dma_ops = {
     .read = next_dma_read,
     .write = next_dma_write,
-    .impl.min_access_size = 4,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .impl = { .min_access_size = 4, },
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -733,8 +731,7 @@ static uint64_t next_scsi_csr_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps next_scsi_csr_ops = {
     .read = next_scsi_csr_read,
     .write = next_scsi_csr_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -847,8 +844,7 @@ static uint64_t next_floppy_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps next_floppy_ops = {
     .read = next_floppy_read,
     .write = next_floppy_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -891,8 +887,7 @@ static uint64_t next_timer_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps next_timer_ops = {
     .read = next_timer_read,
     .write = next_timer_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -922,8 +917,7 @@ static uint64_t next_dummy_en_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps next_dummy_en_ops = {
     .read = next_dummy_en_read,
     .write = next_dummy_en_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

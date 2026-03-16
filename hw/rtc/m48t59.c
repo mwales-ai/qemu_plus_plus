@@ -515,10 +515,8 @@ static void nvram_write(void *opaque, hwaddr addr, uint64_t value,
 static const MemoryRegionOps nvram_ops = {
     .read = nvram_read,
     .write = nvram_write,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 1,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

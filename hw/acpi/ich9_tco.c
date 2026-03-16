@@ -217,10 +217,8 @@ static void tco_io_writew(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps tco_io_ops = {
     .read = tco_io_readw,
     .write = tco_io_writew,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 2,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 2, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

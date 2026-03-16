@@ -213,10 +213,8 @@ static MemTxResult loongson_ipi_iocsr_writel(void *opaque, hwaddr addr,
 static const MemoryRegionOps loongson_ipi_iocsr_ops = {
     .read_with_attrs = loongson_ipi_iocsr_readl,
     .write_with_attrs = loongson_ipi_iocsr_writel,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 8,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+    .valid = { .min_access_size = 4, .max_access_size = 8, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -244,10 +242,8 @@ static MemTxResult loongson_ipi_writeq(void *opaque, hwaddr addr, uint64_t val,
 
 static const MemoryRegionOps loongson_ipi64_ops = {
     .write_with_attrs = loongson_ipi_writeq,
-    .impl.min_access_size = 8,
-    .impl.max_access_size = 8,
-    .valid.min_access_size = 8,
-    .valid.max_access_size = 8,
+    .impl = { .min_access_size = 8, .max_access_size = 8, },
+    .valid = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

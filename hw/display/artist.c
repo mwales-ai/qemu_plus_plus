@@ -1231,16 +1231,14 @@ static const MemoryRegionOps artist_reg_ops = {
     .read = artist_reg_read,
     .write = artist_reg_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static const MemoryRegionOps artist_vram_ops = {
     .read = artist_vram_read,
     .write = artist_vram_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void artist_draw_cursor(ARTISTState *s)

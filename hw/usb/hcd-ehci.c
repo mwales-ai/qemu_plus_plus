@@ -2371,26 +2371,22 @@ static void ehci_work_timer(void *opaque)
 static const MemoryRegionOps ehci_mmio_caps_ops = {
     .read = ehci_caps_read,
     .write = ehci_caps_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 1,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps ehci_mmio_opreg_ops = {
     .read = ehci_opreg_read,
     .write = ehci_opreg_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps ehci_mmio_port_ops = {
     .read = ehci_port_read,
     .write = ehci_port_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

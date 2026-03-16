@@ -92,10 +92,8 @@ static const MemoryRegionOps bitband_ops = {
     .read_with_attrs = bitband_read,
     .write_with_attrs = bitband_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void bitband_init(Object *obj)
@@ -242,8 +240,7 @@ static const MemoryRegionOps ppb_default_ops = {
     .read_with_attrs = ppb_default_read,
     .write_with_attrs = ppb_default_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
+    .valid = { .min_access_size = 1, .max_access_size = 8, },
 };
 
 static void armv7m_instance_init(Object *obj)

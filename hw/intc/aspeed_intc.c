@@ -737,7 +737,7 @@ static const MemoryRegionOps aspeed_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -748,7 +748,7 @@ static const MemoryRegionOps aspeed_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -759,7 +759,7 @@ static const MemoryRegionOps aspeed_ssp_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_ssp_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -770,7 +770,7 @@ static const MemoryRegionOps aspeed_ssp_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_ssp_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -781,7 +781,7 @@ static const MemoryRegionOps aspeed_tsp_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_tsp_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -792,7 +792,7 @@ static const MemoryRegionOps aspeed_tsp_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_tsp_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,

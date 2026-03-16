@@ -104,7 +104,7 @@ static const MemoryRegionOps allwinner_sid_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static void allwinner_sid_reset(DeviceState *dev)

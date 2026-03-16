@@ -580,8 +580,7 @@ static void m5206_mbar_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps m5206_mbar_ops = {
     .read = m5206_mbar_readfn,
     .write = m5206_mbar_writefn,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 

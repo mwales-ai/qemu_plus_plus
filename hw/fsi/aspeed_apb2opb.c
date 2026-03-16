@@ -258,10 +258,8 @@ static void fsi_aspeed_apb2opb_write(void *opaque, hwaddr addr, uint64_t data,
 static const struct MemoryRegionOps aspeed_apb2opb_ops = {
     .read = fsi_aspeed_apb2opb_read,
     .write = fsi_aspeed_apb2opb_write,
-    .valid.max_access_size = 4,
-    .valid.min_access_size = 4,
-    .impl.max_access_size = 4,
-    .impl.min_access_size = 4,
+    .valid = { .max_access_size = 4, .min_access_size = 4, },
+    .impl = { .max_access_size = 4, .min_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

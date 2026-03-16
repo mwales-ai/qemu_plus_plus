@@ -636,7 +636,11 @@ typedef struct NvmeCtrl {
 
     NvmeSubsystem   *subsys;
 
+#ifdef __cplusplus
+    NvmeNamespace   name_space;
+#else
     NvmeNamespace   namespace;
+#endif
     NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES + 1];
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;

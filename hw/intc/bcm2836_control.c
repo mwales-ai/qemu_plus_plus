@@ -308,8 +308,7 @@ static const MemoryRegionOps bcm2836_control_ops = {
     .read = bcm2836_control_read,
     .write = bcm2836_control_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void bcm2836_control_reset(DeviceState *d)

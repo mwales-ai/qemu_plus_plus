@@ -541,10 +541,8 @@ static uint64_t bonito_spciconf_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps bonito_spciconf_ops = {
     .read = bonito_spciconf_read,
     .write = bonito_spciconf_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

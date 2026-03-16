@@ -202,8 +202,7 @@ static void fusbh200_ehci_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps fusbh200_ehci_mmio_ops = {
     .read = fusbh200_ehci_read,
     .write = fusbh200_ehci_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

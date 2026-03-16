@@ -251,7 +251,7 @@ int xen_set_long_mode(bool long_mode)
     int ret;
     struct kvm_xen_hvm_attr xa = {
         .type = KVM_XEN_ATTR_TYPE_LONG_MODE,
-        .u.long_mode = long_mode,
+        .u = { .long_mode = long_mode, },
     };
 
     if (!xen_overlay_singleton) {

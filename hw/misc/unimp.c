@@ -42,10 +42,8 @@ static void unimp_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps unimp_ops = {
     .read = unimp_read,
     .write = unimp_write,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 8,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 8,
+    .impl = { .min_access_size = 1, .max_access_size = 8, },
+    .valid = { .min_access_size = 1, .max_access_size = 8, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

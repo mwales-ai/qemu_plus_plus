@@ -830,8 +830,7 @@ static void mv64361_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps mv64361_ops = {
     .read = mv64361_read,
     .write = mv64361_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

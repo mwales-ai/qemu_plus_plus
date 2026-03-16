@@ -278,10 +278,8 @@ static void blackhole_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps blackhole_ops = {
     .read = blackhole_read,
     .write = blackhole_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 4,
-    .impl.max_access_size = 4,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 

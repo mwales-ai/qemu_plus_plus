@@ -223,18 +223,14 @@ static const MemoryRegionOps sbsa_gwdt_rops = {
     .read = sbsa_gwdt_rread,
     .write = sbsa_gwdt_rwrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
+    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
 
 static const MemoryRegionOps sbsa_gwdt_ops = {
     .read = sbsa_gwdt_read,
     .write = sbsa_gwdt_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .valid.unaligned = false,
+    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
 
 static void wdt_sbsa_gwdt_realize(DeviceState *dev, Error **errp)

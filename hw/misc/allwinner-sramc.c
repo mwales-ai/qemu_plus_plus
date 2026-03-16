@@ -109,7 +109,7 @@ static const MemoryRegionOps allwinner_sramc_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .impl.min_access_size = 4,
+    .impl = { .min_access_size = 4, },
 };
 
 static const VMStateDescription allwinner_sramc_vmstate = {

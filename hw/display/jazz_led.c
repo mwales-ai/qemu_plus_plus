@@ -75,8 +75,7 @@ static const MemoryRegionOps led_ops = {
     .read = jazz_led_read,
     .write = jazz_led_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 1,
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
 };
 
 /***********************************************************/
