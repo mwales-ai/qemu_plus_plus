@@ -160,6 +160,7 @@ typedef struct NvmeZone {
 #define NVME_FDP_MAX_NS_RUHS 32u
 #define FDPVSS 0
 
+#ifndef __cplusplus
 static const uint8_t nvme_fdp_evf_shifts[FDP_EVT_MAX] = {
     /* Host events */
     [FDP_EVT_RU_NOT_FULLY_WRITTEN]      = 0,
@@ -170,6 +171,7 @@ static const uint8_t nvme_fdp_evf_shifts[FDP_EVT_MAX] = {
     [FDP_EVT_MEDIA_REALLOC]             = 32,
     [FDP_EVT_RUH_IMPLICIT_RU_CHANGE]    = 33,
 };
+#endif
 
 #define NGUID_LEN 16
 
@@ -177,9 +179,17 @@ typedef struct {
     uint8_t data[NGUID_LEN];
 } NvmeNGUID;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool nvme_nguid_is_null(const NvmeNGUID *nguid);
 
 extern const PropertyInfo qdev_prop_nguid;
+
+#ifdef __cplusplus
+}
+#endif
 
 #define DEFINE_PROP_NGUID_NODEFAULT(_name, _state, _field) \
     DEFINE_PROP(_name, _state, _field, qdev_prop_nguid, NvmeNGUID)
@@ -326,7 +336,7 @@ static inline bool nvme_ns_ext(NvmeNamespace *ns)
 
 static inline NvmeZoneState nvme_get_zone_state(NvmeZone *zone)
 {
-    return zone->d.zs >> 4;
+    return (NvmeZoneState)(zone->d.zs >> 4);
 }
 
 static inline void nvme_set_zone_state(NvmeZone *zone, NvmeZoneState state)
@@ -364,7 +374,7 @@ static inline void nvme_aor_inc_open(NvmeNamespace *ns)
     assert(ns->nr_open_zones >= 0);
     if (ns->params.max_open_zones) {
         ns->nr_open_zones++;
-        assert(ns->nr_open_zones <= ns->params.max_open_zones);
+        assert((uint32_t)ns->nr_open_zones <= ns->params.max_open_zones);
     }
 }
 
@@ -382,7 +392,7 @@ static inline void nvme_aor_inc_active(NvmeNamespace *ns)
     assert(ns->nr_active_zones >= 0);
     if (ns->params.max_active_zones) {
         ns->nr_active_zones++;
-        assert(ns->nr_active_zones <= ns->params.max_active_zones);
+        assert((uint32_t)ns->nr_active_zones <= ns->params.max_active_zones);
     }
 }
 

@@ -17,7 +17,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/xattr.h"
+}
+
 #include "9p.h"
 #include "fsdev/file-op-9p.h"
 #include "9p-xattr.h"
@@ -42,7 +46,7 @@ static ssize_t mp_pacl_listxattr(FsContext *ctx, const char *path,
         return len;
     }
 
-    if (osize < len) {
+    if (osize < static_cast<size_t>(len)) {
         errno = ERANGE;
         return -1;
     }
@@ -96,7 +100,7 @@ static ssize_t mp_dacl_listxattr(FsContext *ctx, const char *path,
         return len;
     }
 
-    if (osize < len) {
+    if (osize < static_cast<size_t>(len)) {
         errno = ERANGE;
         return -1;
     }
@@ -139,31 +143,31 @@ static int mp_dacl_removexattr(FsContext *ctx,
 XattrOperations mapped_pacl_xattr = {
     .name = "system.posix_acl_access",
     .getxattr = mp_pacl_getxattr,
-    .setxattr = mp_pacl_setxattr,
     .listxattr = mp_pacl_listxattr,
+    .setxattr = mp_pacl_setxattr,
     .removexattr = mp_pacl_removexattr,
 };
 
 XattrOperations mapped_dacl_xattr = {
     .name = "system.posix_acl_default",
     .getxattr = mp_dacl_getxattr,
-    .setxattr = mp_dacl_setxattr,
     .listxattr = mp_dacl_listxattr,
+    .setxattr = mp_dacl_setxattr,
     .removexattr = mp_dacl_removexattr,
 };
 
 XattrOperations passthrough_acl_xattr = {
     .name = "system.posix_acl_",
     .getxattr = pt_getxattr,
-    .setxattr = pt_setxattr,
     .listxattr = pt_listxattr,
+    .setxattr = pt_setxattr,
     .removexattr = pt_removexattr,
 };
 
 XattrOperations none_acl_xattr = {
     .name = "system.posix_acl_",
     .getxattr = notsup_getxattr,
-    .setxattr = notsup_setxattr,
     .listxattr = notsup_listxattr,
+    .setxattr = notsup_setxattr,
     .removexattr = notsup_removexattr,
 };

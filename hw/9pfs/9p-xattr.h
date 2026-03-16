@@ -16,6 +16,10 @@
 
 #include "qemu/xattr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct XattrOperations {
     const char *name;
     ssize_t (*getxattr)(FsContext *ctx, const char *path,
@@ -71,5 +75,9 @@ int notsup_setxattr(FsContext *ctx, const char *path, const char *name,
 ssize_t notsup_listxattr(FsContext *ctx, const char *path, char *name,
                          void *value, size_t size);
 int notsup_removexattr(FsContext *ctx, const char *path, const char *name);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

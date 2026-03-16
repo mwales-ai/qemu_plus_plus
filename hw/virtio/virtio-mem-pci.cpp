@@ -13,9 +13,12 @@
 #include "qemu/osdep.h"
 #include "virtio-mem-pci.h"
 #include "hw/mem/memory-device.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qapi/qapi-events-machine.h"
 #include "qapi/qapi-events-misc.h"
+}
 
 static void virtio_mem_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
@@ -110,7 +113,7 @@ static void virtio_mem_pci_size_change_notify(Notifier *notifier, void *data)
                                          size_change_notifier);
     DeviceState *dev = DEVICE(pci_mem);
     char *qom_path = object_get_canonical_path(OBJECT(dev));
-    const uint64_t * const size_p = data;
+    const uint64_t * const size_p = static_cast<const uint64_t *>(data);
 
     qapi_event_send_memory_device_size_change(dev->id, *size_p, qom_path);
     g_free(qom_path);
@@ -218,8 +221,8 @@ static void virtio_mem_pci_instance_init(Object *obj)
 
 static const VirtioPCIDeviceTypeInfo virtio_mem_pci_info = {
     .base_name = TYPE_VIRTIO_MEM_PCI,
-    .parent = TYPE_VIRTIO_MD_PCI,
     .generic_name = "virtio-mem-pci",
+    .parent = TYPE_VIRTIO_MD_PCI,
     .instance_size = sizeof(VirtIOMEMPCI),
     .instance_init = virtio_mem_pci_instance_init,
     .class_init = virtio_mem_pci_class_init,

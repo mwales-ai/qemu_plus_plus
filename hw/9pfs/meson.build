@@ -1,10 +1,10 @@
 fs_ss = ss.source_set()
 fs_ss.add(files(
   '9p-local.c',
-  '9p-posix-acl.c',
+  '9p-posix-acl.cpp',
   '9p-synth.c',
   '9p-util-generic.cpp',
-  '9p-xattr-user.c',
+  '9p-xattr-user.cpp',
   '9p-xattr.c',
   '9p.c',
   'codir.c',

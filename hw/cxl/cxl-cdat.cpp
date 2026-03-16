@@ -10,8 +10,11 @@
 #include "qemu/osdep.h"
 #include "hw/pci/pci.h"
 #include "hw/cxl/cxl.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+}
 
 static void cdat_len_check(CDATSubHeader *hdr, Error **errp)
 {
@@ -50,12 +53,13 @@ static bool ct3_build_cdat(CDATObject *cdat, Error **errp)
     g_autofree CDATEntry *cdat_st = NULL;
     uint8_t sum = 0;
     uint8_t *hdr_buf;
-    int ent, i;
+    int ent;
+    size_t i;
 
     /* Use default table if fopen == NULL */
     assert(cdat->build_cdat_table);
 
-    cdat_header = g_malloc0(sizeof(*cdat_header));
+    cdat_header = static_cast<CDATTableHeader *>(g_malloc0(sizeof(*cdat_header)));
     if (!cdat_header) {
         error_setg(errp, "Failed to allocate CDAT header");
         return false;
@@ -71,7 +75,8 @@ static bool ct3_build_cdat(CDATObject *cdat, Error **errp)
     }
     cdat->to_update = false;
 
-    cdat_st = g_malloc0(sizeof(*cdat_st) * (cdat->built_buf_len + 1));
+    cdat_st = static_cast<CDATEntry *>(
+        g_malloc0(sizeof(*cdat_st) * (cdat->built_buf_len + 1)));
     if (!cdat_st) {
         error_setg(errp, "Failed to allocate CDAT entry array");
         return false;
@@ -80,7 +85,7 @@ static bool ct3_build_cdat(CDATObject *cdat, Error **errp)
     /* Entry 0 for CDAT header, starts with Entry 1 */
     for (ent = 1; ent < cdat->built_buf_len + 1; ent++) {
         CDATSubHeader *hdr = cdat->built_buf[ent - 1];
-        uint8_t *buf = (uint8_t *)cdat->built_buf[ent - 1];
+        uint8_t *buf = reinterpret_cast<uint8_t *>(cdat->built_buf[ent - 1]);
 
         cdat_st[ent].base = hdr;
         cdat_st[ent].length = hdr->length;
@@ -97,7 +102,7 @@ static bool ct3_build_cdat(CDATObject *cdat, Error **errp)
     cdat_header->sequence = 0;
     cdat_header->length += sizeof(CDATTableHeader);
 
-    hdr_buf = (uint8_t *)cdat_header;
+    hdr_buf = reinterpret_cast<uint8_t *>(cdat_header);
     for (i = 0; i < sizeof(*cdat_header); i++) {
         sum += hdr_buf[i];
     }
@@ -105,10 +110,11 @@ static bool ct3_build_cdat(CDATObject *cdat, Error **errp)
     /* Sum of all bytes including checksum must be 0 */
     cdat_header->checksum = ~sum + 1;
 
-    cdat_st[0].base = g_steal_pointer(&cdat_header);
+    cdat_st[0].base = static_cast<CDATTableHeader *>(
+        g_steal_pointer(&cdat_header));
     cdat_st[0].length = sizeof(*cdat_header);
     cdat->entry_len = 1 + cdat->built_buf_len;
-    cdat->entry = g_steal_pointer(&cdat_st);
+    cdat->entry = static_cast<CDATEntry *>(g_steal_pointer(&cdat_st));
     return true;
 }
 
@@ -118,13 +124,13 @@ static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
     g_autofree uint8_t *buf = NULL;
     uint8_t sum = 0;
     int num_ent;
-    int i = 0, ent = 1;
+    gsize i = 0, ent = 1;
     gsize file_size = 0;
     CDATSubHeader *hdr;
     GError *error = NULL;
 
     /* Read CDAT file and create its cache */
-    if (!g_file_get_contents(cdat->filename, (gchar **)&buf,
+    if (!g_file_get_contents(cdat->filename, reinterpret_cast<gchar **>(&buf),
                              &file_size, &error)) {
         error_setg(errp, "CDAT: File read failed: %s", error->message);
         g_error_free(error);
@@ -137,7 +143,7 @@ static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
     i = sizeof(CDATTableHeader);
     num_ent = 1;
     while (i < file_size) {
-        hdr = (CDATSubHeader *)(buf + i);
+        hdr = reinterpret_cast<CDATSubHeader *>(buf + i);
         if (i + sizeof(CDATSubHeader) > file_size) {
             error_setg(errp, "CDAT: Truncated table");
             return false;
@@ -168,11 +174,12 @@ static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
 
     /* Read CDAT structures */
     while (i < file_size) {
-        hdr = (CDATSubHeader *)(buf + i);
+        hdr = reinterpret_cast<CDATSubHeader *>(buf + i);
         cdat_st[ent].base = hdr;
         cdat_st[ent].length = hdr->length;
 
-        while (buf + i < (uint8_t *)cdat_st[ent].base + cdat_st[ent].length) {
+        while (buf + i <
+               static_cast<uint8_t *>(cdat_st[ent].base) + cdat_st[ent].length) {
             assert(i < file_size);
             sum += buf[i++];
         }
@@ -184,11 +191,12 @@ static bool ct3_load_cdat(CDATObject *cdat, Error **errp)
         warn_report("CDAT: Found checksum mismatch in %s", cdat->filename);
     }
     cdat->entry_len = num_ent;
-    cdat->entry = g_steal_pointer(&cdat_st);
-    cdat->buf = g_steal_pointer(&buf);
+    cdat->entry = static_cast<CDATEntry *>(g_steal_pointer(&cdat_st));
+    cdat->buf = static_cast<uint8_t *>(g_steal_pointer(&buf));
     return true;
 }
 
+extern "C"
 bool cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp)
 {
     CDATObject *cdat = &cxl_cstate->cdat;
@@ -200,6 +208,7 @@ bool cxl_doe_cdat_init(CXLComponentState *cxl_cstate, Error **errp)
     }
 }
 
+extern "C"
 void cxl_doe_cdat_update(CXLComponentState *cxl_cstate, Error **errp)
 {
     CDATObject *cdat = &cxl_cstate->cdat;
@@ -209,6 +218,7 @@ void cxl_doe_cdat_update(CXLComponentState *cxl_cstate, Error **errp)
     }
 }
 
+extern "C"
 void cxl_doe_cdat_release(CXLComponentState *cxl_cstate)
 {
     CDATObject *cdat = &cxl_cstate->cdat;

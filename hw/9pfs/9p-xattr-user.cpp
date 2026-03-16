@@ -59,7 +59,7 @@ static ssize_t mp_user_listxattr(FsContext *ctx, const char *path,
         return name_size;
     }
 
-    if (size < name_size) {
+    if (size < static_cast<size_t>(name_size)) {
         errno = ERANGE;
         return -1;
     }
@@ -100,15 +100,15 @@ static int mp_user_removexattr(FsContext *ctx,
 XattrOperations mapped_user_xattr = {
     .name = "user.",
     .getxattr = mp_user_getxattr,
-    .setxattr = mp_user_setxattr,
     .listxattr = mp_user_listxattr,
+    .setxattr = mp_user_setxattr,
     .removexattr = mp_user_removexattr,
 };
 
 XattrOperations passthrough_user_xattr = {
     .name = "user.",
     .getxattr = pt_getxattr,
-    .setxattr = pt_setxattr,
     .listxattr = pt_listxattr,
+    .setxattr = pt_setxattr,
     .removexattr = pt_removexattr,
 };

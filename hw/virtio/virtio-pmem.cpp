@@ -12,10 +12,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
+}
+
 #include "qemu/main-loop.h"
+
 #include "hw/virtio/virtio-pmem.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
@@ -37,7 +42,7 @@ typedef struct VirtIODeviceRequest {
 
 static int worker_cb(void *opaque)
 {
-    VirtIODeviceRequest *req_data = opaque;
+    VirtIODeviceRequest *req_data = static_cast<VirtIODeviceRequest *>(opaque);
     int err = 0;
 
     /* flush raw backing image */
@@ -54,13 +59,13 @@ static int worker_cb(void *opaque)
 
 static void done_cb(void *opaque, int ret)
 {
-    VirtIODeviceRequest *req_data = opaque;
+    VirtIODeviceRequest *req_data = static_cast<VirtIODeviceRequest *>(opaque);
     int len = iov_from_buf(req_data->elem.in_sg, req_data->elem.in_num, 0,
                               &req_data->resp, sizeof(struct virtio_pmem_resp));
 
     /* Callbacks are serialized, so no need to use atomic ops. */
     virtqueue_push(req_data->pmem->rq_vq, &req_data->elem, len);
-    virtio_notify((VirtIODevice *)req_data->pmem, req_data->pmem->rq_vq);
+    virtio_notify(reinterpret_cast<VirtIODevice *>(req_data->pmem), req_data->pmem->rq_vq);
     trace_virtio_pmem_response();
     g_free(req_data);
 }
@@ -72,14 +77,15 @@ static void virtio_pmem_flush(VirtIODevice *vdev, VirtQueue *vq)
     HostMemoryBackend *backend = MEMORY_BACKEND(pmem->memdev);
 
     trace_virtio_pmem_flush_request();
-    req_data = virtqueue_pop(vq, sizeof(VirtIODeviceRequest));
+    req_data = static_cast<VirtIODeviceRequest *>(
+        virtqueue_pop(vq, sizeof(VirtIODeviceRequest)));
     if (!req_data) {
         return;
     }
 
     if (req_data->elem.out_num < 1 || req_data->elem.in_num < 1) {
         virtio_error(vdev, "virtio-pmem request not proper");
-        virtqueue_detach_element(vq, (VirtQueueElement *)req_data, 0);
+        virtqueue_detach_element(vq, &req_data->elem, 0);
         g_free(req_data);
         return;
     }
@@ -92,7 +98,8 @@ static void virtio_pmem_flush(VirtIODevice *vdev, VirtQueue *vq)
 static void virtio_pmem_get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIOPMEM *pmem = VIRTIO_PMEM(vdev);
-    struct virtio_pmem_config *pmemcfg = (struct virtio_pmem_config *) config;
+    struct virtio_pmem_config *pmemcfg =
+        reinterpret_cast<struct virtio_pmem_config *>(config);
 
     virtio_stq_p(vdev, &pmemcfg->start, pmem->start);
     virtio_stq_p(vdev, &pmemcfg->size, memory_region_size(&pmem->memdev->mr));
@@ -181,9 +188,9 @@ static void virtio_pmem_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo virtio_pmem_info = {
     .name          = TYPE_VIRTIO_PMEM,
     .parent        = TYPE_VIRTIO_DEVICE,
+    .instance_size = sizeof(VirtIOPMEM),
     .class_size    = sizeof(VirtIOPMEMClass),
     .class_init    = virtio_pmem_class_init,
-    .instance_size = sizeof(VirtIOPMEM),
 };
 
 static void virtio_register_types(void)

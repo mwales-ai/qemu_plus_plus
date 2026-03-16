@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qapi/visitor.h"
 #include "qemu/ctype.h"
 #include "nvme.h"
@@ -31,6 +32,7 @@
 
 #define NGUID_STR_LEN (2 * NGUID_LEN + 1)
 
+extern "C"
 bool nvme_nguid_is_null(const NvmeNGUID *nguid)
 {
     static NvmeNGUID null_nguid;
@@ -39,7 +41,7 @@ bool nvme_nguid_is_null(const NvmeNGUID *nguid)
 
 static void nvme_nguid_generate(NvmeNGUID *out)
 {
-    int i;
+    uint32_t i;
     uint32_t x;
 
     QEMU_BUILD_BUG_ON((NGUID_LEN % sizeof(x)) != 0);
@@ -78,10 +80,11 @@ static void nvme_nguid_generate(NvmeNGUID *out)
  */
 static bool nvme_nguid_is_valid(const char *str)
 {
-    int i;
+    size_t i;
     int digit_count = 0;
+    size_t len = strlen(str);
 
-    for (i = 0; i < strlen(str); i++) {
+    for (i = 0; i < len; i++) {
         const char c = str[i];
         if (qemu_isxdigit(c)) {
             digit_count++;
@@ -149,8 +152,8 @@ static void nvme_nguid_stringify(const NvmeNGUID *nguid, char *out)
 static void get_nguid(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
-    const Property *prop = opaque;
-    NvmeNGUID *nguid = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    NvmeNGUID *nguid = static_cast<NvmeNGUID *>(object_field_prop_ptr(obj, prop));
     char buffer[NGUID_STR_LEN];
     char *p = buffer;
 
@@ -162,8 +165,8 @@ static void get_nguid(Object *obj, Visitor *v, const char *name, void *opaque,
 static void set_nguid(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
-    const Property *prop = opaque;
-    NvmeNGUID *nguid = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    NvmeNGUID *nguid = static_cast<NvmeNGUID *>(object_field_prop_ptr(obj, prop));
     char *str;
 
     if (!visit_type_str(v, name, &str, errp)) {

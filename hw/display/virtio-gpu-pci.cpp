@@ -12,8 +12,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
+}
+
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio.h"
@@ -30,7 +34,7 @@ static void virtio_gpu_pci_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOGPUPCIBase *vgpu = VIRTIO_GPU_PCI_BASE(vpci_dev);
     VirtIOGPUBase *g = vgpu->vgpu;
     DeviceState *vdev = DEVICE(g);
-    int i;
+    uint32_t i;
 
     if (virtio_gpu_hostmem_enabled(g->conf)) {
         vpci_dev->msix_bar_idx = 1;
@@ -74,8 +78,8 @@ static const TypeInfo virtio_gpu_pci_base_info = {
     .name = TYPE_VIRTIO_GPU_PCI_BASE,
     .parent = TYPE_VIRTIO_PCI,
     .instance_size = sizeof(VirtIOGPUPCIBase),
+    .is_abstract = true,
     .class_init = virtio_gpu_pci_base_class_init,
-    .is_abstract = true
 };
 module_obj(TYPE_VIRTIO_GPU_PCI_BASE);
 module_kconfig(VIRTIO_PCI);
