@@ -3,14 +3,16 @@
 batch-port.py - Batch port TRIVIAL and EASY .c files to .cpp
 
 This script:
-1. Scans directories for TRIVIAL/EASY files using auto-port analysis
+1. Scans directories for TRIVIAL/EASY files using source analysis
 2. Renames all files in a batch (git mv + meson.build update)
 3. Applies mechanical fixes for EASY files
-4. Builds once to verify
+4. Builds to verify, auto-reverts failing files
+5. Iterates until build is clean
 
 Usage:
-    ./scripts/cpp-port/batch-port.py --difficulty TRIVIAL --dirs hw/virtio hw/arm ...
-    ./scripts/cpp-port/batch-port.py --difficulty EASY --dirs hw/misc hw/char ...
+    ./scripts/cpp-port/batch-port.py --difficulty TRIVIAL --dirs hw/
+    ./scripts/cpp-port/batch-port.py --difficulty EASY --dirs hw/misc hw/char
+    ./scripts/cpp-port/batch-port.py --difficulty BOTH --dirs hw/
     ./scripts/cpp-port/batch-port.py --list --dirs hw/  # just list files
 """
 
@@ -21,14 +23,38 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Import from auto-port
-sys.path.insert(0, str(Path(__file__).parent))
-from importlib import import_module
-
 QEMU_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# Inline the analysis functions to avoid import issues
+# Known header-level blockers: files including these headers will fail
+# regardless of source-level analysis
+HEADER_BLOCKERS = {
+    # header pattern -> description
+    'hw/9pfs/': '9p.h uses "private" keyword',
+    'include/hw/nvme/': 'nvme.h uses "namespace" keyword',
+    'target/arm/cpu.h': 'target-specific macros',
+    'target/ppc/cpu.h': 'target-specific macros',
+    'target/riscv/cpu.h': 'target-specific macros',
+}
+
+# Files/patterns to skip entirely
+SKIP_FILES = {
+    'os-win32.c', 'os-wasm.c',
+}
+
+# Directories that use specific_ss (poisoned macros) or are target-specific
+SKIP_DIRS = {
+    'target',
+    'accel/tcg',
+    'accel/kvm',
+}
+
+# Known files that fail due to header issues (not detectable from source analysis)
+# Updated dynamically as we discover more
+KNOWN_HEADER_BLOCKED = set()
+
+
 def analyze_file(c_file):
+    """Analyze a C file for C++ compatibility issues."""
     content = c_file.read_text()
     issues = {
         'compound_literals': [],
@@ -39,31 +65,53 @@ def analyze_file(c_file):
         'void_ptr_arithmetic': [],
         'typeof_usage': [],
         'gnu_extensions': [],
+        'narrowing': [],
+        'const_globals': [],
     }
     for i, line in enumerate(content.split('\n'), 1):
-        if re.search(r'\(\w+\)\s*\{', line):
+        # Compound literals: (Type){...}
+        if re.search(r'\(\w+\s*\*?\)\s*\{', line):
             issues['compound_literals'].append((i, line.strip()))
-        if re.search(r'\.\w+\s*=', line) and not re.search(r'^\s*\.', line):
-            if re.search(r'\.\w+\.\w+\s*=', line):
-                issues['designator_inits'].append((i, line.strip()))
+        if re.search(r'\(const\s+\w+\s*\[', line):
+            issues['compound_literals'].append((i, line.strip()))
+        # Nested designators: .foo.bar =
+        if re.search(r'\.\w+\.\w+\s*=', line):
+            issues['designator_inits'].append((i, line.strip()))
+        # void* implicit casts
         if re.search(r'=\s*(opaque|pv|user_data|userdata|data|arg)\s*;', line):
             if 'static_cast' not in line and 'void' not in line.split('=')[0]:
                 issues['void_star_casts'].append((i, line.strip()))
+        # PRI macros without space
         if re.search(r'"PRI[diouxX]|PRI[diouxX]\d+"', line):
             issues['pri_macros'].append((i, line.strip()))
-        for kw in ['new', 'class', 'template', 'typename', 'namespace', 'this', 'delete', 'export']:
-            if re.search(rf'^\s*\w+\s+\*?{kw}\s*[=,;)]', line):
+        # C++ keywords used as identifiers
+        for kw in ['new', 'class', 'template', 'typename', 'namespace',
+                    'this', 'delete', 'export', 'private', 'protected', 'public']:
+            if re.search(rf'^\s*\w+\s+\*?{kw}\s*[=,;)\[]', line):
                 issues['cpp_keywords'].append((i, f'{kw}: {line.strip()}'))
+            if re.search(rf'->{kw}\b', line):
+                issues['cpp_keywords'].append((i, f'->{kw}: {line.strip()}'))
+        # typeof usage
         if re.search(r'\btypeof\b', line) and 'typeof_strip_qual' not in line:
             issues['typeof_usage'].append((i, line.strip()))
+        # GNU range designators: [0 ... 0xFF]
         if re.search(r'\[\d+\s*\.\.\.\s*\d+\]', line):
             issues['gnu_extensions'].append((i, line.strip()))
+        # Double-to-int narrowing in array init (e.g., 0.0/MACRO)
+        if re.search(r'\d+\.\d+\s*/\s*\w+', line) and 'uint32_t' in content[:content.index(line) if line in content else 0]:
+            pass  # Too complex for static analysis
+        # const globals (C++ internal linkage)
+        if re.search(r'^(static\s+)?const\s+\w+\s+\w+\s*=', line) and not line.strip().startswith('static'):
+            if re.search(r'^const\s+(VMState|Property|TypeInfo)', line):
+                issues['const_globals'].append((i, line.strip()))
     return issues
 
 
 def classify_difficulty(issues):
-    blockers = len(issues['compound_literals']) + len(issues['gnu_extensions']) + len(issues['typeof_usage'])
-    manual = len(issues['designator_inits'])
+    """Classify file difficulty based on issues found."""
+    blockers = (len(issues['compound_literals']) + len(issues['gnu_extensions']) +
+                len(issues['typeof_usage']))
+    manual = len(issues['designator_inits']) + len(issues['const_globals'])
     auto = (len(issues['void_star_casts']) + len(issues['pri_macros']) +
             len(issues['cpp_keywords']) + len(issues['void_ptr_arithmetic']))
     if blockers > 5:
@@ -76,17 +124,20 @@ def classify_difficulty(issues):
         return "TRIVIAL"
 
 
-# Files to skip (target-specific, windows, etc.)
-SKIP_FILES = {
-    'os-win32.c', 'os-wasm.c',
-}
-
-# Directories that use specific_ss (poisoned macros)
-SKIP_DIRS = {
-    'target',
-    'accel/tcg',
-    'accel/kvm',
-}
+def check_header_blockers(c_file):
+    """Check if a file includes headers known to block C++ compilation."""
+    try:
+        content = c_file.read_text()
+    except Exception:
+        return None
+    for pattern, desc in HEADER_BLOCKERS.items():
+        if pattern in content:
+            return desc
+    # Check if file is in a directory known to have issues
+    rel = str(c_file.relative_to(QEMU_ROOT))
+    if rel in KNOWN_HEADER_BLOCKED:
+        return "previously failed compilation"
+    return None
 
 
 def find_c_files(dirs):
@@ -110,7 +161,6 @@ def find_c_files(dirs):
                     break
             if skip:
                 continue
-            # Skip if already has a .cpp sibling
             if f.with_suffix('.cpp').exists():
                 continue
             files.append(f)
@@ -122,6 +172,11 @@ def classify_files(files):
     result = {'TRIVIAL': [], 'EASY': [], 'MEDIUM': [], 'HARD': []}
     for f in files:
         try:
+            # Check header blockers first
+            blocker = check_header_blockers(f)
+            if blocker:
+                result['HARD'].append((f, {'_blocker': blocker}))
+                continue
             issues = analyze_file(f)
             diff = classify_difficulty(issues)
             result[diff].append((f, issues))
@@ -132,23 +187,83 @@ def classify_files(files):
 
 def update_meson_build(c_file, cpp_file):
     """Update meson.build to reference .cpp instead of .c."""
-    meson_dir = c_file.parent
-    meson_file = meson_dir / 'meson.build'
-    if not meson_file.exists():
-        # Try parent
-        meson_file = meson_dir.parent / 'meson.build'
-    if not meson_file.exists():
-        meson_file = QEMU_ROOT / 'meson.build'
+    c_name = c_file.name
+    cpp_name = cpp_file.name
+
+    # Check meson.build in same directory
+    meson_file = c_file.parent / 'meson.build'
+    updated = False
 
     if meson_file.exists():
         content = meson_file.read_text()
-        old_name = c_file.name
-        new_name = cpp_file.name
-        new_content = content.replace(f"'{old_name}'", f"'{new_name}'")
+        new_content = content.replace(f"'{c_name}'", f"'{cpp_name}'")
         if new_content != content:
             meson_file.write_text(new_content)
-            return True
-    return False
+            updated = True
+
+    # Also check parent meson.build for subdirectory references
+    parent_meson = c_file.parent.parent / 'meson.build'
+    if parent_meson.exists():
+        subdir = c_file.parent.name
+        sub_c_ref = f"'{subdir}/{c_name}'"
+        sub_cpp_ref = f"'{subdir}/{cpp_name}'"
+        content = parent_meson.read_text()
+        if sub_c_ref in content:
+            new_content = content.replace(sub_c_ref, sub_cpp_ref)
+            parent_meson.write_text(new_content)
+            updated = True
+
+    if not updated:
+        # Try QEMU root meson.build
+        root_meson = QEMU_ROOT / 'meson.build'
+        if root_meson.exists():
+            content = root_meson.read_text()
+            rel = str(c_file.relative_to(QEMU_ROOT))
+            cpp_rel = str(cpp_file.relative_to(QEMU_ROOT))
+            new_content = content.replace(f"'{rel}'", f"'{cpp_rel}'")
+            if new_content != content:
+                root_meson.write_text(new_content)
+                updated = True
+
+    return updated
+
+
+def revert_file(cpp_file):
+    """Revert a .cpp file back to .c, restoring original content."""
+    c_file = cpp_file.with_suffix('.c')
+    try:
+        subprocess.run(['git', 'mv', str(cpp_file), str(c_file)],
+                      cwd=QEMU_ROOT, check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        subprocess.run(['git', 'checkout', '--', str(c_file)],
+                      cwd=QEMU_ROOT, capture_output=True)
+        if cpp_file.exists():
+            cpp_file.unlink()
+        return False
+
+    # Restore original file content (undo any mechanical fixes)
+    subprocess.run(['git', 'checkout', 'HEAD', '--', str(c_file)],
+                  cwd=QEMU_ROOT, capture_output=True)
+
+    # Fix meson.build back
+    cpp_name = cpp_file.name
+    c_name = c_file.name
+    meson_file = cpp_file.parent / 'meson.build'
+    if meson_file.exists():
+        content = meson_file.read_text()
+        if cpp_name in content:
+            meson_file.write_text(content.replace(cpp_name, c_name))
+
+    parent_meson = cpp_file.parent.parent / 'meson.build'
+    if parent_meson.exists():
+        subdir = cpp_file.parent.name
+        sub_cpp = f"{subdir}/{cpp_name}"
+        sub_c = f"{subdir}/{c_name}"
+        content = parent_meson.read_text()
+        if sub_cpp in content:
+            parent_meson.write_text(content.replace(sub_cpp, sub_c))
+
+    return True
 
 
 def apply_easy_fixes(filepath):
@@ -258,6 +373,60 @@ def apply_easy_fixes(filepath):
     return fixes
 
 
+def extract_failing_sources(build_output):
+    """Extract source file paths from build errors."""
+    failing = set()
+
+    # Match direct source file errors
+    for m in re.finditer(r'^\.\./(\S+\.cpp):\d+:\d+: error:', build_output, re.MULTILINE):
+        failing.add(m.group(1))
+
+    # Match header errors and trace back to .cpp files
+    # Look at FAILED lines and extract source from compile command
+    for m in re.finditer(r'^c\+\+.*-c \.\./(\S+\.cpp)$', build_output, re.MULTILINE):
+        src = m.group(1)
+        if src not in failing:
+            # Check if the compile command's section has errors
+            failing.add(src)
+
+    # Also get from FAILED + compile command pairs
+    for m in re.finditer(r'^FAILED:.*\n.*-c \.\./(\S+\.cpp)', build_output, re.MULTILINE):
+        failing.add(m.group(1))
+
+    return failing
+
+
+def build_and_get_failures():
+    """Build the project and return set of failing .cpp source files."""
+    result = subprocess.run(
+        ['ninja', '-C', 'build', '-k0', '-j', str(os.cpu_count())],
+        capture_output=True, text=True, timeout=600
+    )
+    if result.returncode == 0:
+        return set(), True
+
+    output = result.stdout + result.stderr
+    failing = extract_failing_sources(output)
+
+    # If we can't extract specific files, try to get them from FAILED lines
+    if not failing:
+        for m in re.finditer(r'^FAILED:.*$', output, re.MULTILINE):
+            line = m.group(0)
+            src_match = re.search(r'-c \.\./(\S+\.cpp)', line)
+            if src_match:
+                failing.add(src_match.group(1))
+
+    return failing, False
+
+
+def reconfigure_meson():
+    """Reconfigure meson build system."""
+    subprocess.run(
+        ['build/pyvenv/bin/meson', 'setup', '--reconfigure', 'build'],
+        cwd=QEMU_ROOT, capture_output=True, text=True, timeout=120
+    )
+
+
 def batch_port(files, difficulty, dry_run=False):
     """Port a batch of files."""
     print(f"\n{'='*60}")
@@ -288,14 +457,13 @@ def batch_port(files, difficulty, dry_run=False):
             if difficulty == 'EASY':
                 fixes = apply_easy_fixes(cpp_file)
 
-            ported.append((rel, fixes))
+            ported.append((rel, cpp_file, fixes))
             detail = f" ({', '.join(fixes)})" if fixes else ""
             print(f"  OK: {rel}{detail}")
 
         except Exception as e:
             print(f"  FAIL: {rel}: {e}")
             failed.append((rel, str(e)))
-            # Try to revert
             try:
                 subprocess.run(['git', 'checkout', '--', str(f)],
                              cwd=QEMU_ROOT, capture_output=True)
@@ -303,6 +471,56 @@ def batch_port(files, difficulty, dry_run=False):
                 pass
 
     return ported, failed
+
+
+def build_and_revert_loop(ported, max_iterations=5):
+    """Build, identify failures, revert them, repeat until clean."""
+    if not ported:
+        return [], []
+
+    print(f"\n  Reconfiguring meson...")
+    reconfigure_meson()
+
+    survived = list(ported)
+    all_reverted = []
+
+    for iteration in range(max_iterations):
+        print(f"\n  Build attempt {iteration + 1}...")
+        failing, success = build_and_get_failures()
+
+        if success:
+            print(f"  BUILD SUCCESS!")
+            break
+
+        if not failing:
+            print(f"  BUILD FAILED but could not identify failing files.")
+            print(f"  Run 'ninja -C build' manually to see errors.")
+            break
+
+        # Identify which of our ported files are failing
+        to_revert = []
+        for rel, cpp_file, fixes in survived:
+            cpp_rel = str(cpp_file.relative_to(QEMU_ROOT))
+            if cpp_rel in failing:
+                to_revert.append((rel, cpp_file, fixes))
+
+        if not to_revert:
+            print(f"  {len(failing)} files failing but none are from our batch.")
+            print(f"  Failing files: {', '.join(sorted(failing)[:10])}")
+            break
+
+        print(f"  Reverting {len(to_revert)} failing files...")
+        for rel, cpp_file, fixes in to_revert:
+            if revert_file(cpp_file):
+                print(f"    REVERTED: {rel}")
+                all_reverted.append(rel)
+                survived = [(r, c, f) for r, c, f in survived
+                           if str(c) != str(cpp_file)]
+
+        # Reconfigure after reverting
+        reconfigure_meson()
+
+    return survived, all_reverted
 
 
 def main():
@@ -317,6 +535,10 @@ def main():
                        help='Show what would be done')
     parser.add_argument('--no-build', action='store_true',
                        help='Skip build verification')
+    parser.add_argument('--auto-revert', action='store_true', default=True,
+                       help='Auto-revert files that fail to compile (default)')
+    parser.add_argument('--no-auto-revert', action='store_true',
+                       help='Do not auto-revert failing files')
     args = parser.parse_args()
 
     os.chdir(QEMU_ROOT)
@@ -336,8 +558,11 @@ def main():
             if classified[diff]:
                 print(f"\n{diff}:")
                 for f, issues in classified[diff]:
-                    detail = ', '.join(f'{k}={len(v)}' for k, v in issues.items() if v)
-                    print(f"  {f.relative_to(QEMU_ROOT)} ({detail or 'clean'})")
+                    if '_blocker' in issues:
+                        print(f"  {f.relative_to(QEMU_ROOT)} (BLOCKED: {issues['_blocker']})")
+                    else:
+                        detail = ', '.join(f'{k}={len(v)}' for k, v in issues.items() if v)
+                        print(f"  {f.relative_to(QEMU_ROOT)} ({detail or 'clean'})")
         return
 
     # Port files
@@ -357,39 +582,37 @@ def main():
     if args.dry_run:
         return
 
-    # Summary
-    print(f"\n{'='*60}")
-    print(f"  SUMMARY")
-    print(f"{'='*60}")
-    print(f"  Ported: {len(total_ported)}")
-    print(f"  Failed: {len(total_failed)}")
-
-    if total_failed:
-        print(f"\n  FAILED:")
-        for f, err in total_failed:
-            print(f"    {f}: {err}")
-
-    # Build verification
+    # Build verification with auto-revert
     if not args.no_build and total_ported:
-        print(f"\n  Building to verify...")
-        result = subprocess.run(
-            ['ninja', '-C', 'build', '-j', str(os.cpu_count())],
-            capture_output=True, text=True, timeout=600
-        )
-        if result.returncode == 0:
-            print(f"  BUILD SUCCESS!")
+        if not args.no_auto_revert:
+            survived, reverted = build_and_revert_loop(total_ported)
+            print(f"\n{'='*60}")
+            print(f"  FINAL SUMMARY")
+            print(f"{'='*60}")
+            print(f"  Successfully ported: {len(survived)}")
+            print(f"  Auto-reverted:       {len(reverted)}")
+            print(f"  Failed to rename:    {len(total_failed)}")
+            if reverted:
+                print(f"\n  Auto-reverted files:")
+                for r in reverted:
+                    print(f"    {r}")
         else:
-            # Count errors
-            errors = re.findall(r'error:', result.stderr + result.stdout)
-            print(f"  BUILD FAILED with {len(errors)} errors")
-            # Show first few
-            err_lines = [l for l in (result.stderr + result.stdout).split('\n')
-                        if 'error:' in l]
-            for l in err_lines[:20]:
-                print(f"    {l.strip()}")
-
-            if len(err_lines) > 20:
-                print(f"    ... and {len(err_lines) - 20} more errors")
+            print(f"\n  Building to verify...")
+            result = subprocess.run(
+                ['ninja', '-C', 'build', '-k0', '-j', str(os.cpu_count())],
+                capture_output=True, text=True, timeout=600
+            )
+            if result.returncode == 0:
+                print(f"  BUILD SUCCESS!")
+            else:
+                errors = re.findall(r'error:', result.stderr + result.stdout)
+                print(f"  BUILD FAILED with {len(errors)} errors")
+                err_lines = [l for l in (result.stderr + result.stdout).split('\n')
+                            if 'error:' in l]
+                for l in err_lines[:20]:
+                    print(f"    {l.strip()}")
+    else:
+        print(f"\n  Ported: {len(total_ported)} files (build verification skipped)")
 
 
 if __name__ == '__main__':

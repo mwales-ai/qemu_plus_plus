@@ -16,7 +16,7 @@ fs_ss.add(files(
 if host_os == 'darwin'
   fs_ss.add(files('9p-util-darwin.c'))
 elif host_os == 'freebsd'
-  fs_ss.add(files('9p-util-freebsd.c'))
+  fs_ss.add(files('9p-util-freebsd.cpp'))
 elif host_os == 'linux'
   fs_ss.add(files('9p-util-linux.c'))
 endif

@@ -47,7 +47,7 @@ static void pnv_pnor_update(PnvPnor *s, int offset, int size)
     ret = blk_pwrite(s->blk, offset, offset_end - offset, s->storage + offset,
                      0);
     if (ret < 0) {
-        error_report("Could not update PNOR offset=0x%" PRIx32" : %s", offset,
+        error_report("Could not update PNOR offset=0x%" PRIx32 " : %s", offset,
                      strerror(-ret));
     }
 }

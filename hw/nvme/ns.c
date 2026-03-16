@@ -205,17 +205,17 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
         zone_cap = zone_size;
     }
     if (zone_cap > zone_size) {
-        error_setg(errp, "zone capacity %"PRIu64"B exceeds "
-                   "zone size %"PRIu64"B", zone_cap, zone_size);
+        error_setg(errp, "zone capacity %" PRIu64 "B exceeds "
+                   "zone size %" PRIu64 "B", zone_cap, zone_size);
         return -1;
     }
     if (zone_size < ns->lbasz) {
-        error_setg(errp, "zone size %"PRIu64"B too small, "
+        error_setg(errp, "zone size %" PRIu64 "B too small, "
                    "must be at least %zuB", zone_size, ns->lbasz);
         return -1;
     }
     if (zone_cap < ns->lbasz) {
-        error_setg(errp, "zone capacity %"PRIu64"B too small, "
+        error_setg(errp, "zone capacity %" PRIu64 "B too small, "
                    "must be at least %zuB", zone_cap, ns->lbasz);
         return -1;
     }
@@ -232,7 +232,7 @@ static int nvme_ns_zoned_check_calc_geometry(NvmeNamespace *ns, Error **errp)
     if (!ns->num_zones) {
         error_setg(errp,
                    "insufficient drive capacity, must be at least the size "
-                   "of one zone (%"PRIu64"B)", zone_size);
+                   "of one zone (%" PRIu64 "B)", zone_size);
         return -1;
     }
 
@@ -330,7 +330,7 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
      * calculated NPDG.
      */
     if (ns->zone_size % (ns->id_ns.npdg + 1)) {
-        warn_report("the zone size (%"PRIu64" blocks) is not a multiple of "
+        warn_report("the zone size (%" PRIu64 " blocks) is not a multiple of "
                     "the calculated deallocation granularity (%d blocks); "
                     "DULBE support disabled",
                     ns->zone_size, ns->id_ns.npdg + 1);
@@ -626,8 +626,8 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
         if (ns->params.zrwas) {
             if (ns->params.zrwas % ns->blkconf.logical_block_size) {
                 error_setg(errp, "zone random write area size (zoned.zrwas "
-                           "%"PRIu64") must be a multiple of the logical "
-                           "block size (logical_block_size %"PRIu32")",
+                           "%" PRIu64 ") must be a multiple of the logical "
+                           "block size (logical_block_size %" PRIu32 ")",
                            ns->params.zrwas, ns->blkconf.logical_block_size);
                 return -1;
             }
@@ -638,9 +638,9 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
 
             if (ns->params.zrwas % ns->params.zrwafg) {
                 error_setg(errp, "zone random write area size (zoned.zrwas "
-                           "%"PRIu64") must be a multiple of the zone random "
+                           "%" PRIu64 ") must be a multiple of the zone random "
                            "write area flush granularity (zoned.zrwafg, "
-                           "%"PRIu64")", ns->params.zrwas, ns->params.zrwafg);
+                           "%" PRIu64 ")", ns->params.zrwas, ns->params.zrwafg);
                 return -1;
             }
 
