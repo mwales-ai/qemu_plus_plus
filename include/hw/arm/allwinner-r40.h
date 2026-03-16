@@ -37,6 +37,10 @@
 #include "target/arm/cpu.h"
 #include "system/block-backend.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
     AW_R40_DEV_SRAM_A1,
     AW_R40_DEV_SRAM_A2,
@@ -153,5 +157,9 @@ struct AwR40State {
  * @unit: the mmc control's unit
  */
 bool allwinner_r40_bootrom_setup(AwR40State *s, BlockBackend *blk, int unit);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_ARM_ALLWINNER_R40_H */

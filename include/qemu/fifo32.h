@@ -88,7 +88,7 @@ static inline uint32_t fifo32_num_used(Fifo32 *fifo)
 
 static inline void fifo32_push(Fifo32 *fifo, uint32_t data)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < sizeof(data); i++) {
         fifo8_push(&fifo->fifo, data & 0xff);
@@ -110,7 +110,7 @@ static inline void fifo32_push(Fifo32 *fifo, uint32_t data)
 static inline void fifo32_push_all(Fifo32 *fifo, const uint32_t *data,
                                    uint32_t num)
 {
-    int i;
+    size_t i;
 
     for (i = 0; i < num; i++) {
         fifo32_push(fifo, data[i]);
@@ -131,7 +131,7 @@ static inline void fifo32_push_all(Fifo32 *fifo, const uint32_t *data,
 static inline uint32_t fifo32_pop(Fifo32 *fifo)
 {
     uint32_t ret = 0;
-    int i;
+    size_t i;
 
     for (i = 0; i < sizeof(uint32_t); i++) {
         ret |= (fifo8_pop(&fifo->fifo) << (i * 8));

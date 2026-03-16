@@ -33,6 +33,10 @@
 #include "hw/arm/boot.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define EXYNOS4210_NCPUS                    2
 
 #define EXYNOS4210_DRAM0_BASE_ADDR          0x40000000
@@ -125,5 +129,9 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
                                     int channel,
                                     Chardev *chr,
                                     qemu_irq irq);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EXYNOS4210_H */

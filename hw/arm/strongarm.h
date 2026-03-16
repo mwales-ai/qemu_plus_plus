@@ -4,6 +4,10 @@
 #include "system/memory.h"
 #include "target/arm/cpu-qom.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SA_CS0          0x00000000
 #define SA_CS1          0x08000000
 #define SA_CS2          0x10000000
@@ -63,5 +67,9 @@ typedef struct {
 } StrongARMState;
 
 StrongARMState *sa1110_init(const char *cpu_type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -20,6 +20,10 @@
 #include "qom/object.h"
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define AW_A10_SDRAM_BASE       0x40000000
 
 #define AW_A10_NUM_USB          2
@@ -68,5 +72,9 @@ struct AwA10State {
  * @blk: Block backend device object pointer
  */
 void allwinner_a10_bootrom_setup(AwA10State *s, BlockBackend *blk);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

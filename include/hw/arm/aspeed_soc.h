@@ -43,6 +43,10 @@
 #include "hw/char/serial-mm.h"
 #include "hw/intc/arm_gicv3.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VBOOTROM_FILE_NAME  "ast27x0_bootrom.bin"
 
 #define ASPEED_SPIS_NUM  3
@@ -275,6 +279,7 @@ enum {
     ASPEED_GIC_REDIST,
     ASPEED_DEV_IPC0,
     ASPEED_DEV_IPC1,
+    ASPEED_DEV_MAX,
 };
 
 const char *aspeed_soc_cpu_type(const char * const *valid_cpu_types);
@@ -311,5 +316,9 @@ static inline int aspeed_uart_last(int uarts_base, int uarts_num)
 {
     return aspeed_uart_first(uarts_base) + uarts_num - 1;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ASPEED_SOC_H */

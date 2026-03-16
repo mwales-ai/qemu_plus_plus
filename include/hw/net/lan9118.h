@@ -13,8 +13,16 @@
 
 #include "net/net.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_LAN9118 "lan9118"
 
 void lan9118_init(uint32_t, qemu_irq);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

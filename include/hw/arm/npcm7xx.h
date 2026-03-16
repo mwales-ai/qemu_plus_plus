@@ -134,6 +134,12 @@ typedef struct NPCM7xxClass {
  * derivative and call arm_load_kernel() to set up loading of the kernel, etc.
  * into memory, if requested by the user.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
 void npcm7xx_load_kernel(MachineState *machine, NPCM7xxState *soc);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NPCM7XX_H */

@@ -19,6 +19,10 @@
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PL011 "pl011"
 OBJECT_DECLARE_SIMPLE_TYPE(PL011State, PL011)
 
@@ -60,5 +64,9 @@ struct PL011State {
 };
 
 DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

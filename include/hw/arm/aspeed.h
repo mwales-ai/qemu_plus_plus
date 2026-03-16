@@ -13,6 +13,10 @@
 #include "qom/object.h"
 #include "hw/arm/aspeed_soc.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct AspeedMachineState AspeedMachineState;
 
 #define TYPE_ASPEED_MACHINE       MACHINE_TYPE_NAME("aspeed")
@@ -124,5 +128,9 @@ void aspeed_machine_ast2600_class_emmc_init(ObjectClass *oc);
  * on the SoC based on their index.
  */
 void aspeed_connect_serial_hds_to_uarts(AspeedMachineState *bmc);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

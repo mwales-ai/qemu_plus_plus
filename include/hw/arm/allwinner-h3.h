@@ -51,6 +51,10 @@
 #include "target/arm/cpu.h"
 #include "system/block-backend.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Allwinner H3 device list
  *
@@ -168,5 +172,9 @@ struct AwH3State {
  * @blk: Block backend device object pointer
  */
 void allwinner_h3_bootrom_setup(AwH3State *s, BlockBackend *blk);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_ARM_ALLWINNER_H3_H */

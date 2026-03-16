@@ -127,6 +127,12 @@ OBJECT_DECLARE_TYPE(NPCM8xxState, NPCM8xxClass, NPCM8XX)
  * derivative and call arm_load_kernel() to set up loading of the kernel, etc.
  * into memory, if requested by the user.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
 void npcm8xx_load_kernel(MachineState *machine, NPCM8xxState *soc);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NPCM8XX_H */

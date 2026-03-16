@@ -25,6 +25,10 @@
 #include "hw/registerfields.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ASPEED_I2C "aspeed.i2c"
 #define TYPE_ASPEED_2400_I2C TYPE_ASPEED_I2C "-ast2400"
 #define TYPE_ASPEED_2500_I2C TYPE_ASPEED_I2C "-ast2500"
@@ -394,5 +398,9 @@ static inline bool aspeed_i2c_bus_is_enabled(AspeedI2CBus *bus)
 }
 
 I2CBus *aspeed_i2c_get_bus(AspeedI2CState *s, int busnr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ASPEED_I2C_H */

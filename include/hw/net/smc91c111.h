@@ -13,6 +13,14 @@
 
 #include "net/net.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void smc91c111_init(uint32_t, qemu_irq);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

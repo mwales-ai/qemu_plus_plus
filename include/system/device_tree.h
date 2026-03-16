@@ -14,6 +14,10 @@
 #ifndef DEVICE_TREE_H
 #define DEVICE_TREE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
 #ifdef CONFIG_LINUX
@@ -209,5 +213,9 @@ void qemu_fdt_randomize_seeds(void *fdt);
 #define FDT_PCI_RANGE_MMIO                 0x02000000
 #define FDT_PCI_RANGE_IOPORT               0x01000000
 #define FDT_PCI_RANGE_CONFIG               0x00000000
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DEVICE_TREE_H */
