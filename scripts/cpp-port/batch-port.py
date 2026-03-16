@@ -38,7 +38,6 @@ HEADER_BLOCKERS = {
 # Directories where files transitively include target-specific cpu.h
 # These need the target cpu.h to be C++-compatible before porting
 BLOCKED_DIRS = {
-    'hw/arm',    # includes target/arm/cpu.h via machine headers
     'hw/ppc',    # includes target/ppc/cpu.h via machine headers
     'hw/riscv',  # includes target/riscv/cpu.h via machine headers
 }

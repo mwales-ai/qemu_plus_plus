@@ -843,7 +843,23 @@ typedef enum ARMPSCIState {
     PSCI_ON_PENDING = 2
 } ARMPSCIState;
 
-typedef struct ARMISARegisters ARMISARegisters;
+/*
+ * ARMISARegisters: ID registers for the CPU.
+ * Defined here (before ArchCPU) so that it is the same type in C and C++.
+ * In C, a struct defined inside another struct is still file-scope,
+ * but in C++ it becomes a nested type (ArchCPU::ARMISARegisters),
+ * which breaks the forward declaration and GET_IDREG/SET_IDREG macros.
+ */
+typedef struct ARMISARegisters {
+    uint32_t mvfr0;
+    uint32_t mvfr1;
+    uint32_t mvfr2;
+    uint32_t dbgdidr;
+    uint32_t dbgdevid;
+    uint32_t dbgdevid1;
+    uint64_t reset_pmcr_el0;
+    uint64_t idregs[NUM_ID_IDX];
+} ARMISARegisters;
 
 /*
  * In map, each set bit is a supported vector length of (bit-number + 1) * 16
@@ -1074,16 +1090,7 @@ struct ArchCPU {
      * kvm_arm_get_host_cpu_features() function to correctly populate the
      * field by reading the value from the KVM vCPU.
      */
-    struct ARMISARegisters {
-        uint32_t mvfr0;
-        uint32_t mvfr1;
-        uint32_t mvfr2;
-        uint32_t dbgdidr;
-        uint32_t dbgdevid;
-        uint32_t dbgdevid1;
-        uint64_t reset_pmcr_el0;
-        uint64_t idregs[NUM_ID_IDX];
-    } isar;
+    ARMISARegisters isar;
     uint64_t midr;
     uint32_t revidr;
     uint32_t reset_fpsid;
@@ -2342,17 +2349,19 @@ static inline ARMMMUIdx arm_space_to_phys(ARMSecuritySpace space)
 {
     /* Assert the relative order of the physical mmu indexes. */
     QEMU_BUILD_BUG_ON(ARMSS_Secure != 0);
+#ifndef __cplusplus
     QEMU_BUILD_BUG_ON(ARMMMUIdx_Phys_NS != ARMMMUIdx_Phys_S + ARMSS_NonSecure);
     QEMU_BUILD_BUG_ON(ARMMMUIdx_Phys_Root != ARMMMUIdx_Phys_S + ARMSS_Root);
     QEMU_BUILD_BUG_ON(ARMMMUIdx_Phys_Realm != ARMMMUIdx_Phys_S + ARMSS_Realm);
+#endif
 
-    return ARMMMUIdx_Phys_S + space;
+    return (ARMMMUIdx)(ARMMMUIdx_Phys_S + space);
 }
 
 static inline ARMSecuritySpace arm_phys_to_space(ARMMMUIdx idx)
 {
     assert(idx >= ARMMMUIdx_Phys_S && idx <= ARMMMUIdx_Phys_Realm);
-    return idx - ARMMMUIdx_Phys_S;
+    return (ARMSecuritySpace)(idx - ARMMMUIdx_Phys_S);
 }
 
 static inline bool arm_v7m_csselr_razwi(ARMCPU *cpu)
