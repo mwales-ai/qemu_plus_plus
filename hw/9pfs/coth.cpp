@@ -26,20 +26,20 @@
 /* Called from QEMU I/O thread.  */
 static void coroutine_enter_cb(void *opaque, int ret)
 {
-    Coroutine *co = opaque;
+    Coroutine *co = static_cast<Coroutine *>(opaque);
     qemu_coroutine_enter(co);
 }
 
 /* Called from worker thread.  */
 static int coroutine_enter_func(void *arg)
 {
-    Coroutine *co = arg;
+    Coroutine *co = static_cast<Coroutine *>(arg);
     qemu_coroutine_enter(co);
     return 0;
 }
 
 void co_run_in_worker_bh(void *opaque)
 {
-    Coroutine *co = opaque;
+    Coroutine *co = static_cast<Coroutine *>(opaque);
     thread_pool_submit_aio(coroutine_enter_func, co, coroutine_enter_cb, co);
 }
