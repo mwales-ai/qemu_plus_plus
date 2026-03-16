@@ -221,11 +221,11 @@ extern const VMStateDescription vmstate_fifo8;
 
 #define VMSTATE_FIFO8_TEST(_field, _state, _test) {                  \
     .name         = (stringify(_field)),                             \
-    .field_exists = (_test),                                         \
-    .size         = sizeof(Fifo8),                                   \
-    .vmsd         = &vmstate_fifo8,                                  \
-    .flags        = VMS_STRUCT,                                      \
     .offset       = vmstate_offset_value(_state, _field, Fifo8),     \
+    .size         = sizeof(Fifo8),                                   \
+    .flags        = VMS_STRUCT,                                      \
+    .vmsd         = &vmstate_fifo8,                                  \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_FIFO8(_field, _state)                                \

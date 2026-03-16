@@ -41,25 +41,27 @@
         } \
     } while (0)
 
+static const VMStateField vmstate_imx_serial_fields[] = {
+    VMSTATE_FIFO32(rx_fifo, IMXSerialState),
+    VMSTATE_TIMER(ageing_timer, IMXSerialState),
+    VMSTATE_UINT32(usr1, IMXSerialState),
+    VMSTATE_UINT32(usr2, IMXSerialState),
+    VMSTATE_UINT32(ucr1, IMXSerialState),
+    VMSTATE_UINT32(uts1, IMXSerialState),
+    VMSTATE_UINT32(onems, IMXSerialState),
+    VMSTATE_UINT32(ufcr, IMXSerialState),
+    VMSTATE_UINT32(ubmr, IMXSerialState),
+    VMSTATE_UINT32(ubrc, IMXSerialState),
+    VMSTATE_UINT32(ucr3, IMXSerialState),
+    VMSTATE_UINT32(ucr4, IMXSerialState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_imx_serial = {
     .name = TYPE_IMX_SERIAL,
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO32(rx_fifo, IMXSerialState),
-        VMSTATE_TIMER(ageing_timer, IMXSerialState),
-        VMSTATE_UINT32(usr1, IMXSerialState),
-        VMSTATE_UINT32(usr2, IMXSerialState),
-        VMSTATE_UINT32(ucr1, IMXSerialState),
-        VMSTATE_UINT32(uts1, IMXSerialState),
-        VMSTATE_UINT32(onems, IMXSerialState),
-        VMSTATE_UINT32(ufcr, IMXSerialState),
-        VMSTATE_UINT32(ubmr, IMXSerialState),
-        VMSTATE_UINT32(ubrc, IMXSerialState),
-        VMSTATE_UINT32(ucr3, IMXSerialState),
-        VMSTATE_UINT32(ucr4, IMXSerialState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_imx_serial_fields,
 };
 
 static void imx_update(IMXSerialState *s)

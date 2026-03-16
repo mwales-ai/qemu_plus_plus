@@ -120,10 +120,8 @@ static void remote_object_machine_done(Notifier *notifier, void *data)
 
     /* co-routine should free this. */
     comdev = g_new0(RemoteCommDev, 1);
-    *comdev = (RemoteCommDev) {
-        .ioc = ioc,
-        .dev = PCI_DEVICE(dev),
-    };
+    comdev->dev = PCI_DEVICE(dev);
+    comdev->ioc = ioc;
 
     co = qemu_coroutine_create(mpqemu_remote_msg_loop_co, comdev);
     qemu_coroutine_enter(co);

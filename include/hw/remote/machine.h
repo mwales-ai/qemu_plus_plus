@@ -17,6 +17,10 @@
 #include "io/channel.h"
 #include "hw/remote/iohub.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct RemoteMachineState {
     MachineState parent_obj;
 
@@ -38,5 +42,9 @@ typedef struct RemoteCommDev {
 OBJECT_DECLARE_SIMPLE_TYPE(RemoteMachineState, REMOTE_MACHINE)
 
 void coroutine_fn mpqemu_remote_msg_loop_co(void *data);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

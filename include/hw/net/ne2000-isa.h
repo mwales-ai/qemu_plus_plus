@@ -15,6 +15,10 @@
 #include "net/net.h"
 #include "qapi/error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ISA_NE2000 "ne2k_isa"
 
 static inline ISADevice *isa_ne2000_init(ISABus *bus, int base, int irq,
@@ -33,5 +37,9 @@ static inline ISADevice *isa_ne2000_init(ISABus *bus, int base, int irq,
     }
     return d;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

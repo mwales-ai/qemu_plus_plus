@@ -140,8 +140,8 @@ static const TypeInfo ne2000_isa_info = {
     .name          = TYPE_ISA_NE2000,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISANE2000State),
-    .class_init    = isa_ne2000_class_initfn,
     .instance_init = isa_ne2000_instance_init,
+    .class_init    = isa_ne2000_class_initfn,
 };
 
 static void ne2000_isa_register_types(void)

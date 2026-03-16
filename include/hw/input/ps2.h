@@ -27,6 +27,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PS2_MOUSE_BUTTON_LEFT   0x01
 #define PS2_MOUSE_BUTTON_RIGHT  0x02
 #define PS2_MOUSE_BUTTON_MIDDLE 0x04
@@ -109,5 +113,9 @@ void ps2_queue_4(PS2State *s, int b1, int b2, int b3, int b4);
 void ps2_keyboard_set_translation(PS2KbdState *s, int mode);
 void ps2_mouse_fake_event(PS2MouseState *s);
 int ps2_queue_empty(PS2State *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_PS2_H */

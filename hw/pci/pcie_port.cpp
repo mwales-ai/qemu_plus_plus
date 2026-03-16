@@ -74,7 +74,7 @@ void pcie_chassis_create(uint8_t chassis_number)
     if (c) {
         return;
     }
-    c = g_malloc0(sizeof(*c));
+    c = static_cast<PCIEChassis *>(g_malloc0(sizeof(*c)));
     c->number = chassis_number;
     QLIST_INIT(&c->slots);
     QLIST_INSERT_HEAD(&chassis, c, next);

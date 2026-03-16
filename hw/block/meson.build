@@ -4,7 +4,7 @@ system_ss.add(files(
   'hd-geometry.cpp'
 ))
 system_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.c'))
-system_ss.add(when: 'CONFIG_FDC_ISA', if_true: files('fdc-isa.c'))
+system_ss.add(when: 'CONFIG_FDC_ISA', if_true: files('fdc-isa.cpp'))
 system_ss.add(when: 'CONFIG_FDC_SYSBUS', if_true: files('fdc-sysbus.cpp'))
 system_ss.add(when: 'CONFIG_PFLASH_CFI01', if_true: files('pflash_cfi01.c'))
 system_ss.add(when: 'CONFIG_PFLASH_CFI02', if_true: files('pflash_cfi02.c'))

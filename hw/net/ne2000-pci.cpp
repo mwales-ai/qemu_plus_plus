@@ -116,16 +116,18 @@ static void ne2000_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
+static const InterfaceInfo ne2000_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo ne2000_info = {
     .name          = "ne2k_pci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCINE2000State),
-    .class_init    = ne2000_class_init,
     .instance_init = ne2000_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .class_init    = ne2000_class_init,
+    .interfaces    = ne2000_interfaces,
 };
 
 static void ne2000_register_types(void)

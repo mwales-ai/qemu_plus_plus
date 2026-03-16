@@ -29,6 +29,10 @@
 #include "hw/block/fdc.h"
 #include "qapi/qapi-types-block.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct FDCtrl FDCtrl;
 
 /* Floppy bus emulation */
@@ -150,5 +154,9 @@ void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl, Error **errp);
 int fdctrl_transfer_handler(void *opaque, int nchan, int dma_pos, int dma_len);
 
 void fdctrl_init_drives(FloppyBus *bus, DriveInfo **fds);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

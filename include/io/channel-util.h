@@ -23,6 +23,10 @@
 
 #include "io/channel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * This module provides helper functions that are useful when dealing
  * with QIOChannel objects
@@ -71,5 +75,9 @@ void qio_channel_util_set_aio_fd_handler(int read_fd,
                                          AioContext *write_ctx,
                                          IOHandler *io_write,
                                          void *opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_CHANNEL_UTIL_H */

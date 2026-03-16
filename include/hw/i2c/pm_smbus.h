@@ -4,6 +4,10 @@
 #include "system/memory.h"
 #include "hw/i2c/smbus_master.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PM_SMBUS_MAX_MSG_SIZE 32
 
 typedef struct PMSMBus {
@@ -52,5 +56,9 @@ void pm_smbus_init(DeviceState *parent, PMSMBus *smb, bool force_aux_blk);
 bool pm_smbus_vmstate_needed(void);
 
 extern const VMStateDescription pmsmb_vmstate;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PM_SMBUS_H */

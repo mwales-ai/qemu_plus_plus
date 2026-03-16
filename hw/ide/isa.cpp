@@ -54,15 +54,17 @@ static void isa_ide_reset(DeviceState *d)
     ide_bus_reset(&s->bus);
 }
 
+static const VMStateField vmstate_ide_isa_fields[] = {
+    VMSTATE_IDE_BUS(bus, ISAIDEState),
+    VMSTATE_IDE_DRIVES(bus.ifs, ISAIDEState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ide_isa = {
     .name = "isa-ide",
     .version_id = 3,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_IDE_BUS(bus, ISAIDEState),
-        VMSTATE_IDE_DRIVES(bus.ifs, ISAIDEState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ide_isa_fields
 };
 
 static void isa_ide_realizefn(DeviceState *dev, Error **errp)

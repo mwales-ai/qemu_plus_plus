@@ -325,16 +325,18 @@ static void isabus_fdc_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
+static const InterfaceInfo isa_fdc_interfaces[] = {
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
+};
+
 static const TypeInfo isa_fdc_info = {
     .name          = TYPE_ISA_FDC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(FDCtrlISABus),
-    .class_init    = isabus_fdc_class_init,
     .instance_init = isabus_fdc_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+    .class_init    = isabus_fdc_class_init,
+    .interfaces    = isa_fdc_interfaces,
 };
 
 static void isa_fdc_register_types(void)

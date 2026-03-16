@@ -16,7 +16,7 @@ pci_ss.add(files(
 # CONFIG_PCI_EXPRESS=n.
 pci_ss.add(files('pcie.c', 'pcie_aer.c'))
 pci_ss.add(files('pcie_doe.cpp'))
-system_ss.add(when: 'CONFIG_PCI_EXPRESS', if_true: files('pcie_port.c', 'pcie_host.cpp'))
+system_ss.add(when: 'CONFIG_PCI_EXPRESS', if_true: files('pcie_port.cpp', 'pcie_host.cpp'))
 system_ss.add_all(when: 'CONFIG_PCI', if_true: pci_ss)
 
 system_ss.add(when: 'CONFIG_PCI', if_false: files('pci-stub.cpp'))

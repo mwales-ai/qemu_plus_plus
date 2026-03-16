@@ -48,11 +48,10 @@ static void cswbcci_realize(PCIDevice *pci_dev, Error **errp)
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &cxl_dstate->device_registers);
-    regloc_dvsec = &(CXLDVSECRegisterLocator) {
-        .rsvd         = 0,
-        .reg0_base_lo = RBI_CXL_DEVICE_REG | 0,
-        .reg0_base_hi = 0,
-    };
+    CXLDVSECRegisterLocator regloc_init;
+    memset(&regloc_init, 0, sizeof(regloc_init));
+    regloc_init.reg0_base_lo = RBI_CXL_DEVICE_REG | 0;
+    regloc_dvsec = &regloc_init;
     cxl_component_create_dvsec(cxl_cstate, CXL3_SWITCH_MAILBOX_CCI,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,
                                REG_LOC_DVSEC_REVID, (uint8_t *)regloc_dvsec);
@@ -94,15 +93,17 @@ static void cswmbcci_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, cxl_switch_cci_props);
 }
 
+static const InterfaceInfo cswmbcci_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { },
+};
+
 static const TypeInfo cswmbcci_info = {
     .name = TYPE_CXL_SWITCH_MAILBOX_CCI,
     .parent = TYPE_PCI_DEVICE,
-    .class_init = cswmbcci_class_init,
     .instance_size = sizeof(CSWMBCCIDev),
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+    .class_init = cswmbcci_class_init,
+    .interfaces = cswmbcci_interfaces,
 };
 
 static void cxl_switch_mailbox_cci_register(void)

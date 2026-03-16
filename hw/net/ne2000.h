@@ -4,6 +4,10 @@
 #include "qemu/units.h"
 #include "net/net.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define NE2000_PMEM_SIZE    (32 * KiB)
 #define NE2000_PMEM_START   (16 * KiB)
 #define NE2000_PMEM_END     (NE2000_PMEM_SIZE+NE2000_PMEM_START)
@@ -38,5 +42,9 @@ void ne2000_setup_io(NE2000State *s, DeviceState *dev, unsigned size);
 extern const VMStateDescription vmstate_ne2000;
 void ne2000_reset(NE2000State *s);
 ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

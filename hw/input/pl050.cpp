@@ -215,8 +215,8 @@ static void pl050_kbd_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo pl050_kbd_info = {
     .name          = TYPE_PL050_KBD_DEVICE,
     .parent        = TYPE_PL050,
-    .instance_init = pl050_kbd_init,
     .instance_size = sizeof(PL050KbdState),
+    .instance_init = pl050_kbd_init,
     .class_init    = pl050_kbd_class_init,
 };
 
@@ -232,8 +232,8 @@ static void pl050_mouse_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo pl050_mouse_info = {
     .name          = TYPE_PL050_MOUSE_DEVICE,
     .parent        = TYPE_PL050,
-    .instance_init = pl050_mouse_init,
     .instance_size = sizeof(PL050MouseState),
+    .instance_init = pl050_mouse_init,
     .class_init    = pl050_mouse_class_init,
 };
 
@@ -260,11 +260,10 @@ static void pl050_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo pl050_type_info = {
     .name          = TYPE_PL050,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = pl050_init,
     .instance_size = sizeof(PL050State),
-    .class_init    = pl050_class_init,
+    .instance_init = pl050_init,
+    .is_abstract   = true,
     .class_size    = sizeof(PL050DeviceClass),
-    .is_abstract      = true,
     .class_init    = pl050_class_init,
 };
 

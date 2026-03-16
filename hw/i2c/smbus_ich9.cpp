@@ -82,7 +82,7 @@ static void ich9_smbus_write_config(PCIDevice *d, uint32_t address,
 
 static void ich9_smb_set_irq(PMSMBus *pmsmb, bool enabled)
 {
-    ICH9SMBState *s = pmsmb->opaque;
+    ICH9SMBState *s = static_cast<ICH9SMBState *>(pmsmb->opaque);
 
     if (enabled == s->irq_enabled) {
         return;
