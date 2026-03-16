@@ -13,6 +13,10 @@
 
 #include "kvm-consts.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QEMU_ARM_POWERCTL_RET_SUCCESS QEMU_PSCI_RET_SUCCESS
 #define QEMU_ARM_POWERCTL_INVALID_PARAM QEMU_PSCI_RET_INVALID_PARAMS
 #define QEMU_ARM_POWERCTL_ALREADY_ON QEMU_PSCI_RET_ALREADY_ON
@@ -89,5 +93,9 @@ int arm_reset_cpu(uint64_t cpuid);
  * powering on.
  */
 int arm_set_cpu_on_and_reset(uint64_t cpuid);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

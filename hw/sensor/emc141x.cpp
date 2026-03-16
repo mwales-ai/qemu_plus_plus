@@ -299,9 +299,9 @@ static const TypeInfo emc141x_info = {
     .name          = TYPE_EMC141X,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(EMC141XState),
-    .class_size    = sizeof(EMC141XClass),
     .instance_init = emc141x_initfn,
-    .is_abstract      = true,
+    .is_abstract   = true,
+    .class_size    = sizeof(EMC141XClass),
 };
 
 static const TypeInfo emc1413_info = {

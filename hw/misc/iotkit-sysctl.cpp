@@ -709,8 +709,8 @@ static const MemoryRegionOps iotkit_sysctl_ops = {
     .write = iotkit_sysctl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     /* byte/halfword accesses are just zero-padded on reads and writes */
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void iotkit_sysctl_reset(DeviceState *dev)
@@ -770,18 +770,20 @@ static bool sse300_needed(void *opaque)
     return s->sse_version == ARMSSE_SSE300;
 }
 
+static const VMStateField vmstate_iotkit_sysctl_sse300_fields[] = {
+    VMSTATE_UINT32(pwrctrl, IoTKitSysCtl),
+    VMSTATE_UINT32(pdcm_pd_cpu0_sense, IoTKitSysCtl),
+    VMSTATE_UINT32(pdcm_pd_vmr0_sense, IoTKitSysCtl),
+    VMSTATE_UINT32(pdcm_pd_vmr1_sense, IoTKitSysCtl),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription iotkit_sysctl_sse300_vmstate = {
     .name = "iotkit-sysctl/sse-300",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = sse300_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(pwrctrl, IoTKitSysCtl),
-        VMSTATE_UINT32(pdcm_pd_cpu0_sense, IoTKitSysCtl),
-        VMSTATE_UINT32(pdcm_pd_vmr0_sense, IoTKitSysCtl),
-        VMSTATE_UINT32(pdcm_pd_vmr1_sense, IoTKitSysCtl),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_iotkit_sysctl_sse300_fields,
 };
 
 static bool sse200_needed(void *opaque)
@@ -791,46 +793,52 @@ static bool sse200_needed(void *opaque)
     return s->sse_version != ARMSSE_IOTKIT;
 }
 
+static const VMStateField vmstate_iotkit_sysctl_sse200_fields[] = {
+    VMSTATE_UINT32(scsecctrl, IoTKitSysCtl),
+    VMSTATE_UINT32(fclk_div, IoTKitSysCtl),
+    VMSTATE_UINT32(sysclk_div, IoTKitSysCtl),
+    VMSTATE_UINT32(clock_force, IoTKitSysCtl),
+    VMSTATE_UINT32(initsvtor1, IoTKitSysCtl),
+    VMSTATE_UINT32(nmi_enable, IoTKitSysCtl),
+    VMSTATE_UINT32(pdcm_pd_sys_sense, IoTKitSysCtl),
+    VMSTATE_UINT32(pdcm_pd_sram0_sense, IoTKitSysCtl),
+    VMSTATE_UINT32(pdcm_pd_sram1_sense, IoTKitSysCtl),
+    VMSTATE_UINT32(pdcm_pd_sram2_sense, IoTKitSysCtl),
+    VMSTATE_UINT32(pdcm_pd_sram3_sense, IoTKitSysCtl),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription iotkit_sysctl_sse200_vmstate = {
     .name = "iotkit-sysctl/sse-200",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = sse200_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(scsecctrl, IoTKitSysCtl),
-        VMSTATE_UINT32(fclk_div, IoTKitSysCtl),
-        VMSTATE_UINT32(sysclk_div, IoTKitSysCtl),
-        VMSTATE_UINT32(clock_force, IoTKitSysCtl),
-        VMSTATE_UINT32(initsvtor1, IoTKitSysCtl),
-        VMSTATE_UINT32(nmi_enable, IoTKitSysCtl),
-        VMSTATE_UINT32(pdcm_pd_sys_sense, IoTKitSysCtl),
-        VMSTATE_UINT32(pdcm_pd_sram0_sense, IoTKitSysCtl),
-        VMSTATE_UINT32(pdcm_pd_sram1_sense, IoTKitSysCtl),
-        VMSTATE_UINT32(pdcm_pd_sram2_sense, IoTKitSysCtl),
-        VMSTATE_UINT32(pdcm_pd_sram3_sense, IoTKitSysCtl),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_iotkit_sysctl_sse200_fields,
+};
+
+static const VMStateField vmstate_iotkit_sysctl_fields[] = {
+    VMSTATE_UINT32(secure_debug, IoTKitSysCtl),
+    VMSTATE_UINT32(reset_syndrome, IoTKitSysCtl),
+    VMSTATE_UINT32(reset_mask, IoTKitSysCtl),
+    VMSTATE_UINT32(gretreg, IoTKitSysCtl),
+    VMSTATE_UINT32(initsvtor0, IoTKitSysCtl),
+    VMSTATE_UINT32(cpuwait, IoTKitSysCtl),
+    VMSTATE_UINT32(wicctrl, IoTKitSysCtl),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_iotkit_sysctl_subsections[] = {
+    &iotkit_sysctl_sse200_vmstate,
+    &iotkit_sysctl_sse300_vmstate,
+    NULL
 };
 
 static const VMStateDescription iotkit_sysctl_vmstate = {
     .name = "iotkit-sysctl",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(secure_debug, IoTKitSysCtl),
-        VMSTATE_UINT32(reset_syndrome, IoTKitSysCtl),
-        VMSTATE_UINT32(reset_mask, IoTKitSysCtl),
-        VMSTATE_UINT32(gretreg, IoTKitSysCtl),
-        VMSTATE_UINT32(initsvtor0, IoTKitSysCtl),
-        VMSTATE_UINT32(cpuwait, IoTKitSysCtl),
-        VMSTATE_UINT32(wicctrl, IoTKitSysCtl),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &iotkit_sysctl_sse200_vmstate,
-        &iotkit_sysctl_sse300_vmstate,
-        NULL
-    }
+    .fields = vmstate_iotkit_sysctl_fields,
+    .subsections = vmstate_iotkit_sysctl_subsections,
 };
 
 static const Property iotkit_sysctl_props[] = {

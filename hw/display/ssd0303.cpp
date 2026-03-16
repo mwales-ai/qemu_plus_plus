@@ -61,8 +61,8 @@ struct ssd0303_state {
     int enabled;
     int inverse;
     int redraw;
-    enum ssd0303_mode mode;
-    enum ssd0303_cmd cmd_state;
+    uint32_t mode;
+    uint32_t cmd_state;
     uint8_t framebuffer[132*8];
 };
 
@@ -75,7 +75,7 @@ static uint8_t ssd0303_recv(I2CSlave *i2c)
 static int ssd0303_send(I2CSlave *i2c, uint8_t data)
 {
     ssd0303_state *s = SSD0303(i2c);
-    enum ssd0303_cmd old_cmd_state;
+    uint32_t old_cmd_state;
 
     switch (s->mode) {
     case SSD0303_IDLE:
@@ -252,7 +252,7 @@ static void ssd0303_update_display(void *opaque)
         colors[0] = colortab + dest_width;
         colors[1] = colortab;
     }
-    dest = surface_data(surface);
+    dest = static_cast<uint8_t *>(surface_data(surface));
     for (y = 0; y < 16; y++) {
         line = (y + s->start_line) & 63;
         src = s->framebuffer + 132 * (line >> 3) + 36;
@@ -277,25 +277,27 @@ static void ssd0303_invalidate_display(void * opaque)
     s->redraw = 1;
 }
 
+static const VMStateField vmstate_ssd0303_fields[] = {
+    VMSTATE_INT32(row, ssd0303_state),
+    VMSTATE_INT32(col, ssd0303_state),
+    VMSTATE_INT32(start_line, ssd0303_state),
+    VMSTATE_INT32(mirror, ssd0303_state),
+    VMSTATE_INT32(flash, ssd0303_state),
+    VMSTATE_INT32(enabled, ssd0303_state),
+    VMSTATE_INT32(inverse, ssd0303_state),
+    VMSTATE_INT32(redraw, ssd0303_state),
+    VMSTATE_UINT32(mode, ssd0303_state),
+    VMSTATE_UINT32(cmd_state, ssd0303_state),
+    VMSTATE_BUFFER(framebuffer, ssd0303_state),
+    VMSTATE_I2C_SLAVE(parent_obj, ssd0303_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ssd0303 = {
     .name = "ssd0303_oled",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(row, ssd0303_state),
-        VMSTATE_INT32(col, ssd0303_state),
-        VMSTATE_INT32(start_line, ssd0303_state),
-        VMSTATE_INT32(mirror, ssd0303_state),
-        VMSTATE_INT32(flash, ssd0303_state),
-        VMSTATE_INT32(enabled, ssd0303_state),
-        VMSTATE_INT32(inverse, ssd0303_state),
-        VMSTATE_INT32(redraw, ssd0303_state),
-        VMSTATE_UINT32(mode, ssd0303_state),
-        VMSTATE_UINT32(cmd_state, ssd0303_state),
-        VMSTATE_BUFFER(framebuffer, ssd0303_state),
-        VMSTATE_I2C_SLAVE(parent_obj, ssd0303_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ssd0303_fields,
 };
 
 static const GraphicHwOps ssd0303_ops = {

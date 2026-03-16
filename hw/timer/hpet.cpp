@@ -139,21 +139,21 @@ static uint64_t ns_to_ticks(uint64_t value)
     return value / HPET_CLK_PERIOD;
 }
 
-static uint64_t hpet_fixup_reg(uint64_t new, uint64_t old, uint64_t mask)
+static uint64_t hpet_fixup_reg(uint64_t new_val, uint64_t old, uint64_t mask)
 {
-    new &= mask;
-    new |= old & ~mask;
-    return new;
+    new_val &= mask;
+    new_val |= old & ~mask;
+    return new_val;
 }
 
-static int activating_bit(uint64_t old, uint64_t new, uint64_t mask)
+static int activating_bit(uint64_t old, uint64_t new_val, uint64_t mask)
 {
-    return (!(old & mask) && (new & mask));
+    return (!(old & mask) && (new_val & mask));
 }
 
-static int deactivating_bit(uint64_t old, uint64_t new, uint64_t mask)
+static int deactivating_bit(uint64_t old, uint64_t new_val, uint64_t mask)
 {
-    return ((old & mask) && !(new & mask));
+    return ((old & mask) && !(new_val & mask));
 }
 
 static uint64_t hpet_get_ticks(HPETState *s)
@@ -239,7 +239,7 @@ static void update_irq(struct HPETTimer *timer, int set)
 
 static int hpet_pre_save(void *opaque)
 {
-    HPETState *s = opaque;
+    HPETState *s = static_cast<HPETState *>(opaque);
 
     /* save current counter value */
     if (hpet_enabled(s)) {
@@ -257,14 +257,14 @@ static int hpet_pre_save(void *opaque)
 
 static bool hpet_validate_num_timers(void *opaque, int version_id)
 {
-    HPETState *s = opaque;
+    HPETState *s = static_cast<HPETState *>(opaque);
 
     return s->num_timers == s->num_timers_save;
 }
 
 static int hpet_post_load(void *opaque, int version_id)
 {
-    HPETState *s = opaque;
+    HPETState *s = static_cast<HPETState *>(opaque);
     int i;
 
     for (i = 0; i < s->num_timers; i++) {
@@ -283,27 +283,34 @@ static int hpet_post_load(void *opaque, int version_id)
 
 static bool hpet_offset_needed(void *opaque)
 {
-    HPETState *s = opaque;
+    HPETState *s = static_cast<HPETState *>(opaque);
 
     return hpet_enabled(s) && s->hpet_offset_saved;
 }
 
 static bool hpet_rtc_irq_level_needed(void *opaque)
 {
-    HPETState *s = opaque;
+    HPETState *s = static_cast<HPETState *>(opaque);
 
     return s->rtc_irq_level != 0;
 }
+
+static const VMStateField vmstate_hpet_rtc_irq_level_fields[] = {
+    VMSTATE_UINT8(rtc_irq_level, HPETState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_hpet_rtc_irq_level = {
     .name = "hpet/rtc_irq_level",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = hpet_rtc_irq_level_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(rtc_irq_level, HPETState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_hpet_rtc_irq_level_fields,
+};
+
+static const VMStateField vmstate_hpet_offset_fields[] = {
+    VMSTATE_UINT64(hpet_offset, HPETState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_hpet_offset = {
@@ -311,49 +318,52 @@ static const VMStateDescription vmstate_hpet_offset = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = hpet_offset_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(hpet_offset, HPETState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_hpet_offset_fields,
+};
+
+static const VMStateField vmstate_hpet_timer_fields[] = {
+    VMSTATE_UINT8(tn, HPETTimer),
+    VMSTATE_UINT64(config, HPETTimer),
+    VMSTATE_UINT64(cmp, HPETTimer),
+    VMSTATE_UINT64(fsb, HPETTimer),
+    VMSTATE_UINT64(period, HPETTimer),
+    VMSTATE_UINT8(wrap_flag, HPETTimer),
+    VMSTATE_TIMER_PTR(qemu_timer, HPETTimer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_hpet_timer = {
     .name = "hpet_timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(tn, HPETTimer),
-        VMSTATE_UINT64(config, HPETTimer),
-        VMSTATE_UINT64(cmp, HPETTimer),
-        VMSTATE_UINT64(fsb, HPETTimer),
-        VMSTATE_UINT64(period, HPETTimer),
-        VMSTATE_UINT8(wrap_flag, HPETTimer),
-        VMSTATE_TIMER_PTR(qemu_timer, HPETTimer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_hpet_timer_fields,
+};
+
+static const VMStateField vmstate_hpet_fields[] = {
+    VMSTATE_UINT64(config, HPETState),
+    VMSTATE_UINT64(isr, HPETState),
+    VMSTATE_UINT64(hpet_counter, HPETState),
+    VMSTATE_UINT8(num_timers_save, HPETState),
+    VMSTATE_VALIDATE("num_timers must match", hpet_validate_num_timers),
+    VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers_save, 0,
+                                vmstate_hpet_timer, HPETTimer),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_hpet_subsections[] = {
+    &vmstate_hpet_rtc_irq_level,
+    &vmstate_hpet_offset,
+    NULL
 };
 
 static const VMStateDescription vmstate_hpet = {
     .name = "hpet",
     .version_id = 2,
     .minimum_version_id = 2,
-    .pre_save = hpet_pre_save,
     .post_load = hpet_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(config, HPETState),
-        VMSTATE_UINT64(isr, HPETState),
-        VMSTATE_UINT64(hpet_counter, HPETState),
-        VMSTATE_UINT8(num_timers_save, HPETState),
-        VMSTATE_VALIDATE("num_timers must match", hpet_validate_num_timers),
-        VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers_save, 0,
-                                    vmstate_hpet_timer, HPETTimer),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_hpet_rtc_irq_level,
-        &vmstate_hpet_offset,
-        NULL
-    }
+    .pre_save = hpet_pre_save,
+    .fields = vmstate_hpet_fields,
+    .subsections = vmstate_hpet_subsections,
 };
 
 static void hpet_arm(HPETTimer *t, uint64_t tick)
@@ -374,7 +384,7 @@ static void hpet_arm(HPETTimer *t, uint64_t tick)
  */
 static void hpet_timer(void *opaque)
 {
-    HPETTimer *t = opaque;
+    HPETTimer *t = static_cast<HPETTimer *>(opaque);
     uint64_t period = t->period;
     uint64_t cur_tick = hpet_get_ticks(t->state);
 
@@ -429,7 +439,7 @@ static void hpet_del_timer(HPETTimer *t)
 static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    HPETState *s = opaque;
+    HPETState *s = static_cast<HPETState *>(opaque);
     int shift = (addr & 4) * 8;
     uint64_t cur_tick;
 
@@ -496,7 +506,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
     int i;
-    HPETState *s = opaque;
+    HPETState *s = static_cast<HPETState *>(opaque);
     int shift = (addr & 4) * 8;
     int len = MIN(size * 8, 64 - shift);
     uint64_t old_val, new_val, cleared;
@@ -640,6 +650,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps hpet_ram_ops = {
     .read = hpet_ram_read,
     .write = hpet_ram_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
@@ -648,7 +659,6 @@ static const MemoryRegionOps hpet_ram_ops = {
         .min_access_size = 4,
         .max_access_size = 8,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void hpet_reset(DeviceState *d)

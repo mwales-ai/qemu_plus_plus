@@ -36,7 +36,7 @@ struct PL190State {
     uint32_t vect_addr[PL190_NUM_PRIO];
     /* Mask containing interrupts with higher priority than this one.  */
     uint32_t prio_mask[PL190_NUM_PRIO + 1];
-    int protected;
+    int protected_val;
     /* Current priority level.  */
     int priority;
     int prev_prio[PL190_NUM_PRIO];
@@ -124,7 +124,7 @@ static uint64_t pl190_read(void *opaque, hwaddr offset,
     case 6: /* SOFTINT */
         return s->soft_level;
     case 8: /* PROTECTION */
-        return s->protected;
+        return s->protected_val;
     case 12: /* VECTADDR */
         /* Read vector address at the start of an ISR.  Increases the
          * current priority level to that of the current interrupt.
@@ -196,7 +196,7 @@ static void pl190_write(void *opaque, hwaddr offset,
         break;
     case 8: /* PROTECTION */
         /* TODO: Protection (supervisor only access) is not implemented.  */
-        s->protected = val & 1;
+        s->protected_val = val & 1;
         break;
     case 12: /* VECTADDR */
         /* Restore the previous priority level.  The value written is
@@ -254,23 +254,25 @@ static void pl190_init(Object *obj)
     sysbus_init_irq(sbd, &s->fiq);
 }
 
+static const VMStateField vmstate_pl190_fields[] = {
+    VMSTATE_UINT32(level, PL190State),
+    VMSTATE_UINT32(soft_level, PL190State),
+    VMSTATE_UINT32(irq_enable, PL190State),
+    VMSTATE_UINT32(fiq_select, PL190State),
+    VMSTATE_UINT8_ARRAY(vect_control, PL190State, 16),
+    VMSTATE_UINT32_ARRAY(vect_addr, PL190State, PL190_NUM_PRIO),
+    VMSTATE_UINT32_ARRAY(prio_mask, PL190State, PL190_NUM_PRIO+1),
+    VMSTATE_INT32(protected_val, PL190State),
+    VMSTATE_INT32(priority, PL190State),
+    VMSTATE_INT32_ARRAY(prev_prio, PL190State, PL190_NUM_PRIO),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl190 = {
     .name = "pl190",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(level, PL190State),
-        VMSTATE_UINT32(soft_level, PL190State),
-        VMSTATE_UINT32(irq_enable, PL190State),
-        VMSTATE_UINT32(fiq_select, PL190State),
-        VMSTATE_UINT8_ARRAY(vect_control, PL190State, 16),
-        VMSTATE_UINT32_ARRAY(vect_addr, PL190State, PL190_NUM_PRIO),
-        VMSTATE_UINT32_ARRAY(prio_mask, PL190State, PL190_NUM_PRIO+1),
-        VMSTATE_INT32(protected, PL190State),
-        VMSTATE_INT32(priority, PL190State),
-        VMSTATE_INT32_ARRAY(prev_prio, PL190State, PL190_NUM_PRIO),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl190_fields,
 };
 
 static void pl190_class_init(ObjectClass *klass, const void *data)

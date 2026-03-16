@@ -65,7 +65,7 @@ static void bcm2835_aux_update(BCM2835AuxState *s)
 
 static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
 {
-    BCM2835AuxState *s = opaque;
+    BCM2835AuxState *s = static_cast<BCM2835AuxState *>(opaque);
     uint32_t c, res;
 
     switch (offset) {
@@ -148,7 +148,7 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
         return 0;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %" HWADDR_PRIx "\n",
                       __func__, offset);
         return 0;
     }
@@ -157,14 +157,14 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
 static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
-    BCM2835AuxState *s = opaque;
+    BCM2835AuxState *s = static_cast<BCM2835AuxState *>(opaque);
     unsigned char ch;
 
     switch (offset) {
     case AUX_ENABLES:
         if (value != 1) {
             qemu_log_mask(LOG_UNIMP, "%s: unsupported attempt to enable SPI"
-                                     " or disable UART: 0x%"PRIx64"\n",
+                                     " or disable UART: 0x%" PRIx64 "\n",
                           __func__, value);
         }
         break;
@@ -210,7 +210,7 @@ static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %" HWADDR_PRIx "\n",
                       __func__, offset);
     }
 
@@ -219,14 +219,14 @@ static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
 
 static int bcm2835_aux_can_receive(void *opaque)
 {
-    BCM2835AuxState *s = opaque;
+    BCM2835AuxState *s = static_cast<BCM2835AuxState *>(opaque);
 
     return BCM2835_AUX_RX_FIFO_LEN - s->read_count;
 }
 
 static void bcm2835_aux_put_fifo(void *opaque, uint8_t value)
 {
-    BCM2835AuxState *s = opaque;
+    BCM2835AuxState *s = static_cast<BCM2835AuxState *>(opaque);
     int slot;
 
     slot = s->read_pos + s->read_count;
@@ -252,23 +252,25 @@ static const MemoryRegionOps bcm2835_aux_ops = {
     .read = bcm2835_aux_read,
     .write = bcm2835_aux_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
+};
+
+static const VMStateField vmstate_bcm2835_aux_fields[] = {
+    VMSTATE_UINT8_ARRAY(read_fifo, BCM2835AuxState,
+                        BCM2835_AUX_RX_FIFO_LEN),
+    VMSTATE_UINT8(read_pos, BCM2835AuxState),
+    VMSTATE_UINT8(read_count, BCM2835AuxState),
+    VMSTATE_UINT8(ier, BCM2835AuxState),
+    VMSTATE_UINT8(iir, BCM2835AuxState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_bcm2835_aux = {
     .name = TYPE_BCM2835_AUX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(read_fifo, BCM2835AuxState,
-                            BCM2835_AUX_RX_FIFO_LEN),
-        VMSTATE_UINT8(read_pos, BCM2835AuxState),
-        VMSTATE_UINT8(read_count, BCM2835AuxState),
-        VMSTATE_UINT8(ier, BCM2835AuxState),
-        VMSTATE_UINT8(iir, BCM2835AuxState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_aux_fields,
 };
 
 static void bcm2835_aux_init(Object *obj)

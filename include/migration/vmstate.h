@@ -405,12 +405,12 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_2DARRAY(_field, _state, _n1, _n2, _version, _info, _type) { \
     .name       = (stringify(_field)),                                      \
-    .version_id = (_version),                                               \
+    .offset     = vmstate_offset_2darray(_state, _field, _type, _n1, _n2),  \
+    .size       = sizeof(_type),                                            \
     .num        = (_n1) * (_n2),                                            \
     .info       = &(_info),                                                 \
-    .size       = sizeof(_type),                                            \
     .flags      = VMS_ARRAY,                                                \
-    .offset     = vmstate_offset_2darray(_state, _field, _type, _n1, _n2),  \
+    .version_id = (_version),                                               \
 }
 
 #define VMSTATE_VARRAY_MULTIPLY(_field, _state, _field_num, _multiply, _info, _type) { \
@@ -474,22 +474,22 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_VARRAY_UINT16_ALLOC(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
+    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
+    .size       = sizeof(_type),                                     \
     .num_offset = vmstate_offset_value(_state, _field_num, uint16_t),\
     .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_UINT16 | VMS_POINTER | VMS_ALLOC,       \
-    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
+    .version_id = (_version),                                        \
 }
 
 #define VMSTATE_VARRAY_UINT16_UNSAFE(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
+    .offset     = vmstate_offset_varray(_state, _field, _type),      \
+    .size       = sizeof(_type),                                     \
     .num_offset = vmstate_offset_value(_state, _field_num, uint16_t),\
     .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_UINT16,                                 \
-    .offset     = vmstate_offset_varray(_state, _field, _type),      \
+    .version_id = (_version),                                        \
 }
 
 #define VMSTATE_VSTRUCT_TEST(_field, _state, _test, _version, _vmsd, _type, _struct_version) { \
@@ -586,24 +586,24 @@ extern const VMStateInfo vmstate_info_qlist;
 #define VMSTATE_STRUCT_2DARRAY_TEST(_field, _state, _n1, _n2, _test, \
                                     _version, _vmsd, _type) {        \
     .name         = (stringify(_field)),                             \
-    .num          = (_n1) * (_n2),                                   \
-    .field_exists = (_test),                                         \
-    .version_id   = (_version),                                      \
-    .vmsd         = &(_vmsd),                                        \
-    .size         = sizeof(_type),                                   \
-    .flags        = VMS_STRUCT | VMS_ARRAY,                          \
     .offset       = vmstate_offset_2darray(_state, _field, _type,    \
                                            _n1, _n2),                \
+    .size         = sizeof(_type),                                   \
+    .num          = (_n1) * (_n2),                                   \
+    .flags        = VMS_STRUCT | VMS_ARRAY,                          \
+    .vmsd         = &(_vmsd),                                        \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_STRUCT_VARRAY_UINT8(_field, _state, _field_num, _version, _vmsd, _type) { \
     .name       = (stringify(_field)),                               \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
-    .version_id = (_version),                                        \
-    .vmsd       = &(_vmsd),                                          \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_STRUCT|VMS_VARRAY_UINT8,                       \
     .offset     = vmstate_offset_varray(_state, _field, _type),      \
+    .size       = sizeof(_type),                                     \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint8_t), \
+    .flags      = VMS_STRUCT|VMS_VARRAY_UINT8,                       \
+    .vmsd       = &(_vmsd),                                          \
+    .version_id = (_version),                                        \
 }
 
 /* a variable length array (i.e. _type *_field) but we know the

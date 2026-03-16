@@ -226,7 +226,7 @@ static int tmp105_event(I2CSlave *i2c, enum i2c_event event)
 
 static int tmp105_post_load(void *opaque, int version_id)
 {
-    TMP105State *s = opaque;
+    TMP105State *s = static_cast<TMP105State *>(opaque);
 
     s->faults = tmp105_faultq[FIELD_EX8(s->config, CONFIG, FAULT_QUEUE)];
 
@@ -236,7 +236,7 @@ static int tmp105_post_load(void *opaque, int version_id)
 
 static bool detect_falling_needed(void *opaque)
 {
-    TMP105State *s = opaque;
+    TMP105State *s = static_cast<TMP105State *>(opaque);
 
     /*
      * We only need to migrate the detect_falling bool if it's set;

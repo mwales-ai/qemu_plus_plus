@@ -78,10 +78,10 @@ extern const VMStateDescription vmstate_ssi_peripheral;
 
 #define VMSTATE_SSI_PERIPHERAL(_field, _state) {                     \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(SSIPeripheral),                             \
-    .vmsd       = &vmstate_ssi_peripheral,                           \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, SSIPeripheral), \
+    .size       = sizeof(SSIPeripheral),                             \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_ssi_peripheral,                           \
 }
 
 DeviceState *ssi_create_peripheral(SSIBus *bus, const char *name);

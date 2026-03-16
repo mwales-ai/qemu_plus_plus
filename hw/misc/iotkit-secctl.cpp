@@ -648,7 +648,7 @@ static void iotkit_secctl_mscexp_status(void *opaque, int n, int level)
 
 static void iotkit_secctl_ppc_irqstatus(void *opaque, int n, int level)
 {
-    IoTKitSecCtlPPC *ppc = opaque;
+    IoTKitSecCtlPPC *ppc = static_cast<IoTKitSecCtlPPC *>(opaque);
     IoTKitSecCtl *s = IOTKIT_SECCTL(ppc->parent);
     int irqbit = ppc->irq_bit_offset + n;
 
@@ -745,26 +745,30 @@ static void iotkit_secctl_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_iotkit_secctl_ppc_fields[] = {
+    VMSTATE_UINT32(ns, IoTKitSecCtlPPC),
+    VMSTATE_UINT32(sp, IoTKitSecCtlPPC),
+    VMSTATE_UINT32(nsp, IoTKitSecCtlPPC),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription iotkit_secctl_ppc_vmstate = {
     .name = "iotkit-secctl-ppc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ns, IoTKitSecCtlPPC),
-        VMSTATE_UINT32(sp, IoTKitSecCtlPPC),
-        VMSTATE_UINT32(nsp, IoTKitSecCtlPPC),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_iotkit_secctl_ppc_fields,
+};
+
+static const VMStateField vmstate_iotkit_secctl_mpcintstatus_fields[] = {
+    VMSTATE_UINT32(mpcintstatus, IoTKitSecCtl),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription iotkit_secctl_mpcintstatus_vmstate = {
     .name = "iotkit-secctl-mpcintstatus",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(mpcintstatus, IoTKitSecCtl),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_iotkit_secctl_mpcintstatus_fields,
 };
 
 static bool needed_always(void *opaque)
@@ -772,42 +776,48 @@ static bool needed_always(void *opaque)
     return true;
 }
 
+static const VMStateField vmstate_iotkit_secctl_msc_fields[] = {
+    VMSTATE_UINT32(secmscintstat, IoTKitSecCtl),
+    VMSTATE_UINT32(secmscinten, IoTKitSecCtl),
+    VMSTATE_UINT32(nsmscexp, IoTKitSecCtl),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription iotkit_secctl_msc_vmstate = {
     .name = "iotkit-secctl/msc",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = needed_always,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(secmscintstat, IoTKitSecCtl),
-        VMSTATE_UINT32(secmscinten, IoTKitSecCtl),
-        VMSTATE_UINT32(nsmscexp, IoTKitSecCtl),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_iotkit_secctl_msc_fields,
+};
+
+static const VMStateField vmstate_iotkit_secctl_fields[] = {
+    VMSTATE_UINT32(secppcintstat, IoTKitSecCtl),
+    VMSTATE_UINT32(secppcinten, IoTKitSecCtl),
+    VMSTATE_UINT32(secrespcfg, IoTKitSecCtl),
+    VMSTATE_UINT32(nsccfg, IoTKitSecCtl),
+    VMSTATE_UINT32(brginten, IoTKitSecCtl),
+    VMSTATE_STRUCT_ARRAY(apb, IoTKitSecCtl, IOTS_NUM_APB_PPC, 1,
+                         iotkit_secctl_ppc_vmstate, IoTKitSecCtlPPC),
+    VMSTATE_STRUCT_ARRAY(apbexp, IoTKitSecCtl, IOTS_NUM_APB_EXP_PPC, 1,
+                         iotkit_secctl_ppc_vmstate, IoTKitSecCtlPPC),
+    VMSTATE_STRUCT_ARRAY(ahbexp, IoTKitSecCtl, IOTS_NUM_AHB_EXP_PPC, 1,
+                         iotkit_secctl_ppc_vmstate, IoTKitSecCtlPPC),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_iotkit_secctl_subsections[] = {
+    &iotkit_secctl_mpcintstatus_vmstate,
+    &iotkit_secctl_msc_vmstate,
+    NULL
 };
 
 static const VMStateDescription iotkit_secctl_vmstate = {
     .name = "iotkit-secctl",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(secppcintstat, IoTKitSecCtl),
-        VMSTATE_UINT32(secppcinten, IoTKitSecCtl),
-        VMSTATE_UINT32(secrespcfg, IoTKitSecCtl),
-        VMSTATE_UINT32(nsccfg, IoTKitSecCtl),
-        VMSTATE_UINT32(brginten, IoTKitSecCtl),
-        VMSTATE_STRUCT_ARRAY(apb, IoTKitSecCtl, IOTS_NUM_APB_PPC, 1,
-                             iotkit_secctl_ppc_vmstate, IoTKitSecCtlPPC),
-        VMSTATE_STRUCT_ARRAY(apbexp, IoTKitSecCtl, IOTS_NUM_APB_EXP_PPC, 1,
-                             iotkit_secctl_ppc_vmstate, IoTKitSecCtlPPC),
-        VMSTATE_STRUCT_ARRAY(ahbexp, IoTKitSecCtl, IOTS_NUM_AHB_EXP_PPC, 1,
-                             iotkit_secctl_ppc_vmstate, IoTKitSecCtlPPC),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &iotkit_secctl_mpcintstatus_vmstate,
-        &iotkit_secctl_msc_vmstate,
-        NULL
-    },
+    .fields = vmstate_iotkit_secctl_fields,
+    .subsections = vmstate_iotkit_secctl_subsections,
 };
 
 static const Property iotkit_secctl_props[] = {

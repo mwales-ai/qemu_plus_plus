@@ -35,16 +35,18 @@
 #include "hw/timer/digic-timer.h"
 #include "migration/vmstate.h"
 
+static const VMStateField vmstate_digic_timer_fields[] = {
+    VMSTATE_PTIMER(ptimer, DigicTimerState),
+    VMSTATE_UINT32(control, DigicTimerState),
+    VMSTATE_UINT32(relvalue, DigicTimerState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_digic_timer = {
     .name = "digic.timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PTIMER(ptimer, DigicTimerState),
-        VMSTATE_UINT32(control, DigicTimerState),
-        VMSTATE_UINT32(relvalue, DigicTimerState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_digic_timer_fields,
 };
 
 static void digic_timer_reset(DeviceState *dev)
@@ -60,7 +62,7 @@ static void digic_timer_reset(DeviceState *dev)
 
 static uint64_t digic_timer_read(void *opaque, hwaddr offset, unsigned size)
 {
-    DigicTimerState *s = opaque;
+    DigicTimerState *s = static_cast<DigicTimerState *>(opaque);
     uint64_t ret = 0;
 
     switch (offset) {
@@ -85,7 +87,7 @@ static uint64_t digic_timer_read(void *opaque, hwaddr offset, unsigned size)
 static void digic_timer_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
-    DigicTimerState *s = opaque;
+    DigicTimerState *s = static_cast<DigicTimerState *>(opaque);
 
     switch (offset) {
     case DIGIC_TIMER_CONTROL:
@@ -123,11 +125,11 @@ static void digic_timer_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps digic_timer_ops = {
     .read = digic_timer_read,
     .write = digic_timer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void digic_timer_tick(void *opaque)

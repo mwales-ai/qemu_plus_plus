@@ -138,7 +138,7 @@ static void pl031_write(void * opaque, hwaddr offset,
 
     switch (offset) {
     case RTC_LR: {
-        g_autofree const char *qom_path = object_get_canonical_path(opaque);
+        g_autofree const char *qom_path = object_get_canonical_path(static_cast<const Object *>(opaque));
         struct tm tm;
 
         s->lr = value;
@@ -213,7 +213,7 @@ static void pl031_finalize(Object *obj)
 
 static int pl031_pre_save(void *opaque)
 {
-    PL031State *s = opaque;
+    PL031State *s = static_cast<PL031State *>(opaque);
 
     /*
      * The PL031 device model code uses the tick_offset field, which is
@@ -242,7 +242,7 @@ static int pl031_pre_save(void *opaque)
 
 static int pl031_pre_load(void *opaque)
 {
-    PL031State *s = opaque;
+    PL031State *s = static_cast<PL031State *>(opaque);
 
     s->tick_offset_migrated = false;
     return 0;
@@ -250,7 +250,7 @@ static int pl031_pre_load(void *opaque)
 
 static int pl031_post_load(void *opaque, int version_id)
 {
-    PL031State *s = opaque;
+    PL031State *s = static_cast<PL031State *>(opaque);
 
     /*
      * If we got the tick_offset subsection, then we can just use
@@ -272,7 +272,7 @@ static int pl031_post_load(void *opaque, int version_id)
 
 static int pl031_tick_offset_post_load(void *opaque, int version_id)
 {
-    PL031State *s = opaque;
+    PL031State *s = static_cast<PL031State *>(opaque);
 
     s->tick_offset_migrated = true;
     return 0;
@@ -280,43 +280,49 @@ static int pl031_tick_offset_post_load(void *opaque, int version_id)
 
 static bool pl031_tick_offset_needed(void *opaque)
 {
-    PL031State *s = opaque;
+    PL031State *s = static_cast<PL031State *>(opaque);
 
     return s->migrate_tick_offset;
 }
+
+static const VMStateField vmstate_pl031_tick_offset_fields[] = {
+    VMSTATE_UINT32(tick_offset, PL031State),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_pl031_tick_offset = {
     .name = "pl031/tick-offset",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = pl031_tick_offset_needed,
     .post_load = pl031_tick_offset_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(tick_offset, PL031State),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = pl031_tick_offset_needed,
+    .fields = vmstate_pl031_tick_offset_fields,
+};
+
+static const VMStateField vmstate_pl031_fields[] = {
+    VMSTATE_UINT32(tick_offset_vmstate, PL031State),
+    VMSTATE_UINT32(mr, PL031State),
+    VMSTATE_UINT32(lr, PL031State),
+    VMSTATE_UINT32(cr, PL031State),
+    VMSTATE_UINT32(im, PL031State),
+    VMSTATE_UINT32(is, PL031State),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_pl031_subsections[] = {
+    &vmstate_pl031_tick_offset,
+    NULL
 };
 
 static const VMStateDescription vmstate_pl031 = {
     .name = "pl031",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = pl031_pre_save,
     .pre_load = pl031_pre_load,
     .post_load = pl031_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(tick_offset_vmstate, PL031State),
-        VMSTATE_UINT32(mr, PL031State),
-        VMSTATE_UINT32(lr, PL031State),
-        VMSTATE_UINT32(cr, PL031State),
-        VMSTATE_UINT32(im, PL031State),
-        VMSTATE_UINT32(is, PL031State),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_pl031_tick_offset,
-        NULL
-    }
+    .pre_save = pl031_pre_save,
+    .fields = vmstate_pl031_fields,
+    .subsections = vmstate_pl031_subsections,
 };
 
 static const Property pl031_properties[] = {

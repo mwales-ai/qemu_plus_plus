@@ -20,6 +20,10 @@
 #ifndef EEPROM93XX_H
 #define EEPROM93XX_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct _eeprom_t eeprom_t;
 
 /* Create a new EEPROM with (nwords * 2) bytes. */
@@ -36,5 +40,9 @@ void eeprom93xx_write(eeprom_t *eeprom, int eecs, int eesk, int eedi);
 
 /* Get EEPROM data array. */
 uint16_t *eeprom93xx_data(eeprom_t *eeprom);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EEPROM93XX_H */

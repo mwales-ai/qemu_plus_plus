@@ -227,15 +227,17 @@ static void aspeed_wdt_write(void *opaque, hwaddr offset, uint64_t data,
     }
 }
 
+static const VMStateField vmstate_aspeed_wdt_fields[] = {
+    VMSTATE_TIMER_PTR(timer, AspeedWDTState),
+    VMSTATE_UINT32_ARRAY(regs, AspeedWDTState, ASPEED_WDT_REGS_MAX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aspeed_wdt = {
     .name = "vmstate_aspeed_wdt",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, AspeedWDTState),
-        VMSTATE_UINT32_ARRAY(regs, AspeedWDTState, ASPEED_WDT_REGS_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aspeed_wdt_fields,
 };
 
 static const MemoryRegionOps aspeed_wdt_ops = {
@@ -319,12 +321,12 @@ static void aspeed_wdt_class_init(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo aspeed_wdt_info = {
-    .parent = TYPE_SYS_BUS_DEVICE,
     .name  = TYPE_ASPEED_WDT,
+    .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(AspeedWDTState),
-    .class_init = aspeed_wdt_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(AspeedWDTClass),
-    .is_abstract      = true,
+    .class_init = aspeed_wdt_class_init,
 };
 
 static void aspeed_2400_wdt_class_init(ObjectClass *klass, const void *data)

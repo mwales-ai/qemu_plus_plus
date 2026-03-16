@@ -245,7 +245,7 @@ static void ssd0323_update_display(void *opaque)
         p += dest_width;
     }
     /* TODO: Implement row/column remapping.  */
-    dest = surface_data(surface);
+    dest = static_cast<uint8_t *>(surface_data(surface));
     for (y = 0; y < 64; y++) {
         line = y;
         src = s->framebuffer + 64 * line;
@@ -319,28 +319,30 @@ static int ssd0323_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ssd0323_fields[] = {
+    VMSTATE_UINT32(cmd_len, ssd0323_state),
+    VMSTATE_INT32(cmd, ssd0323_state),
+    VMSTATE_INT32_ARRAY(cmd_data, ssd0323_state, 8),
+    VMSTATE_INT32(row, ssd0323_state),
+    VMSTATE_INT32(row_start, ssd0323_state),
+    VMSTATE_INT32(row_end, ssd0323_state),
+    VMSTATE_INT32(col, ssd0323_state),
+    VMSTATE_INT32(col_start, ssd0323_state),
+    VMSTATE_INT32(col_end, ssd0323_state),
+    VMSTATE_INT32(redraw, ssd0323_state),
+    VMSTATE_INT32(remap, ssd0323_state),
+    VMSTATE_UINT32(mode, ssd0323_state),
+    VMSTATE_BUFFER(framebuffer, ssd0323_state),
+    VMSTATE_SSI_PERIPHERAL(ssidev, ssd0323_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ssd0323 = {
     .name = "ssd0323_oled",
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = ssd0323_post_load,
-    .fields = (const VMStateField []) {
-        VMSTATE_UINT32(cmd_len, ssd0323_state),
-        VMSTATE_INT32(cmd, ssd0323_state),
-        VMSTATE_INT32_ARRAY(cmd_data, ssd0323_state, 8),
-        VMSTATE_INT32(row, ssd0323_state),
-        VMSTATE_INT32(row_start, ssd0323_state),
-        VMSTATE_INT32(row_end, ssd0323_state),
-        VMSTATE_INT32(col, ssd0323_state),
-        VMSTATE_INT32(col_start, ssd0323_state),
-        VMSTATE_INT32(col_end, ssd0323_state),
-        VMSTATE_INT32(redraw, ssd0323_state),
-        VMSTATE_INT32(remap, ssd0323_state),
-        VMSTATE_UINT32(mode, ssd0323_state),
-        VMSTATE_BUFFER(framebuffer, ssd0323_state),
-        VMSTATE_SSI_PERIPHERAL(ssidev, ssd0323_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ssd0323_fields,
 };
 
 static const GraphicHwOps ssd0323_ops = {

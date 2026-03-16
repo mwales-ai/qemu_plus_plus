@@ -28,30 +28,32 @@
 #define ROW_PERSISTENCE 3
 #define TURNED_OFF_ROW (COLOR_BUFFER_SIZE - 1)
 
+static const VMStateField vmstate_dm163_fields[] = {
+    VMSTATE_UINT64_ARRAY(bank0_shift_register, DM163State, 3),
+    VMSTATE_UINT64_ARRAY(bank1_shift_register, DM163State, 3),
+    VMSTATE_UINT16_ARRAY(latched_outputs, DM163State, DM163_NUM_LEDS),
+    VMSTATE_UINT16_ARRAY(outputs, DM163State, DM163_NUM_LEDS),
+    VMSTATE_UINT8(dck, DM163State),
+    VMSTATE_UINT8(en_b, DM163State),
+    VMSTATE_UINT8(lat_b, DM163State),
+    VMSTATE_UINT8(rst_b, DM163State),
+    VMSTATE_UINT8(selbk, DM163State),
+    VMSTATE_UINT8(sin, DM163State),
+    VMSTATE_UINT8(activated_rows, DM163State),
+    VMSTATE_UINT32_2DARRAY(buffer, DM163State, COLOR_BUFFER_SIZE,
+                           RGB_MATRIX_NUM_COLS),
+    VMSTATE_UINT8(last_buffer_idx, DM163State),
+    VMSTATE_UINT8_ARRAY(buffer_idx_of_row, DM163State, RGB_MATRIX_NUM_ROWS),
+    VMSTATE_UINT8_ARRAY(row_persistence_delay, DM163State,
+                        RGB_MATRIX_NUM_ROWS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_dm163 = {
     .name = TYPE_DM163,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64_ARRAY(bank0_shift_register, DM163State, 3),
-        VMSTATE_UINT64_ARRAY(bank1_shift_register, DM163State, 3),
-        VMSTATE_UINT16_ARRAY(latched_outputs, DM163State, DM163_NUM_LEDS),
-        VMSTATE_UINT16_ARRAY(outputs, DM163State, DM163_NUM_LEDS),
-        VMSTATE_UINT8(dck, DM163State),
-        VMSTATE_UINT8(en_b, DM163State),
-        VMSTATE_UINT8(lat_b, DM163State),
-        VMSTATE_UINT8(rst_b, DM163State),
-        VMSTATE_UINT8(selbk, DM163State),
-        VMSTATE_UINT8(sin, DM163State),
-        VMSTATE_UINT8(activated_rows, DM163State),
-        VMSTATE_UINT32_2DARRAY(buffer, DM163State, COLOR_BUFFER_SIZE,
-                               RGB_MATRIX_NUM_COLS),
-        VMSTATE_UINT8(last_buffer_idx, DM163State),
-        VMSTATE_UINT8_ARRAY(buffer_idx_of_row, DM163State, RGB_MATRIX_NUM_ROWS),
-        VMSTATE_UINT8_ARRAY(row_persistence_delay, DM163State,
-                            RGB_MATRIX_NUM_ROWS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dm163_fields,
 };
 
 static void dm163_reset_hold(Object *obj, ResetType type)
@@ -81,7 +83,7 @@ static void dm163_reset_hold(Object *obj, ResetType type)
 
 static void dm163_dck_gpio_handler(void *opaque, int line, int new_state)
 {
-    DM163State *s = opaque;
+    DM163State *s = static_cast<DM163State *>(opaque);
 
     if (new_state && !s->dck) {
         /*
@@ -142,7 +144,7 @@ static void dm163_propagate_outputs(DM163State *s)
 
 static void dm163_en_b_gpio_handler(void *opaque, int line, int new_state)
 {
-    DM163State *s = opaque;
+    DM163State *s = static_cast<DM163State *>(opaque);
 
     s->en_b = new_state;
     dm163_propagate_outputs(s);
@@ -191,7 +193,7 @@ static uint8_t dm163_bank1(const DM163State *s, uint8_t led)
 
 static void dm163_lat_b_gpio_handler(void *opaque, int line, int new_state)
 {
-    DM163State *s = opaque;
+    DM163State *s = static_cast<DM163State *>(opaque);
 
     if (s->lat_b && !new_state) {
         for (int led = 0; led < DM163_NUM_LEDS; led++) {
@@ -206,7 +208,7 @@ static void dm163_lat_b_gpio_handler(void *opaque, int line, int new_state)
 
 static void dm163_rst_b_gpio_handler(void *opaque, int line, int new_state)
 {
-    DM163State *s = opaque;
+    DM163State *s = static_cast<DM163State *>(opaque);
 
     s->rst_b = new_state;
     dm163_propagate_outputs(s);
@@ -215,7 +217,7 @@ static void dm163_rst_b_gpio_handler(void *opaque, int line, int new_state)
 
 static void dm163_selbk_gpio_handler(void *opaque, int line, int new_state)
 {
-    DM163State *s = opaque;
+    DM163State *s = static_cast<DM163State *>(opaque);
 
     s->selbk = new_state;
     trace_dm163_selbk(new_state);
@@ -223,7 +225,7 @@ static void dm163_selbk_gpio_handler(void *opaque, int line, int new_state)
 
 static void dm163_sin_gpio_handler(void *opaque, int line, int new_state)
 {
-    DM163State *s = opaque;
+    DM163State *s = static_cast<DM163State *>(opaque);
 
     s->sin = new_state;
     trace_dm163_sin(new_state);
@@ -231,7 +233,7 @@ static void dm163_sin_gpio_handler(void *opaque, int line, int new_state)
 
 static void dm163_rows_gpio_handler(void *opaque, int line, int new_state)
 {
-    DM163State *s = opaque;
+    DM163State *s = static_cast<DM163State *>(opaque);
 
     if (new_state) {
         s->activated_rows |= (1 << line);
@@ -291,7 +293,7 @@ static void dm163_update_display(void *opaque)
     DisplaySurface *surface = qemu_console_surface(s->console);
     uint32_t *dest;
 
-    dest = surface_data(surface);
+    dest = static_cast<uint32_t *>(surface_data(surface));
     for (unsigned row = 0; row < RGB_MATRIX_NUM_ROWS; row++) {
         update_row_persistence_delay(s, row);
         if (!extract8(s->redraw, row, 1)) {
