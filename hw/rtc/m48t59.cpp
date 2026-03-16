@@ -90,7 +90,7 @@ static void alarm_cb (void *opaque)
 {
     struct tm tm;
     uint64_t next_time;
-    M48t59State *NVRAM = opaque;
+    M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
 
     qemu_set_irq(NVRAM->IRQ, 1);
     if ((NVRAM->buffer[0x1FF5] & 0x80) == 0 &&
@@ -158,7 +158,7 @@ static void set_time(M48t59State *NVRAM, struct tm *tm)
 /* Watchdog management */
 static void watchdog_cb (void *opaque)
 {
-    M48t59State *NVRAM = opaque;
+    M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
 
     NVRAM->buffer[0x1FF0] |= 0x80;
     if (NVRAM->buffer[0x1FF7] & 0x80) {
@@ -458,7 +458,7 @@ uint32_t m48t59_read(M48t59State *NVRAM, uint32_t addr)
 static void NVRAM_writeb(void *opaque, hwaddr addr, uint64_t val,
                          unsigned size)
 {
-    M48t59State *NVRAM = opaque;
+    M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
 
     trace_m48txx_nvram_io_write(addr, val);
     switch (addr) {
@@ -481,7 +481,7 @@ static void NVRAM_writeb(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t NVRAM_readb(void *opaque, hwaddr addr, unsigned size)
 {
-    M48t59State *NVRAM = opaque;
+    M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
     uint32_t retval;
 
     switch (addr) {
@@ -499,7 +499,7 @@ static uint64_t NVRAM_readb(void *opaque, hwaddr addr, unsigned size)
 
 static uint64_t nvram_read(void *opaque, hwaddr addr, unsigned size)
 {
-    M48t59State *NVRAM = opaque;
+    M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
 
     return m48t59_read(NVRAM, addr);
 }
@@ -507,7 +507,7 @@ static uint64_t nvram_read(void *opaque, hwaddr addr, unsigned size)
 static void nvram_write(void *opaque, hwaddr addr, uint64_t value,
                         unsigned size)
 {
-    M48t59State *NVRAM = opaque;
+    M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
 
     return m48t59_write(NVRAM, addr, value);
 }
@@ -515,21 +515,23 @@ static void nvram_write(void *opaque, hwaddr addr, uint64_t value,
 static const MemoryRegionOps nvram_ops = {
     .read = nvram_read,
     .write = nvram_write,
-    .impl = { .min_access_size = 1, .max_access_size = 1, },
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
+};
+
+static const VMStateField vmstate_m48t59_fields[] = {
+    VMSTATE_UINT8(lock, M48t59State),
+    VMSTATE_UINT16(addr, M48t59State),
+    VMSTATE_VBUFFER_UINT32(buffer, M48t59State, 0, NULL, size),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_m48t59 = {
     .name = "m48t59",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(lock, M48t59State),
-        VMSTATE_UINT16(addr, M48t59State),
-        VMSTATE_VBUFFER_UINT32(buffer, M48t59State, 0, NULL, size),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_m48t59_fields,
 };
 
 void m48t59_reset_common(M48t59State *NVRAM)
@@ -554,16 +556,16 @@ static void m48t59_reset_sysbus(DeviceState *d)
 const MemoryRegionOps m48t59_io_ops = {
     .read = NVRAM_readb,
     .write = NVRAM_writeb,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 void m48t59_realize_common(M48t59State *s, Error **errp)
 {
-    s->buffer = g_malloc0(s->size);
+    s->buffer = static_cast<uint8_t *>(g_malloc0(s->size));
     if (s->model == 59) {
         s->alrm_timer = timer_new_ns(rtc_clock, &alarm_cb, s);
         s->wd_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &watchdog_cb, s);
@@ -638,7 +640,7 @@ static void m48txx_sysbus_concrete_class_init(ObjectClass *klass,
                                               const void *data)
 {
     M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_CLASS(klass);
-    const M48txxInfo *info = data;
+    const M48txxInfo *info = static_cast<const M48txxInfo *>(data);
 
     u->info = *info;
 }

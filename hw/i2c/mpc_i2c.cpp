@@ -192,7 +192,7 @@ static void  mpc_i2c_data_recive(MPCI2CState *s)
 
 static uint64_t mpc_i2c_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MPCI2CState *s = opaque;
+    MPCI2CState *s = static_cast<MPCI2CState *>(opaque);
     uint8_t value;
 
     switch (addr) {
@@ -232,7 +232,7 @@ static uint64_t mpc_i2c_read(void *opaque, hwaddr addr, unsigned size)
 static void mpc_i2c_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    MPCI2CState *s = opaque;
+    MPCI2CState *s = static_cast<MPCI2CState *>(opaque);
 
     trace_mpc_i2c_write(addr, value);
 
@@ -304,8 +304,8 @@ static void mpc_i2c_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps i2c_ops = {
     .read =  mpc_i2c_read,
     .write =  mpc_i2c_write,
-    .valid = { .max_access_size = 1, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = { .max_access_size = 1, },
 };
 
 static const VMStateDescription mpc_i2c_vmstate = {

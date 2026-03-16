@@ -68,7 +68,7 @@ static uint32_t aspeed_rtc_get_counter(AspeedRtcState *rtc, int r)
 static uint64_t aspeed_rtc_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    AspeedRtcState *rtc = opaque;
+    AspeedRtcState *rtc = static_cast<AspeedRtcState *>(opaque);
     uint64_t val;
     uint32_t r = addr >> 2;
 
@@ -97,7 +97,7 @@ static uint64_t aspeed_rtc_read(void *opaque, hwaddr addr,
 static void aspeed_rtc_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
-    AspeedRtcState *rtc = opaque;
+    AspeedRtcState *rtc = static_cast<AspeedRtcState *>(opaque);
     uint32_t r = addr >> 2;
 
     switch (r) {

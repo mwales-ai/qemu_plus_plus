@@ -61,10 +61,13 @@ static void adb_mouse_handle_event(DeviceState *dev, QemuConsole *src,
     MouseState *s = (MouseState *)dev;
     InputMoveEvent *move;
     InputBtnEvent *btn;
-    static const int bmap[INPUT_BUTTON__MAX] = {
-        [INPUT_BUTTON_LEFT]   = ADB_MOUSE_BUTTON_LEFT,
-        [INPUT_BUTTON_RIGHT]  = ADB_MOUSE_BUTTON_RIGHT,
-    };
+    static int bmap[INPUT_BUTTON__MAX] = {};
+    static bool bmap_init = false;
+    if (!bmap_init) {
+        bmap[INPUT_BUTTON_LEFT]   = ADB_MOUSE_BUTTON_LEFT;
+        bmap[INPUT_BUTTON_RIGHT]  = ADB_MOUSE_BUTTON_RIGHT;
+        bmap_init = true;
+    }
 
     switch (evt->type) {
     case INPUT_EVENT_KIND_REL:
@@ -308,8 +311,8 @@ static const TypeInfo adb_mouse_type_info = {
     .parent = TYPE_ADB_DEVICE,
     .instance_size = sizeof(MouseState),
     .instance_init = adb_mouse_initfn,
-    .class_init = adb_mouse_class_init,
     .class_size = sizeof(ADBMouseClass),
+    .class_init = adb_mouse_class_init,
 };
 
 static void adb_mouse_register_types(void)

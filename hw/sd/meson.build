@@ -1,4 +1,4 @@
-system_ss.add(when: 'CONFIG_PL181', if_true: files('pl181.c'))
+system_ss.add(when: 'CONFIG_PL181', if_true: files('pl181.cpp'))
 system_ss.add(when: 'CONFIG_SD', if_true: files('sd.c', 'core.cpp'))
 system_ss.add(when: 'CONFIG_SDHCI', if_true: files('sdhci.c'))
 system_ss.add(when: 'CONFIG_SDHCI_PCI', if_true: files('sdhci-pci.cpp'))

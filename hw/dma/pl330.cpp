@@ -137,27 +137,29 @@ typedef struct PL330Chan {
     uint8_t tag;
 } PL330Chan;
 
+static const VMStateField vmstate_pl330_chan_fields[] = {
+    VMSTATE_UINT32(src, PL330Chan),
+    VMSTATE_UINT32(dst, PL330Chan),
+    VMSTATE_UINT32(pc, PL330Chan),
+    VMSTATE_UINT32(control, PL330Chan),
+    VMSTATE_UINT32(status, PL330Chan),
+    VMSTATE_UINT32_ARRAY(lc, PL330Chan, 2),
+    VMSTATE_UINT32(fault_type, PL330Chan),
+    VMSTATE_UINT32(watchdog_timer, PL330Chan),
+    VMSTATE_BOOL(ns, PL330Chan),
+    VMSTATE_UINT8(request_flag, PL330Chan),
+    VMSTATE_UINT8(wakeup, PL330Chan),
+    VMSTATE_UINT8(wfp_sbp, PL330Chan),
+    VMSTATE_UINT8(state, PL330Chan),
+    VMSTATE_UINT8(stall, PL330Chan),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl330_chan = {
     .name = "pl330_chan",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(src, PL330Chan),
-        VMSTATE_UINT32(dst, PL330Chan),
-        VMSTATE_UINT32(pc, PL330Chan),
-        VMSTATE_UINT32(control, PL330Chan),
-        VMSTATE_UINT32(status, PL330Chan),
-        VMSTATE_UINT32_ARRAY(lc, PL330Chan, 2),
-        VMSTATE_UINT32(fault_type, PL330Chan),
-        VMSTATE_UINT32(watchdog_timer, PL330Chan),
-        VMSTATE_BOOL(ns, PL330Chan),
-        VMSTATE_UINT8(request_flag, PL330Chan),
-        VMSTATE_UINT8(wakeup, PL330Chan),
-        VMSTATE_UINT8(wfp_sbp, PL330Chan),
-        VMSTATE_UINT8(state, PL330Chan),
-        VMSTATE_UINT8(stall, PL330Chan),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl330_chan_fields,
 };
 
 typedef struct PL330Fifo {
@@ -168,18 +170,20 @@ typedef struct PL330Fifo {
     uint32_t buf_size;
 } PL330Fifo;
 
+static const VMStateField vmstate_pl330_fifo_fields[] = {
+    VMSTATE_VBUFFER_UINT32(buf, PL330Fifo, 1, NULL, buf_size),
+    VMSTATE_VBUFFER_UINT32(tag, PL330Fifo, 1, NULL, buf_size),
+    VMSTATE_UINT32(head, PL330Fifo),
+    VMSTATE_UINT32(num, PL330Fifo),
+    VMSTATE_UINT32(buf_size, PL330Fifo),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl330_fifo = {
     .name = "pl330_chan",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VBUFFER_UINT32(buf, PL330Fifo, 1, NULL, buf_size),
-        VMSTATE_VBUFFER_UINT32(tag, PL330Fifo, 1, NULL, buf_size),
-        VMSTATE_UINT32(head, PL330Fifo),
-        VMSTATE_UINT32(num, PL330Fifo),
-        VMSTATE_UINT32(buf_size, PL330Fifo),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl330_fifo_fields,
 };
 
 typedef struct PL330QueueEntry {
@@ -192,20 +196,22 @@ typedef struct PL330QueueEntry {
     uint8_t seqn;
 } PL330QueueEntry;
 
+static const VMStateField vmstate_pl330_queue_entry_fields[] = {
+    VMSTATE_UINT32(addr, PL330QueueEntry),
+    VMSTATE_UINT32(len, PL330QueueEntry),
+    VMSTATE_UINT8(n, PL330QueueEntry),
+    VMSTATE_BOOL(inc, PL330QueueEntry),
+    VMSTATE_BOOL(z, PL330QueueEntry),
+    VMSTATE_UINT8(tag, PL330QueueEntry),
+    VMSTATE_UINT8(seqn, PL330QueueEntry),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl330_queue_entry = {
     .name = "pl330_queue_entry",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(addr, PL330QueueEntry),
-        VMSTATE_UINT32(len, PL330QueueEntry),
-        VMSTATE_UINT8(n, PL330QueueEntry),
-        VMSTATE_BOOL(inc, PL330QueueEntry),
-        VMSTATE_BOOL(z, PL330QueueEntry),
-        VMSTATE_UINT8(tag, PL330QueueEntry),
-        VMSTATE_UINT8(seqn, PL330QueueEntry),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl330_queue_entry_fields,
 };
 
 typedef struct PL330Queue {
@@ -214,16 +220,18 @@ typedef struct PL330Queue {
     uint32_t queue_size;
 } PL330Queue;
 
+static const VMStateField vmstate_pl330_queue_fields[] = {
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(queue, PL330Queue, queue_size,
+                                         vmstate_pl330_queue_entry,
+                                         PL330QueueEntry),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl330_queue = {
     .name = "pl330_queue",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(queue, PL330Queue, queue_size,
-                                             vmstate_pl330_queue_entry,
-                                             PL330QueueEntry),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl330_queue_fields,
 };
 
 struct PL330State {
@@ -275,31 +283,33 @@ struct PL330State {
     AddressSpace *mem_as;
 };
 
+static const VMStateField vmstate_pl330_fields[] = {
+    VMSTATE_STRUCT(manager, PL330State, 0, vmstate_pl330_chan, PL330Chan),
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(chan, PL330State, num_chnls,
+                                         vmstate_pl330_chan, PL330Chan),
+    VMSTATE_VBUFFER_UINT32(lo_seqn, PL330State, 1, NULL, num_chnls),
+    VMSTATE_VBUFFER_UINT32(hi_seqn, PL330State, 1, NULL, num_chnls),
+    VMSTATE_STRUCT(fifo, PL330State, 0, vmstate_pl330_fifo, PL330Fifo),
+    VMSTATE_STRUCT(read_queue, PL330State, 0, vmstate_pl330_queue,
+                   PL330Queue),
+    VMSTATE_STRUCT(write_queue, PL330State, 0, vmstate_pl330_queue,
+                   PL330Queue),
+    VMSTATE_TIMER_PTR(timer, PL330State),
+    VMSTATE_UINT32(inten, PL330State),
+    VMSTATE_UINT32(int_status, PL330State),
+    VMSTATE_UINT32(ev_status, PL330State),
+    VMSTATE_UINT32_ARRAY(dbg, PL330State, 2),
+    VMSTATE_UINT8(debug_status, PL330State),
+    VMSTATE_UINT8(num_faulting, PL330State),
+    VMSTATE_UINT8_ARRAY(periph_busy, PL330State, PL330_PERIPH_NUM),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl330 = {
     .name = "pl330",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(manager, PL330State, 0, vmstate_pl330_chan, PL330Chan),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(chan, PL330State, num_chnls,
-                                             vmstate_pl330_chan, PL330Chan),
-        VMSTATE_VBUFFER_UINT32(lo_seqn, PL330State, 1, NULL, num_chnls),
-        VMSTATE_VBUFFER_UINT32(hi_seqn, PL330State, 1, NULL, num_chnls),
-        VMSTATE_STRUCT(fifo, PL330State, 0, vmstate_pl330_fifo, PL330Fifo),
-        VMSTATE_STRUCT(read_queue, PL330State, 0, vmstate_pl330_queue,
-                       PL330Queue),
-        VMSTATE_STRUCT(write_queue, PL330State, 0, vmstate_pl330_queue,
-                       PL330Queue),
-        VMSTATE_TIMER_PTR(timer, PL330State),
-        VMSTATE_UINT32(inten, PL330State),
-        VMSTATE_UINT32(int_status, PL330State),
-        VMSTATE_UINT32(ev_status, PL330State),
-        VMSTATE_UINT32_ARRAY(dbg, PL330State, 2),
-        VMSTATE_UINT8(debug_status, PL330State),
-        VMSTATE_UINT8(num_faulting, PL330State),
-        VMSTATE_UINT8_ARRAY(periph_busy, PL330State, PL330_PERIPH_NUM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl330_fields,
 };
 
 typedef struct PL330InsnDesc {
@@ -338,8 +348,8 @@ static void pl330_hexdump(uint8_t *buf, size_t size)
 
 static void pl330_fifo_init(PL330Fifo *s, uint32_t size)
 {
-    s->buf = g_malloc0(size);
-    s->tag = g_malloc0(size);
+    s->buf = static_cast<uint8_t *>(g_malloc0(size));
+    s->tag = static_cast<uint8_t *>(g_malloc0(size));
     s->buf_size = size;
 }
 

@@ -27,9 +27,9 @@ system_ss.add(when: 'CONFIG_FRAMEBUFFER', if_true: files('framebuffer.cpp'))
 
 system_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2835_fb.c'))
 system_ss.add(when: 'CONFIG_SM501', if_true: files('sm501.c'))
-system_ss.add(when: 'CONFIG_TCX', if_true: files('tcx.c'))
+system_ss.add(when: 'CONFIG_TCX', if_true: files('tcx.cpp'))
 system_ss.add(when: 'CONFIG_CG3', if_true: files('cg3.cpp'))
-system_ss.add(when: 'CONFIG_MACFB', if_true: files('macfb.c'))
+system_ss.add(when: 'CONFIG_MACFB', if_true: files('macfb.cpp'))
 system_ss.add(when: 'CONFIG_NEXTCUBE', if_true: files('next-fb.cpp'))
 
 system_ss.add(when: 'CONFIG_VGA', if_true: files('vga.c'))

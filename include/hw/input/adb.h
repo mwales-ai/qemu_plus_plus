@@ -29,6 +29,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_ADB_DEVICES 16
 
 #define ADB_MAX_OUT_LEN 16
@@ -104,5 +108,9 @@ void adb_register_autopoll_callback(ADBBusState *s, void (*cb)(void *opaque),
 
 #define TYPE_ADB_KEYBOARD "adb-keyboard"
 #define TYPE_ADB_MOUSE "adb-mouse"
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ADB_H */

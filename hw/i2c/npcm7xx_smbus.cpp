@@ -655,7 +655,7 @@ static void npcm7xx_smbus_write_rxf_ctl(NPCM7xxSMBusState *s, uint8_t value)
 
 static uint64_t npcm7xx_smbus_read(void *opaque, hwaddr offset, unsigned size)
 {
-    NPCM7xxSMBusState *s = opaque;
+    NPCM7xxSMBusState *s = static_cast<NPCM7xxSMBusState *>(opaque);
     uint64_t value = 0;
     uint8_t bank = s->ctl3 & NPCM7XX_SMBCTL3_BNK_SEL;
 
@@ -817,7 +817,7 @@ static uint64_t npcm7xx_smbus_read(void *opaque, hwaddr offset, unsigned size)
 static void npcm7xx_smbus_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
-    NPCM7xxSMBusState *s = opaque;
+    NPCM7xxSMBusState *s = static_cast<NPCM7xxSMBusState *>(opaque);
     uint8_t bank = s->ctl3 & NPCM7XX_SMBCTL3_BNK_SEL;
 
     trace_npcm7xx_smbus_write(DEVICE(s)->canonical_path, offset, value, size);
@@ -1091,8 +1091,8 @@ static const TypeInfo npcm7xx_smbus_types[] = {
         .name = TYPE_NPCM7XX_SMBUS,
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(NPCM7xxSMBusState),
-        .class_init = npcm7xx_smbus_class_init,
         .instance_init = npcm7xx_smbus_init,
+        .class_init = npcm7xx_smbus_class_init,
     },
 };
 DEFINE_TYPES(npcm7xx_smbus_types);

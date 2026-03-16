@@ -3,6 +3,10 @@
 
 #include "hw/qdev-properties.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool qdev_prop_sanitize_s390x_loadparm(uint8_t *loadparm, const char *str,
                                        Error **errp);
 
@@ -114,5 +118,9 @@ extern const PropertyInfo qdev_prop_virtio_gpu_output_list;
 #define DEFINE_PROP_VIRTIO_GPU_OUTPUT_LIST(_name, _state, _field) \
     DEFINE_PROP(_name, _state, _field, qdev_prop_virtio_gpu_output_list, \
                 VirtIOGPUOutputList *)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

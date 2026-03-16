@@ -161,11 +161,11 @@ static void scsi_disk_save_request(QEMUFile *f, SCSIRequest *req)
     qemu_put_be32s(f, &r->buflen);
     if (r->buflen) {
         if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
-            qemu_put_buffer(f, r->iov.iov_base, r->iov.iov_len);
+            qemu_put_buffer(f, static_cast<const uint8_t *>(r->iov.iov_base), r->iov.iov_len);
         } else if (!req->retry) {
             uint32_t len = r->iov.iov_len;
             qemu_put_be32s(f, &len);
-            qemu_put_buffer(f, r->iov.iov_base, r->iov.iov_len);
+            qemu_put_buffer(f, static_cast<const uint8_t *>(r->iov.iov_base), r->iov.iov_len);
         }
     }
 }
@@ -189,13 +189,13 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
     if (r->buflen) {
         scsi_init_iovec(r, r->buflen);
         if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
-            qemu_get_buffer(f, r->iov.iov_base, r->iov.iov_len);
+            qemu_get_buffer(f, static_cast<uint8_t *>(r->iov.iov_base), r->iov.iov_len);
         } else if (!r->req.retry) {
             uint32_t len;
             qemu_get_be32s(f, &len);
             r->iov.iov_len = len;
             assert(r->iov.iov_len <= r->buflen);
-            qemu_get_buffer(f, r->iov.iov_base, r->iov.iov_len);
+            qemu_get_buffer(f, static_cast<uint8_t *>(r->iov.iov_base), r->iov.iov_len);
         }
     }
 
@@ -506,7 +506,7 @@ static void scsi_do_read_cb(void *opaque, int ret)
     } else {
         block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
     }
-    scsi_do_read(opaque, ret);
+    scsi_do_read(r, ret);
 }
 
 /* Read more data from scsi device into buffer.  */
@@ -923,12 +923,15 @@ static int scsi_read_disc_information(SCSIDiskState *s, SCSIDiskReq *r,
 static int scsi_read_dvd_structure(SCSIDiskState *s, SCSIDiskReq *r,
                                    uint8_t *outbuf)
 {
-    static const int rds_caps_size[5] = {
-        [0] = 2048 + 4,
-        [1] = 4 + 4,
-        [3] = 188 + 4,
-        [4] = 2048 + 4,
-    };
+    static int rds_caps_size[5] = {};
+    static bool rds_caps_size_init = false;
+    if (!rds_caps_size_init) {
+        rds_caps_size[0] = 2048 + 4;
+        rds_caps_size[1] = 4 + 4;
+        rds_caps_size[3] = 188 + 4;
+        rds_caps_size[4] = 2048 + 4;
+        rds_caps_size_init = true;
+    }
 
     uint8_t media = r->req.cmd.buf[1];
     uint8_t layer = r->req.cmd.buf[6];
@@ -1128,16 +1131,19 @@ static int scsi_emulate_mechanism_status(SCSIDiskState *s, uint8_t *outbuf)
 static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
                            int page_control)
 {
-    static const int mode_sense_valid[0x3f] = {
-        [MODE_PAGE_VENDOR_SPECIFIC]        = (1 << TYPE_DISK) | (1 << TYPE_ROM),
-        [MODE_PAGE_HD_GEOMETRY]            = (1 << TYPE_DISK),
-        [MODE_PAGE_FLEXIBLE_DISK_GEOMETRY] = (1 << TYPE_DISK),
-        [MODE_PAGE_CACHING]                = (1 << TYPE_DISK) | (1 << TYPE_ROM),
-        [MODE_PAGE_R_W_ERROR]              = (1 << TYPE_DISK) | (1 << TYPE_ROM),
-        [MODE_PAGE_AUDIO_CTL]              = (1 << TYPE_ROM),
-        [MODE_PAGE_CAPABILITIES]           = (1 << TYPE_ROM),
-        [MODE_PAGE_APPLE_VENDOR]           = (1 << TYPE_ROM),
-    };
+    static int mode_sense_valid[0x3f] = {};
+    static bool mode_sense_valid_init = false;
+    if (!mode_sense_valid_init) {
+        mode_sense_valid[MODE_PAGE_VENDOR_SPECIFIC]        = (1 << TYPE_DISK) | (1 << TYPE_ROM);
+        mode_sense_valid[MODE_PAGE_HD_GEOMETRY]            = (1 << TYPE_DISK);
+        mode_sense_valid[MODE_PAGE_FLEXIBLE_DISK_GEOMETRY] = (1 << TYPE_DISK);
+        mode_sense_valid[MODE_PAGE_CACHING]                = (1 << TYPE_DISK) | (1 << TYPE_ROM);
+        mode_sense_valid[MODE_PAGE_R_W_ERROR]              = (1 << TYPE_DISK) | (1 << TYPE_ROM);
+        mode_sense_valid[MODE_PAGE_AUDIO_CTL]              = (1 << TYPE_ROM);
+        mode_sense_valid[MODE_PAGE_CAPABILITIES]           = (1 << TYPE_ROM);
+        mode_sense_valid[MODE_PAGE_APPLE_VENDOR]           = (1 << TYPE_ROM);
+        mode_sense_valid_init = true;
+    }
 
     uint8_t *p = *p_outbuf + 2;
     int length;
@@ -1784,7 +1790,7 @@ done:
 
 static void scsi_unmap_complete(void *opaque, int ret)
 {
-    UnmapCBData *data = opaque;
+    UnmapCBData *data = static_cast<UnmapCBData *>(opaque);
     SCSIDiskReq *r = data->r;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
@@ -1861,7 +1867,7 @@ typedef struct WriteSameCBData {
 
 static void scsi_write_same_complete(void *opaque, int ret)
 {
-    WriteSameCBData *data = opaque;
+    WriteSameCBData *data = static_cast<WriteSameCBData *>(opaque);
     SCSIDiskReq *r = data->r;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
@@ -1886,7 +1892,7 @@ static void scsi_write_same_complete(void *opaque, int ret)
         qemu_iovec_init_external(&data->qiov, &data->iov, 1);
         r->req.aiocb = blk_aio_pwritev(s->qdev.conf.blk,
                                        data->sector << BDRV_SECTOR_BITS,
-                                       &data->qiov, 0,
+                                       &data->qiov, static_cast<BdrvRequestFlags>(0),
                                        scsi_write_same_complete, data);
         return;
     }
@@ -1924,7 +1930,8 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
     }
 
     if ((req->cmd.buf[1] & 0x1) || buffer_is_zero(inbuf, s->qdev.blocksize)) {
-        int flags = (req->cmd.buf[1] & 0x8) ? BDRV_REQ_MAY_UNMAP : 0;
+        BdrvRequestFlags flags = (req->cmd.buf[1] & 0x8) ?
+            BDRV_REQ_MAY_UNMAP : static_cast<BdrvRequestFlags>(0);
 
         /* The request is used as the AIO opaque value, so add a ref.  */
         scsi_req_ref(&r->req);
@@ -1944,8 +1951,8 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
     data->nb_sectors = nb_sectors * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
     data->iov.iov_len = MIN(data->nb_sectors * BDRV_SECTOR_SIZE,
                             SCSI_WRITE_SAME_MAX);
-    data->iov.iov_base = buf = blk_blockalign(s->qdev.conf.blk,
-                                              data->iov.iov_len);
+    data->iov.iov_base = buf = static_cast<uint8_t *>(
+        blk_blockalign(s->qdev.conf.blk, data->iov.iov_len));
     qemu_iovec_init_external(&data->qiov, &data->iov, 1);
 
     for (i = 0; i < data->iov.iov_len; i += l) {
@@ -1958,7 +1965,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
                      data->iov.iov_len, BLOCK_ACCT_WRITE);
     r->req.aiocb = blk_aio_pwritev(s->qdev.conf.blk,
                                    data->sector << BDRV_SECTOR_BITS,
-                                   &data->qiov, 0,
+                                   &data->qiov, static_cast<BdrvRequestFlags>(0),
                                    scsi_write_same_complete, data);
 }
 
@@ -1978,11 +1985,11 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
     case MODE_SELECT:
     case MODE_SELECT_10:
         /* This also clears the sense buffer for REQUEST SENSE.  */
-        scsi_disk_emulate_mode_select(r, r->iov.iov_base);
+        scsi_disk_emulate_mode_select(r, static_cast<uint8_t *>(r->iov.iov_base));
         break;
 
     case UNMAP:
-        scsi_disk_emulate_unmap(r, r->iov.iov_base);
+        scsi_disk_emulate_unmap(r, static_cast<uint8_t *>(r->iov.iov_base));
         break;
 
     case VERIFY_10:
@@ -1995,7 +2002,7 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
 
     case WRITE_SAME_10:
     case WRITE_SAME_16:
-        scsi_disk_emulate_write_same(r, r->iov.iov_base);
+        scsi_disk_emulate_write_same(r, static_cast<uint8_t *>(r->iov.iov_base));
         break;
 
     case FORMAT_UNIT:
@@ -2056,7 +2063,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         r->iov.iov_base = blk_blockalign(s->qdev.conf.blk, r->buflen);
     }
 
-    outbuf = r->iov.iov_base;
+    outbuf = static_cast<uint8_t *>(r->iov.iov_base);
     memset(outbuf, 0, r->buflen);
     switch (req->cmd.buf[0]) {
     case TEST_UNIT_READY:
@@ -2402,21 +2409,21 @@ static void scsi_disk_reset(DeviceState *dev)
 
 static void scsi_disk_drained_begin(void *opaque)
 {
-    SCSIDiskState *s = opaque;
+    SCSIDiskState *s = static_cast<SCSIDiskState *>(opaque);
 
     scsi_device_drained_begin(&s->qdev);
 }
 
 static void scsi_disk_drained_end(void *opaque)
 {
-    SCSIDiskState *s = opaque;
+    SCSIDiskState *s = static_cast<SCSIDiskState *>(opaque);
 
     scsi_device_drained_end(&s->qdev);
 }
 
 static void scsi_disk_resize_cb(void *opaque)
 {
-    SCSIDiskState *s = opaque;
+    SCSIDiskState *s = static_cast<SCSIDiskState *>(opaque);
 
     /* SPC lists this sense code as available only for
      * direct-access devices.
@@ -2428,7 +2435,7 @@ static void scsi_disk_resize_cb(void *opaque)
 
 static void scsi_cd_change_media_cb(void *opaque, bool load, Error **errp)
 {
-    SCSIDiskState *s = opaque;
+    SCSIDiskState *s = static_cast<SCSIDiskState *>(opaque);
 
     /*
      * When a CD gets changed, we have to report an ejected state and
@@ -2449,7 +2456,7 @@ static void scsi_cd_change_media_cb(void *opaque, bool load, Error **errp)
 
 static void scsi_cd_eject_request_cb(void *opaque, bool force)
 {
-    SCSIDiskState *s = opaque;
+    SCSIDiskState *s = static_cast<SCSIDiskState *>(opaque);
 
     s->eject_request = true;
     if (force) {
@@ -2469,10 +2476,10 @@ static bool scsi_cd_is_medium_locked(void *opaque)
 
 static const BlockDevOps scsi_disk_removable_block_ops = {
     .change_media_cb  = scsi_cd_change_media_cb,
-    .drained_begin    = scsi_disk_drained_begin,
-    .drained_end      = scsi_disk_drained_end,
     .eject_request_cb = scsi_cd_eject_request_cb,
     .is_medium_locked = scsi_cd_is_medium_locked,
+    .drained_begin    = scsi_disk_drained_begin,
+    .drained_end      = scsi_disk_drained_end,
     .is_tray_open     = scsi_cd_is_tray_open,
     .resize_cb        = scsi_disk_resize_cb,
 };
@@ -2648,8 +2655,8 @@ static const SCSIReqOps scsi_disk_emulate_reqops = {
     .read_data    = scsi_disk_emulate_read_data,
     .write_data   = scsi_disk_emulate_write_data,
     .get_buf      = scsi_get_buf,
-    .load_request = scsi_disk_emulate_load_request,
     .save_request = scsi_disk_emulate_save_request,
+    .load_request = scsi_disk_emulate_load_request,
 };
 
 static const SCSIReqOps scsi_disk_dma_reqops = {
@@ -2659,50 +2666,53 @@ static const SCSIReqOps scsi_disk_dma_reqops = {
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
     .get_buf      = scsi_get_buf,
-    .load_request = scsi_disk_load_request,
     .save_request = scsi_disk_save_request,
+    .load_request = scsi_disk_load_request,
 };
 
-static const SCSIReqOps *const scsi_disk_reqops_dispatch[256] = {
-    [TEST_UNIT_READY]                 = &scsi_disk_emulate_reqops,
-    [INQUIRY]                         = &scsi_disk_emulate_reqops,
-    [MODE_SENSE]                      = &scsi_disk_emulate_reqops,
-    [MODE_SENSE_10]                   = &scsi_disk_emulate_reqops,
-    [START_STOP]                      = &scsi_disk_emulate_reqops,
-    [ALLOW_MEDIUM_REMOVAL]            = &scsi_disk_emulate_reqops,
-    [READ_CAPACITY_10]                = &scsi_disk_emulate_reqops,
-    [READ_TOC]                        = &scsi_disk_emulate_reqops,
-    [READ_DVD_STRUCTURE]              = &scsi_disk_emulate_reqops,
-    [READ_DISC_INFORMATION]           = &scsi_disk_emulate_reqops,
-    [GET_CONFIGURATION]               = &scsi_disk_emulate_reqops,
-    [GET_EVENT_STATUS_NOTIFICATION]   = &scsi_disk_emulate_reqops,
-    [MECHANISM_STATUS]                = &scsi_disk_emulate_reqops,
-    [SERVICE_ACTION_IN_16]            = &scsi_disk_emulate_reqops,
-    [REQUEST_SENSE]                   = &scsi_disk_emulate_reqops,
-    [SYNCHRONIZE_CACHE]               = &scsi_disk_emulate_reqops,
-    [SEEK_10]                         = &scsi_disk_emulate_reqops,
-    [MODE_SELECT]                     = &scsi_disk_emulate_reqops,
-    [MODE_SELECT_10]                  = &scsi_disk_emulate_reqops,
-    [UNMAP]                           = &scsi_disk_emulate_reqops,
-    [WRITE_SAME_10]                   = &scsi_disk_emulate_reqops,
-    [WRITE_SAME_16]                   = &scsi_disk_emulate_reqops,
-    [VERIFY_10]                       = &scsi_disk_emulate_reqops,
-    [VERIFY_12]                       = &scsi_disk_emulate_reqops,
-    [VERIFY_16]                       = &scsi_disk_emulate_reqops,
-    [FORMAT_UNIT]                     = &scsi_disk_emulate_reqops,
+static const SCSIReqOps *scsi_disk_reqops_dispatch[256];
 
-    [READ_6]                          = &scsi_disk_dma_reqops,
-    [READ_10]                         = &scsi_disk_dma_reqops,
-    [READ_12]                         = &scsi_disk_dma_reqops,
-    [READ_16]                         = &scsi_disk_dma_reqops,
-    [WRITE_6]                         = &scsi_disk_dma_reqops,
-    [WRITE_10]                        = &scsi_disk_dma_reqops,
-    [WRITE_12]                        = &scsi_disk_dma_reqops,
-    [WRITE_16]                        = &scsi_disk_dma_reqops,
-    [WRITE_VERIFY_10]                 = &scsi_disk_dma_reqops,
-    [WRITE_VERIFY_12]                 = &scsi_disk_dma_reqops,
-    [WRITE_VERIFY_16]                 = &scsi_disk_dma_reqops,
-};
+static void __attribute__((constructor)) init_scsi_disk_reqops_dispatch(void)
+{
+    scsi_disk_reqops_dispatch[TEST_UNIT_READY]                 = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[INQUIRY]                         = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[MODE_SENSE]                      = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[MODE_SENSE_10]                   = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[START_STOP]                      = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[ALLOW_MEDIUM_REMOVAL]            = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[READ_CAPACITY_10]                = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[READ_TOC]                        = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[READ_DVD_STRUCTURE]              = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[READ_DISC_INFORMATION]           = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[GET_CONFIGURATION]               = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[GET_EVENT_STATUS_NOTIFICATION]   = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[MECHANISM_STATUS]                = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[SERVICE_ACTION_IN_16]            = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[REQUEST_SENSE]                   = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[SYNCHRONIZE_CACHE]               = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[SEEK_10]                         = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[MODE_SELECT]                     = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[MODE_SELECT_10]                  = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[UNMAP]                           = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[WRITE_SAME_10]                   = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[WRITE_SAME_16]                   = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[VERIFY_10]                       = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[VERIFY_12]                       = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[VERIFY_16]                       = &scsi_disk_emulate_reqops;
+    scsi_disk_reqops_dispatch[FORMAT_UNIT]                     = &scsi_disk_emulate_reqops;
+
+    scsi_disk_reqops_dispatch[READ_6]                          = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[READ_10]                         = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[READ_12]                         = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[READ_16]                         = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[WRITE_6]                         = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[WRITE_10]                        = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[WRITE_12]                        = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[WRITE_16]                        = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[WRITE_VERIFY_10]                 = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[WRITE_VERIFY_12]                 = &scsi_disk_dma_reqops;
+    scsi_disk_reqops_dispatch[WRITE_VERIFY_16]                 = &scsi_disk_dma_reqops;
+}
 
 static void scsi_disk_new_request_dump(uint32_t lun, uint32_t tag, uint8_t *buf)
 {
@@ -2947,7 +2957,7 @@ static BlockAIOCB *scsi_block_dma_readv(int64_t offset,
                                         BlockCompletionFunc *cb, void *cb_opaque,
                                         void *opaque)
 {
-    SCSIBlockReq *r = opaque;
+    SCSIBlockReq *r = static_cast<SCSIBlockReq *>(opaque);
     return scsi_block_do_sgio(r, offset, iov,
                               SG_DXFER_FROM_DEV, cb, cb_opaque);
 }
@@ -2957,7 +2967,7 @@ static BlockAIOCB *scsi_block_dma_writev(int64_t offset,
                                          BlockCompletionFunc *cb, void *cb_opaque,
                                          void *opaque)
 {
-    SCSIBlockReq *r = opaque;
+    SCSIBlockReq *r = static_cast<SCSIBlockReq *>(opaque);
     return scsi_block_do_sgio(r, offset, iov,
                               SG_DXFER_TO_DEV, cb, cb_opaque);
 }
@@ -3056,8 +3066,8 @@ static const SCSIReqOps scsi_block_dma_reqops = {
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
     .get_buf      = scsi_get_buf,
-    .load_request = scsi_disk_load_request,
     .save_request = scsi_disk_save_request,
+    .load_request = scsi_disk_load_request,
 };
 
 static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
@@ -3101,9 +3111,9 @@ BlockAIOCB *scsi_dma_readv(int64_t offset, QEMUIOVector *iov,
                            BlockCompletionFunc *cb, void *cb_opaque,
                            void *opaque)
 {
-    SCSIDiskReq *r = opaque;
+    SCSIDiskReq *r = static_cast<SCSIDiskReq *>(opaque);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    return blk_aio_preadv(s->qdev.conf.blk, offset, iov, 0, cb, cb_opaque);
+    return blk_aio_preadv(s->qdev.conf.blk, offset, iov, static_cast<BdrvRequestFlags>(0), cb, cb_opaque);
 }
 
 static
@@ -3111,9 +3121,9 @@ BlockAIOCB *scsi_dma_writev(int64_t offset, QEMUIOVector *iov,
                             BlockCompletionFunc *cb, void *cb_opaque,
                             void *opaque)
 {
-    SCSIDiskReq *r = opaque;
+    SCSIDiskReq *r = static_cast<SCSIDiskReq *>(opaque);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    int flags = r->need_fua ? BDRV_REQ_FUA : 0;
+    BdrvRequestFlags flags = r->need_fua ? BDRV_REQ_FUA : static_cast<BdrvRequestFlags>(0);
     return blk_aio_pwritev(s->qdev.conf.blk, offset, iov, flags, cb, cb_opaque);
 }
 
@@ -3125,19 +3135,19 @@ static char *scsi_property_get_loadparm(Object *obj, Error **errp)
 static void scsi_property_set_loadparm(Object *obj, const char *value,
                                        Error **errp)
 {
-    void *lp_str;
+    uint8_t *lp_str;
 
     if (object_property_get_int(obj, "bootindex", NULL) < 0) {
         error_setg(errp, "'loadparm' is only valid for boot devices");
         return;
     }
 
-    lp_str = g_malloc0(strlen(value) + 1);
+    lp_str = static_cast<uint8_t *>(g_malloc0(strlen(value) + 1));
     if (!qdev_prop_sanitize_s390x_loadparm(lp_str, value, errp)) {
         g_free(lp_str);
         return;
     }
-    SCSI_DISK_BASE(obj)->loadparm = lp_str;
+    SCSI_DISK_BASE(obj)->loadparm = reinterpret_cast<char *>(lp_str);
 }
 
 static void scsi_property_add_specifics(DeviceClass *dc)
@@ -3169,10 +3179,10 @@ static void scsi_disk_base_class_initfn(ObjectClass *klass, const void *data)
 static const TypeInfo scsi_disk_base_info = {
     .name          = TYPE_SCSI_DISK_BASE,
     .parent        = TYPE_SCSI_DEVICE,
-    .class_init    = scsi_disk_base_class_initfn,
     .instance_size = sizeof(SCSIDiskState),
-    .class_size    = sizeof(SCSIDiskClass),
     .is_abstract      = true,
+    .class_size    = sizeof(SCSIDiskClass),
+    .class_init    = scsi_disk_base_class_initfn,
 };
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                   \
@@ -3209,19 +3219,21 @@ static const Property scsi_hd_properties[] = {
     DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
 };
 
+static const VMStateField vmstate_scsi_disk_state_fields[] = {
+    VMSTATE_SCSI_DEVICE(qdev, SCSIDiskState),
+    VMSTATE_BOOL(media_changed, SCSIDiskState),
+    VMSTATE_BOOL(media_event, SCSIDiskState),
+    VMSTATE_BOOL(eject_request, SCSIDiskState),
+    VMSTATE_BOOL(tray_open, SCSIDiskState),
+    VMSTATE_BOOL(tray_locked, SCSIDiskState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_scsi_disk_state = {
     .name = "scsi-disk",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_SCSI_DEVICE(qdev, SCSIDiskState),
-        VMSTATE_BOOL(media_changed, SCSIDiskState),
-        VMSTATE_BOOL(media_event, SCSIDiskState),
-        VMSTATE_BOOL(eject_request, SCSIDiskState),
-        VMSTATE_BOOL(tray_open, SCSIDiskState),
-        VMSTATE_BOOL(tray_locked, SCSIDiskState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_scsi_disk_state_fields,
 };
 
 static void scsi_hd_class_initfn(ObjectClass *klass, const void *data)

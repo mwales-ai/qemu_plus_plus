@@ -197,7 +197,7 @@ void adb_autopoll_unblock(ADBBusState *s)
 
 static void adb_autopoll(void *opaque)
 {
-    ADBBusState *s = opaque;
+    ADBBusState *s = static_cast<ADBBusState *>(opaque);
 
     if (!s->autopoll_blocked) {
         trace_adb_bus_autopoll_cb(s->autopoll_mask);
@@ -217,18 +217,20 @@ void adb_register_autopoll_callback(ADBBusState *s, void (*cb)(void *opaque),
     s->autopoll_cb_opaque = opaque;
 }
 
+static const VMStateField vmstate_adb_bus_fields[] = {
+    VMSTATE_TIMER_PTR(autopoll_timer, ADBBusState),
+    VMSTATE_BOOL(autopoll_enabled, ADBBusState),
+    VMSTATE_UINT8(autopoll_rate_ms, ADBBusState),
+    VMSTATE_UINT16(autopoll_mask, ADBBusState),
+    VMSTATE_BOOL(autopoll_blocked, ADBBusState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_adb_bus = {
     .name = "adb_bus",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(autopoll_timer, ADBBusState),
-        VMSTATE_BOOL(autopoll_enabled, ADBBusState),
-        VMSTATE_UINT8(autopoll_rate_ms, ADBBusState),
-        VMSTATE_UINT16(autopoll_mask, ADBBusState),
-        VMSTATE_BOOL(autopoll_blocked, ADBBusState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_adb_bus_fields,
 };
 
 static void adb_bus_reset_hold(Object *obj, ResetType type)
@@ -310,9 +312,9 @@ static void adb_device_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo adb_device_type_info = {
     .name = TYPE_ADB_DEVICE,
     .parent = TYPE_DEVICE,
-    .class_size = sizeof(ADBDeviceClass),
     .instance_size = sizeof(ADBDevice),
     .is_abstract = true,
+    .class_size = sizeof(ADBDeviceClass),
     .class_init = adb_device_class_init,
 };
 

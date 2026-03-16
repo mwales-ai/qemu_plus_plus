@@ -105,10 +105,10 @@ extern const VMStateDescription vmstate_scsi_device;
 
 #define VMSTATE_SCSI_DEVICE(_field, _state) {                        \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(SCSIDevice),                                \
-    .vmsd       = &vmstate_scsi_device,                              \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, SCSIDevice),  \
+    .size       = sizeof(SCSIDevice),                                \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_scsi_device,                              \
 }
 
 /* cdrom.c */

@@ -193,7 +193,7 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
 static uint64_t aspeed_i2c_bus_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
-    AspeedI2CBus *bus = opaque;
+    AspeedI2CBus *bus = static_cast<AspeedI2CBus *>(opaque);
     if (aspeed_i2c_is_new_mode(bus->controller)) {
         return aspeed_i2c_bus_new_read(bus, offset, size);
     }
@@ -948,7 +948,7 @@ static void aspeed_i2c_bus_old_write(AspeedI2CBus *bus, hwaddr offset,
 static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
                                      uint64_t value, unsigned size)
 {
-    AspeedI2CBus *bus = opaque;
+    AspeedI2CBus *bus = static_cast<AspeedI2CBus *>(opaque);
     if (aspeed_i2c_is_new_mode(bus->controller)) {
         aspeed_i2c_bus_new_write(bus, offset, value, size);
     } else {
@@ -959,7 +959,7 @@ static void aspeed_i2c_bus_write(void *opaque, hwaddr offset,
 static uint64_t aspeed_i2c_ctrl_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    AspeedI2CState *s = opaque;
+    AspeedI2CState *s = static_cast<AspeedI2CState *>(opaque);
 
     switch (offset) {
     case A_I2C_CTRL_STATUS:
@@ -985,7 +985,7 @@ static uint64_t aspeed_i2c_ctrl_read(void *opaque, hwaddr offset,
 static void aspeed_i2c_ctrl_write(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
-    AspeedI2CState *s = opaque;
+    AspeedI2CState *s = static_cast<AspeedI2CState *>(opaque);
 
     switch (offset) {
     case A_I2C_CTRL_GLOBAL:
@@ -1022,7 +1022,7 @@ static const MemoryRegionOps aspeed_i2c_ctrl_ops = {
 static uint64_t aspeed_i2c_share_pool_read(void *opaque, hwaddr offset,
                                      unsigned size)
 {
-    AspeedI2CState *s = opaque;
+    AspeedI2CState *s = static_cast<AspeedI2CState *>(opaque);
     uint64_t ret = 0;
     int i;
 
@@ -1036,7 +1036,7 @@ static uint64_t aspeed_i2c_share_pool_read(void *opaque, hwaddr offset,
 static void aspeed_i2c_share_pool_write(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
-    AspeedI2CState *s = opaque;
+    AspeedI2CState *s = static_cast<AspeedI2CState *>(opaque);
     int i;
 
     for (i = 0; i < size; i++) {
@@ -1057,7 +1057,7 @@ static const MemoryRegionOps aspeed_i2c_share_pool_ops = {
 static uint64_t aspeed_i2c_bus_pool_read(void *opaque, hwaddr offset,
                                      unsigned size)
 {
-    AspeedI2CBus *s = opaque;
+    AspeedI2CBus *s = static_cast<AspeedI2CBus *>(opaque);
     uint64_t ret = 0;
     int i;
 
@@ -1071,7 +1071,7 @@ static uint64_t aspeed_i2c_bus_pool_read(void *opaque, hwaddr offset,
 static void aspeed_i2c_bus_pool_write(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
-    AspeedI2CBus *s = opaque;
+    AspeedI2CBus *s = static_cast<AspeedI2CBus *>(opaque);
     int i;
 
     for (i = 0; i < size; i++) {
@@ -1089,31 +1089,35 @@ static const MemoryRegionOps aspeed_i2c_bus_pool_ops = {
     },
 };
 
+static const VMStateField aspeed_i2c_bus_vmstate_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedI2CBus, ASPEED_I2C_NEW_NUM_REG),
+    VMSTATE_UINT8_ARRAY(pool, AspeedI2CBus, ASPEED_I2C_BUS_POOL_SIZE),
+    VMSTATE_UINT64(dma_dram_offset, AspeedI2CBus),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription aspeed_i2c_bus_vmstate = {
     .name = TYPE_ASPEED_I2C,
     .version_id = 6,
     .minimum_version_id = 6,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedI2CBus, ASPEED_I2C_NEW_NUM_REG),
-        VMSTATE_UINT8_ARRAY(pool, AspeedI2CBus, ASPEED_I2C_BUS_POOL_SIZE),
-        VMSTATE_UINT64(dma_dram_offset, AspeedI2CBus),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = aspeed_i2c_bus_vmstate_fields,
+};
+
+static const VMStateField aspeed_i2c_vmstate_fields[] = {
+    VMSTATE_UINT32(intr_status, AspeedI2CState),
+    VMSTATE_STRUCT_ARRAY(busses, AspeedI2CState,
+                         ASPEED_I2C_NR_BUSSES, 1, aspeed_i2c_bus_vmstate,
+                         AspeedI2CBus),
+    VMSTATE_UINT8_ARRAY(share_pool, AspeedI2CState,
+                        ASPEED_I2C_SHARE_POOL_SIZE),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription aspeed_i2c_vmstate = {
     .name = TYPE_ASPEED_I2C,
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(intr_status, AspeedI2CState),
-        VMSTATE_STRUCT_ARRAY(busses, AspeedI2CState,
-                             ASPEED_I2C_NR_BUSSES, 1, aspeed_i2c_bus_vmstate,
-                             AspeedI2CBus),
-        VMSTATE_UINT8_ARRAY(share_pool, AspeedI2CState,
-                            ASPEED_I2C_SHARE_POOL_SIZE),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = aspeed_i2c_vmstate_fields,
 };
 
 static void aspeed_i2c_reset(DeviceState *dev)
@@ -1318,11 +1322,11 @@ static void aspeed_i2c_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo aspeed_i2c_info = {
     .name          = TYPE_ASPEED_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = aspeed_i2c_instance_init,
     .instance_size = sizeof(AspeedI2CState),
-    .class_init    = aspeed_i2c_class_init,
-    .class_size = sizeof(AspeedI2CClass),
+    .instance_init = aspeed_i2c_instance_init,
     .is_abstract   = true,
+    .class_size = sizeof(AspeedI2CClass),
+    .class_init    = aspeed_i2c_class_init,
 };
 
 static int aspeed_i2c_bus_new_slave_event(AspeedI2CBus *bus,

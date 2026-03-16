@@ -118,34 +118,36 @@ struct Exynos4210RTCState {
 #define TICCKSEL(value) ((value & (0x0F << 4)) >> 4)
 
 /*** VMState ***/
+static const VMStateField vmstate_exynos4210_rtc_state_fields[] = {
+    VMSTATE_UINT32(reg_intp, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_rtccon, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_ticcnt, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_rtcalm, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_almsec, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_almmin, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_almhour, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_almday, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_almmon, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_almyear, Exynos4210RTCState),
+    VMSTATE_UINT32(reg_curticcnt, Exynos4210RTCState),
+    VMSTATE_PTIMER(ptimer, Exynos4210RTCState),
+    VMSTATE_PTIMER(ptimer_1Hz, Exynos4210RTCState),
+    VMSTATE_UINT32(freq, Exynos4210RTCState),
+    VMSTATE_INT32(current_tm.tm_sec, Exynos4210RTCState),
+    VMSTATE_INT32(current_tm.tm_min, Exynos4210RTCState),
+    VMSTATE_INT32(current_tm.tm_hour, Exynos4210RTCState),
+    VMSTATE_INT32(current_tm.tm_wday, Exynos4210RTCState),
+    VMSTATE_INT32(current_tm.tm_mday, Exynos4210RTCState),
+    VMSTATE_INT32(current_tm.tm_mon, Exynos4210RTCState),
+    VMSTATE_INT32(current_tm.tm_year, Exynos4210RTCState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_exynos4210_rtc_state = {
     .name = "exynos4210.rtc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(reg_intp, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_rtccon, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_ticcnt, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_rtcalm, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almsec, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almmin, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almhour, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almday, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almmon, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_almyear, Exynos4210RTCState),
-        VMSTATE_UINT32(reg_curticcnt, Exynos4210RTCState),
-        VMSTATE_PTIMER(ptimer, Exynos4210RTCState),
-        VMSTATE_PTIMER(ptimer_1Hz, Exynos4210RTCState),
-        VMSTATE_UINT32(freq, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_sec, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_min, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_hour, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_wday, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_mday, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_mon, Exynos4210RTCState),
-        VMSTATE_INT32(current_tm.tm_year, Exynos4210RTCState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_rtc_state_fields,
 };
 
 #define BCD3DIGITS(x) \

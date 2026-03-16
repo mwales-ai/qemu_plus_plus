@@ -3,7 +3,7 @@ system_ss.add(when: 'CONFIG_GPIO_MPC8XXX', if_true: files('mpc8xxx.c'))
 system_ss.add(when: 'CONFIG_GPIO_PWR', if_true: files('gpio_pwr.cpp'))
 system_ss.add(when: 'CONFIG_PCA9552', if_true: files('pca9552.cpp'))
 system_ss.add(when: 'CONFIG_PCA9554', if_true: files('pca9554.cpp'))
-system_ss.add(when: 'CONFIG_PL061', if_true: files('pl061.c'))
+system_ss.add(when: 'CONFIG_PL061', if_true: files('pl061.cpp'))
 system_ss.add(when: 'CONFIG_ZAURUS_SCOOP', if_true: files('zaurus.cpp'))
 
 system_ss.add(when: 'CONFIG_IMX', if_true: files('imx_gpio.c'))

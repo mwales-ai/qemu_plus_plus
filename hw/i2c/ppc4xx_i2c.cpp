@@ -186,7 +186,7 @@ static uint64_t ppc4xx_i2c_readb(void *opaque, hwaddr addr, unsigned int size)
 static void ppc4xx_i2c_writeb(void *opaque, hwaddr addr, uint64_t value,
                               unsigned int size)
 {
-    PPC4xxI2CState *i2c = opaque;
+    PPC4xxI2CState *i2c = static_cast<PPC4xxI2CState *>(opaque);
 
     switch (addr) {
     case IIC_MDBUF:
@@ -335,9 +335,9 @@ static void ppc4xx_i2c_writeb(void *opaque, hwaddr addr, uint64_t value,
 static const MemoryRegionOps ppc4xx_i2c_ops = {
     .read = ppc4xx_i2c_readb,
     .write = ppc4xx_i2c_writeb,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 1, },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void ppc4xx_i2c_init(Object *o)
