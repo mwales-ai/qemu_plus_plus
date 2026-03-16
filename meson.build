@@ -4166,6 +4166,7 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
       sources: src.all_sources() + genh,
       include_directories: inc,
       c_args: target_c_args,
+      cpp_args: target_c_args,
       dependencies: src.all_dependencies() + common_deps +
                     system_deps + user_deps)
     target_common_arch_libs += {target_base_arch: lib}
@@ -4189,6 +4190,7 @@ foreach target_base_arch, config_base_arch : config_base_arch_mak
       sources: src.all_sources() + genh,
       include_directories: inc,
       c_args: target_system_c_args,
+      cpp_args: target_system_c_args,
       dependencies: src.all_dependencies() + common_deps + system_deps)
     target_common_system_arch_libs += {target_base_arch: lib}
   endif
