@@ -16,6 +16,8 @@
 #include "xen_evtchn.h"
 #include "xen_primary_console.h"
 
+extern "C" {
+
 void xen_evtchn_snoop_msi(PCIDevice *dev, bool is_msix, unsigned int vector,
                           uint64_t addr, uint32_t data, bool is_masked)
 {
@@ -37,3 +39,5 @@ void xen_primary_console_create(void)
 void xen_primary_console_set_be_port(uint16_t port)
 {
 }
+
+} /* extern "C" */

@@ -60,7 +60,7 @@ static void serial_isa_realizefn(DeviceState *dev, Error **errp)
     ISASerialState *isa = ISA_SERIAL(dev);
     SerialState *s = &isa->state;
 
-    if (isa->index == -1) {
+    if (isa->index == static_cast<uint32_t>(-1)) {
         isa->index = index;
     }
     if (isa->index >= MAX_ISA_SERIAL_PORTS) {
@@ -68,10 +68,10 @@ static void serial_isa_realizefn(DeviceState *dev, Error **errp)
                    MAX_ISA_SERIAL_PORTS);
         return;
     }
-    if (isa->iobase == -1) {
+    if (isa->iobase == static_cast<uint32_t>(-1)) {
         isa->iobase = isa_serial_io[isa->index];
     }
-    if (isa->isairq == -1) {
+    if (isa->isairq == static_cast<uint32_t>(-1)) {
         isa->isairq = isa_serial_irq[isa->index];
     }
     index++;

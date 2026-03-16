@@ -12,6 +12,10 @@
 #ifndef QEMU_XEN_PRIMARY_CONSOLE_H
 #define QEMU_XEN_PRIMARY_CONSOLE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xen_primary_console_create(void);
 int xen_primary_console_reset(void);
 
@@ -19,5 +23,9 @@ uint16_t xen_primary_console_get_port(void);
 void xen_primary_console_set_be_port(uint16_t port);
 uint64_t xen_primary_console_get_pfn(void);
 void *xen_primary_console_get_map(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_XEN_PRIMARY_CONSOLE_H */

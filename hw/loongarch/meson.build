@@ -1,6 +1,6 @@
 loongarch_ss = ss.source_set()
 loongarch_ss.add(files(
-    'boot.c',
+    'boot.cpp',
 ))
 common_ss.add(when: 'CONFIG_LOONGARCH_VIRT', if_true: files('fw_cfg.cpp'))
 loongarch_ss.add(when: 'CONFIG_LOONGARCH_VIRT', if_true: files(

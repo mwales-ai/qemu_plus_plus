@@ -14,6 +14,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef uint32_t evtchn_port_t;
 
 void xen_evtchn_create(unsigned int nr_gsis, qemu_irq *system_gsis);
@@ -83,5 +87,9 @@ int xen_physdev_unmap_pirq(struct physdev_unmap_pirq *unmap);
 int xen_physdev_eoi_pirq(struct physdev_eoi *eoi);
 int xen_physdev_query_pirq(struct physdev_irq_status_query *query);
 int xen_physdev_get_free_pirq(struct physdev_get_free_pirq *get);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_XEN_EVTCHN_H */

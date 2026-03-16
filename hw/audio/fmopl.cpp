@@ -117,54 +117,56 @@ static const int slot_array[32]=
 /* key scale level */
 /* table is 3dB/OCT , DV converts this in TL step at 6dB/OCT */
 #define DV (EG_STEP/2)
+#define KSL(db) static_cast<uint32_t>((db)/DV)
 static const uint32_t KSL_TABLE[8*16]=
 {
 	/* OCT 0 */
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
+	 0, 0, 0, 0,
+	 0, 0, 0, 0,
+	 0, 0, 0, 0,
+	 0, 0, 0, 0,
 	/* OCT 1 */
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 0.750/DV, 1.125/DV, 1.500/DV,
-	 1.875/DV, 2.250/DV, 2.625/DV, 3.000/DV,
+	 0, 0, 0, 0,
+	 0, 0, 0, 0,
+	 0, KSL(0.750), KSL(1.125), KSL(1.500),
+	 KSL(1.875), KSL(2.250), KSL(2.625), KSL(3.000),
 	/* OCT 2 */
-	 0.000/DV, 0.000/DV, 0.000/DV, 0.000/DV,
-	 0.000/DV, 1.125/DV, 1.875/DV, 2.625/DV,
-	 3.000/DV, 3.750/DV, 4.125/DV, 4.500/DV,
-	 4.875/DV, 5.250/DV, 5.625/DV, 6.000/DV,
+	 0, 0, 0, 0,
+	 0, KSL(1.125), KSL(1.875), KSL(2.625),
+	 KSL(3.000), KSL(3.750), KSL(4.125), KSL(4.500),
+	 KSL(4.875), KSL(5.250), KSL(5.625), KSL(6.000),
 	/* OCT 3 */
-	 0.000/DV, 0.000/DV, 0.000/DV, 1.875/DV,
-	 3.000/DV, 4.125/DV, 4.875/DV, 5.625/DV,
-	 6.000/DV, 6.750/DV, 7.125/DV, 7.500/DV,
-	 7.875/DV, 8.250/DV, 8.625/DV, 9.000/DV,
+	 0, 0, 0, KSL(1.875),
+	 KSL(3.000), KSL(4.125), KSL(4.875), KSL(5.625),
+	 KSL(6.000), KSL(6.750), KSL(7.125), KSL(7.500),
+	 KSL(7.875), KSL(8.250), KSL(8.625), KSL(9.000),
 	/* OCT 4 */
-	 0.000/DV, 0.000/DV, 3.000/DV, 4.875/DV,
-	 6.000/DV, 7.125/DV, 7.875/DV, 8.625/DV,
-	 9.000/DV, 9.750/DV,10.125/DV,10.500/DV,
-	10.875/DV,11.250/DV,11.625/DV,12.000/DV,
+	 0, 0, KSL(3.000), KSL(4.875),
+	 KSL(6.000), KSL(7.125), KSL(7.875), KSL(8.625),
+	 KSL(9.000), KSL(9.750),KSL(10.125),KSL(10.500),
+	KSL(10.875),KSL(11.250),KSL(11.625),KSL(12.000),
 	/* OCT 5 */
-	 0.000/DV, 3.000/DV, 6.000/DV, 7.875/DV,
-	 9.000/DV,10.125/DV,10.875/DV,11.625/DV,
-	12.000/DV,12.750/DV,13.125/DV,13.500/DV,
-	13.875/DV,14.250/DV,14.625/DV,15.000/DV,
+	 0, KSL(3.000), KSL(6.000), KSL(7.875),
+	 KSL(9.000),KSL(10.125),KSL(10.875),KSL(11.625),
+	KSL(12.000),KSL(12.750),KSL(13.125),KSL(13.500),
+	KSL(13.875),KSL(14.250),KSL(14.625),KSL(15.000),
 	/* OCT 6 */
-	 0.000/DV, 6.000/DV, 9.000/DV,10.875/DV,
-	12.000/DV,13.125/DV,13.875/DV,14.625/DV,
-	15.000/DV,15.750/DV,16.125/DV,16.500/DV,
-	16.875/DV,17.250/DV,17.625/DV,18.000/DV,
+	 0, KSL(6.000), KSL(9.000),KSL(10.875),
+	KSL(12.000),KSL(13.125),KSL(13.875),KSL(14.625),
+	KSL(15.000),KSL(15.750),KSL(16.125),KSL(16.500),
+	KSL(16.875),KSL(17.250),KSL(17.625),KSL(18.000),
 	/* OCT 7 */
-	 0.000/DV, 9.000/DV,12.000/DV,13.875/DV,
-	15.000/DV,16.125/DV,16.875/DV,17.625/DV,
-	18.000/DV,18.750/DV,19.125/DV,19.500/DV,
-	19.875/DV,20.250/DV,20.625/DV,21.000/DV
+	 0, KSL(9.000),KSL(12.000),KSL(13.875),
+	KSL(15.000),KSL(16.125),KSL(16.875),KSL(17.625),
+	KSL(18.000),KSL(18.750),KSL(19.125),KSL(19.500),
+	KSL(19.875),KSL(20.250),KSL(20.625),KSL(21.000)
 };
+#undef KSL
 #undef DV
 
 /* sustain lebel table (3db per step) */
 /* 0 - 15: 0, 3, 6, 9,12,15,18,21,24,27,30,33,36,39,42,93 (dB)*/
-#define SC(db) (db*((3/EG_STEP)*(1<<ENV_BITS)))+EG_DST
+#define SC(db) static_cast<int32_t>((db)*((3/EG_STEP)*(1<<ENV_BITS))+EG_DST)
 static const int32_t SL_TABLE[16]={
  SC( 0),SC( 1),SC( 2),SC(3 ),SC(4 ),SC(5 ),SC(6 ),SC( 7),
  SC( 8),SC( 9),SC(10),SC(11),SC(12),SC(13),SC(14),SC(31)
@@ -190,11 +192,13 @@ static int32_t *ENV_CURVE;
 
 /* multiple table */
 #define ML 2
+#define MUL(x) static_cast<uint32_t>((x)*ML)
 static const uint32_t MUL_TABLE[16]= {
 /* 1/2, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15 */
-   0.50*ML, 1.00*ML, 2.00*ML, 3.00*ML, 4.00*ML, 5.00*ML, 6.00*ML, 7.00*ML,
-   8.00*ML, 9.00*ML,10.00*ML,10.00*ML,12.00*ML,12.00*ML,15.00*ML,15.00*ML
+   MUL(0.50), MUL(1.00), MUL(2.00), MUL(3.00), MUL(4.00), MUL(5.00), MUL(6.00), MUL(7.00),
+   MUL(8.00), MUL(9.00),MUL(10.00),MUL(10.00),MUL(12.00),MUL(12.00),MUL(15.00),MUL(15.00)
 };
+#undef MUL
 #undef ML
 
 /* dummy attack / decay rate ( when rate == 0 ) */
@@ -584,7 +588,7 @@ static void init_timetables( FM_OPL *OPL , int ARRATE , int DRRATE )
 		OPL->AR_TABLE[i] = rate / ARRATE;
 		OPL->DR_TABLE[i] = rate / DRRATE;
 	}
-	for (i = 60; i < ARRAY_SIZE(OPL->AR_TABLE); i++)
+	for (i = 60; i < static_cast<int>(ARRAY_SIZE(OPL->AR_TABLE)); i++)
 	{
 		OPL->AR_TABLE[i] = EG_AED-1;
 		OPL->DR_TABLE[i] = OPL->DR_TABLE[60];
@@ -607,20 +611,20 @@ static int OPLOpenTable( void )
 	double pom;
 
 	/* allocate dynamic tables */
-	if( (TL_TABLE = malloc(TL_MAX*2*sizeof(int32_t))) == NULL)
+	if( (TL_TABLE = static_cast<int32_t *>(malloc(TL_MAX*2*sizeof(int32_t)))) == NULL)
 		return 0;
-	if( (SIN_TABLE = malloc(SIN_ENT*4 *sizeof(int32_t *))) == NULL)
+	if( (SIN_TABLE = static_cast<int32_t **>(malloc(SIN_ENT*4 *sizeof(int32_t *)))) == NULL)
 	{
 		free(TL_TABLE);
 		return 0;
 	}
-	if( (AMS_TABLE = malloc(AMS_ENT*2 *sizeof(int32_t))) == NULL)
+	if( (AMS_TABLE = static_cast<int32_t *>(malloc(AMS_ENT*2 *sizeof(int32_t)))) == NULL)
 	{
 		free(TL_TABLE);
 		free(SIN_TABLE);
 		return 0;
 	}
-	if( (VIB_TABLE = malloc(VIB_ENT*2 *sizeof(int32_t))) == NULL)
+	if( (VIB_TABLE = static_cast<int32_t *>(malloc(VIB_ENT*2 *sizeof(int32_t)))) == NULL)
 	{
 		free(TL_TABLE);
 		free(SIN_TABLE);
@@ -910,7 +914,7 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 			}
 		}
 		/* update */
-		if(CH->block_fnum != block_fnum)
+		if(CH->block_fnum != static_cast<uint32_t>(block_fnum))
 		{
 			int blockRv = 7-(block_fnum>>10);
 			int fnum   = block_fnum&0x3ff;
@@ -1082,7 +1086,7 @@ FM_OPL *OPLCreate(int clock, int rate)
 	state_size  = sizeof(FM_OPL);
 	state_size += sizeof(OPL_CH)*max_ch;
 	/* allocate memory block */
-	ptr = malloc(state_size);
+	ptr = static_cast<char *>(malloc(state_size));
 	if(ptr==NULL) return NULL;
 	/* clear */
 	memset(ptr,0,state_size);
