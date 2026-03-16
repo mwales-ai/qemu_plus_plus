@@ -131,8 +131,8 @@ static void usb_msd_instance_init(Object *obj)
 static const TypeInfo msd_info = {
     .name          = "usb-storage",
     .parent        = TYPE_USB_STORAGE,
-    .class_init    = usb_msd_class_storage_initfn,
     .instance_init = usb_msd_instance_init,
+    .class_init    = usb_msd_class_storage_initfn,
 };
 
 static void register_types(void)

@@ -112,11 +112,11 @@ static uint32_t i82374_read_descriptor(void *opaque, uint32_t nport)
 }
 
 static const MemoryRegionPortio i82374_portio_list[] = {
-    { 0x0A, 1, 1, .read = i82374_read_isr, },
-    { 0x10, 8, 1, .write = i82374_write_command, },
-    { 0x18, 8, 1, .read = i82374_read_status, },
-    { 0x20, 0x20, 1,
-      .write = i82374_write_descriptor, .read = i82374_read_descriptor, },
+    { .offset = 0x0A, .len = 1, .size = 1, .read = i82374_read_isr, },
+    { .offset = 0x10, .len = 8, .size = 1, .write = i82374_write_command, },
+    { .offset = 0x18, .len = 8, .size = 1, .read = i82374_read_status, },
+    { .offset = 0x20, .len = 0x20, .size = 1,
+      .read = i82374_read_descriptor, .write = i82374_write_descriptor, },
     PORTIO_END_OF_LIST(),
 };
 

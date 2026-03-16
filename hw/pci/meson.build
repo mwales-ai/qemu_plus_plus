@@ -3,7 +3,7 @@ pci_ss.add(files(
   'msi.c',
   'msix.c',
   'pci.c',
-  'pci_bridge.c',
+  'pci_bridge.cpp',
   'pci_host.c',
   'pci-hmp-cmds.cpp',
   'pci-qmp-cmds.cpp',

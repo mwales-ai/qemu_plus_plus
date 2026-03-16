@@ -41,7 +41,7 @@ static const uint8_t dlc2len[] = {
 };
 
 /* get data length from can_dlc with sanitized can_dlc */
-uint8_t can_dlc2len(uint8_t can_dlc)
+extern "C" uint8_t can_dlc2len(uint8_t can_dlc)
 {
     return dlc2len[can_dlc & 0x0F];
 }
@@ -60,7 +60,7 @@ static const uint8_t len2dlc[] = {
 };
 
 /* map the sanitized data length to an appropriate data length code */
-uint8_t can_len2dlc(uint8_t len)
+extern "C" uint8_t can_len2dlc(uint8_t len)
 {
     if (unlikely(len > 64)) {
         return 0xF;
@@ -82,14 +82,14 @@ static void can_bus_instance_init(Object *object)
     QTAILQ_INIT(&bus->clients);
 }
 
-int can_bus_insert_client(CanBusState *bus, CanBusClientState *client)
+extern "C" int can_bus_insert_client(CanBusState *bus, CanBusClientState *client)
 {
     client->bus = bus;
     QTAILQ_INSERT_TAIL(&bus->clients, client, next);
     return 0;
 }
 
-int can_bus_remove_client(CanBusClientState *client)
+extern "C" int can_bus_remove_client(CanBusClientState *client)
 {
     CanBusState *bus = client->bus;
     if (bus == NULL) {
@@ -101,7 +101,7 @@ int can_bus_remove_client(CanBusClientState *client)
     return 1;
 }
 
-ssize_t can_bus_client_send(CanBusClientState *client,
+extern "C" ssize_t can_bus_client_send(CanBusClientState *client,
              const struct qemu_can_frame *frames, size_t frames_cnt)
 {
     int ret = 0;
@@ -126,7 +126,7 @@ ssize_t can_bus_client_send(CanBusClientState *client,
     return ret;
 }
 
-int can_bus_filter_match(struct qemu_can_filter *filter, qemu_canid_t can_id)
+extern "C" int can_bus_filter_match(struct qemu_can_filter *filter, qemu_canid_t can_id)
 {
     int m;
     if (((can_id | filter->can_mask) & QEMU_CAN_ERR_FLAG)) {
@@ -136,7 +136,7 @@ int can_bus_filter_match(struct qemu_can_filter *filter, qemu_canid_t can_id)
     return filter->can_id & QEMU_CAN_INV_FILTER ? !m : m;
 }
 
-int can_bus_client_set_filters(CanBusClientState *client,
+extern "C" int can_bus_client_set_filters(CanBusClientState *client,
              const struct qemu_can_filter *filters, size_t filters_cnt)
 {
     return 0;
@@ -156,16 +156,18 @@ static void can_bus_class_init(ObjectClass *klass,
     uc_klass->can_be_deleted = can_bus_can_be_deleted;
 }
 
+static const InterfaceInfo can_bus_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo can_bus_info = {
-    .parent = TYPE_OBJECT,
     .name = TYPE_CAN_BUS,
+    .parent = TYPE_OBJECT,
     .instance_size = sizeof(CanBusState),
     .instance_init = can_bus_instance_init,
     .class_init = can_bus_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = can_bus_interfaces,
 };
 
 static void can_bus_register_types(void)

@@ -33,7 +33,7 @@ block_ss.add(files(
   'qcow2-threads.cpp',
   'quorum.c',
   'raw-format.cpp',
-  'reqlist.c',
+  'reqlist.cpp',
   'snapshot.c',
   'snapshot-access.cpp',
   'throttle.cpp',
@@ -42,7 +42,7 @@ block_ss.add(files(
 ), zstd, zlib)
 
 system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
-system_ss.add(files('block-ram-registrar.c'))
+system_ss.add(files('block-ram-registrar.cpp'))
 
 if get_option('qcow1').allowed()
   block_ss.add(files('qcow.cpp'))

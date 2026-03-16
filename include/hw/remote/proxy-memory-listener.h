@@ -12,6 +12,10 @@
 #include "system/memory.h"
 #include "io/channel.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct ProxyMemoryListener {
     MemoryListener listener;
 
@@ -24,5 +28,9 @@ typedef struct ProxyMemoryListener {
 void proxy_memory_listener_configure(ProxyMemoryListener *proxy_listener,
                                      QIOChannel *ioc);
 void proxy_memory_listener_deconfigure(ProxyMemoryListener *proxy_listener);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

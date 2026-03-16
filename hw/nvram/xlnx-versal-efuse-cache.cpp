@@ -100,8 +100,8 @@ static const TypeInfo efuse_cache_info = {
     .name          = TYPE_XLNX_VERSAL_EFUSE_CACHE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalEFuseCache),
-    .class_init    = efuse_cache_class_init,
     .instance_init = efuse_cache_init,
+    .class_init    = efuse_cache_class_init,
 };
 
 static void efuse_cache_register_types(void)

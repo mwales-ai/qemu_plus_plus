@@ -559,10 +559,10 @@ extern const VMStateDescription vmstate_pmbus_device;
 
 #define VMSTATE_PMBUS_DEVICE(_field, _state) {                       \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(PMBusDevice),                               \
-    .vmsd       = &vmstate_pmbus_device,                             \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, PMBusDevice), \
+    .size       = sizeof(PMBusDevice),                               \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_pmbus_device,                             \
 }
 
 #ifdef __cplusplus

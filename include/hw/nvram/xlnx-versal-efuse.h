@@ -64,6 +64,14 @@ struct XlnxVersalEFuseCache {
  *
  * Returns: the 32-bit word containing address @bit; 0 if @denies is true
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint32_t xlnx_versal_efuse_read_row(XlnxEFuse *s, uint32_t bit, bool *denied);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

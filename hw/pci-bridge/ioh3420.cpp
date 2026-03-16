@@ -82,18 +82,20 @@ static void ioh3420_interrupts_uninit(PCIDevice *d)
     msi_uninit(d);
 }
 
+static const VMStateField vmstate_ioh3420_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
+    VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
+                   PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ioh3420 = {
     .name = "ioh-3240-express-root-port",
-    .priority = MIG_PRI_PCI_BUS,
     .version_id = 1,
     .minimum_version_id = 1,
+    .priority = MIG_PRI_PCI_BUS,
     .post_load = pcie_cap_slot_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
-        VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
-                       PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ioh3420_fields,
 };
 
 static void ioh3420_class_init(ObjectClass *klass, const void *data)

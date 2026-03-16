@@ -50,15 +50,17 @@ static bool migrate_needed(void *opaque)
     return ramfb->migrate;
 }
 
+static const VMStateField ramfb_dev_vmstate_fields[] = {
+    VMSTATE_STRUCT_POINTER(state, RAMFBStandaloneState, ramfb_vmstate, RAMFBState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription ramfb_dev_vmstate = {
     .name = "ramfb-dev",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = migrate_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_POINTER(state, RAMFBStandaloneState, ramfb_vmstate, RAMFBState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = ramfb_dev_vmstate_fields,
 };
 
 static const Property ramfb_properties[] = {

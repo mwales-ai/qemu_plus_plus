@@ -52,12 +52,12 @@ typedef struct msos_compat_func {
 
 static int usb_desc_msos_compat(const USBDesc *desc, uint8_t *dest)
 {
-    msos_compat_hdr *hdr = (void *)dest;
+    msos_compat_hdr *hdr = static_cast<msos_compat_hdr *>(static_cast<void *>(dest));
     msos_compat_func *func;
     int length = sizeof(*hdr);
     int count = 0;
 
-    func = (void *)(dest + length);
+    func = static_cast<msos_compat_func *>(static_cast<void *>(dest + length));
     func->bFirstInterfaceNumber = 0;
     func->reserved_1 = 0x01;
     if (desc->msos->CompatibleID) {
@@ -129,14 +129,14 @@ static int usb_desc_msos_prop_name(struct msos_prop *prop,
 static int usb_desc_msos_prop_str(uint8_t *dest, msos_prop_type type,
                                   const wchar_t *name, const wchar_t *value)
 {
-    struct msos_prop *prop = (void *)dest;
+    struct msos_prop *prop = static_cast<struct msos_prop *>(static_cast<void *>(dest));
     struct msos_prop_data *data;
     int length = sizeof(*prop);
     int i, vlen = wcslen(value) + 1;
 
     prop->dwPropertyDataType = cpu_to_le32(type);
     length += usb_desc_msos_prop_name(prop, name);
-    data = (void *)(dest + length);
+    data = static_cast<struct msos_prop_data *>(static_cast<void *>(dest + length));
 
     data->dwPropertyDataLength = cpu_to_le32(vlen*2);
     length += sizeof(*prop);
@@ -154,13 +154,13 @@ static int usb_desc_msos_prop_str(uint8_t *dest, msos_prop_type type,
 static int usb_desc_msos_prop_dword(uint8_t *dest, const wchar_t *name,
                                     uint32_t value)
 {
-    struct msos_prop *prop = (void *)dest;
+    struct msos_prop *prop = static_cast<struct msos_prop *>(static_cast<void *>(dest));
     struct msos_prop_data *data;
     int length = sizeof(*prop);
 
     prop->dwPropertyDataType = cpu_to_le32(MSOS_REG_DWORD_LE);
     length += usb_desc_msos_prop_name(prop, name);
-    data = (void *)(dest + length);
+    data = static_cast<struct msos_prop_data *>(static_cast<void *>(dest + length));
 
     data->dwPropertyDataLength = cpu_to_le32(4);
     data->bPropertyData[0] = (value)       & 0xff;
@@ -175,7 +175,7 @@ static int usb_desc_msos_prop_dword(uint8_t *dest, const wchar_t *name,
 
 static int usb_desc_msos_prop(const USBDesc *desc, uint8_t *dest)
 {
-    msos_prop_hdr *hdr = (void *)dest;
+    msos_prop_hdr *hdr = static_cast<msos_prop_hdr *>(static_cast<void *>(dest));
     int length = sizeof(*hdr);
     int count = 0;
 
@@ -221,10 +221,10 @@ int usb_desc_msos(const USBDesc *desc,  USBPacket *p,
 
     switch (index) {
     case 0x0004:
-        length = usb_desc_msos_compat(desc, buf);
+        length = usb_desc_msos_compat(desc, static_cast<uint8_t *>(buf));
         break;
     case 0x0005:
-        length = usb_desc_msos_prop(desc, buf);
+        length = usb_desc_msos_prop(desc, static_cast<uint8_t *>(buf));
         break;
     }
 

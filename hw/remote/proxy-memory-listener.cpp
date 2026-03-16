@@ -197,14 +197,14 @@ static void proxy_memory_listener_commit(MemoryListener *listener)
     }
 }
 
-void proxy_memory_listener_deconfigure(ProxyMemoryListener *proxy_listener)
+extern "C" void proxy_memory_listener_deconfigure(ProxyMemoryListener *proxy_listener)
 {
     memory_listener_unregister(&proxy_listener->listener);
 
     proxy_memory_listener_reset(&proxy_listener->listener);
 }
 
-void proxy_memory_listener_configure(ProxyMemoryListener *proxy_listener,
+extern "C" void proxy_memory_listener_configure(ProxyMemoryListener *proxy_listener,
                                      QIOChannel *ioc)
 {
     proxy_listener->n_mr_sections = 0;

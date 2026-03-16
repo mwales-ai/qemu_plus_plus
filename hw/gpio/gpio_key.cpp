@@ -41,14 +41,16 @@ struct GPIOKEYState {
     qemu_irq irq;
 };
 
+static const VMStateField vmstate_gpio_key_fields[] = {
+    VMSTATE_TIMER_PTR(timer, GPIOKEYState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_gpio_key = {
     .name = "gpio-key",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, GPIOKEYState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gpio_key_fields,
 };
 
 static void gpio_key_reset(DeviceState *dev)

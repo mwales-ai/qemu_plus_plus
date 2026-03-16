@@ -16,6 +16,10 @@
 #include "qemu/thread-posix.h"
 #include "hw/remote/mpqemu-link.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define REMOTE_IOHUB_NB_PIRQS    PCI_DEVFN_MAX
 
 typedef struct ResampleToken {
@@ -37,5 +41,9 @@ void remote_iohub_set_irq(void *opaque, int pirq, int level);
 void process_set_irqfd_msg(PCIDevice *pci_dev, MPQemuMsg *msg);
 
 void remote_iohub_init(RemoteIOHubState *iohub);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

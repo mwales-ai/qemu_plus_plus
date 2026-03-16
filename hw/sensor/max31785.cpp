@@ -483,11 +483,7 @@ static void max31785_exit_reset(Object *obj, ResetType type)
     s->mfr_serial = MAX31785_DEFAULT_TEXT;
 }
 
-static const VMStateDescription vmstate_max31785 = {
-    .name = TYPE_MAX31785,
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .fields = (const VMStateField[]){
+static const VMStateField vmstate_max31785_fields[] = {
         VMSTATE_PMBUS_DEVICE(parent, MAX31785State),
         VMSTATE_UINT16_ARRAY(mfr_mode, MAX31785State,
                              MAX31785_TOTAL_NUM_PAGES),
@@ -521,7 +517,13 @@ static const VMStateDescription vmstate_max31785 = {
         VMSTATE_UINT64(mfr_date, MAX31785State),
         VMSTATE_UINT64(mfr_serial, MAX31785State),
         VMSTATE_END_OF_LIST()
-    }
+};
+
+static const VMStateDescription vmstate_max31785 = {
+    .name = TYPE_MAX31785,
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = vmstate_max31785_fields,
 };
 
 static void max31785_init(Object *obj)

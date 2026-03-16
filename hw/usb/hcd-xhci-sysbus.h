@@ -27,5 +27,14 @@ typedef struct XHCISysbusState {
     qemu_irq *irq;
 } XHCISysbusState;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xhci_sysbus_reset(DeviceState *dev);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

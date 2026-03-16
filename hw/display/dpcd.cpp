@@ -153,8 +153,8 @@ static const TypeInfo dpcd_info = {
     .name          = TYPE_DPCD,
     .parent        = TYPE_AUX_SLAVE,
     .instance_size = sizeof(DPCDState),
-    .class_init    = dpcd_class_init,
     .instance_init = dpcd_init,
+    .class_init    = dpcd_class_init,
 };
 
 static void dpcd_register_types(void)

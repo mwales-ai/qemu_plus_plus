@@ -29,12 +29,14 @@
 #include "hw/ide/ahci-sysbus.h"
 #include "ahci-internal.h"
 
+static const VMStateField vmstate_sysbus_ahci_fields[] = {
+    VMSTATE_AHCI(ahci, SysbusAHCIState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sysbus_ahci = {
     .name = "sysbus-ahci",
-    .fields = (const VMStateField[]) {
-        VMSTATE_AHCI(ahci, SysbusAHCIState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_sysbus_ahci_fields,
 };
 
 static void sysbus_ahci_reset(DeviceState *dev)

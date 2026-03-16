@@ -3,5 +3,5 @@
 system_ss.add(when: 'CONFIG_VMAPPLE_AES',  if_true: files('aes.c'))
 system_ss.add(when: 'CONFIG_VMAPPLE_BDIF', if_true: files('bdif.cpp'))
 system_ss.add(when: 'CONFIG_VMAPPLE_CFG',  if_true: files('cfg.cpp'))
-system_ss.add(when: 'CONFIG_VMAPPLE_VIRTIO_BLK',  if_true: files('virtio-blk.c'))
+system_ss.add(when: 'CONFIG_VMAPPLE_VIRTIO_BLK',  if_true: files('virtio-blk.cpp'))
 specific_ss.add(when: 'CONFIG_VMAPPLE',     if_true: files('vmapple.cpp'))

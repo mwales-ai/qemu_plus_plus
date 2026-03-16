@@ -31,6 +31,10 @@
 #include "qemu/queue.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* NOTE: the following two structures is copied from <linux/can.h>. */
 
 /*
@@ -124,5 +128,9 @@ int can_bus_client_set_filters(CanBusClientState *,
 uint8_t can_dlc2len(uint8_t can_dlc);
 
 uint8_t can_len2dlc(uint8_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

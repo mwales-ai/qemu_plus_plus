@@ -491,16 +491,18 @@ static void pci_bridge_class_init(ObjectClass *klass, const void *data)
     adevc->build_dev_aml = build_pci_bridge_aml;
 }
 
+static const InterfaceInfo pci_bridge_interfaces[] = {
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
+};
+
 static const TypeInfo pci_bridge_type_info = {
     .name = TYPE_PCI_BRIDGE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBridge),
-    .class_init = pci_bridge_class_init,
     .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+    .class_init = pci_bridge_class_init,
+    .interfaces = pci_bridge_interfaces,
 };
 
 static void pci_bridge_register_types(void)

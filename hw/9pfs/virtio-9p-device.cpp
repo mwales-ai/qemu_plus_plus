@@ -54,7 +54,7 @@ static void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
     while ((pdu = pdu_alloc(s))) {
         P9MsgHeader out;
 
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             goto out_free_pdu;
         }
@@ -102,7 +102,7 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
     V9fsState *s = &v->state;
 
     len = strlen(s->tag);
-    cfg = g_malloc0(sizeof(struct virtio_9p_config) + len);
+    cfg = static_cast<struct virtio_9p_config *>(g_malloc0(sizeof(struct virtio_9p_config) + len));
     virtio_stw_p(vdev, &cfg->tag_len, len);
     /* We don't copy the terminating null to config space */
     memcpy(cfg->tag, s->tag, len);
@@ -233,14 +233,16 @@ static void virtio_9p_device_unrealize(DeviceState *dev)
 
 /* virtio-9p device */
 
+static const VMStateField vmstate_virtio_9p_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_9p = {
     .name = "virtio-9p",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_virtio_9p_fields,
 };
 
 static const Property virtio_9p_properties[] = {

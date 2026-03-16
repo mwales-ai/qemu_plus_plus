@@ -327,10 +327,10 @@ extern const VMStateDescription vmstate_ahci;
 
 #define VMSTATE_AHCI(_field, _state) {                               \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(AHCIState),                                 \
-    .vmsd       = &vmstate_ahci,                                     \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, AHCIState),   \
+    .size       = sizeof(AHCIState),                                 \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_ahci,                                     \
 }
 
 /**
@@ -376,10 +376,18 @@ typedef struct SDBFIS {
     uint32_t payload;
 } QEMU_PACKED SDBFIS;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as);
 void ahci_init(AHCIState *s, DeviceState *qdev);
 void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_IDE_AHCI_INTERNAL_H */

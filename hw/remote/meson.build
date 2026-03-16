@@ -1,6 +1,6 @@
 remote_ss = ss.source_set()
 
-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('machine.c'))
+remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('machine.cpp'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('mpqemu-link.cpp'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('message.c'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('remote-obj.c'))
@@ -13,6 +13,6 @@ remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: files('vfio-user-obj.c')
               if_false: files('vfio-user-obj-stub.cpp'))
 
 specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('memory.cpp'))
-specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy-memory-listener.c'))
+specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy-memory-listener.cpp'))
 
 system_ss.add_all(when: 'CONFIG_MULTIPROCESS', if_true: remote_ss)

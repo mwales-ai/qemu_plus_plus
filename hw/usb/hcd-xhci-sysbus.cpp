@@ -25,6 +25,7 @@ static bool xhci_sysbus_intr_raise(XHCIState *xhci, int n, bool level)
     return false;
 }
 
+extern "C"
 void xhci_sysbus_reset(DeviceState *dev)
 {
     XHCISysbusState *s = XHCI_SYSBUS(dev);
@@ -44,7 +45,7 @@ static void xhci_sysbus_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out_named(dev, s->irq, SYSBUS_DEVICE_GPIO_IRQ,
                              s->xhci.numintrs);
     if (s->xhci.dma_mr) {
-        s->xhci.as =  g_malloc0(sizeof(AddressSpace));
+        s->xhci.as = static_cast<AddressSpace *>(g_malloc0(sizeof(AddressSpace)));
         address_space_init(s->xhci.as, s->xhci.dma_mr, NULL);
     } else {
         s->xhci.as = &address_space_memory;
@@ -68,6 +69,7 @@ static void xhci_sysbus_instance_init(Object *obj)
     s->xhci.intr_raise = xhci_sysbus_intr_raise;
 }
 
+extern "C"
 void xhci_sysbus_build_aml(Aml *scope, uint32_t mmio, unsigned int irq)
 {
     Aml *dev = aml_device("XHCI");
@@ -110,8 +112,8 @@ static const TypeInfo xhci_sysbus_info = {
     .name          = TYPE_XHCI_SYSBUS,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XHCISysbusState),
+    .instance_init = xhci_sysbus_instance_init,
     .class_init    = xhci_sysbus_class_init,
-    .instance_init = xhci_sysbus_instance_init
 };
 
 static void xhci_sysbus_register_types(void)

@@ -16,6 +16,14 @@
 /* must be power of 2 */
 #define XHCI_LEN_REGS 0x4000
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xhci_sysbus_build_aml(Aml *scope, uint32_t mmio, unsigned int irq);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
