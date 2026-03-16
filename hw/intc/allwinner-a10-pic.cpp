@@ -48,7 +48,7 @@ static void aw_a10_pic_update(AwA10PICState *s)
 
 static void aw_a10_pic_set_irq(void *opaque, int irq, int level)
 {
-    AwA10PICState *s = opaque;
+    AwA10PICState *s = static_cast<AwA10PICState *>(opaque);
     uint32_t *pending_reg = &s->irq_pending[irq / 32];
 
     *pending_reg = deposit32(*pending_reg, irq % 32, 1, !!level);
@@ -57,7 +57,7 @@ static void aw_a10_pic_set_irq(void *opaque, int irq, int level)
 
 static uint64_t aw_a10_pic_read(void *opaque, hwaddr offset, unsigned size)
 {
-    AwA10PICState *s = opaque;
+    AwA10PICState *s = static_cast<AwA10PICState *>(opaque);
     uint8_t index = (offset & 0xc) / 4;
 
     switch (offset) {
@@ -91,7 +91,7 @@ static uint64_t aw_a10_pic_read(void *opaque, hwaddr offset, unsigned size)
 static void aw_a10_pic_write(void *opaque, hwaddr offset, uint64_t value,
                              unsigned size)
 {
-    AwA10PICState *s = opaque;
+    AwA10PICState *s = static_cast<AwA10PICState *>(opaque);
     uint8_t index = (offset & 0xc) / 4;
 
     switch (offset) {
@@ -138,22 +138,24 @@ static const MemoryRegionOps aw_a10_pic_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static const VMStateField vmstate_aw_a10_pic_fields[] = {
+    VMSTATE_UINT32(vector, AwA10PICState),
+    VMSTATE_UINT32(base_addr, AwA10PICState),
+    VMSTATE_UINT32(protect, AwA10PICState),
+    VMSTATE_UINT32(nmi, AwA10PICState),
+    VMSTATE_UINT32_ARRAY(irq_pending, AwA10PICState, AW_A10_PIC_REG_NUM),
+    VMSTATE_UINT32_ARRAY(fiq_pending, AwA10PICState, AW_A10_PIC_REG_NUM),
+    VMSTATE_UINT32_ARRAY(enable, AwA10PICState, AW_A10_PIC_REG_NUM),
+    VMSTATE_UINT32_ARRAY(select, AwA10PICState, AW_A10_PIC_REG_NUM),
+    VMSTATE_UINT32_ARRAY(mask, AwA10PICState, AW_A10_PIC_REG_NUM),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aw_a10_pic = {
     .name = "a10.pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(vector, AwA10PICState),
-        VMSTATE_UINT32(base_addr, AwA10PICState),
-        VMSTATE_UINT32(protect, AwA10PICState),
-        VMSTATE_UINT32(nmi, AwA10PICState),
-        VMSTATE_UINT32_ARRAY(irq_pending, AwA10PICState, AW_A10_PIC_REG_NUM),
-        VMSTATE_UINT32_ARRAY(fiq_pending, AwA10PICState, AW_A10_PIC_REG_NUM),
-        VMSTATE_UINT32_ARRAY(enable, AwA10PICState, AW_A10_PIC_REG_NUM),
-        VMSTATE_UINT32_ARRAY(select, AwA10PICState, AW_A10_PIC_REG_NUM),
-        VMSTATE_UINT32_ARRAY(mask, AwA10PICState, AW_A10_PIC_REG_NUM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aw_a10_pic_fields
 };
 
 static void aw_a10_pic_init(Object *obj)

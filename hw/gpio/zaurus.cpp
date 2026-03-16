@@ -212,34 +212,36 @@ static bool is_version_0(void *opaque, int version_id)
 
 static bool vmstate_scoop_validate(void *opaque, int version_id)
 {
-    ScoopInfo *s = opaque;
+    ScoopInfo *s = static_cast<ScoopInfo *>(opaque);
 
     return !(s->prev_level & 0xffff0000) &&
         !(s->gpio_level & 0xffff0000) &&
         !(s->gpio_dir & 0xffff0000);
 }
 
+static const VMStateField vmstate_scoop_fields[] = {
+    VMSTATE_UINT16(status, ScoopInfo),
+    VMSTATE_UINT16(power, ScoopInfo),
+    VMSTATE_UINT32(gpio_level, ScoopInfo),
+    VMSTATE_UINT32(gpio_dir, ScoopInfo),
+    VMSTATE_UINT32(prev_level, ScoopInfo),
+    VMSTATE_VALIDATE("irq levels are 16 bit", vmstate_scoop_validate),
+    VMSTATE_UINT16(mcr, ScoopInfo),
+    VMSTATE_UINT16(cdr, ScoopInfo),
+    VMSTATE_UINT16(ccr, ScoopInfo),
+    VMSTATE_UINT16(irr, ScoopInfo),
+    VMSTATE_UINT16(imr, ScoopInfo),
+    VMSTATE_UINT16(isr, ScoopInfo),
+    VMSTATE_UNUSED_TEST(is_version_0, 2),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_scoop_regs = {
     .name = "scoop",
     .version_id = 1,
     .minimum_version_id = 0,
     .post_load = scoop_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(status, ScoopInfo),
-        VMSTATE_UINT16(power, ScoopInfo),
-        VMSTATE_UINT32(gpio_level, ScoopInfo),
-        VMSTATE_UINT32(gpio_dir, ScoopInfo),
-        VMSTATE_UINT32(prev_level, ScoopInfo),
-        VMSTATE_VALIDATE("irq levels are 16 bit", vmstate_scoop_validate),
-        VMSTATE_UINT16(mcr, ScoopInfo),
-        VMSTATE_UINT16(cdr, ScoopInfo),
-        VMSTATE_UINT16(ccr, ScoopInfo),
-        VMSTATE_UINT16(irr, ScoopInfo),
-        VMSTATE_UINT16(imr, ScoopInfo),
-        VMSTATE_UINT16(isr, ScoopInfo),
-        VMSTATE_UNUSED_TEST(is_version_0, 2),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_scoop_fields,
 };
 
 static void scoop_sysbus_class_init(ObjectClass *klass, const void *data)

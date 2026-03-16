@@ -43,13 +43,13 @@
 static void macio_nvram_writeb(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
-    MacIONVRAMState *s = opaque;
+    MacIONVRAMState *s = static_cast<MacIONVRAMState *>(opaque);
 
     addr = (addr >> s->it_shift) & (s->size - 1);
     trace_macio_nvram_write(addr, value);
     s->data[addr] = value;
     if (s->blk) {
-        if (blk_pwrite(s->blk, addr, 1, &s->data[addr], 0) < 0) {
+        if (blk_pwrite(s->blk, addr, 1, &s->data[addr], static_cast<BdrvRequestFlags>(0)) < 0) {
             error_report("%s: write of NVRAM data to backing store failed",
                          blk_name(s->blk));
         }
@@ -59,7 +59,7 @@ static void macio_nvram_writeb(void *opaque, hwaddr addr,
 static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    MacIONVRAMState *s = opaque;
+    MacIONVRAMState *s = static_cast<MacIONVRAMState *>(opaque);
     uint32_t value;
 
     addr = (addr >> s->it_shift) & (s->size - 1);
@@ -72,19 +72,21 @@ static uint64_t macio_nvram_readb(void *opaque, hwaddr addr,
 static const MemoryRegionOps macio_nvram_ops = {
     .read = macio_nvram_readb,
     .write = macio_nvram_writeb,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 1, },
-    .endianness = DEVICE_BIG_ENDIAN,
+};
+
+static const VMStateField vmstate_macio_nvram_fields[] = {
+    VMSTATE_VBUFFER_UINT32(data, MacIONVRAMState, 0, NULL, size),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_macio_nvram = {
     .name = "macio_nvram",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VBUFFER_UINT32(data, MacIONVRAMState, 0, NULL, size),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_macio_nvram_fields,
 };
 
 
@@ -97,7 +99,7 @@ static void macio_nvram_realizefn(DeviceState *dev, Error **errp)
     SysBusDevice *d = SYS_BUS_DEVICE(dev);
     MacIONVRAMState *s = MACIO_NVRAM(dev);
 
-    s->data = g_malloc0(s->size);
+    s->data = static_cast<uint8_t *>(g_malloc0(s->size));
 
     if (s->blk) {
         int64_t len = blk_getlength(s->blk);
@@ -114,7 +116,7 @@ static void macio_nvram_realizefn(DeviceState *dev, Error **errp)
                          BLK_PERM_ALL, errp) < 0) {
             return;
         }
-        if (blk_pread(s->blk, 0, s->size, s->data, 0) < 0) {
+        if (blk_pread(s->blk, 0, s->size, s->data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "can't read-nvram contents");
             return;
         }

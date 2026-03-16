@@ -49,7 +49,7 @@ struct GPEXIrq {
 
 static void gpex_set_irq(void *opaque, int irq_num, int level)
 {
-    GPEXHost *s = opaque;
+    GPEXHost *s = static_cast<GPEXHost *>(opaque);
 
     qemu_set_irq(s->irq[irq_num].irq, level);
 }
@@ -67,7 +67,7 @@ int gpex_set_irq_num(GPEXHost *s, int index, int gsi)
 static PCIINTxRoute gpex_route_intx_pin_to_irq(void *opaque, int pin)
 {
     PCIINTxRoute route;
-    GPEXHost *s = opaque;
+    GPEXHost *s = static_cast<GPEXHost *>(opaque);
     int gsi = s->irq[pin].irq_num;
 
     route.irq = gsi;
@@ -95,7 +95,7 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
     PCIExpressHost *pex = PCIE_HOST_BRIDGE(dev);
     int i;
 
-    s->irq = g_malloc0_n(s->num_irqs, sizeof(*s->irq));
+    s->irq = static_cast<GPEXIrq *>(g_malloc0_n(s->num_irqs, sizeof(*s->irq)));
 
     pcie_host_mmcfg_init(pex, PCIE_MMCFG_SIZE_MAX);
     sysbus_init_mmio(sbd, &pex->mmio);

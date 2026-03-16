@@ -49,7 +49,7 @@ extern unsigned smbios_table_cnt;
         /* (pointer must be updated after each realloc) */                \
         t_off = smbios_tables_len;                                        \
         smbios_tables_len += tbl_len;                                     \
-        smbios_tables = g_realloc(smbios_tables, smbios_tables_len);      \
+        smbios_tables = (uint8_t *)g_realloc(smbios_tables, smbios_tables_len);      \
         t = (struct smbios_type_##tbl_type *)(smbios_tables + t_off);     \
                                                                           \
         t->header.type = tbl_type;                                        \
@@ -61,7 +61,7 @@ extern unsigned smbios_table_cnt;
     do {                                                                  \
         int len = (value != NULL) ? strlen(value) + 1 : 0;                \
         if (len > 1) {                                                    \
-            smbios_tables = g_realloc(smbios_tables,                      \
+            smbios_tables = (uint8_t *)g_realloc(smbios_tables,                      \
                                       smbios_tables_len + len);           \
             memcpy(smbios_tables + smbios_tables_len, value, len);        \
             smbios_tables_len += len;                                     \
@@ -77,7 +77,7 @@ extern unsigned smbios_table_cnt;
     do {                                                                  \
         int len = (value != NULL) ? strlen(value) + 1 : 0;                \
         if (len > 1) {                                                    \
-            smbios_tables = g_realloc(smbios_tables,                      \
+            smbios_tables = (uint8_t *)g_realloc(smbios_tables,                      \
                                       smbios_tables_len + len);           \
             memcpy(smbios_tables + smbios_tables_len, value, len);        \
             smbios_tables_len += len;                                     \
@@ -91,7 +91,7 @@ extern unsigned smbios_table_cnt;
                                                                           \
         /* add '\0' terminator (add two if no strings defined) */         \
         term_cnt = (str_index == 0) ? 2 : 1;                              \
-        smbios_tables = g_realloc(smbios_tables,                          \
+        smbios_tables = (uint8_t *)g_realloc(smbios_tables,                          \
                                   smbios_tables_len + term_cnt);          \
         memset(smbios_tables + smbios_tables_len, 0, term_cnt);           \
         smbios_tables_len += term_cnt;                                    \

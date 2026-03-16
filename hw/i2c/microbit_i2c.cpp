@@ -27,7 +27,7 @@ static const uint32_t twi_read_sequence[] = {0x5A, 0x5A, 0x40};
 
 static uint64_t microbit_i2c_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    MicrobitI2CState *s = opaque;
+    MicrobitI2CState *s = static_cast<MicrobitI2CState *>(opaque);
     uint64_t data = 0x00;
 
     switch (addr) {
@@ -61,7 +61,7 @@ static uint64_t microbit_i2c_read(void *opaque, hwaddr addr, unsigned int size)
 static void microbit_i2c_write(void *opaque, hwaddr addr, uint64_t data,
                                unsigned int size)
 {
-    MicrobitI2CState *s = opaque;
+    MicrobitI2CState *s = static_cast<MicrobitI2CState *>(opaque);
 
     qemu_log_mask(LOG_UNIMP, "%s: 0x%" HWADDR_PRIx " <- 0x%" PRIx64 " [%u]\n",
                   __func__, addr, data, size);

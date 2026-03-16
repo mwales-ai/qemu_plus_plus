@@ -1,7 +1,7 @@
 smbios_ss = ss.source_set()
 smbios_ss.add(files('smbios.c'))
 smbios_ss.add(when: 'CONFIG_IPMI',
-              if_true: files('smbios_type_38.c'),
+              if_true: files('smbios_type_38.cpp'),
               if_false: files('smbios_type_38-stub.cpp'))
 
 smbios_ss.add(when: 'CONFIG_SMBIOS_LEGACY',

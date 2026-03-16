@@ -70,7 +70,8 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
     }
 
     surface = qemu_create_displaysurface_from(width, height,
-                                              format, stride, data);
+                                              format, stride,
+                                              static_cast<uint8_t *>(data));
     pixman_image_set_destroy_function(surface->image,
                                       ramfb_unmap_display_surface, NULL);
 
@@ -79,7 +80,7 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
 
 static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
 {
-    RAMFBState *s = dev;
+    RAMFBState *s = static_cast<RAMFBState *>(dev);
     DisplaySurface *surface;
     uint32_t fourcc, format, width, height;
     hwaddr stride, addr;
@@ -92,7 +93,8 @@ static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
     format = qemu_drm_format_to_pixman(fourcc);
 
     surface = ramfb_create_display_surface(width, height,
-                                           format, stride, addr);
+                                           static_cast<pixman_format_code_t>(format),
+                                           stride, addr);
     if (!surface) {
         return;
     }
@@ -124,15 +126,17 @@ static int ramfb_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ramfb_fields[] = {
+    VMSTATE_BUFFER_UNSAFE(cfg, RAMFBState, 0, sizeof(RAMFBCfg)),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription ramfb_vmstate = {
     .name = "ramfb",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ramfb_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER_UNSAFE(cfg, RAMFBState, 0, sizeof(RAMFBCfg)),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ramfb_fields,
 };
 
 RAMFBState *ramfb_setup(bool romfile, Error **errp)

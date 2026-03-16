@@ -185,7 +185,7 @@ static void adm1266_get(Object *obj, Visitor *v, const char *name, void *opaque,
 static void adm1266_set(Object *obj, Visitor *v, const char *name, void *opaque,
                         Error **errp)
 {
-    uint16_t *internal = opaque;
+    uint16_t *internal = static_cast<uint16_t *>(opaque);
     uint16_t value;
     PMBusDevice *pmdev = PMBUS_DEVICE(obj);
     PMBusVoutMode *mode = (PMBusVoutMode *)&pmdev->pages[0].vout_mode;

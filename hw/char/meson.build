@@ -24,7 +24,7 @@ system_ss.add(when: 'CONFIG_DIVA_GSP', if_true: files('diva-gsp.cpp'))
 
 system_ss.add(when: 'CONFIG_AVR_USART', if_true: files('avr_usart.c'))
 system_ss.add(when: 'CONFIG_COLDFIRE', if_true: files('mcf_uart.cpp'))
-system_ss.add(when: 'CONFIG_DIGIC', if_true: files('digic-uart.c'))
+system_ss.add(when: 'CONFIG_DIGIC', if_true: files('digic-uart.cpp'))
 system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_uart.c'))
 system_ss.add(when: 'CONFIG_MAX78000_UART', if_true: files('max78000_uart.c'))
 system_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_uart.cpp'))

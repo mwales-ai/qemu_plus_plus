@@ -45,7 +45,7 @@ enum {
 static uint64_t digic_uart_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    DigicUartState *s = opaque;
+    DigicUartState *s = static_cast<DigicUartState *>(opaque);
     uint64_t ret = 0;
 
     addr >>= 2;
@@ -72,7 +72,7 @@ static uint64_t digic_uart_read(void *opaque, hwaddr addr,
 static void digic_uart_write(void *opaque, hwaddr addr, uint64_t value,
                              unsigned size)
 {
-    DigicUartState *s = opaque;
+    DigicUartState *s = static_cast<DigicUartState *>(opaque);
     unsigned char ch = value;
 
     addr >>= 2;
@@ -108,23 +108,23 @@ static void digic_uart_write(void *opaque, hwaddr addr, uint64_t value,
 static const MemoryRegionOps uart_mmio_ops = {
     .read = digic_uart_read,
     .write = digic_uart_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int uart_can_rx(void *opaque)
 {
-    DigicUartState *s = opaque;
+    DigicUartState *s = static_cast<DigicUartState *>(opaque);
 
     return !(s->reg_st & ST_RX_RDY);
 }
 
 static void uart_rx(void *opaque, const uint8_t *buf, int size)
 {
-    DigicUartState *s = opaque;
+    DigicUartState *s = static_cast<DigicUartState *>(opaque);
 
     assert(uart_can_rx(opaque));
 
@@ -161,15 +161,17 @@ static void digic_uart_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->regs_region);
 }
 
+static const VMStateField vmstate_digic_uart_fields[] = {
+    VMSTATE_UINT32(reg_rx, DigicUartState),
+    VMSTATE_UINT32(reg_st, DigicUartState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_digic_uart = {
     .name = "digic-uart",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(reg_rx, DigicUartState),
-        VMSTATE_UINT32(reg_st, DigicUartState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_digic_uart_fields,
 };
 
 static const Property digic_uart_properties[] = {

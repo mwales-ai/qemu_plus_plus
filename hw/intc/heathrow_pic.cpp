@@ -49,7 +49,7 @@ static void heathrow_update_irq(HeathrowState *s)
 static void heathrow_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    HeathrowState *s = opaque;
+    HeathrowState *s = static_cast<HeathrowState *>(opaque);
     HeathrowPICState *pic;
     unsigned int n;
 
@@ -77,7 +77,7 @@ static void heathrow_write(void *opaque, hwaddr addr,
 static uint64_t heathrow_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    HeathrowState *s = opaque;
+    HeathrowState *s = static_cast<HeathrowState *>(opaque);
     HeathrowPICState *pic;
     unsigned int n;
     uint32_t value;
@@ -114,7 +114,7 @@ static const MemoryRegionOps heathrow_ops = {
 
 static void heathrow_set_irq(void *opaque, int num, int level)
 {
-    HeathrowState *s = opaque;
+    HeathrowState *s = static_cast<HeathrowState *>(opaque);
     HeathrowPICState *pic;
     unsigned int irq_bit;
     int last_level;
@@ -137,28 +137,32 @@ static void heathrow_set_irq(void *opaque, int num, int level)
     heathrow_update_irq(s);
 }
 
+static const VMStateField vmstate_heathrow_pic_one_fields[] = {
+    VMSTATE_UINT32(events, HeathrowPICState),
+    VMSTATE_UINT32(mask, HeathrowPICState),
+    VMSTATE_UINT32(levels, HeathrowPICState),
+    VMSTATE_UINT32(level_triggered, HeathrowPICState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_heathrow_pic_one = {
     .name = "heathrow_pic_one",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(events, HeathrowPICState),
-        VMSTATE_UINT32(mask, HeathrowPICState),
-        VMSTATE_UINT32(levels, HeathrowPICState),
-        VMSTATE_UINT32(level_triggered, HeathrowPICState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_heathrow_pic_one_fields
+};
+
+static const VMStateField vmstate_heathrow_fields[] = {
+    VMSTATE_STRUCT_ARRAY(pics, HeathrowState, 2, 1,
+                         vmstate_heathrow_pic_one, HeathrowPICState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_heathrow = {
     .name = "heathrow_pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(pics, HeathrowState, 2, 1,
-                             vmstate_heathrow_pic_one, HeathrowPICState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_heathrow_fields
 };
 
 static void heathrow_reset(DeviceState *d)

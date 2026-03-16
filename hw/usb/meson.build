@@ -8,7 +8,7 @@ system_ss.add(when: 'CONFIG_USB', if_true: files(
   'desc.c',
   'desc-msos.cpp',
   'libhw.cpp',
-  'pcap.c',
+  'pcap.cpp',
 ), if_false: files('bus-stub.cpp'))
 
 # usb host adapters

@@ -239,12 +239,14 @@ enum {
     QEMU_PCI_SKIP_RESET_ON_CPR = (1 << QEMU_PCI_SKIP_RESET_ON_CPR_BITNR),
 };
 
+enum PCIINTxRouteMode {
+    PCI_INTX_ENABLED,
+    PCI_INTX_INVERTED,
+    PCI_INTX_DISABLED,
+};
+
 typedef struct PCIINTxRoute {
-    enum {
-        PCI_INTX_ENABLED,
-        PCI_INTX_INVERTED,
-        PCI_INTX_DISABLED,
-    } mode;
+    enum PCIINTxRouteMode mode;
     int irq;
 } PCIINTxRoute;
 

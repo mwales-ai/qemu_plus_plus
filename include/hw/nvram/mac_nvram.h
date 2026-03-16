@@ -29,6 +29,10 @@
 #include "system/memory.h"
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MACIO_NVRAM_SIZE 0x2000
 
 #define TYPE_MACIO_NVRAM "macio-nvram"
@@ -48,5 +52,9 @@ struct MacIONVRAMState {
 };
 
 void pmac_format_nvram_partition(MacIONVRAMState *nvr, int len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MAC_NVRAM_H */
