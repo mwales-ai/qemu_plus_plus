@@ -40,8 +40,8 @@ static void debug_exit_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps debug_exit_ops = {
     .read = debug_exit_read,
     .write = debug_exit_write,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void debug_exit_realizefn(DeviceState *d, Error **errp)

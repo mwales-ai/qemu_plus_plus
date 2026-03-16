@@ -8,8 +8,8 @@ fs_ss.add(files(
   '9p-xattr.c',
   '9p.c',
   'codir.c',
-  'cofile.c',
-  'cofs.c',
+  'cofile.cpp',
+  'cofs.cpp',
   'coth.cpp',
   'coxattr.cpp',
 ))

@@ -54,7 +54,7 @@ struct ISADebugconState {
 static void debugcon_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned width)
 {
-    DebugconState *s = opaque;
+    DebugconState *s = static_cast<DebugconState *>(opaque);
     unsigned char ch = val;
 
 #ifdef DEBUG_DEBUGCON
@@ -69,7 +69,7 @@ static void debugcon_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t debugcon_ioport_read(void *opaque, hwaddr addr, unsigned width)
 {
-    DebugconState *s = opaque;
+    DebugconState *s = static_cast<DebugconState *>(opaque);
 
 #ifdef DEBUG_DEBUGCON
     printf("debugcon: read addr=0x%04" HWADDR_PRIx "\n", addr);
@@ -81,8 +81,8 @@ static uint64_t debugcon_ioport_read(void *opaque, hwaddr addr, unsigned width)
 static const MemoryRegionOps debugcon_ops = {
     .read = debugcon_ioport_read,
     .write = debugcon_ioport_write,
-    .valid = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 1, },
 };
 
 static void debugcon_realize_core(DebugconState *s, Error **errp)

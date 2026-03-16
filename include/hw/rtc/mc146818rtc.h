@@ -15,6 +15,10 @@
 #include "hw/isa/isa.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_MC146818_RTC "mc146818rtc"
 OBJECT_DECLARE_SIMPLE_TYPE(MC146818RtcState, MC146818_RTC)
 
@@ -56,5 +60,9 @@ MC146818RtcState *mc146818_rtc_init(ISABus *bus, int base_year,
 void mc146818rtc_set_cmos_data(MC146818RtcState *s, int addr, int val);
 int mc146818rtc_get_cmos_data(MC146818RtcState *s, int addr);
 void rtc_reset_reinjection(MC146818RtcState *rtc);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_RTC_MC146818RTC_H */

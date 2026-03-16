@@ -26,7 +26,7 @@ static ssize_t __readlink(V9fsState *s, V9fsPath *path, V9fsString *buf)
 {
     ssize_t len, maxlen = PATH_MAX;
 
-    buf->data = g_malloc(PATH_MAX);
+    buf->data = static_cast<char *>(g_malloc(PATH_MAX));
     for (;;) {
         len = s->ops->readlink(&s->ctx, path, buf->data, maxlen);
         if (len < 0) {
@@ -41,7 +41,7 @@ static ssize_t __readlink(V9fsState *s, V9fsPath *path, V9fsString *buf)
              */
             maxlen *= 2;
             g_free(buf->data);
-            buf->data = g_malloc(maxlen);
+            buf->data = static_cast<char *>(g_malloc(maxlen));
             continue;
         }
         /*

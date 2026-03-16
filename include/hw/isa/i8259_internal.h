@@ -31,6 +31,10 @@
 #include "qom/object.h"
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PIC_COMMON "pic-common"
 OBJECT_DECLARE_TYPE(PICCommonState, PICCommonClass, PIC_COMMON)
 
@@ -73,5 +77,9 @@ struct PICCommonState {
 void pic_reset_common(PICCommonState *s);
 ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master);
 void pic_stat_update_irq(int irq, int level);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_I8259_INTERNAL_H */

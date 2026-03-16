@@ -4892,9 +4892,9 @@ static void arm_reset_sve_state(CPUARMState *env)
     vfp_set_fpsr(env, 0x0800009f);
 }
 
-void aarch64_set_svcr(CPUARMState *env, uint64_t new, uint64_t mask)
+void aarch64_set_svcr(CPUARMState *env, uint64_t new_val, uint64_t mask)
 {
-    uint64_t change = (env->svcr ^ new) & mask;
+    uint64_t change = (env->svcr ^ new_val) & mask;
 
     if (change == 0) {
         return;
@@ -4913,7 +4913,7 @@ void aarch64_set_svcr(CPUARMState *env, uint64_t new, uint64_t mask)
      * value does not matter.  We're not saving the storage in vmstate
      * when disabled either.
      */
-    if (change & new & R_SVCR_ZA_MASK) {
+    if (change & new_val & R_SVCR_ZA_MASK) {
         memset(&env->za_state, 0, sizeof(env->za_state));
     }
 

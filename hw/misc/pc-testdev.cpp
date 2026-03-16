@@ -66,7 +66,7 @@ static uint64_t test_irq_line_read(void *opaque, hwaddr addr, unsigned size)
 static void test_irq_line_write(void *opaque, hwaddr addr, uint64_t data,
                           unsigned len)
 {
-    PCTestdev *dev = opaque;
+    PCTestdev *dev = static_cast<PCTestdev *>(opaque);
     ISADevice *isa = ISA_DEVICE(dev);
 
     qemu_set_irq(isa_get_irq(isa, addr), !!data);
@@ -75,14 +75,14 @@ static void test_irq_line_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps test_irq_ops = {
     .read = test_irq_line_read,
     .write = test_irq_line_write,
-    .valid = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 1, },
 };
 
 static void test_ioport_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned len)
 {
-    PCTestdev *dev = opaque;
+    PCTestdev *dev = static_cast<PCTestdev *>(opaque);
     int bits = len * 8;
     int start_bit = (addr & 3) * 8;
     uint32_t mask = ((uint32_t)-1 >> (32 - bits)) << start_bit;
@@ -92,7 +92,7 @@ static void test_ioport_write(void *opaque, hwaddr addr, uint64_t data,
 
 static uint64_t test_ioport_read(void *opaque, hwaddr addr, unsigned len)
 {
-    PCTestdev *dev = opaque;
+    PCTestdev *dev = static_cast<PCTestdev *>(opaque);
     int bits = len * 8;
     int start_bit = (addr & 3) * 8;
     uint32_t mask = ((uint32_t)-1 >> (32 - bits)) << start_bit;
@@ -108,9 +108,9 @@ static const MemoryRegionOps test_ioport_ops = {
 static const MemoryRegionOps test_ioport_byte_ops = {
     .read = test_ioport_read,
     .write = test_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 1, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t test_flush_page_read(void *opaque, hwaddr addr, unsigned size)
@@ -136,13 +136,13 @@ static void test_flush_page_write(void *opaque, hwaddr addr, uint64_t data,
 static const MemoryRegionOps test_flush_ops = {
     .read = test_flush_page_read,
     .write = test_flush_page_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static uint64_t test_iomem_read(void *opaque, hwaddr addr, unsigned len)
 {
-    PCTestdev *dev = opaque;
+    PCTestdev *dev = static_cast<PCTestdev *>(opaque);
     uint64_t ret = 0;
     memcpy(&ret, &dev->iomem_buf[addr], len);
 
@@ -152,7 +152,7 @@ static uint64_t test_iomem_read(void *opaque, hwaddr addr, unsigned len)
 static void test_iomem_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned len)
 {
-    PCTestdev *dev = opaque;
+    PCTestdev *dev = static_cast<PCTestdev *>(opaque);
     memcpy(&dev->iomem_buf[addr], &val, len);
     dev->iomem_buf[addr] = val;
 }

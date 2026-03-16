@@ -570,7 +570,7 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
     if (nd->netdev) {
         qdev_prop_set_netdev(dev, "netdev", nd->netdev);
     }
-    if (nd->nvectors != DEV_NVECTORS_UNSPECIFIED &&
+    if (static_cast<uint32_t>(nd->nvectors) != DEV_NVECTORS_UNSPECIFIED &&
         object_property_find(OBJECT(dev), "vectors")) {
         qdev_prop_set_uint32(dev, "vectors", nd->nvectors);
     }

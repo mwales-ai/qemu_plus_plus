@@ -29,11 +29,18 @@ QEMU_ROOT = Path(__file__).resolve().parent.parent.parent
 # regardless of source-level analysis
 HEADER_BLOCKERS = {
     # header pattern -> description
-    'hw/9pfs/': '9p.h uses "private" keyword',
     'include/hw/nvme/': 'nvme.h uses "namespace" keyword',
     'target/arm/cpu.h': 'target-specific macros',
     'target/ppc/cpu.h': 'target-specific macros',
     'target/riscv/cpu.h': 'target-specific macros',
+}
+
+# Directories where files transitively include target-specific cpu.h
+# These need the target cpu.h to be C++-compatible before porting
+BLOCKED_DIRS = {
+    'hw/arm',    # includes target/arm/cpu.h via machine headers
+    'hw/ppc',    # includes target/ppc/cpu.h via machine headers
+    'hw/riscv',  # includes target/riscv/cpu.h via machine headers
 }
 
 # Files/patterns to skip entirely
@@ -126,6 +133,13 @@ def classify_difficulty(issues):
 
 def check_header_blockers(c_file):
     """Check if a file includes headers known to block C++ compilation."""
+    rel = str(c_file.relative_to(QEMU_ROOT))
+
+    # Check if file is in a blocked directory
+    for bd in BLOCKED_DIRS:
+        if rel.startswith(bd + '/'):
+            return f"directory {bd}/ blocked (target cpu.h not C++-compatible)"
+
     try:
         content = c_file.read_text()
     except Exception:
@@ -133,8 +147,6 @@ def check_header_blockers(c_file):
     for pattern, desc in HEADER_BLOCKERS.items():
         if pattern in content:
             return desc
-    # Check if file is in a directory known to have issues
-    rel = str(c_file.relative_to(QEMU_ROOT))
     if rel in KNOWN_HEADER_BLOCKED:
         return "previously failed compilation"
     return None
@@ -373,31 +385,76 @@ def apply_easy_fixes(filepath):
     return fixes
 
 
-def extract_failing_sources(build_output):
-    """Extract source file paths from build errors."""
+def extract_failing_sources(build_output, ported_cpp_rels=None):
+    """Extract source file paths from build errors.
+
+    Args:
+        build_output: combined stdout+stderr from ninja
+        ported_cpp_rels: set of relative paths of our ported .cpp files,
+                        used to resolve linker errors back to source files
+    """
     failing = set()
 
-    # Match direct source file errors
+    # Match direct source file errors: ../hw/foo/bar.cpp:123:45: error:
     for m in re.finditer(r'^\.\./(\S+\.cpp):\d+:\d+: error:', build_output, re.MULTILINE):
         failing.add(m.group(1))
 
-    # Match header errors and trace back to .cpp files
-    # Look at FAILED lines and extract source from compile command
+    # Match header errors traced to .cpp compilation
     for m in re.finditer(r'^c\+\+.*-c \.\./(\S+\.cpp)$', build_output, re.MULTILINE):
-        src = m.group(1)
-        if src not in failing:
-            # Check if the compile command's section has errors
-            failing.add(src)
+        failing.add(m.group(1))
 
-    # Also get from FAILED + compile command pairs
+    # FAILED + compile command pairs
     for m in re.finditer(r'^FAILED:.*\n.*-c \.\./(\S+\.cpp)', build_output, re.MULTILINE):
         failing.add(m.group(1))
+
+    # FAILED lines with .cpp in the object path
+    for m in re.finditer(r'^FAILED:.*$', build_output, re.MULTILINE):
+        line = m.group(0)
+        src_match = re.search(r'-c \.\./(\S+\.cpp)', line)
+        if src_match:
+            failing.add(src_match.group(1))
+
+    # Linker errors: undefined reference to 'func_name'
+    # These show up when a .cpp file defines a function without extern "C"
+    # and C code tries to call it. The linker mentions the .o file.
+    # Map .o files back to our ported .cpp files.
+    if ported_cpp_rels:
+        # Build a map from .o basenames to .cpp paths
+        # e.g., "hw/foo/bar.cpp" -> possible .o names include "bar.cpp.o"
+        basename_to_cpp = {}
+        for cpp_rel in ported_cpp_rels:
+            base = Path(cpp_rel).stem  # e.g., "bar"
+            basename_to_cpp[base] = cpp_rel
+
+        # Look for undefined reference errors mentioning our files
+        for m in re.finditer(r'(\S+\.cpp)\.o[:\s]', build_output):
+            obj_stem = Path(m.group(1)).stem
+            if obj_stem in basename_to_cpp:
+                failing.add(basename_to_cpp[obj_stem])
+
+        # Also look for linker errors referencing mangled C++ symbols
+        # that indicate missing extern "C" on functions
+        if re.search(r'undefined reference to', build_output):
+            # Check each FAILED linker line for .o references
+            for m in re.finditer(r'^.*undefined reference to.*$', build_output, re.MULTILINE):
+                line = m.group(0)
+                # Extract .o file path if present
+                obj_match = re.search(r'(\S+)\.cpp\.o:', line)
+                if obj_match:
+                    obj_stem = Path(obj_match.group(1)).stem
+                    if obj_stem in basename_to_cpp:
+                        failing.add(basename_to_cpp[obj_stem])
 
     return failing
 
 
-def build_and_get_failures():
-    """Build the project and return set of failing .cpp source files."""
+def build_and_get_failures(ported_cpp_rels=None):
+    """Build the project and return set of failing .cpp source files.
+
+    Args:
+        ported_cpp_rels: set of relative paths of .cpp files we ported,
+                        used to identify linker errors back to our files
+    """
     result = subprocess.run(
         ['ninja', '-C', 'build', '-k0', '-j', str(os.cpu_count())],
         capture_output=True, text=True, timeout=600
@@ -406,15 +463,7 @@ def build_and_get_failures():
         return set(), True
 
     output = result.stdout + result.stderr
-    failing = extract_failing_sources(output)
-
-    # If we can't extract specific files, try to get them from FAILED lines
-    if not failing:
-        for m in re.finditer(r'^FAILED:.*$', output, re.MULTILINE):
-            line = m.group(0)
-            src_match = re.search(r'-c \.\./(\S+\.cpp)', line)
-            if src_match:
-                failing.add(src_match.group(1))
+    failing = extract_failing_sources(output, ported_cpp_rels)
 
     return failing, False
 
@@ -485,16 +534,16 @@ def build_and_revert_loop(ported, max_iterations=5):
     all_reverted = []
 
     for iteration in range(max_iterations):
-        print(f"\n  Build attempt {iteration + 1}...")
-        failing, success = build_and_get_failures()
+        # Build set of our ported .cpp relative paths for linker error matching
+        ported_cpp_rels = set()
+        for rel, cpp_file, fixes in survived:
+            ported_cpp_rels.add(str(cpp_file.relative_to(QEMU_ROOT)))
+
+        print(f"\n  Build attempt {iteration + 1} ({len(survived)} files)...")
+        failing, success = build_and_get_failures(ported_cpp_rels)
 
         if success:
             print(f"  BUILD SUCCESS!")
-            break
-
-        if not failing:
-            print(f"  BUILD FAILED but could not identify failing files.")
-            print(f"  Run 'ninja -C build' manually to see errors.")
             break
 
         # Identify which of our ported files are failing
@@ -504,9 +553,26 @@ def build_and_revert_loop(ported, max_iterations=5):
             if cpp_rel in failing:
                 to_revert.append((rel, cpp_file, fixes))
 
+        if not failing:
+            print(f"  BUILD FAILED but could not identify specific failing files.")
+            print(f"  Saving build output to /tmp/batch-port-build.log")
+            # Save build output for manual inspection
+            try:
+                result = subprocess.run(
+                    ['ninja', '-C', 'build', '-k0', '-j', str(os.cpu_count())],
+                    capture_output=True, text=True, timeout=600
+                )
+                with open('/tmp/batch-port-build.log', 'w') as f:
+                    f.write(result.stdout + result.stderr)
+            except:
+                pass
+            print(f"  Run 'ninja -C build' manually to see errors.")
+            break
+
         if not to_revert:
-            print(f"  {len(failing)} files failing but none are from our batch.")
-            print(f"  Failing files: {', '.join(sorted(failing)[:10])}")
+            print(f"  {len(failing)} files failing but none are from our batch:")
+            for f in sorted(failing)[:15]:
+                print(f"    {f}")
             break
 
         print(f"  Reverting {len(to_revert)} failing files...")

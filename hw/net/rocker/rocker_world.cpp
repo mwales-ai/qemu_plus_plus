@@ -15,10 +15,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/iov.h"
 
+extern "C" {
+#include "qemu/iov.h"
 #include "rocker.h"
 #include "rocker_world.h"
+}
 
 struct world {
     Rocker *r;
@@ -49,7 +51,7 @@ int world_do_cmd(World *world, DescInfo *info,
 World *world_alloc(Rocker *r, size_t sizeof_private,
                    enum rocker_world_type type, WorldOps *ops)
 {
-    World *w = g_malloc0(sizeof(World) + sizeof_private);
+    World *w = static_cast<World *>(g_malloc0(sizeof(World) + sizeof_private));
 
     w->r = r;
     w->type = type;

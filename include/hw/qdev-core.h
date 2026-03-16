@@ -73,9 +73,13 @@ extern "C" {
  *
  */
 
+#ifdef __cplusplus
+static constexpr uint32_t DEV_NVECTORS_UNSPECIFIED = static_cast<uint32_t>(-1);
+#else
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
 };
+#endif
 
 #define TYPE_DEVICE "device"
 OBJECT_DECLARE_TYPE(DeviceState, DeviceClass, DEVICE)

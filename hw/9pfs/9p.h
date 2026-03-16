@@ -10,6 +10,10 @@
 #include "qemu/coroutine.h"
 #include "qemu/qht.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
     P9_TLERROR = 6,
     P9_RLERROR,
@@ -486,5 +490,9 @@ struct V9fsTransport {
                                          unsigned int *pniov, size_t size);
     void        (*push_and_notify)(V9fsPDU *pdu);
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

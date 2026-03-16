@@ -26,6 +26,10 @@
 #include "system/memory.h"
 #include "exec/hwaddr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define  IOVA_OK           (0)
 #define  IOVA_ERR_INVALID  (-1) /* Invalid parameters */
 #define  IOVA_ERR_OVERLAP  (-2) /* IOVA range overlapped */
@@ -160,5 +164,9 @@ int iova_tree_alloc_map(IOVATree *tree, DMAMap *map, hwaddr iova_begin,
  * Return: None.
  */
 void iova_tree_destroy(IOVATree *tree);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -13,6 +13,10 @@
 #include "qemu/iova-tree.h"
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct VhostIOVATree VhostIOVATree;
 
 VhostIOVATree *vhost_iova_tree_new(uint64_t iova_first, uint64_t iova_last);
@@ -29,5 +33,9 @@ const DMAMap *vhost_iova_tree_find_gpa(const VhostIOVATree *iova_tree,
 int vhost_iova_tree_map_alloc_gpa(VhostIOVATree *iova_tree, DMAMap *map,
                                   hwaddr taddr);
 void vhost_iova_tree_remove_gpa(VhostIOVATree *iova_tree, DMAMap map);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

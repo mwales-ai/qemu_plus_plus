@@ -15,10 +15,6 @@
 #define QEMU_VIRTIO_SCSI_H
 #include "qom/object.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Override CDB/sense data size: they are dynamic (guest controlled) in QEMU */
 #define VIRTIO_SCSI_CDB_SIZE 0
 #define VIRTIO_SCSI_SENSE_SIZE 0
@@ -28,6 +24,10 @@ extern "C" {
 #include "chardev/char-fe.h"
 #include "qapi/qapi-types-virtio.h"
 #include "system/iothread.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define TYPE_VIRTIO_SCSI_COMMON "virtio-scsi-common"
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSCSICommon, VIRTIO_SCSI_COMMON)

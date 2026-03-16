@@ -33,7 +33,7 @@ static void vhost_user_rng_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VHostUserRNGPCI *dev = VHOST_USER_RNG_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
-    if (vpci_dev->nvectors == static_cast<uint32_t>(DEV_NVECTORS_UNSPECIFIED)) {
+    if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
         vpci_dev->nvectors = 1;
     }
 

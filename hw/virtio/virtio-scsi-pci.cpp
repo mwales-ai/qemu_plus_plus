@@ -14,7 +14,6 @@
  */
 
 #include "qemu/osdep.h"
-
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/module.h"

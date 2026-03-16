@@ -15,7 +15,6 @@
  */
 
 #include "qemu/osdep.h"
-
 #include "standard-headers/linux/virtio_pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost-scsi.h"

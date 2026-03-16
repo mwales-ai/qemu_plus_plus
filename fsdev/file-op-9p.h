@@ -29,6 +29,10 @@
 # include <sys/mount.h>
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SM_LOCAL_MODE_BITS    0600
 #define SM_LOCAL_DIR_MODE_BITS    0700
 
@@ -176,5 +180,9 @@ struct FileOperations {
     int (*unlinkat)(FsContext *ctx, V9fsPath *dir, const char *name, int flags);
     bool (*has_valid_file_handle)(int fid_type, V9fsFidOpenState *fs);
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
