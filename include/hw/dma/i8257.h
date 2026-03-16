@@ -5,6 +5,10 @@
 #include "system/ioport.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_I8257 "i8257"
 OBJECT_DECLARE_SIMPLE_TYPE(I8257State, I8257)
 
@@ -46,5 +50,9 @@ struct I8257State {
 };
 
 void i8257_dma_init(Object *parent, ISABus *bus, bool high_page_enable);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

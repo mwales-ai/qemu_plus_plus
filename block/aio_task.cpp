@@ -36,7 +36,7 @@ struct AioTaskPool {
 
 static void coroutine_fn aio_task_co(void *opaque)
 {
-    AioTask *task = opaque;
+    AioTask *task = static_cast<AioTask *>(opaque);
     AioTaskPool *pool = task->pool;
 
     assert(pool->busy_tasks < pool->max_busy_tasks);

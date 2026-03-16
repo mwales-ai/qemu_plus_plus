@@ -25,6 +25,10 @@
 #ifndef BLOCK_AIO_TASK_H
 #define BLOCK_AIO_TASK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct AioTaskPool AioTaskPool;
 typedef struct AioTask AioTask;
 typedef int coroutine_fn (*AioTaskFunc)(AioTask *task);
@@ -46,5 +50,9 @@ void coroutine_fn aio_task_pool_start_task(AioTaskPool *pool, AioTask *task);
 void coroutine_fn aio_task_pool_wait_slot(AioTaskPool *pool);
 void coroutine_fn aio_task_pool_wait_one(AioTaskPool *pool);
 void coroutine_fn aio_task_pool_wait_all(AioTaskPool *pool);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* BLOCK_AIO_TASK_H */

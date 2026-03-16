@@ -1,7 +1,7 @@
 block_ss.add(genh)
 block_ss.add(files(
   'accounting.cpp',
-  'aio_task.c',
+  'aio_task.cpp',
   'amend.cpp',
   'backup.cpp',
   'blkdebug.c',
@@ -89,7 +89,7 @@ if get_option('parallels').allowed()
 endif
 
 if host_os == 'windows'
-  block_ss.add(files('file-win32.c', 'win32-aio.c'))
+  block_ss.add(files('file-win32.c', 'win32-aio.cpp'))
 else
   block_ss.add(files('file-posix.c'), coref, iokit)
 endif

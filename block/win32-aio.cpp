@@ -60,7 +60,7 @@ typedef struct QEMUWin32AIOCB {
 
 static void win32_aio_completion_cb_bh(void *opaque)
 {
-    QEMUWin32AIOCB *waiocb = opaque;
+    QEMUWin32AIOCB *waiocb = static_cast<QEMUWin32AIOCB *>(opaque);
 
     waiocb->common.cb(waiocb->common.opaque, waiocb->ret);
     aio_context_unref(waiocb->req_ctx);

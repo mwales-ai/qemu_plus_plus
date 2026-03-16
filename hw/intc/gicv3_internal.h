@@ -27,6 +27,10 @@
 #include "hw/registerfields.h"
 #include "hw/intc/arm_gicv3_common.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Distributor registers, as offsets from the distributor base address */
 #define GICD_CTLR            0x0000
 #define GICD_TYPER           0x0004
@@ -862,5 +866,9 @@ static inline void gicv3_cache_all_target_cpustates(GICv3State *s)
 }
 
 void gicv3_set_gicv3state(CPUState *cpu, GICv3CPUState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_ARM_GICV3_INTERNAL_H */

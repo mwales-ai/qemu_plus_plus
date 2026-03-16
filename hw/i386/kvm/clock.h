@@ -13,6 +13,14 @@
 #ifndef HW_I386_KVM_CLOCK_H
 #define HW_I386_KVM_CLOCK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void kvmclock_create(bool create_always);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

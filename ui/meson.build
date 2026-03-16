@@ -31,7 +31,7 @@ system_ss.add(when: cocoa, if_true: files('cocoa.m'))
 vnc_ss = ss.source_set()
 vnc_ss.add(files(
   'vnc.c',
-  'vnc-enc-zlib.c',
+  'vnc-enc-zlib.cpp',
   'vnc-enc-hextile.c',
   'vnc-enc-tight.c',
   'vnc-palette.cpp',
@@ -119,7 +119,7 @@ endif
 if sdl.found()
   sdl_ss = ss.source_set()
   sdl_ss.add(sdl, sdl_image, pixman, glib, files(
-    'sdl2-2d.c',
+    'sdl2-2d.cpp',
     'sdl2-input.c',
     'sdl2.c',
   ))

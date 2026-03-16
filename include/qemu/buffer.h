@@ -21,6 +21,9 @@
 #ifndef QEMU_BUFFER_H
 #define QEMU_BUFFER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct Buffer Buffer;
 
@@ -156,5 +159,9 @@ void buffer_move_empty(Buffer *to, Buffer *from);
  * 'from' buffer is empty and zero-sized on return.
  */
 void buffer_move(Buffer *to, Buffer *from);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_BUFFER_H */
