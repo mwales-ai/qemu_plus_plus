@@ -6,15 +6,18 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/units.h"
-#include "qapi/error.h"
 #include "system/system.h"
 #include "system/block-backend.h"
 #include "hw/boards.h"
+#include "hw/arm/boot.h"
+
+extern "C" {
+#include "qemu/units.h"
+#include "qapi/error.h"
 #include "hw/qdev-clock.h"
 #include "hw/arm/aspeed_soc.h"
-#include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
+}
 
 #define TYPE_FBY35 MACHINE_TYPE_NAME("fby35")
 OBJECT_DECLARE_SIMPLE_TYPE(Fby35State, FBY35);
@@ -60,13 +63,13 @@ static void fby35_bmc_write_boot_rom(DriveInfo *dinfo, MemoryRegion *mr,
     }
 
     storage = g_malloc0(rom_size);
-    if (blk_pread(blk, 0, rom_size, storage, 0) < 0) {
+    if (blk_pread(blk, 0, rom_size, storage, static_cast<BdrvRequestFlags>(0)) < 0) {
         error_setg(errp, "failed to read the initial flash content");
         return;
     }
 
     /* TODO: find a better way to install the ROM */
-    memcpy(memory_region_get_ram_ptr(mr) + offset, storage, rom_size);
+    memcpy(static_cast<uint8_t *>(memory_region_get_ram_ptr(mr)) + offset, storage, rom_size);
 }
 
 static void fby35_bmc_init(Fby35State *s)
@@ -193,9 +196,9 @@ static const TypeInfo fby35_types[] = {
     {
         .name = MACHINE_TYPE_NAME("fby35"),
         .parent = TYPE_MACHINE,
-        .class_init = fby35_class_init,
         .instance_size = sizeof(Fby35State),
         .instance_init = fby35_instance_init,
+        .class_init = fby35_class_init,
         .interfaces = arm_machine_interfaces,
     },
 };

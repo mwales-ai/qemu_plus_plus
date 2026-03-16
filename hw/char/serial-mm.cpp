@@ -25,10 +25,13 @@
 
 #include "qemu/osdep.h"
 #include "hw/char/serial-mm.h"
-#include "exec/cpu-common.h"
 #include "migration/vmstate.h"
+
+extern "C" {
+#include "exec/cpu-common.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
+}
 
 static uint64_t serial_mm_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -44,29 +47,30 @@ static void serial_mm_write(void *opaque, hwaddr addr,
     serial_io_ops.write(&s->serial, addr >> s->regshift, value, 1);
 }
 
-static const MemoryRegionOps serial_mm_ops[3] = {
-    [DEVICE_NATIVE_ENDIAN] = {
-        .read = serial_mm_read,
-        .write = serial_mm_write,
-        .endianness = DEVICE_NATIVE_ENDIAN,
-        .valid = { .max_access_size = 8, },
-        .impl = { .max_access_size = 8, },
-    },
-    [DEVICE_LITTLE_ENDIAN] = {
-        .read = serial_mm_read,
-        .write = serial_mm_write,
-        .endianness = DEVICE_LITTLE_ENDIAN,
-        .valid = { .max_access_size = 8, },
-        .impl = { .max_access_size = 8, },
-    },
-    [DEVICE_BIG_ENDIAN] = {
-        .read = serial_mm_read,
-        .write = serial_mm_write,
-        .endianness = DEVICE_BIG_ENDIAN,
-        .valid = { .max_access_size = 8, },
-        .impl = { .max_access_size = 8, },
-    },
-};
+static MemoryRegionOps serial_mm_ops[3];
+
+static void __attribute__((constructor)) init_serial_mm_ops(void)
+{
+    memset(serial_mm_ops, 0, sizeof(serial_mm_ops));
+
+    serial_mm_ops[DEVICE_NATIVE_ENDIAN].read = serial_mm_read;
+    serial_mm_ops[DEVICE_NATIVE_ENDIAN].write = serial_mm_write;
+    serial_mm_ops[DEVICE_NATIVE_ENDIAN].endianness = DEVICE_NATIVE_ENDIAN;
+    serial_mm_ops[DEVICE_NATIVE_ENDIAN].valid.max_access_size = 8;
+    serial_mm_ops[DEVICE_NATIVE_ENDIAN].impl.max_access_size = 8;
+
+    serial_mm_ops[DEVICE_LITTLE_ENDIAN].read = serial_mm_read;
+    serial_mm_ops[DEVICE_LITTLE_ENDIAN].write = serial_mm_write;
+    serial_mm_ops[DEVICE_LITTLE_ENDIAN].endianness = DEVICE_LITTLE_ENDIAN;
+    serial_mm_ops[DEVICE_LITTLE_ENDIAN].valid.max_access_size = 8;
+    serial_mm_ops[DEVICE_LITTLE_ENDIAN].impl.max_access_size = 8;
+
+    serial_mm_ops[DEVICE_BIG_ENDIAN].read = serial_mm_read;
+    serial_mm_ops[DEVICE_BIG_ENDIAN].write = serial_mm_write;
+    serial_mm_ops[DEVICE_BIG_ENDIAN].endianness = DEVICE_BIG_ENDIAN;
+    serial_mm_ops[DEVICE_BIG_ENDIAN].valid.max_access_size = 8;
+    serial_mm_ops[DEVICE_BIG_ENDIAN].impl.max_access_size = 8;
+}
 
 static void serial_mm_realize(DeviceState *dev, Error **errp)
 {
@@ -84,16 +88,19 @@ static void serial_mm_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(SYS_BUS_DEVICE(smm), &smm->serial.irq);
 }
 
+static const VMStateField vmstate_serial_mm_fields[] = {
+    VMSTATE_STRUCT(serial, SerialMM, 0, vmstate_serial, SerialState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_serial_mm = {
     .name = "serial",
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(serial, SerialMM, 0, vmstate_serial, SerialState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_serial_mm_fields,
 };
 
+extern "C"
 SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,
                          qemu_irq irq, int baudbase,
@@ -147,9 +154,9 @@ static const TypeInfo types[] = {
     {
         .name = TYPE_SERIAL_MM,
         .parent = TYPE_SYS_BUS_DEVICE,
-        .class_init = serial_mm_class_init,
-        .instance_init = serial_mm_instance_init,
         .instance_size = sizeof(SerialMM),
+        .instance_init = serial_mm_instance_init,
+        .class_init = serial_mm_class_init,
     },
 };
 

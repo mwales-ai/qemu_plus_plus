@@ -11,9 +11,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "system/runstate.h"
+}
 
 typedef struct SECUREECState {
     SysBusDevice parent_obj;

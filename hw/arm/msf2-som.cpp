@@ -26,16 +26,19 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/boards.h"
+#include "hw/arm/boot.h"
+
+extern "C" {
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "hw/arm/boot.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/qdev-clock.h"
 #include "system/address-spaces.h"
 #include "hw/arm/msf2-soc.h"
+}
 
 #define DDR_BASE_ADDRESS      0xA0000000
 #define DDR_SIZE              (64 * MiB)

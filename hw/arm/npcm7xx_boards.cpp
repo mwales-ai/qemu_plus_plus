@@ -15,7 +15,10 @@
  */
 
 #include "qemu/osdep.h"
+#include "system/system.h"
+#include "system/block-backend.h"
 
+extern "C" {
 #include "hw/arm/npcm7xx.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/core/cpu.h"
@@ -29,9 +32,8 @@
 #include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "system/blockdev.h"
-#include "system/system.h"
-#include "system/block-backend.h"
 #include "qemu/error-report.h"
+}
 
 
 #define NPCM7XX_POWER_ON_STRAPS_DEFAULT (           \
@@ -543,9 +545,9 @@ static const TypeInfo npcm7xx_machine_types[] = {
         .name           = TYPE_NPCM7XX_MACHINE,
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(NPCM7xxMachine),
+        .is_abstract    = true,
         .class_size     = sizeof(NPCM7xxMachineClass),
         .class_init     = npcm7xx_machine_class_init,
-        .is_abstract       = true,
     }, {
         .name           = MACHINE_TYPE_NAME("npcm750-evb"),
         .parent         = TYPE_NPCM7XX_MACHINE,

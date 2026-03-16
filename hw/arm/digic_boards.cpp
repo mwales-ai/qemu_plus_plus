@@ -24,17 +24,20 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/block/flash.h"
+#include "hw/loader.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/datadir.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "hw/arm/digic.h"
 #include "hw/arm/machines-qom.h"
-#include "hw/block/flash.h"
-#include "hw/loader.h"
 #include "system/qtest.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
+}
 
 #define DIGIC4_ROM0_BASE      0xf0000000
 #define DIGIC4_ROM1_BASE      0xf8000000

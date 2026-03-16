@@ -146,7 +146,7 @@ system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
 system_ss.add(when: 'CONFIG_MSF2', if_true: files('msf2-sysreg.c'))
 system_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_rng.c'))
 
-system_ss.add(when: 'CONFIG_GRLIB', if_true: files('grlib_ahb_apb_pnp.c'))
+system_ss.add(when: 'CONFIG_GRLIB', if_true: files('grlib_ahb_apb_pnp.cpp'))
 
 system_ss.add(when: 'CONFIG_I2C_ECHO', if_true: files('i2c-echo.cpp'))
 
@@ -157,7 +157,7 @@ specific_ss.add(when: 'CONFIG_MAC_VIA', if_true: files('mac_via.c'))
 specific_ss.add(when: 'CONFIG_MIPS_CPS', if_true: files('mips_cmgcr.c', 'mips_cpc.c'))
 specific_ss.add(when: 'CONFIG_MIPS_ITU', if_true: files('mips_itu.c'))
 
-system_ss.add(when: 'CONFIG_SBSA_REF', if_true: files('sbsa_ec.c'))
+system_ss.add(when: 'CONFIG_SBSA_REF', if_true: files('sbsa_ec.cpp'))
 
 # HPPA devices
 system_ss.add(when: 'CONFIG_LASI', if_true: files('lasi.c'))

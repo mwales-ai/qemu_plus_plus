@@ -19,14 +19,17 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "hw/arm/fsl-imx7.h"
-#include "hw/misc/unimp.h"
-#include "hw/boards.h"
 #include "system/system.h"
+#include "hw/arm/fsl-imx7.h"
+#include "hw/boards.h"
+
+extern "C" {
+#include "qapi/error.h"
+#include "hw/misc/unimp.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "target/arm/cpu-qom.h"
+}
 
 #define NAME_SIZE 20
 

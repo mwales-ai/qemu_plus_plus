@@ -15,9 +15,10 @@
  */
 
 #include "qemu/osdep.h"
-
 #include "chardev/char.h"
 #include "hw/boards.h"
+
+extern "C" {
 #include "hw/arm/npcm8xx.h"
 #include "hw/arm/machines-qom.h"
 #include "hw/core/cpu.h"
@@ -28,6 +29,7 @@
 #include "qemu/error-report.h"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
+}
 
 #define NPCM845_EVB_POWER_ON_STRAPS 0x000017ff
 
@@ -242,9 +244,9 @@ static const TypeInfo npcm8xx_machine_types[] = {
         .name           = TYPE_NPCM8XX_MACHINE,
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(NPCM8xxMachine),
+        .is_abstract    = true,
         .class_size     = sizeof(NPCM8xxMachineClass),
         .class_init     = npcm8xx_machine_class_init,
-        .is_abstract       = true,
     }, {
         .name           = MACHINE_TYPE_NAME("npcm845-evb"),
         .parent         = TYPE_NPCM8XX_MACHINE,

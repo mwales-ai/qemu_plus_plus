@@ -22,10 +22,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "hw/misc/grlib_ahb_apb_pnp.h"
 #include "trace.h"
+}
 
 #define GRLIB_PNP_VENDOR_SHIFT (24)
 #define GRLIB_PNP_VENDOR_SIZE   (8)
@@ -62,6 +65,7 @@ typedef struct AHBPnp {
     uint8_t slave_count;
 } AHBPnp;
 
+extern "C"
 void grlib_ahb_pnp_add_entry(AHBPnp *dev, uint32_t address, uint32_t mask,
                              uint8_t vendor, uint16_t device, int slave,
                              int type)
@@ -192,6 +196,7 @@ typedef struct APBPnp {
     uint32_t entry_count;
 } APBPnp;
 
+extern "C"
 void grlib_apb_pnp_add_entry(APBPnp *dev, uint32_t address, uint32_t mask,
                              uint8_t vendor, uint16_t device, uint8_t version,
                              uint8_t irq, int type)

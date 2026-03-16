@@ -20,17 +20,20 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "hw/arm/fsl-imx6.h"
-#include "hw/misc/unimp.h"
-#include "hw/usb/imx-usb-phy.h"
-#include "hw/boards.h"
-#include "hw/qdev-properties.h"
 #include "system/system.h"
 #include "chardev/char.h"
+#include "hw/arm/fsl-imx6.h"
+#include "hw/boards.h"
+
+extern "C" {
+#include "qapi/error.h"
+#include "hw/misc/unimp.h"
+#include "hw/usb/imx-usb-phy.h"
+#include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "target/arm/cpu-qom.h"
+}
 
 #define IMX6_ESDHC_CAPABILITIES     0x057834b4
 
