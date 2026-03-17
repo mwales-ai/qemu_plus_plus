@@ -100,7 +100,7 @@ struct E1000EState {
 static uint64_t
 e1000e_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    E1000EState *s = opaque;
+    E1000EState *s = static_cast<E1000EState *>(opaque);
     return e1000e_core_read(&s->core, addr, size);
 }
 
@@ -108,7 +108,7 @@ static void
 e1000e_mmio_write(void *opaque, hwaddr addr,
                    uint64_t val, unsigned size)
 {
-    E1000EState *s = opaque;
+    E1000EState *s = static_cast<E1000EState *>(opaque);
     e1000e_core_write(&s->core, addr, val, size);
 }
 
@@ -137,7 +137,7 @@ e1000e_io_get_reg_index(E1000EState *s, uint32_t *idx)
 static uint64_t
 e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
 {
-    E1000EState *s = opaque;
+    E1000EState *s = static_cast<E1000EState *>(opaque);
     uint32_t idx = 0;
     uint64_t val;
 
@@ -162,7 +162,7 @@ static void
 e1000e_io_write(void *opaque, hwaddr addr,
                 uint64_t val, unsigned size)
 {
-    E1000EState *s = opaque;
+    E1000EState *s = static_cast<E1000EState *>(opaque);
     uint32_t idx = 0;
 
     switch (addr) {
@@ -205,37 +205,37 @@ static const MemoryRegionOps io_ops = {
 static bool
 e1000e_nc_can_receive(NetClientState *nc)
 {
-    E1000EState *s = qemu_get_nic_opaque(nc);
+    E1000EState *s = static_cast<E1000EState *>(qemu_get_nic_opaque(nc));
     return e1000e_can_receive(&s->core);
 }
 
 static ssize_t
 e1000e_nc_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
-    E1000EState *s = qemu_get_nic_opaque(nc);
+    E1000EState *s = static_cast<E1000EState *>(qemu_get_nic_opaque(nc));
     return e1000e_receive_iov(&s->core, iov, iovcnt);
 }
 
 static ssize_t
 e1000e_nc_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    E1000EState *s = qemu_get_nic_opaque(nc);
+    E1000EState *s = static_cast<E1000EState *>(qemu_get_nic_opaque(nc));
     return e1000e_receive(&s->core, buf, size);
 }
 
 static void
 e1000e_set_link_status(NetClientState *nc)
 {
-    E1000EState *s = qemu_get_nic_opaque(nc);
+    E1000EState *s = static_cast<E1000EState *>(qemu_get_nic_opaque(nc));
     e1000e_core_set_link_status(&s->core);
 }
 
 static NetClientInfo net_e1000e_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = e1000e_nc_can_receive,
     .receive = e1000e_nc_receive,
     .receive_iov = e1000e_nc_receive_iov,
+    .can_receive = e1000e_nc_can_receive,
     .link_status_changed = e1000e_set_link_status,
 };
 
@@ -526,7 +526,7 @@ static void e1000e_qdev_reset_hold(Object *obj, ResetType type)
 
 static int e1000e_pre_save(void *opaque)
 {
-    E1000EState *s = opaque;
+    E1000EState *s = static_cast<E1000EState *>(opaque);
 
     trace_e1000e_cb_pre_save();
 
@@ -537,7 +537,7 @@ static int e1000e_pre_save(void *opaque)
 
 static int e1000e_post_load(void *opaque, int version_id)
 {
-    E1000EState *s = opaque;
+    E1000EState *s = static_cast<E1000EState *>(opaque);
 
     trace_e1000e_cb_post_load();
 
@@ -554,43 +554,47 @@ static int e1000e_post_load(void *opaque, int version_id)
 
 static bool e1000e_migrate_timadj(void *opaque, int version_id)
 {
-    E1000EState *s = opaque;
+    E1000EState *s = static_cast<E1000EState *>(opaque);
     return s->timadj;
 }
+
+static const VMStateField e1000e_vmstate_tx_fields[] = {
+    VMSTATE_UINT8(sum_needed, e1000e_tx),
+    VMSTATE_UINT8(props.ipcss, e1000e_tx),
+    VMSTATE_UINT8(props.ipcso, e1000e_tx),
+    VMSTATE_UINT16(props.ipcse, e1000e_tx),
+    VMSTATE_UINT8(props.tucss, e1000e_tx),
+    VMSTATE_UINT8(props.tucso, e1000e_tx),
+    VMSTATE_UINT16(props.tucse, e1000e_tx),
+    VMSTATE_UINT8(props.hdr_len, e1000e_tx),
+    VMSTATE_UINT16(props.mss, e1000e_tx),
+    VMSTATE_UINT32(props.paylen, e1000e_tx),
+    VMSTATE_INT8(props.ip, e1000e_tx),
+    VMSTATE_INT8(props.tcp, e1000e_tx),
+    VMSTATE_BOOL(props.tse, e1000e_tx),
+    VMSTATE_BOOL(cptse, e1000e_tx),
+    VMSTATE_BOOL(skip_cp, e1000e_tx),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription e1000e_vmstate_tx = {
     .name = "e1000e-tx",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(sum_needed, struct e1000e_tx),
-        VMSTATE_UINT8(props.ipcss, struct e1000e_tx),
-        VMSTATE_UINT8(props.ipcso, struct e1000e_tx),
-        VMSTATE_UINT16(props.ipcse, struct e1000e_tx),
-        VMSTATE_UINT8(props.tucss, struct e1000e_tx),
-        VMSTATE_UINT8(props.tucso, struct e1000e_tx),
-        VMSTATE_UINT16(props.tucse, struct e1000e_tx),
-        VMSTATE_UINT8(props.hdr_len, struct e1000e_tx),
-        VMSTATE_UINT16(props.mss, struct e1000e_tx),
-        VMSTATE_UINT32(props.paylen, struct e1000e_tx),
-        VMSTATE_INT8(props.ip, struct e1000e_tx),
-        VMSTATE_INT8(props.tcp, struct e1000e_tx),
-        VMSTATE_BOOL(props.tse, struct e1000e_tx),
-        VMSTATE_BOOL(cptse, struct e1000e_tx),
-        VMSTATE_BOOL(skip_cp, struct e1000e_tx),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = e1000e_vmstate_tx_fields,
+};
+
+static const VMStateField e1000e_vmstate_intr_timer_fields[] = {
+    VMSTATE_TIMER_PTR(timer, E1000IntrDelayTimer),
+    VMSTATE_BOOL(running, E1000IntrDelayTimer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription e1000e_vmstate_intr_timer = {
     .name = "e1000e-intr-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, E1000IntrDelayTimer),
-        VMSTATE_BOOL(running, E1000IntrDelayTimer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = e1000e_vmstate_intr_timer_fields,
 };
 
 #define VMSTATE_E1000E_INTR_DELAY_TIMER(_f, _s)                     \
@@ -601,59 +605,61 @@ static const VMStateDescription e1000e_vmstate_intr_timer = {
     VMSTATE_STRUCT_ARRAY(_f, _s, _num, 0,                           \
                          e1000e_vmstate_intr_timer, E1000IntrDelayTimer)
 
+static const VMStateField e1000e_vmstate_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, E1000EState),
+    VMSTATE_MSIX(parent_obj, E1000EState),
+
+    VMSTATE_UINT32(ioaddr, E1000EState),
+    VMSTATE_UINT32(core.rxbuf_min_shift, E1000EState),
+    VMSTATE_UINT8(core.rx_desc_len, E1000EState),
+    VMSTATE_UINT32_ARRAY(core.rxbuf_sizes, E1000EState,
+                         E1000_PSRCTL_BUFFS_PER_DESC),
+    VMSTATE_UINT32(core.rx_desc_buf_size, E1000EState),
+    VMSTATE_UINT16_ARRAY(core.eeprom, E1000EState, E1000E_EEPROM_SIZE),
+    VMSTATE_UINT16_2DARRAY(core.phy, E1000EState,
+                           E1000E_PHY_PAGES, E1000E_PHY_PAGE_SIZE),
+    VMSTATE_UINT32_ARRAY(core.mac, E1000EState, E1000E_MAC_SIZE),
+    VMSTATE_UINT8_ARRAY(core.permanent_mac, E1000EState, ETH_ALEN),
+
+    VMSTATE_UINT32(core.delayed_causes, E1000EState),
+
+    VMSTATE_UINT16(subsys, E1000EState),
+    VMSTATE_UINT16(subsys_ven, E1000EState),
+
+    VMSTATE_E1000E_INTR_DELAY_TIMER(core.rdtr, E1000EState),
+    VMSTATE_E1000E_INTR_DELAY_TIMER(core.radv, E1000EState),
+    VMSTATE_E1000E_INTR_DELAY_TIMER(core.raid, E1000EState),
+    VMSTATE_E1000E_INTR_DELAY_TIMER(core.tadv, E1000EState),
+    VMSTATE_E1000E_INTR_DELAY_TIMER(core.tidv, E1000EState),
+
+    VMSTATE_E1000E_INTR_DELAY_TIMER(core.itr, E1000EState),
+    VMSTATE_UNUSED(1),
+
+    VMSTATE_E1000E_INTR_DELAY_TIMER_ARRAY(core.eitr, E1000EState,
+                                          E1000E_MSIX_VEC_NUM),
+    VMSTATE_UNUSED(E1000E_MSIX_VEC_NUM),
+
+    VMSTATE_UINT32(core.itr_guest_value, E1000EState),
+    VMSTATE_UINT32_ARRAY(core.eitr_guest_value, E1000EState,
+                         E1000E_MSIX_VEC_NUM),
+
+    VMSTATE_UINT16(core.vet, E1000EState),
+
+    VMSTATE_STRUCT_ARRAY(core.tx, E1000EState, E1000E_NUM_QUEUES, 0,
+                         e1000e_vmstate_tx, e1000e_tx),
+
+    VMSTATE_INT64_TEST(core.timadj, E1000EState, e1000e_migrate_timadj),
+
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription e1000e_vmstate = {
     .name = "e1000e",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = e1000e_pre_save,
     .post_load = e1000e_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, E1000EState),
-        VMSTATE_MSIX(parent_obj, E1000EState),
-
-        VMSTATE_UINT32(ioaddr, E1000EState),
-        VMSTATE_UINT32(core.rxbuf_min_shift, E1000EState),
-        VMSTATE_UINT8(core.rx_desc_len, E1000EState),
-        VMSTATE_UINT32_ARRAY(core.rxbuf_sizes, E1000EState,
-                             E1000_PSRCTL_BUFFS_PER_DESC),
-        VMSTATE_UINT32(core.rx_desc_buf_size, E1000EState),
-        VMSTATE_UINT16_ARRAY(core.eeprom, E1000EState, E1000E_EEPROM_SIZE),
-        VMSTATE_UINT16_2DARRAY(core.phy, E1000EState,
-                               E1000E_PHY_PAGES, E1000E_PHY_PAGE_SIZE),
-        VMSTATE_UINT32_ARRAY(core.mac, E1000EState, E1000E_MAC_SIZE),
-        VMSTATE_UINT8_ARRAY(core.permanent_mac, E1000EState, ETH_ALEN),
-
-        VMSTATE_UINT32(core.delayed_causes, E1000EState),
-
-        VMSTATE_UINT16(subsys, E1000EState),
-        VMSTATE_UINT16(subsys_ven, E1000EState),
-
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.rdtr, E1000EState),
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.radv, E1000EState),
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.raid, E1000EState),
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.tadv, E1000EState),
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.tidv, E1000EState),
-
-        VMSTATE_E1000E_INTR_DELAY_TIMER(core.itr, E1000EState),
-        VMSTATE_UNUSED(1),
-
-        VMSTATE_E1000E_INTR_DELAY_TIMER_ARRAY(core.eitr, E1000EState,
-                                              E1000E_MSIX_VEC_NUM),
-        VMSTATE_UNUSED(E1000E_MSIX_VEC_NUM),
-
-        VMSTATE_UINT32(core.itr_guest_value, E1000EState),
-        VMSTATE_UINT32_ARRAY(core.eitr_guest_value, E1000EState,
-                             E1000E_MSIX_VEC_NUM),
-
-        VMSTATE_UINT16(core.vet, E1000EState),
-
-        VMSTATE_STRUCT_ARRAY(core.tx, E1000EState, E1000E_NUM_QUEUES, 0,
-                             e1000e_vmstate_tx, struct e1000e_tx),
-
-        VMSTATE_INT64_TEST(core.timadj, E1000EState, e1000e_migrate_timadj),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .pre_save = e1000e_pre_save,
+    .fields = e1000e_vmstate_fields,
 };
 
 static PropertyInfo e1000e_prop_disable_vnet,
@@ -673,11 +679,11 @@ static const Property e1000e_properties[] = {
     DEFINE_PROP_BOOL("migrate-timadj", E1000EState, timadj, true),
 };
 
-static void e1000e_class_init(ObjectClass *class, const void *data)
+static void e1000e_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(class);
-    ResettableClass *rc = RESETTABLE_CLASS(class);
-    PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
 
     c->realize = e1000e_pci_realize;
     c->exit = e1000e_pci_uninit;
@@ -715,16 +721,18 @@ static void e1000e_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
+static const InterfaceInfo e1000e_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
+};
+
 static const TypeInfo e1000e_info = {
     .name = TYPE_E1000E,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E1000EState),
-    .class_init = e1000e_class_init,
     .instance_init = e1000e_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+    .class_init = e1000e_class_init,
+    .interfaces = e1000e_interfaces,
 };
 
 static void e1000e_register_types(void)

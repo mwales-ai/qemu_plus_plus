@@ -938,7 +938,7 @@ vmxnet3_pci_dma_writev(PCIDevice *pci_dev,
                 MIN((curr_off + iov->iov_len) - start_iov_off, bytes_to_copy);
 
             pci_dma_write(pci_dev, target_addr + copied,
-                          iov->iov_base + start_iov_off - curr_off,
+                          static_cast<const char *>(iov->iov_base) + start_iov_off - curr_off,
                           chunk_len);
 
             copied += chunk_len;
@@ -1068,7 +1068,7 @@ static void
 vmxnet3_io_bar0_write(void *opaque, hwaddr addr,
                       uint64_t val, unsigned size)
 {
-    VMXNET3State *s = opaque;
+    VMXNET3State *s = static_cast<VMXNET3State *>(opaque);
 
     if (!s->device_active) {
         return;
@@ -1113,7 +1113,7 @@ vmxnet3_io_bar0_write(void *opaque, hwaddr addr,
 static uint64_t
 vmxnet3_io_bar0_read(void *opaque, hwaddr addr, unsigned size)
 {
-    VMXNET3State *s = opaque;
+    VMXNET3State *s = static_cast<VMXNET3State *>(opaque);
 
     if (VMW_IS_MULTIREG_ADDR(addr, VMXNET3_REG_IMR,
                         VMXNET3_MAX_INTRS, VMXNET3_REG_ALIGN)) {
@@ -1207,7 +1207,7 @@ static void vmxnet3_update_mcast_filters(VMXNET3State *s)
 
     s->mcast_list_len = list_bytes / sizeof(s->mcast_list[0]);
 
-    s->mcast_list = g_realloc(s->mcast_list, list_bytes);
+    s->mcast_list = static_cast<MACAddr *>(g_realloc(s->mcast_list, list_bytes));
     if (!s->mcast_list) {
         if (s->mcast_list_len == 0) {
             VMW_CFPRN("Current multicast list is empty");
@@ -1322,7 +1322,7 @@ static void vmxnet3_update_features(VMXNET3State *s)
               s->lro_supported, rxcso_supported,
               s->rx_vlan_stripping);
     if (s->peer_has_vhdr) {
-        NetOffloads ol = { .csum = rxcso_supported,
+        NetOffloads ol = { .csum = static_cast<bool>(rxcso_supported),
                            .tso4 = s->lro_supported,
                            .tso6 = s->lro_supported };
 
@@ -1527,8 +1527,12 @@ static void vmxnet3_activate_device(VMXNET3State *s)
         /* Read rings memory locations */
         for (j = 0; j < VMXNET3_RX_RINGS_PER_QUEUE; j++) {
             /* RX rings */
-            pa = VMXNET3_READ_RX_QUEUE_DESCR64(d, qd_pa, conf.rxRingBasePA[j]);
-            size = VMXNET3_READ_RX_QUEUE_DESCR32(d, qd_pa, conf.rxRingSize[j]);
+            pa = vmw_shmem_ld64(d, qd_pa +
+                offsetof(struct Vmxnet3_RxQueueDesc, conf.rxRingBasePA) +
+                j * sizeof(__le64));
+            size = vmw_shmem_ld32(d, qd_pa +
+                offsetof(struct Vmxnet3_RxQueueDesc, conf.rxRingSize) +
+                j * sizeof(__le32));
             if (size > VMXNET3_RX_RING_MAX_SIZE) {
                 size = VMXNET3_RX_RING_MAX_SIZE;
             }
@@ -1734,7 +1738,7 @@ vmxnet3_io_bar1_write(void *opaque,
                       uint64_t val,
                       unsigned size)
 {
-    VMXNET3State *s = opaque;
+    VMXNET3State *s = static_cast<VMXNET3State *>(opaque);
 
     switch (addr) {
     /* Vmxnet3 Revision Report Selection */
@@ -1823,7 +1827,7 @@ vmxnet3_io_bar1_write(void *opaque,
 static uint64_t
 vmxnet3_io_bar1_read(void *opaque, hwaddr addr, unsigned size)
 {
-        VMXNET3State *s = opaque;
+        VMXNET3State *s = static_cast<VMXNET3State *>(opaque);
         uint64_t ret = 0;
 
         switch (addr) {
@@ -1882,7 +1886,7 @@ vmxnet3_io_bar1_read(void *opaque, hwaddr addr, unsigned size)
 static int
 vmxnet3_can_receive(NetClientState *nc)
 {
-    VMXNET3State *s = qemu_get_nic_opaque(nc);
+    VMXNET3State *s = static_cast<VMXNET3State *>(qemu_get_nic_opaque(nc));
     return s->device_active &&
            VMXNET_FLAG_IS_SET(s->link_status_and_speed, VMXNET3_LINK_STATUS_UP);
 }
@@ -1962,7 +1966,7 @@ vmxnet3_rx_filter_may_indicate(VMXNET3State *s, const void *data,
 static ssize_t
 vmxnet3_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    VMXNET3State *s = qemu_get_nic_opaque(nc);
+    VMXNET3State *s = static_cast<VMXNET3State *>(qemu_get_nic_opaque(nc));
     size_t bytes_indicated;
 
     if (!vmxnet3_can_receive(nc)) {
@@ -2004,7 +2008,7 @@ vmxnet3_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
 static void vmxnet3_set_link_status(NetClientState *nc)
 {
-    VMXNET3State *s = qemu_get_nic_opaque(nc);
+    VMXNET3State *s = static_cast<VMXNET3State *>(qemu_get_nic_opaque(nc));
 
     if (nc->link_down) {
         s->link_status_and_speed &= ~VMXNET3_LINK_STATUS_UP;
@@ -2266,9 +2270,9 @@ static bool vmxnet3_mc_list_needed(void *opaque)
 
 static int vmxnet3_mcast_list_pre_load(void *opaque)
 {
-    VMXNET3State *s = opaque;
+    VMXNET3State *s = static_cast<VMXNET3State *>(opaque);
 
-    s->mcast_list = g_malloc(s->mcast_list_buff_size);
+    s->mcast_list = static_cast<MACAddr *>(g_malloc(s->mcast_list_buff_size));
 
     return 0;
 }
@@ -2276,12 +2280,18 @@ static int vmxnet3_mcast_list_pre_load(void *opaque)
 
 static int vmxnet3_pre_save(void *opaque)
 {
-    VMXNET3State *s = opaque;
+    VMXNET3State *s = static_cast<VMXNET3State *>(opaque);
 
     s->mcast_list_buff_size = s->mcast_list_len * sizeof(MACAddr);
 
     return 0;
 }
+
+static const VMStateField vmxstate_vmxnet3_mcast_list_fields[] = {
+    VMSTATE_VBUFFER_UINT32(mcast_list, VMXNET3State, 0, NULL,
+        mcast_list_buff_size),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmxstate_vmxnet3_mcast_list = {
     .name = "vmxnet3/mcast_list",
@@ -2289,98 +2299,104 @@ static const VMStateDescription vmxstate_vmxnet3_mcast_list = {
     .minimum_version_id = 1,
     .pre_load = vmxnet3_mcast_list_pre_load,
     .needed = vmxnet3_mc_list_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VBUFFER_UINT32(mcast_list, VMXNET3State, 0, NULL,
-            mcast_list_buff_size),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmxstate_vmxnet3_mcast_list_fields,
+};
+
+static const VMStateField vmstate_vmxnet3_ring_fields[] = {
+    VMSTATE_UINT64(pa, Vmxnet3Ring),
+    VMSTATE_UINT32(size, Vmxnet3Ring),
+    VMSTATE_UINT32(cell_size, Vmxnet3Ring),
+    VMSTATE_UINT32(next, Vmxnet3Ring),
+    VMSTATE_UINT8(gen, Vmxnet3Ring),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_vmxnet3_ring = {
     .name = "vmxnet3-ring",
     .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(pa, Vmxnet3Ring),
-        VMSTATE_UINT32(size, Vmxnet3Ring),
-        VMSTATE_UINT32(cell_size, Vmxnet3Ring),
-        VMSTATE_UINT32(next, Vmxnet3Ring),
-        VMSTATE_UINT8(gen, Vmxnet3Ring),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmxnet3_ring_fields,
+};
+
+static const VMStateField vmstate_vmxnet3_tx_stats_fields[] = {
+    VMSTATE_UINT64(TSOPktsTxOK, struct UPT1_TxStats),
+    VMSTATE_UINT64(TSOBytesTxOK, struct UPT1_TxStats),
+    VMSTATE_UINT64(ucastPktsTxOK, struct UPT1_TxStats),
+    VMSTATE_UINT64(ucastBytesTxOK, struct UPT1_TxStats),
+    VMSTATE_UINT64(mcastPktsTxOK, struct UPT1_TxStats),
+    VMSTATE_UINT64(mcastBytesTxOK, struct UPT1_TxStats),
+    VMSTATE_UINT64(bcastPktsTxOK, struct UPT1_TxStats),
+    VMSTATE_UINT64(bcastBytesTxOK, struct UPT1_TxStats),
+    VMSTATE_UINT64(pktsTxError, struct UPT1_TxStats),
+    VMSTATE_UINT64(pktsTxDiscard, struct UPT1_TxStats),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_vmxnet3_tx_stats = {
     .name = "vmxnet3-tx-stats",
     .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(TSOPktsTxOK, struct UPT1_TxStats),
-        VMSTATE_UINT64(TSOBytesTxOK, struct UPT1_TxStats),
-        VMSTATE_UINT64(ucastPktsTxOK, struct UPT1_TxStats),
-        VMSTATE_UINT64(ucastBytesTxOK, struct UPT1_TxStats),
-        VMSTATE_UINT64(mcastPktsTxOK, struct UPT1_TxStats),
-        VMSTATE_UINT64(mcastBytesTxOK, struct UPT1_TxStats),
-        VMSTATE_UINT64(bcastPktsTxOK, struct UPT1_TxStats),
-        VMSTATE_UINT64(bcastBytesTxOK, struct UPT1_TxStats),
-        VMSTATE_UINT64(pktsTxError, struct UPT1_TxStats),
-        VMSTATE_UINT64(pktsTxDiscard, struct UPT1_TxStats),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmxnet3_tx_stats_fields,
+};
+
+static const VMStateField vmstate_vmxnet3_txq_descr_fields[] = {
+    VMSTATE_STRUCT(tx_ring, Vmxnet3TxqDescr, 0, vmstate_vmxnet3_ring,
+                   Vmxnet3Ring),
+    VMSTATE_STRUCT(comp_ring, Vmxnet3TxqDescr, 0, vmstate_vmxnet3_ring,
+                   Vmxnet3Ring),
+    VMSTATE_UINT8(intr_idx, Vmxnet3TxqDescr),
+    VMSTATE_UINT64(tx_stats_pa, Vmxnet3TxqDescr),
+    VMSTATE_STRUCT(txq_stats, Vmxnet3TxqDescr, 0, vmstate_vmxnet3_tx_stats,
+                   struct UPT1_TxStats),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_vmxnet3_txq_descr = {
     .name = "vmxnet3-txq-descr",
     .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(tx_ring, Vmxnet3TxqDescr, 0, vmstate_vmxnet3_ring,
-                       Vmxnet3Ring),
-        VMSTATE_STRUCT(comp_ring, Vmxnet3TxqDescr, 0, vmstate_vmxnet3_ring,
-                       Vmxnet3Ring),
-        VMSTATE_UINT8(intr_idx, Vmxnet3TxqDescr),
-        VMSTATE_UINT64(tx_stats_pa, Vmxnet3TxqDescr),
-        VMSTATE_STRUCT(txq_stats, Vmxnet3TxqDescr, 0, vmstate_vmxnet3_tx_stats,
-                       struct UPT1_TxStats),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmxnet3_txq_descr_fields,
+};
+
+static const VMStateField vmstate_vmxnet3_rx_stats_fields[] = {
+    VMSTATE_UINT64(LROPktsRxOK, struct UPT1_RxStats),
+    VMSTATE_UINT64(LROBytesRxOK, struct UPT1_RxStats),
+    VMSTATE_UINT64(ucastPktsRxOK, struct UPT1_RxStats),
+    VMSTATE_UINT64(ucastBytesRxOK, struct UPT1_RxStats),
+    VMSTATE_UINT64(mcastPktsRxOK, struct UPT1_RxStats),
+    VMSTATE_UINT64(mcastBytesRxOK, struct UPT1_RxStats),
+    VMSTATE_UINT64(bcastPktsRxOK, struct UPT1_RxStats),
+    VMSTATE_UINT64(bcastBytesRxOK, struct UPT1_RxStats),
+    VMSTATE_UINT64(pktsRxOutOfBuf, struct UPT1_RxStats),
+    VMSTATE_UINT64(pktsRxError, struct UPT1_RxStats),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_vmxnet3_rx_stats = {
     .name = "vmxnet3-rx-stats",
     .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(LROPktsRxOK, struct UPT1_RxStats),
-        VMSTATE_UINT64(LROBytesRxOK, struct UPT1_RxStats),
-        VMSTATE_UINT64(ucastPktsRxOK, struct UPT1_RxStats),
-        VMSTATE_UINT64(ucastBytesRxOK, struct UPT1_RxStats),
-        VMSTATE_UINT64(mcastPktsRxOK, struct UPT1_RxStats),
-        VMSTATE_UINT64(mcastBytesRxOK, struct UPT1_RxStats),
-        VMSTATE_UINT64(bcastPktsRxOK, struct UPT1_RxStats),
-        VMSTATE_UINT64(bcastBytesRxOK, struct UPT1_RxStats),
-        VMSTATE_UINT64(pktsRxOutOfBuf, struct UPT1_RxStats),
-        VMSTATE_UINT64(pktsRxError, struct UPT1_RxStats),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmxnet3_rx_stats_fields,
+};
+
+static const VMStateField vmstate_vmxnet3_rxq_descr_fields[] = {
+    VMSTATE_STRUCT_ARRAY(rx_ring, Vmxnet3RxqDescr,
+                         VMXNET3_RX_RINGS_PER_QUEUE, 0,
+                         vmstate_vmxnet3_ring, Vmxnet3Ring),
+    VMSTATE_STRUCT(comp_ring, Vmxnet3RxqDescr, 0, vmstate_vmxnet3_ring,
+                   Vmxnet3Ring),
+    VMSTATE_UINT8(intr_idx, Vmxnet3RxqDescr),
+    VMSTATE_UINT64(rx_stats_pa, Vmxnet3RxqDescr),
+    VMSTATE_STRUCT(rxq_stats, Vmxnet3RxqDescr, 0, vmstate_vmxnet3_rx_stats,
+                   struct UPT1_RxStats),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_vmxnet3_rxq_descr = {
     .name = "vmxnet3-rxq-descr",
     .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(rx_ring, Vmxnet3RxqDescr,
-                             VMXNET3_RX_RINGS_PER_QUEUE, 0,
-                             vmstate_vmxnet3_ring, Vmxnet3Ring),
-        VMSTATE_STRUCT(comp_ring, Vmxnet3RxqDescr, 0, vmstate_vmxnet3_ring,
-                       Vmxnet3Ring),
-        VMSTATE_UINT8(intr_idx, Vmxnet3RxqDescr),
-        VMSTATE_UINT64(rx_stats_pa, Vmxnet3RxqDescr),
-        VMSTATE_STRUCT(rxq_stats, Vmxnet3RxqDescr, 0, vmstate_vmxnet3_rx_stats,
-                       struct UPT1_RxStats),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmxnet3_rxq_descr_fields,
 };
 
 static int vmxnet3_post_load(void *opaque, int version_id)
 {
-    VMXNET3State *s = opaque;
+    VMXNET3State *s = static_cast<VMXNET3State *>(opaque);
 
     net_tx_pkt_init(&s->tx_pkt, s->max_tx_frags);
     net_rx_pkt_init(&s->rx_pkt);
@@ -2397,73 +2413,79 @@ static int vmxnet3_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_vmxnet3_int_state_fields[] = {
+    VMSTATE_BOOL(is_masked, Vmxnet3IntState),
+    VMSTATE_BOOL(is_pending, Vmxnet3IntState),
+    VMSTATE_BOOL(is_asserted, Vmxnet3IntState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_vmxnet3_int_state = {
     .name = "vmxnet3-int-state",
     .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(is_masked, Vmxnet3IntState),
-        VMSTATE_BOOL(is_pending, Vmxnet3IntState),
-        VMSTATE_BOOL(is_asserted, Vmxnet3IntState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmxnet3_int_state_fields,
+};
+
+static const VMStateField vmstate_vmxnet3_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, VMXNET3State),
+    VMSTATE_MSIX(parent_obj, VMXNET3State),
+    VMSTATE_BOOL(rx_packets_compound, VMXNET3State),
+    VMSTATE_BOOL(rx_vlan_stripping, VMXNET3State),
+    VMSTATE_BOOL(lro_supported, VMXNET3State),
+    VMSTATE_UINT32(rx_mode, VMXNET3State),
+    VMSTATE_UINT32(mcast_list_len, VMXNET3State),
+    VMSTATE_UINT32(mcast_list_buff_size, VMXNET3State),
+    VMSTATE_UINT32_ARRAY(vlan_table, VMXNET3State, VMXNET3_VFT_SIZE),
+    VMSTATE_UINT32(mtu, VMXNET3State),
+    VMSTATE_UINT16(max_rx_frags, VMXNET3State),
+    VMSTATE_UINT32(max_tx_frags, VMXNET3State),
+    VMSTATE_UINT8(event_int_idx, VMXNET3State),
+    VMSTATE_BOOL(auto_int_masking, VMXNET3State),
+    VMSTATE_UINT8(txq_num, VMXNET3State),
+    VMSTATE_UINT8(rxq_num, VMXNET3State),
+    VMSTATE_UINT32(device_active, VMXNET3State),
+    VMSTATE_UINT32(last_command, VMXNET3State),
+    VMSTATE_UINT32(link_status_and_speed, VMXNET3State),
+    VMSTATE_UINT32(temp_mac, VMXNET3State),
+    VMSTATE_UINT64(drv_shmem, VMXNET3State),
+    VMSTATE_UINT64(temp_shared_guest_driver_memory, VMXNET3State),
+
+    VMSTATE_STRUCT_ARRAY(txq_descr, VMXNET3State,
+        VMXNET3_DEVICE_MAX_TX_QUEUES, 0, vmstate_vmxnet3_txq_descr,
+        Vmxnet3TxqDescr),
+    VMSTATE_STRUCT_ARRAY(rxq_descr, VMXNET3State,
+        VMXNET3_DEVICE_MAX_RX_QUEUES, 0, vmstate_vmxnet3_rxq_descr,
+        Vmxnet3RxqDescr),
+    VMSTATE_STRUCT_ARRAY(interrupt_states, VMXNET3State,
+        VMXNET3_MAX_INTRS, 0, vmstate_vmxnet3_int_state,
+        Vmxnet3IntState),
+
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_vmxnet3_subsections[] = {
+    &vmxstate_vmxnet3_mcast_list,
+    NULL
 };
 
 static const VMStateDescription vmstate_vmxnet3 = {
     .name = "vmxnet3",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = vmxnet3_pre_save,
     .post_load = vmxnet3_post_load,
-    .fields = (const VMStateField[]) {
-            VMSTATE_PCI_DEVICE(parent_obj, VMXNET3State),
-            VMSTATE_MSIX(parent_obj, VMXNET3State),
-            VMSTATE_BOOL(rx_packets_compound, VMXNET3State),
-            VMSTATE_BOOL(rx_vlan_stripping, VMXNET3State),
-            VMSTATE_BOOL(lro_supported, VMXNET3State),
-            VMSTATE_UINT32(rx_mode, VMXNET3State),
-            VMSTATE_UINT32(mcast_list_len, VMXNET3State),
-            VMSTATE_UINT32(mcast_list_buff_size, VMXNET3State),
-            VMSTATE_UINT32_ARRAY(vlan_table, VMXNET3State, VMXNET3_VFT_SIZE),
-            VMSTATE_UINT32(mtu, VMXNET3State),
-            VMSTATE_UINT16(max_rx_frags, VMXNET3State),
-            VMSTATE_UINT32(max_tx_frags, VMXNET3State),
-            VMSTATE_UINT8(event_int_idx, VMXNET3State),
-            VMSTATE_BOOL(auto_int_masking, VMXNET3State),
-            VMSTATE_UINT8(txq_num, VMXNET3State),
-            VMSTATE_UINT8(rxq_num, VMXNET3State),
-            VMSTATE_UINT32(device_active, VMXNET3State),
-            VMSTATE_UINT32(last_command, VMXNET3State),
-            VMSTATE_UINT32(link_status_and_speed, VMXNET3State),
-            VMSTATE_UINT32(temp_mac, VMXNET3State),
-            VMSTATE_UINT64(drv_shmem, VMXNET3State),
-            VMSTATE_UINT64(temp_shared_guest_driver_memory, VMXNET3State),
-
-            VMSTATE_STRUCT_ARRAY(txq_descr, VMXNET3State,
-                VMXNET3_DEVICE_MAX_TX_QUEUES, 0, vmstate_vmxnet3_txq_descr,
-                Vmxnet3TxqDescr),
-            VMSTATE_STRUCT_ARRAY(rxq_descr, VMXNET3State,
-                VMXNET3_DEVICE_MAX_RX_QUEUES, 0, vmstate_vmxnet3_rxq_descr,
-                Vmxnet3RxqDescr),
-            VMSTATE_STRUCT_ARRAY(interrupt_states, VMXNET3State,
-                VMXNET3_MAX_INTRS, 0, vmstate_vmxnet3_int_state,
-                Vmxnet3IntState),
-
-            VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmxstate_vmxnet3_mcast_list,
-        NULL
-    }
+    .pre_save = vmxnet3_pre_save,
+    .fields = vmstate_vmxnet3_fields,
+    .subsections = vmstate_vmxnet3_subsections,
 };
 
 static const Property vmxnet3_properties[] = {
     DEFINE_NIC_PROPERTIES(VMXNET3State, conf),
 };
 
-static void vmxnet3_class_init(ObjectClass *class, const void *data)
+static void vmxnet3_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(class);
-    PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
 
     c->realize = vmxnet3_pci_realize;
     c->exit = vmxnet3_pci_uninit;
@@ -2481,18 +2503,20 @@ static void vmxnet3_class_init(ObjectClass *class, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
+static const InterfaceInfo vmxnet3_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
 static const TypeInfo vmxnet3_info = {
     .name          = TYPE_VMXNET3,
     .parent        = TYPE_PCI_DEVICE,
-    .class_size    = sizeof(VMXNET3Class),
     .instance_size = sizeof(VMXNET3State),
-    .class_init    = vmxnet3_class_init,
     .instance_init = vmxnet3_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    },
+    .class_size    = sizeof(VMXNET3Class),
+    .class_init    = vmxnet3_class_init,
+    .interfaces    = vmxnet3_interfaces,
 };
 
 static void vmxnet3_register_types(void)

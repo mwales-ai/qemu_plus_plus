@@ -305,14 +305,14 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
             int16_t length;
             int16_t status;
         } xda;
-        s->phys_mem_read(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
+        s->phys_mem_read(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(&xda), sizeof(xda), 0);
         tmd->tbadr = le32_to_cpu(xda.tbadr) & 0xffffff;
         tmd->length = le16_to_cpu(xda.length);
         tmd->status = (le32_to_cpu(xda.tbadr) >> 16) & 0xff00;
         tmd->misc = le16_to_cpu(xda.status) << 16;
         tmd->res = 0;
     } else {
-        s->phys_mem_read(s->dma_opaque, addr, (void *)tmd, sizeof(*tmd), 0);
+        s->phys_mem_read(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(tmd), sizeof(*tmd), 0);
         le32_to_cpus(&tmd->tbadr);
         le16_to_cpus((uint16_t *)&tmd->length);
         le16_to_cpus((uint16_t *)&tmd->status);
@@ -339,7 +339,7 @@ static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
                                 ((tmd->status & 0xff00) << 16));
         xda.length = cpu_to_le16(tmd->length);
         xda.status = cpu_to_le16(tmd->misc >> 16);
-        s->phys_mem_write(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(&xda), sizeof(xda), 0);
     } else {
         struct {
             uint32_t tbadr;
@@ -358,7 +358,7 @@ static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
             xda.tbadr = xda.misc;
             xda.misc = tmp;
         }
-        s->phys_mem_write(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(&xda), sizeof(xda), 0);
     }
 }
 
@@ -371,14 +371,14 @@ static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
             int16_t buf_length;
             int16_t msg_length;
         } rda;
-        s->phys_mem_read(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
+        s->phys_mem_read(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(&rda), sizeof(rda), 0);
         rmd->rbadr = le32_to_cpu(rda.rbadr) & 0xffffff;
         rmd->buf_length = le16_to_cpu(rda.buf_length);
         rmd->status = (le32_to_cpu(rda.rbadr) >> 16) & 0xff00;
         rmd->msg_length = le16_to_cpu(rda.msg_length);
         rmd->res = 0;
     } else {
-        s->phys_mem_read(s->dma_opaque, addr, (void *)rmd, sizeof(*rmd), 0);
+        s->phys_mem_read(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(rmd), sizeof(*rmd), 0);
         le32_to_cpus(&rmd->rbadr);
         le16_to_cpus((uint16_t *)&rmd->buf_length);
         le16_to_cpus((uint16_t *)&rmd->status);
@@ -405,7 +405,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
                                 ((rmd->status & 0xff00) << 16));
         rda.buf_length = cpu_to_le16(rmd->buf_length);
         rda.msg_length = cpu_to_le16(rmd->msg_length);
-        s->phys_mem_write(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(&rda), sizeof(rda), 0);
     } else {
         struct {
             uint32_t rbadr;
@@ -424,7 +424,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
             rda.rbadr = rda.msg_length;
             rda.msg_length = tmp;
         }
-        s->phys_mem_write(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(&rda), sizeof(rda), 0);
     }
 }
 
@@ -599,7 +599,7 @@ static const uint32_t crctab[256] = {
 
 static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
 {
-    struct qemu_ether_header *hdr = (void *)buf;
+    struct qemu_ether_header *hdr = reinterpret_cast<struct qemu_ether_header *>(const_cast<uint8_t *>(buf));
     uint8_t padr[6] = {
         s->csr[12] & 0xff, s->csr[12] >> 8,
         s->csr[13] & 0xff, s->csr[13] >> 8,
@@ -620,7 +620,7 @@ static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
 static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
 {
     static const uint8_t BCAST[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-    struct qemu_ether_header *hdr = (void *)buf;
+    struct qemu_ether_header *hdr = reinterpret_cast<struct qemu_ether_header *>(const_cast<uint8_t *>(buf));
     int result = !CSR_DRCVBC(s) && !memcmp(hdr->ether_dhost, BCAST, 6);
 #ifdef PCNET_DEBUG_MATCH
     printf("padr_bcast result=%d\n", result);
@@ -630,14 +630,14 @@ static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
 
 static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
 {
-    struct qemu_ether_header *hdr = (void *)buf;
+    struct qemu_ether_header *hdr = reinterpret_cast<struct qemu_ether_header *>(const_cast<uint8_t *>(buf));
     if ((*(hdr->ether_dhost)&0x01) &&
         (s->csr[8] | s->csr[9] | s->csr[10] | s->csr[11]) != 0) {
         uint8_t ladr[8] = {
-            s->csr[8] & 0xff, s->csr[8] >> 8,
-            s->csr[9] & 0xff, s->csr[9] >> 8,
-            s->csr[10] & 0xff, s->csr[10] >> 8,
-            s->csr[11] & 0xff, s->csr[11] >> 8
+            static_cast<uint8_t>(s->csr[8] & 0xff), static_cast<uint8_t>(s->csr[8] >> 8),
+            static_cast<uint8_t>(s->csr[9] & 0xff), static_cast<uint8_t>(s->csr[9] >> 8),
+            static_cast<uint8_t>(s->csr[10] & 0xff), static_cast<uint8_t>(s->csr[10] >> 8),
+            static_cast<uint8_t>(s->csr[11] & 0xff), static_cast<uint8_t>(s->csr[11] >> 8)
         };
         int index = net_crc32_le(hdr->ether_dhost, ETH_ALEN) >> 26;
         return !!(ladr[index >> 3] & (1 << (index & 7)));
@@ -985,7 +985,7 @@ static int pcnet_tdte_poll(PCNetState *s)
 
 ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 {
-    PCNetState *s = qemu_get_nic_opaque(nc);
+    PCNetState *s = static_cast<PCNetState *>(qemu_get_nic_opaque(nc));
     int is_padr = 0, is_bcast = 0, is_ladr = 0;
     int remaining;
     int crc_err = 0;
@@ -1165,7 +1165,7 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 
 void pcnet_set_link_status(NetClientState *nc)
 {
-    PCNetState *d = qemu_get_nic_opaque(nc);
+    PCNetState *d = static_cast<PCNetState *>(qemu_get_nic_opaque(nc));
 
     d->lnkst = nc->link_down ? 0 : 0x40;
 }
@@ -1305,7 +1305,7 @@ static void pcnet_poll(PCNetState *s)
 
 static void pcnet_poll_timer(void *opaque)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = static_cast<PCNetState *>(opaque);
 
     timer_del(s->poll_timer);
 
@@ -1543,7 +1543,7 @@ uint32_t pcnet_bcr_readw(PCNetState *s, uint32_t rap)
 
 void pcnet_h_reset(void *opaque)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = static_cast<PCNetState *>(opaque);
 
     s->bcr[BCR_MSRDA] = 0x0005;
     s->bcr[BCR_MSWRA] = 0x0005;
@@ -1565,7 +1565,7 @@ void pcnet_h_reset(void *opaque)
 
 void pcnet_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = static_cast<PCNetState *>(opaque);
     pcnet_poll_timer(s);
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_ioport_writew addr=0x%08x val=0x%04x\n", addr, val);
@@ -1588,7 +1588,7 @@ void pcnet_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 
 uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = static_cast<PCNetState *>(opaque);
     uint32_t val = -1;
     pcnet_poll_timer(s);
     if (!BCR_DWIO(s)) {
@@ -1617,7 +1617,7 @@ uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr)
 
 void pcnet_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = static_cast<PCNetState *>(opaque);
     pcnet_poll_timer(s);
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_ioport_writel addr=0x%08x val=0x%08x\n", addr, val);
@@ -1646,7 +1646,7 @@ void pcnet_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 
 uint32_t pcnet_ioport_readl(void *opaque, uint32_t addr)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = static_cast<PCNetState *>(opaque);
     uint32_t val = -1;
     pcnet_poll_timer(s);
     if (BCR_DWIO(s)) {
@@ -1678,27 +1678,29 @@ static bool is_version_2(void *opaque, int version_id)
     return version_id == 2;
 }
 
+static const VMStateField vmstate_pcnet_fields[] = {
+    VMSTATE_INT32(rap, PCNetState),
+    VMSTATE_INT32(isr, PCNetState),
+    VMSTATE_INT32(lnkst, PCNetState),
+    VMSTATE_UINT32(rdra, PCNetState),
+    VMSTATE_UINT32(tdra, PCNetState),
+    VMSTATE_BUFFER(prom, PCNetState),
+    VMSTATE_UINT16_ARRAY(csr, PCNetState, 128),
+    VMSTATE_UINT16_ARRAY(bcr, PCNetState, 32),
+    VMSTATE_UINT64(timer, PCNetState),
+    VMSTATE_INT32(xmit_pos, PCNetState),
+    VMSTATE_BUFFER(buffer, PCNetState),
+    VMSTATE_UNUSED_TEST(is_version_2, 4),
+    VMSTATE_INT32(tx_busy, PCNetState),
+    VMSTATE_TIMER_PTR(poll_timer, PCNetState),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_pcnet = {
     .name = "pcnet",
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(rap, PCNetState),
-        VMSTATE_INT32(isr, PCNetState),
-        VMSTATE_INT32(lnkst, PCNetState),
-        VMSTATE_UINT32(rdra, PCNetState),
-        VMSTATE_UINT32(tdra, PCNetState),
-        VMSTATE_BUFFER(prom, PCNetState),
-        VMSTATE_UINT16_ARRAY(csr, PCNetState, 128),
-        VMSTATE_UINT16_ARRAY(bcr, PCNetState, 32),
-        VMSTATE_UINT64(timer, PCNetState),
-        VMSTATE_INT32(xmit_pos, PCNetState),
-        VMSTATE_BUFFER(buffer, PCNetState),
-        VMSTATE_UNUSED_TEST(is_version_2, 4),
-        VMSTATE_INT32(tx_busy, PCNetState),
-        VMSTATE_TIMER_PTR(poll_timer, PCNetState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pcnet_fields,
 };
 
 void pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)

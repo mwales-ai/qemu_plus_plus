@@ -346,10 +346,10 @@ uint32_t net_crc32_le(const uint8_t *p, int len);
 
 #define VMSTATE_MACADDR(_field, _state) {                            \
     .name       = (stringify(_field)),                               \
+    .offset     = vmstate_offset_macaddr(_state, _field),            \
     .size       = sizeof(MACAddr),                                   \
     .info       = &vmstate_info_buffer,                              \
     .flags      = VMS_BUFFER,                                        \
-    .offset     = vmstate_offset_macaddr(_state, _field),            \
 }
 
 static inline bool net_peer_needs_padding(NetClientState *nc)

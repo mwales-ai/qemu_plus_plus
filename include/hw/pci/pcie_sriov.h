@@ -15,6 +15,10 @@
 
 #include "hw/pci/pci.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct PCIESriovPF {
     uint8_t vf_bar_type[PCI_NUM_REGIONS];   /* Store type for each VF bar */
     PCIDevice **vf;     /* Pointer to an array of num_vfs VF devices */
@@ -96,5 +100,9 @@ PCIDevice *pcie_sriov_get_vf_at_index(PCIDevice *dev, int n);
 
 /* Returns the current number of virtual functions. */
 uint16_t pcie_sriov_num_vfs(PCIDevice *dev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_PCIE_SRIOV_H */

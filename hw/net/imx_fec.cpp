@@ -227,7 +227,7 @@ static void imx_eth_update(IMXFECState *s);
  */
 static void imx_phy_update_irq(void *opaque, int n, int level)
 {
-    imx_eth_update(opaque);
+    imx_eth_update(static_cast<IMXFECState *>(opaque));
 }
 
 static void imx_eth_set_link(NetClientState *nc)
@@ -1172,8 +1172,8 @@ static ssize_t imx_eth_receive(NetClientState *nc, const uint8_t *buf,
 static const MemoryRegionOps imx_eth_ops = {
     .read                  = imx_eth_read,
     .write                 = imx_eth_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness            = DEVICE_NATIVE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void imx_eth_cleanup(NetClientState *nc)
@@ -1186,8 +1186,8 @@ static void imx_eth_cleanup(NetClientState *nc)
 static NetClientInfo imx_eth_net_info = {
     .type                = NET_CLIENT_DRIVER_NIC,
     .size                = sizeof(NICState),
-    .can_receive         = imx_eth_can_receive,
     .receive             = imx_eth_receive,
+    .can_receive         = imx_eth_can_receive,
     .cleanup             = imx_eth_cleanup,
     .link_status_changed = imx_eth_set_link,
 };

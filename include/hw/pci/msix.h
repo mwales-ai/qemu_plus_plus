@@ -57,10 +57,10 @@ extern const VMStateDescription vmstate_msix;
 
 #define VMSTATE_MSIX_TEST(_field, _state, _test) {                   \
     .name         = (stringify(_field)),                             \
-    .size         = sizeof(PCIDevice),                               \
-    .vmsd         = &vmstate_msix,                                   \
-    .flags        = VMS_STRUCT,                                      \
     .offset       = vmstate_offset_value(_state, _field, PCIDevice), \
+    .size         = sizeof(PCIDevice),                               \
+    .flags        = VMS_STRUCT,                                      \
+    .vmsd         = &vmstate_msix,                                   \
     .field_exists = (_test)                                          \
 }
 

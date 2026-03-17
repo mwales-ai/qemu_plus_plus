@@ -660,7 +660,7 @@ static bool gem_can_receive(NetClientState *nc)
     CadenceGEMState *s;
     int i;
 
-    s = qemu_get_nic_opaque(nc);
+    s = static_cast<CadenceGEMState *>(qemu_get_nic_opaque(nc));
 
     /* Do nothing if receive is not enabled. */
     if (!FIELD_EX32(s->regs[R_NWCTRL], NWCTRL, ENABLE_RECEIVE)) {
@@ -1060,7 +1060,7 @@ static void gem_get_rx_desc(CadenceGEMState *s, int q)
  */
 static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    CadenceGEMState *s = qemu_get_nic_opaque(nc);
+    CadenceGEMState *s = static_cast<CadenceGEMState *>(qemu_get_nic_opaque(nc));
     unsigned   rxbufsize, bytes_to_copy;
     unsigned   rxbuf_offset;
     uint8_t   *rxbuf_ptr;
@@ -1119,7 +1119,7 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     /* Strip of FCS field ? (usually yes) */
     if (FIELD_EX32(s->regs[R_NWCFG], NWCFG, FCS_REMOVE)) {
-        rxbuf_ptr = (void *)buf;
+        rxbuf_ptr = const_cast<uint8_t *>(buf);
     } else {
         uint32_t crc_val;
 
@@ -1588,7 +1588,7 @@ static uint64_t gem_read(void *opaque, hwaddr offset, unsigned size)
 {
     CadenceGEMState *s;
     uint32_t retval;
-    s = opaque;
+    s = static_cast<CadenceGEMState *>(opaque);
 
     offset >>= 2;
     retval = s->regs[offset];
@@ -1725,7 +1725,7 @@ static const MemoryRegionOps gem_ops = {
 
 static void gem_set_link(NetClientState *nc)
 {
-    CadenceGEMState *s = qemu_get_nic_opaque(nc);
+    CadenceGEMState *s = static_cast<CadenceGEMState *>(qemu_get_nic_opaque(nc));
 
     DB_PRINT("\n");
     phy_update_link(s);
@@ -1735,8 +1735,8 @@ static void gem_set_link(NetClientState *nc)
 static NetClientInfo net_gem_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = gem_can_receive,
     .receive = gem_receive,
+    .can_receive = gem_can_receive,
     .link_status_changed = gem_set_link,
 };
 

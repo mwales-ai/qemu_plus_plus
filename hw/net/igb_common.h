@@ -28,6 +28,10 @@
 
 #include "igb_regs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_IGBVF "igbvf"
 
 #define IGBVF_MMIO_BAR_IDX  (0)
@@ -153,5 +157,9 @@ enum {
 uint64_t igb_mmio_read(void *opaque, hwaddr addr, unsigned size);
 void igb_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 void igb_vf_reset(void *opaque, uint16_t vfn);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

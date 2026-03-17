@@ -20,6 +20,10 @@
 
 #include "net/eth.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* defines to enable packet dump functions */
 /*#define NET_RX_PKT_DEBUG*/
 
@@ -337,5 +341,9 @@ bool net_rx_pkt_validate_l3_csum(struct NetRxPkt *pkt, bool *csum_valid);
 *
 */
 bool net_rx_pkt_fix_l4_csum(struct NetRxPkt *pkt);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

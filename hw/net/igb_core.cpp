@@ -163,7 +163,7 @@ igb_intmgr_timer_resume(IGBIntrDelayTimer *timer)
 static void
 igb_intrmgr_on_msix_throttling_timer(void *opaque)
 {
-    IGBIntrDelayTimer *timer = opaque;
+    IGBIntrDelayTimer *timer = static_cast<IGBIntrDelayTimer *>(opaque);
     int idx = timer - &timer->core->eitr[0];
 
     timer->running = false;
@@ -435,7 +435,7 @@ igb_rss_parse_packet(IGBCore *core, struct NetRxPkt *pkt, bool tx,
 }
 
 static void
-igb_tx_insert_vlan(IGBCore *core, uint16_t qn, struct igb_tx *tx,
+igb_tx_insert_vlan(IGBCore *core, uint16_t qn, igb_tx *tx,
     uint16_t vlan, bool insert_vlan)
 {
     if (core->mac[MRQC] & 1) {
@@ -457,7 +457,7 @@ igb_tx_insert_vlan(IGBCore *core, uint16_t qn, struct igb_tx *tx,
 }
 
 static bool
-igb_setup_tx_offloads(IGBCore *core, struct igb_tx *tx)
+igb_setup_tx_offloads(IGBCore *core, igb_tx *tx)
 {
     uint32_t idx = (tx->first_olinfo_status >> 4) & 1;
 
@@ -492,7 +492,7 @@ static void igb_tx_pkt_mac_callback(void *core,
                                     const struct iovec *virt_iov,
                                     int virt_iovcnt)
 {
-    igb_receive_internal(core, virt_iov, virt_iovcnt, true, NULL);
+    igb_receive_internal(static_cast<IGBCore *>(core), virt_iov, virt_iovcnt, true, NULL);
 }
 
 static void igb_tx_pkt_vmdq_callback(void *opaque,
@@ -501,7 +501,7 @@ static void igb_tx_pkt_vmdq_callback(void *opaque,
                                      const struct iovec *virt_iov,
                                      int virt_iovcnt)
 {
-    IGBTxPktVmdqCallbackContext *context = opaque;
+    IGBTxPktVmdqCallbackContext *context = static_cast<IGBTxPktVmdqCallbackContext *>(opaque);
     bool external_tx;
 
     igb_receive_internal(context->core, virt_iov, virt_iovcnt, true,
@@ -517,7 +517,7 @@ static void igb_tx_pkt_vmdq_callback(void *opaque,
 }
 
 /* TX Packets Switching (7.10.3.6) */
-static bool igb_tx_pkt_switch(IGBCore *core, struct igb_tx *tx,
+static bool igb_tx_pkt_switch(IGBCore *core, igb_tx *tx,
                               NetClientState *nc)
 {
     IGBTxPktVmdqCallbackContext context;
@@ -543,7 +543,7 @@ send_out:
 }
 
 static bool
-igb_tx_pkt_send(IGBCore *core, struct igb_tx *tx, int queue_index)
+igb_tx_pkt_send(IGBCore *core, igb_tx *tx, int queue_index)
 {
     int target_queue = MIN(core->max_queue_num, queue_index);
     NetClientState *queue = qemu_get_subqueue(core->owner_nic, target_queue);
@@ -602,7 +602,7 @@ igb_on_tx_done_update_stats(IGBCore *core, struct NetTxPkt *tx_pkt, int qn)
 static void
 igb_process_tx_desc(IGBCore *core,
                     PCIDevice *dev,
-                    struct igb_tx *tx,
+                    igb_tx *tx,
                     union e1000_adv_tx_desc *tx_desc,
                     int queue_index)
 {
@@ -756,7 +756,7 @@ igb_ring_enabled(IGBCore *core, const E1000ERingInfo *r)
 
 typedef struct IGB_TxRing_st {
     const E1000ERingInfo *i;
-    struct igb_tx *tx;
+    igb_tx *tx;
 } IGB_TxRing;
 
 static inline int
@@ -1766,7 +1766,7 @@ igb_write_header_to_rx_buffers(IGBCore *core,
                        pdma_st->iov->iov_len - pdma_st->iov_ofs);
 
         igb_write_hdr_frag_to_rx_buffers(core, d, pdma_st,
-                                         pdma_st->iov->iov_base,
+                                         static_cast<const char *>(pdma_st->iov->iov_base),
                                          iov_copy);
 
         *copy_size -= iov_copy;
@@ -1827,7 +1827,7 @@ igb_write_payload_to_rx_buffers(IGBCore *core,
                                 IGBPacketRxDMAState *pdma_st,
                                 size_t *copy_size)
 {
-    static const uint32_t fcs_pad;
+    static const uint32_t fcs_pad = 0;
     size_t iov_copy;
 
     /* Copy packet payload */
@@ -1835,7 +1835,7 @@ igb_write_payload_to_rx_buffers(IGBCore *core,
         iov_copy = MIN(*copy_size, pdma_st->iov->iov_len - pdma_st->iov_ofs);
         igb_write_payload_frag_to_rx_buffers(core, d,
                                              pdma_st,
-                                             pdma_st->iov->iov_base +
+                                             static_cast<const char *>(pdma_st->iov->iov_base) +
                                              pdma_st->iov_ofs,
                                              iov_copy);
 
@@ -2626,7 +2626,7 @@ static void igb_set_vtivar(IGBCore *core, int index, uint32_t val)
 static inline void
 igb_autoneg_timer(void *opaque)
 {
-    IGBCore *core = opaque;
+    IGBCore *core = static_cast<IGBCore *>(opaque);
     if (!qemu_get_queue(core->owner_nic)->link_down) {
         e1000x_update_regs_on_autoneg_done(core->mac, core->phy);
         igb_start_recv(core);
@@ -2644,27 +2644,30 @@ igb_get_reg_index_with_offset(const uint16_t *mac_reg_access, hwaddr addr)
     return index + (mac_reg_access[index] & 0xfffe);
 }
 
-static const char igb_phy_regcap[MAX_PHY_REG_ADDRESS + 1] = {
-    [MII_BMCR]                   = PHY_RW,
-    [MII_BMSR]                   = PHY_R,
-    [MII_PHYID1]                 = PHY_R,
-    [MII_PHYID2]                 = PHY_R,
-    [MII_ANAR]                   = PHY_RW,
-    [MII_ANLPAR]                 = PHY_R,
-    [MII_ANER]                   = PHY_R,
-    [MII_ANNP]                   = PHY_RW,
-    [MII_ANLPRNP]                = PHY_R,
-    [MII_CTRL1000]               = PHY_RW,
-    [MII_STAT1000]               = PHY_R,
-    [MII_EXTSTAT]                = PHY_R,
+static char igb_phy_regcap[MAX_PHY_REG_ADDRESS + 1];
 
-    [IGP01E1000_PHY_PORT_CONFIG] = PHY_RW,
-    [IGP01E1000_PHY_PORT_STATUS] = PHY_R,
-    [IGP01E1000_PHY_PORT_CTRL]   = PHY_RW,
-    [IGP01E1000_PHY_LINK_HEALTH] = PHY_R,
-    [IGP02E1000_PHY_POWER_MGMT]  = PHY_RW,
-    [IGP01E1000_PHY_PAGE_SELECT] = PHY_W
-};
+static void __attribute__((constructor)) igb_init_phy_regcap(void)
+{
+    igb_phy_regcap[MII_BMCR] = PHY_RW;
+    igb_phy_regcap[MII_BMSR] = PHY_R;
+    igb_phy_regcap[MII_PHYID1] = PHY_R;
+    igb_phy_regcap[MII_PHYID2] = PHY_R;
+    igb_phy_regcap[MII_ANAR] = PHY_RW;
+    igb_phy_regcap[MII_ANLPAR] = PHY_R;
+    igb_phy_regcap[MII_ANER] = PHY_R;
+    igb_phy_regcap[MII_ANNP] = PHY_RW;
+    igb_phy_regcap[MII_ANLPRNP] = PHY_R;
+    igb_phy_regcap[MII_CTRL1000] = PHY_RW;
+    igb_phy_regcap[MII_STAT1000] = PHY_R;
+    igb_phy_regcap[MII_EXTSTAT] = PHY_R;
+    igb_phy_regcap[IGP01E1000_PHY_PORT_CONFIG] = PHY_RW;
+    igb_phy_regcap[IGP01E1000_PHY_PORT_STATUS] = PHY_R;
+    igb_phy_regcap[IGP01E1000_PHY_PORT_CTRL] = PHY_RW;
+    igb_phy_regcap[IGP01E1000_PHY_LINK_HEALTH] = PHY_R;
+    igb_phy_regcap[IGP02E1000_PHY_POWER_MGMT] = PHY_RW;
+    igb_phy_regcap[IGP01E1000_PHY_PAGE_SELECT] = PHY_W;
+}
+
 
 static void
 igb_phy_reg_write(IGBCore *core, uint32_t addr, uint16_t data)
@@ -3107,1028 +3110,1080 @@ static void igb_set_timadjh(IGBCore *core, int index, uint32_t val)
     core->timadj += core->mac[TIMADJL] | ((int64_t)core->mac[TIMADJH] << 32);
 }
 
-#define igb_getreg(x)    [x] = igb_mac_readreg
 typedef uint32_t (*readops)(IGBCore *, int);
-static const readops igb_macreg_readops[] = {
-    igb_getreg(WUFC),
-    igb_getreg(MANC),
-    igb_getreg(TOTL),
-    igb_getreg(RDT0),
-    igb_getreg(RDT1),
-    igb_getreg(RDT2),
-    igb_getreg(RDT3),
-    igb_getreg(RDT4),
-    igb_getreg(RDT5),
-    igb_getreg(RDT6),
-    igb_getreg(RDT7),
-    igb_getreg(RDT8),
-    igb_getreg(RDT9),
-    igb_getreg(RDT10),
-    igb_getreg(RDT11),
-    igb_getreg(RDT12),
-    igb_getreg(RDT13),
-    igb_getreg(RDT14),
-    igb_getreg(RDT15),
-    igb_getreg(RDBAH0),
-    igb_getreg(RDBAH1),
-    igb_getreg(RDBAH2),
-    igb_getreg(RDBAH3),
-    igb_getreg(RDBAH4),
-    igb_getreg(RDBAH5),
-    igb_getreg(RDBAH6),
-    igb_getreg(RDBAH7),
-    igb_getreg(RDBAH8),
-    igb_getreg(RDBAH9),
-    igb_getreg(RDBAH10),
-    igb_getreg(RDBAH11),
-    igb_getreg(RDBAH12),
-    igb_getreg(RDBAH13),
-    igb_getreg(RDBAH14),
-    igb_getreg(RDBAH15),
-    igb_getreg(TDBAL0),
-    igb_getreg(TDBAL1),
-    igb_getreg(TDBAL2),
-    igb_getreg(TDBAL3),
-    igb_getreg(TDBAL4),
-    igb_getreg(TDBAL5),
-    igb_getreg(TDBAL6),
-    igb_getreg(TDBAL7),
-    igb_getreg(TDBAL8),
-    igb_getreg(TDBAL9),
-    igb_getreg(TDBAL10),
-    igb_getreg(TDBAL11),
-    igb_getreg(TDBAL12),
-    igb_getreg(TDBAL13),
-    igb_getreg(TDBAL14),
-    igb_getreg(TDBAL15),
-    igb_getreg(RDLEN0),
-    igb_getreg(RDLEN1),
-    igb_getreg(RDLEN2),
-    igb_getreg(RDLEN3),
-    igb_getreg(RDLEN4),
-    igb_getreg(RDLEN5),
-    igb_getreg(RDLEN6),
-    igb_getreg(RDLEN7),
-    igb_getreg(RDLEN8),
-    igb_getreg(RDLEN9),
-    igb_getreg(RDLEN10),
-    igb_getreg(RDLEN11),
-    igb_getreg(RDLEN12),
-    igb_getreg(RDLEN13),
-    igb_getreg(RDLEN14),
-    igb_getreg(RDLEN15),
-    igb_getreg(SRRCTL0),
-    igb_getreg(SRRCTL1),
-    igb_getreg(SRRCTL2),
-    igb_getreg(SRRCTL3),
-    igb_getreg(SRRCTL4),
-    igb_getreg(SRRCTL5),
-    igb_getreg(SRRCTL6),
-    igb_getreg(SRRCTL7),
-    igb_getreg(SRRCTL8),
-    igb_getreg(SRRCTL9),
-    igb_getreg(SRRCTL10),
-    igb_getreg(SRRCTL11),
-    igb_getreg(SRRCTL12),
-    igb_getreg(SRRCTL13),
-    igb_getreg(SRRCTL14),
-    igb_getreg(SRRCTL15),
-    igb_getreg(LATECOL),
-    igb_getreg(XONTXC),
-    igb_getreg(TDFH),
-    igb_getreg(TDFT),
-    igb_getreg(TDFHS),
-    igb_getreg(TDFTS),
-    igb_getreg(TDFPC),
-    igb_getreg(WUS),
-    igb_getreg(RDFH),
-    igb_getreg(RDFT),
-    igb_getreg(RDFHS),
-    igb_getreg(RDFTS),
-    igb_getreg(RDFPC),
-    igb_getreg(GORCL),
-    igb_getreg(MGTPRC),
-    igb_getreg(EERD),
-    igb_getreg(EIAC),
-    igb_getreg(MANC2H),
-    igb_getreg(RXCSUM),
-    igb_getreg(GSCL_3),
-    igb_getreg(GSCN_2),
-    igb_getreg(FCAH),
-    igb_getreg(FCRTH),
-    igb_getreg(FLOP),
-    igb_getreg(RXSTMPH),
-    igb_getreg(TXSTMPL),
-    igb_getreg(TIMADJL),
-    igb_getreg(RDH0),
-    igb_getreg(RDH1),
-    igb_getreg(RDH2),
-    igb_getreg(RDH3),
-    igb_getreg(RDH4),
-    igb_getreg(RDH5),
-    igb_getreg(RDH6),
-    igb_getreg(RDH7),
-    igb_getreg(RDH8),
-    igb_getreg(RDH9),
-    igb_getreg(RDH10),
-    igb_getreg(RDH11),
-    igb_getreg(RDH12),
-    igb_getreg(RDH13),
-    igb_getreg(RDH14),
-    igb_getreg(RDH15),
-    igb_getreg(TDT0),
-    igb_getreg(TDT1),
-    igb_getreg(TDT2),
-    igb_getreg(TDT3),
-    igb_getreg(TDT4),
-    igb_getreg(TDT5),
-    igb_getreg(TDT6),
-    igb_getreg(TDT7),
-    igb_getreg(TDT8),
-    igb_getreg(TDT9),
-    igb_getreg(TDT10),
-    igb_getreg(TDT11),
-    igb_getreg(TDT12),
-    igb_getreg(TDT13),
-    igb_getreg(TDT14),
-    igb_getreg(TDT15),
-    igb_getreg(TNCRS),
-    igb_getreg(RJC),
-    igb_getreg(IAM),
-    igb_getreg(GSCL_2),
-    igb_getreg(TIPG),
-    igb_getreg(FLMNGCTL),
-    igb_getreg(FLMNGCNT),
-    igb_getreg(TSYNCTXCTL),
-    igb_getreg(EEMNGDATA),
-    igb_getreg(CTRL_EXT),
-    igb_getreg(SYSTIMH),
-    igb_getreg(EEMNGCTL),
-    igb_getreg(FLMNGDATA),
-    igb_getreg(TSYNCRXCTL),
-    igb_getreg(LEDCTL),
-    igb_getreg(TCTL),
-    igb_getreg(TCTL_EXT),
-    igb_getreg(DTXCTL),
-    igb_getreg(RXPBS),
-    igb_getreg(TDH0),
-    igb_getreg(TDH1),
-    igb_getreg(TDH2),
-    igb_getreg(TDH3),
-    igb_getreg(TDH4),
-    igb_getreg(TDH5),
-    igb_getreg(TDH6),
-    igb_getreg(TDH7),
-    igb_getreg(TDH8),
-    igb_getreg(TDH9),
-    igb_getreg(TDH10),
-    igb_getreg(TDH11),
-    igb_getreg(TDH12),
-    igb_getreg(TDH13),
-    igb_getreg(TDH14),
-    igb_getreg(TDH15),
-    igb_getreg(ECOL),
-    igb_getreg(DC),
-    igb_getreg(RLEC),
-    igb_getreg(XOFFTXC),
-    igb_getreg(RFC),
-    igb_getreg(RNBC),
-    igb_getreg(MGTPTC),
-    igb_getreg(TIMINCA),
-    igb_getreg(FACTPS),
-    igb_getreg(GSCL_1),
-    igb_getreg(GSCN_0),
-    igb_getreg(PBACLR),
-    igb_getreg(FCTTV),
-    igb_getreg(RXSATRL),
-    igb_getreg(TORL),
-    igb_getreg(TDLEN0),
-    igb_getreg(TDLEN1),
-    igb_getreg(TDLEN2),
-    igb_getreg(TDLEN3),
-    igb_getreg(TDLEN4),
-    igb_getreg(TDLEN5),
-    igb_getreg(TDLEN6),
-    igb_getreg(TDLEN7),
-    igb_getreg(TDLEN8),
-    igb_getreg(TDLEN9),
-    igb_getreg(TDLEN10),
-    igb_getreg(TDLEN11),
-    igb_getreg(TDLEN12),
-    igb_getreg(TDLEN13),
-    igb_getreg(TDLEN14),
-    igb_getreg(TDLEN15),
-    igb_getreg(MCC),
-    igb_getreg(WUC),
-    igb_getreg(EECD),
-    igb_getreg(FCRTV),
-    igb_getreg(TXDCTL0),
-    igb_getreg(TXDCTL1),
-    igb_getreg(TXDCTL2),
-    igb_getreg(TXDCTL3),
-    igb_getreg(TXDCTL4),
-    igb_getreg(TXDCTL5),
-    igb_getreg(TXDCTL6),
-    igb_getreg(TXDCTL7),
-    igb_getreg(TXDCTL8),
-    igb_getreg(TXDCTL9),
-    igb_getreg(TXDCTL10),
-    igb_getreg(TXDCTL11),
-    igb_getreg(TXDCTL12),
-    igb_getreg(TXDCTL13),
-    igb_getreg(TXDCTL14),
-    igb_getreg(TXDCTL15),
-    igb_getreg(TXCTL0),
-    igb_getreg(TXCTL1),
-    igb_getreg(TXCTL2),
-    igb_getreg(TXCTL3),
-    igb_getreg(TXCTL4),
-    igb_getreg(TXCTL5),
-    igb_getreg(TXCTL6),
-    igb_getreg(TXCTL7),
-    igb_getreg(TXCTL8),
-    igb_getreg(TXCTL9),
-    igb_getreg(TXCTL10),
-    igb_getreg(TXCTL11),
-    igb_getreg(TXCTL12),
-    igb_getreg(TXCTL13),
-    igb_getreg(TXCTL14),
-    igb_getreg(TXCTL15),
-    igb_getreg(TDWBAL0),
-    igb_getreg(TDWBAL1),
-    igb_getreg(TDWBAL2),
-    igb_getreg(TDWBAL3),
-    igb_getreg(TDWBAL4),
-    igb_getreg(TDWBAL5),
-    igb_getreg(TDWBAL6),
-    igb_getreg(TDWBAL7),
-    igb_getreg(TDWBAL8),
-    igb_getreg(TDWBAL9),
-    igb_getreg(TDWBAL10),
-    igb_getreg(TDWBAL11),
-    igb_getreg(TDWBAL12),
-    igb_getreg(TDWBAL13),
-    igb_getreg(TDWBAL14),
-    igb_getreg(TDWBAL15),
-    igb_getreg(TDWBAH0),
-    igb_getreg(TDWBAH1),
-    igb_getreg(TDWBAH2),
-    igb_getreg(TDWBAH3),
-    igb_getreg(TDWBAH4),
-    igb_getreg(TDWBAH5),
-    igb_getreg(TDWBAH6),
-    igb_getreg(TDWBAH7),
-    igb_getreg(TDWBAH8),
-    igb_getreg(TDWBAH9),
-    igb_getreg(TDWBAH10),
-    igb_getreg(TDWBAH11),
-    igb_getreg(TDWBAH12),
-    igb_getreg(TDWBAH13),
-    igb_getreg(TDWBAH14),
-    igb_getreg(TDWBAH15),
-    igb_getreg(PVTCTRL0),
-    igb_getreg(PVTCTRL1),
-    igb_getreg(PVTCTRL2),
-    igb_getreg(PVTCTRL3),
-    igb_getreg(PVTCTRL4),
-    igb_getreg(PVTCTRL5),
-    igb_getreg(PVTCTRL6),
-    igb_getreg(PVTCTRL7),
-    igb_getreg(PVTEIMS0),
-    igb_getreg(PVTEIMS1),
-    igb_getreg(PVTEIMS2),
-    igb_getreg(PVTEIMS3),
-    igb_getreg(PVTEIMS4),
-    igb_getreg(PVTEIMS5),
-    igb_getreg(PVTEIMS6),
-    igb_getreg(PVTEIMS7),
-    igb_getreg(PVTEIAC0),
-    igb_getreg(PVTEIAC1),
-    igb_getreg(PVTEIAC2),
-    igb_getreg(PVTEIAC3),
-    igb_getreg(PVTEIAC4),
-    igb_getreg(PVTEIAC5),
-    igb_getreg(PVTEIAC6),
-    igb_getreg(PVTEIAC7),
-    igb_getreg(PVTEIAM0),
-    igb_getreg(PVTEIAM1),
-    igb_getreg(PVTEIAM2),
-    igb_getreg(PVTEIAM3),
-    igb_getreg(PVTEIAM4),
-    igb_getreg(PVTEIAM5),
-    igb_getreg(PVTEIAM6),
-    igb_getreg(PVTEIAM7),
-    igb_getreg(PVFGPRC0),
-    igb_getreg(PVFGPRC1),
-    igb_getreg(PVFGPRC2),
-    igb_getreg(PVFGPRC3),
-    igb_getreg(PVFGPRC4),
-    igb_getreg(PVFGPRC5),
-    igb_getreg(PVFGPRC6),
-    igb_getreg(PVFGPRC7),
-    igb_getreg(PVFGPTC0),
-    igb_getreg(PVFGPTC1),
-    igb_getreg(PVFGPTC2),
-    igb_getreg(PVFGPTC3),
-    igb_getreg(PVFGPTC4),
-    igb_getreg(PVFGPTC5),
-    igb_getreg(PVFGPTC6),
-    igb_getreg(PVFGPTC7),
-    igb_getreg(PVFGORC0),
-    igb_getreg(PVFGORC1),
-    igb_getreg(PVFGORC2),
-    igb_getreg(PVFGORC3),
-    igb_getreg(PVFGORC4),
-    igb_getreg(PVFGORC5),
-    igb_getreg(PVFGORC6),
-    igb_getreg(PVFGORC7),
-    igb_getreg(PVFGOTC0),
-    igb_getreg(PVFGOTC1),
-    igb_getreg(PVFGOTC2),
-    igb_getreg(PVFGOTC3),
-    igb_getreg(PVFGOTC4),
-    igb_getreg(PVFGOTC5),
-    igb_getreg(PVFGOTC6),
-    igb_getreg(PVFGOTC7),
-    igb_getreg(PVFMPRC0),
-    igb_getreg(PVFMPRC1),
-    igb_getreg(PVFMPRC2),
-    igb_getreg(PVFMPRC3),
-    igb_getreg(PVFMPRC4),
-    igb_getreg(PVFMPRC5),
-    igb_getreg(PVFMPRC6),
-    igb_getreg(PVFMPRC7),
-    igb_getreg(PVFGPRLBC0),
-    igb_getreg(PVFGPRLBC1),
-    igb_getreg(PVFGPRLBC2),
-    igb_getreg(PVFGPRLBC3),
-    igb_getreg(PVFGPRLBC4),
-    igb_getreg(PVFGPRLBC5),
-    igb_getreg(PVFGPRLBC6),
-    igb_getreg(PVFGPRLBC7),
-    igb_getreg(PVFGPTLBC0),
-    igb_getreg(PVFGPTLBC1),
-    igb_getreg(PVFGPTLBC2),
-    igb_getreg(PVFGPTLBC3),
-    igb_getreg(PVFGPTLBC4),
-    igb_getreg(PVFGPTLBC5),
-    igb_getreg(PVFGPTLBC6),
-    igb_getreg(PVFGPTLBC7),
-    igb_getreg(PVFGORLBC0),
-    igb_getreg(PVFGORLBC1),
-    igb_getreg(PVFGORLBC2),
-    igb_getreg(PVFGORLBC3),
-    igb_getreg(PVFGORLBC4),
-    igb_getreg(PVFGORLBC5),
-    igb_getreg(PVFGORLBC6),
-    igb_getreg(PVFGORLBC7),
-    igb_getreg(PVFGOTLBC0),
-    igb_getreg(PVFGOTLBC1),
-    igb_getreg(PVFGOTLBC2),
-    igb_getreg(PVFGOTLBC3),
-    igb_getreg(PVFGOTLBC4),
-    igb_getreg(PVFGOTLBC5),
-    igb_getreg(PVFGOTLBC6),
-    igb_getreg(PVFGOTLBC7),
-    igb_getreg(RCTL),
-    igb_getreg(MDIC),
-    igb_getreg(FCRUC),
-    igb_getreg(VET),
-    igb_getreg(RDBAL0),
-    igb_getreg(RDBAL1),
-    igb_getreg(RDBAL2),
-    igb_getreg(RDBAL3),
-    igb_getreg(RDBAL4),
-    igb_getreg(RDBAL5),
-    igb_getreg(RDBAL6),
-    igb_getreg(RDBAL7),
-    igb_getreg(RDBAL8),
-    igb_getreg(RDBAL9),
-    igb_getreg(RDBAL10),
-    igb_getreg(RDBAL11),
-    igb_getreg(RDBAL12),
-    igb_getreg(RDBAL13),
-    igb_getreg(RDBAL14),
-    igb_getreg(RDBAL15),
-    igb_getreg(TDBAH0),
-    igb_getreg(TDBAH1),
-    igb_getreg(TDBAH2),
-    igb_getreg(TDBAH3),
-    igb_getreg(TDBAH4),
-    igb_getreg(TDBAH5),
-    igb_getreg(TDBAH6),
-    igb_getreg(TDBAH7),
-    igb_getreg(TDBAH8),
-    igb_getreg(TDBAH9),
-    igb_getreg(TDBAH10),
-    igb_getreg(TDBAH11),
-    igb_getreg(TDBAH12),
-    igb_getreg(TDBAH13),
-    igb_getreg(TDBAH14),
-    igb_getreg(TDBAH15),
-    igb_getreg(SCC),
-    igb_getreg(COLC),
-    igb_getreg(XOFFRXC),
-    igb_getreg(IPAV),
-    igb_getreg(GOTCL),
-    igb_getreg(MGTPDC),
-    igb_getreg(GCR),
-    igb_getreg(MFVAL),
-    igb_getreg(FUNCTAG),
-    igb_getreg(GSCL_4),
-    igb_getreg(GSCN_3),
-    igb_getreg(MRQC),
-    igb_getreg(FCT),
-    igb_getreg(FLA),
-    igb_getreg(RXDCTL0),
-    igb_getreg(RXDCTL1),
-    igb_getreg(RXDCTL2),
-    igb_getreg(RXDCTL3),
-    igb_getreg(RXDCTL4),
-    igb_getreg(RXDCTL5),
-    igb_getreg(RXDCTL6),
-    igb_getreg(RXDCTL7),
-    igb_getreg(RXDCTL8),
-    igb_getreg(RXDCTL9),
-    igb_getreg(RXDCTL10),
-    igb_getreg(RXDCTL11),
-    igb_getreg(RXDCTL12),
-    igb_getreg(RXDCTL13),
-    igb_getreg(RXDCTL14),
-    igb_getreg(RXDCTL15),
-    igb_getreg(RXSTMPL),
-    igb_getreg(TIMADJH),
-    igb_getreg(FCRTL),
-    igb_getreg(XONRXC),
-    igb_getreg(RFCTL),
-    igb_getreg(GSCN_1),
-    igb_getreg(FCAL),
-    igb_getreg(GPIE),
-    igb_getreg(TXPBS),
-    igb_getreg(RLPML),
+static readops igb_macreg_readops[E1000E_MAC_SIZE];
+enum { IGB_NREADOPS = E1000E_MAC_SIZE };
 
-    [TOTH]    = igb_mac_read_clr8,
-    [GOTCH]   = igb_mac_read_clr8,
-    [PRC64]   = igb_mac_read_clr4,
-    [PRC255]  = igb_mac_read_clr4,
-    [PRC1023] = igb_mac_read_clr4,
-    [PTC64]   = igb_mac_read_clr4,
-    [PTC255]  = igb_mac_read_clr4,
-    [PTC1023] = igb_mac_read_clr4,
-    [GPRC]    = igb_mac_read_clr4,
-    [TPT]     = igb_mac_read_clr4,
-    [RUC]     = igb_mac_read_clr4,
-    [BPRC]    = igb_mac_read_clr4,
-    [MPTC]    = igb_mac_read_clr4,
-    [IAC]     = igb_mac_read_clr4,
-    [ICR]     = igb_mac_icr_read,
-    [STATUS]  = igb_get_status,
-    [ICS]     = igb_mac_ics_read,
+static void __attribute__((constructor)) igb_init_readops(void)
+{
+    igb_macreg_readops[WUFC] = igb_mac_readreg;
+    igb_macreg_readops[MANC] = igb_mac_readreg;
+    igb_macreg_readops[TOTL] = igb_mac_readreg;
+    igb_macreg_readops[RDT0] = igb_mac_readreg;
+    igb_macreg_readops[RDT1] = igb_mac_readreg;
+    igb_macreg_readops[RDT2] = igb_mac_readreg;
+    igb_macreg_readops[RDT3] = igb_mac_readreg;
+    igb_macreg_readops[RDT4] = igb_mac_readreg;
+    igb_macreg_readops[RDT5] = igb_mac_readreg;
+    igb_macreg_readops[RDT6] = igb_mac_readreg;
+    igb_macreg_readops[RDT7] = igb_mac_readreg;
+    igb_macreg_readops[RDT8] = igb_mac_readreg;
+    igb_macreg_readops[RDT9] = igb_mac_readreg;
+    igb_macreg_readops[RDT10] = igb_mac_readreg;
+    igb_macreg_readops[RDT11] = igb_mac_readreg;
+    igb_macreg_readops[RDT12] = igb_mac_readreg;
+    igb_macreg_readops[RDT13] = igb_mac_readreg;
+    igb_macreg_readops[RDT14] = igb_mac_readreg;
+    igb_macreg_readops[RDT15] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH0] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH1] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH2] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH3] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH4] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH5] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH6] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH7] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH8] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH9] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH10] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH11] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH12] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH13] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH14] = igb_mac_readreg;
+    igb_macreg_readops[RDBAH15] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL0] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL1] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL2] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL3] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL4] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL5] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL6] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL7] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL8] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL9] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL10] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL11] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL12] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL13] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL14] = igb_mac_readreg;
+    igb_macreg_readops[TDBAL15] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN0] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN1] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN2] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN3] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN4] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN5] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN6] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN7] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN8] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN9] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN10] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN11] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN12] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN13] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN14] = igb_mac_readreg;
+    igb_macreg_readops[RDLEN15] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL0] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL1] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL2] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL3] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL4] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL5] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL6] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL7] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL8] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL9] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL10] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL11] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL12] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL13] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL14] = igb_mac_readreg;
+    igb_macreg_readops[SRRCTL15] = igb_mac_readreg;
+    igb_macreg_readops[LATECOL] = igb_mac_readreg;
+    igb_macreg_readops[XONTXC] = igb_mac_readreg;
+    igb_macreg_readops[TDFH] = igb_mac_readreg;
+    igb_macreg_readops[TDFT] = igb_mac_readreg;
+    igb_macreg_readops[TDFHS] = igb_mac_readreg;
+    igb_macreg_readops[TDFTS] = igb_mac_readreg;
+    igb_macreg_readops[TDFPC] = igb_mac_readreg;
+    igb_macreg_readops[WUS] = igb_mac_readreg;
+    igb_macreg_readops[RDFH] = igb_mac_readreg;
+    igb_macreg_readops[RDFT] = igb_mac_readreg;
+    igb_macreg_readops[RDFHS] = igb_mac_readreg;
+    igb_macreg_readops[RDFTS] = igb_mac_readreg;
+    igb_macreg_readops[RDFPC] = igb_mac_readreg;
+    igb_macreg_readops[GORCL] = igb_mac_readreg;
+    igb_macreg_readops[MGTPRC] = igb_mac_readreg;
+    igb_macreg_readops[EERD] = igb_mac_readreg;
+    igb_macreg_readops[EIAC] = igb_mac_readreg;
+    igb_macreg_readops[MANC2H] = igb_mac_readreg;
+    igb_macreg_readops[RXCSUM] = igb_mac_readreg;
+    igb_macreg_readops[GSCL_3] = igb_mac_readreg;
+    igb_macreg_readops[GSCN_2] = igb_mac_readreg;
+    igb_macreg_readops[FCAH] = igb_mac_readreg;
+    igb_macreg_readops[FCRTH] = igb_mac_readreg;
+    igb_macreg_readops[FLOP] = igb_mac_readreg;
+    igb_macreg_readops[RXSTMPH] = igb_mac_readreg;
+    igb_macreg_readops[TXSTMPL] = igb_mac_readreg;
+    igb_macreg_readops[TIMADJL] = igb_mac_readreg;
+    igb_macreg_readops[RDH0] = igb_mac_readreg;
+    igb_macreg_readops[RDH1] = igb_mac_readreg;
+    igb_macreg_readops[RDH2] = igb_mac_readreg;
+    igb_macreg_readops[RDH3] = igb_mac_readreg;
+    igb_macreg_readops[RDH4] = igb_mac_readreg;
+    igb_macreg_readops[RDH5] = igb_mac_readreg;
+    igb_macreg_readops[RDH6] = igb_mac_readreg;
+    igb_macreg_readops[RDH7] = igb_mac_readreg;
+    igb_macreg_readops[RDH8] = igb_mac_readreg;
+    igb_macreg_readops[RDH9] = igb_mac_readreg;
+    igb_macreg_readops[RDH10] = igb_mac_readreg;
+    igb_macreg_readops[RDH11] = igb_mac_readreg;
+    igb_macreg_readops[RDH12] = igb_mac_readreg;
+    igb_macreg_readops[RDH13] = igb_mac_readreg;
+    igb_macreg_readops[RDH14] = igb_mac_readreg;
+    igb_macreg_readops[RDH15] = igb_mac_readreg;
+    igb_macreg_readops[TDT0] = igb_mac_readreg;
+    igb_macreg_readops[TDT1] = igb_mac_readreg;
+    igb_macreg_readops[TDT2] = igb_mac_readreg;
+    igb_macreg_readops[TDT3] = igb_mac_readreg;
+    igb_macreg_readops[TDT4] = igb_mac_readreg;
+    igb_macreg_readops[TDT5] = igb_mac_readreg;
+    igb_macreg_readops[TDT6] = igb_mac_readreg;
+    igb_macreg_readops[TDT7] = igb_mac_readreg;
+    igb_macreg_readops[TDT8] = igb_mac_readreg;
+    igb_macreg_readops[TDT9] = igb_mac_readreg;
+    igb_macreg_readops[TDT10] = igb_mac_readreg;
+    igb_macreg_readops[TDT11] = igb_mac_readreg;
+    igb_macreg_readops[TDT12] = igb_mac_readreg;
+    igb_macreg_readops[TDT13] = igb_mac_readreg;
+    igb_macreg_readops[TDT14] = igb_mac_readreg;
+    igb_macreg_readops[TDT15] = igb_mac_readreg;
+    igb_macreg_readops[TNCRS] = igb_mac_readreg;
+    igb_macreg_readops[RJC] = igb_mac_readreg;
+    igb_macreg_readops[IAM] = igb_mac_readreg;
+    igb_macreg_readops[GSCL_2] = igb_mac_readreg;
+    igb_macreg_readops[TIPG] = igb_mac_readreg;
+    igb_macreg_readops[FLMNGCTL] = igb_mac_readreg;
+    igb_macreg_readops[FLMNGCNT] = igb_mac_readreg;
+    igb_macreg_readops[TSYNCTXCTL] = igb_mac_readreg;
+    igb_macreg_readops[EEMNGDATA] = igb_mac_readreg;
+    igb_macreg_readops[CTRL_EXT] = igb_mac_readreg;
+    igb_macreg_readops[SYSTIMH] = igb_mac_readreg;
+    igb_macreg_readops[EEMNGCTL] = igb_mac_readreg;
+    igb_macreg_readops[FLMNGDATA] = igb_mac_readreg;
+    igb_macreg_readops[TSYNCRXCTL] = igb_mac_readreg;
+    igb_macreg_readops[LEDCTL] = igb_mac_readreg;
+    igb_macreg_readops[TCTL] = igb_mac_readreg;
+    igb_macreg_readops[TCTL_EXT] = igb_mac_readreg;
+    igb_macreg_readops[DTXCTL] = igb_mac_readreg;
+    igb_macreg_readops[RXPBS] = igb_mac_readreg;
+    igb_macreg_readops[TDH0] = igb_mac_readreg;
+    igb_macreg_readops[TDH1] = igb_mac_readreg;
+    igb_macreg_readops[TDH2] = igb_mac_readreg;
+    igb_macreg_readops[TDH3] = igb_mac_readreg;
+    igb_macreg_readops[TDH4] = igb_mac_readreg;
+    igb_macreg_readops[TDH5] = igb_mac_readreg;
+    igb_macreg_readops[TDH6] = igb_mac_readreg;
+    igb_macreg_readops[TDH7] = igb_mac_readreg;
+    igb_macreg_readops[TDH8] = igb_mac_readreg;
+    igb_macreg_readops[TDH9] = igb_mac_readreg;
+    igb_macreg_readops[TDH10] = igb_mac_readreg;
+    igb_macreg_readops[TDH11] = igb_mac_readreg;
+    igb_macreg_readops[TDH12] = igb_mac_readreg;
+    igb_macreg_readops[TDH13] = igb_mac_readreg;
+    igb_macreg_readops[TDH14] = igb_mac_readreg;
+    igb_macreg_readops[TDH15] = igb_mac_readreg;
+    igb_macreg_readops[ECOL] = igb_mac_readreg;
+    igb_macreg_readops[DC] = igb_mac_readreg;
+    igb_macreg_readops[RLEC] = igb_mac_readreg;
+    igb_macreg_readops[XOFFTXC] = igb_mac_readreg;
+    igb_macreg_readops[RFC] = igb_mac_readreg;
+    igb_macreg_readops[RNBC] = igb_mac_readreg;
+    igb_macreg_readops[MGTPTC] = igb_mac_readreg;
+    igb_macreg_readops[TIMINCA] = igb_mac_readreg;
+    igb_macreg_readops[FACTPS] = igb_mac_readreg;
+    igb_macreg_readops[GSCL_1] = igb_mac_readreg;
+    igb_macreg_readops[GSCN_0] = igb_mac_readreg;
+    igb_macreg_readops[PBACLR] = igb_mac_readreg;
+    igb_macreg_readops[FCTTV] = igb_mac_readreg;
+    igb_macreg_readops[RXSATRL] = igb_mac_readreg;
+    igb_macreg_readops[TORL] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN0] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN1] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN2] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN3] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN4] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN5] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN6] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN7] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN8] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN9] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN10] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN11] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN12] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN13] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN14] = igb_mac_readreg;
+    igb_macreg_readops[TDLEN15] = igb_mac_readreg;
+    igb_macreg_readops[MCC] = igb_mac_readreg;
+    igb_macreg_readops[WUC] = igb_mac_readreg;
+    igb_macreg_readops[EECD] = igb_mac_readreg;
+    igb_macreg_readops[FCRTV] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL0] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL1] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL2] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL3] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL4] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL5] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL6] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL7] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL8] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL9] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL10] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL11] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL12] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL13] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL14] = igb_mac_readreg;
+    igb_macreg_readops[TXDCTL15] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL0] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL1] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL2] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL3] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL4] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL5] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL6] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL7] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL8] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL9] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL10] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL11] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL12] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL13] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL14] = igb_mac_readreg;
+    igb_macreg_readops[TXCTL15] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL0] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL1] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL2] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL3] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL4] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL5] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL6] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL7] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL8] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL9] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL10] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL11] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL12] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL13] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL14] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAL15] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH0] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH1] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH2] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH3] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH4] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH5] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH6] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH7] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH8] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH9] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH10] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH11] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH12] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH13] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH14] = igb_mac_readreg;
+    igb_macreg_readops[TDWBAH15] = igb_mac_readreg;
+    igb_macreg_readops[PVTCTRL0] = igb_mac_readreg;
+    igb_macreg_readops[PVTCTRL1] = igb_mac_readreg;
+    igb_macreg_readops[PVTCTRL2] = igb_mac_readreg;
+    igb_macreg_readops[PVTCTRL3] = igb_mac_readreg;
+    igb_macreg_readops[PVTCTRL4] = igb_mac_readreg;
+    igb_macreg_readops[PVTCTRL5] = igb_mac_readreg;
+    igb_macreg_readops[PVTCTRL6] = igb_mac_readreg;
+    igb_macreg_readops[PVTCTRL7] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIMS0] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIMS1] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIMS2] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIMS3] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIMS4] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIMS5] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIMS6] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIMS7] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAC0] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAC1] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAC2] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAC3] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAC4] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAC5] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAC6] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAC7] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAM0] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAM1] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAM2] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAM3] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAM4] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAM5] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAM6] = igb_mac_readreg;
+    igb_macreg_readops[PVTEIAM7] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRC7] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTC7] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORC7] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTC7] = igb_mac_readreg;
+    igb_macreg_readops[PVFMPRC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFMPRC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFMPRC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFMPRC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFMPRC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFMPRC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFMPRC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFMPRC7] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRLBC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRLBC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRLBC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRLBC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRLBC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRLBC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRLBC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPRLBC7] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTLBC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTLBC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTLBC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTLBC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTLBC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTLBC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTLBC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFGPTLBC7] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORLBC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORLBC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORLBC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORLBC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORLBC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORLBC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORLBC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFGORLBC7] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTLBC0] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTLBC1] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTLBC2] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTLBC3] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTLBC4] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTLBC5] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTLBC6] = igb_mac_readreg;
+    igb_macreg_readops[PVFGOTLBC7] = igb_mac_readreg;
+    igb_macreg_readops[RCTL] = igb_mac_readreg;
+    igb_macreg_readops[MDIC] = igb_mac_readreg;
+    igb_macreg_readops[FCRUC] = igb_mac_readreg;
+    igb_macreg_readops[VET] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL0] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL1] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL2] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL3] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL4] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL5] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL6] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL7] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL8] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL9] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL10] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL11] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL12] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL13] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL14] = igb_mac_readreg;
+    igb_macreg_readops[RDBAL15] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH0] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH1] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH2] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH3] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH4] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH5] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH6] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH7] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH8] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH9] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH10] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH11] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH12] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH13] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH14] = igb_mac_readreg;
+    igb_macreg_readops[TDBAH15] = igb_mac_readreg;
+    igb_macreg_readops[SCC] = igb_mac_readreg;
+    igb_macreg_readops[COLC] = igb_mac_readreg;
+    igb_macreg_readops[XOFFRXC] = igb_mac_readreg;
+    igb_macreg_readops[IPAV] = igb_mac_readreg;
+    igb_macreg_readops[GOTCL] = igb_mac_readreg;
+    igb_macreg_readops[MGTPDC] = igb_mac_readreg;
+    igb_macreg_readops[GCR] = igb_mac_readreg;
+    igb_macreg_readops[MFVAL] = igb_mac_readreg;
+    igb_macreg_readops[FUNCTAG] = igb_mac_readreg;
+    igb_macreg_readops[GSCL_4] = igb_mac_readreg;
+    igb_macreg_readops[GSCN_3] = igb_mac_readreg;
+    igb_macreg_readops[MRQC] = igb_mac_readreg;
+    igb_macreg_readops[FCT] = igb_mac_readreg;
+    igb_macreg_readops[FLA] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL0] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL1] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL2] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL3] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL4] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL5] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL6] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL7] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL8] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL9] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL10] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL11] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL12] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL13] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL14] = igb_mac_readreg;
+    igb_macreg_readops[RXDCTL15] = igb_mac_readreg;
+    igb_macreg_readops[RXSTMPL] = igb_mac_readreg;
+    igb_macreg_readops[TIMADJH] = igb_mac_readreg;
+    igb_macreg_readops[FCRTL] = igb_mac_readreg;
+    igb_macreg_readops[XONRXC] = igb_mac_readreg;
+    igb_macreg_readops[RFCTL] = igb_mac_readreg;
+    igb_macreg_readops[GSCN_1] = igb_mac_readreg;
+    igb_macreg_readops[FCAL] = igb_mac_readreg;
+    igb_macreg_readops[GPIE] = igb_mac_readreg;
+    igb_macreg_readops[TXPBS] = igb_mac_readreg;
+    igb_macreg_readops[RLPML] = igb_mac_readreg;
+    igb_macreg_readops[TOTH] = igb_mac_read_clr8;
+    igb_macreg_readops[GOTCH] = igb_mac_read_clr8;
+    igb_macreg_readops[PRC64] = igb_mac_read_clr4;
+    igb_macreg_readops[PRC255] = igb_mac_read_clr4;
+    igb_macreg_readops[PRC1023] = igb_mac_read_clr4;
+    igb_macreg_readops[PTC64] = igb_mac_read_clr4;
+    igb_macreg_readops[PTC255] = igb_mac_read_clr4;
+    igb_macreg_readops[PTC1023] = igb_mac_read_clr4;
+    igb_macreg_readops[GPRC] = igb_mac_read_clr4;
+    igb_macreg_readops[TPT] = igb_mac_read_clr4;
+    igb_macreg_readops[RUC] = igb_mac_read_clr4;
+    igb_macreg_readops[BPRC] = igb_mac_read_clr4;
+    igb_macreg_readops[MPTC] = igb_mac_read_clr4;
+    igb_macreg_readops[IAC] = igb_mac_read_clr4;
+    igb_macreg_readops[ICR] = igb_mac_icr_read;
+    igb_macreg_readops[STATUS] = igb_get_status;
+    igb_macreg_readops[ICS] = igb_mac_ics_read;
     /*
-     * 8.8.10: Reading the IMC register returns the value of the IMS register.
-     */
-    [IMC]     = igb_mac_ims_read,
-    [TORH]    = igb_mac_read_clr8,
-    [GORCH]   = igb_mac_read_clr8,
-    [PRC127]  = igb_mac_read_clr4,
-    [PRC511]  = igb_mac_read_clr4,
-    [PRC1522] = igb_mac_read_clr4,
-    [PTC127]  = igb_mac_read_clr4,
-    [PTC511]  = igb_mac_read_clr4,
-    [PTC1522] = igb_mac_read_clr4,
-    [GPTC]    = igb_mac_read_clr4,
-    [TPR]     = igb_mac_read_clr4,
-    [ROC]     = igb_mac_read_clr4,
-    [MPRC]    = igb_mac_read_clr4,
-    [BPTC]    = igb_mac_read_clr4,
-    [TSCTC]   = igb_mac_read_clr4,
-    [CTRL]    = igb_get_ctrl,
-    [SWSM]    = igb_mac_swsm_read,
-    [IMS]     = igb_mac_ims_read,
-    [SYSTIML] = igb_get_systiml,
-    [RXSATRH] = igb_get_rxsatrh,
-    [TXSTMPH] = igb_get_txstmph,
-
-    [CRCERRS ... MPC]      = igb_mac_readreg,
-    [IP6AT ... IP6AT + 3]  = igb_mac_readreg,
-    [IP4AT ... IP4AT + 6]  = igb_mac_readreg,
-    [RA ... RA + 31]       = igb_mac_readreg,
-    [RA2 ... RA2 + 31]     = igb_mac_readreg,
-    [WUPM ... WUPM + 31]   = igb_mac_readreg,
-    [MTA ... MTA + E1000_MC_TBL_SIZE - 1]    = igb_mac_readreg,
-    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1]  = igb_mac_readreg,
-    [FFMT ... FFMT + 254]  = igb_mac_readreg,
-    [MDEF ... MDEF + 7]    = igb_mac_readreg,
-    [FTFT ... FTFT + 254]  = igb_mac_readreg,
-    [RETA ... RETA + 31]   = igb_mac_readreg,
-    [RSSRK ... RSSRK + 9]  = igb_mac_readreg,
-    [MAVTV0 ... MAVTV3]    = igb_mac_readreg,
-    [EITR0 ... EITR0 + IGB_INTR_NUM - 1] = igb_mac_eitr_read,
-    [PVTEICR0] = igb_mac_read_clr4,
-    [PVTEICR1] = igb_mac_read_clr4,
-    [PVTEICR2] = igb_mac_read_clr4,
-    [PVTEICR3] = igb_mac_read_clr4,
-    [PVTEICR4] = igb_mac_read_clr4,
-    [PVTEICR5] = igb_mac_read_clr4,
-    [PVTEICR6] = igb_mac_read_clr4,
-    [PVTEICR7] = igb_mac_read_clr4,
-
+    * 8.8.10: Reading the IMC register returns the value of the IMS register.
+    */
+    igb_macreg_readops[IMC] = igb_mac_ims_read;
+    igb_macreg_readops[TORH] = igb_mac_read_clr8;
+    igb_macreg_readops[GORCH] = igb_mac_read_clr8;
+    igb_macreg_readops[PRC127] = igb_mac_read_clr4;
+    igb_macreg_readops[PRC511] = igb_mac_read_clr4;
+    igb_macreg_readops[PRC1522] = igb_mac_read_clr4;
+    igb_macreg_readops[PTC127] = igb_mac_read_clr4;
+    igb_macreg_readops[PTC511] = igb_mac_read_clr4;
+    igb_macreg_readops[PTC1522] = igb_mac_read_clr4;
+    igb_macreg_readops[GPTC] = igb_mac_read_clr4;
+    igb_macreg_readops[TPR] = igb_mac_read_clr4;
+    igb_macreg_readops[ROC] = igb_mac_read_clr4;
+    igb_macreg_readops[MPRC] = igb_mac_read_clr4;
+    igb_macreg_readops[BPTC] = igb_mac_read_clr4;
+    igb_macreg_readops[TSCTC] = igb_mac_read_clr4;
+    igb_macreg_readops[CTRL] = igb_get_ctrl;
+    igb_macreg_readops[SWSM] = igb_mac_swsm_read;
+    igb_macreg_readops[IMS] = igb_mac_ims_read;
+    igb_macreg_readops[SYSTIML] = igb_get_systiml;
+    igb_macreg_readops[RXSATRH] = igb_get_rxsatrh;
+    igb_macreg_readops[TXSTMPH] = igb_get_txstmph;
+    for (int i = CRCERRS; i <= MPC; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = IP6AT; i <= IP6AT + 3; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = IP4AT; i <= IP4AT + 6; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = RA; i <= RA + 31; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = RA2; i <= RA2 + 31; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = WUPM; i <= WUPM + 31; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = MTA; i <= MTA + E1000_MC_TBL_SIZE - 1; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = VFTA; i <= VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = FFMT; i <= FFMT + 254; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = MDEF; i <= MDEF + 7; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = FTFT; i <= FTFT + 254; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = RETA; i <= RETA + 31; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = RSSRK; i <= RSSRK + 9; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = MAVTV0; i <= MAVTV3; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = EITR0; i <= EITR0 + IGB_INTR_NUM - 1; i++)
+        igb_macreg_readops[i] = igb_mac_eitr_read;
+    igb_macreg_readops[PVTEICR0] = igb_mac_read_clr4;
+    igb_macreg_readops[PVTEICR1] = igb_mac_read_clr4;
+    igb_macreg_readops[PVTEICR2] = igb_mac_read_clr4;
+    igb_macreg_readops[PVTEICR3] = igb_mac_read_clr4;
+    igb_macreg_readops[PVTEICR4] = igb_mac_read_clr4;
+    igb_macreg_readops[PVTEICR5] = igb_mac_read_clr4;
+    igb_macreg_readops[PVTEICR6] = igb_mac_read_clr4;
+    igb_macreg_readops[PVTEICR7] = igb_mac_read_clr4;
     /* IGB specific: */
-    [FWSM]       = igb_mac_readreg,
-    [SW_FW_SYNC] = igb_mac_readreg,
-    [HTCBDPC]    = igb_mac_read_clr4,
-    [EICR]       = igb_mac_read_clr4,
-    [EIMS]       = igb_mac_readreg,
-    [EIAM]       = igb_mac_readreg,
-    [IVAR0 ... IVAR0 + 7] = igb_mac_readreg,
-    igb_getreg(IVAR_MISC),
-    igb_getreg(TSYNCRXCFG),
-    [ETQF0 ... ETQF0 + 7] = igb_mac_readreg,
-    igb_getreg(VT_CTL),
-    [P2VMAILBOX0 ... P2VMAILBOX7] = igb_mac_readreg,
-    [V2PMAILBOX0 ... V2PMAILBOX7] = igb_mac_vfmailbox_read,
-    igb_getreg(MBVFICR),
-    [VMBMEM0 ... VMBMEM0 + 127] = igb_mac_readreg,
-    igb_getreg(MBVFIMR),
-    igb_getreg(VFLRE),
-    igb_getreg(VFRE),
-    igb_getreg(VFTE),
-    igb_getreg(QDE),
-    igb_getreg(DTXSWC),
-    igb_getreg(RPLOLR),
-    [VLVF0 ... VLVF0 + E1000_VLVF_ARRAY_SIZE - 1] = igb_mac_readreg,
-    [VMVIR0 ... VMVIR7] = igb_mac_readreg,
-    [VMOLR0 ... VMOLR7] = igb_mac_readreg,
-    [WVBR] = igb_mac_read_clr4,
-    [RQDPC0] = igb_mac_read_clr4,
-    [RQDPC1] = igb_mac_read_clr4,
-    [RQDPC2] = igb_mac_read_clr4,
-    [RQDPC3] = igb_mac_read_clr4,
-    [RQDPC4] = igb_mac_read_clr4,
-    [RQDPC5] = igb_mac_read_clr4,
-    [RQDPC6] = igb_mac_read_clr4,
-    [RQDPC7] = igb_mac_read_clr4,
-    [RQDPC8] = igb_mac_read_clr4,
-    [RQDPC9] = igb_mac_read_clr4,
-    [RQDPC10] = igb_mac_read_clr4,
-    [RQDPC11] = igb_mac_read_clr4,
-    [RQDPC12] = igb_mac_read_clr4,
-    [RQDPC13] = igb_mac_read_clr4,
-    [RQDPC14] = igb_mac_read_clr4,
-    [RQDPC15] = igb_mac_read_clr4,
-    [VTIVAR ... VTIVAR + 7] = igb_mac_readreg,
-    [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_readreg,
-};
-enum { IGB_NREADOPS = ARRAY_SIZE(igb_macreg_readops) };
+    igb_macreg_readops[FWSM] = igb_mac_readreg;
+    igb_macreg_readops[SW_FW_SYNC] = igb_mac_readreg;
+    igb_macreg_readops[HTCBDPC] = igb_mac_read_clr4;
+    igb_macreg_readops[EICR] = igb_mac_read_clr4;
+    igb_macreg_readops[EIMS] = igb_mac_readreg;
+    igb_macreg_readops[EIAM] = igb_mac_readreg;
+    for (int i = IVAR0; i <= IVAR0 + 7; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    igb_macreg_readops[IVAR_MISC] = igb_mac_readreg;
+    igb_macreg_readops[TSYNCRXCFG] = igb_mac_readreg;
+    for (int i = ETQF0; i <= ETQF0 + 7; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    igb_macreg_readops[VT_CTL] = igb_mac_readreg;
+    for (int i = P2VMAILBOX0; i <= P2VMAILBOX7; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = V2PMAILBOX0; i <= V2PMAILBOX7; i++)
+        igb_macreg_readops[i] = igb_mac_vfmailbox_read;
+    igb_macreg_readops[MBVFICR] = igb_mac_readreg;
+    for (int i = VMBMEM0; i <= VMBMEM0 + 127; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    igb_macreg_readops[MBVFIMR] = igb_mac_readreg;
+    igb_macreg_readops[VFLRE] = igb_mac_readreg;
+    igb_macreg_readops[VFRE] = igb_mac_readreg;
+    igb_macreg_readops[VFTE] = igb_mac_readreg;
+    igb_macreg_readops[QDE] = igb_mac_readreg;
+    igb_macreg_readops[DTXSWC] = igb_mac_readreg;
+    igb_macreg_readops[RPLOLR] = igb_mac_readreg;
+    for (int i = VLVF0; i <= VLVF0 + E1000_VLVF_ARRAY_SIZE - 1; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = VMVIR0; i <= VMVIR7; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = VMOLR0; i <= VMOLR7; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    igb_macreg_readops[WVBR] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC0] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC1] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC2] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC3] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC4] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC5] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC6] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC7] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC8] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC9] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC10] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC11] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC12] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC13] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC14] = igb_mac_read_clr4;
+    igb_macreg_readops[RQDPC15] = igb_mac_read_clr4;
+    for (int i = VTIVAR; i <= VTIVAR + 7; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+    for (int i = VTIVAR_MISC; i <= VTIVAR_MISC + 7; i++)
+        igb_macreg_readops[i] = igb_mac_readreg;
+}
 
-#define igb_putreg(x)    [x] = igb_mac_writereg
+
+
 typedef void (*writeops)(IGBCore *, int, uint32_t);
-static const writeops igb_macreg_writeops[] = {
-    igb_putreg(SWSM),
-    igb_putreg(WUFC),
-    igb_putreg(RDBAH0),
-    igb_putreg(RDBAH1),
-    igb_putreg(RDBAH2),
-    igb_putreg(RDBAH3),
-    igb_putreg(RDBAH4),
-    igb_putreg(RDBAH5),
-    igb_putreg(RDBAH6),
-    igb_putreg(RDBAH7),
-    igb_putreg(RDBAH8),
-    igb_putreg(RDBAH9),
-    igb_putreg(RDBAH10),
-    igb_putreg(RDBAH11),
-    igb_putreg(RDBAH12),
-    igb_putreg(RDBAH13),
-    igb_putreg(RDBAH14),
-    igb_putreg(RDBAH15),
-    igb_putreg(SRRCTL0),
-    igb_putreg(SRRCTL1),
-    igb_putreg(SRRCTL2),
-    igb_putreg(SRRCTL3),
-    igb_putreg(SRRCTL4),
-    igb_putreg(SRRCTL5),
-    igb_putreg(SRRCTL6),
-    igb_putreg(SRRCTL7),
-    igb_putreg(SRRCTL8),
-    igb_putreg(SRRCTL9),
-    igb_putreg(SRRCTL10),
-    igb_putreg(SRRCTL11),
-    igb_putreg(SRRCTL12),
-    igb_putreg(SRRCTL13),
-    igb_putreg(SRRCTL14),
-    igb_putreg(SRRCTL15),
-    igb_putreg(RXDCTL0),
-    igb_putreg(RXDCTL1),
-    igb_putreg(RXDCTL2),
-    igb_putreg(RXDCTL3),
-    igb_putreg(RXDCTL4),
-    igb_putreg(RXDCTL5),
-    igb_putreg(RXDCTL6),
-    igb_putreg(RXDCTL7),
-    igb_putreg(RXDCTL8),
-    igb_putreg(RXDCTL9),
-    igb_putreg(RXDCTL10),
-    igb_putreg(RXDCTL11),
-    igb_putreg(RXDCTL12),
-    igb_putreg(RXDCTL13),
-    igb_putreg(RXDCTL14),
-    igb_putreg(RXDCTL15),
-    igb_putreg(LEDCTL),
-    igb_putreg(TCTL),
-    igb_putreg(TCTL_EXT),
-    igb_putreg(DTXCTL),
-    igb_putreg(RXPBS),
-    igb_putreg(RQDPC0),
-    igb_putreg(FCAL),
-    igb_putreg(FCRUC),
-    igb_putreg(WUC),
-    igb_putreg(WUS),
-    igb_putreg(IPAV),
-    igb_putreg(TDBAH0),
-    igb_putreg(TDBAH1),
-    igb_putreg(TDBAH2),
-    igb_putreg(TDBAH3),
-    igb_putreg(TDBAH4),
-    igb_putreg(TDBAH5),
-    igb_putreg(TDBAH6),
-    igb_putreg(TDBAH7),
-    igb_putreg(TDBAH8),
-    igb_putreg(TDBAH9),
-    igb_putreg(TDBAH10),
-    igb_putreg(TDBAH11),
-    igb_putreg(TDBAH12),
-    igb_putreg(TDBAH13),
-    igb_putreg(TDBAH14),
-    igb_putreg(TDBAH15),
-    igb_putreg(IAM),
-    igb_putreg(MANC),
-    igb_putreg(MANC2H),
-    igb_putreg(MFVAL),
-    igb_putreg(FACTPS),
-    igb_putreg(FUNCTAG),
-    igb_putreg(GSCL_1),
-    igb_putreg(GSCL_2),
-    igb_putreg(GSCL_3),
-    igb_putreg(GSCL_4),
-    igb_putreg(GSCN_0),
-    igb_putreg(GSCN_1),
-    igb_putreg(GSCN_2),
-    igb_putreg(GSCN_3),
-    igb_putreg(MRQC),
-    igb_putreg(FLOP),
-    igb_putreg(FLA),
-    igb_putreg(TXDCTL0),
-    igb_putreg(TXDCTL1),
-    igb_putreg(TXDCTL2),
-    igb_putreg(TXDCTL3),
-    igb_putreg(TXDCTL4),
-    igb_putreg(TXDCTL5),
-    igb_putreg(TXDCTL6),
-    igb_putreg(TXDCTL7),
-    igb_putreg(TXDCTL8),
-    igb_putreg(TXDCTL9),
-    igb_putreg(TXDCTL10),
-    igb_putreg(TXDCTL11),
-    igb_putreg(TXDCTL12),
-    igb_putreg(TXDCTL13),
-    igb_putreg(TXDCTL14),
-    igb_putreg(TXDCTL15),
-    igb_putreg(TXCTL0),
-    igb_putreg(TXCTL1),
-    igb_putreg(TXCTL2),
-    igb_putreg(TXCTL3),
-    igb_putreg(TXCTL4),
-    igb_putreg(TXCTL5),
-    igb_putreg(TXCTL6),
-    igb_putreg(TXCTL7),
-    igb_putreg(TXCTL8),
-    igb_putreg(TXCTL9),
-    igb_putreg(TXCTL10),
-    igb_putreg(TXCTL11),
-    igb_putreg(TXCTL12),
-    igb_putreg(TXCTL13),
-    igb_putreg(TXCTL14),
-    igb_putreg(TXCTL15),
-    igb_putreg(TDWBAL0),
-    igb_putreg(TDWBAL1),
-    igb_putreg(TDWBAL2),
-    igb_putreg(TDWBAL3),
-    igb_putreg(TDWBAL4),
-    igb_putreg(TDWBAL5),
-    igb_putreg(TDWBAL6),
-    igb_putreg(TDWBAL7),
-    igb_putreg(TDWBAL8),
-    igb_putreg(TDWBAL9),
-    igb_putreg(TDWBAL10),
-    igb_putreg(TDWBAL11),
-    igb_putreg(TDWBAL12),
-    igb_putreg(TDWBAL13),
-    igb_putreg(TDWBAL14),
-    igb_putreg(TDWBAL15),
-    igb_putreg(TDWBAH0),
-    igb_putreg(TDWBAH1),
-    igb_putreg(TDWBAH2),
-    igb_putreg(TDWBAH3),
-    igb_putreg(TDWBAH4),
-    igb_putreg(TDWBAH5),
-    igb_putreg(TDWBAH6),
-    igb_putreg(TDWBAH7),
-    igb_putreg(TDWBAH8),
-    igb_putreg(TDWBAH9),
-    igb_putreg(TDWBAH10),
-    igb_putreg(TDWBAH11),
-    igb_putreg(TDWBAH12),
-    igb_putreg(TDWBAH13),
-    igb_putreg(TDWBAH14),
-    igb_putreg(TDWBAH15),
-    igb_putreg(TIPG),
-    igb_putreg(RXSTMPH),
-    igb_putreg(RXSTMPL),
-    igb_putreg(RXSATRL),
-    igb_putreg(RXSATRH),
-    igb_putreg(TXSTMPL),
-    igb_putreg(TXSTMPH),
-    igb_putreg(SYSTIML),
-    igb_putreg(SYSTIMH),
-    igb_putreg(TIMADJL),
-    igb_putreg(TSYNCRXCTL),
-    igb_putreg(TSYNCTXCTL),
-    igb_putreg(EEMNGCTL),
-    igb_putreg(GPIE),
-    igb_putreg(TXPBS),
-    igb_putreg(RLPML),
-    igb_putreg(VET),
+static writeops igb_macreg_writeops[E1000E_MAC_SIZE];
+enum { IGB_NWRITEOPS = E1000E_MAC_SIZE };
 
-    [TDH0]     = igb_set_16bit,
-    [TDH1]     = igb_set_16bit,
-    [TDH2]     = igb_set_16bit,
-    [TDH3]     = igb_set_16bit,
-    [TDH4]     = igb_set_16bit,
-    [TDH5]     = igb_set_16bit,
-    [TDH6]     = igb_set_16bit,
-    [TDH7]     = igb_set_16bit,
-    [TDH8]     = igb_set_16bit,
-    [TDH9]     = igb_set_16bit,
-    [TDH10]    = igb_set_16bit,
-    [TDH11]    = igb_set_16bit,
-    [TDH12]    = igb_set_16bit,
-    [TDH13]    = igb_set_16bit,
-    [TDH14]    = igb_set_16bit,
-    [TDH15]    = igb_set_16bit,
-    [TDT0]     = igb_set_tdt,
-    [TDT1]     = igb_set_tdt,
-    [TDT2]     = igb_set_tdt,
-    [TDT3]     = igb_set_tdt,
-    [TDT4]     = igb_set_tdt,
-    [TDT5]     = igb_set_tdt,
-    [TDT6]     = igb_set_tdt,
-    [TDT7]     = igb_set_tdt,
-    [TDT8]     = igb_set_tdt,
-    [TDT9]     = igb_set_tdt,
-    [TDT10]    = igb_set_tdt,
-    [TDT11]    = igb_set_tdt,
-    [TDT12]    = igb_set_tdt,
-    [TDT13]    = igb_set_tdt,
-    [TDT14]    = igb_set_tdt,
-    [TDT15]    = igb_set_tdt,
-    [MDIC]     = igb_set_mdic,
-    [ICS]      = igb_set_ics,
-    [RDH0]     = igb_set_16bit,
-    [RDH1]     = igb_set_16bit,
-    [RDH2]     = igb_set_16bit,
-    [RDH3]     = igb_set_16bit,
-    [RDH4]     = igb_set_16bit,
-    [RDH5]     = igb_set_16bit,
-    [RDH6]     = igb_set_16bit,
-    [RDH7]     = igb_set_16bit,
-    [RDH8]     = igb_set_16bit,
-    [RDH9]     = igb_set_16bit,
-    [RDH10]    = igb_set_16bit,
-    [RDH11]    = igb_set_16bit,
-    [RDH12]    = igb_set_16bit,
-    [RDH13]    = igb_set_16bit,
-    [RDH14]    = igb_set_16bit,
-    [RDH15]    = igb_set_16bit,
-    [RDT0]     = igb_set_rdt,
-    [RDT1]     = igb_set_rdt,
-    [RDT2]     = igb_set_rdt,
-    [RDT3]     = igb_set_rdt,
-    [RDT4]     = igb_set_rdt,
-    [RDT5]     = igb_set_rdt,
-    [RDT6]     = igb_set_rdt,
-    [RDT7]     = igb_set_rdt,
-    [RDT8]     = igb_set_rdt,
-    [RDT9]     = igb_set_rdt,
-    [RDT10]    = igb_set_rdt,
-    [RDT11]    = igb_set_rdt,
-    [RDT12]    = igb_set_rdt,
-    [RDT13]    = igb_set_rdt,
-    [RDT14]    = igb_set_rdt,
-    [RDT15]    = igb_set_rdt,
-    [IMC]      = igb_set_imc,
-    [IMS]      = igb_set_ims,
-    [ICR]      = igb_set_icr,
-    [EECD]     = igb_set_eecd,
-    [RCTL]     = igb_set_rx_control,
-    [CTRL]     = igb_set_ctrl,
-    [EERD]     = igb_set_eerd,
-    [TDFH]     = igb_set_13bit,
-    [TDFT]     = igb_set_13bit,
-    [TDFHS]    = igb_set_13bit,
-    [TDFTS]    = igb_set_13bit,
-    [TDFPC]    = igb_set_13bit,
-    [RDFH]     = igb_set_13bit,
-    [RDFT]     = igb_set_13bit,
-    [RDFHS]    = igb_set_13bit,
-    [RDFTS]    = igb_set_13bit,
-    [RDFPC]    = igb_set_13bit,
-    [GCR]      = igb_set_gcr,
-    [RXCSUM]   = igb_set_rxcsum,
-    [TDLEN0]   = igb_set_dlen,
-    [TDLEN1]   = igb_set_dlen,
-    [TDLEN2]   = igb_set_dlen,
-    [TDLEN3]   = igb_set_dlen,
-    [TDLEN4]   = igb_set_dlen,
-    [TDLEN5]   = igb_set_dlen,
-    [TDLEN6]   = igb_set_dlen,
-    [TDLEN7]   = igb_set_dlen,
-    [TDLEN8]   = igb_set_dlen,
-    [TDLEN9]   = igb_set_dlen,
-    [TDLEN10]  = igb_set_dlen,
-    [TDLEN11]  = igb_set_dlen,
-    [TDLEN12]  = igb_set_dlen,
-    [TDLEN13]  = igb_set_dlen,
-    [TDLEN14]  = igb_set_dlen,
-    [TDLEN15]  = igb_set_dlen,
-    [RDLEN0]   = igb_set_dlen,
-    [RDLEN1]   = igb_set_dlen,
-    [RDLEN2]   = igb_set_dlen,
-    [RDLEN3]   = igb_set_dlen,
-    [RDLEN4]   = igb_set_dlen,
-    [RDLEN5]   = igb_set_dlen,
-    [RDLEN6]   = igb_set_dlen,
-    [RDLEN7]   = igb_set_dlen,
-    [RDLEN8]   = igb_set_dlen,
-    [RDLEN9]   = igb_set_dlen,
-    [RDLEN10]  = igb_set_dlen,
-    [RDLEN11]  = igb_set_dlen,
-    [RDLEN12]  = igb_set_dlen,
-    [RDLEN13]  = igb_set_dlen,
-    [RDLEN14]  = igb_set_dlen,
-    [RDLEN15]  = igb_set_dlen,
-    [TDBAL0]   = igb_set_dbal,
-    [TDBAL1]   = igb_set_dbal,
-    [TDBAL2]   = igb_set_dbal,
-    [TDBAL3]   = igb_set_dbal,
-    [TDBAL4]   = igb_set_dbal,
-    [TDBAL5]   = igb_set_dbal,
-    [TDBAL6]   = igb_set_dbal,
-    [TDBAL7]   = igb_set_dbal,
-    [TDBAL8]   = igb_set_dbal,
-    [TDBAL9]   = igb_set_dbal,
-    [TDBAL10]  = igb_set_dbal,
-    [TDBAL11]  = igb_set_dbal,
-    [TDBAL12]  = igb_set_dbal,
-    [TDBAL13]  = igb_set_dbal,
-    [TDBAL14]  = igb_set_dbal,
-    [TDBAL15]  = igb_set_dbal,
-    [RDBAL0]   = igb_set_dbal,
-    [RDBAL1]   = igb_set_dbal,
-    [RDBAL2]   = igb_set_dbal,
-    [RDBAL3]   = igb_set_dbal,
-    [RDBAL4]   = igb_set_dbal,
-    [RDBAL5]   = igb_set_dbal,
-    [RDBAL6]   = igb_set_dbal,
-    [RDBAL7]   = igb_set_dbal,
-    [RDBAL8]   = igb_set_dbal,
-    [RDBAL9]   = igb_set_dbal,
-    [RDBAL10]  = igb_set_dbal,
-    [RDBAL11]  = igb_set_dbal,
-    [RDBAL12]  = igb_set_dbal,
-    [RDBAL13]  = igb_set_dbal,
-    [RDBAL14]  = igb_set_dbal,
-    [RDBAL15]  = igb_set_dbal,
-    [STATUS]   = igb_set_status,
-    [PBACLR]   = igb_set_pbaclr,
-    [CTRL_EXT] = igb_set_ctrlext,
-    [FCAH]     = igb_set_16bit,
-    [FCT]      = igb_set_16bit,
-    [FCTTV]    = igb_set_16bit,
-    [FCRTV]    = igb_set_16bit,
-    [FCRTH]    = igb_set_fcrth,
-    [FCRTL]    = igb_set_fcrtl,
-    [CTRL_DUP] = igb_set_ctrl,
-    [RFCTL]    = igb_set_rfctl,
-    [TIMINCA]  = igb_set_timinca,
-    [TIMADJH]  = igb_set_timadjh,
-
-    [IP6AT ... IP6AT + 3]    = igb_mac_writereg,
-    [IP4AT ... IP4AT + 6]    = igb_mac_writereg,
-    [RA]                     = igb_mac_writereg,
-    [RA + 1]                 = igb_mac_setmacaddr,
-    [RA + 2 ... RA + 31]     = igb_mac_writereg,
-    [RA2 ... RA2 + 31]       = igb_mac_writereg,
-    [WUPM ... WUPM + 31]     = igb_mac_writereg,
-    [MTA ... MTA + E1000_MC_TBL_SIZE - 1] = igb_mac_writereg,
-    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1] = igb_mac_writereg,
-    [FFMT ... FFMT + 254]    = igb_set_4bit,
-    [MDEF ... MDEF + 7]      = igb_mac_writereg,
-    [FTFT ... FTFT + 254]    = igb_mac_writereg,
-    [RETA ... RETA + 31]     = igb_mac_writereg,
-    [RSSRK ... RSSRK + 9]    = igb_mac_writereg,
-    [MAVTV0 ... MAVTV3]      = igb_mac_writereg,
-    [EITR0 ... EITR0 + IGB_INTR_NUM - 1] = igb_set_eitr,
-
+static void __attribute__((constructor)) igb_init_writeops(void)
+{
+    igb_macreg_writeops[SWSM] = igb_mac_writereg;
+    igb_macreg_writeops[WUFC] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH0] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH1] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH2] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH3] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH4] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH5] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH6] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH7] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH8] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH9] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH10] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH11] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH12] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH13] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH14] = igb_mac_writereg;
+    igb_macreg_writeops[RDBAH15] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL0] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL1] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL2] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL3] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL4] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL5] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL6] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL7] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL8] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL9] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL10] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL11] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL12] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL13] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL14] = igb_mac_writereg;
+    igb_macreg_writeops[SRRCTL15] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL0] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL1] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL2] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL3] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL4] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL5] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL6] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL7] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL8] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL9] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL10] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL11] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL12] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL13] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL14] = igb_mac_writereg;
+    igb_macreg_writeops[RXDCTL15] = igb_mac_writereg;
+    igb_macreg_writeops[LEDCTL] = igb_mac_writereg;
+    igb_macreg_writeops[TCTL] = igb_mac_writereg;
+    igb_macreg_writeops[TCTL_EXT] = igb_mac_writereg;
+    igb_macreg_writeops[DTXCTL] = igb_mac_writereg;
+    igb_macreg_writeops[RXPBS] = igb_mac_writereg;
+    igb_macreg_writeops[RQDPC0] = igb_mac_writereg;
+    igb_macreg_writeops[FCAL] = igb_mac_writereg;
+    igb_macreg_writeops[FCRUC] = igb_mac_writereg;
+    igb_macreg_writeops[WUC] = igb_mac_writereg;
+    igb_macreg_writeops[WUS] = igb_mac_writereg;
+    igb_macreg_writeops[IPAV] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH0] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH1] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH2] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH3] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH4] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH5] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH6] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH7] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH8] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH9] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH10] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH11] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH12] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH13] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH14] = igb_mac_writereg;
+    igb_macreg_writeops[TDBAH15] = igb_mac_writereg;
+    igb_macreg_writeops[IAM] = igb_mac_writereg;
+    igb_macreg_writeops[MANC] = igb_mac_writereg;
+    igb_macreg_writeops[MANC2H] = igb_mac_writereg;
+    igb_macreg_writeops[MFVAL] = igb_mac_writereg;
+    igb_macreg_writeops[FACTPS] = igb_mac_writereg;
+    igb_macreg_writeops[FUNCTAG] = igb_mac_writereg;
+    igb_macreg_writeops[GSCL_1] = igb_mac_writereg;
+    igb_macreg_writeops[GSCL_2] = igb_mac_writereg;
+    igb_macreg_writeops[GSCL_3] = igb_mac_writereg;
+    igb_macreg_writeops[GSCL_4] = igb_mac_writereg;
+    igb_macreg_writeops[GSCN_0] = igb_mac_writereg;
+    igb_macreg_writeops[GSCN_1] = igb_mac_writereg;
+    igb_macreg_writeops[GSCN_2] = igb_mac_writereg;
+    igb_macreg_writeops[GSCN_3] = igb_mac_writereg;
+    igb_macreg_writeops[MRQC] = igb_mac_writereg;
+    igb_macreg_writeops[FLOP] = igb_mac_writereg;
+    igb_macreg_writeops[FLA] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL0] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL1] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL2] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL3] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL4] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL5] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL6] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL7] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL8] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL9] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL10] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL11] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL12] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL13] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL14] = igb_mac_writereg;
+    igb_macreg_writeops[TXDCTL15] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL0] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL1] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL2] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL3] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL4] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL5] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL6] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL7] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL8] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL9] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL10] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL11] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL12] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL13] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL14] = igb_mac_writereg;
+    igb_macreg_writeops[TXCTL15] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL0] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL1] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL2] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL3] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL4] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL5] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL6] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL7] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL8] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL9] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL10] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL11] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL12] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL13] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL14] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAL15] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH0] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH1] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH2] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH3] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH4] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH5] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH6] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH7] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH8] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH9] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH10] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH11] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH12] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH13] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH14] = igb_mac_writereg;
+    igb_macreg_writeops[TDWBAH15] = igb_mac_writereg;
+    igb_macreg_writeops[TIPG] = igb_mac_writereg;
+    igb_macreg_writeops[RXSTMPH] = igb_mac_writereg;
+    igb_macreg_writeops[RXSTMPL] = igb_mac_writereg;
+    igb_macreg_writeops[RXSATRL] = igb_mac_writereg;
+    igb_macreg_writeops[RXSATRH] = igb_mac_writereg;
+    igb_macreg_writeops[TXSTMPL] = igb_mac_writereg;
+    igb_macreg_writeops[TXSTMPH] = igb_mac_writereg;
+    igb_macreg_writeops[SYSTIML] = igb_mac_writereg;
+    igb_macreg_writeops[SYSTIMH] = igb_mac_writereg;
+    igb_macreg_writeops[TIMADJL] = igb_mac_writereg;
+    igb_macreg_writeops[TSYNCRXCTL] = igb_mac_writereg;
+    igb_macreg_writeops[TSYNCTXCTL] = igb_mac_writereg;
+    igb_macreg_writeops[EEMNGCTL] = igb_mac_writereg;
+    igb_macreg_writeops[GPIE] = igb_mac_writereg;
+    igb_macreg_writeops[TXPBS] = igb_mac_writereg;
+    igb_macreg_writeops[RLPML] = igb_mac_writereg;
+    igb_macreg_writeops[VET] = igb_mac_writereg;
+    igb_macreg_writeops[TDH0] = igb_set_16bit;
+    igb_macreg_writeops[TDH1] = igb_set_16bit;
+    igb_macreg_writeops[TDH2] = igb_set_16bit;
+    igb_macreg_writeops[TDH3] = igb_set_16bit;
+    igb_macreg_writeops[TDH4] = igb_set_16bit;
+    igb_macreg_writeops[TDH5] = igb_set_16bit;
+    igb_macreg_writeops[TDH6] = igb_set_16bit;
+    igb_macreg_writeops[TDH7] = igb_set_16bit;
+    igb_macreg_writeops[TDH8] = igb_set_16bit;
+    igb_macreg_writeops[TDH9] = igb_set_16bit;
+    igb_macreg_writeops[TDH10] = igb_set_16bit;
+    igb_macreg_writeops[TDH11] = igb_set_16bit;
+    igb_macreg_writeops[TDH12] = igb_set_16bit;
+    igb_macreg_writeops[TDH13] = igb_set_16bit;
+    igb_macreg_writeops[TDH14] = igb_set_16bit;
+    igb_macreg_writeops[TDH15] = igb_set_16bit;
+    igb_macreg_writeops[TDT0] = igb_set_tdt;
+    igb_macreg_writeops[TDT1] = igb_set_tdt;
+    igb_macreg_writeops[TDT2] = igb_set_tdt;
+    igb_macreg_writeops[TDT3] = igb_set_tdt;
+    igb_macreg_writeops[TDT4] = igb_set_tdt;
+    igb_macreg_writeops[TDT5] = igb_set_tdt;
+    igb_macreg_writeops[TDT6] = igb_set_tdt;
+    igb_macreg_writeops[TDT7] = igb_set_tdt;
+    igb_macreg_writeops[TDT8] = igb_set_tdt;
+    igb_macreg_writeops[TDT9] = igb_set_tdt;
+    igb_macreg_writeops[TDT10] = igb_set_tdt;
+    igb_macreg_writeops[TDT11] = igb_set_tdt;
+    igb_macreg_writeops[TDT12] = igb_set_tdt;
+    igb_macreg_writeops[TDT13] = igb_set_tdt;
+    igb_macreg_writeops[TDT14] = igb_set_tdt;
+    igb_macreg_writeops[TDT15] = igb_set_tdt;
+    igb_macreg_writeops[MDIC] = igb_set_mdic;
+    igb_macreg_writeops[ICS] = igb_set_ics;
+    igb_macreg_writeops[RDH0] = igb_set_16bit;
+    igb_macreg_writeops[RDH1] = igb_set_16bit;
+    igb_macreg_writeops[RDH2] = igb_set_16bit;
+    igb_macreg_writeops[RDH3] = igb_set_16bit;
+    igb_macreg_writeops[RDH4] = igb_set_16bit;
+    igb_macreg_writeops[RDH5] = igb_set_16bit;
+    igb_macreg_writeops[RDH6] = igb_set_16bit;
+    igb_macreg_writeops[RDH7] = igb_set_16bit;
+    igb_macreg_writeops[RDH8] = igb_set_16bit;
+    igb_macreg_writeops[RDH9] = igb_set_16bit;
+    igb_macreg_writeops[RDH10] = igb_set_16bit;
+    igb_macreg_writeops[RDH11] = igb_set_16bit;
+    igb_macreg_writeops[RDH12] = igb_set_16bit;
+    igb_macreg_writeops[RDH13] = igb_set_16bit;
+    igb_macreg_writeops[RDH14] = igb_set_16bit;
+    igb_macreg_writeops[RDH15] = igb_set_16bit;
+    igb_macreg_writeops[RDT0] = igb_set_rdt;
+    igb_macreg_writeops[RDT1] = igb_set_rdt;
+    igb_macreg_writeops[RDT2] = igb_set_rdt;
+    igb_macreg_writeops[RDT3] = igb_set_rdt;
+    igb_macreg_writeops[RDT4] = igb_set_rdt;
+    igb_macreg_writeops[RDT5] = igb_set_rdt;
+    igb_macreg_writeops[RDT6] = igb_set_rdt;
+    igb_macreg_writeops[RDT7] = igb_set_rdt;
+    igb_macreg_writeops[RDT8] = igb_set_rdt;
+    igb_macreg_writeops[RDT9] = igb_set_rdt;
+    igb_macreg_writeops[RDT10] = igb_set_rdt;
+    igb_macreg_writeops[RDT11] = igb_set_rdt;
+    igb_macreg_writeops[RDT12] = igb_set_rdt;
+    igb_macreg_writeops[RDT13] = igb_set_rdt;
+    igb_macreg_writeops[RDT14] = igb_set_rdt;
+    igb_macreg_writeops[RDT15] = igb_set_rdt;
+    igb_macreg_writeops[IMC] = igb_set_imc;
+    igb_macreg_writeops[IMS] = igb_set_ims;
+    igb_macreg_writeops[ICR] = igb_set_icr;
+    igb_macreg_writeops[EECD] = igb_set_eecd;
+    igb_macreg_writeops[RCTL] = igb_set_rx_control;
+    igb_macreg_writeops[CTRL] = igb_set_ctrl;
+    igb_macreg_writeops[EERD] = igb_set_eerd;
+    igb_macreg_writeops[TDFH] = igb_set_13bit;
+    igb_macreg_writeops[TDFT] = igb_set_13bit;
+    igb_macreg_writeops[TDFHS] = igb_set_13bit;
+    igb_macreg_writeops[TDFTS] = igb_set_13bit;
+    igb_macreg_writeops[TDFPC] = igb_set_13bit;
+    igb_macreg_writeops[RDFH] = igb_set_13bit;
+    igb_macreg_writeops[RDFT] = igb_set_13bit;
+    igb_macreg_writeops[RDFHS] = igb_set_13bit;
+    igb_macreg_writeops[RDFTS] = igb_set_13bit;
+    igb_macreg_writeops[RDFPC] = igb_set_13bit;
+    igb_macreg_writeops[GCR] = igb_set_gcr;
+    igb_macreg_writeops[RXCSUM] = igb_set_rxcsum;
+    igb_macreg_writeops[TDLEN0] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN1] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN2] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN3] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN4] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN5] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN6] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN7] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN8] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN9] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN10] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN11] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN12] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN13] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN14] = igb_set_dlen;
+    igb_macreg_writeops[TDLEN15] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN0] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN1] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN2] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN3] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN4] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN5] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN6] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN7] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN8] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN9] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN10] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN11] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN12] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN13] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN14] = igb_set_dlen;
+    igb_macreg_writeops[RDLEN15] = igb_set_dlen;
+    igb_macreg_writeops[TDBAL0] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL1] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL2] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL3] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL4] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL5] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL6] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL7] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL8] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL9] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL10] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL11] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL12] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL13] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL14] = igb_set_dbal;
+    igb_macreg_writeops[TDBAL15] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL0] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL1] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL2] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL3] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL4] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL5] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL6] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL7] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL8] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL9] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL10] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL11] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL12] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL13] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL14] = igb_set_dbal;
+    igb_macreg_writeops[RDBAL15] = igb_set_dbal;
+    igb_macreg_writeops[STATUS] = igb_set_status;
+    igb_macreg_writeops[PBACLR] = igb_set_pbaclr;
+    igb_macreg_writeops[CTRL_EXT] = igb_set_ctrlext;
+    igb_macreg_writeops[FCAH] = igb_set_16bit;
+    igb_macreg_writeops[FCT] = igb_set_16bit;
+    igb_macreg_writeops[FCTTV] = igb_set_16bit;
+    igb_macreg_writeops[FCRTV] = igb_set_16bit;
+    igb_macreg_writeops[FCRTH] = igb_set_fcrth;
+    igb_macreg_writeops[FCRTL] = igb_set_fcrtl;
+    igb_macreg_writeops[CTRL_DUP] = igb_set_ctrl;
+    igb_macreg_writeops[RFCTL] = igb_set_rfctl;
+    igb_macreg_writeops[TIMINCA] = igb_set_timinca;
+    igb_macreg_writeops[TIMADJH] = igb_set_timadjh;
+    for (int i = IP6AT; i <= IP6AT + 3; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = IP4AT; i <= IP4AT + 6; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    igb_macreg_writeops[RA] = igb_mac_writereg;
+    igb_macreg_writeops[RA + 1] = igb_mac_setmacaddr;
+    for (int i = RA + 2; i <= RA + 31; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = RA2; i <= RA2 + 31; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = WUPM; i <= WUPM + 31; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = MTA; i <= MTA + E1000_MC_TBL_SIZE - 1; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = VFTA; i <= VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = FFMT; i <= FFMT + 254; i++)
+        igb_macreg_writeops[i] = igb_set_4bit;
+    for (int i = MDEF; i <= MDEF + 7; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = FTFT; i <= FTFT + 254; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = RETA; i <= RETA + 31; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = RSSRK; i <= RSSRK + 9; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = MAVTV0; i <= MAVTV3; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = EITR0; i <= EITR0 + IGB_INTR_NUM - 1; i++)
+        igb_macreg_writeops[i] = igb_set_eitr;
     /* IGB specific: */
-    [FWSM]     = igb_mac_writereg,
-    [SW_FW_SYNC] = igb_mac_writereg,
-    [EICR] = igb_set_eicr,
-    [EICS] = igb_set_eics,
-    [EIAC] = igb_set_eiac,
-    [EIAM] = igb_set_eiam,
-    [EIMC] = igb_set_eimc,
-    [EIMS] = igb_set_eims,
-    [IVAR0 ... IVAR0 + 7] = igb_mac_writereg,
-    igb_putreg(IVAR_MISC),
-    igb_putreg(TSYNCRXCFG),
-    [ETQF0 ... ETQF0 + 7] = igb_mac_writereg,
-    igb_putreg(VT_CTL),
-    [P2VMAILBOX0 ... P2VMAILBOX7] = igb_set_pfmailbox,
-    [V2PMAILBOX0 ... V2PMAILBOX7] = igb_set_vfmailbox,
-    [MBVFICR] = igb_w1c,
-    [VMBMEM0 ... VMBMEM0 + 127] = igb_mac_writereg,
-    igb_putreg(MBVFIMR),
-    [VFLRE] = igb_w1c,
-    igb_putreg(VFRE),
-    igb_putreg(VFTE),
-    igb_putreg(QDE),
-    igb_putreg(DTXSWC),
-    igb_putreg(RPLOLR),
-    [VLVF0 ... VLVF0 + E1000_VLVF_ARRAY_SIZE - 1] = igb_mac_writereg,
-    [VMVIR0 ... VMVIR7] = igb_mac_writereg,
-    [VMOLR0 ... VMOLR7] = igb_mac_writereg,
-    [UTA ... UTA + E1000_MC_TBL_SIZE - 1] = igb_mac_writereg,
-    [PVTCTRL0] = igb_set_vtctrl,
-    [PVTCTRL1] = igb_set_vtctrl,
-    [PVTCTRL2] = igb_set_vtctrl,
-    [PVTCTRL3] = igb_set_vtctrl,
-    [PVTCTRL4] = igb_set_vtctrl,
-    [PVTCTRL5] = igb_set_vtctrl,
-    [PVTCTRL6] = igb_set_vtctrl,
-    [PVTCTRL7] = igb_set_vtctrl,
-    [PVTEICS0] = igb_set_vteics,
-    [PVTEICS1] = igb_set_vteics,
-    [PVTEICS2] = igb_set_vteics,
-    [PVTEICS3] = igb_set_vteics,
-    [PVTEICS4] = igb_set_vteics,
-    [PVTEICS5] = igb_set_vteics,
-    [PVTEICS6] = igb_set_vteics,
-    [PVTEICS7] = igb_set_vteics,
-    [PVTEIMS0] = igb_set_vteims,
-    [PVTEIMS1] = igb_set_vteims,
-    [PVTEIMS2] = igb_set_vteims,
-    [PVTEIMS3] = igb_set_vteims,
-    [PVTEIMS4] = igb_set_vteims,
-    [PVTEIMS5] = igb_set_vteims,
-    [PVTEIMS6] = igb_set_vteims,
-    [PVTEIMS7] = igb_set_vteims,
-    [PVTEIMC0] = igb_set_vteimc,
-    [PVTEIMC1] = igb_set_vteimc,
-    [PVTEIMC2] = igb_set_vteimc,
-    [PVTEIMC3] = igb_set_vteimc,
-    [PVTEIMC4] = igb_set_vteimc,
-    [PVTEIMC5] = igb_set_vteimc,
-    [PVTEIMC6] = igb_set_vteimc,
-    [PVTEIMC7] = igb_set_vteimc,
-    [PVTEIAC0] = igb_set_vteiac,
-    [PVTEIAC1] = igb_set_vteiac,
-    [PVTEIAC2] = igb_set_vteiac,
-    [PVTEIAC3] = igb_set_vteiac,
-    [PVTEIAC4] = igb_set_vteiac,
-    [PVTEIAC5] = igb_set_vteiac,
-    [PVTEIAC6] = igb_set_vteiac,
-    [PVTEIAC7] = igb_set_vteiac,
-    [PVTEIAM0] = igb_set_vteiam,
-    [PVTEIAM1] = igb_set_vteiam,
-    [PVTEIAM2] = igb_set_vteiam,
-    [PVTEIAM3] = igb_set_vteiam,
-    [PVTEIAM4] = igb_set_vteiam,
-    [PVTEIAM5] = igb_set_vteiam,
-    [PVTEIAM6] = igb_set_vteiam,
-    [PVTEIAM7] = igb_set_vteiam,
-    [PVTEICR0] = igb_set_vteicr,
-    [PVTEICR1] = igb_set_vteicr,
-    [PVTEICR2] = igb_set_vteicr,
-    [PVTEICR3] = igb_set_vteicr,
-    [PVTEICR4] = igb_set_vteicr,
-    [PVTEICR5] = igb_set_vteicr,
-    [PVTEICR6] = igb_set_vteicr,
-    [PVTEICR7] = igb_set_vteicr,
-    [VTIVAR ... VTIVAR + 7] = igb_set_vtivar,
-    [VTIVAR_MISC ... VTIVAR_MISC + 7] = igb_mac_writereg
-};
-enum { IGB_NWRITEOPS = ARRAY_SIZE(igb_macreg_writeops) };
+    igb_macreg_writeops[FWSM] = igb_mac_writereg;
+    igb_macreg_writeops[SW_FW_SYNC] = igb_mac_writereg;
+    igb_macreg_writeops[EICR] = igb_set_eicr;
+    igb_macreg_writeops[EICS] = igb_set_eics;
+    igb_macreg_writeops[EIAC] = igb_set_eiac;
+    igb_macreg_writeops[EIAM] = igb_set_eiam;
+    igb_macreg_writeops[EIMC] = igb_set_eimc;
+    igb_macreg_writeops[EIMS] = igb_set_eims;
+    for (int i = IVAR0; i <= IVAR0 + 7; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    igb_macreg_writeops[IVAR_MISC] = igb_mac_writereg;
+    igb_macreg_writeops[TSYNCRXCFG] = igb_mac_writereg;
+    for (int i = ETQF0; i <= ETQF0 + 7; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    igb_macreg_writeops[VT_CTL] = igb_mac_writereg;
+    for (int i = P2VMAILBOX0; i <= P2VMAILBOX7; i++)
+        igb_macreg_writeops[i] = igb_set_pfmailbox;
+    for (int i = V2PMAILBOX0; i <= V2PMAILBOX7; i++)
+        igb_macreg_writeops[i] = igb_set_vfmailbox;
+    igb_macreg_writeops[MBVFICR] = igb_w1c;
+    for (int i = VMBMEM0; i <= VMBMEM0 + 127; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    igb_macreg_writeops[MBVFIMR] = igb_mac_writereg;
+    igb_macreg_writeops[VFLRE] = igb_w1c;
+    igb_macreg_writeops[VFRE] = igb_mac_writereg;
+    igb_macreg_writeops[VFTE] = igb_mac_writereg;
+    igb_macreg_writeops[QDE] = igb_mac_writereg;
+    igb_macreg_writeops[DTXSWC] = igb_mac_writereg;
+    igb_macreg_writeops[RPLOLR] = igb_mac_writereg;
+    for (int i = VLVF0; i <= VLVF0 + E1000_VLVF_ARRAY_SIZE - 1; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = VMVIR0; i <= VMVIR7; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = VMOLR0; i <= VMOLR7; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    for (int i = UTA; i <= UTA + E1000_MC_TBL_SIZE - 1; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+    igb_macreg_writeops[PVTCTRL0] = igb_set_vtctrl;
+    igb_macreg_writeops[PVTCTRL1] = igb_set_vtctrl;
+    igb_macreg_writeops[PVTCTRL2] = igb_set_vtctrl;
+    igb_macreg_writeops[PVTCTRL3] = igb_set_vtctrl;
+    igb_macreg_writeops[PVTCTRL4] = igb_set_vtctrl;
+    igb_macreg_writeops[PVTCTRL5] = igb_set_vtctrl;
+    igb_macreg_writeops[PVTCTRL6] = igb_set_vtctrl;
+    igb_macreg_writeops[PVTCTRL7] = igb_set_vtctrl;
+    igb_macreg_writeops[PVTEICS0] = igb_set_vteics;
+    igb_macreg_writeops[PVTEICS1] = igb_set_vteics;
+    igb_macreg_writeops[PVTEICS2] = igb_set_vteics;
+    igb_macreg_writeops[PVTEICS3] = igb_set_vteics;
+    igb_macreg_writeops[PVTEICS4] = igb_set_vteics;
+    igb_macreg_writeops[PVTEICS5] = igb_set_vteics;
+    igb_macreg_writeops[PVTEICS6] = igb_set_vteics;
+    igb_macreg_writeops[PVTEICS7] = igb_set_vteics;
+    igb_macreg_writeops[PVTEIMS0] = igb_set_vteims;
+    igb_macreg_writeops[PVTEIMS1] = igb_set_vteims;
+    igb_macreg_writeops[PVTEIMS2] = igb_set_vteims;
+    igb_macreg_writeops[PVTEIMS3] = igb_set_vteims;
+    igb_macreg_writeops[PVTEIMS4] = igb_set_vteims;
+    igb_macreg_writeops[PVTEIMS5] = igb_set_vteims;
+    igb_macreg_writeops[PVTEIMS6] = igb_set_vteims;
+    igb_macreg_writeops[PVTEIMS7] = igb_set_vteims;
+    igb_macreg_writeops[PVTEIMC0] = igb_set_vteimc;
+    igb_macreg_writeops[PVTEIMC1] = igb_set_vteimc;
+    igb_macreg_writeops[PVTEIMC2] = igb_set_vteimc;
+    igb_macreg_writeops[PVTEIMC3] = igb_set_vteimc;
+    igb_macreg_writeops[PVTEIMC4] = igb_set_vteimc;
+    igb_macreg_writeops[PVTEIMC5] = igb_set_vteimc;
+    igb_macreg_writeops[PVTEIMC6] = igb_set_vteimc;
+    igb_macreg_writeops[PVTEIMC7] = igb_set_vteimc;
+    igb_macreg_writeops[PVTEIAC0] = igb_set_vteiac;
+    igb_macreg_writeops[PVTEIAC1] = igb_set_vteiac;
+    igb_macreg_writeops[PVTEIAC2] = igb_set_vteiac;
+    igb_macreg_writeops[PVTEIAC3] = igb_set_vteiac;
+    igb_macreg_writeops[PVTEIAC4] = igb_set_vteiac;
+    igb_macreg_writeops[PVTEIAC5] = igb_set_vteiac;
+    igb_macreg_writeops[PVTEIAC6] = igb_set_vteiac;
+    igb_macreg_writeops[PVTEIAC7] = igb_set_vteiac;
+    igb_macreg_writeops[PVTEIAM0] = igb_set_vteiam;
+    igb_macreg_writeops[PVTEIAM1] = igb_set_vteiam;
+    igb_macreg_writeops[PVTEIAM2] = igb_set_vteiam;
+    igb_macreg_writeops[PVTEIAM3] = igb_set_vteiam;
+    igb_macreg_writeops[PVTEIAM4] = igb_set_vteiam;
+    igb_macreg_writeops[PVTEIAM5] = igb_set_vteiam;
+    igb_macreg_writeops[PVTEIAM6] = igb_set_vteiam;
+    igb_macreg_writeops[PVTEIAM7] = igb_set_vteiam;
+    igb_macreg_writeops[PVTEICR0] = igb_set_vteicr;
+    igb_macreg_writeops[PVTEICR1] = igb_set_vteicr;
+    igb_macreg_writeops[PVTEICR2] = igb_set_vteicr;
+    igb_macreg_writeops[PVTEICR3] = igb_set_vteicr;
+    igb_macreg_writeops[PVTEICR4] = igb_set_vteicr;
+    igb_macreg_writeops[PVTEICR5] = igb_set_vteicr;
+    igb_macreg_writeops[PVTEICR6] = igb_set_vteicr;
+    igb_macreg_writeops[PVTEICR7] = igb_set_vteicr;
+    for (int i = VTIVAR; i <= VTIVAR + 7; i++)
+        igb_macreg_writeops[i] = igb_set_vtivar;
+    for (int i = VTIVAR_MISC; i <= VTIVAR_MISC + 7; i++)
+        igb_macreg_writeops[i] = igb_mac_writereg;
+}
+
+
 
 enum { MAC_ACCESS_PARTIAL = 1 };
 
@@ -4138,101 +4193,117 @@ enum { MAC_ACCESS_PARTIAL = 1 };
  * implemented registers (lowest bit). This combination is possible
  * because all of the offsets are even.
  */
-static const uint16_t mac_reg_access[E1000E_MAC_SIZE] = {
+static uint16_t mac_reg_access[E1000E_MAC_SIZE];
+
+static void __attribute__((constructor)) igb_init_mac_reg_access(void)
+{
     /* Alias index offsets */
-    [FCRTL_A] = 0x07fe,
-    [RDFH_A]  = 0xe904, [RDFT_A]  = 0xe904,
-    [TDFH_A]  = 0xed00, [TDFT_A]  = 0xed00,
-    [RA_A ... RA_A + 31]      = 0x14f0,
-    [VFTA_A ... VFTA_A + E1000_VLAN_FILTER_TBL_SIZE - 1] = 0x1400,
-
-    [RDBAL0_A] = 0x2600,
-    [RDBAH0_A] = 0x2600,
-    [RDLEN0_A] = 0x2600,
-    [SRRCTL0_A] = 0x2600,
-    [RDH0_A] = 0x2600,
-    [RDT0_A] = 0x2600,
-    [RXDCTL0_A] = 0x2600,
-    [RXCTL0_A] = 0x2600,
-    [RQDPC0_A] = 0x2600,
-    [RDBAL1_A] = 0x25D0,
-    [RDBAL2_A] = 0x25A0,
-    [RDBAL3_A] = 0x2570,
-    [RDBAH1_A] = 0x25D0,
-    [RDBAH2_A] = 0x25A0,
-    [RDBAH3_A] = 0x2570,
-    [RDLEN1_A] = 0x25D0,
-    [RDLEN2_A] = 0x25A0,
-    [RDLEN3_A] = 0x2570,
-    [SRRCTL1_A] = 0x25D0,
-    [SRRCTL2_A] = 0x25A0,
-    [SRRCTL3_A] = 0x2570,
-    [RDH1_A] = 0x25D0,
-    [RDH2_A] = 0x25A0,
-    [RDH3_A] = 0x2570,
-    [RDT1_A] = 0x25D0,
-    [RDT2_A] = 0x25A0,
-    [RDT3_A] = 0x2570,
-    [RXDCTL1_A] = 0x25D0,
-    [RXDCTL2_A] = 0x25A0,
-    [RXDCTL3_A] = 0x2570,
-    [RXCTL1_A] = 0x25D0,
-    [RXCTL2_A] = 0x25A0,
-    [RXCTL3_A] = 0x2570,
-    [RQDPC1_A] = 0x25D0,
-    [RQDPC2_A] = 0x25A0,
-    [RQDPC3_A] = 0x2570,
-    [TDBAL0_A] = 0x2A00,
-    [TDBAH0_A] = 0x2A00,
-    [TDLEN0_A] = 0x2A00,
-    [TDH0_A] = 0x2A00,
-    [TDT0_A] = 0x2A00,
-    [TXCTL0_A] = 0x2A00,
-    [TDWBAL0_A] = 0x2A00,
-    [TDWBAH0_A] = 0x2A00,
-    [TDBAL1_A] = 0x29D0,
-    [TDBAL2_A] = 0x29A0,
-    [TDBAL3_A] = 0x2970,
-    [TDBAH1_A] = 0x29D0,
-    [TDBAH2_A] = 0x29A0,
-    [TDBAH3_A] = 0x2970,
-    [TDLEN1_A] = 0x29D0,
-    [TDLEN2_A] = 0x29A0,
-    [TDLEN3_A] = 0x2970,
-    [TDH1_A] = 0x29D0,
-    [TDH2_A] = 0x29A0,
-    [TDH3_A] = 0x2970,
-    [TDT1_A] = 0x29D0,
-    [TDT2_A] = 0x29A0,
-    [TDT3_A] = 0x2970,
-    [TXDCTL0_A] = 0x2A00,
-    [TXDCTL1_A] = 0x29D0,
-    [TXDCTL2_A] = 0x29A0,
-    [TXDCTL3_A] = 0x2970,
-    [TXCTL1_A] = 0x29D0,
-    [TXCTL2_A] = 0x29A0,
-    [TXCTL3_A] = 0x29D0,
-    [TDWBAL1_A] = 0x29D0,
-    [TDWBAL2_A] = 0x29A0,
-    [TDWBAL3_A] = 0x2970,
-    [TDWBAH1_A] = 0x29D0,
-    [TDWBAH2_A] = 0x29A0,
-    [TDWBAH3_A] = 0x2970,
-
+    mac_reg_access[FCRTL_A] = 0x07fe;
+    mac_reg_access[RDFH_A] = 0xe904;
+    mac_reg_access[RDFT_A] = 0xe904;
+    mac_reg_access[TDFH_A] = 0xed00;
+    mac_reg_access[TDFT_A] = 0xed00;
+    for (int i = RA_A; i <= RA_A + 31; i++)
+        mac_reg_access[i] = 0x14f0;
+    for (int i = VFTA_A; i <= VFTA_A + E1000_VLAN_FILTER_TBL_SIZE - 1; i++)
+        mac_reg_access[i] = 0x1400;
+    mac_reg_access[RDBAL0_A] = 0x2600;
+    mac_reg_access[RDBAH0_A] = 0x2600;
+    mac_reg_access[RDLEN0_A] = 0x2600;
+    mac_reg_access[SRRCTL0_A] = 0x2600;
+    mac_reg_access[RDH0_A] = 0x2600;
+    mac_reg_access[RDT0_A] = 0x2600;
+    mac_reg_access[RXDCTL0_A] = 0x2600;
+    mac_reg_access[RXCTL0_A] = 0x2600;
+    mac_reg_access[RQDPC0_A] = 0x2600;
+    mac_reg_access[RDBAL1_A] = 0x25D0;
+    mac_reg_access[RDBAL2_A] = 0x25A0;
+    mac_reg_access[RDBAL3_A] = 0x2570;
+    mac_reg_access[RDBAH1_A] = 0x25D0;
+    mac_reg_access[RDBAH2_A] = 0x25A0;
+    mac_reg_access[RDBAH3_A] = 0x2570;
+    mac_reg_access[RDLEN1_A] = 0x25D0;
+    mac_reg_access[RDLEN2_A] = 0x25A0;
+    mac_reg_access[RDLEN3_A] = 0x2570;
+    mac_reg_access[SRRCTL1_A] = 0x25D0;
+    mac_reg_access[SRRCTL2_A] = 0x25A0;
+    mac_reg_access[SRRCTL3_A] = 0x2570;
+    mac_reg_access[RDH1_A] = 0x25D0;
+    mac_reg_access[RDH2_A] = 0x25A0;
+    mac_reg_access[RDH3_A] = 0x2570;
+    mac_reg_access[RDT1_A] = 0x25D0;
+    mac_reg_access[RDT2_A] = 0x25A0;
+    mac_reg_access[RDT3_A] = 0x2570;
+    mac_reg_access[RXDCTL1_A] = 0x25D0;
+    mac_reg_access[RXDCTL2_A] = 0x25A0;
+    mac_reg_access[RXDCTL3_A] = 0x2570;
+    mac_reg_access[RXCTL1_A] = 0x25D0;
+    mac_reg_access[RXCTL2_A] = 0x25A0;
+    mac_reg_access[RXCTL3_A] = 0x2570;
+    mac_reg_access[RQDPC1_A] = 0x25D0;
+    mac_reg_access[RQDPC2_A] = 0x25A0;
+    mac_reg_access[RQDPC3_A] = 0x2570;
+    mac_reg_access[TDBAL0_A] = 0x2A00;
+    mac_reg_access[TDBAH0_A] = 0x2A00;
+    mac_reg_access[TDLEN0_A] = 0x2A00;
+    mac_reg_access[TDH0_A] = 0x2A00;
+    mac_reg_access[TDT0_A] = 0x2A00;
+    mac_reg_access[TXCTL0_A] = 0x2A00;
+    mac_reg_access[TDWBAL0_A] = 0x2A00;
+    mac_reg_access[TDWBAH0_A] = 0x2A00;
+    mac_reg_access[TDBAL1_A] = 0x29D0;
+    mac_reg_access[TDBAL2_A] = 0x29A0;
+    mac_reg_access[TDBAL3_A] = 0x2970;
+    mac_reg_access[TDBAH1_A] = 0x29D0;
+    mac_reg_access[TDBAH2_A] = 0x29A0;
+    mac_reg_access[TDBAH3_A] = 0x2970;
+    mac_reg_access[TDLEN1_A] = 0x29D0;
+    mac_reg_access[TDLEN2_A] = 0x29A0;
+    mac_reg_access[TDLEN3_A] = 0x2970;
+    mac_reg_access[TDH1_A] = 0x29D0;
+    mac_reg_access[TDH2_A] = 0x29A0;
+    mac_reg_access[TDH3_A] = 0x2970;
+    mac_reg_access[TDT1_A] = 0x29D0;
+    mac_reg_access[TDT2_A] = 0x29A0;
+    mac_reg_access[TDT3_A] = 0x2970;
+    mac_reg_access[TXDCTL0_A] = 0x2A00;
+    mac_reg_access[TXDCTL1_A] = 0x29D0;
+    mac_reg_access[TXDCTL2_A] = 0x29A0;
+    mac_reg_access[TXDCTL3_A] = 0x2970;
+    mac_reg_access[TXCTL1_A] = 0x29D0;
+    mac_reg_access[TXCTL2_A] = 0x29A0;
+    mac_reg_access[TXCTL3_A] = 0x29D0;
+    mac_reg_access[TDWBAL1_A] = 0x29D0;
+    mac_reg_access[TDWBAL2_A] = 0x29A0;
+    mac_reg_access[TDWBAL3_A] = 0x2970;
+    mac_reg_access[TDWBAH1_A] = 0x29D0;
+    mac_reg_access[TDWBAH2_A] = 0x29A0;
+    mac_reg_access[TDWBAH3_A] = 0x2970;
     /* Access options */
-    [RDFH]  = MAC_ACCESS_PARTIAL,    [RDFT]  = MAC_ACCESS_PARTIAL,
-    [RDFHS] = MAC_ACCESS_PARTIAL,    [RDFTS] = MAC_ACCESS_PARTIAL,
-    [RDFPC] = MAC_ACCESS_PARTIAL,
-    [TDFH]  = MAC_ACCESS_PARTIAL,    [TDFT]  = MAC_ACCESS_PARTIAL,
-    [TDFHS] = MAC_ACCESS_PARTIAL,    [TDFTS] = MAC_ACCESS_PARTIAL,
-    [TDFPC] = MAC_ACCESS_PARTIAL,    [EECD]  = MAC_ACCESS_PARTIAL,
-    [FLA]   = MAC_ACCESS_PARTIAL,
-    [FCAL]  = MAC_ACCESS_PARTIAL,    [FCAH]  = MAC_ACCESS_PARTIAL,
-    [FCT]   = MAC_ACCESS_PARTIAL,    [FCTTV] = MAC_ACCESS_PARTIAL,
-    [FCRTV] = MAC_ACCESS_PARTIAL,    [FCRTL] = MAC_ACCESS_PARTIAL,
-    [FCRTH] = MAC_ACCESS_PARTIAL,
-    [MAVTV0 ... MAVTV3] = MAC_ACCESS_PARTIAL
-};
+    mac_reg_access[RDFH] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[RDFT] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[RDFHS] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[RDFTS] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[RDFPC] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFH] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFT] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFHS] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFTS] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFPC] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[EECD] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FLA] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCAL] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCAH] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCT] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCTTV] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCRTV] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCRTL] = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCRTH] = MAC_ACCESS_PARTIAL;
+    for (int i = MAVTV0; i <= MAVTV3; i++)
+        mac_reg_access[i] = MAC_ACCESS_PARTIAL;
+}
+
+
 
 void
 igb_core_write(IGBCore *core, hwaddr addr, uint64_t val, unsigned size)
@@ -4324,13 +4395,14 @@ igb_core_pci_uninit(IGBCore *core)
     net_rx_pkt_uninit(core->rx_pkt);
 }
 
-static const uint16_t
-igb_phy_reg_init[] = {
-    [MII_BMCR] = MII_BMCR_SPEED1000 |
-                 MII_BMCR_FD        |
-                 MII_BMCR_AUTOEN,
+static uint16_t igb_phy_reg_init[MAX_PHY_REG_ADDRESS + 1];
 
-    [MII_BMSR] = MII_BMSR_EXTCAP    |
+static void __attribute__((constructor)) igb_init_phy_reg_init(void)
+{
+    igb_phy_reg_init[MII_BMCR] = MII_BMCR_SPEED1000 |
+                 MII_BMCR_FD        |
+                 MII_BMCR_AUTOEN;
+    igb_phy_reg_init[MII_BMSR] = MII_BMSR_EXTCAP    |
                  MII_BMSR_LINK_ST   |
                  MII_BMSR_AUTONEG   |
                  MII_BMSR_MFPS      |
@@ -4338,131 +4410,135 @@ igb_phy_reg_init[] = {
                  MII_BMSR_10T_HD    |
                  MII_BMSR_10T_FD    |
                  MII_BMSR_100TX_HD  |
-                 MII_BMSR_100TX_FD,
-
-    [MII_PHYID1]            = IGP03E1000_E_PHY_ID >> 16,
-    [MII_PHYID2]            = (IGP03E1000_E_PHY_ID & 0xfff0) | 1,
-    [MII_ANAR]              = MII_ANAR_CSMACD | MII_ANAR_10 |
+                 MII_BMSR_100TX_FD;
+    igb_phy_reg_init[MII_PHYID1] = IGP03E1000_E_PHY_ID >> 16;
+    igb_phy_reg_init[MII_PHYID2] = (IGP03E1000_E_PHY_ID & 0xfff0) | 1;
+    igb_phy_reg_init[MII_ANAR] = MII_ANAR_CSMACD | MII_ANAR_10 |
                               MII_ANAR_10FD | MII_ANAR_TX |
                               MII_ANAR_TXFD | MII_ANAR_PAUSE |
-                              MII_ANAR_PAUSE_ASYM,
-    [MII_ANLPAR]            = MII_ANLPAR_10 | MII_ANLPAR_10FD |
+                              MII_ANAR_PAUSE_ASYM;
+    igb_phy_reg_init[MII_ANLPAR] = MII_ANLPAR_10 | MII_ANLPAR_10FD |
                               MII_ANLPAR_TX | MII_ANLPAR_TXFD |
-                              MII_ANLPAR_T4 | MII_ANLPAR_PAUSE,
-    [MII_ANER]              = MII_ANER_NP | MII_ANER_NWAY,
-    [MII_ANNP]              = 0x1 | MII_ANNP_MP,
-    [MII_CTRL1000]          = MII_CTRL1000_HALF | MII_CTRL1000_FULL |
-                              MII_CTRL1000_PORT | MII_CTRL1000_MASTER,
-    [MII_STAT1000]          = MII_STAT1000_HALF | MII_STAT1000_FULL |
-                              MII_STAT1000_ROK | MII_STAT1000_LOK,
-    [MII_EXTSTAT]           = MII_EXTSTAT_1000T_HD | MII_EXTSTAT_1000T_FD,
+                              MII_ANLPAR_T4 | MII_ANLPAR_PAUSE;
+    igb_phy_reg_init[MII_ANER] = MII_ANER_NP | MII_ANER_NWAY;
+    igb_phy_reg_init[MII_ANNP] = 0x1 | MII_ANNP_MP;
+    igb_phy_reg_init[MII_CTRL1000] = MII_CTRL1000_HALF | MII_CTRL1000_FULL |
+                              MII_CTRL1000_PORT | MII_CTRL1000_MASTER;
+    igb_phy_reg_init[MII_STAT1000] = MII_STAT1000_HALF | MII_STAT1000_FULL |
+                              MII_STAT1000_ROK | MII_STAT1000_LOK;
+    igb_phy_reg_init[MII_EXTSTAT] = MII_EXTSTAT_1000T_HD | MII_EXTSTAT_1000T_FD;
+    igb_phy_reg_init[IGP01E1000_PHY_PORT_CONFIG] = BIT(5) | BIT(8);
+    igb_phy_reg_init[IGP01E1000_PHY_PORT_STATUS] = IGP01E1000_PSSR_SPEED_1000MBPS;
+    igb_phy_reg_init[IGP02E1000_PHY_POWER_MGMT] = BIT(0) | BIT(3) | IGP02E1000_PM_D3_LPLU |
+                                   IGP01E1000_PSCFR_SMART_SPEED;
+}
 
-    [IGP01E1000_PHY_PORT_CONFIG] = BIT(5) | BIT(8),
-    [IGP01E1000_PHY_PORT_STATUS] = IGP01E1000_PSSR_SPEED_1000MBPS,
-    [IGP02E1000_PHY_POWER_MGMT]  = BIT(0) | BIT(3) | IGP02E1000_PM_D3_LPLU |
-                                   IGP01E1000_PSCFR_SMART_SPEED
-};
 
-static const uint32_t igb_mac_reg_init[] = {
-    [LEDCTL]        = 2 | (3 << 8) | BIT(15) | (6 << 16) | (7 << 24),
-    [EEMNGCTL]      = BIT(31),
-    [TXDCTL0]       = E1000_TXDCTL_QUEUE_ENABLE,
-    [RXDCTL0]       = E1000_RXDCTL_QUEUE_ENABLE | (1 << 16),
-    [RXDCTL1]       = 1 << 16,
-    [RXDCTL2]       = 1 << 16,
-    [RXDCTL3]       = 1 << 16,
-    [RXDCTL4]       = 1 << 16,
-    [RXDCTL5]       = 1 << 16,
-    [RXDCTL6]       = 1 << 16,
-    [RXDCTL7]       = 1 << 16,
-    [RXDCTL8]       = 1 << 16,
-    [RXDCTL9]       = 1 << 16,
-    [RXDCTL10]      = 1 << 16,
-    [RXDCTL11]      = 1 << 16,
-    [RXDCTL12]      = 1 << 16,
-    [RXDCTL13]      = 1 << 16,
-    [RXDCTL14]      = 1 << 16,
-    [RXDCTL15]      = 1 << 16,
-    [TIPG]          = 0x08 | (0x04 << 10) | (0x06 << 20),
-    [CTRL]          = E1000_CTRL_FD | E1000_CTRL_LRST | E1000_CTRL_SPD_1000 |
-                      E1000_CTRL_ADVD3WUC,
-    [STATUS]        = E1000_STATUS_PHYRA | BIT(31),
-    [EECD]          = E1000_EECD_FWE_DIS | E1000_EECD_PRES |
-                      (2 << E1000_EECD_SIZE_EX_SHIFT),
-    [GCR]           = E1000_L0S_ADJUST |
+static uint32_t igb_mac_reg_init[E1000E_MAC_SIZE];
+
+static void __attribute__((constructor)) igb_init_mac_reg_init(void)
+{
+    igb_mac_reg_init[LEDCTL] = 2 | (3 << 8) | BIT(15) | (6 << 16) | (7 << 24);
+    igb_mac_reg_init[EEMNGCTL] = BIT(31);
+    igb_mac_reg_init[TXDCTL0] = E1000_TXDCTL_QUEUE_ENABLE;
+    igb_mac_reg_init[RXDCTL0] = E1000_RXDCTL_QUEUE_ENABLE | (1 << 16);
+    igb_mac_reg_init[RXDCTL1] = 1 << 16;
+    igb_mac_reg_init[RXDCTL2] = 1 << 16;
+    igb_mac_reg_init[RXDCTL3] = 1 << 16;
+    igb_mac_reg_init[RXDCTL4] = 1 << 16;
+    igb_mac_reg_init[RXDCTL5] = 1 << 16;
+    igb_mac_reg_init[RXDCTL6] = 1 << 16;
+    igb_mac_reg_init[RXDCTL7] = 1 << 16;
+    igb_mac_reg_init[RXDCTL8] = 1 << 16;
+    igb_mac_reg_init[RXDCTL9] = 1 << 16;
+    igb_mac_reg_init[RXDCTL10] = 1 << 16;
+    igb_mac_reg_init[RXDCTL11] = 1 << 16;
+    igb_mac_reg_init[RXDCTL12] = 1 << 16;
+    igb_mac_reg_init[RXDCTL13] = 1 << 16;
+    igb_mac_reg_init[RXDCTL14] = 1 << 16;
+    igb_mac_reg_init[RXDCTL15] = 1 << 16;
+    igb_mac_reg_init[TIPG] = 0x08 | (0x04 << 10) | (0x06 << 20);
+    igb_mac_reg_init[CTRL] = E1000_CTRL_FD | E1000_CTRL_LRST | E1000_CTRL_SPD_1000 |
+                      E1000_CTRL_ADVD3WUC;
+    igb_mac_reg_init[STATUS] = E1000_STATUS_PHYRA | BIT(31);
+    igb_mac_reg_init[EECD] = E1000_EECD_FWE_DIS | E1000_EECD_PRES |
+                      (2 << E1000_EECD_SIZE_EX_SHIFT);
+    igb_mac_reg_init[GCR] = E1000_L0S_ADJUST |
                       E1000_GCR_CMPL_TMOUT_RESEND |
                       E1000_GCR_CAP_VER2 |
                       E1000_L1_ENTRY_LATENCY_MSB |
-                      E1000_L1_ENTRY_LATENCY_LSB,
-    [RXCSUM]        = E1000_RXCSUM_IPOFLD | E1000_RXCSUM_TUOFLD,
-    [TXPBS]         = 0x28,
-    [RXPBS]         = 0x40,
-    [TCTL]          = E1000_TCTL_PSP | (0xF << E1000_CT_SHIFT) |
-                      (0x40 << E1000_COLD_SHIFT) | (0x1 << 26) | (0xA << 28),
-    [TCTL_EXT]      = 0x40 | (0x42 << 10),
-    [DTXCTL]        = E1000_DTXCTL_8023LL | E1000_DTXCTL_SPOOF_INT,
-    [VET]           = ETH_P_VLAN | (ETH_P_VLAN << 16),
+                      E1000_L1_ENTRY_LATENCY_LSB;
+    igb_mac_reg_init[RXCSUM] = E1000_RXCSUM_IPOFLD | E1000_RXCSUM_TUOFLD;
+    igb_mac_reg_init[TXPBS] = 0x28;
+    igb_mac_reg_init[RXPBS] = 0x40;
+    igb_mac_reg_init[TCTL] = E1000_TCTL_PSP | (0xF << E1000_CT_SHIFT) |
+                      (0x40 << E1000_COLD_SHIFT) | (0x1 << 26) | (0xA << 28);
+    igb_mac_reg_init[TCTL_EXT] = 0x40 | (0x42 << 10);
+    igb_mac_reg_init[DTXCTL] = E1000_DTXCTL_8023LL | E1000_DTXCTL_SPOOF_INT;
+    igb_mac_reg_init[VET] = ETH_P_VLAN | (ETH_P_VLAN << 16);
+    for (int i = V2PMAILBOX0; i <= V2PMAILBOX0 + IGB_MAX_VF_FUNCTIONS - 1; i++)
+        igb_mac_reg_init[i] = E1000_V2PMAILBOX_RSTI;
+    igb_mac_reg_init[MBVFIMR] = 0xFF;
+    igb_mac_reg_init[VFRE] = 0xFF;
+    igb_mac_reg_init[VFTE] = 0xFF;
+    for (int i = VMOLR0; i <= VMOLR0 + 7; i++)
+        igb_mac_reg_init[i] = 0x2600 | E1000_VMOLR_STRCRC;
+    igb_mac_reg_init[RPLOLR] = E1000_RPLOLR_STRCRC;
+    igb_mac_reg_init[RLPML] = 0x2600;
+    igb_mac_reg_init[TXCTL0] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL1] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL2] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL3] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL4] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL5] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL6] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL7] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL8] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL9] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL10] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL11] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL12] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL13] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL14] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+    igb_mac_reg_init[TXCTL15] = E1000_DCA_TXCTRL_DATA_RRO_EN |
+                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
+                      E1000_DCA_TXCTRL_DESC_RRO_EN;
+}
 
-    [V2PMAILBOX0 ... V2PMAILBOX0 + IGB_MAX_VF_FUNCTIONS - 1] = E1000_V2PMAILBOX_RSTI,
-    [MBVFIMR]       = 0xFF,
-    [VFRE]          = 0xFF,
-    [VFTE]          = 0xFF,
-    [VMOLR0 ... VMOLR0 + 7] = 0x2600 | E1000_VMOLR_STRCRC,
-    [RPLOLR]        = E1000_RPLOLR_STRCRC,
-    [RLPML]         = 0x2600,
-    [TXCTL0]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL1]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL2]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL3]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL4]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL5]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL6]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL7]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL8]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL9]        = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL10]       = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL11]       = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL12]       = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL13]       = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL14]       = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-    [TXCTL15]       = E1000_DCA_TXCTRL_DATA_RRO_EN |
-                      E1000_DCA_TXCTRL_TX_WB_RO_EN |
-                      E1000_DCA_TXCTRL_DESC_RRO_EN,
-};
 
 static void igb_reset(IGBCore *core, bool sw)
 {
-    struct igb_tx *tx;
+    igb_tx *tx;
     int i;
 
     timer_del(core->autoneg_timer);

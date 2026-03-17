@@ -142,7 +142,7 @@ e1000e_intrmgr_fire_delayed_interrupts(E1000ECore *core)
 static void
 e1000e_intrmgr_on_timer(void *opaque)
 {
-    E1000IntrDelayTimer *timer = opaque;
+    E1000IntrDelayTimer *timer = static_cast<E1000IntrDelayTimer *>(opaque);
 
     trace_e1000e_irq_throttling_timer(timer->delay_reg << 2);
 
@@ -153,7 +153,7 @@ e1000e_intrmgr_on_timer(void *opaque)
 static void
 e1000e_intrmgr_on_throttling_timer(void *opaque)
 {
-    E1000IntrDelayTimer *timer = opaque;
+    E1000IntrDelayTimer *timer = static_cast<E1000IntrDelayTimer *>(opaque);
 
     timer->running = false;
 
@@ -171,7 +171,7 @@ e1000e_intrmgr_on_throttling_timer(void *opaque)
 static void
 e1000e_intrmgr_on_msix_throttling_timer(void *opaque)
 {
-    E1000IntrDelayTimer *timer = opaque;
+    E1000IntrDelayTimer *timer = static_cast<E1000IntrDelayTimer *>(opaque);
     int idx = timer - &timer->core->eitr[0];
 
     timer->running = false;
@@ -595,7 +595,7 @@ e1000e_rss_parse_packet(E1000ECore *core,
 }
 
 static bool
-e1000e_setup_tx_offloads(E1000ECore *core, struct e1000e_tx *tx)
+e1000e_setup_tx_offloads(E1000ECore *core, e1000e_tx *tx)
 {
     if (tx->props.tse && tx->cptse) {
         if (!net_tx_pkt_build_vheader(tx->tx_pkt, true, true, tx->props.mss)) {
@@ -626,11 +626,11 @@ static void e1000e_tx_pkt_callback(void *core,
                                    const struct iovec *virt_iov,
                                    int virt_iovcnt)
 {
-    e1000e_receive_internal(core, virt_iov, virt_iovcnt, true);
+    e1000e_receive_internal(static_cast<E1000ECore *>(core), virt_iov, virt_iovcnt, true);
 }
 
 static bool
-e1000e_tx_pkt_send(E1000ECore *core, struct e1000e_tx *tx, int queue_index)
+e1000e_tx_pkt_send(E1000ECore *core, e1000e_tx *tx, int queue_index)
 {
     int target_queue = MIN(core->max_queue_num, queue_index);
     NetClientState *queue = qemu_get_subqueue(core->owner_nic, target_queue);
@@ -681,7 +681,7 @@ e1000e_on_tx_done_update_stats(E1000ECore *core, struct NetTxPkt *tx_pkt)
 
 static void
 e1000e_process_tx_desc(E1000ECore *core,
-                       struct e1000e_tx *tx,
+                       e1000e_tx *tx,
                        struct e1000_tx_desc *dp,
                        int queue_index)
 {
@@ -851,7 +851,7 @@ e1000e_ring_len(E1000ECore *core, const E1000ERingInfo *r)
 
 typedef struct E1000E_TxRing_st {
     const E1000ERingInfo *i;
-    struct e1000e_tx *tx;
+    e1000e_tx *tx;
 } E1000E_TxRing;
 
 static inline int
@@ -1003,7 +1003,7 @@ e1000e_receive_filter(E1000ECore *core, const void *buf)
 {
     return (!e1000x_is_vlan_packet(buf, core->mac[VET]) ||
             e1000x_rx_vlan_filter(core->mac, PKT_GET_VLAN_HDR(buf))) &&
-           e1000x_rx_group_filter(core->mac, buf);
+           e1000x_rx_group_filter(core->mac, static_cast<const struct eth_header *>(buf));
 }
 
 static inline void
@@ -1548,7 +1548,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
 
                             e1000e_write_hdr_frag_to_rx_buffers(core, ba,
                                                                 &bastate,
-                                                                iov->iov_base,
+                                                                static_cast<const char *>(iov->iov_base),
                                                                 iov_copy);
 
                             copy_size -= iov_copy;
@@ -1587,7 +1587,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                     iov_copy = MIN(copy_size, iov->iov_len - iov_ofs);
 
                     e1000e_write_payload_frag_to_rx_buffers(core, ba, &bastate,
-                                                            iov->iov_base +
+                                                            static_cast<const char *>(iov->iov_base) +
                                                             iov_ofs,
                                                             iov_copy);
 
@@ -1606,7 +1606,7 @@ e1000e_write_packet_to_guest(E1000ECore *core, struct NetRxPkt *pkt,
                  * We are in the last 4 bytes corresponding to the FCS checksum.
                  * We only ever write zeroes here (unlike the hardware).
                  */
-                static const uint32_t fcs_pad;
+                static const uint32_t fcs_pad = 0;
                 /* Amount of space for the trailing checksum */
                 size_t fcs_len = MIN(rx_desc_buf_size,
                                      total_size - desc_offset);
@@ -1964,15 +1964,15 @@ e1000e_set_rx_control(E1000ECore *core, int index, uint32_t val)
     }
 }
 
-static
-void(*e1000e_phyreg_writeops[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE])
-(E1000ECore *, int, uint16_t) = {
-    [0] = {
-        [MII_BMCR]     = e1000e_set_phy_ctrl,
-        [PHY_PAGE]     = e1000e_set_phy_page,
-        [PHY_OEM_BITS] = e1000e_set_phy_oem_bits
-    }
-};
+static void(*e1000e_phyreg_writeops[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE])
+(E1000ECore *, int, uint16_t);
+
+static void __attribute__((constructor)) e1000e_init_phyreg_writeops(void)
+{
+    e1000e_phyreg_writeops[0][MII_BMCR]     = e1000e_set_phy_ctrl;
+    e1000e_phyreg_writeops[0][PHY_PAGE]      = e1000e_set_phy_page;
+    e1000e_phyreg_writeops[0][PHY_OEM_BITS]  = e1000e_set_phy_oem_bits;
+}
 
 static inline bool
 e1000e_postpone_interrupt(E1000IntrDelayTimer *timer)
@@ -2211,7 +2211,7 @@ e1000e_set_interrupt_cause(E1000ECore *core, uint32_t val)
 static inline void
 e1000e_autoneg_timer(void *opaque)
 {
-    E1000ECore *core = opaque;
+    E1000ECore *core = static_cast<E1000ECore *>(opaque);
     if (!qemu_get_queue(core->owner_nic)->link_down) {
         e1000x_update_regs_on_autoneg_done(core->mac, core->phy[0]);
         e1000e_start_recv(core);
@@ -2229,53 +2229,55 @@ e1000e_get_reg_index_with_offset(const uint16_t *mac_reg_access, hwaddr addr)
     return index + (mac_reg_access[index] & 0xfffe);
 }
 
-static const char e1000e_phy_regcap[E1000E_PHY_PAGES][0x20] = {
-    [0] = {
-        [MII_BMCR]              = PHY_ANYPAGE | PHY_RW,
-        [MII_BMSR]              = PHY_ANYPAGE | PHY_R,
-        [MII_PHYID1]            = PHY_ANYPAGE | PHY_R,
-        [MII_PHYID2]            = PHY_ANYPAGE | PHY_R,
-        [MII_ANAR]              = PHY_ANYPAGE | PHY_RW,
-        [MII_ANLPAR]            = PHY_ANYPAGE | PHY_R,
-        [MII_ANER]              = PHY_ANYPAGE | PHY_R,
-        [MII_ANNP]              = PHY_ANYPAGE | PHY_RW,
-        [MII_ANLPRNP]           = PHY_ANYPAGE | PHY_R,
-        [MII_CTRL1000]          = PHY_ANYPAGE | PHY_RW,
-        [MII_STAT1000]          = PHY_ANYPAGE | PHY_R,
-        [MII_EXTSTAT]           = PHY_ANYPAGE | PHY_R,
-        [PHY_PAGE]              = PHY_ANYPAGE | PHY_RW,
+static char e1000e_phy_regcap[E1000E_PHY_PAGES][0x20];
 
-        [PHY_COPPER_CTRL1]      = PHY_RW,
-        [PHY_COPPER_STAT1]      = PHY_R,
-        [PHY_COPPER_CTRL3]      = PHY_RW,
-        [PHY_RX_ERR_CNTR]       = PHY_R,
-        [PHY_OEM_BITS]          = PHY_RW,
-        [PHY_BIAS_1]            = PHY_RW,
-        [PHY_BIAS_2]            = PHY_RW,
-        [PHY_COPPER_INT_ENABLE] = PHY_RW,
-        [PHY_COPPER_STAT2]      = PHY_R,
-        [PHY_COPPER_CTRL2]      = PHY_RW
-    },
-    [2] = {
-        [PHY_MAC_CTRL1]         = PHY_RW,
-        [PHY_MAC_INT_ENABLE]    = PHY_RW,
-        [PHY_MAC_STAT]          = PHY_R,
-        [PHY_MAC_CTRL2]         = PHY_RW
-    },
-    [3] = {
-        [PHY_LED_03_FUNC_CTRL1] = PHY_RW,
-        [PHY_LED_03_POL_CTRL]   = PHY_RW,
-        [PHY_LED_TIMER_CTRL]    = PHY_RW,
-        [PHY_LED_45_CTRL]       = PHY_RW
-    },
-    [5] = {
-        [PHY_1000T_SKEW]        = PHY_R,
-        [PHY_1000T_SWAP]        = PHY_R
-    },
-    [6] = {
-        [PHY_CRC_COUNTERS]      = PHY_R
-    }
-};
+static void __attribute__((constructor)) e1000e_init_phy_regcap(void)
+{
+    /* Page 0 */
+    e1000e_phy_regcap[0][MII_BMCR]              = PHY_ANYPAGE | PHY_RW;
+    e1000e_phy_regcap[0][MII_BMSR]              = PHY_ANYPAGE | PHY_R;
+    e1000e_phy_regcap[0][MII_PHYID1]            = PHY_ANYPAGE | PHY_R;
+    e1000e_phy_regcap[0][MII_PHYID2]            = PHY_ANYPAGE | PHY_R;
+    e1000e_phy_regcap[0][MII_ANAR]              = PHY_ANYPAGE | PHY_RW;
+    e1000e_phy_regcap[0][MII_ANLPAR]            = PHY_ANYPAGE | PHY_R;
+    e1000e_phy_regcap[0][MII_ANER]              = PHY_ANYPAGE | PHY_R;
+    e1000e_phy_regcap[0][MII_ANNP]              = PHY_ANYPAGE | PHY_RW;
+    e1000e_phy_regcap[0][MII_ANLPRNP]           = PHY_ANYPAGE | PHY_R;
+    e1000e_phy_regcap[0][MII_CTRL1000]          = PHY_ANYPAGE | PHY_RW;
+    e1000e_phy_regcap[0][MII_STAT1000]          = PHY_ANYPAGE | PHY_R;
+    e1000e_phy_regcap[0][MII_EXTSTAT]           = PHY_ANYPAGE | PHY_R;
+    e1000e_phy_regcap[0][PHY_PAGE]              = PHY_ANYPAGE | PHY_RW;
+
+    e1000e_phy_regcap[0][PHY_COPPER_CTRL1]      = PHY_RW;
+    e1000e_phy_regcap[0][PHY_COPPER_STAT1]      = PHY_R;
+    e1000e_phy_regcap[0][PHY_COPPER_CTRL3]      = PHY_RW;
+    e1000e_phy_regcap[0][PHY_RX_ERR_CNTR]       = PHY_R;
+    e1000e_phy_regcap[0][PHY_OEM_BITS]          = PHY_RW;
+    e1000e_phy_regcap[0][PHY_BIAS_1]            = PHY_RW;
+    e1000e_phy_regcap[0][PHY_BIAS_2]            = PHY_RW;
+    e1000e_phy_regcap[0][PHY_COPPER_INT_ENABLE] = PHY_RW;
+    e1000e_phy_regcap[0][PHY_COPPER_STAT2]      = PHY_R;
+    e1000e_phy_regcap[0][PHY_COPPER_CTRL2]      = PHY_RW;
+
+    /* Page 2 */
+    e1000e_phy_regcap[2][PHY_MAC_CTRL1]         = PHY_RW;
+    e1000e_phy_regcap[2][PHY_MAC_INT_ENABLE]    = PHY_RW;
+    e1000e_phy_regcap[2][PHY_MAC_STAT]          = PHY_R;
+    e1000e_phy_regcap[2][PHY_MAC_CTRL2]         = PHY_RW;
+
+    /* Page 3 */
+    e1000e_phy_regcap[3][PHY_LED_03_FUNC_CTRL1] = PHY_RW;
+    e1000e_phy_regcap[3][PHY_LED_03_POL_CTRL]   = PHY_RW;
+    e1000e_phy_regcap[3][PHY_LED_TIMER_CTRL]    = PHY_RW;
+    e1000e_phy_regcap[3][PHY_LED_45_CTRL]       = PHY_RW;
+
+    /* Page 5 */
+    e1000e_phy_regcap[5][PHY_1000T_SKEW]        = PHY_R;
+    e1000e_phy_regcap[5][PHY_1000T_SWAP]        = PHY_R;
+
+    /* Page 6 */
+    e1000e_phy_regcap[6][PHY_CRC_COUNTERS]      = PHY_R;
+}
 
 static bool
 e1000e_phy_reg_check_cap(E1000ECore *core, uint32_t addr,
@@ -2904,399 +2906,457 @@ static void e1000e_set_timadjh(E1000ECore *core, int index, uint32_t val)
     core->timadj += core->mac[TIMADJL] | ((int64_t)core->mac[TIMADJH] << 32);
 }
 
-#define e1000e_getreg(x)    [x] = e1000e_mac_readreg
 typedef uint32_t (*readops)(E1000ECore *, int);
-static const readops e1000e_macreg_readops[] = {
-    e1000e_getreg(PBA),
-    e1000e_getreg(WUFC),
-    e1000e_getreg(MANC),
-    e1000e_getreg(TOTL),
-    e1000e_getreg(RDT0),
-    e1000e_getreg(RDBAH0),
-    e1000e_getreg(TDBAL1),
-    e1000e_getreg(RDLEN0),
-    e1000e_getreg(RDH1),
-    e1000e_getreg(LATECOL),
-    e1000e_getreg(SEQEC),
-    e1000e_getreg(XONTXC),
-    e1000e_getreg(AIT),
-    e1000e_getreg(TDFH),
-    e1000e_getreg(TDFT),
-    e1000e_getreg(TDFHS),
-    e1000e_getreg(TDFTS),
-    e1000e_getreg(TDFPC),
-    e1000e_getreg(WUS),
-    e1000e_getreg(PBS),
-    e1000e_getreg(RDFH),
-    e1000e_getreg(RDFT),
-    e1000e_getreg(RDFHS),
-    e1000e_getreg(RDFTS),
-    e1000e_getreg(RDFPC),
-    e1000e_getreg(GORCL),
-    e1000e_getreg(MGTPRC),
-    e1000e_getreg(EERD),
-    e1000e_getreg(EIAC),
-    e1000e_getreg(PSRCTL),
-    e1000e_getreg(MANC2H),
-    e1000e_getreg(RXCSUM),
-    e1000e_getreg(GSCL_3),
-    e1000e_getreg(GSCN_2),
-    e1000e_getreg(RSRPD),
-    e1000e_getreg(RDBAL1),
-    e1000e_getreg(FCAH),
-    e1000e_getreg(FCRTH),
-    e1000e_getreg(FLOP),
-    e1000e_getreg(FLASHT),
-    e1000e_getreg(RXSTMPH),
-    e1000e_getreg(TXSTMPL),
-    e1000e_getreg(TIMADJL),
-    e1000e_getreg(TXDCTL),
-    e1000e_getreg(RDH0),
-    e1000e_getreg(TDT1),
-    e1000e_getreg(TNCRS),
-    e1000e_getreg(RJC),
-    e1000e_getreg(IAM),
-    e1000e_getreg(GSCL_2),
-    e1000e_getreg(RDBAH1),
-    e1000e_getreg(FLSWDATA),
-    e1000e_getreg(TIPG),
-    e1000e_getreg(FLMNGCTL),
-    e1000e_getreg(FLMNGCNT),
-    e1000e_getreg(TSYNCTXCTL),
-    e1000e_getreg(EXTCNF_SIZE),
-    e1000e_getreg(EXTCNF_CTRL),
-    e1000e_getreg(EEMNGDATA),
-    e1000e_getreg(CTRL_EXT),
-    e1000e_getreg(SYSTIMH),
-    e1000e_getreg(EEMNGCTL),
-    e1000e_getreg(FLMNGDATA),
-    e1000e_getreg(TSYNCRXCTL),
-    e1000e_getreg(TDH),
-    e1000e_getreg(LEDCTL),
-    e1000e_getreg(TCTL),
-    e1000e_getreg(TDBAL),
-    e1000e_getreg(TDLEN),
-    e1000e_getreg(TDH1),
-    e1000e_getreg(RADV),
-    e1000e_getreg(ECOL),
-    e1000e_getreg(DC),
-    e1000e_getreg(RLEC),
-    e1000e_getreg(XOFFTXC),
-    e1000e_getreg(RFC),
-    e1000e_getreg(RNBC),
-    e1000e_getreg(MGTPTC),
-    e1000e_getreg(TIMINCA),
-    e1000e_getreg(RXCFGL),
-    e1000e_getreg(MFUTP01),
-    e1000e_getreg(FACTPS),
-    e1000e_getreg(GSCL_1),
-    e1000e_getreg(GSCN_0),
-    e1000e_getreg(GCR2),
-    e1000e_getreg(RDT1),
-    e1000e_getreg(PBACLR),
-    e1000e_getreg(FCTTV),
-    e1000e_getreg(EEWR),
-    e1000e_getreg(FLSWCTL),
-    e1000e_getreg(RXDCTL1),
-    e1000e_getreg(RXSATRL),
-    e1000e_getreg(RXUDP),
-    e1000e_getreg(TORL),
-    e1000e_getreg(TDLEN1),
-    e1000e_getreg(MCC),
-    e1000e_getreg(WUC),
-    e1000e_getreg(EECD),
-    e1000e_getreg(MFUTP23),
-    e1000e_getreg(RAID),
-    e1000e_getreg(FCRTV),
-    e1000e_getreg(TXDCTL1),
-    e1000e_getreg(RCTL),
-    e1000e_getreg(TDT),
-    e1000e_getreg(MDIC),
-    e1000e_getreg(FCRUC),
-    e1000e_getreg(VET),
-    e1000e_getreg(RDBAL0),
-    e1000e_getreg(TDBAH1),
-    e1000e_getreg(RDTR),
-    e1000e_getreg(SCC),
-    e1000e_getreg(COLC),
-    e1000e_getreg(CEXTERR),
-    e1000e_getreg(XOFFRXC),
-    e1000e_getreg(IPAV),
-    e1000e_getreg(GOTCL),
-    e1000e_getreg(MGTPDC),
-    e1000e_getreg(GCR),
-    e1000e_getreg(IVAR),
-    e1000e_getreg(POEMB),
-    e1000e_getreg(MFVAL),
-    e1000e_getreg(FUNCTAG),
-    e1000e_getreg(GSCL_4),
-    e1000e_getreg(GSCN_3),
-    e1000e_getreg(MRQC),
-    e1000e_getreg(RDLEN1),
-    e1000e_getreg(FCT),
-    e1000e_getreg(FLA),
-    e1000e_getreg(FLOL),
-    e1000e_getreg(RXDCTL),
-    e1000e_getreg(RXSTMPL),
-    e1000e_getreg(TIMADJH),
-    e1000e_getreg(FCRTL),
-    e1000e_getreg(TDBAH),
-    e1000e_getreg(TADV),
-    e1000e_getreg(XONRXC),
-    e1000e_getreg(TSCTFC),
-    e1000e_getreg(RFCTL),
-    e1000e_getreg(GSCN_1),
-    e1000e_getreg(FCAL),
-    e1000e_getreg(FLSWCNT),
+static readops e1000e_macreg_readops[E1000E_MAC_SIZE];
 
-    [TOTH]    = e1000e_mac_read_clr8,
-    [GOTCH]   = e1000e_mac_read_clr8,
-    [PRC64]   = e1000e_mac_read_clr4,
-    [PRC255]  = e1000e_mac_read_clr4,
-    [PRC1023] = e1000e_mac_read_clr4,
-    [PTC64]   = e1000e_mac_read_clr4,
-    [PTC255]  = e1000e_mac_read_clr4,
-    [PTC1023] = e1000e_mac_read_clr4,
-    [GPRC]    = e1000e_mac_read_clr4,
-    [TPT]     = e1000e_mac_read_clr4,
-    [RUC]     = e1000e_mac_read_clr4,
-    [BPRC]    = e1000e_mac_read_clr4,
-    [MPTC]    = e1000e_mac_read_clr4,
-    [IAC]     = e1000e_mac_read_clr4,
-    [ICR]     = e1000e_mac_icr_read,
-    [STATUS]  = e1000e_get_status,
-    [TARC0]   = e1000e_get_tarc,
-    [ICS]     = e1000e_mac_ics_read,
-    [TORH]    = e1000e_mac_read_clr8,
-    [GORCH]   = e1000e_mac_read_clr8,
-    [PRC127]  = e1000e_mac_read_clr4,
-    [PRC511]  = e1000e_mac_read_clr4,
-    [PRC1522] = e1000e_mac_read_clr4,
-    [PTC127]  = e1000e_mac_read_clr4,
-    [PTC511]  = e1000e_mac_read_clr4,
-    [PTC1522] = e1000e_mac_read_clr4,
-    [GPTC]    = e1000e_mac_read_clr4,
-    [TPR]     = e1000e_mac_read_clr4,
-    [ROC]     = e1000e_mac_read_clr4,
-    [MPRC]    = e1000e_mac_read_clr4,
-    [BPTC]    = e1000e_mac_read_clr4,
-    [TSCTC]   = e1000e_mac_read_clr4,
-    [ITR]     = e1000e_mac_itr_read,
-    [CTRL]    = e1000e_get_ctrl,
-    [TARC1]   = e1000e_get_tarc,
-    [SWSM]    = e1000e_mac_swsm_read,
-    [IMS]     = e1000e_mac_ims_read,
-    [SYSTIML] = e1000e_get_systiml,
-    [RXSATRH] = e1000e_get_rxsatrh,
-    [TXSTMPH] = e1000e_get_txstmph,
-
-    [CRCERRS ... MPC]      = e1000e_mac_readreg,
-    [IP6AT ... IP6AT + 3]  = e1000e_mac_readreg,
-    [IP4AT ... IP4AT + 6]  = e1000e_mac_readreg,
-    [RA ... RA + 31]       = e1000e_mac_readreg,
-    [WUPM ... WUPM + 31]   = e1000e_mac_readreg,
-    [MTA ... MTA + E1000_MC_TBL_SIZE - 1] = e1000e_mac_readreg,
-    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1]  = e1000e_mac_readreg,
-    [FFMT ... FFMT + 254]  = e1000e_mac_readreg,
-    [FFVT ... FFVT + 254]  = e1000e_mac_readreg,
-    [MDEF ... MDEF + 7]    = e1000e_mac_readreg,
-    [FFLT ... FFLT + 10]   = e1000e_mac_readreg,
-    [FTFT ... FTFT + 254]  = e1000e_mac_readreg,
-    [PBM ... PBM + 10239]  = e1000e_mac_readreg,
-    [RETA ... RETA + 31]   = e1000e_mac_readreg,
-    [RSSRK ... RSSRK + 31] = e1000e_mac_readreg,
-    [MAVTV0 ... MAVTV3]    = e1000e_mac_readreg,
-    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = e1000e_mac_eitr_read
-};
-enum { E1000E_NREADOPS = ARRAY_SIZE(e1000e_macreg_readops) };
-
-#define e1000e_putreg(x)    [x] = e1000e_mac_writereg
 typedef void (*writeops)(E1000ECore *, int, uint32_t);
-static const writeops e1000e_macreg_writeops[] = {
-    e1000e_putreg(PBA),
-    e1000e_putreg(SWSM),
-    e1000e_putreg(WUFC),
-    e1000e_putreg(RDBAH1),
-    e1000e_putreg(TDBAH),
-    e1000e_putreg(TXDCTL),
-    e1000e_putreg(RDBAH0),
-    e1000e_putreg(LEDCTL),
-    e1000e_putreg(FCAL),
-    e1000e_putreg(FCRUC),
-    e1000e_putreg(WUC),
-    e1000e_putreg(WUS),
-    e1000e_putreg(IPAV),
-    e1000e_putreg(TDBAH1),
-    e1000e_putreg(IAM),
-    e1000e_putreg(EIAC),
-    e1000e_putreg(IVAR),
-    e1000e_putreg(TARC0),
-    e1000e_putreg(TARC1),
-    e1000e_putreg(FLSWDATA),
-    e1000e_putreg(POEMB),
-    e1000e_putreg(MFUTP01),
-    e1000e_putreg(MFUTP23),
-    e1000e_putreg(MANC),
-    e1000e_putreg(MANC2H),
-    e1000e_putreg(MFVAL),
-    e1000e_putreg(EXTCNF_CTRL),
-    e1000e_putreg(FACTPS),
-    e1000e_putreg(FUNCTAG),
-    e1000e_putreg(GSCL_1),
-    e1000e_putreg(GSCL_2),
-    e1000e_putreg(GSCL_3),
-    e1000e_putreg(GSCL_4),
-    e1000e_putreg(GSCN_0),
-    e1000e_putreg(GSCN_1),
-    e1000e_putreg(GSCN_2),
-    e1000e_putreg(GSCN_3),
-    e1000e_putreg(GCR2),
-    e1000e_putreg(MRQC),
-    e1000e_putreg(FLOP),
-    e1000e_putreg(FLOL),
-    e1000e_putreg(FLSWCTL),
-    e1000e_putreg(FLSWCNT),
-    e1000e_putreg(FLA),
-    e1000e_putreg(RXDCTL1),
-    e1000e_putreg(TXDCTL1),
-    e1000e_putreg(TIPG),
-    e1000e_putreg(RXSTMPH),
-    e1000e_putreg(RXSTMPL),
-    e1000e_putreg(RXSATRL),
-    e1000e_putreg(RXSATRH),
-    e1000e_putreg(TXSTMPL),
-    e1000e_putreg(TXSTMPH),
-    e1000e_putreg(SYSTIML),
-    e1000e_putreg(SYSTIMH),
-    e1000e_putreg(TIMADJL),
-    e1000e_putreg(RXUDP),
-    e1000e_putreg(RXCFGL),
-    e1000e_putreg(TSYNCRXCTL),
-    e1000e_putreg(TSYNCTXCTL),
-    e1000e_putreg(EXTCNF_SIZE),
-    e1000e_putreg(EEMNGCTL),
-    e1000e_putreg(RA),
-
-    [TDH1]     = e1000e_set_16bit,
-    [TDT1]     = e1000e_set_tdt,
-    [TCTL]     = e1000e_set_tctl,
-    [TDT]      = e1000e_set_tdt,
-    [MDIC]     = e1000e_set_mdic,
-    [ICS]      = e1000e_set_ics,
-    [TDH]      = e1000e_set_16bit,
-    [RDH0]     = e1000e_set_16bit,
-    [RDT0]     = e1000e_set_rdt,
-    [IMC]      = e1000e_set_imc,
-    [IMS]      = e1000e_set_ims,
-    [ICR]      = e1000e_set_icr,
-    [EECD]     = e1000e_set_eecd,
-    [RCTL]     = e1000e_set_rx_control,
-    [CTRL]     = e1000e_set_ctrl,
-    [RDTR]     = e1000e_set_rdtr,
-    [RADV]     = e1000e_set_16bit,
-    [TADV]     = e1000e_set_16bit,
-    [ITR]      = e1000e_set_itr,
-    [EERD]     = e1000e_set_eerd,
-    [AIT]      = e1000e_set_16bit,
-    [TDFH]     = e1000e_set_13bit,
-    [TDFT]     = e1000e_set_13bit,
-    [TDFHS]    = e1000e_set_13bit,
-    [TDFTS]    = e1000e_set_13bit,
-    [TDFPC]    = e1000e_set_13bit,
-    [RDFH]     = e1000e_set_13bit,
-    [RDFHS]    = e1000e_set_13bit,
-    [RDFT]     = e1000e_set_13bit,
-    [RDFTS]    = e1000e_set_13bit,
-    [RDFPC]    = e1000e_set_13bit,
-    [PBS]      = e1000e_set_6bit,
-    [GCR]      = e1000e_set_gcr,
-    [PSRCTL]   = e1000e_set_psrctl,
-    [RXCSUM]   = e1000e_set_rxcsum,
-    [RAID]     = e1000e_set_16bit,
-    [RSRPD]    = e1000e_set_12bit,
-    [TIDV]     = e1000e_set_tidv,
-    [TDLEN1]   = e1000e_set_dlen,
-    [TDLEN]    = e1000e_set_dlen,
-    [RDLEN0]   = e1000e_set_dlen,
-    [RDLEN1]   = e1000e_set_dlen,
-    [TDBAL]    = e1000e_set_dbal,
-    [TDBAL1]   = e1000e_set_dbal,
-    [RDBAL0]   = e1000e_set_dbal,
-    [RDBAL1]   = e1000e_set_dbal,
-    [RDH1]     = e1000e_set_16bit,
-    [RDT1]     = e1000e_set_rdt,
-    [STATUS]   = e1000e_set_status,
-    [PBACLR]   = e1000e_set_pbaclr,
-    [CTRL_EXT] = e1000e_set_ctrlext,
-    [FCAH]     = e1000e_set_16bit,
-    [FCT]      = e1000e_set_16bit,
-    [FCTTV]    = e1000e_set_16bit,
-    [FCRTV]    = e1000e_set_16bit,
-    [FCRTH]    = e1000e_set_fcrth,
-    [FCRTL]    = e1000e_set_fcrtl,
-    [VET]      = e1000e_set_vet,
-    [RXDCTL]   = e1000e_set_rxdctl,
-    [FLASHT]   = e1000e_set_16bit,
-    [EEWR]     = e1000e_set_eewr,
-    [CTRL_DUP] = e1000e_set_ctrl,
-    [RFCTL]    = e1000e_set_rfctl,
-    [RA + 1]   = e1000e_mac_setmacaddr,
-    [TIMINCA]  = e1000e_set_timinca,
-    [TIMADJH]  = e1000e_set_timadjh,
-
-    [IP6AT ... IP6AT + 3]    = e1000e_mac_writereg,
-    [IP4AT ... IP4AT + 6]    = e1000e_mac_writereg,
-    [RA + 2 ... RA + 31]     = e1000e_mac_writereg,
-    [WUPM ... WUPM + 31]     = e1000e_mac_writereg,
-    [MTA ... MTA + E1000_MC_TBL_SIZE - 1] = e1000e_mac_writereg,
-    [VFTA ... VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1]    = e1000e_mac_writereg,
-    [FFMT ... FFMT + 254]    = e1000e_set_4bit,
-    [FFVT ... FFVT + 254]    = e1000e_mac_writereg,
-    [PBM ... PBM + 10239]    = e1000e_mac_writereg,
-    [MDEF ... MDEF + 7]      = e1000e_mac_writereg,
-    [FFLT ... FFLT + 10]     = e1000e_set_11bit,
-    [FTFT ... FTFT + 254]    = e1000e_mac_writereg,
-    [RETA ... RETA + 31]     = e1000e_mac_writereg,
-    [RSSRK ... RSSRK + 31]   = e1000e_mac_writereg,
-    [MAVTV0 ... MAVTV3]      = e1000e_mac_writereg,
-    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = e1000e_set_eitr
-};
-enum { E1000E_NWRITEOPS = ARRAY_SIZE(e1000e_macreg_writeops) };
+static writeops e1000e_macreg_writeops[E1000E_MAC_SIZE];
 
 enum { MAC_ACCESS_PARTIAL = 1 };
 
-/*
- * The array below combines alias offsets of the index values for the
- * MAC registers that have aliases, with the indication of not fully
- * implemented registers (lowest bit). This combination is possible
- * because all of the offsets are even.
- */
-static const uint16_t mac_reg_access[E1000E_MAC_SIZE] = {
-    /* Alias index offsets */
-    [FCRTL_A] = 0x07fe, [FCRTH_A] = 0x0802,
-    [RDH0_A]  = 0x09bc, [RDT0_A]  = 0x09bc, [RDTR_A] = 0x09c6,
-    [RDFH_A]  = 0xe904, [RDFT_A]  = 0xe904,
-    [TDH_A]   = 0x0cf8, [TDT_A]   = 0x0cf8, [TIDV_A] = 0x0cf8,
-    [TDFH_A]  = 0xed00, [TDFT_A]  = 0xed00,
-    [RA_A ... RA_A + 31]      = 0x14f0,
-    [VFTA_A ... VFTA_A + E1000_VLAN_FILTER_TBL_SIZE - 1] = 0x1400,
-    [RDBAL0_A ... RDLEN0_A] = 0x09bc,
-    [TDBAL_A ... TDLEN_A]   = 0x0cf8,
-    /* Access options */
-    [RDFH]  = MAC_ACCESS_PARTIAL,    [RDFT]  = MAC_ACCESS_PARTIAL,
-    [RDFHS] = MAC_ACCESS_PARTIAL,    [RDFTS] = MAC_ACCESS_PARTIAL,
-    [RDFPC] = MAC_ACCESS_PARTIAL,
-    [TDFH]  = MAC_ACCESS_PARTIAL,    [TDFT]  = MAC_ACCESS_PARTIAL,
-    [TDFHS] = MAC_ACCESS_PARTIAL,    [TDFTS] = MAC_ACCESS_PARTIAL,
-    [TDFPC] = MAC_ACCESS_PARTIAL,    [EECD]  = MAC_ACCESS_PARTIAL,
-    [PBM]   = MAC_ACCESS_PARTIAL,    [FLA]   = MAC_ACCESS_PARTIAL,
-    [FCAL]  = MAC_ACCESS_PARTIAL,    [FCAH]  = MAC_ACCESS_PARTIAL,
-    [FCT]   = MAC_ACCESS_PARTIAL,    [FCTTV] = MAC_ACCESS_PARTIAL,
-    [FCRTV] = MAC_ACCESS_PARTIAL,    [FCRTL] = MAC_ACCESS_PARTIAL,
-    [FCRTH] = MAC_ACCESS_PARTIAL,    [TXDCTL] = MAC_ACCESS_PARTIAL,
-    [TXDCTL1] = MAC_ACCESS_PARTIAL,
-    [MAVTV0 ... MAVTV3] = MAC_ACCESS_PARTIAL
-};
+static uint16_t mac_reg_access[E1000E_MAC_SIZE];
+
+static void __attribute__((constructor)) e1000e_init_reg_ops(void)
+{
+    /* readops: getreg (e1000e_mac_readreg) entries */
+    e1000e_macreg_readops[PBA]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[WUFC]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[MANC]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[TOTL]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDT0]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDBAH0]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDBAL1]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDLEN0]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDH1]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[LATECOL]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[SEQEC]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[XONTXC]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[AIT]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDFH]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDFT]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDFHS]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDFTS]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDFPC]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[WUS]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[PBS]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDFH]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDFT]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDFHS]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDFTS]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDFPC]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[GORCL]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[MGTPRC]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[EERD]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[EIAC]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[PSRCTL]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[MANC2H]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RXCSUM]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[GSCL_3]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[GSCN_2]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RSRPD]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDBAL1]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[FCAH]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[FCRTH]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLOP]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLASHT]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RXSTMPH]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[TXSTMPL]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[TIMADJL]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[TXDCTL]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDH0]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDT1]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[TNCRS]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[RJC]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[IAM]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[GSCL_2]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDBAH1]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLSWDATA]  = e1000e_mac_readreg;
+    e1000e_macreg_readops[TIPG]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLMNGCTL]  = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLMNGCNT]  = e1000e_mac_readreg;
+    e1000e_macreg_readops[TSYNCTXCTL] = e1000e_mac_readreg;
+    e1000e_macreg_readops[EXTCNF_SIZE] = e1000e_mac_readreg;
+    e1000e_macreg_readops[EXTCNF_CTRL] = e1000e_mac_readreg;
+    e1000e_macreg_readops[EEMNGDATA] = e1000e_mac_readreg;
+    e1000e_macreg_readops[CTRL_EXT]  = e1000e_mac_readreg;
+    e1000e_macreg_readops[SYSTIMH]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[EEMNGCTL]  = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLMNGDATA] = e1000e_mac_readreg;
+    e1000e_macreg_readops[TSYNCRXCTL] = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDH]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[LEDCTL]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[TCTL]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDBAL]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDLEN]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDH1]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[RADV]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[ECOL]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[DC]        = e1000e_mac_readreg;
+    e1000e_macreg_readops[RLEC]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[XOFFTXC]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[RFC]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[RNBC]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[MGTPTC]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[TIMINCA]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[RXCFGL]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[MFUTP01]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[FACTPS]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[GSCL_1]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[GSCN_0]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[GCR2]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDT1]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[PBACLR]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[FCTTV]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[EEWR]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLSWCTL]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[RXDCTL1]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[RXSATRL]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[RXUDP]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[TORL]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDLEN1]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[MCC]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[WUC]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[EECD]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[MFUTP23]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[RAID]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[FCRTV]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[TXDCTL1]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[RCTL]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDT]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[MDIC]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[FCRUC]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[VET]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDBAL0]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDBAH1]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDTR]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[SCC]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[COLC]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[CEXTERR]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[XOFFRXC]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[IPAV]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[GOTCL]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[MGTPDC]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[GCR]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[IVAR]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[POEMB]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[MFVAL]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[FUNCTAG]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[GSCL_4]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[GSCN_3]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[MRQC]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[RDLEN1]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[FCT]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLA]       = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLOL]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[RXDCTL]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RXSTMPL]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[TIMADJH]   = e1000e_mac_readreg;
+    e1000e_macreg_readops[FCRTL]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[TDBAH]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[TADV]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[XONRXC]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[TSCTFC]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[RFCTL]     = e1000e_mac_readreg;
+    e1000e_macreg_readops[GSCN_1]    = e1000e_mac_readreg;
+    e1000e_macreg_readops[FCAL]      = e1000e_mac_readreg;
+    e1000e_macreg_readops[FLSWCNT]   = e1000e_mac_readreg;
+
+    /* readops: special entries */
+    e1000e_macreg_readops[TOTH]    = e1000e_mac_read_clr8;
+    e1000e_macreg_readops[GOTCH]   = e1000e_mac_read_clr8;
+    e1000e_macreg_readops[PRC64]   = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PRC255]  = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PRC1023] = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PTC64]   = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PTC255]  = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PTC1023] = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[GPRC]    = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[TPT]     = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[RUC]     = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[BPRC]    = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[MPTC]    = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[IAC]     = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[ICR]     = e1000e_mac_icr_read;
+    e1000e_macreg_readops[STATUS]  = e1000e_get_status;
+    e1000e_macreg_readops[TARC0]   = e1000e_get_tarc;
+    e1000e_macreg_readops[ICS]     = e1000e_mac_ics_read;
+    e1000e_macreg_readops[TORH]    = e1000e_mac_read_clr8;
+    e1000e_macreg_readops[GORCH]   = e1000e_mac_read_clr8;
+    e1000e_macreg_readops[PRC127]  = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PRC511]  = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PRC1522] = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PTC127]  = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PTC511]  = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[PTC1522] = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[GPTC]    = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[TPR]     = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[ROC]     = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[MPRC]    = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[BPTC]    = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[TSCTC]   = e1000e_mac_read_clr4;
+    e1000e_macreg_readops[ITR]     = e1000e_mac_itr_read;
+    e1000e_macreg_readops[CTRL]    = e1000e_get_ctrl;
+    e1000e_macreg_readops[TARC1]   = e1000e_get_tarc;
+    e1000e_macreg_readops[SWSM]    = e1000e_mac_swsm_read;
+    e1000e_macreg_readops[IMS]     = e1000e_mac_ims_read;
+    e1000e_macreg_readops[SYSTIML] = e1000e_get_systiml;
+    e1000e_macreg_readops[RXSATRH] = e1000e_get_rxsatrh;
+    e1000e_macreg_readops[TXSTMPH] = e1000e_get_txstmph;
+
+    /* readops: range entries */
+    for (int i = CRCERRS; i <= MPC; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = IP6AT; i <= IP6AT + 3; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = IP4AT; i <= IP4AT + 6; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = RA; i <= RA + 31; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = WUPM; i <= WUPM + 31; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = MTA; i <= MTA + E1000_MC_TBL_SIZE - 1; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = VFTA; i <= VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = FFMT; i <= FFMT + 254; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = FFVT; i <= FFVT + 254; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = MDEF; i <= MDEF + 7; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = FFLT; i <= FFLT + 10; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = FTFT; i <= FTFT + 254; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = PBM; i <= PBM + 10239; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = RETA; i <= RETA + 31; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = RSSRK; i <= RSSRK + 31; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = MAVTV0; i <= MAVTV3; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_readreg;
+    for (int i = EITR; i <= EITR + E1000E_MSIX_VEC_NUM - 1; i++)
+        e1000e_macreg_readops[i] = e1000e_mac_eitr_read;
+
+    /* writeops: putreg (e1000e_mac_writereg) entries */
+    e1000e_macreg_writeops[PBA]       = e1000e_mac_writereg;
+    e1000e_macreg_writeops[SWSM]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[WUFC]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RDBAH1]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TDBAH]     = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TXDCTL]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RDBAH0]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[LEDCTL]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FCAL]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FCRUC]     = e1000e_mac_writereg;
+    e1000e_macreg_writeops[WUC]       = e1000e_mac_writereg;
+    e1000e_macreg_writeops[WUS]       = e1000e_mac_writereg;
+    e1000e_macreg_writeops[IPAV]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TDBAH1]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[IAM]       = e1000e_mac_writereg;
+    e1000e_macreg_writeops[EIAC]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[IVAR]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TARC0]     = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TARC1]     = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FLSWDATA]  = e1000e_mac_writereg;
+    e1000e_macreg_writeops[POEMB]     = e1000e_mac_writereg;
+    e1000e_macreg_writeops[MFUTP01]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[MFUTP23]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[MANC]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[MANC2H]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[MFVAL]     = e1000e_mac_writereg;
+    e1000e_macreg_writeops[EXTCNF_CTRL] = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FACTPS]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FUNCTAG]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GSCL_1]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GSCL_2]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GSCL_3]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GSCL_4]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GSCN_0]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GSCN_1]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GSCN_2]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GSCN_3]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[GCR2]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[MRQC]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FLOP]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FLOL]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FLSWCTL]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FLSWCNT]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[FLA]       = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RXDCTL1]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TXDCTL1]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TIPG]      = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RXSTMPH]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RXSTMPL]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RXSATRL]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RXSATRH]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TXSTMPL]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TXSTMPH]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[SYSTIML]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[SYSTIMH]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TIMADJL]   = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RXUDP]     = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RXCFGL]    = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TSYNCRXCTL] = e1000e_mac_writereg;
+    e1000e_macreg_writeops[TSYNCTXCTL] = e1000e_mac_writereg;
+    e1000e_macreg_writeops[EXTCNF_SIZE] = e1000e_mac_writereg;
+    e1000e_macreg_writeops[EEMNGCTL]  = e1000e_mac_writereg;
+    e1000e_macreg_writeops[RA]        = e1000e_mac_writereg;
+
+    /* writeops: special entries */
+    e1000e_macreg_writeops[TDH1]     = e1000e_set_16bit;
+    e1000e_macreg_writeops[TDT1]     = e1000e_set_tdt;
+    e1000e_macreg_writeops[TCTL]     = e1000e_set_tctl;
+    e1000e_macreg_writeops[TDT]      = e1000e_set_tdt;
+    e1000e_macreg_writeops[MDIC]     = e1000e_set_mdic;
+    e1000e_macreg_writeops[ICS]      = e1000e_set_ics;
+    e1000e_macreg_writeops[TDH]      = e1000e_set_16bit;
+    e1000e_macreg_writeops[RDH0]     = e1000e_set_16bit;
+    e1000e_macreg_writeops[RDT0]     = e1000e_set_rdt;
+    e1000e_macreg_writeops[IMC]      = e1000e_set_imc;
+    e1000e_macreg_writeops[IMS]      = e1000e_set_ims;
+    e1000e_macreg_writeops[ICR]      = e1000e_set_icr;
+    e1000e_macreg_writeops[EECD]     = e1000e_set_eecd;
+    e1000e_macreg_writeops[RCTL]     = e1000e_set_rx_control;
+    e1000e_macreg_writeops[CTRL]     = e1000e_set_ctrl;
+    e1000e_macreg_writeops[RDTR]     = e1000e_set_rdtr;
+    e1000e_macreg_writeops[RADV]     = e1000e_set_16bit;
+    e1000e_macreg_writeops[TADV]     = e1000e_set_16bit;
+    e1000e_macreg_writeops[ITR]      = e1000e_set_itr;
+    e1000e_macreg_writeops[EERD]     = e1000e_set_eerd;
+    e1000e_macreg_writeops[AIT]      = e1000e_set_16bit;
+    e1000e_macreg_writeops[TDFH]     = e1000e_set_13bit;
+    e1000e_macreg_writeops[TDFT]     = e1000e_set_13bit;
+    e1000e_macreg_writeops[TDFHS]    = e1000e_set_13bit;
+    e1000e_macreg_writeops[TDFTS]    = e1000e_set_13bit;
+    e1000e_macreg_writeops[TDFPC]    = e1000e_set_13bit;
+    e1000e_macreg_writeops[RDFH]     = e1000e_set_13bit;
+    e1000e_macreg_writeops[RDFHS]    = e1000e_set_13bit;
+    e1000e_macreg_writeops[RDFT]     = e1000e_set_13bit;
+    e1000e_macreg_writeops[RDFTS]    = e1000e_set_13bit;
+    e1000e_macreg_writeops[RDFPC]    = e1000e_set_13bit;
+    e1000e_macreg_writeops[PBS]      = e1000e_set_6bit;
+    e1000e_macreg_writeops[GCR]      = e1000e_set_gcr;
+    e1000e_macreg_writeops[PSRCTL]   = e1000e_set_psrctl;
+    e1000e_macreg_writeops[RXCSUM]   = e1000e_set_rxcsum;
+    e1000e_macreg_writeops[RAID]     = e1000e_set_16bit;
+    e1000e_macreg_writeops[RSRPD]    = e1000e_set_12bit;
+    e1000e_macreg_writeops[TIDV]     = e1000e_set_tidv;
+    e1000e_macreg_writeops[TDLEN1]   = e1000e_set_dlen;
+    e1000e_macreg_writeops[TDLEN]    = e1000e_set_dlen;
+    e1000e_macreg_writeops[RDLEN0]   = e1000e_set_dlen;
+    e1000e_macreg_writeops[RDLEN1]   = e1000e_set_dlen;
+    e1000e_macreg_writeops[TDBAL]    = e1000e_set_dbal;
+    e1000e_macreg_writeops[TDBAL1]   = e1000e_set_dbal;
+    e1000e_macreg_writeops[RDBAL0]   = e1000e_set_dbal;
+    e1000e_macreg_writeops[RDBAL1]   = e1000e_set_dbal;
+    e1000e_macreg_writeops[RDH1]     = e1000e_set_16bit;
+    e1000e_macreg_writeops[RDT1]     = e1000e_set_rdt;
+    e1000e_macreg_writeops[STATUS]   = e1000e_set_status;
+    e1000e_macreg_writeops[PBACLR]   = e1000e_set_pbaclr;
+    e1000e_macreg_writeops[CTRL_EXT] = e1000e_set_ctrlext;
+    e1000e_macreg_writeops[FCAH]     = e1000e_set_16bit;
+    e1000e_macreg_writeops[FCT]      = e1000e_set_16bit;
+    e1000e_macreg_writeops[FCTTV]    = e1000e_set_16bit;
+    e1000e_macreg_writeops[FCRTV]    = e1000e_set_16bit;
+    e1000e_macreg_writeops[FCRTH]    = e1000e_set_fcrth;
+    e1000e_macreg_writeops[FCRTL]    = e1000e_set_fcrtl;
+    e1000e_macreg_writeops[VET]      = e1000e_set_vet;
+    e1000e_macreg_writeops[RXDCTL]   = e1000e_set_rxdctl;
+    e1000e_macreg_writeops[FLASHT]   = e1000e_set_16bit;
+    e1000e_macreg_writeops[EEWR]     = e1000e_set_eewr;
+    e1000e_macreg_writeops[CTRL_DUP] = e1000e_set_ctrl;
+    e1000e_macreg_writeops[RFCTL]    = e1000e_set_rfctl;
+    e1000e_macreg_writeops[RA + 1]   = e1000e_mac_setmacaddr;
+    e1000e_macreg_writeops[TIMINCA]  = e1000e_set_timinca;
+    e1000e_macreg_writeops[TIMADJH]  = e1000e_set_timadjh;
+
+    /* writeops: range entries */
+    for (int i = IP6AT; i <= IP6AT + 3; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = IP4AT; i <= IP4AT + 6; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = RA + 2; i <= RA + 31; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = WUPM; i <= WUPM + 31; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = MTA; i <= MTA + E1000_MC_TBL_SIZE - 1; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = VFTA; i <= VFTA + E1000_VLAN_FILTER_TBL_SIZE - 1; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = FFMT; i <= FFMT + 254; i++)
+        e1000e_macreg_writeops[i] = e1000e_set_4bit;
+    for (int i = FFVT; i <= FFVT + 254; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = PBM; i <= PBM + 10239; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = MDEF; i <= MDEF + 7; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = FFLT; i <= FFLT + 10; i++)
+        e1000e_macreg_writeops[i] = e1000e_set_11bit;
+    for (int i = FTFT; i <= FTFT + 254; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = RETA; i <= RETA + 31; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = RSSRK; i <= RSSRK + 31; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = MAVTV0; i <= MAVTV3; i++)
+        e1000e_macreg_writeops[i] = e1000e_mac_writereg;
+    for (int i = EITR; i <= EITR + E1000E_MSIX_VEC_NUM - 1; i++)
+        e1000e_macreg_writeops[i] = e1000e_set_eitr;
+
+    /* mac_reg_access: alias index offsets */
+    mac_reg_access[FCRTL_A] = 0x07fe;
+    mac_reg_access[FCRTH_A] = 0x0802;
+    mac_reg_access[RDH0_A]  = 0x09bc;
+    mac_reg_access[RDT0_A]  = 0x09bc;
+    mac_reg_access[RDTR_A]  = 0x09c6;
+    mac_reg_access[RDFH_A]  = 0xe904;
+    mac_reg_access[RDFT_A]  = 0xe904;
+    mac_reg_access[TDH_A]   = 0x0cf8;
+    mac_reg_access[TDT_A]   = 0x0cf8;
+    mac_reg_access[TIDV_A]  = 0x0cf8;
+    mac_reg_access[TDFH_A]  = 0xed00;
+    mac_reg_access[TDFT_A]  = 0xed00;
+    for (int i = RA_A; i <= RA_A + 31; i++)
+        mac_reg_access[i] = 0x14f0;
+    for (int i = VFTA_A; i <= VFTA_A + E1000_VLAN_FILTER_TBL_SIZE - 1; i++)
+        mac_reg_access[i] = 0x1400;
+    for (int i = RDBAL0_A; i <= RDLEN0_A; i++)
+        mac_reg_access[i] = 0x09bc;
+    for (int i = TDBAL_A; i <= TDLEN_A; i++)
+        mac_reg_access[i] = 0x0cf8;
+
+    /* mac_reg_access: access options */
+    mac_reg_access[RDFH]    = MAC_ACCESS_PARTIAL;
+    mac_reg_access[RDFT]    = MAC_ACCESS_PARTIAL;
+    mac_reg_access[RDFHS]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[RDFTS]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[RDFPC]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFH]    = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFT]    = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFHS]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFTS]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TDFPC]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[EECD]    = MAC_ACCESS_PARTIAL;
+    mac_reg_access[PBM]     = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FLA]     = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCAL]    = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCAH]    = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCT]     = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCTTV]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCRTV]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCRTL]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[FCRTH]   = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TXDCTL]  = MAC_ACCESS_PARTIAL;
+    mac_reg_access[TXDCTL1] = MAC_ACCESS_PARTIAL;
+    for (int i = MAVTV0; i <= MAVTV3; i++)
+        mac_reg_access[i] = MAC_ACCESS_PARTIAL;
+}
+
+enum { E1000E_NREADOPS = E1000E_MAC_SIZE };
+enum { E1000E_NWRITEOPS = E1000E_MAC_SIZE };
 
 void
 e1000e_core_write(E1000ECore *core, hwaddr addr, uint64_t val, unsigned size)
@@ -3388,14 +3448,17 @@ e1000e_core_pci_uninit(E1000ECore *core)
     net_rx_pkt_uninit(core->rx_pkt);
 }
 
-static const uint16_t
-e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
-    [0] = {
-        [MII_BMCR] = MII_BMCR_SPEED1000 |
-                     MII_BMCR_FD        |
-                     MII_BMCR_AUTOEN,
+static uint16_t
+e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE];
 
-        [MII_BMSR] = MII_BMSR_EXTCAP    |
+static void __attribute__((constructor)) e1000e_init_phy_reg_init(void)
+{
+    /* Page 0 */
+    e1000e_phy_reg_init[0][MII_BMCR] = MII_BMCR_SPEED1000 |
+                     MII_BMCR_FD        |
+                     MII_BMCR_AUTOEN;
+
+    e1000e_phy_reg_init[0][MII_BMSR] = MII_BMSR_EXTCAP    |
                      MII_BMSR_LINK_ST   |
                      MII_BMSR_AUTONEG   |
                      MII_BMSR_MFPS      |
@@ -3403,79 +3466,82 @@ e1000e_phy_reg_init[E1000E_PHY_PAGES][E1000E_PHY_PAGE_SIZE] = {
                      MII_BMSR_10T_HD    |
                      MII_BMSR_10T_FD    |
                      MII_BMSR_100TX_HD  |
-                     MII_BMSR_100TX_FD,
+                     MII_BMSR_100TX_FD;
 
-        [MII_PHYID1]            = 0x141,
-        [MII_PHYID2]            = E1000_PHY_ID2_82574x,
-        [MII_ANAR]              = MII_ANAR_CSMACD | MII_ANAR_10 |
+    e1000e_phy_reg_init[0][MII_PHYID1]            = 0x141;
+    e1000e_phy_reg_init[0][MII_PHYID2]            = E1000_PHY_ID2_82574x;
+    e1000e_phy_reg_init[0][MII_ANAR]              = MII_ANAR_CSMACD | MII_ANAR_10 |
                                   MII_ANAR_10FD | MII_ANAR_TX |
                                   MII_ANAR_TXFD | MII_ANAR_PAUSE |
-                                  MII_ANAR_PAUSE_ASYM,
-        [MII_ANLPAR]            = MII_ANLPAR_10 | MII_ANLPAR_10FD |
+                                  MII_ANAR_PAUSE_ASYM;
+    e1000e_phy_reg_init[0][MII_ANLPAR]            = MII_ANLPAR_10 | MII_ANLPAR_10FD |
                                   MII_ANLPAR_TX | MII_ANLPAR_TXFD |
-                                  MII_ANLPAR_T4 | MII_ANLPAR_PAUSE,
-        [MII_ANER]              = MII_ANER_NP | MII_ANER_NWAY,
-        [MII_ANNP]              = 1 | MII_ANNP_MP,
-        [MII_CTRL1000]          = MII_CTRL1000_HALF | MII_CTRL1000_FULL |
-                                  MII_CTRL1000_PORT | MII_CTRL1000_MASTER,
-        [MII_STAT1000]          = MII_STAT1000_HALF | MII_STAT1000_FULL |
-                                  MII_STAT1000_ROK | MII_STAT1000_LOK,
-        [MII_EXTSTAT]           = MII_EXTSTAT_1000T_HD | MII_EXTSTAT_1000T_FD,
+                                  MII_ANLPAR_T4 | MII_ANLPAR_PAUSE;
+    e1000e_phy_reg_init[0][MII_ANER]              = MII_ANER_NP | MII_ANER_NWAY;
+    e1000e_phy_reg_init[0][MII_ANNP]              = 1 | MII_ANNP_MP;
+    e1000e_phy_reg_init[0][MII_CTRL1000]          = MII_CTRL1000_HALF | MII_CTRL1000_FULL |
+                                  MII_CTRL1000_PORT | MII_CTRL1000_MASTER;
+    e1000e_phy_reg_init[0][MII_STAT1000]          = MII_STAT1000_HALF | MII_STAT1000_FULL |
+                                  MII_STAT1000_ROK | MII_STAT1000_LOK;
+    e1000e_phy_reg_init[0][MII_EXTSTAT]           = MII_EXTSTAT_1000T_HD | MII_EXTSTAT_1000T_FD;
 
-        [PHY_COPPER_CTRL1]      = BIT(5) | BIT(6) | BIT(8) | BIT(9) |
-                                  BIT(12) | BIT(13),
-        [PHY_COPPER_STAT1]      = BIT(3) | BIT(10) | BIT(11) | BIT(13) | BIT(15)
-    },
-    [2] = {
-        [PHY_MAC_CTRL1]         = BIT(3) | BIT(7),
-        [PHY_MAC_CTRL2]         = BIT(1) | BIT(2) | BIT(6) | BIT(12)
-    },
-    [3] = {
-        [PHY_LED_TIMER_CTRL]    = BIT(0) | BIT(2) | BIT(14)
-    }
-};
+    e1000e_phy_reg_init[0][PHY_COPPER_CTRL1]      = BIT(5) | BIT(6) | BIT(8) | BIT(9) |
+                                  BIT(12) | BIT(13);
+    e1000e_phy_reg_init[0][PHY_COPPER_STAT1]      = BIT(3) | BIT(10) | BIT(11) | BIT(13) | BIT(15);
 
-static const uint32_t e1000e_mac_reg_init[] = {
-    [PBA]           =     0x00140014,
-    [LEDCTL]        =  BIT(1) | BIT(8) | BIT(9) | BIT(15) | BIT(17) | BIT(18),
-    [EXTCNF_CTRL]   = BIT(3),
-    [EEMNGCTL]      = BIT(31),
-    [FLASHT]        = 0x2,
-    [FLSWCTL]       = BIT(30) | BIT(31),
-    [FLOL]          = BIT(0),
-    [RXDCTL]        = BIT(16),
-    [RXDCTL1]       = BIT(16),
-    [TIPG]          = 0x8 | (0x8 << 10) | (0x6 << 20),
-    [RXCFGL]        = 0x88F7,
-    [RXUDP]         = 0x319,
-    [CTRL]          = E1000_CTRL_FD | E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |
+    /* Page 2 */
+    e1000e_phy_reg_init[2][PHY_MAC_CTRL1]         = BIT(3) | BIT(7);
+    e1000e_phy_reg_init[2][PHY_MAC_CTRL2]         = BIT(1) | BIT(2) | BIT(6) | BIT(12);
+
+    /* Page 3 */
+    e1000e_phy_reg_init[3][PHY_LED_TIMER_CTRL]    = BIT(0) | BIT(2) | BIT(14);
+}
+
+static uint32_t e1000e_mac_reg_init[E1000E_MAC_SIZE];
+
+static void __attribute__((constructor)) e1000e_init_mac_reg_init(void)
+{
+    e1000e_mac_reg_init[PBA]           =     0x00140014;
+    e1000e_mac_reg_init[LEDCTL]        =  BIT(1) | BIT(8) | BIT(9) | BIT(15) | BIT(17) | BIT(18);
+    e1000e_mac_reg_init[EXTCNF_CTRL]   = BIT(3);
+    e1000e_mac_reg_init[EEMNGCTL]      = BIT(31);
+    e1000e_mac_reg_init[FLASHT]        = 0x2;
+    e1000e_mac_reg_init[FLSWCTL]       = BIT(30) | BIT(31);
+    e1000e_mac_reg_init[FLOL]          = BIT(0);
+    e1000e_mac_reg_init[RXDCTL]        = BIT(16);
+    e1000e_mac_reg_init[RXDCTL1]       = BIT(16);
+    e1000e_mac_reg_init[TIPG]          = 0x8 | (0x8 << 10) | (0x6 << 20);
+    e1000e_mac_reg_init[RXCFGL]        = 0x88F7;
+    e1000e_mac_reg_init[RXUDP]         = 0x319;
+    e1000e_mac_reg_init[CTRL]          = E1000_CTRL_FD | E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |
                       E1000_CTRL_SPD_1000 | E1000_CTRL_SLU |
-                      E1000_CTRL_ADVD3WUC,
-    [STATUS]        =  E1000_STATUS_ASDV_1000 | E1000_STATUS_LU,
-    [PSRCTL]        = (2 << E1000_PSRCTL_BSIZE0_SHIFT) |
+                      E1000_CTRL_ADVD3WUC;
+    e1000e_mac_reg_init[STATUS]        =  E1000_STATUS_ASDV_1000 | E1000_STATUS_LU;
+    e1000e_mac_reg_init[PSRCTL]        = (2 << E1000_PSRCTL_BSIZE0_SHIFT) |
                       (4 << E1000_PSRCTL_BSIZE1_SHIFT) |
-                      (4 << E1000_PSRCTL_BSIZE2_SHIFT),
-    [TARC0]         = 0x3 | E1000_TARC_ENABLE,
-    [TARC1]         = 0x3 | E1000_TARC_ENABLE,
-    [EECD]          = E1000_EECD_AUTO_RD | E1000_EECD_PRES,
-    [EERD]          = E1000_EERW_DONE,
-    [EEWR]          = E1000_EERW_DONE,
-    [GCR]           = E1000_L0S_ADJUST |
+                      (4 << E1000_PSRCTL_BSIZE2_SHIFT);
+    e1000e_mac_reg_init[TARC0]         = 0x3 | E1000_TARC_ENABLE;
+    e1000e_mac_reg_init[TARC1]         = 0x3 | E1000_TARC_ENABLE;
+    e1000e_mac_reg_init[EECD]          = E1000_EECD_AUTO_RD | E1000_EECD_PRES;
+    e1000e_mac_reg_init[EERD]          = E1000_EERW_DONE;
+    e1000e_mac_reg_init[EEWR]          = E1000_EERW_DONE;
+    e1000e_mac_reg_init[GCR]           = E1000_L0S_ADJUST |
                       E1000_L1_ENTRY_LATENCY_MSB |
-                      E1000_L1_ENTRY_LATENCY_LSB,
-    [TDFH]          = 0x600,
-    [TDFT]          = 0x600,
-    [TDFHS]         = 0x600,
-    [TDFTS]         = 0x600,
-    [POEMB]         = 0x30D,
-    [PBS]           = 0x028,
-    [MANC]          = E1000_MANC_DIS_IP_CHK_ARP,
-    [FACTPS]        = E1000_FACTPS_LAN0_ON | 0x20000000,
-    [SWSM]          = 1,
-    [RXCSUM]        = E1000_RXCSUM_IPOFLD | E1000_RXCSUM_TUOFLD,
-    [ITR]           = E1000E_MIN_XITR,
-    [EITR...EITR + E1000E_MSIX_VEC_NUM - 1] = E1000E_MIN_XITR,
-};
+                      E1000_L1_ENTRY_LATENCY_LSB;
+    e1000e_mac_reg_init[TDFH]          = 0x600;
+    e1000e_mac_reg_init[TDFT]          = 0x600;
+    e1000e_mac_reg_init[TDFHS]         = 0x600;
+    e1000e_mac_reg_init[TDFTS]         = 0x600;
+    e1000e_mac_reg_init[POEMB]         = 0x30D;
+    e1000e_mac_reg_init[PBS]           = 0x028;
+    e1000e_mac_reg_init[MANC]          = E1000_MANC_DIS_IP_CHK_ARP;
+    e1000e_mac_reg_init[FACTPS]        = E1000_FACTPS_LAN0_ON | 0x20000000;
+    e1000e_mac_reg_init[SWSM]          = 1;
+    e1000e_mac_reg_init[RXCSUM]        = E1000_RXCSUM_IPOFLD | E1000_RXCSUM_TUOFLD;
+    e1000e_mac_reg_init[ITR]           = E1000E_MIN_XITR;
+    for (int i = EITR; i <= EITR + E1000E_MSIX_VEC_NUM - 1; i++)
+        e1000e_mac_reg_init[i] = E1000E_MIN_XITR;
+}
 
 static void e1000e_reset(E1000ECore *core, bool sw)
 {

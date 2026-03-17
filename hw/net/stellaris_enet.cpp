@@ -84,20 +84,22 @@ struct stellaris_enet_state {
     MemoryRegion mmio;
 };
 
+static const VMStateField vmstate_rx_frame_fields[] = {
+    VMSTATE_UINT8_ARRAY(data, StellarisEnetRxFrame, 2048),
+    VMSTATE_UINT32(len, StellarisEnetRxFrame),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_rx_frame = {
     .name = "stellaris_enet/rx_frame",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(data, StellarisEnetRxFrame, 2048),
-        VMSTATE_UINT32(len, StellarisEnetRxFrame),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rx_frame_fields,
 };
 
 static int stellaris_enet_post_load(void *opaque, int version_id)
 {
-    stellaris_enet_state *s = opaque;
+    stellaris_enet_state *s = static_cast<stellaris_enet_state *>(opaque);
     int i;
 
     /* Sanitize inbound state. Note that next_packet is an index but
@@ -128,30 +130,32 @@ static int stellaris_enet_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_stellaris_enet_fields[] = {
+    VMSTATE_UINT32(ris, stellaris_enet_state),
+    VMSTATE_UINT32(im, stellaris_enet_state),
+    VMSTATE_UINT32(rctl, stellaris_enet_state),
+    VMSTATE_UINT32(tctl, stellaris_enet_state),
+    VMSTATE_UINT32(thr, stellaris_enet_state),
+    VMSTATE_UINT32(mctl, stellaris_enet_state),
+    VMSTATE_UINT32(mdv, stellaris_enet_state),
+    VMSTATE_UINT32(mtxd, stellaris_enet_state),
+    VMSTATE_UINT32(mrxd, stellaris_enet_state),
+    VMSTATE_UINT32(np, stellaris_enet_state),
+    VMSTATE_UINT32(tx_fifo_len, stellaris_enet_state),
+    VMSTATE_UINT8_ARRAY(tx_fifo, stellaris_enet_state, 2048),
+    VMSTATE_STRUCT_ARRAY(rx, stellaris_enet_state, 31, 1,
+                         vmstate_rx_frame, StellarisEnetRxFrame),
+    VMSTATE_UINT32(rx_fifo_offset, stellaris_enet_state),
+    VMSTATE_UINT32(next_packet, stellaris_enet_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stellaris_enet = {
     .name = "stellaris_enet",
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = stellaris_enet_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ris, stellaris_enet_state),
-        VMSTATE_UINT32(im, stellaris_enet_state),
-        VMSTATE_UINT32(rctl, stellaris_enet_state),
-        VMSTATE_UINT32(tctl, stellaris_enet_state),
-        VMSTATE_UINT32(thr, stellaris_enet_state),
-        VMSTATE_UINT32(mctl, stellaris_enet_state),
-        VMSTATE_UINT32(mdv, stellaris_enet_state),
-        VMSTATE_UINT32(mtxd, stellaris_enet_state),
-        VMSTATE_UINT32(mrxd, stellaris_enet_state),
-        VMSTATE_UINT32(np, stellaris_enet_state),
-        VMSTATE_UINT32(tx_fifo_len, stellaris_enet_state),
-        VMSTATE_UINT8_ARRAY(tx_fifo, stellaris_enet_state, 2048),
-        VMSTATE_STRUCT_ARRAY(rx, stellaris_enet_state, 31, 1,
-                             vmstate_rx_frame, StellarisEnetRxFrame),
-        VMSTATE_UINT32(rx_fifo_offset, stellaris_enet_state),
-        VMSTATE_UINT32(next_packet, stellaris_enet_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stellaris_enet_fields,
 };
 
 static void stellaris_enet_update(stellaris_enet_state *s)
@@ -227,7 +231,7 @@ static void stellaris_enet_send(stellaris_enet_state *s)
 /* TODO: Implement MAC address filtering.  */
 static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
+    stellaris_enet_state *s = static_cast<stellaris_enet_state *>(qemu_get_nic_opaque(nc));
     int n;
     uint8_t *p;
     uint32_t crc;

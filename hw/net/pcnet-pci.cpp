@@ -65,7 +65,7 @@ struct PCIPCNetState {
 
 static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = static_cast<PCNetState *>(opaque);
 
     trace_pcnet_aprom_writeb(opaque, addr, val);
     if (BCR_APROMWE(s)) {
@@ -75,7 +75,7 @@ static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
 {
-    PCNetState *s = opaque;
+    PCNetState *s = static_cast<PCNetState *>(opaque);
     uint32_t val = s->prom[addr & 15];
 
     trace_pcnet_aprom_readb(opaque, addr, val);
@@ -85,7 +85,7 @@ static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
 static uint64_t pcnet_ioport_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    PCNetState *d = opaque;
+    PCNetState *d = static_cast<PCNetState *>(opaque);
 
     trace_pcnet_ioport_read(opaque, addr, size);
     if (addr < 0x10) {
@@ -113,7 +113,7 @@ static uint64_t pcnet_ioport_read(void *opaque, hwaddr addr,
 static void pcnet_ioport_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
-    PCNetState *d = opaque;
+    PCNetState *d = static_cast<PCNetState *>(opaque);
 
     trace_pcnet_ioport_write(opaque, addr, data, size);
     if (addr < 0x10) {
@@ -143,15 +143,17 @@ static const MemoryRegionOps pcnet_io_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static const VMStateField vmstate_pci_pcnet_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PCIPCNetState),
+    VMSTATE_STRUCT(state, PCIPCNetState, 0, vmstate_pcnet, PCNetState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pci_pcnet = {
     .name = "pcnet",
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PCIPCNetState),
-        VMSTATE_STRUCT(state, PCIPCNetState, 0, vmstate_pcnet, PCNetState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_pcnet_fields,
 };
 
 /* PCI interface */
@@ -159,21 +161,21 @@ static const VMStateDescription vmstate_pci_pcnet = {
 static const MemoryRegionOps pcnet_mmio_ops = {
     .read = pcnet_ioport_read,
     .write = pcnet_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 4, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pci_physical_memory_write(void *dma_opaque, hwaddr addr,
                                       uint8_t *buf, int len, int do_bswap)
 {
-    pci_dma_write(dma_opaque, addr, buf, len);
+    pci_dma_write(static_cast<PCIDevice *>(dma_opaque), addr, buf, len);
 }
 
 static void pci_physical_memory_read(void *dma_opaque, hwaddr addr,
                                      uint8_t *buf, int len, int do_bswap)
 {
-    pci_dma_read(dma_opaque, addr, buf, len);
+    pci_dma_read(static_cast<PCIDevice *>(dma_opaque), addr, buf, len);
 }
 
 static void pci_pcnet_uninit(PCIDevice *dev)
@@ -272,16 +274,18 @@ static void pcnet_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
+static const InterfaceInfo pcnet_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo pcnet_info = {
     .name          = TYPE_PCI_PCNET,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIPCNetState),
-    .class_init    = pcnet_class_init,
     .instance_init = pcnet_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .class_init    = pcnet_class_init,
+    .interfaces    = pcnet_interfaces,
 };
 
 static void pci_pcnet_register_types(void)

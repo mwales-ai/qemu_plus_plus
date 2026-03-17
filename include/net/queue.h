@@ -24,6 +24,9 @@
 #ifndef QEMU_NET_QUEUE_H
 #define QEMU_NET_QUEUE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct NetPacket NetPacket;
 typedef struct NetQueue NetQueue;
@@ -75,5 +78,9 @@ ssize_t qemu_net_queue_send_iov(NetQueue *queue,
 
 void qemu_net_queue_purge(NetQueue *queue, NetClientState *from);
 bool qemu_net_queue_flush(NetQueue *queue);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_NET_QUEUE_H */

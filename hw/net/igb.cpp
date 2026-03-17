@@ -115,20 +115,20 @@ static void igb_write_config(PCIDevice *dev, uint32_t addr,
 uint64_t
 igb_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    IGBState *s = opaque;
+    IGBState *s = static_cast<IGBState *>(opaque);
     return igb_core_read(&s->core, addr, size);
 }
 
 void
 igb_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    IGBState *s = opaque;
+    IGBState *s = static_cast<IGBState *>(opaque);
     igb_core_write(&s->core, addr, val, size);
 }
 
 void igb_vf_reset(void *opaque, uint16_t vfn)
 {
-    IGBState *s = opaque;
+    IGBState *s = static_cast<IGBState *>(opaque);
     igb_core_vf_reset(&s->core, vfn);
 }
 
@@ -157,7 +157,7 @@ igb_io_get_reg_index(IGBState *s, uint32_t *idx)
 static uint64_t
 igb_io_read(void *opaque, hwaddr addr, unsigned size)
 {
-    IGBState *s = opaque;
+    IGBState *s = static_cast<IGBState *>(opaque);
     uint32_t idx = 0;
     uint64_t val;
 
@@ -181,7 +181,7 @@ igb_io_read(void *opaque, hwaddr addr, unsigned size)
 static void
 igb_io_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    IGBState *s = opaque;
+    IGBState *s = static_cast<IGBState *>(opaque);
     uint32_t idx = 0;
 
     switch (addr) {
@@ -221,40 +221,41 @@ static const MemoryRegionOps io_ops = {
     },
 };
 
+
 static bool
 igb_nc_can_receive(NetClientState *nc)
 {
-    IGBState *s = qemu_get_nic_opaque(nc);
+    IGBState *s = static_cast<IGBState *>(qemu_get_nic_opaque(nc));
     return igb_can_receive(&s->core);
 }
 
 static ssize_t
 igb_nc_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
-    IGBState *s = qemu_get_nic_opaque(nc);
+    IGBState *s = static_cast<IGBState *>(qemu_get_nic_opaque(nc));
     return igb_receive_iov(&s->core, iov, iovcnt);
 }
 
 static ssize_t
 igb_nc_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    IGBState *s = qemu_get_nic_opaque(nc);
+    IGBState *s = static_cast<IGBState *>(qemu_get_nic_opaque(nc));
     return igb_receive(&s->core, buf, size);
 }
 
 static void
 igb_set_link_status(NetClientState *nc)
 {
-    IGBState *s = qemu_get_nic_opaque(nc);
+    IGBState *s = static_cast<IGBState *>(qemu_get_nic_opaque(nc));
     igb_core_set_link_status(&s->core);
 }
 
 static NetClientInfo net_igb_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = igb_nc_can_receive,
     .receive = igb_nc_receive,
     .receive_iov = igb_nc_receive_iov,
+    .can_receive = igb_nc_can_receive,
     .link_status_changed = igb_set_link_status,
 };
 
@@ -499,7 +500,7 @@ static void igb_qdev_reset_hold(Object *obj, ResetType type)
 
 static int igb_pre_save(void *opaque)
 {
-    IGBState *s = opaque;
+    IGBState *s = static_cast<IGBState *>(opaque);
 
     trace_e1000e_cb_pre_save();
 
@@ -510,49 +511,55 @@ static int igb_pre_save(void *opaque)
 
 static int igb_post_load(void *opaque, int version_id)
 {
-    IGBState *s = opaque;
+    IGBState *s = static_cast<IGBState *>(opaque);
 
     trace_e1000e_cb_post_load();
     return igb_core_post_load(&s->core);
 }
 
+static const VMStateField igb_vmstate_tx_ctx_fields[] = {
+    VMSTATE_UINT32(vlan_macip_lens, struct e1000_adv_tx_context_desc),
+    VMSTATE_UINT32(seqnum_seed, struct e1000_adv_tx_context_desc),
+    VMSTATE_UINT32(type_tucmd_mlhl, struct e1000_adv_tx_context_desc),
+    VMSTATE_UINT32(mss_l4len_idx, struct e1000_adv_tx_context_desc),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription igb_vmstate_tx_ctx = {
     .name = "igb-tx-ctx",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(vlan_macip_lens, struct e1000_adv_tx_context_desc),
-        VMSTATE_UINT32(seqnum_seed, struct e1000_adv_tx_context_desc),
-        VMSTATE_UINT32(type_tucmd_mlhl, struct e1000_adv_tx_context_desc),
-        VMSTATE_UINT32(mss_l4len_idx, struct e1000_adv_tx_context_desc),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = igb_vmstate_tx_ctx_fields,
+};
+
+static const VMStateField igb_vmstate_tx_fields[] = {
+    VMSTATE_STRUCT_ARRAY(ctx, igb_tx, 2, 0, igb_vmstate_tx_ctx,
+                         struct e1000_adv_tx_context_desc),
+    VMSTATE_UINT32(first_cmd_type_len, igb_tx),
+    VMSTATE_UINT32(first_olinfo_status, igb_tx),
+    VMSTATE_BOOL(first, igb_tx),
+    VMSTATE_BOOL(skip_cp, igb_tx),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription igb_vmstate_tx = {
     .name = "igb-tx",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(ctx, struct igb_tx, 2, 0, igb_vmstate_tx_ctx,
-                             struct e1000_adv_tx_context_desc),
-        VMSTATE_UINT32(first_cmd_type_len, struct igb_tx),
-        VMSTATE_UINT32(first_olinfo_status, struct igb_tx),
-        VMSTATE_BOOL(first, struct igb_tx),
-        VMSTATE_BOOL(skip_cp, struct igb_tx),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = igb_vmstate_tx_fields,
+};
+
+static const VMStateField igb_vmstate_intr_timer_fields[] = {
+    VMSTATE_TIMER_PTR(timer, IGBIntrDelayTimer),
+    VMSTATE_BOOL(running, IGBIntrDelayTimer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription igb_vmstate_intr_timer = {
     .name = "igb-intr-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, IGBIntrDelayTimer),
-        VMSTATE_BOOL(running, IGBIntrDelayTimer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = igb_vmstate_intr_timer_fields,
 };
 
 #define VMSTATE_IGB_INTR_DELAY_TIMER(_f, _s)                        \
@@ -563,35 +570,37 @@ static const VMStateDescription igb_vmstate_intr_timer = {
     VMSTATE_STRUCT_ARRAY(_f, _s, _num, 0,                           \
                          igb_vmstate_intr_timer, IGBIntrDelayTimer)
 
+static const VMStateField igb_vmstate_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, IGBState),
+    VMSTATE_MSIX(parent_obj, IGBState),
+
+    VMSTATE_UINT32(ioaddr, IGBState),
+    VMSTATE_UINT8(core.rx_desc_len, IGBState),
+    VMSTATE_UINT16_ARRAY(core.eeprom, IGBState, IGB_EEPROM_SIZE),
+    VMSTATE_UINT16_ARRAY(core.phy, IGBState, MAX_PHY_REG_ADDRESS + 1),
+    VMSTATE_UINT32_ARRAY(core.mac, IGBState, E1000E_MAC_SIZE),
+    VMSTATE_UINT8_ARRAY(core.permanent_mac, IGBState, ETH_ALEN),
+
+    VMSTATE_IGB_INTR_DELAY_TIMER_ARRAY(core.eitr, IGBState,
+                                       IGB_INTR_NUM),
+
+    VMSTATE_UINT32_ARRAY(core.eitr_guest_value, IGBState, IGB_INTR_NUM),
+
+    VMSTATE_STRUCT_ARRAY(core.tx, IGBState, IGB_NUM_QUEUES, 0,
+                         igb_vmstate_tx, igb_tx),
+
+    VMSTATE_INT64(core.timadj, IGBState),
+
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription igb_vmstate = {
     .name = "igb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = igb_pre_save,
     .post_load = igb_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, IGBState),
-        VMSTATE_MSIX(parent_obj, IGBState),
-
-        VMSTATE_UINT32(ioaddr, IGBState),
-        VMSTATE_UINT8(core.rx_desc_len, IGBState),
-        VMSTATE_UINT16_ARRAY(core.eeprom, IGBState, IGB_EEPROM_SIZE),
-        VMSTATE_UINT16_ARRAY(core.phy, IGBState, MAX_PHY_REG_ADDRESS + 1),
-        VMSTATE_UINT32_ARRAY(core.mac, IGBState, E1000E_MAC_SIZE),
-        VMSTATE_UINT8_ARRAY(core.permanent_mac, IGBState, ETH_ALEN),
-
-        VMSTATE_IGB_INTR_DELAY_TIMER_ARRAY(core.eitr, IGBState,
-                                           IGB_INTR_NUM),
-
-        VMSTATE_UINT32_ARRAY(core.eitr_guest_value, IGBState, IGB_INTR_NUM),
-
-        VMSTATE_STRUCT_ARRAY(core.tx, IGBState, IGB_NUM_QUEUES, 0,
-                             igb_vmstate_tx, struct igb_tx),
-
-        VMSTATE_INT64(core.timadj, IGBState),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .pre_save = igb_pre_save,
+    .fields = igb_vmstate_fields,
 };
 
 static const Property igb_properties[] = {
@@ -599,11 +608,11 @@ static const Property igb_properties[] = {
     DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
 };
 
-static void igb_class_init(ObjectClass *class, const void *data)
+static void igb_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(class);
-    ResettableClass *rc = RESETTABLE_CLASS(class);
-    PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
 
     c->realize = igb_pci_realize;
     c->exit = igb_pci_uninit;
@@ -629,16 +638,18 @@ static void igb_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
+static const InterfaceInfo igb_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
+};
+
 static const TypeInfo igb_info = {
     .name = TYPE_IGB,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IGBState),
-    .class_init = igb_class_init,
     .instance_init = igb_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+    .class_init = igb_class_init,
+    .interfaces = igb_interfaces,
 };
 
 static void igb_register_types(void)

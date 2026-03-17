@@ -101,6 +101,11 @@ struct IGBCore {
     int64_t timadj;
 };
 
+#ifdef __cplusplus
+/* Typedef for nested struct, needed for C++ VMSTATE macros */
+typedef IGBCore::igb_tx igb_tx;
+#endif
+
 void
 igb_core_write(IGBCore *core, hwaddr addr, uint64_t val, unsigned size);
 

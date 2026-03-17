@@ -610,7 +610,7 @@ static void nic_selective_reset(EEPRO100State * s)
 
 static void nic_reset(void *opaque)
 {
-    EEPRO100State *s = opaque;
+    EEPRO100State *s = static_cast<EEPRO100State *>(opaque);
     TRACE(OTHER, logout("%p\n", s));
     /* TODO: Clearing of hash register for selective reset, too? */
     memset(&s->mult[0], 0, sizeof(s->mult));
@@ -680,7 +680,7 @@ enum commands {
 
 static cu_state_t get_cu_state(EEPRO100State * s)
 {
-    return ((s->mem[SCBStatus] & BITS(7, 6)) >> 6);
+    return static_cast<cu_state_t>((s->mem[SCBStatus] & BITS(7, 6)) >> 6);
 }
 
 static void set_cu_state(EEPRO100State * s, cu_state_t state)
@@ -690,7 +690,7 @@ static void set_cu_state(EEPRO100State * s, cu_state_t state)
 
 static ru_state_t get_ru_state(EEPRO100State * s)
 {
-    return ((s->mem[SCBStatus] & BITS(5, 2)) >> 2);
+    return static_cast<ru_state_t>((s->mem[SCBStatus] & BITS(5, 2)) >> 2);
 }
 
 static void set_ru_state(EEPRO100State * s, ru_state_t state)
@@ -1378,7 +1378,7 @@ static uint16_t eepro100_read2(EEPRO100State * s, uint32_t addr)
 {
     uint16_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
-        val = e100_read_reg2(s, addr);
+        val = e100_read_reg2(s, static_cast<E100RegisterOffset>(addr));
     }
 
     switch (addr) {
@@ -1406,7 +1406,7 @@ static uint32_t eepro100_read4(EEPRO100State * s, uint32_t addr)
 {
     uint32_t val = 0;
     if (addr <= sizeof(s->mem) - sizeof(val)) {
-        val = e100_read_reg4(s, addr);
+        val = e100_read_reg4(s, static_cast<E100RegisterOffset>(addr));
     }
 
     switch (addr) {
@@ -1504,7 +1504,7 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 {
     /* SCBStatus is readonly. */
     if (addr > SCBStatus && addr <= sizeof(s->mem) - sizeof(val)) {
-        e100_write_reg2(s, addr, val);
+        e100_write_reg2(s, static_cast<E100RegisterOffset>(addr), val);
     }
 
     switch (addr) {
@@ -1549,7 +1549,7 @@ static void eepro100_write2(EEPRO100State * s, uint32_t addr, uint16_t val)
 static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
 {
     if (addr <= sizeof(s->mem) - sizeof(val)) {
-        e100_write_reg4(s, addr, val);
+        e100_write_reg4(s, static_cast<E100RegisterOffset>(addr), val);
     }
 
     switch (addr) {
@@ -1578,7 +1578,7 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
 static uint64_t eepro100_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    EEPRO100State *s = opaque;
+    EEPRO100State *s = static_cast<EEPRO100State *>(opaque);
 
     switch (size) {
     case 1: return eepro100_read1(s, addr);
@@ -1591,7 +1591,7 @@ static uint64_t eepro100_read(void *opaque, hwaddr addr,
 static void eepro100_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
 {
-    EEPRO100State *s = opaque;
+    EEPRO100State *s = static_cast<EEPRO100State *>(opaque);
 
     switch (size) {
     case 1:
@@ -1621,7 +1621,7 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
      * - Interesting packets should set bit 29 in power management driver register.
      */
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
-    EEPRO100State *s = qemu_get_nic_opaque(nc);
+    EEPRO100State *s = static_cast<EEPRO100State *>(qemu_get_nic_opaque(nc));
     uint16_t rfd_status = 0xa000;
 #if defined(CONFIG_PAD_RECEIVED_FRAMES)
     uint8_t min_buf[60];
@@ -1769,55 +1769,57 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     return size;
 }
 
+static const VMStateField vmstate_eepro100_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, EEPRO100State),
+    VMSTATE_UNUSED(32),
+    VMSTATE_BUFFER(mult, EEPRO100State),
+    VMSTATE_BUFFER(mem, EEPRO100State),
+    /* Save all members of struct between scb_stat and mem. */
+    VMSTATE_UINT8(scb_stat, EEPRO100State),
+    VMSTATE_UINT8(int_stat, EEPRO100State),
+    VMSTATE_UNUSED(3*4),
+    VMSTATE_MACADDR(conf.macaddr, EEPRO100State),
+    VMSTATE_UNUSED(19*4),
+    VMSTATE_UINT16_ARRAY(mdimem, EEPRO100State, 32),
+    /* The eeprom should be saved and restored by its own routines. */
+    VMSTATE_UINT32(device, EEPRO100State),
+    /* TODO check device. */
+    VMSTATE_UINT32(cu_base, EEPRO100State),
+    VMSTATE_UINT32(cu_offset, EEPRO100State),
+    VMSTATE_UINT32(ru_base, EEPRO100State),
+    VMSTATE_UINT32(ru_offset, EEPRO100State),
+    VMSTATE_UINT32(statsaddr, EEPRO100State),
+    /* Save eepro100_stats_t statistics. */
+    VMSTATE_UINT32(statistics.tx_good_frames, EEPRO100State),
+    VMSTATE_UINT32(statistics.tx_max_collisions, EEPRO100State),
+    VMSTATE_UINT32(statistics.tx_late_collisions, EEPRO100State),
+    VMSTATE_UINT32(statistics.tx_underruns, EEPRO100State),
+    VMSTATE_UINT32(statistics.tx_lost_crs, EEPRO100State),
+    VMSTATE_UINT32(statistics.tx_deferred, EEPRO100State),
+    VMSTATE_UINT32(statistics.tx_single_collisions, EEPRO100State),
+    VMSTATE_UINT32(statistics.tx_multiple_collisions, EEPRO100State),
+    VMSTATE_UINT32(statistics.tx_total_collisions, EEPRO100State),
+    VMSTATE_UINT32(statistics.rx_good_frames, EEPRO100State),
+    VMSTATE_UINT32(statistics.rx_crc_errors, EEPRO100State),
+    VMSTATE_UINT32(statistics.rx_alignment_errors, EEPRO100State),
+    VMSTATE_UINT32(statistics.rx_resource_errors, EEPRO100State),
+    VMSTATE_UINT32(statistics.rx_overrun_errors, EEPRO100State),
+    VMSTATE_UINT32(statistics.rx_cdt_errors, EEPRO100State),
+    VMSTATE_UINT32(statistics.rx_short_frame_errors, EEPRO100State),
+    VMSTATE_UINT32(statistics.fc_xmt_pause, EEPRO100State),
+    VMSTATE_UINT32(statistics.fc_rcv_pause, EEPRO100State),
+    VMSTATE_UINT32(statistics.fc_rcv_unsupported, EEPRO100State),
+    VMSTATE_UINT16(statistics.xmt_tco_frames, EEPRO100State),
+    VMSTATE_UINT16(statistics.rcv_tco_frames, EEPRO100State),
+    /* Configuration bytes. */
+    VMSTATE_BUFFER(configuration, EEPRO100State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_eepro100 = {
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, EEPRO100State),
-        VMSTATE_UNUSED(32),
-        VMSTATE_BUFFER(mult, EEPRO100State),
-        VMSTATE_BUFFER(mem, EEPRO100State),
-        /* Save all members of struct between scb_stat and mem. */
-        VMSTATE_UINT8(scb_stat, EEPRO100State),
-        VMSTATE_UINT8(int_stat, EEPRO100State),
-        VMSTATE_UNUSED(3*4),
-        VMSTATE_MACADDR(conf.macaddr, EEPRO100State),
-        VMSTATE_UNUSED(19*4),
-        VMSTATE_UINT16_ARRAY(mdimem, EEPRO100State, 32),
-        /* The eeprom should be saved and restored by its own routines. */
-        VMSTATE_UINT32(device, EEPRO100State),
-        /* TODO check device. */
-        VMSTATE_UINT32(cu_base, EEPRO100State),
-        VMSTATE_UINT32(cu_offset, EEPRO100State),
-        VMSTATE_UINT32(ru_base, EEPRO100State),
-        VMSTATE_UINT32(ru_offset, EEPRO100State),
-        VMSTATE_UINT32(statsaddr, EEPRO100State),
-        /* Save eepro100_stats_t statistics. */
-        VMSTATE_UINT32(statistics.tx_good_frames, EEPRO100State),
-        VMSTATE_UINT32(statistics.tx_max_collisions, EEPRO100State),
-        VMSTATE_UINT32(statistics.tx_late_collisions, EEPRO100State),
-        VMSTATE_UINT32(statistics.tx_underruns, EEPRO100State),
-        VMSTATE_UINT32(statistics.tx_lost_crs, EEPRO100State),
-        VMSTATE_UINT32(statistics.tx_deferred, EEPRO100State),
-        VMSTATE_UINT32(statistics.tx_single_collisions, EEPRO100State),
-        VMSTATE_UINT32(statistics.tx_multiple_collisions, EEPRO100State),
-        VMSTATE_UINT32(statistics.tx_total_collisions, EEPRO100State),
-        VMSTATE_UINT32(statistics.rx_good_frames, EEPRO100State),
-        VMSTATE_UINT32(statistics.rx_crc_errors, EEPRO100State),
-        VMSTATE_UINT32(statistics.rx_alignment_errors, EEPRO100State),
-        VMSTATE_UINT32(statistics.rx_resource_errors, EEPRO100State),
-        VMSTATE_UINT32(statistics.rx_overrun_errors, EEPRO100State),
-        VMSTATE_UINT32(statistics.rx_cdt_errors, EEPRO100State),
-        VMSTATE_UINT32(statistics.rx_short_frame_errors, EEPRO100State),
-        VMSTATE_UINT32(statistics.fc_xmt_pause, EEPRO100State),
-        VMSTATE_UINT32(statistics.fc_rcv_pause, EEPRO100State),
-        VMSTATE_UINT32(statistics.fc_rcv_unsupported, EEPRO100State),
-        VMSTATE_UINT16(statistics.xmt_tco_frames, EEPRO100State),
-        VMSTATE_UINT16(statistics.rcv_tco_frames, EEPRO100State),
-        /* Configuration bytes. */
-        VMSTATE_BUFFER(configuration, EEPRO100State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_eepro100_fields,
 };
 
 static void pci_nic_uninit(PCIDevice *pci_dev)
@@ -1883,7 +1885,7 @@ static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 
     qemu_register_reset(nic_reset, s);
 
-    s->vmstate = g_memdup(&vmstate_eepro100, sizeof(vmstate_eepro100));
+    s->vmstate = static_cast<VMStateDescription *>(g_memdup(&vmstate_eepro100, sizeof(vmstate_eepro100)));
     s->vmstate->name = qemu_get_queue(s->nic)->model;
     vmstate_register_any(VMSTATE_IF(&pci_dev->qdev), s->vmstate, s);
 }
@@ -1900,11 +1902,11 @@ static E100PCIDeviceInfo e100_devices[] = {
     {
         .name = "i82550",
         .desc = "Intel i82550 Ethernet",
-        .device = i82550,
         /* TODO: check device id. */
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* Revision ID: 0x0c, 0x0d, 0x0e. */
         .revision = 0x0e,
+        .device = i82550,
         /* TODO: check size of statistical counters. */
         .stats_size = 80,
         /* TODO: check extended tcb support. */
@@ -1913,10 +1915,10 @@ static E100PCIDeviceInfo e100_devices[] = {
     },{
         .name = "i82551",
         .desc = "Intel i82551 Ethernet",
-        .device = i82551,
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* Revision ID: 0x0f, 0x10. */
         .revision = 0x0f,
+        .device = i82551,
         /* TODO: check size of statistical counters. */
         .stats_size = 80,
         .has_extended_tcb_support = true,
@@ -1924,64 +1926,63 @@ static E100PCIDeviceInfo e100_devices[] = {
     },{
         .name = "i82557a",
         .desc = "Intel i82557A Ethernet",
-        .device = i82557A,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x01,
+        .device = i82557A,
         .power_management = false,
     },{
         .name = "i82557b",
         .desc = "Intel i82557B Ethernet",
-        .device = i82557B,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x02,
+        .device = i82557B,
         .power_management = false,
     },{
         .name = "i82557c",
         .desc = "Intel i82557C Ethernet",
-        .device = i82557C,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x03,
+        .device = i82557C,
         .power_management = false,
     },{
         .name = "i82558a",
         .desc = "Intel i82558A Ethernet",
-        .device = i82558A,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x04,
+        .device = i82558A,
         .stats_size = 76,
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
         .name = "i82558b",
         .desc = "Intel i82558B Ethernet",
-        .device = i82558B,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x05,
+        .device = i82558B,
         .stats_size = 76,
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
         .name = "i82559a",
         .desc = "Intel i82559A Ethernet",
-        .device = i82559A,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x06,
+        .device = i82559A,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
         .name = "i82559b",
         .desc = "Intel i82559B Ethernet",
-        .device = i82559B,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x07,
+        .device = i82559B,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
         .name = "i82559c",
         .desc = "Intel i82559C Ethernet",
-        .device = i82559C,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
 #if 0
         .revision = 0x08,
@@ -1992,26 +1993,27 @@ static E100PCIDeviceInfo e100_devices[] = {
         .subsystem_vendor_id = PCI_VENDOR_ID_INTEL,
         .subsystem_id = 0x0040,
 #endif
+        .device = i82559C,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
         .name = "i82559er",
         .desc = "Intel i82559ER Ethernet",
-        .device = i82559ER,
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
         .revision = 0x09,
+        .device = i82559ER,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
         .name = "i82562",
         .desc = "Intel i82562 Ethernet",
-        .device = i82562,
         /* TODO: check device id. */
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* TODO: wrong revision id. */
         .revision = 0x0e,
+        .device = i82562,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2019,9 +2021,9 @@ static E100PCIDeviceInfo e100_devices[] = {
         /* Toshiba Tecra 8200. */
         .name = "i82801",
         .desc = "Intel i82801 Ethernet",
-        .device = i82801,
         .device_id = 0x2449,
         .revision = 0x03,
+        .device = i82801,
         .stats_size = 80,
         .has_extended_tcb_support = true,
         .power_management = true,
@@ -2031,7 +2033,7 @@ static E100PCIDeviceInfo e100_devices[] = {
 static E100PCIDeviceInfo *eepro100_get_class_by_name(const char *type_name)
 {
     E100PCIDeviceInfo *info = NULL;
-    int i;
+    size_t i;
 
     /* This is admittedly awkward but also temporary.  QOM allows for
      * parameterized typing and for subclassing both of which would suitable
@@ -2094,10 +2096,11 @@ static void eepro100_register_types(void)
         type_info.class_init = eepro100_class_init;
         type_info.instance_size = sizeof(EEPRO100State);
         type_info.instance_init = eepro100_instance_init;
-        type_info.interfaces = (const InterfaceInfo[]) {
+        static const InterfaceInfo eepro100_interfaces[] = {
             { INTERFACE_CONVENTIONAL_PCI_DEVICE },
             { },
         };
+        type_info.interfaces = eepro100_interfaces;
 
         type_register_static(&type_info);
     }

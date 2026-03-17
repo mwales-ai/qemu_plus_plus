@@ -21,6 +21,10 @@
 #include "net/eth.h"
 #include "exec/hwaddr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* define to enable packet dump functions */
 /*#define NET_TX_PKT_DEBUG*/
 
@@ -230,5 +234,9 @@ bool net_tx_pkt_has_fragments(struct NetTxPkt *pkt);
  * @pkt            packet
  */
 void net_tx_pkt_fix_ip6_payload_len(struct NetTxPkt *pkt);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -112,6 +112,11 @@ struct E1000Core {
     int64_t timadj;
 };
 
+#ifdef __cplusplus
+/* Typedef for nested struct, needed for C++ VMSTATE macros */
+typedef E1000Core::e1000e_tx e1000e_tx;
+#endif
+
 void
 e1000e_core_write(E1000ECore *core, hwaddr addr, uint64_t val, unsigned size);
 

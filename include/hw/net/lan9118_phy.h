@@ -14,6 +14,10 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_LAN9118_PHY "lan9118-phy"
 OBJECT_DECLARE_SIMPLE_TYPE(Lan9118PhyState, LAN9118_PHY)
 
@@ -33,5 +37,9 @@ void lan9118_phy_update_link(Lan9118PhyState *s, bool link_down);
 void lan9118_phy_reset(Lan9118PhyState *s);
 uint16_t lan9118_phy_read(Lan9118PhyState *s, int reg);
 void lan9118_phy_write(Lan9118PhyState *s, int reg, uint16_t val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

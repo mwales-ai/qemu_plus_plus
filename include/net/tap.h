@@ -28,9 +28,17 @@
 
 #include "standard-headers/linux/virtio_net.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int tap_enable(NetClientState *nc);
 int tap_disable(NetClientState *nc);
 
 int tap_get_fd(NetClientState *nc);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_NET_TAP_H */

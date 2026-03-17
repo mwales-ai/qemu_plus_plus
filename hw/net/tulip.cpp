@@ -195,7 +195,7 @@ static void tulip_copy_rx_bytes(TULIPState *s, struct tulip_descriptor *desc)
 
 static bool tulip_filter_address(TULIPState *s, const uint8_t *addr)
 {
-    static const char broadcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+    static const unsigned char broadcast[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
     bool ret = false;
     int i;
 
@@ -279,7 +279,7 @@ static ssize_t tulip_receive(TULIPState *s, const uint8_t *buf, size_t size)
 static ssize_t tulip_receive_nc(NetClientState *nc,
                              const uint8_t *buf, size_t size)
 {
-    return tulip_receive(qemu_get_nic_opaque(nc), buf, size);
+    return tulip_receive(static_cast<TULIPState *>(qemu_get_nic_opaque(nc)), buf, size);
 }
 
 static NetClientInfo net_tulip_info = {
@@ -532,7 +532,7 @@ static void tulip_update_ts(TULIPState *s, int state)
 static uint64_t tulip_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    TULIPState *s = opaque;
+    TULIPState *s = static_cast<TULIPState *>(opaque);
     uint64_t data = 0;
 
     switch (addr) {
@@ -749,7 +749,7 @@ static void tulip_qdev_reset(DeviceState *dev)
 static void tulip_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
 {
-    TULIPState *s = opaque;
+    TULIPState *s = static_cast<TULIPState *>(opaque);
     trace_tulip_reg_write(addr, tulip_reg_name(addr), size, data);
 
     switch (addr) {
@@ -1029,16 +1029,18 @@ static void tulip_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
+static const InterfaceInfo tulip_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo tulip_info = {
     .name          = TYPE_TULIP,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(TULIPState),
-    .class_init    = tulip_class_init,
     .instance_init = tulip_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .class_init    = tulip_class_init,
+    .interfaces    = tulip_interfaces,
 };
 
 static void tulip_register_types(void)

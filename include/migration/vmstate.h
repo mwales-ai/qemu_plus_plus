@@ -761,13 +761,13 @@ extern const VMStateInfo vmstate_info_qlist;
  */
 #define VMSTATE_WITH_TMP_TEST(_state, _test, _tmp_type, _vmsd) {     \
     .name         = "tmp",                                           \
-    .field_exists = (_test),                                         \
     .size         = sizeof(_tmp_type) +                              \
                     QEMU_BUILD_BUG_ON_ZERO(offsetof(_tmp_type, parent) != 0) + \
                     type_check_pointer(_state,                       \
                         typeof_field(_tmp_type, parent)),            \
-    .vmsd         = &(_vmsd),                                        \
     .info         = &vmstate_info_tmp,                               \
+    .vmsd         = &(_vmsd),                                        \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_WITH_TMP(_state, _tmp_type, _vmsd) \
