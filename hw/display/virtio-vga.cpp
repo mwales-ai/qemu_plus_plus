@@ -9,7 +9,7 @@
 
 static void virtio_vga_base_invalidate_display(void *opaque)
 {
-    VirtIOVGABase *vvga = opaque;
+    VirtIOVGABase *vvga = static_cast<VirtIOVGABase *>(opaque);
     VirtIOGPUBase *g = vvga->vgpu;
 
     if (g->enable) {
@@ -21,7 +21,7 @@ static void virtio_vga_base_invalidate_display(void *opaque)
 
 static void virtio_vga_base_update_display(void *opaque)
 {
-    VirtIOVGABase *vvga = opaque;
+    VirtIOVGABase *vvga = static_cast<VirtIOVGABase *>(opaque);
     VirtIOGPUBase *g = vvga->vgpu;
 
     if (g->enable) {
@@ -33,7 +33,7 @@ static void virtio_vga_base_update_display(void *opaque)
 
 static void virtio_vga_base_text_update(void *opaque, console_ch_t *chardata)
 {
-    VirtIOVGABase *vvga = opaque;
+    VirtIOVGABase *vvga = static_cast<VirtIOVGABase *>(opaque);
     VirtIOGPUBase *g = vvga->vgpu;
 
     if (g->enable) {
@@ -49,7 +49,7 @@ static void virtio_vga_base_text_update(void *opaque, console_ch_t *chardata)
 
 static void virtio_vga_base_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
 {
-    VirtIOVGABase *vvga = opaque;
+    VirtIOVGABase *vvga = static_cast<VirtIOVGABase *>(opaque);
     VirtIOGPUBase *g = vvga->vgpu;
 
     if (g->hw_ops->ui_info) {
@@ -59,7 +59,7 @@ static void virtio_vga_base_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info
 
 static void virtio_vga_base_gl_block(void *opaque, bool block)
 {
-    VirtIOVGABase *vvga = opaque;
+    VirtIOVGABase *vvga = static_cast<VirtIOVGABase *>(opaque);
     VirtIOGPUBase *g = vvga->vgpu;
 
     if (g->hw_ops->gl_block) {
@@ -69,7 +69,7 @@ static void virtio_vga_base_gl_block(void *opaque, bool block)
 
 static int virtio_vga_base_get_flags(void *opaque)
 {
-    VirtIOVGABase *vvga = opaque;
+    VirtIOVGABase *vvga = static_cast<VirtIOVGABase *>(opaque);
     VirtIOGPUBase *g = vvga->vgpu;
 
     return g->hw_ops->get_flags(g);
@@ -242,9 +242,9 @@ static const TypeInfo virtio_vga_base_info = {
     .name          = TYPE_VIRTIO_VGA_BASE,
     .parent        = TYPE_VIRTIO_PCI,
     .instance_size = sizeof(VirtIOVGABase),
+    .is_abstract   = true,
     .class_size    = sizeof(VirtIOVGABaseClass),
     .class_init    = virtio_vga_base_class_init,
-    .is_abstract      = true,
 };
 module_obj(TYPE_VIRTIO_VGA_BASE);
 module_kconfig(VIRTIO_VGA);

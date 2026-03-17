@@ -42,7 +42,7 @@ typedef struct ESCCChannelState {
     int clock;
     uint32_t vmstate_dummy;
     ESCCChnID chn; /* this channel, A (base+4) or B (base+0) */
-    ESCCChnType type;
+    uint32_t type;
     uint8_t rx, tx;
     QemuInputHandlerState *hs;
     char *sunkbd_layout;

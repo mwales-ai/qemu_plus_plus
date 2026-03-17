@@ -555,7 +555,7 @@ static inline Manufacturer get_man(Flash *s)
 
 static void blk_sync_complete(void *opaque, int ret)
 {
-    QEMUIOVector *iov = opaque;
+    QEMUIOVector *iov = static_cast<QEMUIOVector *>(opaque);
 
     qemu_iovec_destroy(iov);
     g_free(iov);
@@ -578,8 +578,8 @@ static void flash_sync_page(Flash *s, int page)
     qemu_iovec_init(iov, 1);
     qemu_iovec_add(iov, s->storage + page * s->pi->page_size,
                    s->pi->page_size);
-    blk_aio_pwritev(s->blk, page * s->pi->page_size, iov, 0,
-                    blk_sync_complete, iov);
+    blk_aio_pwritev(s->blk, page * s->pi->page_size, iov,
+                    static_cast<BdrvRequestFlags>(0), blk_sync_complete, iov);
 }
 
 static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
@@ -594,7 +594,8 @@ static inline void flash_sync_area(Flash *s, int64_t off, int64_t len)
     iov = g_new(QEMUIOVector, 1);
     qemu_iovec_init(iov, 1);
     qemu_iovec_add(iov, s->storage + off, len);
-    blk_aio_pwritev(s->blk, off, iov, 0, blk_sync_complete, iov);
+    blk_aio_pwritev(s->blk, off, iov, static_cast<BdrvRequestFlags>(0),
+                    blk_sync_complete, iov);
 }
 
 static void flash_erase(Flash *s, int offset, FlashCMD cmd)
@@ -787,7 +788,7 @@ static void complete_collecting_data(Flash *s)
     case ERASE_SECTOR:
     case ERASE4_SECTOR:
     case DIE_ERASE:
-        flash_erase(s, s->cur_addr, s->cmd_in_progress);
+        flash_erase(s, s->cur_addr, static_cast<FlashCMD>(s->cmd_in_progress));
         break;
     case WRSR:
         s->status_register_write_disabled = extract32(s->data[0], 7, 1);
@@ -1682,7 +1683,7 @@ static void m25p80_realize(SSIPeripheral *ss, Error **errp)
         }
 
         trace_m25p80_binding(s);
-        s->storage = blk_blockalign(s->blk, s->size);
+        s->storage = static_cast<uint8_t *>(blk_blockalign(s->blk, s->size));
 
         if (!blk_check_size_and_read_all(s->blk, DEVICE(s),
                                          s->storage, s->size, errp)) {
@@ -1690,7 +1691,7 @@ static void m25p80_realize(SSIPeripheral *ss, Error **errp)
         }
     } else {
         trace_m25p80_binding_no_bdrv(s);
-        s->storage = blk_blockalign(NULL, s->size);
+        s->storage = static_cast<uint8_t *>(blk_blockalign(NULL, s->size));
         memset(s->storage, 0xFF, s->size);
     }
 
@@ -1746,15 +1747,17 @@ static bool m25p80_data_read_loop_needed(void *opaque)
     return s->data_read_loop;
 }
 
+static const VMStateField vmstate_m25p80_data_read_loop_fields[] = {
+    VMSTATE_BOOL(data_read_loop, Flash),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_m25p80_data_read_loop = {
     .name = "m25p80/data_read_loop",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m25p80_data_read_loop_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(data_read_loop, Flash),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_m25p80_data_read_loop_fields,
 };
 
 static bool m25p80_aai_enable_needed(void *opaque)
@@ -1764,15 +1767,17 @@ static bool m25p80_aai_enable_needed(void *opaque)
     return s->aai_enable;
 }
 
+static const VMStateField vmstate_m25p80_aai_enable_fields[] = {
+    VMSTATE_BOOL(aai_enable, Flash),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_m25p80_aai_enable = {
     .name = "m25p80/aai_enable",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m25p80_aai_enable_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(aai_enable, Flash),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_m25p80_aai_enable_fields,
 };
 
 static bool m25p80_wp_level_srwd_needed(void *opaque)
@@ -1782,16 +1787,18 @@ static bool m25p80_wp_level_srwd_needed(void *opaque)
     return !s->wp_level || s->status_register_write_disabled;
 }
 
+static const VMStateField vmstate_m25p80_write_protect_fields[] = {
+    VMSTATE_BOOL(wp_level, Flash),
+    VMSTATE_BOOL(status_register_write_disabled, Flash),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_m25p80_write_protect = {
     .name = "m25p80/write_protect",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m25p80_wp_level_srwd_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(wp_level, Flash),
-        VMSTATE_BOOL(status_register_write_disabled, Flash),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_m25p80_write_protect_fields,
 };
 
 static bool m25p80_block_protect_needed(void *opaque)
@@ -1805,56 +1812,62 @@ static bool m25p80_block_protect_needed(void *opaque)
            s->top_bottom_bit;
 }
 
+static const VMStateField vmstate_m25p80_block_protect_fields[] = {
+    VMSTATE_BOOL(block_protect0, Flash),
+    VMSTATE_BOOL(block_protect1, Flash),
+    VMSTATE_BOOL(block_protect2, Flash),
+    VMSTATE_BOOL(block_protect3, Flash),
+    VMSTATE_BOOL(top_bottom_bit, Flash),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_m25p80_block_protect = {
     .name = "m25p80/block_protect",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = m25p80_block_protect_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(block_protect0, Flash),
-        VMSTATE_BOOL(block_protect1, Flash),
-        VMSTATE_BOOL(block_protect2, Flash),
-        VMSTATE_BOOL(block_protect3, Flash),
-        VMSTATE_BOOL(top_bottom_bit, Flash),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_m25p80_block_protect_fields,
+};
+
+static const VMStateField vmstate_m25p80_fields[] = {
+    VMSTATE_UINT8(state, Flash),
+    VMSTATE_UINT8_ARRAY(data, Flash, M25P80_INTERNAL_DATA_BUFFER_SZ),
+    VMSTATE_UINT32(len, Flash),
+    VMSTATE_UINT32(pos, Flash),
+    VMSTATE_UINT8(needed_bytes, Flash),
+    VMSTATE_UINT8(cmd_in_progress, Flash),
+    VMSTATE_UINT32(cur_addr, Flash),
+    VMSTATE_BOOL(write_enable, Flash),
+    VMSTATE_BOOL(reset_enable, Flash),
+    VMSTATE_UINT8(ear, Flash),
+    VMSTATE_BOOL(four_bytes_address_mode, Flash),
+    VMSTATE_UINT32(nonvolatile_cfg, Flash),
+    VMSTATE_UINT32(volatile_cfg, Flash),
+    VMSTATE_UINT32(enh_volatile_cfg, Flash),
+    VMSTATE_BOOL(quad_enable, Flash),
+    VMSTATE_UINT8(spansion_cr1nv, Flash),
+    VMSTATE_UINT8(spansion_cr2nv, Flash),
+    VMSTATE_UINT8(spansion_cr3nv, Flash),
+    VMSTATE_UINT8(spansion_cr4nv, Flash),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_m25p80_subsections[] = {
+    &vmstate_m25p80_data_read_loop,
+    &vmstate_m25p80_aai_enable,
+    &vmstate_m25p80_write_protect,
+    &vmstate_m25p80_block_protect,
+    NULL
 };
 
 static const VMStateDescription vmstate_m25p80 = {
     .name = "m25p80",
     .version_id = 0,
     .minimum_version_id = 0,
-    .pre_save = m25p80_pre_save,
     .pre_load = m25p80_pre_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(state, Flash),
-        VMSTATE_UINT8_ARRAY(data, Flash, M25P80_INTERNAL_DATA_BUFFER_SZ),
-        VMSTATE_UINT32(len, Flash),
-        VMSTATE_UINT32(pos, Flash),
-        VMSTATE_UINT8(needed_bytes, Flash),
-        VMSTATE_UINT8(cmd_in_progress, Flash),
-        VMSTATE_UINT32(cur_addr, Flash),
-        VMSTATE_BOOL(write_enable, Flash),
-        VMSTATE_BOOL(reset_enable, Flash),
-        VMSTATE_UINT8(ear, Flash),
-        VMSTATE_BOOL(four_bytes_address_mode, Flash),
-        VMSTATE_UINT32(nonvolatile_cfg, Flash),
-        VMSTATE_UINT32(volatile_cfg, Flash),
-        VMSTATE_UINT32(enh_volatile_cfg, Flash),
-        VMSTATE_BOOL(quad_enable, Flash),
-        VMSTATE_UINT8(spansion_cr1nv, Flash),
-        VMSTATE_UINT8(spansion_cr2nv, Flash),
-        VMSTATE_UINT8(spansion_cr3nv, Flash),
-        VMSTATE_UINT8(spansion_cr4nv, Flash),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_m25p80_data_read_loop,
-        &vmstate_m25p80_aai_enable,
-        &vmstate_m25p80_write_protect,
-        &vmstate_m25p80_block_protect,
-        NULL
-    }
+    .pre_save = m25p80_pre_save,
+    .fields = vmstate_m25p80_fields,
+    .subsections = vmstate_m25p80_subsections,
 };
 
 static void m25p80_class_init(ObjectClass *klass, const void *data)
@@ -1871,7 +1884,7 @@ static void m25p80_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, m25p80_properties);
     device_class_set_legacy_reset(dc, m25p80_reset);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    mc->pi = data;
+    mc->pi = static_cast<const FlashPartInfo *>(data);
     dc->desc = "Serial Flash";
 }
 
@@ -1879,8 +1892,8 @@ static const TypeInfo m25p80_info = {
     .name           = TYPE_M25P80,
     .parent         = TYPE_SSI_PERIPHERAL,
     .instance_size  = sizeof(Flash),
+    .is_abstract    = true,
     .class_size     = sizeof(M25P80Class),
-    .is_abstract       = true,
 };
 
 static void m25p80_register_types(void)

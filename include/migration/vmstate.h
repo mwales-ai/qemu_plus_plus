@@ -444,12 +444,12 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_VARRAY_INT32(_field, _state, _field_num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
+    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
+    .size       = sizeof(_type),                                     \
     .num_offset = vmstate_offset_value(_state, _field_num, int32_t), \
     .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
     .flags      = VMS_VARRAY_INT32|VMS_POINTER,                      \
-    .offset     = vmstate_offset_pointer(_state, _field, _type),     \
+    .version_id = (_version),                                        \
 }
 
 #define VMSTATE_VARRAY_UINT32(_field, _state, _field_num, _version, _info, _type) {\

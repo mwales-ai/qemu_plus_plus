@@ -143,7 +143,7 @@ static void uart_update_status(CadenceUARTState *s)
 
 static void fifo_trigger_update(void *opaque)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
 
     if (s->r[R_RTOR]) {
         s->r[R_CISR] |= UART_INTR_TIMEOUT;
@@ -234,7 +234,7 @@ static void uart_parameters_setup(CadenceUARTState *s)
 
 static int uart_can_receive(void *opaque)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
     int ret;
     uint32_t ch_mode;
 
@@ -276,7 +276,7 @@ static void uart_ctrl_update(CadenceUARTState *s)
 
 static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
     uint64_t new_rx_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     int i;
 
@@ -301,7 +301,7 @@ static void uart_write_rx_fifo(void *opaque, const uint8_t *buf, int size)
 static gboolean cadence_uart_xmit(void *do_not_use, GIOCondition cond,
                                   void *opaque)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
     int ret;
 
     /* instant drain the fifo when there's no back-end */
@@ -322,7 +322,7 @@ static gboolean cadence_uart_xmit(void *do_not_use, GIOCondition cond,
     }
 
     if (s->tx_count) {
-        guint r = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        guint r = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                         cadence_uart_xmit, s);
         if (!r) {
             s->tx_count = 0;
@@ -360,7 +360,7 @@ static void uart_write_tx_fifo(CadenceUARTState *s, const uint8_t *buf,
 
 static void uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
@@ -373,7 +373,7 @@ static void uart_receive(void *opaque, const uint8_t *buf, int size)
 
 static void uart_event(void *opaque, QEMUChrEvent event)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
     uint8_t buf = '\0';
 
     /* ignore characters when unclocked or in reset */
@@ -413,7 +413,7 @@ static void uart_read_rx_fifo(CadenceUARTState *s, uint32_t *c)
 static MemTxResult uart_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size, MemTxAttrs attrs)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
 
     /* ignore access when unclocked or in reset */
     if (!clock_is_enabled(s->refclk) || device_is_in_reset(DEVICE(s))) {
@@ -481,7 +481,7 @@ static MemTxResult uart_write(void *opaque, hwaddr offset,
 static MemTxResult uart_read(void *opaque, hwaddr offset,
                              uint64_t *value, unsigned size, MemTxAttrs attrs)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
     uint32_t c = 0;
 
     /* ignore access when unclocked or in reset */
@@ -548,7 +548,7 @@ static void cadence_uart_realize(DeviceState *dev, Error **errp)
 
 static void cadence_uart_refclk_update(void *opaque, ClockEvent event)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
 
     /* recompute uart's speed on clock change */
     uart_parameters_setup(s);
@@ -573,7 +573,7 @@ static void cadence_uart_init(Object *obj)
 
 static int cadence_uart_pre_load(void *opaque)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
 
     /* the frequency will be overridden if the refclk field is present */
     clock_set_hz(s->refclk, UART_DEFAULT_REF_CLK);
@@ -582,7 +582,7 @@ static int cadence_uart_pre_load(void *opaque)
 
 static int cadence_uart_post_load(void *opaque, int version_id)
 {
-    CadenceUARTState *s = opaque;
+    CadenceUARTState *s = static_cast<CadenceUARTState *>(opaque);
 
     /* Ensure these two aren't invalid numbers */
     if (s->r[R_BRGR] < 1 || s->r[R_BRGR] & ~0xFFFF ||
@@ -596,25 +596,27 @@ static int cadence_uart_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_cadence_uart_fields[] = {
+    VMSTATE_UINT32_ARRAY(r, CadenceUARTState, CADENCE_UART_R_MAX),
+    VMSTATE_UINT8_ARRAY(rx_fifo, CadenceUARTState,
+                        CADENCE_UART_RX_FIFO_SIZE),
+    VMSTATE_UINT8_ARRAY(tx_fifo, CadenceUARTState,
+                        CADENCE_UART_TX_FIFO_SIZE),
+    VMSTATE_UINT32(rx_count, CadenceUARTState),
+    VMSTATE_UINT32(tx_count, CadenceUARTState),
+    VMSTATE_UINT32(rx_wpos, CadenceUARTState),
+    VMSTATE_TIMER_PTR(fifo_trigger_handle, CadenceUARTState),
+    VMSTATE_CLOCK_V(refclk, CadenceUARTState, 3),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cadence_uart = {
     .name = "cadence_uart",
     .version_id = 3,
     .minimum_version_id = 2,
     .pre_load = cadence_uart_pre_load,
     .post_load = cadence_uart_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(r, CadenceUARTState, CADENCE_UART_R_MAX),
-        VMSTATE_UINT8_ARRAY(rx_fifo, CadenceUARTState,
-                            CADENCE_UART_RX_FIFO_SIZE),
-        VMSTATE_UINT8_ARRAY(tx_fifo, CadenceUARTState,
-                            CADENCE_UART_TX_FIFO_SIZE),
-        VMSTATE_UINT32(rx_count, CadenceUARTState),
-        VMSTATE_UINT32(tx_count, CadenceUARTState),
-        VMSTATE_UINT32(rx_wpos, CadenceUARTState),
-        VMSTATE_TIMER_PTR(fifo_trigger_handle, CadenceUARTState),
-        VMSTATE_CLOCK_V(refclk, CadenceUARTState, 3),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_cadence_uart_fields,
 };
 
 static const Property cadence_uart_properties[] = {

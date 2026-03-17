@@ -373,7 +373,7 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     width = surface_bytes_per_pixel(surface) * w;
     start = surface_bytes_per_pixel(surface) * x + bypl * y;
     src = s->vga.vram_ptr + start;
-    dst = surface_data(surface) + start;
+    dst = static_cast<uint8_t *>(surface_data(surface)) + start;
 
     for (line = h; line > 0; line--, src += bypl, dst += bypl) {
         memcpy(dst, src, width);
@@ -383,7 +383,7 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
 
 static inline void vmsvga_update_rect_flush(struct vmsvga_state_s *s)
 {
-    struct vmsvga_rect_s *rect;
+    struct vmsvga_state_s::vmsvga_rect_s *rect;
 
     if (s->invalidated) {
         s->redraw_fifo_last = 0;
@@ -408,7 +408,7 @@ static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
         vmsvga_update_rect_flush(s);
     }
 
-    struct vmsvga_rect_s *rect = &s->redraw_fifo[s->redraw_fifo_last++];
+    struct vmsvga_state_s::vmsvga_rect_s *rect = &s->redraw_fifo[s->redraw_fifo_last++];
 
     rect->x = x;
     rect->y = y;
@@ -528,16 +528,16 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
     qc->hot_y = c->hot_y;
     switch (c->bpp) {
     case 1:
-        cursor_set_mono(qc, 0xffffff, 0x000000, (void *)c->image,
-                        1, (void *)c->mask);
+        cursor_set_mono(qc, 0xffffff, 0x000000, reinterpret_cast<uint8_t *>(const_cast<uint32_t *>(c->image)),
+                        1, reinterpret_cast<uint8_t *>(const_cast<uint32_t *>(c->mask)));
 #ifdef DEBUG
         cursor_print_ascii_art(qc, "vmware/mono");
 #endif
         break;
     case 32:
         /* fill alpha channel from mask, set color to zero */
-        cursor_set_mono(qc, 0x000000, 0x000000, (void *)c->mask,
-                        1, (void *)c->mask);
+        cursor_set_mono(qc, 0x000000, 0x000000, reinterpret_cast<uint8_t *>(const_cast<uint32_t *>(c->mask)),
+                        1, reinterpret_cast<uint8_t *>(const_cast<uint32_t *>(c->mask)));
         /* add in rgb values */
         pixels = c->width * c->height;
         for (i = 0; i < pixels; i++) {
@@ -795,14 +795,14 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
 
 static uint32_t vmsvga_index_read(void *opaque, uint32_t address)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
 
     return s->index;
 }
 
 static void vmsvga_index_write(void *opaque, uint32_t address, uint32_t index)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
 
     s->index = index;
 }
@@ -810,7 +810,7 @@ static void vmsvga_index_write(void *opaque, uint32_t address, uint32_t index)
 static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
 {
     uint32_t caps;
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->vga.con);
     PixelFormat pf;
     uint32_t ret;
@@ -985,7 +985,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
 
 static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
 
     if (s->index >= SVGA_SCRATCH_BASE) {
         trace_vmware_scratch_write(s->index, value);
@@ -1137,7 +1137,7 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
 
 static void vmsvga_update_display(void *opaque)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
 
     if (!s->enable || !s->config) {
         /* in standard vga mode */
@@ -1174,7 +1174,7 @@ static void vmsvga_reset(DeviceState *dev)
 
 static void vmsvga_invalidate_display(void *opaque)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
     if (!s->enable) {
         s->vga.hw_ops->invalidate(&s->vga);
         return;
@@ -1185,7 +1185,7 @@ static void vmsvga_invalidate_display(void *opaque)
 
 static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
 
     if (s->vga.hw_ops->text_update) {
         s->vga.hw_ops->text_update(&s->vga, chardata);
@@ -1194,7 +1194,7 @@ static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
 
 static int vmsvga_post_load(void *opaque, int version_id)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
 
     s->invalidated = 1;
     if (s->config) {
@@ -1203,12 +1203,7 @@ static int vmsvga_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_vmware_vga_internal = {
-    .name = "vmware_vga_internal",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .post_load = vmsvga_post_load,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_vmware_vga_internal_fields[] = {
         VMSTATE_INT32_EQUAL(new_depth, struct vmsvga_state_s, NULL),
         VMSTATE_INT32(enable, struct vmsvga_state_s),
         VMSTATE_INT32(config, struct vmsvga_state_s),
@@ -1225,20 +1220,29 @@ static const VMStateDescription vmstate_vmware_vga_internal = {
         VMSTATE_UINT32(svgaid, struct vmsvga_state_s),
         VMSTATE_INT32(syncing, struct vmsvga_state_s),
         VMSTATE_UNUSED(4), /* was fb_size */
-        VMSTATE_END_OF_LIST()
-    }
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription vmstate_vmware_vga_internal = {
+    .name = "vmware_vga_internal",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .post_load = vmsvga_post_load,
+    .fields = vmstate_vmware_vga_internal_fields,
+};
+
+static const VMStateField vmstate_vmware_vga_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, struct pci_vmsvga_state_s),
+    VMSTATE_STRUCT(chip, struct pci_vmsvga_state_s, 0,
+                   vmstate_vmware_vga_internal, struct vmsvga_state_s),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_vmware_vga = {
     .name = "vmware_vga",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, struct pci_vmsvga_state_s),
-        VMSTATE_STRUCT(chip, struct pci_vmsvga_state_s, 0,
-                       vmstate_vmware_vga_internal, struct vmsvga_state_s),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmware_vga_fields,
 };
 
 static const GraphicHwOps vmsvga_ops = {
@@ -1251,14 +1255,14 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
                         MemoryRegion *address_space, MemoryRegion *io)
 {
     s->scratch_size = SVGA_SCRATCH_SIZE;
-    s->scratch = g_malloc(s->scratch_size * 4);
+    s->scratch = static_cast<uint32_t *>(g_malloc(s->scratch_size * 4));
 
     s->vga.con = graphic_console_init(dev, 0, &vmsvga_ops, s);
 
     s->fifo_size = SVGA_FIFO_SIZE;
     memory_region_init_ram(&s->fifo_ram, NULL, "vmsvga.fifo", s->fifo_size,
                            &error_fatal);
-    s->fifo_ptr = memory_region_get_ram_ptr(&s->fifo_ram);
+    s->fifo_ptr = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->fifo_ram));
 
     vga_common_init(&s->vga, OBJECT(dev), &error_fatal);
     vga_init(&s->vga, OBJECT(dev), address_space, io, true);
@@ -1268,7 +1272,7 @@ static void vmsvga_init(DeviceState *dev, struct vmsvga_state_s *s,
 
 static uint64_t vmsvga_io_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
 
     switch (addr) {
     case SVGA_IO_MUL * SVGA_INDEX_PORT: return vmsvga_index_read(s, addr);
@@ -1281,7 +1285,7 @@ static uint64_t vmsvga_io_read(void *opaque, hwaddr addr, unsigned size)
 static void vmsvga_io_write(void *opaque, hwaddr addr,
                             uint64_t data, unsigned size)
 {
-    struct vmsvga_state_s *s = opaque;
+    struct vmsvga_state_s *s = static_cast<struct vmsvga_state_s *>(opaque);
 
     switch (addr) {
     case SVGA_IO_MUL * SVGA_INDEX_PORT:

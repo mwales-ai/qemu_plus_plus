@@ -220,7 +220,7 @@ static inline bool pflash_erase_suspend_mode(PFlashCFI02 *pfl)
 
 static void pflash_timer(void *opaque)
 {
-    PFlashCFI02 *pfl = opaque;
+    PFlashCFI02 *pfl = static_cast<PFlashCFI02 *>(opaque);
 
     trace_pflash_timer_expired(pfl->name, pfl->cmd);
     if (pfl->cmd == 0x30) {
@@ -280,13 +280,13 @@ static SectorInfo pflash_sector_info(PFlashCFI02 *pfl, hwaddr offset)
     assert(offset < pfl->chip_len);
     hwaddr addr = 0;
     uint32_t sector_num = 0;
-    for (int i = 0; i < pflash_regions_count(pfl); ++i) {
+    for (size_t i = 0; i < pflash_regions_count(pfl); ++i) {
         uint64_t region_size = (uint64_t)pfl->nb_blocs[i] * pfl->sector_len[i];
         if (addr <= offset && offset < addr + region_size) {
-            return (SectorInfo) {
-                .len = pfl->sector_len[i],
-                .num = sector_num + (offset - addr) / pfl->sector_len[i],
-            };
+            SectorInfo si;
+            si.len = pfl->sector_len[i];
+            si.num = static_cast<uint32_t>(sector_num + (offset - addr) / pfl->sector_len[i]);
+            return si;
         }
         sector_num += pfl->nb_blocs[i];
         addr += region_size;
@@ -306,7 +306,7 @@ static bool pflash_sector_is_erasing(PFlashCFI02 *pfl, hwaddr offset)
 
 static uint64_t pflash_read(void *opaque, hwaddr offset, unsigned int width)
 {
-    PFlashCFI02 *pfl = opaque;
+    PFlashCFI02 *pfl = static_cast<PFlashCFI02 *>(opaque);
     hwaddr boff;
     uint64_t ret;
 
@@ -401,7 +401,8 @@ static void pflash_update(PFlashCFI02 *pfl, int offset, int size)
         offset = QEMU_ALIGN_DOWN(offset, BDRV_SECTOR_SIZE);
         offset_end = QEMU_ALIGN_UP(offset_end, BDRV_SECTOR_SIZE);
         ret = blk_pwrite(pfl->blk, offset, offset_end - offset,
-                         pfl->storage + offset, 0);
+                         static_cast<uint8_t *>(pfl->storage) + offset,
+                         static_cast<BdrvRequestFlags>(0));
         if (ret < 0) {
             /* TODO set error bit in status */
             error_report("Could not update PFLASH: %s", strerror(-ret));
@@ -417,7 +418,7 @@ static void pflash_sector_erase(PFlashCFI02 *pfl, hwaddr offset)
     trace_pflash_sector_erase_start(pfl->name, pfl->width * 2, offset,
                                     pfl->width * 2, offset + sector_len - 1);
     if (!pfl->ro) {
-        uint8_t *p = pfl->storage;
+        uint8_t *p = static_cast<uint8_t *>(pfl->storage);
         memset(p + offset, 0xff, sector_len);
         pflash_update(pfl, offset, sector_len);
     }
@@ -431,7 +432,7 @@ static void pflash_sector_erase(PFlashCFI02 *pfl, hwaddr offset)
 static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
                          unsigned int width)
 {
-    PFlashCFI02 *pfl = opaque;
+    PFlashCFI02 *pfl = static_cast<PFlashCFI02 *>(opaque);
     hwaddr boff;
     uint8_t *p;
     uint8_t cmd;
@@ -709,8 +710,8 @@ static void pflash_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps pflash_cfi02_ops = {
     .read = pflash_read,
     .write = pflash_write,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void pflash_cfi02_fill_cfi_table(PFlashCFI02 *pfl, int nb_regions)

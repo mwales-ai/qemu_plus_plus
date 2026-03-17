@@ -327,7 +327,7 @@ int vga_ioport_invalid(VGACommonState *s, uint32_t addr)
 
 uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
     int val, index;
 
     if (vga_ioport_invalid(s, addr)) {
@@ -417,7 +417,7 @@ uint32_t vga_ioport_read(void *opaque, uint32_t addr)
 
 void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
     int index;
 
     /* check port range access depending on color/monochrome mode */
@@ -678,13 +678,13 @@ static void vbe_update_vgaregs(VGACommonState *s)
 
 static uint32_t vbe_ioport_read_index(void *opaque, uint32_t addr)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
     return s->vbe_index;
 }
 
 uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
     uint32_t val;
 
     if (s->vbe_index < VBE_DISPI_INDEX_NB) {
@@ -718,13 +718,13 @@ uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
 
 void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
     s->vbe_index = val;
 }
 
 void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
 
     if (s->vbe_index <= VBE_DISPI_INDEX_NB) {
         trace_vga_vbe_write(s->vbe_index, val);
@@ -1286,7 +1286,7 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         s->cursor_visible_phase = !s->cursor_visible_phase;
     }
 
-    dest = surface_data(surface);
+    dest = static_cast<uint8_t *>(surface_data(surface));
     linesize = surface_stride(surface);
     ch_attr_ptr = s->last_ch_attr;
     line = 0;
@@ -1630,8 +1630,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         s->last_depth = depth;
         s->last_byteswap = byteswap;
         /* 16 extra pixels are needed for double-width planar modes.  */
-        s->panning_buf = g_realloc(s->panning_buf,
-                                   (disp_width + 16) * sizeof(uint32_t));
+        s->panning_buf = static_cast<uint8_t *>(g_realloc(s->panning_buf,
+                                   (disp_width + 16) * sizeof(uint32_t)));
         full_update = 1;
     }
     if (surface_data(surface) != s->vram_ptr + (s->params.start_addr * 4)
@@ -1666,7 +1666,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 #endif
     addr1 = (s->params.start_addr * 4);
     y_start = -1;
-    d = surface_data(surface);
+    d = static_cast<uint8_t *>(surface_data(surface));
     linesize = surface_stride(surface);
     y1 = 0;
 
@@ -1709,7 +1709,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
                 y_start = y;
             if (surface_is_allocated(surface)) {
                 uint8_t *p;
-                p = vga_draw_line(s, d, addr, width, hpel);
+                p = static_cast<uint8_t *>(vga_draw_line(s, d, addr, width, hpel));
                 if (p) {
                     memcpy(d, p, disp_width * sizeof(uint32_t));
                 }
@@ -1770,7 +1770,7 @@ static void vga_draw_blank(VGACommonState *s, int full_update)
     }
 
     w = s->last_scr_width * surface_bytes_per_pixel(surface);
-    d = surface_data(surface);
+    d = static_cast<uint8_t *>(surface_data(surface));
     for(i = 0; i < s->last_scr_height; i++) {
         memset(d, 0, w);
         d += surface_stride(surface);
@@ -1784,7 +1784,7 @@ static void vga_draw_blank(VGACommonState *s, int full_update)
 
 static void vga_update_display(void *opaque)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     int full_update, graphic_mode;
 
@@ -1822,7 +1822,7 @@ static void vga_update_display(void *opaque)
 /* force a full display refresh */
 static void vga_invalidate_display(void *opaque)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
 
     s->last_width = -1;
     s->last_height = -1;
@@ -1888,7 +1888,7 @@ void vga_common_reset(VGACommonState *s)
 
 static void vga_reset(void *opaque)
 {
-    VGACommonState *s =  opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
     vga_common_reset(s);
 }
 
@@ -1900,7 +1900,7 @@ static void vga_reset(void *opaque)
  * instead of doing a full vga_update_display() */
 static void vga_update_text(void *opaque, console_ch_t *chardata)
 {
-    VGACommonState *s =  opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
     int graphic_mode, i, cursor_offset, cursor_visible;
     int cw, cheight, width, height, size, c_min, c_max;
     uint32_t *src;
@@ -2073,7 +2073,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
 static uint64_t vga_mem_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
 
     return vga_mem_readb(s, addr);
 }
@@ -2081,7 +2081,7 @@ static uint64_t vga_mem_read(void *opaque, hwaddr addr,
 static void vga_mem_write(void *opaque, hwaddr addr,
                           uint64_t data, unsigned size)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
 
     vga_mem_writeb(s, addr, data);
 }
@@ -2098,7 +2098,7 @@ const MemoryRegionOps vga_mem_ops = {
 
 static int vga_common_post_load(void *opaque, int version_id)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
 
     /* force refresh */
     s->graphic_mode = -1;
@@ -2109,7 +2109,7 @@ static int vga_common_post_load(void *opaque, int version_id)
 
 static bool vga_endian_state_needed(void *opaque)
 {
-    VGACommonState *s = opaque;
+    VGACommonState *s = static_cast<VGACommonState *>(opaque);
 
     /*
      * Only send the endian state if it's different from the
@@ -2242,7 +2242,7 @@ bool vga_common_init(VGACommonState *s, Object *obj, Error **errp)
     }
     vmstate_register_ram(&s->vram, s->global_vmstate ? NULL : DEVICE(obj));
     xen_register_framebuffer(&s->vram);
-    s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
+    s->vram_ptr = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->vram));
     s->get_bpp = vga_get_bpp;
     s->get_params = vga_get_params;
     s->get_resolution = vga_get_resolution;
@@ -2314,7 +2314,7 @@ MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,
 
     *vga_ports = vga_portio_list;
 
-    vga_mem = g_malloc(sizeof(*vga_mem));
+    vga_mem = static_cast<MemoryRegion *>(g_malloc(sizeof(*vga_mem)));
     memory_region_init_io(vga_mem, obj, &vga_mem_ops, s,
                           "vga-lowmem", 0x20000);
     memory_region_set_flush_coalesced(vga_mem);

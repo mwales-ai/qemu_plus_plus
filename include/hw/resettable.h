@@ -15,6 +15,10 @@
 
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_RESETTABLE_INTERFACE "resettable"
 
 typedef struct ResettableClass ResettableClass;
@@ -234,5 +238,9 @@ void resettable_class_set_parent_phases(ResettableClass *rc,
                                         ResettableHoldPhase hold,
                                         ResettableExitPhase exit,
                                         ResettablePhases *parent_phases);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

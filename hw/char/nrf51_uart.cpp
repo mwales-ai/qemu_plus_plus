@@ -85,7 +85,7 @@ static gboolean uart_transmit(void *do_not_use, GIOCondition cond, void *opaque)
 
     r = qemu_chr_fe_write(&s->chr, &c, 1);
     if (r <= 0) {
-        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                              uart_transmit, s);
         if (!s->watch_tag) {
             /* The hardware has no transmit error reporting,
@@ -281,7 +281,7 @@ static int nrf51_uart_post_load(void *opaque, int version_id)
     NRF51UARTState *s = NRF51_UART(opaque);
 
     if (s->pending_tx_byte) {
-        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                              uart_transmit, s);
     }
 

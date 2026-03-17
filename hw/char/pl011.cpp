@@ -104,9 +104,13 @@ static const unsigned char pl011_id_luminary[8] =
 static const char *pl011_regname(hwaddr offset)
 {
     static const char *const rname[] = {
-        [0] = "DR", [1] = "RSR", [6] = "FR", [8] = "ILPR", [9] = "IBRD",
-        [10] = "FBRD", [11] = "LCRH", [12] = "CR", [13] = "IFLS", [14] = "IMSC",
-        [15] = "RIS", [16] = "MIS", [17] = "ICR", [18] = "DMACR",
+        /* [0] */ "DR", /* [1] */ "RSR",
+        /* [2] */ nullptr, /* [3] */ nullptr, /* [4] */ nullptr, /* [5] */ nullptr,
+        /* [6] */ "FR", /* [7] */ nullptr,
+        /* [8] */ "ILPR", /* [9] */ "IBRD",
+        /* [10] */ "FBRD", /* [11] */ "LCRH", /* [12] */ "CR", /* [13] */ "IFLS",
+        /* [14] */ "IMSC", /* [15] */ "RIS", /* [16] */ "MIS", /* [17] */ "ICR",
+        /* [18] */ "DMACR",
     };
     unsigned idx = offset >> 2;
 
@@ -506,25 +510,27 @@ static int pl011_can_receive(void *opaque)
 
 static void pl011_receive(void *opaque, const uint8_t *buf, int size)
 {
+    PL011State *s = static_cast<PL011State *>(opaque);
     trace_pl011_receive(size);
     /*
      * In loopback mode, the RX input signal is internally disconnected
      * from the entire receiving logics; thus, all inputs are ignored,
      * and BREAK detection on RX input signal is also not performed.
      */
-    if (pl011_loopback_enabled(opaque)) {
+    if (pl011_loopback_enabled(s)) {
         return;
     }
 
     for (int i = 0; i < size; i++) {
-        pl011_fifo_rx_put(opaque, buf[i]);
+        pl011_fifo_rx_put(s, buf[i]);
     }
 }
 
 static void pl011_event(void *opaque, QEMUChrEvent event)
 {
-    if (event == CHR_EVENT_BREAK && !pl011_loopback_enabled(opaque)) {
-        pl011_fifo_rx_put(opaque, DR_BE);
+    PL011State *s = static_cast<PL011State *>(opaque);
+    if (event == CHR_EVENT_BREAK && !pl011_loopback_enabled(s)) {
+        pl011_fifo_rx_put(s, DR_BE);
     }
 }
 
@@ -549,20 +555,22 @@ static bool pl011_clock_needed(void *opaque)
     return s->migrate_clk;
 }
 
+static const VMStateField vmstate_pl011_clock_fields[] = {
+    VMSTATE_CLOCK(clk, PL011State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl011_clock = {
     .name = "pl011/clock",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pl011_clock_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(clk, PL011State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl011_clock_fields,
 };
 
 static int pl011_post_load(void *opaque, int version_id)
 {
-    PL011State* s = opaque;
+    PL011State* s = static_cast<PL011State *>(opaque);
 
     /* Sanity-check input state */
     if (s->read_pos >= ARRAY_SIZE(s->read_fifo) ||
@@ -587,34 +595,38 @@ static int pl011_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_pl011_fields[] = {
+    VMSTATE_UNUSED(sizeof(uint32_t)),
+    VMSTATE_UINT32(flags, PL011State),
+    VMSTATE_UINT32(lcr, PL011State),
+    VMSTATE_UINT32(rsr, PL011State),
+    VMSTATE_UINT32(cr, PL011State),
+    VMSTATE_UINT32(dmacr, PL011State),
+    VMSTATE_UINT32(int_enabled, PL011State),
+    VMSTATE_UINT32(int_level, PL011State),
+    VMSTATE_UINT32_ARRAY(read_fifo, PL011State, PL011_FIFO_DEPTH),
+    VMSTATE_UINT32(ilpr, PL011State),
+    VMSTATE_UINT32(ibrd, PL011State),
+    VMSTATE_UINT32(fbrd, PL011State),
+    VMSTATE_UINT32(ifl, PL011State),
+    VMSTATE_INT32(read_pos, PL011State),
+    VMSTATE_INT32(read_count, PL011State),
+    VMSTATE_INT32(read_trigger, PL011State),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_pl011_subsections[] = {
+    &vmstate_pl011_clock,
+    NULL
+};
+
 static const VMStateDescription vmstate_pl011 = {
     .name = "pl011",
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = pl011_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UNUSED(sizeof(uint32_t)),
-        VMSTATE_UINT32(flags, PL011State),
-        VMSTATE_UINT32(lcr, PL011State),
-        VMSTATE_UINT32(rsr, PL011State),
-        VMSTATE_UINT32(cr, PL011State),
-        VMSTATE_UINT32(dmacr, PL011State),
-        VMSTATE_UINT32(int_enabled, PL011State),
-        VMSTATE_UINT32(int_level, PL011State),
-        VMSTATE_UINT32_ARRAY(read_fifo, PL011State, PL011_FIFO_DEPTH),
-        VMSTATE_UINT32(ilpr, PL011State),
-        VMSTATE_UINT32(ibrd, PL011State),
-        VMSTATE_UINT32(fbrd, PL011State),
-        VMSTATE_UINT32(ifl, PL011State),
-        VMSTATE_INT32(read_pos, PL011State),
-        VMSTATE_INT32(read_count, PL011State),
-        VMSTATE_INT32(read_trigger, PL011State),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_pl011_clock,
-        NULL
-    }
+    .fields = vmstate_pl011_fields,
+    .subsections = vmstate_pl011_subsections,
 };
 
 static const Property pl011_properties[] = {

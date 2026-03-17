@@ -842,7 +842,7 @@ static void sm501_2d_operation(SM501State *s)
                 uint32_t *tmp = tmp_buf;
 
                 if (tmp_stride * sizeof(uint32_t) * height > sizeof(tmp_buf)) {
-                    tmp = g_malloc(tmp_stride * sizeof(uint32_t) * height);
+                    tmp = static_cast<uint32_t *>(g_malloc(tmp_stride * sizeof(uint32_t) * height));
                 }
                 fallback = !pixman_blt((uint32_t *)&s->local_mem[src_base],
                                        tmp,
@@ -942,7 +942,7 @@ static void sm501_2d_operation(SM501State *s)
 static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
                                          unsigned size)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
     uint32_t ret = 0;
 
     switch (addr) {
@@ -1002,7 +1002,7 @@ static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
 static void sm501_system_config_write(void *opaque, hwaddr addr,
                                       uint64_t value, unsigned size)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
 
     trace_sm501_system_config_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
@@ -1061,16 +1061,16 @@ static void sm501_system_config_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps sm501_system_config_ops = {
     .read = sm501_system_config_read,
     .write = sm501_system_config_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t sm501_i2c_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
     uint8_t ret = 0;
 
     switch (addr) {
@@ -1097,7 +1097,7 @@ static uint64_t sm501_i2c_read(void *opaque, hwaddr addr, unsigned size)
 static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
                             unsigned size)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
 
     trace_sm501_i2c_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
@@ -1153,6 +1153,7 @@ static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
 static const MemoryRegionOps sm501_i2c_ops = {
     .read = sm501_i2c_read,
     .write = sm501_i2c_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -1161,12 +1162,11 @@ static const MemoryRegionOps sm501_i2c_ops = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
 
     trace_sm501_palette_read((uint32_t)addr);
 
@@ -1180,7 +1180,7 @@ static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
 static void sm501_palette_write(void *opaque, hwaddr addr,
                                 uint32_t value)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
 
     trace_sm501_palette_write((uint32_t)addr, value);
 
@@ -1195,7 +1195,7 @@ static void sm501_palette_write(void *opaque, hwaddr addr,
 static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
     uint32_t ret = 0;
 
     switch (addr) {
@@ -1308,7 +1308,7 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
 static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
 
     trace_sm501_disp_ctrl_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
@@ -1443,17 +1443,17 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps sm501_disp_ctrl_ops = {
     .read = sm501_disp_ctrl_read,
     .write = sm501_disp_ctrl_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
     uint32_t ret = 0;
 
     switch (addr) {
@@ -1531,7 +1531,7 @@ static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
 static void sm501_2d_engine_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
 
     trace_sm501_2d_engine_write((uint32_t)addr, (uint32_t)value);
     switch (addr) {
@@ -1618,11 +1618,11 @@ static void sm501_2d_engine_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps sm501_2d_engine_ops = {
     .read = sm501_2d_engine_read,
     .write = sm501_2d_engine_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /* draw line functions for all console modes */
@@ -1718,7 +1718,7 @@ static void draw_hwc_line_32(uint8_t *d, const uint8_t *s, int width,
 
 static void sm501_update_display(void *opaque)
 {
-    SM501State *s = opaque;
+    SM501State *s = static_cast<SM501State *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     DirtyBitmapSnapshot *snap;
     int y, c_x = 0, c_y = 0;
@@ -1805,7 +1805,7 @@ static void sm501_update_display(void *opaque)
 
         /* draw line and change status */
         if (update) {
-            uint8_t *d = surface_data(surface);
+            uint8_t *d = static_cast<uint8_t *>(surface_data(surface));
             d +=  y * width * dst_bpp;
 
             /* draw graphics layer */
@@ -1903,7 +1903,7 @@ static void sm501_init(SM501State *s, DeviceState *dev,
     memory_region_init_ram(&s->local_mem_region, OBJECT(dev), "sm501.local",
                            get_local_mem_size(s), &error_fatal);
     memory_region_set_log(&s->local_mem_region, true, DIRTY_MEMORY_VGA);
-    s->local_mem = memory_region_get_ram_ptr(&s->local_mem_region);
+    s->local_mem = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->local_mem_region));
 
     /* i2c */
     s->i2c_bus = i2c_init_bus(dev, "sm501.i2c");
@@ -2112,8 +2112,8 @@ static const TypeInfo sm501_sysbus_info = {
     .name          = TYPE_SYSBUS_SM501,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SM501SysBusState),
-    .class_init    = sm501_sysbus_class_init,
     .instance_init = sm501_sysbus_init,
+    .class_init    = sm501_sysbus_class_init,
 };
 
 #define TYPE_PCI_SM501 "sm501"
@@ -2191,16 +2191,18 @@ static void sm501_pci_init(Object *o)
                                     "1: fill, 2: blit, 4: overlap blit");
 }
 
+static const InterfaceInfo sm501_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo sm501_pci_info = {
     .name          = TYPE_PCI_SM501,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(SM501PCIState),
-    .class_init    = sm501_pci_class_init,
     .instance_init = sm501_pci_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .class_init    = sm501_pci_class_init,
+    .interfaces = sm501_pci_interfaces,
 };
 
 static void sm501_register_types(void)

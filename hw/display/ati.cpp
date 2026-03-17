@@ -258,7 +258,7 @@ static void ati_vga_update_irq(ATIVGAState *s)
 
 static void ati_vga_vblank_irq(void *opaque)
 {
-    ATIVGAState *s = opaque;
+    ATIVGAState *s = static_cast<ATIVGAState *>(opaque);
 
     timer_mod(&s->vblank_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
               NANOSECONDS_PER_SECOND / 60);
@@ -278,7 +278,7 @@ static inline uint64_t ati_reg_read_offs(uint32_t reg, int offs,
 
 static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    ATIVGAState *s = opaque;
+    ATIVGAState *s = static_cast<ATIVGAState *>(opaque);
     uint64_t val = 0;
 
     switch (addr) {
@@ -533,7 +533,7 @@ static inline void ati_reg_write_offs(uint32_t *reg, int offs,
 static void ati_mm_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned int size)
 {
-    ATIVGAState *s = opaque;
+    ATIVGAState *s = static_cast<ATIVGAState *>(opaque);
 
     if (addr < CUR_OFFSET || addr > CUR_CLR1 || ATI_DEBUG_HW_CURSOR) {
         trace_ati_mm_write(size, addr, ati_reg_name(addr & ~3ULL), data);
@@ -1074,16 +1074,18 @@ static void ati_vga_init(Object *o)
                                     "1: fill, 2: blit");
 }
 
+static const InterfaceInfo ati_vga_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo ati_vga_info = {
     .name = TYPE_ATI_VGA,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ATIVGAState),
-    .class_init = ati_vga_class_init,
     .instance_init = ati_vga_init,
-    .interfaces = (const InterfaceInfo[]) {
-          { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-          { },
-    },
+    .class_init = ati_vga_class_init,
+    .interfaces = ati_vga_interfaces,
 };
 
 static void ati_vga_register_types(void)

@@ -209,14 +209,14 @@ static int chn_shift(ESCCState *s)
 
 static void clear_queue(void *opaque)
 {
-    ESCCChannelState *s = opaque;
+    ESCCChannelState *s = static_cast<ESCCChannelState *>(opaque);
     ESCCSERIOQueue *q = &s->queue;
     q->rptr = q->wptr = q->count = 0;
 }
 
 static void put_queue(void *opaque, int b)
 {
-    ESCCChannelState *s = opaque;
+    ESCCChannelState *s = static_cast<ESCCChannelState *>(opaque);
     ESCCSERIOQueue *q = &s->queue;
 
     trace_escc_put_queue(CHN_C(s), b);
@@ -233,7 +233,7 @@ static void put_queue(void *opaque, int b)
 
 static uint32_t get_queue(void *opaque)
 {
-    ESCCChannelState *s = opaque;
+    ESCCChannelState *s = static_cast<ESCCChannelState *>(opaque);
     ESCCSERIOQueue *q = &s->queue;
     int val;
 
@@ -538,7 +538,7 @@ static void escc_update_parameters(ESCCChannelState *s)
 static void escc_mem_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    ESCCState *serial = opaque;
+    ESCCState *serial = static_cast<ESCCState *>(opaque);
     ESCCChannelState *s;
     uint32_t saddr;
     int newreg, channel;
@@ -678,7 +678,7 @@ static void escc_mem_write(void *opaque, hwaddr addr,
 static uint64_t escc_mem_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    ESCCState *serial = opaque;
+    ESCCState *serial = static_cast<ESCCState *>(opaque);
     ESCCChannelState *s;
     uint32_t saddr;
     uint32_t ret;
@@ -722,7 +722,7 @@ static const MemoryRegionOps escc_mem_ops = {
 
 static int serial_can_receive(void *opaque)
 {
-    ESCCChannelState *s = opaque;
+    ESCCChannelState *s = static_cast<ESCCChannelState *>(opaque);
     int ret;
 
     if (((s->wregs[W_RXCTRL] & RXCTRL_RXEN) == 0) /* Rx not enabled */
@@ -751,46 +751,50 @@ static void serial_receive_break(ESCCChannelState *s)
 
 static void serial_receive1(void *opaque, const uint8_t *buf, int size)
 {
-    ESCCChannelState *s = opaque;
+    ESCCChannelState *s = static_cast<ESCCChannelState *>(opaque);
     serial_receive_byte(s, buf[0]);
 }
 
 static void serial_event(void *opaque, QEMUChrEvent event)
 {
-    ESCCChannelState *s = opaque;
+    ESCCChannelState *s = static_cast<ESCCChannelState *>(opaque);
     if (event == CHR_EVENT_BREAK) {
         serial_receive_break(s);
     }
 }
 
+static const VMStateField vmstate_escc_chn_fields[] = {
+    VMSTATE_UINT32(vmstate_dummy, ESCCChannelState),
+    VMSTATE_UINT32(reg, ESCCChannelState),
+    VMSTATE_UINT32(rxint, ESCCChannelState),
+    VMSTATE_UINT32(txint, ESCCChannelState),
+    VMSTATE_UINT32(rxint_under_svc, ESCCChannelState),
+    VMSTATE_UINT32(txint_under_svc, ESCCChannelState),
+    VMSTATE_UINT8(rx, ESCCChannelState),
+    VMSTATE_UINT8(tx, ESCCChannelState),
+    VMSTATE_BUFFER(wregs, ESCCChannelState),
+    VMSTATE_BUFFER(rregs, ESCCChannelState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_escc_chn = {
     .name = "escc_chn",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(vmstate_dummy, ESCCChannelState),
-        VMSTATE_UINT32(reg, ESCCChannelState),
-        VMSTATE_UINT32(rxint, ESCCChannelState),
-        VMSTATE_UINT32(txint, ESCCChannelState),
-        VMSTATE_UINT32(rxint_under_svc, ESCCChannelState),
-        VMSTATE_UINT32(txint_under_svc, ESCCChannelState),
-        VMSTATE_UINT8(rx, ESCCChannelState),
-        VMSTATE_UINT8(tx, ESCCChannelState),
-        VMSTATE_BUFFER(wregs, ESCCChannelState),
-        VMSTATE_BUFFER(rregs, ESCCChannelState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_escc_chn_fields,
+};
+
+static const VMStateField vmstate_escc_fields[] = {
+    VMSTATE_STRUCT_ARRAY(chn, ESCCState, 2, 2, vmstate_escc_chn,
+                         ESCCChannelState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_escc = {
     .name = "escc",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(chn, ESCCState, 2, 2, vmstate_escc_chn,
-                             ESCCChannelState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_escc_fields,
 };
 
 static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
@@ -1051,7 +1055,7 @@ static void escc_init1(Object *obj)
 
     for (i = 0; i < 2; i++) {
         sysbus_init_irq(dev, &s->chn[i].irq);
-        s->chn[i].chn = 1 - i;
+        s->chn[i].chn = static_cast<ESCCChnID>(1 - i);
     }
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];

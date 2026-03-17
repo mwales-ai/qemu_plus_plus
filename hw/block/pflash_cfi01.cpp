@@ -95,21 +95,36 @@ static int pflash_post_load(void *opaque, int version_id);
 
 static bool pflash_blk_write_state_needed(void *opaque)
 {
-    PFlashCFI01 *pfl = opaque;
+    PFlashCFI01 *pfl = static_cast<PFlashCFI01 *>(opaque);
 
-    return (pfl->blk_offset != -1);
+    return (pfl->blk_offset != static_cast<uint32_t>(-1));
 }
+
+static const VMStateField vmstate_pflash_blk_write_fields[] = {
+    VMSTATE_VBUFFER_UINT32(blk_bytes, PFlashCFI01, 0, NULL, writeblock_size),
+    VMSTATE_UINT32(blk_offset, PFlashCFI01),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_pflash_blk_write = {
     .name = "pflash_cfi01_blk_write",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pflash_blk_write_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VBUFFER_UINT32(blk_bytes, PFlashCFI01, 0, NULL, writeblock_size),
-        VMSTATE_UINT32(blk_offset, PFlashCFI01),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pflash_blk_write_fields,
+};
+
+static const VMStateField vmstate_pflash_fields[] = {
+    VMSTATE_UINT8(wcycle, PFlashCFI01),
+    VMSTATE_UINT8(cmd, PFlashCFI01),
+    VMSTATE_UINT8(status, PFlashCFI01),
+    VMSTATE_UINT64(counter, PFlashCFI01),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_pflash_subsections[] = {
+    &vmstate_pflash_blk_write,
+    NULL
 };
 
 static const VMStateDescription vmstate_pflash = {
@@ -117,17 +132,8 @@ static const VMStateDescription vmstate_pflash = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = pflash_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(wcycle, PFlashCFI01),
-        VMSTATE_UINT8(cmd, PFlashCFI01),
-        VMSTATE_UINT8(status, PFlashCFI01),
-        VMSTATE_UINT64(counter, PFlashCFI01),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_pflash_blk_write,
-        NULL
-    }
+    .fields = vmstate_pflash_fields,
+    .subsections = vmstate_pflash_subsections,
 };
 
 /*
@@ -250,7 +256,7 @@ static uint32_t pflash_data_read(PFlashCFI01 *pfl, hwaddr offset,
     uint8_t *p;
     uint32_t ret;
 
-    p = pfl->storage;
+    p = static_cast<uint8_t *>(pfl->storage);
     if (be) {
         ret = ldn_be_p(p + offset, width);
     } else {
@@ -394,7 +400,8 @@ static void pflash_update(PFlashCFI01 *pfl, int offset,
         offset = QEMU_ALIGN_DOWN(offset, BDRV_SECTOR_SIZE);
         offset_end = QEMU_ALIGN_UP(offset_end, BDRV_SECTOR_SIZE);
         ret = blk_pwrite(pfl->blk, offset, offset_end - offset,
-                         pfl->storage + offset, 0);
+                         static_cast<uint8_t *>(pfl->storage) + offset,
+                         static_cast<BdrvRequestFlags>(0));
         if (ret < 0) {
             /* TODO set error bit in status */
             error_report("Could not update PFLASH: %s", strerror(-ret));
@@ -409,16 +416,16 @@ static void pflash_blk_write_start(PFlashCFI01 *pfl, hwaddr offset)
 
     trace_pflash_write_block_start(pfl->name, pfl->counter);
     pfl->blk_offset = offset & mask;
-    memcpy(pfl->blk_bytes, pfl->storage + pfl->blk_offset,
+    memcpy(pfl->blk_bytes, static_cast<uint8_t *>(pfl->storage) + pfl->blk_offset,
            pfl->writeblock_size);
 }
 
 /* commit block update buffer changes */
 static void pflash_blk_write_flush(PFlashCFI01 *pfl)
 {
-    g_assert(pfl->blk_offset != -1);
+    g_assert(pfl->blk_offset != static_cast<uint32_t>(-1));
     trace_pflash_write_block_flush(pfl->name);
-    memcpy(pfl->storage + pfl->blk_offset, pfl->blk_bytes,
+    memcpy(static_cast<uint8_t *>(pfl->storage) + pfl->blk_offset, pfl->blk_bytes,
            pfl->writeblock_size);
     pflash_update(pfl, pfl->blk_offset, pfl->writeblock_size);
     pfl->blk_offset = -1;
@@ -436,7 +443,7 @@ static inline void pflash_data_write(PFlashCFI01 *pfl, hwaddr offset,
 {
     uint8_t *p;
 
-    if (pfl->blk_offset != -1) {
+    if (pfl->blk_offset != static_cast<uint32_t>(-1)) {
         /* block write: redirect writes to block update buffer */
         if ((offset < pfl->blk_offset) ||
             (offset + width > pfl->blk_offset + pfl->writeblock_size)) {
@@ -449,7 +456,7 @@ static inline void pflash_data_write(PFlashCFI01 *pfl, hwaddr offset,
     } else {
         /* write directly to storage */
         trace_pflash_data_write(pfl->name, offset, width, value);
-        p = pfl->storage + offset;
+        p = static_cast<uint8_t *>(pfl->storage) + offset;
     }
 
     if (be) {
@@ -484,7 +491,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             trace_pflash_write(pfl->name, "single byte program (0)");
             break;
         case 0x20: /* Block erase */
-            p = pfl->storage;
+            p = static_cast<uint8_t *>(pfl->storage);
             offset &= ~(pfl->sector_len - 1);
 
             trace_pflash_write_block_erase(pfl->name, offset, pfl->sector_len);
@@ -599,10 +606,10 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
         switch (pfl->cmd) {
         case 0xe8: /* Block write */
             /* FIXME check @offset, @width */
-            if (pfl->blk_offset == -1 && pfl->counter) {
+            if (pfl->blk_offset == static_cast<uint32_t>(-1) && pfl->counter) {
                 pflash_blk_write_start(pfl, offset);
             }
-            if (!pfl->ro && (pfl->blk_offset != -1)) {
+            if (!pfl->ro && (pfl->blk_offset != static_cast<uint32_t>(-1))) {
                 pflash_data_write(pfl, offset, value, width, be);
             } else {
                 pfl->status |= 0x10; /* Programming error */
@@ -662,13 +669,13 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
 static MemTxResult pflash_mem_read_with_attrs(void *opaque, hwaddr addr, uint64_t *value,
                                               unsigned len, MemTxAttrs attrs)
 {
-    PFlashCFI01 *pfl = opaque;
+    PFlashCFI01 *pfl = static_cast<PFlashCFI01 *>(opaque);
     bool be = !!(pfl->features & (1 << PFLASH_BE));
 
     if ((pfl->features & (1 << PFLASH_SECURE)) && !attrs.secure) {
-        *value = pflash_data_read(opaque, addr, len, be);
+        *value = pflash_data_read(pfl, addr, len, be);
     } else {
-        *value = pflash_read(opaque, addr, len, be);
+        *value = pflash_read(pfl, addr, len, be);
     }
     return MEMTX_OK;
 }
@@ -676,13 +683,13 @@ static MemTxResult pflash_mem_read_with_attrs(void *opaque, hwaddr addr, uint64_
 static MemTxResult pflash_mem_write_with_attrs(void *opaque, hwaddr addr, uint64_t value,
                                                unsigned len, MemTxAttrs attrs)
 {
-    PFlashCFI01 *pfl = opaque;
+    PFlashCFI01 *pfl = static_cast<PFlashCFI01 *>(opaque);
     bool be = !!(pfl->features & (1 << PFLASH_BE));
 
     if ((pfl->features & (1 << PFLASH_SECURE)) && !attrs.secure) {
         return MEMTX_ERROR;
     } else {
-        pflash_write(opaque, addr, value, len, be);
+        pflash_write(pfl, addr, value, len, be);
         return MEMTX_OK;
     }
 }
@@ -870,7 +877,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->status = 0x80; /* WSM ready */
     pflash_cfi01_fill_cfi_table(pfl);
 
-    pfl->blk_bytes = g_malloc(pfl->writeblock_size);
+    pfl->blk_bytes = static_cast<unsigned char *>(g_malloc(pfl->writeblock_size));
     pfl->blk_offset = -1;
 }
 
@@ -1024,7 +1031,7 @@ void pflash_cfi01_legacy_drive(PFlashCFI01 *fl, DriveInfo *dinfo)
 
 static void postload_update_cb(void *opaque, bool running, RunState state)
 {
-    PFlashCFI01 *pfl = opaque;
+    PFlashCFI01 *pfl = static_cast<PFlashCFI01 *>(opaque);
 
     /* This is called after bdrv_activate_all.  */
     qemu_del_vm_change_state_handler(pfl->vmstate);
@@ -1036,7 +1043,7 @@ static void postload_update_cb(void *opaque, bool running, RunState state)
 
 static int pflash_post_load(void *opaque, int version_id)
 {
-    PFlashCFI01 *pfl = opaque;
+    PFlashCFI01 *pfl = static_cast<PFlashCFI01 *>(opaque);
 
     if (!pfl->ro) {
         pfl->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,

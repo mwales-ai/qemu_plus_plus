@@ -286,10 +286,10 @@ static inline uint16_t cirrus_src16(CirrusVGAState *s, uint32_t srcaddr)
 
     if (s->cirrus_srccounter) {
         /* cputovideo */
-        src = (void *)&s->cirrus_bltbuf[srcaddr & (CIRRUS_BLTBUFSIZE - 1) & ~1];
+        src = reinterpret_cast<uint16_t *>(&s->cirrus_bltbuf[srcaddr & (CIRRUS_BLTBUFSIZE - 1) & ~1]);
     } else {
         /* videotovideo */
-        src = (void *)&s->vga.vram_ptr[srcaddr & s->cirrus_addr_mask & ~1];
+        src = reinterpret_cast<uint16_t *>(&s->vga.vram_ptr[srcaddr & s->cirrus_addr_mask & ~1]);
     }
     return *src;
 }
@@ -300,10 +300,10 @@ static inline uint32_t cirrus_src32(CirrusVGAState *s, uint32_t srcaddr)
 
     if (s->cirrus_srccounter) {
         /* cputovideo */
-        src = (void *)&s->cirrus_bltbuf[srcaddr & (CIRRUS_BLTBUFSIZE - 1) & ~3];
+        src = reinterpret_cast<uint32_t *>(&s->cirrus_bltbuf[srcaddr & (CIRRUS_BLTBUFSIZE - 1) & ~3]);
     } else {
         /* videotovideo */
-        src = (void *)&s->vga.vram_ptr[srcaddr & s->cirrus_addr_mask & ~3];
+        src = reinterpret_cast<uint32_t *>(&s->vga.vram_ptr[srcaddr & s->cirrus_addr_mask & ~3]);
     }
     return *src;
 }
@@ -2007,7 +2007,7 @@ static uint64_t cirrus_vga_mem_read(void *opaque,
                                     hwaddr addr,
                                     uint32_t size)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
     unsigned bank_index;
     unsigned bank_offset;
     uint32_t val;
@@ -2051,7 +2051,7 @@ static void cirrus_vga_mem_write(void *opaque,
                                  uint64_t mem_value,
                                  uint32_t size)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
     unsigned bank_index;
     unsigned bank_offset;
     unsigned mode;
@@ -2320,7 +2320,7 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
 static uint64_t cirrus_linear_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
     uint32_t ret;
 
     addr &= s->cirrus_addr_mask;
@@ -2349,7 +2349,7 @@ static uint64_t cirrus_linear_read(void *opaque, hwaddr addr,
 static void cirrus_linear_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
     unsigned mode;
 
     addr &= s->cirrus_addr_mask;
@@ -2398,7 +2398,7 @@ static uint64_t cirrus_linear_bitblt_read(void *opaque,
                                           hwaddr addr,
                                           unsigned size)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
 
     /* XXX handle bitblt */
     (void)s;
@@ -2413,7 +2413,7 @@ static void cirrus_linear_bitblt_write(void *opaque,
                                        uint64_t val,
                                        unsigned size)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
 
     if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
         /* bitblt */
@@ -2500,7 +2500,7 @@ static void cirrus_update_memory_access(CirrusVGAState *s)
 static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
-    CirrusVGAState *c = opaque;
+    CirrusVGAState *c = static_cast<CirrusVGAState *>(opaque);
     VGACommonState *s = &c->vga;
     int val, index;
 
@@ -2585,7 +2585,7 @@ static uint64_t cirrus_vga_ioport_read(void *opaque, hwaddr addr,
 static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                     unsigned size)
 {
-    CirrusVGAState *c = opaque;
+    CirrusVGAState *c = static_cast<CirrusVGAState *>(opaque);
     VGACommonState *s = &c->vga;
     int index;
 
@@ -2685,7 +2685,7 @@ static void cirrus_vga_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 static uint64_t cirrus_mmio_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
 
     if (addr >= 0x100) {
         return cirrus_mmio_blt_read(s, addr - 0x100);
@@ -2697,7 +2697,7 @@ static uint64_t cirrus_mmio_read(void *opaque, hwaddr addr,
 static void cirrus_mmio_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
 
     if (addr >= 0x100) {
         cirrus_mmio_blt_write(s, addr - 0x100, val);
@@ -2720,7 +2720,7 @@ static const MemoryRegionOps cirrus_mmio_io_ops = {
 
 static int cirrus_post_load(void *opaque, int version_id)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
 
     s->vga.gr[0x00] = s->cirrus_shadow_gr0 & 0x0f;
     s->vga.gr[0x01] = s->cirrus_shadow_gr1 & 0x0f;
@@ -2793,7 +2793,7 @@ static const VMStateDescription vmstate_pci_cirrus_vga = {
 
 static void cirrus_reset(void *opaque)
 {
-    CirrusVGAState *s = opaque;
+    CirrusVGAState *s = static_cast<CirrusVGAState *>(opaque);
 
     vga_common_reset(&s->vga);
     unmap_linear_vram(s);
