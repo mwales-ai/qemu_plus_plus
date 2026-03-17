@@ -13,6 +13,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct CCIDCardInfo CCIDCardInfo;
 
 #define TYPE_CCID_CARD "ccid-card"
@@ -58,5 +62,9 @@ void ccid_card_card_error(CCIDCardState *card, uint64_t error);
  */
 int ccid_card_ccid_attach(CCIDCardState *card);
 void ccid_card_ccid_detach(CCIDCardState *card);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CCID_H */

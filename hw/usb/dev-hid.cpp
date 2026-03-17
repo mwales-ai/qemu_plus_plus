@@ -62,18 +62,47 @@ enum {
     STR_SERIAL_KEYBOARD,
 };
 
-static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER]     = "QEMU",
-    [STR_PRODUCT_MOUSE]    = "QEMU USB Mouse",
-    [STR_PRODUCT_TABLET]   = "QEMU USB Tablet",
-    [STR_PRODUCT_KEYBOARD] = "QEMU USB Keyboard",
-    [STR_SERIAL_COMPAT]    = "42",
-    [STR_CONFIG_MOUSE]     = "HID Mouse",
-    [STR_CONFIG_TABLET]    = "HID Tablet",
-    [STR_CONFIG_KEYBOARD]  = "HID Keyboard",
-    [STR_SERIAL_MOUSE]     = "89126",
-    [STR_SERIAL_TABLET]    = "28754",
-    [STR_SERIAL_KEYBOARD]  = "68284",
+static USBDescStrings desc_strings;
+
+static void __attribute__((constructor)) usb_hid_init_strings(void)
+{
+    desc_strings[STR_MANUFACTURER]     = "QEMU";
+    desc_strings[STR_PRODUCT_MOUSE]    = "QEMU USB Mouse";
+    desc_strings[STR_PRODUCT_TABLET]   = "QEMU USB Tablet";
+    desc_strings[STR_PRODUCT_KEYBOARD] = "QEMU USB Keyboard";
+    desc_strings[STR_SERIAL_COMPAT]    = "42";
+    desc_strings[STR_CONFIG_MOUSE]     = "HID Mouse";
+    desc_strings[STR_CONFIG_TABLET]    = "HID Tablet";
+    desc_strings[STR_CONFIG_KEYBOARD]  = "HID Keyboard";
+    desc_strings[STR_SERIAL_MOUSE]     = "89126";
+    desc_strings[STR_SERIAL_TABLET]    = "28754";
+    desc_strings[STR_SERIAL_KEYBOARD]  = "68284";
+}
+
+/* Extracted compound literals for C++ compatibility */
+
+/* Mouse HID descriptor data */
+static uint8_t desc_mouse_hid_data[] = {
+    0x09,          /*  u8  bLength */
+    USB_DT_HID,    /*  u8  bDescriptorType */
+    0x01, 0x00,    /*  u16 HID_class */
+    0x00,          /*  u8  country_code */
+    0x01,          /*  u8  num_descriptors */
+    USB_DT_REPORT, /*  u8  type: Report */
+    52, 0,         /*  u16 len */
+};
+
+static USBDescOther desc_mouse_hid_descs[] = {
+    { .data = desc_mouse_hid_data, },
+};
+
+static USBDescEndpoint desc_mouse_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 4,
+        .bInterval             = 0x0a,
+    },
 };
 
 static const USBDescIface desc_iface_mouse = {
@@ -83,27 +112,31 @@ static const USBDescIface desc_iface_mouse = {
     .bInterfaceSubClass            = 0x01, /* boot */
     .bInterfaceProtocol            = 0x02,
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* HID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_HID,    /*  u8  bDescriptorType */
-                0x01, 0x00,    /*  u16 HID_class */
-                0x00,          /*  u8  country_code */
-                0x01,          /*  u8  num_descriptors */
-                USB_DT_REPORT, /*  u8  type: Report */
-                52, 0,         /*  u16 len */
-            },
-        },
-    },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 4,
-            .bInterval             = 0x0a,
-        },
+    .descs = desc_mouse_hid_descs,
+    .eps = desc_mouse_eps,
+};
+
+/* Mouse2 HID descriptor data (USB 2.0) */
+static uint8_t desc_mouse2_hid_data[] = {
+    0x09,          /*  u8  bLength */
+    USB_DT_HID,    /*  u8  bDescriptorType */
+    0x01, 0x00,    /*  u16 HID_class */
+    0x00,          /*  u8  country_code */
+    0x01,          /*  u8  num_descriptors */
+    USB_DT_REPORT, /*  u8  type: Report */
+    52, 0,         /*  u16 len */
+};
+
+static USBDescOther desc_mouse2_hid_descs[] = {
+    { .data = desc_mouse2_hid_data, },
+};
+
+static USBDescEndpoint desc_mouse2_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 4,
+        .bInterval             = 7, /* 2 ^ (8-1) * 125 usecs = 8 ms */
     },
 };
 
@@ -114,27 +147,31 @@ static const USBDescIface desc_iface_mouse2 = {
     .bInterfaceSubClass            = 0x01, /* boot */
     .bInterfaceProtocol            = 0x02,
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* HID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_HID,    /*  u8  bDescriptorType */
-                0x01, 0x00,    /*  u16 HID_class */
-                0x00,          /*  u8  country_code */
-                0x01,          /*  u8  num_descriptors */
-                USB_DT_REPORT, /*  u8  type: Report */
-                52, 0,         /*  u16 len */
-            },
-        },
-    },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 4,
-            .bInterval             = 7, /* 2 ^ (8-1) * 125 usecs = 8 ms */
-        },
+    .descs = desc_mouse2_hid_descs,
+    .eps = desc_mouse2_eps,
+};
+
+/* Tablet HID descriptor data */
+static uint8_t desc_tablet_hid_data[] = {
+    0x09,          /*  u8  bLength */
+    USB_DT_HID,    /*  u8  bDescriptorType */
+    0x01, 0x00,    /*  u16 HID_class */
+    0x00,          /*  u8  country_code */
+    0x01,          /*  u8  num_descriptors */
+    USB_DT_REPORT, /*  u8  type: Report */
+    74, 0,         /*  u16 len */
+};
+
+static USBDescOther desc_tablet_hid_descs[] = {
+    { .data = desc_tablet_hid_data, },
+};
+
+static USBDescEndpoint desc_tablet_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 8,
+        .bInterval             = 0x0a,
     },
 };
 
@@ -144,27 +181,31 @@ static const USBDescIface desc_iface_tablet = {
     .bInterfaceClass               = USB_CLASS_HID,
     .bInterfaceProtocol            = 0x00,
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* HID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_HID,    /*  u8  bDescriptorType */
-                0x01, 0x00,    /*  u16 HID_class */
-                0x00,          /*  u8  country_code */
-                0x01,          /*  u8  num_descriptors */
-                USB_DT_REPORT, /*  u8  type: Report */
-                74, 0,         /*  u16 len */
-            },
-        },
-    },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
-            .bInterval             = 0x0a,
-        },
+    .descs = desc_tablet_hid_descs,
+    .eps = desc_tablet_eps,
+};
+
+/* Tablet2 HID descriptor data (USB 2.0) */
+static uint8_t desc_tablet2_hid_data[] = {
+    0x09,          /*  u8  bLength */
+    USB_DT_HID,    /*  u8  bDescriptorType */
+    0x01, 0x00,    /*  u16 HID_class */
+    0x00,          /*  u8  country_code */
+    0x01,          /*  u8  num_descriptors */
+    USB_DT_REPORT, /*  u8  type: Report */
+    74, 0,         /*  u16 len */
+};
+
+static USBDescOther desc_tablet2_hid_descs[] = {
+    { .data = desc_tablet2_hid_data, },
+};
+
+static USBDescEndpoint desc_tablet2_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 8,
+        .bInterval             = 4, /* 2 ^ (4-1) * 125 usecs = 1 ms */
     },
 };
 
@@ -174,27 +215,31 @@ static const USBDescIface desc_iface_tablet2 = {
     .bInterfaceClass               = USB_CLASS_HID,
     .bInterfaceProtocol            = 0x00,
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* HID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_HID,    /*  u8  bDescriptorType */
-                0x01, 0x00,    /*  u16 HID_class */
-                0x00,          /*  u8  country_code */
-                0x01,          /*  u8  num_descriptors */
-                USB_DT_REPORT, /*  u8  type: Report */
-                74, 0,         /*  u16 len */
-            },
-        },
-    },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
-            .bInterval             = 4, /* 2 ^ (4-1) * 125 usecs = 1 ms */
-        },
+    .descs = desc_tablet2_hid_descs,
+    .eps = desc_tablet2_eps,
+};
+
+/* Keyboard HID descriptor data */
+static uint8_t desc_keyboard_hid_data[] = {
+    0x09,          /*  u8  bLength */
+    USB_DT_HID,    /*  u8  bDescriptorType */
+    0x11, 0x01,    /*  u16 HID_class */
+    0x00,          /*  u8  country_code */
+    0x01,          /*  u8  num_descriptors */
+    USB_DT_REPORT, /*  u8  type: Report */
+    0x3f, 0,       /*  u16 len */
+};
+
+static USBDescOther desc_keyboard_hid_descs[] = {
+    { .data = desc_keyboard_hid_data, },
+};
+
+static USBDescEndpoint desc_keyboard_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 8,
+        .bInterval             = 0x0a,
     },
 };
 
@@ -205,27 +250,31 @@ static const USBDescIface desc_iface_keyboard = {
     .bInterfaceSubClass            = 0x01, /* boot */
     .bInterfaceProtocol            = 0x01, /* keyboard */
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* HID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_HID,    /*  u8  bDescriptorType */
-                0x11, 0x01,    /*  u16 HID_class */
-                0x00,          /*  u8  country_code */
-                0x01,          /*  u8  num_descriptors */
-                USB_DT_REPORT, /*  u8  type: Report */
-                0x3f, 0,       /*  u16 len */
-            },
-        },
-    },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
-            .bInterval             = 0x0a,
-        },
+    .descs = desc_keyboard_hid_descs,
+    .eps = desc_keyboard_eps,
+};
+
+/* Keyboard2 HID descriptor data (USB 2.0) */
+static uint8_t desc_keyboard2_hid_data[] = {
+    0x09,          /*  u8  bLength */
+    USB_DT_HID,    /*  u8  bDescriptorType */
+    0x11, 0x01,    /*  u16 HID_class */
+    0x00,          /*  u8  country_code */
+    0x01,          /*  u8  num_descriptors */
+    USB_DT_REPORT, /*  u8  type: Report */
+    0x3f, 0,       /*  u16 len */
+};
+
+static USBDescOther desc_keyboard2_hid_descs[] = {
+    { .data = desc_keyboard2_hid_data, },
+};
+
+static USBDescEndpoint desc_keyboard2_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 8,
+        .bInterval             = 7, /* 2 ^ (8-1) * 125 usecs = 8 ms */
     },
 };
 
@@ -236,27 +285,20 @@ static const USBDescIface desc_iface_keyboard2 = {
     .bInterfaceSubClass            = 0x01, /* boot */
     .bInterfaceProtocol            = 0x01, /* keyboard */
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* HID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_HID,    /*  u8  bDescriptorType */
-                0x11, 0x01,    /*  u16 HID_class */
-                0x00,          /*  u8  country_code */
-                0x01,          /*  u8  num_descriptors */
-                USB_DT_REPORT, /*  u8  type: Report */
-                0x3f, 0,       /*  u16 len */
-            },
-        },
-    },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
-            .bInterval             = 7, /* 2 ^ (8-1) * 125 usecs = 8 ms */
-        },
+    .descs = desc_keyboard2_hid_descs,
+    .eps = desc_keyboard2_eps,
+};
+
+/* USB config arrays for device descriptors */
+static const USBDescConfig desc_device_mouse_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_MOUSE,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 50,
+        .nif = 1,
+        .ifs = &desc_iface_mouse,
     },
 };
 
@@ -264,16 +306,18 @@ static const USBDescDevice desc_device_mouse = {
     .bcdUSB                        = 0x0100,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_MOUSE,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface_mouse,
-        },
+    .confs = desc_device_mouse_confs,
+};
+
+static const USBDescConfig desc_device_mouse2_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_MOUSE,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 50,
+        .nif = 1,
+        .ifs = &desc_iface_mouse2,
     },
 };
 
@@ -281,16 +325,18 @@ static const USBDescDevice desc_device_mouse2 = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 64,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_MOUSE,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface_mouse2,
-        },
+    .confs = desc_device_mouse2_confs,
+};
+
+static const USBDescConfig desc_device_tablet_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_TABLET,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 50,
+        .nif = 1,
+        .ifs = &desc_iface_tablet,
     },
 };
 
@@ -298,16 +344,18 @@ static const USBDescDevice desc_device_tablet = {
     .bcdUSB                        = 0x0100,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_TABLET,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface_tablet,
-        },
+    .confs = desc_device_tablet_confs,
+};
+
+static const USBDescConfig desc_device_tablet2_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_TABLET,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 50,
+        .nif = 1,
+        .ifs = &desc_iface_tablet2,
     },
 };
 
@@ -315,16 +363,18 @@ static const USBDescDevice desc_device_tablet2 = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 64,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_TABLET,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface_tablet2,
-        },
+    .confs = desc_device_tablet2_confs,
+};
+
+static const USBDescConfig desc_device_keyboard_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_KEYBOARD,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 50,
+        .nif = 1,
+        .ifs = &desc_iface_keyboard,
     },
 };
 
@@ -332,16 +382,18 @@ static const USBDescDevice desc_device_keyboard = {
     .bcdUSB                        = 0x0100,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_KEYBOARD,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface_keyboard,
-        },
+    .confs = desc_device_keyboard_confs,
+};
+
+static const USBDescConfig desc_device_keyboard2_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_KEYBOARD,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 50,
+        .nif = 1,
+        .ifs = &desc_iface_keyboard2,
     },
 };
 
@@ -349,17 +401,7 @@ static const USBDescDevice desc_device_keyboard2 = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 64,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_KEYBOARD,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface_keyboard2,
-        },
-    },
+    .confs = desc_device_keyboard2_confs,
 };
 
 static const USBDescMSOS desc_msos_suspend = {
@@ -656,7 +698,7 @@ static void usb_hid_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBHIDState *us = USB_HID(dev);
     HIDState *hs = &us->hid;
-    g_autofree uint8_t *buf = g_malloc(p->iov.size);
+    g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(p->iov.size));
     int len = 0;
 
     switch (p->pid) {
@@ -743,7 +785,7 @@ static void usb_keyboard_realize(USBDevice *dev, Error **errp)
 
 static int usb_ptr_post_load(void *opaque, int version_id)
 {
-    USBHIDState *s = opaque;
+    USBHIDState *s = static_cast<USBHIDState *>(opaque);
 
     if (s->dev.remote_wakeup) {
         hid_pointer_activate(&s->hid);
@@ -751,27 +793,31 @@ static int usb_ptr_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_usb_ptr_fields[] = {
+    VMSTATE_USB_DEVICE(dev, USBHIDState),
+    VMSTATE_HID_POINTER_DEVICE(hid, USBHIDState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_usb_ptr = {
     .name = "usb-ptr",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = usb_ptr_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_USB_DEVICE(dev, USBHIDState),
-        VMSTATE_HID_POINTER_DEVICE(hid, USBHIDState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_usb_ptr_fields,
+};
+
+static const VMStateField vmstate_usb_kbd_fields[] = {
+    VMSTATE_USB_DEVICE(dev, USBHIDState),
+    VMSTATE_HID_KEYBOARD_DEVICE(hid, USBHIDState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_usb_kbd = {
     .name = "usb-kbd",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_USB_DEVICE(dev, USBHIDState),
-        VMSTATE_HID_KEYBOARD_DEVICE(hid, USBHIDState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_usb_kbd_fields,
 };
 
 static void usb_hid_class_initfn(ObjectClass *klass, const void *data)

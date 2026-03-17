@@ -1209,7 +1209,7 @@ static void ohci_process_lists(OHCIState *ohci)
 /* Do frame processing on frame boundary */
 static void ohci_frame_boundary(void *opaque)
 {
-    OHCIState *ohci = opaque;
+    OHCIState *ohci = static_cast<OHCIState *>(opaque);
     struct ohci_hcca hcca;
 
     if (ohci_read_hcca(ohci, ohci->hcca, &hcca)) {
@@ -1508,7 +1508,7 @@ static uint64_t ohci_mem_read(void *opaque,
                               hwaddr addr,
                               unsigned size)
 {
-    OHCIState *ohci = opaque;
+    OHCIState *ohci = static_cast<OHCIState *>(opaque);
     uint32_t retval;
 
     /* Only aligned reads are allowed on OHCI */
@@ -1638,7 +1638,7 @@ static void ohci_mem_write(void *opaque,
                            uint64_t val,
                            unsigned size)
 {
-    OHCIState *ohci = opaque;
+    OHCIState *ohci = static_cast<OHCIState *>(opaque);
 
     /* Only aligned reads are allowed on OHCI */
     if (addr & 3) {
@@ -1775,7 +1775,7 @@ static const MemoryRegionOps ohci_mem_ops = {
 /* USBPortOps */
 static void ohci_attach(USBPort *port1)
 {
-    OHCIState *s = port1->opaque;
+    OHCIState *s = static_cast<OHCIState *>(port1->opaque);
     OHCIPort *port = &s->rhport[port1->index];
     uint32_t old_state = port->ctrl;
 
@@ -1803,7 +1803,7 @@ static void ohci_attach(USBPort *port1)
 
 static void ohci_child_detach(USBPort *port1, USBDevice *dev)
 {
-    OHCIState *ohci = port1->opaque;
+    OHCIState *ohci = static_cast<OHCIState *>(port1->opaque);
 
     if (ohci->async_td &&
         usb_packet_is_inflight(&ohci->usb_packet) &&
@@ -1815,7 +1815,7 @@ static void ohci_child_detach(USBPort *port1, USBDevice *dev)
 
 static void ohci_detach(USBPort *port1)
 {
-    OHCIState *s = port1->opaque;
+    OHCIState *s = static_cast<OHCIState *>(port1->opaque);
     OHCIPort *port = &s->rhport[port1->index];
     uint32_t old_state = port->ctrl;
 
@@ -1840,7 +1840,7 @@ static void ohci_detach(USBPort *port1)
 
 static void ohci_wakeup(USBPort *port1)
 {
-    OHCIState *s = port1->opaque;
+    OHCIState *s = static_cast<OHCIState *>(port1->opaque);
     OHCIPort *port = &s->rhport[port1->index];
     uint32_t intr = 0;
     if (port->ctrl & OHCI_PORT_PSS) {
@@ -1960,77 +1960,85 @@ void ohci_sysbus_die(struct OHCIState *ohci)
     ohci_bus_stop(ohci);
 }
 
+static const VMStateField vmstate_ohci_state_port_fields[] = {
+    VMSTATE_UINT32(ctrl, OHCIPort),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ohci_state_port = {
     .name = "ohci-core/port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ctrl, OHCIPort),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_ohci_state_port_fields,
 };
 
 static bool ohci_eof_timer_needed(void *opaque)
 {
-    OHCIState *ohci = opaque;
+    OHCIState *ohci = static_cast<OHCIState *>(opaque);
 
     return timer_pending(ohci->eof_timer);
 }
+
+static const VMStateField vmstate_ohci_eof_timer_fields[] = {
+    VMSTATE_TIMER_PTR(eof_timer, OHCIState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_ohci_eof_timer = {
     .name = "ohci-core/eof-timer",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ohci_eof_timer_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(eof_timer, OHCIState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_ohci_eof_timer_fields,
+};
+
+static const VMStateField vmstate_ohci_state_fields[] = {
+    VMSTATE_INT64(sof_time, OHCIState),
+    VMSTATE_UINT32(ctl, OHCIState),
+    VMSTATE_UINT32(status, OHCIState),
+    VMSTATE_UINT32(intr_status, OHCIState),
+    VMSTATE_UINT32(intr, OHCIState),
+    VMSTATE_UINT32(hcca, OHCIState),
+    VMSTATE_UINT32(ctrl_head, OHCIState),
+    VMSTATE_UINT32(ctrl_cur, OHCIState),
+    VMSTATE_UINT32(bulk_head, OHCIState),
+    VMSTATE_UINT32(bulk_cur, OHCIState),
+    VMSTATE_UINT32(per_cur, OHCIState),
+    VMSTATE_UINT32(done, OHCIState),
+    VMSTATE_INT32(done_count, OHCIState),
+    VMSTATE_UINT16(fsmps, OHCIState),
+    VMSTATE_UINT8(fit, OHCIState),
+    VMSTATE_UINT16(fi, OHCIState),
+    VMSTATE_UINT8(frt, OHCIState),
+    VMSTATE_UINT16(frame_number, OHCIState),
+    VMSTATE_UINT16(padding, OHCIState),
+    VMSTATE_UINT32(pstart, OHCIState),
+    VMSTATE_UINT32(lst, OHCIState),
+    VMSTATE_UINT32(rhdesc_a, OHCIState),
+    VMSTATE_UINT32(rhdesc_b, OHCIState),
+    VMSTATE_UINT32(rhstatus, OHCIState),
+    VMSTATE_STRUCT_ARRAY(rhport, OHCIState, OHCI_MAX_PORTS, 0,
+                         vmstate_ohci_state_port, OHCIPort),
+    VMSTATE_UINT32(hstatus, OHCIState),
+    VMSTATE_UINT32(hmask, OHCIState),
+    VMSTATE_UINT32(hreset, OHCIState),
+    VMSTATE_UINT32(htest, OHCIState),
+    VMSTATE_UINT32(old_ctl, OHCIState),
+    VMSTATE_UINT8_ARRAY(usb_buf, OHCIState, 8192),
+    VMSTATE_UINT32(async_td, OHCIState),
+    VMSTATE_BOOL(async_complete, OHCIState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_ohci_state_subsections[] = {
+    &vmstate_ohci_eof_timer,
+    NULL
 };
 
 const VMStateDescription vmstate_ohci_state = {
     .name = "ohci-core",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT64(sof_time, OHCIState),
-        VMSTATE_UINT32(ctl, OHCIState),
-        VMSTATE_UINT32(status, OHCIState),
-        VMSTATE_UINT32(intr_status, OHCIState),
-        VMSTATE_UINT32(intr, OHCIState),
-        VMSTATE_UINT32(hcca, OHCIState),
-        VMSTATE_UINT32(ctrl_head, OHCIState),
-        VMSTATE_UINT32(ctrl_cur, OHCIState),
-        VMSTATE_UINT32(bulk_head, OHCIState),
-        VMSTATE_UINT32(bulk_cur, OHCIState),
-        VMSTATE_UINT32(per_cur, OHCIState),
-        VMSTATE_UINT32(done, OHCIState),
-        VMSTATE_INT32(done_count, OHCIState),
-        VMSTATE_UINT16(fsmps, OHCIState),
-        VMSTATE_UINT8(fit, OHCIState),
-        VMSTATE_UINT16(fi, OHCIState),
-        VMSTATE_UINT8(frt, OHCIState),
-        VMSTATE_UINT16(frame_number, OHCIState),
-        VMSTATE_UINT16(padding, OHCIState),
-        VMSTATE_UINT32(pstart, OHCIState),
-        VMSTATE_UINT32(lst, OHCIState),
-        VMSTATE_UINT32(rhdesc_a, OHCIState),
-        VMSTATE_UINT32(rhdesc_b, OHCIState),
-        VMSTATE_UINT32(rhstatus, OHCIState),
-        VMSTATE_STRUCT_ARRAY(rhport, OHCIState, OHCI_MAX_PORTS, 0,
-                             vmstate_ohci_state_port, OHCIPort),
-        VMSTATE_UINT32(hstatus, OHCIState),
-        VMSTATE_UINT32(hmask, OHCIState),
-        VMSTATE_UINT32(hreset, OHCIState),
-        VMSTATE_UINT32(htest, OHCIState),
-        VMSTATE_UINT32(old_ctl, OHCIState),
-        VMSTATE_UINT8_ARRAY(usb_buf, OHCIState, 8192),
-        VMSTATE_UINT32(async_td, OHCIState),
-        VMSTATE_BOOL(async_complete, OHCIState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_ohci_eof_timer,
-        NULL
-    }
+    .fields = vmstate_ohci_state_fields,
+    .subsections = vmstate_ohci_state_subsections,
 };

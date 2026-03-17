@@ -118,11 +118,26 @@ enum {
     STR_SERIALNUMBER,
 };
 
-static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER]    = "QEMU",
-    [STR_PRODUCT_SERIAL]  = "QEMU USB SERIAL",
-    [STR_PRODUCT_BRAILLE] = "QEMU USB BAUM BRAILLE",
-    [STR_SERIALNUMBER]    = "1",
+static USBDescStrings desc_strings;
+
+static void __attribute__((constructor)) usb_serial_init_strings(void)
+{
+    desc_strings[STR_MANUFACTURER]    = "QEMU";
+    desc_strings[STR_PRODUCT_SERIAL]  = "QEMU USB SERIAL";
+    desc_strings[STR_PRODUCT_BRAILLE] = "QEMU USB BAUM BRAILLE";
+    desc_strings[STR_SERIALNUMBER]    = "1";
+}
+
+static USBDescEndpoint desc_iface0_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 64,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | 0x02,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 64,
+    },
 };
 
 static const USBDescIface desc_iface0 = {
@@ -131,33 +146,25 @@ static const USBDescIface desc_iface0 = {
     .bInterfaceClass               = 0xff,
     .bInterfaceSubClass            = 0xff,
     .bInterfaceProtocol            = 0xff,
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 64,
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | 0x02,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 64,
-        },
-    }
+    .eps = desc_iface0_eps,
+};
+
+static const USBDescConfig desc_device_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 50,
+        .nif = 1,
+        .ifs = &desc_iface0,
+    },
 };
 
 static const USBDescDevice desc_device = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface0,
-        },
-    },
+    .confs = desc_device_confs,
 };
 
 static const USBDesc desc_serial = {
@@ -493,7 +500,7 @@ static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
              * XXX this blocks entire thread. Rewrite to use
              * qemu_chr_fe_write and background I/O callbacks
              */
-            qemu_chr_fe_write_all(&s->cs, iov->iov_base, iov->iov_len);
+            qemu_chr_fe_write_all(&s->cs, static_cast<const uint8_t *>(iov->iov_base), iov->iov_len);
         }
         p->actual_length = p->iov.size;
         break;
@@ -515,7 +522,7 @@ static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
 
 static int usb_serial_can_read(void *opaque)
 {
-    USBSerialState *s = opaque;
+    USBSerialState *s = static_cast<USBSerialState *>(opaque);
 
     if (!s->dev.attached) {
         return 0;
@@ -525,7 +532,7 @@ static int usb_serial_can_read(void *opaque)
 
 static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
 {
-    USBSerialState *s = opaque;
+    USBSerialState *s = static_cast<USBSerialState *>(opaque);
     int first_size, start;
 
     /* room in the buffer? */
@@ -558,7 +565,7 @@ static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
 
 static void usb_serial_event(void *opaque, QEMUChrEvent event)
 {
-    USBSerialState *s = opaque;
+    USBSerialState *s = static_cast<USBSerialState *>(opaque);
 
     switch (event) {
     case CHR_EVENT_BREAK:

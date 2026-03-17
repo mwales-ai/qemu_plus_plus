@@ -157,7 +157,7 @@ enum {
 #define TRB_C               (1<<0)
 #define TRB_TYPE_SHIFT          10
 #define TRB_TYPE_MASK       0x3f
-#define TRB_TYPE(t)         (((t).control >> TRB_TYPE_SHIFT) & TRB_TYPE_MASK)
+#define TRB_TYPE(t)         static_cast<TRBType>(((t).control >> TRB_TYPE_SHIFT) & TRB_TYPE_MASK)
 
 #define TRB_EV_ED           (1<<2)
 
@@ -312,89 +312,89 @@ static void xhci_event(XHCIState *xhci, XHCIEvent *event, int v);
 static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v);
 static USBEndpoint *xhci_epid_to_usbep(XHCIEPContext *epctx);
 
-static const char *TRBType_names[] = {
-    [TRB_RESERVED]                     = "TRB_RESERVED",
-    [TR_NORMAL]                        = "TR_NORMAL",
-    [TR_SETUP]                         = "TR_SETUP",
-    [TR_DATA]                          = "TR_DATA",
-    [TR_STATUS]                        = "TR_STATUS",
-    [TR_ISOCH]                         = "TR_ISOCH",
-    [TR_LINK]                          = "TR_LINK",
-    [TR_EVDATA]                        = "TR_EVDATA",
-    [TR_NOOP]                          = "TR_NOOP",
-    [CR_ENABLE_SLOT]                   = "CR_ENABLE_SLOT",
-    [CR_DISABLE_SLOT]                  = "CR_DISABLE_SLOT",
-    [CR_ADDRESS_DEVICE]                = "CR_ADDRESS_DEVICE",
-    [CR_CONFIGURE_ENDPOINT]            = "CR_CONFIGURE_ENDPOINT",
-    [CR_EVALUATE_CONTEXT]              = "CR_EVALUATE_CONTEXT",
-    [CR_RESET_ENDPOINT]                = "CR_RESET_ENDPOINT",
-    [CR_STOP_ENDPOINT]                 = "CR_STOP_ENDPOINT",
-    [CR_SET_TR_DEQUEUE]                = "CR_SET_TR_DEQUEUE",
-    [CR_RESET_DEVICE]                  = "CR_RESET_DEVICE",
-    [CR_FORCE_EVENT]                   = "CR_FORCE_EVENT",
-    [CR_NEGOTIATE_BW]                  = "CR_NEGOTIATE_BW",
-    [CR_SET_LATENCY_TOLERANCE]         = "CR_SET_LATENCY_TOLERANCE",
-    [CR_GET_PORT_BANDWIDTH]            = "CR_GET_PORT_BANDWIDTH",
-    [CR_FORCE_HEADER]                  = "CR_FORCE_HEADER",
-    [CR_NOOP]                          = "CR_NOOP",
-    [ER_TRANSFER]                      = "ER_TRANSFER",
-    [ER_COMMAND_COMPLETE]              = "ER_COMMAND_COMPLETE",
-    [ER_PORT_STATUS_CHANGE]            = "ER_PORT_STATUS_CHANGE",
-    [ER_BANDWIDTH_REQUEST]             = "ER_BANDWIDTH_REQUEST",
-    [ER_DOORBELL]                      = "ER_DOORBELL",
-    [ER_HOST_CONTROLLER]               = "ER_HOST_CONTROLLER",
-    [ER_DEVICE_NOTIFICATION]           = "ER_DEVICE_NOTIFICATION",
-    [ER_MFINDEX_WRAP]                  = "ER_MFINDEX_WRAP",
-    [CR_VENDOR_NEC_FIRMWARE_REVISION]  = "CR_VENDOR_NEC_FIRMWARE_REVISION",
-    [CR_VENDOR_NEC_CHALLENGE_RESPONSE] = "CR_VENDOR_NEC_CHALLENGE_RESPONSE",
-};
+static const char *TRBType_names[CR_VENDOR_NEC_CHALLENGE_RESPONSE + 1];
+static const char *TRBCCode_names[CC_SPLIT_TRANSACTION_ERROR + 1];
+static const char *ep_state_names[EP_ERROR + 1];
 
-static const char *TRBCCode_names[] = {
-    [CC_INVALID]                       = "CC_INVALID",
-    [CC_SUCCESS]                       = "CC_SUCCESS",
-    [CC_DATA_BUFFER_ERROR]             = "CC_DATA_BUFFER_ERROR",
-    [CC_BABBLE_DETECTED]               = "CC_BABBLE_DETECTED",
-    [CC_USB_TRANSACTION_ERROR]         = "CC_USB_TRANSACTION_ERROR",
-    [CC_TRB_ERROR]                     = "CC_TRB_ERROR",
-    [CC_STALL_ERROR]                   = "CC_STALL_ERROR",
-    [CC_RESOURCE_ERROR]                = "CC_RESOURCE_ERROR",
-    [CC_BANDWIDTH_ERROR]               = "CC_BANDWIDTH_ERROR",
-    [CC_NO_SLOTS_ERROR]                = "CC_NO_SLOTS_ERROR",
-    [CC_INVALID_STREAM_TYPE_ERROR]     = "CC_INVALID_STREAM_TYPE_ERROR",
-    [CC_SLOT_NOT_ENABLED_ERROR]        = "CC_SLOT_NOT_ENABLED_ERROR",
-    [CC_EP_NOT_ENABLED_ERROR]          = "CC_EP_NOT_ENABLED_ERROR",
-    [CC_SHORT_PACKET]                  = "CC_SHORT_PACKET",
-    [CC_RING_UNDERRUN]                 = "CC_RING_UNDERRUN",
-    [CC_RING_OVERRUN]                  = "CC_RING_OVERRUN",
-    [CC_VF_ER_FULL]                    = "CC_VF_ER_FULL",
-    [CC_PARAMETER_ERROR]               = "CC_PARAMETER_ERROR",
-    [CC_BANDWIDTH_OVERRUN]             = "CC_BANDWIDTH_OVERRUN",
-    [CC_CONTEXT_STATE_ERROR]           = "CC_CONTEXT_STATE_ERROR",
-    [CC_NO_PING_RESPONSE_ERROR]        = "CC_NO_PING_RESPONSE_ERROR",
-    [CC_EVENT_RING_FULL_ERROR]         = "CC_EVENT_RING_FULL_ERROR",
-    [CC_INCOMPATIBLE_DEVICE_ERROR]     = "CC_INCOMPATIBLE_DEVICE_ERROR",
-    [CC_MISSED_SERVICE_ERROR]          = "CC_MISSED_SERVICE_ERROR",
-    [CC_COMMAND_RING_STOPPED]          = "CC_COMMAND_RING_STOPPED",
-    [CC_COMMAND_ABORTED]               = "CC_COMMAND_ABORTED",
-    [CC_STOPPED]                       = "CC_STOPPED",
-    [CC_STOPPED_LENGTH_INVALID]        = "CC_STOPPED_LENGTH_INVALID",
-    [CC_MAX_EXIT_LATENCY_TOO_LARGE_ERROR]
-    = "CC_MAX_EXIT_LATENCY_TOO_LARGE_ERROR",
-    [CC_ISOCH_BUFFER_OVERRUN]          = "CC_ISOCH_BUFFER_OVERRUN",
-    [CC_EVENT_LOST_ERROR]              = "CC_EVENT_LOST_ERROR",
-    [CC_UNDEFINED_ERROR]               = "CC_UNDEFINED_ERROR",
-    [CC_INVALID_STREAM_ID_ERROR]       = "CC_INVALID_STREAM_ID_ERROR",
-    [CC_SECONDARY_BANDWIDTH_ERROR]     = "CC_SECONDARY_BANDWIDTH_ERROR",
-    [CC_SPLIT_TRANSACTION_ERROR]       = "CC_SPLIT_TRANSACTION_ERROR",
-};
+static void __attribute__((constructor)) xhci_init_name_arrays(void)
+{
+    TRBType_names[TRB_RESERVED]                     = "TRB_RESERVED";
+    TRBType_names[TR_NORMAL]                        = "TR_NORMAL";
+    TRBType_names[TR_SETUP]                         = "TR_SETUP";
+    TRBType_names[TR_DATA]                          = "TR_DATA";
+    TRBType_names[TR_STATUS]                        = "TR_STATUS";
+    TRBType_names[TR_ISOCH]                         = "TR_ISOCH";
+    TRBType_names[TR_LINK]                          = "TR_LINK";
+    TRBType_names[TR_EVDATA]                        = "TR_EVDATA";
+    TRBType_names[TR_NOOP]                          = "TR_NOOP";
+    TRBType_names[CR_ENABLE_SLOT]                   = "CR_ENABLE_SLOT";
+    TRBType_names[CR_DISABLE_SLOT]                  = "CR_DISABLE_SLOT";
+    TRBType_names[CR_ADDRESS_DEVICE]                = "CR_ADDRESS_DEVICE";
+    TRBType_names[CR_CONFIGURE_ENDPOINT]            = "CR_CONFIGURE_ENDPOINT";
+    TRBType_names[CR_EVALUATE_CONTEXT]              = "CR_EVALUATE_CONTEXT";
+    TRBType_names[CR_RESET_ENDPOINT]                = "CR_RESET_ENDPOINT";
+    TRBType_names[CR_STOP_ENDPOINT]                 = "CR_STOP_ENDPOINT";
+    TRBType_names[CR_SET_TR_DEQUEUE]                = "CR_SET_TR_DEQUEUE";
+    TRBType_names[CR_RESET_DEVICE]                  = "CR_RESET_DEVICE";
+    TRBType_names[CR_FORCE_EVENT]                   = "CR_FORCE_EVENT";
+    TRBType_names[CR_NEGOTIATE_BW]                  = "CR_NEGOTIATE_BW";
+    TRBType_names[CR_SET_LATENCY_TOLERANCE]         = "CR_SET_LATENCY_TOLERANCE";
+    TRBType_names[CR_GET_PORT_BANDWIDTH]            = "CR_GET_PORT_BANDWIDTH";
+    TRBType_names[CR_FORCE_HEADER]                  = "CR_FORCE_HEADER";
+    TRBType_names[CR_NOOP]                          = "CR_NOOP";
+    TRBType_names[ER_TRANSFER]                      = "ER_TRANSFER";
+    TRBType_names[ER_COMMAND_COMPLETE]              = "ER_COMMAND_COMPLETE";
+    TRBType_names[ER_PORT_STATUS_CHANGE]            = "ER_PORT_STATUS_CHANGE";
+    TRBType_names[ER_BANDWIDTH_REQUEST]             = "ER_BANDWIDTH_REQUEST";
+    TRBType_names[ER_DOORBELL]                      = "ER_DOORBELL";
+    TRBType_names[ER_HOST_CONTROLLER]               = "ER_HOST_CONTROLLER";
+    TRBType_names[ER_DEVICE_NOTIFICATION]           = "ER_DEVICE_NOTIFICATION";
+    TRBType_names[ER_MFINDEX_WRAP]                  = "ER_MFINDEX_WRAP";
+    TRBType_names[CR_VENDOR_NEC_FIRMWARE_REVISION]  = "CR_VENDOR_NEC_FIRMWARE_REVISION";
+    TRBType_names[CR_VENDOR_NEC_CHALLENGE_RESPONSE] = "CR_VENDOR_NEC_CHALLENGE_RESPONSE";
 
-static const char *ep_state_names[] = {
-    [EP_DISABLED] = "disabled",
-    [EP_RUNNING]  = "running",
-    [EP_HALTED]   = "halted",
-    [EP_STOPPED]  = "stopped",
-    [EP_ERROR]    = "error",
-};
+    TRBCCode_names[CC_INVALID]                       = "CC_INVALID";
+    TRBCCode_names[CC_SUCCESS]                       = "CC_SUCCESS";
+    TRBCCode_names[CC_DATA_BUFFER_ERROR]             = "CC_DATA_BUFFER_ERROR";
+    TRBCCode_names[CC_BABBLE_DETECTED]               = "CC_BABBLE_DETECTED";
+    TRBCCode_names[CC_USB_TRANSACTION_ERROR]         = "CC_USB_TRANSACTION_ERROR";
+    TRBCCode_names[CC_TRB_ERROR]                     = "CC_TRB_ERROR";
+    TRBCCode_names[CC_STALL_ERROR]                   = "CC_STALL_ERROR";
+    TRBCCode_names[CC_RESOURCE_ERROR]                = "CC_RESOURCE_ERROR";
+    TRBCCode_names[CC_BANDWIDTH_ERROR]               = "CC_BANDWIDTH_ERROR";
+    TRBCCode_names[CC_NO_SLOTS_ERROR]                = "CC_NO_SLOTS_ERROR";
+    TRBCCode_names[CC_INVALID_STREAM_TYPE_ERROR]     = "CC_INVALID_STREAM_TYPE_ERROR";
+    TRBCCode_names[CC_SLOT_NOT_ENABLED_ERROR]        = "CC_SLOT_NOT_ENABLED_ERROR";
+    TRBCCode_names[CC_EP_NOT_ENABLED_ERROR]          = "CC_EP_NOT_ENABLED_ERROR";
+    TRBCCode_names[CC_SHORT_PACKET]                  = "CC_SHORT_PACKET";
+    TRBCCode_names[CC_RING_UNDERRUN]                 = "CC_RING_UNDERRUN";
+    TRBCCode_names[CC_RING_OVERRUN]                  = "CC_RING_OVERRUN";
+    TRBCCode_names[CC_VF_ER_FULL]                    = "CC_VF_ER_FULL";
+    TRBCCode_names[CC_PARAMETER_ERROR]               = "CC_PARAMETER_ERROR";
+    TRBCCode_names[CC_BANDWIDTH_OVERRUN]             = "CC_BANDWIDTH_OVERRUN";
+    TRBCCode_names[CC_CONTEXT_STATE_ERROR]           = "CC_CONTEXT_STATE_ERROR";
+    TRBCCode_names[CC_NO_PING_RESPONSE_ERROR]        = "CC_NO_PING_RESPONSE_ERROR";
+    TRBCCode_names[CC_EVENT_RING_FULL_ERROR]         = "CC_EVENT_RING_FULL_ERROR";
+    TRBCCode_names[CC_INCOMPATIBLE_DEVICE_ERROR]     = "CC_INCOMPATIBLE_DEVICE_ERROR";
+    TRBCCode_names[CC_MISSED_SERVICE_ERROR]          = "CC_MISSED_SERVICE_ERROR";
+    TRBCCode_names[CC_COMMAND_RING_STOPPED]          = "CC_COMMAND_RING_STOPPED";
+    TRBCCode_names[CC_COMMAND_ABORTED]               = "CC_COMMAND_ABORTED";
+    TRBCCode_names[CC_STOPPED]                       = "CC_STOPPED";
+    TRBCCode_names[CC_STOPPED_LENGTH_INVALID]        = "CC_STOPPED_LENGTH_INVALID";
+    TRBCCode_names[CC_MAX_EXIT_LATENCY_TOO_LARGE_ERROR] = "CC_MAX_EXIT_LATENCY_TOO_LARGE_ERROR";
+    TRBCCode_names[CC_ISOCH_BUFFER_OVERRUN]          = "CC_ISOCH_BUFFER_OVERRUN";
+    TRBCCode_names[CC_EVENT_LOST_ERROR]              = "CC_EVENT_LOST_ERROR";
+    TRBCCode_names[CC_UNDEFINED_ERROR]               = "CC_UNDEFINED_ERROR";
+    TRBCCode_names[CC_INVALID_STREAM_ID_ERROR]       = "CC_INVALID_STREAM_ID_ERROR";
+    TRBCCode_names[CC_SECONDARY_BANDWIDTH_ERROR]     = "CC_SECONDARY_BANDWIDTH_ERROR";
+    TRBCCode_names[CC_SPLIT_TRANSACTION_ERROR]       = "CC_SPLIT_TRANSACTION_ERROR";
+
+    ep_state_names[EP_DISABLED] = "disabled";
+    ep_state_names[EP_RUNNING]  = "running";
+    ep_state_names[EP_HALTED]   = "halted";
+    ep_state_names[EP_STOPPED]  = "stopped";
+    ep_state_names[EP_ERROR]    = "error";
+}
 
 static const char *lookup_name(uint32_t index, const char **list, uint32_t llen)
 {
@@ -456,7 +456,7 @@ static void xhci_mfwrap_update(XHCIState *xhci)
 
 static void xhci_mfwrap_timer(void *opaque)
 {
-    XHCIState *xhci = opaque;
+    XHCIState *xhci = static_cast<XHCIState *>(opaque);
     XHCIEvent wrap = { ER_MFINDEX_WRAP, CC_SUCCESS };
 
     xhci_event(xhci, &wrap, 0);
@@ -699,7 +699,7 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
                             MEMTXATTRS_UNSPECIFIED) != MEMTX_OK) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: DMA memory access failed!\n",
                           __func__);
-            return 0;
+            return static_cast<TRBType>(0);
         }
         trb->addr = ring->dequeue;
         trb->ccs = ring->ccs;
@@ -711,7 +711,7 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
                                  trb->parameter, trb->status, trb->control);
 
         if ((trb->control & TRB_C) != ring->ccs) {
-            return 0;
+            return static_cast<TRBType>(0);
         }
 
         type = TRB_TYPE(*trb);
@@ -725,7 +725,7 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
         } else {
             if (++link_cnt > TRB_LINK_LIMIT) {
                 trace_usb_xhci_enforced_limit("trb-link");
-                return 0;
+                return static_cast<TRBType>(0);
             }
             ring->dequeue = xhci_mask64(trb->parameter);
             if (trb->control & TRB_LK_TC) {
@@ -1079,7 +1079,7 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
 
 static void xhci_ep_kick_timer(void *opaque)
 {
-    XHCIEPContext *epctx = opaque;
+    XHCIEPContext *epctx = static_cast<XHCIEPContext *>(opaque);
     xhci_kick_epctx(epctx, 0);
 }
 
@@ -1107,7 +1107,7 @@ static void xhci_init_epctx(XHCIEPContext *epctx,
 
     dequeue = xhci_addr64(ctx[2] & ~0xf, ctx[3]);
 
-    epctx->type = (ctx[1] >> EP_TYPE_SHIFT) & EP_TYPE_MASK;
+    epctx->type = static_cast<EPType>((ctx[1] >> EP_TYPE_SHIFT) & EP_TYPE_MASK);
     epctx->pctx = pctx;
     epctx->max_psize = ctx[1]>>16;
     epctx->max_psize *= 1+((ctx[1]>>8)&0xff);
@@ -1252,7 +1252,7 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
         }
         killed += xhci_ep_nuke_one_xfer(xfer, report);
         if (killed) {
-            report = 0; /* Only report once */
+            report = static_cast<TRBCCode>(0); /* Only report once */
         }
         xhci_ep_free_xfer(xfer);
     }
@@ -1281,7 +1281,7 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
         return CC_SUCCESS;
     }
 
-    xhci_ep_nuke_xfers(xhci, slotid, epid, 0);
+    xhci_ep_nuke_xfers(xhci, slotid, epid, static_cast<TRBCCode>(0));
 
     epctx = slot->eps[epid-1];
 
@@ -1367,7 +1367,7 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
         return CC_CONTEXT_STATE_ERROR;
     }
 
-    if (xhci_ep_nuke_xfers(xhci, slotid, epid, 0) > 0) {
+    if (xhci_ep_nuke_xfers(xhci, slotid, epid, static_cast<TRBCCode>(0)) > 0) {
         DPRINTF("xhci: FIXME: endpoint reset w/ xfers running, "
                 "data might be lost\n");
     }
@@ -1424,7 +1424,7 @@ static TRBCCode xhci_set_ep_dequeue(XHCIState *xhci, unsigned int slotid,
         uint32_t err;
         sctx = xhci_find_stream(epctx, streamid, &err);
         if (sctx == NULL) {
-            return err;
+            return static_cast<TRBCCode>(err);
         }
         xhci_ring_init(xhci, &sctx->ring, dequeue & ~0xf);
         sctx->ring.ccs = dequeue & 1;
@@ -2423,7 +2423,7 @@ static void xhci_detach_slot(XHCIState *xhci, USBPort *uport)
 
     for (ep = 0; ep < 31; ep++) {
         if (xhci->slots[slot].eps[ep]) {
-            xhci_ep_nuke_xfers(xhci, slot + 1, ep + 1, 0);
+            xhci_ep_nuke_xfers(xhci, slot + 1, ep + 1, static_cast<TRBCCode>(0));
         }
     }
     xhci->slots[slot].uport = NULL;
@@ -2567,7 +2567,7 @@ static void xhci_process_commands(XHCIState *xhci)
             break;
         case CR_VENDOR_NEC_FIRMWARE_REVISION:
             if (xhci->nec_quirks) {
-                event.type = 48; /* NEC reply */
+                event.type = static_cast<TRBType>(48); /* NEC reply */
                 event.length = 0x3034;
             } else {
                 event.ccode = CC_TRB_ERROR;
@@ -2581,7 +2581,7 @@ static void xhci_process_commands(XHCIState *xhci)
                 event.length = val & 0xFFFF;
                 event.epid = val >> 16;
                 slotid = val >> 24;
-                event.type = 48; /* NEC reply */
+                event.type = static_cast<TRBType>(48); /* NEC reply */
             } else {
                 event.ccode = CC_TRB_ERROR;
             }
@@ -2738,7 +2738,7 @@ static void xhci_reset(DeviceState *dev)
 
 static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
 {
-    XHCIState *xhci = ptr;
+    XHCIState *xhci = static_cast<XHCIState *>(ptr);
     uint32_t ret;
 
     switch (reg) {
@@ -2805,7 +2805,7 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
 
 static uint64_t xhci_port_read(void *ptr, hwaddr reg, unsigned size)
 {
-    XHCIPort *port = ptr;
+    XHCIPort *port = static_cast<XHCIPort *>(ptr);
     uint32_t ret;
 
     switch (reg) {
@@ -2835,7 +2835,7 @@ static uint64_t xhci_port_read(void *ptr, hwaddr reg, unsigned size)
 static void xhci_port_write(void *ptr, hwaddr reg,
                             uint64_t val, unsigned size)
 {
-    XHCIPort *port = ptr;
+    XHCIPort *port = static_cast<XHCIPort *>(ptr);
     uint32_t portsc, notify;
 
     trace_usb_xhci_port_write(port->portnr, reg, val);
@@ -2914,7 +2914,7 @@ static void xhci_port_write(void *ptr, hwaddr reg,
 
 static uint64_t xhci_oper_read(void *ptr, hwaddr reg, unsigned size)
 {
-    XHCIState *xhci = ptr;
+    XHCIState *xhci = static_cast<XHCIState *>(ptr);
     uint32_t ret;
 
     switch (reg) {
@@ -3026,7 +3026,7 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
 static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
                                   unsigned size)
 {
-    XHCIState *xhci = ptr;
+    XHCIState *xhci = static_cast<XHCIState *>(ptr);
     uint32_t ret = 0;
 
     if (reg < 0x20) {
@@ -3073,7 +3073,7 @@ static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
 static void xhci_runtime_write(void *ptr, hwaddr reg,
                                uint64_t val, unsigned size)
 {
-    XHCIState *xhci = ptr;
+    XHCIState *xhci = static_cast<XHCIState *>(ptr);
     XHCIInterrupter *intr;
     int v;
 
@@ -3147,7 +3147,7 @@ static uint64_t xhci_doorbell_read(void *ptr, hwaddr reg,
 static void xhci_doorbell_write(void *ptr, hwaddr reg,
                                 uint64_t val, unsigned size)
 {
-    XHCIState *xhci = ptr;
+    XHCIState *xhci = static_cast<XHCIState *>(ptr);
     unsigned int epid, streamid;
 
     trace_usb_xhci_doorbell_write(reg, val);
@@ -3189,42 +3189,42 @@ static void xhci_cap_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps xhci_cap_ops = {
     .read = xhci_cap_read,
     .write = xhci_cap_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 4, .max_access_size = 4, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps xhci_oper_ops = {
     .read = xhci_oper_read,
     .write = xhci_oper_write,
-    .valid = { .min_access_size = 4, .max_access_size = sizeof(dma_addr_t), },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = sizeof(dma_addr_t), },
 };
 
 static const MemoryRegionOps xhci_port_ops = {
     .read = xhci_port_read,
     .write = xhci_port_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static const MemoryRegionOps xhci_runtime_ops = {
     .read = xhci_runtime_read,
     .write = xhci_runtime_write,
-    .valid = { .min_access_size = 4, .max_access_size = sizeof(dma_addr_t), },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = sizeof(dma_addr_t), },
 };
 
 static const MemoryRegionOps xhci_doorbell_ops = {
     .read = xhci_doorbell_read,
     .write = xhci_doorbell_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void xhci_attach(USBPort *usbport)
 {
-    XHCIState *xhci = usbport->opaque;
+    XHCIState *xhci = static_cast<XHCIState *>(usbport->opaque);
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
 
     xhci_port_update(port, 0);
@@ -3232,7 +3232,7 @@ static void xhci_attach(USBPort *usbport)
 
 static void xhci_detach(USBPort *usbport)
 {
-    XHCIState *xhci = usbport->opaque;
+    XHCIState *xhci = static_cast<XHCIState *>(usbport->opaque);
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
 
     xhci_detach_slot(xhci, usbport);
@@ -3241,7 +3241,7 @@ static void xhci_detach(USBPort *usbport)
 
 static void xhci_wakeup(USBPort *usbport)
 {
-    XHCIState *xhci = usbport->opaque;
+    XHCIState *xhci = static_cast<XHCIState *>(usbport->opaque);
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
 
     assert(port);
@@ -3257,7 +3257,7 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
     XHCITransfer *xfer = container_of(packet, XHCITransfer, packet);
 
     if (packet->status == USB_RET_REMOVE_FROM_QUEUE) {
-        xhci_ep_nuke_one_xfer(xfer, 0);
+        xhci_ep_nuke_one_xfer(xfer, static_cast<TRBCCode>(0));
         return;
     }
     xhci_try_complete_packet(xfer);
@@ -3276,11 +3276,11 @@ static void xhci_child_detach(USBPort *uport, USBDevice *child)
 }
 
 static USBPortOps xhci_uport_ops = {
-    .attach   = xhci_attach,
-    .detach   = xhci_detach,
-    .wakeup   = xhci_wakeup,
-    .complete = xhci_complete,
+    .attach       = xhci_attach,
+    .detach       = xhci_detach,
     .child_detach = xhci_child_detach,
+    .wakeup       = xhci_wakeup,
+    .complete     = xhci_complete,
 };
 
 static int xhci_find_epid(USBEndpoint *ep)
@@ -3463,7 +3463,7 @@ static void usb_xhci_unrealize(DeviceState *dev)
 
 static int usb_xhci_post_load(void *opaque, int version_id)
 {
-    XHCIState *xhci = opaque;
+    XHCIState *xhci = static_cast<XHCIState *>(opaque);
     XHCISlot *slot;
     XHCIEPContext *epctx;
     dma_addr_t dcbaap, pctx;
@@ -3512,48 +3512,68 @@ static int usb_xhci_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_xhci_ring_fields[] = {
+    VMSTATE_UINT64(dequeue, XHCIRing),
+    VMSTATE_BOOL(ccs, XHCIRing),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xhci_ring = {
     .name = "xhci-ring",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(dequeue, XHCIRing),
-        VMSTATE_BOOL(ccs, XHCIRing),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xhci_ring_fields,
+};
+
+static const VMStateField vmstate_xhci_port_fields[] = {
+    VMSTATE_UINT32(portsc, XHCIPort),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_xhci_port = {
     .name = "xhci-port",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(portsc, XHCIPort),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xhci_port_fields,
+};
+
+static const VMStateField vmstate_xhci_slot_fields[] = {
+    VMSTATE_BOOL(enabled,   XHCISlot),
+    VMSTATE_BOOL(addressed, XHCISlot),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_xhci_slot = {
     .name = "xhci-slot",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(enabled,   XHCISlot),
-        VMSTATE_BOOL(addressed, XHCISlot),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xhci_slot_fields,
+};
+
+static const VMStateField vmstate_xhci_event_fields[] = {
+    {
+        .name         = "type",
+        .offset       = offsetof(XHCIEvent, type),
+        .size         = sizeof(uint32_t),
+        .info         = &vmstate_info_uint32,
+        .flags        = VMS_SINGLE,
+    },
+    {
+        .name         = "ccode",
+        .offset       = offsetof(XHCIEvent, ccode),
+        .size         = sizeof(uint32_t),
+        .info         = &vmstate_info_uint32,
+        .flags        = VMS_SINGLE,
+    },
+    VMSTATE_UINT64(ptr,    XHCIEvent),
+    VMSTATE_UINT32(length, XHCIEvent),
+    VMSTATE_UINT32(flags,  XHCIEvent),
+    VMSTATE_UINT8(slotid,  XHCIEvent),
+    VMSTATE_UINT8(epid,    XHCIEvent),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_xhci_event = {
     .name = "xhci-event",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(type,   XHCIEvent),
-        VMSTATE_UINT32(ccode,  XHCIEvent),
-        VMSTATE_UINT64(ptr,    XHCIEvent),
-        VMSTATE_UINT32(length, XHCIEvent),
-        VMSTATE_UINT32(flags,  XHCIEvent),
-        VMSTATE_UINT8(slotid,  XHCIEvent),
-        VMSTATE_UINT8(epid,    XHCIEvent),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xhci_event_fields,
 };
 
 static bool xhci_er_full(void *opaque, int version_id)
@@ -3561,67 +3581,71 @@ static bool xhci_er_full(void *opaque, int version_id)
     return false;
 }
 
+static const VMStateField vmstate_xhci_intr_fields[] = {
+    /* registers */
+    VMSTATE_UINT32(iman,          XHCIInterrupter),
+    VMSTATE_UINT32(imod,          XHCIInterrupter),
+    VMSTATE_UINT32(erstsz,        XHCIInterrupter),
+    VMSTATE_UINT32(erstba_low,    XHCIInterrupter),
+    VMSTATE_UINT32(erstba_high,   XHCIInterrupter),
+    VMSTATE_UINT32(erdp_low,      XHCIInterrupter),
+    VMSTATE_UINT32(erdp_high,     XHCIInterrupter),
+
+    /* state */
+    VMSTATE_BOOL(msix_used,       XHCIInterrupter),
+    VMSTATE_BOOL(er_pcs,          XHCIInterrupter),
+    VMSTATE_UINT64(er_start,      XHCIInterrupter),
+    VMSTATE_UINT32(er_size,       XHCIInterrupter),
+    VMSTATE_UINT32(er_ep_idx,     XHCIInterrupter),
+
+    /* event queue (used if ring is full) */
+    VMSTATE_BOOL(er_full_unused,  XHCIInterrupter),
+    VMSTATE_UINT32_TEST(ev_buffer_put, XHCIInterrupter, xhci_er_full),
+    VMSTATE_UINT32_TEST(ev_buffer_get, XHCIInterrupter, xhci_er_full),
+    VMSTATE_STRUCT_ARRAY_TEST(ev_buffer, XHCIInterrupter, EV_QUEUE,
+                              xhci_er_full, 1,
+                              vmstate_xhci_event, XHCIEvent),
+
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xhci_intr = {
     .name = "xhci-intr",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        /* registers */
-        VMSTATE_UINT32(iman,          XHCIInterrupter),
-        VMSTATE_UINT32(imod,          XHCIInterrupter),
-        VMSTATE_UINT32(erstsz,        XHCIInterrupter),
-        VMSTATE_UINT32(erstba_low,    XHCIInterrupter),
-        VMSTATE_UINT32(erstba_high,   XHCIInterrupter),
-        VMSTATE_UINT32(erdp_low,      XHCIInterrupter),
-        VMSTATE_UINT32(erdp_high,     XHCIInterrupter),
+    .fields = vmstate_xhci_intr_fields,
+};
 
-        /* state */
-        VMSTATE_BOOL(msix_used,       XHCIInterrupter),
-        VMSTATE_BOOL(er_pcs,          XHCIInterrupter),
-        VMSTATE_UINT64(er_start,      XHCIInterrupter),
-        VMSTATE_UINT32(er_size,       XHCIInterrupter),
-        VMSTATE_UINT32(er_ep_idx,     XHCIInterrupter),
+static const VMStateField vmstate_xhci_fields[] = {
+    VMSTATE_STRUCT_VARRAY_UINT32(ports, XHCIState, numports, 1,
+                                 vmstate_xhci_port, XHCIPort),
+    VMSTATE_STRUCT_VARRAY_UINT32(slots, XHCIState, numslots, 1,
+                                 vmstate_xhci_slot, XHCISlot),
+    VMSTATE_STRUCT_VARRAY_UINT32(intr, XHCIState, numintrs, 1,
+                                 vmstate_xhci_intr, XHCIInterrupter),
 
-        /* event queue (used if ring is full) */
-        VMSTATE_BOOL(er_full_unused,  XHCIInterrupter),
-        VMSTATE_UINT32_TEST(ev_buffer_put, XHCIInterrupter, xhci_er_full),
-        VMSTATE_UINT32_TEST(ev_buffer_get, XHCIInterrupter, xhci_er_full),
-        VMSTATE_STRUCT_ARRAY_TEST(ev_buffer, XHCIInterrupter, EV_QUEUE,
-                                  xhci_er_full, 1,
-                                  vmstate_xhci_event, XHCIEvent),
+    /* Operational Registers */
+    VMSTATE_UINT32(usbcmd,        XHCIState),
+    VMSTATE_UINT32(usbsts,        XHCIState),
+    VMSTATE_UINT32(dnctrl,        XHCIState),
+    VMSTATE_UINT32(crcr_low,      XHCIState),
+    VMSTATE_UINT32(crcr_high,     XHCIState),
+    VMSTATE_UINT32(dcbaap_low,    XHCIState),
+    VMSTATE_UINT32(dcbaap_high,   XHCIState),
+    VMSTATE_UINT32(config,        XHCIState),
 
-        VMSTATE_END_OF_LIST()
-    }
+    /* Runtime Registers & state */
+    VMSTATE_INT64(mfindex_start,  XHCIState),
+    VMSTATE_TIMER_PTR(mfwrap_timer,   XHCIState),
+    VMSTATE_STRUCT(cmd_ring, XHCIState, 1, vmstate_xhci_ring, XHCIRing),
+
+    VMSTATE_END_OF_LIST()
 };
 
 const VMStateDescription vmstate_xhci = {
     .name = "xhci-core",
     .version_id = 1,
     .post_load = usb_xhci_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_UINT32(ports, XHCIState, numports, 1,
-                                     vmstate_xhci_port, XHCIPort),
-        VMSTATE_STRUCT_VARRAY_UINT32(slots, XHCIState, numslots, 1,
-                                     vmstate_xhci_slot, XHCISlot),
-        VMSTATE_STRUCT_VARRAY_UINT32(intr, XHCIState, numintrs, 1,
-                                     vmstate_xhci_intr, XHCIInterrupter),
-
-        /* Operational Registers */
-        VMSTATE_UINT32(usbcmd,        XHCIState),
-        VMSTATE_UINT32(usbsts,        XHCIState),
-        VMSTATE_UINT32(dnctrl,        XHCIState),
-        VMSTATE_UINT32(crcr_low,      XHCIState),
-        VMSTATE_UINT32(crcr_high,     XHCIState),
-        VMSTATE_UINT32(dcbaap_low,    XHCIState),
-        VMSTATE_UINT32(dcbaap_high,   XHCIState),
-        VMSTATE_UINT32(config,        XHCIState),
-
-        /* Runtime Registers & state */
-        VMSTATE_INT64(mfindex_start,  XHCIState),
-        VMSTATE_TIMER_PTR(mfwrap_timer,   XHCIState),
-        VMSTATE_STRUCT(cmd_ring, XHCIState, 1, vmstate_xhci_ring, XHCIRing),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xhci_fields,
 };
 
 static const Property xhci_properties[] = {

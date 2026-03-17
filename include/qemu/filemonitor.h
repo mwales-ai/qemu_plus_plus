@@ -21,7 +21,9 @@
 #ifndef QEMU_FILEMONITOR_H
 #define QEMU_FILEMONITOR_H
 
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct QFileMonitor QFileMonitor;
 
@@ -123,5 +125,9 @@ int64_t qemu_file_monitor_add_watch(QFileMonitor *mon,
 void qemu_file_monitor_remove_watch(QFileMonitor *mon,
                                     const char *dirpath,
                                     int64_t id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_FILEMONITOR_H */

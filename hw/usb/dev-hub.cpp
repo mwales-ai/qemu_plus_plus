@@ -103,24 +103,40 @@ enum {
     STR_SERIALNUMBER,
 };
 
-static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER] = "QEMU",
-    [STR_PRODUCT]      = "QEMU USB Hub",
-    [STR_SERIALNUMBER] = "314159",
+static USBDescStrings desc_strings;
+
+static void __attribute__((constructor)) usb_hub_init_strings(void)
+{
+    desc_strings[STR_MANUFACTURER] = "QEMU";
+    desc_strings[STR_PRODUCT]      = "QEMU USB Hub";
+    desc_strings[STR_SERIALNUMBER] = "314159";
+}
+
+static USBDescEndpoint desc_hub_endpoints[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 1 + DIV_ROUND_UP(MAX_PORTS, 8),
+        .bInterval             = 0xff,
+    },
 };
 
 static const USBDescIface desc_iface_hub = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 1,
     .bInterfaceClass               = USB_CLASS_HUB,
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 1 + DIV_ROUND_UP(MAX_PORTS, 8),
-            .bInterval             = 0xff,
-        },
-    }
+    .eps = desc_hub_endpoints,
+};
+
+static const USBDescConfig desc_hub_configs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER |
+                                 USB_CFG_ATT_WAKEUP,
+        .nif = 1,
+        .ifs = &desc_iface_hub,
+    },
 };
 
 static const USBDescDevice desc_device_hub = {
@@ -128,16 +144,7 @@ static const USBDescDevice desc_device_hub = {
     .bDeviceClass                  = USB_CLASS_HUB,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER |
-                                     USB_CFG_ATT_WAKEUP,
-            .nif = 1,
-            .ifs = &desc_iface_hub,
-        },
-    },
+    .confs = desc_hub_configs,
 };
 
 static const USBDesc desc_hub = {
@@ -212,7 +219,7 @@ static bool usb_hub_port_update(USBHubPort *port)
 
 static void usb_hub_port_update_timer(void *opaque)
 {
-    USBHubState *s = opaque;
+    USBHubState *s = static_cast<USBHubState *>(opaque);
     bool notify = false;
     int i;
 
@@ -226,7 +233,7 @@ static void usb_hub_port_update_timer(void *opaque)
 
 static void usb_hub_attach(USBPort *port1)
 {
-    USBHubState *s = port1->opaque;
+    USBHubState *s = static_cast<USBHubState *>(port1->opaque);
     USBHubPort *port = &s->ports[port1->index];
 
     trace_usb_hub_attach(s->dev.addr, port1->index + 1);
@@ -236,7 +243,7 @@ static void usb_hub_attach(USBPort *port1)
 
 static void usb_hub_detach(USBPort *port1)
 {
-    USBHubState *s = port1->opaque;
+    USBHubState *s = static_cast<USBHubState *>(port1->opaque);
     USBHubPort *port = &s->ports[port1->index];
 
     trace_usb_hub_detach(s->dev.addr, port1->index + 1);
@@ -253,7 +260,7 @@ static void usb_hub_detach(USBPort *port1)
 
 static void usb_hub_child_detach(USBPort *port1, USBDevice *child)
 {
-    USBHubState *s = port1->opaque;
+    USBHubState *s = static_cast<USBHubState *>(port1->opaque);
 
     /* Pass along upstream */
     s->dev.port->ops->child_detach(s->dev.port, child);
@@ -261,7 +268,7 @@ static void usb_hub_child_detach(USBPort *port1, USBDevice *child)
 
 static void usb_hub_wakeup(USBPort *port1)
 {
-    USBHubState *s = port1->opaque;
+    USBHubState *s = static_cast<USBHubState *>(port1->opaque);
     USBHubPort *port = &s->ports[port1->index];
 
     if (usb_hub_port_clear(port, PORT_STAT_SUSPEND)) {
@@ -271,7 +278,7 @@ static void usb_hub_wakeup(USBPort *port1)
 
 static void usb_hub_complete(USBPort *port, USBPacket *packet)
 {
-    USBHubState *s = port->opaque;
+    USBHubState *s = static_cast<USBHubState *>(port->opaque);
 
     /*
      * Just pass it along upstream for now.
@@ -324,24 +331,27 @@ static void usb_hub_handle_reset(USBDevice *dev)
 
 static const char *feature_name(int feature)
 {
-    static const char *name[] = {
-        [PORT_CONNECTION]    = "connection",
-        [PORT_ENABLE]        = "enable",
-        [PORT_SUSPEND]       = "suspend",
-        [PORT_OVERCURRENT]   = "overcurrent",
-        [PORT_RESET]         = "reset",
-        [PORT_POWER]         = "power",
-        [PORT_LOWSPEED]      = "lowspeed",
-        [PORT_HIGHSPEED]     = "highspeed",
-        [PORT_C_CONNECTION]  = "change-connection",
-        [PORT_C_ENABLE]      = "change-enable",
-        [PORT_C_SUSPEND]     = "change-suspend",
-        [PORT_C_OVERCURRENT] = "change-overcurrent",
-        [PORT_C_RESET]       = "change-reset",
-        [PORT_TEST]          = "test",
-        [PORT_INDICATOR]     = "indicator",
-    };
-    if (feature < 0 || feature >= ARRAY_SIZE(name)) {
+    static const char *name[PORT_INDICATOR + 1];
+    static bool inited = false;
+    if (!inited) {
+        inited = true;
+        name[PORT_CONNECTION]    = "connection";
+        name[PORT_ENABLE]        = "enable";
+        name[PORT_SUSPEND]       = "suspend";
+        name[PORT_OVERCURRENT]   = "overcurrent";
+        name[PORT_RESET]         = "reset";
+        name[PORT_POWER]         = "power";
+        name[PORT_LOWSPEED]      = "lowspeed";
+        name[PORT_HIGHSPEED]     = "highspeed";
+        name[PORT_C_CONNECTION]  = "change-connection";
+        name[PORT_C_ENABLE]      = "change-enable";
+        name[PORT_C_SUSPEND]     = "change-suspend";
+        name[PORT_C_OVERCURRENT] = "change-overcurrent";
+        name[PORT_C_RESET]       = "change-reset";
+        name[PORT_TEST]          = "test";
+        name[PORT_INDICATOR]     = "indicator";
+    }
+    if (feature < 0 || feature >= static_cast<int>(ARRAY_SIZE(name))) {
         return "?";
     }
     return name[feature] ?: "?";
@@ -620,49 +630,57 @@ static void usb_hub_realize(USBDevice *dev, Error **errp)
     usb_hub_handle_reset(dev);
 }
 
+static const VMStateField vmstate_usb_hub_port_fields[] = {
+    VMSTATE_UINT16(wPortStatus, USBHubPort),
+    VMSTATE_UINT16(wPortChange, USBHubPort),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_usb_hub_port = {
     .name = "usb-hub-port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(wPortStatus, USBHubPort),
-        VMSTATE_UINT16(wPortChange, USBHubPort),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_usb_hub_port_fields,
 };
 
 static bool usb_hub_port_timer_needed(void *opaque)
 {
-    USBHubState *s = opaque;
+    USBHubState *s = static_cast<USBHubState *>(opaque);
 
     return s->port_power;
 }
+
+static const VMStateField vmstate_usb_hub_port_timer_fields[] = {
+    VMSTATE_TIMER_PTR(port_timer, USBHubState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_usb_hub_port_timer = {
     .name = "usb-hub/port-timer",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = usb_hub_port_timer_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(port_timer, USBHubState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_usb_hub_port_timer_fields,
+};
+
+static const VMStateField vmstate_usb_hub_fields[] = {
+    VMSTATE_USB_DEVICE(dev, USBHubState),
+    VMSTATE_STRUCT_ARRAY(ports, USBHubState, MAX_PORTS, 0,
+                         vmstate_usb_hub_port, USBHubPort),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_usb_hub_subsections[] = {
+    &vmstate_usb_hub_port_timer,
+    NULL
 };
 
 static const VMStateDescription vmstate_usb_hub = {
     .name = "usb-hub",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_USB_DEVICE(dev, USBHubState),
-        VMSTATE_STRUCT_ARRAY(ports, USBHubState, MAX_PORTS, 0,
-                             vmstate_usb_hub_port, USBHubPort),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_usb_hub_port_timer,
-        NULL
-    }
+    .fields = vmstate_usb_hub_fields,
+    .subsections = vmstate_usb_hub_subsections,
 };
 
 static const Property usb_hub_properties[] = {

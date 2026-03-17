@@ -93,31 +93,33 @@ typedef enum {
     *data = val; \
     } while(0)
 
-static const char *ehci_state_names[] = {
-    [EST_INACTIVE]     = "INACTIVE",
-    [EST_ACTIVE]       = "ACTIVE",
-    [EST_EXECUTING]    = "EXECUTING",
-    [EST_SLEEPING]     = "SLEEPING",
-    [EST_WAITLISTHEAD] = "WAITLISTHEAD",
-    [EST_FETCHENTRY]   = "FETCH ENTRY",
-    [EST_FETCHQH]      = "FETCH QH",
-    [EST_FETCHITD]     = "FETCH ITD",
-    [EST_ADVANCEQUEUE] = "ADVANCEQUEUE",
-    [EST_FETCHQTD]     = "FETCH QTD",
-    [EST_EXECUTE]      = "EXECUTE",
-    [EST_WRITEBACK]    = "WRITEBACK",
-    [EST_HORIZONTALQH] = "HORIZONTALQH",
-};
+static const char *ehci_state_names[EST_HORIZONTALQH + 1];
+static const char *ehci_mmio_names[CONFIGFLAG + 1];
 
-static const char *ehci_mmio_names[] = {
-    [USBCMD]            = "USBCMD",
-    [USBSTS]            = "USBSTS",
-    [USBINTR]           = "USBINTR",
-    [FRINDEX]           = "FRINDEX",
-    [PERIODICLISTBASE]  = "P-LIST BASE",
-    [ASYNCLISTADDR]     = "A-LIST ADDR",
-    [CONFIGFLAG]        = "CONFIGFLAG",
-};
+static void __attribute__((constructor)) ehci_init_name_arrays(void)
+{
+    ehci_state_names[EST_INACTIVE]     = "INACTIVE";
+    ehci_state_names[EST_ACTIVE]       = "ACTIVE";
+    ehci_state_names[EST_EXECUTING]    = "EXECUTING";
+    ehci_state_names[EST_SLEEPING]     = "SLEEPING";
+    ehci_state_names[EST_WAITLISTHEAD] = "WAITLISTHEAD";
+    ehci_state_names[EST_FETCHENTRY]   = "FETCH ENTRY";
+    ehci_state_names[EST_FETCHQH]      = "FETCH QH";
+    ehci_state_names[EST_FETCHITD]     = "FETCH ITD";
+    ehci_state_names[EST_ADVANCEQUEUE] = "ADVANCEQUEUE";
+    ehci_state_names[EST_FETCHQTD]     = "FETCH QTD";
+    ehci_state_names[EST_EXECUTE]      = "EXECUTE";
+    ehci_state_names[EST_WRITEBACK]    = "WRITEBACK";
+    ehci_state_names[EST_HORIZONTALQH] = "HORIZONTALQH";
+
+    ehci_mmio_names[USBCMD]           = "USBCMD";
+    ehci_mmio_names[USBSTS]           = "USBSTS";
+    ehci_mmio_names[USBINTR]          = "USBINTR";
+    ehci_mmio_names[FRINDEX]          = "FRINDEX";
+    ehci_mmio_names[PERIODICLISTBASE] = "P-LIST BASE";
+    ehci_mmio_names[ASYNCLISTADDR]    = "A-LIST ADDR";
+    ehci_mmio_names[CONFIGFLAG]       = "CONFIGFLAG";
+}
 
 static int ehci_state_executing(EHCIQueue *q);
 static int ehci_state_writeback(EHCIQueue *q);
@@ -549,7 +551,7 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q;
 
-    q = g_malloc0(sizeof(*q));
+    q = static_cast<EHCIQueue *>(g_malloc0(sizeof(*q)));
     q->ehci = ehci;
     q->qhaddr = addr;
     q->async = async;
@@ -691,7 +693,7 @@ static void ehci_queues_rip_all(EHCIState *ehci, int async)
 
 static void ehci_attach(USBPort *port)
 {
-    EHCIState *s = port->opaque;
+    EHCIState *s = static_cast<EHCIState *>(port->opaque);
     uint32_t *portsc = &s->portsc[port->index];
     const char *owner = (*portsc & PORTSC_POWNER) ? "comp" : "ehci";
 
@@ -712,7 +714,7 @@ static void ehci_attach(USBPort *port)
 
 static void ehci_detach(USBPort *port)
 {
-    EHCIState *s = port->opaque;
+    EHCIState *s = static_cast<EHCIState *>(port->opaque);
     uint32_t *portsc = &s->portsc[port->index];
     const char *owner = (*portsc & PORTSC_POWNER) ? "comp" : "ehci";
 
@@ -741,7 +743,7 @@ static void ehci_detach(USBPort *port)
 
 static void ehci_child_detach(USBPort *port, USBDevice *child)
 {
-    EHCIState *s = port->opaque;
+    EHCIState *s = static_cast<EHCIState *>(port->opaque);
     uint32_t portsc = s->portsc[port->index];
 
     if (portsc & PORTSC_POWNER) {
@@ -756,7 +758,7 @@ static void ehci_child_detach(USBPort *port, USBDevice *child)
 
 static void ehci_wakeup(USBPort *port)
 {
-    EHCIState *s = port->opaque;
+    EHCIState *s = static_cast<EHCIState *>(port->opaque);
     uint32_t *portsc = &s->portsc[port->index];
 
     if (*portsc & PORTSC_POWNER) {
@@ -848,7 +850,7 @@ static USBDevice *ehci_find_device(EHCIState *ehci, uint8_t addr)
 /* 4.1 host controller initialization */
 void ehci_reset(void *opaque)
 {
-    EHCIState *s = opaque;
+    EHCIState *s = static_cast<EHCIState *>(opaque);
     int i;
     USBDevice *devs[EHCI_PORTS];
 
@@ -897,7 +899,7 @@ void ehci_reset(void *opaque)
 static uint64_t ehci_caps_read(void *ptr, hwaddr addr,
                                unsigned size)
 {
-    EHCIState *s = ptr;
+    EHCIState *s = static_cast<EHCIState *>(ptr);
     return s->caps[addr];
 }
 
@@ -909,7 +911,7 @@ static void ehci_caps_write(void *ptr, hwaddr addr,
 static uint64_t ehci_opreg_read(void *ptr, hwaddr addr,
                                 unsigned size)
 {
-    EHCIState *s = ptr;
+    EHCIState *s = static_cast<EHCIState *>(ptr);
     uint32_t val;
 
     switch (addr) {
@@ -928,7 +930,7 @@ static uint64_t ehci_opreg_read(void *ptr, hwaddr addr,
 static uint64_t ehci_port_read(void *ptr, hwaddr addr,
                                unsigned size)
 {
-    EHCIState *s = ptr;
+    EHCIState *s = static_cast<EHCIState *>(ptr);
     uint32_t val;
 
     val = s->portsc[addr >> 2];
@@ -967,7 +969,7 @@ static void handle_port_owner_write(EHCIState *s, int port, uint32_t owner)
 static void ehci_port_write(void *ptr, hwaddr addr,
                             uint64_t val, unsigned size)
 {
-    EHCIState *s = ptr;
+    EHCIState *s = static_cast<EHCIState *>(ptr);
     int port = addr >> 2;
     uint32_t *portsc = &s->portsc[port];
     uint32_t old = *portsc;
@@ -1020,7 +1022,7 @@ static void ehci_port_write(void *ptr, hwaddr addr,
 static void ehci_opreg_write(void *ptr, hwaddr addr,
                              uint64_t val, unsigned size)
 {
-    EHCIState *s = ptr;
+    EHCIState *s = static_cast<EHCIState *>(ptr);
     uint32_t *mmio = s->opreg + (addr >> 2);
     uint32_t old = *mmio;
     int i;
@@ -1237,7 +1239,7 @@ static void ehci_finish_transfer(EHCIQueue *q, int len)
 static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
 {
     EHCIPacket *p;
-    EHCIState *s = port->opaque;
+    EHCIState *s = static_cast<EHCIState *>(port->opaque);
     uint32_t portsc = s->portsc[port->index];
 
     if (portsc & PORTSC_POWNER) {
@@ -2263,7 +2265,7 @@ static void ehci_update_frindex(EHCIState *ehci, int uframes)
 
 static void ehci_work_bh(void *opaque)
 {
-    EHCIState *ehci = opaque;
+    EHCIState *ehci = static_cast<EHCIState *>(opaque);
     int need_timer = 0;
     int64_t expire_time, t_now;
     uint64_t ns_elapsed;
@@ -2363,7 +2365,7 @@ static void ehci_work_bh(void *opaque)
 
 static void ehci_work_timer(void *opaque)
 {
-    EHCIState *ehci = opaque;
+    EHCIState *ehci = static_cast<EHCIState *>(opaque);
 
     qemu_bh_schedule(ehci->async_bh);
 }
@@ -2371,23 +2373,23 @@ static void ehci_work_timer(void *opaque)
 static const MemoryRegionOps ehci_mmio_caps_ops = {
     .read = ehci_caps_read,
     .write = ehci_caps_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 1, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps ehci_mmio_opreg_ops = {
     .read = ehci_opreg_read,
     .write = ehci_opreg_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static const MemoryRegionOps ehci_mmio_port_ops = {
     .read = ehci_port_read,
     .write = ehci_port_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static USBPortOps ehci_port_ops = {
@@ -2408,7 +2410,7 @@ static USBBusOps ehci_bus_ops_standalone = {
 
 static int usb_ehci_pre_save(void *opaque)
 {
-    EHCIState *ehci = opaque;
+    EHCIState *ehci = static_cast<EHCIState *>(opaque);
     uint32_t new_frindex;
 
     /* Round down frindex to a multiple of 8 for migration compatibility */
@@ -2421,7 +2423,7 @@ static int usb_ehci_pre_save(void *opaque)
 
 static int usb_ehci_post_load(void *opaque, int version_id)
 {
-    EHCIState *s = opaque;
+    EHCIState *s = static_cast<EHCIState *>(opaque);
     int i;
 
     for (i = 0; i < EHCI_PORTS; i++) {
@@ -2441,7 +2443,7 @@ static int usb_ehci_post_load(void *opaque, int version_id)
 
 static void usb_ehci_vm_state_change(void *opaque, bool running, RunState state)
 {
-    EHCIState *ehci = opaque;
+    EHCIState *ehci = static_cast<EHCIState *>(opaque);
 
     /*
      * We don't migrate the EHCIQueue-s, instead we rebuild them for the
@@ -2465,41 +2467,43 @@ static void usb_ehci_vm_state_change(void *opaque, bool running, RunState state)
     }
 }
 
+static const VMStateField vmstate_ehci_fields[] = {
+    /* mmio registers */
+    VMSTATE_UINT32(usbcmd, EHCIState),
+    VMSTATE_UINT32(usbsts, EHCIState),
+    VMSTATE_UINT32_V(usbsts_pending, EHCIState, 2),
+    VMSTATE_UINT32_V(usbsts_frindex, EHCIState, 2),
+    VMSTATE_UINT32(usbintr, EHCIState),
+    VMSTATE_UINT32(frindex, EHCIState),
+    VMSTATE_UINT32(ctrldssegment, EHCIState),
+    VMSTATE_UINT32(periodiclistbase, EHCIState),
+    VMSTATE_UINT32(asynclistaddr, EHCIState),
+    VMSTATE_UINT32(configflag, EHCIState),
+    VMSTATE_UINT32(portsc[0], EHCIState),
+    VMSTATE_UINT32(portsc[1], EHCIState),
+    VMSTATE_UINT32(portsc[2], EHCIState),
+    VMSTATE_UINT32(portsc[3], EHCIState),
+    VMSTATE_UINT32(portsc[4], EHCIState),
+    VMSTATE_UINT32(portsc[5], EHCIState),
+    /* frame timer */
+    VMSTATE_TIMER_PTR(frame_timer, EHCIState),
+    VMSTATE_UINT64(last_run_ns, EHCIState),
+    VMSTATE_UINT32(async_stepdown, EHCIState),
+    /* schedule state */
+    VMSTATE_UINT32(astate, EHCIState),
+    VMSTATE_UINT32(pstate, EHCIState),
+    VMSTATE_UINT32(a_fetch_addr, EHCIState),
+    VMSTATE_UINT32(p_fetch_addr, EHCIState),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_ehci = {
     .name        = "ehci-core",
     .version_id  = 2,
     .minimum_version_id  = 1,
-    .pre_save    = usb_ehci_pre_save,
     .post_load   = usb_ehci_post_load,
-    .fields = (const VMStateField[]) {
-        /* mmio registers */
-        VMSTATE_UINT32(usbcmd, EHCIState),
-        VMSTATE_UINT32(usbsts, EHCIState),
-        VMSTATE_UINT32_V(usbsts_pending, EHCIState, 2),
-        VMSTATE_UINT32_V(usbsts_frindex, EHCIState, 2),
-        VMSTATE_UINT32(usbintr, EHCIState),
-        VMSTATE_UINT32(frindex, EHCIState),
-        VMSTATE_UINT32(ctrldssegment, EHCIState),
-        VMSTATE_UINT32(periodiclistbase, EHCIState),
-        VMSTATE_UINT32(asynclistaddr, EHCIState),
-        VMSTATE_UINT32(configflag, EHCIState),
-        VMSTATE_UINT32(portsc[0], EHCIState),
-        VMSTATE_UINT32(portsc[1], EHCIState),
-        VMSTATE_UINT32(portsc[2], EHCIState),
-        VMSTATE_UINT32(portsc[3], EHCIState),
-        VMSTATE_UINT32(portsc[4], EHCIState),
-        VMSTATE_UINT32(portsc[5], EHCIState),
-        /* frame timer */
-        VMSTATE_TIMER_PTR(frame_timer, EHCIState),
-        VMSTATE_UINT64(last_run_ns, EHCIState),
-        VMSTATE_UINT32(async_stepdown, EHCIState),
-        /* schedule state */
-        VMSTATE_UINT32(astate, EHCIState),
-        VMSTATE_UINT32(pstate, EHCIState),
-        VMSTATE_UINT32(a_fetch_addr, EHCIState),
-        VMSTATE_UINT32(p_fetch_addr, EHCIState),
-        VMSTATE_END_OF_LIST()
-    }
+    .pre_save    = usb_ehci_pre_save,
+    .fields = vmstate_ehci_fields,
 };
 
 void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp)

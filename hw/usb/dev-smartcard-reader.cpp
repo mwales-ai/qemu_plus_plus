@@ -418,11 +418,38 @@ enum {
     STR_INTERFACE,
 };
 
-static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER]  = "QEMU",
-    [STR_PRODUCT]       = "QEMU USB CCID",
-    [STR_SERIALNUMBER]  = "1",
-    [STR_INTERFACE]     = "CCID Interface",
+static USBDescStrings desc_strings;
+
+static void __attribute__((constructor)) usb_ccid_init_strings(void)
+{
+    desc_strings[STR_MANUFACTURER]  = "QEMU";
+    desc_strings[STR_PRODUCT]       = "QEMU USB CCID";
+    desc_strings[STR_SERIALNUMBER]  = "1";
+    desc_strings[STR_INTERFACE]     = "CCID Interface";
+}
+
+static USBDescOther desc_iface0_descs[] = {
+    {
+        /* smartcard descriptor */
+        .data = qemu_ccid_descriptor,
+    },
+};
+
+static USBDescEndpoint desc_iface0_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | CCID_INT_IN_EP,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 64,
+        .bInterval             = 255,
+    },{
+        .bEndpointAddress      = USB_DIR_IN | CCID_BULK_IN_EP,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 64,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | CCID_BULK_OUT_EP,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 64,
+    },
 };
 
 static const USBDescIface desc_iface0 = {
@@ -433,45 +460,27 @@ static const USBDescIface desc_iface0 = {
     .bInterfaceProtocol            = 0x00,
     .iInterface                    = STR_INTERFACE,
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* smartcard descriptor */
-            .data = qemu_ccid_descriptor,
-        },
+    .descs = desc_iface0_descs,
+    .eps = desc_iface0_eps,
+};
+
+static const USBDescConfig desc_device_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER |
+                                 USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 50,
+        .nif = 1,
+        .ifs = &desc_iface0,
     },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | CCID_INT_IN_EP,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .bInterval             = 255,
-            .wMaxPacketSize        = 64,
-        },{
-            .bEndpointAddress      = USB_DIR_IN | CCID_BULK_IN_EP,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 64,
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | CCID_BULK_OUT_EP,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 64,
-        },
-    }
 };
 
 static const USBDescDevice desc_device = {
     .bcdUSB                        = 0x0110,
     .bMaxPacketSize0               = 64,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER |
-                                     USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 50,
-            .nif = 1,
-            .ifs = &desc_iface0,
-        },
-    },
+    .confs = desc_device_confs,
 };
 
 static const USBDesc desc_ccid = {
@@ -740,7 +749,7 @@ static void ccid_reset_error_status(USBCCIDState *s)
 
 static void ccid_write_slot_status(USBCCIDState *s, CCID_Header *recv)
 {
-    CCID_SlotStatus *h = ccid_reserve_recv_buf(s, sizeof(CCID_SlotStatus));
+    CCID_SlotStatus *h = static_cast<CCID_SlotStatus *>(ccid_reserve_recv_buf(s, sizeof(CCID_SlotStatus)));
     if (h == NULL) {
         return;
     }
@@ -760,7 +769,7 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
     CCID_Parameter *h;
     uint32_t len = s->ulProtocolDataStructureSize;
 
-    h = ccid_reserve_recv_buf(s, sizeof(CCID_Parameter) + len);
+    h = static_cast<CCID_Parameter *>(ccid_reserve_recv_buf(s, sizeof(CCID_Parameter) + len));
     if (h == NULL) {
         return;
     }
@@ -779,7 +788,7 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
 static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
                                   const uint8_t *data, uint32_t len)
 {
-    CCID_DataBlock *p = ccid_reserve_recv_buf(s, sizeof(*p) + len);
+    CCID_DataBlock *p = static_cast<CCID_DataBlock *>(ccid_reserve_recv_buf(s, sizeof(*p) + len));
 
     if (p == NULL) {
         return;
@@ -1340,7 +1349,7 @@ static void ccid_realize(USBDevice *dev, Error **errp)
 
 static int ccid_post_load(void *opaque, int version_id)
 {
-    USBCCIDState *s = opaque;
+    USBCCIDState *s = static_cast<USBCCIDState *>(opaque);
 
     /*
      * This must be done after usb_device_attach, which sets state to ATTACHED,
@@ -1354,46 +1363,78 @@ static int ccid_post_load(void *opaque, int version_id)
 
 static int ccid_pre_save(void *opaque)
 {
-    USBCCIDState *s = opaque;
+    USBCCIDState *s = static_cast<USBCCIDState *>(opaque);
 
     s->state_vmstate = s->dev.state;
 
     return 0;
 }
 
+static const VMStateField bulk_in_vmstate_fields[] = {
+    VMSTATE_BUFFER(data, BulkIn),
+    VMSTATE_UINT32(len, BulkIn),
+    VMSTATE_UINT32(pos, BulkIn),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription bulk_in_vmstate = {
     .name = "CCID BulkIn state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(data, BulkIn),
-        VMSTATE_UINT32(len, BulkIn),
-        VMSTATE_UINT32(pos, BulkIn),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = bulk_in_vmstate_fields,
+};
+
+static const VMStateField answer_vmstate_fields[] = {
+    VMSTATE_UINT8(slot, Answer),
+    VMSTATE_UINT8(seq, Answer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription answer_vmstate = {
     .name = "CCID Answer state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(slot, Answer),
-        VMSTATE_UINT8(seq, Answer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = answer_vmstate_fields,
+};
+
+static const VMStateField usb_device_vmstate_fields[] = {
+    VMSTATE_UINT8(addr, USBDevice),
+    VMSTATE_BUFFER(setup_buf, USBDevice),
+    VMSTATE_BUFFER(data_buf, USBDevice),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription usb_device_vmstate = {
     .name = "usb_device",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(addr, USBDevice),
-        VMSTATE_BUFFER(setup_buf, USBDevice),
-        VMSTATE_BUFFER(data_buf, USBDevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = usb_device_vmstate_fields,
+};
+
+static const VMStateField ccid_vmstate_fields[] = {
+    VMSTATE_STRUCT(dev, USBCCIDState, 1, usb_device_vmstate, USBDevice),
+    VMSTATE_UINT8(debug, USBCCIDState),
+    VMSTATE_BUFFER(bulk_out_data, USBCCIDState),
+    VMSTATE_UINT32(bulk_out_pos, USBCCIDState),
+    VMSTATE_UINT8(bmSlotICCState, USBCCIDState),
+    VMSTATE_UINT8(powered, USBCCIDState),
+    VMSTATE_UINT8(notify_slot_change, USBCCIDState),
+    VMSTATE_UINT64(last_answer_error, USBCCIDState),
+    VMSTATE_UINT8(bError, USBCCIDState),
+    VMSTATE_UINT8(bmCommandStatus, USBCCIDState),
+    VMSTATE_UINT8(bProtocolNum, USBCCIDState),
+    VMSTATE_BUFFER(abProtocolDataStructure.data, USBCCIDState),
+    VMSTATE_UINT32(ulProtocolDataStructureSize, USBCCIDState),
+    VMSTATE_STRUCT_ARRAY(bulk_in_pending, USBCCIDState,
+                   BULK_IN_PENDING_NUM, 1, bulk_in_vmstate, BulkIn),
+    VMSTATE_UINT32(bulk_in_pending_start, USBCCIDState),
+    VMSTATE_UINT32(bulk_in_pending_end, USBCCIDState),
+    VMSTATE_STRUCT_ARRAY(pending_answers, USBCCIDState,
+                    PENDING_ANSWERS_NUM, 1, answer_vmstate, Answer),
+    VMSTATE_UINT32(pending_answers_num, USBCCIDState),
+    VMSTATE_UNUSED(1), /* was migration_state */
+    VMSTATE_UINT32(state_vmstate, USBCCIDState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription ccid_vmstate = {
@@ -1402,31 +1443,7 @@ static const VMStateDescription ccid_vmstate = {
     .minimum_version_id = 1,
     .post_load = ccid_post_load,
     .pre_save = ccid_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(dev, USBCCIDState, 1, usb_device_vmstate, USBDevice),
-        VMSTATE_UINT8(debug, USBCCIDState),
-        VMSTATE_BUFFER(bulk_out_data, USBCCIDState),
-        VMSTATE_UINT32(bulk_out_pos, USBCCIDState),
-        VMSTATE_UINT8(bmSlotICCState, USBCCIDState),
-        VMSTATE_UINT8(powered, USBCCIDState),
-        VMSTATE_UINT8(notify_slot_change, USBCCIDState),
-        VMSTATE_UINT64(last_answer_error, USBCCIDState),
-        VMSTATE_UINT8(bError, USBCCIDState),
-        VMSTATE_UINT8(bmCommandStatus, USBCCIDState),
-        VMSTATE_UINT8(bProtocolNum, USBCCIDState),
-        VMSTATE_BUFFER(abProtocolDataStructure.data, USBCCIDState),
-        VMSTATE_UINT32(ulProtocolDataStructureSize, USBCCIDState),
-        VMSTATE_STRUCT_ARRAY(bulk_in_pending, USBCCIDState,
-                       BULK_IN_PENDING_NUM, 1, bulk_in_vmstate, BulkIn),
-        VMSTATE_UINT32(bulk_in_pending_start, USBCCIDState),
-        VMSTATE_UINT32(bulk_in_pending_end, USBCCIDState),
-        VMSTATE_STRUCT_ARRAY(pending_answers, USBCCIDState,
-                        PENDING_ANSWERS_NUM, 1, answer_vmstate, Answer),
-        VMSTATE_UINT32(pending_answers_num, USBCCIDState),
-        VMSTATE_UNUSED(1), /* was migration_state */
-        VMSTATE_UINT32(state_vmstate, USBCCIDState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = ccid_vmstate_fields,
 };
 
 static const Property ccid_properties[] = {
@@ -1453,15 +1470,17 @@ static void ccid_class_initfn(ObjectClass *klass, const void *data)
     hc->unplug = qdev_simple_device_unplug_cb;
 }
 
+static const InterfaceInfo ccid_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo ccid_info = {
     .name          = TYPE_USB_CCID_DEV,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBCCIDState),
     .class_init    = ccid_class_initfn,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+    .interfaces = ccid_interfaces,
 };
 
 static void ccid_card_class_init(ObjectClass *klass, const void *data)

@@ -241,18 +241,20 @@ static void xhci_class_init(ObjectClass *klass, const void *data)
         "such as macOS's.");
 }
 
+static const InterfaceInfo xhci_pci_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
 static const TypeInfo xhci_pci_info = {
     .name          = TYPE_XHCI_PCI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XHCIPciState),
-    .class_init    = xhci_class_init,
     .instance_init = xhci_instance_init,
     .is_abstract      = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    },
+    .class_init    = xhci_class_init,
+    .interfaces = xhci_pci_interfaces,
 };
 
 static void qemu_xhci_class_init(ObjectClass *klass, const void *data)
@@ -278,8 +280,8 @@ static void qemu_xhci_instance_init(Object *obj)
 static const TypeInfo qemu_xhci_info = {
     .name          = TYPE_QEMU_XHCI,
     .parent        = TYPE_XHCI_PCI,
-    .class_init    = qemu_xhci_class_init,
     .instance_init = qemu_xhci_instance_init,
+    .class_init    = qemu_xhci_class_init,
 };
 
 static void xhci_register_types(void)

@@ -139,15 +139,17 @@ static const Property ehci_pci_properties[] = {
     DEFINE_PROP_UINT32("maxframes", EHCIPCIState, ehci.maxframes, 128),
 };
 
+static const VMStateField vmstate_ehci_pci_fields[] = {
+    VMSTATE_PCI_DEVICE(pcidev, EHCIPCIState),
+    VMSTATE_STRUCT(ehci, EHCIPCIState, 2, vmstate_ehci, EHCIState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ehci_pci = {
     .name        = "ehci",
     .version_id  = 2,
     .minimum_version_id  = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(pcidev, EHCIPCIState),
-        VMSTATE_STRUCT(ehci, EHCIPCIState, 2, vmstate_ehci, EHCIState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ehci_pci_fields,
 };
 
 static void ehci_class_init(ObjectClass *klass, const void *data)
@@ -164,6 +166,11 @@ static void ehci_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, usb_ehci_pci_reset);
 }
 
+static const InterfaceInfo ehci_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo ehci_pci_type_info = {
     .name = TYPE_PCI_EHCI,
     .parent = TYPE_PCI_DEVICE,
@@ -172,17 +179,14 @@ static const TypeInfo ehci_pci_type_info = {
     .instance_finalize = usb_ehci_pci_finalize,
     .is_abstract = true,
     .class_init = ehci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = ehci_pci_interfaces,
 };
 
 static void ehci_data_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
-    const EHCIPCIInfo *i = data;
+    const EHCIPCIInfo *i = static_cast<const EHCIPCIInfo *>(data);
 
     k->vendor_id = i->vendor_id;
     k->device_id = i->device_id;

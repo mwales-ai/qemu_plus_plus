@@ -169,12 +169,68 @@ enum {
     STR_CONFIG_SUPER,
 };
 
-static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER] = "QEMU",
-    [STR_PRODUCT]      = "USB Attached SCSI HBA",
-    [STR_SERIALNUMBER] = "27842",
-    [STR_CONFIG_HIGH]  = "High speed config (usb 2.0)",
-    [STR_CONFIG_SUPER] = "Super speed config (usb 3.0)",
+static USBDescStrings desc_strings;
+
+static void __attribute__((constructor)) usb_uas_init_strings(void)
+{
+    desc_strings[STR_MANUFACTURER] = "QEMU";
+    desc_strings[STR_PRODUCT]      = "USB Attached SCSI HBA";
+    desc_strings[STR_SERIALNUMBER] = "27842";
+    desc_strings[STR_CONFIG_HIGH]  = "High speed config (usb 2.0)";
+    desc_strings[STR_CONFIG_SUPER] = "Super speed config (usb 3.0)";
+}
+
+/* Extracted extra data arrays for high-speed endpoints */
+static uint8_t uas_high_extra_command[] = {
+    0x04,  /*  u8  bLength */
+    0x24,  /*  u8  bDescriptorType */
+    UAS_PIPE_ID_COMMAND,
+    0x00,  /*  u8  bReserved */
+};
+
+static uint8_t uas_high_extra_status[] = {
+    0x04,  /*  u8  bLength */
+    0x24,  /*  u8  bDescriptorType */
+    UAS_PIPE_ID_STATUS,
+    0x00,  /*  u8  bReserved */
+};
+
+static uint8_t uas_high_extra_data_in[] = {
+    0x04,  /*  u8  bLength */
+    0x24,  /*  u8  bDescriptorType */
+    UAS_PIPE_ID_DATA_IN,
+    0x00,  /*  u8  bReserved */
+};
+
+static uint8_t uas_high_extra_data_out[] = {
+    0x04,  /*  u8  bLength */
+    0x24,  /*  u8  bDescriptorType */
+    UAS_PIPE_ID_DATA_OUT,
+    0x00,  /*  u8  bReserved */
+};
+
+static USBDescEndpoint desc_iface_high_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_COMMAND,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 512,
+        .extra = uas_high_extra_command,
+    },{
+        .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_STATUS,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 512,
+        .extra = uas_high_extra_status,
+    },{
+        .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_DATA_IN,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 512,
+        .extra = uas_high_extra_data_in,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_DATA_OUT,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 512,
+        .extra = uas_high_extra_data_out,
+    },
 };
 
 static const USBDescIface desc_iface_high = {
@@ -183,49 +239,68 @@ static const USBDescIface desc_iface_high = {
     .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
     .bInterfaceSubClass            = 0x06, /* SCSI */
     .bInterfaceProtocol            = 0x62, /* UAS  */
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_COMMAND,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 512,
-            .extra = (uint8_t[]) {
-                0x04,  /*  u8  bLength */
-                0x24,  /*  u8  bDescriptorType */
-                UAS_PIPE_ID_COMMAND,
-                0x00,  /*  u8  bReserved */
-            },
-        },{
-            .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_STATUS,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 512,
-            .extra = (uint8_t[]) {
-                0x04,  /*  u8  bLength */
-                0x24,  /*  u8  bDescriptorType */
-                UAS_PIPE_ID_STATUS,
-                0x00,  /*  u8  bReserved */
-            },
-        },{
-            .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_DATA_IN,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 512,
-            .extra = (uint8_t[]) {
-                0x04,  /*  u8  bLength */
-                0x24,  /*  u8  bDescriptorType */
-                UAS_PIPE_ID_DATA_IN,
-                0x00,  /*  u8  bReserved */
-            },
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_DATA_OUT,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 512,
-            .extra = (uint8_t[]) {
-                0x04,  /*  u8  bLength */
-                0x24,  /*  u8  bDescriptorType */
-                UAS_PIPE_ID_DATA_OUT,
-                0x00,  /*  u8  bReserved */
-            },
-        },
-    }
+    .eps = desc_iface_high_eps,
+};
+
+/* Extracted extra data arrays for super-speed endpoints */
+static uint8_t uas_super_extra_command[] = {
+    0x04,  /*  u8  bLength */
+    0x24,  /*  u8  bDescriptorType */
+    UAS_PIPE_ID_COMMAND,
+    0x00,  /*  u8  bReserved */
+};
+
+static uint8_t uas_super_extra_status[] = {
+    0x04,  /*  u8  bLength */
+    0x24,  /*  u8  bDescriptorType */
+    UAS_PIPE_ID_STATUS,
+    0x00,  /*  u8  bReserved */
+};
+
+static uint8_t uas_super_extra_data_in[] = {
+    0x04,  /*  u8  bLength */
+    0x24,  /*  u8  bDescriptorType */
+    UAS_PIPE_ID_DATA_IN,
+    0x00,  /*  u8  bReserved */
+};
+
+static uint8_t uas_super_extra_data_out[] = {
+    0x04,  /*  u8  bLength */
+    0x24,  /*  u8  bDescriptorType */
+    UAS_PIPE_ID_DATA_OUT,
+    0x00,  /*  u8  bReserved */
+};
+
+/* Note: field order must match struct: extra before bMaxBurst */
+static USBDescEndpoint desc_iface_super_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_COMMAND,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 1024,
+        .extra = uas_super_extra_command,
+        .bMaxBurst             = 15,
+    },{
+        .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_STATUS,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 1024,
+        .extra = uas_super_extra_status,
+        .bMaxBurst             = 15,
+        .bmAttributes_super    = UAS_STREAM_BM_ATTR,
+    },{
+        .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_DATA_IN,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 1024,
+        .extra = uas_super_extra_data_in,
+        .bMaxBurst             = 15,
+        .bmAttributes_super    = UAS_STREAM_BM_ATTR,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_DATA_OUT,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 1024,
+        .extra = uas_super_extra_data_out,
+        .bMaxBurst             = 15,
+        .bmAttributes_super    = UAS_STREAM_BM_ATTR,
+    },
 };
 
 static const USBDescIface desc_iface_super = {
@@ -234,71 +309,35 @@ static const USBDescIface desc_iface_super = {
     .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
     .bInterfaceSubClass            = 0x06, /* SCSI */
     .bInterfaceProtocol            = 0x62, /* UAS  */
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_COMMAND,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 1024,
-            .bMaxBurst             = 15,
-            .extra = (uint8_t[]) {
-                0x04,  /*  u8  bLength */
-                0x24,  /*  u8  bDescriptorType */
-                UAS_PIPE_ID_COMMAND,
-                0x00,  /*  u8  bReserved */
-            },
-        },{
-            .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_STATUS,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 1024,
-            .bMaxBurst             = 15,
-            .bmAttributes_super    = UAS_STREAM_BM_ATTR,
-            .extra = (uint8_t[]) {
-                0x04,  /*  u8  bLength */
-                0x24,  /*  u8  bDescriptorType */
-                UAS_PIPE_ID_STATUS,
-                0x00,  /*  u8  bReserved */
-            },
-        },{
-            .bEndpointAddress      = USB_DIR_IN | UAS_PIPE_ID_DATA_IN,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 1024,
-            .bMaxBurst             = 15,
-            .bmAttributes_super    = UAS_STREAM_BM_ATTR,
-            .extra = (uint8_t[]) {
-                0x04,  /*  u8  bLength */
-                0x24,  /*  u8  bDescriptorType */
-                UAS_PIPE_ID_DATA_IN,
-                0x00,  /*  u8  bReserved */
-            },
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | UAS_PIPE_ID_DATA_OUT,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 1024,
-            .bMaxBurst             = 15,
-            .bmAttributes_super    = UAS_STREAM_BM_ATTR,
-            .extra = (uint8_t[]) {
-                0x04,  /*  u8  bLength */
-                0x24,  /*  u8  bDescriptorType */
-                UAS_PIPE_ID_DATA_OUT,
-                0x00,  /*  u8  bReserved */
-            },
-        },
-    }
+    .eps = desc_iface_super_eps,
+};
+
+static const USBDescConfig desc_device_high_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_HIGH,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
+        .nif = 1,
+        .ifs = &desc_iface_high,
+    },
 };
 
 static const USBDescDevice desc_device_high = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 64,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_HIGH,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
-            .nif = 1,
-            .ifs = &desc_iface_high,
-        },
+    .confs = desc_device_high_confs,
+};
+
+static const USBDescConfig desc_device_super_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_SUPER,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
+        .nif = 1,
+        .ifs = &desc_iface_super,
     },
 };
 
@@ -306,16 +345,7 @@ static const USBDescDevice desc_device_super = {
     .bcdUSB                        = 0x0300,
     .bMaxPacketSize0               = 9,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_SUPER,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
-            .nif = 1,
-            .ifs = &desc_iface_super,
-        },
-    },
+    .confs = desc_device_super_confs,
 };
 
 static const USBDesc desc = {
@@ -356,7 +386,7 @@ static UASStatus *usb_uas_alloc_status(UASDevice *uas, uint8_t id, uint16_t tag)
 
 static void usb_uas_send_status_bh(void *opaque)
 {
-    UASDevice *uas = opaque;
+    UASDevice *uas = static_cast<UASDevice *>(opaque);
     UASStatus *st;
     USBPacket *p;
 
@@ -557,7 +587,7 @@ static UASRequest *usb_uas_alloc_request(UASDevice *uas, uas_iu *iu)
 
 static void usb_uas_scsi_free_request(SCSIBus *bus, void *priv)
 {
-    UASRequest *req = priv;
+    UASRequest *req = static_cast<UASRequest *>(priv);
     UASDevice *uas = req->uas;
 
     if (req == uas->datain2) {
@@ -585,7 +615,7 @@ static UASRequest *usb_uas_find_request(UASDevice *uas, uint16_t tag)
 
 static void usb_uas_scsi_transfer_data(SCSIRequest *r, uint32_t len)
 {
-    UASRequest *req = r->hba_private;
+    UASRequest *req = static_cast<UASRequest *>(r->hba_private);
 
     trace_usb_uas_scsi_data(req->uas->dev.addr, req->tag, len);
     req->buf_off = 0;
@@ -599,7 +629,7 @@ static void usb_uas_scsi_transfer_data(SCSIRequest *r, uint32_t len)
 
 static void usb_uas_scsi_command_complete(SCSIRequest *r, size_t resid)
 {
-    UASRequest *req = r->hba_private;
+    UASRequest *req = static_cast<UASRequest *>(r->hba_private);
 
     trace_usb_uas_scsi_complete(req->uas->dev.addr, req->tag, r->status, resid);
     req->complete = true;
@@ -612,7 +642,7 @@ static void usb_uas_scsi_command_complete(SCSIRequest *r, size_t resid)
 
 static void usb_uas_scsi_request_cancelled(SCSIRequest *r)
 {
-    UASRequest *req = r->hba_private;
+    UASRequest *req = static_cast<UASRequest *>(r->hba_private);
 
     /* FIXME: queue notification to status pipe? */
     scsi_req_unref(req->req);
@@ -942,13 +972,15 @@ static void usb_uas_realize(USBDevice *dev, Error **errp)
     scsi_bus_init(&uas->bus, sizeof(uas->bus), DEVICE(dev), &usb_uas_scsi_info);
 }
 
+static const VMStateField vmstate_usb_uas_fields[] = {
+    VMSTATE_USB_DEVICE(dev, UASDevice),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_usb_uas = {
     .name = "usb-uas",
     .unmigratable = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_USB_DEVICE(dev, UASDevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_usb_uas_fields,
 };
 
 static const Property uas_properties[] = {

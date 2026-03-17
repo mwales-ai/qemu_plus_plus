@@ -3,6 +3,10 @@
 
 #include "ui/input.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define HID_MOUSE     1
 #define HID_TABLET    2
 #define HID_KEYBOARD  3
@@ -63,21 +67,25 @@ extern const VMStateDescription vmstate_hid_keyboard_device;
 
 #define VMSTATE_HID_KEYBOARD_DEVICE(_field, _state) {                \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(HIDState),                                  \
-    .vmsd       = &vmstate_hid_keyboard_device,                      \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, HIDState),    \
+    .size       = sizeof(HIDState),                                  \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_hid_keyboard_device,                      \
 }
 
 extern const VMStateDescription vmstate_hid_ptr_device;
 
 #define VMSTATE_HID_POINTER_DEVICE(_field, _state) {                 \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(HIDState),                                  \
-    .vmsd       = &vmstate_hid_ptr_device,                           \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, HIDState),    \
+    .size       = sizeof(HIDState),                                  \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_hid_ptr_device,                           \
 }
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_HID_H */

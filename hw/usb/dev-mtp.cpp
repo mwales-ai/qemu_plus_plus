@@ -260,14 +260,34 @@ enum {
     STR_CONFIG_SUPER,
 };
 
-static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER] = MTP_MANUFACTURER,
-    [STR_PRODUCT]      = MTP_PRODUCT,
-    [STR_SERIALNUMBER] = "34617",
-    [STR_MTP]          = "MTP",
-    [STR_CONFIG_FULL]  = "Full speed config (usb 1.1)",
-    [STR_CONFIG_HIGH]  = "High speed config (usb 2.0)",
-    [STR_CONFIG_SUPER] = "Super speed config (usb 3.0)",
+static USBDescStrings desc_strings;
+
+static void __attribute__((constructor)) init_mtp_desc_strings(void)
+{
+    desc_strings[STR_MANUFACTURER] = MTP_MANUFACTURER;
+    desc_strings[STR_PRODUCT]      = MTP_PRODUCT;
+    desc_strings[STR_SERIALNUMBER] = "34617";
+    desc_strings[STR_MTP]          = "MTP";
+    desc_strings[STR_CONFIG_FULL]  = "Full speed config (usb 1.1)";
+    desc_strings[STR_CONFIG_HIGH]  = "High speed config (usb 2.0)";
+    desc_strings[STR_CONFIG_SUPER] = "Super speed config (usb 3.0)";
+}
+
+static USBDescEndpoint desc_iface_full_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | EP_DATA_IN,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 64,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | EP_DATA_OUT,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 64,
+    },{
+        .bEndpointAddress      = USB_DIR_IN | EP_EVENT,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 64,
+        .bInterval             = 0x0a,
+    },
 };
 
 static const USBDescIface desc_iface_full = {
@@ -277,38 +297,42 @@ static const USBDescIface desc_iface_full = {
     .bInterfaceSubClass            = 0x01,
     .bInterfaceProtocol            = 0x01,
     .iInterface                    = STR_MTP,
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | EP_DATA_IN,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 64,
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | EP_DATA_OUT,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 64,
-        },{
-            .bEndpointAddress      = USB_DIR_IN | EP_EVENT,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 64,
-            .bInterval             = 0x0a,
-        },
-    }
+    .eps = desc_iface_full_eps,
+};
+
+static const USBDescConfig desc_device_full_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_FULL,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 2,
+        .nif = 1,
+        .ifs = &desc_iface_full,
+    },
 };
 
 static const USBDescDevice desc_device_full = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_FULL,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 2,
-            .nif = 1,
-            .ifs = &desc_iface_full,
-        },
+    .confs = desc_device_full_confs,
+};
+
+static USBDescEndpoint desc_iface_high_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | EP_DATA_IN,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 512,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | EP_DATA_OUT,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 512,
+    },{
+        .bEndpointAddress      = USB_DIR_IN | EP_EVENT,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 64,
+        .bInterval             = 0x0a,
     },
 };
 
@@ -319,39 +343,26 @@ static const USBDescIface desc_iface_high = {
     .bInterfaceSubClass            = 0x01,
     .bInterfaceProtocol            = 0x01,
     .iInterface                    = STR_MTP,
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | EP_DATA_IN,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 512,
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | EP_DATA_OUT,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 512,
-        },{
-            .bEndpointAddress      = USB_DIR_IN | EP_EVENT,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 64,
-            .bInterval             = 0x0a,
-        },
-    }
+    .eps = desc_iface_high_eps,
+};
+
+static const USBDescConfig desc_device_high_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_HIGH,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
+        .bMaxPower             = 2,
+        .nif = 1,
+        .ifs = &desc_iface_high,
+    },
 };
 
 static const USBDescDevice desc_device_high = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 64,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_HIGH,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_WAKEUP,
-            .bMaxPower             = 2,
-            .nif = 1,
-            .ifs = &desc_iface_high,
-        },
-    },
+    .confs = desc_device_high_confs,
 };
 
 static const USBDescMSOS desc_msos = {
@@ -518,7 +529,7 @@ static void file_monitor_event(int64_t id,
                                const char *name,
                                void *opaque)
 {
-    MTPState *s = opaque;
+    MTPState *s = static_cast<MTPState *>(opaque);
     MTPObject *parent = usb_mtp_object_lookup_id(s, id);
     MTPMonEntry *entry = NULL;
     MTPObject *o;
@@ -677,7 +688,7 @@ static void usb_mtp_realloc(MTPData *data, uint32_t bytes)
         return;
     }
     data->alloc = (data->length + bytes + 0xff) & ~0xff;
-    data->data  = g_realloc(data->data, data->alloc);
+    data->data  = static_cast<uint8_t *>(g_realloc(data->data, data->alloc));
 }
 
 static void usb_mtp_add_u8(MTPData *data, uint8_t val)
@@ -979,7 +990,7 @@ static MTPData *usb_mtp_get_object(MTPState *s, MTPControl *c,
     }
     d->length = o->stat.st_size;
     d->alloc  = 512;
-    d->data   = g_malloc(d->alloc);
+    d->data   = static_cast<uint8_t *>(g_malloc(d->alloc));
     return d;
 }
 
@@ -1561,7 +1572,7 @@ static char *utf16_to_str(uint8_t len, uint8_t *str16)
     wstr[count] = 0;
 
     dlen = wcstombs(NULL, wstr, 0) + 1;
-    dest = g_malloc(dlen);
+    dest = static_cast<char *>(g_malloc(dlen));
     wcstombs(dest, wstr, dlen);
     g_free(wstr);
     return dest;
@@ -1888,7 +1899,7 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
             } else {
                 if (d->alloc < p->iov.size) {
                     d->alloc = p->iov.size;
-                    d->data = g_realloc(d->data, d->alloc);
+                    d->data = static_cast<uint8_t *>(g_realloc(d->data, d->alloc));
                 }
                 rc = read(d->fd, d->data, dlen);
                 if (rc != dlen) {

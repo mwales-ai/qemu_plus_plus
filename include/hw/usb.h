@@ -502,10 +502,10 @@ extern const VMStateDescription vmstate_usb_device;
 
 #define VMSTATE_USB_DEVICE(_field, _state) {                         \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(USBDevice),                                 \
-    .vmsd       = &vmstate_usb_device,                               \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, USBDevice),   \
+    .size       = sizeof(USBDevice),                                 \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_usb_device,                               \
 }
 
 USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr);

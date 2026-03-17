@@ -20,14 +20,16 @@
 #include "hw/usb/hcd-ehci.h"
 #include "migration/vmstate.h"
 
+static const VMStateField vmstate_ehci_sysbus_fields[] = {
+    VMSTATE_STRUCT(ehci, EHCISysBusState, 2, vmstate_ehci, EHCIState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ehci_sysbus = {
     .name        = "ehci-sysbus",
     .version_id  = 2,
     .minimum_version_id  = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(ehci, EHCISysBusState, 2, vmstate_ehci, EHCIState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ehci_sysbus_fields,
 };
 
 static const Property ehci_sysbus_properties[] = {
@@ -180,7 +182,7 @@ enum FUSBH200EHCIRegs {
 
 static uint64_t fusbh200_ehci_read(void *opaque, hwaddr addr, unsigned size)
 {
-    EHCIState *s = opaque;
+    EHCIState *s = static_cast<EHCIState *>(opaque);
     hwaddr off = s->opregbase + s->portscbase + 4 * s->portnr + addr;
 
     switch (off) {
@@ -202,8 +204,8 @@ static void fusbh200_ehci_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps fusbh200_ehci_mmio_ops = {
     .read = fusbh200_ehci_read,
     .write = fusbh200_ehci_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void fusbh200_ehci_init(Object *obj)
@@ -239,8 +241,8 @@ static const TypeInfo ehci_sysbus_types[] = {
         .instance_init = ehci_sysbus_init,
         .instance_finalize = ehci_sysbus_finalize,
         .is_abstract      = true,
-        .class_init    = ehci_sysbus_class_init,
         .class_size    = sizeof(SysBusEHCIClass),
+        .class_init    = ehci_sysbus_class_init,
     },
     {
         .name          = TYPE_PLATFORM_EHCI,
@@ -270,8 +272,8 @@ static const TypeInfo ehci_sysbus_types[] = {
     {
         .name          = TYPE_PPC4xx_EHCI,
         .parent        = TYPE_SYS_BUS_EHCI,
-        .class_init    = ehci_ppc4xx_class_init,
         .instance_init = ehci_ppc4xx_init,
+        .class_init    = ehci_ppc4xx_class_init,
     },
     {
         .name          = TYPE_FUSBH200_EHCI,

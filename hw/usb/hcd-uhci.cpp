@@ -336,19 +336,21 @@ static void uhci_reset(DeviceState *dev)
     uhci_update_irq(s);
 }
 
+static const VMStateField vmstate_uhci_port_fields[] = {
+    VMSTATE_UINT16(ctrl, UHCIPort),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_uhci_port = {
     .name = "uhci port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(ctrl, UHCIPort),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_uhci_port_fields,
 };
 
 static int uhci_post_load(void *opaque, int version_id)
 {
-    UHCIState *s = opaque;
+    UHCIState *s = static_cast<UHCIState *>(opaque);
 
     if (version_id < 2) {
         s->expire_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -357,34 +359,36 @@ static int uhci_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_uhci_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, UHCIState),
+    VMSTATE_UINT8_EQUAL(num_ports_vmstate, UHCIState, NULL),
+    VMSTATE_STRUCT_ARRAY(ports, UHCIState, UHCI_PORTS, 1,
+                         vmstate_uhci_port, UHCIPort),
+    VMSTATE_UINT16(cmd, UHCIState),
+    VMSTATE_UINT16(status, UHCIState),
+    VMSTATE_UINT16(intr, UHCIState),
+    VMSTATE_UINT16(frnum, UHCIState),
+    VMSTATE_UINT32(fl_base_addr, UHCIState),
+    VMSTATE_UINT8(sof_timing, UHCIState),
+    VMSTATE_UINT8(status2, UHCIState),
+    VMSTATE_TIMER_PTR(frame_timer, UHCIState),
+    VMSTATE_INT64_V(expire_time, UHCIState, 2),
+    VMSTATE_UINT32_V(pending_int_mask, UHCIState, 3),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_uhci = {
     .name = "uhci",
     .version_id = 3,
     .minimum_version_id = 1,
     .post_load = uhci_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, UHCIState),
-        VMSTATE_UINT8_EQUAL(num_ports_vmstate, UHCIState, NULL),
-        VMSTATE_STRUCT_ARRAY(ports, UHCIState, UHCI_PORTS, 1,
-                             vmstate_uhci_port, UHCIPort),
-        VMSTATE_UINT16(cmd, UHCIState),
-        VMSTATE_UINT16(status, UHCIState),
-        VMSTATE_UINT16(intr, UHCIState),
-        VMSTATE_UINT16(frnum, UHCIState),
-        VMSTATE_UINT32(fl_base_addr, UHCIState),
-        VMSTATE_UINT8(sof_timing, UHCIState),
-        VMSTATE_UINT8(status2, UHCIState),
-        VMSTATE_TIMER_PTR(frame_timer, UHCIState),
-        VMSTATE_INT64_V(expire_time, UHCIState, 2),
-        VMSTATE_UINT32_V(pending_int_mask, UHCIState, 3),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_uhci_fields,
 };
 
 static void uhci_port_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
-    UHCIState *s = opaque;
+    UHCIState *s = static_cast<UHCIState *>(opaque);
 
     trace_usb_uhci_mmio_writew(addr, val);
 
@@ -489,7 +493,7 @@ static void uhci_port_write(void *opaque, hwaddr addr,
 
 static uint64_t uhci_port_read(void *opaque, hwaddr addr, unsigned size)
 {
-    UHCIState *s = opaque;
+    UHCIState *s = static_cast<UHCIState *>(opaque);
     uint32_t val;
 
     switch (addr) {
@@ -555,7 +559,7 @@ static void uhci_resume(void *opaque)
 
 static void uhci_attach(USBPort *port1)
 {
-    UHCIState *s = port1->opaque;
+    UHCIState *s = static_cast<UHCIState *>(port1->opaque);
     UHCIPort *port = &s->ports[port1->index];
 
     /* set connect status */
@@ -573,7 +577,7 @@ static void uhci_attach(USBPort *port1)
 
 static void uhci_detach(USBPort *port1)
 {
-    UHCIState *s = port1->opaque;
+    UHCIState *s = static_cast<UHCIState *>(port1->opaque);
     UHCIPort *port = &s->ports[port1->index];
 
     uhci_async_cancel_device(s, port1->dev);
@@ -594,14 +598,14 @@ static void uhci_detach(USBPort *port1)
 
 static void uhci_child_detach(USBPort *port1, USBDevice *child)
 {
-    UHCIState *s = port1->opaque;
+    UHCIState *s = static_cast<UHCIState *>(port1->opaque);
 
     uhci_async_cancel_device(s, child);
 }
 
 static void uhci_wakeup(USBPort *port1)
 {
-    UHCIState *s = port1->opaque;
+    UHCIState *s = static_cast<UHCIState *>(port1->opaque);
     UHCIPort *port = &s->ports[port1->index];
 
     if (port->ctrl & UHCI_PORT_SUSPEND && !(port->ctrl & UHCI_PORT_RD)) {
@@ -847,7 +851,7 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     if (max_len <= sizeof(async->static_buf)) {
         async->buf = async->static_buf;
     } else {
-        async->buf = g_malloc(max_len);
+        async->buf = static_cast<uint8_t *>(g_malloc(max_len));
     }
     usb_packet_addbuf(&async->packet, async->buf, max_len);
 
@@ -1098,13 +1102,13 @@ out:
 
 static void uhci_bh(void *opaque)
 {
-    UHCIState *s = opaque;
+    UHCIState *s = static_cast<UHCIState *>(opaque);
     uhci_process_frame(s);
 }
 
 static void uhci_frame_timer(void *opaque)
 {
-    UHCIState *s = opaque;
+    UHCIState *s = static_cast<UHCIState *>(opaque);
     uint64_t t_now, t_last_run;
     int i, frames;
     const uint64_t frame_t = NANOSECONDS_PER_SECOND / FRAME_TIMER_FREQ;
@@ -1166,9 +1170,9 @@ static void uhci_frame_timer(void *opaque)
 static const MemoryRegionOps uhci_ioport_ops = {
     .read  = uhci_port_read,
     .write = uhci_port_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 2, .max_access_size = 2, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static USBPortOps uhci_port_ops = {
@@ -1275,17 +1279,19 @@ static void uhci_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_USB, dc->categories);
 }
 
+static const InterfaceInfo uhci_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo uhci_pci_type_info = {
     .name = TYPE_UHCI,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(UHCIState),
-    .class_size    = sizeof(UHCIPCIDeviceClass),
     .is_abstract = true,
+    .class_size    = sizeof(UHCIPCIDeviceClass),
     .class_init = uhci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = uhci_pci_interfaces,
 };
 
 void uhci_data_class_init(ObjectClass *klass, const void *data)
@@ -1293,7 +1299,7 @@ void uhci_data_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     UHCIPCIDeviceClass *u = UHCI_CLASS(klass);
-    const UHCIInfo *info = data;
+    const UHCIInfo *info = static_cast<const UHCIInfo *>(data);
 
     k->realize = info->realize ? info->realize : usb_uhci_common_realize;
     k->exit = info->unplug ? usb_uhci_exit : NULL;
