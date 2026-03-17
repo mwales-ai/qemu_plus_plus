@@ -56,7 +56,7 @@ static MemTxResult lasi_chip_read_with_attrs(void *opaque, hwaddr addr,
                                              uint64_t *data, unsigned size,
                                              MemTxAttrs attrs)
 {
-    LasiState *s = opaque;
+    LasiState *s = static_cast<LasiState *>(opaque);
     MemTxResult ret = MEMTX_OK;
     uint32_t val;
 
@@ -119,7 +119,7 @@ static MemTxResult lasi_chip_write_with_attrs(void *opaque, hwaddr addr,
                                               uint64_t val, unsigned size,
                                               MemTxAttrs attrs)
 {
-    LasiState *s = opaque;
+    LasiState *s = static_cast<LasiState *>(opaque);
 
     trace_lasi_chip_write(addr, val);
 
@@ -209,27 +209,29 @@ static const MemoryRegionOps lasi_chip_ops = {
     },
 };
 
+static const VMStateField vmstate_lasi_fields[] = {
+    VMSTATE_UINT32(irr, LasiState),
+    VMSTATE_UINT32(imr, LasiState),
+    VMSTATE_UINT32(ipr, LasiState),
+    VMSTATE_UINT32(icr, LasiState),
+    VMSTATE_UINT32(iar, LasiState),
+    VMSTATE_UINT32(errlog, LasiState),
+    VMSTATE_UINT32(amr, LasiState),
+    VMSTATE_UINT32_V(rtc_ref, LasiState, 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_lasi = {
     .name = "Lasi",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(irr, LasiState),
-        VMSTATE_UINT32(imr, LasiState),
-        VMSTATE_UINT32(ipr, LasiState),
-        VMSTATE_UINT32(icr, LasiState),
-        VMSTATE_UINT32(iar, LasiState),
-        VMSTATE_UINT32(errlog, LasiState),
-        VMSTATE_UINT32(amr, LasiState),
-        VMSTATE_UINT32_V(rtc_ref, LasiState, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_lasi_fields,
 };
 
 
 static void lasi_set_irq(void *opaque, int irq, int level)
 {
-    LasiState *s = opaque;
+    LasiState *s = static_cast<LasiState *>(opaque);
     uint32_t bit = 1u << irq;
 
     if (level) {
@@ -278,8 +280,8 @@ static void lasi_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo lasi_pcihost_info = {
     .name          = TYPE_LASI_CHIP,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = lasi_init,
     .instance_size = sizeof(LasiState),
+    .instance_init = lasi_init,
     .class_init    = lasi_class_init,
 };
 

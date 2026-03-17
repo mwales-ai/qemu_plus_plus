@@ -269,8 +269,8 @@ static void allwinner_cpucfg_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo allwinner_cpucfg_info = {
     .name          = TYPE_AW_CPUCFG,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_cpucfg_init,
     .instance_size = sizeof(AwCpuCfgState),
+    .instance_init = allwinner_cpucfg_init,
     .class_init    = allwinner_cpucfg_class_init,
 };
 

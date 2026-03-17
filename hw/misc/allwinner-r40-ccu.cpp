@@ -196,8 +196,8 @@ static void allwinner_r40_ccu_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo allwinner_r40_ccu_info = {
     .name          = TYPE_AW_R40_CCU,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_r40_ccu_init,
     .instance_size = sizeof(AwR40ClockCtlState),
+    .instance_init = allwinner_r40_ccu_init,
     .class_init    = allwinner_r40_ccu_class_init,
 };
 

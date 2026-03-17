@@ -429,7 +429,7 @@ static void npcm7xx_mft_set_max_rpm(Object *obj, Visitor *v, const char *name,
                                     void *opaque, Error **errp)
 {
     NPCM7xxMFTState *s = NPCM7XX_MFT(obj);
-    uint32_t *max_rpm = opaque;
+    uint32_t *max_rpm = static_cast<uint32_t *>(opaque);
     uint32_t value;
 
     if (!visit_type_uint32(v, name, &value, errp)) {
@@ -500,19 +500,21 @@ static void npcm7xx_mft_init(Object *obj)
                             NPCM7XX_MFT_FANIN_COUNT);
 }
 
+static const VMStateField vmstate_npcm7xx_mft_fields[] = {
+    VMSTATE_CLOCK(clock_in, NPCM7xxMFTState),
+    VMSTATE_CLOCK(clock_1, NPCM7xxMFTState),
+    VMSTATE_CLOCK(clock_2, NPCM7xxMFTState),
+    VMSTATE_UINT16_ARRAY(regs, NPCM7xxMFTState, NPCM7XX_MFT_NR_REGS),
+    VMSTATE_UINT32_ARRAY(max_rpm, NPCM7xxMFTState, NPCM7XX_MFT_FANIN_COUNT),
+    VMSTATE_UINT32_ARRAY(duty, NPCM7xxMFTState, NPCM7XX_MFT_FANIN_COUNT),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_mft = {
     .name = "npcm7xx-mft-module",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(clock_in, NPCM7xxMFTState),
-        VMSTATE_CLOCK(clock_1, NPCM7xxMFTState),
-        VMSTATE_CLOCK(clock_2, NPCM7xxMFTState),
-        VMSTATE_UINT16_ARRAY(regs, NPCM7xxMFTState, NPCM7XX_MFT_NR_REGS),
-        VMSTATE_UINT32_ARRAY(max_rpm, NPCM7xxMFTState, NPCM7XX_MFT_FANIN_COUNT),
-        VMSTATE_UINT32_ARRAY(duty, NPCM7xxMFTState, NPCM7XX_MFT_FANIN_COUNT),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_mft_fields,
 };
 
 static void npcm7xx_mft_class_init(ObjectClass *klass, const void *data)
@@ -530,8 +532,8 @@ static const TypeInfo npcm7xx_mft_info = {
     .name               = TYPE_NPCM7XX_MFT,
     .parent             = TYPE_SYS_BUS_DEVICE,
     .instance_size      = sizeof(NPCM7xxMFTState),
-    .class_init         = npcm7xx_mft_class_init,
     .instance_init      = npcm7xx_mft_init,
+    .class_init         = npcm7xx_mft_class_init,
 };
 
 static void npcm7xx_mft_register_type(void)

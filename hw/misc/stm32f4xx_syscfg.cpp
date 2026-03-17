@@ -44,7 +44,7 @@ static void stm32f4xx_syscfg_reset(DeviceState *dev)
 
 static void stm32f4xx_syscfg_set_irq(void *opaque, int irq, int level)
 {
-    STM32F4xxSyscfgState *s = opaque;
+    STM32F4xxSyscfgState *s = static_cast<STM32F4xxSyscfgState *>(opaque);
     int icrreg = irq / 4;
     int startbit = (irq & 3) * 4;
     uint8_t config = irq / 16;
@@ -62,7 +62,7 @@ static void stm32f4xx_syscfg_set_irq(void *opaque, int irq, int level)
 static uint64_t stm32f4xx_syscfg_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    STM32F4xxSyscfgState *s = opaque;
+    STM32F4xxSyscfgState *s = static_cast<STM32F4xxSyscfgState *>(opaque);
 
     trace_stm32f4xx_syscfg_read(addr);
 
@@ -85,7 +85,7 @@ static uint64_t stm32f4xx_syscfg_read(void *opaque, hwaddr addr,
 static void stm32f4xx_syscfg_write(void *opaque, hwaddr addr,
                        uint64_t val64, unsigned int size)
 {
-    STM32F4xxSyscfgState *s = opaque;
+    STM32F4xxSyscfgState *s = static_cast<STM32F4xxSyscfgState *>(opaque);
     uint32_t value = val64;
 
     trace_stm32f4xx_syscfg_write(value, addr);
@@ -133,18 +133,20 @@ static void stm32f4xx_syscfg_init(Object *obj)
     qdev_init_gpio_out(DEVICE(obj), s->gpio_out, 16);
 }
 
+static const VMStateField vmstate_stm32f4xx_syscfg_fields[] = {
+    VMSTATE_UINT32(syscfg_memrmp, STM32F4xxSyscfgState),
+    VMSTATE_UINT32(syscfg_pmc, STM32F4xxSyscfgState),
+    VMSTATE_UINT32_ARRAY(syscfg_exticr, STM32F4xxSyscfgState,
+                         SYSCFG_NUM_EXTICR),
+    VMSTATE_UINT32(syscfg_cmpcr, STM32F4xxSyscfgState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32f4xx_syscfg = {
     .name = TYPE_STM32F4XX_SYSCFG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(syscfg_memrmp, STM32F4xxSyscfgState),
-        VMSTATE_UINT32(syscfg_pmc, STM32F4xxSyscfgState),
-        VMSTATE_UINT32_ARRAY(syscfg_exticr, STM32F4xxSyscfgState,
-                             SYSCFG_NUM_EXTICR),
-        VMSTATE_UINT32(syscfg_cmpcr, STM32F4xxSyscfgState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32f4xx_syscfg_fields,
 };
 
 static void stm32f4xx_syscfg_class_init(ObjectClass *klass, const void *data)

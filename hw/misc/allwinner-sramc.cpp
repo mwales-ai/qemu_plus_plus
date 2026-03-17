@@ -157,8 +157,8 @@ static void allwinner_sramc_init(Object *obj)
 static const TypeInfo allwinner_sramc_info = {
     .name          = TYPE_AW_SRAMC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_sramc_init,
     .instance_size = sizeof(AwSRAMCState),
+    .instance_init = allwinner_sramc_init,
     .class_size    = sizeof(AwSRAMCClass),
     .class_init    = allwinner_sramc_class_init,
 };

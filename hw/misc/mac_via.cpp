@@ -327,7 +327,7 @@ static void via1_one_second_update(MOS6522Q800VIA1State *v1s)
 
 static void via1_sixty_hz(void *opaque)
 {
-    MOS6522Q800VIA1State *v1s = opaque;
+    MOS6522Q800VIA1State *v1s = static_cast<MOS6522Q800VIA1State *>(opaque);
     MOS6522State *s = MOS6522(v1s);
     qemu_irq irq = qdev_get_gpio_in(DEVICE(s), VIA1_IRQ_60HZ_BIT);
 
@@ -340,7 +340,7 @@ static void via1_sixty_hz(void *opaque)
 
 static void via1_one_second(void *opaque)
 {
-    MOS6522Q800VIA1State *v1s = opaque;
+    MOS6522Q800VIA1State *v1s = static_cast<MOS6522Q800VIA1State *>(opaque);
     MOS6522State *s = MOS6522(v1s);
     qemu_irq irq = qdev_get_gpio_in(DEVICE(s), VIA1_IRQ_ONE_SECOND_BIT);
 
@@ -1126,10 +1126,7 @@ static const MemoryRegionOps mos6522_q800_via1_ops = {
     .read = mos6522_q800_via1_read,
     .write = mos6522_q800_via1_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
+    .valid = { 1, 4 },
 };
 
 static uint64_t mos6522_q800_via2_read(void *opaque, hwaddr addr, unsigned size)
@@ -1172,10 +1169,7 @@ static const MemoryRegionOps mos6522_q800_via2_ops = {
     .read = mos6522_q800_via2_read,
     .write = mos6522_q800_via2_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
+    .valid = { 1, 4 },
 };
 
 static void via1_postload_update_cb(void *opaque, bool running, RunState state)
@@ -1285,41 +1279,43 @@ static void mos6522_q800_via1_init(Object *obj)
     qdev_init_gpio_out(DEVICE(obj), &v1s->auxmode_irq, 1);
 }
 
+static const VMStateField vmstate_q800_via1_fields[] = {
+    VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA1State, 0, vmstate_mos6522,
+                   MOS6522State),
+    VMSTATE_UINT8(last_b, MOS6522Q800VIA1State),
+    /* RTC */
+    VMSTATE_BUFFER(PRAM, MOS6522Q800VIA1State),
+    VMSTATE_UINT32(tick_offset, MOS6522Q800VIA1State),
+    VMSTATE_UINT8(data_out, MOS6522Q800VIA1State),
+    VMSTATE_INT32(data_out_cnt, MOS6522Q800VIA1State),
+    VMSTATE_UINT8(data_in, MOS6522Q800VIA1State),
+    VMSTATE_UINT8(data_in_cnt, MOS6522Q800VIA1State),
+    VMSTATE_UINT8(cmd, MOS6522Q800VIA1State),
+    VMSTATE_INT32(wprotect, MOS6522Q800VIA1State),
+    VMSTATE_INT32(alt, MOS6522Q800VIA1State),
+    /* ADB */
+    VMSTATE_INT32(adb_data_in_size, MOS6522Q800VIA1State),
+    VMSTATE_INT32(adb_data_in_index, MOS6522Q800VIA1State),
+    VMSTATE_INT32(adb_data_out_index, MOS6522Q800VIA1State),
+    VMSTATE_BUFFER(adb_data_in, MOS6522Q800VIA1State),
+    VMSTATE_BUFFER(adb_data_out, MOS6522Q800VIA1State),
+    VMSTATE_UINT8(adb_autopoll_cmd, MOS6522Q800VIA1State),
+    /* Timers */
+    VMSTATE_TIMER_PTR(one_second_timer, MOS6522Q800VIA1State),
+    VMSTATE_INT64(next_second, MOS6522Q800VIA1State),
+    VMSTATE_TIMER_PTR(sixty_hz_timer, MOS6522Q800VIA1State),
+    VMSTATE_INT64(next_sixty_hz, MOS6522Q800VIA1State),
+    /* Timer hack */
+    VMSTATE_INT32(timer_hack_state, MOS6522Q800VIA1State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_q800_via1 = {
     .name = "q800-via1",
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = via1_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA1State, 0, vmstate_mos6522,
-                       MOS6522State),
-        VMSTATE_UINT8(last_b, MOS6522Q800VIA1State),
-        /* RTC */
-        VMSTATE_BUFFER(PRAM, MOS6522Q800VIA1State),
-        VMSTATE_UINT32(tick_offset, MOS6522Q800VIA1State),
-        VMSTATE_UINT8(data_out, MOS6522Q800VIA1State),
-        VMSTATE_INT32(data_out_cnt, MOS6522Q800VIA1State),
-        VMSTATE_UINT8(data_in, MOS6522Q800VIA1State),
-        VMSTATE_UINT8(data_in_cnt, MOS6522Q800VIA1State),
-        VMSTATE_UINT8(cmd, MOS6522Q800VIA1State),
-        VMSTATE_INT32(wprotect, MOS6522Q800VIA1State),
-        VMSTATE_INT32(alt, MOS6522Q800VIA1State),
-        /* ADB */
-        VMSTATE_INT32(adb_data_in_size, MOS6522Q800VIA1State),
-        VMSTATE_INT32(adb_data_in_index, MOS6522Q800VIA1State),
-        VMSTATE_INT32(adb_data_out_index, MOS6522Q800VIA1State),
-        VMSTATE_BUFFER(adb_data_in, MOS6522Q800VIA1State),
-        VMSTATE_BUFFER(adb_data_out, MOS6522Q800VIA1State),
-        VMSTATE_UINT8(adb_autopoll_cmd, MOS6522Q800VIA1State),
-        /* Timers */
-        VMSTATE_TIMER_PTR(one_second_timer, MOS6522Q800VIA1State),
-        VMSTATE_INT64(next_second, MOS6522Q800VIA1State),
-        VMSTATE_TIMER_PTR(sixty_hz_timer, MOS6522Q800VIA1State),
-        VMSTATE_INT64(next_sixty_hz, MOS6522Q800VIA1State),
-        /* Timer hack */
-        VMSTATE_INT32(timer_hack_state, MOS6522Q800VIA1State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_q800_via1_fields,
 };
 
 static const Property mos6522_q800_via1_properties[] = {
@@ -1376,7 +1372,7 @@ static void mos6522_q800_via2_reset_hold(Object *obj, ResetType type)
 
 static void via2_nubus_irq_request(void *opaque, int n, int level)
 {
-    MOS6522Q800VIA2State *v2s = opaque;
+    MOS6522Q800VIA2State *v2s = static_cast<MOS6522Q800VIA2State *>(opaque);
     MOS6522State *s = MOS6522(v2s);
     qemu_irq irq = qdev_get_gpio_in(DEVICE(s), VIA2_IRQ_NUBUS_BIT);
 
@@ -1404,15 +1400,17 @@ static void mos6522_q800_via2_init(Object *obj)
                             VIA2_NUBUS_IRQ_NB);
 }
 
+static const VMStateField vmstate_q800_via2_fields[] = {
+    VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA2State, 0, vmstate_mos6522,
+                   MOS6522State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_q800_via2 = {
     .name = "q800-via2",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(parent_obj, MOS6522Q800VIA2State, 0, vmstate_mos6522,
-                       MOS6522State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_q800_via2_fields,
 };
 
 static void mos6522_q800_via2_class_init(ObjectClass *oc, const void *data)

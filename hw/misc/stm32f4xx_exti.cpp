@@ -43,7 +43,7 @@ static void stm32f4xx_exti_reset(DeviceState *dev)
 
 static void stm32f4xx_exti_set_irq(void *opaque, int irq, int level)
 {
-    STM32F4xxExtiState *s = opaque;
+    STM32F4xxExtiState *s = static_cast<STM32F4xxExtiState *>(opaque);
 
     trace_stm32f4xx_exti_set_irq(irq, level);
 
@@ -67,7 +67,7 @@ static void stm32f4xx_exti_set_irq(void *opaque, int irq, int level)
 static uint64_t stm32f4xx_exti_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    STM32F4xxExtiState *s = opaque;
+    STM32F4xxExtiState *s = static_cast<STM32F4xxExtiState *>(opaque);
 
     trace_stm32f4xx_exti_read(addr);
 
@@ -95,7 +95,7 @@ static uint64_t stm32f4xx_exti_read(void *opaque, hwaddr addr,
 static void stm32f4xx_exti_write(void *opaque, hwaddr addr,
                        uint64_t val64, unsigned int size)
 {
-    STM32F4xxExtiState *s = opaque;
+    STM32F4xxExtiState *s = static_cast<STM32F4xxExtiState *>(opaque);
     uint32_t value = (uint32_t) val64;
 
     trace_stm32f4xx_exti_write(addr, value);
@@ -149,19 +149,21 @@ static void stm32f4xx_exti_init(Object *obj)
                       NUM_GPIO_EVENT_IN_LINES);
 }
 
+static const VMStateField vmstate_stm32f4xx_exti_fields[] = {
+    VMSTATE_UINT32(exti_imr, STM32F4xxExtiState),
+    VMSTATE_UINT32(exti_emr, STM32F4xxExtiState),
+    VMSTATE_UINT32(exti_rtsr, STM32F4xxExtiState),
+    VMSTATE_UINT32(exti_ftsr, STM32F4xxExtiState),
+    VMSTATE_UINT32(exti_swier, STM32F4xxExtiState),
+    VMSTATE_UINT32(exti_pr, STM32F4xxExtiState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32f4xx_exti = {
     .name = TYPE_STM32F4XX_EXTI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(exti_imr, STM32F4xxExtiState),
-        VMSTATE_UINT32(exti_emr, STM32F4xxExtiState),
-        VMSTATE_UINT32(exti_rtsr, STM32F4xxExtiState),
-        VMSTATE_UINT32(exti_ftsr, STM32F4xxExtiState),
-        VMSTATE_UINT32(exti_swier, STM32F4xxExtiState),
-        VMSTATE_UINT32(exti_pr, STM32F4xxExtiState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32f4xx_exti_fields,
 };
 
 static void stm32f4xx_exti_class_init(ObjectClass *klass, const void *data)

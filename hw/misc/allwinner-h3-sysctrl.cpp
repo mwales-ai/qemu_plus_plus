@@ -128,8 +128,8 @@ static void allwinner_h3_sysctrl_class_init(ObjectClass *klass,
 static const TypeInfo allwinner_h3_sysctrl_info = {
     .name          = TYPE_AW_H3_SYSCTRL,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_h3_sysctrl_init,
     .instance_size = sizeof(AwH3SysCtrlState),
+    .instance_init = allwinner_h3_sysctrl_init,
     .class_init    = allwinner_h3_sysctrl_class_init,
 };
 

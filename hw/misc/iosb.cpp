@@ -101,14 +101,16 @@ static void iosb_init(Object *obj)
     sysbus_init_mmio(sbd, &s->mem_regs);
 }
 
+static const VMStateField vmstate_iosb_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, IOSBState, IOSB_REGS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_iosb = {
     .name = "IOSB",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, IOSBState, IOSB_REGS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_iosb_fields,
 };
 
 static void iosb_class_init(ObjectClass *oc, const void *data)

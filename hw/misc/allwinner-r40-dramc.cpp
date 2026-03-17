@@ -497,8 +497,8 @@ static void allwinner_r40_dramc_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo allwinner_r40_dramc_info = {
     .name          = TYPE_AW_R40_DRAMC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_r40_dramc_init,
     .instance_size = sizeof(AwR40DramCtlState),
+    .instance_init = allwinner_r40_dramc_init,
     .class_init    = allwinner_r40_dramc_class_init,
 };
 

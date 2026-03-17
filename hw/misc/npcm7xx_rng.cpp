@@ -45,7 +45,7 @@ static bool npcm7xx_rng_is_enabled(NPCM7xxRNGState *s)
 
 static uint64_t npcm7xx_rng_read(void *opaque, hwaddr offset, unsigned size)
 {
-    NPCM7xxRNGState *s = opaque;
+    NPCM7xxRNGState *s = static_cast<NPCM7xxRNGState *>(opaque);
     uint64_t value = 0;
 
     switch (offset) {
@@ -92,7 +92,7 @@ static uint64_t npcm7xx_rng_read(void *opaque, hwaddr offset, unsigned size)
 static void npcm7xx_rng_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
-    NPCM7xxRNGState *s = opaque;
+    NPCM7xxRNGState *s = static_cast<NPCM7xxRNGState *>(opaque);
 
     trace_npcm7xx_rng_write(offset, value, size);
 
@@ -146,16 +146,18 @@ static void npcm7xx_rng_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
 }
 
+static const VMStateField vmstate_npcm7xx_rng_fields[] = {
+    VMSTATE_UINT8(rngcs, NPCM7xxRNGState),
+    VMSTATE_UINT8(rngd, NPCM7xxRNGState),
+    VMSTATE_UINT8(rngmode, NPCM7xxRNGState),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_rng = {
     .name = "npcm7xx-rng",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(rngcs, NPCM7xxRNGState),
-        VMSTATE_UINT8(rngd, NPCM7xxRNGState),
-        VMSTATE_UINT8(rngmode, NPCM7xxRNGState),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_rng_fields,
 };
 
 static void npcm7xx_rng_class_init(ObjectClass *klass, const void *data)
@@ -173,8 +175,8 @@ static const TypeInfo npcm7xx_rng_types[] = {
         .name = TYPE_NPCM7XX_RNG,
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(NPCM7xxRNGState),
-        .class_init = npcm7xx_rng_class_init,
         .instance_init = npcm7xx_rng_init,
+        .class_init = npcm7xx_rng_class_init,
     },
 };
 DEFINE_TYPES(npcm7xx_rng_types);

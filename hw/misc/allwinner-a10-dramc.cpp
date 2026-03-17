@@ -166,8 +166,8 @@ static void allwinner_a10_dramc_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo allwinner_a10_dramc_info = {
     .name          = TYPE_AW_A10_DRAMC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_a10_dramc_init,
     .instance_size = sizeof(AwA10DramControllerState),
+    .instance_init = allwinner_a10_dramc_init,
     .class_init    = allwinner_a10_dramc_class_init,
 };
 

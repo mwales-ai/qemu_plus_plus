@@ -344,8 +344,8 @@ static void allwinner_h3_dramc_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo allwinner_h3_dramc_info = {
     .name          = TYPE_AW_H3_DRAMC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_h3_dramc_init,
     .instance_size = sizeof(AwH3DramCtlState),
+    .instance_init = allwinner_h3_dramc_init,
     .class_init    = allwinner_h3_dramc_class_init,
 };
 

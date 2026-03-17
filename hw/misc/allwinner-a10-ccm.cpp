@@ -211,8 +211,8 @@ static void allwinner_a10_ccm_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo allwinner_a10_ccm_info = {
     .name          = TYPE_AW_A10_CCM,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_a10_ccm_init,
     .instance_size = sizeof(AwA10ClockCtlState),
+    .instance_init = allwinner_a10_ccm_init,
     .class_init    = allwinner_a10_ccm_class_init,
 };
 

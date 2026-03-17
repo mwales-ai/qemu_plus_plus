@@ -155,8 +155,8 @@ static void allwinner_sid_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo allwinner_sid_info = {
     .name          = TYPE_AW_SID,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_sid_init,
     .instance_size = sizeof(AwSidState),
+    .instance_init = allwinner_sid_init,
     .class_init    = allwinner_sid_class_init,
 };
 

@@ -284,7 +284,7 @@ static hwaddr npcm7xx_pwdr_index(hwaddr offset)
 
 static uint64_t npcm7xx_pwm_read(void *opaque, hwaddr offset, unsigned size)
 {
-    NPCM7xxPWMState *s = opaque;
+    NPCM7xxPWMState *s = static_cast<NPCM7xxPWMState *>(opaque);
     uint64_t value = 0;
 
     switch (offset) {
@@ -350,7 +350,7 @@ static uint64_t npcm7xx_pwm_read(void *opaque, hwaddr offset, unsigned size)
 static void npcm7xx_pwm_write(void *opaque, hwaddr offset,
                                 uint64_t v, unsigned size)
 {
-    NPCM7xxPWMState *s = opaque;
+    NPCM7xxPWMState *s = static_cast<NPCM7xxPWMState *>(opaque);
     NPCM7xxPWM *p;
     uint32_t value = v;
 
@@ -507,40 +507,44 @@ static void npcm7xx_pwm_init(Object *obj)
                              "duty-gpio-out", NPCM7XX_PWM_PER_MODULE);
 }
 
+static const VMStateField vmstate_npcm7xx_pwm_fields[] = {
+    VMSTATE_BOOL(running, NPCM7xxPWM),
+    VMSTATE_BOOL(inverted, NPCM7xxPWM),
+    VMSTATE_UINT8(index, NPCM7xxPWM),
+    VMSTATE_UINT32(cnr, NPCM7xxPWM),
+    VMSTATE_UINT32(cmr, NPCM7xxPWM),
+    VMSTATE_UINT32(pdr, NPCM7xxPWM),
+    VMSTATE_UINT32(pwdr, NPCM7xxPWM),
+    VMSTATE_UINT32(freq, NPCM7xxPWM),
+    VMSTATE_UINT32(duty, NPCM7xxPWM),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_pwm = {
     .name = "npcm7xx-pwm",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(running, NPCM7xxPWM),
-        VMSTATE_BOOL(inverted, NPCM7xxPWM),
-        VMSTATE_UINT8(index, NPCM7xxPWM),
-        VMSTATE_UINT32(cnr, NPCM7xxPWM),
-        VMSTATE_UINT32(cmr, NPCM7xxPWM),
-        VMSTATE_UINT32(pdr, NPCM7xxPWM),
-        VMSTATE_UINT32(pwdr, NPCM7xxPWM),
-        VMSTATE_UINT32(freq, NPCM7xxPWM),
-        VMSTATE_UINT32(duty, NPCM7xxPWM),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_pwm_fields,
+};
+
+static const VMStateField vmstate_npcm7xx_pwm_module_fields[] = {
+    VMSTATE_CLOCK(clock, NPCM7xxPWMState),
+    VMSTATE_STRUCT_ARRAY(pwm, NPCM7xxPWMState,
+                         NPCM7XX_PWM_PER_MODULE, 0, vmstate_npcm7xx_pwm,
+                         NPCM7xxPWM),
+    VMSTATE_UINT32(ppr, NPCM7xxPWMState),
+    VMSTATE_UINT32(csr, NPCM7xxPWMState),
+    VMSTATE_UINT32(pcr, NPCM7xxPWMState),
+    VMSTATE_UINT32(pier, NPCM7xxPWMState),
+    VMSTATE_UINT32(piir, NPCM7xxPWMState),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_npcm7xx_pwm_module = {
     .name = "npcm7xx-pwm-module",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(clock, NPCM7xxPWMState),
-        VMSTATE_STRUCT_ARRAY(pwm, NPCM7xxPWMState,
-                             NPCM7XX_PWM_PER_MODULE, 0, vmstate_npcm7xx_pwm,
-                             NPCM7xxPWM),
-        VMSTATE_UINT32(ppr, NPCM7xxPWMState),
-        VMSTATE_UINT32(csr, NPCM7xxPWMState),
-        VMSTATE_UINT32(pcr, NPCM7xxPWMState),
-        VMSTATE_UINT32(pier, NPCM7xxPWMState),
-        VMSTATE_UINT32(piir, NPCM7xxPWMState),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_pwm_module_fields,
 };
 
 static void npcm7xx_pwm_class_init(ObjectClass *klass, const void *data)
@@ -558,8 +562,8 @@ static const TypeInfo npcm7xx_pwm_info = {
     .name               = TYPE_NPCM7XX_PWM,
     .parent             = TYPE_SYS_BUS_DEVICE,
     .instance_size      = sizeof(NPCM7xxPWMState),
-    .class_init         = npcm7xx_pwm_class_init,
     .instance_init      = npcm7xx_pwm_init,
+    .class_init         = npcm7xx_pwm_class_init,
 };
 
 static void npcm7xx_pwm_register_type(void)
