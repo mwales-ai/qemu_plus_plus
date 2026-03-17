@@ -942,7 +942,7 @@ bool armv7m_nvic_get_ready_status(NVICState *s, int irq, bool secure)
 /* callback when external interrupt line is changed */
 static void set_irq_level(void *opaque, int n, int level)
 {
-    NVICState *s = opaque;
+    NVICState *s = static_cast<NVICState *>(opaque);
     VecInfo *vec;
 
     n += NVIC_FIRST_IRQ;
@@ -970,7 +970,7 @@ static void set_irq_level(void *opaque, int n, int level)
 /* callback when external NMI line is changed */
 static void nvic_nmi_trigger(void *opaque, int n, int level)
 {
-    NVICState *s = opaque;
+    NVICState *s = static_cast<NVICState *>(opaque);
 
     trace_nvic_set_nmi_level(level);
 
@@ -2472,7 +2472,7 @@ static const MemoryRegionOps nvic_sysreg_ops = {
 
 static int nvic_post_load(void *opaque, int version_id)
 {
-    NVICState *s = opaque;
+    NVICState *s = static_cast<NVICState *>(opaque);
     unsigned i;
     int resetprio;
 
@@ -2495,30 +2495,32 @@ static int nvic_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_VecInfo_fields[] = {
+    VMSTATE_INT16(prio, VecInfo),
+    VMSTATE_UINT8(enabled, VecInfo),
+    VMSTATE_UINT8(pending, VecInfo),
+    VMSTATE_UINT8(active, VecInfo),
+    VMSTATE_UINT8(level, VecInfo),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_VecInfo = {
     .name = "armv7m_nvic_info",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT16(prio, VecInfo),
-        VMSTATE_UINT8(enabled, VecInfo),
-        VMSTATE_UINT8(pending, VecInfo),
-        VMSTATE_UINT8(active, VecInfo),
-        VMSTATE_UINT8(level, VecInfo),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_VecInfo_fields,
 };
 
 static bool nvic_security_needed(void *opaque)
 {
-    NVICState *s = opaque;
+    NVICState *s = static_cast<NVICState *>(opaque);
 
     return arm_feature(&s->cpu->env, ARM_FEATURE_M_SECURITY);
 }
 
 static int nvic_security_post_load(void *opaque, int version_id)
 {
-    NVICState *s = opaque;
+    NVICState *s = static_cast<NVICState *>(opaque);
     int i;
 
     /* Check for out of range priority settings */
@@ -2538,19 +2540,33 @@ static int nvic_security_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_nvic_security_fields[] = {
+    VMSTATE_STRUCT_ARRAY(sec_vectors, NVICState, NVIC_INTERNAL_VECTORS, 1,
+                         vmstate_VecInfo, VecInfo),
+    VMSTATE_UINT32(prigroup[M_REG_S], NVICState),
+    VMSTATE_BOOL_ARRAY(itns, NVICState, NVIC_MAX_VECTORS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_nvic_security = {
     .name = "armv7m_nvic/m-security",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = nvic_security_needed,
     .post_load = &nvic_security_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(sec_vectors, NVICState, NVIC_INTERNAL_VECTORS, 1,
-                             vmstate_VecInfo, VecInfo),
-        VMSTATE_UINT32(prigroup[M_REG_S], NVICState),
-        VMSTATE_BOOL_ARRAY(itns, NVICState, NVIC_MAX_VECTORS),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = nvic_security_needed,
+    .fields = vmstate_nvic_security_fields,
+};
+
+static const VMStateField vmstate_nvic_fields[] = {
+    VMSTATE_STRUCT_ARRAY(vectors, NVICState, NVIC_MAX_VECTORS, 1,
+                         vmstate_VecInfo, VecInfo),
+    VMSTATE_UINT32(prigroup[M_REG_NS], NVICState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_nvic_subsections[] = {
+    &vmstate_nvic_security,
+    NULL
 };
 
 static const VMStateDescription vmstate_nvic = {
@@ -2558,16 +2574,8 @@ static const VMStateDescription vmstate_nvic = {
     .version_id = 4,
     .minimum_version_id = 4,
     .post_load = &nvic_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(vectors, NVICState, NVIC_MAX_VECTORS, 1,
-                             vmstate_VecInfo, VecInfo),
-        VMSTATE_UINT32(prigroup[M_REG_NS], NVICState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_nvic_security,
-        NULL
-    }
+    .fields = vmstate_nvic_fields,
+    .subsections = vmstate_nvic_subsections,
 };
 
 static const Property props_nvic[] = {
@@ -2657,7 +2665,7 @@ static void armv7m_nvic_reset(DeviceState *dev)
 
 static void nvic_systick_trigger(void *opaque, int n, int level)
 {
-    NVICState *s = opaque;
+    NVICState *s = static_cast<NVICState *>(opaque);
 
     if (level) {
         /* SysTick just asked us to pend its exception.
@@ -2744,10 +2752,10 @@ static void armv7m_nvic_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo armv7m_nvic_info = {
     .name          = TYPE_NVIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = armv7m_nvic_instance_init,
     .instance_size = sizeof(NVICState),
-    .class_init    = armv7m_nvic_class_init,
+    .instance_init = armv7m_nvic_instance_init,
     .class_size    = sizeof(SysBusDeviceClass),
+    .class_init    = armv7m_nvic_class_init,
 };
 
 static void armv7m_nvic_register_types(void)

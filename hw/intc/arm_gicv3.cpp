@@ -378,7 +378,7 @@ static void gicv3_set_irq(void *opaque, int irq, int level)
      *  [N+32..N+63] : PPI (internal interrupts for CPU 1
      *  ...
      */
-    GICv3State *s = opaque;
+    GICv3State *s = static_cast<GICv3State *>(opaque);
 
     if (irq < (s->num_irq - GIC_INTERNAL)) {
         /* external interrupt (SPI) */
@@ -462,8 +462,8 @@ static const TypeInfo arm_gicv3_info = {
     .name = TYPE_ARM_GICV3,
     .parent = TYPE_ARM_GICV3_COMMON,
     .instance_size = sizeof(GICv3State),
-    .class_init = arm_gicv3_class_init,
     .class_size = sizeof(ARMGICv3Class),
+    .class_init = arm_gicv3_class_init,
 };
 
 static void arm_gicv3_register_types(void)

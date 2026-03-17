@@ -1549,6 +1549,9 @@ FIELD(SMCR, FA64, 31, 1)
 /* Write a new value to v7m.exception, thus transitioning into or out
  * of Handler mode; this may result in a change of active stack pointer.
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 void write_v7m_exception(CPUARMState *env, uint32_t new_exc);
 
 /* Map EL and handler into a PSTATE_MODE.  */
@@ -2619,6 +2622,9 @@ void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook, void
  * arm_rebuild_hflags:
  * Rebuild the cached TBFLAGS for arbitrary changed processor state.
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 void arm_rebuild_hflags(CPUARMState *env);
 
 /**

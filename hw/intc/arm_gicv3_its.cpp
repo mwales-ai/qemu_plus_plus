@@ -1028,8 +1028,8 @@ static void vmovp_callback(gpointer data, gpointer opaque)
      * as this ITS.  We need to read the VPE table entry for the VPEID
      * and update its RDBASE field.
      */
-    GICv3ITSState *s = data;
-    VmovpCallbackData *cbdata = opaque;
+    GICv3ITSState *s = static_cast<GICv3ITSState *>(data);
+    VmovpCallbackData *cbdata = static_cast<VmovpCallbackData *>(opaque);
     VTEntry vte = {};
     ItsCmdResult cmdres;
 
@@ -1902,17 +1902,17 @@ static MemTxResult gicv3_its_write(void *opaque, hwaddr offset, uint64_t data,
 static const MemoryRegionOps gicv3_its_control_ops = {
     .read_with_attrs = gicv3_its_read,
     .write_with_attrs = gicv3_its_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = { .min_access_size = 4, .max_access_size = 8, },
     .impl = { .min_access_size = 4, .max_access_size = 8, },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const MemoryRegionOps gicv3_its_translation_ops = {
     .read_with_attrs = gicv3_its_translation_read,
     .write_with_attrs = gicv3_its_translation_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = { .min_access_size = 2, .max_access_size = 4, },
     .impl = { .min_access_size = 2, .max_access_size = 4, },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
@@ -2021,8 +2021,8 @@ static const TypeInfo gicv3_its_info = {
     .name = TYPE_ARM_GICV3_ITS,
     .parent = TYPE_ARM_GICV3_ITS_COMMON,
     .instance_size = sizeof(GICv3ITSState),
-    .class_init = gicv3_its_class_init,
     .class_size = sizeof(GICv3ITSClass),
+    .class_init = gicv3_its_class_init,
 };
 
 static void gicv3_its_register_types(void)

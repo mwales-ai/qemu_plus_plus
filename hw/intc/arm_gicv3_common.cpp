@@ -95,28 +95,30 @@ static int gicv3_post_load(void *opaque, int version_id)
 
 static bool virt_state_needed(void *opaque)
 {
-    GICv3CPUState *cs = opaque;
+    GICv3CPUState *cs = static_cast<GICv3CPUState *>(opaque);
 
     return cs->num_list_regs != 0;
 }
+
+static const VMStateField vmstate_gicv3_cpu_virt_fields[] = {
+    VMSTATE_UINT64_2DARRAY(ich_apr, GICv3CPUState, 3, 4),
+    VMSTATE_UINT64(ich_hcr_el2, GICv3CPUState),
+    VMSTATE_UINT64_ARRAY(ich_lr_el2, GICv3CPUState, GICV3_LR_MAX),
+    VMSTATE_UINT64(ich_vmcr_el2, GICv3CPUState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_gicv3_cpu_virt = {
     .name = "arm_gicv3_cpu/virt",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = virt_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64_2DARRAY(ich_apr, GICv3CPUState, 3, 4),
-        VMSTATE_UINT64(ich_hcr_el2, GICv3CPUState),
-        VMSTATE_UINT64_ARRAY(ich_lr_el2, GICv3CPUState, GICV3_LR_MAX),
-        VMSTATE_UINT64(ich_vmcr_el2, GICv3CPUState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gicv3_cpu_virt_fields,
 };
 
 static int vmstate_gicv3_cpu_pre_load(void *opaque)
 {
-    GICv3CPUState *cs = opaque;
+    GICv3CPUState *cs = static_cast<GICv3CPUState *>(opaque);
 
    /*
     * If the sre_el1 subsection is not transferred this
@@ -129,57 +131,95 @@ static int vmstate_gicv3_cpu_pre_load(void *opaque)
 
 static bool icc_sre_el1_reg_needed(void *opaque)
 {
-    GICv3CPUState *cs = opaque;
+    GICv3CPUState *cs = static_cast<GICv3CPUState *>(opaque);
 
     return cs->icc_sre_el1 != 7;
 }
+
+static const VMStateField vmstate_gicv3_cpu_sre_el1_fields[] = {
+    VMSTATE_UINT64(icc_sre_el1, GICv3CPUState),
+    VMSTATE_END_OF_LIST()
+};
 
 const VMStateDescription vmstate_gicv3_cpu_sre_el1 = {
     .name = "arm_gicv3_cpu/sre_el1",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = icc_sre_el1_reg_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(icc_sre_el1, GICv3CPUState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gicv3_cpu_sre_el1_fields,
 };
 
 static bool gicv4_needed(void *opaque)
 {
-    GICv3CPUState *cs = opaque;
+    GICv3CPUState *cs = static_cast<GICv3CPUState *>(opaque);
 
     return cs->gic->revision > 3;
 }
+
+static const VMStateField vmstate_gicv3_gicv4_fields[] = {
+    VMSTATE_UINT64(gicr_vpropbaser, GICv3CPUState),
+    VMSTATE_UINT64(gicr_vpendbaser, GICv3CPUState),
+    VMSTATE_END_OF_LIST()
+};
 
 const VMStateDescription vmstate_gicv3_gicv4 = {
     .name = "arm_gicv3_cpu/gicv4",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = gicv4_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(gicr_vpropbaser, GICv3CPUState),
-        VMSTATE_UINT64(gicr_vpendbaser, GICv3CPUState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gicv3_gicv4_fields,
 };
 
 static bool gicv3_cpu_nmi_needed(void *opaque)
 {
-    GICv3CPUState *cs = opaque;
+    GICv3CPUState *cs = static_cast<GICv3CPUState *>(opaque);
 
     return cs->gic->nmi_support;
 }
+
+static const VMStateField vmstate_gicv3_cpu_nmi_fields[] = {
+    VMSTATE_UINT32(gicr_inmir0, GICv3CPUState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_gicv3_cpu_nmi = {
     .name = "arm_gicv3_cpu/nmi",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = gicv3_cpu_nmi_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(gicr_inmir0, GICv3CPUState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gicv3_cpu_nmi_fields,
+};
+
+static const VMStateField vmstate_gicv3_cpu_fields[] = {
+    VMSTATE_UINT32(level, GICv3CPUState),
+    VMSTATE_UINT32(gicr_ctlr, GICv3CPUState),
+    VMSTATE_UINT32_ARRAY(gicr_statusr, GICv3CPUState, 2),
+    VMSTATE_UINT32(gicr_waker, GICv3CPUState),
+    VMSTATE_UINT64(gicr_propbaser, GICv3CPUState),
+    VMSTATE_UINT64(gicr_pendbaser, GICv3CPUState),
+    VMSTATE_UINT32(gicr_igroupr0, GICv3CPUState),
+    VMSTATE_UINT32(gicr_ienabler0, GICv3CPUState),
+    VMSTATE_UINT32(gicr_ipendr0, GICv3CPUState),
+    VMSTATE_UINT32(gicr_iactiver0, GICv3CPUState),
+    VMSTATE_UINT32(edge_trigger, GICv3CPUState),
+    VMSTATE_UINT32(gicr_igrpmodr0, GICv3CPUState),
+    VMSTATE_UINT32(gicr_nsacr, GICv3CPUState),
+    VMSTATE_UINT8_ARRAY(gicr_ipriorityr, GICv3CPUState, GIC_INTERNAL),
+    VMSTATE_UINT64_ARRAY(icc_ctlr_el1, GICv3CPUState, 2),
+    VMSTATE_UINT64(icc_pmr_el1, GICv3CPUState),
+    VMSTATE_UINT64_ARRAY(icc_bpr, GICv3CPUState, 3),
+    VMSTATE_UINT64_2DARRAY(icc_apr, GICv3CPUState, 3, 4),
+    VMSTATE_UINT64_ARRAY(icc_igrpen, GICv3CPUState, 3),
+    VMSTATE_UINT64(icc_ctlr_el3, GICv3CPUState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_gicv3_cpu_subsections[] = {
+    &vmstate_gicv3_cpu_virt,
+    &vmstate_gicv3_cpu_sre_el1,
+    &vmstate_gicv3_gicv4,
+    &vmstate_gicv3_cpu_nmi,
+    NULL
 };
 
 static const VMStateDescription vmstate_gicv3_cpu = {
@@ -187,41 +227,13 @@ static const VMStateDescription vmstate_gicv3_cpu = {
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_load = vmstate_gicv3_cpu_pre_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(level, GICv3CPUState),
-        VMSTATE_UINT32(gicr_ctlr, GICv3CPUState),
-        VMSTATE_UINT32_ARRAY(gicr_statusr, GICv3CPUState, 2),
-        VMSTATE_UINT32(gicr_waker, GICv3CPUState),
-        VMSTATE_UINT64(gicr_propbaser, GICv3CPUState),
-        VMSTATE_UINT64(gicr_pendbaser, GICv3CPUState),
-        VMSTATE_UINT32(gicr_igroupr0, GICv3CPUState),
-        VMSTATE_UINT32(gicr_ienabler0, GICv3CPUState),
-        VMSTATE_UINT32(gicr_ipendr0, GICv3CPUState),
-        VMSTATE_UINT32(gicr_iactiver0, GICv3CPUState),
-        VMSTATE_UINT32(edge_trigger, GICv3CPUState),
-        VMSTATE_UINT32(gicr_igrpmodr0, GICv3CPUState),
-        VMSTATE_UINT32(gicr_nsacr, GICv3CPUState),
-        VMSTATE_UINT8_ARRAY(gicr_ipriorityr, GICv3CPUState, GIC_INTERNAL),
-        VMSTATE_UINT64_ARRAY(icc_ctlr_el1, GICv3CPUState, 2),
-        VMSTATE_UINT64(icc_pmr_el1, GICv3CPUState),
-        VMSTATE_UINT64_ARRAY(icc_bpr, GICv3CPUState, 3),
-        VMSTATE_UINT64_2DARRAY(icc_apr, GICv3CPUState, 3, 4),
-        VMSTATE_UINT64_ARRAY(icc_igrpen, GICv3CPUState, 3),
-        VMSTATE_UINT64(icc_ctlr_el3, GICv3CPUState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_gicv3_cpu_virt,
-        &vmstate_gicv3_cpu_sre_el1,
-        &vmstate_gicv3_gicv4,
-        &vmstate_gicv3_cpu_nmi,
-        NULL
-    }
+    .fields = vmstate_gicv3_cpu_fields,
+    .subsections = vmstate_gicv3_cpu_subsections,
 };
 
 static int gicv3_pre_load(void *opaque)
 {
-    GICv3State *cs = opaque;
+    GICv3State *cs = static_cast<GICv3State *>(opaque);
 
    /*
     * The gicd_no_migration_shift_bug flag is used for migration compatibility
@@ -246,66 +258,74 @@ static bool needed_always(void *opaque)
     return true;
 }
 
+static const VMStateField vmstate_gicv3_gicd_no_migration_shift_bug_fields[] = {
+    VMSTATE_BOOL(gicd_no_migration_shift_bug, GICv3State),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_gicv3_gicd_no_migration_shift_bug = {
     .name = "arm_gicv3/gicd_no_migration_shift_bug",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = needed_always,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(gicd_no_migration_shift_bug, GICv3State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gicv3_gicd_no_migration_shift_bug_fields,
 };
 
 static bool gicv3_nmi_needed(void *opaque)
 {
-    GICv3State *cs = opaque;
+    GICv3State *cs = static_cast<GICv3State *>(opaque);
 
     return cs->nmi_support;
 }
+
+static const VMStateField vmstate_gicv3_gicd_nmi_fields[] = {
+    VMSTATE_UINT32_ARRAY(nmi, GICv3State, GICV3_BMP_SIZE),
+    VMSTATE_END_OF_LIST()
+};
 
 const VMStateDescription vmstate_gicv3_gicd_nmi = {
     .name = "arm_gicv3/gicd_nmi",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = gicv3_nmi_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(nmi, GICv3State, GICV3_BMP_SIZE),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gicv3_gicd_nmi_fields,
+};
+
+static const VMStateField vmstate_gicv3_fields[] = {
+    VMSTATE_UINT32(gicd_ctlr, GICv3State),
+    VMSTATE_UINT32_ARRAY(gicd_statusr, GICv3State, 2),
+    VMSTATE_UINT32_ARRAY(group, GICv3State, GICV3_BMP_SIZE),
+    VMSTATE_UINT32_ARRAY(grpmod, GICv3State, GICV3_BMP_SIZE),
+    VMSTATE_UINT32_ARRAY(enabled, GICv3State, GICV3_BMP_SIZE),
+    VMSTATE_UINT32_ARRAY(pending, GICv3State, GICV3_BMP_SIZE),
+    VMSTATE_UINT32_ARRAY(active, GICv3State, GICV3_BMP_SIZE),
+    VMSTATE_UINT32_ARRAY(level, GICv3State, GICV3_BMP_SIZE),
+    VMSTATE_UINT32_ARRAY(edge_trigger, GICv3State, GICV3_BMP_SIZE),
+    VMSTATE_UINT8_ARRAY(gicd_ipriority, GICv3State, GICV3_MAXIRQ),
+    VMSTATE_UINT64_ARRAY(gicd_irouter, GICv3State, GICV3_MAXIRQ),
+    VMSTATE_UINT32_ARRAY(gicd_nsacr, GICv3State,
+                         DIV_ROUND_UP(GICV3_MAXIRQ, 16)),
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, GICv3State, num_cpu,
+                                         vmstate_gicv3_cpu, GICv3CPUState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_gicv3_subsections[] = {
+    &vmstate_gicv3_gicd_no_migration_shift_bug,
+    &vmstate_gicv3_gicd_nmi,
+    NULL
 };
 
 static const VMStateDescription vmstate_gicv3 = {
     .name = "arm_gicv3",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_load = gicv3_pre_load,
-    .pre_save = gicv3_pre_save,
-    .post_load = gicv3_post_load,
     .priority = MIG_PRI_GICV3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(gicd_ctlr, GICv3State),
-        VMSTATE_UINT32_ARRAY(gicd_statusr, GICv3State, 2),
-        VMSTATE_UINT32_ARRAY(group, GICv3State, GICV3_BMP_SIZE),
-        VMSTATE_UINT32_ARRAY(grpmod, GICv3State, GICV3_BMP_SIZE),
-        VMSTATE_UINT32_ARRAY(enabled, GICv3State, GICV3_BMP_SIZE),
-        VMSTATE_UINT32_ARRAY(pending, GICv3State, GICV3_BMP_SIZE),
-        VMSTATE_UINT32_ARRAY(active, GICv3State, GICV3_BMP_SIZE),
-        VMSTATE_UINT32_ARRAY(level, GICv3State, GICV3_BMP_SIZE),
-        VMSTATE_UINT32_ARRAY(edge_trigger, GICv3State, GICV3_BMP_SIZE),
-        VMSTATE_UINT8_ARRAY(gicd_ipriority, GICv3State, GICV3_MAXIRQ),
-        VMSTATE_UINT64_ARRAY(gicd_irouter, GICv3State, GICV3_MAXIRQ),
-        VMSTATE_UINT32_ARRAY(gicd_nsacr, GICv3State,
-                             DIV_ROUND_UP(GICV3_MAXIRQ, 16)),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, GICv3State, num_cpu,
-                                             vmstate_gicv3_cpu, GICv3CPUState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_gicv3_gicd_no_migration_shift_bug,
-        &vmstate_gicv3_gicd_nmi,
-        NULL
-    }
+    .pre_load = gicv3_pre_load,
+    .post_load = gicv3_post_load,
+    .pre_save = gicv3_pre_save,
+    .fields = vmstate_gicv3_fields,
+    .subsections = vmstate_gicv3_subsections,
 };
 
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
@@ -638,18 +658,20 @@ static void arm_gicv3_common_class_init(ObjectClass *klass, const void *data)
     albifc->arm_linux_init = arm_gic_common_linux_init;
 }
 
+static const InterfaceInfo arm_gicv3_common_interfaces[] = {
+    { TYPE_ARM_LINUX_BOOT_IF },
+    { },
+};
+
 static const TypeInfo arm_gicv3_common_type = {
     .name = TYPE_ARM_GICV3_COMMON,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GICv3State),
-    .class_size = sizeof(ARMGICv3CommonClass),
-    .class_init = arm_gicv3_common_class_init,
     .instance_finalize = arm_gicv3_finalize,
     .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ARM_LINUX_BOOT_IF },
-        { },
-    },
+    .class_size = sizeof(ARMGICv3CommonClass),
+    .class_init = arm_gicv3_common_class_init,
+    .interfaces = arm_gicv3_common_interfaces,
 };
 
 static void register_types(void)

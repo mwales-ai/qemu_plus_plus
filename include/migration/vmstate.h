@@ -415,22 +415,22 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_VARRAY_MULTIPLY(_field, _state, _field_num, _multiply, _info, _type) { \
     .name       = (stringify(_field)),                               \
-    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
-    .num        = (_multiply),                                       \
-    .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
-    .flags      = VMS_VARRAY_UINT32|VMS_MULTIPLY_ELEMENTS,           \
     .offset     = vmstate_offset_varray(_state, _field, _type),      \
+    .size       = sizeof(_type),                                     \
+    .num        = (_multiply),                                       \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
+    .info       = &(_info),                                          \
+    .flags      = VMS_VARRAY_UINT32|VMS_MULTIPLY_ELEMENTS,           \
 }
 
 #define VMSTATE_SUB_ARRAY(_field, _state, _start, _num, _version, _info, _type) { \
     .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
+    .offset     = vmstate_offset_sub_array(_state, _field, _type, _start), \
+    .size       = sizeof(_type),                                     \
     .num        = (_num),                                            \
     .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY,                                         \
-    .offset     = vmstate_offset_sub_array(_state, _field, _type, _start), \
+    .version_id = (_version),                                        \
 }
 
 #define VMSTATE_ARRAY_INT32_UNSAFE(_field, _state, _field_num, _info, _type) {\

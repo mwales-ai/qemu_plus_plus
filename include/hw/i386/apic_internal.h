@@ -199,6 +199,10 @@ typedef struct VAPICState {
     uint8_t enabled;
 } QEMU_PACKED VAPICState;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern bool apic_report_tpr_access;
 
 bool apic_next_timer(APICCommonState *s, int64_t current_time);
@@ -210,6 +214,10 @@ void vapic_report_tpr_access(DeviceState *dev, CPUState *cpu, target_ulong ip,
 
 int apic_get_ppr(APICCommonState *s);
 uint32_t apic_get_current_count(APICCommonState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 static inline void apic_set_bit(uint32_t *tab, int index)
 {
@@ -227,6 +235,14 @@ static inline int apic_get_bit(uint32_t *tab, int index)
     return !!(tab[i] & mask);
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 APICCommonClass *apic_get_class(Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_APIC_INTERNAL_H */

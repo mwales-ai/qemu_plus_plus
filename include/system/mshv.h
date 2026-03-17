@@ -46,6 +46,11 @@ extern bool mshv_allowed;
 #endif
 
 typedef struct MshvState MshvState;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern MshvState *mshv_state;
 
 /* interrupt */
@@ -60,5 +65,9 @@ void mshv_irqchip_release_virq(int virq);
 int mshv_irqchip_add_irqfd_notifier_gsi(const EventNotifier *n,
                                         const EventNotifier *rn, int virq);
 int mshv_irqchip_remove_irqfd_notifier_gsi(const EventNotifier *n, int virq);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

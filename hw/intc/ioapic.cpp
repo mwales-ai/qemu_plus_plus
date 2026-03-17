@@ -151,14 +151,14 @@ static void ioapic_service(IOAPICCommonState *s)
 
 static void delayed_ioapic_service_cb(void *opaque)
 {
-    IOAPICCommonState *s = opaque;
+    IOAPICCommonState *s = static_cast<IOAPICCommonState *>(opaque);
 
     ioapic_service(s);
 }
 
 static void ioapic_set_irq(void *opaque, int vector, int level)
 {
-    IOAPICCommonState *s = opaque;
+    IOAPICCommonState *s = static_cast<IOAPICCommonState *>(opaque);
 
     /* ISA IRQs map to GSI 1-1 except for IRQ0 which maps
      * to GSI 2.  GSI maps to ioapic 1-1.  This is not
@@ -217,10 +217,10 @@ static void ioapic_update_kvm_routes(IOAPICCommonState *s)
 }
 
 #ifdef ACCEL_GSI_IRQFD_POSSIBLE
-static void ioapic_iec_notifier(void *private, bool global,
+static void ioapic_iec_notifier(void *priv_data, bool global,
                                 uint32_t index, uint32_t mask)
 {
-    IOAPICCommonState *s = (IOAPICCommonState *)private;
+    IOAPICCommonState *s = (IOAPICCommonState *)priv_data;
     /* For simplicity, we just update all the routes */
     ioapic_update_kvm_routes(s);
 }
@@ -301,7 +301,7 @@ void ioapic_eoi_broadcast(int vector)
 static uint64_t
 ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    IOAPICCommonState *s = opaque;
+    IOAPICCommonState *s = static_cast<IOAPICCommonState *>(opaque);
     int index;
     uint32_t val = 0;
 
@@ -374,7 +374,7 @@ static void
 ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                  unsigned int size)
 {
-    IOAPICCommonState *s = opaque;
+    IOAPICCommonState *s = static_cast<IOAPICCommonState *>(opaque);
     int index;
 
     addr &= 0xff;

@@ -322,6 +322,10 @@ struct ARMGICv3CommonClass {
     void (*post_load)(GICv3State *s);
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
                               const MemoryRegionOps *ops);
 
@@ -334,5 +338,9 @@ void gicv3_init_irqs_and_mmio(GICv3State *s, qemu_irq_handler handler,
  * Returns: class name to use
  */
 const char *gicv3_class_name(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

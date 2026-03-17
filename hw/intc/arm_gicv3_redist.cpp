@@ -711,7 +711,7 @@ static MemTxResult gicr_writell(GICv3CPUState *cs, hwaddr offset,
 MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
                               unsigned size, MemTxAttrs attrs)
 {
-    GICv3RedistRegion *region = opaque;
+    GICv3RedistRegion *region = static_cast<GICv3RedistRegion *>(opaque);
     GICv3State *s = region->gic;
     GICv3CPUState *cs;
     MemTxResult r;
@@ -770,7 +770,7 @@ MemTxResult gicv3_redist_read(void *opaque, hwaddr offset, uint64_t *data,
 MemTxResult gicv3_redist_write(void *opaque, hwaddr offset, uint64_t data,
                                unsigned size, MemTxAttrs attrs)
 {
-    GICv3RedistRegion *region = opaque;
+    GICv3RedistRegion *region = static_cast<GICv3RedistRegion *>(opaque);
     GICv3State *s = region->gic;
     GICv3CPUState *cs;
     MemTxResult r;

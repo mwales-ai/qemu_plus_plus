@@ -33,6 +33,8 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 
+extern "C" {
+
 bool apic_report_tpr_access;
 
 int cpu_set_apic_base(APICCommonState *s, uint64_t val)
@@ -229,6 +231,8 @@ void apic_designate_bsp(APICCommonState *s, bool bsp)
     }
 }
 
+} /* extern "C" */
+
 static void apic_reset_common(DeviceState *dev)
 {
     APICCommonState *s = APIC_COMMON(dev);
@@ -247,7 +251,102 @@ static void apic_reset_common(DeviceState *dev)
     apic_init_reset(s);
 }
 
-static const VMStateDescription vmstate_apic_common;
+static int apic_pre_load(void *opaque)
+{
+    APICCommonState *s = APIC_COMMON(opaque);
+
+    /* The default is !cpu_is_bsp(s->cpu), but the common value is 0
+     * so that's what apic_common_sipi_needed checks for.  Reset to
+     * the value that is assumed when the apic_sipi subsection is
+     * absent.
+     */
+    s->wait_for_sipi = 0;
+    return 0;
+}
+
+static int apic_dispatch_pre_save(void *opaque)
+{
+    APICCommonState *s = APIC_COMMON(opaque);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+
+    if (info->pre_save) {
+        info->pre_save(s);
+    }
+
+    return 0;
+}
+
+static int apic_dispatch_post_load(void *opaque, int version_id)
+{
+    APICCommonState *s = APIC_COMMON(opaque);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+
+    if (info->post_load) {
+        info->post_load(s);
+    }
+    return 0;
+}
+
+static bool apic_common_sipi_needed(void *opaque)
+{
+    APICCommonState *s = APIC_COMMON(opaque);
+    return s->wait_for_sipi != 0;
+}
+
+static const VMStateField vmstate_apic_common_sipi_fields[] = {
+    VMSTATE_INT32(sipi_vector, APICCommonState),
+    VMSTATE_INT32(wait_for_sipi, APICCommonState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription vmstate_apic_common_sipi = {
+    .name = "apic_sipi",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = apic_common_sipi_needed,
+    .fields = vmstate_apic_common_sipi_fields,
+};
+
+static const VMStateField vmstate_apic_common_fields[] = {
+    VMSTATE_UINT32(apicbase, APICCommonState),
+    VMSTATE_UINT8(id, APICCommonState),
+    VMSTATE_UINT8(arb_id, APICCommonState),
+    VMSTATE_UINT8(tpr, APICCommonState),
+    VMSTATE_UINT32(spurious_vec, APICCommonState),
+    VMSTATE_UINT8(log_dest, APICCommonState),
+    VMSTATE_UINT8(dest_mode, APICCommonState),
+    VMSTATE_UINT32_ARRAY(isr, APICCommonState, 8),
+    VMSTATE_UINT32_ARRAY(tmr, APICCommonState, 8),
+    VMSTATE_UINT32_ARRAY(irr, APICCommonState, 8),
+    VMSTATE_UINT32_ARRAY(lvt, APICCommonState, APIC_LVT_NB),
+    VMSTATE_UINT32(esr, APICCommonState),
+    VMSTATE_UINT32_ARRAY(icr, APICCommonState, 2),
+    VMSTATE_UINT32(divide_conf, APICCommonState),
+    VMSTATE_INT32(count_shift, APICCommonState),
+    VMSTATE_UINT32(initial_count, APICCommonState),
+    VMSTATE_INT64(initial_count_load_time, APICCommonState),
+    VMSTATE_INT64(next_time, APICCommonState),
+    VMSTATE_INT64(timer_expiry,
+                  APICCommonState), /* open-coded timer state */
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_apic_common_subsections[] = {
+    &vmstate_apic_common_sipi,
+    NULL
+};
+
+static const VMStateDescription vmstate_apic_common = {
+    .name = "apic",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .priority = MIG_PRI_APIC,
+    .pre_load = apic_pre_load,
+    .post_load = apic_dispatch_post_load,
+    .pre_save = apic_dispatch_pre_save,
+    .fields = vmstate_apic_common_fields,
+    .subsections = vmstate_apic_common_subsections,
+};
 
 static void apic_common_realize(DeviceState *dev, Error **errp)
 {
@@ -299,97 +398,6 @@ static void apic_common_unrealize(DeviceState *dev)
         info->enable_tpr_reporting(s, false);
     }
 }
-
-static int apic_pre_load(void *opaque)
-{
-    APICCommonState *s = APIC_COMMON(opaque);
-
-    /* The default is !cpu_is_bsp(s->cpu), but the common value is 0
-     * so that's what apic_common_sipi_needed checks for.  Reset to
-     * the value that is assumed when the apic_sipi subsection is
-     * absent.
-     */
-    s->wait_for_sipi = 0;
-    return 0;
-}
-
-static int apic_dispatch_pre_save(void *opaque)
-{
-    APICCommonState *s = APIC_COMMON(opaque);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
-
-    if (info->pre_save) {
-        info->pre_save(s);
-    }
-
-    return 0;
-}
-
-static int apic_dispatch_post_load(void *opaque, int version_id)
-{
-    APICCommonState *s = APIC_COMMON(opaque);
-    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
-
-    if (info->post_load) {
-        info->post_load(s);
-    }
-    return 0;
-}
-
-static bool apic_common_sipi_needed(void *opaque)
-{
-    APICCommonState *s = APIC_COMMON(opaque);
-    return s->wait_for_sipi != 0;
-}
-
-static const VMStateDescription vmstate_apic_common_sipi = {
-    .name = "apic_sipi",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .needed = apic_common_sipi_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(sipi_vector, APICCommonState),
-        VMSTATE_INT32(wait_for_sipi, APICCommonState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static const VMStateDescription vmstate_apic_common = {
-    .name = "apic",
-    .version_id = 3,
-    .minimum_version_id = 3,
-    .pre_load = apic_pre_load,
-    .pre_save = apic_dispatch_pre_save,
-    .post_load = apic_dispatch_post_load,
-    .priority = MIG_PRI_APIC,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(apicbase, APICCommonState),
-        VMSTATE_UINT8(id, APICCommonState),
-        VMSTATE_UINT8(arb_id, APICCommonState),
-        VMSTATE_UINT8(tpr, APICCommonState),
-        VMSTATE_UINT32(spurious_vec, APICCommonState),
-        VMSTATE_UINT8(log_dest, APICCommonState),
-        VMSTATE_UINT8(dest_mode, APICCommonState),
-        VMSTATE_UINT32_ARRAY(isr, APICCommonState, 8),
-        VMSTATE_UINT32_ARRAY(tmr, APICCommonState, 8),
-        VMSTATE_UINT32_ARRAY(irr, APICCommonState, 8),
-        VMSTATE_UINT32_ARRAY(lvt, APICCommonState, APIC_LVT_NB),
-        VMSTATE_UINT32(esr, APICCommonState),
-        VMSTATE_UINT32_ARRAY(icr, APICCommonState, 2),
-        VMSTATE_UINT32(divide_conf, APICCommonState),
-        VMSTATE_INT32(count_shift, APICCommonState),
-        VMSTATE_UINT32(initial_count, APICCommonState),
-        VMSTATE_INT64(initial_count_load_time, APICCommonState),
-        VMSTATE_INT64(next_time, APICCommonState),
-        VMSTATE_INT64(timer_expiry,
-                      APICCommonState), /* open-coded timer state */
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_apic_common_sipi,
-        NULL
-    }
-};
 
 static const Property apic_properties_common[] = {
     DEFINE_PROP_UINT8("version", APICCommonState, version, 0x14),
@@ -469,9 +477,9 @@ static const TypeInfo apic_common_type = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(APICCommonState),
     .instance_init = apic_common_initfn,
+    .is_abstract = true,
     .class_size = sizeof(APICCommonClass),
     .class_init = apic_common_class_init,
-    .is_abstract = true,
 };
 
 static void apic_common_register_types(void)

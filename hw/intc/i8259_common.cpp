@@ -55,7 +55,7 @@ void pic_reset_common(PICCommonState *s)
 
 static int pic_dispatch_pre_save(void *opaque)
 {
-    PICCommonState *s = opaque;
+    PICCommonState *s = static_cast<PICCommonState *>(opaque);
     PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
 
     if (info->pre_save) {
@@ -67,7 +67,7 @@ static int pic_dispatch_pre_save(void *opaque)
 
 static int pic_dispatch_post_load(void *opaque, int version_id)
 {
-    PICCommonState *s = opaque;
+    PICCommonState *s = static_cast<PICCommonState *>(opaque);
     PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
 
     if (info->post_load) {
@@ -151,46 +151,52 @@ static bool ltim_state_needed(void *opaque)
     return !!s->ltim;
 }
 
+static const VMStateField vmstate_pic_ltim_fields[] = {
+    VMSTATE_UINT8(ltim, PICCommonState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pic_ltim = {
     .name = "i8259/ltim",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ltim_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(ltim, PICCommonState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pic_ltim_fields,
+};
+
+static const VMStateField vmstate_pic_common_fields[] = {
+    VMSTATE_UINT8(last_irr, PICCommonState),
+    VMSTATE_UINT8(irr, PICCommonState),
+    VMSTATE_UINT8(imr, PICCommonState),
+    VMSTATE_UINT8(isr, PICCommonState),
+    VMSTATE_UINT8(priority_add, PICCommonState),
+    VMSTATE_UINT8(irq_base, PICCommonState),
+    VMSTATE_UINT8(read_reg_select, PICCommonState),
+    VMSTATE_UINT8(poll, PICCommonState),
+    VMSTATE_UINT8(special_mask, PICCommonState),
+    VMSTATE_UINT8(init_state, PICCommonState),
+    VMSTATE_UINT8(auto_eoi, PICCommonState),
+    VMSTATE_UINT8(rotate_on_auto_eoi, PICCommonState),
+    VMSTATE_UINT8(special_fully_nested_mode, PICCommonState),
+    VMSTATE_UINT8(init4, PICCommonState),
+    VMSTATE_UINT8(single_mode, PICCommonState),
+    VMSTATE_UINT8(elcr, PICCommonState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_pic_common_subsections[] = {
+    &vmstate_pic_ltim,
+    NULL
 };
 
 static const VMStateDescription vmstate_pic_common = {
     .name = "i8259",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = pic_dispatch_pre_save,
     .post_load = pic_dispatch_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(last_irr, PICCommonState),
-        VMSTATE_UINT8(irr, PICCommonState),
-        VMSTATE_UINT8(imr, PICCommonState),
-        VMSTATE_UINT8(isr, PICCommonState),
-        VMSTATE_UINT8(priority_add, PICCommonState),
-        VMSTATE_UINT8(irq_base, PICCommonState),
-        VMSTATE_UINT8(read_reg_select, PICCommonState),
-        VMSTATE_UINT8(poll, PICCommonState),
-        VMSTATE_UINT8(special_mask, PICCommonState),
-        VMSTATE_UINT8(init_state, PICCommonState),
-        VMSTATE_UINT8(auto_eoi, PICCommonState),
-        VMSTATE_UINT8(rotate_on_auto_eoi, PICCommonState),
-        VMSTATE_UINT8(special_fully_nested_mode, PICCommonState),
-        VMSTATE_UINT8(init4, PICCommonState),
-        VMSTATE_UINT8(single_mode, PICCommonState),
-        VMSTATE_UINT8(elcr, PICCommonState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_pic_ltim,
-        NULL
-    }
+    .pre_save = pic_dispatch_pre_save,
+    .fields = vmstate_pic_common_fields,
+    .subsections = vmstate_pic_common_subsections,
 };
 
 static const Property pic_properties_common[] = {
@@ -219,17 +225,19 @@ static void pic_common_class_init(ObjectClass *klass, const void *data)
     ic->print_info = pic_print_info;
 }
 
+static const InterfaceInfo pic_common_interfaces[] = {
+    { TYPE_INTERRUPT_STATS_PROVIDER },
+    { }
+};
+
 static const TypeInfo pic_common_type = {
     .name = TYPE_PIC_COMMON,
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PICCommonState),
+    .is_abstract = true,
     .class_size = sizeof(PICCommonClass),
     .class_init = pic_common_class_init,
-    .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
-    },
+    .interfaces = pic_common_interfaces,
 };
 
 static void pic_common_register_types(void)

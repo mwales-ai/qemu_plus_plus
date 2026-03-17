@@ -117,7 +117,7 @@ static void pic_update_irq(PICCommonState *s)
 /* set irq level. If an edge is detected, then the IRR is set to 1 */
 static void pic_set_irq(void *opaque, int irq, int level)
 {
-    PICCommonState *s = opaque;
+    PICCommonState *s = static_cast<PICCommonState *>(opaque);
     int mask = 1 << irq;
     int irq_index = s->master ? irq : irq + 8;
 
@@ -228,7 +228,7 @@ static void pic_reset(DeviceState *dev)
 static void pic_ioport_write(void *opaque, hwaddr addr64,
                              uint64_t val64, unsigned size)
 {
-    PICCommonState *s = opaque;
+    PICCommonState *s = static_cast<PICCommonState *>(opaque);
     uint32_t addr = addr64;
     uint32_t val = val64;
     int priority, cmd, irq;
@@ -321,7 +321,7 @@ static void pic_ioport_write(void *opaque, hwaddr addr64,
 static uint64_t pic_ioport_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    PICCommonState *s = opaque;
+    PICCommonState *s = static_cast<PICCommonState *>(opaque);
     int ret;
 
     if (s->poll) {
@@ -356,14 +356,14 @@ int pic_get_output(PICCommonState *s)
 static void elcr_ioport_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
-    PICCommonState *s = opaque;
+    PICCommonState *s = static_cast<PICCommonState *>(opaque);
     s->elcr = val & s->elcr_mask;
 }
 
 static uint64_t elcr_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    PICCommonState *s = opaque;
+    PICCommonState *s = static_cast<PICCommonState *>(opaque);
     return s->elcr;
 }
 
@@ -444,10 +444,10 @@ static void i8259_class_init(ObjectClass *klass, const void *data)
 
 static const TypeInfo i8259_info = {
     .name       = TYPE_I8259,
-    .instance_size = sizeof(PICCommonState),
     .parent     = TYPE_PIC_COMMON,
-    .class_init = i8259_class_init,
+    .instance_size = sizeof(PICCommonState),
     .class_size = sizeof(PICClass),
+    .class_init = i8259_class_init,
 };
 
 static void pic_register_types(void)

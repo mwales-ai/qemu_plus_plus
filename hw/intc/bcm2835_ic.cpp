@@ -56,7 +56,7 @@ static void bcm2835_ic_update(BCM2835ICState *s)
 
 static void bcm2835_ic_set_gpu_irq(void *opaque, int irq, int level)
 {
-    BCM2835ICState *s = opaque;
+    BCM2835ICState *s = static_cast<BCM2835ICState *>(opaque);
 
     assert(irq >= 0 && irq < 64);
     trace_bcm2835_ic_set_gpu_irq(irq, level);
@@ -66,7 +66,7 @@ static void bcm2835_ic_set_gpu_irq(void *opaque, int irq, int level)
 
 static void bcm2835_ic_set_arm_irq(void *opaque, int irq, int level)
 {
-    BCM2835ICState *s = opaque;
+    BCM2835ICState *s = static_cast<BCM2835ICState *>(opaque);
 
     assert(irq >= 0 && irq < 8);
     trace_bcm2835_ic_set_cpu_irq(irq, level);
@@ -78,7 +78,7 @@ static const int irq_dups[] = { 7, 9, 10, 18, 19, 53, 54, 55, 56, 57, 62 };
 
 static uint64_t bcm2835_ic_read(void *opaque, hwaddr offset, unsigned size)
 {
-    BCM2835ICState *s = opaque;
+    BCM2835ICState *s = static_cast<BCM2835ICState *>(opaque);
     uint32_t res = 0;
     uint64_t gpu_pending = s->gpu_irq_level & s->gpu_irq_enable;
     int i;
@@ -136,7 +136,7 @@ static uint64_t bcm2835_ic_read(void *opaque, hwaddr offset, unsigned size)
 static void bcm2835_ic_write(void *opaque, hwaddr offset, uint64_t val,
                              unsigned size)
 {
-    BCM2835ICState *s = opaque;
+    BCM2835ICState *s = static_cast<BCM2835ICState *>(opaque);
 
     switch (offset) {
     case FIQ_CONTROL:
@@ -230,8 +230,8 @@ static const TypeInfo bcm2835_ic_info = {
     .name          = TYPE_BCM2835_IC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835ICState),
-    .class_init    = bcm2835_ic_class_init,
     .instance_init = bcm2835_ic_init,
+    .class_init    = bcm2835_ic_class_init,
 };
 
 static void bcm2835_ic_register_types(void)

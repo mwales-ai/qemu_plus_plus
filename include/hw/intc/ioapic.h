@@ -28,6 +28,14 @@
 #define TYPE_KVM_IOAPIC "kvm-ioapic"
 #define TYPE_IOAPIC "ioapic"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ioapic_eoi_broadcast(int vector);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_INTC_IOAPIC_H */

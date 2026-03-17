@@ -58,20 +58,40 @@ static bool gic_virt_state_needed(void *opaque)
     return s->virt_extn;
 }
 
+static const VMStateField vmstate_gic_irq_state_fields[] = {
+    VMSTATE_UINT8(enabled, gic_irq_state),
+    VMSTATE_UINT8(pending, gic_irq_state),
+    VMSTATE_UINT8(active, gic_irq_state),
+    VMSTATE_UINT8(level, gic_irq_state),
+    VMSTATE_BOOL(model, gic_irq_state),
+    VMSTATE_BOOL(edge_trigger, gic_irq_state),
+    VMSTATE_UINT8(group, gic_irq_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_gic_irq_state = {
     .name = "arm_gic_irq_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(enabled, gic_irq_state),
-        VMSTATE_UINT8(pending, gic_irq_state),
-        VMSTATE_UINT8(active, gic_irq_state),
-        VMSTATE_UINT8(level, gic_irq_state),
-        VMSTATE_BOOL(model, gic_irq_state),
-        VMSTATE_BOOL(edge_trigger, gic_irq_state),
-        VMSTATE_UINT8(group, gic_irq_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gic_irq_state_fields,
+};
+
+static const VMStateField vmstate_gic_virt_state_fields[] = {
+    /* Virtual interface */
+    VMSTATE_UINT32_ARRAY(h_hcr, GICState, GIC_NCPU),
+    VMSTATE_UINT32_ARRAY(h_misr, GICState, GIC_NCPU),
+    VMSTATE_UINT32_2DARRAY(h_lr, GICState, GIC_MAX_LR, GIC_NCPU),
+    VMSTATE_UINT32_ARRAY(h_apr, GICState, GIC_NCPU),
+
+    /* Virtual CPU interfaces */
+    VMSTATE_UINT32_SUB_ARRAY(cpu_ctlr, GICState, GIC_NCPU, GIC_NCPU),
+    VMSTATE_UINT16_SUB_ARRAY(priority_mask, GICState, GIC_NCPU, GIC_NCPU),
+    VMSTATE_UINT16_SUB_ARRAY(running_priority, GICState, GIC_NCPU, GIC_NCPU),
+    VMSTATE_UINT16_SUB_ARRAY(current_pending, GICState, GIC_NCPU, GIC_NCPU),
+    VMSTATE_UINT8_SUB_ARRAY(bpr, GICState, GIC_NCPU, GIC_NCPU),
+    VMSTATE_UINT8_SUB_ARRAY(abpr, GICState, GIC_NCPU, GIC_NCPU),
+
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_gic_virt_state = {
@@ -79,53 +99,41 @@ static const VMStateDescription vmstate_gic_virt_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = gic_virt_state_needed,
-    .fields = (const VMStateField[]) {
-        /* Virtual interface */
-        VMSTATE_UINT32_ARRAY(h_hcr, GICState, GIC_NCPU),
-        VMSTATE_UINT32_ARRAY(h_misr, GICState, GIC_NCPU),
-        VMSTATE_UINT32_2DARRAY(h_lr, GICState, GIC_MAX_LR, GIC_NCPU),
-        VMSTATE_UINT32_ARRAY(h_apr, GICState, GIC_NCPU),
+    .fields = vmstate_gic_virt_state_fields,
+};
 
-        /* Virtual CPU interfaces */
-        VMSTATE_UINT32_SUB_ARRAY(cpu_ctlr, GICState, GIC_NCPU, GIC_NCPU),
-        VMSTATE_UINT16_SUB_ARRAY(priority_mask, GICState, GIC_NCPU, GIC_NCPU),
-        VMSTATE_UINT16_SUB_ARRAY(running_priority, GICState, GIC_NCPU, GIC_NCPU),
-        VMSTATE_UINT16_SUB_ARRAY(current_pending, GICState, GIC_NCPU, GIC_NCPU),
-        VMSTATE_UINT8_SUB_ARRAY(bpr, GICState, GIC_NCPU, GIC_NCPU),
-        VMSTATE_UINT8_SUB_ARRAY(abpr, GICState, GIC_NCPU, GIC_NCPU),
+static const VMStateField vmstate_gic_fields[] = {
+    VMSTATE_UINT32(ctlr, GICState),
+    VMSTATE_UINT32_SUB_ARRAY(cpu_ctlr, GICState, 0, GIC_NCPU),
+    VMSTATE_STRUCT_ARRAY(irq_state, GICState, GIC_MAXIRQ, 1,
+                         vmstate_gic_irq_state, gic_irq_state),
+    VMSTATE_UINT8_ARRAY(irq_target, GICState, GIC_MAXIRQ),
+    VMSTATE_UINT8_2DARRAY(priority1, GICState, GIC_INTERNAL, GIC_NCPU),
+    VMSTATE_UINT8_ARRAY(priority2, GICState, GIC_MAXIRQ - GIC_INTERNAL),
+    VMSTATE_UINT8_2DARRAY(sgi_pending, GICState, GIC_NR_SGIS, GIC_NCPU),
+    VMSTATE_UINT16_SUB_ARRAY(priority_mask, GICState, 0, GIC_NCPU),
+    VMSTATE_UINT16_SUB_ARRAY(running_priority, GICState, 0, GIC_NCPU),
+    VMSTATE_UINT16_SUB_ARRAY(current_pending, GICState, 0, GIC_NCPU),
+    VMSTATE_UINT8_SUB_ARRAY(bpr, GICState, 0, GIC_NCPU),
+    VMSTATE_UINT8_SUB_ARRAY(abpr, GICState, 0, GIC_NCPU),
+    VMSTATE_UINT32_2DARRAY(apr, GICState, GIC_NR_APRS, GIC_NCPU),
+    VMSTATE_UINT32_2DARRAY(nsapr, GICState, GIC_NR_APRS, GIC_NCPU),
+    VMSTATE_END_OF_LIST()
+};
 
-        VMSTATE_END_OF_LIST()
-    }
+static const VMStateDescription * const vmstate_gic_subsections[] = {
+    &vmstate_gic_virt_state,
+    NULL
 };
 
 static const VMStateDescription vmstate_gic = {
     .name = "arm_gic",
     .version_id = 12,
     .minimum_version_id = 12,
-    .pre_save = gic_pre_save,
     .post_load = gic_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ctlr, GICState),
-        VMSTATE_UINT32_SUB_ARRAY(cpu_ctlr, GICState, 0, GIC_NCPU),
-        VMSTATE_STRUCT_ARRAY(irq_state, GICState, GIC_MAXIRQ, 1,
-                             vmstate_gic_irq_state, gic_irq_state),
-        VMSTATE_UINT8_ARRAY(irq_target, GICState, GIC_MAXIRQ),
-        VMSTATE_UINT8_2DARRAY(priority1, GICState, GIC_INTERNAL, GIC_NCPU),
-        VMSTATE_UINT8_ARRAY(priority2, GICState, GIC_MAXIRQ - GIC_INTERNAL),
-        VMSTATE_UINT8_2DARRAY(sgi_pending, GICState, GIC_NR_SGIS, GIC_NCPU),
-        VMSTATE_UINT16_SUB_ARRAY(priority_mask, GICState, 0, GIC_NCPU),
-        VMSTATE_UINT16_SUB_ARRAY(running_priority, GICState, 0, GIC_NCPU),
-        VMSTATE_UINT16_SUB_ARRAY(current_pending, GICState, 0, GIC_NCPU),
-        VMSTATE_UINT8_SUB_ARRAY(bpr, GICState, 0, GIC_NCPU),
-        VMSTATE_UINT8_SUB_ARRAY(abpr, GICState, 0, GIC_NCPU),
-        VMSTATE_UINT32_2DARRAY(apr, GICState, GIC_NR_APRS, GIC_NCPU),
-        VMSTATE_UINT32_2DARRAY(nsapr, GICState, GIC_NR_APRS, GIC_NCPU),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_gic_virt_state,
-        NULL
-    }
+    .pre_save = gic_pre_save,
+    .fields = vmstate_gic_fields,
+    .subsections = vmstate_gic_subsections,
 };
 
 void gic_init_irqs_and_mmio(GICState *s, qemu_irq_handler handler,
@@ -376,17 +384,19 @@ static void arm_gic_common_class_init(ObjectClass *klass, const void *data)
     albifc->arm_linux_init = arm_gic_common_linux_init;
 }
 
+static const InterfaceInfo arm_gic_common_interfaces[] = {
+    { TYPE_ARM_LINUX_BOOT_IF },
+    { },
+};
+
 static const TypeInfo arm_gic_common_type = {
     .name = TYPE_ARM_GIC_COMMON,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GICState),
+    .is_abstract = true,
     .class_size = sizeof(ARMGICCommonClass),
     .class_init = arm_gic_common_class_init,
-    .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ARM_LINUX_BOOT_IF },
-        { },
-    },
+    .interfaces = arm_gic_common_interfaces,
 };
 
 static void register_types(void)

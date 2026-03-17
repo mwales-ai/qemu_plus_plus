@@ -2174,8 +2174,8 @@ static const TypeInfo arm_gic_info = {
     .name = TYPE_ARM_GIC,
     .parent = TYPE_ARM_GIC_COMMON,
     .instance_size = sizeof(GICState),
-    .class_init = arm_gic_class_init,
     .class_size = sizeof(ARMGICClass),
+    .class_init = arm_gic_class_init,
 };
 
 static void arm_gic_register_types(void)

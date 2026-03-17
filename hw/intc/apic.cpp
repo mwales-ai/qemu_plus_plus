@@ -58,7 +58,7 @@ void apic_set_max_apic_id(uint32_t max_apic_id)
     /* round up the max apic id to next multiple of words */
     max_apics = (max_apic_id + word_size - 1) & ~(word_size - 1);
 
-    local_apics = g_malloc0(sizeof(*local_apics) * max_apics);
+    local_apics = static_cast<APICCommonState **>(g_malloc0(sizeof(*local_apics) * max_apics));
     max_apic_words = max_apics >> 5;
 }
 
@@ -763,7 +763,7 @@ static void apic_timer_update(APICCommonState *s, int64_t current_time)
 
 static void apic_timer(void *opaque)
 {
-    APICCommonState *s = opaque;
+    APICCommonState *s = static_cast<APICCommonState *>(opaque);
 
     apic_local_deliver(s, APIC_LVT_TIMER);
     apic_timer_update(s, s->next_time);
@@ -1103,9 +1103,9 @@ static void apic_post_load(APICCommonState *s)
 static const MemoryRegionOps apic_io_ops = {
     .read = apic_mem_read,
     .write = apic_mem_write,
-    .impl = { .min_access_size = 1, .max_access_size = 4, },
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void apic_realize(DeviceState *dev, Error **errp)
@@ -1168,8 +1168,8 @@ static void apic_class_init(ObjectClass *klass, const void *data)
 
 static const TypeInfo apic_info = {
     .name          = TYPE_APIC,
-    .instance_size = sizeof(APICCommonState),
     .parent        = TYPE_APIC_COMMON,
+    .instance_size = sizeof(APICCommonState),
     .class_init    = apic_class_init,
 };
 

@@ -111,8 +111,16 @@ struct IOAPICCommonState {
     QEMUTimer *delayed_ioapic_service_timer;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ioapic_reset_common(DeviceState *dev);
 
 void ioapic_stat_update_irq(IOAPICCommonState *s, int irq, int level);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_INTC_IOAPIC_INTERNAL_H */

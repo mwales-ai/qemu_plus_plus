@@ -83,6 +83,10 @@ struct NVICState {
     qemu_irq sysresetreq;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Interface between CPU and Interrupt controller.  */
 /**
  * armv7m_nvic_set_pending: mark the specified exception as pending
@@ -191,5 +195,9 @@ int armv7m_nvic_raw_execution_priority(NVICState *s);
  */
 bool armv7m_nvic_neg_prio_requested(NVICState *s, bool secure);
 bool armv7m_nvic_can_take_pending_exception(NVICState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

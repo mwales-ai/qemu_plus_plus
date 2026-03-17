@@ -2572,6 +2572,10 @@ void x86_cpu_after_reset(X86CPU *cpu);
 
 uint32_t cpu_x86_virtual_addr_width(CPUX86State *env);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* cpu.c other functions (cpuid) */
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
@@ -2582,6 +2586,10 @@ void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 bool cpu_has_x2apic_feature(CPUX86State *env);
 bool is_feature_word_cpuid(uint32_t feature, uint32_t index, int reg);
+
+#ifdef __cplusplus
+}
+#endif
 void mark_unavailable_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
                                const char *verbose_prefix);
 void mark_forced_on_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
@@ -2829,10 +2837,18 @@ void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
 bool cpu_svm_has_intercept(CPUX86State *env, uint32_t type);
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* apic.c */
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 void apic_handle_tpr_access_report(APICCommonState *s, target_ulong ip,
                                    TPRAccess access);
+
+#ifdef __cplusplus
+}
+#endif
 
 /* Special values for X86CPUVersion: */
 
@@ -2871,8 +2887,16 @@ void x86_cpu_dump_local_apic_state(CPUState *cs, int flags);
 /* igvm.c */
 void qigvm_x86_bsp_reset(CPUX86State *env);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* cpu.c */
 bool cpu_is_bsp(X86CPU *cpu);
+
+#ifdef __cplusplus
+}
+#endif
 
 void x86_cpu_xrstor_all_areas(X86CPU *cpu, const void *buf, uint32_t buflen);
 void x86_cpu_xsave_all_areas(X86CPU *cpu, void *buf, uint32_t buflen);

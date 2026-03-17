@@ -140,7 +140,7 @@ static void bcm2836_control_update(BCM2836ControlState *s)
 static void bcm2836_control_set_local_irq(void *opaque, int core, int local_irq,
                                           int level)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
 
     assert(core >= 0 && core < BCM2836_NCORES);
     assert(local_irq >= 0 && local_irq <= IRQ_CNTVIRQ);
@@ -177,7 +177,7 @@ static void bcm2836_control_set_local_irq3(void *opaque, int core, int level)
 
 static void bcm2836_control_set_gpu_irq(void *opaque, int irq, int level)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
 
     s->gpu_irq = level;
 
@@ -186,7 +186,7 @@ static void bcm2836_control_set_gpu_irq(void *opaque, int irq, int level)
 
 static void bcm2836_control_set_gpu_fiq(void *opaque, int irq, int level)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
 
     s->gpu_fiq = level;
 
@@ -195,7 +195,7 @@ static void bcm2836_control_set_gpu_fiq(void *opaque, int irq, int level)
 
 static void bcm2836_control_local_timer_set_next(void *opaque)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
     uint64_t next_event;
 
     assert(LOCALTIMER_VALUE(s->local_timer_control) > 0);
@@ -208,7 +208,7 @@ static void bcm2836_control_local_timer_set_next(void *opaque)
 
 static void bcm2836_control_local_timer_tick(void *opaque)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
 
     bcm2836_control_local_timer_set_next(s);
 
@@ -218,7 +218,7 @@ static void bcm2836_control_local_timer_tick(void *opaque)
 
 static void bcm2836_control_local_timer_control(void *opaque, uint32_t val)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
 
     s->local_timer_control = val;
     if (val & LOCALTIMER_ENABLE) {
@@ -230,7 +230,7 @@ static void bcm2836_control_local_timer_control(void *opaque, uint32_t val)
 
 static void bcm2836_control_local_timer_ack(void *opaque, uint32_t val)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
 
     if (val & LOCALTIMER_INTFLAG) {
         s->local_timer_control &= ~LOCALTIMER_INTFLAG;
@@ -243,7 +243,7 @@ static void bcm2836_control_local_timer_ack(void *opaque, uint32_t val)
 
 static uint64_t bcm2836_control_read(void *opaque, hwaddr offset, unsigned size)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
 
     if (offset == REG_GPU_ROUTE) {
         assert(s->route_gpu_fiq < BCM2836_NCORES
@@ -275,7 +275,7 @@ static uint64_t bcm2836_control_read(void *opaque, hwaddr offset, unsigned size)
 static void bcm2836_control_write(void *opaque, hwaddr offset,
                                   uint64_t val, unsigned size)
 {
-    BCM2836ControlState *s = opaque;
+    BCM2836ControlState *s = static_cast<BCM2836ControlState *>(opaque);
 
     if (offset == REG_GPU_ROUTE) {
         s->route_gpu_irq = val & 0x3;
@@ -395,8 +395,8 @@ static const TypeInfo bcm2836_control_info = {
     .name          = TYPE_BCM2836_CONTROL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2836ControlState),
-    .class_init    = bcm2836_control_class_init,
     .instance_init = bcm2836_control_init,
+    .class_init    = bcm2836_control_class_init,
 };
 
 static void bcm2836_control_register_types(void)

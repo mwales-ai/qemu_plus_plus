@@ -26,6 +26,10 @@ static inline bool accel_irqchip_is_split(void)
     return mshv_msi_via_irqfd_enabled() || kvm_irqchip_is_split();
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int accel_irqchip_add_msi_route(KVMRouteChange *c, int vector, PCIDevice *dev);
 int accel_irqchip_update_msi_route(int vector, MSIMessage msg, PCIDevice *dev);
 void accel_irqchip_commit_route_changes(KVMRouteChange *c);
@@ -34,4 +38,9 @@ void accel_irqchip_release_virq(int virq);
 int accel_irqchip_add_irqfd_notifier_gsi(EventNotifier *n, EventNotifier *rn,
                                          int virq);
 int accel_irqchip_remove_irqfd_notifier_gsi(EventNotifier *n, int virq);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

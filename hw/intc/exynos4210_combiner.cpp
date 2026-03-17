@@ -50,30 +50,34 @@
 
 #define IIC_REGION_SIZE    0x108         /* Size of memory mapped region */
 
+static const VMStateField vmstate_exynos4210_combiner_group_state_fields[] = {
+    VMSTATE_UINT8(src_mask, CombinerGroupState),
+    VMSTATE_UINT8(src_pending, CombinerGroupState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_exynos4210_combiner_group_state = {
     .name = "exynos4210.combiner.groupstate",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(src_mask, CombinerGroupState),
-        VMSTATE_UINT8(src_pending, CombinerGroupState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_combiner_group_state_fields,
+};
+
+static const VMStateField vmstate_exynos4210_combiner_fields[] = {
+    VMSTATE_STRUCT_ARRAY(group, Exynos4210CombinerState, IIC_NGRP, 0,
+            vmstate_exynos4210_combiner_group_state, CombinerGroupState),
+    VMSTATE_UINT32_ARRAY(reg_set, Exynos4210CombinerState,
+            IIC_REGSET_SIZE),
+    VMSTATE_UINT32_ARRAY(icipsr, Exynos4210CombinerState, 2),
+    VMSTATE_UINT32(external, Exynos4210CombinerState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_exynos4210_combiner = {
     .name = "exynos4210.combiner",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(group, Exynos4210CombinerState, IIC_NGRP, 0,
-                vmstate_exynos4210_combiner_group_state, CombinerGroupState),
-        VMSTATE_UINT32_ARRAY(reg_set, Exynos4210CombinerState,
-                IIC_REGSET_SIZE),
-        VMSTATE_UINT32_ARRAY(icipsr, Exynos4210CombinerState, 2),
-        VMSTATE_UINT32(external, Exynos4210CombinerState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_combiner_fields,
 };
 
 static uint64_t

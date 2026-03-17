@@ -34,7 +34,7 @@ static void imx_gpcv2_reset(DeviceState *dev)
 static uint64_t imx_gpcv2_read(void *opaque, hwaddr offset,
                                unsigned size)
 {
-    IMXGPCv2State *s = opaque;
+    IMXGPCv2State *s = static_cast<IMXGPCv2State *>(opaque);
 
     return s->regs[offset / sizeof(uint32_t)];
 }
@@ -42,7 +42,7 @@ static uint64_t imx_gpcv2_read(void *opaque, hwaddr offset,
 static void imx_gpcv2_write(void *opaque, hwaddr offset,
                             uint64_t value, unsigned size)
 {
-    IMXGPCv2State *s = opaque;
+    IMXGPCv2State *s = static_cast<IMXGPCv2State *>(opaque);
     const size_t idx = offset / sizeof(uint32_t);
 
     s->regs[idx] = value;

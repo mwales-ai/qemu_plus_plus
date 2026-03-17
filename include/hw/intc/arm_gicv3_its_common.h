@@ -86,8 +86,16 @@ struct GICv3ITSState {
 
 typedef struct GICv3ITSState GICv3ITSState;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void gicv3_its_init_mmio(GICv3ITSState *s, const MemoryRegionOps *ops,
                    const MemoryRegionOps *tops);
+
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * The ITS should call this when it is realized to add itself
@@ -130,6 +138,9 @@ struct GICv3ITSCommonClass {
  *
  * Returns: class name to use
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 const char *its_class_name(void);
 
 #endif

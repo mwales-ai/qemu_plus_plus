@@ -922,7 +922,8 @@ isar_feature_pauth_feature(const ARMISARegisters *id)
      * Architecturally, only one of {APA,API,APA3} may be active (non-zero)
      * and the other two must be zero.  Thus we may avoid conditionals.
      */
-    return (FIELD_EX64_IDREG(id, ID_AA64ISAR1, APA) |
+    return (ARMPauthFeature)(
+            FIELD_EX64_IDREG(id, ID_AA64ISAR1, APA) |
             FIELD_EX64_IDREG(id, ID_AA64ISAR1, API) |
             FIELD_EX64_IDREG(id, ID_AA64ISAR2, APA3));
 }

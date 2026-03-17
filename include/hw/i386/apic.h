@@ -3,6 +3,10 @@
 
 typedef struct APICCommonState APICCommonState;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* apic.c */
 void apic_set_max_apic_id(uint32_t max_apic_id);
 int apic_accept_pic_intr(APICCommonState *s);
@@ -25,5 +29,9 @@ bool is_x2apic_mode(APICCommonState *s);
 
 /* pc.c */
 APICCommonState *cpu_get_current_apic(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
