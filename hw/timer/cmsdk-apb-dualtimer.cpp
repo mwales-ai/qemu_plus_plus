@@ -402,13 +402,13 @@ static const MemoryRegionOps cmsdk_apb_dualtimer_ops = {
     .write = cmsdk_apb_dualtimer_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     /* byte/halfword accesses are just zero-padded on reads and writes */
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void cmsdk_dualtimermod_tick(void *opaque)
 {
-    CMSDKAPBDualTimerModule *m = opaque;
+    CMSDKAPBDualTimerModule *m = static_cast<CMSDKAPBDualTimerModule *>(opaque);
 
     m->intstatus = 1;
     cmsdk_apb_dualtimer_update(m->parent);
@@ -502,34 +502,38 @@ static void cmsdk_apb_dualtimer_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField cmsdk_dualtimermod_vmstate_fields[] = {
+    VMSTATE_PTIMER(timer, CMSDKAPBDualTimerModule),
+    VMSTATE_UINT32(load, CMSDKAPBDualTimerModule),
+    VMSTATE_UINT32(value, CMSDKAPBDualTimerModule),
+    VMSTATE_UINT32(control, CMSDKAPBDualTimerModule),
+    VMSTATE_UINT32(intstatus, CMSDKAPBDualTimerModule),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription cmsdk_dualtimermod_vmstate = {
     .name = "cmsdk-apb-dualtimer-module",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PTIMER(timer, CMSDKAPBDualTimerModule),
-        VMSTATE_UINT32(load, CMSDKAPBDualTimerModule),
-        VMSTATE_UINT32(value, CMSDKAPBDualTimerModule),
-        VMSTATE_UINT32(control, CMSDKAPBDualTimerModule),
-        VMSTATE_UINT32(intstatus, CMSDKAPBDualTimerModule),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = cmsdk_dualtimermod_vmstate_fields,
+};
+
+static const VMStateField cmsdk_apb_dualtimer_vmstate_fields[] = {
+    VMSTATE_CLOCK(timclk, CMSDKAPBDualTimer),
+    VMSTATE_STRUCT_ARRAY(timermod, CMSDKAPBDualTimer,
+                         CMSDK_APB_DUALTIMER_NUM_MODULES,
+                         1, cmsdk_dualtimermod_vmstate,
+                         CMSDKAPBDualTimerModule),
+    VMSTATE_UINT32(timeritcr, CMSDKAPBDualTimer),
+    VMSTATE_UINT32(timeritop, CMSDKAPBDualTimer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription cmsdk_apb_dualtimer_vmstate = {
     .name = "cmsdk-apb-dualtimer",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(timclk, CMSDKAPBDualTimer),
-        VMSTATE_STRUCT_ARRAY(timermod, CMSDKAPBDualTimer,
-                             CMSDK_APB_DUALTIMER_NUM_MODULES,
-                             1, cmsdk_dualtimermod_vmstate,
-                             CMSDKAPBDualTimerModule),
-        VMSTATE_UINT32(timeritcr, CMSDKAPBDualTimer),
-        VMSTATE_UINT32(timeritop, CMSDKAPBDualTimer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = cmsdk_apb_dualtimer_vmstate_fields,
 };
 
 static void cmsdk_apb_dualtimer_class_init(ObjectClass *klass, const void *data)

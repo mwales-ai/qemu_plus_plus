@@ -425,7 +425,7 @@ static hwaddr npcm7xx_tdr_index(hwaddr reg)
 
 static uint64_t npcm7xx_timer_read(void *opaque, hwaddr offset, unsigned size)
 {
-    NPCM7xxTimerCtrlState *s = opaque;
+    NPCM7xxTimerCtrlState *s = static_cast<NPCM7xxTimerCtrlState *>(opaque);
     uint64_t value = 0;
     hwaddr reg;
 
@@ -479,7 +479,7 @@ static void npcm7xx_timer_write(void *opaque, hwaddr offset,
                                 uint64_t v, unsigned size)
 {
     uint32_t reg = offset / sizeof(uint32_t);
-    NPCM7xxTimerCtrlState *s = opaque;
+    NPCM7xxTimerCtrlState *s = static_cast<NPCM7xxTimerCtrlState *>(opaque);
     uint32_t value = v;
 
     trace_npcm7xx_timer_write(DEVICE(s)->canonical_path, offset, value);
@@ -539,7 +539,7 @@ static const struct MemoryRegionOps npcm7xx_timer_ops = {
 /* Called when the QEMU timer expires. */
 static void npcm7xx_timer_expired(void *opaque)
 {
-    NPCM7xxTimer *t = opaque;
+    NPCM7xxTimer *t = static_cast<NPCM7xxTimer *>(opaque);
 
     if (t->tcsr & NPCM7XX_TCSR_CEN) {
         npcm7xx_timer_reached_zero(t);
@@ -570,7 +570,7 @@ static void npcm7xx_timer_enter_reset(Object *obj, ResetType type)
 
 static void npcm7xx_watchdog_timer_expired(void *opaque)
 {
-    NPCM7xxWatchdogTimer *t = opaque;
+    NPCM7xxWatchdogTimer *t = static_cast<NPCM7xxWatchdogTimer *>(opaque);
 
     if (t->wtcr & NPCM7XX_WTCR_WTE) {
         if (t->wtcr & NPCM7XX_WTCR_WTIF) {
@@ -633,60 +633,68 @@ static void npcm7xx_timer_init(Object *obj)
     s->clock = qdev_init_clock_in(dev, "clock", NULL, NULL, 0);
 }
 
+static const VMStateField vmstate_npcm7xx_base_timer_fields[] = {
+    VMSTATE_TIMER(qtimer, NPCM7xxBaseTimer),
+    VMSTATE_INT64(expires_ns, NPCM7xxBaseTimer),
+    VMSTATE_INT64(remaining_ns, NPCM7xxBaseTimer),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_base_timer = {
     .name = "npcm7xx-base-timer",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER(qtimer, NPCM7xxBaseTimer),
-        VMSTATE_INT64(expires_ns, NPCM7xxBaseTimer),
-        VMSTATE_INT64(remaining_ns, NPCM7xxBaseTimer),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_base_timer_fields,
+};
+
+static const VMStateField vmstate_npcm7xx_timer_fields[] = {
+    VMSTATE_STRUCT(base_timer, NPCM7xxTimer,
+                         0, vmstate_npcm7xx_base_timer,
+                         NPCM7xxBaseTimer),
+    VMSTATE_UINT32(tcsr, NPCM7xxTimer),
+    VMSTATE_UINT32(ticr, NPCM7xxTimer),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_npcm7xx_timer = {
     .name = "npcm7xx-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(base_timer, NPCM7xxTimer,
-                             0, vmstate_npcm7xx_base_timer,
-                             NPCM7xxBaseTimer),
-        VMSTATE_UINT32(tcsr, NPCM7xxTimer),
-        VMSTATE_UINT32(ticr, NPCM7xxTimer),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_timer_fields,
+};
+
+static const VMStateField vmstate_npcm7xx_watchdog_timer_fields[] = {
+    VMSTATE_STRUCT(base_timer, NPCM7xxWatchdogTimer,
+                         0, vmstate_npcm7xx_base_timer,
+                         NPCM7xxBaseTimer),
+    VMSTATE_UINT32(wtcr, NPCM7xxWatchdogTimer),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_npcm7xx_watchdog_timer = {
     .name = "npcm7xx-watchdog-timer",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(base_timer, NPCM7xxWatchdogTimer,
-                             0, vmstate_npcm7xx_base_timer,
-                             NPCM7xxBaseTimer),
-        VMSTATE_UINT32(wtcr, NPCM7xxWatchdogTimer),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_watchdog_timer_fields,
+};
+
+static const VMStateField vmstate_npcm7xx_timer_ctrl_fields[] = {
+    VMSTATE_UINT32(tisr, NPCM7xxTimerCtrlState),
+    VMSTATE_CLOCK(clock, NPCM7xxTimerCtrlState),
+    VMSTATE_STRUCT_ARRAY(timer, NPCM7xxTimerCtrlState,
+                         NPCM7XX_TIMERS_PER_CTRL, 0, vmstate_npcm7xx_timer,
+                         NPCM7xxTimer),
+    VMSTATE_STRUCT(watchdog_timer, NPCM7xxTimerCtrlState,
+                         0, vmstate_npcm7xx_watchdog_timer,
+                         NPCM7xxWatchdogTimer),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_npcm7xx_timer_ctrl = {
     .name = "npcm7xx-timer-ctrl",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(tisr, NPCM7xxTimerCtrlState),
-        VMSTATE_CLOCK(clock, NPCM7xxTimerCtrlState),
-        VMSTATE_STRUCT_ARRAY(timer, NPCM7xxTimerCtrlState,
-                             NPCM7XX_TIMERS_PER_CTRL, 0, vmstate_npcm7xx_timer,
-                             NPCM7xxTimer),
-        VMSTATE_STRUCT(watchdog_timer, NPCM7xxTimerCtrlState,
-                             0, vmstate_npcm7xx_watchdog_timer,
-                             NPCM7xxWatchdogTimer),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_timer_ctrl_fields,
 };
 
 static void npcm7xx_timer_class_init(ObjectClass *klass, const void *data)
@@ -706,8 +714,8 @@ static const TypeInfo npcm7xx_timer_info = {
     .name               = TYPE_NPCM7XX_TIMER,
     .parent             = TYPE_SYS_BUS_DEVICE,
     .instance_size      = sizeof(NPCM7xxTimerCtrlState),
-    .class_init         = npcm7xx_timer_class_init,
     .instance_init      = npcm7xx_timer_init,
+    .class_init         = npcm7xx_timer_class_init,
 };
 
 static void npcm7xx_timer_register_type(void)

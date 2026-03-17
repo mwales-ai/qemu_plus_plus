@@ -30,7 +30,7 @@ REG32(COMPARE3,     0x18)
 
 static void bcm2835_systmr_timer_expire(void *opaque)
 {
-    BCM2835SystemTimerCompare *tmr = opaque;
+    BCM2835SystemTimerCompare *tmr = static_cast<BCM2835SystemTimerCompare *>(opaque);
 
     trace_bcm2835_systmr_timer_expired(tmr->id);
     tmr->state->reg.ctrl_status |= 1 << tmr->id;

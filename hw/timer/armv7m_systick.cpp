@@ -66,7 +66,7 @@ static void systick_timer_tick(void *opaque)
 static MemTxResult systick_read(void *opaque, hwaddr addr, uint64_t *data,
                                 unsigned size, MemTxAttrs attrs)
 {
-    SysTickState *s = opaque;
+    SysTickState *s = static_cast<SysTickState *>(opaque);
     uint32_t val;
 
     if (attrs.user) {
@@ -125,7 +125,7 @@ static MemTxResult systick_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size,
                                  MemTxAttrs attrs)
 {
-    SysTickState *s = opaque;
+    SysTickState *s = static_cast<SysTickState *>(opaque);
 
     if (attrs.user) {
         /* Generate BusFault for unprivileged accesses */
@@ -270,18 +270,20 @@ static void systick_realize(DeviceState *dev, Error **errp)
     /* It's OK not to connect the refclk */
 }
 
+static const VMStateField vmstate_systick_fields[] = {
+    VMSTATE_CLOCK(refclk, SysTickState),
+    VMSTATE_CLOCK(cpuclk, SysTickState),
+    VMSTATE_UINT32(control, SysTickState),
+    VMSTATE_INT64(tick, SysTickState),
+    VMSTATE_PTIMER(ptimer, SysTickState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_systick = {
     .name = "armv7m_systick",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(refclk, SysTickState),
-        VMSTATE_CLOCK(cpuclk, SysTickState),
-        VMSTATE_UINT32(control, SysTickState),
-        VMSTATE_INT64(tick, SysTickState),
-        VMSTATE_PTIMER(ptimer, SysTickState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_systick_fields,
 };
 
 static void systick_class_init(ObjectClass *klass, const void *data)
@@ -296,8 +298,8 @@ static void systick_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo armv7m_systick_info = {
     .name = TYPE_SYSTICK,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = systick_instance_init,
     .instance_size = sizeof(SysTickState),
+    .instance_init = systick_instance_init,
     .class_init = systick_class_init,
 };
 

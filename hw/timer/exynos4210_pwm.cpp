@@ -119,33 +119,37 @@ struct Exynos4210PWMState {
 };
 
 /*** VMState ***/
+static const VMStateField vmstate_exynos4210_pwm_fields[] = {
+    VMSTATE_UINT32(id, Exynos4210PWM),
+    VMSTATE_UINT32(freq, Exynos4210PWM),
+    VMSTATE_PTIMER(ptimer, Exynos4210PWM),
+    VMSTATE_UINT32(reg_tcntb, Exynos4210PWM),
+    VMSTATE_UINT32(reg_tcmpb, Exynos4210PWM),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_exynos4210_pwm = {
     .name = "exynos4210.pwm.pwm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(id, Exynos4210PWM),
-        VMSTATE_UINT32(freq, Exynos4210PWM),
-        VMSTATE_PTIMER(ptimer, Exynos4210PWM),
-        VMSTATE_UINT32(reg_tcntb, Exynos4210PWM),
-        VMSTATE_UINT32(reg_tcmpb, Exynos4210PWM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_pwm_fields,
+};
+
+static const VMStateField vmstate_exynos4210_pwm_state_fields[] = {
+    VMSTATE_UINT32_ARRAY(reg_tcfg, Exynos4210PWMState, 2),
+    VMSTATE_UINT32(reg_tcon, Exynos4210PWMState),
+    VMSTATE_UINT32(reg_tint_cstat, Exynos4210PWMState),
+    VMSTATE_STRUCT_ARRAY(timer, Exynos4210PWMState,
+        EXYNOS4210_PWM_TIMERS_NUM, 0,
+    vmstate_exynos4210_pwm, Exynos4210PWM),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_exynos4210_pwm_state = {
     .name = "exynos4210.pwm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(reg_tcfg, Exynos4210PWMState, 2),
-        VMSTATE_UINT32(reg_tcon, Exynos4210PWMState),
-        VMSTATE_UINT32(reg_tint_cstat, Exynos4210PWMState),
-        VMSTATE_STRUCT_ARRAY(timer, Exynos4210PWMState,
-            EXYNOS4210_PWM_TIMERS_NUM, 0,
-        vmstate_exynos4210_pwm, Exynos4210PWM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_pwm_state_fields,
 };
 
 /*

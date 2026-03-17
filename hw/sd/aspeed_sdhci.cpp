@@ -38,7 +38,7 @@
 static uint64_t aspeed_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
 {
     uint64_t val = 0;
-    AspeedSDHCIState *sdhci = opaque;
+    AspeedSDHCIState *sdhci = static_cast<AspeedSDHCIState *>(opaque);
 
     switch (addr) {
     case ASPEED_SDHCI_SDIO_140:
@@ -77,7 +77,7 @@ static uint64_t aspeed_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
 static void aspeed_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
                                unsigned int size)
 {
-    AspeedSDHCIState *sdhci = opaque;
+    AspeedSDHCIState *sdhci = static_cast<AspeedSDHCIState *>(opaque);
 
     trace_aspeed_sdhci_write(addr, size, val);
 
@@ -130,7 +130,7 @@ static const MemoryRegionOps aspeed_sdhci_ops = {
 
 static void aspeed_sdhci_set_irq(void *opaque, int n, int level)
 {
-    AspeedSDHCIState *sdhci = opaque;
+    AspeedSDHCIState *sdhci = static_cast<AspeedSDHCIState *>(opaque);
 
     if (level) {
         sdhci->regs[TO_REG(ASPEED_SDHCI_IRQ_STAT)] |= BIT(n);
@@ -258,9 +258,9 @@ static const TypeInfo aspeed_sdhci_types[] = {
         .name           = TYPE_ASPEED_SDHCI,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(AspeedSDHCIState),
+        .is_abstract    = true,
+        .class_size     = sizeof(AspeedSDHCIClass),
         .class_init     = aspeed_sdhci_class_init,
-        .class_size = sizeof(AspeedSDHCIClass),
-        .is_abstract = true,
     },
     {
         .name = TYPE_ASPEED_2400_SDHCI,

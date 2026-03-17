@@ -111,8 +111,8 @@ typedef sd_rsp_type_t (*sd_cmd_handler)(SDState *sd, SDRequest req);
 typedef struct SDProto {
     const char *name;
     struct {
-        const unsigned class;
-        const sd_cmd_type_t type;
+        unsigned cmd_class;
+        sd_cmd_type_t type;
         const char *name;
         sd_cmd_handler handler;
     } cmd[SDMMC_CMD_MAX], acmd[SDMMC_CMD_MAX];
@@ -166,7 +166,7 @@ struct SDState {
     BlockBackend *blk;
     uint8_t boot_config;
 
-    const SDProto *proto;
+    const SDProto *proto;  /* initialized at runtime via constructor */
 
     /* Runtime changeables */
 
@@ -208,8 +208,9 @@ struct SDState {
 
 static void sd_realize(DeviceState *dev, Error **errp);
 
-static const SDProto sd_proto_spi;
-static const SDProto sd_proto_emmc;
+static SDProto sd_proto_spi;
+static SDProto sd_proto_emmc;
+static SDProto sd_proto_sd;
 
 static bool sd_is_spi(SDState *sd)
 {
@@ -223,22 +224,19 @@ static bool sd_is_emmc(SDState *sd)
 
 static const char *sd_version_str(enum SDPhySpecificationVersion version)
 {
-    static const char *sdphy_version[] = {
-        [SD_PHY_SPECv2_00_VERS]     = "v2.00",
-        [SD_PHY_SPECv3_01_VERS]     = "v3.01",
-    };
-    if (version >= ARRAY_SIZE(sdphy_version)) {
-        return "unsupported version";
+    switch (version) {
+    case SD_PHY_SPECv2_00_VERS: return "v2.00";
+    case SD_PHY_SPECv3_01_VERS: return "v3.01";
+    default: return "unsupported version";
     }
-    return sdphy_version[version];
 }
 
 static const char *sd_mode_name(enum SDCardModes mode)
 {
     static const char *mode_name[] = {
-        [sd_inactive]                   = "inactive",
-        [sd_card_identification_mode]   = "identification",
-        [sd_data_transfer_mode]         = "transfer",
+        /* sd_inactive = 0 */                   "inactive",
+        /* sd_card_identification_mode = 1 */   "identification",
+        /* sd_data_transfer_mode = 2 */         "transfer",
     };
     assert(mode < ARRAY_SIZE(mode_name));
     return mode_name[mode];
@@ -246,41 +244,37 @@ static const char *sd_mode_name(enum SDCardModes mode)
 
 static const char *sd_state_name(enum SDCardStates state)
 {
-    static const char *state_name[] = {
-        [sd_idle_state]             = "idle",
-        [sd_ready_state]            = "ready",
-        [sd_identification_state]   = "identification",
-        [sd_standby_state]          = "standby",
-        [sd_transfer_state]         = "transfer",
-        [sd_sendingdata_state]      = "sendingdata",
-        [sd_bus_test_state]         = "bus-test",
-        [sd_receivingdata_state]    = "receivingdata",
-        [sd_programming_state]      = "programming",
-        [sd_disconnect_state]       = "disconnect",
-        [sd_sleep_state]            = "sleep",
-        [sd_io_state]               = "i/o"
-    };
-    if (state == sd_inactive_state) {
-        return "inactive";
+    switch (state) {
+    case sd_waitirq_state:        return "wait-irq";
+    case sd_inactive_state:       return "inactive";
+    case sd_idle_state:           return "idle";
+    case sd_ready_state:          return "ready";
+    case sd_identification_state: return "identification";
+    case sd_standby_state:        return "standby";
+    case sd_transfer_state:       return "transfer";
+    case sd_sendingdata_state:    return "sendingdata";
+    case sd_receivingdata_state:  return "receivingdata";
+    case sd_programming_state:    return "programming";
+    case sd_disconnect_state:     return "disconnect";
+    case sd_bus_test_state:       return "bus-test";
+    case sd_sleep_state:          return "sleep";
+    case sd_io_state:             return "i/o";
+    default:                      return "UNKNOWN";
     }
-    if (state == sd_waitirq_state) {
-        return "wait-irq";
-    }
-    assert(state < ARRAY_SIZE(state_name));
-    return state_name[state];
 }
 
 static const char *sd_response_name(sd_rsp_type_t rsp)
 {
+    /* sd_r0=0, sd_r1=1, spi_r2=2, sd_r2_i=3, sd_r2_s=4, sd_r3=5, sd_r6=6, sd_r7=7 */
     static const char *response_name[] = {
-        [sd_r0]     = "RESP#0 (no response)",
-        [sd_r1]     = "RESP#1 (normal cmd)",
-        [spi_r2]    = "RESP#2 (STATUS reg)",
-        [sd_r2_i]   = "RESP#2 (CID reg)",
-        [sd_r2_s]   = "RESP#2 (CSD reg)",
-        [sd_r3]     = "RESP#3 (OCR reg)",
-        [sd_r6]     = "RESP#6 (RCA)",
-        [sd_r7]     = "RESP#7 (operating voltage)",
+        "RESP#0 (no response)",
+        "RESP#1 (normal cmd)",
+        "RESP#2 (STATUS reg)",
+        "RESP#2 (CID reg)",
+        "RESP#2 (CSD reg)",
+        "RESP#3 (OCR reg)",
+        "RESP#6 (RCA)",
+        "RESP#7 (operating voltage)",
     };
     if (rsp == sd_illegal) {
         return "ILLEGAL RESP";
@@ -294,10 +288,13 @@ static const char *sd_response_name(sd_rsp_type_t rsp)
 
 static const char *sd_cmd_name(SDState *sd, uint8_t cmd)
 {
-    static const char *cmd_abbrev[SDMMC_CMD_MAX] = {
-        [18]    = "READ_MULTIPLE_BLOCK",
-                                            [25]    = "WRITE_MULTIPLE_BLOCK",
-    };
+    static const char *cmd_abbrev[SDMMC_CMD_MAX] = {};
+    static bool cmd_abbrev_inited = false;
+    if (!cmd_abbrev_inited) {
+        cmd_abbrev[18] = "READ_MULTIPLE_BLOCK";
+        cmd_abbrev[25] = "WRITE_MULTIPLE_BLOCK";
+        cmd_abbrev_inited = true;
+    }
     const SDProto *sdp = sd->proto;
 
     if (sdp->cmd[cmd].handler) {
@@ -401,7 +398,7 @@ FIELD(OCR, CARD_POWER_UP,              31,  1)
 
 static void sd_ocr_powerup(void *opaque)
 {
-    SDState *sd = opaque;
+    SDState *sd = static_cast<SDState *>(opaque);
 
     trace_sdcard_powerup();
     assert(!FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP));
@@ -968,7 +965,7 @@ static bool sd_get_readonly(SDState *sd)
 
 static void sd_cardchange(void *opaque, bool load, Error **errp)
 {
-    SDState *sd = opaque;
+    SDState *sd = static_cast<SDState *>(opaque);
     DeviceState *dev = DEVICE(sd);
     SDBus *sdbus;
     bool inserted = sd_get_inserted(sd);
@@ -994,73 +991,79 @@ static const BlockDevOps sd_block_ops = {
 
 static bool sd_ocr_vmstate_needed(void *opaque)
 {
-    SDState *sd = opaque;
+    SDState *sd = static_cast<SDState *>(opaque);
 
     /* Include the OCR state (and timer) if it is not yet powered up */
     return !FIELD_EX32(sd->ocr, OCR, CARD_POWER_UP);
 }
+
+static const VMStateField sd_ocr_vmstate_fields[] = {
+    VMSTATE_UINT32(ocr, SDState),
+    VMSTATE_TIMER_PTR(ocr_power_timer, SDState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription sd_ocr_vmstate = {
     .name = "sd-card/ocr-state",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = sd_ocr_vmstate_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ocr, SDState),
-        VMSTATE_TIMER_PTR(ocr_power_timer, SDState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = sd_ocr_vmstate_fields,
 };
 
 static bool vmstate_needed_for_rpmb(void *opaque)
 {
-    SDState *sd = opaque;
+    SDState *sd = static_cast<SDState *>(opaque);
 
     return sd->rpmb_part_size > 0;
 }
+
+static const VMStateField emmc_rpmb_vmstate_fields[] = {
+    VMSTATE_UINT8_ARRAY(rpmb.result.key_mac, SDState, RPMB_KEY_MAC_LEN),
+    VMSTATE_UINT8_ARRAY(rpmb.result.data, SDState, RPMB_DATA_LEN),
+    VMSTATE_UINT8_ARRAY(rpmb.result.nonce, SDState, RPMB_NONCE_LEN),
+    VMSTATE_UINT32(rpmb.result.write_counter, SDState),
+    VMSTATE_UINT16(rpmb.result.address, SDState),
+    VMSTATE_UINT16(rpmb.result.block_count, SDState),
+    VMSTATE_UINT16(rpmb.result.result, SDState),
+    VMSTATE_UINT16(rpmb.result.req_resp, SDState),
+    VMSTATE_UINT32(rpmb.write_counter, SDState),
+    VMSTATE_UINT8_ARRAY(rpmb.key, SDState, 32),
+    VMSTATE_UINT8(rpmb.key_set, SDState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription emmc_rpmb_vmstate = {
     .name = "sd-card/ext_csd_modes-state",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_needed_for_rpmb,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(rpmb.result.key_mac, SDState, RPMB_KEY_MAC_LEN),
-        VMSTATE_UINT8_ARRAY(rpmb.result.data, SDState, RPMB_DATA_LEN),
-        VMSTATE_UINT8_ARRAY(rpmb.result.nonce, SDState, RPMB_NONCE_LEN),
-        VMSTATE_UINT32(rpmb.result.write_counter, SDState),
-        VMSTATE_UINT16(rpmb.result.address, SDState),
-        VMSTATE_UINT16(rpmb.result.block_count, SDState),
-        VMSTATE_UINT16(rpmb.result.result, SDState),
-        VMSTATE_UINT16(rpmb.result.req_resp, SDState),
-        VMSTATE_UINT32(rpmb.write_counter, SDState),
-        VMSTATE_UINT8_ARRAY(rpmb.key, SDState, 32),
-        VMSTATE_UINT8(rpmb.key_set, SDState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = emmc_rpmb_vmstate_fields,
 };
 
 static bool vmstate_needed_for_emmc(void *opaque)
 {
-    SDState *sd = opaque;
+    SDState *sd = static_cast<SDState *>(opaque);
 
     return sd_is_emmc(sd);
 }
+
+static const VMStateField emmc_extcsd_vmstate_fields[] = {
+    VMSTATE_UINT8_ARRAY(ext_csd_rw, SDState, 192),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription emmc_extcsd_vmstate = {
     .name = "sd-card/ext_csd_modes-state",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_needed_for_emmc,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(ext_csd_rw, SDState, 192),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = emmc_extcsd_vmstate_fields,
 };
 
 static int sd_vmstate_pre_load(void *opaque)
 {
-    SDState *sd = opaque;
+    SDState *sd = static_cast<SDState *>(opaque);
 
     /* If the OCR state is not included (prior versions, or not
      * needed), then the OCR must be set as powered up. If the OCR state
@@ -1071,51 +1074,55 @@ static int sd_vmstate_pre_load(void *opaque)
     return 0;
 }
 
+static const VMStateField sd_vmstate_fields[] = {
+    VMSTATE_UNUSED(4),
+    VMSTATE_INT32(state, SDState),
+    VMSTATE_UINT8_ARRAY(cid, SDState, 16),
+    VMSTATE_UINT8_ARRAY(csd, SDState, 16),
+    VMSTATE_UINT16(rca, SDState),
+    VMSTATE_UINT32(card_status, SDState),
+    VMSTATE_PARTIAL_BUFFER(sd_status, SDState, 1),
+    VMSTATE_UINT32(vhs, SDState),
+    VMSTATE_BITMAP(wp_group_bmap, SDState, 0, wp_group_bits),
+    VMSTATE_UINT32(blk_len, SDState),
+    VMSTATE_UINT32(multi_blk_cnt, SDState),
+    VMSTATE_UINT32(erase_start, SDState),
+    VMSTATE_UINT32(erase_end, SDState),
+    VMSTATE_UINT8_ARRAY(pwd, SDState, 16),
+    VMSTATE_UINT32(pwd_len, SDState),
+    VMSTATE_UINT8_ARRAY(function_group, SDState, 6),
+    VMSTATE_UINT8(current_cmd, SDState),
+    VMSTATE_BOOL(expecting_acmd, SDState),
+    VMSTATE_UINT32(blk_written, SDState),
+    VMSTATE_UINT64(data_start, SDState),
+    VMSTATE_UINT32(data_offset, SDState),
+    VMSTATE_UINT8_ARRAY(data, SDState, 512),
+    VMSTATE_UNUSED_V(1, 512),
+    VMSTATE_UNUSED(1),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const sd_vmstate_subsections[] = {
+    &sd_ocr_vmstate,
+    &emmc_extcsd_vmstate,
+    &emmc_rpmb_vmstate,
+    NULL
+};
+
 static const VMStateDescription sd_vmstate = {
     .name = "sd-card",
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_load = sd_vmstate_pre_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UNUSED(4),
-        VMSTATE_INT32(state, SDState),
-        VMSTATE_UINT8_ARRAY(cid, SDState, 16),
-        VMSTATE_UINT8_ARRAY(csd, SDState, 16),
-        VMSTATE_UINT16(rca, SDState),
-        VMSTATE_UINT32(card_status, SDState),
-        VMSTATE_PARTIAL_BUFFER(sd_status, SDState, 1),
-        VMSTATE_UINT32(vhs, SDState),
-        VMSTATE_BITMAP(wp_group_bmap, SDState, 0, wp_group_bits),
-        VMSTATE_UINT32(blk_len, SDState),
-        VMSTATE_UINT32(multi_blk_cnt, SDState),
-        VMSTATE_UINT32(erase_start, SDState),
-        VMSTATE_UINT32(erase_end, SDState),
-        VMSTATE_UINT8_ARRAY(pwd, SDState, 16),
-        VMSTATE_UINT32(pwd_len, SDState),
-        VMSTATE_UINT8_ARRAY(function_group, SDState, 6),
-        VMSTATE_UINT8(current_cmd, SDState),
-        VMSTATE_BOOL(expecting_acmd, SDState),
-        VMSTATE_UINT32(blk_written, SDState),
-        VMSTATE_UINT64(data_start, SDState),
-        VMSTATE_UINT32(data_offset, SDState),
-        VMSTATE_UINT8_ARRAY(data, SDState, 512),
-        VMSTATE_UNUSED_V(1, 512),
-        VMSTATE_UNUSED(1),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &sd_ocr_vmstate,
-        &emmc_extcsd_vmstate,
-        &emmc_rpmb_vmstate,
-        NULL
-    },
+    .fields = sd_vmstate_fields,
+    .subsections = sd_vmstate_subsections,
 };
 
 static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
 {
     trace_sdcard_read_block(addr, len);
     addr += sd_part_offset(sd);
-    if (!sd->blk || blk_pread(sd->blk, addr, len, sd->data, 0) < 0) {
+    if (!sd->blk || blk_pread(sd->blk, addr, len, sd->data, static_cast<BdrvRequestFlags>(0)) < 0) {
         fprintf(stderr, "sd_blk_read: read error on host side\n");
     }
 }
@@ -1124,7 +1131,7 @@ static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
 {
     trace_sdcard_write_block(addr, len);
     addr += sd_part_offset(sd);
-    if (!sd->blk || blk_pwrite(sd->blk, addr, len, sd->data, 0) < 0) {
+    if (!sd->blk || blk_pwrite(sd->blk, addr, len, sd->data, static_cast<BdrvRequestFlags>(0)) < 0) {
         fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
 }
@@ -1169,7 +1176,7 @@ static bool rpmb_calc_hmac(SDState *sd, const RPMBDataFrame *frame,
 
         offset = lduw_be_p(&frame->address) * RPMB_DATA_LEN + sd_part_offset(sd);
         do {
-            if (blk_pread(sd->blk, offset, RPMB_DATA_LEN, buf, 0) < 0) {
+            if (blk_pread(sd->blk, offset, RPMB_DATA_LEN, buf, static_cast<BdrvRequestFlags>(0)) < 0) {
                 error_report("sd_blk_read: read error on host side");
                 success = false;
                 break;
@@ -1212,7 +1219,7 @@ static void emmc_rpmb_blk_read(SDState *sd, uint64_t addr, uint32_t len)
         }
         addr = curr_block * RPMB_DATA_LEN + sd_part_offset(sd);
         if (blk_pread(sd->blk, addr, RPMB_DATA_LEN,
-                      sd->rpmb.result.data, 0) < 0) {
+                      sd->rpmb.result.data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_report("sd_blk_read: read error on host side");
             memset(sd->rpmb.result.data, 0, sizeof(sd->rpmb.result.data));
             stw_be_p(&sd->rpmb.result.result,
@@ -1290,7 +1297,7 @@ static void emmc_rpmb_blk_write(SDState *sd, uint64_t addr, uint32_t len)
         }
         sd->rpmb.result.address = frame->address;
         addr = lduw_be_p(&frame->address) * RPMB_DATA_LEN + sd_part_offset(sd);
-        if (blk_pwrite(sd->blk, addr, RPMB_DATA_LEN, frame->data, 0) < 0) {
+        if (blk_pwrite(sd->blk, addr, RPMB_DATA_LEN, frame->data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_report("sd_blk_write: write error on host side");
             stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_WRITE_FAILURE);
         } else {
@@ -1556,7 +1563,7 @@ static bool address_in_range(SDState *sd, const char *desc,
 {
     if (addr + length > sd->size) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s offset %"PRIu64" > card %"PRIu64" [%%%u]\n",
+                      "%s offset %" PRIu64 " > card %" PRIu64 " [%%%u]\n",
                       desc, addr, sd->size, length);
         sd->card_status |= ADDRESS_ERROR;
         return false;
@@ -1567,8 +1574,9 @@ static bool address_in_range(SDState *sd, const char *desc,
 static sd_rsp_type_t sd_invalid_state_for_cmd(SDState *sd, SDRequest req)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s: CMD%i in a wrong state: %s (spec %s)\n",
-                  sd->proto->name, req.cmd, sd_state_name(sd->state),
-                  sd_version_str(sd->spec_version));
+                  sd->proto->name, req.cmd,
+                  sd_state_name(static_cast<SDCardStates>(sd->state)),
+                  sd_version_str(static_cast<SDPhySpecificationVersion>(sd->spec_version)));
 
     return sd_illegal;
 }
@@ -1577,7 +1585,7 @@ static sd_rsp_type_t sd_invalid_mode_for_cmd(SDState *sd, SDRequest req)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s: CMD%i in a wrong mode: %s (spec %s)\n",
                   sd->proto->name, req.cmd, sd_mode_name(sd_mode(sd)),
-                  sd_version_str(sd->spec_version));
+                  sd_version_str(static_cast<SDPhySpecificationVersion>(sd->spec_version)));
 
     return sd_illegal;
 }
@@ -1586,7 +1594,7 @@ static sd_rsp_type_t sd_cmd_illegal(SDState *sd, SDRequest req)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown CMD%i for spec %s\n",
                   sd->proto->name, req.cmd,
-                  sd_version_str(sd->spec_version));
+                  sd_version_str(static_cast<SDPhySpecificationVersion>(sd->spec_version)));
 
     return sd_illegal;
 }
@@ -2341,7 +2349,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
                                     sd->last_cmd_name, req.cmd,
                                     req.arg,
                                     sd_mode_name(sd_mode(sd)),
-                                    sd_state_name(sd->state));
+                                    sd_state_name(static_cast<SDCardStates>(sd->state)));
     }
 
     /* Not interpreting this as an app command */
@@ -2353,8 +2361,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         sd->multi_blk_cnt = 0;
     }
 
-    if (sd->proto->cmd[req.cmd].class == 6 && FIELD_EX32(sd->ocr, OCR,
-                                                         CARD_CAPACITY)) {
+    if (sd->proto->cmd[req.cmd].cmd_class == 6 && FIELD_EX32(sd->ocr, OCR,
+                                                             CARD_CAPACITY)) {
         /* Only Standard Capacity cards support class 6 commands */
         return sd_illegal;
     }
@@ -2429,7 +2437,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
     trace_sdcard_app_command(sd->proto->name, sd->last_cmd_name,
                              req.cmd, req.arg,
                              sd_mode_name(sd_mode(sd)),
-                             sd_state_name(sd->state));
+                             sd_state_name(static_cast<SDCardStates>(sd->state)));
     sd->card_status |= APP_CMD;
 
     if (sd->proto->acmd[req.cmd].handler) {
@@ -2479,7 +2487,7 @@ static bool cmd_valid_while_locked(SDState *sd, unsigned cmd)
     if (!sd->proto->cmd[cmd].handler) {
         return false;
     }
-    cmd_class = sd->proto->cmd[cmd].class;
+    cmd_class = sd->proto->cmd[cmd].cmd_class;
 
     return cmd_class == 0 || cmd_class == 7;
 }
@@ -2865,157 +2873,166 @@ static bool sd_data_ready(SDState *sd)
     return sd->state == sd_sendingdata_state;
 }
 
-static const SDProto sd_proto_spi = {
-    .name = "SPI",
-    .cmd = {
-        [0]  = {0,  sd_spi, "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
-        [1]  = {0,  sd_spi, "SEND_OP_COND", sd_cmd_SEND_OP_COND},
-        [5]  = {9,  sd_spi, "IO_SEND_OP_COND", sd_cmd_optional},
-        [6]  = {10, sd_spi, "SWITCH_FUNCTION", sd_cmd_SWITCH_FUNCTION},
-        [8]  = {0,  sd_spi, "SEND_IF_COND", sd_cmd_SEND_IF_COND},
-        [9]  = {0,  sd_spi, "SEND_CSD", spi_cmd_SEND_CSD},
-        [10] = {0,  sd_spi, "SEND_CID", spi_cmd_SEND_CID},
-        [12] = {0,  sd_spi, "STOP_TRANSMISSION", sd_cmd_STOP_TRANSMISSION},
-        [13] = {0,  sd_spi, "SEND_STATUS", sd_cmd_SEND_STATUS},
-        [16] = {2,  sd_spi, "SET_BLOCKLEN", sd_cmd_SET_BLOCKLEN},
-        [17] = {2,  sd_spi, "READ_SINGLE_BLOCK", sd_cmd_READ_SINGLE_BLOCK},
-        [24] = {4,  sd_spi, "WRITE_SINGLE_BLOCK", sd_cmd_WRITE_SINGLE_BLOCK},
-        [27] = {4,  sd_spi, "PROGRAM_CSD", sd_cmd_PROGRAM_CSD},
-        [28] = {6,  sd_spi, "SET_WRITE_PROT", sd_cmd_SET_WRITE_PROT},
-        [29] = {6,  sd_spi, "CLR_WRITE_PROT", sd_cmd_CLR_WRITE_PROT},
-        [30] = {6,  sd_spi, "SEND_WRITE_PROT", sd_cmd_SEND_WRITE_PROT},
-        [32] = {5,  sd_spi, "ERASE_WR_BLK_START", sd_cmd_ERASE_WR_BLK_START},
-        [33] = {5,  sd_spi, "ERASE_WR_BLK_END", sd_cmd_ERASE_WR_BLK_END},
-        [34] = {10, sd_spi, "READ_SEC_CMD", sd_cmd_optional},
-        [35] = {10, sd_spi, "WRITE_SEC_CMD", sd_cmd_optional},
-        [36] = {10, sd_spi, "SEND_PSI", sd_cmd_optional},
-        [37] = {10, sd_spi, "CONTROL_ASSD_SYSTEM", sd_cmd_optional},
-        [38] = {5,  sd_spi, "ERASE", sd_cmd_ERASE},
-        [42] = {7,  sd_spi, "LOCK_UNLOCK", sd_cmd_LOCK_UNLOCK},
-        [50] = {10, sd_spi, "DIRECT_SECURE_READ", sd_cmd_optional},
-        [52] = {9,  sd_spi, "IO_RW_DIRECT", sd_cmd_optional},
-        [53] = {9,  sd_spi, "IO_RW_EXTENDED", sd_cmd_optional},
-        [55] = {8,  sd_spi, "APP_CMD", sd_cmd_APP_CMD},
-        [56] = {8,  sd_spi, "GEN_CMD", sd_cmd_GEN_CMD},
-        [57] = {10, sd_spi, "DIRECT_SECURE_WRITE", sd_cmd_optional},
-        [58] = {0,  sd_spi, "READ_OCR", spi_cmd_READ_OCR},
-        [59] = {0,  sd_spi, "CRC_ON_OFF", spi_cmd_CRC_ON_OFF},
-    },
-    .acmd = {
-        [13] = {8,  sd_spi, "SD_STATUS", sd_acmd_SD_STATUS},
-        [22] = {8,  sd_spi, "SEND_NUM_WR_BLOCKS", sd_acmd_SEND_NUM_WR_BLOCKS},
-        [23] = {8,  sd_spi, "SET_WR_BLK_ERASE_COUNT", sd_acmd_SET_WR_BLK_ERASE_COUNT},
-        [41] = {8,  sd_spi, "SEND_OP_COND", sd_cmd_SEND_OP_COND},
-        [42] = {8,  sd_spi, "SET_CLR_CARD_DETECT", sd_acmd_SET_CLR_CARD_DETECT},
-        [51] = {8,  sd_spi, "SEND_SCR", sd_acmd_SEND_SCR},
-    },
-};
+/* Helper to set a command entry in an SDProto */
+#define SD_CMD_ENTRY(proto, idx, cls, typ, nm, hdlr) \
+    do { \
+        (proto).cmd[idx].cmd_class = (cls); \
+        (proto).cmd[idx].type = (typ); \
+        (proto).cmd[idx].name = (nm); \
+        (proto).cmd[idx].handler = (hdlr); \
+    } while (0)
 
-static const SDProto sd_proto_sd = {
-    .name = "SD",
-    .cmd = {
-        [0]  = {0,  sd_bc,   "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
-        [2]  = {0,  sd_bcr,  "ALL_SEND_CID", sd_cmd_ALL_SEND_CID},
-        [3]  = {0,  sd_bcr,  "SEND_RELATIVE_ADDR", sd_cmd_SEND_RELATIVE_ADDR},
-        [4]  = {0,  sd_bc,   "SEND_DSR", sd_cmd_unimplemented},
-        [5]  = {9,  sd_bc,   "IO_SEND_OP_COND", sd_cmd_optional},
-        [6]  = {10, sd_adtc, "SWITCH_FUNCTION", sd_cmd_SWITCH_FUNCTION},
-        [7]  = {0,  sd_ac,   "(DE)SELECT_CARD", sd_cmd_DE_SELECT_CARD},
-        [8]  = {0,  sd_bcr,  "SEND_IF_COND", sd_cmd_SEND_IF_COND},
-        [9]  = {0,  sd_ac,   "SEND_CSD", sd_cmd_SEND_CSD},
-        [10] = {0,  sd_ac,   "SEND_CID", sd_cmd_SEND_CID},
-        [11] = {0,  sd_ac,   "VOLTAGE_SWITCH", sd_cmd_optional},
-        [12] = {0,  sd_ac,   "STOP_TRANSMISSION", sd_cmd_STOP_TRANSMISSION},
-        [13] = {0,  sd_ac,   "SEND_STATUS", sd_cmd_SEND_STATUS},
-        [15] = {0,  sd_ac,   "GO_INACTIVE_STATE", sd_cmd_GO_INACTIVE_STATE},
-        [16] = {2,  sd_ac,   "SET_BLOCKLEN", sd_cmd_SET_BLOCKLEN},
-        [17] = {2,  sd_adtc, "READ_SINGLE_BLOCK", sd_cmd_READ_SINGLE_BLOCK},
-        [19] = {2,  sd_adtc, "SEND_TUNING_BLOCK", sd_cmd_SEND_TUNING_BLOCK},
-        [20] = {2,  sd_ac,   "SPEED_CLASS_CONTROL", sd_cmd_optional},
-        [23] = {2,  sd_ac,   "SET_BLOCK_COUNT", sd_cmd_SET_BLOCK_COUNT},
-        [24] = {4,  sd_adtc, "WRITE_SINGLE_BLOCK", sd_cmd_WRITE_SINGLE_BLOCK},
-        [27] = {4,  sd_adtc, "PROGRAM_CSD", sd_cmd_PROGRAM_CSD},
-        [28] = {6,  sd_ac,   "SET_WRITE_PROT", sd_cmd_SET_WRITE_PROT},
-        [29] = {6,  sd_ac,   "CLR_WRITE_PROT", sd_cmd_CLR_WRITE_PROT},
-        [30] = {6,  sd_adtc, "SEND_WRITE_PROT", sd_cmd_SEND_WRITE_PROT},
-        [32] = {5,  sd_ac,   "ERASE_WR_BLK_START", sd_cmd_ERASE_WR_BLK_START},
-        [33] = {5,  sd_ac,   "ERASE_WR_BLK_END", sd_cmd_ERASE_WR_BLK_END},
-        [34] = {10, sd_adtc, "READ_SEC_CMD", sd_cmd_optional},
-        [35] = {10, sd_adtc, "WRITE_SEC_CMD", sd_cmd_optional},
-        [36] = {10, sd_adtc, "SEND_PSI", sd_cmd_optional},
-        [37] = {10, sd_ac,   "CONTROL_ASSD_SYSTEM", sd_cmd_optional},
-        [38] = {5,  sd_ac,   "ERASE", sd_cmd_ERASE},
-        [42] = {7,  sd_adtc, "LOCK_UNLOCK", sd_cmd_LOCK_UNLOCK},
-        [43] = {1,  sd_ac,   "Q_MANAGEMENT", sd_cmd_optional},
-        [44] = {1,  sd_ac,   "Q_TASK_INFO_A", sd_cmd_optional},
-        [45] = {1,  sd_ac,   "Q_TASK_INFO_B", sd_cmd_optional},
-        [46] = {1,  sd_adtc, "Q_RD_TASK", sd_cmd_optional},
-        [47] = {1,  sd_adtc, "Q_WR_TASK", sd_cmd_optional},
-        [48] = {1,  sd_adtc, "READ_EXTR_SINGLE", sd_cmd_optional},
-        [49] = {1,  sd_adtc, "WRITE_EXTR_SINGLE", sd_cmd_optional},
-        [50] = {10, sd_adtc, "DIRECT_SECURE_READ", sd_cmd_optional},
-        [52] = {9,  sd_bc,   "IO_RW_DIRECT", sd_cmd_optional},
-        [53] = {9,  sd_bc,   "IO_RW_EXTENDED", sd_cmd_optional},
-        [55] = {8,  sd_ac,   "APP_CMD", sd_cmd_APP_CMD},
-        [56] = {8,  sd_adtc, "GEN_CMD", sd_cmd_GEN_CMD},
-        [57] = {10, sd_adtc, "DIRECT_SECURE_WRITE", sd_cmd_optional},
-        [58] = {11, sd_adtc, "READ_EXTR_MULTI", sd_cmd_optional},
-        [59] = {11, sd_adtc, "WRITE_EXTR_MULTI", sd_cmd_optional},
-    },
-    .acmd = {
-        [6]  = {8,  sd_ac,   "SET_BUS_WIDTH", sd_acmd_SET_BUS_WIDTH},
-        [13] = {8,  sd_adtc, "SD_STATUS", sd_acmd_SD_STATUS},
-        [22] = {8,  sd_adtc, "SEND_NUM_WR_BLOCKS", sd_acmd_SEND_NUM_WR_BLOCKS},
-        [23] = {8,  sd_ac,   "SET_WR_BLK_ERASE_COUNT", sd_acmd_SET_WR_BLK_ERASE_COUNT},
-        [41] = {8,  sd_bcr,  "SEND_OP_COND", sd_cmd_SEND_OP_COND},
-        [42] = {8,  sd_ac,   "SET_CLR_CARD_DETECT", sd_acmd_SET_CLR_CARD_DETECT},
-        [51] = {8,  sd_adtc, "SEND_SCR", sd_acmd_SEND_SCR},
-    },
-};
+#define SD_ACMD_ENTRY(proto, idx, cls, typ, nm, hdlr) \
+    do { \
+        (proto).acmd[idx].cmd_class = (cls); \
+        (proto).acmd[idx].type = (typ); \
+        (proto).acmd[idx].name = (nm); \
+        (proto).acmd[idx].handler = (hdlr); \
+    } while (0)
 
-static const SDProto sd_proto_emmc = {
-    /* Only v4.3 is supported */
-    .name = "eMMC",
-    .cmd = {
-        [0]  = {0,  sd_bc,   "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE},
-        [1]  = {0,  sd_bcr,  "SEND_OP_COND", sd_cmd_SEND_OP_COND},
-        [2]  = {0,  sd_bcr,  "ALL_SEND_CID", sd_cmd_ALL_SEND_CID},
-        [3]  = {0,  sd_ac,   "SET_RELATIVE_ADDR", emmc_cmd_SET_RELATIVE_ADDR},
-        [4]  = {0,  sd_bc,   "SEND_DSR", sd_cmd_unimplemented},
-        [5]  = {0,  sd_ac,   "SLEEP/AWAKE", emmc_cmd_sleep_awake},
-        [6]  = {10, sd_adtc, "SWITCH", emmc_cmd_SWITCH},
-        [7]  = {0,  sd_ac,   "(DE)SELECT_CARD", sd_cmd_DE_SELECT_CARD},
-        [8]  = {0,  sd_adtc, "SEND_EXT_CSD", emmc_cmd_SEND_EXT_CSD},
-        [9]  = {0,  sd_ac,   "SEND_CSD", sd_cmd_SEND_CSD},
-        [10] = {0,  sd_ac,   "SEND_CID", sd_cmd_SEND_CID},
-        [11] = {1,  sd_adtc, "READ_DAT_UNTIL_STOP", sd_cmd_unimplemented},
-        [12] = {0,  sd_ac,   "STOP_TRANSMISSION", sd_cmd_STOP_TRANSMISSION},
-        [13] = {0,  sd_ac,   "SEND_STATUS", sd_cmd_SEND_STATUS},
-        [14] = {0,  sd_adtc, "BUSTEST_R", sd_cmd_unimplemented},
-        [15] = {0,  sd_ac,   "GO_INACTIVE_STATE", sd_cmd_GO_INACTIVE_STATE},
-        [16] = {2,  sd_ac,   "SET_BLOCKLEN", sd_cmd_SET_BLOCKLEN},
-        [17] = {2,  sd_adtc, "READ_SINGLE_BLOCK", sd_cmd_READ_SINGLE_BLOCK},
-        [19] = {0,  sd_adtc, "BUSTEST_W", sd_cmd_unimplemented},
-        [20] = {3,  sd_adtc, "WRITE_DAT_UNTIL_STOP", sd_cmd_unimplemented},
-        [23] = {2,  sd_ac,   "SET_BLOCK_COUNT", sd_cmd_SET_BLOCK_COUNT},
-        [24] = {4,  sd_adtc, "WRITE_SINGLE_BLOCK", sd_cmd_WRITE_SINGLE_BLOCK},
-        [26] = {4,  sd_adtc, "PROGRAM_CID", emmc_cmd_PROGRAM_CID},
-        [27] = {4,  sd_adtc, "PROGRAM_CSD", sd_cmd_PROGRAM_CSD},
-        [28] = {6,  sd_ac,   "SET_WRITE_PROT", sd_cmd_SET_WRITE_PROT},
-        [29] = {6,  sd_ac,   "CLR_WRITE_PROT", sd_cmd_CLR_WRITE_PROT},
-        [30] = {6,  sd_adtc, "SEND_WRITE_PROT", sd_cmd_SEND_WRITE_PROT},
-        [31] = {6,  sd_adtc, "SEND_WRITE_PROT_TYPE", sd_cmd_unimplemented},
-        [35] = {5,  sd_ac,   "ERASE_WR_BLK_START", sd_cmd_ERASE_WR_BLK_START},
-        [36] = {5,  sd_ac,   "ERASE_WR_BLK_END", sd_cmd_ERASE_WR_BLK_END},
-        [38] = {5,  sd_ac,   "ERASE", sd_cmd_ERASE},
-        [39] = {9,  sd_ac,   "FAST_IO", sd_cmd_unimplemented},
-        [40] = {9,  sd_bcr,  "GO_IRQ_STATE", sd_cmd_unimplemented},
-        [42] = {7,  sd_adtc, "LOCK_UNLOCK", sd_cmd_LOCK_UNLOCK},
-        [49] = {0,  sd_adtc, "SET_TIME", sd_cmd_unimplemented},
-        [55] = {8,  sd_ac,   "APP_CMD", sd_cmd_APP_CMD},
-        [56] = {8,  sd_adtc, "GEN_CMD", sd_cmd_GEN_CMD},
-    },
-};
+static void __attribute__((constructor)) sd_proto_init(void)
+{
+    /* sd_proto_spi */
+    memset(&sd_proto_spi, 0, sizeof(sd_proto_spi));
+    sd_proto_spi.name = "SPI";
+    SD_CMD_ENTRY(sd_proto_spi, 0,  0,  sd_spi, "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE);
+    SD_CMD_ENTRY(sd_proto_spi, 1,  0,  sd_spi, "SEND_OP_COND", sd_cmd_SEND_OP_COND);
+    SD_CMD_ENTRY(sd_proto_spi, 5,  9,  sd_spi, "IO_SEND_OP_COND", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 6,  10, sd_spi, "SWITCH_FUNCTION", sd_cmd_SWITCH_FUNCTION);
+    SD_CMD_ENTRY(sd_proto_spi, 8,  0,  sd_spi, "SEND_IF_COND", sd_cmd_SEND_IF_COND);
+    SD_CMD_ENTRY(sd_proto_spi, 9,  0,  sd_spi, "SEND_CSD", spi_cmd_SEND_CSD);
+    SD_CMD_ENTRY(sd_proto_spi, 10, 0,  sd_spi, "SEND_CID", spi_cmd_SEND_CID);
+    SD_CMD_ENTRY(sd_proto_spi, 12, 0,  sd_spi, "STOP_TRANSMISSION", sd_cmd_STOP_TRANSMISSION);
+    SD_CMD_ENTRY(sd_proto_spi, 13, 0,  sd_spi, "SEND_STATUS", sd_cmd_SEND_STATUS);
+    SD_CMD_ENTRY(sd_proto_spi, 16, 2,  sd_spi, "SET_BLOCKLEN", sd_cmd_SET_BLOCKLEN);
+    SD_CMD_ENTRY(sd_proto_spi, 17, 2,  sd_spi, "READ_SINGLE_BLOCK", sd_cmd_READ_SINGLE_BLOCK);
+    SD_CMD_ENTRY(sd_proto_spi, 24, 4,  sd_spi, "WRITE_SINGLE_BLOCK", sd_cmd_WRITE_SINGLE_BLOCK);
+    SD_CMD_ENTRY(sd_proto_spi, 27, 4,  sd_spi, "PROGRAM_CSD", sd_cmd_PROGRAM_CSD);
+    SD_CMD_ENTRY(sd_proto_spi, 28, 6,  sd_spi, "SET_WRITE_PROT", sd_cmd_SET_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_spi, 29, 6,  sd_spi, "CLR_WRITE_PROT", sd_cmd_CLR_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_spi, 30, 6,  sd_spi, "SEND_WRITE_PROT", sd_cmd_SEND_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_spi, 32, 5,  sd_spi, "ERASE_WR_BLK_START", sd_cmd_ERASE_WR_BLK_START);
+    SD_CMD_ENTRY(sd_proto_spi, 33, 5,  sd_spi, "ERASE_WR_BLK_END", sd_cmd_ERASE_WR_BLK_END);
+    SD_CMD_ENTRY(sd_proto_spi, 34, 10, sd_spi, "READ_SEC_CMD", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 35, 10, sd_spi, "WRITE_SEC_CMD", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 36, 10, sd_spi, "SEND_PSI", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 37, 10, sd_spi, "CONTROL_ASSD_SYSTEM", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 38, 5,  sd_spi, "ERASE", sd_cmd_ERASE);
+    SD_CMD_ENTRY(sd_proto_spi, 42, 7,  sd_spi, "LOCK_UNLOCK", sd_cmd_LOCK_UNLOCK);
+    SD_CMD_ENTRY(sd_proto_spi, 50, 10, sd_spi, "DIRECT_SECURE_READ", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 52, 9,  sd_spi, "IO_RW_DIRECT", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 53, 9,  sd_spi, "IO_RW_EXTENDED", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 55, 8,  sd_spi, "APP_CMD", sd_cmd_APP_CMD);
+    SD_CMD_ENTRY(sd_proto_spi, 56, 8,  sd_spi, "GEN_CMD", sd_cmd_GEN_CMD);
+    SD_CMD_ENTRY(sd_proto_spi, 57, 10, sd_spi, "DIRECT_SECURE_WRITE", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_spi, 58, 0,  sd_spi, "READ_OCR", spi_cmd_READ_OCR);
+    SD_CMD_ENTRY(sd_proto_spi, 59, 0,  sd_spi, "CRC_ON_OFF", spi_cmd_CRC_ON_OFF);
+    SD_ACMD_ENTRY(sd_proto_spi, 13, 8,  sd_spi, "SD_STATUS", sd_acmd_SD_STATUS);
+    SD_ACMD_ENTRY(sd_proto_spi, 22, 8,  sd_spi, "SEND_NUM_WR_BLOCKS", sd_acmd_SEND_NUM_WR_BLOCKS);
+    SD_ACMD_ENTRY(sd_proto_spi, 23, 8,  sd_spi, "SET_WR_BLK_ERASE_COUNT", sd_acmd_SET_WR_BLK_ERASE_COUNT);
+    SD_ACMD_ENTRY(sd_proto_spi, 41, 8,  sd_spi, "SEND_OP_COND", sd_cmd_SEND_OP_COND);
+    SD_ACMD_ENTRY(sd_proto_spi, 42, 8,  sd_spi, "SET_CLR_CARD_DETECT", sd_acmd_SET_CLR_CARD_DETECT);
+    SD_ACMD_ENTRY(sd_proto_spi, 51, 8,  sd_spi, "SEND_SCR", sd_acmd_SEND_SCR);
+
+    /* sd_proto_sd */
+    memset(&sd_proto_sd, 0, sizeof(sd_proto_sd));
+    sd_proto_sd.name = "SD";
+    SD_CMD_ENTRY(sd_proto_sd, 0,  0,  sd_bc,   "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE);
+    SD_CMD_ENTRY(sd_proto_sd, 2,  0,  sd_bcr,  "ALL_SEND_CID", sd_cmd_ALL_SEND_CID);
+    SD_CMD_ENTRY(sd_proto_sd, 3,  0,  sd_bcr,  "SEND_RELATIVE_ADDR", sd_cmd_SEND_RELATIVE_ADDR);
+    SD_CMD_ENTRY(sd_proto_sd, 4,  0,  sd_bc,   "SEND_DSR", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_sd, 5,  9,  sd_bc,   "IO_SEND_OP_COND", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 6,  10, sd_adtc, "SWITCH_FUNCTION", sd_cmd_SWITCH_FUNCTION);
+    SD_CMD_ENTRY(sd_proto_sd, 7,  0,  sd_ac,   "(DE)SELECT_CARD", sd_cmd_DE_SELECT_CARD);
+    SD_CMD_ENTRY(sd_proto_sd, 8,  0,  sd_bcr,  "SEND_IF_COND", sd_cmd_SEND_IF_COND);
+    SD_CMD_ENTRY(sd_proto_sd, 9,  0,  sd_ac,   "SEND_CSD", sd_cmd_SEND_CSD);
+    SD_CMD_ENTRY(sd_proto_sd, 10, 0,  sd_ac,   "SEND_CID", sd_cmd_SEND_CID);
+    SD_CMD_ENTRY(sd_proto_sd, 11, 0,  sd_ac,   "VOLTAGE_SWITCH", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 12, 0,  sd_ac,   "STOP_TRANSMISSION", sd_cmd_STOP_TRANSMISSION);
+    SD_CMD_ENTRY(sd_proto_sd, 13, 0,  sd_ac,   "SEND_STATUS", sd_cmd_SEND_STATUS);
+    SD_CMD_ENTRY(sd_proto_sd, 15, 0,  sd_ac,   "GO_INACTIVE_STATE", sd_cmd_GO_INACTIVE_STATE);
+    SD_CMD_ENTRY(sd_proto_sd, 16, 2,  sd_ac,   "SET_BLOCKLEN", sd_cmd_SET_BLOCKLEN);
+    SD_CMD_ENTRY(sd_proto_sd, 17, 2,  sd_adtc, "READ_SINGLE_BLOCK", sd_cmd_READ_SINGLE_BLOCK);
+    SD_CMD_ENTRY(sd_proto_sd, 19, 2,  sd_adtc, "SEND_TUNING_BLOCK", sd_cmd_SEND_TUNING_BLOCK);
+    SD_CMD_ENTRY(sd_proto_sd, 20, 2,  sd_ac,   "SPEED_CLASS_CONTROL", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 23, 2,  sd_ac,   "SET_BLOCK_COUNT", sd_cmd_SET_BLOCK_COUNT);
+    SD_CMD_ENTRY(sd_proto_sd, 24, 4,  sd_adtc, "WRITE_SINGLE_BLOCK", sd_cmd_WRITE_SINGLE_BLOCK);
+    SD_CMD_ENTRY(sd_proto_sd, 27, 4,  sd_adtc, "PROGRAM_CSD", sd_cmd_PROGRAM_CSD);
+    SD_CMD_ENTRY(sd_proto_sd, 28, 6,  sd_ac,   "SET_WRITE_PROT", sd_cmd_SET_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_sd, 29, 6,  sd_ac,   "CLR_WRITE_PROT", sd_cmd_CLR_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_sd, 30, 6,  sd_adtc, "SEND_WRITE_PROT", sd_cmd_SEND_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_sd, 32, 5,  sd_ac,   "ERASE_WR_BLK_START", sd_cmd_ERASE_WR_BLK_START);
+    SD_CMD_ENTRY(sd_proto_sd, 33, 5,  sd_ac,   "ERASE_WR_BLK_END", sd_cmd_ERASE_WR_BLK_END);
+    SD_CMD_ENTRY(sd_proto_sd, 34, 10, sd_adtc, "READ_SEC_CMD", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 35, 10, sd_adtc, "WRITE_SEC_CMD", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 36, 10, sd_adtc, "SEND_PSI", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 37, 10, sd_ac,   "CONTROL_ASSD_SYSTEM", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 38, 5,  sd_ac,   "ERASE", sd_cmd_ERASE);
+    SD_CMD_ENTRY(sd_proto_sd, 42, 7,  sd_adtc, "LOCK_UNLOCK", sd_cmd_LOCK_UNLOCK);
+    SD_CMD_ENTRY(sd_proto_sd, 43, 1,  sd_ac,   "Q_MANAGEMENT", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 44, 1,  sd_ac,   "Q_TASK_INFO_A", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 45, 1,  sd_ac,   "Q_TASK_INFO_B", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 46, 1,  sd_adtc, "Q_RD_TASK", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 47, 1,  sd_adtc, "Q_WR_TASK", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 48, 1,  sd_adtc, "READ_EXTR_SINGLE", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 49, 1,  sd_adtc, "WRITE_EXTR_SINGLE", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 50, 10, sd_adtc, "DIRECT_SECURE_READ", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 52, 9,  sd_bc,   "IO_RW_DIRECT", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 53, 9,  sd_bc,   "IO_RW_EXTENDED", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 55, 8,  sd_ac,   "APP_CMD", sd_cmd_APP_CMD);
+    SD_CMD_ENTRY(sd_proto_sd, 56, 8,  sd_adtc, "GEN_CMD", sd_cmd_GEN_CMD);
+    SD_CMD_ENTRY(sd_proto_sd, 57, 10, sd_adtc, "DIRECT_SECURE_WRITE", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 58, 11, sd_adtc, "READ_EXTR_MULTI", sd_cmd_optional);
+    SD_CMD_ENTRY(sd_proto_sd, 59, 11, sd_adtc, "WRITE_EXTR_MULTI", sd_cmd_optional);
+    SD_ACMD_ENTRY(sd_proto_sd, 6,  8,  sd_ac,   "SET_BUS_WIDTH", sd_acmd_SET_BUS_WIDTH);
+    SD_ACMD_ENTRY(sd_proto_sd, 13, 8,  sd_adtc, "SD_STATUS", sd_acmd_SD_STATUS);
+    SD_ACMD_ENTRY(sd_proto_sd, 22, 8,  sd_adtc, "SEND_NUM_WR_BLOCKS", sd_acmd_SEND_NUM_WR_BLOCKS);
+    SD_ACMD_ENTRY(sd_proto_sd, 23, 8,  sd_ac,   "SET_WR_BLK_ERASE_COUNT", sd_acmd_SET_WR_BLK_ERASE_COUNT);
+    SD_ACMD_ENTRY(sd_proto_sd, 41, 8,  sd_bcr,  "SEND_OP_COND", sd_cmd_SEND_OP_COND);
+    SD_ACMD_ENTRY(sd_proto_sd, 42, 8,  sd_ac,   "SET_CLR_CARD_DETECT", sd_acmd_SET_CLR_CARD_DETECT);
+    SD_ACMD_ENTRY(sd_proto_sd, 51, 8,  sd_adtc, "SEND_SCR", sd_acmd_SEND_SCR);
+
+    /* sd_proto_emmc - Only v4.3 is supported */
+    memset(&sd_proto_emmc, 0, sizeof(sd_proto_emmc));
+    sd_proto_emmc.name = "eMMC";
+    SD_CMD_ENTRY(sd_proto_emmc, 0,  0,  sd_bc,   "GO_IDLE_STATE", sd_cmd_GO_IDLE_STATE);
+    SD_CMD_ENTRY(sd_proto_emmc, 1,  0,  sd_bcr,  "SEND_OP_COND", sd_cmd_SEND_OP_COND);
+    SD_CMD_ENTRY(sd_proto_emmc, 2,  0,  sd_bcr,  "ALL_SEND_CID", sd_cmd_ALL_SEND_CID);
+    SD_CMD_ENTRY(sd_proto_emmc, 3,  0,  sd_ac,   "SET_RELATIVE_ADDR", emmc_cmd_SET_RELATIVE_ADDR);
+    SD_CMD_ENTRY(sd_proto_emmc, 4,  0,  sd_bc,   "SEND_DSR", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 5,  0,  sd_ac,   "SLEEP/AWAKE", emmc_cmd_sleep_awake);
+    SD_CMD_ENTRY(sd_proto_emmc, 6,  10, sd_adtc, "SWITCH", emmc_cmd_SWITCH);
+    SD_CMD_ENTRY(sd_proto_emmc, 7,  0,  sd_ac,   "(DE)SELECT_CARD", sd_cmd_DE_SELECT_CARD);
+    SD_CMD_ENTRY(sd_proto_emmc, 8,  0,  sd_adtc, "SEND_EXT_CSD", emmc_cmd_SEND_EXT_CSD);
+    SD_CMD_ENTRY(sd_proto_emmc, 9,  0,  sd_ac,   "SEND_CSD", sd_cmd_SEND_CSD);
+    SD_CMD_ENTRY(sd_proto_emmc, 10, 0,  sd_ac,   "SEND_CID", sd_cmd_SEND_CID);
+    SD_CMD_ENTRY(sd_proto_emmc, 11, 1,  sd_adtc, "READ_DAT_UNTIL_STOP", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 12, 0,  sd_ac,   "STOP_TRANSMISSION", sd_cmd_STOP_TRANSMISSION);
+    SD_CMD_ENTRY(sd_proto_emmc, 13, 0,  sd_ac,   "SEND_STATUS", sd_cmd_SEND_STATUS);
+    SD_CMD_ENTRY(sd_proto_emmc, 14, 0,  sd_adtc, "BUSTEST_R", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 15, 0,  sd_ac,   "GO_INACTIVE_STATE", sd_cmd_GO_INACTIVE_STATE);
+    SD_CMD_ENTRY(sd_proto_emmc, 16, 2,  sd_ac,   "SET_BLOCKLEN", sd_cmd_SET_BLOCKLEN);
+    SD_CMD_ENTRY(sd_proto_emmc, 17, 2,  sd_adtc, "READ_SINGLE_BLOCK", sd_cmd_READ_SINGLE_BLOCK);
+    SD_CMD_ENTRY(sd_proto_emmc, 19, 0,  sd_adtc, "BUSTEST_W", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 20, 3,  sd_adtc, "WRITE_DAT_UNTIL_STOP", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 23, 2,  sd_ac,   "SET_BLOCK_COUNT", sd_cmd_SET_BLOCK_COUNT);
+    SD_CMD_ENTRY(sd_proto_emmc, 24, 4,  sd_adtc, "WRITE_SINGLE_BLOCK", sd_cmd_WRITE_SINGLE_BLOCK);
+    SD_CMD_ENTRY(sd_proto_emmc, 26, 4,  sd_adtc, "PROGRAM_CID", emmc_cmd_PROGRAM_CID);
+    SD_CMD_ENTRY(sd_proto_emmc, 27, 4,  sd_adtc, "PROGRAM_CSD", sd_cmd_PROGRAM_CSD);
+    SD_CMD_ENTRY(sd_proto_emmc, 28, 6,  sd_ac,   "SET_WRITE_PROT", sd_cmd_SET_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_emmc, 29, 6,  sd_ac,   "CLR_WRITE_PROT", sd_cmd_CLR_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_emmc, 30, 6,  sd_adtc, "SEND_WRITE_PROT", sd_cmd_SEND_WRITE_PROT);
+    SD_CMD_ENTRY(sd_proto_emmc, 31, 6,  sd_adtc, "SEND_WRITE_PROT_TYPE", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 35, 5,  sd_ac,   "ERASE_WR_BLK_START", sd_cmd_ERASE_WR_BLK_START);
+    SD_CMD_ENTRY(sd_proto_emmc, 36, 5,  sd_ac,   "ERASE_WR_BLK_END", sd_cmd_ERASE_WR_BLK_END);
+    SD_CMD_ENTRY(sd_proto_emmc, 38, 5,  sd_ac,   "ERASE", sd_cmd_ERASE);
+    SD_CMD_ENTRY(sd_proto_emmc, 39, 9,  sd_ac,   "FAST_IO", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 40, 9,  sd_bcr,  "GO_IRQ_STATE", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 42, 7,  sd_adtc, "LOCK_UNLOCK", sd_cmd_LOCK_UNLOCK);
+    SD_CMD_ENTRY(sd_proto_emmc, 49, 0,  sd_adtc, "SET_TIME", sd_cmd_unimplemented);
+    SD_CMD_ENTRY(sd_proto_emmc, 55, 8,  sd_ac,   "APP_CMD", sd_cmd_APP_CMD);
+    SD_CMD_ENTRY(sd_proto_emmc, 56, 8,  sd_adtc, "GEN_CMD", sd_cmd_GEN_CMD);
+}
 
 static void sd_instance_init(Object *obj)
 {
@@ -3229,12 +3246,12 @@ static const TypeInfo sd_types[] = {
     {
         .name           = TYPE_SDMMC_COMMON,
         .parent         = TYPE_DEVICE,
-        .is_abstract       = true,
         .instance_size  = sizeof(SDState),
-        .class_size     = sizeof(SDCardClass),
-        .class_init     = sdmmc_common_class_init,
         .instance_init  = sd_instance_init,
         .instance_finalize = sd_instance_finalize,
+        .is_abstract    = true,
+        .class_size     = sizeof(SDCardClass),
+        .class_init     = sdmmc_common_class_init,
     },
     {
         .name           = TYPE_SD_CARD,

@@ -183,20 +183,48 @@ enum LocalTimerRegCntIndexes {
 #define MCT_LT_COUNTER_STEP     0x100000000ULL
 #define MCT_LT_CNT_LOW_LIMIT    0x100
 
+/* Named structs extracted from parent structs for C++ compatibility */
+struct gregs {
+    uint64_t cnt;
+    uint32_t cnt_wstat;
+    uint32_t tcon;
+    uint32_t int_cstat;
+    uint32_t int_enb;
+    uint32_t wstat;
+    uint64_t comp[MCT_GT_CMP_NUM];
+    uint32_t comp_add_incr[MCT_GT_CMP_NUM];
+};
+
+struct tick_timer {
+    uint32_t cnt_run;           /* cnt timer is running */
+    uint32_t int_run;           /* int timer is running */
+
+    uint32_t last_icnto;
+    uint32_t last_tcnto;
+    uint32_t tcntb;             /* initial value for TCNTB */
+    uint32_t icntb;             /* initial value for ICNTB */
+
+    /* for step mode */
+    uint64_t    distance;       /* distance to count to the next event */
+    uint64_t    progress;       /* progress when counting by steps */
+    uint64_t    count;          /* count to arm timer with */
+
+    ptimer_state *ptimer_tick;  /* timer for tick counter */
+};
+
+struct lregs {
+    uint32_t    cnt[L_REG_CNT_AMOUNT];
+    uint32_t    tcon;
+    uint32_t    int_cstat;
+    uint32_t    int_enb;
+    uint32_t    wstat;
+};
+
 /* global timer */
 typedef struct {
     qemu_irq  irq[MCT_GT_CMP_NUM];
 
-    struct gregs {
-        uint64_t cnt;
-        uint32_t cnt_wstat;
-        uint32_t tcon;
-        uint32_t int_cstat;
-        uint32_t int_enb;
-        uint32_t wstat;
-        uint64_t comp[MCT_GT_CMP_NUM];
-        uint32_t comp_add_incr[MCT_GT_CMP_NUM];
-    } reg;
+    struct gregs reg;
 
     uint64_t count;            /* Value FRC was armed with */
     int32_t curr_comp;             /* Current comparator FRC is running to */
@@ -210,35 +238,14 @@ typedef struct {
     int         id;             /* timer id */
     qemu_irq    irq;            /* local timer irq */
 
-    struct tick_timer {
-        uint32_t cnt_run;           /* cnt timer is running */
-        uint32_t int_run;           /* int timer is running */
-
-        uint32_t last_icnto;
-        uint32_t last_tcnto;
-        uint32_t tcntb;             /* initial value for TCNTB */
-        uint32_t icntb;             /* initial value for ICNTB */
-
-        /* for step mode */
-        uint64_t    distance;       /* distance to count to the next event */
-        uint64_t    progress;       /* progress when counting by steps */
-        uint64_t    count;          /* count to arm timer with */
-
-        ptimer_state *ptimer_tick;  /* timer for tick counter */
-    } tick_timer;
+    struct tick_timer tick_timer;
 
     /* use ptimer.c to represent count down timer */
 
     ptimer_state *ptimer_frc;   /* timer for free running counter */
 
     /* registers */
-    struct lregs {
-        uint32_t    cnt[L_REG_CNT_AMOUNT];
-        uint32_t    tcon;
-        uint32_t    int_cstat;
-        uint32_t    int_enb;
-        uint32_t    wstat;
-    } reg;
+    struct lregs reg;
 
 } Exynos4210MCTLT;
 
@@ -260,101 +267,113 @@ struct Exynos4210MCTState {
 };
 
 /*** VMState ***/
+static const VMStateField vmstate_tick_timer_fields[] = {
+    VMSTATE_UINT32(cnt_run, struct tick_timer),
+    VMSTATE_UINT32(int_run, struct tick_timer),
+    VMSTATE_UINT32(last_icnto, struct tick_timer),
+    VMSTATE_UINT32(last_tcnto, struct tick_timer),
+    VMSTATE_UINT32(tcntb, struct tick_timer),
+    VMSTATE_UINT32(icntb, struct tick_timer),
+    VMSTATE_UINT64(distance, struct tick_timer),
+    VMSTATE_UINT64(progress, struct tick_timer),
+    VMSTATE_UINT64(count, struct tick_timer),
+    VMSTATE_PTIMER(ptimer_tick, struct tick_timer),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_tick_timer = {
     .name = "exynos4210.mct.tick_timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cnt_run, struct tick_timer),
-        VMSTATE_UINT32(int_run, struct tick_timer),
-        VMSTATE_UINT32(last_icnto, struct tick_timer),
-        VMSTATE_UINT32(last_tcnto, struct tick_timer),
-        VMSTATE_UINT32(tcntb, struct tick_timer),
-        VMSTATE_UINT32(icntb, struct tick_timer),
-        VMSTATE_UINT64(distance, struct tick_timer),
-        VMSTATE_UINT64(progress, struct tick_timer),
-        VMSTATE_UINT64(count, struct tick_timer),
-        VMSTATE_PTIMER(ptimer_tick, struct tick_timer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_tick_timer_fields,
+};
+
+static const VMStateField vmstate_lregs_fields[] = {
+    VMSTATE_UINT32_ARRAY(cnt, struct lregs, L_REG_CNT_AMOUNT),
+    VMSTATE_UINT32(tcon, struct lregs),
+    VMSTATE_UINT32(int_cstat, struct lregs),
+    VMSTATE_UINT32(int_enb, struct lregs),
+    VMSTATE_UINT32(wstat, struct lregs),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_lregs = {
     .name = "exynos4210.mct.lregs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(cnt, struct lregs, L_REG_CNT_AMOUNT),
-        VMSTATE_UINT32(tcon, struct lregs),
-        VMSTATE_UINT32(int_cstat, struct lregs),
-        VMSTATE_UINT32(int_enb, struct lregs),
-        VMSTATE_UINT32(wstat, struct lregs),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_lregs_fields,
+};
+
+static const VMStateField vmstate_exynos4210_mct_lt_fields[] = {
+    VMSTATE_INT32(id, Exynos4210MCTLT),
+    VMSTATE_STRUCT(tick_timer, Exynos4210MCTLT, 0,
+            vmstate_tick_timer,
+            struct tick_timer),
+    VMSTATE_PTIMER(ptimer_frc, Exynos4210MCTLT),
+    VMSTATE_STRUCT(reg, Exynos4210MCTLT, 0,
+            vmstate_lregs,
+            struct lregs),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_exynos4210_mct_lt = {
     .name = "exynos4210.mct.lt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(id, Exynos4210MCTLT),
-        VMSTATE_STRUCT(tick_timer, Exynos4210MCTLT, 0,
-                vmstate_tick_timer,
-                struct tick_timer),
-        VMSTATE_PTIMER(ptimer_frc, Exynos4210MCTLT),
-        VMSTATE_STRUCT(reg, Exynos4210MCTLT, 0,
-                vmstate_lregs,
-                struct lregs),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_mct_lt_fields,
+};
+
+static const VMStateField vmstate_gregs_fields[] = {
+    VMSTATE_UINT64(cnt, struct gregs),
+    VMSTATE_UINT32(cnt_wstat, struct gregs),
+    VMSTATE_UINT32(tcon, struct gregs),
+    VMSTATE_UINT32(int_cstat, struct gregs),
+    VMSTATE_UINT32(int_enb, struct gregs),
+    VMSTATE_UINT32(wstat, struct gregs),
+    VMSTATE_UINT64_ARRAY(comp, struct gregs, MCT_GT_CMP_NUM),
+    VMSTATE_UINT32_ARRAY(comp_add_incr, struct gregs,
+            MCT_GT_CMP_NUM),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_gregs = {
     .name = "exynos4210.mct.lregs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(cnt, struct gregs),
-        VMSTATE_UINT32(cnt_wstat, struct gregs),
-        VMSTATE_UINT32(tcon, struct gregs),
-        VMSTATE_UINT32(int_cstat, struct gregs),
-        VMSTATE_UINT32(int_enb, struct gregs),
-        VMSTATE_UINT32(wstat, struct gregs),
-        VMSTATE_UINT64_ARRAY(comp, struct gregs, MCT_GT_CMP_NUM),
-        VMSTATE_UINT32_ARRAY(comp_add_incr, struct gregs,
-                MCT_GT_CMP_NUM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gregs_fields,
+};
+
+static const VMStateField vmstate_exynos4210_mct_gt_fields[] = {
+    VMSTATE_STRUCT(reg, Exynos4210MCTGT, 0, vmstate_gregs,
+            struct gregs),
+    VMSTATE_UINT64(count, Exynos4210MCTGT),
+    VMSTATE_INT32(curr_comp, Exynos4210MCTGT),
+    VMSTATE_PTIMER(ptimer_frc, Exynos4210MCTGT),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_exynos4210_mct_gt = {
     .name = "exynos4210.mct.lt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(reg, Exynos4210MCTGT, 0, vmstate_gregs,
-                struct gregs),
-        VMSTATE_UINT64(count, Exynos4210MCTGT),
-        VMSTATE_INT32(curr_comp, Exynos4210MCTGT),
-        VMSTATE_PTIMER(ptimer_frc, Exynos4210MCTGT),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_mct_gt_fields,
+};
+
+static const VMStateField vmstate_exynos4210_mct_state_fields[] = {
+    VMSTATE_UINT32(reg_mct_cfg, Exynos4210MCTState),
+    VMSTATE_STRUCT_ARRAY(l_timer, Exynos4210MCTState, 2, 0,
+        vmstate_exynos4210_mct_lt, Exynos4210MCTLT),
+    VMSTATE_STRUCT(g_timer, Exynos4210MCTState, 0,
+        vmstate_exynos4210_mct_gt, Exynos4210MCTGT),
+    VMSTATE_UINT32(freq, Exynos4210MCTState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_exynos4210_mct_state = {
     .name = "exynos4210.mct",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(reg_mct_cfg, Exynos4210MCTState),
-        VMSTATE_STRUCT_ARRAY(l_timer, Exynos4210MCTState, 2, 0,
-            vmstate_exynos4210_mct_lt, Exynos4210MCTLT),
-        VMSTATE_STRUCT(g_timer, Exynos4210MCTState, 0,
-            vmstate_exynos4210_mct_gt, Exynos4210MCTGT),
-        VMSTATE_UINT32(freq, Exynos4210MCTState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_mct_state_fields,
 };
 
 static void exynos4210_mct_update_freq(Exynos4210MCTState *s);
@@ -535,7 +554,7 @@ static void exynos4210_gfrc_restart(Exynos4210MCTState *s)
  */
 static void exynos4210_gcomp_raise_irq(void *opaque, uint32_t id)
 {
-    Exynos4210MCTGT *s = opaque;
+    Exynos4210MCTGT *s = static_cast<Exynos4210MCTGT *>(opaque);
 
     /* If CSTAT is pending and IRQ is enabled */
     if ((s->reg.int_cstat & G_INT_CSTAT_COMP(id)) &&
@@ -550,7 +569,7 @@ static void exynos4210_gcomp_raise_irq(void *opaque, uint32_t id)
  */
 static void exynos4210_gcomp_lower_irq(void *opaque, uint32_t id)
 {
-    Exynos4210MCTGT *s = opaque;
+    Exynos4210MCTGT *s = static_cast<Exynos4210MCTGT *>(opaque);
     qemu_irq_lower(s->irq[id]);
 }
 

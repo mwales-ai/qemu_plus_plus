@@ -1377,27 +1377,27 @@ sdhci_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 static const MemoryRegionOps sdhci_mmio_le_ops = {
     .read = sdhci_read,
     .write = sdhci_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
         .unaligned = false
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps sdhci_mmio_be_ops = {
     .read = sdhci_read,
     .write = sdhci_write,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
         .unaligned = false
     },
-    .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void sdhci_init_readonly_registers(SDHCIState *s, Error **errp)
@@ -1468,7 +1468,7 @@ void sdhci_common_realize(SDHCIState *s, Error **errp)
     }
 
     s->buf_maxsz = sdhci_get_fifolen(s);
-    s->fifo_buffer = g_malloc0(s->buf_maxsz);
+    s->fifo_buffer = static_cast<uint8_t *>(g_malloc0(s->buf_maxsz));
 
     memory_region_init_io(&s->iomem, OBJECT(s), s->io_ops, s, "sdhci",
                           SDHC_REGISTERS_MAP_SIZE);
@@ -1489,61 +1489,67 @@ void sdhci_common_unrealize(SDHCIState *s)
 
 static bool sdhci_pending_insert_vmstate_needed(void *opaque)
 {
-    SDHCIState *s = opaque;
+    SDHCIState *s = static_cast<SDHCIState *>(opaque);
 
     return s->pending_insert_state;
 }
+
+static const VMStateField sdhci_pending_insert_vmstate_fields[] = {
+    VMSTATE_BOOL(pending_insert_state, SDHCIState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription sdhci_pending_insert_vmstate = {
     .name = "sdhci/pending-insert",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = sdhci_pending_insert_vmstate_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(pending_insert_state, SDHCIState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = sdhci_pending_insert_vmstate_fields,
+};
+
+static const VMStateField sdhci_vmstate_fields[] = {
+    VMSTATE_UINT32(sdmasysad, SDHCIState),
+    VMSTATE_UINT16(blksize, SDHCIState),
+    VMSTATE_UINT16(blkcnt, SDHCIState),
+    VMSTATE_UINT32(argument, SDHCIState),
+    VMSTATE_UINT16(trnmod, SDHCIState),
+    VMSTATE_UINT16(cmdreg, SDHCIState),
+    VMSTATE_UINT32_ARRAY(rspreg, SDHCIState, 4),
+    VMSTATE_UINT32(prnsts, SDHCIState),
+    VMSTATE_UINT8(hostctl1, SDHCIState),
+    VMSTATE_UINT8(pwrcon, SDHCIState),
+    VMSTATE_UINT8(blkgap, SDHCIState),
+    VMSTATE_UINT8(wakcon, SDHCIState),
+    VMSTATE_UINT16(clkcon, SDHCIState),
+    VMSTATE_UINT8(timeoutcon, SDHCIState),
+    VMSTATE_UINT8(admaerr, SDHCIState),
+    VMSTATE_UINT16(norintsts, SDHCIState),
+    VMSTATE_UINT16(errintsts, SDHCIState),
+    VMSTATE_UINT16(norintstsen, SDHCIState),
+    VMSTATE_UINT16(errintstsen, SDHCIState),
+    VMSTATE_UINT16(norintsigen, SDHCIState),
+    VMSTATE_UINT16(errintsigen, SDHCIState),
+    VMSTATE_UINT16(acmd12errsts, SDHCIState),
+    VMSTATE_UINT16(data_count, SDHCIState),
+    VMSTATE_UINT64(admasysaddr, SDHCIState),
+    VMSTATE_UINT8(stopped_state, SDHCIState),
+    VMSTATE_VBUFFER_UINT32(fifo_buffer, SDHCIState, 1, NULL, buf_maxsz),
+    VMSTATE_TIMER_PTR(insert_timer, SDHCIState),
+    VMSTATE_TIMER_PTR(transfer_timer, SDHCIState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const sdhci_vmstate_subsections[] = {
+    &sdhci_pending_insert_vmstate,
+    NULL
 };
 
 const VMStateDescription sdhci_vmstate = {
     .name = "sdhci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(sdmasysad, SDHCIState),
-        VMSTATE_UINT16(blksize, SDHCIState),
-        VMSTATE_UINT16(blkcnt, SDHCIState),
-        VMSTATE_UINT32(argument, SDHCIState),
-        VMSTATE_UINT16(trnmod, SDHCIState),
-        VMSTATE_UINT16(cmdreg, SDHCIState),
-        VMSTATE_UINT32_ARRAY(rspreg, SDHCIState, 4),
-        VMSTATE_UINT32(prnsts, SDHCIState),
-        VMSTATE_UINT8(hostctl1, SDHCIState),
-        VMSTATE_UINT8(pwrcon, SDHCIState),
-        VMSTATE_UINT8(blkgap, SDHCIState),
-        VMSTATE_UINT8(wakcon, SDHCIState),
-        VMSTATE_UINT16(clkcon, SDHCIState),
-        VMSTATE_UINT8(timeoutcon, SDHCIState),
-        VMSTATE_UINT8(admaerr, SDHCIState),
-        VMSTATE_UINT16(norintsts, SDHCIState),
-        VMSTATE_UINT16(errintsts, SDHCIState),
-        VMSTATE_UINT16(norintstsen, SDHCIState),
-        VMSTATE_UINT16(errintstsen, SDHCIState),
-        VMSTATE_UINT16(norintsigen, SDHCIState),
-        VMSTATE_UINT16(errintsigen, SDHCIState),
-        VMSTATE_UINT16(acmd12errsts, SDHCIState),
-        VMSTATE_UINT16(data_count, SDHCIState),
-        VMSTATE_UINT64(admasysaddr, SDHCIState),
-        VMSTATE_UINT8(stopped_state, SDHCIState),
-        VMSTATE_VBUFFER_UINT32(fifo_buffer, SDHCIState, 1, NULL, buf_maxsz),
-        VMSTATE_TIMER_PTR(insert_timer, SDHCIState),
-        VMSTATE_TIMER_PTR(transfer_timer, SDHCIState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &sdhci_pending_insert_vmstate,
-        NULL
-    },
+    .fields = sdhci_vmstate_fields,
+    .subsections = sdhci_vmstate_subsections,
 };
 
 void sdhci_common_class_init(ObjectClass *klass, const void *data)
@@ -1873,12 +1879,12 @@ usdhc_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 static const MemoryRegionOps usdhc_mmio_ops = {
     .read = usdhc_read,
     .write = usdhc_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
         .unaligned = false
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void imx_usdhc_init(Object *obj)
@@ -1934,12 +1940,12 @@ static void sdhci_s3c_write(void *opaque, hwaddr offset, uint64_t val,
 static const MemoryRegionOps sdhci_s3c_mmio_ops = {
     .read = sdhci_s3c_read,
     .write = sdhci_s3c_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
         .unaligned = false
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void sdhci_s3c_init(Object *obj)

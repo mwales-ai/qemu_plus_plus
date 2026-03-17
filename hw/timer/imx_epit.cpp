@@ -379,19 +379,21 @@ static const MemoryRegionOps imx_epit_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_imx_timer_epit_fields[] = {
+    VMSTATE_UINT32(cr, IMXEPITState),
+    VMSTATE_UINT32(sr, IMXEPITState),
+    VMSTATE_UINT32(lr, IMXEPITState),
+    VMSTATE_UINT32(cmp, IMXEPITState),
+    VMSTATE_PTIMER(timer_reload, IMXEPITState),
+    VMSTATE_PTIMER(timer_cmp, IMXEPITState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_imx_timer_epit = {
     .name = TYPE_IMX_EPIT,
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cr, IMXEPITState),
-        VMSTATE_UINT32(sr, IMXEPITState),
-        VMSTATE_UINT32(lr, IMXEPITState),
-        VMSTATE_UINT32(cmp, IMXEPITState),
-        VMSTATE_PTIMER(timer_reload, IMXEPITState),
-        VMSTATE_PTIMER(timer_cmp, IMXEPITState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_imx_timer_epit_fields,
 };
 
 static void imx_epit_realize(DeviceState *dev, Error **errp)

@@ -56,13 +56,13 @@
 #define PXA25X_FREQ 3686400 /* 3.6864 MHz */
 
 static int pxa2xx_timer4_freq[8] = {
-    [0] = 0,
-    [1] = 32768,
-    [2] = 1000,
-    [3] = 1,
-    [4] = 1000000,
+    0,       /* [0] */
+    32768,   /* [1] */
+    1000,    /* [2] */
+    1,       /* [3] */
+    1000000, /* [4] */
     /* [5] is the "Externally supplied clock".  Assign if necessary.  */
-    [5 ... 7] = 0,
+    0, 0, 0, /* [5] ... [7] */
 };
 
 #define TYPE_PXA2XX_TIMER "pxa2xx-timer"
@@ -496,57 +496,63 @@ static void pxa2xx_timer_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_pxa2xx_timer0_regs_fields[] = {
+    VMSTATE_UINT32(value, PXA2xxTimer0),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_pxa2xx_timer0_regs = {
     .name = "pxa2xx_timer0",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(value, PXA2xxTimer0),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_pxa2xx_timer0_regs_fields,
+};
+
+static const VMStateField vmstate_pxa2xx_timer4_regs_fields[] = {
+    VMSTATE_STRUCT(tm, PXA2xxTimer4, 1,
+                    vmstate_pxa2xx_timer0_regs, PXA2xxTimer0),
+    VMSTATE_INT32(oldclock, PXA2xxTimer4),
+    VMSTATE_INT32(clock, PXA2xxTimer4),
+    VMSTATE_UINT64(lastload, PXA2xxTimer4),
+    VMSTATE_UINT32(freq, PXA2xxTimer4),
+    VMSTATE_UINT32(control, PXA2xxTimer4),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_pxa2xx_timer4_regs = {
     .name = "pxa2xx_timer4",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(tm, PXA2xxTimer4, 1,
-                        vmstate_pxa2xx_timer0_regs, PXA2xxTimer0),
-        VMSTATE_INT32(oldclock, PXA2xxTimer4),
-        VMSTATE_INT32(clock, PXA2xxTimer4),
-        VMSTATE_UINT64(lastload, PXA2xxTimer4),
-        VMSTATE_UINT32(freq, PXA2xxTimer4),
-        VMSTATE_UINT32(control, PXA2xxTimer4),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_pxa2xx_timer4_regs_fields,
 };
 
 static bool pxa2xx_timer_has_tm4_test(void *opaque, int version_id)
 {
-    return pxa2xx_timer_has_tm4(opaque);
+    return pxa2xx_timer_has_tm4(static_cast<PXA2xxTimerInfo *>(opaque));
 }
+
+static const VMStateField vmstate_pxa2xx_timer_regs_fields[] = {
+    VMSTATE_INT32(clock, PXA2xxTimerInfo),
+    VMSTATE_INT32(oldclock, PXA2xxTimerInfo),
+    VMSTATE_UINT64(lastload, PXA2xxTimerInfo),
+    VMSTATE_STRUCT_ARRAY(timer, PXA2xxTimerInfo, 4, 1,
+                    vmstate_pxa2xx_timer0_regs, PXA2xxTimer0),
+    VMSTATE_UINT32(events, PXA2xxTimerInfo),
+    VMSTATE_UINT32(irq_enabled, PXA2xxTimerInfo),
+    VMSTATE_UINT32(reset3, PXA2xxTimerInfo),
+    VMSTATE_UINT32(snapshot, PXA2xxTimerInfo),
+    VMSTATE_STRUCT_ARRAY_TEST(tm4, PXA2xxTimerInfo, 8,
+                    pxa2xx_timer_has_tm4_test, 0,
+                    vmstate_pxa2xx_timer4_regs, PXA2xxTimer4),
+    VMSTATE_END_OF_LIST(),
+};
 
 static const VMStateDescription vmstate_pxa2xx_timer_regs = {
     .name = "pxa2xx_timer",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = pxa25x_timer_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(clock, PXA2xxTimerInfo),
-        VMSTATE_INT32(oldclock, PXA2xxTimerInfo),
-        VMSTATE_UINT64(lastload, PXA2xxTimerInfo),
-        VMSTATE_STRUCT_ARRAY(timer, PXA2xxTimerInfo, 4, 1,
-                        vmstate_pxa2xx_timer0_regs, PXA2xxTimer0),
-        VMSTATE_UINT32(events, PXA2xxTimerInfo),
-        VMSTATE_UINT32(irq_enabled, PXA2xxTimerInfo),
-        VMSTATE_UINT32(reset3, PXA2xxTimerInfo),
-        VMSTATE_UINT32(snapshot, PXA2xxTimerInfo),
-        VMSTATE_STRUCT_ARRAY_TEST(tm4, PXA2xxTimerInfo, 8,
-                        pxa2xx_timer_has_tm4_test, 0,
-                        vmstate_pxa2xx_timer4_regs, PXA2xxTimer4),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_pxa2xx_timer_regs_fields,
 };
 
 static const Property pxa25x_timer_dev_properties[] = {

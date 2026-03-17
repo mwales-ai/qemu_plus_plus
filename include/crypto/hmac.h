@@ -14,6 +14,10 @@
 
 #include "qapi/qapi-types-crypto.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct QCryptoHmac QCryptoHmac;
 struct QCryptoHmac {
     QCryptoHashAlgo alg;
@@ -191,5 +195,9 @@ int qcrypto_hmac_digest(QCryptoHmac *hmac,
                         size_t len,
                         char **digest,
                         Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -259,21 +259,21 @@ static void a9_gtimer_this_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps a9_gtimer_this_ops = {
     .read = a9_gtimer_this_read,
     .write = a9_gtimer_this_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const MemoryRegionOps a9_gtimer_ops = {
     .read = a9_gtimer_read,
     .write = a9_gtimer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void a9_gtimer_reset(DeviceState *dev)
@@ -325,21 +325,28 @@ static void a9_gtimer_realize(DeviceState *dev, Error **errp)
 
 static bool vmstate_a9_gtimer_control_needed(void *opaque)
 {
-    A9GTimerState *s = opaque;
+    A9GTimerState *s = static_cast<A9GTimerState *>(opaque);
     return s->control != 0;
 }
+
+static const VMStateField vmstate_a9_gtimer_per_cpu_fields[] = {
+    VMSTATE_UINT32(control, A9GTimerPerCPU),
+    VMSTATE_UINT64(compare, A9GTimerPerCPU),
+    VMSTATE_UINT32(status, A9GTimerPerCPU),
+    VMSTATE_UINT32(inc, A9GTimerPerCPU),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_a9_gtimer_per_cpu = {
     .name = "arm.cortex-a9-global-timer.percpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(control, A9GTimerPerCPU),
-        VMSTATE_UINT64(compare, A9GTimerPerCPU),
-        VMSTATE_UINT32(status, A9GTimerPerCPU),
-        VMSTATE_UINT32(inc, A9GTimerPerCPU),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_a9_gtimer_per_cpu_fields,
+};
+
+static const VMStateField vmstate_a9_gtimer_control_fields[] = {
+    VMSTATE_UINT32(control, A9GTimerState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_a9_gtimer_control = {
@@ -347,30 +354,31 @@ static const VMStateDescription vmstate_a9_gtimer_control = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_a9_gtimer_control_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(control, A9GTimerState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_a9_gtimer_control_fields,
+};
+
+static const VMStateField vmstate_a9_gtimer_fields[] = {
+    VMSTATE_TIMER_PTR(timer, A9GTimerState),
+    VMSTATE_UINT64(counter, A9GTimerState),
+    VMSTATE_UINT64(ref_counter, A9GTimerState),
+    VMSTATE_UINT64(cpu_ref_time, A9GTimerState),
+    VMSTATE_STRUCT_VARRAY_UINT32(per_cpu, A9GTimerState, num_cpu,
+                                 1, vmstate_a9_gtimer_per_cpu,
+                                 A9GTimerPerCPU),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_a9_gtimer_subsections[] = {
+    &vmstate_a9_gtimer_control,
+    NULL
 };
 
 static const VMStateDescription vmstate_a9_gtimer = {
     .name = "arm.cortex-a9-global-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, A9GTimerState),
-        VMSTATE_UINT64(counter, A9GTimerState),
-        VMSTATE_UINT64(ref_counter, A9GTimerState),
-        VMSTATE_UINT64(cpu_ref_time, A9GTimerState),
-        VMSTATE_STRUCT_VARRAY_UINT32(per_cpu, A9GTimerState, num_cpu,
-                                     1, vmstate_a9_gtimer_per_cpu,
-                                     A9GTimerPerCPU),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_a9_gtimer_control,
-        NULL
-    }
+    .fields = vmstate_a9_gtimer_fields,
+    .subsections = vmstate_a9_gtimer_subsections,
 };
 
 static const Property a9_gtimer_properties[] = {

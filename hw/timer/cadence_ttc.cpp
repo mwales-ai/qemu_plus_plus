@@ -197,7 +197,7 @@ static void cadence_timer_sync(CadenceTimerState *s)
 
 static void cadence_timer_tick(void *opaque)
 {
-    CadenceTimerState *s = opaque;
+    CadenceTimerState *s = static_cast<CadenceTimerState *>(opaque);
 
     DB_PRINT("\n");
     cadence_timer_sync(s);
@@ -410,7 +410,7 @@ static int cadence_timer_pre_save(void *opaque)
 
 static int cadence_timer_post_load(void *opaque, int version_id)
 {
-    CadenceTimerState *s = opaque;
+    CadenceTimerState *s = static_cast<CadenceTimerState *>(opaque);
 
     s->cpu_time_valid = 0;
     cadence_timer_sync(s);
@@ -419,36 +419,40 @@ static int cadence_timer_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_cadence_timer_fields[] = {
+    VMSTATE_UINT32(reg_clock, CadenceTimerState),
+    VMSTATE_UINT32(reg_count, CadenceTimerState),
+    VMSTATE_UINT32(reg_value, CadenceTimerState),
+    VMSTATE_UINT16(reg_interval, CadenceTimerState),
+    VMSTATE_UINT16_ARRAY(reg_match, CadenceTimerState, 3),
+    VMSTATE_UINT32(reg_intr, CadenceTimerState),
+    VMSTATE_UINT32(reg_intr_en, CadenceTimerState),
+    VMSTATE_UINT32(reg_event_ctrl, CadenceTimerState),
+    VMSTATE_UINT32(reg_event, CadenceTimerState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cadence_timer = {
     .name = "cadence_timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = cadence_timer_pre_save,
     .post_load = cadence_timer_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(reg_clock, CadenceTimerState),
-        VMSTATE_UINT32(reg_count, CadenceTimerState),
-        VMSTATE_UINT32(reg_value, CadenceTimerState),
-        VMSTATE_UINT16(reg_interval, CadenceTimerState),
-        VMSTATE_UINT16_ARRAY(reg_match, CadenceTimerState, 3),
-        VMSTATE_UINT32(reg_intr, CadenceTimerState),
-        VMSTATE_UINT32(reg_intr_en, CadenceTimerState),
-        VMSTATE_UINT32(reg_event_ctrl, CadenceTimerState),
-        VMSTATE_UINT32(reg_event, CadenceTimerState),
-        VMSTATE_END_OF_LIST()
-    }
+    .pre_save = cadence_timer_pre_save,
+    .fields = vmstate_cadence_timer_fields,
+};
+
+static const VMStateField vmstate_cadence_ttc_fields[] = {
+    VMSTATE_STRUCT_ARRAY(timer, CadenceTTCState, 3, 0,
+                        vmstate_cadence_timer,
+                        CadenceTimerState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_cadence_ttc = {
     .name = "cadence_TTC",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(timer, CadenceTTCState, 3, 0,
-                            vmstate_cadence_timer,
-                            CadenceTimerState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cadence_ttc_fields,
 };
 
 static void cadence_ttc_class_init(ObjectClass *klass, const void *data)

@@ -61,8 +61,10 @@ enum timer_ctrl_op {
  */
 static inline AspeedTimerCtrlState *timer_to_ctrl(AspeedTimer *t)
 {
-    const AspeedTimer (*timers)[] = (void *)t - (t->id * sizeof(*t));
-    return container_of(timers, AspeedTimerCtrlState, timers);
+    AspeedTimer *base = t - t->id;
+    return reinterpret_cast<AspeedTimerCtrlState *>(
+        reinterpret_cast<char *>(base) -
+        offsetof(AspeedTimerCtrlState, timers));
 }
 
 static inline bool timer_ctrl_status(AspeedTimer *t, enum timer_ctrl_op op)
@@ -183,7 +185,7 @@ static void aspeed_timer_mod(AspeedTimer *t)
 
 static void aspeed_timer_expire(void *opaque)
 {
-    AspeedTimer *t = opaque;
+    AspeedTimer *t = static_cast<AspeedTimer *>(opaque);
     bool interrupt = false;
     uint32_t ticks;
 
@@ -376,14 +378,14 @@ static void (*const ctrl_ops[])(AspeedTimer *, bool) = {
  * @t: The timer to manipulate
  * @op: The type of operation to be performed
  * @old: The old state of the timer's control bits
- * @new: The incoming state for the timer's control bits
+ * @new_val: The incoming state for the timer's control bits
  */
 static void aspeed_timer_ctrl_op(AspeedTimer *t, enum timer_ctrl_op op,
-                                 uint8_t old, uint8_t new)
+                                 uint8_t old, uint8_t new_val)
 {
     const uint8_t mask = BIT(op);
-    const bool enable = !!(new & mask);
-    const bool changed = ((old ^ new) & mask);
+    const bool enable = !!(new_val & mask);
+    const bool changed = ((old ^ new_val) & mask);
     if (!changed) {
         return;
     }
@@ -858,34 +860,38 @@ static void aspeed_timer_reset(DeviceState *dev)
     s->irq_sts = 0;
 }
 
+static const VMStateField vmstate_aspeed_timer_fields[] = {
+    VMSTATE_UINT8(id, AspeedTimer),
+    VMSTATE_INT32(level, AspeedTimer),
+    VMSTATE_TIMER(timer, AspeedTimer),
+    VMSTATE_UINT32(reload, AspeedTimer),
+    VMSTATE_UINT32_ARRAY(match, AspeedTimer, 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aspeed_timer = {
     .name = "aspeed.timer",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(id, AspeedTimer),
-        VMSTATE_INT32(level, AspeedTimer),
-        VMSTATE_TIMER(timer, AspeedTimer),
-        VMSTATE_UINT32(reload, AspeedTimer),
-        VMSTATE_UINT32_ARRAY(match, AspeedTimer, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aspeed_timer_fields,
+};
+
+static const VMStateField vmstate_aspeed_timer_state_fields[] = {
+    VMSTATE_UINT32(ctrl, AspeedTimerCtrlState),
+    VMSTATE_UINT32(ctrl2, AspeedTimerCtrlState),
+    VMSTATE_UINT32(ctrl3, AspeedTimerCtrlState),
+    VMSTATE_UINT32(irq_sts, AspeedTimerCtrlState),
+    VMSTATE_STRUCT_ARRAY(timers, AspeedTimerCtrlState,
+                         ASPEED_TIMER_NR_TIMERS, 1, vmstate_aspeed_timer,
+                         AspeedTimer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_aspeed_timer_state = {
     .name = "aspeed.timerctrl",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ctrl, AspeedTimerCtrlState),
-        VMSTATE_UINT32(ctrl2, AspeedTimerCtrlState),
-        VMSTATE_UINT32(ctrl3, AspeedTimerCtrlState),
-        VMSTATE_UINT32(irq_sts, AspeedTimerCtrlState),
-        VMSTATE_STRUCT_ARRAY(timers, AspeedTimerCtrlState,
-                             ASPEED_TIMER_NR_TIMERS, 1, vmstate_aspeed_timer,
-                             AspeedTimer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aspeed_timer_state_fields,
 };
 
 static const Property aspeed_timer_properties[] = {
@@ -908,9 +914,9 @@ static const TypeInfo aspeed_timer_info = {
     .name = TYPE_ASPEED_TIMER,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedTimerCtrlState),
-    .class_init = timer_class_init,
-    .class_size = sizeof(AspeedTimerClass),
     .is_abstract   = true,
+    .class_size = sizeof(AspeedTimerClass),
+    .class_init = timer_class_init,
 };
 
 static void aspeed_2400_timer_class_init(ObjectClass *klass, const void *data)

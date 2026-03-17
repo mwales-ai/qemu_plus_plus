@@ -68,7 +68,7 @@ static void cadence_sdhci_reset(DeviceState *dev)
 
 static uint64_t cadence_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    CadenceSDHCIState *s = opaque;
+    CadenceSDHCIState *s = static_cast<CadenceSDHCIState *>(opaque);
     uint32_t val;
 
     val = s->regs[TO_REG(addr)];
@@ -79,7 +79,7 @@ static uint64_t cadence_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
 static void cadence_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned int size)
 {
-    CadenceSDHCIState *s = opaque;
+    CadenceSDHCIState *s = static_cast<CadenceSDHCIState *>(opaque);
     uint32_t val32 = (uint32_t)val;
 
     switch (addr) {
@@ -123,14 +123,14 @@ static const MemoryRegionOps cadence_sdhci_ops = {
     .read = cadence_sdhci_read,
     .write = cadence_sdhci_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    }
 };
 
 static void cadence_sdhci_realize(DeviceState *dev, Error **errp)

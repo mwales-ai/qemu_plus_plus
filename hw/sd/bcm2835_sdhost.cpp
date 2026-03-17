@@ -438,8 +438,8 @@ static const TypeInfo bcm2835_sdhost_types[] = {
         .name           = TYPE_BCM2835_SDHOST,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(BCM2835SDHostState),
-        .class_init     = bcm2835_sdhost_class_init,
         .instance_init  = bcm2835_sdhost_init,
+        .class_init     = bcm2835_sdhost_class_init,
     },
     {
         .name           = TYPE_BCM2835_SDHOST_BUS,

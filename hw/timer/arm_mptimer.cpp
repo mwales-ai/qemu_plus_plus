@@ -197,21 +197,21 @@ static void arm_thistimer_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps arm_thistimer_ops = {
     .read = arm_thistimer_read,
     .write = arm_thistimer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const MemoryRegionOps timerblock_ops = {
     .read = timerblock_read,
     .write = timerblock_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void timerblock_reset(TimerBlock *tb)
@@ -277,27 +277,31 @@ static void arm_mptimer_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_timerblock_fields[] = {
+    VMSTATE_UINT32(control, TimerBlock),
+    VMSTATE_UINT32(status, TimerBlock),
+    VMSTATE_PTIMER(timer, TimerBlock),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_timerblock = {
     .name = "arm_mptimer_timerblock",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(control, TimerBlock),
-        VMSTATE_UINT32(status, TimerBlock),
-        VMSTATE_PTIMER(timer, TimerBlock),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_timerblock_fields,
+};
+
+static const VMStateField vmstate_arm_mptimer_fields[] = {
+    VMSTATE_STRUCT_VARRAY_UINT32(timerblock, ARMMPTimerState, num_cpu,
+                                 3, vmstate_timerblock, TimerBlock),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_arm_mptimer = {
     .name = "arm_mptimer",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_UINT32(timerblock, ARMMPTimerState, num_cpu,
-                                     3, vmstate_timerblock, TimerBlock),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_arm_mptimer_fields,
 };
 
 static const Property arm_mptimer_properties[] = {

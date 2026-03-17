@@ -48,27 +48,29 @@ static const char *imx_gpt_reg_name(uint32_t reg)
     }
 }
 
+static const VMStateField vmstate_imx_timer_gpt_fields[] = {
+    VMSTATE_UINT32(cr, IMXGPTState),
+    VMSTATE_UINT32(pr, IMXGPTState),
+    VMSTATE_UINT32(sr, IMXGPTState),
+    VMSTATE_UINT32(ir, IMXGPTState),
+    VMSTATE_UINT32(ocr1, IMXGPTState),
+    VMSTATE_UINT32(ocr2, IMXGPTState),
+    VMSTATE_UINT32(ocr3, IMXGPTState),
+    VMSTATE_UINT32(icr1, IMXGPTState),
+    VMSTATE_UINT32(icr2, IMXGPTState),
+    VMSTATE_UINT32(cnt, IMXGPTState),
+    VMSTATE_UINT32(next_timeout, IMXGPTState),
+    VMSTATE_UINT32(next_int, IMXGPTState),
+    VMSTATE_UINT32(freq, IMXGPTState),
+    VMSTATE_PTIMER(timer, IMXGPTState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_imx_timer_gpt = {
     .name = TYPE_IMX_GPT,
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cr, IMXGPTState),
-        VMSTATE_UINT32(pr, IMXGPTState),
-        VMSTATE_UINT32(sr, IMXGPTState),
-        VMSTATE_UINT32(ir, IMXGPTState),
-        VMSTATE_UINT32(ocr1, IMXGPTState),
-        VMSTATE_UINT32(ocr2, IMXGPTState),
-        VMSTATE_UINT32(ocr3, IMXGPTState),
-        VMSTATE_UINT32(icr1, IMXGPTState),
-        VMSTATE_UINT32(icr2, IMXGPTState),
-        VMSTATE_UINT32(cnt, IMXGPTState),
-        VMSTATE_UINT32(next_timeout, IMXGPTState),
-        VMSTATE_UINT32(next_int, IMXGPTState),
-        VMSTATE_UINT32(freq, IMXGPTState),
-        VMSTATE_PTIMER(timer, IMXGPTState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_imx_timer_gpt_fields,
 };
 
 static const IMXClk imx25_gpt_clocks[] = {
