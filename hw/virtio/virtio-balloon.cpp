@@ -237,7 +237,7 @@ static void balloon_stats_change_timer(VirtIOBalloon *s, int64_t secs)
 
 static void balloon_stats_poll_cb(void *opaque)
 {
-    VirtIOBalloon *s = opaque;
+    VirtIOBalloon *s = static_cast<VirtIOBalloon *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     if (s->stats_vq_elem == NULL || !balloon_stats_supported(s)) {
@@ -343,7 +343,7 @@ static void virtio_balloon_handle_report(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
     VirtQueueElement *elem;
 
-    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
+    while ((elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement))))) {
         unsigned int i;
 
         /*
@@ -410,7 +410,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         size_t offset = 0;
         uint32_t pfn;
 
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             break;
         }
@@ -465,7 +465,7 @@ static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
     VirtIOBalloonStat stat;
     size_t offset = 0;
 
-    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
     if (!elem) {
         goto out;
     }
@@ -522,7 +522,7 @@ static bool get_free_page_hints(VirtIOBalloon *dev)
         qemu_cond_wait(&dev->free_page_cond, &dev->free_page_lock);
     }
 
-    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
     if (!elem) {
         return false;
     }
@@ -565,7 +565,7 @@ out:
 
 static void virtio_ballloon_get_free_page_hints(void *opaque)
 {
-    VirtIOBalloon *dev = opaque;
+    VirtIOBalloon *dev = static_cast<VirtIOBalloon *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtQueue *vq = dev->free_page_vq;
     bool continue_to_get_hints;
@@ -587,7 +587,7 @@ static void virtio_ballloon_get_free_page_hints(void *opaque)
 
 static bool virtio_balloon_free_page_support(void *opaque)
 {
-    VirtIOBalloon *s = opaque;
+    VirtIOBalloon *s = static_cast<VirtIOBalloon *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT);
@@ -651,7 +651,7 @@ virtio_balloon_free_page_hint_notify(NotifierWithReturn *n, void *data,
 {
     VirtIOBalloon *dev = container_of(n, VirtIOBalloon, free_page_hint_notify);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    PrecopyNotifyData *pnd = data;
+    PrecopyNotifyData *pnd = static_cast<PrecopyNotifyData *>(data);
 
     if (!virtio_balloon_free_page_support(dev)) {
         /*
@@ -756,7 +756,7 @@ static ram_addr_t get_current_ram_size(void)
 
 static bool virtio_balloon_page_poison_support(void *opaque)
 {
-    VirtIOBalloon *s = opaque;
+    VirtIOBalloon *s = static_cast<VirtIOBalloon *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
     return virtio_vdev_has_feature(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
@@ -795,7 +795,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
 
 static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
 {
-    VirtIOBalloon *dev = opaque;
+    VirtIOBalloon *dev = static_cast<VirtIOBalloon *>(opaque);
     info->actual = get_current_ram_size() - ((uint64_t) dev->actual <<
                                              VIRTIO_BALLOON_PFN_SHIFT);
 }
@@ -1031,14 +1031,16 @@ static void virtio_balloon_instance_init(Object *obj)
                         NULL, NULL);
 }
 
+static const VMStateField vmstate_virtio_balloon_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_balloon = {
     .name = "virtio-balloon",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_virtio_balloon_fields,
 };
 
 static const Property virtio_balloon_properties[] = {

@@ -83,7 +83,7 @@ static bool virtio_iommu_device_bypassed(IOMMUDevice *sdev)
 {
     uint32_t sid;
     bool bypassed;
-    VirtIOIOMMU *s = sdev->viommu;
+    VirtIOIOMMU *s = static_cast<VirtIOIOMMU *>(sdev->viommu);
     VirtIOIOMMUEndpoint *ep;
 
     sid = virtio_iommu_get_bdf(sdev);
@@ -95,7 +95,7 @@ static bool virtio_iommu_device_bypassed(IOMMUDevice *sdev)
         goto unlock;
     }
 
-    ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid));
+    ep = static_cast<VirtIOIOMMUEndpoint *>(g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid)));
     if (!ep || !ep->domain) {
         bypassed = s->config.bypass;
     } else {
@@ -322,7 +322,7 @@ static VirtIOIOMMUEndpoint *virtio_iommu_get_endpoint(VirtIOIOMMU *s,
     VirtIOIOMMUEndpoint *ep;
     IOMMUMemoryRegion *mr;
 
-    ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(ep_id));
+    ep = static_cast<VirtIOIOMMUEndpoint *>(g_tree_lookup(s->endpoints, GUINT_TO_POINTER(ep_id)));
     if (ep) {
         return ep;
     }
@@ -330,7 +330,7 @@ static VirtIOIOMMUEndpoint *virtio_iommu_get_endpoint(VirtIOIOMMU *s,
     if (!mr) {
         return NULL;
     }
-    ep = g_malloc0(sizeof(*ep));
+    ep = static_cast<VirtIOIOMMUEndpoint *>(g_malloc0(sizeof(*ep)));
     ep->id = ep_id;
     ep->iommu_mr = mr;
     trace_virtio_iommu_get_endpoint(ep_id);
@@ -356,14 +356,14 @@ static VirtIOIOMMUDomain *virtio_iommu_get_domain(VirtIOIOMMU *s,
 {
     VirtIOIOMMUDomain *domain;
 
-    domain = g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id));
+    domain = static_cast<VirtIOIOMMUDomain *>(g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id)));
     if (domain) {
         if (domain->bypass != bypass) {
             return NULL;
         }
         return domain;
     }
-    domain = g_malloc0(sizeof(*domain));
+    domain = static_cast<VirtIOIOMMUDomain *>(g_malloc0(sizeof(*domain)));
     domain->id = domain_id;
     domain->mappings = g_tree_new_full((GCompareDataFunc)interval_cmp,
                                    NULL, (GDestroyNotify)g_free,
@@ -390,11 +390,11 @@ static void virtio_iommu_put_domain(gpointer data)
 
 static void add_prop_resv_regions(IOMMUDevice *sdev)
 {
-    VirtIOIOMMU *s = sdev->viommu;
+    VirtIOIOMMU *s = static_cast<VirtIOIOMMU *>(sdev->viommu);
     int i;
 
     for (i = 0; i < s->nr_prop_resv_regions; i++) {
-        ReservedRegion *reg = g_new0(ReservedRegion, 1);
+        ReservedRegion *reg = static_cast<ReservedRegion *>(g_new0(ReservedRegion, 1));
 
         *reg = s->prop_resv_regions[i];
         sdev->resv_regions = resv_region_list_insert(sdev->resv_regions, reg);
@@ -404,14 +404,14 @@ static void add_prop_resv_regions(IOMMUDevice *sdev)
 static AddressSpace *virtio_iommu_find_add_as(PCIBus *bus, void *opaque,
                                               int devfn)
 {
-    VirtIOIOMMU *s = opaque;
-    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
+    VirtIOIOMMU *s = static_cast<VirtIOIOMMU *>(opaque);
+    IOMMUPciBus *sbus = static_cast<IOMMUPciBus *>(g_hash_table_lookup(s->as_by_busptr, bus));
     static uint32_t mr_index;
     IOMMUDevice *sdev;
 
     if (!sbus) {
-        sbus = g_malloc0(sizeof(IOMMUPciBus) +
-                         sizeof(IOMMUDevice *) * PCI_DEVFN_MAX);
+        sbus = static_cast<IOMMUPciBus *>(g_malloc0(sizeof(IOMMUPciBus) +
+                         sizeof(IOMMUDevice *) * PCI_DEVFN_MAX));
         sbus->bus = bus;
         g_hash_table_insert(s->as_by_busptr, bus, sbus);
     }
@@ -470,15 +470,15 @@ static AddressSpace *virtio_iommu_find_add_as(PCIBus *bus, void *opaque,
 
 static gboolean hiod_equal(gconstpointer v1, gconstpointer v2)
 {
-    const struct hiod_key *key1 = v1;
-    const struct hiod_key *key2 = v2;
+    const struct hiod_key *key1 = static_cast<const struct hiod_key *>(v1);
+    const struct hiod_key *key2 = static_cast<const struct hiod_key *>(v2);
 
     return (key1->bus == key2->bus) && (key1->devfn == key2->devfn);
 }
 
 static guint hiod_hash(gconstpointer v)
 {
-    const struct hiod_key *key = v;
+    const struct hiod_key *key = static_cast<const struct hiod_key *>(v);
     guint value = (guint)(uintptr_t)key->bus;
 
     return (guint)(value << 8 | key->devfn);
@@ -496,7 +496,7 @@ get_host_iommu_device(VirtIOIOMMU *viommu, PCIBus *bus, int devfn) {
         .devfn = devfn,
     };
 
-    return g_hash_table_lookup(viommu->host_iommu_devices, &key);
+    return static_cast<HostIOMMUDevice *>(g_hash_table_lookup(viommu->host_iommu_devices, &key));
 }
 
 /**
@@ -514,7 +514,7 @@ static int rebuild_resv_regions(IOMMUDevice *sdev)
 
     /* First add host reserved regions if any, all tagged as RESERVED */
     for (l = sdev->host_resv_ranges; l; l = l->next) {
-        ReservedRegion *reg = g_new0(ReservedRegion, 1);
+        ReservedRegion *reg = static_cast<ReservedRegion *>(g_new0(ReservedRegion, 1));
         Range *r = (Range *)l->data;
 
         reg->type = VIRTIO_IOMMU_RESV_MEM_T_RESERVED;
@@ -537,7 +537,7 @@ static int virtio_iommu_set_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
                                              int devfn, GList *iova_ranges,
                                              Error **errp)
 {
-    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
+    IOMMUPciBus *sbus = static_cast<IOMMUPciBus *>(g_hash_table_lookup(s->as_by_busptr, bus));
     IOMMUDevice *sdev;
     int ret = -EINVAL;
 
@@ -569,7 +569,7 @@ static int virtio_iommu_set_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
 static void virtio_iommu_unset_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
                                                 int devfn)
 {
-    IOMMUPciBus *sbus = g_hash_table_lookup(s->as_by_busptr, bus);
+    IOMMUPciBus *sbus = static_cast<IOMMUPciBus *>(g_hash_table_lookup(s->as_by_busptr, bus));
     IOMMUDevice *sdev;
 
     if (!sbus) {
@@ -581,7 +581,7 @@ static void virtio_iommu_unset_host_iova_ranges(VirtIOIOMMU *s, PCIBus *bus,
         return;
     }
 
-    g_list_free_full(g_steal_pointer(&sdev->host_resv_ranges), g_free);
+    g_list_free_full(static_cast<GList *>(g_steal_pointer(&sdev->host_resv_ranges)), g_free);
     g_list_free_full(sdev->resv_regions, g_free);
     sdev->host_resv_ranges = NULL;
     sdev->resv_regions = NULL;
@@ -622,7 +622,7 @@ static bool virtio_iommu_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
                                           HostIOMMUDevice *hiod, Error **errp)
 {
     ERRP_GUARD();
-    VirtIOIOMMU *viommu = opaque;
+    VirtIOIOMMU *viommu = static_cast<VirtIOIOMMU *>(opaque);
     HostIOMMUDeviceClass *hiodc = HOST_IOMMU_DEVICE_GET_CLASS(hiod);
     struct hiod_key *new_key;
     GList *host_iova_ranges = NULL;
@@ -669,7 +669,7 @@ static bool virtio_iommu_set_iommu_device(PCIBus *bus, void *opaque, int devfn,
         }
     }
 
-    new_key = g_malloc(sizeof(*new_key));
+    new_key = static_cast<hiod_key *>(g_malloc(sizeof(*new_key)));
     new_key->bus = bus;
     new_key->devfn = devfn;
 
@@ -686,14 +686,14 @@ error:
 static void
 virtio_iommu_unset_iommu_device(PCIBus *bus, void *opaque, int devfn)
 {
-    VirtIOIOMMU *viommu = opaque;
+    VirtIOIOMMU *viommu = static_cast<VirtIOIOMMU *>(opaque);
     HostIOMMUDevice *hiod;
     struct hiod_key key = {
         .bus = bus,
         .devfn = devfn,
     };
 
-    hiod = g_hash_table_lookup(viommu->host_iommu_devices, &key);
+    hiod = static_cast<HostIOMMUDevice *>(g_hash_table_lookup(viommu->host_iommu_devices, &key));
     if (!hiod) {
         return;
     }
@@ -771,7 +771,7 @@ static int virtio_iommu_detach(VirtIOIOMMU *s,
 
     trace_virtio_iommu_detach(domain_id, ep_id);
 
-    ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(ep_id));
+    ep = static_cast<VirtIOIOMMUEndpoint *>(g_tree_lookup(s->endpoints, GUINT_TO_POINTER(ep_id)));
     if (!ep) {
         return VIRTIO_IOMMU_S_NOENT;
     }
@@ -808,7 +808,7 @@ static int virtio_iommu_map(VirtIOIOMMU *s,
         return VIRTIO_IOMMU_S_INVAL;
     }
 
-    domain = g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id));
+    domain = static_cast<VirtIOIOMMUDomain *>(g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id)));
     if (!domain) {
         return VIRTIO_IOMMU_S_NOENT;
     }
@@ -817,12 +817,12 @@ static int virtio_iommu_map(VirtIOIOMMU *s,
         return VIRTIO_IOMMU_S_INVAL;
     }
 
-    interval = g_malloc0(sizeof(*interval));
+    interval = static_cast<VirtIOIOMMUInterval *>(g_malloc0(sizeof(*interval)));
 
     interval->low = virt_start;
     interval->high = virt_end;
 
-    mapping = g_tree_lookup(domain->mappings, (gpointer)interval);
+    mapping = static_cast<VirtIOIOMMUMapping *>(g_tree_lookup(domain->mappings, (gpointer)interval));
     if (mapping) {
         g_free(interval);
         return VIRTIO_IOMMU_S_INVAL;
@@ -830,7 +830,7 @@ static int virtio_iommu_map(VirtIOIOMMU *s,
 
     trace_virtio_iommu_map(domain_id, virt_start, virt_end, phys_start, flags);
 
-    mapping = g_malloc0(sizeof(*mapping));
+    mapping = static_cast<VirtIOIOMMUMapping *>(g_malloc0(sizeof(*mapping)));
     mapping->phys_addr = phys_start;
     mapping->flags = flags;
 
@@ -858,7 +858,7 @@ static int virtio_iommu_unmap(VirtIOIOMMU *s,
 
     trace_virtio_iommu_unmap(domain_id, virt_start, virt_end);
 
-    domain = g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id));
+    domain = static_cast<VirtIOIOMMUDomain *>(g_tree_lookup(s->domains, GUINT_TO_POINTER(domain_id)));
     if (!domain) {
         return VIRTIO_IOMMU_S_NOENT;
     }
@@ -903,7 +903,7 @@ static ssize_t virtio_iommu_fill_resv_mem_prop(IOMMUDevice *sdev, uint32_t ep,
     }
 
     for (l = sdev->resv_regions; l; l = l->next) {
-        ReservedRegion *reg = l->data;
+        ReservedRegion *reg = static_cast<ReservedRegion *>(l->data);
         unsigned subtype = reg->type;
         Range *range = &reg->range;
 
@@ -1002,13 +1002,13 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
     VirtQueueElement *elem;
     unsigned int iov_cnt;
     struct iovec *iov;
-    void *buf = NULL;
+    uint8_t *buf = NULL;
     size_t sz;
 
     for (;;) {
         size_t output_size = sizeof(tail);
 
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             return;
         }
@@ -1050,9 +1050,9 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
             struct virtio_iommu_req_tail *ptail;
 
             output_size = s->config.probe_size + sizeof(tail);
-            buf = g_malloc0(output_size);
+            buf = static_cast<uint8_t *>(g_malloc0(output_size));
 
-            ptail = buf + s->config.probe_size;
+            ptail = reinterpret_cast<struct virtio_iommu_req_tail *>(buf + s->config.probe_size);
             ptail->status = virtio_iommu_handle_probe(s, iov, iov_cnt, buf);
             break;
         }
@@ -1063,7 +1063,7 @@ static void virtio_iommu_handle_command(VirtIODevice *vdev, VirtQueue *vq)
 
 out:
         sz = iov_from_buf(elem->in_sg, elem->in_num, 0,
-                          buf ? buf : &tail, output_size);
+                          buf ? static_cast<void *>(buf) : static_cast<void *>(&tail), output_size);
         if (unlikely(sz != output_size)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "%s: wrote %zu bytes to command response"
@@ -1109,7 +1109,7 @@ static void virtio_iommu_report_fault(VirtIOIOMMU *viommu, uint8_t reason,
     fault.endpoint = cpu_to_le32(endpoint);
     fault.address = cpu_to_le64(address);
 
-    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
 
     if (!elem) {
         error_report_once(
@@ -1142,7 +1142,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     IOMMUDevice *sdev = container_of(mr, IOMMUDevice, iommu_mr);
     VirtIOIOMMUInterval interval, *mapping_key;
     VirtIOIOMMUMapping *mapping_value;
-    VirtIOIOMMU *s = sdev->viommu;
+    VirtIOIOMMU *s = static_cast<VirtIOIOMMU *>(sdev->viommu);
     bool read_fault, write_fault;
     VirtIOIOMMUEndpoint *ep;
     uint32_t sid, flags;
@@ -1170,7 +1170,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     trace_virtio_iommu_translate(mr->parent_obj.name, sid, addr, flag);
     qemu_rec_mutex_lock(&s->mutex);
 
-    ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid));
+    ep = static_cast<VirtIOIOMMUEndpoint *>(g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid)));
 
     if (bypass_allowed)
         assert(ep && ep->domain && !ep->domain->bypass);
@@ -1188,7 +1188,7 @@ static IOMMUTLBEntry virtio_iommu_translate(IOMMUMemoryRegion *mr, hwaddr addr,
     }
 
     for (l = sdev->resv_regions; l; l = l->next) {
-        ReservedRegion *reg = l->data;
+        ReservedRegion *reg = static_cast<ReservedRegion *>(l->data);
 
         if (range_contains(&reg->range, addr)) {
             switch (reg->type) {
@@ -1264,7 +1264,7 @@ static void virtio_iommu_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
     VirtIOIOMMU *dev = VIRTIO_IOMMU(vdev);
     struct virtio_iommu_config *dev_config = &dev->config;
-    struct virtio_iommu_config *out_config = (void *)config_data;
+    struct virtio_iommu_config *out_config = reinterpret_cast<struct virtio_iommu_config *>(config_data);
 
     out_config->page_size_mask = cpu_to_le64(dev_config->page_size_mask);
     out_config->input_range.start = cpu_to_le64(dev_config->input_range.start);
@@ -1288,7 +1288,7 @@ static void virtio_iommu_set_config(VirtIODevice *vdev,
 {
     VirtIOIOMMU *dev = VIRTIO_IOMMU(vdev);
     struct virtio_iommu_config *dev_config = &dev->config;
-    const struct virtio_iommu_config *in_config = (void *)config_data;
+    const struct virtio_iommu_config *in_config = reinterpret_cast<const struct virtio_iommu_config *>(config_data);
 
     if (in_config->bypass != dev_config->bypass) {
         if (!virtio_vdev_has_feature(vdev, VIRTIO_IOMMU_F_BYPASS_CONFIG)) {
@@ -1339,7 +1339,7 @@ static gboolean virtio_iommu_remap(gpointer key, gpointer value, gpointer data)
 static void virtio_iommu_replay(IOMMUMemoryRegion *mr, IOMMUNotifier *n)
 {
     IOMMUDevice *sdev = container_of(mr, IOMMUDevice, iommu_mr);
-    VirtIOIOMMU *s = sdev->viommu;
+    VirtIOIOMMU *s = static_cast<VirtIOIOMMU *>(sdev->viommu);
     uint32_t sid;
     VirtIOIOMMUEndpoint *ep;
 
@@ -1351,7 +1351,7 @@ static void virtio_iommu_replay(IOMMUMemoryRegion *mr, IOMMUNotifier *n)
         goto unlock;
     }
 
-    ep = g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid));
+    ep = static_cast<VirtIOIOMMUEndpoint *>(g_tree_lookup(s->endpoints, GUINT_TO_POINTER(sid)));
     if (!ep || !ep->domain) {
         goto unlock;
     }
@@ -1364,17 +1364,17 @@ unlock:
 
 static int virtio_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu_mr,
                                             IOMMUNotifierFlag old,
-                                            IOMMUNotifierFlag new,
+                                            IOMMUNotifierFlag new_flags,
                                             Error **errp)
 {
-    if (new & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
+    if (new_flags & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
         error_setg(errp, "Virtio-iommu does not support dev-iotlb yet");
         return -EINVAL;
     }
 
     if (old == IOMMU_NOTIFIER_NONE) {
         trace_virtio_iommu_notify_flag_add(iommu_mr->parent_obj.name);
-    } else if (new == IOMMU_NOTIFIER_NONE) {
+    } else if (new_flags == IOMMU_NOTIFIER_NONE) {
         trace_virtio_iommu_notify_flag_del(iommu_mr->parent_obj.name);
     }
     return 0;
@@ -1382,7 +1382,7 @@ static int virtio_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu_mr,
 
 static void virtio_iommu_system_reset(void *opaque)
 {
-    VirtIOIOMMU *s = opaque;
+    VirtIOIOMMU *s = static_cast<VirtIOIOMMU *>(opaque);
 
     trace_virtio_iommu_system_reset();
 
@@ -1544,16 +1544,18 @@ static void virtio_iommu_instance_init(Object *obj)
     }                                                  \
 }
 
+static const VMStateField vmstate_mapping_fields[] = {
+    VMSTATE_UINT64(phys_addr, VirtIOIOMMUMapping),
+    VMSTATE_UINT32(flags, VirtIOIOMMUMapping),
+    VMSTATE_END_OF_LIST()
+};
+
 #define VMSTATE_MAPPING                               \
 {                                                     \
     .name = "mapping",                                \
     .version_id = 1,                                  \
     .minimum_version_id = 1,                          \
-    .fields = (const VMStateField[]) {                \
-        VMSTATE_UINT64(phys_addr, VirtIOIOMMUMapping),\
-        VMSTATE_UINT32(flags, VirtIOIOMMUMapping),    \
-        VMSTATE_END_OF_LIST()                         \
-    },                                                \
+    .fields = vmstate_mapping_fields,                 \
 }
 
 static const VMStateDescription vmstate_interval_mapping[2] = {
@@ -1563,21 +1565,34 @@ static const VMStateDescription vmstate_interval_mapping[2] = {
 
 static int domain_preload(void *opaque)
 {
-    VirtIOIOMMUDomain *domain = opaque;
+    VirtIOIOMMUDomain *domain = static_cast<VirtIOIOMMUDomain *>(opaque);
 
     domain->mappings = g_tree_new_full((GCompareDataFunc)interval_cmp,
                                        NULL, g_free, g_free);
     return 0;
 }
 
+static const VMStateField vmstate_endpoint_fields[] = {
+    VMSTATE_UINT32(id, VirtIOIOMMUEndpoint),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_endpoint = {
     .name = "endpoint",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(id, VirtIOIOMMUEndpoint),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_endpoint_fields,
+};
+
+static const VMStateField vmstate_domain_fields[] = {
+    VMSTATE_UINT32(id, VirtIOIOMMUDomain),
+    VMSTATE_GTREE_V(mappings, VirtIOIOMMUDomain, 1,
+                    vmstate_interval_mapping,
+                    VirtIOIOMMUInterval, VirtIOIOMMUMapping),
+    VMSTATE_QLIST_V(endpoint_list, VirtIOIOMMUDomain, 1,
+                    vmstate_endpoint, VirtIOIOMMUEndpoint, next),
+    VMSTATE_BOOL_V(bypass, VirtIOIOMMUDomain, 2),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_domain = {
@@ -1585,16 +1600,7 @@ static const VMStateDescription vmstate_domain = {
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_load = domain_preload,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(id, VirtIOIOMMUDomain),
-        VMSTATE_GTREE_V(mappings, VirtIOIOMMUDomain, 1,
-                        vmstate_interval_mapping,
-                        VirtIOIOMMUInterval, VirtIOIOMMUMapping),
-        VMSTATE_QLIST_V(endpoint_list, VirtIOIOMMUDomain, 1,
-                        vmstate_endpoint, VirtIOIOMMUEndpoint, next),
-        VMSTATE_BOOL_V(bypass, VirtIOIOMMUDomain, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_domain_fields,
 };
 
 static gboolean reconstruct_endpoints(gpointer key, gpointer value,
@@ -1618,7 +1624,7 @@ static gboolean reconstruct_endpoints(gpointer key, gpointer value,
 
 static int iommu_post_load(void *opaque, int version_id)
 {
-    VirtIOIOMMU *s = opaque;
+    VirtIOIOMMU *s = static_cast<VirtIOIOMMU *>(opaque);
 
     g_tree_foreach(s->domains, reconstruct_endpoints, s);
 
@@ -1632,28 +1638,32 @@ static int iommu_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_virtio_iommu_device_fields[] = {
+    VMSTATE_GTREE_DIRECT_KEY_V(domains, VirtIOIOMMU, 2,
+                               &vmstate_domain, VirtIOIOMMUDomain),
+    VMSTATE_UINT8_V(config.bypass, VirtIOIOMMU, 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_iommu_device = {
     .name = "virtio-iommu-device",
-    .minimum_version_id = 2,
     .version_id = 2,
+    .minimum_version_id = 2,
     .post_load = iommu_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_GTREE_DIRECT_KEY_V(domains, VirtIOIOMMU, 2,
-                                   &vmstate_domain, VirtIOIOMMUDomain),
-        VMSTATE_UINT8_V(config.bypass, VirtIOIOMMU, 2),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_virtio_iommu_device_fields,
+};
+
+static const VMStateField vmstate_virtio_iommu_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_virtio_iommu = {
     .name = "virtio-iommu",
+    .version_id = 2,
     .minimum_version_id = 2,
     .priority = MIG_PRI_IOMMU,
-    .version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_virtio_iommu_fields,
 };
 
 static const Property virtio_iommu_properties[] = {
@@ -1709,8 +1719,8 @@ static const TypeInfo virtio_iommu_info = {
 };
 
 static const TypeInfo virtio_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_VIRTIO_IOMMU_MEMORY_REGION,
+    .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = virtio_iommu_memory_region_class_init,
 };
 

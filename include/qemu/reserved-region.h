@@ -22,11 +22,19 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Insert a new region into a sorted list of reserved regions. In case
  * there is overlap with existing regions, the new added region has
  * higher priority and replaces the overlapped segment.
  */
 GList *resv_region_list_insert(GList *list, ReservedRegion *reg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

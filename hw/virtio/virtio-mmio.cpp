@@ -569,44 +569,52 @@ static void virtio_mmio_save_config(DeviceState *opaque, QEMUFile *f)
     qemu_put_be32(f, proxy->guest_page_shift);
 }
 
+static const VMStateField vmstate_virtio_mmio_queue_state_fields[] = {
+    VMSTATE_UINT16(num, VirtIOMMIOQueue),
+    VMSTATE_BOOL(enabled, VirtIOMMIOQueue),
+    VMSTATE_UINT32_ARRAY(desc, VirtIOMMIOQueue, 2),
+    VMSTATE_UINT32_ARRAY(avail, VirtIOMMIOQueue, 2),
+    VMSTATE_UINT32_ARRAY(used, VirtIOMMIOQueue, 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_mmio_queue_state = {
     .name = "virtio_mmio/queue_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(num, VirtIOMMIOQueue),
-        VMSTATE_BOOL(enabled, VirtIOMMIOQueue),
-        VMSTATE_UINT32_ARRAY(desc, VirtIOMMIOQueue, 2),
-        VMSTATE_UINT32_ARRAY(avail, VirtIOMMIOQueue, 2),
-        VMSTATE_UINT32_ARRAY(used, VirtIOMMIOQueue, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_mmio_queue_state_fields,
+};
+
+static const VMStateField vmstate_virtio_mmio_state_sub_fields[] = {
+    VMSTATE_UINT32_ARRAY(guest_features, VirtIOMMIOProxy, 2),
+    VMSTATE_STRUCT_ARRAY(vqs, VirtIOMMIOProxy, VIRTIO_QUEUE_MAX, 0,
+                         vmstate_virtio_mmio_queue_state,
+                         VirtIOMMIOQueue),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_virtio_mmio_state_sub = {
     .name = "virtio_mmio/state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(guest_features, VirtIOMMIOProxy, 2),
-        VMSTATE_STRUCT_ARRAY(vqs, VirtIOMMIOProxy, VIRTIO_QUEUE_MAX, 0,
-                             vmstate_virtio_mmio_queue_state,
-                             VirtIOMMIOQueue),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_mmio_state_sub_fields,
+};
+
+static const VMStateField vmstate_virtio_mmio_fields[] = {
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_virtio_mmio_subsections[] = {
+    &vmstate_virtio_mmio_state_sub,
+    NULL
 };
 
 static const VMStateDescription vmstate_virtio_mmio = {
     .name = "virtio_mmio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_virtio_mmio_state_sub,
-        NULL
-    }
+    .fields = vmstate_virtio_mmio_fields,
+    .subsections = vmstate_virtio_mmio_subsections,
 };
 
 static void virtio_mmio_save_extra_state(DeviceState *opaque, QEMUFile *f)

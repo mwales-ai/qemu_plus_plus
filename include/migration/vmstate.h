@@ -798,12 +798,12 @@ extern const VMStateInfo vmstate_info_qlist;
  */
 #define VMSTATE_BITMAP_TEST(_field, _state, _test, _version, _field_size) { \
     .name         = (stringify(_field)),                             \
-    .field_exists = (_test),                                         \
-    .version_id   = (_version),                                      \
+    .offset       = offsetof(_state, _field),                        \
     .size_offset  = vmstate_offset_value(_state, _field_size, int32_t),\
     .info         = &vmstate_info_bitmap,                            \
     .flags        = VMS_VBUFFER|VMS_POINTER,                         \
-    .offset       = offsetof(_state, _field),                        \
+    .version_id   = (_version),                                      \
+    .field_exists = (_test),                                         \
 }
 
 #define VMSTATE_BITMAP(_field, _state, _version, _field_size) \
@@ -841,12 +841,12 @@ extern const VMStateInfo vmstate_info_qlist;
                         _key_type, _val_type)                                  \
 {                                                                              \
     .name         = (stringify(_field)),                                       \
-    .version_id   = (_version),                                                \
-    .vmsd         = (_vmsd),                                                   \
-    .info         = &vmstate_info_gtree,                                       \
-    .start        = sizeof(_key_type),                                         \
-    .size         = sizeof(_val_type),                                         \
     .offset       = offsetof(_state, _field),                                  \
+    .size         = sizeof(_val_type),                                         \
+    .start        = sizeof(_key_type),                                         \
+    .info         = &vmstate_info_gtree,                                       \
+    .vmsd         = (_vmsd),                                                   \
+    .version_id   = (_version),                                                \
 }
 
 /*
@@ -859,12 +859,12 @@ extern const VMStateInfo vmstate_info_qlist;
 #define VMSTATE_GTREE_DIRECT_KEY_V(_field, _state, _version, _vmsd, _val_type) \
 {                                                                              \
     .name         = (stringify(_field)),                                       \
-    .version_id   = (_version),                                                \
-    .vmsd         = (_vmsd),                                                   \
-    .info         = &vmstate_info_gtree,                                       \
-    .start        = 0,                                                         \
-    .size         = sizeof(_val_type),                                         \
     .offset       = offsetof(_state, _field),                                  \
+    .size         = sizeof(_val_type),                                         \
+    .start        = 0,                                                         \
+    .info         = &vmstate_info_gtree,                                       \
+    .vmsd         = (_vmsd),                                                   \
+    .version_id   = (_version),                                                \
 }
 
 /*
@@ -879,12 +879,12 @@ extern const VMStateInfo vmstate_info_qlist;
 #define VMSTATE_QLIST_V(_field, _state, _version, _vmsd, _type, _next)  \
 {                                                                        \
     .name         = (stringify(_field)),                                 \
-    .version_id   = (_version),                                          \
-    .vmsd         = &(_vmsd),                                            \
-    .size         = sizeof(_type),                                       \
-    .info         = &vmstate_info_qlist,                                 \
     .offset       = offsetof(_state, _field),                            \
+    .size         = sizeof(_type),                                       \
     .start        = offsetof(_type, _next),                              \
+    .info         = &vmstate_info_qlist,                                 \
+    .vmsd         = &(_vmsd),                                            \
+    .version_id   = (_version),                                          \
 }
 
 /* _f : field name

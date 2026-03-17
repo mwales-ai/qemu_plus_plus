@@ -274,7 +274,7 @@ struct scrub_regions {
 
 static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     CharFrontend *chr = u->user->chr;
     uint8_t *p = (uint8_t *) msg;
     int r, size = VHOST_USER_HDR_SIZE;
@@ -302,7 +302,7 @@ static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
 
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     CharFrontend *chr = u->user->chr;
     uint8_t *p = (uint8_t *) msg;
     int r, size;
@@ -382,7 +382,7 @@ static bool vhost_user_per_device_request(VhostUserRequest request)
 static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
                             int *fds, int fd_num)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     CharFrontend *chr = u->user->chr;
     int ret, size = VHOST_USER_HDR_SIZE + msg->hdr.size;
 
@@ -438,11 +438,10 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
                                     VHOST_USER_PROTOCOL_F_LOG_SHMFD);
     int ret;
     VhostUserMsg msg = {
-        .hdr = { .request = VHOST_USER_SET_LOG_BASE, .flags = VHOST_USER_VERSION, },
-        .payload.log.mmap_size = log->size * sizeof(*(log->log)),
-        .payload.log.mmap_offset = 0,
-        .hdr = { .size = sizeof(msg.payload.log), },
+        .hdr = { .request = VHOST_USER_SET_LOG_BASE, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.log), },
     };
+    msg.payload.log.mmap_size = log->size * sizeof(*(log->log));
+    msg.payload.log.mmap_offset = 0;
 
     /* Send only once with first queue pair */
     if (dev->vq_index != 0) {
@@ -571,7 +570,7 @@ static void scrub_shadow_regions(struct vhost_dev *dev,
                                  int *nr_rem_reg, uint64_t *shadow_pcb,
                                  bool track_ramblocks)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     bool found[VHOST_USER_MAX_RAM_SLOTS] = {};
     struct vhost_memory_region *reg, *shadow_reg;
     int i, j, fd, add_idx = 0, rm_idx = 0, fd_num = 0;
@@ -659,7 +658,7 @@ static int send_remove_regions(struct vhost_dev *dev,
                                int nr_rem_reg, VhostUserMsg *msg,
                                bool reply_supported)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     struct vhost_memory_region *shadow_reg;
     int i, fd, shadow_reg_idx, ret;
     ram_addr_t offset;
@@ -713,7 +712,7 @@ static int send_add_regions(struct vhost_dev *dev,
                             VhostUserMsg *msg, uint64_t *shadow_pcb,
                             bool reply_supported, bool track_ramblocks)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     int i, fd, ret, reg_idx, reg_fd_idx;
     struct vhost_memory_region *reg;
     MemoryRegion *mr;
@@ -825,7 +824,7 @@ static int vhost_user_add_remove_regions(struct vhost_dev *dev,
                                          bool reply_supported,
                                          bool track_ramblocks)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     struct scrub_regions add_reg[VHOST_USER_MAX_RAM_SLOTS];
     struct scrub_regions rem_reg[VHOST_USER_MAX_RAM_SLOTS];
     uint64_t shadow_pcb[VHOST_USER_MAX_RAM_SLOTS] = {};
@@ -888,7 +887,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
                                              bool reply_supported,
                                              bool config_mem_slots)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     int fds[VHOST_MEMORY_BASELINE_NREGIONS];
     size_t fd_num = 0;
     VhostUserMsg msg_reply;
@@ -1000,7 +999,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
 static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                     struct vhost_memory *mem)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     int fds[VHOST_MEMORY_BASELINE_NREGIONS];
     size_t fd_num = 0;
     bool do_postcopy = u->postcopy_listen && u->postcopy_fd.handler;
@@ -1059,9 +1058,8 @@ static int vhost_user_set_vring_endian(struct vhost_dev *dev,
     bool cross_endian = virtio_has_feature(dev->protocol_features,
                                            VHOST_USER_PROTOCOL_F_CROSS_ENDIAN);
     VhostUserMsg msg = {
-        .hdr = { .request = VHOST_USER_SET_VRING_ENDIAN, .flags = VHOST_USER_VERSION, },
+        .hdr = { .request = VHOST_USER_SET_VRING_ENDIAN, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.state), },
         .payload = { .state = *ring, },
-        .hdr = { .size = sizeof(msg.payload.state), },
     };
 
     if (!cross_endian) {
@@ -1076,10 +1074,10 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
 {
     int ret;
     VhostUserMsg msg = {
-        .hdr = { .request = request, .flags = VHOST_USER_VERSION, },
+        .hdr = { .request = static_cast<VhostUserRequest>(request), .flags = VHOST_USER_VERSION, },
     };
 
-    if (vhost_user_per_device_request(request) && dev->vq_index != 0) {
+    if (vhost_user_per_device_request(static_cast<VhostUserRequest>(request)) && dev->vq_index != 0) {
         return 0;
     }
 
@@ -1162,9 +1160,8 @@ static int vhost_set_vring(struct vhost_dev *dev,
                            bool wait_for_reply)
 {
     VhostUserMsg msg = {
-        .hdr = { .request = request, .flags = VHOST_USER_VERSION, },
+        .hdr = { .request = static_cast<VhostUserRequest>(request), .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.state), },
         .payload = { .state = *ring, },
-        .hdr = { .size = sizeof(msg.payload.state), },
     };
 
     return vhost_user_write_sync(dev, &msg, wait_for_reply);
@@ -1274,7 +1271,7 @@ static VhostUserHostNotifier *fetch_notifier(VhostUserState *u,
     if (idx >= u->notifiers->len) {
         return NULL;
     }
-    return g_ptr_array_index(u->notifiers, idx);
+    return static_cast<VhostUserHostNotifier *>(g_ptr_array_index(u->notifiers, idx));
 }
 
 static int vhost_user_get_vring_base(struct vhost_dev *dev,
@@ -1282,11 +1279,10 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
 {
     int ret;
     VhostUserMsg msg = {
-        .hdr = { .request = VHOST_USER_GET_VRING_BASE, .flags = VHOST_USER_VERSION, },
+        .hdr = { .request = VHOST_USER_GET_VRING_BASE, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.state), },
         .payload = { .state = *ring, },
-        .hdr = { .size = sizeof(msg.payload.state), },
     };
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
 
     VhostUserHostNotifier *n = fetch_notifier(u->user, ring->index);
     vhost_user_host_notifier_remove(n, dev->vdev, false);
@@ -1327,9 +1323,8 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
     bool reply_supported = virtio_has_feature(dev->protocol_features,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
     VhostUserMsg msg = {
-        .hdr = { .request = request, .flags = VHOST_USER_VERSION, },
+        .hdr = { .request = static_cast<VhostUserRequest>(request), .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.u64), },
         .payload = { .u64 = file->index & VHOST_USER_VRING_IDX_MASK, },
-        .hdr = { .size = sizeof(msg.payload.u64), },
     };
 
     if (reply_supported) {
@@ -1382,9 +1377,8 @@ static int vhost_user_set_vring_addr(struct vhost_dev *dev,
                                      struct vhost_vring_addr *addr)
 {
     VhostUserMsg msg = {
-        .hdr = { .request = VHOST_USER_SET_VRING_ADDR, .flags = VHOST_USER_VERSION, },
+        .hdr = { .request = VHOST_USER_SET_VRING_ADDR, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.addr), },
         .payload = { .addr = *addr, },
-        .hdr = { .size = sizeof(msg.payload.addr), },
     };
 
     /*
@@ -1400,9 +1394,8 @@ static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64,
                               bool wait_for_reply)
 {
     VhostUserMsg msg = {
-        .hdr = { .request = request, .flags = VHOST_USER_VERSION, },
+        .hdr = { .request = static_cast<VhostUserRequest>(request), .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.u64), },
         .payload = { .u64 = u64, },
-        .hdr = { .size = sizeof(msg.payload.u64), },
     };
 
     return vhost_user_write_sync(dev, &msg, wait_for_reply);
@@ -1511,7 +1504,7 @@ static int vhost_user_get_max_memslots(struct vhost_dev *dev,
 static int vhost_user_reset_device(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
-        .hdr = { .flags = VHOST_USER_VERSION, .request = VHOST_USER_RESET_DEVICE, },
+        .hdr = { .request = VHOST_USER_RESET_DEVICE, .flags = VHOST_USER_VERSION, },
     };
 
     /*
@@ -1547,7 +1540,7 @@ static VhostUserHostNotifier *fetch_or_create_notifier(VhostUserState *u,
         g_ptr_array_set_size(u->notifiers, idx + 1);
     }
 
-    n = g_ptr_array_index(u->notifiers, idx);
+    n = static_cast<VhostUserHostNotifier *>(g_ptr_array_index(u->notifiers, idx));
     if (!n) {
         /*
          * In case notification arrive out-of-order,
@@ -1569,7 +1562,7 @@ static int vhost_user_backend_handle_vring_host_notifier(struct vhost_dev *dev,
 {
     int queue_idx = area->u64 & VHOST_USER_VRING_IDX_MASK;
     size_t page_size = qemu_real_host_page_size();
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     VhostUserState *user = u->user;
     VirtIODevice *vdev = dev->vdev;
     VhostUserHostNotifier *n;
@@ -1610,7 +1603,7 @@ static int vhost_user_backend_handle_vring_host_notifier(struct vhost_dev *dev,
         memory_region_init_ram_device_ptr(&n->mr, OBJECT(vdev), name,
                                           page_size, addr);
     } else {
-        n->mr.ram_block->host = addr;
+        n->mr.ram_block->host = static_cast<uint8_t *>(addr);
     }
     g_free(name);
 
@@ -1682,7 +1675,7 @@ static bool vhost_user_send_resp(QIOChannel *ioc, VhostUserHeader *hdr,
 int vhost_user_get_shared_object(struct vhost_dev *dev, unsigned char *uuid,
                                  int *dmabuf_fd)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     CharFrontend *chr = u->user->chr;
     int ret;
     VhostUserMsg msg = {
@@ -1771,10 +1764,10 @@ static void close_backend_channel(struct vhost_user *u)
 static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
                            gpointer opaque)
 {
-    struct vhost_dev *dev = opaque;
-    struct vhost_user *u = dev->opaque;
-    VhostUserHeader hdr = { 0, };
-    VhostUserPayload payload = { 0, };
+    struct vhost_dev *dev = static_cast<struct vhost_dev *>(opaque);
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
+    VhostUserHeader hdr = {};
+    VhostUserPayload payload = {};
     Error *local_err = NULL;
     gboolean rc = G_SOURCE_CONTINUE;
     int ret = 0;
@@ -1829,7 +1822,7 @@ static gboolean backend_read(QIOChannel *ioc, GIOCondition condition,
     case VHOST_USER_BACKEND_SHARED_OBJECT_LOOKUP:
         /* The backend always expects a response */
         reply_ack = true;
-        ret = vhost_user_backend_handle_shared_object_lookup(dev->opaque,
+        ret = vhost_user_backend_handle_shared_object_lookup(static_cast<struct vhost_user *>(dev->opaque),
                                                              &payload.object);
         break;
     default:
@@ -1871,7 +1864,7 @@ static int vhost_setup_backend_channel(struct vhost_dev *dev)
     VhostUserMsg msg = {
         .hdr = { .request = VHOST_USER_SET_BACKEND_REQ_FD, .flags = VHOST_USER_VERSION, },
     };
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     int sv[2], ret = 0;
     bool reply_supported = virtio_has_feature(dev->protocol_features,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
@@ -1896,7 +1889,7 @@ static int vhost_setup_backend_channel(struct vhost_dev *dev)
     }
     u->backend_ioc = ioc;
     u->backend_src = qio_channel_add_watch_source(u->backend_ioc,
-                                                G_IO_IN | G_IO_HUP,
+                                                static_cast<GIOCondition>(G_IO_IN | G_IO_HUP),
                                                 backend_read, dev, NULL, NULL);
 
     if (reply_supported) {
@@ -1930,9 +1923,9 @@ out:
 static int vhost_user_postcopy_fault_handler(struct PostCopyFD *pcfd,
                                              void *ufd)
 {
-    struct vhost_dev *dev = pcfd->data;
-    struct vhost_user *u = dev->opaque;
-    struct uffd_msg *msg = ufd;
+    struct vhost_dev *dev = static_cast<struct vhost_dev *>(pcfd->data);
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
+    struct uffd_msg *msg = static_cast<struct uffd_msg *>(ufd);
     uint64_t faultaddr = msg->arg.pagefault.address;
     RAMBlock *rb = NULL;
     uint64_t rb_offset;
@@ -1964,8 +1957,8 @@ static int vhost_user_postcopy_fault_handler(struct PostCopyFD *pcfd,
 static int vhost_user_postcopy_waker(struct PostCopyFD *pcfd, RAMBlock *rb,
                                      uint64_t offset)
 {
-    struct vhost_dev *dev = pcfd->data;
-    struct vhost_user *u = dev->opaque;
+    struct vhost_dev *dev = static_cast<struct vhost_dev *>(pcfd->data);
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     int i;
 
     trace_vhost_user_postcopy_waker(qemu_ram_get_idstr(rb), offset);
@@ -1998,7 +1991,7 @@ static int vhost_user_postcopy_waker(struct PostCopyFD *pcfd, RAMBlock *rb,
 static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
 {
 #ifdef CONFIG_LINUX
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     CharFrontend *chr = u->user->chr;
     int ufd;
     int ret;
@@ -2057,7 +2050,7 @@ static int vhost_user_postcopy_advise(struct vhost_dev *dev, Error **errp)
  */
 static int vhost_user_postcopy_listen(struct vhost_dev *dev, Error **errp)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     int ret;
     VhostUserMsg msg = {
         .hdr = { .request = VHOST_USER_POSTCOPY_LISTEN, .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK, },
@@ -2090,7 +2083,7 @@ static int vhost_user_postcopy_end(struct vhost_dev *dev, Error **errp)
         .hdr = { .request = VHOST_USER_POSTCOPY_END, .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK, },
     };
     int ret;
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
 
     trace_vhost_user_postcopy_end_entry();
 
@@ -2117,7 +2110,7 @@ static int vhost_user_postcopy_end(struct vhost_dev *dev, Error **errp)
 static int vhost_user_postcopy_notifier(NotifierWithReturn *notifier,
                                         void *opaque, Error **errp)
 {
-    struct PostcopyNotifyData *pnd = opaque;
+    struct PostcopyNotifyData *pnd = static_cast<PostcopyNotifyData *>(opaque);
     struct vhost_user *u = container_of(notifier, struct vhost_user,
                                          postcopy_notifier);
     struct vhost_dev *dev = u->dev;
@@ -2296,7 +2289,7 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
-    u = dev->opaque;
+    u = static_cast<struct vhost_user *>(dev->opaque);
     if (u->postcopy_notifier.notify) {
         postcopy_remove_notifier(&u->postcopy_notifier);
         u->postcopy_notifier.notify = NULL;
@@ -2330,7 +2323,7 @@ static int vhost_user_get_vq_index(struct vhost_dev *dev, int idx)
 
 static int vhost_user_memslots_limit(struct vhost_dev *dev)
 {
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
 
     return u->user->memory_slots;
 }
@@ -2404,7 +2397,7 @@ static int vhost_user_send_device_iotlb_msg(struct vhost_dev *dev,
 {
     int ret;
     VhostUserMsg msg = {
-        .hdr = { .request = VHOST_USER_IOTLB_MSG, .size = sizeof(msg.payload.iotlb), .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK, },
+        .hdr = { .request = VHOST_USER_IOTLB_MSG, .flags = VHOST_USER_VERSION | VHOST_USER_NEED_REPLY_MASK, .size = sizeof(msg.payload.iotlb), },
         .payload = { .iotlb = *imsg, },
     };
 
@@ -2519,7 +2512,7 @@ static int vhost_user_crypto_create_session(struct vhost_dev *dev,
     int ret;
     bool crypto_session = virtio_has_feature(dev->protocol_features,
                                        VHOST_USER_PROTOCOL_F_CRYPTO_SESSION);
-    CryptoDevBackendSessionInfo *backend_info = session_info;
+    CryptoDevBackendSessionInfo *backend_info = static_cast<CryptoDevBackendSessionInfo *>(session_info);
     VhostUserMsg msg = {
         .hdr = { .request = VHOST_USER_CREATE_CRYPTO_SESSION, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.session), },
     };
@@ -2651,14 +2644,13 @@ static int vhost_user_get_inflight_fd(struct vhost_dev *dev,
     void *addr;
     int fd;
     int ret;
-    struct vhost_user *u = dev->opaque;
+    struct vhost_user *u = static_cast<struct vhost_user *>(dev->opaque);
     CharFrontend *chr = u->user->chr;
     VhostUserMsg msg = {
-        .hdr = { .request = VHOST_USER_GET_INFLIGHT_FD, .flags = VHOST_USER_VERSION, },
-        .payload.inflight.num_queues = dev->nvqs,
-        .payload.inflight.queue_size = queue_size,
-        .hdr = { .size = sizeof(msg.payload.inflight), },
+        .hdr = { .request = VHOST_USER_GET_INFLIGHT_FD, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.inflight), },
     };
+    msg.payload.inflight.num_queues = dev->nvqs;
+    msg.payload.inflight.queue_size = queue_size;
 
     if (!virtio_has_feature(dev->protocol_features,
                             VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)) {
@@ -2697,8 +2689,8 @@ static int vhost_user_get_inflight_fd(struct vhost_dev *dev,
         return -EIO;
     }
 
-    addr = mmap(0, msg.payload.inflight.mmap_size, PROT_READ | PROT_WRITE,
-                MAP_SHARED, fd, msg.payload.inflight.mmap_offset);
+    addr = static_cast<uint8_t *>(mmap(0, msg.payload.inflight.mmap_size, PROT_READ | PROT_WRITE,
+                MAP_SHARED, fd, msg.payload.inflight.mmap_offset));
 
     if (addr == MAP_FAILED) {
         error_report("Failed to mmap mem fd");
@@ -2719,13 +2711,12 @@ static int vhost_user_set_inflight_fd(struct vhost_dev *dev,
                                       struct vhost_inflight *inflight)
 {
     VhostUserMsg msg = {
-        .hdr = { .request = VHOST_USER_SET_INFLIGHT_FD, .flags = VHOST_USER_VERSION, },
-        .payload.inflight.mmap_size = inflight->size,
-        .payload.inflight.mmap_offset = inflight->offset,
-        .payload.inflight.num_queues = dev->nvqs,
-        .payload.inflight.queue_size = inflight->queue_size,
-        .hdr = { .size = sizeof(msg.payload.inflight), },
+        .hdr = { .request = VHOST_USER_SET_INFLIGHT_FD, .flags = VHOST_USER_VERSION, .size = sizeof(msg.payload.inflight), },
     };
+    msg.payload.inflight.mmap_size = inflight->size;
+    msg.payload.inflight.mmap_offset = inflight->offset;
+    msg.payload.inflight.num_queues = dev->nvqs;
+    msg.payload.inflight.queue_size = inflight->queue_size;
 
     if (!virtio_has_feature(dev->protocol_features,
                             VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD)) {
@@ -2773,7 +2764,7 @@ typedef struct {
 
 static void vhost_user_async_close_bh(void *opaque)
 {
-    VhostAsyncCallback *data = opaque;
+    VhostAsyncCallback *data = static_cast<VhostAsyncCallback *>(opaque);
 
     data->cb(data->dev);
 
@@ -2873,18 +2864,16 @@ static int vhost_user_set_device_state_fd(struct vhost_dev *dev,
                                           Error **errp)
 {
     int ret;
-    struct vhost_user *vu = dev->opaque;
+    struct vhost_user *vu = static_cast<struct vhost_user *>(dev->opaque);
     VhostUserMsg msg = {
         .hdr = {
             .request = VHOST_USER_SET_DEVICE_STATE_FD,
             .flags = VHOST_USER_VERSION,
             .size = sizeof(msg.payload.transfer_state),
         },
-        .payload.transfer_state = {
-            .direction = direction,
-            .phase = phase,
-        },
     };
+    msg.payload.transfer_state.direction = direction;
+    msg.payload.transfer_state.phase = phase;
 
     *reply_fd = -1;
 
@@ -2999,6 +2988,7 @@ const VhostOps user_ops = {
         .vhost_backend_cleanup = vhost_user_backend_cleanup,
         .vhost_backend_memslots_limit = vhost_user_memslots_limit,
         .vhost_backend_no_private_memslots = vhost_user_no_private_memslots,
+        .vhost_net_set_mtu = vhost_user_net_set_mtu,
         .vhost_set_log_base = vhost_user_set_log_base,
         .vhost_set_mem_table = vhost_user_set_mem_table,
         .vhost_set_vring_addr = vhost_user_set_vring_addr,
@@ -3017,7 +3007,6 @@ const VhostOps user_ops = {
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
         .vhost_migration_done = vhost_user_migration_done,
-        .vhost_net_set_mtu = vhost_user_net_set_mtu,
         .vhost_set_iotlb_callback = vhost_user_set_iotlb_callback,
         .vhost_send_device_iotlb_msg = vhost_user_send_device_iotlb_msg,
         .vhost_get_config = vhost_user_get_config,

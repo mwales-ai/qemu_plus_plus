@@ -342,9 +342,9 @@ static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
 
     log = g_new0(struct vhost_log, 1);
     if (share) {
-        log->log = qemu_memfd_alloc("vhost-log", logsize,
+        log->log = static_cast<vhost_log_chunk_t *>(qemu_memfd_alloc("vhost-log", logsize,
                                     F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
-                                    &fd, &err);
+                                    &fd, &err));
         if (err) {
             error_report_err(err);
             g_free(log);
@@ -352,7 +352,7 @@ static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
         }
         memset(log->log, 0, logsize);
     } else {
-        log->log = g_malloc0(logsize);
+        log->log = static_cast<vhost_log_chunk_t *>(g_malloc0(logsize));
     }
 
     log->size = size;
@@ -660,7 +660,7 @@ static void vhost_commit(MemoryListener *listener)
     /* Rebuild the regions list from the new sections list */
     regions_size = offsetof(struct vhost_memory, regions) +
                        dev->n_mem_sections * sizeof dev->mem->regions[0];
-    dev->mem = g_realloc(dev->mem, regions_size);
+    dev->mem = static_cast<struct vhost_memory *>(g_realloc(dev->mem, regions_size));
     dev->mem->nregions = dev->n_mem_sections;
 
     for (i = 0; i < dev->n_mem_sections; i++) {
@@ -876,7 +876,7 @@ static void vhost_iommu_region_add(MemoryListener *listener,
 
     iommu_mr = IOMMU_MEMORY_REGION(section->mr);
 
-    iommu = g_malloc0(sizeof(*iommu));
+    iommu = static_cast<struct vhost_iommu *>(g_malloc0(sizeof(*iommu)));
     end = int128_add(int128_make64(section->offset_within_region),
                      section->size);
     end = int128_sub(end, int128_one());
@@ -1146,14 +1146,14 @@ static void vhost_log_global_stop(MemoryListener *listener)
 
 static void vhost_log_start(MemoryListener *listener,
                             MemoryRegionSection *section,
-                            int old, int new)
+                            int old, int new_val)
 {
     /* FIXME: implement */
 }
 
 static void vhost_log_stop(MemoryListener *listener,
                            MemoryRegionSection *section,
-                           int old, int new)
+                           int old, int new_val)
 {
     /* FIXME: implement */
 }
@@ -1613,25 +1613,23 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
 
     virtio_features_copy(hdev->features_ex, features);
 
-    hdev->memory_listener = (MemoryListener) {
-        .name = "vhost",
-        .begin = vhost_begin,
-        .commit = vhost_commit,
-        .region_add = vhost_region_addnop,
-        .region_nop = vhost_region_addnop,
-        .log_start = vhost_log_start,
-        .log_stop = vhost_log_stop,
-        .log_sync = vhost_log_sync,
-        .log_global_start = vhost_log_global_start,
-        .log_global_stop = vhost_log_global_stop,
-        .priority = MEMORY_LISTENER_PRIORITY_DEV_BACKEND
-    };
+    memset(&hdev->memory_listener, 0, sizeof(hdev->memory_listener));
+    hdev->memory_listener.name = "vhost";
+    hdev->memory_listener.begin = vhost_begin;
+    hdev->memory_listener.commit = vhost_commit;
+    hdev->memory_listener.region_add = vhost_region_addnop;
+    hdev->memory_listener.region_nop = vhost_region_addnop;
+    hdev->memory_listener.log_start = vhost_log_start;
+    hdev->memory_listener.log_stop = vhost_log_stop;
+    hdev->memory_listener.log_sync = vhost_log_sync;
+    hdev->memory_listener.log_global_start = vhost_log_global_start;
+    hdev->memory_listener.log_global_stop = vhost_log_global_stop;
+    hdev->memory_listener.priority = MEMORY_LISTENER_PRIORITY_DEV_BACKEND;
 
-    hdev->iommu_listener = (MemoryListener) {
-        .name = "vhost-iommu",
-        .region_add = vhost_iommu_region_add,
-        .region_del = vhost_iommu_region_del,
-    };
+    memset(&hdev->iommu_listener, 0, sizeof(hdev->iommu_listener));
+    hdev->iommu_listener.name = "vhost-iommu";
+    hdev->iommu_listener.region_add = vhost_iommu_region_add;
+    hdev->iommu_listener.region_del = vhost_iommu_region_del;
 
     if (hdev->migration_blocker == NULL) {
         if (!virtio_has_feature_ex(hdev->features_ex, VHOST_F_LOG_ALL)) {
@@ -1650,7 +1648,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         }
     }
 
-    hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
+    hdev->mem = static_cast<struct vhost_memory *>(g_malloc0(offsetof(struct vhost_memory, regions)));
     hdev->n_mem_sections = 0;
     hdev->mem_sections = NULL;
     hdev->log = NULL;
@@ -2356,7 +2354,7 @@ int vhost_save_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp)
             break;
         }
 
-        qemu_put_buffer(f, transfer_buf, read_ret);
+        qemu_put_buffer(f, static_cast<const uint8_t *>(transfer_buf), read_ret);
     }
 
     /*
@@ -2443,7 +2441,7 @@ int vhost_load_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp)
             transfer_buf_size = this_chunk_size;
         }
 
-        if (qemu_get_buffer(f, transfer_buf, this_chunk_size) <
+        if (qemu_get_buffer(f, static_cast<uint8_t *>(transfer_buf), this_chunk_size) <
                 this_chunk_size)
         {
             error_setg(errp, "Failed to read state");
@@ -2451,7 +2449,7 @@ int vhost_load_backend_state(struct vhost_dev *dev, QEMUFile *f, Error **errp)
             goto fail;
         }
 
-        transfer_pointer = transfer_buf;
+        transfer_pointer = static_cast<const uint8_t *>(transfer_buf);
         while (this_chunk_size > 0) {
             write_ret = RETRY_ON_EINTR(
                 write(write_fd, transfer_pointer, this_chunk_size)

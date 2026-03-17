@@ -95,24 +95,26 @@ static void virtio_pci_save_config(DeviceState *d, QEMUFile *f)
         qemu_put_be16(f, vdev->config_vector);
 }
 
+static const VMStateField vmstate_virtio_pci_modern_queue_state_fields[] = {
+    VMSTATE_UINT16(num, VirtIOPCIQueue),
+    VMSTATE_UNUSED(1), /* enabled was stored as be16 */
+    VMSTATE_BOOL(enabled, VirtIOPCIQueue),
+    VMSTATE_UINT32_ARRAY(desc, VirtIOPCIQueue, 2),
+    VMSTATE_UINT32_ARRAY(avail, VirtIOPCIQueue, 2),
+    VMSTATE_UINT32_ARRAY(used, VirtIOPCIQueue, 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_pci_modern_queue_state = {
     .name = "virtio_pci/modern_queue_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(num, VirtIOPCIQueue),
-        VMSTATE_UNUSED(1), /* enabled was stored as be16 */
-        VMSTATE_BOOL(enabled, VirtIOPCIQueue),
-        VMSTATE_UINT32_ARRAY(desc, VirtIOPCIQueue, 2),
-        VMSTATE_UINT32_ARRAY(avail, VirtIOPCIQueue, 2),
-        VMSTATE_UINT32_ARRAY(used, VirtIOPCIQueue, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_pci_modern_queue_state_fields,
 };
 
 static bool virtio_pci_modern_state_features128_needed(void *opaque)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     uint32_t features = 0;
     int i;
 
@@ -122,20 +124,22 @@ static bool virtio_pci_modern_state_features128_needed(void *opaque)
     return features;
 }
 
+static const VMStateField vmstate_virtio_pci_modern_state_features128_fields[] = {
+    VMSTATE_UINT32_SUB_ARRAY(guest_features, VirtIOPCIProxy, 2, 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_pci_modern_state_features128 = {
     .name = "virtio_pci/modern_state/features128",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_pci_modern_state_features128_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_SUB_ARRAY(guest_features, VirtIOPCIProxy, 2, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_pci_modern_state_features128_fields,
 };
 
 static bool virtio_pci_modern_state_needed(void *opaque)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
 
     return virtio_pci_modern(proxy);
 }
@@ -146,37 +150,45 @@ static bool virtio_pci_modern_state_needed(void *opaque)
  */
 QEMU_BUILD_BUG_ON(VIRTIO_FEATURES_NU32S != 4);
 
+static const VMStateField vmstate_virtio_pci_modern_state_sub_fields[] = {
+    VMSTATE_UINT32(dfselect, VirtIOPCIProxy),
+    VMSTATE_UINT32(gfselect, VirtIOPCIProxy),
+    VMSTATE_UINT32_SUB_ARRAY(guest_features, VirtIOPCIProxy, 0, 2),
+    VMSTATE_STRUCT_ARRAY(vqs, VirtIOPCIProxy, VIRTIO_QUEUE_MAX, 0,
+                         vmstate_virtio_pci_modern_queue_state,
+                         VirtIOPCIQueue),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_virtio_pci_modern_state_sub_subsections[] = {
+    &vmstate_virtio_pci_modern_state_features128,
+    NULL
+};
+
 static const VMStateDescription vmstate_virtio_pci_modern_state_sub = {
     .name = "virtio_pci/modern_state",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_pci_modern_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(dfselect, VirtIOPCIProxy),
-        VMSTATE_UINT32(gfselect, VirtIOPCIProxy),
-        VMSTATE_UINT32_SUB_ARRAY(guest_features, VirtIOPCIProxy, 0, 2),
-        VMSTATE_STRUCT_ARRAY(vqs, VirtIOPCIProxy, VIRTIO_QUEUE_MAX, 0,
-                             vmstate_virtio_pci_modern_queue_state,
-                             VirtIOPCIQueue),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_virtio_pci_modern_state_features128,
-        NULL
-    }
+    .fields = vmstate_virtio_pci_modern_state_sub_fields,
+    .subsections = vmstate_virtio_pci_modern_state_sub_subsections,
+};
+
+static const VMStateField vmstate_virtio_pci_fields[] = {
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_virtio_pci_subsections[] = {
+    &vmstate_virtio_pci_modern_state_sub,
+    NULL
 };
 
 static const VMStateDescription vmstate_virtio_pci = {
     .name = "virtio_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_virtio_pci_modern_state_sub,
-        NULL
-    }
+    .fields = vmstate_virtio_pci_fields,
+    .subsections = vmstate_virtio_pci_subsections,
 };
 
 static bool virtio_pci_has_extra_state(DeviceState *d)
@@ -426,7 +438,7 @@ static void virtio_pci_stop_ioeventfd(VirtIOPCIProxy *proxy)
 
 static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint16_t vector, vq_idx;
     hwaddr pa;
@@ -566,7 +578,7 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
 static uint64_t virtio_pci_config_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint32_t config = VIRTIO_PCI_CONFIG_SIZE(&proxy->pci_dev);
     uint64_t val = 0;
@@ -603,7 +615,7 @@ static uint64_t virtio_pci_config_read(void *opaque, hwaddr addr,
 static void virtio_pci_config_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     uint32_t config = VIRTIO_PCI_CONFIG_SIZE(&proxy->pci_dev);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
@@ -642,11 +654,11 @@ static void virtio_pci_config_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps virtio_pci_config_ops = {
     .read = virtio_pci_config_read,
     .write = virtio_pci_config_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static MemoryRegion *virtio_address_space_lookup(VirtIOPCIProxy *proxy,
@@ -717,7 +729,7 @@ void virtio_address_space_write(VirtIOPCIProxy *proxy, hwaddr addr,
         /* As length is under guest control, handle illegal values. */
         return;
     }
-    memory_region_dispatch_write(mr, addr, val, size_memop(len) | MO_LE,
+    memory_region_dispatch_write(mr, addr, val, static_cast<MemOp>(size_memop(len) | MO_LE),
                                  MEMTXATTRS_UNSPECIFIED);
 }
 
@@ -741,7 +753,7 @@ virtio_address_space_read(VirtIOPCIProxy *proxy, hwaddr addr,
     /* Make sure caller aligned buf properly */
     assert(!(((uintptr_t)buf) & (len - 1)));
 
-    memory_region_dispatch_read(mr, addr, &val, size_memop(len) | MO_LE,
+    memory_region_dispatch_read(mr, addr, &val, static_cast<MemOp>(size_memop(len) | MO_LE),
                                 MEMTXATTRS_UNSPECIFIED);
     switch (len) {
     case 1:
@@ -825,7 +837,7 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
         uint32_t off;
         uint32_t caplen;
 
-        cfg = (void *)(proxy->pci_dev.config + proxy->config_cap);
+        cfg = reinterpret_cast<struct virtio_pci_cfg_cap *>(proxy->pci_dev.config + proxy->config_cap);
         off = le32_to_cpu(cfg->cap.offset);
         caplen = le32_to_cpu(cfg->cap.length);
 
@@ -849,7 +861,7 @@ static uint32_t virtio_read_config(PCIDevice *pci_dev,
         uint32_t off;
         uint32_t caplen;
 
-        cfg = (void *)(proxy->pci_dev.config + proxy->config_cap);
+        cfg = reinterpret_cast<struct virtio_pci_cfg_cap *>(proxy->pci_dev.config + proxy->config_cap);
         off = le32_to_cpu(cfg->cap.offset);
         caplen = le32_to_cpu(cfg->cap.length);
 
@@ -1324,8 +1336,8 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
         assign) {
         if (with_irqfd) {
             proxy->vector_irqfd =
-                g_malloc0(sizeof(*proxy->vector_irqfd) *
-                          msix_nr_vectors_allocated(&proxy->pci_dev));
+                static_cast<VirtIOIRQFD *>(g_malloc0(sizeof(*proxy->vector_irqfd) *
+                          msix_nr_vectors_allocated(&proxy->pci_dev)));
             r = kvm_virtio_pci_vector_vq_use(proxy, nvqs);
             if (r < 0) {
                 goto config_assign_error;
@@ -1537,7 +1549,7 @@ static int virtio_pci_select_max(const VirtIODevice *vdev)
 static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint32_t val = 0;
     int i;
@@ -1632,7 +1644,7 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
 static void virtio_pci_common_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint16_t vector;
 
@@ -1770,7 +1782,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
 static uint64_t virtio_pci_notify_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     if (virtio_bus_get_device(&proxy->bus) == NULL) {
         return UINT64_MAX;
     }
@@ -1781,7 +1793,7 @@ static uint64_t virtio_pci_notify_read(void *opaque, hwaddr addr,
 static void virtio_pci_notify_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
     unsigned queue = addr / virtio_pci_queue_mem_mult(proxy);
@@ -1795,7 +1807,7 @@ static void virtio_pci_notify_write(void *opaque, hwaddr addr,
 static void virtio_pci_notify_write_pio(void *opaque, hwaddr addr,
                                         uint64_t val, unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
     unsigned queue = val;
@@ -1809,7 +1821,7 @@ static void virtio_pci_notify_write_pio(void *opaque, hwaddr addr,
 static uint64_t virtio_pci_isr_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint64_t val;
 
@@ -1830,7 +1842,7 @@ static void virtio_pci_isr_write(void *opaque, hwaddr addr,
 static uint64_t virtio_pci_device_read(void *opaque, hwaddr addr,
                                        unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
     uint64_t val;
 
@@ -1858,7 +1870,7 @@ static uint64_t virtio_pci_device_read(void *opaque, hwaddr addr,
 static void virtio_pci_device_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
-    VirtIOPCIProxy *proxy = opaque;
+    VirtIOPCIProxy *proxy = static_cast<VirtIOPCIProxy *>(opaque);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
     if (vdev == NULL) {
@@ -1884,47 +1896,47 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy,
     static const MemoryRegionOps common_ops = {
         .read = virtio_pci_common_read,
         .write = virtio_pci_common_write,
+        .endianness = DEVICE_LITTLE_ENDIAN,
         .impl = {
             .min_access_size = 1,
             .max_access_size = 4,
         },
-        .endianness = DEVICE_LITTLE_ENDIAN,
     };
     static const MemoryRegionOps isr_ops = {
         .read = virtio_pci_isr_read,
         .write = virtio_pci_isr_write,
+        .endianness = DEVICE_LITTLE_ENDIAN,
         .impl = {
             .min_access_size = 1,
             .max_access_size = 4,
         },
-        .endianness = DEVICE_LITTLE_ENDIAN,
     };
     static const MemoryRegionOps device_ops = {
         .read = virtio_pci_device_read,
         .write = virtio_pci_device_write,
+        .endianness = DEVICE_LITTLE_ENDIAN,
         .impl = {
             .min_access_size = 1,
             .max_access_size = 4,
         },
-        .endianness = DEVICE_LITTLE_ENDIAN,
     };
     static const MemoryRegionOps notify_ops = {
         .read = virtio_pci_notify_read,
         .write = virtio_pci_notify_write,
+        .endianness = DEVICE_LITTLE_ENDIAN,
         .impl = {
             .min_access_size = 1,
             .max_access_size = 4,
         },
-        .endianness = DEVICE_LITTLE_ENDIAN,
     };
     static const MemoryRegionOps notify_pio_ops = {
         .read = virtio_pci_notify_read,
         .write = virtio_pci_notify_write_pio,
+        .endianness = DEVICE_LITTLE_ENDIAN,
         .impl = {
             .min_access_size = 1,
             .max_access_size = 4,
         },
-        .endianness = DEVICE_LITTLE_ENDIAN,
     };
     g_autoptr(GString) name = g_string_new(NULL);
 
@@ -2145,7 +2157,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
                          &proxy->modern_bar);
 
         proxy->config_cap = virtio_pci_add_mem_cap(proxy, &cfg.cap);
-        cfg_mask = (void *)(proxy->pci_dev.wmask + proxy->config_cap);
+        cfg_mask = reinterpret_cast<struct virtio_pci_cfg_cap *>(proxy->pci_dev.wmask + proxy->config_cap);
         pci_set_byte(&cfg_mask->cap.bar, ~0x0);
         pci_set_long((uint8_t *)&cfg_mask->cap.offset, ~0x0);
         pci_set_long((uint8_t *)&cfg_mask->cap.length, ~0x0);
@@ -2505,9 +2517,9 @@ static const TypeInfo virtio_pci_info = {
     .name          = TYPE_VIRTIO_PCI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(VirtIOPCIProxy),
-    .class_init    = virtio_pci_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(VirtioPCIClass),
-    .is_abstract      = true,
+    .class_init    = virtio_pci_class_init,
 };
 
 static const Property virtio_pci_generic_properties[] = {
@@ -2518,7 +2530,7 @@ static const Property virtio_pci_generic_properties[] = {
 
 static void virtio_pci_base_class_init(ObjectClass *klass, const void *data)
 {
-    const VirtioPCIDeviceTypeInfo *t = data;
+    const VirtioPCIDeviceTypeInfo *t = static_cast<const VirtioPCIDeviceTypeInfo *>(data);
     if (t->class_init) {
         t->class_init(klass, NULL);
     }
@@ -2556,19 +2568,20 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
         .instance_size = t->instance_size,
         .instance_init = t->instance_init,
         .instance_finalize = t->instance_finalize,
+        .is_abstract   = true,
         .class_size    = t->class_size,
-        .is_abstract      = true,
         .interfaces    = t->interfaces,
+    };
+    static const InterfaceInfo generic_interfaces[] = {
+        { INTERFACE_PCIE_DEVICE },
+        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { }
     };
     TypeInfo generic_type_info = {
         .name = t->generic_name,
         .parent = base_type_info.name,
         .class_init = virtio_pci_generic_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-            { INTERFACE_PCIE_DEVICE },
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { }
-        },
+        .interfaces = generic_interfaces,
     };
 
     if (!base_type_info.name) {
@@ -2595,32 +2608,34 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
     }
 
     if (t->non_transitional_name) {
+        static const InterfaceInfo non_transitional_interfaces[] = {
+            { INTERFACE_PCIE_DEVICE },
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { }
+        };
         const TypeInfo non_transitional_type_info = {
             .name          = t->non_transitional_name,
             .parent        = base_type_info.name,
             .instance_init = virtio_pci_non_transitional_instance_init,
-            .interfaces = (const InterfaceInfo[]) {
-                { INTERFACE_PCIE_DEVICE },
-                { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-                { }
-            },
+            .interfaces    = non_transitional_interfaces,
         };
         type_register_static(&non_transitional_type_info);
     }
 
     if (t->transitional_name) {
+        static const InterfaceInfo transitional_interfaces[] = {
+            /*
+             * Transitional virtio devices work only as Conventional PCI
+             * devices because they require PIO ports.
+             */
+            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+            { }
+        };
         const TypeInfo transitional_type_info = {
             .name          = t->transitional_name,
             .parent        = base_type_info.name,
             .instance_init = virtio_pci_transitional_instance_init,
-            .interfaces = (const InterfaceInfo[]) {
-                /*
-                 * Transitional virtio devices work only as Conventional PCI
-                 * devices because they require PIO ports.
-                 */
-                { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-                { }
-            },
+            .interfaces    = transitional_interfaces,
         };
         type_register_static(&transitional_type_info);
     }

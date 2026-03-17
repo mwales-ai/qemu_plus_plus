@@ -46,7 +46,7 @@ static void virtio_rng_process(VirtIORNG *vrng);
 /* Send data from a char device over to the guest */
 static void chr_read(void *opaque, const void *buf, size_t size)
 {
-    VirtIORNG *vrng = opaque;
+    VirtIORNG *vrng = static_cast<VirtIORNG *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(vrng);
     VirtQueueElement *elem;
     size_t len;
@@ -69,7 +69,7 @@ static void chr_read(void *opaque, const void *buf, size_t size)
 
     offset = 0;
     while (offset < size) {
-        elem = virtqueue_pop(vrng->vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vrng->vq, sizeof(VirtQueueElement)));
         if (!elem) {
             break;
         }
@@ -136,7 +136,7 @@ static uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp)
 static void virtio_rng_vm_state_change(void *opaque, bool running,
                                        RunState state)
 {
-    VirtIORNG *vrng = opaque;
+    VirtIORNG *vrng = static_cast<VirtIORNG *>(opaque);
 
     trace_virtio_rng_vm_state_change(vrng, running, state);
 
@@ -152,7 +152,7 @@ static void virtio_rng_vm_state_change(void *opaque, bool running,
 
 static void check_rate_limit(void *opaque)
 {
-    VirtIORNG *vrng = opaque;
+    VirtIORNG *vrng = static_cast<VirtIORNG *>(opaque);
 
     vrng->quota_remaining = vrng->conf.max_bytes;
     virtio_rng_process(vrng);
@@ -240,14 +240,16 @@ static void virtio_rng_device_unrealize(DeviceState *dev)
     virtio_cleanup(vdev);
 }
 
+static const VMStateField vmstate_virtio_rng_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_rng = {
     .name = "virtio-rng",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_virtio_rng_fields,
 };
 
 static const Property virtio_rng_properties[] = {

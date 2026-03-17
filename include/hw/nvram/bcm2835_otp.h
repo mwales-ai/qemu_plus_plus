@@ -12,6 +12,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_BCM2835_OTP "bcm2835-otp"
 OBJECT_DECLARE_SIMPLE_TYPE(BCM2835OTPState, BCM2835_OTP)
 
@@ -64,5 +68,9 @@ struct BCM2835OTPState {
 
 uint32_t bcm2835_otp_get_row(BCM2835OTPState *s, unsigned int row);
 void bcm2835_otp_set_row(BCM2835OTPState *s, unsigned int row, uint32_t value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

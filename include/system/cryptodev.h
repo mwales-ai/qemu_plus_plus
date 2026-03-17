@@ -28,6 +28,10 @@
 #include "qom/object.h"
 #include "qapi/qapi-types-cryptodev.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * CryptoDevBackend:
  *
@@ -443,5 +447,9 @@ void cryptodev_backend_set_ready(CryptoDevBackend *backend, bool ready);
  * Returns: true on ready, or false on not ready
  */
 bool cryptodev_backend_is_ready(CryptoDevBackend *backend);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CRYPTODEV_H */

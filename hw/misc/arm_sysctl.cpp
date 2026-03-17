@@ -53,28 +53,30 @@ struct arm_sysctl_state {
     uint32_t *db_clock_reset;
 };
 
+static const VMStateField vmstate_arm_sysctl_fields[] = {
+    VMSTATE_UINT32(leds, arm_sysctl_state),
+    VMSTATE_UINT16(lockval, arm_sysctl_state),
+    VMSTATE_UINT32(cfgdata1, arm_sysctl_state),
+    VMSTATE_UINT32(cfgdata2, arm_sysctl_state),
+    VMSTATE_UINT32(flags, arm_sysctl_state),
+    VMSTATE_UINT32(nvflags, arm_sysctl_state),
+    VMSTATE_UINT32(resetlevel, arm_sysctl_state),
+    VMSTATE_UINT32_V(sys_mci, arm_sysctl_state, 2),
+    VMSTATE_UINT32_V(sys_cfgdata, arm_sysctl_state, 2),
+    VMSTATE_UINT32_V(sys_cfgctrl, arm_sysctl_state, 2),
+    VMSTATE_UINT32_V(sys_cfgstat, arm_sysctl_state, 2),
+    VMSTATE_UINT32_V(sys_clcd, arm_sysctl_state, 3),
+    VMSTATE_UINT32_ARRAY_V(mb_clock, arm_sysctl_state, 6, 4),
+    VMSTATE_VARRAY_UINT32(db_clock, arm_sysctl_state, db_num_clocks,
+                          4, vmstate_info_uint32, uint32_t),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_arm_sysctl = {
     .name = "realview_sysctl",
     .version_id = 4,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(leds, arm_sysctl_state),
-        VMSTATE_UINT16(lockval, arm_sysctl_state),
-        VMSTATE_UINT32(cfgdata1, arm_sysctl_state),
-        VMSTATE_UINT32(cfgdata2, arm_sysctl_state),
-        VMSTATE_UINT32(flags, arm_sysctl_state),
-        VMSTATE_UINT32(nvflags, arm_sysctl_state),
-        VMSTATE_UINT32(resetlevel, arm_sysctl_state),
-        VMSTATE_UINT32_V(sys_mci, arm_sysctl_state, 2),
-        VMSTATE_UINT32_V(sys_cfgdata, arm_sysctl_state, 2),
-        VMSTATE_UINT32_V(sys_cfgctrl, arm_sysctl_state, 2),
-        VMSTATE_UINT32_V(sys_cfgstat, arm_sysctl_state, 2),
-        VMSTATE_UINT32_V(sys_clcd, arm_sysctl_state, 3),
-        VMSTATE_UINT32_ARRAY_V(mb_clock, arm_sysctl_state, 6, 4),
-        VMSTATE_VARRAY_UINT32(db_clock, arm_sysctl_state, db_num_clocks,
-                              4, vmstate_info_uint32, uint32_t),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_arm_sysctl_fields,
 };
 
 /* The PB926 actually uses a different format for

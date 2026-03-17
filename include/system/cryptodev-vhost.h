@@ -30,6 +30,9 @@
 
 #include "system/cryptodev.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct CryptoDevBackendVhostOptions {
     VhostBackendType backend_type;
@@ -149,5 +152,9 @@ void cryptodev_vhost_virtqueue_mask(VirtIODevice *dev,
  */
 bool cryptodev_vhost_virtqueue_pending(VirtIODevice *dev,
                                               int queue, int idx);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* CRYPTODEV_VHOST_H */

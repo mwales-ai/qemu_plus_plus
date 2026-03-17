@@ -39,7 +39,7 @@ static uint64_t a9_scu_read(void *opaque, hwaddr offset,
     case 0x54: /* SCU Non-secure Access Control Register */
         /* unimplemented, fall through */
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%" HWADDR_PRIx"\n",
                       __func__, offset);
         return 0;
     }
@@ -70,8 +70,8 @@ static void a9_scu_write(void *opaque, hwaddr offset,
     case 0x54: /* SCU Non-secure Access Control Register */
         /* unimplemented, fall through */
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%"HWADDR_PRIx
-                                 " value 0x%"PRIx64"\n",
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%" HWADDR_PRIx
+                                 " value 0x%" PRIx64 "\n",
                       __func__, offset, value);
         break;
     }
@@ -80,15 +80,15 @@ static void a9_scu_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps a9_scu_ops = {
     .read = a9_scu_read,
     .write = a9_scu_write,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void a9_scu_reset(DeviceState *dev)
@@ -112,15 +112,17 @@ static void a9_scu_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
+static const VMStateField vmstate_a9_scu_fields[] = {
+    VMSTATE_UINT32(control, A9SCUState),
+    VMSTATE_UINT32(status, A9SCUState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_a9_scu = {
     .name = "a9-scu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(control, A9SCUState),
-        VMSTATE_UINT32(status, A9SCUState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_a9_scu_fields,
 };
 
 static const Property a9_scu_properties[] = {

@@ -132,14 +132,14 @@ typedef enum {
     IOMMU_UNTRANSLATED_ONLY = 32,
 } IOMMUAccessFlags;
 
-#define IOMMU_ACCESS_FLAG(r, w)     (((r) ? IOMMU_RO : 0) | \
-                                    ((w) ? IOMMU_WO : 0))
+#define IOMMU_ACCESS_FLAG(r, w)     ((IOMMUAccessFlags)(((r) ? IOMMU_RO : 0) | \
+                                    ((w) ? IOMMU_WO : 0)))
 #define IOMMU_ACCESS_FLAG_FULL(r, w, x, p, g, uo) \
-                                    (IOMMU_ACCESS_FLAG(r, w) | \
+                                    ((IOMMUAccessFlags)(IOMMU_ACCESS_FLAG(r, w) | \
                                     ((x) ? IOMMU_EXEC : 0) | \
                                     ((p) ? IOMMU_PRIV : 0) | \
                                     ((g) ? IOMMU_GLOBAL : 0) | \
-                                    ((uo) ? IOMMU_UNTRANSLATED_ONLY : 0))
+                                    ((uo) ? IOMMU_UNTRANSLATED_ONLY : 0)))
 
 struct IOMMUTLBEntry {
     AddressSpace    *target_as;

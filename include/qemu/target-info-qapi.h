@@ -12,6 +12,10 @@
 #include "qapi/qapi-types-common.h"
 #include "qapi/qapi-types-machine.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * target_arch:
  *
@@ -25,5 +29,9 @@ SysEmuTarget target_arch(void);
  * Returns: QAPI EndianMode enum (e.g. ENDIAN_MODE_LITTLE).
  */
 EndianMode target_endian_mode(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

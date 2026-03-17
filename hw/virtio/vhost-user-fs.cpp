@@ -309,7 +309,7 @@ static struct vhost_dev *vuf_get_vhost(VirtIODevice *vdev)
 static int vuf_save_state(QEMUFile *f, void *pv, size_t size,
                           const VMStateField *field, JSONWriter *vmdesc)
 {
-    VirtIODevice *vdev = pv;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(pv);
     VHostUserFS *fs = VHOST_USER_FS(vdev);
     Error *local_error = NULL;
     int ret;
@@ -333,7 +333,7 @@ static int vuf_save_state(QEMUFile *f, void *pv, size_t size,
 static int vuf_load_state(QEMUFile *f, void *pv, size_t size,
                           const VMStateField *field)
 {
-    VirtIODevice *vdev = pv;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(pv);
     VHostUserFS *fs = VHOST_USER_FS(vdev);
     Error *local_error = NULL;
     int ret;
@@ -359,7 +359,7 @@ static bool vuf_is_internal_migration(void *opaque)
 
 static int vuf_check_migration_support(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
     VHostUserFS *fs = VHOST_USER_FS(vdev);
 
     if (!vhost_supports_device_state(&fs->vhost_dev)) {
@@ -373,38 +373,46 @@ static int vuf_check_migration_support(void *opaque)
     return 0;
 }
 
-static const VMStateDescription vuf_backend_vmstate;
+/* Forward declaration - non-const for C++ */
 
-static const VMStateDescription vuf_vmstate = {
-    .name = "vhost-user-fs",
-    .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
+static const VMStateInfo vuf_backend_state_info = {
+    .name = "virtio-fs back-end state",
+    .get = vuf_load_state,
+    .put = vuf_save_state,
+};
+
+static const VMStateField vuf_backend_vmstate_fields[] = {
+    {
+        .name = "back-end",
+        .info = &vuf_backend_state_info,
     },
-    .subsections = (const VMStateDescription * const []) {
-        &vuf_backend_vmstate,
-        NULL,
-    }
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vuf_backend_vmstate = {
     .name = "vhost-user-fs-backend",
     .version_id = 0,
-    .needed = vuf_is_internal_migration,
     .pre_load = vuf_check_migration_support,
     .pre_save = vuf_check_migration_support,
-    .fields = (const VMStateField[]) {
-        {
-            .name = "back-end",
-            .info = &(const VMStateInfo) {
-                .name = "virtio-fs back-end state",
-                .get = vuf_load_state,
-                .put = vuf_save_state,
-            },
-        },
-        VMSTATE_END_OF_LIST()
-    },
+    .needed = vuf_is_internal_migration,
+    .fields = vuf_backend_vmstate_fields,
+};
+
+static const VMStateField vuf_vmstate_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vuf_vmstate_subsections[] = {
+    &vuf_backend_vmstate,
+    NULL,
+};
+
+static const VMStateDescription vuf_vmstate = {
+    .name = "vhost-user-fs",
+    .version_id = 0,
+    .fields = vuf_vmstate_fields,
+    .subsections = vuf_vmstate_subsections,
 };
 
 static const Property vuf_properties[] = {

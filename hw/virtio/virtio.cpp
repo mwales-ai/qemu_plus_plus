@@ -157,47 +157,50 @@ struct VirtQueue
     QLIST_ENTRY(VirtQueue) node;
 };
 
-const char *virtio_device_names[] = {
-    [VIRTIO_ID_NET] = "virtio-net",
-    [VIRTIO_ID_BLOCK] = "virtio-blk",
-    [VIRTIO_ID_CONSOLE] = "virtio-serial",
-    [VIRTIO_ID_RNG] = "virtio-rng",
-    [VIRTIO_ID_BALLOON] = "virtio-balloon",
-    [VIRTIO_ID_IOMEM] = "virtio-iomem",
-    [VIRTIO_ID_RPMSG] = "virtio-rpmsg",
-    [VIRTIO_ID_SCSI] = "virtio-scsi",
-    [VIRTIO_ID_9P] = "virtio-9p",
-    [VIRTIO_ID_MAC80211_WLAN] = "virtio-mac-wlan",
-    [VIRTIO_ID_RPROC_SERIAL] = "virtio-rproc-serial",
-    [VIRTIO_ID_CAIF] = "virtio-caif",
-    [VIRTIO_ID_MEMORY_BALLOON] = "virtio-mem-balloon",
-    [VIRTIO_ID_GPU] = "virtio-gpu",
-    [VIRTIO_ID_CLOCK] = "virtio-clk",
-    [VIRTIO_ID_INPUT] = "virtio-input",
-    [VIRTIO_ID_VSOCK] = "vhost-vsock",
-    [VIRTIO_ID_CRYPTO] = "virtio-crypto",
-    [VIRTIO_ID_SIGNAL_DIST] = "virtio-signal",
-    [VIRTIO_ID_PSTORE] = "virtio-pstore",
-    [VIRTIO_ID_IOMMU] = "virtio-iommu",
-    [VIRTIO_ID_MEM] = "virtio-mem",
-    [VIRTIO_ID_SOUND] = "virtio-sound",
-    [VIRTIO_ID_FS] = "virtio-user-fs",
-    [VIRTIO_ID_PMEM] = "virtio-pmem",
-    [VIRTIO_ID_RPMB] = "virtio-rpmb",
-    [VIRTIO_ID_MAC80211_HWSIM] = "virtio-mac-hwsim",
-    [VIRTIO_ID_VIDEO_ENCODER] = "virtio-vid-encoder",
-    [VIRTIO_ID_VIDEO_DECODER] = "virtio-vid-decoder",
-    [VIRTIO_ID_SCMI] = "virtio-scmi",
-    [VIRTIO_ID_NITRO_SEC_MOD] = "virtio-nitro-sec-mod",
-    [VIRTIO_ID_I2C_ADAPTER] = "vhost-user-i2c",
-    [VIRTIO_ID_WATCHDOG] = "virtio-watchdog",
-    [VIRTIO_ID_CAN] = "virtio-can",
-    [VIRTIO_ID_DMABUF] = "virtio-dmabuf",
-    [VIRTIO_ID_PARAM_SERV] = "virtio-param-serv",
-    [VIRTIO_ID_AUDIO_POLICY] = "virtio-audio-pol",
-    [VIRTIO_ID_BT] = "virtio-bluetooth",
-    [VIRTIO_ID_GPIO] = "virtio-gpio"
-};
+const char *virtio_device_names[VIRTIO_ID_GPIO + 1] = {};
+
+static void __attribute__((constructor)) init_virtio_device_names(void)
+{
+    virtio_device_names[VIRTIO_ID_NET] = "virtio-net";
+    virtio_device_names[VIRTIO_ID_BLOCK] = "virtio-blk";
+    virtio_device_names[VIRTIO_ID_CONSOLE] = "virtio-serial";
+    virtio_device_names[VIRTIO_ID_RNG] = "virtio-rng";
+    virtio_device_names[VIRTIO_ID_BALLOON] = "virtio-balloon";
+    virtio_device_names[VIRTIO_ID_IOMEM] = "virtio-iomem";
+    virtio_device_names[VIRTIO_ID_RPMSG] = "virtio-rpmsg";
+    virtio_device_names[VIRTIO_ID_SCSI] = "virtio-scsi";
+    virtio_device_names[VIRTIO_ID_9P] = "virtio-9p";
+    virtio_device_names[VIRTIO_ID_MAC80211_WLAN] = "virtio-mac-wlan";
+    virtio_device_names[VIRTIO_ID_RPROC_SERIAL] = "virtio-rproc-serial";
+    virtio_device_names[VIRTIO_ID_CAIF] = "virtio-caif";
+    virtio_device_names[VIRTIO_ID_MEMORY_BALLOON] = "virtio-mem-balloon";
+    virtio_device_names[VIRTIO_ID_GPU] = "virtio-gpu";
+    virtio_device_names[VIRTIO_ID_CLOCK] = "virtio-clk";
+    virtio_device_names[VIRTIO_ID_INPUT] = "virtio-input";
+    virtio_device_names[VIRTIO_ID_VSOCK] = "vhost-vsock";
+    virtio_device_names[VIRTIO_ID_CRYPTO] = "virtio-crypto";
+    virtio_device_names[VIRTIO_ID_SIGNAL_DIST] = "virtio-signal";
+    virtio_device_names[VIRTIO_ID_PSTORE] = "virtio-pstore";
+    virtio_device_names[VIRTIO_ID_IOMMU] = "virtio-iommu";
+    virtio_device_names[VIRTIO_ID_MEM] = "virtio-mem";
+    virtio_device_names[VIRTIO_ID_SOUND] = "virtio-sound";
+    virtio_device_names[VIRTIO_ID_FS] = "virtio-user-fs";
+    virtio_device_names[VIRTIO_ID_PMEM] = "virtio-pmem";
+    virtio_device_names[VIRTIO_ID_RPMB] = "virtio-rpmb";
+    virtio_device_names[VIRTIO_ID_MAC80211_HWSIM] = "virtio-mac-hwsim";
+    virtio_device_names[VIRTIO_ID_VIDEO_ENCODER] = "virtio-vid-encoder";
+    virtio_device_names[VIRTIO_ID_VIDEO_DECODER] = "virtio-vid-decoder";
+    virtio_device_names[VIRTIO_ID_SCMI] = "virtio-scmi";
+    virtio_device_names[VIRTIO_ID_NITRO_SEC_MOD] = "virtio-nitro-sec-mod";
+    virtio_device_names[VIRTIO_ID_I2C_ADAPTER] = "vhost-user-i2c";
+    virtio_device_names[VIRTIO_ID_WATCHDOG] = "virtio-watchdog";
+    virtio_device_names[VIRTIO_ID_CAN] = "virtio-can";
+    virtio_device_names[VIRTIO_ID_DMABUF] = "virtio-dmabuf";
+    virtio_device_names[VIRTIO_ID_PARAM_SERV] = "virtio-param-serv";
+    virtio_device_names[VIRTIO_ID_AUDIO_POLICY] = "virtio-audio-pol";
+    virtio_device_names[VIRTIO_ID_BT] = "virtio-bluetooth";
+    virtio_device_names[VIRTIO_ID_GPIO] = "virtio-gpio";
+}
 
 static const char *virtio_id_to_name(uint16_t device_id)
 {
@@ -241,7 +244,7 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
 {
     VirtQueue *vq = &vdev->vq[n];
     VRingMemoryRegionCaches *old = vq->vring.caches;
-    VRingMemoryRegionCaches *new = NULL;
+    VRingMemoryRegionCaches *new_val = NULL;
     hwaddr addr, size;
     int64_t len;
     bool packed;
@@ -251,11 +254,11 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     if (!addr) {
         goto out_no_cache;
     }
-    new = g_new0(VRingMemoryRegionCaches, 1);
+    new_val = g_new0(VRingMemoryRegionCaches, 1);
     size = virtio_queue_get_desc_size(vdev, n);
     packed = virtio_vdev_has_feature(vq->vdev, VIRTIO_F_RING_PACKED) ?
                                    true : false;
-    len = address_space_cache_init(&new->desc, vdev->dma_as,
+    len = address_space_cache_init(&new_val->desc, vdev->dma_as,
                                    addr, size, packed);
     if (len < size) {
         virtio_error(vdev,
@@ -266,7 +269,7 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     }
 
     size = virtio_queue_get_used_size(vdev, n);
-    len = address_space_cache_init(&new->used, vdev->dma_as,
+    len = address_space_cache_init(&new_val->used, vdev->dma_as,
                                    vq->vring.used, size, true);
     if (len < size) {
         virtio_error(vdev,
@@ -277,7 +280,7 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
     }
 
     size = virtio_queue_get_avail_size(vdev, n);
-    len = address_space_cache_init(&new->avail, vdev->dma_as,
+    len = address_space_cache_init(&new_val->avail, vdev->dma_as,
                                    vq->vring.avail, size, false);
     if (len < size) {
         virtio_error(vdev,
@@ -287,20 +290,20 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
         goto err_avail;
     }
 
-    qatomic_rcu_set(&vq->vring.caches, new);
+    qatomic_rcu_set(&vq->vring.caches, new_val);
     if (old) {
         call_rcu(old, virtio_free_region_cache, rcu);
     }
     return;
 
 err_avail:
-    address_space_cache_destroy(&new->avail);
+    address_space_cache_destroy(&new_val->avail);
 err_used:
-    address_space_cache_destroy(&new->used);
+    address_space_cache_destroy(&new_val->used);
 err_desc:
-    address_space_cache_destroy(&new->desc);
+    address_space_cache_destroy(&new_val->desc);
 out_no_cache:
-    g_free(new);
+    g_free(new_val);
     virtio_virtqueue_reset_region_cache(vq);
 }
 
@@ -315,7 +318,7 @@ void virtio_queue_update_rings(VirtIODevice *vdev, int n)
     }
     vring->avail = vring->desc + vring->num * sizeof(VRingDesc);
     vring->used = vring_align(vring->avail +
-                              offsetof(VRingAvail, ring[vring->num]),
+                              (offsetof(VRingAvail, ring) + (vring->num) * sizeof(uint16_t)),
                               vring->align);
     virtio_init_region_cache(vdev, n);
 }
@@ -401,7 +404,7 @@ static inline uint16_t vring_avail_idx(VirtQueue *vq)
 static inline uint16_t vring_avail_ring(VirtQueue *vq, int i)
 {
     VRingMemoryRegionCaches *caches = vring_get_region_caches(vq);
-    hwaddr pa = offsetof(VRingAvail, ring[i]);
+    hwaddr pa = (offsetof(VRingAvail, ring) + (i) * sizeof(uint16_t));
 
     if (!caches) {
         return 0;
@@ -421,7 +424,7 @@ static inline void vring_used_write(VirtQueue *vq, VRingUsedElem *uelem,
                                     int i)
 {
     VRingMemoryRegionCaches *caches = vring_get_region_caches(vq);
-    hwaddr pa = offsetof(VRingUsed, ring[i]);
+    hwaddr pa = (offsetof(VRingUsed, ring) + (i) * sizeof(VRingUsedElem));
 
     if (!caches) {
         return;
@@ -521,7 +524,7 @@ static inline void vring_set_avail_event(VirtQueue *vq, uint16_t val)
         return;
     }
 
-    pa = offsetof(VRingUsed, ring[vq->vring.num]);
+    pa = (offsetof(VRingUsed, ring) + (vq->vring.num) * sizeof(VRingUsedElem));
     virtio_stw_phys_cached(vq->vdev, &caches->used, pa, val);
     address_space_cache_invalidate(&caches->used, pa, sizeof(val));
 }
@@ -1004,8 +1007,8 @@ static void virtqueue_packed_fill_desc(VirtQueue *vq,
     uint16_t head;
     VRingMemoryRegionCaches *caches;
     VRingPackedDesc desc = {
-        .id = elem->index,
         .len = elem->len,
+        .id = elem->index,
     };
     bool wrap_counter = vq->used_wrap_counter;
 
@@ -1058,7 +1061,7 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 /* Called within rcu_read_lock().  */
 static void virtqueue_split_flush(VirtQueue *vq, unsigned int count)
 {
-    uint16_t old, new;
+    uint16_t old, new_val;
 
     if (unlikely(!vq->vring.used)) {
         return;
@@ -1068,10 +1071,10 @@ static void virtqueue_split_flush(VirtQueue *vq, unsigned int count)
     smp_wmb();
     trace_virtqueue_flush(vq, count);
     old = vq->used_idx;
-    new = old + count;
-    vring_used_idx_set(vq, new);
+    new_val = old + count;
+    vring_used_idx_set(vq, new_val);
     vq->inuse -= count;
-    if (unlikely((int16_t)(new - vq->signalled_used) < (uint16_t)(new - old)))
+    if (unlikely((int16_t)(new_val - vq->signalled_used) < (uint16_t)(new_val - old)))
         vq->signalled_used_valid = false;
 }
 
@@ -1112,7 +1115,7 @@ static void virtqueue_ordered_flush(VirtQueue *vq)
     unsigned int i = vq->used_idx % vq->vring.num;
     unsigned int ndescs = 0;
     uint16_t old = vq->used_idx;
-    uint16_t new;
+    uint16_t new_val;
     bool packed;
     VRingUsedElem uelem;
 
@@ -1164,10 +1167,10 @@ static void virtqueue_ordered_flush(VirtQueue *vq)
     } else {
         /* Make sure buffer is written before we update index. */
         smp_wmb();
-        new = old + ndescs;
-        vring_used_idx_set(vq, new);
-        if (unlikely((int16_t)(new - vq->signalled_used) <
-                     (uint16_t)(new - old))) {
+        new_val = old + ndescs;
+        vring_used_idx_set(vq, new_val);
+        if (unlikely((int16_t)(new_val - vq->signalled_used) <
+                     (uint16_t)(new_val - old))) {
             vq->signalled_used_valid = false;
         }
     }
@@ -1690,14 +1693,14 @@ static void *virtqueue_alloc_element(size_t sz, unsigned out_num, unsigned in_nu
     size_t out_sg_end = out_sg_ofs + out_num * sizeof(elem->out_sg[0]);
 
     assert(sz >= sizeof(VirtQueueElement));
-    elem = g_malloc(out_sg_end);
+    elem = static_cast<VirtQueueElement *>(g_malloc(out_sg_end));
     trace_virtqueue_alloc_element(elem, sz, in_num, out_num);
     elem->out_num = out_num;
     elem->in_num = in_num;
-    elem->in_addr = (void *)elem + in_addr_ofs;
-    elem->out_addr = (void *)elem + out_addr_ofs;
-    elem->in_sg = (void *)elem + in_sg_ofs;
-    elem->out_sg = (void *)elem + out_sg_ofs;
+    elem->in_addr = reinterpret_cast<hwaddr *>(reinterpret_cast<uint8_t *>(elem) + in_addr_ofs);
+    elem->out_addr = reinterpret_cast<hwaddr *>(reinterpret_cast<uint8_t *>(elem) + out_addr_ofs);
+    elem->in_sg = reinterpret_cast<struct iovec *>(reinterpret_cast<uint8_t *>(elem) + in_sg_ofs);
+    elem->out_sg = reinterpret_cast<struct iovec *>(reinterpret_cast<uint8_t *>(elem) + out_sg_ofs);
     return elem;
 }
 
@@ -1816,7 +1819,7 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
     }
 
     /* Now copy what we have collected and mapped */
-    elem = virtqueue_alloc_element(sz, out_num, in_num);
+    elem = static_cast<VirtQueueElement *>(virtqueue_alloc_element(sz, out_num, in_num));
     elem->index = head;
     elem->ndescs = 1;
     for (i = 0; i < out_num; i++) {
@@ -1957,7 +1960,7 @@ static void *virtqueue_packed_pop(VirtQueue *vq, size_t sz)
     }
 
     /* Now copy what we have collected and mapped */
-    elem = virtqueue_alloc_element(sz, out_num, in_num);
+    elem = static_cast<VirtQueueElement *>(virtqueue_alloc_element(sz, out_num, in_num));
     for (i = 0; i < out_num; i++) {
         elem->out_addr[i] = addr[i];
         elem->out_sg[i] = iov[i];
@@ -2146,7 +2149,7 @@ void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz)
     assert(ARRAY_SIZE(data.in_addr) >= data.in_num);
     assert(ARRAY_SIZE(data.out_addr) >= data.out_num);
 
-    elem = virtqueue_alloc_element(sz, data.out_num, data.in_num);
+    elem = static_cast<VirtQueueElement *>(virtqueue_alloc_element(sz, data.out_num, data.in_num));
     elem->index = data.index;
 
     for (i = 0; i < elem->in_num; i++) {
@@ -2582,7 +2585,7 @@ static void virtio_set_isr(VirtIODevice *vdev, int value)
 /* Called within rcu_read_lock(). */
 static bool virtio_split_should_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
-    uint16_t old, new;
+    uint16_t old, new_val;
     bool v;
     /* We need to expose used array entries before checking used event. */
     smp_mb();
@@ -2599,12 +2602,12 @@ static bool virtio_split_should_notify(VirtIODevice *vdev, VirtQueue *vq)
     v = vq->signalled_used_valid;
     vq->signalled_used_valid = true;
     old = vq->signalled_used;
-    new = vq->signalled_used = vq->used_idx;
-    return !v || vring_need_event(vring_get_used_event(vq), new, old);
+    new_val = vq->signalled_used = vq->used_idx;
+    return !v || vring_need_event(vring_get_used_event(vq), new_val, old);
 }
 
 static bool vring_packed_need_event(VirtQueue *vq, bool wrap,
-                                    uint16_t off_wrap, uint16_t new,
+                                    uint16_t off_wrap, uint16_t new_val,
                                     uint16_t old)
 {
     int off = off_wrap & ~(1 << 15);
@@ -2613,14 +2616,14 @@ static bool vring_packed_need_event(VirtQueue *vq, bool wrap,
         off -= vq->vring.num;
     }
 
-    return vring_need_event(off, new, old);
+    return vring_need_event(off, new_val, old);
 }
 
 /* Called within rcu_read_lock(). */
 static bool virtio_packed_should_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     VRingPackedDescEvent e;
-    uint16_t old, new;
+    uint16_t old, new_val;
     bool v;
     VRingMemoryRegionCaches *caches;
 
@@ -2632,7 +2635,7 @@ static bool virtio_packed_should_notify(VirtIODevice *vdev, VirtQueue *vq)
     vring_packed_event_read(vdev, &caches->avail, &e);
 
     old = vq->signalled_used;
-    new = vq->signalled_used = vq->used_idx;
+    new_val = vq->signalled_used = vq->used_idx;
     v = vq->signalled_used_valid;
     vq->signalled_used_valid = true;
 
@@ -2643,7 +2646,7 @@ static bool virtio_packed_should_notify(VirtIODevice *vdev, VirtQueue *vq)
     }
 
     return !v || vring_packed_need_event(vq, vq->used_wrap_counter,
-                                         e.off_wrap, new, old);
+                                         e.off_wrap, new_val, old);
 }
 
 /* Called within rcu_read_lock().  */
@@ -2659,7 +2662,7 @@ static bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
 /* Batch irqs while inside a defer_call_begin()/defer_call_end() section */
 static void virtio_notify_irqfd_deferred_fn(void *opaque)
 {
-    EventNotifier *notifier = opaque;
+    EventNotifier *notifier = static_cast<EventNotifier *>(opaque);
     VirtQueue *vq = container_of(notifier, VirtQueue, guest_notifier);
 
     trace_virtio_notify_irqfd_deferred_fn(vq->vdev, vq);
@@ -2727,7 +2730,7 @@ void virtio_notify_config(VirtIODevice *vdev)
 
 static bool virtio_device_endian_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
 
     assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
     if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
@@ -2739,28 +2742,28 @@ static bool virtio_device_endian_needed(void *opaque)
 
 static bool virtio_64bit_features_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
 
     return (vdev->host_features >> 32) != 0;
 }
 
 static bool virtio_virtqueue_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
 
     return virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1);
 }
 
 static bool virtio_packed_virtqueue_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
 
     return virtio_host_has_feature(vdev, VIRTIO_F_RING_PACKED);
 }
 
 static bool virtio_ringsize_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
     int i;
 
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
@@ -2773,7 +2776,7 @@ static bool virtio_ringsize_needed(void *opaque)
 
 static bool virtio_extra_state_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
@@ -2783,100 +2786,113 @@ static bool virtio_extra_state_needed(void *opaque)
 
 static bool virtio_broken_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
 
     return vdev->broken;
 }
 
 static bool virtio_started_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
 
     return vdev->started;
 }
 
 static bool virtio_disabled_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
 
     return vdev->disabled;
 }
+
+static const VMStateField vmstate_virtqueue_fields[] = {
+        VMSTATE_UINT64(vring.avail, struct VirtQueue),
+        VMSTATE_UINT64(vring.used, struct VirtQueue),
+        VMSTATE_END_OF_LIST()
+    };
+
 
 static const VMStateDescription vmstate_virtqueue = {
     .name = "virtqueue_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(vring.avail, struct VirtQueue),
-        VMSTATE_UINT64(vring.used, struct VirtQueue),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtqueue_fields
 };
 
-static const VMStateDescription vmstate_packed_virtqueue = {
-    .name = "packed_virtqueue_state",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_packed_virtqueue_fields[] = {
         VMSTATE_UINT16(last_avail_idx, struct VirtQueue),
         VMSTATE_BOOL(last_avail_wrap_counter, struct VirtQueue),
         VMSTATE_UINT16(used_idx, struct VirtQueue),
         VMSTATE_BOOL(used_wrap_counter, struct VirtQueue),
         VMSTATE_UINT32(inuse, struct VirtQueue),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription vmstate_packed_virtqueue = {
+    .name = "packed_virtqueue_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_packed_virtqueue_fields
 };
+
+static const VMStateField vmstate_virtio_virtqueues_fields[] = {
+        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
+                      VIRTIO_QUEUE_MAX, 0, vmstate_virtqueue, VirtQueue),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_virtqueues = {
     .name = "virtio/virtqueues",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_virtqueue_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
-                      VIRTIO_QUEUE_MAX, 0, vmstate_virtqueue, VirtQueue),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_virtqueues_fields
 };
+
+static const VMStateField vmstate_virtio_packed_virtqueues_fields[] = {
+        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
+                      VIRTIO_QUEUE_MAX, 0, vmstate_packed_virtqueue, VirtQueue),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_packed_virtqueues = {
     .name = "virtio/packed_virtqueues",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_packed_virtqueue_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
-                      VIRTIO_QUEUE_MAX, 0, vmstate_packed_virtqueue, VirtQueue),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_packed_virtqueues_fields
 };
+
+static const VMStateField vmstate_ringsize_fields[] = {
+        VMSTATE_UINT32(vring.num_default, struct VirtQueue),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_ringsize = {
     .name = "ringsize_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(vring.num_default, struct VirtQueue),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ringsize_fields
 };
+
+static const VMStateField vmstate_virtio_ringsize_fields[] = {
+        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
+                      VIRTIO_QUEUE_MAX, 0, vmstate_ringsize, VirtQueue),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_ringsize = {
     .name = "virtio/ringsize",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_ringsize_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_POINTER_KNOWN(vq, struct VirtIODevice,
-                      VIRTIO_QUEUE_MAX, 0, vmstate_ringsize, VirtQueue),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_ringsize_fields
 };
 
 static int get_extra_state(QEMUFile *f, void *pv, size_t size,
                            const VMStateField *field)
 {
-    VirtIODevice *vdev = pv;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(pv);
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
@@ -2890,7 +2906,7 @@ static int get_extra_state(QEMUFile *f, void *pv, size_t size,
 static int put_extra_state(QEMUFile *f, void *pv, size_t size,
                            const VMStateField *field, JSONWriter *vmdesc)
 {
-    VirtIODevice *vdev = pv;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(pv);
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
@@ -2904,96 +2920,110 @@ static const VMStateInfo vmstate_info_extra_state = {
     .put = put_extra_state,
 };
 
+static const VMStateField vmstate_virtio_extra_state_fields[] = {
+    {
+        .name         = "extra_state",
+        .offset       = 0,
+        .size         = 0,
+        .info         = &vmstate_info_extra_state,
+        .flags        = VMS_SINGLE,
+        .version_id   = 0,
+        .field_exists = NULL,
+    },
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_extra_state = {
     .name = "virtio/extra_state",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_extra_state_needed,
-    .fields = (const VMStateField[]) {
-        {
-            .name         = "extra_state",
-            .version_id   = 0,
-            .field_exists = NULL,
-            .size         = 0,
-            .info         = &vmstate_info_extra_state,
-            .flags        = VMS_SINGLE,
-            .offset       = 0,
-        },
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_extra_state_fields,
 };
+
+static const VMStateField vmstate_virtio_device_endian_fields[] = {
+        VMSTATE_UINT8(device_endian, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_device_endian = {
     .name = "virtio/device_endian",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_device_endian_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(device_endian, VirtIODevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_device_endian_fields
 };
+
+static const VMStateField vmstate_virtio_64bit_features_fields[] = {
+        VMSTATE_UINT64(guest_features, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_64bit_features = {
     .name = "virtio/64bit_features",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_64bit_features_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(guest_features, VirtIODevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_64bit_features_fields
 };
+
+static const VMStateField vmstate_virtio_broken_fields[] = {
+        VMSTATE_BOOL(broken, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_broken = {
     .name = "virtio/broken",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_broken_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(broken, VirtIODevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_broken_fields
 };
+
+static const VMStateField vmstate_virtio_started_fields[] = {
+        VMSTATE_BOOL(started, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_started = {
     .name = "virtio/started",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_started_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(started, VirtIODevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_started_fields
 };
+
+static const VMStateField vmstate_virtio_disabled_fields[] = {
+        VMSTATE_BOOL(disabled, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_disabled = {
     .name = "virtio/disabled",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_disabled_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(disabled, VirtIODevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_disabled_fields
 };
 
 static bool virtio_128bit_features_needed(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
 
     return virtio_features_use_ex(vdev->host_features_ex);
 }
+
+static const VMStateField vmstate_virtio_128bit_features_fields[] = {
+        VMSTATE_UINT64(guest_features_ex[1], VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    };
 
 static const VMStateDescription vmstate_virtio_128bit_features = {
     .name = "virtio/128bit_features",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = &virtio_128bit_features_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(guest_features_ex[1], VirtIODevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_virtio_128bit_features_fields
 };
 
 /*
@@ -3002,26 +3032,30 @@ static const VMStateDescription vmstate_virtio_128bit_features = {
  */
 QEMU_BUILD_BUG_ON(VIRTIO_FEATURES_NU64S != 2);
 
+static const VMStateField vmstate_virtio_fields[] = {
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_virtio_subsections[] = {
+    &vmstate_virtio_device_endian,
+    &vmstate_virtio_128bit_features,
+    &vmstate_virtio_64bit_features,
+    &vmstate_virtio_virtqueues,
+    &vmstate_virtio_ringsize,
+    &vmstate_virtio_broken,
+    &vmstate_virtio_extra_state,
+    &vmstate_virtio_started,
+    &vmstate_virtio_packed_virtqueues,
+    &vmstate_virtio_disabled,
+    NULL
+};
+
 static const VMStateDescription vmstate_virtio = {
     .name = "virtio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_virtio_device_endian,
-        &vmstate_virtio_128bit_features,
-        &vmstate_virtio_64bit_features,
-        &vmstate_virtio_virtqueues,
-        &vmstate_virtio_ringsize,
-        &vmstate_virtio_broken,
-        &vmstate_virtio_extra_state,
-        &vmstate_virtio_started,
-        &vmstate_virtio_packed_virtqueues,
-        &vmstate_virtio_disabled,
-        NULL
-    }
+    .fields = vmstate_virtio_fields,
+    .subsections = vmstate_virtio_subsections
 };
 
 int virtio_save(VirtIODevice *vdev, QEMUFile *f)
@@ -3042,7 +3076,7 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
     qemu_put_be16s(f, &vdev->queue_sel);
     qemu_put_be32s(f, &guest_features_lo);
     qemu_put_be32(f, vdev->config_len);
-    qemu_put_buffer(f, vdev->config, vdev->config_len);
+    qemu_put_buffer(f, static_cast<const uint8_t *>(vdev->config), vdev->config_len);
 
     for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
         if (vdev->vq[i].vring.num == 0)
@@ -3143,7 +3177,7 @@ typedef struct VirtioSetFeaturesNocheckData {
 
 static void virtio_set_features_nocheck_bh(void *opaque)
 {
-    VirtioSetFeaturesNocheckData *data = opaque;
+    VirtioSetFeaturesNocheckData *data = static_cast<VirtioSetFeaturesNocheckData *>(opaque);
 
     data->ret = virtio_set_features_nocheck(data->vdev, data->val);
     aio_co_wake(data->co);
@@ -3214,7 +3248,7 @@ int virtio_set_features_ex(VirtIODevice *vdev, const uint64_t *features)
 
 void virtio_reset(void *opaque)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
     VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     uint64_t features[VIRTIO_FEATURES_NU64S];
     int i;
@@ -3337,7 +3371,7 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
      * than what we have; so load what we have space for, and skip
      * any excess that's in the stream.
      */
-    qemu_get_buffer(f, vdev->config, MIN(config_len, vdev->config_len));
+    qemu_get_buffer(f, static_cast<uint8_t *>(vdev->config), MIN(config_len, vdev->config_len));
 
     while (config_len > vdev->config_len) {
         qemu_get_byte(f);
@@ -3503,7 +3537,7 @@ void virtio_cleanup(VirtIODevice *vdev)
 
 static int virtio_vmstate_change(void *opaque, bool running, RunState state)
 {
-    VirtIODevice *vdev = opaque;
+    VirtIODevice *vdev = static_cast<VirtIODevice *>(opaque);
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     bool backend_run = running && virtio_device_started(vdev, vdev->status);
@@ -3529,7 +3563,7 @@ static int virtio_vmstate_change(void *opaque, bool running, RunState state)
 void virtio_instance_init_common(Object *proxy_obj, void *data,
                                  size_t vdev_size, const char *vdev_name)
 {
-    DeviceState *vdev = data;
+    DeviceState *vdev = static_cast<DeviceState *>(data);
 
     object_initialize_child_with_props(proxy_obj, "virtio-backend", vdev,
                                        vdev_size, vdev_name, &error_abort,
@@ -3546,7 +3580,7 @@ void virtio_init(VirtIODevice *vdev, uint16_t device_id, size_t config_size)
 
     if (nvectors) {
         vdev->vector_queues =
-            g_malloc0(sizeof(*vdev->vector_queues) * nvectors);
+            static_cast<decltype(vdev->vector_queues)>(g_malloc0(sizeof(*vdev->vector_queues) * nvectors));
     }
 
     vdev->start_on_kick = false;
@@ -3854,7 +3888,7 @@ static void virtio_queue_host_notifier_aio_poll_begin(EventNotifier *n)
 
 static bool virtio_queue_host_notifier_aio_poll(void *opaque)
 {
-    EventNotifier *n = opaque;
+    EventNotifier *n = static_cast<EventNotifier *>(opaque);
     VirtQueue *vq = container_of(n, VirtQueue, host_notifier);
 
     return vq->vring.desc && !virtio_queue_empty(vq);
@@ -4291,7 +4325,7 @@ VirtQueueStatus *qmp_x_query_virtio_queue_status(const char *path,
             int vhost_vq_index =
                 hdev->vhost_ops->vhost_get_vq_index(hdev, queue);
             struct vhost_vring_state state = {
-                .index = vhost_vq_index,
+                .index = static_cast<unsigned int>(vhost_vq_index),
             };
 
             status->last_avail_idx =
@@ -4329,7 +4363,7 @@ static strList *qmp_decode_vring_desc_flags(uint16_t flags)
         if ((map[i].flag & flags) == 0) {
             continue;
         }
-        node = g_malloc0(sizeof(strList));
+        node = static_cast<strList *>(g_malloc0(sizeof(strList)));
         node->value = g_strdup(map[i].value);
         node->next = list;
         list = node;
@@ -4371,7 +4405,7 @@ VirtioQueueElement *qmp_x_query_virtio_queue_element(const char *path,
         VRingDesc desc;
         VirtioRingDescList *list = NULL;
         VirtioRingDescList *node;
-        int rc; int ndescs;
+        int rc; unsigned int ndescs;
 
         address_space_cache_init_empty(&indirect_desc_cache);
 
@@ -4453,10 +4487,10 @@ static const TypeInfo virtio_device_info = {
     .name = TYPE_VIRTIO_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIODevice),
-    .class_init = virtio_device_class_init,
     .instance_finalize = virtio_device_instance_finalize,
     .is_abstract = true,
     .class_size = sizeof(VirtioDeviceClass),
+    .class_init = virtio_device_class_init,
 };
 
 static void virtio_register_types(void)

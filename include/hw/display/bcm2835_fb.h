@@ -15,6 +15,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define UPPER_RAM_BASE 0x40000000
 
 #define TYPE_BCM2835_FB "bcm2835-fb"
@@ -86,5 +90,9 @@ static inline uint32_t bcm2835_fb_get_size(BCM2835FBConfig *config)
  * adjusts it if necessary.
  */
 void bcm2835_fb_validate_config(BCM2835FBConfig *config);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

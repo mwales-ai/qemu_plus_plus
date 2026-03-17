@@ -32,7 +32,8 @@
 #include "hw/acpi/acpi.h"
 #include "trace.h"
 
-static const VMStateDescription vmstate_virtio_mem_device_early;
+/* Forward declaration - const omitted for C++ compatibility */
+static VMStateDescription vmstate_virtio_mem_device_early;
 
 static bool virtio_mem_has_legacy_guests(void)
 {
@@ -326,14 +327,14 @@ static int virtio_mem_for_each_unplugged_section(const VirtIOMEM *vmem,
 
 static int virtio_mem_notify_populate_cb(MemoryRegionSection *s, void *arg)
 {
-    RamDiscardListener *rdl = arg;
+    RamDiscardListener *rdl = static_cast<RamDiscardListener *>(arg);
 
     return rdl->notify_populate(rdl, s);
 }
 
 static int virtio_mem_notify_discard_cb(MemoryRegionSection *s, void *arg)
 {
-    RamDiscardListener *rdl = arg;
+    RamDiscardListener *rdl = static_cast<RamDiscardListener *>(arg);
 
     rdl->notify_discard(rdl, s);
     return 0;
@@ -602,7 +603,7 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
     }
 
     if (vmem->prealloc) {
-        void *area = memory_region_get_ram_ptr(&vmem->memdev->mr) + offset;
+        char *area = static_cast<char *>(memory_region_get_ram_ptr(&vmem->memdev->mr)) + offset;
         int fd = memory_region_get_fd(&vmem->memdev->mr);
         Error *local_err = NULL;
 
@@ -806,7 +807,7 @@ static void virtio_mem_handle_request(VirtIODevice *vdev, VirtQueue *vq)
     uint16_t type;
 
     while (true) {
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             return;
         }
@@ -858,7 +859,7 @@ static void virtio_mem_handle_request(VirtIODevice *vdev, VirtQueue *vq)
 static void virtio_mem_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
     VirtIOMEM *vmem = VIRTIO_MEM(vdev);
-    struct virtio_mem_config *config = (void *) config_data;
+    struct virtio_mem_config *config = reinterpret_cast<struct virtio_mem_config *>(config_data);
 
     config->block_size = cpu_to_le64(vmem->block_size);
     config->node_id = cpu_to_le16(vmem->node);
@@ -1263,7 +1264,7 @@ static int virtio_mem_post_load(void *opaque, int version_id)
 static int virtio_mem_prealloc_range_cb(VirtIOMEM *vmem, void *arg,
                                         uint64_t offset, uint64_t size)
 {
-    void *area = memory_region_get_ram_ptr(&vmem->memdev->mr) + offset;
+    char *area = static_cast<char *>(memory_region_get_ram_ptr(&vmem->memdev->mr)) + offset;
     int fd = memory_region_get_fd(&vmem->memdev->mr);
     Error *local_err = NULL;
 
@@ -1338,7 +1339,7 @@ typedef struct VirtIOMEMMigSanityChecks {
 
 static int virtio_mem_mig_sanity_checks_pre_save(void *opaque)
 {
-    VirtIOMEMMigSanityChecks *tmp = opaque;
+    VirtIOMEMMigSanityChecks *tmp = static_cast<VirtIOMEMMigSanityChecks *>(opaque);
     VirtIOMEM *vmem = tmp->parent;
 
     tmp->addr = vmem->addr;
@@ -1350,7 +1351,7 @@ static int virtio_mem_mig_sanity_checks_pre_save(void *opaque)
 
 static int virtio_mem_mig_sanity_checks_post_load(void *opaque, int version_id)
 {
-    VirtIOMEMMigSanityChecks *tmp = opaque;
+    VirtIOMEMMigSanityChecks *tmp = static_cast<VirtIOMEMMigSanityChecks *>(opaque);
     VirtIOMEM *vmem = tmp->parent;
     const uint64_t new_region_size = memory_region_size(&vmem->memdev->mr);
 
@@ -1383,17 +1384,19 @@ static int virtio_mem_mig_sanity_checks_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_virtio_mem_sanity_checks_fields[] = {
+    VMSTATE_UINT64(addr, VirtIOMEMMigSanityChecks),
+    VMSTATE_UINT64(region_size, VirtIOMEMMigSanityChecks),
+    VMSTATE_UINT64(block_size, VirtIOMEMMigSanityChecks),
+    VMSTATE_UINT32(node, VirtIOMEMMigSanityChecks),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_virtio_mem_sanity_checks = {
     .name = "virtio-mem-device/sanity-checks",
-    .pre_save = virtio_mem_mig_sanity_checks_pre_save,
     .post_load = virtio_mem_mig_sanity_checks_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(addr, VirtIOMEMMigSanityChecks),
-        VMSTATE_UINT64(region_size, VirtIOMEMMigSanityChecks),
-        VMSTATE_UINT64(block_size, VirtIOMEMMigSanityChecks),
-        VMSTATE_UINT32(node, VirtIOMEMMigSanityChecks),
-        VMSTATE_END_OF_LIST(),
-    },
+    .pre_save = virtio_mem_mig_sanity_checks_pre_save,
+    .fields = vmstate_virtio_mem_sanity_checks_fields,
 };
 
 static bool virtio_mem_vmstate_field_exists(void *opaque, int version_id)
@@ -1404,23 +1407,25 @@ static bool virtio_mem_vmstate_field_exists(void *opaque, int version_id)
     return !vmem->early_migration;
 }
 
+static const VMStateField vmstate_virtio_mem_device_fields[] = {
+    VMSTATE_WITH_TMP_TEST(VirtIOMEM, virtio_mem_vmstate_field_exists,
+                          VirtIOMEMMigSanityChecks,
+                          vmstate_virtio_mem_sanity_checks),
+    VMSTATE_UINT64(usable_region_size, VirtIOMEM),
+    VMSTATE_UINT64_TEST(size, VirtIOMEM, virtio_mem_vmstate_field_exists),
+    VMSTATE_UINT64(requested_size, VirtIOMEM),
+    VMSTATE_BITMAP_TEST(bitmap, VirtIOMEM, virtio_mem_vmstate_field_exists,
+                        0, bitmap_size),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_mem_device = {
     .name = "virtio-mem-device",
-    .minimum_version_id = 1,
     .version_id = 1,
+    .minimum_version_id = 1,
     .priority = MIG_PRI_VIRTIO_MEM,
     .post_load = virtio_mem_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_WITH_TMP_TEST(VirtIOMEM, virtio_mem_vmstate_field_exists,
-                              VirtIOMEMMigSanityChecks,
-                              vmstate_virtio_mem_sanity_checks),
-        VMSTATE_UINT64(usable_region_size, VirtIOMEM),
-        VMSTATE_UINT64_TEST(size, VirtIOMEM, virtio_mem_vmstate_field_exists),
-        VMSTATE_UINT64(requested_size, VirtIOMEM),
-        VMSTATE_BITMAP_TEST(bitmap, VirtIOMEM, virtio_mem_vmstate_field_exists,
-                            0, bitmap_size),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_virtio_mem_device_fields,
 };
 
 /*
@@ -1434,29 +1439,34 @@ static const VMStateDescription vmstate_virtio_mem_device = {
  * With QEMU compat machines, we transmit these properties later, via
  * vmstate_virtio_mem_device instead -- see virtio_mem_vmstate_field_exists().
  */
-static const VMStateDescription vmstate_virtio_mem_device_early = {
-    .name = "virtio-mem-device-early",
-    .minimum_version_id = 1,
-    .version_id = 1,
-    .early_setup = true,
-    .post_load = virtio_mem_post_load_early,
-    .fields = (const VMStateField[]) {
-        VMSTATE_WITH_TMP(VirtIOMEM, VirtIOMEMMigSanityChecks,
-                         vmstate_virtio_mem_sanity_checks),
-        VMSTATE_UINT64(size, VirtIOMEM),
-        VMSTATE_BITMAP(bitmap, VirtIOMEM, 0, bitmap_size),
-        VMSTATE_END_OF_LIST()
-    },
+static const VMStateField vmstate_virtio_mem_device_early_fields[] = {
+    VMSTATE_WITH_TMP(VirtIOMEM, VirtIOMEMMigSanityChecks,
+                     vmstate_virtio_mem_sanity_checks),
+    VMSTATE_UINT64(size, VirtIOMEM),
+    VMSTATE_BITMAP(bitmap, VirtIOMEM, 0, bitmap_size),
+    VMSTATE_END_OF_LIST()
+};
+
+static void __attribute__((constructor)) init_vmstate_virtio_mem_device_early(void)
+{
+    vmstate_virtio_mem_device_early.name = "virtio-mem-device-early";
+    vmstate_virtio_mem_device_early.early_setup = true;
+    vmstate_virtio_mem_device_early.version_id = 1;
+    vmstate_virtio_mem_device_early.minimum_version_id = 1;
+    vmstate_virtio_mem_device_early.post_load = virtio_mem_post_load_early;
+    vmstate_virtio_mem_device_early.fields = vmstate_virtio_mem_device_early_fields;
+}
+
+static const VMStateField vmstate_virtio_mem_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_virtio_mem = {
     .name = "virtio-mem",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_virtio_mem_fields,
 };
 
 static void virtio_mem_fill_device_info(const VirtIOMEM *vmem,
@@ -1753,7 +1763,7 @@ struct VirtIOMEMReplayData {
 
 static int virtio_mem_rdm_replay_populated_cb(MemoryRegionSection *s, void *arg)
 {
-    struct VirtIOMEMReplayData *data = arg;
+    struct VirtIOMEMReplayData *data = static_cast<struct VirtIOMEMReplayData *>(arg);
 
     return data->fn(s, data->opaque);
 }
@@ -1777,7 +1787,7 @@ static int virtio_mem_rdm_replay_populated(const RamDiscardManager *rdm,
 static int virtio_mem_rdm_replay_discarded_cb(MemoryRegionSection *s,
                                               void *arg)
 {
-    struct VirtIOMEMReplayData *data = arg;
+    struct VirtIOMEMReplayData *data = static_cast<struct VirtIOMEMReplayData *>(arg);
 
     return data->fn(s, data->opaque);
 }
@@ -1898,18 +1908,20 @@ static void virtio_mem_class_init(ObjectClass *klass, const void *data)
     rdmc->unregister_listener = virtio_mem_rdm_unregister_listener;
 }
 
+static const InterfaceInfo virtio_mem_interfaces[] = {
+    { TYPE_RAM_DISCARD_MANAGER },
+    { }
+};
+
 static const TypeInfo virtio_mem_info = {
     .name = TYPE_VIRTIO_MEM,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOMEM),
     .instance_init = virtio_mem_instance_init,
     .instance_finalize = virtio_mem_instance_finalize,
-    .class_init = virtio_mem_class_init,
     .class_size = sizeof(VirtIOMEMClass),
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_RAM_DISCARD_MANAGER },
-        { }
-    },
+    .class_init = virtio_mem_class_init,
+    .interfaces = virtio_mem_interfaces,
 };
 
 static void virtio_register_types(void)

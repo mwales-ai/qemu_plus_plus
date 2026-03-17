@@ -442,7 +442,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
 static uint64_t bcm2835_property_read(void *opaque, hwaddr offset,
                                       unsigned size)
 {
-    BCM2835PropertyState *s = opaque;
+    BCM2835PropertyState *s = static_cast<BCM2835PropertyState *>(opaque);
     uint32_t res = 0;
 
     switch (offset) {
@@ -457,7 +457,7 @@ static uint64_t bcm2835_property_read(void *opaque, hwaddr offset,
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %" HWADDR_PRIx "\n",
                       __func__, offset);
         return 0;
     }
@@ -468,7 +468,7 @@ static uint64_t bcm2835_property_read(void *opaque, hwaddr offset,
 static void bcm2835_property_write(void *opaque, hwaddr offset,
                                    uint64_t value, unsigned size)
 {
-    BCM2835PropertyState *s = opaque;
+    BCM2835PropertyState *s = static_cast<BCM2835PropertyState *>(opaque);
 
     switch (offset) {
     case MBOX_AS_DATA:
@@ -480,7 +480,7 @@ static void bcm2835_property_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %" HWADDR_PRIx "\n",
                       __func__, offset);
         return;
     }
@@ -493,16 +493,18 @@ static const MemoryRegionOps bcm2835_property_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
+static const VMStateField vmstate_bcm2835_property_fields[] = {
+    VMSTATE_MACADDR(macaddr, BCM2835PropertyState),
+    VMSTATE_UINT32(addr, BCM2835PropertyState),
+    VMSTATE_BOOL(pending, BCM2835PropertyState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_property = {
     .name = TYPE_BCM2835_PROPERTY,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_MACADDR(macaddr, BCM2835PropertyState),
-        VMSTATE_UINT32(addr, BCM2835PropertyState),
-        VMSTATE_BOOL(pending, BCM2835PropertyState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_property_fields,
 };
 
 static void bcm2835_property_init(Object *obj)
@@ -568,8 +570,8 @@ static const TypeInfo bcm2835_property_info = {
     .name          = TYPE_BCM2835_PROPERTY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835PropertyState),
-    .class_init    = bcm2835_property_class_init,
     .instance_init = bcm2835_property_init,
+    .class_init    = bcm2835_property_class_init,
 };
 
 static void bcm2835_property_register_types(void)

@@ -108,16 +108,18 @@ static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,
     return vhost_vsock_common_get_features(vdev, requested_features, errp);
 }
 
+static const VMStateField vmstate_virtio_vhost_vsock_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_vhost_vsock = {
     .name = "virtio-vhost_vsock",
-    .minimum_version_id = VHOST_VSOCK_SAVEVM_VERSION,
     .version_id = VHOST_VSOCK_SAVEVM_VERSION,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
-    .pre_save = vhost_vsock_common_pre_save,
+    .minimum_version_id = VHOST_VSOCK_SAVEVM_VERSION,
     .post_load = vhost_vsock_common_post_load,
+    .pre_save = vhost_vsock_common_pre_save,
+    .fields = vmstate_virtio_vhost_vsock_fields,
 };
 
 static void vhost_vsock_device_realize(DeviceState *dev, Error **errp)

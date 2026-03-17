@@ -1,4 +1,4 @@
-system_ss.add(when: 'CONFIG_APPLESMC', if_true: files('applesmc.c'))
+system_ss.add(when: 'CONFIG_APPLESMC', if_true: files('applesmc.cpp'))
 system_ss.add(when: 'CONFIG_EDU', if_true: files('edu.cpp'))
 system_ss.add(when: 'CONFIG_FW_CFG_DMA', if_true: files('vmcoreinfo.cpp'))
 system_ss.add(when: 'CONFIG_ISA_DEBUG', if_true: files('debugexit.cpp'))
@@ -10,9 +10,9 @@ system_ss.add(when: 'CONFIG_LED', if_true: files('led.cpp'))
 system_ss.add(when: 'CONFIG_PVPANIC_COMMON', if_true: files('pvpanic.cpp'))
 
 # ARM devices
-system_ss.add(when: 'CONFIG_PL310', if_true: files('arm_l2x0.c'))
+system_ss.add(when: 'CONFIG_PL310', if_true: files('arm_l2x0.cpp'))
 system_ss.add(when: 'CONFIG_INTEGRATOR_DEBUG', if_true: files('arm_integrator_debug.cpp'))
-system_ss.add(when: 'CONFIG_A9SCU', if_true: files('a9scu.c'))
+system_ss.add(when: 'CONFIG_A9SCU', if_true: files('a9scu.cpp'))
 system_ss.add(when: 'CONFIG_ARM11SCU', if_true: files('arm11scu.cpp'))
 
 system_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('armv7m_ras.cpp'))
@@ -52,7 +52,7 @@ system_ss.add(when: 'CONFIG_ALLWINNER_H3', if_true: files('allwinner-sid.c'))
 system_ss.add(when: 'CONFIG_ALLWINNER_R40', if_true: files('allwinner-r40-ccu.c'))
 system_ss.add(when: 'CONFIG_ALLWINNER_R40', if_true: files('allwinner-r40-dramc.c'))
 system_ss.add(when: 'CONFIG_AXP2XX_PMU', if_true: files('axp2xx.c'))
-system_ss.add(when: 'CONFIG_REALVIEW', if_true: files('arm_sysctl.c'))
+system_ss.add(when: 'CONFIG_REALVIEW', if_true: files('arm_sysctl.cpp'))
 system_ss.add(when: 'CONFIG_ECCMEMCTL', if_true: files('eccmemctl.cpp'))
 system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_pmu.cpp', 'exynos4210_clk.cpp', 'exynos4210_rng.c'))
 system_ss.add(when: 'CONFIG_FSL_IMX8MP_ANALOG', if_true: files('imx8mp_analog.c'))
@@ -85,11 +85,11 @@ system_ss.add(when: 'CONFIG_OMAP', if_true: files(
   'omap_clk.c',
 ))
 system_ss.add(when: 'CONFIG_RASPI', if_true: files(
-  'bcm2835_mbox.c',
+  'bcm2835_mbox.cpp',
   'bcm2835_mphi.c',
-  'bcm2835_property.c',
+  'bcm2835_property.cpp',
   'bcm2835_rng.c',
-  'bcm2835_thermal.c',
+  'bcm2835_thermal.cpp',
   'bcm2835_cprman.c',
   'bcm2835_powermgt.c',
 ))

@@ -132,7 +132,7 @@ static void bcm2835_mbox_update(BCM2835MboxState *s)
 
 static void bcm2835_mbox_set_irq(void *opaque, int irq, int level)
 {
-    BCM2835MboxState *s = opaque;
+    BCM2835MboxState *s = static_cast<BCM2835MboxState *>(opaque);
 
     s->available[irq] = level;
 
@@ -146,7 +146,7 @@ static void bcm2835_mbox_set_irq(void *opaque, int irq, int level)
 
 static uint64_t bcm2835_mbox_read(void *opaque, hwaddr offset, unsigned size)
 {
-    BCM2835MboxState *s = opaque;
+    BCM2835MboxState *s = static_cast<BCM2835MboxState *>(opaque);
     uint32_t res = 0;
 
     offset &= 0xff;
@@ -180,7 +180,7 @@ static uint64_t bcm2835_mbox_read(void *opaque, hwaddr offset, unsigned size)
         break;
 
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%" HWADDR_PRIx "\n",
                       __func__, offset);
         trace_bcm2835_mbox_read(size, offset, res);
         return 0;
@@ -195,7 +195,7 @@ static uint64_t bcm2835_mbox_read(void *opaque, hwaddr offset, unsigned size)
 static void bcm2835_mbox_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
-    BCM2835MboxState *s = opaque;
+    BCM2835MboxState *s = static_cast<BCM2835MboxState *>(opaque);
     hwaddr childaddr;
     uint8_t ch;
 
@@ -235,8 +235,8 @@ static void bcm2835_mbox_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%"HWADDR_PRIx
-                                 " value 0x%"PRIx64"\n",
+        qemu_log_mask(LOG_UNIMP, "%s: Unsupported offset 0x%" HWADDR_PRIx
+                                 " value 0x%" PRIx64 "\n",
                       __func__, offset, value);
         return;
     }
@@ -252,30 +252,34 @@ static const MemoryRegionOps bcm2835_mbox_ops = {
 };
 
 /* vmstate of a single mailbox */
+static const VMStateField vmstate_bcm2835_mbox_box_fields[] = {
+    VMSTATE_UINT32_ARRAY(reg, BCM2835Mbox, MBOX_SIZE),
+    VMSTATE_UINT32(count, BCM2835Mbox),
+    VMSTATE_UINT32(status, BCM2835Mbox),
+    VMSTATE_UINT32(config, BCM2835Mbox),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_mbox_box = {
     .name = TYPE_BCM2835_MBOX "_box",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(reg, BCM2835Mbox, MBOX_SIZE),
-        VMSTATE_UINT32(count, BCM2835Mbox),
-        VMSTATE_UINT32(status, BCM2835Mbox),
-        VMSTATE_UINT32(config, BCM2835Mbox),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_mbox_box_fields,
 };
 
 /* vmstate of the entire device */
+static const VMStateField vmstate_bcm2835_mbox_fields[] = {
+    VMSTATE_BOOL_ARRAY(available, BCM2835MboxState, MBOX_CHAN_COUNT),
+    VMSTATE_STRUCT_ARRAY(mbox, BCM2835MboxState, 2, 1,
+                         vmstate_bcm2835_mbox_box, BCM2835Mbox),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_mbox = {
     .name = TYPE_BCM2835_MBOX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL_ARRAY(available, BCM2835MboxState, MBOX_CHAN_COUNT),
-        VMSTATE_STRUCT_ARRAY(mbox, BCM2835MboxState, 2, 1,
-                             vmstate_bcm2835_mbox_box, BCM2835Mbox),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_mbox_fields,
 };
 
 static void bcm2835_mbox_init(Object *obj)
@@ -326,8 +330,8 @@ static const TypeInfo bcm2835_mbox_info = {
     .name          = TYPE_BCM2835_MBOX,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835MboxState),
-    .class_init    = bcm2835_mbox_class_init,
     .instance_init = bcm2835_mbox_init,
+    .class_init    = bcm2835_mbox_class_init,
 };
 
 static void bcm2835_mbox_register_types(void)

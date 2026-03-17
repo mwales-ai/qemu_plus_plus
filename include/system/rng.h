@@ -16,6 +16,10 @@
 #include "qemu/queue.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_RNG_BACKEND "rng-backend"
 OBJECT_DECLARE_TYPE(RngBackend, RngBackendClass,
                     RNG_BACKEND)
@@ -86,4 +90,9 @@ void rng_backend_request_entropy(RngBackend *s, size_t size,
  * deleted.
  */
 void rng_backend_finalize_request(RngBackend *s, RngRequest *req);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
