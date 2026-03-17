@@ -115,7 +115,7 @@ static void hace_iov_hexdump(const char *desc, const struct iovec *iov,
         size += iov[i].iov_len;
     }
 
-    buf = g_malloc(size);
+    buf = static_cast<char *>(g_malloc(size));
 
     if (!buf) {
         return;
@@ -154,7 +154,7 @@ static bool has_padding(AspeedHACEState *s, struct iovec *iov,
                         hwaddr req_len, uint32_t *total_msg_len,
                         uint32_t *pad_offset)
 {
-    *total_msg_len = (uint32_t)(ldq_be_p(iov->iov_base + req_len - 8) / 8);
+    *total_msg_len = (uint32_t)(ldq_be_p(static_cast<uint8_t *>(iov->iov_base) + req_len - 8) / 8);
     /*
      * SG_LIST_LEN_LAST asserted in the request length doesn't mean it is the
      * last request. The last request should contain padding message.
@@ -169,7 +169,7 @@ static bool has_padding(AspeedHACEState *s, struct iovec *iov,
      */
     if (*total_msg_len <= s->total_req_len) {
         uint32_t padding_size = s->total_req_len - *total_msg_len;
-        uint8_t *padding = iov->iov_base;
+        uint8_t *padding = static_cast<uint8_t *>(iov->iov_base);
 
         if (padding_size > req_len) {
             return false;
@@ -358,7 +358,7 @@ static void hash_execute_non_acc_mode(AspeedHACEState *s, int algo,
     Error *local_err = NULL;
     size_t digest_len = 0;
 
-    if (qcrypto_hash_bytesv(algo, iov, iov_idx, &digest_buf,
+    if (qcrypto_hash_bytesv(static_cast<QCryptoHashAlgo>(algo), iov, iov_idx, &digest_buf,
                             &digest_len, &local_err) < 0) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: qcrypto hash bytesv failed : %s",
@@ -381,7 +381,7 @@ static void hash_execute_acc_mode(AspeedHACEState *s, int algo,
     trace_aspeed_hace_hash_execute_acc_mode(final_request);
 
     if (s->hash_ctx == NULL) {
-        s->hash_ctx = qcrypto_hash_new(algo, &local_err);
+        s->hash_ctx = qcrypto_hash_new(static_cast<QCryptoHashAlgo>(algo), &local_err);
         if (s->hash_ctx == NULL) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: qcrypto hash new failed : %s",
                           __func__, error_get_pretty(local_err));
@@ -518,7 +518,7 @@ static void aspeed_hace_write(void *opaque, hwaddr addr, uint64_t data,
         algo = hash_algo_lookup(data);
         if (algo < 0) {
                 qemu_log_mask(LOG_GUEST_ERROR,
-                        "%s: Invalid hash algorithm selection 0x%"PRIx64"\n",
+                        "%s: Invalid hash algorithm selection 0x%" PRIx64"\n",
                         __func__, data & ahc->hash_mask);
         } else {
             do_hash_operation(s, algo, data & HASH_SG_EN,
@@ -614,14 +614,16 @@ static const Property aspeed_hace_properties[] = {
 };
 
 
+static const VMStateField vmstate_aspeed_hace_fields[] = {
+    VMSTATE_UINT32(total_req_len, AspeedHACEState),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_aspeed_hace = {
     .name = TYPE_ASPEED_HACE,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(total_req_len, AspeedHACEState),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_aspeed_hace_fields,
 };
 
 static void aspeed_hace_unrealize(DeviceState *dev)
@@ -647,8 +649,8 @@ static const TypeInfo aspeed_hace_info = {
     .name = TYPE_ASPEED_HACE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedHACEState),
+    .class_size = sizeof(AspeedHACEClass),
     .class_init = aspeed_hace_class_init,
-    .class_size = sizeof(AspeedHACEClass)
 };
 
 static void aspeed_ast2400_hace_class_init(ObjectClass *klass, const void *data)

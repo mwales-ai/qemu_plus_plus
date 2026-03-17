@@ -117,7 +117,7 @@ struct SRCSCRResetInfo {
 
 static void imx6_clear_reset_bit(CPUState *cpu, run_on_cpu_data data)
 {
-    struct SRCSCRResetInfo *ri = data.host_ptr;
+    struct SRCSCRResetInfo *ri = static_cast<struct SRCSCRResetInfo *>(data.host_ptr);
     IMX6SRCState *s = ri->s;
 
     assert(bql_locked());

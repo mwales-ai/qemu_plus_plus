@@ -121,14 +121,16 @@ static void pll_init(Object *obj)
     s->out = qdev_init_clock_out(DEVICE(s), "out");
 }
 
+static const VMStateField vmstate_pll_fields[] = {
+    VMSTATE_CLOCK(xosc_in, CprmanPllState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription pll_vmstate = {
     .name = TYPE_CPRMAN_PLL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(xosc_in, CprmanPllState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pll_fields,
 };
 
 static void pll_class_init(ObjectClass *klass, const void *data)
@@ -145,8 +147,8 @@ static const TypeInfo cprman_pll_info = {
     .name = TYPE_CPRMAN_PLL,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CprmanPllState),
-    .class_init = pll_class_init,
     .instance_init = pll_init,
+    .class_init = pll_class_init,
 };
 
 
@@ -227,14 +229,16 @@ static void pll_channel_init(Object *obj)
     s->out = qdev_init_clock_out(DEVICE(s), "out");
 }
 
+static const VMStateField vmstate_pll_channel_fields[] = {
+    VMSTATE_CLOCK(pll_in, CprmanPllChannelState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription pll_channel_vmstate = {
     .name = TYPE_CPRMAN_PLL_CHANNEL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(pll_in, CprmanPllChannelState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pll_channel_fields,
 };
 
 static void pll_channel_class_init(ObjectClass *klass, const void *data)
@@ -251,8 +255,8 @@ static const TypeInfo cprman_pll_channel_info = {
     .name = TYPE_CPRMAN_PLL_CHANNEL,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CprmanPllChannelState),
-    .class_init = pll_channel_class_init,
     .instance_init = pll_channel_init,
+    .class_init = pll_channel_class_init,
 };
 
 
@@ -311,9 +315,9 @@ static void clock_mux_update(CprmanClockMuxState *mux)
 
 static void clock_mux_src_update(void *opaque, ClockEvent event)
 {
-    CprmanClockMuxState **backref = opaque;
+    CprmanClockMuxState **backref = static_cast<CprmanClockMuxState **>(opaque);
     CprmanClockMuxState *s = *backref;
-    CprmanClockMuxSource src = backref - s->backref;
+    CprmanClockMuxSource src = static_cast<CprmanClockMuxSource>(backref - s->backref);
 
     if (FIELD_EX32(*s->reg_ctl, CM_CLOCKx_CTL, SRC) != src) {
         return;
@@ -349,15 +353,17 @@ static void clock_mux_init(Object *obj)
     s->out = qdev_init_clock_out(DEVICE(s), "out");
 }
 
+static const VMStateField vmstate_clock_mux_fields[] = {
+    VMSTATE_ARRAY_CLOCK(srcs, CprmanClockMuxState,
+                        CPRMAN_NUM_CLOCK_MUX_SRC),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription clock_mux_vmstate = {
     .name = TYPE_CPRMAN_CLOCK_MUX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_ARRAY_CLOCK(srcs, CprmanClockMuxState,
-                            CPRMAN_NUM_CLOCK_MUX_SRC),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_clock_mux_fields,
 };
 
 static void clock_mux_class_init(ObjectClass *klass, const void *data)
@@ -374,8 +380,8 @@ static const TypeInfo cprman_clock_mux_info = {
     .name = TYPE_CPRMAN_CLOCK_MUX,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CprmanClockMuxState),
-    .class_init = clock_mux_class_init,
     .instance_init = clock_mux_init,
+    .class_init = clock_mux_class_init,
 };
 
 
@@ -406,15 +412,17 @@ static void dsi0hsck_mux_init(Object *obj)
     s->out = qdev_init_clock_out(DEVICE(s), "out");
 }
 
+static const VMStateField vmstate_dsi0hsck_mux_fields[] = {
+    VMSTATE_CLOCK(plla_in, CprmanDsi0HsckMuxState),
+    VMSTATE_CLOCK(plld_in, CprmanDsi0HsckMuxState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription dsi0hsck_mux_vmstate = {
     .name = TYPE_CPRMAN_DSI0HSCK_MUX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(plla_in, CprmanDsi0HsckMuxState),
-        VMSTATE_CLOCK(plld_in, CprmanDsi0HsckMuxState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dsi0hsck_mux_fields,
 };
 
 static void dsi0hsck_mux_class_init(ObjectClass *klass, const void *data)
@@ -430,8 +438,8 @@ static const TypeInfo cprman_dsi0hsck_mux_info = {
     .name = TYPE_CPRMAN_DSI0HSCK_MUX,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CprmanDsi0HsckMuxState),
-    .class_init = dsi0hsck_mux_class_init,
     .instance_init = dsi0hsck_mux_init,
+    .class_init = dsi0hsck_mux_class_init,
 };
 
 
@@ -657,14 +665,14 @@ static void cprman_init(Object *obj)
     for (i = 0; i < CPRMAN_NUM_PLL; i++) {
         object_initialize_child(obj, PLL_INIT_INFO[i].name,
                                 &s->plls[i], TYPE_CPRMAN_PLL);
-        set_pll_init_info(s, &s->plls[i], i);
+        set_pll_init_info(s, &s->plls[i], static_cast<CprmanPll>(i));
     }
 
     for (i = 0; i < CPRMAN_NUM_PLL_CHANNEL; i++) {
         object_initialize_child(obj, PLL_CHANNEL_INIT_INFO[i].name,
                                 &s->channels[i],
                                 TYPE_CPRMAN_PLL_CHANNEL);
-        set_pll_channel_init_info(s, &s->channels[i], i);
+        set_pll_channel_init_info(s, &s->channels[i], static_cast<CprmanPllChannel>(i));
     }
 
     object_initialize_child(obj, "dsi0hsck-mux",
@@ -677,7 +685,7 @@ static void cprman_init(Object *obj)
         object_initialize_child(obj, CLOCK_MUX_INIT_INFO[i].name,
                                 &s->clock_muxes[i],
                                 TYPE_CPRMAN_CLOCK_MUX);
-        set_clock_mux_init_info(s, &s->clock_muxes[i], i);
+        set_clock_mux_init_info(s, &s->clock_muxes[i], static_cast<CprmanClockMux>(i));
 
         /* Expose muxes output as CPRMAN outputs */
         alias = g_strdup_printf("%s-out", CLOCK_MUX_INIT_INFO[i].name);
@@ -776,14 +784,16 @@ static void cprman_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_cprman_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, BCM2835CprmanState, CPRMAN_NUM_REGS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription cprman_vmstate = {
     .name = TYPE_BCM2835_CPRMAN,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, BCM2835CprmanState, CPRMAN_NUM_REGS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cprman_fields,
 };
 
 static const Property cprman_properties[] = {
@@ -804,8 +814,8 @@ static const TypeInfo cprman_info = {
     .name = TYPE_BCM2835_CPRMAN,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835CprmanState),
-    .class_init = cprman_class_init,
     .instance_init = cprman_init,
+    .class_init = cprman_class_init,
 };
 
 static void cprman_register_types(void)

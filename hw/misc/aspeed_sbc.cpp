@@ -304,14 +304,16 @@ static void aspeed_sbc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
+static const VMStateField vmstate_aspeed_sbc_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedSBCState, ASPEED_SBC_NR_REGS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_aspeed_sbc = {
     .name = TYPE_ASPEED_SBC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedSBCState, ASPEED_SBC_NR_REGS),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_aspeed_sbc_fields,
 };
 
 static const Property aspeed_sbc_properties[] = {
@@ -334,8 +336,8 @@ static const TypeInfo aspeed_sbc_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSBCState),
     .instance_init = aspeed_sbc_instance_init,
+    .class_size = sizeof(AspeedSBCClass),
     .class_init = aspeed_sbc_class_init,
-    .class_size = sizeof(AspeedSBCClass)
 };
 
 static void aspeed_ast2600_sbc_class_init(ObjectClass *klass, const void *data)

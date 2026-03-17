@@ -54,7 +54,7 @@
 
 static void via_set_sr_int(void *opaque)
 {
-    PMUState *s = opaque;
+    PMUState *s = static_cast<PMUState *>(opaque);
     MOS6522PMUState *mps = MOS6522_PMU(&s->mos6522_pmu);
     MOS6522State *ms = MOS6522(mps);
     qemu_irq irq = qdev_get_gpio_in(DEVICE(ms), SR_INT_BIT);
@@ -73,7 +73,7 @@ static void pmu_update_extirq(PMUState *s)
 
 static void pmu_adb_poll(void *opaque)
 {
-    PMUState *s = opaque;
+    PMUState *s = static_cast<PMUState *>(opaque);
     ADBBusState *adb_bus = &s->adb_bus;
     int olen;
 
@@ -91,7 +91,7 @@ static void pmu_adb_poll(void *opaque)
 
 static void pmu_one_sec_timer(void *opaque)
 {
-    PMUState *s = opaque;
+    PMUState *s = static_cast<PMUState *>(opaque);
 
     trace_pmu_one_sec_timer();
 
@@ -627,7 +627,7 @@ static void pmu_update(PMUState *s)
 
 static uint64_t mos6522_pmu_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PMUState *s = opaque;
+    PMUState *s = static_cast<PMUState *>(opaque);
     MOS6522PMUState *mps = &s->mos6522_pmu;
     MOS6522State *ms = MOS6522(mps);
 
@@ -638,7 +638,7 @@ static uint64_t mos6522_pmu_read(void *opaque, hwaddr addr, unsigned size)
 static void mos6522_pmu_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    PMUState *s = opaque;
+    PMUState *s = static_cast<PMUState *>(opaque);
     MOS6522PMUState *mps = &s->mos6522_pmu;
     MOS6522State *ms = MOS6522(mps);
 
@@ -658,50 +658,56 @@ static const MemoryRegionOps mos6522_pmu_ops = {
 
 static bool pmu_adb_state_needed(void *opaque)
 {
-    PMUState *s = opaque;
+    PMUState *s = static_cast<PMUState *>(opaque);
 
     return s->has_adb;
 }
+
+static const VMStateField vmstate_pmu_adb_fields[] = {
+    VMSTATE_UINT8(adb_reply_size, PMUState),
+    VMSTATE_BUFFER(adb_reply, PMUState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_pmu_adb = {
     .name = "pmu/adb",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pmu_adb_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(adb_reply_size, PMUState),
-        VMSTATE_BUFFER(adb_reply, PMUState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pmu_adb_fields,
+};
+
+static const VMStateField vmstate_pmu_fields[] = {
+    VMSTATE_STRUCT(mos6522_pmu.parent_obj, PMUState, 0, vmstate_mos6522,
+                   MOS6522State),
+    VMSTATE_UINT8(last_b, PMUState),
+    VMSTATE_UINT8(cmd, PMUState),
+    VMSTATE_UINT32(cmdlen, PMUState),
+    VMSTATE_UINT32(rsplen, PMUState),
+    VMSTATE_UINT8(cmd_buf_pos, PMUState),
+    VMSTATE_BUFFER(cmd_buf, PMUState),
+    VMSTATE_UINT8(cmd_rsp_pos, PMUState),
+    VMSTATE_UINT8(cmd_rsp_sz, PMUState),
+    VMSTATE_BUFFER(cmd_rsp, PMUState),
+    VMSTATE_UINT8(intbits, PMUState),
+    VMSTATE_UINT8(intmask, PMUState),
+    VMSTATE_UINT32(tick_offset, PMUState),
+    VMSTATE_TIMER_PTR(one_sec_timer, PMUState),
+    VMSTATE_INT64(one_sec_target, PMUState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_pmu_subsections[] = {
+    &vmstate_pmu_adb,
+    NULL
 };
 
 static const VMStateDescription vmstate_pmu = {
     .name = "pmu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(mos6522_pmu.parent_obj, PMUState, 0, vmstate_mos6522,
-                       MOS6522State),
-        VMSTATE_UINT8(last_b, PMUState),
-        VMSTATE_UINT8(cmd, PMUState),
-        VMSTATE_UINT32(cmdlen, PMUState),
-        VMSTATE_UINT32(rsplen, PMUState),
-        VMSTATE_UINT8(cmd_buf_pos, PMUState),
-        VMSTATE_BUFFER(cmd_buf, PMUState),
-        VMSTATE_UINT8(cmd_rsp_pos, PMUState),
-        VMSTATE_UINT8(cmd_rsp_sz, PMUState),
-        VMSTATE_BUFFER(cmd_rsp, PMUState),
-        VMSTATE_UINT8(intbits, PMUState),
-        VMSTATE_UINT8(intmask, PMUState),
-        VMSTATE_UINT32(tick_offset, PMUState),
-        VMSTATE_TIMER_PTR(one_sec_timer, PMUState),
-        VMSTATE_INT64(one_sec_target, PMUState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_pmu_adb,
-        NULL
-    }
+    .fields = vmstate_pmu_fields,
+    .subsections = vmstate_pmu_subsections,
 };
 
 static void pmu_reset(DeviceState *dev)
@@ -750,7 +756,7 @@ static void pmu_init(Object *obj)
     object_property_add_link(obj, "gpio", TYPE_MACIO_GPIO,
                              (Object **) &s->gpio,
                              qdev_prop_allow_set_link_before_realize,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
 
     object_initialize_child(obj, "mos6522-pmu", &s->mos6522_pmu,
                             TYPE_MOS6522_PMU);

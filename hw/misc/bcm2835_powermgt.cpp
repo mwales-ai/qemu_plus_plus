@@ -43,7 +43,7 @@ static uint64_t bcm2835_powermgt_read(void *opaque, hwaddr offset,
 
     default:
         qemu_log_mask(LOG_UNIMP,
-                      "bcm2835_powermgt_read: Unknown offset 0x%08"HWADDR_PRIx
+                      "bcm2835_powermgt_read: Unknown offset 0x%08" HWADDR_PRIx
                       "\n", offset);
         res = 0;
         break;
@@ -59,8 +59,8 @@ static void bcm2835_powermgt_write(void *opaque, hwaddr offset,
 
     if ((value & PASSWORD_MASK) != PASSWORD) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "bcm2835_powermgt_write: Bad password 0x%"PRIx64
-                      " at offset 0x%08"HWADDR_PRIx"\n",
+                      "bcm2835_powermgt_write: Bad password 0x%" PRIx64
+                      " at offset 0x%08" HWADDR_PRIx"\n",
                       value, offset);
         return;
     }
@@ -91,7 +91,7 @@ static void bcm2835_powermgt_write(void *opaque, hwaddr offset,
 
     default:
         qemu_log_mask(LOG_UNIMP,
-                      "bcm2835_powermgt_write: Unknown offset 0x%08"HWADDR_PRIx
+                      "bcm2835_powermgt_write: Unknown offset 0x%08" HWADDR_PRIx
                       "\n", offset);
         break;
     }
@@ -147,8 +147,8 @@ static const TypeInfo bcm2835_powermgt_info = {
     .name          = TYPE_BCM2835_POWERMGT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835PowerMgtState),
-    .class_init    = bcm2835_powermgt_class_init,
     .instance_init = bcm2835_powermgt_init,
+    .class_init    = bcm2835_powermgt_class_init,
 };
 
 static void bcm2835_powermgt_register_types(void)

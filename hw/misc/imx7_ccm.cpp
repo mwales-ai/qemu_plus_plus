@@ -90,7 +90,7 @@ enum {
 static uint64_t imx7_set_clr_tog_read(void *opaque, hwaddr offset,
                                       unsigned size)
 {
-    const uint32_t *mmio = opaque;
+    const uint32_t *mmio = static_cast<const uint32_t *>(opaque);
 
     return mmio[CCM_INDEX(offset)];
 }
@@ -100,7 +100,7 @@ static void imx7_set_clr_tog_write(void *opaque, hwaddr offset,
 {
     const uint8_t  bitop = CCM_BITOP(offset);
     const uint32_t index = CCM_INDEX(offset);
-    uint32_t *mmio = opaque;
+    uint32_t *mmio = static_cast<uint32_t *>(opaque);
 
     switch (bitop) {
     case CCM_BITOP_NONE:

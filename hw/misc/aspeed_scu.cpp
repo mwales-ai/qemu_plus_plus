@@ -181,74 +181,76 @@
 
 #define SCU_IO_REGION_SIZE 0x1000
 
-static const uint32_t ast2400_a0_resets[ASPEED_SCU_NR_REGS] = {
-     [SYS_RST_CTRL]    = 0xFFCFFEDCU,
-     [CLK_SEL]         = 0xF3F40000U,
-     [CLK_STOP_CTRL]   = 0x19FC3E8BU,
-     [D2PLL_PARAM]     = 0x00026108U,
-     [MPLL_PARAM]      = 0x00030291U,
-     [HPLL_PARAM]      = 0x00000291U,
-     [MISC_CTRL1]      = 0x00000010U,
-     [PCI_CTRL1]       = 0x20001A03U,
-     [PCI_CTRL2]       = 0x20001A03U,
-     [PCI_CTRL3]       = 0x04000030U,
-     [SYS_RST_STATUS]  = 0x00000001U,
-     [SOC_SCRATCH1]    = 0x000000C0U, /* SoC completed DRAM init */
-     [MISC_CTRL2]      = 0x00000023U,
-     [RNG_CTRL]        = 0x0000000EU,
-     [PINMUX_CTRL2]    = 0x0000F000U,
-     [PINMUX_CTRL3]    = 0x01000000U,
-     [PINMUX_CTRL4]    = 0x000000FFU,
-     [PINMUX_CTRL5]    = 0x0000A000U,
-     [WDT_RST_CTRL]    = 0x003FFFF3U,
-     [PINMUX_CTRL8]    = 0xFFFF0000U,
-     [PINMUX_CTRL9]    = 0x000FFFFFU,
-     [FREE_CNTR4]      = 0x000000FFU,
-     [FREE_CNTR4_EXT]  = 0x000000FFU,
-     [CPU2_BASE_SEG1]  = 0x80000000U,
-     [CPU2_BASE_SEG4]  = 0x1E600000U,
-     [CPU2_BASE_SEG5]  = 0xC0000000U,
-     [UART_HPLL_CLK]   = 0x00001903U,
-     [PCIE_CTRL]       = 0x0000007BU,
-     [BMC_DEV_ID]      = 0x00002402U
-};
+static uint32_t ast2400_a0_resets[ASPEED_SCU_NR_REGS];
+static uint32_t ast2500_a1_resets[ASPEED_SCU_NR_REGS];
 
-/* SCU70 bit 23: 0 24Mhz. bit 11:9: 0b001 AXI:ABH ratio 2:1 */
-/* AST2500 revision A1 */
+static void __attribute__((constructor)) init_aspeed_scu_resets(void)
+{
+    /* AST2400 A0 */
+    ast2400_a0_resets[SYS_RST_CTRL]    = 0xFFCFFEDCU;
+    ast2400_a0_resets[CLK_SEL]         = 0xF3F40000U;
+    ast2400_a0_resets[CLK_STOP_CTRL]   = 0x19FC3E8BU;
+    ast2400_a0_resets[D2PLL_PARAM]     = 0x00026108U;
+    ast2400_a0_resets[MPLL_PARAM]      = 0x00030291U;
+    ast2400_a0_resets[HPLL_PARAM]      = 0x00000291U;
+    ast2400_a0_resets[MISC_CTRL1]      = 0x00000010U;
+    ast2400_a0_resets[PCI_CTRL1]       = 0x20001A03U;
+    ast2400_a0_resets[PCI_CTRL2]       = 0x20001A03U;
+    ast2400_a0_resets[PCI_CTRL3]       = 0x04000030U;
+    ast2400_a0_resets[SYS_RST_STATUS]  = 0x00000001U;
+    ast2400_a0_resets[SOC_SCRATCH1]    = 0x000000C0U; /* SoC completed DRAM init */
+    ast2400_a0_resets[MISC_CTRL2]      = 0x00000023U;
+    ast2400_a0_resets[RNG_CTRL]        = 0x0000000EU;
+    ast2400_a0_resets[PINMUX_CTRL2]    = 0x0000F000U;
+    ast2400_a0_resets[PINMUX_CTRL3]    = 0x01000000U;
+    ast2400_a0_resets[PINMUX_CTRL4]    = 0x000000FFU;
+    ast2400_a0_resets[PINMUX_CTRL5]    = 0x0000A000U;
+    ast2400_a0_resets[WDT_RST_CTRL]    = 0x003FFFF3U;
+    ast2400_a0_resets[PINMUX_CTRL8]    = 0xFFFF0000U;
+    ast2400_a0_resets[PINMUX_CTRL9]    = 0x000FFFFFU;
+    ast2400_a0_resets[FREE_CNTR4]      = 0x000000FFU;
+    ast2400_a0_resets[FREE_CNTR4_EXT]  = 0x000000FFU;
+    ast2400_a0_resets[CPU2_BASE_SEG1]  = 0x80000000U;
+    ast2400_a0_resets[CPU2_BASE_SEG4]  = 0x1E600000U;
+    ast2400_a0_resets[CPU2_BASE_SEG5]  = 0xC0000000U;
+    ast2400_a0_resets[UART_HPLL_CLK]   = 0x00001903U;
+    ast2400_a0_resets[PCIE_CTRL]       = 0x0000007BU;
+    ast2400_a0_resets[BMC_DEV_ID]      = 0x00002402U;
 
-static const uint32_t ast2500_a1_resets[ASPEED_SCU_NR_REGS] = {
-     [SYS_RST_CTRL]    = 0xFFCFFEDCU,
-     [CLK_SEL]         = 0xF3F40000U,
-     [CLK_STOP_CTRL]   = 0x19FC3E8BU,
-     [D2PLL_PARAM]     = 0x00026108U,
-     [MPLL_PARAM]      = 0x00030291U,
-     [HPLL_PARAM]      = 0x93000400U,
-     [MISC_CTRL1]      = 0x00000010U,
-     [PCI_CTRL1]       = 0x20001A03U,
-     [PCI_CTRL2]       = 0x20001A03U,
-     [PCI_CTRL3]       = 0x04000030U,
-     [SYS_RST_STATUS]  = 0x00000001U,
-     [SOC_SCRATCH1]    = 0x000000C0U, /* SoC completed DRAM init */
-     [MISC_CTRL2]      = 0x00000023U,
-     [RNG_CTRL]        = 0x0000000EU,
-     [PINMUX_CTRL2]    = 0x0000F000U,
-     [PINMUX_CTRL3]    = 0x03000000U,
-     [PINMUX_CTRL4]    = 0x00000000U,
-     [PINMUX_CTRL5]    = 0x0000A000U,
-     [WDT_RST_CTRL]    = 0x023FFFF3U,
-     [PINMUX_CTRL8]    = 0xFFFF0000U,
-     [PINMUX_CTRL9]    = 0x000FFFFFU,
-     [FREE_CNTR4]      = 0x000000FFU,
-     [FREE_CNTR4_EXT]  = 0x000000FFU,
-     [CPU2_BASE_SEG1]  = 0x80000000U,
-     [CPU2_BASE_SEG4]  = 0x1E600000U,
-     [CPU2_BASE_SEG5]  = 0xC0000000U,
-     [CHIP_ID0]        = 0x1234ABCDU,
-     [CHIP_ID1]        = 0x88884444U,
-     [UART_HPLL_CLK]   = 0x00001903U,
-     [PCIE_CTRL]       = 0x0000007BU,
-     [BMC_DEV_ID]      = 0x00002402U
-};
+    /* SCU70 bit 23: 0 24Mhz. bit 11:9: 0b001 AXI:ABH ratio 2:1 */
+    /* AST2500 revision A1 */
+    ast2500_a1_resets[SYS_RST_CTRL]    = 0xFFCFFEDCU;
+    ast2500_a1_resets[CLK_SEL]         = 0xF3F40000U;
+    ast2500_a1_resets[CLK_STOP_CTRL]   = 0x19FC3E8BU;
+    ast2500_a1_resets[D2PLL_PARAM]     = 0x00026108U;
+    ast2500_a1_resets[MPLL_PARAM]      = 0x00030291U;
+    ast2500_a1_resets[HPLL_PARAM]      = 0x93000400U;
+    ast2500_a1_resets[MISC_CTRL1]      = 0x00000010U;
+    ast2500_a1_resets[PCI_CTRL1]       = 0x20001A03U;
+    ast2500_a1_resets[PCI_CTRL2]       = 0x20001A03U;
+    ast2500_a1_resets[PCI_CTRL3]       = 0x04000030U;
+    ast2500_a1_resets[SYS_RST_STATUS]  = 0x00000001U;
+    ast2500_a1_resets[SOC_SCRATCH1]    = 0x000000C0U; /* SoC completed DRAM init */
+    ast2500_a1_resets[MISC_CTRL2]      = 0x00000023U;
+    ast2500_a1_resets[RNG_CTRL]        = 0x0000000EU;
+    ast2500_a1_resets[PINMUX_CTRL2]    = 0x0000F000U;
+    ast2500_a1_resets[PINMUX_CTRL3]    = 0x03000000U;
+    ast2500_a1_resets[PINMUX_CTRL4]    = 0x00000000U;
+    ast2500_a1_resets[PINMUX_CTRL5]    = 0x0000A000U;
+    ast2500_a1_resets[WDT_RST_CTRL]    = 0x023FFFF3U;
+    ast2500_a1_resets[PINMUX_CTRL8]    = 0xFFFF0000U;
+    ast2500_a1_resets[PINMUX_CTRL9]    = 0x000FFFFFU;
+    ast2500_a1_resets[FREE_CNTR4]      = 0x000000FFU;
+    ast2500_a1_resets[FREE_CNTR4_EXT]  = 0x000000FFU;
+    ast2500_a1_resets[CPU2_BASE_SEG1]  = 0x80000000U;
+    ast2500_a1_resets[CPU2_BASE_SEG4]  = 0x1E600000U;
+    ast2500_a1_resets[CPU2_BASE_SEG5]  = 0xC0000000U;
+    ast2500_a1_resets[CHIP_ID0]        = 0x1234ABCDU;
+    ast2500_a1_resets[CHIP_ID1]        = 0x88884444U;
+    ast2500_a1_resets[UART_HPLL_CLK]   = 0x00001903U;
+    ast2500_a1_resets[PCIE_CTRL]       = 0x0000007BU;
+    ast2500_a1_resets[BMC_DEV_ID]      = 0x00002402U;
+}
 
 static uint32_t aspeed_scu_get_random(void)
 {
@@ -429,12 +431,12 @@ static const MemoryRegionOps aspeed_ast2400_scu_ops = {
     .read = aspeed_scu_read,
     .write = aspeed_ast2400_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
     .valid = {
         .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .impl = {
+        .min_access_size = 4,
         .max_access_size = 4,
     },
 };
@@ -443,8 +445,8 @@ static const MemoryRegionOps aspeed_ast2500_scu_ops = {
     .read = aspeed_scu_read,
     .write = aspeed_ast2500_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 4, .unaligned = false, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static uint32_t aspeed_scu_get_clkin(AspeedSCUState *s)
@@ -600,14 +602,16 @@ static void aspeed_scu_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
+static const VMStateField vmstate_aspeed_scu_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedSCUState, ASPEED_AST2600_SCU_NR_REGS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aspeed_scu = {
     .name = "aspeed.scu",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedSCUState, ASPEED_AST2600_SCU_NR_REGS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aspeed_scu_fields,
 };
 
 static const Property aspeed_scu_properties[] = {
@@ -631,9 +635,9 @@ static const TypeInfo aspeed_scu_info = {
     .name = TYPE_ASPEED_SCU,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSCUState),
-    .class_init = aspeed_scu_class_init,
-    .class_size    = sizeof(AspeedSCUClass),
     .is_abstract      = true,
+    .class_size    = sizeof(AspeedSCUClass),
+    .class_init = aspeed_scu_class_init,
 };
 
 static void aspeed_2400_scu_class_init(ObjectClass *klass, const void *data)
@@ -795,33 +799,36 @@ static const MemoryRegionOps aspeed_ast2600_scu_ops = {
     .read = aspeed_ast2600_scu_read,
     .write = aspeed_ast2600_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 4, .unaligned = false, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static const uint32_t ast2600_a3_resets[ASPEED_AST2600_SCU_NR_REGS] = {
-    [AST2600_SYS_RST_CTRL]      = 0xF7C3FED8,
-    [AST2600_SYS_RST_CTRL2]     = 0x0DFFFFFC,
-    [AST2600_CLK_STOP_CTRL]     = 0xFFFF7F8A,
-    [AST2600_CLK_STOP_CTRL2]    = 0xFFF0FFF0,
-    [AST2600_DEBUG_CTRL]        = 0x00000FFF,
-    [AST2600_DEBUG_CTRL2]       = 0x000000FF,
-    [AST2600_SDRAM_HANDSHAKE]   = 0x00000000,
-    [AST2600_HPLL_PARAM]        = 0x1000408F,
-    [AST2600_APLL_PARAM]        = 0x1000405F,
-    [AST2600_MPLL_PARAM]        = 0x1008405F,
-    [AST2600_EPLL_PARAM]        = 0x1004077F,
-    [AST2600_DPLL_PARAM]        = 0x1078405F,
-    [AST2600_CLK_SEL]           = 0xF3940000,
-    [AST2600_CLK_SEL2]          = 0x00700000,
-    [AST2600_CLK_SEL3]          = 0x00000000,
-    [AST2600_CLK_SEL4]          = 0xF3F40000,
-    [AST2600_CLK_SEL5]          = 0x30000000,
-    [AST2600_UARTCLK]           = 0x00014506,
-    [AST2600_HUARTCLK]          = 0x000145C0,
-    [AST2600_CHIP_ID0]          = 0x1234ABCD,
-    [AST2600_CHIP_ID1]          = 0x88884444,
-};
+static uint32_t ast2600_a3_resets[ASPEED_AST2600_SCU_NR_REGS];
+
+static void __attribute__((constructor)) init_ast2600_a3_resets(void)
+{
+    ast2600_a3_resets[AST2600_SYS_RST_CTRL]      = 0xF7C3FED8;
+    ast2600_a3_resets[AST2600_SYS_RST_CTRL2]     = 0x0DFFFFFC;
+    ast2600_a3_resets[AST2600_CLK_STOP_CTRL]     = 0xFFFF7F8A;
+    ast2600_a3_resets[AST2600_CLK_STOP_CTRL2]    = 0xFFF0FFF0;
+    ast2600_a3_resets[AST2600_DEBUG_CTRL]        = 0x00000FFF;
+    ast2600_a3_resets[AST2600_DEBUG_CTRL2]       = 0x000000FF;
+    ast2600_a3_resets[AST2600_SDRAM_HANDSHAKE]   = 0x00000000;
+    ast2600_a3_resets[AST2600_HPLL_PARAM]        = 0x1000408F;
+    ast2600_a3_resets[AST2600_APLL_PARAM]        = 0x1000405F;
+    ast2600_a3_resets[AST2600_MPLL_PARAM]        = 0x1008405F;
+    ast2600_a3_resets[AST2600_EPLL_PARAM]        = 0x1004077F;
+    ast2600_a3_resets[AST2600_DPLL_PARAM]        = 0x1078405F;
+    ast2600_a3_resets[AST2600_CLK_SEL]           = 0xF3940000;
+    ast2600_a3_resets[AST2600_CLK_SEL2]          = 0x00700000;
+    ast2600_a3_resets[AST2600_CLK_SEL3]          = 0x00000000;
+    ast2600_a3_resets[AST2600_CLK_SEL4]          = 0xF3F40000;
+    ast2600_a3_resets[AST2600_CLK_SEL5]          = 0x30000000;
+    ast2600_a3_resets[AST2600_UARTCLK]           = 0x00014506;
+    ast2600_a3_resets[AST2600_HUARTCLK]          = 0x000145C0;
+    ast2600_a3_resets[AST2600_CHIP_ID0]          = 0x1234ABCD;
+    ast2600_a3_resets[AST2600_CHIP_ID1]          = 0x88884444;
+}
 
 static void aspeed_ast2600_scu_reset(DeviceState *dev)
 {
@@ -921,32 +928,35 @@ static const MemoryRegionOps aspeed_ast2700_scu_ops = {
     .read = aspeed_ast2700_scu_read,
     .write = aspeed_ast2700_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 8, .unaligned = false, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static const uint32_t ast2700_a0_resets[ASPEED_AST2700_SCU_NR_REGS] = {
-    [AST2700_HW_STRAP1_CLR]         = 0xFFF0FFF0,
-    [AST2700_HW_STRAP1_LOCK]        = 0x00000FFF,
-    [AST2700_HW_STRAP1_SEC1]        = 0x000000FF,
-    [AST2700_HW_STRAP1_SEC2]        = 0x00000000,
-    [AST2700_HW_STRAP1_SEC3]        = 0x1000408F,
-    [AST2700_SCU_HPLL_PARAM]        = 0x0000009f,
-    [AST2700_SCU_HPLL_EXT_PARAM]    = 0x8000004f,
-    [AST2700_SCU_DPLL_PARAM]        = 0x0080009f,
-    [AST2700_SCU_DPLL_EXT_PARAM]    = 0x8000004f,
-    [AST2700_SCU_MPLL_PARAM]        = 0x00000040,
-    [AST2700_SCU_MPLL_EXT_PARAM]    = 0x80000000,
-    [AST2700_SCU_D1CLK_PARAM]       = 0x00050002,
-    [AST2700_SCU_D2CLK_PARAM]       = 0x00050002,
-    [AST2700_SCU_CRT1CLK_PARAM]     = 0x00050002,
-    [AST2700_SCU_CRT2CLK_PARAM]     = 0x00050002,
-    [AST2700_SCU_MPHYCLK_PARAM]     = 0x0000004c,
-    [AST2700_SCU_FREQ_CNTR]         = 0x000375eb,
-    [AST2700_SCU_CPU_SCRATCH_0]     = 0x00000000,
-    [AST2700_SCU_CPU_SCRATCH_1]     = 0x00000004,
-    [AST2700_SCU_VGA_SCRATCH_0]     = 0x00000040,
-};
+static uint32_t ast2700_a0_resets[ASPEED_AST2700_SCU_NR_REGS];
+
+static void __attribute__((constructor)) init_ast2700_a0_resets(void)
+{
+    ast2700_a0_resets[AST2700_HW_STRAP1_CLR]         = 0xFFF0FFF0;
+    ast2700_a0_resets[AST2700_HW_STRAP1_LOCK]        = 0x00000FFF;
+    ast2700_a0_resets[AST2700_HW_STRAP1_SEC1]        = 0x000000FF;
+    ast2700_a0_resets[AST2700_HW_STRAP1_SEC2]        = 0x00000000;
+    ast2700_a0_resets[AST2700_HW_STRAP1_SEC3]        = 0x1000408F;
+    ast2700_a0_resets[AST2700_SCU_HPLL_PARAM]        = 0x0000009f;
+    ast2700_a0_resets[AST2700_SCU_HPLL_EXT_PARAM]    = 0x8000004f;
+    ast2700_a0_resets[AST2700_SCU_DPLL_PARAM]        = 0x0080009f;
+    ast2700_a0_resets[AST2700_SCU_DPLL_EXT_PARAM]    = 0x8000004f;
+    ast2700_a0_resets[AST2700_SCU_MPLL_PARAM]        = 0x00000040;
+    ast2700_a0_resets[AST2700_SCU_MPLL_EXT_PARAM]    = 0x80000000;
+    ast2700_a0_resets[AST2700_SCU_D1CLK_PARAM]       = 0x00050002;
+    ast2700_a0_resets[AST2700_SCU_D2CLK_PARAM]       = 0x00050002;
+    ast2700_a0_resets[AST2700_SCU_CRT1CLK_PARAM]     = 0x00050002;
+    ast2700_a0_resets[AST2700_SCU_CRT2CLK_PARAM]     = 0x00050002;
+    ast2700_a0_resets[AST2700_SCU_MPHYCLK_PARAM]     = 0x0000004c;
+    ast2700_a0_resets[AST2700_SCU_FREQ_CNTR]         = 0x000375eb;
+    ast2700_a0_resets[AST2700_SCU_CPU_SCRATCH_0]     = 0x00000000;
+    ast2700_a0_resets[AST2700_SCU_CPU_SCRATCH_1]     = 0x00000004;
+    ast2700_a0_resets[AST2700_SCU_VGA_SCRATCH_0]     = 0x00000040;
+}
 
 static void aspeed_ast2700_scu_reset(DeviceState *dev)
 {
@@ -1046,33 +1056,36 @@ static const MemoryRegionOps aspeed_ast2700_scuio_ops = {
     .read = aspeed_ast2700_scuio_read,
     .write = aspeed_ast2700_scuio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 8, .unaligned = false, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static const uint32_t ast2700_a0_resets_io[ASPEED_AST2700_SCU_NR_REGS] = {
-    [AST2700_HW_STRAP1_CLR]             = 0xFFF0FFF0,
-    [AST2700_HW_STRAP1_LOCK]            = 0x00000FFF,
-    [AST2700_HW_STRAP1_SEC1]            = 0x000000FF,
-    [AST2700_HW_STRAP1_SEC2]            = 0x00000000,
-    [AST2700_HW_STRAP1_SEC3]            = 0x1000408F,
-    [AST2700_SCUIO_CLK_STOP_CTL_1]      = 0xffff8400,
-    [AST2700_SCUIO_CLK_STOP_CTL_2]      = 0x00005f30,
-    [AST2700_SCUIO_CLK_SEL_1]           = 0x86900000,
-    [AST2700_SCUIO_CLK_SEL_2]           = 0x00400000,
-    [AST2700_SCUIO_HPLL_PARAM]          = 0x10000027,
-    [AST2700_SCUIO_HPLL_EXT_PARAM]      = 0x80000014,
-    [AST2700_SCUIO_APLL_PARAM]          = 0x1000001f,
-    [AST2700_SCUIO_APLL_EXT_PARAM]      = 0x8000000f,
-    [AST2700_SCUIO_DPLL_PARAM]          = 0x106e42ce,
-    [AST2700_SCUIO_DPLL_EXT_PARAM]      = 0x80000167,
-    [AST2700_SCUIO_DPLL_PARAM_READ]     = 0x106e42ce,
-    [AST2700_SCUIO_DPLL_EXT_PARAM_READ] = 0x80000167,
-    [AST2700_SCUIO_UARTCLK_GEN]         = 0x00014506,
-    [AST2700_SCUIO_HUARTCLK_GEN]        = 0x000145c0,
-    [AST2700_SCUIO_CLK_DUTY_MEAS_RST]   = 0x0c9100d2,
-    [AST2700_SCUIO_FREQ_CNT_CTL]        = 0x00000080,
-};
+static uint32_t ast2700_a0_resets_io[ASPEED_AST2700_SCU_NR_REGS];
+
+static void __attribute__((constructor)) init_ast2700_a0_resets_io(void)
+{
+    ast2700_a0_resets_io[AST2700_HW_STRAP1_CLR]             = 0xFFF0FFF0;
+    ast2700_a0_resets_io[AST2700_HW_STRAP1_LOCK]            = 0x00000FFF;
+    ast2700_a0_resets_io[AST2700_HW_STRAP1_SEC1]            = 0x000000FF;
+    ast2700_a0_resets_io[AST2700_HW_STRAP1_SEC2]            = 0x00000000;
+    ast2700_a0_resets_io[AST2700_HW_STRAP1_SEC3]            = 0x1000408F;
+    ast2700_a0_resets_io[AST2700_SCUIO_CLK_STOP_CTL_1]      = 0xffff8400;
+    ast2700_a0_resets_io[AST2700_SCUIO_CLK_STOP_CTL_2]      = 0x00005f30;
+    ast2700_a0_resets_io[AST2700_SCUIO_CLK_SEL_1]           = 0x86900000;
+    ast2700_a0_resets_io[AST2700_SCUIO_CLK_SEL_2]           = 0x00400000;
+    ast2700_a0_resets_io[AST2700_SCUIO_HPLL_PARAM]          = 0x10000027;
+    ast2700_a0_resets_io[AST2700_SCUIO_HPLL_EXT_PARAM]      = 0x80000014;
+    ast2700_a0_resets_io[AST2700_SCUIO_APLL_PARAM]          = 0x1000001f;
+    ast2700_a0_resets_io[AST2700_SCUIO_APLL_EXT_PARAM]      = 0x8000000f;
+    ast2700_a0_resets_io[AST2700_SCUIO_DPLL_PARAM]          = 0x106e42ce;
+    ast2700_a0_resets_io[AST2700_SCUIO_DPLL_EXT_PARAM]      = 0x80000167;
+    ast2700_a0_resets_io[AST2700_SCUIO_DPLL_PARAM_READ]     = 0x106e42ce;
+    ast2700_a0_resets_io[AST2700_SCUIO_DPLL_EXT_PARAM_READ] = 0x80000167;
+    ast2700_a0_resets_io[AST2700_SCUIO_UARTCLK_GEN]         = 0x00014506;
+    ast2700_a0_resets_io[AST2700_SCUIO_HUARTCLK_GEN]        = 0x000145c0;
+    ast2700_a0_resets_io[AST2700_SCUIO_CLK_DUTY_MEAS_RST]   = 0x0c9100d2;
+    ast2700_a0_resets_io[AST2700_SCUIO_FREQ_CNT_CTL]        = 0x00000080;
+}
 
 static void aspeed_2700_scuio_class_init(ObjectClass *klass, const void *data)
 {
@@ -1104,19 +1117,22 @@ static const TypeInfo aspeed_2700_scuio_info = {
     .class_init = aspeed_2700_scuio_class_init,
 };
 
-static const uint32_t ast1030_a1_resets[ASPEED_AST2600_SCU_NR_REGS] = {
-    [AST2600_SYS_RST_CTRL]      = 0xFFC3FED8,
-    [AST2600_SYS_RST_CTRL2]     = 0x09FFFFFC,
-    [AST2600_CLK_STOP_CTRL]     = 0xFFFF7F8A,
-    [AST2600_CLK_STOP_CTRL2]    = 0xFFF0FFF0,
-    [AST2600_DEBUG_CTRL2]       = 0x00000000,
-    [AST2600_HPLL_PARAM]        = 0x10004077,
-    [AST2600_HPLL_EXT]          = 0x00000031,
-    [AST2600_CLK_SEL4]          = 0x43F90900,
-    [AST2600_CLK_SEL5]          = 0x40000000,
-    [AST2600_CHIP_ID0]          = 0xDEADBEEF,
-    [AST2600_CHIP_ID1]          = 0x0BADCAFE,
-};
+static uint32_t ast1030_a1_resets[ASPEED_AST2600_SCU_NR_REGS];
+
+static void __attribute__((constructor)) init_ast1030_a1_resets(void)
+{
+    ast1030_a1_resets[AST2600_SYS_RST_CTRL]      = 0xFFC3FED8;
+    ast1030_a1_resets[AST2600_SYS_RST_CTRL2]     = 0x09FFFFFC;
+    ast1030_a1_resets[AST2600_CLK_STOP_CTRL]     = 0xFFFF7F8A;
+    ast1030_a1_resets[AST2600_CLK_STOP_CTRL2]    = 0xFFF0FFF0;
+    ast1030_a1_resets[AST2600_DEBUG_CTRL2]       = 0x00000000;
+    ast1030_a1_resets[AST2600_HPLL_PARAM]        = 0x10004077;
+    ast1030_a1_resets[AST2600_HPLL_EXT]          = 0x00000031;
+    ast1030_a1_resets[AST2600_CLK_SEL4]          = 0x43F90900;
+    ast1030_a1_resets[AST2600_CLK_SEL5]          = 0x40000000;
+    ast1030_a1_resets[AST2600_CHIP_ID0]          = 0xDEADBEEF;
+    ast1030_a1_resets[AST2600_CHIP_ID1]          = 0x0BADCAFE;
+}
 
 static void aspeed_ast1030_scu_reset(DeviceState *dev)
 {

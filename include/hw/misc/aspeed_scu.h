@@ -14,6 +14,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ASPEED_SCU "aspeed.scu"
 OBJECT_DECLARE_TYPE(AspeedSCUState, AspeedSCUClass, ASPEED_SCU)
 #define TYPE_ASPEED_2400_SCU TYPE_ASPEED_SCU "-ast2400"
@@ -403,5 +407,9 @@ uint32_t aspeed_scu_get_apb_freq(AspeedSCUState *s);
  *  0      UART1CLK_SEL
  */
 #define SCUIO_AST2700_CLK_GET_PCLK_DIV(x)                    (((x) >> 18) & 0x7)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ASPEED_SCU_H */

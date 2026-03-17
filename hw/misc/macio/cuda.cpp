@@ -90,7 +90,7 @@ static uint64_t cuda_get_load_time(MOS6522State *s, MOS6522Timer *ti)
 
 static void cuda_set_sr_int(void *opaque)
 {
-    CUDAState *s = opaque;
+    CUDAState *s = static_cast<CUDAState *>(opaque);
     MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
     qemu_irq irq = qdev_get_gpio_in(DEVICE(ms), SR_INT_BIT);
@@ -202,7 +202,7 @@ static void cuda_send_packet_to_host(CUDAState *s,
 
 static void cuda_adb_poll(void *opaque)
 {
-    CUDAState *s = opaque;
+    CUDAState *s = static_cast<CUDAState *>(opaque);
     ADBBusState *adb_bus = &s->adb_bus;
     uint8_t obuf[ADB_MAX_OUT_LEN + 2];
     int olen;
@@ -454,7 +454,7 @@ static void cuda_receive_packet_from_host(CUDAState *s,
 
 static uint64_t mos6522_cuda_read(void *opaque, hwaddr addr, unsigned size)
 {
-    CUDAState *s = opaque;
+    CUDAState *s = static_cast<CUDAState *>(opaque);
     MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
 
@@ -465,7 +465,7 @@ static uint64_t mos6522_cuda_read(void *opaque, hwaddr addr, unsigned size)
 static void mos6522_cuda_write(void *opaque, hwaddr addr, uint64_t val,
                                unsigned size)
 {
-    CUDAState *s = opaque;
+    CUDAState *s = static_cast<CUDAState *>(opaque);
     MOS6522CUDAState *mcs = &s->mos6522_cuda;
     MOS6522State *ms = MOS6522(mcs);
 
@@ -483,24 +483,26 @@ static const MemoryRegionOps mos6522_cuda_ops = {
     },
 };
 
+static const VMStateField vmstate_cuda_fields[] = {
+    VMSTATE_STRUCT(mos6522_cuda.parent_obj, CUDAState, 0, vmstate_mos6522,
+                   MOS6522State),
+    VMSTATE_UINT8(last_b, CUDAState),
+    VMSTATE_UINT8(last_acr, CUDAState),
+    VMSTATE_INT32(data_in_size, CUDAState),
+    VMSTATE_INT32(data_in_index, CUDAState),
+    VMSTATE_INT32(data_out_index, CUDAState),
+    VMSTATE_BUFFER(data_in, CUDAState),
+    VMSTATE_BUFFER(data_out, CUDAState),
+    VMSTATE_UINT32(tick_offset, CUDAState),
+    VMSTATE_TIMER_PTR(sr_delay_timer, CUDAState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cuda = {
     .name = "cuda",
     .version_id = 6,
     .minimum_version_id = 6,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(mos6522_cuda.parent_obj, CUDAState, 0, vmstate_mos6522,
-                       MOS6522State),
-        VMSTATE_UINT8(last_b, CUDAState),
-        VMSTATE_UINT8(last_acr, CUDAState),
-        VMSTATE_INT32(data_in_size, CUDAState),
-        VMSTATE_INT32(data_in_index, CUDAState),
-        VMSTATE_INT32(data_out_index, CUDAState),
-        VMSTATE_BUFFER(data_in, CUDAState),
-        VMSTATE_BUFFER(data_out, CUDAState),
-        VMSTATE_UINT32(tick_offset, CUDAState),
-        VMSTATE_TIMER_PTR(sr_delay_timer, CUDAState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cuda_fields,
 };
 
 static void cuda_reset(DeviceState *dev)

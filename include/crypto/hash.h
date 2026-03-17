@@ -24,6 +24,10 @@
 
 #include "qapi/qapi-types-crypto.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define QCRYPTO_HASH_DIGEST_LEN_MD5       16
 #define QCRYPTO_HASH_DIGEST_LEN_SHA1      20
 #define QCRYPTO_HASH_DIGEST_LEN_SHA224    28
@@ -339,5 +343,9 @@ int qcrypto_hash_base64(QCryptoHashAlgo alg,
                         size_t len,
                         char **base64,
                         Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QCRYPTO_HASH_H */

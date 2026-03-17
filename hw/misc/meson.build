@@ -58,12 +58,12 @@ system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_pmu.cpp', 'exyn
 system_ss.add(when: 'CONFIG_FSL_IMX8MP_ANALOG', if_true: files('imx8mp_analog.c'))
 system_ss.add(when: 'CONFIG_FSL_IMX8MP_CCM', if_true: files('imx8mp_ccm.c'))
 system_ss.add(when: 'CONFIG_IMX', if_true: files(
-  'imx25_ccm.c',
-  'imx31_ccm.c',
-  'imx6_ccm.c',
-  'imx6_src.c',
+  'imx25_ccm.cpp',
+  'imx31_ccm.cpp',
+  'imx6_ccm.cpp',
+  'imx6_src.cpp',
   'imx6ul_ccm.c',
-  'imx7_ccm.c',
+  'imx7_ccm.cpp',
   'imx7_src.c',
   'imx7_gpr.cpp',
   'imx7_snvs.c',
@@ -90,8 +90,8 @@ system_ss.add(when: 'CONFIG_RASPI', if_true: files(
   'bcm2835_property.cpp',
   'bcm2835_rng.c',
   'bcm2835_thermal.cpp',
-  'bcm2835_cprman.c',
-  'bcm2835_powermgt.c',
+  'bcm2835_cprman.cpp',
+  'bcm2835_powermgt.cpp',
 ))
 system_ss.add(when: 'CONFIG_SLAVIO', if_true: files('slavio_misc.c'))
 system_ss.add(when: 'CONFIG_ZYNQ', if_true: files('zynq_slcr.c'))
@@ -133,13 +133,13 @@ system_ss.add(when: 'CONFIG_PVPANIC_PCI', if_true: files('pvpanic-pci.cpp'))
 system_ss.add(when: 'CONFIG_PVPANIC_MMIO', if_true: files('pvpanic-mmio.cpp'))
 system_ss.add(when: 'CONFIG_AUX', if_true: files('auxbus.cpp'))
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
-  'aspeed_hace.c',
-  'aspeed_i3c.c',
-  'aspeed_lpc.c',
-  'aspeed_scu.c',
-  'aspeed_sbc.c',
-  'aspeed_sdmc.c',
-  'aspeed_xdma.c',
+  'aspeed_hace.cpp',
+  'aspeed_i3c.cpp',
+  'aspeed_lpc.cpp',
+  'aspeed_scu.cpp',
+  'aspeed_sbc.cpp',
+  'aspeed_sdmc.cpp',
+  'aspeed_xdma.cpp',
   'aspeed_peci.cpp',
   'aspeed_sli.cpp'))
 

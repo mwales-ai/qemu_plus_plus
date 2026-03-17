@@ -544,12 +544,12 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(_f, _s, _n, _v, _vmsd, _type) { \
     .name       = (stringify(_f)),                                   \
-    .version_id = (_v),                                              \
-    .num        = (_n),                                              \
-    .vmsd       = &(_vmsd),                                          \
-    .size       = sizeof(_type *),                                    \
-    .flags      = VMS_ARRAY|VMS_STRUCT|VMS_ARRAY_OF_POINTER,         \
     .offset     = vmstate_offset_array(_s, _f, _type*, _n),          \
+    .size       = sizeof(_type *),                                    \
+    .num        = (_n),                                              \
+    .flags      = VMS_ARRAY|VMS_STRUCT|VMS_ARRAY_OF_POINTER,         \
+    .vmsd       = &(_vmsd),                                          \
+    .version_id = (_v),                                              \
 }
 
 #define VMSTATE_VARRAY_OF_POINTER_UINT32(_field, _state, _field_num, _version, _info, _type) { \

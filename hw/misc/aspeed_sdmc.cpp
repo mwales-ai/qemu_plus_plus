@@ -283,14 +283,16 @@ static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
+static const VMStateField vmstate_aspeed_sdmc_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedSDMCState, ASPEED_SDMC_NR_REGS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aspeed_sdmc = {
     .name = "aspeed.sdmc",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedSDMCState, ASPEED_SDMC_NR_REGS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aspeed_sdmc_fields,
 };
 
 static const Property aspeed_sdmc_properties[] = {
@@ -313,9 +315,9 @@ static const TypeInfo aspeed_sdmc_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedSDMCState),
     .instance_init = aspeed_sdmc_initfn,
-    .class_init = aspeed_sdmc_class_init,
-    .class_size = sizeof(AspeedSDMCClass),
     .is_abstract   = true,
+    .class_size = sizeof(AspeedSDMCClass),
+    .class_init = aspeed_sdmc_class_init,
 };
 
 static int aspeed_sdmc_get_ram_bits(AspeedSDMCState *s)

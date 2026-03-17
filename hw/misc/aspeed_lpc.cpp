@@ -443,15 +443,17 @@ static void aspeed_lpc_init(Object *obj)
                         aspeed_kcs_set_register_property, NULL, NULL);
 }
 
+static const VMStateField vmstate_aspeed_lpc_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedLPCState, ASPEED_LPC_NR_REGS),
+    VMSTATE_UINT32(subdevice_irqs_pending, AspeedLPCState),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_aspeed_lpc = {
     .name = TYPE_ASPEED_LPC,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedLPCState, ASPEED_LPC_NR_REGS),
-        VMSTATE_UINT32(subdevice_irqs_pending, AspeedLPCState),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_aspeed_lpc_fields,
 };
 
 static const Property aspeed_lpc_properties[] = {
@@ -473,8 +475,8 @@ static const TypeInfo aspeed_lpc_info = {
     .name = TYPE_ASPEED_LPC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedLPCState),
-    .class_init = aspeed_lpc_class_init,
     .instance_init = aspeed_lpc_init,
+    .class_init = aspeed_lpc_class_init,
 };
 
 static void aspeed_lpc_register_types(void)

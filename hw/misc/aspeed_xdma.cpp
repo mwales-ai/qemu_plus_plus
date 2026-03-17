@@ -50,7 +50,7 @@
 static uint64_t aspeed_xdma_read(void *opaque, hwaddr addr, unsigned int size)
 {
     uint32_t val = 0;
-    AspeedXDMAState *xdma = opaque;
+    AspeedXDMAState *xdma = static_cast<AspeedXDMAState *>(opaque);
 
     if (addr < ASPEED_XDMA_REG_SIZE) {
         val = xdma->regs[TO_REG(addr)];
@@ -64,7 +64,7 @@ static void aspeed_xdma_write(void *opaque, hwaddr addr, uint64_t val,
 {
     unsigned int idx;
     uint32_t val32 = (uint32_t)val;
-    AspeedXDMAState *xdma = opaque;
+    AspeedXDMAState *xdma = static_cast<AspeedXDMAState *>(opaque);
     AspeedXDMAClass *axc = ASPEED_XDMA_GET_CLASS(xdma);
 
     if (addr >= ASPEED_XDMA_REG_SIZE) {
@@ -140,13 +140,15 @@ static void aspeed_xdma_reset(DeviceState *dev)
     qemu_irq_lower(xdma->irq);
 }
 
+static const VMStateField vmstate_aspeed_xdma_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedXDMAState, ASPEED_XDMA_NUM_REGS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription aspeed_xdma_vmstate = {
     .name = TYPE_ASPEED_XDMA,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedXDMAState, ASPEED_XDMA_NUM_REGS),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_aspeed_xdma_fields,
 };
 
 static void aspeed_2600_xdma_class_init(ObjectClass *klass, const void *data)
@@ -229,9 +231,9 @@ static const TypeInfo aspeed_xdma_info = {
     .name          = TYPE_ASPEED_XDMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedXDMAState),
-    .class_init    = aspeed_xdma_class_init,
-    .class_size    = sizeof(AspeedXDMAClass),
     .is_abstract      = true,
+    .class_size    = sizeof(AspeedXDMAClass),
+    .class_init    = aspeed_xdma_class_init,
 };
 
 static void aspeed_xdma_register_type(void)

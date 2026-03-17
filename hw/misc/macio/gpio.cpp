@@ -100,7 +100,7 @@ void macio_set_gpio(MacIOGPIOState *s, uint32_t gpio, bool state)
 static void macio_gpio_write(void *opaque, hwaddr addr, uint64_t value,
                              unsigned size)
 {
-    MacIOGPIOState *s = opaque;
+    MacIOGPIOState *s = static_cast<MacIOGPIOState *>(opaque);
     uint8_t ibit;
 
     trace_macio_gpio_write(addr, value);
@@ -126,7 +126,7 @@ static void macio_gpio_write(void *opaque, hwaddr addr, uint64_t value,
 
 static uint64_t macio_gpio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MacIOGPIOState *s = opaque;
+    MacIOGPIOState *s = static_cast<MacIOGPIOState *>(opaque);
     uint64_t val = 0;
 
     /* Levels regs */
@@ -169,15 +169,17 @@ static void macio_gpio_init(Object *obj)
     sysbus_init_mmio(sbd, &s->gpiomem);
 }
 
+static const VMStateField vmstate_macio_gpio_fields[] = {
+    VMSTATE_UINT8_ARRAY(gpio_levels, MacIOGPIOState, 8),
+    VMSTATE_UINT8_ARRAY(gpio_regs, MacIOGPIOState, 36),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_macio_gpio = {
     .name = "macio_gpio",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(gpio_levels, MacIOGPIOState, 8),
-        VMSTATE_UINT8_ARRAY(gpio_regs, MacIOGPIOState, 36),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_macio_gpio_fields,
 };
 
 static void macio_gpio_reset(DeviceState *dev)
@@ -204,16 +206,18 @@ static void macio_gpio_class_init(ObjectClass *oc, const void *data)
     nc->nmi_monitor_handler = macio_gpio_nmi;
 }
 
+static const InterfaceInfo macio_gpio_interfaces[] = {
+    { TYPE_NMI },
+    { }
+};
+
 static const TypeInfo macio_gpio_init_info = {
     .name          = TYPE_MACIO_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MacIOGPIOState),
     .instance_init = macio_gpio_init,
     .class_init    = macio_gpio_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_NMI },
-        { }
-    },
+    .interfaces = macio_gpio_interfaces,
 };
 
 static void macio_gpio_register_types(void)

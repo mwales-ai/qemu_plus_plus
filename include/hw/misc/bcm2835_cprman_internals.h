@@ -242,8 +242,8 @@ typedef struct PLLInitInfo {
     size_t cm_offset;
     size_t a2w_ctrl_offset;
     size_t a2w_ana_offset;
-    uint32_t prediv_mask; /* Prediv bit in ana[1] */
     size_t a2w_frac_offset;
+    uint32_t prediv_mask; /* Prediv bit in ana[1] */
 } PLLInitInfo;
 
 #define FILL_PLL_INIT_INFO(pll_)                \
@@ -255,28 +255,28 @@ typedef struct PLLInitInfo {
 static const PLLInitInfo PLL_INIT_INFO[] = {
     [CPRMAN_PLLA] = {
         .name = "plla",
-        .prediv_mask = R_A2W_PLLx_ANA1_FB_PREDIV_MASK,
         FILL_PLL_INIT_INFO(PLLA),
+        .prediv_mask = R_A2W_PLLx_ANA1_FB_PREDIV_MASK,
     },
     [CPRMAN_PLLC] = {
         .name = "pllc",
-        .prediv_mask = R_A2W_PLLx_ANA1_FB_PREDIV_MASK,
         FILL_PLL_INIT_INFO(PLLC),
+        .prediv_mask = R_A2W_PLLx_ANA1_FB_PREDIV_MASK,
     },
     [CPRMAN_PLLD] = {
         .name = "plld",
-        .prediv_mask = R_A2W_PLLx_ANA1_FB_PREDIV_MASK,
         FILL_PLL_INIT_INFO(PLLD),
+        .prediv_mask = R_A2W_PLLx_ANA1_FB_PREDIV_MASK,
     },
     [CPRMAN_PLLH] = {
         .name = "pllh",
-        .prediv_mask = R_A2W_PLLH_ANA1_FB_PREDIV_MASK,
         FILL_PLL_INIT_INFO(PLLH),
+        .prediv_mask = R_A2W_PLLH_ANA1_FB_PREDIV_MASK,
     },
     [CPRMAN_PLLB] = {
         .name = "pllb",
-        .prediv_mask = R_A2W_PLLx_ANA1_FB_PREDIV_MASK,
         FILL_PLL_INIT_INFO(PLLB),
+        .prediv_mask = R_A2W_PLLx_ANA1_FB_PREDIV_MASK,
     },
 };
 
@@ -308,18 +308,20 @@ typedef struct PLLChannelInitInfo {
 
 #define FILL_PLL_CHANNEL_INIT_INFO_common(pll_, channel_)            \
     .parent = CPRMAN_ ## pll_,                                       \
-    .cm_offset = R_CM_ ## pll_,                                      \
-    .cm_load_mask = R_CM_ ## pll_ ## _ ## LOAD ## channel_ ## _MASK, \
-    .a2w_ctrl_offset = R_A2W_ ## pll_ ## _ ## channel_
+    .cm_offset = R_CM_ ## pll_
 
 #define FILL_PLL_CHANNEL_INIT_INFO(pll_, channel_)                   \
     FILL_PLL_CHANNEL_INIT_INFO_common(pll_, channel_),               \
     .cm_hold_mask = R_CM_ ## pll_ ## _ ## HOLD ## channel_ ## _MASK, \
+    .cm_load_mask = R_CM_ ## pll_ ## _ ## LOAD ## channel_ ## _MASK, \
+    .a2w_ctrl_offset = R_A2W_ ## pll_ ## _ ## channel_,              \
     .fixed_divider = 1
 
-#define FILL_PLL_CHANNEL_INIT_INFO_nohold(pll_, channel_) \
-    FILL_PLL_CHANNEL_INIT_INFO_common(pll_, channel_),    \
-    .cm_hold_mask = 0
+#define FILL_PLL_CHANNEL_INIT_INFO_nohold(pll_, channel_)             \
+    FILL_PLL_CHANNEL_INIT_INFO_common(pll_, channel_),               \
+    .cm_hold_mask = 0,                                               \
+    .cm_load_mask = R_CM_ ## pll_ ## _ ## LOAD ## channel_ ## _MASK, \
+    .a2w_ctrl_offset = R_A2W_ ## pll_ ## _ ## channel_
 
 static PLLChannelInitInfo PLL_CHANNEL_INIT_INFO[] = {
     [CPRMAN_PLLA_CHANNEL_DSI0] = {
@@ -375,18 +377,18 @@ static PLLChannelInitInfo PLL_CHANNEL_INIT_INFO[] = {
 
     [CPRMAN_PLLH_CHANNEL_AUX] = {
         .name = "pllh-aux",
-        .fixed_divider = 1,
         FILL_PLL_CHANNEL_INIT_INFO_nohold(PLLH, AUX),
+        .fixed_divider = 1,
     },
     [CPRMAN_PLLH_CHANNEL_RCAL] = {
         .name = "pllh-rcal",
-        .fixed_divider = 10,
         FILL_PLL_CHANNEL_INIT_INFO_nohold(PLLH, RCAL),
+        .fixed_divider = 10,
     },
     [CPRMAN_PLLH_CHANNEL_PIX] = {
         .name = "pllh-pix",
-        .fixed_divider = 10,
         FILL_PLL_CHANNEL_INIT_INFO_nohold(PLLH, PIX),
+        .fixed_divider = 10,
     },
 
     [CPRMAN_PLLB_CHANNEL_ARM] = {
@@ -415,9 +417,9 @@ static inline void set_pll_channel_init_info(BCM2835CprmanState *s,
 /* Clock mux init info */
 typedef struct ClockMuxInitInfo {
     const char *name;
-    size_t cm_offset; /* cm_offset[0]->CM_CTL, cm_offset[1]->CM_DIV */
     int int_bits;
     int frac_bits;
+    size_t cm_offset; /* cm_offset[0]->CM_CTL, cm_offset[1]->CM_DIV */
 
     CprmanPllChannel src_mapping[CPRMAN_NUM_CLOCK_MUX_SRC];
 } ClockMuxInitInfo;
@@ -764,37 +766,37 @@ static const PLLResetInfo PLL_RESET_INFO[] = {
     [CPRMAN_PLLA] = {
         .cm = 0x0000008a,
         .a2w_ctrl = 0x0002103a,
+        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 },
         .a2w_frac = 0x00098000,
-        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 }
     },
 
     [CPRMAN_PLLC] = {
         .cm = 0x00000228,
         .a2w_ctrl = 0x0002103e,
+        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 },
         .a2w_frac = 0x00080000,
-        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 }
     },
 
     [CPRMAN_PLLD] = {
         .cm = 0x0000020a,
         .a2w_ctrl = 0x00021034,
+        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 },
         .a2w_frac = 0x00015556,
-        .a2w_ana = { 0x00000000, 0x00144000, 0x00000000, 0x00000100 }
     },
 
     [CPRMAN_PLLH] = {
         .cm = 0x00000000,
         .a2w_ctrl = 0x0002102d,
+        .a2w_ana = { 0x00900000, 0x0000000c, 0x00000000, 0x00000000 },
         .a2w_frac = 0x00000000,
-        .a2w_ana = { 0x00900000, 0x0000000c, 0x00000000, 0x00000000 }
     },
 
     [CPRMAN_PLLB] = {
         /* unknown */
         .cm = 0x00000000,
         .a2w_ctrl = 0x00000000,
+        .a2w_ana = { 0x00000000, 0x00000000, 0x00000000, 0x00000000 },
         .a2w_frac = 0x00000000,
-        .a2w_ana = { 0x00000000, 0x00000000, 0x00000000, 0x00000000 }
     }
 };
 

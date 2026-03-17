@@ -94,16 +94,19 @@ REG32(I3C_VER_TYPE,                 0xe4)
 REG32(EXTENDED_CAPABILITY,          0xe8)
 REG32(SLAVE_CONFIG,                 0xec)
 
-static const uint32_t ast2600_i3c_device_resets[ASPEED_I3C_DEVICE_NR_REGS] = {
-    [R_HW_CAPABILITY]               = 0x000e00bf,
-    [R_QUEUE_THLD_CTRL]             = 0x01000101,
-    [R_I3C_VER_ID]                  = 0x3130302a,
-    [R_I3C_VER_TYPE]                = 0x6c633033,
-    [R_DEVICE_ADDR_TABLE_POINTER]   = 0x00080280,
-    [R_DEV_CHAR_TABLE_POINTER]      = 0x00020200,
-    [A_VENDOR_SPECIFIC_REG_POINTER] = 0x000000b0,
-    [R_SLV_MAX_LEN]                 = 0x00ff00ff,
-};
+static uint32_t ast2600_i3c_device_resets[ASPEED_I3C_DEVICE_NR_REGS];
+
+static void __attribute__((constructor)) init_ast2600_i3c_device_resets(void)
+{
+    ast2600_i3c_device_resets[R_HW_CAPABILITY]               = 0x000e00bf;
+    ast2600_i3c_device_resets[R_QUEUE_THLD_CTRL]             = 0x01000101;
+    ast2600_i3c_device_resets[R_I3C_VER_ID]                  = 0x3130302a;
+    ast2600_i3c_device_resets[R_I3C_VER_TYPE]                = 0x6c633033;
+    ast2600_i3c_device_resets[R_DEVICE_ADDR_TABLE_POINTER]   = 0x00080280;
+    ast2600_i3c_device_resets[R_DEV_CHAR_TABLE_POINTER]      = 0x00020200;
+    ast2600_i3c_device_resets[A_VENDOR_SPECIFIC_REG_POINTER] = 0x000000b0;
+    ast2600_i3c_device_resets[R_SLV_MAX_LEN]                 = 0x00ff00ff;
+}
 
 static uint64_t aspeed_i3c_device_read(void *opaque, hwaddr offset,
                                        unsigned size)
@@ -164,14 +167,16 @@ static void aspeed_i3c_device_write(void *opaque, hwaddr offset,
     }
 }
 
+static const VMStateField vmstate_aspeed_i3c_device_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedI3CDevice, ASPEED_I3C_DEVICE_NR_REGS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription aspeed_i3c_device_vmstate = {
     .name = TYPE_ASPEED_I3C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]){
-        VMSTATE_UINT32_ARRAY(regs, AspeedI3CDevice, ASPEED_I3C_DEVICE_NR_REGS),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_aspeed_i3c_device_fields,
 };
 
 static const MemoryRegionOps aspeed_i3c_device_ops = {
@@ -344,16 +349,18 @@ static const TypeInfo aspeed_i3c_device_info = {
     .class_init = aspeed_i3c_device_class_init,
 };
 
+static const VMStateField vmstate_aspeed_i3c_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedI3CState, ASPEED_I3C_NR_REGS),
+    VMSTATE_STRUCT_ARRAY(devices, AspeedI3CState, ASPEED_I3C_NR_DEVICES, 1,
+                         aspeed_i3c_device_vmstate, AspeedI3CDevice),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_aspeed_i3c = {
     .name = TYPE_ASPEED_I3C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedI3CState, ASPEED_I3C_NR_REGS),
-        VMSTATE_STRUCT_ARRAY(devices, AspeedI3CState, ASPEED_I3C_NR_DEVICES, 1,
-                             aspeed_i3c_device_vmstate, AspeedI3CDevice),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_aspeed_i3c_fields,
 };
 
 static void aspeed_i3c_class_init(ObjectClass *klass, const void *data)
@@ -369,8 +376,8 @@ static void aspeed_i3c_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo aspeed_i3c_info = {
     .name = TYPE_ASPEED_I3C,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = aspeed_i3c_instance_init,
     .instance_size = sizeof(AspeedI3CState),
+    .instance_init = aspeed_i3c_instance_init,
     .class_init = aspeed_i3c_class_init,
 };
 
