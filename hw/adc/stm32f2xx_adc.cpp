@@ -25,9 +25,12 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "hw/adc/stm32f2xx_adc.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "hw/adc/stm32f2xx_adc.h"
+}
 
 #ifndef STM_ADC_ERR_DEBUG
 #define STM_ADC_ERR_DEBUG 0
@@ -100,7 +103,7 @@ static uint32_t stm32f2xx_adc_generate_value(STM32F2XXADCState *s)
 static uint64_t stm32f2xx_adc_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    STM32F2XXADCState *s = opaque;
+    STM32F2XXADCState *s = static_cast<STM32F2XXADCState *>(opaque);
 
     DB_PRINT("Address: 0x%" HWADDR_PRIx "\n", addr);
 
@@ -170,7 +173,7 @@ static uint64_t stm32f2xx_adc_read(void *opaque, hwaddr addr,
 static void stm32f2xx_adc_write(void *opaque, hwaddr addr,
                        uint64_t val64, unsigned int size)
 {
-    STM32F2XXADCState *s = opaque;
+    STM32F2XXADCState *s = static_cast<STM32F2XXADCState *>(opaque);
     uint32_t value = (uint32_t) val64;
 
     DB_PRINT("Address: 0x%" HWADDR_PRIx ", Value: 0x%x\n",
@@ -242,34 +245,41 @@ static void stm32f2xx_adc_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps stm32f2xx_adc_ops = {
+static MemoryRegionOps stm32f2xx_adc_ops = {
     .read = stm32f2xx_adc_read,
     .write = stm32f2xx_adc_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
+};
+
+static void __attribute__((constructor)) init_stm32f2xx_adc_ops(void)
+{
+    stm32f2xx_adc_ops.impl.min_access_size = 4;
+    stm32f2xx_adc_ops.impl.max_access_size = 4;
+}
+
+static const VMStateField vmstate_stm32f2xx_adc_fields[] = {
+    VMSTATE_UINT32(adc_sr, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_cr1, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_cr2, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_smpr1, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_smpr2, STM32F2XXADCState),
+    VMSTATE_UINT32_ARRAY(adc_jofr, STM32F2XXADCState, 4),
+    VMSTATE_UINT32(adc_htr, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_ltr, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_sqr1, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_sqr2, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_sqr3, STM32F2XXADCState),
+    VMSTATE_UINT32(adc_jsqr, STM32F2XXADCState),
+    VMSTATE_UINT32_ARRAY(adc_jdr, STM32F2XXADCState, 4),
+    VMSTATE_UINT32(adc_dr, STM32F2XXADCState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_stm32f2xx_adc = {
     .name = TYPE_STM32F2XX_ADC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(adc_sr, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_cr1, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_cr2, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_smpr1, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_smpr2, STM32F2XXADCState),
-        VMSTATE_UINT32_ARRAY(adc_jofr, STM32F2XXADCState, 4),
-        VMSTATE_UINT32(adc_htr, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_ltr, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_sqr1, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_sqr2, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_sqr3, STM32F2XXADCState),
-        VMSTATE_UINT32(adc_jsqr, STM32F2XXADCState),
-        VMSTATE_UINT32_ARRAY(adc_jdr, STM32F2XXADCState, 4),
-        VMSTATE_UINT32(adc_dr, STM32F2XXADCState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32f2xx_adc_fields,
 };
 
 static void stm32f2xx_adc_init(Object *obj)

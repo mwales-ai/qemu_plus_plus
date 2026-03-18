@@ -1,7 +1,7 @@
 /*
  * Virtual Machine Clock Device
  *
- * Copyright © 2024 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright (c) 2024 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Authors: David Woodhouse <dwmw2@infradead.org>
  *
@@ -11,7 +11,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
 #include "hw/i386/e820_memory_layout.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
@@ -22,8 +21,13 @@
 #include "migration/vmstate.h"
 #include "system/reset.h"
 
+extern "C" {
+#include "qemu/module.h"
+}
+
 #include "standard-headers/linux/vmclock-abi.h"
 
+extern "C"
 void vmclock_build_acpi(VmclockState *vms, GArray *table_data,
                         BIOSLinker *linker, const char *oem_id)
 {
@@ -90,21 +94,23 @@ static void vmclock_update_guest(VmclockState *vms)
  */
 static int vmclock_post_load(void *opaque, int version_id)
 {
-    VmclockState *vms = opaque;
+    VmclockState *vms = static_cast<VmclockState *>(opaque);
 
     vmclock_update_guest(vms);
     return 0;
 }
+
+static const VMStateField vmstate_vmclock_fields[] = {
+    VMSTATE_UINT64(physaddr, VmclockState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_vmclock = {
     .name = "vmclock",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = vmclock_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(physaddr, VmclockState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_vmclock_fields,
 };
 
 static void vmclock_handle_reset(void *opaque)
@@ -138,7 +144,8 @@ static void vmclock_realize(DeviceState *dev, Error **errp)
     memory_region_init_ram(&vms->clk_page, OBJECT(dev), "vmclock_page",
                            VMCLOCK_SIZE, &error_abort);
     memory_region_set_enabled(&vms->clk_page, true);
-    vms->clk = memory_region_get_ram_ptr(&vms->clk_page);
+    vms->clk = static_cast<vmclock_abi *>(
+        memory_region_get_ram_ptr(&vms->clk_page));
     memset(vms->clk, 0, VMCLOCK_SIZE);
 
     vms->clk->magic = cpu_to_le32(VMCLOCK_MAGIC);

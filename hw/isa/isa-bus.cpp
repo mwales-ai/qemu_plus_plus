@@ -18,12 +18,15 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
-#include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "system/system.h"
 #include "hw/isa/isa.h"
+
+extern "C" {
+#include "qemu/error-report.h"
+#include "qemu/module.h"
+}
 
 static ISABus *isabus;
 
@@ -49,6 +52,7 @@ static const TypeInfo isa_bus_info = {
     .class_init = isa_bus_class_init,
 };
 
+extern "C"
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
                     MemoryRegion *address_space_io, Error **errp)
 {
@@ -74,11 +78,13 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion* address_space,
     return isabus;
 }
 
+extern "C"
 void isa_bus_register_input_irqs(ISABus *bus, qemu_irq *irqs_in)
 {
     bus->irqs_in = irqs_in;
 }
 
+extern "C"
 qemu_irq isa_bus_get_irq(ISABus *bus, unsigned irqnum)
 {
     assert(irqnum < ISA_NUM_IRQS);
@@ -92,18 +98,21 @@ qemu_irq isa_bus_get_irq(ISABus *bus, unsigned irqnum)
  * This function is only for special cases such as the 'ferr', and
  * temporary use for normal devices until they are converted to qdev.
  */
+extern "C"
 qemu_irq isa_get_irq(ISADevice *dev, unsigned isairq)
 {
     assert(!dev || ISA_BUS(qdev_get_parent_bus(DEVICE(dev))) == isabus);
     return isa_bus_get_irq(isabus, isairq);
 }
 
+extern "C"
 void isa_connect_gpio_out(ISADevice *isadev, int gpioirq, unsigned isairq)
 {
     qemu_irq input_irq = isa_get_irq(isadev, isairq);
     qdev_connect_gpio_out(DEVICE(isadev), gpioirq, input_irq);
 }
 
+extern "C"
 void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
 {
     assert(bus && dma8 && dma16);
@@ -112,6 +121,7 @@ void isa_bus_dma(ISABus *bus, IsaDma *dma8, IsaDma *dma16)
     bus->dma[1] = dma16;
 }
 
+extern "C"
 IsaDma *isa_bus_get_dma(ISABus *bus, int nchan)
 {
     assert(bus);
@@ -125,12 +135,14 @@ static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
     }
 }
 
+extern "C"
 void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
 {
     memory_region_add_subregion(isa_address_space_io(dev), start, io);
     isa_init_ioport(dev, start);
 }
 
+extern "C"
 int isa_register_portio_list(ISADevice *dev,
                              PortioList *piolist, uint16_t start,
                              const MemoryRegionPortio *pio_start,
@@ -153,16 +165,19 @@ int isa_register_portio_list(ISADevice *dev,
     return 0;
 }
 
+extern "C"
 ISADevice *isa_new(const char *name)
 {
     return ISA_DEVICE(qdev_new(name));
 }
 
+extern "C"
 ISADevice *isa_try_new(const char *name)
 {
     return ISA_DEVICE(qdev_try_new(name));
 }
 
+extern "C"
 ISADevice *isa_create_simple(ISABus *bus, const char *name)
 {
     ISADevice *dev;
@@ -172,16 +187,19 @@ ISADevice *isa_create_simple(ISABus *bus, const char *name)
     return dev;
 }
 
+extern "C"
 bool isa_realize_and_unref(ISADevice *dev, ISABus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->parent_obj, &bus->parent_obj, errp);
 }
 
+extern "C"
 ISABus *isa_bus_from_device(ISADevice *dev)
 {
     return ISA_BUS(qdev_get_parent_bus(DEVICE(dev)));
 }
 
+extern "C"
 ISADevice *isa_vga_init(ISABus *bus)
 {
     vga_interface_created = true;
@@ -256,6 +274,7 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(path);
 }
 
+extern "C"
 MemoryRegion *isa_address_space(ISADevice *dev)
 {
     if (dev) {
@@ -265,6 +284,7 @@ MemoryRegion *isa_address_space(ISADevice *dev)
     return isabus->address_space;
 }
 
+extern "C"
 MemoryRegion *isa_address_space_io(ISADevice *dev)
 {
     if (dev) {

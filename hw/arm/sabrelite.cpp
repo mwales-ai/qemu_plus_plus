@@ -17,8 +17,11 @@
 #include "hw/arm/machines-qom.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
-#include "qemu/error-report.h"
 #include "system/qtest.h"
+
+extern "C" {
+#include "qemu/error-report.h"
+}
 
 static struct arm_boot_info sabrelite_binfo = {
     /* DDR memory start */

@@ -36,25 +36,27 @@ struct I82378State {
     qemu_irq *isa_irqs_in;
 };
 
+static const VMStateField vmstate_i82378_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, I82378State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_i82378 = {
     .name = "pci-i82378",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, I82378State),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_i82378_fields,
 };
 
 static void i82378_request_out0_irq(void *opaque, int irq, int level)
 {
-    I82378State *s = opaque;
+    I82378State *s = static_cast<I82378State *>(opaque);
     qemu_set_irq(s->cpu_intr, level);
 }
 
 static void i82378_request_pic_irq(void *opaque, int irq, int level)
 {
-    DeviceState *dev = opaque;
+    DeviceState *dev = static_cast<DeviceState *>(opaque);
     I82378State *s = I82378(dev);
 
     qemu_set_irq(s->isa_irqs_in[irq], level);
@@ -136,16 +138,18 @@ static void i82378_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
+static const InterfaceInfo i82378_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo i82378_type_info = {
     .name = TYPE_I82378,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(I82378State),
     .instance_init = i82378_init,
     .class_init = i82378_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = i82378_interfaces,
 };
 
 static void i82378_register_types(void)

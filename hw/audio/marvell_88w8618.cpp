@@ -16,10 +16,13 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/audio/wm8750.h"
-#include "qemu/audio.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
 #include "qom/object.h"
+
+extern "C" {
+#include "qemu/audio.h"
+#include "qemu/module.h"
+}
 
 #define MP_AUDIO_SIZE           0x00001000
 
@@ -64,7 +67,7 @@ struct mv88w8618_audio_state {
 
 static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
 {
-    mv88w8618_audio_state *s = opaque;
+    mv88w8618_audio_state *s = static_cast<mv88w8618_audio_state *>(opaque);
     int16_t *codec_buffer;
     QEMU_UNINITIALIZED int8_t buf[4096];
     int8_t *mem_buffer;
@@ -90,7 +93,7 @@ static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
     mem_buffer = buf;
     if (s->playback_mode & MP_AUDIO_16BIT_SAMPLE) {
         if (s->playback_mode & MP_AUDIO_MONO) {
-            codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
+            codec_buffer = static_cast<int16_t *>(wm8750_dac_buffer(s->wm, block_size >> 1));
             for (pos = 0; pos < block_size; pos += 2) {
                 *codec_buffer++ = *(int16_t *)mem_buffer;
                 *codec_buffer++ = *(int16_t *)mem_buffer;
@@ -102,13 +105,13 @@ static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
         }
     } else {
         if (s->playback_mode & MP_AUDIO_MONO) {
-            codec_buffer = wm8750_dac_buffer(s->wm, block_size);
+            codec_buffer = static_cast<int16_t *>(wm8750_dac_buffer(s->wm, block_size));
             for (pos = 0; pos < block_size; pos++) {
                 *codec_buffer++ = cpu_to_le16(256 * *mem_buffer);
                 *codec_buffer++ = cpu_to_le16(256 * *mem_buffer++);
             }
         } else {
-            codec_buffer = wm8750_dac_buffer(s->wm, block_size >> 1);
+            codec_buffer = static_cast<int16_t *>(wm8750_dac_buffer(s->wm, block_size >> 1));
             for (pos = 0; pos < block_size; pos += 2) {
                 *codec_buffer++ = cpu_to_le16(256 * *mem_buffer++);
                 *codec_buffer++ = cpu_to_le16(256 * *mem_buffer++);
@@ -149,7 +152,7 @@ static void mv88w8618_audio_clock_update(mv88w8618_audio_state *s)
 static uint64_t mv88w8618_audio_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
-    mv88w8618_audio_state *s = opaque;
+    mv88w8618_audio_state *s = static_cast<mv88w8618_audio_state *>(opaque);
 
     switch (offset) {
     case MP_AUDIO_PLAYBACK_MODE:
@@ -175,7 +178,7 @@ static uint64_t mv88w8618_audio_read(void *opaque, hwaddr offset,
 static void mv88w8618_audio_write(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
-    mv88w8618_audio_state *s = opaque;
+    mv88w8618_audio_state *s = static_cast<mv88w8618_audio_state *>(opaque);
 
     switch (offset) {
     case MP_AUDIO_PLAYBACK_MODE:
@@ -259,32 +262,34 @@ static void mv88w8618_audio_init(Object *obj)
     object_property_add_link(OBJECT(dev), "wm8750", TYPE_WM8750,
                              (Object **) &s->wm,
                              qdev_prop_allow_set_link_before_realize,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static void mv88w8618_audio_realize(DeviceState *dev, Error **errp)
 {
     mv88w8618_audio_state *s = MV88W8618_AUDIO(dev);
 
-    wm8750_data_req_set(s->wm, mv88w8618_audio_callback, s);
+    wm8750_data_req_set(static_cast<DeviceState *>(s->wm), mv88w8618_audio_callback, s);
 }
+
+static const VMStateField mv88w8618_audio_vmsd_fields[] = {
+    VMSTATE_UINT32(playback_mode, mv88w8618_audio_state),
+    VMSTATE_UINT32(status, mv88w8618_audio_state),
+    VMSTATE_UINT32(irq_enable, mv88w8618_audio_state),
+    VMSTATE_UINT32(phys_buf, mv88w8618_audio_state),
+    VMSTATE_UINT32(target_buffer, mv88w8618_audio_state),
+    VMSTATE_UINT32(threshold, mv88w8618_audio_state),
+    VMSTATE_UINT32(play_pos, mv88w8618_audio_state),
+    VMSTATE_UINT32(last_free, mv88w8618_audio_state),
+    VMSTATE_UINT32(clock_div, mv88w8618_audio_state),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription mv88w8618_audio_vmsd = {
     .name = "mv88w8618_audio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(playback_mode, mv88w8618_audio_state),
-        VMSTATE_UINT32(status, mv88w8618_audio_state),
-        VMSTATE_UINT32(irq_enable, mv88w8618_audio_state),
-        VMSTATE_UINT32(phys_buf, mv88w8618_audio_state),
-        VMSTATE_UINT32(target_buffer, mv88w8618_audio_state),
-        VMSTATE_UINT32(threshold, mv88w8618_audio_state),
-        VMSTATE_UINT32(play_pos, mv88w8618_audio_state),
-        VMSTATE_UINT32(last_free, mv88w8618_audio_state),
-        VMSTATE_UINT32(clock_div, mv88w8618_audio_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = mv88w8618_audio_vmsd_fields,
 };
 
 static void mv88w8618_audio_class_init(ObjectClass *klass, const void *data)

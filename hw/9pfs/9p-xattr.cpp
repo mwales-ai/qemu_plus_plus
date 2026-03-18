@@ -21,7 +21,10 @@
 #include "fsdev/file-op-9p.h"
 #include "9p-xattr.h"
 #include "9p-util.h"
+
+extern "C" {
 #include "9p-local.h"
+}
 
 
 static XattrOperations *get_xattr_operations(XattrOperations **h,
@@ -36,6 +39,7 @@ static XattrOperations *get_xattr_operations(XattrOperations **h,
     return NULL;
 }
 
+extern "C"
 ssize_t v9fs_get_xattr(FsContext *ctx, const char *path,
                        const char *name, void *value, size_t size)
 {
@@ -47,6 +51,7 @@ ssize_t v9fs_get_xattr(FsContext *ctx, const char *path,
     return -1;
 }
 
+extern "C"
 ssize_t pt_listxattr(FsContext *ctx, const char *path,
                      char *name, void *value, size_t size)
 {
@@ -69,11 +74,13 @@ ssize_t pt_listxattr(FsContext *ctx, const char *path,
  * Get the list and pass to each layer to find out whether
  * to send the data or not
  */
+extern "C"
 ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
                         void *value, size_t vsize)
 {
     ssize_t size = 0;
-    void *ovalue = value;
+    char *value_ptr = static_cast<char *>(value);
+    char *ovalue_ptr = value_ptr;
     XattrOperations *xops;
     char *orig_value, *orig_value_start;
     ssize_t xattr_len, parsed_len = 0, attr_len;
@@ -89,7 +96,8 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
     }
 
     name = g_path_get_basename(path);
-    xattr_len = flistxattrat_nofollow(dirfd, name, value, 0);
+    xattr_len = flistxattrat_nofollow(dirfd, name,
+                                     static_cast<char *>(value), 0);
     if (xattr_len <= 0) {
         g_free(name);
         close_preserve_errno(dirfd);
@@ -97,7 +105,7 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
     }
 
     /* Now fetch the xattr and find the actual size */
-    orig_value = g_malloc(xattr_len);
+    orig_value = static_cast<char *>(g_malloc(xattr_len));
     xattr_len = flistxattrat_nofollow(dirfd, name, orig_value, xattr_len);
     g_free(name);
     close_preserve_errno(dirfd);
@@ -114,14 +122,14 @@ ssize_t v9fs_list_xattr(FsContext *ctx, const char *path,
             goto next_entry;
         }
 
-        if (!value) {
-            size += xops->listxattr(ctx, path, orig_value, value, vsize);
+        if (!value_ptr) {
+            size += xops->listxattr(ctx, path, orig_value, value_ptr, vsize);
         } else {
-            size = xops->listxattr(ctx, path, orig_value, value, vsize);
+            size = xops->listxattr(ctx, path, orig_value, value_ptr, vsize);
             if (size < 0) {
                 goto err_out;
             }
-            value += size;
+            value_ptr += size;
             vsize -= size;
         }
 next_entry:
@@ -130,8 +138,8 @@ next_entry:
         parsed_len += attr_len;
         orig_value += attr_len;
     }
-    if (value) {
-        size = value - ovalue;
+    if (value_ptr) {
+        size = value_ptr - ovalue_ptr;
     }
 
 err_out:
@@ -139,6 +147,7 @@ err_out:
     return size;
 }
 
+extern "C"
 int v9fs_set_xattr(FsContext *ctx, const char *path, const char *name,
                    void *value, size_t size, int flags)
 {
@@ -151,6 +160,7 @@ int v9fs_set_xattr(FsContext *ctx, const char *path, const char *name,
 
 }
 
+extern "C"
 int v9fs_remove_xattr(FsContext *ctx,
                       const char *path, const char *name)
 {
@@ -163,6 +173,7 @@ int v9fs_remove_xattr(FsContext *ctx,
 
 }
 
+extern "C"
 ssize_t local_getxattr_nofollow(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size)
 {
@@ -184,12 +195,14 @@ out:
     return ret;
 }
 
+extern "C"
 ssize_t pt_getxattr(FsContext *ctx, const char *path, const char *name,
                     void *value, size_t size)
 {
     return local_getxattr_nofollow(ctx, path, name, value, size);
 }
 
+extern "C"
 ssize_t local_setxattr_nofollow(FsContext *ctx, const char *path,
                                 const char *name, void *value, size_t size,
                                 int flags)
@@ -212,12 +225,14 @@ out:
     return ret;
 }
 
+extern "C"
 int pt_setxattr(FsContext *ctx, const char *path, const char *name, void *value,
                 size_t size, int flags)
 {
     return local_setxattr_nofollow(ctx, path, name, value, size, flags);
 }
 
+extern "C"
 ssize_t local_removexattr_nofollow(FsContext *ctx, const char *path,
                                    const char *name)
 {
@@ -239,11 +254,13 @@ out:
     return ret;
 }
 
+extern "C"
 int pt_removexattr(FsContext *ctx, const char *path, const char *name)
 {
     return local_removexattr_nofollow(ctx, path, name);
 }
 
+extern "C"
 ssize_t notsup_getxattr(FsContext *ctx, const char *path, const char *name,
                         void *value, size_t size)
 {
@@ -251,6 +268,7 @@ ssize_t notsup_getxattr(FsContext *ctx, const char *path, const char *name,
     return -1;
 }
 
+extern "C"
 int notsup_setxattr(FsContext *ctx, const char *path, const char *name,
                     void *value, size_t size, int flags)
 {
@@ -258,12 +276,14 @@ int notsup_setxattr(FsContext *ctx, const char *path, const char *name,
     return -1;
 }
 
+extern "C"
 ssize_t notsup_listxattr(FsContext *ctx, const char *path, char *name,
                          void *value, size_t size)
 {
     return 0;
 }
 
+extern "C"
 int notsup_removexattr(FsContext *ctx, const char *path, const char *name)
 {
     errno = ENOTSUP;

@@ -24,16 +24,19 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
 #include "hw/audio/model.h"
-#include "qemu/audio.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-#include "gusemu.h"
-#include "qemu/error-report.h"
 #include "qom/object.h"
+
+extern "C" {
+#include "qemu/module.h"
+#include "qemu/audio.h"
+#include "qemu/error-report.h"
+#include "gusemu.h"
+}
 
 #define DEBUG 0
 
@@ -66,14 +69,14 @@ struct GUSState {
 
 static uint32_t gus_readb(void *opaque, uint32_t nport)
 {
-    GUSState *s = opaque;
+    GUSState *s = static_cast<GUSState *>(opaque);
 
     return gus_read (&s->emu, nport, 1);
 }
 
 static void gus_writeb(void *opaque, uint32_t nport, uint32_t val)
 {
-    GUSState *s = opaque;
+    GUSState *s = static_cast<GUSState *>(opaque);
 
     gus_write (&s->emu, nport, 1, val);
 }
@@ -112,7 +115,7 @@ static int write_audio (GUSState *s, int samples)
 static void GUS_callback (void *opaque, int free)
 {
     int samples, to_play, net = 0;
-    GUSState *s = opaque;
+    GUSState *s = static_cast<GUSState *>(opaque);
 
     samples = free >> s->shift;
     to_play = MIN (samples, s->left);
@@ -149,9 +152,10 @@ static void GUS_callback (void *opaque, int free)
     gus_irqgen (&s->emu, (uint64_t)net * 1000000 / s->freq);
 }
 
+extern "C"
 int GUS_irqrequest (GUSEmuState *emu, int hwirq, int n)
 {
-    GUSState *s = emu->opaque;
+    GUSState *s = static_cast<GUSState *>(emu->opaque);
     /* qemu_irq_lower (s->pic); */
     qemu_irq_raise (s->pic);
     s->irqs += n;
@@ -159,9 +163,10 @@ int GUS_irqrequest (GUSEmuState *emu, int hwirq, int n)
     return n;
 }
 
+extern "C"
 void GUS_irqclear (GUSEmuState *emu, int hwirq)
 {
-    GUSState *s = emu->opaque;
+    GUSState *s = static_cast<GUSState *>(emu->opaque);
     ldebug("irqclear %d %d", hwirq, s->irqs);
     qemu_irq_lower (s->pic);
     s->irqs -= 1;
@@ -172,9 +177,10 @@ void GUS_irqclear (GUSEmuState *emu, int hwirq)
 #endif
 }
 
+extern "C"
 void GUS_dmarequest (GUSEmuState *emu)
 {
-    GUSState *s = emu->opaque;
+    GUSState *s = static_cast<GUSState *>(emu->opaque);
     IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
     ldebug("dma request %d", s->emu.gusdma);
     k->hold_DREQ(s->isa_dma, s->emu.gusdma);
@@ -182,7 +188,7 @@ void GUS_dmarequest (GUSEmuState *emu)
 
 static int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 {
-    GUSState *s = opaque;
+    GUSState *s = static_cast<GUSState *>(opaque);
     IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
     QEMU_UNINITIALIZED char tmpbuf[4096];
     int pos = dma_pos, mode, left = dma_len - dma_pos;
@@ -206,20 +212,22 @@ static int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
     return dma_len;
 }
 
+static const VMStateField vmstate_gus_fields[] = {
+    VMSTATE_INT32 (pos, GUSState),
+    VMSTATE_INT32 (left, GUSState),
+    VMSTATE_INT32 (shift, GUSState),
+    VMSTATE_INT32 (irqs, GUSState),
+    VMSTATE_INT32 (samples, GUSState),
+    VMSTATE_INT64 (last_ticks, GUSState),
+    VMSTATE_BUFFER (himem, GUSState),
+    VMSTATE_END_OF_LIST ()
+};
+
 static const VMStateDescription vmstate_gus = {
     .name = "gus",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32 (pos, GUSState),
-        VMSTATE_INT32 (left, GUSState),
-        VMSTATE_INT32 (shift, GUSState),
-        VMSTATE_INT32 (irqs, GUSState),
-        VMSTATE_INT32 (samples, GUSState),
-        VMSTATE_INT64 (last_ticks, GUSState),
-        VMSTATE_BUFFER (himem, GUSState),
-        VMSTATE_END_OF_LIST ()
-    }
+    .fields = vmstate_gus_fields,
 };
 
 static const MemoryRegionPortio gus_portio_list1[] = {
@@ -273,7 +281,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
 
     s->shift = 2;
     s->samples = AUD_get_buffer_size_out (s->voice) >> s->shift;
-    s->mixbuf = g_malloc0 (s->samples << s->shift);
+    s->mixbuf = static_cast<int16_t *>(g_malloc0 (s->samples << s->shift));
 
     isa_register_portio_list(d, &s->portio_list1, s->port,
                              gus_portio_list1, s, "gus");

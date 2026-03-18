@@ -15,10 +15,13 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
+#include "migration/vmstate.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/audio.h"
 #include "lm4549.h"
-#include "migration/vmstate.h"
+}
 
 #if 0
 #define LM4549_DEBUG  1
@@ -125,7 +128,7 @@ static void lm4549_audio_transfer(lm4549_state *s)
 
 static void lm4549_audio_out_callback(void *opaque, int free)
 {
-    lm4549_state *s = (lm4549_state *)opaque;
+    lm4549_state *s = static_cast<lm4549_state *>(opaque);
     static uint32_t prev_buffer_level;
 
 #ifdef LM4549_DEBUG
@@ -152,6 +155,7 @@ static void lm4549_audio_out_callback(void *opaque, int free)
     }
 }
 
+extern "C"
 uint32_t lm4549_read(lm4549_state *s, hwaddr offset)
 {
     uint16_t *regfile = s->regfile;
@@ -166,6 +170,7 @@ uint32_t lm4549_read(lm4549_state *s, hwaddr offset)
     return value;
 }
 
+extern "C"
 void lm4549_write(lm4549_state *s,
                   hwaddr offset, uint32_t value)
 {
@@ -198,20 +203,22 @@ void lm4549_write(lm4549_state *s,
         regfile[LM4549_PCM_Front_DAC_Rate] = value;
 
         /* Re-open a voice with the new sample rate */
-        struct audsettings as;
-        as.freq = value;
-        as.nchannels = 2;
-        as.fmt = AUDIO_FORMAT_S16;
-        as.endianness = 0;
+        {
+            struct audsettings as;
+            as.freq = value;
+            as.nchannels = 2;
+            as.fmt = AUDIO_FORMAT_S16;
+            as.endianness = 0;
 
-        s->voice = AUD_open_out(
-            s->audio_be,
-            s->voice,
-            "lm4549.out",
-            s,
-            lm4549_audio_out_callback,
-            &as
-        );
+            s->voice = AUD_open_out(
+                s->audio_be,
+                s->voice,
+                "lm4549.out",
+                s,
+                lm4549_audio_out_callback,
+                &as
+            );
+        }
         break;
 
     case LM4549_Powerdown_Ctrl_Stat:
@@ -233,6 +240,7 @@ void lm4549_write(lm4549_state *s,
     }
 }
 
+extern "C"
 uint32_t lm4549_write_samples(lm4549_state *s, uint32_t left, uint32_t right)
 {
     /* The left and right samples are in 20-bit resolution.
@@ -259,7 +267,7 @@ uint32_t lm4549_write_samples(lm4549_state *s, uint32_t left, uint32_t right)
 
 static int lm4549_post_load(void *opaque, int version_id)
 {
-    lm4549_state *s = (lm4549_state *)opaque;
+    lm4549_state *s = static_cast<lm4549_state *>(opaque);
     uint16_t *regfile = s->regfile;
 
     /* Re-open a voice with the current sample rate */
@@ -291,6 +299,7 @@ static int lm4549_post_load(void *opaque, int version_id)
     return 0;
 }
 
+extern "C"
 void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
                  Error **errp)
 {
@@ -339,16 +348,19 @@ void lm4549_init(lm4549_state *s, lm4549_callback data_req_cb, void* opaque,
 #endif
 }
 
+static const VMStateField vmstate_lm4549_state_fields[] = {
+    VMSTATE_UINT32(voice_is_active, lm4549_state),
+    VMSTATE_UINT16_ARRAY(regfile, lm4549_state, 128),
+    VMSTATE_UINT16_ARRAY(buffer, lm4549_state, LM4549_BUFFER_SIZE),
+    VMSTATE_UINT32(buffer_level, lm4549_state),
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C"
 const VMStateDescription vmstate_lm4549_state = {
     .name = "lm4549_state",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = lm4549_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(voice_is_active, lm4549_state),
-        VMSTATE_UINT16_ARRAY(regfile, lm4549_state, 128),
-        VMSTATE_UINT16_ARRAY(buffer, lm4549_state, LM4549_BUFFER_SIZE),
-        VMSTATE_UINT32(buffer_level, lm4549_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_lm4549_state_fields,
 };

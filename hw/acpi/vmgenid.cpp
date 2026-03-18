@@ -12,7 +12,6 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/vmgenid.h"
@@ -22,6 +21,11 @@
 #include "migration/vmstate.h"
 #include "system/reset.h"
 
+extern "C" {
+#include "qemu/module.h"
+}
+
+extern "C"
 void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
                         BIOSLinker *linker, const char *oem_id)
 {
@@ -120,6 +124,7 @@ void vmgenid_build_acpi(VmGenIdState *vms, GArray *table_data, GArray *guid,
     free_aml_allocator();
 }
 
+extern "C"
 void vmgenid_add_fw_cfg(VmGenIdState *vms, FWCfgState *s, GArray *guid)
 {
     /* Create a read-only fw_cfg file for GUID */
@@ -168,20 +173,22 @@ static void vmgenid_update_guest(VmGenIdState *vms)
  */
 static int vmgenid_post_load(void *opaque, int version_id)
 {
-    VmGenIdState *vms = opaque;
+    VmGenIdState *vms = static_cast<VmGenIdState *>(opaque);
     vmgenid_update_guest(vms);
     return 0;
 }
+
+static const VMStateField vmstate_vmgenid_fields[] = {
+    VMSTATE_UINT8_ARRAY(vmgenid_addr_le, VmGenIdState, sizeof(uint64_t)),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_vmgenid = {
     .name = "vmgenid",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = vmgenid_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(vmgenid_addr_le, VmGenIdState, sizeof(uint64_t)),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_vmgenid_fields,
 };
 
 static void vmgenid_handle_reset(void *opaque)

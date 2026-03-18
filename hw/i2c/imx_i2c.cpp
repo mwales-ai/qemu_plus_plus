@@ -23,9 +23,12 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/i2c/i2c.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
+}
 
 static const char *imx_i2c_get_regname(unsigned offset)
 {
@@ -261,27 +264,34 @@ static void imx_i2c_write(void *opaque, hwaddr offset,
     }
 }
 
-static const MemoryRegionOps imx_i2c_ops = {
+static MemoryRegionOps imx_i2c_ops = {
     .read = imx_i2c_read,
     .write = imx_i2c_write,
-    .valid = { .min_access_size = 1, .max_access_size = 2, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static void __attribute__((constructor)) init_imx_i2c_ops(void)
+{
+    imx_i2c_ops.valid.min_access_size = 1;
+    imx_i2c_ops.valid.max_access_size = 2;
+}
+
+static const VMStateField imx_i2c_vmstate_fields[] = {
+    VMSTATE_UINT16(address, IMXI2CState),
+    VMSTATE_UINT16(iadr, IMXI2CState),
+    VMSTATE_UINT16(ifdr, IMXI2CState),
+    VMSTATE_UINT16(i2cr, IMXI2CState),
+    VMSTATE_UINT16(i2sr, IMXI2CState),
+    VMSTATE_UINT16(i2dr_read, IMXI2CState),
+    VMSTATE_UINT16(i2dr_write, IMXI2CState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription imx_i2c_vmstate = {
     .name = TYPE_IMX_I2C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(address, IMXI2CState),
-        VMSTATE_UINT16(iadr, IMXI2CState),
-        VMSTATE_UINT16(ifdr, IMXI2CState),
-        VMSTATE_UINT16(i2cr, IMXI2CState),
-        VMSTATE_UINT16(i2sr, IMXI2CState),
-        VMSTATE_UINT16(i2dr_read, IMXI2CState),
-        VMSTATE_UINT16(i2dr_write, IMXI2CState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = imx_i2c_vmstate_fields,
 };
 
 static void imx_i2c_realize(DeviceState *dev, Error **errp)

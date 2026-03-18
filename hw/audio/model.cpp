@@ -24,21 +24,25 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-core.h"
 #include "monitor/qdev.h"
-#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/audio/model.h"
 
+extern "C" {
+#include "qemu/error-report.h"
+}
+
 struct audio_model {
     const char *name;
     const char *descr;
-    const char *typename;
+    const char *type_name;
     void (*init)(const char *audiodev);
 };
 
 static struct audio_model audio_models[9];
 static int audio_models_count;
 
+extern "C"
 void audio_register_model_with_cb(const char *name, const char *descr,
                                   void (*init_audio_model)(const char *audiodev))
 {
@@ -49,16 +53,18 @@ void audio_register_model_with_cb(const char *name, const char *descr,
     audio_models_count++;
 }
 
+extern "C"
 void audio_register_model(const char *name, const char *descr,
                           const char *type_name)
 {
     assert(audio_models_count < ARRAY_SIZE(audio_models) - 1);
     audio_models[audio_models_count].name = name;
     audio_models[audio_models_count].descr = descr;
-    audio_models[audio_models_count].typename = type_name;
+    audio_models[audio_models_count].type_name = type_name;
     audio_models_count++;
 }
 
+extern "C"
 void audio_print_available_models(void)
 {
     struct audio_model *c;
@@ -77,6 +83,7 @@ void audio_print_available_models(void)
 static struct audio_model *selected;
 static const char *audiodev_id;
 
+extern "C"
 void audio_set_model(const char *name, const char *audiodev)
 {
     struct audio_model *c;
@@ -101,6 +108,7 @@ void audio_set_model(const char *name, const char *audiodev)
     }
 }
 
+extern "C"
 void audio_model_init(void)
 {
     struct audio_model *c = selected;
@@ -109,8 +117,8 @@ void audio_model_init(void)
         return;
     }
 
-    if (c->typename) {
-        DeviceState *dev = qdev_new(c->typename);
+    if (c->type_name) {
+        DeviceState *dev = qdev_new(c->type_name);
         BusState *bus = qdev_find_default_bus(DEVICE_GET_CLASS(dev), &error_fatal);
         qdev_prop_set_string(dev, "audiodev", audiodev_id);
         qdev_realize_and_unref(dev, bus, &error_fatal);

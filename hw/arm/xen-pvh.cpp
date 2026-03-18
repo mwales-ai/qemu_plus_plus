@@ -5,12 +5,15 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
 #include "qapi/qapi-commands-migration.h"
 #include "hw/boards.h"
 #include "system/system.h"
 #include "hw/xen/xen-pvh-common.h"
 #include "hw/arm/machines-qom.h"
+
+extern "C" {
+#include "qemu/error-report.h"
+}
 
 #define TYPE_XEN_ARM  MACHINE_TYPE_NAME("xenpvh")
 
@@ -30,13 +33,16 @@ static void xen_arm_instance_init(Object *obj)
     XenPVHMachineState *s = XEN_PVH_MACHINE(obj);
 
     /* Default values.  */
-    s->cfg.ram_low = (MemMapEntry) { GUEST_RAM0_BASE, GUEST_RAM0_SIZE };
-    s->cfg.ram_high = (MemMapEntry) { GUEST_RAM1_BASE, GUEST_RAM1_SIZE };
+    MemMapEntry ram_low_val = { GUEST_RAM0_BASE, GUEST_RAM0_SIZE };
+    s->cfg.ram_low = ram_low_val;
+    MemMapEntry ram_high_val = { GUEST_RAM1_BASE, GUEST_RAM1_SIZE };
+    s->cfg.ram_high = ram_high_val;
 
     s->cfg.virtio_mmio_num = NR_VIRTIO_MMIO_DEVICES;
     s->cfg.virtio_mmio_irq_base = GUEST_VIRTIO_MMIO_SPI_FIRST;
-    s->cfg.virtio_mmio = (MemMapEntry) { GUEST_VIRTIO_MMIO_BASE,
-                                         VIRTIO_MMIO_DEV_SIZE };
+    MemMapEntry virtio_mmio_val = { GUEST_VIRTIO_MMIO_BASE,
+                                    VIRTIO_MMIO_DEV_SIZE };
+    s->cfg.virtio_mmio = virtio_mmio_val;
 }
 
 static void xen_pvh_set_pci_intx_irq(void *opaque, int intx_irq, int level)

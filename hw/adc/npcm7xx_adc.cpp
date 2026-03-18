@@ -20,11 +20,14 @@
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "migration/vmstate.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qemu/units.h"
 #include "trace.h"
+}
 
 REG32(NPCM7XX_ADC_CON, 0x0)
 REG32(NPCM7XX_ADC_DATA, 0x4)
@@ -93,7 +96,7 @@ static void npcm7xx_adc_start_convert(NPCM7xxADCState *s)
 
 static void npcm7xx_adc_convert_done(void *opaque)
 {
-    NPCM7xxADCState *s = opaque;
+    NPCM7xxADCState *s = static_cast<NPCM7xxADCState *>(opaque);
     uint32_t input = NPCM7XX_ADC_CON_MUX(s->con);
     uint32_t ref = (s->con & NPCM7XX_ADC_CON_REFSEL)
         ? s->iref : s->vref;
@@ -152,7 +155,7 @@ static void npcm7xx_adc_write_con(NPCM7xxADCState *s, uint32_t new_con)
 static uint64_t npcm7xx_adc_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint64_t value = 0;
-    NPCM7xxADCState *s = opaque;
+    NPCM7xxADCState *s = static_cast<NPCM7xxADCState *>(opaque);
 
     switch (offset) {
     case A_NPCM7XX_ADC_CON:
@@ -177,7 +180,7 @@ static uint64_t npcm7xx_adc_read(void *opaque, hwaddr offset, unsigned size)
 static void npcm7xx_adc_write(void *opaque, hwaddr offset, uint64_t v,
         unsigned size)
 {
-    NPCM7xxADCState *s = opaque;
+    NPCM7xxADCState *s = static_cast<NPCM7xxADCState *>(opaque);
 
     trace_npcm7xx_adc_write(DEVICE(s)->canonical_path, offset, v);
     switch (offset) {
@@ -200,16 +203,18 @@ static void npcm7xx_adc_write(void *opaque, hwaddr offset, uint64_t v,
 
 }
 
-static const struct MemoryRegionOps npcm7xx_adc_ops = {
+static MemoryRegionOps npcm7xx_adc_ops = {
     .read       = npcm7xx_adc_read,
     .write      = npcm7xx_adc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid      = {
-        .min_access_size        = 4,
-        .max_access_size        = 4,
-        .unaligned              = false,
-    },
 };
+
+static void __attribute__((constructor)) init_npcm7xx_adc_ops(void)
+{
+    npcm7xx_adc_ops.valid.min_access_size = 4;
+    npcm7xx_adc_ops.valid.max_access_size = 4;
+    npcm7xx_adc_ops.valid.unaligned = false;
+}
 
 static void npcm7xx_adc_enter_reset(Object *obj, ResetType type)
 {
@@ -249,22 +254,24 @@ static void npcm7xx_adc_init(Object *obj)
     npcm7xx_adc_calibrate(s);
 }
 
+static const VMStateField vmstate_npcm7xx_adc_fields[] = {
+    VMSTATE_TIMER(conv_timer, NPCM7xxADCState),
+    VMSTATE_UINT32(con, NPCM7xxADCState),
+    VMSTATE_UINT32(data, NPCM7xxADCState),
+    VMSTATE_CLOCK(clock, NPCM7xxADCState),
+    VMSTATE_UINT32_ARRAY(adci, NPCM7xxADCState, NPCM7XX_ADC_NUM_INPUTS),
+    VMSTATE_UINT32(vref, NPCM7xxADCState),
+    VMSTATE_UINT32(iref, NPCM7xxADCState),
+    VMSTATE_UINT16_ARRAY(calibration_r_values, NPCM7xxADCState,
+            NPCM7XX_ADC_NUM_CALIB),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_adc = {
     .name = "npcm7xx-adc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER(conv_timer, NPCM7xxADCState),
-        VMSTATE_UINT32(con, NPCM7xxADCState),
-        VMSTATE_UINT32(data, NPCM7xxADCState),
-        VMSTATE_CLOCK(clock, NPCM7xxADCState),
-        VMSTATE_UINT32_ARRAY(adci, NPCM7xxADCState, NPCM7XX_ADC_NUM_INPUTS),
-        VMSTATE_UINT32(vref, NPCM7xxADCState),
-        VMSTATE_UINT32(iref, NPCM7xxADCState),
-        VMSTATE_UINT16_ARRAY(calibration_r_values, NPCM7xxADCState,
-                NPCM7XX_ADC_NUM_CALIB),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_adc_fields,
 };
 
 static const Property npcm7xx_timer_properties[] = {
@@ -288,8 +295,8 @@ static const TypeInfo npcm7xx_adc_info = {
     .name               = TYPE_NPCM7XX_ADC,
     .parent             = TYPE_SYS_BUS_DEVICE,
     .instance_size      = sizeof(NPCM7xxADCState),
-    .class_init         = npcm7xx_adc_class_init,
     .instance_init      = npcm7xx_adc_init,
+    .class_init         = npcm7xx_adc_class_init,
 };
 
 static void npcm7xx_adc_register_types(void)

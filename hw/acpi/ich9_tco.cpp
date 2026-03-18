@@ -11,9 +11,11 @@
 #include "system/watchdog.h"
 #include "hw/southbridge/ich9.h"
 #include "migration/vmstate.h"
-
 #include "hw/acpi/ich9_tco.h"
+
+extern "C" {
 #include "trace.h"
+}
 
 enum {
     TCO_RLD_DEFAULT         = 0x0000,
@@ -48,7 +50,7 @@ static inline void tco_timer_stop(TCOIORegs *tr)
 
 static void tco_timer_expired(void *opaque)
 {
-    TCOIORegs *tr = opaque;
+    TCOIORegs *tr = static_cast<TCOIORegs *>(opaque);
     ICH9LPCPMRegs *pm = container_of(tr, ICH9LPCPMRegs, tco_regs);
     ICH9LPCState *lpc = container_of(pm, ICH9LPCState, pm);
     uint32_t gcs = pci_get_long(lpc->chip_config + ICH9_CC_GCS);
@@ -203,71 +205,79 @@ static void tco_ioport_writew(TCOIORegs *tr, uint32_t addr, uint32_t val)
 
 static uint64_t tco_io_readw(void *opaque, hwaddr addr, unsigned width)
 {
-    TCOIORegs *tr = opaque;
+    TCOIORegs *tr = static_cast<TCOIORegs *>(opaque);
     return tco_ioport_readw(tr, addr);
 }
 
 static void tco_io_writew(void *opaque, hwaddr addr, uint64_t val,
                           unsigned width)
 {
-    TCOIORegs *tr = opaque;
+    TCOIORegs *tr = static_cast<TCOIORegs *>(opaque);
     tco_ioport_writew(tr, addr, val);
 }
 
-static const MemoryRegionOps tco_io_ops = {
+static MemoryRegionOps tco_io_ops = {
     .read = tco_io_readw,
     .write = tco_io_writew,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
-    .impl = { .min_access_size = 1, .max_access_size = 2, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static void __attribute__((constructor)) init_tco_io_ops(void)
+{
+    tco_io_ops.valid.min_access_size = 1;
+    tco_io_ops.valid.max_access_size = 4;
+    tco_io_ops.impl.min_access_size = 1;
+    tco_io_ops.impl.max_access_size = 2;
+}
+
+extern "C"
 void acpi_pm_tco_init(TCOIORegs *tr, MemoryRegion *parent)
 {
-    *tr = (TCOIORegs) {
-        .tco = {
-            .rld      = TCO_RLD_DEFAULT,
-            .din      = TCO_DAT_IN_DEFAULT,
-            .dout     = TCO_DAT_OUT_DEFAULT,
-            .sts1     = TCO1_STS_DEFAULT,
-            .sts2     = TCO2_STS_DEFAULT,
-            .cnt1     = TCO1_CNT_DEFAULT,
-            .cnt2     = TCO2_CNT_DEFAULT,
-            .msg1     = TCO_MESSAGE1_DEFAULT,
-            .msg2     = TCO_MESSAGE2_DEFAULT,
-            .wdcnt    = TCO_WDCNT_DEFAULT,
-            .tmr      = TCO_TMR_DEFAULT,
-        },
-        .sw_irq_gen    = SW_IRQ_GEN_DEFAULT,
-        .tco_timer     = timer_new_ns(QEMU_CLOCK_VIRTUAL, tco_timer_expired, tr),
-        .expire_time   = -1,
-        .timeouts_no   = 0,
-    };
+    memset(tr, 0, sizeof(*tr));
+    tr->tco.rld      = TCO_RLD_DEFAULT;
+    tr->tco.din      = TCO_DAT_IN_DEFAULT;
+    tr->tco.dout     = TCO_DAT_OUT_DEFAULT;
+    tr->tco.sts1     = TCO1_STS_DEFAULT;
+    tr->tco.sts2     = TCO2_STS_DEFAULT;
+    tr->tco.cnt1     = TCO1_CNT_DEFAULT;
+    tr->tco.cnt2     = TCO2_CNT_DEFAULT;
+    tr->tco.msg1     = TCO_MESSAGE1_DEFAULT;
+    tr->tco.msg2     = TCO_MESSAGE2_DEFAULT;
+    tr->tco.wdcnt    = TCO_WDCNT_DEFAULT;
+    tr->tco.tmr      = TCO_TMR_DEFAULT;
+    tr->sw_irq_gen   = SW_IRQ_GEN_DEFAULT;
+    tr->tco_timer    = timer_new_ns(QEMU_CLOCK_VIRTUAL, tco_timer_expired, tr);
+    tr->expire_time  = -1;
+    tr->timeouts_no  = 0;
+
     memory_region_init_io(&tr->io, memory_region_owner(parent),
                           &tco_io_ops, tr, "sm-tco", ICH9_PMIO_TCO_LEN);
     memory_region_add_subregion(parent, ICH9_PMIO_TCO_RLD, &tr->io);
 }
 
+static const VMStateField vmstate_tco_io_sts_fields[] = {
+    VMSTATE_UINT16(tco.rld, TCOIORegs),
+    VMSTATE_UINT8(tco.din, TCOIORegs),
+    VMSTATE_UINT8(tco.dout, TCOIORegs),
+    VMSTATE_UINT16(tco.sts1, TCOIORegs),
+    VMSTATE_UINT16(tco.sts2, TCOIORegs),
+    VMSTATE_UINT16(tco.cnt1, TCOIORegs),
+    VMSTATE_UINT16(tco.cnt2, TCOIORegs),
+    VMSTATE_UINT8(tco.msg1, TCOIORegs),
+    VMSTATE_UINT8(tco.msg2, TCOIORegs),
+    VMSTATE_UINT8(tco.wdcnt, TCOIORegs),
+    VMSTATE_UINT16(tco.tmr, TCOIORegs),
+    VMSTATE_UINT8(sw_irq_gen, TCOIORegs),
+    VMSTATE_TIMER_PTR(tco_timer, TCOIORegs),
+    VMSTATE_INT64(expire_time, TCOIORegs),
+    VMSTATE_UINT8(timeouts_no, TCOIORegs),
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C"
 const VMStateDescription vmstate_tco_io_sts = {
     .name = "tco io device status",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(tco.rld, TCOIORegs),
-        VMSTATE_UINT8(tco.din, TCOIORegs),
-        VMSTATE_UINT8(tco.dout, TCOIORegs),
-        VMSTATE_UINT16(tco.sts1, TCOIORegs),
-        VMSTATE_UINT16(tco.sts2, TCOIORegs),
-        VMSTATE_UINT16(tco.cnt1, TCOIORegs),
-        VMSTATE_UINT16(tco.cnt2, TCOIORegs),
-        VMSTATE_UINT8(tco.msg1, TCOIORegs),
-        VMSTATE_UINT8(tco.msg2, TCOIORegs),
-        VMSTATE_UINT8(tco.wdcnt, TCOIORegs),
-        VMSTATE_UINT16(tco.tmr, TCOIORegs),
-        VMSTATE_UINT8(sw_irq_gen, TCOIORegs),
-        VMSTATE_TIMER_PTR(tco_timer, TCOIORegs),
-        VMSTATE_INT64(expire_time, TCOIORegs),
-        VMSTATE_UINT8(timeouts_no, TCOIORegs),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_tco_io_sts_fields,
 };

@@ -5,7 +5,7 @@ fs_ss.add(files(
   '9p-synth.c',
   '9p-util-generic.cpp',
   '9p-xattr-user.cpp',
-  '9p-xattr.c',
+  '9p-xattr.cpp',
   '9p.c',
   'codir.c',
   'cofile.cpp',

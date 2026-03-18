@@ -12,13 +12,16 @@
 #include "elf.h"
 #include "hw/loader.h"
 #include "alpha_sys.h"
-#include "qemu/error-report.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/ide/pci.h"
 #include "hw/isa/superio.h"
 #include "net/net.h"
 #include "qemu/cutils.h"
 #include "qemu/datadir.h"
+
+extern "C" {
+#include "qemu/error-report.h"
+}
 
 static uint64_t cpu_alpha_superpage_to_phys(void *opaque, uint64_t addr)
 {

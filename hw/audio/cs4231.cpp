@@ -25,9 +25,12 @@
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "trace.h"
-#include "qom/object.h"
+}
 
 /*
  * In addition to Crystal CS4231 there is a DMA controller on Sparc.
@@ -68,7 +71,7 @@ static void cs_reset(DeviceState *d)
 static uint64_t cs_mem_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
-    CSState *s = opaque;
+    CSState *s = static_cast<CSState *>(opaque);
     uint32_t saddr, ret;
 
     saddr = addr >> 2;
@@ -95,7 +98,7 @@ static uint64_t cs_mem_read(void *opaque, hwaddr addr,
 static void cs_mem_write(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
-    CSState *s = opaque;
+    CSState *s = static_cast<CSState *>(opaque);
     uint32_t saddr;
 
     saddr = addr >> 2;
@@ -138,15 +141,17 @@ static const MemoryRegionOps cs_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_cs4231_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, CSState, CS_REGS),
+    VMSTATE_UINT8_ARRAY(dregs, CSState, CS_DREGS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cs4231 = {
     .name ="cs4231",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, CSState, CS_REGS),
-        VMSTATE_UINT8_ARRAY(dregs, CSState, CS_DREGS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cs4231_fields,
 };
 
 static void cs4231_init(Object *obj)

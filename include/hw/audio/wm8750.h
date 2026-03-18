@@ -20,11 +20,19 @@
 
 typedef void data_req_cb(void *opaque, int free_out, int free_in);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void wm8750_data_req_set(DeviceState *dev, data_req_cb *data_req, void *opaque);
 void wm8750_dac_dat(void *opaque, uint32_t sample);
 uint32_t wm8750_adc_dat(void *opaque);
 void *wm8750_dac_buffer(void *opaque, int samples);
 void wm8750_dac_commit(void *opaque);
 void wm8750_set_bclk_in(void *opaque, int new_hz);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

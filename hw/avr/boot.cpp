@@ -13,7 +13,10 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "boot.h"
+
+extern "C" {
 #include "qemu/error-report.h"
+}
 
 static const char *avr_elf_e_flags_to_cpu_type(uint32_t flags)
 {
@@ -57,6 +60,7 @@ static const char *avr_elf_e_flags_to_cpu_type(uint32_t flags)
     }
 }
 
+extern "C"
 bool avr_load_firmware(AVRCPU *cpu, MachineState *ms,
                        MemoryRegion *program_mr, const char *firmware)
 {

@@ -17,9 +17,12 @@
 #include "hw/irq.h"
 #include "hw/adc/zynq-xadc.h"
 #include "migration/vmstate.h"
+
+extern "C" {
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
 
 enum {
     CFG                = 0x000 / 4,
@@ -153,7 +156,7 @@ static bool zynq_xadc_check_offset(hwaddr offset, bool rnw)
 
 static uint64_t zynq_xadc_read(void *opaque, hwaddr offset, unsigned size)
 {
-    ZynqXADCState *s = opaque;
+    ZynqXADCState *s = static_cast<ZynqXADCState *>(opaque);
     int reg = offset / 4;
     uint32_t rv = 0;
 
@@ -189,7 +192,7 @@ static uint64_t zynq_xadc_read(void *opaque, hwaddr offset, unsigned size)
 static void zynq_xadc_write(void *opaque, hwaddr offset, uint64_t val,
                             unsigned size)
 {
-    ZynqXADCState *s = (ZynqXADCState *)opaque;
+    ZynqXADCState *s = static_cast<ZynqXADCState *>(opaque);
     int reg = offset / 4;
     int xadc_reg;
     int xadc_cmd;
@@ -265,20 +268,22 @@ static void zynq_xadc_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq);
 }
 
+static const VMStateField vmstate_zynq_xadc_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, ZynqXADCState, ZYNQ_XADC_NUM_IO_REGS),
+    VMSTATE_UINT16_ARRAY(xadc_regs, ZynqXADCState,
+                         ZYNQ_XADC_NUM_ADC_REGS),
+    VMSTATE_UINT16_ARRAY(xadc_dfifo, ZynqXADCState,
+                         ZYNQ_XADC_FIFO_DEPTH),
+    VMSTATE_UINT16(xadc_read_reg_previous, ZynqXADCState),
+    VMSTATE_UINT16(xadc_dfifo_entries, ZynqXADCState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_zynq_xadc = {
     .name = "zynq-xadc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, ZynqXADCState, ZYNQ_XADC_NUM_IO_REGS),
-        VMSTATE_UINT16_ARRAY(xadc_regs, ZynqXADCState,
-                             ZYNQ_XADC_NUM_ADC_REGS),
-        VMSTATE_UINT16_ARRAY(xadc_dfifo, ZynqXADCState,
-                             ZYNQ_XADC_FIFO_DEPTH),
-        VMSTATE_UINT16(xadc_read_reg_previous, ZynqXADCState),
-        VMSTATE_UINT16(xadc_dfifo_entries, ZynqXADCState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_zynq_xadc_fields,
 };
 
 static void zynq_xadc_class_init(ObjectClass *klass, const void *data)
@@ -290,11 +295,11 @@ static void zynq_xadc_class_init(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo zynq_xadc_info = {
-    .class_init = zynq_xadc_class_init,
     .name  = TYPE_ZYNQ_XADC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(ZynqXADCState),
     .instance_init = zynq_xadc_init,
+    .class_init = zynq_xadc_class_init,
 };
 
 static void zynq_xadc_register_types(void)
