@@ -23,6 +23,10 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Constants
  * @{
@@ -125,5 +129,9 @@ struct AwRtcClass {
     bool (*write)(AwRtcState *s, uint32_t offset, uint32_t data);
 
 };
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* HW_MISC_ALLWINNER_RTC_H */

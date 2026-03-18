@@ -21,12 +21,15 @@
 #include "qemu/units.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "qemu/log.h"
-#include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "hw/rtc/allwinner-rtc.h"
 #include "system/rtc.h"
+
+extern "C" {
+#include "qemu/log.h"
+#include "qemu/module.h"
 #include "trace.h"
+} /* extern "C" */
 
 /* RTC registers */
 enum {
@@ -73,53 +76,61 @@ enum {
 };
 
 /* RTC sun4i register map (offset to name) */
-const uint8_t allwinner_rtc_sun4i_regmap[] = {
-    [0x0000] = REG_LOSC,
-    [0x0004] = REG_YYMMDD,
-    [0x0008] = REG_HHMMSS,
-    [0x000C] = REG_ALARM1_DDHHMMSS,
-    [0x0010] = REG_ALARM1_WKHHMMSS,
-    [0x0014] = REG_ALARM1_EN,
-    [0x0018] = REG_ALARM1_IRQ_EN,
-    [0x001C] = REG_ALARM1_IRQ_STA,
-    [0x0020] = REG_GP0,
-    [0x0024] = REG_GP1,
-    [0x0028] = REG_GP2,
-    [0x002C] = REG_GP3,
-    [0x003C] = REG_CPUCFG,
-};
+static uint8_t allwinner_rtc_sun4i_regmap[0x40];
+
+static void __attribute__((constructor)) init_allwinner_rtc_sun4i_regmap(void)
+{
+    memset(allwinner_rtc_sun4i_regmap, 0, sizeof(allwinner_rtc_sun4i_regmap));
+    allwinner_rtc_sun4i_regmap[0x0000] = REG_LOSC;
+    allwinner_rtc_sun4i_regmap[0x0004] = REG_YYMMDD;
+    allwinner_rtc_sun4i_regmap[0x0008] = REG_HHMMSS;
+    allwinner_rtc_sun4i_regmap[0x000C] = REG_ALARM1_DDHHMMSS;
+    allwinner_rtc_sun4i_regmap[0x0010] = REG_ALARM1_WKHHMMSS;
+    allwinner_rtc_sun4i_regmap[0x0014] = REG_ALARM1_EN;
+    allwinner_rtc_sun4i_regmap[0x0018] = REG_ALARM1_IRQ_EN;
+    allwinner_rtc_sun4i_regmap[0x001C] = REG_ALARM1_IRQ_STA;
+    allwinner_rtc_sun4i_regmap[0x0020] = REG_GP0;
+    allwinner_rtc_sun4i_regmap[0x0024] = REG_GP1;
+    allwinner_rtc_sun4i_regmap[0x0028] = REG_GP2;
+    allwinner_rtc_sun4i_regmap[0x002C] = REG_GP3;
+    allwinner_rtc_sun4i_regmap[0x003C] = REG_CPUCFG;
+}
 
 /* RTC sun6i register map (offset to name) */
-const uint8_t allwinner_rtc_sun6i_regmap[] = {
-    [0x0000] = REG_LOSC,
-    [0x0004] = REG_LOSC_AUTOSTA,
-    [0x0008] = REG_INT_OSC_PRE,
-    [0x0010] = REG_YYMMDD,
-    [0x0014] = REG_HHMMSS,
-    [0x0020] = REG_ALARM0_COUNTER,
-    [0x0024] = REG_ALARM0_CUR_VLU,
-    [0x0028] = REG_ALARM0_ENABLE,
-    [0x002C] = REG_ALARM0_IRQ_EN,
-    [0x0030] = REG_ALARM0_IRQ_STA,
-    [0x0040] = REG_ALARM1_WKHHMMSS,
-    [0x0044] = REG_ALARM1_EN,
-    [0x0048] = REG_ALARM1_IRQ_EN,
-    [0x004C] = REG_ALARM1_IRQ_STA,
-    [0x0050] = REG_ALARM_CONFIG,
-    [0x0060] = REG_LOSC_OUT_GATING,
-    [0x0100] = REG_GP0,
-    [0x0104] = REG_GP1,
-    [0x0108] = REG_GP2,
-    [0x010C] = REG_GP3,
-    [0x0110] = REG_GP4,
-    [0x0114] = REG_GP5,
-    [0x0118] = REG_GP6,
-    [0x011C] = REG_GP7,
-    [0x0170] = REG_RTC_DBG,
-    [0x0180] = REG_GPL_HOLD_OUT,
-    [0x0190] = REG_VDD_RTC,
-    [0x01F0] = REG_IC_CHARA,
-};
+static uint8_t allwinner_rtc_sun6i_regmap[0x1F4];
+
+static void __attribute__((constructor)) init_allwinner_rtc_sun6i_regmap(void)
+{
+    memset(allwinner_rtc_sun6i_regmap, 0, sizeof(allwinner_rtc_sun6i_regmap));
+    allwinner_rtc_sun6i_regmap[0x0000] = REG_LOSC;
+    allwinner_rtc_sun6i_regmap[0x0004] = REG_LOSC_AUTOSTA;
+    allwinner_rtc_sun6i_regmap[0x0008] = REG_INT_OSC_PRE;
+    allwinner_rtc_sun6i_regmap[0x0010] = REG_YYMMDD;
+    allwinner_rtc_sun6i_regmap[0x0014] = REG_HHMMSS;
+    allwinner_rtc_sun6i_regmap[0x0020] = REG_ALARM0_COUNTER;
+    allwinner_rtc_sun6i_regmap[0x0024] = REG_ALARM0_CUR_VLU;
+    allwinner_rtc_sun6i_regmap[0x0028] = REG_ALARM0_ENABLE;
+    allwinner_rtc_sun6i_regmap[0x002C] = REG_ALARM0_IRQ_EN;
+    allwinner_rtc_sun6i_regmap[0x0030] = REG_ALARM0_IRQ_STA;
+    allwinner_rtc_sun6i_regmap[0x0040] = REG_ALARM1_WKHHMMSS;
+    allwinner_rtc_sun6i_regmap[0x0044] = REG_ALARM1_EN;
+    allwinner_rtc_sun6i_regmap[0x0048] = REG_ALARM1_IRQ_EN;
+    allwinner_rtc_sun6i_regmap[0x004C] = REG_ALARM1_IRQ_STA;
+    allwinner_rtc_sun6i_regmap[0x0050] = REG_ALARM_CONFIG;
+    allwinner_rtc_sun6i_regmap[0x0060] = REG_LOSC_OUT_GATING;
+    allwinner_rtc_sun6i_regmap[0x0100] = REG_GP0;
+    allwinner_rtc_sun6i_regmap[0x0104] = REG_GP1;
+    allwinner_rtc_sun6i_regmap[0x0108] = REG_GP2;
+    allwinner_rtc_sun6i_regmap[0x010C] = REG_GP3;
+    allwinner_rtc_sun6i_regmap[0x0110] = REG_GP4;
+    allwinner_rtc_sun6i_regmap[0x0114] = REG_GP5;
+    allwinner_rtc_sun6i_regmap[0x0118] = REG_GP6;
+    allwinner_rtc_sun6i_regmap[0x011C] = REG_GP7;
+    allwinner_rtc_sun6i_regmap[0x0170] = REG_RTC_DBG;
+    allwinner_rtc_sun6i_regmap[0x0180] = REG_GPL_HOLD_OUT;
+    allwinner_rtc_sun6i_regmap[0x0190] = REG_VDD_RTC;
+    allwinner_rtc_sun6i_regmap[0x01F0] = REG_IC_CHARA;
+}
 
 static bool allwinner_rtc_sun4i_read(AwRtcState *s, uint32_t offset)
 {
@@ -256,16 +267,18 @@ static void allwinner_rtc_write(void *opaque, hwaddr offset,
     }
 }
 
-static const MemoryRegionOps allwinner_rtc_ops = {
-    .read = allwinner_rtc_read,
-    .write = allwinner_rtc_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-    .impl = { .min_access_size = 4, },
-};
+static MemoryRegionOps allwinner_rtc_ops;
+
+static void __attribute__((constructor)) init_allwinner_rtc_ops(void)
+{
+    memset(&allwinner_rtc_ops, 0, sizeof(allwinner_rtc_ops));
+    allwinner_rtc_ops.read = allwinner_rtc_read;
+    allwinner_rtc_ops.write = allwinner_rtc_write;
+    allwinner_rtc_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    allwinner_rtc_ops.valid.min_access_size = 4;
+    allwinner_rtc_ops.valid.max_access_size = 4;
+    allwinner_rtc_ops.impl.min_access_size = 4;
+}
 
 static void allwinner_rtc_reset(DeviceState *dev)
 {
@@ -301,14 +314,16 @@ static void allwinner_rtc_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
+static const VMStateField allwinner_rtc_vmstate_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AwRtcState, AW_RTC_REGS_NUM),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription allwinner_rtc_vmstate = {
     .name = "allwinner-rtc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AwRtcState, AW_RTC_REGS_NUM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = allwinner_rtc_vmstate_fields,
 };
 
 static const Property allwinner_rtc_properties[] = {
@@ -371,32 +386,32 @@ static void allwinner_rtc_sun7i_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo allwinner_rtc_info = {
     .name          = TYPE_AW_RTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_rtc_init,
     .instance_size = sizeof(AwRtcState),
-    .class_init    = allwinner_rtc_class_init,
-    .class_size    = sizeof(AwRtcClass),
+    .instance_init = allwinner_rtc_init,
     .is_abstract      = true,
+    .class_size    = sizeof(AwRtcClass),
+    .class_init    = allwinner_rtc_class_init,
 };
 
 static const TypeInfo allwinner_rtc_sun4i_info = {
     .name          = TYPE_AW_RTC_SUN4I,
     .parent        = TYPE_AW_RTC,
-    .class_init    = allwinner_rtc_sun4i_class_init,
     .instance_init = allwinner_rtc_sun4i_init,
+    .class_init    = allwinner_rtc_sun4i_class_init,
 };
 
 static const TypeInfo allwinner_rtc_sun6i_info = {
     .name          = TYPE_AW_RTC_SUN6I,
     .parent        = TYPE_AW_RTC,
-    .class_init    = allwinner_rtc_sun6i_class_init,
     .instance_init = allwinner_rtc_sun6i_init,
+    .class_init    = allwinner_rtc_sun6i_class_init,
 };
 
 static const TypeInfo allwinner_rtc_sun7i_info = {
     .name          = TYPE_AW_RTC_SUN7I,
     .parent        = TYPE_AW_RTC,
-    .class_init    = allwinner_rtc_sun7i_class_init,
     .instance_init = allwinner_rtc_sun7i_init,
+    .class_init    = allwinner_rtc_sun7i_class_init,
 };
 
 static void allwinner_rtc_register(void)

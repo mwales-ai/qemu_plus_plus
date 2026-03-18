@@ -22,9 +22,12 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
+} /* extern "C" */
 
 #ifndef DEBUG_IMX_GPIO
 #define DEBUG_IMX_GPIO 0
@@ -119,7 +122,7 @@ static void imx_gpio_set_all_int_lines(IMXGPIOState *s)
     int i;
 
     for (i = 0; i < IMX_GPIO_PIN_COUNT; i++) {
-        IMXGPIOLevel imx_level = extract32(s->psr, i, 1);
+        IMXGPIOLevel imx_level = static_cast<IMXGPIOLevel>(extract32(s->psr, i, 1));
         imx_gpio_set_int_line(s, i, imx_level);
     }
 
@@ -259,28 +262,35 @@ static void imx_gpio_write(void *opaque, hwaddr offset, uint64_t value,
     }
 }
 
-static const MemoryRegionOps imx_gpio_ops = {
-    .read = imx_gpio_read,
-    .write = imx_gpio_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+static MemoryRegionOps imx_gpio_ops;
+
+static void __attribute__((constructor)) init_imx_gpio_ops(void)
+{
+    memset(&imx_gpio_ops, 0, sizeof(imx_gpio_ops));
+    imx_gpio_ops.read = imx_gpio_read;
+    imx_gpio_ops.write = imx_gpio_write;
+    imx_gpio_ops.valid.min_access_size = 4;
+    imx_gpio_ops.valid.max_access_size = 4;
+    imx_gpio_ops.endianness = DEVICE_NATIVE_ENDIAN;
+}
+
+static const VMStateField vmstate_imx_gpio_fields[] = {
+    VMSTATE_UINT32(dr, IMXGPIOState),
+    VMSTATE_UINT32(gdir, IMXGPIOState),
+    VMSTATE_UINT32(psr, IMXGPIOState),
+    VMSTATE_UINT64(icr, IMXGPIOState),
+    VMSTATE_UINT32(imr, IMXGPIOState),
+    VMSTATE_UINT32(isr, IMXGPIOState),
+    VMSTATE_BOOL(has_edge_sel, IMXGPIOState),
+    VMSTATE_UINT32(edge_sel, IMXGPIOState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_imx_gpio = {
     .name = TYPE_IMX_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(dr, IMXGPIOState),
-        VMSTATE_UINT32(gdir, IMXGPIOState),
-        VMSTATE_UINT32(psr, IMXGPIOState),
-        VMSTATE_UINT64(icr, IMXGPIOState),
-        VMSTATE_UINT32(imr, IMXGPIOState),
-        VMSTATE_UINT32(isr, IMXGPIOState),
-        VMSTATE_BOOL(has_edge_sel, IMXGPIOState),
-        VMSTATE_UINT32(edge_sel, IMXGPIOState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_imx_gpio_fields,
 };
 
 static const Property imx_gpio_properties[] = {

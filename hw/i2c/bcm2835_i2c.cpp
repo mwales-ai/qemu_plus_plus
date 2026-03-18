@@ -25,10 +25,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "hw/i2c/bcm2835_i2c.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
+
+extern "C" {
+#include "qemu/log.h"
+}
 
 static void bcm2835_i2c_update_interrupt(BCM2835I2CState *s)
 {
@@ -87,7 +90,7 @@ static void bcm2835_i2c_finish_transfer(BCM2835I2CState *s)
 
 static uint64_t bcm2835_i2c_read(void *opaque, hwaddr addr, unsigned size)
 {
-    BCM2835I2CState *s = opaque;
+    BCM2835I2CState *s = static_cast<BCM2835I2CState *>(opaque);
     uint32_t readval = 0;
 
     switch (addr) {
@@ -135,7 +138,7 @@ static uint64_t bcm2835_i2c_read(void *opaque, hwaddr addr, unsigned size)
 static void bcm2835_i2c_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
-    BCM2835I2CState *s = opaque;
+    BCM2835I2CState *s = static_cast<BCM2835I2CState *>(opaque);
     uint32_t writeval = value;
 
     switch (addr) {
@@ -206,15 +209,18 @@ static void bcm2835_i2c_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps bcm2835_i2c_ops = {
+static MemoryRegionOps bcm2835_i2c_ops = {
     .read = bcm2835_i2c_read,
     .write = bcm2835_i2c_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
 };
+
+static void bcm2835_i2c_ops_init(void) __attribute__((constructor));
+static void bcm2835_i2c_ops_init(void)
+{
+    bcm2835_i2c_ops.valid.min_access_size = 4;
+    bcm2835_i2c_ops.valid.max_access_size = 4;
+}
 
 static void bcm2835_i2c_realize(DeviceState *dev, Error **errp)
 {
@@ -241,21 +247,23 @@ static void bcm2835_i2c_reset(DeviceState *dev)
     s->clkt = 0x40;
 }
 
+static const VMStateField vmstate_bcm2835_i2c_fields[] = {
+    VMSTATE_UINT32(c, BCM2835I2CState),
+    VMSTATE_UINT32(s, BCM2835I2CState),
+    VMSTATE_UINT32(dlen, BCM2835I2CState),
+    VMSTATE_UINT32(a, BCM2835I2CState),
+    VMSTATE_UINT32(div, BCM2835I2CState),
+    VMSTATE_UINT32(del, BCM2835I2CState),
+    VMSTATE_UINT32(clkt, BCM2835I2CState),
+    VMSTATE_UINT32(last_dlen, BCM2835I2CState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_i2c = {
     .name = TYPE_BCM2835_I2C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(c, BCM2835I2CState),
-        VMSTATE_UINT32(s, BCM2835I2CState),
-        VMSTATE_UINT32(dlen, BCM2835I2CState),
-        VMSTATE_UINT32(a, BCM2835I2CState),
-        VMSTATE_UINT32(div, BCM2835I2CState),
-        VMSTATE_UINT32(del, BCM2835I2CState),
-        VMSTATE_UINT32(clkt, BCM2835I2CState),
-        VMSTATE_UINT32(last_dlen, BCM2835I2CState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_i2c_fields,
 };
 
 static void bcm2835_i2c_class_init(ObjectClass *klass, const void *data)

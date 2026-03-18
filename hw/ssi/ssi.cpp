@@ -16,9 +16,12 @@
 #include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
 #include "migration/vmstate.h"
-#include "qemu/module.h"
 #include "qapi/error.h"
 #include "qom/object.h"
+
+extern "C" {
+#include "qemu/module.h"
+}
 
 struct SSIBus {
     BusState parent_obj;
@@ -27,6 +30,7 @@ struct SSIBus {
 #define TYPE_SSI_BUS "SSI"
 OBJECT_DECLARE_SIMPLE_TYPE(SSIBus, SSI_BUS)
 
+extern "C"
 DeviceState *ssi_get_cs(SSIBus *bus, uint8_t cs_index)
 {
     BusState *b = BUS(bus);
@@ -128,16 +132,18 @@ static void ssi_peripheral_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo ssi_peripheral_info = {
     .name = TYPE_SSI_PERIPHERAL,
     .parent = TYPE_DEVICE,
-    .class_init = ssi_peripheral_class_init,
-    .class_size = sizeof(SSIPeripheralClass),
     .is_abstract = true,
+    .class_size = sizeof(SSIPeripheralClass),
+    .class_init = ssi_peripheral_class_init,
 };
 
+extern "C"
 bool ssi_realize_and_unref(DeviceState *dev, SSIBus *bus, Error **errp)
 {
     return qdev_realize_and_unref(dev, &bus->parent_obj, errp);
 }
 
+extern "C"
 DeviceState *ssi_create_peripheral(SSIBus *bus, const char *name)
 {
     DeviceState *dev = qdev_new(name);
@@ -146,6 +152,7 @@ DeviceState *ssi_create_peripheral(SSIBus *bus, const char *name)
     return dev;
 }
 
+extern "C"
 SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
 {
     BusState *bus;
@@ -153,6 +160,7 @@ SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
     return SSI_BUS(bus);
 }
 
+extern "C"
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
 {
     BusState *b = BUS(bus);
@@ -167,14 +175,17 @@ uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
     return r;
 }
 
+static const VMStateField vmstate_ssi_peripheral_fields[] = {
+    VMSTATE_BOOL(cs, SSIPeripheral),
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C"
 const VMStateDescription vmstate_ssi_peripheral = {
     .name = "SSISlave",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(cs, SSIPeripheral),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ssi_peripheral_fields,
 };
 
 static void ssi_peripheral_register_types(void)

@@ -10,12 +10,15 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/adc/aspeed_adc.h"
+
+extern "C" {
+#include "qemu/log.h"
 #include "trace.h"
+} /* extern "C" */
 
 #define ASPEED_ADC_MEMORY_REGION_SIZE           0x1000
 #define ASPEED_ADC_ENGINE_MEMORY_REGION_SIZE    0x100
@@ -235,23 +238,29 @@ static void aspeed_adc_engine_write(void *opaque, hwaddr addr, uint64_t value,
     s->regs[reg] = value;
 }
 
-static const MemoryRegionOps aspeed_adc_engine_ops = {
-    .read = aspeed_adc_engine_read,
-    .write = aspeed_adc_engine_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 2,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
-};
+static MemoryRegionOps aspeed_adc_engine_ops;
 
-static const uint32_t aspeed_adc_resets[ASPEED_ADC_NR_REGS] = {
-    [ENGINE_CONTROL]     = 0x00000000,
-    [INTERRUPT_CONTROL]  = 0x00000000,
-    [VGA_DETECT_CONTROL] = 0x0000000f,
-    [CLOCK_CONTROL]      = 0x0000000f,
-};
+static void __attribute__((constructor)) init_aspeed_adc_engine_ops(void)
+{
+    memset(&aspeed_adc_engine_ops, 0, sizeof(aspeed_adc_engine_ops));
+    aspeed_adc_engine_ops.read = aspeed_adc_engine_read;
+    aspeed_adc_engine_ops.write = aspeed_adc_engine_write;
+    aspeed_adc_engine_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    aspeed_adc_engine_ops.valid.min_access_size = 2;
+    aspeed_adc_engine_ops.valid.max_access_size = 4;
+    aspeed_adc_engine_ops.valid.unaligned = false;
+}
+
+static uint32_t aspeed_adc_resets[ASPEED_ADC_NR_REGS];
+
+static void __attribute__((constructor)) init_aspeed_adc_resets(void)
+{
+    memset(aspeed_adc_resets, 0, sizeof(aspeed_adc_resets));
+    aspeed_adc_resets[ENGINE_CONTROL]     = 0x00000000;
+    aspeed_adc_resets[INTERRUPT_CONTROL]  = 0x00000000;
+    aspeed_adc_resets[VGA_DETECT_CONTROL] = 0x0000000f;
+    aspeed_adc_resets[CLOCK_CONTROL]      = 0x0000000f;
+}
 
 static void aspeed_adc_engine_reset(DeviceState *dev)
 {
@@ -277,14 +286,16 @@ static void aspeed_adc_engine_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->mmio);
 }
 
+static const VMStateField vmstate_aspeed_adc_engine_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedADCEngineState, ASPEED_ADC_NR_REGS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_aspeed_adc_engine = {
     .name = TYPE_ASPEED_ADC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedADCEngineState, ASPEED_ADC_NR_REGS),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_aspeed_adc_engine_fields,
 };
 
 static const Property aspeed_adc_engine_properties[] = {
@@ -327,7 +338,7 @@ static void aspeed_adc_instance_init(Object *obj)
 
 static void aspeed_adc_set_irq(void *opaque, int n, int level)
 {
-    AspeedADCState *s = opaque;
+    AspeedADCState *s = static_cast<AspeedADCState *>(opaque);
     AspeedADCClass *aac = ASPEED_ADC_GET_CLASS(s);
     uint32_t pending = 0;
 
@@ -410,11 +421,11 @@ static void aspeed_2700_adc_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo aspeed_adc_info = {
     .name = TYPE_ASPEED_ADC,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = aspeed_adc_instance_init,
     .instance_size = sizeof(AspeedADCState),
-    .class_init = aspeed_adc_class_init,
-    .class_size = sizeof(AspeedADCClass),
+    .instance_init = aspeed_adc_instance_init,
     .is_abstract   = true,
+    .class_size = sizeof(AspeedADCClass),
+    .class_init = aspeed_adc_class_init,
 };
 
 static const TypeInfo aspeed_2400_adc_info = {

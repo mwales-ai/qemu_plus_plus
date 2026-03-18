@@ -18,6 +18,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_BCM2838_GPIO "bcm2838-gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(BCM2838GpioState, BCM2838_GPIO)
 
@@ -41,5 +45,9 @@ struct BCM2838GpioState {
     qemu_irq out[BCM2838_GPIO_NUM];
     uint32_t pup_cntrl_reg[GPIO_PUP_PDN_CNTRL_NUM];
 };
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

@@ -25,18 +25,25 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/datadir.h"
+
+extern "C" {
 #include "cpu.h"
-#include "qemu/option.h"
-#include "qemu/config-file.h"
-#include "qemu/error-report.h"
-#include "qemu/guest-random.h"
+}
+
 #include "system/device_tree.h"
 #include "system/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
+
+extern "C" {
+#include "qemu/datadir.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
+#include "qemu/error-report.h"
+#include "qemu/guest-random.h"
 #include "qemu/cutils.h"
+}
 
 #include "boot.h"
 
@@ -52,7 +59,7 @@ static struct
 
 static void main_cpu_reset(void *opaque)
 {
-    MicroBlazeCPU *cpu = opaque;
+    MicroBlazeCPU *cpu = static_cast<MicroBlazeCPU *>(opaque);
     CPUState *cs = CPU(cpu);
     CPUMBState *env = &cpu->env;
 
@@ -114,6 +121,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return addr - 0x30000000LL;
 }
 
+extern "C"
 void microblaze_load_kernel(MicroBlazeCPU *cpu, bool is_little_endian,
                             hwaddr ddr_base, uint32_t ramsize,
                             const char *initrd_filename,

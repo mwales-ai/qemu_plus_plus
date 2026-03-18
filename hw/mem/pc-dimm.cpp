@@ -27,10 +27,13 @@
 #include "hw/mem/memory-device.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
-#include "qemu/module.h"
 #include "system/hostmem.h"
 #include "system/numa.h"
+
+extern "C" {
+#include "qemu/module.h"
 #include "trace.h"
+}
 
 static int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp);
 
@@ -44,6 +47,7 @@ static MemoryRegion *pc_dimm_get_memory_region(PCDIMMDevice *dimm, Error **errp)
     return host_memory_backend_get_memory(dimm->hostmem);
 }
 
+extern "C"
 void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine, Error **errp)
 {
     Error *local_err = NULL;
@@ -72,6 +76,7 @@ void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine, Error **errp)
     memory_device_pre_plug(MEMORY_DEVICE(dimm), machine, errp);
 }
 
+extern "C"
 void pc_dimm_plug(PCDIMMDevice *dimm, MachineState *machine)
 {
     MemoryRegion *vmstate_mr = pc_dimm_get_memory_region(dimm,
@@ -85,6 +90,7 @@ void pc_dimm_plug(PCDIMMDevice *dimm, MachineState *machine)
     }
 }
 
+extern "C"
 void pc_dimm_unplug(PCDIMMDevice *dimm, MachineState *machine)
 {
     MemoryRegion *vmstate_mr = pc_dimm_get_memory_region(dimm,
@@ -99,7 +105,7 @@ void pc_dimm_unplug(PCDIMMDevice *dimm, MachineState *machine)
 
 static int pc_dimm_slot2bitmap(Object *obj, void *opaque)
 {
-    unsigned long *bitmap = opaque;
+    unsigned long *bitmap = static_cast<unsigned long *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
         DeviceState *dev = DEVICE(obj);
@@ -294,17 +300,19 @@ static void pc_dimm_class_init(ObjectClass *oc, const void *data)
     mdc->fill_device_info = pc_dimm_md_fill_device_info;
 }
 
+static const InterfaceInfo pc_dimm_interfaces[] = {
+    { TYPE_MEMORY_DEVICE },
+    { }
+};
+
 static const TypeInfo pc_dimm_info = {
     .name          = TYPE_PC_DIMM,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PCDIMMDevice),
     .instance_init = pc_dimm_init,
-    .class_init    = pc_dimm_class_init,
     .class_size    = sizeof(PCDIMMDeviceClass),
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_MEMORY_DEVICE },
-        { }
-    },
+    .class_init    = pc_dimm_class_init,
+    .interfaces    = pc_dimm_interfaces,
 };
 
 static void pc_dimm_register_types(void)

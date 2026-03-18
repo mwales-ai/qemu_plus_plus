@@ -23,6 +23,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_IMX_GPIO "imx.gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(IMXGPIOState, IMX_GPIO)
 
@@ -60,5 +64,9 @@ struct IMXGPIOState {
     qemu_irq irq[2];
     qemu_irq output[IMX_GPIO_PIN_COUNT];
 };
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* IMX_GPIO_H */

@@ -12,6 +12,10 @@
 #include "hw/fsi/fsi-master.h"
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_FSI_OPB "fsi.opb"
 
 #define TYPE_OP_BUS "opb"
@@ -42,5 +46,9 @@ typedef struct AspeedAPB2OPBState {
     OPBus opb[ASPEED_FSI_NUM];
     FSIMasterState fsi[ASPEED_FSI_NUM];
 } AspeedAPB2OPBState;
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* FSI_ASPEED_APB2OPB_H */

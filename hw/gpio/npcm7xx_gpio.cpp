@@ -20,10 +20,13 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+#include "qemu/units.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "qemu/units.h"
 #include "trace.h"
+} /* extern "C" */
 
 /* 32-bit register indices. */
 enum NPCM7xxGPIORegister {
@@ -158,7 +161,7 @@ static uint64_t npcm7xx_gpio_regs_read(void *opaque, hwaddr addr,
                                        unsigned int size)
 {
     hwaddr reg = addr / sizeof(uint32_t);
-    NPCM7xxGPIOState *s = opaque;
+    NPCM7xxGPIOState *s = static_cast<NPCM7xxGPIOState *>(opaque);
     uint64_t value = 0;
 
     switch (reg) {
@@ -190,7 +193,7 @@ static void npcm7xx_gpio_regs_write(void *opaque, hwaddr addr, uint64_t v,
                                     unsigned int size)
 {
     hwaddr reg = addr / sizeof(uint32_t);
-    NPCM7xxGPIOState *s = opaque;
+    NPCM7xxGPIOState *s = static_cast<NPCM7xxGPIOState *>(opaque);
     uint32_t value = v;
     uint32_t diff;
 
@@ -314,20 +317,22 @@ static void npcm7xx_gpio_regs_write(void *opaque, hwaddr addr, uint64_t v,
     }
 }
 
-static const MemoryRegionOps npcm7xx_gpio_regs_ops = {
-    .read = npcm7xx_gpio_regs_read,
-    .write = npcm7xx_gpio_regs_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
-};
+static MemoryRegionOps npcm7xx_gpio_regs_ops;
+
+static void __attribute__((constructor)) init_npcm7xx_gpio_regs_ops(void)
+{
+    memset(&npcm7xx_gpio_regs_ops, 0, sizeof(npcm7xx_gpio_regs_ops));
+    npcm7xx_gpio_regs_ops.read = npcm7xx_gpio_regs_read;
+    npcm7xx_gpio_regs_ops.write = npcm7xx_gpio_regs_write;
+    npcm7xx_gpio_regs_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    npcm7xx_gpio_regs_ops.valid.min_access_size = 4;
+    npcm7xx_gpio_regs_ops.valid.max_access_size = 4;
+    npcm7xx_gpio_regs_ops.valid.unaligned = false;
+}
 
 static void npcm7xx_gpio_set_input(void *opaque, int line, int level)
 {
-    NPCM7xxGPIOState *s = opaque;
+    NPCM7xxGPIOState *s = static_cast<NPCM7xxGPIOState *>(opaque);
 
     trace_npcm7xx_gpio_set_input(DEVICE(s)->canonical_path, line, level);
 
@@ -372,17 +377,19 @@ static void npcm7xx_gpio_init(Object *obj)
     qdev_init_gpio_out(dev, s->output, NPCM7XX_GPIO_NR_PINS);
 }
 
+static const VMStateField vmstate_npcm7xx_gpio_fields[] = {
+    VMSTATE_UINT32(pin_level, NPCM7xxGPIOState),
+    VMSTATE_UINT32(ext_level, NPCM7xxGPIOState),
+    VMSTATE_UINT32(ext_driven, NPCM7xxGPIOState),
+    VMSTATE_UINT32_ARRAY(regs, NPCM7xxGPIOState, NPCM7XX_GPIO_NR_REGS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_gpio = {
     .name = "npcm7xx-gpio",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(pin_level, NPCM7xxGPIOState),
-        VMSTATE_UINT32(ext_level, NPCM7xxGPIOState),
-        VMSTATE_UINT32(ext_driven, NPCM7xxGPIOState),
-        VMSTATE_UINT32_ARRAY(regs, NPCM7xxGPIOState, NPCM7XX_GPIO_NR_REGS),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_gpio_fields,
 };
 
 static const Property npcm7xx_gpio_properties[] = {
@@ -415,8 +422,8 @@ static const TypeInfo npcm7xx_gpio_types[] = {
         .name = TYPE_NPCM7XX_GPIO,
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(NPCM7xxGPIOState),
-        .class_init = npcm7xx_gpio_class_init,
         .instance_init = npcm7xx_gpio_init,
+        .class_init = npcm7xx_gpio_class_init,
     },
 };
 DEFINE_TYPES(npcm7xx_gpio_types);

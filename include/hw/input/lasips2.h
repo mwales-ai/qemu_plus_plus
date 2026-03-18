@@ -23,6 +23,10 @@
 #include "hw/sysbus.h"
 #include "hw/input/ps2.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_LASIPS2_PORT "lasips2-port"
 OBJECT_DECLARE_TYPE(LASIPS2Port, LASIPS2PortDeviceClass, LASIPS2_PORT)
 
@@ -74,5 +78,9 @@ struct LASIPS2State {
     uint8_t int_status;
     qemu_irq irq;
 };
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* HW_INPUT_LASIPS2_H */

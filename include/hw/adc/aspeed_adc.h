@@ -13,6 +13,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_ASPEED_ADC "aspeed.adc"
 #define TYPE_ASPEED_2400_ADC TYPE_ASPEED_ADC "-ast2400"
 #define TYPE_ASPEED_2500_ADC TYPE_ASPEED_ADC "-ast2500"
@@ -53,5 +57,9 @@ struct AspeedADCClass {
 
     uint32_t nr_engines;
 };
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* HW_ADC_ASPEED_ADC_H */

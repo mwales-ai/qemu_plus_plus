@@ -7,13 +7,15 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "qom/object.h"
 #include "qapi/error.h"
-#include "trace.h"
-
 #include "hw/fsi/aspeed_apb2opb.h"
 #include "hw/qdev-core.h"
+
+extern "C" {
+#include "qemu/log.h"
+#include "trace.h"
+} /* extern "C" */
 
 #define TO_REG(x) (x >> 2)
 
@@ -67,15 +69,19 @@
  * The register values are defined under section "FSI controller"
  * as initial values.
  */
-static const uint32_t aspeed_apb2opb_reset[ASPEED_APB2OPB_NR_REGS] = {
-     [APB2OPB_VERSION]                = 0x000000a1,
-     [APB2OPB_OPB0_WRITE_WORD_ENDIAN] = 0x0044eee4,
-     [APB2OPB_OPB0_WRITE_BYTE_ENDIAN] = 0x0055aaff,
-     [APB2OPB_OPB1_WRITE_WORD_ENDIAN] = 0x00117717,
-     [APB2OPB_OPB1_WRITE_BYTE_ENDIAN] = 0xffaa5500,
-     [APB2OPB_OPB0_READ_BYTE_ENDIAN]  = 0x0044eee4,
-     [APB2OPB_OPB1_READ_BYTE_ENDIAN]  = 0x00117717
-};
+static uint32_t aspeed_apb2opb_reset_vals[ASPEED_APB2OPB_NR_REGS];
+
+static void __attribute__((constructor)) init_aspeed_apb2opb_reset(void)
+{
+    memset(aspeed_apb2opb_reset_vals, 0, sizeof(aspeed_apb2opb_reset_vals));
+    aspeed_apb2opb_reset_vals[APB2OPB_VERSION]                = 0x000000a1;
+    aspeed_apb2opb_reset_vals[APB2OPB_OPB0_WRITE_WORD_ENDIAN] = 0x0044eee4;
+    aspeed_apb2opb_reset_vals[APB2OPB_OPB0_WRITE_BYTE_ENDIAN] = 0x0055aaff;
+    aspeed_apb2opb_reset_vals[APB2OPB_OPB1_WRITE_WORD_ENDIAN] = 0x00117717;
+    aspeed_apb2opb_reset_vals[APB2OPB_OPB1_WRITE_BYTE_ENDIAN] = 0xffaa5500;
+    aspeed_apb2opb_reset_vals[APB2OPB_OPB0_READ_BYTE_ENDIAN]  = 0x0044eee4;
+    aspeed_apb2opb_reset_vals[APB2OPB_OPB1_READ_BYTE_ENDIAN]  = 0x00117717;
+}
 
 static void fsi_opb_fsi_master_address(FSIMasterState *fsi, hwaddr addr)
 {
@@ -101,7 +107,7 @@ static uint64_t fsi_aspeed_apb2opb_read(void *opaque, hwaddr addr,
 
     if (reg >= ASPEED_APB2OPB_NR_REGS) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out of bounds read: 0x%"HWADDR_PRIx" for %u\n",
+                      "%s: Out of bounds read: 0x%" HWADDR_PRIx " for %u\n",
                       __func__, addr, size);
         return 0;
     }
@@ -157,7 +163,7 @@ static void fsi_aspeed_apb2opb_write(void *opaque, hwaddr addr, uint64_t data,
 
     if (reg >= ASPEED_APB2OPB_NR_REGS) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Out of bounds write: %"HWADDR_PRIx" for %u\n",
+                      "%s: Out of bounds write: %" HWADDR_PRIx " for %u\n",
                       __func__, addr, size);
         return;
     }
@@ -217,7 +223,7 @@ static void fsi_aspeed_apb2opb_write(void *opaque, hwaddr addr, uint64_t data,
             op_data = s->regs[APB2OPB_OPB1_WRITE_DATA];
         } else {
             qemu_log_mask(LOG_GUEST_ERROR,
-                          "%s: Invalid operation: 0x%"HWADDR_PRIx" for %u\n",
+                          "%s: Invalid operation: 0x%" HWADDR_PRIx " for %u\n",
                           __func__, addr, size);
             return;
         }
@@ -255,13 +261,19 @@ static void fsi_aspeed_apb2opb_write(void *opaque, hwaddr addr, uint64_t data,
     s->regs[reg] = data;
 }
 
-static const struct MemoryRegionOps aspeed_apb2opb_ops = {
-    .read = fsi_aspeed_apb2opb_read,
-    .write = fsi_aspeed_apb2opb_write,
-    .valid = { .max_access_size = 4, .min_access_size = 4, },
-    .impl = { .max_access_size = 4, .min_access_size = 4, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
+static MemoryRegionOps aspeed_apb2opb_ops;
+
+static void __attribute__((constructor)) init_aspeed_apb2opb_ops(void)
+{
+    memset(&aspeed_apb2opb_ops, 0, sizeof(aspeed_apb2opb_ops));
+    aspeed_apb2opb_ops.read = fsi_aspeed_apb2opb_read;
+    aspeed_apb2opb_ops.write = fsi_aspeed_apb2opb_write;
+    aspeed_apb2opb_ops.valid.max_access_size = 4;
+    aspeed_apb2opb_ops.valid.min_access_size = 4;
+    aspeed_apb2opb_ops.impl.max_access_size = 4;
+    aspeed_apb2opb_ops.impl.min_access_size = 4;
+    aspeed_apb2opb_ops.endianness = DEVICE_LITTLE_ENDIAN;
+}
 
 static void fsi_aspeed_apb2opb_init(Object *o)
 {
@@ -315,7 +327,7 @@ static void fsi_aspeed_apb2opb_reset(DeviceState *dev)
 {
     AspeedAPB2OPBState *s = ASPEED_APB2OPB(dev);
 
-    memcpy(s->regs, aspeed_apb2opb_reset, ASPEED_APB2OPB_NR_REGS);
+    memcpy(s->regs, aspeed_apb2opb_reset_vals, ASPEED_APB2OPB_NR_REGS);
 }
 
 static void fsi_aspeed_apb2opb_class_init(ObjectClass *klass, const void *data)
@@ -330,8 +342,8 @@ static void fsi_aspeed_apb2opb_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo aspeed_apb2opb_info = {
     .name = TYPE_ASPEED_APB2OPB,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = fsi_aspeed_apb2opb_init,
     .instance_size = sizeof(AspeedAPB2OPBState),
+    .instance_init = fsi_aspeed_apb2opb_init,
     .class_init = fsi_aspeed_apb2opb_class_init,
 };
 
@@ -353,8 +365,8 @@ static void fsi_opb_init(Object *o)
 static const TypeInfo opb_info = {
     .name = TYPE_OP_BUS,
     .parent = TYPE_BUS,
-    .instance_init = fsi_opb_init,
     .instance_size = sizeof(OPBus),
+    .instance_init = fsi_opb_init,
 };
 
 static void fsi_opb_register_types(void)

@@ -20,6 +20,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PC_DIMM "pc-dimm"
 OBJECT_DECLARE_TYPE(PCDIMMDevice, PCDIMMDeviceClass,
                     PC_DIMM)
@@ -69,4 +73,9 @@ struct PCDIMMDeviceClass {
 void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine, Error **errp);
 void pc_dimm_plug(PCDIMMDevice *dimm, MachineState *machine);
 void pc_dimm_unplug(PCDIMMDevice *dimm, MachineState *machine);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

@@ -10,12 +10,16 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
-#include "qemu/module.h"
 #include "hw/ipack/ipack.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 
+extern "C" {
+#include "qemu/module.h"
+}
+
+extern "C"
 IPackDevice *ipack_device_find(IPackBus *bus, int32_t slot)
 {
     BusChild *kid;
@@ -30,6 +34,7 @@ IPackDevice *ipack_device_find(IPackBus *bus, int32_t slot)
     return NULL;
 }
 
+extern "C"
 void ipack_bus_init(IPackBus *bus, size_t bus_size,
                     DeviceState *parent,
                     uint8_t n_slots,
@@ -85,23 +90,26 @@ static void ipack_device_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(k, ipack_device_props);
 }
 
+static const VMStateField vmstate_ipack_device_fields[] = {
+    VMSTATE_INT32(slot, IPackDevice),
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C"
 const VMStateDescription vmstate_ipack_device = {
     .name = "ipack_device",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(slot, IPackDevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ipack_device_fields,
 };
 
 static const TypeInfo ipack_device_info = {
     .name          = TYPE_IPACK_DEVICE,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(IPackDevice),
+    .is_abstract   = true,
     .class_size    = sizeof(IPackDeviceClass),
     .class_init    = ipack_device_class_init,
-    .is_abstract      = true,
 };
 
 static const TypeInfo ipack_bus_info = {

@@ -5,6 +5,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_AW_A10_PIT "allwinner-A10-timer"
 OBJECT_DECLARE_SIMPLE_TYPE(AwA10PITState, AW_A10_PIT)
 
@@ -64,5 +68,9 @@ struct AwA10PITState {
     uint32_t count_hi;
     uint32_t count_ctl;
 };
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

@@ -11,15 +11,18 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
-#include "qemu/module.h"
-#include "qemu/timer.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/sd/sd.h"
 #include "hw/gpio/bcm2838_gpio.h"
 #include "hw/irq.h"
+
+extern "C" {
+#include "qemu/log.h"
+#include "qemu/module.h"
+#include "qemu/timer.h"
+} /* extern "C" */
 
 #define GPFSEL0   0x00
 #define GPFSEL1   0x04
@@ -168,7 +171,7 @@ static void gpclr(BCM2838GpioState *s, uint32_t val, uint8_t start,
 
 static uint64_t bcm2838_gpio_read(void *opaque, hwaddr offset, unsigned size)
 {
-    BCM2838GpioState *s = (BCM2838GpioState *)opaque;
+    BCM2838GpioState *s = static_cast<BCM2838GpioState *>(opaque);
     uint64_t value = 0;
 
     switch (offset) {
@@ -186,8 +189,8 @@ static uint64_t bcm2838_gpio_read(void *opaque, hwaddr offset, unsigned size)
     case GPCLR1:
         /* Write Only */
         qemu_log_mask(LOG_GUEST_ERROR, "%s: %s: Attempt reading from write only"
-                      " register. 0x%"PRIx64" will be returned."
-                      " Address 0x%"HWADDR_PRIx", size %u\n",
+                      " register. 0x%" PRIx64 " will be returned."
+                      " Address 0x%" HWADDR_PRIx ", size %u\n",
                       TYPE_BCM2838_GPIO, __func__, value, offset, size);
         break;
     case GPLEV0:
@@ -211,7 +214,7 @@ static uint64_t bcm2838_gpio_read(void *opaque, hwaddr offset, unsigned size)
     case GPAFEN0:
     case GPAFEN1:
         /* Not implemented */
-        qemu_log_mask(LOG_UNIMP, "%s: %s: not implemented for %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_UNIMP, "%s: %s: not implemented for %" HWADDR_PRIx "\n",
                       TYPE_BCM2838_GPIO, __func__, offset);
         break;
     case GPIO_PUP_PDN_CNTRL_REG0:
@@ -222,7 +225,7 @@ static uint64_t bcm2838_gpio_read(void *opaque, hwaddr offset, unsigned size)
                                  / sizeof(s->pup_cntrl_reg[0])];
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: %s: bad offset %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: %s: bad offset %" HWADDR_PRIx "\n",
                       TYPE_BCM2838_GPIO, __func__, offset);
         break;
     }
@@ -233,7 +236,7 @@ static uint64_t bcm2838_gpio_read(void *opaque, hwaddr offset, unsigned size)
 static void bcm2838_gpio_write(void *opaque, hwaddr offset, uint64_t value,
                                unsigned size)
 {
-    BCM2838GpioState *s = (BCM2838GpioState *)opaque;
+    BCM2838GpioState *s = static_cast<BCM2838GpioState *>(opaque);
 
     switch (offset) {
     case GPFSEL0:
@@ -259,9 +262,9 @@ static void bcm2838_gpio_write(void *opaque, hwaddr offset, uint64_t value,
     case GPLEV0:
     case GPLEV1:
         /* Read Only */
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: %s: Attempt writing 0x%"PRIx64""
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: %s: Attempt writing 0x%" PRIx64 ""
                       " to read only register. Ignored."
-                      " Address 0x%"HWADDR_PRIx", size %u\n",
+                      " Address 0x%" HWADDR_PRIx ", size %u\n",
                       TYPE_BCM2838_GPIO, __func__, value, offset, size);
         break;
     case GPEDS0:
@@ -279,7 +282,7 @@ static void bcm2838_gpio_write(void *opaque, hwaddr offset, uint64_t value,
     case GPAFEN0:
     case GPAFEN1:
         /* Not implemented */
-        qemu_log_mask(LOG_UNIMP, "%s: %s: not implemented for %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_UNIMP, "%s: %s: not implemented for %" HWADDR_PRIx "\n",
                       TYPE_BCM2838_GPIO, __func__, offset);
         break;
     case GPIO_PUP_PDN_CNTRL_REG0:
@@ -290,7 +293,7 @@ static void bcm2838_gpio_write(void *opaque, hwaddr offset, uint64_t value,
                          / sizeof(s->pup_cntrl_reg[0])] = value;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: %s: bad offset %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: %s: bad offset %" HWADDR_PRIx "\n",
                   TYPE_BCM2838_GPIO, __func__, offset);
     }
 }
@@ -323,19 +326,21 @@ static const MemoryRegionOps bcm2838_gpio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_bcm2838_gpio_fields[] = {
+    VMSTATE_UINT8_ARRAY(fsel, BCM2838GpioState, BCM2838_GPIO_NUM),
+    VMSTATE_UINT32(lev0, BCM2838GpioState),
+    VMSTATE_UINT32(lev1, BCM2838GpioState),
+    VMSTATE_UINT8(sd_fsel, BCM2838GpioState),
+    VMSTATE_UINT32_ARRAY(pup_cntrl_reg, BCM2838GpioState,
+                         GPIO_PUP_PDN_CNTRL_NUM),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2838_gpio = {
     .name = "bcm2838_gpio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(fsel, BCM2838GpioState, BCM2838_GPIO_NUM),
-        VMSTATE_UINT32(lev0, BCM2838GpioState),
-        VMSTATE_UINT32(lev1, BCM2838GpioState),
-        VMSTATE_UINT8(sd_fsel, BCM2838GpioState),
-        VMSTATE_UINT32_ARRAY(pup_cntrl_reg, BCM2838GpioState,
-                             GPIO_PUP_PDN_CNTRL_NUM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2838_gpio_fields,
 };
 
 static void bcm2838_gpio_init(Object *obj)

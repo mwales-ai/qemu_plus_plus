@@ -18,6 +18,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct BCM2835GpioState {
     SysBusDevice parent_obj;
 
@@ -36,5 +40,9 @@ struct BCM2835GpioState {
 
 #define TYPE_BCM2835_GPIO "bcm2835_gpio"
 OBJECT_DECLARE_SIMPLE_TYPE(BCM2835GpioState, BCM2835_GPIO)
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

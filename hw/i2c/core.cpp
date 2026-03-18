@@ -12,9 +12,13 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
+
+extern "C" {
 #include "qemu/module.h"
-#include "qemu/main-loop.h"
 #include "trace.h"
+} /* extern "C" */
+
+#include "qemu/main-loop.h"
 
 #define I2C_BROADCAST 0x00
 
@@ -30,7 +34,7 @@ static const TypeInfo i2c_bus_info = {
 
 static int i2c_bus_pre_save(void *opaque)
 {
-    I2CBus *bus = opaque;
+    I2CBus *bus = static_cast<I2CBus *>(opaque);
 
     bus->saved_address = -1;
     if (!QLIST_EMPTY(&bus->current_devs)) {
@@ -44,18 +48,21 @@ static int i2c_bus_pre_save(void *opaque)
     return 0;
 }
 
+static const VMStateField vmstate_i2c_bus_fields[] = {
+    VMSTATE_UINT8(saved_address, I2CBus),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_i2c_bus = {
     .name = "i2c_bus",
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_save = i2c_bus_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(saved_address, I2CBus),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_i2c_bus_fields,
 };
 
 /* Create a new I2C bus.  */
+extern "C"
 I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
 {
     I2CBus *bus;
@@ -67,17 +74,20 @@ I2CBus *i2c_init_bus(DeviceState *parent, const char *name)
     return bus;
 }
 
+extern "C"
 void i2c_slave_set_address(I2CSlave *dev, uint8_t address)
 {
     dev->address = address;
 }
 
 /* Return nonzero if bus is busy.  */
+extern "C"
 int i2c_bus_busy(I2CBus *bus)
 {
     return !QLIST_EMPTY(&bus->current_devs) || bus->bh;
 }
 
+extern "C"
 bool i2c_scan_bus(I2CBus *bus, uint8_t address, bool broadcast,
                   I2CNodeList *current_devs)
 {
@@ -175,6 +185,7 @@ static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
     return 0;
 }
 
+extern "C"
 int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
 {
     return i2c_do_start_transfer(bus, address, is_recv
@@ -182,6 +193,7 @@ int i2c_start_transfer(I2CBus *bus, uint8_t address, bool is_recv)
                                                : I2C_START_SEND);
 }
 
+extern "C"
 void i2c_bus_master(I2CBus *bus, QEMUBH *bh)
 {
     I2CPendingMaster *node = g_new(struct I2CPendingMaster, 1);
@@ -190,6 +202,7 @@ void i2c_bus_master(I2CBus *bus, QEMUBH *bh)
     QSIMPLEQ_INSERT_TAIL(&bus->pending_masters, node, entry);
 }
 
+extern "C"
 void i2c_schedule_pending_master(I2CBus *bus)
 {
     I2CPendingMaster *node;
@@ -212,6 +225,7 @@ void i2c_schedule_pending_master(I2CBus *bus)
     qemu_bh_schedule(bus->bh);
 }
 
+extern "C"
 void i2c_bus_release(I2CBus *bus)
 {
     bus->bh = NULL;
@@ -219,21 +233,25 @@ void i2c_bus_release(I2CBus *bus)
     i2c_schedule_pending_master(bus);
 }
 
+extern "C"
 int i2c_start_recv(I2CBus *bus, uint8_t address)
 {
     return i2c_do_start_transfer(bus, address, I2C_START_RECV);
 }
 
+extern "C"
 int i2c_start_send(I2CBus *bus, uint8_t address)
 {
     return i2c_do_start_transfer(bus, address, I2C_START_SEND);
 }
 
+extern "C"
 int i2c_start_send_async(I2CBus *bus, uint8_t address)
 {
     return i2c_do_start_transfer(bus, address, I2C_START_SEND_ASYNC);
 }
 
+extern "C"
 void i2c_end_transfer(I2CBus *bus)
 {
     I2CSlaveClass *sc;
@@ -252,6 +270,7 @@ void i2c_end_transfer(I2CBus *bus)
     bus->broadcast = false;
 }
 
+extern "C"
 int i2c_send(I2CBus *bus, uint8_t data)
 {
     I2CSlaveClass *sc;
@@ -273,6 +292,7 @@ int i2c_send(I2CBus *bus, uint8_t data)
     return ret ? -1 : 0;
 }
 
+extern "C"
 int i2c_send_async(I2CBus *bus, uint8_t data)
 {
     I2CNode *node = QLIST_FIRST(&bus->current_devs);
@@ -290,6 +310,7 @@ int i2c_send_async(I2CBus *bus, uint8_t data)
     return 0;
 }
 
+extern "C"
 uint8_t i2c_recv(I2CBus *bus)
 {
     uint8_t data = 0xff;
@@ -308,6 +329,7 @@ uint8_t i2c_recv(I2CBus *bus)
     return data;
 }
 
+extern "C"
 void i2c_nack(I2CBus *bus)
 {
     I2CSlaveClass *sc;
@@ -326,6 +348,7 @@ void i2c_nack(I2CBus *bus)
     }
 }
 
+extern "C"
 void i2c_ack(I2CBus *bus)
 {
     if (!bus->bh) {
@@ -339,7 +362,7 @@ void i2c_ack(I2CBus *bus)
 
 static int i2c_slave_post_load(void *opaque, int version_id)
 {
-    I2CSlave *dev = opaque;
+    I2CSlave *dev = static_cast<I2CSlave *>(opaque);
     I2CBus *bus;
     I2CNode *node;
 
@@ -353,17 +376,20 @@ static int i2c_slave_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_i2c_slave_fields[] = {
+    VMSTATE_UINT8(address, I2CSlave),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_i2c_slave = {
     .name = "I2CSlave",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = i2c_slave_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(address, I2CSlave),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_i2c_slave_fields,
 };
 
+extern "C"
 I2CSlave *i2c_slave_new(const char *name, uint8_t addr)
 {
     DeviceState *dev;
@@ -373,11 +399,13 @@ I2CSlave *i2c_slave_new(const char *name, uint8_t addr)
     return I2C_SLAVE(dev);
 }
 
+extern "C"
 bool i2c_slave_realize_and_unref(I2CSlave *dev, I2CBus *bus, Error **errp)
 {
     return qdev_realize_and_unref(&dev->qdev, &bus->qbus, errp);
 }
 
+extern "C"
 I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr)
 {
     I2CSlave *dev = i2c_slave_new(name, addr);

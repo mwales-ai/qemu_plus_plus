@@ -43,19 +43,21 @@ struct MPC8XXXGPIOState {
     uint32_t icr;
 };
 
+static const VMStateField vmstate_mpc8xxx_gpio_fields[] = {
+    VMSTATE_UINT32(dir, MPC8XXXGPIOState),
+    VMSTATE_UINT32(odr, MPC8XXXGPIOState),
+    VMSTATE_UINT32(dat, MPC8XXXGPIOState),
+    VMSTATE_UINT32(ier, MPC8XXXGPIOState),
+    VMSTATE_UINT32(imr, MPC8XXXGPIOState),
+    VMSTATE_UINT32(icr, MPC8XXXGPIOState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_mpc8xxx_gpio = {
     .name = "mpc8xxx_gpio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(dir, MPC8XXXGPIOState),
-        VMSTATE_UINT32(odr, MPC8XXXGPIOState),
-        VMSTATE_UINT32(dat, MPC8XXXGPIOState),
-        VMSTATE_UINT32(ier, MPC8XXXGPIOState),
-        VMSTATE_UINT32(imr, MPC8XXXGPIOState),
-        VMSTATE_UINT32(icr, MPC8XXXGPIOState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mpc8xxx_gpio_fields,
 };
 
 static void mpc8xxx_gpio_update(MPC8XXXGPIOState *s)
@@ -66,7 +68,7 @@ static void mpc8xxx_gpio_update(MPC8XXXGPIOState *s)
 static uint64_t mpc8xxx_gpio_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
-    MPC8XXXGPIOState *s = (MPC8XXXGPIOState *)opaque;
+    MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
 
     if (size != 4) {
         /* All registers are 32bit */
@@ -115,7 +117,7 @@ static void mpc8xxx_write_data(MPC8XXXGPIOState *s, uint32_t new_data)
 static void mpc8xxx_gpio_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    MPC8XXXGPIOState *s = (MPC8XXXGPIOState *)opaque;
+    MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
 
     if (size != 4) {
         /* All registers are 32bit */
@@ -160,7 +162,7 @@ static void mpc8xxx_gpio_reset(DeviceState *dev)
 
 static void mpc8xxx_gpio_set_irq(void * opaque, int irq, int level)
 {
-    MPC8XXXGPIOState *s = (MPC8XXXGPIOState *)opaque;
+    MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
     uint32_t mask;
 
     mask = 0x80000000 >> irq;

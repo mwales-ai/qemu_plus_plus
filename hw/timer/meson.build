@@ -1,5 +1,5 @@
 system_ss.add(when: 'CONFIG_A9_GTIMER', if_true: files('a9gtimer.cpp'))
-system_ss.add(when: 'CONFIG_ALLWINNER_A10_PIT', if_true: files('allwinner-a10-pit.c'))
+system_ss.add(when: 'CONFIG_ALLWINNER_A10_PIT', if_true: files('allwinner-a10-pit.cpp'))
 system_ss.add(when: 'CONFIG_ARM_MPTIMER', if_true: files('arm_mptimer.cpp'))
 system_ss.add(when: 'CONFIG_ARM_TIMER', if_true: files('arm_timer.cpp'))
 system_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('armv7m_systick.cpp'))

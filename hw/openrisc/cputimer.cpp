@@ -19,10 +19,17 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "cpu.h"
+}
+
 #include "migration/vmstate.h"
-#include "qemu/timer.h"
 #include "system/reset.h"
+
+extern "C" {
+#include "qemu/timer.h"
+}
 
 #define TIMER_PERIOD 50 /* 50 ns period for 20 MHz timer */
 
@@ -35,6 +42,7 @@ typedef struct OR1KTimerState {
 
 static OR1KTimerState *or1k_timer;
 
+extern "C"
 void cpu_openrisc_count_set(OpenRISCCPU *cpu, uint32_t val)
 {
     or1k_timer->ttcr = val;
@@ -42,12 +50,14 @@ void cpu_openrisc_count_set(OpenRISCCPU *cpu, uint32_t val)
     or1k_timer->clk_offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
+extern "C"
 uint32_t cpu_openrisc_count_get(OpenRISCCPU *cpu)
 {
     return or1k_timer->ttcr;
 }
 
 /* Add elapsed ticks to ttcr */
+extern "C"
 void cpu_openrisc_count_update(OpenRISCCPU *cpu)
 {
     uint64_t now;
@@ -61,6 +71,7 @@ void cpu_openrisc_count_update(OpenRISCCPU *cpu)
 }
 
 /* Update the next timeout time as difference between ttmr and ttcr */
+extern "C"
 void cpu_openrisc_timer_update(OpenRISCCPU *cpu)
 {
     uint32_t wait;
@@ -83,12 +94,14 @@ void cpu_openrisc_timer_update(OpenRISCCPU *cpu)
     timer_mod(cpu->env.timer, next);
 }
 
+extern "C"
 void cpu_openrisc_count_start(OpenRISCCPU *cpu)
 {
     cpu->env.is_counting = 1;
     cpu_openrisc_count_update(cpu);
 }
 
+extern "C"
 void cpu_openrisc_count_stop(OpenRISCCPU *cpu)
 {
     timer_del(cpu->env.timer);
@@ -98,7 +111,7 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu)
 
 static void openrisc_timer_cb(void *opaque)
 {
-    OpenRISCCPU *cpu = opaque;
+    OpenRISCCPU *cpu = static_cast<OpenRISCCPU *>(opaque);
 
     if ((cpu->env.ttmr & TTMR_IE) &&
          timer_expired(cpu->env.timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL))) {
@@ -129,7 +142,7 @@ static void openrisc_timer_cb(void *opaque)
 /* Reset the per CPU counter state. */
 static void openrisc_count_reset(void *opaque)
 {
-    OpenRISCCPU *cpu = opaque;
+    OpenRISCCPU *cpu = static_cast<OpenRISCCPU *>(opaque);
 
     if (cpu->env.is_counting) {
         cpu_openrisc_count_stop(cpu);
@@ -140,22 +153,25 @@ static void openrisc_count_reset(void *opaque)
 /* Reset the global timer state. */
 static void openrisc_timer_reset(void *opaque)
 {
-    OpenRISCCPU *cpu = opaque;
+    OpenRISCCPU *cpu = static_cast<OpenRISCCPU *>(opaque);
     cpu_openrisc_count_set(cpu, 0);
 }
+
+static const VMStateField vmstate_or1k_timer_fields[] = {
+    VMSTATE_UINT32(ttcr, OR1KTimerState),
+    VMSTATE_UINT32(ttcr_offset, OR1KTimerState),
+    VMSTATE_UINT64(clk_offset, OR1KTimerState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_or1k_timer = {
     .name = "or1k_timer",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ttcr, OR1KTimerState),
-        VMSTATE_UINT32(ttcr_offset, OR1KTimerState),
-        VMSTATE_UINT64(clk_offset, OR1KTimerState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_or1k_timer_fields,
 };
 
+extern "C"
 void cpu_openrisc_clock_init(OpenRISCCPU *cpu)
 {
     cpu->env.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &openrisc_timer_cb, cpu);

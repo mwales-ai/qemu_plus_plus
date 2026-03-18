@@ -23,10 +23,13 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_host.h"
 #include "hw/qdev-properties.h"
-#include "qemu/module.h"
 #include "hw/pci/pci_bus.h"
 #include "migration/vmstate.h"
+
+extern "C" {
+#include "qemu/module.h"
 #include "trace.h"
+}
 
 /* debug PCI */
 //#define DEBUG_PCI
@@ -73,6 +76,7 @@ static bool is_pci_dev_ejected(PCIDevice *pci_dev)
            !pci_dev->qdev.pending_deleted_event;
 }
 
+extern "C"
 void pci_host_config_write_common(PCIDevice *pci_dev, uint32_t addr,
                                   uint32_t limit, uint32_t val, uint32_t len)
 {
@@ -96,6 +100,7 @@ void pci_host_config_write_common(PCIDevice *pci_dev, uint32_t addr,
     pci_dev->config_write(pci_dev, addr, val, MIN(len, limit - addr));
 }
 
+extern "C"
 uint32_t pci_host_config_read_common(PCIDevice *pci_dev, uint32_t addr,
                                      uint32_t limit, uint32_t len)
 {
@@ -123,6 +128,7 @@ uint32_t pci_host_config_read_common(PCIDevice *pci_dev, uint32_t addr,
     return ret;
 }
 
+extern "C"
 void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, unsigned len)
 {
     PCIDevice *pci_dev = pci_dev_find_by_addr(s, addr);
@@ -139,6 +145,7 @@ void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, unsigned len)
                                  val, len);
 }
 
+extern "C"
 uint32_t pci_data_read(PCIBus *s, uint32_t addr, unsigned len)
 {
     PCIDevice *pci_dev = pci_dev_find_by_addr(s, addr);
@@ -158,9 +165,9 @@ uint32_t pci_data_read(PCIBus *s, uint32_t addr, unsigned len)
 static void pci_host_config_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = static_cast<PCIHostState *>(opaque);
 
-    PCI_DPRINTF("%s addr " HWADDR_FMT_plx " len %d val %"PRIx64"\n",
+    PCI_DPRINTF("%s addr " HWADDR_FMT_plx " len %d val %" PRIx64 "\n",
                 __func__, addr, len, val);
     if (addr != 0 || len != 4) {
         return;
@@ -171,10 +178,10 @@ static void pci_host_config_write(void *opaque, hwaddr addr,
 static uint64_t pci_host_config_read(void *opaque, hwaddr addr,
                                      unsigned len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = static_cast<PCIHostState *>(opaque);
     uint32_t val = s->config_reg;
 
-    PCI_DPRINTF("%s addr " HWADDR_FMT_plx " len %d val %"PRIx32"\n",
+    PCI_DPRINTF("%s addr " HWADDR_FMT_plx " len %d val %" PRIx32 "\n",
                 __func__, addr, len, val);
     return val;
 }
@@ -182,7 +189,7 @@ static uint64_t pci_host_config_read(void *opaque, hwaddr addr,
 static void pci_host_data_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = static_cast<PCIHostState *>(opaque);
 
     if (s->config_reg & (1u << 31))
         pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
@@ -191,7 +198,7 @@ static void pci_host_data_write(void *opaque, hwaddr addr,
 static uint64_t pci_host_data_read(void *opaque,
                                    hwaddr addr, unsigned len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = static_cast<PCIHostState *>(opaque);
 
     if (!(s->config_reg & (1U << 31))) {
         return 0xffffffff;
@@ -199,18 +206,21 @@ static uint64_t pci_host_data_read(void *opaque,
     return pci_data_read(s->bus, s->config_reg | (addr & 3), len);
 }
 
+extern "C"
 const MemoryRegionOps pci_host_conf_le_ops = {
     .read = pci_host_config_read,
     .write = pci_host_config_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+extern "C"
 const MemoryRegionOps pci_host_conf_be_ops = {
     .read = pci_host_config_read,
     .write = pci_host_config_write,
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+extern "C"
 const MemoryRegionOps pci_host_data_le_ops = {
     .read = pci_host_data_read,
     .write = pci_host_data_write,
@@ -219,19 +229,22 @@ const MemoryRegionOps pci_host_data_le_ops = {
 
 static bool pci_host_needed(void *opaque)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = static_cast<PCIHostState *>(opaque);
     return s->mig_enabled;
 }
 
+static const VMStateField vmstate_pcihost_fields[] = {
+    VMSTATE_UINT32(config_reg, PCIHostState),
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C"
 const VMStateDescription vmstate_pcihost = {
     .name = "PCIHost",
-    .needed = pci_host_needed,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(config_reg, PCIHostState),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = pci_host_needed,
+    .fields = vmstate_pcihost_fields,
 };
 
 static const Property pci_host_properties_common[] = {
@@ -250,9 +263,9 @@ static void pci_host_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo pci_host_type_info = {
     .name = TYPE_PCI_HOST_BRIDGE,
     .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PCIHostState),
     .is_abstract = true,
     .class_size = sizeof(PCIHostBridgeClass),
-    .instance_size = sizeof(PCIHostState),
     .class_init = pci_host_class_init,
 };
 

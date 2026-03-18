@@ -13,10 +13,13 @@
 #include "hw/qdev-properties.h"
 #include "hw/resettable.h"
 #include "migration/vmstate.h"
-#include "qemu/bcd.h"
 #include "qom/object.h"
 #include "system/rtc.h"
+
+extern "C" {
+#include "qemu/bcd.h"
 #include "trace.h"
+}
 
 #define NVRAM_SIZE 0x10
 
@@ -189,20 +192,22 @@ static void rs5c372_reset_hold(Object *obj, ResetType type)
     s->addr_byte = false;
 }
 
+static const VMStateField rs5c372_vmstate_fields[] = {
+    VMSTATE_I2C_SLAVE(parent_obj, RS5C372State),
+    VMSTATE_INT64(offset, RS5C372State),
+    VMSTATE_UINT8_V(wday_offset, RS5C372State, 2),
+    VMSTATE_UINT8_ARRAY(nvram, RS5C372State, NVRAM_SIZE),
+    VMSTATE_UINT8(ptr, RS5C372State),
+    VMSTATE_UINT8(tx_format, RS5C372State),
+    VMSTATE_BOOL(addr_byte, RS5C372State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription rs5c372_vmstate = {
     .name = "rs5c372",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_I2C_SLAVE(parent_obj, RS5C372State),
-        VMSTATE_INT64(offset, RS5C372State),
-        VMSTATE_UINT8_V(wday_offset, RS5C372State, 2),
-        VMSTATE_UINT8_ARRAY(nvram, RS5C372State, NVRAM_SIZE),
-        VMSTATE_UINT8(ptr, RS5C372State),
-        VMSTATE_UINT8(tx_format, RS5C372State),
-        VMSTATE_BOOL(addr_byte, RS5C372State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = rs5c372_vmstate_fields,
 };
 
 static void rs5c372_init(Object *obj)

@@ -18,6 +18,10 @@
 #include "system/memory.h"
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Number of pins managed by each controller. */
 #define NPCM7XX_GPIO_NR_PINS (32)
 
@@ -51,5 +55,9 @@ typedef struct NPCM7xxGPIOState {
 #define TYPE_NPCM7XX_GPIO "npcm7xx-gpio"
 #define NPCM7XX_GPIO(obj) \
     OBJECT_CHECK(NPCM7xxGPIOState, (obj), TYPE_NPCM7XX_GPIO)
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* NPCM7XX_GPIO_H */

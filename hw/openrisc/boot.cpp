@@ -7,21 +7,29 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "cpu.h"
 #include "exec/cpu-defs.h"
 #include "exec/target_page.h"
+}
+
 #include "elf.h"
 #include "hw/loader.h"
 #include "hw/openrisc/boot.h"
 #include "system/device_tree.h"
 #include "system/qtest.h"
 #include "system/reset.h"
+
+extern "C" {
 #include "qemu/error-report.h"
+}
 
 #include <libfdt.h>
 
 #define KERNEL_LOAD_ADDR 0x100
 
+extern "C"
 hwaddr openrisc_load_kernel(ram_addr_t ram_size,
                             const char *kernel_filename,
                             uint32_t *bootstrap_pc)
@@ -64,6 +72,7 @@ hwaddr openrisc_load_kernel(ram_addr_t ram_size,
     return 0;
 }
 
+extern "C"
 hwaddr openrisc_load_initrd(void *fdt, const char *filename,
                             hwaddr load_start, uint64_t mem_size)
 {
@@ -92,6 +101,7 @@ hwaddr openrisc_load_initrd(void *fdt, const char *filename,
     return start + size;
 }
 
+extern "C"
 uint32_t openrisc_load_fdt(MachineState *ms, void *fdt,
                            hwaddr load_start, uint64_t mem_size)
 {

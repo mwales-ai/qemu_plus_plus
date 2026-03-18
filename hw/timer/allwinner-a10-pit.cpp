@@ -21,8 +21,11 @@
 #include "hw/sysbus.h"
 #include "hw/timer/allwinner-a10-pit.h"
 #include "migration/vmstate.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/module.h"
+} /* extern "C" */
 
 static void a10_pit_update_irq(AwA10PITState *s)
 {
@@ -195,24 +198,26 @@ static const Property a10_pit_properties[] = {
     DEFINE_PROP_UINT32("clk3-freq", AwA10PITState, clk_freq[3], 0),
 };
 
+static const VMStateField vmstate_a10_pit_fields[] = {
+    VMSTATE_UINT32(irq_enable, AwA10PITState),
+    VMSTATE_UINT32(irq_status, AwA10PITState),
+    VMSTATE_UINT32_ARRAY(control, AwA10PITState, AW_A10_PIT_TIMER_NR),
+    VMSTATE_UINT32_ARRAY(interval, AwA10PITState, AW_A10_PIT_TIMER_NR),
+    VMSTATE_UINT32_ARRAY(count, AwA10PITState, AW_A10_PIT_TIMER_NR),
+    VMSTATE_UINT32(watch_dog_mode, AwA10PITState),
+    VMSTATE_UINT32(watch_dog_control, AwA10PITState),
+    VMSTATE_UINT32(count_lo, AwA10PITState),
+    VMSTATE_UINT32(count_hi, AwA10PITState),
+    VMSTATE_UINT32(count_ctl, AwA10PITState),
+    VMSTATE_PTIMER_ARRAY(timer, AwA10PITState, AW_A10_PIT_TIMER_NR),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_a10_pit = {
     .name = "a10.pit",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(irq_enable, AwA10PITState),
-        VMSTATE_UINT32(irq_status, AwA10PITState),
-        VMSTATE_UINT32_ARRAY(control, AwA10PITState, AW_A10_PIT_TIMER_NR),
-        VMSTATE_UINT32_ARRAY(interval, AwA10PITState, AW_A10_PIT_TIMER_NR),
-        VMSTATE_UINT32_ARRAY(count, AwA10PITState, AW_A10_PIT_TIMER_NR),
-        VMSTATE_UINT32(watch_dog_mode, AwA10PITState),
-        VMSTATE_UINT32(watch_dog_control, AwA10PITState),
-        VMSTATE_UINT32(count_lo, AwA10PITState),
-        VMSTATE_UINT32(count_hi, AwA10PITState),
-        VMSTATE_UINT32(count_ctl, AwA10PITState),
-        VMSTATE_PTIMER_ARRAY(timer, AwA10PITState, AW_A10_PIT_TIMER_NR),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_a10_pit_fields,
 };
 
 static void a10_pit_reset(DeviceState *dev)
@@ -242,7 +247,7 @@ static void a10_pit_reset(DeviceState *dev)
 
 static void a10_pit_timer_cb(void *opaque)
 {
-    AwA10TimerContext *tc = opaque;
+    AwA10TimerContext *tc = static_cast<AwA10TimerContext *>(opaque);
     AwA10PITState *s = tc->container;
     uint8_t i = tc->index;
 

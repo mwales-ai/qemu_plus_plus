@@ -15,6 +15,9 @@
 #include "hw/irq.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define TYPE_IPACK_BUS "IndustryPack"
 OBJECT_DECLARE_SIMPLE_TYPE(IPackBus, IPACK_BUS)
@@ -74,5 +77,9 @@ void ipack_bus_init(IPackBus *bus, size_t bus_size,
                     DeviceState *parent,
                     uint8_t n_slots,
                     qemu_irq_handler handler);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

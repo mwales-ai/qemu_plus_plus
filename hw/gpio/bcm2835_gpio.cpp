@@ -12,15 +12,18 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
-#include "qemu/module.h"
-#include "qemu/timer.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/sd/sd.h"
 #include "hw/gpio/bcm2835_gpio.h"
 #include "hw/irq.h"
+
+extern "C" {
+#include "qemu/log.h"
+#include "qemu/module.h"
+#include "qemu/timer.h"
+} /* extern "C" */
 
 #define GPFSEL0   0x00
 #define GPFSEL1   0x04
@@ -147,7 +150,7 @@ static void gpclr(BCM2835GpioState *s,
 static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset,
         unsigned size)
 {
-    BCM2835GpioState *s = (BCM2835GpioState *)opaque;
+    BCM2835GpioState *s = static_cast<BCM2835GpioState *>(opaque);
 
     switch (offset) {
     case GPFSEL0:
@@ -189,7 +192,7 @@ static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset,
         /* Not implemented */
         return 0;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %" HWADDR_PRIx "\n",
                 __func__, offset);
         break;
     }
@@ -200,7 +203,7 @@ static uint64_t bcm2835_gpio_read(void *opaque, hwaddr offset,
 static void bcm2835_gpio_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
-    BCM2835GpioState *s = (BCM2835GpioState *)opaque;
+    BCM2835GpioState *s = static_cast<BCM2835GpioState *>(opaque);
 
     switch (offset) {
     case GPFSEL0:
@@ -252,7 +255,7 @@ static void bcm2835_gpio_write(void *opaque, hwaddr offset,
     return;
 
 err_out:
-    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %" HWADDR_PRIx "\n",
             __func__, offset);
 }
 
@@ -280,17 +283,19 @@ static const MemoryRegionOps bcm2835_gpio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_bcm2835_gpio_fields[] = {
+    VMSTATE_UINT8_ARRAY(fsel, BCM2835GpioState, 54),
+    VMSTATE_UINT32(lev0, BCM2835GpioState),
+    VMSTATE_UINT32(lev1, BCM2835GpioState),
+    VMSTATE_UINT8(sd_fsel, BCM2835GpioState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_gpio = {
     .name = "bcm2835_gpio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(fsel, BCM2835GpioState, 54),
-        VMSTATE_UINT32(lev0, BCM2835GpioState),
-        VMSTATE_UINT32(lev1, BCM2835GpioState),
-        VMSTATE_UINT8(sd_fsel, BCM2835GpioState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_gpio_fields,
 };
 
 static void bcm2835_gpio_init(Object *obj)

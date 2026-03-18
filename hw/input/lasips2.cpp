@@ -22,43 +22,50 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/input/ps2.h"
 #include "hw/input/lasips2.h"
 #include "exec/hwaddr.h"
-#include "trace.h"
 #include "system/address-spaces.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "qapi/error.h"
 
+extern "C" {
+#include "qemu/log.h"
+#include "trace.h"
+} /* extern "C" */
+
+
+static const VMStateField vmstate_lasips2_port_fields[] = {
+    VMSTATE_UINT8(control, LASIPS2Port),
+    VMSTATE_UINT8(buf, LASIPS2Port),
+    VMSTATE_BOOL(loopback_rbne, LASIPS2Port),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_lasips2_port = {
     .name = "lasips2-port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(control, LASIPS2Port),
-        VMSTATE_UINT8(buf, LASIPS2Port),
-        VMSTATE_BOOL(loopback_rbne, LASIPS2Port),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_lasips2_port_fields,
+};
+
+static const VMStateField vmstate_lasips2_fields[] = {
+    VMSTATE_UINT8(int_status, LASIPS2State),
+    VMSTATE_STRUCT(kbd_port.parent_obj, LASIPS2State, 1,
+                   vmstate_lasips2_port, LASIPS2Port),
+    VMSTATE_STRUCT(mouse_port.parent_obj, LASIPS2State, 1,
+                   vmstate_lasips2_port, LASIPS2Port),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_lasips2 = {
     .name = "lasips2",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(int_status, LASIPS2State),
-        VMSTATE_STRUCT(kbd_port.parent_obj, LASIPS2State, 1,
-                       vmstate_lasips2_port, LASIPS2Port),
-        VMSTATE_STRUCT(mouse_port.parent_obj, LASIPS2State, 1,
-                       vmstate_lasips2_port, LASIPS2Port),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_lasips2_fields,
 };
 
 typedef enum {
@@ -251,15 +258,17 @@ static uint64_t lasips2_reg_read(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static const MemoryRegionOps lasips2_reg_ops = {
-    .read = lasips2_reg_read,
-    .write = lasips2_reg_write,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
-    .endianness = DEVICE_BIG_ENDIAN,
-};
+static MemoryRegionOps lasips2_reg_ops;
+
+static void __attribute__((constructor)) init_lasips2_reg_ops(void)
+{
+    memset(&lasips2_reg_ops, 0, sizeof(lasips2_reg_ops));
+    lasips2_reg_ops.read = lasips2_reg_read;
+    lasips2_reg_ops.write = lasips2_reg_write;
+    lasips2_reg_ops.impl.min_access_size = 1;
+    lasips2_reg_ops.impl.max_access_size = 4;
+    lasips2_reg_ops.endianness = DEVICE_BIG_ENDIAN;
+}
 
 static void lasips2_realize(DeviceState *dev, Error **errp)
 {

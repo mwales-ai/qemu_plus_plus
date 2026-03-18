@@ -22,6 +22,10 @@
 #include "exec/cpu-defs.h"
 #include "hw/boards.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 hwaddr openrisc_load_kernel(ram_addr_t ram_size,
                             const char *kernel_filename,
                             uint32_t *bootstrap_pc);
@@ -31,5 +35,9 @@ hwaddr openrisc_load_initrd(void *fdt, const char *filename,
 
 uint32_t openrisc_load_fdt(MachineState *ms, void *fdt, hwaddr load_start,
                            uint64_t mem_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* OPENRISC_BOOT_H */
