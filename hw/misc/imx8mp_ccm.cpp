@@ -9,10 +9,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 
+extern "C" {
+#include "qemu/log.h"
 #include "hw/misc/imx8mp_ccm.h"
 #include "migration/vmstate.h"
+}
 
 #include "trace.h"
 
@@ -38,7 +40,7 @@ enum {
 static uint64_t imx8mp_set_clr_tog_read(void *opaque, hwaddr offset,
                                         unsigned size)
 {
-    const uint32_t *mmio = opaque;
+    const uint32_t *mmio = static_cast<const uint32_t *>(opaque);
 
     return mmio[CCM_INDEX(offset)];
 }
@@ -48,7 +50,7 @@ static void imx8mp_set_clr_tog_write(void *opaque, hwaddr offset,
 {
     const uint8_t  bitop = CCM_BITOP(offset);
     const uint32_t index = CCM_INDEX(offset);
-    uint32_t *mmio = opaque;
+    uint32_t *mmio = static_cast<uint32_t *>(opaque);
 
     switch (bitop) {
     case CCM_BITOP_NONE:
@@ -66,22 +68,18 @@ static void imx8mp_set_clr_tog_write(void *opaque, hwaddr offset,
     };
 }
 
-static const struct MemoryRegionOps imx8mp_set_clr_tog_ops = {
-    .read = imx8mp_set_clr_tog_read,
-    .write = imx8mp_set_clr_tog_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        /*
-         * Our device would not work correctly if the guest was doing
-         * unaligned access. This might not be a limitation on the real
-         * device but in practice there is no reason for a guest to access
-         * this device unaligned.
-         */
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
-};
+static MemoryRegionOps imx8mp_set_clr_tog_ops;
+
+static void __attribute__((constructor)) init_imx8mp_set_clr_tog_ops(void)
+{
+    memset(&imx8mp_set_clr_tog_ops, 0, sizeof(imx8mp_set_clr_tog_ops));
+    imx8mp_set_clr_tog_ops.read = imx8mp_set_clr_tog_read;
+    imx8mp_set_clr_tog_ops.write = imx8mp_set_clr_tog_write;
+    imx8mp_set_clr_tog_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    imx8mp_set_clr_tog_ops.impl.min_access_size = 4;
+    imx8mp_set_clr_tog_ops.impl.max_access_size = 4;
+    imx8mp_set_clr_tog_ops.impl.unaligned = false;
+}
 
 static void imx8mp_ccm_init(Object *obj)
 {
@@ -98,14 +96,16 @@ static void imx8mp_ccm_init(Object *obj)
     sysbus_init_mmio(sd, &s->iomem);
 }
 
+static const VMStateField vmstate_imx8mp_ccm_fields[] = {
+    VMSTATE_UINT32_ARRAY(ccm, IMX8MPCCMState, CCM_MAX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription imx8mp_ccm_vmstate = {
     .name = TYPE_IMX8MP_CCM,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(ccm, IMX8MPCCMState, CCM_MAX),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_imx8mp_ccm_fields,
 };
 
 static uint32_t imx8mp_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)

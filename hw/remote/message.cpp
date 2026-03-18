@@ -1,5 +1,5 @@
 /*
- * Copyright © 2020, 2021 Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021 Oracle and/or its affiliates.
  *
  * This work is licensed under the terms of the GNU GPL-v2, version 2 or later.
  *
@@ -12,13 +12,17 @@
 #include "hw/remote/machine.h"
 #include "io/channel.h"
 #include "hw/remote/mpqemu-link.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "system/runstate.h"
-#include "hw/pci/pci.h"
 #include "exec/memattrs.h"
 #include "hw/remote/memory.h"
 #include "hw/remote/iohub.h"
 #include "system/reset.h"
+}
+
+#include "hw/pci/pci.h"
 
 static void process_config_write(QIOChannel *ioc, PCIDevice *dev,
                                  MPQemuMsg *msg, Error **errp);
@@ -29,9 +33,9 @@ static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp);
 static void process_device_reset_msg(QIOChannel *ioc, PCIDevice *dev,
                                      Error **errp);
 
-void coroutine_fn mpqemu_remote_msg_loop_co(void *data)
+extern "C" void coroutine_fn mpqemu_remote_msg_loop_co(void *data)
 {
-    g_autofree RemoteCommDev *com = (RemoteCommDev *)data;
+    g_autofree RemoteCommDev *com = static_cast<RemoteCommDev *>(data);
     PCIDevice *pci_dev = NULL;
     Error *local_err = NULL;
 
@@ -47,7 +51,7 @@ void coroutine_fn mpqemu_remote_msg_loop_co(void *data)
 
         if (!mpqemu_msg_valid(&msg)) {
             error_setg(&local_err, "Received invalid message from proxy"
-                                   "in remote process pid="FMT_pid"",
+                                   "in remote process pid=" FMT_pid "",
                                    getpid());
             break;
         }
@@ -77,7 +81,7 @@ void coroutine_fn mpqemu_remote_msg_loop_co(void *data)
         default:
             error_setg(&local_err,
                        "Unknown command (%d) received for device %s"
-                       " (pid="FMT_pid")",
+                       " (pid=" FMT_pid ")",
                        msg.cmd, DEVICE(pci_dev)->id, getpid());
         }
     }
@@ -98,7 +102,7 @@ static void process_config_write(QIOChannel *ioc, PCIDevice *dev,
     MPQemuMsg ret = { 0 };
 
     if ((conf->addr + sizeof(conf->val)) > pci_config_size(dev)) {
-        error_setg(errp, "Bad address for PCI config write, pid "FMT_pid".",
+        error_setg(errp, "Bad address for PCI config write, pid " FMT_pid ".",
                    getpid());
         ret.data.u64 = UINT64_MAX;
     } else {
@@ -109,7 +113,7 @@ static void process_config_write(QIOChannel *ioc, PCIDevice *dev,
     ret.size = sizeof(ret.data.u64);
 
     if (!mpqemu_msg_send(&ret, ioc, NULL)) {
-        error_prepend(errp, "Error returning code to proxy, pid "FMT_pid": ",
+        error_prepend(errp, "Error returning code to proxy, pid " FMT_pid ": ",
                       getpid());
     }
 }
@@ -122,7 +126,7 @@ static void process_config_read(QIOChannel *ioc, PCIDevice *dev,
     MPQemuMsg ret = { 0 };
 
     if ((conf->addr + sizeof(conf->val)) > pci_config_size(dev)) {
-        error_setg(errp, "Bad address for PCI config read, pid "FMT_pid".",
+        error_setg(errp, "Bad address for PCI config read, pid " FMT_pid ".",
                    getpid());
         ret.data.u64 = UINT64_MAX;
     } else {
@@ -133,7 +137,7 @@ static void process_config_read(QIOChannel *ioc, PCIDevice *dev,
     ret.size = sizeof(ret.data.u64);
 
     if (!mpqemu_msg_send(&ret, ioc, NULL)) {
-        error_prepend(errp, "Error returning code to proxy, pid "FMT_pid": ",
+        error_prepend(errp, "Error returning code to proxy, pid " FMT_pid ": ",
                       getpid());
     }
 }
@@ -160,7 +164,7 @@ static void process_bar_write(QIOChannel *ioc, MPQemuMsg *msg, Error **errp)
                            (void *)&val, bar_access->size, true);
 
     if (res != MEMTX_OK) {
-        error_setg(errp, "Bad address %"PRIx64" for mem write, pid "FMT_pid".",
+        error_setg(errp, "Bad address %" PRIx64 " for mem write, pid " FMT_pid ".",
                    bar_access->addr, getpid());
         ret.data.u64 = -1;
     }
@@ -170,7 +174,7 @@ fail:
     ret.size = sizeof(ret.data.u64);
 
     if (!mpqemu_msg_send(&ret, ioc, NULL)) {
-        error_prepend(errp, "Error returning code to proxy, pid "FMT_pid": ",
+        error_prepend(errp, "Error returning code to proxy, pid " FMT_pid ": ",
                       getpid());
     }
 }
@@ -196,7 +200,7 @@ static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp)
                            (void *)&val, bar_access->size, false);
 
     if (res != MEMTX_OK) {
-        error_setg(errp, "Bad address %"PRIx64" for mem read, pid "FMT_pid".",
+        error_setg(errp, "Bad address %" PRIx64 " for mem read, pid " FMT_pid ".",
                    bar_access->addr, getpid());
         val = UINT64_MAX;
     }
@@ -207,7 +211,7 @@ fail:
     ret.size = sizeof(ret.data.u64);
 
     if (!mpqemu_msg_send(&ret, ioc, NULL)) {
-        error_prepend(errp, "Error returning code to proxy, pid "FMT_pid": ",
+        error_prepend(errp, "Error returning code to proxy, pid " FMT_pid ": ",
                       getpid());
     }
 }

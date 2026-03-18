@@ -5,16 +5,21 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
-#include "qapi/error.h"
-#include "hw/vfio/vfio-cpr.h"
-#include "hw/vfio/vfio-device.h"
+
 #include "migration/blocker.h"
 #include "migration/cpr.h"
 #include "migration/migration.h"
 #include "migration/vmstate.h"
+
+extern "C" {
+#include "qemu/error-report.h"
+#include "qapi/error.h"
+#include "hw/vfio/vfio-cpr.h"
+#include "hw/vfio/vfio-device.h"
 #include "system/iommufd.h"
 #include "vfio-iommufd.h"
+}
+
 #include "trace.h"
 
 typedef struct CprVFIODevice {
@@ -26,29 +31,33 @@ typedef struct CprVFIODevice {
     QLIST_ENTRY(CprVFIODevice) next;
 } CprVFIODevice;
 
+static const VMStateField vmstate_cpr_vfio_device_fields[] = {
+    VMSTATE_UINT32(namelen, CprVFIODevice),
+    VMSTATE_VBUFFER_ALLOC_UINT32(name, CprVFIODevice, 0, NULL, namelen),
+    VMSTATE_INT32(devid, CprVFIODevice),
+    VMSTATE_UINT32(ioas_id, CprVFIODevice),
+    VMSTATE_UINT32(hwpt_id, CprVFIODevice),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cpr_vfio_device = {
     .name = "cpr vfio device",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(namelen, CprVFIODevice),
-        VMSTATE_VBUFFER_ALLOC_UINT32(name, CprVFIODevice, 0, NULL, namelen),
-        VMSTATE_INT32(devid, CprVFIODevice),
-        VMSTATE_UINT32(ioas_id, CprVFIODevice),
-        VMSTATE_UINT32(hwpt_id, CprVFIODevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cpr_vfio_device_fields,
 };
 
-const VMStateDescription vmstate_cpr_vfio_devices = {
+static const VMStateField vmstate_cpr_vfio_devices_fields[] = {
+    VMSTATE_QLIST_V(vfio_devices, CprState, 1, vmstate_cpr_vfio_device,
+                    CprVFIODevice, next),
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C" const VMStateDescription vmstate_cpr_vfio_devices = {
     .name = CPR_STATE "/vfio devices",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]){
-        VMSTATE_QLIST_V(vfio_devices, CprState, 1, vmstate_cpr_vfio_device,
-                        CprVFIODevice, next),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cpr_vfio_devices_fields,
 };
 
 static void vfio_cpr_save_device(VFIODevice *vbasedev)
@@ -115,7 +124,7 @@ static bool vfio_cpr_supported(IOMMUFDBackend *be, Error **errp)
 
 static int iommufd_cpr_pre_save(void *opaque)
 {
-    IOMMUFDBackend *be = opaque;
+    IOMMUFDBackend *be = static_cast<IOMMUFDBackend *>(opaque);
 
     /*
      * The process has not changed yet, but proactively try the ioctl,
@@ -131,7 +140,7 @@ static int iommufd_cpr_pre_save(void *opaque)
 
 static int iommufd_cpr_post_load(void *opaque, int version_id)
 {
-     IOMMUFDBackend *be = opaque;
+     IOMMUFDBackend *be = static_cast<IOMMUFDBackend *>(opaque);
      Error *local_err = NULL;
 
      if (!iommufd_change_process(be, &local_err)) {
@@ -141,19 +150,21 @@ static int iommufd_cpr_post_load(void *opaque, int version_id)
      return 0;
 }
 
+static const VMStateField iommufd_cpr_vmstate_fields[] = {
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription iommufd_cpr_vmstate = {
     .name = "iommufd",
     .version_id = 0,
     .minimum_version_id = 0,
-    .pre_save = iommufd_cpr_pre_save,
     .post_load = iommufd_cpr_post_load,
+    .pre_save = iommufd_cpr_pre_save,
     .needed = cpr_incoming_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = iommufd_cpr_vmstate_fields,
 };
 
-bool vfio_iommufd_cpr_register_iommufd(IOMMUFDBackend *be, Error **errp)
+extern "C" bool vfio_iommufd_cpr_register_iommufd(IOMMUFDBackend *be, Error **errp)
 {
     Error **cpr_blocker = &be->cpr_blocker;
 
@@ -168,13 +179,13 @@ bool vfio_iommufd_cpr_register_iommufd(IOMMUFDBackend *be, Error **errp)
     return true;
 }
 
-void vfio_iommufd_cpr_unregister_iommufd(IOMMUFDBackend *be)
+extern "C" void vfio_iommufd_cpr_unregister_iommufd(IOMMUFDBackend *be)
 {
     vmstate_unregister(NULL, &iommufd_cpr_vmstate, be);
     migrate_del_blocker(&be->cpr_blocker);
 }
 
-bool vfio_iommufd_cpr_register_container(VFIOIOMMUFDContainer *container,
+extern "C" bool vfio_iommufd_cpr_register_container(VFIOIOMMUFDContainer *container,
                                          Error **errp)
 {
     VFIOContainer *bcontainer = VFIO_IOMMU(container);
@@ -188,14 +199,14 @@ bool vfio_iommufd_cpr_register_container(VFIOIOMMUFDContainer *container,
     return true;
 }
 
-void vfio_iommufd_cpr_unregister_container(VFIOIOMMUFDContainer *container)
+extern "C" void vfio_iommufd_cpr_unregister_container(VFIOIOMMUFDContainer *container)
 {
     VFIOContainer *bcontainer = VFIO_IOMMU(container);
 
     migration_remove_notifier(&bcontainer->cpr_reboot_notifier);
 }
 
-void vfio_iommufd_cpr_register_device(VFIODevice *vbasedev)
+extern "C" void vfio_iommufd_cpr_register_device(VFIODevice *vbasedev)
 {
     if (!cpr_is_incoming()) {
         /*
@@ -207,13 +218,13 @@ void vfio_iommufd_cpr_register_device(VFIODevice *vbasedev)
     }
 }
 
-void vfio_iommufd_cpr_unregister_device(VFIODevice *vbasedev)
+extern "C" void vfio_iommufd_cpr_unregister_device(VFIODevice *vbasedev)
 {
     cpr_delete_fd(vbasedev->name, 0);
     vfio_cpr_delete_device(vbasedev->name);
 }
 
-void vfio_cpr_load_device(VFIODevice *vbasedev)
+extern "C" void vfio_cpr_load_device(VFIODevice *vbasedev)
 {
     if (cpr_is_incoming()) {
         bool ret = vfio_cpr_find_device(vbasedev);

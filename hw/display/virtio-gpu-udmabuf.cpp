@@ -12,20 +12,25 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
-#include "qemu/units.h"
-#include "qemu/iov.h"
+
 #include "ui/console.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
-#include "trace.h"
 #include "system/ramblock.h"
 #include "system/hostmem.h"
-#include <sys/ioctl.h>
-#include <linux/memfd.h>
+
+extern "C" {
+#include "qemu/error-report.h"
+#include "qemu/units.h"
+#include "qemu/iov.h"
 #include "qemu/memfd.h"
 #include "standard-headers/linux/udmabuf.h"
 #include "standard-headers/drm/drm_fourcc.h"
+}
+
+#include "trace.h"
+#include <sys/ioctl.h>
+#include <linux/memfd.h>
 
 static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
 {
@@ -39,8 +44,9 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
         return;
     }
 
-    list = g_malloc0(sizeof(struct udmabuf_create_list) +
-                     sizeof(struct udmabuf_create_item) * res->iov_cnt);
+    list = static_cast<struct udmabuf_create_list *>(
+        g_malloc0(sizeof(struct udmabuf_create_list) +
+                  sizeof(struct udmabuf_create_item) * res->iov_cnt));
 
     for (i = 0; i < res->iov_cnt; i++) {
         rcu_read_lock();
@@ -70,8 +76,8 @@ static void virtio_gpu_create_udmabuf(struct virtio_gpu_simple_resource *res)
 
 static void virtio_gpu_remap_udmabuf(struct virtio_gpu_simple_resource *res)
 {
-    res->remapped = mmap(NULL, res->blob_size, PROT_READ,
-                         MAP_SHARED, res->dmabuf_fd, 0);
+    res->remapped = static_cast<uint8_t *>(mmap(NULL, res->blob_size, PROT_READ,
+                         MAP_SHARED, res->dmabuf_fd, 0));
     if (res->remapped == MAP_FAILED) {
         warn_report("%s: dmabuf mmap failed: %s", __func__,
                     strerror(errno));
@@ -93,7 +99,7 @@ static void virtio_gpu_destroy_udmabuf(struct virtio_gpu_simple_resource *res)
 
 static int find_memory_backend_type(Object *obj, void *opaque)
 {
-    bool *memfd_backend = opaque;
+    bool *memfd_backend = static_cast<bool *>(opaque);
     int ret;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
@@ -111,7 +117,7 @@ static int find_memory_backend_type(Object *obj, void *opaque)
     return 0;
 }
 
-bool virtio_gpu_have_udmabuf(void)
+extern "C" bool virtio_gpu_have_udmabuf(void)
 {
     Object *memdev_root;
     int udmabuf;
@@ -128,7 +134,7 @@ bool virtio_gpu_have_udmabuf(void)
     return memfd_backend;
 }
 
-void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
+extern "C" void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
 {
     void *pdata = NULL;
 
@@ -151,7 +157,7 @@ void virtio_gpu_init_udmabuf(struct virtio_gpu_simple_resource *res)
     res->blob = pdata;
 }
 
-void virtio_gpu_fini_udmabuf(struct virtio_gpu_simple_resource *res)
+extern "C" void virtio_gpu_fini_udmabuf(struct virtio_gpu_simple_resource *res)
 {
     if (res->remapped) {
         virtio_gpu_destroy_udmabuf(res);
@@ -187,7 +193,7 @@ static VGPUDMABuf
     dmabuf->buf = qemu_dmabuf_new(r->width, r->height,
                                   &offset, &fb->stride,
                                   r->x, r->y, fb->width, fb->height,
-                                  qemu_pixman_to_drm_format(fb->format),
+                                  qemu_pixman_to_drm_format(static_cast<pixman_format_code_t>(fb->format)),
                                   DRM_FORMAT_MOD_INVALID, &res->dmabuf_fd,
                                   1, true, false);
     dmabuf->scanout_id = scanout_id;
@@ -196,7 +202,7 @@ static VGPUDMABuf
     return dmabuf;
 }
 
-int virtio_gpu_update_dmabuf(VirtIOGPU *g,
+extern "C" int virtio_gpu_update_dmabuf(VirtIOGPU *g,
                              uint32_t scanout_id,
                              struct virtio_gpu_simple_resource *res,
                              struct virtio_gpu_framebuffer *fb,

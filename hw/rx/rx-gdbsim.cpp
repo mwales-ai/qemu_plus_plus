@@ -17,6 +17,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
 #include "qemu/guest-random.h"
@@ -29,6 +31,7 @@
 #include "system/reset.h"
 #include "hw/boards.h"
 #include "qom/object.h"
+}
 
 /* Same address of GDB integrated simulator */
 #define SDRAM_BASE  EXT_CS_BASE

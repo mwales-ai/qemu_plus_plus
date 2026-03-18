@@ -6,10 +6,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/intc/loongson_ipi.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "target/mips/cpu.h"
+}
 
 static AddressSpace *get_iocsr_as(CPUState *cpu)
 {
@@ -41,13 +44,19 @@ static int loongson_cpu_by_arch_id(LoongsonIPICommonState *lics,
     return MEMTX_OK;
 }
 
-static const MemoryRegionOps loongson_ipi_core_ops = {
-    .read_with_attrs = loongson_ipi_core_readl,
-    .write_with_attrs = loongson_ipi_core_writel,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
-    .valid = { .min_access_size = 4, .max_access_size = 8, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
+static MemoryRegionOps loongson_ipi_core_ops;
+
+static void __attribute__((constructor)) init_loongson_ipi_core_ops(void)
+{
+    memset(&loongson_ipi_core_ops, 0, sizeof(loongson_ipi_core_ops));
+    loongson_ipi_core_ops.read_with_attrs = loongson_ipi_core_readl;
+    loongson_ipi_core_ops.write_with_attrs = loongson_ipi_core_writel;
+    loongson_ipi_core_ops.impl.min_access_size = 4;
+    loongson_ipi_core_ops.impl.max_access_size = 4;
+    loongson_ipi_core_ops.valid.min_access_size = 4;
+    loongson_ipi_core_ops.valid.max_access_size = 8;
+    loongson_ipi_core_ops.endianness = DEVICE_LITTLE_ENDIAN;
+}
 
 static void loongson_ipi_realize(DeviceState *dev, Error **errp)
 {

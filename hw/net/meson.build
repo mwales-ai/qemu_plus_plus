@@ -33,7 +33,7 @@ system_ss.add(when: 'CONFIG_MARVELL_88W8618', if_true: files('mv88w8618_eth.c'))
 system_ss.add(when: 'CONFIG_CADENCE', if_true: files('cadence_gem.cpp'))
 system_ss.add(when: 'CONFIG_STELLARIS_ENET', if_true: files('stellaris_enet.cpp'))
 system_ss.add(when: 'CONFIG_LANCE', if_true: files('lance.cpp'))
-system_ss.add(when: 'CONFIG_LASI_82596', if_true: files('lasi_i82596.c'))
+system_ss.add(when: 'CONFIG_LASI_82596', if_true: files('lasi_i82596.cpp'))
 system_ss.add(when: 'CONFIG_I82596_COMMON', if_true: files('i82596.c'))
 system_ss.add(when: 'CONFIG_SUNHME', if_true: files('sunhme.c'))
 system_ss.add(when: 'CONFIG_FTGMAC100', if_true: files('ftgmac100.cpp'))
@@ -56,7 +56,7 @@ endif
 
 system_ss.add(when: 'CONFIG_ETSEC', if_true: files(
   'fsl_etsec/etsec.c',
-  'fsl_etsec/miim.c',
+  'fsl_etsec/miim.cpp',
   'fsl_etsec/registers.cpp',
   'fsl_etsec/rings.c',
 ))

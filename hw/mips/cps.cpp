@@ -18,6 +18,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/mips/cps.h"
@@ -26,8 +28,9 @@
 #include "hw/qdev-properties.h"
 #include "system/tcg.h"
 #include "system/reset.h"
+}
 
-qemu_irq get_cps_irq(MIPSCPSState *s, int pin_number)
+extern "C" qemu_irq get_cps_irq(MIPSCPSState *s, int pin_number)
 {
     assert(pin_number < s->num_irq);
     return s->gic.irq_state[pin_number].irq;
@@ -49,7 +52,7 @@ static void mips_cps_init(Object *obj)
 
 static void main_cpu_reset(void *opaque)
 {
-    MIPSCPU *cpu = opaque;
+    MIPSCPU *cpu = static_cast<MIPSCPU *>(opaque);
     CPUState *cs = CPU(cpu);
 
     cpu_reset(cs);

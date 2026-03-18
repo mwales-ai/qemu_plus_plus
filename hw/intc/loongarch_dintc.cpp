@@ -6,6 +6,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/intc/loongarch_pch_msi.h"
@@ -14,11 +16,13 @@
 #include "hw/pci/msi.h"
 #include "hw/misc/unimp.h"
 #include "migration/vmstate.h"
-#include "trace.h"
 #include "hw/qdev-properties.h"
-#include "target/loongarch/cpu.h"
 #include "qemu/error-report.h"
 #include "system/hw_accel.h"
+}
+
+#include "trace.h"
+#include "target/loongarch/cpu.h"
 
 /* msg addr field */
 FIELD(MSG_ADDR, IRQ_NUM, 4, 8)
@@ -192,6 +196,11 @@ static void loongarch_dintc_class_init(ObjectClass *klass, const void *data)
     hc->unplug = loongarch_dintc_cpu_unplug;
 }
 
+static const InterfaceInfo loongarch_dintc_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo loongarch_dintc_info = {
     .name          = TYPE_LOONGARCH_DINTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
@@ -199,10 +208,7 @@ static const TypeInfo loongarch_dintc_info = {
     .instance_init = loongarch_dintc_init,
     .class_size    = sizeof(LoongArchDINTCClass),
     .class_init    = loongarch_dintc_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    },
+    .interfaces    = loongarch_dintc_interfaces,
 };
 
 static void loongarch_dintc_register_types(void)

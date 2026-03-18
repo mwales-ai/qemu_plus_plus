@@ -11,6 +11,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
@@ -18,9 +20,11 @@
 #include "net/eth.h"
 #include "hw/net/lasi_82596.h"
 #include "hw/net/i82596.h"
-#include "trace.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+}
+
+#include "trace.h"
 
 #define PA_I82596_RESET         0       /* Offsets relative to LASI-LAN-Addr.*/
 #define PA_CPU_PORT_L_ACCESS    4
@@ -32,7 +36,7 @@
 static void lasi_82596_mem_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
-    SysBusI82596State *d = opaque;
+    SysBusI82596State *d = static_cast<SysBusI82596State *>(opaque);
 
     trace_lasi_82596_mem_writew(addr, val);
     switch (addr) {
@@ -66,7 +70,7 @@ static void lasi_82596_mem_write(void *opaque, hwaddr addr,
 static uint64_t lasi_82596_mem_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    SysBusI82596State *d = opaque;
+    SysBusI82596State *d = static_cast<SysBusI82596State *>(opaque);
     uint32_t val;
 
     if (addr == PA_GET_MACADDR) {
@@ -78,19 +82,19 @@ static uint64_t lasi_82596_mem_read(void *opaque, hwaddr addr,
     return val;
 }
 
-static const MemoryRegionOps lasi_82596_mem_ops = {
-    .read = lasi_82596_mem_read,
-    .write = lasi_82596_mem_write,
-    .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
+static MemoryRegionOps lasi_82596_mem_ops;
+
+static void __attribute__((constructor)) init_lasi_82596_mem_ops(void)
+{
+    memset(&lasi_82596_mem_ops, 0, sizeof(lasi_82596_mem_ops));
+    lasi_82596_mem_ops.read = lasi_82596_mem_read;
+    lasi_82596_mem_ops.write = lasi_82596_mem_write;
+    lasi_82596_mem_ops.endianness = DEVICE_BIG_ENDIAN;
+    lasi_82596_mem_ops.valid.min_access_size = 4;
+    lasi_82596_mem_ops.valid.max_access_size = 4;
+    lasi_82596_mem_ops.impl.min_access_size = 4;
+    lasi_82596_mem_ops.impl.max_access_size = 4;
+}
 
 static NetClientInfo net_lasi_82596_info = {
     .type = NET_CLIENT_DRIVER_NIC,
@@ -102,15 +106,17 @@ static NetClientInfo net_lasi_82596_info = {
     .link_status_changed = i82596_set_link_status,
 };
 
+static const VMStateField vmstate_lasi_82596_fields[] = {
+    VMSTATE_STRUCT(state, SysBusI82596State, 0, vmstate_i82596,
+            I82596State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_lasi_82596 = {
     .name = "i82596",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(state, SysBusI82596State, 0, vmstate_i82596,
-                I82596State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_lasi_82596_fields,
 };
 
 static void lasi_82596_realize(DeviceState *dev, Error **errp)

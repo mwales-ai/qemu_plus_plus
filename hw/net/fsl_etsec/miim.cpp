@@ -23,9 +23,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/net/mii.h"
 #include "etsec.h"
 #include "registers.h"
+}
 
 /* #define DEBUG_MIIM */
 
@@ -85,7 +88,7 @@ static void miim_write_cycle(eTSEC *etsec)
     };
 }
 
-void etsec_write_miim(eTSEC          *etsec,
+extern "C" void etsec_write_miim(eTSEC          *etsec,
                       eTSEC_Register *reg,
                       uint32_t        reg_index,
                       uint32_t        value)
@@ -130,7 +133,7 @@ void etsec_write_miim(eTSEC          *etsec,
 
 }
 
-void etsec_miim_link_status(eTSEC *etsec, NetClientState *nc)
+extern "C" void etsec_miim_link_status(eTSEC *etsec, NetClientState *nc)
 {
     /* Set link status */
     if (nc->link_down) {

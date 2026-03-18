@@ -23,11 +23,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
-#include "trace.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/misc/stm32_rcc.h"
+}
+
+#include "trace.h"
 
 static void stm32_rcc_reset(DeviceState *dev)
 {
@@ -44,7 +48,7 @@ static uint64_t stm32_rcc_read(void *opaque, hwaddr addr, unsigned int size)
 
     uint32_t value = 0;
     if (addr > STM32_RCC_DCKCFGR2) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
     } else {
         value = s->regs[addr >> 2];
@@ -63,7 +67,7 @@ static void stm32_rcc_write(void *opaque, hwaddr addr,
     trace_stm32_rcc_write(addr, value);
 
     if (addr > STM32_RCC_DCKCFGR2) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%" HWADDR_PRIx "\n",
                       __func__, addr);
         return;
     }
@@ -128,14 +132,16 @@ static void stm32_rcc_init(Object *obj)
     }
 }
 
+static const VMStateField vmstate_stm32_rcc_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, STM32RccState, STM32_RCC_NREGS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32_rcc = {
     .name = TYPE_STM32_RCC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, STM32RccState, STM32_RCC_NREGS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32_rcc_fields,
 };
 
 static void stm32_rcc_class_init(ObjectClass *klass, const void *data)

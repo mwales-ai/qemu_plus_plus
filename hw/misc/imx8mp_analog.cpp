@@ -9,10 +9,12 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 
+extern "C" {
+#include "qemu/log.h"
 #include "hw/misc/imx8mp_analog.h"
 #include "migration/vmstate.h"
+}
 
 #define ANALOG_PLL_LOCK BIT(31)
 
@@ -85,7 +87,7 @@ static void imx8mp_analog_reset(DeviceState *dev)
 
 static uint64_t imx8mp_analog_read(void *opaque, hwaddr offset, unsigned size)
 {
-    IMX8MPAnalogState *s = opaque;
+    IMX8MPAnalogState *s = static_cast<IMX8MPAnalogState *>(opaque);
 
     return s->analog[offset >> 2];
 }
@@ -93,7 +95,7 @@ static uint64_t imx8mp_analog_read(void *opaque, hwaddr offset, unsigned size)
 static void imx8mp_analog_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    IMX8MPAnalogState *s = opaque;
+    IMX8MPAnalogState *s = static_cast<IMX8MPAnalogState *>(opaque);
 
     if (offset >> 2 == ANALOG_DIGPROG) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -103,16 +105,18 @@ static void imx8mp_analog_write(void *opaque, hwaddr offset,
     }
 }
 
-static const struct MemoryRegionOps imx8mp_analog_ops = {
-    .read = imx8mp_analog_read,
-    .write = imx8mp_analog_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
-};
+static MemoryRegionOps imx8mp_analog_ops;
+
+static void __attribute__((constructor)) init_imx8mp_analog_ops(void)
+{
+    memset(&imx8mp_analog_ops, 0, sizeof(imx8mp_analog_ops));
+    imx8mp_analog_ops.read = imx8mp_analog_read;
+    imx8mp_analog_ops.write = imx8mp_analog_write;
+    imx8mp_analog_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    imx8mp_analog_ops.impl.min_access_size = 4;
+    imx8mp_analog_ops.impl.max_access_size = 4;
+    imx8mp_analog_ops.impl.unaligned = false;
+}
 
 static void imx8mp_analog_init(Object *obj)
 {
@@ -128,14 +132,16 @@ static void imx8mp_analog_init(Object *obj)
     sysbus_init_mmio(sd, &s->mmio.container);
 }
 
+static const VMStateField vmstate_imx8mp_analog_fields[] = {
+    VMSTATE_UINT32_ARRAY(analog, IMX8MPAnalogState, ANALOG_MAX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription imx8mp_analog_vmstate = {
     .name = TYPE_IMX8MP_ANALOG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(analog, IMX8MPAnalogState, ANALOG_MAX),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_imx8mp_analog_fields,
 };
 
 static void imx8mp_analog_class_init(ObjectClass *klass, const void *data)

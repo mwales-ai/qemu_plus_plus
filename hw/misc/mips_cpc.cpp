@@ -18,15 +18,18 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
-#include "cpu.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-
 #include "hw/misc/mips_cpc.h"
 #include "hw/qdev-properties.h"
+}
+
+#include "cpu.h"
 
 static inline uint64_t cpc_vp_run_mask(MIPSCPCState *cpc)
 {
@@ -35,7 +38,7 @@ static inline uint64_t cpc_vp_run_mask(MIPSCPCState *cpc)
 
 static void mips_cpu_reset_async_work(CPUState *cs, run_on_cpu_data data)
 {
-    MIPSCPCState *cpc = (MIPSCPCState *) data.host_ptr;
+    MIPSCPCState *cpc = static_cast<MIPSCPCState *>(data.host_ptr);
 
     cpu_reset(cs);
     cs->halted = 0;
@@ -76,7 +79,7 @@ static void cpc_stop_vp(MIPSCPCState *cpc, uint64_t vp_stop)
 static void cpc_write(void *opaque, hwaddr offset, uint64_t data,
                       unsigned size)
 {
-    MIPSCPCState *s = opaque;
+    MIPSCPCState *s = static_cast<MIPSCPCState *>(opaque);
 
     switch (offset) {
     case CPC_CL_BASE_OFS + CPC_VP_RUN_OFS:
@@ -96,7 +99,7 @@ static void cpc_write(void *opaque, hwaddr offset, uint64_t data,
 
 static uint64_t cpc_read(void *opaque, hwaddr offset, unsigned size)
 {
-    MIPSCPCState *s = opaque;
+    MIPSCPCState *s = static_cast<MIPSCPCState *>(opaque);
 
     switch (offset) {
     case CPC_CL_BASE_OFS + CPC_VP_RUNNING_OFS:
@@ -109,14 +112,16 @@ static uint64_t cpc_read(void *opaque, hwaddr offset, unsigned size)
     }
 }
 
-static const MemoryRegionOps cpc_ops = {
-    .read = cpc_read,
-    .write = cpc_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .max_access_size = 8,
-    },
-};
+static MemoryRegionOps cpc_ops;
+
+static void __attribute__((constructor)) init_cpc_ops(void)
+{
+    memset(&cpc_ops, 0, sizeof(cpc_ops));
+    cpc_ops.read = cpc_read;
+    cpc_ops.write = cpc_write;
+    cpc_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    cpc_ops.impl.max_access_size = 8;
+}
 
 static void mips_cpc_init(Object *obj)
 {
@@ -151,14 +156,16 @@ static void mips_cpc_reset(DeviceState *dev)
     cpc_run_vp(s, s->vp_start_running);
 }
 
+static const VMStateField vmstate_mips_cpc_fields[] = {
+    VMSTATE_UINT64(vp_running, MIPSCPCState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_mips_cpc = {
     .name = "mips-cpc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(vp_running, MIPSCPCState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_mips_cpc_fields,
 };
 
 static const Property mips_cpc_properties[] = {

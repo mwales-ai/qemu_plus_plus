@@ -13,7 +13,7 @@ if (config_all_devices.has_key('CONFIG_UEFI_VARS'))
   uefi_vars_ss.add(when: gnutls,
                    if_true: files('var-service-pkcs7.c'),
                    if_false: files('var-service-pkcs7-stub.cpp'))
-  uefi_vars_ss.add(files('var-service-siglist.c'))
+  uefi_vars_ss.add(files('var-service-siglist.cpp'))
 endif
 
 modules += { 'hw-uefi' : {

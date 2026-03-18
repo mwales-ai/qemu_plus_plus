@@ -7,15 +7,19 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
-#include "cpu.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/m68k/mcf.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
+}
+
+#include "cpu.h"
 
 #define TYPE_MCF_INTC "mcf-intc"
 OBJECT_DECLARE_SIMPLE_TYPE(mcf_intc_state, MCF_INTC)
@@ -60,7 +64,7 @@ static uint64_t mcf_intc_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     int offset;
-    mcf_intc_state *s = (mcf_intc_state *)opaque;
+    mcf_intc_state *s = static_cast<mcf_intc_state *>(opaque);
     offset = addr & 0xff;
     if (offset >= 0x40 && offset < 0x80) {
         return s->icr[offset - 0x40];
@@ -95,7 +99,7 @@ static void mcf_intc_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     int offset;
-    mcf_intc_state *s = (mcf_intc_state *)opaque;
+    mcf_intc_state *s = static_cast<mcf_intc_state *>(opaque);
     offset = addr & 0xff;
     if (offset >= 0x40 && offset < 0x80) {
         int n = offset - 0x40;
@@ -141,7 +145,7 @@ static void mcf_intc_write(void *opaque, hwaddr addr,
 
 static void mcf_intc_set_irq(void *opaque, int irq, int level)
 {
-    mcf_intc_state *s = (mcf_intc_state *)opaque;
+    mcf_intc_state *s = static_cast<mcf_intc_state *>(opaque);
     if (irq >= 64)
         return;
     if (level)
@@ -206,7 +210,7 @@ static void mcf_intc_register_types(void)
 
 type_init(mcf_intc_register_types)
 
-qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
+extern "C" qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
                         hwaddr base,
                         M68kCPU *cpu)
 {

@@ -5,10 +5,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
-#include "system/dma.h"
 
+#include "system/dma.h"
 #include "hw/uefi/var-service.h"
+
+extern "C" {
+#include "qemu/error-report.h"
+}
 
 /*
  * Add x509 certificate to list (with duplicate check).
@@ -29,7 +32,7 @@ static void uefi_vars_siglist_add_x509(uefi_vars_siglist *siglist,
         return;
     }
 
-    c = g_malloc(sizeof(*c) + size);
+    c = static_cast<uefi_vars_cert *>(g_malloc(sizeof(*c) + size));
     c->owner = *owner;
     c->size = size;
     memcpy(c->data, data, size);
@@ -52,20 +55,20 @@ static void uefi_vars_siglist_add_sha256(uefi_vars_siglist *siglist,
         return;
     }
 
-    h = g_malloc(sizeof(*h) + 32);
+    h = static_cast<uefi_vars_hash *>(g_malloc(sizeof(*h) + 32));
     h->owner = *owner;
     memcpy(h->data, data, 32);
     QTAILQ_INSERT_TAIL(&siglist->sha256, h, next);
 }
 
-void uefi_vars_siglist_init(uefi_vars_siglist *siglist)
+extern "C" void uefi_vars_siglist_init(uefi_vars_siglist *siglist)
 {
     memset(siglist, 0, sizeof(*siglist));
     QTAILQ_INIT(&siglist->x509);
     QTAILQ_INIT(&siglist->sha256);
 }
 
-void uefi_vars_siglist_free(uefi_vars_siglist *siglist)
+extern "C" void uefi_vars_siglist_free(uefi_vars_siglist *siglist)
 {
     uefi_vars_cert *c, *cs;
     uefi_vars_hash *h, *hs;
@@ -83,7 +86,7 @@ void uefi_vars_siglist_free(uefi_vars_siglist *siglist)
 /*
  * Parse UEFI signature list.
  */
-void uefi_vars_siglist_parse(uefi_vars_siglist *siglist,
+extern "C" void uefi_vars_siglist_parse(uefi_vars_siglist *siglist,
                              void *data, uint64_t size)
 {
     efi_siglist *efilist;
@@ -93,7 +96,7 @@ void uefi_vars_siglist_parse(uefi_vars_siglist *siglist,
         if (size < sizeof(*efilist)) {
             break;
         }
-        efilist = data;
+        efilist = static_cast<efi_siglist *>(data);
         if (size < efilist->siglist_size) {
             break;
         }
@@ -110,8 +113,8 @@ void uefi_vars_siglist_parse(uefi_vars_siglist *siglist,
                 break;
             }
             uefi_vars_siglist_add_x509(siglist,
-                                       (QemuUUID *)(data + start),
-                                       data + start + sizeof(QemuUUID),
+                                       (QemuUUID *)(static_cast<char *>(data) + start),
+                                       static_cast<char *>(data) + start + sizeof(QemuUUID),
                                        efilist->sig_size - sizeof(QemuUUID));
 
         } else if (qemu_uuid_is_equal(&efilist->guid_type, &EfiCertSha256Guid)) {
@@ -123,8 +126,8 @@ void uefi_vars_siglist_parse(uefi_vars_siglist *siglist,
             }
             while (start <= efilist->siglist_size - efilist->sig_size) {
                 uefi_vars_siglist_add_sha256(siglist,
-                                             (QemuUUID *)(data + start),
-                                             data + start + sizeof(QemuUUID));
+                                             (QemuUUID *)(static_cast<char *>(data) + start),
+                                             static_cast<char *>(data) + start + sizeof(QemuUUID));
                 start += efilist->sig_size;
             }
 
@@ -135,12 +138,12 @@ void uefi_vars_siglist_parse(uefi_vars_siglist *siglist,
             g_free(str_uuid);
         }
 
-        data += efilist->siglist_size;
+        data = static_cast<char *>(data) + efilist->siglist_size;
         size -= efilist->siglist_size;
     }
 }
 
-uint64_t uefi_vars_siglist_blob_size(uefi_vars_siglist *siglist)
+extern "C" uint64_t uefi_vars_siglist_blob_size(uefi_vars_siglist *siglist)
 {
     uefi_vars_cert *c;
     uefi_vars_hash *h;
@@ -163,7 +166,7 @@ uint64_t uefi_vars_siglist_blob_size(uefi_vars_siglist *siglist)
 /*
  * Generate UEFI signature list.
  */
-void uefi_vars_siglist_blob_generate(uefi_vars_siglist *siglist,
+extern "C" void uefi_vars_siglist_blob_generate(uefi_vars_siglist *siglist,
                                      void *data, uint64_t size)
 {
     uefi_vars_cert *c;
@@ -173,15 +176,15 @@ void uefi_vars_siglist_blob_generate(uefi_vars_siglist *siglist,
     uint32_t i;
 
     QTAILQ_FOREACH(c, &siglist->x509, next) {
-        efilist = data + pos;
+        efilist = reinterpret_cast<efi_siglist *>(static_cast<char *>(data) + pos);
         efilist->guid_type = EfiCertX509Guid;
         efilist->sig_size = sizeof(QemuUUID) + c->size;
         efilist->header_size = 0;
 
         start = pos + sizeof(efi_siglist);
-        memcpy(data + start,
+        memcpy(static_cast<char *>(data) + start,
                &c->owner, sizeof(QemuUUID));
-        memcpy(data + start + sizeof(QemuUUID),
+        memcpy(static_cast<char *>(data) + start + sizeof(QemuUUID),
                c->data, c->size);
 
         efilist->siglist_size = sizeof(efi_siglist) + efilist->sig_size;
@@ -189,7 +192,7 @@ void uefi_vars_siglist_blob_generate(uefi_vars_siglist *siglist,
     }
 
     if (!QTAILQ_EMPTY(&siglist->sha256)) {
-        efilist = data + pos;
+        efilist = reinterpret_cast<efi_siglist *>(static_cast<char *>(data) + pos);
         efilist->guid_type = EfiCertSha256Guid;
         efilist->sig_size = sizeof(QemuUUID) + 32;
         efilist->header_size = 0;
@@ -197,9 +200,9 @@ void uefi_vars_siglist_blob_generate(uefi_vars_siglist *siglist,
         i = 0;
         start = pos + sizeof(efi_siglist);
         QTAILQ_FOREACH(h, &siglist->sha256, next) {
-            memcpy(data + start + efilist->sig_size * i,
+            memcpy(static_cast<char *>(data) + start + efilist->sig_size * i,
                    &h->owner, sizeof(QemuUUID));
-            memcpy(data + start + efilist->sig_size * i + sizeof(QemuUUID),
+            memcpy(static_cast<char *>(data) + start + efilist->sig_size * i + sizeof(QemuUUID),
                    h->data, 32);
             i++;
         }

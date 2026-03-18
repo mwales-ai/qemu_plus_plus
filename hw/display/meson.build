@@ -69,7 +69,7 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
   virtio_gpu_ss.add(when: 'CONFIG_VIRTIO_GPU',
                     if_true: [files('virtio-gpu-base.cpp', 'virtio-gpu.cpp'), pixman])
   if host_os == 'linux'
-    virtio_gpu_ss.add(files('virtio-gpu-udmabuf.c'))
+    virtio_gpu_ss.add(files('virtio-gpu-udmabuf.cpp'))
   else
     virtio_gpu_ss.add(files('virtio-gpu-udmabuf-stubs.cpp'))
   endif

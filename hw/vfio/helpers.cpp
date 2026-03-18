@@ -22,18 +22,20 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
+extern "C" {
 #include "system/kvm.h"
 #include "hw/vfio/vfio-device.h"
 #include "hw/hw.h"
 #include "qapi/error.h"
 #include "vfio-helpers.h"
+}
 
-int vfio_bitmap_alloc(VFIOBitmap *vbmap, hwaddr size)
+extern "C" int vfio_bitmap_alloc(VFIOBitmap *vbmap, hwaddr size)
 {
     vbmap->pages = REAL_HOST_PAGE_ALIGN(size) / qemu_real_host_page_size();
     vbmap->size = ROUND_UP(vbmap->pages, sizeof(__u64) * BITS_PER_BYTE) /
                                          BITS_PER_BYTE;
-    vbmap->bitmap = g_try_malloc0(vbmap->size);
+    vbmap->bitmap = static_cast<unsigned long *>(g_try_malloc0(vbmap->size));
     if (!vbmap->bitmap) {
         return -ENOMEM;
     }
@@ -41,12 +43,16 @@ int vfio_bitmap_alloc(VFIOBitmap *vbmap, hwaddr size)
     return 0;
 }
 
-struct vfio_info_cap_header *
+extern "C" struct vfio_info_cap_header *
 vfio_get_cap(void *ptr, uint32_t cap_offset, uint16_t id)
 {
     struct vfio_info_cap_header *hdr;
 
-    for (hdr = ptr + cap_offset; hdr != ptr; hdr = ptr + hdr->next) {
+    for (hdr = reinterpret_cast<struct vfio_info_cap_header *>(
+             static_cast<char *>(ptr) + cap_offset);
+         hdr != ptr;
+         hdr = reinterpret_cast<struct vfio_info_cap_header *>(
+             static_cast<char *>(ptr) + hdr->next)) {
         if (hdr->id == id) {
             return hdr;
         }
@@ -55,37 +61,37 @@ vfio_get_cap(void *ptr, uint32_t cap_offset, uint16_t id)
     return NULL;
 }
 
-struct vfio_info_cap_header *
+extern "C" struct vfio_info_cap_header *
 vfio_get_region_info_cap(struct vfio_region_info *info, uint16_t id)
 {
     if (!(info->flags & VFIO_REGION_INFO_FLAG_CAPS)) {
         return NULL;
     }
 
-    return vfio_get_cap((void *)info, info->cap_offset, id);
+    return vfio_get_cap(static_cast<void *>(info), info->cap_offset, id);
 }
 
-struct vfio_info_cap_header *
+extern "C" struct vfio_info_cap_header *
 vfio_get_device_info_cap(struct vfio_device_info *info, uint16_t id)
 {
     if (!(info->flags & VFIO_DEVICE_FLAGS_CAPS)) {
         return NULL;
     }
 
-    return vfio_get_cap((void *)info, info->cap_offset, id);
+    return vfio_get_cap(static_cast<void *>(info), info->cap_offset, id);
 }
 
-struct vfio_info_cap_header *
+extern "C" struct vfio_info_cap_header *
 vfio_get_iommu_type1_info_cap(struct vfio_iommu_type1_info *info, uint16_t id)
 {
     if (!(info->flags & VFIO_IOMMU_INFO_CAPS)) {
         return NULL;
     }
 
-    return vfio_get_cap((void *)info, info->cap_offset, id);
+    return vfio_get_cap(static_cast<void *>(info), info->cap_offset, id);
 }
 
-bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
+extern "C" bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
                              unsigned int *avail)
 {
     struct vfio_info_cap_header *hdr;
@@ -99,7 +105,7 @@ bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
     }
 
     if (avail != NULL) {
-        cap = (void *) hdr;
+        cap = reinterpret_cast<struct vfio_iommu_type1_info_dma_avail *>(hdr);
         *avail = cap->avail;
     }
 
@@ -117,7 +123,7 @@ bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
 int vfio_kvm_device_fd = -1;
 #endif
 
-void vfio_kvm_device_close(void)
+extern "C" void vfio_kvm_device_close(void)
 {
 #ifdef CONFIG_KVM
     kvm_close();
@@ -128,7 +134,7 @@ void vfio_kvm_device_close(void)
 #endif
 }
 
-int vfio_kvm_device_add_fd(int fd, Error **errp)
+extern "C" int vfio_kvm_device_add_fd(int fd, Error **errp)
 {
 #ifdef CONFIG_KVM
     struct kvm_device_attr attr = {
@@ -163,7 +169,7 @@ int vfio_kvm_device_add_fd(int fd, Error **errp)
     return 0;
 }
 
-int vfio_kvm_device_del_fd(int fd, Error **errp)
+extern "C" int vfio_kvm_device_del_fd(int fd, Error **errp)
 {
 #ifdef CONFIG_KVM
     struct kvm_device_attr attr = {
@@ -186,12 +192,12 @@ int vfio_kvm_device_del_fd(int fd, Error **errp)
     return 0;
 }
 
-struct vfio_device_info *vfio_get_device_info(int fd)
+extern "C" struct vfio_device_info *vfio_get_device_info(int fd)
 {
     struct vfio_device_info *info;
     uint32_t argsz = sizeof(*info);
 
-    info = g_malloc0(argsz);
+    info = static_cast<struct vfio_device_info *>(g_malloc0(argsz));
 
 retry:
     info->argsz = argsz;
@@ -203,14 +209,14 @@ retry:
 
     if (info->argsz > argsz) {
         argsz = info->argsz;
-        info = g_realloc(info, argsz);
+        info = static_cast<struct vfio_device_info *>(g_realloc(info, argsz));
         goto retry;
     }
 
     return info;
 }
 
-bool vfio_arch_wants_loading_config_after_iter(void)
+extern "C" bool vfio_arch_wants_loading_config_after_iter(void)
 {
     /*
      * Starting the config load only after all iterables were loaded (during

@@ -10,6 +10,10 @@
 #ifndef DMABUF_H
 #define DMABUF_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define DMABUF_MAX_PLANES 4
 
 typedef struct QemuDmaBuf QemuDmaBuf;
@@ -49,5 +53,9 @@ void qemu_dmabuf_set_texture(QemuDmaBuf *dmabuf, uint32_t texture);
 void qemu_dmabuf_set_fence_fd(QemuDmaBuf *dmabuf, int32_t fence_fd);
 void qemu_dmabuf_set_sync(QemuDmaBuf *dmabuf, void *sync);
 void qemu_dmabuf_set_draw_submitted(QemuDmaBuf *dmabuf, bool draw_submitted);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

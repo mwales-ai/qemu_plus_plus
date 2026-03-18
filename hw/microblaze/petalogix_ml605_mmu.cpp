@@ -26,9 +26,10 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "cpu.h"
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/block/flash.h"
@@ -38,10 +39,11 @@
 #include "hw/qdev-properties.h"
 #include "system/address-spaces.h"
 #include "hw/ssi/ssi.h"
-
-#include "boot.h"
-
 #include "hw/stream.h"
+}
+
+#include "cpu.h"
+#include "boot.h"
 
 #define LMB_BRAM_SIZE  (128 * KiB)
 #define FLASH_SIZE     (32 * MiB)
