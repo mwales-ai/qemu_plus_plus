@@ -51,7 +51,7 @@ specific_ss.add(when: 'CONFIG_OMPIC', if_true: files('ompic.cpp'))
 specific_ss.add(when: ['CONFIG_KVM', 'CONFIG_OPENPIC'],
 		if_true: files('openpic_kvm.cpp'))
 specific_ss.add(when: 'CONFIG_POWERNV', if_true: files('xics_pnv.cpp', 'pnv_xive.c', 'pnv_xive2.c'))
-specific_ss.add(when: 'CONFIG_PPC_UIC', if_true: files('ppc-uic.c'))
+specific_ss.add(when: 'CONFIG_PPC_UIC', if_true: files('ppc-uic.cpp'))
 specific_ss.add(when: 'CONFIG_RX_ICU', if_true: files('rx_icu.c'))
 specific_ss.add(when: 'CONFIG_S390_FLIC', if_true: files('s390_flic.c'))
 specific_ss.add(when: 'CONFIG_S390_FLIC_KVM', if_true: files('s390_flic_kvm.c'))

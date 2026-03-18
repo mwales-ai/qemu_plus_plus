@@ -10,9 +10,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/bitops.h"
 #include "cpu.h"
 #include "hw/mips/bootloader.h"
+}
 
 typedef enum bl_reg {
     BL_REG_ZERO = 0,
@@ -56,7 +59,7 @@ static bool bootcpu_supports_isa(uint64_t isa_mask)
 
 static void st_nm32_p(void **ptr, uint32_t insn)
 {
-    uint16_t *p = *ptr;
+    uint16_t *p = static_cast<uint16_t *>(*ptr);
 
     stw_p(p, insn >> 16);
     p++;
@@ -72,7 +75,7 @@ static void bl_gen_nop(void **ptr)
     if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
         st_nm32_p(ptr, 0x8000c000);
     } else {
-        uint32_t *p = *ptr;
+        uint32_t *p = static_cast<uint32_t *>(*ptr);
 
         stl_p(p, 0);
         p++;
@@ -84,7 +87,7 @@ static void bl_gen_r_type(void **ptr, uint8_t opcode,
                           bl_reg rs, bl_reg rt, bl_reg rd,
                           uint8_t shift, uint8_t funct)
 {
-    uint32_t *p = *ptr;
+    uint32_t *p = static_cast<uint32_t *>(*ptr);
     uint32_t insn = 0;
 
     insn = deposit32(insn, 26, 6, opcode);
@@ -103,7 +106,7 @@ static void bl_gen_r_type(void **ptr, uint8_t opcode,
 static void bl_gen_i_type(void **ptr, uint8_t opcode,
                           bl_reg rs, bl_reg rt, uint16_t imm)
 {
-    uint32_t *p = *ptr;
+    uint32_t *p = static_cast<uint32_t *>(*ptr);
     uint32_t insn = 0;
 
     insn = deposit32(insn, 26, 6, opcode);
@@ -121,7 +124,7 @@ static void bl_gen_i_type(void **ptr, uint8_t opcode,
 static void bl_gen_dsll(void **p, bl_reg rd, bl_reg rt, uint8_t sa)
 {
     if (bootcpu_supports_isa(ISA_MIPS3)) {
-        bl_gen_r_type(p, 0, 0, rt, rd, sa, 0x38);
+        bl_gen_r_type(p, 0, static_cast<bl_reg>(0), rt, rd, sa, 0x38);
     } else {
         g_assert_not_reached(); /* unsupported */
     }
@@ -138,7 +141,7 @@ static void bl_gen_jalr(void **p, bl_reg rs)
 
         st_nm32_p(p, insn);
     } else {
-        bl_gen_r_type(p, 0, rs, 0, BL_REG_RA, 0, 0x09);
+        bl_gen_r_type(p, 0, rs, static_cast<bl_reg>(0), BL_REG_RA, 0, 0x09);
     }
 }
 
@@ -159,7 +162,7 @@ static void bl_gen_lui_nm(void **ptr, bl_reg rt, uint32_t imm20)
 static void bl_gen_lui(void **p, bl_reg rt, uint16_t imm)
 {
     /* R6: It's a alias of AUI with RS = 0 */
-    bl_gen_i_type(p, 0x0f, 0, rt, imm);
+    bl_gen_i_type(p, 0x0f, static_cast<bl_reg>(0), rt, imm);
 }
 
 static void bl_gen_ori_nm(void **ptr, bl_reg rt, bl_reg rs, uint16_t imm12)
@@ -199,14 +202,14 @@ static void bl_gen_sw(void **p, bl_reg rt, uint8_t base, uint16_t offset)
     if (bootcpu_supports_isa(ISA_NANOMIPS32)) {
         bl_gen_sw_nm(p, rt, base, offset);
     } else {
-        bl_gen_i_type(p, 0x2b, base, rt, offset);
+        bl_gen_i_type(p, 0x2b, static_cast<bl_reg>(base), rt, offset);
     }
 }
 
 static void bl_gen_sd(void **p, bl_reg rt, uint8_t base, uint16_t offset)
 {
     if (bootcpu_supports_isa(ISA_MIPS3)) {
-        bl_gen_i_type(p, 0x3f, base, rt, offset);
+        bl_gen_i_type(p, 0x3f, static_cast<bl_reg>(base), rt, offset);
     } else {
         g_assert_not_reached(); /* unsupported */
     }
@@ -243,14 +246,14 @@ static void bl_gen_load_ulong(void **p, bl_reg rt, target_ulong imm)
 }
 
 /* Helpers */
-void bl_gen_jump_to(void **p, target_ulong jump_addr)
+extern "C" void bl_gen_jump_to(void **p, target_ulong jump_addr)
 {
     bl_gen_load_ulong(p, BL_REG_T9, jump_addr);
     bl_gen_jalr(p, BL_REG_T9);
     bl_gen_nop(p); /* delay slot */
 }
 
-void bl_gen_jump_kernel(void **p,
+extern "C" void bl_gen_jump_kernel(void **p,
                         bool set_sp, target_ulong sp,
                         bool set_a0, target_ulong a0,
                         bool set_a1, target_ulong a1,
@@ -277,7 +280,7 @@ void bl_gen_jump_kernel(void **p,
     bl_gen_jump_to(p, kernel_addr);
 }
 
-void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
+extern "C" void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
 {
     bl_gen_load_ulong(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);
@@ -288,14 +291,14 @@ void bl_gen_write_ulong(void **p, target_ulong addr, target_ulong val)
     }
 }
 
-void bl_gen_write_u32(void **p, target_ulong addr, uint32_t val)
+extern "C" void bl_gen_write_u32(void **p, target_ulong addr, uint32_t val)
 {
     bl_gen_li(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);
     bl_gen_sw(p, BL_REG_K0, BL_REG_K1, 0x0);
 }
 
-void bl_gen_write_u64(void **p, target_ulong addr, uint64_t val)
+extern "C" void bl_gen_write_u64(void **p, target_ulong addr, uint64_t val)
 {
     bl_gen_dli(p, BL_REG_K0, val);
     bl_gen_load_ulong(p, BL_REG_K1, addr);

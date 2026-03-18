@@ -25,6 +25,8 @@
 
 #include "qemu/osdep.h"
 #include <linux/kvm.h>
+
+extern "C" {
 #include "qapi/qapi-types-machine.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
@@ -36,6 +38,7 @@
 #include "system/kvm.h"
 #include "target/i386/kvm/kvm_i386.h"
 #include "qom/object.h"
+}
 
 #define KVM_PIT_REINJECT_BIT 0
 
@@ -66,11 +69,6 @@ static void kvm_pit_update_clock_offset(KVMPITState *s)
     struct timespec ts;
     int i;
 
-    /*
-     * Measure the delta between CLOCK_MONOTONIC, the base used for
-     * kvm_pit_channel_state::count_load_time, and QEMU_CLOCK_VIRTUAL. Take the
-     * minimum of several samples to filter out scheduling noise.
-     */
     clock_offset = INT64_MAX;
     for (i = 0; i < CALIBRATION_ROUNDS; i++) {
         offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -210,7 +208,7 @@ static void kvm_pit_reset(DeviceState *dev)
 
 static void kvm_pit_irq_control(void *opaque, int n, int enable)
 {
-    PITCommonState *pit = opaque;
+    PITCommonState *pit = static_cast<PITCommonState *>(opaque);
     PITChannelState *s = &pit->channels[0];
 
     kvm_pit_get(pit);
@@ -223,7 +221,7 @@ static void kvm_pit_irq_control(void *opaque, int n, int enable)
 static void kvm_pit_vm_state_change(void *opaque, bool running,
                                     RunState state)
 {
-    KVMPITState *s = opaque;
+    KVMPITState *s = static_cast<KVMPITState *>(opaque);
 
     if (running) {
         kvm_pit_update_clock_offset(s);
@@ -310,8 +308,8 @@ static const TypeInfo kvm_pit_info = {
     .name          = TYPE_KVM_I8254,
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(KVMPITState),
-    .class_init = kvm_pit_class_init,
     .class_size = sizeof(KVMPITClass),
+    .class_init = kvm_pit_class_init,
 };
 
 static void kvm_pit_register(void)

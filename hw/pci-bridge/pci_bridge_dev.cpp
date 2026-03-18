@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/pci/pci_bridge.h"
@@ -190,21 +191,24 @@ static const Property pci_bridge_dev_properties[] = {
 
 static bool pci_device_shpc_present(void *opaque, int version_id)
 {
-    PCIDevice *dev = opaque;
+    PCIDevice *dev = static_cast<PCIDevice *>(opaque);
 
     return shpc_present(dev);
 }
 
+static const VMStateField vmstate_pci_bridge_dev_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
+    SHPC_VMSTATE(shpc, PCIDevice, pci_device_shpc_present),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription pci_bridge_dev_vmstate = {
     .name = "pci_bridge",
     .priority = MIG_PRI_PCI_BUS,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
-        SHPC_VMSTATE(shpc, PCIDevice, pci_device_shpc_present),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_bridge_dev_fields,
 };
 
+extern "C"
 void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                             Error **errp)
 {
@@ -218,6 +222,7 @@ void pci_bridge_dev_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     shpc_device_plug_cb(hotplug_dev, dev, errp);
 }
 
+extern "C"
 void pci_bridge_dev_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp)
 {
@@ -227,6 +232,7 @@ void pci_bridge_dev_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
     shpc_device_unplug_cb(hotplug_dev, dev, errp);
 }
 
+extern "C"
 void pci_bridge_dev_unplug_request_cb(HotplugHandler *hotplug_dev,
                                       DeviceState *dev, Error **errp)
 {
@@ -262,17 +268,19 @@ static void pci_bridge_dev_class_init(ObjectClass *klass, const void *data)
     hc->unplug_request = pci_bridge_dev_unplug_request_cb;
 }
 
+static const InterfaceInfo pci_bridge_dev_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
 static const TypeInfo pci_bridge_dev_info = {
     .name              = TYPE_PCI_BRIDGE_DEV,
     .parent            = TYPE_PCI_BRIDGE,
     .instance_size     = sizeof(PCIBridgeDev),
-    .class_init        = pci_bridge_dev_class_init,
     .instance_finalize = pci_bridge_dev_instance_finalize,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+    .class_init        = pci_bridge_dev_class_init,
+    .interfaces = pci_bridge_dev_interfaces,
 };
 
 /*

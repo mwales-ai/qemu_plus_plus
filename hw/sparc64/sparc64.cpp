@@ -24,12 +24,16 @@
 
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/boards.h"
 #include "hw/sparc/sparc64.h"
 #include "qemu/timer.h"
 #include "system/reset.h"
+}
+
 #include "trace.h"
 
 
@@ -45,9 +49,9 @@ static void cpu_kick_irq(SPARCCPU *cpu)
     qemu_cpu_kick(cs);
 }
 
-void sparc64_cpu_set_ivec_irq(void *opaque, int irq, int level)
+extern "C" void sparc64_cpu_set_ivec_irq(void *opaque, int irq, int level)
 {
-    SPARCCPU *cpu = opaque;
+    SPARCCPU *cpu = static_cast<SPARCCPU *>(opaque);
     CPUSPARCState *env = &cpu->env;
     CPUState *cs;
 
@@ -108,7 +112,7 @@ static void cpu_timer_reset(CPUTimer *timer)
 
 static void main_cpu_reset(void *opaque)
 {
-    ResetData *s = (ResetData *)opaque;
+    ResetData *s = static_cast<ResetData *>(opaque);
     CPUSPARCState *env = &s->cpu->env;
     static unsigned int nr_resets;
 
@@ -132,7 +136,7 @@ static void main_cpu_reset(void *opaque)
 
 static void tick_irq(void *opaque)
 {
-    SPARCCPU *cpu = opaque;
+    SPARCCPU *cpu = static_cast<SPARCCPU *>(opaque);
     CPUSPARCState *env = &cpu->env;
 
     CPUTimer *timer = env->tick;
@@ -150,7 +154,7 @@ static void tick_irq(void *opaque)
 
 static void stick_irq(void *opaque)
 {
-    SPARCCPU *cpu = opaque;
+    SPARCCPU *cpu = static_cast<SPARCCPU *>(opaque);
     CPUSPARCState *env = &cpu->env;
 
     CPUTimer *timer = env->stick;
@@ -168,7 +172,7 @@ static void stick_irq(void *opaque)
 
 static void hstick_irq(void *opaque)
 {
-    SPARCCPU *cpu = opaque;
+    SPARCCPU *cpu = static_cast<SPARCCPU *>(opaque);
     CPUSPARCState *env = &cpu->env;
 
     CPUTimer *timer = env->hstick;
@@ -194,7 +198,7 @@ static uint64_t timer_to_cpu_ticks(int64_t timer_ticks, uint32_t frequency)
     return muldiv64(timer_ticks, frequency, NANOSECONDS_PER_SECOND);
 }
 
-void cpu_tick_set_count(CPUTimer *timer, uint64_t count)
+extern "C" void cpu_tick_set_count(CPUTimer *timer, uint64_t count)
 {
     uint64_t real_count = count & ~timer->npt_mask;
     uint64_t npt_bit = count & timer->npt_mask;
@@ -210,7 +214,7 @@ void cpu_tick_set_count(CPUTimer *timer, uint64_t count)
     timer->clock_offset = vm_clock_offset;
 }
 
-uint64_t cpu_tick_get_count(CPUTimer *timer)
+extern "C" uint64_t cpu_tick_get_count(CPUTimer *timer)
 {
     uint64_t real_count = timer_to_cpu_ticks(
                     qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - timer->clock_offset,
@@ -227,7 +231,7 @@ uint64_t cpu_tick_get_count(CPUTimer *timer)
     return real_count;
 }
 
-void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
+extern "C" void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
 {
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
@@ -262,7 +266,7 @@ void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
     }
 }
 
-SPARCCPU *sparc64_cpu_devinit(const char *cpu_type, uint64_t prom_addr)
+extern "C" SPARCCPU *sparc64_cpu_devinit(const char *cpu_type, uint64_t prom_addr)
 {
     SPARCCPU *cpu;
     CPUSPARCState *env;

@@ -16,6 +16,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qapi/error.h"
 #include "hw/arm/xlnx-zynqmp.h"
 #include "hw/arm/boot.h"
@@ -88,7 +89,7 @@ static void zcu102_modify_dtb(const struct arm_boot_info *binfo, void *fdt)
                                        &error_fatal);
 
         for (i = 0; node_path && node_path[i]; i++) {
-            r = qemu_fdt_getprop(fdt, node_path[i], "method", &prop_len, NULL);
+            r = static_cast<const char *>(qemu_fdt_getprop(fdt, node_path[i], "method", &prop_len, NULL));
             method_is_hvc = r && !strcmp("hvc", r);
 
             /* Allow HVC based firmware if EL2 is enabled.  */
@@ -260,12 +261,12 @@ static void xlnx_zcu102_machine_instance_init(Object *obj)
     object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
                              (Object **)&s->canbus[0],
                              object_property_allow_set_link,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
 
     object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
                              (Object **)&s->canbus[1],
                              object_property_allow_set_link,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static void xlnx_zcu102_machine_class_init(ObjectClass *oc, const void *data)
@@ -301,9 +302,9 @@ static void xlnx_zcu102_machine_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo xlnx_zcu102_machine_init_typeinfo = {
     .name       = TYPE_ZCU102_MACHINE,
     .parent     = TYPE_MACHINE,
-    .class_init = xlnx_zcu102_machine_class_init,
-    .instance_init = xlnx_zcu102_machine_instance_init,
     .instance_size = sizeof(XlnxZCU102),
+    .instance_init = xlnx_zcu102_machine_instance_init,
+    .class_init = xlnx_zcu102_machine_class_init,
     .interfaces = aarch64_machine_interfaces,
 };
 

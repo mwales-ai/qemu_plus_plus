@@ -11,6 +11,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+
 #include "hw/i386/pc.h"
 #include "hw/i386/sgx-epc.h"
 #include "hw/mem/memory-device.h"
@@ -23,8 +24,9 @@
 #include "system/address-spaces.h"
 #include "system/hw_accel.h"
 #include "system/reset.h"
-#include <sys/ioctl.h>
 #include "hw/acpi/aml-build.h"
+
+#include <sys/ioctl.h>
 
 #define SGX_MAX_EPC_SECTIONS            8
 #define SGX_CPUID_EPC_INVALID           0x0
@@ -40,7 +42,7 @@
 
 static int sgx_epc_device_list(Object *obj, void *opaque)
 {
-    GSList **list = opaque;
+    GSList **list = static_cast<GSList **>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_SGX_EPC)) {
         *list = g_slist_append(*list, DEVICE(obj));
@@ -58,12 +60,12 @@ static GSList *sgx_epc_get_device_list(void)
     return list;
 }
 
-void sgx_epc_build_srat(GArray *table_data)
+extern "C" void sgx_epc_build_srat(GArray *table_data)
 {
     GSList *device_list = sgx_epc_get_device_list();
 
     for (; device_list; device_list = device_list->next) {
-        DeviceState *dev = device_list->data;
+        DeviceState *dev = static_cast<DeviceState *>(device_list->data);
         Object *obj = OBJECT(dev);
         uint64_t addr, size;
         int node;
@@ -153,7 +155,7 @@ static void sgx_epc_reset(void *opaque)
      }
 }
 
-SgxInfo *qmp_query_sgx_capabilities(Error **errp)
+extern "C" SgxInfo *qmp_query_sgx_capabilities(Error **errp)
 {
     SgxInfo *info = NULL;
     uint32_t eax, ebx, ecx, edx;
@@ -190,7 +192,7 @@ static SgxEpcSectionList *sgx_get_epc_sections_list(void)
     SgxEpcSection *section;
 
     for (; device_list; device_list = device_list->next) {
-        DeviceState *dev = device_list->data;
+        DeviceState *dev = static_cast<DeviceState *>(device_list->data);
         Object *obj = OBJECT(dev);
 
         section = g_new0(SgxEpcSection, 1);
@@ -205,13 +207,13 @@ static SgxEpcSectionList *sgx_get_epc_sections_list(void)
     return head;
 }
 
-SgxInfo *qmp_query_sgx(Error **errp)
+extern "C" SgxInfo *qmp_query_sgx(Error **errp)
 {
     SgxInfo *info = NULL;
     X86MachineState *x86ms;
     PCMachineState *pcms =
-        (PCMachineState *)object_dynamic_cast(qdev_get_machine(),
-                                              TYPE_PC_MACHINE);
+        reinterpret_cast<PCMachineState *>(object_dynamic_cast(qdev_get_machine(),
+                                              TYPE_PC_MACHINE));
     if (!pcms) {
         error_setg(errp, "SGX is only supported on PC machines");
         return NULL;
@@ -234,7 +236,7 @@ SgxInfo *qmp_query_sgx(Error **errp)
     return info;
 }
 
-void hmp_info_sgx(Monitor *mon, const QDict *qdict)
+extern "C" void hmp_info_sgx(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
     SgxEpcSectionList *section_list, *section;
@@ -266,7 +268,7 @@ void hmp_info_sgx(Monitor *mon, const QDict *qdict)
                    size);
 }
 
-bool check_sgx_support(void)
+extern "C" bool check_sgx_support(void)
 {
     if (!object_dynamic_cast(qdev_get_machine(), TYPE_PC_MACHINE)) {
         return false;
@@ -274,11 +276,11 @@ bool check_sgx_support(void)
     return true;
 }
 
-bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
+extern "C" bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
 {
     PCMachineState *pcms =
-        (PCMachineState *)object_dynamic_cast(qdev_get_machine(),
-                                              TYPE_PC_MACHINE);
+        reinterpret_cast<PCMachineState *>(object_dynamic_cast(qdev_get_machine(),
+                                              TYPE_PC_MACHINE));
     SGXEPCDevice *epc;
 
     if (!pcms || pcms->sgx_epc.size == 0 || pcms->sgx_epc.nr_sections <= section_nr) {
@@ -293,7 +295,7 @@ bool sgx_epc_get_section(int section_nr, uint64_t *addr, uint64_t *size)
     return false;
 }
 
-void pc_machine_init_sgx_epc(PCMachineState *pcms)
+extern "C" void pc_machine_init_sgx_epc(PCMachineState *pcms)
 {
     SGXEPCState *sgx_epc = &pcms->sgx_epc;
     X86MachineState *x86ms = X86_MACHINE(pcms);
@@ -323,7 +325,7 @@ void pc_machine_init_sgx_epc(PCMachineState *pcms)
     }
 
     if ((sgx_epc->base + sgx_epc->size) < sgx_epc->base) {
-        error_report("Size of all 'sgx-epc' =0x%"PRIx64" causes EPC to wrap",
+        error_report("Size of all 'sgx-epc' =0x%" PRIx64 " causes EPC to wrap",
                      sgx_epc->size);
         exit(EXIT_FAILURE);
     }

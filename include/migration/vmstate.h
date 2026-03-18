@@ -534,12 +534,12 @@ extern const VMStateInfo vmstate_info_qlist;
 
 #define VMSTATE_ARRAY_OF_POINTER(_field, _state, _num, _version, _info, _type) {\
     .name       = (stringify(_field)),                               \
-    .version_id = (_version),                                        \
+    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
+    .size       = sizeof(_type),                                     \
     .num        = (_num),                                            \
     .info       = &(_info),                                          \
-    .size       = sizeof(_type),                                     \
     .flags      = VMS_ARRAY|VMS_ARRAY_OF_POINTER,                    \
-    .offset     = vmstate_offset_array(_state, _field, _type, _num), \
+    .version_id = (_version),                                        \
 }
 
 #define VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(_f, _s, _n, _v, _vmsd, _type) { \
@@ -820,12 +820,12 @@ extern const VMStateInfo vmstate_info_qlist;
 #define VMSTATE_QTAILQ_V(_field, _state, _version, _vmsd, _type, _next)  \
 {                                                                        \
     .name         = (stringify(_field)),                                 \
-    .version_id   = (_version),                                          \
-    .vmsd         = &(_vmsd),                                            \
-    .size         = sizeof(_type),                                       \
-    .info         = &vmstate_info_qtailq,                                \
     .offset       = offsetof(_state, _field),                            \
+    .size         = sizeof(_type),                                       \
     .start        = offsetof(_type, _next),                              \
+    .info         = &vmstate_info_qtailq,                                \
+    .vmsd         = &(_vmsd),                                            \
+    .version_id   = (_version),                                          \
 }
 
 /*

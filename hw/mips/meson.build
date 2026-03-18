@@ -1,5 +1,5 @@
 mips_ss = ss.source_set()
-mips_ss.add(files('bootloader.c', 'mips_int.cpp'))
+mips_ss.add(files('bootloader.cpp', 'mips_int.cpp'))
 common_ss.add(when: 'CONFIG_FW_CFG_MIPS', if_true: files('fw_cfg.cpp'))
 common_ss.add(when: 'CONFIG_LOONGSON3V', if_true: files('loongson3_bootp.cpp'))
 mips_ss.add(when: 'CONFIG_LOONGSON3V', if_true: files('loongson3_virt.c'))

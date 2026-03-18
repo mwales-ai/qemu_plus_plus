@@ -6,6 +6,10 @@
 #include "hw/pci/pci_device.h"
 #include "migration/vmstate.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct SHPCDevice {
     /* Capability offset in device's config space */
     int cap;
@@ -61,5 +65,9 @@ static inline bool shpc_present(const PCIDevice *dev)
 {
     return dev->cap_present & QEMU_PCI_CAP_SHPC;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -24,12 +24,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/timer/mss-timer.h"
 #include "migration/vmstate.h"
+}
 
 #ifndef MSS_TIMER_ERR_DEBUG
 #define MSS_TIMER_ERR_DEBUG  0
@@ -84,7 +87,7 @@ static void timer_update(struct Msf2Timer *st)
 static uint64_t
 timer_read(void *opaque, hwaddr offset, unsigned int size)
 {
-    MSSTimerState *t = opaque;
+    MSSTimerState *t = static_cast<MSSTimerState *>(opaque);
     hwaddr addr;
     struct Msf2Timer *st;
     uint32_t ret = 0;
@@ -135,7 +138,7 @@ static void
 timer_write(void *opaque, hwaddr offset,
             uint64_t val64, unsigned int size)
 {
-    MSSTimerState *t = opaque;
+    MSSTimerState *t = static_cast<MSSTimerState *>(opaque);
     hwaddr addr;
     struct Msf2Timer *st;
     int timer = 0;
@@ -201,19 +204,21 @@ timer_write(void *opaque, hwaddr offset,
     timer_update_irq(st);
 }
 
-static const MemoryRegionOps timer_ops = {
-    .read = timer_read,
-    .write = timer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4
-    }
-};
+static MemoryRegionOps timer_ops;
+
+static void __attribute__((constructor)) init_timer_ops(void)
+{
+    memset(&timer_ops, 0, sizeof(timer_ops));
+    timer_ops.read = timer_read;
+    timer_ops.write = timer_write;
+    timer_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    timer_ops.valid.min_access_size = 1;
+    timer_ops.valid.max_access_size = 4;
+}
 
 static void timer_hit(void *opaque)
 {
-    struct Msf2Timer *st = opaque;
+    struct Msf2Timer *st = static_cast<struct Msf2Timer *>(opaque);
 
     st->regs[R_TIM_RIS] |= TIMER_RIS_ACK;
 
@@ -256,27 +261,31 @@ static void mss_timer_finalize(Object *obj)
     }
 }
 
+static const VMStateField vmstate_timers_fields[] = {
+    VMSTATE_PTIMER(ptimer, struct Msf2Timer),
+    VMSTATE_UINT32_ARRAY(regs, struct Msf2Timer, R_TIM1_MAX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_timers = {
     .name = "mss-timer-block",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PTIMER(ptimer, struct Msf2Timer),
-        VMSTATE_UINT32_ARRAY(regs, struct Msf2Timer, R_TIM1_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_timers_fields,
+};
+
+static const VMStateField vmstate_mss_timer_fields[] = {
+    VMSTATE_UINT32(freq_hz, MSSTimerState),
+    VMSTATE_STRUCT_ARRAY(timers, MSSTimerState, NUM_TIMERS, 0,
+            vmstate_timers, struct Msf2Timer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_mss_timer = {
     .name = TYPE_MSS_TIMER,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(freq_hz, MSSTimerState),
-        VMSTATE_STRUCT_ARRAY(timers, MSSTimerState, NUM_TIMERS, 0,
-                vmstate_timers, struct Msf2Timer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mss_timer_fields,
 };
 
 static const Property mss_timer_properties[] = {

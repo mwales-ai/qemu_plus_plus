@@ -21,6 +21,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
@@ -28,6 +30,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "qom/object.h"
+}
 
 #ifndef EXYNOS4_I2C_DEBUG
 #define EXYNOS4_I2C_DEBUG                 0
@@ -108,7 +111,7 @@ static inline void exynos4210_i2c_raise_interrupt(Exynos4210I2CState *s)
 
 static void exynos4210_i2c_data_receive(void *opaque)
 {
-    Exynos4210I2CState *s = (Exynos4210I2CState *)opaque;
+    Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
 
     s->i2cstat &= ~I2CSTAT_LAST_BIT;
     s->scl_free = false;
@@ -118,7 +121,7 @@ static void exynos4210_i2c_data_receive(void *opaque)
 
 static void exynos4210_i2c_data_send(void *opaque)
 {
-    Exynos4210I2CState *s = (Exynos4210I2CState *)opaque;
+    Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
 
     s->i2cstat &= ~I2CSTAT_LAST_BIT;
     s->scl_free = false;
@@ -131,7 +134,7 @@ static void exynos4210_i2c_data_send(void *opaque)
 static uint64_t exynos4210_i2c_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
-    Exynos4210I2CState *s = (Exynos4210I2CState *)opaque;
+    Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
     uint8_t value;
 
     switch (offset) {
@@ -170,7 +173,7 @@ static uint64_t exynos4210_i2c_read(void *opaque, hwaddr offset,
 static void exynos4210_i2c_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
-    Exynos4210I2CState *s = (Exynos4210I2CState *)opaque;
+    Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
     uint8_t v = value & 0xff;
 
     DPRINT("write %s [0x%02x] <- 0x%02x\n", exynos4_i2c_get_regname(offset),
@@ -269,19 +272,21 @@ static const MemoryRegionOps exynos4210_i2c_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_exynos4210_i2c_fields[] = {
+    VMSTATE_UINT8(i2ccon, Exynos4210I2CState),
+    VMSTATE_UINT8(i2cstat, Exynos4210I2CState),
+    VMSTATE_UINT8(i2cds, Exynos4210I2CState),
+    VMSTATE_UINT8(i2cadd, Exynos4210I2CState),
+    VMSTATE_UINT8(i2clc, Exynos4210I2CState),
+    VMSTATE_BOOL(scl_free, Exynos4210I2CState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription exynos4210_i2c_vmstate = {
     .name = "exynos4210.i2c",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(i2ccon, Exynos4210I2CState),
-        VMSTATE_UINT8(i2cstat, Exynos4210I2CState),
-        VMSTATE_UINT8(i2cds, Exynos4210I2CState),
-        VMSTATE_UINT8(i2cadd, Exynos4210I2CState),
-        VMSTATE_UINT8(i2clc, Exynos4210I2CState),
-        VMSTATE_BOOL(scl_free, Exynos4210I2CState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_i2c_fields,
 };
 
 static void exynos4210_i2c_reset(DeviceState *d)

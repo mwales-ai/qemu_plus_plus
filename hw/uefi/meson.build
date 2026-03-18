@@ -2,7 +2,7 @@ system_ss.add(files('hardware-info.cpp', 'ovmf-log.cpp'))
 
 uefi_vars_ss = ss.source_set()
 if (config_all_devices.has_key('CONFIG_UEFI_VARS'))
-  uefi_vars_ss.add(files('var-service-core.c',
+  uefi_vars_ss.add(files('var-service-core.cpp',
                          'var-service-json.cpp',
                          'var-service-vars.c',
                          'var-service-auth.cpp',

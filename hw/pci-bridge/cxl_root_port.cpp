@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/log.h"
 #include "qemu/range.h"
 #include "hw/pci/pci_bridge.h"
@@ -108,37 +109,40 @@ static void build_dvsecs(CXLComponentState *cxl)
 {
     uint8_t *dvsec;
 
-    dvsec = (uint8_t *)&(CXLDVSECPortExt){ 0 };
+    CXLDVSECPortExt port_ext;
+    memset(&port_ext, 0, sizeof(port_ext));
+    dvsec = (uint8_t *)&port_ext;
     cxl_component_create_dvsec(cxl, CXL2_ROOT_PORT,
                                EXTENSIONS_PORT_DVSEC_LENGTH,
                                EXTENSIONS_PORT_DVSEC,
                                EXTENSIONS_PORT_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECPortGPF){
-        .rsvd        = 0,
-        .phase1_ctrl = 1, /* 1μs timeout */
-        .phase2_ctrl = 1, /* 1μs timeout */
-    };
+    CXLDVSECPortGPF port_gpf;
+    memset(&port_gpf, 0, sizeof(port_gpf));
+    port_gpf.phase1_ctrl = 1; /* 1us timeout */
+    port_gpf.phase2_ctrl = 1; /* 1us timeout */
+    dvsec = (uint8_t *)&port_gpf;
     cxl_component_create_dvsec(cxl, CXL2_ROOT_PORT,
                                GPF_PORT_DVSEC_LENGTH, GPF_PORT_DVSEC,
                                GPF_PORT_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECPortFlexBus){
-        .cap                     = 0x26, /* IO, Mem, non-MLD */
-        .ctrl                    = 0x2,
-        .status                  = 0x26, /* same */
-        .rcvd_mod_ts_data_phase1 = 0xef,
-    };
+    CXLDVSECPortFlexBus port_fb;
+    memset(&port_fb, 0, sizeof(port_fb));
+    port_fb.cap                     = 0x26; /* IO, Mem, non-MLD */
+    port_fb.ctrl                    = 0x2;
+    port_fb.status                  = 0x26; /* same */
+    port_fb.rcvd_mod_ts_data_phase1 = 0xef;
+    dvsec = (uint8_t *)&port_fb;
     cxl_component_create_dvsec(cxl, CXL2_ROOT_PORT,
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_LENGTH,
                                PCIE_FLEXBUS_PORT_DVSEC,
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECRegisterLocator){
-        .rsvd         = 0,
-        .reg0_base_lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX,
-        .reg0_base_hi = 0,
-    };
+    CXLDVSECRegisterLocator reg_loc;
+    memset(&reg_loc, 0, sizeof(reg_loc));
+    reg_loc.reg0_base_lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX;
+    reg_loc.reg0_base_hi = 0;
+    dvsec = (uint8_t *)&reg_loc;
     cxl_component_create_dvsec(cxl, CXL2_ROOT_PORT,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,
                                REG_LOC_DVSEC_REVID, dvsec);
@@ -167,7 +171,7 @@ static void cxl_rp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!crp->res_reserve.io || crp->res_reserve.io == -1) {
+    if (!crp->res_reserve.io || crp->res_reserve.io == (uint64_t)-1) {
         pci_word_test_and_clear_mask(pci_dev->wmask + PCI_COMMAND,
                                      PCI_COMMAND_IO);
         pci_dev->wmask[PCI_IO_BASE]  = 0;
@@ -289,15 +293,17 @@ static void cxl_root_port_class_init(ObjectClass *oc, const void *data)
     dc->hotpluggable = false;
 }
 
+static const InterfaceInfo cxl_root_port_interfaces[] = {
+    { INTERFACE_CXL_DEVICE },
+    { }
+};
+
 static const TypeInfo cxl_root_port_info = {
     .name = TYPE_CXL_ROOT_PORT,
     .parent = TYPE_PCIE_ROOT_PORT,
     .instance_size = sizeof(CXLRootPort),
     .class_init = cxl_root_port_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CXL_DEVICE },
-        { }
-    },
+    .interfaces = cxl_root_port_interfaces,
 };
 
 static void cxl_register(void)

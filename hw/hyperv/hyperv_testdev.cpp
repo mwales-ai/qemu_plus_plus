@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/queue.h"
@@ -114,13 +115,13 @@ static void sint_route_set_sint(HypervTestDev *dev,
 
 static void msg_retry(void *opaque)
 {
-    TestMsgConn *conn = opaque;
+    TestMsgConn *conn = static_cast<TestMsgConn *>(opaque);
     assert(!hyperv_post_msg(conn->sint_route, &conn->msg));
 }
 
 static void msg_cb(void *data, int status)
 {
-    TestMsgConn *conn = data;
+    TestMsgConn *conn = static_cast<TestMsgConn *>(data);
 
     if (!status) {
         return;
@@ -135,7 +136,7 @@ static uint16_t msg_handler(const struct hyperv_post_message_input *msg,
                             void *data)
 {
     int ret;
-    TestMsgConn *conn = data;
+    TestMsgConn *conn = static_cast<TestMsgConn *>(data);
 
     /* post the same message we've got */
     conn->msg.header.message_type = msg->message_type;
@@ -245,7 +246,7 @@ static uint64_t hv_test_dev_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static void hv_test_dev_write(void *opaque, hwaddr addr, uint64_t data,
-                                uint32_t len)
+                                unsigned size)
 {
     HypervTestDev *dev = HYPERV_TEST_DEV(opaque);
     uint8_t sint = data & 0xFF;
@@ -280,12 +281,17 @@ static void hv_test_dev_write(void *opaque, hwaddr addr, uint64_t data,
     }
 }
 
-static const MemoryRegionOps synic_test_sint_ops = {
-    .read = hv_test_dev_read,
-    .write = hv_test_dev_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
+static MemoryRegionOps synic_test_sint_ops;
+
+static void __attribute__((constructor)) init_synic_test_sint_ops(void)
+{
+    memset(&synic_test_sint_ops, 0, sizeof(synic_test_sint_ops));
+    synic_test_sint_ops.read = hv_test_dev_read;
+    synic_test_sint_ops.write = hv_test_dev_write;
+    synic_test_sint_ops.valid.min_access_size = 4;
+    synic_test_sint_ops.valid.max_access_size = 4;
+    synic_test_sint_ops.endianness = DEVICE_LITTLE_ENDIAN;
+}
 
 static void hv_test_dev_realizefn(DeviceState *d, Error **errp)
 {

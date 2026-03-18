@@ -21,14 +21,14 @@ i386_ss.add(when: 'CONFIG_Q35', if_true: files('pc_q35.c'))
 i386_ss.add(when: 'CONFIG_VMMOUSE', if_true: files('vmmouse.c'))
 i386_ss.add(when: 'CONFIG_VMPORT', if_true: files('vmport.cpp'))
 i386_ss.add(when: 'CONFIG_VTD', if_true: files('intel_iommu.c'))
-i386_ss.add(when: 'CONFIG_SGX', if_true: files('sgx-epc.cpp','sgx.c'),
+i386_ss.add(when: 'CONFIG_SGX', if_true: files('sgx-epc.cpp','sgx.cpp'),
                                 if_false: files('sgx-stub.cpp'))
 
 i386_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-common.cpp'))
 i386_ss.add(when: 'CONFIG_PC', if_true: files(
   'x86-common.c',
   'pc.c',
-  'pc_sysfw.c',
+  'pc_sysfw.cpp',
   'acpi-build.c',
   'port92.cpp'))
 i386_ss.add(when: 'CONFIG_X86_FW_OVMF', if_true: files('pc_sysfw_ovmf.cpp'),

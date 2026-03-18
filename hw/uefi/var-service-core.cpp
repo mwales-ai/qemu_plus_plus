@@ -4,10 +4,10 @@
  * uefi vars device
  */
 #include "qemu/osdep.h"
+
 #include "qemu/crc32c.h"
 #include "system/dma.h"
 #include "migration/vmstate.h"
-
 #include "hw/uefi/var-service.h"
 #include "hw/uefi/var-service-api.h"
 #include "hw/uefi/var-service-edk2.h"
@@ -16,7 +16,7 @@
 
 static int uefi_vars_pre_load(void *opaque)
 {
-    uefi_vars_state *uv = opaque;
+    uefi_vars_state *uv = static_cast<uefi_vars_state *>(opaque);
 
     uefi_vars_clear_all(uv);
     uefi_vars_policies_clear(uv);
@@ -26,37 +26,39 @@ static int uefi_vars_pre_load(void *opaque)
 
 static int uefi_vars_post_load(void *opaque, int version_id)
 {
-    uefi_vars_state *uv = opaque;
+    uefi_vars_state *uv = static_cast<uefi_vars_state *>(opaque);
 
     uefi_vars_update_storage(uv);
     uefi_vars_json_save(uv);
-    uv->buffer = g_malloc(uv->buf_size);
+    uv->buffer = static_cast<uint8_t *>(g_malloc(uv->buf_size));
     return 0;
 }
+
+static const VMStateField vmstate_uefi_vars_fields[] = {
+    VMSTATE_UINT16(sts, uefi_vars_state),
+    VMSTATE_UINT32(buf_size, uefi_vars_state),
+    VMSTATE_UINT32(buf_addr_lo, uefi_vars_state),
+    VMSTATE_UINT32(buf_addr_hi, uefi_vars_state),
+    VMSTATE_UINT32(pio_xfer_offset, uefi_vars_state),
+    VMSTATE_VBUFFER_ALLOC_UINT32(pio_xfer_buffer, uefi_vars_state,
+                                 0, NULL, buf_size),
+    VMSTATE_BOOL(end_of_dxe, uefi_vars_state),
+    VMSTATE_BOOL(ready_to_boot, uefi_vars_state),
+    VMSTATE_BOOL(exit_boot_service, uefi_vars_state),
+    VMSTATE_BOOL(policy_locked, uefi_vars_state),
+    VMSTATE_UINT64(used_storage, uefi_vars_state),
+    VMSTATE_QTAILQ_V(variables, uefi_vars_state, 0,
+                     vmstate_uefi_variable, uefi_variable, next),
+    VMSTATE_QTAILQ_V(var_policies, uefi_vars_state, 0,
+                     vmstate_uefi_var_policy, uefi_var_policy, next),
+    VMSTATE_END_OF_LIST()
+};
 
 const VMStateDescription vmstate_uefi_vars = {
     .name = "uefi-vars",
     .pre_load = uefi_vars_pre_load,
     .post_load = uefi_vars_post_load,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT16(sts, uefi_vars_state),
-        VMSTATE_UINT32(buf_size, uefi_vars_state),
-        VMSTATE_UINT32(buf_addr_lo, uefi_vars_state),
-        VMSTATE_UINT32(buf_addr_hi, uefi_vars_state),
-        VMSTATE_UINT32(pio_xfer_offset, uefi_vars_state),
-        VMSTATE_VBUFFER_ALLOC_UINT32(pio_xfer_buffer, uefi_vars_state,
-                                     0, NULL, buf_size),
-        VMSTATE_BOOL(end_of_dxe, uefi_vars_state),
-        VMSTATE_BOOL(ready_to_boot, uefi_vars_state),
-        VMSTATE_BOOL(exit_boot_service, uefi_vars_state),
-        VMSTATE_BOOL(policy_locked, uefi_vars_state),
-        VMSTATE_UINT64(used_storage, uefi_vars_state),
-        VMSTATE_QTAILQ_V(variables, uefi_vars_state, 0,
-                         vmstate_uefi_variable, uefi_variable, next),
-        VMSTATE_QTAILQ_V(var_policies, uefi_vars_state, 0,
-                         vmstate_uefi_var_policy, uefi_var_policy, next),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_uefi_vars_fields,
 };
 
 static uint32_t uefi_vars_cmd_mm(uefi_vars_state *uv, bool dma_mode)
@@ -150,7 +152,7 @@ static void uefi_vars_soft_reset(uefi_vars_state *uv)
     uv->buf_addr_hi = 0;
 }
 
-void uefi_vars_hard_reset(uefi_vars_state *uv)
+extern "C" void uefi_vars_hard_reset(uefi_vars_state *uv)
 {
     trace_uefi_hard_reset();
     uefi_vars_soft_reset(uv);
@@ -185,7 +187,7 @@ static uint32_t uefi_vars_cmd(uefi_vars_state *uv, uint32_t cmd)
 
 static uint64_t uefi_vars_read(void *opaque, hwaddr addr, unsigned size)
 {
-    uefi_vars_state *uv = opaque;
+    uefi_vars_state *uv = static_cast<uefi_vars_state *>(opaque);
     uint64_t retval = -1;
     void *xfer_ptr;
 
@@ -243,7 +245,7 @@ static uint64_t uefi_vars_read(void *opaque, hwaddr addr, unsigned size)
 
 static void uefi_vars_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    uefi_vars_state *uv = opaque;
+    uefi_vars_state *uv = static_cast<uefi_vars_state *>(opaque);
     void *xfer_ptr;
 
     trace_uefi_reg_write(addr, val, size);
@@ -259,8 +261,8 @@ static void uefi_vars_write(void *opaque, hwaddr addr, uint64_t val, unsigned si
         uv->buf_size = val;
         g_free(uv->buffer);
         g_free(uv->pio_xfer_buffer);
-        uv->buffer = g_malloc0(uv->buf_size);
-        uv->pio_xfer_buffer = g_malloc0(uv->buf_size);
+        uv->buffer = static_cast<uint8_t *>(g_malloc0(uv->buf_size));
+        uv->pio_xfer_buffer = static_cast<uint8_t *>(g_malloc0(uv->buf_size));
         break;
     case UEFI_VARS_REG_DMA_BUFFER_ADDR_LO:
         uv->buf_addr_lo = val;
@@ -296,17 +298,19 @@ static void uefi_vars_write(void *opaque, hwaddr addr, uint64_t val, unsigned si
     }
 }
 
-static const MemoryRegionOps uefi_vars_ops = {
-    .read = uefi_vars_read,
-    .write = uefi_vars_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 2,
-        .max_access_size = 4,
-    },
-};
+static MemoryRegionOps uefi_vars_ops;
 
-void uefi_vars_init(Object *obj, uefi_vars_state *uv)
+static void __attribute__((constructor)) init_uefi_vars_ops(void)
+{
+    memset(&uefi_vars_ops, 0, sizeof(uefi_vars_ops));
+    uefi_vars_ops.read = uefi_vars_read;
+    uefi_vars_ops.write = uefi_vars_write;
+    uefi_vars_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    uefi_vars_ops.impl.min_access_size = 2;
+    uefi_vars_ops.impl.max_access_size = 4;
+}
+
+extern "C" void uefi_vars_init(Object *obj, uefi_vars_state *uv)
 {
     QTAILQ_INIT(&uv->variables);
     QTAILQ_INIT(&uv->var_policies);
@@ -315,7 +319,7 @@ void uefi_vars_init(Object *obj, uefi_vars_state *uv)
                           "uefi-vars", UEFI_VARS_REGS_SIZE);
 }
 
-void uefi_vars_realize(uefi_vars_state *uv, Error **errp)
+extern "C" void uefi_vars_realize(uefi_vars_state *uv, Error **errp)
 {
     uefi_vars_json_init(uv, errp);
     uefi_vars_json_load(uv, errp);

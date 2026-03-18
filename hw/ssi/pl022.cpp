@@ -8,6 +8,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/irq.h"
@@ -15,6 +17,7 @@
 #include "hw/ssi/ssi.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
 
 //#define DEBUG_PL022 1
 
@@ -85,18 +88,6 @@ static void pl022_xfer(PL022State *s)
     DPRINTF("Maybe xfer %d/%d\n", s->tx_fifo_len, s->rx_fifo_len);
     i = (s->tx_fifo_head - s->tx_fifo_len) & 7;
     o = s->rx_fifo_head;
-    /* ??? We do not emulate the line speed.
-       This may break some applications.  The are two problematic cases:
-        (a) A driver feeds data into the TX FIFO until it is full,
-         and only then drains the RX FIFO.  On real hardware the CPU can
-         feed data fast enough that the RX fifo never gets chance to overflow.
-        (b) A driver transmits data, deliberately allowing the RX FIFO to
-         overflow because it ignores the RX data anyway.
-
-       We choose to support (a) by stalling the transmit engine if it would
-       cause the RX FIFO to overflow.  In practice much transmit-only code
-       falls into (a) because it flushes the RX FIFO to determine when
-       the transfer has completed.  */
     while (s->tx_fifo_len && s->rx_fifo_len < 8) {
         DPRINTF("xfer\n");
         val = s->tx_fifo[i];
@@ -118,7 +109,7 @@ static void pl022_xfer(PL022State *s)
 static uint64_t pl022_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    PL022State *s = (PL022State *)opaque;
+    PL022State *s = static_cast<PL022State *>(opaque);
     int val;
 
     if (offset >= 0xfe0 && offset < 0x1000) {
@@ -162,7 +153,7 @@ static uint64_t pl022_read(void *opaque, hwaddr offset,
 static void pl022_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    PL022State *s = (PL022State *)opaque;
+    PL022State *s = static_cast<PL022State *>(opaque);
 
     switch (offset) {
     case 0x00: /* CR0 */
@@ -196,10 +187,6 @@ static void pl022_write(void *opaque, hwaddr offset,
         pl022_update(s);
         break;
     case 0x20: /* ICR */
-        /*
-         * write-1-to-clear: bit 0 clears ROR, bit 1 clears RT;
-         * RX and TX interrupts cannot be cleared this way.
-         */
         value &= PL022_INT_ROR | PL022_INT_RT;
         s->is &= ~value;
         break;
@@ -233,7 +220,7 @@ static const MemoryRegionOps pl022_ops = {
 
 static int pl022_post_load(void *opaque, int version_id)
 {
-    PL022State *s = opaque;
+    PL022State *s = static_cast<PL022State *>(opaque);
 
     if (s->tx_fifo_head < 0 ||
         s->tx_fifo_head >= ARRAY_SIZE(s->tx_fifo) ||
@@ -244,41 +231,43 @@ static int pl022_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_pl022_fields[] = {
+    VMSTATE_UINT32(cr0, PL022State),
+    VMSTATE_UINT32(cr1, PL022State),
+    VMSTATE_UINT32(bitmask, PL022State),
+    VMSTATE_UINT32(sr, PL022State),
+    VMSTATE_UINT32(cpsr, PL022State),
+    VMSTATE_UINT32(is, PL022State),
+    VMSTATE_UINT32(im, PL022State),
+    VMSTATE_INT32(tx_fifo_head, PL022State),
+    VMSTATE_INT32(rx_fifo_head, PL022State),
+    VMSTATE_INT32(tx_fifo_len, PL022State),
+    VMSTATE_INT32(rx_fifo_len, PL022State),
+    VMSTATE_UINT16(tx_fifo[0], PL022State),
+    VMSTATE_UINT16(rx_fifo[0], PL022State),
+    VMSTATE_UINT16(tx_fifo[1], PL022State),
+    VMSTATE_UINT16(rx_fifo[1], PL022State),
+    VMSTATE_UINT16(tx_fifo[2], PL022State),
+    VMSTATE_UINT16(rx_fifo[2], PL022State),
+    VMSTATE_UINT16(tx_fifo[3], PL022State),
+    VMSTATE_UINT16(rx_fifo[3], PL022State),
+    VMSTATE_UINT16(tx_fifo[4], PL022State),
+    VMSTATE_UINT16(rx_fifo[4], PL022State),
+    VMSTATE_UINT16(tx_fifo[5], PL022State),
+    VMSTATE_UINT16(rx_fifo[5], PL022State),
+    VMSTATE_UINT16(tx_fifo[6], PL022State),
+    VMSTATE_UINT16(rx_fifo[6], PL022State),
+    VMSTATE_UINT16(tx_fifo[7], PL022State),
+    VMSTATE_UINT16(rx_fifo[7], PL022State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl022 = {
     .name = "pl022_ssp",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = pl022_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cr0, PL022State),
-        VMSTATE_UINT32(cr1, PL022State),
-        VMSTATE_UINT32(bitmask, PL022State),
-        VMSTATE_UINT32(sr, PL022State),
-        VMSTATE_UINT32(cpsr, PL022State),
-        VMSTATE_UINT32(is, PL022State),
-        VMSTATE_UINT32(im, PL022State),
-        VMSTATE_INT32(tx_fifo_head, PL022State),
-        VMSTATE_INT32(rx_fifo_head, PL022State),
-        VMSTATE_INT32(tx_fifo_len, PL022State),
-        VMSTATE_INT32(rx_fifo_len, PL022State),
-        VMSTATE_UINT16(tx_fifo[0], PL022State),
-        VMSTATE_UINT16(rx_fifo[0], PL022State),
-        VMSTATE_UINT16(tx_fifo[1], PL022State),
-        VMSTATE_UINT16(rx_fifo[1], PL022State),
-        VMSTATE_UINT16(tx_fifo[2], PL022State),
-        VMSTATE_UINT16(rx_fifo[2], PL022State),
-        VMSTATE_UINT16(tx_fifo[3], PL022State),
-        VMSTATE_UINT16(rx_fifo[3], PL022State),
-        VMSTATE_UINT16(tx_fifo[4], PL022State),
-        VMSTATE_UINT16(rx_fifo[4], PL022State),
-        VMSTATE_UINT16(tx_fifo[5], PL022State),
-        VMSTATE_UINT16(rx_fifo[5], PL022State),
-        VMSTATE_UINT16(tx_fifo[6], PL022State),
-        VMSTATE_UINT16(rx_fifo[6], PL022State),
-        VMSTATE_UINT16(tx_fifo[7], PL022State),
-        VMSTATE_UINT16(rx_fifo[7], PL022State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl022_fields,
 };
 
 static void pl022_realize(DeviceState *dev, Error **errp)

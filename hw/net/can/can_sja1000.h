@@ -30,6 +30,10 @@
 #include "exec/hwaddr.h"
 #include "net/can_emu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CAN_SJA_MEM_SIZE      128
 
 /* The max size for a message buffer, EFF and DLC=8, DS-p39 */
@@ -143,5 +147,9 @@ ssize_t can_sja_receive(CanBusClientState *client,
                         const qemu_can_frame *frames, size_t frames_cnt);
 
 extern const VMStateDescription vmstate_can_sja;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

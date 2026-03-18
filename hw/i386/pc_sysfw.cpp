@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qapi/error.h"
 #include "system/block-backend.h"
 #include "qemu/error-report.h"
@@ -96,7 +97,7 @@ static PFlashCFI01 *pc_pflash_create(PCMachineState *pcms,
     return PFLASH_CFI01(dev);
 }
 
-void pc_system_flash_create(PCMachineState *pcms)
+extern "C" void pc_system_flash_create(PCMachineState *pcms)
 {
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
 
@@ -108,7 +109,7 @@ void pc_system_flash_create(PCMachineState *pcms)
     }
 }
 
-void pc_system_flash_cleanup_unused(PCMachineState *pcms)
+extern "C" void pc_system_flash_cleanup_unused(PCMachineState *pcms)
 {
     char *prop_name;
     int i;
@@ -212,7 +213,7 @@ static void pc_system_flash_map(PCMachineState *pcms,
     }
 }
 
-void pc_system_firmware_init(PCMachineState *pcms,
+extern "C" void pc_system_firmware_init(PCMachineState *pcms,
                              MemoryRegion *rom_memory)
 {
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
@@ -255,11 +256,6 @@ void pc_system_firmware_init(PCMachineState *pcms,
         }
     } else {
         if (kvm_enabled() && !kvm_readonly_mem_enabled()) {
-            /*
-             * Older KVM cannot execute from device memory. So, flash
-             * memory cannot be used unless the readonly memory kvm
-             * capability is present.
-             */
             error_report("pflash with kvm requires KVM readonly memory support");
             exit(1);
         }
@@ -269,10 +265,6 @@ void pc_system_firmware_init(PCMachineState *pcms,
 
     pc_system_flash_cleanup_unused(pcms);
 
-    /*
-     * The user should not have specified any pflash devices when using IGVM
-     * to configure the guest.
-     */
     if (X86_MACHINE(pcms)->igvm) {
         for (i = 0; i < ARRAY_SIZE(pcms->flash); i++) {
             if (pcms->flash[i]) {
@@ -284,28 +276,25 @@ void pc_system_firmware_init(PCMachineState *pcms,
     }
 }
 
-void x86_firmware_configure(hwaddr gpa, void *ptr, int size)
+extern "C" void x86_firmware_configure(hwaddr gpa, void *ptr, int size)
 {
     int ret;
 
-    /*
-     * OVMF places a GUIDed structures in the flash, so
-     * search for them
-     */
-    pc_system_parse_ovmf_flash(ptr, size);
+    uint8_t *flash_ptr = static_cast<uint8_t *>(ptr);
+
+    pc_system_parse_ovmf_flash(flash_ptr, size);
 
     if (sev_enabled()) {
 
-        /* Copy the SEV metadata table (if it exists) */
-        pc_system_parse_sev_metadata(ptr, size);
+        pc_system_parse_sev_metadata(flash_ptr, size);
 
-        ret = sev_es_save_reset_vector(ptr, size);
+        ret = sev_es_save_reset_vector(flash_ptr, size);
         if (ret) {
             error_report("failed to locate and/or save reset vector");
             exit(1);
         }
 
-        sev_encrypt_flash(gpa, ptr, size, &error_fatal);
+        sev_encrypt_flash(gpa, flash_ptr, size, &error_fatal);
     } else if (is_tdx_vm()) {
         ret = tdx_parse_tdvf(ptr, size);
         if (ret) {

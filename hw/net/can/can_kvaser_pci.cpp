@@ -4,12 +4,6 @@
  * Copyright (c) 2013-2014 Jin Yang
  * Copyright (c) 2014-2018 Pavel Pisa
  *
- * Partially based on educational PCIexpress APOHW hardware
- * emulator used fro class A0B36APO at CTU FEE course by
- *    Rostislav Lisovy and Pavel Pisa
- *
- * Initial development supported by Google GSoC 2013 from RTEMS project slot
- *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -30,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/irq.h"
@@ -37,7 +32,6 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "net/can_emu.h"
-
 #include "can_sja1000.h"
 #include "qom/object.h"
 
@@ -48,7 +42,7 @@ DECLARE_INSTANCE_CHECKER(KvaserPCIState, KVASER_PCI_DEV,
                          TYPE_CAN_PCI_DEV)
 
 #ifndef KVASER_PCI_VENDOR_ID1
-#define KVASER_PCI_VENDOR_ID1     0x10e8    /* the PCI device and vendor IDs */
+#define KVASER_PCI_VENDOR_ID1     0x10e8
 #endif
 
 #ifndef KVASER_PCI_DEVICE_ID1
@@ -71,8 +65,7 @@ DECLARE_INSTANCE_CHECKER(KvaserPCIState, KVASER_PCI_DEV,
 #define S5920_INTCSR_ADDON_INTENABLE_M        0x2000
 #define S5920_INTCSR_INTERRUPT_ASSERTED_M     0x800000
 
-#define KVASER_PCI_XILINX_VERINT  7   /* Lower nibble simulate interrupts,
-                                         high nibble version number. */
+#define KVASER_PCI_XILINX_VERINT  7
 
 #define KVASER_PCI_XILINX_VERSION_NUMBER 13
 
@@ -95,7 +88,7 @@ struct KvaserPCIState {
 
 static void kvaser_pci_irq_handler(void *opaque, int irq_num, int level)
 {
-    KvaserPCIState *d = (KvaserPCIState *)opaque;
+    KvaserPCIState *d = static_cast<KvaserPCIState *>(opaque);
 
     d->s5920_irqstate = level;
     if (d->s5920_intcsr & S5920_INTCSR_ADDON_INTENABLE_M) {
@@ -114,7 +107,7 @@ static void kvaser_pci_reset(DeviceState *dev)
 static uint64_t kvaser_pci_s5920_io_read(void *opaque, hwaddr addr,
                                          unsigned size)
 {
-    KvaserPCIState *d = opaque;
+    KvaserPCIState *d = static_cast<KvaserPCIState *>(opaque);
     uint64_t val;
 
     switch (addr) {
@@ -132,7 +125,7 @@ static uint64_t kvaser_pci_s5920_io_read(void *opaque, hwaddr addr,
 static void kvaser_pci_s5920_io_write(void *opaque, hwaddr addr, uint64_t data,
                                       unsigned size)
 {
-    KvaserPCIState *d = opaque;
+    KvaserPCIState *d = static_cast<KvaserPCIState *>(opaque);
 
     switch (addr) {
     case S5920_INTCSR:
@@ -147,7 +140,7 @@ static void kvaser_pci_s5920_io_write(void *opaque, hwaddr addr, uint64_t data,
 
 static uint64_t kvaser_pci_sja_io_read(void *opaque, hwaddr addr, unsigned size)
 {
-    KvaserPCIState *d = opaque;
+    KvaserPCIState *d = static_cast<KvaserPCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state;
 
     if (addr >= KVASER_PCI_BYTES_PER_SJA) {
@@ -160,7 +153,7 @@ static uint64_t kvaser_pci_sja_io_read(void *opaque, hwaddr addr, unsigned size)
 static void kvaser_pci_sja_io_write(void *opaque, hwaddr addr, uint64_t data,
                                     unsigned size)
 {
-    KvaserPCIState *d = opaque;
+    KvaserPCIState *d = static_cast<KvaserPCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state;
 
     if (addr >= KVASER_PCI_BYTES_PER_SJA) {
@@ -187,33 +180,31 @@ static void kvaser_pci_xilinx_io_write(void *opaque, hwaddr addr, uint64_t data,
 
 }
 
-static const MemoryRegionOps kvaser_pci_s5920_io_ops = {
-    .read = kvaser_pci_s5920_io_read,
-    .write = kvaser_pci_s5920_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
+static MemoryRegionOps kvaser_pci_s5920_io_ops;
+static MemoryRegionOps kvaser_pci_sja_io_ops;
+static MemoryRegionOps kvaser_pci_xilinx_io_ops;
 
-static const MemoryRegionOps kvaser_pci_sja_io_ops = {
-    .read = kvaser_pci_sja_io_read,
-    .write = kvaser_pci_sja_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .max_access_size = 1,
-    },
-};
+static void __attribute__((constructor)) init_kvaser_pci_ops(void)
+{
+    memset(&kvaser_pci_s5920_io_ops, 0, sizeof(kvaser_pci_s5920_io_ops));
+    kvaser_pci_s5920_io_ops.read = kvaser_pci_s5920_io_read;
+    kvaser_pci_s5920_io_ops.write = kvaser_pci_s5920_io_write;
+    kvaser_pci_s5920_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    kvaser_pci_s5920_io_ops.impl.min_access_size = 4;
+    kvaser_pci_s5920_io_ops.impl.max_access_size = 4;
 
-static const MemoryRegionOps kvaser_pci_xilinx_io_ops = {
-    .read = kvaser_pci_xilinx_io_read,
-    .write = kvaser_pci_xilinx_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .max_access_size = 1,
-    },
-};
+    memset(&kvaser_pci_sja_io_ops, 0, sizeof(kvaser_pci_sja_io_ops));
+    kvaser_pci_sja_io_ops.read = kvaser_pci_sja_io_read;
+    kvaser_pci_sja_io_ops.write = kvaser_pci_sja_io_write;
+    kvaser_pci_sja_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    kvaser_pci_sja_io_ops.impl.max_access_size = 1;
+
+    memset(&kvaser_pci_xilinx_io_ops, 0, sizeof(kvaser_pci_xilinx_io_ops));
+    kvaser_pci_xilinx_io_ops.read = kvaser_pci_xilinx_io_read;
+    kvaser_pci_xilinx_io_ops.write = kvaser_pci_xilinx_io_write;
+    kvaser_pci_xilinx_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    kvaser_pci_xilinx_io_ops.impl.max_access_size = 1;
+}
 
 static void kvaser_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
@@ -258,18 +249,20 @@ static void kvaser_pci_exit(PCIDevice *pci_dev)
     qemu_free_irq(d->irq);
 }
 
+static const VMStateField vmstate_kvaser_pci_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, KvaserPCIState),
+    /* Load this before sja_state.  */
+    VMSTATE_UINT32(s5920_intcsr, KvaserPCIState),
+    VMSTATE_STRUCT(sja_state, KvaserPCIState, 0, vmstate_can_sja,
+                   CanSJA1000State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_kvaser_pci = {
     .name = "kvaser_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, KvaserPCIState),
-        /* Load this before sja_state.  */
-        VMSTATE_UINT32(s5920_intcsr, KvaserPCIState),
-        VMSTATE_STRUCT(sja_state, KvaserPCIState, 0, vmstate_can_sja,
-                       CanSJA1000State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_kvaser_pci_fields,
 };
 
 static void kvaser_pci_instance_init(Object *obj)
@@ -279,7 +272,7 @@ static void kvaser_pci_instance_init(Object *obj)
     object_property_add_link(obj, "canbus", TYPE_CAN_BUS,
                              (Object **)&d->canbus,
                              qdev_prop_allow_set_link_before_realize,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static void kvaser_pci_class_init(ObjectClass *klass, const void *data)
@@ -299,16 +292,18 @@ static void kvaser_pci_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
+static const InterfaceInfo kvaser_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo kvaser_pci_info = {
     .name          = TYPE_CAN_PCI_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(KvaserPCIState),
-    .class_init    = kvaser_pci_class_init,
     .instance_init = kvaser_pci_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .class_init    = kvaser_pci_class_init,
+    .interfaces = kvaser_pci_interfaces,
 };
 
 static void kvaser_pci_register_types(void)

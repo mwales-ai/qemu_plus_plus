@@ -25,8 +25,8 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/nvram/xlnx-efuse.h"
 
+#include "hw/nvram/xlnx-efuse.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
@@ -41,7 +41,7 @@
 #define TBITS_PATTERN    (0x0AU << TBIT0_OFFSET)
 #define TBITS_MASK       (0x0FU << TBIT0_OFFSET)
 
-bool xlnx_efuse_get_bit(XlnxEFuse *s, unsigned int bit)
+extern "C" bool xlnx_efuse_get_bit(XlnxEFuse *s, unsigned int bit)
 {
     bool b = s->fuse32[bit / 32] & (1 << (bit % 32));
     return b;
@@ -77,7 +77,7 @@ static int efuse_bdrv_read(XlnxEFuse *s, Error **errp)
                     blk_name(s->blk));
     }
 
-    if (blk_pread(s->blk, 0, nr, ram, 0) < 0) {
+    if (blk_pread(s->blk, 0, nr, ram, static_cast<BdrvRequestFlags>(0)) < 0) {
         error_setg(errp, "%s: Failed to read %u bytes from eFUSE backstore.",
                    blk_name(s->blk), nr);
         return -1;
@@ -105,7 +105,7 @@ static void efuse_bdrv_sync(XlnxEFuse *s, unsigned int bit)
     le32 = cpu_to_le32(xlnx_efuse_get_row(s, bit));
 
     row_offset = (bit / 32) * 4;
-    if (blk_pwrite(s->blk, row_offset, 4, &le32, 0) < 0) {
+    if (blk_pwrite(s->blk, row_offset, 4, &le32, static_cast<BdrvRequestFlags>(0)) < 0) {
         error_report("%s: Failed to write offset %u of eFUSE backstore.",
                      blk_name(s->blk), row_offset);
     }
@@ -141,7 +141,7 @@ static bool efuse_ro_bits_find(XlnxEFuse *s, uint32_t k)
     return bsearch(&k, ary, cnt, sizeof(ary[0]), efuse_ro_bits_cmp) != NULL;
 }
 
-bool xlnx_efuse_set_bit(XlnxEFuse *s, unsigned int bit)
+extern "C" bool xlnx_efuse_set_bit(XlnxEFuse *s, unsigned int bit)
 {
     uint32_t set, *row;
 
@@ -164,7 +164,7 @@ bool xlnx_efuse_set_bit(XlnxEFuse *s, unsigned int bit)
     return true;
 }
 
-bool xlnx_efuse_k256_check(XlnxEFuse *s, uint32_t crc, unsigned start)
+extern "C" bool xlnx_efuse_k256_check(XlnxEFuse *s, uint32_t crc, unsigned start)
 {
     uint32_t calc;
 
@@ -175,7 +175,7 @@ bool xlnx_efuse_k256_check(XlnxEFuse *s, uint32_t crc, unsigned start)
     return calc == crc;
 }
 
-uint32_t xlnx_efuse_tbits_check(XlnxEFuse *s)
+extern "C" uint32_t xlnx_efuse_tbits_check(XlnxEFuse *s)
 {
     int nr;
     uint32_t check = 0;
@@ -218,7 +218,7 @@ static void efuse_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->fuse32 = g_malloc0(efuse_bytes(s));
+    s->fuse32 = static_cast<uint32_t *>(g_malloc0(efuse_bytes(s)));
     if (efuse_bdrv_read(s, errp)) {
         g_free(s->fuse32);
     }

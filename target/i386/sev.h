@@ -18,6 +18,10 @@
 #include CONFIG_DEVICES /* CONFIG_SEV */
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if !defined(CONFIG_SEV) || defined(CONFIG_USER_ONLY)
 #define sev_enabled() 0
 #define sev_es_enabled() 0
@@ -194,5 +198,9 @@ void pc_system_parse_sev_metadata(uint8_t *flash_ptr, size_t flash_size);
 
 uint32_t sev_get_cbit_position(void);
 uint32_t sev_get_reduced_phys_bits(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

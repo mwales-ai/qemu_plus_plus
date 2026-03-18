@@ -23,10 +23,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/intc/ppc-uic.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+}
 
 enum {
     DCR_UICSR  = 0x000,
@@ -102,7 +105,7 @@ static void ppcuic_trigger_irq(PPCUIC *uic)
 
 static void ppcuic_set_irq(void *opaque, int irq_num, int level)
 {
-    PPCUIC *uic = opaque;
+    PPCUIC *uic = static_cast<PPCUIC *>(opaque);
     uint32_t mask, sr;
 
     mask = 1U << (31 - irq_num);
@@ -140,7 +143,7 @@ static void ppcuic_set_irq(void *opaque, int irq_num, int level)
 
 static uint32_t dcr_read_uic(void *opaque, int dcrn)
 {
-    PPCUIC *uic = opaque;
+    PPCUIC *uic = static_cast<PPCUIC *>(opaque);
     uint32_t ret;
 
     dcrn -= uic->dcr_base;
@@ -187,7 +190,7 @@ static uint32_t dcr_read_uic(void *opaque, int dcrn)
 
 static void dcr_write_uic(void *opaque, int dcrn, uint32_t val)
 {
-    PPCUIC *uic = opaque;
+    PPCUIC *uic = static_cast<PPCUIC *>(opaque);
 
     dcrn -= uic->dcr_base;
     LOG_UIC("%s: dcr %d val 0x%x\n", __func__, dcrn, val);
@@ -264,21 +267,23 @@ static const Property ppc_uic_properties[] = {
     DEFINE_PROP_BOOL("use-vectors", PPCUIC, use_vectors, true),
 };
 
+static const VMStateField vmstate_ppc_uic_fields[] = {
+    VMSTATE_UINT32(level, PPCUIC),
+    VMSTATE_UINT32(uicsr, PPCUIC),
+    VMSTATE_UINT32(uicer, PPCUIC),
+    VMSTATE_UINT32(uiccr, PPCUIC),
+    VMSTATE_UINT32(uicpr, PPCUIC),
+    VMSTATE_UINT32(uictr, PPCUIC),
+    VMSTATE_UINT32(uicvcr, PPCUIC),
+    VMSTATE_UINT32(uicvr, PPCUIC),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription ppc_uic_vmstate = {
     .name = "ppc-uic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(level, PPCUIC),
-        VMSTATE_UINT32(uicsr, PPCUIC),
-        VMSTATE_UINT32(uicer, PPCUIC),
-        VMSTATE_UINT32(uiccr, PPCUIC),
-        VMSTATE_UINT32(uicpr, PPCUIC),
-        VMSTATE_UINT32(uictr, PPCUIC),
-        VMSTATE_UINT32(uicvcr, PPCUIC),
-        VMSTATE_UINT32(uicvr, PPCUIC),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_ppc_uic_fields,
 };
 
 static void ppc_uic_class_init(ObjectClass *klass, const void *data)

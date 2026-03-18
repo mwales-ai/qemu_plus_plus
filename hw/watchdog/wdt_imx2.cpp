@@ -10,13 +10,16 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/bitops.h"
 #include "qemu/module.h"
 #include "system/watchdog.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
-
 #include "hw/watchdog/wdt_imx2.h"
+}
+
 #include "trace.h"
 
 static void imx2_wdt_interrupt(void *opaque)
@@ -109,11 +112,6 @@ static void imx_wdt2_update_itimer(IMX2WdtState *s, bool start)
         int count = ptimer_get_count(s->timer);
         int pretimeout = s->wicr & IMX2_WDT_WICR_WICT;
 
-        /*
-         * Only (re-)start pretimeout timer if its counter value is larger
-         * than 0. Otherwise it will fire right away and we'll get an
-         * interrupt loop.
-         */
         if (count > pretimeout) {
             ptimer_set_count(s->itimer, count - pretimeout);
             if (start) {
@@ -214,39 +212,37 @@ static void imx2_wdt_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps imx2_wdt_ops = {
-    .read  = imx2_wdt_read,
-    .write = imx2_wdt_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        /*
-         * Our device would not work correctly if the guest was doing
-         * unaligned access. This might not be a limitation on the
-         * real device but in practice there is no reason for a guest
-         * to access this device unaligned.
-         */
-        .min_access_size = 2,
-        .max_access_size = 2,
-        .unaligned = false,
-    },
+static MemoryRegionOps imx2_wdt_ops;
+
+static void __attribute__((constructor)) init_imx2_wdt_ops(void)
+{
+    memset(&imx2_wdt_ops, 0, sizeof(imx2_wdt_ops));
+    imx2_wdt_ops.read  = imx2_wdt_read;
+    imx2_wdt_ops.write = imx2_wdt_write;
+    imx2_wdt_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    imx2_wdt_ops.impl.min_access_size = 2;
+    imx2_wdt_ops.impl.max_access_size = 2;
+    imx2_wdt_ops.impl.unaligned = false;
+}
+
+static const VMStateField vmstate_imx2_wdt_fields[] = {
+    VMSTATE_PTIMER(timer, IMX2WdtState),
+    VMSTATE_PTIMER(itimer, IMX2WdtState),
+    VMSTATE_BOOL(wicr_locked, IMX2WdtState),
+    VMSTATE_BOOL(wcr_locked, IMX2WdtState),
+    VMSTATE_BOOL(wcr_wde_locked, IMX2WdtState),
+    VMSTATE_BOOL(wcr_wdt_locked, IMX2WdtState),
+    VMSTATE_UINT16(wcr, IMX2WdtState),
+    VMSTATE_UINT16(wsr, IMX2WdtState),
+    VMSTATE_UINT16(wrsr, IMX2WdtState),
+    VMSTATE_UINT16(wmcr, IMX2WdtState),
+    VMSTATE_UINT16(wicr, IMX2WdtState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_imx2_wdt = {
     .name = "imx2.wdt",
-    .fields = (const VMStateField[]) {
-        VMSTATE_PTIMER(timer, IMX2WdtState),
-        VMSTATE_PTIMER(itimer, IMX2WdtState),
-        VMSTATE_BOOL(wicr_locked, IMX2WdtState),
-        VMSTATE_BOOL(wcr_locked, IMX2WdtState),
-        VMSTATE_BOOL(wcr_wde_locked, IMX2WdtState),
-        VMSTATE_BOOL(wcr_wdt_locked, IMX2WdtState),
-        VMSTATE_UINT16(wcr, IMX2WdtState),
-        VMSTATE_UINT16(wsr, IMX2WdtState),
-        VMSTATE_UINT16(wrsr, IMX2WdtState),
-        VMSTATE_UINT16(wmcr, IMX2WdtState),
-        VMSTATE_UINT16(wicr, IMX2WdtState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_imx2_wdt_fields,
 };
 
 static void imx2_wdt_realize(DeviceState *dev, Error **errp)

@@ -8,12 +8,14 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/vhost-user-scmi.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_scmi.h"
+
 #include "trace.h"
 
 /*
@@ -202,7 +204,7 @@ static void vu_scmi_disconnect(DeviceState *dev)
 
 static void vu_scmi_event(void *opaque, QEMUChrEvent event)
 {
-    DeviceState *dev = opaque;
+    DeviceState *dev = static_cast<DeviceState *>(opaque);
 
     switch (event) {
     case CHR_EVENT_OPENED:

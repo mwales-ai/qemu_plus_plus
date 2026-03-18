@@ -1,4 +1,6 @@
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -9,6 +11,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qom/object.h"
+}
 
 #define VTERM_BUFSIZE   16
 
@@ -58,14 +61,6 @@ static int vty_getchars(SpaprVioDevice *sdev, uint8_t *buf, int max)
     int n = 0;
 
     while ((n < max) && (dev->out != dev->in)) {
-        /*
-         * Long ago, PowerVM's vty implementation had a bug where it
-         * inserted a \0 after every \r going to the guest.  Existing
-         * guests have a workaround for this which removes every \0
-         * immediately following a \r.  To avoid triggering this
-         * workaround, we stop before inserting a \0 if the preceding
-         * character in the output buffer is a \r.
-         */
         if (n > 0 && (buf[n - 1] == '\r') &&
                 (dev->buf[dev->out % VTERM_BUFSIZE] == '\0')) {
             break;
@@ -78,7 +73,7 @@ static int vty_getchars(SpaprVioDevice *sdev, uint8_t *buf, int max)
     return n;
 }
 
-void vty_putchars(SpaprVioDevice *sdev, uint8_t *buf, int len)
+extern "C" void vty_putchars(SpaprVioDevice *sdev, uint8_t *buf, int len)
 {
     SpaprVioVty *dev = VIO_SPAPR_VTY_DEVICE(sdev);
 
@@ -154,7 +149,7 @@ static target_ulong h_get_term_char(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
-void spapr_vty_create(SpaprVioBus *bus, Chardev *chardev)
+extern "C" void spapr_vty_create(SpaprVioBus *bus, Chardev *chardev)
 {
     DeviceState *dev;
 
@@ -168,18 +163,20 @@ static const Property spapr_vty_properties[] = {
     DEFINE_PROP_CHR("chardev", SpaprVioVty, chardev),
 };
 
+static const VMStateField vmstate_spapr_vty_fields[] = {
+    VMSTATE_SPAPR_VIO(sdev, SpaprVioVty),
+
+    VMSTATE_UINT32(in, SpaprVioVty),
+    VMSTATE_UINT32(out, SpaprVioVty),
+    VMSTATE_BUFFER(buf, SpaprVioVty),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_vty = {
     .name = "spapr_vty",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_SPAPR_VIO(sdev, SpaprVioVty),
-
-        VMSTATE_UINT32(in, SpaprVioVty),
-        VMSTATE_UINT32(out, SpaprVioVty),
-        VMSTATE_BUFFER(buf, SpaprVioVty),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_vty_fields,
 };
 
 static void spapr_vty_class_init(ObjectClass *klass, const void *data)
@@ -203,16 +200,10 @@ static const TypeInfo spapr_vty_info = {
     .class_init    = spapr_vty_class_init,
 };
 
-SpaprVioDevice *spapr_vty_get_default(SpaprVioBus *bus)
+extern "C" SpaprVioDevice *spapr_vty_get_default(SpaprVioBus *bus)
 {
     SpaprVioDevice *sdev, *selected;
     BusChild *kid;
-
-    /*
-     * To avoid the console bouncing around we want one VTY to be
-     * the "default". We haven't really got anything to go on, so
-     * arbitrarily choose the one with the lowest reg value.
-     */
 
     selected = NULL;
     QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
@@ -240,17 +231,12 @@ SpaprVioDevice *spapr_vty_get_default(SpaprVioBus *bus)
     return selected;
 }
 
-SpaprVioDevice *vty_lookup(SpaprMachineState *spapr, target_ulong reg)
+extern "C" SpaprVioDevice *vty_lookup(SpaprMachineState *spapr, target_ulong reg)
 {
     SpaprVioDevice *sdev;
 
     sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
     if (!sdev && reg == 0) {
-        /* Hack for kernel early debug, which always specifies reg==0.
-         * We search all VIO devices, and grab the vty with the lowest
-         * reg.  This attempts to mimic existing PowerVM behaviour
-         * (early debug does work there, despite having no vty with
-         * reg==0. */
         return spapr_vty_get_default(spapr->vio_bus);
     }
 

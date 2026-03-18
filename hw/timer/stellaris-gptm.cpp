@@ -8,12 +8,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/timer.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-clock.h"
 #include "hw/timer/stellaris-gptm.h"
+}
 
 static void gptm_update_irq(gptm_state *s)
 {
@@ -58,7 +61,7 @@ static void gptm_reload(gptm_state *s, int n, int reset)
 
 static void gptm_tick(void *opaque)
 {
-    gptm_state **p = (gptm_state **)opaque;
+    gptm_state **p = static_cast<gptm_state **>(opaque);
     gptm_state *s;
     int n;
 
@@ -101,7 +104,7 @@ static void gptm_tick(void *opaque)
 static uint64_t gptm_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
-    gptm_state *s = (gptm_state *)opaque;
+    gptm_state *s = static_cast<gptm_state *>(opaque);
 
     switch (offset) {
     case 0x00: /* CFG */
@@ -158,7 +161,7 @@ static uint64_t gptm_read(void *opaque, hwaddr offset,
 static void gptm_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
-    gptm_state *s = (gptm_state *)opaque;
+    gptm_state *s = static_cast<gptm_state *>(opaque);
     uint32_t oldval;
 
     /*
@@ -246,27 +249,29 @@ static const MemoryRegionOps gptm_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_stellaris_gptm_fields[] = {
+    VMSTATE_UINT32(config, gptm_state),
+    VMSTATE_UINT32_ARRAY(mode, gptm_state, 2),
+    VMSTATE_UINT32(control, gptm_state),
+    VMSTATE_UINT32(state, gptm_state),
+    VMSTATE_UINT32(mask, gptm_state),
+    VMSTATE_UNUSED(8),
+    VMSTATE_UINT32_ARRAY(load, gptm_state, 2),
+    VMSTATE_UINT32_ARRAY(match, gptm_state, 2),
+    VMSTATE_UINT32_ARRAY(prescale, gptm_state, 2),
+    VMSTATE_UINT32_ARRAY(match_prescale, gptm_state, 2),
+    VMSTATE_UINT32(rtc, gptm_state),
+    VMSTATE_INT64_ARRAY(tick, gptm_state, 2),
+    VMSTATE_TIMER_PTR_ARRAY(timer, gptm_state, 2),
+    VMSTATE_CLOCK(clk, gptm_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stellaris_gptm = {
     .name = "stellaris_gptm",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(config, gptm_state),
-        VMSTATE_UINT32_ARRAY(mode, gptm_state, 2),
-        VMSTATE_UINT32(control, gptm_state),
-        VMSTATE_UINT32(state, gptm_state),
-        VMSTATE_UINT32(mask, gptm_state),
-        VMSTATE_UNUSED(8),
-        VMSTATE_UINT32_ARRAY(load, gptm_state, 2),
-        VMSTATE_UINT32_ARRAY(match, gptm_state, 2),
-        VMSTATE_UINT32_ARRAY(prescale, gptm_state, 2),
-        VMSTATE_UINT32_ARRAY(match_prescale, gptm_state, 2),
-        VMSTATE_UINT32(rtc, gptm_state),
-        VMSTATE_INT64_ARRAY(tick, gptm_state, 2),
-        VMSTATE_TIMER_PTR_ARRAY(timer, gptm_state, 2),
-        VMSTATE_CLOCK(clk, gptm_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stellaris_gptm_fields,
 };
 
 static void stellaris_gptm_init(Object *obj)
