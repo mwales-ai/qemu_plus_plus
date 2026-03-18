@@ -11,14 +11,18 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "qemu/module.h"
+
 #include "hw/pci/msix.h"
 #include "hw/pci/pcie_port.h"
-#include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+
+extern "C" {
+#include "qapi/error.h"
+#include "qemu/module.h"
+#include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+}
 
 #define TYPE_GEN_PCIE_ROOT_PORT                "pcie-root-port"
 OBJECT_DECLARE_SIMPLE_TYPE(GenPCIERootPort, GEN_PCIE_ROOT_PORT)
@@ -68,7 +72,7 @@ static void gen_rp_interrupts_uninit(PCIDevice *d)
 
 static bool gen_rp_test_migrate_msix(void *opaque, int version_id)
 {
-    GenPCIERootPort *rp = opaque;
+    GenPCIERootPort *rp = static_cast<GenPCIERootPort *>(opaque);
 
     return rp->migrate_msix;
 }
@@ -111,21 +115,23 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_rp_dev_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
+    VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
+                   PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
+    VMSTATE_MSIX_TEST(parent_obj.parent_obj.parent_obj.parent_obj,
+                      GenPCIERootPort,
+                      gen_rp_test_migrate_msix),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_rp_dev = {
     .name = "pcie-root-port",
-    .priority = MIG_PRI_PCI_BUS,
     .version_id = 1,
     .minimum_version_id = 1,
+    .priority = MIG_PRI_PCI_BUS,
     .post_load = pcie_cap_slot_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj.parent_obj.parent_obj, PCIESlot),
-        VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
-                       PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
-        VMSTATE_MSIX_TEST(parent_obj.parent_obj.parent_obj.parent_obj,
-                          GenPCIERootPort,
-                          gen_rp_test_migrate_msix),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rp_dev_fields,
 };
 
 static const Property gen_rp_props[] = {

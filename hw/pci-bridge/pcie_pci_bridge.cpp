@@ -8,16 +8,20 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "qemu/module.h"
+
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/msi.h"
-#include "hw/pci/shpc.h"
 #include "hw/pci/slotid_cap.h"
+
+extern "C" {
+#include "hw/pci/shpc.h"
+#include "qapi/error.h"
+#include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
+}
 
 struct PCIEPCIBridge {
     /*< private >*/
@@ -36,6 +40,7 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
     PCIBridge *br = PCI_BRIDGE(d);
     PCIEPCIBridge *pcie_br = PCIE_PCI_BRIDGE_DEV(d);
     int rc, pos;
+    Error *local_err = NULL;
 
     pci_bridge_initfn(d, TYPE_PCI_BUS);
 
@@ -66,7 +71,6 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
         goto aer_error;
     }
 
-    Error *local_err = NULL;
     if (pcie_br->msi != ON_OFF_AUTO_OFF) {
         rc = msi_init(d, 0, 1, true, true, &local_err);
         if (rc < 0) {
@@ -127,14 +131,16 @@ static const Property pcie_pci_bridge_dev_properties[] = {
         DEFINE_PROP_ON_OFF_AUTO("msi", PCIEPCIBridge, msi, ON_OFF_AUTO_AUTO),
 };
 
+static const VMStateField pcie_pci_bridge_dev_vmstate_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
+    SHPC_VMSTATE(shpc, PCIDevice, NULL),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription pcie_pci_bridge_dev_vmstate = {
         .name = TYPE_PCIE_PCI_BRIDGE_DEV,
         .priority = MIG_PRI_PCI_BUS,
-        .fields = (const VMStateField[]) {
-            VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
-            SHPC_VMSTATE(shpc, PCIDevice, NULL),
-            VMSTATE_END_OF_LIST()
-        }
+        .fields = pcie_pci_bridge_dev_vmstate_fields,
 };
 
 static void pcie_pci_bridge_class_init(ObjectClass *klass, const void *data)
@@ -157,16 +163,18 @@ static void pcie_pci_bridge_class_init(ObjectClass *klass, const void *data)
     hc->unplug_request = pci_bridge_dev_unplug_request_cb;
 }
 
+static const InterfaceInfo pcie_pci_bridge_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { INTERFACE_PCIE_DEVICE },
+    { },
+};
+
 static const TypeInfo pcie_pci_bridge_info = {
         .name = TYPE_PCIE_PCI_BRIDGE_DEV,
         .parent = TYPE_PCI_BRIDGE,
         .instance_size = sizeof(PCIEPCIBridge),
         .class_init = pcie_pci_bridge_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-            { TYPE_HOTPLUG_HANDLER },
-            { INTERFACE_PCIE_DEVICE },
-            { },
-        }
+        .interfaces = pcie_pci_bridge_interfaces,
 };
 
 static void pciepci_register(void)

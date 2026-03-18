@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/irq.h"
@@ -32,6 +34,7 @@
 #include "migration/vmstate.h"
 #include "qom/object.h"
 #include "hw/acpi/ipmi.h"
+}
 
 #define TYPE_ISA_IPMI_KCS "isa-ipmi-kcs"
 OBJECT_DECLARE_SIMPLE_TYPE(ISAIPMIKCSDevice, ISA_IPMI_KCS)
@@ -56,14 +59,14 @@ static void isa_ipmi_kcs_get_fwinfo(IPMIInterface *ii, IPMIFwInfo *info)
 
 static void isa_ipmi_kcs_raise_irq(IPMIKCS *ik)
 {
-    ISAIPMIKCSDevice *iik = ik->opaque;
+    ISAIPMIKCSDevice *iik = static_cast<ISAIPMIKCSDevice *>(ik->opaque);
 
     qemu_irq_raise(iik->irq);
 }
 
 static void isa_ipmi_kcs_lower_irq(IPMIKCS *ik)
 {
-    ISAIPMIKCSDevice *iik = ik->opaque;
+    ISAIPMIKCSDevice *iik = static_cast<ISAIPMIKCSDevice *>(ik->opaque);
 
     qemu_irq_lower(iik->irq);
 }
@@ -77,17 +80,19 @@ static bool vmstate_kcs_before_version2(void *opaque, int version)
  * Version 1 had an incorrect name, it clashed with the BT IPMI
  * device, so receive it, but transmit a different version.
  */
+static const VMStateField vmstate_ISAIPMIKCSDevice_fields[] = {
+    VMSTATE_VSTRUCT_TEST(kcs, ISAIPMIKCSDevice, vmstate_kcs_before_version2,
+                         0, vmstate_IPMIKCS, IPMIKCS, 1),
+    VMSTATE_VSTRUCT_V(kcs, ISAIPMIKCSDevice, 2, vmstate_IPMIKCS,
+                      IPMIKCS, 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ISAIPMIKCSDevice = {
     .name = TYPE_IPMI_INTERFACE,
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VSTRUCT_TEST(kcs, ISAIPMIKCSDevice, vmstate_kcs_before_version2,
-                             0, vmstate_IPMIKCS, IPMIKCS, 1),
-        VMSTATE_VSTRUCT_V(kcs, ISAIPMIKCSDevice, 2, vmstate_IPMIKCS,
-                          IPMIKCS, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ISAIPMIKCSDevice_fields,
 };
 
 static void ipmi_isa_realize(DeviceState *dev, Error **errp)
@@ -161,17 +166,19 @@ static void isa_ipmi_kcs_class_init(ObjectClass *oc, const void *data)
     adevc->build_dev_aml = build_ipmi_dev_aml;
 }
 
+static const InterfaceInfo isa_ipmi_kcs_interfaces[] = {
+    { TYPE_IPMI_INTERFACE },
+    { TYPE_ACPI_DEV_AML_IF },
+    { }
+};
+
 static const TypeInfo isa_ipmi_kcs_info = {
     .name          = TYPE_ISA_IPMI_KCS,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAIPMIKCSDevice),
     .instance_init = isa_ipmi_kcs_init,
     .class_init    = isa_ipmi_kcs_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
-        { TYPE_ACPI_DEV_AML_IF },
-        { }
-    }
+    .interfaces = isa_ipmi_kcs_interfaces,
 };
 
 static void ipmi_register_types(void)

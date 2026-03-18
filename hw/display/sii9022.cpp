@@ -14,12 +14,16 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "hw/i2c/i2c.h"
 #include "migration/vmstate.h"
 #include "hw/display/i2c-ddc.h"
-#include "trace.h"
 #include "qom/object.h"
+}
+
+#include "trace.h"
 
 #define SII9022_SYS_CTRL_DATA 0x1a
 #define SII9022_SYS_CTRL_PWR_DWN 0x10
@@ -47,19 +51,21 @@ struct sii9022_state {
     bool ddc;
 };
 
+static const VMStateField vmstate_sii9022_fields[] = {
+    VMSTATE_I2C_SLAVE(parent_obj, sii9022_state),
+    VMSTATE_UINT8(ptr, sii9022_state),
+    VMSTATE_BOOL(addr_byte, sii9022_state),
+    VMSTATE_BOOL(ddc_req, sii9022_state),
+    VMSTATE_BOOL(ddc_skip_finish, sii9022_state),
+    VMSTATE_BOOL(ddc, sii9022_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sii9022 = {
     .name = "sii9022",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_I2C_SLAVE(parent_obj, sii9022_state),
-        VMSTATE_UINT8(ptr, sii9022_state),
-        VMSTATE_BOOL(addr_byte, sii9022_state),
-        VMSTATE_BOOL(ddc_req, sii9022_state),
-        VMSTATE_BOOL(ddc_skip_finish, sii9022_state),
-        VMSTATE_BOOL(ddc, sii9022_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_sii9022_fields,
 };
 
 static int sii9022_event(I2CSlave *i2c, enum i2c_event event)

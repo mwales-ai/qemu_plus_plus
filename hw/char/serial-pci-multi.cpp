@@ -28,13 +28,17 @@
 /* see docs/specs/pci-serial.rst */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
+
 #include "hw/char/serial.h"
+#include "hw/qdev-properties-system.h"
+
+extern "C" {
+#include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
+}
 
 #define PCI_SERIAL_MAX_PORTS 4
 
@@ -64,7 +68,7 @@ static void multi_serial_pci_exit(PCIDevice *dev)
 
 static void multi_serial_irq_mux(void *opaque, int n, int level)
 {
-    PCIMultiSerialState *pci = opaque;
+    PCIMultiSerialState *pci = static_cast<PCIMultiSerialState *>(opaque);
     int i, pending = 0;
 
     pci->level[n] = level;
@@ -116,17 +120,19 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_pci_multi_serial_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, PCIMultiSerialState),
+    VMSTATE_STRUCT_ARRAY(state, PCIMultiSerialState, PCI_SERIAL_MAX_PORTS,
+                         0, vmstate_serial, SerialState),
+    VMSTATE_UINT32_ARRAY(level, PCIMultiSerialState, PCI_SERIAL_MAX_PORTS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pci_multi_serial = {
     .name = "pci-serial-multi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, PCIMultiSerialState),
-        VMSTATE_STRUCT_ARRAY(state, PCIMultiSerialState, PCI_SERIAL_MAX_PORTS,
-                             0, vmstate_serial, SerialState),
-        VMSTATE_UINT32_ARRAY(level, PCIMultiSerialState, PCI_SERIAL_MAX_PORTS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_multi_serial_fields,
 };
 
 static const Property multi_2x_serial_pci_properties[] = {
@@ -186,16 +192,18 @@ static void multi_serial_init(Object *o)
     }
 }
 
+static const InterfaceInfo multi_serial_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo multi_2x_serial_pci_info = {
     .name          = "pci-serial-2x",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIMultiSerialState),
     .instance_init = multi_serial_init,
     .class_init    = multi_2x_serial_pci_class_initfn,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = multi_serial_pci_interfaces,
 };
 
 static const TypeInfo multi_4x_serial_pci_info = {
@@ -204,10 +212,7 @@ static const TypeInfo multi_4x_serial_pci_info = {
     .instance_size = sizeof(PCIMultiSerialState),
     .instance_init = multi_serial_init,
     .class_init    = multi_4x_serial_pci_class_initfn,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = multi_serial_pci_interfaces,
 };
 
 static void multi_serial_pci_register_types(void)

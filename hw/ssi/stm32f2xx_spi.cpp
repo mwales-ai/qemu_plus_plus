@@ -23,10 +23,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/ssi/stm32f2xx_spi.h"
 #include "migration/vmstate.h"
+}
 
 #ifndef STM_SPI_ERR_DEBUG
 #define STM_SPI_ERR_DEBUG 0
@@ -68,7 +71,7 @@ static void stm32f2xx_spi_transfer(STM32F2XXSPIState *s)
 static uint64_t stm32f2xx_spi_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    STM32F2XXSPIState *s = opaque;
+    STM32F2XXSPIState *s = static_cast<STM32F2XXSPIState *>(opaque);
 
     DB_PRINT("Address: 0x%" HWADDR_PRIx "\n", addr);
 
@@ -116,7 +119,7 @@ static uint64_t stm32f2xx_spi_read(void *opaque, hwaddr addr,
 static void stm32f2xx_spi_write(void *opaque, hwaddr addr,
                                 uint64_t val64, unsigned int size)
 {
-    STM32F2XXSPIState *s = opaque;
+    STM32F2XXSPIState *s = static_cast<STM32F2XXSPIState *>(opaque);
     uint32_t value = val64;
 
     DB_PRINT("Address: 0x%" HWADDR_PRIx ", Value: 0x%x\n", addr, value);
@@ -170,22 +173,24 @@ static const MemoryRegionOps stm32f2xx_spi_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_stm32f2xx_spi_fields[] = {
+    VMSTATE_UINT32(spi_cr1, STM32F2XXSPIState),
+    VMSTATE_UINT32(spi_cr2, STM32F2XXSPIState),
+    VMSTATE_UINT32(spi_sr, STM32F2XXSPIState),
+    VMSTATE_UINT32(spi_dr, STM32F2XXSPIState),
+    VMSTATE_UINT32(spi_crcpr, STM32F2XXSPIState),
+    VMSTATE_UINT32(spi_rxcrcr, STM32F2XXSPIState),
+    VMSTATE_UINT32(spi_txcrcr, STM32F2XXSPIState),
+    VMSTATE_UINT32(spi_i2scfgr, STM32F2XXSPIState),
+    VMSTATE_UINT32(spi_i2spr, STM32F2XXSPIState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32f2xx_spi = {
     .name = TYPE_STM32F2XX_SPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(spi_cr1, STM32F2XXSPIState),
-        VMSTATE_UINT32(spi_cr2, STM32F2XXSPIState),
-        VMSTATE_UINT32(spi_sr, STM32F2XXSPIState),
-        VMSTATE_UINT32(spi_dr, STM32F2XXSPIState),
-        VMSTATE_UINT32(spi_crcpr, STM32F2XXSPIState),
-        VMSTATE_UINT32(spi_rxcrcr, STM32F2XXSPIState),
-        VMSTATE_UINT32(spi_txcrcr, STM32F2XXSPIState),
-        VMSTATE_UINT32(spi_i2scfgr, STM32F2XXSPIState),
-        VMSTATE_UINT32(spi_i2spr, STM32F2XXSPIState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32f2xx_spi_fields,
 };
 
 static void stm32f2xx_spi_init(Object *obj)

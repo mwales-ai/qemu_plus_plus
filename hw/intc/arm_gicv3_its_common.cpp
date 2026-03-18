@@ -19,16 +19,20 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "hw/pci/msi.h"
+#include "system/kvm.h"
+
+extern "C" {
 #include "migration/vmstate.h"
 #include "hw/intc/arm_gicv3_its_common.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-#include "system/kvm.h"
+}
 
 static int gicv3_its_pre_save(void *opaque)
 {
-    GICv3ITSState *s = (GICv3ITSState *)opaque;
+    GICv3ITSState *s = static_cast<GICv3ITSState *>(opaque);
     GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
 
     if (c->pre_save) {
@@ -40,7 +44,7 @@ static int gicv3_its_pre_save(void *opaque)
 
 static int gicv3_its_post_load(void *opaque, int version_id)
 {
-    GICv3ITSState *s = (GICv3ITSState *)opaque;
+    GICv3ITSState *s = static_cast<GICv3ITSState *>(opaque);
     GICv3ITSCommonClass *c = ARM_GICV3_ITS_COMMON_GET_CLASS(s);
 
     if (c->post_load) {
@@ -49,27 +53,29 @@ static int gicv3_its_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_its_fields[] = {
+    VMSTATE_UINT32(ctlr, GICv3ITSState),
+    VMSTATE_UINT32(iidr, GICv3ITSState),
+    VMSTATE_UINT64(cbaser, GICv3ITSState),
+    VMSTATE_UINT64(cwriter, GICv3ITSState),
+    VMSTATE_UINT64(creadr, GICv3ITSState),
+    VMSTATE_UINT64_ARRAY(baser, GICv3ITSState, 8),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_its = {
     .name = "arm_gicv3_its",
-    .pre_save = gicv3_its_pre_save,
-    .post_load = gicv3_its_post_load,
     .priority = MIG_PRI_GICV3_ITS,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ctlr, GICv3ITSState),
-        VMSTATE_UINT32(iidr, GICv3ITSState),
-        VMSTATE_UINT64(cbaser, GICv3ITSState),
-        VMSTATE_UINT64(cwriter, GICv3ITSState),
-        VMSTATE_UINT64(creadr, GICv3ITSState),
-        VMSTATE_UINT64_ARRAY(baser, GICv3ITSState, 8),
-        VMSTATE_END_OF_LIST()
-    },
+    .post_load = gicv3_its_post_load,
+    .pre_save = gicv3_its_pre_save,
+    .fields = vmstate_its_fields,
 };
 
 static MemTxResult gicv3_its_trans_read(void *opaque, hwaddr offset,
                                         uint64_t *data, unsigned size,
                                         MemTxAttrs attrs)
 {
-    qemu_log_mask(LOG_GUEST_ERROR, "ITS read at offset 0x%"PRIx64"\n", offset);
+    qemu_log_mask(LOG_GUEST_ERROR, "ITS read at offset 0x%" PRIx64 "\n", offset);
     *data = 0;
     return MEMTX_OK;
 }
@@ -89,7 +95,7 @@ static MemTxResult gicv3_its_trans_write(void *opaque, hwaddr offset,
         }
     } else {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "ITS write at bad offset 0x%"PRIx64"\n", offset);
+                      "ITS write at bad offset 0x%" PRIx64 "\n", offset);
     }
     return MEMTX_OK;
 }
@@ -100,6 +106,7 @@ static const MemoryRegionOps gicv3_its_trans_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+extern "C"
 void gicv3_its_init_mmio(GICv3ITSState *s, const MemoryRegionOps *ops,
                          const MemoryRegionOps *tops)
 {
@@ -148,9 +155,9 @@ static const TypeInfo gicv3_its_common_info = {
     .name = TYPE_ARM_GICV3_ITS_COMMON,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GICv3ITSState),
+    .is_abstract = true,
     .class_size = sizeof(GICv3ITSCommonClass),
     .class_init = gicv3_its_common_class_init,
-    .is_abstract = true,
 };
 
 static void gicv3_its_common_register_types(void)
@@ -160,6 +167,7 @@ static void gicv3_its_common_register_types(void)
 
 type_init(gicv3_its_common_register_types)
 
+extern "C"
 const char *its_class_name(void)
 {
     if (kvm_irqchip_in_kernel()) {

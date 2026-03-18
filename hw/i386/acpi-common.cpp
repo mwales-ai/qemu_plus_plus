@@ -21,22 +21,25 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
 
+#include "hw/acpi/utils.h"
 #include "system/memory.h"
+
+extern "C" {
+#include "qapi/error.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
-#include "hw/acpi/utils.h"
 #include "target/i386/cpu.h"
-
 #include "acpi-build.h"
 #include "acpi-common.h"
+}
 
+extern "C"
 void pc_madt_cpu_entry(int uid, const CPUArchIdList *apic_ids,
                        GArray *entry, bool force_enabled)
 {
     uint32_t apic_id = apic_ids->cpus[uid].arch_id;
-    /* Flags – Local APIC Flags */
+    /* Flags - Local APIC Flags */
     uint32_t flags = apic_ids->cpus[uid].cpu != NULL || force_enabled ?
                      1 /* Enabled */ : 0;
 
@@ -92,6 +95,7 @@ build_xrupt_override(GArray *entry, uint8_t src, uint32_t gsi, uint16_t flags)
  * ACPI spec, Revision 1.0b
  * 5.2.8 Multiple APIC Description Table
  */
+extern "C"
 void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
                      X86MachineState *x86ms,
                      const char *oem_id, const char *oem_table_id)
@@ -162,4 +166,3 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
 
     acpi_table_end(linker, &table);
 }
-

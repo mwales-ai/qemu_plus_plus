@@ -22,11 +22,15 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+
+#include "hw/pci/pci_device.h"
+
+extern "C" {
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "hw/ipmi/ipmi_bt.h"
-#include "hw/pci/pci_device.h"
 #include "qom/object.h"
+}
 
 #define TYPE_PCI_IPMI_BT "pci-ipmi-bt"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIIPMIBTDevice, PCI_IPMI_BT)
@@ -51,14 +55,14 @@ static void pci_ipmi_bt_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
 
 static void pci_ipmi_raise_irq(IPMIBT *ib)
 {
-    PCIIPMIBTDevice *pib = ib->opaque;
+    PCIIPMIBTDevice *pib = static_cast<PCIIPMIBTDevice *>(ib->opaque);
 
     pci_set_irq(&pib->dev, true);
 }
 
 static void pci_ipmi_lower_irq(IPMIBT *ib)
 {
-    PCIIPMIBTDevice *pib = ib->opaque;
+    PCIIPMIBTDevice *pib = static_cast<PCIIPMIBTDevice *>(ib->opaque);
 
     pci_set_irq(&pib->dev, false);
 }
@@ -94,15 +98,17 @@ static void pci_ipmi_bt_realize(PCIDevice *pd, Error **errp)
     pci_register_bar(pd, 0, PCI_BASE_ADDRESS_SPACE_IO, &pib->bt.io);
 }
 
+static const VMStateField vmstate_PCIIPMIBTDevice_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, PCIIPMIBTDevice),
+    VMSTATE_STRUCT(bt, PCIIPMIBTDevice, 1, vmstate_IPMIBT, IPMIBT),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_PCIIPMIBTDevice = {
     .name = TYPE_IPMI_INTERFACE_PREFIX "pci-bt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, PCIIPMIBTDevice),
-        VMSTATE_STRUCT(bt, PCIIPMIBTDevice, 1, vmstate_IPMIBT, IPMIBT),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_PCIIPMIBTDevice_fields,
 };
 
 static void pci_ipmi_bt_instance_init(Object *obj)
@@ -139,17 +145,19 @@ static void pci_ipmi_bt_class_init(ObjectClass *oc, const void *data)
     iic->get_fwinfo = pci_ipmi_bt_get_fwinfo;
 }
 
+static const InterfaceInfo pci_ipmi_bt_interfaces[] = {
+    { TYPE_IPMI_INTERFACE },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
 static const TypeInfo pci_ipmi_bt_info = {
     .name          = TYPE_PCI_IPMI_BT,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIIPMIBTDevice),
     .instance_init = pci_ipmi_bt_instance_init,
     .class_init    = pci_ipmi_bt_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+    .interfaces = pci_ipmi_bt_interfaces,
 };
 
 static void pci_ipmi_bt_register_types(void)

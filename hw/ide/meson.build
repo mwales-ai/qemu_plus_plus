@@ -1,5 +1,5 @@
 system_ss.add(when: 'CONFIG_AHCI', if_true: files('ahci.c'))
-system_ss.add(when: 'CONFIG_AHCI_ICH9', if_true: files('ich.c'))
+system_ss.add(when: 'CONFIG_AHCI_ICH9', if_true: files('ich.cpp'))
 system_ss.add(when: 'CONFIG_AHCI_SYSBUS', if_true: files('ahci-sysbus.cpp'))
 system_ss.add(when: 'CONFIG_ALLWINNER_A10', if_true: files('ahci-allwinner.cpp'))
 system_ss.add(when: 'CONFIG_IDE_BUS', if_true: files('ide-bus.cpp'))

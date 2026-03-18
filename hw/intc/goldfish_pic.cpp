@@ -8,14 +8,18 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
-#include "trace.h"
 #include "hw/intc/intc.h"
 #include "hw/intc/goldfish_pic.h"
+}
+
+#include "trace.h"
 
 /* registers */
 
@@ -57,7 +61,7 @@ static void goldfish_pic_update(GoldfishPICState *s)
 
 static void goldfish_irq_request(void *opaque, int irq, int level)
 {
-    GoldfishPICState *s = opaque;
+    GoldfishPICState *s = static_cast<GoldfishPICState *>(opaque);
 
     trace_goldfish_irq_request(s, s->idx, irq, level);
 
@@ -73,7 +77,7 @@ static void goldfish_irq_request(void *opaque, int irq, int level)
 static uint64_t goldfish_pic_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    GoldfishPICState *s = opaque;
+    GoldfishPICState *s = static_cast<GoldfishPICState *>(opaque);
     uint64_t value = 0;
 
     switch (addr) {
@@ -87,7 +91,7 @@ static uint64_t goldfish_pic_read(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_UNIMP,
-                      "%s: unimplemented register read 0x%02"HWADDR_PRIx"\n",
+                      "%s: unimplemented register read 0x%02" HWADDR_PRIx "\n",
                       __func__, addr);
         break;
     }
@@ -100,7 +104,7 @@ static uint64_t goldfish_pic_read(void *opaque, hwaddr addr,
 static void goldfish_pic_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
-    GoldfishPICState *s = opaque;
+    GoldfishPICState *s = static_cast<GoldfishPICState *>(opaque);
 
     trace_goldfish_pic_write(s, s->idx, addr, size, value);
 
@@ -117,20 +121,25 @@ static void goldfish_pic_write(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_UNIMP,
-                      "%s: unimplemented register write 0x%02"HWADDR_PRIx"\n",
+                      "%s: unimplemented register write 0x%02" HWADDR_PRIx "\n",
                       __func__, addr);
         break;
     }
     goldfish_pic_update(s);
 }
 
-static const MemoryRegionOps goldfish_pic_ops = {
-    .read = goldfish_pic_read,
-    .write = goldfish_pic_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = { .max_access_size = 4, },
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
-};
+static MemoryRegionOps goldfish_pic_ops;
+
+static void __attribute__((constructor)) init_goldfish_pic_ops(void)
+{
+    memset(&goldfish_pic_ops, 0, sizeof(goldfish_pic_ops));
+    goldfish_pic_ops.read = goldfish_pic_read;
+    goldfish_pic_ops.write = goldfish_pic_write;
+    goldfish_pic_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    goldfish_pic_ops.valid.max_access_size = 4;
+    goldfish_pic_ops.impl.min_access_size = 4;
+    goldfish_pic_ops.impl.max_access_size = 4;
+}
 
 static void goldfish_pic_reset(DeviceState *dev)
 {
@@ -156,15 +165,17 @@ static void goldfish_pic_realize(DeviceState *dev, Error **errp)
                           "goldfish_pic", 0x24);
 }
 
+static const VMStateField vmstate_goldfish_pic_fields[] = {
+    VMSTATE_UINT32(pending, GoldfishPICState),
+    VMSTATE_UINT32(enabled, GoldfishPICState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_goldfish_pic = {
     .name = "goldfish_pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(pending, GoldfishPICState),
-        VMSTATE_UINT32(enabled, GoldfishPICState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_goldfish_pic_fields,
 };
 
 static void goldfish_pic_instance_init(Object *obj)
@@ -197,16 +208,18 @@ static void goldfish_pic_class_init(ObjectClass *oc, const void *data)
     device_class_set_props(dc, goldfish_pic_properties);
 }
 
+static const InterfaceInfo goldfish_pic_interfaces[] = {
+     { TYPE_INTERRUPT_STATS_PROVIDER },
+     { }
+};
+
 static const TypeInfo goldfish_pic_info = {
     .name = TYPE_GOLDFISH_PIC,
     .parent = TYPE_SYS_BUS_DEVICE,
     .class_init = goldfish_pic_class_init,
     .instance_init = goldfish_pic_instance_init,
     .instance_size = sizeof(GoldfishPICState),
-    .interfaces = (const InterfaceInfo[]) {
-         { TYPE_INTERRUPT_STATS_PROVIDER },
-         { }
-    },
+    .interfaces = goldfish_pic_interfaces,
 };
 
 static void goldfish_pic_register_types(void)

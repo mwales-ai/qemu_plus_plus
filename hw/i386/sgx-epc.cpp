@@ -10,14 +10,18 @@
  * See the COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+
 #include "hw/i386/pc.h"
 #include "hw/i386/sgx-epc.h"
 #include "hw/mem/memory-device.h"
+#include "system/address-spaces.h"
+
+extern "C" {
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "target/i386/cpu.h"
-#include "system/address-spaces.h"
+}
 
 static const Property sgx_epc_properties[] = {
     DEFINE_PROP_UINT64(SGX_EPC_ADDR_PROP, SGXEPCDevice, addr, 0),
@@ -81,8 +85,9 @@ static void sgx_epc_realize(DeviceState *dev, Error **errp)
 
     host_memory_backend_set_mapped(hostmem, true);
 
-    sgx_epc->sections = g_renew(SGXEPCDevice *, sgx_epc->sections,
-                                sgx_epc->nr_sections + 1);
+    sgx_epc->sections = static_cast<SGXEPCDevice **>(
+        g_renew(SGXEPCDevice *, sgx_epc->sections,
+                sgx_epc->nr_sections + 1));
     sgx_epc->sections[sgx_epc->nr_sections++] = epc;
 
     sgx_epc->size += memory_device_get_region_size(md, errp);
@@ -166,17 +171,19 @@ static void sgx_epc_class_init(ObjectClass *oc, const void *data)
     mdc->fill_device_info = sgx_epc_md_fill_device_info;
 }
 
+static const InterfaceInfo sgx_epc_interfaces[] = {
+    { TYPE_MEMORY_DEVICE },
+    { }
+};
+
 static const TypeInfo sgx_epc_info = {
     .name          = TYPE_SGX_EPC,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(SGXEPCDevice),
     .instance_init = sgx_epc_init,
-    .class_init    = sgx_epc_class_init,
     .class_size    = sizeof(DeviceClass),
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_MEMORY_DEVICE },
-        { }
-    },
+    .class_init    = sgx_epc_class_init,
+    .interfaces = sgx_epc_interfaces,
 };
 
 static void sgx_epc_register_types(void)

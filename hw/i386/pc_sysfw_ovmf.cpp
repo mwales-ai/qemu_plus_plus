@@ -24,10 +24,14 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/error-report.h"
+
 #include "hw/i386/pc.h"
+
+extern "C" {
+#include "qemu/error-report.h"
 #include "exec/target_page.h"
 #include "cpu.h"
+}
 
 #define OVMF_TABLE_FOOTER_GUID "96b582de-1fb2-45f7-baea-a366c55a082d"
 
@@ -37,6 +41,7 @@ static bool ovmf_flash_parsed;
 static uint8_t *ovmf_table;
 static int ovmf_table_len;
 
+extern "C"
 void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size)
 {
     uint8_t *ptr;
@@ -81,7 +86,7 @@ void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size)
         return;
     }
 
-    ovmf_table = g_malloc(tot_len);
+    ovmf_table = static_cast<uint8_t *>(g_malloc(tot_len));
     ovmf_table_len = tot_len;
 
     /*
@@ -104,6 +109,7 @@ void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size)
  *
  * Return: true if the entry was found in the OVMF table; false otherwise.
  */
+extern "C"
 bool pc_system_ovmf_table_find(const char *entry, uint8_t **data,
                                int *data_len)
 {
@@ -122,7 +128,7 @@ bool pc_system_ovmf_table_find(const char *entry, uint8_t **data,
     }
 
     entry_guid = qemu_uuid_bswap(entry_guid); /* guids are LE */
-    while (tot_len >= sizeof(QemuUUID) + sizeof(uint16_t)) {
+    while (tot_len >= (int)(sizeof(QemuUUID) + sizeof(uint16_t))) {
         int len;
         QemuUUID *guid;
 
@@ -140,7 +146,7 @@ bool pc_system_ovmf_table_find(const char *entry, uint8_t **data,
          * just in case the table is corrupt, wouldn't want to spin in
          * the zero case
          */
-        if (len < sizeof(QemuUUID) + sizeof(uint16_t)) {
+        if (len < (int)(sizeof(QemuUUID) + sizeof(uint16_t))) {
             return false;
         } else if (len > tot_len) {
             return false;

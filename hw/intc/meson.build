@@ -4,7 +4,7 @@ system_ss.add(when: 'CONFIG_ARM_GIC', if_true: files(
   'arm_gic_common.cpp',
   'arm_gicv2m.cpp',
   'arm_gicv3_common.cpp',
-  'arm_gicv3_its_common.c',
+  'arm_gicv3_its_common.cpp',
 ))
 system_ss.add(when: 'CONFIG_ARM_GICV3', if_true: files(
   'arm_gicv3.cpp',
@@ -16,7 +16,7 @@ system_ss.add(when: 'CONFIG_ALLWINNER_A10_PIC', if_true: files('allwinner-a10-pi
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files('aspeed_vic.c'))
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files('aspeed_intc.c'))
 system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_gic.cpp', 'exynos4210_combiner.cpp'))
-system_ss.add(when: 'CONFIG_GOLDFISH_PIC', if_true: files('goldfish_pic.c'))
+system_ss.add(when: 'CONFIG_GOLDFISH_PIC', if_true: files('goldfish_pic.cpp'))
 system_ss.add(when: 'CONFIG_HEATHROW_PIC', if_true: files('heathrow_pic.cpp'))
 system_ss.add(when: 'CONFIG_I8259', if_true: files('i8259_common.cpp', 'i8259.cpp'))
 system_ss.add(when: 'CONFIG_IMX', if_true: files('imx_avic.c', 'imx_gpcv2.cpp'))

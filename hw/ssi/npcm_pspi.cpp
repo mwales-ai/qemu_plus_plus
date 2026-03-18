@@ -16,6 +16,7 @@
 
 #include "qemu/osdep.h"
 
+extern "C" {
 #include "hw/irq.h"
 #include "hw/registerfields.h"
 #include "hw/ssi/npcm_pspi.h"
@@ -25,6 +26,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
+}
 
 #include "trace.h"
 
@@ -90,7 +92,7 @@ static void npcm_pspi_write_data(NPCMPSPIState *s, uint16_t data)
 static uint64_t npcm_pspi_ctrl_read(void *opaque, hwaddr addr,
                                     unsigned int size)
 {
-    NPCMPSPIState *s = opaque;
+    NPCMPSPIState *s = static_cast<NPCMPSPIState *>(opaque);
     uint16_t value;
 
     switch (addr) {
@@ -122,7 +124,7 @@ static uint64_t npcm_pspi_ctrl_read(void *opaque, hwaddr addr,
 static void npcm_pspi_ctrl_write(void *opaque, hwaddr addr, uint64_t v,
                                  unsigned int size)
 {
-    NPCMPSPIState *s = opaque;
+    NPCMPSPIState *s = static_cast<NPCMPSPIState *>(opaque);
     uint16_t value = v;
 
     trace_npcm_pspi_ctrl_write(DEVICE(s)->canonical_path, addr, value);
@@ -151,21 +153,21 @@ static void npcm_pspi_ctrl_write(void *opaque, hwaddr addr, uint64_t v,
     npcm_pspi_update_irq(s);
 }
 
-static const MemoryRegionOps npcm_pspi_ctrl_ops = {
-    .read = npcm_pspi_ctrl_read,
-    .write = npcm_pspi_ctrl_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 2,
-        .unaligned = false,
-    },
-    .impl = {
-        .min_access_size = 2,
-        .max_access_size = 2,
-        .unaligned = false,
-    },
-};
+static MemoryRegionOps npcm_pspi_ctrl_ops;
+
+static void __attribute__((constructor)) init_npcm_pspi_ctrl_ops(void)
+{
+    memset(&npcm_pspi_ctrl_ops, 0, sizeof(npcm_pspi_ctrl_ops));
+    npcm_pspi_ctrl_ops.read = npcm_pspi_ctrl_read;
+    npcm_pspi_ctrl_ops.write = npcm_pspi_ctrl_write;
+    npcm_pspi_ctrl_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    npcm_pspi_ctrl_ops.valid.min_access_size = 1;
+    npcm_pspi_ctrl_ops.valid.max_access_size = 2;
+    npcm_pspi_ctrl_ops.valid.unaligned = false;
+    npcm_pspi_ctrl_ops.impl.min_access_size = 2;
+    npcm_pspi_ctrl_ops.impl.max_access_size = 2;
+    npcm_pspi_ctrl_ops.impl.unaligned = false;
+}
 
 static void npcm_pspi_enter_reset(Object *obj, ResetType type)
 {
@@ -188,14 +190,16 @@ static void npcm_pspi_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(sbd, &s->irq);
 }
 
+static const VMStateField vmstate_npcm_pspi_fields[] = {
+    VMSTATE_UINT16_ARRAY(regs, NPCMPSPIState, NPCM_PSPI_NR_REGS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm_pspi = {
     .name = "npcm-pspi",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16_ARRAY(regs, NPCMPSPIState, NPCM_PSPI_NR_REGS),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm_pspi_fields,
 };
 
 

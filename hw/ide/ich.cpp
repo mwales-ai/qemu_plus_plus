@@ -61,15 +61,19 @@
  */
 
 #include "qemu/osdep.h"
+
+#include "system/dma.h"
+#include "hw/ide/pci.h"
+#include "hw/ide/ahci-pci.h"
+
+extern "C" {
 #include "hw/pci/msi.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "hw/isa/isa.h"
-#include "system/dma.h"
-#include "hw/ide/pci.h"
-#include "hw/ide/ahci-pci.h"
 #include "ahci-internal.h"
+}
 
 #define ICH9_MSI_CAP_OFFSET     0x80
 #define ICH9_SATA_CAP_OFFSET    0xA8
@@ -80,19 +84,21 @@
 #define ICH9_IDP_INDEX          0x10
 #define ICH9_IDP_INDEX_LOG2     0x04
 
+static const VMStateField vmstate_ich9_ahci_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, AHCIPCIState),
+    VMSTATE_AHCI(ahci, AHCIPCIState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ich9_ahci = {
     .name = "ich9_ahci",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, AHCIPCIState),
-        VMSTATE_AHCI(ahci, AHCIPCIState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_ich9_ahci_fields,
 };
 
 static void pci_ich9_ahci_update_irq(void *opaque, int irq_num, int level)
 {
-    PCIDevice *pci_dev = opaque;
+    PCIDevice *pci_dev = static_cast<PCIDevice *>(opaque);
 
     if (msi_enabled(pci_dev)) {
         if (level) {
@@ -192,16 +198,18 @@ static void ich_ahci_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
+static const InterfaceInfo ich_ahci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo ich_ahci_info = {
     .name          = TYPE_ICH9_AHCI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AHCIPCIState),
     .instance_init = pci_ich9_ahci_init,
     .class_init    = ich_ahci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = ich_ahci_interfaces,
 };
 
 static void ich_ahci_register_types(void)

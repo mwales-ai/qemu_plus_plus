@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/irq.h"
@@ -32,6 +34,7 @@
 #include "migration/vmstate.h"
 #include "qom/object.h"
 #include "hw/acpi/ipmi.h"
+}
 
 #define TYPE_ISA_IPMI_BT "isa-ipmi-bt"
 OBJECT_DECLARE_SIMPLE_TYPE(ISAIPMIBTDevice, ISA_IPMI_BT)
@@ -57,17 +60,22 @@ static void isa_ipmi_bt_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
 
 static void isa_ipmi_bt_raise_irq(IPMIBT *ib)
 {
-    ISAIPMIBTDevice *iib = ib->opaque;
+    ISAIPMIBTDevice *iib = static_cast<ISAIPMIBTDevice *>(ib->opaque);
 
     qemu_irq_raise(iib->irq);
 }
 
 static void isa_ipmi_bt_lower_irq(IPMIBT *ib)
 {
-    ISAIPMIBTDevice *iib = ib->opaque;
+    ISAIPMIBTDevice *iib = static_cast<ISAIPMIBTDevice *>(ib->opaque);
 
     qemu_irq_lower(iib->irq);
 }
+
+static const VMStateField vmstate_ISAIPMIBTDevice_fields[] = {
+    VMSTATE_STRUCT(bt, ISAIPMIBTDevice, 1, vmstate_IPMIBT, IPMIBT),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_ISAIPMIBTDevice = {
     .name = TYPE_IPMI_INTERFACE_PREFIX "isa-bt",
@@ -78,10 +86,7 @@ static const VMStateDescription vmstate_ISAIPMIBTDevice = {
      * because it used VMSTATE_VBUFFER_UINT32, but it did not transfer
      * the buffer length, so random things would happen.
      */
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(bt, ISAIPMIBTDevice, 1, vmstate_IPMIBT, IPMIBT),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ISAIPMIBTDevice_fields,
 };
 
 static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
@@ -155,17 +160,19 @@ static void isa_ipmi_bt_class_init(ObjectClass *oc, const void *data)
     adevc->build_dev_aml = build_ipmi_dev_aml;
 }
 
+static const InterfaceInfo isa_ipmi_bt_interfaces[] = {
+    { TYPE_IPMI_INTERFACE },
+    { TYPE_ACPI_DEV_AML_IF },
+    { }
+};
+
 static const TypeInfo isa_ipmi_bt_info = {
     .name          = TYPE_ISA_IPMI_BT,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAIPMIBTDevice),
     .instance_init = isa_ipmi_bt_init,
     .class_init    = isa_ipmi_bt_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
-        { TYPE_ACPI_DEV_AML_IF },
-        { }
-    }
+    .interfaces = isa_ipmi_bt_interfaces,
 };
 
 static void ipmi_register_types(void)

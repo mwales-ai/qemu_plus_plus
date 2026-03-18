@@ -11,11 +11,16 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "hw/virtio/virtio-md-pci.h"
 #include "hw/mem/memory-device.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
+}
 
+extern "C"
 void virtio_md_pci_pre_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
@@ -44,6 +49,7 @@ void virtio_md_pci_pre_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
     error_propagate(errp, local_err);
 }
 
+extern "C"
 void virtio_md_pci_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
@@ -66,6 +72,7 @@ void virtio_md_pci_plug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
     error_propagate(errp, local_err);
 }
 
+extern "C"
 void virtio_md_pci_unplug_request(VirtIOMDPCI *vmd, MachineState *ms,
                                   Error **errp)
 {
@@ -107,6 +114,7 @@ void virtio_md_pci_unplug_request(VirtIOMDPCI *vmd, MachineState *ms,
     }
 }
 
+extern "C"
 void virtio_md_pci_unplug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
 {
     DeviceState *dev = DEVICE(vmd);
@@ -132,16 +140,18 @@ void virtio_md_pci_unplug(VirtIOMDPCI *vmd, MachineState *ms, Error **errp)
     }
 }
 
+static const InterfaceInfo virtio_md_pci_interfaces[] = {
+    { TYPE_MEMORY_DEVICE },
+    { }
+};
+
 static const TypeInfo virtio_md_pci_info = {
     .name = TYPE_VIRTIO_MD_PCI,
     .parent = TYPE_VIRTIO_PCI,
     .instance_size = sizeof(VirtIOMDPCI),
-    .class_size = sizeof(VirtIOMDPCIClass),
     .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_MEMORY_DEVICE },
-        { }
-    },
+    .class_size = sizeof(VirtIOMDPCIClass),
+    .interfaces = virtio_md_pci_interfaces,
 };
 
 static void virtio_md_pci_register(void)

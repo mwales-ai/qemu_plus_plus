@@ -22,11 +22,15 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+
+#include "hw/pci/pci_device.h"
+
+extern "C" {
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "hw/ipmi/ipmi_kcs.h"
-#include "hw/pci/pci_device.h"
 #include "qom/object.h"
+}
 
 #define TYPE_PCI_IPMI_KCS "pci-ipmi-kcs"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIIPMIKCSDevice, PCI_IPMI_KCS)
@@ -50,14 +54,14 @@ static void pci_ipmi_kcs_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
 
 static void pci_ipmi_raise_irq(IPMIKCS *ik)
 {
-    PCIIPMIKCSDevice *pik = ik->opaque;
+    PCIIPMIKCSDevice *pik = static_cast<PCIIPMIKCSDevice *>(ik->opaque);
 
     pci_set_irq(&pik->dev, true);
 }
 
 static void pci_ipmi_lower_irq(IPMIKCS *ik)
 {
-    PCIIPMIKCSDevice *pik = ik->opaque;
+    PCIIPMIKCSDevice *pik = static_cast<PCIIPMIKCSDevice *>(ik->opaque);
 
     pci_set_irq(&pik->dev, false);
 }
@@ -93,15 +97,17 @@ static void pci_ipmi_kcs_realize(PCIDevice *pd, Error **errp)
     pci_register_bar(pd, 0, PCI_BASE_ADDRESS_SPACE_IO, &pik->kcs.io);
 }
 
+static const VMStateField vmstate_PCIIPMIKCSDevice_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, PCIIPMIKCSDevice),
+    VMSTATE_STRUCT(kcs, PCIIPMIKCSDevice, 1, vmstate_IPMIKCS, IPMIKCS),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_PCIIPMIKCSDevice = {
     .name = TYPE_IPMI_INTERFACE_PREFIX "pci-kcs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, PCIIPMIKCSDevice),
-        VMSTATE_STRUCT(kcs, PCIIPMIKCSDevice, 1, vmstate_IPMIKCS, IPMIKCS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_PCIIPMIKCSDevice_fields,
 };
 
 static void pci_ipmi_kcs_instance_init(Object *obj)
@@ -138,17 +144,19 @@ static void pci_ipmi_kcs_class_init(ObjectClass *oc, const void *data)
     iic->get_fwinfo = pci_ipmi_kcs_get_fwinfo;
 }
 
+static const InterfaceInfo pci_ipmi_kcs_interfaces[] = {
+    { TYPE_IPMI_INTERFACE },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
 static const TypeInfo pci_ipmi_kcs_info = {
     .name          = TYPE_PCI_IPMI_KCS,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIIPMIKCSDevice),
     .instance_init = pci_ipmi_kcs_instance_init,
     .class_init    = pci_ipmi_kcs_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_IPMI_INTERFACE },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+    .interfaces = pci_ipmi_kcs_interfaces,
 };
 
 static void pci_ipmi_kcs_register_types(void)

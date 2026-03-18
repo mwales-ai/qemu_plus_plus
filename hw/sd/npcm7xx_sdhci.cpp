@@ -18,13 +18,16 @@
 
 #include "hw/sd/sdhci.h"
 #include "hw/sd/npcm7xx_sdhci.h"
+
+extern "C" {
 #include "migration/vmstate.h"
 #include "sdhci-internal.h"
 #include "qemu/log.h"
+}
 
 static uint64_t npcm7xx_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    NPCM7xxSDHCIState *s = opaque;
+    NPCM7xxSDHCIState *s = static_cast<NPCM7xxSDHCIState *>(opaque);
     uint64_t val = 0;
 
     switch (addr) {
@@ -51,7 +54,7 @@ static uint64_t npcm7xx_sdhci_read(void *opaque, hwaddr addr, unsigned int size)
 static void npcm7xx_sdhci_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned int size)
 {
-    NPCM7xxSDHCIState *s = opaque;
+    NPCM7xxSDHCIState *s = static_cast<NPCM7xxSDHCIState *>(opaque);
 
     switch (addr) {
     case NPCM7XX_BOOTTOCTRL:
@@ -85,17 +88,19 @@ static bool npcm7xx_sdhci_check_mem_op(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps npcm7xx_sdhci_ops = {
-    .read = npcm7xx_sdhci_read,
-    .write = npcm7xx_sdhci_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-        .unaligned = false,
-        .accepts = npcm7xx_sdhci_check_mem_op,
-    },
-};
+static MemoryRegionOps npcm7xx_sdhci_ops;
+
+static void __attribute__((constructor)) init_npcm7xx_sdhci_ops(void)
+{
+    memset(&npcm7xx_sdhci_ops, 0, sizeof(npcm7xx_sdhci_ops));
+    npcm7xx_sdhci_ops.read = npcm7xx_sdhci_read;
+    npcm7xx_sdhci_ops.write = npcm7xx_sdhci_write;
+    npcm7xx_sdhci_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    npcm7xx_sdhci_ops.valid.min_access_size = 1;
+    npcm7xx_sdhci_ops.valid.max_access_size = 4;
+    npcm7xx_sdhci_ops.valid.unaligned = false;
+    npcm7xx_sdhci_ops.valid.accepts = npcm7xx_sdhci_check_mem_op;
+}
 
 static void npcm7xx_sdhci_realize(DeviceState *dev, Error **errp)
 {
@@ -140,13 +145,15 @@ static void npcm7xx_sdhci_reset(DeviceState *dev)
     s->sdhci.version = NPCM7XX_HCVER_RESET;
 }
 
+static const VMStateField vmstate_npcm7xx_sdhci_fields[] = {
+    VMSTATE_UINT32(regs.boottoctrl, NPCM7xxSDHCIState),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_sdhci = {
     .name = TYPE_NPCM7XX_SDHCI,
     .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(regs.boottoctrl, NPCM7xxSDHCIState),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_sdhci_fields,
 };
 
 static void npcm7xx_sdhci_class_init(ObjectClass *classp, const void *data)

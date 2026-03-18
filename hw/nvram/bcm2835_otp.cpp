@@ -12,11 +12,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "hw/nvram/bcm2835_otp.h"
 #include "migration/vmstate.h"
+}
 
-/* OTP rows are 1-indexed */
+extern "C"
 uint32_t bcm2835_otp_get_row(BCM2835OTPState *s, unsigned int row)
 {
     assert(row <= BCM2835_OTP_ROW_COUNT && row >= 1);
@@ -24,6 +27,7 @@ uint32_t bcm2835_otp_get_row(BCM2835OTPState *s, unsigned int row)
     return s->otp_rows[row - 1];
 }
 
+extern "C"
 void bcm2835_otp_set_row(BCM2835OTPState *s, unsigned int row,
                            uint32_t value)
 {
@@ -134,15 +138,17 @@ static void bcm2835_otp_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps bcm2835_otp_ops = {
-    .read = bcm2835_otp_read,
-    .write = bcm2835_otp_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
+static MemoryRegionOps bcm2835_otp_ops;
+
+static void __attribute__((constructor)) init_bcm2835_otp_ops(void)
+{
+    memset(&bcm2835_otp_ops, 0, sizeof(bcm2835_otp_ops));
+    bcm2835_otp_ops.read = bcm2835_otp_read;
+    bcm2835_otp_ops.write = bcm2835_otp_write;
+    bcm2835_otp_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    bcm2835_otp_ops.impl.min_access_size = 4;
+    bcm2835_otp_ops.impl.max_access_size = 4;
+}
 
 static void bcm2835_otp_realize(DeviceState *dev, Error **errp)
 {
@@ -154,14 +160,16 @@ static void bcm2835_otp_realize(DeviceState *dev, Error **errp)
     memset(s->otp_rows, 0x00, sizeof(s->otp_rows));
 }
 
+static const VMStateField vmstate_bcm2835_otp_fields[] = {
+    VMSTATE_UINT32_ARRAY(otp_rows, BCM2835OTPState, BCM2835_OTP_ROW_COUNT),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_otp = {
     .name = TYPE_BCM2835_OTP,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(otp_rows, BCM2835OTPState, BCM2835_OTP_ROW_COUNT),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_otp_fields,
 };
 
 static void bcm2835_otp_class_init(ObjectClass *klass, const void *data)

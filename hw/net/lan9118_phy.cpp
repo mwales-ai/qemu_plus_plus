@@ -13,12 +13,16 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/net/lan9118_phy.h"
 #include "hw/net/mii.h"
 #include "hw/irq.h"
 #include "hw/resettable.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
+}
+
 #include "trace.h"
 
 #define PHY_INT_ENERGYON            (1 << 7)
@@ -34,6 +38,7 @@ static void lan9118_phy_update_irq(Lan9118PhyState *s)
     qemu_set_irq(s->irq, !!(s->ints & s->int_mask));
 }
 
+extern "C"
 uint16_t lan9118_phy_read(Lan9118PhyState *s, int reg)
 {
     uint16_t val;
@@ -90,6 +95,7 @@ uint16_t lan9118_phy_read(Lan9118PhyState *s, int reg)
     return val;
 }
 
+extern "C"
 void lan9118_phy_write(Lan9118PhyState *s, int reg, uint16_t val)
 {
     trace_lan9118_phy_write(val, reg);
@@ -132,6 +138,7 @@ void lan9118_phy_write(Lan9118PhyState *s, int reg, uint16_t val)
     }
 }
 
+extern "C"
 void lan9118_phy_update_link(Lan9118PhyState *s, bool link_down)
 {
     s->link_down = link_down;
@@ -150,6 +157,7 @@ void lan9118_phy_update_link(Lan9118PhyState *s, bool link_down)
     lan9118_phy_update_irq(s);
 }
 
+extern "C"
 void lan9118_phy_reset(Lan9118PhyState *s)
 {
     trace_lan9118_phy_reset();
@@ -185,19 +193,21 @@ static void lan9118_phy_init(Object *obj)
     qdev_init_gpio_out(DEVICE(s), &s->irq, 1);
 }
 
+static const VMStateField vmstate_lan9118_phy_fields[] = {
+    VMSTATE_UINT16(status, Lan9118PhyState),
+    VMSTATE_UINT16(control, Lan9118PhyState),
+    VMSTATE_UINT16(advertise, Lan9118PhyState),
+    VMSTATE_UINT16(ints, Lan9118PhyState),
+    VMSTATE_UINT16(int_mask, Lan9118PhyState),
+    VMSTATE_BOOL(link_down, Lan9118PhyState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_lan9118_phy = {
     .name = "lan9118-phy",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(status, Lan9118PhyState),
-        VMSTATE_UINT16(control, Lan9118PhyState),
-        VMSTATE_UINT16(advertise, Lan9118PhyState),
-        VMSTATE_UINT16(ints, Lan9118PhyState),
-        VMSTATE_UINT16(int_mask, Lan9118PhyState),
-        VMSTATE_BOOL(link_down, Lan9118PhyState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_lan9118_phy_fields,
 };
 
 static void lan9118_phy_class_init(ObjectClass *klass, const void *data)
