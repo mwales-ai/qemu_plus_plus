@@ -6,6 +6,10 @@
 #include "hw/i386/tdvf.h"
 #include "target/i386/kvm/tdx.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void tdvf_hob_create(TdxGuest *tdx, TdxFirmwareEntry *td_hob);
 
 #define EFI_RESOURCE_ATTRIBUTE_TDVF_PRIVATE     \
@@ -22,5 +26,9 @@ void tdvf_hob_create(TdxGuest *tdx, TdxFirmwareEntry *td_hob);
     (EFI_RESOURCE_ATTRIBUTE_PRESENT     |       \
      EFI_RESOURCE_ATTRIBUTE_INITIALIZED |       \
      EFI_RESOURCE_ATTRIBUTE_UNCACHEABLE)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

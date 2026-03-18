@@ -12,8 +12,11 @@
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/i386/pc.h"
-#include "trace.h"
 #include "qom/object.h"
+
+extern "C" {
+#include "trace.h"
+}
 
 OBJECT_DECLARE_SIMPLE_TYPE(Port92State, PORT92)
 
@@ -28,7 +31,7 @@ struct Port92State {
 static void port92_write(void *opaque, hwaddr addr, uint64_t val,
                          unsigned size)
 {
-    Port92State *s = opaque;
+    Port92State *s = static_cast<Port92State *>(opaque);
     int oldval = s->outport;
 
     trace_port92_write(val);
@@ -42,7 +45,7 @@ static void port92_write(void *opaque, hwaddr addr, uint64_t val,
 static uint64_t port92_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
-    Port92State *s = opaque;
+    Port92State *s = static_cast<Port92State *>(opaque);
     uint32_t ret;
 
     ret = s->outport;
@@ -51,14 +54,16 @@ static uint64_t port92_read(void *opaque, hwaddr addr,
     return ret;
 }
 
+static const VMStateField vmstate_port92_isa_fields[] = {
+    VMSTATE_UINT8(outport, Port92State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_port92_isa = {
     .name = "port92",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(outport, Port92State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_port92_isa_fields,
 };
 
 static void port92_reset(DeviceState *d)
@@ -68,15 +73,17 @@ static void port92_reset(DeviceState *d)
     s->outport &= ~1;
 }
 
-static const MemoryRegionOps port92_ops = {
+static MemoryRegionOps port92_ops = {
     .read = port92_read,
     .write = port92_write,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void __attribute__((constructor)) init_port92_ops(void)
+{
+    port92_ops.impl.min_access_size = 1;
+    port92_ops.impl.max_access_size = 1;
+}
 
 static void port92_initfn(Object *obj)
 {

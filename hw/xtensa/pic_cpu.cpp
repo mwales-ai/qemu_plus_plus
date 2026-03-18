@@ -29,10 +29,15 @@
 #include "cpu.h"
 #include "exec/cpu-interrupt.h"
 #include "hw/irq.h"
+
+extern "C" {
 #include "qemu/log.h"
+}
+
 #include "qemu/timer.h"
 #include "qemu/atomic.h"
 
+extern "C"
 void check_interrupts(CPUXtensaState *env)
 {
     CPUState *cs = env_cpu(env);
@@ -66,7 +71,7 @@ void check_interrupts(CPUXtensaState *env)
 
 static void xtensa_set_irq(void *opaque, int irq, int active)
 {
-    CPUXtensaState *env = opaque;
+    CPUXtensaState *env = static_cast<CPUXtensaState *>(opaque);
 
     if (irq >= env->config->ninterrupt) {
         qemu_log("%s: bad IRQ %d\n", __func__, irq);
@@ -85,7 +90,7 @@ static void xtensa_set_irq(void *opaque, int irq, int active)
 
 static void xtensa_ccompare_cb(void *opaque)
 {
-    XtensaCcompareTimer *ccompare = opaque;
+    XtensaCcompareTimer *ccompare = static_cast<XtensaCcompareTimer *>(opaque);
     CPUXtensaState *env = ccompare->env;
     unsigned i = ccompare - env->ccompare;
 
@@ -94,10 +99,11 @@ static void xtensa_ccompare_cb(void *opaque)
 
 static void xtensa_set_runstall(void *opaque, int irq, int active)
 {
-    CPUXtensaState *env = opaque;
+    CPUXtensaState *env = static_cast<CPUXtensaState *>(opaque);
     xtensa_runstall(env, active);
 }
 
+extern "C"
 void xtensa_irq_init(CPUXtensaState *env)
 {
     unsigned i;
@@ -121,11 +127,13 @@ void xtensa_irq_init(CPUXtensaState *env)
     env->runstall_irq = qemu_allocate_irq(xtensa_set_runstall, env, 0);
 }
 
+extern "C"
 qemu_irq *xtensa_get_extints(CPUXtensaState *env)
 {
     return env->ext_irq_inputs;
 }
 
+extern "C"
 qemu_irq xtensa_get_runstall(CPUXtensaState *env)
 {
     return env->runstall_irq;

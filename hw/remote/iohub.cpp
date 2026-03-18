@@ -1,7 +1,7 @@
 /*
  * Remote IO Hub
  *
- * Copyright © 2018, 2021 Oracle and/or its affiliates.
+ * Copyright (c) 2018, 2021 Oracle and/or its affiliates.
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
@@ -18,6 +18,7 @@
 #include "hw/remote/iohub.h"
 #include "qemu/main-loop.h"
 
+extern "C"
 void remote_iohub_init(RemoteIOHubState *iohub)
 {
     int pirq;
@@ -33,14 +34,16 @@ void remote_iohub_init(RemoteIOHubState *iohub)
     }
 }
 
+extern "C"
 int remote_iohub_map_irq(PCIDevice *pci_dev, int intx)
 {
     return pci_dev->devfn;
 }
 
+extern "C"
 void remote_iohub_set_irq(void *opaque, int pirq, int level)
 {
-    RemoteIOHubState *iohub = opaque;
+    RemoteIOHubState *iohub = static_cast<RemoteIOHubState *>(opaque);
 
     assert(pirq >= 0);
     assert(pirq < PCI_DEVFN_MAX);
@@ -58,8 +61,8 @@ void remote_iohub_set_irq(void *opaque, int pirq, int level)
 
 static void intr_resample_handler(void *opaque)
 {
-    ResampleToken *token = opaque;
-    RemoteIOHubState *iohub = token->iohub;
+    ResampleToken *token = static_cast<ResampleToken *>(opaque);
+    RemoteIOHubState *iohub = static_cast<RemoteIOHubState *>(token->iohub);
     int pirq, s;
 
     pirq = token->pirq;
@@ -75,6 +78,7 @@ static void intr_resample_handler(void *opaque)
     }
 }
 
+extern "C"
 void process_set_irqfd_msg(PCIDevice *pci_dev, MPQemuMsg *msg)
 {
     RemoteMachineState *machine = REMOTE_MACHINE(current_machine);

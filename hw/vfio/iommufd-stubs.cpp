@@ -8,11 +8,13 @@
 #include "migration/cpr.h"
 #include "migration/vmstate.h"
 
-const VMStateDescription vmstate_cpr_vfio_devices = {
+static const VMStateField vmstate_cpr_vfio_devices_fields[] = {
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C" const VMStateDescription vmstate_cpr_vfio_devices = {
     .name = CPR_STATE "/vfio devices",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]){
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cpr_vfio_devices_fields,
 };

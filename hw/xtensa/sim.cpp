@@ -35,22 +35,26 @@
 #include "system/memory.h"
 #include "qemu/error-report.h"
 #include "xtensa_memory.h"
+
+extern "C" {
 #include "xtensa_sim.h"
+}
 
 static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
 {
-    XtensaCPU *cpu = opaque;
+    XtensaCPU *cpu = static_cast<XtensaCPU *>(opaque);
 
     return cpu_get_phys_page_debug(CPU(cpu), addr);
 }
 
 static void sim_reset(void *opaque)
 {
-    XtensaCPU *cpu = opaque;
+    XtensaCPU *cpu = static_cast<XtensaCPU *>(opaque);
 
     cpu_reset(CPU(cpu));
 }
 
+extern "C"
 XtensaCPU *xtensa_sim_common_init(MachineState *machine)
 {
     XtensaCPU *cpu = NULL;
@@ -93,6 +97,7 @@ XtensaCPU *xtensa_sim_common_init(MachineState *machine)
     return cpu;
 }
 
+extern "C"
 void xtensa_sim_load_kernel(XtensaCPU *cpu, MachineState *machine)
 {
     const char *kernel_filename = machine->kernel_filename;

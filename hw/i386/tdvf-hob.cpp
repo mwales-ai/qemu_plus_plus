@@ -15,12 +15,12 @@
 
 typedef struct TdvfHob {
     hwaddr hob_addr;
-    void *ptr;
+    uint8_t *ptr;
     int size;
 
     /* working area */
-    void *current;
-    void *end;
+    uint8_t *current;
+    uint8_t *end;
 } TdvfHob;
 
 static uint64_t tdvf_current_guest_addr(const TdvfHob *hob)
@@ -30,7 +30,7 @@ static uint64_t tdvf_current_guest_addr(const TdvfHob *hob)
 
 static void tdvf_align(TdvfHob *hob, size_t align)
 {
-    hob->current = QEMU_ALIGN_PTR_UP(hob->current, align);
+    hob->current = static_cast<uint8_t *>(QEMU_ALIGN_PTR_UP(hob->current, align));
 }
 
 static void *tdvf_get_area(TdvfHob *hob, uint64_t size)
@@ -71,60 +71,55 @@ static void tdvf_hob_add_memory_resources(TdxGuest *tdx, TdvfHob *hob)
             exit(1);
         }
 
-        region = tdvf_get_area(hob, sizeof(*region));
-        *region = (EFI_HOB_RESOURCE_DESCRIPTOR) {
-            .Header = {
-                .HobType = EFI_HOB_TYPE_RESOURCE_DESCRIPTOR,
-                .HobLength = cpu_to_le16(sizeof(*region)),
-                .Reserved = cpu_to_le32(0),
-            },
-            .Owner = EFI_HOB_OWNER_ZERO,
-            .ResourceType = cpu_to_le32(resource_type),
-            .ResourceAttribute = cpu_to_le32(attr),
-            .PhysicalStart = cpu_to_le64(e->address),
-            .ResourceLength = cpu_to_le64(e->length),
-        };
+        region = static_cast<EFI_HOB_RESOURCE_DESCRIPTOR *>(
+            tdvf_get_area(hob, sizeof(*region)));
+        memset(region, 0, sizeof(*region));
+        region->Header.HobType = EFI_HOB_TYPE_RESOURCE_DESCRIPTOR;
+        region->Header.HobLength = cpu_to_le16(sizeof(*region));
+        region->Header.Reserved = cpu_to_le32(0);
+        region->Owner = EFI_HOB_OWNER_ZERO;
+        region->ResourceType = cpu_to_le32(resource_type);
+        region->ResourceAttribute = cpu_to_le32(attr);
+        region->PhysicalStart = cpu_to_le64(e->address);
+        region->ResourceLength = cpu_to_le64(e->length);
     }
 }
 
 void tdvf_hob_create(TdxGuest *tdx, TdxFirmwareEntry *td_hob)
 {
-    TdvfHob hob = {
-        .hob_addr = td_hob->address,
-        .size = td_hob->size,
-        .ptr = td_hob->mem_ptr,
-
-        .current = td_hob->mem_ptr,
-        .end = td_hob->mem_ptr + td_hob->size,
-    };
+    TdvfHob hob;
+    memset(&hob, 0, sizeof(hob));
+    hob.hob_addr = td_hob->address;
+    hob.size = td_hob->size;
+    hob.ptr = static_cast<uint8_t *>(td_hob->mem_ptr);
+    hob.current = static_cast<uint8_t *>(td_hob->mem_ptr);
+    hob.end = static_cast<uint8_t *>(td_hob->mem_ptr) + td_hob->size;
 
     EFI_HOB_GENERIC_HEADER *last_hob;
     EFI_HOB_HANDOFF_INFO_TABLE *hit;
 
     /* Note, Efi{Free}Memory{Bottom,Top} are ignored, leave 'em zeroed. */
-    hit = tdvf_get_area(&hob, sizeof(*hit));
-    *hit = (EFI_HOB_HANDOFF_INFO_TABLE) {
-        .Header = {
-            .HobType = EFI_HOB_TYPE_HANDOFF,
-            .HobLength = cpu_to_le16(sizeof(*hit)),
-            .Reserved = cpu_to_le32(0),
-        },
-        .Version = cpu_to_le32(EFI_HOB_HANDOFF_TABLE_VERSION),
-        .BootMode = cpu_to_le32(0),
-        .EfiMemoryTop = cpu_to_le64(0),
-        .EfiMemoryBottom = cpu_to_le64(0),
-        .EfiFreeMemoryTop = cpu_to_le64(0),
-        .EfiFreeMemoryBottom = cpu_to_le64(0),
-        .EfiEndOfHobList = cpu_to_le64(0), /* initialized later */
-    };
+    hit = static_cast<EFI_HOB_HANDOFF_INFO_TABLE *>(
+        tdvf_get_area(&hob, sizeof(*hit)));
+    memset(hit, 0, sizeof(*hit));
+    hit->Header.HobType = EFI_HOB_TYPE_HANDOFF;
+    hit->Header.HobLength = cpu_to_le16(sizeof(*hit));
+    hit->Header.Reserved = cpu_to_le32(0);
+    hit->Version = cpu_to_le32(EFI_HOB_HANDOFF_TABLE_VERSION);
+    hit->BootMode = cpu_to_le32(0);
+    hit->EfiMemoryTop = cpu_to_le64(0);
+    hit->EfiMemoryBottom = cpu_to_le64(0);
+    hit->EfiFreeMemoryTop = cpu_to_le64(0);
+    hit->EfiFreeMemoryBottom = cpu_to_le64(0);
+    hit->EfiEndOfHobList = cpu_to_le64(0); /* initialized later */
 
     tdvf_hob_add_memory_resources(tdx, &hob);
 
-    last_hob = tdvf_get_area(&hob, sizeof(*last_hob));
-    *last_hob =  (EFI_HOB_GENERIC_HEADER) {
-        .HobType = EFI_HOB_TYPE_END_OF_HOB_LIST,
-        .HobLength = cpu_to_le16(sizeof(*last_hob)),
-        .Reserved = cpu_to_le32(0),
-    };
+    last_hob = static_cast<EFI_HOB_GENERIC_HEADER *>(
+        tdvf_get_area(&hob, sizeof(*last_hob)));
+    memset(last_hob, 0, sizeof(*last_hob));
+    last_hob->HobType = EFI_HOB_TYPE_END_OF_HOB_LIST;
+    last_hob->HobLength = cpu_to_le16(sizeof(*last_hob));
+    last_hob->Reserved = cpu_to_le32(0);
     hit->EfiEndOfHobList = tdvf_current_guest_addr(&hob);
 }

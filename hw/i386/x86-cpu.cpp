@@ -23,7 +23,10 @@
 #include "qemu/osdep.h"
 #include "system/whpx.h"
 #include "system/cpu-timers.h"
+
+extern "C" {
 #include "trace.h"
+}
 
 #include "hw/i386/x86.h"
 #include "target/i386/cpu.h"

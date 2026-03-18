@@ -22,12 +22,15 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/registerfields.h"
 #include "hw/qdev-properties.h"
 #include "hw/timer/renesas_cmt.h"
 #include "migration/vmstate.h"
+
+extern "C" {
+#include "qemu/log.h"
+}
 
 /*
  *  +0 CMSTR - common control
@@ -92,7 +95,7 @@ static int64_t read_cmcnt(RCMTState *cmt, int ch)
 
 static uint64_t cmt_read(void *opaque, hwaddr offset, unsigned size)
 {
-    RCMTState *cmt = opaque;
+    RCMTState *cmt = static_cast<RCMTState *>(opaque);
     int ch = offset / 0x08;
     uint64_t ret;
 
@@ -137,7 +140,7 @@ static void start_stop(RCMTState *cmt, int ch, int st)
 
 static void cmt_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 {
-    RCMTState *cmt = opaque;
+    RCMTState *cmt = static_cast<RCMTState *>(opaque);
     int ch = offset / 0x08;
 
     if (offset == A_CMSTR) {
@@ -174,19 +177,19 @@ static void cmt_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
     }
 }
 
-static const MemoryRegionOps cmt_ops = {
+static MemoryRegionOps cmt_ops = {
     .write = cmt_write,
     .read  = cmt_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 2,
-        .max_access_size = 2,
-    },
-    .valid = {
-        .min_access_size = 2,
-        .max_access_size = 2,
-    },
 };
+
+static void __attribute__((constructor)) init_cmt_ops(void)
+{
+    cmt_ops.impl.min_access_size = 2;
+    cmt_ops.impl.max_access_size = 2;
+    cmt_ops.valid.min_access_size = 2;
+    cmt_ops.valid.max_access_size = 2;
+}
 
 static void timer_events(RCMTState *cmt, int ch)
 {
@@ -200,14 +203,14 @@ static void timer_events(RCMTState *cmt, int ch)
 
 static void timer_event0(void *opaque)
 {
-    RCMTState *cmt = opaque;
+    RCMTState *cmt = static_cast<RCMTState *>(opaque);
 
     timer_events(cmt, 0);
 }
 
 static void timer_event1(void *opaque)
 {
-    RCMTState *cmt = opaque;
+    RCMTState *cmt = static_cast<RCMTState *>(opaque);
 
     timer_events(cmt, 1);
 }
@@ -238,19 +241,21 @@ static void rcmt_init(Object *obj)
     timer_init_ns(&cmt->timer[1], QEMU_CLOCK_VIRTUAL, timer_event1, cmt);
 }
 
+static const VMStateField vmstate_rcmt_fields[] = {
+    VMSTATE_UINT16(cmstr, RCMTState),
+    VMSTATE_UINT16_ARRAY(cmcr, RCMTState, CMT_CH),
+    VMSTATE_UINT16_ARRAY(cmcnt, RCMTState, CMT_CH),
+    VMSTATE_UINT16_ARRAY(cmcor, RCMTState, CMT_CH),
+    VMSTATE_INT64_ARRAY(tick, RCMTState, CMT_CH),
+    VMSTATE_TIMER_ARRAY(timer, RCMTState, CMT_CH),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_rcmt = {
     .name = "rx-cmt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(cmstr, RCMTState),
-        VMSTATE_UINT16_ARRAY(cmcr, RCMTState, CMT_CH),
-        VMSTATE_UINT16_ARRAY(cmcnt, RCMTState, CMT_CH),
-        VMSTATE_UINT16_ARRAY(cmcor, RCMTState, CMT_CH),
-        VMSTATE_INT64_ARRAY(tick, RCMTState, CMT_CH),
-        VMSTATE_TIMER_ARRAY(timer, RCMTState, CMT_CH),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rcmt_fields,
 };
 
 static const Property rcmt_properties[] = {

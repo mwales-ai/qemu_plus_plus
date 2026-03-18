@@ -17,12 +17,14 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "qemu/module.h"
 #include "system/dma.h"
 #include "migration/vmstate.h"
 #include "hw/ide/ahci-sysbus.h"
 
+extern "C" {
+#include "qemu/module.h"
 #include "trace.h"
+}
 
 #define ALLWINNER_AHCI_BISTAFR    ((0xa0 - ALLWINNER_AHCI_MMIO_OFF) / 4)
 #define ALLWINNER_AHCI_BISTCR     ((0xa4 - ALLWINNER_AHCI_MMIO_OFF) / 4)
@@ -47,7 +49,7 @@
 static uint64_t allwinner_ahci_mem_read(void *opaque, hwaddr addr,
                                         unsigned size)
 {
-    AllwinnerAHCIState *a = opaque;
+    AllwinnerAHCIState *a = static_cast<AllwinnerAHCIState *>(opaque);
     AHCIState *s = &(SYSBUS_AHCI(a)->ahci);
     uint64_t val = a->regs[addr / 4];
 
@@ -66,19 +68,24 @@ static uint64_t allwinner_ahci_mem_read(void *opaque, hwaddr addr,
 static void allwinner_ahci_mem_write(void *opaque, hwaddr addr,
                                      uint64_t val, unsigned size)
 {
-    AllwinnerAHCIState *a = opaque;
+    AllwinnerAHCIState *a = static_cast<AllwinnerAHCIState *>(opaque);
     AHCIState *s = &(SYSBUS_AHCI(a)->ahci);
 
     trace_allwinner_ahci_mem_write(s, a, addr, val, size);
     a->regs[addr / 4] = val;
 }
 
-static const MemoryRegionOps allwinner_ahci_mem_ops = {
+static MemoryRegionOps allwinner_ahci_mem_ops = {
     .read = allwinner_ahci_mem_read,
     .write = allwinner_ahci_mem_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void __attribute__((constructor)) init_allwinner_ahci_mem_ops(void)
+{
+    allwinner_ahci_mem_ops.valid.min_access_size = 4;
+    allwinner_ahci_mem_ops.valid.max_access_size = 4;
+}
 
 static void allwinner_ahci_init(Object *obj)
 {
@@ -91,15 +98,17 @@ static void allwinner_ahci_init(Object *obj)
                                 &a->mmio);
 }
 
+static const VMStateField vmstate_allwinner_ahci_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AllwinnerAHCIState,
+                         ALLWINNER_AHCI_MMIO_SIZE / 4),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_allwinner_ahci = {
     .name = "allwinner-ahci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AllwinnerAHCIState,
-                             ALLWINNER_AHCI_MMIO_SIZE / 4),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_allwinner_ahci_fields,
 };
 
 static void allwinner_ahci_class_init(ObjectClass *klass, const void *data)

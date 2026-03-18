@@ -5,7 +5,7 @@ i386_ss.add(files(
   'monitor.cpp',
   'multiboot.c',
   'x86.c',
-  'x86-cpu.c',
+  'x86-cpu.cpp',
 ))
 
 i386_ss.add(when: 'CONFIG_APIC', if_true: files('vapic.c'))
@@ -30,10 +30,10 @@ i386_ss.add(when: 'CONFIG_PC', if_true: files(
   'pc.c',
   'pc_sysfw.c',
   'acpi-build.c',
-  'port92.c'))
+  'port92.cpp'))
 i386_ss.add(when: 'CONFIG_X86_FW_OVMF', if_true: files('pc_sysfw_ovmf.c'),
                                         if_false: files('pc_sysfw_ovmf-stubs.cpp'))
-i386_ss.add(when: 'CONFIG_TDX', if_true: files('tdvf.cpp', 'tdvf-hob.c'))
+i386_ss.add(when: 'CONFIG_TDX', if_true: files('tdvf.cpp', 'tdvf-hob.cpp'))
 
 subdir('kvm')
 subdir('xen')

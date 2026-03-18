@@ -18,7 +18,7 @@
 static uint64_t fsl_imx8m_pcie_phy_read(void *opaque, hwaddr offset,
                                         unsigned size)
 {
-    FslImx8mPciePhyState *s = opaque;
+    FslImx8mPciePhyState *s = static_cast<FslImx8mPciePhyState *>(opaque);
 
     if (offset == CMN_REG075) {
         return s->data[offset] | ANA_PLL_LOCK_DONE | ANA_PLL_AFC_DONE;
@@ -30,24 +30,24 @@ static uint64_t fsl_imx8m_pcie_phy_read(void *opaque, hwaddr offset,
 static void fsl_imx8m_pcie_phy_write(void *opaque, hwaddr offset,
                                      uint64_t value, unsigned size)
 {
-    FslImx8mPciePhyState *s = opaque;
+    FslImx8mPciePhyState *s = static_cast<FslImx8mPciePhyState *>(opaque);
 
     s->data[offset] = value;
 }
 
-static const MemoryRegionOps fsl_imx8m_pcie_phy_ops = {
+static MemoryRegionOps fsl_imx8m_pcie_phy_ops = {
     .read = fsl_imx8m_pcie_phy_read,
     .write = fsl_imx8m_pcie_phy_write,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-    },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void __attribute__((constructor)) init_fsl_imx8m_pcie_phy_ops(void)
+{
+    fsl_imx8m_pcie_phy_ops.impl.min_access_size = 1;
+    fsl_imx8m_pcie_phy_ops.impl.max_access_size = 1;
+    fsl_imx8m_pcie_phy_ops.valid.min_access_size = 1;
+    fsl_imx8m_pcie_phy_ops.valid.max_access_size = 8;
+}
 
 static void fsl_imx8m_pcie_phy_realize(DeviceState *dev, Error **errp)
 {
@@ -65,15 +65,17 @@ static void fsl_imx8m_pcie_phy_reset_hold(Object *obj, ResetType type)
     memset(s->data, 0, sizeof(s->data));
 }
 
+static const VMStateField fsl_imx8m_pcie_phy_vmstate_fields[] = {
+    VMSTATE_UINT8_ARRAY(data, FslImx8mPciePhyState,
+                        FSL_IMX8M_PCIE_PHY_DATA_SIZE),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription fsl_imx8m_pcie_phy_vmstate = {
     .name = "fsl-imx8m-pcie-phy",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(data, FslImx8mPciePhyState,
-                            FSL_IMX8M_PCIE_PHY_DATA_SIZE),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = fsl_imx8m_pcie_phy_vmstate_fields,
 };
 
 static void fsl_imx8m_pcie_phy_class_init(ObjectClass *klass, const void *data)

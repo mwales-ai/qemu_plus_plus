@@ -25,14 +25,17 @@
  */
 
 #include "qemu/osdep.h"
-#include "trace.h"
 #include "hw/irq.h"
 #include "hw/timer/sifive_pwm.h"
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "migration/vmstate.h"
+
+extern "C" {
+#include "trace.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
 
 #define HAS_PWM_EN_BITS(cfg) ((cfg & R_CONFIG_ENONESHOT_MASK) || \
                               (cfg & R_CONFIG_ENALWAYS_MASK))
@@ -192,28 +195,28 @@ static void sifive_pwm_interrupt(SiFivePwmState *s, int num)
 
 static void sifive_pwm_interrupt_0(void *opaque)
 {
-    SiFivePwmState *s = opaque;
+    SiFivePwmState *s = static_cast<SiFivePwmState *>(opaque);
 
     sifive_pwm_interrupt(s, 0);
 }
 
 static void sifive_pwm_interrupt_1(void *opaque)
 {
-    SiFivePwmState *s = opaque;
+    SiFivePwmState *s = static_cast<SiFivePwmState *>(opaque);
 
     sifive_pwm_interrupt(s, 1);
 }
 
 static void sifive_pwm_interrupt_2(void *opaque)
 {
-    SiFivePwmState *s = opaque;
+    SiFivePwmState *s = static_cast<SiFivePwmState *>(opaque);
 
     sifive_pwm_interrupt(s, 2);
 }
 
 static void sifive_pwm_interrupt_3(void *opaque)
 {
-    SiFivePwmState *s = opaque;
+    SiFivePwmState *s = static_cast<SiFivePwmState *>(opaque);
 
     sifive_pwm_interrupt(s, 3);
 }
@@ -221,7 +224,7 @@ static void sifive_pwm_interrupt_3(void *opaque)
 static uint64_t sifive_pwm_read(void *opaque, hwaddr addr,
                                   unsigned int size)
 {
-    SiFivePwmState *s = opaque;
+    SiFivePwmState *s = static_cast<SiFivePwmState *>(opaque);
     uint64_t cur_time, scale;
     uint64_t now = sifive_pwm_ns_to_ticks(s,
                                         qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
@@ -262,7 +265,7 @@ static uint64_t sifive_pwm_read(void *opaque, hwaddr addr,
         return s->pwmcmp[3] & PWMCMP_MASK;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
         return 0;
     }
 
@@ -272,7 +275,7 @@ static uint64_t sifive_pwm_read(void *opaque, hwaddr addr,
 static void sifive_pwm_write(void *opaque, hwaddr addr,
                                uint64_t val64, unsigned int size)
 {
-    SiFivePwmState *s = opaque;
+    SiFivePwmState *s = static_cast<SiFivePwmState *>(opaque);
     uint32_t value = val64;
     uint64_t new_offset, scale;
     uint64_t now = sifive_pwm_ns_to_ticks(s,
@@ -364,7 +367,7 @@ static void sifive_pwm_write(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
     }
 
     /* Update the alarms to reflect possible updated values */
@@ -391,17 +394,19 @@ static const MemoryRegionOps sifive_pwm_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_sifive_pwm_fields[] = {
+    VMSTATE_TIMER_ARRAY(timer, SiFivePwmState, 4),
+    VMSTATE_UINT64(tick_offset, SiFivePwmState),
+    VMSTATE_UINT32(pwmcfg, SiFivePwmState),
+    VMSTATE_UINT32_ARRAY(pwmcmp, SiFivePwmState, 4),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sifive_pwm = {
     .name = TYPE_SIFIVE_PWM,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_ARRAY(timer, SiFivePwmState, 4),
-        VMSTATE_UINT64(tick_offset, SiFivePwmState),
-        VMSTATE_UINT32(pwmcfg, SiFivePwmState),
-        VMSTATE_UINT32_ARRAY(pwmcmp, SiFivePwmState, 4),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_sifive_pwm_fields,
 };
 
 static const Property sifive_pwm_properties[] = {

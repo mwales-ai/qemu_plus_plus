@@ -1,4 +1,4 @@
-system_ss.add(when: 'CONFIG_APM', if_true: files('apm.c'))
+system_ss.add(when: 'CONFIG_APM', if_true: files('apm.cpp'))
 system_ss.add(when: 'CONFIG_FDC37M81X', if_true: files('fdc37m81x-superio.cpp'))
 system_ss.add(when: 'CONFIG_I82378', if_true: files('i82378.cpp'))
 system_ss.add(when: 'CONFIG_ISA_BUS', if_true: files('isa-bus.cpp'))

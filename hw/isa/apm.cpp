@@ -24,7 +24,10 @@
 #include "hw/isa/apm.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
+
+extern "C" {
 #include "trace.h"
+}
 
 
 /* fixed I/O location */
@@ -33,7 +36,7 @@
 static void apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    APMState *apm = opaque;
+    APMState *apm = static_cast<APMState *>(opaque);
     addr &= 1;
 
     trace_apm_io_write(addr, val);
@@ -50,7 +53,7 @@ static void apm_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t apm_ioport_readb(void *opaque, hwaddr addr, unsigned size)
 {
-    APMState *apm = opaque;
+    APMState *apm = static_cast<APMState *>(opaque);
     uint32_t val;
 
     addr &= 1;
@@ -64,26 +67,31 @@ static uint64_t apm_ioport_readb(void *opaque, hwaddr addr, unsigned size)
     return val;
 }
 
-const VMStateDescription vmstate_apm = {
+static const VMStateField vmstate_apm_fields[] = {
+    VMSTATE_UINT8(apmc, APMState),
+    VMSTATE_UINT8(apms, APMState),
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C" const VMStateDescription vmstate_apm = {
     .name = "APM State",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(apmc, APMState),
-        VMSTATE_UINT8(apms, APMState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_apm_fields,
 };
 
-static const MemoryRegionOps apm_ops = {
+static MemoryRegionOps apm_ops = {
     .read = apm_ioport_readb,
     .write = apm_ioport_writeb,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
 };
 
+static void __attribute__((constructor)) init_apm_ops(void)
+{
+    apm_ops.impl.min_access_size = 1;
+    apm_ops.impl.max_access_size = 1;
+}
+
+extern "C"
 void apm_init(PCIDevice *dev, APMState *apm, apm_ctrl_changed_t callback,
               void *arg)
 {

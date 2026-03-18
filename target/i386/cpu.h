@@ -2437,7 +2437,7 @@ int x86_cpu_pending_interrupt(CPUState *cs, int interrupt_request);
 
 hwaddr x86_cpu_get_phys_page_attrs_debug(CPUState *cpu, vaddr addr,
                                          MemTxAttrs *attrs);
-int cpu_get_pic_interrupt(CPUX86State *s);
+QEMU_EXTERN_C int cpu_get_pic_interrupt(CPUX86State *s);
 
 /* MS-DOS compatibility mode FPU exception support */
 void x86_register_ferr_irq(qemu_irq irq);
@@ -2644,7 +2644,7 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
 void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7);
 
 /* hw/pc.c */
-uint64_t cpu_get_tsc(CPUX86State *env);
+QEMU_EXTERN_C uint64_t cpu_get_tsc(CPUX86State *env);
 
 #define CPU_RESOLVING_TYPE TYPE_X86_CPU
 

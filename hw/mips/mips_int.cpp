@@ -24,11 +24,14 @@
 #include "qemu/main-loop.h"
 #include "hw/irq.h"
 #include "system/kvm.h"
+
+extern "C" {
 #include "kvm_mips.h"
+}
 
 static void cpu_mips_irq_request(void *opaque, int irq, int level)
 {
-    MIPSCPU *cpu = opaque;
+    MIPSCPU *cpu = static_cast<MIPSCPU *>(opaque);
     CPUMIPSState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
@@ -55,6 +58,7 @@ static void cpu_mips_irq_request(void *opaque, int irq, int level)
     }
 }
 
+extern "C"
 void cpu_mips_irq_init_cpu(MIPSCPU *cpu)
 {
     CPUMIPSState *env = &cpu->env;
@@ -68,6 +72,7 @@ void cpu_mips_irq_init_cpu(MIPSCPU *cpu)
     g_free(qi);
 }
 
+extern "C"
 void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level)
 {
     if (irq < 0 || irq > 2) {

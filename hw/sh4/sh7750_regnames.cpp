@@ -1,7 +1,10 @@
 #include "qemu/osdep.h"
 #include "hw/sh4/sh.h"
+
+extern "C" {
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
+}
 
 #define REGNAME(r) {r, #r},
 
@@ -85,6 +88,7 @@ static regname_t regnames[] = {
     { (uint32_t)-1, NULL }
 };
 
+extern "C"
 const char *regname(uint32_t addr)
 {
     unsigned int i;
