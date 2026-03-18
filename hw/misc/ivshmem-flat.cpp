@@ -9,16 +9,20 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "trace.h"
+}
+
 #include "hw/irq.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 #include "system/address-spaces.h"
-#include "trace.h"
 
 #include "hw/misc/ivshmem-flat.h"
 
@@ -48,7 +52,7 @@ static int64_t ivshmem_flat_recv_msg(IvshmemFTState *s, int *pfd)
 
 static void ivshmem_flat_irq_handler(void *opaque)
 {
-    VectorInfo *vi = opaque;
+    VectorInfo *vi = static_cast<VectorInfo *>(opaque);
     EventNotifier *e = &vi->event_notifier;
     uint16_t vector_id;
     const VectorInfo (*v)[64];
@@ -66,7 +70,7 @@ static void ivshmem_flat_irq_handler(void *opaque)
      * struct is contained within the IvshmemFTState struct, its pointer can be
      * used to obtain the pointer to IvshmemFTState through simple pointer math.
      */
-    v = (void *)(vi - vector_id); /* v =  &IvshmemPeer->vector[0] */
+    v = reinterpret_cast<const VectorInfo (*)[64]>(vi - vector_id); /* v =  &IvshmemPeer->vector[0] */
     IvshmemPeer *own_peer = container_of(v, IvshmemPeer, vector);
     IvshmemFTState *s = container_of(own_peer, IvshmemFTState, own);
 
@@ -107,7 +111,7 @@ static IvshmemPeer *ivshmem_flat_add_peer(IvshmemFTState *s, uint16_t peer_id)
 {
     IvshmemPeer *new_peer;
 
-    new_peer = g_malloc0(sizeof(*new_peer));
+    new_peer = static_cast<IvshmemPeer *>(g_malloc0(sizeof(*new_peer)));
     new_peer->id = peer_id;
     new_peer->vector_counter = 0;
 
@@ -196,7 +200,7 @@ static void ivshmem_flat_process_msg(IvshmemFTState *s, uint64_t msg, int fd)
 
 static int ivshmem_flat_can_receive_data(void *opaque)
 {
-    IvshmemFTState *s = opaque;
+    IvshmemFTState *s = static_cast<IvshmemFTState *>(opaque);
 
     assert(s->msg_buffered_bytes < sizeof(s->msg_buf));
     return sizeof(s->msg_buf) - s->msg_buffered_bytes;
@@ -204,7 +208,7 @@ static int ivshmem_flat_can_receive_data(void *opaque)
 
 static void ivshmem_flat_read_msg(void *opaque, const uint8_t *buf, int size)
 {
-    IvshmemFTState *s = opaque;
+    IvshmemFTState *s = static_cast<IvshmemFTState *>(opaque);
     int fd;
     int64_t msg;
 
@@ -225,7 +229,7 @@ static void ivshmem_flat_read_msg(void *opaque, const uint8_t *buf, int size)
 static uint64_t ivshmem_flat_iomem_read(void *opaque,
                                         hwaddr offset, unsigned size)
 {
-    IvshmemFTState *s = opaque;
+    IvshmemFTState *s = static_cast<IvshmemFTState *>(opaque);
     uint32_t ret;
 
     trace_ivshmem_flat_read_mmr(offset);
@@ -272,7 +276,7 @@ static int ivshmem_flat_interrupt_peer(IvshmemFTState *s,
 static void ivshmem_flat_iomem_write(void *opaque, hwaddr offset,
                                      uint64_t value, unsigned size)
 {
-    IvshmemFTState *s = opaque;
+    IvshmemFTState *s = static_cast<IvshmemFTState *>(opaque);
     uint16_t peer_id = (value >> 16) & 0xFFFF;
     uint16_t vector_id = value & 0xFFFF;
 
@@ -296,15 +300,18 @@ static void ivshmem_flat_iomem_write(void *opaque, hwaddr offset,
     }
 }
 
-static const MemoryRegionOps ivshmem_flat_ops = {
+static MemoryRegionOps ivshmem_flat_ops = {
     .read = ivshmem_flat_iomem_read,
     .write = ivshmem_flat_iomem_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { /* Read/write aligned at 32 bits. */
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
 };
+
+static void __attribute__((constructor)) init_ivshmem_flat_ops(void)
+{
+    /* Read/write aligned at 32 bits. */
+    ivshmem_flat_ops.impl.min_access_size = 4;
+    ivshmem_flat_ops.impl.max_access_size = 4;
+}
 
 static void ivshmem_flat_instance_init(Object *obj)
 {

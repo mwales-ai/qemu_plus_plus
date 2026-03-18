@@ -16,8 +16,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/crc32c.h"
 #include "trace.h"
+}
+
 #include "net_rx_pkt.h"
 #include "net/checksum.h"
 #include "net/tap.h"
@@ -49,15 +53,15 @@ struct NetRxPkt {
     eth_l4_hdr_info  l4hdr_info;
 };
 
-void net_rx_pkt_init(struct NetRxPkt **pkt)
+extern "C" void net_rx_pkt_init(struct NetRxPkt **pkt)
 {
-    struct NetRxPkt *p = g_malloc0(sizeof *p);
+    struct NetRxPkt *p = static_cast<struct NetRxPkt *>(g_malloc0(sizeof *p));
     p->vec = NULL;
     p->vec_len_total = 0;
     *pkt = p;
 }
 
-void net_rx_pkt_uninit(struct NetRxPkt *pkt)
+extern "C" void net_rx_pkt_uninit(struct NetRxPkt *pkt)
 {
     if (pkt->vec_len_total != 0) {
         g_free(pkt->vec);
@@ -66,7 +70,7 @@ void net_rx_pkt_uninit(struct NetRxPkt *pkt)
     g_free(pkt);
 }
 
-struct virtio_net_hdr *net_rx_pkt_get_vhdr(struct NetRxPkt *pkt)
+extern "C" struct virtio_net_hdr *net_rx_pkt_get_vhdr(struct NetRxPkt *pkt)
 {
     assert(pkt);
     return &pkt->virt_hdr;
@@ -78,7 +82,8 @@ net_rx_pkt_iovec_realloc(struct NetRxPkt *pkt,
 {
     if (pkt->vec_len_total < new_iov_len) {
         g_free(pkt->vec);
-        pkt->vec = g_malloc(sizeof(*pkt->vec) * new_iov_len);
+        pkt->vec = static_cast<struct iovec *>(
+            g_malloc(sizeof(*pkt->vec) * new_iov_len));
         pkt->vec_len_total = new_iov_len;
     }
 }
@@ -115,7 +120,7 @@ net_rx_pkt_pull_data(struct NetRxPkt *pkt,
                             pkt->l3hdr_off, pkt->l4hdr_off, pkt->l5hdr_off);
 }
 
-void net_rx_pkt_attach_iovec(struct NetRxPkt *pkt,
+extern "C" void net_rx_pkt_attach_iovec(struct NetRxPkt *pkt,
                                 const struct iovec *iov, int iovcnt,
                                 size_t iovoff, bool strip_vlan)
 {
@@ -135,7 +140,7 @@ void net_rx_pkt_attach_iovec(struct NetRxPkt *pkt,
     net_rx_pkt_pull_data(pkt, iov, iovcnt, ploff);
 }
 
-void net_rx_pkt_attach_iovec_ex(struct NetRxPkt *pkt,
+extern "C" void net_rx_pkt_attach_iovec_ex(struct NetRxPkt *pkt,
                                 const struct iovec *iov, int iovcnt,
                                 size_t iovoff, int strip_vlan_index,
                                 uint16_t vet, uint16_t vet_ext)
@@ -154,7 +159,7 @@ void net_rx_pkt_attach_iovec_ex(struct NetRxPkt *pkt,
     net_rx_pkt_pull_data(pkt, iov, iovcnt, ploff);
 }
 
-void net_rx_pkt_dump(struct NetRxPkt *pkt)
+extern "C" void net_rx_pkt_dump(struct NetRxPkt *pkt)
 {
 #ifdef NET_RX_PKT_DEBUG
     assert(pkt);
@@ -164,7 +169,7 @@ void net_rx_pkt_dump(struct NetRxPkt *pkt)
 #endif
 }
 
-void net_rx_pkt_set_packet_type(struct NetRxPkt *pkt,
+extern "C" void net_rx_pkt_set_packet_type(struct NetRxPkt *pkt,
     eth_pkt_types_e packet_type)
 {
     assert(pkt);
@@ -173,21 +178,21 @@ void net_rx_pkt_set_packet_type(struct NetRxPkt *pkt,
 
 }
 
-eth_pkt_types_e net_rx_pkt_get_packet_type(struct NetRxPkt *pkt)
+extern "C" eth_pkt_types_e net_rx_pkt_get_packet_type(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->packet_type;
 }
 
-size_t net_rx_pkt_get_total_len(struct NetRxPkt *pkt)
+extern "C" size_t net_rx_pkt_get_total_len(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->tot_len;
 }
 
-void net_rx_pkt_set_protocols(struct NetRxPkt *pkt,
+extern "C" void net_rx_pkt_set_protocols(struct NetRxPkt *pkt,
                               const struct iovec *iov, size_t iovcnt,
                               size_t iovoff)
 {
@@ -198,7 +203,7 @@ void net_rx_pkt_set_protocols(struct NetRxPkt *pkt,
                       &pkt->ip6hdr_info, &pkt->ip4hdr_info, &pkt->l4hdr_info);
 }
 
-void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
+extern "C" void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
                               bool *hasip4, bool *hasip6,
                               EthL4HdrProto *l4hdr_proto)
 {
@@ -209,24 +214,24 @@ void net_rx_pkt_get_protocols(struct NetRxPkt *pkt,
     *l4hdr_proto = pkt->l4hdr_info.proto;
 }
 
-size_t net_rx_pkt_get_l4_hdr_offset(struct NetRxPkt *pkt)
+extern "C" size_t net_rx_pkt_get_l4_hdr_offset(struct NetRxPkt *pkt)
 {
     assert(pkt);
     return pkt->l4hdr_off;
 }
 
-size_t net_rx_pkt_get_l5_hdr_offset(struct NetRxPkt *pkt)
+extern "C" size_t net_rx_pkt_get_l5_hdr_offset(struct NetRxPkt *pkt)
 {
     assert(pkt);
     return pkt->l5hdr_off;
 }
 
-eth_ip6_hdr_info *net_rx_pkt_get_ip6_info(struct NetRxPkt *pkt)
+extern "C" eth_ip6_hdr_info *net_rx_pkt_get_ip6_info(struct NetRxPkt *pkt)
 {
     return &pkt->ip6hdr_info;
 }
 
-eth_ip4_hdr_info *net_rx_pkt_get_ip4_info(struct NetRxPkt *pkt)
+extern "C" eth_ip4_hdr_info *net_rx_pkt_get_ip4_info(struct NetRxPkt *pkt)
 {
     return &pkt->ip4hdr_info;
 }
@@ -300,7 +305,7 @@ _net_rx_rss_prepare_udp(uint8_t *rss_input,
                           &udphdr->uh_dport, sizeof(uint16_t));
 }
 
-uint32_t
+extern "C" uint32_t
 net_rx_pkt_calc_rss_hash(struct NetRxPkt *pkt,
                          NetRxPktRssType type,
                          uint8_t *key)
@@ -380,7 +385,7 @@ net_rx_pkt_calc_rss_hash(struct NetRxPkt *pkt,
     return rss_hash;
 }
 
-uint16_t net_rx_pkt_get_ip_id(struct NetRxPkt *pkt)
+extern "C" uint16_t net_rx_pkt_get_ip_id(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
@@ -391,7 +396,7 @@ uint16_t net_rx_pkt_get_ip_id(struct NetRxPkt *pkt)
     return 0;
 }
 
-bool net_rx_pkt_is_tcp_ack(struct NetRxPkt *pkt)
+extern "C" bool net_rx_pkt_is_tcp_ack(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
@@ -402,7 +407,7 @@ bool net_rx_pkt_is_tcp_ack(struct NetRxPkt *pkt)
     return false;
 }
 
-bool net_rx_pkt_has_tcp_data(struct NetRxPkt *pkt)
+extern "C" bool net_rx_pkt_has_tcp_data(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
@@ -413,14 +418,14 @@ bool net_rx_pkt_has_tcp_data(struct NetRxPkt *pkt)
     return false;
 }
 
-struct iovec *net_rx_pkt_get_iovec(struct NetRxPkt *pkt)
+extern "C" struct iovec *net_rx_pkt_get_iovec(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->vec;
 }
 
-void net_rx_pkt_set_vhdr(struct NetRxPkt *pkt,
+extern "C" void net_rx_pkt_set_vhdr(struct NetRxPkt *pkt,
                             struct virtio_net_hdr *vhdr)
 {
     assert(pkt);
@@ -428,7 +433,7 @@ void net_rx_pkt_set_vhdr(struct NetRxPkt *pkt,
     memcpy(&pkt->virt_hdr, vhdr, sizeof pkt->virt_hdr);
 }
 
-void net_rx_pkt_set_vhdr_iovec(struct NetRxPkt *pkt,
+extern "C" void net_rx_pkt_set_vhdr_iovec(struct NetRxPkt *pkt,
     const struct iovec *iov, int iovcnt)
 {
     assert(pkt);
@@ -436,28 +441,28 @@ void net_rx_pkt_set_vhdr_iovec(struct NetRxPkt *pkt,
     iov_to_buf(iov, iovcnt, 0, &pkt->virt_hdr, sizeof pkt->virt_hdr);
 }
 
-void net_rx_pkt_unset_vhdr(struct NetRxPkt *pkt)
+extern "C" void net_rx_pkt_unset_vhdr(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     memset(&pkt->virt_hdr, 0, sizeof(pkt->virt_hdr));
 }
 
-bool net_rx_pkt_is_vlan_stripped(struct NetRxPkt *pkt)
+extern "C" bool net_rx_pkt_is_vlan_stripped(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->ehdr_buf_len ? true : false;
 }
 
-uint16_t net_rx_pkt_get_vlan_tag(struct NetRxPkt *pkt)
+extern "C" uint16_t net_rx_pkt_get_vlan_tag(struct NetRxPkt *pkt)
 {
     assert(pkt);
 
     return pkt->tci;
 }
 
-bool net_rx_pkt_validate_l3_csum(struct NetRxPkt *pkt, bool *csum_valid)
+extern "C" bool net_rx_pkt_validate_l3_csum(struct NetRxPkt *pkt, bool *csum_valid)
 {
     uint32_t cntr;
     uint16_t csum;
@@ -566,7 +571,8 @@ _net_rx_pkt_validate_sctp_sum(struct NetRxPkt *pkt)
     }
 
     calculated = crc32c(0xffffffff,
-                        (uint8_t *)vec->iov_base + off, vec->iov_len - off);
+                        static_cast<uint8_t *>(vec->iov_base) + off,
+                        vec->iov_len - off);
     calculated = iov_crc32c(calculated ^ 0xffffffff, vec + 1, vec_len - 1);
     valid = calculated == le32_to_cpu(original);
     iov_from_buf(vec, vec_len, csum_off, &original, sizeof(original));
@@ -574,7 +580,7 @@ _net_rx_pkt_validate_sctp_sum(struct NetRxPkt *pkt)
     return valid;
 }
 
-bool net_rx_pkt_validate_l4_csum(struct NetRxPkt *pkt, bool *csum_valid)
+extern "C" bool net_rx_pkt_validate_l4_csum(struct NetRxPkt *pkt, bool *csum_valid)
 {
     uint32_t csum;
 
@@ -611,7 +617,7 @@ bool net_rx_pkt_validate_l4_csum(struct NetRxPkt *pkt, bool *csum_valid)
     return true;
 }
 
-bool net_rx_pkt_fix_l4_csum(struct NetRxPkt *pkt)
+extern "C" bool net_rx_pkt_fix_l4_csum(struct NetRxPkt *pkt)
 {
     uint16_t csum = 0;
     uint32_t l4_cso;

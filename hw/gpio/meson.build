@@ -9,7 +9,7 @@ system_ss.add(when: 'CONFIG_ZAURUS_SCOOP', if_true: files('zaurus.cpp'))
 system_ss.add(when: 'CONFIG_IMX', if_true: files('imx_gpio.c'))
 system_ss.add(when: 'CONFIG_NPCM7XX', if_true: files('npcm7xx_gpio.c'))
 system_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_gpio.cpp'))
-system_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_gpio.c'))
+system_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_gpio.cpp'))
 system_ss.add(when: 'CONFIG_RASPI', if_true: files(
     'bcm2835_gpio.c',
     'bcm2838_gpio.c'

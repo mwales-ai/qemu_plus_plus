@@ -11,16 +11,20 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "chardev/char-fe.h"
-#include "qemu/error-report.h"
-#include "qemu/module.h"
-#include "trace.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/virtio/virtio-serial.h"
+#include "qom/object.h"
+
+extern "C" {
+#include "qemu/error-report.h"
+#include "qemu/module.h"
+#include "trace.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-char.h"
-#include "qom/object.h"
+}
 
 #define TYPE_VIRTIO_CONSOLE_SERIAL_PORT "virtserialport"
 typedef struct VirtConsole VirtConsole;
@@ -41,7 +45,7 @@ struct VirtConsole {
 static gboolean chr_write_unblocked(void *do_not_use, GIOCondition cond,
                                     void *opaque)
 {
-    VirtConsole *vcon = opaque;
+    VirtConsole *vcon = static_cast<VirtConsole *>(opaque);
 
     vcon->watch = 0;
     virtio_serial_throttle_port(VIRTIO_SERIAL_PORT(vcon), false);
@@ -99,7 +103,7 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
             virtio_serial_throttle_port(port, true);
             if (!vcon->watch) {
                 vcon->watch = qemu_chr_fe_add_watch(&vcon->chr,
-                                                    G_IO_OUT|G_IO_HUP,
+                                                    static_cast<GIOCondition>(G_IO_OUT|G_IO_HUP),
                                                     chr_write_unblocked, vcon);
             }
         }
@@ -133,7 +137,7 @@ static void guest_writable(VirtIOSerialPort *port)
 /* Readiness of the guest to accept data on a port */
 static int chr_can_read(void *opaque)
 {
-    VirtConsole *vcon = opaque;
+    VirtConsole *vcon = static_cast<VirtConsole *>(opaque);
 
     return virtio_serial_guest_ready(VIRTIO_SERIAL_PORT(vcon));
 }
@@ -141,7 +145,7 @@ static int chr_can_read(void *opaque)
 /* Send data from a char device over to the guest */
 static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
-    VirtConsole *vcon = opaque;
+    VirtConsole *vcon = static_cast<VirtConsole *>(opaque);
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(vcon);
 
     trace_virtio_console_chr_read(port->id, size);
@@ -150,7 +154,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
 
 static void chr_event(void *opaque, QEMUChrEvent event)
 {
-    VirtConsole *vcon = opaque;
+    VirtConsole *vcon = static_cast<VirtConsole *>(opaque);
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(vcon);
 
     trace_virtio_console_chr_event(port->id, event);
@@ -175,7 +179,7 @@ static void chr_event(void *opaque, QEMUChrEvent event)
 
 static int chr_be_change(void *opaque)
 {
-    VirtConsole *vcon = opaque;
+    VirtConsole *vcon = static_cast<VirtConsole *>(opaque);
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(vcon);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
@@ -190,7 +194,7 @@ static int chr_be_change(void *opaque)
     if (vcon->watch) {
         g_source_remove(vcon->watch);
         vcon->watch = qemu_chr_fe_add_watch(&vcon->chr,
-                                            G_IO_OUT | G_IO_HUP,
+                                            static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                             chr_write_unblocked, vcon);
     }
 

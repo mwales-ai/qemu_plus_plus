@@ -7,7 +7,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
+#include "trace.h"
+}
+
 #include "hw/qdev-properties.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ssi/pnv_spi.h"
@@ -15,7 +20,6 @@
 #include "hw/ssi/ssi.h"
 #include <libfdt.h>
 #include "hw/irq.h"
-#include "trace.h"
 
 #define PNV_SPI_OPCODE_LO_NIBBLE(x) (x & 0x0F)
 #define PNV_SPI_MASKED_OPCODE(x) (x & 0xF0)
@@ -1143,13 +1147,19 @@ static void pnv_spi_xscom_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps pnv_spi_xscom_ops = {
+static MemoryRegionOps pnv_spi_xscom_ops = {
     .read = pnv_spi_xscom_read,
     .write = pnv_spi_xscom_write,
-    .valid = { .min_access_size = 8, .max_access_size = 8, },
-    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
+
+static void __attribute__((constructor)) init_pnv_spi_xscom_ops(void)
+{
+    pnv_spi_xscom_ops.valid.min_access_size = 8;
+    pnv_spi_xscom_ops.valid.max_access_size = 8;
+    pnv_spi_xscom_ops.impl.min_access_size = 8;
+    pnv_spi_xscom_ops.impl.max_access_size = 8;
+}
 
 static const Property pnv_spi_properties[] = {
     DEFINE_PROP_UINT32("spic_num", PnvSpi, spic_num, 0),
@@ -1210,15 +1220,17 @@ static void pnv_spi_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, pnv_spi_properties);
 }
 
+static const InterfaceInfo pnv_spi_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_spi_info = {
     .name          = TYPE_PNV_SPI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PnvSpi),
     .class_init    = pnv_spi_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .interfaces    = pnv_spi_interfaces,
 };
 
 static void pnv_spi_register_types(void)

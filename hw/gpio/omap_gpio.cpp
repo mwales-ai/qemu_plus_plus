@@ -19,14 +19,18 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
+#include "qemu/error-report.h"
+#include "qemu/module.h"
+#include "qapi/error.h"
+}
+
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/omap.h"
 #include "hw/sysbus.h"
-#include "qemu/error-report.h"
-#include "qemu/module.h"
-#include "qapi/error.h"
 
 struct omap_gpio_s {
     qemu_irq irq;
@@ -53,7 +57,7 @@ struct Omap1GpioState {
 /* General-Purpose I/O of OMAP1 */
 static void omap_gpio_set(void *opaque, int line, int level)
 {
-    Omap1GpioState *p = opaque;
+    Omap1GpioState *p = static_cast<Omap1GpioState *>(opaque);
     struct omap_gpio_s *s = &p->omap1;
     uint16_t prev = s->inputs;
 
@@ -72,7 +76,7 @@ static void omap_gpio_set(void *opaque, int line, int level)
 static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_gpio_s *s = opaque;
+    struct omap_gpio_s *s = static_cast<struct omap_gpio_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 2) {
@@ -110,7 +114,7 @@ static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
 static void omap_gpio_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_gpio_s *s = opaque;
+    struct omap_gpio_s *s = static_cast<struct omap_gpio_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t diff;
     int ln;
@@ -220,6 +224,7 @@ static void omap_gpio_realize(DeviceState *dev, Error **errp)
     }
 }
 
+extern "C"
 void omap_gpio_set_clk(Omap1GpioState *gpio, omap_clk clk)
 {
     gpio->clk = clk;

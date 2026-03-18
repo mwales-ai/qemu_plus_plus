@@ -21,14 +21,18 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
+#include "system/dma.h"
+}
+
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "system/dma.h"
 #include "hw/dma/sifive_pdma.h"
 
 #define DMA_CONTROL         0x000
@@ -273,7 +277,7 @@ static uint32_t sifive_pdma_readl(SiFivePDMAState *s, int ch, hwaddr offset)
 
 static uint64_t sifive_pdma_read(void *opaque, hwaddr offset, unsigned size)
 {
-    SiFivePDMAState *s = opaque;
+    SiFivePDMAState *s = static_cast<SiFivePDMAState *>(opaque);
     int ch = SIFIVE_PDMA_CHAN_NO(offset);
     uint64_t val = 0;
 
@@ -412,7 +416,7 @@ static void sifive_pdma_writel(SiFivePDMAState *s, int ch,
 static void sifive_pdma_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
-    SiFivePDMAState *s = opaque;
+    SiFivePDMAState *s = static_cast<SiFivePDMAState *>(opaque);
     int ch = SIFIVE_PDMA_CHAN_NO(offset);
 
     if (ch >= SIFIVE_PDMA_CHANS) {
@@ -426,7 +430,7 @@ static void sifive_pdma_write(void *opaque, hwaddr offset,
         sifive_pdma_writeq(s, ch, offset, value);
         break;
     case 4:
-        sifive_pdma_writel(s, ch, offset, (uint32_t) value);
+        sifive_pdma_writel(s, ch, offset, static_cast<uint32_t>(value));
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid write size %u to PDMA\n",
@@ -435,20 +439,20 @@ static void sifive_pdma_write(void *opaque, hwaddr offset,
     }
 }
 
-static const MemoryRegionOps sifive_pdma_ops = {
+static MemoryRegionOps sifive_pdma_ops = {
     .read = sifive_pdma_read,
     .write = sifive_pdma_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    /* there are 32-bit and 64-bit wide registers */
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 8,
-    },
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 8,
-    }
 };
+
+static void __attribute__((constructor)) init_sifive_pdma_ops(void)
+{
+    /* there are 32-bit and 64-bit wide registers */
+    sifive_pdma_ops.impl.min_access_size = 4;
+    sifive_pdma_ops.impl.max_access_size = 8;
+    sifive_pdma_ops.valid.min_access_size = 4;
+    sifive_pdma_ops.valid.max_access_size = 8;
+}
 
 static void sifive_pdma_realize(DeviceState *dev, Error **errp)
 {

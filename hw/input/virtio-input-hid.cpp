@@ -5,8 +5,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/iov.h"
 #include "qemu/module.h"
+}
 
 #include "hw/virtio/virtio.h"
 #include "hw/qdev-properties.h"
@@ -14,7 +17,9 @@
 
 #include "ui/console.h"
 
+extern "C" {
 #include "standard-headers/linux/input.h"
+}
 
 #define VIRTIO_ID_NAME_KEYBOARD     "QEMU Virtio Keyboard"
 #define VIRTIO_ID_NAME_MOUSE        "QEMU Virtio Mouse"
@@ -23,31 +28,35 @@
 
 /* ----------------------------------------------------------------- */
 
-static const unsigned short keymap_button[INPUT_BUTTON__MAX] = {
-    [INPUT_BUTTON_LEFT]              = BTN_LEFT,
-    [INPUT_BUTTON_RIGHT]             = BTN_RIGHT,
-    [INPUT_BUTTON_MIDDLE]            = BTN_MIDDLE,
-    [INPUT_BUTTON_WHEEL_UP]          = BTN_GEAR_UP,
-    [INPUT_BUTTON_WHEEL_DOWN]        = BTN_GEAR_DOWN,
-    [INPUT_BUTTON_SIDE]              = BTN_SIDE,
-    [INPUT_BUTTON_EXTRA]             = BTN_EXTRA,
-    [INPUT_BUTTON_TOUCH]             = BTN_TOUCH,
-};
+static unsigned short keymap_button[INPUT_BUTTON__MAX];
+static unsigned short axismap_rel[INPUT_AXIS__MAX];
+static unsigned short axismap_abs[INPUT_AXIS__MAX];
+static unsigned short axismap_tch[INPUT_AXIS__MAX];
 
-static const unsigned short axismap_rel[INPUT_AXIS__MAX] = {
-    [INPUT_AXIS_X]                   = REL_X,
-    [INPUT_AXIS_Y]                   = REL_Y,
-};
+static void __attribute__((constructor)) init_input_maps(void)
+{
+    memset(keymap_button, 0, sizeof(keymap_button));
+    keymap_button[INPUT_BUTTON_LEFT]       = BTN_LEFT;
+    keymap_button[INPUT_BUTTON_RIGHT]      = BTN_RIGHT;
+    keymap_button[INPUT_BUTTON_MIDDLE]     = BTN_MIDDLE;
+    keymap_button[INPUT_BUTTON_WHEEL_UP]   = BTN_GEAR_UP;
+    keymap_button[INPUT_BUTTON_WHEEL_DOWN] = BTN_GEAR_DOWN;
+    keymap_button[INPUT_BUTTON_SIDE]       = BTN_SIDE;
+    keymap_button[INPUT_BUTTON_EXTRA]      = BTN_EXTRA;
+    keymap_button[INPUT_BUTTON_TOUCH]      = BTN_TOUCH;
 
-static const unsigned short axismap_abs[INPUT_AXIS__MAX] = {
-    [INPUT_AXIS_X]                   = ABS_X,
-    [INPUT_AXIS_Y]                   = ABS_Y,
-};
+    memset(axismap_rel, 0, sizeof(axismap_rel));
+    axismap_rel[INPUT_AXIS_X] = REL_X;
+    axismap_rel[INPUT_AXIS_Y] = REL_Y;
 
-static const unsigned short axismap_tch[INPUT_AXIS__MAX] = {
-    [INPUT_AXIS_X]                   = ABS_MT_POSITION_X,
-    [INPUT_AXIS_Y]                   = ABS_MT_POSITION_Y,
-};
+    memset(axismap_abs, 0, sizeof(axismap_abs));
+    axismap_abs[INPUT_AXIS_X] = ABS_X;
+    axismap_abs[INPUT_AXIS_Y] = ABS_Y;
+
+    memset(axismap_tch, 0, sizeof(axismap_tch));
+    axismap_tch[INPUT_AXIS_X] = ABS_MT_POSITION_X;
+    axismap_tch[INPUT_AXIS_Y] = ABS_MT_POSITION_Y;
+}
 
 /* ----------------------------------------------------------------- */
 
@@ -258,8 +267,8 @@ static const TypeInfo virtio_input_hid_info = {
     .name          = TYPE_VIRTIO_INPUT_HID,
     .parent        = TYPE_VIRTIO_INPUT,
     .instance_size = sizeof(VirtIOInputHID),
+    .is_abstract   = true,
     .class_init    = virtio_input_hid_class_init,
-    .is_abstract      = true,
 };
 
 /* ----------------------------------------------------------------- */
@@ -271,34 +280,7 @@ static const QemuInputHandler virtio_keyboard_handler = {
     .sync  = virtio_input_handle_sync,
 };
 
-static struct virtio_input_config virtio_keyboard_config[] = {
-    {
-        .select    = VIRTIO_INPUT_CFG_ID_NAME,
-        .size      = sizeof(VIRTIO_ID_NAME_KEYBOARD),
-        .u = { .string = VIRTIO_ID_NAME_KEYBOARD, },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
-        .size      = sizeof(struct virtio_input_devids),
-        .u.ids     = {
-            .bustype = const_le16(BUS_VIRTUAL),
-            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
-            .product = const_le16(0x0001),
-            .version = const_le16(0x0001),
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_EV_BITS,
-        .subsel    = EV_REP,
-        .size      = 1,
-    },{
-        .select    = VIRTIO_INPUT_CFG_EV_BITS,
-        .subsel    = EV_LED,
-        .size      = 1,
-        .u.bitmap  = {
-            (1 << LED_NUML) | (1 << LED_CAPSL) | (1 << LED_SCROLLL),
-        },
-    },
-    { /* end of list */ },
-};
+static struct virtio_input_config virtio_keyboard_config[5];
 
 static void virtio_keyboard_init(Object *obj)
 {
@@ -328,56 +310,8 @@ static const QemuInputHandler virtio_mouse_handler = {
     .sync  = virtio_input_handle_sync,
 };
 
-static struct virtio_input_config virtio_mouse_config_v1[] = {
-    {
-        .select    = VIRTIO_INPUT_CFG_ID_NAME,
-        .size      = sizeof(VIRTIO_ID_NAME_MOUSE),
-        .u = { .string = VIRTIO_ID_NAME_MOUSE, },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
-        .size      = sizeof(struct virtio_input_devids),
-        .u.ids     = {
-            .bustype = const_le16(BUS_VIRTUAL),
-            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
-            .product = const_le16(0x0002),
-            .version = const_le16(0x0001),
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_EV_BITS,
-        .subsel    = EV_REL,
-        .size      = 1,
-        .u.bitmap  = {
-            (1 << REL_X) | (1 << REL_Y),
-        },
-    },
-    { /* end of list */ },
-};
-
-static struct virtio_input_config virtio_mouse_config_v2[] = {
-    {
-        .select    = VIRTIO_INPUT_CFG_ID_NAME,
-        .size      = sizeof(VIRTIO_ID_NAME_MOUSE),
-        .u = { .string = VIRTIO_ID_NAME_MOUSE, },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
-        .size      = sizeof(struct virtio_input_devids),
-        .u.ids     = {
-            .bustype = const_le16(BUS_VIRTUAL),
-            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
-            .product = const_le16(0x0002),
-            .version = const_le16(0x0002),
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_EV_BITS,
-        .subsel    = EV_REL,
-        .size      = 2,
-        .u.bitmap  = {
-            (1 << REL_X) | (1 << REL_Y),
-            (1 << (REL_WHEEL - 8))
-        },
-    },
-    { /* end of list */ },
-};
+static struct virtio_input_config virtio_mouse_config_v1[4];
+static struct virtio_input_config virtio_mouse_config_v2[4];
 
 static const Property virtio_mouse_properties[] = {
     DEFINE_PROP_BOOL("wheel-axis", VirtIOInputHID, wheel_axis, true),
@@ -421,87 +355,8 @@ static const QemuInputHandler virtio_tablet_handler = {
     .sync  = virtio_input_handle_sync,
 };
 
-static struct virtio_input_config virtio_tablet_config_v1[] = {
-    {
-        .select    = VIRTIO_INPUT_CFG_ID_NAME,
-        .size      = sizeof(VIRTIO_ID_NAME_TABLET),
-        .u = { .string = VIRTIO_ID_NAME_TABLET, },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
-        .size      = sizeof(struct virtio_input_devids),
-        .u.ids     = {
-            .bustype = const_le16(BUS_VIRTUAL),
-            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
-            .product = const_le16(0x0003),
-            .version = const_le16(0x0001),
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_EV_BITS,
-        .subsel    = EV_ABS,
-        .size      = 1,
-        .u.bitmap  = {
-            (1 << ABS_X) | (1 << ABS_Y),
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
-        .subsel    = ABS_X,
-        .size      = sizeof(virtio_input_absinfo),
-        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
-    },{
-        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
-        .subsel    = ABS_Y,
-        .size      = sizeof(virtio_input_absinfo),
-        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
-    },
-    { /* end of list */ },
-};
-
-static struct virtio_input_config virtio_tablet_config_v2[] = {
-    {
-        .select    = VIRTIO_INPUT_CFG_ID_NAME,
-        .size      = sizeof(VIRTIO_ID_NAME_TABLET),
-        .u = { .string = VIRTIO_ID_NAME_TABLET, },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
-        .size      = sizeof(struct virtio_input_devids),
-        .u.ids     = {
-            .bustype = const_le16(BUS_VIRTUAL),
-            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
-            .product = const_le16(0x0003),
-            .version = const_le16(0x0002),
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_EV_BITS,
-        .subsel    = EV_ABS,
-        .size      = 1,
-        .u.bitmap  = {
-            (1 << ABS_X) | (1 << ABS_Y),
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_EV_BITS,
-        .subsel    = EV_REL,
-        .size      = 2,
-        .u.bitmap  = {
-            0,
-            (1 << (REL_WHEEL - 8))
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
-        .subsel    = ABS_X,
-        .size      = sizeof(virtio_input_absinfo),
-        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
-    },{
-        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
-        .subsel    = ABS_Y,
-        .size      = sizeof(virtio_input_absinfo),
-        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
-    },
-    { /* end of list */ },
-};
+static struct virtio_input_config virtio_tablet_config_v1[6];
+static struct virtio_input_config virtio_tablet_config_v2[7];
 
 static const Property virtio_tablet_properties[] = {
     DEFINE_PROP_BOOL("wheel-axis", VirtIOInputHID, wheel_axis, true),
@@ -545,47 +400,7 @@ static const QemuInputHandler virtio_multitouch_handler = {
     .sync  = virtio_input_handle_sync,
 };
 
-static struct virtio_input_config virtio_multitouch_config[] = {
-    {
-        .select    = VIRTIO_INPUT_CFG_ID_NAME,
-        .size      = sizeof(VIRTIO_ID_NAME_MULTITOUCH),
-        .u = { .string = VIRTIO_ID_NAME_MULTITOUCH, },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ID_DEVIDS,
-        .size      = sizeof(struct virtio_input_devids),
-        .u.ids     = {
-            .bustype = const_le16(BUS_VIRTUAL),
-            .vendor  = const_le16(0x0627), /* same we use for usb hid devices */
-            .product = const_le16(0x0003),
-            .version = const_le16(0x0001),
-        },
-    },{
-        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
-        .subsel    = ABS_MT_SLOT,
-        .size      = sizeof(virtio_input_absinfo),
-        .u.abs.min = const_le32(INPUT_EVENT_SLOTS_MIN),
-        .u.abs.max = const_le32(INPUT_EVENT_SLOTS_MAX),
-    },{
-        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
-        .subsel    = ABS_MT_TRACKING_ID,
-        .size      = sizeof(virtio_input_absinfo),
-        .u.abs.min = const_le32(INPUT_EVENT_SLOTS_MIN),
-        .u.abs.max = const_le32(INPUT_EVENT_SLOTS_MAX),
-    },{
-        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
-        .subsel    = ABS_MT_POSITION_X,
-        .size      = sizeof(virtio_input_absinfo),
-        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
-    },{
-        .select    = VIRTIO_INPUT_CFG_ABS_INFO,
-        .subsel    = ABS_MT_POSITION_Y,
-        .size      = sizeof(virtio_input_absinfo),
-        .u.abs.min = const_le32(INPUT_EVENT_ABS_MIN),
-        .u.abs.max = const_le32(INPUT_EVENT_ABS_MAX),
-    },
-    { /* end of list */ },
-};
+static struct virtio_input_config virtio_multitouch_config[7];
 
 static void virtio_multitouch_init(Object *obj)
 {
@@ -622,6 +437,125 @@ static const TypeInfo virtio_multitouch_info = {
 };
 
 /* ----------------------------------------------------------------- */
+
+/* Helper to set up a name config entry */
+static void init_name_config(struct virtio_input_config *c, const char *name)
+{
+    memset(c, 0, sizeof(*c));
+    c->select = VIRTIO_INPUT_CFG_ID_NAME;
+    c->size = strlen(name) + 1;
+    memcpy(c->u.string, name, c->size);
+}
+
+/* Helper to set up a devids config entry */
+static void init_devids_config(struct virtio_input_config *c,
+                               uint16_t product, uint16_t version)
+{
+    memset(c, 0, sizeof(*c));
+    c->select = VIRTIO_INPUT_CFG_ID_DEVIDS;
+    c->size = sizeof(struct virtio_input_devids);
+    c->u.ids.bustype = const_le16(BUS_VIRTUAL);
+    c->u.ids.vendor = const_le16(0x0627);
+    c->u.ids.product = const_le16(product);
+    c->u.ids.version = const_le16(version);
+}
+
+/* Helper to set up an abs_info config entry */
+static void init_absinfo_config(struct virtio_input_config *c,
+                                uint8_t subsel, uint32_t min_val, uint32_t max_val)
+{
+    memset(c, 0, sizeof(*c));
+    c->select = VIRTIO_INPUT_CFG_ABS_INFO;
+    c->subsel = subsel;
+    c->size = sizeof(virtio_input_absinfo);
+    c->u.abs.min = const_le32(min_val);
+    c->u.abs.max = const_le32(max_val);
+}
+
+static void __attribute__((constructor)) init_virtio_input_hid_configs(void)
+{
+    /* virtio_keyboard_config */
+    memset(virtio_keyboard_config, 0, sizeof(virtio_keyboard_config));
+    init_name_config(&virtio_keyboard_config[0], VIRTIO_ID_NAME_KEYBOARD);
+    init_devids_config(&virtio_keyboard_config[1], 0x0001, 0x0001);
+    virtio_keyboard_config[2].select = VIRTIO_INPUT_CFG_EV_BITS;
+    virtio_keyboard_config[2].subsel = EV_REP;
+    virtio_keyboard_config[2].size = 1;
+    virtio_keyboard_config[3].select = VIRTIO_INPUT_CFG_EV_BITS;
+    virtio_keyboard_config[3].subsel = EV_LED;
+    virtio_keyboard_config[3].size = 1;
+    virtio_keyboard_config[3].u.bitmap[0] =
+        (1 << LED_NUML) | (1 << LED_CAPSL) | (1 << LED_SCROLLL);
+    /* [4] is zero-initialized end of list */
+
+    /* virtio_mouse_config_v1 */
+    memset(virtio_mouse_config_v1, 0, sizeof(virtio_mouse_config_v1));
+    init_name_config(&virtio_mouse_config_v1[0], VIRTIO_ID_NAME_MOUSE);
+    init_devids_config(&virtio_mouse_config_v1[1], 0x0002, 0x0001);
+    virtio_mouse_config_v1[2].select = VIRTIO_INPUT_CFG_EV_BITS;
+    virtio_mouse_config_v1[2].subsel = EV_REL;
+    virtio_mouse_config_v1[2].size = 1;
+    virtio_mouse_config_v1[2].u.bitmap[0] = (1 << REL_X) | (1 << REL_Y);
+    /* [3] is zero-initialized end of list */
+
+    /* virtio_mouse_config_v2 */
+    memset(virtio_mouse_config_v2, 0, sizeof(virtio_mouse_config_v2));
+    init_name_config(&virtio_mouse_config_v2[0], VIRTIO_ID_NAME_MOUSE);
+    init_devids_config(&virtio_mouse_config_v2[1], 0x0002, 0x0002);
+    virtio_mouse_config_v2[2].select = VIRTIO_INPUT_CFG_EV_BITS;
+    virtio_mouse_config_v2[2].subsel = EV_REL;
+    virtio_mouse_config_v2[2].size = 2;
+    virtio_mouse_config_v2[2].u.bitmap[0] = (1 << REL_X) | (1 << REL_Y);
+    virtio_mouse_config_v2[2].u.bitmap[1] = (1 << (REL_WHEEL - 8));
+    /* [3] is zero-initialized end of list */
+
+    /* virtio_tablet_config_v1 */
+    memset(virtio_tablet_config_v1, 0, sizeof(virtio_tablet_config_v1));
+    init_name_config(&virtio_tablet_config_v1[0], VIRTIO_ID_NAME_TABLET);
+    init_devids_config(&virtio_tablet_config_v1[1], 0x0003, 0x0001);
+    virtio_tablet_config_v1[2].select = VIRTIO_INPUT_CFG_EV_BITS;
+    virtio_tablet_config_v1[2].subsel = EV_ABS;
+    virtio_tablet_config_v1[2].size = 1;
+    virtio_tablet_config_v1[2].u.bitmap[0] = (1 << ABS_X) | (1 << ABS_Y);
+    init_absinfo_config(&virtio_tablet_config_v1[3], ABS_X,
+                        INPUT_EVENT_ABS_MIN, INPUT_EVENT_ABS_MAX);
+    init_absinfo_config(&virtio_tablet_config_v1[4], ABS_Y,
+                        INPUT_EVENT_ABS_MIN, INPUT_EVENT_ABS_MAX);
+    /* [5] is zero-initialized end of list */
+
+    /* virtio_tablet_config_v2 */
+    memset(virtio_tablet_config_v2, 0, sizeof(virtio_tablet_config_v2));
+    init_name_config(&virtio_tablet_config_v2[0], VIRTIO_ID_NAME_TABLET);
+    init_devids_config(&virtio_tablet_config_v2[1], 0x0003, 0x0002);
+    virtio_tablet_config_v2[2].select = VIRTIO_INPUT_CFG_EV_BITS;
+    virtio_tablet_config_v2[2].subsel = EV_ABS;
+    virtio_tablet_config_v2[2].size = 1;
+    virtio_tablet_config_v2[2].u.bitmap[0] = (1 << ABS_X) | (1 << ABS_Y);
+    virtio_tablet_config_v2[3].select = VIRTIO_INPUT_CFG_EV_BITS;
+    virtio_tablet_config_v2[3].subsel = EV_REL;
+    virtio_tablet_config_v2[3].size = 2;
+    virtio_tablet_config_v2[3].u.bitmap[0] = 0;
+    virtio_tablet_config_v2[3].u.bitmap[1] = (1 << (REL_WHEEL - 8));
+    init_absinfo_config(&virtio_tablet_config_v2[4], ABS_X,
+                        INPUT_EVENT_ABS_MIN, INPUT_EVENT_ABS_MAX);
+    init_absinfo_config(&virtio_tablet_config_v2[5], ABS_Y,
+                        INPUT_EVENT_ABS_MIN, INPUT_EVENT_ABS_MAX);
+    /* [6] is zero-initialized end of list */
+
+    /* virtio_multitouch_config */
+    memset(virtio_multitouch_config, 0, sizeof(virtio_multitouch_config));
+    init_name_config(&virtio_multitouch_config[0], VIRTIO_ID_NAME_MULTITOUCH);
+    init_devids_config(&virtio_multitouch_config[1], 0x0003, 0x0001);
+    init_absinfo_config(&virtio_multitouch_config[2], ABS_MT_SLOT,
+                        INPUT_EVENT_SLOTS_MIN, INPUT_EVENT_SLOTS_MAX);
+    init_absinfo_config(&virtio_multitouch_config[3], ABS_MT_TRACKING_ID,
+                        INPUT_EVENT_SLOTS_MIN, INPUT_EVENT_SLOTS_MAX);
+    init_absinfo_config(&virtio_multitouch_config[4], ABS_MT_POSITION_X,
+                        INPUT_EVENT_ABS_MIN, INPUT_EVENT_ABS_MAX);
+    init_absinfo_config(&virtio_multitouch_config[5], ABS_MT_POSITION_Y,
+                        INPUT_EVENT_ABS_MIN, INPUT_EVENT_ABS_MAX);
+    /* [6] is zero-initialized end of list */
+}
 
 static void virtio_register_types(void)
 {

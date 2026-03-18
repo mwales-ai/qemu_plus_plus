@@ -24,6 +24,10 @@
 #include "chardev/char-fe.h"
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_HTIF_UART "riscv.htif.uart"
 
 typedef struct HTIFState {
@@ -50,5 +54,9 @@ void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
 /* legacy pre qom */
 HTIFState *htif_mm_init(MemoryRegion *address_space, Chardev *chr,
                         uint64_t nonelf_base, bool custom_base);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -21,17 +21,21 @@
  */
 
 #include "qemu/osdep.h"
-#include "qapi/error.h"
-#include "qemu/log.h"
-#include "hw/char/riscv_htif.h"
+
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
-#include "qemu/timer.h"
-#include "qemu/error-report.h"
+#include "hw/char/riscv_htif.h"
 #include "system/address-spaces.h"
 #include "system/dma.h"
 #include "system/runstate.h"
+
+extern "C" {
+#include "qapi/error.h"
+#include "qemu/log.h"
+#include "qemu/timer.h"
+#include "qemu/error-report.h"
 #include "trace.h"
+}
 
 #define HTIF_DEV_SHIFT          56
 #define HTIF_CMD_SHIFT          48
@@ -51,6 +55,7 @@ uint8_t line_size = 16;
 
 static uint64_t fromhost_addr, tohost_addr, begin_sig_addr, end_sig_addr;
 
+extern "C"
 void htif_symbol_callback(const char *st_name, int st_info, uint64_t st_value,
                           uint64_t st_size)
 {
@@ -87,7 +92,7 @@ static int htif_can_recv(void *opaque)
  */
 static void htif_recv(void *opaque, const uint8_t *buf, int size)
 {
-    HTIFState *s = opaque;
+    HTIFState *s = static_cast<HTIFState *>(opaque);
 
     if (size != 1) {
         return;
@@ -116,7 +121,7 @@ static void htif_event(void *opaque, QEMUChrEvent event)
 
 static int htif_be_change(void *opaque)
 {
-    HTIFState *s = opaque;
+    HTIFState *s = static_cast<HTIFState *>(opaque);
 
     qemu_chr_fe_set_handlers(&s->chr, htif_can_recv, htif_recv, htif_event,
         htif_be_change, s, NULL, true);
@@ -171,7 +176,7 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
                  */
                 if (sig_file && begin_sig_addr && end_sig_addr) {
                     uint64_t sig_len = end_sig_addr - begin_sig_addr;
-                    char *sig_data = g_malloc(sig_len);
+                    char *sig_data = static_cast<char *>(g_malloc(sig_len));
                     dma_memory_read(&address_space_memory, begin_sig_addr,
                                     sig_data, sig_len, MEMTXATTRS_UNSPECIFIED);
                     FILE *signature = fopen(sig_file, "w");
@@ -181,8 +186,8 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
                         exit(1);
                     }
 
-                    for (int i = 0; i < sig_len; i += line_size) {
-                        for (int j = line_size; j > 0; j--) {
+                    for (uint64_t i = 0; i < sig_len; i += line_size) {
+                        for (uint64_t j = line_size; j > 0; j--) {
                             if (i + j <= sig_len) {
                                 fprintf(signature, "%02x",
                                         sig_data[i + j - 1] & 0xff);
@@ -266,7 +271,7 @@ static void htif_handle_tohost_write(HTIFState *s, uint64_t val_written)
 /* CPU wants to read an HTIF register */
 static uint64_t htif_mm_read(void *opaque, hwaddr addr, unsigned size)
 {
-    HTIFState *s = opaque;
+    HTIFState *s = static_cast<HTIFState *>(opaque);
     if (addr == TOHOST_OFFSET1) {
         return s->tohost & 0xFFFFFFFF;
     } else if (addr == TOHOST_OFFSET2) {
@@ -286,7 +291,7 @@ static uint64_t htif_mm_read(void *opaque, hwaddr addr, unsigned size)
 static void htif_mm_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned size)
 {
-    HTIFState *s = opaque;
+    HTIFState *s = static_cast<HTIFState *>(opaque);
     if (addr == TOHOST_OFFSET1) {
         if (s->tohost == 0x0) {
             s->allow_tohost = 1;
@@ -321,6 +326,7 @@ static const MemoryRegionOps htif_mm_ops = {
     },
 };
 
+extern "C"
 HTIFState *htif_mm_init(MemoryRegion *address_space, Chardev *chr,
                         uint64_t nonelf_base, bool custom_base)
 {

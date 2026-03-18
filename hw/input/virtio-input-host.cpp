@@ -5,16 +5,22 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/sockets.h"
+}
 
 #include "hw/virtio/virtio.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-input.h"
 
 #include <sys/ioctl.h>
+
+extern "C" {
 #include "standard-headers/linux/input.h"
+}
 
 /* ----------------------------------------------------------------- */
 
@@ -24,7 +30,7 @@ static struct virtio_input_config virtio_input_host_config[] = {
 
 static void virtio_input_host_event(void *opaque)
 {
-    VirtIOInputHost *vih = opaque;
+    VirtIOInputHost *vih = static_cast<VirtIOInputHost *>(opaque);
     VirtIOInput *vinput = VIRTIO_INPUT(vih);
     struct virtio_input_event virtio;
     struct input_event evdev;

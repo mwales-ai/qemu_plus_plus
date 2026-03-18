@@ -3,6 +3,10 @@
 
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_STREAM_SINK "stream-sink"
 
 typedef struct StreamSinkClass StreamSinkClass;
@@ -49,5 +53,9 @@ bool
 stream_can_push(StreamSink *sink, StreamCanPushNotifyFn notify,
                 void *notify_opaque);
 
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* STREAM_H */

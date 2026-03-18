@@ -441,7 +441,7 @@ static void enet_update_irq(XilinxAXIEnet *s)
 
 static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 {
-    XilinxAXIEnet *s = opaque;
+    XilinxAXIEnet *s = static_cast<XilinxAXIEnet *>(opaque);
     uint32_t r = 0;
     addr >>= 2;
 
@@ -515,16 +515,17 @@ static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
             r = s->maddr[s->fmi & 3][addr & 1];
             break;
 
-        case 0x8000 ... 0x83ff:
-            r = s->ext_mtable[addr - 0x8000];
-            break;
-
         default:
-            if (addr < ARRAY_SIZE(s->regs)) {
+            if (addr >= 0x8000 && addr <= 0x83ff) {
+                r = s->ext_mtable[addr - 0x8000];
+            } else if (addr < ARRAY_SIZE(s->regs)) {
                 r = s->regs[addr];
+                DENET(qemu_log("%s addr=" HWADDR_FMT_plx " v=%x\n",
+                                __func__, addr * 4, r));
+            } else {
+                DENET(qemu_log("%s addr=" HWADDR_FMT_plx " v=%x\n",
+                                __func__, addr * 4, r));
             }
-            DENET(qemu_log("%s addr=" HWADDR_FMT_plx " v=%x\n",
-                            __func__, addr * 4, r));
             break;
     }
     return r;
@@ -533,7 +534,7 @@ static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 static void enet_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
-    XilinxAXIEnet *s = opaque;
+    XilinxAXIEnet *s = static_cast<XilinxAXIEnet *>(opaque);
     struct TEMAC *t = &s->TEMAC;
 
     addr >>= 2;
@@ -624,15 +625,15 @@ static void enet_write(void *opaque, hwaddr addr,
             s->regs[addr] &= ~value;
             break;
 
-        case 0x8000 ... 0x83ff:
-            s->ext_mtable[addr - 0x8000] = value;
-            break;
-
         default:
-            DENET(qemu_log("%s addr=" HWADDR_FMT_plx " v=%x\n",
-                           __func__, addr * 4, (unsigned)value));
-            if (addr < ARRAY_SIZE(s->regs)) {
-                s->regs[addr] = value;
+            if (addr >= 0x8000 && addr <= 0x83ff) {
+                s->ext_mtable[addr - 0x8000] = value;
+            } else {
+                DENET(qemu_log("%s addr=" HWADDR_FMT_plx " v=%x\n",
+                               __func__, addr * 4, (unsigned)value));
+                if (addr < ARRAY_SIZE(s->regs)) {
+                    s->regs[addr] = value;
+                }
             }
             break;
     }
@@ -673,14 +674,17 @@ static void axienet_eth_rx_notify(void *opaque)
     while (s->rxappsize && stream_can_push(s->tx_control_dev,
                                            axienet_eth_rx_notify, s)) {
         size_t ret = stream_push(s->tx_control_dev,
-                                 (void *)s->rxapp + CONTROL_PAYLOAD_SIZE
-                                 - s->rxappsize, s->rxappsize, true);
+                                 static_cast<uint8_t *>(
+                                     static_cast<void *>(s->rxapp)) +
+                                     CONTROL_PAYLOAD_SIZE - s->rxappsize,
+                                 s->rxappsize, true);
         s->rxappsize -= ret;
     }
 
     while (s->rxsize && stream_can_push(s->tx_data_dev,
                                         axienet_eth_rx_notify, s)) {
-        size_t ret = stream_push(s->tx_data_dev, (void *)s->rxmem + s->rxpos,
+        size_t ret = stream_push(s->tx_data_dev,
+                                 s->rxmem + s->rxpos,
                                  s->rxsize, true);
         s->rxsize -= ret;
         s->rxpos += ret;
@@ -697,7 +701,7 @@ static void axienet_eth_rx_notify(void *opaque)
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
+    XilinxAXIEnet *s = static_cast<XilinxAXIEnet *>(qemu_get_nic_opaque(nc));
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
                                               0xff, 0xff, 0xff};
     static const unsigned char sa_ipmcast[3] = {0x01, 0x00, 0x52};
@@ -816,7 +820,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     }
 
     app[0] = 5 << 28;
-    csum32 = net_checksum_add(size - 14, (uint8_t *)s->rxmem + 14);
+    csum32 = net_checksum_add(size - 14, s->rxmem + 14);
     /* Fold it once.  */
     csum32 = (csum32 & 0xffff) + (csum32 >> 16);
     /* And twice to get rid of possible carries.  */
@@ -976,8 +980,8 @@ static void xilinx_enet_realize(DeviceState *dev, Error **errp)
 
     s->TEMAC.parent = s;
 
-    s->rxmem = g_malloc(s->c_rxmem);
-    s->txmem = g_malloc(s->c_txmem);
+    s->rxmem = static_cast<uint8_t *>(g_malloc(s->c_rxmem));
+    s->txmem = static_cast<uint8_t *>(g_malloc(s->c_txmem));
 }
 
 static void xilinx_enet_init(Object *obj)
@@ -1036,8 +1040,13 @@ static const TypeInfo xilinx_enet_info = {
     .name          = TYPE_XILINX_AXI_ENET,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XilinxAXIEnet),
-    .class_init    = xilinx_enet_class_init,
     .instance_init = xilinx_enet_init,
+    .class_init    = xilinx_enet_class_init,
+};
+
+static const InterfaceInfo xilinx_enet_data_stream_if[] = {
+    { TYPE_STREAM_SINK },
+    { }
 };
 
 static const TypeInfo xilinx_enet_data_stream_info = {
@@ -1045,10 +1054,12 @@ static const TypeInfo xilinx_enet_data_stream_info = {
     .parent        = TYPE_OBJECT,
     .instance_size = sizeof(XilinxAXIEnetStreamSink),
     .class_init    = xilinx_enet_data_stream_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-            { TYPE_STREAM_SINK },
-            { }
-    }
+    .interfaces    = xilinx_enet_data_stream_if,
+};
+
+static const InterfaceInfo xilinx_enet_control_stream_if[] = {
+    { TYPE_STREAM_SINK },
+    { }
 };
 
 static const TypeInfo xilinx_enet_control_stream_info = {
@@ -1056,10 +1067,7 @@ static const TypeInfo xilinx_enet_control_stream_info = {
     .parent        = TYPE_OBJECT,
     .instance_size = sizeof(XilinxAXIEnetStreamSink),
     .class_init    = xilinx_enet_control_stream_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-            { TYPE_STREAM_SINK },
-            { }
-    }
+    .interfaces    = xilinx_enet_control_stream_if,
 };
 
 static void xilinx_enet_register_types(void)

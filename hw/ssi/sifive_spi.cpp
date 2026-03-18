@@ -20,13 +20,17 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
+#include "qemu/fifo8.h"
+#include "qemu/log.h"
+#include "qemu/module.h"
+}
+
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/ssi/ssi.h"
-#include "qemu/fifo8.h"
-#include "qemu/log.h"
-#include "qemu/module.h"
 #include "hw/ssi/sifive_spi.h"
 
 #define R_SCKDIV        (0x00 / 4)
@@ -179,7 +183,7 @@ static bool sifive_spi_is_bad_reg(hwaddr addr, bool allow_reserved)
 
 static uint64_t sifive_spi_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    SiFiveSPIState *s = opaque;
+    SiFiveSPIState *s = static_cast<SiFiveSPIState *>(opaque);
     uint32_t r;
 
     if (sifive_spi_is_bad_reg(addr, true)) {
@@ -217,7 +221,7 @@ static uint64_t sifive_spi_read(void *opaque, hwaddr addr, unsigned int size)
 static void sifive_spi_write(void *opaque, hwaddr addr,
                              uint64_t val64, unsigned int size)
 {
-    SiFiveSPIState *s = opaque;
+    SiFiveSPIState *s = static_cast<SiFiveSPIState *>(opaque);
     uint32_t value = val64;
 
     if (sifive_spi_is_bad_reg(addr, false)) {
@@ -296,15 +300,17 @@ static void sifive_spi_write(void *opaque, hwaddr addr,
     sifive_spi_update_irq(s);
 }
 
-static const MemoryRegionOps sifive_spi_ops = {
+static MemoryRegionOps sifive_spi_ops = {
     .read = sifive_spi_read,
     .write = sifive_spi_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4
-    }
 };
+
+static void __attribute__((constructor)) init_sifive_spi_ops(void)
+{
+    sifive_spi_ops.valid.min_access_size = 4;
+    sifive_spi_ops.valid.max_access_size = 4;
+}
 
 static void sifive_spi_realize(DeviceState *dev, Error **errp)
 {

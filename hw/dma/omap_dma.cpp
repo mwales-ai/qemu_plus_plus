@@ -18,11 +18,30 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/timer.h"
+}
+
 #include "hw/arm/omap.h"
 #include "hw/irq.h"
 #include "hw/arm/soc_dma.h"
+
+/* In C, nested structs are visible at file scope; in C++ they're scoped. */
+typedef struct omap_mpu_state_s::omap_dma_port_if_s omap_dma_port_if_s;
+
+struct omap_dma_reg_set_s {
+    hwaddr src, dest;
+    int frame;
+    int element;
+    int pck_element;
+    int frame_delta[2];
+    int elem_delta[2];
+    int frames;
+    int elements;
+    int pck_elements;
+};
 
 struct omap_dma_channel_s {
     /* transfer data */
@@ -78,17 +97,7 @@ struct omap_dma_channel_s {
     qemu_irq irq;
     struct omap_dma_channel_s *sibling;
 
-    struct omap_dma_reg_set_s {
-        hwaddr src, dest;
-        int frame;
-        int element;
-        int pck_element;
-        int frame_delta[2];
-        int elem_delta[2];
-        int frames;
-        int elements;
-        int pck_elements;
-    } active_set;
+    struct omap_dma_reg_set_s active_set;
 
     struct soc_dma_ch_s *dma;
 
@@ -369,7 +378,7 @@ static void omap_dma_process_request(struct omap_dma_s *s, int request)
 static void omap_dma_transfer_generic(struct soc_dma_ch_s *dma)
 {
     uint8_t value[4];
-    struct omap_dma_channel_s *ch = dma->opaque;
+    struct omap_dma_channel_s *ch = static_cast<struct omap_dma_channel_s *>(dma->opaque);
     struct omap_dma_reg_set_s *a = &ch->active_set;
     int bytes = dma->bytes;
 #ifdef MULTI_REQ
@@ -499,10 +508,10 @@ enum {
 
 static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
 {
-    struct omap_dma_port_if_s *src_p, *dest_p;
+    omap_dma_port_if_s *src_p, *dest_p;
     struct omap_dma_reg_set_s *a;
-    struct omap_dma_channel_s *ch = dma->opaque;
-    struct omap_dma_s *s = dma->dma->opaque;
+    struct omap_dma_channel_s *ch = static_cast<struct omap_dma_channel_s *>(dma->opaque);
+    struct omap_dma_s *s = static_cast<struct omap_dma_s *>(dma->dma->opaque);
     int frames, min_elems, elements[__omap_dma_intr_last];
 
     a = &ch->active_set;
@@ -680,10 +689,11 @@ static void omap_dma_transfer_setup(struct soc_dma_ch_s *dma)
     omap_dma_interrupts_update(s);
 }
 
+extern "C"
 void omap_dma_reset(struct soc_dma_s *dma)
 {
     int i;
-    struct omap_dma_s *s = dma->opaque;
+    struct omap_dma_s *s = static_cast<struct omap_dma_s *>(dma->opaque);
 
     soc_dma_reset(s->dma);
     s->gcr = 0x0004;
@@ -867,10 +877,10 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
     case 0x00:  /* SYS_DMA_CSDP_CH0 */
         ch->burst[1] = (value & 0xc000) >> 14;
         ch->pack[1] = (value & 0x2000) >> 13;
-        ch->port[1] = (enum omap_dma_port) ((value & 0x1e00) >> 9);
+        ch->port[1] = static_cast<enum omap_dma_port>((value & 0x1e00) >> 9);
         ch->burst[0] = (value & 0x0180) >> 7;
         ch->pack[0] = (value & 0x0040) >> 6;
-        ch->port[0] = (enum omap_dma_port) ((value & 0x003c) >> 2);
+        ch->port[0] = static_cast<enum omap_dma_port>((value & 0x003c) >> 2);
         if (ch->port[0] >= __omap_dma_port_last) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid DMA port %i\n",
                           __func__, ch->port[0]);
@@ -888,8 +898,8 @@ static int omap_dma_ch_reg_write(struct omap_dma_s *s,
         break;
 
     case 0x02:  /* SYS_DMA_CCR_CH0 */
-        ch->mode[1] = (omap_dma_addressing_t) ((value & 0xc000) >> 14);
-        ch->mode[0] = (omap_dma_addressing_t) ((value & 0x3000) >> 12);
+        ch->mode[1] = static_cast<omap_dma_addressing_t>((value & 0xc000) >> 14);
+        ch->mode[0] = static_cast<omap_dma_addressing_t>((value & 0x3000) >> 12);
         ch->end_prog = (value & 0x0800) >> 11;
         if (s->model >= omap_dma_3_2)
             ch->omap_3_1_compatible_disable  = (value >> 10) & 0x1;
@@ -1015,8 +1025,8 @@ static int omap_dma_3_2_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
         break;
 
     case 0xbc2: /* DMA_LCD_CCR */
-        s->mode_f2 = (value >> 14) & 0x3;
-        s->mode_f1 = (value >> 12) & 0x3;
+        s->mode_f2 = static_cast<omap_dma_addressing_t>((value >> 14) & 0x3);
+        s->mode_f1 = static_cast<omap_dma_addressing_t>((value >> 12) & 0x3);
         s->end_prog = (value >> 11) & 0x1;
         s->omap_3_1_compatible_disable = (value >> 10) & 0x1;
         s->repeat = (value >> 9) & 0x1;
@@ -1028,7 +1038,7 @@ static int omap_dma_3_2_lcd_write(struct omap_dma_lcd_channel_s *s, int offset,
 
     case 0xbc4: /* DMA_LCD_CTRL */
         s->dst = (value >> 8) & 0x1;
-        s->src = ((value >> 6) & 0x3) << 1;
+        s->src = static_cast<enum omap_dma_port>(((value >> 6) & 0x3) << 1);
         s->condition = 0;
         /* Assume no bus errors and thus no BUS_ERROR irq bits.  */
         s->interrupts = (value >> 1) & 1;
@@ -1449,7 +1459,7 @@ static int omap_dma_sys_read(struct omap_dma_s *s, int offset,
 
 static uint64_t omap_dma_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_dma_s *s = opaque;
+    struct omap_dma_s *s = static_cast<struct omap_dma_s *>(opaque);
     int reg, ch;
     uint16_t ret;
 
@@ -1497,7 +1507,7 @@ static uint64_t omap_dma_read(void *opaque, hwaddr addr, unsigned size)
 static void omap_dma_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_dma_s *s = opaque;
+    struct omap_dma_s *s = static_cast<struct omap_dma_s *>(opaque);
     int reg, ch;
 
     if (size != 2) {
@@ -1549,7 +1559,7 @@ static const MemoryRegionOps omap_dma_ops = {
 
 static void omap_dma_request(void *opaque, int drq, int req)
 {
-    struct omap_dma_s *s = opaque;
+    struct omap_dma_s *s = static_cast<struct omap_dma_s *>(opaque);
     /* The request pins are level triggered in QEMU.  */
     if (req) {
         if (~s->dma->drqbmp & (1ULL << drq)) {
@@ -1563,7 +1573,7 @@ static void omap_dma_request(void *opaque, int drq, int req)
 /* XXX: this won't be needed once soc_dma knows about clocks.  */
 static void omap_dma_clk_update(void *opaque, int line, int on)
 {
-    struct omap_dma_s *s = opaque;
+    struct omap_dma_s *s = static_cast<struct omap_dma_s *>(opaque);
     int i;
 
     s->dma->freq = omap_clk_getrate(s->clk);
@@ -1618,6 +1628,7 @@ static void omap_dma_setcaps(struct omap_dma_s *s)
     }
 }
 
+extern "C"
 struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
                 MemoryRegion *sysmem,
                 qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
@@ -1670,9 +1681,10 @@ struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
     return s->dma;
 }
 
+extern "C"
 struct omap_dma_lcd_channel_s *omap_dma_get_lcdch(struct soc_dma_s *dma)
 {
-    struct omap_dma_s *s = dma->opaque;
+    struct omap_dma_s *s = static_cast<struct omap_dma_s *>(dma->opaque);
 
     return &s->lcd_ch;
 }

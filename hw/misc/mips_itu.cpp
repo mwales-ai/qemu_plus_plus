@@ -18,10 +18,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/units.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+}
+
 #include "hw/core/cpu.h"
 #include "hw/misc/mips_itu.h"
 #include "hw/qdev-properties.h"
@@ -68,6 +72,7 @@ typedef enum ITCView {
 #define ITC_ICR0_ERR_PARITY      1
 #define ITC_ICR0_ERR_EXEC        0
 
+extern "C"
 MemoryRegion *mips_itu_get_tag_region(MIPSITUState *itu)
 {
     return &itu->tag_io;
@@ -75,7 +80,7 @@ MemoryRegion *mips_itu_get_tag_region(MIPSITUState *itu)
 
 static uint64_t itc_tag_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MIPSITUState *tag = (MIPSITUState *)opaque;
+    MIPSITUState *tag = static_cast<MIPSITUState *>(opaque);
     uint64_t index = addr >> 3;
 
     if (index >= ITC_ADDRESSMAP_NUM) {
@@ -106,7 +111,7 @@ static void itc_reconfigure(MIPSITUState *tag)
 static void itc_tag_write(void *opaque, hwaddr addr,
                           uint64_t data, unsigned size)
 {
-    MIPSITUState *tag = (MIPSITUState *)opaque;
+    MIPSITUState *tag = static_cast<MIPSITUState *>(opaque);
     uint64_t *am = &tag->ITCAddressMap[0];
     uint64_t am_old, mask;
     uint64_t index = addr >> 3;
@@ -130,14 +135,16 @@ static void itc_tag_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps itc_tag_ops = {
+static MemoryRegionOps itc_tag_ops = {
     .read = itc_tag_read,
     .write = itc_tag_write,
-    .impl = {
-        .max_access_size = 8,
-    },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
+
+static void __attribute__((constructor)) init_itc_tag_ops(void)
+{
+    itc_tag_ops.impl.max_access_size = 8;
+}
 
 static inline uint32_t get_num_cells(MIPSITUState *s)
 {
@@ -146,7 +153,7 @@ static inline uint32_t get_num_cells(MIPSITUState *s)
 
 static inline ITCView get_itc_view(hwaddr addr)
 {
-    return (addr >> 3) & 0xf;
+    return static_cast<ITCView>((addr >> 3) & 0xf);
 }
 
 static inline int get_cell_stride_shift(const MIPSITUState *s)
@@ -375,7 +382,7 @@ static void raise_exception(int excp)
 
 static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MIPSITUState *s = (MIPSITUState *)opaque;
+    MIPSITUState *s = static_cast<MIPSITUState *>(opaque);
     ITCStorageCell *cell = get_cell(s, addr);
     ITCView view = get_itc_view(addr);
     uint64_t ret = -1;
@@ -422,7 +429,7 @@ static uint64_t itc_storage_read(void *opaque, hwaddr addr, unsigned size)
 static void itc_storage_write(void *opaque, hwaddr addr, uint64_t data,
                               unsigned size)
 {
-    MIPSITUState *s = (MIPSITUState *)opaque;
+    MIPSITUState *s = static_cast<MIPSITUState *>(opaque);
     ITCStorageCell *cell = get_cell(s, addr);
     ITCView view = get_itc_view(addr);
 

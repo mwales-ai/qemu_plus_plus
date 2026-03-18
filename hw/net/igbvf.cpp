@@ -38,6 +38,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
+#include "trace.h"
+}
+
 #include "hw/hw.h"
 #include "hw/net/mii.h"
 #include "hw/pci/pci_device.h"
@@ -47,7 +52,6 @@
 #include "net/net.h"
 #include "igb_common.h"
 #include "igb_core.h"
-#include "trace.h"
 #include "qapi/error.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(IgbVfState, IGBVF)
@@ -91,8 +95,15 @@ static hwaddr vf_to_pf_addr(hwaddr addr, uint16_t vfn, bool write)
         return E1000_PSRTYPE(vfn);
     case E1000_V2PMAILBOX(0):
         return E1000_V2PMAILBOX(vfn);
-    case E1000_VMBMEM(0) ... E1000_VMBMEM(0) + 0x3F:
+    default:
+        break;
+    }
+
+    if (addr >= E1000_VMBMEM(0) && addr <= E1000_VMBMEM(0) + 0x3F) {
         return addr + vfn * 0x40;
+    }
+
+    switch (addr) {
     case E1000_RDBAL_A(0):
         return E1000_RDBAL(vfn);
     case E1000_RDBAL_A(1):
@@ -301,11 +312,11 @@ static void igbvf_pci_uninit(PCIDevice *dev)
     msix_uninit(dev, &s->msix, &s->msix);
 }
 
-static void igbvf_class_init(ObjectClass *class, const void *data)
+static void igbvf_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(class);
-    PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
-    ResettableClass *rc = RESETTABLE_CLASS(class);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     c->realize = igbvf_pci_realize;
     c->exit = igbvf_pci_uninit;
@@ -322,15 +333,17 @@ static void igbvf_class_init(ObjectClass *class, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
+static const InterfaceInfo igbvf_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
+};
+
 static const TypeInfo igbvf_info = {
     .name = TYPE_IGBVF,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IgbVfState),
     .class_init = igbvf_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { }
-    },
+    .interfaces = igbvf_interfaces,
 };
 
 static void igb_register_types(void)

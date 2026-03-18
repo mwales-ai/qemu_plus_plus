@@ -23,20 +23,23 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
+#include "qemu/timer.h"
+#include "qemu/log.h"
+#include "qemu/module.h"
+#include "trace.h"
+}
+
 #include "hw/sysbus.h"
 #include "qapi/error.h"
-#include "qemu/timer.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/ptimer.h"
 #include "hw/qdev-properties.h"
-#include "qemu/log.h"
-#include "qemu/module.h"
-
 #include "system/dma.h"
 #include "hw/stream.h"
 #include "qom/object.h"
-#include "trace.h"
 
 #define D(x)
 
@@ -258,7 +261,7 @@ static void stream_reload_complete_cnt(struct Stream *s)
 
 static void timer_hit(void *opaque)
 {
-    struct Stream *s = opaque;
+    struct Stream *s = static_cast<struct Stream *>(opaque);
 
     stream_reload_complete_cnt(s);
     s->regs[R_DMASR] |= DMASR_DLY_IRQ;
@@ -462,7 +465,7 @@ xilinx_axidma_data_stream_push(StreamSink *obj, unsigned char *buf, size_t len,
 static uint64_t axidma_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
-    XilinxAXIDMA *d = opaque;
+    XilinxAXIDMA *d = static_cast<XilinxAXIDMA *>(opaque);
     struct Stream *s;
     uint32_t r = 0;
     int sid;
@@ -497,7 +500,7 @@ static uint64_t axidma_read(void *opaque, hwaddr addr,
 static void axidma_write(void *opaque, hwaddr addr,
                          uint64_t value, unsigned size)
 {
-    XilinxAXIDMA *d = opaque;
+    XilinxAXIDMA *d = static_cast<XilinxAXIDMA *>(opaque);
     struct Stream *s;
     int sid;
 
@@ -631,8 +634,8 @@ static void axidma_class_init(ObjectClass *klass, const void *data)
 }
 
 static StreamSinkClass xilinx_axidma_data_stream_class = {
-    .push = xilinx_axidma_data_stream_push,
     .can_push = xilinx_axidma_data_stream_can_push,
+    .push = xilinx_axidma_data_stream_push,
 };
 
 static StreamSinkClass xilinx_axidma_control_stream_class = {
@@ -644,16 +647,21 @@ static void xilinx_axidma_stream_class_init(ObjectClass *klass,
 {
     StreamSinkClass *ssc = STREAM_SINK_CLASS(klass);
 
-    ssc->push = ((StreamSinkClass *)data)->push;
-    ssc->can_push = ((StreamSinkClass *)data)->can_push;
+    ssc->push = static_cast<const StreamSinkClass *>(data)->push;
+    ssc->can_push = static_cast<const StreamSinkClass *>(data)->can_push;
 }
 
 static const TypeInfo axidma_info = {
     .name          = TYPE_XILINX_AXI_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XilinxAXIDMA),
-    .class_init    = axidma_class_init,
     .instance_init = xilinx_axidma_init,
+    .class_init    = axidma_class_init,
+};
+
+static const InterfaceInfo xilinx_axidma_stream_interfaces[] = {
+    { TYPE_STREAM_SINK },
+    { }
 };
 
 static const TypeInfo xilinx_axidma_data_stream_info = {
@@ -662,10 +670,7 @@ static const TypeInfo xilinx_axidma_data_stream_info = {
     .instance_size = sizeof(XilinxAXIDMAStreamSink),
     .class_init    = xilinx_axidma_stream_class_init,
     .class_data    = &xilinx_axidma_data_stream_class,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_STREAM_SINK },
-        { }
-    }
+    .interfaces    = xilinx_axidma_stream_interfaces,
 };
 
 static const TypeInfo xilinx_axidma_control_stream_info = {
@@ -674,10 +679,7 @@ static const TypeInfo xilinx_axidma_control_stream_info = {
     .instance_size = sizeof(XilinxAXIDMAStreamSink),
     .class_init    = xilinx_axidma_stream_class_init,
     .class_data    = &xilinx_axidma_control_stream_class,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_STREAM_SINK },
-        { }
-    }
+    .interfaces    = xilinx_axidma_stream_interfaces,
 };
 
 static void xilinx_axidma_register_types(void)

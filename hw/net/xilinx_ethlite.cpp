@@ -27,6 +27,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
+#include "trace.h"
+}
+
 #include "qemu/module.h"
 #include "qemu/bitops.h"
 #include "qom/object.h"
@@ -37,7 +42,6 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/misc/unimp.h"
 #include "net/net.h"
-#include "trace.h"
 
 #define BUFSZ_MAX      0x07e4
 #define A_MDIO_BASE    0x07e4
@@ -126,7 +130,7 @@ static void *rxbuf_ptr(XlnxXpsEthLite *s, unsigned port_index)
 
 static uint64_t port_tx_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    XlnxXpsEthLite *s = opaque;
+    XlnxXpsEthLite *s = static_cast<XlnxXpsEthLite *>(opaque);
     unsigned port_index = addr_to_port_index(addr);
     uint32_t r = 0;
 
@@ -150,7 +154,7 @@ static uint64_t port_tx_read(void *opaque, hwaddr addr, unsigned int size)
 static void port_tx_write(void *opaque, hwaddr addr, uint64_t value,
                           unsigned int size)
 {
-    XlnxXpsEthLite *s = opaque;
+    XlnxXpsEthLite *s = static_cast<XlnxXpsEthLite *>(opaque);
     unsigned port_index = addr_to_port_index(addr);
 
     switch (addr >> 2) {
@@ -163,7 +167,7 @@ static void port_tx_write(void *opaque, hwaddr addr, uint64_t value,
     case TX_CTRL:
         if ((value & (CTRL_P | CTRL_S)) == CTRL_S) {
             qemu_send_packet(qemu_get_queue(s->nic),
-                             txbuf_ptr(s, port_index),
+                             static_cast<uint8_t *>(txbuf_ptr(s, port_index)),
                              s->port[port_index].reg.tx_len);
             if (s->port[port_index].reg.tx_ctrl & CTRL_I) {
                 eth_pulse_irq(s);
@@ -185,26 +189,21 @@ static void port_tx_write(void *opaque, hwaddr addr, uint64_t value,
     }
 }
 
-static const MemoryRegionOps eth_porttx_ops[2] = {
-    [0 ... 1] = {
-        .read = port_tx_read,
-        .write = port_tx_write,
-        .impl = {
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-        .valid = {
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-    },
-    [0].endianness = DEVICE_LITTLE_ENDIAN,
-    [1].endianness = DEVICE_BIG_ENDIAN,
-};
+static void init_eth_porttx_ops(MemoryRegionOps *ops, int index)
+{
+    memset(ops, 0, sizeof(*ops));
+    ops->read = port_tx_read;
+    ops->write = port_tx_write;
+    ops->impl.min_access_size = 4;
+    ops->impl.max_access_size = 4;
+    ops->valid.min_access_size = 4;
+    ops->valid.max_access_size = 4;
+    ops->endianness = (index == 0) ? DEVICE_LITTLE_ENDIAN : DEVICE_BIG_ENDIAN;
+}
 
 static uint64_t port_rx_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    XlnxXpsEthLite *s = opaque;
+    XlnxXpsEthLite *s = static_cast<XlnxXpsEthLite *>(opaque);
     unsigned port_index = addr_to_port_index(addr);
     uint32_t r = 0;
 
@@ -222,7 +221,7 @@ static uint64_t port_rx_read(void *opaque, hwaddr addr, unsigned int size)
 static void port_rx_write(void *opaque, hwaddr addr, uint64_t value,
                           unsigned int size)
 {
-    XlnxXpsEthLite *s = opaque;
+    XlnxXpsEthLite *s = static_cast<XlnxXpsEthLite *>(opaque);
     unsigned port_index = addr_to_port_index(addr);
 
     switch (addr >> 2) {
@@ -237,33 +236,28 @@ static void port_rx_write(void *opaque, hwaddr addr, uint64_t value,
     }
 }
 
-static const MemoryRegionOps eth_portrx_ops[2] = {
-    [0 ... 1] = {
-        .read = port_rx_read,
-        .write = port_rx_write,
-        .impl = {
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-        .valid = {
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-    },
-    [0].endianness = DEVICE_LITTLE_ENDIAN,
-    [1].endianness = DEVICE_BIG_ENDIAN,
-};
+static void init_eth_portrx_ops(MemoryRegionOps *ops, int index)
+{
+    memset(ops, 0, sizeof(*ops));
+    ops->read = port_rx_read;
+    ops->write = port_rx_write;
+    ops->impl.min_access_size = 4;
+    ops->impl.max_access_size = 4;
+    ops->valid.min_access_size = 4;
+    ops->valid.max_access_size = 4;
+    ops->endianness = (index == 0) ? DEVICE_LITTLE_ENDIAN : DEVICE_BIG_ENDIAN;
+}
 
 static bool eth_can_rx(NetClientState *nc)
 {
-    XlnxXpsEthLite *s = qemu_get_nic_opaque(nc);
+    XlnxXpsEthLite *s = static_cast<XlnxXpsEthLite *>(qemu_get_nic_opaque(nc));
 
     return !(s->port[s->port_index].reg.rx_ctrl & CTRL_S);
 }
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    XlnxXpsEthLite *s = qemu_get_nic_opaque(nc);
+    XlnxXpsEthLite *s = static_cast<XlnxXpsEthLite *>(qemu_get_nic_opaque(nc));
     unsigned int port_index = s->port_index;
 
     /* DA filter.  */
@@ -301,8 +295,8 @@ static void xilinx_ethlite_reset(DeviceState *dev)
 static NetClientInfo net_xilinx_ethlite_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = eth_can_rx,
     .receive = eth_rx,
+    .can_receive = eth_can_rx,
 };
 
 static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
@@ -316,6 +310,18 @@ static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
         return;
     }
     ops_index = s->model_endianness == ENDIAN_MODE_BIG ? 1 : 0;
+
+    /* Build ops at runtime instead of using designated range initializers */
+    static MemoryRegionOps eth_porttx_ops[2];
+    static MemoryRegionOps eth_portrx_ops[2];
+    static bool ops_initialized = false;
+    if (!ops_initialized) {
+        init_eth_porttx_ops(&eth_porttx_ops[0], 0);
+        init_eth_porttx_ops(&eth_porttx_ops[1], 1);
+        init_eth_portrx_ops(&eth_portrx_ops[0], 0);
+        init_eth_portrx_ops(&eth_portrx_ops[1], 1);
+        ops_initialized = true;
+    }
 
     memory_region_init(&s->container, OBJECT(dev),
                        "xlnx.xps-ethernetlite", 0x2000);

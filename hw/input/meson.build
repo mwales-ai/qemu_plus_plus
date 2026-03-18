@@ -6,7 +6,7 @@ system_ss.add(when: 'CONFIG_PS2', if_true: files('ps2.c'))
 system_ss.add(when: 'CONFIG_STELLARIS_GAMEPAD', if_true: files('stellaris_gamepad.cpp'))
 
 system_ss.add(when: 'CONFIG_VIRTIO_INPUT', if_true: files('virtio-input.c'))
-system_ss.add(when: 'CONFIG_VIRTIO_INPUT', if_true: files('virtio-input-hid.c'))
-system_ss.add(when: 'CONFIG_VIRTIO_INPUT_HOST', if_true: files('virtio-input-host.c'))
+system_ss.add(when: 'CONFIG_VIRTIO_INPUT', if_true: files('virtio-input-hid.cpp'))
+system_ss.add(when: 'CONFIG_VIRTIO_INPUT_HOST', if_true: files('virtio-input-host.cpp'))
 
 system_ss.add(when: 'CONFIG_LASIPS2', if_true: files('lasips2.c'))

@@ -20,8 +20,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/hw.h"
 #include "hw/irq.h"
+}
+
 #include "hw/arm/omap.h"
 
 struct clk {
@@ -47,16 +51,23 @@ struct clk {
     int usecount;            /* Automatically idle when unused          */
 };
 
+/*
+ * Struct field order: name, alias, parent, child1, sibling, flags, id,
+ * running, enabled, rate, divisor, multiplier, users, usecount
+ *
+ * All designated initializers below must follow this order.
+ */
+
 static struct clk xtal_osc12m = {
     .name   = "xtal_osc_12m",
-    .rate   = 12000000,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP310,
+    .rate   = 12000000,
 };
 
 static struct clk xtal_osc32k = {
     .name   = "xtal_osc_32k",
-    .rate   = 32768,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP310,
+    .rate   = 32768,
 };
 
 static struct clk ck_ref = {
@@ -90,16 +101,16 @@ static struct clk dpll3 = {
 static struct clk dpll4 = {
     .name   = "dpll4",
     .parent = &ck_ref,
-    .multiplier = 4,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP310,
+    .multiplier = 4,
 };
 
 static struct clk apll = {
     .name   = "apll",
     .parent = &ck_ref,
-    .multiplier = 48,
-    .divisor    = 12,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP310,
+    .divisor    = 12,
+    .multiplier = 48,
 };
 
 static struct clk ck_48m = {
@@ -163,8 +174,8 @@ static struct clk arm_gpio_ck = {
     .name   = "arm_gpio_ck",
     .alias  = "mpu_gpio_ck",
     .parent = &clkm1,
-    .divisor    = 1,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310,
+    .divisor    = 1,
 };
 
 static struct clk armxor_ck = {
@@ -185,9 +196,9 @@ static struct clk armwdt_ck = {
     .name   = "armwdt_ck",
     .alias  = "mpuwd_ck",
     .parent = &clkm1,
-    .divisor    = 14,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP310 |
             ALWAYS_ENABLED,
+    .divisor    = 14,
 };
 
 static struct clk arminth_ck16xx = {
@@ -343,79 +354,79 @@ static struct clk uart1_1510 = {
     .name   = "uart1_ck",
     /* Direct from ULPD, no real parent */
     .parent = &armper_ck,   /* either armper_ck or dpll4 */
-    .rate   = 12000000,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310 | ALWAYS_ENABLED,
+    .rate   = 12000000,
 };
 
 static struct clk uart1_16xx = {
     .name   = "uart1_ck",
     /* Direct from ULPD, no real parent */
     .parent = &armper_ck,
-    .rate   = 48000000,
     .flags  = CLOCK_IN_OMAP16XX,
+    .rate   = 48000000,
 };
 
 static struct clk uart2_ck = {
     .name   = "uart2_ck",
     /* Direct from ULPD, no real parent */
     .parent = &armper_ck,   /* either armper_ck or dpll4 */
-    .rate   = 12000000,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP310 |
             ALWAYS_ENABLED,
+    .rate   = 12000000,
 };
 
 static struct clk uart3_1510 = {
     .name   = "uart3_ck",
     /* Direct from ULPD, no real parent */
     .parent = &armper_ck,   /* either armper_ck or dpll4 */
-    .rate   = 12000000,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310 | ALWAYS_ENABLED,
+    .rate   = 12000000,
 };
 
 static struct clk uart3_16xx = {
     .name   = "uart3_ck",
     /* Direct from ULPD, no real parent */
     .parent = &armper_ck,
-    .rate   = 48000000,
     .flags  = CLOCK_IN_OMAP16XX,
+    .rate   = 48000000,
 };
 
 static struct clk usb_clk0 = {  /* 6 MHz output on W4_USB_CLK0 */
     .name   = "usb_clk0",
     .alias  = "usb.clko",
     /* Direct from ULPD, no parent */
-    .rate   = 6000000,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP310,
+    .rate   = 6000000,
 };
 
 static struct clk usb_hhc_ck1510 = {
     .name   = "usb_hhc_ck",
     /* Direct from ULPD, no parent */
-    .rate   = 48000000, /* Actually 2 clocks, 12MHz and 48MHz */
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310,
+    .rate   = 48000000, /* Actually 2 clocks, 12MHz and 48MHz */
 };
 
 static struct clk usb_hhc_ck16xx = {
     .name   = "usb_hhc_ck",
     /* Direct from ULPD, no parent */
-    .rate   = 48000000,
     /* OTG_SYSCON_2.OTG_PADEN == 0 (not 1510-compatible) */
     .flags  = CLOCK_IN_OMAP16XX,
+    .rate   = 48000000,
 };
 
 static struct clk usb_w2fc_mclk = {
     .name   = "usb_w2fc_mclk",
     .alias  = "usb_w2fc_ck",
     .parent = &ck_48m,
-    .rate   = 48000000,
     .flags  = CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX,
+    .rate   = 48000000,
 };
 
 static struct clk mclk_1510 = {
     .name   = "mclk",
     /* Direct from ULPD, no parent. May be enabled by ext hardware. */
-    .rate   = 12000000,
     .flags  = CLOCK_IN_OMAP1510,
+    .rate   = 12000000,
 };
 
 static struct clk bclk_310 = {
@@ -439,8 +450,8 @@ static struct clk mclk_16xx = {
 static struct clk bclk_1510 = {
     .name   = "bclk",
     /* Direct from ULPD, no parent. May be enabled by ext hardware. */
-    .rate   = 12000000,
     .flags  = CLOCK_IN_OMAP1510,
+    .rate   = 12000000,
 };
 
 static struct clk bclk_16xx = {
@@ -451,20 +462,20 @@ static struct clk bclk_16xx = {
 
 static struct clk mmc1_ck = {
     .name   = "mmc_ck",
-    .id     = 1,
     /* Functional clock is direct from ULPD, interface clock is ARMPER */
     .parent = &armper_ck,   /* either armper_ck or dpll4 */
-    .rate   = 48000000,
     .flags  = CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP310,
+    .id     = 1,
+    .rate   = 48000000,
 };
 
 static struct clk mmc2_ck = {
     .name   = "mmc_ck",
-    .id     = 2,
     /* Functional clock is direct from ULPD, interface clock is ARMPER */
     .parent = &armper_ck,
-    .rate   = 48000000,
     .flags  = CLOCK_IN_OMAP16XX,
+    .id     = 2,
+    .rate   = 48000000,
 };
 
 static struct clk cam_mclk = {
@@ -475,9 +486,9 @@ static struct clk cam_mclk = {
 
 static struct clk cam_exclk = {
     .name   = "cam.exclk",
-    .flags  = CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX,
-    /* Either 12M from cam.mclk or 48M from dpll4 */
     .parent = &cam_mclk,
+    /* Either 12M from cam.mclk or 48M from dpll4 */
+    .flags  = CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX,
 };
 
 static struct clk cam_lclk = {
@@ -487,24 +498,24 @@ static struct clk cam_lclk = {
 
 static struct clk i2c_fck = {
     .name   = "i2c_fck",
-    .id     = 1,
+    .parent = &armxor_ck,
     .flags  = CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
             ALWAYS_ENABLED,
-    .parent = &armxor_ck,
+    .id     = 1,
 };
 
 static struct clk i2c_ick = {
     .name   = "i2c_ick",
-    .id     = 1,
-    .flags  = CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
     .parent = &armper_ck,
+    .flags  = CLOCK_IN_OMAP16XX | ALWAYS_ENABLED,
+    .id     = 1,
 };
 
 static struct clk clk32k = {
     .name   = "clk32-kHz",
+    .parent = &xtal_osc32k,
     .flags  = CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
             ALWAYS_ENABLED,
-    .parent = &xtal_osc32k,
 };
 
 static struct clk *onchip_clks[] = {
@@ -579,6 +590,7 @@ static struct clk *onchip_clks[] = {
     NULL
 };
 
+extern "C"
 void omap_clk_adduser(struct clk *clk, qemu_irq user)
 {
     qemu_irq *i;
@@ -587,6 +599,7 @@ void omap_clk_adduser(struct clk *clk, qemu_irq user)
     *i = user;
 }
 
+extern "C"
 struct clk *omap_findclk(struct omap_mpu_state_s *mpu, const char *name)
 {
     struct clk *i;
@@ -597,11 +610,13 @@ struct clk *omap_findclk(struct omap_mpu_state_s *mpu, const char *name)
     hw_error("%s: %s not found\n", __func__, name);
 }
 
+extern "C"
 void omap_clk_get(struct clk *clk)
 {
     clk->usecount ++;
 }
 
+extern "C"
 void omap_clk_put(struct clk *clk)
 {
     if (!(clk->usecount --))
@@ -658,6 +673,7 @@ static void omap_clk_rate_update(struct clk *clk)
     omap_clk_rate_update_full(clk, i->rate, div, mult);
 }
 
+extern "C"
 void omap_clk_reparent(struct clk *clk, struct clk *parent)
 {
     struct clk **p;
@@ -677,12 +693,14 @@ void omap_clk_reparent(struct clk *clk, struct clk *parent)
         clk->sibling = NULL;
 }
 
+extern "C"
 void omap_clk_onoff(struct clk *clk, int on)
 {
     clk->enabled = on;
     omap_clk_update(clk);
 }
 
+extern "C"
 void omap_clk_canidle(struct clk *clk, int can)
 {
     if (can)
@@ -691,6 +709,7 @@ void omap_clk_canidle(struct clk *clk, int can)
         omap_clk_get(clk);
 }
 
+extern "C"
 void omap_clk_setrate(struct clk *clk, int divide, int multiply)
 {
     clk->divisor = divide;
@@ -698,20 +717,22 @@ void omap_clk_setrate(struct clk *clk, int divide, int multiply)
     omap_clk_rate_update(clk);
 }
 
+extern "C"
 int64_t omap_clk_getrate(omap_clk clk)
 {
     return clk->rate;
 }
 
+extern "C"
 void omap_clk_init(struct omap_mpu_state_s *mpu)
 {
     struct clk **i, *j, *k;
     int count;
     int flag;
 
-    if (cpu_is_omap310(mpu))
+    if (mpu->mpu_model == omap_mpu_state_s::omap310)
         flag = CLOCK_IN_OMAP310;
-    else if (cpu_is_omap1510(mpu))
+    else if (mpu->mpu_model == omap_mpu_state_s::omap1510)
         flag = CLOCK_IN_OMAP1510;
     else
         return;
@@ -733,8 +754,8 @@ void omap_clk_init(struct omap_mpu_state_s *mpu)
                     k->sibling = j->child1;
                     j->child1 = k;
                 }
-            j->divisor = j->divisor ?: 1;
-            j->multiplier = j->multiplier ?: 1;
+            j->divisor = j->divisor ? j->divisor : 1;
+            j->multiplier = j->multiplier ? j->multiplier : 1;
             j ++;
         }
     for (j = mpu->clks; count --; j ++) {

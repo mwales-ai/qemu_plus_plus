@@ -39,7 +39,7 @@ subdir('macio')
 
 # ivshmem devices
 system_ss.add(when: 'CONFIG_IVSHMEM_DEVICE', if_true: files('ivshmem-pci.c'))
-system_ss.add(when: 'CONFIG_IVSHMEM_FLAT_DEVICE', if_true: files('ivshmem-flat.c'))
+system_ss.add(when: 'CONFIG_IVSHMEM_FLAT_DEVICE', if_true: files('ivshmem-flat.cpp'))
 
 system_ss.add(when: 'CONFIG_ALLWINNER_SRAMC', if_true: files('allwinner-sramc.cpp'))
 system_ss.add(when: 'CONFIG_ALLWINNER_A10_CCM', if_true: files('allwinner-a10-ccm.cpp'))
@@ -82,7 +82,7 @@ system_ss.add(when: 'CONFIG_NPCM7XX', if_true: files(
   'npcm7xx_rng.cpp',
 ))
 system_ss.add(when: 'CONFIG_OMAP', if_true: files(
-  'omap_clk.c',
+  'omap_clk.cpp',
 ))
 system_ss.add(when: 'CONFIG_RASPI', if_true: files(
   'bcm2835_mbox.cpp',
@@ -155,7 +155,7 @@ specific_ss.add(when: 'CONFIG_AVR_POWER', if_true: files('avr_power.cpp'))
 specific_ss.add(when: 'CONFIG_MAC_VIA', if_true: files('mac_via.cpp'))
 
 specific_ss.add(when: 'CONFIG_MIPS_CPS', if_true: files('mips_cmgcr.c', 'mips_cpc.c'))
-specific_ss.add(when: 'CONFIG_MIPS_ITU', if_true: files('mips_itu.c'))
+specific_ss.add(when: 'CONFIG_MIPS_ITU', if_true: files('mips_itu.cpp'))
 
 system_ss.add(when: 'CONFIG_SBSA_REF', if_true: files('sbsa_ec.cpp'))
 
