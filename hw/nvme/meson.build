@@ -1,1 +1,1 @@
-system_ss.add(when: 'CONFIG_NVME_PCI', if_true: files('ctrl.c', 'dif.c', 'ns.cpp', 'subsys.c', 'nguid.cpp'))
+system_ss.add(when: 'CONFIG_NVME_PCI', if_true: files('ctrl.c', 'dif.c', 'ns.cpp', 'subsys.cpp', 'nguid.cpp'))

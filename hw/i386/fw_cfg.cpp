@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "system/numa.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/aml-build.h"
@@ -20,16 +21,20 @@
 #include "hw/i386/fw_cfg.h"
 #include "hw/timer/hpet.h"
 #include "hw/nvram/fw_cfg.h"
-#include "e820_memory_layout.h"
-#include "kvm/kvm_i386.h"
 #include "qapi/error.h"
+
+extern "C" {
+#include "e820_memory_layout.h"
+}
+
 #include CONFIG_DEVICES
 #include "target/i386/cpu.h"
 
 #if !defined(CONFIG_HPET)
-struct hpet_fw_config hpet_fw_cfg = {.count = UINT8_MAX};
+struct hpet_fw_config hpet_fw_cfg = { UINT8_MAX };
 #endif
 
+extern "C"
 const char *fw_cfg_arch_key_name(uint16_t key)
 {
     static const struct {
@@ -51,6 +56,7 @@ const char *fw_cfg_arch_key_name(uint16_t key)
 }
 
 /* Add etc/e820 late, once all regions should be present */
+extern "C"
 void fw_cfg_add_e820(FWCfgState *fw_cfg)
 {
     struct e820_entry *table;
@@ -59,6 +65,7 @@ void fw_cfg_add_e820(FWCfgState *fw_cfg)
     fw_cfg_add_file(fw_cfg, "etc/e820", table, nr_e820 * sizeof(*table));
 }
 
+extern "C"
 void fw_cfg_build_smbios(PCMachineState *pcms, FWCfgState *fw_cfg,
                          SmbiosEntryPointType ep_type)
 {
@@ -91,7 +98,7 @@ void fw_cfg_build_smbios(PCMachineState *pcms, FWCfgState *fw_cfg,
 
     /* build the array of physical mem area from e820 table */
     nr_e820 = e820_get_table(NULL);
-    mem_array = g_malloc0(sizeof(*mem_array) * nr_e820);
+    mem_array = static_cast<struct smbios_phys_mem_area *>(g_malloc0(sizeof(*mem_array) * nr_e820));
     for (i = 0, array_count = 0; i < nr_e820; i++) {
         uint64_t addr, len;
 
@@ -116,6 +123,7 @@ void fw_cfg_build_smbios(PCMachineState *pcms, FWCfgState *fw_cfg,
 #endif
 }
 
+extern "C"
 FWCfgState *fw_cfg_arch_create(MachineState *ms,
                                       uint16_t boot_cpus,
                                       uint16_t apic_id_limit)
@@ -174,6 +182,7 @@ FWCfgState *fw_cfg_arch_create(MachineState *ms,
     return fw_cfg;
 }
 
+extern "C"
 void fw_cfg_build_feature_control(MachineState *ms, FWCfgState *fw_cfg)
 {
     X86CPU *cpu = X86_CPU(ms->possible_cpus->cpus[0].cpu);
@@ -207,12 +216,13 @@ void fw_cfg_build_feature_control(MachineState *ms, FWCfgState *fw_cfg)
         return;
     }
 
-    val = g_malloc(sizeof(*val));
+    val = static_cast<uint64_t *>(g_malloc(sizeof(*val)));
     *val = cpu_to_le64(feature_control_bits | FEATURE_CONTROL_LOCKED);
     fw_cfg_add_file(fw_cfg, "etc/msr_feature_control", val, sizeof(*val));
 }
 
 #ifdef CONFIG_ACPI
+extern "C"
 void fw_cfg_add_acpi_dsdt(Aml *scope, FWCfgState *fw_cfg)
 {
     /*

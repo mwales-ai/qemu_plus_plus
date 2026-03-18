@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/irq.h"
@@ -34,7 +35,10 @@
 #include "migration/vmstate.h"
 #include "net/can_emu.h"
 
+extern "C" {
 #include "can_sja1000.h"
+}
+
 #include "qom/object.h"
 
 #define TYPE_CAN_PCI_DEV "mioe3680_pci"
@@ -83,7 +87,7 @@ static void mioe3680_pci_reset(DeviceState *dev)
 static uint64_t mioe3680_pci_sja1_io_read(void *opaque, hwaddr addr,
                                           unsigned size)
 {
-    Mioe3680PCIState *d = opaque;
+    Mioe3680PCIState *d = static_cast<Mioe3680PCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state[0];
 
     if (addr >= MIOe3680_PCI_BYTES_PER_SJA) {
@@ -96,7 +100,7 @@ static uint64_t mioe3680_pci_sja1_io_read(void *opaque, hwaddr addr,
 static void mioe3680_pci_sja1_io_write(void *opaque, hwaddr addr, uint64_t data,
                              unsigned size)
 {
-    Mioe3680PCIState *d = opaque;
+    Mioe3680PCIState *d = static_cast<Mioe3680PCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state[0];
 
     if (addr >= MIOe3680_PCI_BYTES_PER_SJA) {
@@ -109,7 +113,7 @@ static void mioe3680_pci_sja1_io_write(void *opaque, hwaddr addr, uint64_t data,
 static uint64_t mioe3680_pci_sja2_io_read(void *opaque, hwaddr addr,
                                           unsigned size)
 {
-    Mioe3680PCIState *d = opaque;
+    Mioe3680PCIState *d = static_cast<Mioe3680PCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state[1];
 
     if (addr >= MIOe3680_PCI_BYTES_PER_SJA) {
@@ -122,7 +126,7 @@ static uint64_t mioe3680_pci_sja2_io_read(void *opaque, hwaddr addr,
 static void mioe3680_pci_sja2_io_write(void *opaque, hwaddr addr, uint64_t data,
                              unsigned size)
 {
-    Mioe3680PCIState *d = opaque;
+    Mioe3680PCIState *d = static_cast<Mioe3680PCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state[1];
 
     if (addr >= MIOe3680_PCI_BYTES_PER_SJA) {
@@ -132,23 +136,8 @@ static void mioe3680_pci_sja2_io_write(void *opaque, hwaddr addr, uint64_t data,
     can_sja_mem_write(s, addr >> 2, data, size);
 }
 
-static const MemoryRegionOps mioe3680_pci_sja1_io_ops = {
-    .read = mioe3680_pci_sja1_io_read,
-    .write = mioe3680_pci_sja1_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .max_access_size = 1,
-    },
-};
-
-static const MemoryRegionOps mioe3680_pci_sja2_io_ops = {
-    .read = mioe3680_pci_sja2_io_read,
-    .write = mioe3680_pci_sja2_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .max_access_size = 1,
-    },
-};
+static MemoryRegionOps mioe3680_pci_sja1_io_ops;
+static MemoryRegionOps mioe3680_pci_sja2_io_ops;
 
 static void mioe3680_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
@@ -195,18 +184,20 @@ static void mioe3680_pci_exit(PCIDevice *pci_dev)
     qemu_free_irq(d->irq);
 }
 
+static const VMStateField vmstate_mioe3680_pci_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, Mioe3680PCIState),
+    VMSTATE_STRUCT(sja_state[0], Mioe3680PCIState, 0, vmstate_can_sja,
+                   CanSJA1000State),
+    VMSTATE_STRUCT(sja_state[1], Mioe3680PCIState, 0, vmstate_can_sja,
+                   CanSJA1000State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_mioe3680_pci = {
     .name = "mioe3680_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, Mioe3680PCIState),
-        VMSTATE_STRUCT(sja_state[0], Mioe3680PCIState, 0, vmstate_can_sja,
-                       CanSJA1000State),
-        VMSTATE_STRUCT(sja_state[1], Mioe3680PCIState, 0, vmstate_can_sja,
-                       CanSJA1000State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mioe3680_pci_fields,
 };
 
 static void mioe3680_pci_instance_init(Object *obj)
@@ -216,11 +207,11 @@ static void mioe3680_pci_instance_init(Object *obj)
     object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
                              (Object **)&d->canbus[0],
                              qdev_prop_allow_set_link_before_realize,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
     object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
                              (Object **)&d->canbus[1],
                              qdev_prop_allow_set_link_before_realize,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static void mioe3680_pci_class_init(ObjectClass *klass, const void *data)
@@ -242,16 +233,18 @@ static void mioe3680_pci_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, mioe3680_pci_reset);
 }
 
+static const InterfaceInfo mioe3680_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo mioe3680_pci_info = {
     .name          = TYPE_CAN_PCI_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(Mioe3680PCIState),
-    .class_init    = mioe3680_pci_class_init,
     .instance_init = mioe3680_pci_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .class_init    = mioe3680_pci_class_init,
+    .interfaces = mioe3680_pci_interfaces,
 };
 
 static void mioe3680_pci_register_types(void)
@@ -260,3 +253,18 @@ static void mioe3680_pci_register_types(void)
 }
 
 type_init(mioe3680_pci_register_types)
+
+static void __attribute__((constructor)) init_mioe3680_ops(void)
+{
+    memset(&mioe3680_pci_sja1_io_ops, 0, sizeof(mioe3680_pci_sja1_io_ops));
+    mioe3680_pci_sja1_io_ops.read = mioe3680_pci_sja1_io_read;
+    mioe3680_pci_sja1_io_ops.write = mioe3680_pci_sja1_io_write;
+    mioe3680_pci_sja1_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    mioe3680_pci_sja1_io_ops.impl.max_access_size = 1;
+
+    memset(&mioe3680_pci_sja2_io_ops, 0, sizeof(mioe3680_pci_sja2_io_ops));
+    mioe3680_pci_sja2_io_ops.read = mioe3680_pci_sja2_io_read;
+    mioe3680_pci_sja2_io_ops.write = mioe3680_pci_sja2_io_write;
+    mioe3680_pci_sja2_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    mioe3680_pci_sja2_io_ops.impl.max_access_size = 1;
+}

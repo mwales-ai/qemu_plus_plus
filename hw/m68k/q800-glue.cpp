@@ -21,6 +21,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "cpu.h"
 #include "hw/m68k/q800-glue.h"
 #include "hw/boards.h"
@@ -28,6 +30,7 @@
 #include "hw/nmi.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+}
 
 /*
  * The GLUE (General Logic Unit) is an Apple custom integrated circuit chip
@@ -70,7 +73,7 @@
 
 static void GLUE_set_irq(void *opaque, int irq, int level)
 {
-    GLUEState *s = opaque;
+    GLUEState *s = static_cast<GLUEState *>(opaque);
     int i;
 
     if (s->auxmode) {
@@ -185,16 +188,18 @@ static void glue_reset_hold(Object *obj, ResetType type)
     timer_del(s->nmi_release);
 }
 
+static const VMStateField vmstate_glue_fields[] = {
+    VMSTATE_UINT8(ipr, GLUEState),
+    VMSTATE_UINT8(auxmode, GLUEState),
+    VMSTATE_TIMER_PTR(nmi_release, GLUEState),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_glue = {
     .name = "q800-glue",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(ipr, GLUEState),
-        VMSTATE_UINT8(auxmode, GLUEState),
-        VMSTATE_TIMER_PTR(nmi_release, GLUEState),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_glue_fields,
 };
 
 /*
@@ -240,6 +245,11 @@ static void glue_class_init(ObjectClass *klass, const void *data)
     nc->nmi_monitor_handler = glue_nmi;
 }
 
+static const InterfaceInfo glue_interfaces[] = {
+    { TYPE_NMI },
+    { }
+};
+
 static const TypeInfo glue_info_types[] = {
     {
         .name = TYPE_GLUE,
@@ -248,10 +258,7 @@ static const TypeInfo glue_info_types[] = {
         .instance_init = glue_init,
         .instance_finalize = glue_finalize,
         .class_init = glue_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-             { TYPE_NMI },
-             { }
-        },
+        .interfaces = glue_interfaces,
     },
 };
 

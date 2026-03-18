@@ -27,6 +27,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/irq.h"
@@ -35,7 +36,9 @@
 #include "migration/vmstate.h"
 #include "net/can_emu.h"
 
+extern "C" {
 #include "ctucan_core.h"
+}
 
 #define TYPE_CTUCAN_PCI_DEV "ctucan_pci"
 
@@ -111,7 +114,7 @@ static void ctucan_pci_id_cra_io_write(void *opaque, hwaddr addr, uint64_t data,
 static uint64_t ctucan_pci_cores_io_read(void *opaque, hwaddr addr,
                                           unsigned size)
 {
-    CtuCanPCIState *d = opaque;
+    CtuCanPCIState *d = static_cast<CtuCanPCIState *>(opaque);
     CtuCanCoreState *s;
     hwaddr core_num = addr / CTUCAN_PCI_BYTES_PER_CORE;
 
@@ -127,7 +130,7 @@ static uint64_t ctucan_pci_cores_io_read(void *opaque, hwaddr addr,
 static void ctucan_pci_cores_io_write(void *opaque, hwaddr addr, uint64_t data,
                              unsigned size)
 {
-    CtuCanPCIState *d = opaque;
+    CtuCanPCIState *d = static_cast<CtuCanPCIState *>(opaque);
     CtuCanCoreState *s;
     hwaddr core_num = addr / CTUCAN_PCI_BYTES_PER_CORE;
 
@@ -137,24 +140,11 @@ static void ctucan_pci_cores_io_write(void *opaque, hwaddr addr, uint64_t data,
 
     s = &d->ctucan_state[core_num];
 
-    return ctucan_mem_write(s, addr % CTUCAN_PCI_BYTES_PER_CORE, data, size);
+    ctucan_mem_write(s, addr % CTUCAN_PCI_BYTES_PER_CORE, data, size);
 }
 
-static const MemoryRegionOps ctucan_pci_id_cra_io_ops = {
-    .read = ctucan_pci_id_cra_io_read,
-    .write = ctucan_pci_id_cra_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 1, .max_access_size = 4, },
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
-};
-
-static const MemoryRegionOps ctucan_pci_cores_io_ops = {
-    .read = ctucan_pci_cores_io_read,
-    .write = ctucan_pci_cores_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 1, .max_access_size = 4, },
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
-};
+static MemoryRegionOps ctucan_pci_id_cra_io_ops;
+static MemoryRegionOps ctucan_pci_cores_io_ops;
 
 static void ctucan_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
@@ -203,20 +193,22 @@ static void ctucan_pci_exit(PCIDevice *pci_dev)
     qemu_free_irq(d->irq);
 }
 
+static const VMStateField vmstate_ctucan_pci_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, CtuCanPCIState),
+    VMSTATE_STRUCT(ctucan_state[0], CtuCanPCIState, 0, vmstate_ctucan,
+                   CtuCanCoreState),
+#if CTUCAN_PCI_CORE_COUNT >= 2
+    VMSTATE_STRUCT(ctucan_state[1], CtuCanPCIState, 0, vmstate_ctucan,
+                   CtuCanCoreState),
+#endif
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ctucan_pci = {
     .name = "ctucan_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, CtuCanPCIState),
-        VMSTATE_STRUCT(ctucan_state[0], CtuCanPCIState, 0, vmstate_ctucan,
-                       CtuCanCoreState),
-#if CTUCAN_PCI_CORE_COUNT >= 2
-        VMSTATE_STRUCT(ctucan_state[1], CtuCanPCIState, 0, vmstate_ctucan,
-                       CtuCanCoreState),
-#endif
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ctucan_pci_fields,
 };
 
 static void ctucan_pci_instance_init(Object *obj)
@@ -225,11 +217,13 @@ static void ctucan_pci_instance_init(Object *obj)
 
     object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
                              (Object **)&d->canbus[0],
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize,
+                             static_cast<ObjectPropertyLinkFlags>(0));
 #if CTUCAN_PCI_CORE_COUNT >= 2
     object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
                              (Object **)&d->canbus[1],
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize,
+                             static_cast<ObjectPropertyLinkFlags>(0));
 #endif
 }
 
@@ -252,16 +246,18 @@ static void ctucan_pci_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, ctucan_pci_reset);
 }
 
+static const InterfaceInfo ctucan_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo ctucan_pci_info = {
     .name          = TYPE_CTUCAN_PCI_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(CtuCanPCIState),
-    .class_init    = ctucan_pci_class_init,
     .instance_init = ctucan_pci_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .class_init    = ctucan_pci_class_init,
+    .interfaces = ctucan_pci_interfaces,
 };
 
 static void ctucan_pci_register_types(void)
@@ -270,3 +266,24 @@ static void ctucan_pci_register_types(void)
 }
 
 type_init(ctucan_pci_register_types)
+
+static void __attribute__((constructor)) init_ctucan_ops(void)
+{
+    memset(&ctucan_pci_id_cra_io_ops, 0, sizeof(ctucan_pci_id_cra_io_ops));
+    ctucan_pci_id_cra_io_ops.read = ctucan_pci_id_cra_io_read;
+    ctucan_pci_id_cra_io_ops.write = ctucan_pci_id_cra_io_write;
+    ctucan_pci_id_cra_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    ctucan_pci_id_cra_io_ops.impl.min_access_size = 1;
+    ctucan_pci_id_cra_io_ops.impl.max_access_size = 4;
+    ctucan_pci_id_cra_io_ops.valid.min_access_size = 1;
+    ctucan_pci_id_cra_io_ops.valid.max_access_size = 4;
+
+    memset(&ctucan_pci_cores_io_ops, 0, sizeof(ctucan_pci_cores_io_ops));
+    ctucan_pci_cores_io_ops.read = ctucan_pci_cores_io_read;
+    ctucan_pci_cores_io_ops.write = ctucan_pci_cores_io_write;
+    ctucan_pci_cores_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    ctucan_pci_cores_io_ops.impl.min_access_size = 1;
+    ctucan_pci_cores_io_ops.impl.max_access_size = 4;
+    ctucan_pci_cores_io_ops.valid.min_access_size = 1;
+    ctucan_pci_cores_io_ops.valid.max_access_size = 4;
+}

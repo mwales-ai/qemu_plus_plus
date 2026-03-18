@@ -26,12 +26,16 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+}
+
 #include "qom/object.h"
 
 #define D(x)
@@ -95,7 +99,7 @@ static void update_irq(XpsIntc *p)
 
 static uint64_t pic_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    XpsIntc *p = opaque;
+    XpsIntc *p = static_cast<XpsIntc *>(opaque);
     uint32_t r = 0;
 
     addr >>= 2;
@@ -114,12 +118,12 @@ static uint64_t pic_read(void *opaque, hwaddr addr, unsigned int size)
 static void pic_write(void *opaque, hwaddr addr,
                       uint64_t val64, unsigned int size)
 {
-    XpsIntc *p = opaque;
+    XpsIntc *p = static_cast<XpsIntc *>(opaque);
     uint32_t value = val64;
 
     addr >>= 2;
     D(qemu_log("%s addr=%x val=%x\n", __func__, addr * 4, value));
-    switch (addr) 
+    switch (addr)
     {
         case R_IAR:
             p->regs[R_ISR] &= ~value; /* ACK.  */
@@ -146,33 +150,12 @@ static void pic_write(void *opaque, hwaddr addr,
     update_irq(p);
 }
 
-static const MemoryRegionOps pic_ops[2] = {
-    [0 ... 1] = {
-        .read = pic_read,
-        .write = pic_write,
-        .impl = {
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-        .valid = {
-            /*
-             * All XPS INTC registers are accessed through the PLB interface.
-             * The base address for these registers is provided by the
-             * configuration parameter, C_BASEADDR. Each register is 32 bits
-             * although some bits may be unused and is accessed on a 4-byte
-             * boundary offset from the base address.
-             */
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-    },
-    [0].endianness = DEVICE_LITTLE_ENDIAN,
-    [1].endianness = DEVICE_BIG_ENDIAN,
-};
+/* Two MemoryRegionOps: [0] = little-endian, [1] = big-endian */
+static MemoryRegionOps pic_ops[2];
 
 static void irq_handler(void *opaque, int irq, int level)
 {
-    XpsIntc *p = opaque;
+    XpsIntc *p = static_cast<XpsIntc *>(opaque);
 
     /* edge triggered interrupt */
     if (p->c_kind_of_intr & (1 << irq) && p->regs[R_MER] & 2) {
@@ -236,3 +219,19 @@ static void xilinx_intc_register_types(void)
 }
 
 type_init(xilinx_intc_register_types)
+
+static void __attribute__((constructor)) init_pic_ops(void)
+{
+    /* Initialize both entries with the same ops */
+    for (int i = 0; i < 2; i++) {
+        memset(&pic_ops[i], 0, sizeof(pic_ops[i]));
+        pic_ops[i].read = pic_read;
+        pic_ops[i].write = pic_write;
+        pic_ops[i].impl.min_access_size = 4;
+        pic_ops[i].impl.max_access_size = 4;
+        pic_ops[i].valid.min_access_size = 4;
+        pic_ops[i].valid.max_access_size = 4;
+    }
+    pic_ops[0].endianness = DEVICE_LITTLE_ENDIAN;
+    pic_ops[1].endianness = DEVICE_BIG_ENDIAN;
+}

@@ -10,6 +10,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/sysbus.h"
@@ -18,6 +20,7 @@
 #include "hw/misc/mips_cpc.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/mips_gic.h"
+}
 
 static inline bool is_cpc_connected(MIPSGCRState *s)
 {
@@ -72,7 +75,7 @@ static inline void update_gic_base(MIPSGCRState *gcr, uint64_t val)
 /* Read GCR registers */
 static uint64_t gcr_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MIPSGCRState *gcr = (MIPSGCRState *) opaque;
+    MIPSGCRState *gcr = static_cast<MIPSGCRState *>(opaque);
     MIPSGCRVPState *current_vps = &gcr->vps[current_cpu->cpu_index];
     MIPSGCRVPState *other_vps = &gcr->vps[current_vps->other];
 
@@ -126,7 +129,7 @@ static inline target_ulong get_exception_base(MIPSGCRVPState *vps)
 /* Write GCR registers */
 static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 {
-    MIPSGCRState *gcr = (MIPSGCRState *)opaque;
+    MIPSGCRState *gcr = static_cast<MIPSGCRState *>(opaque);
     MIPSGCRVPState *current_vps = &gcr->vps[current_cpu->cpu_index];
     MIPSGCRVPState *other_vps = &gcr->vps[current_vps->other];
 
@@ -167,14 +170,7 @@ static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
     }
 }
 
-static const MemoryRegionOps gcr_ops = {
-    .read = gcr_read,
-    .write = gcr_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .max_access_size = 8,
-    },
-};
+static MemoryRegionOps gcr_ops;
 
 static void mips_gcr_init(Object *obj)
 {
@@ -201,14 +197,16 @@ static void mips_gcr_reset(DeviceState *dev)
     }
 }
 
+static const VMStateField vmstate_mips_gcr_fields[] = {
+    VMSTATE_UINT64(cpc_base, MIPSGCRState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_mips_gcr = {
     .name = "mips-gcr",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(cpc_base, MIPSGCRState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_mips_gcr_fields,
 };
 
 static const Property mips_gcr_properties[] = {
@@ -252,3 +250,12 @@ static void mips_gcr_register_types(void)
 }
 
 type_init(mips_gcr_register_types)
+
+static void __attribute__((constructor)) init_gcr_ops(void)
+{
+    memset(&gcr_ops, 0, sizeof(gcr_ops));
+    gcr_ops.read = gcr_read;
+    gcr_ops.write = gcr_write;
+    gcr_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    gcr_ops.impl.max_access_size = 8;
+}

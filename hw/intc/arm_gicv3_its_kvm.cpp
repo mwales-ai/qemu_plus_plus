@@ -19,6 +19,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
@@ -28,6 +30,8 @@
 #include "system/kvm.h"
 #include "kvm_arm.h"
 #include "migration/blocker.h"
+}
+
 #include "qom/object.h"
 
 #define TYPE_KVM_ARM_ITS "arm-its-kvm"

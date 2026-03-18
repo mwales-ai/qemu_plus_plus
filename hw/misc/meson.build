@@ -154,7 +154,7 @@ specific_ss.add(when: 'CONFIG_AVR_POWER', if_true: files('avr_power.cpp'))
 
 specific_ss.add(when: 'CONFIG_MAC_VIA', if_true: files('mac_via.cpp'))
 
-specific_ss.add(when: 'CONFIG_MIPS_CPS', if_true: files('mips_cmgcr.c', 'mips_cpc.cpp'))
+specific_ss.add(when: 'CONFIG_MIPS_CPS', if_true: files('mips_cmgcr.cpp', 'mips_cpc.cpp'))
 specific_ss.add(when: 'CONFIG_MIPS_ITU', if_true: files('mips_itu.cpp'))
 
 system_ss.add(when: 'CONFIG_SBSA_REF', if_true: files('sbsa_ec.cpp'))

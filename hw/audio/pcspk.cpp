@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/isa/isa.h"
 #include "hw/audio/model.h"
 #include "qemu/audio.h"
@@ -33,6 +35,8 @@
 #include "migration/vmstate.h"
 #include "hw/audio/pcspk.h"
 #include "qapi/error.h"
+}
+
 #include "qom/object.h"
 #include "trace.h"
 
@@ -83,7 +87,7 @@ static inline void generate_samples(PCSpkState *s)
 
 static void pcspk_callback(void *opaque, int free)
 {
-    PCSpkState *s = opaque;
+    PCSpkState *s = static_cast<PCSpkState *>(opaque);
     PITChannelInfo ch;
     unsigned int n;
 
@@ -116,7 +120,12 @@ static void pcspk_callback(void *opaque, int free)
 
 static int pcspk_audio_init(PCSpkState *s)
 {
-    struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUDIO_FORMAT_U8, 0};
+    struct audsettings as;
+    memset(&as, 0, sizeof(as));
+    as.freq = PCSPK_SAMPLE_RATE;
+    as.nchannels = 1;
+    as.fmt = AUDIO_FORMAT_U8;
+    as.endianness = 0;
 
     if (s->voice) {
         /* already initialized */
@@ -135,7 +144,7 @@ static int pcspk_audio_init(PCSpkState *s)
 static uint64_t pcspk_io_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    PCSpkState *s = opaque;
+    PCSpkState *s = static_cast<PCSpkState *>(opaque);
     PITChannelInfo ch;
     uint8_t val;
 
@@ -154,7 +163,7 @@ static uint64_t pcspk_io_read(void *opaque, hwaddr addr,
 static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
                            unsigned size)
 {
-    PCSpkState *s = opaque;
+    PCSpkState *s = static_cast<PCSpkState *>(opaque);
     const int gate = val & 1;
 
     trace_pcspk_io_write(s->iobase, val);
@@ -168,14 +177,7 @@ static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static const MemoryRegionOps pcspk_io_ops = {
-    .read = pcspk_io_read,
-    .write = pcspk_io_write,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
-};
+static MemoryRegionOps pcspk_io_ops;
 
 static void pcspk_initfn(Object *obj)
 {
@@ -204,21 +206,23 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 
 static bool migrate_needed(void *opaque)
 {
-    PCSpkState *s = opaque;
+    PCSpkState *s = static_cast<PCSpkState *>(opaque);
 
     return s->migrate;
 }
+
+static const VMStateField vmstate_spk_fields[] = {
+    VMSTATE_UINT8(data_on, PCSpkState),
+    VMSTATE_UINT8(dummy_refresh_clock, PCSpkState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_spk = {
     .name = "pcspk",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = migrate_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(data_on, PCSpkState),
-        VMSTATE_UINT8(dummy_refresh_clock, PCSpkState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_spk_fields,
 };
 
 static const Property pcspk_properties[] = {
@@ -253,3 +257,12 @@ static void pcspk_register(void)
     type_register_static(&pcspk_info);
 }
 type_init(pcspk_register)
+
+static void __attribute__((constructor)) init_pcspk_io_ops(void)
+{
+    memset(&pcspk_io_ops, 0, sizeof(pcspk_io_ops));
+    pcspk_io_ops.read = pcspk_io_read;
+    pcspk_io_ops.write = pcspk_io_write;
+    pcspk_io_ops.impl.min_access_size = 1;
+    pcspk_io_ops.impl.max_access_size = 1;
+}

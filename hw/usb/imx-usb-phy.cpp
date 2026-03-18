@@ -11,19 +11,24 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/usb/imx-usb-phy.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
+
+static const VMStateField vmstate_imx_usbphy_fields[] = {
+    VMSTATE_UINT32_ARRAY(usbphy, IMXUSBPHYState, USBPHY_MAX),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_imx_usbphy = {
     .name = TYPE_IMX_USBPHY,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(usbphy, IMXUSBPHYState, USBPHY_MAX),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_imx_usbphy_fields,
 };
 
 static void imx_usbphy_softreset(IMXUSBPHYState *s)
@@ -49,7 +54,7 @@ static void imx_usbphy_reset(DeviceState *dev)
 
 static uint64_t imx_usbphy_read(void *opaque, hwaddr offset, unsigned size)
 {
-    IMXUSBPHYState *s = (IMXUSBPHYState *)opaque;
+    IMXUSBPHYState *s = static_cast<IMXUSBPHYState *>(opaque);
     uint32_t index = offset >> 2;
     uint32_t value;
 
@@ -108,7 +113,7 @@ static uint64_t imx_usbphy_read(void *opaque, hwaddr offset, unsigned size)
 static void imx_usbphy_write(void *opaque, hwaddr offset, uint64_t value,
                              unsigned size)
 {
-    IMXUSBPHYState *s = (IMXUSBPHYState *)opaque;
+    IMXUSBPHYState *s = static_cast<IMXUSBPHYState *>(opaque);
     uint32_t index = offset >> 2;
 
     switch (index) {
@@ -188,22 +193,7 @@ static void imx_usbphy_write(void *opaque, hwaddr offset, uint64_t value,
     }
 }
 
-static const struct MemoryRegionOps imx_usbphy_ops = {
-    .read = imx_usbphy_read,
-    .write = imx_usbphy_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        /*
-         * Our device would not work correctly if the guest was doing
-         * unaligned access. This might not be a limitation on the real
-         * device but in practice there is no reason for a guest to access
-         * this device unaligned.
-         */
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
-};
+static MemoryRegionOps imx_usbphy_ops;
 
 static void imx_usbphy_realize(DeviceState *dev, Error **errp)
 {
@@ -237,3 +227,14 @@ static void imx_usbphy_register_types(void)
 }
 
 type_init(imx_usbphy_register_types)
+
+static void __attribute__((constructor)) init_imx_usbphy_ops(void)
+{
+    memset(&imx_usbphy_ops, 0, sizeof(imx_usbphy_ops));
+    imx_usbphy_ops.read = imx_usbphy_read;
+    imx_usbphy_ops.write = imx_usbphy_write;
+    imx_usbphy_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    imx_usbphy_ops.valid.min_access_size = 4;
+    imx_usbphy_ops.valid.max_access_size = 4;
+    imx_usbphy_ops.valid.unaligned = false;
+}

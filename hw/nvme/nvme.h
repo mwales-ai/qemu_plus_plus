@@ -52,7 +52,11 @@ typedef struct NvmeBus {
 #define TYPE_NVME_SUBSYS "nvme-subsys"
 #define NVME_SUBSYS(obj) \
     OBJECT_CHECK(NvmeSubsystem, (obj), TYPE_NVME_SUBSYS)
+#ifdef __cplusplus
+#define SUBSYS_SLOT_RSVD reinterpret_cast<NvmeCtrl *>(0xFFFF)
+#else
 #define SUBSYS_SLOT_RSVD (void *)0xFFFF
+#endif
 
 typedef struct NvmeReclaimUnit {
     uint64_t ruamw;
@@ -119,8 +123,14 @@ typedef struct NvmeSubsystem {
     } params;
 } NvmeSubsystem;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp);
 void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeCtrl *n);
+#ifdef __cplusplus
+}
+#endif
 
 static inline NvmeCtrl *nvme_subsys_ctrl(NvmeSubsystem *subsys,
                                          uint32_t cntlid)

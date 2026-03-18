@@ -4,7 +4,7 @@ i386_ss.add(when: 'CONFIG_XEN', if_true: files(
 ))
 i386_ss.add(when: ['CONFIG_XEN', xen], if_true: files(
   'xen-hvm.c',
-  'xen-pvh.c',
+  'xen-pvh.cpp',
 ))
 
 i386_ss.add(when: 'CONFIG_XEN_BUS', if_true: files(

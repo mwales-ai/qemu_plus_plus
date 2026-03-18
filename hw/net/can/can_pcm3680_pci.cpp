@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "hw/irq.h"
@@ -34,7 +35,10 @@
 #include "migration/vmstate.h"
 #include "net/can_emu.h"
 
+extern "C" {
 #include "can_sja1000.h"
+}
+
 #include "qom/object.h"
 
 #define TYPE_CAN_PCI_DEV "pcm3680_pci"
@@ -83,7 +87,7 @@ static void pcm3680i_pci_reset(DeviceState *dev)
 static uint64_t pcm3680i_pci_sja1_io_read(void *opaque, hwaddr addr,
                                           unsigned size)
 {
-    Pcm3680iPCIState *d = opaque;
+    Pcm3680iPCIState *d = static_cast<Pcm3680iPCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state[0];
 
     if (addr >= PCM3680i_PCI_BYTES_PER_SJA) {
@@ -96,7 +100,7 @@ static uint64_t pcm3680i_pci_sja1_io_read(void *opaque, hwaddr addr,
 static void pcm3680i_pci_sja1_io_write(void *opaque, hwaddr addr,
                                        uint64_t data, unsigned size)
 {
-    Pcm3680iPCIState *d = opaque;
+    Pcm3680iPCIState *d = static_cast<Pcm3680iPCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state[0];
 
     if (addr >= PCM3680i_PCI_BYTES_PER_SJA) {
@@ -109,7 +113,7 @@ static void pcm3680i_pci_sja1_io_write(void *opaque, hwaddr addr,
 static uint64_t pcm3680i_pci_sja2_io_read(void *opaque, hwaddr addr,
                                           unsigned size)
 {
-    Pcm3680iPCIState *d = opaque;
+    Pcm3680iPCIState *d = static_cast<Pcm3680iPCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state[1];
 
     if (addr >= PCM3680i_PCI_BYTES_PER_SJA) {
@@ -122,7 +126,7 @@ static uint64_t pcm3680i_pci_sja2_io_read(void *opaque, hwaddr addr,
 static void pcm3680i_pci_sja2_io_write(void *opaque, hwaddr addr, uint64_t data,
                              unsigned size)
 {
-    Pcm3680iPCIState *d = opaque;
+    Pcm3680iPCIState *d = static_cast<Pcm3680iPCIState *>(opaque);
     CanSJA1000State *s = &d->sja_state[1];
 
     if (addr >= PCM3680i_PCI_BYTES_PER_SJA) {
@@ -132,23 +136,8 @@ static void pcm3680i_pci_sja2_io_write(void *opaque, hwaddr addr, uint64_t data,
     can_sja_mem_write(s, addr, data, size);
 }
 
-static const MemoryRegionOps pcm3680i_pci_sja1_io_ops = {
-    .read = pcm3680i_pci_sja1_io_read,
-    .write = pcm3680i_pci_sja1_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .max_access_size = 1,
-    },
-};
-
-static const MemoryRegionOps pcm3680i_pci_sja2_io_ops = {
-    .read = pcm3680i_pci_sja2_io_read,
-    .write = pcm3680i_pci_sja2_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .max_access_size = 1,
-    },
-};
+static MemoryRegionOps pcm3680i_pci_sja1_io_ops;
+static MemoryRegionOps pcm3680i_pci_sja2_io_ops;
 
 static void pcm3680i_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
@@ -196,18 +185,20 @@ static void pcm3680i_pci_exit(PCIDevice *pci_dev)
     qemu_free_irq(d->irq);
 }
 
+static const VMStateField vmstate_pcm3680i_pci_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, Pcm3680iPCIState),
+    VMSTATE_STRUCT(sja_state[0], Pcm3680iPCIState, 0,
+                   vmstate_can_sja, CanSJA1000State),
+    VMSTATE_STRUCT(sja_state[1], Pcm3680iPCIState, 0,
+                   vmstate_can_sja, CanSJA1000State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pcm3680i_pci = {
     .name = "pcm3680i_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, Pcm3680iPCIState),
-        VMSTATE_STRUCT(sja_state[0], Pcm3680iPCIState, 0,
-                       vmstate_can_sja, CanSJA1000State),
-        VMSTATE_STRUCT(sja_state[1], Pcm3680iPCIState, 0,
-                       vmstate_can_sja, CanSJA1000State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pcm3680i_pci_fields,
 };
 
 static void pcm3680i_pci_instance_init(Object *obj)
@@ -217,11 +208,11 @@ static void pcm3680i_pci_instance_init(Object *obj)
     object_property_add_link(obj, "canbus0", TYPE_CAN_BUS,
                              (Object **)&d->canbus[0],
                              qdev_prop_allow_set_link_before_realize,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
     object_property_add_link(obj, "canbus1", TYPE_CAN_BUS,
                              (Object **)&d->canbus[1],
                              qdev_prop_allow_set_link_before_realize,
-                             0);
+                             static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static void pcm3680i_pci_class_init(ObjectClass *klass, const void *data)
@@ -243,16 +234,18 @@ static void pcm3680i_pci_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, pcm3680i_pci_reset);
 }
 
+static const InterfaceInfo pcm3680i_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo pcm3680i_pci_info = {
     .name          = TYPE_CAN_PCI_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(Pcm3680iPCIState),
-    .class_init    = pcm3680i_pci_class_init,
     .instance_init = pcm3680i_pci_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .class_init    = pcm3680i_pci_class_init,
+    .interfaces = pcm3680i_pci_interfaces,
 };
 
 static void pcm3680i_pci_register_types(void)
@@ -261,3 +254,18 @@ static void pcm3680i_pci_register_types(void)
 }
 
 type_init(pcm3680i_pci_register_types)
+
+static void __attribute__((constructor)) init_pcm3680i_ops(void)
+{
+    memset(&pcm3680i_pci_sja1_io_ops, 0, sizeof(pcm3680i_pci_sja1_io_ops));
+    pcm3680i_pci_sja1_io_ops.read = pcm3680i_pci_sja1_io_read;
+    pcm3680i_pci_sja1_io_ops.write = pcm3680i_pci_sja1_io_write;
+    pcm3680i_pci_sja1_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    pcm3680i_pci_sja1_io_ops.impl.max_access_size = 1;
+
+    memset(&pcm3680i_pci_sja2_io_ops, 0, sizeof(pcm3680i_pci_sja2_io_ops));
+    pcm3680i_pci_sja2_io_ops.read = pcm3680i_pci_sja2_io_read;
+    pcm3680i_pci_sja2_io_ops.write = pcm3680i_pci_sja2_io_write;
+    pcm3680i_pci_sja2_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    pcm3680i_pci_sja2_io_ops.impl.max_access_size = 1;
+}

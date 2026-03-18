@@ -20,11 +20,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/loongson_liointc.h"
+}
 
 #define NUM_IRQS                32
 
@@ -110,7 +113,7 @@ static void update_irq(struct loongson_liointc *p)
 static uint64_t
 liointc_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    struct loongson_liointc *p = opaque;
+    struct loongson_liointc *p = static_cast<struct loongson_liointc *>(opaque);
     uint32_t r = 0;
 
     /* Mapper is 1 byte */
@@ -147,7 +150,7 @@ liointc_read(void *opaque, hwaddr addr, unsigned int size)
     }
 
 out:
-    qemu_log_mask(CPU_LOG_INT, "%s: size=%d, addr=%"HWADDR_PRIx", val=%x\n",
+    qemu_log_mask(CPU_LOG_INT, "%s: size=%d, addr=%" HWADDR_PRIx ", val=%x\n",
                   __func__, size, addr, r);
     return r;
 }
@@ -156,10 +159,10 @@ static void
 liointc_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
-    struct loongson_liointc *p = opaque;
+    struct loongson_liointc *p = static_cast<struct loongson_liointc *>(opaque);
     uint32_t value = val64;
 
-    qemu_log_mask(CPU_LOG_INT, "%s: size=%d, addr=%"HWADDR_PRIx", val=%x\n",
+    qemu_log_mask(CPU_LOG_INT, "%s: size=%d, addr=%" HWADDR_PRIx ", val=%x\n",
                   __func__, size, addr, value);
 
     /* Mapper is 1 byte */
@@ -199,19 +202,11 @@ out:
     update_irq(p);
 }
 
-static const MemoryRegionOps pic_ops = {
-    .read = liointc_read,
-    .write = liointc_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4
-    }
-};
+static MemoryRegionOps pic_ops;
 
 static void irq_handler(void *opaque, int irq, int level)
 {
-    struct loongson_liointc *p = opaque;
+    struct loongson_liointc *p = static_cast<struct loongson_liointc *>(opaque);
 
     p->pin_state &= ~(1 << irq);
     p->pin_state |= level << irq;
@@ -247,3 +242,13 @@ static void loongson_liointc_register_types(void)
 }
 
 type_init(loongson_liointc_register_types)
+
+static void __attribute__((constructor)) init_pic_ops(void)
+{
+    memset(&pic_ops, 0, sizeof(pic_ops));
+    pic_ops.read = liointc_read;
+    pic_ops.write = liointc_write;
+    pic_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    pic_ops.valid.min_access_size = 1;
+    pic_ops.valid.max_access_size = 4;
+}

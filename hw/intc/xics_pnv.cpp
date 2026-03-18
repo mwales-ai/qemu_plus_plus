@@ -18,10 +18,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/ppc/xics.h"
+}
 
 #define ICP_XIRR_POLL    0 /* 1 byte (CPRR) or 4 bytes */
 #define ICP_XIRR         4 /* 1 byte (CPRR) or 4 bytes */
@@ -145,19 +148,7 @@ bad_access:
     }
 }
 
-static const MemoryRegionOps pnv_icp_ops = {
-    .read = pnv_icp_read,
-    .write = pnv_icp_write,
-    .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
-};
+static MemoryRegionOps pnv_icp_ops;
 
 static void pnv_icp_realize(DeviceState *dev, Error **errp)
 {
@@ -200,3 +191,15 @@ static void pnv_icp_register_types(void)
 }
 
 type_init(pnv_icp_register_types)
+
+static void __attribute__((constructor)) init_pnv_icp_ops(void)
+{
+    memset(&pnv_icp_ops, 0, sizeof(pnv_icp_ops));
+    pnv_icp_ops.read = pnv_icp_read;
+    pnv_icp_ops.write = pnv_icp_write;
+    pnv_icp_ops.endianness = DEVICE_BIG_ENDIAN;
+    pnv_icp_ops.valid.min_access_size = 1;
+    pnv_icp_ops.valid.max_access_size = 4;
+    pnv_icp_ops.impl.min_access_size = 1;
+    pnv_icp_ops.impl.max_access_size = 4;
+}

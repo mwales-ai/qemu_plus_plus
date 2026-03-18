@@ -19,14 +19,16 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/loader.h"
 #include "qemu/units.h"
 #include "hw/misc/unimp.h"
-
 #include "hw/tricore/tc27x_soc.h"
 #include "hw/tricore/triboard.h"
+}
 
 const MemmapEntry tc27x_soc_memmap[] = {
     [TC27XD_DSPR2]     = { 0x50000000,            120 * KiB },

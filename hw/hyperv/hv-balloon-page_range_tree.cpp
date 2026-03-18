@@ -8,8 +8,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hv-balloon-internal.h"
 #include "hv-balloon-page_range_tree.h"
+}
 
 /*
  * temporarily avoid warnings about enhanced GTree API usage requiring a
@@ -23,7 +26,8 @@ static gint page_range_tree_key_compare(gconstpointer leftp,
                                         gconstpointer rightp,
                                         gpointer user_data)
 {
-    const uint64_t *left = leftp, *right = rightp;
+    const uint64_t *left = static_cast<const uint64_t *>(leftp);
+    const uint64_t *right = static_cast<const uint64_t *>(rightp);
 
     if (*left < *right) {
         return -1;
@@ -37,8 +41,8 @@ static gint page_range_tree_key_compare(gconstpointer leftp,
 static GTreeNode *page_range_tree_insert_new(PageRangeTree tree,
                                              uint64_t start, uint64_t count)
 {
-    uint64_t *key = g_malloc(sizeof(*key));
-    PageRange *range = g_malloc(sizeof(*range));
+    uint64_t *key = static_cast<uint64_t *>(g_malloc(sizeof(*key)));
+    PageRange *range = static_cast<PageRange *>(g_malloc(sizeof(*range)));
 
     assert(count > 0);
 
@@ -48,7 +52,7 @@ static GTreeNode *page_range_tree_insert_new(PageRangeTree tree,
     return g_tree_insert_node(tree.t, key, range);
 }
 
-void hvb_page_range_tree_insert(PageRangeTree tree,
+extern "C" void hvb_page_range_tree_insert(PageRangeTree tree,
                                 uint64_t start, uint64_t count,
                                 uint64_t *dupcount)
 {
@@ -70,7 +74,7 @@ void hvb_page_range_tree_insert(PageRangeTree tree,
     }
 
     if (node) {
-        range = g_tree_node_value(node);
+        range = static_cast<PageRange *>(g_tree_node_value(node));
         assert(range);
         intersection = page_range_intersection_size(range, start, count);
         joinable = page_range_joinable_right(range, start, count);
@@ -87,7 +91,7 @@ void hvb_page_range_tree_insert(PageRangeTree tree,
          */
         node = page_range_tree_insert_new(tree, start, count);
         assert(node);
-        range = g_tree_node_value(node);
+        range = static_cast<PageRange *>(g_tree_node_value(node));
         assert(range);
     } else {
         /*
@@ -106,7 +110,7 @@ void hvb_page_range_tree_insert(PageRangeTree tree,
     for (node = g_tree_node_next(node); node; ) {
         PageRange *rangecur;
 
-        rangecur = g_tree_node_value(node);
+        rangecur = static_cast<PageRange *>(g_tree_node_value(node));
         assert(rangecur);
 
         intersection = page_range_intersection_size(rangecur,
@@ -133,7 +137,7 @@ void hvb_page_range_tree_insert(PageRangeTree tree,
     }
 }
 
-bool hvb_page_range_tree_pop(PageRangeTree tree, PageRange *out,
+extern "C" bool hvb_page_range_tree_pop(PageRangeTree tree, PageRange *out,
                              uint64_t maxcount)
 {
     GTreeNode *node;
@@ -144,7 +148,7 @@ bool hvb_page_range_tree_pop(PageRangeTree tree, PageRange *out,
         return false;
     }
 
-    range = g_tree_node_value(node);
+    range = static_cast<PageRange *>(g_tree_node_value(node));
     assert(range);
 
     out->start = range->start;
@@ -163,7 +167,7 @@ bool hvb_page_range_tree_pop(PageRangeTree tree, PageRange *out,
     return true;
 }
 
-bool hvb_page_range_tree_intree_any(PageRangeTree tree,
+extern "C" bool hvb_page_range_tree_intree_any(PageRangeTree tree,
                                     uint64_t start, uint64_t count)
 {
     GTreeNode *node;
@@ -192,7 +196,7 @@ bool hvb_page_range_tree_intree_any(PageRangeTree tree,
     }
 
     for ( ; node; node = g_tree_node_next(node)) {
-        PageRange *range = g_tree_node_value(node);
+        PageRange *range = static_cast<PageRange *>(g_tree_node_value(node));
 
         assert(range);
         /*
@@ -211,13 +215,13 @@ bool hvb_page_range_tree_intree_any(PageRangeTree tree,
     return false;
 }
 
-void hvb_page_range_tree_init(PageRangeTree *tree)
+extern "C" void hvb_page_range_tree_init(PageRangeTree *tree)
 {
     tree->t = g_tree_new_full(page_range_tree_key_compare, NULL,
                               g_free, g_free);
 }
 
-void hvb_page_range_tree_destroy(PageRangeTree *tree)
+extern "C" void hvb_page_range_tree_destroy(PageRangeTree *tree)
 {
     /* g_tree_destroy() is not NULL-safe */
     if (!tree->t) {

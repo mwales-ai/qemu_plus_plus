@@ -7,8 +7,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/units.h"
 #include "qapi/error.h"
+}
 
 #include "nvme.h"
 
@@ -52,6 +55,7 @@ static void nvme_subsys_unreserve_cntlids(NvmeCtrl *n)
     }
 }
 
+extern "C"
 int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
 {
     NvmeSubsystem *subsys = n->subsys;
@@ -95,6 +99,7 @@ int nvme_subsys_register_ctrl(NvmeCtrl *n, Error **errp)
     return cntlid;
 }
 
+extern "C"
 void nvme_subsys_unregister_ctrl(NvmeSubsystem *subsys, NvmeCtrl *n)
 {
     if (pci_is_vf(&n->parent_obj)) {
@@ -172,10 +177,9 @@ static bool nvme_subsys_setup_fdp(NvmeSubsystem *subsys, Error **errp)
     endgrp->fdp.ruhs = g_new(NvmeRuHandle, endgrp->fdp.nruh);
 
     for (uint16_t ruhid = 0; ruhid < endgrp->fdp.nruh; ruhid++) {
-        endgrp->fdp.ruhs[ruhid] = (NvmeRuHandle) {
-            .ruht = NVME_RUHT_INITIALLY_ISOLATED,
-            .ruha = NVME_RUHA_UNUSED,
-        };
+        memset(&endgrp->fdp.ruhs[ruhid], 0, sizeof(NvmeRuHandle));
+        endgrp->fdp.ruhs[ruhid].ruht = NVME_RUHT_INITIALLY_ISOLATED;
+        endgrp->fdp.ruhs[ruhid].ruha = NVME_RUHA_UNUSED;
 
         endgrp->fdp.ruhs[ruhid].rus = g_new(NvmeReclaimUnit, endgrp->fdp.nrg);
     }
@@ -233,8 +237,8 @@ static void nvme_subsys_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo nvme_subsys_info = {
     .name = TYPE_NVME_SUBSYS,
     .parent = TYPE_DEVICE,
-    .class_init = nvme_subsys_class_init,
     .instance_size = sizeof(NvmeSubsystem),
+    .class_init = nvme_subsys_class_init,
 };
 
 static void nvme_subsys_register_types(void)

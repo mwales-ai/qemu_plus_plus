@@ -14,8 +14,16 @@
 #include "hw/acpi/bios-linker-loader.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void build_erst(GArray *table_data, BIOSLinker *linker, Object *erst_dev,
                 const char *oem_id, const char *oem_table_id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define TYPE_ACPI_ERST "acpi-erst"
 

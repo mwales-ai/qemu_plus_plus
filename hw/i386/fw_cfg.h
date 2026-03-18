@@ -20,6 +20,10 @@
 #define FW_CFG_IRQ0_OVERRIDE    (FW_CFG_ARCH_LOCAL + 2)
 #define FW_CFG_HPET             (FW_CFG_ARCH_LOCAL + 4)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 FWCfgState *fw_cfg_arch_create(MachineState *ms,
                                uint16_t boot_cpus,
                                uint16_t apic_id_limit);
@@ -28,5 +32,9 @@ void fw_cfg_build_smbios(PCMachineState *pcms, FWCfgState *fw_cfg,
 void fw_cfg_build_feature_control(MachineState *ms, FWCfgState *fw_cfg);
 void fw_cfg_add_acpi_dsdt(Aml *scope, FWCfgState *fw_cfg);
 void fw_cfg_add_e820(FWCfgState *fw_cfg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

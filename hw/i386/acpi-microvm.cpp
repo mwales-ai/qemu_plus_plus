@@ -21,9 +21,9 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/cutils.h"
 #include "qapi/error.h"
-
 #include "system/memory.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/acpi_aml_interface.h"
@@ -41,8 +41,10 @@
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/input/i8042.h"
 
+extern "C" {
 #include "acpi-common.h"
 #include "acpi-microvm.h"
+}
 
 #include CONFIG_DEVICES
 
@@ -107,8 +109,12 @@ build_dsdt_microvm(GArray *table_data, BIOSLinker *linker,
     Aml *dsdt, *sb_scope, *scope, *pkg;
     bool ambiguous;
     Object *isabus;
-    AcpiTable table = { .sig = "DSDT", .rev = 2, .oem_id = x86ms->oem_id,
-                        .oem_table_id = x86ms->oem_table_id };
+    AcpiTable table = {
+        .sig = "DSDT",
+        .rev = 2,
+        .oem_id = x86ms->oem_id,
+        .oem_table_id = x86ms->oem_table_id,
+    };
 
     isabus = object_resolve_path_type("", TYPE_ISA_BUS, &ambiguous);
     assert(isabus);
@@ -153,37 +159,29 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
     GArray *table_offsets;
     GArray *tables_blob = tables->table_data;
     unsigned dsdt, xsdt;
-    AcpiFadtData pmfadt = {
-        /* ACPI 5.0: 4.1 Hardware-Reduced ACPI */
-        .rev = 5,
-        .flags = ((1 << ACPI_FADT_F_HW_REDUCED_ACPI) |
-                  (1 << ACPI_FADT_F_RESET_REG_SUP)),
-
-        /* ACPI 5.0: 4.8.3.7 Sleep Control and Status Registers */
-        .sleep_ctl = {
-            .space_id = AML_AS_SYSTEM_MEMORY,
-            .bit_width = 8,
-            .address = GED_MMIO_BASE_REGS + ACPI_GED_REG_SLEEP_CTL,
-        },
-        .sleep_sts = {
-            .space_id = AML_AS_SYSTEM_MEMORY,
-            .bit_width = 8,
-            .address = GED_MMIO_BASE_REGS + ACPI_GED_REG_SLEEP_STS,
-        },
-
-        /* ACPI 5.0: 4.8.3.6 Reset Register */
-        .reset_reg = {
-            .space_id = AML_AS_SYSTEM_MEMORY,
-            .bit_width = 8,
-            .address = GED_MMIO_BASE_REGS + ACPI_GED_REG_RESET,
-        },
-        .reset_val = ACPI_GED_RESET_VALUE,
-        /*
-         * ACPI v2, Table 5-10 - Fixed ACPI Description Table Boot Architecture
-         * Flags, bit offset 1 - 8042.
-         */
-        .iapc_boot_arch = iapc_boot_arch_8042(),
-    };
+    AcpiFadtData pmfadt;
+    memset(&pmfadt, 0, sizeof(pmfadt));
+    /* ACPI 5.0: 4.1 Hardware-Reduced ACPI */
+    pmfadt.rev = 5;
+    pmfadt.flags = ((1 << ACPI_FADT_F_HW_REDUCED_ACPI) |
+                    (1 << ACPI_FADT_F_RESET_REG_SUP));
+    /* ACPI 5.0: 4.8.3.7 Sleep Control and Status Registers */
+    pmfadt.sleep_ctl.space_id = AML_AS_SYSTEM_MEMORY;
+    pmfadt.sleep_ctl.bit_width = 8;
+    pmfadt.sleep_ctl.address = GED_MMIO_BASE_REGS + ACPI_GED_REG_SLEEP_CTL;
+    pmfadt.sleep_sts.space_id = AML_AS_SYSTEM_MEMORY;
+    pmfadt.sleep_sts.bit_width = 8;
+    pmfadt.sleep_sts.address = GED_MMIO_BASE_REGS + ACPI_GED_REG_SLEEP_STS;
+    /* ACPI 5.0: 4.8.3.6 Reset Register */
+    pmfadt.reset_reg.space_id = AML_AS_SYSTEM_MEMORY;
+    pmfadt.reset_reg.bit_width = 8;
+    pmfadt.reset_reg.address = GED_MMIO_BASE_REGS + ACPI_GED_REG_RESET;
+    pmfadt.reset_val = ACPI_GED_RESET_VALUE;
+    /*
+     * ACPI v2, Table 5-10 - Fixed ACPI Description Table Boot Architecture
+     * Flags, bit offset 1 - 8042.
+     */
+    pmfadt.iapc_boot_arch = iapc_boot_arch_8042();
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
@@ -223,13 +221,13 @@ static void acpi_build_microvm(AcpiBuildTables *tables,
 
     /* RSDP is in FSEG memory, so allocate it separately */
     {
-        AcpiRsdpData rsdp_data = {
-            /* ACPI 2.0: 5.2.4.3 RSDP Structure */
-            .revision = 2, /* xsdt needs v2 */
-            .oem_id = x86ms->oem_id,
-            .xsdt_tbl_offset = &xsdt,
-            .rsdt_tbl_offset = NULL,
-        };
+        AcpiRsdpData rsdp_data;
+        memset(&rsdp_data, 0, sizeof(rsdp_data));
+        /* ACPI 2.0: 5.2.4.3 RSDP Structure */
+        rsdp_data.revision = 2; /* xsdt needs v2 */
+        rsdp_data.oem_id = x86ms->oem_id;
+        rsdp_data.xsdt_tbl_offset = &xsdt;
+        rsdp_data.rsdt_tbl_offset = NULL;
         build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
     }
 
@@ -242,6 +240,7 @@ static void acpi_build_no_update(void *build_opaque)
     /* nothing, microvm tables don't change at runtime */
 }
 
+extern "C"
 void acpi_setup_microvm(MicrovmMachineState *mms)
 {
     X86MachineState *x86ms = X86_MACHINE(mms);
