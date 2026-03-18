@@ -217,7 +217,7 @@ static bool blit_region_is_unsafe(struct CirrusVGAState *s,
         int64_t min = addr
             + ((int64_t)s->cirrus_blt_height - 1) * pitch
             - s->cirrus_blt_width;
-        if (min < -1 || addr >= s->vga.vram_size) {
+        if (min < -1 || static_cast<uint32_t>(addr) >= s->vga.vram_size) {
             return true;
         }
     } else {
@@ -1223,7 +1223,7 @@ static void cirrus_update_bank_ptr(CirrusVGAState * s, unsigned bank_index)
     else
         offset <<= 12;
 
-    if (s->real_vram_size <= offset)
+    if (static_cast<unsigned>(s->real_vram_size) <= offset)
         limit = 0;
     else
         limit = s->real_vram_size - offset;
@@ -2201,8 +2201,8 @@ static void cirrus_cursor_invalidate(VGACommonState *s1)
     }
     /* invalidate last cursor and new cursor if any change */
     if (s->last_hw_cursor_size != size ||
-        s->last_hw_cursor_x != s->vga.hw_cursor_x ||
-        s->last_hw_cursor_y != s->vga.hw_cursor_y) {
+        s->last_hw_cursor_x != static_cast<int>(s->vga.hw_cursor_x) ||
+        s->last_hw_cursor_y != static_cast<int>(s->vga.hw_cursor_y)) {
 
         invalidate_cursor1(s);
 
@@ -2265,8 +2265,8 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
     } else {
         h = 32;
     }
-    if (scr_y < s->vga.hw_cursor_y ||
-        scr_y >= (s->vga.hw_cursor_y + h)) {
+    if (scr_y < static_cast<int>(s->vga.hw_cursor_y) ||
+        scr_y >= static_cast<int>(s->vga.hw_cursor_y + h)) {
         return;
     }
 
@@ -2294,10 +2294,10 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
     w = h;
 
     x1 = s->vga.hw_cursor_x;
-    if (x1 >= s->vga.last_scr_width)
+    if (x1 >= static_cast<int>(s->vga.last_scr_width))
         return;
     x2 = s->vga.hw_cursor_x + w;
-    if (x2 > s->vga.last_scr_width)
+    if (x2 > static_cast<int>(s->vga.last_scr_width))
         x2 = s->vga.last_scr_width;
     w = x2 - x1;
     palette = s->cirrus_hidden_palette;

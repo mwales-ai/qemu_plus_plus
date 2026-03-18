@@ -786,6 +786,15 @@ if 'cpp' in all_languages
   # alignment attributes (e.g. from aligned_uint64_t).  This is expected
   # and harmless.
   add_project_arguments(cxx.get_supported_arguments(['-Wno-ignored-attributes']), native: false, language: 'cpp')
+  # Suppress warnings during incremental C-to-C++ port
+  add_project_arguments(cxx.get_supported_arguments([
+    '-Wno-sign-compare',
+    '-Wno-sizeof-pointer-div',
+    '-Wno-narrowing',
+    '-Wno-pointer-arith',
+    '-Wno-literal-suffix',
+    '-Wno-enum-compare',
+  ]), native: false, language: 'cpp')
 endif
 if 'objc' in all_languages
   # Note sanitizer flags are not applied to Objective-C sources!

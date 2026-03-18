@@ -31,7 +31,7 @@
 
 static uint64_t mchp_pfsoc_mmuart_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MchpPfSoCMMUartState *s = opaque;
+    MchpPfSoCMMUartState *s = static_cast<MchpPfSoCMMUartState *>(opaque);
 
     addr >>= 2;
     if (addr >= MCHP_PFSOC_MMUART_REG_COUNT) {
@@ -46,7 +46,7 @@ static uint64_t mchp_pfsoc_mmuart_read(void *opaque, hwaddr addr, unsigned size)
 static void mchp_pfsoc_mmuart_write(void *opaque, hwaddr addr,
                                     uint64_t value, unsigned size)
 {
-    MchpPfSoCMMUartState *s = opaque;
+    MchpPfSoCMMUartState *s = static_cast<MchpPfSoCMMUartState *>(opaque);
     uint32_t val32 = (uint32_t)value;
 
     addr >>= 2;
@@ -110,15 +110,17 @@ static void mchp_pfsoc_mmuart_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion(&s->container, REGS_OFFSET, &s->iomem);
 }
 
+static const VMStateField vmstate_mchp_pfsoc_mmuart_fields[] = {
+    VMSTATE_UINT32_ARRAY(reg, MchpPfSoCMMUartState,
+                         MCHP_PFSOC_MMUART_REG_COUNT),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription mchp_pfsoc_mmuart_vmstate = {
     .name = "mchp.pfsoc.uart",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(reg, MchpPfSoCMMUartState,
-                             MCHP_PFSOC_MMUART_REG_COUNT),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mchp_pfsoc_mmuart_fields,
 };
 
 static void mchp_pfsoc_mmuart_class_init(ObjectClass *oc, const void *data)

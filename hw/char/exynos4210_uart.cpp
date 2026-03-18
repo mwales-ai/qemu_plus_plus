@@ -167,7 +167,7 @@ struct Exynos4210UartState {
 static const char *exynos4210_uart_regname(hwaddr  offset)
 {
 
-    int i;
+    size_t i;
 
     for (i = 0; i < ARRAY_SIZE(exynos4210_uart_regs); i++) {
         if (offset == exynos4210_uart_regs[i].offset) {
@@ -211,7 +211,7 @@ static void fifo_reset(Exynos4210UartFIFO *q)
     g_free(q->data);
     q->data = NULL;
 
-    q->data = g_malloc0(q->size);
+    q->data = static_cast<uint8_t *>(g_malloc0(q->size));
 
     q->sp = 0;
     q->rp = 0;
@@ -325,7 +325,7 @@ static void exynos4210_uart_update_irq(Exynos4210UartState *s)
 
 static void exynos4210_uart_timeout_int(void *opaque)
 {
-    Exynos4210UartState *s = opaque;
+    Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
 
     trace_exynos_uart_rx_timeout(s->channel, s->reg[I_(UTRSTAT)],
                                  s->reg[I_(UINTSP)]);
@@ -601,7 +601,7 @@ static void exynos4210_uart_event(void *opaque, QEMUChrEvent event)
 static void exynos4210_uart_reset(DeviceState *dev)
 {
     Exynos4210UartState *s = EXYNOS4210_UART(dev);
-    int i;
+    size_t i;
 
     for (i = 0; i < ARRAY_SIZE(exynos4210_uart_regs); i++) {
         s->reg[I_(exynos4210_uart_regs[i].offset)] =
@@ -624,16 +624,26 @@ static int exynos4210_uart_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_exynos4210_uart_fifo_fields[] = {
+    VMSTATE_UINT32(sp, Exynos4210UartFIFO),
+    VMSTATE_UINT32(rp, Exynos4210UartFIFO),
+    VMSTATE_VBUFFER_UINT32(data, Exynos4210UartFIFO, 1, NULL, size),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_exynos4210_uart_fifo = {
     .name = "exynos4210.uart.fifo",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(sp, Exynos4210UartFIFO),
-        VMSTATE_UINT32(rp, Exynos4210UartFIFO),
-        VMSTATE_VBUFFER_UINT32(data, Exynos4210UartFIFO, 1, NULL, size),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_uart_fifo_fields,
+};
+
+static const VMStateField vmstate_exynos4210_uart_fields[] = {
+    VMSTATE_STRUCT(rx, Exynos4210UartState, 1,
+                   vmstate_exynos4210_uart_fifo, Exynos4210UartFIFO),
+    VMSTATE_UINT32_ARRAY(reg, Exynos4210UartState,
+                         EXYNOS4210_UART_REGS_MEM_SIZE / sizeof(uint32_t)),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_exynos4210_uart = {
@@ -641,13 +651,7 @@ static const VMStateDescription vmstate_exynos4210_uart = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = exynos4210_uart_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(rx, Exynos4210UartState, 1,
-                       vmstate_exynos4210_uart_fifo, Exynos4210UartFIFO),
-        VMSTATE_UINT32_ARRAY(reg, Exynos4210UartState,
-                             EXYNOS4210_UART_REGS_MEM_SIZE / sizeof(uint32_t)),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_uart_fields,
 };
 
 DeviceState *exynos4210_uart_create(hwaddr addr,

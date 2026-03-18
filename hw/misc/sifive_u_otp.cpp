@@ -40,7 +40,7 @@
 
 static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    SiFiveUOTPState *s = opaque;
+    SiFiveUOTPState *s = static_cast<SiFiveUOTPState *>(opaque);
 
     switch (addr) {
     case SIFIVE_U_OTP_PA:
@@ -65,7 +65,7 @@ static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
                 int32_t buf;
 
                 if (blk_pread(s->blk, s->pa * SIFIVE_U_OTP_FUSE_WORD,
-                              SIFIVE_U_OTP_FUSE_WORD, &buf, 0) < 0) {
+                              SIFIVE_U_OTP_FUSE_WORD, &buf, static_cast<BdrvRequestFlags>(0)) < 0) {
                     error_report("read error index<%d>", s->pa);
                     return 0xff;
                 }
@@ -103,7 +103,7 @@ static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
 static void sifive_u_otp_write(void *opaque, hwaddr addr,
                                uint64_t val64, unsigned int size)
 {
-    SiFiveUOTPState *s = opaque;
+    SiFiveUOTPState *s = static_cast<SiFiveUOTPState *>(opaque);
     uint32_t val32 = (uint32_t)val64;
 
     switch (addr) {
@@ -167,7 +167,7 @@ static void sifive_u_otp_write(void *opaque, hwaddr addr,
             /* write to backend */
             if (s->blk) {
                 if (blk_pwrite(s->blk, s->pa * SIFIVE_U_OTP_FUSE_WORD,
-                               SIFIVE_U_OTP_FUSE_WORD, &s->fuse[s->pa], 0)
+                               SIFIVE_U_OTP_FUSE_WORD, &s->fuse[s->pa], static_cast<BdrvRequestFlags>(0))
                     < 0) {
                     error_report("write error index<%d>", s->pa);
                 }
@@ -232,7 +232,7 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
                 return;
             }
 
-            if (blk_pread(s->blk, 0, filesize, s->fuse, 0) < 0) {
+            if (blk_pread(s->blk, 0, filesize, s->fuse, static_cast<BdrvRequestFlags>(0)) < 0) {
                 error_setg(errp, "failed to read the initial flash content");
                 return;
             }
@@ -253,14 +253,14 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
 
         serial_data = s->serial;
         if (blk_pwrite(s->blk, index * SIFIVE_U_OTP_FUSE_WORD,
-                       SIFIVE_U_OTP_FUSE_WORD, &serial_data, 0) < 0) {
+                       SIFIVE_U_OTP_FUSE_WORD, &serial_data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "failed to write index<%d>", index);
             return;
         }
 
         serial_data = ~(s->serial);
         if (blk_pwrite(s->blk, (index + 1) * SIFIVE_U_OTP_FUSE_WORD,
-                       SIFIVE_U_OTP_FUSE_WORD, &serial_data, 0) < 0) {
+                       SIFIVE_U_OTP_FUSE_WORD, &serial_data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "failed to write index<%d>", index + 1);
             return;
         }

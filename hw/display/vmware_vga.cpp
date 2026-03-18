@@ -698,8 +698,8 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             if (cursor.width > 256
                 || cursor.height > 256
                 || cursor.bpp > 32
-                || SVGA_BITMAP_SIZE(x, y) > ARRAY_SIZE(cursor.mask)
-                || SVGA_PIXMAP_SIZE(x, y, cursor.bpp)
+                || static_cast<size_t>(SVGA_BITMAP_SIZE(x, y)) > ARRAY_SIZE(cursor.mask)
+                || static_cast<size_t>(SVGA_PIXMAP_SIZE(x, y, cursor.bpp))
                     > ARRAY_SIZE(cursor.image)) {
                     goto badcmd;
             }
@@ -709,10 +709,10 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
                 goto rewind;
             }
 
-            for (args = 0; args < SVGA_BITMAP_SIZE(x, y); args++) {
+            for (args = 0; args < static_cast<int>(SVGA_BITMAP_SIZE(x, y)); args++) {
                 cursor.mask[args] = vmsvga_fifo_read_raw(s);
             }
-            for (args = 0; args < SVGA_PIXMAP_SIZE(x, y, cursor.bpp); args++) {
+            for (args = 0; args < static_cast<int>(SVGA_PIXMAP_SIZE(x, y, cursor.bpp)); args++) {
                 cursor.image[args] = vmsvga_fifo_read_raw(s);
             }
 #ifdef HW_MOUSE_ACCEL

@@ -241,8 +241,8 @@ static const MemoryRegionOps sci_ops = {
     .write = sci_write,
     .read  = sci_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = { .max_access_size = 1, },
     .valid = { .max_access_size = 1, },
+    .impl = { .max_access_size = 1, },
 };
 
 static void rsci_reset(DeviceState *dev)
@@ -298,25 +298,27 @@ static void rsci_init(Object *obj)
     timer_init_ns(&sci->timer, QEMU_CLOCK_VIRTUAL, txend, sci);
 }
 
+static const VMStateField vmstate_rsci_fields[] = {
+    VMSTATE_INT64(trtime, RSCIState),
+    VMSTATE_INT64(rx_next, RSCIState),
+    VMSTATE_UINT8(smr, RSCIState),
+    VMSTATE_UINT8(brr, RSCIState),
+    VMSTATE_UINT8(scr, RSCIState),
+    VMSTATE_UINT8(tdr, RSCIState),
+    VMSTATE_UINT8(ssr, RSCIState),
+    VMSTATE_UINT8(rdr, RSCIState),
+    VMSTATE_UINT8(scmr, RSCIState),
+    VMSTATE_UINT8(semr, RSCIState),
+    VMSTATE_UINT8(read_ssr, RSCIState),
+    VMSTATE_TIMER(timer, RSCIState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_rsci = {
     .name = "renesas-sci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT64(trtime, RSCIState),
-        VMSTATE_INT64(rx_next, RSCIState),
-        VMSTATE_UINT8(smr, RSCIState),
-        VMSTATE_UINT8(brr, RSCIState),
-        VMSTATE_UINT8(scr, RSCIState),
-        VMSTATE_UINT8(tdr, RSCIState),
-        VMSTATE_UINT8(ssr, RSCIState),
-        VMSTATE_UINT8(rdr, RSCIState),
-        VMSTATE_UINT8(scmr, RSCIState),
-        VMSTATE_UINT8(semr, RSCIState),
-        VMSTATE_UINT8(read_ssr, RSCIState),
-        VMSTATE_TIMER(timer, RSCIState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rsci_fields
 };
 
 static const Property rsci_properties[] = {

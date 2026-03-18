@@ -341,7 +341,7 @@ static void uart_write_tx_fifo(CadenceUARTState *s, const uint8_t *buf,
         return;
     }
 
-    if (size > CADENCE_UART_TX_FIFO_SIZE - s->tx_count) {
+    if (size > static_cast<int>(CADENCE_UART_TX_FIFO_SIZE - s->tx_count)) {
         size = CADENCE_UART_TX_FIFO_SIZE - s->tx_count;
         /*
          * This can only be a guest error via a bad tx fifo register push,

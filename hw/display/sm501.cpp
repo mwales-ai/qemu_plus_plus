@@ -556,7 +556,8 @@ typedef struct SM501State {
 static uint32_t get_local_mem_size_index(uint32_t size)
 {
     uint32_t norm_size = 0;
-    int i, index = 0;
+    size_t i;
+    int index = 0;
 
     for (i = 0; i < ARRAY_SIZE(sm501_mem_local_size); i++) {
         uint32_t new_size = sm501_mem_local_size[i];
@@ -1775,7 +1776,7 @@ static void sm501_update_display(void *opaque)
     }
 
     /* adjust console size */
-    if (s->last_width != width || s->last_height != height) {
+    if (static_cast<int>(s->last_width) != width || static_cast<int>(s->last_height) != height) {
         qemu_console_resize(s->con, width, height);
         surface = qemu_console_surface(s->con);
         s->last_width = width;

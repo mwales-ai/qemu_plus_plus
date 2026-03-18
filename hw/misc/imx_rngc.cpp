@@ -241,17 +241,19 @@ static void imx_rngc_reset(DeviceState *dev)
     imx_rngc_do_reset(s);
 }
 
-static const VMStateDescription vmstate_imx_rngc = {
-    .name = RNGC_NAME,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_imx_rngc_fields[] = {
         VMSTATE_UINT8(op_self_test, IMXRNGCState),
         VMSTATE_UINT8(op_seed, IMXRNGCState),
         VMSTATE_UINT8(mask, IMXRNGCState),
         VMSTATE_BOOL(auto_seed, IMXRNGCState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription vmstate_imx_rngc = {
+    .name = RNGC_NAME,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_imx_rngc_fields,
 };
 
 static void imx_rngc_class_init(ObjectClass *klass, const void *data)

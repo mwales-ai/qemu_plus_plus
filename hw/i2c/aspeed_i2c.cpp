@@ -108,7 +108,7 @@ static uint64_t aspeed_i2c_bus_old_read(AspeedI2CBus *bus, hwaddr offset,
         /* Value is already set, don't do anything. */
         break;
     case A_I2CD_CMD:
-        value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, i2c_bus_busy(bus->bus));
+        value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, (unsigned)i2c_bus_busy(bus->bus));
         break;
     case A_I2CD_DMA_ADDR:
         if (!aic->has_dma) {
@@ -167,7 +167,7 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
     case A_I2CS_INTR_STS:
         break;
     case A_I2CM_CMD:
-        value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, i2c_bus_busy(bus->bus));
+        value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, (unsigned)i2c_bus_busy(bus->bus));
         break;
     case A_I2CM_DMA_TX_ADDR_HI:
     case A_I2CM_DMA_RX_ADDR_HI:
@@ -384,7 +384,7 @@ static void aspeed_i2c_bus_recv(AspeedI2CBus *bus)
         }
 
         /* Update RX count */
-        SHARED_ARRAY_FIELD_DP32(bus->regs, reg_pool_ctrl, RX_COUNT, i & 0xff);
+        SHARED_ARRAY_FIELD_DP32(bus->regs, reg_pool_ctrl, RX_COUNT, (unsigned)(i & 0xff));
         SHARED_ARRAY_FIELD_DP32(bus->regs, reg_cmd, RX_BUFF_EN, 0);
     } else if (SHARED_ARRAY_FIELD_EX32(bus->regs, reg_cmd, RX_DMA_EN)) {
         /* In new mode, clear how many bytes we RXed */
@@ -642,7 +642,7 @@ static void aspeed_i2c_bus_new_write(AspeedI2CBus *bus, hwaddr offset,
         break;
     case A_I2CC_MS_TXRX_BYTE_BUF:
         SHARED_ARRAY_FIELD_DP32(bus->regs, R_I2CC_MS_TXRX_BYTE_BUF, TX_BUF,
-                                value);
+                                (unsigned)value);
         break;
     case A_I2CC_POOL_CTRL:
         bus->regs[R_I2CC_POOL_CTRL] &= ~0xffffff;
@@ -894,7 +894,7 @@ static void aspeed_i2c_bus_old_write(AspeedI2CBus *bus, hwaddr offset,
         break;
 
     case A_I2CD_BYTE_BUF:
-        SHARED_ARRAY_FIELD_DP32(bus->regs, R_I2CD_BYTE_BUF, TX_BUF, value);
+        SHARED_ARRAY_FIELD_DP32(bus->regs, R_I2CD_BYTE_BUF, TX_BUF, (unsigned)value);
         break;
     case A_I2CD_CMD:
         if (!aspeed_i2c_bus_is_enabled(bus)) {

@@ -240,18 +240,20 @@ static void exynos4210_rng_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static const VMStateDescription exynos4210_rng_vmstate = {
-    .name = TYPE_EXYNOS4210_RNG,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_exynos4210_rng_vmstate_fields[] = {
         VMSTATE_INT32_ARRAY(randr_value, Exynos4210RngState,
                             EXYNOS4210_RNG_PRNG_NUM),
         VMSTATE_UINT32(seed_set, Exynos4210RngState),
         VMSTATE_UINT32(reg_status, Exynos4210RngState),
         VMSTATE_UINT32(reg_control, Exynos4210RngState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription exynos4210_rng_vmstate = {
+    .name = TYPE_EXYNOS4210_RNG,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_exynos4210_rng_vmstate_fields,
 };
 
 static void exynos4210_rng_class_init(ObjectClass *klass, const void *data)

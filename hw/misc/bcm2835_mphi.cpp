@@ -38,7 +38,7 @@ static inline void mphi_lower_irq(BCM2835MphiState *s)
 
 static uint64_t mphi_reg_read(void *ptr, hwaddr addr, unsigned size)
 {
-    BCM2835MphiState *s = ptr;
+    BCM2835MphiState *s = static_cast<BCM2835MphiState *>(ptr);
     uint32_t val = 0;
 
     switch (addr) {
@@ -71,7 +71,7 @@ static uint64_t mphi_reg_read(void *ptr, hwaddr addr, unsigned size)
 
 static void mphi_reg_write(void *ptr, hwaddr addr, uint64_t val, unsigned size)
 {
-    BCM2835MphiState *s = ptr;
+    BCM2835MphiState *s = static_cast<BCM2835MphiState *>(ptr);
     int do_irq = 0;
 
     switch (addr) {
@@ -119,8 +119,8 @@ static void mphi_reg_write(void *ptr, hwaddr addr, uint64_t val, unsigned size)
 static const MemoryRegionOps mphi_mmio_ops = {
     .read = mphi_reg_read,
     .write = mphi_reg_write,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void mphi_reset(DeviceState *dev)
@@ -151,18 +151,20 @@ static void mphi_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-const VMStateDescription vmstate_mphi_state = {
-    .name = "mphi",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_mphi_state_fields[] = {
         VMSTATE_UINT32(outdda, BCM2835MphiState),
         VMSTATE_UINT32(outddb, BCM2835MphiState),
         VMSTATE_UINT32(ctrl, BCM2835MphiState),
         VMSTATE_UINT32(intstat, BCM2835MphiState),
         VMSTATE_UINT32(swirq, BCM2835MphiState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+const VMStateDescription vmstate_mphi_state = {
+    .name = "mphi",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_mphi_state_fields,
 };
 
 static void mphi_class_init(ObjectClass *klass, const void *data)

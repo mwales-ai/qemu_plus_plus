@@ -32,7 +32,7 @@ system_ss.add(when: 'CONFIG_MCHP_PFSOC_SYSREG', if_true: files('mchp_pfsoc_sysre
 system_ss.add(when: 'CONFIG_SIFIVE_TEST', if_true: files('sifive_test.cpp'))
 system_ss.add(when: 'CONFIG_SIFIVE_E_PRCI', if_true: files('sifive_e_prci.cpp'))
 system_ss.add(when: 'CONFIG_SIFIVE_E_AON', if_true: files('sifive_e_aon.cpp'))
-system_ss.add(when: 'CONFIG_SIFIVE_U_OTP', if_true: files('sifive_u_otp.c'))
+system_ss.add(when: 'CONFIG_SIFIVE_U_OTP', if_true: files('sifive_u_otp.cpp'))
 system_ss.add(when: 'CONFIG_SIFIVE_U_PRCI', if_true: files('sifive_u_prci.cpp'))
 
 subdir('macio')
@@ -51,10 +51,10 @@ system_ss.add(when: 'CONFIG_ALLWINNER_H3', if_true: files('allwinner-h3-sysctrl.
 system_ss.add(when: 'CONFIG_ALLWINNER_H3', if_true: files('allwinner-sid.cpp'))
 system_ss.add(when: 'CONFIG_ALLWINNER_R40', if_true: files('allwinner-r40-ccu.cpp'))
 system_ss.add(when: 'CONFIG_ALLWINNER_R40', if_true: files('allwinner-r40-dramc.cpp'))
-system_ss.add(when: 'CONFIG_AXP2XX_PMU', if_true: files('axp2xx.c'))
+system_ss.add(when: 'CONFIG_AXP2XX_PMU', if_true: files('axp2xx.cpp'))
 system_ss.add(when: 'CONFIG_REALVIEW', if_true: files('arm_sysctl.cpp'))
 system_ss.add(when: 'CONFIG_ECCMEMCTL', if_true: files('eccmemctl.cpp'))
-system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_pmu.cpp', 'exynos4210_clk.cpp', 'exynos4210_rng.c'))
+system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_pmu.cpp', 'exynos4210_clk.cpp', 'exynos4210_rng.cpp'))
 system_ss.add(when: 'CONFIG_FSL_IMX8MP_ANALOG', if_true: files('imx8mp_analog.c'))
 system_ss.add(when: 'CONFIG_FSL_IMX8MP_CCM', if_true: files('imx8mp_ccm.c'))
 system_ss.add(when: 'CONFIG_IMX', if_true: files(
@@ -64,16 +64,16 @@ system_ss.add(when: 'CONFIG_IMX', if_true: files(
   'imx6_src.cpp',
   'imx6ul_ccm.c',
   'imx7_ccm.cpp',
-  'imx7_src.c',
+  'imx7_src.cpp',
   'imx7_gpr.cpp',
-  'imx7_snvs.c',
+  'imx7_snvs.cpp',
   'imx_ccm.cpp',
-  'imx_rngc.c',
+  'imx_rngc.cpp',
 ))
-system_ss.add(when: 'CONFIG_MAX78000_AES', if_true: files('max78000_aes.c'))
-system_ss.add(when: 'CONFIG_MAX78000_GCR', if_true: files('max78000_gcr.c'))
-system_ss.add(when: 'CONFIG_MAX78000_ICC', if_true: files('max78000_icc.c'))
-system_ss.add(when: 'CONFIG_MAX78000_TRNG', if_true: files('max78000_trng.c'))
+system_ss.add(when: 'CONFIG_MAX78000_AES', if_true: files('max78000_aes.cpp'))
+system_ss.add(when: 'CONFIG_MAX78000_GCR', if_true: files('max78000_gcr.cpp'))
+system_ss.add(when: 'CONFIG_MAX78000_ICC', if_true: files('max78000_icc.cpp'))
+system_ss.add(when: 'CONFIG_MAX78000_TRNG', if_true: files('max78000_trng.cpp'))
 system_ss.add(when: 'CONFIG_NPCM7XX', if_true: files(
   'npcm_clk.c',
   'npcm_gcr.c',
@@ -86,14 +86,14 @@ system_ss.add(when: 'CONFIG_OMAP', if_true: files(
 ))
 system_ss.add(when: 'CONFIG_RASPI', if_true: files(
   'bcm2835_mbox.cpp',
-  'bcm2835_mphi.c',
+  'bcm2835_mphi.cpp',
   'bcm2835_property.cpp',
-  'bcm2835_rng.c',
+  'bcm2835_rng.cpp',
   'bcm2835_thermal.cpp',
   'bcm2835_cprman.cpp',
   'bcm2835_powermgt.cpp',
 ))
-system_ss.add(when: 'CONFIG_SLAVIO', if_true: files('slavio_misc.c'))
+system_ss.add(when: 'CONFIG_SLAVIO', if_true: files('slavio_misc.cpp'))
 system_ss.add(when: 'CONFIG_ZYNQ', if_true: files('zynq_slcr.c'))
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files('xlnx-zynqmp-crf.c'))
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files('xlnx-zynqmp-apu-ctrl.c'))
@@ -115,16 +115,16 @@ system_ss.add(when: 'CONFIG_STM32F4XX_EXTI', if_true: files('stm32f4xx_exti.cpp'
 system_ss.add(when: 'CONFIG_STM32L4X5_EXTI', if_true: files('stm32l4x5_exti.c'))
 system_ss.add(when: 'CONFIG_STM32L4X5_SYSCFG', if_true: files('stm32l4x5_syscfg.c'))
 system_ss.add(when: 'CONFIG_STM32L4X5_RCC', if_true: files('stm32l4x5_rcc.c'))
-system_ss.add(when: 'CONFIG_MPS2_FPGAIO', if_true: files('mps2-fpgaio.c'))
-system_ss.add(when: 'CONFIG_MPS2_SCC', if_true: files('mps2-scc.c'))
+system_ss.add(when: 'CONFIG_MPS2_FPGAIO', if_true: files('mps2-fpgaio.cpp'))
+system_ss.add(when: 'CONFIG_MPS2_SCC', if_true: files('mps2-scc.cpp'))
 
-system_ss.add(when: 'CONFIG_TZ_MPC', if_true: files('tz-mpc.c'))
+system_ss.add(when: 'CONFIG_TZ_MPC', if_true: files('tz-mpc.cpp'))
 system_ss.add(when: 'CONFIG_TZ_MSC', if_true: files('tz-msc.cpp'))
-system_ss.add(when: 'CONFIG_TZ_PPC', if_true: files('tz-ppc.c'))
+system_ss.add(when: 'CONFIG_TZ_PPC', if_true: files('tz-ppc.cpp'))
 system_ss.add(when: 'CONFIG_IOTKIT_SECCTL', if_true: files('iotkit-secctl.cpp'))
 system_ss.add(when: 'CONFIG_IOTKIT_SYSCTL', if_true: files('iotkit-sysctl.cpp'))
 system_ss.add(when: 'CONFIG_IOTKIT_SYSINFO', if_true: files('iotkit-sysinfo.cpp'))
-system_ss.add(when: 'CONFIG_ARMSSE_CPU_PWRCTRL', if_true: files('armsse-cpu-pwrctrl.c'))
+system_ss.add(when: 'CONFIG_ARMSSE_CPU_PWRCTRL', if_true: files('armsse-cpu-pwrctrl.cpp'))
 system_ss.add(when: 'CONFIG_ARMSSE_CPUID', if_true: files('armsse-cpuid.cpp'))
 system_ss.add(when: 'CONFIG_ARMSSE_MHU', if_true: files('armsse-mhu.cpp'))
 
@@ -143,8 +143,8 @@ system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
   'aspeed_peci.cpp',
   'aspeed_sli.cpp'))
 
-system_ss.add(when: 'CONFIG_MSF2', if_true: files('msf2-sysreg.c'))
-system_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_rng.c'))
+system_ss.add(when: 'CONFIG_MSF2', if_true: files('msf2-sysreg.cpp'))
+system_ss.add(when: 'CONFIG_NRF51_SOC', if_true: files('nrf51_rng.cpp'))
 
 system_ss.add(when: 'CONFIG_GRLIB', if_true: files('grlib_ahb_apb_pnp.cpp'))
 

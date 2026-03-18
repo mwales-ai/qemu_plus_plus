@@ -19,7 +19,7 @@
 
 static int max78000_uart_can_receive(void *opaque)
 {
-    Max78000UartState *s = opaque;
+    Max78000UartState *s = static_cast<Max78000UartState *>(opaque);
     if (!(s->ctrl & UART_BCLKEN)) {
         return 0;
     }
@@ -36,9 +36,9 @@ static void max78000_update_irq(Max78000UartState *s)
 
 static void max78000_uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    Max78000UartState *s = opaque;
+    Max78000UartState *s = static_cast<Max78000UartState *>(opaque);
 
-    assert(size <= fifo8_num_free(&s->rx_fifo));
+    assert(size <= static_cast<int>(fifo8_num_free(&s->rx_fifo)));
 
     fifo8_push_all(&s->rx_fifo, buf, size);
 
@@ -72,7 +72,7 @@ static void max78000_uart_reset_hold(Object *obj, ResetType type)
 static uint64_t max78000_uart_read(void *opaque, hwaddr addr,
                                        unsigned int size)
 {
-    Max78000UartState *s = opaque;
+    Max78000UartState *s = static_cast<Max78000UartState *>(opaque);
     uint64_t retvalue = 0;
     switch (addr) {
     case UART_CTRL:
@@ -121,7 +121,7 @@ static uint64_t max78000_uart_read(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-            "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+            "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
         break;
     }
 
@@ -131,7 +131,7 @@ static uint64_t max78000_uart_read(void *opaque, hwaddr addr,
 static void max78000_uart_write(void *opaque, hwaddr addr,
                                   uint64_t val64, unsigned int size)
 {
-    Max78000UartState *s = opaque;
+    Max78000UartState *s = static_cast<Max78000UartState *>(opaque);
 
     uint32_t value = val64;
     uint8_t data;
@@ -196,8 +196,8 @@ static void max78000_uart_write(void *opaque, hwaddr addr,
         s->wkfl = value;
         return;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"
-            HWADDR_PRIx "\n", __func__, addr);
+        qemu_log_mask(LOG_GUEST_ERROR,
+            "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
     }
 }
 
@@ -212,26 +212,28 @@ static const Property max78000_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", Max78000UartState, chr),
 };
 
+static const VMStateField vmstate_max78000_uart_fields[] = {
+    VMSTATE_UINT32(ctrl, Max78000UartState),
+    VMSTATE_UINT32(status, Max78000UartState),
+    VMSTATE_UINT32(int_en, Max78000UartState),
+    VMSTATE_UINT32(int_fl, Max78000UartState),
+    VMSTATE_UINT32(clkdiv, Max78000UartState),
+    VMSTATE_UINT32(osr, Max78000UartState),
+    VMSTATE_UINT32(txpeek, Max78000UartState),
+    VMSTATE_UINT32(pnr, Max78000UartState),
+    VMSTATE_UINT32(fifo, Max78000UartState),
+    VMSTATE_UINT32(dma, Max78000UartState),
+    VMSTATE_UINT32(wken, Max78000UartState),
+    VMSTATE_UINT32(wkfl, Max78000UartState),
+    VMSTATE_FIFO8(rx_fifo, Max78000UartState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription max78000_uart_vmstate = {
     .name = TYPE_MAX78000_UART,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(ctrl, Max78000UartState),
-        VMSTATE_UINT32(status, Max78000UartState),
-        VMSTATE_UINT32(int_en, Max78000UartState),
-        VMSTATE_UINT32(int_fl, Max78000UartState),
-        VMSTATE_UINT32(clkdiv, Max78000UartState),
-        VMSTATE_UINT32(osr, Max78000UartState),
-        VMSTATE_UINT32(txpeek, Max78000UartState),
-        VMSTATE_UINT32(pnr, Max78000UartState),
-        VMSTATE_UINT32(fifo, Max78000UartState),
-        VMSTATE_UINT32(dma, Max78000UartState),
-        VMSTATE_UINT32(wken, Max78000UartState),
-        VMSTATE_UINT32(wkfl, Max78000UartState),
-        VMSTATE_FIFO8(rx_fifo, Max78000UartState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_max78000_uart_fields,
 };
 
 static void max78000_uart_init(Object *obj)

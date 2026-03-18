@@ -101,7 +101,7 @@ static void xilinx_uartlite_reset(DeviceState *dev)
 static uint64_t
 uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    XilinxUARTLite *s = opaque;
+    XilinxUARTLite *s = static_cast<XilinxUARTLite *>(opaque);
     uint32_t r = 0;
     addr >>= 2;
     switch (addr)
@@ -128,7 +128,7 @@ static void
 uart_write(void *opaque, hwaddr addr,
            uint64_t val64, unsigned int size)
 {
-    XilinxUARTLite *s = opaque;
+    XilinxUARTLite *s = static_cast<XilinxUARTLite *>(opaque);
     uint32_t value = val64;
     unsigned char ch = value;
 
@@ -168,18 +168,20 @@ uart_write(void *opaque, hwaddr addr,
     uart_update_irq(s);
 }
 
-static const MemoryRegionOps uart_ops[2] = {
-    [0 ... 1] = {
-        .read = uart_read,
-        .write = uart_write,
-        .valid = {
-            .min_access_size = 1,
-            .max_access_size = 4,
-        },
-    },
-    [0].endianness = DEVICE_LITTLE_ENDIAN,
-    [1].endianness = DEVICE_BIG_ENDIAN,
-};
+static MemoryRegionOps uart_ops[2];
+
+static void __attribute__((constructor)) init_uart_ops(void)
+{
+    for (int i = 0; i < 2; i++) {
+        memset(&uart_ops[i], 0, sizeof(uart_ops[i]));
+        uart_ops[i].read = uart_read;
+        uart_ops[i].write = uart_write;
+        uart_ops[i].valid.min_access_size = 1;
+        uart_ops[i].valid.max_access_size = 4;
+    }
+    uart_ops[0].endianness = DEVICE_LITTLE_ENDIAN;
+    uart_ops[1].endianness = DEVICE_BIG_ENDIAN;
+}
 
 static const Property xilinx_uartlite_properties[] = {
     DEFINE_PROP_ENDIAN_NODEFAULT("endianness", XilinxUARTLite, model_endianness),
@@ -188,7 +190,7 @@ static const Property xilinx_uartlite_properties[] = {
 
 static void uart_rx(void *opaque, const uint8_t *buf, int size)
 {
-    XilinxUARTLite *s = opaque;
+    XilinxUARTLite *s = static_cast<XilinxUARTLite *>(opaque);
 
     /* Got a byte.  */
     if (s->rx_fifo_len >= 8) {
@@ -206,7 +208,7 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
 
 static int uart_can_rx(void *opaque)
 {
-    XilinxUARTLite *s = opaque;
+    XilinxUARTLite *s = static_cast<XilinxUARTLite *>(opaque);
 
     return s->rx_fifo_len < sizeof(s->rx_fifo);
 }

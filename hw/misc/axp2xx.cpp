@@ -214,15 +214,17 @@ static int axp2xx_tx(I2CSlave *i2c, uint8_t data)
     return 0;
 }
 
-static const VMStateDescription vmstate_axp2xx = {
-    .name = TYPE_AXP2XX,
-    .version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_axp2xx_fields[] = {
         VMSTATE_UINT8_ARRAY(regs, AXP2xxI2CState, NR_REGS),
         VMSTATE_UINT8(ptr, AXP2xxI2CState),
         VMSTATE_UINT8(count, AXP2xxI2CState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription vmstate_axp2xx = {
+    .name = TYPE_AXP2XX,
+    .version_id = 1,
+    .fields = vmstate_axp2xx_fields,
 };
 
 static void axp2xx_class_init(ObjectClass *oc, const void *data)
@@ -242,9 +244,9 @@ static const TypeInfo axp2xx_info = {
     .name = TYPE_AXP2XX,
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(AXP2xxI2CState),
+    .is_abstract = true,
     .class_size = sizeof(AXP2xxClass),
     .class_init = axp2xx_class_init,
-    .is_abstract = true,
 };
 
 static void axp209_class_init(ObjectClass *oc, const void *data)

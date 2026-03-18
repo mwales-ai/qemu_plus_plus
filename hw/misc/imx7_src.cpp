@@ -80,14 +80,16 @@ static const char *imx7_src_reg_name(uint32_t reg)
     }
 }
 
+static const VMStateField vmstate_imx7_src_fields[] = {
+        VMSTATE_UINT32_ARRAY(regs, IMX7SRCState, SRC_MAX),
+        VMSTATE_END_OF_LIST()
+    };
+
 static const VMStateDescription vmstate_imx7_src = {
     .name = TYPE_IMX7_SRC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, IMX7SRCState, SRC_MAX),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_imx7_src_fields,
 };
 
 static void imx7_src_reset(DeviceState *dev)
@@ -133,7 +135,7 @@ struct SRCSCRResetInfo {
 
 static void imx7_clear_reset_bit(CPUState *cpu, run_on_cpu_data data)
 {
-    struct SRCSCRResetInfo *ri = data.host_ptr;
+    struct SRCSCRResetInfo *ri = static_cast<struct SRCSCRResetInfo *>(data.host_ptr);
     IMX7SRCState *s = ri->s;
 
     assert(bql_locked());

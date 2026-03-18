@@ -47,7 +47,7 @@ static void max78000_gcr_reset_hold(Object *obj, ResetType type)
 static uint64_t max78000_gcr_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    Max78000GcrState *s = opaque;
+    Max78000GcrState *s = static_cast<Max78000GcrState *>(opaque);
 
     switch (addr) {
     case SYSCTRL:
@@ -115,7 +115,7 @@ static uint64_t max78000_gcr_read(void *opaque, hwaddr addr,
 static void max78000_gcr_write(void *opaque, hwaddr addr,
                        uint64_t val64, unsigned int size)
 {
-    Max78000GcrState *s = opaque;
+    Max78000GcrState *s = static_cast<Max78000GcrState *>(opaque);
     uint32_t val = val64;
     uint8_t zero[0xc000] = {0};
     switch (addr) {
@@ -278,11 +278,7 @@ static const MemoryRegionOps max78000_gcr_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static const VMStateDescription vmstate_max78000_gcr = {
-    .name = TYPE_MAX78000_GCR,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_max78000_gcr_fields[] = {
         VMSTATE_UINT32(sysctrl, Max78000GcrState),
         VMSTATE_UINT32(rst0, Max78000GcrState),
         VMSTATE_UINT32(clkctrl, Max78000GcrState),
@@ -302,7 +298,13 @@ static const VMStateDescription vmstate_max78000_gcr = {
         VMSTATE_UINT32(eccie, Max78000GcrState),
         VMSTATE_UINT32(eccaddr, Max78000GcrState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription vmstate_max78000_gcr = {
+    .name = TYPE_MAX78000_GCR,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_max78000_gcr_fields,
 };
 
 static void max78000_gcr_init(Object *obj)

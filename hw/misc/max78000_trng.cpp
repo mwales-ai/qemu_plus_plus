@@ -19,7 +19,7 @@ static uint64_t max78000_trng_read(void *opaque, hwaddr addr,
 {
     uint32_t data;
 
-    Max78000TrngState *s = opaque;
+    Max78000TrngState *s = static_cast<Max78000TrngState *>(opaque);
     switch (addr) {
     case CTRL:
         return s->ctrl;
@@ -48,7 +48,7 @@ static uint64_t max78000_trng_read(void *opaque, hwaddr addr,
 static void max78000_trng_write(void *opaque, hwaddr addr,
                     uint64_t val64, unsigned int size)
 {
-    Max78000TrngState *s = opaque;
+    Max78000TrngState *s = static_cast<Max78000TrngState *>(opaque);
     uint32_t val = val64;
     switch (addr) {
     case CTRL:
@@ -89,16 +89,18 @@ static const MemoryRegionOps max78000_trng_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static const VMStateDescription max78000_trng_vmstate = {
-    .name = TYPE_MAX78000_TRNG,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_max78000_trng_vmstate_fields[] = {
         VMSTATE_UINT32(ctrl, Max78000TrngState),
         VMSTATE_UINT32(status, Max78000TrngState),
         VMSTATE_UINT32(data, Max78000TrngState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription max78000_trng_vmstate = {
+    .name = TYPE_MAX78000_TRNG,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_max78000_trng_vmstate_fields,
 };
 
 static void max78000_trng_init(Object *obj)

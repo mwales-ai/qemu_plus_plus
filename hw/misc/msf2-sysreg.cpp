@@ -42,7 +42,7 @@ static void msf2_sysreg_reset(DeviceState *d)
 static uint64_t msf2_sysreg_read(void *opaque, hwaddr offset,
     unsigned size)
 {
-    MSF2SysregState *s = opaque;
+    MSF2SysregState *s = static_cast<MSF2SysregState *>(opaque);
     uint32_t ret = 0;
 
     offset >>= 2;
@@ -61,7 +61,7 @@ static uint64_t msf2_sysreg_read(void *opaque, hwaddr offset,
 static void msf2_sysreg_write(void *opaque, hwaddr offset,
                           uint64_t val, unsigned size)
 {
-    MSF2SysregState *s = opaque;
+    MSF2SysregState *s = static_cast<MSF2SysregState *>(opaque);
     uint32_t newval = val;
 
     offset >>= 2;
@@ -108,14 +108,16 @@ static void msf2_sysreg_init(Object *obj)
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
 }
 
+static const VMStateField vmstate_msf2_sysreg_fields[] = {
+        VMSTATE_UINT32_ARRAY(regs, MSF2SysregState, MSF2_SYSREG_MMIO_SIZE / 4),
+        VMSTATE_END_OF_LIST()
+    };
+
 static const VMStateDescription vmstate_msf2_sysreg = {
     .name = TYPE_MSF2_SYSREG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, MSF2SysregState, MSF2_SYSREG_MMIO_SIZE / 4),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_msf2_sysreg_fields,
 };
 
 static const Property msf2_sysreg_properties[] = {
@@ -149,9 +151,9 @@ static void msf2_sysreg_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo msf2_sysreg_info = {
     .name  = TYPE_MSF2_SYSREG,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .class_init = msf2_sysreg_class_init,
     .instance_size  = sizeof(MSF2SysregState),
     .instance_init = msf2_sysreg_init,
+    .class_init = msf2_sysreg_class_init,
 };
 
 static void msf2_sysreg_register_types(void)

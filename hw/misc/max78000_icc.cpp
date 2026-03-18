@@ -17,7 +17,7 @@
 static uint64_t max78000_icc_read(void *opaque, hwaddr addr,
                                     unsigned int size)
 {
-    Max78000IccState *s = opaque;
+    Max78000IccState *s = static_cast<Max78000IccState *>(opaque);
     switch (addr) {
     case ICC_INFO:
         return s->info;
@@ -40,7 +40,7 @@ static uint64_t max78000_icc_read(void *opaque, hwaddr addr,
 static void max78000_icc_write(void *opaque, hwaddr addr,
                     uint64_t val64, unsigned int size)
 {
-    Max78000IccState *s = opaque;
+    Max78000IccState *s = static_cast<Max78000IccState *>(opaque);
 
     switch (addr) {
     case ICC_CTRL:
@@ -65,16 +65,18 @@ static const MemoryRegionOps max78000_icc_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static const VMStateDescription max78000_icc_vmstate = {
-    .name = TYPE_MAX78000_ICC,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_max78000_icc_vmstate_fields[] = {
         VMSTATE_UINT32(info, Max78000IccState),
         VMSTATE_UINT32(sz, Max78000IccState),
         VMSTATE_UINT32(ctrl, Max78000IccState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription max78000_icc_vmstate = {
+    .name = TYPE_MAX78000_ICC,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_max78000_icc_vmstate_fields,
 };
 
 static void max78000_icc_reset_hold(Object *obj, ResetType type)

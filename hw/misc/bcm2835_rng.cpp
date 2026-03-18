@@ -95,15 +95,17 @@ static const MemoryRegionOps bcm2835_rng_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static const VMStateField vmstate_bcm2835_rng_fields[] = {
+        VMSTATE_UINT32(rng_ctrl, BCM2835RngState),
+        VMSTATE_UINT32(rng_status, BCM2835RngState),
+        VMSTATE_END_OF_LIST()
+    };
+
 static const VMStateDescription vmstate_bcm2835_rng = {
     .name = TYPE_BCM2835_RNG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(rng_ctrl, BCM2835RngState),
-        VMSTATE_UINT32(rng_status, BCM2835RngState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_rng_fields,
 };
 
 static void bcm2835_rng_init(Object *obj)
@@ -135,8 +137,8 @@ static const TypeInfo bcm2835_rng_info = {
     .name          = TYPE_BCM2835_RNG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835RngState),
-    .class_init    = bcm2835_rng_class_init,
     .instance_init = bcm2835_rng_init,
+    .class_init    = bcm2835_rng_class_init,
 };
 
 static void bcm2835_rng_register_types(void)

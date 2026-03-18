@@ -370,9 +370,9 @@ static MemTxResult tz_mpc_handle_block(TZMPC *s, hwaddr addr, MemTxAttrs attrs)
         s->int_info1 = addr;
         s->int_info2 = 0;
         s->int_info2 = FIELD_DP32(s->int_info2, INT_INFO2, HMASTER,
-                                  attrs.requester_id & 0xffff);
+                                  (unsigned)(attrs.requester_id & 0xffff));
         s->int_info2 = FIELD_DP32(s->int_info2, INT_INFO2, HNONSEC,
-                                  ~attrs.secure);
+                                  (unsigned)(~attrs.secure));
         s->int_info2 = FIELD_DP32(s->int_info2, INT_INFO2, CFG_NS,
                                   tz_mpc_cfg_ns(s, addr));
         s->int_stat |= R_INT_STAT_IRQ_MASK;
@@ -565,12 +565,7 @@ static int tz_mpc_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription tz_mpc_vmstate = {
-    .name = "tz-mpc",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .post_load = tz_mpc_post_load,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_tz_mpc_vmstate_fields[] = {
         VMSTATE_UINT32(ctrl, TZMPC),
         VMSTATE_UINT32(blk_idx, TZMPC),
         VMSTATE_UINT32(int_stat, TZMPC),
@@ -580,7 +575,14 @@ static const VMStateDescription tz_mpc_vmstate = {
         VMSTATE_VARRAY_UINT32(blk_lut, TZMPC, blk_max,
                               0, vmstate_info_uint32, uint32_t),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription tz_mpc_vmstate = {
+    .name = "tz-mpc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = tz_mpc_post_load,
+    .fields = vmstate_tz_mpc_vmstate_fields,
 };
 
 static const Property tz_mpc_properties[] = {

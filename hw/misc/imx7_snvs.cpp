@@ -26,15 +26,17 @@
 
 #define RTC_FREQ    32768ULL
 
+static const VMStateField vmstate_imx7_snvs_fields[] = {
+        VMSTATE_UINT64(tick_offset, IMX7SNVSState),
+        VMSTATE_UINT64(lpcr, IMX7SNVSState),
+        VMSTATE_END_OF_LIST()
+    };
+
 static const VMStateDescription vmstate_imx7_snvs = {
     .name = TYPE_IMX7_SNVS,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(tick_offset, IMX7SNVSState),
-        VMSTATE_UINT64(lpcr, IMX7SNVSState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_imx7_snvs_fields,
 };
 
 static uint64_t imx7_snvs_get_count(IMX7SNVSState *s)

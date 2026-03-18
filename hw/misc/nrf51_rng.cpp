@@ -225,18 +225,20 @@ static const Property nrf51_rng_properties[] = {
             period_filtered_us, 660),
 };
 
-static const VMStateDescription vmstate_rng = {
-    .name = "nrf51_soc.rng",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_rng_fields[] = {
         VMSTATE_UINT32(active, NRF51RNGState),
         VMSTATE_UINT32(event_valrdy, NRF51RNGState),
         VMSTATE_UINT32(shortcut_stop_on_valrdy, NRF51RNGState),
         VMSTATE_UINT32(interrupt_enabled, NRF51RNGState),
         VMSTATE_UINT32(filter_enabled, NRF51RNGState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription vmstate_rng = {
+    .name = "nrf51_soc.rng",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_rng_fields,
 };
 
 static void nrf51_rng_class_init(ObjectClass *klass, const void *data)

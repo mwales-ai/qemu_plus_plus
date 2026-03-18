@@ -1476,6 +1476,8 @@ static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
                 qemu_sglist_add(&xfer->sgl, addr, chunk);
             }
             break;
+        default:
+            break;
         }
     }
 
@@ -1527,6 +1529,8 @@ static void xhci_xfer_report(XHCITransfer *xfer)
             reported = 0;
             shortpkt = 0;
             break;
+        default:
+            break;
         }
 
         if (!reported && ((trb->control & TRB_TR_IOC) ||
@@ -1560,6 +1564,8 @@ static void xhci_xfer_report(XHCITransfer *xfer)
         case TR_SETUP:
             reported = 0;
             shortpkt = 0;
+            break;
+        default:
             break;
         }
 

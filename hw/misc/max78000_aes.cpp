@@ -34,7 +34,7 @@ static void max78000_aes_set_status(Max78000AesState *s)
 static uint64_t max78000_aes_read(void *opaque, hwaddr addr,
                                     unsigned int size)
 {
-    Max78000AesState *s = opaque;
+    Max78000AesState *s = static_cast<Max78000AesState *>(opaque);
     switch (addr) {
     case CTRL:
         return s->ctrl;
@@ -106,7 +106,7 @@ static void max78000_aes_do_crypto(Max78000AesState *s)
 static void max78000_aes_write(void *opaque, hwaddr addr,
                     uint64_t val64, unsigned int size)
 {
-    Max78000AesState *s = opaque;
+    Max78000AesState *s = static_cast<Max78000AesState *>(opaque);
     uint32_t val = val64;
     switch (addr) {
     case CTRL:
@@ -173,11 +173,7 @@ static const MemoryRegionOps max78000_aes_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static const VMStateDescription vmstate_max78000_aes = {
-    .name = TYPE_MAX78000_AES,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_max78000_aes_fields[] = {
         VMSTATE_UINT32(ctrl, Max78000AesState),
         VMSTATE_UINT32(status, Max78000AesState),
         VMSTATE_UINT32(intfl, Max78000AesState),
@@ -188,7 +184,13 @@ static const VMStateDescription vmstate_max78000_aes = {
         VMSTATE_UINT32_ARRAY(internal_key.rd_key, Max78000AesState, 60),
         VMSTATE_INT32(internal_key.rounds, Max78000AesState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription vmstate_max78000_aes = {
+    .name = TYPE_MAX78000_AES,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_max78000_aes_fields,
 };
 
 static void max78000_aes_init(Object *obj)

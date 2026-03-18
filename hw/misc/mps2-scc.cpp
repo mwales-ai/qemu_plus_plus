@@ -360,7 +360,7 @@ static const MemoryRegionOps mps2_scc_ops = {
 static void mps2_scc_reset(DeviceState *dev)
 {
     MPS2SCC *s = MPS2_SCC(dev);
-    int i;
+    uint32_t i;
 
     trace_mps2_scc_reset();
     s->cfg0 = s->cfg0_reset;
@@ -414,46 +414,52 @@ static void mps2_scc_finalize(Object *obj)
 
 static bool cfg7_needed(void *opaque)
 {
-    MPS2SCC *s = opaque;
+    MPS2SCC *s = static_cast<MPS2SCC *>(opaque);
 
     return have_cfg7(s);
 }
+
+static const VMStateField vmstate_cfg7_fields[] = {
+    VMSTATE_UINT32(cfg7, MPS2SCC),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_cfg7 = {
     .name = "mps2-scc/cfg7",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = cfg7_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cfg7, MPS2SCC),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cfg7_fields,
+};
+
+static const VMStateField mps2_scc_vmstate_fields[] = {
+    VMSTATE_UINT32(cfg0, MPS2SCC),
+    VMSTATE_UINT32(cfg1, MPS2SCC),
+    VMSTATE_UINT32(cfg2, MPS2SCC),
+    /* cfg3, cfg4 are read-only so need not be migrated */
+    VMSTATE_UINT32(cfg5, MPS2SCC),
+    VMSTATE_UINT32(cfg6, MPS2SCC),
+    VMSTATE_UINT32(cfgdata_rtn, MPS2SCC),
+    VMSTATE_UINT32(cfgdata_out, MPS2SCC),
+    VMSTATE_UINT32(cfgctrl, MPS2SCC),
+    VMSTATE_UINT32(cfgstat, MPS2SCC),
+    VMSTATE_UINT32(dll, MPS2SCC),
+    VMSTATE_VARRAY_UINT32(oscclk, MPS2SCC, num_oscclk,
+                          0, vmstate_info_uint32, uint32_t),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const mps2_scc_vmstate_subsections[] = {
+    &vmstate_cfg7,
+    NULL
 };
 
 static const VMStateDescription mps2_scc_vmstate = {
     .name = "mps2-scc",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cfg0, MPS2SCC),
-        VMSTATE_UINT32(cfg1, MPS2SCC),
-        VMSTATE_UINT32(cfg2, MPS2SCC),
-        /* cfg3, cfg4 are read-only so need not be migrated */
-        VMSTATE_UINT32(cfg5, MPS2SCC),
-        VMSTATE_UINT32(cfg6, MPS2SCC),
-        VMSTATE_UINT32(cfgdata_rtn, MPS2SCC),
-        VMSTATE_UINT32(cfgdata_out, MPS2SCC),
-        VMSTATE_UINT32(cfgctrl, MPS2SCC),
-        VMSTATE_UINT32(cfgstat, MPS2SCC),
-        VMSTATE_UINT32(dll, MPS2SCC),
-        VMSTATE_VARRAY_UINT32(oscclk, MPS2SCC, num_oscclk,
-                              0, vmstate_info_uint32, uint32_t),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_cfg7,
-        NULL
-    }
+    .fields = mps2_scc_vmstate_fields,
+    .subsections = mps2_scc_vmstate_subsections,
 };
 
 static const Property mps2_scc_properties[] = {

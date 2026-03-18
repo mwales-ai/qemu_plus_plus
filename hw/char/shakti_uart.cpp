@@ -30,7 +30,7 @@
 
 static uint64_t shakti_uart_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ShaktiUartState *s = opaque;
+    ShaktiUartState *s = static_cast<ShaktiUartState *>(opaque);
 
     switch (addr) {
     case SHAKTI_UART_BAUD:
@@ -54,7 +54,7 @@ static uint64_t shakti_uart_read(void *opaque, hwaddr addr, unsigned size)
     default:
         /* Also handles TX REG which is write only */
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
     }
 
     return 0;
@@ -63,7 +63,7 @@ static uint64_t shakti_uart_read(void *opaque, hwaddr addr, unsigned size)
 static void shakti_uart_write(void *opaque, hwaddr addr,
                               uint64_t data, unsigned size)
 {
-    ShaktiUartState *s = opaque;
+    ShaktiUartState *s = static_cast<ShaktiUartState *>(opaque);
     uint32_t value = data;
     uint8_t ch;
 
@@ -96,7 +96,7 @@ static void shakti_uart_write(void *opaque, hwaddr addr,
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, addr);
+                      "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, addr);
     }
 }
 
@@ -104,8 +104,8 @@ static const MemoryRegionOps shakti_uart_ops = {
     .read = shakti_uart_read,
     .write = shakti_uart_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {.min_access_size = 1, .max_access_size = 4},
     .valid = {.min_access_size = 1, .max_access_size = 4},
+    .impl = {.min_access_size = 1, .max_access_size = 4},
 };
 
 static void shakti_uart_reset(DeviceState *dev)
@@ -125,14 +125,14 @@ static void shakti_uart_reset(DeviceState *dev)
 
 static int shakti_uart_can_receive(void *opaque)
 {
-    ShaktiUartState *s = opaque;
+    ShaktiUartState *s = static_cast<ShaktiUartState *>(opaque);
 
     return !(s->uart_status & SHAKTI_UART_STATUS_RX_NOT_EMPTY);
 }
 
 static void shakti_uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    ShaktiUartState *s = opaque;
+    ShaktiUartState *s = static_cast<ShaktiUartState *>(opaque);
 
     s->uart_rx = *buf;
     s->uart_status |= SHAKTI_UART_STATUS_RX_NOT_EMPTY;
@@ -174,8 +174,8 @@ static const TypeInfo shakti_uart_info = {
     .name = TYPE_SHAKTI_UART,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ShaktiUartState),
-    .class_init = shakti_uart_class_init,
     .instance_init = shakti_uart_instance_init,
+    .class_init = shakti_uart_class_init,
 };
 
 static void shakti_uart_register_types(void)

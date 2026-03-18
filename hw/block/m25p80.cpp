@@ -1898,7 +1898,7 @@ static const TypeInfo m25p80_info = {
 
 static void m25p80_register_types(void)
 {
-    int i;
+    size_t i;
 
     type_register_static(&m25p80_info);
     for (i = 0; i < ARRAY_SIZE(known_devices); ++i) {

@@ -63,7 +63,7 @@ static void sifive_uart_update_irq(SiFiveUARTState *s)
 static gboolean sifive_uart_xmit(void *do_not_use, GIOCondition cond,
                                  void *opaque)
 {
-    SiFiveUARTState *s = opaque;
+    SiFiveUARTState *s = static_cast<SiFiveUARTState *>(opaque);
     int ret;
     const uint8_t *characters;
     uint32_t numptr = 0;
@@ -89,7 +89,7 @@ static gboolean sifive_uart_xmit(void *do_not_use, GIOCondition cond,
     }
 
     if (!fifo8_is_empty(&s->tx_fifo)) {
-        guint r = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        guint r = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                         sifive_uart_xmit, s);
         if (!r) {
             fifo8_reset(&s->tx_fifo);
@@ -111,7 +111,7 @@ static void sifive_uart_write_tx_fifo(SiFiveUARTState *s, const uint8_t *buf,
 {
     uint64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    if (size > fifo8_num_free(&s->tx_fifo)) {
+    if (size > static_cast<int>(fifo8_num_free(&s->tx_fifo))) {
         size = fifo8_num_free(&s->tx_fifo);
         qemu_log_mask(LOG_GUEST_ERROR, "sifive_uart: TX FIFO overflow.\n");
     }
@@ -133,7 +133,7 @@ static void sifive_uart_write_tx_fifo(SiFiveUARTState *s, const uint8_t *buf,
 static uint64_t
 sifive_uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    SiFiveUARTState *s = opaque;
+    SiFiveUARTState *s = static_cast<SiFiveUARTState *>(opaque);
     unsigned char r;
     switch (addr) {
     case SIFIVE_UART_RXFIFO:
@@ -170,7 +170,7 @@ static void
 sifive_uart_write(void *opaque, hwaddr addr,
                   uint64_t val64, unsigned int size)
 {
-    SiFiveUARTState *s = opaque;
+    SiFiveUARTState *s = static_cast<SiFiveUARTState *>(opaque);
     uint32_t value = val64;
     uint8_t ch = value;
 
@@ -198,7 +198,7 @@ sifive_uart_write(void *opaque, hwaddr addr,
 
 static void fifo_trigger_update(void *opaque)
 {
-    SiFiveUARTState *s = opaque;
+    SiFiveUARTState *s = static_cast<SiFiveUARTState *>(opaque);
 
     sifive_uart_xmit(NULL, G_IO_OUT, s);
 }
@@ -215,7 +215,7 @@ static const MemoryRegionOps sifive_uart_ops = {
 
 static void sifive_uart_rx(void *opaque, const uint8_t *buf, int size)
 {
-    SiFiveUARTState *s = opaque;
+    SiFiveUARTState *s = static_cast<SiFiveUARTState *>(opaque);
 
     /* Got a byte.  */
     if (s->rx_fifo_len >= sizeof(s->rx_fifo)) {
@@ -229,7 +229,7 @@ static void sifive_uart_rx(void *opaque, const uint8_t *buf, int size)
 
 static int sifive_uart_can_rx(void *opaque)
 {
-    SiFiveUARTState *s = opaque;
+    SiFiveUARTState *s = static_cast<SiFiveUARTState *>(opaque);
 
     return s->rx_fifo_len < sizeof(s->rx_fifo);
 }
@@ -240,7 +240,7 @@ static void sifive_uart_event(void *opaque, QEMUChrEvent event)
 
 static int sifive_uart_be_change(void *opaque)
 {
-    SiFiveUARTState *s = opaque;
+    SiFiveUARTState *s = static_cast<SiFiveUARTState *>(opaque);
 
     qemu_chr_fe_set_handlers(&s->chr, sifive_uart_can_rx, sifive_uart_rx,
                              sifive_uart_event, sifive_uart_be_change, s,
@@ -311,24 +311,26 @@ static void sifive_uart_reset_hold(Object *obj, ResetType type)
     qemu_irq_lower(s->irq);
 }
 
+static const VMStateField vmstate_sifive_uart_fields[] = {
+    VMSTATE_UINT8_ARRAY(rx_fifo, SiFiveUARTState,
+                        SIFIVE_UART_RX_FIFO_SIZE),
+    VMSTATE_UINT8(rx_fifo_len, SiFiveUARTState),
+    VMSTATE_UINT32(ie, SiFiveUARTState),
+    VMSTATE_UINT32(ip, SiFiveUARTState),
+    VMSTATE_UINT32(txctrl, SiFiveUARTState),
+    VMSTATE_UINT32(rxctrl, SiFiveUARTState),
+    VMSTATE_UINT32(div, SiFiveUARTState),
+    VMSTATE_UINT32(txfifo, SiFiveUARTState),
+    VMSTATE_FIFO8(tx_fifo, SiFiveUARTState),
+    VMSTATE_TIMER_PTR(fifo_trigger_handle, SiFiveUARTState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sifive_uart = {
     .name = TYPE_SIFIVE_UART,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(rx_fifo, SiFiveUARTState,
-                            SIFIVE_UART_RX_FIFO_SIZE),
-        VMSTATE_UINT8(rx_fifo_len, SiFiveUARTState),
-        VMSTATE_UINT32(ie, SiFiveUARTState),
-        VMSTATE_UINT32(ip, SiFiveUARTState),
-        VMSTATE_UINT32(txctrl, SiFiveUARTState),
-        VMSTATE_UINT32(rxctrl, SiFiveUARTState),
-        VMSTATE_UINT32(div, SiFiveUARTState),
-        VMSTATE_UINT32(txfifo, SiFiveUARTState),
-        VMSTATE_FIFO8(tx_fifo, SiFiveUARTState),
-        VMSTATE_TIMER_PTR(fifo_trigger_handle, SiFiveUARTState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_sifive_uart_fields,
 };
 
 

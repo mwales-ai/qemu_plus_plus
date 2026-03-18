@@ -105,7 +105,7 @@ static bool tz_ppc_check(TZPPC *s, int n, MemTxAttrs attrs)
 static MemTxResult tz_ppc_read(void *opaque, hwaddr addr, uint64_t *pdata,
                                unsigned size, MemTxAttrs attrs)
 {
-    TZPPCPort *p = opaque;
+    TZPPCPort *p = static_cast<TZPPCPort *>(opaque);
     TZPPC *s = p->ppc;
     int n = p - s->port;
     AddressSpace *as = &p->downstream_as;
@@ -145,7 +145,7 @@ static MemTxResult tz_ppc_read(void *opaque, hwaddr addr, uint64_t *pdata,
 static MemTxResult tz_ppc_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned size, MemTxAttrs attrs)
 {
-    TZPPCPort *p = opaque;
+    TZPPCPort *p = static_cast<TZPPCPort *>(opaque);
     TZPPC *s = p->ppc;
     AddressSpace *as = &p->downstream_as;
     int n = p - s->port;
@@ -286,11 +286,7 @@ static void tz_ppc_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static const VMStateDescription tz_ppc_vmstate = {
-    .name = "tz-ppc",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_tz_ppc_vmstate_fields[] = {
         VMSTATE_BOOL_ARRAY(cfg_nonsec, TZPPC, 16),
         VMSTATE_BOOL_ARRAY(cfg_ap, TZPPC, 16),
         VMSTATE_BOOL(cfg_sec_resp, TZPPC),
@@ -298,7 +294,13 @@ static const VMStateDescription tz_ppc_vmstate = {
         VMSTATE_BOOL(irq_clear, TZPPC),
         VMSTATE_BOOL(irq_status, TZPPC),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription tz_ppc_vmstate = {
+    .name = "tz-ppc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_tz_ppc_vmstate_fields,
 };
 
 #define DEFINE_PORT(N)                                          \

@@ -34,7 +34,7 @@ static void core_prop_set_core_id(Object *obj, Visitor *v, const char *name,
     }
 
     if (value < 0) {
-        error_setg(errp, "Invalid core id %"PRId64, value);
+        error_setg(errp, "Invalid core id %" PRId64, value);
         return;
     }
 

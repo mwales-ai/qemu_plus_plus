@@ -28,7 +28,7 @@
 
 static int avr_usart_can_receive(void *opaque)
 {
-    AVRUsartState *usart = opaque;
+    AVRUsartState *usart = static_cast<AVRUsartState *>(opaque);
 
     if (usart->data_valid || !(usart->csrb & USART_CSRB_RXEN)) {
         return 0;
@@ -38,7 +38,7 @@ static int avr_usart_can_receive(void *opaque)
 
 static void avr_usart_receive(void *opaque, const uint8_t *buffer, int size)
 {
-    AVRUsartState *usart = opaque;
+    AVRUsartState *usart = static_cast<AVRUsartState *>(opaque);
     assert(size == 1);
     assert(!usart->data_valid);
     usart->data = buffer[0];
@@ -107,7 +107,7 @@ static void avr_usart_reset(DeviceState *dev)
 
 static uint64_t avr_usart_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    AVRUsartState *usart = opaque;
+    AVRUsartState *usart = static_cast<AVRUsartState *>(opaque);
     uint8_t data;
     assert(size == 1);
 
@@ -144,7 +144,7 @@ static uint64_t avr_usart_read(void *opaque, hwaddr addr, unsigned int size)
     default:
         qemu_log_mask(
             LOG_GUEST_ERROR,
-            "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+            "%s: Bad offset 0x%" HWADDR_PRIx "\n",
             __func__,
             addr);
     }
@@ -154,7 +154,7 @@ static uint64_t avr_usart_read(void *opaque, hwaddr addr, unsigned int size)
 static void avr_usart_write(void *opaque, hwaddr addr, uint64_t value,
                                 unsigned int size)
 {
-    AVRUsartState *usart = opaque;
+    AVRUsartState *usart = static_cast<AVRUsartState *>(opaque);
     uint8_t mask;
     uint8_t data;
     assert((value & 0xff) == value);
@@ -246,7 +246,7 @@ static void avr_usart_write(void *opaque, hwaddr addr, uint64_t value,
     default:
         qemu_log_mask(
             LOG_GUEST_ERROR,
-            "%s: Bad offset 0x%"HWADDR_PRIx"\n",
+            "%s: Bad offset 0x%" HWADDR_PRIx "\n",
             __func__,
             addr);
     }

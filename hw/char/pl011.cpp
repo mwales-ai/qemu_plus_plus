@@ -136,7 +136,7 @@ static const uint32_t irqmask[] = {
 static void pl011_update(PL011State *s)
 {
     uint32_t flags;
-    int i;
+    size_t i;
 
     flags = s->int_level & s->int_enabled;
     trace_pl011_irq_state(flags != 0);
@@ -190,7 +190,7 @@ static void pl011_fifo_rx_put(void *opaque, uint32_t value)
     s->read_count++;
     s->flags &= ~PL011_FLAG_RXFE;
     trace_pl011_fifo_rx_put(value, s->read_count, pipe_depth);
-    if (s->read_count == pipe_depth) {
+    if (static_cast<unsigned>(s->read_count) == pipe_depth) {
         trace_pl011_fifo_rx_full();
         s->flags |= PL011_FLAG_RXFF;
     }
@@ -573,8 +573,8 @@ static int pl011_post_load(void *opaque, int version_id)
     PL011State* s = static_cast<PL011State *>(opaque);
 
     /* Sanity-check input state */
-    if (s->read_pos >= ARRAY_SIZE(s->read_fifo) ||
-        s->read_count > ARRAY_SIZE(s->read_fifo)) {
+    if (static_cast<size_t>(s->read_pos) >= ARRAY_SIZE(s->read_fifo) ||
+        static_cast<size_t>(s->read_count) > ARRAY_SIZE(s->read_fifo)) {
         return -1;
     }
 
@@ -638,7 +638,7 @@ static void pl011_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     PL011State *s = PL011(obj);
-    int i;
+    size_t i;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl011_ops, s, "pl011", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);

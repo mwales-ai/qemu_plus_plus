@@ -89,7 +89,7 @@ static void sh_serial_clear_fifo(SHSerialState *s)
 static void sh_serial_write(void *opaque, hwaddr offs,
                             uint64_t val, unsigned size)
 {
-    SHSerialState *s = opaque;
+    SHSerialState *s = static_cast<SHSerialState *>(opaque);
     DeviceState *d = DEVICE(s);
     unsigned char ch;
 
@@ -208,7 +208,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
 static uint64_t sh_serial_read(void *opaque, hwaddr offs,
                                unsigned size)
 {
-    SHSerialState *s = opaque;
+    SHSerialState *s = static_cast<SHSerialState *>(opaque);
     DeviceState *d = DEVICE(s);
     uint32_t ret = UINT32_MAX;
 
@@ -328,13 +328,13 @@ static void sh_serial_receive_break(SHSerialState *s)
 
 static int sh_serial_can_receive1(void *opaque)
 {
-    SHSerialState *s = opaque;
+    SHSerialState *s = static_cast<SHSerialState *>(opaque);
     return sh_serial_can_receive(s);
 }
 
 static void sh_serial_timeout_int(void *opaque)
 {
-    SHSerialState *s = opaque;
+    SHSerialState *s = static_cast<SHSerialState *>(opaque);
 
     s->flags |= SH_SERIAL_FLAG_RDF;
     if (s->scr & (1 << 6) && s->rxi) {
@@ -344,7 +344,7 @@ static void sh_serial_timeout_int(void *opaque)
 
 static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
 {
-    SHSerialState *s = opaque;
+    SHSerialState *s = static_cast<SHSerialState *>(opaque);
 
     if (s->feat & SH_SERIAL_FEAT_SCIF) {
         int i;
@@ -372,7 +372,7 @@ static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
 
 static void sh_serial_event(void *opaque, QEMUChrEvent event)
 {
-    SHSerialState *s = opaque;
+    SHSerialState *s = static_cast<SHSerialState *>(opaque);
     if (event == CHR_EVENT_BREAK) {
         sh_serial_receive_break(s);
     }
@@ -408,7 +408,7 @@ static void sh_serial_reset(DeviceState *dev)
 static void sh_serial_realize(DeviceState *d, Error **errp)
 {
     SHSerialState *s = SH_SERIAL(d);
-    MemoryRegion *iomem = g_malloc(sizeof(*iomem));
+    MemoryRegion *iomem = static_cast<MemoryRegion *>(g_malloc(sizeof(*iomem)));
 
     assert(d->id);
     memory_region_init_io(iomem, OBJECT(d), &sh_serial_ops, s, d->id, 0x28);

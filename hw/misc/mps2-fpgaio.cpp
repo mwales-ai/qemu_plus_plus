@@ -301,11 +301,7 @@ static void mps2_fpgaio_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static const VMStateDescription mps2_fpgaio_vmstate = {
-    .name = "mps2-fpgaio",
-    .version_id = 3,
-    .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_mps2_fpgaio_vmstate_fields[] = {
         VMSTATE_UINT32(led0, MPS2FPGAIO),
         VMSTATE_UINT32(prescale, MPS2FPGAIO),
         VMSTATE_UINT32(misc, MPS2FPGAIO),
@@ -316,7 +312,13 @@ static const VMStateDescription mps2_fpgaio_vmstate = {
         VMSTATE_UINT32(pscntr, MPS2FPGAIO),
         VMSTATE_INT64(pscntr_sync_ticks, MPS2FPGAIO),
         VMSTATE_END_OF_LIST()
-    },
+    };
+
+static const VMStateDescription mps2_fpgaio_vmstate = {
+    .name = "mps2-fpgaio",
+    .version_id = 3,
+    .minimum_version_id = 3,
+    .fields = vmstate_mps2_fpgaio_vmstate_fields,
 };
 
 static const Property mps2_fpgaio_properties[] = {

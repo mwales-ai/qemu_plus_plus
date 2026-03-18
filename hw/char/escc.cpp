@@ -838,7 +838,7 @@ static void sunkbd_handle_event(DeviceState *dev, QemuConsole *src,
         }
     }
 
-    if (qcode >= qemu_input_map_qcode_to_sun_len) {
+    if (static_cast<guint>(qcode) >= qemu_input_map_qcode_to_sun_len) {
         return;
     }
 
@@ -862,7 +862,7 @@ static uint8_t sunkbd_layout_dip_switch(const char *kbd_layout)
     static uint8_t ret = 0xff;
 
     if ((ret == 0xff) && kbd_layout) {
-        int i;
+        size_t i;
         struct layout_values {
             const char *lang;
             uint8_t dip;

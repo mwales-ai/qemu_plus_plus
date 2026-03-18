@@ -91,7 +91,7 @@ struct APCState {
 
 static void slavio_misc_update_irq(void *opaque)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     if ((s->aux2 & AUX2_PWRFAIL) && (s->config & CFG_PWRINTEN)) {
         trace_slavio_misc_update_irq_raise();
@@ -112,7 +112,7 @@ static void slavio_misc_reset(DeviceState *d)
 
 static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     trace_slavio_set_power_fail(power_failing, s->config);
     if (power_failing && (s->config & CFG_PWRINTEN)) {
@@ -126,7 +126,7 @@ static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
 static void slavio_cfg_mem_writeb(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     trace_slavio_cfg_mem_writeb(val & 0xff);
     s->config = val & 0xff;
@@ -136,7 +136,7 @@ static void slavio_cfg_mem_writeb(void *opaque, hwaddr addr,
 static uint64_t slavio_cfg_mem_readb(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
 
     ret = s->config;
@@ -157,7 +157,7 @@ static const MemoryRegionOps slavio_cfg_mem_ops = {
 static void slavio_diag_mem_writeb(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     trace_slavio_diag_mem_writeb(val & 0xff);
     s->diag = val & 0xff;
@@ -166,7 +166,7 @@ static void slavio_diag_mem_writeb(void *opaque, hwaddr addr,
 static uint64_t slavio_diag_mem_readb(void *opaque, hwaddr addr,
                                       unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
 
     ret = s->diag;
@@ -187,7 +187,7 @@ static const MemoryRegionOps slavio_diag_mem_ops = {
 static void slavio_mdm_mem_writeb(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     trace_slavio_mdm_mem_writeb(val & 0xff);
     s->mctrl = val & 0xff;
@@ -196,7 +196,7 @@ static void slavio_mdm_mem_writeb(void *opaque, hwaddr addr,
 static uint64_t slavio_mdm_mem_readb(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
 
     ret = s->mctrl;
@@ -217,7 +217,7 @@ static const MemoryRegionOps slavio_mdm_mem_ops = {
 static void slavio_aux1_mem_writeb(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     trace_slavio_aux1_mem_writeb(val & 0xff);
     if (val & AUX1_TC) {
@@ -234,7 +234,7 @@ static void slavio_aux1_mem_writeb(void *opaque, hwaddr addr,
 static uint64_t slavio_aux1_mem_readb(void *opaque, hwaddr addr,
                                       unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
 
     ret = s->aux1;
@@ -255,7 +255,7 @@ static const MemoryRegionOps slavio_aux1_mem_ops = {
 static void slavio_aux2_mem_writeb(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     val &= AUX2_PWRINTCLR | AUX2_PWROFF;
     trace_slavio_aux2_mem_writeb(val & 0xff);
@@ -271,7 +271,7 @@ static void slavio_aux2_mem_writeb(void *opaque, hwaddr addr,
 static uint64_t slavio_aux2_mem_readb(void *opaque, hwaddr addr,
                                       unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
 
     ret = s->aux2;
@@ -292,7 +292,7 @@ static const MemoryRegionOps slavio_aux2_mem_ops = {
 static void apc_mem_writeb(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    APCState *s = opaque;
+    APCState *s = static_cast<APCState *>(opaque);
 
     trace_apc_mem_writeb(val & 0xff);
     qemu_irq_raise(s->cpu_halt);
@@ -320,7 +320,7 @@ static const MemoryRegionOps apc_mem_ops = {
 static uint64_t slavio_sysctrl_mem_readl(void *opaque, hwaddr addr,
                                          unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
 
     switch (addr) {
@@ -337,7 +337,7 @@ static uint64_t slavio_sysctrl_mem_readl(void *opaque, hwaddr addr,
 static void slavio_sysctrl_mem_writel(void *opaque, hwaddr addr,
                                       uint64_t val, unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     trace_slavio_sysctrl_mem_writel(val);
     switch (addr) {
@@ -365,7 +365,7 @@ static const MemoryRegionOps slavio_sysctrl_mem_ops = {
 static uint64_t slavio_led_mem_readw(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
 
     switch (addr) {
@@ -382,7 +382,7 @@ static uint64_t slavio_led_mem_readw(void *opaque, hwaddr addr,
 static void slavio_led_mem_writew(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
-    MiscState *s = opaque;
+    MiscState *s = static_cast<MiscState *>(opaque);
 
     trace_slavio_led_mem_writew(val & 0xffff);
     switch (addr) {
@@ -404,11 +404,7 @@ static const MemoryRegionOps slavio_led_mem_ops = {
     },
 };
 
-static const VMStateDescription vmstate_misc = {
-    .name ="slavio_misc",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_misc_fields[] = {
         VMSTATE_UINT32(dummy, MiscState),
         VMSTATE_UINT8(config, MiscState),
         VMSTATE_UINT8(aux1, MiscState),
@@ -417,7 +413,13 @@ static const VMStateDescription vmstate_misc = {
         VMSTATE_UINT8(mctrl, MiscState),
         VMSTATE_UINT8(sysctrl, MiscState),
         VMSTATE_END_OF_LIST()
-    }
+    };
+
+static const VMStateDescription vmstate_misc = {
+    .name ="slavio_misc",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_misc_fields,
 };
 
 static void apc_init(Object *obj)
