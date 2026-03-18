@@ -24,6 +24,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/units.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
@@ -35,6 +37,7 @@
 #include "hw/irq.h"
 #include "hw/or-irq.h"
 #include "qom/object.h"
+}
 
 #define TYPE_RAVEN_PCI_DEVICE "raven"
 #define TYPE_RAVEN_PCI_HOST_BRIDGE "raven-pcihost"
@@ -69,14 +72,14 @@ static inline uint32_t raven_idsel_to_addr(hwaddr addr)
 static void raven_mmcfg_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned int size)
 {
-    PCIBus *hbus = opaque;
+    PCIBus *hbus = static_cast<PCIBus *>(opaque);
 
     pci_data_write(hbus, raven_idsel_to_addr(addr), val, size);
 }
 
 static uint64_t raven_mmcfg_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    PCIBus *hbus = opaque;
+    PCIBus *hbus = static_cast<PCIBus *>(opaque);
 
     return pci_data_read(hbus, raven_idsel_to_addr(addr), size);
 }
@@ -99,13 +102,16 @@ static void raven_intack_write(void *opaque, hwaddr addr,
     qemu_log_mask(LOG_UNIMP, "%s not implemented\n", __func__);
 }
 
-static const MemoryRegionOps raven_intack_ops = {
+static MemoryRegionOps raven_intack_ops = {
     .read = raven_intack_read,
     .write = raven_intack_write,
-    .valid = {
-        .max_access_size = 1,
-    },
 };
+
+static void raven_intack_ops_init(void) __attribute__((constructor));
+static void raven_intack_ops_init(void)
+{
+    raven_intack_ops.valid.max_access_size = 1;
+}
 
 static inline hwaddr raven_io_address(PREPPCIState *s,
                                       hwaddr addr)
@@ -126,7 +132,7 @@ static inline hwaddr raven_io_address(PREPPCIState *s,
 static uint64_t raven_io_read(void *opaque, hwaddr addr,
                               unsigned int size)
 {
-    PREPPCIState *s = opaque;
+    PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
     uint8_t buf[4];
 
     addr = raven_io_address(s, addr);
@@ -147,7 +153,7 @@ static uint64_t raven_io_read(void *opaque, hwaddr addr,
 static void raven_io_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned int size)
 {
-    PREPPCIState *s = opaque;
+    PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
     uint8_t buf[4];
 
     addr = raven_io_address(s, addr);
@@ -166,13 +172,19 @@ static void raven_io_write(void *opaque, hwaddr addr,
                         MEMTXATTRS_UNSPECIFIED, buf, size);
 }
 
-static const MemoryRegionOps raven_io_ops = {
+static MemoryRegionOps raven_io_ops = {
     .read = raven_io_read,
     .write = raven_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .max_access_size = 4, .unaligned = true, },
-    .valid = { .unaligned = true, },
 };
+
+static void raven_io_ops_init(void) __attribute__((constructor));
+static void raven_io_ops_init(void)
+{
+    raven_io_ops.impl.max_access_size = 4;
+    raven_io_ops.impl.unaligned = true;
+    raven_io_ops.valid.unaligned = true;
+}
 
 static int raven_map_irq(PCIDevice *pci_dev, int irq_num)
 {
@@ -181,7 +193,7 @@ static int raven_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void raven_set_irq(void *opaque, int irq_num, int level)
 {
-    PREPPCIState *s = opaque;
+    PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
 
     qemu_set_irq(s->pci_irqs[irq_num], level);
 }
@@ -189,7 +201,7 @@ static void raven_set_irq(void *opaque, int irq_num, int level)
 static AddressSpace *raven_pcihost_set_iommu(PCIBus *bus, void *opaque,
                                              int devfn)
 {
-    PREPPCIState *s = opaque;
+    PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
 
     return &s->bm_as;
 }
@@ -200,7 +212,7 @@ static const PCIIOMMUOps raven_iommu_ops = {
 
 static void raven_change_gpio(void *opaque, int n, int level)
 {
-    PREPPCIState *s = opaque;
+    PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
 
     s->contiguous_map = level;
 }
@@ -325,6 +337,11 @@ static void raven_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo raven_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo raven_types[] = {
     {
         .name = TYPE_RAVEN_PCI_HOST_BRIDGE,
@@ -337,10 +354,7 @@ static const TypeInfo raven_types[] = {
         .name = TYPE_RAVEN_PCI_DEVICE,
         .parent = TYPE_PCI_DEVICE,
         .class_init = raven_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        },
+        .interfaces = raven_pci_interfaces,
     },
 };
 

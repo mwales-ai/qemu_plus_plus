@@ -6,18 +6,23 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/sysbus.h"
 #include "hw/intc/loongson_ipi_common.h"
 #include "hw/irq.h"
 #include "qemu/log.h"
 #include "migration/vmstate.h"
 #include "system/kvm.h"
+}
+
 #include "trace.h"
 
+extern "C"
 MemTxResult loongson_ipi_core_readl(void *opaque, hwaddr addr, uint64_t *data,
                                     unsigned size, MemTxAttrs attrs)
 {
-    IPICore *s = opaque;
+    IPICore *s = static_cast<IPICore *>(opaque);
     uint64_t ret = 0;
     int index = 0;
 
@@ -54,7 +59,7 @@ static MemTxResult loongson_ipi_iocsr_readl(void *opaque, hwaddr addr,
                                             uint64_t *data, unsigned size,
                                             MemTxAttrs attrs)
 {
-    LoongsonIPICommonState *ipi = opaque;
+    LoongsonIPICommonState *ipi = static_cast<LoongsonIPICommonState *>(opaque);
     IPICore *s;
 
     if (attrs.requester_id >= ipi->num_cpu) {
@@ -139,10 +144,11 @@ static MemTxResult any_send(LoongsonIPICommonState *ipi,
     return send_ipi_data(ipi, cs, val, addr, attrs);
 }
 
+extern "C"
 MemTxResult loongson_ipi_core_writel(void *opaque, hwaddr addr, uint64_t val,
                                      unsigned size, MemTxAttrs attrs)
 {
-    IPICore *s = opaque;
+    IPICore *s = static_cast<IPICore *>(opaque);
     LoongsonIPICommonState *ipi = s->ipi;
     LoongsonIPICommonClass *licc = LOONGSON_IPI_COMMON_GET_CLASS(ipi);
     int index = 0;
@@ -199,7 +205,7 @@ static MemTxResult loongson_ipi_iocsr_writel(void *opaque, hwaddr addr,
                                             uint64_t val, unsigned size,
                                             MemTxAttrs attrs)
 {
-    LoongsonIPICommonState *ipi = opaque;
+    LoongsonIPICommonState *ipi = static_cast<LoongsonIPICommonState *>(opaque);
     IPICore *s;
 
     if (attrs.requester_id >= ipi->num_cpu) {
@@ -210,19 +216,26 @@ static MemTxResult loongson_ipi_iocsr_writel(void *opaque, hwaddr addr,
     return loongson_ipi_core_writel(s, addr, val, size, attrs);
 }
 
-static const MemoryRegionOps loongson_ipi_iocsr_ops = {
+static MemoryRegionOps loongson_ipi_iocsr_ops = {
     .read_with_attrs = loongson_ipi_iocsr_readl,
     .write_with_attrs = loongson_ipi_iocsr_writel,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
-    .valid = { .min_access_size = 4, .max_access_size = 8, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void loongson_ipi_iocsr_ops_init(void) __attribute__((constructor));
+static void loongson_ipi_iocsr_ops_init(void)
+{
+    loongson_ipi_iocsr_ops.impl.min_access_size = 4;
+    loongson_ipi_iocsr_ops.impl.max_access_size = 4;
+    loongson_ipi_iocsr_ops.valid.min_access_size = 4;
+    loongson_ipi_iocsr_ops.valid.max_access_size = 8;
+}
 
 /* mail send and any send only support writeq */
 static MemTxResult loongson_ipi_writeq(void *opaque, hwaddr addr, uint64_t val,
                                         unsigned size, MemTxAttrs attrs)
 {
-    LoongsonIPICommonState *ipi = opaque;
+    LoongsonIPICommonState *ipi = static_cast<LoongsonIPICommonState *>(opaque);
     MemTxResult ret = MEMTX_OK;
 
     addr &= 0xfff;
@@ -240,12 +253,19 @@ static MemTxResult loongson_ipi_writeq(void *opaque, hwaddr addr, uint64_t val,
     return ret;
 }
 
-static const MemoryRegionOps loongson_ipi64_ops = {
+static MemoryRegionOps loongson_ipi64_ops = {
     .write_with_attrs = loongson_ipi_writeq,
-    .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .valid = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void loongson_ipi64_ops_init(void) __attribute__((constructor));
+static void loongson_ipi64_ops_init(void)
+{
+    loongson_ipi64_ops.impl.min_access_size = 8;
+    loongson_ipi64_ops.impl.max_access_size = 8;
+    loongson_ipi64_ops.valid.min_access_size = 8;
+    loongson_ipi64_ops.valid.max_access_size = 8;
+}
 
 static void loongson_ipi_common_realize(DeviceState *dev, Error **errp)
 {
@@ -304,32 +324,36 @@ static int loongson_ipi_common_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ipi_core_fields[] = {
+    VMSTATE_UINT32(status, IPICore),
+    VMSTATE_UINT32(en, IPICore),
+    VMSTATE_UINT32(set, IPICore),
+    VMSTATE_UINT32(clear, IPICore),
+    VMSTATE_UINT32_ARRAY(buf, IPICore, IPI_MBX_NUM * 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ipi_core = {
     .name = "ipi-single",
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_save  = loongson_ipi_common_pre_save,
     .post_load = loongson_ipi_common_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(status, IPICore),
-        VMSTATE_UINT32(en, IPICore),
-        VMSTATE_UINT32(set, IPICore),
-        VMSTATE_UINT32(clear, IPICore),
-        VMSTATE_UINT32_ARRAY(buf, IPICore, IPI_MBX_NUM * 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ipi_core_fields,
+};
+
+static const VMStateField vmstate_loongson_ipi_common_fields[] = {
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, LoongsonIPICommonState,
+                                         num_cpu, vmstate_ipi_core,
+                                         IPICore),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_loongson_ipi_common = {
     .name = "loongson_ipi",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(cpu, LoongsonIPICommonState,
-                                             num_cpu, vmstate_ipi_core,
-                                             IPICore),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_loongson_ipi_common_fields,
 };
 
 static void loongson_ipi_common_class_init(ObjectClass *klass, const void *data)

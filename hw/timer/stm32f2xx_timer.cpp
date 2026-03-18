@@ -23,12 +23,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/timer/stm32f2xx_timer.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
 
 #ifndef STM_TIMER_ERR_DEBUG
 #define STM_TIMER_ERR_DEBUG 0
@@ -46,7 +49,7 @@ static void stm32f2xx_timer_set_alarm(STM32F2XXTimerState *s, int64_t now);
 
 static void stm32f2xx_timer_interrupt(void *opaque)
 {
-    STM32F2XXTimerState *s = opaque;
+    STM32F2XXTimerState *s = static_cast<STM32F2XXTimerState *>(opaque);
 
     DB_PRINT("Interrupt\n");
 
@@ -124,9 +127,9 @@ static void stm32f2xx_timer_reset(DeviceState *dev)
 static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    STM32F2XXTimerState *s = opaque;
+    STM32F2XXTimerState *s = static_cast<STM32F2XXTimerState *>(opaque);
 
-    DB_PRINT("Read 0x%"HWADDR_PRIx"\n", offset);
+    DB_PRINT("Read 0x%" HWADDR_PRIx"\n", offset);
 
     switch (offset) {
     case TIM_CR1:
@@ -170,7 +173,7 @@ static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
         return s->tim_or;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, offset);
+                      "%s: Bad offset 0x%" HWADDR_PRIx"\n", __func__, offset);
     }
 
     return 0;
@@ -179,12 +182,12 @@ static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
 static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
                         uint64_t val64, unsigned size)
 {
-    STM32F2XXTimerState *s = opaque;
+    STM32F2XXTimerState *s = static_cast<STM32F2XXTimerState *>(opaque);
     uint32_t value = val64;
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     uint32_t timer_val = 0;
 
-    DB_PRINT("Write 0x%x, 0x%"HWADDR_PRIx"\n", value, offset);
+    DB_PRINT("Write 0x%x, 0x%" HWADDR_PRIx"\n", value, offset);
 
     switch (offset) {
     case TIM_CR1:
@@ -253,7 +256,7 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
         return;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%"HWADDR_PRIx"\n", __func__, offset);
+                      "%s: Bad offset 0x%" HWADDR_PRIx"\n", __func__, offset);
         return;
     }
 
@@ -270,11 +273,7 @@ static const MemoryRegionOps stm32f2xx_timer_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static const VMStateDescription vmstate_stm32f2xx_timer = {
-    .name = TYPE_STM32F2XX_TIMER,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_stm32f2xx_timer_fields[] = {
         VMSTATE_INT64(tick_offset, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_cr1, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_cr2, STM32F2XXTimerState),
@@ -295,7 +294,13 @@ static const VMStateDescription vmstate_stm32f2xx_timer = {
         VMSTATE_UINT32(tim_dmar, STM32F2XXTimerState),
         VMSTATE_UINT32(tim_or, STM32F2XXTimerState),
         VMSTATE_END_OF_LIST()
-    }
+};
+
+static const VMStateDescription vmstate_stm32f2xx_timer = {
+    .name = TYPE_STM32F2XX_TIMER,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = vmstate_stm32f2xx_timer_fields,
 };
 
 static const Property stm32f2xx_timer_properties[] = {

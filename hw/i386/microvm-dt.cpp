@@ -31,17 +31,23 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "system/device_tree.h"
 #include "hw/char/serial-isa.h"
-#include "hw/i386/fw_cfg.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/sysbus.h"
+}
+
+#include "hw/i386/fw_cfg.h"
 #include "hw/virtio/virtio-mmio.h"
 #include "hw/usb/xhci.h"
 
+extern "C" {
 #include "microvm-dt.h"
+}
 
 static bool debug;
 
@@ -321,6 +327,7 @@ static void dt_setup_sys_bus(MicrovmMachineState *mms)
     }
 }
 
+extern "C"
 void dt_setup_microvm(MicrovmMachineState *mms)
 {
     X86MachineState *x86ms = X86_MACHINE(mms);
@@ -345,7 +352,7 @@ void dt_setup_microvm(MicrovmMachineState *mms)
 
     if (debug) {
         fprintf(stderr, "%s: writing microvm.fdt\n", __func__);
-        if (!g_file_set_contents("microvm.fdt", ms->fdt, size, NULL)) {
+        if (!g_file_set_contents("microvm.fdt", static_cast<const gchar *>(ms->fdt), size, NULL)) {
             fprintf(stderr, "%s: writing microvm.fdt failed\n", __func__);
             return;
         }

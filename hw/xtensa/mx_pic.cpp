@@ -26,9 +26,12 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/irq.h"
 #include "hw/xtensa/mx_pic.h"
 #include "qemu/log.h"
+}
 
 #define MX_MAX_CPU 32
 #define MX_MAX_IRQ 32
@@ -72,7 +75,7 @@ struct XtensaMxPic {
 static uint64_t xtensa_mx_pic_ext_reg_read(void *opaque, hwaddr offset,
                                            unsigned size)
 {
-    struct XtensaMxPicCpu *mx_cpu = opaque;
+    struct XtensaMxPicCpu *mx_cpu = static_cast<struct XtensaMxPicCpu *>(opaque);
     struct XtensaMxPic *mx = mx_cpu->mx;
 
     if (offset < MIROUT + MX_MAX_IRQ) {
@@ -159,7 +162,7 @@ static void xtensa_mx_pic_update_all(XtensaMxPic *mx)
 static void xtensa_mx_pic_ext_reg_write(void *opaque, hwaddr offset,
                                         uint64_t v, unsigned size)
 {
-    struct XtensaMxPicCpu *mx_cpu = opaque;
+    struct XtensaMxPicCpu *mx_cpu = static_cast<struct XtensaMxPicCpu *>(opaque);
     struct XtensaMxPic *mx = mx_cpu->mx;
     unsigned cpu;
 
@@ -263,15 +266,19 @@ static void xtensa_mx_pic_ext_reg_write(void *opaque, hwaddr offset,
     }
 }
 
-static const MemoryRegionOps xtensa_mx_pic_ops = {
+static MemoryRegionOps xtensa_mx_pic_ops = {
     .read = xtensa_mx_pic_ext_reg_read,
     .write = xtensa_mx_pic_ext_reg_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .unaligned = true,
-    },
 };
 
+static void xtensa_mx_pic_ops_init(void) __attribute__((constructor));
+static void xtensa_mx_pic_ops_init(void)
+{
+    xtensa_mx_pic_ops.valid.unaligned = true;
+}
+
+extern "C"
 MemoryRegion *xtensa_mx_pic_register_cpu(XtensaMxPic *mx,
                                          qemu_irq *irq,
                                          qemu_irq runstall)
@@ -291,7 +298,7 @@ MemoryRegion *xtensa_mx_pic_register_cpu(XtensaMxPic *mx,
 
 static void xtensa_mx_pic_set_irq(void *opaque, int irq, int active)
 {
-    XtensaMxPic *mx = opaque;
+    XtensaMxPic *mx = static_cast<XtensaMxPic *>(opaque);
 
     if (irq < mx->n_irq) {
         uint32_t old_irq_state = mx->ext_irq_state;
@@ -314,9 +321,10 @@ static void xtensa_mx_pic_set_irq(void *opaque, int irq, int active)
     }
 }
 
+extern "C"
 XtensaMxPic *xtensa_mx_pic_init(unsigned n_irq)
 {
-    XtensaMxPic *mx = calloc(1, sizeof(XtensaMxPic));
+    XtensaMxPic *mx = static_cast<XtensaMxPic *>(calloc(1, sizeof(XtensaMxPic)));
 
     mx->n_irq = n_irq + 1;
     mx->irq_inputs = qemu_allocate_irqs(xtensa_mx_pic_set_irq, mx,
@@ -324,9 +332,10 @@ XtensaMxPic *xtensa_mx_pic_init(unsigned n_irq)
     return mx;
 }
 
+extern "C"
 void xtensa_mx_pic_reset(void *opaque)
 {
-    XtensaMxPic *mx = opaque;
+    XtensaMxPic *mx = static_cast<XtensaMxPic *>(opaque);
     unsigned i;
 
     mx->ext_irq_state = 0;
@@ -348,6 +357,7 @@ void xtensa_mx_pic_reset(void *opaque)
     }
 }
 
+extern "C"
 qemu_irq *xtensa_mx_pic_get_extints(XtensaMxPic *mx)
 {
     return mx->irq_inputs + 1;

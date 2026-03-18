@@ -25,11 +25,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/sysbus.h"
 #include "hw/sparc/sun4u_iommu.h"
 #include "system/address-spaces.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
+
 #include "trace.h"
 
 
@@ -192,7 +196,7 @@ static IOMMUTLBEntry sun4u_translate_iommu(IOMMUMemoryRegion *iommu,
 static void iommu_mem_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
-    IOMMUState *is = opaque;
+    IOMMUState *is = static_cast<IOMMUState *>(opaque);
 
     trace_sun4u_iommu_mem_write(addr, val, size);
 
@@ -235,7 +239,7 @@ static void iommu_mem_write(void *opaque, hwaddr addr,
 
 static uint64_t iommu_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
-    IOMMUState *is = opaque;
+    IOMMUState *is = static_cast<IOMMUState *>(opaque);
     uint64_t val;
 
     switch (addr) {

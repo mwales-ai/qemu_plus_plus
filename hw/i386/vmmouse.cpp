@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "hw/i386/vmport.h"
@@ -31,6 +33,7 @@
 #include "migration/vmstate.h"
 #include "cpu.h"
 #include "qom/object.h"
+}
 
 #include "trace.h"
 
@@ -101,7 +104,7 @@ static uint32_t vmmouse_get_status(VMMouseState *s)
 
 static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_state)
 {
-    VMMouseState *s = opaque;
+    VMMouseState *s = static_cast<VMMouseState *>(opaque);
     int buttons = 0;
 
     if (s->nb_queue > (VMMOUSE_QUEUE_SIZE - 4))
@@ -220,7 +223,7 @@ static void vmmouse_data(VMMouseState *s, uint32_t *data, uint32_t size)
 
 static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
 {
-    VMMouseState *s = opaque;
+    VMMouseState *s = static_cast<VMMouseState *>(opaque);
     uint32_t data[6];
     uint16_t command;
 
@@ -265,26 +268,28 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
 
 static int vmmouse_post_load(void *opaque, int version_id)
 {
-    VMMouseState *s = opaque;
+    VMMouseState *s = static_cast<VMMouseState *>(opaque);
 
     vmmouse_remove_handler(s);
     vmmouse_update_handler(s, s->absolute);
     return 0;
 }
 
+static const VMStateField vmstate_vmmouse_fields[] = {
+    VMSTATE_INT32_EQUAL(queue_size, VMMouseState, NULL),
+    VMSTATE_UINT32_ARRAY(queue, VMMouseState, VMMOUSE_QUEUE_SIZE),
+    VMSTATE_UINT16(nb_queue, VMMouseState),
+    VMSTATE_UINT16(status, VMMouseState),
+    VMSTATE_UINT8(absolute, VMMouseState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_vmmouse = {
     .name = "vmmouse",
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = vmmouse_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32_EQUAL(queue_size, VMMouseState, NULL),
-        VMSTATE_UINT32_ARRAY(queue, VMMouseState, VMMOUSE_QUEUE_SIZE),
-        VMSTATE_UINT16(nb_queue, VMMouseState),
-        VMSTATE_UINT16(status, VMMouseState),
-        VMSTATE_UINT8(absolute, VMMouseState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmmouse_fields,
 };
 
 static void vmmouse_reset(DeviceState *d)

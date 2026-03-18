@@ -5,9 +5,13 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
+}
+
 #include "trace.h"
 
 #include "hw/virtio/virtio.h"
@@ -20,6 +24,7 @@
 
 /* ----------------------------------------------------------------- */
 
+extern "C"
 void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
 {
     VirtQueueElement *elem;
@@ -32,8 +37,9 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
     /* queue up events ... */
     if (vinput->qindex == vinput->qsize) {
         vinput->qsize++;
-        vinput->queue = g_realloc(vinput->queue, vinput->qsize *
-                                  sizeof(vinput->queue[0]));
+        vinput->queue = static_cast<decltype(vinput->queue)>(
+            g_realloc(vinput->queue, vinput->qsize *
+                                  sizeof(vinput->queue[0])));
     }
     vinput->queue[vinput->qindex++].event = *event;
 
@@ -45,7 +51,7 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
 
     /* ... then check available space ... */
     for (i = 0; i < vinput->qindex; i++) {
-        elem = virtqueue_pop(vinput->evt, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vinput->evt, sizeof(VirtQueueElement)));
         if (!elem) {
             while (--i >= 0) {
                 virtqueue_unpop(vinput->evt, vinput->queue[i].elem, 0);
@@ -83,7 +89,7 @@ static void virtio_input_handle_sts(VirtIODevice *vdev, VirtQueue *vq)
     int len;
 
     for (;;) {
-        elem = virtqueue_pop(vinput->sts, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vinput->sts, sizeof(VirtQueueElement)));
         if (!elem) {
             break;
         }
@@ -100,6 +106,7 @@ static void virtio_input_handle_sts(VirtIODevice *vdev, VirtQueue *vq)
     virtio_notify(vdev, vinput->sts);
 }
 
+extern "C"
 virtio_input_config *virtio_input_find_config(VirtIOInput *vinput,
                                               uint8_t select,
                                               uint8_t subsel)
@@ -115,6 +122,7 @@ virtio_input_config *virtio_input_find_config(VirtIOInput *vinput,
     return NULL;
 }
 
+extern "C"
 void virtio_input_add_config(VirtIOInput *vinput,
                              virtio_input_config *config)
 {
@@ -132,6 +140,7 @@ void virtio_input_add_config(VirtIOInput *vinput,
     QTAILQ_INSERT_TAIL(&vinput->cfg_list, cfg, node);
 }
 
+extern "C"
 void virtio_input_init_config(VirtIOInput *vinput,
                               virtio_input_config *config)
 {
@@ -144,6 +153,7 @@ void virtio_input_init_config(VirtIOInput *vinput,
     }
 }
 
+extern "C"
 void virtio_input_idstr_config(VirtIOInput *vinput,
                                uint8_t select, const char *string)
 {
@@ -220,7 +230,7 @@ static void virtio_input_reset(VirtIODevice *vdev)
 
 static int virtio_input_post_load(void *opaque, int version_id)
 {
-    VirtIOInput *vinput = opaque;
+    VirtIOInput *vinput = static_cast<VirtIOInput *>(opaque);
     VirtIOInputClass *vic = VIRTIO_INPUT_GET_CLASS(vinput);
     VirtIODevice *vdev = VIRTIO_DEVICE(vinput);
 
@@ -290,15 +300,17 @@ static void virtio_input_device_unrealize(DeviceState *dev)
     virtio_cleanup(vdev);
 }
 
+static const VMStateField vmstate_virtio_input_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_input = {
     .name = "virtio-input",
-    .minimum_version_id = VIRTIO_INPUT_VM_VERSION,
     .version_id = VIRTIO_INPUT_VM_VERSION,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = VIRTIO_INPUT_VM_VERSION,
     .post_load = virtio_input_post_load,
+    .fields = vmstate_virtio_input_fields,
 };
 
 static const Property virtio_input_properties[] = {
@@ -326,10 +338,10 @@ static const TypeInfo virtio_input_info = {
     .name          = TYPE_VIRTIO_INPUT,
     .parent        = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOInput),
+    .instance_finalize = virtio_input_finalize,
+    .is_abstract      = true,
     .class_size    = sizeof(VirtIOInputClass),
     .class_init    = virtio_input_class_init,
-    .is_abstract      = true,
-    .instance_finalize = virtio_input_finalize,
 };
 
 /* ----------------------------------------------------------------- */

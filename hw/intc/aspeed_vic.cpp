@@ -28,12 +28,16 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/intc/aspeed_vic.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
+
 #include "trace.h"
 
 #define AVIC_NEW_BASE_OFFSET 0x80
@@ -44,14 +48,14 @@
 
 static void aspeed_vic_update(AspeedVICState *s)
 {
-    uint64_t new = (s->raw & s->enable);
+    uint64_t new_val = (s->raw & s->enable);
     uint64_t flags;
 
-    flags = new & s->select;
+    flags = new_val & s->select;
     trace_aspeed_vic_update_fiq(!!flags);
     qemu_set_irq(s->fiq, !!flags);
 
-    flags = new & ~s->select;
+    flags = new_val & ~s->select;
     trace_aspeed_vic_update_irq(!!flags);
     qemu_set_irq(s->irq, !!flags);
 }
@@ -282,12 +286,19 @@ static void aspeed_vic_write(void *opaque, hwaddr offset, uint64_t data,
     aspeed_vic_update(s);
 }
 
-static const MemoryRegionOps aspeed_vic_ops = {
+static MemoryRegionOps aspeed_vic_ops = {
     .read = aspeed_vic_read,
     .write = aspeed_vic_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
+
+static void aspeed_vic_ops_init(void) __attribute__((constructor));
+static void aspeed_vic_ops_init(void)
+{
+    aspeed_vic_ops.valid.min_access_size = 4;
+    aspeed_vic_ops.valid.max_access_size = 4;
+    aspeed_vic_ops.valid.unaligned = false;
+}
 
 static void aspeed_vic_reset(DeviceState *dev)
 {
@@ -320,21 +331,23 @@ static void aspeed_vic_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(sbd, &s->fiq);
 }
 
+static const VMStateField vmstate_aspeed_vic_fields[] = {
+    VMSTATE_UINT64(level, AspeedVICState),
+    VMSTATE_UINT64(raw, AspeedVICState),
+    VMSTATE_UINT64(select, AspeedVICState),
+    VMSTATE_UINT64(enable, AspeedVICState),
+    VMSTATE_UINT64(trigger, AspeedVICState),
+    VMSTATE_UINT64(sense, AspeedVICState),
+    VMSTATE_UINT64(dual_edge, AspeedVICState),
+    VMSTATE_UINT64(event, AspeedVICState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aspeed_vic = {
     .name = "aspeed.new-vic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(level, AspeedVICState),
-        VMSTATE_UINT64(raw, AspeedVICState),
-        VMSTATE_UINT64(select, AspeedVICState),
-        VMSTATE_UINT64(enable, AspeedVICState),
-        VMSTATE_UINT64(trigger, AspeedVICState),
-        VMSTATE_UINT64(sense, AspeedVICState),
-        VMSTATE_UINT64(dual_edge, AspeedVICState),
-        VMSTATE_UINT64(event, AspeedVICState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aspeed_vic_fields,
 };
 
 static void aspeed_vic_class_init(ObjectClass *klass, const void *data)

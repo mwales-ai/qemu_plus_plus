@@ -7,9 +7,10 @@
  * COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/log.h"
-#include "target/ppc/cpu.h"
 #include "hw/ppc/fdt.h"
 #include "hw/pci-host/pnv_phb3_regs.h"
 #include "hw/pci-host/pnv_phb3.h"
@@ -19,6 +20,7 @@
 #include "hw/pci/pci_bus.h"
 
 #include <libfdt.h>
+}
 
 #define phb3_pbcq_error(pbcq, fmt, ...)                                 \
     qemu_log_mask(LOG_GUEST_ERROR, "phb3_pbcq[%d:%d]: " fmt "\n",       \
@@ -157,7 +159,7 @@ static void pnv_pbcq_nest_xscom_write(void *opaque, hwaddr addr,
         pnv_phb3_remap_irqs(pbcq->phb);
         break;
     default:
-        phb3_pbcq_error(pbcq, "%s @0x%"HWADDR_PRIx"=%"PRIx64, __func__,
+        phb3_pbcq_error(pbcq, "%s @0x%" HWADDR_PRIx "=%" PRIx64, __func__,
                         addr, val);
     }
 }
@@ -174,7 +176,7 @@ static void pnv_pbcq_pci_xscom_write(void *opaque, hwaddr addr,
         pnv_pbcq_update_map(pbcq);
         break;
     default:
-        phb3_pbcq_error(pbcq, "%s @0x%"HWADDR_PRIx"=%"PRIx64, __func__,
+        phb3_pbcq_error(pbcq, "%s @0x%" HWADDR_PRIx "=%" PRIx64, __func__,
                         addr, val);
     }
 }
@@ -200,34 +202,47 @@ static void pnv_pbcq_spci_xscom_write(void *opaque, hwaddr addr,
     case PBCQ_SPCI_CAPP_SEC_TMR:
         break;
     default:
-        phb3_pbcq_error(pbcq, "%s @0x%"HWADDR_PRIx"=%"PRIx64, __func__,
+        phb3_pbcq_error(pbcq, "%s @0x%" HWADDR_PRIx "=%" PRIx64, __func__,
                         addr, val);
     }
 }
 
-static const MemoryRegionOps pnv_pbcq_nest_xscom_ops = {
+static MemoryRegionOps pnv_pbcq_nest_xscom_ops = {
     .read = pnv_pbcq_nest_xscom_read,
     .write = pnv_pbcq_nest_xscom_write,
-    .valid = { .min_access_size = 8, .max_access_size = 8, },
-    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static const MemoryRegionOps pnv_pbcq_pci_xscom_ops = {
+static MemoryRegionOps pnv_pbcq_pci_xscom_ops = {
     .read = pnv_pbcq_pci_xscom_read,
     .write = pnv_pbcq_pci_xscom_write,
-    .valid = { .min_access_size = 8, .max_access_size = 8, },
-    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static const MemoryRegionOps pnv_pbcq_spci_xscom_ops = {
+static MemoryRegionOps pnv_pbcq_spci_xscom_ops = {
     .read = pnv_pbcq_spci_xscom_read,
     .write = pnv_pbcq_spci_xscom_write,
-    .valid = { .min_access_size = 8, .max_access_size = 8, },
-    .impl = { .min_access_size = 8, .max_access_size = 8, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
+
+static void pnv_pbcq_xscom_ops_init(void) __attribute__((constructor));
+static void pnv_pbcq_xscom_ops_init(void)
+{
+    pnv_pbcq_nest_xscom_ops.valid.min_access_size = 8;
+    pnv_pbcq_nest_xscom_ops.valid.max_access_size = 8;
+    pnv_pbcq_nest_xscom_ops.impl.min_access_size = 8;
+    pnv_pbcq_nest_xscom_ops.impl.max_access_size = 8;
+
+    pnv_pbcq_pci_xscom_ops.valid.min_access_size = 8;
+    pnv_pbcq_pci_xscom_ops.valid.max_access_size = 8;
+    pnv_pbcq_pci_xscom_ops.impl.min_access_size = 8;
+    pnv_pbcq_pci_xscom_ops.impl.max_access_size = 8;
+
+    pnv_pbcq_spci_xscom_ops.valid.min_access_size = 8;
+    pnv_pbcq_spci_xscom_ops.valid.max_access_size = 8;
+    pnv_pbcq_spci_xscom_ops.impl.min_access_size = 8;
+    pnv_pbcq_spci_xscom_ops.impl.max_access_size = 8;
+}
 
 static void pnv_pbcq_default_bars(PnvPBCQState *pbcq)
 {
@@ -342,16 +357,18 @@ static void pnv_pbcq_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo pnv_pbcq_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_pbcq_type_info = {
     .name          = TYPE_PNV_PBCQ,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvPBCQState),
     .instance_init = phb3_pbcq_instance_init,
     .class_init    = pnv_pbcq_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .interfaces    = pnv_pbcq_interfaces,
 };
 
 static void pnv_pbcq_register_types(void)

@@ -28,12 +28,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "hw/m68k/next-cube.h"
 #include "ui/console.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+}
 
 OBJECT_DECLARE_SIMPLE_TYPE(NextKBDState, NEXTKBD)
 
@@ -84,7 +87,7 @@ static uint32_t kbd_read_byte(void *opaque, hwaddr addr)
         return 0x10 | 0x2 | 0x1;
 
     default:
-        qemu_log_mask(LOG_UNIMP, "NeXT kbd read byte %"HWADDR_PRIx"\n", addr);
+        qemu_log_mask(LOG_UNIMP, "NeXT kbd read byte %" HWADDR_PRIx "\n", addr);
     }
 
     return 0;
@@ -92,7 +95,7 @@ static uint32_t kbd_read_byte(void *opaque, hwaddr addr)
 
 static uint32_t kbd_read_word(void *opaque, hwaddr addr)
 {
-    qemu_log_mask(LOG_UNIMP, "NeXT kbd read word %"HWADDR_PRIx"\n", addr);
+    qemu_log_mask(LOG_UNIMP, "NeXT kbd read word %" HWADDR_PRIx "\n", addr);
     return 0;
 }
 
@@ -131,7 +134,7 @@ static uint32_t kbd_read_long(void *opaque, hwaddr addr)
         }
 
     default:
-        qemu_log_mask(LOG_UNIMP, "NeXT kbd read long %"HWADDR_PRIx"\n", addr);
+        qemu_log_mask(LOG_UNIMP, "NeXT kbd read long %" HWADDR_PRIx "\n", addr);
         return 0;
     }
 }
@@ -153,16 +156,22 @@ static uint64_t kbd_readfn(void *opaque, hwaddr addr, unsigned size)
 static void kbd_writefn(void *opaque, hwaddr addr, uint64_t value,
                         unsigned size)
 {
-    qemu_log_mask(LOG_UNIMP, "NeXT kbd write: size=%u addr=0x%"HWADDR_PRIx
-                  "val=0x%"PRIx64"\n", size, addr, value);
+    qemu_log_mask(LOG_UNIMP, "NeXT kbd write: size=%u addr=0x%" HWADDR_PRIx
+                  "val=0x%" PRIx64 "\n", size, addr, value);
 }
 
-static const MemoryRegionOps kbd_ops = {
+static MemoryRegionOps kbd_ops = {
     .read = kbd_readfn,
     .write = kbd_writefn,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
 };
+
+static void kbd_ops_init(void) __attribute__((constructor));
+static void kbd_ops_init(void)
+{
+    kbd_ops.valid.min_access_size = 1;
+    kbd_ops.valid.max_access_size = 4;
+}
 
 static const int qcode_to_nextkbd_keycode[] = {
     [Q_KEY_CODE_ESC]           = 0x49,

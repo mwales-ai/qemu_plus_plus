@@ -1,6 +1,6 @@
 xtensa_ss = ss.source_set()
 xtensa_ss.add(files(
-  'mx_pic.c',
+  'mx_pic.cpp',
   'pic_cpu.cpp',
   'xtensa_memory.cpp',
 ))

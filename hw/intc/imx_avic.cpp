@@ -16,11 +16,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/intc/imx_avic.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
 
 #ifndef DEBUG_IMX_AVIC
 #define DEBUG_IMX_AVIC 0
@@ -34,19 +37,21 @@
         } \
     } while (0)
 
+static const VMStateField vmstate_imx_avic_fields[] = {
+    VMSTATE_UINT64(pending, IMXAVICState),
+    VMSTATE_UINT64(enabled, IMXAVICState),
+    VMSTATE_UINT64(is_fiq, IMXAVICState),
+    VMSTATE_UINT32(intcntl, IMXAVICState),
+    VMSTATE_UINT32(intmask, IMXAVICState),
+    VMSTATE_UINT32_ARRAY(prio, IMXAVICState, PRIO_WORDS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_imx_avic = {
     .name = TYPE_IMX_AVIC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(pending, IMXAVICState),
-        VMSTATE_UINT64(enabled, IMXAVICState),
-        VMSTATE_UINT64(is_fiq, IMXAVICState),
-        VMSTATE_UINT32(intcntl, IMXAVICState),
-        VMSTATE_UINT32(intmask, IMXAVICState),
-        VMSTATE_UINT32_ARRAY(prio, IMXAVICState, PRIO_WORDS),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_imx_avic_fields,
 };
 
 static inline int imx_avic_prio(IMXAVICState *s, int irq)
@@ -60,13 +65,13 @@ static inline int imx_avic_prio(IMXAVICState *s, int irq)
 static void imx_avic_update(IMXAVICState *s)
 {
     int i;
-    uint64_t new = s->pending & s->enabled;
+    uint64_t new_val = s->pending & s->enabled;
     uint64_t flags;
 
-    flags = new & s->is_fiq;
+    flags = new_val & s->is_fiq;
     qemu_set_irq(s->fiq, !!flags);
 
-    flags = new & ~s->is_fiq;
+    flags = new_val & ~s->is_fiq;
     if (!flags || (s->intmask == 0x1f)) {
         qemu_set_irq(s->irq, !!flags);
         return;

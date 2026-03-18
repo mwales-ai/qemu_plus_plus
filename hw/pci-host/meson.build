@@ -17,7 +17,7 @@ pci_ss.add(when: 'CONFIG_SH_PCI', if_true: files('sh_pci.cpp'))
 # PPC devices
 pci_ss.add(when: 'CONFIG_PPC4XX_PCI', if_true: files('ppc4xx_pci.c'))
 pci_ss.add(when: 'CONFIG_PPC440_PCIX', if_true: files('ppc440_pcix.c'))
-pci_ss.add(when: 'CONFIG_RAVEN_PCI', if_true: files('raven.c'))
+pci_ss.add(when: 'CONFIG_RAVEN_PCI', if_true: files('raven.cpp'))
 pci_ss.add(when: 'CONFIG_GRACKLE_PCI', if_true: files('grackle.cpp'))
 # NewWorld PowerMac
 pci_ss.add(when: 'CONFIG_UNIN_PCI', if_true: files('uninorth.c'))
@@ -40,9 +40,9 @@ system_ss.add_all(when: 'CONFIG_PCI', if_true: pci_ss)
 
 specific_ss.add(when: 'CONFIG_PCI_POWERNV', if_true: files(
   'pnv_phb3.c',
-  'pnv_phb3_msi.c',
-  'pnv_phb3_pbcq.c',
+  'pnv_phb3_msi.cpp',
+  'pnv_phb3_pbcq.cpp',
   'pnv_phb4.c',
   'pnv_phb4_pec.c',
-  'pnv_phb.c',
+  'pnv_phb.cpp',
 ))

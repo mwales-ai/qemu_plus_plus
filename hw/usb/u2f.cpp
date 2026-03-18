@@ -24,14 +24,20 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "migration/vmstate.h"
+}
+
 #include "hw/usb.h"
 #include "hw/usb/hid.h"
-#include "migration/vmstate.h"
-#include "desc.h"
 
+extern "C" {
+#include "desc.h"
 #include "u2f.h"
+}
 
 /* U2F key Vendor / Product */
 #define U2F_KEY_VENDOR_NUM     0x46f4 /* CRC16() of "QEMU" */
@@ -45,12 +51,47 @@ enum {
     STR_INTERFACE
 };
 
-static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER]     = "QEMU",
-    [STR_PRODUCT]          = "U2F USB key",
-    [STR_SERIALNUMBER]     = "0",
-    [STR_CONFIG]           = "U2F key config",
-    [STR_INTERFACE]        = "U2F key interface"
+static USBDescStrings desc_strings;
+
+static void u2f_desc_strings_init(void) __attribute__((constructor));
+static void u2f_desc_strings_init(void)
+{
+    desc_strings[STR_MANUFACTURER]  = "QEMU";
+    desc_strings[STR_PRODUCT]       = "U2F USB key";
+    desc_strings[STR_SERIALNUMBER]  = "0";
+    desc_strings[STR_CONFIG]        = "U2F key config";
+    desc_strings[STR_INTERFACE]     = "U2F key interface";
+}
+
+static const uint8_t u2f_hid_desc_data[] = {
+    0x09,          /*  u8  bLength */
+    USB_DT_HID,    /*  u8  bDescriptorType */
+    0x10, 0x01,    /*  u16 HID_class */
+    0x00,          /*  u8  country_code */
+    0x01,          /*  u8  num_descriptors */
+    USB_DT_REPORT, /*  u8  type: Report */
+    0x22, 0,       /*  u16 len */
+};
+
+static const USBDescOther desc_iface_u2f_key_descs[] = {
+    {
+        /* HID descriptor */
+        .data = (uint8_t *)u2f_hid_desc_data,
+    },
+};
+
+static const USBDescEndpoint desc_iface_u2f_key_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = U2FHID_PACKET_SIZE,
+        .bInterval             = 0x05,
+    }, {
+        .bEndpointAddress      = USB_DIR_OUT | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = U2FHID_PACKET_SIZE,
+        .bInterval             = 0x05,
+    },
 };
 
 static const USBDescIface desc_iface_u2f_key = {
@@ -60,51 +101,27 @@ static const USBDescIface desc_iface_u2f_key = {
     .bInterfaceSubClass            = 0x0,
     .bInterfaceProtocol            = 0x0,
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* HID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_HID,    /*  u8  bDescriptorType */
-                0x10, 0x01,    /*  u16 HID_class */
-                0x00,          /*  u8  country_code */
-                0x01,          /*  u8  num_descriptors */
-                USB_DT_REPORT, /*  u8  type: Report */
-                0x22, 0,       /*  u16 len */
-            },
-        },
-    },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = U2FHID_PACKET_SIZE,
-            .bInterval             = 0x05,
-        }, {
-            .bEndpointAddress      = USB_DIR_OUT | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = U2FHID_PACKET_SIZE,
-            .bInterval             = 0x05,
-        },
-    },
+    .descs = (USBDescOther *)desc_iface_u2f_key_descs,
+    .eps = (USBDescEndpoint *)desc_iface_u2f_key_eps,
+};
 
+static const USBDescConfig desc_device_u2f_key_confs[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG,
+        .bmAttributes          = USB_CFG_ATT_ONE,
+        .bMaxPower             = 15,
+        .nif = 1,
+        .ifs = &desc_iface_u2f_key,
+    },
 };
 
 static const USBDescDevice desc_device_u2f_key = {
     .bcdUSB                        = 0x0100,
     .bMaxPacketSize0               = U2FHID_PACKET_SIZE,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG,
-            .bmAttributes          = USB_CFG_ATT_ONE,
-            .bMaxPower             = 15,
-            .nif = 1,
-            .ifs = &desc_iface_u2f_key,
-        },
-    },
+    .confs = (USBDescConfig *)desc_device_u2f_key_confs,
 };
 
 static const USBDesc desc_u2f_key = {
@@ -264,6 +281,7 @@ static void u2f_key_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
+extern "C"
 void u2f_send_to_guest(U2FKeyState *key,
                        const uint8_t packet[U2FHID_PACKET_SIZE])
 {
@@ -301,20 +319,22 @@ static void u2f_key_realize(USBDevice *dev, Error **errp)
     key->ep = usb_ep_get(dev, USB_TOKEN_IN, 1);
 }
 
+static const VMStateField vmstate_u2f_key_fields[] = {
+    VMSTATE_USB_DEVICE(dev, U2FKeyState),
+    VMSTATE_UINT8(idle, U2FKeyState),
+    VMSTATE_UINT8_2DARRAY(pending_in, U2FKeyState,
+        U2FHID_PENDING_IN_NUM, U2FHID_PACKET_SIZE),
+    VMSTATE_UINT8(pending_in_start, U2FKeyState),
+    VMSTATE_UINT8(pending_in_end, U2FKeyState),
+    VMSTATE_UINT8(pending_in_num, U2FKeyState),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_u2f_key = {
     .name = "u2f-key",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_USB_DEVICE(dev, U2FKeyState),
-        VMSTATE_UINT8(idle, U2FKeyState),
-        VMSTATE_UINT8_2DARRAY(pending_in, U2FKeyState,
-            U2FHID_PENDING_IN_NUM, U2FHID_PACKET_SIZE),
-        VMSTATE_UINT8(pending_in_start, U2FKeyState),
-        VMSTATE_UINT8(pending_in_end, U2FKeyState),
-        VMSTATE_UINT8(pending_in_num, U2FKeyState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_u2f_key_fields,
 };
 
 static void u2f_key_class_init(ObjectClass *klass, const void *data)

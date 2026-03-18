@@ -1,5 +1,5 @@
 i386_kvm_ss = ss.source_set()
-i386_kvm_ss.add(files('clock.c'))
+i386_kvm_ss.add(files('clock.cpp'))
 i386_kvm_ss.add(when: 'CONFIG_APIC', if_true: files('apic.cpp'))
 i386_kvm_ss.add(when: 'CONFIG_I8254', if_true: files('i8254.cpp'))
 i386_kvm_ss.add(when: 'CONFIG_I8259', if_true: files('i8259.cpp'))

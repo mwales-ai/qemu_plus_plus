@@ -7,6 +7,8 @@
  * COPYING file in the top-level directory.
  */
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/pci-host/pnv_phb3_regs.h"
@@ -16,6 +18,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "system/reset.h"
+}
 
 static uint64_t phb3_msi_ive_addr(PnvPHB3 *phb, int srcno)
 {
@@ -154,6 +157,7 @@ static void phb3_msi_set_irq(void *opaque, int srcno, int val)
 }
 
 
+extern "C"
 void pnv_phb3_msi_send(Phb3MsiState *msi, uint64_t addr, uint16_t data,
                        int32_t dev_pe)
 {
@@ -181,6 +185,7 @@ void pnv_phb3_msi_send(Phb3MsiState *msi, uint64_t addr, uint16_t data,
     qemu_irq_pulse(msi->qirqs[src]);
 }
 
+extern "C"
 void pnv_phb3_msi_ffi(Phb3MsiState *msi, uint64_t val)
 {
     /* Emit interrupt */
@@ -240,6 +245,7 @@ static void phb3_msi_reset_hold(Object *obj, ResetType type)
     msi->rba_sum = 0;
 }
 
+extern "C"
 void pnv_phb3_msi_update_config(Phb3MsiState *msi, uint32_t base,
                                 uint32_t count)
 {
@@ -315,6 +321,7 @@ static void pnv_phb3_msi_register_types(void)
 
 type_init(pnv_phb3_msi_register_types);
 
+extern "C"
 void pnv_phb3_msi_pic_print_info(Phb3MsiState *msi, GString *buf)
 {
     ICSState *ics = ICS(msi);

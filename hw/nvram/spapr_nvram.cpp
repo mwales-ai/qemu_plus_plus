@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -39,6 +41,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qom/object.h"
+}
 
 struct SpaprNvram {
     SpaprVioDevice sdev;
@@ -168,7 +171,7 @@ static void spapr_nvram_realize(SpaprVioDevice *dev, Error **errp)
         nvram->size = DEFAULT_NVRAM_SIZE;
     }
 
-    nvram->buf = g_malloc0(nvram->size);
+    nvram->buf = static_cast<uint8_t *>(g_malloc0(nvram->size));
 
     if ((nvram->size < MIN_NVRAM_SIZE) || (nvram->size > MAX_NVRAM_SIZE)) {
         error_setg(errp,
@@ -217,7 +220,7 @@ static int spapr_nvram_pre_load(void *opaque)
 
 static void postload_update_cb(void *opaque, bool running, RunState state)
 {
-    SpaprNvram *nvram = opaque;
+    SpaprNvram *nvram = static_cast<SpaprNvram *>(opaque);
 
     /* This is called after bdrv_activate_all.  */
 
@@ -239,17 +242,19 @@ static int spapr_nvram_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_spapr_nvram_fields[] = {
+    VMSTATE_UINT32(size, SpaprNvram),
+    VMSTATE_VBUFFER_ALLOC_UINT32(buf, SpaprNvram, 1, NULL, size),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_nvram = {
     .name = "spapr_nvram",
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_load = spapr_nvram_pre_load,
     .post_load = spapr_nvram_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(size, SpaprNvram),
-        VMSTATE_VBUFFER_ALLOC_UINT32(buf, SpaprNvram, 1, NULL, size),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_nvram_fields,
 };
 
 static const Property spapr_nvram_properties[] = {

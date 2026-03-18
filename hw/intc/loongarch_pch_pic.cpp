@@ -6,13 +6,17 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/intc/loongarch_pch_pic.h"
 #include "system/kvm.h"
-#include "trace.h"
 #include "qapi/error.h"
+}
+
+#include "trace.h"
 
 static void pch_pic_update_irq(LoongArchPICCommonState *s, uint64_t mask,
                                int level)
@@ -237,26 +241,21 @@ static void loongarch_pch_pic_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps loongarch_pch_pic_ops = {
+static MemoryRegionOps loongarch_pch_pic_ops = {
     .read = loongarch_pch_pic_read,
     .write = loongarch_pch_pic_write,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-        /*
-         * PCH PIC device would not work correctly if the guest was doing
-         * unaligned access. This might not be a limitation on the real
-         * device but in practice there is no reason for a guest to access
-         * this device unaligned.
-         */
-        .unaligned = false,
-    },
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-    },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void loongarch_pch_pic_ops_init(void) __attribute__((constructor));
+static void loongarch_pch_pic_ops_init(void)
+{
+    loongarch_pch_pic_ops.valid.min_access_size = 1;
+    loongarch_pch_pic_ops.valid.max_access_size = 8;
+    loongarch_pch_pic_ops.valid.unaligned = false;
+    loongarch_pch_pic_ops.impl.min_access_size = 1;
+    loongarch_pch_pic_ops.impl.max_access_size = 8;
+}
 
 static void loongarch_pic_reset_hold(Object *obj, ResetType type)
 {

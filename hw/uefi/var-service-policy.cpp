@@ -7,12 +7,15 @@
  * https://github.com/tianocore/edk2/blob/master/MdeModulePkg/Library/VariablePolicyLib/ReadMe.md
  */
 #include "qemu/osdep.h"
-#include "system/dma.h"
-#include "migration/vmstate.h"
 
+#include "system/dma.h"
+
+extern "C" {
+#include "migration/vmstate.h"
 #include "hw/uefi/var-service.h"
 #include "hw/uefi/var-service-api.h"
 #include "hw/uefi/var-service-edk2.h"
+}
 
 #include "trace.h"
 
@@ -20,26 +23,28 @@ static void calc_policy(uefi_var_policy *pol);
 
 static int uefi_var_policy_post_load(void *opaque, int version_id)
 {
-    uefi_var_policy *pol = opaque;
+    uefi_var_policy *pol = static_cast<uefi_var_policy *>(opaque);
 
     calc_policy(pol);
     return 0;
 }
 
+static const VMStateField vmstate_uefi_var_policy_fields[] = {
+    VMSTATE_UINT32(entry_size, uefi_var_policy),
+    VMSTATE_VBUFFER_ALLOC_UINT32(entry, uefi_var_policy,
+                                 0, NULL, entry_size),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_uefi_var_policy = {
     .name = "uefi-var-policy",
     .post_load = uefi_var_policy_post_load,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(entry_size, uefi_var_policy),
-        VMSTATE_VBUFFER_ALLOC_UINT32(entry, uefi_var_policy,
-                                     0, NULL, entry_size),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_uefi_var_policy_fields,
 };
 
 static void print_policy_entry(variable_policy_entry *pe)
 {
-    uint16_t *name = (void *)pe + pe->offset_to_name;
+    uint16_t *name = (uint16_t *)((char *)pe + pe->offset_to_name);
 
     fprintf(stderr, "%s:\n", __func__);
 
@@ -82,7 +87,7 @@ static uefi_var_policy *find_policy(uefi_vars_state *uv, QemuUUID guid,
     uefi_var_policy *pol;
 
     QTAILQ_FOREACH(pol, &uv->var_policies, next) {
-        if (!qemu_uuid_is_equal(&pol->entry->namespace, &guid)) {
+        if (!qemu_uuid_is_equal(&pol->entry->name_space, &guid)) {
             continue;
         }
         if (!uefi_str_equal(pol->name, pol->name_size,
@@ -100,7 +105,7 @@ static uefi_var_policy *wildcard_find_policy(uefi_vars_state *uv,
     uefi_var_policy *pol;
 
     QTAILQ_FOREACH(pol, &uv->var_policies, next) {
-        if (!qemu_uuid_is_equal(&pol->entry->namespace, &var->guid)) {
+        if (!qemu_uuid_is_equal(&pol->entry->name_space, &var->guid)) {
             continue;
         }
         if (!wildcard_str_equal(pol, var)) {
@@ -116,7 +121,7 @@ static void calc_policy(uefi_var_policy *pol)
     variable_policy_entry *pe = pol->entry;
     unsigned int i;
 
-    pol->name = (void *)pol->entry + pe->offset_to_name;
+    pol->name = (uint16_t *)((char *)pol->entry + pe->offset_to_name);
     pol->name_size = pe->size - pe->offset_to_name;
 
     for (i = 0; i < pol->name_size / 2; i++) {
@@ -126,13 +131,14 @@ static void calc_policy(uefi_var_policy *pol)
     }
 }
 
+extern "C"
 uefi_var_policy *uefi_vars_add_policy(uefi_vars_state *uv,
                                       variable_policy_entry *pe)
 {
     uefi_var_policy *pol, *p;
 
     pol = g_new0(uefi_var_policy, 1);
-    pol->entry = g_malloc(pe->size);
+    pol->entry = static_cast<variable_policy_entry *>(g_malloc(pe->size));
     memcpy(pol->entry, pe, pe->size);
     pol->entry_size = pe->size;
 
@@ -151,6 +157,7 @@ uefi_var_policy *uefi_vars_add_policy(uefi_vars_state *uv,
     return pol;
 }
 
+extern "C"
 efi_status uefi_vars_policy_check(uefi_vars_state *uv,
                                   uefi_variable *var,
                                   gboolean is_newvar)
@@ -209,16 +216,16 @@ efi_status uefi_vars_policy_check(uefi_vars_state *uv,
         break;
 
     case VARIABLE_POLICY_TYPE_LOCK_ON_VAR_STATE:
-        lvarstate    = (void *)pol->entry + sizeof(*pe);
-        lvarname     = (void *)pol->entry + sizeof(*pe) + sizeof(*lvarstate);
+        lvarstate    = (variable_lock_on_var_state *)((char *)pol->entry + sizeof(*pe));
+        lvarname     = (uint16_t *)((char *)pol->entry + sizeof(*pe) + sizeof(*lvarstate));
         lvarnamesize = pe->offset_to_name - sizeof(*pe) - sizeof(*lvarstate);
 
-        uefi_trace_variable(__func__, lvarstate->namespace,
+        uefi_trace_variable(__func__, lvarstate->name_space,
                             lvarname, lvarnamesize);
-        lvar = uefi_vars_find_variable(uv, lvarstate->namespace,
+        lvar = uefi_vars_find_variable(uv, lvarstate->name_space,
                                           lvarname, lvarnamesize);
         if (lvar && lvar->data_size == 1) {
-            uint8_t *value = lvar->data;
+            uint8_t *value = static_cast<uint8_t *>(lvar->data);
             if (lvarstate->value == *value) {
                 return EFI_WRITE_PROTECTED;
             }
@@ -229,6 +236,7 @@ efi_status uefi_vars_policy_check(uefi_vars_state *uv,
     return EFI_SUCCESS;
 }
 
+extern "C"
 void uefi_vars_policies_clear(uefi_vars_state *uv)
 {
     uefi_var_policy *pol;
@@ -254,7 +262,7 @@ static uint32_t uefi_vars_mm_check_policy_is_enabled(uefi_vars_state *uv,
                                                      mm_check_policy *mchk,
                                                      void            *func)
 {
-    mm_check_policy_is_enabled *mpar = func;
+    mm_check_policy_is_enabled *mpar = static_cast<mm_check_policy_is_enabled *>(func);
     size_t length;
 
     length = sizeof(*mchk) + sizeof(*mpar);
@@ -272,7 +280,7 @@ static uint32_t uefi_vars_mm_check_policy_register(uefi_vars_state *uv,
                                                    mm_check_policy *mchk,
                                                    void            *func)
 {
-    variable_policy_entry *pe = func;
+    variable_policy_entry *pe = static_cast<variable_policy_entry *>(func);
     uefi_var_policy *pol;
     uint64_t length;
 
@@ -299,14 +307,14 @@ static uint32_t uefi_vars_mm_check_policy_register(uefi_vars_state *uv,
         return uefi_vars_mm_policy_error(mhdr, mchk, EFI_BAD_BUFFER_SIZE);
     }
 
-    if (!uefi_str_is_valid((void *)pe + pe->offset_to_name,
+    if (!uefi_str_is_valid((uint16_t *)((char *)pe + pe->offset_to_name),
                            pe->size - pe->offset_to_name,
                            false)) {
         return uefi_vars_mm_policy_error(mhdr, mchk, EFI_INVALID_PARAMETER);
     }
 
-    pol = find_policy(uv, pe->namespace,
-                      (void *)pe + pe->offset_to_name,
+    pol = find_policy(uv, pe->name_space,
+                      (uint16_t *)((char *)pe + pe->offset_to_name),
                       pe->size - pe->offset_to_name);
     if (pol) {
         return uefi_vars_mm_policy_error(mhdr, mchk, EFI_ALREADY_STARTED);
@@ -318,6 +326,7 @@ static uint32_t uefi_vars_mm_check_policy_register(uefi_vars_state *uv,
     return sizeof(*mchk);
 }
 
+extern "C"
 uint32_t uefi_vars_mm_check_policy_proto(uefi_vars_state *uv)
 {
     static const char *fnames[] = {

@@ -8,6 +8,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
@@ -18,6 +20,7 @@
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
 #include "system/system.h"
+}
 
 
 /*
@@ -42,11 +45,12 @@ static bool pnv_parent_fixup(Object *parent, BusState *parent_bus,
                              Object *child, int index,
                              Error **errp)
 {
-    g_autofree char *default_id =
+    char *default_id =
         g_strdup_printf("%s[%d]", object_get_typename(child), index);
     const char *dev_id = DEVICE(child)->id;
 
     if (child->parent == parent) {
+        g_free(default_id);
         return true;
     }
 
@@ -54,6 +58,7 @@ static bool pnv_parent_fixup(Object *parent, BusState *parent_bus,
     object_unparent(child);
     object_property_add_child(parent, dev_id ? dev_id : default_id, child);
     object_unref(child);
+    g_free(default_id);
 
     if (!qdev_set_parent_bus(DEVICE(child), parent_bus, errp)) {
         return false;
@@ -110,7 +115,7 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
 {
     PnvPHB *phb = PNV_PHB(dev);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    g_autofree char *phb_typename = NULL;
+    char *phb_typename = NULL;
 
     if (!phb->version) {
         error_setg(errp, "version not specified");
@@ -132,6 +137,7 @@ static void pnv_phb_realize(DeviceState *dev, Error **errp)
     }
 
     phb->backend = object_new(phb_typename);
+    g_free(phb_typename);
     object_property_add_child(OBJECT(dev), "phb-backend", phb->backend);
 
     /* Passthrough child device properties to the proxy device */

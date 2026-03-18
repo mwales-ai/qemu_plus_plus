@@ -19,6 +19,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -41,6 +43,7 @@
 #include "system/system.h"
 #include "qemu/error-report.h"
 #include "exec/tswap.h"
+}
 
 #define ENVP_PADDR              0x2000
 #define ENVP_VADDR              cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
@@ -140,7 +143,7 @@ static uint64_t load_kernel(MIPSCPU *cpu)
 
     /* Setup prom parameters. */
     prom_size = ENVP_NB_ENTRIES * (sizeof(int32_t) + ENVP_ENTRY_SIZE);
-    prom_buf = g_malloc(prom_size);
+    prom_buf = static_cast<uint32_t *>(g_malloc(prom_size));
 
     prom_set(prom_buf, index++, "%s", loaderparams.kernel_filename);
     if (initrd_size > 0) {
@@ -155,7 +158,7 @@ static uint64_t load_kernel(MIPSCPU *cpu)
     /* Setup minimum environment variables */
     prom_set(prom_buf, index++, "busclock=33000000");
     prom_set(prom_buf, index++, "cpuclock=%u", clock_get_hz(cpu->clock));
-    prom_set(prom_buf, index++, "memsize=%"PRIi64, loaderparams.ram_size / MiB);
+    prom_set(prom_buf, index++, "memsize=%" PRIi64, loaderparams.ram_size / MiB);
     prom_set(prom_buf, index++, NULL);
 
     rom_add_blob_fixed("prom", prom_buf, prom_size, ENVP_PADDR);
@@ -190,7 +193,7 @@ static void write_bootloader(CPUMIPSState *env, uint8_t *base,
 
 static void main_cpu_reset(void *opaque)
 {
-    MIPSCPU *cpu = opaque;
+    MIPSCPU *cpu = static_cast<MIPSCPU *>(opaque);
     CPUMIPSState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
@@ -259,7 +262,7 @@ static void mips_fuloong2e_init(MachineState *machine)
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel(cpu);
-        write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
+        write_bootloader(env, static_cast<uint8_t *>(memory_region_get_ram_ptr(bios)), kernel_entry);
     } else {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
                                   machine->firmware ?: FULOONG_BIOSNAME);
