@@ -12,16 +12,21 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
-#include "hw/virtio/virtio-scsi.h"
 #include "qemu/error-report.h"
+#include "scsi/constants.h"
+}
+
+#include "hw/virtio/virtio-scsi.h"
 #include "system/block-backend.h"
 #include "hw/scsi/scsi.h"
-#include "scsi/constants.h"
 #include "hw/virtio/iothread-vq-mapping.h"
 #include "hw/virtio/virtio-bus.h"
 
 /* Context: BQL held */
+extern "C"
 void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
@@ -49,8 +54,8 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
         }
     }
 
-    s->vq_aio_context = g_new(AioContext *, vs->conf.num_queues +
-                                            VIRTIO_SCSI_VQ_NUM_FIXED);
+    s->vq_aio_context = static_cast<AioContext **>(
+        g_new(AioContext *, vs->conf.num_queues + VIRTIO_SCSI_VQ_NUM_FIXED));
 
     /*
      * Handle the ctrl virtqueue in the main loop thread where device resets
@@ -89,6 +94,7 @@ void virtio_scsi_dataplane_setup(VirtIOSCSI *s, Error **errp)
 }
 
 /* Context: BQL held */
+extern "C"
 void virtio_scsi_dataplane_cleanup(VirtIOSCSI *s)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
@@ -126,7 +132,7 @@ static int virtio_scsi_set_host_notifier(VirtIOSCSI *s, VirtQueue *vq, int n)
 static void virtio_scsi_dataplane_stop_vq_bh(void *opaque)
 {
     AioContext *ctx = qemu_get_current_aio_context();
-    VirtQueue *vq = opaque;
+    VirtQueue *vq = static_cast<VirtQueue *>(opaque);
     EventNotifier *host_notifier;
 
     virtio_queue_aio_detach_host_notifier(vq, ctx);
@@ -140,6 +146,7 @@ static void virtio_scsi_dataplane_stop_vq_bh(void *opaque)
 }
 
 /* Context: BQL held */
+extern "C"
 int virtio_scsi_dataplane_start(VirtIODevice *vdev)
 {
     int i;
@@ -235,6 +242,7 @@ fail_guest_notifiers:
 }
 
 /* Context: BQL held */
+extern "C"
 void virtio_scsi_dataplane_stop(VirtIODevice *vdev)
 {
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));

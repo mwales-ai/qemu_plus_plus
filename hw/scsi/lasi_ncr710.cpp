@@ -12,16 +12,20 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/scsi/lasi_ncr710.h"
 #include "hw/scsi/ncr53c710.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
-#include "trace.h"
 #include "system/blockdev.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "system/dma.h"
+}
+
+#include "trace.h"
 
 #define LASI_710_SVERSION    0x00082
 #define SCNR                 0xBEEFBABE
@@ -145,27 +149,31 @@ static const struct SCSIBusInfo lasi_ncr710_scsi_info = {
     .cancel = lasi_ncr710_request_cancelled,
 };
 
-static const MemoryRegionOps lasi_ncr710_mmio_ops = {
+static MemoryRegionOps lasi_ncr710_mmio_ops = {
     .read = lasi_ncr710_reg_read,
     .write = lasi_ncr710_reg_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
+};
+
+static void __attribute__((constructor)) init_lasi_ncr710_mmio_ops(void)
+{
+    lasi_ncr710_mmio_ops.valid.min_access_size = 1;
+    lasi_ncr710_mmio_ops.valid.max_access_size = 4;
+}
+
+static const VMStateField vmstate_lasi_ncr710_fields[] = {
+    VMSTATE_UINT32(hw_type, LasiNCR710State),
+    VMSTATE_UINT32(sversion, LasiNCR710State),
+    VMSTATE_UINT32(hversion, LasiNCR710State),
+    VMSTATE_STRUCT(ncr710, LasiNCR710State, 1, vmstate_ncr710, NCR710State),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_lasi_ncr710 = {
     .name = "lasi-ncr710",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(hw_type, LasiNCR710State),
-        VMSTATE_UINT32(sversion, LasiNCR710State),
-        VMSTATE_UINT32(hversion, LasiNCR710State),
-        VMSTATE_STRUCT(ncr710, LasiNCR710State, 1, vmstate_ncr710, NCR710State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_lasi_ncr710_fields,
 };
 
 static void lasi_ncr710_realize(DeviceState *dev, Error **errp)
@@ -196,6 +204,7 @@ static void lasi_ncr710_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->mmio);
 }
 
+extern "C"
 void lasi_ncr710_handle_legacy_cmdline(DeviceState *lasi_dev)
 {
     LasiNCR710State *s = LASI_NCR710(lasi_dev);
@@ -224,6 +233,7 @@ void lasi_ncr710_handle_legacy_cmdline(DeviceState *lasi_dev)
     }
 }
 
+extern "C"
 DeviceState *lasi_ncr710_init(MemoryRegion *addr_space, hwaddr hpa,
                                qemu_irq irq)
 {

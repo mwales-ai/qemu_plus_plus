@@ -72,6 +72,10 @@ typedef struct TdxGuest {
     uint32_t event_notify_apicid;
 } TdxGuest;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef CONFIG_TDX
 bool is_tdx_vm(void);
 #else
@@ -85,5 +89,9 @@ int tdx_handle_report_fatal_error(X86CPU *cpu, struct kvm_run *run);
 void tdx_handle_get_quote(X86CPU *cpu, struct kvm_run *run);
 void tdx_handle_get_tdvmcall_info(X86CPU *cpu, struct kvm_run *run);
 void tdx_handle_setup_event_notify_interrupt(X86CPU *cpu, struct kvm_run *run);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_I386_TDX_H */

@@ -25,6 +25,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "hw/sysbus.h"
 #include "hw/register.h"
 #include "qemu/bitops.h"
@@ -34,9 +36,11 @@
 #include "qemu/cutils.h"
 #include "system/system.h"
 #include "system/rtc.h"
-#include "trace.h"
 #include "hw/rtc/xlnx-zynqmp-rtc.h"
 #include "migration/vmstate.h"
+}
+
+#include "trace.h"
 
 #ifndef XLNX_ZYNQMP_RTC_ERR_DEBUG
 #define XLNX_ZYNQMP_RTC_ERR_DEBUG 0
@@ -116,45 +120,62 @@ static uint64_t addr_error_int_dis_prew(RegisterInfo *reg, uint64_t val64)
 }
 
 static const RegisterAccessInfo rtc_regs_info[] = {
-    {   .name = "SET_TIME_WRITE",  .addr = A_SET_TIME_WRITE,
+    {   .name = "SET_TIME_WRITE",
         .unimp = MAKE_64BIT_MASK(0, 32),
-    },{ .name = "SET_TIME_READ",  .addr = A_SET_TIME_READ,
+        .addr = A_SET_TIME_WRITE,
+    },{ .name = "SET_TIME_READ",
         .ro = 0xffffffff,
         .post_read = current_time_postr,
-    },{ .name = "CALIB_WRITE",  .addr = A_CALIB_WRITE,
+        .addr = A_SET_TIME_READ,
+    },{ .name = "CALIB_WRITE",
         .unimp = MAKE_64BIT_MASK(0, 32),
-    },{ .name = "CALIB_READ",  .addr = A_CALIB_READ,
+        .addr = A_CALIB_WRITE,
+    },{ .name = "CALIB_READ",
         .ro = 0x1fffff,
-    },{ .name = "CURRENT_TIME",  .addr = A_CURRENT_TIME,
+        .addr = A_CALIB_READ,
+    },{ .name = "CURRENT_TIME",
         .ro = 0xffffffff,
         .post_read = current_time_postr,
-    },{ .name = "CURRENT_TICK",  .addr = A_CURRENT_TICK,
+        .addr = A_CURRENT_TIME,
+    },{ .name = "CURRENT_TICK",
         .ro = 0xffff,
-    },{ .name = "ALARM",  .addr = A_ALARM,
-    },{ .name = "RTC_INT_STATUS",  .addr = A_RTC_INT_STATUS,
+        .addr = A_CURRENT_TICK,
+    },{ .name = "ALARM",
+        .addr = A_ALARM,
+    },{ .name = "RTC_INT_STATUS",
         .w1c = 0x3,
         .post_write = rtc_int_status_postw,
-    },{ .name = "RTC_INT_MASK",  .addr = A_RTC_INT_MASK,
-        .reset = 0x3,
+        .addr = A_RTC_INT_STATUS,
+    },{ .name = "RTC_INT_MASK",
         .ro = 0x3,
-    },{ .name = "RTC_INT_EN",  .addr = A_RTC_INT_EN,
+        .reset = 0x3,
+        .addr = A_RTC_INT_MASK,
+    },{ .name = "RTC_INT_EN",
         .pre_write = rtc_int_en_prew,
-    },{ .name = "RTC_INT_DIS",  .addr = A_RTC_INT_DIS,
+        .addr = A_RTC_INT_EN,
+    },{ .name = "RTC_INT_DIS",
         .pre_write = rtc_int_dis_prew,
-    },{ .name = "ADDR_ERROR",  .addr = A_ADDR_ERROR,
+        .addr = A_RTC_INT_DIS,
+    },{ .name = "ADDR_ERROR",
         .w1c = 0x1,
         .post_write = addr_error_postw,
-    },{ .name = "ADDR_ERROR_INT_MASK",  .addr = A_ADDR_ERROR_INT_MASK,
-        .reset = 0x1,
+        .addr = A_ADDR_ERROR,
+    },{ .name = "ADDR_ERROR_INT_MASK",
         .ro = 0x1,
-    },{ .name = "ADDR_ERROR_INT_EN",  .addr = A_ADDR_ERROR_INT_EN,
+        .reset = 0x1,
+        .addr = A_ADDR_ERROR_INT_MASK,
+    },{ .name = "ADDR_ERROR_INT_EN",
         .pre_write = addr_error_int_en_prew,
-    },{ .name = "ADDR_ERROR_INT_DIS",  .addr = A_ADDR_ERROR_INT_DIS,
+        .addr = A_ADDR_ERROR_INT_EN,
+    },{ .name = "ADDR_ERROR_INT_DIS",
         .pre_write = addr_error_int_dis_prew,
-    },{ .name = "CONTROL",  .addr = A_CONTROL,
+        .addr = A_ADDR_ERROR_INT_DIS,
+    },{ .name = "CONTROL",
         .reset = 0x1000000,
         .rsvd = 0x70fffffe,
-    },{ .name = "SAFETY_CHK",  .addr = A_SAFETY_CHK,
+        .addr = A_CONTROL,
+    },{ .name = "SAFETY_CHK",
+        .addr = A_SAFETY_CHK,
     }
 };
 
@@ -171,15 +192,17 @@ static void rtc_reset(DeviceState *dev)
     addr_error_int_update_irq(s);
 }
 
-static const MemoryRegionOps rtc_ops = {
+static MemoryRegionOps rtc_ops = {
     .read = register_read_memory,
     .write = register_write_memory,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
 };
+
+static void __attribute__((constructor)) init_rtc_ops(void)
+{
+    rtc_ops.valid.min_access_size = 4;
+    rtc_ops.valid.max_access_size = 4;
+}
 
 static void rtc_init(Object *obj)
 {
@@ -215,7 +238,7 @@ static void rtc_init(Object *obj)
 
 static int rtc_pre_save(void *opaque)
 {
-    XlnxZynqMPRTC *s = opaque;
+    XlnxZynqMPRTC *s = static_cast<XlnxZynqMPRTC *>(opaque);
     int64_t now = qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
 
     /* Add the time at migration */
@@ -226,7 +249,7 @@ static int rtc_pre_save(void *opaque)
 
 static int rtc_post_load(void *opaque, int version_id)
 {
-    XlnxZynqMPRTC *s = opaque;
+    XlnxZynqMPRTC *s = static_cast<XlnxZynqMPRTC *>(opaque);
     int64_t now = qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
 
     /* Subtract the time after migration. This combined with the pre_save
@@ -238,17 +261,19 @@ static int rtc_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_rtc_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPRTC, XLNX_ZYNQMP_RTC_R_MAX),
+    VMSTATE_UINT32(tick_offset, XlnxZynqMPRTC),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_rtc = {
     .name = TYPE_XLNX_ZYNQMP_RTC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = rtc_pre_save,
     .post_load = rtc_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPRTC, XLNX_ZYNQMP_RTC_R_MAX),
-        VMSTATE_UINT32(tick_offset, XlnxZynqMPRTC),
-        VMSTATE_END_OF_LIST(),
-    }
+    .pre_save = rtc_pre_save,
+    .fields = vmstate_rtc_fields,
 };
 
 static void rtc_class_init(ObjectClass *klass, const void *data)
@@ -263,8 +288,8 @@ static const TypeInfo rtc_info = {
     .name          = TYPE_XLNX_ZYNQMP_RTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxZynqMPRTC),
-    .class_init    = rtc_class_init,
     .instance_init = rtc_init,
+    .class_init    = rtc_class_init,
 };
 
 static void rtc_register_types(void)

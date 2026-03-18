@@ -18,12 +18,16 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
-#include "qemu/main-loop.h"
 #include "hw/qdev-core.h"
+#include "hw/xen/xen_pvdev.h"
+}
+
+#include "qemu/main-loop.h"
 #include "hw/xen/xen-legacy-backend.h"
 #include "hw/xen/xen-bus-helper.h"
-#include "hw/xen/xen_pvdev.h"
 
 /* private */
 static int debug;
@@ -45,11 +49,12 @@ static void xenstore_cleanup_dir(char *dir)
 {
     struct xs_dirs *d;
 
-    d = g_malloc(sizeof(*d));
+    d = static_cast<struct xs_dirs *>(g_malloc(sizeof(*d)));
     d->xs_dir = dir;
     QTAILQ_INSERT_TAIL(&xs_cleanup, d, list);
 }
 
+extern "C"
 void xen_config_cleanup(void)
 {
     struct xs_dirs *d;
@@ -59,6 +64,7 @@ void xen_config_cleanup(void)
     }
 }
 
+extern "C"
 int xenstore_mkdir(char *path, int p)
 {
     if (!qemu_xen_xs_create(xenstore, 0, 0, xen_domid, p, path)) {
@@ -69,6 +75,7 @@ int xenstore_mkdir(char *path, int p)
     return 0;
 }
 
+extern "C"
 int xenstore_write_str(const char *base, const char *node, const char *val)
 {
     char abspath[XEN_BUFSIZE];
@@ -80,6 +87,7 @@ int xenstore_write_str(const char *base, const char *node, const char *val)
     return 0;
 }
 
+extern "C"
 char *xenstore_read_str(const char *base, const char *node)
 {
     char *str, *ret = NULL;
@@ -94,6 +102,7 @@ char *xenstore_read_str(const char *base, const char *node)
     return ret;
 }
 
+extern "C"
 int xenstore_write_int(const char *base, const char *node, int ival)
 {
     char val[12];
@@ -102,14 +111,16 @@ int xenstore_write_int(const char *base, const char *node, int ival)
     return xenstore_write_str(base, node, val);
 }
 
+extern "C"
 int xenstore_write_int64(const char *base, const char *node, int64_t ival)
 {
     char val[21];
 
-    snprintf(val, sizeof(val), "%"PRId64, ival);
+    snprintf(val, sizeof(val), "%" PRId64, ival);
     return xenstore_write_str(base, node, val);
 }
 
+extern "C"
 int xenstore_read_int(const char *base, const char *node, int *ival)
 {
     char *val;
@@ -123,29 +134,31 @@ int xenstore_read_int(const char *base, const char *node, int *ival)
     return rc;
 }
 
+extern "C"
 int xenstore_read_uint64(const char *base, const char *node, uint64_t *uval)
 {
     char *val;
     int rc = -1;
 
     val = xenstore_read_str(base, node);
-    if (val && 1 == sscanf(val, "%"SCNu64, uval)) {
+    if (val && 1 == sscanf(val, "%" SCNu64, uval)) {
         rc = 0;
     }
     g_free(val);
     return rc;
 }
 
+extern "C"
 const char *xenbus_strstate(enum xenbus_state state)
 {
     static const char *const name[] = {
-        [XenbusStateUnknown]       = "Unknown",
-        [XenbusStateInitialising]  = "Initialising",
-        [XenbusStateInitWait]      = "InitWait",
-        [XenbusStateInitialised]   = "Initialised",
-        [XenbusStateConnected]     = "Connected",
-        [XenbusStateClosing]       = "Closing",
-        [XenbusStateClosed]        = "Closed",
+        "Unknown",       /* XenbusStateUnknown = 0 */
+        "Initialising",  /* XenbusStateInitialising = 1 */
+        "InitWait",      /* XenbusStateInitWait = 2 */
+        "Initialised",   /* XenbusStateInitialised = 3 */
+        "Connected",     /* XenbusStateConnected = 4 */
+        "Closing",       /* XenbusStateClosing = 5 */
+        "Closed",        /* XenbusStateClosed = 6 */
     };
     return (state < ARRAY_SIZE(name)) ? name[state] : "INVALID";
 }
@@ -169,6 +182,7 @@ static void xen_pv_output_msg(struct XenLegacyDevice *xendev,
     vfprintf(f, fmt, args);
 }
 
+extern "C"
 void xen_pv_printf(struct XenLegacyDevice *xendev, int msg_level,
                    const char *fmt, ...)
 {
@@ -194,9 +208,10 @@ void xen_pv_printf(struct XenLegacyDevice *xendev, int msg_level,
     }
 }
 
+extern "C"
 void xen_pv_evtchn_event(void *opaque)
 {
-    struct XenLegacyDevice *xendev = opaque;
+    struct XenLegacyDevice *xendev = static_cast<struct XenLegacyDevice *>(opaque);
     evtchn_port_t port;
 
     port = qemu_xen_evtchn_pending(xendev->evtchndev);
@@ -213,6 +228,7 @@ void xen_pv_evtchn_event(void *opaque)
     }
 }
 
+extern "C"
 void xen_pv_unbind_evtchn(struct XenLegacyDevice *xendev)
 {
     if (xendev->local_port == -1) {
@@ -224,6 +240,7 @@ void xen_pv_unbind_evtchn(struct XenLegacyDevice *xendev)
     xendev->local_port = -1;
 }
 
+extern "C"
 int xen_pv_send_notify(struct XenLegacyDevice *xendev)
 {
     return qemu_xen_evtchn_notify(xendev->evtchndev, xendev->local_port);
@@ -231,6 +248,7 @@ int xen_pv_send_notify(struct XenLegacyDevice *xendev)
 
 /* ------------------------------------------------------------- */
 
+extern "C"
 struct XenLegacyDevice *xen_pv_find_xendev(const char *type, int dom, int dev)
 {
     struct XenLegacyDevice *xendev;
@@ -253,6 +271,7 @@ struct XenLegacyDevice *xen_pv_find_xendev(const char *type, int dom, int dev)
 /*
  * release xen backend device.
  */
+extern "C"
 void xen_pv_del_xendev(struct XenLegacyDevice *xendev)
 {
     if (xendev->ops->free) {
@@ -276,6 +295,7 @@ void xen_pv_del_xendev(struct XenLegacyDevice *xendev)
     qdev_unplug(DEVICE(xendev), NULL);
 }
 
+extern "C"
 void xen_pv_insert_xendev(struct XenLegacyDevice *xendev)
 {
     QTAILQ_INSERT_TAIL(&xendevs, xendev, next);

@@ -19,8 +19,8 @@ vfio_ss.add(when: 'CONFIG_VFIO_IGD', if_true: files('igd.c'))
 specific_ss.add_all(when: 'CONFIG_VFIO', if_true: vfio_ss)
 
 system_ss.add(when: 'CONFIG_VFIO', if_true: files(
-  'cpr.c',
-  'cpr-legacy.c',
+  'cpr.cpp',
+  'cpr-legacy.cpp',
   'device.c',
   'migration.c',
   'migration-multifd.c',

@@ -46,10 +46,24 @@ void kvm_request_xsave_components(X86CPU *cpu, uint64_t mask);
 
 #include <linux/kvm.h>
 
+/*
+ * KvmCpuidInfo overlays a kvm_cpuid2 (which has a flexible array member)
+ * with a fixed-size entries array. In C++, embedding a struct with a
+ * flexible array member is not allowed, so we use a compatible flat layout.
+ */
+#ifdef __cplusplus
+typedef struct KvmCpuidInfo {
+    /* Must match layout of struct kvm_cpuid2 header + entries */
+    __u32 nent;
+    __u32 padding;
+    struct kvm_cpuid_entry2 entries[KVM_MAX_CPUID_ENTRIES];
+} KvmCpuidInfo;
+#else
 typedef struct KvmCpuidInfo {
     struct kvm_cpuid2 cpuid;
     struct kvm_cpuid_entry2 entries[KVM_MAX_CPUID_ENTRIES];
 } KvmCpuidInfo;
+#endif
 
 bool kvm_is_vm_type_supported(int type);
 bool kvm_has_adjust_clock_stable(void);
@@ -63,7 +77,7 @@ bool kvm_has_x2apic_api(void);
 bool kvm_has_waitpkg(void);
 
 uint64_t kvm_swizzle_msi_ext_dest_id(uint64_t address);
-void kvm_update_msi_routes_all(void *private, bool global,
+void kvm_update_msi_routes_all(void *priv_data, bool global,
                                uint32_t index, uint32_t mask);
 
 struct kvm_cpuid_entry2 *cpuid_find_entry(struct kvm_cpuid2 *cpuid,

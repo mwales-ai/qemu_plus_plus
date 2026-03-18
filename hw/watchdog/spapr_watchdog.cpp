@@ -14,12 +14,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "target/ppc/cpu.h"
 #include "migration/vmstate.h"
-#include "trace.h"
-
 #include "hw/ppc/spapr.h"
+}
+
+#include "trace.h"
 
 #define FIELD_BE(reg, field, start, len) \
     FIELD(reg, field, 64 - (start + len), len)
@@ -102,7 +105,7 @@ static target_ulong watchdog_stop_all(SpaprMachineState *spapr)
 
 static void watchdog_expired(void *pw)
 {
-    SpaprWatchdog *w = pw;
+    SpaprWatchdog *w = static_cast<SpaprWatchdog *>(pw);
     CPUState *cs;
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     unsigned num = w - spapr->wds;
@@ -197,7 +200,7 @@ static target_ulong h_watchdog(PowerPCCPU *cpu,
     return ret;
 }
 
-void spapr_watchdog_init(SpaprMachineState *spapr)
+extern "C" void spapr_watchdog_init(SpaprMachineState *spapr)
 {
     int i;
 
@@ -216,22 +219,24 @@ void spapr_watchdog_init(SpaprMachineState *spapr)
 
 static bool watchdog_needed(void *opaque)
 {
-    SpaprWatchdog *w = opaque;
+    SpaprWatchdog *w = static_cast<SpaprWatchdog *>(opaque);
 
     return timer_pending(&w->timer);
 }
+
+static const VMStateField vmstate_wdt_fields[] = {
+    VMSTATE_TIMER(timer, SpaprWatchdog),
+    VMSTATE_UINT8(action, SpaprWatchdog),
+    VMSTATE_UINT8(leave_others, SpaprWatchdog),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_wdt = {
     .name = "spapr_watchdog",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = watchdog_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER(timer, SpaprWatchdog),
-        VMSTATE_UINT8(action, SpaprWatchdog),
-        VMSTATE_UINT8(leave_others, SpaprWatchdog),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_wdt_fields,
 };
 
 static void spapr_wdt_realize(DeviceState *dev, Error **errp)

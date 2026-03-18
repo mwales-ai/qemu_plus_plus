@@ -10,24 +10,29 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
-#include "qemu/main-loop.h"
 #include "qapi/error.h"
 #include "qom/object.h"
 #include "exec/target_page.h"
-#include "system/address-spaces.h"
 #include "migration/vmstate.h"
-
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
 #include "xen_overlay.h"
-
 #include "system/kvm.h"
 #include "system/kvm_xen.h"
+}
+
+#include "qemu/main-loop.h"
+#include "system/address-spaces.h"
+
 #include <linux/kvm.h>
 
+extern "C" {
 #include "hw/xen/interface/memory.h"
+}
 
 
 #define TYPE_XEN_OVERLAY "xen-overlay"
@@ -49,6 +54,7 @@ struct XenOverlayState {
 
 struct XenOverlayState *xen_overlay_singleton;
 
+extern "C"
 void xen_overlay_do_map_page(MemoryRegion *page, uint64_t gpa)
 {
     /*
@@ -73,10 +79,10 @@ void xen_overlay_do_map_page(MemoryRegion *page, uint64_t gpa)
 /* KVM is the only existing back end for now. Let's not overengineer it yet. */
 static int xen_overlay_set_be_shinfo(uint64_t gfn)
 {
-    struct kvm_xen_hvm_attr xa = {
-        .type = KVM_XEN_ATTR_TYPE_SHARED_INFO,
-        .u.shared_info.gfn = gfn,
-    };
+    struct kvm_xen_hvm_attr xa;
+    memset(&xa, 0, sizeof(xa));
+    xa.type = KVM_XEN_ATTR_TYPE_SHARED_INFO;
+    xa.u.shared_info.gfn = gfn;
 
     return kvm_vm_ioctl(kvm_state, KVM_XEN_HVM_SET_ATTR, &xa);
 }
@@ -114,7 +120,7 @@ static int xen_overlay_pre_save(void *opaque)
 
 static int xen_overlay_post_load(void *opaque, int version_id)
 {
-    XenOverlayState *s = opaque;
+    XenOverlayState *s = static_cast<XenOverlayState *>(opaque);
 
     if (s->shinfo_gpa != INVALID_GPA) {
         xen_overlay_do_map_page(&s->shinfo_mem, s->shinfo_gpa);
@@ -132,18 +138,20 @@ static bool xen_overlay_is_needed(void *opaque)
     return xen_mode == XEN_EMULATE;
 }
 
+static const VMStateField vmstate_xen_overlay_fields[] = {
+    VMSTATE_UINT64(shinfo_gpa, XenOverlayState),
+    VMSTATE_BOOL(long_mode, XenOverlayState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription xen_overlay_vmstate = {
     .name = "xen_overlay",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = xen_overlay_is_needed,
-    .pre_save = xen_overlay_pre_save,
     .post_load = xen_overlay_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(shinfo_gpa, XenOverlayState),
-        VMSTATE_BOOL(long_mode, XenOverlayState),
-        VMSTATE_END_OF_LIST()
-    }
+    .pre_save = xen_overlay_pre_save,
+    .needed = xen_overlay_is_needed,
+    .fields = vmstate_xen_overlay_fields,
 };
 
 static void xen_overlay_reset(DeviceState *dev)
@@ -167,6 +175,7 @@ static const TypeInfo xen_overlay_info = {
     .class_init    = xen_overlay_class_init,
 };
 
+extern "C"
 void xen_overlay_create(void)
 {
     xen_overlay_singleton = XEN_OVERLAY(sysbus_create_simple(TYPE_XEN_OVERLAY,
@@ -185,6 +194,7 @@ static void xen_overlay_register_types(void)
 
 type_init(xen_overlay_register_types)
 
+extern "C"
 int xen_overlay_map_shinfo_page(uint64_t gpa)
 {
     XenOverlayState *s = xen_overlay_singleton;
@@ -216,6 +226,7 @@ int xen_overlay_map_shinfo_page(uint64_t gpa)
     return 0;
 }
 
+extern "C"
 void *xen_overlay_get_shinfo_ptr(void)
 {
     XenOverlayState *s = xen_overlay_singleton;
@@ -227,12 +238,13 @@ void *xen_overlay_get_shinfo_ptr(void)
     return s->shinfo_ptr;
 }
 
+extern "C"
 int xen_sync_long_mode(void)
 {
     int ret;
-    struct kvm_xen_hvm_attr xa = {
-        .type = KVM_XEN_ATTR_TYPE_LONG_MODE,
-    };
+    struct kvm_xen_hvm_attr xa;
+    memset(&xa, 0, sizeof(xa));
+    xa.type = KVM_XEN_ATTR_TYPE_LONG_MODE;
 
     if (!xen_overlay_singleton) {
         return -ENOENT;
@@ -246,13 +258,14 @@ int xen_sync_long_mode(void)
     return ret;
 }
 
+extern "C"
 int xen_set_long_mode(bool long_mode)
 {
     int ret;
-    struct kvm_xen_hvm_attr xa = {
-        .type = KVM_XEN_ATTR_TYPE_LONG_MODE,
-        .u = { .long_mode = long_mode, },
-    };
+    struct kvm_xen_hvm_attr xa;
+    memset(&xa, 0, sizeof(xa));
+    xa.type = KVM_XEN_ATTR_TYPE_LONG_MODE;
+    xa.u.long_mode = long_mode;
 
     if (!xen_overlay_singleton) {
         return -ENOENT;
@@ -266,6 +279,7 @@ int xen_set_long_mode(bool long_mode)
     return ret;
 }
 
+extern "C"
 bool xen_is_long_mode(void)
 {
     return xen_overlay_singleton && xen_overlay_singleton->long_mode;

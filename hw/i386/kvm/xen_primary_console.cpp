@@ -11,22 +11,24 @@
 
 #include "qemu/osdep.h"
 
+extern "C" {
 #include "qapi/error.h"
-
 #include "hw/sysbus.h"
 #include "hw/xen/xen.h"
 #include "hw/xen/xen_backend_ops.h"
 #include "xen_evtchn.h"
 #include "xen_overlay.h"
 #include "xen_primary_console.h"
-
 #include "system/kvm.h"
 #include "system/kvm_xen.h"
+}
 
 #include "trace.h"
 
+extern "C" {
 #include "hw/xen/interface/event_channel.h"
 #include "hw/xen/interface/grant_table.h"
+}
 
 #define TYPE_XEN_PRIMARY_CONSOLE "xen-primary-console"
 OBJECT_DECLARE_SIMPLE_TYPE(XenPrimaryConsoleState, XEN_PRIMARY_CONSOLE)
@@ -82,6 +84,7 @@ static const TypeInfo xen_primary_console_info = {
 };
 
 
+extern "C"
 void xen_primary_console_create(void)
 {
     DeviceState *dev = sysbus_create_simple(TYPE_XEN_PRIMARY_CONSOLE, -1, NULL);
@@ -103,6 +106,7 @@ static void xen_primary_console_register_types(void)
 
 type_init(xen_primary_console_register_types)
 
+extern "C"
 uint16_t xen_primary_console_get_port(void)
 {
     XenPrimaryConsoleState *s = xen_primary_console_singleton;
@@ -112,6 +116,7 @@ uint16_t xen_primary_console_get_port(void)
     return s->guest_port;
 }
 
+extern "C"
 void xen_primary_console_set_be_port(uint16_t port)
 {
     XenPrimaryConsoleState *s = xen_primary_console_singleton;
@@ -120,6 +125,7 @@ void xen_primary_console_set_be_port(uint16_t port)
     }
 }
 
+extern "C"
 uint64_t xen_primary_console_get_pfn(void)
 {
     XenPrimaryConsoleState *s = xen_primary_console_singleton;
@@ -129,6 +135,7 @@ uint64_t xen_primary_console_get_pfn(void)
     return XEN_SPECIAL_PFN(CONSOLE);
 }
 
+extern "C"
 void *xen_primary_console_get_map(void)
 {
     XenPrimaryConsoleState *s = xen_primary_console_singleton;
@@ -140,10 +147,10 @@ void *xen_primary_console_get_map(void)
 
 static void alloc_guest_port(XenPrimaryConsoleState *s)
 {
-    struct evtchn_alloc_unbound alloc = {
-        .dom = DOMID_SELF,
-        .remote_dom = DOMID_QEMU,
-    };
+    struct evtchn_alloc_unbound alloc;
+    memset(&alloc, 0, sizeof(alloc));
+    alloc.dom = DOMID_SELF;
+    alloc.remote_dom = DOMID_QEMU;
 
     if (!xen_evtchn_alloc_unbound_op(&alloc)) {
         s->guest_port = alloc.port;
@@ -152,10 +159,10 @@ static void alloc_guest_port(XenPrimaryConsoleState *s)
 
 static void rebind_guest_port(XenPrimaryConsoleState *s)
 {
-    struct evtchn_bind_interdomain inter = {
-        .remote_dom = DOMID_QEMU,
-        .remote_port = s->be_port,
-    };
+    struct evtchn_bind_interdomain inter;
+    memset(&inter, 0, sizeof(inter));
+    inter.remote_dom = DOMID_QEMU;
+    inter.remote_port = s->be_port;
 
     if (!xen_evtchn_bind_interdomain_op(&inter)) {
         s->guest_port = inter.local_port;
@@ -164,6 +171,7 @@ static void rebind_guest_port(XenPrimaryConsoleState *s)
     s->be_port = 0;
 }
 
+extern "C"
 int xen_primary_console_reset(void)
 {
     XenPrimaryConsoleState *s = xen_primary_console_singleton;

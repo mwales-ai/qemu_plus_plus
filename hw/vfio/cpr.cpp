@@ -6,15 +6,20 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
+#include "qapi/error.h"
+#include "system/runstate.h"
+}
+
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/vfio-cpr.h"
 #include "hw/vfio/pci.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/msi.h"
 #include "migration/cpr.h"
-#include "qapi/error.h"
-#include "system/runstate.h"
 
+extern "C"
 int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier,
                              MigrationEvent *e, Error **errp)
 {
@@ -32,6 +37,7 @@ int vfio_cpr_reboot_notifier(NotifierWithReturn *notifier,
 #define STRDUP_VECTOR_FD_NAME(vdev, name)   \
     g_strdup_printf("%s_%s", (vdev)->vbasedev.name, (name))
 
+extern "C"
 void vfio_cpr_save_vector_fd(VFIOPCIDevice *vdev, const char *name, int nr,
                              int fd)
 {
@@ -39,12 +45,14 @@ void vfio_cpr_save_vector_fd(VFIOPCIDevice *vdev, const char *name, int nr,
     cpr_save_fd(fdname, nr, fd);
 }
 
+extern "C"
 int vfio_cpr_load_vector_fd(VFIOPCIDevice *vdev, const char *name, int nr)
 {
     g_autofree char *fdname = STRDUP_VECTOR_FD_NAME(vdev, name);
     return cpr_find_fd(fdname, nr);
 }
 
+extern "C"
 void vfio_cpr_delete_vector_fd(VFIOPCIDevice *vdev, const char *name, int nr)
 {
     g_autofree char *fdname = STRDUP_VECTOR_FD_NAME(vdev, name);
@@ -98,7 +106,7 @@ static void vfio_cpr_claim_vectors(VFIOPCIDevice *vdev, int nr_vectors,
  */
 static int vfio_cpr_pci_pre_load(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int size = MIN(pci_config_size(pdev), vdev->config_size);
     int i;
@@ -112,7 +120,7 @@ static int vfio_cpr_pci_pre_load(void *opaque)
 
 static int vfio_cpr_pci_post_load(void *opaque, int version_id)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     PCIDevice *pdev = PCI_DEVICE(vdev);
     int nr_vectors;
 
@@ -140,30 +148,45 @@ static int vfio_cpr_pci_post_load(void *opaque, int version_id)
 
 static bool pci_msix_present(void *opaque, int version_id)
 {
-    PCIDevice *pdev = opaque;
+    PCIDevice *pdev = static_cast<PCIDevice *>(opaque);
 
     return msix_present(pdev);
 }
+
+static const VMStateField vmstate_vfio_intx_fields[] = {
+    VMSTATE_BOOL(pending, VFIOINTx),
+    {
+        .name = "route.mode",
+        .offset = offsetof(VFIOINTx, route.mode),
+        .size = sizeof(uint32_t),
+        .info = &vmstate_info_uint32,
+        .flags = VMS_SINGLE,
+    },
+    VMSTATE_INT32(route.irq, VFIOINTx),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vfio_intx_vmstate = {
     .name = "vfio-cpr-intx",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
-        VMSTATE_BOOL(pending, VFIOINTx),
-        VMSTATE_UINT32(route.mode, VFIOINTx),
-        VMSTATE_INT32(route.irq, VFIOINTx),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vfio_intx_fields,
 };
 
 #define VMSTATE_VFIO_INTX(_field, _state) {                         \
     .name       = (stringify(_field)),                              \
-    .size       = sizeof(VFIOINTx),                                 \
-    .vmsd       = &vfio_intx_vmstate,                               \
-    .flags      = VMS_STRUCT,                                       \
     .offset     = vmstate_offset_value(_state, _field, VFIOINTx),   \
+    .size       = sizeof(VFIOINTx),                                 \
+    .flags      = VMS_STRUCT,                                       \
+    .vmsd       = &vfio_intx_vmstate,                               \
 }
+
+static const VMStateField vmstate_vfio_cpr_pci_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, VFIOPCIDevice),
+    VMSTATE_MSIX_TEST(parent_obj, VFIOPCIDevice, pci_msix_present),
+    VMSTATE_VFIO_INTX(intx, VFIOPCIDevice),
+    VMSTATE_END_OF_LIST()
+};
 
 const VMStateDescription vfio_cpr_pci_vmstate = {
     .name = "vfio-cpr-pci",
@@ -172,12 +195,7 @@ const VMStateDescription vfio_cpr_pci_vmstate = {
     .pre_load = vfio_cpr_pci_pre_load,
     .post_load = vfio_cpr_pci_post_load,
     .needed = cpr_incoming_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, VFIOPCIDevice),
-        VMSTATE_MSIX_TEST(parent_obj, VFIOPCIDevice, pci_msix_present),
-        VMSTATE_VFIO_INTX(intx, VFIOPCIDevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vfio_cpr_pci_fields,
 };
 
 static NotifierWithReturn kvm_close_notifier;
@@ -192,6 +210,7 @@ static int vfio_cpr_kvm_close_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
+extern "C"
 void vfio_cpr_add_kvm_notifier(void)
 {
     if (!kvm_close_notifier.notify) {
@@ -280,6 +299,7 @@ static int vfio_cpr_pci_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
+extern "C"
 void vfio_cpr_pci_register_device(VFIOPCIDevice *vdev)
 {
     migration_add_notifier_modes(&vdev->cpr.transfer_notifier,
@@ -287,6 +307,7 @@ void vfio_cpr_pci_register_device(VFIOPCIDevice *vdev)
                                  BIT(MIG_MODE_CPR_TRANSFER) | BIT(MIG_MODE_CPR_EXEC));
 }
 
+extern "C"
 void vfio_cpr_pci_unregister_device(VFIOPCIDevice *vdev)
 {
     migration_remove_notifier(&vdev->cpr.transfer_notifier);

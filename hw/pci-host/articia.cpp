@@ -8,6 +8,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
@@ -16,6 +18,7 @@
 #include "hw/i2c/bitbang_i2c.h"
 #include "hw/intc/i8259.h"
 #include "hw/pci-host/articia.h"
+}
 
 /*
  * This is a minimal emulation of this chip as used in AmigaOne board.
@@ -49,7 +52,7 @@ struct ArticiaState {
 
 static uint64_t articia_gpio_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    ArticiaState *s = opaque;
+    ArticiaState *s = static_cast<ArticiaState *>(opaque);
 
     return (s->gpio >> (addr * 8)) & 0xff;
 }
@@ -57,7 +60,7 @@ static uint64_t articia_gpio_read(void *opaque, hwaddr addr, unsigned int size)
 static void articia_gpio_write(void *opaque, hwaddr addr, uint64_t val,
                                unsigned int size)
 {
-    ArticiaState *s = opaque;
+    ArticiaState *s = static_cast<ArticiaState *>(opaque);
     uint32_t sh = addr * 8;
 
     if (addr == 0) {
@@ -79,16 +82,21 @@ static void articia_gpio_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static const MemoryRegionOps articia_gpio_ops = {
+static MemoryRegionOps articia_gpio_ops = {
     .read = articia_gpio_read,
     .write = articia_gpio_write,
-    .valid = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static void __attribute__((constructor)) init_articia_gpio_ops(void)
+{
+    articia_gpio_ops.valid.min_access_size = 1;
+    articia_gpio_ops.valid.max_access_size = 1;
+}
+
 static uint64_t articia_reg_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    ArticiaState *s = opaque;
+    ArticiaState *s = static_cast<ArticiaState *>(opaque);
     uint64_t ret = UINT_MAX;
 
     switch (addr) {
@@ -112,7 +120,7 @@ static uint64_t articia_reg_read(void *opaque, hwaddr addr, unsigned int size)
 static void articia_reg_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned int size)
 {
-    ArticiaState *s = opaque;
+    ArticiaState *s = static_cast<ArticiaState *>(opaque);
 
     switch (addr) {
     case 0xc00cf8:
@@ -123,21 +131,26 @@ static void articia_reg_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: Unimplemented register write 0x%"
-                      HWADDR_PRIx " %d <- %"PRIx64"\n", __func__, addr, size, val);
+                      HWADDR_PRIx " %d <- %" PRIx64 "\n", __func__, addr, size, val);
         break;
     }
 }
 
-static const MemoryRegionOps articia_reg_ops = {
+static MemoryRegionOps articia_reg_ops = {
     .read = articia_reg_read,
     .write = articia_reg_write,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static void __attribute__((constructor)) init_articia_reg_ops(void)
+{
+    articia_reg_ops.valid.min_access_size = 1;
+    articia_reg_ops.valid.max_access_size = 4;
+}
+
 static void articia_pcihost_set_irq(void *opaque, int n, int level)
 {
-    ArticiaState *s = opaque;
+    ArticiaState *s = static_cast<ArticiaState *>(opaque);
     qemu_set_irq(s->irq[n], level);
 }
 
@@ -259,6 +272,16 @@ static void articia_pci_bridge_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo articia_pci_host_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
+static const InterfaceInfo articia_pci_bridge_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo articia_types[] = {
     {
         .name          = TYPE_ARTICIA,
@@ -271,20 +294,14 @@ static const TypeInfo articia_types[] = {
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(ArticiaHostState),
         .class_init    = articia_pci_host_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-              { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-              { },
-        },
+        .interfaces    = articia_pci_host_interfaces,
     },
     {
         .name          = TYPE_ARTICIA_PCI_BRIDGE,
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(PCIDevice),
         .class_init    = articia_pci_bridge_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-              { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-              { },
-        },
+        .interfaces    = articia_pci_bridge_interfaces,
     },
 };
 

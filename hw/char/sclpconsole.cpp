@@ -13,10 +13,11 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/thread.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
-
 #include "hw/s390x/sclp.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
@@ -24,6 +25,7 @@
 #include "hw/s390x/event-facility.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
+}
 
 typedef struct ASCIIConsoleData {
     EventBufferHeader ebh;
@@ -54,7 +56,7 @@ DECLARE_INSTANCE_CHECKER(SCLPConsole, SCLP_CONSOLE,
 /* Return number of bytes that fit into iov buffer */
 static int chr_can_read(void *opaque)
 {
-    SCLPConsole *scon = opaque;
+    SCLPConsole *scon = static_cast<SCLPConsole *>(opaque);
     int avail = SIZE_BUFFER_VT220 - scon->iov_data_len;
 
     if (avail == 0) {
@@ -66,7 +68,7 @@ static int chr_can_read(void *opaque)
 /* Send data from a char device over to the guest */
 static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
-    SCLPConsole *scon = opaque;
+    SCLPConsole *scon = static_cast<SCLPConsole *>(opaque);
 
     assert(scon);
     /* read data must fit into current buffer */
@@ -202,19 +204,21 @@ static int write_event_data(SCLPEvent *event, EventBufferHeader *evt_buf_hdr)
     return rc;
 }
 
+static const VMStateField vmstate_sclpconsole_fields[] = {
+    VMSTATE_BOOL(event.event_pending, SCLPConsole),
+    VMSTATE_UINT8_ARRAY(iov, SCLPConsole, SIZE_BUFFER_VT220),
+    VMSTATE_UINT32(iov_sclp, SCLPConsole),
+    VMSTATE_UINT32(iov_bs, SCLPConsole),
+    VMSTATE_UINT32(iov_data_len, SCLPConsole),
+    VMSTATE_UINT32(iov_sclp_rest, SCLPConsole),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sclpconsole = {
     .name = "sclpconsole",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(event.event_pending, SCLPConsole),
-        VMSTATE_UINT8_ARRAY(iov, SCLPConsole, SIZE_BUFFER_VT220),
-        VMSTATE_UINT32(iov_sclp, SCLPConsole),
-        VMSTATE_UINT32(iov_bs, SCLPConsole),
-        VMSTATE_UINT32(iov_data_len, SCLPConsole),
-        VMSTATE_UINT32(iov_sclp_rest, SCLPConsole),
-        VMSTATE_END_OF_LIST()
-     }
+    .fields = vmstate_sclpconsole_fields,
 };
 
 /* qemu object creation and initialization functions */

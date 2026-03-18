@@ -23,11 +23,15 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
-#include "trace.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/misc/stm32l4x5_exti.h"
+}
+
+#include "trace.h"
 
 #define EXTI_IMR1   0x00
 #define EXTI_EMR1   0x04
@@ -93,7 +97,7 @@ static void stm32l4x5_exti_reset_hold(Object *obj, ResetType type)
 
 static void stm32l4x5_exti_set_irq(void *opaque, int irq, int level)
 {
-    Stm32l4x5ExtiState *s = opaque;
+    Stm32l4x5ExtiState *s = static_cast<Stm32l4x5ExtiState *>(opaque);
     const unsigned bank = regbank_index_by_irq(irq);
     const int oirq = irq;
 
@@ -131,7 +135,7 @@ static void stm32l4x5_exti_set_irq(void *opaque, int irq, int level)
 static uint64_t stm32l4x5_exti_read(void *opaque, hwaddr addr,
                                     unsigned int size)
 {
-    Stm32l4x5ExtiState *s = opaque;
+    Stm32l4x5ExtiState *s = static_cast<Stm32l4x5ExtiState *>(opaque);
     uint32_t r = 0;
     const unsigned bank = regbank_index_by_addr(addr);
 
@@ -176,7 +180,7 @@ static uint64_t stm32l4x5_exti_read(void *opaque, hwaddr addr,
 static void stm32l4x5_exti_write(void *opaque, hwaddr addr,
                                  uint64_t val64, unsigned int size)
 {
-    Stm32l4x5ExtiState *s = opaque;
+    Stm32l4x5ExtiState *s = static_cast<Stm32l4x5ExtiState *>(opaque);
     const unsigned bank = regbank_index_by_addr(addr);
 
     trace_stm32l4x5_exti_write(addr, val64);
@@ -228,13 +232,21 @@ static void stm32l4x5_exti_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps stm32l4x5_exti_ops = {
+static MemoryRegionOps stm32l4x5_exti_ops = {
     .read = stm32l4x5_exti_read,
     .write = stm32l4x5_exti_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
-    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
+
+static void __attribute__((constructor)) init_stm32l4x5_exti_ops(void)
+{
+    stm32l4x5_exti_ops.impl.min_access_size = 4;
+    stm32l4x5_exti_ops.impl.max_access_size = 4;
+    stm32l4x5_exti_ops.impl.unaligned = false;
+    stm32l4x5_exti_ops.valid.min_access_size = 4;
+    stm32l4x5_exti_ops.valid.max_access_size = 4;
+    stm32l4x5_exti_ops.valid.unaligned = false;
+}
 
 static void stm32l4x5_exti_init(Object *obj)
 {
@@ -251,20 +263,22 @@ static void stm32l4x5_exti_init(Object *obj)
     qdev_init_gpio_in(DEVICE(obj), stm32l4x5_exti_set_irq, EXTI_NUM_LINES);
 }
 
+static const VMStateField vmstate_stm32l4x5_exti_fields[] = {
+    VMSTATE_UINT32_ARRAY(imr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+    VMSTATE_UINT32_ARRAY(emr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+    VMSTATE_UINT32_ARRAY(rtsr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+    VMSTATE_UINT32_ARRAY(ftsr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+    VMSTATE_UINT32_ARRAY(swier, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+    VMSTATE_UINT32_ARRAY(pr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+    VMSTATE_UINT32_ARRAY(irq_levels, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32l4x5_exti = {
     .name = TYPE_STM32L4X5_EXTI,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(imr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
-        VMSTATE_UINT32_ARRAY(emr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
-        VMSTATE_UINT32_ARRAY(rtsr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
-        VMSTATE_UINT32_ARRAY(ftsr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
-        VMSTATE_UINT32_ARRAY(swier, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
-        VMSTATE_UINT32_ARRAY(pr, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
-        VMSTATE_UINT32_ARRAY(irq_levels, Stm32l4x5ExtiState, EXTI_NUM_REGISTER),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32l4x5_exti_fields,
 };
 
 static void stm32l4x5_exti_class_init(ObjectClass *klass, const void *data)

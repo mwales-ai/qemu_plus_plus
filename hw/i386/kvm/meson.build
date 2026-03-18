@@ -1,15 +1,15 @@
 i386_kvm_ss = ss.source_set()
 i386_kvm_ss.add(files('clock.c'))
-i386_kvm_ss.add(when: 'CONFIG_APIC', if_true: files('apic.c'))
+i386_kvm_ss.add(when: 'CONFIG_APIC', if_true: files('apic.cpp'))
 i386_kvm_ss.add(when: 'CONFIG_I8254', if_true: files('i8254.c'))
 i386_kvm_ss.add(when: 'CONFIG_I8259', if_true: files('i8259.cpp'))
-i386_kvm_ss.add(when: 'CONFIG_IOAPIC', if_true: files('ioapic.c'))
+i386_kvm_ss.add(when: 'CONFIG_IOAPIC', if_true: files('ioapic.cpp'))
 i386_kvm_ss.add(when: 'CONFIG_XEN_EMU', if_true: files(
-  'xen_overlay.c',
+  'xen_overlay.cpp',
   'xen_evtchn.c',
   'xen_gnttab.c',
   'xen_xenstore.c',
-  'xen_primary_console.c',
+  'xen_primary_console.cpp',
   'xenstore_impl.c',
   ))
 

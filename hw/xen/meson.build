@@ -4,7 +4,7 @@ system_ss.add(when: ['CONFIG_XEN_BUS'], if_true: files(
   'xen-bus.c',
   'xen-legacy-backend.c',
   'xen_devconfig.cpp',
-  'xen_pvdev.c',
+  'xen_pvdev.cpp',
 ))
 
 xen_common_ss = ss.source_set()

@@ -26,6 +26,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
@@ -35,6 +37,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+}
 
 #define D(x)
 
@@ -110,7 +113,7 @@ static void timer_update_irq(XpsTimerState *t)
 static uint64_t
 timer_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    XpsTimerState *t = opaque;
+    XpsTimerState *t = static_cast<XpsTimerState *>(opaque);
     struct xlx_timer *xt;
     uint32_t r = 0;
     unsigned int timer;
@@ -161,7 +164,7 @@ static void
 timer_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
-    XpsTimerState *t = opaque;
+    XpsTimerState *t = static_cast<XpsTimerState *>(opaque);
     struct xlx_timer *xt;
     unsigned int timer;
     uint32_t value = val64;
@@ -173,7 +176,7 @@ timer_write(void *opaque, hwaddr addr,
              __func__, addr * 4, value, timer, addr & 3));
     /* Further decoding to address a specific timers reg.  */
     addr &= 3;
-    switch (addr) 
+    switch (addr)
     {
         case R_TCSR:
             if (value & TCSR_TINT)
@@ -186,7 +189,7 @@ timer_write(void *opaque, hwaddr addr,
                 ptimer_transaction_commit(xt->ptimer);
             }
             break;
- 
+
         default:
             if (addr < ARRAY_SIZE(xt->regs))
                 xt->regs[addr] = value;
@@ -195,27 +198,28 @@ timer_write(void *opaque, hwaddr addr,
     timer_update_irq(t);
 }
 
-static const MemoryRegionOps timer_ops[2] = {
-    [0 ... 1] = {
-        .read = timer_read,
-        .write = timer_write,
-        .impl = {
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-        .valid = {
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-    },
-    [0].endianness = DEVICE_LITTLE_ENDIAN,
-    [1].endianness = DEVICE_BIG_ENDIAN,
-};
+/* Two MemoryRegionOps: [0] = little-endian, [1] = big-endian */
+static MemoryRegionOps timer_ops[2];
+
+static void __attribute__((constructor)) init_timer_ops(void)
+{
+    for (int i = 0; i < 2; i++) {
+        memset(&timer_ops[i], 0, sizeof(timer_ops[i]));
+        timer_ops[i].read = timer_read;
+        timer_ops[i].write = timer_write;
+        timer_ops[i].impl.min_access_size = 4;
+        timer_ops[i].impl.max_access_size = 4;
+        timer_ops[i].valid.min_access_size = 4;
+        timer_ops[i].valid.max_access_size = 4;
+    }
+    timer_ops[0].endianness = DEVICE_LITTLE_ENDIAN;
+    timer_ops[1].endianness = DEVICE_BIG_ENDIAN;
+}
 
 static void timer_hit(void *opaque)
 {
-    struct xlx_timer *xt = opaque;
-    XpsTimerState *t = xt->parent;
+    struct xlx_timer *xt = static_cast<struct xlx_timer *>(opaque);
+    XpsTimerState *t = static_cast<XpsTimerState *>(xt->parent);
     D(fprintf(stderr, "%s %d\n", __func__, xt->nr));
     xt->regs[R_TCSR] |= TCSR_TINT;
 
@@ -236,7 +240,8 @@ static void xilinx_timer_realize(DeviceState *dev, Error **errp)
     }
 
     /* Init all the ptimers.  */
-    t->timers = g_malloc0(sizeof t->timers[0] * num_timers(t));
+    t->timers = static_cast<struct xlx_timer *>(
+        g_malloc0(sizeof t->timers[0] * num_timers(t)));
     for (i = 0; i < num_timers(t); i++) {
         struct xlx_timer *xt = &t->timers[i];
 

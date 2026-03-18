@@ -209,6 +209,10 @@ static inline bool vfio_is_base_display(VFIOPCIDevice *vdev)
     return (vdev->class_code >> 16) == PCI_BASE_CLASS_DISPLAY;
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* MSI/MSI-X/INTx */
 void vfio_pci_vector_init(VFIOPCIDevice *vdev, int nr);
 void vfio_pci_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
@@ -282,5 +286,9 @@ bool vfio_pci_populate_device(VFIOPCIDevice *vdev, Error **errp);
 void vfio_pci_register_err_notifier(VFIOPCIDevice *vdev);
 void vfio_pci_register_req_notifier(VFIOPCIDevice *vdev);
 void vfio_pci_teardown_msi(VFIOPCIDevice *vdev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VFIO_VFIO_PCI_H */

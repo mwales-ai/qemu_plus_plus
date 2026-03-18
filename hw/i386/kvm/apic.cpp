@@ -11,13 +11,17 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/module.h"
-#include "hw/i386/apic_internal.h"
-#include "hw/pci/msi.h"
 #include "system/hw_accel.h"
 #include "system/kvm.h"
 #include "kvm/kvm_i386.h"
+}
+
 #include "kvm/tdx.h"
+#include "hw/i386/apic_internal.h"
+#include "hw/pci/msi.h"
 
 static inline void kvm_apic_set_reg(struct kvm_lapic_state *kapic,
                                     int reg_id, uint32_t val)
@@ -60,6 +64,7 @@ static void kvm_put_apic_state(APICCommonState *s, struct kvm_lapic_state *kapic
     kvm_apic_set_reg(kapic, 0x3e, s->divide_conf);
 }
 
+extern "C"
 void kvm_get_apic_state(APICCommonState *s, struct kvm_lapic_state *kapic)
 {
     int i, v;
@@ -137,7 +142,7 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
 
 static void kvm_apic_put(CPUState *cs, run_on_cpu_data data)
 {
-    APICCommonState *s = data.host_ptr;
+    APICCommonState *s = static_cast<APICCommonState *>(data.host_ptr);
     struct kvm_lapic_state kapic;
     int ret;
 
@@ -162,7 +167,7 @@ static void kvm_apic_post_load(APICCommonState *s)
 
 static void do_inject_external_nmi(CPUState *cpu, run_on_cpu_data data)
 {
-    APICCommonState *s = data.host_ptr;
+    APICCommonState *s = static_cast<APICCommonState *>(data.host_ptr);
     uint32_t lvt;
     int ret;
 
@@ -210,7 +215,7 @@ static uint64_t kvm_apic_mem_read(void *opaque, hwaddr addr,
 static void kvm_apic_mem_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
-    MSIMessage msg = { .address = addr, .data = data };
+    MSIMessage msg = { .address = addr, .data = static_cast<uint32_t>(data) };
 
     kvm_send_msi(&msg);
 }

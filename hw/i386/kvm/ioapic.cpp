@@ -11,14 +11,19 @@
  */
 
 #include "qemu/osdep.h"
-#include "monitor/monitor.h"
+
+extern "C" {
 #include "hw/qdev-properties.h"
-#include "hw/intc/ioapic_internal.h"
 #include "hw/intc/kvm_irqcount.h"
 #include "system/kvm.h"
 #include "kvm/kvm_i386.h"
+}
+
+#include "monitor/monitor.h"
+#include "hw/intc/ioapic_internal.h"
 
 /* PC Utility function */
+extern "C"
 void kvm_pc_setup_irq_routing(bool pci_enabled)
 {
     KVMState *s = kvm_state;
@@ -110,7 +115,7 @@ static void kvm_ioapic_reset(DeviceState *dev)
 
 static void kvm_ioapic_set_irq(void *opaque, int irq, int level)
 {
-    KVMIOAPICState *s = opaque;
+    KVMIOAPICState *s = static_cast<KVMIOAPICState *>(opaque);
     IOAPICCommonState *common = IOAPIC_COMMON(s);
     int delivered;
 

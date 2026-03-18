@@ -23,11 +23,14 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
 #include "qemu/fifo8.h"
 #include "hw/ssi/bcm2835_spi.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
+}
 
 static void bcm2835_spi_update_int(BCM2835SPIState *s)
 {
@@ -101,7 +104,7 @@ static void bcm2835_spi_flush_tx_fifo(BCM2835SPIState *s)
 
 static uint64_t bcm2835_spi_read(void *opaque, hwaddr addr, unsigned size)
 {
-    BCM2835SPIState *s = opaque;
+    BCM2835SPIState *s = static_cast<BCM2835SPIState *>(opaque);
     uint32_t readval = 0;
 
     switch (addr) {
@@ -139,7 +142,7 @@ static uint64_t bcm2835_spi_read(void *opaque, hwaddr addr, unsigned size)
 static void bcm2835_spi_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
-    BCM2835SPIState *s = opaque;
+    BCM2835SPIState *s = static_cast<BCM2835SPIState *>(opaque);
 
     switch (addr) {
     case BCM2835_SPI_CS:
@@ -248,20 +251,22 @@ static void bcm2835_spi_reset(DeviceState *dev)
     s->dc = 0x30201020;
 }
 
+static const VMStateField vmstate_bcm2835_spi_fields[] = {
+    VMSTATE_FIFO8(tx_fifo, BCM2835SPIState),
+    VMSTATE_FIFO8(rx_fifo, BCM2835SPIState),
+    VMSTATE_UINT32(cs, BCM2835SPIState),
+    VMSTATE_UINT32(clk, BCM2835SPIState),
+    VMSTATE_UINT32(dlen, BCM2835SPIState),
+    VMSTATE_UINT32(ltoh, BCM2835SPIState),
+    VMSTATE_UINT32(dc, BCM2835SPIState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_spi = {
     .name = TYPE_BCM2835_SPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO8(tx_fifo, BCM2835SPIState),
-        VMSTATE_FIFO8(rx_fifo, BCM2835SPIState),
-        VMSTATE_UINT32(cs, BCM2835SPIState),
-        VMSTATE_UINT32(clk, BCM2835SPIState),
-        VMSTATE_UINT32(dlen, BCM2835SPIState),
-        VMSTATE_UINT32(ltoh, BCM2835SPIState),
-        VMSTATE_UINT32(dc, BCM2835SPIState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_spi_fields,
 };
 
 static void bcm2835_spi_class_init(ObjectClass *klass, const void *data)

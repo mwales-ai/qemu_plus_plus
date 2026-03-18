@@ -7,6 +7,14 @@
 
 #include "hw/cxl/cxl.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void pxb_cxl_hook_up_registers(CXLState *state, PCIBus *bus, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PCI_EXPANDER_BRIDGE_H */

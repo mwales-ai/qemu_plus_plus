@@ -22,8 +22,9 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/log.h"
-#include "trace.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/clock.h"
@@ -31,6 +32,9 @@
 #include "qapi/error.h"
 #include "hw/misc/stm32l4x5_syscfg.h"
 #include "hw/gpio/stm32l4x5_gpio.h"
+}
+
+#include "trace.h"
 
 #define SYSCFG_MEMRMP 0x00
 #define SYSCFG_CFGR1 0x04
@@ -87,7 +91,7 @@ static void stm32l4x5_syscfg_hold_reset(Object *obj, ResetType type)
 
 static void stm32l4x5_syscfg_set_irq(void *opaque, int irq, int level)
 {
-    Stm32l4x5SyscfgState *s = opaque;
+    Stm32l4x5SyscfgState *s = static_cast<Stm32l4x5SyscfgState *>(opaque);
     const uint8_t gpio = irq / GPIO_NUM_PINS;
     const int line = irq % GPIO_NUM_PINS;
 
@@ -106,7 +110,7 @@ static void stm32l4x5_syscfg_set_irq(void *opaque, int irq, int level)
 static uint64_t stm32l4x5_syscfg_read(void *opaque, hwaddr addr,
                                       unsigned int size)
 {
-    Stm32l4x5SyscfgState *s = opaque;
+    Stm32l4x5SyscfgState *s = static_cast<Stm32l4x5SyscfgState *>(opaque);
 
     trace_stm32l4x5_syscfg_read(addr);
 
@@ -136,7 +140,7 @@ static uint64_t stm32l4x5_syscfg_read(void *opaque, hwaddr addr,
 static void stm32l4x5_syscfg_write(void *opaque, hwaddr addr,
                                    uint64_t value, unsigned int size)
 {
-    Stm32l4x5SyscfgState *s = opaque;
+    Stm32l4x5SyscfgState *s = static_cast<Stm32l4x5SyscfgState *>(opaque);
 
     trace_stm32l4x5_syscfg_write(addr, value);
 
@@ -205,13 +209,21 @@ static void stm32l4x5_syscfg_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps stm32l4x5_syscfg_ops = {
+static MemoryRegionOps stm32l4x5_syscfg_ops = {
     .read = stm32l4x5_syscfg_read,
     .write = stm32l4x5_syscfg_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
-    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
+
+static void __attribute__((constructor)) init_stm32l4x5_syscfg_ops(void)
+{
+    stm32l4x5_syscfg_ops.impl.min_access_size = 4;
+    stm32l4x5_syscfg_ops.impl.max_access_size = 4;
+    stm32l4x5_syscfg_ops.impl.unaligned = false;
+    stm32l4x5_syscfg_ops.valid.min_access_size = 4;
+    stm32l4x5_syscfg_ops.valid.max_access_size = 4;
+    stm32l4x5_syscfg_ops.valid.unaligned = false;
+}
 
 static void stm32l4x5_syscfg_init(Object *obj)
 {
@@ -236,23 +248,24 @@ static void stm32l4x5_syscfg_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_stm32l4x5_syscfg_fields[] = {
+    VMSTATE_UINT32(memrmp, Stm32l4x5SyscfgState),
+    VMSTATE_UINT32(cfgr1, Stm32l4x5SyscfgState),
+    VMSTATE_UINT32_ARRAY(exticr, Stm32l4x5SyscfgState, SYSCFG_NUM_EXTICR),
+    VMSTATE_UINT32(scsr, Stm32l4x5SyscfgState),
+    VMSTATE_UINT32(cfgr2, Stm32l4x5SyscfgState),
+    VMSTATE_UINT32(swpr, Stm32l4x5SyscfgState),
+    VMSTATE_UINT32(skr, Stm32l4x5SyscfgState),
+    VMSTATE_UINT32(swpr2, Stm32l4x5SyscfgState),
+    VMSTATE_CLOCK(clk, Stm32l4x5SyscfgState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32l4x5_syscfg = {
     .name = TYPE_STM32L4X5_SYSCFG,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(memrmp, Stm32l4x5SyscfgState),
-        VMSTATE_UINT32(cfgr1, Stm32l4x5SyscfgState),
-        VMSTATE_UINT32_ARRAY(exticr, Stm32l4x5SyscfgState,
-                             SYSCFG_NUM_EXTICR),
-        VMSTATE_UINT32(scsr, Stm32l4x5SyscfgState),
-        VMSTATE_UINT32(cfgr2, Stm32l4x5SyscfgState),
-        VMSTATE_UINT32(swpr, Stm32l4x5SyscfgState),
-        VMSTATE_UINT32(skr, Stm32l4x5SyscfgState),
-        VMSTATE_UINT32(swpr2, Stm32l4x5SyscfgState),
-        VMSTATE_CLOCK(clk, Stm32l4x5SyscfgState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32l4x5_syscfg_fields,
 };
 
 static void stm32l4x5_syscfg_class_init(ObjectClass *klass, const void *data)

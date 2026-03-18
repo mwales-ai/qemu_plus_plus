@@ -5,17 +5,22 @@
  */
 
 #include "qemu/osdep.h"
+
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
+
+extern "C" {
+#include "qapi/error.h"
+#include "qemu/error-report.h"
+#include "migration/vmstate.h"
+}
+
 #include "hw/vfio/vfio-container-legacy.h"
 #include "hw/vfio/vfio-device.h"
 #include "hw/vfio/vfio-listener.h"
 #include "migration/blocker.h"
 #include "migration/cpr.h"
 #include "migration/migration.h"
-#include "migration/vmstate.h"
-#include "qapi/error.h"
-#include "qemu/error-report.h"
 
 static bool vfio_dma_unmap_vaddr_all(VFIOLegacyContainer *container,
                                      Error **errp)
@@ -85,7 +90,7 @@ static bool vfio_cpr_supported(VFIOLegacyContainer *container, Error **errp)
 
 static int vfio_container_pre_save(void *opaque)
 {
-    VFIOLegacyContainer *container = opaque;
+    VFIOLegacyContainer *container = static_cast<VFIOLegacyContainer *>(opaque);
     Error *local_err = NULL;
 
     if (!vfio_dma_unmap_vaddr_all(container, &local_err)) {
@@ -97,7 +102,7 @@ static int vfio_container_pre_save(void *opaque)
 
 static int vfio_container_post_load(void *opaque, int version_id)
 {
-    VFIOLegacyContainer *container = opaque;
+    VFIOLegacyContainer *container = static_cast<VFIOLegacyContainer *>(opaque);
     VFIOContainer *bcontainer = VFIO_IOMMU(container);
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
     dma_map_fn saved_dma_map = vioc->dma_map;
@@ -117,17 +122,19 @@ static int vfio_container_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_vfio_container_fields[] = {
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vfio_container_vmstate = {
     .name = "vfio-container",
     .version_id = 0,
     .minimum_version_id = 0,
     .priority = MIG_PRI_LOW,  /* Must happen after devices and groups */
-    .pre_save = vfio_container_pre_save,
     .post_load = vfio_container_post_load,
+    .pre_save = vfio_container_pre_save,
     .needed = cpr_incoming_needed,
-    .fields = (VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vfio_container_fields,
 };
 
 static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
@@ -152,10 +159,10 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
         dma_map_fn saved_dma_map = vioc->dma_map;
         vioc->dma_map = vfio_legacy_cpr_dma_map;
 
-        container->cpr.remap_listener = (MemoryListener) {
-            .name = "vfio cpr recover",
-            .region_add = vfio_region_remap
-        };
+        memset(&container->cpr.remap_listener, 0,
+               sizeof(container->cpr.remap_listener));
+        container->cpr.remap_listener.name = "vfio cpr recover";
+        container->cpr.remap_listener.region_add = vfio_region_remap;
         memory_listener_register(&container->cpr.remap_listener,
                                  bcontainer->space->as);
         memory_listener_unregister(&container->cpr.remap_listener);
@@ -165,6 +172,7 @@ static int vfio_cpr_fail_notifier(NotifierWithReturn *notifier,
     return 0;
 }
 
+extern "C"
 bool vfio_legacy_cpr_register_container(VFIOLegacyContainer *container,
                                         Error **errp)
 {
@@ -191,6 +199,7 @@ bool vfio_legacy_cpr_register_container(VFIOLegacyContainer *container,
     return true;
 }
 
+extern "C"
 void vfio_legacy_cpr_unregister_container(VFIOLegacyContainer *container)
 {
     VFIOContainer *bcontainer = VFIO_IOMMU(container);
@@ -209,6 +218,7 @@ void vfio_legacy_cpr_unregister_container(VFIOLegacyContainer *container)
  * The giommu already exists.  Find it and replay it, which calls
  * vfio_legacy_cpr_dma_map further down the stack.
  */
+extern "C"
 void vfio_cpr_giommu_remap(VFIOContainer *bcontainer,
                            MemoryRegionSection *section)
 {
@@ -228,7 +238,7 @@ void vfio_cpr_giommu_remap(VFIOContainer *bcontainer,
 
 static int vfio_cpr_rdm_remap(MemoryRegionSection *section, void *opaque)
 {
-    RamDiscardListener *rdl = opaque;
+    RamDiscardListener *rdl = static_cast<RamDiscardListener *>(opaque);
 
     return rdl->notify_populate(rdl, section);
 }
@@ -241,6 +251,7 @@ static int vfio_cpr_rdm_remap(MemoryRegionSection *section, void *opaque)
  * The ram discard listener already exists.  Call its replay_populated function
  * directly, which calls vfio_legacy_cpr_dma_map.
  */
+extern "C"
 bool vfio_cpr_ram_discard_replay_populated(VFIOContainer *bcontainer,
                                            MemoryRegionSection *section)
 {
@@ -254,6 +265,7 @@ bool vfio_cpr_ram_discard_replay_populated(VFIOContainer *bcontainer,
                                                 &vrdl->listener) == 0;
 }
 
+extern "C"
 int vfio_cpr_group_get_device_fd(int d, const char *name)
 {
     const int id = 0;
@@ -275,6 +287,7 @@ static bool same_device(int fd1, int fd2)
     return !fstat(fd1, &st1) && !fstat(fd2, &st2) && st1.st_dev == st2.st_dev;
 }
 
+extern "C"
 bool vfio_cpr_container_match(VFIOLegacyContainer *container, VFIOGroup *group,
                               int fd)
 {

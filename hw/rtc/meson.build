@@ -4,7 +4,7 @@ system_ss.add(when: 'CONFIG_M41T80', if_true: files('m41t80.cpp'))
 system_ss.add(when: 'CONFIG_M48T59', if_true: files('m48t59.cpp'))
 system_ss.add(when: 'CONFIG_PL031', if_true: files('pl031.cpp'))
 system_ss.add(when: ['CONFIG_ISA_BUS', 'CONFIG_M48T59'], if_true: files('m48t59-isa.cpp'))
-system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files('xlnx-zynqmp-rtc.c'))
+system_ss.add(when: 'CONFIG_XLNX_ZYNQMP', if_true: files('xlnx-zynqmp-rtc.cpp'))
 
 system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_rtc.cpp'))
 system_ss.add(when: 'CONFIG_SUN4V_RTC', if_true: files('sun4v-rtc.cpp'))

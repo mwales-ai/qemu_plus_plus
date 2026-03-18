@@ -16,6 +16,8 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "system/reset.h"
 #include "system/watchdog.h"
 #include "hw/qdev-properties.h"
@@ -24,20 +26,23 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+}
+
+static const VMStateField vmstate_sbsa_gwdt_fields[] = {
+    VMSTATE_TIMER_PTR(timer, SBSA_GWDTState),
+    VMSTATE_UINT32(wcs, SBSA_GWDTState),
+    VMSTATE_UINT32(worl, SBSA_GWDTState),
+    VMSTATE_UINT32(woru, SBSA_GWDTState),
+    VMSTATE_UINT32(wcvl, SBSA_GWDTState),
+    VMSTATE_UINT32(wcvu, SBSA_GWDTState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_sbsa_gwdt = {
     .name = "sbsa-gwdt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, SBSA_GWDTState),
-        VMSTATE_UINT32(wcs, SBSA_GWDTState),
-        VMSTATE_UINT32(worl, SBSA_GWDTState),
-        VMSTATE_UINT32(woru, SBSA_GWDTState),
-        VMSTATE_UINT32(wcvl, SBSA_GWDTState),
-        VMSTATE_UINT32(wcvu, SBSA_GWDTState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_sbsa_gwdt_fields,
 };
 
 typedef enum WdtRefreshType {
@@ -47,7 +52,7 @@ typedef enum WdtRefreshType {
 
 static uint64_t sbsa_gwdt_rread(void *opaque, hwaddr addr, unsigned int size)
 {
-    SBSA_GWDTState *s = SBSA_GWDT(opaque);
+    SBSA_GWDTState *s = SBSA_GWDT(static_cast<Object *>(opaque));
     uint32_t ret = 0;
 
     switch (addr) {
@@ -67,7 +72,7 @@ static uint64_t sbsa_gwdt_rread(void *opaque, hwaddr addr, unsigned int size)
 
 static uint64_t sbsa_gwdt_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    SBSA_GWDTState *s = SBSA_GWDT(opaque);
+    SBSA_GWDTState *s = SBSA_GWDT(static_cast<Object *>(opaque));
     uint32_t ret = 0;
 
     switch (addr) {
@@ -125,7 +130,7 @@ static void sbsa_gwdt_update_timer(SBSA_GWDTState *s, WdtRefreshType rtype)
 
 static void sbsa_gwdt_rwrite(void *opaque, hwaddr offset, uint64_t data,
                              unsigned size) {
-    SBSA_GWDTState *s = SBSA_GWDT(opaque);
+    SBSA_GWDTState *s = SBSA_GWDT(static_cast<Object *>(opaque));
 
     if (offset == SBSA_GWDT_WRR) {
         s->wcs &= ~(SBSA_GWDT_WCS_WS0 | SBSA_GWDT_WCS_WS1);
@@ -139,7 +144,7 @@ static void sbsa_gwdt_rwrite(void *opaque, hwaddr offset, uint64_t data,
 
 static void sbsa_gwdt_write(void *opaque, hwaddr offset, uint64_t data,
                              unsigned size) {
-    SBSA_GWDTState *s = SBSA_GWDT(opaque);
+    SBSA_GWDTState *s = SBSA_GWDT(static_cast<Object *>(opaque));
 
     switch (offset) {
     case SBSA_GWDT_WCS:
@@ -192,7 +197,7 @@ static void wdt_sbsa_gwdt_reset(DeviceState *dev)
 
 static void sbsa_gwdt_timer_sysinterrupt(void *opaque)
 {
-    SBSA_GWDTState *s = SBSA_GWDT(opaque);
+    SBSA_GWDTState *s = SBSA_GWDT(static_cast<Object *>(opaque));
 
     if (!(s->wcs & SBSA_GWDT_WCS_WS0)) {
         s->wcs |= SBSA_GWDT_WCS_WS0;
@@ -219,19 +224,27 @@ static void sbsa_gwdt_timer_sysinterrupt(void *opaque)
     }
 }
 
-static const MemoryRegionOps sbsa_gwdt_rops = {
+static MemoryRegionOps sbsa_gwdt_rops = {
     .read = sbsa_gwdt_rread,
     .write = sbsa_gwdt_rwrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
 
-static const MemoryRegionOps sbsa_gwdt_ops = {
+static MemoryRegionOps sbsa_gwdt_ops = {
     .read = sbsa_gwdt_read,
     .write = sbsa_gwdt_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false, },
 };
+
+static void __attribute__((constructor)) init_sbsa_gwdt_ops(void)
+{
+    sbsa_gwdt_rops.valid.min_access_size = 4;
+    sbsa_gwdt_rops.valid.max_access_size = 4;
+    sbsa_gwdt_rops.valid.unaligned = false;
+    sbsa_gwdt_ops.valid.min_access_size = 4;
+    sbsa_gwdt_ops.valid.max_access_size = 4;
+    sbsa_gwdt_ops.valid.unaligned = false;
+}
 
 static void wdt_sbsa_gwdt_realize(DeviceState *dev, Error **errp)
 {
@@ -281,10 +294,10 @@ static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo wdt_sbsa_gwdt_info = {
-    .class_init = wdt_sbsa_gwdt_class_init,
-    .parent = TYPE_SYS_BUS_DEVICE,
     .name  = TYPE_WDT_SBSA,
+    .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(SBSA_GWDTState),
+    .class_init = wdt_sbsa_gwdt_class_init,
 };
 
 static void wdt_sbsa_gwdt_register_types(void)

@@ -6375,7 +6375,7 @@ struct MSIRouteEntry {
 static QLIST_HEAD(, MSIRouteEntry) msi_route_list = \
     QLIST_HEAD_INITIALIZER(msi_route_list);
 
-void kvm_update_msi_routes_all(void *private, bool global,
+void kvm_update_msi_routes_all(void *priv_data, bool global,
                                uint32_t index, uint32_t mask)
 {
     int cnt = 0, vector;

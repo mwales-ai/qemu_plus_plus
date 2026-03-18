@@ -7,18 +7,22 @@
  */
 
 #include "qemu/osdep.h"
+
+extern "C" {
 #include "qemu/units.h"
 #include "qemu/target-info-qapi.h"
+#include "qapi/error.h"
+#include "qapi/type-helpers.h"
+#include "qobject/qdict.h"
+}
+
 #include "hw/boards.h"
 #include "hw/i386/x86.h"
 #include "hw/arm/virt.h"
 #include "system/dma.h"
 #include "monitor/hmp.h"
 #include "monitor/monitor.h"
-#include "qapi/error.h"
-#include "qapi/type-helpers.h"
 #include "qapi/qapi-commands-machine.h"
-#include "qobject/qdict.h"
 
 
 /* ----------------------------------------------------------------------- */
@@ -120,7 +124,7 @@ static dma_addr_t find_ovmf_log(void)
 
         /* early log buffer, static allocation in memfd, sec + early pei */
         offset = find_ovmf_log_range(0x800000, 0x900000);
-        if (offset != -1) {
+        if (offset != (dma_addr_t)-1) {
             return offset;
         }
 
@@ -165,6 +169,7 @@ static void handle_ovmf_log_range(GString *out,
     }
 }
 
+extern "C"
 FirmwareLog *qmp_query_firmware_log(bool have_max_size, uint64_t max_size,
                                     Error **errp)
 {
@@ -174,7 +179,7 @@ FirmwareLog *qmp_query_firmware_log(bool have_max_size, uint64_t max_size,
     g_autoptr(GString) log = g_string_new("");
 
     offset = find_ovmf_log();
-    if (offset == -1) {
+    if (offset == (dma_addr_t)-1) {
         error_setg(errp, "firmware log buffer not found");
         return NULL;
     }
@@ -256,6 +261,7 @@ FirmwareLog *qmp_query_firmware_log(bool have_max_size, uint64_t max_size,
     return ret;
 }
 
+extern "C"
 void hmp_info_firmware_log(Monitor *mon, const QDict *qdict)
 {
     g_autofree gchar *log_esc = NULL;
