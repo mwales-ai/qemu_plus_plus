@@ -66,6 +66,10 @@ typedef struct SpaprXiveClass {
  */
 #define SPAPR_XIVE_BLOCK_ID 0x0
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct SpaprMachineState;
 void spapr_xive_hcall_init(struct SpaprMachineState *spapr);
 void spapr_xive_mmio_set_enabled(SpaprXive *xive, bool enable);
@@ -95,5 +99,9 @@ int kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
 void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp);
 int kvmppc_xive_pre_save(SpaprXive *xive);
 int kvmppc_xive_post_load(SpaprXive *xive, int version_id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PPC_SPAPR_XIVE_H */

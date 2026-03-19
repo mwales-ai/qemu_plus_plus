@@ -21,6 +21,10 @@ typedef struct Vof {
     long fw_size;
 } Vof;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int vof_client_call(MachineState *ms, Vof *vof, void *fdt,
                     target_ulong args_real);
 uint64_t vof_claim(Vof *vof, uint64_t virt, uint64_t size, uint64_t align);
@@ -29,6 +33,10 @@ void vof_cleanup(Vof *vof);
 void vof_build_dt(void *fdt, Vof *vof);
 uint32_t vof_client_open_store(void *fdt, Vof *vof, const char *nodename,
                                const char *prop, const char *path);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define TYPE_VOF_MACHINE_IF "vof-machine-if"
 

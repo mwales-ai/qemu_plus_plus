@@ -71,7 +71,7 @@ typedef struct SpaprCapabilityInfo {
 static void spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    SpaprCapabilityInfo *cap = opaque;
+    SpaprCapabilityInfo *cap = static_cast<SpaprCapabilityInfo *>(opaque);
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     bool value = spapr_get_cap(spapr, cap->index) == SPAPR_CAP_ON;
 
@@ -81,7 +81,7 @@ static void spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    SpaprCapabilityInfo *cap = opaque;
+    SpaprCapabilityInfo *cap = static_cast<SpaprCapabilityInfo *>(opaque);
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     bool value;
 
@@ -97,7 +97,7 @@ static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
-    SpaprCapabilityInfo *cap = opaque;
+    SpaprCapabilityInfo *cap = static_cast<SpaprCapabilityInfo *>(opaque);
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     g_autofree char *val = NULL;
     uint8_t value = spapr_get_cap(spapr, cap->index);
@@ -115,7 +115,7 @@ static void spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_string(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
-    SpaprCapabilityInfo *cap = opaque;
+    SpaprCapabilityInfo *cap = static_cast<SpaprCapabilityInfo *>(opaque);
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     uint8_t i;
     g_autofree char *val = NULL;
@@ -143,7 +143,7 @@ static void spapr_cap_set_string(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
-    SpaprCapabilityInfo *cap = opaque;
+    SpaprCapabilityInfo *cap = static_cast<SpaprCapabilityInfo *>(opaque);
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     uint8_t val = spapr_get_cap(spapr, cap->index);
     uint64_t pagesize = (1ULL << val);
@@ -154,7 +154,7 @@ static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_pagesize(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
-    SpaprCapabilityInfo *cap = opaque;
+    SpaprCapabilityInfo *cap = static_cast<SpaprCapabilityInfo *>(opaque);
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     uint64_t pagesize;
     uint8_t val;
@@ -224,9 +224,9 @@ static void cap_dfp_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
 
 SpaprCapPossible cap_cfpc_possible = {
     .num = 3,
-    .vals = {"broken", "workaround", "fixed"},
     .help = "broken - no protection, workaround - workaround available,"
             " fixed - fixed in hardware",
+    .vals = {"broken", "workaround", "fixed"},
 };
 
 static void cap_safe_cache_apply(SpaprMachineState *spapr, uint8_t val,
@@ -249,9 +249,9 @@ static void cap_safe_cache_apply(SpaprMachineState *spapr, uint8_t val,
 
 SpaprCapPossible cap_sbbc_possible = {
     .num = 3,
-    .vals = {"broken", "workaround", "fixed"},
     .help = "broken - no protection, workaround - workaround available,"
             " fixed - fixed in hardware",
+    .vals = {"broken", "workaround", "fixed"},
 };
 
 static void cap_safe_bounds_check_apply(SpaprMachineState *spapr, uint8_t val,
@@ -275,11 +275,11 @@ static void cap_safe_bounds_check_apply(SpaprMachineState *spapr, uint8_t val,
 SpaprCapPossible cap_ibs_possible = {
     .num = 5,
     /* Note workaround only maintained for compatibility */
-    .vals = {"broken", "workaround", "fixed-ibs", "fixed-ccd", "fixed-na"},
     .help = "broken - no protection, workaround - count cache flush"
             ", fixed-ibs - indirect branch serialisation,"
             " fixed-ccd - cache count disabled,"
             " fixed-na - fixed in hardware (no longer applicable)",
+    .vals = {"broken", "workaround", "fixed-ibs", "fixed-ccd", "fixed-na"},
 };
 
 static void cap_safe_indirect_branch_apply(SpaprMachineState *spapr,
@@ -719,7 +719,8 @@ static void cap_dawr1_apply(SpaprMachineState *spapr, uint8_t val,
 }
 
 SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
-    [SPAPR_CAP_HTM] = {
+    /* [SPAPR_CAP_HTM] */
+    {
         .name = "htm",
         .description = "Allow Hardware Transactional Memory (HTM)",
         .index = SPAPR_CAP_HTM,
@@ -728,7 +729,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_htm_apply,
     },
-    [SPAPR_CAP_VSX] = {
+    /* [SPAPR_CAP_VSX] */
+    {
         .name = "vsx",
         .description = "Allow Vector Scalar Extensions (VSX)",
         .index = SPAPR_CAP_VSX,
@@ -737,7 +739,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_vsx_apply,
     },
-    [SPAPR_CAP_DFP] = {
+    /* [SPAPR_CAP_DFP] */
+    {
         .name = "dfp",
         .description = "Allow Decimal Floating Point (DFP)",
         .index = SPAPR_CAP_DFP,
@@ -746,7 +749,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_dfp_apply,
     },
-    [SPAPR_CAP_CFPC] = {
+    /* [SPAPR_CAP_CFPC] */
+    {
         .name = "cfpc",
         .description = "Cache Flush on Privilege Change" VALUE_DESC_TRISTATE,
         .index = SPAPR_CAP_CFPC,
@@ -756,7 +760,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .possible = &cap_cfpc_possible,
         .apply = cap_safe_cache_apply,
     },
-    [SPAPR_CAP_SBBC] = {
+    /* [SPAPR_CAP_SBBC] */
+    {
         .name = "sbbc",
         .description = "Speculation Barrier Bounds Checking" VALUE_DESC_TRISTATE,
         .index = SPAPR_CAP_SBBC,
@@ -766,7 +771,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .possible = &cap_sbbc_possible,
         .apply = cap_safe_bounds_check_apply,
     },
-    [SPAPR_CAP_IBS] = {
+    /* [SPAPR_CAP_IBS] */
+    {
         .name = "ibs",
         .description =
             "Indirect Branch Speculation (broken, workaround, fixed-ibs,"
@@ -778,7 +784,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .possible = &cap_ibs_possible,
         .apply = cap_safe_indirect_branch_apply,
     },
-    [SPAPR_CAP_HPT_MAXPAGESIZE] = {
+    /* [SPAPR_CAP_HPT_MAXPAGESIZE] */
+    {
         .name = "hpt-max-page-size",
         .description = "Maximum page size for Hash Page Table guests",
         .index = SPAPR_CAP_HPT_MAXPAGESIZE,
@@ -788,7 +795,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .apply = cap_hpt_maxpagesize_apply,
         .cpu_apply = cap_hpt_maxpagesize_cpu_apply,
     },
-    [SPAPR_CAP_NESTED_KVM_HV] = {
+    /* [SPAPR_CAP_NESTED_KVM_HV] */
+    {
         .name = "nested-hv",
         .description = "Allow Nested KVM-HV",
         .index = SPAPR_CAP_NESTED_KVM_HV,
@@ -797,7 +805,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_nested_kvm_hv_apply,
     },
-    [SPAPR_CAP_NESTED_PAPR] = {
+    /* [SPAPR_CAP_NESTED_PAPR] */
+    {
         .name = "nested-papr",
         .description = "Allow Nested HV (PAPR API)",
         .index = SPAPR_CAP_NESTED_PAPR,
@@ -806,7 +815,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_nested_papr_apply,
     },
-    [SPAPR_CAP_LARGE_DECREMENTER] = {
+    /* [SPAPR_CAP_LARGE_DECREMENTER] */
+    {
         .name = "large-decr",
         .description = "Allow Large Decrementer",
         .index = SPAPR_CAP_LARGE_DECREMENTER,
@@ -816,7 +826,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .apply = cap_large_decr_apply,
         .cpu_apply = cap_large_decr_cpu_apply,
     },
-    [SPAPR_CAP_CCF_ASSIST] = {
+    /* [SPAPR_CAP_CCF_ASSIST] */
+    {
         .name = "ccf-assist",
         .description = "Count Cache Flush Assist via HW Instruction",
         .index = SPAPR_CAP_CCF_ASSIST,
@@ -825,7 +836,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_ccf_assist_apply,
     },
-    [SPAPR_CAP_FWNMI] = {
+    /* [SPAPR_CAP_FWNMI] */
+    {
         .name = "fwnmi",
         .description = "Implements PAPR FWNMI option",
         .index = SPAPR_CAP_FWNMI,
@@ -834,7 +846,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_fwnmi_apply,
     },
-    [SPAPR_CAP_RPT_INVALIDATE] = {
+    /* [SPAPR_CAP_RPT_INVALIDATE] */
+    {
         .name = "rpt-invalidate",
         .description = "Allow H_RPT_INVALIDATE",
         .index = SPAPR_CAP_RPT_INVALIDATE,
@@ -843,7 +856,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_rpt_invalidate_apply,
     },
-    [SPAPR_CAP_AIL_MODE_3] = {
+    /* [SPAPR_CAP_AIL_MODE_3] */
+    {
         .name = "ail-mode-3",
         .description = "Alternate Interrupt Location (AIL) mode 3 support",
         .index = SPAPR_CAP_AIL_MODE_3,
@@ -852,7 +866,8 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_ail_mode_3_apply,
     },
-    [SPAPR_CAP_DAWR1] = {
+    /* [SPAPR_CAP_DAWR1] */
+    {
         .name = "dawr1",
         .description = "Allow 2nd Data Address Watchpoint Register (DAWR1)",
         .index = SPAPR_CAP_DAWR1,
@@ -918,7 +933,7 @@ static SpaprCapabilities default_caps_with_cpu(SpaprMachineState *spapr,
 
 int spapr_caps_pre_load(void *opaque)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
 
     /* Set to default so we can tell if this came in with the migration */
     spapr->mig = spapr->def;
@@ -927,7 +942,7 @@ int spapr_caps_pre_load(void *opaque)
 
 int spapr_caps_pre_save(void *opaque)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
 
     spapr->mig = spapr->eff;
     return 0;
@@ -971,26 +986,29 @@ int spapr_caps_post_migration(SpaprMachineState *spapr)
 }
 
 /* Used to generate the migration field and needed function for a spapr cap */
-#define SPAPR_CAP_MIG_STATE(sname, cap)                 \
-static bool spapr_cap_##sname##_needed(void *opaque)    \
-{                                                       \
-    SpaprMachineState *spapr = opaque;                  \
-                                                        \
-    return spapr->cmd_line_caps[cap] &&                 \
-           (spapr->eff.caps[cap] !=                     \
-            spapr->def.caps[cap]);                      \
-}                                                       \
-                                                        \
-const VMStateDescription vmstate_spapr_cap_##sname = {  \
-    .name = "spapr/cap/" #sname,                        \
-    .version_id = 1,                                    \
-    .minimum_version_id = 1,                            \
-    .needed = spapr_cap_##sname##_needed,               \
-    .fields = (const VMStateField[]) {                  \
-        VMSTATE_UINT8(mig.caps[cap],                    \
-                      SpaprMachineState),               \
-        VMSTATE_END_OF_LIST()                           \
-    },                                                  \
+#define SPAPR_CAP_MIG_STATE(sname, cap)                              \
+static bool spapr_cap_##sname##_needed(void *opaque)                 \
+{                                                                    \
+    SpaprMachineState *spapr =                                       \
+        static_cast<SpaprMachineState *>(opaque);                    \
+                                                                     \
+    return spapr->cmd_line_caps[cap] &&                              \
+           (spapr->eff.caps[cap] !=                                  \
+            spapr->def.caps[cap]);                                   \
+}                                                                    \
+                                                                     \
+static const VMStateField vmstate_spapr_cap_##sname##_fields[] = {   \
+    VMSTATE_UINT8(mig.caps[cap],                                     \
+                  SpaprMachineState),                                 \
+    VMSTATE_END_OF_LIST()                                            \
+};                                                                   \
+                                                                     \
+const VMStateDescription vmstate_spapr_cap_##sname = {               \
+    .name = "spapr/cap/" #sname,                                     \
+    .version_id = 1,                                                 \
+    .minimum_version_id = 1,                                         \
+    .needed = spapr_cap_##sname##_needed,                            \
+    .fields = vmstate_spapr_cap_##sname##_fields,                    \
 }
 
 SPAPR_CAP_MIG_STATE(htm, SPAPR_CAP_HTM);

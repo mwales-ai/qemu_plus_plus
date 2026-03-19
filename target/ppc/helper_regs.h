@@ -22,6 +22,10 @@
 
 #include "target/ppc/cpu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void hreg_swap_gpr_tgpr(CPUPPCState *env);
 void hreg_compute_hflags(CPUPPCState *env);
 void hreg_update_pmu_hflags(CPUPPCState *env);
@@ -32,6 +36,10 @@ int hreg_store_msr(CPUPPCState *env, target_ulong value, int alter_hv);
 static inline void check_tlb_flush(CPUPPCState *env, bool global) { }
 #else
 void check_tlb_flush(CPUPPCState *env, bool global);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* HELPER_REGS_H */

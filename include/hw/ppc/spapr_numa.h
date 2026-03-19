@@ -16,6 +16,10 @@
 #include "hw/boards.h"
 #include "hw/ppc/spapr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * Having both SpaprMachineState and MachineState as arguments
  * feels odd, but it will spare a MACHINE() call inside the
@@ -33,5 +37,9 @@ int spapr_numa_fixup_cpu_dt(SpaprMachineState *spapr, void *fdt,
 int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
                                          int offset);
 unsigned int spapr_numa_initial_nvgpu_numa_id(MachineState *machine);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SPAPR_NUMA_H */

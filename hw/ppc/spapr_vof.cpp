@@ -133,7 +133,7 @@ bool spapr_vof_setprop(MachineState *ms, const char *path, const char *propname,
             Vof *vof = spapr->vof;
 
             g_free(vof->bootargs);
-            vof->bootargs = g_strndup(val, vallen);
+            vof->bootargs = g_strndup(static_cast<const gchar *>(val), vallen);
             return true;
         }
         if (strcmp(propname, "linux,initrd-start") == 0) {

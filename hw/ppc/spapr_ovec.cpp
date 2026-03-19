@@ -33,14 +33,16 @@ struct SpaprOptionVector {
     int32_t bitmap_size; /* only used for migration */
 };
 
+static const VMStateField vmstate_spapr_ovec_fields[] = {
+    VMSTATE_BITMAP(bitmap, SpaprOptionVector, 1, bitmap_size),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_spapr_ovec = {
     .name = "spapr_option_vector",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BITMAP(bitmap, SpaprOptionVector, 1, bitmap_size),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_spapr_ovec_fields,
 };
 
 SpaprOptionVector *spapr_ovec_new(void)

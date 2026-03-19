@@ -39,6 +39,10 @@
 
 #include "cpu.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct SpaprOptionVector SpaprOptionVector;
 
 #define OV_BIT(byte, bit) ((byte - 1) * BITS_PER_BYTE + bit)
@@ -79,5 +83,9 @@ int spapr_dt_ovec(void *fdt, int fdt_offset,
 
 /* migration */
 extern const VMStateDescription vmstate_spapr_ovec;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SPAPR_OVEC_H */

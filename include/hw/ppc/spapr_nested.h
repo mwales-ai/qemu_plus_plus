@@ -572,6 +572,10 @@ struct guest_state_element_type {
     uint64_t mask;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void spapr_exit_nested(PowerPCCPU *cpu, int excp);
 typedef struct SpaprMachineState SpaprMachineState;
 bool spapr_get_pate_nested_hv(SpaprMachineState *spapr, PowerPCCPU *cpu,
@@ -580,4 +584,9 @@ uint8_t spapr_nested_api(SpaprMachineState *spapr);
 void spapr_nested_gsb_init(void);
 bool spapr_get_pate_nested_papr(SpaprMachineState *spapr, PowerPCCPU *cpu,
                                 target_ulong lpid, ppc_v3_pate_t *entry);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* HW_SPAPR_NESTED_H */

@@ -35,6 +35,10 @@ struct SpaprCpuCoreClass {
     const char *cpu_type;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const char *spapr_get_cpu_core_type(const char *cpu_type);
 void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip,
                                target_ulong r1, target_ulong r3,
@@ -59,5 +63,9 @@ static inline SpaprCpuState *spapr_cpu_state(PowerPCCPU *cpu)
 {
     return (SpaprCpuState *)cpu->machine_data;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

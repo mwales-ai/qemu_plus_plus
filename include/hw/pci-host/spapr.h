@@ -102,6 +102,10 @@ struct SpaprPhbState {
 
 #define SPAPR_PCI_MSI_WINDOW         0x40000000000ULL
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int spapr_dt_phb(SpaprMachineState *spapr, SpaprPhbState *phb,
                  uint32_t intc_phandle, void *fdt, int *node_offset);
 
@@ -155,11 +159,15 @@ static inline void spapr_phb_vfio_reset(DeviceState *qdev)
 
 void spapr_phb_dma_reset(SpaprPhbState *sphb);
 
+char *spapr_pci_fw_dev_name(PCIDevice *dev);
+
+#ifdef __cplusplus
+}
+#endif
+
 static inline unsigned spapr_phb_windows_supported(SpaprPhbState *sphb)
 {
     return sphb->ddw_enabled ? SPAPR_PCI_DMA_MAX_WINDOWS : 1;
 }
-
-char *spapr_pci_fw_dev_name(PCIDevice *dev);
 
 #endif /* PCI_HOST_SPAPR_H */

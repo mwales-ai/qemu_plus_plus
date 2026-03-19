@@ -51,7 +51,7 @@ typedef struct HRandomData HRandomData;
 /* Callback function for the RngBackend */
 static void random_recv(void *dest, const void *src, size_t size)
 {
-    HRandomData *hrdp = dest;
+    HRandomData *hrdp = static_cast<HRandomData *>(dest);
 
     if (src && size > 0) {
         assert(size + hrdp->received <= sizeof(hrdp->val.v8));

@@ -1762,6 +1762,9 @@ static inline int ppc_env_mmu_index(CPUPPCState *env, bool ifetch)
 
 /* Compatibility modes */
 #if defined(TARGET_PPC64)
+#ifdef __cplusplus
+extern "C" {
+#endif
 bool ppc_check_compat(PowerPCCPU *cpu, uint32_t compat_pvr,
                       uint32_t min_compat_pvr, uint32_t max_compat_pvr);
 bool ppc_type_check_compat(const char *cputype, uint32_t compat_pvr,
@@ -1776,6 +1779,9 @@ int ppc_init_compat_all(uint32_t compat_pvr, Error **errp);
 int ppc_compat_max_vthreads(PowerPCCPU *cpu);
 void ppc_compat_add_property(Object *obj, const char *name,
                              uint32_t *compat_pvr, const char *basedesc);
+#ifdef __cplusplus
+}
+#endif
 #endif /* defined(TARGET_PPC64) */
 
 /*****************************************************************************/
@@ -3104,6 +3110,9 @@ static inline bool ppc_interrupts_little_endian(PowerPCCPU *cpu, bool hv)
 }
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void dump_mmu(CPUPPCState *env);
 
 void ppc_maybe_bswap_register(CPUPPCState *env, uint8_t *mem_buf, int len);
@@ -3111,6 +3120,9 @@ void ppc_store_vscr(CPUPPCState *env, uint32_t vscr);
 uint32_t ppc_get_vscr(CPUPPCState *env);
 void ppc_set_cr(CPUPPCState *env, uint64_t cr);
 uint64_t ppc_get_cr(const CPUPPCState *env);
+#ifdef __cplusplus
+}
+#endif
 
 /*****************************************************************************/
 /* Power management enable checks                                            */

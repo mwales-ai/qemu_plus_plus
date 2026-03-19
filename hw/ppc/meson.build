@@ -9,30 +9,30 @@ ppc_ss.add(when: 'CONFIG_FW_CFG_PPC', if_true: files('fw_cfg.cpp'))
 # IBM pSeries (sPAPR)
 ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
   'spapr.c',
-  'spapr_caps.c',
+  'spapr_caps.cpp',
   'spapr_vio.c',
   'spapr_events.c',
   'spapr_hcall.c',
   'spapr_nested.c',
   'spapr_iommu.c',
-  'spapr_rtas.c',
+  'spapr_rtas.cpp',
   'spapr_pci.c',
-  'spapr_rtc.c',
+  'spapr_rtc.cpp',
   'spapr_drc.c',
   'spapr_cpu_core.c',
-  'spapr_ovec.c',
-  'spapr_irq.c',
-  'spapr_tpm_proxy.c',
+  'spapr_ovec.cpp',
+  'spapr_irq.cpp',
+  'spapr_tpm_proxy.cpp',
   'spapr_nvdimm.c',
-  'spapr_rtas_ddw.c',
-  'spapr_numa.c',
-  'spapr_fadump.c',
-  'pef.c',
+  'spapr_rtas_ddw.cpp',
+  'spapr_numa.cpp',
+  'spapr_fadump.cpp',
+  'pef.cpp',
 ))
 ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_TCG'], if_true: files(
   'spapr_vhyp_mmu.c',
 ))
-ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.c'))
+ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.cpp'))
 if host_os == 'linux'
   ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
     'spapr_pci_vfio.c',
@@ -91,6 +91,6 @@ ppc_ss.add(when: 'CONFIG_AMIGAONE', if_true: files('amigaone.c'))
 ppc_ss.add(when: 'CONFIG_PEGASOS', if_true: files('pegasos.c'))
 
 ppc_ss.add(when: 'CONFIG_VOF', if_true: files('vof.c'))
-ppc_ss.add(when: ['CONFIG_VOF', 'CONFIG_PSERIES'], if_true: files('spapr_vof.c'))
+ppc_ss.add(when: ['CONFIG_VOF', 'CONFIG_PSERIES'], if_true: files('spapr_vof.cpp'))
 
 hw_arch += {'ppc': ppc_ss}

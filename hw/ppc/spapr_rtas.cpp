@@ -688,7 +688,7 @@ hwaddr spapr_get_rtas_addr(void)
         return 0;
     }
 
-    rtas_data = fdt_getprop(fdt, rtas_node, "linux,rtas-base", NULL);
+    rtas_data = static_cast<const fdt32_t *>(fdt_getprop(fdt, rtas_node, "linux,rtas-base", NULL));
     if (!rtas_data) {
         return 0;
     }
