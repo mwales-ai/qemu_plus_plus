@@ -35,7 +35,7 @@ SpaprDrcType spapr_drc_type(SpaprDrc *drc)
 {
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
-    return 1 << drck->typeshift;
+    return static_cast<SpaprDrcType>(1 << drck->typeshift);
 }
 
 uint32_t spapr_drc_index(SpaprDrc *drc)
@@ -407,7 +407,7 @@ void spapr_drc_attach(SpaprDrc *drc, DeviceState *d)
     object_property_add_link(OBJECT(drc), "device",
                              object_get_typename(OBJECT(drc->dev)),
                              (Object **)(&drc->dev),
-                             NULL, 0);
+                             NULL, static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 void spapr_drc_unplug_request(SpaprDrc *drc)
@@ -463,7 +463,7 @@ bool spapr_drc_reset(SpaprDrc *drc)
 
 static bool spapr_drc_unplug_requested_needed(void *opaque)
 {
-    return spapr_drc_unplug_requested(opaque);
+    return spapr_drc_unplug_requested(static_cast<SpaprDrc *>(opaque));
 }
 
 static const VMStateDescription vmstate_spapr_drc_unplug_requested = {
@@ -479,7 +479,7 @@ static const VMStateDescription vmstate_spapr_drc_unplug_requested = {
 
 static bool spapr_drc_needed(void *opaque)
 {
-    SpaprDrc *drc = opaque;
+    SpaprDrc *drc = static_cast<SpaprDrc *>(opaque);
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     /*
@@ -750,24 +750,24 @@ static const TypeInfo spapr_dr_connector_info = {
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(SpaprDrc),
     .instance_init = spapr_dr_connector_instance_init,
+    .is_abstract      = true,
     .class_size    = sizeof(SpaprDrcClass),
     .class_init    = spapr_dr_connector_class_init,
-    .is_abstract      = true,
 };
 
 static const TypeInfo spapr_drc_physical_info = {
     .name          = TYPE_SPAPR_DRC_PHYSICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
     .instance_size = sizeof(SpaprDrcPhysical),
-    .class_init    = spapr_drc_physical_class_init,
     .is_abstract      = true,
+    .class_init    = spapr_drc_physical_class_init,
 };
 
 static const TypeInfo spapr_drc_logical_info = {
     .name          = TYPE_SPAPR_DRC_LOGICAL,
     .parent        = TYPE_SPAPR_DR_CONNECTOR,
-    .class_init    = spapr_drc_logical_class_init,
     .is_abstract      = true,
+    .class_init    = spapr_drc_logical_class_init,
 };
 
 static const TypeInfo spapr_drc_cpu_info = {

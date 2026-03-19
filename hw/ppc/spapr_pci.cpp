@@ -710,7 +710,7 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
      * Here we use the number returned by pci_swizzle_map_irq_fn to find a
      * corresponding qemu_irq.
      */
-    SpaprPhbState *phb = opaque;
+    SpaprPhbState *phb = static_cast<SpaprPhbState *>(opaque);
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
 
     trace_spapr_pci_lsi_set(phb->dtbusname, irq_num, phb->lsi_table[irq_num].irq);
@@ -742,7 +742,7 @@ static uint64_t spapr_msi_read(void *opaque, hwaddr addr, unsigned size)
 static void spapr_msi_write(void *opaque, hwaddr addr,
                             uint64_t data, unsigned size)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
     uint32_t irq = data;
 
     trace_spapr_pci_msi_write(addr, data, irq);
@@ -765,7 +765,7 @@ static const MemoryRegionOps spapr_msi_ops = {
  */
 static AddressSpace *spapr_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
-    SpaprPhbState *phb = opaque;
+    SpaprPhbState *phb = static_cast<SpaprPhbState *>(opaque);
 
     return &phb->iommu_as;
 }
@@ -1143,7 +1143,7 @@ static const PCIClass pci_classes[] = {
     { "data-processing-controller", spc_subclass },
 };
 
-static const char *dt_name_from_class(uint8_t class, uint8_t subclass,
+static const char *dt_name_from_class(uint8_t klass, uint8_t subclass,
                                       uint8_t iface)
 {
     const PCIClass *pclass;
@@ -1151,11 +1151,11 @@ static const char *dt_name_from_class(uint8_t class, uint8_t subclass,
     const PCIIFace *piface;
     const char *name;
 
-    if (class >= ARRAY_SIZE(pci_classes)) {
+    if (klass >= ARRAY_SIZE(pci_classes)) {
         return "pci";
     }
 
-    pclass = pci_classes + class;
+    pclass = pci_classes + klass;
     name = pclass->name;
 
     if (pclass->subc == NULL) {
@@ -1271,7 +1271,7 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
 static void spapr_dt_pci_device_cb(PCIBus *bus, PCIDevice *pdev,
                                    void *opaque)
 {
-    PciWalkFdt *p = opaque;
+    PciWalkFdt *p = static_cast<PciWalkFdt *>(opaque);
     int err;
 
     if (p->err || !pdev->enabled) {
@@ -1474,7 +1474,7 @@ static void spapr_pci_bridge_plug(SpaprPhbState *phb,
 static int check_chassis_nr(Object *obj, void *opaque)
 {
     int new_chassis_nr =
-        object_property_get_uint(opaque, "chassis_nr", &error_abort);
+        object_property_get_uint(static_cast<Object *>(opaque), "chassis_nr", &error_abort);
     int chassis_nr =
         object_property_get_uint(obj, "chassis_nr", NULL);
 
@@ -1781,7 +1781,7 @@ static void spapr_phb_unrealize(DeviceState *dev)
 static void spapr_phb_destroy_msi(gpointer opaque)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
-    SpaprPciMsi *msi = opaque;
+    SpaprPciMsi *msi = static_cast<SpaprPciMsi *>(opaque);
 
     spapr_irq_msi_free(spapr, msi->first_irq, msi->num);
     spapr_irq_free(spapr, msi->first_irq, msi->num);
@@ -1895,7 +1895,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
      * space access
      */
     if (sphb->pcie_ecs) {
-        bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+        bus->flags = static_cast<PCIBusFlags>(bus->flags | PCI_BUS_EXTENDED_CONFIG_SPACE);
     }
     phb->bus = bus;
     qbus_set_hotplug_handler(BUS(phb->bus), OBJECT(sphb));
@@ -2071,7 +2071,7 @@ static const VMStateDescription vmstate_spapr_pci_msi = {
 
 static int spapr_pci_pre_save(void *opaque)
 {
-    SpaprPhbState *sphb = opaque;
+    SpaprPhbState *sphb = static_cast<SpaprPhbState *>(opaque);
     GHashTableIter iter;
     gpointer key, value;
     int i;
@@ -2095,7 +2095,7 @@ static int spapr_pci_pre_save(void *opaque)
 
 static int spapr_pci_post_save(void *opaque)
 {
-    SpaprPhbState *sphb = opaque;
+    SpaprPhbState *sphb = static_cast<SpaprPhbState *>(opaque);
 
     g_free(sphb->msi_devs);
     sphb->msi_devs = NULL;
@@ -2105,7 +2105,7 @@ static int spapr_pci_post_save(void *opaque)
 
 static int spapr_pci_post_load(void *opaque, int version_id)
 {
-    SpaprPhbState *sphb = opaque;
+    SpaprPhbState *sphb = static_cast<SpaprPhbState *>(opaque);
     gpointer key, value;
     int i;
 
@@ -2122,22 +2122,24 @@ static int spapr_pci_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_spapr_pci_fields[] = {
+    VMSTATE_UINT64_EQUAL(buid, SpaprPhbState, NULL),
+    VMSTATE_STRUCT_ARRAY(lsi_table, SpaprPhbState, PCI_NUM_PINS, 0,
+                         vmstate_spapr_pci_lsi, SpaprPciLsi),
+    VMSTATE_INT32(msi_devs_num, SpaprPhbState),
+    VMSTATE_STRUCT_VARRAY_ALLOC(msi_devs, SpaprPhbState, msi_devs_num, 0,
+                                vmstate_spapr_pci_msi, SpaprPciMsiMig),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_pci = {
     .name = "spapr_pci",
     .version_id = 2,
     .minimum_version_id = 2,
+    .post_load = spapr_pci_post_load,
     .pre_save = spapr_pci_pre_save,
     .post_save = spapr_pci_post_save,
-    .post_load = spapr_pci_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64_EQUAL(buid, SpaprPhbState, NULL),
-        VMSTATE_STRUCT_ARRAY(lsi_table, SpaprPhbState, PCI_NUM_PINS, 0,
-                             vmstate_spapr_pci_lsi, SpaprPciLsi),
-        VMSTATE_INT32(msi_devs_num, SpaprPhbState),
-        VMSTATE_STRUCT_VARRAY_ALLOC(msi_devs, SpaprPhbState, msi_devs_num, 0,
-                                    vmstate_spapr_pci_msi, SpaprPciMsiMig),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_pci_fields,
 };
 
 static const char *spapr_phb_root_bus_path(PCIHostState *host_bridge,
@@ -2184,7 +2186,7 @@ static const TypeInfo spapr_phb_info = {
 static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
                                            void *opaque)
 {
-    unsigned int *bus_no = opaque;
+    unsigned int *bus_no = static_cast<unsigned int *>(opaque);
     PCIBus *sec_bus = NULL;
 
     if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=

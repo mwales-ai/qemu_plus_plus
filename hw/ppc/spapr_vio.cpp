@@ -61,8 +61,8 @@ static void spapr_vio_bus_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo spapr_vio_bus_info = {
     .name = TYPE_SPAPR_VIO_BUS,
     .parent = TYPE_BUS,
-    .class_init = spapr_vio_bus_class_init,
     .instance_size = sizeof(SpaprVioBus),
+    .class_init = spapr_vio_bus_class_init,
 };
 
 SpaprVioDevice *spapr_vio_find_by_reg(SpaprVioBus *bus, uint32_t reg)
