@@ -49,6 +49,14 @@ typedef struct AHCIState {
 } AHCIState;
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ahci_ide_create_devs(AHCIState *ahci, DriveInfo **hd);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_IDE_AHCI_H */
