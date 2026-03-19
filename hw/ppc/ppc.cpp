@@ -72,7 +72,7 @@ void ppc_set_irq(PowerPCCPU *cpu, int irq, int level)
 /* PowerPC 6xx / 7xx internal IRQ controller */
 static void ppc6xx_set_irq(void *opaque, int pin, int level)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     int cur_level;
 
@@ -152,7 +152,7 @@ void ppc6xx_irq_init(PowerPCCPU *cpu)
 /* PowerPC 970 internal IRQ controller */
 static void ppc970_set_irq(void *opaque, int pin, int level)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     int cur_level;
 
@@ -229,7 +229,7 @@ void ppc970_irq_init(PowerPCCPU *cpu)
 /* POWER7 internal IRQ controller */
 static void power7_set_irq(void *opaque, int pin, int level)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
     trace_ppc_irq_set(&cpu->env, pin, level);
 
@@ -252,7 +252,7 @@ void ppcPOWER7_irq_init(PowerPCCPU *cpu)
 /* POWER9 internal IRQ controller */
 static void power9_set_irq(void *opaque, int pin, int level)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
     trace_ppc_irq_set(&cpu->env, pin, level);
 
@@ -341,7 +341,7 @@ void store_40x_dbcr0(CPUPPCState *env, uint32_t val)
 /* PowerPC 40x internal IRQ controller */
 static void ppc40x_set_irq(void *opaque, int pin, int level)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     int cur_level;
 
@@ -417,7 +417,7 @@ void ppc40x_irq_init(PowerPCCPU *cpu)
 /* PowerPC E500 internal IRQ controller */
 static void ppce500_set_irq(void *opaque, int pin, int level)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     int cur_level;
 
@@ -930,7 +930,7 @@ void cpu_ppc_store_decr(CPUPPCState *env, target_ulong value)
 
 static void cpu_ppc_decr_cb(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
     cpu_ppc_decr_excp(cpu);
 }
@@ -964,7 +964,7 @@ void cpu_ppc_store_hdecr(CPUPPCState *env, target_ulong value)
 
 static void cpu_ppc_hdecr_cb(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
     cpu_ppc_hdecr_excp(cpu);
 }
@@ -1040,7 +1040,7 @@ static void timebase_load(PPCTimebase *tb)
 void cpu_ppc_clock_vm_state_change(void *opaque, bool running,
                                    RunState state)
 {
-    PPCTimebase *tb = opaque;
+    PPCTimebase *tb = static_cast<PPCTimebase *>(opaque);
 
     if (running) {
         timebase_load(tb);
@@ -1065,7 +1065,7 @@ void cpu_ppc_clock_vm_state_change(void *opaque, bool running,
  */
 static int timebase_pre_save(void *opaque)
 {
-    PPCTimebase *tb = opaque;
+    PPCTimebase *tb = static_cast<PPCTimebase *>(opaque);
 
     /* guest_timebase won't be overridden in case of paused guest or savevm */
     if (!tb->runstate_paused) {
@@ -1075,16 +1075,18 @@ static int timebase_pre_save(void *opaque)
     return 0;
 }
 
+static const VMStateField vmstate_ppc_timebase_fields[] = {
+    VMSTATE_UINT64(guest_timebase, PPCTimebase),
+    VMSTATE_INT64(time_of_the_day_ns, PPCTimebase),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_ppc_timebase = {
     .name = "timebase",
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_save = timebase_pre_save,
-    .fields = (const VMStateField []) {
-        VMSTATE_UINT64(guest_timebase, PPCTimebase),
-        VMSTATE_INT64(time_of_the_day_ns, PPCTimebase),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_ppc_timebase_fields,
 };
 
 /* Set up (once) timebase frequency (in Hz) */
@@ -1190,14 +1192,14 @@ struct ppc40x_timer_t {
 /* Fixed interval timer */
 static void cpu_4xx_fit_cb (void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
 
     tb_env = env->tb_env;
-    ppc40x_timer = tb_env->opaque;
+    ppc40x_timer = static_cast<ppc40x_timer_t *>(tb_env->opaque);
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     switch ((env->spr[SPR_40x_TCR] >> 24) & 0x3) {
     case 0:
@@ -1232,7 +1234,7 @@ static void start_stop_pit (CPUPPCState *env, ppc_tb_t *tb_env, int is_excp)
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
 
-    ppc40x_timer = tb_env->opaque;
+    ppc40x_timer = static_cast<ppc40x_timer_t *>(tb_env->opaque);
     if (ppc40x_timer->pit_reload <= 1 ||
         !((env->spr[SPR_40x_TCR] >> 26) & 0x1) ||
         (is_excp && !((env->spr[SPR_40x_TCR] >> 22) & 0x1))) {
@@ -1256,13 +1258,13 @@ static void start_stop_pit (CPUPPCState *env, ppc_tb_t *tb_env, int is_excp)
 
 static void cpu_4xx_pit_cb (void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
 
     tb_env = env->tb_env;
-    ppc40x_timer = tb_env->opaque;
+    ppc40x_timer = static_cast<ppc40x_timer_t *>(tb_env->opaque);
     env->spr[SPR_40x_TSR] |= 1 << 27;
     if ((env->spr[SPR_40x_TCR] >> 26) & 0x1) {
         ppc_set_irq(cpu, ppc40x_timer->decr_excp, 1);
@@ -1277,14 +1279,14 @@ static void cpu_4xx_pit_cb (void *opaque)
 /* Watchdog timer */
 static void cpu_4xx_wdt_cb (void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
 
     tb_env = env->tb_env;
-    ppc40x_timer = tb_env->opaque;
+    ppc40x_timer = static_cast<ppc40x_timer_t *>(tb_env->opaque);
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     switch ((env->spr[SPR_40x_TCR] >> 30) & 0x3) {
     case 0:
@@ -1346,7 +1348,7 @@ void store_40x_pit (CPUPPCState *env, target_ulong val)
     ppc40x_timer_t *ppc40x_timer;
 
     tb_env = env->tb_env;
-    ppc40x_timer = tb_env->opaque;
+    ppc40x_timer = static_cast<ppc40x_timer_t *>(tb_env->opaque);
     trace_ppc40x_store_pit(val);
     ppc40x_timer->pit_reload = val;
     start_stop_pit(env, tb_env, 0);
@@ -1384,7 +1386,7 @@ void store_40x_tcr(CPUPPCState *env, target_ulong val)
 
 static void ppc_40x_set_tb_clk (void *opaque, uint32_t freq)
 {
-    CPUPPCState *env = opaque;
+    CPUPPCState *env = static_cast<CPUPPCState *>(opaque);
     ppc_tb_t *tb_env = env->tb_env;
 
     trace_ppc40x_set_tb_clk(freq);

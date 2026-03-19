@@ -197,16 +197,18 @@ static void riscv_iommu_pci_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, riscv_iommu_pci_properties);
 }
 
+static const InterfaceInfo riscv_iommu_pci_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { },
+};
+
 static const TypeInfo riscv_iommu_pci = {
     .name = TYPE_RISCV_IOMMU_PCI,
     .parent = TYPE_PCI_DEVICE,
-    .class_init = riscv_iommu_pci_class_init,
-    .instance_init = riscv_iommu_pci_init,
     .instance_size = sizeof(RISCVIOMMUStatePci),
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_PCIE_DEVICE },
-        { },
-    },
+    .instance_init = riscv_iommu_pci_init,
+    .class_init = riscv_iommu_pci_class_init,
+    .interfaces = riscv_iommu_pci_interfaces,
 };
 
 static void riscv_iommu_register_pci_types(void)

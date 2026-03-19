@@ -23,6 +23,10 @@
 
 #include "hw/sysbus.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_RISCV_ACLINT_MTIMER "riscv.aclint.mtimer"
 
 #define RISCV_ACLINT_MTIMER(obj) \
@@ -83,5 +87,9 @@ enum {
 #define VMSTATE_TIMER_PTR_VARRAY(_f, _s, _f_n)                        \
 VMSTATE_VARRAY_OF_POINTER_UINT32(_f, _s, _f_n, 0, vmstate_info_timer, \
                                                         QEMUTimer *)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -200,7 +200,7 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
 
 static void booke_decr_cb(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
 
     env->spr[SPR_BOOKE_TSR] |= TSR_DIS;
@@ -218,13 +218,13 @@ static void booke_decr_cb(void *opaque)
 
 static void booke_fit_cb(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
     tb_env = env->tb_env;
-    booke_timer = tb_env->opaque;
+    booke_timer = static_cast<booke_timer_t *>(tb_env->opaque);
     env->spr[SPR_BOOKE_TSR] |= TSR_FIS;
 
     booke_update_irq(cpu);
@@ -238,13 +238,13 @@ static void booke_fit_cb(void *opaque)
 
 static void booke_wdt_cb(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
     tb_env = env->tb_env;
-    booke_timer = tb_env->opaque;
+    booke_timer = static_cast<booke_timer_t *>(tb_env->opaque);
 
     /* TODO: There's lots of complicated stuff to do here */
 
@@ -261,7 +261,7 @@ void store_booke_tsr(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     ppc_tb_t *tb_env = env->tb_env;
-    booke_timer_t *booke_timer = tb_env->opaque;
+    booke_timer_t *booke_timer = static_cast<booke_timer_t *>(tb_env->opaque);
 
     env->spr[SPR_BOOKE_TSR] &= ~val;
     kvmppc_clear_tsr_bits(cpu, val);
@@ -289,7 +289,7 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     ppc_tb_t *tb_env = env->tb_env;
-    booke_timer_t *booke_timer = tb_env->opaque;
+    booke_timer_t *booke_timer = static_cast<booke_timer_t *>(tb_env->opaque);
 
     env->spr[SPR_BOOKE_TCR] = val;
     kvmppc_set_tcr(cpu);
@@ -311,7 +311,7 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
 
 static void ppc_booke_timer_reset_handle(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
 
     store_booke_tcr(env, 0);
@@ -329,7 +329,7 @@ static void ppc_booke_timer_reset_handle(void *opaque)
  */
 static void cpu_state_change_handler(void *opaque, bool running, RunState state)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
 
     if (!running) {

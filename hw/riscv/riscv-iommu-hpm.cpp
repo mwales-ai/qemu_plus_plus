@@ -174,7 +174,7 @@ void riscv_iommu_hpm_incr_ctr(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
 /* Timer callback for cycle counter overflow. */
 void riscv_iommu_hpm_timer_cb(void *priv)
 {
-    RISCVIOMMUState *s = priv;
+    RISCVIOMMUState *s = static_cast<RISCVIOMMUState *>(priv);
     const uint32_t inhibit = riscv_iommu_reg_get32(
         s, RISCV_IOMMU_REG_IOCOUNTINH);
     uint32_t ovf;
@@ -298,7 +298,7 @@ static inline bool check_valid_event_id(unsigned event_id)
 
 static gboolean hpm_event_equal(gpointer key, gpointer value, gpointer udata)
 {
-    uint32_t *pair = udata;
+    uint32_t *pair = static_cast<uint32_t *>(udata);
 
     if (GPOINTER_TO_UINT(value) & (1 << pair[0])) {
         pair[1] = GPOINTER_TO_UINT(key);

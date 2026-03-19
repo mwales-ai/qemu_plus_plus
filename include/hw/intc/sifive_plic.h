@@ -22,6 +22,10 @@
 #define HW_SIFIVE_PLIC_H
 
 #include "hw/sysbus.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "qom/object.h"
 
 #define TYPE_SIFIVE_PLIC "riscv.sifive.plic"
@@ -83,5 +87,9 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     uint32_t pending_base, uint32_t enable_base,
     uint32_t enable_stride, uint32_t context_base,
     uint32_t context_stride, uint32_t aperture_size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

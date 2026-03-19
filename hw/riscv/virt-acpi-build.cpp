@@ -425,8 +425,8 @@ static void build_fadt_rev6(GArray *table_data,
 {
     AcpiFadtData fadt = {
         .rev = 6,
-        .minor_ver = 6,
         .flags = 1 << ACPI_FADT_F_HW_REDUCED_ACPI,
+        .minor_ver = 6,
         .xdsdt_tbl_offset = &dsdt_tbl_offset,
     };
 
@@ -656,7 +656,7 @@ typedef struct AcpiRimtIdMapping AcpiRimtIdMapping;
 /* Build the rimt ID mapping to IOMMU for a given PCI host bridge */
 static int rimt_host_bridges(Object *obj, void *opaque)
 {
-    GArray *idmap_blob = opaque;
+    GArray *idmap_blob = static_cast<GArray *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
         PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
@@ -918,10 +918,10 @@ static void virt_acpi_build(RISCVVirtState *s, AcpiBuildTables *tables)
     /* RSDP is in FSEG memory, so allocate it separately */
     {
         AcpiRsdpData rsdp_data = {
-            .revision = 2,
             .oem_id = s->oem_id,
-            .xsdt_tbl_offset = &xsdt,
+            .revision = 2,
             .rsdt_tbl_offset = NULL,
+            .xsdt_tbl_offset = &xsdt,
         };
         build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
     }
@@ -959,7 +959,7 @@ static void acpi_ram_update(MemoryRegion *mr, GArray *data)
 
 static void virt_acpi_build_update(void *build_opaque)
 {
-    AcpiBuildState *build_state = build_opaque;
+    AcpiBuildState *build_state = static_cast<AcpiBuildState *>(build_opaque);
     AcpiBuildTables tables;
 
     /* No state to update or already patched? Nothing to do. */
@@ -982,18 +982,20 @@ static void virt_acpi_build_update(void *build_opaque)
 
 static void virt_acpi_build_reset(void *build_opaque)
 {
-    AcpiBuildState *build_state = build_opaque;
+    AcpiBuildState *build_state = static_cast<AcpiBuildState *>(build_opaque);
     build_state->patched = false;
 }
+
+static const VMStateField vmstate_virt_acpi_build_fields[] = {
+    VMSTATE_BOOL(patched, AcpiBuildState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_virt_acpi_build = {
     .name = "virt_acpi_build",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(patched, AcpiBuildState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_virt_acpi_build_fields,
 };
 
 void virt_acpi_setup(RISCVVirtState *s)
@@ -1001,7 +1003,7 @@ void virt_acpi_setup(RISCVVirtState *s)
     AcpiBuildTables tables;
     AcpiBuildState *build_state;
 
-    build_state = g_malloc0(sizeof *build_state);
+    build_state = static_cast<AcpiBuildState *>(g_malloc0(sizeof *build_state));
 
     acpi_build_tables_init(&tables);
     virt_acpi_build(s, &tables);

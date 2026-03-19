@@ -1,10 +1,10 @@
 ppc_ss = ss.source_set()
 ppc_ss.add(files(
-  'ppc.c',
-  'ppc_booke.c',
+  'ppc.cpp',
+  'ppc_booke.cpp',
 ))
-ppc_ss.add(when: 'CONFIG_FDT_PPC', if_true: files('fdt.c'))
-ppc_ss.add(when: 'CONFIG_FW_CFG_PPC', if_true: files('fw_cfg.c'))
+ppc_ss.add(when: 'CONFIG_FDT_PPC', if_true: files('fdt.cpp'))
+ppc_ss.add(when: 'CONFIG_FW_CFG_PPC', if_true: files('fw_cfg.cpp'))
 
 # IBM pSeries (sPAPR)
 ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(

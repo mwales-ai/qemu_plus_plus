@@ -20,6 +20,10 @@
 #define HW_RISCV_APLIC_H
 
 #include "hw/sysbus.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "qom/object.h"
 
 #define TYPE_RISCV_APLIC "riscv.aplic"
@@ -83,5 +87,9 @@ void riscv_aplic_set_kvm_msicfgaddr(RISCVAPLICState *aplic, hwaddr addr);
 DeviceState *riscv_aplic_create(hwaddr addr, hwaddr size,
     uint32_t hartid_base, uint32_t num_harts, uint32_t num_sources,
     uint32_t iprio_bits, bool msimode, bool mmode, DeviceState *parent);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

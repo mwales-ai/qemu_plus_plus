@@ -742,11 +742,11 @@ static void microchip_icicle_kit_machine_class_init(ObjectClass *oc,
 }
 
 static const TypeInfo microchip_icicle_kit_machine_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("microchip-icicle-kit"),
-    .parent     = TYPE_MACHINE,
-    .class_init = microchip_icicle_kit_machine_class_init,
-    .instance_init = microchip_icicle_kit_machine_instance_init,
+    .name          = MACHINE_TYPE_NAME("microchip-icicle-kit"),
+    .parent        = TYPE_MACHINE,
     .instance_size = sizeof(MicrochipIcicleKitState),
+    .instance_init = microchip_icicle_kit_machine_instance_init,
+    .class_init    = microchip_icicle_kit_machine_class_init,
 };
 
 static void microchip_icicle_kit_machine_init_register_types(void)

@@ -65,29 +65,32 @@
 /* CLINT timebase frequency */
 #define CLINT_TIMEBASE_FREQ 1000000
 
-static const MemMapEntry sifive_u_memmap[] = {
-    [SIFIVE_U_DEV_DEBUG] =    {        0x0,      0x100 },
-    [SIFIVE_U_DEV_MROM] =     {     0x1000,     0xf000 },
-    [SIFIVE_U_DEV_CLINT] =    {  0x2000000,    0x10000 },
-    [SIFIVE_U_DEV_L2CC] =     {  0x2010000,     0x1000 },
-    [SIFIVE_U_DEV_PDMA] =     {  0x3000000,   0x100000 },
-    [SIFIVE_U_DEV_L2LIM] =    {  0x8000000,  0x2000000 },
-    [SIFIVE_U_DEV_PLIC] =     {  0xc000000,  0x4000000 },
-    [SIFIVE_U_DEV_PRCI] =     { 0x10000000,     0x1000 },
-    [SIFIVE_U_DEV_UART0] =    { 0x10010000,     0x1000 },
-    [SIFIVE_U_DEV_UART1] =    { 0x10011000,     0x1000 },
-    [SIFIVE_U_DEV_PWM0] =     { 0x10020000,     0x1000 },
-    [SIFIVE_U_DEV_PWM1] =     { 0x10021000,     0x1000 },
-    [SIFIVE_U_DEV_QSPI0] =    { 0x10040000,     0x1000 },
-    [SIFIVE_U_DEV_QSPI2] =    { 0x10050000,     0x1000 },
-    [SIFIVE_U_DEV_GPIO] =     { 0x10060000,     0x1000 },
-    [SIFIVE_U_DEV_OTP] =      { 0x10070000,     0x1000 },
-    [SIFIVE_U_DEV_GEM] =      { 0x10090000,     0x2000 },
-    [SIFIVE_U_DEV_GEM_MGMT] = { 0x100a0000,     0x1000 },
-    [SIFIVE_U_DEV_DMC] =      { 0x100b0000,    0x10000 },
-    [SIFIVE_U_DEV_FLASH0] =   { 0x20000000, 0x10000000 },
-    [SIFIVE_U_DEV_DRAM] =     { 0x80000000,        0x0 },
-};
+static MemMapEntry sifive_u_memmap[SIFIVE_U_DEV_PWM1 + 1];
+
+static void __attribute__((constructor)) sifive_u_init_memmap(void)
+{
+    sifive_u_memmap[SIFIVE_U_DEV_DEBUG]    = {        0x0,      0x100 };
+    sifive_u_memmap[SIFIVE_U_DEV_MROM]     = {     0x1000,     0xf000 };
+    sifive_u_memmap[SIFIVE_U_DEV_CLINT]    = {  0x2000000,    0x10000 };
+    sifive_u_memmap[SIFIVE_U_DEV_L2CC]     = {  0x2010000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_PDMA]     = {  0x3000000,   0x100000 };
+    sifive_u_memmap[SIFIVE_U_DEV_L2LIM]    = {  0x8000000,  0x2000000 };
+    sifive_u_memmap[SIFIVE_U_DEV_PLIC]     = {  0xc000000,  0x4000000 };
+    sifive_u_memmap[SIFIVE_U_DEV_PRCI]     = { 0x10000000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_UART0]    = { 0x10010000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_UART1]    = { 0x10011000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_PWM0]     = { 0x10020000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_PWM1]     = { 0x10021000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_QSPI0]    = { 0x10040000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_QSPI2]    = { 0x10050000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_GPIO]     = { 0x10060000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_OTP]      = { 0x10070000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_GEM]      = { 0x10090000,     0x2000 };
+    sifive_u_memmap[SIFIVE_U_DEV_GEM_MGMT] = { 0x100a0000,     0x1000 };
+    sifive_u_memmap[SIFIVE_U_DEV_DMC]      = { 0x100b0000,    0x10000 };
+    sifive_u_memmap[SIFIVE_U_DEV_FLASH0]   = { 0x20000000, 0x10000000 };
+    sifive_u_memmap[SIFIVE_U_DEV_DRAM]     = { 0x80000000,        0x0 };
+}
 
 #define OTP_SERIAL          1
 #define GEM_REVISION        0x10070109

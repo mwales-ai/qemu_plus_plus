@@ -22,6 +22,10 @@
 #include "cpu.h"
 #include "qapi/error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool riscv_pmu_ctr_monitor_instructions(CPURISCVState *env,
                                         uint32_t target_ctr);
 bool riscv_pmu_ctr_monitor_cycles(CPURISCVState *env,
@@ -38,5 +42,9 @@ void riscv_pmu_update_fixed_ctrs(CPURISCVState *env, target_ulong newpriv,
                                  bool new_virt);
 RISCVException riscv_pmu_read_ctr(CPURISCVState *env, target_ulong *val,
                                   bool upper_half, uint32_t ctr_idx);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RISCV_PMU_H */

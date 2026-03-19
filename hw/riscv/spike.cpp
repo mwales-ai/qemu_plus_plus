@@ -369,11 +369,11 @@ static void spike_machine_class_init(ObjectClass *oc, const void *data)
 }
 
 static const TypeInfo spike_machine_typeinfo = {
-    .name       = MACHINE_TYPE_NAME("spike"),
-    .parent     = TYPE_MACHINE,
-    .class_init = spike_machine_class_init,
-    .instance_init = spike_machine_instance_init,
+    .name          = MACHINE_TYPE_NAME("spike"),
+    .parent        = TYPE_MACHINE,
     .instance_size = sizeof(SpikeState),
+    .instance_init = spike_machine_instance_init,
+    .class_init    = spike_machine_class_init,
 };
 
 static void spike_machine_init_register_types(void)

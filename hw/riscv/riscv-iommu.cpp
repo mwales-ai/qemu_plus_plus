@@ -304,7 +304,7 @@ static int riscv_iommu_spa_fetch(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     }
 
     /* S/G translation parameters. */
-    for (pass = 0; pass < 2; pass++) {
+    for (pass = static_cast<decltype(pass)>(0); pass < static_cast<decltype(pass)>(2); pass = static_cast<decltype(pass)>(pass + 1)) {
         uint32_t sv_mode;
 
         sc[pass].step = 0;
@@ -1294,7 +1294,7 @@ static RISCVIOMMUContext *riscv_iommu_ctx(RISCVIOMMUState *s,
     };
 
     ctx_cache = g_hash_table_ref(s->ctx_cache);
-    ctx = g_hash_table_lookup(ctx_cache, &key);
+    ctx = static_cast<RISCVIOMMUContext *>(g_hash_table_lookup(ctx_cache, &key));
 
     if (ctx && (ctx->tc & RISCV_IOMMU_DC_TC_V)) {
         *ref = ctx_cache;
@@ -1499,11 +1499,11 @@ static RISCVIOMMUEntry *riscv_iommu_iot_lookup(RISCVIOMMUContext *ctx,
 {
     RISCVIOMMUEntry key = {
         .tag   = transtag,
-        .gscid = get_field(ctx->gatp, RISCV_IOMMU_DC_IOHGATP_GSCID),
-        .pscid = get_field(ctx->ta, RISCV_IOMMU_DC_TA_PSCID),
         .iova  = PPN_DOWN(iova),
+        .pscid = get_field(ctx->ta, RISCV_IOMMU_DC_TA_PSCID),
+        .gscid = get_field(ctx->gatp, RISCV_IOMMU_DC_IOHGATP_GSCID),
     };
-    return g_hash_table_lookup(iot_cache, &key);
+    return static_cast<RISCVIOMMUEntry *>(g_hash_table_lookup(iot_cache, &key));
 }
 
 /* caller should keep ref-count for iot_cache object */
@@ -1528,10 +1528,10 @@ static void riscv_iommu_iot_inval(RISCVIOMMUState *s, GHFunc func,
 {
     GHashTable *iot_cache;
     RISCVIOMMUEntry key = {
-        .tag = transtag,
-        .gscid = gscid,
-        .pscid = pscid,
+        .tag   = transtag,
         .iova  = PPN_DOWN(iova),
+        .pscid = pscid,
+        .gscid = gscid,
     };
 
     iot_cache = g_hash_table_ref(s->iot_cache);
@@ -1586,7 +1586,7 @@ static int riscv_iommu_translate(RISCVIOMMUState *s, RISCVIOMMUContext *ctx,
     }
 
     iot = riscv_iommu_iot_lookup(ctx, iot_cache, iotlb->iova, transtag);
-    perm = iot ? iot->perm : IOMMU_NONE;
+    perm = iot ? static_cast<IOMMUAccessFlags>(iot->perm) : IOMMU_NONE;
     if (perm != IOMMU_NONE) {
         iotlb->translated_addr = PPN_PHYS(iot->phys);
         iotlb->addr_mask = ~TARGET_PAGE_MASK;
@@ -2069,10 +2069,10 @@ static void riscv_iommu_process_dbg(RISCVIOMMUState *s)
                                  (RISCV_IOMMU_FQ_CAUSE_DMA_DISABLED << 10));
     } else {
         IOMMUTLBEntry iotlb = {
-            .iova = iova,
-            .perm = ctrl & RISCV_IOMMU_TR_REQ_CTL_NW ? IOMMU_RO : IOMMU_RW,
-            .addr_mask = ~0,
             .target_as = NULL,
+            .iova = iova,
+            .addr_mask = ~0ULL,
+            .perm = ctrl & RISCV_IOMMU_TR_REQ_CTL_NW ? IOMMU_RO : IOMMU_RW,
         };
         int fault = riscv_iommu_translate(s, ctx, &iotlb, false);
         if (fault) {
@@ -2209,7 +2209,7 @@ static MemTxResult riscv_iommu_mmio_write(void *opaque, hwaddr addr,
                                           MemTxAttrs attrs)
 {
     riscv_iommu_process_fn *process_fn = NULL;
-    RISCVIOMMUState *s = opaque;
+    RISCVIOMMUState *s = static_cast<RISCVIOMMUState *>(opaque);
     uint32_t regb = addr & ~3;
     uint32_t busy = 0;
     uint64_t val = 0;
@@ -2325,7 +2325,7 @@ static MemTxResult riscv_iommu_mmio_write(void *opaque, hwaddr addr,
 static MemTxResult riscv_iommu_mmio_read(void *opaque, hwaddr addr,
     uint64_t *data, unsigned size, MemTxAttrs attrs)
 {
-    RISCVIOMMUState *s = opaque;
+    RISCVIOMMUState *s = static_cast<RISCVIOMMUState *>(opaque);
     uint64_t val = -1;
     uint8_t *ptr;
 
@@ -2371,15 +2371,15 @@ static const MemoryRegionOps riscv_iommu_mmio_ops = {
     .read_with_attrs = riscv_iommu_mmio_read,
     .write_with_attrs = riscv_iommu_mmio_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 8,
         .unaligned = false,
     },
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 8,
-    }
 };
 
 /*
@@ -2425,15 +2425,15 @@ static const MemoryRegionOps riscv_iommu_trap_ops = {
     .read_with_attrs = riscv_iommu_trap_read,
     .write_with_attrs = riscv_iommu_trap_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 8,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 8,
         .unaligned = true,
     },
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 8,
-    }
 };
 
 void riscv_iommu_set_cap_igs(RISCVIOMMUState *s, riscv_iommu_igs_mode mode)
@@ -2689,8 +2689,8 @@ static IOMMUTLBEntry riscv_iommu_memory_region_translate(
     RISCVIOMMUContext *ctx;
     void *ref;
     IOMMUTLBEntry iotlb = {
-        .iova = addr,
         .target_as = as->iommu->target_as,
+        .iova = addr,
         .addr_mask = ~0ULL,
         .perm = flag,
     };
@@ -2719,14 +2719,14 @@ static IOMMUTLBEntry riscv_iommu_memory_region_translate(
 
 static int riscv_iommu_memory_region_notify(
     IOMMUMemoryRegion *iommu_mr, IOMMUNotifierFlag old,
-    IOMMUNotifierFlag new, Error **errp)
+    IOMMUNotifierFlag new_val, Error **errp)
 {
     RISCVIOMMUSpace *as = container_of(iommu_mr, RISCVIOMMUSpace, iova_mr);
 
     if (old == IOMMU_NOTIFIER_NONE) {
         as->notifier = true;
         trace_riscv_iommu_notifier_add(iommu_mr->parent_obj.name);
-    } else if (new == IOMMU_NOTIFIER_NONE) {
+    } else if (new_val == IOMMU_NOTIFIER_NONE) {
         as->notifier = false;
         trace_riscv_iommu_notifier_del(iommu_mr->parent_obj.name);
     }
@@ -2806,8 +2806,8 @@ static void riscv_iommu_memory_region_init(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo riscv_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_RISCV_IOMMU_MEMORY_REGION,
+    .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = riscv_iommu_memory_region_init,
 };
 

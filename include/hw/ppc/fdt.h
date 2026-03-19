@@ -13,6 +13,10 @@
 #include "qemu/error-report.h"
 #include "target/ppc/cpu-qom.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define _FDT(exp)                                                  \
     do {                                                           \
         int _ret = (exp);                                          \
@@ -25,5 +29,9 @@
 
 size_t ppc_create_page_sizes_prop(PowerPCCPU *cpu, uint32_t *prop,
                                   size_t maxsize);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PPC_FDT_H */

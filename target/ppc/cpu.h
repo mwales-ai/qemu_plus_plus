@@ -1648,12 +1648,18 @@ int ppc64_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
 int ppc32_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                                int cpuid, DumpState *s);
 #ifndef CONFIG_USER_ONLY
+#ifdef __cplusplus
+extern "C" {
+#endif
 void ppc_maybe_interrupt(CPUPPCState *env);
 void ppc_cpu_do_interrupt(CPUState *cpu);
 bool ppc_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void ppc_cpu_do_system_reset(CPUState *cs);
 void ppc_cpu_do_fwnmi_machine_check(CPUState *cs, target_ulong vector);
 extern const VMStateDescription vmstate_ppc_cpu;
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 /*****************************************************************************/
@@ -1673,6 +1679,10 @@ void ppc_store_dawr1(CPUPPCState *env, target_ulong value);
 void ppc_store_dawrx1(CPUPPCState *env, uint32_t value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr(CPUPPCState *env, target_ulong value);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Time-base and decrementer management */
 uint64_t cpu_ppc_load_tbl(CPUPPCState *env);
@@ -1734,6 +1744,10 @@ static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 /* Device control registers */
 int ppc_dcr_read(ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp);
 int ppc_dcr_write(ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
+
+#ifdef __cplusplus
+}
+#endif
 
 /* MMU modes definitions */
 #define MMU_USER_IDX 0

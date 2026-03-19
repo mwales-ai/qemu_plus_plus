@@ -20,6 +20,10 @@
 #define HW_RISCV_IMSIC_H
 
 #include "hw/sysbus.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "qom/object.h"
 
 #define TYPE_RISCV_IMSIC "riscv.imsic"
@@ -64,5 +68,9 @@ struct RISCVIMSICState {
 
 DeviceState *riscv_imsic_create(hwaddr addr, uint32_t hartid, bool mmode,
                                 uint32_t num_pages, uint32_t num_ids);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

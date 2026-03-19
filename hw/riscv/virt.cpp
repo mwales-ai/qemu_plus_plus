@@ -79,29 +79,32 @@ static bool virt_aclint_allowed(void)
     return tcg_enabled() || qtest_enabled();
 }
 
-static const MemMapEntry virt_memmap[] = {
-    [VIRT_DEBUG] =        {        0x0,         0x100 },
-    [VIRT_MROM] =         {     0x1000,        0xf000 },
-    [VIRT_TEST] =         {   0x100000,        0x1000 },
-    [VIRT_RTC] =          {   0x101000,        0x1000 },
-    [VIRT_CLINT] =        {  0x2000000,       0x10000 },
-    [VIRT_ACLINT_SSWI] =  {  0x2F00000,        0x4000 },
-    [VIRT_PCIE_PIO] =     {  0x3000000,       0x10000 },
-    [VIRT_IOMMU_SYS] =    {  0x3010000,        0x1000 },
-    [VIRT_PLATFORM_BUS] = {  0x4000000,     0x2000000 },
-    [VIRT_PLIC] =         {  0xc000000, VIRT_PLIC_SIZE(VIRT_CPUS_MAX * 2) },
-    [VIRT_APLIC_M] =      {  0xc000000, APLIC_SIZE(VIRT_CPUS_MAX) },
-    [VIRT_APLIC_S] =      {  0xd000000, APLIC_SIZE(VIRT_CPUS_MAX) },
-    [VIRT_UART0] =        { 0x10000000,         0x100 },
-    [VIRT_VIRTIO] =       { 0x10001000,        0x1000 },
-    [VIRT_FW_CFG] =       { 0x10100000,          0x18 },
-    [VIRT_FLASH] =        { 0x20000000,     0x4000000 },
-    [VIRT_IMSIC_M] =      { 0x24000000, VIRT_IMSIC_MAX_SIZE },
-    [VIRT_IMSIC_S] =      { 0x28000000, VIRT_IMSIC_MAX_SIZE },
-    [VIRT_PCIE_ECAM] =    { 0x30000000,    0x10000000 },
-    [VIRT_PCIE_MMIO] =    { 0x40000000,    0x40000000 },
-    [VIRT_DRAM] =         { 0x80000000,           0x0 },
-};
+static MemMapEntry virt_memmap[VIRT_IOMMU_SYS + 1];
+
+static void __attribute__((constructor)) virt_init_memmap(void)
+{
+    virt_memmap[VIRT_DEBUG]        = {        0x0,         0x100 };
+    virt_memmap[VIRT_MROM]         = {     0x1000,        0xf000 };
+    virt_memmap[VIRT_TEST]         = {   0x100000,        0x1000 };
+    virt_memmap[VIRT_RTC]          = {   0x101000,        0x1000 };
+    virt_memmap[VIRT_CLINT]        = {  0x2000000,       0x10000 };
+    virt_memmap[VIRT_ACLINT_SSWI]  = {  0x2F00000,        0x4000 };
+    virt_memmap[VIRT_PCIE_PIO]     = {  0x3000000,       0x10000 };
+    virt_memmap[VIRT_IOMMU_SYS]    = {  0x3010000,        0x1000 };
+    virt_memmap[VIRT_PLATFORM_BUS] = {  0x4000000,     0x2000000 };
+    virt_memmap[VIRT_PLIC]         = {  0xc000000, VIRT_PLIC_SIZE(VIRT_CPUS_MAX * 2) };
+    virt_memmap[VIRT_APLIC_M]      = {  0xc000000, APLIC_SIZE(VIRT_CPUS_MAX) };
+    virt_memmap[VIRT_APLIC_S]      = {  0xd000000, APLIC_SIZE(VIRT_CPUS_MAX) };
+    virt_memmap[VIRT_UART0]        = { 0x10000000,         0x100 };
+    virt_memmap[VIRT_VIRTIO]       = { 0x10001000,        0x1000 };
+    virt_memmap[VIRT_FW_CFG]       = { 0x10100000,          0x18 };
+    virt_memmap[VIRT_FLASH]        = { 0x20000000,     0x4000000 };
+    virt_memmap[VIRT_IMSIC_M]      = { 0x24000000, VIRT_IMSIC_MAX_SIZE };
+    virt_memmap[VIRT_IMSIC_S]      = { 0x28000000, VIRT_IMSIC_MAX_SIZE };
+    virt_memmap[VIRT_PCIE_ECAM]    = { 0x30000000,    0x10000000 };
+    virt_memmap[VIRT_PCIE_MMIO]    = { 0x40000000,    0x40000000 };
+    virt_memmap[VIRT_DRAM]         = { 0x80000000,           0x0 };
+}
 
 /* PCIe high mmio is fixed for RV32 */
 #define VIRT32_HIGH_PCIE_MMIO_BASE  0x300000000ULL

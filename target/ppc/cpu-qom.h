@@ -43,7 +43,13 @@ typedef struct PPCTimebase {
     bool runstate_paused;
 } PPCTimebase;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern const VMStateDescription vmstate_ppc_timebase;
+#ifdef __cplusplus
+}
+#endif
 
 #define VMSTATE_PPC_TIMEBASE_V(_field, _state, _version) {            \
     .name       = (stringify(_field)),                                \
@@ -54,8 +60,14 @@ extern const VMStateDescription vmstate_ppc_timebase;
     .offset     = vmstate_offset_value(_state, _field, PPCTimebase),  \
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void cpu_ppc_clock_vm_state_change(void *opaque, bool running,
                                    RunState state);
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 #endif
