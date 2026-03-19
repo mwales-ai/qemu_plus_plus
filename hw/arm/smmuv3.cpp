@@ -234,7 +234,7 @@ void smmuv3_record_event(SMMUv3State *s, SMMUEventInfo *info)
         EVT_SET_RNW(&evt, info->u.f_walk_eabt.rnw);
         EVT_SET_PNU(&evt, info->u.f_walk_eabt.pnu);
         EVT_SET_IND(&evt, info->u.f_walk_eabt.ind);
-        EVT_SET_CLASS(&evt, info->u.f_walk_eabt.class);
+        EVT_SET_CLASS(&evt, info->u.f_walk_eabt.klass);
         EVT_SET_ADDR2(&evt, info->u.f_walk_eabt.addr2);
         break;
     case SMMU_EVT_F_CFG_CONFLICT:
@@ -347,7 +347,7 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUEventInfo *event,
                                                  IOMMUAccessFlags flag,
                                                  SMMUTLBEntry **out_entry,
-                                                 SMMUTranslationClass class);
+                                                 SMMUTranslationClass klass);
 /* @ssid > 0 not supported yet */
 static int smmu_get_cd(SMMUv3State *s, STE *ste, SMMUTransCfg *cfg,
                        uint32_t ssid, CD *buf, SMMUEventInfo *event)
@@ -539,7 +539,7 @@ static void decode_ste_config(SMMUTransCfg *cfg, uint32_t config)
     }
 
     if (STE_CFG_S2_ENABLED(config)) {
-        cfg->stage |= SMMU_STAGE_2;
+        cfg->stage = static_cast<SMMUStage>(cfg->stage | SMMU_STAGE_2);
     }
 }
 
@@ -826,7 +826,7 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
     uint32_t sid = smmu_get_sid(sdev);
-    SMMUv3State *s = sdev->smmu;
+    SMMUv3State *s = static_cast<SMMUv3State *>(sdev->smmu);
     int ret;
     STE ste;
     CD cd;
@@ -870,11 +870,11 @@ static int smmuv3_decode_config(IOMMUMemoryRegion *mr, SMMUTransCfg *cfg,
  */
 static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event)
 {
-    SMMUv3State *s = sdev->smmu;
+    SMMUv3State *s = static_cast<SMMUv3State *>(sdev->smmu);
     SMMUState *bc = &s->smmu_state;
     SMMUTransCfg *cfg;
 
-    cfg = g_hash_table_lookup(bc->configs, sdev);
+    cfg = static_cast<SMMUTransCfg *>(g_hash_table_lookup(bc->configs, sdev));
     if (cfg) {
         sdev->cfg_cache_hits++;
         trace_smmuv3_config_cache_hit(smmu_get_sid(sdev),
@@ -901,7 +901,7 @@ static SMMUTransCfg *smmuv3_get_config(SMMUDevice *sdev, SMMUEventInfo *event)
 
 static void smmuv3_flush_config(SMMUDevice *sdev)
 {
-    SMMUv3State *s = sdev->smmu;
+    SMMUv3State *s = static_cast<SMMUv3State *>(sdev->smmu);
     SMMUState *bc = &s->smmu_state;
 
     trace_smmu_config_cache_inv(smmu_get_sid(sdev));
@@ -914,13 +914,14 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
                                                  SMMUEventInfo *event,
                                                  IOMMUAccessFlags flag,
                                                  SMMUTLBEntry **out_entry,
-                                                 SMMUTranslationClass class)
+                                                 SMMUTranslationClass klass)
 {
     SMMUPTWEventInfo ptw_info = {};
     SMMUState *bs = ARM_SMMU(s);
     SMMUTLBEntry *cached_entry = NULL;
-    int asid, stage;
-    bool desc_s2_translation = class != SMMU_CLASS_IN;
+    int asid;
+    SMMUStage stage;
+    bool desc_s2_translation = klass != SMMU_CLASS_IN;
 
     /*
      * The function uses the argument class to identify which stage is used:
@@ -963,20 +964,20 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
          *    is_ipa_descriptor or input in case of TTBx)
          *  - s2 translation => CLASS_IN (input to function)
          */
-        class = ptw_info.is_ipa_descriptor ? SMMU_CLASS_TT : class;
+        klass = ptw_info.is_ipa_descriptor ? SMMU_CLASS_TT : klass;
         switch (ptw_info.type) {
         case SMMU_PTW_ERR_WALK_EABT:
             event->type = SMMU_EVT_F_WALK_EABT;
             event->u.f_walk_eabt.rnw = flag & 0x1;
-            event->u.f_walk_eabt.class = (ptw_info.stage == SMMU_STAGE_2) ?
-                                          class : SMMU_CLASS_TT;
+            event->u.f_walk_eabt.klass = (ptw_info.stage == SMMU_STAGE_2) ?
+                                          klass : SMMU_CLASS_TT;
             event->u.f_walk_eabt.addr2 = ptw_info.addr;
             break;
         case SMMU_PTW_ERR_TRANSLATION:
             if (PTW_RECORD_FAULT(ptw_info, cfg)) {
                 event->type = SMMU_EVT_F_TRANSLATION;
                 event->u.f_translation.addr2 = ptw_info.addr;
-                event->u.f_translation.class = class;
+                event->u.f_translation.klass = klass;
                 event->u.f_translation.rnw = flag & 0x1;
             }
             break;
@@ -984,7 +985,7 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
             if (PTW_RECORD_FAULT(ptw_info, cfg)) {
                 event->type = SMMU_EVT_F_ADDR_SIZE;
                 event->u.f_addr_size.addr2 = ptw_info.addr;
-                event->u.f_addr_size.class = class;
+                event->u.f_addr_size.klass = klass;
                 event->u.f_addr_size.rnw = flag & 0x1;
             }
             break;
@@ -992,7 +993,7 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
             if (PTW_RECORD_FAULT(ptw_info, cfg)) {
                 event->type = SMMU_EVT_F_ACCESS;
                 event->u.f_access.addr2 = ptw_info.addr;
-                event->u.f_access.class = class;
+                event->u.f_access.klass = klass;
                 event->u.f_access.rnw = flag & 0x1;
             }
             break;
@@ -1000,7 +1001,7 @@ static SMMUTranslationStatus smmuv3_do_translate(SMMUv3State *s, hwaddr addr,
             if (PTW_RECORD_FAULT(ptw_info, cfg)) {
                 event->type = SMMU_EVT_F_PERMISSION;
                 event->u.f_permission.addr2 = ptw_info.addr;
-                event->u.f_permission.class = class;
+                event->u.f_permission.klass = klass;
                 event->u.f_permission.rnw = flag & 0x1;
             }
             break;
@@ -1039,7 +1040,7 @@ static IOMMUTLBEntry smmuv3_translate(IOMMUMemoryRegion *mr, hwaddr addr,
                                       IOMMUAccessFlags flag, int iommu_idx)
 {
     SMMUDevice *sdev = container_of(mr, SMMUDevice, iommu);
-    SMMUv3State *s = sdev->smmu;
+    SMMUv3State *s = static_cast<SMMUv3State *>(sdev->smmu);
     uint32_t sid = smmu_get_sid(sdev);
     SMMUEventInfo event = {.type = SMMU_EVT_NONE,
                            .sid = sid,
@@ -1283,7 +1284,7 @@ static int smmuv3_cmdq_consume(SMMUv3State *s)
     SMMUState *bs = ARM_SMMU(s);
     SMMUCmdError cmd_error = SMMU_CERROR_NONE;
     SMMUQueue *q = &s->cmdq;
-    SMMUCommandType type = 0;
+    SMMUCommandType type = SMMU_CMD_NONE;
 
     if (!smmuv3_cmdq_enabled(s)) {
         return 0;
@@ -1661,7 +1662,7 @@ static MemTxResult smmu_writel(SMMUv3State *s, hwaddr offset,
 static MemTxResult smmu_write_mmio(void *opaque, hwaddr offset, uint64_t data,
                                    unsigned size, MemTxAttrs attrs)
 {
-    SMMUState *sys = opaque;
+    SMMUState *sys = static_cast<SMMUState *>(opaque);
     SMMUv3State *s = ARM_SMMUV3(sys);
     MemTxResult r;
 
@@ -1810,7 +1811,7 @@ static MemTxResult smmu_readl(SMMUv3State *s, hwaddr offset,
 static MemTxResult smmu_read_mmio(void *opaque, hwaddr offset, uint64_t *data,
                                   unsigned size, MemTxAttrs attrs)
 {
-    SMMUState *sys = opaque;
+    SMMUState *sys = static_cast<SMMUState *>(opaque);
     SMMUv3State *s = ARM_SMMUV3(sys);
     MemTxResult r;
 
@@ -1900,36 +1901,71 @@ static void smmu_realize(DeviceState *d, Error **errp)
     smmu_init_irq(s, dev);
 }
 
+static const VMStateField vmstate_smmuv3_queue_fields[] = {
+    VMSTATE_UINT64(base, SMMUQueue),
+    VMSTATE_UINT32(prod, SMMUQueue),
+    VMSTATE_UINT32(cons, SMMUQueue),
+    VMSTATE_UINT8(log2size, SMMUQueue),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_smmuv3_queue = {
     .name = "smmuv3_queue",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(base, SMMUQueue),
-        VMSTATE_UINT32(prod, SMMUQueue),
-        VMSTATE_UINT32(cons, SMMUQueue),
-        VMSTATE_UINT8(log2size, SMMUQueue),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_smmuv3_queue_fields,
 };
 
 static bool smmuv3_gbpa_needed(void *opaque)
 {
-    SMMUv3State *s = opaque;
+    SMMUv3State *s = static_cast<SMMUv3State *>(opaque);
 
     /* Only migrate GBPA if it has different reset value. */
     return s->gbpa != SMMU_GBPA_RESET_VAL;
 }
+
+static const VMStateField vmstate_gbpa_fields[] = {
+    VMSTATE_UINT32(gbpa, SMMUv3State),
+    VMSTATE_END_OF_LIST(),
+};
 
 static const VMStateDescription vmstate_gbpa = {
     .name = "smmuv3/gbpa",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = smmuv3_gbpa_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(gbpa, SMMUv3State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gbpa_fields,
+};
+
+static const VMStateField vmstate_smmuv3_fields[] = {
+    VMSTATE_UINT32(features, SMMUv3State),
+    VMSTATE_UINT8(sid_size, SMMUv3State),
+    VMSTATE_UINT8(sid_split, SMMUv3State),
+
+    VMSTATE_UINT32_ARRAY(cr, SMMUv3State, 3),
+    VMSTATE_UINT32(cr0ack, SMMUv3State),
+    VMSTATE_UINT32(statusr, SMMUv3State),
+    VMSTATE_UINT32(irq_ctrl, SMMUv3State),
+    VMSTATE_UINT32(gerror, SMMUv3State),
+    VMSTATE_UINT32(gerrorn, SMMUv3State),
+    VMSTATE_UINT64(gerror_irq_cfg0, SMMUv3State),
+    VMSTATE_UINT32(gerror_irq_cfg1, SMMUv3State),
+    VMSTATE_UINT32(gerror_irq_cfg2, SMMUv3State),
+    VMSTATE_UINT64(strtab_base, SMMUv3State),
+    VMSTATE_UINT32(strtab_base_cfg, SMMUv3State),
+    VMSTATE_UINT64(eventq_irq_cfg0, SMMUv3State),
+    VMSTATE_UINT32(eventq_irq_cfg1, SMMUv3State),
+    VMSTATE_UINT32(eventq_irq_cfg2, SMMUv3State),
+
+    VMSTATE_STRUCT(cmdq, SMMUv3State, 0, vmstate_smmuv3_queue, SMMUQueue),
+    VMSTATE_STRUCT(eventq, SMMUv3State, 0, vmstate_smmuv3_queue, SMMUQueue),
+
+    VMSTATE_END_OF_LIST(),
+};
+
+static const VMStateDescription * const vmstate_smmuv3_subsections[] = {
+    &vmstate_gbpa,
+    NULL
 };
 
 static const VMStateDescription vmstate_smmuv3 = {
@@ -1937,35 +1973,8 @@ static const VMStateDescription vmstate_smmuv3 = {
     .version_id = 1,
     .minimum_version_id = 1,
     .priority = MIG_PRI_IOMMU,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(features, SMMUv3State),
-        VMSTATE_UINT8(sid_size, SMMUv3State),
-        VMSTATE_UINT8(sid_split, SMMUv3State),
-
-        VMSTATE_UINT32_ARRAY(cr, SMMUv3State, 3),
-        VMSTATE_UINT32(cr0ack, SMMUv3State),
-        VMSTATE_UINT32(statusr, SMMUv3State),
-        VMSTATE_UINT32(irq_ctrl, SMMUv3State),
-        VMSTATE_UINT32(gerror, SMMUv3State),
-        VMSTATE_UINT32(gerrorn, SMMUv3State),
-        VMSTATE_UINT64(gerror_irq_cfg0, SMMUv3State),
-        VMSTATE_UINT32(gerror_irq_cfg1, SMMUv3State),
-        VMSTATE_UINT32(gerror_irq_cfg2, SMMUv3State),
-        VMSTATE_UINT64(strtab_base, SMMUv3State),
-        VMSTATE_UINT32(strtab_base_cfg, SMMUv3State),
-        VMSTATE_UINT64(eventq_irq_cfg0, SMMUv3State),
-        VMSTATE_UINT32(eventq_irq_cfg1, SMMUv3State),
-        VMSTATE_UINT32(eventq_irq_cfg2, SMMUv3State),
-
-        VMSTATE_STRUCT(cmdq, SMMUv3State, 0, vmstate_smmuv3_queue, SMMUQueue),
-        VMSTATE_STRUCT(eventq, SMMUv3State, 0, vmstate_smmuv3_queue, SMMUQueue),
-
-        VMSTATE_END_OF_LIST(),
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_gbpa,
-        NULL
-    }
+    .fields = vmstate_smmuv3_fields,
+    .subsections = vmstate_smmuv3_subsections,
 };
 
 static const Property smmuv3_properties[] = {
@@ -2002,19 +2011,19 @@ static void smmuv3_class_init(ObjectClass *klass, const void *data)
 
 static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                       IOMMUNotifierFlag old,
-                                      IOMMUNotifierFlag new,
+                                      IOMMUNotifierFlag new_flags,
                                       Error **errp)
 {
     SMMUDevice *sdev = container_of(iommu, SMMUDevice, iommu);
-    SMMUv3State *s3 = sdev->smmu;
+    SMMUv3State *s3 = static_cast<SMMUv3State *>(sdev->smmu);
     SMMUState *s = &(s3->smmu_state);
 
-    if (new & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
+    if (new_flags & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
         error_setg(errp, "SMMUv3 does not support dev-iotlb yet");
         return -EINVAL;
     }
 
-    if (new & IOMMU_NOTIFIER_MAP) {
+    if (new_flags & IOMMU_NOTIFIER_MAP) {
         error_setg(errp,
                    "device %02x.%02x.%x requires iommu MAP notifier which is "
                    "not currently supported", pci_bus_num(sdev->bus),
@@ -2025,7 +2034,7 @@ static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
     if (old == IOMMU_NOTIFIER_NONE) {
         trace_smmuv3_notify_flag_add(iommu->parent_obj.name);
         QLIST_INSERT_HEAD(&s->devices_with_notifiers, sdev, next);
-    } else if (new == IOMMU_NOTIFIER_NONE) {
+    } else if (new_flags == IOMMU_NOTIFIER_NONE) {
         trace_smmuv3_notify_flag_del(iommu->parent_obj.name);
         QLIST_REMOVE(sdev, next);
     }
@@ -2051,8 +2060,8 @@ static const TypeInfo smmuv3_type_info = {
 };
 
 static const TypeInfo smmuv3_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_SMMUV3_IOMMU_MEMORY_REGION,
+    .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = smmuv3_iommu_memory_region_class_init,
 };
 

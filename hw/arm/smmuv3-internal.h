@@ -303,40 +303,35 @@ typedef enum SMMUCommandType {
     SMMU_CMD_SYNC,
 } SMMUCommandType;
 
-static const char *cmd_stringify[] = {
-    [SMMU_CMD_PREFETCH_CONFIG] = "SMMU_CMD_PREFETCH_CONFIG",
-    [SMMU_CMD_PREFETCH_ADDR]   = "SMMU_CMD_PREFETCH_ADDR",
-    [SMMU_CMD_CFGI_STE]        = "SMMU_CMD_CFGI_STE",
-    [SMMU_CMD_CFGI_STE_RANGE]  = "SMMU_CMD_CFGI_STE_RANGE",
-    [SMMU_CMD_CFGI_CD]         = "SMMU_CMD_CFGI_CD",
-    [SMMU_CMD_CFGI_CD_ALL]     = "SMMU_CMD_CFGI_CD_ALL",
-    [SMMU_CMD_CFGI_ALL]        = "SMMU_CMD_CFGI_ALL",
-    [SMMU_CMD_TLBI_NH_ALL]     = "SMMU_CMD_TLBI_NH_ALL",
-    [SMMU_CMD_TLBI_NH_ASID]    = "SMMU_CMD_TLBI_NH_ASID",
-    [SMMU_CMD_TLBI_NH_VA]      = "SMMU_CMD_TLBI_NH_VA",
-    [SMMU_CMD_TLBI_NH_VAA]     = "SMMU_CMD_TLBI_NH_VAA",
-    [SMMU_CMD_TLBI_EL3_ALL]    = "SMMU_CMD_TLBI_EL3_ALL",
-    [SMMU_CMD_TLBI_EL3_VA]     = "SMMU_CMD_TLBI_EL3_VA",
-    [SMMU_CMD_TLBI_EL2_ALL]    = "SMMU_CMD_TLBI_EL2_ALL",
-    [SMMU_CMD_TLBI_EL2_ASID]   = "SMMU_CMD_TLBI_EL2_ASID",
-    [SMMU_CMD_TLBI_EL2_VA]     = "SMMU_CMD_TLBI_EL2_VA",
-    [SMMU_CMD_TLBI_EL2_VAA]    = "SMMU_CMD_TLBI_EL2_VAA",
-    [SMMU_CMD_TLBI_S12_VMALL]  = "SMMU_CMD_TLBI_S12_VMALL",
-    [SMMU_CMD_TLBI_S2_IPA]     = "SMMU_CMD_TLBI_S2_IPA",
-    [SMMU_CMD_TLBI_NSNH_ALL]   = "SMMU_CMD_TLBI_NSNH_ALL",
-    [SMMU_CMD_ATC_INV]         = "SMMU_CMD_ATC_INV",
-    [SMMU_CMD_PRI_RESP]        = "SMMU_CMD_PRI_RESP",
-    [SMMU_CMD_RESUME]          = "SMMU_CMD_RESUME",
-    [SMMU_CMD_STALL_TERM]      = "SMMU_CMD_STALL_TERM",
-    [SMMU_CMD_SYNC]            = "SMMU_CMD_SYNC",
-};
-
 static inline const char *smmu_cmd_string(SMMUCommandType type)
 {
-    if (type > SMMU_CMD_NONE && type < ARRAY_SIZE(cmd_stringify)) {
-        return cmd_stringify[type] ? cmd_stringify[type] : "UNKNOWN";
-    } else {
-        return "INVALID";
+    switch (type) {
+    case SMMU_CMD_PREFETCH_CONFIG: return "SMMU_CMD_PREFETCH_CONFIG";
+    case SMMU_CMD_PREFETCH_ADDR:   return "SMMU_CMD_PREFETCH_ADDR";
+    case SMMU_CMD_CFGI_STE:        return "SMMU_CMD_CFGI_STE";
+    case SMMU_CMD_CFGI_STE_RANGE:  return "SMMU_CMD_CFGI_STE_RANGE";
+    case SMMU_CMD_CFGI_CD:         return "SMMU_CMD_CFGI_CD";
+    case SMMU_CMD_CFGI_CD_ALL:     return "SMMU_CMD_CFGI_CD_ALL";
+    case SMMU_CMD_CFGI_ALL:        return "SMMU_CMD_CFGI_ALL";
+    case SMMU_CMD_TLBI_NH_ALL:     return "SMMU_CMD_TLBI_NH_ALL";
+    case SMMU_CMD_TLBI_NH_ASID:    return "SMMU_CMD_TLBI_NH_ASID";
+    case SMMU_CMD_TLBI_NH_VA:      return "SMMU_CMD_TLBI_NH_VA";
+    case SMMU_CMD_TLBI_NH_VAA:     return "SMMU_CMD_TLBI_NH_VAA";
+    case SMMU_CMD_TLBI_EL3_ALL:    return "SMMU_CMD_TLBI_EL3_ALL";
+    case SMMU_CMD_TLBI_EL3_VA:     return "SMMU_CMD_TLBI_EL3_VA";
+    case SMMU_CMD_TLBI_EL2_ALL:    return "SMMU_CMD_TLBI_EL2_ALL";
+    case SMMU_CMD_TLBI_EL2_ASID:   return "SMMU_CMD_TLBI_EL2_ASID";
+    case SMMU_CMD_TLBI_EL2_VA:     return "SMMU_CMD_TLBI_EL2_VA";
+    case SMMU_CMD_TLBI_EL2_VAA:    return "SMMU_CMD_TLBI_EL2_VAA";
+    case SMMU_CMD_TLBI_S12_VMALL:  return "SMMU_CMD_TLBI_S12_VMALL";
+    case SMMU_CMD_TLBI_S2_IPA:     return "SMMU_CMD_TLBI_S2_IPA";
+    case SMMU_CMD_TLBI_NSNH_ALL:   return "SMMU_CMD_TLBI_NSNH_ALL";
+    case SMMU_CMD_ATC_INV:         return "SMMU_CMD_ATC_INV";
+    case SMMU_CMD_PRI_RESP:        return "SMMU_CMD_PRI_RESP";
+    case SMMU_CMD_RESUME:          return "SMMU_CMD_RESUME";
+    case SMMU_CMD_STALL_TERM:      return "SMMU_CMD_STALL_TERM";
+    case SMMU_CMD_SYNC:            return "SMMU_CMD_SYNC";
+    default:                       return "UNKNOWN";
     }
 }
 
@@ -355,7 +350,7 @@ enum { /* Command completion notification */
     CMD_SYNC_SIG_SEV,
 };
 
-#define CMD_TYPE(x)         extract32((x)->word[0], 0 , 8)
+#define CMD_TYPE(x)         static_cast<SMMUCommandType>(extract32((x)->word[0], 0 , 8))
 #define CMD_NUM(x)          extract32((x)->word[0], 12 , 5)
 #define CMD_SCALE(x)        extract32((x)->word[0], 20 , 5)
 #define CMD_SSEC(x)         extract32((x)->word[0], 10, 1)
@@ -403,34 +398,29 @@ typedef enum SMMUEventType {
     SMMU_EVT_E_PAGE_REQ         = 0x24,
 } SMMUEventType;
 
-static const char *event_stringify[] = {
-    [SMMU_EVT_NONE]                     = "no recorded event",
-    [SMMU_EVT_F_UUT]                    = "SMMU_EVT_F_UUT",
-    [SMMU_EVT_C_BAD_STREAMID]           = "SMMU_EVT_C_BAD_STREAMID",
-    [SMMU_EVT_F_STE_FETCH]              = "SMMU_EVT_F_STE_FETCH",
-    [SMMU_EVT_C_BAD_STE]                = "SMMU_EVT_C_BAD_STE",
-    [SMMU_EVT_F_BAD_ATS_TREQ]           = "SMMU_EVT_F_BAD_ATS_TREQ",
-    [SMMU_EVT_F_STREAM_DISABLED]        = "SMMU_EVT_F_STREAM_DISABLED",
-    [SMMU_EVT_F_TRANS_FORBIDDEN]        = "SMMU_EVT_F_TRANS_FORBIDDEN",
-    [SMMU_EVT_C_BAD_SUBSTREAMID]        = "SMMU_EVT_C_BAD_SUBSTREAMID",
-    [SMMU_EVT_F_CD_FETCH]               = "SMMU_EVT_F_CD_FETCH",
-    [SMMU_EVT_C_BAD_CD]                 = "SMMU_EVT_C_BAD_CD",
-    [SMMU_EVT_F_WALK_EABT]              = "SMMU_EVT_F_WALK_EABT",
-    [SMMU_EVT_F_TRANSLATION]            = "SMMU_EVT_F_TRANSLATION",
-    [SMMU_EVT_F_ADDR_SIZE]              = "SMMU_EVT_F_ADDR_SIZE",
-    [SMMU_EVT_F_ACCESS]                 = "SMMU_EVT_F_ACCESS",
-    [SMMU_EVT_F_PERMISSION]             = "SMMU_EVT_F_PERMISSION",
-    [SMMU_EVT_F_TLB_CONFLICT]           = "SMMU_EVT_F_TLB_CONFLICT",
-    [SMMU_EVT_F_CFG_CONFLICT]           = "SMMU_EVT_F_CFG_CONFLICT",
-    [SMMU_EVT_E_PAGE_REQ]               = "SMMU_EVT_E_PAGE_REQ",
-};
-
 static inline const char *smmu_event_string(SMMUEventType type)
 {
-    if (type < ARRAY_SIZE(event_stringify)) {
-        return event_stringify[type] ? event_stringify[type] : "UNKNOWN";
-    } else {
-        return "INVALID";
+    switch (type) {
+    case SMMU_EVT_NONE:                return "no recorded event";
+    case SMMU_EVT_F_UUT:               return "SMMU_EVT_F_UUT";
+    case SMMU_EVT_C_BAD_STREAMID:      return "SMMU_EVT_C_BAD_STREAMID";
+    case SMMU_EVT_F_STE_FETCH:         return "SMMU_EVT_F_STE_FETCH";
+    case SMMU_EVT_C_BAD_STE:           return "SMMU_EVT_C_BAD_STE";
+    case SMMU_EVT_F_BAD_ATS_TREQ:      return "SMMU_EVT_F_BAD_ATS_TREQ";
+    case SMMU_EVT_F_STREAM_DISABLED:   return "SMMU_EVT_F_STREAM_DISABLED";
+    case SMMU_EVT_F_TRANS_FORBIDDEN:   return "SMMU_EVT_F_TRANS_FORBIDDEN";
+    case SMMU_EVT_C_BAD_SUBSTREAMID:   return "SMMU_EVT_C_BAD_SUBSTREAMID";
+    case SMMU_EVT_F_CD_FETCH:          return "SMMU_EVT_F_CD_FETCH";
+    case SMMU_EVT_C_BAD_CD:            return "SMMU_EVT_C_BAD_CD";
+    case SMMU_EVT_F_WALK_EABT:         return "SMMU_EVT_F_WALK_EABT";
+    case SMMU_EVT_F_TRANSLATION:       return "SMMU_EVT_F_TRANSLATION";
+    case SMMU_EVT_F_ADDR_SIZE:         return "SMMU_EVT_F_ADDR_SIZE";
+    case SMMU_EVT_F_ACCESS:            return "SMMU_EVT_F_ACCESS";
+    case SMMU_EVT_F_PERMISSION:        return "SMMU_EVT_F_PERMISSION";
+    case SMMU_EVT_F_TLB_CONFLICT:      return "SMMU_EVT_F_TLB_CONFLICT";
+    case SMMU_EVT_F_CFG_CONFLICT:      return "SMMU_EVT_F_CFG_CONFLICT";
+    case SMMU_EVT_E_PAGE_REQ:          return "SMMU_EVT_E_PAGE_REQ";
+    default:                           return "UNKNOWN";
     }
 }
 
@@ -478,7 +468,7 @@ typedef struct SMMUEventInfo {
             bool rnw;
             bool pnu;
             bool ind;
-            uint8_t class;
+            uint8_t klass;
             dma_addr_t addr2;
        } f_walk_eabt;
        struct FullInfo f_translation;
