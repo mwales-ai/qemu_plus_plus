@@ -12,6 +12,10 @@
 #ifndef QEMU_XEN_GNTTAB_H
 #define QEMU_XEN_GNTTAB_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xen_gnttab_create(void);
 int xen_gnttab_reset(void);
 int xen_gnttab_map_page(uint64_t idx, uint64_t gfn);
@@ -22,5 +26,9 @@ struct gnttab_query_size;
 int xen_gnttab_set_version_op(struct gnttab_set_version *set);
 int xen_gnttab_get_version_op(struct gnttab_get_version *get);
 int xen_gnttab_query_size_op(struct gnttab_query_size *size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_XEN_GNTTAB_H */

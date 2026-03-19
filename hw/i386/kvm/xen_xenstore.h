@@ -12,9 +12,17 @@
 #ifndef QEMU_XEN_XENSTORE_H
 #define QEMU_XEN_XENSTORE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xen_xenstore_create(void);
 int xen_xenstore_reset(void);
 
 uint16_t xen_xenstore_get_port(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_XEN_XENSTORE_H */

@@ -27,7 +27,7 @@ i386_ss.add(when: 'CONFIG_SGX', if_true: files('sgx-epc.cpp','sgx.cpp'),
 i386_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-common.cpp'))
 i386_ss.add(when: 'CONFIG_PC', if_true: files(
   'x86-common.cpp',
-  'pc.c',
+  'pc.cpp',
   'pc_sysfw.cpp',
   'acpi-build.c',
   'port92.cpp'))

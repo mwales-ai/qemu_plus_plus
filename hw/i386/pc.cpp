@@ -379,7 +379,7 @@ static void set_boot_dev(PCMachineState *pcms, MC146818RtcState *s,
 
 static void pc_boot_set(void *opaque, const char *boot_device, Error **errp)
 {
-    PCMachineState *pcms = opaque;
+    PCMachineState *pcms = static_cast<PCMachineState *>(opaque);
     X86MachineState *x86ms = X86_MACHINE(pcms);
 
     set_boot_dev(pcms, MC146818_RTC(x86ms->rtc), boot_device, errp);
@@ -432,7 +432,7 @@ typedef struct check_fdc_state {
 
 static int check_fdc(Object *obj, void *opaque)
 {
-    CheckFdcState *state = opaque;
+    CheckFdcState *state = static_cast<CheckFdcState *>(opaque);
     Object *fdc;
     uint32_t iobase;
     Error *local_err = NULL;
@@ -571,7 +571,7 @@ static void pc_cmos_init_late(PCMachineState *pcms)
 
 static void handle_a20_line_change(void *opaque, int irq, int level)
 {
-    X86CPU *cpu = opaque;
+    X86CPU *cpu = static_cast<X86CPU *>(opaque);
 
     /* XXX: send to all CPUs ? */
     /* XXX: add logic to handle multiple A20 line sources */
@@ -601,7 +601,7 @@ static gboolean pc_init_ne2k_isa(ISABus *bus, NICInfo *nd, Error **errp)
 
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 {
-    X86CPU *cpu = opaque;
+    X86CPU *cpu = static_cast<X86CPU *>(opaque);
 
     if (level) {
         cpu_interrupt(CPU(cpu), CPU_INTERRUPT_SMI);
@@ -731,7 +731,7 @@ static uint64_t pc_get_cxl_range_start(PCMachineState *pcms)
 static int cxl_get_fmw_end(Object *obj, void *opaque)
 {
     struct CXLFixedWindow *fw;
-    uint64_t *start = opaque;
+    uint64_t *start = static_cast<uint64_t *>(opaque);
 
     if (!object_dynamic_cast(obj, TYPE_CXL_FMW)) {
         return 0;
@@ -886,13 +886,13 @@ void pc_memory_init(PCMachineState *pcms,
      * Split single memory region and use aliases to address portions of it,
      * done for backwards compatibility with older qemus.
      */
-    ram_below_4g = g_malloc(sizeof(*ram_below_4g));
+    ram_below_4g = static_cast<MemoryRegion *>(g_malloc(sizeof(*ram_below_4g)));
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", machine->ram,
                              0, x86ms->below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
     e820_add_entry(0, x86ms->below_4g_mem_size, E820_RAM);
     if (x86ms->above_4g_mem_size > 0) {
-        ram_above_4g = g_malloc(sizeof(*ram_above_4g));
+        ram_above_4g = static_cast<MemoryRegion *>(g_malloc(sizeof(*ram_above_4g)));
         memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g",
                                  machine->ram,
                                  x86ms->below_4g_mem_size,
@@ -961,7 +961,7 @@ void pc_memory_init(PCMachineState *pcms,
     pc_system_firmware_init(pcms, rom_memory);
 
     if (!is_tdx_vm()) {
-        option_rom_mr = g_malloc(sizeof(*option_rom_mr));
+        option_rom_mr = static_cast<MemoryRegion *>(g_malloc(sizeof(*option_rom_mr)));
         if (machine_require_guest_memfd(machine)) {
             memory_region_init_ram_guest_memfd(option_rom_mr, NULL, "pc.rom",
                                             PC_ROM_SIZE, &error_fatal);
@@ -993,7 +993,7 @@ void pc_memory_init(PCMachineState *pcms,
     }
 
     if (res_mem_end) {
-        uint64_t *val = g_malloc(sizeof(*val));
+        uint64_t *val = static_cast<uint64_t *>(g_malloc(sizeof(*val)));
         *val = cpu_to_le64(ROUND_UP(res_mem_end, 1 * GiB));
         fw_cfg_add_file(fw_cfg, "etc/reserved-memory-end", val, sizeof(*val));
     }
@@ -1054,8 +1054,8 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
 }
 
 static const MemoryRegionOps ioport80_io_ops = {
-    .write = ioport80_write,
     .read = ioport80_read,
+    .write = ioport80_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -1064,8 +1064,8 @@ static const MemoryRegionOps ioport80_io_ops = {
 };
 
 static const MemoryRegionOps ioportF0_io_ops = {
-    .write = ioportF0_write,
     .read = ioportF0_read,
+    .write = ioportF0_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -1833,18 +1833,20 @@ static void pc_machine_class_init(ObjectClass *oc, const void *data)
 
 }
 
+static const InterfaceInfo pc_machine_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo pc_machine_info = {
     .name = TYPE_PC_MACHINE,
     .parent = TYPE_X86_MACHINE,
-    .is_abstract = true,
     .instance_size = sizeof(PCMachineState),
     .instance_init = pc_machine_initfn,
+    .is_abstract = true,
     .class_size = sizeof(PCMachineClass),
     .class_init = pc_machine_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-         { TYPE_HOTPLUG_HANDLER },
-         { }
-    },
+    .interfaces = pc_machine_interfaces,
 };
 
 static void pc_machine_register_types(void)

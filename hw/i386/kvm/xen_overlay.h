@@ -12,6 +12,10 @@
 #ifndef QEMU_XEN_OVERLAY_H
 #define QEMU_XEN_OVERLAY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xen_overlay_create(void);
 
 int xen_overlay_map_shinfo_page(uint64_t gpa);
@@ -22,5 +26,9 @@ int xen_set_long_mode(bool long_mode);
 bool xen_is_long_mode(void);
 
 void xen_overlay_do_map_page(MemoryRegion *page, uint64_t gpa);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_XEN_OVERLAY_H */
