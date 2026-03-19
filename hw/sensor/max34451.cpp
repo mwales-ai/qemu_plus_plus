@@ -585,7 +585,7 @@ static void max34451_set(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
     MAX34451State *s = MAX34451(obj);
-    uint16_t *internal = opaque;
+    uint16_t *internal = static_cast<uint16_t *>(opaque);
     uint16_t value;
     if (!visit_type_uint16(v, name, &value, errp)) {
         return;
@@ -599,7 +599,7 @@ static void max34451_set(Object *obj, Visitor *v, const char *name,
 static inline void *memset_word(void *s, uint16_t c, size_t n)
 {
     size_t i;
-    uint16_t *p = s;
+    uint16_t *p = static_cast<uint16_t *>(s);
 
     for (i = 0; i < n; i++) {
         p[i] = c;
@@ -650,12 +650,8 @@ static void max34451_exit_reset(Object *obj, ResetType type)
     s->mfr_serial = DEFAULT_TEXT;
 }
 
-static const VMStateDescription vmstate_max34451 = {
-    .name = TYPE_MAX34451,
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .fields = (const VMStateField[]){
-        VMSTATE_PMBUS_DEVICE(parent, MAX34451State),
+static const VMStateField vmstate_max34451_fields[] = {
+VMSTATE_PMBUS_DEVICE(parent, MAX34451State),
         VMSTATE_UINT16_ARRAY(power_good_on, MAX34451State,
                              MAX34451_NUM_PWR_DEVICES),
         VMSTATE_UINT16_ARRAY(power_good_off, MAX34451State,
@@ -704,7 +700,13 @@ static const VMStateDescription vmstate_max34451 = {
         VMSTATE_UINT16(store_single, MAX34451State),
         VMSTATE_UINT16(crc, MAX34451State),
         VMSTATE_END_OF_LIST()
-    }
+};
+
+static const VMStateDescription vmstate_max34451 = {
+    .name = TYPE_MAX34451,
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = vmstate_max34451_fields,
 };
 
 static void max34451_init(Object *obj)
