@@ -433,7 +433,7 @@ static void adm1272_set(Object *obj, Visitor *v, const char *name, void *opaque,
                         Error **errp)
 {
     ADM1272State *s = ADM1272(obj);
-    uint16_t *internal = opaque;
+    uint16_t *internal = static_cast<uint16_t *>(opaque);
     uint16_t value;
 
     if (!visit_type_uint16(v, name, &value, errp)) {
@@ -453,12 +453,8 @@ static void adm1272_set(Object *obj, Visitor *v, const char *name, void *opaque,
     adm1272_check_limits(s);
 }
 
-static const VMStateDescription vmstate_adm1272 = {
-    .name = "ADM1272",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .fields = (const VMStateField[]){
-        VMSTATE_PMBUS_DEVICE(parent, ADM1272State),
+static const VMStateField vmstate_adm1272_fields[] = {
+VMSTATE_PMBUS_DEVICE(parent, ADM1272State),
         VMSTATE_UINT64(ein_ext, ADM1272State),
         VMSTATE_UINT32(pin_ext, ADM1272State),
         VMSTATE_UINT8(restart_time, ADM1272State),
@@ -482,7 +478,13 @@ static const VMStateDescription vmstate_adm1272 = {
 
         VMSTATE_UINT16(strt_up_iout_lim, ADM1272State),
         VMSTATE_END_OF_LIST()
-    }
+};
+
+static const VMStateDescription vmstate_adm1272 = {
+    .name = "ADM1272",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = vmstate_adm1272_fields,
 };
 
 static void adm1272_init(Object *obj)

@@ -63,8 +63,10 @@ def analyze_file(c_file):
     """Analyze a C file for C++ compatibility issues."""
     content = c_file.read_text()
     issues = {
-        'compound_literals': [],
-        'designator_inits': [],
+        'extractable_compounds': [],  # VMStateField[], InterfaceInfo[] - auto-fixable
+        'compound_literals': [],       # other compound literals - need manual work
+        'nested_designators': [],      # .valid/.impl MemoryRegionOps - auto-fixable
+        'other_designator_inits': [],  # other nested designators - manual
         'void_star_casts': [],
         'pri_macros': [],
         'cpp_keywords': [],
@@ -75,14 +77,29 @@ def analyze_file(c_file):
         'const_globals': [],
     }
     for i, line in enumerate(content.split('\n'), 1):
-        # Compound literals: (Type){...}
-        if re.search(r'\(\w+\s*\*?\)\s*\{', line):
+        # Compound literals: (Type){...} or (const Type[]) {
+        is_compound = False
+        if re.search(r'\(const\s+VMStateField\s*\[\]', line):
+            issues['extractable_compounds'].append((i, line.strip()))
+            is_compound = True
+        elif re.search(r'\(const\s+InterfaceInfo\s*\[\]', line):
+            issues['extractable_compounds'].append((i, line.strip()))
+            is_compound = True
+        elif re.search(r'\(\w+\s*\*?\)\s*\{', line):
             issues['compound_literals'].append((i, line.strip()))
-        if re.search(r'\(const\s+\w+\s*\[', line):
+            is_compound = True
+        elif re.search(r'\(const\s+\w+\s*\[', line):
             issues['compound_literals'].append((i, line.strip()))
+            is_compound = True
+
         # Nested designators: .foo.bar =
         if re.search(r'\.\w+\.\w+\s*=', line):
-            issues['designator_inits'].append((i, line.strip()))
+            # Check if it's a MemoryRegionOps .valid/.impl pattern (auto-fixable)
+            if re.search(r'\.(valid|impl)\.(min_access_size|max_access_size|unaligned)\s*=', line):
+                issues['nested_designators'].append((i, line.strip()))
+            else:
+                issues['other_designator_inits'].append((i, line.strip()))
+
         # void* implicit casts
         if re.search(r'=\s*(opaque|pv|user_data|userdata|data|arg)\s*;', line):
             if 'static_cast' not in line and 'void' not in line.split('=')[0]:
@@ -103,9 +120,6 @@ def analyze_file(c_file):
         # GNU range designators: [0 ... 0xFF]
         if re.search(r'\[\d+\s*\.\.\.\s*\d+\]', line):
             issues['gnu_extensions'].append((i, line.strip()))
-        # Double-to-int narrowing in array init (e.g., 0.0/MACRO)
-        if re.search(r'\d+\.\d+\s*/\s*\w+', line) and 'uint32_t' in content[:content.index(line) if line in content else 0]:
-            pass  # Too complex for static analysis
         # const globals (C++ internal linkage)
         if re.search(r'^(static\s+)?const\s+\w+\s+\w+\s*=', line) and not line.strip().startswith('static'):
             if re.search(r'^const\s+(VMState|Property|TypeInfo)', line):
@@ -114,15 +128,24 @@ def analyze_file(c_file):
 
 
 def classify_difficulty(issues):
-    """Classify file difficulty based on issues found."""
-    blockers = (len(issues['compound_literals']) + len(issues['gnu_extensions']) +
-                len(issues['typeof_usage']))
-    manual = len(issues['designator_inits']) + len(issues['const_globals'])
+    """Classify file difficulty based on issues found.
+
+    TRIVIAL: no issues at all
+    EASY: only auto-fixable issues (void* casts, PRI macros, keywords,
+          extractable compound literals, MemoryRegionOps nested designators)
+    MEDIUM: some non-extractable compound literals or other nested designators (1-5)
+    HARD: many compound literals, GNU extensions, or typeof usage
+    """
+    hard_blockers = len(issues['gnu_extensions']) + len(issues['typeof_usage'])
+    manual_compounds = len(issues['compound_literals'])
+    manual_designators = len(issues['other_designator_inits']) + len(issues['const_globals'])
     auto = (len(issues['void_star_casts']) + len(issues['pri_macros']) +
-            len(issues['cpp_keywords']) + len(issues['void_ptr_arithmetic']))
-    if blockers > 5:
+            len(issues['cpp_keywords']) + len(issues['void_ptr_arithmetic']) +
+            len(issues['extractable_compounds']) + len(issues['nested_designators']))
+
+    if hard_blockers > 0 or manual_compounds > 5:
         return "HARD"
-    elif blockers > 0 or manual > 3:
+    elif manual_compounds > 0 or manual_designators > 3:
         return "MEDIUM"
     elif auto > 0:
         return "EASY"
@@ -277,10 +300,208 @@ def revert_file(cpp_file):
     return True
 
 
+def extract_vmstate_fields(content):
+    """Extract VMStateField compound literal arrays to named static const arrays."""
+    pattern = re.compile(
+        r'(static\s+const\s+VMStateDescription\s+(\w+)\s*=\s*\{)',
+        re.MULTILINE
+    )
+    extractions = []
+    for match in pattern.finditer(content):
+        vmstate_name = match.group(2)
+        struct_start = match.start()
+        # Find end of this struct
+        brace_depth = 0
+        i = content.index('{', match.start())
+        struct_end = None
+        for pos in range(i, len(content)):
+            if content[pos] == '{': brace_depth += 1
+            elif content[pos] == '}':
+                brace_depth -= 1
+                if brace_depth == 0:
+                    struct_end = pos + 1
+                    break
+        if struct_end is None:
+            continue
+        struct_text = content[struct_start:struct_end]
+        fields_match = re.search(
+            r'\.fields\s*=\s*\(const\s+VMStateField\[\]\)\s*\{',
+            struct_text
+        )
+        if not fields_match:
+            continue
+        # Find matching closing brace
+        fields_start = fields_match.end()
+        brace_depth = 1
+        fields_end = None
+        for pos in range(fields_start, len(struct_text)):
+            if struct_text[pos] == '{': brace_depth += 1
+            elif struct_text[pos] == '}':
+                brace_depth -= 1
+                if brace_depth == 0:
+                    fields_end = pos
+                    break
+        if fields_end is None:
+            continue
+        field_entries = struct_text[fields_start:fields_end].strip()
+        array_name = f'{vmstate_name}_fields'
+        old_fields = struct_text[fields_match.start():fields_end + 1]
+        extractions.append({
+            'vmstate_name': vmstate_name,
+            'array_name': array_name,
+            'field_entries': field_entries,
+            'struct_start': struct_start,
+            'old_fields': old_fields,
+        })
+    for ext in reversed(extractions):
+        new_ref = f'.fields = {ext["array_name"]},'
+        extracted = f'static const VMStateField {ext["array_name"]}[] = {{\n{ext["field_entries"]}\n}};\n\n'
+        content = content.replace(ext['old_fields'], new_ref, 1)
+        line_start = content.rfind('\n', 0, content.find(ext['vmstate_name'])) + 1
+        content = content[:line_start] + extracted + content[line_start:]
+    return content, len(extractions)
+
+
+def extract_interface_info(content):
+    """Extract InterfaceInfo compound literal arrays to named static const arrays."""
+    pattern = re.compile(
+        r'(static\s+const\s+TypeInfo\s+(\w+)\s*=)',
+        re.MULTILINE
+    )
+    extractions = []
+    for match in pattern.finditer(content):
+        type_name = match.group(2)
+        brace_start = content.index('{', match.start())
+        brace_depth = 0
+        type_end = None
+        for pos in range(brace_start, len(content)):
+            if content[pos] == '{': brace_depth += 1
+            elif content[pos] == '}':
+                brace_depth -= 1
+                if brace_depth == 0:
+                    type_end = pos + 1
+                    break
+        if type_end is None:
+            continue
+        type_text = content[match.start():type_end]
+        iface_match = re.search(
+            r'\.interfaces\s*=\s*\(const\s+InterfaceInfo\[\]\)\s*\{',
+            type_text
+        )
+        if not iface_match:
+            continue
+        iface_start = iface_match.end()
+        brace_depth = 1
+        iface_end = None
+        for pos in range(iface_start, len(type_text)):
+            if type_text[pos] == '{': brace_depth += 1
+            elif type_text[pos] == '}':
+                brace_depth -= 1
+                if brace_depth == 0:
+                    iface_end = pos
+                    break
+        if iface_end is None:
+            continue
+        iface_entries = type_text[iface_start:iface_end].strip()
+        old_iface = type_text[iface_match.start():iface_end + 1]
+        array_name = f'{type_name}_interfaces'
+        extractions.append({
+            'type_name': type_name,
+            'array_name': array_name,
+            'iface_entries': iface_entries,
+            'search_start': match.start(),
+            'old_iface': old_iface,
+        })
+    for ext in reversed(extractions):
+        new_ref = f'.interfaces = {ext["array_name"]},'
+        extracted = f'static const InterfaceInfo {ext["array_name"]}[] = {{\n{ext["iface_entries"]}\n}};\n\n'
+        content = content.replace(ext['old_iface'], new_ref, 1)
+        line_start = content.rfind('\n', 0, content.find(ext['type_name'])) + 1
+        content = content[:line_start] + extracted + content[line_start:]
+    return content, len(extractions)
+
+
+def fix_memregion_ops_nested(content):
+    """Convert MemoryRegionOps nested .valid/.impl to constructor init pattern."""
+    pattern = re.compile(
+        r'static\s+(const\s+)?MemoryRegionOps\s+(\w+)\s*=\s*\{',
+        re.MULTILINE
+    )
+    inits = []
+    for match in pattern.finditer(content):
+        is_const = match.group(1) is not None
+        ops_name = match.group(2)
+        brace_start = content.index('{', match.start())
+        brace_depth = 0
+        struct_end = None
+        for pos in range(brace_start, len(content)):
+            if content[pos] == '{': brace_depth += 1
+            elif content[pos] == '}':
+                brace_depth -= 1
+                if brace_depth == 0:
+                    struct_end = pos + 1
+                    break
+        if struct_end is None:
+            continue
+        struct_text = content[match.start():struct_end]
+        nested_fields = []
+        for section in ('valid', 'impl'):
+            nested_match = re.search(
+                rf'\.{section}\s*=\s*\{{([^}}]*)\}}',
+                struct_text
+            )
+            if nested_match:
+                inner = nested_match.group(1).strip()
+                for field_m in re.finditer(r'\.(\w+)\s*=\s*([^,}]+)', inner):
+                    field_name = field_m.group(1)
+                    field_val = field_m.group(2).strip()
+                    nested_fields.append((section, field_name, field_val))
+        if not nested_fields:
+            continue
+        new_struct = struct_text
+        for section in ('valid', 'impl'):
+            new_struct = re.sub(
+                rf'\s*\.{section}\s*=\s*\{{[^}}]*\}}\s*,?',
+                '', new_struct
+            )
+        if is_const:
+            new_struct = new_struct.replace('static const MemoryRegionOps',
+                                           'static MemoryRegionOps', 1)
+        init_lines = [f'static void __attribute__((constructor)) init_{ops_name}(void) {{']
+        for section, field_name, field_val in nested_fields:
+            init_lines.append(f'    {ops_name}.{section}.{field_name} = {field_val};')
+        init_lines.append('}')
+        init_text = '\n'.join(init_lines) + '\n'
+        inits.append({
+            'old_text': struct_text,
+            'new_text': new_struct,
+            'init_text': init_text,
+        })
+    for init in reversed(inits):
+        content = content.replace(init['old_text'], init['new_text'], 1)
+        pos = content.find(init['new_text']) + len(init['new_text'])
+        while pos < len(content) and content[pos] != '\n':
+            pos += 1
+        content = content[:pos + 1] + '\n' + init['init_text'] + content[pos + 1:]
+    return content, len(inits)
+
+
 def apply_easy_fixes(filepath):
     """Apply mechanical fixes for EASY files."""
     content = filepath.read_text()
     fixes = []
+
+    # Extract VMStateField compound literals
+    content, n = extract_vmstate_fields(content)
+    if n: fixes.append(f"VMStateField extraction ({n})")
+
+    # Extract InterfaceInfo compound literals
+    content, n = extract_interface_info(content)
+    if n: fixes.append(f"InterfaceInfo extraction ({n})")
+
+    # Fix MemoryRegionOps nested designators
+    content, n = fix_memregion_ops_nested(content)
+    if n: fixes.append(f"MemoryRegionOps nested ({n})")
 
     # PRI macro spacing
     count = 0
@@ -500,9 +721,9 @@ def batch_port(files, difficulty, dry_run=False):
             # Update meson.build
             update_meson_build(f, cpp_file)
 
-            # Apply fixes for EASY files
+            # Apply fixes for EASY and MEDIUM files
             fixes = []
-            if difficulty == 'EASY':
+            if difficulty in ('EASY', 'MEDIUM'):
                 fixes = apply_easy_fixes(cpp_file)
 
             ported.append((rel, cpp_file, fixes))
@@ -590,8 +811,8 @@ def build_and_revert_loop(ported, max_iterations=5):
 
 def main():
     parser = argparse.ArgumentParser(description='Batch port C files to C++')
-    parser.add_argument('--difficulty', choices=['TRIVIAL', 'EASY', 'BOTH'],
-                       default='BOTH', help='Difficulty level to port')
+    parser.add_argument('--difficulty', choices=['TRIVIAL', 'EASY', 'MEDIUM', 'BOTH', 'ALL'],
+                       default='BOTH', help='Difficulty level to port (BOTH=TRIVIAL+EASY, ALL=+MEDIUM)')
     parser.add_argument('--dirs', nargs='+', required=True,
                        help='Directories to scan (relative to QEMU root)')
     parser.add_argument('--list', action='store_true',
@@ -634,13 +855,18 @@ def main():
     total_ported = []
     total_failed = []
 
-    if args.difficulty in ('TRIVIAL', 'BOTH') and classified['TRIVIAL']:
+    if args.difficulty in ('TRIVIAL', 'BOTH', 'ALL') and classified['TRIVIAL']:
         ported, failed = batch_port(classified['TRIVIAL'], 'TRIVIAL', args.dry_run)
         total_ported.extend(ported)
         total_failed.extend(failed)
 
-    if args.difficulty in ('EASY', 'BOTH') and classified['EASY']:
+    if args.difficulty in ('EASY', 'BOTH', 'ALL') and classified['EASY']:
         ported, failed = batch_port(classified['EASY'], 'EASY', args.dry_run)
+        total_ported.extend(ported)
+        total_failed.extend(failed)
+
+    if args.difficulty in ('MEDIUM', 'ALL') and classified['MEDIUM']:
+        ported, failed = batch_port(classified['MEDIUM'], 'MEDIUM', args.dry_run)
         total_ported.extend(ported)
         total_failed.extend(failed)
 
