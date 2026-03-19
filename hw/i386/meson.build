@@ -8,7 +8,7 @@ i386_ss.add(files(
   'x86-cpu.cpp',
 ))
 
-i386_ss.add(when: 'CONFIG_APIC', if_true: files('vapic.c'))
+i386_ss.add(when: 'CONFIG_APIC', if_true: files('vapic.cpp'))
 i386_ss.add(when: 'CONFIG_X86_IOMMU', if_true: files('x86-iommu.cpp'),
                                       if_false: files('x86-iommu-stub.cpp'))
 i386_ss.add(when: 'CONFIG_AMD_IOMMU', if_true: files('amd_iommu.c'),

@@ -496,7 +496,7 @@ typedef struct VAPICEnableTPRReporting {
 
 static void vapic_do_enable_tpr_reporting(CPUState *cpu, run_on_cpu_data data)
 {
-    VAPICEnableTPRReporting *info = data.host_ptr;
+    VAPICEnableTPRReporting *info = static_cast<VAPICEnableTPRReporting *>(data.host_ptr);
     apic_enable_tpr_access_reporting(info->apic, info->enable);
 }
 
@@ -544,7 +544,7 @@ static int patch_hypercalls(VAPICROMState *s)
     off_t pos;
     uint8_t *rom;
 
-    rom = g_malloc(s->rom_size);
+    rom = static_cast<uint8_t *>(g_malloc(s->rom_size));
     cpu_physical_memory_read(rom_paddr, rom, s->rom_size);
 
     for (pos = 0; pos < s->rom_size - sizeof(vmcall_pattern); pos++) {
@@ -599,7 +599,7 @@ static int vapic_map_rom_writable(VAPICROMState *s)
     if (rom_paddr + 2 >= memory_region_size(section.mr)) {
         return -1;
     }
-    ram = memory_region_get_ram_ptr(section.mr);
+    ram = static_cast<uint8_t *>(memory_region_get_ram_ptr(section.mr));
     rom_size = ram[rom_paddr + 2] * ROM_BLOCK_SIZE;
     if (rom_size == 0) {
         return -1;
@@ -639,7 +639,7 @@ static int vapic_prepare(VAPICROMState *s)
 static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
                         unsigned int size)
 {
-    VAPICROMState *s = opaque;
+    VAPICROMState *s = static_cast<VAPICROMState *>(opaque);
     X86CPU *cpu;
     CPUX86State *env;
     hwaddr rom_paddr;
@@ -717,8 +717,8 @@ static uint64_t vapic_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static const MemoryRegionOps vapic_ops = {
-    .write = vapic_write,
     .read = vapic_read,
+    .write = vapic_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -738,7 +738,7 @@ static void vapic_realize(DeviceState *dev, Error **errp)
 
 static void do_vapic_enable(CPUState *cs, run_on_cpu_data data)
 {
-    VAPICROMState *s = data.host_ptr;
+    VAPICROMState *s = static_cast<VAPICROMState *>(data.host_ptr);
     X86CPU *cpu = X86_CPU(cs);
 
     static const uint8_t enabled = 1;
@@ -751,7 +751,7 @@ static void do_vapic_enable(CPUState *cs, run_on_cpu_data data)
 static void vapic_vm_state_change(void *opaque, bool running, RunState state)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
-    VAPICROMState *s = opaque;
+    VAPICROMState *s = static_cast<VAPICROMState *>(opaque);
     uint8_t *zero;
 
     if (!running) {
@@ -762,7 +762,7 @@ static void vapic_vm_state_change(void *opaque, bool running, RunState state)
         if (ms->smp.cpus == 1) {
             run_on_cpu(first_cpu, do_vapic_enable, RUN_ON_CPU_HOST_PTR(s));
         } else {
-            zero = g_malloc0(s->rom_state.vapic_size);
+            zero = static_cast<uint8_t *>(g_malloc0(s->rom_state.vapic_size));
             cpu_physical_memory_write(s->vapic_paddr, zero,
                                       s->rom_state.vapic_size);
             g_free(zero);
@@ -775,7 +775,7 @@ static void vapic_vm_state_change(void *opaque, bool running, RunState state)
 
 static int vapic_post_load(void *opaque, int version_id)
 {
-    VAPICROMState *s = opaque;
+    VAPICROMState *s = static_cast<VAPICROMState *>(opaque);
 
     /*
      * The old implementation of qemu-kvm did not provide the state
@@ -798,36 +798,51 @@ static int vapic_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_handlers_fields[] = {
+    VMSTATE_UINT32(set_tpr, VAPICHandlers),
+    VMSTATE_UINT32(set_tpr_eax, VAPICHandlers),
+    VMSTATE_UINT32_ARRAY(get_tpr, VAPICHandlers, 8),
+    VMSTATE_UINT32(get_tpr_stack, VAPICHandlers),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_handlers = {
     .name = "kvmvapic-handlers",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(set_tpr, VAPICHandlers),
-        VMSTATE_UINT32(set_tpr_eax, VAPICHandlers),
-        VMSTATE_UINT32_ARRAY(get_tpr, VAPICHandlers, 8),
-        VMSTATE_UINT32(get_tpr_stack, VAPICHandlers),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_handlers_fields,
+};
+
+static const VMStateField vmstate_guest_rom_fields[] = {
+    VMSTATE_UNUSED(8),     /* signature */
+    VMSTATE_UINT32(vaddr, GuestROMState),
+    VMSTATE_UINT32(fixup_start, GuestROMState),
+    VMSTATE_UINT32(fixup_end, GuestROMState),
+    VMSTATE_UINT32(vapic_vaddr, GuestROMState),
+    VMSTATE_UINT32(vapic_size, GuestROMState),
+    VMSTATE_UINT32(vcpu_shift, GuestROMState),
+    VMSTATE_UINT32(real_tpr_addr, GuestROMState),
+    VMSTATE_STRUCT(up, GuestROMState, 0, vmstate_handlers, VAPICHandlers),
+    VMSTATE_STRUCT(mp, GuestROMState, 0, vmstate_handlers, VAPICHandlers),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_guest_rom = {
     .name = "kvmvapic-guest-rom",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UNUSED(8),     /* signature */
-        VMSTATE_UINT32(vaddr, GuestROMState),
-        VMSTATE_UINT32(fixup_start, GuestROMState),
-        VMSTATE_UINT32(fixup_end, GuestROMState),
-        VMSTATE_UINT32(vapic_vaddr, GuestROMState),
-        VMSTATE_UINT32(vapic_size, GuestROMState),
-        VMSTATE_UINT32(vcpu_shift, GuestROMState),
-        VMSTATE_UINT32(real_tpr_addr, GuestROMState),
-        VMSTATE_STRUCT(up, GuestROMState, 0, vmstate_handlers, VAPICHandlers),
-        VMSTATE_STRUCT(mp, GuestROMState, 0, vmstate_handlers, VAPICHandlers),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_guest_rom_fields,
+};
+
+static const VMStateField vmstate_vapic_fields[] = {
+    VMSTATE_STRUCT(rom_state, VAPICROMState, 0, vmstate_guest_rom,
+                   GuestROMState),
+    VMSTATE_UINT32(state, VAPICROMState),
+    VMSTATE_UINT32(real_tpr_addr, VAPICROMState),
+    VMSTATE_UINT32(rom_state_vaddr, VAPICROMState),
+    VMSTATE_UINT32(vapic_paddr, VAPICROMState),
+    VMSTATE_UINT32(rom_state_paddr, VAPICROMState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_vapic = {
@@ -835,16 +850,7 @@ static const VMStateDescription vmstate_vapic = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = vapic_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(rom_state, VAPICROMState, 0, vmstate_guest_rom,
-                       GuestROMState),
-        VMSTATE_UINT32(state, VAPICROMState),
-        VMSTATE_UINT32(real_tpr_addr, VAPICROMState),
-        VMSTATE_UINT32(rom_state_vaddr, VAPICROMState),
-        VMSTATE_UINT32(vapic_paddr, VAPICROMState),
-        VMSTATE_UINT32(rom_state_paddr, VAPICROMState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vapic_fields,
 };
 
 static void vapic_class_init(ObjectClass *klass, const void *data)
