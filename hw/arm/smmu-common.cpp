@@ -61,7 +61,7 @@ static gboolean smmu_iotlb_key_equal(gconstpointer v1, gconstpointer v2)
 SMMUIOTLBKey smmu_get_iotlb_key(int asid, int vmid, uint64_t iova,
                                 uint8_t tg, uint8_t level)
 {
-    SMMUIOTLBKey key = {.asid = asid, .vmid = vmid, .iova = iova,
+    SMMUIOTLBKey key = {.iova = iova, .asid = asid, .vmid = vmid,
                         .tg = tg, .level = level};
 
     return key;
@@ -85,7 +85,7 @@ static SMMUTLBEntry *smmu_iotlb_lookup_all_levels(SMMUState *bs,
 
         key = smmu_get_iotlb_key(cfg->asid, cfg->s2cfg.vmid,
                                  iova & ~mask, tg, level);
-        entry = g_hash_table_lookup(bs->iotlb, &key);
+        entry = static_cast<SMMUTLBEntry *>(g_hash_table_lookup(bs->iotlb, &key));
         if (entry) {
             break;
         }
@@ -138,20 +138,20 @@ SMMUTLBEntry *smmu_iotlb_lookup(SMMUState *bs, SMMUTransCfg *cfg,
     return entry;
 }
 
-void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new)
+void smmu_iotlb_insert(SMMUState *bs, SMMUTransCfg *cfg, SMMUTLBEntry *new_entry)
 {
     SMMUIOTLBKey *key = g_new0(SMMUIOTLBKey, 1);
-    uint8_t tg = (new->granule - 10) / 2;
+    uint8_t tg = (new_entry->granule - 10) / 2;
 
     if (g_hash_table_size(bs->iotlb) >= SMMU_IOTLB_MAX_SIZE) {
         smmu_iotlb_inv_all(bs);
     }
 
-    *key = smmu_get_iotlb_key(cfg->asid, cfg->s2cfg.vmid, new->entry.iova,
-                              tg, new->level);
-    trace_smmu_iotlb_insert(cfg->asid, cfg->s2cfg.vmid, new->entry.iova,
-                            tg, new->level);
-    g_hash_table_insert(bs->iotlb, key, new);
+    *key = smmu_get_iotlb_key(cfg->asid, cfg->s2cfg.vmid, new_entry->entry.iova,
+                              tg, new_entry->level);
+    trace_smmu_iotlb_insert(cfg->asid, cfg->s2cfg.vmid, new_entry->entry.iova,
+                            tg, new_entry->level);
+    g_hash_table_insert(bs->iotlb, key, new_entry);
 }
 
 void smmu_iotlb_inv_all(SMMUState *s)
@@ -266,8 +266,8 @@ void smmu_iotlb_inv_iova(SMMUState *s, int asid, int vmid, dma_addr_t iova,
     }
 
     SMMUIOTLBPageInvInfo info = {
-        .asid = asid, .iova = iova,
-        .vmid = vmid,
+        .asid = asid, .vmid = vmid,
+        .iova = iova,
         .mask = (num_pages * 1 << granule) - 1};
 
     g_hash_table_foreach_remove(s->iotlb,
@@ -294,8 +294,8 @@ void smmu_iotlb_inv_ipa(SMMUState *s, int vmid, dma_addr_t ipa, uint8_t tg,
     }
 
     SMMUIOTLBPageInvInfo info = {
-        .iova = ipa,
         .vmid = vmid,
+        .iova = ipa,
         .mask = (num_pages << granule) - 1};
 
     g_hash_table_foreach_remove(s->iotlb,
@@ -678,7 +678,7 @@ static int smmu_ptw_64_s2(SMMUTransCfg *cfg,
         tlbe->entry.translated_addr = gpa;
         tlbe->entry.iova = ipa & ~mask;
         tlbe->entry.addr_mask = mask;
-        tlbe->parent_perm = s2ap;
+        tlbe->parent_perm = static_cast<IOMMUAccessFlags>(s2ap);
         tlbe->entry.perm = tlbe->parent_perm;
         tlbe->level = level;
         tlbe->granule = granule_sz;
@@ -849,14 +849,14 @@ SMMUPciBus *smmu_find_smmu_pcibus(SMMUState *s, uint8_t bus_num)
 
 static AddressSpace *smmu_find_add_as(PCIBus *bus, void *opaque, int devfn)
 {
-    SMMUState *s = opaque;
-    SMMUPciBus *sbus = g_hash_table_lookup(s->smmu_pcibus_by_busptr, bus);
+    SMMUState *s = static_cast<SMMUState *>(opaque);
+    SMMUPciBus *sbus = static_cast<SMMUPciBus *>(g_hash_table_lookup(s->smmu_pcibus_by_busptr, bus));
     SMMUDevice *sdev;
     static unsigned int index;
 
     if (!sbus) {
-        sbus = g_malloc0(sizeof(SMMUPciBus) +
-                         sizeof(SMMUDevice *) * SMMU_PCI_DEVFN_MAX);
+        sbus = static_cast<SMMUPciBus *>(g_malloc0(sizeof(SMMUPciBus) +
+                         sizeof(SMMUDevice *) * SMMU_PCI_DEVFN_MAX));
         sbus->bus = bus;
         g_hash_table_insert(s->smmu_pcibus_by_busptr, bus, sbus);
     }
@@ -1012,10 +1012,10 @@ static const TypeInfo smmu_base_info = {
     .name          = TYPE_ARM_SMMU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SMMUState),
-    .class_data    = NULL,
+    .is_abstract   = true,
     .class_size    = sizeof(SMMUBaseClass),
     .class_init    = smmu_base_class_init,
-    .is_abstract      = true,
+    .class_data    = NULL,
 };
 
 static void smmu_base_register_types(void)

@@ -190,6 +190,10 @@ static inline uint16_t smmu_get_sid(SMMUDevice *sdev)
  * smmu_ptw - Perform the page table walk for a given iova / access flags
  * pair, according to @cfg translation config
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int smmu_ptw(SMMUState *bs, SMMUTransCfg *cfg, dma_addr_t iova,
              IOMMUAccessFlags perm, SMMUTLBEntry *tlbe,
              SMMUPTWEventInfo *info);
@@ -228,5 +232,9 @@ void smmu_iotlb_inv_ipa(SMMUState *s, int vmid, dma_addr_t ipa, uint8_t tg,
 void smmu_configs_inv_sid_range(SMMUState *s, SMMUSIDRange sid_range);
 /* Unmap the range of all the notifiers registered to any IOMMU mr */
 void smmu_inv_notifiers_all(SMMUState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_ARM_SMMU_COMMON_H */

@@ -37,7 +37,7 @@ static inline hwaddr bitband_addr(BitBandState *s, hwaddr offset)
 static MemTxResult bitband_read(void *opaque, hwaddr offset,
                                 uint64_t *data, unsigned size, MemTxAttrs attrs)
 {
-    BitBandState *s = opaque;
+    BitBandState *s = static_cast<BitBandState *>(opaque);
     uint8_t buf[4];
     MemTxResult res;
     int bitpos, bit;
@@ -62,7 +62,7 @@ static MemTxResult bitband_read(void *opaque, hwaddr offset,
 static MemTxResult bitband_write(void *opaque, hwaddr offset, uint64_t value,
                                  unsigned size, MemTxAttrs attrs)
 {
-    BitBandState *s = opaque;
+    BitBandState *s = static_cast<BitBandState *>(opaque);
     uint8_t buf[4];
     MemTxResult res;
     int bitpos, bit;
@@ -92,8 +92,8 @@ static const MemoryRegionOps bitband_ops = {
     .read_with_attrs = bitband_read,
     .write_with_attrs = bitband_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = { .min_access_size = 1, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void bitband_init(Object *obj)
@@ -132,13 +132,13 @@ static MemTxResult v7m_sysreg_ns_write(void *opaque, hwaddr addr,
                                        uint64_t value, unsigned size,
                                        MemTxAttrs attrs)
 {
-    MemoryRegion *mr = opaque;
+    MemoryRegion *mr = static_cast<MemoryRegion *>(opaque);
 
     if (attrs.secure) {
         /* S accesses to the alias act like NS accesses to the real region */
         attrs.secure = 0;
         return memory_region_dispatch_write(mr, addr, value,
-                                            size_memop(size) | MO_LE, attrs);
+                                            static_cast<MemOp>(size_memop(size) | MO_LE), attrs);
     } else {
         /* NS attrs are RAZ/WI for privileged, and BusFault for user */
         if (attrs.user) {
@@ -152,13 +152,13 @@ static MemTxResult v7m_sysreg_ns_read(void *opaque, hwaddr addr,
                                       uint64_t *data, unsigned size,
                                       MemTxAttrs attrs)
 {
-    MemoryRegion *mr = opaque;
+    MemoryRegion *mr = static_cast<MemoryRegion *>(opaque);
 
     if (attrs.secure) {
         /* S accesses to the alias act like NS accesses to the real region */
         attrs.secure = 0;
         return memory_region_dispatch_read(mr, addr, data,
-                                           size_memop(size) | MO_LE, attrs);
+                                           static_cast<MemOp>(size_memop(size) | MO_LE), attrs);
     } else {
         /* NS attrs are RAZ/WI for privileged, and BusFault for user */
         if (attrs.user) {
@@ -179,26 +179,26 @@ static MemTxResult v7m_systick_write(void *opaque, hwaddr addr,
                                      uint64_t value, unsigned size,
                                      MemTxAttrs attrs)
 {
-    ARMv7MState *s = opaque;
+    ARMv7MState *s = static_cast<ARMv7MState *>(opaque);
     MemoryRegion *mr;
 
     /* Direct the access to the correct systick */
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
     return memory_region_dispatch_write(mr, addr, value,
-                                        size_memop(size) | MO_LE, attrs);
+                                        static_cast<MemOp>(size_memop(size) | MO_LE), attrs);
 }
 
 static MemTxResult v7m_systick_read(void *opaque, hwaddr addr,
                                     uint64_t *data, unsigned size,
                                     MemTxAttrs attrs)
 {
-    ARMv7MState *s = opaque;
+    ARMv7MState *s = static_cast<ARMv7MState *>(opaque);
     MemoryRegion *mr;
 
     /* Direct the access to the correct systick */
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
     return memory_region_dispatch_read(mr, addr, data,
-                                       size_memop(size) | MO_LE, attrs);
+                                       static_cast<MemOp>(size_memop(size) | MO_LE), attrs);
 }
 
 static const MemoryRegionOps v7m_systick_ops = {
@@ -563,15 +563,17 @@ static const Property armv7m_properties[] = {
     DEFINE_PROP_UINT32("mpu-s-regions", ARMv7MState, mpu_s_regions, UINT_MAX),
 };
 
+static const VMStateField vmstate_armv7m_fields[] = {
+    VMSTATE_CLOCK(refclk, ARMv7MState),
+    VMSTATE_CLOCK(cpuclk, ARMv7MState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_armv7m = {
     .name = "armv7m",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(refclk, ARMv7MState),
-        VMSTATE_CLOCK(cpuclk, ARMv7MState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_armv7m_fields,
 };
 
 static void armv7m_class_init(ObjectClass *klass, const void *data)
@@ -593,7 +595,7 @@ static const TypeInfo armv7m_info = {
 
 static void armv7m_reset(void *opaque)
 {
-    ARMCPU *cpu = opaque;
+    ARMCPU *cpu = static_cast<ARMCPU *>(opaque);
 
     cpu_reset(CPU(cpu));
 }

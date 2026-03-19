@@ -20,7 +20,7 @@ arm_common_ss.add(when: 'CONFIG_STM32VLDISCOVERY', if_true: files('stm32vldiscov
 arm_common_ss.add(when: 'CONFIG_ZYNQ', if_true: files('xilinx_zynq.c'))
 arm_common_ss.add(when: 'CONFIG_SABRELITE', if_true: files('sabrelite.cpp'))
 
-arm_common_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('armv7m.c'))
+arm_common_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('armv7m.cpp'))
 arm_common_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210.cpp'))
 arm_common_ss.add(when: 'CONFIG_DIGIC', if_true: files('digic.cpp'))
 arm_common_ss.add(when: 'CONFIG_OMAP', if_true: files('omap1.c'))
@@ -92,7 +92,7 @@ arm_common_ss.add(when: 'CONFIG_XEN', if_true: files(
   'xen-pvh.cpp',
 ))
 
-arm_common_ss.add(when: 'CONFIG_ARM_SMMUV3', if_true: files('smmu-common.c'))
+arm_common_ss.add(when: 'CONFIG_ARM_SMMUV3', if_true: files('smmu-common.cpp'))
 arm_common_ss.add(when: 'CONFIG_COLLIE', if_true: files('collie.cpp'))
 arm_common_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4_boards.cpp'))
 arm_common_ss.add(when: 'CONFIG_MAX78000FTHR', if_true: files('max78000fthr.cpp'))
