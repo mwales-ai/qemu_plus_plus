@@ -230,7 +230,7 @@ void spapr_dt_persistent_memory(SpaprMachineState *spapr, void *fdt)
 
     /* Create DT entries for cold plugged NVDIMM devices */
     for (iter = nvdimms; iter; iter = iter->next) {
-        NVDIMMDevice *nvdimm = iter->data;
+        NVDIMMDevice *nvdimm = static_cast<NVDIMMDevice *>(iter->data);
 
         spapr_dt_nvdimm(spapr, fdt, offset, nvdimm);
     }
@@ -444,7 +444,7 @@ struct SpaprNVDIMMDevice {
 
 static int flush_worker_cb(void *opaque)
 {
-    SpaprNVDIMMDeviceFlushState *state = opaque;
+    SpaprNVDIMMDeviceFlushState *state = static_cast<SpaprNVDIMMDeviceFlushState *>(opaque);
     SpaprDrc *drc = spapr_drc_by_index(state->drcidx);
     PCDIMMDevice *dimm;
     HostMemoryBackend *backend;
@@ -478,7 +478,7 @@ static int flush_worker_cb(void *opaque)
 
 static void spapr_nvdimm_flush_completion_cb(void *opaque, int hcall_ret)
 {
-    SpaprNVDIMMDeviceFlushState *state = opaque;
+    SpaprNVDIMMDeviceFlushState *state = static_cast<SpaprNVDIMMDeviceFlushState *>(opaque);
     SpaprDrc *drc = spapr_drc_by_index(state->drcidx);
     SpaprNVDIMMDevice *s_nvdimm;
 
@@ -522,16 +522,30 @@ static int spapr_nvdimm_flush_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_spapr_nvdimm_flush_state_fields[] = {
+    VMSTATE_UINT64(continue_token, SpaprNVDIMMDeviceFlushState),
+    VMSTATE_INT64(hcall_ret, SpaprNVDIMMDeviceFlushState),
+    VMSTATE_UINT32(drcidx, SpaprNVDIMMDeviceFlushState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_nvdimm_flush_state = {
      .name = "spapr_nvdimm_flush_state",
      .version_id = 1,
      .minimum_version_id = 1,
-     .fields = (const VMStateField[]) {
-         VMSTATE_UINT64(continue_token, SpaprNVDIMMDeviceFlushState),
-         VMSTATE_INT64(hcall_ret, SpaprNVDIMMDeviceFlushState),
-         VMSTATE_UINT32(drcidx, SpaprNVDIMMDeviceFlushState),
-         VMSTATE_END_OF_LIST()
-     },
+     .fields = vmstate_spapr_nvdimm_flush_state_fields,
+};
+
+static const VMStateField vmstate_spapr_nvdimm_states_fields[] = {
+    VMSTATE_BOOL(hcall_flush_required, SpaprNVDIMMDevice),
+    VMSTATE_UINT64(nvdimm_flush_token, SpaprNVDIMMDevice),
+    VMSTATE_QLIST_V(completed_nvdimm_flush_states, SpaprNVDIMMDevice, 1,
+                    vmstate_spapr_nvdimm_flush_state,
+                    SpaprNVDIMMDeviceFlushState, node),
+    VMSTATE_QLIST_V(pending_nvdimm_flush_states, SpaprNVDIMMDevice, 1,
+                    vmstate_spapr_nvdimm_flush_state,
+                    SpaprNVDIMMDeviceFlushState, node),
+    VMSTATE_END_OF_LIST()
 };
 
 const VMStateDescription vmstate_spapr_nvdimm_states = {
@@ -539,17 +553,7 @@ const VMStateDescription vmstate_spapr_nvdimm_states = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = spapr_nvdimm_flush_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(hcall_flush_required, SpaprNVDIMMDevice),
-        VMSTATE_UINT64(nvdimm_flush_token, SpaprNVDIMMDevice),
-        VMSTATE_QLIST_V(completed_nvdimm_flush_states, SpaprNVDIMMDevice, 1,
-                        vmstate_spapr_nvdimm_flush_state,
-                        SpaprNVDIMMDeviceFlushState, node),
-        VMSTATE_QLIST_V(pending_nvdimm_flush_states, SpaprNVDIMMDevice, 1,
-                        vmstate_spapr_nvdimm_flush_state,
-                        SpaprNVDIMMDeviceFlushState, node),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_nvdimm_states_fields,
 };
 
 /*
@@ -560,7 +564,7 @@ static SpaprNVDIMMDeviceFlushState *spapr_nvdimm_init_new_flush_state(
 {
     SpaprNVDIMMDeviceFlushState *state;
 
-    state = g_malloc0(sizeof(*state));
+    state = static_cast<SpaprNVDIMMDeviceFlushState *>(g_malloc0(sizeof(*state)));
 
     spapr_nvdimm->nvdimm_flush_token++;
     /* Token zero is presumed as no job pending. Assert on overflow to zero */
@@ -591,7 +595,7 @@ void spapr_nvdimm_finish_flushes(void)
      */
     nvdimms = nvdimm_get_device_list();
     for (list = nvdimms; list; list = list->next) {
-        NVDIMMDevice *nvdimm = list->data;
+        NVDIMMDevice *nvdimm = static_cast<NVDIMMDevice *>(list->data);
         if (object_dynamic_cast(OBJECT(nvdimm), TYPE_SPAPR_NVDIMM)) {
             SpaprNVDIMMDevice *s_nvdimm = SPAPR_NVDIMM(nvdimm);
             while (!QLIST_EMPTY(&s_nvdimm->pending_nvdimm_flush_states)) {
@@ -801,7 +805,7 @@ static target_ulong h_scm_unbind_all(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
         nvdimms = nvdimm_get_device_list();
         for (list = nvdimms; list; list = list->next) {
-            nvdimm = list->data;
+            nvdimm = static_cast<NVDIMMDevice *>(list->data);
             size = object_property_get_int(OBJECT(nvdimm), PC_DIMM_SIZE_PROP,
                                            &error_abort);
 
@@ -909,13 +913,13 @@ static void spapr_nvdimm_init(Object *obj)
     QLIST_INIT(&s_nvdimm->completed_nvdimm_flush_states);
 }
 
-static TypeInfo spapr_nvdimm_info = {
+static const TypeInfo spapr_nvdimm_info = {
     .name          = TYPE_SPAPR_NVDIMM,
     .parent        = TYPE_NVDIMM,
-    .class_init    = spapr_nvdimm_class_init,
-    .class_size    = sizeof(SPAPRNVDIMMClass),
     .instance_size = sizeof(SpaprNVDIMMDevice),
     .instance_init = spapr_nvdimm_init,
+    .class_size    = sizeof(SPAPRNVDIMMClass),
+    .class_init    = spapr_nvdimm_class_init,
 };
 
 static void spapr_nvdimm_register_types(void)

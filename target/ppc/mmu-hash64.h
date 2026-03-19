@@ -4,6 +4,9 @@
 #ifndef CONFIG_USER_ONLY
 
 #ifdef TARGET_PPC64
+#ifdef __cplusplus
+extern "C" {
+#endif
 void dump_slb(PowerPCCPU *cpu);
 int ppc_store_slb(PowerPCCPU *cpu, target_ulong slot,
                   target_ulong esid, target_ulong vsid);
@@ -17,6 +20,9 @@ unsigned ppc_hash64_hpte_page_shift_noslb(PowerPCCPU *cpu,
                                           uint64_t pte0, uint64_t pte1);
 void ppc_hash64_init(PowerPCCPU *cpu);
 void ppc_hash64_finalize(PowerPCCPU *cpu);
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 /*
@@ -116,11 +122,17 @@ struct ppc_hash_pte64 {
     uint64_t pte0, pte1;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 const ppc_hash_pte64_t *ppc_hash64_map_hptes(PowerPCCPU *cpu,
                                              hwaddr ptex, int n);
 void ppc_hash64_unmap_hptes(PowerPCCPU *cpu, const ppc_hash_pte64_t *hptes,
                             hwaddr ptex, int n);
 bool ppc_hash64_valid_ptex(PowerPCCPU *cpu, target_ulong ptex);
+#ifdef __cplusplus
+}
+#endif
 
 static inline uint64_t ppc_hash64_hpte0(PowerPCCPU *cpu,
                                         const ppc_hash_pte64_t *hptes, int i)

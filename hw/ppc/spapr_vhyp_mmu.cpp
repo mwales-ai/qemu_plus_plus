@@ -319,7 +319,7 @@ static void free_pending_hpt(SpaprPendingHpt *pending)
 
 static void *hpt_prepare_thread(void *opaque)
 {
-    SpaprPendingHpt *pending = opaque;
+    SpaprPendingHpt *pending = static_cast<SpaprPendingHpt *>(opaque);
     size_t size = 1ULL << pending->shift;
 
     pending->hpt = qemu_try_memalign(size, size);
@@ -409,7 +409,7 @@ target_ulong vhyp_mmu_resize_hpt_prepare(PowerPCCPU *cpu,
 
 static uint64_t new_hpte_load0(void *htab, uint64_t pteg, int slot)
 {
-    uint8_t *addr = htab;
+    uint8_t *addr = static_cast<uint8_t *>(htab);
 
     addr += pteg * HASH_PTEG_SIZE_64;
     addr += slot * HASH_PTE_SIZE_64;
@@ -419,7 +419,7 @@ static uint64_t new_hpte_load0(void *htab, uint64_t pteg, int slot)
 static void new_hpte_store(void *htab, uint64_t pteg, int slot,
                            uint64_t pte0, uint64_t pte1)
 {
-    uint8_t *addr = htab;
+    uint8_t *addr = static_cast<uint8_t *>(htab);
 
     addr += pteg * HASH_PTEG_SIZE_64;
     addr += slot * HASH_PTE_SIZE_64;

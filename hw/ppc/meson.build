@@ -11,31 +11,31 @@ ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
   'spapr.c',
   'spapr_caps.cpp',
   'spapr_vio.c',
-  'spapr_events.c',
+  'spapr_events.cpp',
   'spapr_hcall.c',
-  'spapr_nested.c',
-  'spapr_iommu.c',
+  'spapr_nested.cpp',
+  'spapr_iommu.cpp',
   'spapr_rtas.cpp',
   'spapr_pci.c',
   'spapr_rtc.cpp',
   'spapr_drc.c',
-  'spapr_cpu_core.c',
+  'spapr_cpu_core.cpp',
   'spapr_ovec.cpp',
   'spapr_irq.cpp',
   'spapr_tpm_proxy.cpp',
-  'spapr_nvdimm.c',
+  'spapr_nvdimm.cpp',
   'spapr_rtas_ddw.cpp',
   'spapr_numa.cpp',
   'spapr_fadump.cpp',
   'pef.cpp',
 ))
 ppc_ss.add(when: ['CONFIG_PSERIES', 'CONFIG_TCG'], if_true: files(
-  'spapr_vhyp_mmu.c',
+  'spapr_vhyp_mmu.cpp',
 ))
 ppc_ss.add(when: 'CONFIG_SPAPR_RNG', if_true: files('spapr_rng.cpp'))
 if host_os == 'linux'
   ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
-    'spapr_pci_vfio.c',
+    'spapr_pci_vfio.cpp',
   ))
 endif
 
@@ -90,7 +90,7 @@ ppc_ss.add(when: 'CONFIG_AMIGAONE', if_true: files('amigaone.c'))
 # Pegasos
 ppc_ss.add(when: 'CONFIG_PEGASOS', if_true: files('pegasos.c'))
 
-ppc_ss.add(when: 'CONFIG_VOF', if_true: files('vof.c'))
+ppc_ss.add(when: 'CONFIG_VOF', if_true: files('vof.cpp'))
 ppc_ss.add(when: ['CONFIG_VOF', 'CONFIG_PSERIES'], if_true: files('spapr_vof.cpp'))
 
 hw_arch += {'ppc': ppc_ss}

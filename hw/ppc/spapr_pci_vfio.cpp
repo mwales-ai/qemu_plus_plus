@@ -150,7 +150,7 @@ void spapr_phb_vfio_reset(DeviceState *qdev)
 static void spapr_eeh_pci_find_device(PCIBus *bus, PCIDevice *pdev,
                                       void *opaque)
 {
-    bool *found = opaque;
+    bool *found = static_cast<bool *>(opaque);
 
     if (object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
         *found = true;

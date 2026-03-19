@@ -66,8 +66,9 @@ SpaprMachineStateNestedGuest *spapr_get_nested_guest(SpaprMachineState *spapr,
                                                      target_ulong guestid)
 {
     return spapr->nested.guests ?
-        g_hash_table_lookup(spapr->nested.guests,
-                            GINT_TO_POINTER(guestid)) : NULL;
+        static_cast<SpaprMachineStateNestedGuest *>(
+            g_hash_table_lookup(spapr->nested.guests,
+                                GINT_TO_POINTER(guestid))) : NULL;
 }
 
 bool spapr_get_pate_nested_papr(SpaprMachineState *spapr, PowerPCCPU *cpu,
@@ -345,8 +346,9 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
     }
 
     len = sizeof(*hvstate);
-    hvstate = address_space_map(CPU(cpu)->as, hv_ptr, &len, false,
-                                MEMTXATTRS_UNSPECIFIED);
+    hvstate = static_cast<kvmppc_hv_guest_state *>(
+                  address_space_map(CPU(cpu)->as, hv_ptr, &len, false,
+                                    MEMTXATTRS_UNSPECIFIED));
     if (len != sizeof(*hvstate)) {
         address_space_unmap(CPU(cpu)->as, hvstate, len, 0, false);
         return H_PARAMETER;
@@ -378,8 +380,9 @@ static target_ulong h_enter_nested(PowerPCCPU *cpu,
     nested_save_state(spapr_cpu->nested_host_state, cpu);
 
     len = sizeof(*regs);
-    regs = address_space_map(CPU(cpu)->as, regs_ptr, &len, false,
-                                MEMTXATTRS_UNSPECIFIED);
+    regs = static_cast<kvmppc_pt_regs *>(
+               address_space_map(CPU(cpu)->as, regs_ptr, &len, false,
+                                  MEMTXATTRS_UNSPECIFIED));
     if (!regs || len != sizeof(*regs)) {
         address_space_unmap(CPU(cpu)->as, regs, len, 0, false);
         g_free(spapr_cpu->nested_host_state);
@@ -492,8 +495,9 @@ static void spapr_exit_nested_hv(PowerPCCPU *cpu, int excp)
     spapr_cpu->nested_host_state = NULL;
 
     len = sizeof(*hvstate);
-    hvstate = address_space_map(CPU(cpu)->as, hv_ptr, &len, true,
-                                MEMTXATTRS_UNSPECIFIED);
+    hvstate = static_cast<kvmppc_hv_guest_state *>(
+                  address_space_map(CPU(cpu)->as, hv_ptr, &len, true,
+                                    MEMTXATTRS_UNSPECIFIED));
     if (len != sizeof(*hvstate)) {
         address_space_unmap(CPU(cpu)->as, hvstate, len, 0, true);
         env->gpr[3] = H_PARAMETER;
@@ -528,8 +532,9 @@ static void spapr_exit_nested_hv(PowerPCCPU *cpu, int excp)
     address_space_unmap(CPU(cpu)->as, hvstate, len, len, true);
 
     len = sizeof(*regs);
-    regs = address_space_map(CPU(cpu)->as, regs_ptr, &len, true,
-                                MEMTXATTRS_UNSPECIFIED);
+    regs = static_cast<kvmppc_pt_regs *>(
+               address_space_map(CPU(cpu)->as, regs_ptr, &len, true,
+                                  MEMTXATTRS_UNSPECIFIED));
     if (!regs || len != sizeof(*regs)) {
         address_space_unmap(CPU(cpu)->as, regs, len, 0, true);
         env->gpr[3] = H_P2;
@@ -653,14 +658,14 @@ static void copy_state_16to16(void *a, void *b, bool set)
     uint64_t *src, *dst;
 
     if (set) {
-        src = b;
-        dst = a;
+        src = static_cast<uint64_t *>(b);
+        dst = static_cast<uint64_t *>(a);
 
         dst[1] = be64_to_cpu(src[0]);
         dst[0] = be64_to_cpu(src[1]);
     } else {
-        src = a;
-        dst = b;
+        src = static_cast<uint64_t *>(a);
+        dst = static_cast<uint64_t *>(b);
 
         dst[1] = cpu_to_be64(src[0]);
         dst[0] = cpu_to_be64(src[1]);
@@ -684,8 +689,8 @@ static void copy_state_pagetbl(void *a, void *b, bool set)
 
     assert(set);
 
-    pagetbl = a;
-    buf = b;
+    pagetbl = static_cast<uint64_t *>(a);
+    buf = static_cast<uint64_t *>(b);
 
     *pagetbl = be64_to_cpu(buf[0]);
     /* as per ISA section 6.7.6.1 */
@@ -709,8 +714,8 @@ static void copy_state_proctbl(void *a, void *b, bool set)
 
     assert(set);
 
-    proctbl = a;
-    buf = b;
+    proctbl = static_cast<uint64_t *>(a);
+    buf = static_cast<uint64_t *>(b);
     /* PRTB: Process Table Base */
     *proctbl = be64_to_cpu(buf[0]);
     /* PRTS: Process Table Size = 2^(12+PRTS) */
@@ -730,8 +735,8 @@ static void copy_state_runbuf(void *a, void *b, bool set)
 
     assert(set);
 
-    runbuf = a;
-    buf = b;
+    runbuf = static_cast<SpaprMachineStateNestedGuestVcpuRunBuf *>(a);
+    buf = static_cast<uint64_t *>(b);
 
     runbuf->addr = be64_to_cpu(buf[0]);
     assert(runbuf->addr);
@@ -755,7 +760,7 @@ static void out_buf_min_size(void *a, void *b, bool set)
 
     assert(!set);
 
-    buf = b;
+    buf = static_cast<uint64_t *>(b);
 
     buf[0] = cpu_to_be64(VCPU_OUT_BUF_MIN_SZ);
 }
@@ -768,8 +773,8 @@ static void copy_logical_pvr(void *a, void *b, bool set)
     uint32_t pvr_logical;
     target_ulong pcr = 0;
 
-    pvr_logical_ptr = a;
-    buf = b;
+    pvr_logical_ptr = static_cast<uint32_t *>(a);
+    buf = static_cast<uint32_t *>(b);
 
     if (!set) {
         buf[0] = cpu_to_be32(*pvr_logical_ptr);
@@ -812,8 +817,8 @@ static void copy_tb_offset(void *a, void *b, bool set)
     uint64_t *tb_offset_ptr;
     uint64_t tb_offset;
 
-    tb_offset_ptr = a;
-    buf = b;
+    tb_offset_ptr = static_cast<uint64_t *>(a);
+    buf = static_cast<uint64_t *>(b);
 
     if (!set) {
         buf[0] = cpu_to_be64(*tb_offset_ptr);
@@ -835,8 +840,8 @@ static void copy_state_hdecr(void *a, void *b, bool set)
     uint64_t *buf; /* 1 double word */
     uint64_t *hdecr_expiry_tb;
 
-    hdecr_expiry_tb = a;
-    buf = b;
+    hdecr_expiry_tb = static_cast<uint64_t *>(a);
+    buf = static_cast<uint64_t *>(b);
 
     if (!set) {
         buf[0] = cpu_to_be64(*hdecr_expiry_tb);
@@ -1305,7 +1310,8 @@ static target_ulong h_guest_set_capabilities(PowerPCCPU *cpu,
 static void
 destroy_guest_helper(gpointer value)
 {
-    struct SpaprMachineStateNestedGuest *guest = value;
+    struct SpaprMachineStateNestedGuest *guest =
+        static_cast<SpaprMachineStateNestedGuest *>(value);
     g_free(guest->vcpus);
     g_free(guest);
 }
@@ -1392,7 +1398,9 @@ static target_ulong h_guest_delete(PowerPCCPU *cpu,
         return H_SUCCESS;
     }
 
-    guest = g_hash_table_lookup(spapr->nested.guests, GINT_TO_POINTER(guestid));
+    guest = static_cast<SpaprMachineStateNestedGuest *>(
+                g_hash_table_lookup(spapr->nested.guests,
+                                    GINT_TO_POINTER(guestid)));
     if (!guest) {
         return H_P2;
     }
@@ -1513,8 +1521,9 @@ static target_ulong map_and_getset_state(PowerPCCPU *cpu,
     len = gsr->len;
     /* only get_state would require write access to the provided buffer */
     is_write = (gsr->flags & GUEST_STATE_REQUEST_SET) ? false : true;
-    gsr->gsb = address_space_map(CPU(cpu)->as, gsr->buf, (uint64_t *)&len,
-                                 is_write, MEMTXATTRS_UNSPECIFIED);
+    gsr->gsb = static_cast<guest_state_buffer *>(
+                   address_space_map(CPU(cpu)->as, gsr->buf, (uint64_t *)&len,
+                                     is_write, MEMTXATTRS_UNSPECIFIED));
     if (!gsr->gsb) {
         rc = H_P3;
         goto out1;
@@ -1709,8 +1718,9 @@ static void exit_process_output_buffer(SpaprMachineState *spapr,
     hwaddr len;
 
     len = vcpu->runbufout.size;
-    gsb = address_space_map(CPU(cpu)->as, vcpu->runbufout.addr, &len, true,
-                            MEMTXATTRS_UNSPECIFIED);
+    gsb = static_cast<guest_state_buffer *>(
+              address_space_map(CPU(cpu)->as, vcpu->runbufout.addr, &len, true,
+                                MEMTXATTRS_UNSPECIFIED));
     if (!gsb || len != vcpu->runbufout.size) {
         address_space_unmap(CPU(cpu)->as, gsb, len, true, len);
         *r3 = H_P2;

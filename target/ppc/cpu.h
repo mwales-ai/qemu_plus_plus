@@ -1667,6 +1667,9 @@ void ppc_translate_init(void);
 void ppc_translate_code(CPUState *cs, TranslationBlock *tb,
                         int *max_insns, vaddr pc, void *host_pc);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #if !defined(CONFIG_USER_ONLY)
 void ppc_store_sdr1(CPUPPCState *env, target_ulong value);
 void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val);
@@ -1679,6 +1682,9 @@ void ppc_store_dawr1(CPUPPCState *env, target_ulong value);
 void ppc_store_dawrx1(CPUPPCState *env, uint32_t value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr(CPUPPCState *env, target_ulong value);
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -2841,8 +2847,14 @@ enum {
 /*****************************************************************************/
 
 #define is_isa300(ctx) (!!(ctx->insns_flags2 & PPC2_ISA300))
+#ifdef __cplusplus
+extern "C" {
+#endif
 target_ulong cpu_read_xer(const CPUPPCState *env);
 void cpu_write_xer(CPUPPCState *env, target_ulong xer);
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * All 64-bit server processors compliant with arch 2.x, ie. 970 and newer,

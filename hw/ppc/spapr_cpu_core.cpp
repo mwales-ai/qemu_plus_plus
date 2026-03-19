@@ -127,7 +127,7 @@ const char *spapr_get_cpu_core_type(const char *cpu_type)
 
 static bool slb_shadow_needed(void *opaque)
 {
-    SpaprCpuState *spapr_cpu = opaque;
+    SpaprCpuState *spapr_cpu = static_cast<SpaprCpuState *>(opaque);
 
     return spapr_cpu->slb_shadow_addr != 0;
 }
@@ -146,7 +146,7 @@ static const VMStateDescription vmstate_spapr_cpu_slb_shadow = {
 
 static bool dtl_needed(void *opaque)
 {
-    SpaprCpuState *spapr_cpu = opaque;
+    SpaprCpuState *spapr_cpu = static_cast<SpaprCpuState *>(opaque);
 
     return spapr_cpu->dtl_addr != 0;
 }
@@ -165,7 +165,7 @@ static const VMStateDescription vmstate_spapr_cpu_dtl = {
 
 static bool vpa_needed(void *opaque)
 {
-    SpaprCpuState *spapr_cpu = opaque;
+    SpaprCpuState *spapr_cpu = static_cast<SpaprCpuState *>(opaque);
 
     return spapr_cpu->vpa_addr != 0;
 }
@@ -228,7 +228,7 @@ static void spapr_cpu_core_reset(DeviceState *dev)
  */
 static void spapr_cpu_core_reset_handler(void *opaque)
 {
-    spapr_cpu_core_reset(opaque);
+    spapr_cpu_core_reset(static_cast<DeviceState *>(opaque));
 }
 
 static void spapr_delete_vcpu(PowerPCCPU *cpu)
@@ -382,23 +382,23 @@ static void spapr_cpu_core_class_init(ObjectClass *oc, const void *data)
     dc->unrealize = spapr_cpu_core_unrealize;
     device_class_set_legacy_reset(dc, spapr_cpu_core_reset);
     device_class_set_props(dc, spapr_cpu_core_properties);
-    scc->cpu_type = data;
+    scc->cpu_type = static_cast<const char *>(data);
 }
 
 #define DEFINE_SPAPR_CPU_CORE_TYPE(cpu_model) \
     {                                                   \
-        .parent = TYPE_SPAPR_CPU_CORE,                  \
-        .class_data = POWERPC_CPU_TYPE_NAME(cpu_model), \
-        .class_init = spapr_cpu_core_class_init,        \
         .name = SPAPR_CPU_CORE_TYPE_NAME(cpu_model),    \
+        .parent = TYPE_SPAPR_CPU_CORE,                  \
+        .class_init = spapr_cpu_core_class_init,        \
+        .class_data = POWERPC_CPU_TYPE_NAME(cpu_model), \
     }
 
 static const TypeInfo spapr_cpu_core_type_infos[] = {
     {
         .name = TYPE_SPAPR_CPU_CORE,
         .parent = TYPE_CPU_CORE,
-        .is_abstract = true,
         .instance_size = sizeof(SpaprCpuCore),
+        .is_abstract = true,
         .class_size = sizeof(SpaprCpuCoreClass),
     },
     DEFINE_SPAPR_CPU_CORE_TYPE("970_v2.2"),

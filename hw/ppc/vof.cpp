@@ -81,9 +81,9 @@ static void prop_format(char *tval, int tlen, const void *prop, int len)
     char *t;
     const char bin[] = "...";
 
-    for (i = 0, c = prop; i < len; ++i, ++c) {
+    for (i = 0, c = static_cast<const unsigned char *>(prop); i < len; ++i, ++c) {
         if (*c == '\0' && i == len - 1) {
-            strncpy(tval, prop, tlen - 1);
+            strncpy(tval, static_cast<const char *>(prop), tlen - 1);
             return;
         }
         if (*c < 0x20 || *c >= 0x80) {
@@ -91,7 +91,7 @@ static void prop_format(char *tval, int tlen, const void *prop, int len)
         }
     }
 
-    for (i = 0, c = prop, t = tval; i < len; ++i, ++c) {
+    for (i = 0, c = static_cast<const unsigned char *>(prop), t = tval; i < len; ++i, ++c) {
         if (t >= tval + tlen - sizeof(bin) - 1 - 2 - 1) {
             strcpy(t, bin);
             return;
@@ -199,7 +199,7 @@ static const void *getprop(const void *fdt, int nodeoff, const char *propname,
         return NULL;
     }
 
-    unit = memchr(prop, '@', *proplen);
+    unit = static_cast<const char *>(memchr(prop, '@', *proplen));
     if (unit) {
         *proplen = unit - prop;
     }
@@ -317,7 +317,7 @@ static uint32_t vof_setprop(MachineState *ms, void *fdt, Vof *vof,
         goto trace_exit;
     }
 
-    val = g_malloc0(vallen);
+    val = static_cast<char *>(g_malloc0(vallen));
     if (VOF_MEM_READ(valaddr, val, vallen) != MEMTX_OK) {
         goto trace_exit;
     }
@@ -659,7 +659,7 @@ static void vof_dt_memory_available(void *fdt, GArray *claimed, uint64_t base)
     offset = fdt_path_offset(fdt, "/memory@0");
     _FDT(offset);
 
-    mem0_reg = fdt_getprop(fdt, offset, "reg", &proplen);
+    mem0_reg = static_cast<const uint8_t *>(fdt_getprop(fdt, offset, "reg", &proplen));
     g_assert(mem0_reg && proplen == sizeof(uint32_t) * (ac + sc));
     if (sc == 2) {
         mem0_end = ldq_be_p(mem0_reg + sizeof(uint32_t) * ac);
@@ -676,7 +676,7 @@ static void vof_dt_memory_available(void *fdt, GArray *claimed, uint64_t base)
      */
     g_assert(claimed->len && (g_array_index(claimed, OfClaimed, 0).start == 0));
 
-    avail = g_malloc0(sizeof(uint32_t) * (ac + sc) * claimed->len);
+    avail = static_cast<uint8_t *>(g_malloc0(sizeof(uint32_t) * (ac + sc) * claimed->len));
     for (i = 0, n = 0, availcur = avail; i < claimed->len; ++i) {
         OfClaimed c = g_array_index(claimed, OfClaimed, i);
         uint64_t start, size;
@@ -998,7 +998,7 @@ int vof_client_call(MachineState *ms, Vof *vof, void *fdt,
         args_be.args[nargs + i] = cpu_to_be32(rets[i - 1]);
     }
 
-    if (VOF_MEM_WRITE(args_real + offsetof(struct prom_args, args[nargs]),
+    if (VOF_MEM_WRITE(args_real + offsetof(struct prom_args, args) + sizeof(uint32_t) * nargs,
                       args_be.args + nargs, sizeof(args_be.args[0]) * nret) !=
         MEMTX_OK) {
         return -EINVAL;

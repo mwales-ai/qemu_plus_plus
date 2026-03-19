@@ -87,8 +87,8 @@ static uint64_t *spapr_tce_alloc_table(uint32_t liobn,
     uint64_t *table = NULL;
 
     if (kvm_enabled()) {
-        table = kvmppc_create_spapr_tce(liobn, page_shift, bus_offset, nb_table,
-                                        fd, need_vfio);
+        table = static_cast<uint64_t *>(kvmppc_create_spapr_tce(liobn, page_shift, bus_offset, nb_table,
+                                        fd, need_vfio));
     }
 
     if (!table) {
@@ -206,19 +206,19 @@ static int spapr_tce_get_attr(IOMMUMemoryRegion *iommu,
 
 static int spapr_tce_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                          IOMMUNotifierFlag old,
-                                         IOMMUNotifierFlag new,
+                                         IOMMUNotifierFlag new_val,
                                          Error **errp)
 {
     struct SpaprTceTable *tbl = container_of(iommu, SpaprTceTable, iommu);
 
-    if (new & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
+    if (new_val & IOMMU_NOTIFIER_DEVIOTLB_UNMAP) {
         error_setg(errp, "spart_tce does not support dev-iotlb yet");
         return -EINVAL;
     }
 
-    if (old == IOMMU_NOTIFIER_NONE && new != IOMMU_NOTIFIER_NONE) {
+    if (old == IOMMU_NOTIFIER_NONE && new_val != IOMMU_NOTIFIER_NONE) {
         spapr_tce_set_need_vfio(tbl, true);
-    } else if (old != IOMMU_NOTIFIER_NONE && new == IOMMU_NOTIFIER_NONE) {
+    } else if (old != IOMMU_NOTIFIER_NONE && new_val == IOMMU_NOTIFIER_NONE) {
         spapr_tce_set_need_vfio(tbl, false);
     }
     return 0;
@@ -260,7 +260,7 @@ static int spapr_tce_table_post_load(void *opaque, int version_id)
 
 static bool spapr_tce_table_ex_needed(void *opaque)
 {
-    SpaprTceTable *tcet = opaque;
+    SpaprTceTable *tcet = static_cast<SpaprTceTable *>(opaque);
 
     return tcet->bus_offset || tcet->page_shift != 0xC;
 }
@@ -277,29 +277,33 @@ static const VMStateDescription vmstate_spapr_tce_table_ex = {
     },
 };
 
+static const VMStateField vmstate_spapr_tce_table_fields[] = {
+    /* Sanity check */
+    VMSTATE_UINT32_EQUAL(liobn, SpaprTceTable, NULL),
+
+    /* IOMMU state */
+    VMSTATE_UINT32(mig_nb_table, SpaprTceTable),
+    VMSTATE_BOOL(bypass, SpaprTceTable),
+    VMSTATE_VARRAY_UINT32_ALLOC(mig_table, SpaprTceTable, mig_nb_table, 0,
+                                vmstate_info_uint64, uint64_t),
+    VMSTATE_BOOL_V(def_win, SpaprTceTable, 3),
+
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_spapr_tce_table_subsections[] = {
+    &vmstate_spapr_tce_table_ex,
+    NULL
+};
+
 static const VMStateDescription vmstate_spapr_tce_table = {
     .name = "spapr_iommu",
     .version_id = 3,
     .minimum_version_id = 2,
-    .pre_save = spapr_tce_table_pre_save,
     .post_load = spapr_tce_table_post_load,
-    .fields = (const VMStateField []) {
-        /* Sanity check */
-        VMSTATE_UINT32_EQUAL(liobn, SpaprTceTable, NULL),
-
-        /* IOMMU state */
-        VMSTATE_UINT32(mig_nb_table, SpaprTceTable),
-        VMSTATE_BOOL(bypass, SpaprTceTable),
-        VMSTATE_VARRAY_UINT32_ALLOC(mig_table, SpaprTceTable, mig_nb_table, 0,
-                                    vmstate_info_uint64, uint64_t),
-        VMSTATE_BOOL_V(def_win, SpaprTceTable, 3),
-
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_spapr_tce_table_ex,
-        NULL
-    }
+    .pre_save = spapr_tce_table_pre_save,
+    .fields = vmstate_spapr_tce_table_fields,
+    .subsections = vmstate_spapr_tce_table_subsections,
 };
 
 static void spapr_tce_table_realize(DeviceState *dev, Error **errp)
@@ -706,8 +710,8 @@ static void spapr_iommu_memory_region_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo spapr_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_SPAPR_IOMMU_MEMORY_REGION,
+    .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = spapr_iommu_memory_region_class_init,
 };
 

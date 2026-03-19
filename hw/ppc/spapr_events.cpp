@@ -332,10 +332,11 @@ typedef enum EventClass {
 #define EVENT_CLASS_MASK(index) (1 << (31 - index))
 
 static const char * const event_names[EVENT_CLASS_MAX] = {
-    [EVENT_CLASS_INTERNAL_ERRORS]       = "internal-errors",
-    [EVENT_CLASS_EPOW]                  = "epow-events",
-    [EVENT_CLASS_HOT_PLUG]              = "hot-plug-events",
-    [EVENT_CLASS_IO]                    = "ibm,io-events",
+    /* [EVENT_CLASS_INTERNAL_ERRORS] */ "internal-errors",
+    /* [EVENT_CLASS_EPOW]           */ "epow-events",
+    /* [EVENT_CLASS_RESERVED]       */ NULL,
+    /* [EVENT_CLASS_HOT_PLUG]       */ "hot-plug-events",
+    /* [EVENT_CLASS_IO]             */ "ibm,io-events",
 };
 
 struct SpaprEventSource {
@@ -384,7 +385,7 @@ void spapr_dt_events(SpaprMachineState *spapr, void *fdt)
         int node_offset;
         uint32_t interrupts[2];
         const SpaprEventSource *source =
-            spapr_event_sources_get_source(events, i);
+            spapr_event_sources_get_source(events, static_cast<EventClassIndex>(i));
         const char *source_name = event_names[i];
 
         if (!source->enabled) {
@@ -542,7 +543,7 @@ static void spapr_powerdown_req(Notifier *n, void *opaque)
     struct epow_extended_log *new_epow;
 
     entry = g_new(SpaprEventLogEntry, 1);
-    new_epow = g_malloc0(sizeof(*new_epow));
+    new_epow = static_cast<epow_extended_log *>(g_malloc0(sizeof(*new_epow)));
     entry->extended_log = new_epow;
 
     v6hdr = &new_epow->v6hdr;
@@ -815,7 +816,7 @@ static void spapr_mce_dispatch_elog(SpaprMachineState *spapr, PowerPCCPU *cpu,
     struct mc_extended_log *ext_elog;
     uint32_t summary;
 
-    ext_elog = g_malloc0(sizeof(*ext_elog));
+    ext_elog = static_cast<mc_extended_log *>(g_malloc0(sizeof(*ext_elog)));
     summary = spapr_mce_get_elog_type(cpu, recovered, ext_elog);
 
     log.summary = cpu_to_be32(summary);
@@ -978,7 +979,7 @@ static void check_exception(PowerPCCPU *cpu, SpaprMachineState *spapr,
     for (i = 0; i < EVENT_CLASS_MAX; i++) {
         if (rtas_event_log_contains(spapr, EVENT_CLASS_MASK(i))) {
             const SpaprEventSource *source =
-                spapr_event_sources_get_source(spapr->event_sources, i);
+                spapr_event_sources_get_source(spapr->event_sources, static_cast<EventClassIndex>(i));
 
             g_assert(source->enabled);
             qemu_irq_pulse(spapr_qirq(spapr, source->irq));
@@ -1005,7 +1006,7 @@ static void event_scan(PowerPCCPU *cpu, SpaprMachineState *spapr,
     for (i = 0; i < EVENT_CLASS_MAX; i++) {
         if (rtas_event_log_contains(spapr, EVENT_CLASS_MASK(i))) {
             const SpaprEventSource *source =
-                spapr_event_sources_get_source(spapr->event_sources, i);
+                spapr_event_sources_get_source(spapr->event_sources, static_cast<EventClassIndex>(i));
 
             g_assert(source->enabled);
             qemu_irq_pulse(spapr_qirq(spapr, source->irq));
