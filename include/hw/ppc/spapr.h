@@ -15,6 +15,10 @@
 #include "hw/ppc/spapr_nested.h" /* For SpaprMachineStateNested */
 #include "hw/ppc/spapr_fadump.h" /* For FadumpMemStruct */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct SpaprVioBus;
 struct SpaprPhbState;
 struct SpaprNvram;
@@ -1045,5 +1049,9 @@ void spapr_unregister_nested_hv(void);
 void spapr_nested_reset(SpaprMachineState *spapr);
 void spapr_register_nested_papr(void);
 void spapr_unregister_nested_papr(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SPAPR_H */

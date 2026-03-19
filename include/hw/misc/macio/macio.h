@@ -38,6 +38,10 @@
 #include "hw/ppc/openpic.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Old World IRQs */
 #define OLDWORLD_CUDA_IRQ      0x12
 #define OLDWORLD_ESCCB_IRQ     0x10
@@ -143,5 +147,9 @@ struct NewWorldMacIOState {
     MACIOIDEState ide[2];
     MacIOGPIOState gpio;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MACIO_H */

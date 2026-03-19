@@ -15,12 +15,10 @@
 #include "hw/qdev-properties.h"
 #include "qom/object.h"
 #include "system/system.h"
-extern "C" {
 #include "hw/pci-host/pnv_phb.h"
 #include "hw/pci-host/pnv_phb3.h"
 #include "hw/pci-host/pnv_phb4.h"
 #include "hw/ppc/pnv.h"
-}
 
 
 /*

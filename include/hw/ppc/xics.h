@@ -32,6 +32,10 @@
 #include "hw/qdev-core.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define XICS_IPI        0x2
 #define XICS_BUID       0x1
 #define XICS_IRQ_BASE   (XICS_BUID << 12)
@@ -192,5 +196,9 @@ int ics_set_kvm_state_one(ICSState *ics, int srcno, Error **errp);
 int ics_set_kvm_state(ICSState *ics, Error **errp);
 void ics_synchronize_state(ICSState *ics);
 void ics_kvm_set_irq(ICSState *ics, int srcno, int val);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* XICS_H */

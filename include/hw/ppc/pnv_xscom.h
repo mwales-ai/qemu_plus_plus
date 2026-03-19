@@ -22,6 +22,10 @@
 
 #include "system/memory.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct PnvXScomInterface PnvXScomInterface;
 typedef struct PnvChip PnvChip;
 
@@ -269,5 +273,9 @@ void pnv_xscom_region_init(MemoryRegion *mr,
                            void *opaque,
                            const char *name,
                            uint64_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PPC_PNV_XSCOM_H */

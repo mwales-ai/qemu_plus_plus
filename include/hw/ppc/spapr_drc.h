@@ -19,6 +19,10 @@
 #include "hw/qdev-core.h"
 #include "qapi/error.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
 #define SPAPR_DR_CONNECTOR_GET_CLASS(obj) \
         OBJECT_GET_CLASS(SpaprDrcClass, obj, TYPE_SPAPR_DR_CONNECTOR)
@@ -199,7 +203,7 @@ typedef struct SpaprDrcClass {
 
     /*< public >*/
     SpaprDrcTypeShift typeshift;
-    const char *typename; /* used in device tree, PAPR 13.5.2.6 & C.6.1 */
+    const char *type_name; /* used in device tree, PAPR 13.5.2.6 & C.6.1 */
     const char *drc_name_prefix; /* used other places in device tree */
 
     SpaprDREntitySense (*dr_entity_sense)(SpaprDrc *drc);
@@ -255,5 +259,9 @@ static inline bool spapr_drc_unplug_requested(SpaprDrc *drc)
 {
     return drc->unplug_requested;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SPAPR_DRC_H */

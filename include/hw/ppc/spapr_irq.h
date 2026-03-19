@@ -13,6 +13,10 @@
 #include "target/ppc/cpu-qom.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The XIVE IRQ backend uses the same layout as the XICS backend but
  * covers the full range of the IRQ number space. The IRQ numbers for
@@ -124,5 +128,9 @@ int spapr_irq_init_kvm(SpaprInterruptControllerInitKvm fn,
  */
 int spapr_irq_find(struct SpaprMachineState *spapr, int num, bool align, Error **errp);
 #define spapr_irq_findone(spapr, errp) spapr_irq_find(spapr, 1, false, errp)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

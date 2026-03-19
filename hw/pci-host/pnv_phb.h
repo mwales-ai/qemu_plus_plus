@@ -15,6 +15,10 @@
 #include "hw/ppc/pnv.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct PnvPhb4PecState PnvPhb4PecState;
 
 struct PnvPHB {
@@ -51,5 +55,9 @@ typedef struct PnvPHBRootPort {
 
 #define TYPE_PNV_PHB_ROOT_PORT "pnv-phb-root-port"
 OBJECT_DECLARE_SIMPLE_TYPE(PnvPHBRootPort, PNV_PHB_ROOT_PORT)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PCI_HOST_PNV_PHB_H */

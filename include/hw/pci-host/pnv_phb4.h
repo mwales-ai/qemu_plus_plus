@@ -17,6 +17,10 @@
 #include "hw/ppc/xive.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define TYPE_PNV_PHB4 "pnv-phb4"
 OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB4, PNV_PHB4)
@@ -227,5 +231,9 @@ struct PnvPhb4PecClass {
 #define TYPE_PNV_PHB5_PEC "pnv-phb5-pec"
 #define PNV_PHB5_PEC(obj) \
     OBJECT_CHECK(PnvPhb4PecState, (obj), TYPE_PNV_PHB5_PEC)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PCI_HOST_PNV_PHB4_H */

@@ -23,24 +23,23 @@
  */
 
 #include "qemu/osdep.h"
+#include "system/block-backend.h"
+#include "migration/vmstate.h"
+#include "hw/ppc/spapr.h"
+#include "hw/ppc/spapr_vio.h"
+#include "hw/qdev-properties.h"
+#include "hw/qdev-properties-system.h"
+#include "qom/object.h"
 
 extern "C" {
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include <libfdt.h>
-
-#include "system/block-backend.h"
 #include "system/device_tree.h"
 #include "system/system.h"
 #include "system/runstate.h"
-#include "migration/vmstate.h"
 #include "hw/nvram/chrp_nvram.h"
-#include "hw/ppc/spapr.h"
-#include "hw/ppc/spapr_vio.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
-#include "qom/object.h"
 }
 
 struct SpaprNvram {

@@ -14,11 +14,9 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "system/reset.h"
-extern "C" {
 #include "hw/pci-host/pnv_phb3_regs.h"
 #include "hw/pci-host/pnv_phb3.h"
 #include "hw/ppc/pnv.h"
-}
 
 static uint64_t phb3_msi_ive_addr(PnvPHB3 *phb, int srcno)
 {
@@ -309,9 +307,9 @@ static const TypeInfo phb3_msi_info = {
     .name = TYPE_PHB3_MSI,
     .parent = TYPE_ICS,
     .instance_size = sizeof(Phb3MsiState),
-    .class_init = phb3_msi_class_init,
-    .class_size = sizeof(ICSStateClass),
     .instance_init = phb3_msi_instance_init,
+    .class_size    = sizeof(ICSStateClass),
+    .class_init    = phb3_msi_class_init,
 };
 
 static void pnv_phb3_msi_register_types(void)

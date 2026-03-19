@@ -3008,12 +3008,20 @@ static inline bool lsw_reg_in_range(int start, int nregs, int rx)
 
 static inline int vsr64_offset(int i, bool high)
 {
-    return offsetof(CPUPPCState, vsr[i].VsrD(high ? 0 : 1));
+#if HOST_BIG_ENDIAN
+    int idx = high ? 1 : 0;
+#else
+    int idx = high ? 0 : 1;
+#endif
+    return offsetof(CPUPPCState, vsr[0].u64[0])
+           + i * sizeof(ppc_vsr_t)
+           + idx * sizeof(uint64_t);
 }
 
 static inline int vsr_full_offset(int i)
 {
-    return offsetof(CPUPPCState, vsr[i].u64[0]);
+    return offsetof(CPUPPCState, vsr[0].u64[0])
+           + i * sizeof(ppc_vsr_t);
 }
 
 static inline int acc_full_offset(int i)

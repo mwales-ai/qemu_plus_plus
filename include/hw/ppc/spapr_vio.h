@@ -27,6 +27,10 @@
 #include "hw/irq.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
 OBJECT_DECLARE_TYPE(SpaprVioDevice, SpaprVioDeviceClass,
                     VIO_SPAPR_DEVICE)
@@ -149,5 +153,9 @@ extern const VMStateDescription vmstate_spapr_vio;
     VMSTATE_STRUCT(_f, _s, 0, vmstate_spapr_vio, SpaprVioDevice)
 
 void spapr_vio_set_bypass(SpaprVioDevice *dev, bool bypass);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_SPAPR_VIO_H */

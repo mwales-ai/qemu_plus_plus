@@ -12,13 +12,14 @@
 #include "qemu/log.h"
 #include "hw/pci/pci_bridge.h"
 
-extern "C" {
-#include "hw/ppc/fdt.h"
 #include "hw/pci-host/pnv_phb3_regs.h"
 #include "hw/pci-host/pnv_phb3.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/pci/pci_bus.h"
+
+extern "C" {
+#include "hw/ppc/fdt.h"
 #include <libfdt.h>
 }
 

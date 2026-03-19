@@ -31,6 +31,10 @@
 #include "hw/sysbus.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MOS6522_NUM_REGS 16
 
 /* Bits in ACR */
@@ -173,5 +177,9 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size);
 void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 
 void hmp_info_via(Monitor *mon, const QDict *qdict);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MOS6522_H */

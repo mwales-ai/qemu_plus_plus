@@ -12,6 +12,10 @@
 
 #include "qemu/host-utils.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * PBCQ XSCOM registers
  */
@@ -430,5 +434,8 @@
 
 #define IODA2_PEST1_FAIL_ADDR           PPC_BITMASK(3, 63)
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PCI_HOST_PNV_PHB3_REGS_H */

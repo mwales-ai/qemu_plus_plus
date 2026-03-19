@@ -26,6 +26,10 @@
 #include "hw/ipmi/ipmi.h"
 #include "hw/ppc/pnv_pnor.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PNV_CHIP "pnv-chip"
 
 typedef struct PnvCore PnvCore;
@@ -289,5 +293,9 @@ void pnv_bmc_set_pnor(IPMIBmc *bmc, PnvPnor *pnor);
 #define PNV11_XIVE2_END_BASE(chip)  PNV10_XIVE2_END_BASE(chip)
 
 #define PNV11_OCC_SENSOR_BASE(chip) PNV10_OCC_SENSOR_BASE(chip)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PPC_PNV_H */

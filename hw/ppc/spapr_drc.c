@@ -695,7 +695,7 @@ static void spapr_drc_cpu_class_init(ObjectClass *k, const void *data)
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_CPU;
-    drck->typename = "CPU";
+    drck->type_name = "CPU";
     drck->drc_name_prefix = "CPU ";
     drck->release = spapr_core_release;
     drck->dt_populate = spapr_core_dt_populate;
@@ -706,7 +706,7 @@ static void spapr_drc_pci_class_init(ObjectClass *k, const void *data)
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_PCI;
-    drck->typename = "28";
+    drck->type_name = "28";
     drck->drc_name_prefix = "C";
     drck->release = spapr_phb_remove_pci_device_cb;
     drck->dt_populate = spapr_pci_dt_populate;
@@ -717,7 +717,7 @@ static void spapr_drc_lmb_class_init(ObjectClass *k, const void *data)
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_LMB;
-    drck->typename = "MEM";
+    drck->type_name = "MEM";
     drck->drc_name_prefix = "LMB ";
     drck->release = spapr_lmb_release;
     drck->dt_populate = spapr_lmb_dt_populate;
@@ -728,7 +728,7 @@ static void spapr_drc_phb_class_init(ObjectClass *k, const void *data)
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_PHB;
-    drck->typename = "PHB";
+    drck->type_name = "PHB";
     drck->drc_name_prefix = "PHB ";
     drck->release = spapr_phb_release;
     drck->dt_populate = spapr_phb_dt_populate;
@@ -739,7 +739,7 @@ static void spapr_drc_pmem_class_init(ObjectClass *k, const void *data)
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_CLASS(k);
 
     drck->typeshift = SPAPR_DR_CONNECTOR_TYPE_SHIFT_PMEM;
-    drck->typename = "PMEM";
+    drck->type_name = "PMEM";
     drck->drc_name_prefix = "PMEM ";
     drck->release = NULL;
     drck->dt_populate = spapr_pmem_dt_populate;
@@ -912,7 +912,7 @@ int spapr_dt_drc(void *fdt, int offset, Object *owner, uint32_t drc_type_mask)
         drc_names = g_string_insert_len(drc_names, -1, "\0", 1);
 
         /* ibm,drc-types */
-        drc_types = g_string_append(drc_types, drck->typename);
+        drc_types = g_string_append(drc_types, drck->type_name);
         drc_types = g_string_insert_len(drc_types, -1, "\0", 1);
     }
 

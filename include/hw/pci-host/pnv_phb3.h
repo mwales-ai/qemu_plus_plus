@@ -14,6 +14,10 @@
 #include "qom/object.h"
 #include "hw/pci-host/pnv_phb.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_PNV_PHB3 "pnv-phb3"
 OBJECT_DECLARE_SIMPLE_TYPE(PnvPHB3, PNV_PHB3)
 
@@ -164,5 +168,9 @@ void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size);
 void pnv_phb3_update_regions(PnvPHB3 *phb);
 void pnv_phb3_remap_irqs(PnvPHB3 *phb);
 void pnv_phb3_bus_init(DeviceState *dev, PnvPHB3 *phb);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PCI_HOST_PNV_PHB3_H */

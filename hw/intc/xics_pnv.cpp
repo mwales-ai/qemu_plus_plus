@@ -181,8 +181,8 @@ static const TypeInfo pnv_icp_info = {
     .name          = TYPE_PNV_ICP,
     .parent        = TYPE_ICP,
     .instance_size = sizeof(PnvICPState),
-    .class_init    = pnv_icp_class_init,
     .class_size    = sizeof(ICPStateClass),
+    .class_init    = pnv_icp_class_init,
 };
 
 static void pnv_icp_register_types(void)
