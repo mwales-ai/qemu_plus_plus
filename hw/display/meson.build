@@ -1,7 +1,7 @@
 hw_display_modules = {}
 
 system_ss.add(when: 'CONFIG_DDC', if_true: files('i2c-ddc.cpp'))
-system_ss.add(when: 'CONFIG_EDID', if_true: files('edid-generate.c', 'edid-region.cpp'))
+system_ss.add(when: 'CONFIG_EDID', if_true: files('edid-generate.cpp', 'edid-region.cpp'))
 
 system_ss.add(when: 'CONFIG_FW_CFG_DMA', if_true: files('ramfb.cpp'), if_false: files('ramfb-stubs.cpp'))
 system_ss.add(when: 'CONFIG_FW_CFG_DMA', if_true: files('ramfb-standalone.cpp'))

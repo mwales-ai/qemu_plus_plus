@@ -4540,7 +4540,7 @@ if have_tools
 
   subdir('contrib/elf2dmp')
 
-  executable('qemu-edid', files('qemu-edid.cpp', 'hw/display/edid-generate.c'),
+  executable('qemu-edid', files('qemu-edid.cpp', 'hw/display/edid-generate.cpp'),
              dependencies: [qemuutil, rt],
              install: true)
 
