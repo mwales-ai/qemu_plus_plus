@@ -15,10 +15,10 @@ crypto_ss.add(files(
   'ivgen.cpp',
   'pbkdf.cpp',
   'secret_common.c',
-  'secret.c',
-  'tlscreds.c',
-  'tlscredsanon.c',
-  'tlscredspsk.c',
+  'secret.cpp',
+  'tlscreds.cpp',
+  'tlscredsanon.cpp',
+  'tlscredspsk.cpp',
   'tlscredsx509.c',
   'tlssession.c',
   'rsakey.cpp',
@@ -45,7 +45,7 @@ else
 endif
 
 if have_keyring
-  crypto_ss.add(files('secret_keyring.c'))
+  crypto_ss.add(files('secret_keyring.cpp'))
 endif
 if have_afalg
   crypto_ss.add(if_true: files('afalg.cpp', 'cipher-afalg.c', 'hash-afalg.cpp'))

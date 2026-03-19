@@ -132,8 +132,8 @@ qcrypto_secret_class_init(ObjectClass *oc, const void *data)
 
 
 static const TypeInfo qcrypto_secret_info = {
-    .parent = TYPE_QCRYPTO_SECRET_COMMON,
     .name = TYPE_QCRYPTO_SECRET,
+    .parent = TYPE_QCRYPTO_SECRET_COMMON,
     .instance_size = sizeof(QCryptoSecret),
     .instance_finalize = qcrypto_secret_finalize,
     .class_size = sizeof(QCryptoSecretClass),

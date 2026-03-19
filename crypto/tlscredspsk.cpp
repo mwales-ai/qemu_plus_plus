@@ -166,7 +166,7 @@ qcrypto_tls_creds_psk_load(QCryptoTLSCredsPSK *creds,
             goto cleanup;
         }
     }
-    creds->parent_obj.box = g_steal_pointer(&box);
+    creds->parent_obj.box = static_cast<QCryptoTLSCredsBox *>(g_steal_pointer(&box));
 
     rv = 0;
  cleanup:
@@ -240,17 +240,19 @@ qcrypto_tls_creds_psk_class_init(ObjectClass *oc, const void *data)
 }
 
 
+static const InterfaceInfo qcrypto_tls_creds_psk_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo qcrypto_tls_creds_psk_info = {
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
     .name = TYPE_QCRYPTO_TLS_CREDS_PSK,
+    .parent = TYPE_QCRYPTO_TLS_CREDS,
     .instance_size = sizeof(QCryptoTLSCredsPSK),
     .instance_finalize = qcrypto_tls_creds_psk_finalize,
     .class_size = sizeof(QCryptoTLSCredsPSKClass),
     .class_init = qcrypto_tls_creds_psk_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = qcrypto_tls_creds_psk_interfaces,
 };
 
 

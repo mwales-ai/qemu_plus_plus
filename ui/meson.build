@@ -36,7 +36,7 @@ vnc_ss.add(files(
   'vnc-enc-tight.c',
   'vnc-palette.cpp',
   'vnc-enc-zrle.c',
-  'vnc-auth-vencrypt.c',
+  'vnc-auth-vencrypt.cpp',
   'vnc-ws.c',
   'vnc-jobs.c',
   'vnc-clipboard.c',
@@ -59,7 +59,7 @@ if opengl.found()
   opengl_ss = ss.source_set()
   opengl_ss.add(gbm, pixman)
   opengl_ss.add(when: [opengl],
-               if_true: files('shader.c', 'console-gl.c', 'egl-helpers.c', 'egl-context.cpp'))
+               if_true: files('shader.cpp', 'console-gl.c', 'egl-helpers.c', 'egl-context.cpp'))
   ui_modules += {'opengl' : opengl_ss}
 endif
 

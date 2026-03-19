@@ -93,7 +93,7 @@ static GLuint qemu_gl_create_compile_shader(GLenum type, const GLchar *src)
     glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
     if (!status) {
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-        errmsg = g_malloc(length);
+        errmsg = static_cast<char *>(g_malloc(length));
         glGetShaderInfoLog(shader, length, &length, errmsg);
         fprintf(stderr, "%s: compile %s error\n%s\n", __func__,
                 (type == GL_VERTEX_SHADER) ? "vertex" : "fragment",
@@ -118,7 +118,7 @@ static GLuint qemu_gl_create_link_program(GLuint vert, GLuint frag)
     glGetProgramiv(program, GL_LINK_STATUS, &status);
     if (!status) {
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
-        errmsg = g_malloc(length);
+        errmsg = static_cast<char *>(g_malloc(length));
         glGetProgramInfoLog(program, length, &length, errmsg);
         fprintf(stderr, "%s: link program: %s\n", __func__, errmsg);
         g_free(errmsg);

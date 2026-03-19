@@ -198,7 +198,7 @@ qcrypto_tls_creds_prop_set_endpoint(Object *obj,
 {
     QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(obj);
 
-    creds->endpoint = value;
+    creds->endpoint = static_cast<QCryptoTLSCredsEndpoint>(value);
 }
 
 
@@ -296,14 +296,14 @@ bool qcrypto_tls_creds_reload(QCryptoTLSCreds *creds,
 
 
 static const TypeInfo qcrypto_tls_creds_info = {
-    .parent = TYPE_OBJECT,
     .name = TYPE_QCRYPTO_TLS_CREDS,
+    .parent = TYPE_OBJECT,
     .instance_size = sizeof(QCryptoTLSCreds),
     .instance_init = qcrypto_tls_creds_init,
     .instance_finalize = qcrypto_tls_creds_finalize,
-    .class_init = qcrypto_tls_creds_class_init,
-    .class_size = sizeof(QCryptoTLSCredsClass),
     .is_abstract = true,
+    .class_size = sizeof(QCryptoTLSCredsClass),
+    .class_init = qcrypto_tls_creds_class_init,
 };
 
 

@@ -66,7 +66,7 @@ static void start_auth_vencrypt_subauth(VncState *vs)
 static void vnc_tls_handshake_done(QIOTask *task,
                                    gpointer user_data)
 {
-    VncState *vs = user_data;
+    VncState *vs = static_cast<VncState *>(user_data);
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
@@ -79,7 +79,7 @@ static void vnc_tls_handshake_done(QIOTask *task,
             g_source_remove(vs->ioc_tag);
         }
         vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_OUT,
+            vs->ioc, static_cast<GIOCondition>(G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_OUT),
             vnc_client_io, vs, NULL);
         start_auth_vencrypt_subauth(vs);
     }

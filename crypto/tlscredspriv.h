@@ -37,6 +37,10 @@ struct QCryptoTLSCreds {
     QCryptoTLSCredsBox *box;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef CONFIG_GNUTLS
 
 char *qcrypto_tls_creds_build_path(QCryptoTLSCreds *creds,
@@ -53,6 +57,10 @@ int qcrypto_tls_creds_get_dh_params_file(QCryptoTLSCreds *creds,
                                          gnutls_dh_params_t *dh_params,
                                          Error **errp);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* QCRYPTO_TLSCREDSPRIV_H */

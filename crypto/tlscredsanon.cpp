@@ -80,7 +80,7 @@ qcrypto_tls_creds_anon_load(QCryptoTLSCredsAnon *creds,
             return -1;
         }
     }
-    creds->parent_obj.box = g_steal_pointer(&box);
+    creds->parent_obj.box = static_cast<QCryptoTLSCredsBox *>(g_steal_pointer(&box));
 
     return 0;
 }
@@ -120,16 +120,18 @@ qcrypto_tls_creds_anon_class_init(ObjectClass *oc, const void *data)
 }
 
 
+static const InterfaceInfo qcrypto_tls_creds_anon_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo qcrypto_tls_creds_anon_info = {
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
     .name = TYPE_QCRYPTO_TLS_CREDS_ANON,
+    .parent = TYPE_QCRYPTO_TLS_CREDS,
     .instance_size = sizeof(QCryptoTLSCredsAnon),
     .class_size = sizeof(QCryptoTLSCredsAnonClass),
     .class_init = qcrypto_tls_creds_anon_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = qcrypto_tls_creds_anon_interfaces,
 };
 
 

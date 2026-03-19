@@ -116,8 +116,8 @@ qcrypto_secret_keyring_class_init(ObjectClass *oc, const void *data)
 
 
 static const TypeInfo qcrypto_secret_info = {
-    .parent = TYPE_QCRYPTO_SECRET_COMMON,
     .name = TYPE_QCRYPTO_SECRET_KEYRING,
+    .parent = TYPE_QCRYPTO_SECRET_COMMON,
     .instance_size = sizeof(QCryptoSecretKeyring),
     .class_init = qcrypto_secret_keyring_class_init,
 };

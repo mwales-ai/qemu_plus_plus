@@ -40,10 +40,18 @@ struct QCryptoTLSCredsBox {
 #endif
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 QCryptoTLSCredsBox *qcrypto_tls_creds_box_new_server(int type);
 QCryptoTLSCredsBox *qcrypto_tls_creds_box_new_client(int type);
 void qcrypto_tls_creds_box_ref(QCryptoTLSCredsBox *credsbox);
 void qcrypto_tls_creds_box_unref(QCryptoTLSCredsBox *credsbox);
+
+#ifdef __cplusplus
+}
+#endif
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QCryptoTLSCredsBox, qcrypto_tls_creds_box_unref);
 
