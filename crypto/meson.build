@@ -15,7 +15,7 @@ crypto_ss.add(files(
   'ivgen.cpp',
   'pbkdf.cpp',
   'secret_common.c',
-  'secret.cpp',
+  'secret.c',
   'tlscreds.c',
   'tlscredsanon.c',
   'tlscredspsk.c',
