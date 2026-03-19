@@ -26,6 +26,8 @@
 #include "hw/pci/pci_bus.h"
 #include "migration/vmstate.h"
 #include "amd_iommu.h"
+
+extern "C" {
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/i386/apic_internal.h"
@@ -34,6 +36,7 @@
 #include "hw/qdev-properties.h"
 #include "kvm/kvm_i386.h"
 #include "qemu/iova-tree.h"
+}
 
 /* used AMD-Vi MMIO registers */
 const char *amdvi_mmio_low[] = {
@@ -111,7 +114,7 @@ typedef struct AMDVIIOTLBKey {
     uint16_t devid;
 } AMDVIIOTLBKey;
 
-uint64_t amdvi_extended_feature_register(AMDVIState *s)
+extern "C" uint64_t amdvi_extended_feature_register(AMDVIState *s)
 {
     uint64_t feature = AMDVI_DEFAULT_EXT_FEATURES;
     if (s->xtsup) {
@@ -384,15 +387,15 @@ static void amdvi_log_pagetab_error(AMDVIState *s, uint16_t devid,
 
 static gboolean amdvi_as_equal(gconstpointer v1, gconstpointer v2)
 {
-    const AMDVIAsKey *key1 = v1;
-    const AMDVIAsKey *key2 = v2;
+    const AMDVIAsKey *key1 = static_cast<const AMDVIAsKey *>(v1);
+    const AMDVIAsKey *key2 = static_cast<const AMDVIAsKey *>(v2);
 
     return key1->bus == key2->bus && key1->devfn == key2->devfn;
 }
 
 static guint amdvi_as_hash(gconstpointer v)
 {
-    const AMDVIAsKey *key = v;
+    const AMDVIAsKey *key = static_cast<const AMDVIAsKey *>(v);
     guint bus = (guint)(uintptr_t)key->bus;
 
     return (guint)(bus << 8 | (guint)key->devfn);
@@ -402,35 +405,35 @@ static AMDVIAddressSpace *amdvi_as_lookup(AMDVIState *s, PCIBus *bus,
                                           uint8_t devfn)
 {
     const AMDVIAsKey key = { .bus = bus, .devfn = devfn };
-    return g_hash_table_lookup(s->address_spaces, &key);
+    return static_cast<AMDVIAddressSpace *>(g_hash_table_lookup(s->address_spaces, &key));
 }
 
 static gboolean amdvi_find_as_by_devid(gpointer key, gpointer value,
                                        gpointer user_data)
 {
-    const AMDVIAsKey *as = key;
-    const uint16_t *devidp = user_data;
+    const AMDVIAsKey *as = static_cast<const AMDVIAsKey *>(key);
+    const uint16_t *devidp = static_cast<const uint16_t *>(user_data);
 
     return *devidp == PCI_BUILD_BDF(pci_bus_num(as->bus), as->devfn);
 }
 
 static AMDVIAddressSpace *amdvi_get_as_by_devid(AMDVIState *s, uint16_t devid)
 {
-    return g_hash_table_find(s->address_spaces,
-                             amdvi_find_as_by_devid, &devid);
+    return static_cast<AMDVIAddressSpace *>(g_hash_table_find(s->address_spaces,
+                             amdvi_find_as_by_devid, &devid));
 }
 
 static gboolean amdvi_iotlb_equal(gconstpointer v1, gconstpointer v2)
 {
-    const AMDVIIOTLBKey *key1 = v1;
-    const AMDVIIOTLBKey *key2 = v2;
+    const AMDVIIOTLBKey *key1 = static_cast<const AMDVIIOTLBKey *>(v1);
+    const AMDVIIOTLBKey *key2 = static_cast<const AMDVIIOTLBKey *>(v2);
 
     return key1->devid == key2->devid && key1->gfn == key2->gfn;
 }
 
 static guint amdvi_iotlb_hash(gconstpointer v)
 {
-    const AMDVIIOTLBKey *key = v;
+    const AMDVIIOTLBKey *key = static_cast<const AMDVIIOTLBKey *>(v);
     /* Use GPA and DEVID to find the bucket */
     return (guint)(key->gfn << AMDVI_PAGE_SHIFT_4K |
                    (key->devid & ~AMDVI_PAGE_MASK_4K));
@@ -444,7 +447,7 @@ static AMDVIIOTLBEntry *amdvi_iotlb_lookup(AMDVIState *s, hwaddr addr,
         .gfn = AMDVI_GET_IOTLB_GFN(addr),
         .devid = devid,
     };
-    return g_hash_table_lookup(s->iotlb, &key);
+    return static_cast<AMDVIIOTLBEntry *>(g_hash_table_lookup(s->iotlb, &key));
 }
 
 static void amdvi_iotlb_reset(AMDVIState *s)
@@ -662,7 +665,7 @@ static uint64_t large_pte_page_size(uint64_t pte)
 static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
                           uint64_t *pte, hwaddr *page_size)
 {
-    IOMMUAccessFlags perms = amdvi_get_perms(dte);
+    IOMMUAccessFlags perms = static_cast<IOMMUAccessFlags>(amdvi_get_perms(dte));
 
     uint8_t level, mode;
     uint64_t pte_addr;
@@ -698,7 +701,7 @@ static uint64_t fetch_pte(AMDVIAddressSpace *as, hwaddr address, uint64_t dte,
         *page_size = PTE_LEVEL_PAGE_SIZE(level);
 
         /* Permission bits are ANDed at every level, including the DTE */
-        perms &= amdvi_get_perms(*pte);
+        perms = static_cast<IOMMUAccessFlags>(perms & amdvi_get_perms(*pte));
         if (perms == IOMMU_NONE) {
             return 0;
         }
@@ -763,8 +766,8 @@ static void amdvi_notify_iommu(AMDVIAddressSpace *as, IOMMUTLBEvent *event)
 
     DMAMap target = {
         .iova = entry->iova,
-        .size = entry->addr_mask,
         .translated_addr = entry->translated_addr,
+        .size = entry->addr_mask,
         .perm = entry->perm,
     };
 
@@ -872,7 +875,7 @@ static void amdvi_sync_shadow_page_table_range(AMDVIAddressSpace *as,
         event.entry.translated_addr = (pte & AMDVI_DEV_PT_ROOT_MASK) &
                                       page_mask;
         event.entry.addr_mask = ~page_mask;
-        event.entry.perm = amdvi_get_perms(pte);
+        event.entry.perm = static_cast<IOMMUAccessFlags>(amdvi_get_perms(pte));
 
         /*
          * In cases where the leaf PTE is not found, or it has invalid
@@ -1513,7 +1516,7 @@ static void amdvi_mmio_trace_write(hwaddr addr, unsigned size, uint64_t val)
 
 static uint64_t amdvi_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    AMDVIState *s = opaque;
+    AMDVIState *s = static_cast<AMDVIState *>(opaque);
 
     uint64_t val = -1;
     if (addr + size > AMDVI_MMIO_SIZE) {
@@ -1675,7 +1678,7 @@ static void amdvi_mmio_reg_write(AMDVIState *s, unsigned size, uint64_t val,
 static void amdvi_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned size)
 {
-    AMDVIState *s = opaque;
+    AMDVIState *s = static_cast<AMDVIState *>(opaque);
     unsigned long offset = addr & 0x07;
 
     if (addr + size > AMDVI_MMIO_SIZE) {
@@ -1809,14 +1812,14 @@ static void amdvi_page_walk(AMDVIAddressSpace *as, uint64_t *dte,
     ret->iova = addr & page_mask;
     ret->translated_addr = (pte & AMDVI_DEV_PT_ROOT_MASK) & page_mask;
     ret->addr_mask = ~page_mask;
-    ret->perm = amdvi_get_perms(pte);
+    ret->perm = static_cast<IOMMUAccessFlags>(amdvi_get_perms(pte));
     return;
 
 no_remap:
     ret->iova = addr & AMDVI_PAGE_MASK_4K;
     ret->translated_addr = addr & AMDVI_PAGE_MASK_4K;
     ret->addr_mask = ~AMDVI_PAGE_MASK_4K;
-    ret->perm = amdvi_get_perms(dte[0]);
+    ret->perm = static_cast<IOMMUAccessFlags>(amdvi_get_perms(dte[0]));
 }
 
 static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
@@ -1834,7 +1837,7 @@ static void amdvi_do_translate(AMDVIAddressSpace *as, hwaddr addr,
         ret->iova = addr & ~iotlb_entry->page_mask;
         ret->translated_addr = iotlb_entry->translated_addr;
         ret->addr_mask = iotlb_entry->page_mask;
-        ret->perm = iotlb_entry->perms;
+        ret->perm = static_cast<IOMMUAccessFlags>(iotlb_entry->perms);
         return;
     }
 
@@ -2224,7 +2227,7 @@ static MemTxResult amdvi_mem_ir_write(void *opaque, hwaddr addr,
         sid = attrs.requester_id;
     }
 
-    ret = amdvi_int_remap_msi(opaque, &from, &to, sid);
+    ret = amdvi_int_remap_msi(static_cast<AMDVIState *>(opaque), &from, &to, sid);
     if (ret < 0) {
         /* TODO: log the event using IOMMU log event interface */
         error_report_once("failed to remap interrupt from devid 0x%x", sid);
@@ -2248,20 +2251,20 @@ static const MemoryRegionOps amdvi_ir_ops = {
     .read_with_attrs = amdvi_mem_ir_read,
     .write_with_attrs = amdvi_mem_ir_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    }
 };
 
 static AddressSpace *amdvi_host_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
     char name[128];
-    AMDVIState *s = opaque;
+    AMDVIState *s = static_cast<AMDVIState *>(opaque);
     AMDVIAddressSpace *amdvi_dev_as;
     AMDVIAsKey *key;
 
@@ -2337,20 +2340,20 @@ static const MemoryRegionOps mmio_mem_ops = {
     .read = amdvi_mmio_read,
     .write = amdvi_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
     .impl = {
         .min_access_size = 1,
         .max_access_size = 8,
         .unaligned = false,
     },
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-    }
 };
 
 static int amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
                                            IOMMUNotifierFlag old,
-                                           IOMMUNotifierFlag new,
+                                           IOMMUNotifierFlag new_flags,
                                            Error **errp)
 {
     AMDVIAddressSpace *as = container_of(iommu, AMDVIAddressSpace, iommu);
@@ -2364,7 +2367,7 @@ static int amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
      * capability is already set by default as part of AMDVI_CAPAB_FEATURES and
      * written to the configuration in amdvi_pci_realize().
      */
-    if (!s->dma_remap && (new & IOMMU_NOTIFIER_MAP)) {
+    if (!s->dma_remap && (new_flags & IOMMU_NOTIFIER_MAP)) {
         error_setg_errno(errp, ENOTSUP,
             "device %02x.%02x.%x requires dma-remap=1",
             pci_bus_num(as->bus), PCI_SLOT(as->devfn), PCI_FUNC(as->devfn));
@@ -2375,11 +2378,11 @@ static int amdvi_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
      * Update notifier flags for address space and the list of address spaces
      * with registered notifiers.
      */
-    as->notifier_flags = new;
+    as->notifier_flags = new_flags;
 
     if (old == IOMMU_NOTIFIER_NONE) {
         QLIST_INSERT_HEAD(&s->amdvi_as_with_notifiers, as, next);
-    } else if (new == IOMMU_NOTIFIER_NONE) {
+    } else if (new_flags == IOMMU_NOTIFIER_NONE) {
         QLIST_REMOVE(as, next);
     }
 
@@ -2465,51 +2468,53 @@ static void amdvi_sysbus_reset(DeviceState *dev)
     amdvi_reset_address_translation_all(s);
 }
 
+static const VMStateField vmstate_amdvi_sysbus_migratable_fields[] = {
+    /* Updated in  amdvi_handle_control_write() */
+    VMSTATE_BOOL(enabled, AMDVIState),
+    VMSTATE_BOOL(ga_enabled, AMDVIState),
+    /* bool ats_enabled is obsolete */
+    VMSTATE_UNUSED(1), /* was ats_enabled */
+    VMSTATE_BOOL(cmdbuf_enabled, AMDVIState),
+    VMSTATE_BOOL(completion_wait_intr, AMDVIState),
+    VMSTATE_BOOL(evtlog_enabled, AMDVIState),
+    VMSTATE_BOOL(evtlog_intr, AMDVIState),
+    /* Updated in amdvi_handle_devtab_write() */
+    VMSTATE_UINT64(devtab, AMDVIState),
+    VMSTATE_UINT64(devtab_len, AMDVIState),
+    /* Updated in amdvi_handle_cmdbase_write() */
+    VMSTATE_UINT64(cmdbuf, AMDVIState),
+    VMSTATE_UINT64(cmdbuf_len, AMDVIState),
+    /* Updated in amdvi_handle_cmdhead_write() */
+    VMSTATE_UINT32(cmdbuf_head, AMDVIState),
+    /* Updated in amdvi_handle_cmdtail_write() */
+    VMSTATE_UINT32(cmdbuf_tail, AMDVIState),
+    /* Updated in amdvi_handle_evtbase_write() */
+    VMSTATE_UINT64(evtlog, AMDVIState),
+    VMSTATE_UINT32(evtlog_len, AMDVIState),
+    /* Updated in amdvi_handle_evthead_write() */
+    VMSTATE_UINT32(evtlog_head, AMDVIState),
+    /* Updated in amdvi_handle_evttail_write() */
+    VMSTATE_UINT32(evtlog_tail, AMDVIState),
+    /* Updated in amdvi_handle_pprbase_write() */
+    VMSTATE_UINT64(ppr_log, AMDVIState),
+    VMSTATE_UINT32(pprlog_len, AMDVIState),
+    /* Updated in amdvi_handle_pprhead_write() */
+    VMSTATE_UINT32(pprlog_head, AMDVIState),
+    /* Updated in amdvi_handle_tailhead_write() */
+    VMSTATE_UINT32(pprlog_tail, AMDVIState),
+    /* MMIO registers */
+    VMSTATE_UINT8_ARRAY(mmior, AMDVIState, AMDVI_MMIO_SIZE),
+    VMSTATE_UINT8_ARRAY(romask, AMDVIState, AMDVI_MMIO_SIZE),
+    VMSTATE_UINT8_ARRAY(w1cmask, AMDVIState, AMDVI_MMIO_SIZE),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_amdvi_sysbus_migratable = {
     .name = "amd-iommu",
     .version_id = 1,
     .minimum_version_id = 1,
     .priority = MIG_PRI_IOMMU,
-    .fields = (VMStateField[]) {
-      /* Updated in  amdvi_handle_control_write() */
-      VMSTATE_BOOL(enabled, AMDVIState),
-      VMSTATE_BOOL(ga_enabled, AMDVIState),
-      /* bool ats_enabled is obsolete */
-      VMSTATE_UNUSED(1), /* was ats_enabled */
-      VMSTATE_BOOL(cmdbuf_enabled, AMDVIState),
-      VMSTATE_BOOL(completion_wait_intr, AMDVIState),
-      VMSTATE_BOOL(evtlog_enabled, AMDVIState),
-      VMSTATE_BOOL(evtlog_intr, AMDVIState),
-      /* Updated in amdvi_handle_devtab_write() */
-      VMSTATE_UINT64(devtab, AMDVIState),
-      VMSTATE_UINT64(devtab_len, AMDVIState),
-      /* Updated in amdvi_handle_cmdbase_write() */
-      VMSTATE_UINT64(cmdbuf, AMDVIState),
-      VMSTATE_UINT64(cmdbuf_len, AMDVIState),
-      /* Updated in amdvi_handle_cmdhead_write() */
-      VMSTATE_UINT32(cmdbuf_head, AMDVIState),
-      /* Updated in amdvi_handle_cmdtail_write() */
-      VMSTATE_UINT32(cmdbuf_tail, AMDVIState),
-      /* Updated in amdvi_handle_evtbase_write() */
-      VMSTATE_UINT64(evtlog, AMDVIState),
-      VMSTATE_UINT32(evtlog_len, AMDVIState),
-      /* Updated in amdvi_handle_evthead_write() */
-      VMSTATE_UINT32(evtlog_head, AMDVIState),
-      /* Updated in amdvi_handle_evttail_write() */
-      VMSTATE_UINT32(evtlog_tail, AMDVIState),
-      /* Updated in amdvi_handle_pprbase_write() */
-      VMSTATE_UINT64(ppr_log, AMDVIState),
-      VMSTATE_UINT32(pprlog_len, AMDVIState),
-      /* Updated in amdvi_handle_pprhead_write() */
-      VMSTATE_UINT32(pprlog_head, AMDVIState),
-      /* Updated in amdvi_handle_tailhead_write() */
-      VMSTATE_UINT32(pprlog_tail, AMDVIState),
-      /* MMIO registers */
-      VMSTATE_UINT8_ARRAY(mmior, AMDVIState, AMDVI_MMIO_SIZE),
-      VMSTATE_UINT8_ARRAY(romask, AMDVIState, AMDVI_MMIO_SIZE),
-      VMSTATE_UINT8_ARRAY(w1cmask, AMDVIState, AMDVI_MMIO_SIZE),
-      VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_amdvi_sysbus_migratable_fields,
 };
 
 static void amdvi_sysbus_realize(DeviceState *dev, Error **errp)
@@ -2640,15 +2645,17 @@ static void amdvi_pci_class_init(ObjectClass *klass, const void *data)
     dc->desc = "AMD IOMMU (AMD-Vi) DMA Remapping device";
 }
 
+static const InterfaceInfo amdvi_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo amdvi_pci = {
     .name = TYPE_AMD_IOMMU_PCI,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AMDVIPCIState),
     .class_init = amdvi_pci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = amdvi_pci_interfaces,
 };
 
 static void amdvi_iommu_memory_region_class_init(ObjectClass *klass,
@@ -2662,12 +2669,12 @@ static void amdvi_iommu_memory_region_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo amdvi_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_AMD_IOMMU_MEMORY_REGION,
+    .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = amdvi_iommu_memory_region_class_init,
 };
 
-static void amdvi_register_types(void)
+extern "C" void amdvi_register_types(void)
 {
     type_register_static(&amdvi_pci);
     type_register_static(&amdvi_sysbus);
