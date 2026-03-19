@@ -3,7 +3,7 @@ i386_ss.add(files(
   'fw_cfg.cpp',
   'e820_memory_layout.cpp',
   'monitor.cpp',
-  'multiboot.c',
+  'multiboot.cpp',
   'x86.cpp',
   'x86-cpu.cpp',
 ))
@@ -29,7 +29,7 @@ i386_ss.add(when: 'CONFIG_PC', if_true: files(
   'x86-common.cpp',
   'pc.cpp',
   'pc_sysfw.cpp',
-  'acpi-build.c',
+  'acpi-build.cpp',
   'port92.cpp'))
 i386_ss.add(when: 'CONFIG_X86_FW_OVMF', if_true: files('pc_sysfw_ovmf.cpp'),
                                         if_false: files('pc_sysfw_ovmf-stubs.cpp'))

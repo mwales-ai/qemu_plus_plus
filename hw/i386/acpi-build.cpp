@@ -128,8 +128,8 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg);
 
 const struct AcpiGenericAddress x86_nvdimm_acpi_dsmio = {
     .space_id = AML_AS_SYSTEM_IO,
+    .bit_width = NVDIMM_ACPI_IO_LEN << 3,
     .address = NVDIMM_ACPI_IO_BASE,
-    .bit_width = NVDIMM_ACPI_IO_LEN << 3
 };
 
 static void init_common_fadt_data(MachineState *ms, Object *o,
@@ -146,6 +146,14 @@ static void init_common_fadt_data(MachineState *ms, Object *o,
     uint32_t io = object_property_get_uint(o, ACPI_PM_PROP_PM_IO_BASE, NULL);
     AmlAddressSpace as = AML_AS_SYSTEM_IO;
     AcpiFadtData fadt = {
+        .pm1a_cnt = { .space_id = as, .bit_width = 2 * 8,
+                      .address = io + 0x04 },
+        .pm1a_evt = { .space_id = as, .bit_width = 4 * 8, .address = io },
+        .pm_tmr = { .space_id = as, .bit_width = 4 * 8, .address = io + 0x08 },
+        .gpe0_blk = { .space_id = as, .bit_width =
+            object_property_get_uint(o, ACPI_PM_PROP_GPE0_BLK_LEN, NULL) * 8,
+            .address = object_property_get_uint(o, ACPI_PM_PROP_GPE0_BLK, NULL)
+        },
         .rev = 3,
         .flags =
             (1 << ACPI_FADT_F_WBINVD) |
@@ -159,12 +167,9 @@ static void init_common_fadt_data(MachineState *ms, Object *o,
              */
             ((ms->smp.max_cpus > 8) ?
                         (1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL) : 0),
-        .int_model = 1 /* Multiple APIC */,
-        .rtc_century = RTC_CENTURY,
-        .plvl2_lat = 0xfff /* C2 state not supported */,
-        .plvl3_lat = 0xfff /* C3 state not supported */,
         .smi_cmd = smm_enabled ? ACPI_PORT_SMI_CMD : 0,
         .sci_int = object_property_get_uint(o, ACPI_PM_PROP_SCI_INT, NULL),
+        .int_model = 1 /* Multiple APIC */,
         .acpi_enable_cmd =
             smm_enabled ?
             object_property_get_uint(o, ACPI_PM_PROP_ACPI_ENABLE_CMD, NULL) :
@@ -173,14 +178,9 @@ static void init_common_fadt_data(MachineState *ms, Object *o,
             smm_enabled ?
             object_property_get_uint(o, ACPI_PM_PROP_ACPI_DISABLE_CMD, NULL) :
             0,
-        .pm1a_evt = { .space_id = as, .bit_width = 4 * 8, .address = io },
-        .pm1a_cnt = { .space_id = as, .bit_width = 2 * 8,
-                      .address = io + 0x04 },
-        .pm_tmr = { .space_id = as, .bit_width = 4 * 8, .address = io + 0x08 },
-        .gpe0_blk = { .space_id = as, .bit_width =
-            object_property_get_uint(o, ACPI_PM_PROP_GPE0_BLK_LEN, NULL) * 8,
-            .address = object_property_get_uint(o, ACPI_PM_PROP_GPE0_BLK, NULL)
-        },
+        .rtc_century = RTC_CENTURY,
+        .plvl2_lat = 0xfff /* C2 state not supported */,
+        .plvl3_lat = 0xfff /* C3 state not supported */,
     };
 
     /*
@@ -965,8 +965,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     } else {
         CPUHotplugFeatures opts = {
             .acpi_1_compatible = true, .has_legacy_cphp = true,
-            .smi_path = pm->smi_on_cpuhp ? "\\_SB.PCI0.SMI0.SMIC" : NULL,
             .fw_unplugs_cpu = pm->smi_on_cpu_unplug,
+            .smi_path = pm->smi_on_cpuhp ? "\\_SB.PCI0.SMI0.SMIC" : NULL,
         };
         build_cpus_aml(dsdt, machine, opts, pc_madt_cpu_entry,
                        pm->cpu_hp_io_base, "\\_SB.PCI0", "\\_GPE._E02",
@@ -1079,7 +1079,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
 
     crs_replace_with_free_ranges(crs_range_set.io_ranges, 0x0D00, 0xFFFF);
     for (i = 0; i < crs_range_set.io_ranges->len; i++) {
-        entry = g_ptr_array_index(crs_range_set.io_ranges, i);
+        entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(crs_range_set.io_ranges, i));
         aml_append(crs,
             aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
                         AML_POS_DECODE, AML_ENTIRE_RANGE,
@@ -1096,7 +1096,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                                  range_lob(pci_hole),
                                  range_upb(pci_hole));
     for (i = 0; i < crs_range_set.mem_ranges->len; i++) {
-        entry = g_ptr_array_index(crs_range_set.mem_ranges, i);
+        entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(crs_range_set.mem_ranges, i));
         aml_append(crs,
             aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                              AML_NON_CACHEABLE, AML_READ_WRITE,
@@ -1109,7 +1109,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
                                      range_lob(pci_hole64),
                                      range_upb(pci_hole64));
         for (i = 0; i < crs_range_set.mem_64bit_ranges->len; i++) {
-            entry = g_ptr_array_index(crs_range_set.mem_64bit_ranges, i);
+            entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(crs_range_set.mem_64bit_ranges, i));
             aml_append(crs,
                        aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                         AML_MAX_FIXED,
@@ -1486,7 +1486,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
         build_srat_memory(table_data, machine->device_memory->base,
                           memory_region_size(&machine->device_memory->mr),
                           nb_numa_nodes - 1,
-                          MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
+                          static_cast<MemoryAffinityFlags>(MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED));
     }
 
     acpi_table_end(linker, &table);
@@ -1500,7 +1500,7 @@ insert_scope(PCIBus *bus, PCIDevice *dev, void *opaque)
 {
     const size_t device_scope_size = 6 /* device scope structure */ +
                                      2 /* 1 path entry */;
-    GArray *scope_blob = opaque;
+    GArray *scope_blob = static_cast<GArray *>(opaque);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_BRIDGE)) {
         /* Dmar Scope Type: 0x02 for PCI Bridge */
@@ -1528,7 +1528,7 @@ insert_scope(PCIBus *bus, PCIDevice *dev, void *opaque)
 static int
 dmar_host_bridges(Object *obj, void *opaque)
 {
-    GArray *scope_blob = opaque;
+    GArray *scope_blob = static_cast<GArray *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
         PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
@@ -1662,7 +1662,7 @@ build_waet(GArray *table_data, BIOSLinker *linker, const char *oem_id,
 static void
 insert_ivhd(PCIBus *bus, PCIDevice *dev, void *opaque)
 {
-    GArray *table_data = opaque;
+    GArray *table_data = static_cast<GArray *>(opaque);
     uint32_t entry;
 
     /* "Select" IVHD entry, type 0x2 */
@@ -1734,7 +1734,7 @@ insert_ivhd(PCIBus *bus, PCIDevice *dev, void *opaque)
 static int
 ivrs_host_bridges(Object *obj, void *opaque)
 {
-    GArray *ivhd_blob = opaque;
+    GArray *ivhd_blob = static_cast<GArray *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
         PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
@@ -2095,10 +2095,10 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     /* RSDP is in FSEG memory, so allocate it separately */
     {
         AcpiRsdpData rsdp_data = {
-            .revision = 0,
             .oem_id = x86ms->oem_id,
-            .xsdt_tbl_offset = NULL,
+            .revision = 0,
             .rsdt_tbl_offset = &rsdt,
+            .xsdt_tbl_offset = NULL,
         };
         build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
     }
@@ -2135,7 +2135,7 @@ static void acpi_ram_update(MemoryRegion *mr, GArray *data)
 
 static void acpi_build_update(void *build_opaque)
 {
-    AcpiBuildState *build_state = build_opaque;
+    AcpiBuildState *build_state = static_cast<AcpiBuildState *>(build_opaque);
     AcpiBuildTables tables;
 
     /* No state to update or already patched? Nothing to do. */
@@ -2158,18 +2158,20 @@ static void acpi_build_update(void *build_opaque)
 
 static void acpi_build_reset(void *build_opaque)
 {
-    AcpiBuildState *build_state = build_opaque;
+    AcpiBuildState *build_state = static_cast<AcpiBuildState *>(build_opaque);
     build_state->patched = 0;
 }
+
+static const VMStateField vmstate_acpi_build_fields[] = {
+    VMSTATE_UINT8(patched, AcpiBuildState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_acpi_build = {
     .name = "acpi_build",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(patched, AcpiBuildState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_acpi_build_fields,
 };
 
 void acpi_setup(void)
@@ -2199,7 +2201,7 @@ void acpi_setup(void)
         return;
     }
 
-    build_state = g_malloc0(sizeof *build_state);
+    build_state = static_cast<AcpiBuildState *>(g_malloc0(sizeof *build_state));
 
     acpi_build_tables_init(&tables);
     acpi_build(&tables, MACHINE(pcms));

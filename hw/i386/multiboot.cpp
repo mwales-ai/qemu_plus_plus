@@ -214,7 +214,7 @@ int load_multiboot(X86MachineState *x86ms,
         mh_entry_addr = elf_entry;
 
         mbs.mb_buf = g_malloc(mb_kernel_size);
-        if (rom_copy(mbs.mb_buf, mh_load_addr, mb_kernel_size) != mb_kernel_size) {
+        if (rom_copy(static_cast<uint8_t *>(mbs.mb_buf), mh_load_addr, mb_kernel_size) != mb_kernel_size) {
             error_report("Error while fetching elf kernel from rom");
             exit(1);
         }
@@ -327,7 +327,7 @@ int load_multiboot(X86MachineState *x86ms,
             char *next_space;
             int mb_mod_length;
             uint32_t offs = mbs.mb_buf_size;
-            char *one_file = tmpl->data;
+            char *one_file = static_cast<char *>(tmpl->data);
 
             /* if a space comes after the module filename, treat everything
                after that as parameters */
@@ -388,7 +388,7 @@ int load_multiboot(X86MachineState *x86ms,
     mb_debug("           mb_mods_count = %d", mbs.mb_mods_count);
 
     /* save bootinfo off the stack */
-    mb_bootinfo_data = g_memdup(bootinfo, sizeof(bootinfo));
+    mb_bootinfo_data = static_cast<uint8_t *>(g_memdup(bootinfo, sizeof(bootinfo)));
 
     /* Pass variables to option rom */
     fw_cfg_add_i32(fw_cfg, FW_CFG_KERNEL_ENTRY, mh_entry_addr);
