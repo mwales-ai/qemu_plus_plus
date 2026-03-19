@@ -154,7 +154,7 @@ void vnc_jobs_consume_buffer(VncState *vs)
             }
             if (vs->disconnecting == FALSE) {
                 vs->ioc_tag = qio_channel_add_watch(
-                    vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_OUT,
+                    vs->ioc, static_cast<GIOCondition>(G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_OUT),
                     vnc_client_io, vs, NULL);
             }
         }
@@ -350,7 +350,7 @@ static void vnc_queue_clear(VncJobQueue *q)
 
 static void *vnc_worker_thread(void *arg)
 {
-    VncJobQueue *queue = arg;
+    VncJobQueue *queue = static_cast<VncJobQueue *>(arg);
 
     qemu_thread_get_self(&queue->thread);
 

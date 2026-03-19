@@ -85,6 +85,10 @@ struct QIOChannelWebsock {
  *
  * Returns: the new websockets channel object
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 QIOChannelWebsock *
 qio_channel_websock_new_server(QIOChannel *master);
 
@@ -105,5 +109,9 @@ void qio_channel_websock_handshake(QIOChannelWebsock *ioc,
                                    QIOTaskFunc func,
                                    gpointer opaque,
                                    GDestroyNotify destroy);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QIO_CHANNEL_WEBSOCK_H */

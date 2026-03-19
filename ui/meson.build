@@ -3,15 +3,15 @@ system_ss.add(png)
 system_ss.add(files(
   'clipboard.c',
   'console.c',
-  'cursor.c',
-  'dmabuf.c',
+  'cursor.cpp',
+  'dmabuf.cpp',
   'input-keymap.c',
   'input-legacy.c',
   'input-barrier.c',
   'input.c',
-  'kbd-state.c',
-  'keymaps.c',
-  'qemu-pixman.c',
+  'kbd-state.cpp',
+  'keymaps.cpp',
+  'qemu-pixman.cpp',
   'ui-hmp-cmds.c',
   'ui-qmp-cmds.c',
   'util.cpp',
@@ -32,14 +32,14 @@ vnc_ss = ss.source_set()
 vnc_ss.add(files(
   'vnc.c',
   'vnc-enc-zlib.cpp',
-  'vnc-enc-hextile.c',
+  'vnc-enc-hextile.cpp',
   'vnc-enc-tight.c',
   'vnc-palette.cpp',
   'vnc-enc-zrle.c',
   'vnc-auth-vencrypt.cpp',
-  'vnc-ws.c',
-  'vnc-jobs.c',
-  'vnc-clipboard.c',
+  'vnc-ws.cpp',
+  'vnc-jobs.cpp',
+  'vnc-clipboard.cpp',
 ))
 vnc_ss.add(zlib, jpeg)
 vnc_ss.add(when: sasl, if_true: files('vnc-auth-sasl.c'))
@@ -110,7 +110,7 @@ if gtk.found()
   if have_gtk_clipboard
     gtk_ss.add(files('gtk-clipboard.c'))
   endif
-  gtk_ss.add(when: x11, if_true: files('x_keymap.c'))
+  gtk_ss.add(when: x11, if_true: files('x_keymap.cpp'))
   gtk_ss.add(when: opengl, if_true: files('gtk-gl-area.c'))
   gtk_ss.add(when: [x11, opengl], if_true: files('gtk-egl.c'))
   ui_modules += {'gtk' : gtk_ss}
@@ -124,7 +124,7 @@ if sdl.found()
     'sdl2.c',
   ))
   sdl_ss.add(when: opengl, if_true: files('sdl2-gl.cpp'))
-  sdl_ss.add(when: x11, if_true: files('x_keymap.c'))
+  sdl_ss.add(when: x11, if_true: files('x_keymap.cpp'))
   ui_modules += {'sdl' : sdl_ss}
 endif
 

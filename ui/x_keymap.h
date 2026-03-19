@@ -27,6 +27,14 @@
 
 #include <X11/Xlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const guint16 *qemu_xkeymap_mapping_table(Display *dpy, size_t *maplen);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

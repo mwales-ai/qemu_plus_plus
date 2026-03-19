@@ -100,7 +100,7 @@ QEMUCursor *cursor_alloc(uint16_t width, uint16_t height)
         return NULL;
     }
 
-    c = g_malloc0(sizeof(QEMUCursor) + datasize);
+    c = static_cast<QEMUCursor *>(g_malloc0(sizeof(QEMUCursor) + datasize));
     c->width  = width;
     c->height = height;
     c->refcount = 1;

@@ -87,7 +87,7 @@ pixman_format_code_t qemu_default_pixman_format(int bpp, bool native_endian)
         break;
         }
     }
-    return 0;
+    return static_cast<pixman_format_code_t>(0);
 }
 
 /* Note: drm is little endian, pixman is native endian */
@@ -111,7 +111,7 @@ pixman_format_code_t qemu_drm_format_to_pixman(uint32_t drm_format)
             return drm_format_pixman_map[i].pixman_format;
         }
     }
-    return 0;
+    return static_cast<pixman_format_code_t>(0);
 }
 
 uint32_t qemu_pixman_to_drm_format(pixman_format_code_t pixman_format)
@@ -154,10 +154,10 @@ pixman_format_code_t qemu_pixman_get_format(PixelFormat *pf, int endian)
     int type;
 
     type = qemu_pixman_get_type(pf->rshift, pf->gshift, pf->bshift, endian);
-    format = PIXMAN_FORMAT(pf->bits_per_pixel, type,
-                           pf->abits, pf->rbits, pf->gbits, pf->bbits);
+    format = static_cast<pixman_format_code_t>(PIXMAN_FORMAT(pf->bits_per_pixel, type,
+                           pf->abits, pf->rbits, pf->gbits, pf->bbits));
     if (!pixman_format_supported_source(format)) {
-        return 0;
+        return static_cast<pixman_format_code_t>(0);
     }
     return format;
 }
@@ -331,7 +331,7 @@ qemu_pixman_image_new_shareable(pixman_image_t **image,
         return false;
     }
 
-    *image = pixman_image_create_bits(format, width, height, bits, rowstride_bytes);
+    *image = pixman_image_create_bits(format, width, height, static_cast<uint32_t *>(bits), rowstride_bytes);
     if (!*image) {
         error_setg(errp, "Failed to allocate image");
         qemu_pixman_shareable_free(*handle, bits, size);

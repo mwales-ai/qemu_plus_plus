@@ -64,7 +64,7 @@ static void add_keysym(char *line, int keysym, int keycode, kbd_layout_t *k)
 {
     struct keysym2code *keysym2code;
 
-    keysym2code = g_hash_table_lookup(k->hash, GINT_TO_POINTER(keysym));
+    keysym2code = static_cast<struct keysym2code *>(g_hash_table_lookup(k->hash, GINT_TO_POINTER(keysym)));
     if (keysym2code) {
         if (keysym2code->count < ARRAY_SIZE(keysym2code->keycodes)) {
             keysym2code->keycodes[keysym2code->count++] = keycode;
@@ -209,7 +209,7 @@ int keysym2scancode(kbd_layout_t *k, int keysym,
     }
 #endif
 
-    keysym2code = g_hash_table_lookup(k->hash, GINT_TO_POINTER(keysym));
+    keysym2code = static_cast<struct keysym2code *>(g_hash_table_lookup(k->hash, GINT_TO_POINTER(keysym)));
     if (!keysym2code) {
         trace_keymap_unmapped(keysym);
         warn_report("no scancode found for keysym %d", keysym);
@@ -248,8 +248,8 @@ int keysym2scancode(kbd_layout_t *k, int keysym,
          * On keyup: Try find a key which is actually down.
          */
         for (i = 0; i < keysym2code->count; i++) {
-            QKeyCode qcode = qemu_input_key_number_to_qcode
-                (keysym2code->keycodes[i]);
+            QKeyCode qcode = static_cast<QKeyCode>(qemu_input_key_number_to_qcode
+                (keysym2code->keycodes[i]));
             if (kbd && qkbd_state_key_get(kbd, qcode)) {
                 return keysym2code->keycodes[i];
             }

@@ -28,14 +28,13 @@
 
 static uint8_t *inflate_buffer(uint8_t *in, uint32_t in_len, uint32_t *size)
 {
-    z_stream stream = {
-        .next_in  = in,
-        .avail_in = in_len,
-        .zalloc   = Z_NULL,
-        .zfree    = Z_NULL,
-    };
+    z_stream stream = {};
+    stream.next_in  = in;
+    stream.avail_in = in_len;
+    stream.zalloc   = Z_NULL;
+    stream.zfree    = Z_NULL;
     uint32_t out_len = 8;
-    uint8_t *out = g_malloc(out_len);
+    uint8_t *out = static_cast<uint8_t *>(g_malloc(out_len));
     int ret;
 
     stream.next_out = out + stream.total_out;
@@ -60,7 +59,7 @@ static uint8_t *inflate_buffer(uint8_t *in, uint32_t in_len, uint32_t *size)
             if (out_len > (1 << 20)) {
                 goto err_end;
             }
-            out = g_realloc(out, out_len);
+            out = static_cast<uint8_t *>(g_realloc(out, out_len));
             stream.next_out = out + stream.total_out;
             stream.avail_out = out_len - stream.total_out;
             break;
@@ -83,14 +82,13 @@ err:
 
 static uint8_t *deflate_buffer(uint8_t *in, uint32_t in_len, uint32_t *size)
 {
-    z_stream stream = {
-        .next_in  = in,
-        .avail_in = in_len,
-        .zalloc   = Z_NULL,
-        .zfree    = Z_NULL,
-    };
+    z_stream stream = {};
+    stream.next_in  = in;
+    stream.avail_in = in_len;
+    stream.zalloc   = Z_NULL;
+    stream.zfree    = Z_NULL;
     uint32_t out_len = 8;
-    uint8_t *out = g_malloc(out_len);
+    uint8_t *out = static_cast<uint8_t *>(g_malloc(out_len));
     int ret;
 
     stream.next_out = out + stream.total_out;
@@ -112,7 +110,7 @@ static uint8_t *deflate_buffer(uint8_t *in, uint32_t in_len, uint32_t *size)
             if (out_len > (1 << 20)) {
                 goto err_end;
             }
-            out = g_realloc(out, out_len);
+            out = static_cast<uint8_t *>(g_realloc(out, out_len));
             stream.next_out = out + stream.total_out;
             stream.avail_out = out_len - stream.total_out;
             break;
@@ -168,7 +166,7 @@ static void vnc_clipboard_provide(VncState *vs,
     }
     flags |= VNC_CLIPBOARD_PROVIDE;
 
-    buf = g_malloc(info->types[type].size + 4);
+    buf = static_cast<uint8_t *>(g_malloc(info->types[type].size + 4));
     buf[0] = (info->types[type].size >> 24) & 0xff;
     buf[1] = (info->types[type].size >> 16) & 0xff;
     buf[2] = (info->types[type].size >>  8) & 0xff;
@@ -215,7 +213,7 @@ static void vnc_clipboard_update_info(VncState *vs, QemuClipboardInfo *info)
         return;
     }
 
-    for (type = 0; type < QEMU_CLIPBOARD_TYPE__COUNT; type++) {
+    for (type = static_cast<QemuClipboardType>(0); type < QEMU_CLIPBOARD_TYPE__COUNT; type = static_cast<QemuClipboardType>(type + 1)) {
         if (vs->cbpending & (1 << type)) {
             vs->cbpending &= ~(1 << type);
             vnc_clipboard_provide(vs, info, type);
@@ -226,7 +224,7 @@ static void vnc_clipboard_update_info(VncState *vs, QemuClipboardInfo *info)
 static void vnc_clipboard_notify(Notifier *notifier, void *data)
 {
     VncState *vs = container_of(notifier, VncState, cbpeer.notifier);
-    QemuClipboardNotify *notify = data;
+    QemuClipboardNotify *notify = static_cast<QemuClipboardNotify *>(data);
 
     switch (notify->type) {
     case QEMU_CLIPBOARD_UPDATE_INFO:

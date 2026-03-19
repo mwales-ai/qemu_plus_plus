@@ -16,7 +16,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
                                              int *has_bg, int *has_fg)
 {
     VncDisplay *vd = vs->vd;
-    uint8_t *row = vnc_server_fb_ptr(vd, x, y);
+    uint8_t *row = static_cast<uint8_t *>(vnc_server_fb_ptr(vd, x, y));
     pixel_t *irow = (pixel_t *)row;
     int j, i;
     pixel_t *last_bg = (pixel_t *)last_bg_;

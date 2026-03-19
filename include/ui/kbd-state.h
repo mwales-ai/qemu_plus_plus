@@ -26,6 +26,10 @@ typedef enum QKbdModifier QKbdModifier;
 
 typedef struct QKbdState QKbdState;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * qkbd_state_init: init keyboard state tracker.
  *
@@ -108,5 +112,9 @@ void qkbd_state_lift_all_keys(QKbdState *kbd);
  * @con: new QemuConsole for this state tracker.
  */
 void qkbd_state_switch_console(QKbdState *kbd, QemuConsole *con);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_UI_KBD_STATE_H */

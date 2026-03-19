@@ -28,7 +28,7 @@
 static void vncws_tls_handshake_done(QIOTask *task,
                                      gpointer user_data)
 {
-    VncState *vs = user_data;
+    VncState *vs = static_cast<VncState *>(user_data);
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
@@ -41,7 +41,7 @@ static void vncws_tls_handshake_done(QIOTask *task,
             g_source_remove(vs->ioc_tag);
         }
         vs->ioc_tag = qio_channel_add_watch(vs->ioc,
-                                            G_IO_IN | G_IO_HUP | G_IO_ERR,
+                                            static_cast<GIOCondition>(G_IO_IN | G_IO_HUP | G_IO_ERR),
                                             vncws_handshake_io, vs, NULL);
     }
 }
@@ -51,7 +51,7 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
                                 GIOCondition condition,
                                 void *opaque)
 {
-    VncState *vs = opaque;
+    VncState *vs = static_cast<VncState *>(opaque);
     QIOChannelTLS *tls;
     Error *err = NULL;
 
@@ -97,7 +97,7 @@ gboolean vncws_tls_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
 static void vncws_handshake_done(QIOTask *task,
                                  gpointer user_data)
 {
-    VncState *vs = user_data;
+    VncState *vs = static_cast<VncState *>(user_data);
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
@@ -111,7 +111,7 @@ static void vncws_handshake_done(QIOTask *task,
             g_source_remove(vs->ioc_tag);
         }
         vs->ioc_tag = qio_channel_add_watch(
-            vs->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR,
+            vs->ioc, static_cast<GIOCondition>(G_IO_IN | G_IO_HUP | G_IO_ERR),
             vnc_client_io, vs, NULL);
     }
 }
@@ -121,7 +121,7 @@ gboolean vncws_handshake_io(QIOChannel *ioc G_GNUC_UNUSED,
                             GIOCondition condition,
                             void *opaque)
 {
-    VncState *vs = opaque;
+    VncState *vs = static_cast<VncState *>(opaque);
     QIOChannelWebsock *wioc;
 
     if (vs->ioc_tag) {

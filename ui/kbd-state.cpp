@@ -112,7 +112,7 @@ void qkbd_state_lift_all_keys(QKbdState *kbd)
 
     for (qcode = 0; qcode < Q_KEY_CODE__MAX; qcode++) {
         if (test_bit(qcode, kbd->keys)) {
-            qkbd_state_key_event(kbd, qcode, false);
+            qkbd_state_key_event(kbd, static_cast<QKeyCode>(qcode), false);
         }
     }
 }

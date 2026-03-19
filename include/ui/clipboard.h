@@ -151,6 +151,10 @@ struct QemuClipboardInfo {
  * (set+grab clipboard) and passive (watch clipboard for updates)
  * interaction with the qemu clipboard.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void qemu_clipboard_peer_register(QemuClipboardPeer *peer);
 
 /**
@@ -290,6 +294,10 @@ void qemu_clipboard_set_data(QemuClipboardPeer *peer,
                              uint32_t size,
                              const void *data,
                              bool update);
+
+#ifdef __cplusplus
+}
+#endif
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuClipboardInfo, qemu_clipboard_info_unref)
 
