@@ -5,7 +5,7 @@ arm_common_ss.add(when: 'CONFIG_ACPI', if_true: files('virt-acpi-build.cpp'))
 arm_common_ss.add(when: 'CONFIG_DIGIC', if_true: files('digic_boards.cpp'))
 arm_common_ss.add(when: 'CONFIG_EMCRAFT_SF2', if_true: files('msf2-som.cpp'))
 arm_common_ss.add(when: 'CONFIG_HIGHBANK', if_true: files('highbank.cpp'))
-arm_common_ss.add(when: 'CONFIG_INTEGRATOR', if_true: files('integratorcp.c'))
+arm_common_ss.add(when: 'CONFIG_INTEGRATOR', if_true: files('integratorcp.cpp'))
 arm_common_ss.add(when: 'CONFIG_MICROBIT', if_true: files('microbit.cpp'))
 arm_common_ss.add(when: 'CONFIG_MPS3R', if_true: files('mps3r.cpp'))
 arm_common_ss.add(when: 'CONFIG_MUSICPAL', if_true: [files('musicpal.c')])
@@ -13,11 +13,11 @@ arm_common_ss.add(when: 'CONFIG_NETDUINOPLUS2', if_true: files('netduinoplus2.cp
 arm_common_ss.add(when: 'CONFIG_OLIMEX_STM32_H405', if_true: files('olimex-stm32-h405.cpp'))
 arm_common_ss.add(when: 'CONFIG_NPCM7XX', if_true: files('npcm7xx.cpp', 'npcm7xx_boards.cpp'))
 arm_common_ss.add(when: 'CONFIG_NPCM8XX', if_true: files('npcm8xx.cpp', 'npcm8xx_boards.cpp'))
-arm_common_ss.add(when: 'CONFIG_REALVIEW', if_true: files('realview.c'))
+arm_common_ss.add(when: 'CONFIG_REALVIEW', if_true: files('realview.cpp'))
 arm_common_ss.add(when: 'CONFIG_SBSA_REF', if_true: files('sbsa-ref.cpp'))
 arm_common_ss.add(when: 'CONFIG_STELLARIS', if_true: files('stellaris.c'))
 arm_common_ss.add(when: 'CONFIG_STM32VLDISCOVERY', if_true: files('stm32vldiscovery.cpp'))
-arm_common_ss.add(when: 'CONFIG_ZYNQ', if_true: files('xilinx_zynq.c'))
+arm_common_ss.add(when: 'CONFIG_ZYNQ', if_true: files('xilinx_zynq.cpp'))
 arm_common_ss.add(when: 'CONFIG_SABRELITE', if_true: files('sabrelite.cpp'))
 
 arm_common_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('armv7m.cpp'))
@@ -41,7 +41,7 @@ arm_common_ss.add(when: 'CONFIG_FSL_IMX25', if_true: files('fsl-imx25.cpp', 'imx
 arm_common_ss.add(when: 'CONFIG_FSL_IMX31', if_true: files('fsl-imx31.cpp', 'kzm.cpp'))
 arm_common_ss.add(when: 'CONFIG_FSL_IMX6', if_true: files('fsl-imx6.cpp'))
 arm_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files(
-  'aspeed.c',
+  'aspeed.cpp',
   'aspeed_soc_common.cpp',
   'aspeed_ast2400.cpp',
   'aspeed_ast2400_palmetto.cpp',
@@ -102,7 +102,7 @@ arm_common_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2838_peripherals.cpp'
 arm_common_ss.add(when: 'CONFIG_STRONGARM', if_true: files('strongarm.c'))
 arm_common_ss.add(when: 'CONFIG_SX1', if_true: files('omap_sx1.cpp'))
 arm_common_ss.add(when: 'CONFIG_VERSATILE', if_true: files('versatilepb.cpp'))
-arm_common_ss.add(when: 'CONFIG_VEXPRESS', if_true: files('vexpress.c'))
+arm_common_ss.add(when: 'CONFIG_VEXPRESS', if_true: files('vexpress.cpp'))
 
 arm_common_ss.add(files('boot.cpp'))
 

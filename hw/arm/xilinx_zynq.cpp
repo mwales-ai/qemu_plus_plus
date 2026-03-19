@@ -479,8 +479,8 @@ static void zynq_machine_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo zynq_machine_type = {
     .name = TYPE_ZYNQ_MACHINE,
     .parent = TYPE_MACHINE,
-    .class_init = zynq_machine_class_init,
     .instance_size = sizeof(ZynqMachineState),
+    .class_init = zynq_machine_class_init,
     .interfaces = arm_machine_interfaces,
 };
 

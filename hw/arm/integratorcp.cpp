@@ -83,7 +83,7 @@ static const VMStateDescription vmstate_integratorcm = {
 static uint64_t integratorcm_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
-    IntegratorCMState *s = opaque;
+    IntegratorCMState *s = static_cast<IntegratorCMState *>(opaque);
     if (offset >= 0x100 && offset < 0x200) {
         /* CM_SPD */
         if (offset >= 0x180)
@@ -191,7 +191,7 @@ static void integratorcm_update(IntegratorCMState *s)
 static void integratorcm_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
-    IntegratorCMState *s = opaque;
+    IntegratorCMState *s = static_cast<IntegratorCMState *>(opaque);
     switch (offset >> 2) {
     case 2: /* CM_OSC */
         if (s->cm_lock == 0xa05f)
@@ -495,7 +495,7 @@ static const VMStateDescription vmstate_icp_control = {
 static uint64_t icp_control_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
-    ICPCtrlRegsState *s = opaque;
+    ICPCtrlRegsState *s = static_cast<ICPCtrlRegsState *>(opaque);
 
     switch (offset >> 2) {
     case 0: /* CP_IDFIELD */
@@ -516,7 +516,7 @@ static uint64_t icp_control_read(void *opaque, hwaddr offset,
 static void icp_control_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
-    ICPCtrlRegsState *s = opaque;
+    ICPCtrlRegsState *s = static_cast<ICPCtrlRegsState *>(opaque);
 
     switch (offset >> 2) {
     case 2: /* CP_INTREG */
@@ -541,7 +541,7 @@ static const MemoryRegionOps icp_control_ops = {
 
 static void icp_control_mmc_wprot(void *opaque, int line, int level)
 {
-    ICPCtrlRegsState *s = opaque;
+    ICPCtrlRegsState *s = static_cast<ICPCtrlRegsState *>(opaque);
 
     s->intreg_state &= ~ICP_INTREG_WPROT;
     if (level) {
@@ -551,7 +551,7 @@ static void icp_control_mmc_wprot(void *opaque, int line, int level)
 
 static void icp_control_mmc_cardin(void *opaque, int line, int level)
 {
-    ICPCtrlRegsState *s = opaque;
+    ICPCtrlRegsState *s = static_cast<ICPCtrlRegsState *>(opaque);
 
     /* line is released by writing to CP_INTREG */
     if (level) {

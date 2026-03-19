@@ -839,9 +839,9 @@ static void vexpress_a15_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo vexpress_info = {
     .name = TYPE_VEXPRESS_MACHINE,
     .parent = TYPE_MACHINE,
-    .is_abstract = true,
     .instance_size = sizeof(VexpressMachineState),
     .instance_init = vexpress_instance_init,
+    .is_abstract = true,
     .class_size = sizeof(VexpressMachineClass),
     .class_init = vexpress_class_init,
 };
@@ -849,16 +849,16 @@ static const TypeInfo vexpress_info = {
 static const TypeInfo vexpress_a9_info = {
     .name = TYPE_VEXPRESS_A9_MACHINE,
     .parent = TYPE_VEXPRESS_MACHINE,
-    .class_init = vexpress_a9_class_init,
     .instance_init = vexpress_a9_instance_init,
+    .class_init = vexpress_a9_class_init,
     .interfaces = arm_machine_interfaces,
 };
 
 static const TypeInfo vexpress_a15_info = {
     .name = TYPE_VEXPRESS_A15_MACHINE,
     .parent = TYPE_VEXPRESS_MACHINE,
-    .class_init = vexpress_a15_class_init,
     .instance_init = vexpress_a15_instance_init,
+    .class_init = vexpress_a15_class_init,
     .interfaces = arm_machine_interfaces,
 };
 
