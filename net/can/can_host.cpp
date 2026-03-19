@@ -85,17 +85,19 @@ static void can_host_class_init(ObjectClass *klass,
     uc_klass->complete = can_host_complete;
 }
 
+static const InterfaceInfo can_host_interfaces[] = {
+    { TYPE_USER_CREATABLE },
+    { }
+};
+
 static const TypeInfo can_host_info = {
-    .parent = TYPE_OBJECT,
     .name = TYPE_CAN_HOST,
+    .parent = TYPE_OBJECT,
     .instance_size = sizeof(CanHostState),
-    .class_size = sizeof(CanHostClass),
     .is_abstract = true,
+    .class_size = sizeof(CanHostClass),
     .class_init = can_host_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
+    .interfaces = can_host_interfaces,
 };
 
 static void can_host_register_types(void)

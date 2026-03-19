@@ -52,7 +52,7 @@ void qemu_announce_timer_del(AnnounceTimer *timer, bool free_named)
          * Sanity check: There should only be one timer on the list with
          * the id.
          */
-        list_timer = g_datalist_get_data(&named_timers, timer->params.id);
+        list_timer = static_cast<AnnounceTimer *>(g_datalist_get_data(&named_timers, timer->params.id));
         assert(timer == list_timer);
         free_timer = true;
         g_datalist_remove_data(&named_timers, timer->params.id);
@@ -135,7 +135,7 @@ static const char *qemu_ether_ntoa(const MACAddr *mac)
 
 static void qemu_announce_self_iter(NICState *nic, void *opaque)
 {
-    AnnounceTimer *timer = opaque;
+    AnnounceTimer *timer = static_cast<AnnounceTimer *>(opaque);
     uint8_t buf[60];
     int len;
     bool skip;
@@ -204,7 +204,7 @@ void qmp_announce_self(AnnounceParameters *params, Error **errp)
         params->id = g_strdup("");
     }
 
-    named_timer = g_datalist_get_data(&named_timers, params->id);
+    named_timer = static_cast<AnnounceTimer *>(g_datalist_get_data(&named_timers, params->id));
 
     if (!named_timer) {
         named_timer = g_new0(AnnounceTimer, 1);

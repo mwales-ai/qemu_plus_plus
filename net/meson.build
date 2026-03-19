@@ -1,5 +1,5 @@
 system_ss.add(files(
-  'announce.c',
+  'announce.cpp',
   'checksum.cpp',
   'dgram.cpp',
   'dump.cpp',
