@@ -435,7 +435,7 @@ static void stellaris_sys_reset_exit(Object *obj, ResetType type)
 
 static int stellaris_sys_post_load(void *opaque, int version_id)
 {
-    ssys_state *s = opaque;
+    ssys_state *s = static_cast<ssys_state *>(opaque);
 
     ssys_calculate_system_clock(s, false);
 
@@ -791,7 +791,7 @@ static void stellaris_adc_update(StellarisADCState *s)
 
 static void stellaris_adc_trigger(void *opaque, int irq, int level)
 {
-    StellarisADCState *s = opaque;
+    StellarisADCState *s = static_cast<StellarisADCState *>(opaque);
     int n;
 
     for (n = 0; n < 4; n++) {
@@ -828,7 +828,7 @@ static void stellaris_adc_reset_hold(Object *obj, ResetType type)
 static uint64_t stellaris_adc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    StellarisADCState *s = opaque;
+    StellarisADCState *s = static_cast<StellarisADCState *>(opaque);
 
     /* TODO: Implement this.  */
     if (offset >= 0x40 && offset < 0xc0) {
@@ -876,7 +876,7 @@ static uint64_t stellaris_adc_read(void *opaque, hwaddr offset,
 static void stellaris_adc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    StellarisADCState *s = opaque;
+    StellarisADCState *s = static_cast<StellarisADCState *>(opaque);
 
     /* TODO: Implement this.  */
     if (offset >= 0x40 && offset < 0xc0) {
@@ -1300,7 +1300,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
              *  - Make the ssd0323 OLED controller chipselect active-low
              */
             bus = qdev_get_child_bus(dev, "ssi");
-            sddev = ssi_create_peripheral(bus, "ssi-sd");
+            sddev = ssi_create_peripheral(static_cast<SSIBus *>(bus), "ssi-sd");
 
             dinfo = drive_get(IF_SD, 0, 0);
             blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
@@ -1313,7 +1313,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             ssddev = qdev_new("ssd0323");
             object_property_add_child(OBJECT(ms), "oled", OBJECT(ssddev));
             qdev_prop_set_uint8(ssddev, "cs", 1);
-            qdev_realize_and_unref(ssddev, bus, &error_fatal);
+            qdev_realize_and_unref(ssddev, static_cast<BusState *>(bus), &error_fatal);
 
             gpio_d_splitter = qdev_new(TYPE_SPLIT_IRQ);
             object_property_add_child(OBJECT(ms), "splitter",

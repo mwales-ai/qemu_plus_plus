@@ -155,7 +155,7 @@ static inline void set_lcd_pixel32(musicpal_lcd_state *s,
 
 static void lcd_refresh(void *opaque)
 {
-    musicpal_lcd_state *s = opaque;
+    musicpal_lcd_state *s = static_cast<musicpal_lcd_state *>(opaque);
     int x, y, col;
 
     col = rgb_to_pixel32(scale_lcd_color(s, (MP_LCD_TEXTCOLOR >> 16) & 0xff),
@@ -180,7 +180,7 @@ static void lcd_invalidate(void *opaque)
 
 static void musicpal_lcd_gpio_brightness_in(void *opaque, int irq, int level)
 {
-    musicpal_lcd_state *s = opaque;
+    musicpal_lcd_state *s = static_cast<musicpal_lcd_state *>(opaque);
     s->brightness &= ~(1 << irq);
     s->brightness |= level << irq;
 }
@@ -188,7 +188,7 @@ static void musicpal_lcd_gpio_brightness_in(void *opaque, int irq, int level)
 static uint64_t musicpal_lcd_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
-    musicpal_lcd_state *s = opaque;
+    musicpal_lcd_state *s = static_cast<musicpal_lcd_state *>(opaque);
 
     switch (offset) {
     case MP_LCD_IRQCTRL:
@@ -202,7 +202,7 @@ static uint64_t musicpal_lcd_read(void *opaque, hwaddr offset,
 static void musicpal_lcd_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
-    musicpal_lcd_state *s = opaque;
+    musicpal_lcd_state *s = static_cast<musicpal_lcd_state *>(opaque);
 
     switch (offset) {
     case MP_LCD_IRQCTRL:
@@ -272,19 +272,21 @@ static void musicpal_lcd_init(Object *obj)
     qdev_init_gpio_in(dev, musicpal_lcd_gpio_brightness_in, 3);
 }
 
+static const VMStateField musicpal_lcd_vmsd_fields[] = {
+    VMSTATE_UINT32(brightness, musicpal_lcd_state),
+    VMSTATE_UINT32(mode, musicpal_lcd_state),
+    VMSTATE_UINT32(irqctrl, musicpal_lcd_state),
+    VMSTATE_UINT32(page, musicpal_lcd_state),
+    VMSTATE_UINT32(page_off, musicpal_lcd_state),
+    VMSTATE_BUFFER(video_ram, musicpal_lcd_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription musicpal_lcd_vmsd = {
     .name = "musicpal_lcd",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(brightness, musicpal_lcd_state),
-        VMSTATE_UINT32(mode, musicpal_lcd_state),
-        VMSTATE_UINT32(irqctrl, musicpal_lcd_state),
-        VMSTATE_UINT32(page, musicpal_lcd_state),
-        VMSTATE_UINT32(page_off, musicpal_lcd_state),
-        VMSTATE_BUFFER(video_ram, musicpal_lcd_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = musicpal_lcd_vmsd_fields,
 };
 
 static void musicpal_lcd_class_init(ObjectClass *klass, const void *data)
@@ -329,7 +331,7 @@ static void mv88w8618_pic_update(mv88w8618_pic_state *s)
 
 static void mv88w8618_pic_set_irq(void *opaque, int irq, int level)
 {
-    mv88w8618_pic_state *s = opaque;
+    mv88w8618_pic_state *s = static_cast<mv88w8618_pic_state *>(opaque);
 
     if (level) {
         s->level |= 1 << irq;
@@ -342,7 +344,7 @@ static void mv88w8618_pic_set_irq(void *opaque, int irq, int level)
 static uint64_t mv88w8618_pic_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    mv88w8618_pic_state *s = opaque;
+    mv88w8618_pic_state *s = static_cast<mv88w8618_pic_state *>(opaque);
 
     switch (offset) {
     case MP_PIC_STATUS:
@@ -356,7 +358,7 @@ static uint64_t mv88w8618_pic_read(void *opaque, hwaddr offset,
 static void mv88w8618_pic_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    mv88w8618_pic_state *s = opaque;
+    mv88w8618_pic_state *s = static_cast<mv88w8618_pic_state *>(opaque);
 
     switch (offset) {
     case MP_PIC_ENABLE_SET:
@@ -397,15 +399,17 @@ static void mv88w8618_pic_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
+static const VMStateField mv88w8618_pic_vmsd_fields[] = {
+    VMSTATE_UINT32(level, mv88w8618_pic_state),
+    VMSTATE_UINT32(enabled, mv88w8618_pic_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription mv88w8618_pic_vmsd = {
     .name = "mv88w8618_pic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(level, mv88w8618_pic_state),
-        VMSTATE_UINT32(enabled, mv88w8618_pic_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = mv88w8618_pic_vmsd_fields,
 };
 
 static void mv88w8618_pic_class_init(ObjectClass *klass, const void *data)
@@ -458,7 +462,7 @@ struct mv88w8618_pit_state {
 
 static void mv88w8618_timer_tick(void *opaque)
 {
-    mv88w8618_timer_state *s = opaque;
+    mv88w8618_timer_state *s = static_cast<mv88w8618_timer_state *>(opaque);
 
     qemu_irq_raise(s->irq);
 }
@@ -475,7 +479,7 @@ static void mv88w8618_timer_init(SysBusDevice *dev, mv88w8618_timer_state *s,
 static uint64_t mv88w8618_pit_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    mv88w8618_pit_state *s = opaque;
+    mv88w8618_pit_state *s = static_cast<mv88w8618_pit_state *>(opaque);
     mv88w8618_timer_state *t;
 
     switch (offset) {
@@ -491,7 +495,7 @@ static uint64_t mv88w8618_pit_read(void *opaque, hwaddr offset,
 static void mv88w8618_pit_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    mv88w8618_pit_state *s = opaque;
+    mv88w8618_pit_state *s = static_cast<mv88w8618_pit_state *>(opaque);
     mv88w8618_timer_state *t;
     int i;
 
@@ -580,26 +584,30 @@ static void mv88w8618_pit_finalize(Object *obj)
     }
 }
 
+static const VMStateField mv88w8618_timer_vmsd_fields[] = {
+    VMSTATE_PTIMER(ptimer, mv88w8618_timer_state),
+    VMSTATE_UINT32(limit, mv88w8618_timer_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription mv88w8618_timer_vmsd = {
     .name = "timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PTIMER(ptimer, mv88w8618_timer_state),
-        VMSTATE_UINT32(limit, mv88w8618_timer_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = mv88w8618_timer_vmsd_fields,
+};
+
+static const VMStateField mv88w8618_pit_vmsd_fields[] = {
+    VMSTATE_STRUCT_ARRAY(timer, mv88w8618_pit_state, 4, 1,
+                         mv88w8618_timer_vmsd, mv88w8618_timer_state),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription mv88w8618_pit_vmsd = {
     .name = "mv88w8618_pit",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(timer, mv88w8618_pit_state, 4, 1,
-                             mv88w8618_timer_vmsd, mv88w8618_timer_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = mv88w8618_pit_vmsd_fields,
 };
 
 static void mv88w8618_pit_class_init(ObjectClass *klass, const void *data)
@@ -638,7 +646,7 @@ static uint64_t mv88w8618_flashcfg_read(void *opaque,
                                         hwaddr offset,
                                         unsigned size)
 {
-    mv88w8618_flashcfg_state *s = opaque;
+    mv88w8618_flashcfg_state *s = static_cast<mv88w8618_flashcfg_state *>(opaque);
 
     switch (offset) {
     case MP_FLASHCFG_CFGR0:
@@ -652,7 +660,7 @@ static uint64_t mv88w8618_flashcfg_read(void *opaque,
 static void mv88w8618_flashcfg_write(void *opaque, hwaddr offset,
                                      uint64_t value, unsigned size)
 {
-    mv88w8618_flashcfg_state *s = opaque;
+    mv88w8618_flashcfg_state *s = static_cast<mv88w8618_flashcfg_state *>(opaque);
 
     switch (offset) {
     case MP_FLASHCFG_CFGR0:
@@ -678,14 +686,16 @@ static void mv88w8618_flashcfg_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
+static const VMStateField mv88w8618_flashcfg_vmsd_fields[] = {
+    VMSTATE_UINT32(cfgr0, mv88w8618_flashcfg_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription mv88w8618_flashcfg_vmsd = {
     .name = "mv88w8618_flashcfg",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cfgr0, mv88w8618_flashcfg_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = mv88w8618_flashcfg_vmsd_fields,
 };
 
 static void mv88w8618_flashcfg_class_init(ObjectClass *klass, const void *data)
@@ -752,8 +762,8 @@ static void musicpal_misc_init(Object *obj)
 static const TypeInfo musicpal_misc_info = {
     .name = TYPE_MUSICPAL_MISC,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = musicpal_misc_init,
     .instance_size = sizeof(MusicPalMiscState),
+    .instance_init = musicpal_misc_init,
 };
 
 /* WLAN register offsets */
@@ -884,7 +894,7 @@ static void musicpal_gpio_brightness_update(musicpal_gpio_state *s) {
 
 static void musicpal_gpio_pin_event(void *opaque, int pin, int level)
 {
-    musicpal_gpio_state *s = opaque;
+    musicpal_gpio_state *s = static_cast<musicpal_gpio_state *>(opaque);
     uint32_t mask = 1 << pin;
     uint32_t delta = level << pin;
     uint32_t old = s->in_state & mask;
@@ -902,7 +912,7 @@ static void musicpal_gpio_pin_event(void *opaque, int pin, int level)
 static uint64_t musicpal_gpio_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    musicpal_gpio_state *s = opaque;
+    musicpal_gpio_state *s = static_cast<musicpal_gpio_state *>(opaque);
 
     switch (offset) {
     case MP_GPIO_OE_HI: /* used for LCD brightness control */
@@ -941,7 +951,7 @@ static uint64_t musicpal_gpio_read(void *opaque, hwaddr offset,
 static void musicpal_gpio_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    musicpal_gpio_state *s = opaque;
+    musicpal_gpio_state *s = static_cast<musicpal_gpio_state *>(opaque);
     switch (offset) {
     case MP_GPIO_OE_HI: /* used for LCD brightness control */
         s->lcd_brightness = (s->lcd_brightness & MP_GPIO_LCD_BRIGHTNESS) |
@@ -1012,19 +1022,21 @@ static void musicpal_gpio_init(Object *obj)
     qdev_init_gpio_in(dev, musicpal_gpio_pin_event, 32);
 }
 
+static const VMStateField musicpal_gpio_vmsd_fields[] = {
+    VMSTATE_UINT32(lcd_brightness, musicpal_gpio_state),
+    VMSTATE_UINT32(out_state, musicpal_gpio_state),
+    VMSTATE_UINT32(in_state, musicpal_gpio_state),
+    VMSTATE_UINT32(ier, musicpal_gpio_state),
+    VMSTATE_UINT32(imr, musicpal_gpio_state),
+    VMSTATE_UINT32(isr, musicpal_gpio_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription musicpal_gpio_vmsd = {
     .name = "musicpal_gpio",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(lcd_brightness, musicpal_gpio_state),
-        VMSTATE_UINT32(out_state, musicpal_gpio_state),
-        VMSTATE_UINT32(in_state, musicpal_gpio_state),
-        VMSTATE_UINT32(ier, musicpal_gpio_state),
-        VMSTATE_UINT32(imr, musicpal_gpio_state),
-        VMSTATE_UINT32(isr, musicpal_gpio_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = musicpal_gpio_vmsd_fields,
 };
 
 static void musicpal_gpio_class_init(ObjectClass *klass, const void *data)
@@ -1162,14 +1174,16 @@ static void musicpal_key_realize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &musicpal_key_handler);
 }
 
+static const VMStateField musicpal_key_vmsd_fields[] = {
+    VMSTATE_UINT32(pressed_keys, musicpal_key_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription musicpal_key_vmsd = {
     .name = "musicpal_key",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(pressed_keys, musicpal_key_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = musicpal_key_vmsd_fields,
 };
 
 static void musicpal_key_class_init(ObjectClass *klass, const void *data)

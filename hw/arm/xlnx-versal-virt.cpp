@@ -333,7 +333,8 @@ static void versal_virt_machine_instance_init(Object *obj)
 
         object_property_add_link(obj, prop_name, TYPE_CAN_BUS,
                                  (Object **) &s->canbus[i],
-                                 object_property_allow_set_link, 0);
+                                 object_property_allow_set_link,
+                                 static_cast<ObjectPropertyLinkFlags>(0));
     }
 }
 
@@ -391,11 +392,11 @@ static void versal2_virt_machine_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo versal_virt_base_machine_init_typeinfo = {
     .name       = TYPE_XLNX_VERSAL_VIRT_BASE_MACHINE,
     .parent     = TYPE_MACHINE,
-    .class_size = sizeof(VersalVirtClass),
-    .instance_init = versal_virt_machine_instance_init,
     .instance_size = sizeof(VersalVirt),
+    .instance_init = versal_virt_machine_instance_init,
     .instance_finalize = versal_virt_machine_finalize,
     .is_abstract = true,
+    .class_size = sizeof(VersalVirtClass),
 };
 
 static const TypeInfo versal_virt_machine_init_typeinfo = {

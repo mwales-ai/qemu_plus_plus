@@ -105,7 +105,7 @@ struct StrongARMPICState {
 
 static void strongarm_pic_update(void *opaque)
 {
-    StrongARMPICState *s = opaque;
+    StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
 
     /* FIXME: reflect DIM */
     qemu_set_irq(s->fiq, s->pending & s->enabled &  s->is_fiq);
@@ -114,7 +114,7 @@ static void strongarm_pic_update(void *opaque)
 
 static void strongarm_pic_set_irq(void *opaque, int irq, int level)
 {
-    StrongARMPICState *s = opaque;
+    StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
 
     if (level) {
         s->pending |= 1 << irq;
@@ -128,7 +128,7 @@ static void strongarm_pic_set_irq(void *opaque, int irq, int level)
 static uint64_t strongarm_pic_mem_read(void *opaque, hwaddr offset,
                                        unsigned size)
 {
-    StrongARMPICState *s = opaque;
+    StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
 
     switch (offset) {
     case ICIP:
@@ -154,7 +154,7 @@ static uint64_t strongarm_pic_mem_read(void *opaque, hwaddr offset,
 static void strongarm_pic_mem_write(void *opaque, hwaddr offset,
                                     uint64_t value, unsigned size)
 {
-    StrongARMPICState *s = opaque;
+    StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
 
     switch (offset) {
     case ICMR:
@@ -297,7 +297,7 @@ static inline void strongarm_rtc_timer_update(StrongARMRTCState *s)
 
 static inline void strongarm_rtc_alarm_tick(void *opaque)
 {
-    StrongARMRTCState *s = opaque;
+    StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
     s->rtsr |= RTSR_AL;
     strongarm_rtc_timer_update(s);
     strongarm_rtc_int_update(s);
@@ -305,7 +305,7 @@ static inline void strongarm_rtc_alarm_tick(void *opaque)
 
 static inline void strongarm_rtc_hz_tick(void *opaque)
 {
-    StrongARMRTCState *s = opaque;
+    StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
     s->rtsr |= RTSR_HZ;
     strongarm_rtc_timer_update(s);
     strongarm_rtc_int_update(s);
@@ -314,7 +314,7 @@ static inline void strongarm_rtc_hz_tick(void *opaque)
 static uint64_t strongarm_rtc_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    StrongARMRTCState *s = opaque;
+    StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
 
     switch (addr) {
     case RTTR:
@@ -338,7 +338,7 @@ static uint64_t strongarm_rtc_read(void *opaque, hwaddr addr,
 static void strongarm_rtc_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    StrongARMRTCState *s = opaque;
+    StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
     uint32_t old_rtsr;
 
     switch (addr) {
@@ -415,7 +415,7 @@ static void strongarm_rtc_realize(DeviceState *dev, Error **errp)
 
 static int strongarm_rtc_pre_save(void *opaque)
 {
-    StrongARMRTCState *s = opaque;
+    StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
 
     strongarm_rtc_hzupdate(s);
 
@@ -424,7 +424,7 @@ static int strongarm_rtc_pre_save(void *opaque)
 
 static int strongarm_rtc_post_load(void *opaque, int version_id)
 {
-    StrongARMRTCState *s = opaque;
+    StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
 
     strongarm_rtc_timer_update(s);
     strongarm_rtc_int_update(s);
@@ -436,8 +436,8 @@ static const VMStateDescription vmstate_strongarm_rtc_regs = {
     .name = "strongarm-rtc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .pre_save = strongarm_rtc_pre_save,
     .post_load = strongarm_rtc_post_load,
+    .pre_save = strongarm_rtc_pre_save,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(rttr, StrongARMRTCState),
         VMSTATE_UINT32(rtsr, StrongARMRTCState),
@@ -510,7 +510,7 @@ static void strongarm_gpio_irq_update(StrongARMGPIOInfo *s)
 
 static void strongarm_gpio_set(void *opaque, int line, int level)
 {
-    StrongARMGPIOInfo *s = opaque;
+    StrongARMGPIOInfo *s = static_cast<StrongARMGPIOInfo *>(opaque);
     uint32_t mask;
 
     mask = 1 << line;
@@ -548,7 +548,7 @@ static void strongarm_gpio_handler_update(StrongARMGPIOInfo *s)
 static uint64_t strongarm_gpio_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
-    StrongARMGPIOInfo *s = opaque;
+    StrongARMGPIOInfo *s = static_cast<StrongARMGPIOInfo *>(opaque);
 
     switch (offset) {
     case GPDR:        /* GPIO Pin-Direction registers */
@@ -592,7 +592,7 @@ static uint64_t strongarm_gpio_read(void *opaque, hwaddr offset,
 static void strongarm_gpio_write(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
-    StrongARMGPIOInfo *s = opaque;
+    StrongARMGPIOInfo *s = static_cast<StrongARMGPIOInfo *>(opaque);
 
     switch (offset) {
     case GPDR:        /* GPIO Pin-Direction registers */
@@ -738,7 +738,7 @@ struct StrongARMPPCInfo {
 
 static void strongarm_ppc_set(void *opaque, int line, int level)
 {
-    StrongARMPPCInfo *s = opaque;
+    StrongARMPPCInfo *s = static_cast<StrongARMPPCInfo *>(opaque);
 
     if (level) {
         s->ilevel |= 1 << line;
@@ -765,7 +765,7 @@ static void strongarm_ppc_handler_update(StrongARMPPCInfo *s)
 static uint64_t strongarm_ppc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    StrongARMPPCInfo *s = opaque;
+    StrongARMPPCInfo *s = static_cast<StrongARMPPCInfo *>(opaque);
 
     switch (offset) {
     case PPDR:        /* PPC Pin Direction registers */
@@ -797,7 +797,7 @@ static uint64_t strongarm_ppc_read(void *opaque, hwaddr offset,
 static void strongarm_ppc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    StrongARMPPCInfo *s = opaque;
+    StrongARMPPCInfo *s = static_cast<StrongARMPPCInfo *>(opaque);
 
     switch (offset) {
     case PPDR:        /* PPC Pin Direction registers */
@@ -1048,7 +1048,7 @@ static void strongarm_uart_update_parameters(StrongARMUARTState *s)
 
 static void strongarm_uart_rx_to(void *opaque)
 {
-    StrongARMUARTState *s = opaque;
+    StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
 
     if (s->rx_len) {
         s->utsr0 |= UTSR0_RID;
@@ -1077,7 +1077,7 @@ static void strongarm_uart_rx_push(StrongARMUARTState *s, uint16_t c)
 
 static int strongarm_uart_can_receive(void *opaque)
 {
-    StrongARMUARTState *s = opaque;
+    StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
 
     if (s->rx_len == 12) {
         return 0;
@@ -1091,7 +1091,7 @@ static int strongarm_uart_can_receive(void *opaque)
 
 static void strongarm_uart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    StrongARMUARTState *s = opaque;
+    StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
     int i;
 
     for (i = 0; i < size; i++) {
@@ -1108,7 +1108,7 @@ static void strongarm_uart_receive(void *opaque, const uint8_t *buf, int size)
 
 static void strongarm_uart_event(void *opaque, QEMUChrEvent event)
 {
-    StrongARMUARTState *s = opaque;
+    StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
     if (event == CHR_EVENT_BREAK) {
         s->utsr0 |= UTSR0_RBB;
         strongarm_uart_rx_push(s, RX_FIFO_FRE);
@@ -1120,7 +1120,7 @@ static void strongarm_uart_event(void *opaque, QEMUChrEvent event)
 
 static void strongarm_uart_tx(void *opaque)
 {
-    StrongARMUARTState *s = opaque;
+    StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
     uint64_t new_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     if (s->utcr3 & UTCR3_LBM) /* loopback */ {
@@ -1143,7 +1143,7 @@ static void strongarm_uart_tx(void *opaque)
 static uint64_t strongarm_uart_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-    StrongARMUARTState *s = opaque;
+    StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
     uint16_t ret;
 
     switch (addr) {
@@ -1187,7 +1187,7 @@ static uint64_t strongarm_uart_read(void *opaque, hwaddr addr,
 static void strongarm_uart_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
-    StrongARMUARTState *s = opaque;
+    StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
 
     switch (addr) {
     case UTCR0:
@@ -1292,7 +1292,7 @@ static void strongarm_uart_reset(DeviceState *dev)
 
 static int strongarm_uart_post_load(void *opaque, int version_id)
 {
-    StrongARMUARTState *s = opaque;
+    StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
 
     strongarm_uart_update_parameters(s);
     strongarm_uart_update_status(s);
@@ -1435,7 +1435,7 @@ static void strongarm_ssp_fifo_update(StrongARMSSPState *s)
 static uint64_t strongarm_ssp_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    StrongARMSSPState *s = opaque;
+    StrongARMSSPState *s = static_cast<StrongARMSSPState *>(opaque);
     uint32_t retval;
 
     switch (addr) {
@@ -1470,7 +1470,7 @@ static uint64_t strongarm_ssp_read(void *opaque, hwaddr addr,
 static void strongarm_ssp_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    StrongARMSSPState *s = opaque;
+    StrongARMSSPState *s = static_cast<StrongARMSSPState *>(opaque);
 
     switch (addr) {
     case SSCR0:
@@ -1544,7 +1544,7 @@ static const MemoryRegionOps strongarm_ssp_ops = {
 
 static int strongarm_ssp_post_load(void *opaque, int version_id)
 {
-    StrongARMSSPState *s = opaque;
+    StrongARMSSPState *s = static_cast<StrongARMSSPState *>(opaque);
 
     strongarm_ssp_fifo_update(s);
 
