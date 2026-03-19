@@ -20,7 +20,7 @@ i386_ss.add(when: 'CONFIG_NITRO_ENCLAVE', if_true: files('nitro_enclave.cpp'))
 i386_ss.add(when: 'CONFIG_Q35', if_true: files('pc_q35.cpp'))
 i386_ss.add(when: 'CONFIG_VMMOUSE', if_true: files('vmmouse.cpp'))
 i386_ss.add(when: 'CONFIG_VMPORT', if_true: files('vmport.cpp'))
-i386_ss.add(when: 'CONFIG_VTD', if_true: files('intel_iommu.c'))
+i386_ss.add(when: 'CONFIG_VTD', if_true: files('intel_iommu.cpp'))
 i386_ss.add(when: 'CONFIG_SGX', if_true: files('sgx-epc.cpp','sgx.cpp'),
                                 if_false: files('sgx-stub.cpp'))
 
