@@ -323,11 +323,20 @@ G_NORETURN void raise_exception_ra(CPUARMState *env, uint32_t excp,
  */
 static inline unsigned int aarch64_banked_spsr_index(unsigned int el)
 {
+#ifdef __cplusplus
+    static const unsigned int map[4] = {
+        0,        /* EL0 unused */
+        BANK_SVC, /* EL1.  */
+        BANK_HYP, /* EL2.  */
+        BANK_MON, /* EL3.  */
+    };
+#else
     static const unsigned int map[4] = {
         [1] = BANK_SVC, /* EL1.  */
         [2] = BANK_HYP, /* EL2.  */
         [3] = BANK_MON, /* EL3.  */
     };
+#endif
     assert(el >= 1 && el <= 3);
     return map[el];
 }
@@ -597,6 +606,9 @@ static inline void update_spsel(CPUARMState *env, uint32_t imm)
  * Returns the implementation defined bit-width of physical addresses.
  * The ARMv8 reference manuals refer to this as PAMax().
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 unsigned int arm_pamax(ARMCPU *cpu);
 
 /*
@@ -977,16 +989,16 @@ static inline int arm_to_core_mmu_idx(ARMMMUIdx mmu_idx)
 static inline ARMMMUIdx core_to_arm_mmu_idx(CPUARMState *env, int mmu_idx)
 {
     if (arm_feature(env, ARM_FEATURE_M)) {
-        return mmu_idx | ARM_MMU_IDX_M;
+        return (ARMMMUIdx)(mmu_idx | ARM_MMU_IDX_M);
     } else {
-        return mmu_idx | ARM_MMU_IDX_A;
+        return (ARMMMUIdx)(mmu_idx | ARM_MMU_IDX_A);
     }
 }
 
 static inline ARMMMUIdx core_to_aa64_mmu_idx(int mmu_idx)
 {
     /* AArch64 is always a-profile. */
-    return mmu_idx | ARM_MMU_IDX_A;
+    return (ARMMMUIdx)(mmu_idx | ARM_MMU_IDX_A);
 }
 
 /* Return the MMU index for a v7M CPU in the specified security state */

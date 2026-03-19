@@ -14,6 +14,10 @@
 #include "system/kvm.h"
 #include "target/arm/cpu-qom.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define KVM_ARM_VGIC_V2   (1 << 0)
 #define KVM_ARM_VGIC_V3   (1 << 1)
 
@@ -262,5 +266,9 @@ int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 void kvm_arm_enable_mte(Object *cpuobj, Error **errp);
 
 void arm_cpu_kvm_set_irq(void *arm_cpu, int irq, int level);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -32,6 +32,15 @@
  * builds the parent platform bus node and all the nodes of dynamic
  * sysbus devices attached to it.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void platform_bus_add_all_fdt_nodes(void *fdt, const char *intc, hwaddr addr,
                                     hwaddr bus_size, int irq_start);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

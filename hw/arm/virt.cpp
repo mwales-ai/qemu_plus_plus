@@ -168,42 +168,46 @@ static void arm_virt_compat_set(MachineClass *mc)
  * Note that devices should generally be placed at multiples of 0x10000,
  * to accommodate guests using 64K pages.
  */
-static const MemMapEntry base_memmap[] = {
+static MemMapEntry base_memmap[VIRT_LOWMEMMAP_LAST];
+
+__attribute__((constructor))
+static void init_base_memmap(void)
+{
     /* Space up to 0x8000000 is reserved for a boot ROM */
-    [VIRT_FLASH] =              {          0, 0x08000000 },
-    [VIRT_CPUPERIPHS] =         { 0x08000000, 0x00020000 },
+    base_memmap[VIRT_FLASH]        = {          0, 0x08000000 };
+    base_memmap[VIRT_MEM]          = { GiB, LEGACY_RAMLIMIT_BYTES };
+    base_memmap[VIRT_CPUPERIPHS]   = { 0x08000000, 0x00020000 };
     /* GIC distributor and CPU interfaces sit inside the CPU peripheral space */
-    [VIRT_GIC_DIST] =           { 0x08000000, 0x00010000 },
-    [VIRT_GIC_CPU] =            { 0x08010000, 0x00010000 },
-    [VIRT_GIC_V2M] =            { 0x08020000, 0x00001000 },
-    [VIRT_GIC_HYP] =            { 0x08030000, 0x00010000 },
-    [VIRT_GIC_VCPU] =           { 0x08040000, 0x00010000 },
+    base_memmap[VIRT_GIC_DIST]     = { 0x08000000, 0x00010000 };
+    base_memmap[VIRT_GIC_CPU]      = { 0x08010000, 0x00010000 };
+    base_memmap[VIRT_GIC_V2M]      = { 0x08020000, 0x00001000 };
+    base_memmap[VIRT_GIC_HYP]      = { 0x08030000, 0x00010000 };
+    base_memmap[VIRT_GIC_VCPU]     = { 0x08040000, 0x00010000 };
     /* The space in between here is reserved for GICv3 CPU/vCPU/HYP */
-    [VIRT_GIC_ITS] =            { 0x08080000, 0x00020000 },
+    base_memmap[VIRT_GIC_ITS]      = { 0x08080000, 0x00020000 };
     /* This redistributor space allows up to 2*64kB*123 CPUs */
-    [VIRT_GIC_REDIST] =         { 0x080A0000, 0x00F60000 },
-    [VIRT_UART0] =              { 0x09000000, 0x00001000 },
-    [VIRT_RTC] =                { 0x09010000, 0x00001000 },
-    [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
-    [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
-    [VIRT_UART1] =              { 0x09040000, 0x00001000 },
-    [VIRT_SMMU] =               { 0x09050000, SMMU_IO_LEN },
-    [VIRT_PCDIMM_ACPI] =        { 0x09070000, MEMORY_HOTPLUG_IO_LEN },
-    [VIRT_ACPI_GED] =           { 0x09080000, ACPI_GED_EVT_SEL_LEN },
-    [VIRT_NVDIMM_ACPI] =        { 0x09090000, NVDIMM_ACPI_IO_LEN},
-    [VIRT_PVTIME] =             { 0x090a0000, 0x00010000 },
-    [VIRT_SECURE_GPIO] =        { 0x090b0000, 0x00001000 },
-    [VIRT_ACPI_PCIHP] =         { 0x090c0000, ACPI_PCIHP_SIZE },
-    [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
+    base_memmap[VIRT_GIC_REDIST]   = { 0x080A0000, 0x00F60000 };
+    base_memmap[VIRT_SMMU]         = { 0x09050000, SMMU_IO_LEN };
+    base_memmap[VIRT_UART0]        = { 0x09000000, 0x00001000 };
+    base_memmap[VIRT_MMIO]         = { 0x0a000000, 0x00000200 };
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
-    [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
-    [VIRT_SECURE_MEM] =         { 0x0e000000, 0x01000000 },
-    [VIRT_PCIE_MMIO] =          { 0x10000000, 0x2eff0000 },
-    [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
-    [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
+    base_memmap[VIRT_RTC]          = { 0x09010000, 0x00001000 };
+    base_memmap[VIRT_FW_CFG]       = { 0x09020000, 0x00000018 };
+    base_memmap[VIRT_PCIE_MMIO]    = { 0x10000000, 0x2eff0000 };
+    base_memmap[VIRT_PCIE_PIO]     = { 0x3eff0000, 0x00010000 };
+    base_memmap[VIRT_PCIE_ECAM]    = { 0x3f000000, 0x01000000 };
+    base_memmap[VIRT_PLATFORM_BUS] = { 0x0c000000, 0x02000000 };
+    base_memmap[VIRT_GPIO]         = { 0x09030000, 0x00001000 };
+    base_memmap[VIRT_UART1]        = { 0x09040000, 0x00001000 };
+    base_memmap[VIRT_SECURE_MEM]   = { 0x0e000000, 0x01000000 };
+    base_memmap[VIRT_SECURE_GPIO]  = { 0x090b0000, 0x00001000 };
+    base_memmap[VIRT_PCDIMM_ACPI]  = { 0x09070000, MEMORY_HOTPLUG_IO_LEN };
+    base_memmap[VIRT_ACPI_GED]     = { 0x09080000, ACPI_GED_EVT_SEL_LEN };
+    base_memmap[VIRT_NVDIMM_ACPI]  = { 0x09090000, NVDIMM_ACPI_IO_LEN };
+    base_memmap[VIRT_PVTIME]       = { 0x090a0000, 0x00010000 };
+    base_memmap[VIRT_ACPI_PCIHP]   = { 0x090c0000, ACPI_PCIHP_SIZE };
     /* Actual RAM size depends on initial RAM and device memory settings */
-    [VIRT_MEM] =                { GiB, LEGACY_RAMLIMIT_BYTES },
-};
+}
 
 /* Update the docs for highmem-mmio-size when changing this default */
 #define DEFAULT_HIGH_PCIE_MMIO_SIZE_GB 512
@@ -228,28 +232,36 @@ static const MemMapEntry base_memmap[] = {
  * Note that the highmem-mmio-size property will update the high PCIE MMIO size
  * field in this array.
  */
-static MemMapEntry extended_memmap[] = {
-    /* Additional 64 MB redist region (can contain up to 512 redistributors) */
-    [VIRT_HIGH_GIC_REDIST2] =   { 0x0, 64 * MiB },
-    [VIRT_CXL_HOST] =           { 0x0, 64 * KiB * 16 }, /* 16 UID */
-    [VIRT_HIGH_PCIE_ECAM] =     { 0x0, 256 * MiB },
-    /* Second PCIe window */
-    [VIRT_HIGH_PCIE_MMIO] =     { 0x0, DEFAULT_HIGH_PCIE_MMIO_SIZE },
-    /* Any CXL Fixed memory windows come here */
-};
+static MemMapEntry extended_memmap[VIRT_HIGH_PCIE_MMIO + 1];
 
-static const int a15irqmap[] = {
-    [VIRT_UART0] = 1,
-    [VIRT_RTC] = 2,
-    [VIRT_PCIE] = 3, /* ... to 6 */
-    [VIRT_GPIO] = 7,
-    [VIRT_UART1] = 8,
-    [VIRT_ACPI_GED] = 9,
-    [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
-    [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
-    [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
-    [VIRT_PLATFORM_BUS] = 112, /* ...to 112 + PLATFORM_BUS_NUM_IRQS -1 */
-};
+__attribute__((constructor))
+static void init_extended_memmap(void)
+{
+    /* Additional 64 MB redist region (can contain up to 512 redistributors) */
+    extended_memmap[VIRT_HIGH_GIC_REDIST2] = { 0x0, 64 * MiB };
+    extended_memmap[VIRT_CXL_HOST]         = { 0x0, 64 * KiB * 16 }; /* 16 UID */
+    extended_memmap[VIRT_HIGH_PCIE_ECAM]   = { 0x0, 256 * MiB };
+    /* Second PCIe window */
+    extended_memmap[VIRT_HIGH_PCIE_MMIO]   = { 0x0, DEFAULT_HIGH_PCIE_MMIO_SIZE };
+    /* Any CXL Fixed memory windows come here */
+}
+
+static int a15irqmap[VIRT_LOWMEMMAP_LAST];
+
+__attribute__((constructor))
+static void init_a15irqmap(void)
+{
+    a15irqmap[VIRT_UART0]        = 1;
+    a15irqmap[VIRT_RTC]          = 2;
+    a15irqmap[VIRT_PCIE]         = 3; /* ... to 6 */
+    a15irqmap[VIRT_GPIO]         = 7;
+    a15irqmap[VIRT_UART1]        = 8;
+    a15irqmap[VIRT_ACPI_GED]     = 9;
+    a15irqmap[VIRT_MMIO]         = 16; /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
+    a15irqmap[VIRT_GIC_V2M]      = 48; /* ...to 48 + NUM_GICV2M_SPIS - 1 */
+    a15irqmap[VIRT_SMMU]         = 74; /* ...to 74 + NUM_SMMU_IRQS - 1 */
+    a15irqmap[VIRT_PLATFORM_BUS] = 112; /* ...to 112 + PLATFORM_BUS_NUM_IRQS -1 */
+}
 
 static void create_randomness(MachineState *ms, const char *node)
 {
@@ -340,7 +352,7 @@ static void create_fdt(VirtMachineState *vms)
 
     if (nb_numa_nodes > 0 && ms->numa_state->have_numa_distance) {
         int size = nb_numa_nodes * nb_numa_nodes * 3 * sizeof(uint32_t);
-        uint32_t *matrix = g_malloc0(size);
+        uint32_t *matrix = static_cast<uint32_t *>(g_malloc0(size));
         int idx, i, j;
 
         for (i = 0; i < nb_numa_nodes; i++) {
@@ -1055,7 +1067,7 @@ static void virt_powerdown_req(Notifier *n, void *opaque)
 
 static void virt_generic_error_req(Notifier *n, void *opaque)
 {
-    uint16_t *source_id = opaque;
+    uint16_t *source_id = static_cast<uint16_t *>(opaque);
 
     /* Currently, only QMP source ID is async */
     if (*source_id != ACPI_HEST_SRC_ID_QMP) {
@@ -1167,9 +1179,9 @@ static void create_gpio_devices(const VirtMachineState *vms, int gpio,
 
     /* Child gpio devices */
     if (gpio == VIRT_GPIO) {
-        create_gpio_keys(ms->fdt, pl061_dev, phandle);
+        create_gpio_keys(static_cast<char *>(ms->fdt), pl061_dev, phandle);
     } else {
-        create_secure_gpio_pwr(ms->fdt, pl061_dev, phandle);
+        create_secure_gpio_pwr(static_cast<char *>(ms->fdt), pl061_dev, phandle);
     }
 }
 
@@ -2538,11 +2550,10 @@ static void machvirt_init(MachineState *machine)
     create_platform_bus(vms);
 
     if (machine->nvdimms_state->is_enabled) {
-        const struct AcpiGenericAddress arm_virt_nvdimm_acpi_dsmio = {
-            .space_id = AML_AS_SYSTEM_MEMORY,
-            .address = vms->memmap[VIRT_NVDIMM_ACPI].base,
-            .bit_width = NVDIMM_ACPI_IO_LEN << 3
-        };
+        struct AcpiGenericAddress arm_virt_nvdimm_acpi_dsmio = {};
+        arm_virt_nvdimm_acpi_dsmio.space_id = AML_AS_SYSTEM_MEMORY;
+        arm_virt_nvdimm_acpi_dsmio.bit_width = NVDIMM_ACPI_IO_LEN << 3;
+        arm_virt_nvdimm_acpi_dsmio.address = vms->memmap[VIRT_NVDIMM_ACPI].base;
 
         nvdimm_init_acpi_state(machine->nvdimms_state, sysmem,
                                arm_virt_nvdimm_acpi_dsmio,
@@ -2930,8 +2941,8 @@ static const CPUArchIdList *virt_possible_cpu_arch_ids(MachineState *ms)
         return ms->possible_cpus;
     }
 
-    ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
-                                  sizeof(CPUArchId) * max_cpus);
+    ms->possible_cpus = static_cast<CPUArchIdList *>(g_malloc0(sizeof(CPUArchIdList) +
+                                  sizeof(CPUArchId) * max_cpus));
     ms->possible_cpus->len = max_cpus;
     for (n = 0; n < ms->possible_cpus->len; n++) {
         ms->possible_cpus->cpus[n].type = ms->cpu_type;
@@ -3513,18 +3524,20 @@ static void virt_instance_init(Object *obj)
     cxl_machine_init(obj, &vms->cxl_devices_state);
 }
 
+static const InterfaceInfo virt_machine_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo virt_machine_info = {
     .name          = TYPE_VIRT_MACHINE,
     .parent        = TYPE_MACHINE,
-    .is_abstract      = true,
     .instance_size = sizeof(VirtMachineState),
+    .instance_init = virt_instance_init,
+    .is_abstract   = true,
     .class_size    = sizeof(VirtMachineClass),
     .class_init    = virt_machine_class_init,
-    .instance_init = virt_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-         { TYPE_HOTPLUG_HANDLER },
-         { }
-    },
+    .interfaces    = virt_machine_interfaces,
 };
 
 static void machvirt_machine_init(void)

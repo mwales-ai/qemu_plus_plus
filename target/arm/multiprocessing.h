@@ -11,6 +11,14 @@
 
 #include "target/arm/cpu-qom.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint64_t arm_cpu_mp_affinity(ARMCPU *cpu);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
