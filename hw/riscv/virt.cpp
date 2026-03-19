@@ -1980,16 +1980,18 @@ static void virt_machine_class_init(ObjectClass *oc, const void *data)
                                           "Enable IOMMU platform device");
 }
 
+static const InterfaceInfo virt_machine_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo virt_machine_typeinfo = {
     .name       = MACHINE_TYPE_NAME("virt"),
-    .parent     = TYPE_MACHINE,
-    .class_init = virt_machine_class_init,
-    .instance_init = virt_machine_instance_init,
+    .parent        = TYPE_MACHINE,
     .instance_size = sizeof(RISCVVirtState),
-    .interfaces = (const InterfaceInfo[]) {
-         { TYPE_HOTPLUG_HANDLER },
-         { }
-    },
+    .instance_init = virt_machine_instance_init,
+    .class_init    = virt_machine_class_init,
+    .interfaces    = virt_machine_interfaces,
 };
 
 static void virt_machine_init_register_types(void)

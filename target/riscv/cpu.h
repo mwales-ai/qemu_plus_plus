@@ -35,6 +35,10 @@
 #include "qapi/qapi-types-common.h"
 #include "cpu-qom.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct CPUArchState CPURISCVState;
 
 #define CPU_RESOLVING_TYPE TYPE_RISCV_CPU
@@ -710,7 +714,7 @@ FIELD(TB_FLAGS, PM_SIGNEXTEND, 31, 1)
 #else
 static inline RISCVMXL riscv_cpu_mxl(CPURISCVState *env)
 {
-    return env->misa_mxl;
+    return (RISCVMXL)env->misa_mxl;
 }
 #endif
 #define riscv_cpu_mxl_bits(env) (1UL << (4 + riscv_cpu_mxl(env)))
@@ -733,7 +737,7 @@ static inline int cpu_address_mode(CPURISCVState *env)
 
 static inline RISCVMXL cpu_get_xl(CPURISCVState *env, target_ulong mode)
 {
-    RISCVMXL xl = env->misa_mxl;
+    RISCVMXL xl = (RISCVMXL)env->misa_mxl;
     /*
      * When emulating a 32-bit-only cpu, use RV32.
      * When emulating a 64-bit cpu, and MXL has been reduced to RV32,
@@ -745,10 +749,10 @@ static inline RISCVMXL cpu_get_xl(CPURISCVState *env, target_ulong mode)
         case PRV_M:
             break;
         case PRV_U:
-            xl = get_field(env->mstatus, MSTATUS64_UXL);
+            xl = (RISCVMXL)get_field(env->mstatus, MSTATUS64_UXL);
             break;
         default: /* PRV_S */
-            xl = get_field(env->mstatus, MSTATUS64_SXL);
+            xl = (RISCVMXL)get_field(env->mstatus, MSTATUS64_SXL);
             break;
         }
     }
@@ -764,7 +768,7 @@ static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
 #if !defined(CONFIG_USER_ONLY)
     return cpu_get_xl(env, env->priv);
 #else
-    return env->misa_mxl;
+    return (RISCVMXL)env->misa_mxl;
 #endif
 }
 #endif
@@ -775,7 +779,7 @@ static inline RISCVMXL cpu_recompute_xl(CPURISCVState *env)
 static inline RISCVMXL cpu_address_xl(CPURISCVState *env)
 {
 #ifdef CONFIG_USER_ONLY
-    return env->xl;
+    return (RISCVMXL)env->xl;
 #else
     int mode = cpu_address_mode(env);
 
@@ -795,10 +799,10 @@ static inline int riscv_cpu_xlen(CPURISCVState *env)
 static inline RISCVMXL riscv_cpu_sxl(CPURISCVState *env)
 {
 #ifdef CONFIG_USER_ONLY
-    return env->misa_mxl;
+    return (RISCVMXL)env->misa_mxl;
 #else
-    if (env->misa_mxl != MXL_RV32) {
-        return get_field(env->mstatus, MSTATUS64_SXL);
+    if ((RISCVMXL)env->misa_mxl != MXL_RV32) {
+        return (RISCVMXL)get_field(env->mstatus, MSTATUS64_SXL);
     }
 #endif
     return MXL_RV32;
@@ -986,4 +990,9 @@ const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 extern const RISCVCSR th_csr_list[];
 
 const char *priv_spec_to_str(int priv_version);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* RISCV_CPU_H */

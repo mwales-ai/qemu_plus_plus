@@ -25,6 +25,10 @@
 #include "target/riscv/cpu.h"
 #include "qom/object.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_RISCV_HART_ARRAY "riscv.hart_array"
 
 OBJECT_DECLARE_SIMPLE_TYPE(RISCVHartArrayState, RISCV_HART_ARRAY)
@@ -44,5 +48,9 @@ struct RISCVHartArrayState {
     uint64_t *rnmi_excpvec;
     RISCVCPU *harts;
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

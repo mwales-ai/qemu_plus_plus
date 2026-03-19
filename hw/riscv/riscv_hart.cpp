@@ -57,7 +57,7 @@ static const Property riscv_harts_props[] = {
 
 static void riscv_harts_cpu_reset(void *opaque)
 {
-    RISCVCPU *cpu = opaque;
+    RISCVCPU *cpu = static_cast<RISCVCPU *>(opaque);
     cpu_reset(CPU(cpu));
 }
 

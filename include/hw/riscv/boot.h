@@ -24,6 +24,10 @@
 #include "hw/loader.h"
 #include "hw/riscv/riscv_hart.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define RISCV32_BIOS_BIN    "opensbi-riscv32-generic-fw_dynamic.bin"
 #define RISCV64_BIOS_BIN    "opensbi-riscv64-generic-fw_dynamic.bin"
 
@@ -76,5 +80,9 @@ void riscv_rom_copy_firmware_info(MachineState *machine,
                                   uint64_t kernel_entry);
 void riscv_setup_direct_kernel(hwaddr kernel_addr, hwaddr fdt_addr);
 void riscv_setup_firmware_boot(MachineState *machine);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* RISCV_BOOT_H */

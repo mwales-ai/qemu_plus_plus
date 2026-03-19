@@ -366,6 +366,7 @@ type_init(sifive_uart_register_types)
 /*
  * Create UART device.
  */
+extern "C"
 SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
     Chardev *chr, qemu_irq irq)
 {

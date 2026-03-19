@@ -173,7 +173,7 @@ void riscv_socket_fdt_write_distance_matrix(const MachineState *ms)
     if (numa_enabled(ms) && ms->numa_state->have_numa_distance) {
         dist_matrix_size = riscv_socket_count(ms) * riscv_socket_count(ms);
         dist_matrix_size *= (3 * sizeof(uint32_t));
-        dist_matrix = g_malloc0(dist_matrix_size);
+        dist_matrix = static_cast<uint32_t *>(g_malloc0(dist_matrix_size));
 
         for (i = 0; i < riscv_socket_count(ms); i++) {
             for (j = 0; j < riscv_socket_count(ms); j++) {
@@ -233,8 +233,8 @@ const CPUArchIdList *riscv_numa_possible_cpu_arch_ids(MachineState *ms)
         return ms->possible_cpus;
     }
 
-    ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
-                                  sizeof(CPUArchId) * max_cpus);
+    ms->possible_cpus = static_cast<CPUArchIdList *>(
+        g_malloc0(sizeof(CPUArchIdList) + sizeof(CPUArchId) * max_cpus));
     ms->possible_cpus->len = max_cpus;
     for (n = 0; n < ms->possible_cpus->len; n++) {
         ms->possible_cpus->cpus[n].type = ms->cpu_type;

@@ -26,6 +26,10 @@
 #include "qom/object.h"
 #include "qemu/fifo8.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
     SIFIVE_UART_TXFIFO        = 0,
     SIFIVE_UART_RXFIFO        = 4,
@@ -86,5 +90,9 @@ struct SiFiveUARTState {
 
 SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
     Chardev *chr, qemu_irq irq);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

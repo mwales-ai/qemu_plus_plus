@@ -148,6 +148,7 @@ static void mchp_pfsoc_mmuart_register_types(void)
 
 type_init(mchp_pfsoc_mmuart_register_types)
 
+extern "C"
 MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
                                                hwaddr base,
                                                qemu_irq irq, Chardev *chr)

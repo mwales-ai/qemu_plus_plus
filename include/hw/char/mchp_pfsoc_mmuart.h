@@ -31,6 +31,10 @@
 #include "hw/sysbus.h"
 #include "hw/char/serial-mm.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MCHP_PFSOC_MMUART_REG_COUNT 13
 
 #define TYPE_MCHP_PFSOC_UART "mchp.pfsoc.uart"
@@ -64,5 +68,9 @@ typedef struct MchpPfSoCMMUartState {
  */
 MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
     hwaddr base, qemu_irq irq, Chardev *chr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_MCHP_PFSOC_MMUART_H */
