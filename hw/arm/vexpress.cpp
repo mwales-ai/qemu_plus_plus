@@ -97,75 +97,80 @@ enum {
     VE_VIRTIO,
 };
 
-static hwaddr motherboard_legacy_map[] = {
-    [VE_NORFLASHALIAS] = 0,
-    /* CS7: 0x10000000 .. 0x10020000 */
-    [VE_SYSREGS] = 0x10000000,
-    [VE_SP810] = 0x10001000,
-    [VE_SERIALPCI] = 0x10002000,
-    [VE_PL041] = 0x10004000,
-    [VE_MMCI] = 0x10005000,
-    [VE_KMI0] = 0x10006000,
-    [VE_KMI1] = 0x10007000,
-    [VE_UART0] = 0x10009000,
-    [VE_UART1] = 0x1000a000,
-    [VE_UART2] = 0x1000b000,
-    [VE_UART3] = 0x1000c000,
-    [VE_WDT] = 0x1000f000,
-    [VE_TIMER01] = 0x10011000,
-    [VE_TIMER23] = 0x10012000,
-    [VE_VIRTIO] = 0x10013000,
-    [VE_SERIALDVI] = 0x10016000,
-    [VE_RTC] = 0x10017000,
-    [VE_COMPACTFLASH] = 0x1001a000,
-    [VE_CLCD] = 0x1001f000,
-    /* CS0: 0x40000000 .. 0x44000000 */
-    [VE_NORFLASH0] = 0x40000000,
-    /* CS1: 0x44000000 .. 0x48000000 */
-    [VE_NORFLASH1] = 0x44000000,
-    /* CS2: 0x48000000 .. 0x4a000000 */
-    [VE_SRAM] = 0x48000000,
-    /* CS3: 0x4c000000 .. 0x50000000 */
-    [VE_VIDEORAM] = 0x4c000000,
-    [VE_ETHERNET] = 0x4e000000,
-    [VE_USB] = 0x4f000000,
-};
+static hwaddr motherboard_legacy_map[VE_VIRTIO + 1];
+static hwaddr motherboard_aseries_map[VE_VIRTIO + 1];
 
-static hwaddr motherboard_aseries_map[] = {
-    [VE_NORFLASHALIAS] = 0,
+static void __attribute__((constructor)) vexpress_init_maps(void)
+{
+    /* Legacy motherboard memory map */
+    /* CS7: 0x10000000 .. 0x10020000 */
+    motherboard_legacy_map[VE_SYSREGS] = 0x10000000;
+    motherboard_legacy_map[VE_SP810] = 0x10001000;
+    motherboard_legacy_map[VE_SERIALPCI] = 0x10002000;
+    motherboard_legacy_map[VE_PL041] = 0x10004000;
+    motherboard_legacy_map[VE_MMCI] = 0x10005000;
+    motherboard_legacy_map[VE_KMI0] = 0x10006000;
+    motherboard_legacy_map[VE_KMI1] = 0x10007000;
+    motherboard_legacy_map[VE_UART0] = 0x10009000;
+    motherboard_legacy_map[VE_UART1] = 0x1000a000;
+    motherboard_legacy_map[VE_UART2] = 0x1000b000;
+    motherboard_legacy_map[VE_UART3] = 0x1000c000;
+    motherboard_legacy_map[VE_WDT] = 0x1000f000;
+    motherboard_legacy_map[VE_TIMER01] = 0x10011000;
+    motherboard_legacy_map[VE_TIMER23] = 0x10012000;
+    motherboard_legacy_map[VE_VIRTIO] = 0x10013000;
+    motherboard_legacy_map[VE_SERIALDVI] = 0x10016000;
+    motherboard_legacy_map[VE_RTC] = 0x10017000;
+    motherboard_legacy_map[VE_COMPACTFLASH] = 0x1001a000;
+    motherboard_legacy_map[VE_CLCD] = 0x1001f000;
+    /* CS0: 0x40000000 .. 0x44000000 */
+    motherboard_legacy_map[VE_NORFLASH0] = 0x40000000;
+    /* CS1: 0x44000000 .. 0x48000000 */
+    motherboard_legacy_map[VE_NORFLASH1] = 0x44000000;
+    /* CS2: 0x48000000 .. 0x4a000000 */
+    motherboard_legacy_map[VE_SRAM] = 0x48000000;
+    /* CS3: 0x4c000000 .. 0x50000000 */
+    motherboard_legacy_map[VE_VIDEORAM] = 0x4c000000;
+    motherboard_legacy_map[VE_ETHERNET] = 0x4e000000;
+    motherboard_legacy_map[VE_USB] = 0x4f000000;
+    /* VE_NORFLASHALIAS = 0 (zero-initialized) */
+    /* VE_DAPROM = 0 (not used in legacy map) */
+
+    /* A-series motherboard memory map */
     /* CS0: 0x08000000 .. 0x0c000000 */
-    [VE_NORFLASH0] = 0x08000000,
+    motherboard_aseries_map[VE_NORFLASH0] = 0x08000000;
     /* CS4: 0x0c000000 .. 0x10000000 */
-    [VE_NORFLASH1] = 0x0c000000,
+    motherboard_aseries_map[VE_NORFLASH1] = 0x0c000000;
     /* CS5: 0x10000000 .. 0x14000000 */
     /* CS1: 0x14000000 .. 0x18000000 */
-    [VE_SRAM] = 0x14000000,
+    motherboard_aseries_map[VE_SRAM] = 0x14000000;
     /* CS2: 0x18000000 .. 0x1c000000 */
-    [VE_VIDEORAM] = 0x18000000,
-    [VE_ETHERNET] = 0x1a000000,
-    [VE_USB] = 0x1b000000,
+    motherboard_aseries_map[VE_VIDEORAM] = 0x18000000;
+    motherboard_aseries_map[VE_ETHERNET] = 0x1a000000;
+    motherboard_aseries_map[VE_USB] = 0x1b000000;
     /* CS3: 0x1c000000 .. 0x20000000 */
-    [VE_DAPROM] = 0x1c000000,
-    [VE_SYSREGS] = 0x1c010000,
-    [VE_SP810] = 0x1c020000,
-    [VE_SERIALPCI] = 0x1c030000,
-    [VE_PL041] = 0x1c040000,
-    [VE_MMCI] = 0x1c050000,
-    [VE_KMI0] = 0x1c060000,
-    [VE_KMI1] = 0x1c070000,
-    [VE_UART0] = 0x1c090000,
-    [VE_UART1] = 0x1c0a0000,
-    [VE_UART2] = 0x1c0b0000,
-    [VE_UART3] = 0x1c0c0000,
-    [VE_WDT] = 0x1c0f0000,
-    [VE_TIMER01] = 0x1c110000,
-    [VE_TIMER23] = 0x1c120000,
-    [VE_VIRTIO] = 0x1c130000,
-    [VE_SERIALDVI] = 0x1c160000,
-    [VE_RTC] = 0x1c170000,
-    [VE_COMPACTFLASH] = 0x1c1a0000,
-    [VE_CLCD] = 0x1c1f0000,
-};
+    motherboard_aseries_map[VE_DAPROM] = 0x1c000000;
+    motherboard_aseries_map[VE_SYSREGS] = 0x1c010000;
+    motherboard_aseries_map[VE_SP810] = 0x1c020000;
+    motherboard_aseries_map[VE_SERIALPCI] = 0x1c030000;
+    motherboard_aseries_map[VE_PL041] = 0x1c040000;
+    motherboard_aseries_map[VE_MMCI] = 0x1c050000;
+    motherboard_aseries_map[VE_KMI0] = 0x1c060000;
+    motherboard_aseries_map[VE_KMI1] = 0x1c070000;
+    motherboard_aseries_map[VE_UART0] = 0x1c090000;
+    motherboard_aseries_map[VE_UART1] = 0x1c0a0000;
+    motherboard_aseries_map[VE_UART2] = 0x1c0b0000;
+    motherboard_aseries_map[VE_UART3] = 0x1c0c0000;
+    motherboard_aseries_map[VE_WDT] = 0x1c0f0000;
+    motherboard_aseries_map[VE_TIMER01] = 0x1c110000;
+    motherboard_aseries_map[VE_TIMER23] = 0x1c120000;
+    motherboard_aseries_map[VE_VIRTIO] = 0x1c130000;
+    motherboard_aseries_map[VE_SERIALDVI] = 0x1c160000;
+    motherboard_aseries_map[VE_RTC] = 0x1c170000;
+    motherboard_aseries_map[VE_COMPACTFLASH] = 0x1c1a0000;
+    motherboard_aseries_map[VE_CLCD] = 0x1c1f0000;
+    /* VE_NORFLASHALIAS = 0 (zero-initialized) */
+}
 
 /* Structure defining the peculiarities of a specific daughterboard */
 

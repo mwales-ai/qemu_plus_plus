@@ -18,6 +18,10 @@
 #include "net/can_emu.h"
 #include "hw/arm/xlnx-versal-version.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define TYPE_XLNX_VERSAL_BASE "xlnx-versal-base"
 OBJECT_DECLARE_TYPE(Versal, VersalClass, XLNX_VERSAL_BASE)
 
@@ -86,5 +90,9 @@ static inline const char *versal_get_class(VersalVersion version)
         g_assert_not_reached();
     }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

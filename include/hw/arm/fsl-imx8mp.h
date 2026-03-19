@@ -221,6 +221,7 @@ enum FslImx8mpMemoryRegions {
     FSL_IMX8MP_WDOG1,
     FSL_IMX8MP_WDOG2,
     FSL_IMX8MP_WDOG3,
+    FSL_IMX8MP_MEMMAP_COUNT,
 };
 
 enum FslImx8mpIrqs {
