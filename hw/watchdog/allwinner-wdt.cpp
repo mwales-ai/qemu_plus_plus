@@ -21,15 +21,20 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/log.h"
-#include "qemu/units.h"
 #include "qemu/module.h"
-#include "trace.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
-#include "hw/watchdog/allwinner-wdt.h"
 #include "system/watchdog.h"
 #include "migration/vmstate.h"
+
+extern "C" {
+#include "qemu/units.h"
+#include "trace.h"
+#include "hw/watchdog/allwinner-wdt.h"
+}
+
 
 /* WDT registers */
 enum {
@@ -74,19 +79,23 @@ static const uint8_t allwinner_wdt_count_map[] = {
 };
 
 /* WDT sun4i register map (offset to name) */
-const uint8_t allwinner_wdt_sun4i_regmap[] = {
-    [0x0000] = REG_CTRL,
-    [0x0004] = REG_MODE,
-};
+uint8_t allwinner_wdt_sun4i_regmap[5];
+
+static void __attribute__((constructor)) init_allwinner_wdt_sun4i_regmap(void) {
+    allwinner_wdt_sun4i_regmap[0x0000] = REG_CTRL;
+    allwinner_wdt_sun4i_regmap[0x0004] = REG_MODE;
+}
 
 /* WDT sun6i register map (offset to name) */
-const uint8_t allwinner_wdt_sun6i_regmap[] = {
-    [0x0000] = REG_IRQ_EN,
-    [0x0004] = REG_IRQ_STA,
-    [0x0010] = REG_CTRL,
-    [0x0014] = REG_CFG,
-    [0x0018] = REG_MODE,
-};
+uint8_t allwinner_wdt_sun6i_regmap[25];
+
+static void __attribute__((constructor)) init_allwinner_wdt_sun6i_regmap(void) {
+    allwinner_wdt_sun6i_regmap[0x0000] = REG_IRQ_EN;
+    allwinner_wdt_sun6i_regmap[0x0004] = REG_IRQ_STA;
+    allwinner_wdt_sun6i_regmap[0x0010] = REG_CTRL;
+    allwinner_wdt_sun6i_regmap[0x0014] = REG_CFG;
+    allwinner_wdt_sun6i_regmap[0x0018] = REG_MODE;
+}
 
 static bool allwinner_wdt_sun4i_read(AwWdtState *s, uint32_t offset)
 {
@@ -272,16 +281,17 @@ static void allwinner_wdt_write(void *opaque, hwaddr offset,
     }
 }
 
-static const MemoryRegionOps allwinner_wdt_ops = {
+static MemoryRegionOps allwinner_wdt_ops = {
     .read = allwinner_wdt_read,
     .write = allwinner_wdt_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-    .impl = { .min_access_size = 4, },
 };
+
+static void __attribute__((constructor)) init_allwinner_wdt_ops(void) {
+    allwinner_wdt_ops.valid.min_access_size = 4;
+    allwinner_wdt_ops.valid.max_access_size = 4;
+    allwinner_wdt_ops.impl.min_access_size = 4;
+}
 
 static void allwinner_wdt_expired(void *opaque)
 {
@@ -309,15 +319,17 @@ static void allwinner_wdt_reset_enter(Object *obj, ResetType type)
     memset(s->regs, 0, sizeof(s->regs));
 }
 
+static const VMStateField allwinner_wdt_vmstate_fields[] = {
+VMSTATE_PTIMER(timer, AwWdtState),
+        VMSTATE_UINT32_ARRAY(regs, AwWdtState, AW_WDT_REGS_NUM),
+        VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription allwinner_wdt_vmstate = {
     .name = "allwinner-wdt",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PTIMER(timer, AwWdtState),
-        VMSTATE_UINT32_ARRAY(regs, AwWdtState, AW_WDT_REGS_NUM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = allwinner_wdt_vmstate_fields,
 };
 
 static void allwinner_wdt_init(Object *obj)
@@ -385,13 +397,13 @@ static void allwinner_wdt_sun6i_class_init(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo allwinner_wdt_info = {
-    .name          = TYPE_AW_WDT,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = allwinner_wdt_init,
+    .name = TYPE_AW_WDT,
+    .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AwWdtState),
-    .class_init    = allwinner_wdt_class_init,
-    .class_size    = sizeof(AwWdtClass),
-    .is_abstract      = true,
+    .instance_init = allwinner_wdt_init,
+    .is_abstract = true,
+    .class_size = sizeof(AwWdtClass),
+    .class_init = allwinner_wdt_class_init,
 };
 
 static const TypeInfo allwinner_wdt_sun4i_info = {

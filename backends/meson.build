@@ -1,6 +1,6 @@
 system_ss.add([files(
   'cryptodev-builtin.cpp',
-  'cryptodev-hmp-cmds.c',
+  'cryptodev-hmp-cmds.cpp',
   'cryptodev.cpp',
   'hostmem-ram.cpp',
   'hostmem.cpp',

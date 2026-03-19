@@ -45,37 +45,42 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/units.h"
+
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "qobject/qlist.h"
 #include "qemu/error-report.h"
 #include "hw/arm/boot.h"
-#include "hw/arm/armv7m.h"
 #include "hw/arm/machines-qom.h"
-#include "hw/or-irq.h"
 #include "hw/boards.h"
 #include "system/address-spaces.h"
 #include "system/system.h"
 #include "system/reset.h"
-#include "hw/misc/unimp.h"
 #include "hw/char/cmsdk-apb-uart.h"
 #include "hw/timer/cmsdk-apb-timer.h"
+#include "hw/misc/tz-msc.h"
+#include "hw/i2c/arm_sbcon_i2c.h"
+#include "hw/net/lan9118.h"
+#include "net/net.h"
+#include "hw/qdev-clock.h"
+#include "qom/object.h"
+#include "hw/irq.h"
+
+extern "C" {
+#include "qemu/units.h"
+#include "hw/arm/armv7m.h"
+#include "hw/or-irq.h"
+#include "hw/misc/unimp.h"
 #include "hw/misc/mps2-scc.h"
 #include "hw/misc/mps2-fpgaio.h"
 #include "hw/misc/tz-mpc.h"
-#include "hw/misc/tz-msc.h"
 #include "hw/arm/armsse.h"
 #include "hw/dma/pl080.h"
 #include "hw/rtc/pl031.h"
 #include "hw/ssi/pl022.h"
-#include "hw/i2c/arm_sbcon_i2c.h"
-#include "hw/net/lan9118.h"
-#include "net/net.h"
 #include "hw/core/split-irq.h"
-#include "hw/qdev-clock.h"
-#include "qom/object.h"
-#include "hw/irq.h"
+}
+
 
 #define MPS2TZ_NUMIRQ_MAX 96
 #define MPS2TZ_RAM_MAX 5
@@ -423,7 +428,7 @@ static MemoryRegion *make_unimp_dev(MPS2TZMachineState *mms,
     /* Initialize, configure and realize a TYPE_UNIMPLEMENTED_DEVICE,
      * and return a pointer to its MemoryRegion.
      */
-    UnimplementedDeviceState *uds = opaque;
+    UnimplementedDeviceState *uds = static_cast<UnimplementedDeviceState *>(opaque);
 
     object_initialize_child(OBJECT(mms), name, uds, TYPE_UNIMPLEMENTED_DEVICE);
     qdev_prop_set_string(DEVICE(uds), "name", name);
@@ -438,7 +443,7 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
 {
     /* The irq[] array is rx, tx, combined, in that order */
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
-    CMSDKAPBUART *uart = opaque;
+    CMSDKAPBUART *uart = static_cast<CMSDKAPBUART *>(opaque);
     int i = uart - &mms->uart[0];
     SysBusDevice *s;
     DeviceState *orgate_dev = DEVICE(&mms->uart_irq_orgate);
@@ -460,7 +465,7 @@ static MemoryRegion *make_scc(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
                               const int *irqs, const PPCExtraData *extradata)
 {
-    MPS2SCC *scc = opaque;
+    MPS2SCC *scc = static_cast<MPS2SCC *>(opaque);
     DeviceState *sccdev;
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
     QList *oscclk;
@@ -487,7 +492,7 @@ static MemoryRegion *make_fpgaio(MPS2TZMachineState *mms, void *opaque,
                                  const char *name, hwaddr size,
                                  const int *irqs, const PPCExtraData *extradata)
 {
-    MPS2FPGAIO *fpgaio = opaque;
+    MPS2FPGAIO *fpgaio = static_cast<MPS2FPGAIO *>(opaque);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
 
     object_initialize_child(OBJECT(mms), "fpgaio", fpgaio, TYPE_MPS2_FPGAIO);
@@ -563,7 +568,7 @@ static MemoryRegion *make_mpc(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
                               const int *irqs, const PPCExtraData *extradata)
 {
-    TZMPC *mpc = opaque;
+    TZMPC *mpc = static_cast<TZMPC *>(opaque);
     int i = mpc - &mms->mpc[0];
     MemoryRegion *upstream;
     const RAMInfo *raminfo = find_raminfo_for_mpc(mms, i);
@@ -626,7 +631,7 @@ static void remap_memory(MPS2TZMachineState *mms, int map)
 
 static void remap_irq_fn(void *opaque, int n, int level)
 {
-    MPS2TZMachineState *mms = opaque;
+    MPS2TZMachineState *mms = static_cast<MPS2TZMachineState *>(opaque);
 
     remap_memory(mms, level);
 }
@@ -636,7 +641,7 @@ static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
                               const int *irqs, const PPCExtraData *extradata)
 {
     /* The irq[] array is DMACINTR, DMACINTERR, DMACINTTC, in that order */
-    PL080State *dma = opaque;
+    PL080State *dma = static_cast<PL080State *>(opaque);
     int i = dma - &mms->dma[0];
     SysBusDevice *s;
     char *mscname = g_strdup_printf("%s-msc", name);
@@ -700,7 +705,7 @@ static MemoryRegion *make_spi(MPS2TZMachineState *mms, void *opaque,
      * Note that if we do implement devices behind SPI, the chip select
      * lines are set via the "MISC" register in the MPS2 FPGAIO device.
      */
-    PL022State *spi = opaque;
+    PL022State *spi = static_cast<PL022State *>(opaque);
     SysBusDevice *s;
 
     object_initialize_child(OBJECT(mms), name, spi, TYPE_PL022);
@@ -714,7 +719,7 @@ static MemoryRegion *make_i2c(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
                               const int *irqs, const PPCExtraData *extradata)
 {
-    ArmSbconI2CState *i2c = opaque;
+    ArmSbconI2CState *i2c = static_cast<ArmSbconI2CState *>(opaque);
     SysBusDevice *s;
 
     object_initialize_child(OBJECT(mms), name, i2c, TYPE_ARM_SBCON_I2C);
@@ -741,7 +746,7 @@ static MemoryRegion *make_rtc(MPS2TZMachineState *mms, void *opaque,
                               const char *name, hwaddr size,
                               const int *irqs, const PPCExtraData *extradata)
 {
-    PL031State *pl031 = opaque;
+    PL031State *pl031 = static_cast<PL031State *>(opaque);
     SysBusDevice *s;
 
     object_initialize_child(OBJECT(mms), name, pl031, TYPE_PL031);
@@ -1447,17 +1452,19 @@ static void mps3tz_an547_class_init(ObjectClass *oc, const void *data)
     mps2tz_set_default_ram_info(mmc);
 }
 
+static const InterfaceInfo mps2tz_info_interfaces[] = {
+{ TYPE_IDAU_INTERFACE },
+        { }
+};
+
 static const TypeInfo mps2tz_info = {
     .name = TYPE_MPS2TZ_MACHINE,
     .parent = TYPE_MACHINE,
-    .is_abstract = true,
     .instance_size = sizeof(MPS2TZMachineState),
+    .is_abstract = true,
     .class_size = sizeof(MPS2TZMachineClass),
     .class_init = mps2tz_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_IDAU_INTERFACE },
-        { }
-    },
+    .interfaces = mps2tz_info_interfaces,
 };
 
 static const TypeInfo mps2tz_an505_info = {

@@ -15,7 +15,7 @@ crypto_ss.add(files(
   'ivgen.cpp',
   'pbkdf.cpp',
   'secret_common.c',
-  'secret.c',
+  'secret.cpp',
   'tlscreds.c',
   'tlscredsanon.c',
   'tlscredspsk.c',
@@ -51,7 +51,7 @@ if have_afalg
   crypto_ss.add(if_true: files('afalg.cpp', 'cipher-afalg.c', 'hash-afalg.cpp'))
 endif
 
-system_ss.add(when: gnutls, if_true: files('tls-cipher-suites.c'))
+system_ss.add(when: gnutls, if_true: files('tls-cipher-suites.cpp'))
 
 util_ss.add(files(
   'aes.cpp',

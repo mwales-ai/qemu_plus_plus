@@ -1,10 +1,15 @@
 #include "qemu/osdep.h"
-#include "qemu/nvdimm-utils.h"
+
 #include "hw/mem/nvdimm.h"
+
+extern "C" {
+#include "qemu/nvdimm-utils.h"
+}
+
 
 static int nvdimm_device_list(Object *obj, void *opaque)
 {
-    GSList **list = opaque;
+    GSList **list = static_cast<GSList **>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_NVDIMM)) {
         *list = g_slist_append(*list, DEVICE(obj));

@@ -75,6 +75,7 @@ def analyze_file(c_file):
         'gnu_extensions': [],
         'narrowing': [],
         'const_globals': [],
+        'sparse_arrays': [],      # [idx] = val array initializers - auto-fixable
     }
     for i, line in enumerate(content.split('\n'), 1):
         # Compound literals: (Type){...} or (const Type[]) {
@@ -120,10 +121,18 @@ def analyze_file(c_file):
         # GNU range designators: [0 ... 0xFF]
         if re.search(r'\[\d+\s*\.\.\.\s*\d+\]', line):
             issues['gnu_extensions'].append((i, line.strip()))
+        # C designated array initializers: [0x0000] = VALUE or [INDEX] = VALUE
+        if re.search(r'\[0x[0-9a-fA-F]+\]\s*=', line) or re.search(r'\[\w+\]\s*=\s*\w', line):
+            # Make sure it's not a normal array subscript assignment (has ; at end)
+            if not re.search(r';\s*$', line.strip()):
+                issues['sparse_arrays'].append((i, f'sparse array: {line.strip()}'))
         # const globals (C++ internal linkage)
         if re.search(r'^(static\s+)?const\s+\w+\s+\w+\s*=', line) and not line.strip().startswith('static'):
             if re.search(r'^const\s+(VMState|Property|TypeInfo)', line):
                 issues['const_globals'].append((i, line.strip()))
+        # RegisterAccessInfo arrays have known designator ordering issues
+        if 'RegisterAccessInfo' in line and re.search(r'\[\]', line):
+            issues['other_designator_inits'].append((i, f'RegisterAccessInfo: {line.strip()}'))
     return issues
 
 
@@ -141,11 +150,12 @@ def classify_difficulty(issues):
     manual_designators = len(issues['other_designator_inits']) + len(issues['const_globals'])
     auto = (len(issues['void_star_casts']) + len(issues['pri_macros']) +
             len(issues['cpp_keywords']) + len(issues['void_ptr_arithmetic']) +
-            len(issues['extractable_compounds']) + len(issues['nested_designators']))
+            len(issues['extractable_compounds']) + len(issues['nested_designators']) +
+            len(issues['sparse_arrays']))
 
     if hard_blockers > 0 or manual_compounds > 5:
         return "HARD"
-    elif manual_compounds > 0 or manual_designators > 3:
+    elif manual_compounds > 0 or manual_designators > 0:
         return "MEDIUM"
     elif auto > 0:
         return "EASY"
@@ -632,6 +642,139 @@ def restructure_includes(content):
     return '\n'.join(new_lines), len(unguarded_includes)
 
 
+def reorder_typeinfo_designators(content):
+    """Reorder TypeInfo struct initializer fields to match declaration order.
+
+    TypeInfo field order: name, parent, instance_size, instance_align,
+    instance_init, instance_post_init, instance_finalize, is_abstract,
+    class_size, class_init, class_base_init, class_data, interfaces
+    """
+    TYPEINFO_ORDER = [
+        'name', 'parent', 'instance_size', 'instance_align',
+        'instance_init', 'instance_post_init', 'instance_finalize',
+        'is_abstract', 'class_size', 'class_init', 'class_base_init',
+        'class_data', 'interfaces',
+    ]
+    field_rank = {f: i for i, f in enumerate(TYPEINFO_ORDER)}
+
+    count = 0
+    # Find TypeInfo struct initializers
+    pattern = re.compile(
+        r'((?:static\s+)?const\s+TypeInfo\s+\w+\s*=\s*\{)(.*?)(\};)',
+        re.DOTALL
+    )
+    def reorder_match(m):
+        nonlocal count
+        prefix = m.group(1)
+        body = m.group(2)
+        suffix = m.group(3)
+
+        # Parse field assignments
+        fields = []
+        for fm in re.finditer(r'(\s*\.(\w+)\s*=\s*)(.*?)(?=\s*\.\w+\s*=|\s*$)', body, re.DOTALL):
+            indent_and_dot = fm.group(1)
+            field_name = fm.group(2)
+            value = fm.group(3).rstrip().rstrip(',')
+            fields.append((field_name, indent_and_dot, value))
+
+        if not fields:
+            return m.group(0)
+
+        # Check if reordering is needed
+        ranks = [field_rank.get(f[0], 999) for f in fields]
+        if ranks == sorted(ranks):
+            return m.group(0)  # Already in order
+
+        # Reorder
+        fields.sort(key=lambda f: field_rank.get(f[0], 999))
+        count += 1
+
+        # Rebuild
+        lines = []
+        for i, (name, indent_dot, value) in enumerate(fields):
+            # Use consistent indentation from first field
+            indent = '    '
+            comma = ',' if i < len(fields) - 1 else ','
+            lines.append(f'{indent}.{name} = {value}{comma}')
+
+        return prefix + '\n' + '\n'.join(lines) + '\n' + suffix
+
+    content = pattern.sub(reorder_match, content)
+    return content, count
+
+
+def fix_sparse_array_initializers(content):
+    """Convert C designated array initializers to __attribute__((constructor)) init functions.
+
+    Converts patterns like:
+        const uint8_t foo[] = {
+            [0x0000] = REG_CTRL,
+            [0x0004] = REG_MODE,
+        };
+    To:
+        uint8_t foo[MAX_INDEX + 1];
+        static void __attribute__((constructor)) init_foo(void) {
+            foo[0x0000] = REG_CTRL;
+            foo[0x0004] = REG_MODE;
+        }
+    """
+    count = 0
+    # Match array declarations with designated initializers
+    pattern = re.compile(
+        r'^((?:static\s+)?)(const\s+)?((?:unsigned\s+)?\w+)\s+(\w+)\s*\[\s*\]\s*=\s*\{'
+        r'(.*?)'
+        r'^\};',
+        re.MULTILINE | re.DOTALL
+    )
+
+    def replace_sparse(m):
+        nonlocal count
+        static_kw = m.group(1)
+        const_kw = m.group(2) or ''
+        elem_type = m.group(3)
+        arr_name = m.group(4)
+        body = m.group(5)
+
+        # Check if body contains designated array initializers [idx] = val
+        entries = re.findall(r'\[([^\]]+)\]\s*=\s*([^,\n]+)', body)
+        if not entries:
+            return m.group(0)  # Not a sparse array
+
+        # Find max index to size the array
+        max_idx = 0
+        for idx_str, val in entries:
+            idx_str = idx_str.strip()
+            try:
+                if idx_str.startswith('0x') or idx_str.startswith('0X'):
+                    idx_val = int(idx_str, 16)
+                else:
+                    idx_val = int(idx_str)
+                if idx_val > max_idx:
+                    max_idx = idx_val
+            except ValueError:
+                # Non-numeric index (enum constant etc.) — can't compute size
+                return m.group(0)
+
+        count += 1
+        arr_size = max_idx + 1
+
+        # Build the replacement: array declaration + constructor init function
+        lines = []
+        # Remove const since we initialize in constructor
+        lines.append(f'{static_kw}{elem_type} {arr_name}[{arr_size}];')
+        lines.append(f'')
+        lines.append(f'static void __attribute__((constructor)) init_{arr_name}(void) {{')
+        for idx_str, val in entries:
+            val = val.strip().rstrip(',')
+            lines.append(f'    {arr_name}[{idx_str.strip()}] = {val};')
+        lines.append(f'}}')
+
+        return '\n'.join(lines)
+
+    content = pattern.sub(replace_sparse, content)
+    return content, count
+
+
 def apply_easy_fixes(filepath):
     """Apply mechanical fixes for EASY files."""
     content = filepath.read_text()
@@ -653,6 +796,14 @@ def apply_easy_fixes(filepath):
     content, n = fix_memregion_ops_nested(content)
     if n: fixes.append(f"MemoryRegionOps nested ({n})")
 
+    # Reorder TypeInfo designators
+    content, n = reorder_typeinfo_designators(content)
+    if n: fixes.append(f"TypeInfo reorder ({n})")
+
+    # Fix sparse array initializers ([idx] = val)
+    content, n = fix_sparse_array_initializers(content)
+    if n: fixes.append(f"sparse array init ({n})")
+
     # PRI macro spacing
     count = 0
     for macro in ['PRI[diouxX]\\d+', 'VADDR_PRI[xXdou]', 'TARGET_FMT_\\w+',
@@ -670,7 +821,7 @@ def apply_easy_fixes(filepath):
 
     # void* param casts
     count = 0
-    void_params = r'opaque|pv|user_data|userdata|data|arg|cb_arg|cb_opaque|timer_opaque'
+    void_params = r'opaque|pv|user_data|userdata|data|arg|cb_arg|cb_opaque|timer_opaque|s|p|ptr|buf|buffer|mem|ctx|cookie|priv|private_data|handle|info|params|state|dev_opaque'
     pattern = re.compile(
         rf'^(\s*)((?:const\s+)?(?:struct\s+)?(?:unsigned\s+)?\w+)\s+\*(\w+)\s*=\s*({void_params})\s*;',
         re.MULTILINE

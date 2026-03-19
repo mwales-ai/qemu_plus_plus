@@ -77,7 +77,7 @@ arm_common_ss.add(when: ['CONFIG_ASPEED_SOC', 'TARGET_AARCH64'], if_true: files(
   'aspeed_ast27x0-tsp.cpp',
   'aspeed_coprocessor_common.cpp'))
 arm_common_ss.add(when: 'CONFIG_MPS2', if_true: files('mps2.cpp'))
-arm_common_ss.add(when: 'CONFIG_MPS2', if_true: files('mps2-tz.c'))
+arm_common_ss.add(when: 'CONFIG_MPS2', if_true: files('mps2-tz.cpp'))
 arm_common_ss.add(when: 'CONFIG_MSF2', if_true: files('msf2-soc.cpp'))
 arm_common_ss.add(when: 'CONFIG_MUSCA', if_true: files('musca.cpp'))
 arm_common_ss.add(when: 'CONFIG_ARMSSE', if_true: files('armsse.c'))

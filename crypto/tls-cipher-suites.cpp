@@ -9,13 +9,18 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qapi/error.h"
 #include "qom/object_interfaces.h"
 #include "crypto/tlscreds.h"
-#include "crypto/tls-cipher-suites.h"
 #include "hw/nvram/fw_cfg.h"
+
+extern "C" {
+#include "crypto/tls-cipher-suites.h"
 #include "tlscredspriv.h"
 #include "trace.h"
+}
+
 
 struct QCryptoTLSCipherSuites {
     /* <private> */
@@ -112,17 +117,19 @@ static void qcrypto_tls_cipher_suites_class_init(ObjectClass *oc,
     fwgc->get_data = qcrypto_tls_cipher_suites_fw_cfg_gen_data;
 }
 
+static const InterfaceInfo qcrypto_tls_cipher_suites_info_interfaces[] = {
+{ TYPE_USER_CREATABLE },
+        { TYPE_FW_CFG_DATA_GENERATOR_INTERFACE },
+        { }
+};
+
 static const TypeInfo qcrypto_tls_cipher_suites_info = {
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
     .name = TYPE_QCRYPTO_TLS_CIPHER_SUITES,
+    .parent = TYPE_QCRYPTO_TLS_CREDS,
     .instance_size = sizeof(QCryptoTLSCipherSuites),
     .class_size = sizeof(QCryptoTLSCredsClass),
     .class_init = qcrypto_tls_cipher_suites_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { TYPE_FW_CFG_DATA_GENERATOR_INTERFACE },
-        { }
-    }
+    .interfaces = qcrypto_tls_cipher_suites_info_interfaces,
 };
 
 static void qcrypto_tls_cipher_suites_register_types(void)

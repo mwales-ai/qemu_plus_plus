@@ -1,7 +1,7 @@
 util_ss.add(files('osdep.c', 'cutils.cpp', 'unicode.cpp', 'qemu-timer-common.cpp'))
 util_ss.add(files('thread-context.cpp'), numa)
 if not config_host_data.get('CONFIG_ATOMIC64')
-  util_ss.add(files('atomic64.c'))
+  util_ss.add(files('atomic64.cpp'))
 endif
 if host_os != 'windows'
   util_ss.add(files('aio-posix.cpp'))
@@ -24,7 +24,7 @@ if host_os != 'windows'
   util_ss.add(files('drm.cpp'))
 else
   util_ss.add(files('aio-win32.c'))
-  util_ss.add(files('event_notifier-win32.c'))
+  util_ss.add(files('event_notifier-win32.cpp'))
   util_ss.add(files('oslib-win32.c'))
   util_ss.add(files('qemu-thread-win32.c'))
   util_ss.add(winmm, pathcch, synchronization)
@@ -74,7 +74,7 @@ endif
 
 if have_system
   util_ss.add(files('crc-ccitt.cpp'))
-  util_ss.add(when: gio, if_true: files('dbus.c'))
+  util_ss.add(when: gio, if_true: files('dbus.cpp'))
   if host_os == 'linux'
     util_ss.add(files('userfaultfd.cpp'))
   endif
@@ -99,7 +99,7 @@ if have_block
   util_ss.add(files('hexdump.cpp'))
   util_ss.add(files('iova-tree.cpp'))
   util_ss.add(files('iov.cpp'))
-  util_ss.add(files('nvdimm-utils.c'))
+  util_ss.add(files('nvdimm-utils.cpp'))
   util_ss.add(files('block-helpers.cpp'))
   util_ss.add(files('qemu-coroutine-sleep.cpp'))
   util_ss.add(files('qemu-co-shared-resource.cpp'))
