@@ -4,7 +4,7 @@ i386_ss.add(files(
   'e820_memory_layout.cpp',
   'monitor.cpp',
   'multiboot.c',
-  'x86.c',
+  'x86.cpp',
   'x86-cpu.cpp',
 ))
 
@@ -15,7 +15,7 @@ i386_ss.add(when: 'CONFIG_AMD_IOMMU', if_true: files('amd_iommu.c'),
                                       if_false: files('amd_iommu-stub.cpp'))
 i386_ss.add(when: 'CONFIG_I440FX', if_true: files('pc_piix.c'))
 i386_ss.add(when: 'CONFIG_ISAPC', if_true: files('isapc.cpp'))
-i386_ss.add(when: 'CONFIG_MICROVM', if_true: files('x86-common.c', 'microvm.c', 'acpi-microvm.cpp', 'microvm-dt.cpp'))
+i386_ss.add(when: 'CONFIG_MICROVM', if_true: files('x86-common.cpp', 'microvm.c', 'acpi-microvm.cpp', 'microvm-dt.cpp'))
 i386_ss.add(when: 'CONFIG_NITRO_ENCLAVE', if_true: files('nitro_enclave.cpp'))
 i386_ss.add(when: 'CONFIG_Q35', if_true: files('pc_q35.cpp'))
 i386_ss.add(when: 'CONFIG_VMMOUSE', if_true: files('vmmouse.cpp'))
@@ -26,7 +26,7 @@ i386_ss.add(when: 'CONFIG_SGX', if_true: files('sgx-epc.cpp','sgx.cpp'),
 
 i386_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-common.cpp'))
 i386_ss.add(when: 'CONFIG_PC', if_true: files(
-  'x86-common.c',
+  'x86-common.cpp',
   'pc.c',
   'pc_sysfw.cpp',
   'acpi-build.c',

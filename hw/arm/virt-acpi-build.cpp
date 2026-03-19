@@ -156,9 +156,9 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
     }
 
     struct GPEXConfig cfg = {
+        .ecam   = memmap[ecam_id],
         .mmio32 = memmap[VIRT_PCIE_MMIO],
         .pio    = memmap[VIRT_PCIE_PIO],
-        .ecam   = memmap[ecam_id],
         .irq    = irq,
         .bus    = vms->bus,
         .pci_native_hotplug = !acpi_pcihp,
@@ -278,7 +278,7 @@ typedef struct AcpiIortIdMapping AcpiIortIdMapping;
 static int
 iort_host_bridges(Object *obj, void *opaque)
 {
-    GArray *idmap_blob = opaque;
+    GArray *idmap_blob = static_cast<GArray *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_PCI_HOST_BRIDGE)) {
         PCIBus *bus = PCI_HOST_BRIDGE(obj)->bus;
@@ -354,7 +354,7 @@ static int smmuv3_dev_idmap_compare(gconstpointer a, gconstpointer b)
 static int iort_smmuv3_devices(Object *obj, void *opaque)
 {
     VirtMachineState *vms = VIRT_MACHINE(qdev_get_machine());
-    GArray *sdev_blob = opaque;
+    GArray *sdev_blob = static_cast<GArray *>(opaque);
     AcpiIortIdMapping idmap;
     PlatformBusDevice *pbus;
     AcpiIortSMMUv3Dev sdev;
@@ -729,7 +729,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         build_srat_memory(table_data, ms->device_memory->base,
                           memory_region_size(&ms->device_memory->mr),
                           ms->numa_state->num_nodes - 1,
-                          MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
+                          static_cast<MemoryAffinityFlags>(MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED));
     }
 
     acpi_table_end(linker, &table);
@@ -981,8 +981,8 @@ static void build_fadt_rev6(GArray *table_data, BIOSLinker *linker,
     /* ACPI v6.3 */
     AcpiFadtData fadt = {
         .rev = 6,
-        .minor_ver = 3,
         .flags = 1 << ACPI_FADT_F_HW_REDUCED_ACPI,
+        .minor_ver = 3,
         .xdsdt_tbl_offset = &dsdt_tbl_offset,
     };
 
@@ -1264,10 +1264,10 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     /* RSDP is in FSEG memory, so allocate it separately */
     {
         AcpiRsdpData rsdp_data = {
-            .revision = 2,
             .oem_id = vms->oem_id,
-            .xsdt_tbl_offset = &xsdt,
+            .revision = 2,
             .rsdt_tbl_offset = NULL,
+            .xsdt_tbl_offset = &xsdt,
         };
         build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
     }
@@ -1304,7 +1304,7 @@ static void acpi_ram_update(MemoryRegion *mr, GArray *data)
 
 static void virt_acpi_build_update(void *build_opaque)
 {
-    AcpiBuildState *build_state = build_opaque;
+    AcpiBuildState *build_state = static_cast<AcpiBuildState *>(build_opaque);
     AcpiBuildTables tables;
 
     /* No state to update or already patched? Nothing to do. */
@@ -1326,18 +1326,20 @@ static void virt_acpi_build_update(void *build_opaque)
 
 static void virt_acpi_build_reset(void *build_opaque)
 {
-    AcpiBuildState *build_state = build_opaque;
+    AcpiBuildState *build_state = static_cast<AcpiBuildState *>(build_opaque);
     build_state->patched = false;
 }
+
+static const VMStateField vmstate_virt_acpi_build_fields[] = {
+    VMSTATE_BOOL(patched, AcpiBuildState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_virt_acpi_build = {
     .name = "virt_acpi_build",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(patched, AcpiBuildState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_virt_acpi_build_fields,
 };
 
 void virt_acpi_setup(VirtMachineState *vms)
@@ -1356,7 +1358,7 @@ void virt_acpi_setup(VirtMachineState *vms)
         return;
     }
 
-    build_state = g_malloc0(sizeof *build_state);
+    build_state = static_cast<AcpiBuildState *>(g_malloc0(sizeof *build_state));
 
     acpi_build_tables_init(&tables);
     virt_acpi_build(vms, &tables);

@@ -2870,6 +2870,9 @@ typedef int X86CPUVersion;
  * Set default CPU model version for CPU models having
  * version == CPU_VERSION_AUTO.
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 void x86_cpu_set_default_version(X86CPUVersion version);
 
 #ifndef CONFIG_USER_ONLY

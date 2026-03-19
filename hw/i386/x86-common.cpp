@@ -150,9 +150,9 @@ static CPUArchId *x86_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
     CPUArchId apic_id, *found_cpu;
 
     apic_id.arch_id = id;
-    found_cpu = bsearch(&apic_id, ms->possible_cpus->cpus,
+    found_cpu = static_cast<CPUArchId *>(bsearch(&apic_id, ms->possible_cpus->cpus,
         ms->possible_cpus->len, sizeof(*ms->possible_cpus->cpus),
-        x86_apic_cmp);
+        x86_apic_cmp));
     if (found_cpu && idx) {
         *idx = found_cpu - ms->possible_cpus->cpus;
     }
@@ -457,7 +457,7 @@ static long get_file_size(FILE *f)
 
 void gsi_handler(void *opaque, int n, int level)
 {
-    GSIState *s = opaque;
+    GSIState *s = static_cast<GSIState *>(opaque);
     bool bypass_ioapic = false;
 
     trace_x86_gsi_interrupt(n, level);
@@ -570,9 +570,9 @@ static uint64_t read_pvh_start_addr(void *arg1, void *arg2, bool is64)
         uint64_t phdr_align = *(uint64_t *)arg2;
         uint64_t nhdr_namesz = nhdr64->n_namesz;
 
-        elf_note_data_addr =
-            ((void *)nhdr64) + nhdr_size64 +
-            QEMU_ALIGN_UP(nhdr_namesz, phdr_align);
+        elf_note_data_addr = (size_t *)(
+            ((char *)nhdr64) + nhdr_size64 +
+            QEMU_ALIGN_UP(nhdr_namesz, phdr_align));
 
         pvh_start_addr = *elf_note_data_addr;
     } else {
@@ -581,9 +581,9 @@ static uint64_t read_pvh_start_addr(void *arg1, void *arg2, bool is64)
         uint32_t phdr_align = *(uint32_t *)arg2;
         uint32_t nhdr_namesz = nhdr32->n_namesz;
 
-        elf_note_data_addr =
-            ((void *)nhdr32) + nhdr_size32 +
-            QEMU_ALIGN_UP(nhdr_namesz, phdr_align);
+        elf_note_data_addr = (size_t *)(
+            ((char *)nhdr32) + nhdr_size32 +
+            QEMU_ALIGN_UP(nhdr_namesz, phdr_align));
 
         pvh_start_addr = *(uint32_t *)elf_note_data_addr;
     }
@@ -715,7 +715,7 @@ void x86_load_linux(X86MachineState *x86ms,
                 strlen(kernel_cmdline) + 1);
             fw_cfg_add_string(fw_cfg, FW_CFG_CMDLINE_DATA, kernel_cmdline);
 
-            setup = g_memdup2(header, sizeof(header));
+            setup = static_cast<uint8_t *>(g_memdup2(header, sizeof(header)));
 
             fw_cfg_add_i32(fw_cfg, FW_CFG_SETUP_SIZE, sizeof(header));
             fw_cfg_add_bytes(fw_cfg, FW_CFG_SETUP_DATA,
@@ -914,8 +914,8 @@ void x86_load_linux(X86MachineState *x86ms,
         exit(1);
     }
 
-    setup  = g_malloc(setup_size);
-    kernel = g_malloc(kernel_size);
+    setup  = static_cast<uint8_t *>(g_malloc(setup_size));
+    kernel = static_cast<uint8_t *>(g_malloc(kernel_size));
     fseek(f, 0, SEEK_SET);
     if (fread(setup, 1, setup_size, f) != setup_size) {
         fprintf(stderr, "fread() failed\n");
@@ -944,7 +944,7 @@ void x86_load_linux(X86MachineState *x86ms,
 
         setup_data_offset = QEMU_ALIGN_UP(kernel_size, 16);
         kernel_size = setup_data_offset + sizeof(struct setup_data) + dtb_size;
-        kernel = g_realloc(kernel, kernel_size);
+        kernel = static_cast<uint8_t *>(g_realloc(kernel, kernel_size));
 
         stq_le_p(header + 0x250, prot_addr + setup_data_offset);
 

@@ -49,10 +49,19 @@ extern const VMStateDescription vmstate_memory_hotplug;
     VMSTATE_STRUCT(memhp, state, 1, \
                    vmstate_memory_hotplug, MemHotplugState)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list);
 
 void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
                               const char *res_root,
                               const char *event_handler_method,
                               AmlRegionSpace rs, hwaddr memhp_io_base);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

@@ -4,6 +4,10 @@
 #include "hw/nvram/fw_cfg.h"
 #include "hw/i386/x86.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int load_multiboot(X86MachineState *x86ms,
                    FWCfgState *fw_cfg,
                    FILE *f,
@@ -12,5 +16,9 @@ int load_multiboot(X86MachineState *x86ms,
                    const char *kernel_cmdline,
                    int kernel_file_size,
                    uint8_t *header);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

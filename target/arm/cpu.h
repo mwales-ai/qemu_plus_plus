@@ -1255,6 +1255,9 @@ int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
  *
  * It is the responsibility of the caller to call arm_rebuild_hflags().
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 void arm_emulate_firmware_reset(CPUState *cpustate, int target_el);
 
 int aarch64_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);

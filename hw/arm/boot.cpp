@@ -654,7 +654,7 @@ fail:
 
 static void do_cpu_reset(void *opaque)
 {
-    ARMCPU *cpu = opaque;
+    ARMCPU *cpu = static_cast<ARMCPU *>(opaque);
     CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
     const struct arm_boot_info *info = env->boot_info;
@@ -745,7 +745,7 @@ static int do_arm_linux_init(Object *obj, void *opaque)
     if (object_dynamic_cast(obj, TYPE_ARM_LINUX_BOOT_IF)) {
         ARMLinuxBootIf *albif = ARM_LINUX_BOOT_IF(obj);
         ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_GET_CLASS(obj);
-        struct arm_boot_info *info = opaque;
+        struct arm_boot_info *info = static_cast<struct arm_boot_info *>(opaque);
 
         if (albifc->arm_linux_init) {
             albifc->arm_linux_init(albif, info->secure_boot);

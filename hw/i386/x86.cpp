@@ -114,8 +114,8 @@ static const CPUArchIdList *x86_possible_cpu_arch_ids(MachineState *ms)
         return ms->possible_cpus;
     }
 
-    ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
-                                  sizeof(CPUArchId) * max_cpus);
+    ms->possible_cpus = static_cast<CPUArchIdList *>(g_malloc0(sizeof(CPUArchIdList) +
+                                  sizeof(CPUArchId) * max_cpus));
     ms->possible_cpus->len = max_cpus;
 
     init_topo_info(&topo_info, x86ms);
@@ -441,18 +441,20 @@ static void x86_machine_class_init(ObjectClass *oc, const void *data)
         "SGX EPC device");
 }
 
+static const InterfaceInfo x86_machine_interfaces[] = {
+    { TYPE_NMI },
+    { }
+};
+
 static const TypeInfo x86_machine_info = {
     .name = TYPE_X86_MACHINE,
     .parent = TYPE_MACHINE,
-    .is_abstract = true,
     .instance_size = sizeof(X86MachineState),
     .instance_init = x86_machine_initfn,
+    .is_abstract = true,
     .class_size = sizeof(X86MachineClass),
     .class_init = x86_machine_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-         { TYPE_NMI },
-         { }
-    },
+    .interfaces = x86_machine_interfaces,
 };
 
 static void x86_machine_register_types(void)

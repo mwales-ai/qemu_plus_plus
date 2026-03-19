@@ -15,6 +15,10 @@
 
 #define KVM_MAX_CPUID_ENTRIES  100
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* always false if !CONFIG_KVM */
 #define kvm_pit_in_kernel() \
     (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
@@ -90,5 +94,9 @@ uint32_t kvm_x86_build_cpuid(CPUX86State *env, struct kvm_cpuid_entry2 *entries,
 
 void kvm_smm_cpu_address_space_init(X86CPU *cpu);
 void kvm_pc_setup_irq_routing(bool pci_enabled);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
