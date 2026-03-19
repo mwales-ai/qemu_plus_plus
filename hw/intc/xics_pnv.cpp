@@ -19,10 +19,10 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+extern "C" {
 #include "hw/ppc/xics.h"
 }
 

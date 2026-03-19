@@ -278,6 +278,10 @@ def fix_invalid_conversion(filepath: Path, error: CompileError) -> Optional[str]
 
     line = lines[line_idx]
 
+    # Already fixed?
+    if 'static_cast' in line:
+        return None
+
     # Common patterns: TYPE *var = func_call(...);
     # Try wrapping the RHS in static_cast
     # Pattern: = something_that_returns_void_star(...)
@@ -286,8 +290,6 @@ def fix_invalid_conversion(filepath: Path, error: CompileError) -> Optional[str]
     if cm:
         func_name = cm.group(1)
         # Wrap the function call in static_cast
-        old = line
-        # Find matching paren
         start = line.index(func_name)
         depth = 0
         end = start
@@ -317,30 +319,6 @@ def fix_invalid_conversion(filepath: Path, error: CompileError) -> Optional[str]
     return None
 
 
-def fix_sign_compare(filepath: Path, error: CompileError) -> Optional[str]:
-    """Fix sign-compare warnings by casting to matching type."""
-    if 'sign-compare' not in error.message:
-        return None
-    # These often need manual inspection - skip for now, just report
-    return None
-
-
-def fix_designator_order(filepath: Path, error: CompileError) -> Optional[str]:
-    """Fix designator order mismatch - needs struct info, hard to automate."""
-    if 'designator order' not in error.message:
-        return None
-    # Report for manual fix
-    return None
-
-
-def fix_compound_literal(filepath: Path, error: CompileError) -> Optional[str]:
-    """Fix compound literals (Type){...} which aren't valid in C++."""
-    if "expected primary-expression before ')'" not in error.message:
-        return None
-    # Report for manual fix
-    return None
-
-
 def fix_enum_conversion(filepath: Path, error: CompileError) -> Optional[str]:
     """Fix int-to-enum implicit conversions."""
     m = re.search(r"invalid conversion from 'int' to '(\w+)'", error.message)
@@ -354,11 +332,10 @@ def fix_enum_conversion(filepath: Path, error: CompileError) -> Optional[str]:
         return None
 
     line = lines[line_idx]
+    if 'static_cast' in line:
+        return None
 
-    # Pattern: variable = integer_expression;
-    # or function_call(..., integer_expression, ...)
-    # Hard to fix generically without context
-    # Try simple cases: = 0; or = some_func(...);
+    # = 0; pattern
     zero_pattern = re.compile(r'(\w+)\s*=\s*0\s*;')
     zm = zero_pattern.search(line)
     if zm:
@@ -368,6 +345,145 @@ def fix_enum_conversion(filepath: Path, error: CompileError) -> Optional[str]:
         return f"enum cast at line {error.line}"
 
     return None
+
+
+def fix_undefined_reference(error: CompileError) -> Optional[Tuple[str, str]]:
+    """Parse undefined reference errors to identify missing extern "C".
+
+    Returns (mangled_name, header_file) if fixable, None otherwise.
+    """
+    m = re.search(r"undefined reference to `(.+?)'", error.message)
+    if not m:
+        return None
+    symbol = m.group(1)
+    # C++ mangled names start with _Z
+    if symbol.startswith('_Z'):
+        return symbol, None
+    return None
+
+
+def add_extern_c_to_header(header_path: Path) -> Optional[str]:
+    """Add extern "C" guards to a header file if not already present."""
+    if not header_path.exists():
+        return None
+
+    content = header_path.read_text()
+
+    # Already has guards?
+    if '__cplusplus' in content:
+        return None
+
+    # Find the #ifndef / #define guard
+    lines = content.split('\n')
+    insert_after = -1
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith('#define') and i > 0 and lines[i-1].strip().startswith('#ifndef'):
+            insert_after = i
+            break
+
+    if insert_after < 0:
+        return None
+
+    # Find the #endif at the end
+    endif_line = -1
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip() == '#endif':
+            endif_line = i
+            break
+
+    if endif_line < 0:
+        return None
+
+    # Insert guards
+    lines.insert(insert_after + 1, '')
+    lines.insert(insert_after + 2, '#ifdef __cplusplus')
+    lines.insert(insert_after + 3, 'extern "C" {')
+    lines.insert(insert_after + 4, '#endif')
+
+    # Adjust endif_line for insertions
+    endif_line += 4
+
+    lines.insert(endif_line, '')
+    lines.insert(endif_line + 1, '#ifdef __cplusplus')
+    lines.insert(endif_line + 2, '}')
+    lines.insert(endif_line + 3, '#endif')
+
+    header_path.write_text('\n'.join(lines))
+    return f"Added extern C guards to {header_path}"
+
+
+def find_header_for_function(func_name: str) -> Optional[Path]:
+    """Try to find the header that declares a function."""
+    # Search include/ directory for function declaration
+    result = subprocess.run(
+        ['grep', '-rl', f'{func_name}(', 'include/'],
+        capture_output=True, text=True, cwd=QEMU_ROOT
+    )
+    if result.returncode == 0:
+        candidates = result.stdout.strip().split('\n')
+        for c in candidates:
+            c = c.strip()
+            if c.endswith('.h'):
+                return QEMU_ROOT / c
+    return None
+
+
+def add_extern_c_to_func_def(filepath: Path, func_name: str) -> Optional[str]:
+    """Add extern "C" to a function definition in a .cpp file."""
+    content = filepath.read_text()
+
+    # Find the function definition (not declaration)
+    # Pattern: type funcname(... at start of line (not indented = definition)
+    pattern = re.compile(
+        rf'^(\w[\w\s\*]+?)\b({re.escape(func_name)})\s*\(',
+        re.MULTILINE
+    )
+    m = pattern.search(content)
+    if not m:
+        return None
+
+    # Check if already has extern "C"
+    line_start = content.rfind('\n', 0, m.start()) + 1
+    prefix = content[line_start:m.start()]
+    if 'extern "C"' in prefix:
+        return None
+
+    # Add extern "C" before the function
+    content = content[:m.start()] + 'extern "C"\n' + content[m.start():]
+    filepath.write_text(content)
+    return f"Added extern \"C\" to {func_name} definition"
+
+
+def fix_linker_errors(filepath: Path, build_output: str) -> List[str]:
+    """Fix undefined reference errors by adding extern "C" to function defs
+    or adding guards to headers."""
+    fixes = []
+
+    # Find undefined references in our file's object
+    basename = filepath.stem
+    # Look for undefined references related to our file
+    undef_pattern = re.compile(
+        rf'{re.escape(basename)}\.cpp\.o:.*undefined reference to `(\w+)\('
+    )
+
+    for m in undef_pattern.finditer(build_output):
+        func_name = m.group(1)
+
+        # Try adding extern "C" to the function definition in our file
+        fix = add_extern_c_to_func_def(filepath, func_name)
+        if fix:
+            fixes.append(fix)
+            continue
+
+        # Try finding and fixing the header
+        header = find_header_for_function(func_name)
+        if header:
+            fix = add_extern_c_to_header(header)
+            if fix:
+                fixes.append(fix)
+
+    return fixes
 
 
 def apply_error_fixes(filepath: Path, errors: List[CompileError]) -> List[str]:
@@ -531,11 +647,45 @@ def port_file(c_file: Path, dry_run: bool = False, analyze_only: bool = False) -
     # Phase 3: Compile-fix loop
     for iteration in range(MAX_FIX_ITERATIONS):
         print(f"  Compile attempt {iteration + 1}...")
-        errors = try_compile_file_only(cpp_file)
 
-        if not errors:
+        # Build and capture full output for linker error analysis
+        build_result = subprocess.run(
+            ['ninja', '-C', str(QEMU_ROOT / 'build')],
+            capture_output=True, text=True, timeout=600
+        )
+        build_output = build_result.stdout + build_result.stderr
+
+        errors = []
+        err_pattern = re.compile(
+            r'^\.\./(.+?):(\d+):(\d+): (error): (.+)$',
+            re.MULTILINE
+        )
+        basename = cpp_file.name
+        for m in err_pattern.finditer(build_output):
+            fpath, line, col, etype, msg = m.groups()
+            if basename in fpath:
+                errors.append(CompileError(
+                    file=fpath, line=int(line), col=int(col),
+                    error_type=etype, message=msg, raw=m.group(0)
+                ))
+
+        if not errors and build_result.returncode == 0:
             result.success = True
             print(f"  CLEAN BUILD!")
+            break
+
+        # Check for linker errors (undefined reference)
+        if not errors and 'undefined reference' in build_output:
+            linker_fixes = fix_linker_errors(cpp_file, build_output)
+            if linker_fixes:
+                result.fixes_applied.extend(linker_fixes)
+                print(f"    Linker fixes: {', '.join(linker_fixes)}")
+                continue
+
+        if not errors:
+            # Build failed but not our file - might be pre-existing
+            print(f"    Build failed but no errors in {basename}")
+            result.success = True  # Our file is probably fine
             break
 
         print(f"    {len(errors)} errors found, attempting fixes...")

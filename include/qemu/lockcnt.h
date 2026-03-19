@@ -12,6 +12,10 @@
 #ifndef QEMU_LOCKCNT_H
 #define QEMU_LOCKCNT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "qemu/thread.h"
 
 typedef struct QemuLockCnt QemuLockCnt;
@@ -126,5 +130,9 @@ void qemu_lockcnt_inc_and_unlock(QemuLockCnt *lockcnt);
  * is non-zero.
  */
 unsigned qemu_lockcnt_count(QemuLockCnt *lockcnt);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

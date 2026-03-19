@@ -133,7 +133,7 @@ static void rtas_nvram_store(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     ret = 0;
     if (nvram->blk) {
-        ret = blk_pwrite(nvram->blk, offset, len, membuf, 0);
+        ret = blk_pwrite(nvram->blk, offset, len, membuf, static_cast<BdrvRequestFlags>(0));
     }
 
     assert(nvram->buf);
@@ -182,7 +182,7 @@ static void spapr_nvram_realize(SpaprVioDevice *dev, Error **errp)
     }
 
     if (nvram->blk) {
-        ret = blk_pread(nvram->blk, 0, nvram->size, nvram->buf, 0);
+        ret = blk_pread(nvram->blk, 0, nvram->size, nvram->buf, static_cast<BdrvRequestFlags>(0));
 
         if (ret < 0) {
             error_setg(errp, "can't read spapr-nvram contents");
@@ -227,7 +227,7 @@ static void postload_update_cb(void *opaque, bool running, RunState state)
     qemu_del_vm_change_state_handler(nvram->vmstate);
     nvram->vmstate = NULL;
 
-    blk_pwrite(nvram->blk, 0, nvram->size, nvram->buf, 0);
+    blk_pwrite(nvram->blk, 0, nvram->size, nvram->buf, static_cast<BdrvRequestFlags>(0));
 }
 
 static int spapr_nvram_post_load(void *opaque, int version_id)

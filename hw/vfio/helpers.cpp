@@ -22,11 +22,11 @@
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
 
-extern "C" {
 #include "system/kvm.h"
 #include "hw/vfio/vfio-device.h"
 #include "hw/hw.h"
 #include "qapi/error.h"
+extern "C" {
 #include "vfio-helpers.h"
 }
 

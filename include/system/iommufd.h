@@ -14,6 +14,10 @@
 #ifndef SYSTEM_IOMMUFD_H
 #define SYSTEM_IOMMUFD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "qom/object.h"
 #include "exec/hwaddr.h"
 #include "exec/cpu-common.h"
@@ -124,4 +128,9 @@ bool host_iommu_device_iommufd_attach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
                                            uint32_t hwpt_id, Error **errp);
 bool host_iommu_device_iommufd_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
                                            Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

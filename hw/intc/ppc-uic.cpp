@@ -24,11 +24,11 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
-#include "hw/intc/ppc-uic.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+extern "C" {
+#include "hw/intc/ppc-uic.h"
 }
 
 enum {

@@ -9,7 +9,6 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
@@ -17,6 +16,7 @@ extern "C" {
 #include "hw/irq.h"
 #include "hw/i2c/bitbang_i2c.h"
 #include "hw/intc/i8259.h"
+extern "C" {
 #include "hw/pci-host/articia.h"
 }
 

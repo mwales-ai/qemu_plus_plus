@@ -25,18 +25,18 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
-#include "qemu/units.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "hw/pci/pci_device.h"
-#include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
 #include "hw/qdev-properties.h"
 #include "hw/intc/i8259.h"
 #include "hw/irq.h"
-#include "hw/or-irq.h"
 #include "qom/object.h"
+extern "C" {
+#include "qemu/units.h"
+#include "hw/pci/pci_bus.h"
+#include "hw/or-irq.h"
 }
 
 #define TYPE_RAVEN_PCI_DEVICE "raven"

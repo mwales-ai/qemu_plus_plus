@@ -15,10 +15,10 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qapi/error.h"
-#include "target/ppc/cpu.h"
 #include "migration/vmstate.h"
+extern "C" {
+#include "target/ppc/cpu.h"
 #include "hw/ppc/spapr.h"
 }
 

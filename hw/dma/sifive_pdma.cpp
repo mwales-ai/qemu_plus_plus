@@ -22,12 +22,10 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qemu/bitops.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "system/dma.h"
-}
 
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"

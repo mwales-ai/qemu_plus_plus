@@ -8,8 +8,8 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qemu/log.h"
+extern "C" {
 #include "trace.h"
 }
 
@@ -945,7 +945,7 @@ static void operation_sequencer(PnvSpi *s)
             }
             break;
 
-        case SEQ_OP_BRANCH_IFNEQ_INC_2:
+        case SEQ_OP_BRANCH_IFNEQ_INC_2: {
             s->status = SETFIELD(SPI_STS_SEQ_FSM, s->status, SEQ_STATE_EXECUTE);
             trace_pnv_spi_sequencer_op("BRANCH_IFNEQ_INC_2", seq_index);
             uint8_t condition2 = GETFIELD(SPI_CTR_CFG_CMP2,
@@ -971,7 +971,7 @@ static void operation_sequencer(PnvSpi *s)
                                 SEQ_STATE_INDEX_INCREMENT);
             }
             break;
-
+        }
         default:
             s->status = SETFIELD(SPI_STS_SEQ_FSM, s->status, SEQ_STATE_EXECUTE);
             /* Ignore unsupported operations. */

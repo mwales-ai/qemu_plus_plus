@@ -486,10 +486,160 @@ def fix_memregion_ops_nested(content):
     return content, len(inits)
 
 
+def header_has_cpp_guards(header_include_path):
+    """Check if a header already has __cplusplus / extern "C" guards.
+
+    Args:
+        header_include_path: the path as it appears in #include "..." directives,
+                            e.g., "qemu/id.h", "hw/cpu/core.h"
+    """
+    # Try include/ directory first
+    full = QEMU_ROOT / 'include' / header_include_path
+    if full.exists():
+        try:
+            return '__cplusplus' in full.read_text()
+        except:
+            return False
+
+    # Try as a relative path from QEMU root (for local headers like "monitor-internal.h")
+    full = QEMU_ROOT / header_include_path
+    if full.exists():
+        try:
+            return '__cplusplus' in full.read_text()
+        except:
+            return False
+
+    return False  # Unknown headers are assumed to need wrapping
+
+
+def restructure_includes(content):
+    """Restructure #include directives for C++ compatibility.
+
+    - qemu/osdep.h stays first, outside any extern "C" block
+    - Headers with __cplusplus guards are included directly (no wrapping)
+    - Headers without guards are wrapped in extern "C" { }
+    - C++ standard headers go last
+
+    Returns (new_content, num_changes).
+    """
+    lines = content.split('\n')
+
+    # Find all include lines and their positions
+    includes = []
+    first_include_idx = -1
+    last_include_idx = -1
+    has_osdep = False
+    already_has_extern_c = False
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith('#include'):
+            if first_include_idx < 0:
+                first_include_idx = i
+            last_include_idx = i
+            m = re.match(r'#include\s+[<"](.+?)[>"]', stripped)
+            if m:
+                header = m.group(1)
+                is_system = '<' in stripped.split('#include')[1].split('>')[0] if '<' in stripped else False
+                includes.append((i, header, is_system, stripped))
+                if header == 'qemu/osdep.h':
+                    has_osdep = True
+        if 'extern "C"' in stripped:
+            already_has_extern_c = True
+
+    if not includes or already_has_extern_c or first_include_idx < 0:
+        return content, 0  # Don't restructure if already has extern C or no includes
+
+    if not has_osdep:
+        return content, 0  # Non-standard file, skip
+
+    # Classify includes
+    osdep_includes = []      # qemu/osdep.h - always first, outside
+    guarded_includes = []    # Headers with __cplusplus guards - outside
+    unguarded_includes = []  # C headers without guards - need extern "C"
+    cpp_includes = []        # C++ standard library headers
+    local_includes = []      # Local relative includes (e.g., "foo.h" without path)
+
+    for idx, header, is_system, original_line in includes:
+        if header == 'qemu/osdep.h':
+            osdep_includes.append(original_line)
+        elif is_system and (header.startswith('c') and not header.endswith('.h')
+                          or header in ('string', 'vector', 'map', 'set', 'algorithm',
+                                       'memory', 'iostream', 'array', 'unordered_map',
+                                       'functional', 'utility', 'cassert', 'cstring',
+                                       'cstdlib', 'cstdio', 'cmath', 'limits',
+                                       'type_traits', 'numeric', 'bitset')):
+            cpp_includes.append(original_line)
+        elif header_has_cpp_guards(header):
+            guarded_includes.append(original_line)
+        elif is_system:
+            # System C headers like <sys/mman.h> - include outside (handled by osdep.h)
+            guarded_includes.append(original_line)
+        elif '/' not in header:
+            # Local include like "trace.h" or "internal.h" - check relative to file
+            unguarded_includes.append(original_line)
+        else:
+            unguarded_includes.append(original_line)
+
+    # Only restructure if there are unguarded includes to wrap
+    if not unguarded_includes:
+        return content, 0
+
+    # Build new include section
+    new_includes = []
+    for line in osdep_includes:
+        new_includes.append(line)
+    new_includes.append('')
+
+    if guarded_includes:
+        for line in guarded_includes:
+            new_includes.append(line)
+        new_includes.append('')
+
+    if unguarded_includes:
+        new_includes.append('extern "C" {')
+        for line in unguarded_includes:
+            new_includes.append(line)
+        new_includes.append('}')
+        new_includes.append('')
+
+    if cpp_includes:
+        for line in cpp_includes:
+            new_includes.append(line)
+        new_includes.append('')
+
+    # Replace the include section in the file
+    # Remove old include lines
+    new_lines = lines[:first_include_idx]
+    new_lines.extend(new_includes)
+    # Skip old include section (everything from first to last include line)
+    # but keep non-include lines between them
+    skip_lines = set()
+    for idx, header, is_system, original_line in includes:
+        skip_lines.add(idx)
+    # Also skip blank lines adjacent to removed includes and existing extern "C" { } wrapping
+    for i in range(first_include_idx, last_include_idx + 1):
+        if i in skip_lines:
+            continue
+        stripped = lines[i].strip()
+        if stripped == '' or stripped == 'extern "C" {' or stripped == '}':
+            continue
+        new_lines.append(lines[i])
+
+    # Add rest of file after last include
+    new_lines.extend(lines[last_include_idx + 1:])
+
+    return '\n'.join(new_lines), len(unguarded_includes)
+
+
 def apply_easy_fixes(filepath):
     """Apply mechanical fixes for EASY files."""
     content = filepath.read_text()
     fixes = []
+
+    # Restructure includes with extern "C" wrapping
+    content, n = restructure_includes(content)
+    if n: fixes.append(f"include restructure ({n} wrapped)")
 
     # Extract VMStateField compound literals
     content, n = extract_vmstate_fields(content)
@@ -668,8 +818,108 @@ def extract_failing_sources(build_output, ported_cpp_rels=None):
     return failing
 
 
+def add_extern_c_guards_to_header(header_path):
+    """Add #ifdef __cplusplus extern "C" guards to a header if missing."""
+    if not os.path.exists(header_path):
+        return False
+    content = open(header_path).read()
+    if '__cplusplus' in content:
+        return False  # Already has guards
+
+    lines = content.split('\n')
+    # Find #ifndef/#define guard pair
+    insert_after = -1
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith('#define') and i > 0 and lines[i-1].strip().startswith('#ifndef'):
+            insert_after = i
+            break
+    if insert_after < 0:
+        return False
+
+    # Find last #endif
+    endif_line = -1
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip() == '#endif':
+            endif_line = i
+            break
+    if endif_line < 0:
+        return False
+
+    lines.insert(insert_after + 1, '')
+    lines.insert(insert_after + 2, '#ifdef __cplusplus')
+    lines.insert(insert_after + 3, 'extern "C" {')
+    lines.insert(insert_after + 4, '#endif')
+
+    endif_line += 4  # adjust for insertions
+    lines.insert(endif_line, '')
+    lines.insert(endif_line + 1, '#ifdef __cplusplus')
+    lines.insert(endif_line + 2, '}')
+    lines.insert(endif_line + 3, '#endif')
+
+    open(header_path, 'w').write('\n'.join(lines))
+    return True
+
+
+def try_fix_linker_errors(build_output, ported_cpp_rels):
+    """Try to fix undefined reference errors by adding extern "C" to function defs
+    or header guards. Returns number of fixes applied."""
+    fixes = 0
+
+    # Find undefined references in .cpp.o files
+    for m in re.finditer(r'(\S+\.cpp)\.o:.*undefined reference to `(\w+)', build_output):
+        obj_file = m.group(1)
+        func_name = m.group(2)
+
+        # Find the .cpp source file
+        cpp_rel = None
+        for p in ported_cpp_rels:
+            if Path(p).stem == Path(obj_file).stem:
+                cpp_rel = p
+                break
+        if not cpp_rel:
+            continue
+
+        cpp_path = QEMU_ROOT / cpp_rel
+        if not cpp_path.exists():
+            continue
+
+        content = cpp_path.read_text()
+
+        # Check if function is defined in this file (at file scope, not indented)
+        func_pattern = re.compile(
+            rf'^(\w[\w\s\*]+?)\b({re.escape(func_name)})\s*\(',
+            re.MULTILINE
+        )
+        fm = func_pattern.search(content)
+        if fm and 'extern "C"' not in content[max(0, fm.start()-20):fm.start()]:
+            # Add extern "C" before the function definition
+            content = content[:fm.start()] + 'extern "C"\n' + content[fm.start():]
+            cpp_path.write_text(content)
+            fixes += 1
+            print(f"    Fixed: extern \"C\" on {func_name} in {cpp_rel}")
+            continue
+
+        # Try finding the header that declares this function and add guards
+        result = subprocess.run(
+            ['grep', '-rl', f'{func_name}(', 'include/'],
+            capture_output=True, text=True, cwd=QEMU_ROOT
+        )
+        if result.returncode == 0:
+            for h in result.stdout.strip().split('\n'):
+                h = h.strip()
+                if h.endswith('.h'):
+                    header_path = str(QEMU_ROOT / h)
+                    if add_extern_c_guards_to_header(header_path):
+                        fixes += 1
+                        print(f"    Fixed: extern C guards in {h}")
+                        break
+
+    return fixes
+
+
 def build_and_get_failures(ported_cpp_rels=None):
-    """Build the project and return set of failing .cpp source files.
+    """Build the project and return (failing_set, success_bool, build_output).
 
     Args:
         ported_cpp_rels: set of relative paths of .cpp files we ported,
@@ -679,13 +929,13 @@ def build_and_get_failures(ported_cpp_rels=None):
         ['ninja', '-C', 'build', '-k0', '-j', str(os.cpu_count())],
         capture_output=True, text=True, timeout=600
     )
-    if result.returncode == 0:
-        return set(), True
-
     output = result.stdout + result.stderr
+    if result.returncode == 0:
+        return set(), True, output
+
     failing = extract_failing_sources(output, ported_cpp_rels)
 
-    return failing, False
+    return failing, False, output
 
 
 def reconfigure_meson():
@@ -742,10 +992,24 @@ def batch_port(files, difficulty, dry_run=False):
     return ported, failed
 
 
-def build_and_revert_loop(ported, max_iterations=5):
+def get_preexisting_failures():
+    """Build before porting and record which files are already failing."""
+    result = subprocess.run(
+        ['ninja', '-C', 'build', '-k0', '-j', str(os.cpu_count())],
+        capture_output=True, text=True, timeout=600
+    )
+    if result.returncode == 0:
+        return set()
+    output = result.stdout + result.stderr
+    return extract_failing_sources(output)
+
+
+def build_and_revert_loop(ported, max_iterations=5, preexisting=None):
     """Build, identify failures, revert them, repeat until clean."""
     if not ported:
         return [], []
+    if preexisting is None:
+        preexisting = set()
 
     print(f"\n  Reconfiguring meson...")
     reconfigure_meson()
@@ -760,11 +1024,32 @@ def build_and_revert_loop(ported, max_iterations=5):
             ported_cpp_rels.add(str(cpp_file.relative_to(QEMU_ROOT)))
 
         print(f"\n  Build attempt {iteration + 1} ({len(survived)} files)...")
-        failing, success = build_and_get_failures(ported_cpp_rels)
+        failing, success, build_output = build_and_get_failures(ported_cpp_rels)
 
-        if success:
-            print(f"  BUILD SUCCESS!")
+        # Subtract pre-existing failures
+        failing -= preexisting
+
+        if success or not failing:
+            if success:
+                print(f"  BUILD SUCCESS!")
+            else:
+                print(f"  BUILD SUCCESS (only pre-existing failures)!")
             break
+
+        # Try to fix linker errors (missing extern "C") before reverting
+        if build_output and 'undefined reference' in build_output:
+            linker_fixes = try_fix_linker_errors(build_output, ported_cpp_rels)
+            if linker_fixes > 0:
+                print(f"  Applied {linker_fixes} linker error fixes, rebuilding...")
+                failing2, success2, build_output = build_and_get_failures(ported_cpp_rels)
+                if success2:
+                    print(f"  BUILD SUCCESS after linker fixes!")
+                    break
+                # Update failing set with new results
+                failing = failing2 - preexisting
+                if not failing:
+                    print(f"  BUILD SUCCESS after linker fixes (only pre-existing failures)!")
+                    break
 
         # Identify which of our ported files are failing
         to_revert = []
@@ -776,16 +1061,8 @@ def build_and_revert_loop(ported, max_iterations=5):
         if not failing:
             print(f"  BUILD FAILED but could not identify specific failing files.")
             print(f"  Saving build output to /tmp/batch-port-build.log")
-            # Save build output for manual inspection
-            try:
-                result = subprocess.run(
-                    ['ninja', '-C', 'build', '-k0', '-j', str(os.cpu_count())],
-                    capture_output=True, text=True, timeout=600
-                )
-                with open('/tmp/batch-port-build.log', 'w') as f:
-                    f.write(result.stdout + result.stderr)
-            except:
-                pass
+            with open('/tmp/batch-port-build.log', 'w') as f:
+                f.write(build_output)
             print(f"  Run 'ninja -C build' manually to see errors.")
             break
 
@@ -851,6 +1128,20 @@ def main():
                         print(f"  {f.relative_to(QEMU_ROOT)} ({detail or 'clean'})")
         return
 
+    # Check for pre-existing build failures before porting
+    preexisting_failures = set()
+    if not args.no_build and not args.dry_run:
+        print("\nChecking for pre-existing build failures...")
+        preexisting_failures = get_preexisting_failures()
+        if preexisting_failures:
+            print(f"Found {len(preexisting_failures)} pre-existing failures (will ignore):")
+            for f in sorted(preexisting_failures)[:10]:
+                print(f"  {f}")
+            if len(preexisting_failures) > 10:
+                print(f"  ... and {len(preexisting_failures) - 10} more")
+        else:
+            print("No pre-existing failures.")
+
     # Port files
     total_ported = []
     total_failed = []
@@ -876,7 +1167,7 @@ def main():
     # Build verification with auto-revert
     if not args.no_build and total_ported:
         if not args.no_auto_revert:
-            survived, reverted = build_and_revert_loop(total_ported)
+            survived, reverted = build_and_revert_loop(total_ported, preexisting=preexisting_failures)
             print(f"\n{'='*60}")
             print(f"  FINAL SUMMARY")
             print(f"{'='*60}")
