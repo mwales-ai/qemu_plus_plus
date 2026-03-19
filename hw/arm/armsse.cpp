@@ -482,36 +482,56 @@ static const ARMSSEDeviceInfo sse300_devices[] = {
 
 /* Is internal IRQ n shared between CPUs in a multi-core SSE ? */
 static const bool sse200_irq_is_common[32] = {
-    [0 ... 5] = true,
+    /* 0-5: common */
+    true, true, true, true, true, true,
     /* 6, 7: per-CPU MHU interrupts */
-    [8 ... 12] = true,
+    false, false,
+    /* 8-12: common */
+    true, true, true, true, true,
     /* 13: per-CPU icache interrupt */
+    false,
     /* 14: reserved */
-    [15 ... 20] = true,
+    false,
+    /* 15-20: common */
+    true, true, true, true, true, true,
     /* 21: reserved */
-    [22 ... 26] = true,
+    false,
+    /* 22-26: common */
+    true, true, true, true, true,
     /* 27: reserved */
+    false,
     /* 28, 29: per-CPU CTI interrupts */
+    false, false,
     /* 30, 31: reserved */
+    false, false,
 };
 
 static const bool sse300_irq_is_common[32] = {
-    [0 ... 5] = true,
+    /* 0-5: common */
+    true, true, true, true, true, true,
     /* 6, 7: per-CPU MHU interrupts */
-    [8 ... 12] = true,
+    false, false,
+    /* 8-12: common */
+    true, true, true, true, true,
     /* 13: reserved */
-    [14 ... 16] = true,
+    false,
+    /* 14-16: common */
+    true, true, true,
     /* 17-25: reserved */
-    [26 ... 27] = true,
+    false, false, false, false, false, false, false, false, false,
+    /* 26-27: common */
+    true, true,
     /* 28, 29: per-CPU CTI interrupts */
+    false, false,
     /* 30, 31: reserved */
+    false, false,
 };
 
 static const ARMSSEInfo armsse_variants[] = {
     {
         .name = TYPE_IOTKIT,
-        .sse_version = ARMSSE_IOTKIT,
         .cpu_type = ARM_CPU_TYPE_NAME("cortex-m33"),
+        .sse_version = ARMSSE_IOTKIT,
         .sram_banks = 1,
         .sram_bank_base = 0x20000000,
         .num_cpus = 1,
@@ -525,15 +545,15 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpu_pwrctrl = false,
         .has_sse_counter = false,
         .has_tcms = false,
-        .props = iotkit_properties,
         .props_count = ARRAY_SIZE(iotkit_properties),
+        .props = iotkit_properties,
         .devinfo = iotkit_devices,
         .irq_is_common = sse200_irq_is_common,
     },
     {
         .name = TYPE_SSE200,
-        .sse_version = ARMSSE_SSE200,
         .cpu_type = ARM_CPU_TYPE_NAME("cortex-m33"),
+        .sse_version = ARMSSE_SSE200,
         .sram_banks = 4,
         .sram_bank_base = 0x20000000,
         .num_cpus = 2,
@@ -547,15 +567,15 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpu_pwrctrl = false,
         .has_sse_counter = false,
         .has_tcms = false,
-        .props = sse200_properties,
         .props_count = ARRAY_SIZE(sse200_properties),
+        .props = sse200_properties,
         .devinfo = sse200_devices,
         .irq_is_common = sse200_irq_is_common,
     },
     {
         .name = TYPE_SSE300,
-        .sse_version = ARMSSE_SSE300,
         .cpu_type = ARM_CPU_TYPE_NAME("cortex-m55"),
+        .sse_version = ARMSSE_SSE300,
         .sram_banks = 2,
         .sram_bank_base = 0x21000000,
         .num_cpus = 1,
@@ -569,8 +589,8 @@ static const ARMSSEInfo armsse_variants[] = {
         .has_cpu_pwrctrl = true,
         .has_sse_counter = true,
         .has_tcms = true,
-        .props = sse300_properties,
         .props_count = ARRAY_SIZE(sse300_properties),
+        .props = sse300_properties,
         .devinfo = sse300_devices,
         .irq_is_common = sse300_irq_is_common,
     },
@@ -627,7 +647,7 @@ static void make_alias(ARMSSE *s, MemoryRegion *mr, MemoryRegion *container,
 
 static void irq_status_forwarder(void *opaque, int n, int level)
 {
-    qemu_irq destirq = opaque;
+    qemu_irq destirq = static_cast<IRQState *>(opaque);
 
     qemu_set_irq(destirq, level);
 }
@@ -876,7 +896,7 @@ static void armsse_init(Object *obj)
 
 static void armsse_exp_irq(void *opaque, int n, int level)
 {
-    qemu_irq *irqarray = opaque;
+    qemu_irq *irqarray = static_cast<qemu_irq *>(opaque);
 
     qemu_set_irq(irqarray[n], level);
 }
@@ -1672,16 +1692,18 @@ static void armsse_idau_check(IDAUInterface *ii, uint32_t address,
     *iregion = region;
 }
 
+static const VMStateField armsse_vmstate_fields[] = {
+    VMSTATE_CLOCK(mainclk, ARMSSE),
+    VMSTATE_CLOCK(s32kclk, ARMSSE),
+    VMSTATE_UINT32(nsccfg, ARMSSE),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription armsse_vmstate = {
     .name = "iotkit",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(mainclk, ARMSSE),
-        VMSTATE_CLOCK(s32kclk, ARMSSE),
-        VMSTATE_UINT32(nsccfg, ARMSSE),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = armsse_vmstate_fields,
 };
 
 static void armsse_reset(DeviceState *dev)
@@ -1696,7 +1718,7 @@ static void armsse_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDAUInterfaceClass *iic = IDAU_INTERFACE_CLASS(klass);
     ARMSSEClass *asc = ARM_SSE_CLASS(klass);
-    const ARMSSEInfo *info = data;
+    const ARMSSEInfo *info = static_cast<const ARMSSEInfo *>(data);
 
     dc->realize = armsse_realize;
     dc->vmsd = &armsse_vmstate;
@@ -1706,17 +1728,19 @@ static void armsse_class_init(ObjectClass *klass, const void *data)
     asc->info = info;
 }
 
+static const InterfaceInfo armsse_interfaces[] = {
+    { TYPE_IDAU_INTERFACE },
+    { }
+};
+
 static const TypeInfo armsse_info = {
     .name = TYPE_ARM_SSE,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARMSSE),
-    .class_size = sizeof(ARMSSEClass),
     .instance_init = armsse_init,
     .is_abstract = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_IDAU_INTERFACE },
-        { }
-    }
+    .class_size = sizeof(ARMSSEClass),
+    .interfaces = armsse_interfaces,
 };
 
 static void armsse_register_types(void)
