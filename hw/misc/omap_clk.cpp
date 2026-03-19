@@ -730,9 +730,9 @@ void omap_clk_init(struct omap_mpu_state_s *mpu)
     int count;
     int flag;
 
-    if (mpu->mpu_model == omap_mpu_state_s::omap310)
+    if (mpu->mpu_model == omap310)
         flag = CLOCK_IN_OMAP310;
-    else if (mpu->mpu_model == omap_mpu_state_s::omap1510)
+    else if (mpu->mpu_model == omap1510)
         flag = CLOCK_IN_OMAP1510;
     else
         return;

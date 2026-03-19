@@ -165,7 +165,7 @@ static inline void omap_timer_update(struct omap_mpu_timer_s *timer)
 
 static void omap_timer_fire(void *opaque)
 {
-    struct omap_mpu_timer_s *timer = opaque;
+    struct omap_mpu_timer_s *timer = static_cast<struct omap_mpu_timer_s *>(opaque);
 
     if (!timer->ar) {
         timer->val = 0;
@@ -179,7 +179,7 @@ static void omap_timer_fire(void *opaque)
 
 static void omap_timer_tick(void *opaque)
 {
-    struct omap_mpu_timer_s *timer = opaque;
+    struct omap_mpu_timer_s *timer = static_cast<struct omap_mpu_timer_s *>(opaque);
 
     omap_timer_sync(timer);
     omap_timer_fire(timer);
@@ -188,7 +188,7 @@ static void omap_timer_tick(void *opaque)
 
 static void omap_timer_clk_update(void *opaque, int line, int on)
 {
-    struct omap_mpu_timer_s *timer = opaque;
+    struct omap_mpu_timer_s *timer = static_cast<struct omap_mpu_timer_s *>(opaque);
 
     omap_timer_sync(timer);
     timer->rate = on ? omap_clk_getrate(timer->clk) : 0;
@@ -205,7 +205,7 @@ static void omap_timer_clk_setup(struct omap_mpu_timer_s *timer)
 static uint64_t omap_mpu_timer_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-    struct omap_mpu_timer_s *s = opaque;
+    struct omap_mpu_timer_s *s = static_cast<struct omap_mpu_timer_s *>(opaque);
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);
@@ -229,7 +229,7 @@ static uint64_t omap_mpu_timer_read(void *opaque, hwaddr addr,
 static void omap_mpu_timer_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
-    struct omap_mpu_timer_s *s = opaque;
+    struct omap_mpu_timer_s *s = static_cast<struct omap_mpu_timer_s *>(opaque);
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);
@@ -311,7 +311,7 @@ struct omap_watchdog_timer_s {
 static uint64_t omap_wd_timer_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    struct omap_watchdog_timer_s *s = opaque;
+    struct omap_watchdog_timer_s *s = static_cast<struct omap_watchdog_timer_s *>(opaque);
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, addr);
@@ -336,7 +336,7 @@ static uint64_t omap_wd_timer_read(void *opaque, hwaddr addr,
 static void omap_wd_timer_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    struct omap_watchdog_timer_s *s = opaque;
+    struct omap_watchdog_timer_s *s = static_cast<struct omap_watchdog_timer_s *>(opaque);
 
     if (size != 2) {
         omap_badwidth_write16(opaque, addr, value);
@@ -434,7 +434,7 @@ struct omap_32khz_timer_s {
 static uint64_t omap_os_timer_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    struct omap_32khz_timer_s *s = opaque;
+    struct omap_32khz_timer_s *s = static_cast<struct omap_32khz_timer_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 4) {
@@ -461,7 +461,7 @@ static uint64_t omap_os_timer_read(void *opaque, hwaddr addr,
 static void omap_os_timer_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    struct omap_32khz_timer_s *s = opaque;
+    struct omap_32khz_timer_s *s = static_cast<struct omap_32khz_timer_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 4) {
@@ -535,7 +535,7 @@ static struct omap_32khz_timer_s *omap_os_timer_init(MemoryRegion *memory,
 static uint64_t omap_ulpd_pm_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
     uint16_t ret;
 
     if (size != 2) {
@@ -603,7 +603,7 @@ static inline void omap_ulpd_req_update(struct omap_mpu_state_s *s,
 static void omap_ulpd_pm_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
     int64_t now, ticks;
     int div, mult;
     static const int bypass_div[4] = { 1, 2, 4, 4 };
@@ -768,7 +768,7 @@ static void omap_ulpd_pm_init(MemoryRegion *system_memory,
 static uint64_t omap_pin_cfg_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);
@@ -879,7 +879,7 @@ static inline void omap_pin_modconf1_update(struct omap_mpu_state_s *s,
 static void omap_pin_cfg_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
     uint32_t diff;
 
     if (size != 4) {
@@ -991,7 +991,7 @@ static void omap_pin_cfg_init(MemoryRegion *system_memory,
 static uint64_t omap_id_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);
@@ -1073,7 +1073,7 @@ static void omap_id_init(MemoryRegion *memory, struct omap_mpu_state_s *mpu)
 static uint64_t omap_mpui_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
 
     if (size != 4) {
         return omap_badwidth_read32(opaque, addr);
@@ -1106,7 +1106,7 @@ static uint64_t omap_mpui_read(void *opaque, hwaddr addr,
 static void omap_mpui_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);
@@ -1171,7 +1171,7 @@ struct omap_tipb_bridge_s {
 static uint64_t omap_tipb_bridge_read(void *opaque, hwaddr addr,
                                       unsigned size)
 {
-    struct omap_tipb_bridge_s *s = opaque;
+    struct omap_tipb_bridge_s *s = static_cast<struct omap_tipb_bridge_s *>(opaque);
 
     if (size < 2) {
         return omap_badwidth_read16(opaque, addr);
@@ -1201,7 +1201,7 @@ static uint64_t omap_tipb_bridge_read(void *opaque, hwaddr addr,
 static void omap_tipb_bridge_write(void *opaque, hwaddr addr,
                                    uint64_t value, unsigned size)
 {
-    struct omap_tipb_bridge_s *s = opaque;
+    struct omap_tipb_bridge_s *s = static_cast<struct omap_tipb_bridge_s *>(opaque);
 
     if (size < 2) {
         omap_badwidth_write16(opaque, addr, value);
@@ -1272,7 +1272,7 @@ static struct omap_tipb_bridge_s *omap_tipb_bridge_init(
 static uint64_t omap_tcmi_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
     uint32_t ret;
 
     if (size != 4) {
@@ -1310,7 +1310,7 @@ static uint64_t omap_tcmi_read(void *opaque, hwaddr addr,
 static void omap_tcmi_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
 
     if (size != 4) {
         omap_badwidth_write32(opaque, addr, value);
@@ -1387,7 +1387,7 @@ struct dpll_ctl_s {
 static uint64_t omap_dpll_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct dpll_ctl_s *s = opaque;
+    struct dpll_ctl_s *s = static_cast<struct dpll_ctl_s *>(opaque);
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, addr);
@@ -1403,7 +1403,7 @@ static uint64_t omap_dpll_read(void *opaque, hwaddr addr,
 static void omap_dpll_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct dpll_ctl_s *s = opaque;
+    struct dpll_ctl_s *s = static_cast<struct dpll_ctl_s *>(opaque);
     uint16_t diff;
     static const int bypass_div[4] = { 1, 2, 4, 4 };
     int div, mult;
@@ -1453,7 +1453,7 @@ static void omap_dpll_reset(struct dpll_ctl_s *s)
 static struct dpll_ctl_s  *omap_dpll_init(MemoryRegion *memory,
                            hwaddr base, omap_clk clk)
 {
-    struct dpll_ctl_s *s = g_malloc0(sizeof(*s));
+    struct dpll_ctl_s *s = static_cast<struct dpll_ctl_s *>(g_malloc0(sizeof(*s)));
     memory_region_init_io(&s->iomem, NULL, &omap_dpll_ops, s, "omap-dpll", 0x100);
 
     s->dpll = clk;
@@ -1467,7 +1467,7 @@ static struct dpll_ctl_s  *omap_dpll_init(MemoryRegion *memory,
 static uint64_t omap_clkm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, addr);
@@ -1671,7 +1671,7 @@ static inline void omap_clkm_ckout1_update(struct omap_mpu_state_s *s,
 static void omap_clkm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
     uint16_t diff;
     omap_clk clk;
     static const char *clkschemename[8] = {
@@ -1759,7 +1759,7 @@ static const MemoryRegionOps omap_clkm_ops = {
 static uint64_t omap_clkdsp_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
     CPUState *cpu = CPU(s->cpu);
 
     if (size != 2) {
@@ -1804,7 +1804,7 @@ static inline void omap_clkdsp_idlect2_update(struct omap_mpu_state_s *s,
 static void omap_clkdsp_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
-    struct omap_mpu_state_s *s = opaque;
+    struct omap_mpu_state_s *s = static_cast<struct omap_mpu_state_s *>(opaque);
     uint16_t diff;
 
     if (size != 2) {
@@ -1914,7 +1914,7 @@ struct omap_mpuio_s {
 
 static void omap_mpuio_set(void *opaque, int line, int level)
 {
-    struct omap_mpuio_s *s = opaque;
+    struct omap_mpuio_s *s = static_cast<struct omap_mpuio_s *>(opaque);
     uint16_t prev = s->inputs;
 
     if (level)
@@ -1950,7 +1950,7 @@ static void omap_mpuio_kbd_update(struct omap_mpuio_s *s)
 static uint64_t omap_mpuio_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    struct omap_mpuio_s *s = opaque;
+    struct omap_mpuio_s *s = static_cast<struct omap_mpuio_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t ret;
 
@@ -2010,7 +2010,7 @@ static uint64_t omap_mpuio_read(void *opaque, hwaddr addr,
 static void omap_mpuio_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
-    struct omap_mpuio_s *s = opaque;
+    struct omap_mpuio_s *s = static_cast<struct omap_mpuio_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t diff;
     int ln;
@@ -2107,7 +2107,7 @@ static void omap_mpuio_reset(struct omap_mpuio_s *s)
 
 static void omap_mpuio_onoff(void *opaque, int line, int on)
 {
-    struct omap_mpuio_s *s = opaque;
+    struct omap_mpuio_s *s = static_cast<struct omap_mpuio_s *>(opaque);
 
     s->clk = on;
     if (on)
@@ -2201,7 +2201,7 @@ static void omap_uwire_transfer_start(struct omap_uwire_s *s)
 
 static uint64_t omap_uwire_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_uwire_s *s = opaque;
+    struct omap_uwire_s *s = static_cast<struct omap_uwire_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 2) {
@@ -2235,7 +2235,7 @@ static uint64_t omap_uwire_read(void *opaque, hwaddr addr, unsigned size)
 static void omap_uwire_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
-    struct omap_uwire_s *s = opaque;
+    struct omap_uwire_s *s = static_cast<struct omap_uwire_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 2) {
@@ -2342,7 +2342,7 @@ static void omap_pwl_update(struct omap_pwl_s *s)
 
 static uint64_t omap_pwl_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_pwl_s *s = opaque;
+    struct omap_pwl_s *s = static_cast<struct omap_pwl_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -2362,7 +2362,7 @@ static uint64_t omap_pwl_read(void *opaque, hwaddr addr, unsigned size)
 static void omap_pwl_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_pwl_s *s = opaque;
+    struct omap_pwl_s *s = static_cast<struct omap_pwl_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -2402,7 +2402,7 @@ static void omap_pwl_reset(struct omap_pwl_s *s)
 
 static void omap_pwl_clk_update(void *opaque, int line, int on)
 {
-    struct omap_pwl_s *s = opaque;
+    struct omap_pwl_s *s = static_cast<struct omap_pwl_s *>(opaque);
 
     s->clk = on;
     omap_pwl_update(s);
@@ -2412,7 +2412,7 @@ static struct omap_pwl_s *omap_pwl_init(MemoryRegion *system_memory,
                                         hwaddr base,
                                         omap_clk clk)
 {
-    struct omap_pwl_s *s = g_malloc0(sizeof(*s));
+    struct omap_pwl_s *s = static_cast<struct omap_pwl_s *>(g_malloc0(sizeof(*s)));
 
     omap_pwl_reset(s);
 
@@ -2435,7 +2435,7 @@ struct omap_pwt_s {
 
 static uint64_t omap_pwt_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_pwt_s *s = opaque;
+    struct omap_pwt_s *s = static_cast<struct omap_pwt_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -2457,7 +2457,7 @@ static uint64_t omap_pwt_read(void *opaque, hwaddr addr, unsigned size)
 static void omap_pwt_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_pwt_s *s = opaque;
+    struct omap_pwt_s *s = static_cast<struct omap_pwt_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -2520,7 +2520,7 @@ static struct omap_pwt_s *omap_pwt_init(MemoryRegion *system_memory,
                                         hwaddr base,
                                         omap_clk clk)
 {
-    struct omap_pwt_s *s = g_malloc0(sizeof(*s));
+    struct omap_pwt_s *s = static_cast<struct omap_pwt_s *>(g_malloc0(sizeof(*s)));
     s->clk = clk;
     omap_pwt_reset(s);
 
@@ -2568,7 +2568,7 @@ static void omap_rtc_alarm_update(struct omap_rtc_s *s)
 
 static uint64_t omap_rtc_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_rtc_s *s = opaque;
+    struct omap_rtc_s *s = static_cast<struct omap_rtc_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint8_t i;
 
@@ -2650,7 +2650,7 @@ static uint64_t omap_rtc_read(void *opaque, hwaddr addr, unsigned size)
 static void omap_rtc_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_rtc_s *s = opaque;
+    struct omap_rtc_s *s = static_cast<struct omap_rtc_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
     struct tm new_tm;
     time_t ti[2];
@@ -2797,7 +2797,7 @@ static const MemoryRegionOps omap_rtc_ops = {
 
 static void omap_rtc_tick(void *opaque)
 {
-    struct omap_rtc_s *s = opaque;
+    struct omap_rtc_s *s = static_cast<struct omap_rtc_s *>(opaque);
 
     if (s->round) {
         /* Round to nearest full minute.  */
@@ -2971,7 +2971,7 @@ static void omap_mcbsp_rx_newdata(struct omap_mcbsp_s *s)
 
 static void omap_mcbsp_source_tick(void *opaque)
 {
-    struct omap_mcbsp_s *s = opaque;
+    struct omap_mcbsp_s *s = static_cast<struct omap_mcbsp_s *>(opaque);
     static const int bps[8] = { 0, 1, 1, 2, 2, 2, -255, -255 };
 
     if (!s->rx_rate)
@@ -3018,7 +3018,7 @@ static void omap_mcbsp_tx_newdata(struct omap_mcbsp_s *s)
 
 static void omap_mcbsp_sink_tick(void *opaque)
 {
-    struct omap_mcbsp_s *s = opaque;
+    struct omap_mcbsp_s *s = static_cast<struct omap_mcbsp_s *>(opaque);
     static const int bps[8] = { 0, 1, 1, 2, 2, 2, -255, -255 };
 
     if (!s->tx_rate)
@@ -3112,7 +3112,7 @@ static void omap_mcbsp_req_update(struct omap_mcbsp_s *s)
 static uint64_t omap_mcbsp_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    struct omap_mcbsp_s *s = opaque;
+    struct omap_mcbsp_s *s = static_cast<struct omap_mcbsp_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t ret;
 
@@ -3210,7 +3210,7 @@ static uint64_t omap_mcbsp_read(void *opaque, hwaddr addr,
 static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
                 uint32_t value)
 {
-    struct omap_mcbsp_s *s = opaque;
+    struct omap_mcbsp_s *s = static_cast<struct omap_mcbsp_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
@@ -3356,7 +3356,7 @@ static void omap_mcbsp_writeh(void *opaque, hwaddr addr,
 static void omap_mcbsp_writew(void *opaque, hwaddr addr,
                 uint32_t value)
 {
-    struct omap_mcbsp_s *s = opaque;
+    struct omap_mcbsp_s *s = static_cast<struct omap_mcbsp_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (offset == 0x04) {                       /* DXR */
@@ -3448,7 +3448,7 @@ static struct omap_mcbsp_s *omap_mcbsp_init(MemoryRegion *system_memory,
 
 static void omap_mcbsp_i2s_swallow(void *opaque, int line, int level)
 {
-    struct omap_mcbsp_s *s = opaque;
+    struct omap_mcbsp_s *s = static_cast<struct omap_mcbsp_s *>(opaque);
 
     if (s->rx_rate) {
         s->rx_req = s->codec->in.len;
@@ -3458,7 +3458,7 @@ static void omap_mcbsp_i2s_swallow(void *opaque, int line, int level)
 
 static void omap_mcbsp_i2s_start(void *opaque, int line, int level)
 {
-    struct omap_mcbsp_s *s = opaque;
+    struct omap_mcbsp_s *s = static_cast<struct omap_mcbsp_s *>(opaque);
 
     if (s->tx_rate) {
         s->tx_req = s->codec->out.size;
@@ -3488,7 +3488,7 @@ struct omap_lpg_s {
 
 static void omap_lpg_tick(void *opaque)
 {
-    struct omap_lpg_s *s = opaque;
+    struct omap_lpg_s *s = static_cast<struct omap_lpg_s *>(opaque);
 
     if (s->cycle)
         timer_mod(s->tm, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + s->period - s->on);
@@ -3542,7 +3542,7 @@ static void omap_lpg_reset(struct omap_lpg_s *s)
 
 static uint64_t omap_lpg_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_lpg_s *s = opaque;
+    struct omap_lpg_s *s = static_cast<struct omap_lpg_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -3564,7 +3564,7 @@ static uint64_t omap_lpg_read(void *opaque, hwaddr addr, unsigned size)
 static void omap_lpg_write(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_lpg_s *s = opaque;
+    struct omap_lpg_s *s = static_cast<struct omap_lpg_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -3599,7 +3599,7 @@ static const MemoryRegionOps omap_lpg_ops = {
 
 static void omap_lpg_clk_update(void *opaque, int line, int on)
 {
-    struct omap_lpg_s *s = opaque;
+    struct omap_lpg_s *s = static_cast<struct omap_lpg_s *>(opaque);
 
     s->clk = on;
     omap_lpg_update(s);
@@ -3662,7 +3662,7 @@ static void omap_setup_mpui_io(MemoryRegion *system_memory,
 /* General chip reset */
 static void omap1_mpu_reset(void *opaque)
 {
-    struct omap_mpu_state_s *mpu = opaque;
+    struct omap_mpu_state_s *mpu = static_cast<struct omap_mpu_state_s *>(opaque);
 
     omap_dma_reset(mpu->dma);
     omap_mpu_timer_reset(mpu->timer[0]);
@@ -3741,7 +3741,7 @@ static void omap_setup_dsp_mapping(MemoryRegion *system_memory,
 
 void omap_mpu_wakeup(void *opaque, int irq, int req)
 {
-    struct omap_mpu_state_s *mpu = opaque;
+    struct omap_mpu_state_s *mpu = static_cast<struct omap_mpu_state_s *>(opaque);
     CPUState *cpu = CPU(mpu->cpu);
 
     if (cpu->halted) {
@@ -3870,9 +3870,9 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *dram,
     s->port[tipb_mpui].addr_valid = omap_validate_tipb_mpui_addr;
 
     /* Register SDRAM and SRAM DMA ports for fast transfers.  */
-    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(dram),
+    soc_dma_port_add_mem(s->dma, static_cast<uint8_t *>(memory_region_get_ram_ptr(dram)),
                          OMAP_EMIFF_BASE, s->sdram_size);
-    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->imif_ram),
+    soc_dma_port_add_mem(s->dma, static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->imif_ram)),
                          OMAP_IMIF_BASE, s->sram_size);
 
     s->timer[0] = omap_mpu_timer_init(system_memory, 0xfffec500,

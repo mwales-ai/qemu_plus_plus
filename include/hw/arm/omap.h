@@ -558,13 +558,15 @@ I2CBus *omap_i2c_bus(DeviceState *omap_i2c);
 #define cpu_is_omap16xx(cpu)       \
         (cpu_is_omap1610(cpu) || cpu_is_omap1710(cpu))
 
+enum omap_mpu_model {
+    omap310,
+    omap1510,
+    omap1610,
+    omap1710,
+};
+
 struct omap_mpu_state_s {
-    enum omap_mpu_model {
-        omap310,
-        omap1510,
-        omap1610,
-        omap1710,
-    } mpu_model;
+    enum omap_mpu_model mpu_model;
 
     ARMCPU *cpu;
 
