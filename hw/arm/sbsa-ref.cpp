@@ -112,51 +112,59 @@ struct SBSAMachineState {
 #define TYPE_SBSA_MACHINE   MACHINE_TYPE_NAME("sbsa-ref")
 OBJECT_DECLARE_SIMPLE_TYPE(SBSAMachineState, SBSA_MACHINE)
 
-static const MemMapEntry sbsa_ref_memmap[] = {
-    /* 512M boot ROM */
-    [SBSA_FLASH] =              {          0, 0x20000000 },
-    /* 512M secure memory */
-    [SBSA_SECURE_MEM] =         { 0x20000000, 0x20000000 },
-    /* Space reserved for CPU peripheral devices */
-    [SBSA_CPUPERIPHS] =         { 0x40000000, 0x00040000 },
-    [SBSA_GIC_DIST] =           { 0x40060000, 0x00010000 },
-    [SBSA_GIC_REDIST] =         { 0x40080000, 0x04000000 },
-    [SBSA_GIC_ITS] =            { 0x44081000, 0x00020000 },
-    [SBSA_SECURE_EC] =          { 0x50000000, 0x00001000 },
-    [SBSA_GWDT_REFRESH] =       { 0x50010000, 0x00001000 },
-    [SBSA_GWDT_CONTROL] =       { 0x50011000, 0x00001000 },
-    [SBSA_UART] =               { 0x60000000, 0x00001000 },
-    [SBSA_RTC] =                { 0x60010000, 0x00001000 },
-    [SBSA_GPIO] =               { 0x60020000, 0x00001000 },
-    [SBSA_SECURE_UART] =        { 0x60030000, 0x00001000 },
-    [SBSA_SECURE_UART_MM] =     { 0x60040000, 0x00001000 },
-    [SBSA_SMMU] =               { 0x60050000, 0x00020000 },
-    /* Space here reserved for more SMMUs */
-    [SBSA_AHCI] =               { 0x60100000, 0x00010000 },
-    [SBSA_XHCI] =               { 0x60110000, 0x00010000 },
-    /* Space here reserved for other devices */
-    [SBSA_PCIE_PIO] =           { 0x7fff0000, 0x00010000 },
-    /* 32-bit address PCIE MMIO space */
-    [SBSA_PCIE_MMIO] =          { 0x80000000, 0x70000000 },
-    /* 256M PCIE ECAM space */
-    [SBSA_PCIE_ECAM] =          { 0xf0000000, 0x10000000 },
-    /* ~1TB PCIE MMIO space (4GB to 1024GB boundary) */
-    [SBSA_PCIE_MMIO_HIGH] =     { 0x100000000ULL, 0xFF00000000ULL },
-    [SBSA_MEM] =                { 0x10000000000ULL, RAMLIMIT_BYTES },
-};
+static MemMapEntry sbsa_ref_memmap[SBSA_XHCI + 1];
 
-static const int sbsa_ref_irqmap[] = {
-    [SBSA_UART] = 1,
-    [SBSA_RTC] = 2,
-    [SBSA_PCIE] = 3, /* ... to 6 */
-    [SBSA_GPIO] = 7,
-    [SBSA_SECURE_UART] = 8,
-    [SBSA_SECURE_UART_MM] = 9,
-    [SBSA_AHCI] = 10,
-    [SBSA_XHCI] = 11,
-    [SBSA_SMMU] = 12, /* ... to 15 */
-    [SBSA_GWDT_WS0] = 16,
-};
+__attribute__((constructor))
+static void init_sbsa_ref_memmap(void)
+{
+    /* 512M boot ROM */
+    sbsa_ref_memmap[SBSA_FLASH]          = {          0, 0x20000000 };
+    /* 512M secure memory */
+    sbsa_ref_memmap[SBSA_SECURE_MEM]     = { 0x20000000, 0x20000000 };
+    /* Space reserved for CPU peripheral devices */
+    sbsa_ref_memmap[SBSA_CPUPERIPHS]     = { 0x40000000, 0x00040000 };
+    sbsa_ref_memmap[SBSA_GIC_DIST]       = { 0x40060000, 0x00010000 };
+    sbsa_ref_memmap[SBSA_GIC_REDIST]     = { 0x40080000, 0x04000000 };
+    sbsa_ref_memmap[SBSA_GIC_ITS]        = { 0x44081000, 0x00020000 };
+    sbsa_ref_memmap[SBSA_SECURE_EC]      = { 0x50000000, 0x00001000 };
+    sbsa_ref_memmap[SBSA_GWDT_REFRESH]   = { 0x50010000, 0x00001000 };
+    sbsa_ref_memmap[SBSA_GWDT_CONTROL]   = { 0x50011000, 0x00001000 };
+    sbsa_ref_memmap[SBSA_UART]           = { 0x60000000, 0x00001000 };
+    sbsa_ref_memmap[SBSA_RTC]            = { 0x60010000, 0x00001000 };
+    sbsa_ref_memmap[SBSA_GPIO]           = { 0x60020000, 0x00001000 };
+    sbsa_ref_memmap[SBSA_SECURE_UART]    = { 0x60030000, 0x00001000 };
+    sbsa_ref_memmap[SBSA_SECURE_UART_MM] = { 0x60040000, 0x00001000 };
+    sbsa_ref_memmap[SBSA_SMMU]           = { 0x60050000, 0x00020000 };
+    /* Space here reserved for more SMMUs */
+    sbsa_ref_memmap[SBSA_AHCI]           = { 0x60100000, 0x00010000 };
+    sbsa_ref_memmap[SBSA_XHCI]           = { 0x60110000, 0x00010000 };
+    /* Space here reserved for other devices */
+    sbsa_ref_memmap[SBSA_PCIE_PIO]       = { 0x7fff0000, 0x00010000 };
+    /* 32-bit address PCIE MMIO space */
+    sbsa_ref_memmap[SBSA_PCIE_MMIO]      = { 0x80000000, 0x70000000 };
+    /* 256M PCIE ECAM space */
+    sbsa_ref_memmap[SBSA_PCIE_ECAM]      = { 0xf0000000, 0x10000000 };
+    /* ~1TB PCIE MMIO space (4GB to 1024GB boundary) */
+    sbsa_ref_memmap[SBSA_PCIE_MMIO_HIGH] = { 0x100000000ULL, 0xFF00000000ULL };
+    sbsa_ref_memmap[SBSA_MEM]            = { 0x10000000000ULL, RAMLIMIT_BYTES };
+}
+
+static int sbsa_ref_irqmap[SBSA_XHCI + 1];
+
+__attribute__((constructor))
+static void init_sbsa_ref_irqmap(void)
+{
+    sbsa_ref_irqmap[SBSA_UART]           = 1;
+    sbsa_ref_irqmap[SBSA_RTC]            = 2;
+    sbsa_ref_irqmap[SBSA_PCIE]           = 3; /* ... to 6 */
+    sbsa_ref_irqmap[SBSA_GPIO]           = 7;
+    sbsa_ref_irqmap[SBSA_SECURE_UART]    = 8;
+    sbsa_ref_irqmap[SBSA_SECURE_UART_MM] = 9;
+    sbsa_ref_irqmap[SBSA_AHCI]           = 10;
+    sbsa_ref_irqmap[SBSA_XHCI]           = 11;
+    sbsa_ref_irqmap[SBSA_SMMU]           = 12; /* ... to 15 */
+    sbsa_ref_irqmap[SBSA_GWDT_WS0]       = 16;
+}
 
 static uint64_t sbsa_ref_cpu_mp_affinity(SBSAMachineState *sms, int idx)
 {
@@ -222,7 +230,7 @@ static void create_fdt(SBSAMachineState *sms)
 
     if (ms->numa_state->have_numa_distance) {
         int size = nb_numa_nodes * nb_numa_nodes * 3 * sizeof(uint32_t);
-        uint32_t *matrix = g_malloc0(size);
+        uint32_t *matrix = static_cast<uint32_t *>(g_malloc0(size));
         int idx, i, j;
 
         for (i = 0; i < nb_numa_nodes; i++) {
@@ -848,8 +856,8 @@ static const CPUArchIdList *sbsa_ref_possible_cpu_arch_ids(MachineState *ms)
         return ms->possible_cpus;
     }
 
-    ms->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
-                                  sizeof(CPUArchId) * max_cpus);
+    ms->possible_cpus = static_cast<CPUArchIdList *>(g_malloc0(sizeof(CPUArchIdList) +
+                                  sizeof(CPUArchId) * max_cpus));
     ms->possible_cpus->len = max_cpus;
     for (n = 0; n < ms->possible_cpus->len; n++) {
         ms->possible_cpus->cpus[n].type = ms->cpu_type;
@@ -921,9 +929,9 @@ static void sbsa_ref_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo sbsa_ref_info = {
     .name          = TYPE_SBSA_MACHINE,
     .parent        = TYPE_MACHINE,
+    .instance_size = sizeof(SBSAMachineState),
     .instance_init = sbsa_ref_instance_init,
     .class_init    = sbsa_ref_class_init,
-    .instance_size = sizeof(SBSAMachineState),
     .interfaces    = aarch64_machine_interfaces,
 };
 
