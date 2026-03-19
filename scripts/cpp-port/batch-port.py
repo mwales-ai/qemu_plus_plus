@@ -45,6 +45,8 @@ BLOCKED_DIRS = {
 # Files/patterns to skip entirely
 SKIP_FILES = {
     'os-win32.c', 'os-wasm.c',
+    # Template files #included from other sources, not compiled independently
+    'vnc-enc-zywrle-template.c',
 }
 
 # Directories that use specific_ss (poisoned macros) or are target-specific
@@ -901,6 +903,18 @@ def apply_easy_fixes(filepath):
     content = new
     if count:
         fixes.append(f"void* arithmetic ({count})")
+
+    # Common enum-from-int casts
+    count = 0
+    enum_zero_patterns = [
+        (r'(qdev_prop_allow_set_link_before_realize,\s*)0\)', r'\1static_cast<ObjectPropertyLinkFlags>(0))'),
+    ]
+    for pat, repl in enum_zero_patterns:
+        new, n = re.subn(pat, repl, content)
+        count += n
+        content = new
+    if count:
+        fixes.append(f"enum casts ({count})")
 
     filepath.write_text(content)
     return fixes

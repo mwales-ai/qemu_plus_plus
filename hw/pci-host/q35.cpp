@@ -29,14 +29,18 @@
  */
 
 #include "qemu/osdep.h"
+
 #include "qemu/log.h"
 #include "hw/i386/pc.h"
-#include "hw/pci-host/q35.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
+
+extern "C" {
+#include "hw/pci-host/q35.h"
+}
 
 /****************************************************************************
  * Q35 host
@@ -237,19 +241,19 @@ static void q35_host_initfn(Object *obj)
 
     object_property_add_link(obj, PCI_HOST_PROP_RAM_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.ram_memory,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 
     object_property_add_link(obj, PCI_HOST_PROP_PCI_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.pci_address_space,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 
     object_property_add_link(obj, PCI_HOST_PROP_SYSTEM_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.system_memory,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 
     object_property_add_link(obj, PCI_HOST_PROP_IO_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.address_space_io,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static const TypeInfo q35_host_info = {
@@ -275,13 +279,18 @@ static void blackhole_write(void *opaque, hwaddr addr, uint64_t val,
     /* nothing */
 }
 
-static const MemoryRegionOps blackhole_ops = {
+static MemoryRegionOps blackhole_ops = {
     .read = blackhole_read,
     .write = blackhole_write,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void __attribute__((constructor)) init_blackhole_ops(void) {
+    blackhole_ops.valid.min_access_size = 1;
+    blackhole_ops.valid.max_access_size = 4;
+    blackhole_ops.impl.min_access_size = 4;
+    blackhole_ops.impl.max_access_size = 4;
+}
 
 /* PCIe MMCFG */
 static void mch_update_pciexbar(MCHPCIState *mch)
@@ -514,24 +523,26 @@ static void mch_update(MCHPCIState *mch)
 
 static int mch_post_load(void *opaque, int version_id)
 {
-    MCHPCIState *mch = opaque;
+    MCHPCIState *mch = static_cast<MCHPCIState *>(opaque);
     mch_update(mch);
     return 0;
 }
+
+static const VMStateField vmstate_mch_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, MCHPCIState),
+    /* Used to be smm_enabled, which was basically always zero because
+     * SeaBIOS hardly uses SMM.  SMRAM is now handled by CPU code.
+     */
+    VMSTATE_UNUSED(1),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_mch = {
     .name = "mch",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = mch_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, MCHPCIState),
-        /* Used to be smm_enabled, which was basically always zero because
-         * SeaBIOS hardly uses SMM.  SMRAM is now handled by CPU code.
-         */
-        VMSTATE_UNUSED(1),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mch_fields,
 };
 
 static void mch_reset(DeviceState *qdev)
@@ -693,15 +704,17 @@ static void mch_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo mch_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo mch_info = {
     .name = TYPE_MCH_PCI_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MCHPCIState),
     .class_init = mch_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = mch_interfaces,
 };
 
 static void q35_register(void)

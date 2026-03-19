@@ -16,6 +16,10 @@
 #include "chardev/char.h"
 #include "qemu/notify.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* glib/gio 2.68 */
 #define DBUS_METHOD_INVOCATION_HANDLED TRUE
 #define DBUS_METHOD_INVOCATION_UNHANDLED FALSE
@@ -38,5 +42,9 @@ typedef enum {
 GStrv qemu_dbus_get_queued_owners(GDBusConnection *connection,
                                   const char *name,
                                   Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* DBUS_H */

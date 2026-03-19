@@ -23,12 +23,11 @@
  */
 
 #include "qemu/osdep.h"
-#include "qemu/units.h"
+
 #include "qemu/range.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
-#include "hw/pci-host/i440fx.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "qapi/error.h"
@@ -36,6 +35,11 @@
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
 #include "qom/object.h"
+
+extern "C" {
+#include "qemu/units.h"
+#include "hw/pci-host/i440fx.h"
+}
 
 /*
  * I440FX chipset data sheet.
@@ -114,25 +118,27 @@ static void i440fx_write_config(PCIDevice *dev,
 
 static int i440fx_post_load(void *opaque, int version_id)
 {
-    PCII440FXState *d = opaque;
+    PCII440FXState *d = static_cast<PCII440FXState *>(opaque);
 
     i440fx_update_memory_mappings(d);
     return 0;
 }
+
+static const VMStateField vmstate_i440fx_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PCII440FXState),
+    /* Used to be smm_enabled, which was basically always zero because
+     * SeaBIOS hardly uses SMM.  SMRAM is now handled by CPU code.
+     */
+    VMSTATE_UNUSED(1),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_i440fx = {
     .name = "I440FX",
     .version_id = 3,
     .minimum_version_id = 3,
     .post_load = i440fx_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PCII440FXState),
-        /* Used to be smm_enabled, which was basically always zero because
-         * SeaBIOS hardly uses SMM.  SMRAM is now handled by CPU code.
-         */
-        VMSTATE_UNUSED(1),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_i440fx_fields,
 };
 
 static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
@@ -231,19 +237,19 @@ static void i440fx_pcihost_initfn(Object *obj)
 
     object_property_add_link(obj, PCI_HOST_PROP_RAM_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->ram_memory,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 
     object_property_add_link(obj, PCI_HOST_PROP_PCI_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->pci_address_space,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 
     object_property_add_link(obj, PCI_HOST_PROP_SYSTEM_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->system_memory,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 
     object_property_add_link(obj, PCI_HOST_PROP_IO_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->io_memory,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
@@ -336,15 +342,17 @@ static void i440fx_class_init(ObjectClass *klass, const void *data)
     dc->hotpluggable   = false;
 }
 
+static const InterfaceInfo i440fx_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo i440fx_info = {
     .name          = TYPE_I440FX_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCII440FXState),
     .class_init    = i440fx_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = i440fx_interfaces,
 };
 
 static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
