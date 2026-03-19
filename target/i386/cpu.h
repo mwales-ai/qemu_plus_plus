@@ -2568,13 +2568,13 @@ typedef struct PropValue {
 } PropValue;
 void x86_cpu_apply_props(X86CPU *cpu, PropValue *props);
 
-void x86_cpu_after_reset(X86CPU *cpu);
-
 uint32_t cpu_x86_virtual_addr_width(CPUX86State *env);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+void x86_cpu_after_reset(X86CPU *cpu);
 
 /* cpu.c other functions (cpuid) */
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
