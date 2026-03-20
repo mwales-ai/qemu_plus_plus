@@ -122,7 +122,7 @@ static void pnv_adu_xscom_write(void *opaque, hwaddr addr, uint64_t val,
                 break;
             }
 
-            pnv_lpc_opb_read(adu->lpc, lpc_addr, (void *)&data, lpc_size);
+            pnv_lpc_opb_read(adu->lpc, lpc_addr, reinterpret_cast<uint8_t *>(&data), lpc_size);
 
             /*
              * ADU access is performed within 8-byte aligned sectors. Smaller
@@ -148,7 +148,7 @@ static void pnv_adu_xscom_write(void *opaque, hwaddr addr, uint64_t val,
             }
 
             data = cpu_to_be64(val) >> ((lpc_addr & 7) * 8); /* See above */
-            pnv_lpc_opb_write(adu->lpc, lpc_addr, (void *)&data, lpc_size);
+            pnv_lpc_opb_write(adu->lpc, lpc_addr, reinterpret_cast<uint8_t *>(&data), lpc_size);
         }
         break;
 
@@ -166,9 +166,9 @@ static void pnv_adu_xscom_write(void *opaque, hwaddr addr, uint64_t val,
 const MemoryRegionOps pnv_adu_xscom_ops = {
     .read = pnv_adu_xscom_read,
     .write = pnv_adu_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void pnv_adu_realize(DeviceState *dev, Error **errp)

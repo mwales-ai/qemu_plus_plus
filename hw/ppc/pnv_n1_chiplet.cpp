@@ -63,9 +63,9 @@ static void pnv_n1_chiplet_pb_scom_eq_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_n1_chiplet_pb_scom_eq_ops = {
     .read = pnv_n1_chiplet_pb_scom_eq_read,
     .write = pnv_n1_chiplet_pb_scom_eq_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t pnv_n1_chiplet_pb_scom_es_read(void *opaque, hwaddr addr,
@@ -105,9 +105,9 @@ static void pnv_n1_chiplet_pb_scom_es_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_n1_chiplet_pb_scom_es_ops = {
     .read = pnv_n1_chiplet_pb_scom_es_read,
     .write = pnv_n1_chiplet_pb_scom_es_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void pnv_n1_chiplet_realize(DeviceState *dev, Error **errp)
@@ -149,16 +149,18 @@ static void pnv_n1_chiplet_instance_init(Object *obj)
                             TYPE_PNV_NEST_CHIPLET_PERVASIVE);
 }
 
+static const InterfaceInfo pnv_n1_chiplet_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_n1_chiplet_info = {
     .name          = TYPE_PNV_N1_CHIPLET,
     .parent        = TYPE_DEVICE,
-    .instance_init = pnv_n1_chiplet_instance_init,
     .instance_size = sizeof(PnvN1Chiplet),
+    .instance_init = pnv_n1_chiplet_instance_init,
     .class_init    = pnv_n1_chiplet_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .interfaces    = pnv_n1_chiplet_interfaces,
 };
 
 static void pnv_n1_chiplet_register_types(void)

@@ -155,17 +155,17 @@ static void pnv_occ_common_area_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_occ_power8_xscom_ops = {
     .read = pnv_occ_power8_xscom_read,
     .write = pnv_occ_power8_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 const MemoryRegionOps pnv_occ_sram_ops = {
     .read = pnv_occ_common_area_read,
     .write = pnv_occ_common_area_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 8, },
     .impl = { .min_access_size = 1, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void pnv_occ_power8_class_init(ObjectClass *klass, const void *data)
@@ -235,9 +235,9 @@ static void pnv_occ_power9_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_occ_power9_xscom_ops = {
     .read = pnv_occ_power9_xscom_read,
     .write = pnv_occ_power9_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void pnv_occ_power9_class_init(ObjectClass *klass, const void *data)
@@ -287,7 +287,7 @@ static bool occ_model_tick(PnvOCC *occ);
 
 static void occ_state_machine_timer(void *opaque)
 {
-    PnvOCC *occ = opaque;
+    PnvOCC *occ = static_cast<PnvOCC *>(opaque);
     uint64_t next = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + OCC_POLL_MS;
 
     if (occ_model_tick(occ)) {
@@ -342,9 +342,9 @@ static const TypeInfo pnv_occ_type_info = {
     .name          = TYPE_PNV_OCC,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvOCC),
-    .class_init    = pnv_occ_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(PnvOCCClass),
-    .is_abstract      = true,
+    .class_init    = pnv_occ_class_init,
 };
 
 static void pnv_occ_register_types(void)

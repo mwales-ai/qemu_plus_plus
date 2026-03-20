@@ -118,9 +118,9 @@ static void pnv_sbe_power9_xscom_ctrl_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_sbe_power9_xscom_ctrl_ops = {
     .read = pnv_sbe_power9_xscom_ctrl_read,
     .write = pnv_sbe_power9_xscom_ctrl_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void pnv_sbe_set_host_doorbell(PnvSBE *sbe, uint64_t val)
@@ -193,7 +193,7 @@ static void pnv_sbe_set_host_doorbell(PnvSBE *sbe, uint64_t val)
 
 static void sbe_timer(void *opaque)
 {
-    PnvSBE *sbe = opaque;
+    PnvSBE *sbe = static_cast<PnvSBE *>(opaque);
 
     trace_pnv_sbe_cmd_timer_expired();
 
@@ -322,9 +322,9 @@ static void pnv_sbe_power9_xscom_mbox_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_sbe_power9_xscom_mbox_ops = {
     .read = pnv_sbe_power9_xscom_mbox_read,
     .write = pnv_sbe_power9_xscom_mbox_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void pnv_sbe_power9_class_init(ObjectClass *klass, const void *data)
@@ -395,9 +395,9 @@ static const TypeInfo pnv_sbe_type_info = {
     .name          = TYPE_PNV_SBE,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvSBE),
-    .class_init    = pnv_sbe_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(PnvSBEClass),
-    .is_abstract      = true,
+    .class_init    = pnv_sbe_class_init,
 };
 
 static void pnv_sbe_register_types(void)

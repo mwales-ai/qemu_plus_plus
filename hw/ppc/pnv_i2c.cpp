@@ -430,9 +430,9 @@ static void pnv_i2c_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_i2c_xscom_ops = {
     .read = pnv_i2c_xscom_read,
     .write = pnv_i2c_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static int pnv_i2c_bus_dt_xscom(PnvI2C *i2c, void *fdt,

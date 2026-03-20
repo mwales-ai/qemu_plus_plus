@@ -429,9 +429,9 @@ static void pnv_chiptod_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_chiptod_xscom_ops = {
     .read = pnv_chiptod_xscom_read,
     .write = pnv_chiptod_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static int pnv_chiptod_dt_xscom(PnvXScomInterface *dev, void *fdt,
@@ -493,15 +493,17 @@ static void pnv_chiptod_power9_class_init(ObjectClass *klass, const void *data)
     pctc->xscom_size = PNV_XSCOM_CHIPTOD_SIZE;
 }
 
+static const InterfaceInfo pnv_chiptod_power9_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_chiptod_power9_type_info = {
     .name          = TYPE_PNV9_CHIPTOD,
     .parent        = TYPE_PNV_CHIPTOD,
     .instance_size = sizeof(PnvChipTOD),
     .class_init    = pnv_chiptod_power9_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .interfaces    = pnv_chiptod_power9_interfaces,
 };
 
 static int pnv_chiptod_power10_dt_xscom(PnvXScomInterface *dev, void *fdt,
@@ -529,15 +531,17 @@ static void pnv_chiptod_power10_class_init(ObjectClass *klass, const void *data)
     pctc->xscom_size = PNV_XSCOM_CHIPTOD_SIZE;
 }
 
+static const InterfaceInfo pnv_chiptod_power10_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_chiptod_power10_type_info = {
     .name          = TYPE_PNV10_CHIPTOD,
     .parent        = TYPE_PNV_CHIPTOD,
     .instance_size = sizeof(PnvChipTOD),
     .class_init    = pnv_chiptod_power10_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .interfaces    = pnv_chiptod_power10_interfaces,
 };
 
 static int pnv_chiptod_power11_dt_xscom(PnvXScomInterface *dev, void *fdt,
@@ -565,15 +569,17 @@ static void pnv_chiptod_power11_class_init(ObjectClass *klass, const void *data)
     pctc->xscom_size = PNV_XSCOM_CHIPTOD_SIZE;
 }
 
+static const InterfaceInfo pnv_chiptod_power11_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_chiptod_power11_type_info = {
     .name          = TYPE_PNV11_CHIPTOD,
     .parent        = TYPE_PNV_CHIPTOD,
     .instance_size = sizeof(PnvChipTOD),
     .class_init    = pnv_chiptod_power11_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .interfaces    = pnv_chiptod_power11_interfaces,
 };
 
 static void pnv_chiptod_reset(void *dev)
@@ -625,9 +631,9 @@ static const TypeInfo pnv_chiptod_type_info = {
     .name          = TYPE_PNV_CHIPTOD,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvChipTOD),
-    .class_init    = pnv_chiptod_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(PnvChipTODClass),
-    .is_abstract      = true,
+    .class_init    = pnv_chiptod_class_init,
 };
 
 static void pnv_chiptod_register_types(void)

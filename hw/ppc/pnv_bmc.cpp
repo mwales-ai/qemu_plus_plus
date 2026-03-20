@@ -61,8 +61,8 @@ static void pnv_gen_oem_sel(IPMIBmc *bmc, uint8_t reboot)
     OemSel sel = {
         .id        = { 0x55 , 0x55 },
         .type      = 0xC0, /* OEM */
-        .manuf_id  = { 0x0, 0x0, 0x0 },
         .timestamp = { 0x0, 0x0, 0x0, 0x0 },
+        .manuf_id  = { 0x0, 0x0, 0x0 },
         .netfun    = 0x3A, /* IBM */
         .cmd       = 0x04, /* AMI OEM SEL Power Notification */
         .data      = { reboot, 0xFF, 0xFF, 0xFF },
@@ -239,9 +239,13 @@ static void hiomap_cmd(IPMIBmcSim *ibs, uint8_t *cmd, unsigned int cmd_len,
 
 #define HIOMAP   0x5a
 
-static const IPMICmdHandler hiomap_cmds[] = {
-    [HIOMAP] = { hiomap_cmd, 3 },
-};
+static IPMICmdHandler hiomap_cmds[HIOMAP + 1];
+
+static void __attribute__((constructor)) init_hiomap_cmds(void)
+{
+    hiomap_cmds[HIOMAP].cmd_handler = hiomap_cmd;
+    hiomap_cmds[HIOMAP].cmd_len_min = 3;
+}
 
 static const IPMINetfn hiomap_netfn = {
     .cmd_nums = ARRAY_SIZE(hiomap_cmds),
@@ -313,7 +317,7 @@ typedef struct ForeachArgs {
 
 static int bmc_find(Object *child, void *opaque)
 {
-    ForeachArgs *args = opaque;
+    ForeachArgs *args = static_cast<ForeachArgs *>(opaque);
 
     if (object_dynamic_cast(child, args->name)) {
         if (args->obj) {

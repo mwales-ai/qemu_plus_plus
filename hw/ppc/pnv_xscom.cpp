@@ -148,7 +148,7 @@ static bool xscom_write_default(PnvChip *chip, uint32_t pcba, uint64_t val)
 
 static uint64_t xscom_read(void *opaque, hwaddr addr, unsigned width)
 {
-    PnvChip *chip = opaque;
+    PnvChip *chip = static_cast<PnvChip *>(opaque);
     uint32_t pcba = pnv_xscom_pcba(chip, addr);
     uint64_t val = 0;
     MemTxResult result;
@@ -176,7 +176,7 @@ complete:
 static void xscom_write(void *opaque, hwaddr addr, uint64_t val,
                         unsigned width)
 {
-    PnvChip *chip = opaque;
+    PnvChip *chip = static_cast<PnvChip *>(opaque);
     uint32_t pcba = pnv_xscom_pcba(chip, addr);
     MemTxResult result;
 
@@ -202,9 +202,9 @@ complete:
 const MemoryRegionOps pnv_xscom_ops = {
     .read = xscom_read,
     .write = xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 void pnv_xscom_init(PnvChip *chip, uint64_t size, hwaddr addr)
@@ -242,7 +242,7 @@ typedef struct ForeachPopulateArgs {
 static int xscom_dt_child(Object *child, void *opaque)
 {
     if (object_dynamic_cast(child, TYPE_PNV_XSCOM_INTERFACE)) {
-        ForeachPopulateArgs *args = opaque;
+        ForeachPopulateArgs *args = static_cast<ForeachPopulateArgs *>(opaque);
         PnvXScomInterface *xd = PNV_XSCOM_INTERFACE(child);
         PnvXScomInterfaceClass *xc = PNV_XSCOM_INTERFACE_GET_CLASS(xd);
 

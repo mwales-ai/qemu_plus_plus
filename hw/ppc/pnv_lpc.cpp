@@ -346,9 +346,9 @@ static void pnv_lpc_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_lpc_xscom_ops = {
     .read = pnv_lpc_xscom_read,
     .write = pnv_lpc_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void pnv_lpc_opb_noresponse(PnvLpcController *lpc);
@@ -416,11 +416,11 @@ static void pnv_lpc_mmio_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_lpc_mmio_ops = {
     .read = pnv_lpc_mmio_read,
     .write = pnv_lpc_mmio_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 /* Program the POWER9 LPC irq to PSI serirq routing table */
@@ -521,7 +521,7 @@ static void pnv_lpc_opb_noresponse(PnvLpcController *lpc)
 
 static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PnvLpcController *lpc = opaque;
+    PnvLpcController *lpc = static_cast<PnvLpcController *>(opaque);
     uint64_t val = 0xfffffffffffffffful;
 
     switch (addr) {
@@ -553,7 +553,7 @@ static uint64_t lpc_hc_read(void *opaque, hwaddr addr, unsigned size)
 static void lpc_hc_write(void *opaque, hwaddr addr, uint64_t val,
                          unsigned size)
 {
-    PnvLpcController *lpc = opaque;
+    PnvLpcController *lpc = static_cast<PnvLpcController *>(opaque);
 
     /* XXX Filter out reserved bits */
 
@@ -613,7 +613,7 @@ static const MemoryRegionOps lpc_hc_ops = {
 
 static uint64_t opb_master_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PnvLpcController *lpc = opaque;
+    PnvLpcController *lpc = static_cast<PnvLpcController *>(opaque);
     uint64_t val = 0xfffffffffffffffful;
 
     switch (addr) {
@@ -646,7 +646,7 @@ static uint64_t opb_master_read(void *opaque, hwaddr addr, unsigned size)
 static void opb_master_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
-    PnvLpcController *lpc = opaque;
+    PnvLpcController *lpc = static_cast<PnvLpcController *>(opaque);
 
     switch (addr) {
     case OPB_MASTER_LS_ROUTE0:
@@ -726,14 +726,16 @@ static void pnv_lpc_power8_class_init(ObjectClass *klass, const void *data)
                                     &plc->parent_realize);
 }
 
+static const InterfaceInfo pnv_lpc_power8_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_lpc_power8_info = {
     .name          = TYPE_PNV8_LPC,
     .parent        = TYPE_PNV_LPC,
     .class_init    = pnv_lpc_power8_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .interfaces    = pnv_lpc_power8_interfaces,
 };
 
 static void pnv_lpc_power9_realize(DeviceState *dev, Error **errp)
@@ -855,9 +857,9 @@ static const TypeInfo pnv_lpc_info = {
     .name          = TYPE_PNV_LPC,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvLpcController),
-    .class_init    = pnv_lpc_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(PnvLpcClass),
-    .is_abstract      = true,
+    .class_init    = pnv_lpc_class_init,
 };
 
 static void pnv_lpc_register_types(void)

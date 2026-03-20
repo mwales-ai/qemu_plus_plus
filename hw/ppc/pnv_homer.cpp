@@ -77,9 +77,9 @@ static void pnv_homer_power8_pba_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_homer_power8_pba_ops = {
     .read = pnv_homer_power8_pba_read,
     .write = pnv_homer_power8_pba_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static hwaddr pnv_homer_power8_get_base(PnvChip *chip)
@@ -142,9 +142,9 @@ static void pnv_homer_power9_pba_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_homer_power9_pba_ops = {
     .read = pnv_homer_power9_pba_read,
     .write = pnv_homer_power9_pba_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static hwaddr pnv_homer_power9_get_base(PnvChip *chip)
@@ -207,9 +207,9 @@ static void pnv_homer_power10_pba_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_homer_power10_pba_ops = {
     .read = pnv_homer_power10_pba_read,
     .write = pnv_homer_power10_pba_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static hwaddr pnv_homer_power10_get_base(PnvChip *chip)
@@ -274,9 +274,9 @@ static const TypeInfo pnv_homer_type_info = {
     .name          = TYPE_PNV_HOMER,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvHomer),
-    .class_init    = pnv_homer_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(PnvHomerClass),
-    .is_abstract      = true,
+    .class_init    = pnv_homer_class_init,
 };
 
 static void pnv_homer_register_types(void)

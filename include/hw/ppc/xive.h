@@ -261,6 +261,10 @@ static inline hwaddr xive_source_esb_mgmt(XiveSource *xsrc, int srcno)
 #define XIVE_ESB_QUEUED       (XIVE_ESB_VAL_P | XIVE_ESB_VAL_Q)
 #define XIVE_ESB_OFF          XIVE_ESB_VAL_Q
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool xive_esb_trigger(uint8_t *pq);
 bool xive_esb_eoi(uint8_t *pq);
 uint8_t xive_esb_set(uint8_t *pq, uint8_t value);
@@ -287,6 +291,10 @@ uint8_t xive_esb_set(uint8_t *pq, uint8_t value);
 uint8_t xive_source_esb_get(XiveSource *xsrc, uint32_t srcno);
 uint8_t xive_source_esb_set(XiveSource *xsrc, uint32_t srcno, uint8_t pq);
 
+#ifdef __cplusplus
+}
+#endif
+
 /*
  * Source status helpers
  */
@@ -311,8 +319,16 @@ static inline bool xive_source_is_asserted(XiveSource *xsrc, uint32_t srcno)
     return xsrc->status[srcno] & XIVE_STATUS_ASSERTED;
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xive_source_pic_print_info(XiveSource *xsrc, uint32_t offset,
                                 GString *buf);
+
+#ifdef __cplusplus
+}
+#endif
 
 static inline bool xive_source_irq_is_lsi(XiveSource *xsrc, uint32_t srcno)
 {
@@ -326,7 +342,15 @@ static inline void xive_source_irq_set_lsi(XiveSource *xsrc, uint32_t srcno)
     bitmap_set(xsrc->lsi_map, srcno, 1);
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xive_source_set_irq(void *opaque, int srcno, int val);
+
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * XIVE Thread interrupt Management (TM) context
@@ -365,10 +389,18 @@ static inline uint32_t xive_tctx_word2(uint8_t *ring)
     return *((uint32_t *) &ring[TM_WORD2]);
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool xive_ring_valid(XiveTCTX *tctx, uint8_t ring);
 bool xive_nsr_indicates_exception(uint8_t ring, uint8_t nsr);
 bool xive_nsr_indicates_group_exception(uint8_t ring, uint8_t nsr);
 uint8_t xive_nsr_exception_ring(uint8_t ring, uint8_t nsr);
+
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * XIVE Router
@@ -407,6 +439,10 @@ struct XiveRouterClass {
     void (*end_notify)(XiveRouter *xrtr, XiveEAS *eas);
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int xive_router_get_eas(XiveRouter *xrtr, uint8_t eas_blk, uint32_t eas_idx,
                         XiveEAS *eas);
 int xive_router_get_end(XiveRouter *xrtr, uint8_t end_blk, uint32_t end_idx,
@@ -419,6 +455,10 @@ int xive_router_write_nvt(XiveRouter *xrtr, uint8_t nvt_blk, uint32_t nvt_idx,
                           XiveNVT *nvt, uint8_t word_number);
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn, bool pq_checked);
 void xive_router_end_notify(XiveRouter *xrtr, XiveEAS *eas);
+
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * XIVE Presenter
@@ -453,6 +493,10 @@ struct XivePresenterClass {
                      bool crowd, bool cam_ignore, uint8_t priority);
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
                               uint8_t format,
                               uint8_t nvt_blk, uint32_t nvt_idx,
@@ -465,6 +509,10 @@ bool xive_presenter_match(XiveFabric *xfb, uint8_t format,
 uint32_t xive_get_vpgroup_size(uint32_t nvp_index);
 uint8_t xive_get_group_level(bool crowd, bool ignore,
                              uint32_t nvp_blk, uint32_t nvp_index);
+
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * XIVE Fabric (Interface between Interrupt Controller and Machine)
@@ -576,6 +624,10 @@ static inline uint8_t *xive_tctx_signal_regs(XiveTCTX *tctx, uint8_t ring)
     return &tctx->regs[ring];
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xive_tctx_tm_write(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
                         uint64_t value, unsigned size);
 uint64_t xive_tctx_tm_read(XivePresenter *xptr, XiveTCTX *tctx, hwaddr offset,
@@ -602,5 +654,9 @@ int kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp);
 int kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp);
 int kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp);
 int kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PPC_XIVE_H */

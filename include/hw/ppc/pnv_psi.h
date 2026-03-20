@@ -110,6 +110,14 @@ typedef enum PnvPsiIrq {
 #define PSIHB9_IRQ_PSU          13
 #define PSIHB9_NUM_IRQS         14
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void pnv_psi_pic_print_info(Pnv9Psi *psi, GString *buf);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PPC_PNV_PSI_H */

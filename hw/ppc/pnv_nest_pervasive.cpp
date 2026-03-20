@@ -162,9 +162,9 @@ static void pnv_chiplet_ctrl_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_nest_pervasive_control_xscom_ops = {
     .read = pnv_chiplet_ctrl_read,
     .write = pnv_chiplet_ctrl_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void pnv_nest_pervasive_realize(DeviceState *dev, Error **errp)

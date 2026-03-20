@@ -217,7 +217,7 @@ static const uint64_t stat_bits[PSI_NUM_INTERRUPTS] = {
 
 static void pnv_psi_power8_set_irq(void *opaque, int irq, int state)
 {
-    PnvPsi *psi = opaque;
+    PnvPsi *psi = static_cast<PnvPsi *>(opaque);
     uint32_t xivr_reg;
     uint32_t stat_reg;
     uint32_t src;
@@ -398,52 +398,40 @@ static void pnv_psi_reg_write(PnvPsi *psi, uint32_t offset, uint64_t val,
  */
 static uint64_t pnv_psi_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    return pnv_psi_reg_read(opaque, PSIHB_REG(addr), true);
+    return pnv_psi_reg_read(static_cast<PnvPsi *>(opaque), PSIHB_REG(addr), true);
 }
 
 static void pnv_psi_mmio_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
-    pnv_psi_reg_write(opaque, PSIHB_REG(addr), val, true);
+    pnv_psi_reg_write(static_cast<PnvPsi *>(opaque), PSIHB_REG(addr), val, true);
 }
 
 static const MemoryRegionOps psi_mmio_ops = {
     .read = pnv_psi_mmio_read,
     .write = pnv_psi_mmio_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
+    .valid = { 8, 8 },
+    .impl = { 8, 8 },
 };
 
 static uint64_t pnv_psi_xscom_read(void *opaque, hwaddr addr, unsigned size)
 {
-    return pnv_psi_reg_read(opaque, addr >> 3, false);
+    return pnv_psi_reg_read(static_cast<PnvPsi *>(opaque), addr >> 3, false);
 }
 
 static void pnv_psi_xscom_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    pnv_psi_reg_write(opaque, addr >> 3, val, false);
+    pnv_psi_reg_write(static_cast<PnvPsi *>(opaque), addr >> 3, val, false);
 }
 
 static const MemoryRegionOps pnv_psi_xscom_ops = {
     .read = pnv_psi_xscom_read,
     .write = pnv_psi_xscom_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    }
+    .valid = { 8, 8 },
+    .impl = { 8, 8 },
 };
 
 static void pnv_psi_reset(DeviceState *dev)
@@ -760,14 +748,8 @@ static const MemoryRegionOps pnv_psi_p9_mmio_ops = {
     .read = pnv_psi_p9_mmio_read,
     .write = pnv_psi_p9_mmio_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
+    .valid = { 8, 8 },
+    .impl = { 8, 8 },
 };
 
 static uint64_t pnv_psi_p9_xscom_read(void *opaque, hwaddr addr, unsigned size)
@@ -804,19 +786,13 @@ static const MemoryRegionOps pnv_psi_p9_xscom_ops = {
     .read = pnv_psi_p9_xscom_read,
     .write = pnv_psi_p9_xscom_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    }
+    .valid = { 8, 8 },
+    .impl = { 8, 8 },
 };
 
 static void pnv_psi_power9_set_irq(void *opaque, int irq, int state)
 {
-    PnvPsi *psi = opaque;
+    PnvPsi *psi = static_cast<PnvPsi *>(opaque);
     uint64_t irq_method = psi->regs[PSIHB_REG(PSIHB9_INTERRUPT_CONTROL)];
 
     if (irq_method & PSIHB9_IRQ_METHOD) {
@@ -907,16 +883,18 @@ static void pnv_psi_power9_class_init(ObjectClass *klass, const void *data)
     xfc->notify      = pnv_psi_notify;
 }
 
+static const InterfaceInfo pnv_psi_power9_interfaces[] = {
+    { TYPE_XIVE_NOTIFIER },
+    { },
+};
+
 static const TypeInfo pnv_psi_power9_info = {
     .name          = TYPE_PNV9_PSI,
     .parent        = TYPE_PNV_PSI,
     .instance_size = sizeof(Pnv9Psi),
     .instance_init = pnv_psi_power9_instance_init,
     .class_init    = pnv_psi_power9_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-            { TYPE_XIVE_NOTIFIER },
-            { },
-    },
+    .interfaces    = pnv_psi_power9_interfaces,
 };
 
 static void pnv_psi_power10_class_init(ObjectClass *klass, const void *data)
@@ -952,17 +930,19 @@ static void pnv_psi_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo pnv_psi_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_psi_info = {
     .name          = TYPE_PNV_PSI,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvPsi),
-    .class_init    = pnv_psi_class_init,
+    .is_abstract   = true,
     .class_size    = sizeof(PnvPsiClass),
-    .is_abstract      = true,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .class_init    = pnv_psi_class_init,
+    .interfaces    = pnv_psi_interfaces,
 };
 
 static void pnv_psi_register_types(void)
