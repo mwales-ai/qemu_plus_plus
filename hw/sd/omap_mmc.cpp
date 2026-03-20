@@ -290,7 +290,7 @@ static void omap_mmc_transfer(OMAPMMCState *host)
 
 static void omap_mmc_update(void *opaque)
 {
-    OMAPMMCState *s = opaque;
+    OMAPMMCState *s = static_cast<OMAPMMCState *>(opaque);
     omap_mmc_transfer(s);
     omap_mmc_fifolevel_update(s);
     omap_mmc_interrupts_update(s);
@@ -332,7 +332,7 @@ static void omap_mmc_reset(OMAPMMCState *host)
 static uint64_t omap_mmc_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint16_t i;
-    OMAPMMCState *s = opaque;
+    OMAPMMCState *s = static_cast<OMAPMMCState *>(opaque);
 
     if (size != 2) {
         return omap_badwidth_read16(opaque, offset);
@@ -425,7 +425,7 @@ static void omap_mmc_write(void *opaque, hwaddr offset,
                            uint64_t value, unsigned size)
 {
     int i;
-    OMAPMMCState *s = opaque;
+    OMAPMMCState *s = static_cast<OMAPMMCState *>(opaque);
 
     if (size != 2) {
         omap_badwidth_write16(opaque, offset, value);

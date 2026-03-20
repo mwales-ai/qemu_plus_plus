@@ -55,10 +55,10 @@ else
 endif
 
 system_ss.add(when: 'CONFIG_ETSEC', if_true: files(
-  'fsl_etsec/etsec.c',
+  'fsl_etsec/etsec.cpp',
   'fsl_etsec/miim.cpp',
   'fsl_etsec/registers.cpp',
-  'fsl_etsec/rings.c',
+  'fsl_etsec/rings.cpp',
 ))
 
 system_ss.add(when: 'CONFIG_ROCKER', if_true: files(

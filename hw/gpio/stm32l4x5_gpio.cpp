@@ -93,7 +93,7 @@ static void stm32l4x5_gpio_reset_hold(Object *obj, ResetType type)
 
 static void stm32l4x5_gpio_set(void *opaque, int line, int level)
 {
-    Stm32l4x5GpioState *s = opaque;
+    Stm32l4x5GpioState *s = static_cast<Stm32l4x5GpioState *>(opaque);
     /*
      * The pin isn't set if line is configured in output mode
      * except if level is 0 and the output is open-drain.
@@ -257,7 +257,7 @@ static void clock_freq_get(Object *obj, Visitor *v,
 static void stm32l4x5_gpio_write(void *opaque, hwaddr addr,
                                  uint64_t val64, unsigned int size)
 {
-    Stm32l4x5GpioState *s = opaque;
+    Stm32l4x5GpioState *s = static_cast<Stm32l4x5GpioState *>(opaque);
 
     uint32_t value = val64;
     trace_stm32l4x5_gpio_write(s->name, addr, val64);
@@ -343,7 +343,7 @@ static void stm32l4x5_gpio_write(void *opaque, hwaddr addr,
 static uint64_t stm32l4x5_gpio_read(void *opaque, hwaddr addr,
                                     unsigned int size)
 {
-    Stm32l4x5GpioState *s = opaque;
+    Stm32l4x5GpioState *s = static_cast<Stm32l4x5GpioState *>(opaque);
 
     trace_stm32l4x5_gpio_read(s->name, addr);
 
@@ -383,12 +383,12 @@ static const MemoryRegionOps stm32l4x5_gpio_ops = {
     .read = stm32l4x5_gpio_read,
     .write = stm32l4x5_gpio_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
+    .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
         .unaligned = false,
     },
-    .valid = {
+    .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
         .unaligned = false,
@@ -425,26 +425,28 @@ static void stm32l4x5_gpio_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_stm32l4x5_gpio_fields[] = {
+    VMSTATE_UINT32(moder, Stm32l4x5GpioState),
+    VMSTATE_UINT32(otyper, Stm32l4x5GpioState),
+    VMSTATE_UINT32(ospeedr, Stm32l4x5GpioState),
+    VMSTATE_UINT32(pupdr, Stm32l4x5GpioState),
+    VMSTATE_UINT32(idr, Stm32l4x5GpioState),
+    VMSTATE_UINT32(odr, Stm32l4x5GpioState),
+    VMSTATE_UINT32(lckr, Stm32l4x5GpioState),
+    VMSTATE_UINT32(afrl, Stm32l4x5GpioState),
+    VMSTATE_UINT32(afrh, Stm32l4x5GpioState),
+    VMSTATE_UINT32(ascr, Stm32l4x5GpioState),
+    VMSTATE_UINT16(disconnected_pins, Stm32l4x5GpioState),
+    VMSTATE_UINT16(pins_connected_high, Stm32l4x5GpioState),
+    VMSTATE_CLOCK(clk, Stm32l4x5GpioState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32l4x5_gpio = {
     .name = TYPE_STM32L4X5_GPIO,
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (VMStateField[]){
-        VMSTATE_UINT32(moder, Stm32l4x5GpioState),
-        VMSTATE_UINT32(otyper, Stm32l4x5GpioState),
-        VMSTATE_UINT32(ospeedr, Stm32l4x5GpioState),
-        VMSTATE_UINT32(pupdr, Stm32l4x5GpioState),
-        VMSTATE_UINT32(idr, Stm32l4x5GpioState),
-        VMSTATE_UINT32(odr, Stm32l4x5GpioState),
-        VMSTATE_UINT32(lckr, Stm32l4x5GpioState),
-        VMSTATE_UINT32(afrl, Stm32l4x5GpioState),
-        VMSTATE_UINT32(afrh, Stm32l4x5GpioState),
-        VMSTATE_UINT32(ascr, Stm32l4x5GpioState),
-        VMSTATE_UINT16(disconnected_pins, Stm32l4x5GpioState),
-        VMSTATE_UINT16(pins_connected_high, Stm32l4x5GpioState),
-        VMSTATE_CLOCK(clk, Stm32l4x5GpioState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32l4x5_gpio_fields,
 };
 
 static const Property stm32l4x5_gpio_properties[] = {

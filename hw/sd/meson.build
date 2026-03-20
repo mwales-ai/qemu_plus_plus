@@ -4,7 +4,7 @@ system_ss.add(when: 'CONFIG_SDHCI', if_true: files('sdhci.cpp'))
 system_ss.add(when: 'CONFIG_SDHCI_PCI', if_true: files('sdhci-pci.cpp'))
 system_ss.add(when: 'CONFIG_SSI_SD', if_true: files('ssi-sd.cpp'))
 
-system_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_mmc.c'))
+system_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_mmc.cpp'))
 system_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2835_sdhost.cpp'))
 system_ss.add(when: 'CONFIG_ASPEED_SOC', if_true: files('aspeed_sdhci.cpp'))
 system_ss.add(when: 'CONFIG_ALLWINNER_H3', if_true: files('allwinner-sdhost.c'))

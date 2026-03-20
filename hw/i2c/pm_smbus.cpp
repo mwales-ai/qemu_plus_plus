@@ -246,7 +246,7 @@ smb_byte_by_byte(PMSMBus *s)
 static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
-    PMSMBus *s = opaque;
+    PMSMBus *s = static_cast<PMSMBus *>(opaque);
     uint8_t clear_byte_done;
 
     trace_smbus_ioport_writeb(addr, val);
@@ -369,7 +369,7 @@ static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
 {
-    PMSMBus *s = opaque;
+    PMSMBus *s = static_cast<PMSMBus *>(opaque);
     uint32_t val;
 
     switch(addr) {
@@ -438,8 +438,8 @@ static void pm_smbus_reset(PMSMBus *s)
 static const MemoryRegionOps pm_smbus_ops = {
     .read = smb_ioport_readb,
     .write = smb_ioport_writeb,
-    .valid = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 1, },
 };
 
 bool pm_smbus_vmstate_needed(void)
@@ -449,27 +449,29 @@ bool pm_smbus_vmstate_needed(void)
     return !mc->smbus_no_migration_support;
 }
 
+static const VMStateField pmsmb_vmstate_fields[] = {
+    VMSTATE_UINT8(smb_stat, PMSMBus),
+    VMSTATE_UINT8(smb_ctl, PMSMBus),
+    VMSTATE_UINT8(smb_cmd, PMSMBus),
+    VMSTATE_UINT8(smb_addr, PMSMBus),
+    VMSTATE_UINT8(smb_data0, PMSMBus),
+    VMSTATE_UINT8(smb_data1, PMSMBus),
+    VMSTATE_UINT32(smb_index, PMSMBus),
+    VMSTATE_UINT8_ARRAY(smb_data, PMSMBus, PM_SMBUS_MAX_MSG_SIZE),
+    VMSTATE_UINT8(smb_auxctl, PMSMBus),
+    VMSTATE_UINT8(smb_blkdata, PMSMBus),
+    VMSTATE_BOOL(i2c_enable, PMSMBus),
+    VMSTATE_BOOL(op_done, PMSMBus),
+    VMSTATE_BOOL(in_i2c_block_read, PMSMBus),
+    VMSTATE_BOOL(start_transaction_on_status_read, PMSMBus),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription pmsmb_vmstate = {
     .name = "pmsmb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(smb_stat, PMSMBus),
-        VMSTATE_UINT8(smb_ctl, PMSMBus),
-        VMSTATE_UINT8(smb_cmd, PMSMBus),
-        VMSTATE_UINT8(smb_addr, PMSMBus),
-        VMSTATE_UINT8(smb_data0, PMSMBus),
-        VMSTATE_UINT8(smb_data1, PMSMBus),
-        VMSTATE_UINT32(smb_index, PMSMBus),
-        VMSTATE_UINT8_ARRAY(smb_data, PMSMBus, PM_SMBUS_MAX_MSG_SIZE),
-        VMSTATE_UINT8(smb_auxctl, PMSMBus),
-        VMSTATE_UINT8(smb_blkdata, PMSMBus),
-        VMSTATE_BOOL(i2c_enable, PMSMBus),
-        VMSTATE_BOOL(op_done, PMSMBus),
-        VMSTATE_BOOL(in_i2c_block_read, PMSMBus),
-        VMSTATE_BOOL(start_transaction_on_status_read, PMSMBus),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = pmsmb_vmstate_fields,
 };
 
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb, bool force_aux_blk)

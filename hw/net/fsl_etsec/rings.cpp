@@ -34,7 +34,7 @@
 #ifdef ETSEC_RING_DEBUG
 static const int debug_etsec = 1;
 #else
-static const int debug_etsec;
+static const int debug_etsec = 0;
 #endif
 
 #define RING_DEBUG(fmt, ...) do {              \
@@ -162,8 +162,9 @@ static void tx_padding_and_crc(eTSEC *etsec, uint32_t min_frame_len)
     /* Padding */
     if (add > 0) {
         RING_DEBUG("pad:%u\n", add);
-        etsec->tx_buffer = g_realloc(etsec->tx_buffer,
-                                        etsec->tx_buffer_len + add);
+        etsec->tx_buffer = static_cast<uint8_t *>(
+            g_realloc(etsec->tx_buffer,
+                      etsec->tx_buffer_len + add));
 
         memset(etsec->tx_buffer + etsec->tx_buffer_len, 0x0, add);
         etsec->tx_buffer_len += add;
@@ -236,8 +237,9 @@ static void process_tx_bd(eTSEC         *etsec,
     /* TODO: if TxBD[TOE/UN] skip the Tx Frame Control Block*/
 
     /* Load this Data Buffer */
-    etsec->tx_buffer = g_realloc(etsec->tx_buffer,
-                                    etsec->tx_buffer_len + bd->length);
+    etsec->tx_buffer = static_cast<uint8_t *>(
+        g_realloc(etsec->tx_buffer,
+                  etsec->tx_buffer_len + bd->length));
     tmp_buff = etsec->tx_buffer + etsec->tx_buffer_len;
     cpu_physical_memory_read(bd->bufptr + tbdbth, tmp_buff, bd->length);
 
@@ -642,7 +644,7 @@ void etsec_walk_rx_ring(eTSEC *etsec, int ring_nbr)
         etsec->rx_remaining_data = remaining_data;
 
         /* Copy the frame */
-        tmp_buf = g_malloc(size);
+        tmp_buf = static_cast<uint8_t *>(g_malloc(size));
         memcpy(tmp_buf, etsec->rx_buffer, size);
         etsec->rx_buffer = tmp_buf;
 

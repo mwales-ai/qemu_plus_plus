@@ -324,7 +324,7 @@ static enum TPMVersion tpm_spapr_get_version(TPMIf *ti)
 
 static int tpm_spapr_pre_save(void *opaque)
 {
-    SpaprTpmState *s = opaque;
+    SpaprTpmState *s = static_cast<SpaprTpmState *>(opaque);
 
     tpm_backend_finish_sync(s->be_driver);
     /*
@@ -336,7 +336,7 @@ static int tpm_spapr_pre_save(void *opaque)
 
 static int tpm_spapr_post_load(void *opaque, int version_id)
 {
-    SpaprTpmState *s = opaque;
+    SpaprTpmState *s = static_cast<SpaprTpmState *>(opaque);
 
     if (s->numbytes) {
         trace_tpm_spapr_post_load();
@@ -348,20 +348,22 @@ static int tpm_spapr_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_spapr_vtpm_fields[] = {
+    VMSTATE_SPAPR_VIO(vdev, SpaprTpmState),
+
+    VMSTATE_UINT8(state, SpaprTpmState),
+    VMSTATE_UINT32(numbytes, SpaprTpmState),
+    VMSTATE_VBUFFER_UINT32(buffer, SpaprTpmState, 0, NULL, numbytes),
+    /* remember DMA address */
+    VMSTATE_UINT32(crq.data, SpaprTpmState),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_spapr_vtpm = {
     .name = "tpm-spapr",
-    .pre_save = tpm_spapr_pre_save,
     .post_load = tpm_spapr_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_SPAPR_VIO(vdev, SpaprTpmState),
-
-        VMSTATE_UINT8(state, SpaprTpmState),
-        VMSTATE_UINT32(numbytes, SpaprTpmState),
-        VMSTATE_VBUFFER_UINT32(buffer, SpaprTpmState, 0, NULL, numbytes),
-        /* remember DMA address */
-        VMSTATE_UINT32(crq.data, SpaprTpmState),
-        VMSTATE_END_OF_LIST(),
-    }
+    .pre_save = tpm_spapr_pre_save,
+    .fields = vmstate_spapr_vtpm_fields,
 };
 
 static const Property tpm_spapr_properties[] = {
@@ -384,7 +386,7 @@ static void tpm_spapr_realizefn(SpaprVioDevice *dev, Error **errp)
         error_setg(errp, "'tpmdev' property is required");
         return;
     }
-    s->buffer = g_malloc(TPM_SPAPR_BUFFER_MAX);
+    s->buffer = static_cast<unsigned char *>(g_malloc(TPM_SPAPR_BUFFER_MAX));
 }
 
 static void tpm_spapr_class_init(ObjectClass *klass, const void *data)
@@ -409,15 +411,17 @@ static void tpm_spapr_class_init(ObjectClass *klass, const void *data)
     tc->request_completed = tpm_spapr_request_completed;
 }
 
+static const InterfaceInfo tpm_spapr_interfaces[] = {
+    { TYPE_TPM_IF },
+    { }
+};
+
 static const TypeInfo tpm_spapr_info = {
     .name          = TYPE_TPM_SPAPR,
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(SpaprTpmState),
     .class_init    = tpm_spapr_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_TPM_IF },
-        { }
-    }
+    .interfaces    = tpm_spapr_interfaces,
 };
 
 static void tpm_spapr_register_types(void)

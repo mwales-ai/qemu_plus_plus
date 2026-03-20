@@ -79,7 +79,7 @@ bool hid_has_events(HIDState *hs)
 
 static void hid_idle_timer(void *opaque)
 {
-    HIDState *hs = opaque;
+    HIDState *hs = static_cast<HIDState *>(opaque);
 
     hs->idle_pending = true;
     hs->event(hs);
@@ -110,13 +110,16 @@ void hid_set_next_idle(HIDState *hs)
 static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
                               InputEvent *evt)
 {
-    static const int bmap[INPUT_BUTTON__MAX] = {
-        [INPUT_BUTTON_LEFT]   = 0x01,
-        [INPUT_BUTTON_RIGHT]  = 0x02,
-        [INPUT_BUTTON_MIDDLE] = 0x04,
-        [INPUT_BUTTON_SIDE] = 0x08,
-        [INPUT_BUTTON_EXTRA] = 0x10,
-    };
+    static int bmap[INPUT_BUTTON__MAX] = {};
+    static bool bmap_init = false;
+    if (!bmap_init) {
+        bmap[INPUT_BUTTON_LEFT]   = 0x01;
+        bmap[INPUT_BUTTON_RIGHT]  = 0x02;
+        bmap[INPUT_BUTTON_MIDDLE] = 0x04;
+        bmap[INPUT_BUTTON_SIDE]   = 0x08;
+        bmap[INPUT_BUTTON_EXTRA]  = 0x10;
+        bmap_init = true;
+    }
     HIDState *hs = (HIDState *)dev;
     HIDPointerEvent *e;
     InputMoveEvent *move;
@@ -551,7 +554,7 @@ void hid_init(HIDState *hs, int kind, HIDEventFunc event)
 
 static int hid_post_load(void *opaque, int version_id)
 {
-    HIDState *s = opaque;
+    HIDState *s = static_cast<HIDState *>(opaque);
 
     hid_set_next_idle(s);
 
@@ -578,17 +581,29 @@ static int hid_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_hid_ptr_queue_fields[] = {
+    VMSTATE_INT32(xdx, HIDPointerEvent),
+    VMSTATE_INT32(ydy, HIDPointerEvent),
+    VMSTATE_INT32(dz, HIDPointerEvent),
+    VMSTATE_INT32(buttons_state, HIDPointerEvent),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_hid_ptr_queue = {
     .name = "HIDPointerEventQueue",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(xdx, HIDPointerEvent),
-        VMSTATE_INT32(ydy, HIDPointerEvent),
-        VMSTATE_INT32(dz, HIDPointerEvent),
-        VMSTATE_INT32(buttons_state, HIDPointerEvent),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_hid_ptr_queue_fields,
+};
+
+static const VMStateField vmstate_hid_ptr_device_fields[] = {
+    VMSTATE_STRUCT_ARRAY(ptr.queue, HIDState, QUEUE_LENGTH, 0,
+                         vmstate_hid_ptr_queue, HIDPointerEvent),
+    VMSTATE_UINT32(head, HIDState),
+    VMSTATE_UINT32(n, HIDState),
+    VMSTATE_INT32(protocol, HIDState),
+    VMSTATE_UINT8(idle, HIDState),
+    VMSTATE_END_OF_LIST(),
 };
 
 const VMStateDescription vmstate_hid_ptr_device = {
@@ -596,15 +611,20 @@ const VMStateDescription vmstate_hid_ptr_device = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = hid_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(ptr.queue, HIDState, QUEUE_LENGTH, 0,
-                             vmstate_hid_ptr_queue, HIDPointerEvent),
-        VMSTATE_UINT32(head, HIDState),
-        VMSTATE_UINT32(n, HIDState),
-        VMSTATE_INT32(protocol, HIDState),
-        VMSTATE_UINT8(idle, HIDState),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_hid_ptr_device_fields,
+};
+
+static const VMStateField vmstate_hid_keyboard_device_fields[] = {
+    VMSTATE_UINT32_ARRAY(kbd.keycodes, HIDState, QUEUE_LENGTH),
+    VMSTATE_UINT32(head, HIDState),
+    VMSTATE_UINT32(n, HIDState),
+    VMSTATE_UINT16(kbd.modifiers, HIDState),
+    VMSTATE_UINT8(kbd.leds, HIDState),
+    VMSTATE_UINT8_ARRAY(kbd.key, HIDState, 16),
+    VMSTATE_INT32(kbd.keys, HIDState),
+    VMSTATE_INT32(protocol, HIDState),
+    VMSTATE_UINT8(idle, HIDState),
+    VMSTATE_END_OF_LIST(),
 };
 
 const VMStateDescription vmstate_hid_keyboard_device = {
@@ -612,16 +632,5 @@ const VMStateDescription vmstate_hid_keyboard_device = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = hid_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(kbd.keycodes, HIDState, QUEUE_LENGTH),
-        VMSTATE_UINT32(head, HIDState),
-        VMSTATE_UINT32(n, HIDState),
-        VMSTATE_UINT16(kbd.modifiers, HIDState),
-        VMSTATE_UINT8(kbd.leds, HIDState),
-        VMSTATE_UINT8_ARRAY(kbd.key, HIDState, 16),
-        VMSTATE_INT32(kbd.keys, HIDState),
-        VMSTATE_INT32(protocol, HIDState),
-        VMSTATE_UINT8(idle, HIDState),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_hid_keyboard_device_fields,
 };

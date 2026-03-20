@@ -4,7 +4,7 @@ remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('machine.cpp'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('mpqemu-link.cpp'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('message.cpp'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('remote-obj.cpp'))
-remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy.c'))
+remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('proxy.cpp'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iohub.cpp'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iommu.cpp'))
 

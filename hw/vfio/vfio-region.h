@@ -33,6 +33,10 @@ typedef struct VFIORegion {
 } VFIORegion;
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void vfio_region_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size);
 uint64_t vfio_region_read(void *opaque,
@@ -44,5 +48,9 @@ void vfio_region_mmaps_set_enabled(VFIORegion *region, bool enabled);
 void vfio_region_unmap(VFIORegion *region);
 void vfio_region_exit(VFIORegion *region);
 void vfio_region_finalize(VFIORegion *region);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_VFIO_REGION_H */

@@ -94,14 +94,14 @@ static const I2CRegMap tpm_tis_reg_map[] = {
 
 static int tpm_tis_i2c_pre_save(void *opaque)
 {
-    TPMStateI2C *i2cst = opaque;
+    TPMStateI2C *i2cst = static_cast<TPMStateI2C *>(opaque);
 
     return tpm_tis_pre_save(&i2cst->state);
 }
 
 static int tpm_tis_i2c_post_load(void *opaque, int version_id)
 {
-    TPMStateI2C *i2cst = opaque;
+    TPMStateI2C *i2cst = static_cast<TPMStateI2C *>(opaque);
 
     if (i2cst->offset >= 1) {
         tpm_tis_i2c_to_tis_reg(i2cst, i2cst->data[0]);
@@ -110,30 +110,32 @@ static int tpm_tis_i2c_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_tpm_tis_i2c_fields[] = {
+    VMSTATE_BUFFER(state.buffer, TPMStateI2C),
+    VMSTATE_UINT16(state.rw_offset, TPMStateI2C),
+    VMSTATE_UINT8(state.active_locty, TPMStateI2C),
+    VMSTATE_UINT8(state.aborting_locty, TPMStateI2C),
+    VMSTATE_UINT8(state.next_locty, TPMStateI2C),
+
+    VMSTATE_STRUCT_ARRAY(state.loc, TPMStateI2C, TPM_TIS_NUM_LOCALITIES, 0,
+                         vmstate_locty, TPMLocality),
+
+    /* i2c specifics */
+    VMSTATE_UINT8(offset, TPMStateI2C),
+    VMSTATE_UINT8(operation, TPMStateI2C),
+    VMSTATE_BUFFER(data, TPMStateI2C),
+    VMSTATE_UINT8(loc_sel, TPMStateI2C),
+    VMSTATE_UINT8(csum_enable, TPMStateI2C),
+
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_tpm_tis_i2c = {
     .name = "tpm-tis-i2c",
     .version_id = 0,
-    .pre_save  = tpm_tis_i2c_pre_save,
     .post_load  = tpm_tis_i2c_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(state.buffer, TPMStateI2C),
-        VMSTATE_UINT16(state.rw_offset, TPMStateI2C),
-        VMSTATE_UINT8(state.active_locty, TPMStateI2C),
-        VMSTATE_UINT8(state.aborting_locty, TPMStateI2C),
-        VMSTATE_UINT8(state.next_locty, TPMStateI2C),
-
-        VMSTATE_STRUCT_ARRAY(state.loc, TPMStateI2C, TPM_TIS_NUM_LOCALITIES, 0,
-                             vmstate_locty, TPMLocality),
-
-        /* i2c specifics */
-        VMSTATE_UINT8(offset, TPMStateI2C),
-        VMSTATE_UINT8(operation, TPMStateI2C),
-        VMSTATE_BUFFER(data, TPMStateI2C),
-        VMSTATE_UINT8(loc_sel, TPMStateI2C),
-        VMSTATE_UINT8(csum_enable, TPMStateI2C),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .pre_save  = tpm_tis_i2c_pre_save,
+    .fields = vmstate_tpm_tis_i2c_fields,
 };
 
 /*
@@ -547,15 +549,17 @@ static void tpm_tis_i2c_class_init(ObjectClass *klass, const void *data)
     tc->get_version = tpm_tis_i2c_get_tpm_version;
 }
 
+static const InterfaceInfo tpm_tis_i2c_interfaces[] = {
+    { TYPE_TPM_IF },
+    { }
+};
+
 static const TypeInfo tpm_tis_i2c_info = {
     .name          = TYPE_TPM_TIS_I2C,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TPMStateI2C),
     .class_init    = tpm_tis_i2c_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-        { TYPE_TPM_IF },
-        { }
-    }
+    .interfaces    = tpm_tis_i2c_interfaces,
 };
 
 static void tpm_tis_i2c_register_types(void)

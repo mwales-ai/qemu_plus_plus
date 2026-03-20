@@ -60,7 +60,7 @@ static void ufs_build_scsi_response_upiu(UfsRequest *req, uint8_t *sense,
 
 static void ufs_scsi_command_complete(SCSIRequest *scsi_req, size_t resid)
 {
-    UfsRequest *req = scsi_req->hba_private;
+    UfsRequest *req = static_cast<UfsRequest *>(scsi_req->hba_private);
     int16_t status = scsi_req->status;
 
     uint32_t transfered_len = scsi_req->cmd.xfer - resid;
@@ -76,18 +76,18 @@ static void ufs_scsi_command_complete(SCSIRequest *scsi_req, size_t resid)
 
 static QEMUSGList *ufs_get_sg_list(SCSIRequest *scsi_req)
 {
-    UfsRequest *req = scsi_req->hba_private;
+    UfsRequest *req = static_cast<UfsRequest *>(scsi_req->hba_private);
     return req->sg;
 }
 
 static const struct SCSIBusInfo ufs_scsi_info = {
     .tcq = true,
+    .max_channel = 0,
     .max_target = 0,
     .max_lun = UFS_MAX_LUS,
-    .max_channel = 0,
 
-    .get_sg_list = ufs_get_sg_list,
     .complete = ufs_scsi_command_complete,
+    .get_sg_list = ufs_get_sg_list,
 };
 
 static int ufs_emulate_report_luns(UfsRequest *req, uint8_t *outbuf,
@@ -432,8 +432,8 @@ static void ufs_lu_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo ufs_lu_info = {
     .name = TYPE_UFS_LU,
     .parent = TYPE_DEVICE,
-    .class_init = ufs_lu_class_init,
     .instance_size = sizeof(UfsLu),
+    .class_init = ufs_lu_class_init,
 };
 
 static void ufs_lu_register_types(void)

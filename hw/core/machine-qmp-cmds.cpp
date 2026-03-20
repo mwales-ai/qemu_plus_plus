@@ -36,18 +36,18 @@
  */
 AcceleratorInfo *qmp_query_accelerators(Error **errp)
 {
-    AcceleratorInfo *info = g_malloc0(sizeof(*info));
+    AcceleratorInfo *info = static_cast<AcceleratorInfo *>(g_malloc0(sizeof(*info)));
     AccelClass *current_class = ACCEL_GET_CLASS(current_accel());
     int i;
 
     for (i = ACCELERATOR__MAX; i-- > 0; ) {
-        const char *s = Accelerator_str(i);
+        const char *s = Accelerator_str(static_cast<Accelerator>(i));
         AccelClass *this_class = accel_find(s);
 
         if (this_class) {
-            QAPI_LIST_PREPEND(info->present, i);
+            QAPI_LIST_PREPEND(info->present, static_cast<Accelerator>(i));
             if (this_class == current_class) {
-                info->enabled = i;
+                info->enabled = static_cast<Accelerator>(i);
             }
         }
     }
@@ -67,7 +67,7 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
     CPUState *cpu;
 
     CPU_FOREACH(cpu) {
-        CpuInfoFast *value = g_malloc0(sizeof(*value));
+        CpuInfoFast *value = static_cast<CpuInfoFast *>(g_malloc0(sizeof(*value)));
 
         value->cpu_index = cpu->cpu_index;
         value->qom_path = object_get_canonical_path(OBJECT(cpu));
@@ -76,7 +76,7 @@ CpuInfoFastList *qmp_query_cpus_fast(Error **errp)
 
         if (mc->cpu_index_to_instance_props) {
             CpuInstanceProperties *props;
-            props = g_malloc0(sizeof(*props));
+            props = static_cast<CpuInstanceProperties *>(g_malloc0(sizeof(*props)));
             *props = mc->cpu_index_to_instance_props(ms, cpu->cpu_index);
             value->props = props;
         }
@@ -100,11 +100,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
 
     machines = object_class_get_list(target_machine_typename(), false);
     for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
+        MachineClass *mc = static_cast<MachineClass *>(el->data);
         const char *default_cpu_type = machine_class_default_cpu_type(mc);
         MachineInfo *info;
 
-        info = g_malloc0(sizeof(*info));
+        info = static_cast<MachineInfo *>(g_malloc0(sizeof(*info)));
         if (mc->is_default) {
             info->has_is_default = true;
             info->is_default = true;
@@ -134,11 +134,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
             info->has_compat_props = true;
 
             for (i = 0; i < mc->compat_props->len; i++) {
-                GlobalProperty *mt_prop = g_ptr_array_index(mc->compat_props,
-                                                            i);
+                GlobalProperty *mt_prop = static_cast<GlobalProperty *>(g_ptr_array_index(mc->compat_props,
+                                                            i));
                 CompatProperty *prop;
 
-                prop = g_malloc0(sizeof(*prop));
+                prop = static_cast<CompatProperty *>(g_malloc0(sizeof(*prop)));
                 prop->qom_type = g_strdup(mt_prop->driver);
                 prop->property = g_strdup(mt_prop->property);
                 prop->value = g_strdup(mt_prop->value);
@@ -156,7 +156,7 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
 
 CurrentMachineParams *qmp_query_current_machine(Error **errp)
 {
-    CurrentMachineParams *params = g_malloc0(sizeof(*params));
+    CurrentMachineParams *params = static_cast<CurrentMachineParams *>(g_malloc0(sizeof(*params)));
     params->wakeup_suspend_support = qemu_wakeup_suspend_enabled();
 
     return params;
@@ -164,7 +164,7 @@ CurrentMachineParams *qmp_query_current_machine(Error **errp)
 
 QemuTargetInfo *qmp_query_target(Error **errp)
 {
-    QemuTargetInfo *info = g_malloc0(sizeof(*info));
+    QemuTargetInfo *info = static_cast<QemuTargetInfo *>(g_malloc0(sizeof(*info)));
 
     info->arch = target_arch();
 
@@ -197,13 +197,13 @@ void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
 static int query_memdev(Object *obj, void *opaque)
 {
     Error *err = NULL;
-    MemdevList **list = opaque;
+    MemdevList **list = static_cast<MemdevList **>(opaque);
     Memdev *m;
     QObject *host_nodes;
     Visitor *v;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
-        m = g_malloc0(sizeof(*m));
+        m = static_cast<Memdev *>(g_malloc0(sizeof(*m)));
 
         m->id = g_strdup(object_get_canonical_path_component(obj));
 
@@ -218,8 +218,8 @@ static int query_memdev(Object *obj, void *opaque)
         } else {
             m->has_reserve = true;
         }
-        m->policy = object_property_get_enum(obj, "policy", "HostMemPolicy",
-                                             &error_abort);
+        m->policy = static_cast<HostMemPolicy>(object_property_get_enum(obj, "policy", "HostMemPolicy",
+                                             &error_abort));
         host_nodes = object_property_get_qobject(obj,
                                                  "host-nodes",
                                                  &error_abort);
@@ -284,7 +284,7 @@ HumanReadableText *qmp_x_query_numa(Error **errp)
 
 KvmInfo *qmp_query_kvm(Error **errp)
 {
-    KvmInfo *info = g_malloc0(sizeof(*info));
+    KvmInfo *info = static_cast<KvmInfo *>(g_malloc0(sizeof(*info)));
 
     info->enabled = kvm_enabled();
     info->present = accel_find("kvm");
@@ -294,7 +294,7 @@ KvmInfo *qmp_query_kvm(Error **errp)
 
 UuidInfo *qmp_query_uuid(Error **errp)
 {
-    UuidInfo *info = g_malloc0(sizeof(*info));
+    UuidInfo *info = static_cast<UuidInfo *>(g_malloc0(sizeof(*info)));
 
     info->UUID = qemu_uuid_unparse_strdup(&qemu_uuid);
     return info;
@@ -351,7 +351,7 @@ static int qmp_x_query_irq_foreach(Object *obj, void *opaque)
 {
     InterruptStatsProvider *intc;
     InterruptStatsProviderClass *k;
-    GString *buf = opaque;
+    GString *buf = static_cast<GString *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_INTERRUPT_STATS_PROVIDER)) {
         intc = INTERRUPT_STATS_PROVIDER(obj);
@@ -394,7 +394,7 @@ static int qmp_x_query_intc_foreach(Object *obj, void *opaque)
 {
     InterruptStatsProvider *intc;
     InterruptStatsProviderClass *k;
-    GString *buf = opaque;
+    GString *buf = static_cast<GString *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_INTERRUPT_STATS_PROVIDER)) {
         intc = INTERRUPT_STATS_PROVIDER(obj);
@@ -431,7 +431,7 @@ GuidInfo *qmp_query_vm_generation_id(Error **errp)
     }
     vms = VMGENID(obj);
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<GuidInfo *>(g_malloc0(sizeof(*info)));
     info->guid = qemu_uuid_unparse_strdup(&vms->guid);
     return info;
 }

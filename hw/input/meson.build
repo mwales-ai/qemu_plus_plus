@@ -1,4 +1,4 @@
-system_ss.add(files('hid.c'))
+system_ss.add(files('hid.cpp'))
 system_ss.add(when: 'CONFIG_ADB', if_true: files('adb.cpp', 'adb-mouse.cpp', 'adb-kbd.cpp'))
 system_ss.add(when: 'CONFIG_PCKBD', if_true: files('pckbd.c'))
 system_ss.add(when: 'CONFIG_PL050', if_true: files('pl050.cpp'))

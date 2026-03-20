@@ -127,7 +127,7 @@ enum {
     STAT_M_2ND_ADDR_WR_NACK,
     /* Idle */
     STAT_IDLE = 0x1f
-} TWI_STAT_STA;
+};
 
 static const char *allwinner_i2c_get_regname(unsigned offset)
 {
@@ -405,25 +405,27 @@ static void allwinner_i2c_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps allwinner_i2c_ops = {
     .read = allwinner_i2c_read,
     .write = allwinner_i2c_write,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+};
+
+static const VMStateField allwinner_i2c_vmstate_fields[] = {
+    VMSTATE_UINT8(addr, AWI2CState),
+    VMSTATE_UINT8(xaddr, AWI2CState),
+    VMSTATE_UINT8(data, AWI2CState),
+    VMSTATE_UINT8(cntr, AWI2CState),
+    VMSTATE_UINT8(ccr, AWI2CState),
+    VMSTATE_UINT8(srst, AWI2CState),
+    VMSTATE_UINT8(efr, AWI2CState),
+    VMSTATE_UINT8(lcr, AWI2CState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription allwinner_i2c_vmstate = {
     .name = TYPE_AW_I2C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(addr, AWI2CState),
-        VMSTATE_UINT8(xaddr, AWI2CState),
-        VMSTATE_UINT8(data, AWI2CState),
-        VMSTATE_UINT8(cntr, AWI2CState),
-        VMSTATE_UINT8(ccr, AWI2CState),
-        VMSTATE_UINT8(srst, AWI2CState),
-        VMSTATE_UINT8(efr, AWI2CState),
-        VMSTATE_UINT8(lcr, AWI2CState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = allwinner_i2c_vmstate_fields,
 };
 
 static void allwinner_i2c_realize(DeviceState *dev, Error **errp)

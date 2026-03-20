@@ -55,7 +55,7 @@ static gint memory_device_addr_sort(gconstpointer a, gconstpointer b)
 
 static int memory_device_build_list(Object *obj, void *opaque)
 {
-    GSList **list = opaque;
+    GSList **list = static_cast<GSList **>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
         DeviceState *dev = DEVICE(obj);
@@ -217,7 +217,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
                                             Error **errp)
 {
     GSList *list = NULL, *item;
-    Range as, new = range_empty;
+    Range as, new_range = range_empty;
 
     range_init_nofail(&as, ms->device_memory->base,
                       memory_region_size(&ms->device_memory->mr));
@@ -237,7 +237,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
     }
 
     if (hint) {
-        if (range_init(&new, *hint, size) || !range_contains_range(&as, &new)) {
+        if (range_init(&new_range, *hint, size) || !range_contains_range(&as, &new_range)) {
             error_setg(errp, "can't add memory device [0x%" PRIx64 ":0x%" PRIx64
                        "], usable range for memory devices [0x%" PRIx64 ":0x%"
                        PRIx64 "]", *hint, size, range_lob(&as),
@@ -245,7 +245,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
             return 0;
         }
     } else {
-        if (range_init(&new, QEMU_ALIGN_UP(range_lob(&as), align), size)) {
+        if (range_init(&new_range, QEMU_ALIGN_UP(range_lob(&as), align), size)) {
             error_setg(errp, "can't add memory device, device too big");
             return 0;
         }
@@ -254,7 +254,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
     /* find address range that will fit new memory device */
     object_child_foreach(OBJECT(ms), memory_device_build_list, &list);
     for (item = list; item; item = g_slist_next(item)) {
-        const MemoryDeviceState *md = item->data;
+        const MemoryDeviceState *md = static_cast<const MemoryDeviceState *>(item->data);
         const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(OBJECT(md));
         uint64_t next_addr;
         Range tmp;
@@ -266,7 +266,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
         range_init_nofail(&tmp, mdc->get_addr(md),
                           memory_device_get_region_size(md, &error_abort));
 
-        if (range_overlaps_range(&tmp, &new)) {
+        if (range_overlaps_range(&tmp, &new_range)) {
             if (hint) {
                 const DeviceState *d = DEVICE(md);
                 error_setg(errp, "address range conflicts with memory device"
@@ -275,22 +275,22 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
             }
 
             next_addr = QEMU_ALIGN_UP(range_upb(&tmp) + 1, align);
-            if (!next_addr || range_init(&new, next_addr, range_size(&new))) {
-                range_make_empty(&new);
+            if (!next_addr || range_init(&new_range, next_addr, range_size(&new_range))) {
+                range_make_empty(&new_range);
                 break;
             }
-        } else if (range_lob(&tmp) > range_upb(&new)) {
+        } else if (range_lob(&tmp) > range_upb(&new_range)) {
             break;
         }
     }
 
-    if (!range_contains_range(&as, &new)) {
+    if (!range_contains_range(&as, &new_range)) {
         error_setg(errp, "could not find position in guest address space for "
                    "memory device - memory fragmented due to alignments");
     }
 out:
     g_slist_free(list);
-    return range_lob(&new);
+    return range_lob(&new_range);
 }
 
 MemoryDeviceInfoList *qmp_memory_device_list(void)
@@ -319,7 +319,7 @@ MemoryDeviceInfoList *qmp_memory_device_list(void)
 
 static int memory_device_plugged_size(Object *obj, void *opaque)
 {
-    uint64_t *size = opaque;
+    uint64_t *size = static_cast<uint64_t *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_DEVICE)) {
         const DeviceState *dev = DEVICE(obj);

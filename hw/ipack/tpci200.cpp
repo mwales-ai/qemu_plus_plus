@@ -106,7 +106,7 @@ static uint64_t adjust_value(bool big_endian, uint64_t *val, unsigned size)
 
 static void tpci200_set_irq(void *opaque, int intno, int level)
 {
-    IPackDevice *ip = opaque;
+    IPackDevice *ip = static_cast<IPackDevice *>(opaque);
     IPackBus *bus = IPACK_BUS(qdev_get_parent_bus(DEVICE(ip)));
     PCIDevice *pcidev = PCI_DEVICE(BUS(bus)->parent);
     TPCI200State *dev = TPCI200(pcidev);
@@ -168,7 +168,7 @@ static void tpci200_set_irq(void *opaque, int intno, int level)
 
 static uint64_t tpci200_read_cfg(void *opaque, hwaddr addr, unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     uint8_t ret = 0;
     if (addr < ARRAY_SIZE(local_config_regs)) {
         ret = local_config_regs[addr];
@@ -186,7 +186,7 @@ static uint64_t tpci200_read_cfg(void *opaque, hwaddr addr, unsigned size)
 static void tpci200_write_cfg(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     /* Endianness is stored in the first bit of these registers */
     if (addr == 0x2b || addr == 0x2f || addr == 0x33) {
         unsigned las = (addr - 0x2b) / 4;
@@ -199,7 +199,7 @@ static void tpci200_write_cfg(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t tpci200_read_las0(void *opaque, hwaddr addr, unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     uint64_t ret = 0;
 
     switch (addr) {
@@ -240,7 +240,7 @@ static uint64_t tpci200_read_las0(void *opaque, hwaddr addr, unsigned size)
 static void tpci200_write_las0(void *opaque, hwaddr addr, uint64_t val,
                                unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
 
     adjust_value(s->big_endian[0], &val, size);
 
@@ -306,7 +306,7 @@ static void tpci200_write_las0(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
     uint64_t ret = 0;
     unsigned ip_n, space;
@@ -368,7 +368,7 @@ static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
 static void tpci200_write_las1(void *opaque, hwaddr addr, uint64_t val,
                                unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
     unsigned ip_n, space;
     uint8_t offset;
@@ -416,7 +416,7 @@ static void tpci200_write_las1(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t tpci200_read_las2(void *opaque, hwaddr addr, unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
     uint64_t ret = 0;
     unsigned ip_n;
@@ -447,7 +447,7 @@ static uint64_t tpci200_read_las2(void *opaque, hwaddr addr, unsigned size)
 static void tpci200_write_las2(void *opaque, hwaddr addr, uint64_t val,
                                unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
     unsigned ip_n;
     uint32_t offset;
@@ -475,7 +475,7 @@ static void tpci200_write_las2(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t tpci200_read_las3(void *opaque, hwaddr addr, unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
     uint64_t ret = 0;
     /*
@@ -502,7 +502,7 @@ static uint64_t tpci200_read_las3(void *opaque, hwaddr addr, unsigned size)
 static void tpci200_write_las3(void *opaque, hwaddr addr, uint64_t val,
                                unsigned size)
 {
-    TPCI200State *s = opaque;
+    TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
     /*
      * The address is divided into the IP module number and the offset
@@ -645,15 +645,17 @@ static void tpci200_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_tpci200;
 }
 
+static const InterfaceInfo tpci200_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo tpci200_info = {
     .name          = TYPE_TPCI200,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(TPCI200State),
     .class_init    = tpci200_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces    = tpci200_interfaces,
 };
 
 static void tpci200_register_types(void)

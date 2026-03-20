@@ -1,5 +1,5 @@
 mem_ss = ss.source_set()
-mem_ss.add(files('memory-device.c'))
+mem_ss.add(files('memory-device.cpp'))
 mem_ss.add(when: 'CONFIG_DIMM', if_true: files('pc-dimm.cpp'))
 mem_ss.add(when: 'CONFIG_NPCM7XX', if_true: files('npcm7xx_mc.cpp'))
 mem_ss.add(when: 'CONFIG_NVDIMM', if_true: files('nvdimm.cpp'))

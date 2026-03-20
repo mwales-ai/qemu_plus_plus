@@ -137,6 +137,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(eTSEC, ETSEC_COMMON)
 #define eTSEC_TRANSMIT 1
 #define eTSEC_RECEIVE  2
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void etsec_update_irq(eTSEC *etsec);
 
 void etsec_walk_tx_ring(eTSEC *etsec, int ring_nbr);
@@ -149,5 +153,9 @@ void etsec_write_miim(eTSEC          *etsec,
                       uint32_t        value);
 
 void etsec_miim_link_status(eTSEC *etsec, NetClientState *nc);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ETSEC_H */

@@ -21,9 +21,9 @@
  */
 static gnutls_datum_t *build_signed_data(mm_variable_access *va, void *data)
 {
-    variable_auth_2 *auth = data;
+    variable_auth_2 *auth = static_cast<variable_auth_2 *>(data);
     uint64_t data_offset = sizeof(efi_time) + auth->hdr_length;
-    uint16_t *name = (void *)va + sizeof(mm_variable_access);
+    uint16_t *name = reinterpret_cast<uint16_t *>(reinterpret_cast<uint8_t *>(va) + sizeof(mm_variable_access));
     gnutls_datum_t *sdata;
     uint64_t pos = 0;
 
@@ -33,7 +33,7 @@ static gnutls_datum_t *build_signed_data(mm_variable_access *va, void *data)
                    + sizeof(va->attributes)
                    + sizeof(auth->timestamp)
                    + va->data_size - data_offset);
-    sdata->data = g_malloc(sdata->size);
+    sdata->data = static_cast<unsigned char *>(g_malloc(sdata->size));
 
     /* Variable Name (without terminating \0) */
     memcpy(sdata->data + pos, name, va->name_size - 2);
@@ -52,7 +52,7 @@ static gnutls_datum_t *build_signed_data(mm_variable_access *va, void *data)
     pos += sizeof(auth->timestamp);
 
     /* Variable Content */
-    memcpy(sdata->data + pos, data + data_offset, va->data_size - data_offset);
+    memcpy(sdata->data + pos, static_cast<uint8_t *>(data) + data_offset, va->data_size - data_offset);
     pos += va->data_size - data_offset;
 
     assert(pos == sdata->size);
@@ -82,7 +82,7 @@ static void wrap_pkcs7(gnutls_datum_t *pkcs7)
     }
 
     wrap.size = pkcs7->size + 19;
-    wrap.data = g_malloc(wrap.size);
+    wrap.data = static_cast<unsigned char *>(g_malloc(wrap.size));
 
     wrap.data[0] = 0x30;
     wrap.data[1] = 0x82;
@@ -104,13 +104,13 @@ static void wrap_pkcs7(gnutls_datum_t *pkcs7)
 
 static gnutls_datum_t *build_pkcs7(void *data)
 {
-    variable_auth_2 *auth = data;
+    variable_auth_2 *auth = static_cast<variable_auth_2 *>(data);
     gnutls_datum_t *pkcs7;
 
     pkcs7 = g_new(gnutls_datum_t, 1);
     pkcs7->size = auth->hdr_length - 24;
-    pkcs7->data = g_malloc(pkcs7->size);
-    memcpy(pkcs7->data, data + 16 + 24, pkcs7->size);
+    pkcs7->data = static_cast<unsigned char *>(g_malloc(pkcs7->size));
+    memcpy(pkcs7->data, static_cast<uint8_t *>(data) + 16 + 24, pkcs7->size);
 
     wrap_pkcs7(pkcs7);
 
@@ -190,7 +190,7 @@ static int build_digest_authvar(gnutls_x509_crt_t signer,
         return rc;
     }
 
-    cn = g_malloc(cn_size);
+    cn = static_cast<char *>(g_malloc(cn_size));
     rc = gnutls_x509_crt_get_dn_by_oid(signer, GNUTLS_OID_X520_COMMON_NAME,
                                        0, 0, cn, &cn_size);
     if (rc < 0) {
@@ -404,7 +404,7 @@ efi_status uefi_vars_check_pkcs7_2(uefi_variable *siglist,
         /* other authenticated variables */
         *digest_size = AUTHVAR_DIGEST_SIZE;
         *digest = g_malloc(*digest_size);
-        tlist = build_trust_list_authvar(pkcs7, *digest);
+        tlist = build_trust_list_authvar(pkcs7, static_cast<uint8_t *>(*digest));
     } else {
         /* should not happen */
         goto out;

@@ -158,7 +158,7 @@ static void omap_i2c_reset(DeviceState *dev)
 
 static uint32_t omap_i2c_read(void *opaque, hwaddr addr)
 {
-    OMAPI2CState *s = opaque;
+    OMAPI2CState *s = static_cast<OMAPI2CState *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t ret;
 
@@ -262,7 +262,7 @@ static uint32_t omap_i2c_read(void *opaque, hwaddr addr)
 static void omap_i2c_write(void *opaque, hwaddr addr,
                 uint32_t value)
 {
-    OMAPI2CState *s = opaque;
+    OMAPI2CState *s = static_cast<OMAPI2CState *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
     int nack;
 
@@ -409,7 +409,7 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
 static void omap_i2c_writeb(void *opaque, hwaddr addr,
                 uint32_t value)
 {
-    OMAPI2CState *s = opaque;
+    OMAPI2CState *s = static_cast<OMAPI2CState *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     switch (offset) {
@@ -465,8 +465,8 @@ static void omap_i2c_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps omap_i2c_ops = {
     .read = omap_i2c_readfn,
     .write = omap_i2c_writefn,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void omap_i2c_init(Object *obj)

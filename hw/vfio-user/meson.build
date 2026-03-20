@@ -3,8 +3,8 @@
 vfio_user_ss = ss.source_set()
 vfio_user_ss.add(files(
   'container.cpp',
-  'device.c',
-  'pci.c',
+  'device.cpp',
+  'pci.cpp',
   'proxy.c',
 ))
 

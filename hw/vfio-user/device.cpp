@@ -93,7 +93,7 @@ static int vfio_user_get_region_info(VFIOUserProxy *proxy,
     }
 
     size = info->argsz + sizeof(VFIOUserHdr);
-    msgp = g_malloc0(size);
+    msgp = static_cast<VFIOUserRegionInfo *>(g_malloc0(size));
 
     vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_GET_REGION_INFO,
                           sizeof(*msgp), 0);
@@ -215,7 +215,7 @@ static int vfio_user_device_io_set_irqs(VFIODevice *vbasedev,
      */
     if ((irq->flags & VFIO_IRQ_SET_DATA_EVENTFD) == 0) {
         size = sizeof(VFIOUserHdr) + irq->argsz;
-        msgp = g_malloc0(size);
+        msgp = static_cast<VFIOUserIRQSet *>(g_malloc0(size));
 
         vfio_user_request_msg(&msgp->hdr, VFIO_USER_DEVICE_SET_IRQS, size, 0);
         msgp->argsz = irq->argsz;
@@ -245,7 +245,7 @@ static int vfio_user_device_io_set_irqs(VFIODevice *vbasedev,
      */
     nfds = (irq->argsz - sizeof(*irq)) / sizeof(int);
     irq->argsz = sizeof(*irq);
-    msgp = g_malloc0(sizeof(*msgp));
+    msgp = static_cast<VFIOUserIRQSet *>(g_malloc0(sizeof(*msgp)));
     /*
      * Send in chunks if over max_send_fds
      */
@@ -301,7 +301,7 @@ static int vfio_user_device_io_region_read(VFIODevice *vbasedev, uint8_t index,
         return -EINVAL;
     }
 
-    msgp = g_malloc0(size);
+    msgp = static_cast<VFIOUserRegionRW *>(g_malloc0(size));
     vfio_user_request_msg(&msgp->hdr, VFIO_USER_REGION_READ, sizeof(*msgp), 0);
     msgp->offset = off;
     msgp->region = index;
@@ -392,7 +392,7 @@ static int vfio_user_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
         }
     }
 
-    msgp = g_malloc0(size);
+    msgp = static_cast<VFIOUserRegionRW *>(g_malloc0(size));
     vfio_user_request_msg(&msgp->hdr, VFIO_USER_REGION_WRITE, size, flags);
     msgp->offset = off;
     msgp->region = index;

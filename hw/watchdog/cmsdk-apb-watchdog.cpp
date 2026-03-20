@@ -285,8 +285,8 @@ static const MemoryRegionOps cmsdk_apb_watchdog_ops = {
     .write = cmsdk_apb_watchdog_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     /* byte/halfword accesses are just zero-padded on reads and writes */
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .valid = { .min_access_size = 1, .max_access_size = 4, },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void cmsdk_apb_watchdog_tick(void *opaque)
@@ -375,21 +375,23 @@ static void cmsdk_apb_watchdog_realize(DeviceState *dev, Error **errp)
     ptimer_transaction_commit(s->timer);
 }
 
+static const VMStateField vmstate_cmsdk_apb_watchdog_fields[] = {
+    VMSTATE_CLOCK(wdogclk, CMSDKAPBWatchdog),
+    VMSTATE_PTIMER(timer, CMSDKAPBWatchdog),
+    VMSTATE_UINT32(control, CMSDKAPBWatchdog),
+    VMSTATE_UINT32(intstatus, CMSDKAPBWatchdog),
+    VMSTATE_UINT32(lock, CMSDKAPBWatchdog),
+    VMSTATE_UINT32(itcr, CMSDKAPBWatchdog),
+    VMSTATE_UINT32(itop, CMSDKAPBWatchdog),
+    VMSTATE_UINT32(resetstatus, CMSDKAPBWatchdog),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription cmsdk_apb_watchdog_vmstate = {
     .name = "cmsdk-apb-watchdog",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CLOCK(wdogclk, CMSDKAPBWatchdog),
-        VMSTATE_PTIMER(timer, CMSDKAPBWatchdog),
-        VMSTATE_UINT32(control, CMSDKAPBWatchdog),
-        VMSTATE_UINT32(intstatus, CMSDKAPBWatchdog),
-        VMSTATE_UINT32(lock, CMSDKAPBWatchdog),
-        VMSTATE_UINT32(itcr, CMSDKAPBWatchdog),
-        VMSTATE_UINT32(itop, CMSDKAPBWatchdog),
-        VMSTATE_UINT32(resetstatus, CMSDKAPBWatchdog),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cmsdk_apb_watchdog_fields,
 };
 
 static void cmsdk_apb_watchdog_class_init(ObjectClass *klass, const void *data)

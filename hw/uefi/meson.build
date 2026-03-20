@@ -11,7 +11,7 @@ if (config_all_devices.has_key('CONFIG_UEFI_VARS'))
                          'var-service-policy.cpp',
                          'var-service-sysbus.cpp'))
   uefi_vars_ss.add(when: gnutls,
-                   if_true: files('var-service-pkcs7.c'),
+                   if_true: files('var-service-pkcs7.cpp'),
                    if_false: files('var-service-pkcs7-stub.cpp'))
   uefi_vars_ss.add(files('var-service-siglist.cpp'))
 endif

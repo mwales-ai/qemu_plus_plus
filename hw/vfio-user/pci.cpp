@@ -36,7 +36,7 @@ struct VFIOUserPCIDevice {
 static uint64_t vfio_user_pba_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     VFIORegion *region = &vdev->bars[vdev->msix->pba_bar].region;
     uint64_t data;
 
@@ -103,7 +103,7 @@ static void vfio_user_dma_read(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
 
     /* switch to our own message buffer */
     size = msg->count + sizeof(VFIOUserDMARW);
-    res = g_malloc0(size);
+    res = static_cast<VFIOUserDMARW *>(g_malloc0(size));
     memcpy(res, msg, sizeof(*res));
     g_free(msg);
 
@@ -180,7 +180,7 @@ static void vfio_user_dma_write(VFIOPCIDevice *vdev, VFIOUserDMARW *msg)
  */
 static void vfio_user_pci_process_req(void *opaque, VFIOUserMsg *msg)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     VFIOUserHdr *hdr = msg->hdr;
 
     /* no incoming PCI requests pass FDs */
@@ -467,9 +467,9 @@ static const TypeInfo vfio_user_pci_info = {
     .name = TYPE_VFIO_USER_PCI,
     .parent = TYPE_VFIO_PCI_DEVICE,
     .instance_size = sizeof(VFIOUserPCIDevice),
-    .class_init = vfio_user_pci_class_init,
     .instance_init = vfio_user_pci_init,
     .instance_finalize = vfio_user_pci_finalize,
+    .class_init = vfio_user_pci_class_init,
 };
 
 static void register_vfio_user_dev_type(void)

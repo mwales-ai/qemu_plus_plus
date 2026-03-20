@@ -43,7 +43,7 @@
 #ifdef DEBUG_REGISTER
 static const int debug_etsec = 1;
 #else
-static const int debug_etsec;
+static const int debug_etsec = 0;
 #endif
 
 #define DPRINTF(fmt, ...) do {                 \
@@ -76,7 +76,7 @@ void etsec_update_irq(eTSEC *etsec)
 
 static uint64_t etsec_read(void *opaque, hwaddr addr, unsigned size)
 {
-    eTSEC          *etsec     = opaque;
+    eTSEC          *etsec     = static_cast<eTSEC *>(opaque);
     uint32_t        reg_index = addr / 4;
     eTSEC_Register *reg       = NULL;
     uint32_t        ret       = 0x0;
@@ -208,7 +208,7 @@ static void etsec_write(void     *opaque,
                         uint64_t  value,
                         unsigned  size)
 {
-    eTSEC          *etsec     = opaque;
+    eTSEC          *etsec     = static_cast<eTSEC *>(opaque);
     uint32_t        reg_index = addr / 4;
     eTSEC_Register *reg       = NULL;
     uint32_t        before    = 0x0;
@@ -294,7 +294,7 @@ static const MemoryRegionOps etsec_ops = {
 
 static void etsec_timer_hit(void *opaque)
 {
-    eTSEC *etsec = opaque;
+    eTSEC *etsec = static_cast<eTSEC *>(opaque);
 
     ptimer_stop(etsec->ptimer);
 
@@ -353,7 +353,7 @@ static ssize_t etsec_receive(NetClientState *nc,
                              size_t          size)
 {
     ssize_t ret;
-    eTSEC *etsec = qemu_get_nic_opaque(nc);
+    eTSEC *etsec = static_cast<eTSEC *>(qemu_get_nic_opaque(nc));
 
 #if defined(HEX_DUMP)
     fprintf(stderr, "%s receive size:%zd\n", nc->name, size);
@@ -373,7 +373,7 @@ static ssize_t etsec_receive(NetClientState *nc,
 
 static void etsec_set_link_status(NetClientState *nc)
 {
-    eTSEC *etsec = qemu_get_nic_opaque(nc);
+    eTSEC *etsec = static_cast<eTSEC *>(qemu_get_nic_opaque(nc));
 
     etsec_miim_link_status(etsec, nc);
 }
@@ -435,8 +435,8 @@ static const TypeInfo etsec_types[] = {
         .name          = TYPE_ETSEC_COMMON,
         .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
         .instance_size = sizeof(eTSEC),
-        .class_init    = etsec_class_init,
         .instance_init = etsec_instance_init,
+        .class_init    = etsec_class_init,
     },
 };
 

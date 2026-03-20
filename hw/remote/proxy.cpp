@@ -214,15 +214,17 @@ static void pci_proxy_dev_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, proxy_properties);
 }
 
+static const InterfaceInfo pci_proxy_dev_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo pci_proxy_dev_type_info = {
     .name          = TYPE_PCI_PROXY_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIProxyDev),
     .class_init    = pci_proxy_dev_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces    = pci_proxy_dev_interfaces,
 };
 
 static void pci_proxy_dev_register_types(void)
@@ -265,7 +267,7 @@ static void send_bar_access_msg(PCIProxyDev *pdev, MemoryRegion *mr,
 static void proxy_bar_write(void *opaque, hwaddr addr, uint64_t val,
                             unsigned size)
 {
-    ProxyMemoryRegion *pmr = opaque;
+    ProxyMemoryRegion *pmr = static_cast<ProxyMemoryRegion *>(opaque);
 
     send_bar_access_msg(pmr->dev, &pmr->mr, true, addr, &val, size,
                         pmr->memory);
@@ -273,7 +275,7 @@ static void proxy_bar_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t proxy_bar_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ProxyMemoryRegion *pmr = opaque;
+    ProxyMemoryRegion *pmr = static_cast<ProxyMemoryRegion *>(opaque);
     uint64_t val;
 
     send_bar_access_msg(pmr->dev, &pmr->mr, false, addr, &val, size,

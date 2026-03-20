@@ -33,7 +33,7 @@ system_ss.add(files(
   'hotplug.cpp',
   'loader.cpp',
   'machine-hmp-cmds.cpp',
-  'machine-qmp-cmds.c',
+  'machine-qmp-cmds.cpp',
   'machine.cpp',
   'nmi.cpp',
   'null-machine.cpp',
