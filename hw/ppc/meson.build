@@ -41,7 +41,7 @@ endif
 
 # IBM PowerNV
 ppc_ss.add(when: 'CONFIG_POWERNV', if_true: files(
-  'pnv.c',
+  'pnv.cpp',
   'pnv_xscom.cpp',
   'pnv_adu.cpp',
   'pnv_core.cpp',

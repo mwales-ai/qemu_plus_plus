@@ -288,7 +288,7 @@ static void pnv_dt_icp(PnvChip *chip, void *fdt, uint32_t hwid,
     irange[1] = cpu_to_be32(nr_threads);
 
     rsize = sizeof(uint64_t) * 2 * nr_threads;
-    reg = g_malloc(rsize);
+    reg = static_cast<uint64_t *>(g_malloc(rsize));
     for (i = 0; i < nr_threads; i++) {
         /* We know P8 PIR is linear with thread id */
         reg[i * 2] = cpu_to_be64(addr | ((pir + i) * 0x1000));
@@ -617,7 +617,7 @@ typedef struct ForeachPopulateArgs {
 
 static int pnv_dt_isa_device(DeviceState *dev, void *opaque)
 {
-    ForeachPopulateArgs *args = opaque;
+    ForeachPopulateArgs *args = static_cast<ForeachPopulateArgs *>(opaque);
     ISADevice *d = ISA_DEVICE(dev);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_MC146818_RTC)) {
@@ -897,7 +897,7 @@ static void pnv_chip_power8_pic_print_info(PnvChip *chip, GString *buf)
 
 static int pnv_chip_power9_pic_print_info_child(Object *child, void *opaque)
 {
-    GString *buf = opaque;
+    GString *buf = static_cast<GString *>(opaque);
     PnvPHB *phb =  (PnvPHB *) object_dynamic_cast(child, TYPE_PNV_PHB);
 
     if (!phb) {
@@ -3114,7 +3114,7 @@ static ICPState *pnv_icp_get(XICSFabric *xi, int pir)
 static void pnv_pic_intc_print_info(PnvChip *chip, PowerPCCPU *cpu,
                                     void *opaque)
 {
-    PNV_CHIP_GET_CLASS(chip)->intc_print_info(chip, cpu, opaque);
+    PNV_CHIP_GET_CLASS(chip)->intc_print_info(chip, cpu, static_cast<GString *>(opaque));
 }
 
 static void pnv_pic_print_info(InterruptStatsProvider *obj, GString *buf)
@@ -3533,40 +3533,63 @@ static void pnv_machine_class_init(ObjectClass *oc, const void *data)
 #define DEFINE_PNV8_CHIP_TYPE(type, class_initfn) \
     {                                             \
         .name          = type,                    \
-        .class_init    = class_initfn,            \
         .parent        = TYPE_PNV8_CHIP,          \
+        .class_init    = class_initfn,            \
     }
 
 #define DEFINE_PNV9_CHIP_TYPE(type, class_initfn) \
     {                                             \
         .name          = type,                    \
-        .class_init    = class_initfn,            \
         .parent        = TYPE_PNV9_CHIP,          \
+        .class_init    = class_initfn,            \
     }
 
 #define DEFINE_PNV10_CHIP_TYPE(type, class_initfn) \
     {                                              \
         .name          = type,                     \
-        .class_init    = class_initfn,             \
         .parent        = TYPE_PNV10_CHIP,          \
+        .class_init    = class_initfn,             \
     }
 
 #define DEFINE_PNV11_CHIP_TYPE(type, class_initfn) \
     {                                              \
         .name          = type,                     \
-        .class_init    = class_initfn,             \
         .parent        = TYPE_PNV11_CHIP,          \
+        .class_init    = class_initfn,             \
     }
+
+static const InterfaceInfo pnv_machine_p11_interfaces[] = {
+    { TYPE_XIVE_FABRIC },
+    { },
+};
+
+static const InterfaceInfo pnv_machine_p10_interfaces[] = {
+    { TYPE_XIVE_FABRIC },
+    { },
+};
+
+static const InterfaceInfo pnv_machine_p9_interfaces[] = {
+    { TYPE_XIVE_FABRIC },
+    { },
+};
+
+static const InterfaceInfo pnv_machine_p8_interfaces[] = {
+    { TYPE_XICS_FABRIC },
+    { },
+};
+
+static const InterfaceInfo pnv_machine_interfaces[] = {
+    { TYPE_INTERRUPT_STATS_PROVIDER },
+    { TYPE_NMI },
+    { },
+};
 
 static const TypeInfo types[] = {
     {
         .name          = MACHINE_TYPE_NAME("powernv11"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power11_class_init,
-        .interfaces = (InterfaceInfo[]) {
-            { TYPE_XIVE_FABRIC },
-            { },
-        },
+        .interfaces    = pnv_machine_p11_interfaces,
     },
     {
         .name          = MACHINE_TYPE_NAME("powernv10-rainier"),
@@ -3577,49 +3600,36 @@ static const TypeInfo types[] = {
         .name          = MACHINE_TYPE_NAME("powernv10"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power10_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-            { TYPE_XIVE_FABRIC },
-            { },
-        },
+        .interfaces    = pnv_machine_p10_interfaces,
     },
     {
         .name          = MACHINE_TYPE_NAME("powernv9"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power9_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-            { TYPE_XIVE_FABRIC },
-            { },
-        },
+        .interfaces    = pnv_machine_p9_interfaces,
     },
     {
         .name          = MACHINE_TYPE_NAME("powernv8"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power8_class_init,
-        .interfaces = (const InterfaceInfo[]) {
-            { TYPE_XICS_FABRIC },
-            { },
-        },
+        .interfaces    = pnv_machine_p8_interfaces,
     },
     {
         .name          = TYPE_PNV_MACHINE,
         .parent        = TYPE_MACHINE,
-        .is_abstract       = true,
         .instance_size = sizeof(PnvMachineState),
-        .class_init    = pnv_machine_class_init,
+        .is_abstract   = true,
         .class_size    = sizeof(PnvMachineClass),
-        .interfaces = (const InterfaceInfo[]) {
-            { TYPE_INTERRUPT_STATS_PROVIDER },
-            { TYPE_NMI },
-            { },
-        },
+        .class_init    = pnv_machine_class_init,
+        .interfaces    = pnv_machine_interfaces,
     },
     {
         .name          = TYPE_PNV_CHIP,
         .parent        = TYPE_SYS_BUS_DEVICE,
-        .class_init    = pnv_chip_class_init,
         .instance_size = sizeof(PnvChip),
+        .is_abstract   = true,
         .class_size    = sizeof(PnvChipClass),
-        .is_abstract      = true,
+        .class_init    = pnv_chip_class_init,
     },
 
     /*
@@ -3628,8 +3638,8 @@ static const TypeInfo types[] = {
     {
         .name          = TYPE_PNV11_CHIP,
         .parent        = TYPE_PNV_CHIP,
-        .instance_init = pnv_chip_power11_instance_init,
         .instance_size = sizeof(Pnv11Chip),
+        .instance_init = pnv_chip_power11_instance_init,
     },
     DEFINE_PNV11_CHIP_TYPE(TYPE_PNV_CHIP_POWER11, pnv_chip_power11_class_init),
 
@@ -3639,8 +3649,8 @@ static const TypeInfo types[] = {
     {
         .name          = TYPE_PNV10_CHIP,
         .parent        = TYPE_PNV_CHIP,
-        .instance_init = pnv_chip_power10_instance_init,
         .instance_size = sizeof(Pnv10Chip),
+        .instance_init = pnv_chip_power10_instance_init,
     },
     DEFINE_PNV10_CHIP_TYPE(TYPE_PNV_CHIP_POWER10, pnv_chip_power10_class_init),
 
@@ -3650,8 +3660,8 @@ static const TypeInfo types[] = {
     {
         .name          = TYPE_PNV9_CHIP,
         .parent        = TYPE_PNV_CHIP,
-        .instance_init = pnv_chip_power9_instance_init,
         .instance_size = sizeof(Pnv9Chip),
+        .instance_init = pnv_chip_power9_instance_init,
     },
     DEFINE_PNV9_CHIP_TYPE(TYPE_PNV_CHIP_POWER9, pnv_chip_power9_class_init),
 
@@ -3661,8 +3671,8 @@ static const TypeInfo types[] = {
     {
         .name          = TYPE_PNV8_CHIP,
         .parent        = TYPE_PNV_CHIP,
-        .instance_init = pnv_chip_power8_instance_init,
         .instance_size = sizeof(Pnv8Chip),
+        .instance_init = pnv_chip_power8_instance_init,
     },
     DEFINE_PNV8_CHIP_TYPE(TYPE_PNV_CHIP_POWER8, pnv_chip_power8_class_init),
     DEFINE_PNV8_CHIP_TYPE(TYPE_PNV_CHIP_POWER8E, pnv_chip_power8e_class_init),

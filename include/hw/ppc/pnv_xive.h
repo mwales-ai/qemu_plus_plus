@@ -93,7 +93,13 @@ struct PnvXiveClass {
     DeviceRealize parent_realize;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void pnv_xive_pic_print_info(PnvXive *xive, GString *buf);
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * XIVE2 interrupt controller (POWER10)
@@ -163,6 +169,12 @@ typedef struct PnvXive2Class {
     DeviceRealize parent_realize;
 } PnvXive2Class;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void pnv_xive2_pic_print_info(PnvXive2 *xive, GString *buf);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PPC_PNV_XIVE_H */
