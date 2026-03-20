@@ -204,7 +204,7 @@ static hwaddr sdram_ddr_size(uint32_t bcr)
 
 static uint32_t sdram_ddr_dcr_read(void *opaque, int dcrn)
 {
-    Ppc4xxSdramDdrState *s = opaque;
+    Ppc4xxSdramDdrState *s = static_cast<Ppc4xxSdramDdrState *>(opaque);
     uint32_t ret;
 
     switch (dcrn) {
@@ -271,7 +271,7 @@ static uint32_t sdram_ddr_dcr_read(void *opaque, int dcrn)
 
 static void sdram_ddr_dcr_write(void *opaque, int dcrn, uint32_t val)
 {
-    Ppc4xxSdramDdrState *s = opaque;
+    Ppc4xxSdramDdrState *s = static_cast<Ppc4xxSdramDdrState *>(opaque);
     int i;
 
     switch (dcrn) {
@@ -524,7 +524,7 @@ static hwaddr sdram_ddr2_size(uint32_t bcr)
 
 static uint32_t sdram_ddr2_dcr_read(void *opaque, int dcrn)
 {
-    Ppc4xxSdramDdr2State *s = opaque;
+    Ppc4xxSdramDdr2State *s = static_cast<Ppc4xxSdramDdr2State *>(opaque);
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -579,7 +579,7 @@ static uint32_t sdram_ddr2_dcr_read(void *opaque, int dcrn)
 
 static void sdram_ddr2_dcr_write(void *opaque, int dcrn, uint32_t val)
 {
-    Ppc4xxSdramDdr2State *s = opaque;
+    Ppc4xxSdramDdr2State *s = static_cast<Ppc4xxSdramDdr2State *>(opaque);
     int i;
 
     switch (dcrn) {

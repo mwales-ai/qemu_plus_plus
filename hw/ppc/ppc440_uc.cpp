@@ -76,7 +76,7 @@ typedef struct ppc4xx_l2sram_t {
 
 static uint32_t dcr_read_l2sram(void *opaque, int dcrn)
 {
-    ppc4xx_l2sram_t *l2sram = opaque;
+    ppc4xx_l2sram_t *l2sram = static_cast<ppc4xx_l2sram_t *>(opaque);
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -158,7 +158,7 @@ static void dcr_write_l2sram(void *opaque, int dcrn, uint32_t val)
 
 static void l2sram_reset(void *opaque)
 {
-    ppc4xx_l2sram_t *l2sram = opaque;
+    ppc4xx_l2sram_t *l2sram = static_cast<ppc4xx_l2sram_t *>(opaque);
 
     memset(l2sram->l2cache, 0, sizeof(l2sram->l2cache));
     l2sram->l2cache[DCR_L2CACHE_STAT - DCR_L2CACHE_BASE] = 0x80000000;
@@ -169,7 +169,7 @@ void ppc4xx_l2sram_init(CPUPPCState *env)
 {
     ppc4xx_l2sram_t *l2sram;
 
-    l2sram = g_malloc0(sizeof(*l2sram));
+    l2sram = static_cast<ppc4xx_l2sram_t *>(g_malloc0(sizeof(*l2sram)));
     /* XXX: Size is 4*64kB for 460ex, cf. U-Boot, ppc4xx-isram.h */
     memory_region_init_ram(&l2sram->bank[0], NULL, "ppc4xx.l2sram_bank0",
                            64 * KiB, &error_abort);
@@ -237,7 +237,7 @@ typedef struct ppc4xx_cpr_t {
 
 static uint32_t dcr_read_cpr(void *opaque, int dcrn)
 {
-    ppc4xx_cpr_t *cpr = opaque;
+    ppc4xx_cpr_t *cpr = static_cast<ppc4xx_cpr_t *>(opaque);
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -272,7 +272,7 @@ static uint32_t dcr_read_cpr(void *opaque, int dcrn)
 
 static void dcr_write_cpr(void *opaque, int dcrn, uint32_t val)
 {
-    ppc4xx_cpr_t *cpr = opaque;
+    ppc4xx_cpr_t *cpr = static_cast<ppc4xx_cpr_t *>(opaque);
 
     switch (dcrn) {
     case CPR0_CFGADDR:
@@ -287,7 +287,7 @@ static void dcr_write_cpr(void *opaque, int dcrn, uint32_t val)
 
 static void ppc4xx_cpr_reset(void *opaque)
 {
-    ppc4xx_cpr_t *cpr = opaque;
+    ppc4xx_cpr_t *cpr = static_cast<ppc4xx_cpr_t *>(opaque);
 
     cpr->addr = 0;
 }
@@ -296,7 +296,7 @@ void ppc4xx_cpr_init(CPUPPCState *env)
 {
     ppc4xx_cpr_t *cpr;
 
-    cpr = g_malloc0(sizeof(*cpr));
+    cpr = static_cast<ppc4xx_cpr_t *>(g_malloc0(sizeof(*cpr)));
     ppc_dcr_register(env, CPR0_CFGADDR, cpr, &dcr_read_cpr, &dcr_write_cpr);
     ppc_dcr_register(env, CPR0_CFGDATA, cpr, &dcr_read_cpr, &dcr_write_cpr);
     qemu_register_reset(ppc4xx_cpr_reset, cpr);
@@ -335,7 +335,7 @@ enum {
 
 static uint32_t dcr_read_sdr(void *opaque, int dcrn)
 {
-    ppc4xx_sdr_t *sdr = opaque;
+    ppc4xx_sdr_t *sdr = static_cast<ppc4xx_sdr_t *>(opaque);
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -385,7 +385,7 @@ static uint32_t dcr_read_sdr(void *opaque, int dcrn)
 
 static void dcr_write_sdr(void *opaque, int dcrn, uint32_t val)
 {
-    ppc4xx_sdr_t *sdr = opaque;
+    ppc4xx_sdr_t *sdr = static_cast<ppc4xx_sdr_t *>(opaque);
 
     switch (dcrn) {
     case SDR0_CFGADDR:
@@ -406,7 +406,7 @@ static void dcr_write_sdr(void *opaque, int dcrn, uint32_t val)
 
 static void sdr_reset(void *opaque)
 {
-    ppc4xx_sdr_t *sdr = opaque;
+    ppc4xx_sdr_t *sdr = static_cast<ppc4xx_sdr_t *>(opaque);
 
     sdr->addr = 0;
 }
@@ -415,7 +415,7 @@ void ppc4xx_sdr_init(CPUPPCState *env)
 {
     ppc4xx_sdr_t *sdr;
 
-    sdr = g_malloc0(sizeof(*sdr));
+    sdr = static_cast<ppc4xx_sdr_t *>(g_malloc0(sizeof(*sdr)));
     qemu_register_reset(&sdr_reset, sdr);
     ppc_dcr_register(env, SDR0_CFGADDR,
                      sdr, &dcr_read_sdr, &dcr_write_sdr);
@@ -445,7 +445,7 @@ typedef struct ppc4xx_ahb_t {
 
 static uint32_t dcr_read_ahb(void *opaque, int dcrn)
 {
-    ppc4xx_ahb_t *ahb = opaque;
+    ppc4xx_ahb_t *ahb = static_cast<ppc4xx_ahb_t *>(opaque);
     uint32_t ret = 0;
 
     switch (dcrn) {
@@ -464,7 +464,7 @@ static uint32_t dcr_read_ahb(void *opaque, int dcrn)
 
 static void dcr_write_ahb(void *opaque, int dcrn, uint32_t val)
 {
-    ppc4xx_ahb_t *ahb = opaque;
+    ppc4xx_ahb_t *ahb = static_cast<ppc4xx_ahb_t *>(opaque);
 
     switch (dcrn) {
     case AHB_TOP:
@@ -478,7 +478,7 @@ static void dcr_write_ahb(void *opaque, int dcrn, uint32_t val)
 
 static void ppc4xx_ahb_reset(void *opaque)
 {
-    ppc4xx_ahb_t *ahb = opaque;
+    ppc4xx_ahb_t *ahb = static_cast<ppc4xx_ahb_t *>(opaque);
 
     /* No error */
     ahb->top = 0;
@@ -489,7 +489,7 @@ void ppc4xx_ahb_init(CPUPPCState *env)
 {
     ppc4xx_ahb_t *ahb;
 
-    ahb = g_malloc0(sizeof(*ahb));
+    ahb = static_cast<ppc4xx_ahb_t *>(g_malloc0(sizeof(*ahb)));
     ppc_dcr_register(env, AHB_TOP, ahb, &dcr_read_ahb, &dcr_write_ahb);
     ppc_dcr_register(env, AHB_BOT, ahb, &dcr_read_ahb, &dcr_write_ahb);
     qemu_register_reset(ppc4xx_ahb_reset, ahb);
@@ -536,7 +536,7 @@ typedef struct {
 
 static uint32_t dcr_read_dma(void *opaque, int dcrn)
 {
-    PPC4xxDmaState *dma = opaque;
+    PPC4xxDmaState *dma = static_cast<PPC4xxDmaState *>(opaque);
     uint32_t val = 0;
     int addr = dcrn - dma->base;
     int chnl = addr / 8;
@@ -583,7 +583,7 @@ static uint32_t dcr_read_dma(void *opaque, int dcrn)
 
 static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
 {
-    PPC4xxDmaState *dma = opaque;
+    PPC4xxDmaState *dma = static_cast<PPC4xxDmaState *>(opaque);
     int addr = dcrn - dma->base;
     int chnl = addr / 8;
 
@@ -605,10 +605,10 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
                     width = 1 << ((val & DMA0_CR_PW) >> 25);
                     xferlen = count * width;
                     wlen = rlen = xferlen;
-                    rptr = cpu_physical_memory_map(dma->ch[chnl].sa, &rlen,
-                                                   false);
-                    wptr = cpu_physical_memory_map(dma->ch[chnl].da, &wlen,
-                                                   true);
+                    rptr = static_cast<uint8_t *>(cpu_physical_memory_map(dma->ch[chnl].sa, &rlen,
+                                                   false));
+                    wptr = static_cast<uint8_t *>(cpu_physical_memory_map(dma->ch[chnl].da, &wlen,
+                                                   true));
                     if (rptr && rlen == xferlen && wptr && wlen == xferlen) {
                         if (!(val & DMA0_CR_DEC) &&
                             val & DMA0_CR_SAI && val & DMA0_CR_DAI) {
@@ -678,7 +678,7 @@ static void dcr_write_dma(void *opaque, int dcrn, uint32_t val)
 
 static void ppc4xx_dma_reset(void *opaque)
 {
-    PPC4xxDmaState *dma = opaque;
+    PPC4xxDmaState *dma = static_cast<PPC4xxDmaState *>(opaque);
     int dma_base = dma->base;
 
     memset(dma, 0, sizeof(*dma));
@@ -690,7 +690,7 @@ void ppc4xx_dma_init(CPUPPCState *env, int dcr_base)
     PPC4xxDmaState *dma;
     int i;
 
-    dma = g_malloc0(sizeof(*dma));
+    dma = static_cast<PPC4xxDmaState *>(g_malloc0(sizeof(*dma)));
     dma->base = dcr_base;
     qemu_register_reset(&ppc4xx_dma_reset, dma);
     for (i = 0; i < 4; i++) {
@@ -785,7 +785,7 @@ enum {
 
 static uint32_t dcr_read_pcie(void *opaque, int dcrn)
 {
-    PPC460EXPCIEState *s = opaque;
+    PPC460EXPCIEState *s = static_cast<PPC460EXPCIEState *>(opaque);
     uint32_t ret = 0;
 
     switch (dcrn - s->dcrn_base) {
@@ -865,7 +865,7 @@ static uint32_t dcr_read_pcie(void *opaque, int dcrn)
 
 static void dcr_write_pcie(void *opaque, int dcrn, uint32_t val)
 {
-    PPC460EXPCIEState *s = opaque;
+    PPC460EXPCIEState *s = static_cast<PPC460EXPCIEState *>(opaque);
     uint64_t size;
 
     switch (dcrn - s->dcrn_base) {
@@ -955,7 +955,7 @@ static void dcr_write_pcie(void *opaque, int dcrn, uint32_t val)
 
 static void ppc460ex_set_irq(void *opaque, int irq_num, int level)
 {
-       PPC460EXPCIEState *s = opaque;
+       PPC460EXPCIEState *s = static_cast<PPC460EXPCIEState *>(opaque);
        qemu_set_irq(s->irq[irq_num], level);
 }
 

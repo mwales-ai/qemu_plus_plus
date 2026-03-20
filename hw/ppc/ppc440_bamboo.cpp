@@ -112,7 +112,7 @@ static int bamboo_load_device_tree(MachineState *machine,
 
 static void main_cpu_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));

@@ -89,7 +89,7 @@ static void *pegasos2_build_fdt(PegasosMachineState *pm, int *fdt_size);
 
 static void pegasos_cpu_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     PegasosMachineState *pm = PEGASOS_MACHINE(current_machine);
 
     cpu_reset(CPU(cpu));
@@ -105,7 +105,7 @@ static void pegasos_cpu_reset(void *opaque)
 
 static void pegasos2_pci_irq(void *opaque, int n, int level)
 {
-    PegasosMachineState *pm = opaque;
+    PegasosMachineState *pm = static_cast<PegasosMachineState *>(opaque);
 
     /* PCI interrupt lines are connected to both MV64361 and VT8231 */
     qemu_set_irq(pm->mv_pirq[n], level);
@@ -186,7 +186,7 @@ static void pegasos_init(MachineState *machine)
         exit(1);
     }
     if (!machine->firmware && !pm->vof) {
-        pm->vof = g_malloc0(sizeof(*pm->vof));
+        pm->vof = static_cast<Vof *>(g_malloc0(sizeof(*pm->vof)));
     }
     prom_addr = PROM_ADDR;
     if (pm->type == PEGASOS1) {
@@ -392,7 +392,7 @@ static uint32_t pegasos2_mv_reg_read(PegasosMachineState *pm,
 {
     MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 0);
     uint64_t val = 0xffffffffULL;
-    memory_region_dispatch_read(r, addr, &val, size_memop(len) | MO_LE,
+    memory_region_dispatch_read(r, addr, &val, static_cast<MemOp>(size_memop(len) | MO_LE),
                                 MEMTXATTRS_UNSPECIFIED);
     return val;
 }
@@ -401,7 +401,7 @@ static void pegasos2_mv_reg_write(PegasosMachineState *pm, uint32_t addr,
                                   uint32_t len, uint32_t val)
 {
     MemoryRegion *r = sysbus_mmio_get_region(SYS_BUS_DEVICE(pm->nb), 0);
-    memory_region_dispatch_write(r, addr, val, size_memop(len) | MO_LE,
+    memory_region_dispatch_write(r, addr, val, static_cast<MemOp>(size_memop(len) | MO_LE),
                                  MEMTXATTRS_UNSPECIFIED);
 }
 
@@ -794,14 +794,14 @@ static const TypeInfo pegasos_machine_types[] = {
     {
         .name          = MACHINE_TYPE_NAME("pegasos1"),
         .parent        = TYPE_PEGASOS_MACHINE,
-        .class_init    = pegasos1_machine_class_init,
         .instance_init = pegasos1_init,
+        .class_init    = pegasos1_machine_class_init,
     },
     {
         .name          = MACHINE_TYPE_NAME("pegasos2"),
         .parent        = TYPE_PEGASOS_MACHINE,
-        .class_init    = pegasos2_machine_class_init,
         .instance_init = pegasos2_init,
+        .class_init    = pegasos2_machine_class_init,
     },
 };
 
@@ -846,7 +846,7 @@ static struct {
 
 static void add_pci_device(PCIBus *bus, PCIDevice *d, void *opaque)
 {
-    FDTInfo *fi = opaque;
+    FDTInfo *fi = static_cast<FDTInfo *>(opaque);
     GString *node;
     uint32_t cells[(PCI_NUM_REGIONS + 1) * 5];
     int i, j;

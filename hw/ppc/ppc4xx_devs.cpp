@@ -66,7 +66,7 @@ static void ppc4xx_mal_reset(DeviceState *dev)
 
 static uint32_t dcr_read_mal(void *opaque, int dcrn)
 {
-    Ppc4xxMalState *mal = opaque;
+    Ppc4xxMalState *mal = static_cast<Ppc4xxMalState *>(opaque);
     uint32_t ret;
 
     switch (dcrn) {
@@ -122,7 +122,7 @@ static uint32_t dcr_read_mal(void *opaque, int dcrn)
 
 static void dcr_write_mal(void *opaque, int dcrn, uint32_t val)
 {
-    Ppc4xxMalState *mal = opaque;
+    Ppc4xxMalState *mal = static_cast<Ppc4xxMalState *>(opaque);
 
     switch (dcrn) {
     case MAL0_CFG:
@@ -260,7 +260,7 @@ enum {
 
 static uint32_t dcr_read_plb(void *opaque, int dcrn)
 {
-    Ppc4xxPlbState *plb = opaque;
+    Ppc4xxPlbState *plb = static_cast<Ppc4xxPlbState *>(opaque);
     uint32_t ret;
 
     switch (dcrn) {
@@ -284,7 +284,7 @@ static uint32_t dcr_read_plb(void *opaque, int dcrn)
 
 static void dcr_write_plb(void *opaque, int dcrn, uint32_t val)
 {
-    Ppc4xxPlbState *plb = opaque;
+    Ppc4xxPlbState *plb = static_cast<Ppc4xxPlbState *>(opaque);
 
     switch (dcrn) {
     case PLB0_ACR:
@@ -345,7 +345,7 @@ enum {
 
 static uint32_t dcr_read_ebc(void *opaque, int dcrn)
 {
-    Ppc4xxEbcState *ebc = opaque;
+    Ppc4xxEbcState *ebc = static_cast<Ppc4xxEbcState *>(opaque);
     uint32_t ret;
 
     switch (dcrn) {
@@ -429,7 +429,7 @@ static uint32_t dcr_read_ebc(void *opaque, int dcrn)
 
 static void dcr_write_ebc(void *opaque, int dcrn, uint32_t val)
 {
-    Ppc4xxEbcState *ebc = opaque;
+    Ppc4xxEbcState *ebc = static_cast<Ppc4xxEbcState *>(opaque);
 
     switch (dcrn) {
     case EBC0_CFGADDR:
@@ -571,8 +571,8 @@ static const TypeInfo ppc4xx_types[] = {
         .name           = TYPE_PPC4xx_DCR_DEVICE,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(Ppc4xxDcrDeviceState),
+        .is_abstract    = true,
         .class_init     = ppc4xx_dcr_class_init,
-        .is_abstract       = true,
     }
 };
 

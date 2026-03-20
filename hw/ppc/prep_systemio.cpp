@@ -65,7 +65,7 @@ enum {
 
 static void prep_port0092_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    PrepSystemIoState *s = opaque;
+    PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
 
     trace_prep_systemio_write(addr, val);
 
@@ -83,7 +83,7 @@ static void prep_port0092_write(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t prep_port0092_read(void *opaque, uint32_t addr)
 {
-    PrepSystemIoState *s = opaque;
+    PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->sreset);
     return s->sreset;
 }
@@ -147,7 +147,7 @@ enum {
 
 static uint32_t prep_port080c_read(void *opaque, uint32_t addr)
 {
-    PrepSystemIoState *s = opaque;
+    PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->equipment);
     return s->equipment;
 }
@@ -167,14 +167,14 @@ static void prep_port081c_write(void *opaque, uint32_t addr, uint32_t val)
                                 PORT081C_MASK_TEA |
                                 PORT081C_L2_UPDATE_INHIBIT |
                                 PORT081C_L2_CACHEMISS_INHIBIT;
-    PrepSystemIoState *s = opaque;
+    PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_write(addr, val);
     s->system_control = val & mask;
 }
 
 static uint32_t prep_port081c_read(void *opaque, uint32_t addr)
 {
-    PrepSystemIoState *s = opaque;
+    PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->system_control);
     return s->system_control;
 }
@@ -183,7 +183,7 @@ static uint32_t prep_port081c_read(void *opaque, uint32_t addr)
 
 static uint32_t prep_port0852_read(void *opaque, uint32_t addr)
 {
-    PrepSystemIoState *s = opaque;
+    PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->ibm_planar_id);
     return s->ibm_planar_id;
 }
@@ -196,14 +196,14 @@ enum {
 
 static uint32_t prep_port0850_read(void *opaque, uint32_t addr)
 {
-    PrepSystemIoState *s = opaque;
+    PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->iomap_type);
     return s->iomap_type;
 }
 
 static void prep_port0850_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    PrepSystemIoState *s = opaque;
+    PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
 
     trace_prep_systemio_write(addr, val);
     qemu_set_irq(s->non_contiguous_io_map_irq,

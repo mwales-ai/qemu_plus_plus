@@ -48,7 +48,7 @@ struct RS6000MCState {
 
 static uint32_t rs6000mc_port0803_read(void *opaque, uint32_t addr)
 {
-    RS6000MCState *s = opaque;
+    RS6000MCState *s = static_cast<RS6000MCState *>(opaque);
     uint32_t val = 0;
     int socket;
 
@@ -67,7 +67,7 @@ static uint32_t rs6000mc_port0803_read(void *opaque, uint32_t addr)
 
 static uint32_t rs6000mc_port0804_read(void *opaque, uint32_t addr)
 {
-    RS6000MCState *s = opaque;
+    RS6000MCState *s = static_cast<RS6000MCState *>(opaque);
     uint32_t val = 0xff;
     int socket;
 
@@ -87,7 +87,7 @@ static uint32_t rs6000mc_port0804_read(void *opaque, uint32_t addr)
 
 static uint32_t rs6000mc_port0820_read(void *opaque, uint32_t addr)
 {
-    RS6000MCState *s = opaque;
+    RS6000MCState *s = static_cast<RS6000MCState *>(opaque);
     uint32_t val = s->end_address[s->port0820_index] & 0x1f;
     s->port0820_index = (s->port0820_index + 1) & 7;
     trace_rs6000mc_size_read(addr, val);
@@ -96,7 +96,7 @@ static uint32_t rs6000mc_port0820_read(void *opaque, uint32_t addr)
 
 static void rs6000mc_port0820_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    RS6000MCState *s = opaque;
+    RS6000MCState *s = static_cast<RS6000MCState *>(opaque);
     uint8_t socket = val >> 5;
     uint32_t end_address = val & 0x1f;
 

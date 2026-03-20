@@ -37,6 +37,7 @@
 #include "qemu/log.h"
 #include "qemu/datadir.h"
 #include "hw/loader.h"
+#include "hw/nvram/fw_cfg.h"
 #include "hw/rtc/mc146818rtc.h"
 #include "hw/isa/pc87312.h"
 #include "hw/qdev-properties.h"
@@ -63,12 +64,12 @@
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
-    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_modify_i16(static_cast<FWCfgState *>(opaque), FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
 static void ppc_prep_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
     cpu_reset(CPU(cpu));
     cpu_ppc_tb_reset(&cpu->env);
@@ -215,7 +216,7 @@ static int PPC_NVRAM_set_params (Nvram *nvram, uint16_t NVRAM_size,
 
 static int prep_set_cmos_checksum(DeviceState *dev, void *opaque)
 {
-    uint16_t checksum = *(uint16_t *)opaque;
+    uint16_t checksum = *static_cast<uint16_t *>(opaque);
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_MC146818_RTC)) {
         MC146818RtcState *rtc = MC146818_RTC(dev);
@@ -243,7 +244,7 @@ static void ibm_40p_init(MachineState *machine)
     PCIBus *pci_bus;
     ISADevice *isa_dev;
     ISABus *isa_bus;
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     char *filename;
     ssize_t bios_size = -1;

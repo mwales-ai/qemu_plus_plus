@@ -97,9 +97,9 @@ static PowerPCCPU *ppc440_init_xilinx(const char *cpu_type, uint32_t sysclk)
 
 static void main_cpu_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
-    struct boot_info *bi = env->load_info;
+    struct boot_info *bi = static_cast<struct boot_info *>(env->load_info);
 
     cpu_reset(CPU(cpu));
     /* Linux Kernel Parameters (passing device tree):

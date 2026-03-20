@@ -31,7 +31,7 @@ struct Ppe42MachineState {
 
 static void main_cpu_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
     cpu_reset(CPU(cpu));
 }
@@ -89,8 +89,8 @@ static const TypeInfo ppe42_machine_info = {
         .name          = TYPE_PPE42_MACHINE,
         .parent        = TYPE_MACHINE,
         .instance_size = sizeof(Ppe42MachineState),
-        .class_init    = ppe42_machine_class_init,
         .class_size    = sizeof(Ppe42MachineClass),
+        .class_init    = ppe42_machine_class_init,
 };
 
 static void ppe42_machine_register_types(void)

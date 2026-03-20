@@ -104,11 +104,11 @@ static uint64_t nvram_read(void *opaque, hwaddr addr, unsigned int size)
 static void nvram_write(void *opaque, hwaddr addr, uint64_t val,
                         unsigned int size)
 {
-    A1NVRAMState *s = opaque;
-    uint8_t *p = memory_region_get_ram_ptr(&s->mr);
+    A1NVRAMState *s = static_cast<A1NVRAMState *>(opaque);
+    uint8_t *p = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->mr));
 
     p[addr] = val;
-    if (s->blk && blk_pwrite(s->blk, addr, 1, &val, 0) < 0) {
+    if (s->blk && blk_pwrite(s->blk, addr, 1, &val, static_cast<BdrvRequestFlags>(0)) < 0) {
         error_report("%s: could not write %s", __func__, blk_name(s->blk));
     }
 }
@@ -132,7 +132,8 @@ static void nvram_realize(DeviceState *dev, Error **errp)
     memory_region_init_rom_device(&s->mr, NULL, &nvram_ops, s, "nvram",
                                   NVRAM_SIZE, &error_fatal);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
-    c = p = memory_region_get_ram_ptr(&s->mr);
+    p = memory_region_get_ram_ptr(&s->mr);
+    c = static_cast<uint32_t *>(p);
     if (s->blk) {
         if (blk_getlength(s->blk) != NVRAM_SIZE) {
             error_setg(errp, "NVRAM backing file size must be %" PRId64 "bytes",
@@ -141,26 +142,26 @@ static void nvram_realize(DeviceState *dev, Error **errp)
         }
         blk_set_perm(s->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
                      BLK_PERM_ALL, &error_fatal);
-        if (blk_pread(s->blk, 0, NVRAM_SIZE, p, 0) < 0) {
+        if (blk_pread(s->blk, 0, NVRAM_SIZE, p, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "Cannot read NVRAM contents from backing file");
             return;
         }
     }
-    crc = crc32(0, p + 4, NVRAM_SIZE - 4);
+    crc = crc32(0, static_cast<const Bytef *>(p) + 4, NVRAM_SIZE - 4);
     if (crc == CRC32_ALL_ZEROS) { /* If env is uninitialized set default */
         *c = cpu_to_be32(CRC32_DEFAULT_ENV);
         /* Also copies terminating \0 as env is terminated by \0\0 */
-        memcpy(p + 4, default_env, sizeof(default_env));
+        memcpy(static_cast<uint8_t *>(p) + 4, default_env, sizeof(default_env));
         if (s->blk &&
-            blk_pwrite(s->blk, 0, sizeof(crc) + sizeof(default_env), p, 0) < 0
+            blk_pwrite(s->blk, 0, sizeof(crc) + sizeof(default_env), p, static_cast<BdrvRequestFlags>(0)) < 0
            ) {
             error_report("%s: could not write %s", __func__, blk_name(s->blk));
         }
         return;
     }
     if (*c == 0) {
-        *c = cpu_to_be32(crc32(0, p + 4, NVRAM_SIZE - 4));
-        if (s->blk && blk_pwrite(s->blk, 0, 4, p, 0) < 0) {
+        *c = cpu_to_be32(crc32(0, static_cast<const Bytef *>(p) + 4, NVRAM_SIZE - 4));
+        if (s->blk && blk_pwrite(s->blk, 0, 4, p, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_report("%s: could not write %s", __func__, blk_name(s->blk));
         }
     }
@@ -236,12 +237,12 @@ static void create_bd_info(hwaddr addr, ram_addr_t ram_size)
 
 static void amigaone_cpu_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
     if (env->load_info) {
-        struct boot_info *bi = env->load_info;
+        struct boot_info *bi = static_cast<struct boot_info *>(env->load_info);
 
         env->gpr[1] = bi->stack;
         env->gpr[2] = 1024;

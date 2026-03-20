@@ -98,7 +98,7 @@ static uint32_t *pci_map_create(void *fdt, uint32_t mpic, int first_slot,
     uint32_t *pci_map;
 
     *len = nr_slots * 4 * 7 * sizeof(uint32_t);
-    pci_map = g_malloc(*len);
+    pci_map = static_cast<uint32_t *>(g_malloc(*len));
 
     for (slot = first_slot; slot < last_slot; slot++) {
         for (pci_irq = 0; pci_irq < 4; pci_irq++) {
@@ -277,7 +277,7 @@ static int create_devtree_etsec(SysBusDevice *sbdev, PlatformDevtreeData *data)
 
 static void sysbus_device_create_devtree(SysBusDevice *sbdev, void *opaque)
 {
-    PlatformDevtreeData *data = opaque;
+    PlatformDevtreeData *data = static_cast<PlatformDevtreeData *>(opaque);
     bool matched = false;
 
     if (object_dynamic_cast(OBJECT(sbdev), TYPE_ETSEC_COMMON)) {
@@ -688,7 +688,7 @@ typedef struct DeviceTreeParams {
 
 static void ppce500_reset_device_tree(void *opaque)
 {
-    DeviceTreeParams *p = opaque;
+    DeviceTreeParams *p = static_cast<DeviceTreeParams *>(opaque);
     ppce500_load_device_tree(p->machine, p->addr, p->initrd_base,
                              p->initrd_size, p->kernel_base, p->kernel_size,
                              false);
@@ -741,7 +741,7 @@ void booke206_set_tlb(ppcmas_tlb_t *tlb, target_ulong va, hwaddr pa,
 
 static int booke206_initial_map_tsize(CPUPPCState *env)
 {
-    struct boot_info *bi = env->load_info;
+    struct boot_info *bi = static_cast<struct boot_info *>(env->load_info);
     hwaddr dt_end;
     int ps;
 
@@ -766,7 +766,7 @@ static uint64_t mmubooke_initial_mapsize(CPUPPCState *env)
 
 static void ppce500_cpu_reset_sec(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUState *cs = CPU(cpu);
 
     cpu_reset(cs);
@@ -776,10 +776,10 @@ static void ppce500_cpu_reset_sec(void *opaque)
 
 static void ppce500_cpu_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
-    struct boot_info *bi = env->load_info;
+    struct boot_info *bi = static_cast<struct boot_info *>(env->load_info);
     uint64_t map_size = mmubooke_initial_mapsize(env);
     ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
 
@@ -1284,8 +1284,8 @@ static const TypeInfo e500_ccsr_info = {
 static const TypeInfo ppce500_info = {
     .name          = TYPE_PPCE500_MACHINE,
     .parent        = TYPE_MACHINE,
-    .is_abstract      = true,
     .instance_size = sizeof(PPCE500MachineState),
+    .is_abstract   = true,
     .class_size    = sizeof(PPCE500MachineClass),
 };
 

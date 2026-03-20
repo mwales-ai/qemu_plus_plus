@@ -40,10 +40,18 @@ struct Ppc4xxDcrDeviceState {
     PowerPCCPU *cpu;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ppc4xx_dcr_register(Ppc4xxDcrDeviceState *dev, int dcrn, void *opaque,
                          dcr_read_cb dcr_read, dcr_write_cb dcr_write);
 bool ppc4xx_dcr_realize(Ppc4xxDcrDeviceState *dev, PowerPCCPU *cpu,
                         Error **errp);
+
+#ifdef __cplusplus
+}
+#endif
 
 /* Memory Access Layer (MAL) */
 #define TYPE_PPC4xx_MAL "ppc4xx-mal"
@@ -132,7 +140,13 @@ struct Ppc4xxSdramDdrState {
     uint32_t eccesr;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void ppc4xx_sdram_ddr_enable(Ppc4xxSdramDdrState *s);
+#ifdef __cplusplus
+}
+#endif
 
 /* SDRAM DDR2 controller */
 #define TYPE_PPC4xx_SDRAM_DDR2 "ppc4xx-sdram-ddr2"
@@ -148,6 +162,12 @@ struct Ppc4xxSdramDdr2State {
     uint32_t mcopt2;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void ppc4xx_sdram_ddr2_enable(Ppc4xxSdramDdr2State *s);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PPC4XX_H */

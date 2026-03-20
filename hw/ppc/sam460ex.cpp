@@ -212,9 +212,9 @@ static int sam460ex_load_device_tree(MachineState *machine,
 
 static void main_cpu_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
     CPUPPCState *env = &cpu->env;
-    struct boot_info *bi = env->load_info;
+    struct boot_info *bi = static_cast<struct boot_info *>(env->load_info);
 
     cpu_reset(CPU(cpu));
 
@@ -268,7 +268,7 @@ static void sam460ex_init(MachineState *machine)
     }
 
     qemu_register_reset(main_cpu_reset, cpu);
-    boot_info = g_malloc0(sizeof(*boot_info));
+    boot_info = static_cast<struct boot_info *>(g_malloc0(sizeof(*boot_info)));
     env->load_info = boot_info;
 
     ppc_booke_timers_init(cpu, CPU_FREQ, 0);

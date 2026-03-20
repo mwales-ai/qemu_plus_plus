@@ -70,7 +70,7 @@
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
-    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_modify_i16(static_cast<FWCfgState *>(opaque), FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
@@ -80,7 +80,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 
 static void ppc_heathrow_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
     cpu_ppc_tb_reset(&cpu->env);
     cpu_reset(CPU(cpu));
@@ -106,7 +106,7 @@ static void ppc_heathrow_init(MachineState *machine)
     BusState *adb_bus;
     uint16_t ppc_boot_device;
     DriveInfo *dinfo, *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
     uint64_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TBFREQ;
 
     /* init CPUs */
@@ -329,7 +329,7 @@ static void ppc_heathrow_init(MachineState *machine)
     if (kvm_enabled()) {
         uint8_t *hypercall;
 
-        hypercall = g_malloc(16);
+        hypercall = static_cast<uint8_t *>(g_malloc(16));
         kvmppc_get_hypercall(env, hypercall, 16);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
@@ -419,14 +419,16 @@ static void heathrow_class_init(ObjectClass *oc, const void *data)
     fwc->get_dev_path = heathrow_fw_dev_path;
 }
 
+static const InterfaceInfo heathrow_interfaces[] = {
+    { TYPE_FW_PATH_PROVIDER },
+    { }
+};
+
 static const TypeInfo ppc_heathrow_machine_info = {
     .name          = MACHINE_TYPE_NAME("g3beige"),
     .parent        = TYPE_MACHINE,
     .class_init    = heathrow_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_FW_PATH_PROVIDER },
-        { }
-    },
+    .interfaces = heathrow_interfaces,
 };
 
 static void ppc_heathrow_register_types(void)

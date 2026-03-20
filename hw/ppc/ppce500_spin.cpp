@@ -74,7 +74,7 @@ static void spin_reset(DeviceState *dev)
 static void spin_kick(CPUState *cs, run_on_cpu_data data)
 {
     CPUPPCState *env = cpu_env(cs);
-    SpinInfo *curspin = data.host_ptr;
+    SpinInfo *curspin = static_cast<SpinInfo *>(data.host_ptr);
     hwaddr map_start, map_size = 64 * MiB;
     ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 1);
 
@@ -105,7 +105,7 @@ static void spin_kick(CPUState *cs, run_on_cpu_data data)
 static void spin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned len)
 {
-    SpinState *s = opaque;
+    SpinState *s = static_cast<SpinState *>(opaque);
     int env_idx = addr / sizeof(SpinInfo);
     CPUState *cpu;
     SpinInfo *curspin = &s->spin[env_idx];
@@ -143,7 +143,7 @@ static void spin_write(void *opaque, hwaddr addr, uint64_t value,
 
 static uint64_t spin_read(void *opaque, hwaddr addr, unsigned len)
 {
-    SpinState *s = opaque;
+    SpinState *s = static_cast<SpinState *>(opaque);
     uint8_t *spin_p = &((uint8_t*)s->spin)[addr];
 
     switch (len) {

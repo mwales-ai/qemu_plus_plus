@@ -59,36 +59,36 @@ ppc_ss.add(when: 'CONFIG_POWERNV', if_true: files(
 ))
 # PowerPC 4xx boards
 ppc_ss.add(when: 'CONFIG_PPC405', if_true: files(
-  'ppe42_machine.c'))
+  'ppe42_machine.cpp'))
 ppc_ss.add(when: 'CONFIG_PPC440', if_true: files(
-  'ppc440_bamboo.c',
-  'ppc440_uc.c'))
+  'ppc440_bamboo.cpp',
+  'ppc440_uc.cpp'))
 ppc_ss.add(when: 'CONFIG_PPC4XX', if_true: files(
-  'ppc4xx_devs.c',
-  'ppc4xx_sdram.c'))
-ppc_ss.add(when: 'CONFIG_SAM460EX', if_true: files('sam460ex.c'))
+  'ppc4xx_devs.cpp',
+  'ppc4xx_sdram.cpp'))
+ppc_ss.add(when: 'CONFIG_SAM460EX', if_true: files('sam460ex.cpp'))
 # PReP
-ppc_ss.add(when: 'CONFIG_PREP', if_true: files('prep.c'))
-ppc_ss.add(when: 'CONFIG_PREP', if_true: files('prep_systemio.c'))
-ppc_ss.add(when: 'CONFIG_RS6000_MC', if_true: files('rs6000_mc.c'))
+ppc_ss.add(when: 'CONFIG_PREP', if_true: files('prep.cpp'))
+ppc_ss.add(when: 'CONFIG_PREP', if_true: files('prep_systemio.cpp'))
+ppc_ss.add(when: 'CONFIG_RS6000_MC', if_true: files('rs6000_mc.cpp'))
 # OldWorld PowerMac
-ppc_ss.add(when: 'CONFIG_MAC_OLDWORLD', if_true: files('mac_oldworld.c'))
+ppc_ss.add(when: 'CONFIG_MAC_OLDWORLD', if_true: files('mac_oldworld.cpp'))
 # NewWorld PowerMac
-ppc_ss.add(when: 'CONFIG_MAC_NEWWORLD', if_true: files('mac_newworld.c'))
+ppc_ss.add(when: 'CONFIG_MAC_NEWWORLD', if_true: files('mac_newworld.cpp'))
 # e500
-ppc_ss.add(when: 'CONFIG_E500PLAT', if_true: files('e500plat.c'))
-ppc_ss.add(when: 'CONFIG_MPC8544DS', if_true: files('mpc8544ds.c'))
+ppc_ss.add(when: 'CONFIG_E500PLAT', if_true: files('e500plat.cpp'))
+ppc_ss.add(when: 'CONFIG_MPC8544DS', if_true: files('mpc8544ds.cpp'))
 ppc_ss.add(when: 'CONFIG_E500', if_true: files(
-  'e500.c',
-  'mpc8544_guts.c',
-  'ppce500_spin.c'
+  'e500.cpp',
+  'mpc8544_guts.cpp',
+  'ppce500_spin.cpp'
 ))
 # PowerPC 440 Xilinx ML507 reference board.
-ppc_ss.add(when: 'CONFIG_VIRTEX', if_true: files('virtex_ml507.c'))
+ppc_ss.add(when: 'CONFIG_VIRTEX', if_true: files('virtex_ml507.cpp'))
 # AmigaOne
-ppc_ss.add(when: 'CONFIG_AMIGAONE', if_true: files('amigaone.c'))
+ppc_ss.add(when: 'CONFIG_AMIGAONE', if_true: files('amigaone.cpp'))
 # Pegasos
-ppc_ss.add(when: 'CONFIG_PEGASOS', if_true: files('pegasos.c'))
+ppc_ss.add(when: 'CONFIG_PEGASOS', if_true: files('pegasos.cpp'))
 
 ppc_ss.add(when: 'CONFIG_VOF', if_true: files('vof.cpp'))
 ppc_ss.add(when: ['CONFIG_VOF', 'CONFIG_PSERIES'], if_true: files('spapr_vof.cpp'))

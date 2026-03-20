@@ -112,7 +112,8 @@ struct Core99MachineState {
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
-    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_modify_i16(static_cast<FWCfgState *>(opaque), FW_CFG_BOOT_DEVICE,
+                      boot_device[0]);
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
@@ -122,7 +123,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 
 static void ppc_core99_reset(void *opaque)
 {
-    PowerPCCPU *cpu = opaque;
+    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
     cpu_reset(CPU(cpu));
     /* 970 CPUs want to get their initial IP as part of their boot protocol */
@@ -150,7 +151,7 @@ static void ppc_core99_init(MachineState *machine)
     BusState *adb_bus;
     MacIONVRAMState *nvr;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    void *fw_cfg;
+    FWCfgState *fw_cfg;
     SysBusDevice *s;
     DeviceState *dev, *pic_dev, *uninorth_pci_dev;
     DeviceState *uninorth_internal_dev = NULL, *uninorth_agp_dev = NULL;
@@ -490,7 +491,7 @@ static void ppc_core99_init(MachineState *machine)
     if (kvm_enabled()) {
         uint8_t *hypercall;
 
-        hypercall = g_malloc(16);
+        hypercall = static_cast<uint8_t *>(g_malloc(16));
         kvmppc_get_hypercall(env, hypercall, 16);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());
@@ -626,16 +627,18 @@ static void core99_instance_init(Object *obj)
                                     "Valid values are cuda, pmu and pmu-adb");
 }
 
+static const InterfaceInfo core99_machine_interfaces[] = {
+    { TYPE_FW_PATH_PROVIDER },
+    { }
+};
+
 static const TypeInfo core99_machine_info = {
     .name          = MACHINE_TYPE_NAME("mac99"),
     .parent        = TYPE_MACHINE,
-    .class_init    = core99_machine_class_init,
-    .instance_init = core99_instance_init,
     .instance_size = sizeof(Core99MachineState),
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_FW_PATH_PROVIDER },
-        { }
-    },
+    .instance_init = core99_instance_init,
+    .class_init    = core99_machine_class_init,
+    .interfaces    = core99_machine_interfaces,
 };
 
 static void mac_machine_register_types(void)
