@@ -8,7 +8,7 @@ ppc_ss.add(when: 'CONFIG_FW_CFG_PPC', if_true: files('fw_cfg.cpp'))
 
 # IBM pSeries (sPAPR)
 ppc_ss.add(when: 'CONFIG_PSERIES', if_true: files(
-  'spapr.c',
+  'spapr.cpp',
   'spapr_caps.cpp',
   'spapr_vio.cpp',
   'spapr_events.cpp',

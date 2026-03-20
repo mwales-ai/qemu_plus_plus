@@ -407,7 +407,7 @@ spapr_get_drconf_cell(uint32_t seq_lmbs, uint64_t base_addr,
 {
     DrconfCellQueue *elem;
 
-    elem = g_malloc0(sizeof(*elem));
+    elem = static_cast<DrconfCellQueue *>(g_malloc0(sizeof(*elem)));
     elem->cell.seq_lmbs = cpu_to_be32(seq_lmbs);
     elem->cell.base_addr = cpu_to_be64(base_addr);
     elem->cell.drc_index = cpu_to_be32(drc_index);
@@ -491,7 +491,7 @@ static int spapr_dt_dynamic_memory_v2(SpaprMachineState *spapr, void *fdt,
     }
 
     buf_len = nr_entries * sizeof(struct sPAPRDrconfCellV2) + sizeof(uint32_t);
-    int_buf = cur_index = g_malloc0(buf_len);
+    int_buf = cur_index = static_cast<uint8_t *>(g_malloc0(buf_len));
     *(uint32_t *)int_buf = cpu_to_be32(nr_entries);
     cur_index += sizeof(nr_entries);
 
@@ -526,7 +526,7 @@ static int spapr_dt_dynamic_memory(SpaprMachineState *spapr, void *fdt,
      * Allocate enough buffer size to fit in ibm,dynamic-memory
      */
     buf_len = (nr_lmbs * SPAPR_DR_LMB_LIST_ENTRY_SIZE + 1) * sizeof(uint32_t);
-    cur_index = int_buf = g_malloc0(buf_len);
+    cur_index = int_buf = static_cast<uint32_t *>(g_malloc0(buf_len));
     int_buf[0] = cpu_to_be32(nr_lmbs);
     cur_index++;
     for (i = 0; i < nr_lmbs; i++) {
@@ -1373,7 +1373,7 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
 
     return (addr & 0x0fffffff) + spapr->kernel_addr;
 }
@@ -1403,7 +1403,7 @@ struct LPCRSyncState {
 
 static void do_lpcr_sync(CPUState *cs, run_on_cpu_data arg)
 {
-    struct LPCRSyncState *s = arg.host_ptr;
+    struct LPCRSyncState *s = static_cast<struct LPCRSyncState *>(arg.host_ptr);
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
     target_ulong lpcr;
@@ -1468,7 +1468,7 @@ static bool spapr_get_pate(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu,
 
 static uint64_t *hpte_get_ptr(SpaprMachineState *s, unsigned index)
 {
-    uint64_t *table = s->htab;
+    uint64_t *table = static_cast<uint64_t *>(s->htab);
 
     return &table[2 * index];
 }
@@ -1552,7 +1552,7 @@ static const ppc_hash_pte64_t *spapr_map_hptes(PPCVirtualHypervisor *vhyp,
         /*
          * HTAB is controlled by KVM. Fetch into temporary buffer
          */
-        ppc_hash_pte64_t *hptes = g_malloc(n * HASH_PTE_SIZE_64);
+        ppc_hash_pte64_t *hptes = static_cast<ppc_hash_pte64_t *>(g_malloc(n * HASH_PTE_SIZE_64));
         kvmppc_read_hptes(hptes, ptex, n);
         return hptes;
     }
@@ -2002,17 +2002,25 @@ static bool spapr_pending_events_needed(void *opaque)
     return !QTAILQ_EMPTY(&spapr->pending_events);
 }
 
+static const VMStateField vmstate_spapr_event_entry_fields[] = {
+    VMSTATE_UINT32(summary, SpaprEventLogEntry),
+    VMSTATE_UINT32(extended_length, SpaprEventLogEntry),
+    VMSTATE_VBUFFER_ALLOC_UINT32(extended_log, SpaprEventLogEntry, 0,
+                                 NULL, extended_length),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_event_entry = {
     .name = "spapr_event_log_entry",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(summary, SpaprEventLogEntry),
-        VMSTATE_UINT32(extended_length, SpaprEventLogEntry),
-        VMSTATE_VBUFFER_ALLOC_UINT32(extended_log, SpaprEventLogEntry, 0,
-                                     NULL, extended_length),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_event_entry_fields,
+};
+
+static const VMStateField vmstate_spapr_pending_events_fields[] = {
+    VMSTATE_QTAILQ_V(pending_events, SpaprMachineState, 1,
+                     vmstate_spapr_event_entry, SpaprEventLogEntry, next),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_spapr_pending_events = {
@@ -2020,16 +2028,12 @@ static const VMStateDescription vmstate_spapr_pending_events = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_pending_events_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_QTAILQ_V(pending_events, SpaprMachineState, 1,
-                         vmstate_spapr_event_entry, SpaprEventLogEntry, next),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_pending_events_fields,
 };
 
 static bool spapr_ov5_cas_needed(void *opaque)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
     SpaprOptionVector *ov5_mask = spapr_ovec_new();
     bool cas_needed;
 
@@ -2071,52 +2075,58 @@ static bool spapr_ov5_cas_needed(void *opaque)
     return cas_needed;
 }
 
+static const VMStateField vmstate_spapr_ov5_cas_fields[] = {
+    VMSTATE_STRUCT_POINTER_V(ov5_cas, SpaprMachineState, 1,
+                             vmstate_spapr_ovec, SpaprOptionVector),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_ov5_cas = {
     .name = "spapr_option_vector_ov5_cas",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_ov5_cas_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_POINTER_V(ov5_cas, SpaprMachineState, 1,
-                                 vmstate_spapr_ovec, SpaprOptionVector),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_ov5_cas_fields,
 };
 
 static bool spapr_patb_entry_needed(void *opaque)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
 
     return !!spapr->patb_entry;
 }
+
+static const VMStateField vmstate_spapr_patb_entry_fields[] = {
+    VMSTATE_UINT64(patb_entry, SpaprMachineState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_spapr_patb_entry = {
     .name = "spapr_patb_entry",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_patb_entry_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(patb_entry, SpaprMachineState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_patb_entry_fields,
 };
 
 static bool spapr_irq_map_needed(void *opaque)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
 
     return spapr->irq_map && !bitmap_empty(spapr->irq_map, spapr->irq_map_nr);
 }
+
+static const VMStateField vmstate_spapr_irq_map_fields[] = {
+    VMSTATE_BITMAP(irq_map, SpaprMachineState, 0, irq_map_nr),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_spapr_irq_map = {
     .name = "spapr_irq_map",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_irq_map_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BITMAP(irq_map, SpaprMachineState, 0, irq_map_nr),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_irq_map_fields,
 };
 
 static int spapr_dtb_pre_load(void *opaque)
@@ -2130,18 +2140,20 @@ static int spapr_dtb_pre_load(void *opaque)
     return 0;
 }
 
+static const VMStateField vmstate_spapr_dtb_fields[] = {
+    VMSTATE_UINT32(fdt_initial_size, SpaprMachineState),
+    VMSTATE_UINT32(fdt_size, SpaprMachineState),
+    VMSTATE_VBUFFER_ALLOC_UINT32(fdt_blob, SpaprMachineState, 0, NULL,
+                                 fdt_size),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_dtb = {
     .name = "spapr_dtb",
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_load = spapr_dtb_pre_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(fdt_initial_size, SpaprMachineState),
-        VMSTATE_UINT32(fdt_size, SpaprMachineState),
-        VMSTATE_VBUFFER_ALLOC_UINT32(fdt_blob, SpaprMachineState, 0, NULL,
-                                     fdt_size),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_dtb_fields,
 };
 
 static bool spapr_fwnmi_needed(void *opaque)
@@ -2167,18 +2179,56 @@ static int spapr_fwnmi_pre_save(void *opaque)
     return 0;
 }
 
+static const VMStateField vmstate_spapr_fwnmi_fields[] = {
+    VMSTATE_UINT64(fwnmi_system_reset_addr, SpaprMachineState),
+    VMSTATE_UINT64(fwnmi_machine_check_addr, SpaprMachineState),
+    VMSTATE_INT32(fwnmi_machine_check_interlock, SpaprMachineState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_fwnmi = {
     .name = "spapr_fwnmi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = spapr_fwnmi_needed,
     .pre_save = spapr_fwnmi_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(fwnmi_system_reset_addr, SpaprMachineState),
-        VMSTATE_UINT64(fwnmi_machine_check_addr, SpaprMachineState),
-        VMSTATE_INT32(fwnmi_machine_check_interlock, SpaprMachineState),
-        VMSTATE_END_OF_LIST()
-    },
+    .needed = spapr_fwnmi_needed,
+    .fields = vmstate_spapr_fwnmi_fields,
+};
+
+static const VMStateField vmstate_spapr_fields[] = {
+    /* used to be @next_irq */
+    VMSTATE_UNUSED_BUFFER(version_before_3, 0, 4),
+
+    /* RTC offset */
+    VMSTATE_UINT64_TEST(rtc_offset, SpaprMachineState, version_before_3),
+
+    VMSTATE_PPC_TIMEBASE_V(tb, SpaprMachineState, 2),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_spapr_subsections[] = {
+    &vmstate_spapr_ov5_cas,
+    &vmstate_spapr_patb_entry,
+    &vmstate_spapr_pending_events,
+    &vmstate_spapr_cap_htm,
+    &vmstate_spapr_cap_vsx,
+    &vmstate_spapr_cap_dfp,
+    &vmstate_spapr_cap_cfpc,
+    &vmstate_spapr_cap_sbbc,
+    &vmstate_spapr_cap_ibs,
+    &vmstate_spapr_cap_hpt_maxpagesize,
+    &vmstate_spapr_irq_map,
+    &vmstate_spapr_cap_nested_kvm_hv,
+    &vmstate_spapr_dtb,
+    &vmstate_spapr_cap_large_decr,
+    &vmstate_spapr_cap_ccf_assist,
+    &vmstate_spapr_cap_fwnmi,
+    &vmstate_spapr_fwnmi,
+    &vmstate_spapr_cap_rpt_invalidate,
+    &vmstate_spapr_cap_ail_mode_3,
+    &vmstate_spapr_cap_nested_papr,
+    &vmstate_spapr_cap_dawr1,
+    NULL
 };
 
 static const VMStateDescription vmstate_spapr = {
@@ -2188,45 +2238,13 @@ static const VMStateDescription vmstate_spapr = {
     .pre_load = spapr_pre_load,
     .post_load = spapr_post_load,
     .pre_save = spapr_pre_save,
-    .fields = (const VMStateField[]) {
-        /* used to be @next_irq */
-        VMSTATE_UNUSED_BUFFER(version_before_3, 0, 4),
-
-        /* RTC offset */
-        VMSTATE_UINT64_TEST(rtc_offset, SpaprMachineState, version_before_3),
-
-        VMSTATE_PPC_TIMEBASE_V(tb, SpaprMachineState, 2),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_spapr_ov5_cas,
-        &vmstate_spapr_patb_entry,
-        &vmstate_spapr_pending_events,
-        &vmstate_spapr_cap_htm,
-        &vmstate_spapr_cap_vsx,
-        &vmstate_spapr_cap_dfp,
-        &vmstate_spapr_cap_cfpc,
-        &vmstate_spapr_cap_sbbc,
-        &vmstate_spapr_cap_ibs,
-        &vmstate_spapr_cap_hpt_maxpagesize,
-        &vmstate_spapr_irq_map,
-        &vmstate_spapr_cap_nested_kvm_hv,
-        &vmstate_spapr_dtb,
-        &vmstate_spapr_cap_large_decr,
-        &vmstate_spapr_cap_ccf_assist,
-        &vmstate_spapr_cap_fwnmi,
-        &vmstate_spapr_fwnmi,
-        &vmstate_spapr_cap_rpt_invalidate,
-        &vmstate_spapr_cap_ail_mode_3,
-        &vmstate_spapr_cap_nested_papr,
-        &vmstate_spapr_cap_dawr1,
-        NULL
-    }
+    .fields = vmstate_spapr_fields,
+    .subsections = vmstate_spapr_subsections,
 };
 
 static int htab_save_setup(QEMUFile *f, void *opaque, Error **errp)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
 
     /* "Iteration" header */
     if (!spapr->htab_shift) {
@@ -2254,7 +2272,7 @@ static void htab_save_chunk(QEMUFile *f, SpaprMachineState *spapr,
     qemu_put_be32(f, chunkstart);
     qemu_put_be16(f, n_valid);
     qemu_put_be16(f, n_invalid);
-    qemu_put_buffer(f, (void *)hpte_get_ptr(spapr, chunkstart),
+    qemu_put_buffer(f, reinterpret_cast<const uint8_t *>(hpte_get_ptr(spapr, chunkstart)),
                     HASH_PTE_SIZE_64 * n_valid);
 }
 
@@ -2391,7 +2409,7 @@ static int htab_save_later_pass(QEMUFile *f, SpaprMachineState *spapr,
 
 static int htab_save_iterate(QEMUFile *f, void *opaque)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
     int fd;
     int rc = 0;
 
@@ -2428,7 +2446,7 @@ static int htab_save_iterate(QEMUFile *f, void *opaque)
 
 static int htab_save_complete(QEMUFile *f, void *opaque)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
     int fd;
 
     /* Iteration header */
@@ -2468,7 +2486,7 @@ static int htab_save_complete(QEMUFile *f, void *opaque)
 
 static int htab_load(QEMUFile *f, void *opaque, int version_id)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
     uint32_t section_hdr;
     int fd = -1;
     Error *local_err = NULL;
@@ -2531,7 +2549,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
 
         if (spapr->htab) {
             if (n_valid) {
-                qemu_get_buffer(f, (void *)hpte_get_ptr(spapr, index),
+                qemu_get_buffer(f, reinterpret_cast<uint8_t *>(hpte_get_ptr(spapr, index)),
                                 HASH_PTE_SIZE_64 * n_valid);
             }
             if (n_invalid) {
@@ -2562,16 +2580,16 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
 
 static void htab_save_cleanup(void *opaque)
 {
-    SpaprMachineState *spapr = opaque;
+    SpaprMachineState *spapr = static_cast<SpaprMachineState *>(opaque);
 
     close_htab_fd(spapr);
 }
 
 static SaveVMHandlers savevm_htab_handlers = {
     .save_setup = htab_save_setup,
-    .save_live_iterate = htab_save_iterate,
-    .save_complete = htab_save_complete,
     .save_cleanup = htab_save_cleanup,
+    .save_complete = htab_save_complete,
+    .save_live_iterate = htab_save_iterate,
     .load_state = htab_load,
 };
 
@@ -3359,7 +3377,7 @@ static void spapr_set_vof(Object *obj, bool value, Error **errp)
     if (!value) {
         return;
     }
-    spapr->vof = g_malloc0(sizeof(*spapr->vof));
+    spapr->vof = static_cast<Vof *>(g_malloc0(sizeof(*spapr->vof)));
 }
 
 static char *spapr_get_ic_mode(Object *obj, Error **errp)
@@ -4415,8 +4433,8 @@ static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)
         exit(1);
     }
 
-    machine->possible_cpus = g_malloc0(sizeof(CPUArchIdList) +
-                             sizeof(CPUArchId) * spapr_max_cores);
+    machine->possible_cpus = static_cast<CPUArchIdList *>(g_malloc0(sizeof(CPUArchIdList) +
+                             sizeof(CPUArchId) * spapr_max_cores));
     machine->possible_cpus->len = spapr_max_cores;
     for (i = 0; i < machine->possible_cpus->len; i++) {
         int core_id = i * smp_threads;
@@ -4692,26 +4710,28 @@ static void spapr_machine_class_init(ObjectClass *oc, const void *data)
     vmc->setprop = spapr_vof_setprop;
 }
 
+static const InterfaceInfo spapr_machine_interfaces[] = {
+    { TYPE_FW_PATH_PROVIDER },
+    { TYPE_NMI },
+    { TYPE_HOTPLUG_HANDLER },
+    { TYPE_PPC_VIRTUAL_HYPERVISOR },
+    { TYPE_XICS_FABRIC },
+    { TYPE_INTERRUPT_STATS_PROVIDER },
+    { TYPE_XIVE_FABRIC },
+    { TYPE_VOF_MACHINE_IF },
+    { }
+};
+
 static const TypeInfo spapr_machine_info = {
     .name          = TYPE_SPAPR_MACHINE,
     .parent        = TYPE_MACHINE,
-    .is_abstract      = true,
     .instance_size = sizeof(SpaprMachineState),
     .instance_init = spapr_instance_init,
     .instance_finalize = spapr_machine_finalizefn,
+    .is_abstract   = true,
     .class_size    = sizeof(SpaprMachineClass),
     .class_init    = spapr_machine_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_FW_PATH_PROVIDER },
-        { TYPE_NMI },
-        { TYPE_HOTPLUG_HANDLER },
-        { TYPE_PPC_VIRTUAL_HYPERVISOR },
-        { TYPE_XICS_FABRIC },
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { TYPE_XIVE_FABRIC },
-        { TYPE_VOF_MACHINE_IF },
-        { }
-    },
+    .interfaces    = spapr_machine_interfaces,
 };
 
 static void spapr_machine_latest_class_options(MachineClass *mc)

@@ -53,11 +53,11 @@ extern const VMStateDescription vmstate_ppc_timebase;
 
 #define VMSTATE_PPC_TIMEBASE_V(_field, _state, _version) {            \
     .name       = (stringify(_field)),                                \
-    .version_id = (_version),                                         \
-    .size       = sizeof(PPCTimebase),                                \
-    .vmsd       = &vmstate_ppc_timebase,                              \
-    .flags      = VMS_STRUCT,                                         \
     .offset     = vmstate_offset_value(_state, _field, PPCTimebase),  \
+    .size       = sizeof(PPCTimebase),                                \
+    .flags      = VMS_STRUCT,                                         \
+    .vmsd       = &vmstate_ppc_timebase,                              \
+    .version_id = (_version),                                         \
 }
 
 #ifdef __cplusplus
