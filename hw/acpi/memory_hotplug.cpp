@@ -50,6 +50,7 @@ static ACPIOSTInfo *acpi_memory_device_status(int slot, MemStatus *mdev)
     return info;
 }
 
+extern "C"
 void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list)
 {
     ACPIOSTInfoList ***tail = list;
@@ -65,7 +66,7 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
                                          unsigned int size)
 {
     uint32_t val = 0;
-    MemHotplugState *mem_st = opaque;
+    MemHotplugState *mem_st = static_cast<MemHotplugState *>(opaque);
     MemStatus *mdev;
     Object *o;
 
@@ -115,7 +116,7 @@ static uint64_t acpi_memory_hotplug_read(void *opaque, hwaddr addr,
 static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
                                       unsigned int size)
 {
-    MemHotplugState *mem_st = opaque;
+    MemHotplugState *mem_st = static_cast<MemHotplugState *>(opaque);
     MemStatus *mdev;
     ACPIOSTInfo *info;
     DeviceState *dev = NULL;
@@ -202,6 +203,7 @@ static const MemoryRegionOps acpi_memory_hotplug_ops = {
     },
 };
 
+extern "C"
 void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
                               MemHotplugState *state, hwaddr io_base)
 {
@@ -212,7 +214,7 @@ void acpi_memory_hotplug_init(MemoryRegion *as, Object *owner,
         return;
     }
 
-    state->devs = g_malloc0(sizeof(*state->devs) * state->dev_count);
+    state->devs = static_cast<MemStatus *>(g_malloc0(sizeof(*state->devs) * state->dev_count));
     memory_region_init_io(&state->io, owner, &acpi_memory_hotplug_ops, state,
                           "acpi-mem-hotplug", MEMORY_HOTPLUG_IO_LEN);
     memory_region_add_subregion(as, io_base, &state->io);
@@ -253,6 +255,7 @@ acpi_memory_slot_status(MemHotplugState *mem_st,
     return &mem_st->devs[slot];
 }
 
+extern "C"
 void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
                          DeviceState *dev, Error **errp)
 {
@@ -276,6 +279,7 @@ void acpi_memory_plug_cb(HotplugHandler *hotplug_dev, MemHotplugState *mem_st,
     }
 }
 
+extern "C"
 void acpi_memory_unplug_request_cb(HotplugHandler *hotplug_dev,
                                    MemHotplugState *mem_st,
                                    DeviceState *dev, Error **errp)
@@ -291,6 +295,7 @@ void acpi_memory_unplug_request_cb(HotplugHandler *hotplug_dev,
     acpi_send_event(DEVICE(hotplug_dev), ACPI_MEMORY_HOTPLUG_STATUS);
 }
 
+extern "C"
 void acpi_memory_unplug_cb(MemHotplugState *mem_st,
                            DeviceState *dev, Error **errp)
 {
@@ -318,18 +323,22 @@ static const VMStateDescription vmstate_memhp_sts = {
     }
 };
 
+static const VMStateField vmstate_memory_hotplug_fields[] = {
+    VMSTATE_UINT32(selector, MemHotplugState),
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(devs, MemHotplugState, dev_count,
+                                         vmstate_memhp_sts, MemStatus),
+    VMSTATE_END_OF_LIST()
+};
+
+extern "C"
 const VMStateDescription vmstate_memory_hotplug = {
     .name = "memory hotplug state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(selector, MemHotplugState),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(devs, MemHotplugState, dev_count,
-                                             vmstate_memhp_sts, MemStatus),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_memory_hotplug_fields,
 };
 
+extern "C"
 void build_memory_hotplug_aml(Aml *table, uint32_t nr_mem,
                               const char *res_root,
                               const char *event_handler_method,

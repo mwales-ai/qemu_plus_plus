@@ -178,7 +178,7 @@ void acpi_dsdt_add_power_button(Aml *scope)
 static uint64_t ged_evt_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint64_t val = 0;
-    GEDState *ged_st = opaque;
+    GEDState *ged_st = static_cast<GEDState *>(opaque);
 
     switch (addr) {
     case ACPI_GED_EVT_SEL_OFFSET:
@@ -383,15 +383,17 @@ static bool cpuhp_needed(void *opaque)
     return mc->has_hotpluggable_cpus;
 }
 
+static const VMStateField vmstate_cpuhp_state_fields[] = {
+    VMSTATE_CPU_HOTPLUG(cpuhp_state, AcpiGedState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cpuhp_state = {
     .name = "acpi-ged/cpuhp",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = cpuhp_needed,
-    .fields      = (VMStateField[]) {
-        VMSTATE_CPU_HOTPLUG(cpuhp_state, AcpiGedState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields      = vmstate_cpuhp_state_fields,
 };
 
 static const VMStateDescription vmstate_ged_state = {
@@ -416,7 +418,7 @@ static const VMStateDescription vmstate_ghes = {
 
 static bool ghes_needed(void *opaque)
 {
-    AcpiGedState *s = opaque;
+    AcpiGedState *s = static_cast<AcpiGedState *>(opaque);
     return s->ghes_state.hw_error_le;
 }
 
@@ -434,21 +436,21 @@ static const VMStateDescription vmstate_ghes_state = {
 
 static bool pcihp_needed(void *opaque)
 {
-    AcpiGedState *s = opaque;
+    AcpiGedState *s = static_cast<AcpiGedState *>(opaque);
     return s->pcihp_state.use_acpi_hotplug_bridge;
 }
+
+static const VMStateField vmstate_pcihp_state_fields[] = {
+    VMSTATE_PCI_HOTPLUG(pcihp_state, AcpiGedState, NULL, NULL),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_pcihp_state = {
     .name = "acpi-ged/pcihp",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = pcihp_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_HOTPLUG(pcihp_state,
-                            AcpiGedState,
-                            NULL, NULL),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pcihp_state_fields,
 };
 
 static const VMStateDescription vmstate_hest = {
@@ -463,7 +465,7 @@ static const VMStateDescription vmstate_hest = {
 
 static bool hest_needed(void *opaque)
 {
-    AcpiGedState *s = opaque;
+    AcpiGedState *s = static_cast<AcpiGedState *>(opaque);
     return s->ghes_state.hest_addr_le;
 }
 
@@ -584,13 +586,13 @@ static void ged_reset_hold(Object *obj, ResetType type)
     }
 }
 
-static void acpi_ged_class_init(ObjectClass *class, const void *data)
+static void acpi_ged_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(class);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(class);
-    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(class);
-    ResettableClass *rc = RESETTABLE_CLASS(class);
-    AcpiGedClass *gedc = ACPI_GED_CLASS(class);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    AcpiGedClass *gedc = ACPI_GED_CLASS(klass);
 
     dc->desc = "ACPI Generic Event Device";
     device_class_set_props(dc, acpi_ged_properties);
@@ -613,8 +615,8 @@ static const TypeInfo acpi_ged_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AcpiGedState),
     .instance_init  = acpi_ged_initfn,
-    .class_init    = acpi_ged_class_init,
     .class_size    = sizeof(AcpiGedClass),
+    .class_init    = acpi_ged_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_ACPI_DEVICE_IF },

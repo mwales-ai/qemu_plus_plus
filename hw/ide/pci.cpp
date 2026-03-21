@@ -42,7 +42,7 @@
 
 static uint64_t pci_ide_status_read(void *opaque, hwaddr addr, unsigned size)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
 
     if (addr != 2 || size != 1) {
         return ((uint64_t)1 << (size * 8)) - 1;
@@ -53,7 +53,7 @@ static uint64_t pci_ide_status_read(void *opaque, hwaddr addr, unsigned size)
 static void pci_ide_ctrl_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
 
     if (addr != 2 || size != 1) {
         return;
@@ -69,7 +69,7 @@ const MemoryRegionOps pci_ide_cmd_le_ops = {
 
 static uint64_t pci_ide_data_read(void *opaque, hwaddr addr, unsigned size)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
 
     if (size == 1) {
         return ide_ioport_read(bus, addr);
@@ -86,7 +86,7 @@ static uint64_t pci_ide_data_read(void *opaque, hwaddr addr, unsigned size)
 static void pci_ide_data_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
 
     if (size == 1) {
         ide_ioport_write(bus, addr, data);
@@ -363,7 +363,7 @@ static void bmdma_reset(const IDEDMA *dma)
 
 static void bmdma_irq(void *opaque, int n, int level)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
 
     if (!level) {
         /* pass through lower */
@@ -409,7 +409,7 @@ void bmdma_status_writeb(BMDMAState *bm, uint32_t val)
 static uint64_t bmdma_addr_read(void *opaque, hwaddr addr,
                                 unsigned width)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
     uint32_t mask = (1ULL << (width * 8)) - 1;
     uint64_t data;
 
@@ -421,7 +421,7 @@ static uint64_t bmdma_addr_read(void *opaque, hwaddr addr,
 static void bmdma_addr_write(void *opaque, hwaddr addr,
                              uint64_t data, unsigned width)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
     int shift = addr * 8;
     uint32_t mask = (1ULL << (width * 8)) - 1;
 
@@ -438,14 +438,14 @@ MemoryRegionOps bmdma_addr_ioport_ops = {
 
 static bool ide_bmdma_current_needed(void *opaque)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
 
     return (bm->cur_prd_len != 0);
 }
 
 static bool ide_bmdma_status_needed(void *opaque)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
 
     /* Older versions abused some bits in the status register for internal
      * error state. If any of these bits are set, we must add a subsection to
@@ -457,7 +457,7 @@ static bool ide_bmdma_status_needed(void *opaque)
 
 static int ide_bmdma_pre_save(void *opaque)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
     uint8_t abused_bits = BM_MIGRATION_COMPAT_STATUS_BITS;
 
     if (!(bm->status & BM_STATUS_DMAING) && bm->dma_cb) {
@@ -478,7 +478,7 @@ static int ide_bmdma_pre_save(void *opaque)
  * instead of being registered with VMState where it would run too early. */
 static int ide_bmdma_post_load(void *opaque, int version_id)
 {
-    BMDMAState *bm = opaque;
+    BMDMAState *bm = static_cast<BMDMAState *>(opaque);
     uint8_t abused_bits = BM_MIGRATION_COMPAT_STATUS_BITS;
 
     if (bm->status == 0) {
@@ -494,18 +494,25 @@ static int ide_bmdma_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_bmdma_current_fields[] = {
+    VMSTATE_UINT32(cur_addr, BMDMAState),
+    VMSTATE_UINT32(cur_prd_last, BMDMAState),
+    VMSTATE_UINT32(cur_prd_addr, BMDMAState),
+    VMSTATE_UINT32(cur_prd_len, BMDMAState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bmdma_current = {
     .name = "ide bmdma_current",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ide_bmdma_current_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cur_addr, BMDMAState),
-        VMSTATE_UINT32(cur_prd_last, BMDMAState),
-        VMSTATE_UINT32(cur_prd_addr, BMDMAState),
-        VMSTATE_UINT32(cur_prd_len, BMDMAState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bmdma_current_fields
+};
+
+static const VMStateField vmstate_bmdma_status_fields[] = {
+    VMSTATE_UINT8(status, BMDMAState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_bmdma_status = {
@@ -513,10 +520,23 @@ static const VMStateDescription vmstate_bmdma_status = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ide_bmdma_status_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(status, BMDMAState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bmdma_status_fields
+};
+
+static const VMStateDescription * const vmstate_bmdma_subsections[] = {
+    &vmstate_bmdma_current,
+    &vmstate_bmdma_status,
+    NULL
+};
+
+static const VMStateField vmstate_bmdma_fields[] = {
+    VMSTATE_UINT8(cmd, BMDMAState),
+    VMSTATE_UINT8(migration_compat_status, BMDMAState),
+    VMSTATE_UINT32(addr, BMDMAState),
+    VMSTATE_INT64(migration_retry_sector_num, BMDMAState),
+    VMSTATE_UINT32(migration_retry_nsector, BMDMAState),
+    VMSTATE_UINT8(migration_retry_unit, BMDMAState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_bmdma = {
@@ -524,25 +544,13 @@ static const VMStateDescription vmstate_bmdma = {
     .version_id = 3,
     .minimum_version_id = 0,
     .pre_save  = ide_bmdma_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(cmd, BMDMAState),
-        VMSTATE_UINT8(migration_compat_status, BMDMAState),
-        VMSTATE_UINT32(addr, BMDMAState),
-        VMSTATE_INT64(migration_retry_sector_num, BMDMAState),
-        VMSTATE_UINT32(migration_retry_nsector, BMDMAState),
-        VMSTATE_UINT8(migration_retry_unit, BMDMAState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_bmdma_current,
-        &vmstate_bmdma_status,
-        NULL
-    }
+    .fields = vmstate_bmdma_fields,
+    .subsections = vmstate_bmdma_subsections
 };
 
 static int ide_pci_post_load(void *opaque, int version_id)
 {
-    PCIIDEState *d = opaque;
+    PCIIDEState *d = static_cast<PCIIDEState *>(opaque);
     int i;
 
     for(i = 0; i < 2; i++) {
@@ -555,20 +563,22 @@ static int ide_pci_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ide_pci_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PCIIDEState),
+    VMSTATE_STRUCT_ARRAY(bmdma, PCIIDEState, 2, 0,
+                         vmstate_bmdma, BMDMAState),
+    VMSTATE_IDE_BUS_ARRAY(bus, PCIIDEState, 2),
+    VMSTATE_IDE_DRIVES(bus[0].ifs, PCIIDEState),
+    VMSTATE_IDE_DRIVES(bus[1].ifs, PCIIDEState),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_ide_pci = {
     .name = "ide",
     .version_id = 3,
     .minimum_version_id = 0,
     .post_load = ide_pci_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PCIIDEState),
-        VMSTATE_STRUCT_ARRAY(bmdma, PCIIDEState, 2, 0,
-                             vmstate_bmdma, BMDMAState),
-        VMSTATE_IDE_BUS_ARRAY(bus, PCIIDEState, 2),
-        VMSTATE_IDE_DRIVES(bus[0].ifs, PCIIDEState),
-        VMSTATE_IDE_DRIVES(bus[1].ifs, PCIIDEState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ide_pci_fields
 };
 
 /* hd_table must contain 4 block drivers */

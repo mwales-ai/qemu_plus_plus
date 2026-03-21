@@ -80,9 +80,20 @@ static const char *AHCIPortReg_lookup[AHCI_PORT_REG__COUNT] = {
     [AHCI_PORT_REG_SCR_NOTIF]   = "PxSNTF",
     [AHCI_PORT_REG_FIS_CTL]     = "PxFBS",
     [AHCI_PORT_REG_DEV_SLEEP]   = "PxDEVSLP",
-    [18 ... 27]                 = "Reserved",
-    [AHCI_PORT_REG_VENDOR_1 ...
-     AHCI_PORT_REG_VENDOR_4]    = "PxVS",
+    [18]                         = "Reserved",
+    [19]                         = "Reserved",
+    [20]                         = "Reserved",
+    [21]                         = "Reserved",
+    [22]                         = "Reserved",
+    [23]                         = "Reserved",
+    [24]                         = "Reserved",
+    [25]                         = "Reserved",
+    [26]                         = "Reserved",
+    [27]                         = "Reserved",
+    [AHCI_PORT_REG_VENDOR_1]    = "PxVS",
+    [AHCI_PORT_REG_VENDOR_2]    = "PxVS",
+    [AHCI_PORT_REG_VENDOR_3]    = "PxVS",
+    [AHCI_PORT_REG_VENDOR_4]    = "PxVS",
 };
 
 static const char *AHCIPortIRQ_lookup[AHCI_PORT_IRQ__COUNT] = {
@@ -94,7 +105,20 @@ static const char *AHCIPortIRQ_lookup[AHCI_PORT_IRQ__COUNT] = {
     [AHCI_PORT_IRQ_BIT_DPS]  = "DPS",
     [AHCI_PORT_IRQ_BIT_PCS]  = "PCS",
     [AHCI_PORT_IRQ_BIT_DMPS] = "DMPS",
-    [8 ... 21]               = "RESERVED",
+    [8]                     = "RESERVED",
+    [9]                     = "RESERVED",
+    [10]                     = "RESERVED",
+    [11]                     = "RESERVED",
+    [12]                     = "RESERVED",
+    [13]                     = "RESERVED",
+    [14]                     = "RESERVED",
+    [15]                     = "RESERVED",
+    [16]                     = "RESERVED",
+    [17]                     = "RESERVED",
+    [18]                     = "RESERVED",
+    [19]                     = "RESERVED",
+    [20]                     = "RESERVED",
+    [21]                     = "RESERVED",
     [AHCI_PORT_IRQ_BIT_PRCS] = "PRCS",
     [AHCI_PORT_IRQ_BIT_IPMS] = "IPMS",
     [AHCI_PORT_IRQ_BIT_OFS]  = "OFS",
@@ -111,7 +135,7 @@ static uint32_t ahci_port_read(AHCIState *s, int port, int offset)
 {
     uint32_t val;
     AHCIPortRegs *pr = &s->dev[port].port_regs;
-    enum AHCIPortReg regnum = offset / sizeof(uint32_t);
+    enum AHCIPortReg regnum = static_cast<AHCIPortReg>(offset / sizeof(uint32_t));
     assert(regnum < (AHCI_PORT_ADDR_OFFSET_LEN / sizeof(uint32_t)));
 
     switch (regnum) {
@@ -220,8 +244,8 @@ static void map_page(AddressSpace *as, uint8_t **ptr, uint64_t addr,
         dma_memory_unmap(as, *ptr, len, DMA_DIRECTION_FROM_DEVICE, len);
     }
 
-    *ptr = dma_memory_map(as, addr, &len, DMA_DIRECTION_FROM_DEVICE,
-                          MEMTXATTRS_UNSPECIFIED);
+    *ptr = static_cast<uint8_t *>(dma_memory_map(as, addr, &len, DMA_DIRECTION_FROM_DEVICE,
+                          MEMTXATTRS_UNSPECIFIED));
     if (len < wanted && *ptr) {
         dma_memory_unmap(as, *ptr, len, DMA_DIRECTION_FROM_DEVICE, len);
         *ptr = NULL;
@@ -272,7 +296,7 @@ static int ahci_cond_start_engines(AHCIDevice *ad)
 static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
 {
     AHCIPortRegs *pr = &s->dev[port].port_regs;
-    enum AHCIPortReg regnum = offset / sizeof(uint32_t);
+    enum AHCIPortReg regnum = static_cast<AHCIPortReg>(offset / sizeof(uint32_t));
     assert(regnum < (AHCI_PORT_ADDR_OFFSET_LEN / sizeof(uint32_t)));
     trace_ahci_port_write(s, port, AHCIPortReg_lookup[regnum], offset, val);
 
@@ -361,11 +385,11 @@ static void ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
 
 static uint64_t ahci_mem_read_32(void *opaque, hwaddr addr)
 {
-    AHCIState *s = opaque;
+    AHCIState *s = static_cast<AHCIState *>(opaque);
     uint32_t val = 0;
 
     if (addr < AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR) {
-        enum AHCIHostReg regnum = addr / 4;
+        enum AHCIHostReg regnum = static_cast<AHCIHostReg>(addr / 4);
         assert(regnum < AHCI_HOST_REG__COUNT);
 
         switch (regnum) {
@@ -436,7 +460,7 @@ static uint64_t ahci_mem_read(void *opaque, hwaddr addr, unsigned size)
 static void ahci_mem_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    AHCIState *s = opaque;
+    AHCIState *s = static_cast<AHCIState *>(opaque);
 
     trace_ahci_mem_write(s, size, addr, val);
 
@@ -449,7 +473,7 @@ static void ahci_mem_write(void *opaque, hwaddr addr,
     }
 
     if (addr < AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR) {
-        enum AHCIHostReg regnum = addr / 4;
+        enum AHCIHostReg regnum = static_cast<AHCIHostReg>(addr / 4);
         assert(regnum < AHCI_HOST_REG__COUNT);
 
         switch (regnum) {
@@ -507,7 +531,7 @@ static const MemoryRegionOps ahci_mem_ops = {
 static uint64_t ahci_idp_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    AHCIState *s = opaque;
+    AHCIState *s = static_cast<AHCIState *>(opaque);
 
     if (addr == s->idp_offset) {
         /* index register */
@@ -523,7 +547,7 @@ static uint64_t ahci_idp_read(void *opaque, hwaddr addr,
 static void ahci_idp_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    AHCIState *s = opaque;
+    AHCIState *s = static_cast<AHCIState *>(opaque);
 
     if (addr == s->idp_offset) {
         /* index register - mask off reserved bits */
@@ -575,7 +599,7 @@ static void check_cmd(AHCIState *s, int port)
 
 static void ahci_check_cmd_bh(void *opaque)
 {
-    AHCIDevice *ad = opaque;
+    AHCIDevice *ad = static_cast<AHCIDevice *>(opaque);
 
     qemu_bh_delete(ad->check_bh);
     ad->check_bh = NULL;
@@ -926,9 +950,9 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
     }
 
     /* map PRDT */
-    if (!(prdt = dma_memory_map(ad->hba->as, prdt_addr, &prdt_len,
+    if (!(prdt = static_cast<uint8_t *>(dma_memory_map(ad->hba->as, prdt_addr, &prdt_len,
                                 DMA_DIRECTION_TO_DEVICE,
-                                MEMTXATTRS_UNSPECIFIED))){
+                                MEMTXATTRS_UNSPECIFIED)))){
         trace_ahci_populate_sglist_no_map(ad->hba, ad->port_no);
         return -1;
     }
@@ -1337,8 +1361,8 @@ static void handle_cmd(AHCIState *s, int port, uint8_t slot)
 
     tbl_addr = le64_to_cpu(cmd->tbl_addr);
     cmd_len = 0x80;
-    cmd_fis = dma_memory_map(s->as, tbl_addr, &cmd_len,
-                             DMA_DIRECTION_TO_DEVICE, MEMTXATTRS_UNSPECIFIED);
+    cmd_fis = static_cast<uint8_t *>(dma_memory_map(s->as, tbl_addr, &cmd_len,
+                             DMA_DIRECTION_TO_DEVICE, MEMTXATTRS_UNSPECIFIED));
     if (!cmd_fis) {
         trace_handle_cmd_badfis(s, port);
         return;
@@ -1564,12 +1588,12 @@ static void ahci_irq_set(void *opaque, int n, int level)
 
 static const IDEDMAOps ahci_dma_ops = {
     .start_dma = ahci_start_dma,
-    .restart = ahci_restart,
-    .restart_dma = ahci_restart_dma,
     .pio_transfer = ahci_pio_transfer,
     .prepare_buf = ahci_dma_prepare_buf,
     .commit_buf = ahci_commit_buf,
     .rw_buf = ahci_dma_rw_buf,
+    .restart = ahci_restart,
+    .restart_dma = ahci_restart_dma,
     .cmd_done = ahci_cmd_done,
 };
 
@@ -1651,10 +1675,7 @@ void ahci_reset(AHCIState *s)
     }
 }
 
-static const VMStateDescription vmstate_ncq_tfs = {
-    .name = "ncq state",
-    .version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_ncq_tfs_fields[] = {
         VMSTATE_UINT32(sector_count, NCQTransferState),
         VMSTATE_UINT64(lba, NCQTransferState),
         VMSTATE_UINT8(tag, NCQTransferState),
@@ -1663,13 +1684,15 @@ static const VMStateDescription vmstate_ncq_tfs = {
         VMSTATE_BOOL(used, NCQTransferState),
         VMSTATE_BOOL(halt, NCQTransferState),
         VMSTATE_END_OF_LIST()
-    },
+    };
+
+static const VMStateDescription vmstate_ncq_tfs = {
+    .name = "ncq state",
+    .version_id = 1,
+    .fields = vmstate_ncq_tfs_fields,
 };
 
-static const VMStateDescription vmstate_ahci_device = {
-    .name = "ahci port",
-    .version_id = 1,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_ahci_device_fields[] = {
         VMSTATE_IDE_BUS(port, AHCIDevice),
         VMSTATE_IDE_DRIVE(port.ifs[0], AHCIDevice),
         VMSTATE_UINT32(port_state, AHCIDevice),
@@ -1694,7 +1717,12 @@ static const VMStateDescription vmstate_ahci_device = {
         VMSTATE_STRUCT_ARRAY(ncq_tfs, AHCIDevice, AHCI_MAX_CMDS,
                              1, vmstate_ncq_tfs, NCQTransferState),
         VMSTATE_END_OF_LIST()
-    },
+    };
+
+static const VMStateDescription vmstate_ahci_device = {
+    .name = "ahci port",
+    .version_id = 1,
+    .fields = vmstate_ahci_device_fields,
 };
 
 static int ahci_state_post_load(void *opaque, int version_id)
@@ -1703,7 +1731,7 @@ static int ahci_state_post_load(void *opaque, int version_id)
     struct AHCIDevice *ad;
     NCQTransferState *ncq_tfs;
     AHCIPortRegs *pr;
-    AHCIState *s = opaque;
+    AHCIState *s = static_cast<AHCIState *>(opaque);
 
     for (i = 0; i < s->ports; i++) {
         ad = &s->dev[i];
@@ -1782,11 +1810,7 @@ static int ahci_state_post_load(void *opaque, int version_id)
     return 0;
 }
 
-const VMStateDescription vmstate_ahci = {
-    .name = "ahci",
-    .version_id = 1,
-    .post_load = ahci_state_post_load,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_ahci_fields[] = {
         VMSTATE_STRUCT_VARRAY_POINTER_UINT32(dev, AHCIState, ports,
                                      vmstate_ahci_device, AHCIDevice),
         VMSTATE_UINT32(control_regs.cap, AHCIState),
@@ -1797,7 +1821,13 @@ const VMStateDescription vmstate_ahci = {
         VMSTATE_UINT32(idp_index, AHCIState),
         VMSTATE_UINT32_EQUAL(ports, AHCIState, NULL),
         VMSTATE_END_OF_LIST()
-    },
+    };
+
+const VMStateDescription vmstate_ahci = {
+    .name = "ahci",
+    .version_id = 1,
+    .post_load = ahci_state_post_load,
+    .fields = vmstate_ahci_fields,
 };
 
 void ahci_ide_create_devs(AHCIState *ahci, DriveInfo **hd)

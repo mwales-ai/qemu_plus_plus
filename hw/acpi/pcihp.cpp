@@ -79,7 +79,7 @@ typedef struct {
 /* Assign BSEL property only to buses that support hotplug. */
 static void *acpi_set_bsel(PCIBus *bus, void *opaque)
 {
-    BSELInfo *info = opaque;
+    BSELInfo *info = static_cast<BSELInfo *>(opaque);
     unsigned *bus_bsel;
     DeviceState *br = bus->qbus.parent;
     bool is_bridge = IS_PCI_BRIDGE(br);
@@ -87,7 +87,7 @@ static void *acpi_set_bsel(PCIBus *bus, void *opaque)
     /* hotplugged bridges can't be described in ACPI ignore them */
     if (qbus_is_hotpluggable(BUS(bus))) {
         if (!is_bridge || (!br->hotplugged && info->has_bridge_hotplug)) {
-            bus_bsel = g_malloc(sizeof *bus_bsel);
+            bus_bsel = static_cast<unsigned *>(g_malloc(sizeof *bus_bsel));
 
             *bus_bsel = info->bsel_alloc++;
             object_property_add_uint32_ptr(OBJECT(bus), ACPI_PCIHP_PROP_BSEL,
@@ -121,7 +121,7 @@ static void acpi_set_pci_info(AcpiPciHpState *s)
 
 static void acpi_pcihp_test_hotplug_bus(PCIBus *bus, void *opaque)
 {
-    AcpiPciHpFind *find = opaque;
+    AcpiPciHpFind *find = static_cast<AcpiPciHpFind *>(opaque);
     if (find->bsel == acpi_pcihp_get_bsel(bus)) {
         find->bus = bus;
     }
@@ -389,7 +389,7 @@ bool acpi_pcihp_is_hotpluggable_bus(AcpiPciHpState *s, BusState *bus)
 
 static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    AcpiPciHpState *s = opaque;
+    AcpiPciHpState *s = static_cast<AcpiPciHpState *>(opaque);
     uint32_t val = 0;
     int bsel = s->hotplug_select;
 
@@ -438,7 +438,7 @@ static void pci_write(void *opaque, hwaddr addr, uint64_t data,
     int slot;
     PCIBus *bus;
     BusChild *kid, *next;
-    AcpiPciHpState *s = opaque;
+    AcpiPciHpState *s = static_cast<AcpiPciHpState *>(opaque);
 
     s->acpi_index = 0;
     switch (addr) {
@@ -748,7 +748,7 @@ bool build_append_notification_callback(Aml *parent_scope, const PCIBus *bus)
     }
 
     /* Notify about child bus events in any case */
-    while ((sec = g_queue_pop_head(pcnt_bus_list))) {
+    while ((sec = static_cast<PCIBus *>(g_queue_pop_head(pcnt_bus_list)))) {
         aml_append(method, aml_name("^S%.02X.PCNT", sec->parent_dev->devfn));
     }
 

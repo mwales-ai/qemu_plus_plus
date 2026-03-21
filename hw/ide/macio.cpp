@@ -58,8 +58,8 @@ static const int debug_macio = 0;
 
 static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 {
-    DBDMA_io *io = opaque;
-    MACIOIDEState *m = io->opaque;
+    DBDMA_io *io = static_cast<DBDMA_io *>(opaque);
+    MACIOIDEState *m = static_cast<MACIOIDEState *>(io->opaque);
     IDEState *s = ide_bus_active_if(&m->bus);
     int64_t offset;
 
@@ -126,13 +126,13 @@ done:
     }
 
     ide_set_inactive(s, false);
-    io->dma_end(opaque);
+    io->dma_end(io);
 }
 
 static void pmac_ide_transfer_cb(void *opaque, int ret)
 {
-    DBDMA_io *io = opaque;
-    MACIOIDEState *m = io->opaque;
+    DBDMA_io *io = static_cast<DBDMA_io *>(opaque);
+    MACIOIDEState *m = static_cast<MACIOIDEState *>(io->opaque);
     IDEState *s = ide_bus_active_if(&m->bus);
     int64_t offset;
 
@@ -207,12 +207,12 @@ done:
     }
 
     ide_set_inactive(s, false);
-    io->dma_end(opaque);
+    io->dma_end(io);
 }
 
 static void pmac_ide_transfer(DBDMA_io *io)
 {
-    MACIOIDEState *m = io->opaque;
+    MACIOIDEState *m = static_cast<MACIOIDEState *>(io->opaque);
     IDEState *s = ide_bus_active_if(&m->bus);
 
     MACIO_DPRINTF("\n");
@@ -243,7 +243,7 @@ static void pmac_ide_transfer(DBDMA_io *io)
 
 static void pmac_ide_flush(DBDMA_io *io)
 {
-    MACIOIDEState *m = io->opaque;
+    MACIOIDEState *m = static_cast<MACIOIDEState *>(io->opaque);
     IDEState *s = ide_bus_active_if(&m->bus);
 
     if (s->bus->dma->aiocb) {
@@ -254,7 +254,7 @@ static void pmac_ide_flush(DBDMA_io *io)
 /* PowerMac IDE memory IO */
 static uint64_t pmac_ide_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MACIOIDEState *d = opaque;
+    MACIOIDEState *d = static_cast<MACIOIDEState *>(opaque);
     uint64_t retval = 0xffffffff;
     int reg = addr >> 4;
 
@@ -305,7 +305,7 @@ static uint64_t pmac_ide_read(void *opaque, hwaddr addr, unsigned size)
 static void pmac_ide_write(void *opaque, hwaddr addr, uint64_t val,
                            unsigned size)
 {
-    MACIOIDEState *d = opaque;
+    MACIOIDEState *d = static_cast<MACIOIDEState *>(opaque);
     int reg = addr >> 4;
 
     switch (reg) {
@@ -345,22 +345,24 @@ static void pmac_ide_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps pmac_ide_ops = {
     .read = pmac_ide_read,
     .write = pmac_ide_write,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
+};
+
+static const VMStateField vmstate_pmac_fields[] = {
+    VMSTATE_IDE_BUS(bus, MACIOIDEState),
+    VMSTATE_IDE_DRIVES(bus.ifs, MACIOIDEState),
+    VMSTATE_BOOL(dma_active, MACIOIDEState),
+    VMSTATE_UINT32(timing_reg, MACIOIDEState),
+    VMSTATE_UINT32(irq_reg, MACIOIDEState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_pmac = {
     .name = "ide",
     .version_id = 5,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_IDE_BUS(bus, MACIOIDEState),
-        VMSTATE_IDE_DRIVES(bus.ifs, MACIOIDEState),
-        VMSTATE_BOOL(dma_active, MACIOIDEState),
-        VMSTATE_UINT32(timing_reg, MACIOIDEState),
-        VMSTATE_UINT32(irq_reg, MACIOIDEState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pmac_fields
 };
 
 static void macio_ide_reset(DeviceState *dev)
@@ -399,7 +401,7 @@ static void ide_dbdma_start(const IDEDMA *dma, IDEState *s,
     MACIO_DPRINTF("-------------------------\n");
 
     m->dma_active = true;
-    DBDMA_kick(m->dbdma);
+    DBDMA_kick(static_cast<DBDMAState *>(m->dbdma));
 }
 
 static const IDEDMAOps dbdma_ops = {
@@ -422,7 +424,7 @@ static void macio_ide_realizefn(DeviceState *dev, Error **errp)
 
 static void pmac_ide_irq(void *opaque, int n, int level)
 {
-    MACIOIDEState *s = opaque;
+    MACIOIDEState *s = static_cast<MACIOIDEState *>(opaque);
     uint32_t mask = 0x80000000u >> n;
 
     /* We need to reflect the IRQ state in the irq register */
@@ -454,7 +456,7 @@ static void macio_ide_initfn(Object *obj)
 
     object_property_add_link(obj, "dbdma", TYPE_MAC_DBDMA,
                              (Object **) &s->dbdma,
-                             qdev_prop_allow_set_link_before_realize, 0);
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static const Property macio_ide_properties[] = {

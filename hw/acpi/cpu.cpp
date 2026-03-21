@@ -53,7 +53,7 @@ void acpi_cpu_ospm_status(CPUHotplugState *cpu_st, ACPIOSTInfoList ***list)
 static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
 {
     uint64_t val = 0;
-    CPUHotplugState *cpu_st = opaque;
+    CPUHotplugState *cpu_st = static_cast<CPUHotplugState *>(opaque);
     AcpiCpuStatus *cdev;
 
     if (cpu_st->selector >= cpu_st->dev_count) {
@@ -104,7 +104,7 @@ static uint64_t cpu_hotplug_rd(void *opaque, hwaddr addr, unsigned size)
 static void cpu_hotplug_wr(void *opaque, hwaddr addr, uint64_t data,
                            unsigned int size)
 {
-    CPUHotplugState *cpu_st = opaque;
+    CPUHotplugState *cpu_st = static_cast<CPUHotplugState *>(opaque);
     AcpiCpuStatus *cdev;
     ACPIOSTInfo *info;
 
@@ -305,17 +305,19 @@ static const VMStateDescription vmstate_cpuhp_sts = {
     }
 };
 
+static const VMStateField vmstate_cpu_hotplug_fields[] = {
+    VMSTATE_UINT32(selector, CPUHotplugState),
+    VMSTATE_UINT8(command, CPUHotplugState),
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(devs, CPUHotplugState, dev_count,
+                                         vmstate_cpuhp_sts, AcpiCpuStatus),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_cpu_hotplug = {
     .name = "CPU hotplug state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(selector, CPUHotplugState),
-        VMSTATE_UINT8(command, CPUHotplugState),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(devs, CPUHotplugState, dev_count,
-                                             vmstate_cpuhp_sts, AcpiCpuStatus),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cpu_hotplug_fields,
 };
 
 #define CPU_NAME_FMT      "C%.03X"

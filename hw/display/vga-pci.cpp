@@ -71,7 +71,7 @@ static const VMStateDescription vmstate_vga_pci = {
 static uint64_t pci_vga_ioport_read(void *ptr, hwaddr addr,
                                     unsigned size)
 {
-    VGACommonState *s = ptr;
+    VGACommonState *s = static_cast<VGACommonState *>(ptr);
     uint64_t ret = 0;
 
     switch (size) {
@@ -89,7 +89,7 @@ static uint64_t pci_vga_ioport_read(void *ptr, hwaddr addr,
 static void pci_vga_ioport_write(void *ptr, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-    VGACommonState *s = ptr;
+    VGACommonState *s = static_cast<VGACommonState *>(ptr);
 
     switch (size) {
     case 1:
@@ -110,15 +110,15 @@ static void pci_vga_ioport_write(void *ptr, hwaddr addr,
 static const MemoryRegionOps pci_vga_ioport_ops = {
     .read = pci_vga_ioport_read,
     .write = pci_vga_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 2, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t pci_vga_bochs_read(void *ptr, hwaddr addr,
                                    unsigned size)
 {
-    VGACommonState *s = ptr;
+    VGACommonState *s = static_cast<VGACommonState *>(ptr);
     int index = addr >> 1;
 
     vbe_ioport_write_index(s, 0, index);
@@ -128,7 +128,7 @@ static uint64_t pci_vga_bochs_read(void *ptr, hwaddr addr,
 static void pci_vga_bochs_write(void *ptr, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    VGACommonState *s = ptr;
+    VGACommonState *s = static_cast<VGACommonState *>(ptr);
     int index = addr >> 1;
 
     vbe_ioport_write_index(s, 0, index);
@@ -138,14 +138,14 @@ static void pci_vga_bochs_write(void *ptr, hwaddr addr,
 static const MemoryRegionOps pci_vga_bochs_ops = {
     .read = pci_vga_bochs_read,
     .write = pci_vga_bochs_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 2, .max_access_size = 2, },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t pci_vga_qext_read(void *ptr, hwaddr addr, unsigned size)
 {
-    VGACommonState *s = ptr;
+    VGACommonState *s = static_cast<VGACommonState *>(ptr);
 
     switch (addr) {
     case PCI_VGA_QEXT_REG_SIZE:
@@ -161,7 +161,7 @@ static uint64_t pci_vga_qext_read(void *ptr, hwaddr addr, unsigned size)
 static void pci_vga_qext_write(void *ptr, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    VGACommonState *s = ptr;
+    VGACommonState *s = static_cast<VGACommonState *>(ptr);
 
     switch (addr) {
     case PCI_VGA_QEXT_REG_BYTEORDER:
@@ -192,8 +192,8 @@ static void vga_set_big_endian_fb(Object *obj, bool value, Error **errp)
 static const MemoryRegionOps pci_vga_qext_ops = {
     .read = pci_vga_qext_read,
     .write = pci_vga_qext_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 void pci_std_vga_mmio_region_init(VGACommonState *s,

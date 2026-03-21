@@ -113,7 +113,7 @@ static size_t write_to_port(VirtIOSerialPort *port,
     while (offset < size) {
         size_t len;
 
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             break;
         }
@@ -138,7 +138,7 @@ static void discard_vq_data(VirtQueue *vq, VirtIODevice *vdev)
         return;
     }
     for (;;) {
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             break;
         }
@@ -172,7 +172,7 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
 
         /* Pop an elem only if we haven't left off a previous one mid-way */
         if (!port->elem) {
-            port->elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+            port->elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
             if (!port->elem) {
                 break;
             }
@@ -186,7 +186,7 @@ static void do_flush_queued_data(VirtIOSerialPort *port, VirtQueue *vq,
 
             buf_size = port->elem->out_sg[i].iov_len - port->iov_offset;
             ret = vsc->have_data(port,
-                                  port->elem->out_sg[i].iov_base
+                                  static_cast<const uint8_t *>(port->elem->out_sg[i].iov_base)
                                   + port->iov_offset,
                                   buf_size);
             if (!port->elem) { /* bail if we got disconnected */
@@ -231,7 +231,7 @@ static size_t send_control_msg(VirtIOSerial *vser, void *buf, size_t len)
         return 0;
     }
 
-    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
     if (!elem) {
         return 0;
     }
@@ -324,7 +324,7 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port)
 
 static void flush_queued_data_bh(void *opaque)
 {
-    VirtIOSerialPort *port = opaque;
+    VirtIOSerialPort *port = static_cast<VirtIOSerialPort *>(opaque);
 
     flush_queued_data(port);
 }
@@ -353,7 +353,7 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
     uint8_t *buffer;
     size_t buffer_len;
 
-    gcpkt = buf;
+    gcpkt = static_cast<struct virtio_console_control *>(buf);
 
     if (len < sizeof(cpkt)) {
         /* The guest sent an invalid control packet */
@@ -416,7 +416,7 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
             virtio_stw_p(vdev, &cpkt.value, 1);
 
             buffer_len = sizeof(cpkt) + strlen(port->name) + 1;
-            buffer = g_malloc(buffer_len);
+            buffer = static_cast<uint8_t *>(g_malloc(buffer_len));
 
             memcpy(buffer, &cpkt, sizeof(cpkt));
             memcpy(buffer + sizeof(cpkt), port->name, strlen(port->name));
@@ -469,7 +469,7 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
     for (;;) {
         size_t cur_len;
 
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             break;
         }
@@ -482,7 +482,7 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
         if (cur_len > len) {
             g_free(buf);
 
-            buf = g_malloc(cur_len);
+            buf = static_cast<uint8_t *>(g_malloc(cur_len));
             len = cur_len;
         }
         iov_to_buf(elem->out_sg, elem->out_num, 0, buf, cur_len);
@@ -752,10 +752,10 @@ static int fetch_active_ports_list(QEMUFile *f,
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     uint32_t i;
 
-    s->post_load = g_malloc0(sizeof(*s->post_load));
+    s->post_load = static_cast<VirtIOSerialPostLoad *>(g_malloc0(sizeof(*s->post_load)));
     s->post_load->nr_active_ports = nr_active_ports;
     s->post_load->connected =
-        g_malloc0(sizeof(*s->post_load->connected) * nr_active_ports);
+        static_cast<decltype(s->post_load->connected)>(g_malloc0(sizeof(*s->post_load->connected) * nr_active_ports));
 
     s->post_load->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                             virtio_serial_post_load_timer_cb,
@@ -783,7 +783,7 @@ static int fetch_active_ports_list(QEMUFile *f,
             qemu_get_be64s(f, &port->iov_offset);
 
             port->elem =
-                qemu_get_virtqueue_element(vdev, f, sizeof(VirtQueueElement));
+                static_cast<VirtQueueElement *>(qemu_get_virtqueue_element(vdev, f, sizeof(VirtQueueElement)));
 
             /*
              *  Port was throttled on source machine.  Let's
@@ -1080,8 +1080,8 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
         vser->ovqs[i] = virtio_add_queue(vdev, 128, handle_output);
     }
 
-    vser->ports_map = g_malloc0((DIV_ROUND_UP(vser->serial.max_virtserial_ports, 32))
-        * sizeof(vser->ports_map[0]));
+    vser->ports_map = static_cast<uint32_t *>(g_malloc0((DIV_ROUND_UP(vser->serial.max_virtserial_ports, 32))
+        * sizeof(vser->ports_map[0])));
     /*
      * Reserve location 0 for a console port for backward compat
      * (old kernel, new qemu)
@@ -1145,8 +1145,8 @@ static void virtio_serial_device_unrealize(DeviceState *dev)
 /* Note: 'console' is used for backwards compatibility */
 static const VMStateDescription vmstate_virtio_console = {
     .name = "virtio-console",
-    .minimum_version_id = 3,
     .version_id = 3,
+    .minimum_version_id = 3,
     .fields = (const VMStateField[]) {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()

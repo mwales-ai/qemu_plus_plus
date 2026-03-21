@@ -82,7 +82,16 @@ struct XenFB {
     int               up_count;
     int               up_fullscreen;
 };
-static const GraphicHwOps xenfb_ops;
+/* Forward declarations */
+static void xenfb_update(void *opaque);
+static void xenfb_invalidate(void *opaque);
+static void xenfb_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info);
+
+static const GraphicHwOps xenfb_ops = {
+    .invalidate  = xenfb_invalidate,
+    .gfx_update  = xenfb_update,
+    .ui_info     = xenfb_ui_info,
+};
 
 /* -------------------------------------------------------------------- */
 
@@ -127,7 +136,7 @@ static void common_unbind(struct common *c)
 static int xenfb_kbd_event(struct XenInput *xenfb,
                            union xenkbd_in_event *event)
 {
-    struct xenkbd_page *page = xenfb->c.page;
+    struct xenkbd_page *page = static_cast<struct xenkbd_page *>(xenfb->c.page);
     uint32_t prod;
 
     if (xenfb->c.xendev.be_state != XenbusStateConnected)
@@ -412,7 +421,7 @@ static void input_disconnect(struct XenLegacyDevice *xendev)
 static void input_event(struct XenLegacyDevice *xendev)
 {
     struct XenInput *xenfb = container_of(xendev, struct XenInput, c.xendev);
-    struct xenkbd_page *page = xenfb->c.page;
+    struct xenkbd_page *page = static_cast<struct xenkbd_page *>(xenfb->c.page);
 
     /* We don't understand any keyboard events, so just ignore them. */
     if (page->out_prod == page->out_cons)
@@ -425,8 +434,8 @@ static void input_event(struct XenLegacyDevice *xendev)
 
 static void xenfb_copy_mfns(int mode, int count, xen_pfn_t *dst, void *src)
 {
-    uint32_t *src32 = src;
-    uint64_t *src64 = src;
+    uint32_t *src32 = static_cast<uint32_t *>(src);
+    uint64_t *src64 = static_cast<uint64_t *>(src);
     int i;
 
     for (i = 0; i < count; i++)
@@ -435,7 +444,7 @@ static void xenfb_copy_mfns(int mode, int count, xen_pfn_t *dst, void *src)
 
 static int xenfb_map_fb(struct XenFB *xenfb)
 {
-    struct xenfb_page *page = xenfb->c.page;
+    struct xenfb_page *page = static_cast<struct xenfb_page *>(xenfb->c.page);
     char *protocol = xenfb->c.xendev.protocol;
     int n_fbdirs;
     xen_pfn_t *pgmfns = NULL;
@@ -460,11 +469,11 @@ static int xenfb_map_fb(struct XenFB *xenfb)
         uint32_t *ptr32 = NULL;
         uint32_t *ptr64 = NULL;
 #if defined(__i386__)
-        ptr32 = (void*)page->pd;
-        ptr64 = ((void*)page->pd) + 4;
+        ptr32 = reinterpret_cast<uint32_t *>(page->pd);
+        ptr64 = reinterpret_cast<uint32_t *>(reinterpret_cast<char *>(page->pd) + 4);
 #elif defined(__x86_64__)
-        ptr32 = ((void*)page->pd) - 4;
-        ptr64 = (void*)page->pd;
+        ptr32 = reinterpret_cast<uint32_t *>(reinterpret_cast<char *>(page->pd) - 4);
+        ptr64 = reinterpret_cast<uint32_t *>(page->pd);
 #endif
         if (ptr32) {
             if (ptr32[1] == 0) {
@@ -479,12 +488,12 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     } else if (strcmp(protocol, XEN_IO_PROTO_ABI_X86_32) == 0) {
         /* 64bit dom0, 32bit domU */
         mode = 32;
-        pd   = ((void*)page->pd) - 4;
+        pd   = reinterpret_cast<char *>(page->pd) - 4;
 #elif defined(__i386__)
     } else if (strcmp(protocol, XEN_IO_PROTO_ABI_X86_64) == 0) {
         /* 32bit dom0, 64bit domU */
         mode = 64;
-        pd   = ((void*)page->pd) + 4;
+        pd   = reinterpret_cast<char *>(page->pd) + 4;
 #endif
     }
 
@@ -635,7 +644,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
     int line, oops = 0;
     int bpp = surface_bits_per_pixel(surface);
     int linesize = surface_stride(surface);
-    uint8_t *data = surface_data(surface);
+    uint8_t *data = static_cast<uint8_t *>(surface_data(surface));
 
     if (surface_is_allocated(surface)) {
         switch (xenfb->depth) {
@@ -671,7 +680,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
 #ifdef XENFB_TYPE_REFRESH_PERIOD
 static int xenfb_queue_full(struct XenFB *xenfb)
 {
-    struct xenfb_page *page = xenfb->c.page;
+    struct xenfb_page *page = static_cast<struct xenfb_page *>(xenfb->c.page);
     uint32_t cons, prod;
 
     if (!page)
@@ -685,7 +694,7 @@ static int xenfb_queue_full(struct XenFB *xenfb)
 static void xenfb_send_event(struct XenFB *xenfb, union xenfb_in_event *event)
 {
     uint32_t prod;
-    struct xenfb_page *page = xenfb->c.page;
+    struct xenfb_page *page = static_cast<struct xenfb_page *>(xenfb->c.page);
 
     prod = page->in_prod;
     /* caller ensures !xenfb_queue_full() */
@@ -719,7 +728,7 @@ static void xenfb_send_refresh_period(struct XenFB *xenfb, int period)
  */
 static void xenfb_update(void *opaque)
 {
-    struct XenFB *xenfb = opaque;
+    struct XenFB *xenfb = static_cast<struct XenFB *>(opaque);
     DisplaySurface *surface;
     int i;
 
@@ -744,7 +753,7 @@ static void xenfb_update(void *opaque)
             format = qemu_default_pixman_format(xenfb->depth, true);
             surface = qemu_create_displaysurface_from
                 (xenfb->width, xenfb->height, format,
-                 xenfb->row_stride, xenfb->pixels + xenfb->offset);
+                 xenfb->row_stride, static_cast<uint8_t *>(xenfb->pixels) + xenfb->offset);
             break;
         default:
             /* we must convert stuff */
@@ -782,7 +791,7 @@ static void xenfb_update(void *opaque)
 
 static void xenfb_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
 {
-    struct XenFB *xenfb = opaque;
+    struct XenFB *xenfb = static_cast<struct XenFB *>(opaque);
     uint32_t refresh_rate;
 
     if (xenfb->feature_update) {
@@ -805,14 +814,14 @@ static void xenfb_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
 /* QEMU display state changed, so refresh the framebuffer copy */
 static void xenfb_invalidate(void *opaque)
 {
-    struct XenFB *xenfb = opaque;
+    struct XenFB *xenfb = static_cast<struct XenFB *>(opaque);
     xenfb->up_fullscreen = 1;
 }
 
 static void xenfb_handle_events(struct XenFB *xenfb)
 {
     uint32_t prod, cons, out_cons;
-    struct xenfb_page *page = xenfb->c.page;
+    struct xenfb_page *page = static_cast<struct xenfb_page *>(xenfb->c.page);
 
     prod = page->out_prod;
     out_cons = page->out_cons;
@@ -898,7 +907,7 @@ static int fb_initialise(struct XenLegacyDevice *xendev)
     if (rc != 0)
         return rc;
 
-    fb_page = fb->c.page;
+    fb_page = static_cast<struct xenfb_page *>(fb->c.page);
     rc = xenfb_configure_fb(fb, videoram * MiB,
                             fb_page->width, fb_page->height, fb_page->depth,
                             fb_page->mem_length, 0, fb_page->line_length);
@@ -978,23 +987,17 @@ static const struct XenDevOps xen_kbdmouse_ops = {
     .init       = input_init,
     .initialise = input_initialise,
     .connected  = input_connected,
-    .disconnect = input_disconnect,
     .event      = input_event,
+    .disconnect = input_disconnect,
 };
 
 const struct XenDevOps xen_framebuffer_ops = {
     .size       = sizeof(struct XenFB),
     .init       = fb_init,
     .initialise = fb_initialise,
-    .disconnect = fb_disconnect,
     .event      = fb_event,
+    .disconnect = fb_disconnect,
     .frontend_changed = fb_frontend_changed,
-};
-
-static const GraphicHwOps xenfb_ops = {
-    .invalidate  = xenfb_invalidate,
-    .gfx_update  = xenfb_update,
-    .ui_info     = xenfb_ui_info,
 };
 
 static void xen_ui_register_backend(void)

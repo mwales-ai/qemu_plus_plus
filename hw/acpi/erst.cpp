@@ -242,44 +242,44 @@ void build_erst(GArray *table_data, BIOSLinker *linker, Object *erst_dev,
                         .oem_table_id = oem_table_id };
     /* Contexts for the different ways ACTION and VALUE are accessed */
     BuildSerializationInstructionEntry rd_value_32_val = {
-        .table_data = table_instruction_data, .bar = bar0, .flags = 0,
-        .instruction = INST_READ_REGISTER_VALUE,
+        .table_data = table_instruction_data, .bar = bar0,
+        .instruction = INST_READ_REGISTER_VALUE, .flags = 0,
         .register_bit_width = 32,
         .register_offset = ERST_VALUE_OFFSET,
     };
     BuildSerializationInstructionEntry rd_value_32 = {
-        .table_data = table_instruction_data, .bar = bar0, .flags = 0,
-        .instruction = INST_READ_REGISTER,
+        .table_data = table_instruction_data, .bar = bar0,
+        .instruction = INST_READ_REGISTER, .flags = 0,
         .register_bit_width = 32,
         .register_offset = ERST_VALUE_OFFSET,
     };
     BuildSerializationInstructionEntry rd_value_64 = {
-        .table_data = table_instruction_data, .bar = bar0, .flags = 0,
-        .instruction = INST_READ_REGISTER,
+        .table_data = table_instruction_data, .bar = bar0,
+        .instruction = INST_READ_REGISTER, .flags = 0,
         .register_bit_width = 64,
         .register_offset = ERST_VALUE_OFFSET,
     };
     BuildSerializationInstructionEntry wr_value_32_val = {
-        .table_data = table_instruction_data, .bar = bar0, .flags = 0,
-        .instruction = INST_WRITE_REGISTER_VALUE,
+        .table_data = table_instruction_data, .bar = bar0,
+        .instruction = INST_WRITE_REGISTER_VALUE, .flags = 0,
         .register_bit_width = 32,
         .register_offset = ERST_VALUE_OFFSET,
     };
     BuildSerializationInstructionEntry wr_value_32 = {
-        .table_data = table_instruction_data, .bar = bar0, .flags = 0,
-        .instruction = INST_WRITE_REGISTER,
+        .table_data = table_instruction_data, .bar = bar0,
+        .instruction = INST_WRITE_REGISTER, .flags = 0,
         .register_bit_width = 32,
         .register_offset = ERST_VALUE_OFFSET,
     };
     BuildSerializationInstructionEntry wr_value_64 = {
-        .table_data = table_instruction_data, .bar = bar0, .flags = 0,
-        .instruction = INST_WRITE_REGISTER,
+        .table_data = table_instruction_data, .bar = bar0,
+        .instruction = INST_WRITE_REGISTER, .flags = 0,
         .register_bit_width = 64,
         .register_offset = ERST_VALUE_OFFSET,
     };
     BuildSerializationInstructionEntry wr_action = {
-        .table_data = table_instruction_data, .bar = bar0, .flags = 0,
-        .instruction = INST_WRITE_REGISTER_VALUE,
+        .table_data = table_instruction_data, .bar = bar0,
+        .instruction = INST_WRITE_REGISTER_VALUE, .flags = 0,
         .register_bit_width = 32,
         .register_offset = ERST_ACTION_OFFSET,
     };
@@ -381,7 +381,7 @@ static uint8_t *get_nvram_ptr_by_index(ERSTDeviceState *s, unsigned index)
 
     g_assert(offset < s->storage_size);
 
-    rc = memory_region_get_ram_ptr(s->hostmem_mr);
+    rc = static_cast<uint8_t *>(memory_region_get_ram_ptr(s->hostmem_mr));
     rc += offset;
 
     return rc;
@@ -418,7 +418,7 @@ static void check_erst_backend_storage(ERSTDeviceState *s, Error **errp)
     ERSTStorageHeader *header;
     uint32_t record_size;
 
-    header = memory_region_get_ram_ptr(s->hostmem_mr);
+    header = static_cast<ERSTStorageHeader *>(memory_region_get_ram_ptr(s->hostmem_mr));
     s->header = header;
 
     /* Ensure pointer to header is 64-bit aligned */
@@ -623,7 +623,7 @@ static unsigned read_erst_record(ERSTDeviceState *s)
         uint32_t record_length;
 
         /* Obtain pointer to the exchange buffer */
-        exchange = memory_region_get_ram_ptr(&s->exchange_mr);
+        exchange = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->exchange_mr));
         exchange += s->record_offset;
         /* Obtain pointer to slot in storage */
         nvram = get_nvram_ptr_by_index(s, index);
@@ -674,7 +674,7 @@ static unsigned write_erst_record(ERSTDeviceState *s)
     }
 
     /* Obtain pointer to record in the exchange buffer */
-    exchange = memory_region_get_ram_ptr(&s->exchange_mr);
+    exchange = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->exchange_mr));
     exchange += s->record_offset;
 
     /* Validate CPER record_length */
@@ -918,7 +918,7 @@ static const MemoryRegionOps erst_reg_ops = {
 /*******************************************************************/
 static int erst_post_load(void *opaque, int version_id)
 {
-    ERSTDeviceState *s = opaque;
+    ERSTDeviceState *s = static_cast<ERSTDeviceState *>(opaque);
 
     /* Recompute pointer to header */
     s->header = (ERSTStorageHeader *)get_nvram_ptr_by_index(s, 0);
@@ -1042,8 +1042,8 @@ static void erst_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo erst_type_info = {
     .name          = TYPE_ACPI_ERST,
     .parent        = TYPE_PCI_DEVICE,
-    .class_init    = erst_class_init,
     .instance_size = sizeof(ERSTDeviceState),
+    .class_init    = erst_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }
