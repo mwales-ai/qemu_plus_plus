@@ -170,9 +170,17 @@ OBJECT_DECLARE_SIMPLE_TYPE(DBDMAState, MAC_DBDMA)
 
 /* Externally callable functions */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque);
 void DBDMA_kick(DBDMAState *dbdma);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

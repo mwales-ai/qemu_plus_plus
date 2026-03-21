@@ -383,7 +383,7 @@ static int cmd_set_port_settings(Rocker *r,
     }
 
     if (tlvs[ROCKER_TLV_CMD_PORT_SETTINGS_MODE]) {
-        mode = rocker_tlv_get_u8(tlvs[ROCKER_TLV_CMD_PORT_SETTINGS_MODE]);
+        mode = static_cast<rocker_world_type>(rocker_tlv_get_u8(tlvs[ROCKER_TLV_CMD_PORT_SETTINGS_MODE]));
         if (mode >= ROCKER_WORLD_TYPE_MAX) {
             return -ROCKER_EINVAL;
         }
@@ -656,7 +656,7 @@ int rx_produce(World *world, uint32_t pport,
      * generic helper iov_dma_write.
      */
 
-    data = g_malloc(data_size);
+    data = static_cast<char *>(g_malloc(data_size));
 
     iov_to_buf(iov, iovcnt, 0, data, data_size);
     pci_dma_write(dev, frag_addr, data, data_size);
@@ -700,7 +700,7 @@ static void rocker_test_dma_ctrl(Rocker *r, uint32_t val)
     char *buf;
     int i;
 
-    buf = g_malloc(r->test_dma_size);
+    buf = static_cast<char *>(g_malloc(r->test_dma_size));
 
     switch (val) {
     case ROCKER_TEST_DMA_CTRL_CLEAR:
@@ -754,7 +754,7 @@ static bool rocker_addr_is_desc_reg(Rocker *r, hwaddr addr)
     return addr >= start && addr < end;
 }
 
-static void rocker_port_phys_enable_write(Rocker *r, uint64_t new)
+static void rocker_port_phys_enable_write(Rocker *r, uint64_t new_val)
 {
     int i;
     bool old_enabled;
@@ -764,7 +764,7 @@ static void rocker_port_phys_enable_write(Rocker *r, uint64_t new)
     for (i = 0; i < r->fp_ports; i++) {
         fp_port = r->fp_port[i];
         old_enabled = fp_port_enabled(fp_port);
-        new_enabled = (new >> (i + 1)) & 0x1;
+        new_enabled = (new_val >> (i + 1)) & 0x1;
         if (new_enabled == old_enabled) {
             continue;
         }
@@ -778,7 +778,7 @@ static void rocker_port_phys_enable_write(Rocker *r, uint64_t new)
 
 static void rocker_io_writel(void *opaque, hwaddr addr, uint32_t val)
 {
-    Rocker *r = opaque;
+    Rocker *r = static_cast<Rocker *>(opaque);
 
     if (rocker_addr_is_desc_reg(r, addr)) {
         unsigned index = ROCKER_RING_INDEX(addr);
@@ -860,7 +860,7 @@ static void rocker_io_writel(void *opaque, hwaddr addr, uint32_t val)
 
 static void rocker_io_writeq(void *opaque, hwaddr addr, uint64_t val)
 {
-    Rocker *r = opaque;
+    Rocker *r = static_cast<Rocker *>(opaque);
 
     if (rocker_addr_is_desc_reg(r, addr)) {
         unsigned index = ROCKER_RING_INDEX(addr);
@@ -1028,7 +1028,7 @@ static uint64_t rocker_port_phys_enable_read(Rocker *r)
 
 static uint32_t rocker_io_readl(void *opaque, hwaddr addr)
 {
-    Rocker *r = opaque;
+    Rocker *r = static_cast<Rocker *>(opaque);
     uint32_t ret;
 
     if (rocker_addr_is_desc_reg(r, addr)) {
@@ -1119,7 +1119,7 @@ static uint32_t rocker_io_readl(void *opaque, hwaddr addr)
 
 static uint64_t rocker_io_readq(void *opaque, hwaddr addr)
 {
-    Rocker *r = opaque;
+    Rocker *r = static_cast<Rocker *>(opaque);
     uint64_t ret;
 
     if (rocker_addr_is_desc_reg(r, addr)) {

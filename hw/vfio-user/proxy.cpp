@@ -96,7 +96,7 @@ static VFIOUserMsg *vfio_user_getmsg(VFIOUserProxy *proxy, VFIOUserHdr *hdr,
     if (msg != NULL) {
         QTAILQ_REMOVE(&proxy->free, msg, next);
     } else {
-        msg = g_malloc0(sizeof(*msg));
+        msg = static_cast<VFIOUserMsg *>(g_malloc0(sizeof(*msg)));
         qemu_cond_init(&msg->cv);
     }
 
@@ -133,7 +133,7 @@ static void vfio_user_recycle(VFIOUserProxy *proxy, VFIOUserMsg *msg)
 
 VFIOUserFDs *vfio_user_getfds(int numfds)
 {
-    VFIOUserFDs *fds = g_malloc0(sizeof(*fds) + (numfds * sizeof(int)));
+    VFIOUserFDs *fds = static_cast<VFIOUserFDs *>(g_malloc0(sizeof(*fds) + (numfds * sizeof(int))));
 
     fds->fds = (int *)((char *)fds + sizeof(*fds));
 
@@ -336,14 +336,14 @@ static int vfio_user_recv_one(VFIOUserProxy *proxy, Error **errp)
             goto err;
         }
     } else {
-        void *buf;
+        VFIOUserHdr *buf;
 
         if (hdr.size > proxy->max_xfer_size + sizeof(VFIOUserDMARW)) {
             error_setg(errp, "vfio_user_recv request larger than max");
             goto err;
         }
 
-        buf = g_malloc0(hdr.size);
+        buf = static_cast<VFIOUserHdr *>(g_malloc0(hdr.size));
         msg = vfio_user_getmsg(proxy, buf, NULL);
         msg->type = VFIO_MSG_REQ;
     }
@@ -434,7 +434,7 @@ err:
 
 static void vfio_user_recv(void *opaque)
 {
-    VFIOUserProxy *proxy = opaque;
+    VFIOUserProxy *proxy = static_cast<VFIOUserProxy *>(opaque);
 
     QEMU_LOCK_GUARD(&proxy->lock);
 
@@ -485,7 +485,7 @@ static ssize_t vfio_user_send_one(VFIOUserProxy *proxy, Error **errp)
  */
 static void vfio_user_send(void *opaque)
 {
-    VFIOUserProxy *proxy = opaque;
+    VFIOUserProxy *proxy = static_cast<VFIOUserProxy *>(opaque);
 
     QEMU_LOCK_GUARD(&proxy->lock);
 
@@ -515,7 +515,7 @@ static void vfio_user_send(void *opaque)
 
 static void vfio_user_close_cb(void *opaque)
 {
-    VFIOUserProxy *proxy = opaque;
+    VFIOUserProxy *proxy = static_cast<VFIOUserProxy *>(opaque);
 
     QEMU_LOCK_GUARD(&proxy->lock);
 
@@ -544,23 +544,23 @@ static void vfio_user_close_cb(void *opaque)
  */
 static void vfio_user_request(void *opaque)
 {
-    VFIOUserProxy *proxy = opaque;
-    VFIOUserMsgQ new, free;
+    VFIOUserProxy *proxy = static_cast<VFIOUserProxy *>(opaque);
+    VFIOUserMsgQ new_msg, free;
     VFIOUserMsg *msg, *m1;
 
     /* reap all incoming */
-    QTAILQ_INIT(&new);
+    QTAILQ_INIT(&new_msg);
     WITH_QEMU_LOCK_GUARD(&proxy->lock) {
         QTAILQ_FOREACH_SAFE(msg, &proxy->incoming, next, m1) {
             QTAILQ_REMOVE(&proxy->incoming, msg, next);
-            QTAILQ_INSERT_TAIL(&new, msg, next);
+            QTAILQ_INSERT_TAIL(&new_msg, msg, next);
         }
     }
 
     /* process list */
     QTAILQ_INIT(&free);
-    QTAILQ_FOREACH_SAFE(msg, &new, next, m1) {
-        QTAILQ_REMOVE(&new, msg, next);
+    QTAILQ_FOREACH_SAFE(msg, &new_msg, next, m1) {
+        QTAILQ_REMOVE(&new_msg, msg, next);
         trace_vfio_user_recv_request(msg->hdr->command);
         proxy->request(proxy->req_arg, msg);
         QTAILQ_INSERT_HEAD(&free, msg, next);
@@ -914,7 +914,7 @@ VFIOUserProxy *vfio_user_connect_dev(SocketAddress *addr, Error **errp)
         goto fail;
     }
 
-    proxy = g_malloc0(sizeof(VFIOUserProxy));
+    proxy = static_cast<VFIOUserProxy *>(g_malloc0(sizeof(VFIOUserProxy)));
     proxy->sockname = g_strdup_printf("unix:%s", sockname);
     proxy->ioc = ioc;
 
@@ -1294,7 +1294,7 @@ bool vfio_user_validate_version(VFIOUserProxy *proxy, Error **errp)
     caps = caps_json();
     caplen = caps->len + 1;
     size = sizeof(*msgp) + caplen;
-    msgp = g_malloc0(size);
+    msgp = static_cast<VFIOUserVersion *>(g_malloc0(size));
 
     vfio_user_request_msg(&msgp->hdr, VFIO_USER_VERSION, size, 0);
     msgp->major = VFIO_USER_MAJOR_VER;
@@ -1359,7 +1359,7 @@ void vfio_user_create_multi(VFIOUserProxy *proxy)
 {
     VFIOUserWRMulti *wm;
 
-    wm = g_malloc0(sizeof(*wm));
+    wm = static_cast<VFIOUserWRMulti *>(g_malloc0(sizeof(*wm)));
     vfio_user_request_msg(&wm->hdr, VFIO_USER_REGION_WRITE_MULTI,
                           sizeof(*wm), VFIO_USER_NO_REPLY);
     proxy->wr_multi = wm;

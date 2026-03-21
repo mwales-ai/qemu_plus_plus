@@ -1,1 +1,1 @@
-system_ss.add(when: 'CONFIG_UFS_PCI', if_true: files('ufs.c', 'lu.cpp'))
+system_ss.add(when: 'CONFIG_UFS_PCI', if_true: files('ufs.cpp', 'lu.cpp'))

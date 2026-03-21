@@ -52,7 +52,8 @@ static inline int rocker_tlv_ok(const RockerTlv *tlv, int remaining)
          pos = rocker_tlv_next(pos, &(rem)))
 
 #define rocker_tlv_for_each_nested(pos, tlv, rem) \
-        rocker_tlv_for_each(pos, rocker_tlv_data(tlv), rocker_tlv_len(tlv), rem)
+        rocker_tlv_for_each(pos, (RockerTlv *)rocker_tlv_data(tlv), \
+                            rocker_tlv_len(tlv), rem)
 
 static inline int rocker_tlv_size(int payload)
 {
@@ -140,7 +141,8 @@ static inline void rocker_tlv_parse(RockerTlv **tb, int maxtype,
 static inline void rocker_tlv_parse_nested(RockerTlv **tb, int maxtype,
                                            const RockerTlv *tlv)
 {
-    rocker_tlv_parse(tb, maxtype, rocker_tlv_data(tlv), rocker_tlv_len(tlv));
+    rocker_tlv_parse(tb, maxtype, (const char *)rocker_tlv_data(tlv),
+                     rocker_tlv_len(tlv));
 }
 
 static inline RockerTlv *rocker_tlv_start(char *buf, int buf_pos)

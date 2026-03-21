@@ -5,7 +5,7 @@ vfio_user_ss.add(files(
   'container.cpp',
   'device.cpp',
   'pci.cpp',
-  'proxy.c',
+  'proxy.cpp',
 ))
 
 system_ss.add_all(when: 'CONFIG_VFIO_USER', if_true: vfio_user_ss)

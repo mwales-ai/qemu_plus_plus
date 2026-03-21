@@ -112,7 +112,7 @@ static bool rtc_policy_slew_deliver_irq(MC146818RtcState *s)
 
 static void rtc_coalesced_timer(void *opaque)
 {
-    MC146818RtcState *s = opaque;
+    MC146818RtcState *s = static_cast<MC146818RtcState *>(opaque);
 
     if (s->irq_coalesced != 0) {
         s->cmos_data[RTC_REG_C] |= 0xc0;
@@ -221,7 +221,7 @@ static void periodic_timer_update(MC146818RtcState *s, int64_t current_time,
 
 static void rtc_periodic_timer(void *opaque)
 {
-    MC146818RtcState *s = opaque;
+    MC146818RtcState *s = static_cast<MC146818RtcState *>(opaque);
 
     periodic_timer_update(s, s->next_periodic_time, s->period, false);
     s->cmos_data[RTC_REG_C] |= REG_C_PF;
@@ -397,7 +397,7 @@ static uint64_t get_next_alarm(MC146818RtcState *s)
 
 static void rtc_update_timer(void *opaque)
 {
-    MC146818RtcState *s = opaque;
+    MC146818RtcState *s = static_cast<MC146818RtcState *>(opaque);
     int32_t irqs = REG_C_UF;
     int32_t new_irqs;
 
@@ -426,7 +426,7 @@ static void rtc_update_timer(void *opaque)
 static void cmos_ioport_write(void *opaque, hwaddr addr,
                               uint64_t data, unsigned size)
 {
-    MC146818RtcState *s = opaque;
+    MC146818RtcState *s = static_cast<MC146818RtcState *>(opaque);
     uint32_t old_period;
     bool update_periodic_timer;
 
@@ -664,7 +664,7 @@ static int update_in_progress(MC146818RtcState *s)
 static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    MC146818RtcState *s = opaque;
+    MC146818RtcState *s = static_cast<MC146818RtcState *>(opaque);
     int ret;
     if ((addr & 1) == 0) {
         return 0xff;
@@ -753,7 +753,7 @@ static void rtc_set_date_from_host(ISADevice *dev)
 
 static int rtc_pre_save(void *opaque)
 {
-    MC146818RtcState *s = opaque;
+    MC146818RtcState *s = static_cast<MC146818RtcState *>(opaque);
 
     rtc_update_time(s);
 
@@ -762,7 +762,7 @@ static int rtc_pre_save(void *opaque)
 
 static int rtc_post_load(void *opaque, int version_id)
 {
-    MC146818RtcState *s = opaque;
+    MC146818RtcState *s = static_cast<MC146818RtcState *>(opaque);
 
     if (version_id <= 2 || rtc_clock == QEMU_CLOCK_REALTIME) {
         rtc_set_time(s);
@@ -797,43 +797,49 @@ static bool rtc_irq_reinject_on_ack_count_needed(void *opaque)
     return s->irq_reinject_on_ack_count != 0;
 }
 
+static const VMStateField vmstate_rtc_irq_reinject_on_ack_count_fields[] = {
+    VMSTATE_UINT16(irq_reinject_on_ack_count, MC146818RtcState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_rtc_irq_reinject_on_ack_count = {
     .name = "mc146818rtc/irq_reinject_on_ack_count",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = rtc_irq_reinject_on_ack_count_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(irq_reinject_on_ack_count, MC146818RtcState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rtc_irq_reinject_on_ack_count_fields,
+};
+
+static const VMStateField vmstate_rtc_fields[] = {
+    VMSTATE_BUFFER(cmos_data, MC146818RtcState),
+    VMSTATE_UINT8(cmos_index, MC146818RtcState),
+    VMSTATE_UNUSED(7*4),
+    VMSTATE_TIMER_PTR(periodic_timer, MC146818RtcState),
+    VMSTATE_INT64(next_periodic_time, MC146818RtcState),
+    VMSTATE_UNUSED(3*8),
+    VMSTATE_UINT32(irq_coalesced, MC146818RtcState),
+    VMSTATE_UINT32(period, MC146818RtcState),
+    VMSTATE_UINT64(base_rtc, MC146818RtcState),
+    VMSTATE_UINT64(last_update, MC146818RtcState),
+    VMSTATE_INT64(offset, MC146818RtcState),
+    VMSTATE_TIMER_PTR(update_timer, MC146818RtcState),
+    VMSTATE_UINT64(next_alarm_time, MC146818RtcState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_rtc_subsections[] = {
+    &vmstate_rtc_irq_reinject_on_ack_count,
+    NULL
 };
 
 static const VMStateDescription vmstate_rtc = {
     .name = "mc146818rtc",
     .version_id = 3,
     .minimum_version_id = 3,
-    .pre_save = rtc_pre_save,
     .post_load = rtc_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(cmos_data, MC146818RtcState),
-        VMSTATE_UINT8(cmos_index, MC146818RtcState),
-        VMSTATE_UNUSED(7*4),
-        VMSTATE_TIMER_PTR(periodic_timer, MC146818RtcState),
-        VMSTATE_INT64(next_periodic_time, MC146818RtcState),
-        VMSTATE_UNUSED(3*8),
-        VMSTATE_UINT32(irq_coalesced, MC146818RtcState),
-        VMSTATE_UINT32(period, MC146818RtcState),
-        VMSTATE_UINT64(base_rtc, MC146818RtcState),
-        VMSTATE_UINT64(last_update, MC146818RtcState),
-        VMSTATE_INT64(offset, MC146818RtcState),
-        VMSTATE_TIMER_PTR(update_timer, MC146818RtcState),
-        VMSTATE_UINT64(next_alarm_time, MC146818RtcState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_rtc_irq_reinject_on_ack_count,
-        NULL
-    }
+    .pre_save = rtc_pre_save,
+    .fields = vmstate_rtc_fields,
+    .subsections = vmstate_rtc_subsections,
 };
 
 /* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
@@ -848,11 +854,11 @@ static void rtc_notify_suspend(Notifier *notifier, void *data)
 static const MemoryRegionOps cmos_ops = {
     .read = cmos_ioport_read,
     .write = cmos_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void rtc_get_date(Object *obj, struct tm *current_tm, Error **errp)
@@ -1023,15 +1029,17 @@ static void rtc_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
+static const InterfaceInfo mc146818rtc_interfaces[] = {
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
+};
+
 static const TypeInfo mc146818rtc_info = {
     .name          = TYPE_MC146818_RTC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(MC146818RtcState),
     .class_init    = rtc_class_initfn,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+    .interfaces    = mc146818rtc_interfaces,
 };
 
 static void mc146818rtc_register_types(void)

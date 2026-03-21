@@ -78,10 +78,10 @@ static struct {
     uint64_t current_speed;
     uint64_t processor_id;
 } type4 = {
+    .processor_family = 0x01, /* Other */
     .max_speed = DEFAULT_CPU_SPEED,
     .current_speed = DEFAULT_CPU_SPEED,
     .processor_id = 0,
-    .processor_family = 0x01, /* Other */
 };
 
 struct type8_instance {
@@ -1110,7 +1110,7 @@ static bool smbios_get_tables_ep(MachineState *ms,
 
     g_free(smbios_tables);
     smbios_type4_count = 0;
-    smbios_tables = g_memdup2(usr_blobs, usr_blobs_len);
+    smbios_tables = static_cast<uint8_t *>(g_memdup2(usr_blobs, usr_blobs_len));
     smbios_tables_len = usr_blobs_len;
     smbios_table_max = usr_table_max;
     smbios_table_cnt = usr_table_cnt;
@@ -1264,7 +1264,7 @@ static int save_opt_one(void *opaque,
                         const char *name, const char *value,
                         Error **errp)
 {
-    struct opt_list *opt = opaque;
+    struct opt_list *opt = static_cast<struct opt_list *>(opaque);
 
     if (g_str_equal(name, "path")) {
         g_autoptr(GByteArray) data = g_byte_array_new();
@@ -1351,7 +1351,7 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
          * (except in legacy mode, where the second '\0' is implicit and
          *  will be inserted by the BIOS).
          */
-        usr_blobs = g_realloc(usr_blobs, usr_blobs_len + size);
+        usr_blobs = static_cast<uint8_t *>(g_realloc(usr_blobs, usr_blobs_len + size));
         header = (struct smbios_structure_header *)(usr_blobs +
                                                     usr_blobs_len);
 

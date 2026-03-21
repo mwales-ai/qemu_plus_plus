@@ -4,7 +4,7 @@ uefi_vars_ss = ss.source_set()
 if (config_all_devices.has_key('CONFIG_UEFI_VARS'))
   uefi_vars_ss.add(files('var-service-core.cpp',
                          'var-service-json.cpp',
-                         'var-service-vars.c',
+                         'var-service-vars.cpp',
                          'var-service-auth.cpp',
                          'var-service-guid.cpp',
                          'var-service-utils.cpp',

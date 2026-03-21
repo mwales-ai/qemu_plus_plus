@@ -69,7 +69,10 @@
 
 static DBDMAState *dbdma_from_ch(DBDMA_channel *ch)
 {
-    return container_of(ch, DBDMAState, channels[ch->channel]);
+    return reinterpret_cast<DBDMAState *>(
+        reinterpret_cast<char *>(ch) -
+        offsetof(DBDMAState, channels) -
+        ch->channel * sizeof(DBDMA_channel));
 }
 
 #if DEBUG_DBDMA
@@ -278,7 +281,7 @@ static void channel_run(DBDMA_channel *ch);
 
 static void dbdma_end(DBDMA_io *io)
 {
-    DBDMA_channel *ch = io->channel;
+    DBDMA_channel *ch = static_cast<DBDMA_channel *>(io->channel);
     dbdma_cmd *current = &ch->current;
 
     DBDMA_DPRINTFCH(ch, "%s\n", __func__);
@@ -550,7 +553,7 @@ static void DBDMA_run(DBDMAState *s)
 
 static void DBDMA_run_bh(void *opaque)
 {
-    DBDMAState *s = opaque;
+    DBDMAState *s = static_cast<DBDMAState *>(opaque);
 
     DBDMA_DPRINTF("-> DBDMA_run_bh\n");
     DBDMA_run(s);
@@ -566,7 +569,7 @@ void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque)
 {
-    DBDMAState *s = dbdma;
+    DBDMAState *s = static_cast<DBDMAState *>(dbdma);
     DBDMA_channel *ch = &s->channels[nchan];
 
     DBDMA_DPRINTFCH(ch, "DBDMA_register_channel 0x%x\n", nchan);
@@ -700,7 +703,7 @@ static void dbdma_write(void *opaque, hwaddr addr,
                         uint64_t value, unsigned size)
 {
     int channel = addr >> DBDMA_CHANNEL_SHIFT;
-    DBDMAState *s = opaque;
+    DBDMAState *s = static_cast<DBDMAState *>(opaque);
     DBDMA_channel *ch = &s->channels[channel];
     int reg = (addr - (channel << DBDMA_CHANNEL_SHIFT)) >> 2;
 
@@ -752,7 +755,7 @@ static uint64_t dbdma_read(void *opaque, hwaddr addr,
 {
     uint32_t value;
     int channel = addr >> DBDMA_CHANNEL_SHIFT;
-    DBDMAState *s = opaque;
+    DBDMAState *s = static_cast<DBDMAState *>(opaque);
     DBDMA_channel *ch = &s->channels[channel];
     int reg = (addr - (channel << DBDMA_CHANNEL_SHIFT)) >> 2;
 
@@ -797,63 +800,68 @@ static const MemoryRegionOps dbdma_ops = {
     .read = dbdma_read,
     .write = dbdma_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
+};
+
+static const VMStateField vmstate_dbdma_io_fields[] = {
+    VMSTATE_UINT64(addr, struct DBDMA_io),
+    VMSTATE_INT32(len, struct DBDMA_io),
+    VMSTATE_INT32(is_last, struct DBDMA_io),
+    VMSTATE_INT32(is_dma_out, struct DBDMA_io),
+    VMSTATE_BOOL(processing, struct DBDMA_io),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_dbdma_io = {
     .name = "dbdma_io",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(addr, struct DBDMA_io),
-        VMSTATE_INT32(len, struct DBDMA_io),
-        VMSTATE_INT32(is_last, struct DBDMA_io),
-        VMSTATE_INT32(is_dma_out, struct DBDMA_io),
-        VMSTATE_BOOL(processing, struct DBDMA_io),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dbdma_io_fields,
+};
+
+static const VMStateField vmstate_dbdma_cmd_fields[] = {
+    VMSTATE_UINT16(req_count, dbdma_cmd),
+    VMSTATE_UINT16(command, dbdma_cmd),
+    VMSTATE_UINT32(phy_addr, dbdma_cmd),
+    VMSTATE_UINT32(cmd_dep, dbdma_cmd),
+    VMSTATE_UINT16(res_count, dbdma_cmd),
+    VMSTATE_UINT16(xfer_status, dbdma_cmd),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_dbdma_cmd = {
     .name = "dbdma_cmd",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(req_count, dbdma_cmd),
-        VMSTATE_UINT16(command, dbdma_cmd),
-        VMSTATE_UINT32(phy_addr, dbdma_cmd),
-        VMSTATE_UINT32(cmd_dep, dbdma_cmd),
-        VMSTATE_UINT16(res_count, dbdma_cmd),
-        VMSTATE_UINT16(xfer_status, dbdma_cmd),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dbdma_cmd_fields,
+};
+
+static const VMStateField vmstate_dbdma_channel_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, struct DBDMA_channel, DBDMA_REGS),
+    VMSTATE_STRUCT(io, struct DBDMA_channel, 0, vmstate_dbdma_io, DBDMA_io),
+    VMSTATE_STRUCT(current, struct DBDMA_channel, 0, vmstate_dbdma_cmd,
+                   dbdma_cmd),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_dbdma_channel = {
     .name = "dbdma_channel",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, struct DBDMA_channel, DBDMA_REGS),
-        VMSTATE_STRUCT(io, struct DBDMA_channel, 0, vmstate_dbdma_io, DBDMA_io),
-        VMSTATE_STRUCT(current, struct DBDMA_channel, 0, vmstate_dbdma_cmd,
-                       dbdma_cmd),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dbdma_channel_fields,
+};
+
+static const VMStateField vmstate_dbdma_fields[] = {
+    VMSTATE_STRUCT_ARRAY(channels, DBDMAState, DBDMA_CHANNELS, 1,
+                         vmstate_dbdma_channel, DBDMA_channel),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_dbdma = {
     .name = "dbdma",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(channels, DBDMAState, DBDMA_CHANNELS, 1,
-                             vmstate_dbdma_channel, DBDMA_channel),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dbdma_fields,
 };
 
 static void mac_dbdma_reset(DeviceState *d)
@@ -868,7 +876,7 @@ static void mac_dbdma_reset(DeviceState *d)
 
 static void dbdma_unassigned_rw(DBDMA_io *io)
 {
-    DBDMA_channel *ch = io->channel;
+    DBDMA_channel *ch = static_cast<DBDMA_channel *>(io->channel);
     dbdma_cmd *current = &ch->current;
     uint16_t cmd;
     qemu_log_mask(LOG_GUEST_ERROR, "%s: use of unassigned channel %d\n",
@@ -886,7 +894,7 @@ static void dbdma_unassigned_rw(DBDMA_io *io)
 
 static void dbdma_unassigned_flush(DBDMA_io *io)
 {
-    DBDMA_channel *ch = io->channel;
+    DBDMA_channel *ch = static_cast<DBDMA_channel *>(io->channel);
     qemu_log_mask(LOG_GUEST_ERROR, "%s: use of unassigned channel %d\n",
                   __func__, ch->channel);
 }

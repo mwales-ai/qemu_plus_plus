@@ -237,7 +237,7 @@ static void kbd_safe_update_irq(KBDState *s)
 
 static void kbd_update_kbd_irq(void *opaque, int level)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     if (level) {
         s->pending |= KBD_PENDING_KBD;
@@ -249,7 +249,7 @@ static void kbd_update_kbd_irq(void *opaque, int level)
 
 static void kbd_update_aux_irq(void *opaque, int level)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     if (level) {
         s->pending |= KBD_PENDING_AUX;
@@ -261,7 +261,7 @@ static void kbd_update_aux_irq(void *opaque, int level)
 
 static void kbd_throttle_timeout(void *opaque)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     if (kbd_pending(s)) {
         kbd_update_irq(s);
@@ -271,7 +271,7 @@ static void kbd_throttle_timeout(void *opaque)
 static uint64_t kbd_read_status(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
     int val;
     val = s->status;
     trace_pckbd_kbd_read_status(val);
@@ -314,7 +314,7 @@ static void outport_write(KBDState *s, uint32_t val)
 static void kbd_write_command(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     trace_pckbd_kbd_write_command(val);
 
@@ -399,7 +399,7 @@ static void kbd_write_command(void *opaque, hwaddr addr,
 static uint64_t kbd_read_data(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     if (s->status & KBD_STAT_OBF) {
         kbd_deassert_irq(s);
@@ -423,7 +423,7 @@ static uint64_t kbd_read_data(void *opaque, hwaddr addr,
 static void kbd_write_data(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     trace_pckbd_kbd_write_data(val);
 
@@ -472,7 +472,7 @@ static void kbd_write_data(void *opaque, hwaddr addr,
 
 static void kbd_reset(void *opaque)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     s->mode = KBD_MODE_KBD_INT | KBD_MODE_MOUSE_INT;
     s->status = KBD_STAT_CMD | KBD_STAT_UNLOCKED;
@@ -493,14 +493,14 @@ static uint8_t kbd_outport_default(KBDState *s)
 
 static int kbd_outport_post_load(void *opaque, int version_id)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
     s->outport_present = true;
     return 0;
 }
 
 static bool kbd_outport_needed(void *opaque)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
     return s->outport != kbd_outport_default(s);
 }
 
@@ -518,7 +518,7 @@ static const VMStateDescription vmstate_kbd_outport = {
 
 static int kbd_extended_state_pre_save(void *opaque)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     s->migration_flags = 0;
     if (s->throttle_timer && timer_pending(s->throttle_timer)) {
@@ -530,7 +530,7 @@ static int kbd_extended_state_pre_save(void *opaque)
 
 static int kbd_extended_state_post_load(void *opaque, int version_id)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     if (s->migration_flags & KBD_MIGR_TIMER_PENDING) {
         kbd_throttle_timeout(s);
@@ -542,7 +542,7 @@ static int kbd_extended_state_post_load(void *opaque, int version_id)
 
 static bool kbd_extended_state_needed(void *opaque)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     return s->extended_state;
 }
@@ -563,7 +563,7 @@ static const VMStateDescription vmstate_kbd_extended_state = {
 
 static int kbd_pre_save(void *opaque)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     if (s->extended_state) {
         s->pending_tmp = s->pending;
@@ -581,7 +581,7 @@ static int kbd_pre_save(void *opaque)
 
 static int kbd_pre_load(void *opaque)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     s->outport_present = false;
     s->extended_state_loaded = false;
@@ -590,7 +590,7 @@ static int kbd_pre_load(void *opaque)
 
 static int kbd_post_load(void *opaque, int version_id)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
     if (!s->outport_present) {
         s->outport = kbd_outport_default(s);
     }
@@ -636,7 +636,7 @@ static const VMStateDescription vmstate_kbd = {
 /* Memory mapped interface */
 static uint64_t kbd_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     if (addr & s->mask) {
         return kbd_read_status(s, 0, 1) & 0xff;
@@ -648,7 +648,7 @@ static uint64_t kbd_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 static void kbd_mm_writefn(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    KBDState *s = opaque;
+    KBDState *s = static_cast<KBDState *>(opaque);
 
     if (addr & s->mask) {
         kbd_write_command(s, 0, value & 0xff, 1);
@@ -661,8 +661,8 @@ static void kbd_mm_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps i8042_mmio_ops = {
     .read = kbd_mm_readfn,
     .write = kbd_mm_writefn,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void i8042_mmio_set_kbd_irq(void *opaque, int n, int level)
@@ -763,8 +763,8 @@ static void i8042_mmio_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo i8042_mmio_info = {
     .name          = TYPE_I8042_MMIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = i8042_mmio_init,
     .instance_size = sizeof(MMIOKBDState),
+    .instance_init = i8042_mmio_init,
     .class_init    = i8042_mmio_class_init
 };
 
@@ -788,21 +788,21 @@ static const VMStateDescription vmstate_kbd_isa = {
 static const MemoryRegionOps i8042_data_ops = {
     .read = kbd_read_data,
     .write = kbd_write_data,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps i8042_cmd_ops = {
     .read = kbd_read_status,
     .write = kbd_write_command,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void i8042_set_kbd_irq(void *opaque, int n, int level)

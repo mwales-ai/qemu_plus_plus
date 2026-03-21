@@ -9,7 +9,7 @@ remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iohub.cpp'))
 remote_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('iommu.cpp'))
 
 remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: libvfio_user_dep)
-remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: files('vfio-user-obj.c'),
+remote_ss.add(when: 'CONFIG_VFIO_USER_SERVER', if_true: files('vfio-user-obj.cpp'),
               if_false: files('vfio-user-obj-stub.cpp'))
 
 specific_ss.add(when: 'CONFIG_MULTIPROCESS', if_true: files('memory.cpp'))

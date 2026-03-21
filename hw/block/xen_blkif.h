@@ -4,6 +4,12 @@
 #include "hw/xen/interface/io/blkif.h"
 #include "hw/xen/interface/io/protocols.h"
 
+#ifdef __cplusplus
+#define XEN_BLKIF_CAST(type, expr) reinterpret_cast<type>(expr)
+#else
+#define XEN_BLKIF_CAST(type, expr) ((type)(expr))
+#endif
+
 /*
  * Not a real protocol.  Used to generate ring structs which contain
  * the elements common to all protocols only.  This way we get a
@@ -103,8 +109,10 @@ static inline void blkif_get_x86_32_req(blkif_request_t *dst,
     /* Prevent the compiler from using src->... instead. */
     barrier();
     if (dst->operation == BLKIF_OP_DISCARD) {
-        struct blkif_x86_32_request_discard *s = (void *)src;
-        struct blkif_request_discard *d = (void *)dst;
+        struct blkif_x86_32_request_discard *s =
+            XEN_BLKIF_CAST(struct blkif_x86_32_request_discard *, src);
+        struct blkif_request_discard *d =
+            XEN_BLKIF_CAST(struct blkif_request_discard *, dst);
         d->nr_sectors = s->nr_sectors;
         return;
     }
@@ -129,8 +137,10 @@ static inline void blkif_get_x86_64_req(blkif_request_t *dst,
     /* Prevent the compiler from using src->... instead. */
     barrier();
     if (dst->operation == BLKIF_OP_DISCARD) {
-        struct blkif_x86_64_request_discard *s = (void *)src;
-        struct blkif_request_discard *d = (void *)dst;
+        struct blkif_x86_64_request_discard *s =
+            XEN_BLKIF_CAST(struct blkif_x86_64_request_discard *, src);
+        struct blkif_request_discard *d =
+            XEN_BLKIF_CAST(struct blkif_request_discard *, dst);
         d->nr_sectors = s->nr_sectors;
         return;
     }

@@ -14,6 +14,10 @@
 
 typedef struct XenBlockDataPlane XenBlockDataPlane;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 XenBlockDataPlane *xen_block_dataplane_create(XenDevice *xendev,
                                               BlockBackend *blk,
                                               unsigned int sector_size,
@@ -28,5 +32,9 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
 void xen_block_dataplane_stop(XenBlockDataPlane *dataplane);
 void xen_block_dataplane_attach(XenBlockDataPlane *dataplane);
 void xen_block_dataplane_detach(XenBlockDataPlane *dataplane);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_BLOCK_DATAPLANE_XEN_BLOCK_H */

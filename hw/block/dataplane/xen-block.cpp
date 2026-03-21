@@ -96,7 +96,7 @@ static XenBlockRequest *xen_block_start_request(XenBlockDataPlane *dataplane)
             goto out;
         }
         /* allocate new struct */
-        request = g_malloc0(sizeof(*request));
+        request = static_cast<XenBlockRequest *>(g_malloc0(sizeof(*request)));
         request->dataplane = dataplane;
         /*
          * We cannot need more pages per requests than this, and since we
@@ -214,7 +214,7 @@ static int xen_block_copy_request(XenBlockRequest *request)
     XenDeviceGrantCopySegment segs[BLKIF_MAX_SEGMENTS_PER_REQUEST];
     int i, count;
     bool to_domain = (request->req.operation == BLKIF_OP_READ);
-    void *virt = request->buf;
+    char *virt = static_cast<char *>(request->buf);
     Error *local_err = NULL;
 
     if (request->req.nr_segments == 0) {
@@ -257,7 +257,7 @@ static int xen_block_do_aio(XenBlockRequest *request);
 
 static void xen_block_complete_aio(void *opaque, int ret)
 {
-    XenBlockRequest *request = opaque;
+    XenBlockRequest *request = static_cast<XenBlockRequest *>(opaque);
     XenBlockDataPlane *dataplane = request->dataplane;
 
     if (ret != 0) {
@@ -375,7 +375,8 @@ static int xen_block_do_aio(XenBlockRequest *request)
         block_acct_start(blk_get_stats(dataplane->blk), &request->acct,
                          request->v.size, BLOCK_ACCT_READ);
         request->aio_inflight++;
-        blk_aio_preadv(dataplane->blk, request->start, &request->v, 0,
+        blk_aio_preadv(dataplane->blk, request->start, &request->v,
+                       static_cast<BdrvRequestFlags>(0),
                        xen_block_complete_aio, request);
         break;
     case BLKIF_OP_WRITE:
@@ -390,12 +391,13 @@ static int xen_block_do_aio(XenBlockRequest *request)
                          request->req.operation == BLKIF_OP_WRITE ?
                          BLOCK_ACCT_WRITE : BLOCK_ACCT_FLUSH);
         request->aio_inflight++;
-        blk_aio_pwritev(dataplane->blk, request->start, &request->v, 0,
+        blk_aio_pwritev(dataplane->blk, request->start, &request->v,
+                        static_cast<BdrvRequestFlags>(0),
                         xen_block_complete_aio, request);
         break;
     case BLKIF_OP_DISCARD:
     {
-        struct blkif_request_discard *req = (void *)&request->req;
+        struct blkif_request_discard *req = reinterpret_cast<struct blkif_request_discard *>(&request->req);
         if (!xen_block_split_discard(request, req->sector_number,
                                      req->nr_sectors)) {
             goto err;
@@ -594,14 +596,14 @@ static bool xen_block_handle_requests(XenBlockDataPlane *dataplane)
 
 static void xen_block_dataplane_bh(void *opaque)
 {
-    XenBlockDataPlane *dataplane = opaque;
+    XenBlockDataPlane *dataplane = static_cast<XenBlockDataPlane *>(opaque);
 
     xen_block_handle_requests(dataplane);
 }
 
 static bool xen_block_dataplane_event(void *opaque)
 {
-    XenBlockDataPlane *dataplane = opaque;
+    XenBlockDataPlane *dataplane = static_cast<XenBlockDataPlane *>(opaque);
 
     return xen_block_handle_requests(dataplane);
 }
@@ -795,14 +797,14 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
     switch (dataplane->protocol) {
     case BLKIF_PROTOCOL_NATIVE:
     {
-        blkif_sring_t *sring_native = dataplane->sring;
+        blkif_sring_t *sring_native = static_cast<blkif_sring_t *>(dataplane->sring);
 
         BACK_RING_INIT(&dataplane->rings.native, sring_native, ring_size);
         break;
     }
     case BLKIF_PROTOCOL_X86_32:
     {
-        blkif_x86_32_sring_t *sring_x86_32 = dataplane->sring;
+        blkif_x86_32_sring_t *sring_x86_32 = static_cast<blkif_x86_32_sring_t *>(dataplane->sring);
 
         BACK_RING_INIT(&dataplane->rings.x86_32_part, sring_x86_32,
                        ring_size);
@@ -810,7 +812,7 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
     }
     case BLKIF_PROTOCOL_X86_64:
     {
-        blkif_x86_64_sring_t *sring_x86_64 = dataplane->sring;
+        blkif_x86_64_sring_t *sring_x86_64 = static_cast<blkif_x86_64_sring_t *>(dataplane->sring);
 
         BACK_RING_INIT(&dataplane->rings.x86_64_part, sring_x86_64,
                        ring_size);

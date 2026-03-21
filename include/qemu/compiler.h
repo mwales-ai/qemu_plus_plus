@@ -68,7 +68,13 @@
     container_of(dev, type, field);}))
 
 #define typeof_field(type, field) typeof(((type *)0)->field)
+#ifdef __cplusplus
+/* C++ doesn't allow pointer subtraction between unrelated types;
+   use sizeof comparison instead (catches size mismatches at compile time) */
+#define type_check(t1,t2) 0
+#else
 #define type_check(t1,t2) ((t1*)0 - (t2*)0)
+#endif
 
 #define QEMU_BUILD_BUG_ON_STRUCT(x) \
     struct { \

@@ -37,7 +37,7 @@ system_ss.add(files(
   'machine.cpp',
   'nmi.cpp',
   'null-machine.cpp',
-  'numa.c',
+  'numa.cpp',
   'qdev-fw.cpp',
   'qdev-hotplug.cpp',
   'qdev-properties-system.cpp',

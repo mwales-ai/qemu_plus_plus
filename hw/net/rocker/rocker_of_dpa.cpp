@@ -297,8 +297,8 @@ static void of_dpa_flow_key_dump(OfDpaFlowKey *key, OfDpaFlowKey *mask)
 
 static void _of_dpa_flow_match(void *key, void *value, void *user_data)
 {
-    OfDpaFlow *flow = value;
-    OfDpaFlowMatch *match = user_data;
+    OfDpaFlow *flow = static_cast<OfDpaFlow *>(value);
+    OfDpaFlowMatch *match = static_cast<OfDpaFlowMatch *>(user_data);
     uint64_t *k = (uint64_t *)&flow->key;
     uint64_t *m = (uint64_t *)&flow->mask;
     uint64_t *v = (uint64_t *)&match->value;
@@ -339,7 +339,7 @@ static OfDpaFlow *of_dpa_flow_match(OfDpa *of_dpa, OfDpaFlowMatch *match)
 
 static OfDpaFlow *of_dpa_flow_find(OfDpa *of_dpa, uint64_t cookie)
 {
-    return g_hash_table_lookup(of_dpa->flow_tbl, &cookie);
+    return static_cast<OfDpaFlow *>(g_hash_table_lookup(of_dpa->flow_tbl, &cookie));
 }
 
 static int of_dpa_flow_add(OfDpa *of_dpa, OfDpaFlow *flow)
@@ -392,7 +392,7 @@ static void of_dpa_flow_pkt_parse(OfDpaFlowContext *fc,
         return;
     }
 
-    fields->ethhdr = iov->iov_base;
+    fields->ethhdr = static_cast<struct eth_header *>(iov->iov_base);
     fields->h_proto = &fields->ethhdr->h_proto;
 
     if (ntohs(*fields->h_proto) == ETH_P_VLAN) {
@@ -751,7 +751,7 @@ static void of_dpa_drop(OfDpaFlowContext *fc)
 static OfDpaGroup *of_dpa_group_find(OfDpa *of_dpa,
                                               uint32_t group_id)
 {
-    return g_hash_table_lookup(of_dpa->group_tbl, &group_id);
+    return static_cast<OfDpaGroup *>(g_hash_table_lookup(of_dpa->group_tbl, &group_id));
 }
 
 static int of_dpa_group_add(OfDpa *of_dpa, OfDpaGroup *group)
@@ -942,51 +942,77 @@ typedef struct of_dpa_flow_tbl_ops {
     void (*action_write)(OfDpaFlowContext *fc, OfDpaFlow *flow);
 } OfDpaFlowTblOps;
 
-static OfDpaFlowTblOps of_dpa_tbl_ops[] = {
-    [ROCKER_OF_DPA_TABLE_ID_INGRESS_PORT] = {
-        .build_match = of_dpa_ig_port_build_match,
-        .miss = of_dpa_ig_port_miss,
-        .hit_no_goto = of_dpa_drop,
-    },
-    [ROCKER_OF_DPA_TABLE_ID_VLAN] = {
-        .build_match = of_dpa_vlan_build_match,
-        .hit_no_goto = of_dpa_drop,
-        .action_apply = of_dpa_vlan_insert,
-    },
-    [ROCKER_OF_DPA_TABLE_ID_TERMINATION_MAC] = {
-        .build_match = of_dpa_term_mac_build_match,
-        .miss = of_dpa_term_mac_miss,
-        .hit_no_goto = of_dpa_drop,
-        .action_apply = of_dpa_apply_actions,
-    },
-    [ROCKER_OF_DPA_TABLE_ID_BRIDGING] = {
-        .build_match = of_dpa_bridging_build_match,
-        .hit = of_dpa_bridging_learn,
-        .miss = of_dpa_bridging_miss,
-        .hit_no_goto = of_dpa_drop,
-        .action_apply = of_dpa_apply_actions,
-        .action_write = of_dpa_bridging_action_write,
-    },
-    [ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING] = {
-        .build_match = of_dpa_unicast_routing_build_match,
-        .miss = of_dpa_unicast_routing_miss,
-        .hit_no_goto = of_dpa_drop,
-        .action_write = of_dpa_unicast_routing_action_write,
-    },
-    [ROCKER_OF_DPA_TABLE_ID_MULTICAST_ROUTING] = {
-        .build_match = of_dpa_multicast_routing_build_match,
-        .miss = of_dpa_multicast_routing_miss,
-        .hit_no_goto = of_dpa_drop,
-        .action_write = of_dpa_multicast_routing_action_write,
-    },
-    [ROCKER_OF_DPA_TABLE_ID_ACL_POLICY] = {
-        .build_match = of_dpa_acl_build_match,
-        .hit = of_dpa_acl_hit,
-        .miss = of_dpa_eg,
-        .action_apply = of_dpa_apply_actions,
-        .action_write = of_dpa_acl_action_write,
-    },
-};
+static OfDpaFlowTblOps of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_ACL_POLICY + 1];
+
+static void __attribute__((constructor)) of_dpa_tbl_ops_init(void)
+{
+    memset(of_dpa_tbl_ops, 0, sizeof(of_dpa_tbl_ops));
+
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_INGRESS_PORT].build_match =
+        of_dpa_ig_port_build_match;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_INGRESS_PORT].miss =
+        of_dpa_ig_port_miss;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_INGRESS_PORT].hit_no_goto =
+        of_dpa_drop;
+
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_VLAN].build_match =
+        of_dpa_vlan_build_match;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_VLAN].hit_no_goto =
+        of_dpa_drop;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_VLAN].action_apply =
+        of_dpa_vlan_insert;
+
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_TERMINATION_MAC].build_match =
+        of_dpa_term_mac_build_match;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_TERMINATION_MAC].miss =
+        of_dpa_term_mac_miss;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_TERMINATION_MAC].hit_no_goto =
+        of_dpa_drop;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_TERMINATION_MAC].action_apply =
+        of_dpa_apply_actions;
+
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_BRIDGING].build_match =
+        of_dpa_bridging_build_match;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_BRIDGING].hit =
+        of_dpa_bridging_learn;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_BRIDGING].miss =
+        of_dpa_bridging_miss;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_BRIDGING].hit_no_goto =
+        of_dpa_drop;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_BRIDGING].action_apply =
+        of_dpa_apply_actions;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_BRIDGING].action_write =
+        of_dpa_bridging_action_write;
+
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING].build_match =
+        of_dpa_unicast_routing_build_match;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING].miss =
+        of_dpa_unicast_routing_miss;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING].hit_no_goto =
+        of_dpa_drop;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_UNICAST_ROUTING].action_write =
+        of_dpa_unicast_routing_action_write;
+
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_MULTICAST_ROUTING].build_match =
+        of_dpa_multicast_routing_build_match;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_MULTICAST_ROUTING].miss =
+        of_dpa_multicast_routing_miss;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_MULTICAST_ROUTING].hit_no_goto =
+        of_dpa_drop;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_MULTICAST_ROUTING].action_write =
+        of_dpa_multicast_routing_action_write;
+
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_ACL_POLICY].build_match =
+        of_dpa_acl_build_match;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_ACL_POLICY].hit =
+        of_dpa_acl_hit;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_ACL_POLICY].miss =
+        of_dpa_eg;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_ACL_POLICY].action_apply =
+        of_dpa_apply_actions;
+    of_dpa_tbl_ops[ROCKER_OF_DPA_TABLE_ID_ACL_POLICY].action_write =
+        of_dpa_acl_action_write;
+}
 
 static void of_dpa_flow_ig_tbl(OfDpaFlowContext *fc, uint32_t tbl_id)
 {
@@ -1036,10 +1062,10 @@ static ssize_t of_dpa_ig(World *world, uint32_t pport,
 {
     g_autofree struct iovec *iov_copy = g_new(struct iovec, iovcnt + 2);
     OfDpaFlowContext fc = {
-        .of_dpa = world_private(world),
         .in_pport = pport,
         .iov = iov_copy,
         .iovcnt = iovcnt + 2,
+        .of_dpa = static_cast<OfDpa *>(world_private(world)),
     };
 
     of_dpa_flow_pkt_parse(&fc, iov, iovcnt);
@@ -1793,7 +1819,7 @@ static int of_dpa_cmd_flow_add_mod(OfDpa *of_dpa, OfDpaFlow *flow,
         return -ROCKER_EINVAL;
     }
 
-    tbl = rocker_tlv_get_le16(flow_tlvs[ROCKER_TLV_OF_DPA_TABLE_ID]);
+    tbl = static_cast<enum rocker_of_dpa_table_id>(rocker_tlv_get_le16(flow_tlvs[ROCKER_TLV_OF_DPA_TABLE_ID]));
     flow->priority = rocker_tlv_get_le32(flow_tlvs[ROCKER_TLV_OF_DPA_PRIORITY]);
     flow->hardtime = rocker_tlv_get_le32(flow_tlvs[ROCKER_TLV_OF_DPA_HARDTIME]);
 
@@ -2200,7 +2226,7 @@ static int of_dpa_group_cmd(OfDpa *of_dpa, struct desc_info *info,
 static int of_dpa_cmd(World *world, struct desc_info *info,
                       char *buf, uint16_t cmd, RockerTlv *cmd_info_tlv)
 {
-    OfDpa *of_dpa = world_private(world);
+    OfDpa *of_dpa = static_cast<OfDpa *>(world_private(world));
     RockerTlv *tlvs[ROCKER_TLV_OF_DPA_MAX + 1];
 
     rocker_tlv_parse_nested(tlvs, ROCKER_TLV_OF_DPA_MAX, cmd_info_tlv);
@@ -2233,7 +2259,7 @@ static guint rocker_int64_hash(gconstpointer v)
 
 static int of_dpa_init(World *world)
 {
-    OfDpa *of_dpa = world_private(world);
+    OfDpa *of_dpa = static_cast<OfDpa *>(world_private(world));
 
     of_dpa->world = world;
 
@@ -2263,7 +2289,7 @@ err_group_tbl:
 
 static void of_dpa_uninit(World *world)
 {
-    OfDpa *of_dpa = world_private(world);
+    OfDpa *of_dpa = static_cast<OfDpa *>(world_private(world));
 
     g_hash_table_destroy(of_dpa->group_tbl);
     g_hash_table_destroy(of_dpa->flow_tbl);
@@ -2276,10 +2302,10 @@ struct of_dpa_flow_fill_context {
 
 static void of_dpa_flow_fill(void *cookie, void *value, void *user_data)
 {
-    struct of_dpa_flow *flow = value;
+    struct of_dpa_flow *flow = static_cast<struct of_dpa_flow *>(value);
     struct of_dpa_flow_key *key = &flow->key;
     struct of_dpa_flow_key *mask = &flow->mask;
-    struct of_dpa_flow_fill_context *flow_context = user_data;
+    struct of_dpa_flow_fill_context *flow_context = static_cast<struct of_dpa_flow_fill_context *>(user_data);
     RockerOfDpaFlow *nflow;
     RockerOfDpaFlowKey *nkey;
     RockerOfDpaFlowMask *nmask;
@@ -2290,10 +2316,10 @@ static void of_dpa_flow_fill(void *cookie, void *value, void *user_data)
         return;
     }
 
-    nflow = g_malloc0(sizeof(*nflow));
-    nkey = nflow->key = g_malloc0(sizeof(*nkey));
-    nmask = nflow->mask = g_malloc0(sizeof(*nmask));
-    naction = nflow->action = g_malloc0(sizeof(*naction));
+    nflow = static_cast<RockerOfDpaFlow *>(g_malloc0(sizeof(*nflow)));
+    nkey = nflow->key = static_cast<RockerOfDpaFlowKey *>(g_malloc0(sizeof(*nkey)));
+    nmask = nflow->mask = static_cast<RockerOfDpaFlowMask *>(g_malloc0(sizeof(*nmask)));
+    naction = nflow->action = static_cast<RockerOfDpaFlowAction *>(g_malloc0(sizeof(*naction)));
 
     nflow->cookie = flow->cookie;
     nflow->hits = flow->stats.hits;
@@ -2429,7 +2455,7 @@ RockerOfDpaFlowList *qmp_query_rocker_of_dpa_flows(const char *name,
         return NULL;
     }
 
-    of_dpa = world_private(w);
+    of_dpa = static_cast<OfDpa *>(world_private(w));
 
     g_hash_table_foreach(of_dpa->flow_tbl, of_dpa_flow_fill, &fill_context);
 
@@ -2443,8 +2469,8 @@ struct of_dpa_group_fill_context {
 
 static void of_dpa_group_fill(void *key, void *value, void *user_data)
 {
-    struct of_dpa_group *group = value;
-    struct of_dpa_group_fill_context *flow_context = user_data;
+    struct of_dpa_group *group = static_cast<struct of_dpa_group *>(value);
+    struct of_dpa_group_fill_context *flow_context = static_cast<struct of_dpa_group_fill_context *>(user_data);
     RockerOfDpaGroup *ngroup;
     int i;
 
@@ -2453,7 +2479,7 @@ static void of_dpa_group_fill(void *key, void *value, void *user_data)
         return;
     }
 
-    ngroup = g_malloc0(sizeof(*ngroup));
+    ngroup = static_cast<RockerOfDpaGroup *>(g_malloc0(sizeof(*ngroup)));
 
     ngroup->id = group->id;
 
@@ -2551,7 +2577,7 @@ RockerOfDpaGroupList *qmp_query_rocker_of_dpa_groups(const char *name,
         return NULL;
     }
 
-    of_dpa = world_private(w);
+    of_dpa = static_cast<OfDpa *>(world_private(w));
 
     g_hash_table_foreach(of_dpa->group_tbl, of_dpa_group_fill, &fill_context);
 

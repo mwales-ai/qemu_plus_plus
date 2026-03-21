@@ -289,7 +289,7 @@ static void ps2_cqueue_reset(PS2State *s)
 /* keycode is the untranslated scancode in the current scancode set. */
 static void ps2_put_keycode(void *opaque, int keycode)
 {
-    PS2KbdState *s = opaque;
+    PS2KbdState *s = static_cast<PS2KbdState *>(opaque);
     PS2State *ps = PS2_DEVICE(s);
 
     trace_ps2_put_keycode(opaque, keycode);
@@ -327,7 +327,7 @@ static void ps2_keyboard_event(DeviceState *dev, QemuConsole *src,
     assert(evt->type == INPUT_EVENT_KIND_KEY);
     qcode = qemu_input_key_value_to_qcode(key->key);
 
-    mod = ps2_modifier_bit(qcode);
+    mod = ps2_modifier_bit(static_cast<QKeyCode>(qcode));
     trace_ps2_keyboard_event(s, qcode, key->down, mod,
                              s->modifiers, s->scancode_set, s->translate);
     if (key->down) {
@@ -789,13 +789,16 @@ static int ps2_mouse_send_packet(PS2MouseState *s)
 static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
                             InputEvent *evt)
 {
-    static const int bmap[INPUT_BUTTON__MAX] = {
-        [INPUT_BUTTON_LEFT]   = PS2_MOUSE_BUTTON_LEFT,
-        [INPUT_BUTTON_MIDDLE] = PS2_MOUSE_BUTTON_MIDDLE,
-        [INPUT_BUTTON_RIGHT]  = PS2_MOUSE_BUTTON_RIGHT,
-        [INPUT_BUTTON_SIDE]   = PS2_MOUSE_BUTTON_SIDE,
-        [INPUT_BUTTON_EXTRA]  = PS2_MOUSE_BUTTON_EXTRA,
-    };
+    static int bmap[INPUT_BUTTON__MAX] = {};
+    static bool bmap_inited = false;
+    if (!bmap_inited) {
+        bmap[INPUT_BUTTON_LEFT]   = PS2_MOUSE_BUTTON_LEFT;
+        bmap[INPUT_BUTTON_MIDDLE] = PS2_MOUSE_BUTTON_MIDDLE;
+        bmap[INPUT_BUTTON_RIGHT]  = PS2_MOUSE_BUTTON_RIGHT;
+        bmap[INPUT_BUTTON_SIDE]   = PS2_MOUSE_BUTTON_SIDE;
+        bmap[INPUT_BUTTON_EXTRA]  = PS2_MOUSE_BUTTON_EXTRA;
+        bmap_inited = true;
+    }
     PS2MouseState *s = (PS2MouseState *)dev;
     InputMoveEvent *move;
     InputBtnEvent *btn;
@@ -1089,34 +1092,41 @@ static void ps2_mouse_reset_hold(Object *obj, ResetType type)
     s->mouse_buttons = 0;
 }
 
+static const VMStateField vmstate_ps2_common_fields[] = {
+    VMSTATE_INT32(write_cmd, PS2State),
+    VMSTATE_INT32(queue.rptr, PS2State),
+    VMSTATE_INT32(queue.wptr, PS2State),
+    VMSTATE_INT32(queue.count, PS2State),
+    VMSTATE_BUFFER(queue.data, PS2State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ps2_common = {
     .name = "PS2 Common State",
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(write_cmd, PS2State),
-        VMSTATE_INT32(queue.rptr, PS2State),
-        VMSTATE_INT32(queue.wptr, PS2State),
-        VMSTATE_INT32(queue.count, PS2State),
-        VMSTATE_BUFFER(queue.data, PS2State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ps2_common_fields,
 };
 
 static bool ps2_keyboard_ledstate_needed(void *opaque)
 {
-    PS2KbdState *s = opaque;
+    PS2KbdState *s = static_cast<PS2KbdState *>(opaque);
 
     return s->ledstate != 0; /* 0 is default state */
 }
 
 static int ps2_kbd_ledstate_post_load(void *opaque, int version_id)
 {
-    PS2KbdState *s = opaque;
+    PS2KbdState *s = static_cast<PS2KbdState *>(opaque);
 
     kbd_put_ledstate(s->ledstate);
     return 0;
 }
+
+static const VMStateField vmstate_ps2_keyboard_ledstate_fields[] = {
+    VMSTATE_INT32(ledstate, PS2KbdState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_ps2_keyboard_ledstate = {
     .name = "ps2kbd/ledstate",
@@ -1124,44 +1134,45 @@ static const VMStateDescription vmstate_ps2_keyboard_ledstate = {
     .minimum_version_id = 2,
     .post_load = ps2_kbd_ledstate_post_load,
     .needed = ps2_keyboard_ledstate_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(ledstate, PS2KbdState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ps2_keyboard_ledstate_fields,
 };
 
 static bool ps2_keyboard_need_high_bit_needed(void *opaque)
 {
-    PS2KbdState *s = opaque;
+    PS2KbdState *s = static_cast<PS2KbdState *>(opaque);
     return s->need_high_bit != 0; /* 0 is the usual state */
 }
+
+static const VMStateField vmstate_ps2_keyboard_need_high_bit_fields[] = {
+    VMSTATE_BOOL(need_high_bit, PS2KbdState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_ps2_keyboard_need_high_bit = {
     .name = "ps2kbd/need_high_bit",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ps2_keyboard_need_high_bit_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(need_high_bit, PS2KbdState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ps2_keyboard_need_high_bit_fields,
 };
 
 static bool ps2_keyboard_cqueue_needed(void *opaque)
 {
-    PS2KbdState *s = opaque;
+    PS2KbdState *s = static_cast<PS2KbdState *>(opaque);
     PS2State *ps2 = PS2_DEVICE(s);
 
     return ps2->queue.cwptr != -1; /* the queue is mostly empty */
 }
 
+static const VMStateField vmstate_ps2_keyboard_cqueue_fields[] = {
+    VMSTATE_INT32(parent_obj.queue.cwptr, PS2KbdState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ps2_keyboard_cqueue = {
     .name = "ps2kbd/command_reply_queue",
     .needed = ps2_keyboard_cqueue_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(parent_obj.queue.cwptr, PS2KbdState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ps2_keyboard_cqueue_fields,
 };
 
 static int ps2_kbd_post_load(void *opaque, int version_id)
@@ -1178,25 +1189,29 @@ static int ps2_kbd_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ps2_keyboard_fields[] = {
+    VMSTATE_STRUCT(parent_obj, PS2KbdState, 0, vmstate_ps2_common,
+                   PS2State),
+    VMSTATE_INT32(scan_enabled, PS2KbdState),
+    VMSTATE_INT32(translate, PS2KbdState),
+    VMSTATE_INT32_V(scancode_set, PS2KbdState, 3),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_ps2_keyboard_subsections[] = {
+    &vmstate_ps2_keyboard_ledstate,
+    &vmstate_ps2_keyboard_need_high_bit,
+    &vmstate_ps2_keyboard_cqueue,
+    NULL
+};
+
 static const VMStateDescription vmstate_ps2_keyboard = {
     .name = "ps2kbd",
     .version_id = 3,
     .minimum_version_id = 2,
     .post_load = ps2_kbd_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(parent_obj, PS2KbdState, 0, vmstate_ps2_common,
-                       PS2State),
-        VMSTATE_INT32(scan_enabled, PS2KbdState),
-        VMSTATE_INT32(translate, PS2KbdState),
-        VMSTATE_INT32_V(scancode_set, PS2KbdState, 3),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_ps2_keyboard_ledstate,
-        &vmstate_ps2_keyboard_need_high_bit,
-        &vmstate_ps2_keyboard_cqueue,
-        NULL
-    }
+    .fields = vmstate_ps2_keyboard_fields,
+    .subsections = vmstate_ps2_keyboard_subsections,
 };
 
 static int ps2_mouse_post_load(void *opaque, int version_id)
@@ -1209,26 +1224,28 @@ static int ps2_mouse_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ps2_mouse_fields[] = {
+    VMSTATE_STRUCT(parent_obj, PS2MouseState, 0, vmstate_ps2_common,
+                   PS2State),
+    VMSTATE_UINT8(mouse_status, PS2MouseState),
+    VMSTATE_UINT8(mouse_resolution, PS2MouseState),
+    VMSTATE_UINT8(mouse_sample_rate, PS2MouseState),
+    VMSTATE_UINT8(mouse_wrap, PS2MouseState),
+    VMSTATE_UINT8(mouse_type, PS2MouseState),
+    VMSTATE_UINT8(mouse_detect_state, PS2MouseState),
+    VMSTATE_INT32(mouse_dx, PS2MouseState),
+    VMSTATE_INT32(mouse_dy, PS2MouseState),
+    VMSTATE_INT32(mouse_dz, PS2MouseState),
+    VMSTATE_UINT8(mouse_buttons, PS2MouseState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ps2_mouse = {
     .name = "ps2mouse",
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = ps2_mouse_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(parent_obj, PS2MouseState, 0, vmstate_ps2_common,
-                       PS2State),
-        VMSTATE_UINT8(mouse_status, PS2MouseState),
-        VMSTATE_UINT8(mouse_resolution, PS2MouseState),
-        VMSTATE_UINT8(mouse_sample_rate, PS2MouseState),
-        VMSTATE_UINT8(mouse_wrap, PS2MouseState),
-        VMSTATE_UINT8(mouse_type, PS2MouseState),
-        VMSTATE_UINT8(mouse_detect_state, PS2MouseState),
-        VMSTATE_INT32(mouse_dx, PS2MouseState),
-        VMSTATE_INT32(mouse_dy, PS2MouseState),
-        VMSTATE_INT32(mouse_dz, PS2MouseState),
-        VMSTATE_UINT8(mouse_buttons, PS2MouseState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ps2_mouse_fields,
 };
 
 static const QemuInputHandler ps2_keyboard_handler = {
@@ -1312,11 +1329,11 @@ static void ps2_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo ps2_info = {
     .name          = TYPE_PS2_DEVICE,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_init = ps2_init,
     .instance_size = sizeof(PS2State),
-    .class_init    = ps2_class_init,
+    .instance_init = ps2_init,
+    .is_abstract   = true,
     .class_size    = sizeof(PS2DeviceClass),
-    .is_abstract      = true
+    .class_init    = ps2_class_init,
 };
 
 static void ps2_register_types(void)

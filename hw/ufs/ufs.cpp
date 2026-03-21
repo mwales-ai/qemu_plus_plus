@@ -218,7 +218,7 @@ static MemTxResult ufs_dma_read_prdt(UfsRequest *req)
         return err;
     }
 
-    req->sg = g_malloc0(sizeof(QEMUSGList));
+    req->sg = static_cast<QEMUSGList *>(g_malloc0(sizeof(QEMUSGList)));
     pci_dma_sglist_init(req->sg, PCI_DEVICE(u), prdt_len);
     req->data_len = 0;
 
@@ -407,7 +407,7 @@ static void ufs_mcq_init_req(UfsHc *u, UfsRequest *req, UfsSq *sq)
 
 static void ufs_mcq_process_sq(void *opaque)
 {
-    UfsSq *sq = opaque;
+    UfsSq *sq = static_cast<UfsSq *>(opaque);
     UfsHc *u = sq->u;
     UfsSqEntry sqe;
     UfsRequest *req;
@@ -439,7 +439,7 @@ static void ufs_mcq_process_sq(void *opaque)
 
 static void ufs_mcq_process_cq(void *opaque)
 {
-    UfsCq *cq = opaque;
+    UfsCq *cq = static_cast<UfsCq *>(opaque);
     UfsHc *u = cq->u;
     UfsRequest *req, *next;
     MemTxResult ret;
@@ -522,7 +522,7 @@ static bool ufs_mcq_create_sq(UfsHc *u, uint8_t qid, uint32_t attr)
         return false;
     }
 
-    sq = g_malloc0(sizeof(*sq));
+    sq = static_cast<UfsSq *>(g_malloc0(sizeof(*sq)));
     sq->u = u;
     sq->sqid = qid;
     sq->cq = u->cq[cqid];
@@ -582,7 +582,7 @@ static bool ufs_mcq_create_cq(UfsHc *u, uint8_t qid, uint32_t attr)
         return false;
     }
 
-    cq = g_malloc0(sizeof(*cq));
+    cq = static_cast<UfsCq *>(g_malloc0(sizeof(*cq)));
     cq->u = u;
     cq->cqid = qid;
     cq->addr = ((uint64_t)reg->cquba << 32) | reg->cqlba;
@@ -866,10 +866,7 @@ static const MemoryRegionOps ufs_mmio_ops = {
     .read = ufs_mmio_read,
     .write = ufs_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void ufs_update_ee_status(UfsHc *u)
@@ -977,30 +974,36 @@ static UfsReqResult ufs_exec_nop_cmd(UfsRequest *req)
  * things that are declared read-only, which is inconsistent with the ufs spec,
  * because we want to return an error for features that are not yet supported.
  */
-static const int flag_permission[UFS_QUERY_FLAG_IDN_COUNT] = {
-    [UFS_QUERY_FLAG_IDN_FDEVICEINIT] = UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET,
+static int flag_permission[UFS_QUERY_FLAG_IDN_COUNT];
+
+static void __attribute__((constructor)) init_flag_permission(void)
+{
+    flag_permission[UFS_QUERY_FLAG_IDN_FDEVICEINIT] =
+        UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET;
     /* Write protection is not supported */
-    [UFS_QUERY_FLAG_IDN_PERMANENT_WPE] = UFS_QUERY_FLAG_READ,
-    [UFS_QUERY_FLAG_IDN_PWR_ON_WPE] = UFS_QUERY_FLAG_READ,
-    [UFS_QUERY_FLAG_IDN_BKOPS_EN] = UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET |
-                                    UFS_QUERY_FLAG_CLEAR |
-                                    UFS_QUERY_FLAG_TOGGLE,
-    [UFS_QUERY_FLAG_IDN_LIFE_SPAN_MODE_ENABLE] =
-        UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET | UFS_QUERY_FLAG_CLEAR |
-        UFS_QUERY_FLAG_TOGGLE,
+    flag_permission[UFS_QUERY_FLAG_IDN_PERMANENT_WPE] = UFS_QUERY_FLAG_READ;
+    flag_permission[UFS_QUERY_FLAG_IDN_PWR_ON_WPE] = UFS_QUERY_FLAG_READ;
+    flag_permission[UFS_QUERY_FLAG_IDN_BKOPS_EN] =
+        UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET |
+        UFS_QUERY_FLAG_CLEAR | UFS_QUERY_FLAG_TOGGLE;
+    flag_permission[UFS_QUERY_FLAG_IDN_LIFE_SPAN_MODE_ENABLE] =
+        UFS_QUERY_FLAG_READ | UFS_QUERY_FLAG_SET |
+        UFS_QUERY_FLAG_CLEAR | UFS_QUERY_FLAG_TOGGLE;
     /* Purge Operation is not supported */
-    [UFS_QUERY_FLAG_IDN_PURGE_ENABLE] = UFS_QUERY_FLAG_NONE,
+    flag_permission[UFS_QUERY_FLAG_IDN_PURGE_ENABLE] = UFS_QUERY_FLAG_NONE;
     /* Refresh Operation is not supported */
-    [UFS_QUERY_FLAG_IDN_REFRESH_ENABLE] = UFS_QUERY_FLAG_NONE,
+    flag_permission[UFS_QUERY_FLAG_IDN_REFRESH_ENABLE] = UFS_QUERY_FLAG_NONE;
     /* Physical Resource Removal is not supported */
-    [UFS_QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL] = UFS_QUERY_FLAG_READ,
-    [UFS_QUERY_FLAG_IDN_BUSY_RTC] = UFS_QUERY_FLAG_READ,
-    [UFS_QUERY_FLAG_IDN_PERMANENTLY_DISABLE_FW_UPDATE] = UFS_QUERY_FLAG_READ,
+    flag_permission[UFS_QUERY_FLAG_IDN_FPHYRESOURCEREMOVAL] = UFS_QUERY_FLAG_READ;
+    flag_permission[UFS_QUERY_FLAG_IDN_BUSY_RTC] = UFS_QUERY_FLAG_READ;
+    flag_permission[UFS_QUERY_FLAG_IDN_PERMANENTLY_DISABLE_FW_UPDATE] =
+        UFS_QUERY_FLAG_READ;
     /* Write Booster is not supported */
-    [UFS_QUERY_FLAG_IDN_WB_EN] = UFS_QUERY_FLAG_READ,
-    [UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN] = UFS_QUERY_FLAG_READ,
-    [UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8] = UFS_QUERY_FLAG_READ,
-};
+    flag_permission[UFS_QUERY_FLAG_IDN_WB_EN] = UFS_QUERY_FLAG_READ;
+    flag_permission[UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_EN] = UFS_QUERY_FLAG_READ;
+    flag_permission[UFS_QUERY_FLAG_IDN_WB_BUFF_FLUSH_DURING_HIBERN8] =
+        UFS_QUERY_FLAG_READ;
+}
 
 static inline QueryRespCode ufs_flag_check_idn_valid(uint8_t idn, int op)
 {
@@ -1020,48 +1023,57 @@ static inline QueryRespCode ufs_flag_check_idn_valid(uint8_t idn, int op)
     return UFS_QUERY_RESULT_SUCCESS;
 }
 
-static const int attr_permission[UFS_QUERY_ATTR_IDN_COUNT] = {
+static int attr_permission[UFS_QUERY_ATTR_IDN_COUNT];
+
+static void __attribute__((constructor)) init_attr_permission(void)
+{
+    memset(attr_permission, 0, sizeof(attr_permission));
     /* booting is not supported */
-    [UFS_QUERY_ATTR_IDN_BOOT_LU_EN] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_POWER_MODE] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_ACTIVE_ICC_LVL] =
-        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_OOO_DATA_EN] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_BKOPS_STATUS] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_PURGE_STATUS] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_MAX_DATA_IN] =
-        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_MAX_DATA_OUT] =
-        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_DYN_CAP_NEEDED] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_REF_CLK_FREQ] =
-        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_CONF_DESC_LOCK] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_MAX_NUM_OF_RTT] =
-        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_EE_CONTROL] =
-        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_EE_STATUS] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_SECONDS_PASSED] = UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_CNTX_CONF] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_FFU_STATUS] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_PSA_STATE] = UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_PSA_DATA_SIZE] =
-        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE,
-    [UFS_QUERY_ATTR_IDN_REF_CLK_GATING_WAIT_TIME] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_CASE_ROUGH_TEMP] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_HIGH_TEMP_BOUND] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_LOW_TEMP_BOUND] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_THROTTLING_STATUS] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_WB_FLUSH_STATUS] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_AVAIL_WB_BUFF_SIZE] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_WB_BUFF_LIFE_TIME_EST] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE] = UFS_QUERY_ATTR_READ,
+    attr_permission[UFS_QUERY_ATTR_IDN_BOOT_LU_EN] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_POWER_MODE] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_ACTIVE_ICC_LVL] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_OOO_DATA_EN] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_BKOPS_STATUS] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_PURGE_STATUS] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_MAX_DATA_IN] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_MAX_DATA_OUT] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_DYN_CAP_NEEDED] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_REF_CLK_FREQ] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_CONF_DESC_LOCK] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_MAX_NUM_OF_RTT] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_EE_CONTROL] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_EE_STATUS] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_SECONDS_PASSED] = UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_CNTX_CONF] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_FFU_STATUS] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_PSA_STATE] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_PSA_DATA_SIZE] =
+        UFS_QUERY_ATTR_READ | UFS_QUERY_ATTR_WRITE;
+    attr_permission[UFS_QUERY_ATTR_IDN_REF_CLK_GATING_WAIT_TIME] =
+        UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_CASE_ROUGH_TEMP] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_HIGH_TEMP_BOUND] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_LOW_TEMP_BOUND] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_THROTTLING_STATUS] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_WB_FLUSH_STATUS] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_AVAIL_WB_BUFF_SIZE] =
+        UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_WB_BUFF_LIFE_TIME_EST] =
+        UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE] =
+        UFS_QUERY_ATTR_READ;
     /* refresh operation is not supported */
-    [UFS_QUERY_ATTR_IDN_REFRESH_STATUS] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_REFRESH_FREQ] = UFS_QUERY_ATTR_READ,
-    [UFS_QUERY_ATTR_IDN_REFRESH_UNIT] = UFS_QUERY_ATTR_READ,
-};
+    attr_permission[UFS_QUERY_ATTR_IDN_REFRESH_STATUS] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_REFRESH_FREQ] = UFS_QUERY_ATTR_READ;
+    attr_permission[UFS_QUERY_ATTR_IDN_REFRESH_UNIT] = UFS_QUERY_ATTR_READ;
+}
 
 static inline QueryRespCode ufs_attr_check_idn_valid(uint8_t idn, int op)
 {
@@ -1559,7 +1571,7 @@ static void ufs_exec_req(UfsRequest *req)
 
 static void ufs_process_req(void *opaque)
 {
-    UfsHc *u = opaque;
+    UfsHc *u = static_cast<UfsHc *>(opaque);
     UfsRequest *req;
     int slot;
 
@@ -1615,7 +1627,7 @@ static void ufs_clear_req(UfsRequest *req)
 
 static void ufs_sendback_req(void *opaque)
 {
-    UfsHc *u = opaque;
+    UfsHc *u = static_cast<UfsHc *>(opaque);
     UfsRequest *req;
     int slot;
 
@@ -1908,27 +1920,32 @@ static char *ufs_bus_get_dev_path(DeviceState *dev)
     return qdev_get_dev_path(bus->parent);
 }
 
-static void ufs_bus_class_init(ObjectClass *class, const void *data)
+static void ufs_bus_class_init(ObjectClass *klass, const void *data)
 {
-    BusClass *bc = BUS_CLASS(class);
+    BusClass *bc = BUS_CLASS(klass);
     bc->get_dev_path = ufs_bus_get_dev_path;
     bc->check_address = ufs_bus_check_address;
 }
 
+static const InterfaceInfo ufs_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    {}
+};
+
 static const TypeInfo ufs_info = {
     .name = TYPE_UFS,
     .parent = TYPE_PCI_DEVICE,
-    .class_init = ufs_class_init,
     .instance_size = sizeof(UfsHc),
-    .interfaces = (const InterfaceInfo[]){ { INTERFACE_PCIE_DEVICE }, {} },
+    .class_init = ufs_class_init,
+    .interfaces = ufs_interfaces,
 };
 
 static const TypeInfo ufs_bus_info = {
     .name = TYPE_UFS_BUS,
     .parent = TYPE_BUS,
-    .class_init = ufs_bus_class_init,
-    .class_size = sizeof(UfsBusClass),
     .instance_size = sizeof(UfsBus),
+    .class_size = sizeof(UfsBusClass),
+    .class_init = ufs_bus_class_init,
 };
 
 static void ufs_register_types(void)

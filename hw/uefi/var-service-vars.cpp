@@ -23,32 +23,36 @@
      EFI_VARIABLE_APPEND_WRITE)
 
 
+static const VMStateField vmstate_uefi_time_fields[] = {
+    VMSTATE_UINT16(year, efi_time),
+    VMSTATE_UINT8(month, efi_time),
+    VMSTATE_UINT8(day, efi_time),
+    VMSTATE_UINT8(hour, efi_time),
+    VMSTATE_UINT8(minute, efi_time),
+    VMSTATE_UINT8(second, efi_time),
+    VMSTATE_UINT32(nanosecond, efi_time),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_uefi_time = {
     .name = "uefi-time",
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT16(year, efi_time),
-        VMSTATE_UINT8(month, efi_time),
-        VMSTATE_UINT8(day, efi_time),
-        VMSTATE_UINT8(hour, efi_time),
-        VMSTATE_UINT8(minute, efi_time),
-        VMSTATE_UINT8(second, efi_time),
-        VMSTATE_UINT32(nanosecond, efi_time),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_uefi_time_fields,
+};
+
+static const VMStateField vmstate_uefi_variable_fields[] = {
+    VMSTATE_UINT8_ARRAY_V(guid.data, uefi_variable, sizeof(QemuUUID), 0),
+    VMSTATE_UINT32(name_size, uefi_variable),
+    VMSTATE_UINT32(data_size, uefi_variable),
+    VMSTATE_UINT32(attributes, uefi_variable),
+    VMSTATE_VBUFFER_ALLOC_UINT32(name, uefi_variable, 0, NULL, name_size),
+    VMSTATE_VBUFFER_ALLOC_UINT32(data, uefi_variable, 0, NULL, data_size),
+    VMSTATE_STRUCT(time, uefi_variable, 0, vmstate_uefi_time, efi_time),
+    VMSTATE_END_OF_LIST()
 };
 
 const VMStateDescription vmstate_uefi_variable = {
     .name = "uefi-variable",
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8_ARRAY_V(guid.data, uefi_variable, sizeof(QemuUUID), 0),
-        VMSTATE_UINT32(name_size, uefi_variable),
-        VMSTATE_UINT32(data_size, uefi_variable),
-        VMSTATE_UINT32(attributes, uefi_variable),
-        VMSTATE_VBUFFER_ALLOC_UINT32(name, uefi_variable, 0, NULL, name_size),
-        VMSTATE_VBUFFER_ALLOC_UINT32(data, uefi_variable, 0, NULL, data_size),
-        VMSTATE_STRUCT(time, uefi_variable, 0, vmstate_uefi_time, efi_time),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_uefi_variable_fields,
 };
 
 uefi_variable *uefi_vars_find_variable(uefi_vars_state *uv, QemuUUID guid,
@@ -81,7 +85,7 @@ static uefi_variable *add_variable(uefi_vars_state *uv, QemuUUID guid,
 
     var = g_new0(uefi_variable, 1);
     var->guid = guid;
-    var->name = g_malloc(name_size);
+    var->name = static_cast<uint16_t *>(g_malloc(name_size));
     memcpy(var->name, name, name_size);
     var->name_size = name_size;
     var->attributes = attributes;
@@ -263,7 +267,7 @@ static size_t uefi_vars_mm_error(mm_header *mhdr, mm_variable *mvar,
 static size_t uefi_vars_mm_get_variable(uefi_vars_state *uv, mm_header *mhdr,
                                         mm_variable *mvar, void *func)
 {
-    mm_variable_access *va = func;
+    mm_variable_access *va = static_cast<mm_variable_access *>(func);
     uint16_t *name;
     void *data;
     uefi_variable *var;
@@ -279,7 +283,7 @@ static size_t uefi_vars_mm_get_variable(uefi_vars_state *uv, mm_header *mhdr,
         return uefi_vars_mm_error(mhdr, mvar, EFI_OUT_OF_RESOURCES);
     }
 
-    name = func + sizeof(*va);
+    name = reinterpret_cast<uint16_t *>(static_cast<char *>(func) + sizeof(*va));
     if (uadd64_overflow(length, va->name_size, &length)) {
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
@@ -303,7 +307,7 @@ static size_t uefi_vars_mm_get_variable(uefi_vars_state *uv, mm_header *mhdr,
         return uefi_vars_mm_error(mhdr, mvar, EFI_ACCESS_DENIED);
     }
 
-    data = func + sizeof(*va) + va->name_size;
+    data = static_cast<char *>(func) + sizeof(*va) + va->name_size;
     if (uadd64_overflow(length, va->data_size, &length)) {
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
@@ -328,7 +332,7 @@ static size_t
 uefi_vars_mm_get_next_variable(uefi_vars_state *uv, mm_header *mhdr,
                                mm_variable *mvar, void *func)
 {
-    mm_next_variable *nv = func;
+    mm_next_variable *nv = static_cast<mm_next_variable *>(func);
     uefi_variable *var;
     uint16_t *name;
     uint64_t length;
@@ -342,7 +346,7 @@ uefi_vars_mm_get_next_variable(uefi_vars_state *uv, mm_header *mhdr,
         return uefi_vars_mm_error(mhdr, mvar, EFI_OUT_OF_RESOURCES);
     }
 
-    name = func + sizeof(*nv);
+    name = reinterpret_cast<uint16_t *>(static_cast<char *>(func) + sizeof(*nv));
     if (uadd64_overflow(length, nv->name_size, &length)) {
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
@@ -414,7 +418,7 @@ static bool uefi_vars_mm_digest_compare(uefi_variable *old_var,
 static size_t uefi_vars_mm_set_variable(uefi_vars_state *uv, mm_header *mhdr,
                                         mm_variable *mvar, void *func)
 {
-    mm_variable_access *va = func;
+    mm_variable_access *va = static_cast<mm_variable_access *>(func);
     uint32_t attributes = 0;
     uint16_t *name;
     void *data;
@@ -433,7 +437,7 @@ static size_t uefi_vars_mm_set_variable(uefi_vars_state *uv, mm_header *mhdr,
         return uefi_vars_mm_error(mhdr, mvar, EFI_OUT_OF_RESOURCES);
     }
 
-    name = func + sizeof(*va);
+    name = reinterpret_cast<uint16_t *>(static_cast<char *>(func) + sizeof(*va));
     if (uadd64_overflow(length, va->name_size, &length)) {
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
@@ -441,7 +445,7 @@ static size_t uefi_vars_mm_set_variable(uefi_vars_state *uv, mm_header *mhdr,
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
 
-    data = func + sizeof(*va) + va->name_size;
+    data = static_cast<char *>(func) + sizeof(*va) + va->name_size;
     if (uadd64_overflow(length, va->data_size, &length)) {
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
@@ -563,7 +567,7 @@ rollback:
 static size_t uefi_vars_mm_variable_info(uefi_vars_state *uv, mm_header *mhdr,
                                          mm_variable *mvar, void *func)
 {
-    mm_variable_info *vi = func;
+    mm_variable_info *vi = static_cast<mm_variable_info *>(func);
     uint64_t length;
 
     length = sizeof(*mvar) + sizeof(*vi);
@@ -584,7 +588,7 @@ static size_t
 uefi_vars_mm_get_payload_size(uefi_vars_state *uv, mm_header *mhdr,
                               mm_variable *mvar, void *func)
 {
-    mm_get_payload_size *ps = func;
+    mm_get_payload_size *ps = static_cast<mm_get_payload_size *>(func);
     uint64_t length;
 
     length = sizeof(*mvar) + sizeof(*ps);
@@ -601,7 +605,7 @@ static size_t
 uefi_vars_mm_lock_variable(uefi_vars_state *uv, mm_header *mhdr,
                            mm_variable *mvar, void *func)
 {
-    mm_lock_variable *lv = func;
+    mm_lock_variable *lv = static_cast<mm_lock_variable *>(func);
     variable_policy_entry *pe;
     uint16_t *name, *dest;
     uint64_t length;
@@ -611,7 +615,7 @@ uefi_vars_mm_lock_variable(uefi_vars_state *uv, mm_header *mhdr,
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
 
-    name = func + sizeof(*lv);
+    name = reinterpret_cast<uint16_t *>(static_cast<char *>(func) + sizeof(*lv));
     if (uadd64_overflow(length, lv->name_size, &length)) {
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
@@ -621,18 +625,18 @@ uefi_vars_mm_lock_variable(uefi_vars_state *uv, mm_header *mhdr,
 
     uefi_trace_variable(__func__, lv->guid, name, lv->name_size);
 
-    pe = g_malloc0(sizeof(*pe) + lv->name_size);
+    pe = static_cast<variable_policy_entry *>(g_malloc0(sizeof(*pe) + lv->name_size));
     pe->version               = VARIABLE_POLICY_ENTRY_REVISION;
     pe->size                  = sizeof(*pe) + lv->name_size;
     pe->offset_to_name        = sizeof(*pe);
-    pe->namespace             = lv->guid;
+    pe->name_space            = lv->guid;
     pe->min_size              = 0;
     pe->max_size              = UINT32_MAX;
     pe->attributes_must_have  = 0;
     pe->attributes_cant_have  = 0;
     pe->lock_policy_type      = VARIABLE_POLICY_TYPE_LOCK_NOW;
 
-    dest = (void *)pe + pe->offset_to_name;
+    dest = reinterpret_cast<uint16_t *>(reinterpret_cast<char *>(pe) + pe->offset_to_name);
     memcpy(dest, name, lv->name_size);
 
     uefi_vars_add_policy(uv, pe);
@@ -664,9 +668,9 @@ uint32_t uefi_vars_mm_vars_proto(uefi_vars_state *uv)
     const char  *fname;
     uint64_t    length;
 
-    mm_header   *mhdr = (mm_header *) uv->buffer;
-    mm_variable *mvar = (mm_variable *) (uv->buffer + sizeof(*mhdr));
-    void        *func = (uv->buffer + sizeof(*mhdr) + sizeof(*mvar));
+    mm_header   *mhdr = reinterpret_cast<mm_header *>(uv->buffer);
+    mm_variable *mvar = reinterpret_cast<mm_variable *>(uv->buffer + sizeof(*mhdr));
+    void        *func = static_cast<void *>(uv->buffer + sizeof(*mhdr) + sizeof(*mvar));
 
     if (mhdr->length < sizeof(*mvar)) {
         return UEFI_VARS_STS_ERR_BAD_BUFFER_SIZE;

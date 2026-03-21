@@ -335,7 +335,7 @@ static void tpm_tis_dump_state(TPMState *s, hwaddr addr)
 static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    TPMState *s = opaque;
+    TPMState *s = static_cast<TPMState *>(opaque);
     uint16_t offset = addr & 0xffc;
     uint8_t shift = (addr & 0x3) * 8;
     uint32_t val = 0xffffffff;
@@ -473,7 +473,7 @@ uint16_t tpm_tis_get_checksum(TPMState *s)
 static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    TPMState *s = opaque;
+    TPMState *s = static_cast<TPMState *>(opaque);
     uint16_t off = addr & 0xffc;
     uint8_t shift = (addr & 0x3) * 8;
     uint8_t locty = tpm_tis_locality_from_addr(addr);
@@ -791,10 +791,7 @@ const MemoryRegionOps tpm_tis_memory_ops = {
     .read = tpm_tis_mmio_read,
     .write = tpm_tis_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 /*
@@ -876,17 +873,19 @@ int tpm_tis_pre_save(TPMState *s)
     return 0;
 }
 
+static const VMStateField vmstate_locty_fields[] = {
+    VMSTATE_UINT32(state, TPMLocality),
+    VMSTATE_UINT32(inte, TPMLocality),
+    VMSTATE_UINT32(ints, TPMLocality),
+    VMSTATE_UINT8(access, TPMLocality),
+    VMSTATE_UINT32(sts, TPMLocality),
+    VMSTATE_UINT32(iface_id, TPMLocality),
+    VMSTATE_END_OF_LIST(),
+};
+
 const VMStateDescription vmstate_locty = {
     .name = "tpm-tis/locty",
     .version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(state, TPMLocality),
-        VMSTATE_UINT32(inte, TPMLocality),
-        VMSTATE_UINT32(ints, TPMLocality),
-        VMSTATE_UINT8(access, TPMLocality),
-        VMSTATE_UINT32(sts, TPMLocality),
-        VMSTATE_UINT32(iface_id, TPMLocality),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_locty_fields,
 };
 
