@@ -68,7 +68,7 @@ static void pm_tmr_timer(ACPIREGS *ar)
 
 static void apm_ctrl_changed(uint32_t val, void *arg)
 {
-    PIIX4PMState *s = arg;
+    PIIX4PMState *s = static_cast<PIIX4PMState *>(arg);
     PCIDevice *d = PCI_DEVICE(s);
 
     /* ACPI specs 3.0, 4.7.2.5 */
@@ -126,7 +126,7 @@ static void pm_write_config(PCIDevice *d,
 
 static int vmstate_acpi_post_load(void *opaque, int version_id)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = static_cast<PIIX4PMState *>(opaque);
 
     pm_io_space_update(s);
     smbus_io_space_update(s);
@@ -136,68 +136,74 @@ static int vmstate_acpi_post_load(void *opaque, int version_id)
 #define VMSTATE_GPE_ARRAY(_field, _state)                            \
  {                                                                   \
      .name       = (stringify(_field)),                              \
-     .version_id = 0,                                                \
-     .info       = &vmstate_info_uint16,                             \
-     .size       = sizeof(uint16_t),                                 \
-     .flags      = VMS_SINGLE | VMS_POINTER,                         \
      .offset     = vmstate_offset_pointer(_state, _field, uint8_t),  \
+     .size       = sizeof(uint16_t),                                 \
+     .info       = &vmstate_info_uint16,                             \
+     .flags      = VMS_SINGLE | VMS_POINTER,                         \
+     .version_id = 0,                                                \
  }
+
+static const VMStateField vmstate_gpe_fields[] = {
+    VMSTATE_GPE_ARRAY(sts, ACPIGPE),
+    VMSTATE_GPE_ARRAY(en, ACPIGPE),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_gpe = {
     .name = "gpe",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_GPE_ARRAY(sts, ACPIGPE),
-        VMSTATE_GPE_ARRAY(en, ACPIGPE),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gpe_fields,
+};
+
+static const VMStateField vmstate_pci_status_fields[] = {
+    VMSTATE_UINT32(up, struct AcpiPciHpPciStatus),
+    VMSTATE_UINT32(down, struct AcpiPciHpPciStatus),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_pci_status = {
     .name = "pci_status",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(up, struct AcpiPciHpPciStatus),
-        VMSTATE_UINT32(down, struct AcpiPciHpPciStatus),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_status_fields,
 };
 
 static bool vmstate_test_use_acpi_hotplug_bridge(void *opaque, int version_id)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = static_cast<PIIX4PMState *>(opaque);
     return s->acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
 static bool vmstate_test_no_use_acpi_hotplug_bridge(void *opaque,
                                                     int version_id)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = static_cast<PIIX4PMState *>(opaque);
     return !s->acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
 
 static bool vmstate_test_use_memhp(void *opaque)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = static_cast<PIIX4PMState *>(opaque);
     return s->acpi_memory_hotplug.is_enabled;
 }
+
+static const VMStateField vmstate_memhp_state_fields[] = {
+    VMSTATE_MEMORY_HOTPLUG(acpi_memory_hotplug, PIIX4PMState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_memhp_state = {
     .name = "piix4_pm/memhp",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_test_use_memhp,
-    .fields = (const VMStateField[]) {
-        VMSTATE_MEMORY_HOTPLUG(acpi_memory_hotplug, PIIX4PMState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_memhp_state_fields,
 };
 
 static bool vmstate_test_use_cpuhp(void *opaque)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = static_cast<PIIX4PMState *>(opaque);
     return !s->cpu_hotplug_legacy;
 }
 
@@ -208,16 +214,18 @@ static int vmstate_cpuhp_pre_load(void *opaque)
     return 0;
 }
 
+static const VMStateField vmstate_cpuhp_state_fields[] = {
+    VMSTATE_CPU_HOTPLUG(cpuhp_state, PIIX4PMState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cpuhp_state = {
     .name = "piix4_pm/cpuhp",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = vmstate_test_use_cpuhp,
     .pre_load = vmstate_cpuhp_pre_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CPU_HOTPLUG(cpuhp_state, PIIX4PMState),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = vmstate_test_use_cpuhp,
+    .fields = vmstate_cpuhp_state_fields,
 };
 
 static bool piix4_vmstate_need_smbus(void *opaque, int version_id)
@@ -242,38 +250,42 @@ static bool vmstate_test_migrate_acpi_index(void *opaque, int version_id)
  * qemu 1.2).
  *
  */
+static const VMStateField vmstate_acpi_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PIIX4PMState),
+    VMSTATE_UINT16(ar.pm1.evt.sts, PIIX4PMState),
+    VMSTATE_UINT16(ar.pm1.evt.en, PIIX4PMState),
+    VMSTATE_UINT16(ar.pm1.cnt.cnt, PIIX4PMState),
+    VMSTATE_STRUCT(apm, PIIX4PMState, 0, vmstate_apm, APMState),
+    VMSTATE_STRUCT_TEST(smb, PIIX4PMState, piix4_vmstate_need_smbus, 3,
+                        pmsmb_vmstate, PMSMBus),
+    VMSTATE_TIMER_PTR(ar.tmr.timer, PIIX4PMState),
+    VMSTATE_INT64(ar.tmr.overflow_time, PIIX4PMState),
+    VMSTATE_STRUCT(ar.gpe, PIIX4PMState, 2, vmstate_gpe, ACPIGPE),
+    VMSTATE_STRUCT_TEST(
+        acpi_pci_hotplug.acpi_pcihp_pci_status[ACPI_PCIHP_BSEL_DEFAULT],
+        PIIX4PMState,
+        vmstate_test_no_use_acpi_hotplug_bridge,
+        2, vmstate_pci_status,
+        struct AcpiPciHpPciStatus),
+    VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug, PIIX4PMState,
+                        vmstate_test_use_acpi_hotplug_bridge,
+                        vmstate_test_migrate_acpi_index),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_acpi_subsections[] = {
+    &vmstate_memhp_state,
+    &vmstate_cpuhp_state,
+    NULL
+};
+
 static const VMStateDescription vmstate_acpi = {
     .name = "piix4_pm",
     .version_id = 3,
     .minimum_version_id = 3,
     .post_load = vmstate_acpi_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PIIX4PMState),
-        VMSTATE_UINT16(ar.pm1.evt.sts, PIIX4PMState),
-        VMSTATE_UINT16(ar.pm1.evt.en, PIIX4PMState),
-        VMSTATE_UINT16(ar.pm1.cnt.cnt, PIIX4PMState),
-        VMSTATE_STRUCT(apm, PIIX4PMState, 0, vmstate_apm, APMState),
-        VMSTATE_STRUCT_TEST(smb, PIIX4PMState, piix4_vmstate_need_smbus, 3,
-                            pmsmb_vmstate, PMSMBus),
-        VMSTATE_TIMER_PTR(ar.tmr.timer, PIIX4PMState),
-        VMSTATE_INT64(ar.tmr.overflow_time, PIIX4PMState),
-        VMSTATE_STRUCT(ar.gpe, PIIX4PMState, 2, vmstate_gpe, ACPIGPE),
-        VMSTATE_STRUCT_TEST(
-            acpi_pci_hotplug.acpi_pcihp_pci_status[ACPI_PCIHP_BSEL_DEFAULT],
-            PIIX4PMState,
-            vmstate_test_no_use_acpi_hotplug_bridge,
-            2, vmstate_pci_status,
-            struct AcpiPciHpPciStatus),
-        VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug, PIIX4PMState,
-                            vmstate_test_use_acpi_hotplug_bridge,
-                            vmstate_test_migrate_acpi_index),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-         &vmstate_memhp_state,
-         &vmstate_cpuhp_state,
-         NULL
-    }
+    .fields = vmstate_acpi_fields,
+    .subsections = vmstate_acpi_subsections,
 };
 
 static void piix4_pm_reset(DeviceState *dev)
@@ -513,7 +525,7 @@ static void piix4_pm_init(Object *obj)
 
 static uint64_t gpe_readb(void *opaque, hwaddr addr, unsigned width)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = static_cast<PIIX4PMState *>(opaque);
     uint32_t val = acpi_gpe_ioport_readb(&s->ar, addr);
 
     return val;
@@ -522,7 +534,7 @@ static uint64_t gpe_readb(void *opaque, hwaddr addr, unsigned width)
 static void gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
                        unsigned width)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = static_cast<PIIX4PMState *>(opaque);
 
     acpi_gpe_ioport_writeb(&s->ar, addr, val);
     acpi_update_sci(&s->ar, s->irq);
@@ -531,9 +543,15 @@ static void gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps piix4_gpe_ops = {
     .read = gpe_readb,
     .write = gpe_writeb,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
-    .impl = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 
@@ -652,18 +670,20 @@ static void piix4_pm_class_init(ObjectClass *klass, const void *data)
     adevc->send_event = piix4_send_gpe;
 }
 
+static const InterfaceInfo piix4_pm_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { TYPE_ACPI_DEVICE_IF },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
 static const TypeInfo piix4_pm_info = {
     .name          = TYPE_PIIX4_PM,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_init  = piix4_pm_init,
     .instance_size = sizeof(PIIX4PMState),
+    .instance_init  = piix4_pm_init,
     .class_init    = piix4_pm_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { TYPE_ACPI_DEVICE_IF },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+    .interfaces = piix4_pm_interfaces,
 };
 
 static void piix4_pm_register_types(void)

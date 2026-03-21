@@ -78,6 +78,10 @@ typedef struct ICH9LPCPMRegs {
 
 #define ACPI_PM_PROP_TCO_ENABLED "enable_tco"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq);
 
 void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base);
@@ -96,4 +100,9 @@ void ich9_pm_device_unplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
 bool ich9_pm_is_hotpluggable_bus(HotplugHandler *hotplug_dev, BusState *bus);
 
 void ich9_pm_ospm_status(AcpiDeviceIf *adev, ACPIOSTInfoList ***list);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* HW_ACPI_ICH9_H */

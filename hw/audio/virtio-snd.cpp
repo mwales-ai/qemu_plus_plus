@@ -69,8 +69,8 @@ static const VMStateDescription vmstate_virtio_snd_device = {
 static const VMStateDescription vmstate_virtio_snd = {
     .name = TYPE_VIRTIO_SND,
     .unmigratable = 1,
-    .minimum_version_id = VIRTIO_SOUND_VM_VERSION,
     .version_id = VIRTIO_SOUND_VM_VERSION,
+    .minimum_version_id = VIRTIO_SOUND_VM_VERSION,
     .fields = (const VMStateField[]) {
         VMSTATE_VIRTIO_DEVICE,
         VMSTATE_END_OF_LIST()
@@ -777,7 +777,7 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         return;
     }
 
-    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
     while (elem) {
         cmd = g_new0(virtio_snd_ctrl_command, 1);
         cmd->elem = elem;
@@ -785,7 +785,7 @@ static void virtio_snd_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         cmd->resp.code = cpu_to_le32(VIRTIO_SND_S_OK);
         /* implicit cmd->payload_size = 0; */
         QTAILQ_INSERT_TAIL(&s->cmdq, cmd, next);
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
     }
 
     virtio_snd_process_cmdq(s);
@@ -865,7 +865,7 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
     for (;;) {
         VirtIOSoundPCMStream *stream;
 
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             break;
         }
@@ -890,23 +890,25 @@ static void virtio_snd_handle_tx_xfer(VirtIODevice *vdev, VirtQueue *vq)
             goto tx_err;
         }
 
-        WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
-            size = iov_size(elem->out_sg, elem->out_num) - msg_sz;
+        {
+            WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
+                size = iov_size(elem->out_sg, elem->out_num) - msg_sz;
 
-            buffer = g_malloc0(sizeof(VirtIOSoundPCMBuffer) + size);
-            buffer->elem = elem;
-            buffer->populated = false;
-            buffer->vq = vq;
-            buffer->size = size;
-            buffer->offset = 0;
+                buffer = static_cast<VirtIOSoundPCMBuffer *>(g_malloc0(sizeof(VirtIOSoundPCMBuffer) + size));
+                buffer->elem = elem;
+                buffer->populated = false;
+                buffer->vq = vq;
+                buffer->size = size;
+                buffer->offset = 0;
 
-            QSIMPLEQ_INSERT_TAIL(&stream->queue, buffer, entry);
+                QSIMPLEQ_INSERT_TAIL(&stream->queue, buffer, entry);
+            }
         }
         continue;
 
 tx_err:
         must_empty_invalid_queue = true;
-        buffer = g_malloc0(sizeof(VirtIOSoundPCMBuffer));
+        buffer = static_cast<VirtIOSoundPCMBuffer *>(g_malloc0(sizeof(VirtIOSoundPCMBuffer)));
         buffer->elem = elem;
         buffer->vq = vq;
         QSIMPLEQ_INSERT_TAIL(&vsnd->invalid, buffer, entry);
@@ -946,7 +948,7 @@ static void virtio_snd_handle_rx_xfer(VirtIODevice *vdev, VirtQueue *vq)
     for (;;) {
         VirtIOSoundPCMStream *stream;
 
-        elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+        elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
         if (!elem) {
             break;
         }
@@ -970,21 +972,23 @@ static void virtio_snd_handle_rx_xfer(VirtIODevice *vdev, VirtQueue *vq)
         if (stream == NULL || stream->info.direction != VIRTIO_SND_D_INPUT) {
             goto rx_err;
         }
-        WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
-            size = iov_size(elem->in_sg, elem->in_num) -
-                sizeof(virtio_snd_pcm_status);
-            buffer = g_malloc0(sizeof(VirtIOSoundPCMBuffer) + size);
-            buffer->elem = elem;
-            buffer->vq = vq;
-            buffer->size = 0;
-            buffer->offset = 0;
-            QSIMPLEQ_INSERT_TAIL(&stream->queue, buffer, entry);
+        {
+            WITH_QEMU_LOCK_GUARD(&stream->queue_mutex) {
+                size = iov_size(elem->in_sg, elem->in_num) -
+                    sizeof(virtio_snd_pcm_status);
+                buffer = static_cast<VirtIOSoundPCMBuffer *>(g_malloc0(sizeof(VirtIOSoundPCMBuffer) + size));
+                buffer->elem = elem;
+                buffer->vq = vq;
+                buffer->size = 0;
+                buffer->offset = 0;
+                QSIMPLEQ_INSERT_TAIL(&stream->queue, buffer, entry);
+            }
         }
         continue;
 
 rx_err:
         must_empty_invalid_queue = true;
-        buffer = g_malloc0(sizeof(VirtIOSoundPCMBuffer));
+        buffer = static_cast<VirtIOSoundPCMBuffer *>(g_malloc0(sizeof(VirtIOSoundPCMBuffer)));
         buffer->elem = elem;
         buffer->vq = vq;
         QSIMPLEQ_INSERT_TAIL(&vsnd->invalid, buffer, entry);
@@ -1142,7 +1146,7 @@ static inline void return_tx_buffer(VirtIOSoundPCMStream *stream,
  */
 static void virtio_snd_pcm_out_cb(void *data, int available)
 {
-    VirtIOSoundPCMStream *stream = data;
+    VirtIOSoundPCMStream *stream = static_cast<VirtIOSoundPCMStream *>(data);
     VirtIOSoundPCMBuffer *buffer;
     size_t size;
 
@@ -1236,7 +1240,7 @@ static inline void return_rx_buffer(VirtIOSoundPCMStream *stream,
  */
 static void virtio_snd_pcm_in_cb(void *data, int available)
 {
-    VirtIOSoundPCMStream *stream = data;
+    VirtIOSoundPCMStream *stream = static_cast<VirtIOSoundPCMStream *>(data);
     VirtIOSoundPCMBuffer *buffer;
     size_t size, max_size;
 

@@ -55,11 +55,24 @@ struct acpi_table_header {
 #define ACPI_TABLE_HDR_SIZE sizeof(struct acpi_table_header)
 #define ACPI_TABLE_PFX_SIZE sizeof(uint16_t)  /* size of the extra prefix */
 
-static const char unsigned dfl_hdr[ACPI_TABLE_HDR_SIZE - ACPI_TABLE_PFX_SIZE] =
-    "QEMU\0\0\0\0\1\0"       /* sig (4), len(4), revno (1), csum (1) */
-    "QEMUQEQEMUQEMU\1\0\0\0" /* OEM id (6), table (8), revno (4) */
-    "QEMU\1\0\0\0"           /* ASL compiler ID (4), version (4) */
-    ;
+static const char unsigned dfl_hdr[ACPI_TABLE_HDR_SIZE - ACPI_TABLE_PFX_SIZE] = {
+    /* sig (4) */
+    'Q', 'E', 'M', 'U',
+    /* len (4) */
+    0, 0, 0, 0,
+    /* revno (1), csum (1) */
+    1, 0,
+    /* OEM id (6) */
+    'Q', 'E', 'M', 'U', 'Q', 'E',
+    /* OEM table id (8) */
+    'Q', 'E', 'M', 'U', 'Q', 'E', 'M', 'U',
+    /* OEM revno (4) */
+    1, 0, 0, 0,
+    /* ASL compiler ID (4) */
+    'Q', 'E', 'M', 'U',
+    /* ASL compiler version (4) */
+    1, 0, 0, 0,
+};
 
 char unsigned *acpi_tables;
 size_t acpi_tables_len;
@@ -166,12 +179,12 @@ static void acpi_table_install(const char unsigned *blob, size_t bloblen,
     /* We won't fail from here on. Initialize / extend the globals. */
     if (acpi_tables == NULL) {
         acpi_tables_len = sizeof(uint16_t);
-        acpi_tables = g_malloc0(acpi_tables_len);
+        acpi_tables = static_cast<char unsigned *>(g_malloc0(acpi_tables_len));
     }
 
-    acpi_tables = g_realloc(acpi_tables, acpi_tables_len +
+    acpi_tables = static_cast<char unsigned *>(g_realloc(acpi_tables, acpi_tables_len +
                                          ACPI_TABLE_PFX_SIZE +
-                                         sizeof dfl_hdr + body_size);
+                                         sizeof dfl_hdr + body_size));
 
     ext_hdr = (struct acpi_table_header *)(acpi_tables + acpi_tables_len);
     acpi_tables_len += ACPI_TABLE_PFX_SIZE;
@@ -289,7 +302,7 @@ void acpi_table_add(const QemuOpts *opts, Error **errp)
             if (r == 0) {
                 break;
             } else if (r > 0) {
-                blob = g_realloc(blob, bloblen + r);
+                blob = static_cast<char unsigned *>(g_realloc(blob, bloblen + r));
                 memcpy(blob + bloblen, data, r);
                 bloblen += r;
             } else if (errno != EINTR) {
@@ -313,14 +326,14 @@ out:
 
 unsigned acpi_table_len(void *current)
 {
-    struct acpi_table_header *hdr = current - sizeof(hdr->_length);
+    struct acpi_table_header *hdr = (struct acpi_table_header *)((char *)current - sizeof(hdr->_length));
     return hdr->_length;
 }
 
 static
 void *acpi_table_hdr(void *h)
 {
-    struct acpi_table_header *hdr = h;
+    struct acpi_table_header *hdr = static_cast<struct acpi_table_header *>(h);
     return &hdr->sig;
 }
 
@@ -329,7 +342,7 @@ uint8_t *acpi_table_first(void)
     if (!acpi_tables) {
         return NULL;
     }
-    return acpi_table_hdr(acpi_tables + ACPI_TABLE_PFX_SIZE);
+    return static_cast<uint8_t *>(acpi_table_hdr(acpi_tables + ACPI_TABLE_PFX_SIZE));
 }
 
 uint8_t *acpi_table_next(uint8_t *current)
@@ -339,7 +352,7 @@ uint8_t *acpi_table_next(uint8_t *current)
     if (next - acpi_tables >= acpi_tables_len) {
         return NULL;
     } else {
-        return acpi_table_hdr(next);
+        return static_cast<uint8_t *>(acpi_table_hdr(next));
     }
 }
 
@@ -348,7 +361,7 @@ int acpi_get_slic_oem(AcpiSlicOem *oem)
     uint8_t *u;
 
     for (u = acpi_table_first(); u; u = acpi_table_next(u)) {
-        struct acpi_table_header *hdr = (void *)(u - sizeof(hdr->_length));
+        struct acpi_table_header *hdr = (struct acpi_table_header *)(u - sizeof(hdr->_length));
 
         if (memcmp(hdr->sig, "SLIC", 4) == 0) {
             oem->id = g_strndup(hdr->oem_id, 6);
@@ -362,7 +375,7 @@ int acpi_get_slic_oem(AcpiSlicOem *oem)
 static void acpi_notify_wakeup(Notifier *notifier, void *data)
 {
     ACPIREGS *ar = container_of(notifier, ACPIREGS, wakeup);
-    WakeupReason *reason = data;
+    WakeupReason *reason = static_cast<WakeupReason *>(data);
 
     switch (*reason) {
     case QEMU_WAKEUP_REASON_RTC:
@@ -434,7 +447,7 @@ void acpi_pm1_evt_reset(ACPIREGS *ar)
 
 static uint64_t acpi_pm_evt_read(void *opaque, hwaddr addr, unsigned width)
 {
-    ACPIREGS *ar = opaque;
+    ACPIREGS *ar = static_cast<ACPIREGS *>(opaque);
     switch (addr) {
     case 0:
         return acpi_pm1_evt_get_sts(ar);
@@ -448,7 +461,7 @@ static uint64_t acpi_pm_evt_read(void *opaque, hwaddr addr, unsigned width)
 static void acpi_pm_evt_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
-    ACPIREGS *ar = opaque;
+    ACPIREGS *ar = static_cast<ACPIREGS *>(opaque);
     switch (addr) {
     case 0:
         acpi_pm1_evt_write_sts(ar, val);
@@ -464,9 +477,14 @@ static void acpi_pm_evt_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps acpi_pm_evt_ops = {
     .read = acpi_pm_evt_read,
     .write = acpi_pm_evt_write,
-    .impl = { .min_access_size = 2, },
-    .valid = { .min_access_size = 1, .max_access_size = 2, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 2,
+    },
+    .impl = {
+        .min_access_size = 2,
+    },
 };
 
 void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
@@ -513,7 +531,7 @@ static uint32_t acpi_pm_tmr_get(ACPIREGS *ar)
 
 static void acpi_pm_tmr_timer(void *opaque)
 {
-    ACPIREGS *ar = opaque;
+    ACPIREGS *ar = static_cast<ACPIREGS *>(opaque);
 
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_PMTIMER, NULL);
     ar->tmr.update_sci(ar);
@@ -521,7 +539,7 @@ static void acpi_pm_tmr_timer(void *opaque)
 
 static uint64_t acpi_pm_tmr_read(void *opaque, hwaddr addr, unsigned width)
 {
-    return acpi_pm_tmr_get(opaque);
+    return acpi_pm_tmr_get(static_cast<ACPIREGS *>(opaque));
 }
 
 static void acpi_pm_tmr_write(void *opaque, hwaddr addr, uint64_t val,
@@ -533,9 +551,14 @@ static void acpi_pm_tmr_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps acpi_pm_tmr_ops = {
     .read = acpi_pm_tmr_read,
     .write = acpi_pm_tmr_write,
-    .impl = { .min_access_size = 4, },
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .impl = {
+        .min_access_size = 4,
+    },
 };
 
 void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
@@ -573,14 +596,14 @@ void acpi_pm1_cnt_update(ACPIREGS *ar,
 
 static uint64_t acpi_pm_cnt_read(void *opaque, hwaddr addr, unsigned width)
 {
-    ACPIREGS *ar = opaque;
+    ACPIREGS *ar = static_cast<ACPIREGS *>(opaque);
     return ar->pm1.cnt.cnt >> addr * 8;
 }
 
 static void acpi_pm_cnt_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
-    ACPIREGS *ar = opaque;
+    ACPIREGS *ar = static_cast<ACPIREGS *>(opaque);
 
     if (addr == 1) {
         val = val << 8 | (ar->pm1.cnt.cnt & 0xff);
@@ -610,9 +633,14 @@ static void acpi_pm_cnt_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps acpi_pm_cnt_ops = {
     .read = acpi_pm_cnt_read,
     .write = acpi_pm_cnt_write,
-    .impl = { .min_access_size = 2, },
-    .valid = { .min_access_size = 1, .max_access_size = 2, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 2,
+    },
+    .impl = {
+        .min_access_size = 2,
+    },
 };
 
 void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent,
@@ -641,7 +669,7 @@ void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent,
         suspend[3] = 1 | ((!disable_s3) << 7);
         suspend[4] = s4_val | ((!disable_s4) << 7);
 
-        fw_cfg_add_file(fw_cfg, "etc/system-states", g_memdup(suspend, 6), 6);
+        fw_cfg_add_file(fw_cfg, "etc/system-states", g_memdup2(suspend, 6), 6);
     }
 }
 
@@ -661,8 +689,8 @@ void acpi_gpe_init(ACPIREGS *ar, uint8_t len)
      * but the caller in ich9.c migrates full len bytes.
      * TODO: fix ich9.c and drop the extra allocation.
      */
-    ar->gpe.sts = g_malloc0(len);
-    ar->gpe.en = g_malloc0(len);
+    ar->gpe.sts = static_cast<uint8_t *>(g_malloc0(len));
+    ar->gpe.en = static_cast<uint8_t *>(g_malloc0(len));
 }
 
 void acpi_gpe_reset(ACPIREGS *ar)

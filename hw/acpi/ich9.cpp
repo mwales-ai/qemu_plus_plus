@@ -49,14 +49,14 @@ static void ich9_pm_update_sci_fn(ACPIREGS *regs)
 
 static uint64_t ich9_gpe_readb(void *opaque, hwaddr addr, unsigned width)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
     return acpi_gpe_ioport_readb(&pm->acpi_regs, addr);
 }
 
 static void ich9_gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
                             unsigned width)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
     acpi_gpe_ioport_writeb(&pm->acpi_regs, addr, val);
     acpi_update_sci(&pm->acpi_regs, pm->irq);
 }
@@ -64,14 +64,20 @@ static void ich9_gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps ich9_gpe_ops = {
     .read = ich9_gpe_readb,
     .write = ich9_gpe_writeb,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
-    .impl = { .min_access_size = 1, .max_access_size = 1, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static uint64_t ich9_smi_readl(void *opaque, hwaddr addr, unsigned width)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
     switch (addr) {
     case 0:
         return pm->smi_en;
@@ -85,7 +91,7 @@ static uint64_t ich9_smi_readl(void *opaque, hwaddr addr, unsigned width)
 static void ich9_smi_writel(void *opaque, hwaddr addr, uint64_t val,
                             unsigned width)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
     TCOIORegs *tr = &pm->tco_regs;
     uint64_t tco_en;
 
@@ -117,8 +123,11 @@ static void ich9_smi_writel(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps ich9_smi_ops = {
     .read = ich9_smi_readl,
     .write = ich9_smi_writel,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base)
@@ -134,7 +143,7 @@ void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base)
 
 static int ich9_pm_post_load(void *opaque, int version_id)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
     uint32_t pm_io_base = pm->pm_io_base;
     pm->pm_io_base = 0;
     ich9_pm_iospace_update(pm, pm_io_base);
@@ -144,86 +153,115 @@ static int ich9_pm_post_load(void *opaque, int version_id)
 #define VMSTATE_GPE_ARRAY(_field, _state)                            \
  {                                                                   \
      .name       = (stringify(_field)),                              \
-     .version_id = 0,                                                \
+     .offset     = vmstate_offset_pointer(_state, _field, uint8_t),  \
+     .size       = sizeof(uint8_t),                                  \
      .num        = ICH9_PMIO_GPE0_LEN,                               \
      .info       = &vmstate_info_uint8,                              \
-     .size       = sizeof(uint8_t),                                  \
      .flags      = VMS_ARRAY | VMS_POINTER,                          \
-     .offset     = vmstate_offset_pointer(_state, _field, uint8_t),  \
+     .version_id = 0,                                                \
  }
+
+static const VMStateField vmstate_memhp_state_fields[] = {
+    VMSTATE_MEMORY_HOTPLUG(acpi_memory_hotplug, ICH9LPCPMRegs),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_memhp_state = {
     .name = "ich9_pm/memhp",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_MEMORY_HOTPLUG(acpi_memory_hotplug, ICH9LPCPMRegs),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_memhp_state_fields,
 };
 
 static bool vmstate_test_use_tco(void *opaque)
 {
-    ICH9LPCPMRegs *s = opaque;
+    ICH9LPCPMRegs *s = static_cast<ICH9LPCPMRegs *>(opaque);
     return s->enable_tco;
 }
+
+static const VMStateField vmstate_tco_io_state_fields[] = {
+    VMSTATE_STRUCT(tco_regs, ICH9LPCPMRegs, 1, vmstate_tco_io_sts,
+                   TCOIORegs),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_tco_io_state = {
     .name = "ich9_pm/tco",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_test_use_tco,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(tco_regs, ICH9LPCPMRegs, 1, vmstate_tco_io_sts,
-                       TCOIORegs),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_tco_io_state_fields,
 };
 
 static bool vmstate_test_use_cpuhp(void *opaque)
 {
-    ICH9LPCPMRegs *s = opaque;
+    ICH9LPCPMRegs *s = static_cast<ICH9LPCPMRegs *>(opaque);
     return !s->cpu_hotplug_legacy;
 }
 
 static int vmstate_cpuhp_pre_load(void *opaque)
 {
-    ICH9LPCPMRegs *s = opaque;
+    ICH9LPCPMRegs *s = static_cast<ICH9LPCPMRegs *>(opaque);
     Object *obj = OBJECT(s->gpe_cpu.device);
     object_property_set_bool(obj, "cpu-hotplug-legacy", false, &error_abort);
     return 0;
 }
 
+static const VMStateField vmstate_cpuhp_state_fields[] = {
+    VMSTATE_CPU_HOTPLUG(cpuhp_state, ICH9LPCPMRegs),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cpuhp_state = {
     .name = "ich9_pm/cpuhp",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = vmstate_test_use_cpuhp,
     .pre_load = vmstate_cpuhp_pre_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_CPU_HOTPLUG(cpuhp_state, ICH9LPCPMRegs),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = vmstate_test_use_cpuhp,
+    .fields = vmstate_cpuhp_state_fields,
 };
 
 static bool vmstate_test_use_pcihp(void *opaque)
 {
-    ICH9LPCPMRegs *s = opaque;
+    ICH9LPCPMRegs *s = static_cast<ICH9LPCPMRegs *>(opaque);
 
     return s->acpi_pci_hotplug.use_acpi_hotplug_bridge;
 }
+
+static const VMStateField vmstate_pcihp_state_fields[] = {
+    VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug,
+                        ICH9LPCPMRegs,
+                        NULL, NULL),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_pcihp_state = {
     .name = "ich9_pm/pcihp",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vmstate_test_use_pcihp,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_HOTPLUG(acpi_pci_hotplug,
-                            ICH9LPCPMRegs,
-                            NULL, NULL),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pcihp_state_fields,
+};
+
+static const VMStateField vmstate_ich9_pm_fields[] = {
+    VMSTATE_UINT16(acpi_regs.pm1.evt.sts, ICH9LPCPMRegs),
+    VMSTATE_UINT16(acpi_regs.pm1.evt.en, ICH9LPCPMRegs),
+    VMSTATE_UINT16(acpi_regs.pm1.cnt.cnt, ICH9LPCPMRegs),
+    VMSTATE_TIMER_PTR(acpi_regs.tmr.timer, ICH9LPCPMRegs),
+    VMSTATE_INT64(acpi_regs.tmr.overflow_time, ICH9LPCPMRegs),
+    VMSTATE_GPE_ARRAY(acpi_regs.gpe.sts, ICH9LPCPMRegs),
+    VMSTATE_GPE_ARRAY(acpi_regs.gpe.en, ICH9LPCPMRegs),
+    VMSTATE_UINT32(smi_en, ICH9LPCPMRegs),
+    VMSTATE_UINT32(smi_sts, ICH9LPCPMRegs),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_ich9_pm_subsections[] = {
+    &vmstate_memhp_state,
+    &vmstate_tco_io_state,
+    &vmstate_cpuhp_state,
+    &vmstate_pcihp_state,
+    NULL
 };
 
 const VMStateDescription vmstate_ich9_pm = {
@@ -231,30 +269,13 @@ const VMStateDescription vmstate_ich9_pm = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ich9_pm_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(acpi_regs.pm1.evt.sts, ICH9LPCPMRegs),
-        VMSTATE_UINT16(acpi_regs.pm1.evt.en, ICH9LPCPMRegs),
-        VMSTATE_UINT16(acpi_regs.pm1.cnt.cnt, ICH9LPCPMRegs),
-        VMSTATE_TIMER_PTR(acpi_regs.tmr.timer, ICH9LPCPMRegs),
-        VMSTATE_INT64(acpi_regs.tmr.overflow_time, ICH9LPCPMRegs),
-        VMSTATE_GPE_ARRAY(acpi_regs.gpe.sts, ICH9LPCPMRegs),
-        VMSTATE_GPE_ARRAY(acpi_regs.gpe.en, ICH9LPCPMRegs),
-        VMSTATE_UINT32(smi_en, ICH9LPCPMRegs),
-        VMSTATE_UINT32(smi_sts, ICH9LPCPMRegs),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_memhp_state,
-        &vmstate_tco_io_state,
-        &vmstate_cpuhp_state,
-        &vmstate_pcihp_state,
-        NULL
-    }
+    .fields = vmstate_ich9_pm_fields,
+    .subsections = vmstate_ich9_pm_subsections,
 };
 
 static void pm_reset(void *opaque)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
     ich9_pm_iospace_update(pm, 0);
 
     acpi_pm1_evt_reset(&pm->acpi_regs);
@@ -346,7 +367,7 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, qemu_irq sci_irq)
 static void ich9_pm_get_gpe0_blk(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
-    ICH9LPCPMRegs *pm = opaque;
+    ICH9LPCPMRegs *pm = static_cast<ICH9LPCPMRegs *>(opaque);
     uint32_t value = pm->pm_io_base + ICH9_PMIO_GPE0_STS;
 
     visit_type_uint32(v, name, &value, errp);

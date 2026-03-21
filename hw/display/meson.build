@@ -47,7 +47,7 @@ endif
 
 if config_all_devices.has_key('CONFIG_QXL')
   qxl_ss = ss.source_set()
-  qxl_ss.add(when: 'CONFIG_QXL', if_true: [files('qxl.c', 'qxl-logger.cpp', 'qxl-render.cpp'),
+  qxl_ss.add(when: 'CONFIG_QXL', if_true: [files('qxl.cpp', 'qxl-logger.cpp', 'qxl-render.cpp'),
                                            pixman, spice])
   qxl_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-vga.cpp'),
                                   if_false: files('acpi-vga-stub.cpp'))

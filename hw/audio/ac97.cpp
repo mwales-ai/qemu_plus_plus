@@ -509,7 +509,7 @@ static void mixer_reset(AC97LinkState *s)
  */
 static uint32_t nam_readb(void *opaque, uint32_t addr)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     dolog("U nam readb 0x%x", addr);
     s->cas = 0;
     return ~0U;
@@ -517,14 +517,14 @@ static uint32_t nam_readb(void *opaque, uint32_t addr)
 
 static uint32_t nam_readw(void *opaque, uint32_t addr)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     s->cas = 0;
     return mixer_load(s, addr);
 }
 
 static uint32_t nam_readl(void *opaque, uint32_t addr)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     dolog("U nam readl 0x%x", addr);
     s->cas = 0;
     return ~0U;
@@ -536,14 +536,14 @@ static uint32_t nam_readl(void *opaque, uint32_t addr)
  */
 static void nam_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     dolog("U nam writeb 0x%x <- 0x%x", addr, val);
     s->cas = 0;
 }
 
 static void nam_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
 
     s->cas = 0;
     switch (addr) {
@@ -640,7 +640,7 @@ static void nam_writew(void *opaque, uint32_t addr, uint32_t val)
 
 static void nam_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     dolog("U nam writel 0x%x <- 0x%x", addr, val);
     s->cas = 0;
 }
@@ -651,7 +651,7 @@ static void nam_writel(void *opaque, uint32_t addr, uint32_t val)
  */
 static uint32_t nabm_readb(void *opaque, uint32_t addr)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     AC97BusMasterRegs *r = NULL;
     uint32_t val = ~0U;
 
@@ -705,7 +705,7 @@ static uint32_t nabm_readb(void *opaque, uint32_t addr)
 
 static uint32_t nabm_readw(void *opaque, uint32_t addr)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     AC97BusMasterRegs *r = NULL;
     uint32_t val = ~0U;
 
@@ -733,7 +733,7 @@ static uint32_t nabm_readw(void *opaque, uint32_t addr)
 
 static uint32_t nabm_readl(void *opaque, uint32_t addr)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     AC97BusMasterRegs *r = NULL;
     uint32_t val = ~0U;
 
@@ -782,7 +782,7 @@ static uint32_t nabm_readl(void *opaque, uint32_t addr)
  */
 static void nabm_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     AC97BusMasterRegs *r = NULL;
 
     switch (addr) {
@@ -836,7 +836,7 @@ static void nabm_writeb(void *opaque, uint32_t addr, uint32_t val)
 
 static void nabm_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     AC97BusMasterRegs *r = NULL;
 
     switch (addr) {
@@ -856,7 +856,7 @@ static void nabm_writew(void *opaque, uint32_t addr, uint32_t val)
 
 static void nabm_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
     AC97BusMasterRegs *r = NULL;
 
     switch (addr) {
@@ -1079,42 +1079,44 @@ static void transfer_audio(AC97LinkState *s, int index, int elapsed)
 
 static void pi_callback(void *opaque, int avail)
 {
-    transfer_audio(opaque, PI_INDEX, avail);
+    transfer_audio(static_cast<AC97LinkState *>(opaque), PI_INDEX, avail);
 }
 
 static void mc_callback(void *opaque, int avail)
 {
-    transfer_audio(opaque, MC_INDEX, avail);
+    transfer_audio(static_cast<AC97LinkState *>(opaque), MC_INDEX, avail);
 }
 
 static void po_callback(void *opaque, int free)
 {
-    transfer_audio(opaque, PO_INDEX, free);
+    transfer_audio(static_cast<AC97LinkState *>(opaque), PO_INDEX, free);
 }
+
+static const VMStateField vmstate_ac97_bm_regs_fields[] = {
+    VMSTATE_UINT32(bdbar, AC97BusMasterRegs),
+    VMSTATE_UINT8(civ, AC97BusMasterRegs),
+    VMSTATE_UINT8(lvi, AC97BusMasterRegs),
+    VMSTATE_UINT16(sr, AC97BusMasterRegs),
+    VMSTATE_UINT16(picb, AC97BusMasterRegs),
+    VMSTATE_UINT8(piv, AC97BusMasterRegs),
+    VMSTATE_UINT8(cr, AC97BusMasterRegs),
+    VMSTATE_UINT32(bd_valid, AC97BusMasterRegs),
+    VMSTATE_UINT32(bd.addr, AC97BusMasterRegs),
+    VMSTATE_UINT32(bd.ctl_len, AC97BusMasterRegs),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_ac97_bm_regs = {
     .name = "ac97_bm_regs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(bdbar, AC97BusMasterRegs),
-        VMSTATE_UINT8(civ, AC97BusMasterRegs),
-        VMSTATE_UINT8(lvi, AC97BusMasterRegs),
-        VMSTATE_UINT16(sr, AC97BusMasterRegs),
-        VMSTATE_UINT16(picb, AC97BusMasterRegs),
-        VMSTATE_UINT8(piv, AC97BusMasterRegs),
-        VMSTATE_UINT8(cr, AC97BusMasterRegs),
-        VMSTATE_UINT32(bd_valid, AC97BusMasterRegs),
-        VMSTATE_UINT32(bd.addr, AC97BusMasterRegs),
-        VMSTATE_UINT32(bd.ctl_len, AC97BusMasterRegs),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ac97_bm_regs_fields,
 };
 
 static int ac97_post_load(void *opaque, int version_id)
 {
     uint8_t active[LAST_INDEX];
-    AC97LinkState *s = opaque;
+    AC97LinkState *s = static_cast<AC97LinkState *>(opaque);
 
     record_select(s, mixer_load(s, AC97_Record_Select));
     set_volume(s, AC97_Master_Volume_Mute,
@@ -1139,22 +1141,24 @@ static bool is_version_2(void *opaque, int version_id)
     return version_id == 2;
 }
 
+static const VMStateField vmstate_ac97_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, AC97LinkState),
+    VMSTATE_UINT32(glob_cnt, AC97LinkState),
+    VMSTATE_UINT32(glob_sta, AC97LinkState),
+    VMSTATE_UINT32(cas, AC97LinkState),
+    VMSTATE_STRUCT_ARRAY(bm_regs, AC97LinkState, 3, 1,
+                         vmstate_ac97_bm_regs, AC97BusMasterRegs),
+    VMSTATE_BUFFER(mixer_data, AC97LinkState),
+    VMSTATE_UNUSED_TEST(is_version_2, 3),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ac97 = {
     .name = "ac97",
     .version_id = 3,
     .minimum_version_id = 2,
     .post_load = ac97_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, AC97LinkState),
-        VMSTATE_UINT32(glob_cnt, AC97LinkState),
-        VMSTATE_UINT32(glob_sta, AC97LinkState),
-        VMSTATE_UINT32(cas, AC97LinkState),
-        VMSTATE_STRUCT_ARRAY(bm_regs, AC97LinkState, 3, 1,
-                             vmstate_ac97_bm_regs, AC97BusMasterRegs),
-        VMSTATE_BUFFER(mixer_data, AC97LinkState),
-        VMSTATE_UNUSED_TEST(is_version_2, 3),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ac97_fields,
 };
 
 static uint64_t nam_read(void *opaque, hwaddr addr, unsigned size)
@@ -1198,11 +1202,11 @@ static void nam_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps ac97_io_nam_ops = {
     .read = nam_read,
     .write = nam_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t nabm_read(void *opaque, hwaddr addr, unsigned size)
@@ -1247,11 +1251,11 @@ static void nabm_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps ac97_io_nabm_ops = {
     .read = nabm_read,
     .write = nabm_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void ac97_on_reset(DeviceState *dev)
@@ -1328,15 +1332,17 @@ static void ac97_class_init(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, ac97_on_reset);
 }
 
+static const InterfaceInfo ac97_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo ac97_info = {
     .name          = TYPE_AC97,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AC97LinkState),
     .class_init    = ac97_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = ac97_interfaces,
 };
 
 static void ac97_register_types(void)

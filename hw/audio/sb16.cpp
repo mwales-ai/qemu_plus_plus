@@ -195,7 +195,7 @@ static void control (SB16State *s, int hold)
 
 static void aux_timer (void *opaque)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
     s->can_write = 1;
     qemu_irq_raise (s->pic);
 }
@@ -920,7 +920,7 @@ static void reset (SB16State *s)
 
 static void dsp_write(void *opaque, uint32_t nport, uint32_t val)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
     int iport;
 
     iport = nport - s->port;
@@ -998,7 +998,7 @@ static void dsp_write(void *opaque, uint32_t nport, uint32_t val)
 
 static uint32_t dsp_read(void *opaque, uint32_t nport)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
     int iport, retval, ack = 0;
 
     iport = nport - s->port;
@@ -1097,14 +1097,14 @@ static void reset_mixer (SB16State *s)
 
 static void mixer_write_indexb(void *opaque, uint32_t nport, uint32_t val)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
     (void) nport;
     s->mixer_nreg = val;
 }
 
 static void mixer_write_datab(void *opaque, uint32_t nport, uint32_t val)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
 
     (void) nport;
     ldebug("mixer_write [0x%x] <- 0x%x", s->mixer_nreg, val);
@@ -1159,7 +1159,7 @@ static void mixer_write_datab(void *opaque, uint32_t nport, uint32_t val)
 
 static uint32_t mixer_read(void *opaque, uint32_t nport)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
 
     (void) nport;
 #ifndef DEBUG_SB16_MOST
@@ -1212,7 +1212,7 @@ static int write_audio (SB16State *s, int nchan, int dma_pos,
 
 static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
     int till, copy, written, free;
 
     if (s->block_size <= 0) {
@@ -1278,13 +1278,13 @@ static int SB_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
 
 static void SB_audio_callback (void *opaque, int free)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
     s->audio_free = free;
 }
 
 static int sb16_post_load (void *opaque, int version_id)
 {
-    SB16State *s = opaque;
+    SB16State *s = static_cast<SB16State *>(opaque);
 
     if (s->voice) {
         AUD_close_out(s->audio_be, s->voice);
@@ -1318,71 +1318,73 @@ static int sb16_post_load (void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_sb16_fields[] = {
+    VMSTATE_UNUSED(  4 /* irq */
+                   + 4 /* dma */
+                   + 4 /* hdma */
+                   + 4 /* port */
+                   + 4 /* ver */),
+    VMSTATE_INT32 (in_index, SB16State),
+    VMSTATE_INT32 (out_data_len, SB16State),
+    VMSTATE_INT32 (fmt_stereo, SB16State),
+    VMSTATE_INT32 (fmt_signed, SB16State),
+    VMSTATE_INT32 (fmt_bits, SB16State),
+    VMSTATE_UINT32 (fmt, SB16State),
+    VMSTATE_INT32 (dma_auto, SB16State),
+    VMSTATE_INT32 (block_size, SB16State),
+    VMSTATE_INT32 (fifo, SB16State),
+    VMSTATE_INT32 (freq, SB16State),
+    VMSTATE_INT32 (time_const, SB16State),
+    VMSTATE_INT32 (speaker, SB16State),
+    VMSTATE_INT32 (needed_bytes, SB16State),
+    VMSTATE_INT32 (cmd, SB16State),
+    VMSTATE_INT32 (use_hdma, SB16State),
+    VMSTATE_INT32 (highspeed, SB16State),
+    VMSTATE_INT32 (can_write, SB16State),
+    VMSTATE_INT32 (v2x6, SB16State),
+
+    VMSTATE_UINT8 (csp_param, SB16State),
+    VMSTATE_UINT8 (csp_value, SB16State),
+    VMSTATE_UINT8 (csp_mode, SB16State),
+    VMSTATE_UINT8 (csp_param, SB16State),
+    VMSTATE_BUFFER (csp_regs, SB16State),
+    VMSTATE_UINT8 (csp_index, SB16State),
+    VMSTATE_BUFFER (csp_reg83, SB16State),
+    VMSTATE_INT32 (csp_reg83r, SB16State),
+    VMSTATE_INT32 (csp_reg83w, SB16State),
+
+    VMSTATE_BUFFER (in2_data, SB16State),
+    VMSTATE_BUFFER (out_data, SB16State),
+    VMSTATE_UINT8 (test_reg, SB16State),
+    VMSTATE_UINT8 (last_read_byte, SB16State),
+
+    VMSTATE_INT32 (nzero, SB16State),
+    VMSTATE_INT32 (left_till_irq, SB16State),
+    VMSTATE_INT32 (dma_running, SB16State),
+    VMSTATE_INT32 (bytes_per_second, SB16State),
+    VMSTATE_INT32 (align, SB16State),
+
+    VMSTATE_INT32 (mixer_nreg, SB16State),
+    VMSTATE_BUFFER (mixer_regs, SB16State),
+
+    VMSTATE_END_OF_LIST ()
+};
+
 static const VMStateDescription vmstate_sb16 = {
     .name = "sb16",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = sb16_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UNUSED(  4 /* irq */
-                       + 4 /* dma */
-                       + 4 /* hdma */
-                       + 4 /* port */
-                       + 4 /* ver */),
-        VMSTATE_INT32 (in_index, SB16State),
-        VMSTATE_INT32 (out_data_len, SB16State),
-        VMSTATE_INT32 (fmt_stereo, SB16State),
-        VMSTATE_INT32 (fmt_signed, SB16State),
-        VMSTATE_INT32 (fmt_bits, SB16State),
-        VMSTATE_UINT32 (fmt, SB16State),
-        VMSTATE_INT32 (dma_auto, SB16State),
-        VMSTATE_INT32 (block_size, SB16State),
-        VMSTATE_INT32 (fifo, SB16State),
-        VMSTATE_INT32 (freq, SB16State),
-        VMSTATE_INT32 (time_const, SB16State),
-        VMSTATE_INT32 (speaker, SB16State),
-        VMSTATE_INT32 (needed_bytes, SB16State),
-        VMSTATE_INT32 (cmd, SB16State),
-        VMSTATE_INT32 (use_hdma, SB16State),
-        VMSTATE_INT32 (highspeed, SB16State),
-        VMSTATE_INT32 (can_write, SB16State),
-        VMSTATE_INT32 (v2x6, SB16State),
-
-        VMSTATE_UINT8 (csp_param, SB16State),
-        VMSTATE_UINT8 (csp_value, SB16State),
-        VMSTATE_UINT8 (csp_mode, SB16State),
-        VMSTATE_UINT8 (csp_param, SB16State),
-        VMSTATE_BUFFER (csp_regs, SB16State),
-        VMSTATE_UINT8 (csp_index, SB16State),
-        VMSTATE_BUFFER (csp_reg83, SB16State),
-        VMSTATE_INT32 (csp_reg83r, SB16State),
-        VMSTATE_INT32 (csp_reg83w, SB16State),
-
-        VMSTATE_BUFFER (in2_data, SB16State),
-        VMSTATE_BUFFER (out_data, SB16State),
-        VMSTATE_UINT8 (test_reg, SB16State),
-        VMSTATE_UINT8 (last_read_byte, SB16State),
-
-        VMSTATE_INT32 (nzero, SB16State),
-        VMSTATE_INT32 (left_till_irq, SB16State),
-        VMSTATE_INT32 (dma_running, SB16State),
-        VMSTATE_INT32 (bytes_per_second, SB16State),
-        VMSTATE_INT32 (align, SB16State),
-
-        VMSTATE_INT32 (mixer_nreg, SB16State),
-        VMSTATE_BUFFER (mixer_regs, SB16State),
-
-        VMSTATE_END_OF_LIST ()
-    }
+    .fields = vmstate_sb16_fields,
 };
 
 static const MemoryRegionPortio sb16_ioport_list[] = {
-    {  4, 1, 1, .write = mixer_write_indexb },
-    {  5, 1, 1, .read = mixer_read, .write = mixer_write_datab },
-    {  6, 1, 1, .read = dsp_read, .write = dsp_write },
-    { 10, 1, 1, .read = dsp_read },
-    { 12, 1, 1, .write = dsp_write },
-    { 12, 4, 1, .read = dsp_read },
+    {  4, 1, 1, NULL,     mixer_write_indexb },
+    {  5, 1, 1, mixer_read, mixer_write_datab },
+    {  6, 1, 1, dsp_read, dsp_write },
+    { 10, 1, 1, dsp_read, NULL },
+    { 12, 1, 1, NULL,     dsp_write },
+    { 12, 4, 1, dsp_read, NULL },
     PORTIO_END_OF_LIST (),
 };
 

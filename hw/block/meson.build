@@ -3,7 +3,7 @@ system_ss.add(files(
   'cdrom.cpp',
   'hd-geometry.cpp'
 ))
-system_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.c'))
+system_ss.add(when: 'CONFIG_FDC', if_true: files('fdc.cpp'))
 system_ss.add(when: 'CONFIG_FDC_ISA', if_true: files('fdc-isa.cpp'))
 system_ss.add(when: 'CONFIG_FDC_SYSBUS', if_true: files('fdc-sysbus.cpp'))
 system_ss.add(when: 'CONFIG_PFLASH_CFI01', if_true: files('pflash_cfi01.cpp'))
@@ -13,7 +13,7 @@ system_ss.add(when: 'CONFIG_SSI_M25P80', if_true: files('m25p80_sfdp.cpp'))
 system_ss.add(when: 'CONFIG_SWIM', if_true: files('swim.cpp'))
 system_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen-block.c'))
 
-specific_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio-blk.c'))
+specific_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio-blk.cpp'))
 system_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio-blk-common.cpp'))
 specific_ss.add(when: 'CONFIG_VHOST_USER_BLK', if_true: files('vhost-user-blk.cpp'))
 system_ss.add(when: 'CONFIG_VHOST_USER_BLK', if_true: files('virtio-blk-common.cpp'))

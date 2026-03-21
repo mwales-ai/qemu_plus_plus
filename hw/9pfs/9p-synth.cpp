@@ -29,11 +29,11 @@
 /* Root node for synth file system */
 static V9fsSynthNode synth_root = {
     .name = "/",
+    .attr = &synth_root.actual_attr,
     .actual_attr = {
         .mode = 0555 | S_IFDIR,
         .nlink = 1,
     },
-    .attr = &synth_root.actual_attr,
 };
 
 static QemuMutex  synth_mutex;
@@ -63,7 +63,7 @@ static V9fsSynthNode *v9fs_add_dir_node(V9fsSynthNode *parent, int mode,
         node->attr->write = NULL;
         node->attr->read  = NULL;
     }
-    node->private = node;
+    node->priv_data = node;
     pstrcpy(node->name, sizeof(node->name), name);
     QLIST_INSERT_HEAD_RCU(&parent->child, node, sibling);
     return node;
@@ -130,7 +130,7 @@ int qemu_v9fs_synth_add_file(V9fsSynthNode *parent, int mode,
     node->attr->read   = read;
     node->attr->write  = write;
     node->attr->mode   = mode;
-    node->private      = arg;
+    node->priv_data      = arg;
     pstrcpy(node->name, sizeof(node->name), name);
     QLIST_INSERT_HEAD_RCU(&parent->child, node, sibling);
     return 0;
@@ -165,7 +165,7 @@ static int synth_lstat(FsContext *fs_ctx,
 static int synth_fstat(FsContext *fs_ctx, int fid_type,
                             V9fsFidOpenState *fs, struct stat *stbuf)
 {
-    V9fsSynthOpenState *synth_open = fs->private;
+    V9fsSynthOpenState *synth_open = static_cast<V9fsSynthOpenState *>(fs->priv_data);
     synth_fill_statbuf(synth_open->node, stbuf);
     return 0;
 }
@@ -184,30 +184,30 @@ static int synth_opendir(FsContext *ctx,
     synth_open = g_new0(V9fsSynthOpenState, 1);
     synth_open->node = node;
     node->open_count++;
-    fs->private = synth_open;
+    fs->priv_data = synth_open;
     return 0;
 }
 
 static int synth_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    V9fsSynthOpenState *synth_open = fs->private;
+    V9fsSynthOpenState *synth_open = static_cast<V9fsSynthOpenState *>(fs->priv_data);
     V9fsSynthNode *node = synth_open->node;
 
     node->open_count--;
     g_free(synth_open);
-    fs->private = NULL;
+    fs->priv_data = NULL;
     return 0;
 }
 
 static off_t synth_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    V9fsSynthOpenState *synth_open = fs->private;
+    V9fsSynthOpenState *synth_open = static_cast<V9fsSynthOpenState *>(fs->priv_data);
     return synth_open->offset;
 }
 
 static void synth_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    V9fsSynthOpenState *synth_open = fs->private;
+    V9fsSynthOpenState *synth_open = static_cast<V9fsSynthOpenState *>(fs->priv_data);
     synth_open->offset = off;
 }
 
@@ -261,7 +261,7 @@ static struct dirent *synth_get_dentry(V9fsSynthNode *dir,
 static struct dirent *synth_readdir(FsContext *ctx, V9fsFidOpenState *fs)
 {
     struct dirent *entry;
-    V9fsSynthOpenState *synth_open = fs->private;
+    V9fsSynthOpenState *synth_open = static_cast<V9fsSynthOpenState *>(fs->priv_data);
     V9fsSynthNode *node = synth_open->node;
     entry = synth_get_dentry(node, &synth_open->dent, synth_open->offset);
     if (entry) {
@@ -279,7 +279,7 @@ static int synth_open(FsContext *ctx, V9fsPath *fs_path,
     synth_open = g_new0(V9fsSynthOpenState, 1);
     synth_open->node = node;
     node->open_count++;
-    fs->private = synth_open;
+    fs->priv_data = synth_open;
     return 0;
 }
 
@@ -293,12 +293,12 @@ static int synth_open2(FsContext *fs_ctx, V9fsPath *dir_path,
 
 static int synth_close(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    V9fsSynthOpenState *synth_open = fs->private;
+    V9fsSynthOpenState *synth_open = static_cast<V9fsSynthOpenState *>(fs->priv_data);
     V9fsSynthNode *node = synth_open->node;
 
     node->open_count--;
     g_free(synth_open);
-    fs->private = NULL;
+    fs->priv_data = NULL;
     return 0;
 }
 
@@ -307,7 +307,7 @@ static ssize_t synth_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
                                   int iovcnt, off_t offset)
 {
     int i, count = 0, wcount;
-    V9fsSynthOpenState *synth_open = fs->private;
+    V9fsSynthOpenState *synth_open = static_cast<V9fsSynthOpenState *>(fs->priv_data);
     V9fsSynthNode *node = synth_open->node;
     if (!node->attr->write) {
         errno = EPERM;
@@ -315,7 +315,7 @@ static ssize_t synth_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
     }
     for (i = 0; i < iovcnt; i++) {
         wcount = node->attr->write(iov[i].iov_base, iov[i].iov_len,
-                                   offset, node->private);
+                                   offset, node->priv_data);
         offset += wcount;
         count  += wcount;
         /* If we wrote less than requested. we are done */
@@ -331,7 +331,7 @@ static ssize_t synth_preadv(FsContext *ctx, V9fsFidOpenState *fs,
                                  int iovcnt, off_t offset)
 {
     int i, count = 0, rcount;
-    V9fsSynthOpenState *synth_open = fs->private;
+    V9fsSynthOpenState *synth_open = static_cast<V9fsSynthOpenState *>(fs->priv_data);
     V9fsSynthNode *node = synth_open->node;
     if (!node->attr->read) {
         errno = EPERM;
@@ -339,7 +339,7 @@ static ssize_t synth_preadv(FsContext *ctx, V9fsFidOpenState *fs,
     }
     for (i = 0; i < iovcnt; i++) {
         rcount = node->attr->read(iov[i].iov_base, iov[i].iov_len,
-                                  offset, node->private);
+                                  offset, node->priv_data);
         offset += rcount;
         count  += rcount;
         /* If we read less than requested. we are done */
@@ -523,7 +523,7 @@ static int synth_name_to_path(FsContext *ctx, V9fsPath *dir_path,
 out:
     /* Copy the node pointer to fid */
     g_free(target->data);
-    target->data = g_memdup(&node, sizeof(void *));
+    target->data = static_cast<char *>(g_memdup2(&node, sizeof(void *)));
     target->size = sizeof(void *);
     return 0;
 }
@@ -638,28 +638,30 @@ FileOperations synth_ops = {
     .init         = synth_init,
     .lstat        = synth_lstat,
     .readlink     = synth_readlink,
+    .chmod        = synth_chmod,
+    .chown        = synth_chown,
+    .mknod        = synth_mknod,
+    .utimensat    = synth_utimensat,
+    .futimens     = synth_futimens,
+    .remove       = synth_remove,
+    .symlink      = synth_symlink,
+    .link         = synth_link,
     .close        = synth_close,
     .closedir     = synth_closedir,
-    .open         = synth_open,
     .opendir      = synth_opendir,
+    .open         = synth_open,
+    .open2        = synth_open2,
     .rewinddir    = synth_rewinddir,
     .telldir      = synth_telldir,
     .readdir      = synth_readdir,
     .seekdir      = synth_seekdir,
     .preadv       = synth_preadv,
     .pwritev      = synth_pwritev,
-    .chmod        = synth_chmod,
-    .mknod        = synth_mknod,
     .mkdir        = synth_mkdir,
     .fstat        = synth_fstat,
-    .open2        = synth_open2,
-    .symlink      = synth_symlink,
-    .link         = synth_link,
-    .truncate     = synth_truncate,
     .rename       = synth_rename,
-    .chown        = synth_chown,
-    .utimensat    = synth_utimensat,
-    .remove       = synth_remove,
+    .truncate     = synth_truncate,
+    .ftruncate    = synth_ftruncate,
     .fsync        = synth_fsync,
     .statfs       = synth_statfs,
     .lgetxattr    = synth_lgetxattr,
@@ -670,6 +672,4 @@ FileOperations synth_ops = {
     .renameat     = synth_renameat,
     .unlinkat     = synth_unlinkat,
     .has_valid_file_handle = synth_has_valid_file_handle,
-    .ftruncate    = synth_ftruncate,
-    .futimens     = synth_futimens,
 };

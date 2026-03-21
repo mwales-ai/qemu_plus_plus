@@ -140,7 +140,7 @@ const FDFormat fd_formats[] = {
     /* 360 kB must match 5"1/4 better than 3"1/2... */
     { FLOPPY_DRIVE_TYPE_144,  9, 80, 0, FDRIVE_RATE_250K, }, /* 3.5" 720 */
     /* end */
-    { FLOPPY_DRIVE_TYPE_NONE, -1, -1, 0, 0, },
+    { FLOPPY_DRIVE_TYPE_NONE, -1, -1, 0, static_cast<FDriveRate>(0), },
 };
 
 static FDriveSize drive_size(FloppyDriveType drive)
@@ -360,9 +360,9 @@ static int pick_geometry(FDrive *drv)
 
  out:
     if (parse->max_head == 0) {
-        drv->flags &= ~FDISK_DBL_SIDES;
+        drv->flags = static_cast<FDiskFlags>(drv->flags & ~FDISK_DBL_SIDES);
     } else {
-        drv->flags |= FDISK_DBL_SIDES;
+        drv->flags = static_cast<FDiskFlags>(drv->flags | FDISK_DBL_SIDES);
     }
     drv->max_track = parse->max_track;
     drv->last_sect = parse->last_sect;
@@ -414,7 +414,7 @@ static void fd_revalidate(FDrive *drv)
         FLOPPY_DPRINTF("No drive connected\n");
         drv->last_sect = 0;
         drv->max_track = 0;
-        drv->flags &= ~FDISK_DBL_SIDES;
+        drv->flags = static_cast<FDiskFlags>(drv->flags & ~FDISK_DBL_SIDES);
         drv->drive = FLOPPY_DRIVE_TYPE_NONE;
         drv->disk = FLOPPY_DRIVE_TYPE_NONE;
     }
@@ -422,7 +422,7 @@ static void fd_revalidate(FDrive *drv)
 
 static void fd_change_cb(void *opaque, bool load, Error **errp)
 {
-    FDrive *drive = opaque;
+    FDrive *drive = static_cast<FDrive *>(opaque);
 
     if (!load) {
         blk_set_perm(drive->blk, 0, BLK_PERM_ALL, &error_abort);
@@ -779,7 +779,7 @@ static FloppyDriveType get_fallback_drive_type(FDrive *drv)
 
 uint32_t fdctrl_read(void *opaque, uint32_t reg)
 {
-    FDCtrl *fdctrl = opaque;
+    FDCtrl *fdctrl = static_cast<FDCtrl *>(opaque);
     uint32_t retval;
 
     reg &= 7;
@@ -816,7 +816,7 @@ uint32_t fdctrl_read(void *opaque, uint32_t reg)
 
 void fdctrl_write(void *opaque, uint32_t reg, uint32_t value)
 {
-    FDCtrl *fdctrl = opaque;
+    FDCtrl *fdctrl = static_cast<FDCtrl *>(opaque);
 
     reg &= 7;
     trace_fdc_ioport_write(reg, value);
@@ -843,7 +843,7 @@ void fdctrl_write(void *opaque, uint32_t reg, uint32_t value)
 
 static bool fdrive_media_changed_needed(void *opaque)
 {
-    FDrive *drive = opaque;
+    FDrive *drive = static_cast<FDrive *>(opaque);
 
     return (drive->blk != NULL && drive->media_changed != 1);
 }
@@ -871,7 +871,7 @@ static const VMStateDescription vmstate_fdrive_media_rate = {
 
 static bool fdrive_perpendicular_needed(void *opaque)
 {
-    FDrive *drive = opaque;
+    FDrive *drive = static_cast<FDrive *>(opaque);
 
     return drive->perpendicular != 0;
 }
@@ -889,7 +889,7 @@ static const VMStateDescription vmstate_fdrive_perpendicular = {
 
 static int fdrive_post_load(void *opaque, int version_id)
 {
-    fd_revalidate(opaque);
+    fd_revalidate(static_cast<FDrive *>(opaque));
     return 0;
 }
 
@@ -936,7 +936,7 @@ static int reconstruct_phase(FDCtrl *fdctrl)
 
 static int fdc_pre_save(void *opaque)
 {
-    FDCtrl *s = opaque;
+    FDCtrl *s = static_cast<FDCtrl *>(opaque);
 
     s->dor_vmstate = s->dor | GET_CUR_DRV(s);
 
@@ -945,14 +945,14 @@ static int fdc_pre_save(void *opaque)
 
 static int fdc_pre_load(void *opaque)
 {
-    FDCtrl *s = opaque;
+    FDCtrl *s = static_cast<FDCtrl *>(opaque);
     s->phase = FD_PHASE_RECONSTRUCT;
     return 0;
 }
 
 static int fdc_post_load(void *opaque, int version_id)
 {
-    FDCtrl *s = opaque;
+    FDCtrl *s = static_cast<FDCtrl *>(opaque);
 
     SET_CUR_DRV(s, s->dor_vmstate & FD_DOR_SELMASK);
     s->dor = s->dor_vmstate & ~FD_DOR_SELMASK;
@@ -966,7 +966,7 @@ static int fdc_post_load(void *opaque, int version_id)
 
 static bool fdc_reset_sensei_needed(void *opaque)
 {
-    FDCtrl *s = opaque;
+    FDCtrl *s = static_cast<FDCtrl *>(opaque);
 
     return s->reset_sensei != 0;
 }
@@ -984,25 +984,27 @@ static const VMStateDescription vmstate_fdc_reset_sensei = {
 
 static bool fdc_result_timer_needed(void *opaque)
 {
-    FDCtrl *s = opaque;
+    FDCtrl *s = static_cast<FDCtrl *>(opaque);
 
     return timer_pending(s->result_timer);
 }
+
+static const VMStateField vmstate_fdc_result_timer_fields[] = {
+    VMSTATE_TIMER_PTR(result_timer, FDCtrl),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_fdc_result_timer = {
     .name = "fdc/result_timer",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = fdc_result_timer_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(result_timer, FDCtrl),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_fdc_result_timer_fields,
 };
 
 static bool fdc_phase_needed(void *opaque)
 {
-    FDCtrl *fdctrl = opaque;
+    FDCtrl *fdctrl = static_cast<FDCtrl *>(opaque);
 
     return reconstruct_phase(fdctrl) != fdctrl->phase;
 }
@@ -1018,50 +1020,54 @@ static const VMStateDescription vmstate_fdc_phase = {
     }
 };
 
+static const VMStateField vmstate_fdc_fields[] = {
+    /* Controller State */
+    VMSTATE_UINT8(sra, FDCtrl),
+    VMSTATE_UINT8(srb, FDCtrl),
+    VMSTATE_UINT8(dor_vmstate, FDCtrl),
+    VMSTATE_UINT8(tdr, FDCtrl),
+    VMSTATE_UINT8(dsr, FDCtrl),
+    VMSTATE_UINT8(msr, FDCtrl),
+    VMSTATE_UINT8(status0, FDCtrl),
+    VMSTATE_UINT8(status1, FDCtrl),
+    VMSTATE_UINT8(status2, FDCtrl),
+    /* Command FIFO */
+    VMSTATE_VARRAY_INT32(fifo, FDCtrl, fifo_size, 0, vmstate_info_uint8,
+                         uint8_t),
+    VMSTATE_UINT32(data_pos, FDCtrl),
+    VMSTATE_UINT32(data_len, FDCtrl),
+    VMSTATE_UINT8(data_state, FDCtrl),
+    VMSTATE_UINT8(data_dir, FDCtrl),
+    VMSTATE_UINT8(eot, FDCtrl),
+    /* States kept only to be returned back */
+    VMSTATE_UINT8(timer0, FDCtrl),
+    VMSTATE_UINT8(timer1, FDCtrl),
+    VMSTATE_UINT8(precomp_trk, FDCtrl),
+    VMSTATE_UINT8(config, FDCtrl),
+    VMSTATE_UINT8(lock, FDCtrl),
+    VMSTATE_UINT8(pwrd, FDCtrl),
+    VMSTATE_UINT8_EQUAL(num_floppies, FDCtrl, NULL),
+    VMSTATE_STRUCT_ARRAY(drives, FDCtrl, MAX_FD, 1,
+                         vmstate_fdrive, FDrive),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_fdc_subsections[] = {
+    &vmstate_fdc_reset_sensei,
+    &vmstate_fdc_result_timer,
+    &vmstate_fdc_phase,
+    NULL
+};
+
 const VMStateDescription vmstate_fdc = {
     .name = "fdc",
     .version_id = 2,
     .minimum_version_id = 2,
-    .pre_save = fdc_pre_save,
     .pre_load = fdc_pre_load,
     .post_load = fdc_post_load,
-    .fields = (const VMStateField[]) {
-        /* Controller State */
-        VMSTATE_UINT8(sra, FDCtrl),
-        VMSTATE_UINT8(srb, FDCtrl),
-        VMSTATE_UINT8(dor_vmstate, FDCtrl),
-        VMSTATE_UINT8(tdr, FDCtrl),
-        VMSTATE_UINT8(dsr, FDCtrl),
-        VMSTATE_UINT8(msr, FDCtrl),
-        VMSTATE_UINT8(status0, FDCtrl),
-        VMSTATE_UINT8(status1, FDCtrl),
-        VMSTATE_UINT8(status2, FDCtrl),
-        /* Command FIFO */
-        VMSTATE_VARRAY_INT32(fifo, FDCtrl, fifo_size, 0, vmstate_info_uint8,
-                             uint8_t),
-        VMSTATE_UINT32(data_pos, FDCtrl),
-        VMSTATE_UINT32(data_len, FDCtrl),
-        VMSTATE_UINT8(data_state, FDCtrl),
-        VMSTATE_UINT8(data_dir, FDCtrl),
-        VMSTATE_UINT8(eot, FDCtrl),
-        /* States kept only to be returned back */
-        VMSTATE_UINT8(timer0, FDCtrl),
-        VMSTATE_UINT8(timer1, FDCtrl),
-        VMSTATE_UINT8(precomp_trk, FDCtrl),
-        VMSTATE_UINT8(config, FDCtrl),
-        VMSTATE_UINT8(lock, FDCtrl),
-        VMSTATE_UINT8(pwrd, FDCtrl),
-        VMSTATE_UINT8_EQUAL(num_floppies, FDCtrl, NULL),
-        VMSTATE_STRUCT_ARRAY(drives, FDCtrl, MAX_FD, 1,
-                             vmstate_fdrive, FDrive),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_fdc_reset_sensei,
-        &vmstate_fdc_result_timer,
-        &vmstate_fdc_phase,
-        NULL
-    }
+    .pre_save = fdc_pre_save,
+    .fields = vmstate_fdc_fields,
+    .subsections = vmstate_fdc_subsections,
 };
 
 /* Change IRQ state */
@@ -1594,7 +1600,7 @@ int fdctrl_transfer_handler(void *opaque, int nchan, int dma_pos, int dma_len)
     uint8_t status0 = 0x00, status1 = 0x00, status2 = 0x00;
     IsaDmaClass *k;
 
-    fdctrl = opaque;
+    fdctrl = static_cast<FDCtrl *>(opaque);
     if (fdctrl->msr & FD_MSR_RQM) {
         FLOPPY_DPRINTF("Not in DMA transfer mode !\n");
         return 0;
@@ -1628,7 +1634,7 @@ int fdctrl_transfer_handler(void *opaque, int nchan, int dma_pos, int dma_len)
             len < FD_SECTOR_LEN || rel_pos != 0) {
             /* READ & SCAN commands and realign to a sector for WRITE */
             if (blk_pread(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                          fdctrl->fifo, 0) < 0) {
+                          fdctrl->fifo, static_cast<BdrvRequestFlags>(0)) < 0) {
                 FLOPPY_DPRINTF("Floppy: error getting sector %d\n",
                                fd_sector(cur_drv));
                 /* Sure, image size is too small... */
@@ -1656,7 +1662,7 @@ int fdctrl_transfer_handler(void *opaque, int nchan, int dma_pos, int dma_len)
             k->read_memory(fdctrl->dma, nchan, fdctrl->fifo + rel_pos,
                            fdctrl->data_pos, len);
             if (blk_pwrite(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                           fdctrl->fifo, 0) < 0) {
+                           fdctrl->fifo, static_cast<BdrvRequestFlags>(0)) < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
                                fd_sector(cur_drv));
                 fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
@@ -1740,7 +1746,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
                     return 0;
                 }
             if (blk_pread(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                          fdctrl->fifo, 0)
+                          fdctrl->fifo, static_cast<BdrvRequestFlags>(0))
                 < 0) {
                 FLOPPY_DPRINTF("error getting sector %d\n",
                                fd_sector(cur_drv));
@@ -1820,7 +1826,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
     memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
     if (cur_drv->blk == NULL ||
         blk_pwrite(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                   fdctrl->fifo, 0) < 0) {
+                   fdctrl->fifo, static_cast<BdrvRequestFlags>(0)) < 0) {
         FLOPPY_DPRINTF("error formatting sector %d\n", fd_sector(cur_drv));
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
     } else {
@@ -2244,7 +2250,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
             fdctrl->data_pos == fdctrl->data_len) {
             cur_drv = get_cur_drv(fdctrl);
             if (blk_pwrite(cur_drv->blk, fd_offset(cur_drv), BDRV_SECTOR_SIZE,
-                           fdctrl->fifo, 0) < 0) {
+                           fdctrl->fifo, static_cast<BdrvRequestFlags>(0)) < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
                                fd_sector(cur_drv));
                 break;
@@ -2300,7 +2306,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
 
 static void fdctrl_result_timer(void *opaque)
 {
-    FDCtrl *fdctrl = opaque;
+    FDCtrl *fdctrl = static_cast<FDCtrl *>(opaque);
     FDrive *cur_drv = get_cur_drv(fdctrl);
 
     /* Pretend we are spinning.
@@ -2363,7 +2369,7 @@ void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl, Error **errp)
     }
 
     FLOPPY_DPRINTF("init controller\n");
-    fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
+    fdctrl->fifo = static_cast<uint8_t *>(qemu_memalign(512, FD_SECTOR_LEN));
     memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
     fdctrl->fifo_size = 512;
     fdctrl->result_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,

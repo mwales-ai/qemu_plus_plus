@@ -64,7 +64,7 @@ hwaddr cxl_decode_ig(int ig)
 static uint64_t cxl_cache_mem_read_reg(void *opaque, hwaddr offset,
                                        unsigned size)
 {
-    CXLComponentState *cxl_cstate = opaque;
+    CXLComponentState *cxl_cstate = static_cast<CXLComponentState *>(opaque);
     ComponentRegisters *cregs = &cxl_cstate->crb;
 
     switch (size) {
@@ -121,7 +121,7 @@ static void dumb_hdm_handler(CXLComponentState *cxl_cstate, hwaddr offset,
 static void cxl_cache_mem_write_reg(void *opaque, hwaddr offset, uint64_t value,
                                     unsigned size)
 {
-    CXLComponentState *cxl_cstate = opaque;
+    CXLComponentState *cxl_cstate = static_cast<CXLComponentState *>(opaque);
     ComponentRegisters *cregs = &cxl_cstate->crb;
     uint32_t mask;
 

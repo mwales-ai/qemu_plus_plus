@@ -26,11 +26,19 @@
 #include <spice.h>
 #include "qemu/config-file.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void qemu_spice_input_init(void);
 void qemu_spice_display_init(void);
 void qemu_spice_display_init_done(void);
 bool qemu_spice_have_display_interface(QemuConsole *con);
 int qemu_spice_add_display_interface(QXLInstance *qxlin, QemuConsole *con);
+
+#ifdef __cplusplus
+}
+#endif
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             const char *subject);
 

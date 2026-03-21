@@ -30,7 +30,7 @@
 
 static uint64_t caps_reg_read(void *opaque, hwaddr offset, unsigned size)
 {
-    CXLDeviceState *cxl_dstate = opaque;
+    CXLDeviceState *cxl_dstate = static_cast<CXLDeviceState *>(opaque);
 
     switch (size) {
     case 4:
@@ -44,7 +44,7 @@ static uint64_t caps_reg_read(void *opaque, hwaddr offset, unsigned size)
 
 static uint64_t dev_reg_read(void *opaque, hwaddr offset, unsigned size)
 {
-    CXLDeviceState *cxl_dstate = opaque;
+    CXLDeviceState *cxl_dstate = static_cast<CXLDeviceState *>(opaque);
 
     switch (size) {
     case 1:
@@ -63,7 +63,7 @@ static uint64_t dev_reg_read(void *opaque, hwaddr offset, unsigned size)
 static uint64_t mailbox_reg_read(void *opaque, hwaddr offset, unsigned size)
 {
     CXLDeviceState *cxl_dstate;
-    CXLCCI *cci = opaque;
+    CXLCCI *cci = static_cast<CXLCCI *>(opaque);
 
     if (object_dynamic_cast(OBJECT(cci->intf), TYPE_CXL_TYPE3)) {
         cxl_dstate = &CXL_TYPE3(cci->intf)->cxl_dstate;
@@ -156,7 +156,7 @@ static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
                               unsigned size)
 {
     CXLDeviceState *cxl_dstate;
-    CXLCCI *cci = opaque;
+    CXLCCI *cci = static_cast<CXLCCI *>(opaque);
 
     if (object_dynamic_cast(OBJECT(cci->intf), TYPE_CXL_TYPE3)) {
         cxl_dstate = &CXL_TYPE3(cci->intf)->cxl_dstate;
@@ -202,7 +202,7 @@ static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
         bool bg_started = false;
         int rc;
 
-        pl_in_copy = g_memdup2(pl, len_in);
+        pl_in_copy = static_cast<uint8_t *>(g_memdup2(pl, len_in));
         if (len_in == 0 || pl_in_copy) {
             /* Avoid stale data  - including from earlier cmds */
             memset(pl, 0, CXL_MAILBOX_MAX_PAYLOAD_SIZE);
@@ -233,7 +233,7 @@ static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
 
 static uint64_t mdev_reg_read(void *opaque, hwaddr offset, unsigned size)
 {
-    CXLDeviceState *cxl_dstate = opaque;
+    CXLDeviceState *cxl_dstate = static_cast<CXLDeviceState *>(opaque);
 
     return cxl_dstate->memdev_status;
 }
@@ -349,10 +349,10 @@ void cxl_event_set_status(CXLDeviceState *cxl_dstate, CXLEventLogType log_type,
 
 static void device_reg_init_common(CXLDeviceState *cxl_dstate)
 {
-    CXLEventLogType log;
+    int log;
 
     for (log = 0; log < CXL_EVENT_TYPE_MAX; log++) {
-        cxl_event_set_status(cxl_dstate, log, false);
+        cxl_event_set_status(cxl_dstate, static_cast<CXLEventLogType>(log), false);
     }
 }
 
