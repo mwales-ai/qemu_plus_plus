@@ -146,7 +146,7 @@ static void continue_send(IPMIBmcExtern *ibe)
 
 static void extern_timeout(void *opaque)
 {
-    IPMIBmcExtern *ibe = opaque;
+    IPMIBmcExtern *ibe = static_cast<IPMIBmcExtern *>(opaque);
     IPMIInterface *s = ibe->parent.intf;
 
     if (ibe->connected) {
@@ -312,7 +312,7 @@ static int can_receive(void *opaque)
 
 static void receive(void *opaque, const uint8_t *buf, int size)
 {
-    IPMIBmcExtern *ibe = opaque;
+    IPMIBmcExtern *ibe = static_cast<IPMIBmcExtern *>(opaque);
     int i;
     unsigned char hw_op;
 
@@ -378,7 +378,7 @@ static void receive(void *opaque, const uint8_t *buf, int size)
 
 static void chr_event(void *opaque, QEMUChrEvent event)
 {
-    IPMIBmcExtern *ibe = opaque;
+    IPMIBmcExtern *ibe = static_cast<IPMIBmcExtern *>(opaque);
     IPMIInterface *s = ibe->parent.intf;
     IPMIInterfaceClass *k = IPMI_INTERFACE_GET_CLASS(s);
     unsigned char v;
@@ -451,7 +451,7 @@ static void ipmi_bmc_extern_handle_reset(IPMIBmc *b)
 
 static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)
 {
-    IPMIBmcExtern *ibe = opaque;
+    IPMIBmcExtern *ibe = static_cast<IPMIBmcExtern *>(opaque);
 
     /*
      * We don't directly restore waiting_rsp, Instead, we return an
@@ -470,16 +470,18 @@ static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ipmi_bmc_extern_fields[] = {
+    VMSTATE_BOOL(send_reset, IPMIBmcExtern),
+    VMSTATE_BOOL(waiting_rsp, IPMIBmcExtern),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ipmi_bmc_extern = {
     .name = TYPE_IPMI_BMC_EXTERN,
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ipmi_bmc_extern_post_migrate,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(send_reset, IPMIBmcExtern),
-        VMSTATE_BOOL(waiting_rsp, IPMIBmcExtern),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ipmi_bmc_extern_fields,
 };
 
 static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)

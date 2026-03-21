@@ -737,66 +737,66 @@ static const MemoryRegionOps aspeed_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
-    }
+    },
+    .impl = { .min_access_size = 4, }
 };
 
 static const MemoryRegionOps aspeed_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
-    }
+    },
+    .impl = { .min_access_size = 4, }
 };
 
 static const MemoryRegionOps aspeed_ssp_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_ssp_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
-    }
+    },
+    .impl = { .min_access_size = 4, }
 };
 
 static const MemoryRegionOps aspeed_ssp_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_ssp_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
-    }
+    },
+    .impl = { .min_access_size = 4, }
 };
 
 static const MemoryRegionOps aspeed_tsp_intc_ops = {
     .read = aspeed_intc_read,
     .write = aspeed_tsp_intc_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
-    }
+    },
+    .impl = { .min_access_size = 4, }
 };
 
 static const MemoryRegionOps aspeed_tsp_intcio_ops = {
     .read = aspeed_intcio_read,
     .write = aspeed_tsp_intcio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = { .min_access_size = 4, },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
-    }
+    },
+    .impl = { .min_access_size = 4, }
 };
 
 static void aspeed_intc_instance_init(Object *obj)
@@ -865,6 +865,7 @@ static void aspeed_intc_unrealize(DeviceState *dev)
     s->regs = NULL;
 }
 
+__attribute__((used))
 static void aspeed_intc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -882,11 +883,11 @@ static void aspeed_intc_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo aspeed_intc_info = {
     .name = TYPE_ASPEED_INTC,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = aspeed_intc_instance_init,
     .instance_size = sizeof(AspeedINTCState),
-    .class_init = aspeed_intc_class_init,
-    .class_size = sizeof(AspeedINTCClass),
+    .instance_init = aspeed_intc_instance_init,
     .is_abstract = true,
+    .class_size = sizeof(AspeedINTCClass),
+    .class_init = aspeed_intc_class_init,
 };
 
 static AspeedINTCIRQ aspeed_2700_intc_irqs[ASPEED_INTC_MAX_INPINS] = {

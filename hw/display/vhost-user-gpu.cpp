@@ -356,7 +356,7 @@ vhost_user_gpu_handle_display(VhostUserGPU *g, VhostUserGpuMsg *msg)
 static void
 vhost_user_gpu_chr_read(void *opaque)
 {
-    VhostUserGPU *g = opaque;
+    VhostUserGPU *g = static_cast<VhostUserGPU *>(opaque);
     VhostUserGpuMsg *msg = NULL;
     VhostUserGpuRequest request;
     uint32_t size, flags;
@@ -383,7 +383,7 @@ vhost_user_gpu_chr_read(void *opaque)
         goto end;
     }
 
-    msg = g_malloc(VHOST_USER_GPU_HDR_SIZE + size);
+    msg = static_cast<VhostUserGpuMsg *>(g_malloc(VHOST_USER_GPU_HDR_SIZE + size));
 
     r = qemu_chr_fe_read_all(&g->vhost_chr,
                              (uint8_t *)&msg->payload, size);

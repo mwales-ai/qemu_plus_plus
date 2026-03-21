@@ -518,31 +518,35 @@ static int spapr_xive_set_pq(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
 }
 
 
+static const VMStateField vmstate_spapr_xive_end_fields[] = {
+    VMSTATE_UINT32(w0, XiveEND),
+    VMSTATE_UINT32(w1, XiveEND),
+    VMSTATE_UINT32(w2, XiveEND),
+    VMSTATE_UINT32(w3, XiveEND),
+    VMSTATE_UINT32(w4, XiveEND),
+    VMSTATE_UINT32(w5, XiveEND),
+    VMSTATE_UINT32(w6, XiveEND),
+    VMSTATE_UINT32(w7, XiveEND),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_xive_end = {
     .name = TYPE_SPAPR_XIVE "/end",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField []) {
-        VMSTATE_UINT32(w0, XiveEND),
-        VMSTATE_UINT32(w1, XiveEND),
-        VMSTATE_UINT32(w2, XiveEND),
-        VMSTATE_UINT32(w3, XiveEND),
-        VMSTATE_UINT32(w4, XiveEND),
-        VMSTATE_UINT32(w5, XiveEND),
-        VMSTATE_UINT32(w6, XiveEND),
-        VMSTATE_UINT32(w7, XiveEND),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_xive_end_fields,
+};
+
+static const VMStateField vmstate_spapr_xive_eas_fields[] = {
+    VMSTATE_UINT64(w, XiveEAS),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_spapr_xive_eas = {
     .name = TYPE_SPAPR_XIVE "/eas",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField []) {
-        VMSTATE_UINT64(w, XiveEAS),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_xive_eas_fields,
 };
 
 static int vmstate_spapr_xive_pre_save(void *opaque)
@@ -571,20 +575,22 @@ static int spapr_xive_post_load(SpaprInterruptController *intc, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_spapr_xive_fields[] = {
+    VMSTATE_UINT32_EQUAL(nr_irqs, SpaprXive, NULL),
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, SpaprXive, nr_irqs,
+                                 vmstate_spapr_xive_eas, XiveEAS),
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(endt, SpaprXive, nr_ends,
+                                         vmstate_spapr_xive_end, XiveEND),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_xive = {
     .name = TYPE_SPAPR_XIVE,
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = vmstate_spapr_xive_pre_save,
     .post_load = NULL, /* handled at the machine level */
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_EQUAL(nr_irqs, SpaprXive, NULL),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(eat, SpaprXive, nr_irqs,
-                                     vmstate_spapr_xive_eas, XiveEAS),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(endt, SpaprXive, nr_ends,
-                                             vmstate_spapr_xive_end, XiveEND),
-        VMSTATE_END_OF_LIST()
-    },
+    .pre_save = vmstate_spapr_xive_pre_save,
+    .fields = vmstate_spapr_xive_fields,
 };
 
 static int spapr_xive_claim_irq(SpaprInterruptController *intc, int lisn,
@@ -809,6 +815,7 @@ static bool spapr_xive_in_kernel_xptr(const XivePresenter *xptr)
     return spapr_xive_in_kernel(SPAPR_XIVE(xptr));
 }
 
+__attribute__((used))
 static void spapr_xive_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -849,17 +856,19 @@ static void spapr_xive_class_init(ObjectClass *klass, const void *data)
     xpc->in_kernel  = spapr_xive_in_kernel_xptr;
 }
 
+static const InterfaceInfo spapr_xive_interfaces[] = {
+    { TYPE_SPAPR_INTC },
+    { }
+};
+
 static const TypeInfo spapr_xive_info = {
     .name = TYPE_SPAPR_XIVE,
     .parent = TYPE_XIVE_ROUTER,
-    .instance_init = spapr_xive_instance_init,
     .instance_size = sizeof(SpaprXive),
-    .class_init = spapr_xive_class_init,
+    .instance_init = spapr_xive_instance_init,
     .class_size = sizeof(SpaprXiveClass),
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_SPAPR_INTC },
-        { }
-    },
+    .class_init = spapr_xive_class_init,
+    .interfaces = spapr_xive_interfaces,
 };
 
 static void spapr_xive_register_types(void)
@@ -1723,7 +1732,7 @@ static target_ulong h_int_esb(PowerPCCPU *cpu,
         mmio_addr = xive->vc_base + xive_source_esb_mgmt(xsrc, lisn) + offset;
 
         if (dma_memory_rw(&address_space_memory, mmio_addr, &data, 8,
-                          (flags & SPAPR_XIVE_ESB_STORE),
+                          static_cast<DMADirection>(!!(flags & SPAPR_XIVE_ESB_STORE)),
                           MEMTXATTRS_UNSPECIFIED)) {
             qemu_log_mask(LOG_GUEST_ERROR, "XIVE: failed to access ESB @0x%"
                           HWADDR_PRIx "\n", mmio_addr);

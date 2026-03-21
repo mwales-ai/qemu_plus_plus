@@ -173,6 +173,7 @@ static void xlnx_zynqmp_ipi_update_irq(XlnxZynqMPIPI *s)
     qemu_set_irq(s->irq, pending);
 }
 
+__attribute__((used))
 static uint64_t xlnx_zynqmp_ipi_trig_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(reg->opaque);
@@ -182,6 +183,7 @@ static uint64_t xlnx_zynqmp_ipi_trig_prew(RegisterInfo *reg, uint64_t val64)
     return val64;
 }
 
+__attribute__((used))
 static void xlnx_zynqmp_ipi_trig_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(reg->opaque);
@@ -194,6 +196,7 @@ static void xlnx_zynqmp_ipi_trig_postw(RegisterInfo *reg, uint64_t val64)
     xlnx_zynqmp_ipi_set_trig(s, 0);
 }
 
+__attribute__((used))
 static uint64_t xlnx_zynqmp_ipi_isr_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(reg->opaque);
@@ -203,6 +206,7 @@ static uint64_t xlnx_zynqmp_ipi_isr_prew(RegisterInfo *reg, uint64_t val64)
     return val64;
 }
 
+__attribute__((used))
 static void xlnx_zynqmp_ipi_isr_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(reg->opaque);
@@ -210,6 +214,7 @@ static void xlnx_zynqmp_ipi_isr_postw(RegisterInfo *reg, uint64_t val64)
     xlnx_zynqmp_ipi_update_irq(s);
 }
 
+__attribute__((used))
 static uint64_t xlnx_zynqmp_ipi_ier_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(reg->opaque);
@@ -220,6 +225,7 @@ static uint64_t xlnx_zynqmp_ipi_ier_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
+__attribute__((used))
 static uint64_t xlnx_zynqmp_ipi_idr_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(reg->opaque);
@@ -231,32 +237,38 @@ static uint64_t xlnx_zynqmp_ipi_idr_prew(RegisterInfo *reg, uint64_t val64)
 }
 
 static const RegisterAccessInfo xlnx_zynqmp_ipi_regs_info[] = {
-    {   .name = "IPI_TRIG",  .addr = A_IPI_TRIG,
-        .rsvd = 0xf0f0fcfe,
+    {   .name = "IPI_TRIG",
         .ro = 0xf0f0fcfe,
+        .rsvd = 0xf0f0fcfe,
         .pre_write = xlnx_zynqmp_ipi_trig_prew,
         .post_write = xlnx_zynqmp_ipi_trig_postw,
-    },{ .name = "IPI_OBS",  .addr = A_IPI_OBS,
-        .rsvd = 0xf0f0fcfe,
+        .addr = A_IPI_TRIG,
+    },{ .name = "IPI_OBS",
         .ro = 0xffffffff,
-    },{ .name = "IPI_ISR",  .addr = A_IPI_ISR,
         .rsvd = 0xf0f0fcfe,
+        .addr = A_IPI_OBS,
+    },{ .name = "IPI_ISR",
         .ro = 0xf0f0fcfe,
         .w1c = 0xf0f0301,
+        .rsvd = 0xf0f0fcfe,
         .pre_write = xlnx_zynqmp_ipi_isr_prew,
         .post_write = xlnx_zynqmp_ipi_isr_postw,
-    },{ .name = "IPI_IMR",  .addr = A_IPI_IMR,
+        .addr = A_IPI_ISR,
+    },{ .name = "IPI_IMR",
+        .ro = 0xffffffff,
         .reset = 0xf0f0301,
         .rsvd = 0xf0f0fcfe,
-        .ro = 0xffffffff,
-    },{ .name = "IPI_IER",  .addr = A_IPI_IER,
-        .rsvd = 0xf0f0fcfe,
+        .addr = A_IPI_IMR,
+    },{ .name = "IPI_IER",
         .ro = 0xf0f0fcfe,
+        .rsvd = 0xf0f0fcfe,
         .pre_write = xlnx_zynqmp_ipi_ier_prew,
-    },{ .name = "IPI_IDR",  .addr = A_IPI_IDR,
-        .rsvd = 0xf0f0fcfe,
+        .addr = A_IPI_IER,
+    },{ .name = "IPI_IDR",
         .ro = 0xf0f0fcfe,
+        .rsvd = 0xf0f0fcfe,
         .pre_write = xlnx_zynqmp_ipi_idr_prew,
+        .addr = A_IPI_IDR,
     }
 };
 
@@ -310,6 +322,7 @@ static void xlnx_zynqmp_ipi_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in_named(dev, xlnx_zynqmp_obs_handler, "OBS_INPUTS", 32);
 }
 
+__attribute__((used))
 static void xlnx_zynqmp_ipi_init(Object *obj)
 {
     XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(obj);
@@ -345,14 +358,16 @@ static void xlnx_zynqmp_ipi_init(Object *obj)
     }
 }
 
+static const VMStateField vmstate_zynqmp_pmu_ipi_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPIPI, R_XLNX_ZYNQMP_IPI_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_zynqmp_pmu_ipi = {
     .name = TYPE_XLNX_ZYNQMP_IPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPIPI, R_XLNX_ZYNQMP_IPI_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_zynqmp_pmu_ipi_fields,
 };
 
 static void xlnx_zynqmp_ipi_class_init(ObjectClass *klass, const void *data)
@@ -368,8 +383,8 @@ static const TypeInfo xlnx_zynqmp_ipi_info = {
     .name          = TYPE_XLNX_ZYNQMP_IPI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxZynqMPIPI),
-    .class_init    = xlnx_zynqmp_ipi_class_init,
     .instance_init = xlnx_zynqmp_ipi_init,
+    .class_init    = xlnx_zynqmp_ipi_class_init,
 };
 
 static void xlnx_zynqmp_ipi_register_types(void)

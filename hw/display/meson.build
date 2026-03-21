@@ -73,7 +73,7 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
   else
     virtio_gpu_ss.add(files('virtio-gpu-udmabuf-stubs.cpp'))
   endif
-  virtio_gpu_ss.add(when: 'CONFIG_VHOST_USER_GPU', if_true: files('vhost-user-gpu.c'))
+  virtio_gpu_ss.add(when: 'CONFIG_VHOST_USER_GPU', if_true: files('vhost-user-gpu.cpp'))
   hw_display_modules += {'virtio-gpu': virtio_gpu_ss}
 
   if virgl.found() and opengl.found()

@@ -297,7 +297,7 @@ static int64_t ipmi_getmonotime(void)
 
 static void ipmi_timeout(void *opaque)
 {
-    IPMIBmcSim *ibs = opaque;
+    IPMIBmcSim *ibs = static_cast<IPMIBmcSim *>(opaque);
 
     ipmi_sim_handle_timeout(ibs);
 }
@@ -1071,7 +1071,7 @@ static void send_msg(IPMIBmcSim *ibs,
         return;
     }
 
-    msg = g_malloc(sizeof(*msg));
+    msg = static_cast<IPMIRcvBufEntry *>(g_malloc(sizeof(*msg)));
     msg->buf[0] = ((netfn | 1) << 2) | rqLun; /* NetFN, and make a response */
     msg->buf[1] = ipmb_checksum(msg->buf, 1, 0);
     msg->buf[2] = cmd[0]; /* rsSA */
@@ -2045,79 +2045,81 @@ static void set_sensor_reading(IPMIBmcSim *ibs,
     }
 }
 
-static const IPMICmdHandler chassis_cmds[] = {
-    [IPMI_CMD_GET_CHASSIS_CAPABILITIES] = { chassis_capabilities },
-    [IPMI_CMD_GET_CHASSIS_STATUS] = { chassis_status },
-    [IPMI_CMD_CHASSIS_CONTROL] = { chassis_control, 3 },
-    [IPMI_CMD_GET_SYS_RESTART_CAUSE] = { chassis_get_sys_restart_cause }
-};
-static const IPMINetfn chassis_netfn = {
-    .cmd_nums = ARRAY_SIZE(chassis_cmds),
-    .cmd_handlers = chassis_cmds
-};
+static IPMICmdHandler chassis_cmds[IPMI_CMD_GET_SYS_RESTART_CAUSE + 1];
+static IPMINetfn chassis_netfn;
 
-static const IPMICmdHandler sensor_event_cmds[] = {
-    [IPMI_CMD_PLATFORM_EVENT_MSG] = { platform_event_msg, 10 },
-    [IPMI_CMD_SET_SENSOR_EVT_ENABLE] = { set_sensor_evt_enable, 4 },
-    [IPMI_CMD_GET_SENSOR_EVT_ENABLE] = { get_sensor_evt_enable, 3 },
-    [IPMI_CMD_REARM_SENSOR_EVTS] = { rearm_sensor_evts, 4 },
-    [IPMI_CMD_GET_SENSOR_EVT_STATUS] = { get_sensor_evt_status, 3 },
-    [IPMI_CMD_GET_SENSOR_READING] = { get_sensor_reading, 3 },
-    [IPMI_CMD_SET_SENSOR_TYPE] = { set_sensor_type, 5 },
-    [IPMI_CMD_GET_SENSOR_TYPE] = { get_sensor_type, 3 },
-    [IPMI_CMD_SET_SENSOR_READING] = { set_sensor_reading, 5 },
-};
-static const IPMINetfn sensor_event_netfn = {
-    .cmd_nums = ARRAY_SIZE(sensor_event_cmds),
-    .cmd_handlers = sensor_event_cmds
-};
+static IPMICmdHandler sensor_event_cmds[IPMI_CMD_SET_SENSOR_READING + 1];
+static IPMINetfn sensor_event_netfn;
 
-static const IPMICmdHandler app_cmds[] = {
-    [IPMI_CMD_GET_DEVICE_ID] = { get_device_id },
-    [IPMI_CMD_COLD_RESET] = { cold_reset },
-    [IPMI_CMD_WARM_RESET] = { warm_reset },
-    [IPMI_CMD_SET_ACPI_POWER_STATE] = { set_acpi_power_state, 4 },
-    [IPMI_CMD_GET_ACPI_POWER_STATE] = { get_acpi_power_state },
-    [IPMI_CMD_GET_DEVICE_GUID] = { get_device_guid },
-    [IPMI_CMD_SET_BMC_GLOBAL_ENABLES] = { set_bmc_global_enables, 3 },
-    [IPMI_CMD_GET_BMC_GLOBAL_ENABLES] = { get_bmc_global_enables },
-    [IPMI_CMD_CLR_MSG_FLAGS] = { clr_msg_flags, 3 },
-    [IPMI_CMD_GET_MSG_FLAGS] = { get_msg_flags },
-    [IPMI_CMD_GET_MSG] = { get_msg },
-    [IPMI_CMD_SEND_MSG] = { send_msg, 3 },
-    [IPMI_CMD_READ_EVT_MSG_BUF] = { read_evt_msg_buf },
-    [IPMI_CMD_RESET_WATCHDOG_TIMER] = { reset_watchdog_timer },
-    [IPMI_CMD_SET_WATCHDOG_TIMER] = { set_watchdog_timer, 8 },
-    [IPMI_CMD_GET_WATCHDOG_TIMER] = { get_watchdog_timer },
-    [IPMI_CMD_GET_CHANNEL_INFO] = { get_channel_info, 3 },
-};
-static const IPMINetfn app_netfn = {
-    .cmd_nums = ARRAY_SIZE(app_cmds),
-    .cmd_handlers = app_cmds
-};
+static IPMICmdHandler app_cmds[IPMI_CMD_GET_CHANNEL_INFO + 1];
+static IPMINetfn app_netfn;
 
-static const IPMICmdHandler storage_cmds[] = {
-    [IPMI_CMD_GET_FRU_AREA_INFO] = { get_fru_area_info, 3 },
-    [IPMI_CMD_READ_FRU_DATA] = { read_fru_data, 5 },
-    [IPMI_CMD_WRITE_FRU_DATA] = { write_fru_data, 5 },
-    [IPMI_CMD_GET_SDR_REP_INFO] = { get_sdr_rep_info },
-    [IPMI_CMD_RESERVE_SDR_REP] = { reserve_sdr_rep },
-    [IPMI_CMD_GET_SDR] = { get_sdr, 8 },
-    [IPMI_CMD_ADD_SDR] = { add_sdr },
-    [IPMI_CMD_CLEAR_SDR_REP] = { clear_sdr_rep, 8 },
-    [IPMI_CMD_GET_SEL_INFO] = { get_sel_info },
-    [IPMI_CMD_RESERVE_SEL] = { reserve_sel },
-    [IPMI_CMD_GET_SEL_ENTRY] = { get_sel_entry, 8 },
-    [IPMI_CMD_ADD_SEL_ENTRY] = { add_sel_entry, 18 },
-    [IPMI_CMD_CLEAR_SEL] = { clear_sel, 8 },
-    [IPMI_CMD_GET_SEL_TIME] = { get_sel_time },
-    [IPMI_CMD_SET_SEL_TIME] = { set_sel_time, 6 },
-};
+static IPMICmdHandler storage_cmds[IPMI_CMD_SET_SEL_TIME + 1];
+static IPMINetfn storage_netfn;
 
-static const IPMINetfn storage_netfn = {
-    .cmd_nums = ARRAY_SIZE(storage_cmds),
-    .cmd_handlers = storage_cmds
-};
+static void __attribute__((constructor)) init_ipmi_cmd_handlers(void)
+{
+    /* chassis commands */
+    chassis_cmds[IPMI_CMD_GET_CHASSIS_CAPABILITIES] = { chassis_capabilities };
+    chassis_cmds[IPMI_CMD_GET_CHASSIS_STATUS] = { chassis_status };
+    chassis_cmds[IPMI_CMD_CHASSIS_CONTROL] = { chassis_control, 3 };
+    chassis_cmds[IPMI_CMD_GET_SYS_RESTART_CAUSE] = { chassis_get_sys_restart_cause };
+    chassis_netfn.cmd_nums = ARRAY_SIZE(chassis_cmds);
+    chassis_netfn.cmd_handlers = chassis_cmds;
+
+    /* sensor event commands */
+    sensor_event_cmds[IPMI_CMD_PLATFORM_EVENT_MSG] = { platform_event_msg, 10 };
+    sensor_event_cmds[IPMI_CMD_SET_SENSOR_EVT_ENABLE] = { set_sensor_evt_enable, 4 };
+    sensor_event_cmds[IPMI_CMD_GET_SENSOR_EVT_ENABLE] = { get_sensor_evt_enable, 3 };
+    sensor_event_cmds[IPMI_CMD_REARM_SENSOR_EVTS] = { rearm_sensor_evts, 4 };
+    sensor_event_cmds[IPMI_CMD_GET_SENSOR_EVT_STATUS] = { get_sensor_evt_status, 3 };
+    sensor_event_cmds[IPMI_CMD_GET_SENSOR_READING] = { get_sensor_reading, 3 };
+    sensor_event_cmds[IPMI_CMD_SET_SENSOR_TYPE] = { set_sensor_type, 5 };
+    sensor_event_cmds[IPMI_CMD_GET_SENSOR_TYPE] = { get_sensor_type, 3 };
+    sensor_event_cmds[IPMI_CMD_SET_SENSOR_READING] = { set_sensor_reading, 5 };
+    sensor_event_netfn.cmd_nums = ARRAY_SIZE(sensor_event_cmds);
+    sensor_event_netfn.cmd_handlers = sensor_event_cmds;
+
+    /* app commands */
+    app_cmds[IPMI_CMD_GET_DEVICE_ID] = { get_device_id };
+    app_cmds[IPMI_CMD_COLD_RESET] = { cold_reset };
+    app_cmds[IPMI_CMD_WARM_RESET] = { warm_reset };
+    app_cmds[IPMI_CMD_SET_ACPI_POWER_STATE] = { set_acpi_power_state, 4 };
+    app_cmds[IPMI_CMD_GET_ACPI_POWER_STATE] = { get_acpi_power_state };
+    app_cmds[IPMI_CMD_GET_DEVICE_GUID] = { get_device_guid };
+    app_cmds[IPMI_CMD_SET_BMC_GLOBAL_ENABLES] = { set_bmc_global_enables, 3 };
+    app_cmds[IPMI_CMD_GET_BMC_GLOBAL_ENABLES] = { get_bmc_global_enables };
+    app_cmds[IPMI_CMD_CLR_MSG_FLAGS] = { clr_msg_flags, 3 };
+    app_cmds[IPMI_CMD_GET_MSG_FLAGS] = { get_msg_flags };
+    app_cmds[IPMI_CMD_GET_MSG] = { get_msg };
+    app_cmds[IPMI_CMD_SEND_MSG] = { send_msg, 3 };
+    app_cmds[IPMI_CMD_READ_EVT_MSG_BUF] = { read_evt_msg_buf };
+    app_cmds[IPMI_CMD_RESET_WATCHDOG_TIMER] = { reset_watchdog_timer };
+    app_cmds[IPMI_CMD_SET_WATCHDOG_TIMER] = { set_watchdog_timer, 8 };
+    app_cmds[IPMI_CMD_GET_WATCHDOG_TIMER] = { get_watchdog_timer };
+    app_cmds[IPMI_CMD_GET_CHANNEL_INFO] = { get_channel_info, 3 };
+    app_netfn.cmd_nums = ARRAY_SIZE(app_cmds);
+    app_netfn.cmd_handlers = app_cmds;
+
+    /* storage commands */
+    storage_cmds[IPMI_CMD_GET_FRU_AREA_INFO] = { get_fru_area_info, 3 };
+    storage_cmds[IPMI_CMD_READ_FRU_DATA] = { read_fru_data, 5 };
+    storage_cmds[IPMI_CMD_WRITE_FRU_DATA] = { write_fru_data, 5 };
+    storage_cmds[IPMI_CMD_GET_SDR_REP_INFO] = { get_sdr_rep_info };
+    storage_cmds[IPMI_CMD_RESERVE_SDR_REP] = { reserve_sdr_rep };
+    storage_cmds[IPMI_CMD_GET_SDR] = { get_sdr, 8 };
+    storage_cmds[IPMI_CMD_ADD_SDR] = { add_sdr };
+    storage_cmds[IPMI_CMD_CLEAR_SDR_REP] = { clear_sdr_rep, 8 };
+    storage_cmds[IPMI_CMD_GET_SEL_INFO] = { get_sel_info };
+    storage_cmds[IPMI_CMD_RESERVE_SEL] = { reserve_sel };
+    storage_cmds[IPMI_CMD_GET_SEL_ENTRY] = { get_sel_entry, 8 };
+    storage_cmds[IPMI_CMD_ADD_SEL_ENTRY] = { add_sel_entry, 18 };
+    storage_cmds[IPMI_CMD_CLEAR_SEL] = { clear_sel, 8 };
+    storage_cmds[IPMI_CMD_GET_SEL_TIME] = { get_sel_time };
+    storage_cmds[IPMI_CMD_SET_SEL_TIME] = { set_sel_time, 6 };
+    storage_netfn.cmd_nums = ARRAY_SIZE(storage_cmds);
+    storage_netfn.cmd_handlers = storage_cmds;
+}
 
 static void register_cmds(IPMIBmcSim *s)
 {
@@ -2174,32 +2176,34 @@ static void ipmi_sdr_init(IPMIBmcSim *ibs)
     }
 }
 
+static const VMStateField vmstate_ipmi_sim_fields[] = {
+    VMSTATE_UINT8(bmc_global_enables, IPMIBmcSim),
+    VMSTATE_UINT8(msg_flags, IPMIBmcSim),
+    VMSTATE_BOOL(watchdog_initialized, IPMIBmcSim),
+    VMSTATE_UINT8(watchdog_use, IPMIBmcSim),
+    VMSTATE_UINT8(watchdog_action, IPMIBmcSim),
+    VMSTATE_UINT8(watchdog_pretimeout, IPMIBmcSim),
+    VMSTATE_UINT8(watchdog_expired, IPMIBmcSim),
+    VMSTATE_UINT16(watchdog_timeout, IPMIBmcSim),
+    VMSTATE_BOOL(watchdog_running, IPMIBmcSim),
+    VMSTATE_BOOL(watchdog_preaction_ran, IPMIBmcSim),
+    VMSTATE_INT64(watchdog_expiry, IPMIBmcSim),
+    VMSTATE_UINT8_ARRAY(evtbuf, IPMIBmcSim, 16),
+    VMSTATE_UINT8(sensors[IPMI_WATCHDOG_SENSOR].status, IPMIBmcSim),
+    VMSTATE_UINT8(sensors[IPMI_WATCHDOG_SENSOR].reading, IPMIBmcSim),
+    VMSTATE_UINT16(sensors[IPMI_WATCHDOG_SENSOR].states, IPMIBmcSim),
+    VMSTATE_UINT16(sensors[IPMI_WATCHDOG_SENSOR].assert_states, IPMIBmcSim),
+    VMSTATE_UINT16(sensors[IPMI_WATCHDOG_SENSOR].deassert_states,
+                   IPMIBmcSim),
+    VMSTATE_UINT16(sensors[IPMI_WATCHDOG_SENSOR].assert_enable, IPMIBmcSim),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ipmi_sim = {
     .name = TYPE_IPMI_BMC_SIMULATOR,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(bmc_global_enables, IPMIBmcSim),
-        VMSTATE_UINT8(msg_flags, IPMIBmcSim),
-        VMSTATE_BOOL(watchdog_initialized, IPMIBmcSim),
-        VMSTATE_UINT8(watchdog_use, IPMIBmcSim),
-        VMSTATE_UINT8(watchdog_action, IPMIBmcSim),
-        VMSTATE_UINT8(watchdog_pretimeout, IPMIBmcSim),
-        VMSTATE_UINT8(watchdog_expired, IPMIBmcSim),
-        VMSTATE_UINT16(watchdog_timeout, IPMIBmcSim),
-        VMSTATE_BOOL(watchdog_running, IPMIBmcSim),
-        VMSTATE_BOOL(watchdog_preaction_ran, IPMIBmcSim),
-        VMSTATE_INT64(watchdog_expiry, IPMIBmcSim),
-        VMSTATE_UINT8_ARRAY(evtbuf, IPMIBmcSim, 16),
-        VMSTATE_UINT8(sensors[IPMI_WATCHDOG_SENSOR].status, IPMIBmcSim),
-        VMSTATE_UINT8(sensors[IPMI_WATCHDOG_SENSOR].reading, IPMIBmcSim),
-        VMSTATE_UINT16(sensors[IPMI_WATCHDOG_SENSOR].states, IPMIBmcSim),
-        VMSTATE_UINT16(sensors[IPMI_WATCHDOG_SENSOR].assert_states, IPMIBmcSim),
-        VMSTATE_UINT16(sensors[IPMI_WATCHDOG_SENSOR].deassert_states,
-                       IPMIBmcSim),
-        VMSTATE_UINT16(sensors[IPMI_WATCHDOG_SENSOR].assert_enable, IPMIBmcSim),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ipmi_sim_fields,
 };
 
 static void ipmi_fru_init(IPMIFru *fru)
@@ -2214,7 +2218,7 @@ static void ipmi_fru_init(IPMIFru *fru)
     fsize = get_image_size(fru->filename, NULL);
     if (fsize > 0) {
         size = QEMU_ALIGN_UP(fsize, fru->areasize);
-        fru->data = g_malloc0(size);
+        fru->data = static_cast<uint8_t *>(g_malloc0(size));
         if (load_image_size(fru->filename, fru->data, fsize) != fsize) {
             error_report("Could not load file '%s'", fru->filename);
             g_free(fru->data);
@@ -2226,7 +2230,7 @@ out:
     if (!fru->data) {
         /* give one default FRU */
         size = fru->areasize;
-        fru->data = g_malloc0(size);
+        fru->data = static_cast<uint8_t *>(g_malloc0(size));
     }
 
     fru->nentries = size / fru->areasize;

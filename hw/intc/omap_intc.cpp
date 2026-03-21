@@ -107,7 +107,7 @@ static inline void omap_inth_update(OMAPIntcState *s, int is_fiq)
 
 static void omap_set_intr(void *opaque, int irq, int req)
 {
-    OMAPIntcState *ih = opaque;
+    OMAPIntcState *ih = static_cast<OMAPIntcState *>(opaque);
     uint32_t rise;
 
     struct omap_intr_handler_bank_s *bank = &ih->bank[irq >> 5];
@@ -134,7 +134,7 @@ static void omap_set_intr(void *opaque, int irq, int req)
 static uint64_t omap_inth_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    OMAPIntcState *s = opaque;
+    OMAPIntcState *s = static_cast<OMAPIntcState *>(opaque);
     int i, offset = addr;
     int bank_no = offset >> 8;
     int line_no;
@@ -212,7 +212,7 @@ static uint64_t omap_inth_read(void *opaque, hwaddr addr,
 static void omap_inth_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    OMAPIntcState *s = opaque;
+    OMAPIntcState *s = static_cast<OMAPIntcState *>(opaque);
     int i, offset = addr;
     int bank_no = offset >> 8;
     struct omap_intr_handler_bank_s *bank = &s->bank[bank_no];

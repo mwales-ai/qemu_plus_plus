@@ -240,7 +240,7 @@ void icp_irq(ICSState *ics, int server, int nr, uint8_t priority)
 
 static int icp_pre_save(void *opaque)
 {
-    ICPState *icp = opaque;
+    ICPState *icp = static_cast<ICPState *>(opaque);
 
     if (kvm_irqchip_in_kernel()) {
         icp_get_kvm_state(icp);
@@ -249,9 +249,10 @@ static int icp_pre_save(void *opaque)
     return 0;
 }
 
+__attribute__((used))
 static int icp_post_load(void *opaque, int version_id)
 {
-    ICPState *icp = opaque;
+    ICPState *icp = static_cast<ICPState *>(opaque);
 
     if (kvm_irqchip_in_kernel()) {
         Error *local_err = NULL;
@@ -267,19 +268,21 @@ static int icp_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_icp_server_fields[] = {
+    /* Sanity check */
+    VMSTATE_UINT32(xirr, ICPState),
+    VMSTATE_UINT8(pending_priority, ICPState),
+    VMSTATE_UINT8(mfrr, ICPState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_icp_server = {
     .name = "icp/server",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = icp_pre_save,
     .post_load = icp_post_load,
-    .fields = (const VMStateField[]) {
-        /* Sanity check */
-        VMSTATE_UINT32(xirr, ICPState),
-        VMSTATE_UINT8(pending_priority, ICPState),
-        VMSTATE_UINT8(mfrr, ICPState),
-        VMSTATE_END_OF_LIST()
-    },
+    .pre_save = icp_pre_save,
+    .fields = vmstate_icp_server_fields,
 };
 
 void icp_reset(ICPState *icp)
@@ -370,8 +373,8 @@ static const TypeInfo icp_info = {
     .name = TYPE_ICP,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ICPState),
-    .class_init = icp_class_init,
     .class_size = sizeof(ICPStateClass),
+    .class_init = icp_class_init,
 };
 
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
@@ -566,7 +569,7 @@ static void ics_reset_irq(ICSIRQState *irq)
 static void ics_reset_hold(Object *obj, ResetType type)
 {
     ICSState *ics = ICS(obj);
-    g_autofree uint8_t *flags = g_malloc(ics->nr_irqs);
+    g_autofree uint8_t *flags = static_cast<uint8_t *>(g_malloc(ics->nr_irqs));
     int i;
 
     for (i = 0; i < ics->nr_irqs; i++) {
@@ -592,7 +595,7 @@ static void ics_reset_hold(Object *obj, ResetType type)
 
 static void ics_reset_handler(void *dev)
 {
-    device_cold_reset(dev);
+    device_cold_reset(static_cast<DeviceState *>(dev));
 }
 
 static void ics_realize(DeviceState *dev, Error **errp)
@@ -619,7 +622,7 @@ static void ics_instance_init(Object *obj)
 
 static int ics_pre_save(void *opaque)
 {
-    ICSState *ics = opaque;
+    ICSState *ics = static_cast<ICSState *>(opaque);
 
     if (kvm_irqchip_in_kernel()) {
         ics_get_kvm_state(ics);
@@ -628,9 +631,10 @@ static int ics_pre_save(void *opaque)
     return 0;
 }
 
+__attribute__((used))
 static int ics_post_load(void *opaque, int version_id)
 {
-    ICSState *ics = opaque;
+    ICSState *ics = static_cast<ICSState *>(opaque);
 
     if (kvm_irqchip_in_kernel()) {
         Error *local_err = NULL;
@@ -646,35 +650,39 @@ static int ics_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ics_irq_fields[] = {
+    VMSTATE_UINT32(server, ICSIRQState),
+    VMSTATE_UINT8(priority, ICSIRQState),
+    VMSTATE_UINT8(saved_priority, ICSIRQState),
+    VMSTATE_UINT8(status, ICSIRQState),
+    VMSTATE_UINT8(flags, ICSIRQState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ics_irq = {
     .name = "ics/irq",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(server, ICSIRQState),
-        VMSTATE_UINT8(priority, ICSIRQState),
-        VMSTATE_UINT8(saved_priority, ICSIRQState),
-        VMSTATE_UINT8(status, ICSIRQState),
-        VMSTATE_UINT8(flags, ICSIRQState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_ics_irq_fields,
+};
+
+static const VMStateField vmstate_ics_fields[] = {
+    /* Sanity check */
+    VMSTATE_UINT32_EQUAL(nr_irqs, ICSState, NULL),
+
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT32(irqs, ICSState, nr_irqs,
+                                         vmstate_ics_irq,
+                                         ICSIRQState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_ics = {
     .name = "ics",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = ics_pre_save,
     .post_load = ics_post_load,
-    .fields = (const VMStateField[]) {
-        /* Sanity check */
-        VMSTATE_UINT32_EQUAL(nr_irqs, ICSState, NULL),
-
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT32(irqs, ICSState, nr_irqs,
-                                             vmstate_ics_irq,
-                                             ICSIRQState),
-        VMSTATE_END_OF_LIST()
-    },
+    .pre_save = ics_pre_save,
+    .fields = vmstate_ics_fields,
 };
 
 static const Property ics_properties[] = {
@@ -704,8 +712,8 @@ static const TypeInfo ics_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(ICSState),
     .instance_init = ics_instance_init,
-    .class_init = ics_class_init,
     .class_size = sizeof(ICSStateClass),
+    .class_init = ics_class_init,
 };
 
 static const TypeInfo xics_fabric_info = {

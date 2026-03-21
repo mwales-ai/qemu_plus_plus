@@ -387,7 +387,7 @@ static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
 
 static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     IRQSource *src;
 
     if (n_IRQ >= OPENPIC_MAX_IRQ) {
@@ -562,7 +562,7 @@ static void openpic_gcr_write(OpenPICState *opp, uint64_t val)
 static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned len)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     IRQDest *dst;
     int idx;
 
@@ -622,7 +622,7 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t openpic_gbl_read(void *opaque, hwaddr addr, unsigned len)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     uint32_t retval;
 
     DPRINTF("%s: addr %#" HWADDR_PRIx, __func__, addr);
@@ -681,7 +681,7 @@ static void openpic_tmr_set_tmr(OpenPICTimer *tmr, uint32_t val, bool enabled);
 
 static void qemu_timer_cb(void *opaque)
 {
-    OpenPICTimer *tmr = opaque;
+    OpenPICTimer *tmr = static_cast<OpenPICTimer *>(opaque);
     OpenPICState *opp = tmr->opp;
     uint32_t    n_IRQ = tmr->n_IRQ;
     uint32_t val =   tmr->tbcr & ~TBCR_CI;
@@ -745,7 +745,7 @@ static uint64_t openpic_tmr_get_timer(OpenPICTimer *tmr)
 static void openpic_tmr_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned len)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     int idx;
 
     DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64,
@@ -789,7 +789,7 @@ static void openpic_tmr_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t openpic_tmr_read(void *opaque, hwaddr addr, unsigned len)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     uint32_t retval = -1;
     int idx;
 
@@ -828,7 +828,7 @@ out:
 static void openpic_src_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned len)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     int idx;
 
     DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64,
@@ -852,7 +852,7 @@ static void openpic_src_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     uint32_t retval;
     int idx;
 
@@ -881,7 +881,7 @@ static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
 static void openpic_msi_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     int idx = opp->irq_msi;
     int srs, ibs;
 
@@ -907,7 +907,7 @@ static void openpic_msi_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t openpic_msi_read(void *opaque, hwaddr addr, unsigned size)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     uint64_t r = 0;
     int i, srs;
 
@@ -942,6 +942,7 @@ static uint64_t openpic_msi_read(void *opaque, hwaddr addr, unsigned size)
     return r;
 }
 
+__attribute__((used))
 static uint64_t openpic_summary_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint64_t r = 0;
@@ -953,6 +954,7 @@ static uint64_t openpic_summary_read(void *opaque, hwaddr addr, unsigned size)
     return r;
 }
 
+__attribute__((used))
 static void openpic_summary_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned size)
 {
@@ -965,7 +967,7 @@ static void openpic_summary_write(void *opaque, hwaddr addr, uint64_t val,
 static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
                                        uint32_t val, int idx)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     IRQSource *src;
     IRQDest *dst;
     int s_IRQ, n_IRQ;
@@ -1109,7 +1111,7 @@ static uint32_t openpic_iack(OpenPICState *opp, IRQDest *dst, int cpu)
 static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
                                           int idx)
 {
-    OpenPICState *opp = opaque;
+    OpenPICState *opp = static_cast<OpenPICState *>(opaque);
     IRQDest *dst;
     uint32_t retval;
 
@@ -1152,8 +1154,8 @@ static uint64_t openpic_cpu_read(void *opaque, hwaddr addr, unsigned len)
 }
 
 static const MemoryRegionOps openpic_glb_ops_le = {
-    .write = openpic_gbl_write,
     .read  = openpic_gbl_read,
+    .write = openpic_gbl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1162,8 +1164,8 @@ static const MemoryRegionOps openpic_glb_ops_le = {
 };
 
 static const MemoryRegionOps openpic_glb_ops_be = {
-    .write = openpic_gbl_write,
     .read  = openpic_gbl_read,
+    .write = openpic_gbl_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1172,8 +1174,8 @@ static const MemoryRegionOps openpic_glb_ops_be = {
 };
 
 static const MemoryRegionOps openpic_tmr_ops_le = {
-    .write = openpic_tmr_write,
     .read  = openpic_tmr_read,
+    .write = openpic_tmr_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1182,8 +1184,8 @@ static const MemoryRegionOps openpic_tmr_ops_le = {
 };
 
 static const MemoryRegionOps openpic_tmr_ops_be = {
-    .write = openpic_tmr_write,
     .read  = openpic_tmr_read,
+    .write = openpic_tmr_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1192,8 +1194,8 @@ static const MemoryRegionOps openpic_tmr_ops_be = {
 };
 
 static const MemoryRegionOps openpic_cpu_ops_le = {
-    .write = openpic_cpu_write,
     .read  = openpic_cpu_read,
+    .write = openpic_cpu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1202,8 +1204,8 @@ static const MemoryRegionOps openpic_cpu_ops_le = {
 };
 
 static const MemoryRegionOps openpic_cpu_ops_be = {
-    .write = openpic_cpu_write,
     .read  = openpic_cpu_read,
+    .write = openpic_cpu_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1212,8 +1214,8 @@ static const MemoryRegionOps openpic_cpu_ops_be = {
 };
 
 static const MemoryRegionOps openpic_src_ops_le = {
-    .write = openpic_src_write,
     .read  = openpic_src_read,
+    .write = openpic_src_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1222,8 +1224,8 @@ static const MemoryRegionOps openpic_src_ops_le = {
 };
 
 static const MemoryRegionOps openpic_src_ops_be = {
-    .write = openpic_src_write,
     .read  = openpic_src_read,
+    .write = openpic_src_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1387,66 +1389,76 @@ static void map_list(OpenPICState *opp, const MemReg *list, int *count)
     }
 }
 
+static const VMStateField vmstate_openpic_irq_queue_fields[] = {
+    VMSTATE_BITMAP(queue, IRQQueue, 0, queue_size),
+    VMSTATE_INT32(next, IRQQueue),
+    VMSTATE_INT32(priority, IRQQueue),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_openpic_irq_queue = {
     .name = "openpic_irq_queue",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BITMAP(queue, IRQQueue, 0, queue_size),
-        VMSTATE_INT32(next, IRQQueue),
-        VMSTATE_INT32(priority, IRQQueue),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_openpic_irq_queue_fields,
+};
+
+static const VMStateField vmstate_openpic_irqdest_fields[] = {
+    VMSTATE_INT32(ctpr, IRQDest),
+    VMSTATE_STRUCT(raised, IRQDest, 0, vmstate_openpic_irq_queue,
+                   IRQQueue),
+    VMSTATE_STRUCT(servicing, IRQDest, 0, vmstate_openpic_irq_queue,
+                   IRQQueue),
+    VMSTATE_UINT32_ARRAY(outputs_active, IRQDest, OPENPIC_OUTPUT_NB),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_openpic_irqdest = {
     .name = "openpic_irqdest",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(ctpr, IRQDest),
-        VMSTATE_STRUCT(raised, IRQDest, 0, vmstate_openpic_irq_queue,
-                       IRQQueue),
-        VMSTATE_STRUCT(servicing, IRQDest, 0, vmstate_openpic_irq_queue,
-                       IRQQueue),
-        VMSTATE_UINT32_ARRAY(outputs_active, IRQDest, OPENPIC_OUTPUT_NB),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_openpic_irqdest_fields,
+};
+
+static const VMStateField vmstate_openpic_irqsource_fields[] = {
+    VMSTATE_UINT32(ivpr, IRQSource),
+    VMSTATE_UINT32(idr, IRQSource),
+    VMSTATE_UINT32(destmask, IRQSource),
+    VMSTATE_INT32(last_cpu, IRQSource),
+    VMSTATE_INT32(pending, IRQSource),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_openpic_irqsource = {
     .name = "openpic_irqsource",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ivpr, IRQSource),
-        VMSTATE_UINT32(idr, IRQSource),
-        VMSTATE_UINT32(destmask, IRQSource),
-        VMSTATE_INT32(last_cpu, IRQSource),
-        VMSTATE_INT32(pending, IRQSource),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_openpic_irqsource_fields,
+};
+
+static const VMStateField vmstate_openpic_timer_fields[] = {
+    VMSTATE_UINT32(tccr, OpenPICTimer),
+    VMSTATE_UINT32(tbcr, OpenPICTimer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_openpic_timer = {
     .name = "openpic_timer",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(tccr, OpenPICTimer),
-        VMSTATE_UINT32(tbcr, OpenPICTimer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_openpic_timer_fields,
+};
+
+static const VMStateField vmstate_openpic_msi_fields[] = {
+    VMSTATE_UINT32(msir, OpenPICMSI),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_openpic_msi = {
     .name = "openpic_msi",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(msir, OpenPICMSI),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_openpic_msi_fields,
 };
 
 static int openpic_post_load(void *opaque, int version_id)
@@ -1463,32 +1475,34 @@ static int openpic_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_openpic_fields[] = {
+    VMSTATE_UINT32(gcr, OpenPICState),
+    VMSTATE_UINT32(vir, OpenPICState),
+    VMSTATE_UINT32(pir, OpenPICState),
+    VMSTATE_UINT32(spve, OpenPICState),
+    VMSTATE_UINT32(tfrr, OpenPICState),
+    VMSTATE_UINT32(max_irq, OpenPICState),
+    VMSTATE_STRUCT_VARRAY_UINT32(src, OpenPICState, max_irq, 0,
+                                 vmstate_openpic_irqsource, IRQSource),
+    VMSTATE_UINT32_EQUAL(nb_cpus, OpenPICState, NULL),
+    VMSTATE_STRUCT_VARRAY_UINT32(dst, OpenPICState, nb_cpus, 0,
+                                 vmstate_openpic_irqdest, IRQDest),
+    VMSTATE_STRUCT_ARRAY(timers, OpenPICState, OPENPIC_MAX_TMR, 0,
+                         vmstate_openpic_timer, OpenPICTimer),
+    VMSTATE_STRUCT_ARRAY(msi, OpenPICState, MAX_MSI, 0,
+                         vmstate_openpic_msi, OpenPICMSI),
+    VMSTATE_UINT32(irq_ipi0, OpenPICState),
+    VMSTATE_UINT32(irq_tim0, OpenPICState),
+    VMSTATE_UINT32(irq_msi, OpenPICState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_openpic = {
     .name = "openpic",
     .version_id = 3,
     .minimum_version_id = 3,
     .post_load = openpic_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(gcr, OpenPICState),
-        VMSTATE_UINT32(vir, OpenPICState),
-        VMSTATE_UINT32(pir, OpenPICState),
-        VMSTATE_UINT32(spve, OpenPICState),
-        VMSTATE_UINT32(tfrr, OpenPICState),
-        VMSTATE_UINT32(max_irq, OpenPICState),
-        VMSTATE_STRUCT_VARRAY_UINT32(src, OpenPICState, max_irq, 0,
-                                     vmstate_openpic_irqsource, IRQSource),
-        VMSTATE_UINT32_EQUAL(nb_cpus, OpenPICState, NULL),
-        VMSTATE_STRUCT_VARRAY_UINT32(dst, OpenPICState, nb_cpus, 0,
-                                     vmstate_openpic_irqdest, IRQDest),
-        VMSTATE_STRUCT_ARRAY(timers, OpenPICState, OPENPIC_MAX_TMR, 0,
-                             vmstate_openpic_timer, OpenPICTimer),
-        VMSTATE_STRUCT_ARRAY(msi, OpenPICState, MAX_MSI, 0,
-                             vmstate_openpic_msi, OpenPICMSI),
-        VMSTATE_UINT32(irq_ipi0, OpenPICState),
-        VMSTATE_UINT32(irq_tim0, OpenPICState),
-        VMSTATE_UINT32(irq_msi, OpenPICState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_openpic_fields,
 };
 
 static void openpic_init(Object *obj)
