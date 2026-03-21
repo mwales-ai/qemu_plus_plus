@@ -85,7 +85,7 @@ static void parallel_update_irq(ParallelState *s)
 static void
 parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
 
     addr &= 7;
     trace_parallel_ioport_write("SW", addr, val);
@@ -123,7 +123,7 @@ parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
 
 static void parallel_ioport_write_hw(void *opaque, uint32_t addr, uint32_t val)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
     uint8_t parm = val;
     int dir;
 
@@ -201,7 +201,7 @@ static void parallel_ioport_write_hw(void *opaque, uint32_t addr, uint32_t val)
 static void
 parallel_ioport_eppdata_write_hw2(void *opaque, uint32_t addr, uint32_t val)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
     uint16_t eppdata = cpu_to_le16(val);
     int err;
     struct ParallelIOArg ioarg = {
@@ -226,7 +226,7 @@ parallel_ioport_eppdata_write_hw2(void *opaque, uint32_t addr, uint32_t val)
 static void
 parallel_ioport_eppdata_write_hw4(void *opaque, uint32_t addr, uint32_t val)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
     uint32_t eppdata = cpu_to_le32(val);
     int err;
     struct ParallelIOArg ioarg = {
@@ -250,7 +250,7 @@ parallel_ioport_eppdata_write_hw4(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t parallel_ioport_read_sw(void *opaque, uint32_t addr)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
     uint32_t ret = 0xff;
 
     addr &= 7;
@@ -286,7 +286,7 @@ static uint32_t parallel_ioport_read_sw(void *opaque, uint32_t addr)
 
 static uint32_t parallel_ioport_read_hw(void *opaque, uint32_t addr)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
     uint8_t ret = 0xff;
     addr &= 7;
     switch(addr) {
@@ -360,7 +360,7 @@ static uint32_t parallel_ioport_read_hw(void *opaque, uint32_t addr)
 static uint32_t
 parallel_ioport_eppdata_read_hw2(void *opaque, uint32_t addr)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
     uint32_t ret;
     uint16_t eppdata = ~0;
     int err;
@@ -388,7 +388,7 @@ parallel_ioport_eppdata_read_hw2(void *opaque, uint32_t addr)
 static uint32_t
 parallel_ioport_eppdata_read_hw4(void *opaque, uint32_t addr)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
     uint32_t ret;
     uint32_t eppdata = ~0U;
     int err;
@@ -430,7 +430,7 @@ static uint32_t parallel_ioport_ecp_read(void *opaque, uint32_t addr)
 
 static void parallel_reset(void *opaque)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
 
     s->datar = ~0;
     s->dataw = ~0;
@@ -474,19 +474,21 @@ static const MemoryRegionPortio isa_parallel_portio_sw_list[] = {
 };
 
 
+static const VMStateField vmstate_parallel_isa_fields[] = {
+    VMSTATE_UINT8(state.dataw, ISAParallelState),
+    VMSTATE_UINT8(state.datar, ISAParallelState),
+    VMSTATE_UINT8(state.status, ISAParallelState),
+    VMSTATE_UINT8(state.control, ISAParallelState),
+    VMSTATE_INT32(state.irq_pending, ISAParallelState),
+    VMSTATE_INT32(state.epp_timeout, ISAParallelState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_parallel_isa = {
     .name = "parallel_isa",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(state.dataw, ISAParallelState),
-        VMSTATE_UINT8(state.datar, ISAParallelState),
-        VMSTATE_UINT8(state.status, ISAParallelState),
-        VMSTATE_UINT8(state.control, ISAParallelState),
-        VMSTATE_INT32(state.irq_pending, ISAParallelState),
-        VMSTATE_INT32(state.epp_timeout, ISAParallelState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_parallel_isa_fields,
 };
 
 static int parallel_can_receive(void *opaque)
@@ -561,7 +563,7 @@ static void parallel_isa_build_aml(AcpiDevAmlIf *adev, Aml *scope)
 /* Memory mapped interface */
 static uint64_t parallel_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
 
     return parallel_ioport_read_sw(s, addr >> s->it_shift) &
         MAKE_64BIT_MASK(0, size * 8);
@@ -570,7 +572,7 @@ static uint64_t parallel_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 static void parallel_mm_writefn(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    ParallelState *s = opaque;
+    ParallelState *s = static_cast<ParallelState *>(opaque);
 
     parallel_ioport_write_sw(s, addr >> s->it_shift,
                              value & MAKE_64BIT_MASK(0, size * 8));
@@ -579,8 +581,8 @@ static void parallel_mm_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps parallel_mm_ops = {
     .read = parallel_mm_readfn,
     .write = parallel_mm_writefn,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 /* If fd is zero, it means that the parallel device uses the console */
@@ -621,15 +623,17 @@ static void parallel_isa_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
+static const InterfaceInfo parallel_isa_interfaces[] = {
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
+};
+
 static const TypeInfo parallel_isa_info = {
     .name          = TYPE_ISA_PARALLEL,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAParallelState),
     .class_init    = parallel_isa_class_initfn,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+    .interfaces = parallel_isa_interfaces,
 };
 
 static void parallel_register_types(void)

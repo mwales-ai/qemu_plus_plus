@@ -460,7 +460,7 @@ static inline uint32_t es1370_fixup (ES1370State *s, uint32_t addr)
 
 static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    ES1370State *s = opaque;
+    ES1370State *s = static_cast<ES1370State *>(opaque);
     struct chan *d = &s->chan[0];
 
     addr = es1370_fixup (s, addr);
@@ -529,7 +529,7 @@ static void es1370_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 
 static uint64_t es1370_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ES1370State *s = opaque;
+    ES1370State *s = static_cast<ES1370State *>(opaque);
     uint32_t val;
     struct chan *d = &s->chan[0];
 
@@ -728,57 +728,59 @@ static void es1370_run_channel (ES1370State *s, size_t chan, int free_or_avail)
 
 static void es1370_dac1_callback (void *opaque, int free)
 {
-    ES1370State *s = opaque;
+    ES1370State *s = static_cast<ES1370State *>(opaque);
 
     es1370_run_channel (s, DAC1_CHANNEL, free);
 }
 
 static void es1370_dac2_callback (void *opaque, int free)
 {
-    ES1370State *s = opaque;
+    ES1370State *s = static_cast<ES1370State *>(opaque);
 
     es1370_run_channel (s, DAC2_CHANNEL, free);
 }
 
 static void es1370_adc_callback (void *opaque, int avail)
 {
-    ES1370State *s = opaque;
+    ES1370State *s = static_cast<ES1370State *>(opaque);
 
     es1370_run_channel (s, ADC_CHANNEL, avail);
 }
 
-static const MemoryRegionOps es1370_io_ops = {
-    .read = es1370_read,
-    .write = es1370_write,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-    .endianness = DEVICE_LITTLE_ENDIAN,
+static MemoryRegionOps es1370_io_ops;
+
+static void __attribute__((constructor)) init_es1370_io_ops(void)
+{
+    memset(&es1370_io_ops, 0, sizeof(es1370_io_ops));
+    es1370_io_ops.read = es1370_read;
+    es1370_io_ops.write = es1370_write;
+    es1370_io_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    es1370_io_ops.valid.min_access_size = 1;
+    es1370_io_ops.valid.max_access_size = 4;
+    es1370_io_ops.impl.min_access_size = 4;
+    es1370_io_ops.impl.max_access_size = 4;
+}
+
+static const VMStateField vmstate_es1370_channel_fields[] = {
+    VMSTATE_UINT32 (shift, struct chan),
+    VMSTATE_UINT32 (leftover, struct chan),
+    VMSTATE_UINT32 (scount, struct chan),
+    VMSTATE_UINT32 (frame_addr, struct chan),
+    VMSTATE_UINT32 (frame_cnt, struct chan),
+    VMSTATE_END_OF_LIST ()
 };
 
 static const VMStateDescription vmstate_es1370_channel = {
     .name = "es1370_channel",
     .version_id = 2,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32 (shift, struct chan),
-        VMSTATE_UINT32 (leftover, struct chan),
-        VMSTATE_UINT32 (scount, struct chan),
-        VMSTATE_UINT32 (frame_addr, struct chan),
-        VMSTATE_UINT32 (frame_cnt, struct chan),
-        VMSTATE_END_OF_LIST ()
-    }
+    .fields = vmstate_es1370_channel_fields,
 };
 
 static int es1370_post_load (void *opaque, int version_id)
 {
     uint32_t ctl, sctl;
-    ES1370State *s = opaque;
+    ES1370State *s = static_cast<ES1370State *>(opaque);
     size_t i;
 
     for (i = 0; i < NB_CHANNELS; ++i) {
@@ -803,22 +805,24 @@ static int es1370_post_load (void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_es1370_fields[] = {
+    VMSTATE_PCI_DEVICE (dev, ES1370State),
+    VMSTATE_STRUCT_ARRAY (chan, ES1370State, NB_CHANNELS, 2,
+                          vmstate_es1370_channel, struct chan),
+    VMSTATE_UINT32 (ctl, ES1370State),
+    VMSTATE_UINT32 (status, ES1370State),
+    VMSTATE_UINT32 (mempage, ES1370State),
+    VMSTATE_UINT32 (codec, ES1370State),
+    VMSTATE_UINT32 (sctl, ES1370State),
+    VMSTATE_END_OF_LIST ()
+};
+
 static const VMStateDescription vmstate_es1370 = {
     .name = "es1370",
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = es1370_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE (dev, ES1370State),
-        VMSTATE_STRUCT_ARRAY (chan, ES1370State, NB_CHANNELS, 2,
-                              vmstate_es1370_channel, struct chan),
-        VMSTATE_UINT32 (ctl, ES1370State),
-        VMSTATE_UINT32 (status, ES1370State),
-        VMSTATE_UINT32 (mempage, ES1370State),
-        VMSTATE_UINT32 (codec, ES1370State),
-        VMSTATE_UINT32 (sctl, ES1370State),
-        VMSTATE_END_OF_LIST ()
-    }
+    .fields = vmstate_es1370_fields,
 };
 
 static void es1370_on_reset(DeviceState *dev)
@@ -890,15 +894,17 @@ static void es1370_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, es1370_properties);
 }
 
+static const InterfaceInfo es1370_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo es1370_info = {
     .name          = TYPE_ES1370,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof (ES1370State),
     .class_init    = es1370_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = es1370_interfaces,
 };
 
 static void es1370_register_types (void)

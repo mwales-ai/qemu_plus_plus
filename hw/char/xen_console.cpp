@@ -64,7 +64,7 @@ static bool buffer_append(XenConsole *con)
 {
     struct buffer *buffer = &con->buffer;
     XENCONS_RING_IDX cons, prod, size;
-    struct xencons_interface *intf = con->sring;
+    struct xencons_interface *intf = static_cast<xencons_interface *>(con->sring);
 
     cons = intf->out_cons;
     prod = intf->out_prod;
@@ -76,7 +76,7 @@ static bool buffer_append(XenConsole *con)
 
     if ((buffer->capacity - buffer->size) < size) {
         buffer->capacity += (size + 1024);
-        buffer->data = g_realloc(buffer->data, buffer->capacity);
+        buffer->data = static_cast<uint8_t *>(g_realloc(buffer->data, buffer->capacity));
     }
 
     while (cons != prod)
@@ -95,7 +95,7 @@ static bool buffer_append(XenConsole *con)
         uint8_t *maxpos = buffer->data + buffer->max_capacity;
 
         memmove(maxpos - over, maxpos, over);
-        buffer->data = g_realloc(buffer->data, buffer->max_capacity);
+        buffer->data = static_cast<uint8_t *>(g_realloc(buffer->data, buffer->max_capacity));
         buffer->size = buffer->capacity = buffer->max_capacity;
 
         if (buffer->consumed > buffer->max_capacity - over)
@@ -115,7 +115,7 @@ static void buffer_advance(struct buffer *buffer, size_t len)
 
 static int ring_free_bytes(XenConsole *con)
 {
-    struct xencons_interface *intf = con->sring;
+    struct xencons_interface *intf = static_cast<xencons_interface *>(con->sring);
     XENCONS_RING_IDX cons, prod, space;
 
     cons = intf->in_cons;
@@ -131,14 +131,14 @@ static int ring_free_bytes(XenConsole *con)
 
 static int xencons_can_receive(void *opaque)
 {
-    XenConsole *con = opaque;
+    XenConsole *con = static_cast<XenConsole *>(opaque);
     return ring_free_bytes(con);
 }
 
 static void xencons_receive(void *opaque, const uint8_t *buf, int len)
 {
-    XenConsole *con = opaque;
-    struct xencons_interface *intf = con->sring;
+    XenConsole *con = static_cast<XenConsole *>(opaque);
+    struct xencons_interface *intf = static_cast<xencons_interface *>(con->sring);
     XENCONS_RING_IDX prod;
     int i, max;
 
@@ -491,10 +491,10 @@ static const Property xen_console_properties[] = {
     DEFINE_PROP_INT32("idx", XenConsole, dev, -1),
 };
 
-static void xen_console_class_init(ObjectClass *class, const void *data)
+static void xen_console_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(class);
-    XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(class);
+    DeviceClass *dev_class = DEVICE_CLASS(klass);
+    XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(klass);
 
     xendev_class->backend = "console";
     xendev_class->device = "console";

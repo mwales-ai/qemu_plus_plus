@@ -171,7 +171,7 @@ static void fetch_sgd(ViaAC97SGDChannel *c, PCIDevice *d)
 
 static void out_cb(void *opaque, int avail)
 {
-    ViaAC97State *s = opaque;
+    ViaAC97State *s = static_cast<ViaAC97State *>(opaque);
     ViaAC97SGDChannel *c = &s->aur;
     int temp, to_copy, copied;
     bool stop = false;
@@ -244,7 +244,7 @@ static void open_voice_out(ViaAC97State *s)
 
 static uint64_t sgd_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ViaAC97State *s = opaque;
+    ViaAC97State *s = static_cast<ViaAC97State *>(opaque);
     uint64_t val = 0;
 
     switch (addr) {
@@ -294,7 +294,7 @@ static uint64_t sgd_read(void *opaque, hwaddr addr, unsigned size)
 
 static void sgd_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    ViaAC97State *s = opaque;
+    ViaAC97State *s = static_cast<ViaAC97State *>(opaque);
 
     trace_via_ac97_sgd_write(addr, size, val);
     switch (addr) {
@@ -481,15 +481,17 @@ static void via_ac97_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo via_ac97_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo via_ac97_info = {
     .name          = TYPE_VIA_AC97,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ViaAC97State),
     .class_init    = via_ac97_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = via_ac97_interfaces,
 };
 
 static void via_mc97_realize(PCIDevice *pci_dev, Error **errp)
@@ -516,15 +518,17 @@ static void via_mc97_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo via_mc97_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo via_mc97_info = {
     .name          = TYPE_VIA_MC97,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = via_mc97_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = via_mc97_interfaces,
 };
 
 static void via_ac97_register_types(void)

@@ -125,46 +125,52 @@ struct IPOctalState {
     uint8_t irq_vector;
 };
 
+static const VMStateField vmstate_scc2698_channel_fields[] = {
+    VMSTATE_BOOL(rx_enabled, SCC2698Channel),
+    VMSTATE_UINT8_ARRAY(mr, SCC2698Channel, 2),
+    VMSTATE_UINT8(mr_idx, SCC2698Channel),
+    VMSTATE_UINT8(sr, SCC2698Channel),
+    VMSTATE_UINT8_ARRAY(rhr, SCC2698Channel, RX_FIFO_SIZE),
+    VMSTATE_UINT8(rhr_idx, SCC2698Channel),
+    VMSTATE_UINT8(rx_pending, SCC2698Channel),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_scc2698_channel = {
     .name = "scc2698_channel",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(rx_enabled, SCC2698Channel),
-        VMSTATE_UINT8_ARRAY(mr, SCC2698Channel, 2),
-        VMSTATE_UINT8(mr_idx, SCC2698Channel),
-        VMSTATE_UINT8(sr, SCC2698Channel),
-        VMSTATE_UINT8_ARRAY(rhr, SCC2698Channel, RX_FIFO_SIZE),
-        VMSTATE_UINT8(rhr_idx, SCC2698Channel),
-        VMSTATE_UINT8(rx_pending, SCC2698Channel),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_scc2698_channel_fields,
+};
+
+static const VMStateField vmstate_scc2698_block_fields[] = {
+    VMSTATE_UINT8(imr, SCC2698Block),
+    VMSTATE_UINT8(isr, SCC2698Block),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_scc2698_block = {
     .name = "scc2698_block",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(imr, SCC2698Block),
-        VMSTATE_UINT8(isr, SCC2698Block),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_scc2698_block_fields,
+};
+
+static const VMStateField vmstate_ipoctal_fields[] = {
+    VMSTATE_IPACK_DEVICE(parent_obj, IPOctalState),
+    VMSTATE_STRUCT_ARRAY(ch, IPOctalState, N_CHANNELS, 1,
+                         vmstate_scc2698_channel, SCC2698Channel),
+    VMSTATE_STRUCT_ARRAY(blk, IPOctalState, N_BLOCKS, 1,
+                         vmstate_scc2698_block, SCC2698Block),
+    VMSTATE_UINT8(irq_vector, IPOctalState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_ipoctal = {
     .name = "ipoctal232",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_IPACK_DEVICE(parent_obj, IPOctalState),
-        VMSTATE_STRUCT_ARRAY(ch, IPOctalState, N_CHANNELS, 1,
-                             vmstate_scc2698_channel, SCC2698Channel),
-        VMSTATE_STRUCT_ARRAY(blk, IPOctalState, N_BLOCKS, 1,
-                             vmstate_scc2698_block, SCC2698Block),
-        VMSTATE_UINT8(irq_vector, IPOctalState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ipoctal_fields,
 };
 
 /* data[10] is 0x0C, not 0x0B as the doc says */
@@ -467,14 +473,14 @@ static void mem_write8(IPackDevice *ip, uint32_t addr, uint8_t val)
 
 static int hostdev_can_receive(void *opaque)
 {
-    SCC2698Channel *ch = opaque;
+    SCC2698Channel *ch = static_cast<SCC2698Channel *>(opaque);
     int available_bytes = RX_FIFO_SIZE - ch->rx_pending;
     return ch->rx_enabled ? available_bytes : 0;
 }
 
 static void hostdev_receive(void *opaque, const uint8_t *buf, int size)
 {
-    SCC2698Channel *ch = opaque;
+    SCC2698Channel *ch = static_cast<SCC2698Channel *>(opaque);
     IPOctalState *dev = ch->ipoctal;
     unsigned pos = ch->rhr_idx + ch->rx_pending;
     int i;
@@ -505,7 +511,7 @@ static void hostdev_receive(void *opaque, const uint8_t *buf, int size)
 
 static void hostdev_event(void *opaque, QEMUChrEvent event)
 {
-    SCC2698Channel *ch = opaque;
+    SCC2698Channel *ch = static_cast<SCC2698Channel *>(opaque);
     switch (event) {
     case CHR_EVENT_OPENED:
         DPRINTF("Device %s opened\n", ch->dev->label);

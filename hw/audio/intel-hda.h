@@ -14,6 +14,9 @@ OBJECT_DECLARE_TYPE(HDACodecDevice, HDACodecDeviceClass,
 #define TYPE_HDA_BUS "HDA"
 OBJECT_DECLARE_SIMPLE_TYPE(HDACodecBus, HDA_BUS)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef void (*hda_codec_response_func)(HDACodecDevice *dev,
                                         bool solicited, uint32_t response);
@@ -62,5 +65,9 @@ bool hda_codec_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
     } while (0)
 
 /* --------------------------------------------------------------------- */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

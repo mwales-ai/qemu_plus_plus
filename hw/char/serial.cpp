@@ -223,7 +223,7 @@ static void serial_update_msl(SerialState *s)
 static gboolean serial_watch_cb(void *do_not_use, GIOCondition cond,
                                 void *opaque)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
     s->watch_tag = 0;
     serial_xmit(s);
     return G_SOURCE_REMOVE;
@@ -263,7 +263,7 @@ static void serial_xmit(SerialState *s)
                 s->tsr_retry < MAX_XMIT_RETRY) {
                 assert(s->watch_tag == 0);
                 s->watch_tag =
-                    qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+                    qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                           serial_watch_cb, s);
                 if (s->watch_tag > 0) {
                     s->tsr_retry++;
@@ -332,7 +332,7 @@ static void serial_update_tiocm(SerialState *s)
 static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned size)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
 
     assert(size == 1 && addr < 8);
     trace_serial_write(addr, val);
@@ -468,7 +468,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
     uint32_t ret;
 
     assert(size == 1 && addr < 8);
@@ -584,7 +584,7 @@ static void serial_receive_break(SerialState *s)
 
 /* There's data in recv_fifo and s->rbr has not been read for 4 char transmit times */
 static void fifo_timeout_int (void *opaque) {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
     if (s->recv_fifo.num) {
         s->timeout_ipending = 1;
         serial_update_irq(s);
@@ -593,13 +593,13 @@ static void fifo_timeout_int (void *opaque) {
 
 static int serial_can_receive1(void *opaque)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
     return serial_can_receive(s);
 }
 
 static void serial_receive1(void *opaque, const uint8_t *buf, int size)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
 
     if (s->wakeup) {
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
@@ -623,14 +623,14 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
 
 static void serial_event(void *opaque, QEMUChrEvent event)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
     if (event == CHR_EVENT_BREAK)
         serial_receive_break(s);
 }
 
 static int serial_pre_save(void *opaque)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
     s->fcr_vmstate = s->fcr;
 
     return 0;
@@ -638,7 +638,7 @@ static int serial_pre_save(void *opaque)
 
 static int serial_pre_load(void *opaque)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
     s->thr_ipending = -1;
     s->poll_msl = -1;
     return 0;
@@ -646,7 +646,7 @@ static int serial_pre_load(void *opaque)
 
 static int serial_post_load(void *opaque, int version_id)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
 
     if (version_id < 3) {
         s->fcr_vmstate = 0;
@@ -668,7 +668,7 @@ static int serial_post_load(void *opaque, int version_id)
         }
 
         assert(s->watch_tag == 0);
-        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                              serial_watch_cb, s);
     } else {
         /* tsr_retry == 0 implies LSR.TEMT = 1 (transmitter empty).  */
@@ -688,7 +688,7 @@ static int serial_post_load(void *opaque, int version_id)
 
 static bool serial_thr_ipending_needed(void *opaque)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
 
     if (s->ier & UART_IER_THRI) {
         bool expected_value = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
@@ -702,15 +702,17 @@ static bool serial_thr_ipending_needed(void *opaque)
     }
 }
 
+static const VMStateField vmstate_serial_thr_ipending_fields[] = {
+    VMSTATE_INT32(thr_ipending, SerialState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_serial_thr_ipending = {
     .name = "serial/thr_ipending",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_thr_ipending_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(thr_ipending, SerialState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_serial_thr_ipending_fields,
 };
 
 static bool serial_tsr_needed(void *opaque)
@@ -719,17 +721,19 @@ static bool serial_tsr_needed(void *opaque)
     return s->tsr_retry != 0;
 }
 
+static const VMStateField vmstate_serial_tsr_fields[] = {
+    VMSTATE_UINT32(tsr_retry, SerialState),
+    VMSTATE_UINT8(thr, SerialState),
+    VMSTATE_UINT8(tsr, SerialState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_serial_tsr = {
     .name = "serial/tsr",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_tsr_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(tsr_retry, SerialState),
-        VMSTATE_UINT8(thr, SerialState),
-        VMSTATE_UINT8(tsr, SerialState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_serial_tsr_fields,
 };
 
 static bool serial_recv_fifo_needed(void *opaque)
@@ -739,15 +743,17 @@ static bool serial_recv_fifo_needed(void *opaque)
 
 }
 
+static const VMStateField vmstate_serial_recv_fifo_fields[] = {
+    VMSTATE_STRUCT(recv_fifo, SerialState, 1, vmstate_fifo8, Fifo8),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_serial_recv_fifo = {
     .name = "serial/recv_fifo",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_recv_fifo_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(recv_fifo, SerialState, 1, vmstate_fifo8, Fifo8),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_serial_recv_fifo_fields,
 };
 
 static bool serial_xmit_fifo_needed(void *opaque)
@@ -756,15 +762,17 @@ static bool serial_xmit_fifo_needed(void *opaque)
     return !fifo8_is_empty(&s->xmit_fifo);
 }
 
+static const VMStateField vmstate_serial_xmit_fifo_fields[] = {
+    VMSTATE_STRUCT(xmit_fifo, SerialState, 1, vmstate_fifo8, Fifo8),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_serial_xmit_fifo = {
     .name = "serial/xmit_fifo",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_xmit_fifo_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(xmit_fifo, SerialState, 1, vmstate_fifo8, Fifo8),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_serial_xmit_fifo_fields,
 };
 
 static bool serial_fifo_timeout_timer_needed(void *opaque)
@@ -773,15 +781,17 @@ static bool serial_fifo_timeout_timer_needed(void *opaque)
     return timer_pending(s->fifo_timeout_timer);
 }
 
+static const VMStateField vmstate_serial_fifo_timeout_timer_fields[] = {
+    VMSTATE_TIMER_PTR(fifo_timeout_timer, SerialState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_serial_fifo_timeout_timer = {
     .name = "serial/fifo_timeout_timer",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_fifo_timeout_timer_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER_PTR(fifo_timeout_timer, SerialState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_serial_fifo_timeout_timer_fields,
 };
 
 static bool serial_timeout_ipending_needed(void *opaque)
@@ -790,15 +800,17 @@ static bool serial_timeout_ipending_needed(void *opaque)
     return s->timeout_ipending != 0;
 }
 
+static const VMStateField vmstate_serial_timeout_ipending_fields[] = {
+    VMSTATE_INT32(timeout_ipending, SerialState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_serial_timeout_ipending = {
     .name = "serial/timeout_ipending",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = serial_timeout_ipending_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(timeout_ipending, SerialState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_serial_timeout_ipending_fields,
 };
 
 static bool serial_poll_needed(void *opaque)
@@ -807,53 +819,59 @@ static bool serial_poll_needed(void *opaque)
     return s->poll_msl >= 0;
 }
 
+static const VMStateField vmstate_serial_poll_fields[] = {
+    VMSTATE_INT32(poll_msl, SerialState),
+    VMSTATE_TIMER_PTR(modem_status_poll, SerialState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_serial_poll = {
     .name = "serial/poll",
     .version_id = 1,
-    .needed = serial_poll_needed,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(poll_msl, SerialState),
-        VMSTATE_TIMER_PTR(modem_status_poll, SerialState),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = serial_poll_needed,
+    .fields = vmstate_serial_poll_fields,
+};
+
+static const VMStateField vmstate_serial_fields[] = {
+    VMSTATE_UINT16_V(divider, SerialState, 2),
+    VMSTATE_UINT8(rbr, SerialState),
+    VMSTATE_UINT8(ier, SerialState),
+    VMSTATE_UINT8(iir, SerialState),
+    VMSTATE_UINT8(lcr, SerialState),
+    VMSTATE_UINT8(mcr, SerialState),
+    VMSTATE_UINT8(lsr, SerialState),
+    VMSTATE_UINT8(msr, SerialState),
+    VMSTATE_UINT8(scr, SerialState),
+    VMSTATE_UINT8_V(fcr_vmstate, SerialState, 3),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_serial_subsections[] = {
+    &vmstate_serial_thr_ipending,
+    &vmstate_serial_tsr,
+    &vmstate_serial_recv_fifo,
+    &vmstate_serial_xmit_fifo,
+    &vmstate_serial_fifo_timeout_timer,
+    &vmstate_serial_timeout_ipending,
+    &vmstate_serial_poll,
+    NULL
 };
 
 const VMStateDescription vmstate_serial = {
     .name = "serial",
     .version_id = 3,
     .minimum_version_id = 2,
-    .pre_save = serial_pre_save,
     .pre_load = serial_pre_load,
     .post_load = serial_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16_V(divider, SerialState, 2),
-        VMSTATE_UINT8(rbr, SerialState),
-        VMSTATE_UINT8(ier, SerialState),
-        VMSTATE_UINT8(iir, SerialState),
-        VMSTATE_UINT8(lcr, SerialState),
-        VMSTATE_UINT8(mcr, SerialState),
-        VMSTATE_UINT8(lsr, SerialState),
-        VMSTATE_UINT8(msr, SerialState),
-        VMSTATE_UINT8(scr, SerialState),
-        VMSTATE_UINT8_V(fcr_vmstate, SerialState, 3),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_serial_thr_ipending,
-        &vmstate_serial_tsr,
-        &vmstate_serial_recv_fifo,
-        &vmstate_serial_xmit_fifo,
-        &vmstate_serial_fifo_timeout_timer,
-        &vmstate_serial_timeout_ipending,
-        &vmstate_serial_poll,
-        NULL
-    }
+    .pre_save = serial_pre_save,
+    .fields = vmstate_serial_fields,
+    .subsections = vmstate_serial_subsections,
 };
 
 static void serial_reset(void *opaque)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
 
     if (s->watch_tag > 0) {
         g_source_remove(s->watch_tag);
@@ -893,7 +911,7 @@ static void serial_reset(void *opaque)
 
 static int serial_be_change(void *opaque)
 {
-    SerialState *s = opaque;
+    SerialState *s = static_cast<SerialState *>(opaque);
 
     qemu_chr_fe_set_handlers(&s->chr, serial_can_receive1, serial_receive1,
                              serial_event, serial_be_change, s, NULL, true);
@@ -912,7 +930,7 @@ static int serial_be_change(void *opaque)
 
     if (s->watch_tag > 0) {
         g_source_remove(s->watch_tag);
-        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                              serial_watch_cb, s);
     }
 
@@ -954,6 +972,7 @@ static void serial_unrealize(DeviceState *dev)
 const MemoryRegionOps serial_io_ops = {
     .read = serial_ioport_read,
     .write = serial_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .unaligned = 1,
     },
@@ -961,7 +980,6 @@ const MemoryRegionOps serial_io_ops = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const Property serial_properties[] = {

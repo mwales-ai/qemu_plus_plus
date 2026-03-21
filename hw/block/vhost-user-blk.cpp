@@ -391,7 +391,7 @@ done:
 
 static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
 {
-    DeviceState *dev = opaque;
+    DeviceState *dev = static_cast<DeviceState *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
     Error *local_err = NULL;
@@ -568,14 +568,16 @@ static struct vhost_dev *vhost_user_blk_get_vhost(VirtIODevice *vdev)
     return &s->dev;
 }
 
+static const VMStateField vmstate_vhost_user_blk_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_vhost_user_blk = {
     .name = "vhost-user-blk",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_vhost_user_blk_fields,
 };
 
 static const Property vhost_user_blk_properties[] = {

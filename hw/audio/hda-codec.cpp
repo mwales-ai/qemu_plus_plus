@@ -219,7 +219,7 @@ static inline void hda_timer_sync_adjust(HDAAudioStream *st, int64_t target_pos)
 
 static void hda_audio_input_timer(void *opaque)
 {
-    HDAAudioStream *st = opaque;
+    HDAAudioStream *st = static_cast<HDAAudioStream *>(opaque);
 
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
@@ -227,6 +227,7 @@ static void hda_audio_input_timer(void *opaque)
     int64_t wpos = st->wpos;
     int64_t rpos = st->rpos;
     int64_t wanted_rpos;
+    int64_t to_transfer;
 
     if (uptime <= 0) {
         /* wanted_rpos <= 0 */
@@ -242,7 +243,7 @@ static void hda_audio_input_timer(void *opaque)
         goto out_timer;
     }
 
-    int64_t to_transfer = MIN(wpos - rpos, wanted_rpos - rpos);
+    to_transfer = MIN(wpos - rpos, wanted_rpos - rpos);
     while (to_transfer) {
         uint32_t start = (rpos & B_MASK);
         uint32_t chunk = MIN(B_SIZE - start, to_transfer);
@@ -265,7 +266,7 @@ out_timer:
 
 static void hda_audio_input_cb(void *opaque, int avail)
 {
-    HDAAudioStream *st = opaque;
+    HDAAudioStream *st = static_cast<HDAAudioStream *>(opaque);
 
     int64_t wpos = st->wpos;
     int64_t rpos = st->rpos;
@@ -289,7 +290,7 @@ static void hda_audio_input_cb(void *opaque, int avail)
 
 static void hda_audio_output_timer(void *opaque)
 {
-    HDAAudioStream *st = opaque;
+    HDAAudioStream *st = static_cast<HDAAudioStream *>(opaque);
 
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
@@ -297,6 +298,7 @@ static void hda_audio_output_timer(void *opaque)
     int64_t wpos = st->wpos;
     int64_t rpos = st->rpos;
     int64_t wanted_wpos;
+    int64_t to_transfer;
 
     if (uptime <= 0) {
         /* wanted_wpos <= 0 */
@@ -312,7 +314,7 @@ static void hda_audio_output_timer(void *opaque)
         goto out_timer;
     }
 
-    int64_t to_transfer = MIN(B_SIZE - (wpos - rpos), wanted_wpos - wpos);
+    to_transfer = MIN(B_SIZE - (wpos - rpos), wanted_wpos - wpos);
     while (to_transfer) {
         uint32_t start = (wpos & B_MASK);
         uint32_t chunk = MIN(B_SIZE - start, to_transfer);
@@ -335,7 +337,7 @@ out_timer:
 
 static void hda_audio_output_cb(void *opaque, int avail)
 {
-    HDAAudioStream *st = opaque;
+    HDAAudioStream *st = static_cast<HDAAudioStream *>(opaque);
 
     int64_t wpos = st->wpos;
     int64_t rpos = st->rpos;
@@ -368,7 +370,7 @@ static void hda_audio_output_cb(void *opaque, int avail)
 
 static void hda_audio_compat_input_cb(void *opaque, int avail)
 {
-    HDAAudioStream *st = opaque;
+    HDAAudioStream *st = static_cast<HDAAudioStream *>(opaque);
     int recv = 0;
     int len;
     bool rc;
@@ -394,7 +396,7 @@ static void hda_audio_compat_input_cb(void *opaque, int avail)
 
 static void hda_audio_compat_output_cb(void *opaque, int avail)
 {
-    HDAAudioStream *st = opaque;
+    HDAAudioStream *st = static_cast<HDAAudioStream *>(opaque);
     int sent = 0;
     int len;
     bool rc;
@@ -763,7 +765,7 @@ static void hda_audio_exit(HDACodecDevice *hda)
 
 static int hda_audio_post_load(void *opaque, int version)
 {
-    HDAAudioState *a = opaque;
+    HDAAudioState *a = static_cast<HDAAudioState *>(opaque);
     HDAAudioStream *st;
     int i;
 
@@ -803,57 +805,65 @@ static void hda_audio_reset(DeviceState *dev)
 
 static bool vmstate_hda_audio_stream_buf_needed(void *opaque)
 {
-    HDAAudioStream *st = opaque;
+    HDAAudioStream *st = static_cast<HDAAudioStream *>(opaque);
     return st->state && st->state->use_timer;
 }
+
+static const VMStateField vmstate_hda_audio_stream_buf_fields[] = {
+    VMSTATE_BUFFER(buf, HDAAudioStream),
+    VMSTATE_INT64(rpos, HDAAudioStream),
+    VMSTATE_INT64(wpos, HDAAudioStream),
+    VMSTATE_TIMER_PTR(buft, HDAAudioStream),
+    VMSTATE_INT64(buft_start, HDAAudioStream),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_hda_audio_stream_buf = {
     .name = "hda-audio-stream/buffer",
     .version_id = 1,
     .needed = vmstate_hda_audio_stream_buf_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(buf, HDAAudioStream),
-        VMSTATE_INT64(rpos, HDAAudioStream),
-        VMSTATE_INT64(wpos, HDAAudioStream),
-        VMSTATE_TIMER_PTR(buft, HDAAudioStream),
-        VMSTATE_INT64(buft_start, HDAAudioStream),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_hda_audio_stream_buf_fields,
+};
+
+static const VMStateField vmstate_hda_audio_stream_fields[] = {
+    VMSTATE_UINT32(stream, HDAAudioStream),
+    VMSTATE_UINT32(channel, HDAAudioStream),
+    VMSTATE_UINT32(format, HDAAudioStream),
+    VMSTATE_UINT32(gain_left, HDAAudioStream),
+    VMSTATE_UINT32(gain_right, HDAAudioStream),
+    VMSTATE_BOOL(mute_left, HDAAudioStream),
+    VMSTATE_BOOL(mute_right, HDAAudioStream),
+    VMSTATE_UINT32(compat_bpos, HDAAudioStream),
+    VMSTATE_BUFFER(compat_buf, HDAAudioStream),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_hda_audio_stream_subsections[] = {
+    &vmstate_hda_audio_stream_buf,
+    NULL
 };
 
 static const VMStateDescription vmstate_hda_audio_stream = {
     .name = "hda-audio-stream",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(stream, HDAAudioStream),
-        VMSTATE_UINT32(channel, HDAAudioStream),
-        VMSTATE_UINT32(format, HDAAudioStream),
-        VMSTATE_UINT32(gain_left, HDAAudioStream),
-        VMSTATE_UINT32(gain_right, HDAAudioStream),
-        VMSTATE_BOOL(mute_left, HDAAudioStream),
-        VMSTATE_BOOL(mute_right, HDAAudioStream),
-        VMSTATE_UINT32(compat_bpos, HDAAudioStream),
-        VMSTATE_BUFFER(compat_buf, HDAAudioStream),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_hda_audio_stream_buf,
-        NULL
-    }
+    .fields = vmstate_hda_audio_stream_fields,
+    .subsections = vmstate_hda_audio_stream_subsections,
+};
+
+static const VMStateField vmstate_hda_audio_fields[] = {
+    VMSTATE_STRUCT_ARRAY(st, HDAAudioState, 4, 0,
+                         vmstate_hda_audio_stream,
+                         HDAAudioStream),
+    VMSTATE_BOOL_ARRAY(running_compat, HDAAudioState, 16),
+    VMSTATE_BOOL_ARRAY_V(running_real, HDAAudioState, 2 * 16, 2),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_hda_audio = {
     .name = "hda-audio",
     .version_id = 2,
     .post_load = hda_audio_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(st, HDAAudioState, 4, 0,
-                             vmstate_hda_audio_stream,
-                             HDAAudioStream),
-        VMSTATE_BOOL_ARRAY(running_compat, HDAAudioState, 16),
-        VMSTATE_BOOL_ARRAY_V(running_real, HDAAudioState, 2 * 16, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_hda_audio_fields,
 };
 
 static const Property hda_audio_properties[] = {
@@ -917,8 +927,8 @@ static const TypeInfo hda_audio_info = {
     .name          = TYPE_HDA_AUDIO,
     .parent        = TYPE_HDA_CODEC_DEVICE,
     .instance_size = sizeof(HDAAudioState),
+    .is_abstract   = true,
     .class_init    = hda_audio_base_class_init,
-    .is_abstract      = true,
 };
 
 static void hda_audio_output_class_init(ObjectClass *klass, const void *data)

@@ -265,7 +265,7 @@ static void cs4231a_reset (DeviceState *dev)
 
 static void cs_audio_callback (void *opaque, int free)
 {
-    CSState *s = opaque;
+    CSState *s = static_cast<CSState *>(opaque);
     s->audio_free = free;
 }
 
@@ -362,7 +362,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
 
 static uint64_t cs_read (void *opaque, hwaddr addr, unsigned size)
 {
-    CSState *s = opaque;
+    CSState *s = static_cast<CSState *>(opaque);
     uint32_t saddr, iaddr, ret;
 
     saddr = addr;
@@ -400,7 +400,7 @@ static uint64_t cs_read (void *opaque, hwaddr addr, unsigned size)
 static void cs_write (void *opaque, hwaddr addr,
                       uint64_t val64, unsigned size)
 {
-    CSState *s = opaque;
+    CSState *s = static_cast<CSState *>(opaque);
     uint32_t saddr, iaddr, val;
 
     saddr = addr;
@@ -572,7 +572,7 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
 
 static int cs_dma_read (void *opaque, int nchan, int dma_pos, int dma_len)
 {
-    CSState *s = opaque;
+    CSState *s = static_cast<CSState *>(opaque);
     int copy, written;
     int till = -1;
 
@@ -609,7 +609,7 @@ static int cs_dma_read (void *opaque, int nchan, int dma_pos, int dma_len)
 
 static int cs4231a_pre_load (void *opaque)
 {
-    CSState *s = opaque;
+    CSState *s = static_cast<CSState *>(opaque);
 
     if (s->dma_running) {
         IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
@@ -622,7 +622,7 @@ static int cs4231a_pre_load (void *opaque)
 
 static int cs4231a_post_load (void *opaque, int version_id)
 {
-    CSState *s = opaque;
+    CSState *s = static_cast<CSState *>(opaque);
 
     if (s->dma_running && (s->dregs[Interface_Configuration] & PEN)) {
         s->dma_running = 0;
@@ -631,31 +631,35 @@ static int cs4231a_post_load (void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_cs4231a_fields[] = {
+    VMSTATE_UINT32_ARRAY (regs, CSState, CS_REGS),
+    VMSTATE_BUFFER (dregs, CSState),
+    VMSTATE_INT32 (dma_running, CSState),
+    VMSTATE_INT32 (audio_free, CSState),
+    VMSTATE_INT32 (transferred, CSState),
+    VMSTATE_INT32 (aci_counter, CSState),
+    VMSTATE_END_OF_LIST ()
+};
+
 static const VMStateDescription vmstate_cs4231a = {
     .name = "cs4231a",
     .version_id = 1,
     .minimum_version_id = 1,
     .pre_load = cs4231a_pre_load,
     .post_load = cs4231a_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY (regs, CSState, CS_REGS),
-        VMSTATE_BUFFER (dregs, CSState),
-        VMSTATE_INT32 (dma_running, CSState),
-        VMSTATE_INT32 (audio_free, CSState),
-        VMSTATE_INT32 (transferred, CSState),
-        VMSTATE_INT32 (aci_counter, CSState),
-        VMSTATE_END_OF_LIST ()
-    }
+    .fields = vmstate_cs4231a_fields,
 };
 
-static const MemoryRegionOps cs_ioport_ops = {
-    .read = cs_read,
-    .write = cs_write,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    }
-};
+static MemoryRegionOps cs_ioport_ops;
+
+static void __attribute__((constructor)) init_cs_ioport_ops(void)
+{
+    memset(&cs_ioport_ops, 0, sizeof(cs_ioport_ops));
+    cs_ioport_ops.read = cs_read;
+    cs_ioport_ops.write = cs_write;
+    cs_ioport_ops.impl.min_access_size = 1;
+    cs_ioport_ops.impl.max_access_size = 1;
+}
 
 static void cs4231a_initfn (Object *obj)
 {

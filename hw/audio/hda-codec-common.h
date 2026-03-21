@@ -185,6 +185,9 @@ static const desc_param glue(output_params_audio_func_, PARAM)[] = {
     },
 };
 
+/* output: conn arrays */
+static uint32_t glue(output_conn_out_, PARAM)[] = { 2 };
+
 /* output: nodes */
 static const desc_node glue(output_nodes_, PARAM)[] = {
     {
@@ -214,7 +217,7 @@ static const desc_node glue(output_nodes_, PARAM)[] = {
                     (AC_JACK_COLOR_GREEN  << AC_DEFCFG_COLOR_SHIFT)     |
                     0x10),
         .pinctl  = AC_PINCTL_OUT_EN,
-        .conn    = (uint32_t[]) { 2 },
+        .conn    = glue(output_conn_out_, PARAM),
     }
 };
 
@@ -278,6 +281,10 @@ static const desc_param glue(duplex_params_audio_func_, PARAM)[] = {
     },
 };
 
+/* duplex: conn arrays */
+static uint32_t glue(duplex_conn_out_, PARAM)[] = { 2 };
+static uint32_t glue(duplex_conn_adc_, PARAM)[] = { 5 };
+
 /* duplex: nodes */
 static const desc_node glue(duplex_nodes_, PARAM)[] = {
     {
@@ -307,14 +314,14 @@ static const desc_node glue(duplex_nodes_, PARAM)[] = {
                     (AC_JACK_COLOR_GREEN  << AC_DEFCFG_COLOR_SHIFT)     |
                     0x10),
         .pinctl  = AC_PINCTL_OUT_EN,
-        .conn    = (uint32_t[]) { 2 },
+        .conn    = glue(duplex_conn_out_, PARAM),
     },{
         .nid     = 4,
         .name    = "adc",
         .params  = glue(common_params_audio_adc_, PARAM),
         .nparams = ARRAY_SIZE(glue(common_params_audio_adc_, PARAM)),
+        .conn    = glue(duplex_conn_adc_, PARAM),
         .stindex = 1,
-        .conn    = (uint32_t[]) { 5 },
     },{
         .nid     = 5,
         .name    = "in",
@@ -389,6 +396,10 @@ static const desc_param glue(micro_params_audio_func_, PARAM)[] = {
     },
 };
 
+/* micro: conn arrays */
+static uint32_t glue(micro_conn_out_, PARAM)[] = { 2 };
+static uint32_t glue(micro_conn_adc_, PARAM)[] = { 5 };
+
 /* micro: nodes */
 static const desc_node glue(micro_nodes_, PARAM)[] = {
     {
@@ -418,14 +429,14 @@ static const desc_node glue(micro_nodes_, PARAM)[] = {
                     (AC_JACK_COLOR_GREEN  << AC_DEFCFG_COLOR_SHIFT)     |
                     0x10),
         .pinctl  = AC_PINCTL_OUT_EN,
-        .conn    = (uint32_t[]) { 2 },
+        .conn    = glue(micro_conn_out_, PARAM),
     },{
         .nid     = 4,
         .name    = "adc",
         .params  = glue(common_params_audio_adc_, PARAM),
         .nparams = ARRAY_SIZE(glue(common_params_audio_adc_, PARAM)),
+        .conn    = glue(micro_conn_adc_, PARAM),
         .stindex = 1,
-        .conn    = (uint32_t[]) { 5 },
     },{
         .nid     = 5,
         .name    = "in",

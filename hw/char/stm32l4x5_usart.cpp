@@ -197,7 +197,7 @@ static void stm32l4x5_update_irq(Stm32l4x5UsartBaseState *s)
 
 static int stm32l4x5_usart_base_can_receive(void *opaque)
 {
-    Stm32l4x5UsartBaseState *s = opaque;
+    Stm32l4x5UsartBaseState *s = static_cast<Stm32l4x5UsartBaseState *>(opaque);
 
     if (!(s->isr & R_ISR_RXNE_MASK)) {
         return 1;
@@ -209,7 +209,7 @@ static int stm32l4x5_usart_base_can_receive(void *opaque)
 static void stm32l4x5_usart_base_receive(void *opaque, const uint8_t *buf,
                                          int size)
 {
-    Stm32l4x5UsartBaseState *s = opaque;
+    Stm32l4x5UsartBaseState *s = static_cast<Stm32l4x5UsartBaseState *>(opaque);
 
     if (!((s->cr1 & R_CR1_UE_MASK) && (s->cr1 & R_CR1_RE_MASK))) {
         trace_stm32l4x5_usart_receiver_not_enabled(
@@ -255,7 +255,7 @@ static gboolean usart_transmit(void *do_not_use, GIOCondition cond,
 
     ret = qemu_chr_fe_write(&s->chr, &ch, 1);
     if (ret <= 0) {
-        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, static_cast<GIOCondition>(G_IO_OUT | G_IO_HUP),
                                              usart_transmit, s);
         if (!s->watch_tag) {
             /*
@@ -406,7 +406,7 @@ static void usart_update_rqr(Stm32l4x5UsartBaseState *s, uint32_t value)
 static uint64_t stm32l4x5_usart_base_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    Stm32l4x5UsartBaseState *s = opaque;
+    Stm32l4x5UsartBaseState *s = static_cast<Stm32l4x5UsartBaseState *>(opaque);
     uint64_t retvalue = 0;
 
     switch (addr) {
@@ -462,7 +462,7 @@ static uint64_t stm32l4x5_usart_base_read(void *opaque, hwaddr addr,
 static void stm32l4x5_usart_base_write(void *opaque, hwaddr addr,
                                   uint64_t val64, unsigned int size)
 {
-    Stm32l4x5UsartBaseState *s = opaque;
+    Stm32l4x5UsartBaseState *s = static_cast<Stm32l4x5UsartBaseState *>(opaque);
     const uint32_t value = val64;
 
     trace_stm32l4x5_usart_write(addr, value);
@@ -523,13 +523,13 @@ static const MemoryRegionOps stm32l4x5_usart_base_ops = {
     .write = stm32l4x5_usart_base_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .max_access_size = 4,
         .min_access_size = 4,
+        .max_access_size = 4,
         .unaligned = false
     },
     .impl = {
-        .max_access_size = 4,
         .min_access_size = 4,
+        .max_access_size = 4,
         .unaligned = false
     },
 };
@@ -559,24 +559,26 @@ static int stm32l4x5_usart_base_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_stm32l4x5_usart_base_fields[] = {
+    VMSTATE_UINT32(cr1, Stm32l4x5UsartBaseState),
+    VMSTATE_UINT32(cr2, Stm32l4x5UsartBaseState),
+    VMSTATE_UINT32(cr3, Stm32l4x5UsartBaseState),
+    VMSTATE_UINT32(brr, Stm32l4x5UsartBaseState),
+    VMSTATE_UINT32(gtpr, Stm32l4x5UsartBaseState),
+    VMSTATE_UINT32(rtor, Stm32l4x5UsartBaseState),
+    VMSTATE_UINT32(isr, Stm32l4x5UsartBaseState),
+    VMSTATE_UINT32(rdr, Stm32l4x5UsartBaseState),
+    VMSTATE_UINT32(tdr, Stm32l4x5UsartBaseState),
+    VMSTATE_CLOCK(clk, Stm32l4x5UsartBaseState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32l4x5_usart_base = {
     .name = TYPE_STM32L4X5_USART_BASE,
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = stm32l4x5_usart_base_post_load,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(cr1, Stm32l4x5UsartBaseState),
-        VMSTATE_UINT32(cr2, Stm32l4x5UsartBaseState),
-        VMSTATE_UINT32(cr3, Stm32l4x5UsartBaseState),
-        VMSTATE_UINT32(brr, Stm32l4x5UsartBaseState),
-        VMSTATE_UINT32(gtpr, Stm32l4x5UsartBaseState),
-        VMSTATE_UINT32(rtor, Stm32l4x5UsartBaseState),
-        VMSTATE_UINT32(isr, Stm32l4x5UsartBaseState),
-        VMSTATE_UINT32(rdr, Stm32l4x5UsartBaseState),
-        VMSTATE_UINT32(tdr, Stm32l4x5UsartBaseState),
-        VMSTATE_CLOCK(clk, Stm32l4x5UsartBaseState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32l4x5_usart_base_fields,
 };
 
 
@@ -633,9 +635,9 @@ static const TypeInfo stm32l4x5_usart_types[] = {
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(Stm32l4x5UsartBaseState),
         .instance_init  = stm32l4x5_usart_base_init,
+        .is_abstract    = true,
         .class_size     = sizeof(Stm32l4x5UsartBaseClass),
         .class_init     = stm32l4x5_usart_base_class_init,
-        .is_abstract       = true,
     }, {
         .name           = TYPE_STM32L4X5_USART,
         .parent         = TYPE_STM32L4X5_USART_BASE,

@@ -571,53 +571,55 @@ static uint8_t wm8750_rx(I2CSlave *i2c)
 
 static int wm8750_pre_save(void *opaque)
 {
-    WM8750State *s = opaque;
+    WM8750State *s = static_cast<WM8750State *>(opaque);
 
     s->rate_vmstate = s->rate - wm_rate_table;
 
     return 0;
 }
 
-static int wm8750_post_load(void *opaque, int version_id)
+static int __attribute__((used)) wm8750_post_load(void *opaque, int version_id)
 {
-    WM8750State *s = opaque;
+    WM8750State *s = static_cast<WM8750State *>(opaque);
 
     s->rate = &wm_rate_table[s->rate_vmstate & 0x1f];
     return 0;
 }
 
+static const VMStateField vmstate_wm8750_fields[] = {
+    VMSTATE_UINT8_ARRAY(i2c_data, WM8750State, 2),
+    VMSTATE_INT32(i2c_len, WM8750State),
+    VMSTATE_INT32(enable, WM8750State),
+    VMSTATE_INT32(idx_in, WM8750State),
+    VMSTATE_INT32(req_in, WM8750State),
+    VMSTATE_INT32(idx_out, WM8750State),
+    VMSTATE_INT32(req_out, WM8750State),
+    VMSTATE_UINT8_ARRAY(outvol, WM8750State, 7),
+    VMSTATE_UINT8_ARRAY(outmute, WM8750State, 2),
+    VMSTATE_UINT8_ARRAY(invol, WM8750State, 4),
+    VMSTATE_UINT8_ARRAY(inmute, WM8750State, 2),
+    VMSTATE_UINT8_ARRAY(diff, WM8750State, 2),
+    VMSTATE_UINT8(pol, WM8750State),
+    VMSTATE_UINT8(ds, WM8750State),
+    VMSTATE_UINT8_ARRAY(monomix, WM8750State, 2),
+    VMSTATE_UINT8(alc, WM8750State),
+    VMSTATE_UINT8(mute, WM8750State),
+    VMSTATE_UINT8_ARRAY(path, WM8750State, 4),
+    VMSTATE_UINT8_ARRAY(mpath, WM8750State, 2),
+    VMSTATE_UINT8(format, WM8750State),
+    VMSTATE_UINT8(power, WM8750State),
+    VMSTATE_UINT8(rate_vmstate, WM8750State),
+    VMSTATE_I2C_SLAVE(parent_obj, WM8750State),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_wm8750 = {
     .name = CODEC,
     .version_id = 0,
     .minimum_version_id = 0,
-    .pre_save = wm8750_pre_save,
     .post_load = wm8750_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(i2c_data, WM8750State, 2),
-        VMSTATE_INT32(i2c_len, WM8750State),
-        VMSTATE_INT32(enable, WM8750State),
-        VMSTATE_INT32(idx_in, WM8750State),
-        VMSTATE_INT32(req_in, WM8750State),
-        VMSTATE_INT32(idx_out, WM8750State),
-        VMSTATE_INT32(req_out, WM8750State),
-        VMSTATE_UINT8_ARRAY(outvol, WM8750State, 7),
-        VMSTATE_UINT8_ARRAY(outmute, WM8750State, 2),
-        VMSTATE_UINT8_ARRAY(invol, WM8750State, 4),
-        VMSTATE_UINT8_ARRAY(inmute, WM8750State, 2),
-        VMSTATE_UINT8_ARRAY(diff, WM8750State, 2),
-        VMSTATE_UINT8(pol, WM8750State),
-        VMSTATE_UINT8(ds, WM8750State),
-        VMSTATE_UINT8_ARRAY(monomix, WM8750State, 2),
-        VMSTATE_UINT8(alc, WM8750State),
-        VMSTATE_UINT8(mute, WM8750State),
-        VMSTATE_UINT8_ARRAY(path, WM8750State, 4),
-        VMSTATE_UINT8_ARRAY(mpath, WM8750State, 2),
-        VMSTATE_UINT8(format, WM8750State),
-        VMSTATE_UINT8(power, WM8750State),
-        VMSTATE_UINT8(rate_vmstate, WM8750State),
-        VMSTATE_I2C_SLAVE(parent_obj, WM8750State),
-        VMSTATE_END_OF_LIST()
-    }
+    .pre_save = wm8750_pre_save,
+    .fields = vmstate_wm8750_fields,
 };
 
 static void wm8750_realize(DeviceState *dev, Error **errp)
