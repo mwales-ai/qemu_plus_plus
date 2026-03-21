@@ -116,8 +116,8 @@ static void synic_realize(DeviceState *dev, Error **errp)
                            sizeof(*synic->msg_page), &error_abort);
     memory_region_init_ram(&synic->event_page_mr, obj, eventp_name,
                            sizeof(*synic->event_page), &error_abort);
-    synic->msg_page = memory_region_get_ram_ptr(&synic->msg_page_mr);
-    synic->event_page = memory_region_get_ram_ptr(&synic->event_page_mr);
+    synic->msg_page = static_cast<struct hyperv_message_page *>(memory_region_get_ram_ptr(&synic->msg_page_mr));
+    synic->event_page = static_cast<struct hyperv_event_flags_page *>(memory_region_get_ram_ptr(&synic->event_page_mr));
     qemu_mutex_init(&synic->sint_routes_mutex);
     QLIST_INIT(&synic->sint_routes);
 
@@ -186,6 +186,26 @@ type_init(synic_register_types)
  * staged in an intermediate area and then posted to the SynIC message page in
  * the vcpu thread.
  */
+enum {
+    /* initial state */
+    HV_STAGED_MSG_FREE,
+    /*
+     * hyperv_post_msg (e.g. in main loop) grabs the staged area (FREE ->
+     * BUSY), copies msg, and schedules cpu_post_msg on the assigned cpu
+     */
+    HV_STAGED_MSG_BUSY,
+    /*
+     * cpu_post_msg (vcpu thread) tries to copy staged msg to msg slot,
+     * notify the guest, records the status, marks the posting done (BUSY
+     * -> POSTED), and schedules sint_msg_bh BH
+     */
+    HV_STAGED_MSG_POSTED,
+    /*
+     * sint_msg_bh (BH) verifies that the posting is done, runs the
+     * callback, and starts over (POSTED -> FREE)
+     */
+};
+
 typedef struct HvSintStagedMessage {
     /* message content staged by hyperv_post_msg */
     struct hyperv_message msg;
@@ -195,25 +215,7 @@ typedef struct HvSintStagedMessage {
     /* message posting status filled by cpu_post_msg */
     int status;
     /* passing the buck: */
-    enum {
-        /* initial state */
-        HV_STAGED_MSG_FREE,
-        /*
-         * hyperv_post_msg (e.g. in main loop) grabs the staged area (FREE ->
-         * BUSY), copies msg, and schedules cpu_post_msg on the assigned cpu
-         */
-        HV_STAGED_MSG_BUSY,
-        /*
-         * cpu_post_msg (vcpu thread) tries to copy staged msg to msg slot,
-         * notify the guest, records the status, marks the posting done (BUSY
-         * -> POSTED), and schedules sint_msg_bh BH
-         */
-        HV_STAGED_MSG_POSTED,
-        /*
-         * sint_msg_bh (BH) verifies that the posting is done, runs the
-         * callback, and starts over (POSTED -> FREE)
-         */
-    } state;
+    int state;
 } HvSintStagedMessage;
 
 struct HvSintRoute {
@@ -241,7 +243,7 @@ static CPUState *hyperv_find_vcpu(uint32_t vp_index)
  */
 static void sint_msg_bh(void *opaque)
 {
-    HvSintRoute *sint_route = opaque;
+    HvSintRoute *sint_route = static_cast<HvSintRoute *>(opaque);
     HvSintStagedMessage *staged_msg = sint_route->staged_msg;
 
     if (qatomic_read(&staged_msg->state) != HV_STAGED_MSG_POSTED) {
@@ -264,7 +266,7 @@ static void sint_msg_bh(void *opaque)
  */
 static void cpu_post_msg(CPUState *cs, run_on_cpu_data data)
 {
-    HvSintRoute *sint_route = data.host_ptr;
+    HvSintRoute *sint_route = static_cast<HvSintRoute *>(data.host_ptr);
     HvSintStagedMessage *staged_msg = sint_route->staged_msg;
     SynICState *synic = sint_route->synic;
     struct hyperv_message *dst_msg;
@@ -617,7 +619,7 @@ uint16_t hyperv_hcall_post_message(uint64_t param, bool fast)
     }
 
     len = sizeof(*msg);
-    msg = cpu_physical_memory_map(param, &len, 0);
+    msg = static_cast<struct hyperv_post_message_input *>(cpu_physical_memory_map(param, &len, 0));
     if (len < sizeof(*msg)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto unmap;
@@ -758,7 +760,7 @@ uint16_t hyperv_hcall_reset_dbg_session(uint64_t outgpa)
     }
 
     len = sizeof(*reset_dbg_session);
-    reset_dbg_session = cpu_physical_memory_map(outgpa, &len, 1);
+    reset_dbg_session = static_cast<struct hyperv_reset_debug_session_output *>(cpu_physical_memory_map(outgpa, &len, 1));
     if (!reset_dbg_session || len < sizeof(*reset_dbg_session)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -803,14 +805,14 @@ uint16_t hyperv_hcall_retreive_dbg_data(uint64_t ingpa, uint64_t outgpa,
     }
 
     in_len = sizeof(*debug_data_in);
-    debug_data_in = cpu_physical_memory_map(ingpa, &in_len, 0);
+    debug_data_in = static_cast<struct hyperv_retrieve_debug_data_input *>(cpu_physical_memory_map(ingpa, &in_len, 0));
     if (!debug_data_in || in_len < sizeof(*debug_data_in)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
     }
 
     out_len = sizeof(*debug_data_out);
-    debug_data_out = cpu_physical_memory_map(outgpa, &out_len, 1);
+    debug_data_out = static_cast<struct hyperv_retrieve_debug_data_output *>(cpu_physical_memory_map(outgpa, &out_len, 1));
     if (!debug_data_out || out_len < sizeof(*debug_data_out)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -862,7 +864,7 @@ uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast)
     }
 
     in_len = sizeof(*post_data_in);
-    post_data_in = cpu_physical_memory_map(ingpa, &in_len, 0);
+    post_data_in = static_cast<struct hyperv_post_debug_data_input *>(cpu_physical_memory_map(ingpa, &in_len, 0));
     if (!post_data_in || in_len < sizeof(*post_data_in)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;
@@ -874,7 +876,7 @@ uint16_t hyperv_hcall_post_dbg_data(uint64_t ingpa, uint64_t outgpa, bool fast)
     }
 
     out_len = sizeof(*post_data_out);
-    post_data_out = cpu_physical_memory_map(outgpa, &out_len, 1);
+    post_data_out = static_cast<struct hyperv_post_debug_data_output *>(cpu_physical_memory_map(outgpa, &out_len, 1));
     if (!post_data_out || out_len < sizeof(*post_data_out)) {
         ret = HV_STATUS_INSUFFICIENT_MEMORY;
         goto cleanup;

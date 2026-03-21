@@ -58,6 +58,10 @@ OBJECT_DECLARE_SIMPLE_TYPE(XlnxDPDMAState, XLNX_DPDMA)
  * @s The DPDMA state.
  * @channel The channel to start.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
                                   bool one_desc);
 
@@ -81,5 +85,9 @@ void xlnx_dpdma_set_host_data_location(XlnxDPDMAState *s, uint8_t channel,
  * @s The DPDMA state.
  */
 void xlnx_dpdma_trigger_vsync_irq(XlnxDPDMAState *s);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* XLNX_DPDMA_H */

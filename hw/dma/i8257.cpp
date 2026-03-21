@@ -69,7 +69,7 @@ static const int channels[8] = {-1, 2, 3, 1, -1, -1, -1, 0};
 
 static void i8257_write_page(void *opaque, uint32_t nport, uint32_t data)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int ichan;
 
     ichan = channels[nport & 7];
@@ -82,7 +82,7 @@ static void i8257_write_page(void *opaque, uint32_t nport, uint32_t data)
 
 static void i8257_write_pageh(void *opaque, uint32_t nport, uint32_t data)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int ichan;
 
     ichan = channels[nport & 7];
@@ -95,7 +95,7 @@ static void i8257_write_pageh(void *opaque, uint32_t nport, uint32_t data)
 
 static uint32_t i8257_read_page(void *opaque, uint32_t nport)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int ichan;
 
     ichan = channels[nport & 7];
@@ -108,7 +108,7 @@ static uint32_t i8257_read_page(void *opaque, uint32_t nport)
 
 static uint32_t i8257_read_pageh(void *opaque, uint32_t nport)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int ichan;
 
     ichan = channels[nport & 7];
@@ -139,7 +139,7 @@ static inline int i8257_getff(I8257State *d)
 
 static uint64_t i8257_read_chan(void *opaque, hwaddr nport, unsigned size)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int ichan, nreg, iport, ff, val, dir;
     I8257Regs *r;
 
@@ -162,7 +162,7 @@ static uint64_t i8257_read_chan(void *opaque, hwaddr nport, unsigned size)
 static void i8257_write_chan(void *opaque, hwaddr nport, uint64_t data,
                              unsigned int size)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int iport, ichan, nreg;
     I8257Regs *r;
 
@@ -181,7 +181,7 @@ static void i8257_write_chan(void *opaque, hwaddr nport, uint64_t data,
 static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
                              unsigned int size)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int iport, ichan = 0;
 
     iport = (nport >> d->dshift) & 0x0f;
@@ -270,7 +270,7 @@ static void i8257_write_cont(void *opaque, hwaddr nport, uint64_t data,
 
 static uint64_t i8257_read_cont(void *opaque, hwaddr nport, unsigned size)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int iport, val;
 
     iport = (nport >> d->dshift) & 0x0f;
@@ -348,7 +348,7 @@ static void i8257_channel_run(I8257State *d, int ichan)
 
 static void i8257_dma_run(void *opaque)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     int ichan;
     int rearm = 0;
 
@@ -411,7 +411,7 @@ static int i8257_dma_read_memory(IsaDma *obj, int nchan, void *buf, int pos,
 
     if (r->mode & 0x20) {
         int i;
-        uint8_t *p = buf;
+        uint8_t *p = static_cast<uint8_t *>(buf);
 
         cpu_physical_memory_read (addr - pos - len, buf, len);
         /* What about 16bit transfers? */
@@ -439,7 +439,7 @@ static int i8257_dma_write_memory(IsaDma *obj, int nchan, void *buf, int pos,
 
     if (r->mode & 0x20) {
         int i;
-        uint8_t *p = buf;
+        uint8_t *p = static_cast<uint8_t *>(buf);
 
         cpu_physical_memory_write (addr - pos - len, buf, len);
         /* What about 16bit transfers? */
@@ -491,15 +491,15 @@ static const MemoryRegionOps channel_io_ops = {
 
 /* IOport from page_base */
 static const MemoryRegionPortio page_portio_list[] = {
-    { 0x01, 3, 1, .write = i8257_write_page, .read = i8257_read_page, },
-    { 0x07, 1, 1, .write = i8257_write_page, .read = i8257_read_page, },
+    { 0x01, 3, 1, .read = i8257_read_page, .write = i8257_write_page, },
+    { 0x07, 1, 1, .read = i8257_read_page, .write = i8257_write_page, },
     PORTIO_END_OF_LIST(),
 };
 
 /* IOport from pageh_base */
 static const MemoryRegionPortio pageh_portio_list[] = {
-    { 0x01, 3, 1, .write = i8257_write_pageh, .read = i8257_read_pageh, },
-    { 0x07, 3, 1, .write = i8257_write_pageh, .read = i8257_read_pageh, },
+    { 0x01, 3, 1, .read = i8257_read_pageh, .write = i8257_write_pageh, },
+    { 0x07, 3, 1, .read = i8257_read_pageh, .write = i8257_write_pageh, },
     PORTIO_END_OF_LIST(),
 };
 
@@ -513,44 +513,48 @@ static const MemoryRegionOps cont_io_ops = {
     },
 };
 
+static const VMStateField vmstate_i8257_regs_fields[] = {
+    VMSTATE_INT32_ARRAY(now, I8257Regs, 2),
+    VMSTATE_UINT16_ARRAY(base, I8257Regs, 2),
+    VMSTATE_UINT8(mode, I8257Regs),
+    VMSTATE_UINT8(page, I8257Regs),
+    VMSTATE_UINT8(pageh, I8257Regs),
+    VMSTATE_UINT8(dack, I8257Regs),
+    VMSTATE_UINT8(eop, I8257Regs),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_i8257_regs = {
     .name = "dma_regs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32_ARRAY(now, I8257Regs, 2),
-        VMSTATE_UINT16_ARRAY(base, I8257Regs, 2),
-        VMSTATE_UINT8(mode, I8257Regs),
-        VMSTATE_UINT8(page, I8257Regs),
-        VMSTATE_UINT8(pageh, I8257Regs),
-        VMSTATE_UINT8(dack, I8257Regs),
-        VMSTATE_UINT8(eop, I8257Regs),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_i8257_regs_fields,
 };
 
 static int i8257_post_load(void *opaque, int version_id)
 {
-    I8257State *d = opaque;
+    I8257State *d = static_cast<I8257State *>(opaque);
     i8257_dma_run(d);
 
     return 0;
 }
+
+static const VMStateField vmstate_i8257_fields[] = {
+    VMSTATE_UINT8(command, I8257State),
+    VMSTATE_UINT8(mask, I8257State),
+    VMSTATE_UINT8(flip_flop, I8257State),
+    VMSTATE_INT32(dshift, I8257State),
+    VMSTATE_STRUCT_ARRAY(regs, I8257State, 4, 1, vmstate_i8257_regs,
+                         I8257Regs),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_i8257 = {
     .name = "dma",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = i8257_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(command, I8257State),
-        VMSTATE_UINT8(mask, I8257State),
-        VMSTATE_UINT8(flip_flop, I8257State),
-        VMSTATE_INT32(dshift, I8257State),
-        VMSTATE_STRUCT_ARRAY(regs, I8257State, 4, 1, vmstate_i8257_regs,
-                             I8257Regs),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_i8257_fields,
 };
 
 static void i8257_realize(DeviceState *dev, Error **errp)
@@ -613,15 +617,17 @@ static void i8257_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo i8257_interfaces[] = {
+    { TYPE_ISADMA },
+    { }
+};
+
 static const TypeInfo i8257_info = {
     .name = TYPE_I8257,
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(I8257State),
     .class_init = i8257_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ISADMA },
-        { }
-    }
+    .interfaces = i8257_interfaces,
 };
 
 static void i8257_register_types(void)

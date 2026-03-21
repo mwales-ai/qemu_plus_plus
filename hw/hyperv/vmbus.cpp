@@ -391,7 +391,7 @@ static ssize_t gpadl_iter_io(GpadlIter *iter, void *buf, uint32_t len)
             memcpy(buf, p, cplen);
         }
 
-        buf += cplen;
+        buf = static_cast<char *>(buf) + cplen;
         len -= cplen;
         iter->off += cplen;
         iter->last_off = iter->off;
@@ -523,20 +523,22 @@ void vmbus_unmap_sgl(VMBusChanReq *req, DMADirection dir, struct iovec *iov,
     }
 }
 
+static const VMStateField vmstate_gpadl_fields[] = {
+    VMSTATE_UINT32(id, VMBusGpadl),
+    VMSTATE_UINT32(child_relid, VMBusGpadl),
+    VMSTATE_UINT32(num_gfns, VMBusGpadl),
+    VMSTATE_UINT32(seen_gfns, VMBusGpadl),
+    VMSTATE_VARRAY_UINT32_ALLOC(gfns, VMBusGpadl, num_gfns, 0,
+                                vmstate_info_uint64, uint64_t),
+    VMSTATE_UINT8(state, VMBusGpadl),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_gpadl = {
     .name = "vmbus/gpadl",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(id, VMBusGpadl),
-        VMSTATE_UINT32(child_relid, VMBusGpadl),
-        VMSTATE_UINT32(num_gfns, VMBusGpadl),
-        VMSTATE_UINT32(seen_gfns, VMBusGpadl),
-        VMSTATE_VARRAY_UINT32_ALLOC(gfns, VMBusGpadl, num_gfns, 0,
-                                    vmstate_info_uint64, uint64_t),
-        VMSTATE_UINT8(state, VMBusGpadl),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_gpadl_fields,
 };
 
 /*
@@ -568,8 +570,8 @@ static vmbus_ring_buffer *ringbuf_map_hdr(VMBusRingBufCommon *ringbuf)
     vmbus_ring_buffer *rb;
     dma_addr_t mlen = sizeof(*rb);
 
-    rb = dma_memory_map(ringbuf->as, ringbuf->rb_addr, &mlen,
-                        DMA_DIRECTION_FROM_DEVICE, MEMTXATTRS_UNSPECIFIED);
+    rb = static_cast<vmbus_ring_buffer *>(dma_memory_map(ringbuf->as, ringbuf->rb_addr, &mlen,
+                        DMA_DIRECTION_FROM_DEVICE, MEMTXATTRS_UNSPECIFIED));
     if (mlen != sizeof(*rb)) {
         dma_memory_unmap(ringbuf->as, rb, mlen,
                          DMA_DIRECTION_FROM_DEVICE, 0);
@@ -658,7 +660,7 @@ static ssize_t ringbuf_io(VMBusRingBufCommon *ringbuf, void *buf, uint32_t len)
             return ret1;
         }
         gpadl_iter_seek(&ringbuf->iter, ringbuf->base);
-        buf += remain;
+        buf = static_cast<char *>(buf) + remain;
         len -= remain;
     }
     ret2 = gpadl_iter_io(&ringbuf->iter, buf, len);
@@ -743,7 +745,7 @@ static int vmbus_channel_notify_guest(VMBusChannel *chan)
         return hyperv_set_event_flag(chan->notify_route, chan->id);
     }
 
-    int_map = cpu_physical_memory_map(addr, &len, 1);
+    int_map = static_cast<unsigned long *>(cpu_physical_memory_map(addr, &len, 1));
     if (len != TARGET_PAGE_SIZE / 2) {
         res = -ENXIO;
         goto unmap;
@@ -1092,13 +1094,13 @@ static VMBusChanReq *vmbus_alloc_req(VMBusChannel *chan,
                                      bool need_comp)
 {
     VMBusChanReq *req;
-    uint32_t msgoff = QEMU_ALIGN_UP(size, __alignof__(*req->msg));
+    uint32_t msgoff = QEMU_ALIGN_UP(size, __alignof__(void *));
     uint32_t totlen = msgoff + msglen;
 
-    req = g_malloc0(totlen);
+    req = static_cast<VMBusChanReq *>(g_malloc0(totlen));
     req->chan = chan;
     req->pkt_type = pkt_type;
-    req->msg = (void *)req + msgoff;
+    req->msg = reinterpret_cast<char *>(req) + msgoff;
     req->msglen = msglen;
     req->transaction_id = transaction_id;
     req->need_comp = need_comp;
@@ -1262,7 +1264,7 @@ out:
 
 void vmbus_free_req(void *req)
 {
-    VMBusChanReq *r = req;
+    VMBusChanReq *r = static_cast<VMBusChanReq *>(req);
 
     if (!req) {
         return;
@@ -1480,27 +1482,29 @@ static void close_channel(VMBusChannel *chan)
 
 static int channel_post_load(void *opaque, int version_id)
 {
-    VMBusChannel *chan = opaque;
+    VMBusChannel *chan = static_cast<VMBusChannel *>(opaque);
 
     return register_chan_id(chan);
 }
+
+static const VMStateField vmstate_channel_fields[] = {
+    VMSTATE_UINT32(id, VMBusChannel),
+    VMSTATE_UINT16(subchan_idx, VMBusChannel),
+    VMSTATE_UINT32(open_id, VMBusChannel),
+    VMSTATE_UINT32(target_vp, VMBusChannel),
+    VMSTATE_UINT32(ringbuf_gpadl, VMBusChannel),
+    VMSTATE_UINT32(ringbuf_send_offset, VMBusChannel),
+    VMSTATE_UINT8(offer_state, VMBusChannel),
+    VMSTATE_UINT8(state, VMBusChannel),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_channel = {
     .name = "vmbus/channel",
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = channel_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(id, VMBusChannel),
-        VMSTATE_UINT16(subchan_idx, VMBusChannel),
-        VMSTATE_UINT32(open_id, VMBusChannel),
-        VMSTATE_UINT32(target_vp, VMBusChannel),
-        VMSTATE_UINT32(ringbuf_gpadl, VMBusChannel),
-        VMSTATE_UINT32(ringbuf_send_offset, VMBusChannel),
-        VMSTATE_UINT8(offer_state, VMBusChannel),
-        VMSTATE_UINT8(state, VMBusChannel),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_channel_fields,
 };
 
 static VMBusChannel *find_channel(VMBus *vmbus, uint32_t id)
@@ -1544,7 +1548,7 @@ out:
 static uint16_t vmbus_recv_message(const struct hyperv_post_message_input *msg,
                                    void *data)
 {
-    VMBus *vmbus = data;
+    VMBus *vmbus = static_cast<VMBus *>(data);
     struct vmbus_message_header *vmbus_msg;
 
     if (msg->message_type != HV_MESSAGE_VMBUS) {
@@ -1726,12 +1730,12 @@ static void send_offer(VMBus *vmbus)
             QemuUUID instanceid = qemu_uuid_bswap(chan->dev->instanceid);
             struct vmbus_message_offer_channel msg = {
                 .header = { .message_type = VMBUS_MSG_OFFERCHANNEL, },
-                .child_relid = chan->id,
-                .connection_id = chan_connection_id(chan),
                 .channel_flags = vdc->channel_flags,
                 .mmio_size_mb = vdc->mmio_size_mb,
                 .sub_channel_index = vmbus_channel_idx(chan),
+                .child_relid = chan->id,
                 .interrupt_flags = VMBUS_OFFER_INTERRUPT_DEDICATED,
+                .connection_id = chan_connection_id(chan),
             };
 
             memcpy(msg.type_uuid, &classid, sizeof(classid));
@@ -1817,7 +1821,7 @@ static void handle_gpadl_header(VMBus *vmbus, vmbus_message_gpadl_header *msg,
     gpadl = create_gpadl(vmbus, msg->gpadl_id, msg->child_relid, num_gfns);
 
     for (i = 0; i < num_gfns &&
-         (void *)&msg->range[0].pfn_array[i + 1] <= (void *)msg + msglen;
+         (char *)&msg->range[0].pfn_array[i + 1] <= (char *)msg + msglen;
          i++) {
         gpadl->gfns[gpadl->seen_gfns++] = msg->range[0].pfn_array[i];
     }
@@ -1848,7 +1852,7 @@ static void handle_gpadl_body(VMBus *vmbus, vmbus_message_gpadl_body *msg,
     assert(num_gfns_left);
 
     for (i = 0; i < num_gfns_left &&
-         (void *)&msg->pfn_array[i + 1] <= (void *)msg + msglen; i++) {
+         (char *)&msg->pfn_array[i + 1] <= (char *)msg + msglen; i++) {
         gpadl->gfns[gpadl->seen_gfns++] = msg->pfn_array[i];
     }
 
@@ -1865,8 +1869,8 @@ static void send_create_gpadl(VMBus *vmbus)
         if (gpadl_full(gpadl) && gpadl->state == VMGPADL_INIT) {
             struct vmbus_message_gpadl_created msg = {
                 .header = { .message_type = VMBUS_MSG_GPADL_CREATED, },
-                .gpadl_id = gpadl->id,
                 .child_relid = gpadl->child_relid,
+                .gpadl_id = gpadl->id,
             };
 
             trace_vmbus_gpadl_created(gpadl->id);
@@ -2101,31 +2105,31 @@ static void process_message(VMBus *vmbus)
         goto out;
     }
     msgdata = hv_msg->payload;
-    msg = msgdata;
+    msg = static_cast<struct vmbus_message_header *>(msgdata);
 
     trace_vmbus_process_incoming_message(msg->message_type);
 
     switch (msg->message_type) {
     case VMBUS_MSG_INITIATE_CONTACT:
-        handle_initiate_contact(vmbus, msgdata, msglen);
+        handle_initiate_contact(vmbus, static_cast<vmbus_message_initiate_contact *>(msgdata), msglen);
         break;
     case VMBUS_MSG_REQUESTOFFERS:
         handle_request_offers(vmbus, msgdata, msglen);
         break;
     case VMBUS_MSG_GPADL_HEADER:
-        handle_gpadl_header(vmbus, msgdata, msglen);
+        handle_gpadl_header(vmbus, static_cast<vmbus_message_gpadl_header *>(msgdata), msglen);
         break;
     case VMBUS_MSG_GPADL_BODY:
-        handle_gpadl_body(vmbus, msgdata, msglen);
+        handle_gpadl_body(vmbus, static_cast<vmbus_message_gpadl_body *>(msgdata), msglen);
         break;
     case VMBUS_MSG_GPADL_TEARDOWN:
-        handle_gpadl_teardown(vmbus, msgdata, msglen);
+        handle_gpadl_teardown(vmbus, static_cast<vmbus_message_gpadl_teardown *>(msgdata), msglen);
         break;
     case VMBUS_MSG_OPENCHANNEL:
-        handle_open_channel(vmbus, msgdata, msglen);
+        handle_open_channel(vmbus, static_cast<vmbus_message_open_channel *>(msgdata), msglen);
         break;
     case VMBUS_MSG_CLOSECHANNEL:
-        handle_close_channel(vmbus, msgdata, msglen);
+        handle_close_channel(vmbus, static_cast<vmbus_message_close_channel *>(msgdata), msglen);
         break;
     case VMBUS_MSG_UNLOAD:
         handle_unload(vmbus, msgdata, msglen);
@@ -2145,18 +2149,24 @@ unlock:
     qemu_mutex_unlock(&vmbus->rx_queue_lock);
 }
 
-static const struct {
+struct StateRunner {
     void (*run)(VMBus *vmbus);
     bool (*complete)(VMBus *vmbus);
-} state_runner[] = {
-    [VMBUS_LISTEN]         = {process_message,     NULL},
-    [VMBUS_HANDSHAKE]      = {send_handshake,      NULL},
-    [VMBUS_OFFER]          = {send_offer,          complete_offer},
-    [VMBUS_CREATE_GPADL]   = {send_create_gpadl,   complete_create_gpadl},
-    [VMBUS_TEARDOWN_GPADL] = {send_teardown_gpadl, complete_teardown_gpadl},
-    [VMBUS_OPEN_CHANNEL]   = {send_open_channel,   complete_open_channel},
-    [VMBUS_UNLOAD]         = {send_unload,         complete_unload},
 };
+
+static StateRunner state_runner[VMBUS_STATE_MAX];
+
+static void __attribute__((constructor)) init_state_runner(void)
+{
+    memset(state_runner, 0, sizeof(state_runner));
+    state_runner[VMBUS_LISTEN]         = {process_message,     NULL};
+    state_runner[VMBUS_HANDSHAKE]      = {send_handshake,      NULL};
+    state_runner[VMBUS_OFFER]          = {send_offer,          complete_offer};
+    state_runner[VMBUS_CREATE_GPADL]   = {send_create_gpadl,   complete_create_gpadl};
+    state_runner[VMBUS_TEARDOWN_GPADL] = {send_teardown_gpadl, complete_teardown_gpadl};
+    state_runner[VMBUS_OPEN_CHANNEL]   = {send_open_channel,   complete_open_channel};
+    state_runner[VMBUS_UNLOAD]         = {send_unload,         complete_unload};
+}
 
 static void vmbus_do_run(VMBus *vmbus)
 {
@@ -2171,7 +2181,7 @@ static void vmbus_do_run(VMBus *vmbus)
 
 static void vmbus_run(void *opaque)
 {
-    VMBus *vmbus = opaque;
+    VMBus *vmbus = static_cast<VMBus *>(opaque);
 
     /* make sure no recursion happens (e.g. due to recursive aio_poll()) */
     if (vmbus->in_progress) {
@@ -2190,7 +2200,7 @@ static void vmbus_run(void *opaque)
 
 static void vmbus_msg_cb(void *data, int status)
 {
-    VMBus *vmbus = data;
+    VMBus *vmbus = static_cast<VMBus *>(data);
     bool (*complete)(VMBus *vmbus);
 
     assert(vmbus->msg_in_progress);
@@ -2242,7 +2252,7 @@ static void vmbus_signal_event(EventNotifier *e)
 
     addr = vmbus->int_page_gpa + TARGET_PAGE_SIZE / 2;
     len = TARGET_PAGE_SIZE / 2;
-    int_map = cpu_physical_memory_map(addr, &len, 1);
+    int_map = static_cast<unsigned long *>(cpu_physical_memory_map(addr, &len, 1));
     if (len != TARGET_PAGE_SIZE / 2) {
         goto unmap;
     }
@@ -2372,29 +2382,31 @@ static void vmbus_dev_instance_init(Object *obj)
     }
 }
 
+static const VMStateField vmstate_vmbus_dev_fields[] = {
+    VMSTATE_UINT8_ARRAY(instanceid.data, VMBusDevice, 16),
+    VMSTATE_UINT16(num_channels, VMBusDevice),
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT16(channels, VMBusDevice,
+                                         num_channels, vmstate_channel,
+                                         VMBusChannel),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_vmbus_dev = {
     .name = TYPE_VMBUS_DEVICE,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(instanceid.data, VMBusDevice, 16),
-        VMSTATE_UINT16(num_channels, VMBusDevice),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT16(channels, VMBusDevice,
-                                             num_channels, vmstate_channel,
-                                             VMBusChannel),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vmbus_dev_fields,
 };
 
 /* vmbus generic device base */
 static const TypeInfo vmbus_dev_type_info = {
     .name = TYPE_VMBUS_DEVICE,
     .parent = TYPE_DEVICE,
-    .is_abstract = true,
     .instance_size = sizeof(VMBusDevice),
+    .instance_init = vmbus_dev_instance_init,
+    .is_abstract = true,
     .class_size = sizeof(VMBusDeviceClass),
     .class_init = vmbus_dev_class_init,
-    .instance_init = vmbus_dev_instance_init,
 };
 
 static void vmbus_realize(BusState *bus, Error **errp)
@@ -2542,20 +2554,22 @@ static int vmbus_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_post_message_input_fields[] = {
+    /*
+     * skip connection_id and message_type as they are validated before
+     * queueing and ignored on dequeueing
+     */
+    VMSTATE_UINT32(payload_size, struct hyperv_post_message_input),
+    VMSTATE_UINT8_ARRAY(payload, struct hyperv_post_message_input,
+                        HV_MESSAGE_PAYLOAD_SIZE),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_post_message_input = {
     .name = "vmbus/hyperv_post_message_input",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        /*
-         * skip connection_id and message_type as they are validated before
-         * queueing and ignored on dequeueing
-         */
-        VMSTATE_UINT32(payload_size, struct hyperv_post_message_input),
-        VMSTATE_UINT8_ARRAY(payload, struct hyperv_post_message_input,
-                            HV_MESSAGE_PAYLOAD_SIZE),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_post_message_input_fields,
 };
 
 static bool vmbus_rx_queue_needed(void *opaque)
@@ -2564,20 +2578,37 @@ static bool vmbus_rx_queue_needed(void *opaque)
     return vmbus->rx_queue_size;
 }
 
+static const VMStateField vmstate_rx_queue_fields[] = {
+    VMSTATE_UINT8(rx_queue_head, VMBus),
+    VMSTATE_UINT8(rx_queue_size, VMBus),
+    VMSTATE_STRUCT_ARRAY(rx_queue, VMBus,
+                         HV_MSG_QUEUE_LEN, 0,
+                         vmstate_post_message_input,
+                         struct hyperv_post_message_input),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_rx_queue = {
     .name = "vmbus/rx_queue",
     .version_id = 0,
     .minimum_version_id = 0,
     .needed = vmbus_rx_queue_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(rx_queue_head, VMBus),
-        VMSTATE_UINT8(rx_queue_size, VMBus),
-        VMSTATE_STRUCT_ARRAY(rx_queue, VMBus,
-                             HV_MSG_QUEUE_LEN, 0,
-                             vmstate_post_message_input,
-                             struct hyperv_post_message_input),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rx_queue_fields,
+};
+
+static const VMStateField vmstate_vmbus_fields[] = {
+    VMSTATE_UINT8(state, VMBus),
+    VMSTATE_UINT32(version, VMBus),
+    VMSTATE_UINT32(target_vp, VMBus),
+    VMSTATE_UINT64(int_page_gpa, VMBus),
+    VMSTATE_QTAILQ_V(gpadl_list, VMBus, 0,
+                     vmstate_gpadl, VMBusGpadl, link),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_vmbus_subsections[] = {
+    &vmstate_rx_queue,
+    NULL
 };
 
 static const VMStateDescription vmstate_vmbus = {
@@ -2586,19 +2617,8 @@ static const VMStateDescription vmstate_vmbus = {
     .minimum_version_id = 0,
     .pre_load = vmbus_pre_load,
     .post_load = vmbus_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(state, VMBus),
-        VMSTATE_UINT32(version, VMBus),
-        VMSTATE_UINT32(target_vp, VMBus),
-        VMSTATE_UINT64(int_page_gpa, VMBus),
-        VMSTATE_QTAILQ_V(gpadl_list, VMBus, 0,
-                         vmstate_gpadl, VMBusGpadl, link),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_rx_queue,
-        NULL
-    }
+    .fields = vmstate_vmbus_fields,
+    .subsections = vmstate_vmbus_subsections,
 };
 
 static const TypeInfo vmbus_type_info = {
@@ -2642,14 +2662,16 @@ static char *vmbus_bridge_ofw_unit_address(const SysBusDevice *dev)
     return g_strdup("0");
 }
 
+static const VMStateField vmstate_vmbus_bridge_fields[] = {
+    VMSTATE_STRUCT_POINTER(bus, VMBusBridge, vmstate_vmbus, VMBus),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_vmbus_bridge = {
     .name = TYPE_VMBUS_BRIDGE,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_POINTER(bus, VMBusBridge, vmstate_vmbus, VMBus),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_vmbus_bridge_fields,
 };
 
 static const Property vmbus_bridge_props[] = {

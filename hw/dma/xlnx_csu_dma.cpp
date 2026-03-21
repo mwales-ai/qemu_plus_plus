@@ -327,11 +327,15 @@ static void xlnx_csu_dma_src_notify(void *opaque)
 }
 
 static uint64_t addr_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static uint64_t addr_pre_write(RegisterInfo *reg, uint64_t val)
 {
     /* Address is word aligned */
     return val & R_ADDR_ADDR_MASK;
 }
 
+static uint64_t size_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
 static uint64_t size_pre_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
@@ -354,12 +358,16 @@ static uint64_t size_pre_write(RegisterInfo *reg, uint64_t val)
 }
 
 static uint64_t size_post_read(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static uint64_t size_post_read(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
 
     return val | s->r_size_last_word;
 }
 
+static void size_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
 static void size_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
@@ -387,10 +395,14 @@ static void size_post_write(RegisterInfo *reg, uint64_t val)
 }
 
 static uint64_t status_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static uint64_t status_pre_write(RegisterInfo *reg, uint64_t val)
 {
     return val & (R_STATUS_DONE_CNT_MASK | R_STATUS_BUSY_MASK);
 }
 
+static void ctrl_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
 static void ctrl_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
@@ -407,6 +419,8 @@ static void ctrl_post_write(RegisterInfo *reg, uint64_t val)
 }
 
 static uint64_t int_status_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static uint64_t int_status_pre_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
 
@@ -419,12 +433,16 @@ static uint64_t int_status_pre_write(RegisterInfo *reg, uint64_t val)
 }
 
 static void int_status_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static void int_status_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
 
     xlnx_csu_dma_update_irq(s);
 }
 
+static uint64_t int_enable_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
 static uint64_t int_enable_pre_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
@@ -442,12 +460,16 @@ static uint64_t int_enable_pre_write(RegisterInfo *reg, uint64_t val)
 }
 
 static void int_enable_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static void int_enable_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
 
     xlnx_csu_dma_update_irq(s);
 }
 
+static uint64_t int_disable_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
 static uint64_t int_disable_pre_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
@@ -465,12 +487,16 @@ static uint64_t int_disable_pre_write(RegisterInfo *reg, uint64_t val)
 }
 
 static void int_disable_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static void int_disable_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxCSUDMA *s = XLNX_CSU_DMA(reg->opaque);
 
     xlnx_csu_dma_update_irq(s);
 }
 
+static uint64_t addr_msb_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
 static uint64_t addr_msb_pre_write(RegisterInfo *reg, uint64_t val)
 {
     return val & R_ADDR_MSB_ADDR_MSB_MASK;
@@ -490,74 +516,136 @@ static MemTxResult xlnx_csu_dma_class_read(XlnxCSUDMA *s, hwaddr addr,
     return (s->regs[R_SIZE] == 0) ? MEMTX_OK : MEMTX_ERROR;
 }
 
-static const RegisterAccessInfo *xlnx_csu_dma_regs_info[] = {
-#define DMACH_REGINFO(NAME, snd)                                              \
-    (const RegisterAccessInfo []) {                                           \
-        {                                                                     \
-            .name = #NAME "_ADDR",                                            \
-            .addr = A_ADDR,                                                   \
-            .pre_write = addr_pre_write                                       \
-        }, {                                                                  \
-            .name = #NAME "_SIZE",                                            \
-            .addr = A_SIZE,                                                   \
-            .pre_write = size_pre_write,                                      \
-            .post_write = size_post_write,                                    \
-            .post_read = size_post_read                                       \
-        }, {                                                                  \
-            .name = #NAME "_STATUS",                                          \
-            .addr = A_STATUS,                                                 \
-            .pre_write = status_pre_write,                                    \
-            .w1c = R_STATUS_DONE_CNT_MASK,                                    \
-            .ro = (R_STATUS_BUSY_MASK                                         \
-                   | R_STATUS_FIFO_LEVEL_MASK                                 \
-                   | R_STATUS_OUTSTANDING_MASK)                               \
-        }, {                                                                  \
-            .name = #NAME "_CTRL",                                            \
-            .addr = A_CTRL,                                                   \
-            .post_write = ctrl_post_write,                                    \
-            .reset = ((R_CTRL_TIMEOUT_VAL_RESET << R_CTRL_TIMEOUT_VAL_SHIFT)  \
-                      | (R_CTRL_FIFO_THRESH_RESET << R_CTRL_FIFO_THRESH_SHIFT)\
-                      | (snd ? 0 : R_CTRL_FIFOTHRESH_RESET                    \
-                         << R_CTRL_FIFOTHRESH_SHIFT))                         \
-        }, {                                                                  \
-            .name = #NAME "_CRC",                                             \
-            .addr = A_CRC,                                                    \
-        }, {                                                                  \
-            .name =  #NAME "_INT_STATUS",                                     \
-            .addr = A_INT_STATUS,                                             \
-            .pre_write = int_status_pre_write,                                \
-            .post_write = int_status_post_write                               \
-        }, {                                                                  \
-            .name = #NAME "_INT_ENABLE",                                      \
-            .addr = A_INT_ENABLE,                                             \
-            .pre_write = int_enable_pre_write,                                \
-            .post_write = int_enable_post_write                               \
-        }, {                                                                  \
-            .name = #NAME "_INT_DISABLE",                                     \
-            .addr = A_INT_DISABLE,                                            \
-            .pre_write = int_disable_pre_write,                               \
-            .post_write = int_disable_post_write                              \
-        }, {                                                                  \
-            .name = #NAME "_INT_MASK",                                        \
-            .addr = A_INT_MASK,                                               \
-            .ro = ~0,                                                         \
-            .reset = XLNX_CSU_DMA_INT_R_MASK                                  \
-        }, {                                                                  \
-            .name = #NAME "_CTRL2",                                           \
-            .addr = A_CTRL2,                                                  \
-            .reset = ((R_CTRL2_TIMEOUT_PRE_RESET                              \
-                       << R_CTRL2_TIMEOUT_PRE_SHIFT)                          \
-                      | (R_CTRL2_MAX_OUTS_CMDS_RESET                          \
-                         << R_CTRL2_MAX_OUTS_CMDS_SHIFT))                     \
-        }, {                                                                  \
-            .name = #NAME "_ADDR_MSB",                                        \
-            .addr = A_ADDR_MSB,                                               \
-            .pre_write = addr_msb_pre_write                                   \
-        }                                                                     \
+/*
+ * RegisterAccessInfo field order:
+ *   name, ro, w1c, reset, cor, rsvd, unimp, pre_write, post_write, post_read, addr
+ */
+static const RegisterAccessInfo xlnx_csu_dma_src_regs_info[] = {
+    {   .name = "DMA_SRC_ADDR",
+        .pre_write = addr_pre_write,
+        .addr = A_ADDR,
+    }, {
+        .name = "DMA_SRC_SIZE",
+        .pre_write = size_pre_write,
+        .post_write = size_post_write,
+        .post_read = size_post_read,
+        .addr = A_SIZE,
+    }, {
+        .name = "DMA_SRC_STATUS",
+        .ro = (R_STATUS_BUSY_MASK
+               | R_STATUS_FIFO_LEVEL_MASK
+               | R_STATUS_OUTSTANDING_MASK),
+        .w1c = R_STATUS_DONE_CNT_MASK,
+        .pre_write = status_pre_write,
+        .addr = A_STATUS,
+    }, {
+        .name = "DMA_SRC_CTRL",
+        .reset = ((R_CTRL_TIMEOUT_VAL_RESET << R_CTRL_TIMEOUT_VAL_SHIFT)
+                  | (R_CTRL_FIFO_THRESH_RESET << R_CTRL_FIFO_THRESH_SHIFT)),
+        .post_write = ctrl_post_write,
+        .addr = A_CTRL,
+    }, {
+        .name = "DMA_SRC_CRC",
+        .addr = A_CRC,
+    }, {
+        .name = "DMA_SRC_INT_STATUS",
+        .pre_write = int_status_pre_write,
+        .post_write = int_status_post_write,
+        .addr = A_INT_STATUS,
+    }, {
+        .name = "DMA_SRC_INT_ENABLE",
+        .pre_write = int_enable_pre_write,
+        .post_write = int_enable_post_write,
+        .addr = A_INT_ENABLE,
+    }, {
+        .name = "DMA_SRC_INT_DISABLE",
+        .pre_write = int_disable_pre_write,
+        .post_write = int_disable_post_write,
+        .addr = A_INT_DISABLE,
+    }, {
+        .name = "DMA_SRC_INT_MASK",
+        .ro = ~0,
+        .reset = XLNX_CSU_DMA_INT_R_MASK,
+        .addr = A_INT_MASK,
+    }, {
+        .name = "DMA_SRC_CTRL2",
+        .reset = ((R_CTRL2_TIMEOUT_PRE_RESET
+                   << R_CTRL2_TIMEOUT_PRE_SHIFT)
+                  | (R_CTRL2_MAX_OUTS_CMDS_RESET
+                     << R_CTRL2_MAX_OUTS_CMDS_SHIFT)),
+        .addr = A_CTRL2,
+    }, {
+        .name = "DMA_SRC_ADDR_MSB",
+        .pre_write = addr_msb_pre_write,
+        .addr = A_ADDR_MSB,
     }
+};
 
-    DMACH_REGINFO(DMA_SRC, true),
-    DMACH_REGINFO(DMA_DST, false)
+static const RegisterAccessInfo xlnx_csu_dma_dst_regs_info[] = {
+    {   .name = "DMA_DST_ADDR",
+        .pre_write = addr_pre_write,
+        .addr = A_ADDR,
+    }, {
+        .name = "DMA_DST_SIZE",
+        .pre_write = size_pre_write,
+        .post_write = size_post_write,
+        .post_read = size_post_read,
+        .addr = A_SIZE,
+    }, {
+        .name = "DMA_DST_STATUS",
+        .ro = (R_STATUS_BUSY_MASK
+               | R_STATUS_FIFO_LEVEL_MASK
+               | R_STATUS_OUTSTANDING_MASK),
+        .w1c = R_STATUS_DONE_CNT_MASK,
+        .pre_write = status_pre_write,
+        .addr = A_STATUS,
+    }, {
+        .name = "DMA_DST_CTRL",
+        .reset = ((R_CTRL_TIMEOUT_VAL_RESET << R_CTRL_TIMEOUT_VAL_SHIFT)
+                  | (R_CTRL_FIFO_THRESH_RESET << R_CTRL_FIFO_THRESH_SHIFT)
+                  | (R_CTRL_FIFOTHRESH_RESET << R_CTRL_FIFOTHRESH_SHIFT)),
+        .post_write = ctrl_post_write,
+        .addr = A_CTRL,
+    }, {
+        .name = "DMA_DST_CRC",
+        .addr = A_CRC,
+    }, {
+        .name = "DMA_DST_INT_STATUS",
+        .pre_write = int_status_pre_write,
+        .post_write = int_status_post_write,
+        .addr = A_INT_STATUS,
+    }, {
+        .name = "DMA_DST_INT_ENABLE",
+        .pre_write = int_enable_pre_write,
+        .post_write = int_enable_post_write,
+        .addr = A_INT_ENABLE,
+    }, {
+        .name = "DMA_DST_INT_DISABLE",
+        .pre_write = int_disable_pre_write,
+        .post_write = int_disable_post_write,
+        .addr = A_INT_DISABLE,
+    }, {
+        .name = "DMA_DST_INT_MASK",
+        .ro = ~0,
+        .reset = XLNX_CSU_DMA_INT_R_MASK,
+        .addr = A_INT_MASK,
+    }, {
+        .name = "DMA_DST_CTRL2",
+        .reset = ((R_CTRL2_TIMEOUT_PRE_RESET
+                   << R_CTRL2_TIMEOUT_PRE_SHIFT)
+                  | (R_CTRL2_MAX_OUTS_CMDS_RESET
+                     << R_CTRL2_MAX_OUTS_CMDS_SHIFT)),
+        .addr = A_CTRL2,
+    }, {
+        .name = "DMA_DST_ADDR_MSB",
+        .pre_write = addr_msb_pre_write,
+        .addr = A_ADDR_MSB,
+    }
+};
+
+static const RegisterAccessInfo *xlnx_csu_dma_regs_info[] = {
+    xlnx_csu_dma_src_regs_info,
+    xlnx_csu_dma_dst_regs_info
 };
 
 static const MemoryRegionOps xlnx_csu_dma_ops = {
@@ -677,18 +765,20 @@ static void xlnx_csu_dma_realize(DeviceState *dev, Error **errp)
     s->r_size_last_word = 0;
 }
 
+static const VMStateField vmstate_xlnx_csu_dma_fields[] = {
+    VMSTATE_PTIMER(src_timer, XlnxCSUDMA),
+    VMSTATE_UINT16(width, XlnxCSUDMA),
+    VMSTATE_BOOL(is_dst, XlnxCSUDMA),
+    VMSTATE_BOOL(r_size_last_word, XlnxCSUDMA),
+    VMSTATE_UINT32_ARRAY(regs, XlnxCSUDMA, XLNX_CSU_DMA_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_xlnx_csu_dma = {
     .name = TYPE_XLNX_CSU_DMA,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PTIMER(src_timer, XlnxCSUDMA),
-        VMSTATE_UINT16(width, XlnxCSUDMA),
-        VMSTATE_BOOL(is_dst, XlnxCSUDMA),
-        VMSTATE_BOOL(r_size_last_word, XlnxCSUDMA),
-        VMSTATE_UINT32_ARRAY(regs, XlnxCSUDMA, XLNX_CSU_DMA_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_xlnx_csu_dma_fields
 };
 
 static const Property xlnx_csu_dma_properties[] = {
@@ -737,17 +827,19 @@ static void xlnx_csu_dma_init(Object *obj)
                        XLNX_CSU_DMA_R_MAX * 4);
 }
 
+static const InterfaceInfo xlnx_csu_dma_interfaces[] = {
+    { TYPE_STREAM_SINK },
+    { }
+};
+
 static const TypeInfo xlnx_csu_dma_info = {
     .name          = TYPE_XLNX_CSU_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxCSUDMA),
-    .class_init    = xlnx_csu_dma_class_init,
-    .class_size    = sizeof(XlnxCSUDMAClass),
     .instance_init = xlnx_csu_dma_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_STREAM_SINK },
-        { }
-    }
+    .class_size    = sizeof(XlnxCSUDMAClass),
+    .class_init    = xlnx_csu_dma_class_init,
+    .interfaces    = xlnx_csu_dma_interfaces,
 };
 
 static void xlnx_csu_dma_register_types(void)

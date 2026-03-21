@@ -193,7 +193,7 @@ static uint64_t hv_balloon_total_our_ram(HvBalloon *balloon)
 /* TODO: unify the code below with virtio-balloon and cache the value */
 static int build_dimm_list(Object *obj, void *opaque)
 {
-    GSList **list = opaque;
+    GSList **list = static_cast<GSList **>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_PC_DIMM)) {
         DeviceState *dev = DEVICE(obj);
@@ -385,7 +385,7 @@ static void hv_balloon_unballoon_posting(HvBalloon *balloon, StateDesc *stdesc)
     assert(dtree.t);
     assert(dctr);
 
-    ur = g_malloc0(ur_size);
+    ur = static_cast<struct dm_unballoon_request *>(g_malloc0(ur_size));
     ur->hdr.type = DM_UNBALLOON_REQUEST;
     ur->hdr.size = ur_size;
     ur->hdr.trans_id = balloon->trans_id;
@@ -462,7 +462,7 @@ static bool hv_balloon_our_range_ensure(HvBalloon *balloon)
     trace_hv_balloon_our_range_add(our_range->range.count,
                                    our_range->range.start);
 
-    balloon->our_range = g_steal_pointer(&our_range_memslots);
+    balloon->our_range = static_cast<OurRangeMemslots *>(g_steal_pointer(&our_range_memslots));
     return true;
 }
 
@@ -556,7 +556,7 @@ static void hv_balloon_hot_add_posting(HvBalloon *balloon, StateDesc *stdesc)
      */
     *current_count = MIN(hot_add_range->count, chunk_max_size);
 
-    ha = g_malloc0(ha_size);
+    ha = static_cast<struct dm_hot_add_with_region *>(g_malloc0(ha_size));
     ha_region = &ha->region;
     ha->hdr.type = DM_MEM_HOT_ADD_REQUEST;
     ha->hdr.size = ha_size;
@@ -678,18 +678,24 @@ static void hv_balloon_idle_state(HvBalloon *balloon,
     }
 }
 
-static const struct {
+struct StateHandler {
     void (*handler)(HvBalloon *balloon, StateDesc *stdesc);
-} state_handlers[] = {
-    [S_IDLE].handler = hv_balloon_idle_state,
-    [S_BALLOON_POSTING].handler = hv_balloon_balloon_posting,
-    [S_BALLOON_RB_WAIT].handler = hv_balloon_balloon_rb_wait,
-    [S_UNBALLOON_POSTING].handler = hv_balloon_unballoon_posting,
-    [S_UNBALLOON_RB_WAIT].handler = hv_balloon_unballoon_rb_wait,
-    [S_HOT_ADD_SETUP].handler = hv_balloon_hot_add_setup,
-    [S_HOT_ADD_RB_WAIT].handler = hv_balloon_hot_add_rb_wait,
-    [S_HOT_ADD_POSTING].handler = hv_balloon_hot_add_posting,
 };
+
+static StateHandler state_handlers[S_HOT_ADD_POSTING + 1];
+
+static void __attribute__((constructor)) init_state_handlers(void)
+{
+    memset(state_handlers, 0, sizeof(state_handlers));
+    state_handlers[S_IDLE].handler = hv_balloon_idle_state;
+    state_handlers[S_BALLOON_POSTING].handler = hv_balloon_balloon_posting;
+    state_handlers[S_BALLOON_RB_WAIT].handler = hv_balloon_balloon_rb_wait;
+    state_handlers[S_UNBALLOON_POSTING].handler = hv_balloon_unballoon_posting;
+    state_handlers[S_UNBALLOON_RB_WAIT].handler = hv_balloon_unballoon_rb_wait;
+    state_handlers[S_HOT_ADD_SETUP].handler = hv_balloon_hot_add_setup;
+    state_handlers[S_HOT_ADD_RB_WAIT].handler = hv_balloon_hot_add_rb_wait;
+    state_handlers[S_HOT_ADD_POSTING].handler = hv_balloon_hot_add_posting;
+}
 
 static void hv_balloon_handle_state(HvBalloon *balloon, StateDesc *stdesc)
 {
@@ -831,7 +837,7 @@ static gboolean hv_balloon_handle_remove_host_addr_node(gpointer key,
                                                         gpointer value,
                                                         gpointer data)
 {
-    PageRange *range = value;
+    PageRange *range = static_cast<PageRange *>(value);
     uint64_t pageoff;
 
     for (pageoff = 0; pageoff < range->count; ) {
@@ -880,7 +886,7 @@ static int hv_balloon_handle_remove_section(PageRangeTree tree,
                                             const MemoryRegionSection *section,
                                             uint64_t count)
 {
-    void *addr = memory_region_get_ram_ptr(section->mr) +
+    void *addr = static_cast<char *>(memory_region_get_ram_ptr(section->mr)) +
         section->offset_within_region;
     uint64_t addr_page;
 
@@ -1008,7 +1014,7 @@ static void hv_balloon_handle_version_request(HvBalloon *balloon,
                                               StateDesc *stdesc)
 {
     VMBusChanReq *vmreq = &req->vmreq;
-    struct dm_version_request *msgVr = vmreq->msg;
+    struct dm_version_request *msgVr = static_cast<struct dm_version_request *>(vmreq->msg);
     struct dm_version_response respVr;
 
     if (balloon->state != S_VERSION) {
@@ -1044,7 +1050,7 @@ static void hv_balloon_handle_caps_report(HvBalloon *balloon,
                                           StateDesc *stdesc)
 {
     VMBusChanReq *vmreq = &req->vmreq;
-    struct dm_capabilities *msgCap = vmreq->msg;
+    struct dm_capabilities *msgCap = static_cast<struct dm_capabilities *>(vmreq->msg);
     struct dm_capabilities_resp_msg respCap;
 
     if (balloon->state != S_CAPS) {
@@ -1081,7 +1087,7 @@ static void hv_balloon_handle_status_report(HvBalloon *balloon,
                                             HvBalloonReq *req)
 {
     VMBusChanReq *vmreq = &req->vmreq;
-    struct dm_status *msgStatus = vmreq->msg;
+    struct dm_status *msgStatus = static_cast<struct dm_status *>(vmreq->msg);
 
     if (!hv_balloon_handle_msg_size(req, sizeof(*msgStatus),
                                     "DM_STATUS_REPORT")) {
@@ -1123,7 +1129,7 @@ HvBalloonInfo *qmp_query_hv_balloon_status_report(Error **errp)
         return NULL;
     }
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<HvBalloonInfo *>(g_malloc0(sizeof(*info)));
     info->committed = balloon->status_report.committed;
     info->available = balloon->status_report.available;
     return info;
@@ -1134,7 +1140,7 @@ static void hv_balloon_handle_unballoon_response(HvBalloon *balloon,
                                                  StateDesc *stdesc)
 {
     VMBusChanReq *vmreq = &req->vmreq;
-    struct dm_unballoon_response *msgUrR = vmreq->msg;
+    struct dm_unballoon_response *msgUrR = static_cast<struct dm_unballoon_response *>(vmreq->msg);
 
     if (balloon->state != S_UNBALLOON_REPLY_WAIT) {
         warn_report("unexpected DM_UNBALLOON_RESPONSE in %d state",
@@ -1166,7 +1172,7 @@ static void hv_balloon_handle_hot_add_response(HvBalloon *balloon,
 {
     PageRange *hot_add_range = &balloon->hot_add_range;
     VMBusChanReq *vmreq = &req->vmreq;
-    struct dm_hot_add_response *msgHaR = vmreq->msg;
+    struct dm_hot_add_response *msgHaR = static_cast<struct dm_hot_add_response *>(vmreq->msg);
     OurRange *our_range;
 
     if (balloon->state != S_HOT_ADD_REPLY_WAIT) {
@@ -1224,7 +1230,7 @@ static void hv_balloon_handle_balloon_response(HvBalloon *balloon,
                                                StateDesc *stdesc)
 {
     VMBusChanReq *vmreq = &req->vmreq;
-    struct dm_balloon_response *msgBR = vmreq->msg;
+    struct dm_balloon_response *msgBR = static_cast<struct dm_balloon_response *>(vmreq->msg);
 
     if (balloon->state != S_BALLOON_REPLY_WAIT) {
         warn_report("unexpected DM_BALLOON_RESPONSE in %d state",
@@ -1274,7 +1280,7 @@ static void hv_balloon_handle_packet(HvBalloon *balloon, HvBalloonReq *req,
                                      StateDesc *stdesc)
 {
     VMBusChanReq *vmreq = &req->vmreq;
-    struct dm_message *msg = vmreq->msg;
+    struct dm_message *msg = static_cast<struct dm_message *>(vmreq->msg);
 
     if (vmreq->msglen < sizeof(msg->hdr)) {
         return;
@@ -1326,7 +1332,7 @@ static bool hv_balloon_recv_channel(HvBalloon *balloon, StateDesc *stdesc)
         return false;
     }
 
-    while ((req = vmbus_channel_recv_peek(chan, sizeof(*req)))) {
+    while ((req = static_cast<HvBalloonReq *>(vmbus_channel_recv_peek(chan, sizeof(*req))))) {
         hv_balloon_handle_packet(balloon, req, stdesc);
         vmbus_free_req(req);
         vmbus_channel_recv_pop(chan);
@@ -1380,14 +1386,14 @@ static void hv_balloon_vmdev_chan_notify(VMBusChannel *chan)
 
 static void hv_balloon_stat(void *opaque, BalloonInfo *info)
 {
-    HvBalloon *balloon = opaque;
+    HvBalloon *balloon = static_cast<HvBalloon *>(opaque);
     info->actual = (hv_balloon_total_ram(balloon) - balloon->removed_both_ctr)
         << HV_BALLOON_PFN_SHIFT;
 }
 
 static void hv_balloon_to_target(void *opaque, ram_addr_t target)
 {
-    HvBalloon *balloon = opaque;
+    HvBalloon *balloon = static_cast<HvBalloon *>(opaque);
     uint64_t target_pages = target >> HV_BALLOON_PFN_SHIFT;
 
     if (!target_pages) {
@@ -1435,7 +1441,7 @@ static void hv_balloon_vmdev_close_channel(VMBusChannel *chan)
 
 static void hv_balloon_post_init_timer(void *opaque)
 {
-    HvBalloon *balloon = opaque;
+    HvBalloon *balloon = static_cast<HvBalloon *>(opaque);
 
     if (balloon->state != S_POST_INIT_WAIT) {
         return;

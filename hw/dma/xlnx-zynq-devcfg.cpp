@@ -70,15 +70,22 @@ REG32(LOCK, 0x04)
 #define SEC_LOCK             1
 #define DBG_LOCK             0
 
-/* mapping bits in R_LOCK to what they lock in R_CTRL */
+/* mapping bits in R_LOCK to what they lock in R_CTRL
+ * Index order: DBG_LOCK(0), SEC_LOCK(1), SEU_LOCK(2),
+ *              AES_EN_LOCK(3), AES_FUSE_LOCK(4)
+ */
 static const uint32_t lock_ctrl_map[] = {
-    [AES_FUSE_LOCK] = R_CTRL_PCFG_AES_FUSE_MASK,
-    [AES_EN_LOCK]   = R_CTRL_PCFG_AES_EN_MASK,
-    [SEU_LOCK]      = R_CTRL_SEU_EN_MASK,
-    [SEC_LOCK]      = R_CTRL_SEC_EN_MASK,
-    [DBG_LOCK]      = R_CTRL_SPNIDEN_MASK | R_CTRL_SPIDEN_MASK |
-                      R_CTRL_NIDEN_MASK   | R_CTRL_DBGEN_MASK  |
-                      R_CTRL_DAP_EN_MASK,
+    /* [0] DBG_LOCK */
+    R_CTRL_SPNIDEN_MASK | R_CTRL_SPIDEN_MASK |
+        R_CTRL_NIDEN_MASK | R_CTRL_DBGEN_MASK | R_CTRL_DAP_EN_MASK,
+    /* [1] SEC_LOCK */
+    R_CTRL_SEC_EN_MASK,
+    /* [2] SEU_LOCK */
+    R_CTRL_SEU_EN_MASK,
+    /* [3] AES_EN_LOCK */
+    R_CTRL_PCFG_AES_EN_MASK,
+    /* [4] AES_FUSE_LOCK */
+    R_CTRL_PCFG_AES_FUSE_MASK,
 };
 
 REG32(CFG, 0x08)
@@ -185,12 +192,16 @@ static void xlnx_zynq_devcfg_dma_go(XlnxZynqDevcfg *s)
 }
 
 static void r_ixr_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static void r_ixr_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqDevcfg *s = XLNX_ZYNQ_DEVCFG(reg->opaque);
 
     xlnx_zynq_devcfg_update_ixr(s);
 }
 
+static uint64_t r_ctrl_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
 static uint64_t r_ctrl_pre_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqDevcfg *s = XLNX_ZYNQ_DEVCFG(reg->opaque);
@@ -206,6 +217,8 @@ static uint64_t r_ctrl_pre_write(RegisterInfo *reg, uint64_t val)
 }
 
 static void r_ctrl_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static void r_ctrl_post_write(RegisterInfo *reg, uint64_t val)
 {
     const char *device_prefix = object_get_typename(OBJECT(reg->opaque));
     uint32_t aes_en = FIELD_EX32(val, CTRL, PCFG_AES_EN);
@@ -217,6 +230,8 @@ static void r_ctrl_post_write(RegisterInfo *reg, uint64_t val)
     }
 }
 
+static void r_unlock_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
 static void r_unlock_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqDevcfg *s = XLNX_ZYNQ_DEVCFG(reg->opaque);
@@ -237,6 +252,8 @@ static void r_unlock_post_write(RegisterInfo *reg, uint64_t val)
 }
 
 static uint64_t r_lock_pre_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static uint64_t r_lock_pre_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqDevcfg *s = XLNX_ZYNQ_DEVCFG(reg->opaque);
 
@@ -245,77 +262,99 @@ static uint64_t r_lock_pre_write(RegisterInfo *reg, uint64_t val)
 }
 
 static void r_dma_dst_len_post_write(RegisterInfo *reg, uint64_t val)
+    __attribute__((used));
+static void r_dma_dst_len_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqDevcfg *s = XLNX_ZYNQ_DEVCFG(reg->opaque);
 
-    s->dma_cmd_fifo[s->dma_cmd_fifo_num] = (XlnxZynqDevcfgDMACmd) {
-            .src_addr = s->regs[R_DMA_SRC_ADDR] & ~0x3UL,
-            .dest_addr = s->regs[R_DMA_DST_ADDR] & ~0x3UL,
-            .src_len = s->regs[R_DMA_SRC_LEN] << 2,
-            .dest_len = s->regs[R_DMA_DST_LEN] << 2,
-    };
+    memset(&s->dma_cmd_fifo[s->dma_cmd_fifo_num], 0,
+           sizeof(s->dma_cmd_fifo[0]));
+    s->dma_cmd_fifo[s->dma_cmd_fifo_num].src_addr =
+        s->regs[R_DMA_SRC_ADDR] & ~0x3UL;
+    s->dma_cmd_fifo[s->dma_cmd_fifo_num].dest_addr =
+        s->regs[R_DMA_DST_ADDR] & ~0x3UL;
+    s->dma_cmd_fifo[s->dma_cmd_fifo_num].src_len =
+        s->regs[R_DMA_SRC_LEN] << 2;
+    s->dma_cmd_fifo[s->dma_cmd_fifo_num].dest_len =
+        s->regs[R_DMA_DST_LEN] << 2;
     s->dma_cmd_fifo_num++;
     DB_PRINT("dma transfer started; %d total transfers pending\n",
              s->dma_cmd_fifo_num);
     xlnx_zynq_devcfg_dma_go(s);
 }
 
+/*
+ * RegisterAccessInfo field order:
+ *   name, ro, w1c, reset, cor, rsvd, unimp, pre_write, post_write, post_read, addr
+ */
 static const RegisterAccessInfo xlnx_zynq_devcfg_regs_info[] = {
-    {   .name = "CTRL",                 .addr = A_CTRL,
+    {   .name = "CTRL",
         .reset = R_CTRL_PCAP_PR_MASK | R_CTRL_PCAP_MODE_MASK | 0x3 << 13,
         .rsvd = 0x1 << 28 | 0x3ff << 13 | 0x3 << 13,
         .pre_write = r_ctrl_pre_write,
         .post_write = r_ctrl_post_write,
+        .addr = A_CTRL,
     },
-    {   .name = "LOCK",                 .addr = A_LOCK,
+    {   .name = "LOCK",
         .rsvd = MAKE_64BIT_MASK(5, 64 - 5),
         .pre_write = r_lock_pre_write,
+        .addr = A_LOCK,
     },
-    {   .name = "CFG",                  .addr = A_CFG,
+    {   .name = "CFG",
         .reset = R_CFG_RESET,
         .rsvd = 0xfffff00f,
+        .addr = A_CFG,
     },
-    {   .name = "INT_STS",              .addr = A_INT_STS,
+    {   .name = "INT_STS",
         .w1c = ~R_INT_STS_RSVD,
         .reset = R_INT_STS_PSS_GTS_USR_B_MASK   |
                  R_INT_STS_PSS_CFG_RESET_B_MASK |
                  R_INT_STS_WR_FIFO_LVL_MASK,
         .rsvd = R_INT_STS_RSVD,
         .post_write = r_ixr_post_write,
+        .addr = A_INT_STS,
     },
-    {   .name = "INT_MASK",            .addr = A_INT_MASK,
+    {   .name = "INT_MASK",
         .reset = ~0,
         .rsvd = R_INT_STS_RSVD,
         .post_write = r_ixr_post_write,
+        .addr = A_INT_MASK,
     },
-    {   .name = "STATUS",               .addr = A_STATUS,
+    {   .name = "STATUS",
+        .ro = ~0,
         .reset = R_STATUS_DMA_CMD_Q_E_MASK      |
                  R_STATUS_PSS_GTS_USR_B_MASK    |
                  R_STATUS_PSS_CFG_RESET_B_MASK,
-        .ro = ~0,
+        .addr = A_STATUS,
     },
     {   .name = "DMA_SRC_ADDR",         .addr = A_DMA_SRC_ADDR, },
     {   .name = "DMA_DST_ADDR",         .addr = A_DMA_DST_ADDR, },
-    {   .name = "DMA_SRC_LEN",          .addr = A_DMA_SRC_LEN,
-        .ro = MAKE_64BIT_MASK(27, 64 - 27) },
-    {   .name = "DMA_DST_LEN",          .addr = A_DMA_DST_LEN,
+    {   .name = "DMA_SRC_LEN",
+        .ro = MAKE_64BIT_MASK(27, 64 - 27),
+        .addr = A_DMA_SRC_LEN,
+    },
+    {   .name = "DMA_DST_LEN",
         .ro = MAKE_64BIT_MASK(27, 64 - 27),
         .post_write = r_dma_dst_len_post_write,
+        .addr = A_DMA_DST_LEN,
     },
-    {   .name = "ROM_SHADOW",           .addr = A_ROM_SHADOW,
+    {   .name = "ROM_SHADOW",
         .rsvd = ~0ull,
+        .addr = A_ROM_SHADOW,
     },
     {   .name = "SW_ID",                .addr = A_SW_ID, },
-    {   .name = "UNLOCK",               .addr = A_UNLOCK,
+    {   .name = "UNLOCK",
         .post_write = r_unlock_post_write,
+        .addr = A_UNLOCK,
     },
-    {   .name = "MCTRL",                .addr = R_MCTRL * 4,
+    {   .name = "MCTRL",
+       .ro = ~R_MCTRL_INT_PCAP_LPBK_MASK,
        /* Silicon 3.0 for version field, the mysterious reserved bit 23
         * and QEMU platform identifier.
         */
        .reset = 0x2 << R_MCTRL_PS_VERSION_SHIFT | 1 << 23 | R_MCTRL_QEMU_MASK,
-       .ro = ~R_MCTRL_INT_PCAP_LPBK_MASK,
        .rsvd = 0x00f00303,
+       .addr = R_MCTRL * 4,
     },
 };
 
@@ -329,32 +368,36 @@ static const MemoryRegionOps xlnx_zynq_devcfg_reg_ops = {
     }
 };
 
+static const VMStateField vmstate_xlnx_zynq_devcfg_dma_cmd_fields[] = {
+    VMSTATE_UINT32(src_addr, XlnxZynqDevcfgDMACmd),
+    VMSTATE_UINT32(dest_addr, XlnxZynqDevcfgDMACmd),
+    VMSTATE_UINT32(src_len, XlnxZynqDevcfgDMACmd),
+    VMSTATE_UINT32(dest_len, XlnxZynqDevcfgDMACmd),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xlnx_zynq_devcfg_dma_cmd = {
     .name = "xlnx_zynq_devcfg_dma_cmd",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(src_addr, XlnxZynqDevcfgDMACmd),
-        VMSTATE_UINT32(dest_addr, XlnxZynqDevcfgDMACmd),
-        VMSTATE_UINT32(src_len, XlnxZynqDevcfgDMACmd),
-        VMSTATE_UINT32(dest_len, XlnxZynqDevcfgDMACmd),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xlnx_zynq_devcfg_dma_cmd_fields
+};
+
+static const VMStateField vmstate_xlnx_zynq_devcfg_fields[] = {
+    VMSTATE_STRUCT_ARRAY(dma_cmd_fifo, XlnxZynqDevcfg,
+                         XLNX_ZYNQ_DEVCFG_DMA_CMD_FIFO_LEN, 0,
+                         vmstate_xlnx_zynq_devcfg_dma_cmd,
+                         XlnxZynqDevcfgDMACmd),
+    VMSTATE_UINT8(dma_cmd_fifo_num, XlnxZynqDevcfg),
+    VMSTATE_UINT32_ARRAY(regs, XlnxZynqDevcfg, XLNX_ZYNQ_DEVCFG_R_MAX),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_xlnx_zynq_devcfg = {
     .name = "xlnx_zynq_devcfg",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(dma_cmd_fifo, XlnxZynqDevcfg,
-                             XLNX_ZYNQ_DEVCFG_DMA_CMD_FIFO_LEN, 0,
-                             vmstate_xlnx_zynq_devcfg_dma_cmd,
-                             XlnxZynqDevcfgDMACmd),
-        VMSTATE_UINT8(dma_cmd_fifo_num, XlnxZynqDevcfg),
-        VMSTATE_UINT32_ARRAY(regs, XlnxZynqDevcfg, XLNX_ZYNQ_DEVCFG_R_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xlnx_zynq_devcfg_fields
 };
 
 static void xlnx_zynq_devcfg_init(Object *obj)

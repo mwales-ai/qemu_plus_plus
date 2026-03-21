@@ -240,7 +240,7 @@ static void bcm2835_dma_write(BCM2835DMAState *s, hwaddr offset,
 
 static uint64_t bcm2835_dma0_read(void *opaque, hwaddr offset, unsigned size)
 {
-    BCM2835DMAState *s = opaque;
+    BCM2835DMAState *s = static_cast<BCM2835DMAState *>(opaque);
 
     if (offset < 0xf00) {
         return bcm2835_dma_read(s, (offset & 0xff), size, (offset >> 8) & 0xf);
@@ -260,13 +260,13 @@ static uint64_t bcm2835_dma0_read(void *opaque, hwaddr offset, unsigned size)
 
 static uint64_t bcm2835_dma15_read(void *opaque, hwaddr offset, unsigned size)
 {
-    return bcm2835_dma_read(opaque, (offset & 0xff), size, 15);
+    return bcm2835_dma_read(static_cast<BCM2835DMAState *>(opaque), (offset & 0xff), size, 15);
 }
 
 static void bcm2835_dma0_write(void *opaque, hwaddr offset, uint64_t value,
                                unsigned size)
 {
-    BCM2835DMAState *s = opaque;
+    BCM2835DMAState *s = static_cast<BCM2835DMAState *>(opaque);
 
     if (offset < 0xf00) {
         bcm2835_dma_write(s, (offset & 0xff), value, size, (offset >> 8) & 0xf);
@@ -288,7 +288,7 @@ static void bcm2835_dma0_write(void *opaque, hwaddr offset, uint64_t value,
 static void bcm2835_dma15_write(void *opaque, hwaddr offset, uint64_t value,
                                 unsigned size)
 {
-    bcm2835_dma_write(opaque, (offset & 0xff), value, size, 15);
+    bcm2835_dma_write(static_cast<BCM2835DMAState *>(opaque), (offset & 0xff), value, size, 15);
 }
 
 static const MemoryRegionOps bcm2835_dma0_ops = {
@@ -305,35 +305,39 @@ static const MemoryRegionOps bcm2835_dma15_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
+static const VMStateField vmstate_bcm2835_dma_chan_fields[] = {
+    VMSTATE_UINT32(cs, BCM2835DMAChan),
+    VMSTATE_UINT32(conblk_ad, BCM2835DMAChan),
+    VMSTATE_UINT32(ti, BCM2835DMAChan),
+    VMSTATE_UINT32(source_ad, BCM2835DMAChan),
+    VMSTATE_UINT32(dest_ad, BCM2835DMAChan),
+    VMSTATE_UINT32(txfr_len, BCM2835DMAChan),
+    VMSTATE_UINT32(stride, BCM2835DMAChan),
+    VMSTATE_UINT32(nextconbk, BCM2835DMAChan),
+    VMSTATE_UINT32(debug, BCM2835DMAChan),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_dma_chan = {
     .name = TYPE_BCM2835_DMA "-chan",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(cs, BCM2835DMAChan),
-        VMSTATE_UINT32(conblk_ad, BCM2835DMAChan),
-        VMSTATE_UINT32(ti, BCM2835DMAChan),
-        VMSTATE_UINT32(source_ad, BCM2835DMAChan),
-        VMSTATE_UINT32(dest_ad, BCM2835DMAChan),
-        VMSTATE_UINT32(txfr_len, BCM2835DMAChan),
-        VMSTATE_UINT32(stride, BCM2835DMAChan),
-        VMSTATE_UINT32(nextconbk, BCM2835DMAChan),
-        VMSTATE_UINT32(debug, BCM2835DMAChan),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_dma_chan_fields,
+};
+
+static const VMStateField vmstate_bcm2835_dma_fields[] = {
+    VMSTATE_STRUCT_ARRAY(chan, BCM2835DMAState, BCM2835_DMA_NCHANS, 1,
+                         vmstate_bcm2835_dma_chan, BCM2835DMAChan),
+    VMSTATE_UINT32(int_status, BCM2835DMAState),
+    VMSTATE_UINT32(enable, BCM2835DMAState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_bcm2835_dma = {
     .name = TYPE_BCM2835_DMA,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(chan, BCM2835DMAState, BCM2835_DMA_NCHANS, 1,
-                             vmstate_bcm2835_dma_chan, BCM2835DMAChan),
-        VMSTATE_UINT32(int_status, BCM2835DMAState),
-        VMSTATE_UINT32(enable, BCM2835DMAState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_dma_fields,
 };
 
 static void bcm2835_dma_init(Object *obj)
@@ -396,8 +400,8 @@ static const TypeInfo bcm2835_dma_info = {
     .name          = TYPE_BCM2835_DMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835DMAState),
-    .class_init    = bcm2835_dma_class_init,
     .instance_init = bcm2835_dma_init,
+    .class_init    = bcm2835_dma_class_init,
 };
 
 static void bcm2835_dma_register_types(void)

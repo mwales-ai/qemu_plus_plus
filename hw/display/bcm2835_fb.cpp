@@ -56,7 +56,7 @@ static void fb_invalidate_display(void *opaque)
 static void draw_line_src16(void *opaque, uint8_t *dst, const uint8_t *src,
                             int width, int deststep)
 {
-    BCM2835FBState *s = opaque;
+    BCM2835FBState *s = static_cast<BCM2835FBState *>(opaque);
     uint16_t rgb565;
     uint32_t rgb888;
     uint8_t r, g, b;
@@ -152,7 +152,7 @@ static bool fb_use_offsets(BCM2835FBConfig *config)
 
 static void fb_update_display(void *opaque)
 {
-    BCM2835FBState *s = opaque;
+    BCM2835FBState *s = static_cast<BCM2835FBState *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     int first = 0;
     int last = 0;
@@ -300,7 +300,7 @@ static void bcm2835_fb_mbox_push(BCM2835FBState *s, uint32_t value)
 
 static uint64_t bcm2835_fb_read(void *opaque, hwaddr offset, unsigned size)
 {
-    BCM2835FBState *s = opaque;
+    BCM2835FBState *s = static_cast<BCM2835FBState *>(opaque);
     uint32_t res = 0;
 
     switch (offset) {
@@ -326,7 +326,7 @@ static uint64_t bcm2835_fb_read(void *opaque, hwaddr offset, unsigned size)
 static void bcm2835_fb_write(void *opaque, hwaddr offset, uint64_t value,
                              unsigned size)
 {
-    BCM2835FBState *s = opaque;
+    BCM2835FBState *s = static_cast<BCM2835FBState *>(opaque);
 
     switch (offset) {
     case MBOX_AS_DATA:
@@ -351,27 +351,29 @@ static const MemoryRegionOps bcm2835_fb_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
+static const VMStateField vmstate_bcm2835_fb_fields[] = {
+    VMSTATE_BOOL(lock, BCM2835FBState),
+    VMSTATE_BOOL(invalidate, BCM2835FBState),
+    VMSTATE_BOOL(pending, BCM2835FBState),
+    VMSTATE_UINT32(config.xres, BCM2835FBState),
+    VMSTATE_UINT32(config.yres, BCM2835FBState),
+    VMSTATE_UINT32(config.xres_virtual, BCM2835FBState),
+    VMSTATE_UINT32(config.yres_virtual, BCM2835FBState),
+    VMSTATE_UINT32(config.xoffset, BCM2835FBState),
+    VMSTATE_UINT32(config.yoffset, BCM2835FBState),
+    VMSTATE_UINT32(config.bpp, BCM2835FBState),
+    VMSTATE_UINT32(config.base, BCM2835FBState),
+    VMSTATE_UNUSED(8), /* Was pitch and size */
+    VMSTATE_UINT32(config.pixo, BCM2835FBState),
+    VMSTATE_UINT32(config.alpha, BCM2835FBState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_bcm2835_fb = {
     .name = TYPE_BCM2835_FB,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(lock, BCM2835FBState),
-        VMSTATE_BOOL(invalidate, BCM2835FBState),
-        VMSTATE_BOOL(pending, BCM2835FBState),
-        VMSTATE_UINT32(config.xres, BCM2835FBState),
-        VMSTATE_UINT32(config.yres, BCM2835FBState),
-        VMSTATE_UINT32(config.xres_virtual, BCM2835FBState),
-        VMSTATE_UINT32(config.yres_virtual, BCM2835FBState),
-        VMSTATE_UINT32(config.xoffset, BCM2835FBState),
-        VMSTATE_UINT32(config.yoffset, BCM2835FBState),
-        VMSTATE_UINT32(config.bpp, BCM2835FBState),
-        VMSTATE_UINT32(config.base, BCM2835FBState),
-        VMSTATE_UNUSED(8), /* Was pitch and size */
-        VMSTATE_UINT32(config.pixo, BCM2835FBState),
-        VMSTATE_UINT32(config.alpha, BCM2835FBState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_bcm2835_fb_fields,
 };
 
 static const GraphicHwOps vgafb_ops = {
@@ -456,8 +458,8 @@ static const TypeInfo bcm2835_fb_info = {
     .name          = TYPE_BCM2835_FB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BCM2835FBState),
-    .class_init    = bcm2835_fb_class_init,
     .instance_init = bcm2835_fb_init,
+    .class_init    = bcm2835_fb_class_init,
 };
 
 static void bcm2835_fb_register_types(void)

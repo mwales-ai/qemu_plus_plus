@@ -840,7 +840,7 @@ void xlnx_dpdma_set_host_data_location(XlnxDPDMAState *s, uint8_t channel,
     }
 
     assert(channel <= 5);
-    s->data[channel] = p;
+    s->data[channel] = static_cast<uint8_t *>(p);
 }
 
 void xlnx_dpdma_trigger_vsync_irq(XlnxDPDMAState *s)

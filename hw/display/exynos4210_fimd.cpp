@@ -1169,8 +1169,8 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
         goto error_return;
     }
 
-    w->host_fb_addr = cpu_physical_memory_map(fb_start_addr, &fb_mapped_len,
-                                              false);
+    w->host_fb_addr = static_cast<uint8_t *>(cpu_physical_memory_map(fb_start_addr, &fb_mapped_len,
+                                              false));
     if (!w->host_fb_addr) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "FIMD: Failed to map window %u framebuffer\n", win);
@@ -1263,7 +1263,7 @@ static void exynos4210_update_resolution(Exynos4210fimdState *s)
         DPRINT_L1("Resolution changed from %ux%u to %ux%u\n",
            surface_width(surface), surface_height(surface), width, height);
         qemu_console_resize(s->console, width, height);
-        s->ifb = g_realloc(s->ifb, width * height * RGBA_SIZE + 1);
+        s->ifb = static_cast<uint8_t *>(g_realloc(s->ifb, width * height * RGBA_SIZE + 1));
         memset(s->ifb, 0, width * height * RGBA_SIZE + 1);
         exynos4210_fimd_invalidate(s);
     }
@@ -1334,7 +1334,7 @@ static void exynos4210_fimd_update(void *opaque)
         bpp = surface_bits_per_pixel(surface);
         fimd_update_putpix_qemu(bpp);
         bpp = (bpp + 1) >> 3;
-        d = surface_data(surface);
+        d = static_cast<uint8_t *>(surface_data(surface));
         for (line = first_line; line <= last_line; line++) {
             fimd_copy_line_toqemu(global_width, s->ifb + global_width * line *
                     RGBA_SIZE, d + global_width * line * bpp);
@@ -1837,12 +1837,12 @@ static uint64_t exynos4210_fimd_read(void *opaque, hwaddr offset,
 static const MemoryRegionOps exynos4210_fimd_mmio_ops = {
     .read = exynos4210_fimd_read,
     .write = exynos4210_fimd_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
         .unaligned = false
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int exynos4210_fimd_load(void *opaque, int version_id)
@@ -1868,33 +1868,58 @@ static int exynos4210_fimd_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_exynos4210_fimd_window_fields[] = {
+    VMSTATE_UINT32(wincon, Exynos4210fimdWindow),
+    VMSTATE_UINT32_ARRAY(buf_start, Exynos4210fimdWindow, 3),
+    VMSTATE_UINT32_ARRAY(buf_end, Exynos4210fimdWindow, 3),
+    VMSTATE_UINT32_ARRAY(keycon, Exynos4210fimdWindow, 2),
+    VMSTATE_UINT32(keyalpha, Exynos4210fimdWindow),
+    VMSTATE_UINT32(winmap, Exynos4210fimdWindow),
+    VMSTATE_UINT32(blendeq, Exynos4210fimdWindow),
+    VMSTATE_UINT32(rtqoscon, Exynos4210fimdWindow),
+    VMSTATE_UINT32_ARRAY(palette, Exynos4210fimdWindow, 256),
+    VMSTATE_UINT32(shadow_buf_start, Exynos4210fimdWindow),
+    VMSTATE_UINT32(shadow_buf_end, Exynos4210fimdWindow),
+    VMSTATE_UINT32(shadow_buf_size, Exynos4210fimdWindow),
+    VMSTATE_UINT16(lefttop_x, Exynos4210fimdWindow),
+    VMSTATE_UINT16(lefttop_y, Exynos4210fimdWindow),
+    VMSTATE_UINT16(rightbot_x, Exynos4210fimdWindow),
+    VMSTATE_UINT16(rightbot_y, Exynos4210fimdWindow),
+    VMSTATE_UINT32(osdsize, Exynos4210fimdWindow),
+    VMSTATE_UINT32_ARRAY(alpha_val, Exynos4210fimdWindow, 2),
+    VMSTATE_UINT16(virtpage_width, Exynos4210fimdWindow),
+    VMSTATE_UINT16(virtpage_offsize, Exynos4210fimdWindow),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription exynos4210_fimd_window_vmstate = {
     .name = "exynos4210.fimd_window",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(wincon, Exynos4210fimdWindow),
-        VMSTATE_UINT32_ARRAY(buf_start, Exynos4210fimdWindow, 3),
-        VMSTATE_UINT32_ARRAY(buf_end, Exynos4210fimdWindow, 3),
-        VMSTATE_UINT32_ARRAY(keycon, Exynos4210fimdWindow, 2),
-        VMSTATE_UINT32(keyalpha, Exynos4210fimdWindow),
-        VMSTATE_UINT32(winmap, Exynos4210fimdWindow),
-        VMSTATE_UINT32(blendeq, Exynos4210fimdWindow),
-        VMSTATE_UINT32(rtqoscon, Exynos4210fimdWindow),
-        VMSTATE_UINT32_ARRAY(palette, Exynos4210fimdWindow, 256),
-        VMSTATE_UINT32(shadow_buf_start, Exynos4210fimdWindow),
-        VMSTATE_UINT32(shadow_buf_end, Exynos4210fimdWindow),
-        VMSTATE_UINT32(shadow_buf_size, Exynos4210fimdWindow),
-        VMSTATE_UINT16(lefttop_x, Exynos4210fimdWindow),
-        VMSTATE_UINT16(lefttop_y, Exynos4210fimdWindow),
-        VMSTATE_UINT16(rightbot_x, Exynos4210fimdWindow),
-        VMSTATE_UINT16(rightbot_y, Exynos4210fimdWindow),
-        VMSTATE_UINT32(osdsize, Exynos4210fimdWindow),
-        VMSTATE_UINT32_ARRAY(alpha_val, Exynos4210fimdWindow, 2),
-        VMSTATE_UINT16(virtpage_width, Exynos4210fimdWindow),
-        VMSTATE_UINT16(virtpage_offsize, Exynos4210fimdWindow),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_fimd_window_fields,
+};
+
+static const VMStateField vmstate_exynos4210_fimd_fields[] = {
+    VMSTATE_UINT32_ARRAY(vidcon, Exynos4210fimdState, 4),
+    VMSTATE_UINT32_ARRAY(vidtcon, Exynos4210fimdState, 4),
+    VMSTATE_UINT32(shadowcon, Exynos4210fimdState),
+    VMSTATE_UINT32(winchmap, Exynos4210fimdState),
+    VMSTATE_UINT32_ARRAY(vidintcon, Exynos4210fimdState, 2),
+    VMSTATE_UINT32(dithmode, Exynos4210fimdState),
+    VMSTATE_UINT32_ARRAY(wpalcon, Exynos4210fimdState, 2),
+    VMSTATE_UINT32(trigcon, Exynos4210fimdState),
+    VMSTATE_UINT32_ARRAY(i80ifcon, Exynos4210fimdState, 4),
+    VMSTATE_UINT32(colorgaincon, Exynos4210fimdState),
+    VMSTATE_UINT32_ARRAY(ldi_cmdcon, Exynos4210fimdState, 2),
+    VMSTATE_UINT32_ARRAY(sifccon, Exynos4210fimdState, 3),
+    VMSTATE_UINT32_ARRAY(huecoef_cr, Exynos4210fimdState, 4),
+    VMSTATE_UINT32_ARRAY(huecoef_cb, Exynos4210fimdState, 4),
+    VMSTATE_UINT32(hueoffset, Exynos4210fimdState),
+    VMSTATE_UINT32_ARRAY(i80ifcmd, Exynos4210fimdState, 12),
+    VMSTATE_UINT32(blendcon, Exynos4210fimdState),
+    VMSTATE_STRUCT_ARRAY(window, Exynos4210fimdState, 5, 1,
+            exynos4210_fimd_window_vmstate, Exynos4210fimdWindow),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription exynos4210_fimd_vmstate = {
@@ -1902,28 +1927,7 @@ static const VMStateDescription exynos4210_fimd_vmstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = exynos4210_fimd_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(vidcon, Exynos4210fimdState, 4),
-        VMSTATE_UINT32_ARRAY(vidtcon, Exynos4210fimdState, 4),
-        VMSTATE_UINT32(shadowcon, Exynos4210fimdState),
-        VMSTATE_UINT32(winchmap, Exynos4210fimdState),
-        VMSTATE_UINT32_ARRAY(vidintcon, Exynos4210fimdState, 2),
-        VMSTATE_UINT32(dithmode, Exynos4210fimdState),
-        VMSTATE_UINT32_ARRAY(wpalcon, Exynos4210fimdState, 2),
-        VMSTATE_UINT32(trigcon, Exynos4210fimdState),
-        VMSTATE_UINT32_ARRAY(i80ifcon, Exynos4210fimdState, 4),
-        VMSTATE_UINT32(colorgaincon, Exynos4210fimdState),
-        VMSTATE_UINT32_ARRAY(ldi_cmdcon, Exynos4210fimdState, 2),
-        VMSTATE_UINT32_ARRAY(sifccon, Exynos4210fimdState, 3),
-        VMSTATE_UINT32_ARRAY(huecoef_cr, Exynos4210fimdState, 4),
-        VMSTATE_UINT32_ARRAY(huecoef_cb, Exynos4210fimdState, 4),
-        VMSTATE_UINT32(hueoffset, Exynos4210fimdState),
-        VMSTATE_UINT32_ARRAY(i80ifcmd, Exynos4210fimdState, 12),
-        VMSTATE_UINT32(blendcon, Exynos4210fimdState),
-        VMSTATE_STRUCT_ARRAY(window, Exynos4210fimdState, 5, 1,
-                exynos4210_fimd_window_vmstate, Exynos4210fimdWindow),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_exynos4210_fimd_fields,
 };
 
 static const GraphicHwOps exynos4210_fimd_ops = {

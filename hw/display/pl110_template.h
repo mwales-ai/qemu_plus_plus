@@ -37,7 +37,7 @@
 
 static void glue(pl110_draw_line1_,NAME)(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    uint32_t *palette = opaque;
+    uint32_t *palette = static_cast<uint32_t *>(opaque);
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *)src;
@@ -65,7 +65,7 @@ static void glue(pl110_draw_line1_,NAME)(void *opaque, uint8_t *d, const uint8_t
 
 static void glue(pl110_draw_line2_,NAME)(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    uint32_t *palette = opaque;
+    uint32_t *palette = static_cast<uint32_t *>(opaque);
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *)src;
@@ -93,7 +93,7 @@ static void glue(pl110_draw_line2_,NAME)(void *opaque, uint8_t *d, const uint8_t
 
 static void glue(pl110_draw_line4_,NAME)(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    uint32_t *palette = opaque;
+    uint32_t *palette = static_cast<uint32_t *>(opaque);
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *)src;
@@ -121,7 +121,7 @@ static void glue(pl110_draw_line4_,NAME)(void *opaque, uint8_t *d, const uint8_t
 
 static void glue(pl110_draw_line8_,NAME)(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    uint32_t *palette = opaque;
+    uint32_t *palette = static_cast<uint32_t *>(opaque);
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *)src;

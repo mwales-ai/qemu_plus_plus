@@ -81,28 +81,30 @@ struct PL110State {
 
 static int vmstate_pl110_post_load(void *opaque, int version_id);
 
+static const VMStateField vmstate_pl110_fields[] = {
+    VMSTATE_INT32(version, PL110State),
+    VMSTATE_UINT32_ARRAY(timing, PL110State, 4),
+    VMSTATE_UINT32(cr, PL110State),
+    VMSTATE_UINT32(upbase, PL110State),
+    VMSTATE_UINT32(lpbase, PL110State),
+    VMSTATE_UINT32(int_status, PL110State),
+    VMSTATE_UINT32(int_mask, PL110State),
+    VMSTATE_INT32(cols, PL110State),
+    VMSTATE_INT32(rows, PL110State),
+    VMSTATE_UINT32(bpp, PL110State),
+    VMSTATE_INT32(invalidate, PL110State),
+    VMSTATE_UINT32_ARRAY(palette, PL110State, 256),
+    VMSTATE_UINT32_ARRAY(raw_palette, PL110State, 128),
+    VMSTATE_UINT32_V(mux_ctrl, PL110State, 2),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl110 = {
     .name = "pl110",
     .version_id = 2,
     .minimum_version_id = 1,
     .post_load = vmstate_pl110_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(version, PL110State),
-        VMSTATE_UINT32_ARRAY(timing, PL110State, 4),
-        VMSTATE_UINT32(cr, PL110State),
-        VMSTATE_UINT32(upbase, PL110State),
-        VMSTATE_UINT32(lpbase, PL110State),
-        VMSTATE_UINT32(int_status, PL110State),
-        VMSTATE_UINT32(int_mask, PL110State),
-        VMSTATE_INT32(cols, PL110State),
-        VMSTATE_INT32(rows, PL110State),
-        VMSTATE_UINT32(bpp, PL110State),
-        VMSTATE_INT32(invalidate, PL110State),
-        VMSTATE_UINT32_ARRAY(palette, PL110State, 256),
-        VMSTATE_UINT32_ARRAY(raw_palette, PL110State, 128),
-        VMSTATE_UINT32_V(mux_ctrl, PL110State, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl110_fields,
 };
 
 static const unsigned char pl110_id[] =
@@ -377,7 +379,7 @@ static void pl110_update(PL110State *s)
 
 static void pl110_vblank_interrupt(void *opaque)
 {
-    PL110State *s = opaque;
+    PL110State *s = static_cast<PL110State *>(opaque);
 
     /* Fire the vertical compare and next base IRQs and re-arm */
     s->int_status |= (PL110_IE_NB | PL110_IE_VC);
@@ -490,7 +492,7 @@ static void pl110_write(void *opaque, hwaddr offset,
         }
     control:
         s->cr = val;
-        s->bpp = (val >> 1) & 7;
+        s->bpp = static_cast<pl110_bppmode>((val >> 1) & 7);
         if (pl110_enabled(s)) {
             qemu_console_resize(s->con, s->cols, s->rows);
             timer_mod(s->vblank_timer,
@@ -524,7 +526,7 @@ static void pl110_mux_ctrl_set(void *opaque, int line, int level)
 
 static int vmstate_pl110_post_load(void *opaque, int version_id)
 {
-    PL110State *s = opaque;
+    PL110State *s = static_cast<PL110State *>(opaque);
     /* Make sure we redraw, and at the right size */
     pl110_invalidate_display(s);
     return 0;

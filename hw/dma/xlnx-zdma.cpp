@@ -216,11 +216,15 @@ static void zdma_ch_imr_update_irq(XlnxZDMA *s)
 }
 
 static void zdma_ch_isr_postw(RegisterInfo *reg, uint64_t val64)
+    __attribute__((used));
+static void zdma_ch_isr_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZDMA *s = XLNX_ZDMA(reg->opaque);
     zdma_ch_imr_update_irq(s);
 }
 
+static uint64_t zdma_ch_ien_prew(RegisterInfo *reg, uint64_t val64)
+    __attribute__((used));
 static uint64_t zdma_ch_ien_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZDMA *s = XLNX_ZDMA(reg->opaque);
@@ -231,6 +235,8 @@ static uint64_t zdma_ch_ien_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
+static uint64_t zdma_ch_ids_prew(RegisterInfo *reg, uint64_t val64)
+    __attribute__((used));
 static uint64_t zdma_ch_ids_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZDMA *s = XLNX_ZDMA(reg->opaque);
@@ -560,6 +566,8 @@ static void zdma_update_descr_addr_from_start(XlnxZDMA *s)
 }
 
 static void zdma_ch_ctrlx_postw(RegisterInfo *reg, uint64_t val64)
+    __attribute__((used));
+static void zdma_ch_ctrlx_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZDMA *s = XLNX_ZDMA(reg->opaque);
 
@@ -593,111 +601,156 @@ static void zdma_ch_ctrlx_postw(RegisterInfo *reg, uint64_t val64)
     zdma_run(s);
 }
 
+/*
+ * RegisterAccessInfo field order:
+ *   name, ro, w1c, reset, cor, rsvd, unimp, pre_write, post_write, post_read, addr
+ */
 static RegisterAccessInfo zdma_regs_info[] = {
-    {   .name = "ZDMA_ERR_CTRL",  .addr = A_ZDMA_ERR_CTRL,
+    {   .name = "ZDMA_ERR_CTRL",
         .rsvd = 0xfffffffe,
-    },{ .name = "ZDMA_CH_ISR",  .addr = A_ZDMA_CH_ISR,
-        .rsvd = 0xfffff000,
+        .addr = A_ZDMA_ERR_CTRL,
+    },{ .name = "ZDMA_CH_ISR",
         .w1c = 0xfff,
+        .rsvd = 0xfffff000,
         .post_write = zdma_ch_isr_postw,
-    },{ .name = "ZDMA_CH_IMR",  .addr = A_ZDMA_CH_IMR,
+        .addr = A_ZDMA_CH_ISR,
+    },{ .name = "ZDMA_CH_IMR",
+        .ro = 0xfff,
         .reset = 0xfff,
         .rsvd = 0xfffff000,
-        .ro = 0xfff,
-    },{ .name = "ZDMA_CH_IEN",  .addr = A_ZDMA_CH_IEN,
+        .addr = A_ZDMA_CH_IMR,
+    },{ .name = "ZDMA_CH_IEN",
         .rsvd = 0xfffff000,
         .pre_write = zdma_ch_ien_prew,
-    },{ .name = "ZDMA_CH_IDS",  .addr = A_ZDMA_CH_IDS,
+        .addr = A_ZDMA_CH_IEN,
+    },{ .name = "ZDMA_CH_IDS",
         .rsvd = 0xfffff000,
         .pre_write = zdma_ch_ids_prew,
-    },{ .name = "ZDMA_CH_CTRL0",  .addr = A_ZDMA_CH_CTRL0,
+        .addr = A_ZDMA_CH_IDS,
+    },{ .name = "ZDMA_CH_CTRL0",
         .reset = 0x80,
         .rsvd = 0xffffff01,
         .post_write = zdma_ch_ctrlx_postw,
-    },{ .name = "ZDMA_CH_CTRL1",  .addr = A_ZDMA_CH_CTRL1,
+        .addr = A_ZDMA_CH_CTRL0,
+    },{ .name = "ZDMA_CH_CTRL1",
         .reset = 0x3ff,
         .rsvd = 0xfffffc00,
-    },{ .name = "ZDMA_CH_FCI",  .addr = A_ZDMA_CH_FCI,
+        .addr = A_ZDMA_CH_CTRL1,
+    },{ .name = "ZDMA_CH_FCI",
         .rsvd = 0xffffffc0,
-    },{ .name = "ZDMA_CH_STATUS",  .addr = A_ZDMA_CH_STATUS,
-        .rsvd = 0xfffffffc,
+        .addr = A_ZDMA_CH_FCI,
+    },{ .name = "ZDMA_CH_STATUS",
         .ro = 0x3,
-    },{ .name = "ZDMA_CH_DATA_ATTR",  .addr = A_ZDMA_CH_DATA_ATTR,
+        .rsvd = 0xfffffffc,
+        .addr = A_ZDMA_CH_STATUS,
+    },{ .name = "ZDMA_CH_DATA_ATTR",
         .reset = 0x483d20f,
         .rsvd = 0xf0000000,
-    },{ .name = "ZDMA_CH_DSCR_ATTR",  .addr = A_ZDMA_CH_DSCR_ATTR,
+        .addr = A_ZDMA_CH_DATA_ATTR,
+    },{ .name = "ZDMA_CH_DSCR_ATTR",
         .rsvd = 0xfffffe00,
-    },{ .name = "ZDMA_CH_SRC_DSCR_WORD0",  .addr = A_ZDMA_CH_SRC_DSCR_WORD0,
-    },{ .name = "ZDMA_CH_SRC_DSCR_WORD1",  .addr = A_ZDMA_CH_SRC_DSCR_WORD1,
+        .addr = A_ZDMA_CH_DSCR_ATTR,
+    },{ .name = "ZDMA_CH_SRC_DSCR_WORD0",
+        .addr = A_ZDMA_CH_SRC_DSCR_WORD0,
+    },{ .name = "ZDMA_CH_SRC_DSCR_WORD1",
         .rsvd = 0xfffe0000,
-    },{ .name = "ZDMA_CH_SRC_DSCR_WORD2",  .addr = A_ZDMA_CH_SRC_DSCR_WORD2,
+        .addr = A_ZDMA_CH_SRC_DSCR_WORD1,
+    },{ .name = "ZDMA_CH_SRC_DSCR_WORD2",
         .rsvd = 0xc0000000,
-    },{ .name = "ZDMA_CH_SRC_DSCR_WORD3",  .addr = A_ZDMA_CH_SRC_DSCR_WORD3,
+        .addr = A_ZDMA_CH_SRC_DSCR_WORD2,
+    },{ .name = "ZDMA_CH_SRC_DSCR_WORD3",
         .rsvd = 0xffffffe0,
-    },{ .name = "ZDMA_CH_DST_DSCR_WORD0",  .addr = A_ZDMA_CH_DST_DSCR_WORD0,
-    },{ .name = "ZDMA_CH_DST_DSCR_WORD1",  .addr = A_ZDMA_CH_DST_DSCR_WORD1,
+        .addr = A_ZDMA_CH_SRC_DSCR_WORD3,
+    },{ .name = "ZDMA_CH_DST_DSCR_WORD0",
+        .addr = A_ZDMA_CH_DST_DSCR_WORD0,
+    },{ .name = "ZDMA_CH_DST_DSCR_WORD1",
         .rsvd = 0xfffe0000,
-    },{ .name = "ZDMA_CH_DST_DSCR_WORD2",  .addr = A_ZDMA_CH_DST_DSCR_WORD2,
+        .addr = A_ZDMA_CH_DST_DSCR_WORD1,
+    },{ .name = "ZDMA_CH_DST_DSCR_WORD2",
         .rsvd = 0xc0000000,
-    },{ .name = "ZDMA_CH_DST_DSCR_WORD3",  .addr = A_ZDMA_CH_DST_DSCR_WORD3,
+        .addr = A_ZDMA_CH_DST_DSCR_WORD2,
+    },{ .name = "ZDMA_CH_DST_DSCR_WORD3",
         .rsvd = 0xfffffffa,
-    },{ .name = "ZDMA_CH_WR_ONLY_WORD0",  .addr = A_ZDMA_CH_WR_ONLY_WORD0,
-    },{ .name = "ZDMA_CH_WR_ONLY_WORD1",  .addr = A_ZDMA_CH_WR_ONLY_WORD1,
-    },{ .name = "ZDMA_CH_WR_ONLY_WORD2",  .addr = A_ZDMA_CH_WR_ONLY_WORD2,
-    },{ .name = "ZDMA_CH_WR_ONLY_WORD3",  .addr = A_ZDMA_CH_WR_ONLY_WORD3,
-    },{ .name = "ZDMA_CH_SRC_START_LSB",  .addr = A_ZDMA_CH_SRC_START_LSB,
-    },{ .name = "ZDMA_CH_SRC_START_MSB",  .addr = A_ZDMA_CH_SRC_START_MSB,
+        .addr = A_ZDMA_CH_DST_DSCR_WORD3,
+    },{ .name = "ZDMA_CH_WR_ONLY_WORD0",
+        .addr = A_ZDMA_CH_WR_ONLY_WORD0,
+    },{ .name = "ZDMA_CH_WR_ONLY_WORD1",
+        .addr = A_ZDMA_CH_WR_ONLY_WORD1,
+    },{ .name = "ZDMA_CH_WR_ONLY_WORD2",
+        .addr = A_ZDMA_CH_WR_ONLY_WORD2,
+    },{ .name = "ZDMA_CH_WR_ONLY_WORD3",
+        .addr = A_ZDMA_CH_WR_ONLY_WORD3,
+    },{ .name = "ZDMA_CH_SRC_START_LSB",
+        .addr = A_ZDMA_CH_SRC_START_LSB,
+    },{ .name = "ZDMA_CH_SRC_START_MSB",
         .rsvd = 0xfffe0000,
-    },{ .name = "ZDMA_CH_DST_START_LSB",  .addr = A_ZDMA_CH_DST_START_LSB,
-    },{ .name = "ZDMA_CH_DST_START_MSB",  .addr = A_ZDMA_CH_DST_START_MSB,
+        .addr = A_ZDMA_CH_SRC_START_MSB,
+    },{ .name = "ZDMA_CH_DST_START_LSB",
+        .addr = A_ZDMA_CH_DST_START_LSB,
+    },{ .name = "ZDMA_CH_DST_START_MSB",
         .rsvd = 0xfffe0000,
-    },{ .name = "ZDMA_CH_SRC_CUR_PYLD_LSB",  .addr = A_ZDMA_CH_SRC_CUR_PYLD_LSB,
+        .addr = A_ZDMA_CH_DST_START_MSB,
+    },{ .name = "ZDMA_CH_SRC_CUR_PYLD_LSB",
         .ro = 0xffffffff,
-    },{ .name = "ZDMA_CH_SRC_CUR_PYLD_MSB",  .addr = A_ZDMA_CH_SRC_CUR_PYLD_MSB,
-        .rsvd = 0xfffe0000,
+        .addr = A_ZDMA_CH_SRC_CUR_PYLD_LSB,
+    },{ .name = "ZDMA_CH_SRC_CUR_PYLD_MSB",
         .ro = 0x1ffff,
-    },{ .name = "ZDMA_CH_DST_CUR_PYLD_LSB",  .addr = A_ZDMA_CH_DST_CUR_PYLD_LSB,
+        .rsvd = 0xfffe0000,
+        .addr = A_ZDMA_CH_SRC_CUR_PYLD_MSB,
+    },{ .name = "ZDMA_CH_DST_CUR_PYLD_LSB",
         .ro = 0xffffffff,
-    },{ .name = "ZDMA_CH_DST_CUR_PYLD_MSB",  .addr = A_ZDMA_CH_DST_CUR_PYLD_MSB,
-        .rsvd = 0xfffe0000,
+        .addr = A_ZDMA_CH_DST_CUR_PYLD_LSB,
+    },{ .name = "ZDMA_CH_DST_CUR_PYLD_MSB",
         .ro = 0x1ffff,
-    },{ .name = "ZDMA_CH_SRC_CUR_DSCR_LSB",  .addr = A_ZDMA_CH_SRC_CUR_DSCR_LSB,
+        .rsvd = 0xfffe0000,
+        .addr = A_ZDMA_CH_DST_CUR_PYLD_MSB,
+    },{ .name = "ZDMA_CH_SRC_CUR_DSCR_LSB",
         .ro = 0xffffffff,
-    },{ .name = "ZDMA_CH_SRC_CUR_DSCR_MSB",  .addr = A_ZDMA_CH_SRC_CUR_DSCR_MSB,
-        .rsvd = 0xfffe0000,
+        .addr = A_ZDMA_CH_SRC_CUR_DSCR_LSB,
+    },{ .name = "ZDMA_CH_SRC_CUR_DSCR_MSB",
         .ro = 0x1ffff,
-    },{ .name = "ZDMA_CH_DST_CUR_DSCR_LSB",  .addr = A_ZDMA_CH_DST_CUR_DSCR_LSB,
+        .rsvd = 0xfffe0000,
+        .addr = A_ZDMA_CH_SRC_CUR_DSCR_MSB,
+    },{ .name = "ZDMA_CH_DST_CUR_DSCR_LSB",
         .ro = 0xffffffff,
-    },{ .name = "ZDMA_CH_DST_CUR_DSCR_MSB",  .addr = A_ZDMA_CH_DST_CUR_DSCR_MSB,
-        .rsvd = 0xfffe0000,
+        .addr = A_ZDMA_CH_DST_CUR_DSCR_LSB,
+    },{ .name = "ZDMA_CH_DST_CUR_DSCR_MSB",
         .ro = 0x1ffff,
-    },{ .name = "ZDMA_CH_TOTAL_BYTE",  .addr = A_ZDMA_CH_TOTAL_BYTE,
+        .rsvd = 0xfffe0000,
+        .addr = A_ZDMA_CH_DST_CUR_DSCR_MSB,
+    },{ .name = "ZDMA_CH_TOTAL_BYTE",
         .w1c = 0xffffffff,
-    },{ .name = "ZDMA_CH_RATE_CNTL",  .addr = A_ZDMA_CH_RATE_CNTL,
+        .addr = A_ZDMA_CH_TOTAL_BYTE,
+    },{ .name = "ZDMA_CH_RATE_CNTL",
         .rsvd = 0xfffff000,
-    },{ .name = "ZDMA_CH_IRQ_SRC_ACCT",  .addr = A_ZDMA_CH_IRQ_SRC_ACCT,
-        .rsvd = 0xffffff00,
+        .addr = A_ZDMA_CH_RATE_CNTL,
+    },{ .name = "ZDMA_CH_IRQ_SRC_ACCT",
         .ro = 0xff,
         .cor = 0xff,
-    },{ .name = "ZDMA_CH_IRQ_DST_ACCT",  .addr = A_ZDMA_CH_IRQ_DST_ACCT,
         .rsvd = 0xffffff00,
+        .addr = A_ZDMA_CH_IRQ_SRC_ACCT,
+    },{ .name = "ZDMA_CH_IRQ_DST_ACCT",
         .ro = 0xff,
         .cor = 0xff,
-    },{ .name = "ZDMA_CH_DBG0",  .addr = A_ZDMA_CH_DBG0,
-        .rsvd = 0xfffffe00,
+        .rsvd = 0xffffff00,
+        .addr = A_ZDMA_CH_IRQ_DST_ACCT,
+    },{ .name = "ZDMA_CH_DBG0",
         .ro = 0x1ff,
-
         /*
          * There's SW out there that will check the debug regs for free space.
          * Claim that we always have 0x100 free.
          */
-        .reset = 0x100
-    },{ .name = "ZDMA_CH_DBG1",  .addr = A_ZDMA_CH_DBG1,
+        .reset = 0x100,
         .rsvd = 0xfffffe00,
+        .addr = A_ZDMA_CH_DBG0,
+    },{ .name = "ZDMA_CH_DBG1",
         .ro = 0x1ff,
-    },{ .name = "ZDMA_CH_CTRL2",  .addr = A_ZDMA_CH_CTRL2,
+        .rsvd = 0xfffffe00,
+        .addr = A_ZDMA_CH_DBG1,
+    },{ .name = "ZDMA_CH_CTRL2",
         .rsvd = 0xfffffffe,
         .post_write = zdma_ch_ctrlx_postw,
+        .addr = A_ZDMA_CH_CTRL2,
     }
 };
 
@@ -774,13 +827,11 @@ static void zdma_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < ARRAY_SIZE(zdma_regs_info); ++i) {
         RegisterInfo *r = &s->regs_info[zdma_regs_info[i].addr / 4];
 
-        *r = (RegisterInfo) {
-            .data = (uint8_t *)&s->regs[
-                    zdma_regs_info[i].addr / 4],
-            .data_size = sizeof(uint32_t),
-            .access = &zdma_regs_info[i],
-            .opaque = s,
-        };
+        memset(r, 0, sizeof(*r));
+        r->data = (uint8_t *)&s->regs[zdma_regs_info[i].addr / 4];
+        r->data_size = sizeof(uint32_t);
+        r->access = &zdma_regs_info[i];
+        r->opaque = s;
     }
 
     s->attr = MEMTXATTRS_UNSPECIFIED;
@@ -797,17 +848,19 @@ static void zdma_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_zdma_ch_imr);
 }
 
+static const VMStateField vmstate_zdma_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxZDMA, ZDMA_R_MAX),
+    VMSTATE_UINT32(state, XlnxZDMA),
+    VMSTATE_UINT32_ARRAY(dsc_src.words, XlnxZDMA, 4),
+    VMSTATE_UINT32_ARRAY(dsc_dst.words, XlnxZDMA, 4),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_zdma = {
     .name = TYPE_XLNX_ZDMA,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxZDMA, ZDMA_R_MAX),
-        VMSTATE_UINT32(state, XlnxZDMA),
-        VMSTATE_UINT32_ARRAY(dsc_src.words, XlnxZDMA, 4),
-        VMSTATE_UINT32_ARRAY(dsc_dst.words, XlnxZDMA, 4),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_zdma_fields
 };
 
 static const Property zdma_props[] = {
@@ -830,8 +883,8 @@ static const TypeInfo zdma_info = {
     .name          = TYPE_XLNX_ZDMA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxZDMA),
-    .class_init    = zdma_class_init,
     .instance_init = zdma_init,
+    .class_init    = zdma_class_init,
 };
 
 static void zdma_register_types(void)

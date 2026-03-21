@@ -61,7 +61,7 @@ static void cxl_fixed_memory_window_config(CXLFixedMemoryWindowOptions *object,
         fw->enc_int_gran = 0;
     }
 
-    fw->targets = g_malloc0_n(fw->num_targets, sizeof(*fw->targets));
+    fw->targets = static_cast<char **>(g_malloc0_n(fw->num_targets, sizeof(*fw->targets)));
     for (i = 0, target = object->targets; target; i++, target = target->next) {
         /* This link cannot be resolved yet, so stash the name for now */
         fw->targets[i] = g_strdup(target->value);
@@ -72,7 +72,7 @@ static void cxl_fixed_memory_window_config(CXLFixedMemoryWindowOptions *object,
 
 static int cxl_fmws_link(Object *obj, void *opaque)
 {
-    Error **errp = opaque;
+    Error **errp = static_cast<Error **>(opaque);
     struct CXLFixedWindow *fw;
     int i;
 
@@ -251,7 +251,7 @@ static PCIDevice *cxl_cfmws_find_device(CXLFixedWindow *fw, hwaddr addr)
 static MemTxResult cxl_read_cfmws(void *opaque, hwaddr addr, uint64_t *data,
                                   unsigned size, MemTxAttrs attrs)
 {
-    CXLFixedWindow *fw = opaque;
+    CXLFixedWindow *fw = static_cast<CXLFixedWindow *>(opaque);
     PCIDevice *d;
 
     d = cxl_cfmws_find_device(fw, addr);
@@ -268,7 +268,7 @@ static MemTxResult cxl_write_cfmws(void *opaque, hwaddr addr,
                                    uint64_t data, unsigned size,
                                    MemTxAttrs attrs)
 {
-    CXLFixedWindow *fw = opaque;
+    CXLFixedWindow *fw = static_cast<CXLFixedWindow *>(opaque);
     PCIDevice *d;
 
     d = cxl_cfmws_find_device(fw, addr);
@@ -299,7 +299,7 @@ const MemoryRegionOps cfmws_ops = {
 static void machine_get_cxl(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
-    CXLState *cxl_state = opaque;
+    CXLState *cxl_state = static_cast<CXLState *>(opaque);
     bool value = cxl_state->is_enabled;
 
     visit_type_bool(v, name, &value, errp);
@@ -308,7 +308,7 @@ static void machine_get_cxl(Object *obj, Visitor *v, const char *name,
 static void machine_set_cxl(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
-    CXLState *cxl_state = opaque;
+    CXLState *cxl_state = static_cast<CXLState *>(opaque);
     bool value;
 
     if (!visit_type_bool(v, name, &value, errp)) {
@@ -320,7 +320,7 @@ static void machine_set_cxl(Object *obj, Visitor *v, const char *name,
 static void machine_get_cfmw(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
-    CXLState *state = opaque;
+    CXLState *state = static_cast<CXLState *>(opaque);
     CXLFixedMemoryWindowOptionsList **list = &state->cfmw_list;
 
     visit_type_CXLFixedMemoryWindowOptionsList(v, name, list, errp);
@@ -329,7 +329,7 @@ static void machine_get_cfmw(Object *obj, Visitor *v, const char *name,
 static void machine_set_cfmw(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
-    CXLState *state = opaque;
+    CXLState *state = static_cast<CXLState *>(opaque);
     CXLFixedMemoryWindowOptionsList *cfmw_list = NULL;
     CXLFixedMemoryWindowOptionsList *it;
     int index;
@@ -381,7 +381,7 @@ void cxl_hook_up_pxb_registers(PCIBus *bus, CXLState *state, Error **errp)
 
 static int cxl_fmws_find(Object *obj, void *opaque)
 {
-    GSList **list = opaque;
+    GSList **list = static_cast<GSList **>(opaque);
 
     if (!object_dynamic_cast(obj, TYPE_CXL_FMW)) {
         return 0;
@@ -402,8 +402,8 @@ static GSList *cxl_fmws_get_all(void)
 
 static gint cfmws_cmp(gconstpointer a, gconstpointer b, gpointer d)
 {
-    const struct CXLFixedWindow *ap = a;
-    const struct CXLFixedWindow *bp = b;
+    const struct CXLFixedWindow *ap = static_cast<const struct CXLFixedWindow *>(a);
+    const struct CXLFixedWindow *bp = static_cast<const struct CXLFixedWindow *>(b);
 
     return ap->index > bp->index;
 }

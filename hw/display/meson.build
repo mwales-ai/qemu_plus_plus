@@ -10,7 +10,7 @@ system_ss.add(when: 'CONFIG_VGA_CIRRUS', if_true: files('cirrus_vga.cpp'))
 system_ss.add(when: ['CONFIG_VGA_CIRRUS', 'CONFIG_VGA_ISA'], if_true: files('cirrus_vga_isa.cpp'))
 system_ss.add(when: 'CONFIG_G364FB', if_true: files('g364fb.cpp'))
 system_ss.add(when: 'CONFIG_JAZZ_LED', if_true: files('jazz_led.cpp'))
-system_ss.add(when: 'CONFIG_PL110', if_true: files('pl110.c'))
+system_ss.add(when: 'CONFIG_PL110', if_true: files('pl110.cpp'))
 system_ss.add(when: 'CONFIG_SII9022', if_true: files('sii9022.cpp'))
 system_ss.add(when: 'CONFIG_SSD0303', if_true: files('ssd0303.cpp'))
 system_ss.add(when: 'CONFIG_SSD0323', if_true: files('ssd0323.cpp'))
@@ -22,10 +22,10 @@ system_ss.add(when: 'CONFIG_VGA_MMIO', if_true: files('vga-mmio.cpp'))
 system_ss.add(when: 'CONFIG_VMWARE_VGA', if_true: files('vmware_vga.cpp'))
 system_ss.add(when: 'CONFIG_BOCHS_DISPLAY', if_true: files('bochs-display.cpp'))
 
-system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_fimd.c'))
+system_ss.add(when: 'CONFIG_EXYNOS4', if_true: files('exynos4210_fimd.cpp'))
 system_ss.add(when: 'CONFIG_FRAMEBUFFER', if_true: files('framebuffer.cpp'))
 
-system_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2835_fb.c'))
+system_ss.add(when: 'CONFIG_RASPI', if_true: files('bcm2835_fb.cpp'))
 system_ss.add(when: 'CONFIG_SM501', if_true: files('sm501.cpp'))
 system_ss.add(when: 'CONFIG_TCX', if_true: files('tcx.cpp'))
 system_ss.add(when: 'CONFIG_CG3', if_true: files('cg3.cpp'))
@@ -142,6 +142,6 @@ if config_all_devices.has_key('CONFIG_VIRTIO_VGA')
   endif
 endif
 
-system_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_lcdc.c'))
+system_ss.add(when: 'CONFIG_OMAP', if_true: files('omap_lcdc.cpp'))
 
 modules += { 'hw-display': hw_display_modules }

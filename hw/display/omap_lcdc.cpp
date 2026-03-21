@@ -76,7 +76,7 @@ static void omap_lcd_interrupts(struct omap_lcd_panel_s *s)
 static void draw_line2_32(void *opaque, uint8_t *d, const uint8_t *s,
                           int width, int deststep)
 {
-    uint16_t *pal = opaque;
+    uint16_t *pal = static_cast<uint16_t *>(opaque);
     uint8_t v, r, g, b;
 
     do {
@@ -115,7 +115,7 @@ static void draw_line2_32(void *opaque, uint8_t *d, const uint8_t *s,
 static void draw_line4_32(void *opaque, uint8_t *d, const uint8_t *s,
                           int width, int deststep)
 {
-    uint16_t *pal = opaque;
+    uint16_t *pal = static_cast<uint16_t *>(opaque);
     uint8_t v, r, g, b;
 
     do {
@@ -142,7 +142,7 @@ static void draw_line4_32(void *opaque, uint8_t *d, const uint8_t *s,
 static void draw_line8_32(void *opaque, uint8_t *d, const uint8_t *s,
                           int width, int deststep)
 {
-    uint16_t *pal = opaque;
+    uint16_t *pal = static_cast<uint16_t *>(opaque);
     uint8_t v, r, g, b;
 
     do {
@@ -198,7 +198,7 @@ static void draw_line16_32(void *opaque, uint8_t *d, const uint8_t *s,
 
 static void omap_update_display(void *opaque)
 {
-    struct omap_lcd_panel_s *omap_lcd = opaque;
+    struct omap_lcd_panel_s *omap_lcd = static_cast<struct omap_lcd_panel_s *>(opaque);
     DisplaySurface *surface;
     drawfn draw_line;
     int size, height, first, last;
@@ -325,7 +325,7 @@ static void omap_update_display(void *opaque)
 }
 
 static void omap_invalidate_display(void *opaque) {
-    struct omap_lcd_panel_s *omap_lcd = opaque;
+    struct omap_lcd_panel_s *omap_lcd = static_cast<struct omap_lcd_panel_s *>(opaque);
     omap_lcd->invalidate = 1;
 }
 
@@ -378,7 +378,7 @@ static void omap_lcd_update(struct omap_lcd_panel_s *s) {
 
 static uint64_t omap_lcdc_read(void *opaque, hwaddr addr, unsigned size)
 {
-    struct omap_lcd_panel_s *s = opaque;
+    struct omap_lcd_panel_s *s = static_cast<struct omap_lcd_panel_s *>(opaque);
 
     switch (addr) {
     case 0x00:	/* LCD_CONTROL */
@@ -411,7 +411,7 @@ static uint64_t omap_lcdc_read(void *opaque, hwaddr addr, unsigned size)
 static void omap_lcdc_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    struct omap_lcd_panel_s *s = opaque;
+    struct omap_lcd_panel_s *s = static_cast<struct omap_lcd_panel_s *>(opaque);
 
     switch (addr) {
     case 0x00:	/* LCD_CONTROL */

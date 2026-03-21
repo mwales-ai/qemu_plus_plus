@@ -35,41 +35,45 @@
 #define PL080_CCTRL_D   0x02000000
 #define PL080_CCTRL_S   0x01000000
 
+static const VMStateField vmstate_pl080_channel_fields[] = {
+    VMSTATE_UINT32(src, pl080_channel),
+    VMSTATE_UINT32(dest, pl080_channel),
+    VMSTATE_UINT32(lli, pl080_channel),
+    VMSTATE_UINT32(ctrl, pl080_channel),
+    VMSTATE_UINT32(conf, pl080_channel),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pl080_channel = {
     .name = "pl080_channel",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(src, pl080_channel),
-        VMSTATE_UINT32(dest, pl080_channel),
-        VMSTATE_UINT32(lli, pl080_channel),
-        VMSTATE_UINT32(ctrl, pl080_channel),
-        VMSTATE_UINT32(conf, pl080_channel),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl080_channel_fields
+};
+
+static const VMStateField vmstate_pl080_fields[] = {
+    VMSTATE_UINT8(tc_int, PL080State),
+    VMSTATE_UINT8(tc_mask, PL080State),
+    VMSTATE_UINT8(err_int, PL080State),
+    VMSTATE_UINT8(err_mask, PL080State),
+    VMSTATE_UINT32(conf, PL080State),
+    VMSTATE_UINT32(sync, PL080State),
+    VMSTATE_UINT32(req_single, PL080State),
+    VMSTATE_UINT32(req_burst, PL080State),
+    VMSTATE_UINT8(tc_int, PL080State),
+    VMSTATE_UINT8(tc_int, PL080State),
+    VMSTATE_UINT8(tc_int, PL080State),
+    VMSTATE_STRUCT_ARRAY(chan, PL080State, PL080_MAX_CHANNELS,
+                         1, vmstate_pl080_channel, pl080_channel),
+    VMSTATE_INT32(running, PL080State),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_pl080 = {
     .name = "pl080",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(tc_int, PL080State),
-        VMSTATE_UINT8(tc_mask, PL080State),
-        VMSTATE_UINT8(err_int, PL080State),
-        VMSTATE_UINT8(err_mask, PL080State),
-        VMSTATE_UINT32(conf, PL080State),
-        VMSTATE_UINT32(sync, PL080State),
-        VMSTATE_UINT32(req_single, PL080State),
-        VMSTATE_UINT32(req_burst, PL080State),
-        VMSTATE_UINT8(tc_int, PL080State),
-        VMSTATE_UINT8(tc_int, PL080State),
-        VMSTATE_UINT8(tc_int, PL080State),
-        VMSTATE_STRUCT_ARRAY(chan, PL080State, PL080_MAX_CHANNELS,
-                             1, vmstate_pl080_channel, pl080_channel),
-        VMSTATE_INT32(running, PL080State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pl080_fields
 };
 
 static const unsigned char pl080_id[] =
