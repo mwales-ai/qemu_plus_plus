@@ -3,7 +3,7 @@ i386_ss.add(when: 'CONFIG_XEN', if_true: files(
   'xen_pvdevice.cpp',
 ))
 i386_ss.add(when: ['CONFIG_XEN', xen], if_true: files(
-  'xen-hvm.c',
+  'xen-hvm.cpp',
   'xen-pvh.cpp',
 ))
 

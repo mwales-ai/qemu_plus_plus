@@ -305,7 +305,7 @@ static int xen_9pfs_receive(Xen9pfsRing *ring)
 
 static void xen_9pfs_bh(void *opaque)
 {
-    Xen9pfsRing *ring = opaque;
+    Xen9pfsRing *ring = static_cast<Xen9pfsRing *>(opaque);
     bool wait;
 
 again:
@@ -325,7 +325,7 @@ again:
 
 static void xen_9pfs_evtchn_event(void *opaque)
 {
-    Xen9pfsRing *ring = opaque;
+    Xen9pfsRing *ring = static_cast<Xen9pfsRing *>(opaque);
     evtchn_port_t port;
 
     port = qemu_xen_evtchn_pending(ring->evtchndev);
@@ -428,9 +428,10 @@ static int xen_9pfs_connect(struct XenLegacyDevice *xendev)
         g_free(str);
 
         xen_9pdev->rings[i].intf =
-            xen_be_map_grant_ref(&xen_9pdev->xendev,
-                                 xen_9pdev->rings[i].ref,
-                                 PROT_READ | PROT_WRITE);
+            static_cast<struct xen_9pfs_data_intf *>(
+                xen_be_map_grant_ref(&xen_9pdev->xendev,
+                                     xen_9pdev->rings[i].ref,
+                                     PROT_READ | PROT_WRITE));
         if (!xen_9pdev->rings[i].intf) {
             goto out;
         }
@@ -440,10 +441,11 @@ static int xen_9pfs_connect(struct XenLegacyDevice *xendev)
         }
         xen_9pdev->rings[i].ring_order = ring_order;
         xen_9pdev->rings[i].data =
-            xen_be_map_grant_refs(&xen_9pdev->xendev,
-                                  xen_9pdev->rings[i].intf->ref,
-                                  (1 << ring_order),
-                                  PROT_READ | PROT_WRITE);
+            static_cast<unsigned char *>(
+                xen_be_map_grant_refs(&xen_9pdev->xendev,
+                                      xen_9pdev->rings[i].intf->ref,
+                                      (1 << ring_order),
+                                      PROT_READ | PROT_WRITE));
         if (!xen_9pdev->rings[i].data) {
             goto out;
         }

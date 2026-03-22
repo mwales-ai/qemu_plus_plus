@@ -198,13 +198,14 @@ static bool net_tx_packets(struct XenNetDev *netdev)
                 if (!tmpbuf) {
                     tmpbuf = g_malloc(XEN_PAGE_SIZE);
                 }
-                memcpy(tmpbuf, page + txreq.offset, txreq.size);
+                memcpy(tmpbuf, static_cast<char *>(page) + txreq.offset, txreq.size);
                 net_checksum_calculate(tmpbuf, txreq.size, CSUM_ALL);
-                qemu_send_packet(qemu_get_queue(netdev->nic), tmpbuf,
+                qemu_send_packet(qemu_get_queue(netdev->nic),
+                                 static_cast<const uint8_t *>(tmpbuf),
                                  txreq.size);
             } else {
                 qemu_send_packet(qemu_get_queue(netdev->nic),
-                                 page + txreq.offset, txreq.size);
+                                 static_cast<const uint8_t *>(page) + txreq.offset, txreq.size);
             }
             xen_device_unmap_grant_refs(&netdev->xendev, page, &txreq.gref, 1,
                                         NULL);
@@ -253,7 +254,7 @@ static void net_rx_response(struct XenNetDev *netdev,
 
 static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    struct XenNetDev *netdev = qemu_get_nic_opaque(nc);
+    struct XenNetDev *netdev = static_cast<struct XenNetDev *>(qemu_get_nic_opaque(nc));
     netif_rx_request_t rxreq;
     RING_IDX rc, rp;
     void *page;
@@ -290,7 +291,7 @@ static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size
         net_rx_response(netdev, &rxreq, NETIF_RSP_ERROR, 0, 0, 0);
         return -1;
     }
-    memcpy(page + NET_IP_ALIGN, buf, size);
+    memcpy(static_cast<char *>(page) + NET_IP_ALIGN, buf, size);
     xen_device_unmap_grant_refs(&netdev->xendev, page, &rxreq.gref, 1, NULL);
     net_rx_response(netdev, &rxreq, NETIF_RSP_OKAY, NET_IP_ALIGN, size, 0);
 
@@ -382,19 +383,21 @@ static bool xen_netdev_connect(XenDevice *xendev, Error **errp)
         return false;
     }
 
-    netdev->txs = xen_device_map_grant_refs(xendev,
-                                            &netdev->tx_ring_ref, 1,
-                                            PROT_READ | PROT_WRITE,
-                                            errp);
+    netdev->txs = static_cast<struct netif_tx_sring *>(
+                      xen_device_map_grant_refs(xendev,
+                                                &netdev->tx_ring_ref, 1,
+                                                PROT_READ | PROT_WRITE,
+                                                errp));
     if (!netdev->txs) {
         error_prepend(errp, "failed to map tx grant ref: ");
         return false;
     }
 
-    netdev->rxs = xen_device_map_grant_refs(xendev,
-                                            &netdev->rx_ring_ref, 1,
-                                            PROT_READ | PROT_WRITE,
-                                            errp);
+    netdev->rxs = static_cast<struct netif_rx_sring *>(
+                      xen_device_map_grant_refs(xendev,
+                                                &netdev->rx_ring_ref, 1,
+                                                PROT_READ | PROT_WRITE,
+                                                errp));
     if (!netdev->rxs) {
         error_prepend(errp, "failed to map rx grant ref: ");
         return false;
@@ -557,10 +560,10 @@ static const Property xen_netdev_properties[] = {
     DEFINE_PROP_INT32("idx", XenNetDev, dev, -1),
 };
 
-static void xen_netdev_class_init(ObjectClass *class, const void *data)
+static void xen_netdev_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(class);
-    XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(class);
+    DeviceClass *dev_class = DEVICE_CLASS(klass);
+    XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(klass);
 
     xendev_class->backend = "qnic";
     xendev_class->device = "vif";

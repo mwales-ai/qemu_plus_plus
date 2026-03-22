@@ -1,7 +1,7 @@
 acpi_ss = ss.source_set()
 acpi_ss.add(files(
   'acpi_interface.cpp',
-  'aml-build.c',
+  'aml-build.cpp',
   'bios-linker-loader.cpp',
   'core.cpp',
   'utils.cpp',

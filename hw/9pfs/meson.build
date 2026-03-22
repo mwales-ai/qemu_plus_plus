@@ -6,7 +6,7 @@ fs_ss.add(files(
   '9p-util-generic.cpp',
   '9p-xattr-user.cpp',
   '9p-xattr.cpp',
-  '9p.c',
+  '9p.cpp',
   'codir.cpp',
   'cofile.cpp',
   'cofs.cpp',
@@ -20,7 +20,7 @@ elif host_os == 'freebsd'
 elif host_os == 'linux'
   fs_ss.add(files('9p-util-linux.cpp'))
 endif
-fs_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen-9p-backend.c'))
+fs_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen-9p-backend.cpp'))
 system_ss.add_all(when: 'CONFIG_FSDEV_9P', if_true: fs_ss)
 
 specific_ss.add(when: 'CONFIG_VIRTIO_9P', if_true: files('virtio-9p-device.cpp'))

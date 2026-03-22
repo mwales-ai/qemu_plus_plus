@@ -1,5 +1,5 @@
 system_ss.add(when: 'CONFIG_DP8393X', if_true: files('dp8393x.cpp'))
-system_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen_nic.c'))
+system_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen_nic.cpp'))
 system_ss.add(when: 'CONFIG_NE2000_COMMON', if_true: files('ne2000.cpp'))
 
 # PCI network cards

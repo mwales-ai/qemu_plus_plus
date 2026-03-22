@@ -76,7 +76,7 @@ void crs_range_insert(GPtrArray *ranges, uint64_t base, uint64_t limit)
 {
     CrsRangeEntry *entry;
 
-    entry = g_malloc(sizeof(*entry));
+    entry = static_cast<CrsRangeEntry *>(g_malloc(sizeof(*entry)));
     entry->base = base;
     entry->limit = limit;
 
@@ -133,7 +133,7 @@ void crs_replace_with_free_ranges(GPtrArray *ranges,
 
     g_ptr_array_sort(ranges, crs_range_compare);
     for (i = 0; i < ranges->len; i++) {
-        CrsRangeEntry *used = g_ptr_array_index(ranges, i);
+        CrsRangeEntry *used = static_cast<CrsRangeEntry *>(g_ptr_array_index(ranges, i));
 
         if (free_base < used->base) {
             crs_range_insert(free_ranges, free_base, used->base - 1);
@@ -171,11 +171,11 @@ static void crs_range_merge(GPtrArray *range)
 
     g_ptr_array_sort(range, crs_range_compare);
 
-    entry = g_ptr_array_index(range, 0);
+    entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(range, 0));
     range_base = entry->base;
     range_limit = entry->limit;
     for (i = 1; i < range->len; i++) {
-        entry = g_ptr_array_index(range, i);
+        entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(range, i));
         if (entry->base - 1 == range_limit) {
             range_limit = entry->limit;
         } else {
@@ -188,7 +188,7 @@ static void crs_range_merge(GPtrArray *range)
 
     g_ptr_array_set_size(range, 0);
     for (i = 0; i < tmp->len; i++) {
-        entry = g_ptr_array_index(tmp, i);
+        entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(tmp, i));
         crs_range_insert(range, entry->base, entry->limit);
     }
 }
@@ -474,7 +474,7 @@ static Aml *aml_bundle(uint8_t op, AmlBlockFlags flags)
 
 static void aml_free(gpointer data, gpointer user_data)
 {
-    Aml *var = data;
+    Aml *var = static_cast<Aml *>(data);
     build_free_array(var->buf);
     g_free(var);
 }
@@ -2088,7 +2088,7 @@ void build_spcr(GArray *table_data, BIOSLinker *linker,
     /* Reserved */
     build_append_int_noprefix(table_data, 0, 3);
     /* Base Address */
-    build_append_gas(table_data, f->base_addr.id, f->base_addr.width,
+    build_append_gas(table_data, static_cast<AmlAddressSpace>(f->base_addr.id), f->base_addr.width,
                      f->base_addr.offset, f->base_addr.size,
                      f->base_addr.addr);
     /* Interrupt type */
@@ -2541,7 +2541,7 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
 
     crs_range_merge(temp_range_set.io_ranges);
     for (i = 0; i < temp_range_set.io_ranges->len; i++) {
-        entry = g_ptr_array_index(temp_range_set.io_ranges, i);
+        entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(temp_range_set.io_ranges, i));
         aml_append(crs,
                    aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED,
                                 AML_POS_DECODE, AML_ENTIRE_RANGE,
@@ -2552,7 +2552,7 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
 
     crs_range_merge(temp_range_set.mem_ranges);
     for (i = 0; i < temp_range_set.mem_ranges->len; i++) {
-        entry = g_ptr_array_index(temp_range_set.mem_ranges, i);
+        entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(temp_range_set.mem_ranges, i));
         assert(entry->limit <= UINT32_MAX &&
                (entry->limit - entry->base + 1) <= UINT32_MAX);
         aml_append(crs,
@@ -2566,7 +2566,7 @@ Aml *build_crs(PCIHostState *host, CrsRangeSet *range_set, uint32_t io_offset,
 
     crs_range_merge(temp_range_set.mem_64bit_ranges);
     for (i = 0; i < temp_range_set.mem_64bit_ranges->len; i++) {
-        entry = g_ptr_array_index(temp_range_set.mem_64bit_ranges, i);
+        entry = static_cast<CrsRangeEntry *>(g_ptr_array_index(temp_range_set.mem_64bit_ranges, i));
         aml_append(crs,
                    aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
                                     AML_MAX_FIXED, AML_NON_CACHEABLE,

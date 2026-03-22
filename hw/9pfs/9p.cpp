@@ -219,7 +219,7 @@ void v9fs_path_copy(V9fsPath *dst, const V9fsPath *src)
 {
     v9fs_path_free(dst);
     dst->size = src->size;
-    dst->data = g_memdup(src->data, src->size);
+    dst->data = static_cast<char *>(g_memdup(src->data, src->size));
 }
 
 int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
@@ -282,7 +282,7 @@ static V9fsFidState *coroutine_fn get_fid(V9fsPDU *pdu, int32_t fid)
     V9fsFidState *f;
     V9fsState *s = pdu->s;
 
-    f = g_hash_table_lookup(s->fids, GINT_TO_POINTER(fid));
+    f = static_cast<V9fsFidState *>(g_hash_table_lookup(s->fids, GINT_TO_POINTER(fid)));
     if (f) {
         BUG_ON(f->clunked);
         /*
@@ -316,7 +316,7 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
 {
     V9fsFidState *f;
 
-    f = g_hash_table_lookup(s->fids, GINT_TO_POINTER(fid));
+    f = static_cast<V9fsFidState *>(g_hash_table_lookup(s->fids, GINT_TO_POINTER(fid)));
     if (f) {
         /* If fid is already there return NULL */
         BUG_ON(f->clunked);
@@ -419,7 +419,7 @@ static V9fsFidState *clunk_fid(V9fsState *s, int32_t fid)
     V9fsFidState *fidp;
 
     /* TODO: Use g_hash_table_steal_extended() instead? */
-    fidp = g_hash_table_lookup(s->fids, GINT_TO_POINTER(fid));
+    fidp = static_cast<V9fsFidState *>(g_hash_table_lookup(s->fids, GINT_TO_POINTER(fid)));
     if (fidp) {
         g_hash_table_remove(s->fids, GINT_TO_POINTER(fid));
         fidp->clunked = true;
@@ -616,7 +616,7 @@ static void coroutine_fn virtfs_reset(V9fsPDU *pdu)
      * through concurrent modifications.
      */
     for (freeing = fids; freeing; freeing = freeing->next) {
-        fidp = freeing->data;
+        fidp = static_cast<V9fsFidState *>(freeing->data);
         fidp->ref++;
         fidp->clunked = true;
         put_fid(pdu, fidp);
@@ -774,19 +774,22 @@ static uint32_t qpf_hash(QpfEntry e)
 
 static bool qpd_cmp_func(const void *obj, const void *userp)
 {
-    const QpdEntry *e1 = obj, *e2 = userp;
+    const QpdEntry *e1 = static_cast<const QpdEntry *>(obj);
+    const QpdEntry *e2 = static_cast<const QpdEntry *>(userp);
     return e1->dev == e2->dev;
 }
 
 static bool qpp_cmp_func(const void *obj, const void *userp)
 {
-    const QppEntry *e1 = obj, *e2 = userp;
+    const QppEntry *e1 = static_cast<const QppEntry *>(obj);
+    const QppEntry *e2 = static_cast<const QppEntry *>(userp);
     return e1->dev == e2->dev && e1->ino_prefix == e2->ino_prefix;
 }
 
 static bool qpf_cmp_func(const void *obj, const void *userp)
 {
-    const QpfEntry *e1 = obj, *e2 = userp;
+    const QpfEntry *e1 = static_cast<const QpfEntry *>(obj);
+    const QpfEntry *e2 = static_cast<const QpfEntry *>(userp);
     return e1->dev == e2->dev && e1->ino == e2->ino;
 }
 
@@ -840,7 +843,7 @@ static int qid_inode_prefix_hash_bits(V9fsPDU *pdu, dev_t dev)
     uint32_t hash = dev;
     VariLenAffix affix;
 
-    val = qht_lookup(&pdu->s->qpd_table, &lookup, hash);
+    val = static_cast<QpdEntry *>(qht_lookup(&pdu->s->qpd_table, &lookup, hash));
     if (!val) {
         val = g_new0(QpdEntry, 1);
         *val = lookup;
@@ -878,7 +881,7 @@ static int qid_path_fullmap(V9fsPDU *pdu, const struct stat *stbuf,
     uint32_t hash = qpf_hash(lookup);
     VariLenAffix affix;
 
-    val = qht_lookup(&pdu->s->qpf_table, &lookup, hash);
+    val = static_cast<QpfEntry *>(qht_lookup(&pdu->s->qpf_table, &lookup, hash));
 
     if (!val) {
         if (pdu->s->qp_fullpath_next == 0) {
@@ -955,7 +958,7 @@ static int qid_path_suffixmap(V9fsPDU *pdu, const struct stat *stbuf,
     }, *val;
     uint32_t hash = qpp_hash(lookup);
 
-    val = qht_lookup(&pdu->s->qpp_table, &lookup, hash);
+    val = static_cast<QppEntry *>(qht_lookup(&pdu->s->qpp_table, &lookup, hash));
 
     if (!val) {
         if (pdu->s->qp_affix_next == 0) {
@@ -1421,7 +1424,7 @@ static inline bool is_ro_export(FsContext *ctx)
 static void coroutine_fn v9fs_version(void *opaque)
 {
     ssize_t err;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
     V9fsString version;
     size_t offset = 7;
@@ -1477,7 +1480,7 @@ out:
 
 static void coroutine_fn v9fs_attach(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
     int32_t fid, afid, n_uname;
     V9fsString uname, aname;
@@ -1563,7 +1566,7 @@ static void coroutine_fn v9fs_stat(void *opaque)
     size_t offset = 7;
     struct stat stbuf;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     char *basename;
 
     err = pdu_unmarshal(pdu, offset, "d", &fid);
@@ -1616,7 +1619,7 @@ static void coroutine_fn v9fs_getattr(void *opaque)
     V9fsFidState *fidp;
     uint64_t request_mask;
     V9fsStatDotl v9stat_dotl;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     retval = pdu_unmarshal(pdu, offset, "dq", &fid, &request_mask);
     if (retval < 0) {
@@ -1692,7 +1695,7 @@ static void coroutine_fn v9fs_setattr(void *opaque)
     V9fsFidState *fidp;
     size_t offset = 7;
     V9fsIattr v9iattr;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     err = pdu_unmarshal(pdu, offset, "dI", &fid, &v9iattr);
     if (err < 0) {
@@ -1821,7 +1824,7 @@ static bool same_stat_id(const struct stat *a, const struct stat *b)
  */
 static char *trace_v9fs_walk_wnames(V9fsString *wnames, size_t nwnames)
 {
-    g_autofree char **arr = g_malloc0_n(nwnames + 1, sizeof(char *));
+    g_autofree char **arr = static_cast<char **>(g_malloc0_n(nwnames + 1, sizeof(char *)));
     for (size_t i = 0; i < nwnames; ++i) {
         arr[i] = wnames[i].data;
     }
@@ -1844,7 +1847,7 @@ static void coroutine_fn v9fs_walk(void *opaque)
     g_autofree char *trace_wnames = NULL;
     V9fsFidState *fidp;
     V9fsFidState *newfidp = NULL;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
     V9fsQID qid;
 
@@ -2045,7 +2048,7 @@ static void coroutine_fn v9fs_open(void *opaque)
     size_t offset = 7;
     struct stat stbuf;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
     g_autofree char *trace_oflags = NULL;
 
@@ -2148,7 +2151,7 @@ static void coroutine_fn v9fs_lcreate(void *opaque)
     struct stat stbuf;
     V9fsQID qid;
     int32_t iounit;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     v9fs_string_init(&name);
     err = pdu_unmarshal(pdu, offset, "dsddd", &dfid,
@@ -2219,7 +2222,7 @@ static void coroutine_fn v9fs_fsync(void *opaque)
     int datasync;
     size_t offset = 7;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     err = pdu_unmarshal(pdu, offset, "dd", &fid, &datasync);
     if (err < 0) {
@@ -2247,7 +2250,7 @@ static void coroutine_fn v9fs_clunk(void *opaque)
     int32_t fid;
     size_t offset = 7;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     err = pdu_unmarshal(pdu, offset, "d", &fid);
@@ -2422,7 +2425,7 @@ static void coroutine_fn v9fs_read(void *opaque)
     size_t offset = 7;
     uint32_t max_count;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     err = pdu_unmarshal(pdu, offset, "dqd", &fid, &off, &max_count);
@@ -2638,7 +2641,7 @@ static void coroutine_fn v9fs_readdir(void *opaque)
     uint64_t initial_offset;
     int32_t count;
     uint32_t max_count;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     retval = pdu_unmarshal(pdu, offset, "dqd", &fid,
@@ -2746,7 +2749,7 @@ static void coroutine_fn v9fs_write(void *opaque)
     int32_t total = 0;
     size_t offset = 7;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
     QEMUIOVector qiov_full;
     QEMUIOVector qiov;
@@ -2833,7 +2836,7 @@ static void coroutine_fn v9fs_create(void *opaque)
     V9fsString name;
     V9fsString extension;
     int iounit;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     v9fs_path_init(&path);
@@ -3021,7 +3024,7 @@ out_nofid:
 
 static void coroutine_fn v9fs_symlink(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsString name;
     V9fsString symname;
     V9fsFidState *dfidp;
@@ -3084,7 +3087,7 @@ static void coroutine_fn v9fs_flush(void *opaque)
     int16_t tag;
     size_t offset = 7;
     V9fsPDU *cancel_pdu = NULL;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     err = pdu_unmarshal(pdu, offset, "w", &tag);
@@ -3108,7 +3111,7 @@ static void coroutine_fn v9fs_flush(void *opaque)
         /*
          * Wait for pdu to complete.
          */
-        qemu_co_queue_wait(&cancel_pdu->complete, NULL);
+        qemu_co_queue_wait(&cancel_pdu->complete, (CoMutex *)NULL);
         if (!qemu_co_queue_next(&cancel_pdu->complete)) {
             cancel_pdu->cancelled = 0;
             pdu_free(cancel_pdu);
@@ -3119,7 +3122,7 @@ static void coroutine_fn v9fs_flush(void *opaque)
 
 static void coroutine_fn v9fs_link(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     int32_t dfid, oldfid;
     V9fsFidState *dfidp, *oldfidp;
     V9fsString name;
@@ -3173,7 +3176,7 @@ static void coroutine_fn v9fs_remove(void *opaque)
     int err = 0;
     size_t offset = 7;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     err = pdu_unmarshal(pdu, offset, "d", &fid);
     if (err < 0) {
@@ -3219,7 +3222,7 @@ static void coroutine_fn v9fs_unlinkat(void *opaque)
     size_t offset = 7;
     V9fsPath path;
     V9fsFidState *dfidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     v9fs_string_init(&name);
     err = pdu_unmarshal(pdu, offset, "dsd", &dfid, &name, &flags);
@@ -3356,7 +3359,7 @@ static void coroutine_fn v9fs_rename(void *opaque)
     V9fsString name;
     int32_t newdirfid;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     v9fs_string_init(&name);
@@ -3490,7 +3493,7 @@ static void coroutine_fn v9fs_renameat(void *opaque)
 {
     ssize_t err = 0;
     size_t offset = 7;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
     int32_t olddirfid, newdirfid;
     V9fsString old_name, new_name;
@@ -3537,7 +3540,7 @@ static void coroutine_fn v9fs_wstat(void *opaque)
     size_t offset = 7;
     struct stat stbuf;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     v9fs_stat_init(&v9stat);
@@ -3683,7 +3686,7 @@ static void coroutine_fn v9fs_statfs(void *opaque)
     size_t offset = 7;
     V9fsFidState *fidp;
     struct statfs stbuf;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     retval = pdu_unmarshal(pdu, offset, "d", &fid);
@@ -3723,7 +3726,7 @@ static void coroutine_fn v9fs_mknod(void *opaque)
     V9fsString name;
     struct stat stbuf;
     V9fsFidState *fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     v9fs_string_init(&name);
     err = pdu_unmarshal(pdu, offset, "dsdddd", &fid, &name, &mode,
@@ -3786,7 +3789,7 @@ static void coroutine_fn v9fs_lock(void *opaque)
     struct stat stbuf;
     V9fsFidState *fidp;
     int32_t fid, err = 0;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     v9fs_string_init(&flock.client_id);
     err = pdu_unmarshal(pdu, offset, "dbdqqds", &fid, &flock.type,
@@ -3837,7 +3840,7 @@ static void coroutine_fn v9fs_getlock(void *opaque)
     V9fsFidState *fidp;
     V9fsGetlock glock;
     int32_t fid, err = 0;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     v9fs_string_init(&glock.client_id);
     err = pdu_unmarshal(pdu, offset, "dbqqds", &fid, &glock.type,
@@ -3877,7 +3880,7 @@ out_nofid:
 
 static void coroutine_fn v9fs_mkdir(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     size_t offset = 7;
     int32_t fid;
     struct stat stbuf;
@@ -3941,7 +3944,7 @@ static void coroutine_fn v9fs_xattrwalk(void *opaque)
     int32_t fid, newfid;
     V9fsFidState *file_fidp;
     V9fsFidState *xattr_fidp = NULL;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     V9fsState *s = pdu->s;
 
     v9fs_string_init(&name);
@@ -4076,7 +4079,7 @@ static void coroutine_fn v9fs_xattrcreate(void *opaque)
     size_t offset = 7;
     V9fsFidState *file_fidp;
     V9fsFidState *xattr_fidp;
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
 
     v9fs_string_init(&name);
     err = pdu_unmarshal(pdu, offset, "dsqd", &fid, &name, &size, &flags);
@@ -4133,7 +4136,7 @@ out_nofid:
 
 static void coroutine_fn v9fs_readlink(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     size_t offset = 7;
     V9fsString target;
     int32_t fid;
@@ -4170,52 +4173,55 @@ out_nofid:
     pdu_complete(pdu, err);
 }
 
-static CoroutineEntry *pdu_co_handlers[] = {
-    [P9_TREADDIR] = v9fs_readdir,
-    [P9_TSTATFS] = v9fs_statfs,
-    [P9_TGETATTR] = v9fs_getattr,
-    [P9_TSETATTR] = v9fs_setattr,
-    [P9_TXATTRWALK] = v9fs_xattrwalk,
-    [P9_TXATTRCREATE] = v9fs_xattrcreate,
-    [P9_TMKNOD] = v9fs_mknod,
-    [P9_TRENAME] = v9fs_rename,
-    [P9_TLOCK] = v9fs_lock,
-    [P9_TGETLOCK] = v9fs_getlock,
-    [P9_TRENAMEAT] = v9fs_renameat,
-    [P9_TREADLINK] = v9fs_readlink,
-    [P9_TUNLINKAT] = v9fs_unlinkat,
-    [P9_TMKDIR] = v9fs_mkdir,
-    [P9_TVERSION] = v9fs_version,
-    [P9_TLOPEN] = v9fs_open,
-    [P9_TATTACH] = v9fs_attach,
-    [P9_TSTAT] = v9fs_stat,
-    [P9_TWALK] = v9fs_walk,
-    [P9_TCLUNK] = v9fs_clunk,
-    [P9_TFSYNC] = v9fs_fsync,
-    [P9_TOPEN] = v9fs_open,
-    [P9_TREAD] = v9fs_read,
+static CoroutineEntry *pdu_co_handlers[P9_TWSTAT + 2];
+
+static void __attribute__((constructor)) init_pdu_co_handlers(void)
+{
+    pdu_co_handlers[P9_TREADDIR] = v9fs_readdir;
+    pdu_co_handlers[P9_TSTATFS] = v9fs_statfs;
+    pdu_co_handlers[P9_TGETATTR] = v9fs_getattr;
+    pdu_co_handlers[P9_TSETATTR] = v9fs_setattr;
+    pdu_co_handlers[P9_TXATTRWALK] = v9fs_xattrwalk;
+    pdu_co_handlers[P9_TXATTRCREATE] = v9fs_xattrcreate;
+    pdu_co_handlers[P9_TMKNOD] = v9fs_mknod;
+    pdu_co_handlers[P9_TRENAME] = v9fs_rename;
+    pdu_co_handlers[P9_TLOCK] = v9fs_lock;
+    pdu_co_handlers[P9_TGETLOCK] = v9fs_getlock;
+    pdu_co_handlers[P9_TRENAMEAT] = v9fs_renameat;
+    pdu_co_handlers[P9_TREADLINK] = v9fs_readlink;
+    pdu_co_handlers[P9_TUNLINKAT] = v9fs_unlinkat;
+    pdu_co_handlers[P9_TMKDIR] = v9fs_mkdir;
+    pdu_co_handlers[P9_TVERSION] = v9fs_version;
+    pdu_co_handlers[P9_TLOPEN] = v9fs_open;
+    pdu_co_handlers[P9_TATTACH] = v9fs_attach;
+    pdu_co_handlers[P9_TSTAT] = v9fs_stat;
+    pdu_co_handlers[P9_TWALK] = v9fs_walk;
+    pdu_co_handlers[P9_TCLUNK] = v9fs_clunk;
+    pdu_co_handlers[P9_TFSYNC] = v9fs_fsync;
+    pdu_co_handlers[P9_TOPEN] = v9fs_open;
+    pdu_co_handlers[P9_TREAD] = v9fs_read;
 #if 0
-    [P9_TAUTH] = v9fs_auth,
+    pdu_co_handlers[P9_TAUTH] = v9fs_auth;
 #endif
-    [P9_TFLUSH] = v9fs_flush,
-    [P9_TLINK] = v9fs_link,
-    [P9_TSYMLINK] = v9fs_symlink,
-    [P9_TCREATE] = v9fs_create,
-    [P9_TLCREATE] = v9fs_lcreate,
-    [P9_TWRITE] = v9fs_write,
-    [P9_TWSTAT] = v9fs_wstat,
-    [P9_TREMOVE] = v9fs_remove,
-};
+    pdu_co_handlers[P9_TFLUSH] = v9fs_flush;
+    pdu_co_handlers[P9_TLINK] = v9fs_link;
+    pdu_co_handlers[P9_TSYMLINK] = v9fs_symlink;
+    pdu_co_handlers[P9_TCREATE] = v9fs_create;
+    pdu_co_handlers[P9_TLCREATE] = v9fs_lcreate;
+    pdu_co_handlers[P9_TWRITE] = v9fs_write;
+    pdu_co_handlers[P9_TWSTAT] = v9fs_wstat;
+    pdu_co_handlers[P9_TREMOVE] = v9fs_remove;
+}
 
 static void coroutine_fn v9fs_op_not_supp(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     pdu_complete(pdu, -EOPNOTSUPP);
 }
 
 static void coroutine_fn v9fs_fs_ro(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
+    V9fsPDU *pdu = static_cast<V9fsPDU *>(opaque);
     pdu_complete(pdu, -EROFS);
 }
 
@@ -4410,7 +4416,7 @@ typedef struct VirtfsCoResetData {
 
 static void coroutine_fn virtfs_co_reset(void *opaque)
 {
-    VirtfsCoResetData *data = opaque;
+    VirtfsCoResetData *data = static_cast<VirtfsCoResetData *>(opaque);
 
     virtfs_reset(&data->pdu);
     data->done = true;
@@ -4418,7 +4424,9 @@ static void coroutine_fn virtfs_co_reset(void *opaque)
 
 void v9fs_reset(V9fsState *s)
 {
-    VirtfsCoResetData data = { .pdu = { .s = s }, .done = false };
+    VirtfsCoResetData data = {};
+    data.pdu.s = s;
+    data.done = false;
     Coroutine *co;
 
     while (!QLIST_EMPTY(&s->active_list)) {
