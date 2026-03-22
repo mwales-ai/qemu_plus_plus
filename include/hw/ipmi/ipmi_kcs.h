@@ -68,9 +68,17 @@ typedef struct IPMIKCS {
     bool use_irq;
 } IPMIKCS;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ipmi_kcs_get_fwinfo(IPMIKCS *ik, IPMIFwInfo *info);
 void ipmi_kcs_class_init(IPMIInterfaceClass *iic);
 extern const VMStateDescription vmstate_IPMIKCS;
 int ipmi_kcs_vmstate_post_load(void *opaque, int version);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_IPMI_KCS_H */

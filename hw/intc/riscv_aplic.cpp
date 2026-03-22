@@ -570,7 +570,7 @@ static uint32_t riscv_aplic_idc_claimi(RISCVAPLICState *aplic, uint32_t idc)
 static void riscv_aplic_request(void *opaque, int irq, int level)
 {
     bool update = false;
-    RISCVAPLICState *aplic = opaque;
+    RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
     uint32_t sourcecfg, childidx, state, idc;
 
     assert((0 < irq) && (irq < aplic->num_irqs));
@@ -636,7 +636,7 @@ static void riscv_aplic_request(void *opaque, int irq, int level)
 static uint64_t riscv_aplic_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint32_t irq, word, idc, sm;
-    RISCVAPLICState *aplic = opaque;
+    RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
 
     /* Reads must be 4 byte words */
     if ((addr & 0x3) != 0) {
@@ -737,7 +737,7 @@ err:
 static void riscv_aplic_write(void *opaque, hwaddr addr, uint64_t value,
         unsigned size)
 {
-    RISCVAPLICState *aplic = opaque;
+    RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
     uint32_t irq, word, idc = UINT32_MAX;
 
     /* Writes must be 4 byte words */
@@ -924,8 +924,8 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
                 }
             }
 
-            aplic->external_irqs = g_malloc(sizeof(qemu_irq) *
-                                            aplic->num_harts);
+            aplic->external_irqs = static_cast<qemu_irq *>(g_malloc(sizeof(qemu_irq) *
+                                            aplic->num_harts));
             qdev_init_gpio_out(dev, aplic->external_irqs, aplic->num_harts);
         }
 
@@ -978,45 +978,47 @@ static const Property riscv_aplic_properties[] = {
 
 static bool riscv_aplic_state_needed(void *opaque)
 {
-    RISCVAPLICState *aplic = opaque;
+    RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
 
     return riscv_use_emulated_aplic(aplic->msimode);
 }
+
+static const VMStateField vmstate_riscv_aplic_fields[] = {
+    VMSTATE_UINT32(domaincfg, RISCVAPLICState),
+    VMSTATE_UINT32(mmsicfgaddr, RISCVAPLICState),
+    VMSTATE_UINT32(mmsicfgaddrH, RISCVAPLICState),
+    VMSTATE_UINT32(smsicfgaddr, RISCVAPLICState),
+    VMSTATE_UINT32(smsicfgaddrH, RISCVAPLICState),
+    VMSTATE_UINT32(genmsi, RISCVAPLICState),
+    VMSTATE_UINT32(kvm_msicfgaddr, RISCVAPLICState),
+    VMSTATE_UINT32(kvm_msicfgaddrH, RISCVAPLICState),
+    VMSTATE_VARRAY_UINT32(sourcecfg, RISCVAPLICState,
+                          num_irqs, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(state, RISCVAPLICState,
+                          num_irqs, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(target, RISCVAPLICState,
+                          num_irqs, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(idelivery, RISCVAPLICState,
+                          num_harts, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(iforce, RISCVAPLICState,
+                          num_harts, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(ithreshold, RISCVAPLICState,
+                          num_harts, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_riscv_aplic = {
     .name = "riscv_aplic",
     .version_id = 3,
     .minimum_version_id = 3,
     .needed = riscv_aplic_state_needed,
-    .fields = (const VMStateField[]) {
-            VMSTATE_UINT32(domaincfg, RISCVAPLICState),
-            VMSTATE_UINT32(mmsicfgaddr, RISCVAPLICState),
-            VMSTATE_UINT32(mmsicfgaddrH, RISCVAPLICState),
-            VMSTATE_UINT32(smsicfgaddr, RISCVAPLICState),
-            VMSTATE_UINT32(smsicfgaddrH, RISCVAPLICState),
-            VMSTATE_UINT32(genmsi, RISCVAPLICState),
-            VMSTATE_UINT32(kvm_msicfgaddr, RISCVAPLICState),
-            VMSTATE_UINT32(kvm_msicfgaddrH, RISCVAPLICState),
-            VMSTATE_VARRAY_UINT32(sourcecfg, RISCVAPLICState,
-                                  num_irqs, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(state, RISCVAPLICState,
-                                  num_irqs, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(target, RISCVAPLICState,
-                                  num_irqs, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(idelivery, RISCVAPLICState,
-                                  num_harts, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(iforce, RISCVAPLICState,
-                                  num_harts, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(ithreshold, RISCVAPLICState,
-                                  num_harts, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_END_OF_LIST()
-        }
+    .fields = vmstate_riscv_aplic_fields,
 };
 
 static void riscv_aplic_class_init(ObjectClass *klass, const void *data)

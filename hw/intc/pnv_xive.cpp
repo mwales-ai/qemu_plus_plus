@@ -1470,7 +1470,7 @@ static void pnv_xive_ic_notify_write(void *opaque, hwaddr addr, uint64_t val,
     /* VC: HW triggers */
     switch (addr) {
     case 0x000 ... 0x7FF:
-        pnv_xive_ic_hw_trigger(opaque, addr, val);
+        pnv_xive_ic_hw_trigger(static_cast<PnvXive *>(opaque), addr, val);
         break;
 
     /* VC: Forwarded IRQs */
@@ -2099,17 +2099,19 @@ static void pnv_xive_class_init(ObjectClass *klass, const void *data)
     xpc->get_config = pnv_xive_presenter_get_config;
 };
 
+static const InterfaceInfo pnv_xive_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_xive_info = {
     .name          = TYPE_PNV_XIVE,
     .parent        = TYPE_XIVE_ROUTER,
-    .instance_init = pnv_xive_init,
     .instance_size = sizeof(PnvXive),
-    .class_init    = pnv_xive_class_init,
+    .instance_init = pnv_xive_init,
     .class_size    = sizeof(PnvXiveClass),
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .class_init    = pnv_xive_class_init,
+    .interfaces    = pnv_xive_interfaces,
 };
 
 static void pnv_xive_register_types(void)

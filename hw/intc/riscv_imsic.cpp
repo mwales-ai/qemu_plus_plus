@@ -200,7 +200,7 @@ static int riscv_imsic_eix_rmw(RISCVIMSICState *imsic,
 static int riscv_imsic_rmw(void *arg, target_ulong reg, target_ulong *val,
                            target_ulong new_val, target_ulong wr_mask)
 {
-    RISCVIMSICState *imsic = arg;
+    RISCVIMSICState *imsic = static_cast<RISCVIMSICState *>(arg);
     uint32_t isel, priv, virt, vgein, xlen, page;
 
     priv = AIA_IREG_PRIV(reg);
@@ -261,7 +261,7 @@ err:
 
 static uint64_t riscv_imsic_read(void *opaque, hwaddr addr, unsigned size)
 {
-    RISCVIMSICState *imsic = opaque;
+    RISCVIMSICState *imsic = static_cast<RISCVIMSICState *>(opaque);
 
     /* Reads must be 4 byte words */
     if ((addr & 0x3) != 0) {
@@ -285,7 +285,7 @@ err:
 static void riscv_imsic_write(void *opaque, hwaddr addr, uint64_t value,
         unsigned size)
 {
-    RISCVIMSICState *imsic = opaque;
+    RISCVIMSICState *imsic = static_cast<RISCVIMSICState *>(opaque);
     uint32_t page;
 
     /* Writes must be 4 byte words */
@@ -359,7 +359,7 @@ static void riscv_imsic_realize(DeviceState *dev, Error **errp)
 
     if (!kvm_irqchip_in_kernel()) {
         /* Create output IRQ lines */
-        imsic->external_irqs = g_malloc(sizeof(qemu_irq) * imsic->num_pages);
+        imsic->external_irqs = static_cast<qemu_irq *>(g_malloc(sizeof(qemu_irq) * imsic->num_pages));
         qdev_init_gpio_out(dev, imsic->external_irqs, imsic->num_pages);
 
         imsic->num_eistate = imsic->num_pages * imsic->num_irqs;
@@ -403,23 +403,25 @@ static bool riscv_imsic_state_needed(void *opaque)
     return !kvm_irqchip_in_kernel();
 }
 
+static const VMStateField vmstate_riscv_imsic_fields[] = {
+    VMSTATE_VARRAY_UINT32(eidelivery, RISCVIMSICState,
+                          num_pages, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(eithreshold, RISCVIMSICState,
+                          num_pages, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(eistate, RISCVIMSICState,
+                          num_eistate, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_riscv_imsic = {
     .name = "riscv_imsic",
     .version_id = 2,
     .minimum_version_id = 2,
     .needed = riscv_imsic_state_needed,
-    .fields = (const VMStateField[]) {
-            VMSTATE_VARRAY_UINT32(eidelivery, RISCVIMSICState,
-                                  num_pages, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(eithreshold, RISCVIMSICState,
-                                  num_pages, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(eistate, RISCVIMSICState,
-                                  num_eistate, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_END_OF_LIST()
-        }
+    .fields = vmstate_riscv_imsic_fields,
 };
 
 static void riscv_imsic_class_init(ObjectClass *klass, const void *data)

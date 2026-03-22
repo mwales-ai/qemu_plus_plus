@@ -73,28 +73,30 @@ static void smb_io_space_update(ViaPMState *s)
 
 static int vmstate_acpi_post_load(void *opaque, int version_id)
 {
-    ViaPMState *s = opaque;
+    ViaPMState *s = static_cast<ViaPMState *>(opaque);
 
     pm_io_space_update(s);
     smb_io_space_update(s);
     return 0;
 }
 
+static const VMStateField vmstate_acpi_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, ViaPMState),
+    VMSTATE_UINT16(ar.pm1.evt.sts, ViaPMState),
+    VMSTATE_UINT16(ar.pm1.evt.en, ViaPMState),
+    VMSTATE_UINT16(ar.pm1.cnt.cnt, ViaPMState),
+    VMSTATE_STRUCT(apm, ViaPMState, 0, vmstate_apm, APMState),
+    VMSTATE_TIMER_PTR(ar.tmr.timer, ViaPMState),
+    VMSTATE_INT64(ar.tmr.overflow_time, ViaPMState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_acpi = {
     .name = "vt82c686b_pm",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = vmstate_acpi_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, ViaPMState),
-        VMSTATE_UINT16(ar.pm1.evt.sts, ViaPMState),
-        VMSTATE_UINT16(ar.pm1.evt.en, ViaPMState),
-        VMSTATE_UINT16(ar.pm1.cnt.cnt, ViaPMState),
-        VMSTATE_STRUCT(apm, ViaPMState, 0, vmstate_apm, APMState),
-        VMSTATE_TIMER_PTR(ar.tmr.timer, ViaPMState),
-        VMSTATE_INT64(ar.tmr.overflow_time, ViaPMState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_acpi_fields,
 };
 
 static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
@@ -224,7 +226,7 @@ static void via_pm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    const ViaPMInitInfo *info = data;
+    const ViaPMInitInfo *info = static_cast<const ViaPMInitInfo *>(data);
 
     k->realize = via_pm_realize;
     k->config_write = pm_write_config;
@@ -238,15 +240,17 @@ static void via_pm_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_acpi;
 }
 
+static const InterfaceInfo via_pm_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo via_pm_info = {
     .name          = TYPE_VIA_PM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ViaPMState),
     .is_abstract      = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = via_pm_interfaces,
 };
 
 static const ViaPMInitInfo vt82c686b_pm_init_info = {
@@ -312,7 +316,7 @@ static void via_superio_realize(DeviceState *d, Error **errp)
 
 static uint64_t via_superio_cfg_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ViaSuperIOState *sc = opaque;
+    ViaSuperIOState *sc = static_cast<ViaSuperIOState *>(opaque);
     uint8_t idx = sc->regs[0];
     uint8_t val = sc->regs[idx];
 
@@ -350,9 +354,9 @@ static const TypeInfo via_superio_info = {
     .name          = TYPE_VIA_SUPERIO,
     .parent        = TYPE_ISA_SUPERIO,
     .instance_size = sizeof(ViaSuperIOState),
+    .is_abstract      = true,
     .class_size    = sizeof(ISASuperIOClass),
     .class_init    = via_superio_class_init,
-    .is_abstract      = true,
 };
 
 #define TYPE_VT82C686B_SUPERIO "vt82c686b-superio"
@@ -360,7 +364,7 @@ static const TypeInfo via_superio_info = {
 static void vt82c686b_superio_cfg_write(void *opaque, hwaddr addr,
                                         uint64_t data, unsigned size)
 {
-    ViaSuperIOState *sc = opaque;
+    ViaSuperIOState *sc = static_cast<ViaSuperIOState *>(opaque);
     uint8_t idx = sc->regs[0];
 
     if (addr == 0) { /* config index register */
@@ -483,7 +487,7 @@ static const TypeInfo vt82c686b_superio_info = {
 static void vt8231_superio_cfg_write(void *opaque, hwaddr addr,
                                      uint64_t data, unsigned size)
 {
-    ViaSuperIOState *sc = opaque;
+    ViaSuperIOState *sc = static_cast<ViaSuperIOState *>(opaque);
     uint8_t idx = sc->regs[0];
 
     if (addr == 0) { /* config index register */
@@ -606,14 +610,16 @@ struct ViaISAState {
     PCIDevice mc97;
 };
 
+static const VMStateField vmstate_via_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, ViaISAState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_via = {
     .name = "via-isa",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, ViaISAState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_via_fields,
 };
 
 static void via_isa_init(Object *obj)
@@ -628,16 +634,18 @@ static void via_isa_init(Object *obj)
     object_initialize_child(obj, "mc97", &s->mc97, TYPE_VIA_MC97);
 }
 
+static const InterfaceInfo via_isa_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo via_isa_info = {
     .name          = TYPE_VIA_ISA,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ViaISAState),
     .instance_init = via_isa_init,
     .is_abstract      = true,
-    .interfaces    = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces    = via_isa_interfaces,
 };
 
 static int via_isa_get_pci_irq(const ViaISAState *s, int pin)
@@ -703,12 +711,12 @@ void via_isa_set_irq(PCIDevice *d, int pin, int level)
 
 static void via_isa_pirq(void *opaque, int pin, int level)
 {
-    via_isa_set_irq(opaque, pin, level);
+    via_isa_set_irq(static_cast<PCIDevice *>(opaque), pin, level);
 }
 
 static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
 {
-    ViaISAState *s = opaque;
+    ViaISAState *s = static_cast<ViaISAState *>(opaque);
     qemu_set_irq(s->cpu_intr, level);
 }
 

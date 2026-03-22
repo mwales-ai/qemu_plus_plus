@@ -40,9 +40,17 @@ struct VhostUserBackend {
     bool completed;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
                                 unsigned nvqs, Error **errp);
 void vhost_user_backend_start(VhostUserBackend *b);
 int vhost_user_backend_stop(VhostUserBackend *b);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -219,7 +219,7 @@ static void pc87312_hard_reset(PC87312State *s)
 static void pc87312_io_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned int size)
 {
-    PC87312State *s = opaque;
+    PC87312State *s = static_cast<PC87312State *>(opaque);
 
     trace_pc87312_io_write(addr, val);
 
@@ -238,7 +238,7 @@ static void pc87312_io_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t pc87312_io_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    PC87312State *s = opaque;
+    PC87312State *s = static_cast<PC87312State *>(opaque);
     uint32_t val;
 
     if ((addr & 1) == 0) {
@@ -267,6 +267,8 @@ static uint64_t pc87312_io_read(void *opaque, hwaddr addr, unsigned int size)
 static const MemoryRegionOps pc87312_io_ops = {
     .read  = pc87312_io_read,
     .write = pc87312_io_write,
+    .read_with_attrs = nullptr,
+    .write_with_attrs = nullptr,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -276,7 +278,7 @@ static const MemoryRegionOps pc87312_io_ops = {
 
 static int pc87312_post_load(void *opaque, int version_id)
 {
-    PC87312State *s = opaque;
+    PC87312State *s = static_cast<PC87312State *>(opaque);
 
     reconfigure_devices(s);
     return 0;
@@ -314,17 +316,19 @@ static void pc87312_initfn(Object *obj)
     memory_region_init_io(&s->io, obj, &pc87312_io_ops, s, "pc87312", 2);
 }
 
+static const VMStateField vmstate_pc87312_fields[] = {
+    VMSTATE_UINT8(read_id_step, PC87312State),
+    VMSTATE_UINT8(selected_index, PC87312State),
+    VMSTATE_UINT8_ARRAY(regs, PC87312State, 3),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pc87312 = {
     .name = "pc87312",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = pc87312_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(read_id_step, PC87312State),
-        VMSTATE_UINT8(selected_index, PC87312State),
-        VMSTATE_UINT8_ARRAY(regs, PC87312State, 3),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pc87312_fields,
 };
 
 static const Property pc87312_properties[] = {
@@ -343,30 +347,29 @@ static void pc87312_class_init(ObjectClass *klass, const void *data)
                                     &sc->parent_realize);
     device_class_set_props(dc, pc87312_properties);
 
-    sc->parallel = (ISASuperIOFuncs){
-        .count = 1,
-        .is_enabled = is_parallel_enabled,
-        .get_iobase = get_parallel_iobase,
-        .get_irq    = get_parallel_irq,
-    };
-    sc->serial = (ISASuperIOFuncs){
-        .count = 2,
-        .is_enabled = is_uart_enabled,
-        .get_iobase = get_uart_iobase,
-        .get_irq    = get_uart_irq,
-    };
-    sc->floppy = (ISASuperIOFuncs){
-        .count = 1,
-        .is_enabled = is_fdc_enabled,
-        .get_iobase = get_fdc_iobase,
-        .get_irq    = get_fdc_irq,
-    };
-    sc->ide = (ISASuperIOFuncs){
-        .count = 1,
-        .is_enabled = is_ide_enabled,
-        .get_iobase = get_ide_iobase,
-        .get_irq    = get_ide_irq,
-    };
+    memset(&sc->parallel, 0, sizeof(sc->parallel));
+    sc->parallel.count = 1;
+    sc->parallel.is_enabled = is_parallel_enabled;
+    sc->parallel.get_iobase = get_parallel_iobase;
+    sc->parallel.get_irq    = get_parallel_irq;
+
+    memset(&sc->serial, 0, sizeof(sc->serial));
+    sc->serial.count = 2;
+    sc->serial.is_enabled = is_uart_enabled;
+    sc->serial.get_iobase = get_uart_iobase;
+    sc->serial.get_irq    = get_uart_irq;
+
+    memset(&sc->floppy, 0, sizeof(sc->floppy));
+    sc->floppy.count = 1;
+    sc->floppy.is_enabled = is_fdc_enabled;
+    sc->floppy.get_iobase = get_fdc_iobase;
+    sc->floppy.get_irq    = get_fdc_irq;
+
+    memset(&sc->ide, 0, sizeof(sc->ide));
+    sc->ide.count = 1;
+    sc->ide.is_enabled = is_ide_enabled;
+    sc->ide.get_iobase = get_ide_iobase;
+    sc->ide.get_irq    = get_ide_irq;
 }
 
 static const TypeInfo pc87312_type_info = {

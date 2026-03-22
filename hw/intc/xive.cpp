@@ -1085,16 +1085,18 @@ static int vmstate_xive_tctx_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_xive_tctx_fields[] = {
+    VMSTATE_BUFFER(regs, XiveTCTX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xive_tctx = {
     .name = TYPE_XIVE_TCTX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = vmstate_xive_tctx_pre_save,
     .post_load = vmstate_xive_tctx_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(regs, XiveTCTX),
-        VMSTATE_END_OF_LIST()
-    },
+    .pre_save = vmstate_xive_tctx_pre_save,
+    .fields = vmstate_xive_tctx_fields,
 };
 
 static const Property xive_tctx_properties[] = {
@@ -1548,7 +1550,7 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    xsrc->status = g_malloc0(xsrc->nr_irqs);
+    xsrc->status = static_cast<uint8_t *>(g_malloc0(xsrc->nr_irqs));
     xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
 
     memory_region_init(&xsrc->esb_mmio, OBJECT(xsrc), "xive.esb", esb_len);
@@ -1560,15 +1562,17 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     qemu_register_reset(xive_source_reset, dev);
 }
 
+static const VMStateField vmstate_xive_source_fields[] = {
+    VMSTATE_UINT32_EQUAL(nr_irqs, XiveSource, NULL),
+    VMSTATE_VBUFFER_UINT32(status, XiveSource, 1, NULL, nr_irqs),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xive_source = {
     .name = TYPE_XIVE_SOURCE,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_EQUAL(nr_irqs, XiveSource, NULL),
-        VMSTATE_VBUFFER_UINT32(status, XiveSource, 1, NULL, nr_irqs),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_xive_source_fields,
 };
 
 /*
@@ -2262,18 +2266,20 @@ static void xive_router_class_init(ObjectClass *klass, const void *data)
     xrc->end_notify = xive_router_end_notify;
 }
 
+static const InterfaceInfo xive_router_interfaces[] = {
+    { TYPE_XIVE_NOTIFIER },
+    { TYPE_XIVE_PRESENTER },
+    { }
+};
+
 static const TypeInfo xive_router_info = {
     .name          = TYPE_XIVE_ROUTER,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .is_abstract      = true,
     .instance_size = sizeof(XiveRouter),
+    .is_abstract   = true,
     .class_size    = sizeof(XiveRouterClass),
     .class_init    = xive_router_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_XIVE_NOTIFIER },
-        { TYPE_XIVE_PRESENTER },
-        { }
-    }
+    .interfaces    = xive_router_interfaces,
 };
 
 void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, GString *buf)

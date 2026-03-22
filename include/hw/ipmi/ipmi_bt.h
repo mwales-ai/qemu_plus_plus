@@ -65,9 +65,17 @@ typedef struct IPMIBT {
     bool use_irq;
 } IPMIBT;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ipmi_bt_get_fwinfo(IPMIBT *ik, IPMIFwInfo *info);
 void ipmi_bt_class_init(IPMIInterfaceClass *iic);
 extern const VMStateDescription vmstate_IPMIBT;
 int ipmi_bt_vmstate_post_load(void *opaque, int version);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_IPMI_BT_H */

@@ -77,19 +77,19 @@ static void piix_set_pci_irq_level(PIIXState *s, int pirq, int level)
 
 static void piix_set_pci_irq(void *opaque, int pirq, int level)
 {
-    PIIXState *s = opaque;
+    PIIXState *s = static_cast<PIIXState *>(opaque);
     piix_set_pci_irq_level(s, pirq, level);
 }
 
 static void piix_request_i8259_irq(void *opaque, int irq, int level)
 {
-    PIIXState *s = opaque;
+    PIIXState *s = static_cast<PIIXState *>(opaque);
     qemu_set_irq(s->cpu_intr, level);
 }
 
 static PCIINTxRoute piix_route_intx_pin_to_irq(void *opaque, int pin)
 {
-    PCIDevice *pci_dev = opaque;
+    PCIDevice *pci_dev = static_cast<PCIDevice *>(opaque);
     int irq = pci_dev->config[PIIX_PIRQCA + pin];
     PCIINTxRoute route;
 
@@ -174,7 +174,7 @@ static void piix_reset(DeviceState *dev)
 
 static int piix_post_load(void *opaque, int version_id)
 {
-    PIIXState *s = opaque;
+    PIIXState *s = static_cast<PIIXState *>(opaque);
     int pirq;
 
     /*
@@ -196,7 +196,7 @@ static int piix_post_load(void *opaque, int version_id)
 
 static int piix4_post_load(void *opaque, int version_id)
 {
-    PIIXState *s = opaque;
+    PIIXState *s = static_cast<PIIXState *>(opaque);
 
     if (version_id == 2) {
         s->rcr = 0;
@@ -208,7 +208,7 @@ static int piix4_post_load(void *opaque, int version_id)
 static int piix3_pre_save(void *opaque)
 {
     int i;
-    PIIXState *piix3 = opaque;
+    PIIXState *piix3 = static_cast<PIIXState *>(opaque);
 
     for (i = 0; i < ARRAY_SIZE(piix3->pci_irq_levels_vmstate); i++) {
         piix3->pci_irq_levels_vmstate[i] =
@@ -220,20 +220,34 @@ static int piix3_pre_save(void *opaque)
 
 static bool piix3_rcr_needed(void *opaque)
 {
-    PIIXState *piix3 = opaque;
+    PIIXState *piix3 = static_cast<PIIXState *>(opaque);
 
     return (piix3->rcr != 0);
 }
+
+static const VMStateField vmstate_piix3_rcr_fields[] = {
+    VMSTATE_UINT8(rcr, PIIXState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_piix3_rcr = {
     .name = "PIIX3/rcr",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = piix3_rcr_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(rcr, PIIXState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_piix3_rcr_fields,
+};
+
+static const VMStateField vmstate_piix3_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, PIIXState),
+    VMSTATE_INT32_ARRAY_V(pci_irq_levels_vmstate, PIIXState,
+                          PIIX_NUM_PIRQS, 3),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_piix3_subsections[] = {
+    &vmstate_piix3_rcr,
+    NULL
 };
 
 static const VMStateDescription vmstate_piix3 = {
@@ -242,16 +256,14 @@ static const VMStateDescription vmstate_piix3 = {
     .minimum_version_id = 2,
     .post_load = piix_post_load,
     .pre_save = piix3_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, PIIXState),
-        VMSTATE_INT32_ARRAY_V(pci_irq_levels_vmstate, PIIXState,
-                              PIIX_NUM_PIRQS, 3),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_piix3_rcr,
-        NULL
-    }
+    .fields = vmstate_piix3_fields,
+    .subsections = vmstate_piix3_subsections,
+};
+
+static const VMStateField vmstate_piix4_fields[] = {
+    VMSTATE_PCI_DEVICE(dev, PIIXState),
+    VMSTATE_UINT8_V(rcr, PIIXState, 3),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_piix4 = {
@@ -259,16 +271,12 @@ static const VMStateDescription vmstate_piix4 = {
     .version_id = 3,
     .minimum_version_id = 2,
     .post_load = piix4_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, PIIXState),
-        VMSTATE_UINT8_V(rcr, PIIXState, 3),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_piix4_fields,
 };
 
 static void rcr_write(void *opaque, hwaddr addr, uint64_t val, unsigned len)
 {
-    PIIXState *d = opaque;
+    PIIXState *d = static_cast<PIIXState *>(opaque);
 
     if (val & 4) {
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
@@ -279,7 +287,7 @@ static void rcr_write(void *opaque, hwaddr addr, uint64_t val, unsigned len)
 
 static uint64_t rcr_read(void *opaque, hwaddr addr, unsigned len)
 {
-    PIIXState *d = opaque;
+    PIIXState *d = static_cast<PIIXState *>(opaque);
 
     return d->rcr;
 }
@@ -287,7 +295,10 @@ static uint64_t rcr_read(void *opaque, hwaddr addr, unsigned len)
 static const MemoryRegionOps rcr_ops = {
     .read = rcr_read,
     .write = rcr_write,
+    .read_with_attrs = nullptr,
+    .write_with_attrs = nullptr,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {},
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -438,6 +449,12 @@ static void pci_piix_class_init(ObjectClass *klass, const void *data)
     adevc->build_dev_aml = build_pci_isa_aml;
 }
 
+static const InterfaceInfo piix_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
+};
+
 static const TypeInfo piix_pci_type_info = {
     .name = TYPE_PIIX_PCI_DEVICE,
     .parent = TYPE_PCI_DEVICE,
@@ -445,11 +462,7 @@ static const TypeInfo piix_pci_type_info = {
     .instance_init = pci_piix_init,
     .is_abstract = true,
     .class_init = pci_piix_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+    .interfaces = piix_pci_interfaces,
 };
 
 static void piix3_realize(PCIDevice *dev, Error **errp)

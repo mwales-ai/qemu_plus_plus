@@ -2002,18 +2002,20 @@ static void xive2_router_class_init(ObjectClass *klass, const void *data)
     xnc->notify = xive2_router_notify;
 }
 
+static const InterfaceInfo xive2_router_interfaces[] = {
+    { TYPE_XIVE_NOTIFIER },
+    { TYPE_XIVE_PRESENTER },
+    { }
+};
+
 static const TypeInfo xive2_router_info = {
     .name          = TYPE_XIVE2_ROUTER,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .is_abstract      = true,
     .instance_size = sizeof(Xive2Router),
+    .is_abstract   = true,
     .class_size    = sizeof(Xive2RouterClass),
     .class_init    = xive2_router_class_init,
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_XIVE_NOTIFIER },
-        { TYPE_XIVE_PRESENTER },
-        { }
-    }
+    .interfaces    = xive2_router_interfaces,
 };
 
 static inline bool addr_is_even(hwaddr addr, uint32_t shift)

@@ -51,15 +51,15 @@ static PLICMode char_to_mode(char c)
 
 static uint32_t atomic_set_masked(uint32_t *a, uint32_t mask, uint32_t value)
 {
-    uint32_t old, new, cmp = qatomic_read(a);
+    uint32_t old_val, new_val, cmp = qatomic_read(a);
 
     do {
-        old = cmp;
-        new = (old & ~mask) | (value & mask);
-        cmp = qatomic_cmpxchg(a, old, new);
-    } while (old != cmp);
+        old_val = cmp;
+        new_val = (old_val & ~mask) | (value & mask);
+        cmp = qatomic_cmpxchg(a, old_val, new_val);
+    } while (old_val != cmp);
 
-    return old;
+    return old_val;
 }
 
 static void sifive_plic_set_pending(SiFivePLICState *plic, int irq, bool level)
@@ -137,7 +137,7 @@ static void sifive_plic_update(SiFivePLICState *plic)
 
 static uint64_t sifive_plic_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SiFivePLICState *plic = opaque;
+    SiFivePLICState *plic = static_cast<SiFivePLICState *>(opaque);
 
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
         uint32_t irq = (addr - plic->priority_base) >> 2;
@@ -185,7 +185,7 @@ static uint64_t sifive_plic_read(void *opaque, hwaddr addr, unsigned size)
 static void sifive_plic_write(void *opaque, hwaddr addr, uint64_t value,
         unsigned size)
 {
-    SiFivePLICState *plic = opaque;
+    SiFivePLICState *plic = static_cast<SiFivePLICState *>(opaque);
 
     if (addr_between(addr, plic->priority_base, plic->num_sources << 2)) {
         uint32_t irq = (addr - plic->priority_base) >> 2;
@@ -343,7 +343,7 @@ static void parse_hart_config(SiFivePLICState *plic)
             m = char_to_mode(c);
             plic->addr_config[addrid].addrid = addrid;
             plic->addr_config[addrid].hartid = hartid;
-            plic->addr_config[addrid].mode = m;
+            plic->addr_config[addrid].mode = static_cast<PLICMode>(m);
             modes |= (1 << m);
             addrid++;
         }
@@ -352,7 +352,7 @@ static void parse_hart_config(SiFivePLICState *plic)
 
 static void sifive_plic_irq_request(void *opaque, int irq, int level)
 {
-    SiFivePLICState *s = opaque;
+    SiFivePLICState *s = static_cast<SiFivePLICState *>(opaque);
 
     if (level > 0) {
         sifive_plic_set_pending(s, irq, true);
@@ -386,10 +386,10 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
 
     qdev_init_gpio_in(dev, sifive_plic_irq_request, s->num_sources);
 
-    s->s_external_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
+    s->s_external_irqs = static_cast<qemu_irq *>(g_malloc(sizeof(qemu_irq) * s->num_harts));
     qdev_init_gpio_out(dev, s->s_external_irqs, s->num_harts);
 
-    s->m_external_irqs = g_malloc(sizeof(qemu_irq) * s->num_harts);
+    s->m_external_irqs = static_cast<qemu_irq *>(g_malloc(sizeof(qemu_irq) * s->num_harts));
     qdev_init_gpio_out(dev, s->m_external_irqs, s->num_harts);
 
     /*
@@ -409,25 +409,27 @@ static void sifive_plic_realize(DeviceState *dev, Error **errp)
     msi_nonbroken = true;
 }
 
+static const VMStateField vmstate_sifive_plic_fields[] = {
+    VMSTATE_VARRAY_UINT32(source_priority, SiFivePLICState,
+                          num_sources, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(target_priority, SiFivePLICState,
+                          num_addrs, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(pending, SiFivePLICState, bitfield_words, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(claimed, SiFivePLICState, bitfield_words, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_VARRAY_UINT32(enable, SiFivePLICState, num_enables, 0,
+                          vmstate_info_uint32, uint32_t),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sifive_plic = {
     .name = "riscv_sifive_plic",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-            VMSTATE_VARRAY_UINT32(source_priority, SiFivePLICState,
-                                  num_sources, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(target_priority, SiFivePLICState,
-                                  num_addrs, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(pending, SiFivePLICState, bitfield_words, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(claimed, SiFivePLICState, bitfield_words, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_VARRAY_UINT32(enable, SiFivePLICState, num_enables, 0,
-                                  vmstate_info_uint32, uint32_t),
-            VMSTATE_END_OF_LIST()
-        }
+    .fields = vmstate_sifive_plic_fields,
 };
 
 static const Property sifive_plic_properties[] = {

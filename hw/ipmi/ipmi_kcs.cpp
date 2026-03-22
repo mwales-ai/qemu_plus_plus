@@ -106,7 +106,7 @@ static void ipmi_kcs_signal(IPMIKCS *ik, IPMIInterface *ii)
 static void ipmi_kcs_handle_event(IPMIInterface *ii)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIKCS *ik = iic->get_backend_data(ii);
+    IPMIKCS *ik = static_cast<IPMIKCS *>(iic->get_backend_data(ii));
 
     if (ik->cmd_reg == IPMI_KCS_ABORT_STATUS_CMD) {
         if (IPMI_KCS_GET_STATE(ik->status_reg) != IPMI_KCS_ERROR_STATE) {
@@ -203,7 +203,7 @@ static void ipmi_kcs_handle_rsp(IPMIInterface *ii, uint8_t msg_id,
                                 unsigned char *rsp, unsigned int rsp_len)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIKCS *ik = iic->get_backend_data(ii);
+    IPMIKCS *ik = static_cast<IPMIKCS *>(iic->get_backend_data(ii));
 
     if (ik->waiting_rsp == msg_id) {
         ik->waiting_rsp++;
@@ -225,9 +225,9 @@ static void ipmi_kcs_handle_rsp(IPMIInterface *ii, uint8_t msg_id,
 
 static uint64_t ipmi_kcs_ioport_read(void *opaque, hwaddr addr, unsigned size)
 {
-    IPMIInterface *ii = opaque;
+    IPMIInterface *ii = static_cast<IPMIInterface *>(opaque);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIKCS *ik = iic->get_backend_data(ii);
+    IPMIKCS *ik = static_cast<IPMIKCS *>(iic->get_backend_data(ii));
     uint32_t ret;
 
     switch (addr & ik->size_mask) {
@@ -261,9 +261,9 @@ static uint64_t ipmi_kcs_ioport_read(void *opaque, hwaddr addr, unsigned size)
 static void ipmi_kcs_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned size)
 {
-    IPMIInterface *ii = opaque;
+    IPMIInterface *ii = static_cast<IPMIInterface *>(opaque);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIKCS *ik = iic->get_backend_data(ii);
+    IPMIKCS *ik = static_cast<IPMIKCS *>(iic->get_backend_data(ii));
 
     if (IPMI_KCS_GET_IBF(ik->status_reg)) {
         return;
@@ -289,17 +289,20 @@ static void ipmi_kcs_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 const MemoryRegionOps ipmi_kcs_io_ops = {
     .read = ipmi_kcs_ioport_read,
     .write = ipmi_kcs_ioport_write,
+    .read_with_attrs = nullptr,
+    .write_with_attrs = nullptr,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {},
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void ipmi_kcs_set_atn(IPMIInterface *ii, int val, int irq)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIKCS *ik = iic->get_backend_data(ii);
+    IPMIKCS *ik = static_cast<IPMIKCS *>(iic->get_backend_data(ii));
 
     IPMI_KCS_SET_SMS_ATN(ik->status_reg, val);
     if (val) {
@@ -322,7 +325,7 @@ static void ipmi_kcs_set_atn(IPMIInterface *ii, int val, int irq)
 static void ipmi_kcs_set_irq_enable(IPMIInterface *ii, int val)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIKCS *ik = iic->get_backend_data(ii);
+    IPMIKCS *ik = static_cast<IPMIKCS *>(iic->get_backend_data(ii));
 
     ik->irqs_enabled = val;
 }
@@ -332,7 +335,7 @@ static void ipmi_kcs_init(IPMIInterface *ii, unsigned int min_size,
                           Error **errp)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIKCS *ik = iic->get_backend_data(ii);
+    IPMIKCS *ik = static_cast<IPMIKCS *>(iic->get_backend_data(ii));
 
     if (min_size == 0) {
         min_size = 2;
@@ -345,7 +348,7 @@ static void ipmi_kcs_init(IPMIInterface *ii, unsigned int min_size,
 
 int ipmi_kcs_vmstate_post_load(void *opaque, int version)
 {
-    IPMIKCS *ik = opaque;
+    IPMIKCS *ik = static_cast<IPMIKCS *>(opaque);
 
     /* Make sure all the values are sane. */
     if (ik->outpos >= MAX_IPMI_MSG_SIZE || ik->outlen >= MAX_IPMI_MSG_SIZE ||
@@ -372,29 +375,31 @@ static bool vmstate_kcs_before_version2(void *opaque, int version)
     return version <= 1;
 }
 
+static const VMStateField vmstate_IPMIKCS_fields[] = {
+    VMSTATE_BOOL(obf_irq_set, IPMIKCS),
+    VMSTATE_BOOL(atn_irq_set, IPMIKCS),
+    VMSTATE_UNUSED_TEST(vmstate_kcs_before_version2, 1), /* Was use_irq */
+    VMSTATE_BOOL(irqs_enabled, IPMIKCS),
+    VMSTATE_UINT32(outpos, IPMIKCS),
+    VMSTATE_UINT32_V(outlen, IPMIKCS, 2),
+    VMSTATE_UINT8_ARRAY(outmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
+    VMSTATE_UINT32_V(inlen, IPMIKCS, 2),
+    VMSTATE_UINT8_ARRAY(inmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
+    VMSTATE_BOOL(write_end, IPMIKCS),
+    VMSTATE_UINT8(status_reg, IPMIKCS),
+    VMSTATE_UINT8(data_out_reg, IPMIKCS),
+    VMSTATE_INT16(data_in_reg, IPMIKCS),
+    VMSTATE_INT16(cmd_reg, IPMIKCS),
+    VMSTATE_UINT8(waiting_rsp, IPMIKCS),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_IPMIKCS = {
     .name = TYPE_IPMI_INTERFACE_PREFIX "kcs",
     .version_id = 2,
     .minimum_version_id = 1,
     .post_load = ipmi_kcs_vmstate_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(obf_irq_set, IPMIKCS),
-        VMSTATE_BOOL(atn_irq_set, IPMIKCS),
-        VMSTATE_UNUSED_TEST(vmstate_kcs_before_version2, 1), /* Was use_irq */
-        VMSTATE_BOOL(irqs_enabled, IPMIKCS),
-        VMSTATE_UINT32(outpos, IPMIKCS),
-        VMSTATE_UINT32_V(outlen, IPMIKCS, 2),
-        VMSTATE_UINT8_ARRAY(outmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
-        VMSTATE_UINT32_V(inlen, IPMIKCS, 2),
-        VMSTATE_UINT8_ARRAY(inmsg, IPMIKCS, MAX_IPMI_MSG_SIZE),
-        VMSTATE_BOOL(write_end, IPMIKCS),
-        VMSTATE_UINT8(status_reg, IPMIKCS),
-        VMSTATE_UINT8(data_out_reg, IPMIKCS),
-        VMSTATE_INT16(data_in_reg, IPMIKCS),
-        VMSTATE_INT16(cmd_reg, IPMIKCS),
-        VMSTATE_UINT8(waiting_rsp, IPMIKCS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_IPMIKCS_fields,
 };
 
 void ipmi_kcs_get_fwinfo(IPMIKCS *ik, IPMIFwInfo *info)

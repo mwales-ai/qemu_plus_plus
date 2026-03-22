@@ -63,6 +63,10 @@ typedef struct Xive2RouterClass {
     uint32_t (*get_config)(Xive2Router *xrtr);
 } Xive2RouterClass;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int xive2_router_get_eas(Xive2Router *xrtr, uint8_t eas_blk, uint32_t eas_idx,
                         Xive2Eas *eas);
 int xive2_router_get_end(Xive2Router *xrtr, uint8_t end_blk, uint32_t end_idx,
@@ -154,4 +158,8 @@ void xive2_tm_pull_phys_ctx_ol(XivePresenter *xptr, XiveTCTX *tctx,
                                hwaddr offset, uint64_t value, unsigned size);
 void xive2_tm_ack_os_el(XivePresenter *xptr, XiveTCTX *tctx,
                         hwaddr offset, uint64_t value, unsigned size);
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* PPC_XIVE2_H */

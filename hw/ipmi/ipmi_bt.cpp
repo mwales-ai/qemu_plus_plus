@@ -95,7 +95,7 @@ static void ipmi_bt_lower_irq(IPMIBT *ib)
 static void ipmi_bt_handle_event(IPMIInterface *ii)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = static_cast<IPMIBT *>(iic->get_backend_data(ii));
 
     if (ib->inlen < 4) {
         return;
@@ -151,7 +151,7 @@ static void ipmi_bt_handle_rsp(IPMIInterface *ii, uint8_t msg_id,
                                 unsigned char *rsp, unsigned int rsp_len)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = static_cast<IPMIBT *>(iic->get_backend_data(ii));
 
     if (ib->waiting_rsp == msg_id) {
         ib->waiting_rsp++;
@@ -182,9 +182,9 @@ static void ipmi_bt_handle_rsp(IPMIInterface *ii, uint8_t msg_id,
 
 static uint64_t ipmi_bt_ioport_read(void *opaque, hwaddr addr, unsigned size)
 {
-    IPMIInterface *ii = opaque;
+    IPMIInterface *ii = static_cast<IPMIInterface *>(opaque);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = static_cast<IPMIBT *>(iic->get_backend_data(ii));
     uint32_t ret = 0xff;
 
     switch (addr & ib->size_mask) {
@@ -227,9 +227,9 @@ static void ipmi_bt_signal(IPMIBT *ib, IPMIInterface *ii)
 static void ipmi_bt_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                                  unsigned size)
 {
-    IPMIInterface *ii = opaque;
+    IPMIInterface *ii = static_cast<IPMIInterface *>(opaque);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = static_cast<IPMIBT *>(iic->get_backend_data(ii));
 
     switch (addr & ib->size_mask) {
     case 0:
@@ -295,17 +295,20 @@ static void ipmi_bt_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps ipmi_bt_io_ops = {
     .read = ipmi_bt_ioport_read,
     .write = ipmi_bt_ioport_write,
+    .read_with_attrs = nullptr,
+    .write_with_attrs = nullptr,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {},
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void ipmi_bt_set_atn(IPMIInterface *ii, int val, int irq)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = static_cast<IPMIBT *>(iic->get_backend_data(ii));
 
     if (!!val == IPMI_BT_GET_SMS_ATN(ib->control_reg)) {
         return;
@@ -330,7 +333,7 @@ static void ipmi_bt_set_atn(IPMIInterface *ii, int val, int irq)
 static void ipmi_bt_handle_reset(IPMIInterface *ii, bool is_cold)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = static_cast<IPMIBT *>(iic->get_backend_data(ii));
 
     if (is_cold) {
         /* Disable the BT interrupt on reset */
@@ -345,7 +348,7 @@ static void ipmi_bt_handle_reset(IPMIInterface *ii, bool is_cold)
 static void ipmi_bt_set_irq_enable(IPMIInterface *ii, int val)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = static_cast<IPMIBT *>(iic->get_backend_data(ii));
 
     ib->irqs_enabled = val;
 }
@@ -353,7 +356,7 @@ static void ipmi_bt_set_irq_enable(IPMIInterface *ii, int val)
 static void ipmi_bt_init(IPMIInterface *ii, unsigned int min_size, Error **errp)
 {
     IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
-    IPMIBT *ib = iic->get_backend_data(ii);
+    IPMIBT *ib = static_cast<IPMIBT *>(iic->get_backend_data(ii));
 
     if (min_size == 0) {
         min_size = 4;
@@ -367,7 +370,7 @@ static void ipmi_bt_init(IPMIInterface *ii, unsigned int min_size, Error **errp)
 
 int ipmi_bt_vmstate_post_load(void *opaque, int version)
 {
-    IPMIBT *ib = opaque;
+    IPMIBT *ib = static_cast<IPMIBT *>(opaque);
 
     /* Make sure all the values are sane. */
     if (ib->outpos >= MAX_IPMI_MSG_SIZE || ib->outlen >= MAX_IPMI_MSG_SIZE ||
@@ -389,26 +392,28 @@ int ipmi_bt_vmstate_post_load(void *opaque, int version)
     return 0;
 }
 
+static const VMStateField vmstate_IPMIBT_fields[] = {
+    VMSTATE_BOOL(obf_irq_set, IPMIBT),
+    VMSTATE_BOOL(atn_irq_set, IPMIBT),
+    VMSTATE_BOOL(irqs_enabled, IPMIBT),
+    VMSTATE_UINT32(outpos, IPMIBT),
+    VMSTATE_UINT32(outlen, IPMIBT),
+    VMSTATE_UINT8_ARRAY(outmsg, IPMIBT, MAX_IPMI_MSG_SIZE),
+    VMSTATE_UINT32(inlen, IPMIBT),
+    VMSTATE_UINT8_ARRAY(inmsg, IPMIBT, MAX_IPMI_MSG_SIZE),
+    VMSTATE_UINT8(control_reg, IPMIBT),
+    VMSTATE_UINT8(mask_reg, IPMIBT),
+    VMSTATE_UINT8(waiting_rsp, IPMIBT),
+    VMSTATE_UINT8(waiting_seq, IPMIBT),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_IPMIBT = {
     .name = TYPE_IPMI_INTERFACE_PREFIX "bt",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ipmi_bt_vmstate_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(obf_irq_set, IPMIBT),
-        VMSTATE_BOOL(atn_irq_set, IPMIBT),
-        VMSTATE_BOOL(irqs_enabled, IPMIBT),
-        VMSTATE_UINT32(outpos, IPMIBT),
-        VMSTATE_UINT32(outlen, IPMIBT),
-        VMSTATE_UINT8_ARRAY(outmsg, IPMIBT, MAX_IPMI_MSG_SIZE),
-        VMSTATE_UINT32(inlen, IPMIBT),
-        VMSTATE_UINT8_ARRAY(inmsg, IPMIBT, MAX_IPMI_MSG_SIZE),
-        VMSTATE_UINT8(control_reg, IPMIBT),
-        VMSTATE_UINT8(mask_reg, IPMIBT),
-        VMSTATE_UINT8(waiting_rsp, IPMIBT),
-        VMSTATE_UINT8(waiting_seq, IPMIBT),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_IPMIBT_fields,
 };
 
 void ipmi_bt_get_fwinfo(struct IPMIBT *ib, IPMIFwInfo *info)

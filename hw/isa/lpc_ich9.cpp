@@ -263,7 +263,7 @@ static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
 
 static void ich9_lpc_set_irq(void *opaque, int pirq, int level)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
     int pic_irq, pic_dis;
 
     assert(0 <= pirq);
@@ -290,7 +290,7 @@ static int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx)
 
 static PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
     PCIINTxRoute route;
     int pic_irq;
     int pic_dis;
@@ -361,7 +361,7 @@ static int ich9_lpc_sci_irq(ICH9LPCState *lpc)
 
 static void ich9_set_sci(void *opaque, int irq_num, int level)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
     int irq;
 
     assert(irq_num == 0);
@@ -385,7 +385,7 @@ static void ich9_set_sci(void *opaque, int irq_num, int level)
 
 static void smi_features_ok_callback(void *opaque)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
     uint64_t guest_features;
     uint64_t guest_cpu_hotplug_features;
 
@@ -462,7 +462,7 @@ static void ich9_lpc_pm_init(ICH9LPCState *lpc)
 
 static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
 {
-    ICH9LPCState *lpc = arg;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(arg);
 
     /* ACPI specs 3.0, 4.7.2.5 */
     acpi_pm1_cnt_update(&lpc->pm.acpi_regs,
@@ -555,7 +555,7 @@ ich9_lpc_pmcon_update(ICH9LPCState *lpc)
 
 static int ich9_lpc_post_load(void *opaque, int version_id)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
 
     ich9_lpc_pmbase_sci_update(lpc);
     ich9_lpc_rcba_update(lpc, 0 /* disabled ICH9_LPC_RCBA_EN */);
@@ -657,7 +657,7 @@ static void ich9_lpc_machine_ready(Notifier *n, void *opaque)
 static void ich9_rst_cnt_write(void *opaque, hwaddr addr, uint64_t val,
                                unsigned len)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
 
     if (val & 4) {
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
@@ -668,7 +668,7 @@ static void ich9_rst_cnt_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t ich9_rst_cnt_read(void *opaque, hwaddr addr, unsigned len)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
 
     return lpc->rst_cnt;
 }
@@ -771,43 +771,62 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
 
 static bool ich9_rst_cnt_needed(void *opaque)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
 
     return (lpc->rst_cnt != 0);
 }
+
+static const VMStateField vmstate_ich9_rst_cnt_fields[] = {
+    VMSTATE_UINT8(rst_cnt, ICH9LPCState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_ich9_rst_cnt = {
     .name = "ICH9LPC/rst_cnt",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ich9_rst_cnt_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(rst_cnt, ICH9LPCState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ich9_rst_cnt_fields,
 };
 
 static bool ich9_smi_feat_needed(void *opaque)
 {
-    ICH9LPCState *lpc = opaque;
+    ICH9LPCState *lpc = static_cast<ICH9LPCState *>(opaque);
 
     return !buffer_is_zero(lpc->smi_guest_features_le,
                            sizeof lpc->smi_guest_features_le) ||
            lpc->smi_features_ok;
 }
 
+static const VMStateField vmstate_ich9_smi_feat_fields[] = {
+    VMSTATE_UINT8_ARRAY(smi_guest_features_le, ICH9LPCState,
+                        sizeof(uint64_t)),
+    VMSTATE_UINT8(smi_features_ok, ICH9LPCState),
+    VMSTATE_UINT64(smi_negotiated_features, ICH9LPCState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ich9_smi_feat = {
     .name = "ICH9LPC/smi_feat",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ich9_smi_feat_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(smi_guest_features_le, ICH9LPCState,
-                            sizeof(uint64_t)),
-        VMSTATE_UINT8(smi_features_ok, ICH9LPCState),
-        VMSTATE_UINT64(smi_negotiated_features, ICH9LPCState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ich9_smi_feat_fields,
+};
+
+static const VMStateField vmstate_ich9_lpc_fields[] = {
+    VMSTATE_PCI_DEVICE(d, ICH9LPCState),
+    VMSTATE_STRUCT(apm, ICH9LPCState, 0, vmstate_apm, APMState),
+    VMSTATE_STRUCT(pm, ICH9LPCState, 0, vmstate_ich9_pm, ICH9LPCPMRegs),
+    VMSTATE_UINT8_ARRAY(chip_config, ICH9LPCState, ICH9_CC_SIZE),
+    VMSTATE_UINT32(sci_level, ICH9LPCState),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_ich9_lpc_subsections[] = {
+    &vmstate_ich9_rst_cnt,
+    &vmstate_ich9_smi_feat,
+    NULL
 };
 
 static const VMStateDescription vmstate_ich9_lpc = {
@@ -815,19 +834,8 @@ static const VMStateDescription vmstate_ich9_lpc = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ich9_lpc_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(d, ICH9LPCState),
-        VMSTATE_STRUCT(apm, ICH9LPCState, 0, vmstate_apm, APMState),
-        VMSTATE_STRUCT(pm, ICH9LPCState, 0, vmstate_ich9_pm, ICH9LPCPMRegs),
-        VMSTATE_UINT8_ARRAY(chip_config, ICH9LPCState, ICH9_CC_SIZE),
-        VMSTATE_UINT32(sci_level, ICH9LPCState),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_ich9_rst_cnt,
-        &vmstate_ich9_smi_feat,
-        NULL
-    }
+    .fields = vmstate_ich9_lpc_fields,
+    .subsections = vmstate_ich9_lpc_subsections,
 };
 
 static const Property ich9_lpc_properties[] = {
@@ -913,19 +921,21 @@ static void ich9_lpc_class_init(ObjectClass *klass, const void *data)
     amldevc->build_dev_aml = build_ich9_isa_aml;
 }
 
+static const InterfaceInfo ich9_lpc_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { TYPE_ACPI_DEVICE_IF },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { TYPE_ACPI_DEV_AML_IF },
+    { }
+};
+
 static const TypeInfo ich9_lpc_info = {
     .name       = TYPE_ICH9_LPC_DEVICE,
     .parent     = TYPE_PCI_DEVICE,
     .instance_size = sizeof(ICH9LPCState),
     .instance_init = ich9_lpc_initfn,
     .class_init  = ich9_lpc_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { TYPE_ACPI_DEVICE_IF },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { TYPE_ACPI_DEV_AML_IF },
-        { }
-    }
+    .interfaces = ich9_lpc_interfaces,
 };
 
 static void ich9_lpc_register(void)

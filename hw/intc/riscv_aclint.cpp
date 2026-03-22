@@ -48,7 +48,7 @@ static uint64_t cpu_riscv_read_rtc_raw(uint32_t timebase_freq)
 
 static uint64_t cpu_riscv_read_rtc(void *opaque)
 {
-    RISCVAclintMTimerState *mtimer = opaque;
+    RISCVAclintMTimerState *mtimer = static_cast<RISCVAclintMTimerState *>(opaque);
     return cpu_riscv_read_rtc_raw(mtimer->timebase_freq) + mtimer->time_delta;
 }
 
@@ -116,7 +116,7 @@ static void riscv_aclint_mtimer_write_timecmp(RISCVAclintMTimerState *mtimer,
  */
 static void riscv_aclint_mtimer_cb(void *opaque)
 {
-    riscv_aclint_mtimer_callback *state = opaque;
+    riscv_aclint_mtimer_callback *state = static_cast<riscv_aclint_mtimer_callback *>(opaque);
 
     qemu_irq_raise(state->s->timer_irqs[state->num]);
 }
@@ -125,7 +125,7 @@ static void riscv_aclint_mtimer_cb(void *opaque)
 static uint64_t riscv_aclint_mtimer_read(void *opaque, hwaddr addr,
     unsigned size)
 {
-    RISCVAclintMTimerState *mtimer = opaque;
+    RISCVAclintMTimerState *mtimer = static_cast<RISCVAclintMTimerState *>(opaque);
 
     if (addr >= mtimer->timecmp_base &&
         addr < (mtimer->timecmp_base + (mtimer->num_harts << 3))) {
@@ -167,7 +167,7 @@ static uint64_t riscv_aclint_mtimer_read(void *opaque, hwaddr addr,
 static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
     uint64_t value, unsigned size)
 {
-    RISCVAclintMTimerState *mtimer = opaque;
+    RISCVAclintMTimerState *mtimer = static_cast<RISCVAclintMTimerState *>(opaque);
     int i;
 
     if (addr >= mtimer->timecmp_base &&
@@ -259,12 +259,12 @@ static const MemoryRegionOps riscv_aclint_mtimer_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
-        .max_access_size = 8
+        .max_access_size = 8,
     },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 8,
-    }
+    },
 };
 
 static const Property riscv_aclint_mtimer_properties[] = {
@@ -326,19 +326,21 @@ static void riscv_aclint_mtimer_reset_enter(Object *obj, ResetType type)
     riscv_aclint_mtimer_write(mtimer, mtimer->time_base, 0, 8);
 }
 
+static const VMStateField vmstate_riscv_mtimer_fields[] = {
+    VMSTATE_UINT64(time_delta, RISCVAclintMTimerState),
+    VMSTATE_VARRAY_UINT32(timecmp, RISCVAclintMTimerState,
+                          num_harts, 0,
+                          vmstate_info_uint64, uint64_t),
+    VMSTATE_TIMER_PTR_VARRAY(timers, RISCVAclintMTimerState,
+                             num_harts),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_riscv_mtimer = {
     .name = "riscv_mtimer",
     .version_id = 3,
     .minimum_version_id = 3,
-    .fields = (const VMStateField[]) {
-            VMSTATE_UINT64(time_delta, RISCVAclintMTimerState),
-            VMSTATE_VARRAY_UINT32(timecmp, RISCVAclintMTimerState,
-                                  num_harts, 0,
-                                  vmstate_info_uint64, uint64_t),
-            VMSTATE_TIMER_PTR_VARRAY(timers, RISCVAclintMTimerState,
-                                     num_harts),
-            VMSTATE_END_OF_LIST()
-        }
+    .fields = vmstate_riscv_mtimer_fields,
 };
 
 static void riscv_aclint_mtimer_class_init(ObjectClass *klass, const void *data)
@@ -416,7 +418,7 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
 static uint64_t riscv_aclint_swi_read(void *opaque, hwaddr addr,
     unsigned size)
 {
-    RISCVAclintSwiState *swi = opaque;
+    RISCVAclintSwiState *swi = static_cast<RISCVAclintSwiState *>(opaque);
 
     if (addr < (swi->num_harts << 2)) {
         size_t hartid = swi->hartid_base + (addr >> 2);
@@ -439,7 +441,7 @@ static uint64_t riscv_aclint_swi_read(void *opaque, hwaddr addr,
 static void riscv_aclint_swi_write(void *opaque, hwaddr addr, uint64_t value,
         unsigned size)
 {
-    RISCVAclintSwiState *swi = opaque;
+    RISCVAclintSwiState *swi = static_cast<RISCVAclintSwiState *>(opaque);
 
     if (addr < (swi->num_harts << 2)) {
         size_t hartid = swi->hartid_base + (addr >> 2);
