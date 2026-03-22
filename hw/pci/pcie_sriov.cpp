@@ -270,7 +270,7 @@ int16_t pcie_sriov_pf_init_from_user_created_vfs(PCIDevice *dev,
         return 0;
     }
 
-    pf = g_hash_table_lookup(pfs, dev->qdev.id);
+    pf = static_cast<GPtrArray *>(g_hash_table_lookup(pfs, dev->qdev.id));
     if (!pf) {
         return 0;
     }
@@ -281,7 +281,7 @@ int16_t pcie_sriov_pf_init_from_user_created_vfs(PCIDevice *dev,
     }
 
     g_ptr_array_sort(pf, compare_vf_devfns);
-    vfs = (void *)pf->pdata;
+    vfs = (PCIDevice **)pf->pdata;
 
     if (vfs[0]->devfn <= dev->devfn) {
         error_setg(errp, "a VF function number is less than the PF function number");
@@ -386,7 +386,7 @@ bool pcie_sriov_register_device(PCIDevice *dev, Error **errp)
             pfs = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
         }
 
-        pf = g_hash_table_lookup(pfs, dev->sriov_pf);
+        pf = static_cast<GPtrArray *>(g_hash_table_lookup(pfs, dev->sriov_pf));
         if (!pf) {
             pf = g_ptr_array_new();
             g_hash_table_insert(pfs, g_strdup(dev->sriov_pf), pf);
@@ -401,7 +401,7 @@ bool pcie_sriov_register_device(PCIDevice *dev, Error **errp)
 void pcie_sriov_unregister_device(PCIDevice *dev)
 {
     if (dev->sriov_pf && pfs) {
-        GPtrArray *pf = g_hash_table_lookup(pfs, dev->sriov_pf);
+        GPtrArray *pf = static_cast<GPtrArray *>(g_hash_table_lookup(pfs, dev->sriov_pf));
 
         if (pf) {
             g_ptr_array_remove_fast(pf, dev);

@@ -101,22 +101,24 @@ static const Property pci_props[] = {
     { .name = "busnr", .info = &prop_pci_busnr },
 };
 
+static const VMStateField vmstate_pcibus_fields[] = {
+    VMSTATE_INT32_EQUAL(nirq, PCIBus, NULL),
+    VMSTATE_VARRAY_INT32(irq_count, PCIBus,
+                         nirq, 0, vmstate_info_int32,
+                         int32_t),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pcibus = {
     .name = "PCIBUS",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32_EQUAL(nirq, PCIBus, NULL),
-        VMSTATE_VARRAY_INT32(irq_count, PCIBus,
-                             nirq, 0, vmstate_info_int32,
-                             int32_t),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pcibus_fields,
 };
 
 static gint g_cmp_uint32(gconstpointer a, gconstpointer b, gpointer user_data)
 {
-    return a - b;
+    return GPOINTER_TO_INT(a) - GPOINTER_TO_INT(b);
 }
 
 static GSequence *pci_acpi_index_list(void)
@@ -185,12 +187,12 @@ static void pcie_bus_realize(BusState *qbus, Error **errp)
      * bus, or if the bus/bridge above it does as well
      */
     if (pci_bus_is_root(bus)) {
-        bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+        bus->flags = static_cast<PCIBusFlags>(bus->flags | PCI_BUS_EXTENDED_CONFIG_SPACE);
     } else {
         PCIBus *parent_bus = pci_get_bus(bus->parent_dev);
 
         if (pci_bus_allows_extended_config_space(parent_bus)) {
-            bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+            bus->flags = static_cast<PCIBusFlags>(bus->flags | PCI_BUS_EXTENDED_CONFIG_SPACE);
         }
     }
 }
@@ -257,7 +259,7 @@ static GByteArray *pci_bus_fw_cfg_gen_data(Object *obj, Error **errp)
 
     byte_array = g_byte_array_new();
     g_byte_array_append(byte_array,
-                        (const void *)&extra_hosts, sizeof(extra_hosts));
+                        reinterpret_cast<const guint8 *>(&extra_hosts), sizeof(extra_hosts));
 
     return byte_array;
 }
@@ -283,16 +285,18 @@ static void pci_bus_class_init(ObjectClass *klass, const void *data)
     fwgc->get_data = pci_bus_fw_cfg_gen_data;
 }
 
+static const InterfaceInfo pci_bus_interfaces[] = {
+    { TYPE_FW_CFG_DATA_GENERATOR_INTERFACE },
+    { }
+};
+
 static const TypeInfo pci_bus_info = {
     .name = TYPE_PCI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(PCIBus),
     .class_size = sizeof(PCIBusClass),
     .class_init = pci_bus_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_FW_CFG_DATA_GENERATOR_INTERFACE },
-        { }
-    }
+    .interfaces = pci_bus_interfaces,
 };
 
 static const TypeInfo cxl_interface_info = {
@@ -478,15 +482,15 @@ static uint8_t pci_pm_state(PCIDevice *d)
 static uint8_t pci_pm_update(PCIDevice *d, uint32_t addr, int l, uint8_t old)
 {
     uint16_t pmc;
-    uint8_t new;
+    uint8_t new_state;
 
     if (!(d->cap_present & QEMU_PCI_CAP_PM) ||
         !range_covers_byte(addr, l, d->pm_cap + PCI_PM_CTRL)) {
         return old;
     }
 
-    new = pci_pm_state(d);
-    if (new == old) {
+    new_state = pci_pm_state(d);
+    if (new_state == old) {
         return old;
     }
 
@@ -496,22 +500,22 @@ static uint8_t pci_pm_update(PCIDevice *d, uint32_t addr, int l, uint8_t old)
      * Transitions to D1 & D2 are only allowed if supported.  Devices may
      * only transition to higher D-states or to D0.
      */
-    if ((!(pmc & PCI_PM_CAP_D1) && new == 1) ||
-        (!(pmc & PCI_PM_CAP_D2) && new == 2) ||
-        (old && new && new < old)) {
+    if ((!(pmc & PCI_PM_CAP_D1) && new_state == 1) ||
+        (!(pmc & PCI_PM_CAP_D2) && new_state == 2) ||
+        (old && new_state && new_state < old)) {
         pci_word_test_and_clear_mask(d->config + d->pm_cap + PCI_PM_CTRL,
                                      PCI_PM_CTRL_STATE_MASK);
         pci_word_test_and_set_mask(d->config + d->pm_cap + PCI_PM_CTRL,
                                    old);
         trace_pci_pm_bad_transition(d->name, pci_dev_bus_num(d),
                                     PCI_SLOT(d->devfn), PCI_FUNC(d->devfn),
-                                    old, new);
+                                    old, new_state);
         return old;
     }
 
     trace_pci_pm_transition(d->name, pci_dev_bus_num(d), PCI_SLOT(d->devfn),
-                            PCI_FUNC(d->devfn), old, new);
-    return new;
+                            PCI_FUNC(d->devfn), old, new_state);
+    return new_state;
 }
 
 static void pci_reset_regions(PCIDevice *dev)
@@ -669,7 +673,7 @@ static void pci_root_bus_internal_init(PCIBus *bus, DeviceState *parent,
     bus->slot_reserved_mask = 0x0;
     bus->address_space_mem = mem;
     bus->address_space_io = io;
-    bus->flags |= PCI_BUS_IS_ROOT;
+    bus->flags = static_cast<PCIBusFlags>(bus->flags | PCI_BUS_IS_ROOT);
 
     /* host bridge */
     QLIST_INIT(&bus->child);
@@ -721,7 +725,7 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq,
     bus->irq_opaque = irq_opaque;
     bus->nirq = nirq;
     g_free(bus->irq_count);
-    bus->irq_count = g_malloc0(nirq * sizeof(bus->irq_count[0]));
+    bus->irq_count = static_cast<int32_t *>(g_malloc0(nirq * sizeof(bus->irq_count[0])));
 }
 
 void pci_bus_map_irqs(PCIBus *bus, pci_map_irq_fn map_irq)
@@ -789,12 +793,12 @@ int pci_bus_numa_node(PCIBus *bus)
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
                                  const VMStateField *field)
 {
-    PCIDevice *s = container_of(pv, PCIDevice, config);
+    PCIDevice *s = container_of(static_cast<uint8_t * const *>(pv), PCIDevice, config);
     uint8_t *config;
     int i;
 
     assert(size == pci_config_size(s));
-    config = g_malloc(size);
+    config = static_cast<uint8_t *>(g_malloc(size));
 
     qemu_get_buffer(f, config, size);
     for (i = 0; i < size; ++i) {
@@ -826,8 +830,8 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size,
 static int put_pci_config_device(QEMUFile *f, void *pv, size_t size,
                                  const VMStateField *field, JSONWriter *vmdesc)
 {
-    const uint8_t **v = pv;
-    assert(size == pci_config_size(container_of(pv, PCIDevice, config)));
+    const uint8_t **v = static_cast<const uint8_t **>(pv);
+    assert(size == pci_config_size(container_of(static_cast<uint8_t * const *>(pv), PCIDevice, config)));
     qemu_put_buffer(f, *v, size);
 
     return 0;
@@ -842,7 +846,7 @@ static const VMStateInfo vmstate_info_pci_config = {
 static int get_pci_irq_state(QEMUFile *f, void *pv, size_t size,
                              const VMStateField *field)
 {
-    PCIDevice *s = container_of(pv, PCIDevice, irq_state);
+    PCIDevice *s = container_of(static_cast<const uint8_t *>(pv), PCIDevice, irq_state);
     uint32_t irq_state[PCI_NUM_PINS];
     int i;
     for (i = 0; i < PCI_NUM_PINS; ++i) {
@@ -865,7 +869,7 @@ static int put_pci_irq_state(QEMUFile *f, void *pv, size_t size,
                              const VMStateField *field, JSONWriter *vmdesc)
 {
     int i;
-    PCIDevice *s = container_of(pv, PCIDevice, irq_state);
+    PCIDevice *s = container_of(static_cast<const uint8_t *>(pv), PCIDevice, irq_state);
 
     for (i = 0; i < PCI_NUM_PINS; ++i) {
         qemu_put_be32(f, pci_irq_state(s, i));
@@ -892,30 +896,32 @@ static bool migrate_is_not_pcie(void *opaque, int version_id)
 
 static int pci_post_load(void *opaque, int version_id)
 {
-    pcie_sriov_pf_post_load(opaque);
+    pcie_sriov_pf_post_load(static_cast<PCIDevice *>(opaque));
     return 0;
 }
+
+static const VMStateField vmstate_pci_device_fields[] = {
+    VMSTATE_INT32_POSITIVE_LE(version_id, PCIDevice),
+    VMSTATE_BUFFER_UNSAFE_INFO_TEST(config, PCIDevice,
+                               migrate_is_not_pcie,
+                               0, vmstate_info_pci_config,
+                               PCI_CONFIG_SPACE_SIZE),
+    VMSTATE_BUFFER_UNSAFE_INFO_TEST(config, PCIDevice,
+                               migrate_is_pcie,
+                               0, vmstate_info_pci_config,
+                               PCIE_CONFIG_SPACE_SIZE),
+    VMSTATE_BUFFER_UNSAFE_INFO(irq_state, PCIDevice, 2,
+                               vmstate_info_pci_irq_state,
+                               PCI_NUM_PINS * sizeof(int32_t)),
+    VMSTATE_END_OF_LIST()
+};
 
 const VMStateDescription vmstate_pci_device = {
     .name = "PCIDevice",
     .version_id = 2,
     .minimum_version_id = 1,
     .post_load = pci_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32_POSITIVE_LE(version_id, PCIDevice),
-        VMSTATE_BUFFER_UNSAFE_INFO_TEST(config, PCIDevice,
-                                   migrate_is_not_pcie,
-                                   0, vmstate_info_pci_config,
-                                   PCI_CONFIG_SPACE_SIZE),
-        VMSTATE_BUFFER_UNSAFE_INFO_TEST(config, PCIDevice,
-                                   migrate_is_pcie,
-                                   0, vmstate_info_pci_config,
-                                   PCIE_CONFIG_SPACE_SIZE),
-        VMSTATE_BUFFER_UNSAFE_INFO(irq_state, PCIDevice, 2,
-                                   vmstate_info_pci_irq_state,
-                                   PCI_NUM_PINS * sizeof(int32_t)),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_device_fields,
 };
 
 
@@ -1177,11 +1183,11 @@ static void pci_config_alloc(PCIDevice *pci_dev)
 {
     int config_size = pci_config_size(pci_dev);
 
-    pci_dev->config = g_malloc0(config_size);
-    pci_dev->cmask = g_malloc0(config_size);
-    pci_dev->wmask = g_malloc0(config_size);
-    pci_dev->w1cmask = g_malloc0(config_size);
-    pci_dev->used = g_malloc0(config_size);
+    pci_dev->config = static_cast<uint8_t *>(g_malloc0(config_size));
+    pci_dev->cmask = static_cast<uint8_t *>(g_malloc0(config_size));
+    pci_dev->wmask = static_cast<uint8_t *>(g_malloc0(config_size));
+    pci_dev->w1cmask = static_cast<uint8_t *>(g_malloc0(config_size));
+    pci_dev->used = static_cast<uint8_t *>(g_malloc0(config_size));
 }
 
 static void pci_config_free(PCIDevice *pci_dev)
@@ -1822,7 +1828,7 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val_in, int 
 /* 0 <= irq_num <= 3. level must be 0 or 1 */
 static void pci_irq_handler(void *opaque, int irq_num, int level)
 {
-    PCIDevice *pci_dev = opaque;
+    PCIDevice *pci_dev = static_cast<PCIDevice *>(opaque);
     int change;
 
     assert(0 <= irq_num && irq_num < PCI_NUM_PINS);
@@ -1876,7 +1882,8 @@ PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin)
     if (!bus->route_intx_to_irq) {
         error_report("PCI: Bug - unimplemented PCI INTx routing (%s)",
                      object_get_typename(OBJECT(bus->qbus.parent)));
-        return (PCIINTxRoute) { PCI_INTX_DISABLED, -1 };
+        PCIINTxRoute disabled_route = { PCI_INTX_DISABLED, -1 };
+        return disabled_route;
     }
 
     return bus->route_intx_to_irq(bus->irq_opaque, pin);
@@ -2534,7 +2541,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
          * Load rom via fw_cfg instead of creating a rom bar,
          * for 0.11 compatibility.
          */
-        int class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
+        int klass = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
 
         /*
          * Hot-plugged devices can't use the option ROM
@@ -2546,7 +2553,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
             return;
         }
 
-        if (class == 0x0300) {
+        if (klass == 0x0300) {
             rom_add_vga(pdev->romfile);
         } else {
             rom_add_option(pdev->romfile, -1);
@@ -2611,7 +2618,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
 
         if (is_default_rom) {
             /* Only the default rom images will be patched (if needed). */
-            pci_patch_ids(pdev, ptr, size);
+            pci_patch_ids(pdev, static_cast<uint8_t *>(ptr), size);
         }
     }
 
@@ -2771,7 +2778,7 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     path_len = root_bus_len + slot_len * slot_depth;
 
     /* Allocate memory, fill in the terminating null byte. */
-    path = g_malloc(path_len + 1 /* For '\0' */);
+    path = static_cast<char *>(g_malloc(path_len + 1 /* For '\0' */));
     path[path_len] = '\0';
 
     memcpy(path, root_bus_path, root_bus_len);
@@ -3212,7 +3219,7 @@ void pci_setup_iommu_per_bus(PCIBus *bus, const PCIIOMMUOps *ops,
 
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
-    Range *range = opaque;
+    Range *range = static_cast<Range *>(opaque);
     uint16_t cmd = pci_get_word(dev->config + PCI_COMMAND);
     int i;
 

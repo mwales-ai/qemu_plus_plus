@@ -137,24 +137,26 @@ static void pci_vpb_update_all_windows(PCIVPBState *s)
 
 static int pci_vpb_post_load(void *opaque, int version_id)
 {
-    PCIVPBState *s = opaque;
+    PCIVPBState *s = static_cast<PCIVPBState *>(opaque);
     pci_vpb_update_all_windows(s);
     return 0;
 }
+
+static const VMStateField pci_vpb_vmstate_fields[] = {
+    VMSTATE_UINT32_ARRAY(imap, PCIVPBState, 3),
+    VMSTATE_UINT32_ARRAY(smap, PCIVPBState, 3),
+    VMSTATE_UINT32(selfid, PCIVPBState),
+    VMSTATE_UINT32(flags, PCIVPBState),
+    VMSTATE_UINT8(irq_mapping, PCIVPBState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription pci_vpb_vmstate = {
     .name = "versatile-pci",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = pci_vpb_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(imap, PCIVPBState, 3),
-        VMSTATE_UINT32_ARRAY(smap, PCIVPBState, 3),
-        VMSTATE_UINT32(selfid, PCIVPBState),
-        VMSTATE_UINT32(flags, PCIVPBState),
-        VMSTATE_UINT8(irq_mapping, PCIVPBState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = pci_vpb_vmstate_fields,
 };
 
 #define TYPE_VERSATILE_PCI "versatile_pci"
@@ -179,7 +181,7 @@ typedef enum {
 static void pci_vpb_reg_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
-    PCIVPBState *s = opaque;
+    PCIVPBState *s = static_cast<PCIVPBState *>(opaque);
 
     switch (addr) {
     case PCI_IMAP0:
@@ -215,7 +217,7 @@ static void pci_vpb_reg_write(void *opaque, hwaddr addr,
 static uint64_t pci_vpb_reg_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    PCIVPBState *s = opaque;
+    PCIVPBState *s = static_cast<PCIVPBState *>(opaque);
 
     switch (addr) {
     case PCI_IMAP0:
@@ -247,10 +249,7 @@ static const MemoryRegionOps pci_vpb_reg_ops = {
     .read = pci_vpb_reg_read,
     .write = pci_vpb_reg_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
+    .valid = { 4, 4 },
 };
 
 static int pci_vpb_broken_irq(int slot, int irq)
@@ -291,7 +290,7 @@ static int pci_vpb_broken_irq(int slot, int irq)
 static void pci_vpb_config_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-    PCIVPBState *s = opaque;
+    PCIVPBState *s = static_cast<PCIVPBState *>(opaque);
     if (!s->realview && (addr & 0xff) == PCI_INTERRUPT_LINE
         && s->irq_mapping == PCI_VPB_IRQMAP_ASSUME_OK) {
         uint8_t devfn = addr >> 8;
@@ -303,7 +302,7 @@ static void pci_vpb_config_write(void *opaque, hwaddr addr,
 static uint64_t pci_vpb_config_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-    PCIVPBState *s = opaque;
+    PCIVPBState *s = static_cast<PCIVPBState *>(opaque);
     uint32_t val;
     val = pci_data_read(&s->pci_bus, addr, size);
     return val;
@@ -362,7 +361,7 @@ static int pci_vpb_rv_map_irq(PCIDevice *d, int irq_num)
 
 static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
 {
-    qemu_irq *pic = opaque;
+    qemu_irq *pic = static_cast<qemu_irq *>(opaque);
 
     qemu_set_irq(pic[irq_num], level);
 }
@@ -487,15 +486,17 @@ static void versatile_pci_host_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo versatile_pci_host_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo versatile_pci_host_info = {
     .name          = TYPE_VERSATILE_PCI_HOST,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = versatile_pci_host_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = versatile_pci_host_interfaces,
 };
 
 static const Property pci_vpb_properties[] = {

@@ -38,7 +38,7 @@ static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pci_unin_set_irq(void *opaque, int irq_num, int level)
 {
-    UNINHostState *s = opaque;
+    UNINHostState *s = static_cast<UNINHostState *>(opaque);
 
     trace_unin_set_irq(irq_num, level);
     qemu_set_irq(s->irqs[irq_num], level);
@@ -79,7 +79,7 @@ static uint32_t unin_get_config_reg(uint32_t reg, uint32_t addr)
 static void unin_data_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned len)
 {
-    UNINHostState *s = opaque;
+    UNINHostState *s = static_cast<UNINHostState *>(opaque);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     trace_unin_data_write(addr, len, val);
     pci_data_write(phb->bus,
@@ -90,7 +90,7 @@ static void unin_data_write(void *opaque, hwaddr addr,
 static uint64_t unin_data_read(void *opaque, hwaddr addr,
                                unsigned len)
 {
-    UNINHostState *s = opaque;
+    UNINHostState *s = static_cast<UNINHostState *>(opaque);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t val;
 
@@ -328,15 +328,17 @@ static void unin_main_pci_host_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo unin_main_pci_host_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo unin_main_pci_host_info = {
     .name = "uni-north-pci",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = unin_main_pci_host_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = unin_main_pci_host_interfaces,
 };
 
 static void u3_agp_pci_host_class_init(ObjectClass *klass, const void *data)
@@ -356,15 +358,17 @@ static void u3_agp_pci_host_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo u3_agp_pci_host_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo u3_agp_pci_host_info = {
     .name = "u3-agp",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = u3_agp_pci_host_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = u3_agp_pci_host_interfaces,
 };
 
 static void unin_agp_pci_host_class_init(ObjectClass *klass, const void *data)
@@ -384,15 +388,17 @@ static void unin_agp_pci_host_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo unin_agp_pci_host_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo unin_agp_pci_host_info = {
     .name = "uni-north-agp",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = unin_agp_pci_host_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = unin_agp_pci_host_interfaces,
 };
 
 static void unin_internal_pci_host_class_init(ObjectClass *klass,
@@ -413,15 +419,17 @@ static void unin_internal_pci_host_class_init(ObjectClass *klass,
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo unin_internal_pci_host_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo unin_internal_pci_host_info = {
     .name = "uni-north-internal-pci",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init = unin_internal_pci_host_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = unin_internal_pci_host_interfaces,
 };
 
 static const Property pci_unin_main_pci_host_props[] = {

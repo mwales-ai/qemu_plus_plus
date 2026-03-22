@@ -212,7 +212,7 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
 static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    PCIDevice *dev = opaque;
+    PCIDevice *dev = static_cast<PCIDevice *>(opaque);
 
     assert(addr + size <= dev->msix_entries_nr * PCI_MSIX_ENTRY_SIZE);
     return pci_get_long(dev->msix_table + addr);
@@ -221,7 +221,7 @@ static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
 static void msix_table_mmio_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
-    PCIDevice *dev = opaque;
+    PCIDevice *dev = static_cast<PCIDevice *>(opaque);
     int vector = addr / PCI_MSIX_ENTRY_SIZE;
     bool was_masked;
 
@@ -236,19 +236,14 @@ static const MemoryRegionOps msix_table_mmio_ops = {
     .read = msix_table_mmio_read,
     .write = msix_table_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .max_access_size = 4,
-    },
+    .valid = { 4, 8 },
+    .impl = { 0, 4 },
 };
 
 static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    PCIDevice *dev = opaque;
+    PCIDevice *dev = static_cast<PCIDevice *>(opaque);
     if (dev->msix_vector_poll_notifier) {
         unsigned vector_start = addr * 8;
         unsigned vector_end = MIN((addr + size) * 8, dev->msix_entries_nr);
@@ -261,7 +256,7 @@ static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
 static void msix_pba_mmio_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    PCIDevice *dev = opaque;
+    PCIDevice *dev = static_cast<PCIDevice *>(opaque);
 
     qemu_log_mask(LOG_GUEST_ERROR,
                   "PCI [%s:%02x:%02x.%x] attempt to write to MSI-X "
@@ -275,13 +270,8 @@ static const MemoryRegionOps msix_pba_mmio_ops = {
     .read = msix_pba_mmio_read,
     .write = msix_pba_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .max_access_size = 4,
-    },
+    .valid = { 4, 8 },
+    .impl = { 0, 4 },
 };
 
 static void msix_mask_all(struct PCIDevice *dev, unsigned nentries)
@@ -374,9 +364,9 @@ int msix_init(struct PCIDevice *dev, uint32_t nentries,
     dev->wmask[cap + MSIX_CONTROL_OFFSET] |= MSIX_ENABLE_MASK |
                                              MSIX_MASKALL_MASK;
 
-    dev->msix_table = g_malloc0(table_size);
-    dev->msix_pba = g_malloc0(pba_size);
-    dev->msix_entry_used = g_malloc0(nentries * sizeof *dev->msix_entry_used);
+    dev->msix_table = static_cast<uint8_t *>(g_malloc0(table_size));
+    dev->msix_pba = static_cast<uint8_t *>(g_malloc0(pba_size));
+    dev->msix_entry_used = static_cast<unsigned *>(g_malloc0(nentries * sizeof *dev->msix_entry_used));
 
     msix_mask_all(dev, nentries);
 
@@ -688,7 +678,7 @@ void msix_unset_vector_notifiers(PCIDevice *dev)
 static int put_msix_state(QEMUFile *f, void *pv, size_t size,
                           const VMStateField *field, JSONWriter *vmdesc)
 {
-    msix_save(pv, f);
+    msix_save(static_cast<PCIDevice *>(pv), f);
 
     return 0;
 }
@@ -696,7 +686,7 @@ static int put_msix_state(QEMUFile *f, void *pv, size_t size,
 static int get_msix_state(QEMUFile *f, void *pv, size_t size,
                           const VMStateField *field)
 {
-    msix_load(pv, f);
+    msix_load(static_cast<PCIDevice *>(pv), f);
     return 0;
 }
 
@@ -706,18 +696,20 @@ static const VMStateInfo vmstate_info_msix = {
     .put  = put_msix_state,
 };
 
+static const VMStateField vmstate_msix_fields[] = {
+    {
+        .name         = "msix",
+        .offset       = 0,
+        .size         = 0,   /* ouch */
+        .info         = &vmstate_info_msix,
+        .flags        = VMS_SINGLE,
+        .version_id   = 0,
+        .field_exists = NULL,
+    },
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_msix = {
     .name = "msix",
-    .fields = (const VMStateField[]) {
-        {
-            .name         = "msix",
-            .version_id   = 0,
-            .field_exists = NULL,
-            .size         = 0,   /* ouch */
-            .info         = &vmstate_info_msix,
-            .flags        = VMS_SINGLE,
-            .offset       = 0,
-        },
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_msix_fields,
 };

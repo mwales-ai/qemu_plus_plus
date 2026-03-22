@@ -451,7 +451,7 @@ void pcie_cap_slot_enable_power(PCIDevice *dev)
 
 static void pcie_set_power_device(PCIBus *bus, PCIDevice *dev, void *opaque)
 {
-    bool *power = opaque;
+    bool *power = static_cast<bool *>(opaque);
 
     pci_set_power(dev, *power);
 }
@@ -563,7 +563,7 @@ void pcie_cap_slot_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
                                        PCI_EXP_LNKSTA_DLLLA);
         }
         pcie_cap_slot_event(hotplug_pdev,
-                            PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
+                            static_cast<PCIExpressHotPlugEvent>(PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP));
         pcie_cap_update_power(hotplug_pdev);
     }
 }
@@ -796,7 +796,7 @@ void pcie_cap_slot_get(PCIDevice *dev, uint16_t *slt_ctl, uint16_t *slt_sta)
 
 static void find_child_fn(PCIBus *bus, PCIDevice *dev, void *opaque)
 {
-    PCIDevice **child = opaque;
+    PCIDevice **child = static_cast<PCIDevice **>(opaque);
 
     if (!*child) {
         *child = dev;
@@ -914,7 +914,7 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
 
 int pcie_cap_slot_post_load(void *opaque, int version_id)
 {
-    PCIDevice *dev = opaque;
+    PCIDevice *dev = static_cast<PCIDevice *>(opaque);
     hotplug_event_update_event_status(dev);
     pcie_cap_update_power(dev);
     return 0;

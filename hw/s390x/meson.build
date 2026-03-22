@@ -16,17 +16,17 @@ s390x_ss.add(files(
   'sclpcpi.cpp',
   'sclpcpu.cpp',
   'sclpquiesce.cpp',
-  'tod.c',
+  'tod.cpp',
 ))
 s390x_ss.add(when: 'CONFIG_KVM', if_true: files(
-  'tod-kvm.c',
+  'tod-kvm.cpp',
   's390-skeys-kvm.cpp',
   's390-stattrib-kvm.c',
   's390-pci-kvm.cpp',
-  'cpu-topology.c',
+  'cpu-topology.cpp',
 ))
 s390x_ss.add(when: 'CONFIG_TCG', if_true: files(
-  'tod-tcg.c',
+  'tod-tcg.cpp',
 ))
 s390x_ss.add(when: 'CONFIG_S390_CCW_VIRTIO', if_true: files(
   's390-virtio-ccw.c',

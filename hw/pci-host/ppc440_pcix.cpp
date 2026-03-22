@@ -166,7 +166,7 @@ static void ppc440_pcix_update_pom(PPC440PCIXState *s, int idx)
 static void ppc440_pcix_reg_write4(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
-    struct PPC440PCIXState *s = opaque;
+    struct PPC440PCIXState *s = static_cast<struct PPC440PCIXState *>(opaque);
 
     trace_ppc440_pcix_reg_write(addr, val, size);
     switch (addr) {
@@ -297,7 +297,7 @@ static void ppc440_pcix_reg_write4(void *opaque, hwaddr addr,
 static uint64_t ppc440_pcix_reg_read4(void *opaque, hwaddr addr,
                                      unsigned size)
 {
-    struct PPC440PCIXState *s = opaque;
+    struct PPC440PCIXState *s = static_cast<struct PPC440PCIXState *>(opaque);
     uint32_t val;
 
     switch (addr) {
@@ -431,7 +431,7 @@ static int ppc440_pcix_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void ppc440_pcix_set_irq(void *opaque, int irq_num, int level)
 {
-    qemu_irq *pci_irq = opaque;
+    qemu_irq *pci_irq = static_cast<qemu_irq *>(opaque);
 
     trace_ppc440_pcix_set_irq(irq_num);
     if (irq_num < 0) {
@@ -443,7 +443,7 @@ static void ppc440_pcix_set_irq(void *opaque, int irq_num, int level)
 
 static AddressSpace *ppc440_pcix_set_iommu(PCIBus *b, void *opaque, int devfn)
 {
-    PPC440PCIXState *s = opaque;
+    PPC440PCIXState *s = static_cast<PPC440PCIXState *>(opaque);
 
     return &s->bm_as;
 }
@@ -461,7 +461,7 @@ static const PCIIOMMUOps ppc440_iommu_ops = {
 static void pci_host_config_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = static_cast<PCIHostState *>(opaque);
 
     if (addr != 0 || len != 4) {
         return;
@@ -472,7 +472,7 @@ static void pci_host_config_write(void *opaque, hwaddr addr,
 static uint64_t pci_host_config_read(void *opaque, hwaddr addr,
                                      unsigned len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = static_cast<PCIHostState *>(opaque);
     uint32_t val = s->config_reg;
 
     return val;

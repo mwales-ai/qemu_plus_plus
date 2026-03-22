@@ -9,20 +9,20 @@ pci_ss.add(when: ['CONFIG_PCI_EXPRESS_GENERIC_BRIDGE', 'CONFIG_ACPI'], if_true: 
 pci_ss.add(when: 'CONFIG_PCI_EXPRESS_Q35', if_true: files('q35.cpp'))
 pci_ss.add(when: 'CONFIG_PCI_EXPRESS_XILINX', if_true: files('xilinx-pcie.cpp'))
 pci_ss.add(when: 'CONFIG_PCI_I440FX', if_true: files('i440fx.cpp'))
-pci_ss.add(when: 'CONFIG_PCI_SABRE', if_true: files('sabre.c'))
+pci_ss.add(when: 'CONFIG_PCI_SABRE', if_true: files('sabre.cpp'))
 pci_ss.add(when: 'CONFIG_XEN_IGD_PASSTHROUGH', if_true: files('xen_igd_pt.cpp'))
 pci_ss.add(when: 'CONFIG_REMOTE_PCIHOST', if_true: files('remote.cpp'))
 pci_ss.add(when: 'CONFIG_SH_PCI', if_true: files('sh_pci.cpp'))
 
 # PPC devices
-pci_ss.add(when: 'CONFIG_PPC4XX_PCI', if_true: files('ppc4xx_pci.c'))
-pci_ss.add(when: 'CONFIG_PPC440_PCIX', if_true: files('ppc440_pcix.c'))
+pci_ss.add(when: 'CONFIG_PPC4XX_PCI', if_true: files('ppc4xx_pci.cpp'))
+pci_ss.add(when: 'CONFIG_PPC440_PCIX', if_true: files('ppc440_pcix.cpp'))
 pci_ss.add(when: 'CONFIG_RAVEN_PCI', if_true: files('raven.cpp'))
 pci_ss.add(when: 'CONFIG_GRACKLE_PCI', if_true: files('grackle.cpp'))
 # NewWorld PowerMac
-pci_ss.add(when: 'CONFIG_UNIN_PCI', if_true: files('uninorth.c'))
+pci_ss.add(when: 'CONFIG_UNIN_PCI', if_true: files('uninorth.cpp'))
 # PowerPC E500 boards
-pci_ss.add(when: 'CONFIG_PPCE500_PCI', if_true: files('ppce500.c'))
+pci_ss.add(when: 'CONFIG_PPCE500_PCI', if_true: files('ppce500.cpp'))
 # AmigaOne
 pci_ss.add(when: 'CONFIG_ARTICIA', if_true: files('articia.cpp'))
 # Pegasos2
@@ -30,7 +30,7 @@ pci_ss.add(when: 'CONFIG_MV64361', if_true: files('mv64361.cpp'))
 
 # ARM devices
 pci_ss.add(when: 'CONFIG_PCI_EXPRESS_FSL_IMX8M_PHY', if_true: files('fsl_imx8m_phy.cpp'))
-pci_ss.add(when: 'CONFIG_VERSATILE_PCI', if_true: files('versatile.c'))
+pci_ss.add(when: 'CONFIG_VERSATILE_PCI', if_true: files('versatile.cpp'))
 
 # HPPA devices
 specific_ss.add(when: 'CONFIG_ASTRO', if_true: files('astro.cpp'))

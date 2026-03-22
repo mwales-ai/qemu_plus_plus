@@ -99,7 +99,7 @@ struct PPC4xxPCIState {
 static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
-    struct PPC4xxPCIState *pci = opaque;
+    struct PPC4xxPCIState *pci = static_cast<struct PPC4xxPCIState *>(opaque);
 
     /*
      * We ignore all target attempts at PCI configuration, effectively
@@ -169,7 +169,7 @@ static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
 static uint64_t ppc4xx_pci_reg_read4(void *opaque, hwaddr offset,
                                      unsigned size)
 {
-    struct PPC4xxPCIState *pci = opaque;
+    struct PPC4xxPCIState *pci = static_cast<struct PPC4xxPCIState *>(opaque);
     uint32_t value;
 
     switch (offset) {
@@ -243,7 +243,7 @@ static const MemoryRegionOps pci_reg_ops = {
 
 static void ppc4xx_pci_reset(void *opaque)
 {
-    struct PPC4xxPCIState *pci = opaque;
+    struct PPC4xxPCIState *pci = static_cast<struct PPC4xxPCIState *>(opaque);
 
     memset(pci->pmm, 0, sizeof(pci->pmm));
     memset(pci->ptm, 0, sizeof(pci->ptm));
@@ -264,50 +264,56 @@ static int ppc4xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void ppc4xx_pci_set_irq(void *opaque, int irq_num, int level)
 {
-    qemu_irq *pci_irqs = opaque;
+    qemu_irq *pci_irqs = static_cast<qemu_irq *>(opaque);
 
     trace_ppc4xx_pci_set_irq(irq_num);
     assert(irq_num >= 0 && irq_num < PPC4xx_PCI_NUM_DEVS);
     qemu_set_irq(pci_irqs[irq_num], level);
 }
 
+static const VMStateField vmstate_pci_master_map_fields[] = {
+    VMSTATE_UINT32(la, struct PCIMasterMap),
+    VMSTATE_UINT32(ma, struct PCIMasterMap),
+    VMSTATE_UINT32(pcila, struct PCIMasterMap),
+    VMSTATE_UINT32(pciha, struct PCIMasterMap),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pci_master_map = {
     .name = "pci_master_map",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(la, struct PCIMasterMap),
-        VMSTATE_UINT32(ma, struct PCIMasterMap),
-        VMSTATE_UINT32(pcila, struct PCIMasterMap),
-        VMSTATE_UINT32(pciha, struct PCIMasterMap),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_master_map_fields,
+};
+
+static const VMStateField vmstate_pci_target_map_fields[] = {
+    VMSTATE_UINT32(ms, struct PCITargetMap),
+    VMSTATE_UINT32(la, struct PCITargetMap),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_pci_target_map = {
     .name = "pci_target_map",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ms, struct PCITargetMap),
-        VMSTATE_UINT32(la, struct PCITargetMap),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_target_map_fields,
+};
+
+static const VMStateField vmstate_ppc4xx_pci_fields[] = {
+    VMSTATE_STRUCT_ARRAY(pmm, PPC4xxPCIState, PPC4xx_PCI_NR_PMMS, 1,
+                         vmstate_pci_master_map,
+                         struct PCIMasterMap),
+    VMSTATE_STRUCT_ARRAY(ptm, PPC4xxPCIState, PPC4xx_PCI_NR_PTMS, 1,
+                         vmstate_pci_target_map,
+                         struct PCITargetMap),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_ppc4xx_pci = {
     .name = "ppc4xx_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(pmm, PPC4xxPCIState, PPC4xx_PCI_NR_PMMS, 1,
-                             vmstate_pci_master_map,
-                             struct PCIMasterMap),
-        VMSTATE_STRUCT_ARRAY(ptm, PPC4xxPCIState, PPC4xx_PCI_NR_PTMS, 1,
-                             vmstate_pci_target_map,
-                             struct PCITargetMap),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ppc4xx_pci_fields,
 };
 
 /* XXX Interrupt acknowledge cycles not supported. */
@@ -365,15 +371,17 @@ static void ppc4xx_host_bridge_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo ppc4xx_host_bridge_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo ppc4xx_host_bridge_info = {
     .name          = TYPE_PPC4xx_HOST_BRIDGE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = ppc4xx_host_bridge_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = ppc4xx_host_bridge_interfaces,
 };
 
 static void ppc4xx_pcihost_class_init(ObjectClass *klass, const void *data)

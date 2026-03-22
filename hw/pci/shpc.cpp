@@ -521,26 +521,23 @@ static int shpc_cap_add_config(PCIDevice *d, Error **errp)
 static uint64_t shpc_mmio_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    return shpc_read(opaque, addr, size);
+    return shpc_read(static_cast<PCIDevice *>(opaque), addr, size);
 }
 
 static void shpc_mmio_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
-    shpc_write(opaque, addr, val, size);
+    shpc_write(static_cast<PCIDevice *>(opaque), addr, val, size);
 }
 
 static const MemoryRegionOps shpc_mmio_ops = {
     .read = shpc_mmio_read,
     .write = shpc_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        /* SHPC ECN requires dword accesses, but the original 1.0 spec doesn't.
-         * It's easier to support all sizes than worry about it.
-         */
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
+    /* SHPC ECN requires dword accesses, but the original 1.0 spec doesn't.
+     * It's easier to support all sizes than worry about it.
+     */
+    .valid = { 1, 4 },
 };
 
 static bool shpc_device_get_slot(PCIDevice *affected_dev, int *slot,
@@ -649,7 +646,7 @@ int shpc_init(PCIDevice *d, PCIBus *sec_bus, MemoryRegion *bar,
 {
     int i, ret;
     int nslots = SHPC_MAX_SLOTS; /* TODO: qdev property? */
-    SHPCDevice *shpc = d->shpc = g_malloc0(sizeof(*d->shpc));
+    SHPCDevice *shpc = d->shpc = static_cast<SHPCDevice *>(g_malloc0(sizeof(*d->shpc)));
     shpc->sec_bus = sec_bus;
     ret = shpc_cap_add_config(d, errp);
     if (ret) {
@@ -665,10 +662,10 @@ int shpc_init(PCIDevice *d, PCIBus *sec_bus, MemoryRegion *bar,
         return -EINVAL;
     }
     shpc->nslots = nslots;
-    shpc->config = g_malloc0(SHPC_SIZEOF(d));
-    shpc->cmask = g_malloc0(SHPC_SIZEOF(d));
-    shpc->wmask = g_malloc0(SHPC_SIZEOF(d));
-    shpc->w1cmask = g_malloc0(SHPC_SIZEOF(d));
+    shpc->config = static_cast<uint8_t *>(g_malloc0(SHPC_SIZEOF(d)));
+    shpc->cmask = static_cast<uint8_t *>(g_malloc0(SHPC_SIZEOF(d)));
+    shpc->wmask = static_cast<uint8_t *>(g_malloc0(SHPC_SIZEOF(d)));
+    shpc->w1cmask = static_cast<uint8_t *>(g_malloc0(SHPC_SIZEOF(d)));
 
     shpc_reset(d);
 
@@ -762,7 +759,7 @@ void shpc_cap_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 static int shpc_save(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field, JSONWriter *vmdesc)
 {
-    PCIDevice *d = container_of(pv, PCIDevice, shpc);
+    PCIDevice *d = container_of(static_cast<SHPCDevice * const *>(pv), PCIDevice, shpc);
     qemu_put_buffer(f, d->shpc->config, SHPC_SIZEOF(d));
 
     return 0;
@@ -771,7 +768,7 @@ static int shpc_save(QEMUFile *f, void *pv, size_t size,
 static int shpc_load(QEMUFile *f, void *pv, size_t size,
                      const VMStateField *field)
 {
-    PCIDevice *d = container_of(pv, PCIDevice, shpc);
+    PCIDevice *d = container_of(static_cast<SHPCDevice * const *>(pv), PCIDevice, shpc);
     int ret = qemu_get_buffer(f, d->shpc->config, SHPC_SIZEOF(d));
     if (ret != SHPC_SIZEOF(d)) {
         return -EINVAL;

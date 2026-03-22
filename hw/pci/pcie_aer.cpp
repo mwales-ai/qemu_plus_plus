@@ -107,8 +107,8 @@ int pcie_aer_init(PCIDevice *dev, uint8_t cap_ver, uint16_t offset,
                 "is %d", dev->exp.aer_log.log_max, PCIE_AER_LOG_MAX_LIMIT);
         return -EINVAL;
     }
-    dev->exp.aer_log.log = g_malloc0(sizeof dev->exp.aer_log.log[0] *
-                                        dev->exp.aer_log.log_max);
+    dev->exp.aer_log.log = static_cast<PCIEAERErr *>(g_malloc0(sizeof dev->exp.aer_log.log[0] *
+                                        dev->exp.aer_log.log_max));
 
     pci_set_long(dev->w1cmask + offset + PCI_ERR_UNCOR_STATUS,
                  PCI_ERR_UNC_SUPPORTED);
@@ -793,39 +793,43 @@ void pcie_aer_root_write_config(PCIDevice *dev,
     pcie_aer_root_notify(dev);
 }
 
+static const VMStateField vmstate_pcie_aer_err_fields[] = {
+    VMSTATE_UINT32(status, PCIEAERErr),
+    VMSTATE_UINT16(source_id, PCIEAERErr),
+    VMSTATE_UINT16(flags, PCIEAERErr),
+    VMSTATE_UINT32_ARRAY(header, PCIEAERErr, 4),
+    VMSTATE_UINT32_ARRAY(prefix, PCIEAERErr, 4),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pcie_aer_err = {
     .name = "PCIE_AER_ERROR",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(status, PCIEAERErr),
-        VMSTATE_UINT16(source_id, PCIEAERErr),
-        VMSTATE_UINT16(flags, PCIEAERErr),
-        VMSTATE_UINT32_ARRAY(header, PCIEAERErr, 4),
-        VMSTATE_UINT32_ARRAY(prefix, PCIEAERErr, 4),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pcie_aer_err_fields,
 };
 
 static bool pcie_aer_state_log_num_valid(void *opaque, int version_id)
 {
-    PCIEAERLog *s = opaque;
+    PCIEAERLog *s = static_cast<PCIEAERLog *>(opaque);
 
     return s->log_num <= s->log_max;
 }
+
+static const VMStateField vmstate_pcie_aer_log_fields[] = {
+    VMSTATE_UINT16(log_num, PCIEAERLog),
+    VMSTATE_UINT16_EQUAL(log_max, PCIEAERLog, NULL),
+    VMSTATE_VALIDATE("log_num <= log_max", pcie_aer_state_log_num_valid),
+    VMSTATE_STRUCT_VARRAY_POINTER_UINT16(log, PCIEAERLog, log_num,
+                          vmstate_pcie_aer_err, PCIEAERErr),
+    VMSTATE_END_OF_LIST()
+};
 
 const VMStateDescription vmstate_pcie_aer_log = {
     .name = "PCIE_AER_ERROR_LOG",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(log_num, PCIEAERLog),
-        VMSTATE_UINT16_EQUAL(log_max, PCIEAERLog, NULL),
-        VMSTATE_VALIDATE("log_num <= log_max", pcie_aer_state_log_num_valid),
-        VMSTATE_STRUCT_VARRAY_POINTER_UINT16(log, PCIEAERLog, log_num,
-                              vmstate_pcie_aer_err, PCIEAERErr),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pcie_aer_log_fields,
 };
 
 typedef struct PCIEAERErrorName {

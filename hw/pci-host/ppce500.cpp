@@ -125,7 +125,7 @@ struct PPCE500PCIBridgeState {
 static uint64_t pci_reg_read4(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    PPCE500PCIState *pci = opaque;
+    PPCE500PCIState *pci = static_cast<PPCE500PCIState *>(opaque);
     unsigned long win;
     uint32_t value = 0;
     int idx;
@@ -259,7 +259,7 @@ static void e500_update_pow(PPCE500PCIState *pci, int idx)
 static void pci_reg_write4(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
-    PPCE500PCIState *pci = opaque;
+    PPCE500PCIState *pci = static_cast<PPCE500PCIState *>(opaque);
     unsigned long win;
     int idx;
 
@@ -352,7 +352,7 @@ static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int pin)
 
 static void mpc85xx_pci_set_irq(void *opaque, int pin, int level)
 {
-    PPCE500PCIState *s = opaque;
+    PPCE500PCIState *s = static_cast<PPCE500PCIState *>(opaque);
     qemu_irq *pic = s->irq;
 
     pci_debug("%s: PCI irq %d, level:%d\n", __func__, pin , level);
@@ -363,7 +363,7 @@ static void mpc85xx_pci_set_irq(void *opaque, int pin, int level)
 static PCIINTxRoute e500_route_intx_pin_to_irq(void *opaque, int pin)
 {
     PCIINTxRoute route;
-    PPCE500PCIState *s = opaque;
+    PPCE500PCIState *s = static_cast<PPCE500PCIState *>(opaque);
 
     route.mode = PCI_INTX_ENABLED;
     route.irq = s->irq_num[pin];
@@ -372,44 +372,50 @@ static PCIINTxRoute e500_route_intx_pin_to_irq(void *opaque, int pin)
     return route;
 }
 
+static const VMStateField vmstate_pci_outbound_fields[] = {
+    VMSTATE_UINT32(potar, struct pci_outbound),
+    VMSTATE_UINT32(potear, struct pci_outbound),
+    VMSTATE_UINT32(powbar, struct pci_outbound),
+    VMSTATE_UINT32(powar, struct pci_outbound),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pci_outbound = {
     .name = "pci_outbound",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(potar, struct pci_outbound),
-        VMSTATE_UINT32(potear, struct pci_outbound),
-        VMSTATE_UINT32(powbar, struct pci_outbound),
-        VMSTATE_UINT32(powar, struct pci_outbound),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_outbound_fields,
+};
+
+static const VMStateField vmstate_pci_inbound_fields[] = {
+    VMSTATE_UINT32(pitar, struct pci_inbound),
+    VMSTATE_UINT32(piwbar, struct pci_inbound),
+    VMSTATE_UINT32(piwbear, struct pci_inbound),
+    VMSTATE_UINT32(piwar, struct pci_inbound),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_pci_inbound = {
     .name = "pci_inbound",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(pitar, struct pci_inbound),
-        VMSTATE_UINT32(piwbar, struct pci_inbound),
-        VMSTATE_UINT32(piwbear, struct pci_inbound),
-        VMSTATE_UINT32(piwar, struct pci_inbound),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_pci_inbound_fields,
+};
+
+static const VMStateField vmstate_ppce500_pci_fields[] = {
+    VMSTATE_STRUCT_ARRAY(pob, PPCE500PCIState, PPCE500_PCI_NR_POBS, 1,
+                         vmstate_pci_outbound, struct pci_outbound),
+    VMSTATE_STRUCT_ARRAY(pib, PPCE500PCIState, PPCE500_PCI_NR_PIBS, 1,
+                         vmstate_pci_inbound, struct pci_inbound),
+    VMSTATE_UINT32(gasket_time, PPCE500PCIState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_ppce500_pci = {
     .name = "ppce500_pci",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(pob, PPCE500PCIState, PPCE500_PCI_NR_POBS, 1,
-                             vmstate_pci_outbound, struct pci_outbound),
-        VMSTATE_STRUCT_ARRAY(pib, PPCE500PCIState, PPCE500_PCI_NR_PIBS, 1,
-                             vmstate_pci_inbound, struct pci_inbound),
-        VMSTATE_UINT32(gasket_time, PPCE500PCIState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ppce500_pci_fields,
 };
 
 
@@ -428,7 +434,7 @@ static void e500_pcihost_bridge_realize(PCIDevice *d, Error **errp)
 static AddressSpace *e500_pcihost_set_iommu(PCIBus *bus, void *opaque,
                                             int devfn)
 {
-    PPCE500PCIState *s = opaque;
+    PPCE500PCIState *s = static_cast<PPCE500PCIState *>(opaque);
 
     return &s->bm_as;
 }
@@ -521,23 +527,30 @@ static void e500_pcihost_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_ppce500_pci;
 }
 
-static const TypeInfo e500_pci_types[] = {
-    {
-        .name          = TYPE_PPC_E500_PCI_BRIDGE,
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(PPCE500PCIBridgeState),
-        .class_init    = e500_host_bridge_class_init,
-        .interfaces    = (const InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        },
-    },
-    {
-        .name          = TYPE_PPC_E500_PCI_HOST_BRIDGE,
-        .parent        = TYPE_PCI_HOST_BRIDGE,
-        .instance_size = sizeof(PPCE500PCIState),
-        .class_init    = e500_pcihost_class_init,
-    },
+static const InterfaceInfo e500_pci_bridge_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-DEFINE_TYPES(e500_pci_types)
+static const TypeInfo e500_pci_bridge_info = {
+    .name          = TYPE_PPC_E500_PCI_BRIDGE,
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PPCE500PCIBridgeState),
+    .class_init    = e500_host_bridge_class_init,
+    .interfaces    = e500_pci_bridge_interfaces,
+};
+
+static const TypeInfo e500_pci_host_info = {
+    .name          = TYPE_PPC_E500_PCI_HOST_BRIDGE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
+    .instance_size = sizeof(PPCE500PCIState),
+    .class_init    = e500_pcihost_class_init,
+};
+
+static void e500_pci_register_types(void)
+{
+    type_register_static(&e500_pci_bridge_info);
+    type_register_static(&e500_pci_host_info);
+}
+
+type_init(e500_pci_register_types)
