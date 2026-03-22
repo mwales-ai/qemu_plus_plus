@@ -3,16 +3,16 @@ s390x_ss.add(files(
   'ap-bridge.cpp',
   'ap-device.cpp',
   'ccw-device.cpp',
-  'css-bridge.c',
-  'css.c',
-  'event-facility.c',
-  'ipl.c',
-  's390-ccw.c',
-  's390-pci-bus.c',
-  's390-pci-inst.c',
-  's390-skeys.c',
-  's390-stattrib.c',
-  'sclp.c',
+  'css-bridge.cpp',
+  'css.cpp',
+  'event-facility.cpp',
+  'ipl.cpp',
+  's390-ccw.cpp',
+  's390-pci-bus.cpp',
+  's390-pci-inst.cpp',
+  's390-skeys.cpp',
+  's390-stattrib.cpp',
+  'sclp.cpp',
   'sclpcpi.cpp',
   'sclpcpu.cpp',
   'sclpquiesce.cpp',
@@ -21,7 +21,7 @@ s390x_ss.add(files(
 s390x_ss.add(when: 'CONFIG_KVM', if_true: files(
   'tod-kvm.cpp',
   's390-skeys-kvm.cpp',
-  's390-stattrib-kvm.c',
+  's390-stattrib-kvm.cpp',
   's390-pci-kvm.cpp',
   'cpu-topology.cpp',
 ))
@@ -29,15 +29,15 @@ s390x_ss.add(when: 'CONFIG_TCG', if_true: files(
   'tod-tcg.cpp',
 ))
 s390x_ss.add(when: 'CONFIG_S390_CCW_VIRTIO', if_true: files(
-  's390-virtio-ccw.c',
-  's390-hypercall.c',
+  's390-virtio-ccw.cpp',
+  's390-hypercall.cpp',
 ))
-s390x_ss.add(when: 'CONFIG_TERMINAL3270', if_true: files('3270-ccw.c'))
+s390x_ss.add(when: 'CONFIG_TERMINAL3270', if_true: files('3270-ccw.cpp'))
 s390x_ss.add(when: 'CONFIG_VFIO', if_true: files('s390-pci-vfio.cpp'))
 s390x_ss.add(when: 'CONFIG_VFIO_AP', if_false: files('ap-stub.cpp'))
 
 virtio_ss = ss.source_set()
-virtio_ss.add(files('virtio-ccw.c'))
+virtio_ss.add(files('virtio-ccw.cpp'))
 virtio_ss.add(when: 'CONFIG_VIRTIO_BALLOON', if_true: files('virtio-ccw-balloon.cpp'))
 virtio_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio-ccw-blk.cpp'))
 virtio_ss.add(when: 'CONFIG_VIRTIO_CRYPTO', if_true: files('virtio-ccw-crypto.cpp'))
@@ -52,7 +52,7 @@ endif
 virtio_ss.add(when: 'CONFIG_VHOST_SCSI', if_true: files('vhost-scsi-ccw.cpp'))
 virtio_ss.add(when: 'CONFIG_VHOST_VSOCK', if_true: files('vhost-vsock-ccw.cpp'))
 virtio_ss.add(when: 'CONFIG_VHOST_USER_FS', if_true: files('vhost-user-fs-ccw.cpp'))
-virtio_ss.add(when: 'CONFIG_VIRTIO_MD', if_true: files('virtio-ccw-md.c'))
+virtio_ss.add(when: 'CONFIG_VIRTIO_MD', if_true: files('virtio-ccw-md.cpp'))
 virtio_ss.add(when: 'CONFIG_VIRTIO_MEM', if_true: files('virtio-ccw-mem.cpp'))
 s390x_ss.add_all(when: 'CONFIG_VIRTIO_CCW', if_true: virtio_ss)
 
