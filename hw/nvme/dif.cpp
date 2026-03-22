@@ -328,7 +328,7 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
              * information checking.
              */
             if (status == NVME_E2E_GUARD_ERROR && slba == 0x0 && bufp == buf) {
-                g_autofree uint8_t *zeroes = g_malloc0(ns->lbasz);
+                g_autofree uint8_t *zeroes = static_cast<uint8_t *>(g_malloc0(ns->lbasz));
 
                 if (memcmp(bufp, zeroes, ns->lbasz) == 0) {
                     memset(mbuf + pil, 0xff, nvme_pi_tuple_size(ns));
@@ -402,7 +402,7 @@ uint16_t nvme_dif_mangle_mdata(NvmeNamespace *ns, uint8_t *mbuf, size_t mlen,
 
 static void nvme_dif_rw_cb(void *opaque, int ret)
 {
-    NvmeBounceContext *ctx = opaque;
+    NvmeBounceContext *ctx = static_cast<NvmeBounceContext *>(opaque);
     NvmeRequest *req = ctx->req;
     NvmeNamespace *ns = req->ns;
     BlockBackend *blk = ns->blkconf.blk;
@@ -422,7 +422,7 @@ static void nvme_dif_rw_cb(void *opaque, int ret)
 
 static void nvme_dif_rw_check_cb(void *opaque, int ret)
 {
-    NvmeBounceContext *ctx = opaque;
+    NvmeBounceContext *ctx = static_cast<NvmeBounceContext *>(opaque);
     NvmeRequest *req = ctx->req;
     NvmeNamespace *ns = req->ns;
     NvmeCtrl *n = nvme_ctrl(req);
@@ -482,7 +482,7 @@ out:
 
 static void nvme_dif_rw_mdata_in_cb(void *opaque, int ret)
 {
-    NvmeBounceContext *ctx = opaque;
+    NvmeBounceContext *ctx = static_cast<NvmeBounceContext *>(opaque);
     NvmeRequest *req = ctx->req;
     NvmeNamespace *ns = req->ns;
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
@@ -498,12 +498,13 @@ static void nvme_dif_rw_mdata_in_cb(void *opaque, int ret)
         goto out;
     }
 
-    ctx->mdata.bounce = g_malloc(mlen);
+    ctx->mdata.bounce = static_cast<uint8_t *>(g_malloc(mlen));
 
     qemu_iovec_reset(&ctx->mdata.iov);
     qemu_iovec_add(&ctx->mdata.iov, ctx->mdata.bounce, mlen);
 
-    req->aiocb = blk_aio_preadv(blk, offset, &ctx->mdata.iov, 0,
+    req->aiocb = blk_aio_preadv(blk, offset, &ctx->mdata.iov,
+                                static_cast<BdrvRequestFlags>(0),
                                 nvme_dif_rw_check_cb, ctx);
     return;
 
@@ -513,7 +514,7 @@ out:
 
 static void nvme_dif_rw_mdata_out_cb(void *opaque, int ret)
 {
-    NvmeBounceContext *ctx = opaque;
+    NvmeBounceContext *ctx = static_cast<NvmeBounceContext *>(opaque);
     NvmeRequest *req = ctx->req;
     NvmeNamespace *ns = req->ns;
     NvmeRwCmd *rw = (NvmeRwCmd *)&req->cmd;
@@ -527,7 +528,8 @@ static void nvme_dif_rw_mdata_out_cb(void *opaque, int ret)
         goto out;
     }
 
-    req->aiocb = blk_aio_pwritev(blk, offset, &ctx->mdata.iov, 0,
+    req->aiocb = blk_aio_pwritev(blk, offset, &ctx->mdata.iov,
+                                 static_cast<BdrvRequestFlags>(0),
                                  nvme_dif_rw_cb, ctx);
     return;
 
@@ -575,9 +577,9 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
             uint8_t *mbuf, *end;
             int16_t pil = ns->lbaf.ms - nvme_pi_tuple_size(ns);
 
-            flags = 0;
+            flags = static_cast<BdrvRequestFlags>(0);
 
-            ctx->mdata.bounce = g_malloc0(mlen);
+            ctx->mdata.bounce = static_cast<uint8_t *>(g_malloc0(mlen));
 
             qemu_iovec_init(&ctx->mdata.iov, 1);
             qemu_iovec_add(&ctx->mdata.iov, ctx->mdata.bounce, mlen);
@@ -638,7 +640,7 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
         goto err;
     }
 
-    ctx->data.bounce = g_malloc(len);
+    ctx->data.bounce = static_cast<uint8_t *>(g_malloc(len));
 
     qemu_iovec_init(&ctx->data.iov, 1);
     qemu_iovec_add(&ctx->data.iov, ctx->data.bounce, len);
@@ -647,7 +649,8 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
         block_acct_start(blk_get_stats(blk), &req->acct, ctx->data.iov.size,
                          BLOCK_ACCT_READ);
 
-        req->aiocb = blk_aio_preadv(ns->blkconf.blk, offset, &ctx->data.iov, 0,
+        req->aiocb = blk_aio_preadv(ns->blkconf.blk, offset, &ctx->data.iov,
+                                    static_cast<BdrvRequestFlags>(0),
                                     nvme_dif_rw_mdata_in_cb, ctx);
         return NVME_NO_COMPLETE;
     }
@@ -658,7 +661,7 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
         goto err;
     }
 
-    ctx->mdata.bounce = g_malloc(mlen);
+    ctx->mdata.bounce = static_cast<uint8_t *>(g_malloc(mlen));
 
     qemu_iovec_init(&ctx->mdata.iov, 1);
     qemu_iovec_add(&ctx->mdata.iov, ctx->mdata.bounce, mlen);
@@ -693,7 +696,8 @@ uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req)
     block_acct_start(blk_get_stats(blk), &req->acct, ctx->data.iov.size,
                      BLOCK_ACCT_WRITE);
 
-    req->aiocb = blk_aio_pwritev(ns->blkconf.blk, offset, &ctx->data.iov, 0,
+    req->aiocb = blk_aio_pwritev(ns->blkconf.blk, offset, &ctx->data.iov,
+                                 static_cast<BdrvRequestFlags>(0),
                                  nvme_dif_rw_mdata_out_cb, ctx);
 
     return NVME_NO_COMPLETE;

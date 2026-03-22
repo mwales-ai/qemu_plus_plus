@@ -470,7 +470,7 @@ static void pnv_phb3_update_all_msi_regions(PnvPHB3 *phb)
 
 void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size)
 {
-    PnvPHB3 *phb = opaque;
+    PnvPHB3 *phb = static_cast<PnvPHB3 *>(opaque);
     bool changed;
 
     /* Special case configuration data */
@@ -592,7 +592,7 @@ void pnv_phb3_reg_write(void *opaque, hwaddr off, uint64_t val, unsigned size)
 
 uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size)
 {
-    PnvPHB3 *phb = opaque;
+    PnvPHB3 *phb = static_cast<PnvPHB3 *>(opaque);
     PCIHostState *pci = PCI_HOST_BRIDGE(phb->phb_base);
     uint64_t val;
 
@@ -671,9 +671,9 @@ uint64_t pnv_phb3_reg_read(void *opaque, hwaddr off, unsigned size)
 static const MemoryRegionOps pnv_phb3_reg_ops = {
     .read = pnv_phb3_reg_read,
     .write = pnv_phb3_reg_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 8, },
     .impl = { .min_access_size = 1, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static int pnv_phb3_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -684,7 +684,7 @@ static int pnv_phb3_map_irq(PCIDevice *pci_dev, int irq_num)
 
 static void pnv_phb3_set_irq(void *opaque, int irq_num, int level)
 {
-    PnvPHB3 *phb = opaque;
+    PnvPHB3 *phb = static_cast<PnvPHB3 *>(opaque);
 
     /* LSI only ... */
     if (irq_num > 3) {
@@ -830,7 +830,7 @@ static void pnv_phb3_translate_tve(PnvPhb3DMASpace *ds, hwaddr addr,
         tlb->iova = addr & tce_mask;
         tlb->translated_addr = tce & tce_mask;
         tlb->addr_mask = ~tce_mask;
-        tlb->perm = tce & 3;
+        tlb->perm = static_cast<IOMMUAccessFlags>(tce & 3);
     }
 }
 
@@ -895,8 +895,8 @@ static void pnv_phb3_iommu_memory_region_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo pnv_phb3_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_PNV_PHB3_IOMMU_MEMORY_REGION,
+    .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = pnv_phb3_iommu_memory_region_class_init,
 };
 
@@ -907,7 +907,7 @@ static const TypeInfo pnv_phb3_iommu_memory_region_info = {
 static void pnv_phb3_msi_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
-    PnvPhb3DMASpace *ds = opaque;
+    PnvPhb3DMASpace *ds = static_cast<PnvPhb3DMASpace *>(opaque);
 
     /* Resolve PE# */
     if (!pnv_phb3_resolve_pe(ds)) {
@@ -922,7 +922,7 @@ static void pnv_phb3_msi_write(void *opaque, hwaddr addr,
 /* There is no .read as the read result is undefined by PCI spec */
 static uint64_t pnv_phb3_msi_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PnvPhb3DMASpace *ds = opaque;
+    PnvPhb3DMASpace *ds = static_cast<PnvPhb3DMASpace *>(opaque);
 
     phb3_error(ds->phb, "invalid read @ 0x%" HWADDR_PRIx, addr);
     return -1;
@@ -931,12 +931,12 @@ static uint64_t pnv_phb3_msi_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps pnv_phb3_msi_ops = {
     .read = pnv_phb3_msi_read,
     .write = pnv_phb3_msi_write,
-    .endianness = DEVICE_LITTLE_ENDIAN
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static AddressSpace *pnv_phb3_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
-    PnvPHB3 *phb = opaque;
+    PnvPHB3 *phb = static_cast<PnvPHB3 *>(opaque);
     PnvPhb3DMASpace *ds;
 
     QLIST_FOREACH(ds, &phb->dma_spaces, list) {
@@ -1109,8 +1109,8 @@ static const TypeInfo pnv_phb3_type_info = {
     .name          = TYPE_PNV_PHB3,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvPHB3),
-    .class_init    = pnv_phb3_class_init,
     .instance_init = pnv_phb3_instance_init,
+    .class_init    = pnv_phb3_class_init,
 };
 
 static void pnv_phb3_root_bus_get_prop(Object *obj, Visitor *v,

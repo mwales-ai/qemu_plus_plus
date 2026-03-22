@@ -60,7 +60,7 @@ typedef struct {
 int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode)
 {
-    LocalData *data = fs_ctx->private;
+    LocalData *data = static_cast<LocalData *>(fs_ctx->priv_data);
     int fd = data->mountfd;
 
     while (*path && fd != -1) {
@@ -1452,7 +1452,7 @@ static int local_ioc_getversion_init(FsContext *ctx, LocalData *data, Error **er
 
 static int local_init(FsContext *ctx, Error **errp)
 {
-    LocalData *data = g_malloc(sizeof(*data));
+    LocalData *data = static_cast<LocalData *>(g_malloc(sizeof(*data)));
 
     data->mountfd = open(ctx->fs_root, O_DIRECTORY | O_RDONLY);
     if (data->mountfd == -1) {
@@ -1480,7 +1480,7 @@ static int local_init(FsContext *ctx, Error **errp)
     }
     ctx->export_flags |= V9FS_PATHNAME_FSCONTEXT;
 
-    ctx->private = data;
+    ctx->priv_data = data;
     return 0;
 
 err:
@@ -1490,7 +1490,7 @@ err:
 
 static void local_cleanup(FsContext *ctx)
 {
-    LocalData *data = ctx->private;
+    LocalData *data = static_cast<LocalData *>(ctx->priv_data);
 
     if (!data) {
         return;
@@ -1601,28 +1601,30 @@ FileOperations local_ops = {
     .cleanup = local_cleanup,
     .lstat = local_lstat,
     .readlink = local_readlink,
+    .chmod = local_chmod,
+    .chown = local_chown,
+    .mknod = local_mknod,
+    .utimensat = local_utimensat,
+    .futimens = local_futimens,
+    .remove = local_remove,
+    .symlink = local_symlink,
+    .link = local_link,
     .close = local_close,
     .closedir = local_closedir,
-    .open = local_open,
     .opendir = local_opendir,
+    .open = local_open,
+    .open2 = local_open2,
     .rewinddir = local_rewinddir,
     .telldir = local_telldir,
     .readdir = local_readdir,
     .seekdir = local_seekdir,
     .preadv = local_preadv,
     .pwritev = local_pwritev,
-    .chmod = local_chmod,
-    .mknod = local_mknod,
     .mkdir = local_mkdir,
     .fstat = local_fstat,
-    .open2 = local_open2,
-    .symlink = local_symlink,
-    .link = local_link,
-    .truncate = local_truncate,
     .rename = local_rename,
-    .chown = local_chown,
-    .utimensat = local_utimensat,
-    .remove = local_remove,
+    .truncate = local_truncate,
+    .ftruncate = local_ftruncate,
     .fsync = local_fsync,
     .statfs = local_statfs,
     .lgetxattr = local_lgetxattr,
@@ -1633,6 +1635,4 @@ FileOperations local_ops = {
     .renameat  = local_renameat,
     .unlinkat = local_unlinkat,
     .has_valid_file_handle = local_has_valid_file_handle,
-    .ftruncate = local_ftruncate,
-    .futimens = local_futimens,
 };

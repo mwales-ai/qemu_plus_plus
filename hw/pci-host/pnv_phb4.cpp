@@ -727,9 +727,9 @@ static uint64_t pnv_phb4_reg_read(void *opaque, hwaddr off, unsigned size)
 static const MemoryRegionOps pnv_phb4_reg_ops = {
     .read = pnv_phb4_reg_read,
     .write = pnv_phb4_reg_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 8, },
     .impl = { .min_access_size = 1, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t pnv_phb4_xscom_read(void *opaque, hwaddr addr, unsigned size)
@@ -840,9 +840,9 @@ static void pnv_phb4_xscom_write(void *opaque, hwaddr addr,
 const MemoryRegionOps pnv_phb4_xscom_ops = {
     .read = pnv_phb4_xscom_read,
     .write = pnv_phb4_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t pnv_pec_stk_nest_xscom_read(void *opaque, hwaddr addr,
@@ -1075,9 +1075,9 @@ static void pnv_pec_stk_nest_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_pec_stk_nest_xscom_ops = {
     .read = pnv_pec_stk_nest_xscom_read,
     .write = pnv_pec_stk_nest_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t pnv_pec_stk_pci_xscom_read(void *opaque, hwaddr addr,
@@ -1145,9 +1145,9 @@ static void pnv_pec_stk_pci_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_pec_stk_pci_xscom_ops = {
     .read = pnv_pec_stk_pci_xscom_read,
     .write = pnv_pec_stk_pci_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static int pnv_phb4_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -1299,7 +1299,7 @@ static void pnv_phb4_translate_tve(PnvPhb4DMASpace *ds, hwaddr addr,
         tlb->iova = addr & tce_mask;
         tlb->translated_addr = tce & tce_mask;
         tlb->addr_mask = ~tce_mask;
-        tlb->perm = tce & 3;
+        tlb->perm = static_cast<IOMMUAccessFlags>(tce & 3);
     }
 }
 
@@ -1363,8 +1363,8 @@ static void pnv_phb4_iommu_memory_region_class_init(ObjectClass *klass,
 }
 
 static const TypeInfo pnv_phb4_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_PNV_PHB4_IOMMU_MEMORY_REGION,
+    .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = pnv_phb4_iommu_memory_region_class_init,
 };
 
@@ -1392,7 +1392,7 @@ int pnv_phb4_pec_get_phb_id(PnvPhb4PecState *pec, int stack_index)
 static void pnv_phb4_msi_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
-    PnvPhb4DMASpace *ds = opaque;
+    PnvPhb4DMASpace *ds = static_cast<PnvPhb4DMASpace *>(opaque);
     PnvPHB4 *phb = ds->phb;
 
     uint32_t src = ((addr >> 4) & 0xffff) | (data & 0x1f);
@@ -1418,7 +1418,7 @@ static void pnv_phb4_msi_write(void *opaque, hwaddr addr,
 /* There is no .read as the read result is undefined by PCI spec */
 static uint64_t pnv_phb4_msi_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PnvPhb4DMASpace *ds = opaque;
+    PnvPhb4DMASpace *ds = static_cast<PnvPhb4DMASpace *>(opaque);
 
     phb_error(ds->phb, "Invalid MSI read @ 0x%" HWADDR_PRIx, addr);
     return -1;
@@ -1427,7 +1427,7 @@ static uint64_t pnv_phb4_msi_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps pnv_phb4_msi_ops = {
     .read = pnv_phb4_msi_read,
     .write = pnv_phb4_msi_write,
-    .endianness = DEVICE_LITTLE_ENDIAN
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static PnvPhb4DMASpace *pnv_phb4_dma_find(PnvPHB4 *phb, PCIBus *bus, int devfn)
@@ -1444,7 +1444,7 @@ static PnvPhb4DMASpace *pnv_phb4_dma_find(PnvPHB4 *phb, PCIBus *bus, int devfn)
 
 static AddressSpace *pnv_phb4_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
-    PnvPHB4 *phb = opaque;
+    PnvPHB4 *phb = static_cast<PnvPHB4 *>(opaque);
     PnvPhb4DMASpace *ds;
     char name[32];
 
@@ -1564,7 +1564,7 @@ void pnv_phb4_bus_init(DeviceState *dev, PnvPHB4 *phb)
                             &error_abort);
 
     pci_setup_iommu(pci->bus, &pnv_phb4_iommu_ops, phb);
-    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+    pci->bus->flags = static_cast<PCIBusFlags>(pci->bus->flags | PCI_BUS_EXTENDED_CONFIG_SPACE);
 }
 
 static void pnv_phb4_realize(DeviceState *dev, Error **errp)
@@ -1701,16 +1701,18 @@ static void pnv_phb4_class_init(ObjectClass *klass, const void *data)
     xfc->notify         = pnv_phb4_xive_notify;
 }
 
+static const InterfaceInfo pnv_phb4_interfaces[] = {
+    { TYPE_XIVE_NOTIFIER },
+    { },
+};
+
 static const TypeInfo pnv_phb4_type_info = {
     .name          = TYPE_PNV_PHB4,
     .parent        = TYPE_DEVICE,
-    .instance_init = pnv_phb4_instance_init,
     .instance_size = sizeof(PnvPHB4),
+    .instance_init = pnv_phb4_instance_init,
     .class_init    = pnv_phb4_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-            { TYPE_XIVE_NOTIFIER },
-            { },
-    }
+    .interfaces    = pnv_phb4_interfaces,
 };
 
 static const TypeInfo pnv_phb5_type_info = {

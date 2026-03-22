@@ -86,9 +86,9 @@ static void pnv_pec_nest_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_pec_nest_xscom_ops = {
     .read = pnv_pec_nest_xscom_read,
     .write = pnv_pec_nest_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static uint64_t pnv_pec_pci_xscom_read(void *opaque, hwaddr addr,
@@ -126,9 +126,9 @@ static void pnv_pec_pci_xscom_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps pnv_pec_pci_xscom_ops = {
     .read = pnv_pec_pci_xscom_read,
     .write = pnv_pec_pci_xscom_write,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = { .min_access_size = 8, .max_access_size = 8, },
     .impl = { .min_access_size = 8, .max_access_size = 8, },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 PnvPhb4PecState *pnv_pec_add_phb(PnvChip *chip, PnvPHB *phb, Error **errp)
@@ -378,16 +378,18 @@ static void pnv_pec_class_init(ObjectClass *klass, const void *data)
     pecc->num_phbs = pnv_pec_num_phbs;
 }
 
+static const InterfaceInfo pnv_pec_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_pec_type_info = {
     .name          = TYPE_PNV_PHB4_PEC,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(PnvPhb4PecState),
-    .class_init    = pnv_pec_class_init,
     .class_size    = sizeof(PnvPhb4PecClass),
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .class_init    = pnv_pec_class_init,
+    .interfaces    = pnv_pec_interfaces,
 };
 
 /*
@@ -435,16 +437,18 @@ static void pnv_phb5_pec_class_init(ObjectClass *klass, const void *data)
     pecc->num_phbs = pnv_phb5_pec_num_stacks;
 }
 
+static const InterfaceInfo pnv_phb5_pec_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_phb5_pec_type_info = {
     .name          = TYPE_PNV_PHB5_PEC,
     .parent        = TYPE_PNV_PHB4_PEC,
     .instance_size = sizeof(PnvPhb4PecState),
-    .class_init    = pnv_phb5_pec_class_init,
     .class_size    = sizeof(PnvPhb4PecClass),
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .class_init    = pnv_phb5_pec_class_init,
+    .interfaces    = pnv_phb5_pec_interfaces,
 };
 
 static void pnv_pec_register_types(void)

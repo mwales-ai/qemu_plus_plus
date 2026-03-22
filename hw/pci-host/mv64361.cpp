@@ -41,15 +41,17 @@ static void mv64361_pcibridge_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo mv64361_pcibridge_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo mv64361_pcibridge_info = {
     .name          = TYPE_MV64361_PCI_BRIDGE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .class_init    = mv64361_pcibridge_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces    = mv64361_pcibridge_interfaces,
 };
 
 
@@ -73,7 +75,7 @@ struct MV64361PCIState {
 
 static void mv64361_pcihost_set_irq(void *opaque, int n, int level)
 {
-    MV64361PCIState *s = opaque;
+    MV64361PCIState *s = static_cast<MV64361PCIState *>(opaque);
     qemu_set_irq(s->irq[n], level);
 }
 
@@ -354,7 +356,7 @@ static void set_mem_windows(MV64361State *s, uint32_t val)
 
 static void mv64361_update_irq(void *opaque, int n, int level)
 {
-    MV64361State *s = opaque;
+    MV64361State *s = static_cast<MV64361State *>(opaque);
     uint64_t val = s->main_int_cr;
 
     if (level) {
@@ -370,7 +372,7 @@ static void mv64361_update_irq(void *opaque, int n, int level)
 
 static uint64_t mv64361_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    MV64361State *s = MV64361(opaque);
+    MV64361State *s = static_cast<MV64361State *>(opaque);
     uint32_t ret = 0;
 
     switch (addr) {
@@ -602,7 +604,7 @@ static void mv64361_set_pci_mem_remap(MV64361State *s, int bus, int idx,
 static void mv64361_write(void *opaque, hwaddr addr, uint64_t val,
                           unsigned int size)
 {
-    MV64361State *s = MV64361(opaque);
+    MV64361State *s = static_cast<MV64361State *>(opaque);
 
     trace_mv64361_reg_write(addr, val);
     switch (addr) {
@@ -830,13 +832,13 @@ static void mv64361_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps mv64361_ops = {
     .read = mv64361_read,
     .write = mv64361_write,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
 static void mv64361_gpp_irq(void *opaque, int n, int level)
 {
-    MV64361State *s = opaque;
+    MV64361State *s = static_cast<MV64361State *>(opaque);
     uint32_t mask = BIT(n);
     uint32_t val = s->gpp_value & ~mask;
 

@@ -1,9 +1,9 @@
 pci_ss = ss.source_set()
 pci_ss.add(when: 'CONFIG_PAM', if_true: files('pam.cpp'))
-pci_ss.add(when: 'CONFIG_PCI_BONITO', if_true: files('bonito.c'))
-pci_ss.add(when: 'CONFIG_GT64120', if_true: files('gt64120.c'))
-pci_ss.add(when: 'CONFIG_PCI_EXPRESS_ASPEED', if_true: files('aspeed_pcie.c'))
-pci_ss.add(when: 'CONFIG_PCI_EXPRESS_DESIGNWARE', if_true: files('designware.c'))
+pci_ss.add(when: 'CONFIG_PCI_BONITO', if_true: files('bonito.cpp'))
+pci_ss.add(when: 'CONFIG_GT64120', if_true: files('gt64120.cpp'))
+pci_ss.add(when: 'CONFIG_PCI_EXPRESS_ASPEED', if_true: files('aspeed_pcie.cpp'))
+pci_ss.add(when: 'CONFIG_PCI_EXPRESS_DESIGNWARE', if_true: files('designware.cpp'))
 pci_ss.add(when: 'CONFIG_PCI_EXPRESS_GENERIC_BRIDGE', if_true: files('gpex.cpp'))
 pci_ss.add(when: ['CONFIG_PCI_EXPRESS_GENERIC_BRIDGE', 'CONFIG_ACPI'], if_true: files('gpex-acpi.cpp'))
 pci_ss.add(when: 'CONFIG_PCI_EXPRESS_Q35', if_true: files('q35.cpp'))
@@ -26,23 +26,23 @@ pci_ss.add(when: 'CONFIG_PPCE500_PCI', if_true: files('ppce500.c'))
 # AmigaOne
 pci_ss.add(when: 'CONFIG_ARTICIA', if_true: files('articia.cpp'))
 # Pegasos2
-pci_ss.add(when: 'CONFIG_MV64361', if_true: files('mv64361.c'))
+pci_ss.add(when: 'CONFIG_MV64361', if_true: files('mv64361.cpp'))
 
 # ARM devices
 pci_ss.add(when: 'CONFIG_PCI_EXPRESS_FSL_IMX8M_PHY', if_true: files('fsl_imx8m_phy.cpp'))
 pci_ss.add(when: 'CONFIG_VERSATILE_PCI', if_true: files('versatile.c'))
 
 # HPPA devices
-specific_ss.add(when: 'CONFIG_ASTRO', if_true: files('astro.c'))
-pci_ss.add(when: 'CONFIG_DINO', if_true: files('dino.c'))
+specific_ss.add(when: 'CONFIG_ASTRO', if_true: files('astro.cpp'))
+pci_ss.add(when: 'CONFIG_DINO', if_true: files('dino.cpp'))
 
 system_ss.add_all(when: 'CONFIG_PCI', if_true: pci_ss)
 
 specific_ss.add(when: 'CONFIG_PCI_POWERNV', if_true: files(
-  'pnv_phb3.c',
+  'pnv_phb3.cpp',
   'pnv_phb3_msi.cpp',
   'pnv_phb3_pbcq.cpp',
-  'pnv_phb4.c',
-  'pnv_phb4_pec.c',
+  'pnv_phb4.cpp',
+  'pnv_phb4_pec.cpp',
   'pnv_phb.cpp',
 ))

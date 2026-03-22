@@ -222,7 +222,7 @@ designware_pcie_root_config_read(PCIDevice *d, uint32_t address, int len)
 static uint64_t designware_pcie_root_data_access(void *opaque, hwaddr addr,
                                                  uint64_t *val, unsigned len)
 {
-    DesignwarePCIEViewport *viewport = opaque;
+    DesignwarePCIEViewport *viewport = static_cast<DesignwarePCIEViewport *>(opaque);
     DesignwarePCIERoot *root = viewport->root;
 
     const uint8_t busnum = DESIGNWARE_PCIE_ATU_BUS(viewport->target);
@@ -523,68 +523,76 @@ designware_pcie_host_root_bus_path(PCIHostState *host_bridge, PCIBus *rootbus)
     return "0000:00";
 }
 
+static const VMStateField vmstate_designware_pcie_msi_bank_fields[] = {
+    VMSTATE_UINT32(enable, DesignwarePCIEMSIBank),
+    VMSTATE_UINT32(mask, DesignwarePCIEMSIBank),
+    VMSTATE_UINT32(status, DesignwarePCIEMSIBank),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_designware_pcie_msi_bank = {
     .name = "designware-pcie-msi-bank",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(enable, DesignwarePCIEMSIBank),
-        VMSTATE_UINT32(mask, DesignwarePCIEMSIBank),
-        VMSTATE_UINT32(status, DesignwarePCIEMSIBank),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_designware_pcie_msi_bank_fields,
+};
+
+static const VMStateField vmstate_designware_pcie_msi_fields[] = {
+    VMSTATE_UINT64(base, DesignwarePCIEMSI),
+    VMSTATE_STRUCT_ARRAY(intr,
+                         DesignwarePCIEMSI,
+                         DESIGNWARE_PCIE_NUM_MSI_BANKS,
+                         1,
+                         vmstate_designware_pcie_msi_bank,
+                         DesignwarePCIEMSIBank),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_designware_pcie_msi = {
     .name = "designware-pcie-msi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(base, DesignwarePCIEMSI),
-        VMSTATE_STRUCT_ARRAY(intr,
-                             DesignwarePCIEMSI,
-                             DESIGNWARE_PCIE_NUM_MSI_BANKS,
-                             1,
-                             vmstate_designware_pcie_msi_bank,
-                             DesignwarePCIEMSIBank),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_designware_pcie_msi_fields,
+};
+
+static const VMStateField vmstate_designware_pcie_viewport_fields[] = {
+    VMSTATE_UINT64(base, DesignwarePCIEViewport),
+    VMSTATE_UINT64(target, DesignwarePCIEViewport),
+    VMSTATE_UINT32(limit, DesignwarePCIEViewport),
+    VMSTATE_UINT32_ARRAY(cr, DesignwarePCIEViewport, 2),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_designware_pcie_viewport = {
     .name = "designware-pcie-viewport",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(base, DesignwarePCIEViewport),
-        VMSTATE_UINT64(target, DesignwarePCIEViewport),
-        VMSTATE_UINT32(limit, DesignwarePCIEViewport),
-        VMSTATE_UINT32_ARRAY(cr, DesignwarePCIEViewport, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_designware_pcie_viewport_fields,
+};
+
+static const VMStateField vmstate_designware_pcie_root_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
+    VMSTATE_UINT32(atu_viewport, DesignwarePCIERoot),
+    VMSTATE_STRUCT_2DARRAY(viewports,
+                           DesignwarePCIERoot,
+                           2,
+                           DESIGNWARE_PCIE_NUM_VIEWPORTS,
+                           1,
+                           vmstate_designware_pcie_viewport,
+                           DesignwarePCIEViewport),
+    VMSTATE_STRUCT(msi,
+                   DesignwarePCIERoot,
+                   1,
+                   vmstate_designware_pcie_msi,
+                   DesignwarePCIEMSI),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_designware_pcie_root = {
     .name = "designware-pcie-root",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PCIBridge),
-        VMSTATE_UINT32(atu_viewport, DesignwarePCIERoot),
-        VMSTATE_STRUCT_2DARRAY(viewports,
-                               DesignwarePCIERoot,
-                               2,
-                               DESIGNWARE_PCIE_NUM_VIEWPORTS,
-                               1,
-                               vmstate_designware_pcie_viewport,
-                               DesignwarePCIEViewport),
-        VMSTATE_STRUCT(msi,
-                       DesignwarePCIERoot,
-                       1,
-                       vmstate_designware_pcie_msi,
-                       DesignwarePCIEMSI),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_designware_pcie_root_fields,
 };
 
 static void designware_pcie_root_class_init(ObjectClass *klass,
@@ -698,7 +706,7 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
                                      &s->pci.io,
                                      0, 4,
                                      TYPE_DESIGNWARE_PCIE_ROOT_BUS);
-    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+    pci->bus->flags = static_cast<PCIBusFlags>(pci->bus->flags | PCI_BUS_EXTENDED_CONFIG_SPACE);
 
     memory_region_init(&s->pci.address_space_root,
                        OBJECT(s),
@@ -714,18 +722,20 @@ static void designware_pcie_host_realize(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(&s->root), BUS(pci->bus), &error_fatal);
 }
 
+static const VMStateField vmstate_designware_pcie_host_fields[] = {
+    VMSTATE_STRUCT(root,
+                   DesignwarePCIEHost,
+                   1,
+                   vmstate_designware_pcie_root,
+                   DesignwarePCIERoot),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_designware_pcie_host = {
     .name = "designware-pcie-host",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(root,
-                       DesignwarePCIEHost,
-                       1,
-                       vmstate_designware_pcie_root,
-                       DesignwarePCIERoot),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_designware_pcie_host_fields,
 };
 
 static void designware_pcie_host_class_init(ObjectClass *klass,
@@ -751,6 +761,11 @@ static void designware_pcie_host_init(Object *obj)
     qdev_prop_set_bit(DEVICE(root), "multifunction", false);
 }
 
+static const InterfaceInfo designware_pcie_root_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { }
+};
+
 static const TypeInfo designware_pcie_types[] = {
     {
         .name           = TYPE_DESIGNWARE_PCIE_ROOT_BUS,
@@ -768,10 +783,7 @@ static const TypeInfo designware_pcie_types[] = {
         .parent         = TYPE_PCI_BRIDGE,
         .instance_size  = sizeof(DesignwarePCIERoot),
         .class_init     = designware_pcie_root_class_init,
-        .interfaces     = (const InterfaceInfo[]) {
-            { INTERFACE_PCIE_DEVICE },
-            { }
-        },
+        .interfaces     = designware_pcie_root_interfaces,
     },
 };
 

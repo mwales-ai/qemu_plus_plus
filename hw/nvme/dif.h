@@ -175,6 +175,10 @@ static inline size_t nvme_pi_tuple_size(NvmeNamespace *ns)
     return ns->pif ? 16 : 8;
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint16_t nvme_check_prinfo(NvmeNamespace *ns, uint8_t prinfo, uint64_t slba,
                            uint64_t reftag);
 uint16_t nvme_dif_mangle_mdata(NvmeNamespace *ns, uint8_t *mbuf, size_t mlen,
@@ -187,5 +191,9 @@ uint16_t nvme_dif_check(NvmeNamespace *ns, uint8_t *buf, size_t len,
                         uint64_t slba, uint16_t apptag,
                         uint16_t appmask, uint64_t *reftag);
 uint16_t nvme_dif_rw(NvmeCtrl *n, NvmeRequest *req);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_NVME_DIF_H */

@@ -49,7 +49,7 @@ system_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('net_rx_pkt.cpp'))
 specific_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('virtio-net.cpp'))
 
 if have_vhost_net
-  system_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost_net.c'), if_false: files('vhost_net-stub.cpp'))
+  system_ss.add(when: 'CONFIG_VIRTIO_NET', if_true: files('vhost_net.cpp'), if_false: files('vhost_net-stub.cpp'))
 else
   system_ss.add(files('vhost_net-stub.cpp'))
 endif

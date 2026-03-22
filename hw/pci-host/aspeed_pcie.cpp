@@ -53,15 +53,17 @@ static void aspeed_pcie_root_device_class_init(ObjectClass *klass,
     dc->user_creatable = false;
 }
 
+static const InterfaceInfo aspeed_pcie_root_device_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo aspeed_pcie_root_device_info = {
     .name = TYPE_ASPEED_PCIE_ROOT_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AspeedPCIERootDeviceState),
     .class_init = aspeed_pcie_root_device_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = aspeed_pcie_root_device_interfaces,
 };
 
 /*
@@ -189,8 +191,8 @@ static void aspeed_pcie_rc_msi_write(void *opaque, hwaddr addr, uint64_t data,
 }
 
 static const MemoryRegionOps aspeed_pcie_rc_msi_ops = {
-    .write = aspeed_pcie_rc_msi_write,
     .read = NULL,
+    .write = aspeed_pcie_rc_msi_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -252,7 +254,7 @@ static void aspeed_pcie_rc_realize(DeviceState *dev, Error **errp)
                                      aspeed_pcie_rc_set_irq,
                                      aspeed_pcie_rc_map_irq, rc, &rc->mmio,
                                      &rc->io, 0, 4, TYPE_PCIE_BUS);
-    pci->bus->flags |= PCI_BUS_EXTENDED_CONFIG_SPACE;
+    pci->bus->flags = static_cast<PCIBusFlags>(pci->bus->flags | PCI_BUS_EXTENDED_CONFIG_SPACE);
 
    /*
     * PCIe memory view setup
@@ -753,10 +755,10 @@ static void aspeed_pcie_cfg_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo aspeed_pcie_cfg_info = {
     .name       = TYPE_ASPEED_PCIE_CFG,
     .parent     = TYPE_SYS_BUS_DEVICE,
-    .instance_init = aspeed_pcie_cfg_instance_init,
     .instance_size = sizeof(AspeedPCIECfgState),
-    .class_init = aspeed_pcie_cfg_class_init,
+    .instance_init = aspeed_pcie_cfg_instance_init,
     .class_size = sizeof(AspeedPCIECfgClass),
+    .class_init = aspeed_pcie_cfg_class_init,
 };
 
 static void aspeed_2700_pcie_cfg_write(void *opaque, hwaddr addr,
@@ -1002,8 +1004,8 @@ static const TypeInfo aspeed_pcie_phy_info = {
     .name       = TYPE_ASPEED_PCIE_PHY,
     .parent     = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AspeedPCIEPhyState),
-    .class_init = aspeed_pcie_phy_class_init,
     .class_size = sizeof(AspeedPCIEPhyClass),
+    .class_init = aspeed_pcie_phy_class_init,
 };
 
 static void aspeed_2700_pcie_phy_reset(DeviceState *dev)
