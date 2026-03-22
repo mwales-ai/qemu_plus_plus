@@ -224,13 +224,12 @@ static void cfu_stream_write(void *opaque, hwaddr addr, uint64_t value,
         /* Compressed bitstreams are not supported yet. */
         if (ARRAY_FIELD_EX32(s->regs, CFU_CTL, DECOMPRESS) == 0) {
             if (s->regs[R_CFU_FDRI_CNT]) {
-                XlnxCfiPacket pkt = {
-                    .reg_addr = CFRAME_FDRI,
-                    .data[0] = wfifo[0],
-                    .data[1] = wfifo[1],
-                    .data[2] = wfifo[2],
-                    .data[3] = wfifo[3]
-                };
+                XlnxCfiPacket pkt = {};
+                pkt.reg_addr = CFRAME_FDRI;
+                pkt.data[0] = wfifo[0];
+                pkt.data[1] = wfifo[1];
+                pkt.data[2] = wfifo[2];
+                pkt.data[3] = wfifo[3];
 
                 cfu_transfer_cfi_packet(s, s->fdri_row_addr, &pkt);
 
@@ -252,12 +251,11 @@ static void cfu_stream_write(void *opaque, hwaddr addr, uint64_t value,
                 }
 
             } else if (packet_type == PACKET_TYPE_CFRAME) {
-                XlnxCfiPacket pkt = {
-                    .reg_addr = reg_addr,
-                    .data[0] = wfifo[1],
-                    .data[1] = wfifo[2],
-                    .data[2] = wfifo[3],
-                };
+                XlnxCfiPacket pkt = {};
+                pkt.reg_addr = reg_addr;
+                pkt.data[0] = wfifo[1];
+                pkt.data[1] = wfifo[2];
+                pkt.data[2] = wfifo[3];
                 cfu_transfer_cfi_packet(s, row_addr, &pkt);
             }
         }
@@ -280,8 +278,9 @@ static void cfu_sfr_write(void *opaque, hwaddr addr, uint64_t value,
     if (update_wfifo(addr, value, s->wfifo, wfifo)) {
         uint8_t row_addr = extract32(wfifo[0], 23, 5);
         uint32_t frame_addr = extract32(wfifo[0], 0, 23);
-        XlnxCfiPacket pkt = { .reg_addr = CFRAME_SFR,
-                              .data[0] = frame_addr };
+        XlnxCfiPacket pkt = {};
+        pkt.reg_addr = CFRAME_SFR;
+        pkt.data[0] = frame_addr;
 
         if (s->cfg.cfu) {
             cfu_transfer_cfi_packet(s->cfg.cfu, row_addr, &pkt);
@@ -369,7 +368,7 @@ static void cfu_apb_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_cfu_imr);
 }
 
-static void cfu_sfr_init(Object *obj)
+static void __attribute__((used)) cfu_sfr_init(Object *obj)
 {
     XlnxVersalCFUSFR *s = XLNX_VERSAL_CFU_SFR(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -464,36 +463,42 @@ static const Property cfu_sfr_props[] = {
                          TYPE_XLNX_VERSAL_CFU_APB, XlnxVersalCFUAPB *),
 };
 
+static const VMStateField vmstate_cfu_apb_fields[] = {
+    VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFUAPB, 4),
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersalCFUAPB, R_MAX),
+    VMSTATE_UINT8(fdri_row_addr, XlnxVersalCFUAPB),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_cfu_apb = {
     .name = TYPE_XLNX_VERSAL_CFU_APB,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFUAPB, 4),
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersalCFUAPB, R_MAX),
-        VMSTATE_UINT8(fdri_row_addr, XlnxVersalCFUAPB),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_cfu_apb_fields,
+};
+
+static const VMStateField vmstate_cfu_fdro_fields[] = {
+    VMSTATE_FIFO32(fdro_data, XlnxVersalCFUFDRO),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_cfu_fdro = {
     .name = TYPE_XLNX_VERSAL_CFU_FDRO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO32(fdro_data, XlnxVersalCFUFDRO),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_cfu_fdro_fields,
+};
+
+static const VMStateField vmstate_cfu_sfr_fields[] = {
+    VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFUSFR, 4),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_cfu_sfr = {
     .name = TYPE_XLNX_VERSAL_CFU_SFR,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFUSFR, 4),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_cfu_sfr_fields,
 };
 
 static void cfu_apb_class_init(ObjectClass *klass, const void *data)
@@ -526,37 +531,41 @@ static void cfu_sfr_class_init(ObjectClass *klass, const void *data)
     rc->phases.enter = cfu_sfr_reset_enter;
 }
 
+static const InterfaceInfo cfu_apb_interfaces[] = {
+    { TYPE_XLNX_CFI_IF },
+    { }
+};
+
 static const TypeInfo cfu_apb_info = {
     .name          = TYPE_XLNX_VERSAL_CFU_APB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCFUAPB),
-    .class_init    = cfu_apb_class_init,
     .instance_init = cfu_apb_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_XLNX_CFI_IF },
-        { }
-    }
+    .class_init    = cfu_apb_class_init,
+    .interfaces = cfu_apb_interfaces,
+};
+
+static const InterfaceInfo cfu_fdro_interfaces[] = {
+    { TYPE_XLNX_CFI_IF },
+    { }
 };
 
 static const TypeInfo cfu_fdro_info = {
     .name          = TYPE_XLNX_VERSAL_CFU_FDRO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCFUFDRO),
-    .class_init    = cfu_fdro_class_init,
     .instance_init = cfu_fdro_init,
     .instance_finalize = cfu_fdro_finalize,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_XLNX_CFI_IF },
-        { }
-    }
+    .class_init    = cfu_fdro_class_init,
+    .interfaces = cfu_fdro_interfaces,
 };
 
 static const TypeInfo cfu_sfr_info = {
     .name          = TYPE_XLNX_VERSAL_CFU_SFR,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCFUSFR),
-    .class_init    = cfu_sfr_class_init,
     .instance_init = cfu_sfr_init,
+    .class_init    = cfu_sfr_class_init,
 };
 
 static void cfu_apb_register_types(void)

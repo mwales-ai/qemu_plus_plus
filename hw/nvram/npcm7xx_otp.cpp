@@ -92,7 +92,7 @@ static uint8_t ecc_encode_nibble(uint8_t n)
 void npcm7xx_otp_array_write(NPCM7xxOTPState *s, const void *data,
                              unsigned int offset, unsigned int len)
 {
-    const uint8_t *src = data;
+    const uint8_t *src = static_cast<const uint8_t *>(data);
     uint8_t *dst = &s->array[offset];
 
     while (len-- > 0) {
@@ -254,8 +254,8 @@ static void npcm7xx_otp_write(NPCM7xxOTPState *s, NPCM7xxOTPRegister reg,
 static uint64_t npcm7xx_fuse_array_read(void *opaque, hwaddr addr,
                                         unsigned int size)
 {
-    NPCM7xxOTPRegister reg = addr / sizeof(uint32_t);
-    NPCM7xxOTPState *s = opaque;
+    NPCM7xxOTPRegister reg = static_cast<NPCM7xxOTPRegister>(addr / sizeof(uint32_t));
+    NPCM7xxOTPState *s = static_cast<NPCM7xxOTPState *>(opaque);
     uint32_t value;
 
     /*
@@ -282,8 +282,8 @@ static uint64_t npcm7xx_fuse_array_read(void *opaque, hwaddr addr,
 static void npcm7xx_fuse_array_write(void *opaque, hwaddr addr, uint64_t v,
                                      unsigned int size)
 {
-    NPCM7xxOTPRegister reg = addr / sizeof(uint32_t);
-    NPCM7xxOTPState *s = opaque;
+    NPCM7xxOTPRegister reg = static_cast<NPCM7xxOTPRegister>(addr / sizeof(uint32_t));
+    NPCM7xxOTPState *s = static_cast<NPCM7xxOTPState *>(opaque);
 
     /*
      * The Fuse Strap register is read-only. Other registers are handled by
@@ -309,8 +309,8 @@ static const MemoryRegionOps npcm7xx_fuse_array_ops = {
 static uint64_t npcm7xx_key_storage_read(void *opaque, hwaddr addr,
                                          unsigned int size)
 {
-    NPCM7xxOTPRegister reg = addr / sizeof(uint32_t);
-    NPCM7xxOTPState *s = opaque;
+    NPCM7xxOTPRegister reg = static_cast<NPCM7xxOTPRegister>(addr / sizeof(uint32_t));
+    NPCM7xxOTPState *s = static_cast<NPCM7xxOTPState *>(opaque);
 
     /*
      * Only the Fuse Key Index register needs special handling; all other
@@ -329,8 +329,8 @@ static uint64_t npcm7xx_key_storage_read(void *opaque, hwaddr addr,
 static void npcm7xx_key_storage_write(void *opaque, hwaddr addr, uint64_t v,
                                       unsigned int size)
 {
-    NPCM7xxOTPRegister reg = addr / sizeof(uint32_t);
-    NPCM7xxOTPState *s = opaque;
+    NPCM7xxOTPRegister reg = static_cast<NPCM7xxOTPRegister>(addr / sizeof(uint32_t));
+    NPCM7xxOTPState *s = static_cast<NPCM7xxOTPState *>(opaque);
 
     /*
      * Only the Fuse Key Index register needs special handling; all other
@@ -380,15 +380,17 @@ static void npcm7xx_otp_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->mmio);
 }
 
+static const VMStateField vmstate_npcm7xx_otp_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, NPCM7xxOTPState, NPCM7XX_OTP_NR_REGS),
+    VMSTATE_UINT8_ARRAY(array, NPCM7xxOTPState, NPCM7XX_OTP_ARRAY_BYTES),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_otp = {
     .name = "npcm7xx-otp",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, NPCM7xxOTPState, NPCM7XX_OTP_NR_REGS),
-        VMSTATE_UINT8_ARRAY(array, NPCM7xxOTPState, NPCM7XX_OTP_ARRAY_BYTES),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_otp_fields,
 };
 
 static void npcm7xx_otp_class_init(ObjectClass *klass, const void *data)
@@ -422,9 +424,9 @@ static const TypeInfo npcm7xx_otp_types[] = {
         .name = TYPE_NPCM7XX_OTP,
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(NPCM7xxOTPState),
+        .is_abstract = true,
         .class_size = sizeof(NPCM7xxOTPClass),
         .class_init = npcm7xx_otp_class_init,
-        .is_abstract = true,
     },
     {
         .name = TYPE_NPCM7XX_KEY_STORAGE,

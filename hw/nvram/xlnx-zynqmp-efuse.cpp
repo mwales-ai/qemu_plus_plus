@@ -462,50 +462,31 @@ static void zynqmp_efuse_rd_addr_postw(RegisterInfo *reg, uint64_t val64)
 #define COL_MASK(L_, H_) \
     ((uint32_t)MAKE_64BIT_MASK((L_), (1 + (H_) - (L_))))
 
-    static const uint32_t ary0_col_mask[] = {
+    static uint32_t ary0_col_mask[64] = {};
+    static bool ary0_initialized = false;
+    if (!ary0_initialized) {
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_TBITS_ROW */
-        [0]  = COL_MASK(28, 31),
-
+        ary0_col_mask[0]  = COL_MASK(28, 31);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_USR{0:7}_FUSE_ROW */
-        [8]  = COL_MASK(0, 31), [9]  = COL_MASK(0, 31),
-        [10] = COL_MASK(0, 31), [11] = COL_MASK(0, 31),
-        [12] = COL_MASK(0, 31), [13] = COL_MASK(0, 31),
-        [14] = COL_MASK(0, 31), [15] = COL_MASK(0, 31),
-
+        for (int i = 8; i <= 15; i++) ary0_col_mask[i] = COL_MASK(0, 31);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_MISC_USR_CTRL_ROW */
-        [16] = COL_MASK(0, 7) | COL_MASK(10, 16),
-
+        ary0_col_mask[16] = COL_MASK(0, 7) | COL_MASK(10, 16);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_PBR_BOOT_ERR_ROW */
-        [17] = COL_MASK(0, 2),
-
+        ary0_col_mask[17] = COL_MASK(0, 2);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_PUF_CHASH_ROW */
-        [20] = COL_MASK(0, 31),
-
+        ary0_col_mask[20] = COL_MASK(0, 31);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_PUF_AUX_ROW */
-        [21] = COL_MASK(0, 23) | COL_MASK(29, 31),
-
+        ary0_col_mask[21] = COL_MASK(0, 23) | COL_MASK(29, 31);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_SEC_CTRL_ROW */
-        [22] = COL_MASK(0, 31),
-
+        ary0_col_mask[22] = COL_MASK(0, 31);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_SPK_ID_ROW */
-        [23] = COL_MASK(0, 31),
-
+        ary0_col_mask[23] = COL_MASK(0, 31);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_PPK0_START_ROW */
-        [40] = COL_MASK(0, 31), [41] = COL_MASK(0, 31),
-        [42] = COL_MASK(0, 31), [43] = COL_MASK(0, 31),
-        [44] = COL_MASK(0, 31), [45] = COL_MASK(0, 31),
-        [46] = COL_MASK(0, 31), [47] = COL_MASK(0, 31),
-        [48] = COL_MASK(0, 31), [49] = COL_MASK(0, 31),
-        [50] = COL_MASK(0, 31), [51] = COL_MASK(0, 31),
-
+        for (int i = 40; i <= 51; i++) ary0_col_mask[i] = COL_MASK(0, 31);
         /* XilSKey - XSK_ZYNQMP_EFUSEPS_PPK1_START_ROW */
-        [52] = COL_MASK(0, 31), [53] = COL_MASK(0, 31),
-        [54] = COL_MASK(0, 31), [55] = COL_MASK(0, 31),
-        [56] = COL_MASK(0, 31), [57] = COL_MASK(0, 31),
-        [58] = COL_MASK(0, 31), [59] = COL_MASK(0, 31),
-        [60] = COL_MASK(0, 31), [61] = COL_MASK(0, 31),
-        [62] = COL_MASK(0, 31), [63] = COL_MASK(0, 31),
-    };
+        for (int i = 52; i <= 63; i++) ary0_col_mask[i] = COL_MASK(0, 31);
+        ary0_initialized = true;
+    }
 
     uint32_t col_mask = COL_MASK(0, 31);
 #undef COL_MASK
@@ -722,7 +703,7 @@ static RegisterAccessInfo zynqmp_efuse_regs_info[] = {
 static void zynqmp_efuse_reg_write(void *opaque, hwaddr addr,
                                    uint64_t data, unsigned size)
 {
-    RegisterInfoArray *reg_array = opaque;
+    RegisterInfoArray *reg_array = static_cast<RegisterInfoArray *>(opaque);
     XlnxZynqMPEFuse *s;
     Object *dev;
 
@@ -799,7 +780,7 @@ static void zynqmp_efuse_realize(DeviceState *dev, Error **errp)
     s->efuse->dev = dev;
 }
 
-static void zynqmp_efuse_init(Object *obj)
+static void __attribute__((used)) zynqmp_efuse_init(Object *obj)
 {
     XlnxZynqMPEFuse *s = XLNX_ZYNQMP_EFUSE(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -816,14 +797,16 @@ static void zynqmp_efuse_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq);
 }
 
+static const VMStateField vmstate_efuse_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPEFuse, R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_efuse = {
     .name = TYPE_XLNX_ZYNQMP_EFUSE,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPEFuse, R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_efuse_fields,
 };
 
 static const Property zynqmp_efuse_props[] = {
@@ -848,8 +831,8 @@ static const TypeInfo efuse_info = {
     .name          = TYPE_XLNX_ZYNQMP_EFUSE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxZynqMPEFuse),
-    .class_init    = zynqmp_efuse_class_init,
     .instance_init = zynqmp_efuse_init,
+    .class_init    = zynqmp_efuse_class_init,
 };
 
 static void efuse_register_types(void)

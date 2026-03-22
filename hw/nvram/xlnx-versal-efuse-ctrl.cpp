@@ -330,7 +330,7 @@ static int efuse_lk_spec_cmp(const void *a, const void *b)
 
 static void efuse_lk_spec_sort(XlnxVersalEFuseCtrl *s)
 {
-    XlnxEFuseLkSpec *ary = s->extra_pg0_lock_spec;
+    XlnxEFuseLkSpec *ary = static_cast<XlnxEFuseLkSpec *>(static_cast<void *>(s->extra_pg0_lock_spec));
     const uint32_t n8 = s->extra_pg0_lock_n16 * 2;
     const uint32_t sz  = sizeof(ary[0]);
     const uint32_t cnt = n8 / sz;
@@ -342,7 +342,7 @@ static void efuse_lk_spec_sort(XlnxVersalEFuseCtrl *s)
 
 static uint32_t efuse_lk_spec_find(XlnxVersalEFuseCtrl *s, uint32_t row)
 {
-    const XlnxEFuseLkSpec *ary = s->extra_pg0_lock_spec;
+    const XlnxEFuseLkSpec *ary = static_cast<XlnxEFuseLkSpec *>(static_cast<void *>(s->extra_pg0_lock_spec));
     const uint32_t n8  = s->extra_pg0_lock_n16 * 2;
     const uint32_t sz  = sizeof(ary[0]);
     const uint32_t cnt = n8 / sz;
@@ -351,7 +351,7 @@ static uint32_t efuse_lk_spec_find(XlnxVersalEFuseCtrl *s, uint32_t row)
     if (ary && cnt) {
         XlnxEFuseLkSpec k = { .row = row, };
 
-        item = bsearch(&k, ary, cnt, sz, efuse_lk_spec_cmp);
+        item = static_cast<const XlnxEFuseLkSpec *>(bsearch(&k, ary, cnt, sz, efuse_lk_spec_cmp));
     }
 
     return item ? item->lk_bit : 0;
@@ -360,18 +360,20 @@ static uint32_t efuse_lk_spec_find(XlnxVersalEFuseCtrl *s, uint32_t row)
 static uint32_t efuse_bit_locked(XlnxVersalEFuseCtrl *s, uint32_t bit)
 {
     /* Hard-coded locks */
-    static const uint16_t pg0_hard_lock[] = {
-        [4] = EFUSE_GLITCH_DET_WR_LK,
-        [37] = EFUSE_BOOT_ENV_WR_LK,
-
-        [8 ... 11]  = EFUSE_DNA_WR_LK,
-        [12 ... 19] = EFUSE_AES_WR_LK,
-        [20 ... 27] = EFUSE_USER_KEY_0_WR_LK,
-        [28 ... 35] = EFUSE_USER_KEY_1_WR_LK,
-        [64 ... 71] = EFUSE_PPK0_WR_LK,
-        [72 ... 79] = EFUSE_PPK1_WR_LK,
-        [80 ... 87] = EFUSE_PPK2_WR_LK,
-    };
+    static uint16_t pg0_hard_lock[88] = {};
+    static bool pg0_hard_lock_initialized = false;
+    if (!pg0_hard_lock_initialized) {
+        pg0_hard_lock[4] = EFUSE_GLITCH_DET_WR_LK;
+        pg0_hard_lock[37] = EFUSE_BOOT_ENV_WR_LK;
+        for (int i = 8; i <= 11; i++) pg0_hard_lock[i] = EFUSE_DNA_WR_LK;
+        for (int i = 12; i <= 19; i++) pg0_hard_lock[i] = EFUSE_AES_WR_LK;
+        for (int i = 20; i <= 27; i++) pg0_hard_lock[i] = EFUSE_USER_KEY_0_WR_LK;
+        for (int i = 28; i <= 35; i++) pg0_hard_lock[i] = EFUSE_USER_KEY_1_WR_LK;
+        for (int i = 64; i <= 71; i++) pg0_hard_lock[i] = EFUSE_PPK0_WR_LK;
+        for (int i = 72; i <= 79; i++) pg0_hard_lock[i] = EFUSE_PPK1_WR_LK;
+        for (int i = 80; i <= 87; i++) pg0_hard_lock[i] = EFUSE_PPK2_WR_LK;
+        pg0_hard_lock_initialized = true;
+    }
 
     uint32_t row = FIELD_EX32(bit, EFUSE_PGM_ADDR, ROW);
     uint32_t lk_bit = ARRAY_GET(pg0_hard_lock, row, 0);
@@ -617,7 +619,7 @@ static const RegisterAccessInfo efuse_ctrl_regs_info[] = {
 static void efuse_ctrl_reg_write(void *opaque, hwaddr addr,
                                  uint64_t data, unsigned size)
 {
-    RegisterInfoArray *reg_array = opaque;
+    RegisterInfoArray *reg_array = static_cast<RegisterInfoArray *>(opaque);
     XlnxVersalEFuseCtrl *s;
     Object *dev;
 
@@ -707,7 +709,7 @@ static void efuse_ctrl_realize(DeviceState *dev, Error **errp)
     efuse_lk_spec_sort(s);
 }
 
-static void efuse_ctrl_init(Object *obj)
+static void __attribute__((used)) efuse_ctrl_init(Object *obj)
 {
     XlnxVersalEFuseCtrl *s = XLNX_VERSAL_EFUSE_CTRL(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -724,21 +726,23 @@ static void efuse_ctrl_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_efuse_imr);
 }
 
-static void efuse_ctrl_finalize(Object *obj)
+static void __attribute__((used)) efuse_ctrl_finalize(Object *obj)
 {
     XlnxVersalEFuseCtrl *s = XLNX_VERSAL_EFUSE_CTRL(obj);
 
     g_free(s->extra_pg0_lock_spec);
 }
 
+static const VMStateField vmstate_efuse_ctrl_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersalEFuseCtrl, R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_efuse_ctrl = {
     .name = TYPE_XLNX_VERSAL_EFUSE_CTRL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersalEFuseCtrl, R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_efuse_ctrl_fields,
 };
 
 static const Property efuse_ctrl_props[] = {
@@ -765,9 +769,9 @@ static const TypeInfo efuse_ctrl_info = {
     .name          = TYPE_XLNX_VERSAL_EFUSE_CTRL,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalEFuseCtrl),
-    .class_init    = efuse_ctrl_class_init,
     .instance_init = efuse_ctrl_init,
     .instance_finalize = efuse_ctrl_finalize,
+    .class_init    = efuse_ctrl_class_init,
 };
 
 static void efuse_ctrl_register_types(void)

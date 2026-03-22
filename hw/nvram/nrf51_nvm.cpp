@@ -95,8 +95,8 @@ static void ficr_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps ficr_ops = {
     .read = ficr_read,
     .write = ficr_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = { .min_access_size = 4, .max_access_size = 4, },
-    .endianness = DEVICE_LITTLE_ENDIAN
 };
 
 /*
@@ -187,8 +187,8 @@ static void uicr_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps uicr_ops = {
     .read = uicr_read,
     .write = uicr_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = { .min_access_size = 4, .max_access_size = 4, },
-    .endianness = DEVICE_LITTLE_ENDIAN
 };
 
 
@@ -265,8 +265,8 @@ static void io_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps io_ops = {
         .read = io_read,
         .write = io_write,
-        .impl = { .min_access_size = 4, .max_access_size = 4, },
         .endianness = DEVICE_LITTLE_ENDIAN,
+        .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static uint64_t flash_read(void *opaque, hwaddr offset, unsigned size)
@@ -307,8 +307,8 @@ static void flash_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps flash_ops = {
     .read = flash_read,
     .write = flash_write,
-    .valid = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void nrf51_nvm_init(Object *obj)
@@ -338,7 +338,7 @@ static void nrf51_nvm_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    s->storage = memory_region_get_ram_ptr(&s->flash);
+    s->storage = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->flash));
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->flash);
 }
 
@@ -354,16 +354,18 @@ static const Property nrf51_nvm_properties[] = {
     DEFINE_PROP_UINT32("flash-size", NRF51NVMState, flash_size, 0x40000),
 };
 
+static const VMStateField vmstate_nvm_fields[] = {
+    VMSTATE_UINT32_ARRAY(uicr_content, NRF51NVMState,
+            NRF51_UICR_FIXTURE_SIZE),
+    VMSTATE_UINT32(config, NRF51NVMState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_nvm = {
     .name = "nrf51_soc.nvm",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(uicr_content, NRF51NVMState,
-                NRF51_UICR_FIXTURE_SIZE),
-        VMSTATE_UINT32(config, NRF51NVMState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_nvm_fields,
 };
 
 static void nrf51_nvm_class_init(ObjectClass *klass, const void *data)

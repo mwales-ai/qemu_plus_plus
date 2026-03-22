@@ -36,7 +36,7 @@ static void update_wfi_out(void *opaque)
     }
 }
 
-static void zynqmp_apu_rvbar_post_write(RegisterInfo *reg, uint64_t val)
+static void __attribute__((used)) zynqmp_apu_rvbar_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(reg->opaque);
     int i;
@@ -51,19 +51,19 @@ static void zynqmp_apu_rvbar_post_write(RegisterInfo *reg, uint64_t val)
     }
 }
 
-static void zynqmp_apu_pwrctl_post_write(RegisterInfo *reg, uint64_t val)
+static void __attribute__((used)) zynqmp_apu_pwrctl_post_write(RegisterInfo *reg, uint64_t val)
 {
     XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(reg->opaque);
-    unsigned int i, new;
+    unsigned int i, new_val;
 
     for (i = 0; i < APU_MAX_CPU; i++) {
-        new = val & (1 << i);
+        new_val = val & (1 << i);
         /* Check if CPU's CPUPWRDNREQ has changed. If yes, update GPIOs. */
-        if (new != (s->cpu_pwrdwn_req & (1 << i))) {
-            qemu_set_irq(s->cpu_power_status[i], !!new);
+        if (new_val != (s->cpu_pwrdwn_req & (1 << i))) {
+            qemu_set_irq(s->cpu_power_status[i], !!new_val);
         }
         s->cpu_pwrdwn_req &= ~(1 << i);
-        s->cpu_pwrdwn_req |= new;
+        s->cpu_pwrdwn_req |= new_val;
     }
     update_wfi_out(s);
 }
@@ -74,13 +74,13 @@ static void imr_update_irq(XlnxZynqMPAPUCtrl *s)
     qemu_set_irq(s->irq_imr, pending);
 }
 
-static void isr_postw(RegisterInfo *reg, uint64_t val64)
+static void __attribute__((used)) isr_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(reg->opaque);
     imr_update_irq(s);
 }
 
-static uint64_t ien_prew(RegisterInfo *reg, uint64_t val64)
+static uint64_t __attribute__((used)) ien_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(reg->opaque);
     uint32_t val = val64;
@@ -90,7 +90,7 @@ static uint64_t ien_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
-static uint64_t ids_prew(RegisterInfo *reg, uint64_t val64)
+static uint64_t __attribute__((used)) ids_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(reg->opaque);
     uint32_t val = val64;
@@ -176,7 +176,7 @@ static void zynqmp_apu_handle_wfi(void *opaque, int irq, int level)
     update_wfi_out(s);
 }
 
-static void zynqmp_apu_init(Object *obj)
+static void __attribute__((used)) zynqmp_apu_init(Object *obj)
 {
     XlnxZynqMPAPUCtrl *s = XLNX_ZYNQMP_APU_CTRL(obj);
     RegisterInfoArray *reg_array;
@@ -209,14 +209,16 @@ static void zynqmp_apu_init(Object *obj)
     qdev_init_gpio_in_named(DEVICE(obj), zynqmp_apu_handle_wfi, "wfi_in", 4);
 }
 
+static const VMStateField vmstate_zynqmp_apu_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPAPUCtrl, APU_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_zynqmp_apu = {
     .name = TYPE_XLNX_ZYNQMP_APU_CTRL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPAPUCtrl, APU_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_zynqmp_apu_fields,
 };
 
 static void zynqmp_apu_class_init(ObjectClass *klass, const void *data)
@@ -234,8 +236,8 @@ static const TypeInfo zynqmp_apu_info = {
     .name              = TYPE_XLNX_ZYNQMP_APU_CTRL,
     .parent            = TYPE_SYS_BUS_DEVICE,
     .instance_size     = sizeof(XlnxZynqMPAPUCtrl),
-    .class_init        = zynqmp_apu_class_init,
     .instance_init     = zynqmp_apu_init,
+    .class_init        = zynqmp_apu_class_init,
 };
 
 static void zynqmp_apu_register_types(void)

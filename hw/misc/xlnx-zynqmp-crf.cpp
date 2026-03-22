@@ -28,13 +28,13 @@ static void ir_update_irq(XlnxZynqMPCRF *s)
     qemu_set_irq(s->irq_ir, pending);
 }
 
-static void ir_status_postw(RegisterInfo *reg, uint64_t val64)
+static void __attribute__((used)) ir_status_postw(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(reg->opaque);
     ir_update_irq(s);
 }
 
-static uint64_t ir_enable_prew(RegisterInfo *reg, uint64_t val64)
+static uint64_t __attribute__((used)) ir_enable_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(reg->opaque);
     uint32_t val = val64;
@@ -44,7 +44,7 @@ static uint64_t ir_enable_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
-static uint64_t ir_disable_prew(RegisterInfo *reg, uint64_t val64)
+static uint64_t __attribute__((used)) ir_disable_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(reg->opaque);
     uint32_t val = val64;
@@ -54,7 +54,7 @@ static uint64_t ir_disable_prew(RegisterInfo *reg, uint64_t val64)
     return 0;
 }
 
-static uint64_t rst_fpd_apu_prew(RegisterInfo *reg, uint64_t val64)
+static uint64_t __attribute__((used)) rst_fpd_apu_prew(RegisterInfo *reg, uint64_t val64)
 {
     XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(reg->opaque);
     uint32_t val = val64;
@@ -207,7 +207,7 @@ static const MemoryRegionOps crf_ops = {
     },
 };
 
-static void crf_init(Object *obj)
+static void __attribute__((used)) crf_init(Object *obj)
 {
     XlnxZynqMPCRF *s = XLNX_ZYNQMP_CRF(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -224,14 +224,16 @@ static void crf_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_ir);
 }
 
+static const VMStateField vmstate_crf_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPCRF, CRF_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_crf = {
     .name = TYPE_XLNX_ZYNQMP_CRF,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPCRF, CRF_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_crf_fields,
 };
 
 static void crf_class_init(ObjectClass *klass, const void *data)
@@ -248,8 +250,8 @@ static const TypeInfo crf_info = {
     .name              = TYPE_XLNX_ZYNQMP_CRF,
     .parent            = TYPE_SYS_BUS_DEVICE,
     .instance_size     = sizeof(XlnxZynqMPCRF),
-    .class_init        = crf_class_init,
     .instance_init     = crf_init,
+    .class_init        = crf_class_init,
 };
 
 static void crf_register_types(void)

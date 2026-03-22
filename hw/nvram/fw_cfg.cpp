@@ -77,34 +77,37 @@ struct FWCfgEntry {
  */
 static const char *key_name(uint16_t key)
 {
-    static const char *fw_cfg_wellknown_keys[FW_CFG_FILE_FIRST] = {
-        [FW_CFG_SIGNATURE] = "signature",
-        [FW_CFG_ID] = "id",
-        [FW_CFG_UUID] = "uuid",
-        [FW_CFG_RAM_SIZE] = "ram_size",
-        [FW_CFG_NOGRAPHIC] = "nographic",
-        [FW_CFG_NB_CPUS] = "nb_cpus",
-        [FW_CFG_MACHINE_ID] = "machine_id",
-        [FW_CFG_KERNEL_ADDR] = "kernel_addr",
-        [FW_CFG_KERNEL_SIZE] = "kernel_size",
-        [FW_CFG_KERNEL_CMDLINE] = "kernel_cmdline",
-        [FW_CFG_INITRD_ADDR] = "initrd_addr",
-        [FW_CFG_INITRD_SIZE] = "initdr_size",
-        [FW_CFG_BOOT_DEVICE] = "boot_device",
-        [FW_CFG_NUMA] = "numa",
-        [FW_CFG_BOOT_MENU] = "boot_menu",
-        [FW_CFG_MAX_CPUS] = "max_cpus",
-        [FW_CFG_KERNEL_ENTRY] = "kernel_entry",
-        [FW_CFG_KERNEL_DATA] = "kernel_data",
-        [FW_CFG_INITRD_DATA] = "initrd_data",
-        [FW_CFG_CMDLINE_ADDR] = "cmdline_addr",
-        [FW_CFG_CMDLINE_SIZE] = "cmdline_size",
-        [FW_CFG_CMDLINE_DATA] = "cmdline_data",
-        [FW_CFG_SETUP_ADDR] = "setup_addr",
-        [FW_CFG_SETUP_SIZE] = "setup_size",
-        [FW_CFG_SETUP_DATA] = "setup_data",
-        [FW_CFG_FILE_DIR] = "file_dir",
-    };
+    static const char *fw_cfg_wellknown_keys[FW_CFG_FILE_FIRST] = {};
+    static bool keys_initialized = false;
+    if (!keys_initialized) {
+        fw_cfg_wellknown_keys[FW_CFG_SIGNATURE] = "signature";
+        fw_cfg_wellknown_keys[FW_CFG_ID] = "id";
+        fw_cfg_wellknown_keys[FW_CFG_UUID] = "uuid";
+        fw_cfg_wellknown_keys[FW_CFG_RAM_SIZE] = "ram_size";
+        fw_cfg_wellknown_keys[FW_CFG_NOGRAPHIC] = "nographic";
+        fw_cfg_wellknown_keys[FW_CFG_NB_CPUS] = "nb_cpus";
+        fw_cfg_wellknown_keys[FW_CFG_MACHINE_ID] = "machine_id";
+        fw_cfg_wellknown_keys[FW_CFG_KERNEL_ADDR] = "kernel_addr";
+        fw_cfg_wellknown_keys[FW_CFG_KERNEL_SIZE] = "kernel_size";
+        fw_cfg_wellknown_keys[FW_CFG_KERNEL_CMDLINE] = "kernel_cmdline";
+        fw_cfg_wellknown_keys[FW_CFG_INITRD_ADDR] = "initrd_addr";
+        fw_cfg_wellknown_keys[FW_CFG_INITRD_SIZE] = "initdr_size";
+        fw_cfg_wellknown_keys[FW_CFG_BOOT_DEVICE] = "boot_device";
+        fw_cfg_wellknown_keys[FW_CFG_NUMA] = "numa";
+        fw_cfg_wellknown_keys[FW_CFG_BOOT_MENU] = "boot_menu";
+        fw_cfg_wellknown_keys[FW_CFG_MAX_CPUS] = "max_cpus";
+        fw_cfg_wellknown_keys[FW_CFG_KERNEL_ENTRY] = "kernel_entry";
+        fw_cfg_wellknown_keys[FW_CFG_KERNEL_DATA] = "kernel_data";
+        fw_cfg_wellknown_keys[FW_CFG_INITRD_DATA] = "initrd_data";
+        fw_cfg_wellknown_keys[FW_CFG_CMDLINE_ADDR] = "cmdline_addr";
+        fw_cfg_wellknown_keys[FW_CFG_CMDLINE_SIZE] = "cmdline_size";
+        fw_cfg_wellknown_keys[FW_CFG_CMDLINE_DATA] = "cmdline_data";
+        fw_cfg_wellknown_keys[FW_CFG_SETUP_ADDR] = "setup_addr";
+        fw_cfg_wellknown_keys[FW_CFG_SETUP_SIZE] = "setup_size";
+        fw_cfg_wellknown_keys[FW_CFG_SETUP_DATA] = "setup_data";
+        fw_cfg_wellknown_keys[FW_CFG_FILE_DIR] = "file_dir";
+        keys_initialized = true;
+    }
 
     if (key & FW_CFG_ARCH_LOCAL) {
         return fw_cfg_arch_key_name(key);
@@ -292,7 +295,7 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
 
 static uint64_t fw_cfg_data_read(void *opaque, hwaddr addr, unsigned size)
 {
-    FWCfgState *s = opaque;
+    FWCfgState *s = static_cast<FWCfgState *>(opaque);
     int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
     FWCfgEntry *e = (s->cur_entry == FW_CFG_INVALID) ? NULL :
                     &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
@@ -323,7 +326,7 @@ static uint64_t fw_cfg_data_read(void *opaque, hwaddr addr, unsigned size)
 static void fw_cfg_data_mem_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
-    FWCfgState *s = opaque;
+    FWCfgState *s = static_cast<FWCfgState *>(opaque);
     unsigned i = size;
 
     do {
@@ -448,7 +451,7 @@ static uint64_t fw_cfg_dma_mem_read(void *opaque, hwaddr addr,
 static void fw_cfg_dma_mem_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
-    FWCfgState *s = opaque;
+    FWCfgState *s = static_cast<FWCfgState *>(opaque);
 
     if (size == 4) {
         if (addr == 0) {
@@ -488,7 +491,7 @@ static uint64_t fw_cfg_ctl_mem_read(void *opaque, hwaddr addr, unsigned size)
 static void fw_cfg_ctl_mem_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
-    fw_cfg_select(opaque, (uint16_t)value);
+    fw_cfg_select(static_cast<FWCfgState *>(opaque), (uint16_t)value);
 }
 
 static bool fw_cfg_ctl_mem_valid(void *opaque, hwaddr addr,
@@ -503,10 +506,10 @@ static void fw_cfg_comb_write(void *opaque, hwaddr addr,
 {
     switch (size) {
     case 1:
-        fw_cfg_write(opaque, (uint8_t)value);
+        fw_cfg_write(static_cast<FWCfgState *>(opaque), (uint8_t)value);
         break;
     case 2:
-        fw_cfg_select(opaque, (uint16_t)value);
+        fw_cfg_select(static_cast<FWCfgState *>(opaque), (uint16_t)value);
         break;
     }
 }
@@ -547,7 +550,7 @@ static const MemoryRegionOps fw_cfg_dma_mem_ops = {
     .read = fw_cfg_dma_mem_read,
     .write = fw_cfg_dma_mem_write,
     .endianness = DEVICE_BIG_ENDIAN,
-    .valid = { .accepts = fw_cfg_dma_mem_valid, .max_access_size = 8, },
+    .valid = { .max_access_size = 8, .accepts = fw_cfg_dma_mem_valid, },
     .impl = { .max_access_size = 8, },
 };
 
@@ -567,7 +570,7 @@ static void fw_cfg_reset(DeviceState *d)
 static int get_uint32_as_uint16(QEMUFile *f, void *pv, size_t size,
                                 const VMStateField *field)
 {
-    uint32_t *v = pv;
+    uint32_t *v = static_cast<uint32_t *>(pv);
     *v = qemu_get_be16(f);
     return 0;
 }
@@ -598,14 +601,14 @@ static bool is_version_1(void *opaque, int version_id)
 
 bool fw_cfg_dma_enabled(void *opaque)
 {
-    FWCfgState *s = opaque;
+    FWCfgState *s = static_cast<FWCfgState *>(opaque);
 
     return s->dma_enabled;
 }
 
 static bool fw_cfg_acpi_mr_restore(void *opaque)
 {
-    FWCfgState *s = opaque;
+    FWCfgState *s = static_cast<FWCfgState *>(opaque);
     bool mr_aligned;
 
     mr_aligned = QEMU_IS_ALIGNED(s->table_mr_size, qemu_real_host_page_size()) &&
@@ -630,9 +633,9 @@ static void fw_cfg_update_mr(FWCfgState *s, uint16_t key, size_t size)
     memory_region_ram_resize(mr, size, &error_abort);
 }
 
-static int fw_cfg_acpi_mr_restore_post_load(void *opaque, int version_id)
+static int __attribute__((used)) fw_cfg_acpi_mr_restore_post_load(void *opaque, int version_id)
 {
-    FWCfgState *s = opaque;
+    FWCfgState *s = static_cast<FWCfgState *>(opaque);
     int i, index;
 
     assert(s->files);
@@ -652,44 +655,52 @@ static int fw_cfg_acpi_mr_restore_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_fw_cfg_dma_fields[] = {
+    VMSTATE_UINT64(dma_addr, FWCfgState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_fw_cfg_dma = {
     .name = "fw_cfg/dma",
     .needed = fw_cfg_dma_enabled,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(dma_addr, FWCfgState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_fw_cfg_dma_fields,
+};
+
+static const VMStateField vmstate_fw_cfg_acpi_mr_fields[] = {
+    VMSTATE_UINT64(table_mr_size, FWCfgState),
+    VMSTATE_UINT64(linker_mr_size, FWCfgState),
+    VMSTATE_UINT64(rsdp_mr_size, FWCfgState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_fw_cfg_acpi_mr = {
     .name = "fw_cfg/acpi_mr",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = fw_cfg_acpi_mr_restore,
     .post_load = fw_cfg_acpi_mr_restore_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(table_mr_size, FWCfgState),
-        VMSTATE_UINT64(linker_mr_size, FWCfgState),
-        VMSTATE_UINT64(rsdp_mr_size, FWCfgState),
-        VMSTATE_END_OF_LIST()
-    },
+    .needed = fw_cfg_acpi_mr_restore,
+    .fields = vmstate_fw_cfg_acpi_mr_fields,
+};
+
+static const VMStateField vmstate_fw_cfg_fields[] = {
+    VMSTATE_UINT16(cur_entry, FWCfgState),
+    VMSTATE_UINT16_HACK(cur_offset, FWCfgState, is_version_1),
+    VMSTATE_UINT32_V(cur_offset, FWCfgState, 2),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_fw_cfg_subsections[] = {
+    &vmstate_fw_cfg_dma,
+    &vmstate_fw_cfg_acpi_mr,
+    NULL,
 };
 
 static const VMStateDescription vmstate_fw_cfg = {
     .name = "fw_cfg",
     .version_id = 2,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(cur_entry, FWCfgState),
-        VMSTATE_UINT16_HACK(cur_offset, FWCfgState, is_version_1),
-        VMSTATE_UINT32_V(cur_offset, FWCfgState, 2),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_fw_cfg_dma,
-        &vmstate_fw_cfg_acpi_mr,
-        NULL,
-    }
+    .fields = vmstate_fw_cfg_fields,
+    .subsections = vmstate_fw_cfg_subsections,
 };
 
 static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
@@ -706,7 +717,7 @@ static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
     assert(key < fw_cfg_max_entry(s) && len < UINT32_MAX);
     assert(s->entries[arch][key].data == NULL); /* avoid key conflict */
 
-    s->entries[arch][key].data = data;
+    s->entries[arch][key].data = static_cast<uint8_t *>(data);
     s->entries[arch][key].len = (uint32_t)len;
     s->entries[arch][key].select_cb = select_cb;
     s->entries[arch][key].write_cb = write_cb;
@@ -726,7 +737,7 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
 
     /* return the old data to the function caller, avoid memory leak */
     ptr = s->entries[arch][key].data;
-    s->entries[arch][key].data = data;
+    s->entries[arch][key].data = static_cast<uint8_t *>(data);
     s->entries[arch][key].len = len;
     s->entries[arch][key].allow_write = false;
 
@@ -752,7 +763,7 @@ void fw_cfg_modify_string(FWCfgState *s, uint16_t key, const char *value)
     size_t sz = strlen(value) + 1;
     char *old;
 
-    old = fw_cfg_modify_bytes_read(s, key, g_memdup(value, sz), sz);
+    old = static_cast<char *>(fw_cfg_modify_bytes_read(s, key, g_memdup(value, sz), sz));
     g_free(old);
 }
 
@@ -760,7 +771,7 @@ void fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy;
 
-    copy = g_malloc(sizeof(value));
+    copy = static_cast<uint16_t *>(g_malloc(sizeof(value)));
     *copy = cpu_to_le16(value);
     trace_fw_cfg_add_i16(key, trace_key_name(key), value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
@@ -770,9 +781,9 @@ void fw_cfg_modify_i16(FWCfgState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy, *old;
 
-    copy = g_malloc(sizeof(value));
+    copy = static_cast<uint16_t *>(g_malloc(sizeof(value)));
     *copy = cpu_to_le16(value);
-    old = fw_cfg_modify_bytes_read(s, key, copy, sizeof(value));
+    old = static_cast<uint16_t *>(fw_cfg_modify_bytes_read(s, key, copy, sizeof(value)));
     g_free(old);
 }
 
@@ -780,7 +791,7 @@ void fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy;
 
-    copy = g_malloc(sizeof(value));
+    copy = static_cast<uint32_t *>(g_malloc(sizeof(value)));
     *copy = cpu_to_le32(value);
     trace_fw_cfg_add_i32(key, trace_key_name(key), value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
@@ -790,9 +801,9 @@ void fw_cfg_modify_i32(FWCfgState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy, *old;
 
-    copy = g_malloc(sizeof(value));
+    copy = static_cast<uint32_t *>(g_malloc(sizeof(value)));
     *copy = cpu_to_le32(value);
-    old = fw_cfg_modify_bytes_read(s, key, copy, sizeof(value));
+    old = static_cast<uint32_t *>(fw_cfg_modify_bytes_read(s, key, copy, sizeof(value)));
     g_free(old);
 }
 
@@ -800,7 +811,7 @@ void fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 {
     uint64_t *copy;
 
-    copy = g_malloc(sizeof(value));
+    copy = static_cast<uint64_t *>(g_malloc(sizeof(value)));
     *copy = cpu_to_le64(value);
     trace_fw_cfg_add_i64(key, trace_key_name(key), value);
     fw_cfg_add_bytes(s, key, copy, sizeof(value));
@@ -810,9 +821,9 @@ void fw_cfg_modify_i64(FWCfgState *s, uint16_t key, uint64_t value)
 {
     uint64_t *copy, *old;
 
-    copy = g_malloc(sizeof(value));
+    copy = static_cast<uint64_t *>(g_malloc(sizeof(value)));
     *copy = cpu_to_le64(value);
-    old = fw_cfg_modify_bytes_read(s, key, copy, sizeof(value));
+    old = static_cast<uint64_t *>(fw_cfg_modify_bytes_read(s, key, copy, sizeof(value)));
     g_free(old);
 }
 
@@ -845,7 +856,7 @@ void fw_cfg_add_file_callback(FWCfgState *s,  const char *filename,
 
     if (!s->files) {
         dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * fw_cfg_file_slots(s);
-        s->files = g_malloc0(dsize);
+        s->files = static_cast<FWCfgFiles *>(g_malloc0(dsize));
         fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, s->files, dsize);
     }
 
@@ -966,7 +977,7 @@ bool fw_cfg_add_file_from_generator(FWCfgState *s,
 
 static void fw_cfg_machine_reset(void *opaque)
 {
-    FWCfgState *s = opaque;
+    FWCfgState *s = static_cast<FWCfgState *>(opaque);
     void *ptr;
     size_t len;
     char *buf;
@@ -1126,7 +1137,7 @@ void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
             exit(1);
         }
         size = length;
-        data = (uint8_t *)contents;
+        data = reinterpret_cast<uint8_t *>(contents);
     }
 
     fw_cfg_add_i32(fw_cfg, size_key, size);
@@ -1146,8 +1157,8 @@ static void fw_cfg_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo fw_cfg_info = {
     .name          = TYPE_FW_CFG,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .is_abstract      = true,
     .instance_size = sizeof(FWCfgState),
+    .is_abstract   = true,
     .class_init    = fw_cfg_class_init,
 };
 

@@ -125,7 +125,7 @@ static void bbram_bdrv_read(XlnxBBRam *s, Error **errp)
                     blk_name(s->blk));
     }
 
-    if (blk_pread(s->blk, 0, nr, ram, 0) < 0) {
+    if (blk_pread(s->blk, 0, nr, ram, static_cast<BdrvRequestFlags>(0)) < 0) {
         error_setg(errp,
                    "%s: Failed to read %u bytes from BBRAM backstore.",
                    blk_name(s->blk), nr);
@@ -160,7 +160,7 @@ static void bbram_bdrv_sync(XlnxBBRam *s, uint64_t hwaddr)
     }
 
     offset = hwaddr - A_BBRAM_0;
-    rc = blk_pwrite(s->blk, offset, 4, &le32, 0);
+    rc = blk_pwrite(s->blk, offset, 4, &le32, static_cast<BdrvRequestFlags>(0));
     if (rc < 0) {
         bbram_bdrv_error(s, rc, g_strdup_printf("write to offset %u", offset));
     }
@@ -176,7 +176,7 @@ static void bbram_bdrv_zero(XlnxBBRam *s)
         return;
     }
 
-    rc = blk_make_zero(s->blk, 0);
+    rc = blk_make_zero(s->blk, static_cast<BdrvRequestFlags>(0));
     if (rc < 0) {
         bbram_bdrv_error(s, rc, g_strdup("zeroizing"));
     }
@@ -401,7 +401,7 @@ static RegisterAccessInfo bbram_ctrl_regs_info[] = {
         .post_write = bbram_r8_postw,
         .post_read = bbram_r8_postr,
     },{ .name = "BBRAM_SLVERR",  .addr = A_BBRAM_SLVERR,
-        .rsvd = ~1,
+        .rsvd = static_cast<uint64_t>(~1),
     },{ .name = "BBRAM_ISR",  .addr = A_BBRAM_ISR,
         .w1c = 0x1,
         .post_write = bbram_isr_postw,
@@ -412,8 +412,8 @@ static RegisterAccessInfo bbram_ctrl_regs_info[] = {
     },{ .name = "BBRAM_IDR",  .addr = A_BBRAM_IDR,
         .pre_write = bbram_idr_prew,
     },{ .name = "BBRAM_MSW_LOCK",  .addr = A_BBRAM_MSW_LOCK,
+        .ro = static_cast<uint64_t>(~R_BBRAM_MSW_LOCK_VAL_MASK),
         .pre_write = bbram_msw_lock_prew,
-        .ro = ~R_BBRAM_MSW_LOCK_VAL_MASK,
     }
 };
 
@@ -452,7 +452,7 @@ static void bbram_ctrl_realize(DeviceState *dev, Error **errp)
     bbram_bdrv_read(s, errp);
 }
 
-static void bbram_ctrl_init(Object *obj)
+static void __attribute__((used)) bbram_ctrl_init(Object *obj)
 {
     XlnxBBRam *s = XLNX_BBRAM(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -504,14 +504,16 @@ static const PropertyInfo bbram_prop_drive = {
     .release = bbram_prop_release_drive,
 };
 
+static const VMStateField vmstate_bbram_ctrl_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxBBRam, R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_bbram_ctrl = {
     .name = TYPE_XLNX_BBRAM,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxBBRam, R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_bbram_ctrl_fields,
 };
 
 static const Property bbram_ctrl_props[] = {
@@ -534,8 +536,8 @@ static const TypeInfo bbram_ctrl_info = {
     .name          = TYPE_XLNX_BBRAM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxBBRam),
-    .class_init    = bbram_ctrl_class_init,
     .instance_init = bbram_ctrl_init,
+    .class_init    = bbram_ctrl_class_init,
 };
 
 static void bbram_ctrl_register_types(void)

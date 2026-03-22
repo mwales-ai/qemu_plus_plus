@@ -510,7 +510,7 @@ static uint64_t trng_register_read(void *opaque, hwaddr addr, unsigned size)
 static void trng_register_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    RegisterInfoArray *reg_array = opaque;
+    RegisterInfoArray *reg_array = static_cast<RegisterInfoArray *>(opaque);
     XlnxVersalTRng *s = XLNX_VERSAL_TRNG(reg_array->r[0]->opaque);
 
     if (trng_older_than_v2(s)) {
@@ -604,7 +604,7 @@ static const MemoryRegionOps trng_ops = {
     },
 };
 
-static void trng_init(Object *obj)
+static void __attribute__((used)) trng_init(Object *obj)
 {
     XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -623,7 +623,7 @@ static void trng_init(Object *obj)
     s->prng = g_rand_new();
 }
 
-static void trng_finalize(Object *obj)
+static void __attribute__((used)) trng_finalize(Object *obj)
 {
     XlnxVersalTRng *s = XLNX_VERSAL_TRNG(obj);
 
@@ -640,8 +640,8 @@ static void trng_prop_fault_event_set(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
 {
-    const Property *prop = opaque;
-    uint32_t *events = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    uint32_t *events = static_cast<uint32_t *>(object_field_prop_ptr(obj, prop));
 
     if (!visit_type_uint32(v, name, events, errp)) {
         return;
@@ -653,8 +653,8 @@ static void trng_prop_fault_event_set(Object *obj, Visitor *v,
 static const PropertyInfo trng_prop_fault_events = {
     .type = "uint32",
     .description = "Set to trigger TRNG fault events",
-    .set = trng_prop_fault_event_set,
     .realized_set_allowed = true,
+    .set = trng_prop_fault_event_set,
 };
 
 static PropertyInfo trng_prop_uint64; /* to extend qdev_prop_uint64 */
@@ -667,18 +667,20 @@ static const Property trng_props[] = {
                 trng_prop_fault_events, uint32_t),
 };
 
+static const VMStateField vmstate_trng_fields[] = {
+    VMSTATE_UINT32(rand_count, XlnxVersalTRng),
+    VMSTATE_UINT64(rand_reseed, XlnxVersalTRng),
+    VMSTATE_UINT64(forced_prng_count, XlnxVersalTRng),
+    VMSTATE_UINT64_ARRAY(tst_seed, XlnxVersalTRng, 2),
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersalTRng, R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_trng = {
     .name = TYPE_XLNX_VERSAL_TRNG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(rand_count, XlnxVersalTRng),
-        VMSTATE_UINT64(rand_reseed, XlnxVersalTRng),
-        VMSTATE_UINT64(forced_prng_count, XlnxVersalTRng),
-        VMSTATE_UINT64_ARRAY(tst_seed, XlnxVersalTRng, 2),
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersalTRng, R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_trng_fields,
 };
 
 static void trng_class_init(ObjectClass *klass, const void *data)
@@ -700,9 +702,9 @@ static const TypeInfo trng_info = {
     .name          = TYPE_XLNX_VERSAL_TRNG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalTRng),
-    .class_init    = trng_class_init,
     .instance_init = trng_init,
     .instance_finalize = trng_finalize,
+    .class_init    = trng_class_init,
 };
 
 static void trng_register_types(void)

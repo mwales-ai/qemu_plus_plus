@@ -155,29 +155,33 @@ struct XgmacState {
     uint32_t regs[R_MAX];
 };
 
+static const VMStateField vmstate_rxtx_stats_fields[] = {
+    VMSTATE_UINT64(rx_bytes, RxTxStats),
+    VMSTATE_UINT64(tx_bytes, RxTxStats),
+    VMSTATE_UINT64(rx, RxTxStats),
+    VMSTATE_UINT64(rx_bcast, RxTxStats),
+    VMSTATE_UINT64(rx_mcast, RxTxStats),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_rxtx_stats = {
     .name = "xgmac_stats",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(rx_bytes, RxTxStats),
-        VMSTATE_UINT64(tx_bytes, RxTxStats),
-        VMSTATE_UINT64(rx, RxTxStats),
-        VMSTATE_UINT64(rx_bcast, RxTxStats),
-        VMSTATE_UINT64(rx_mcast, RxTxStats),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rxtx_stats_fields,
+};
+
+static const VMStateField vmstate_xgmac_fields[] = {
+    VMSTATE_STRUCT(stats, XgmacState, 0, vmstate_rxtx_stats, RxTxStats),
+    VMSTATE_UINT32_ARRAY(regs, XgmacState, R_MAX),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_xgmac = {
     .name = "xgmac",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(stats, XgmacState, 0, vmstate_rxtx_stats, RxTxStats),
-        VMSTATE_UINT32_ARRAY(regs, XgmacState, R_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xgmac_fields,
 };
 
 static void xgmac_read_desc(XgmacState *s, struct desc *d, int rx)
@@ -271,7 +275,7 @@ static void enet_update_irq(XgmacState *s)
 
 static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 {
-    XgmacState *s = opaque;
+    XgmacState *s = static_cast<XgmacState *>(opaque);
     uint64_t r = 0;
     addr >>= 2;
 
@@ -291,7 +295,7 @@ static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 static void enet_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
-    XgmacState *s = opaque;
+    XgmacState *s = static_cast<XgmacState *>(opaque);
 
     addr >>= 2;
     switch (addr) {
@@ -333,7 +337,7 @@ static int eth_can_rx(XgmacState *s)
 
 static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    XgmacState *s = qemu_get_nic_opaque(nc);
+    XgmacState *s = static_cast<XgmacState *>(qemu_get_nic_opaque(nc));
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
                                               0xff, 0xff, 0xff};
     int unicast, broadcast, multicast;

@@ -186,7 +186,7 @@ static void xram_ctrl_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->ram);
 }
 
-static void xram_ctrl_init(Object *obj)
+static void __attribute__((used)) xram_ctrl_init(Object *obj)
 {
     XlnxXramCtrl *s = XLNX_XRAM_CTRL(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -203,14 +203,16 @@ static void xram_ctrl_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq);
 }
 
+static const VMStateField vmstate_xram_ctrl_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxXramCtrl, XRAM_CTRL_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_xram_ctrl = {
     .name = TYPE_XLNX_XRAM_CTRL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxXramCtrl, XRAM_CTRL_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_xram_ctrl_fields,
 };
 
 static const Property xram_ctrl_properties[] = {
@@ -234,8 +236,8 @@ static const TypeInfo xram_ctrl_info = {
     .name              = TYPE_XLNX_XRAM_CTRL,
     .parent            = TYPE_SYS_BUS_DEVICE,
     .instance_size     = sizeof(XlnxXramCtrl),
-    .class_init        = xram_ctrl_class_init,
     .instance_init     = xram_ctrl_init,
+    .class_init        = xram_ctrl_class_init,
 };
 
 static void xram_ctrl_register_types(void)

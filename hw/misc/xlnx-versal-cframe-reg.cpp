@@ -149,13 +149,13 @@ static void cfrm_readout_frames(XlnxVersalCFrameReg *s, uint32_t start_addr,
      * cframe).
      */
     for (uint32_t addr = start_addr; addr < end_addr; addr++) {
-        XlnxCFrame *f = g_tree_lookup(s->cframes, GUINT_TO_POINTER(addr));
+        XlnxCFrame *f = static_cast<XlnxCFrame *>(g_tree_lookup(s->cframes, GUINT_TO_POINTER(addr)));
 
         /* Transmit the data if a frame was found */
         if (f) {
             for (int i = 0; i < FRAME_NUM_WORDS; i += 4) {
                 XlnxCfiPacket pkt = {};
-
+                pkt.reg_addr = 0;
                 pkt.data[0] = f->data[i];
                 pkt.data[1] = f->data[i + 1];
                 pkt.data[2] = f->data[i + 2];
@@ -360,9 +360,9 @@ static const RegisterAccessInfo cframe_reg_regs_info[] = {
         .rsvd = 0xffffffff,
         .post_write = cfrm_isr_postw,
     },{ .name = "CFRM_IMR0",  .addr = A_CFRM_IMR0,
+        .reset = 0x3bfff,
         .rsvd = 0xffc04000,
         .ro = 0xfffff,
-        .reset = 0x3bfff,
     },{ .name = "CFRM_IMR1",  .addr = A_CFRM_IMR1,
         .rsvd = 0xffffffff,
     },{ .name = "CFRM_IMR2",  .addr = A_CFRM_IMR2,
@@ -579,13 +579,12 @@ static uint64_t cframes_bcast_reg_read(void *opaque, hwaddr addr, unsigned size)
 static void cframes_bcast_write(XlnxVersalCFrameBcastReg *s, uint8_t reg_addr,
                                 uint32_t *wfifo)
 {
-    XlnxCfiPacket pkt = {
-        .reg_addr = reg_addr,
-        .data[0] = wfifo[0],
-        .data[1] = wfifo[1],
-        .data[2] = wfifo[2],
-        .data[3] = wfifo[3]
-    };
+    XlnxCfiPacket pkt = {};
+    pkt.reg_addr = reg_addr;
+    pkt.data[0] = wfifo[0];
+    pkt.data[1] = wfifo[1];
+    pkt.data[2] = wfifo[2];
+    pkt.data[3] = wfifo[3];
 
     for (int i = 0; i < ARRAY_SIZE(s->cfg.cframe); i++) {
         if (s->cfg.cframe[i]) {
@@ -701,31 +700,35 @@ static void cframe_reg_finalize(Object *obj)
     g_tree_destroy(s->cframes);
 }
 
+static const VMStateField vmstate_cframe_fields[] = {
+    VMSTATE_UINT32_ARRAY(data, XlnxCFrame, FRAME_NUM_WORDS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_cframe = {
     .name = "cframe",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(data, XlnxCFrame, FRAME_NUM_WORDS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_cframe_fields,
+};
+
+static const VMStateField vmstate_cframe_reg_fields[] = {
+    VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFrameReg, 4),
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersalCFrameReg, CFRAME_REG_R_MAX),
+    VMSTATE_BOOL(rowon, XlnxVersalCFrameReg),
+    VMSTATE_BOOL(wcfg, XlnxVersalCFrameReg),
+    VMSTATE_BOOL(rcfg, XlnxVersalCFrameReg),
+    VMSTATE_GTREE_DIRECT_KEY_V(cframes, XlnxVersalCFrameReg, 1,
+                               &vmstate_cframe, XlnxCFrame),
+    VMSTATE_FIFO32(new_f_data, XlnxVersalCFrameReg),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_cframe_reg = {
     .name = TYPE_XLNX_VERSAL_CFRAME_REG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFrameReg, 4),
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersalCFrameReg, CFRAME_REG_R_MAX),
-        VMSTATE_BOOL(rowon, XlnxVersalCFrameReg),
-        VMSTATE_BOOL(wcfg, XlnxVersalCFrameReg),
-        VMSTATE_BOOL(rcfg, XlnxVersalCFrameReg),
-        VMSTATE_GTREE_DIRECT_KEY_V(cframes, XlnxVersalCFrameReg, 1,
-                                   &vmstate_cframe, XlnxCFrame),
-        VMSTATE_FIFO32(new_f_data, XlnxVersalCFrameReg),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_cframe_reg_fields,
 };
 
 static const Property cframe_regs_props[] = {
@@ -747,7 +750,7 @@ static const Property cframe_regs_props[] = {
                        cfg.blktype_num_frames[6], 0),
 };
 
-static void cframe_bcast_reg_init(Object *obj)
+static void __attribute__((used)) cframe_bcast_reg_init(Object *obj)
 {
     XlnxVersalCFrameBcastReg *s = XLNX_VERSAL_CFRAME_BCAST_REG(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -768,14 +771,16 @@ static void cframe_bcast_reg_reset_enter(Object *obj, ResetType type)
     memset(s->wfifo, 0, WFIFO_SZ * sizeof(uint32_t));
 }
 
+static const VMStateField vmstate_cframe_bcast_reg_fields[] = {
+    VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFrameBcastReg, 4),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_cframe_bcast_reg = {
     .name = TYPE_XLNX_VERSAL_CFRAME_BCAST_REG,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(wfifo, XlnxVersalCFrameBcastReg, 4),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_cframe_bcast_reg_fields,
 };
 
 static const Property cframe_bcast_regs_props[] = {
@@ -835,25 +840,27 @@ static void cframe_bcast_reg_class_init(ObjectClass *klass, const void *data)
     rc->phases.enter = cframe_bcast_reg_reset_enter;
 }
 
+static const InterfaceInfo cframe_reg_interfaces[] = {
+    { TYPE_XLNX_CFI_IF },
+    { }
+};
+
 static const TypeInfo cframe_reg_info = {
     .name          = TYPE_XLNX_VERSAL_CFRAME_REG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCFrameReg),
-    .class_init    = cframe_reg_class_init,
     .instance_init = cframe_reg_init,
     .instance_finalize = cframe_reg_finalize,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_XLNX_CFI_IF },
-        { }
-    }
+    .class_init    = cframe_reg_class_init,
+    .interfaces = cframe_reg_interfaces,
 };
 
 static const TypeInfo cframe_bcast_reg_info = {
     .name          = TYPE_XLNX_VERSAL_CFRAME_BCAST_REG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCFrameBcastReg),
-    .class_init    = cframe_bcast_reg_class_init,
     .instance_init = cframe_bcast_reg_init,
+    .class_init    = cframe_bcast_reg_class_init,
 };
 
 static void cframe_reg_register_types(void)
