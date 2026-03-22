@@ -236,7 +236,7 @@ static VirtIOSCSIReq *virtio_scsi_pop_req(VirtIOSCSI *s, VirtQueue *vq, QemuMute
         qemu_mutex_lock(vq_lock);
     }
 
-    req = virtqueue_pop(vq, sizeof(VirtIOSCSIReq) + vs->cdb_size);
+    req = static_cast<VirtIOSCSIReq *>(virtqueue_pop(vq, sizeof(VirtIOSCSIReq) + vs->cdb_size));
 
     if (vq_lock) {
         qemu_mutex_unlock(vq_lock);
@@ -251,7 +251,7 @@ static VirtIOSCSIReq *virtio_scsi_pop_req(VirtIOSCSI *s, VirtQueue *vq, QemuMute
 
 static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
 {
-    VirtIOSCSIReq *req = sreq->hba_private;
+    VirtIOSCSIReq *req = static_cast<VirtIOSCSIReq *>(sreq->hba_private);
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(req->dev);
     VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
     uint32_t n = virtio_get_queue_index(req->vq) - VIRTIO_SCSI_VQ_NUM_FIXED;
@@ -272,8 +272,8 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 
     qemu_get_be32s(f, &n);
     assert(n < vs->conf.num_queues);
-    req = qemu_get_virtqueue_element(vdev, f,
-                                     sizeof(VirtIOSCSIReq) + vs->cdb_size);
+    req = static_cast<VirtIOSCSIReq *>(qemu_get_virtqueue_element(vdev, f,
+                                     sizeof(VirtIOSCSIReq) + vs->cdb_size));
     virtio_scsi_init_req(s, vs->cmd_vqs[n], req);
 
     if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
@@ -334,7 +334,7 @@ static void virtio_scsi_tmf_cancel_req(VirtIOSCSIReq *tmf, SCSIRequest *r)
 static void virtio_scsi_do_tmf_aio_context(void *opaque)
 {
     AioContext *ctx = qemu_get_current_aio_context();
-    VirtIOSCSIReq *tmf = opaque;
+    VirtIOSCSIReq *tmf = static_cast<VirtIOSCSIReq *>(opaque);
     VirtIOSCSI *s = tmf->dev;
     SCSIDevice *d = virtio_scsi_device_get(s, tmf->req.tmf.lun);
     SCSIRequest *r;
@@ -366,7 +366,7 @@ static void virtio_scsi_do_tmf_aio_context(void *opaque)
 
     WITH_QEMU_LOCK_GUARD(&d->requests_lock) {
         QTAILQ_FOREACH(r, &d->requests, next) {
-            VirtIOSCSIReq *cmd_req = r->hba_private;
+            VirtIOSCSIReq *cmd_req = static_cast<VirtIOSCSIReq *>(r->hba_private);
             assert(cmd_req); /* request has hba_private while enqueued */
 
             if (r->ctx != ctx) {
@@ -386,8 +386,8 @@ static void virtio_scsi_do_tmf_aio_context(void *opaque)
     }
 
     for (GList *elem = g_list_first(reqs); elem; elem = g_list_next(elem)) {
-        virtio_scsi_tmf_cancel_req(tmf, elem->data);
-        scsi_req_unref(elem->data);
+        virtio_scsi_tmf_cancel_req(tmf, static_cast<SCSIRequest *>(elem->data));
+        scsi_req_unref(static_cast<SCSIRequest *>(elem->data));
     }
 
     /* Incremented by virtio_scsi_do_tmf() */
@@ -447,7 +447,7 @@ static AioContext *find_aio_context_for_tmf_tag(SCSIDevice *d,
         SCSIRequest *next;
 
         QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
-            VirtIOSCSIReq *cmd_req = r->hba_private;
+            VirtIOSCSIReq *cmd_req = static_cast<VirtIOSCSIReq *>(r->hba_private);
 
             /* hba_private is non-NULL while the request is enqueued */
             assert(cmd_req);
@@ -500,7 +500,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         break;
     }
 
-    case VIRTIO_SCSI_T_TMF_QUERY_TASK:
+    case VIRTIO_SCSI_T_TMF_QUERY_TASK: {
         if (!d) {
             goto fail;
         }
@@ -510,7 +510,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 
         WITH_QEMU_LOCK_GUARD(&d->requests_lock) {
             QTAILQ_FOREACH(r, &d->requests, next) {
-                VirtIOSCSIReq *cmd_req = r->hba_private;
+                VirtIOSCSIReq *cmd_req = static_cast<VirtIOSCSIReq *>(r->hba_private);
                 assert(cmd_req); /* request has hba_private while enqueued */
 
                 if (cmd_req->req.cmd.tag == req->req.tmf.tag) {
@@ -524,6 +524,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
             }
         }
         break;
+    }
 
     case VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET:
         if (!d) {
@@ -583,7 +584,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         break;
     }
 
-    case VIRTIO_SCSI_T_TMF_QUERY_TASK_SET:
+    case VIRTIO_SCSI_T_TMF_QUERY_TASK_SET: {
         if (!d) {
             goto fail;
         }
@@ -605,6 +606,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
             }
         }
         break;
+    }
 
     case VIRTIO_SCSI_T_TMF_CLEAR_ACA:
     default:
@@ -734,7 +736,7 @@ static void virtio_scsi_complete_cmd_req(VirtIOSCSIReq *req)
 
 static void virtio_scsi_command_failed(SCSIRequest *r)
 {
-    VirtIOSCSIReq *req = r->hba_private;
+    VirtIOSCSIReq *req = static_cast<VirtIOSCSIReq *>(r->hba_private);
 
     if (r->io_canceled) {
         return;
@@ -779,7 +781,7 @@ static void virtio_scsi_command_failed(SCSIRequest *r)
 
 static void virtio_scsi_command_complete(SCSIRequest *r, size_t resid)
 {
-    VirtIOSCSIReq *req = r->hba_private;
+    VirtIOSCSIReq *req = static_cast<VirtIOSCSIReq *>(r->hba_private);
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
@@ -807,7 +809,7 @@ static int virtio_scsi_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
                                  uint8_t *buf, size_t buf_len,
                                  void *hba_private)
 {
-    VirtIOSCSIReq *req = hba_private;
+    VirtIOSCSIReq *req = static_cast<VirtIOSCSIReq *>(hba_private);
 
     if (cmd->len == 0) {
         cmd->len = MIN(VIRTIO_SCSI_CDB_DEFAULT_SIZE, SCSI_CMD_BUF_SIZE);
@@ -824,14 +826,14 @@ static int virtio_scsi_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
 
 static QEMUSGList *virtio_scsi_get_sg_list(SCSIRequest *r)
 {
-    VirtIOSCSIReq *req = r->hba_private;
+    VirtIOSCSIReq *req = static_cast<VirtIOSCSIReq *>(r->hba_private);
 
     return &req->qsgl;
 }
 
 static void virtio_scsi_request_cancelled(SCSIRequest *r)
 {
-    VirtIOSCSIReq *req = r->hba_private;
+    VirtIOSCSIReq *req = static_cast<VirtIOSCSIReq *>(r->hba_private);
 
     if (!req) {
         return;
@@ -1266,11 +1268,11 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .max_target = VIRTIO_SCSI_MAX_TARGET,
     .max_lun = VIRTIO_SCSI_MAX_LUN,
 
-    .complete = virtio_scsi_command_complete,
+    .parse_cdb = virtio_scsi_parse_cdb,
     .fail = virtio_scsi_command_failed,
+    .complete = virtio_scsi_command_complete,
     .cancel = virtio_scsi_request_cancelled,
     .change = virtio_scsi_change,
-    .parse_cdb = virtio_scsi_parse_cdb,
     .get_sg_list = virtio_scsi_get_sg_list,
     .save_request = virtio_scsi_save_request,
     .load_request = virtio_scsi_load_request,
@@ -1393,14 +1395,16 @@ static const Property virtio_scsi_properties[] = {
             parent_obj.conf.iothread_vq_mapping_list),
 };
 
+static const VMStateField vmstate_virtio_scsi_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_scsi = {
     .name = "virtio-scsi",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_virtio_scsi_fields,
 };
 
 static void virtio_scsi_common_class_init(ObjectClass *klass, const void *data)
@@ -1441,15 +1445,17 @@ static const TypeInfo virtio_scsi_common_info = {
     .class_init = virtio_scsi_common_class_init,
 };
 
+static const InterfaceInfo virtio_scsi_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo virtio_scsi_info = {
     .name = TYPE_VIRTIO_SCSI,
     .parent = TYPE_VIRTIO_SCSI_COMMON,
     .instance_size = sizeof(VirtIOSCSI),
     .class_init = virtio_scsi_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+    .interfaces = virtio_scsi_interfaces,
 };
 
 static void virtio_register_types(void)

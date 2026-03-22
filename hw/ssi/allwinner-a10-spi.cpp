@@ -345,7 +345,7 @@ static uint64_t allwinner_a10_spi_read(void *opaque, hwaddr offset,
                                        unsigned size)
 {
     uint32_t value = 0;
-    AWA10SPIState *s = opaque;
+    AWA10SPIState *s = static_cast<AWA10SPIState *>(opaque);
     uint32_t index = offset >> 2;
 
     if (offset > SPI_FIFO_STA_REG) {
@@ -415,7 +415,7 @@ static bool allwinner_a10_spi_update_cs_level(AWA10SPIState *s, int cs_line_nr)
 static void allwinner_a10_spi_write(void *opaque, hwaddr offset, uint64_t value,
                                     unsigned size)
 {
-    AWA10SPIState *s = opaque;
+    AWA10SPIState *s = static_cast<AWA10SPIState *>(opaque);
     uint32_t index = offset >> 2;
     int i = 0;
 
@@ -500,20 +500,22 @@ static void allwinner_a10_spi_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps allwinner_a10_spi_ops = {
     .read = allwinner_a10_spi_read,
     .write = allwinner_a10_spi_write,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4 },
+};
+
+static const VMStateField allwinner_a10_spi_vmstate_fields[] = {
+    VMSTATE_FIFO8(tx_fifo, AWA10SPIState),
+    VMSTATE_FIFO8(rx_fifo, AWA10SPIState),
+    VMSTATE_UINT32_ARRAY(regs, AWA10SPIState, AW_A10_SPI_REGS_NUM),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription allwinner_a10_spi_vmstate = {
     .name = TYPE_AW_A10_SPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO8(tx_fifo, AWA10SPIState),
-        VMSTATE_FIFO8(rx_fifo, AWA10SPIState),
-        VMSTATE_UINT32_ARRAY(regs, AWA10SPIState, AW_A10_SPI_REGS_NUM),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = allwinner_a10_spi_vmstate_fields,
 };
 
 static void allwinner_a10_spi_realize(DeviceState *dev, Error **errp)

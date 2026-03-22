@@ -203,7 +203,7 @@ done:
 
 static void vhost_user_scsi_event(void *opaque, QEMUChrEvent event)
 {
-    DeviceState *dev = opaque;
+    DeviceState *dev = static_cast<DeviceState *>(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserSCSI *s = VHOST_USER_SCSI(vdev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
@@ -380,14 +380,16 @@ static struct vhost_dev *vhost_user_scsi_get_vhost(VirtIODevice *vdev)
     return &vsc->dev;
 }
 
+static const VMStateField vmstate_vhost_scsi_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_vhost_scsi = {
     .name = "virtio-scsi",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_vhost_scsi_fields,
 };
 
 static void vhost_user_scsi_class_init(ObjectClass *klass, const void *data)
@@ -420,16 +422,18 @@ static void vhost_user_scsi_instance_init(Object *obj)
                                   DEVICE(vsc));
 }
 
+static const InterfaceInfo vhost_user_scsi_interfaces[] = {
+    { TYPE_FW_PATH_PROVIDER },
+    { }
+};
+
 static const TypeInfo vhost_user_scsi_info = {
     .name = TYPE_VHOST_USER_SCSI,
     .parent = TYPE_VHOST_SCSI_COMMON,
     .instance_size = sizeof(VHostUserSCSI),
-    .class_init = vhost_user_scsi_class_init,
     .instance_init = vhost_user_scsi_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_FW_PATH_PROVIDER },
-        { }
-    },
+    .class_init = vhost_user_scsi_class_init,
+    .interfaces = vhost_user_scsi_interfaces,
 };
 
 static void virtio_register_types(void)

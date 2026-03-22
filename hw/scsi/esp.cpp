@@ -114,7 +114,7 @@ void esp_dma_enable(ESPState *s, int irq, int level)
 
 void esp_request_cancelled(SCSIRequest *req)
 {
-    ESPState *s = req->hba_private;
+    ESPState *s = static_cast<ESPState *>(req->hba_private);
 
     if (req == s->current_req) {
         scsi_req_unref(s->current_req);
@@ -946,7 +946,7 @@ static void esp_do_nodma(ESPState *s)
 
 void esp_command_complete(SCSIRequest *req, size_t resid)
 {
-    ESPState *s = req->hba_private;
+    ESPState *s = static_cast<ESPState *>(req->hba_private);
     int to_device = (esp_get_phase(s) == STAT_DO);
 
     trace_esp_command_complete();
@@ -1006,7 +1006,7 @@ void esp_command_complete(SCSIRequest *req, size_t resid)
 
 void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
-    ESPState *s = req->hba_private;
+    ESPState *s = static_cast<ESPState *>(req->hba_private);
     uint32_t dmalen = esp_get_tc(s);
 
     trace_esp_transfer_data(dmalen, s->ti_size);
@@ -1429,12 +1429,7 @@ static int esp_post_load(void *opaque, int version_id)
     return 0;
 }
 
-const VMStateDescription vmstate_esp = {
-    .name = "esp",
-    .version_id = 8,
-    .minimum_version_id = 3,
-    .post_load = esp_post_load,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_esp_fields[] = {
         VMSTATE_BUFFER(rregs, ESPState),
         VMSTATE_BUFFER(wregs, ESPState),
         VMSTATE_INT32(ti_size, ESPState),
@@ -1464,14 +1459,21 @@ const VMStateDescription vmstate_esp = {
         VMSTATE_UINT8_TEST(lun, ESPState, esp_is_version_6),
         VMSTATE_BOOL(drq_state, ESPState),
         VMSTATE_UINT8_TEST(asc_mode, ESPState, esp_is_version_8),
-        VMSTATE_END_OF_LIST()
-    },
+    VMSTATE_END_OF_LIST()
+};
+
+const VMStateDescription vmstate_esp = {
+    .name = "esp",
+    .version_id = 8,
+    .minimum_version_id = 3,
+    .post_load = esp_post_load,
+    .fields = vmstate_esp_fields,
 };
 
 static void sysbus_esp_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned int size)
 {
-    SysBusESPState *sysbus = opaque;
+    SysBusESPState *sysbus = static_cast<SysBusESPState *>(opaque);
     ESPState *s = ESP(&sysbus->esp);
     uint32_t saddr;
 
@@ -1482,7 +1484,7 @@ static void sysbus_esp_mem_write(void *opaque, hwaddr addr,
 static uint64_t sysbus_esp_mem_read(void *opaque, hwaddr addr,
                                     unsigned int size)
 {
-    SysBusESPState *sysbus = opaque;
+    SysBusESPState *sysbus = static_cast<SysBusESPState *>(opaque);
     ESPState *s = ESP(&sysbus->esp);
     uint32_t saddr;
 
@@ -1500,7 +1502,7 @@ static const MemoryRegionOps sysbus_esp_mem_ops = {
 static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned int size)
 {
-    SysBusESPState *sysbus = opaque;
+    SysBusESPState *sysbus = static_cast<SysBusESPState *>(opaque);
     ESPState *s = ESP(&sysbus->esp);
 
     trace_esp_pdma_write(size);
@@ -1520,7 +1522,7 @@ static void sysbus_esp_pdma_write(void *opaque, hwaddr addr,
 static uint64_t sysbus_esp_pdma_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    SysBusESPState *sysbus = opaque;
+    SysBusESPState *sysbus = static_cast<SysBusESPState *>(opaque);
     ESPState *s = ESP(&sysbus->esp);
     uint64_t val = 0;
 
@@ -1552,8 +1554,8 @@ static const MemoryRegionOps sysbus_esp_pdma_ops = {
     .read = sysbus_esp_pdma_read,
     .write = sysbus_esp_pdma_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
-    .impl = { .min_access_size = 1, .max_access_size = 2, },
+    .valid = { .min_access_size = 1, .max_access_size = 4 },
+    .impl = { .min_access_size = 1, .max_access_size = 2 },
 };
 
 static const struct SCSIBusInfo esp_scsi_info = {
@@ -1561,10 +1563,10 @@ static const struct SCSIBusInfo esp_scsi_info = {
     .max_target = ESP_MAX_DEVS,
     .max_lun = 7,
 
-    .load_request = esp_load_request,
     .transfer_data = esp_transfer_data,
     .complete = esp_command_complete,
-    .cancel = esp_request_cancelled
+    .cancel = esp_request_cancelled,
+    .load_request = esp_load_request,
 };
 
 static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
@@ -1624,16 +1626,18 @@ static void sysbus_esp_init(Object *obj)
     object_initialize_child(obj, "esp", &sysbus->esp, TYPE_ESP);
 }
 
+static const VMStateField vmstate_sysbus_esp_scsi_fields[] = {
+    VMSTATE_UINT8_V(esp.mig_version_id, SysBusESPState, 2),
+    VMSTATE_STRUCT(esp, SysBusESPState, 0, vmstate_esp, ESPState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sysbus_esp_scsi = {
     .name = "sysbusespscsi",
     .version_id = 2,
     .minimum_version_id = 1,
     .pre_save = esp_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_V(esp.mig_version_id, SysBusESPState, 2),
-        VMSTATE_STRUCT(esp, SysBusESPState, 0, vmstate_esp, ESPState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_sysbus_esp_scsi_fields,
 };
 
 static void sysbus_esp_class_init(ObjectClass *klass, const void *data)
@@ -1675,16 +1679,16 @@ static const TypeInfo esp_info_types[] = {
     {
         .name          = TYPE_SYSBUS_ESP,
         .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_init = sysbus_esp_init,
         .instance_size = sizeof(SysBusESPState),
+        .instance_init = sysbus_esp_init,
         .class_init    = sysbus_esp_class_init,
     },
     {
         .name = TYPE_ESP,
         .parent = TYPE_DEVICE,
+        .instance_size = sizeof(ESPState),
         .instance_init = esp_init,
         .instance_finalize = esp_finalize,
-        .instance_size = sizeof(ESPState),
         .class_init = esp_class_init,
     },
 };

@@ -435,7 +435,7 @@ static void scsi_generic_command_dump(uint8_t *cmd, int len)
     int i;
     char *line_buffer, *p;
 
-    line_buffer = g_malloc(len * 5 + 1);
+    line_buffer = static_cast<char *>(g_malloc(len * 5 + 1));
 
     for (i = 0, p = line_buffer; i < len; i++) {
         p += sprintf(p, " 0x%02x", cmd[i]);
@@ -477,7 +477,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
 
     if (r->buflen != r->req.cmd.xfer) {
         g_free(r->buf);
-        r->buf = g_malloc(r->req.cmd.xfer);
+        r->buf = static_cast<uint8_t *>(g_malloc(r->req.cmd.xfer));
         r->buflen = r->req.cmd.xfer;
     }
 
@@ -762,8 +762,8 @@ const SCSIReqOps scsi_generic_req_ops = {
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
     .get_buf      = scsi_get_buf,
-    .load_request = scsi_generic_load_request,
     .save_request = scsi_generic_save_request,
+    .load_request = scsi_generic_load_request,
 };
 
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,

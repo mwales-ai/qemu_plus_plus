@@ -439,7 +439,7 @@ static void mptsas_process_scsi_task_mgmt(MPTSASState *s, MPIMsgSCSITaskMgmt *re
         }
 
         QTAILQ_FOREACH_SAFE(r, &sdev->requests, next, next) {
-            MPTSASRequest *cmd_req = r->hba_private;
+            MPTSASRequest *cmd_req = static_cast<MPTSASRequest *>(r->hba_private);
             if (cmd_req && cmd_req->scsi_io.MsgContext == req->TaskMsgContext) {
                 break;
             }
@@ -458,7 +458,7 @@ static void mptsas_process_scsi_task_mgmt(MPTSASState *s, MPIMsgSCSITaskMgmt *re
             } else {
                 MPTSASCancelNotifier *notifier;
 
-                reply_async = g_memdup(&reply, sizeof(MPIMsgSCSITaskMgmtReply));
+                reply_async = static_cast<MPIMsgSCSITaskMgmtReply *>(g_memdup(&reply, sizeof(MPIMsgSCSITaskMgmtReply)));
                 reply_async->IOCLogInfo = INT_MAX;
 
                 count = 1;
@@ -485,7 +485,7 @@ static void mptsas_process_scsi_task_mgmt(MPTSASState *s, MPIMsgSCSITaskMgmt *re
             goto out;
         }
 
-        reply_async = g_memdup(&reply, sizeof(MPIMsgSCSITaskMgmtReply));
+        reply_async = static_cast<MPIMsgSCSITaskMgmtReply *>(g_memdup(&reply, sizeof(MPIMsgSCSITaskMgmtReply)));
         reply_async->IOCLogInfo = INT_MAX;
 
         count = 0;
@@ -785,7 +785,7 @@ static void mptsas_fetch_request(MPTSASState *s)
 
 static void mptsas_fetch_requests(void *opaque)
 {
-    MPTSASState *s = opaque;
+    MPTSASState *s = static_cast<MPTSASState *>(opaque);
 
     if (s->state != MPI_IOC_STATE_OPERATIONAL) {
         mptsas_set_fault(s, MPI_IOCSTATUS_INVALID_STATE);
@@ -1000,7 +1000,7 @@ static uint32_t mptsas_reply_post_read(MPTSASState *s)
 static uint64_t mptsas_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    MPTSASState *s = opaque;
+    MPTSASState *s = static_cast<MPTSASState *>(opaque);
     uint32_t ret = 0;
 
     switch (addr & ~3) {
@@ -1035,7 +1035,7 @@ static uint64_t mptsas_mmio_read(void *opaque, hwaddr addr,
 static void mptsas_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    MPTSASState *s = opaque;
+    MPTSASState *s = static_cast<MPTSASState *>(opaque);
 
     trace_mptsas_mmio_write(s, addr, val);
     switch (addr) {
@@ -1089,26 +1089,20 @@ static const MemoryRegionOps mptsas_mmio_ops = {
     .read = mptsas_mmio_read,
     .write = mptsas_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    }
+    .impl = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static const MemoryRegionOps mptsas_port_ops = {
     .read = mptsas_mmio_read,
     .write = mptsas_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    }
+    .impl = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static uint64_t mptsas_diag_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    MPTSASState *s = opaque;
+    MPTSASState *s = static_cast<MPTSASState *>(opaque);
     trace_mptsas_diag_read(s, addr, 0);
     return 0;
 }
@@ -1116,7 +1110,7 @@ static uint64_t mptsas_diag_read(void *opaque, hwaddr addr,
 static void mptsas_diag_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    MPTSASState *s = opaque;
+    MPTSASState *s = static_cast<MPTSASState *>(opaque);
     trace_mptsas_diag_write(s, addr, val);
 }
 
@@ -1124,15 +1118,12 @@ static const MemoryRegionOps mptsas_diag_ops = {
     .read = mptsas_diag_read,
     .write = mptsas_diag_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    }
+    .impl = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static QEMUSGList *mptsas_get_sg_list(SCSIRequest *sreq)
 {
-    MPTSASRequest *req = sreq->hba_private;
+    MPTSASRequest *req = static_cast<MPTSASRequest *>(sreq->hba_private);
 
     return &req->qsg;
 }
@@ -1140,7 +1131,7 @@ static QEMUSGList *mptsas_get_sg_list(SCSIRequest *sreq)
 static void mptsas_command_complete(SCSIRequest *sreq,
         size_t resid)
 {
-    MPTSASRequest *req = sreq->hba_private;
+    MPTSASRequest *req = static_cast<MPTSASRequest *>(sreq->hba_private);
     MPTSASState *s = req->dev;
     uint8_t sense_buf[SCSI_SENSE_BUF_SIZE];
     uint8_t sense_len;
@@ -1193,7 +1184,7 @@ static void mptsas_command_complete(SCSIRequest *sreq,
 
 static void mptsas_request_cancelled(SCSIRequest *sreq)
 {
-    MPTSASRequest *req = sreq->hba_private;
+    MPTSASRequest *req = static_cast<MPTSASRequest *>(sreq->hba_private);
     MPIMsgSCSIIOReply reply;
 
     memset(&reply, 0, sizeof(reply));
@@ -1215,7 +1206,7 @@ static void mptsas_request_cancelled(SCSIRequest *sreq)
 
 static void mptsas_save_request(QEMUFile *f, SCSIRequest *sreq)
 {
-    MPTSASRequest *req = sreq->hba_private;
+    MPTSASRequest *req = static_cast<MPTSASRequest *>(sreq->hba_private);
     int i;
 
     qemu_put_buffer(f, (unsigned char *)&req->scsi_io, sizeof(req->scsi_io));
@@ -1264,9 +1255,9 @@ static const struct SCSIBusInfo mptsas_scsi_info = {
     .max_target = MPTSAS_NUM_PORTS,
     .max_lun = 1,
 
-    .get_sg_list = mptsas_get_sg_list,
     .complete = mptsas_command_complete,
     .cancel = mptsas_request_cancelled,
+    .get_sg_list = mptsas_get_sg_list,
     .save_request = mptsas_save_request,
     .load_request = mptsas_load_request,
 };
@@ -1345,7 +1336,7 @@ static void mptsas_reset(DeviceState *dev)
 
 static int mptsas_post_load(void *opaque, int version_id)
 {
-    MPTSASState *s = opaque;
+    MPTSASState *s = static_cast<MPTSASState *>(opaque);
 
     if (s->doorbell_idx > s->doorbell_cnt ||
         s->doorbell_cnt > ARRAY_SIZE(s->doorbell_msg) ||
@@ -1361,12 +1352,7 @@ static int mptsas_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_mptsas = {
-    .name = "mptsas",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .post_load = mptsas_post_load,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_mptsas_fields[] = {
         VMSTATE_PCI_DEVICE(dev, MPTSASState),
         VMSTATE_BOOL(msi_in_use, MPTSASState),
         VMSTATE_UINT32(state, MPTSASState),
@@ -1406,8 +1392,15 @@ static const VMStateDescription vmstate_mptsas = {
         VMSTATE_UINT16(reply_frame_size, MPTSASState),
         VMSTATE_UINT64(host_mfa_high_addr, MPTSASState),
         VMSTATE_UINT64(sense_buffer_high_addr, MPTSASState),
-        VMSTATE_END_OF_LIST()
-    }
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription vmstate_mptsas = {
+    .name = "mptsas",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .post_load = mptsas_post_load,
+    .fields = vmstate_mptsas_fields,
 };
 
 static const Property mptsas_properties[] = {
@@ -1436,15 +1429,17 @@ static void mptsas1068_class_init(ObjectClass *oc, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
+static const InterfaceInfo mptsas_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo mptsas_info = {
     .name = TYPE_MPTSAS1068,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MPTSASState),
     .class_init = mptsas1068_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = mptsas_interfaces,
 };
 
 static void mptsas_register_types(void)

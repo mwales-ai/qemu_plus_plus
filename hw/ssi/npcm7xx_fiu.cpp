@@ -146,7 +146,7 @@ static void npcm7xx_fiu_deselect(NPCM7xxFIUState *s)
 static uint64_t npcm7xx_fiu_flash_read(void *opaque, hwaddr addr,
                                        unsigned int size)
 {
-    NPCM7xxFIUFlash *f = opaque;
+    NPCM7xxFIUFlash *f = static_cast<NPCM7xxFIUFlash *>(opaque);
     NPCM7xxFIUState *fiu = f->fiu;
     uint64_t value = 0;
     uint32_t drd_cfg;
@@ -203,7 +203,7 @@ static uint64_t npcm7xx_fiu_flash_read(void *opaque, hwaddr addr,
 static void npcm7xx_fiu_flash_write(void *opaque, hwaddr addr, uint64_t v,
                                     unsigned int size)
 {
-    NPCM7xxFIUFlash *f = opaque;
+    NPCM7xxFIUFlash *f = static_cast<NPCM7xxFIUFlash *>(opaque);
     NPCM7xxFIUState *fiu = f->fiu;
     uint32_t dwr_cfg;
     unsigned cs_id;
@@ -250,11 +250,7 @@ static const MemoryRegionOps npcm7xx_fiu_flash_ops = {
     .read = npcm7xx_fiu_flash_read,
     .write = npcm7xx_fiu_flash_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-        .unaligned = true,
-    },
+    .valid = { .min_access_size = 1, .max_access_size = 8, .unaligned = true },
 };
 
 /* Control register read handler. */
@@ -262,7 +258,7 @@ static uint64_t npcm7xx_fiu_ctrl_read(void *opaque, hwaddr addr,
                                       unsigned int size)
 {
     hwaddr reg = addr / sizeof(uint32_t);
-    NPCM7xxFIUState *s = opaque;
+    NPCM7xxFIUState *s = static_cast<NPCM7xxFIUState *>(opaque);
     uint32_t value;
 
     if (reg < NPCM7XX_FIU_NR_REGS) {
@@ -380,7 +376,7 @@ static void npcm7xx_fiu_ctrl_write(void *opaque, hwaddr addr, uint64_t v,
                                    unsigned int size)
 {
     hwaddr reg = addr / sizeof(uint32_t);
-    NPCM7xxFIUState *s = opaque;
+    NPCM7xxFIUState *s = static_cast<NPCM7xxFIUState *>(opaque);
     uint32_t value = v;
 
     trace_npcm7xx_fiu_ctrl_write(DEVICE(s)->canonical_path, addr, value);
@@ -459,11 +455,7 @@ static const MemoryRegionOps npcm7xx_fiu_ctrl_ops = {
     .read = npcm7xx_fiu_ctrl_read,
     .write = npcm7xx_fiu_ctrl_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
+    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false },
 };
 
 static void npcm7xx_fiu_enter_reset(Object *obj, ResetType type)
@@ -541,15 +533,17 @@ static void npcm7xx_fiu_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_npcm7xx_fiu_fields[] = {
+    VMSTATE_INT32(active_cs, NPCM7xxFIUState),
+    VMSTATE_UINT32_ARRAY(regs, NPCM7xxFIUState, NPCM7XX_FIU_NR_REGS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_fiu = {
     .name = "npcm7xx-fiu",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(active_cs, NPCM7xxFIUState),
-        VMSTATE_UINT32_ARRAY(regs, NPCM7xxFIUState, NPCM7XX_FIU_NR_REGS),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_fiu_fields,
 };
 
 static const Property npcm7xx_fiu_properties[] = {

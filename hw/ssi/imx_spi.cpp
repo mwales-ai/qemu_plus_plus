@@ -58,17 +58,19 @@ static const char *imx_spi_reg_name(uint32_t reg)
     }
 }
 
+static const VMStateField vmstate_imx_spi_fields[] = {
+    VMSTATE_FIFO32(tx_fifo, IMXSPIState),
+    VMSTATE_FIFO32(rx_fifo, IMXSPIState),
+    VMSTATE_INT16(burst_length, IMXSPIState),
+    VMSTATE_UINT32_ARRAY(regs, IMXSPIState, ECSPI_MAX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_imx_spi = {
     .name = TYPE_IMX_SPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO32(tx_fifo, IMXSPIState),
-        VMSTATE_FIFO32(rx_fifo, IMXSPIState),
-        VMSTATE_INT16(burst_length, IMXSPIState),
-        VMSTATE_UINT32_ARRAY(regs, IMXSPIState, ECSPI_MAX),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_imx_spi_fields,
 };
 
 static void imx_spi_txfifo_reset(IMXSPIState *s)
@@ -280,7 +282,7 @@ static void imx_spi_reset(DeviceState *dev)
 static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
 {
     uint32_t value = 0;
-    IMXSPIState *s = opaque;
+    IMXSPIState *s = static_cast<IMXSPIState *>(opaque);
     uint32_t index = offset >> 2;
 
     if (index >=  ECSPI_MAX) {
@@ -329,7 +331,7 @@ static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
 static void imx_spi_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
-    IMXSPIState *s = opaque;
+    IMXSPIState *s = static_cast<IMXSPIState *>(opaque);
     uint32_t index = offset >> 2;
     uint32_t change_mask;
     uint32_t burst;
@@ -442,17 +444,7 @@ static const struct MemoryRegionOps imx_spi_ops = {
     .read = imx_spi_read,
     .write = imx_spi_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        /*
-         * Our device would not work correctly if the guest was doing
-         * unaligned access. This might not be a limitation on the real
-         * device but in practice there is no reason for a guest to access
-         * this device unaligned.
-         */
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
+    .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false },
 };
 
 static void imx_spi_realize(DeviceState *dev, Error **errp)

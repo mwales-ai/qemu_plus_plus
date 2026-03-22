@@ -159,7 +159,7 @@ static void mss_spi_reset(DeviceState *d)
 static uint64_t
 spi_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    MSSSpiState *s = opaque;
+    MSSSpiState *s = static_cast<MSSSpiState *>(opaque);
     uint32_t ret = 0;
 
     addr >>= 2;
@@ -267,7 +267,7 @@ static void spi_flush_txfifo(MSSSpiState *s)
 static void spi_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
-    MSSSpiState *s = opaque;
+    MSSSpiState *s = static_cast<MSSSpiState *>(opaque);
     uint32_t value = val64;
 
     DB_PRINT("addr=0x%" HWADDR_PRIx " =0x%" PRIx32, addr, value);
@@ -362,10 +362,7 @@ static const MemoryRegionOps spi_ops = {
     .read = spi_read,
     .write = spi_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4
-    }
+    .valid = { .min_access_size = 1, .max_access_size = 4 },
 };
 
 static void mss_spi_realize(DeviceState *dev, Error **errp)
@@ -386,16 +383,18 @@ static void mss_spi_realize(DeviceState *dev, Error **errp)
     fifo32_create(&s->rx_fifo, FIFO_CAPACITY);
 }
 
+static const VMStateField vmstate_mss_spi_fields[] = {
+    VMSTATE_FIFO32(tx_fifo, MSSSpiState),
+    VMSTATE_FIFO32(rx_fifo, MSSSpiState),
+    VMSTATE_UINT32_ARRAY(regs, MSSSpiState, R_SPI_MAX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_mss_spi = {
     .name = TYPE_MSS_SPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO32(tx_fifo, MSSSpiState),
-        VMSTATE_FIFO32(rx_fifo, MSSSpiState),
-        VMSTATE_UINT32_ARRAY(regs, MSSSpiState, R_SPI_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mss_spi_fields,
 };
 
 static void mss_spi_class_init(ObjectClass *klass, const void *data)

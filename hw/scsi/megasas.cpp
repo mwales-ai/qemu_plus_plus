@@ -470,7 +470,7 @@ static void megasas_unmap_frame(MegasasState *s, MegasasCmd *cmd)
     PCIDevice *p = PCI_DEVICE(s);
 
     if (cmd->pa_size) {
-        pci_dma_unmap(p, cmd->frame, cmd->pa_size, 0, 0);
+        pci_dma_unmap(p, cmd->frame, cmd->pa_size, DMA_DIRECTION_TO_DEVICE, 0);
     }
     cmd->frame = NULL;
     cmd->pa = 0;
@@ -511,7 +511,7 @@ static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
 
     cmd->pa = frame;
     /* Map all possible frames */
-    cmd->frame = pci_dma_map(pcid, frame, &frame_size_p, 0);
+    cmd->frame = static_cast<mfi_frame *>(pci_dma_map(pcid, frame, &frame_size_p, DMA_DIRECTION_TO_DEVICE));
     if (!cmd->frame || frame_size_p != frame_size) {
         trace_megasas_qf_map_failed(cmd->index, (unsigned long)frame);
         if (cmd->frame) {
@@ -650,7 +650,7 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     pa_hi = le32_to_cpu(cmd->frame->init.qinfo_new_addr_hi);
     iq_pa = (((uint64_t) pa_hi << 32) | pa_lo);
     trace_megasas_init_firmware((uint64_t)iq_pa);
-    initq = pci_dma_map(pcid, iq_pa, &initq_size, 0);
+    initq = static_cast<mfi_init_qinfo *>(pci_dma_map(pcid, iq_pa, &initq_size, DMA_DIRECTION_TO_DEVICE));
     if (!initq || initq_size != sizeof(*initq)) {
         trace_megasas_initq_map_failed(cmd->index);
         s->event_count++;
@@ -688,7 +688,7 @@ static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
     s->fw_state = MFI_FWSTATE_OPERATIONAL;
 out:
     if (initq) {
-        pci_dma_unmap(pcid, initq, initq_size, 0, 0);
+        pci_dma_unmap(pcid, initq, initq_size, DMA_DIRECTION_TO_DEVICE, 0);
     }
     return ret;
 }
@@ -793,7 +793,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
         uint8_t biosver[32];
         uint8_t *ptr;
 
-        ptr = memory_region_get_ram_ptr(&pci_dev->rom);
+        ptr = static_cast<uint8_t *>(memory_region_get_ram_ptr(&pci_dev->rom));
         memcpy(biosver, ptr + 0x41, 31);
         biosver[31] = 0;
         memcpy(info.image_component[1].name, "BIOS", 4);
@@ -971,7 +971,7 @@ static int megasas_event_wait(MegasasState *s, MegasasCmd *cmd)
     s->event_count = cpu_to_le32(cmd->frame->dcmd.mbox[0]);
     event.word = cpu_to_le32(cmd->frame->dcmd.mbox[4]);
     s->event_locale = event.members.locale;
-    s->event_class = event.members.class;
+    s->event_class = event.members.klass;
     s->event_cmd = cmd;
     /* Decrease busy count; event frame doesn't count here */
     s->busy--;
@@ -1047,7 +1047,7 @@ static int megasas_dcmd_pd_list_query(MegasasState *s, MegasasCmd *cmd)
 static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
                                       MegasasCmd *cmd)
 {
-    struct mfi_pd_info *info = cmd->iov_buf;
+    struct mfi_pd_info *info = static_cast<struct mfi_pd_info *>(cmd->iov_buf);
     size_t dcmd_size = sizeof(struct mfi_pd_info);
     uint64_t pd_size;
     uint16_t pd_id = ((sdev->id & 0xFF) << 8) | (lun & 0xFF);
@@ -1057,7 +1057,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
 
     if (!cmd->iov_buf) {
         cmd->iov_buf = g_malloc0(dcmd_size);
-        info = cmd->iov_buf;
+        info = static_cast<struct mfi_pd_info *>(cmd->iov_buf);
         info->inquiry_data[0] = 0x7f; /* Force PQual 0x3, PType 0x1f */
         info->vpd_page83[0] = 0x7f;
         megasas_setup_inquiry(cmdbuf, 0, sizeof(info->inquiry_data));
@@ -1255,7 +1255,7 @@ static int megasas_dcmd_ld_list_query(MegasasState *s, MegasasCmd *cmd)
 static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
                                       MegasasCmd *cmd)
 {
-    struct mfi_ld_info *info = cmd->iov_buf;
+    struct mfi_ld_info *info = static_cast<struct mfi_ld_info *>(cmd->iov_buf);
     size_t dcmd_size = sizeof(struct mfi_ld_info);
     uint8_t cdb[6];
     ssize_t len;
@@ -1265,7 +1265,7 @@ static int megasas_ld_get_info_submit(SCSIDevice *sdev, int lun,
 
     if (!cmd->iov_buf) {
         cmd->iov_buf = g_malloc0(dcmd_size);
-        info = cmd->iov_buf;
+        info = static_cast<struct mfi_ld_info *>(cmd->iov_buf);
         megasas_setup_inquiry(cdb, 0x83, sizeof(info->vpd_page83));
         cmd->req = scsi_req_new(sdev, cmd->index, lun, cdb, sizeof(cdb), cmd);
         if (!cmd->req) {
@@ -1833,7 +1833,7 @@ static int megasas_handle_io(MegasasState *s, MegasasCmd *cmd, int frame_cmd)
 
 static QEMUSGList *megasas_get_sg_list(SCSIRequest *req)
 {
-    MegasasCmd *cmd = req->hba_private;
+    MegasasCmd *cmd = static_cast<MegasasCmd *>(req->hba_private);
 
     if (cmd->dcmd_opcode != -1) {
         return NULL;
@@ -1844,7 +1844,7 @@ static QEMUSGList *megasas_get_sg_list(SCSIRequest *req)
 
 static void megasas_xfer_complete(SCSIRequest *req, uint32_t len)
 {
-    MegasasCmd *cmd = req->hba_private;
+    MegasasCmd *cmd = static_cast<MegasasCmd *>(req->hba_private);
     uint8_t *buf;
 
     trace_megasas_io_complete(cmd->index, len);
@@ -1856,7 +1856,7 @@ static void megasas_xfer_complete(SCSIRequest *req, uint32_t len)
 
     buf = scsi_req_get_buf(req);
     if (cmd->dcmd_opcode == MFI_DCMD_PD_GET_INFO && cmd->iov_buf) {
-        struct mfi_pd_info *info = cmd->iov_buf;
+        struct mfi_pd_info *info = static_cast<struct mfi_pd_info *>(cmd->iov_buf);
 
         if (info->inquiry_data[0] == 0x7f) {
             memset(info->inquiry_data, 0, sizeof(info->inquiry_data));
@@ -1867,7 +1867,7 @@ static void megasas_xfer_complete(SCSIRequest *req, uint32_t len)
         }
         scsi_req_continue(req);
     } else if (cmd->dcmd_opcode == MFI_DCMD_LD_GET_INFO) {
-        struct mfi_ld_info *info = cmd->iov_buf;
+        struct mfi_ld_info *info = static_cast<struct mfi_ld_info *>(cmd->iov_buf);
 
         if (cmd->iov_buf) {
             memcpy(info->vpd_page83, buf, sizeof(info->vpd_page83));
@@ -1878,7 +1878,7 @@ static void megasas_xfer_complete(SCSIRequest *req, uint32_t len)
 
 static void megasas_command_complete(SCSIRequest *req, size_t residual)
 {
-    MegasasCmd *cmd = req->hba_private;
+    MegasasCmd *cmd = static_cast<MegasasCmd *>(req->hba_private);
     uint8_t cmd_status = MFI_STAT_OK;
 
     trace_megasas_command_complete(cmd->index, req->status, residual);
@@ -1913,7 +1913,7 @@ static void megasas_command_complete(SCSIRequest *req, size_t residual)
 
 static void megasas_command_cancelled(SCSIRequest *req)
 {
-    MegasasCmd *cmd = req->hba_private;
+    MegasasCmd *cmd = static_cast<MegasasCmd *>(req->hba_private);
 
     if (!cmd) {
         return;
@@ -2018,7 +2018,7 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
 static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    MegasasState *s = opaque;
+    MegasasState *s = static_cast<MegasasState *>(opaque);
     PCIDevice *pci_dev = PCI_DEVICE(s);
     MegasasBaseClass *base_class = MEGASAS_GET_CLASS(s);
     uint32_t retval = 0;
@@ -2071,7 +2071,7 @@ static int adp_reset_seq[] = {0x00, 0x04, 0x0b, 0x02, 0x07, 0x0d};
 static void megasas_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
-    MegasasState *s = opaque;
+    MegasasState *s = static_cast<MegasasState *>(opaque);
     PCIDevice *pci_dev = PCI_DEVICE(s);
     uint64_t frame_addr;
     uint32_t frame_count;
@@ -2186,10 +2186,7 @@ static const MemoryRegionOps megasas_mmio_ops = {
     .read = megasas_mmio_read,
     .write = megasas_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    }
+    .impl = { .min_access_size = 8, .max_access_size = 8 },
 };
 
 static uint64_t megasas_port_read(void *opaque, hwaddr addr,
@@ -2208,10 +2205,7 @@ static const MemoryRegionOps megasas_port_ops = {
     .read = megasas_port_read,
     .write = megasas_port_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    }
+    .impl = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static uint64_t megasas_queue_read(void *opaque, hwaddr addr,
@@ -2229,10 +2223,7 @@ static const MemoryRegionOps megasas_queue_ops = {
     .read = megasas_queue_read,
     .write = megasas_queue_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 8,
-        .max_access_size = 8,
-    }
+    .impl = { .min_access_size = 8, .max_access_size = 8 },
 };
 
 static void megasas_soft_reset(MegasasState *s)
@@ -2281,40 +2272,42 @@ static void megasas_scsi_reset(DeviceState *dev)
     megasas_soft_reset(s);
 }
 
+static const VMStateField vmstate_megasas_gen1_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, MegasasState),
+    VMSTATE_MSIX(parent_obj, MegasasState),
+    VMSTATE_UINT32(fw_state, MegasasState),
+    VMSTATE_UINT32(intr_mask, MegasasState),
+    VMSTATE_UINT32(doorbell, MegasasState),
+    VMSTATE_UINT64(reply_queue_pa, MegasasState),
+    VMSTATE_UINT64(consumer_pa, MegasasState),
+    VMSTATE_UINT64(producer_pa, MegasasState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_megasas_gen1 = {
     .name = "megasas",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, MegasasState),
-        VMSTATE_MSIX(parent_obj, MegasasState),
+    .fields = vmstate_megasas_gen1_fields,
+};
 
-        VMSTATE_UINT32(fw_state, MegasasState),
-        VMSTATE_UINT32(intr_mask, MegasasState),
-        VMSTATE_UINT32(doorbell, MegasasState),
-        VMSTATE_UINT64(reply_queue_pa, MegasasState),
-        VMSTATE_UINT64(consumer_pa, MegasasState),
-        VMSTATE_UINT64(producer_pa, MegasasState),
-        VMSTATE_END_OF_LIST()
-    }
+static const VMStateField vmstate_megasas_gen2_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, MegasasState),
+    VMSTATE_MSIX(parent_obj, MegasasState),
+    VMSTATE_UINT32(fw_state, MegasasState),
+    VMSTATE_UINT32(intr_mask, MegasasState),
+    VMSTATE_UINT32(doorbell, MegasasState),
+    VMSTATE_UINT64(reply_queue_pa, MegasasState),
+    VMSTATE_UINT64(consumer_pa, MegasasState),
+    VMSTATE_UINT64(producer_pa, MegasasState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_megasas_gen2 = {
     .name = "megasas-gen2",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, MegasasState),
-        VMSTATE_MSIX(parent_obj, MegasasState),
-
-        VMSTATE_UINT32(fw_state, MegasasState),
-        VMSTATE_UINT32(intr_mask, MegasasState),
-        VMSTATE_UINT32(doorbell, MegasasState),
-        VMSTATE_UINT64(reply_queue_pa, MegasasState),
-        VMSTATE_UINT64(consumer_pa, MegasasState),
-        VMSTATE_UINT64(producer_pa, MegasasState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_megasas_gen2_fields,
 };
 
 static void megasas_scsi_uninit(PCIDevice *d)
@@ -2333,9 +2326,9 @@ static const struct SCSIBusInfo megasas_scsi_info = {
     .max_lun = 255,
 
     .transfer_data = megasas_xfer_complete,
-    .get_sg_list = megasas_get_sg_list,
     .complete = megasas_command_complete,
     .cancel = megasas_command_cancelled,
+    .get_sg_list = megasas_get_sg_list,
 };
 
 static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
@@ -2486,6 +2479,16 @@ typedef struct MegasasInfo {
     const InterfaceInfo *interfaces;
 } MegasasInfo;
 
+static const InterfaceInfo megasas_gen1_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
+static const InterfaceInfo megasas_gen2_interfaces[] = {
+    { INTERFACE_PCIE_DEVICE },
+    { },
+};
+
 static struct MegasasInfo megasas_devices[] = {
     {
         .name = TYPE_MEGASAS_GEN1,
@@ -2500,10 +2503,7 @@ static struct MegasasInfo megasas_devices[] = {
         .vmsd = &vmstate_megasas_gen1,
         .props = megasas_properties_gen1,
         .props_count = ARRAY_SIZE(megasas_properties_gen1),
-        .interfaces = (const InterfaceInfo[]) {
-            { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-            { },
-        },
+        .interfaces = megasas_gen1_interfaces,
     },{
         .name = TYPE_MEGASAS_GEN2,
         .desc = "LSI MegaRAID SAS 2108",
@@ -2517,10 +2517,7 @@ static struct MegasasInfo megasas_devices[] = {
         .vmsd = &vmstate_megasas_gen2,
         .props = megasas_properties_gen2,
         .props_count = ARRAY_SIZE(megasas_properties_gen2),
-        .interfaces = (const InterfaceInfo[]) {
-            { INTERFACE_PCIE_DEVICE },
-            { }
-        },
+        .interfaces = megasas_gen2_interfaces,
     }
 };
 
@@ -2529,7 +2526,7 @@ static void megasas_class_init(ObjectClass *oc, const void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
     MegasasBaseClass *e = MEGASAS_CLASS(oc);
-    const MegasasInfo *info = data;
+    const MegasasInfo *info = static_cast<const MegasasInfo *>(data);
 
     pc->realize = megasas_scsi_realize;
     pc->exit = megasas_scsi_uninit;
@@ -2554,8 +2551,8 @@ static const TypeInfo megasas_info = {
     .name  = TYPE_MEGASAS_BASE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MegasasState),
-    .class_size = sizeof(MegasasBaseClass),
     .is_abstract = true,
+    .class_size = sizeof(MegasasBaseClass),
 };
 
 static void megasas_register_types(void)

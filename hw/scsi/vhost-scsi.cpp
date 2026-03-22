@@ -148,7 +148,7 @@ static void vhost_dummy_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 static int vhost_scsi_pre_save(void *opaque)
 {
-    VHostSCSICommon *vsc = opaque;
+    VHostSCSICommon *vsc = static_cast<VHostSCSICommon *>(opaque);
 
     /* At this point, backend must be stopped, otherwise
      * it might keep writing to memory. */
@@ -157,15 +157,17 @@ static int vhost_scsi_pre_save(void *opaque)
     return 0;
 }
 
+static const VMStateField vmstate_virtio_vhost_scsi_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_virtio_vhost_scsi = {
     .name = "virtio-vhost_scsi",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
     .pre_save = vhost_scsi_pre_save,
+    .fields = vmstate_virtio_vhost_scsi_fields,
 };
 
 static int vhost_scsi_set_workers(VHostSCSICommon *vsc, bool per_virtqueue)
@@ -394,16 +396,18 @@ static void vhost_scsi_instance_init(Object *obj)
                                   DEVICE(vsc));
 }
 
+static const InterfaceInfo vhost_scsi_interfaces[] = {
+    { TYPE_FW_PATH_PROVIDER },
+    { }
+};
+
 static const TypeInfo vhost_scsi_info = {
     .name = TYPE_VHOST_SCSI,
     .parent = TYPE_VHOST_SCSI_COMMON,
     .instance_size = sizeof(VHostSCSI),
-    .class_init = vhost_scsi_class_init,
     .instance_init = vhost_scsi_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_FW_PATH_PROVIDER },
-        { }
-    },
+    .class_init = vhost_scsi_class_init,
+    .interfaces = vhost_scsi_interfaces,
 };
 
 static void virtio_register_types(void)

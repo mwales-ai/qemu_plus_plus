@@ -756,7 +756,7 @@ static void lsi_request_free(LSIState *s, lsi_request *p)
 static void lsi_request_cancelled(SCSIRequest *req)
 {
     LSIState *s = LSI53C895A(req->bus->qbus.parent);
-    lsi_request *p = req->hba_private;
+    lsi_request *p = static_cast<lsi_request *>(req->hba_private);
 
     req->hba_private = NULL;
     lsi_request_free(s, p);
@@ -767,7 +767,7 @@ static void lsi_request_cancelled(SCSIRequest *req)
    the device was reselected, nonzero if the IO is deferred.  */
 static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
 {
-    lsi_request *p = req->hba_private;
+    lsi_request *p = static_cast<lsi_request *>(req->hba_private);
 
     if (p->pending) {
         trace_lsi_queue_req_error(p);
@@ -1427,7 +1427,7 @@ again:
             uint8_t op1;
             uint8_t data8;
             int reg;
-            int operator;
+            int oper;
 
             static const char *opcode_names[3] =
                 {"Write", "Read", "Read-Modify-Write"};
@@ -1437,10 +1437,10 @@ again:
             reg = ((insn >> 16) & 0x7f) | (insn & 0x80);
             data8 = (insn >> 8) & 0xff;
             opcode = (insn >> 27) & 7;
-            operator = (insn >> 24) & 7;
+            oper = (insn >> 24) & 7;
             trace_lsi_execute_script_io_opcode(
                     opcode_names[opcode - 5], reg,
-                    operator_names[operator], data8, s->sfbr,
+                    operator_names[oper], data8, s->sfbr,
                     (insn & (1 << 23)) ? " SFBR" : "");
             op0 = op1 = 0;
             switch (opcode) {
@@ -1449,12 +1449,12 @@ again:
                 op1 = data8;
                 break;
             case 6: /* To SFBR */
-                if (operator)
+                if (oper)
                     op0 = lsi_reg_readb(s, reg);
                 op1 = data8;
                 break;
             case 7: /* Read-modify-write */
-                if (operator)
+                if (oper)
                     op0 = lsi_reg_readb(s, reg);
                 if (insn & (1 << 23)) {
                     op1 = s->sfbr;
@@ -1464,7 +1464,7 @@ again:
                 break;
             }
 
-            switch (operator) {
+            switch (oper) {
             case 0: /* move */
                 op0 = op1;
                 break;
@@ -2125,7 +2125,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
 static void lsi_mmio_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
 
     lsi_reg_writeb(s, addr & 0xff, val);
 }
@@ -2133,7 +2133,7 @@ static void lsi_mmio_write(void *opaque, hwaddr addr,
 static uint64_t lsi_mmio_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
     return lsi_reg_readb(s, addr & 0xff);
 }
 
@@ -2141,23 +2141,20 @@ static const MemoryRegionOps lsi_mmio_ops = {
     .read = lsi_mmio_read,
     .write = lsi_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
+    .impl = { .min_access_size = 1, .max_access_size = 1 },
 };
 
 static void lsi_ram_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
     stn_le_p(s->script_ram + addr, size, val);
 }
 
 static uint64_t lsi_ram_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
     return ldn_le_p(s->script_ram + addr, size);
 }
 
@@ -2170,14 +2167,14 @@ static const MemoryRegionOps lsi_ram_ops = {
 static uint64_t lsi_io_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
     return lsi_reg_readb(s, addr & 0xff);
 }
 
 static void lsi_io_write(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
     lsi_reg_writeb(s, addr & 0xff, val);
 }
 
@@ -2185,10 +2182,7 @@ static const MemoryRegionOps lsi_io_ops = {
     .read = lsi_io_read,
     .write = lsi_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
+    .impl = { .min_access_size = 1, .max_access_size = 1 },
 };
 
 static void lsi_scsi_reset(DeviceState *dev)
@@ -2200,7 +2194,7 @@ static void lsi_scsi_reset(DeviceState *dev)
 
 static int lsi_pre_save(void *opaque)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
 
     if (s->current) {
         assert(s->current->dma_buf == NULL);
@@ -2213,7 +2207,7 @@ static int lsi_pre_save(void *opaque)
 
 static int lsi_post_load(void *opaque, int version_id)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
 
     if (s->msg_len < 0 || s->msg_len > LSI_MAX_MSGIN_LEN) {
         return -EINVAL;
@@ -2225,13 +2219,7 @@ static int lsi_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_lsi_scsi = {
-    .name = "lsiscsi",
-    .version_id = 1,
-    .minimum_version_id = 0,
-    .pre_save = lsi_pre_save,
-    .post_load = lsi_post_load,
-    .fields = (const VMStateField[]) {
+static const VMStateField vmstate_lsi_scsi_fields[] = {
         VMSTATE_PCI_DEVICE(parent_obj, LSIState),
 
         VMSTATE_INT32(carry, LSIState),
@@ -2305,8 +2293,16 @@ static const VMStateDescription vmstate_lsi_scsi = {
         VMSTATE_UINT8(sbr, LSIState),
 
         VMSTATE_BUFFER_UNSAFE(script_ram, LSIState, 0, 8192),
-        VMSTATE_END_OF_LIST()
-    }
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription vmstate_lsi_scsi = {
+    .name = "lsiscsi",
+    .version_id = 1,
+    .minimum_version_id = 0,
+    .post_load = lsi_post_load,
+    .pre_save = lsi_pre_save,
+    .fields = vmstate_lsi_scsi_fields,
 };
 
 static const struct SCSIBusInfo lsi_scsi_info = {
@@ -2321,7 +2317,7 @@ static const struct SCSIBusInfo lsi_scsi_info = {
 
 static void scripts_timer_cb(void *opaque)
 {
-    LSIState *s = opaque;
+    LSIState *s = static_cast<LSIState *>(opaque);
 
     trace_lsi_scripts_timer_triggered();
     s->waiting = LSI_NOWAIT;
@@ -2391,15 +2387,17 @@ static void lsi_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
+static const InterfaceInfo lsi_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo lsi_info = {
     .name          = TYPE_LSI53C895A,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(LSIState),
     .class_init    = lsi_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = lsi_interfaces,
 };
 
 static void lsi53c810_class_init(ObjectClass *klass, const void *data)

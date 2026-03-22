@@ -120,7 +120,7 @@ typedef struct {
 
 static void scsi_device_for_each_req_async_bh(void *opaque)
 {
-    g_autofree SCSIDeviceForEachReqAsyncData *data = opaque;
+    g_autofree SCSIDeviceForEachReqAsyncData *data = static_cast<SCSIDeviceForEachReqAsyncData *>(opaque);
     SCSIDevice *s = data->s;
     g_autoptr(GList) reqs = NULL;
 
@@ -143,8 +143,8 @@ static void scsi_device_for_each_req_async_bh(void *opaque)
 
     /* Call fn() on each request */
     for (GList *elem = g_list_first(reqs); elem; elem = g_list_next(elem)) {
-        data->fn(elem->data, data->fn_opaque);
-        scsi_req_unref(elem->data);
+        data->fn(static_cast<SCSIRequest *>(elem->data), data->fn_opaque);
+        scsi_req_unref(static_cast<SCSIRequest *>(elem->data));
     }
 
     /* Drop the reference taken by scsi_device_for_each_req_async() */
@@ -157,8 +157,8 @@ static void scsi_device_for_each_req_async_bh(void *opaque)
 static void scsi_device_for_each_req_async_do_ctx(gpointer key, gpointer value,
                                                   gpointer user_data)
 {
-    AioContext *ctx = key;
-    SCSIDeviceForEachReqAsyncData *params = user_data;
+    AioContext *ctx = static_cast<AioContext *>(key);
+    SCSIDeviceForEachReqAsyncData *params = static_cast<SCSIDeviceForEachReqAsyncData *>(user_data);
     SCSIDeviceForEachReqAsyncData *data;
 
     data = g_new(SCSIDeviceForEachReqAsyncData, 1);
@@ -300,7 +300,7 @@ static void scsi_dma_restart_req(SCSIRequest *req, void *opaque)
 
 static void scsi_dma_restart_cb(void *opaque, bool running, RunState state)
 {
-    SCSIDevice *s = opaque;
+    SCSIDevice *s = static_cast<SCSIDevice *>(opaque);
 
     assert(qemu_in_main_thread());
 
@@ -796,7 +796,7 @@ static uint8_t *scsi_target_alloc_buf(SCSIRequest *req, size_t len)
 {
     SCSITargetReq *r = DO_UPCAST(SCSITargetReq, req, req);
 
-    r->buf = g_malloc(len);
+    r->buf = static_cast<uint8_t *>(g_malloc(len));
     r->buf_len = len;
 
     return r->buf;
@@ -811,10 +811,10 @@ static void scsi_target_free_buf(SCSIRequest *req)
 
 static const struct SCSIReqOps reqops_target_command = {
     .size         = sizeof(SCSITargetReq),
+    .free_req     = scsi_target_free_buf,
     .send_command = scsi_target_send_command,
     .read_data    = scsi_target_read_data,
     .get_buf      = scsi_target_get_buf,
-    .free_req     = scsi_target_free_buf,
 };
 
 
@@ -826,7 +826,7 @@ SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
     const int memset_off = offsetof(SCSIRequest, sense)
                            + sizeof(req->sense);
 
-    req = g_malloc(reqops->size);
+    req = static_cast<SCSIRequest *>(g_malloc(reqops->size));
     memset((uint8_t *)req + memset_off, 0, reqops->size - memset_off);
     req->refcount = 1;
     req->bus = bus;
@@ -1865,7 +1865,7 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
 
 static void put_scsi_req(SCSIRequest *req, void *opaque)
 {
-    QEMUFile *f = opaque;
+    QEMUFile *f = static_cast<QEMUFile *>(opaque);
 
     assert(!req->io_canceled);
     assert(req->status == -1 && req->host_status == -1);
@@ -1886,7 +1886,7 @@ static void put_scsi_req(SCSIRequest *req, void *opaque)
 static int put_scsi_requests(QEMUFile *f, void *pv, size_t size,
                              const VMStateField *field, JSONWriter *vmdesc)
 {
-    SCSIDevice *s = pv;
+    SCSIDevice *s = static_cast<SCSIDevice *>(pv);
 
     scsi_device_for_each_req_sync(s, put_scsi_req, f);
     qemu_put_sbyte(f, 0);
@@ -1896,7 +1896,7 @@ static int put_scsi_requests(QEMUFile *f, void *pv, size_t size,
 static int get_scsi_requests(QEMUFile *f, void *pv, size_t size,
                              const VMStateField *field)
 {
-    SCSIDevice *s = pv;
+    SCSIDevice *s = static_cast<SCSIDevice *>(pv);
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, s->qdev.parent_bus);
     int8_t sbyte;
 
@@ -1944,50 +1944,56 @@ static const VMStateInfo vmstate_info_scsi_requests = {
 
 static bool scsi_sense_state_needed(void *opaque)
 {
-    SCSIDevice *s = opaque;
+    SCSIDevice *s = static_cast<SCSIDevice *>(opaque);
 
     return s->sense_len > SCSI_SENSE_BUF_SIZE_OLD;
 }
+
+static const VMStateField vmstate_scsi_sense_state_fields[] = {
+    VMSTATE_UINT8_SUB_ARRAY(sense, SCSIDevice,
+                            SCSI_SENSE_BUF_SIZE_OLD,
+                            SCSI_SENSE_BUF_SIZE - SCSI_SENSE_BUF_SIZE_OLD),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_scsi_sense_state = {
     .name = "SCSIDevice/sense",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = scsi_sense_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_SUB_ARRAY(sense, SCSIDevice,
-                                SCSI_SENSE_BUF_SIZE_OLD,
-                                SCSI_SENSE_BUF_SIZE - SCSI_SENSE_BUF_SIZE_OLD),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_scsi_sense_state_fields,
+};
+
+static const VMStateField vmstate_scsi_device_fields[] = {
+    VMSTATE_UINT8(unit_attention.key, SCSIDevice),
+    VMSTATE_UINT8(unit_attention.asc, SCSIDevice),
+    VMSTATE_UINT8(unit_attention.ascq, SCSIDevice),
+    VMSTATE_BOOL(sense_is_ua, SCSIDevice),
+    VMSTATE_UINT8_SUB_ARRAY(sense, SCSIDevice, 0, SCSI_SENSE_BUF_SIZE_OLD),
+    VMSTATE_UINT32(sense_len, SCSIDevice),
+    {
+        .name         = "requests",
+        .offset       = 0,
+        .size         = 0,   /* ouch */
+        .info         = &vmstate_info_scsi_requests,
+        .flags        = VMS_SINGLE,
+        .version_id   = 0,
+        .field_exists = NULL,
+    },
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_scsi_device_subsections[] = {
+    &vmstate_scsi_sense_state,
+    NULL
 };
 
 const VMStateDescription vmstate_scsi_device = {
     .name = "SCSIDevice",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(unit_attention.key, SCSIDevice),
-        VMSTATE_UINT8(unit_attention.asc, SCSIDevice),
-        VMSTATE_UINT8(unit_attention.ascq, SCSIDevice),
-        VMSTATE_BOOL(sense_is_ua, SCSIDevice),
-        VMSTATE_UINT8_SUB_ARRAY(sense, SCSIDevice, 0, SCSI_SENSE_BUF_SIZE_OLD),
-        VMSTATE_UINT32(sense_len, SCSIDevice),
-        {
-            .name         = "requests",
-            .version_id   = 0,
-            .field_exists = NULL,
-            .size         = 0,   /* ouch */
-            .info         = &vmstate_info_scsi_requests,
-            .flags        = VMS_SINGLE,
-            .offset       = 0,
-        },
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_scsi_sense_state,
-        NULL
-    }
+    .fields = vmstate_scsi_device_fields,
+    .subsections = vmstate_scsi_device_subsections,
 };
 
 static const Property scsi_props[] = {
@@ -2019,10 +2025,10 @@ static const TypeInfo scsi_device_type_info = {
     .name = TYPE_SCSI_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SCSIDevice),
+    .instance_init = scsi_dev_instance_init,
     .is_abstract = true,
     .class_size = sizeof(SCSIDeviceClass),
     .class_init = scsi_device_class_init,
-    .instance_init = scsi_dev_instance_init,
 };
 
 static void scsi_bus_class_init(ObjectClass *klass, const void *data)
@@ -2036,15 +2042,17 @@ static void scsi_bus_class_init(ObjectClass *klass, const void *data)
     hc->unplug = qdev_simple_device_unplug_cb;
 }
 
+static const InterfaceInfo scsi_bus_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo scsi_bus_info = {
     .name = TYPE_SCSI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(SCSIBus),
     .class_init = scsi_bus_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+    .interfaces = scsi_bus_interfaces,
 };
 
 static void scsi_register_types(void)

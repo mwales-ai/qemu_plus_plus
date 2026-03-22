@@ -523,7 +523,7 @@ static int vscsi_preprocess_desc(vscsi_req *req)
 static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 {
     VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
-    vscsi_req *req = sreq->hba_private;
+    vscsi_req *req = static_cast<vscsi_req *>(sreq->hba_private);
     uint8_t *buf;
     int rc = 0;
 
@@ -553,7 +553,7 @@ static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 static void vscsi_command_complete(SCSIRequest *sreq, size_t resid)
 {
     VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
-    vscsi_req *req = sreq->hba_private;
+    vscsi_req *req = static_cast<vscsi_req *>(sreq->hba_private);
     int32_t res_in = 0, res_out = 0;
 
     trace_spapr_vscsi_command_complete(sreq->tag, sreq->status, req);
@@ -590,7 +590,7 @@ static void vscsi_command_complete(SCSIRequest *sreq, size_t resid)
 
 static void vscsi_request_cancelled(SCSIRequest *sreq)
 {
-    vscsi_req *req = sreq->hba_private;
+    vscsi_req *req = static_cast<vscsi_req *>(sreq->hba_private);
 
     if (req->dma_error) {
         VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
@@ -601,33 +601,35 @@ static void vscsi_request_cancelled(SCSIRequest *sreq)
     vscsi_put_req(req);
 }
 
+static const VMStateField vmstate_spapr_vscsi_req_fields[] = {
+    VMSTATE_BUFFER(crq.raw, vscsi_req),
+    VMSTATE_BUFFER(viosrp_iu_buf, vscsi_req),
+    VMSTATE_UINT32(qtag, vscsi_req),
+    VMSTATE_BOOL(active, vscsi_req),
+    VMSTATE_UINT32(data_len, vscsi_req),
+    VMSTATE_BOOL(writing, vscsi_req),
+    VMSTATE_UINT32(senselen, vscsi_req),
+    VMSTATE_BUFFER(sense, vscsi_req),
+    VMSTATE_UINT8(dma_fmt, vscsi_req),
+    VMSTATE_UINT16(local_desc, vscsi_req),
+    VMSTATE_UINT16(total_desc, vscsi_req),
+    VMSTATE_UINT16(cdb_offset, vscsi_req),
+    /*Restart SCSI request from the beginning for now */
+    /*VMSTATE_UINT16(cur_desc_num, vscsi_req),
+    VMSTATE_UINT16(cur_desc_offset, vscsi_req),*/
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_vscsi_req = {
     .name = "spapr_vscsi_req",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(crq.raw, vscsi_req),
-        VMSTATE_BUFFER(viosrp_iu_buf, vscsi_req),
-        VMSTATE_UINT32(qtag, vscsi_req),
-        VMSTATE_BOOL(active, vscsi_req),
-        VMSTATE_UINT32(data_len, vscsi_req),
-        VMSTATE_BOOL(writing, vscsi_req),
-        VMSTATE_UINT32(senselen, vscsi_req),
-        VMSTATE_BUFFER(sense, vscsi_req),
-        VMSTATE_UINT8(dma_fmt, vscsi_req),
-        VMSTATE_UINT16(local_desc, vscsi_req),
-        VMSTATE_UINT16(total_desc, vscsi_req),
-        VMSTATE_UINT16(cdb_offset, vscsi_req),
-      /*Restart SCSI request from the beginning for now */
-      /*VMSTATE_UINT16(cur_desc_num, vscsi_req),
-        VMSTATE_UINT16(cur_desc_offset, vscsi_req),*/
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_vscsi_req_fields,
 };
 
 static void vscsi_save_request(QEMUFile *f, SCSIRequest *sreq)
 {
-    vscsi_req *req = sreq->hba_private;
+    vscsi_req *req = static_cast<vscsi_req *>(sreq->hba_private);
     Error *local_err = NULL;
     int rc;
 
@@ -757,7 +759,7 @@ static void vscsi_report_luns(VSCSIState *s, vscsi_req *req)
     }
     len = n+8;
 
-    resp_data = g_malloc0(len);
+    resp_data = static_cast<uint8_t *>(g_malloc0(len));
     stl_be_p(resp_data, n);
     i = found_lun0 ? 8 : 16;
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
@@ -1262,17 +1264,18 @@ static const Property spapr_vscsi_properties[] = {
     DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev),
 };
 
+static const VMStateField vmstate_spapr_vscsi_fields[] = {
+    VMSTATE_SPAPR_VIO(vdev, VSCSIState),
+    /* VSCSI state */
+    /* ???? */
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_spapr_vscsi = {
     .name = "spapr_vscsi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_SPAPR_VIO(vdev, VSCSIState),
-        /* VSCSI state */
-        /* ???? */
-
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_vscsi_fields,
 };
 
 static void spapr_vscsi_class_init(ObjectClass *klass, const void *data)

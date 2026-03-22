@@ -410,7 +410,7 @@ pvscsi_msg_ring_put(PVSCSIState *s, struct PVSCSIRingMsgDesc *msg_desc)
 static void
 pvscsi_process_completion_queue(void *opaque)
 {
-    PVSCSIState *s = opaque;
+    PVSCSIState *s = static_cast<PVSCSIState *>(opaque);
     PVSCSIRequest *pvscsi_req;
     bool has_completed = false;
 
@@ -467,7 +467,7 @@ pvscsi_complete_request(PVSCSIState *s, PVSCSIRequest *r)
 
 static QEMUSGList *pvscsi_get_sg_list(SCSIRequest *r)
 {
-    PVSCSIRequest *req = r->hba_private;
+    PVSCSIRequest *req = static_cast<PVSCSIRequest *>(r->hba_private);
 
     trace_pvscsi_get_sg_list(req->sgl.nsg, req->sgl.size);
 
@@ -506,7 +506,7 @@ pvscsi_write_sense(PVSCSIRequest *r, uint8_t *sense, int len)
 static void
 pvscsi_command_failed(SCSIRequest *req)
 {
-    PVSCSIRequest *pvscsi_req = req->hba_private;
+    PVSCSIRequest *pvscsi_req = static_cast<PVSCSIRequest *>(req->hba_private);
     PVSCSIState *s;
 
     if (!pvscsi_req) {
@@ -544,7 +544,7 @@ pvscsi_command_failed(SCSIRequest *req)
 static void
 pvscsi_command_complete(SCSIRequest *req, size_t resid)
 {
-    PVSCSIRequest *pvscsi_req = req->hba_private;
+    PVSCSIRequest *pvscsi_req = static_cast<PVSCSIRequest *>(req->hba_private);
     PVSCSIState *s;
 
     if (!pvscsi_req) {
@@ -609,7 +609,7 @@ pvscsi_hot_unplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
 static void
 pvscsi_request_cancelled(SCSIRequest *req)
 {
-    PVSCSIRequest *pvscsi_req = req->hba_private;
+    PVSCSIRequest *pvscsi_req = static_cast<PVSCSIRequest *>(req->hba_private);
     PVSCSIState *s = pvscsi_req->dev;
 
     if (pvscsi_req->completed) {
@@ -646,7 +646,7 @@ pvscsi_queue_pending_descriptor(PVSCSIState *s, SCSIDevice **d,
     PVSCSIRequest *pvscsi_req;
     uint8_t lun;
 
-    pvscsi_req = g_malloc0(sizeof(*pvscsi_req));
+    pvscsi_req = static_cast<PVSCSIRequest *>(g_malloc0(sizeof(*pvscsi_req)));
     pvscsi_req->dev = s;
     pvscsi_req->req = *descr;
     pvscsi_req->cmp.context = pvscsi_req->req.context;
@@ -916,63 +916,42 @@ pvscsi_on_cmd_adapter_reset(PVSCSIState *s)
     return PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
 }
 
-static const struct {
+struct PVSCSICommandEntry {
     int       data_size;
     uint64_t  (*handler_fn)(PVSCSIState *s);
-} pvscsi_commands[] = {
-    [PVSCSI_CMD_FIRST] = {
-        .data_size = 0,
-        .handler_fn = pvscsi_on_cmd_unknown,
-    },
-
-    /* Not implemented, data size defined based on what arrives on windows */
-    [PVSCSI_CMD_CONFIG] = {
-        .data_size = 6 * sizeof(uint32_t),
-        .handler_fn = pvscsi_on_cmd_config,
-    },
-
-    /* Command not implemented, data size is unknown */
-    [PVSCSI_CMD_ISSUE_SCSI] = {
-        .data_size = 0,
-        .handler_fn = pvscsi_on_issue_scsi,
-    },
-
-    /* Command not implemented, data size is unknown */
-    [PVSCSI_CMD_DEVICE_UNPLUG] = {
-        .data_size = 0,
-        .handler_fn = pvscsi_on_cmd_unplug,
-    },
-
-    [PVSCSI_CMD_SETUP_RINGS] = {
-        .data_size = sizeof(PVSCSICmdDescSetupRings),
-        .handler_fn = pvscsi_on_cmd_setup_rings,
-    },
-
-    [PVSCSI_CMD_RESET_DEVICE] = {
-        .data_size = sizeof(struct PVSCSICmdDescResetDevice),
-        .handler_fn = pvscsi_on_cmd_reset_device,
-    },
-
-    [PVSCSI_CMD_RESET_BUS] = {
-        .data_size = 0,
-        .handler_fn = pvscsi_on_cmd_reset_bus,
-    },
-
-    [PVSCSI_CMD_SETUP_MSG_RING] = {
-        .data_size = sizeof(PVSCSICmdDescSetupMsgRing),
-        .handler_fn = pvscsi_on_cmd_setup_msg_ring,
-    },
-
-    [PVSCSI_CMD_ADAPTER_RESET] = {
-        .data_size = 0,
-        .handler_fn = pvscsi_on_cmd_adapter_reset,
-    },
-
-    [PVSCSI_CMD_ABORT_CMD] = {
-        .data_size = sizeof(struct PVSCSICmdDescAbortCmd),
-        .handler_fn = pvscsi_on_cmd_abort,
-    },
 };
+
+static struct PVSCSICommandEntry pvscsi_commands[PVSCSI_CMD_LAST];
+
+static void __attribute__((constructor)) pvscsi_commands_init(void)
+{
+    memset(pvscsi_commands, 0, sizeof(pvscsi_commands));
+
+    pvscsi_commands[PVSCSI_CMD_FIRST].handler_fn = pvscsi_on_cmd_unknown;
+
+    pvscsi_commands[PVSCSI_CMD_CONFIG].data_size = 6 * sizeof(uint32_t);
+    pvscsi_commands[PVSCSI_CMD_CONFIG].handler_fn = pvscsi_on_cmd_config;
+
+    pvscsi_commands[PVSCSI_CMD_ISSUE_SCSI].handler_fn = pvscsi_on_issue_scsi;
+
+    pvscsi_commands[PVSCSI_CMD_DEVICE_UNPLUG].handler_fn = pvscsi_on_cmd_unplug;
+
+    pvscsi_commands[PVSCSI_CMD_SETUP_RINGS].data_size = sizeof(PVSCSICmdDescSetupRings);
+    pvscsi_commands[PVSCSI_CMD_SETUP_RINGS].handler_fn = pvscsi_on_cmd_setup_rings;
+
+    pvscsi_commands[PVSCSI_CMD_RESET_DEVICE].data_size = sizeof(struct PVSCSICmdDescResetDevice);
+    pvscsi_commands[PVSCSI_CMD_RESET_DEVICE].handler_fn = pvscsi_on_cmd_reset_device;
+
+    pvscsi_commands[PVSCSI_CMD_RESET_BUS].handler_fn = pvscsi_on_cmd_reset_bus;
+
+    pvscsi_commands[PVSCSI_CMD_SETUP_MSG_RING].data_size = sizeof(PVSCSICmdDescSetupMsgRing);
+    pvscsi_commands[PVSCSI_CMD_SETUP_MSG_RING].handler_fn = pvscsi_on_cmd_setup_msg_ring;
+
+    pvscsi_commands[PVSCSI_CMD_ADAPTER_RESET].handler_fn = pvscsi_on_cmd_adapter_reset;
+
+    pvscsi_commands[PVSCSI_CMD_ABORT_CMD].data_size = sizeof(struct PVSCSICmdDescAbortCmd);
+    pvscsi_commands[PVSCSI_CMD_ABORT_CMD].handler_fn = pvscsi_on_cmd_abort;
+}
 
 static void
 pvscsi_do_command_processing(PVSCSIState *s)
@@ -1018,7 +997,7 @@ static void
 pvscsi_io_write(void *opaque, hwaddr addr,
                 uint64_t val, unsigned size)
 {
-    PVSCSIState *s = opaque;
+    PVSCSIState *s = static_cast<PVSCSIState *>(opaque);
 
     switch (addr) {
     case PVSCSI_REG_OFFSET_COMMAND:
@@ -1066,7 +1045,7 @@ pvscsi_io_write(void *opaque, hwaddr addr,
 static uint64_t
 pvscsi_io_read(void *opaque, hwaddr addr, unsigned size)
 {
-    PVSCSIState *s = opaque;
+    PVSCSIState *s = static_cast<PVSCSIState *>(opaque);
 
     switch (addr) {
     case PVSCSI_REG_OFFSET_INTR_STATUS:
@@ -1119,22 +1098,19 @@ static const MemoryRegionOps pvscsi_ops = {
         .read = pvscsi_io_read,
         .write = pvscsi_io_write,
         .endianness = DEVICE_LITTLE_ENDIAN,
-        .impl = {
-                .min_access_size = 4,
-                .max_access_size = 4,
-        },
+        .impl = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static const struct SCSIBusInfo pvscsi_scsi_info = {
         .tcq = true,
-        .max_target = PVSCSI_MAX_DEVS,
         .max_channel = 0,
+        .max_target = PVSCSI_MAX_DEVS,
         .max_lun = 0,
 
-        .get_sg_list = pvscsi_get_sg_list,
+        .fail = pvscsi_command_failed,
         .complete = pvscsi_command_complete,
         .cancel = pvscsi_request_cancelled,
-        .fail = pvscsi_command_failed,
+        .get_sg_list = pvscsi_get_sg_list,
 };
 
 static void
@@ -1217,21 +1193,17 @@ pvscsi_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_pvscsi_pcie_device = {
-    .name = "pvscsi/pcie",
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PVSCSIState),
-        VMSTATE_END_OF_LIST()
-    }
+static const VMStateField vmstate_pvscsi_pcie_device_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PVSCSIState),
+    VMSTATE_END_OF_LIST()
 };
 
-static const VMStateDescription vmstate_pvscsi = {
-    .name = "pvscsi",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .pre_save = pvscsi_pre_save,
-    .post_load = pvscsi_post_load,
-    .fields = (const VMStateField[]) {
+static const VMStateDescription vmstate_pvscsi_pcie_device = {
+    .name = "pvscsi/pcie",
+    .fields = vmstate_pvscsi_pcie_device_fields,
+};
+
+static const VMStateField vmstate_pvscsi_fields[] = {
         VMSTATE_UINT8(msi_used, PVSCSIState),
         VMSTATE_UINT32(resetting, PVSCSIState),
         VMSTATE_UINT64(reg_interrupt_status, PVSCSIState),
@@ -1255,12 +1227,22 @@ static const VMStateDescription vmstate_pvscsi = {
         VMSTATE_UINT64(rings.consumed_ptr, PVSCSIState),
         VMSTATE_UINT64(rings.filled_cmp_ptr, PVSCSIState),
 
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_pvscsi_pcie_device,
-        NULL
-    }
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_pvscsi_subsections[] = {
+    &vmstate_pvscsi_pcie_device,
+    NULL
+};
+
+static const VMStateDescription vmstate_pvscsi = {
+    .name = "pvscsi",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .post_load = pvscsi_post_load,
+    .pre_save = pvscsi_pre_save,
+    .fields = vmstate_pvscsi_fields,
+    .subsections = vmstate_pvscsi_subsections,
 };
 
 static const Property pvscsi_properties[] = {
@@ -1292,19 +1274,21 @@ static void pvscsi_class_init(ObjectClass *klass, const void *data)
     hc->plug = pvscsi_hotplug;
 }
 
+static const InterfaceInfo pvscsi_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { INTERFACE_PCIE_DEVICE },
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
 static const TypeInfo pvscsi_info = {
     .name          = TYPE_PVSCSI,
     .parent        = TYPE_PCI_DEVICE,
-    .class_size    = sizeof(PVSCSIClass),
     .instance_size = sizeof(PVSCSIState),
-    .class_init    = pvscsi_class_init,
     .instance_init = pvscsi_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { INTERFACE_PCIE_DEVICE },
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+    .class_size    = sizeof(PVSCSIClass),
+    .class_init    = pvscsi_class_init,
+    .interfaces = pvscsi_interfaces,
 };
 
 static void

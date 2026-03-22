@@ -64,7 +64,7 @@ static size_t vfill(uint8_t *data, size_t size, const char *fmt, va_list ap)
             val.ll = va_arg(ap, int64_t);
             break;
         case 's':
-            val.str = va_arg(ap, void *);
+            val.str = static_cast<char *>(va_arg(ap, void *));
             break;
         }
         switch (*p++) {
@@ -97,7 +97,7 @@ static size_t vfill(uint8_t *data, size_t size, const char *fmt, va_list ap)
                 int cnt = atoi(p);
                 if (data) {
                     if (val.str) {
-                        strncpy((void *)data + ofs, val.str, cnt);
+                        strncpy(reinterpret_cast<char *>(data + ofs), val.str, cnt);
                     } else {
                         memset((void *)data + ofs, 0, cnt);
                     }
@@ -121,7 +121,7 @@ static size_t vpack(uint8_t **p_data, const char *fmt, va_list ap1)
 
         va_copy(ap2, ap1);
         size = vfill(NULL, 0, fmt, ap2);
-        *p_data = data = g_malloc(size);
+        *p_data = data = static_cast<uint8_t *>(g_malloc(size));
         va_end(ap2);
     }
     return vfill(data, size, fmt, ap1);

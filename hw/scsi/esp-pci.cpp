@@ -216,7 +216,7 @@ static uint32_t esp_pci_dma_read(PCIESPState *pci, uint32_t saddr)
 static void esp_pci_io_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned int size)
 {
-    PCIESPState *pci = opaque;
+    PCIESPState *pci = static_cast<PCIESPState *>(opaque);
     ESPState *s = &pci->esp;
 
     if (size < 4 || addr & 3) {
@@ -261,7 +261,7 @@ static void esp_pci_io_write(void *opaque, hwaddr addr,
 static uint64_t esp_pci_io_read(void *opaque, hwaddr addr,
                                 unsigned int size)
 {
-    PCIESPState *pci = opaque;
+    PCIESPState *pci = static_cast<PCIESPState *>(opaque);
     ESPState *s = &pci->esp;
     uint32_t ret;
 
@@ -323,13 +323,13 @@ static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
 
 static void esp_pci_dma_memory_read(void *opaque, uint8_t *buf, int len)
 {
-    PCIESPState *pci = opaque;
+    PCIESPState *pci = static_cast<PCIESPState *>(opaque);
     esp_pci_dma_memory_rw(pci, buf, len, DMA_DIRECTION_TO_DEVICE);
 }
 
 static void esp_pci_dma_memory_write(void *opaque, uint8_t *buf, int len)
 {
-    PCIESPState *pci = opaque;
+    PCIESPState *pci = static_cast<PCIESPState *>(opaque);
     esp_pci_dma_memory_rw(pci, buf, len, DMA_DIRECTION_FROM_DEVICE);
 }
 
@@ -337,10 +337,7 @@ static const MemoryRegionOps esp_pci_io_ops = {
     .read = esp_pci_io_read,
     .write = esp_pci_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
+    .impl = { .min_access_size = 1, .max_access_size = 4 },
 };
 
 static void esp_pci_hard_reset(DeviceState *dev)
@@ -359,18 +356,20 @@ static void esp_pci_hard_reset(DeviceState *dev)
     pci->dma_regs[DMA_WMAC] = 0xfffffffd;
 }
 
+static const VMStateField vmstate_esp_pci_scsi_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PCIESPState),
+    VMSTATE_BUFFER_UNSAFE(dma_regs, PCIESPState, 0, 8 * sizeof(uint32_t)),
+    VMSTATE_UINT8_V(esp.mig_version_id, PCIESPState, 2),
+    VMSTATE_STRUCT(esp, PCIESPState, 0, vmstate_esp, ESPState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_esp_pci_scsi = {
     .name = "pciespscsi",
     .version_id = 2,
     .minimum_version_id = 1,
     .pre_save = esp_pre_save,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PCIESPState),
-        VMSTATE_BUFFER_UNSAFE(dma_regs, PCIESPState, 0, 8 * sizeof(uint32_t)),
-        VMSTATE_UINT8_V(esp.mig_version_id, PCIESPState, 2),
-        VMSTATE_STRUCT(esp, PCIESPState, 0, vmstate_esp, ESPState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_esp_pci_scsi_fields,
 };
 
 static const struct SCSIBusInfo esp_pci_scsi_info = {
@@ -444,16 +443,18 @@ static void esp_pci_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_esp_pci_scsi;
 }
 
+static const InterfaceInfo esp_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo esp_pci_info = {
     .name = TYPE_AM53C974_DEVICE,
     .parent = TYPE_PCI_DEVICE,
-    .instance_init = esp_pci_init,
     .instance_size = sizeof(PCIESPState),
+    .instance_init = esp_pci_init,
     .class_init = esp_pci_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = esp_pci_interfaces,
 };
 
 struct DC390State {
