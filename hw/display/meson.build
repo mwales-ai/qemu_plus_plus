@@ -79,14 +79,14 @@ if config_all_devices.has_key('CONFIG_VIRTIO_GPU')
   if virgl.found() and opengl.found()
     virtio_gpu_gl_ss = ss.source_set()
     virtio_gpu_gl_ss.add(when: ['CONFIG_VIRTIO_GPU', virgl, opengl],
-                         if_true: [files('virtio-gpu-gl.cpp', 'virtio-gpu-virgl.c'), pixman, virgl])
+                         if_true: [files('virtio-gpu-gl.cpp', 'virtio-gpu-virgl.cpp'), pixman, virgl])
     hw_display_modules += {'virtio-gpu-gl': virtio_gpu_gl_ss}
   endif
 
   if rutabaga.found()
     virtio_gpu_rutabaga_ss = ss.source_set()
     virtio_gpu_rutabaga_ss.add(when: ['CONFIG_VIRTIO_GPU', rutabaga],
-                               if_true: [files('virtio-gpu-rutabaga.c'), pixman])
+                               if_true: [files('virtio-gpu-rutabaga.cpp'), pixman])
     hw_display_modules += {'virtio-gpu-rutabaga': virtio_gpu_rutabaga_ss}
   endif
 endif

@@ -252,7 +252,7 @@ static void mos6522_timer2_update(MOS6522State *s, MOS6522Timer *ti,
 
 static void mos6522_timer1(void *opaque)
 {
-    MOS6522State *s = opaque;
+    MOS6522State *s = static_cast<MOS6522State *>(opaque);
     MOS6522Timer *ti = &s->timers[0];
 
     mos6522_timer1_update(s, ti, ti->next_irq_time);
@@ -262,7 +262,7 @@ static void mos6522_timer1(void *opaque)
 
 static void mos6522_timer2(void *opaque)
 {
-    MOS6522State *s = opaque;
+    MOS6522State *s = static_cast<MOS6522State *>(opaque);
     MOS6522Timer *ti = &s->timers[1];
 
     mos6522_timer2_update(s, ti, ti->next_irq_time);
@@ -295,7 +295,7 @@ static void mos6522_portB_write(MOS6522State *s)
 
 uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
 {
-    MOS6522State *s = opaque;
+    MOS6522State *s = static_cast<MOS6522State *>(opaque);
     uint32_t val;
     int ctrl;
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -393,7 +393,7 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
 
 void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    MOS6522State *s = opaque;
+    MOS6522State *s = static_cast<MOS6522State *>(opaque);
     MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
     int ctrl;
 
@@ -499,7 +499,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 
 static int qmp_x_query_via_foreach(Object *obj, void *opaque)
 {
-    GString *buf = opaque;
+    GString *buf = static_cast<GString *>(opaque);
 
     if (object_dynamic_cast(obj, TYPE_MOS6522)) {
         MOS6522State *s = MOS6522(obj);
@@ -601,45 +601,46 @@ static const MemoryRegionOps mos6522_ops = {
     .read = mos6522_read,
     .write = mos6522_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
+    .valid = { .min_access_size = 1, .max_access_size = 1 },
+};
+
+static const VMStateField vmstate_mos6522_timer_fields[] = {
+    VMSTATE_UINT16(latch, MOS6522Timer),
+    VMSTATE_UINT16(counter_value, MOS6522Timer),
+    VMSTATE_INT64(load_time, MOS6522Timer),
+    VMSTATE_INT64(next_irq_time, MOS6522Timer),
+    VMSTATE_TIMER_PTR(timer, MOS6522Timer),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_mos6522_timer = {
     .name = "mos6522_timer",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(latch, MOS6522Timer),
-        VMSTATE_UINT16(counter_value, MOS6522Timer),
-        VMSTATE_INT64(load_time, MOS6522Timer),
-        VMSTATE_INT64(next_irq_time, MOS6522Timer),
-        VMSTATE_TIMER_PTR(timer, MOS6522Timer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mos6522_timer_fields,
+};
+
+static const VMStateField vmstate_mos6522_fields[] = {
+    VMSTATE_UINT8(a, MOS6522State),
+    VMSTATE_UINT8(b, MOS6522State),
+    VMSTATE_UINT8(dira, MOS6522State),
+    VMSTATE_UINT8(dirb, MOS6522State),
+    VMSTATE_UINT8(sr, MOS6522State),
+    VMSTATE_UINT8(acr, MOS6522State),
+    VMSTATE_UINT8(pcr, MOS6522State),
+    VMSTATE_UINT8(ifr, MOS6522State),
+    VMSTATE_UINT8(ier, MOS6522State),
+    VMSTATE_UINT8(last_irq_levels, MOS6522State),
+    VMSTATE_STRUCT_ARRAY(timers, MOS6522State, 2, 0,
+                         vmstate_mos6522_timer, MOS6522Timer),
+    VMSTATE_END_OF_LIST()
 };
 
 const VMStateDescription vmstate_mos6522 = {
     .name = "mos6522",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(a, MOS6522State),
-        VMSTATE_UINT8(b, MOS6522State),
-        VMSTATE_UINT8(dira, MOS6522State),
-        VMSTATE_UINT8(dirb, MOS6522State),
-        VMSTATE_UINT8(sr, MOS6522State),
-        VMSTATE_UINT8(acr, MOS6522State),
-        VMSTATE_UINT8(pcr, MOS6522State),
-        VMSTATE_UINT8(ifr, MOS6522State),
-        VMSTATE_UINT8(ier, MOS6522State),
-        VMSTATE_UINT8(last_irq_levels, MOS6522State),
-        VMSTATE_STRUCT_ARRAY(timers, MOS6522State, 2, 0,
-                             vmstate_mos6522_timer, MOS6522Timer),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mos6522_fields,
 };
 
 static void mos6522_reset_hold(Object *obj, ResetType type)

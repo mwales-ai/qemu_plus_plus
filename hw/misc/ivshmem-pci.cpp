@@ -172,7 +172,7 @@ static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
 static void ivshmem_io_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
-    IVShmemState *s = opaque;
+    IVShmemState *s = static_cast<IVShmemState *>(opaque);
 
     uint16_t dest = val >> 16;
     uint16_t vector = val & 0xff;
@@ -215,7 +215,7 @@ static uint64_t ivshmem_io_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
 
-    IVShmemState *s = opaque;
+    IVShmemState *s = static_cast<IVShmemState *>(opaque);
     uint32_t ret;
 
     switch (addr)
@@ -244,15 +244,12 @@ static const MemoryRegionOps ivshmem_mmio_ops = {
     .read = ivshmem_io_read,
     .write = ivshmem_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
+    .impl = { .min_access_size = 4, .max_access_size = 4 },
 };
 
 static void ivshmem_vector_notify(void *opaque)
 {
-    MSIVector *entry = opaque;
+    MSIVector *entry = static_cast<MSIVector *>(opaque);
     PCIDevice *pdev = entry->pdev;
     IVShmemState *s = IVSHMEM_COMMON(pdev);
     int vector = entry - s->msi_vectors;
@@ -587,7 +584,7 @@ static void process_msg(IVShmemState *s, int64_t msg, int fd, Error **errp)
 
 static int ivshmem_can_receive(void *opaque)
 {
-    IVShmemState *s = opaque;
+    IVShmemState *s = static_cast<IVShmemState *>(opaque);
 
     assert(s->msg_buffered_bytes < sizeof(s->msg_buf));
     return sizeof(s->msg_buf) - s->msg_buffered_bytes;
@@ -595,7 +592,7 @@ static int ivshmem_can_receive(void *opaque)
 
 static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
-    IVShmemState *s = opaque;
+    IVShmemState *s = static_cast<IVShmemState *>(opaque);
     Error *err = NULL;
     int fd;
     int64_t msg;
@@ -971,7 +968,7 @@ static void ivshmem_exit(PCIDevice *dev)
 
 static int ivshmem_pre_load(void *opaque)
 {
-    IVShmemState *s = opaque;
+    IVShmemState *s = static_cast<IVShmemState *>(opaque);
 
     if (!ivshmem_is_master(s)) {
         error_report("'peer' devices are not migratable");
@@ -983,7 +980,7 @@ static int ivshmem_pre_load(void *opaque)
 
 static int ivshmem_post_load(void *opaque, int version_id)
 {
-    IVShmemState *s = opaque;
+    IVShmemState *s = static_cast<IVShmemState *>(opaque);
 
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
         ivshmem_msix_vector_use(s);
@@ -1008,16 +1005,25 @@ static void ivshmem_common_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Inter-VM shared memory";
 }
 
+static const InterfaceInfo ivshmem_common_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo ivshmem_common_info = {
     .name          = TYPE_IVSHMEM_COMMON,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IVShmemState),
     .is_abstract      = true,
     .class_init    = ivshmem_common_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces = ivshmem_common_interfaces,
+};
+
+static const VMStateField ivshmem_plain_vmsd_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, IVShmemState),
+    VMSTATE_UINT32(intrstatus, IVShmemState),
+    VMSTATE_UINT32(intrmask, IVShmemState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription ivshmem_plain_vmsd = {
@@ -1026,12 +1032,7 @@ static const VMStateDescription ivshmem_plain_vmsd = {
     .minimum_version_id = 0,
     .pre_load = ivshmem_pre_load,
     .post_load = ivshmem_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, IVShmemState),
-        VMSTATE_UINT32(intrstatus, IVShmemState),
-        VMSTATE_UINT32(intrmask, IVShmemState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = ivshmem_plain_vmsd_fields,
 };
 
 static const Property ivshmem_plain_properties[] = {
@@ -1073,19 +1074,21 @@ static const TypeInfo ivshmem_plain_info = {
     .class_init    = ivshmem_plain_class_init,
 };
 
+static const VMStateField ivshmem_doorbell_vmsd_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, IVShmemState),
+    VMSTATE_MSIX(parent_obj, IVShmemState),
+    VMSTATE_UINT32(intrstatus, IVShmemState),
+    VMSTATE_UINT32(intrmask, IVShmemState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription ivshmem_doorbell_vmsd = {
     .name = TYPE_IVSHMEM_DOORBELL,
     .version_id = 0,
     .minimum_version_id = 0,
     .pre_load = ivshmem_pre_load,
     .post_load = ivshmem_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, IVShmemState),
-        VMSTATE_MSIX(parent_obj, IVShmemState),
-        VMSTATE_UINT32(intrstatus, IVShmemState),
-        VMSTATE_UINT32(intrmask, IVShmemState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = ivshmem_doorbell_vmsd_fields,
 };
 
 static const Property ivshmem_doorbell_properties[] = {

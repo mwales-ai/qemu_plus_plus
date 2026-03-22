@@ -18,7 +18,7 @@ system_ss.add(when: 'CONFIG_ARM11SCU', if_true: files('arm11scu.cpp'))
 system_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('armv7m_ras.cpp'))
 
 # Mac devices
-system_ss.add(when: 'CONFIG_MOS6522', if_true: files('mos6522.c'))
+system_ss.add(when: 'CONFIG_MOS6522', if_true: files('mos6522.cpp'))
 system_ss.add(when: 'CONFIG_DJMEMC', if_true: files('djmemc.cpp'))
 system_ss.add(when: 'CONFIG_IOSB', if_true: files('iosb.cpp'))
 
@@ -38,7 +38,7 @@ system_ss.add(when: 'CONFIG_SIFIVE_U_PRCI', if_true: files('sifive_u_prci.cpp'))
 subdir('macio')
 
 # ivshmem devices
-system_ss.add(when: 'CONFIG_IVSHMEM_DEVICE', if_true: files('ivshmem-pci.c'))
+system_ss.add(when: 'CONFIG_IVSHMEM_DEVICE', if_true: files('ivshmem-pci.cpp'))
 system_ss.add(when: 'CONFIG_IVSHMEM_FLAT_DEVICE', if_true: files('ivshmem-flat.cpp'))
 
 system_ss.add(when: 'CONFIG_ALLWINNER_SRAMC', if_true: files('allwinner-sramc.cpp'))

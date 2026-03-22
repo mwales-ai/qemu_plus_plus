@@ -22,7 +22,9 @@
 
 #include "ui/egl-helpers.h"
 
+extern "C" {
 #include <virglrenderer.h>
+}
 
 struct virtio_gpu_virgl_resource {
     struct virtio_gpu_simple_resource base;
@@ -65,7 +67,7 @@ to_hostmem_region(MemoryRegion *mr)
 
 static void virtio_gpu_virgl_resume_cmdq_bh(void *opaque)
 {
-    VirtIOGPU *g = opaque;
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
 
     virtio_gpu_process_cmdq(g);
 }
@@ -653,7 +655,7 @@ static void virgl_cmd_get_capset(VirtIOGPU *g,
         return;
     }
 
-    resp = g_malloc0(sizeof(*resp) + max_size);
+    resp = static_cast<struct virtio_gpu_resp_capset *>(g_malloc0(sizeof(*resp) + max_size));
     resp->hdr.type = VIRTIO_GPU_RESP_OK_CAPSET;
     virgl_renderer_fill_caps(gc.capset_id,
                              gc.capset_version,
@@ -965,7 +967,7 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
     if (cmd->error) {
         fprintf(stderr, "%s: ctrl 0x%x, error 0x%x\n", __func__,
                 cmd->cmd_hdr.type, cmd->error);
-        virtio_gpu_ctrl_response_nodata(g, cmd, cmd->error);
+        virtio_gpu_ctrl_response_nodata(g, cmd, static_cast<virtio_gpu_ctrl_type>(cmd->error));
         return;
     }
     if (!(cmd->cmd_hdr.flags & VIRTIO_GPU_FLAG_FENCE)) {
@@ -988,7 +990,7 @@ void virtio_gpu_virgl_process_cmd(VirtIOGPU *g,
 
 static void virgl_write_fence(void *opaque, uint32_t fence)
 {
-    VirtIOGPU *g = opaque;
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     struct virtio_gpu_ctrl_command *cmd, *tmp;
 
     QTAILQ_FOREACH_SAFE(cmd, &g->fenceq, next, tmp) {
@@ -1018,7 +1020,7 @@ static void virgl_write_fence(void *opaque, uint32_t fence)
 #if VIRGL_VERSION_MAJOR >= 1
 static void virgl_write_context_fence(void *opaque, uint32_t ctx_id,
                                       uint32_t ring_idx, uint64_t fence_id) {
-    VirtIOGPU *g = opaque;
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     struct virtio_gpu_ctrl_command *cmd, *tmp;
 
     QTAILQ_FOREACH_SAFE(cmd, &g->fenceq, next, tmp) {
@@ -1042,7 +1044,7 @@ static virgl_renderer_gl_context
 virgl_create_context(void *opaque, int scanout_idx,
                      struct virgl_renderer_gl_ctx_param *params)
 {
-    VirtIOGPU *g = opaque;
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     QEMUGLContext ctx;
     QEMUGLParams qparams;
 
@@ -1055,7 +1057,7 @@ virgl_create_context(void *opaque, int scanout_idx,
 
 static void virgl_destroy_context(void *opaque, virgl_renderer_gl_context ctx)
 {
-    VirtIOGPU *g = opaque;
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     QEMUGLContext qctx = (QEMUGLContext)ctx;
 
     dpy_gl_ctx_destroy(g->parent_obj.scanout[0].con, qctx);
@@ -1064,7 +1066,7 @@ static void virgl_destroy_context(void *opaque, virgl_renderer_gl_context ctx)
 static int virgl_make_context_current(void *opaque, int scanout_idx,
                                       virgl_renderer_gl_context ctx)
 {
-    VirtIOGPU *g = opaque;
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     QEMUGLContext qctx = (QEMUGLContext)ctx;
 
     return dpy_gl_ctx_make_current(g->parent_obj.scanout[scanout_idx].con,
@@ -1088,7 +1090,7 @@ static struct virgl_renderer_callbacks virtio_gpu_3d_cbs = {
 
 static void virtio_gpu_print_stats(void *opaque)
 {
-    VirtIOGPU *g = opaque;
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
 
     if (g->stats.requests) {
@@ -1109,7 +1111,7 @@ static void virtio_gpu_print_stats(void *opaque)
 
 static void virtio_gpu_fence_poll(void *opaque)
 {
-    VirtIOGPU *g = opaque;
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     VirtIOGPUGL *gl = VIRTIO_GPU_GL(g);
 
     virgl_renderer_poll();
