@@ -97,41 +97,45 @@ REG32(NPCM_GMAC_PTP_TTSR, 0x71c)
 
 #define NPCM_DMA_BUS_MODE_SWR               BIT(0)
 
-static const uint32_t npcm_gmac_cold_reset_values[NPCM_GMAC_NR_REGS] = {
-    /* Reduce version to 3.2 so that the kernel can enable interrupt. */
-    [R_NPCM_GMAC_VERSION]         = 0x00001032,
-    [R_NPCM_GMAC_TIMER_CTRL]      = 0x03e80000,
-    [R_NPCM_GMAC_MAC0_ADDR_HI]    = 0x8000ffff,
-    [R_NPCM_GMAC_MAC0_ADDR_LO]    = 0xffffffff,
-    [R_NPCM_GMAC_MAC1_ADDR_HI]    = 0x0000ffff,
-    [R_NPCM_GMAC_MAC1_ADDR_LO]    = 0xffffffff,
-    [R_NPCM_GMAC_MAC2_ADDR_HI]    = 0x0000ffff,
-    [R_NPCM_GMAC_MAC2_ADDR_LO]    = 0xffffffff,
-    [R_NPCM_GMAC_MAC3_ADDR_HI]    = 0x0000ffff,
-    [R_NPCM_GMAC_MAC3_ADDR_LO]    = 0xffffffff,
-    [R_NPCM_GMAC_PTP_TCR]         = 0x00002000,
-    [R_NPCM_DMA_BUS_MODE]         = 0x00020101,
-    [R_NPCM_DMA_HW_FEATURE]       = 0x100d4f37,
-};
+static uint32_t npcm_gmac_cold_reset_values[NPCM_GMAC_NR_REGS];
+static uint16_t phy_reg_init[32];
 
-static const uint16_t phy_reg_init[] = {
-    [MII_BMCR]      = MII_BMCR_AUTOEN | MII_BMCR_FD | MII_BMCR_SPEED1000,
-    [MII_BMSR]      = MII_BMSR_100TX_FD | MII_BMSR_100TX_HD | MII_BMSR_10T_FD |
-                      MII_BMSR_10T_HD | MII_BMSR_EXTSTAT | MII_BMSR_AUTONEG |
-                      MII_BMSR_LINK_ST | MII_BMSR_EXTCAP,
-    [MII_PHYID1]    = 0x0362,
-    [MII_PHYID2]    = 0x5e6a,
-    [MII_ANAR]      = MII_ANAR_TXFD | MII_ANAR_TX | MII_ANAR_10FD |
-                      MII_ANAR_10 | MII_ANAR_CSMACD,
-    [MII_ANLPAR]    = MII_ANLPAR_ACK | MII_ANLPAR_PAUSE |
-                      MII_ANLPAR_TXFD | MII_ANLPAR_TX | MII_ANLPAR_10FD |
-                      MII_ANLPAR_10 | MII_ANLPAR_CSMACD,
-    [MII_ANER]      = 0x64 | MII_ANER_NWAY,
-    [MII_ANNP]      = 0x2001,
-    [MII_CTRL1000]  = MII_CTRL1000_FULL,
-    [MII_STAT1000]  = MII_STAT1000_FULL,
-    [MII_EXTSTAT]   = 0x3000, /* 1000BASTE_T full-duplex capable */
-};
+static void __attribute__((constructor)) npcm_gmac_init_arrays(void)
+{
+    /* Reduce version to 3.2 so that the kernel can enable interrupt. */
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_VERSION]      = 0x00001032;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_TIMER_CTRL]   = 0x03e80000;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_MAC0_ADDR_HI] = 0x8000ffff;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_MAC0_ADDR_LO] = 0xffffffff;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_MAC1_ADDR_HI] = 0x0000ffff;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_MAC1_ADDR_LO] = 0xffffffff;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_MAC2_ADDR_HI] = 0x0000ffff;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_MAC2_ADDR_LO] = 0xffffffff;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_MAC3_ADDR_HI] = 0x0000ffff;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_MAC3_ADDR_LO] = 0xffffffff;
+    npcm_gmac_cold_reset_values[R_NPCM_GMAC_PTP_TCR]      = 0x00002000;
+    npcm_gmac_cold_reset_values[R_NPCM_DMA_BUS_MODE]      = 0x00020101;
+    npcm_gmac_cold_reset_values[R_NPCM_DMA_HW_FEATURE]    = 0x100d4f37;
+
+    phy_reg_init[MII_BMCR]     = MII_BMCR_AUTOEN | MII_BMCR_FD | MII_BMCR_SPEED1000;
+    phy_reg_init[MII_BMSR]     = MII_BMSR_100TX_FD | MII_BMSR_100TX_HD |
+                                 MII_BMSR_10T_FD | MII_BMSR_10T_HD |
+                                 MII_BMSR_EXTSTAT | MII_BMSR_AUTONEG |
+                                 MII_BMSR_LINK_ST | MII_BMSR_EXTCAP;
+    phy_reg_init[MII_PHYID1]   = 0x0362;
+    phy_reg_init[MII_PHYID2]   = 0x5e6a;
+    phy_reg_init[MII_ANAR]     = MII_ANAR_TXFD | MII_ANAR_TX | MII_ANAR_10FD |
+                                 MII_ANAR_10 | MII_ANAR_CSMACD;
+    phy_reg_init[MII_ANLPAR]   = MII_ANLPAR_ACK | MII_ANLPAR_PAUSE |
+                                 MII_ANLPAR_TXFD | MII_ANLPAR_TX |
+                                 MII_ANLPAR_10FD | MII_ANLPAR_10 |
+                                 MII_ANLPAR_CSMACD;
+    phy_reg_init[MII_ANER]     = 0x64 | MII_ANER_NWAY;
+    phy_reg_init[MII_ANNP]     = 0x2001;
+    phy_reg_init[MII_CTRL1000] = MII_CTRL1000_FULL;
+    phy_reg_init[MII_STAT1000] = MII_STAT1000_FULL;
+    phy_reg_init[MII_EXTSTAT]  = 0x3000; /* 1000BASTE_T full-duplex capable */
+}
 
 static void npcm_gmac_soft_reset(NPCMGMACState *gmac)
 {
@@ -512,7 +516,7 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
      * transmitting in page 384 of datasheet
      */
     uint16_t tx_buffer_size = 2048;
-    g_autofree uint8_t *tx_send_buffer = g_malloc(tx_buffer_size);
+    g_autofree uint8_t *tx_send_buffer = static_cast<uint8_t *>(g_malloc(tx_buffer_size));
     uint32_t desc_addr;
     struct NPCMGMACTxDesc tx_desc;
     uint32_t tx_buf_addr, tx_buf_len;
@@ -569,7 +573,7 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
 
         if ((prev_buf_size + tx_buf_len) > tx_buffer_size) {
             tx_buffer_size = prev_buf_size + tx_buf_len;
-            tx_send_buffer = g_realloc(tx_send_buffer, tx_buffer_size);
+            tx_send_buffer = static_cast<uint8_t *>(g_realloc(tx_send_buffer, tx_buffer_size));
         }
 
         /* step 5 */
@@ -590,7 +594,7 @@ static void gmac_try_send_next_packet(NPCMGMACState *gmac)
 
             if ((prev_buf_size + tx_buf_len) > tx_buffer_size) {
                 tx_buffer_size = prev_buf_size + tx_buf_len;
-                tx_send_buffer = g_realloc(tx_send_buffer, tx_buffer_size);
+                tx_send_buffer = static_cast<uint8_t *>(g_realloc(tx_send_buffer, tx_buffer_size));
             }
 
             if (dma_memory_read(&address_space_memory, tx_buf_addr,
@@ -643,7 +647,7 @@ static void gmac_cleanup(NetClientState *nc)
 
 static void gmac_set_link(NetClientState *nc)
 {
-    NPCMGMACState *gmac = qemu_get_nic_opaque(nc);
+    NPCMGMACState *gmac = static_cast<NPCMGMACState *>(qemu_get_nic_opaque(nc));
 
     trace_npcm_gmac_set_link(!nc->link_down);
     gmac_phy_set_link(gmac, !nc->link_down);
@@ -697,7 +701,7 @@ static void npcm_gmac_mdio_access(NPCMGMACState *gmac, uint16_t v)
 
 static uint64_t npcm_gmac_read(void *opaque, hwaddr offset, unsigned size)
 {
-    NPCMGMACState *gmac = opaque;
+    NPCMGMACState *gmac = static_cast<NPCMGMACState *>(opaque);
     uint32_t v = 0;
 
     switch (offset) {
@@ -720,7 +724,7 @@ static uint64_t npcm_gmac_read(void *opaque, hwaddr offset, unsigned size)
 static void npcm_gmac_write(void *opaque, hwaddr offset,
                               uint64_t v, unsigned size)
 {
-    NPCMGMACState *gmac = opaque;
+    NPCMGMACState *gmac = static_cast<NPCMGMACState *>(opaque);
 
     trace_npcm_gmac_reg_write(DEVICE(gmac)->canonical_path, offset, v);
 
@@ -853,8 +857,8 @@ static void npcm_gmac_reset(DeviceState *dev)
 static NetClientInfo net_npcm_gmac_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = gmac_can_receive,
     .receive = gmac_receive,
+    .can_receive = gmac_can_receive,
     .cleanup = gmac_cleanup,
     .link_status_changed = gmac_set_link,
 };
@@ -866,6 +870,11 @@ static const struct MemoryRegionOps npcm_gmac_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 0,
+        .max_access_size = 0,
         .unaligned = false,
     },
 };
@@ -900,14 +909,16 @@ static void npcm_gmac_unrealize(DeviceState *dev)
     qemu_del_nic(gmac->nic);
 }
 
+static const VMStateField vmstate_npcm_gmac_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, NPCMGMACState, NPCM_GMAC_NR_REGS),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm_gmac = {
     .name = TYPE_NPCM_GMAC,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, NPCMGMACState, NPCM_GMAC_NR_REGS),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm_gmac_fields,
 };
 
 static const Property npcm_gmac_properties[] = {

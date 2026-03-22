@@ -111,7 +111,7 @@ struct SpaprVioVlan {
 
 static bool spapr_vlan_can_receive(NetClientState *nc)
 {
-    SpaprVioVlan *dev = qemu_get_nic_opaque(nc);
+    SpaprVioVlan *dev = static_cast<SpaprVioVlan *>(qemu_get_nic_opaque(nc));
 
     return dev->isopen && dev->rx_bufs > 0;
 }
@@ -203,7 +203,7 @@ static vlan_bd_t spapr_vlan_get_rx_bd_from_page(SpaprVioVlan *dev,
 static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
-    SpaprVioVlan *dev = qemu_get_nic_opaque(nc);
+    SpaprVioVlan *dev = static_cast<SpaprVioVlan *>(qemu_get_nic_opaque(nc));
     SpaprVioDevice *sdev = VIO_SPAPR_DEVICE(dev);
     vlan_bd_t rxq_bd = vio_ldq(sdev, dev->buf_list + VLAN_RXQ_BD_OFF);
     vlan_bd_t bd;
@@ -274,13 +274,13 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
 static NetClientInfo net_spapr_vlan_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = spapr_vlan_can_receive,
     .receive = spapr_vlan_receive,
+    .can_receive = spapr_vlan_can_receive,
 };
 
 static void spapr_vlan_flush_rx_queue(void *opaque)
 {
-    SpaprVioVlan *dev = opaque;
+    SpaprVioVlan *dev = static_cast<SpaprVioVlan *>(opaque);
 
     qemu_flush_queued_packets(qemu_get_queue(dev->nic));
 }
@@ -729,7 +729,7 @@ static target_ulong h_send_logical_lan(PowerPCCPU *cpu,
         return H_RESOURCE;
     }
 
-    lbuf = g_malloc(total_len);
+    lbuf = static_cast<uint8_t *>(g_malloc(total_len));
     p = lbuf;
     for (i = 0; i < nbufs; i++) {
         ret = spapr_vio_dma_read(sdev, VLAN_BD_ADDR(bufs[i]),
@@ -795,22 +795,31 @@ static const Property spapr_vlan_properties[] = {
 
 static bool spapr_vlan_rx_buffer_pools_needed(void *opaque)
 {
-    SpaprVioVlan *dev = opaque;
+    SpaprVioVlan *dev = static_cast<SpaprVioVlan *>(opaque);
 
     return (dev->compat_flags & SPAPRVLAN_FLAG_RX_BUF_POOLS) != 0;
 }
+
+static const VMStateField vmstate_rx_buffer_pool_fields[] = {
+    VMSTATE_INT32(bufsize, RxBufPool),
+    VMSTATE_INT32(count, RxBufPool),
+    VMSTATE_UINT64_ARRAY(bds, RxBufPool, RX_POOL_MAX_BDS),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_rx_buffer_pool = {
     .name = "spapr_llan/rx_buffer_pool",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_vlan_rx_buffer_pools_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(bufsize, RxBufPool),
-        VMSTATE_INT32(count, RxBufPool),
-        VMSTATE_UINT64_ARRAY(bds, RxBufPool, RX_POOL_MAX_BDS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rx_buffer_pool_fields,
+};
+
+static const VMStateField vmstate_rx_pools_fields[] = {
+    VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(rx_pool, SpaprVioVlan,
+                                       RX_MAX_POOLS, 1,
+                                       vmstate_rx_buffer_pool, RxBufPool),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_rx_pools = {
@@ -818,34 +827,32 @@ static const VMStateDescription vmstate_rx_pools = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = spapr_vlan_rx_buffer_pools_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_ARRAY_OF_POINTER_TO_STRUCT(rx_pool, SpaprVioVlan,
-                                           RX_MAX_POOLS, 1,
-                                           vmstate_rx_buffer_pool, RxBufPool),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_rx_pools_fields,
+};
+
+static const VMStateField vmstate_spapr_llan_fields[] = {
+    VMSTATE_SPAPR_VIO(sdev, SpaprVioVlan),
+    /* LLAN state */
+    VMSTATE_BOOL(isopen, SpaprVioVlan),
+    VMSTATE_UINT64(buf_list, SpaprVioVlan),
+    VMSTATE_UINT32(add_buf_ptr, SpaprVioVlan),
+    VMSTATE_UINT32(use_buf_ptr, SpaprVioVlan),
+    VMSTATE_UINT32(rx_bufs, SpaprVioVlan),
+    VMSTATE_UINT64(rxq_ptr, SpaprVioVlan),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_spapr_llan_subsections[] = {
+    &vmstate_rx_pools,
+    NULL
 };
 
 static const VMStateDescription vmstate_spapr_llan = {
     .name = "spapr_llan",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_SPAPR_VIO(sdev, SpaprVioVlan),
-        /* LLAN state */
-        VMSTATE_BOOL(isopen, SpaprVioVlan),
-        VMSTATE_UINT64(buf_list, SpaprVioVlan),
-        VMSTATE_UINT32(add_buf_ptr, SpaprVioVlan),
-        VMSTATE_UINT32(use_buf_ptr, SpaprVioVlan),
-        VMSTATE_UINT32(rx_bufs, SpaprVioVlan),
-        VMSTATE_UINT64(rxq_ptr, SpaprVioVlan),
-
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_rx_pools,
-        NULL
-    }
+    .fields = vmstate_spapr_llan_fields,
+    .subsections = vmstate_spapr_llan_subsections,
 };
 
 static void spapr_vlan_class_init(ObjectClass *klass, const void *data)
@@ -867,12 +874,12 @@ static void spapr_vlan_class_init(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo spapr_vlan_info = {
-    .name          = TYPE_VIO_SPAPR_VLAN_DEVICE,
-    .parent        = TYPE_VIO_SPAPR_DEVICE,
-    .instance_size = sizeof(SpaprVioVlan),
-    .class_init    = spapr_vlan_class_init,
-    .instance_init = spapr_vlan_instance_init,
+    .name              = TYPE_VIO_SPAPR_VLAN_DEVICE,
+    .parent            = TYPE_VIO_SPAPR_DEVICE,
+    .instance_size     = sizeof(SpaprVioVlan),
+    .instance_init     = spapr_vlan_instance_init,
     .instance_finalize = spapr_vlan_instance_finalize,
+    .class_init        = spapr_vlan_class_init,
 };
 
 static void spapr_vlan_register_types(void)

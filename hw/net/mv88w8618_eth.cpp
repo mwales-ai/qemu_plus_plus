@@ -133,7 +133,7 @@ static void eth_rx_desc_get(AddressSpace *dma_as, uint32_t addr,
 
 static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    mv88w8618_eth_state *s = qemu_get_nic_opaque(nc);
+    mv88w8618_eth_state *s = static_cast<mv88w8618_eth_state *>(qemu_get_nic_opaque(nc));
     uint32_t desc_addr;
     mv88w8618_rx_desc desc;
     int i;
@@ -216,7 +216,7 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
 static uint64_t mv88w8618_eth_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
-    mv88w8618_eth_state *s = opaque;
+    mv88w8618_eth_state *s = static_cast<mv88w8618_eth_state *>(opaque);
 
     switch (offset) {
     case MP_ETH_SMIR:
@@ -258,7 +258,7 @@ static uint64_t mv88w8618_eth_read(void *opaque, hwaddr offset,
 static void mv88w8618_eth_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
-    mv88w8618_eth_state *s = opaque;
+    mv88w8618_eth_state *s = static_cast<mv88w8618_eth_state *>(opaque);
 
     switch (offset) {
     case MP_ETH_SMIR:
@@ -315,7 +315,7 @@ static const MemoryRegionOps mv88w8618_eth_ops = {
 
 static void eth_cleanup(NetClientState *nc)
 {
-    mv88w8618_eth_state *s = qemu_get_nic_opaque(nc);
+    mv88w8618_eth_state *s = static_cast<mv88w8618_eth_state *>(qemu_get_nic_opaque(nc));
 
     s->nic = NULL;
 }
@@ -354,21 +354,23 @@ static void mv88w8618_eth_realize(DeviceState *dev, Error **errp)
                           &dev->mem_reentrancy_guard, s);
 }
 
+static const VMStateField vmstate_mv88w8618_eth_fields[] = {
+    VMSTATE_UINT32(smir, mv88w8618_eth_state),
+    VMSTATE_UINT32(icr, mv88w8618_eth_state),
+    VMSTATE_UINT32(imr, mv88w8618_eth_state),
+    VMSTATE_UINT32(vlan_header, mv88w8618_eth_state),
+    VMSTATE_UINT32_ARRAY(tx_queue, mv88w8618_eth_state, 2),
+    VMSTATE_UINT32_ARRAY(rx_queue, mv88w8618_eth_state, 4),
+    VMSTATE_UINT32_ARRAY(frx_queue, mv88w8618_eth_state, 4),
+    VMSTATE_UINT32_ARRAY(cur_rx, mv88w8618_eth_state, 4),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription mv88w8618_eth_vmsd = {
     .name = "mv88w8618_eth",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(smir, mv88w8618_eth_state),
-        VMSTATE_UINT32(icr, mv88w8618_eth_state),
-        VMSTATE_UINT32(imr, mv88w8618_eth_state),
-        VMSTATE_UINT32(vlan_header, mv88w8618_eth_state),
-        VMSTATE_UINT32_ARRAY(tx_queue, mv88w8618_eth_state, 2),
-        VMSTATE_UINT32_ARRAY(rx_queue, mv88w8618_eth_state, 4),
-        VMSTATE_UINT32_ARRAY(frx_queue, mv88w8618_eth_state, 4),
-        VMSTATE_UINT32_ARRAY(cur_rx, mv88w8618_eth_state, 4),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mv88w8618_eth_fields,
 };
 
 static const Property mv88w8618_eth_properties[] = {

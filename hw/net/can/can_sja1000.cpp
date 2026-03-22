@@ -924,20 +924,22 @@ int can_sja_init(CanSJA1000State *s, qemu_irq irq)
     return 0;
 }
 
+static const VMStateField vmstate_qemu_can_filter_fields[] = {
+    VMSTATE_UINT32(can_id, qemu_can_filter),
+    VMSTATE_UINT32(can_mask, qemu_can_filter),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_qemu_can_filter = {
     .name = "qemu_can_filter",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(can_id, qemu_can_filter),
-        VMSTATE_UINT32(can_mask, qemu_can_filter),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_qemu_can_filter_fields,
 };
 
 static int can_sja_post_load(void *opaque, int version_id)
 {
-    CanSJA1000State *s = opaque;
+    CanSJA1000State *s = static_cast<CanSJA1000State *>(opaque);
     if (s->clock & 0x80) { /* PeliCAN Mode */
         can_sja_update_pel_irq(s);
     } else {
@@ -946,41 +948,34 @@ static int can_sja_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_can_sja_fields[] = {
+    VMSTATE_UINT8(mode, CanSJA1000State),
+    VMSTATE_UINT8(status_pel, CanSJA1000State),
+    VMSTATE_UINT8(interrupt_pel, CanSJA1000State),
+    VMSTATE_UINT8(interrupt_en, CanSJA1000State),
+    VMSTATE_UINT8(rxmsg_cnt, CanSJA1000State),
+    VMSTATE_UINT8(rxbuf_start, CanSJA1000State),
+    VMSTATE_UINT8(clock, CanSJA1000State),
+    VMSTATE_BUFFER(code_mask, CanSJA1000State),
+    VMSTATE_BUFFER(tx_buff, CanSJA1000State),
+    VMSTATE_BUFFER(rx_buff, CanSJA1000State),
+    VMSTATE_UINT32(rx_ptr, CanSJA1000State),
+    VMSTATE_UINT32(rx_cnt, CanSJA1000State),
+    VMSTATE_UINT8(control, CanSJA1000State),
+    VMSTATE_UINT8(status_bas, CanSJA1000State),
+    VMSTATE_UINT8(interrupt_bas, CanSJA1000State),
+    VMSTATE_UINT8(code, CanSJA1000State),
+    VMSTATE_UINT8(mask, CanSJA1000State),
+    VMSTATE_STRUCT_ARRAY(filter, CanSJA1000State, 4, 0,
+                         vmstate_qemu_can_filter, qemu_can_filter),
+    VMSTATE_END_OF_LIST()
+};
+
 /* VMState is needed for live migration of QEMU images */
 const VMStateDescription vmstate_can_sja = {
     .name = "can_sja",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = can_sja_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(mode, CanSJA1000State),
-
-        VMSTATE_UINT8(status_pel, CanSJA1000State),
-        VMSTATE_UINT8(interrupt_pel, CanSJA1000State),
-        VMSTATE_UINT8(interrupt_en, CanSJA1000State),
-        VMSTATE_UINT8(rxmsg_cnt, CanSJA1000State),
-        VMSTATE_UINT8(rxbuf_start, CanSJA1000State),
-        VMSTATE_UINT8(clock, CanSJA1000State),
-
-        VMSTATE_BUFFER(code_mask, CanSJA1000State),
-        VMSTATE_BUFFER(tx_buff, CanSJA1000State),
-
-        VMSTATE_BUFFER(rx_buff, CanSJA1000State),
-
-        VMSTATE_UINT32(rx_ptr, CanSJA1000State),
-        VMSTATE_UINT32(rx_cnt, CanSJA1000State),
-
-        VMSTATE_UINT8(control, CanSJA1000State),
-
-        VMSTATE_UINT8(status_bas, CanSJA1000State),
-        VMSTATE_UINT8(interrupt_bas, CanSJA1000State),
-        VMSTATE_UINT8(code, CanSJA1000State),
-        VMSTATE_UINT8(mask, CanSJA1000State),
-
-        VMSTATE_STRUCT_ARRAY(filter, CanSJA1000State, 4, 0,
-                             vmstate_qemu_can_filter, qemu_can_filter),
-
-
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_can_sja_fields,
 };

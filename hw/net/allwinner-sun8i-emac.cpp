@@ -419,7 +419,7 @@ static void allwinner_sun8i_emac_flush_desc(AwSun8iEmacState *s,
 
 static bool allwinner_sun8i_emac_can_receive(NetClientState *nc)
 {
-    AwSun8iEmacState *s = qemu_get_nic_opaque(nc);
+    AwSun8iEmacState *s = static_cast<AwSun8iEmacState *>(qemu_get_nic_opaque(nc));
     FrameDescriptor desc;
 
     return (s->rx_ctl0 & RX_CTL0_RX_EN) &&
@@ -430,7 +430,7 @@ static ssize_t allwinner_sun8i_emac_receive(NetClientState *nc,
                                             const uint8_t *buf,
                                             size_t size)
 {
-    AwSun8iEmacState *s = qemu_get_nic_opaque(nc);
+    AwSun8iEmacState *s = static_cast<AwSun8iEmacState *>(qemu_get_nic_opaque(nc));
     FrameDescriptor desc;
     size_t bytes_left = size;
     size_t desc_bytes = 0;
@@ -585,7 +585,7 @@ static void allwinner_sun8i_emac_reset(DeviceState *dev)
 static uint64_t allwinner_sun8i_emac_read(void *opaque, hwaddr offset,
                                           unsigned size)
 {
-    AwSun8iEmacState *s = AW_SUN8I_EMAC(opaque);
+    AwSun8iEmacState *s = AW_SUN8I_EMAC(static_cast<Object *>(opaque));
     uint64_t value = 0;
     FrameDescriptor desc;
 
@@ -682,7 +682,7 @@ static uint64_t allwinner_sun8i_emac_read(void *opaque, hwaddr offset,
 static void allwinner_sun8i_emac_write(void *opaque, hwaddr offset,
                                        uint64_t value, unsigned size)
 {
-    AwSun8iEmacState *s = AW_SUN8I_EMAC(opaque);
+    AwSun8iEmacState *s = AW_SUN8I_EMAC(static_cast<Object *>(opaque));
     NetClientState *nc = qemu_get_queue(s->nic);
 
     trace_allwinner_sun8i_emac_write(offset, value);
@@ -775,7 +775,7 @@ static void allwinner_sun8i_emac_write(void *opaque, hwaddr offset,
 
 static void allwinner_sun8i_emac_set_link(NetClientState *nc)
 {
-    AwSun8iEmacState *s = qemu_get_nic_opaque(nc);
+    AwSun8iEmacState *s = static_cast<AwSun8iEmacState *>(qemu_get_nic_opaque(nc));
 
     trace_allwinner_sun8i_emac_set_link(!nc->link_down);
     allwinner_sun8i_emac_mii_set_link(s, !nc->link_down);
@@ -788,15 +788,20 @@ static const MemoryRegionOps allwinner_sun8i_emac_mem_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
     },
-    .impl = { .min_access_size = 4, },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
 };
 
 static NetClientInfo net_allwinner_sun8i_emac_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = allwinner_sun8i_emac_can_receive,
     .receive = allwinner_sun8i_emac_receive,
+    .can_receive = allwinner_sun8i_emac_can_receive,
     .link_status_changed = allwinner_sun8i_emac_set_link,
 };
 
@@ -838,41 +843,43 @@ static const Property allwinner_sun8i_emac_properties[] = {
 
 static int allwinner_sun8i_emac_post_load(void *opaque, int version_id)
 {
-    AwSun8iEmacState *s = opaque;
+    AwSun8iEmacState *s = static_cast<AwSun8iEmacState *>(opaque);
 
     allwinner_sun8i_emac_set_link(qemu_get_queue(s->nic));
 
     return 0;
 }
 
+static const VMStateField vmstate_aw_sun8i_emac_fields[] = {
+    VMSTATE_UINT8(mii_phy_addr, AwSun8iEmacState),
+    VMSTATE_UINT32(mii_cmd, AwSun8iEmacState),
+    VMSTATE_UINT32(mii_data, AwSun8iEmacState),
+    VMSTATE_UINT32(mii_cr, AwSun8iEmacState),
+    VMSTATE_UINT32(mii_st, AwSun8iEmacState),
+    VMSTATE_UINT32(mii_adv, AwSun8iEmacState),
+    VMSTATE_UINT32(basic_ctl0, AwSun8iEmacState),
+    VMSTATE_UINT32(basic_ctl1, AwSun8iEmacState),
+    VMSTATE_UINT32(int_en, AwSun8iEmacState),
+    VMSTATE_UINT32(int_sta, AwSun8iEmacState),
+    VMSTATE_UINT32(frm_flt, AwSun8iEmacState),
+    VMSTATE_UINT32(rx_ctl0, AwSun8iEmacState),
+    VMSTATE_UINT32(rx_ctl1, AwSun8iEmacState),
+    VMSTATE_UINT32(rx_desc_head, AwSun8iEmacState),
+    VMSTATE_UINT32(rx_desc_curr, AwSun8iEmacState),
+    VMSTATE_UINT32(tx_ctl0, AwSun8iEmacState),
+    VMSTATE_UINT32(tx_ctl1, AwSun8iEmacState),
+    VMSTATE_UINT32(tx_desc_head, AwSun8iEmacState),
+    VMSTATE_UINT32(tx_desc_curr, AwSun8iEmacState),
+    VMSTATE_UINT32(tx_flowctl, AwSun8iEmacState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aw_emac = {
     .name = "allwinner-sun8i-emac",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = allwinner_sun8i_emac_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(mii_phy_addr, AwSun8iEmacState),
-        VMSTATE_UINT32(mii_cmd, AwSun8iEmacState),
-        VMSTATE_UINT32(mii_data, AwSun8iEmacState),
-        VMSTATE_UINT32(mii_cr, AwSun8iEmacState),
-        VMSTATE_UINT32(mii_st, AwSun8iEmacState),
-        VMSTATE_UINT32(mii_adv, AwSun8iEmacState),
-        VMSTATE_UINT32(basic_ctl0, AwSun8iEmacState),
-        VMSTATE_UINT32(basic_ctl1, AwSun8iEmacState),
-        VMSTATE_UINT32(int_en, AwSun8iEmacState),
-        VMSTATE_UINT32(int_sta, AwSun8iEmacState),
-        VMSTATE_UINT32(frm_flt, AwSun8iEmacState),
-        VMSTATE_UINT32(rx_ctl0, AwSun8iEmacState),
-        VMSTATE_UINT32(rx_ctl1, AwSun8iEmacState),
-        VMSTATE_UINT32(rx_desc_head, AwSun8iEmacState),
-        VMSTATE_UINT32(rx_desc_curr, AwSun8iEmacState),
-        VMSTATE_UINT32(tx_ctl0, AwSun8iEmacState),
-        VMSTATE_UINT32(tx_ctl1, AwSun8iEmacState),
-        VMSTATE_UINT32(tx_desc_head, AwSun8iEmacState),
-        VMSTATE_UINT32(tx_desc_curr, AwSun8iEmacState),
-        VMSTATE_UINT32(tx_flowctl, AwSun8iEmacState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aw_sun8i_emac_fields,
 };
 
 static void allwinner_sun8i_emac_class_init(ObjectClass *klass,

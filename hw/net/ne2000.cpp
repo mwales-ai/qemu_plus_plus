@@ -169,7 +169,7 @@ static int ne2000_buffer_full(NE2000State *s)
 
 ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 {
-    NE2000State *s = qemu_get_nic_opaque(nc);
+    NE2000State *s = static_cast<NE2000State *>(qemu_get_nic_opaque(nc));
     size_t size = size_;
     uint8_t *p;
     unsigned int total_len, next, avail, len, index, mcast_idx;
@@ -259,7 +259,7 @@ ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 
 static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
     int offset, page, index;
 
     addr &= 0xf;
@@ -363,7 +363,7 @@ static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
     int offset, page, ret;
 
     addr &= 0xf;
@@ -513,7 +513,7 @@ static inline void ne2000_dma_update(NE2000State *s, int len)
 
 static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
 
 #ifdef DEBUG_NE2000
     printf("NE2000: asic write val=0x%04x\n", val);
@@ -533,7 +533,7 @@ static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
     int ret;
 
     if (s->dcfg & 0x01) {
@@ -553,7 +553,7 @@ static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
 
 static void ne2000_asic_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
 
 #ifdef DEBUG_NE2000
     printf("NE2000: asic writel val=0x%04x\n", val);
@@ -567,7 +567,7 @@ static void ne2000_asic_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t ne2000_asic_ioport_readl(void *opaque, uint32_t addr)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
     int ret;
 
     /* 32 bit access */
@@ -586,14 +586,14 @@ static void ne2000_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
     ne2000_reset(s);
     return 0;
 }
 
 static int ne2000_post_load(void* opaque, int version_id)
 {
-    NE2000State* s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
 
     if (version_id < 2) {
         s->rxcr = 0x0c;
@@ -601,39 +601,41 @@ static int ne2000_post_load(void* opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_ne2000_fields[] = {
+    VMSTATE_UINT8_V(rxcr, NE2000State, 2),
+    VMSTATE_UINT8(cmd, NE2000State),
+    VMSTATE_UINT32(start, NE2000State),
+    VMSTATE_UINT32(stop, NE2000State),
+    VMSTATE_UINT8(boundary, NE2000State),
+    VMSTATE_UINT8(tsr, NE2000State),
+    VMSTATE_UINT8(tpsr, NE2000State),
+    VMSTATE_UINT16(tcnt, NE2000State),
+    VMSTATE_UINT16(rcnt, NE2000State),
+    VMSTATE_UINT32(rsar, NE2000State),
+    VMSTATE_UINT8(rsr, NE2000State),
+    VMSTATE_UINT8(isr, NE2000State),
+    VMSTATE_UINT8(dcfg, NE2000State),
+    VMSTATE_UINT8(imr, NE2000State),
+    VMSTATE_BUFFER(phys, NE2000State),
+    VMSTATE_UINT8(curpag, NE2000State),
+    VMSTATE_BUFFER(mult, NE2000State),
+    VMSTATE_UNUSED(4), /* was irq */
+    VMSTATE_BUFFER(mem, NE2000State),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_ne2000 = {
     .name = "ne2000",
     .version_id = 2,
     .minimum_version_id = 0,
     .post_load = ne2000_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_V(rxcr, NE2000State, 2),
-        VMSTATE_UINT8(cmd, NE2000State),
-        VMSTATE_UINT32(start, NE2000State),
-        VMSTATE_UINT32(stop, NE2000State),
-        VMSTATE_UINT8(boundary, NE2000State),
-        VMSTATE_UINT8(tsr, NE2000State),
-        VMSTATE_UINT8(tpsr, NE2000State),
-        VMSTATE_UINT16(tcnt, NE2000State),
-        VMSTATE_UINT16(rcnt, NE2000State),
-        VMSTATE_UINT32(rsar, NE2000State),
-        VMSTATE_UINT8(rsr, NE2000State),
-        VMSTATE_UINT8(isr, NE2000State),
-        VMSTATE_UINT8(dcfg, NE2000State),
-        VMSTATE_UINT8(imr, NE2000State),
-        VMSTATE_BUFFER(phys, NE2000State),
-        VMSTATE_UINT8(curpag, NE2000State),
-        VMSTATE_BUFFER(mult, NE2000State),
-        VMSTATE_UNUSED(4), /* was irq */
-        VMSTATE_BUFFER(mem, NE2000State),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ne2000_fields,
 };
 
 static uint64_t ne2000_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
     uint64_t val;
 
     if (addr < 0x10 && size == 1) {
@@ -657,7 +659,7 @@ static uint64_t ne2000_read(void *opaque, hwaddr addr,
 static void ne2000_write(void *opaque, hwaddr addr,
                          uint64_t data, unsigned size)
 {
-    NE2000State *s = opaque;
+    NE2000State *s = static_cast<NE2000State *>(opaque);
 
     trace_ne2000_write(addr, data);
     if (addr < 0x10 && size == 1) {

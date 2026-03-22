@@ -62,11 +62,11 @@ static void ctucan_buff2frame(const uint8_t *buff, qemu_can_frame *frame)
         uint32_t w;
 
         w = le32_to_cpu(*(uint32_t *)buff);
-        frame_form_w = (union ctu_can_fd_frame_form_w)w;
+        memcpy(&frame_form_w, &w, sizeof(w));
         frame->can_dlc = can_dlc2len(frame_form_w.s.dlc);
 
         w = le32_to_cpu(*(uint32_t *)(buff + 4));
-        identifier_w = (union ctu_can_fd_identifier_w)w;
+        memcpy(&identifier_w, &w, sizeof(w));
 
         ide = frame_form_w.s.ide;
         if (ide) {
@@ -611,22 +611,68 @@ int ctucan_init(CtuCanCoreState *s, qemu_irq irq)
     return 0;
 }
 
+static const VMStateField vmstate_qemu_ctucan_tx_buffer_fields[] = {
+    VMSTATE_UINT8_ARRAY(data, CtuCanCoreMsgBuffer, CTUCAN_CORE_MSG_MAX_LEN),
+    VMSTATE_END_OF_LIST()
+};
+
 const VMStateDescription vmstate_qemu_ctucan_tx_buffer = {
     .name = "qemu_ctucan_tx_buffer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(data, CtuCanCoreMsgBuffer, CTUCAN_CORE_MSG_MAX_LEN),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_qemu_ctucan_tx_buffer_fields,
 };
 
 static int ctucan_post_load(void *opaque, int version_id)
 {
-    CtuCanCoreState *s = opaque;
+    CtuCanCoreState *s = static_cast<CtuCanCoreState *>(opaque);
     ctucan_update_irq(s);
     return 0;
 }
+
+static const VMStateField vmstate_ctucan_fields[] = {
+    VMSTATE_UINT32(mode_settings.u32, CtuCanCoreState),
+    VMSTATE_UINT32(status.u32, CtuCanCoreState),
+    VMSTATE_UINT32(int_stat.u32, CtuCanCoreState),
+    VMSTATE_UINT32(int_ena.u32, CtuCanCoreState),
+    VMSTATE_UINT32(int_mask.u32, CtuCanCoreState),
+    VMSTATE_UINT32(brt.u32, CtuCanCoreState),
+    VMSTATE_UINT32(brt_fd.u32, CtuCanCoreState),
+    VMSTATE_UINT32(ewl_erp_fault_state.u32, CtuCanCoreState),
+    VMSTATE_UINT32(rec_tec.u32, CtuCanCoreState),
+    VMSTATE_UINT32(err_norm_err_fd.u32, CtuCanCoreState),
+    VMSTATE_UINT32(ctr_pres.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_a_mask.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_a_val.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_b_mask.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_b_val.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_c_mask.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_c_val.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_ran_low.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_ran_high.u32, CtuCanCoreState),
+    VMSTATE_UINT32(filter_control_filter_status.u32, CtuCanCoreState),
+    VMSTATE_UINT32(rx_mem_info.u32, CtuCanCoreState),
+    VMSTATE_UINT32(rx_pointers.u32, CtuCanCoreState),
+    VMSTATE_UINT32(rx_status_rx_settings.u32, CtuCanCoreState),
+    VMSTATE_UINT32(tx_status.u32, CtuCanCoreState),
+    VMSTATE_UINT32(tx_priority.u32, CtuCanCoreState),
+    VMSTATE_UINT32(err_capt_alc.u32, CtuCanCoreState),
+    VMSTATE_UINT32(trv_delay_ssp_cfg.u32, CtuCanCoreState),
+    VMSTATE_UINT32(rx_fr_ctr.u32, CtuCanCoreState),
+    VMSTATE_UINT32(tx_fr_ctr.u32, CtuCanCoreState),
+    VMSTATE_UINT32(debug_register.u32, CtuCanCoreState),
+    VMSTATE_UINT32(yolo_reg.u32, CtuCanCoreState),
+    VMSTATE_UINT32(timestamp_low.u32, CtuCanCoreState),
+    VMSTATE_UINT32(timestamp_high.u32, CtuCanCoreState),
+    VMSTATE_STRUCT_ARRAY(tx_buffer, CtuCanCoreState,
+            CTUCAN_CORE_TXBUF_NUM, 0, vmstate_qemu_ctucan_tx_buffer,
+            CtuCanCoreMsgBuffer),
+    VMSTATE_BUFFER(rx_buff, CtuCanCoreState),
+    VMSTATE_UINT32(rx_tail_pos, CtuCanCoreState),
+    VMSTATE_UINT32(rx_cnt, CtuCanCoreState),
+    VMSTATE_UINT32(rx_frame_rem, CtuCanCoreState),
+    VMSTATE_END_OF_LIST()
+};
 
 /* VMState is needed for live migration of QEMU images */
 const VMStateDescription vmstate_ctucan = {
@@ -634,50 +680,5 @@ const VMStateDescription vmstate_ctucan = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = ctucan_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(mode_settings.u32, CtuCanCoreState),
-        VMSTATE_UINT32(status.u32, CtuCanCoreState),
-        VMSTATE_UINT32(int_stat.u32, CtuCanCoreState),
-        VMSTATE_UINT32(int_ena.u32, CtuCanCoreState),
-        VMSTATE_UINT32(int_mask.u32, CtuCanCoreState),
-        VMSTATE_UINT32(brt.u32, CtuCanCoreState),
-        VMSTATE_UINT32(brt_fd.u32, CtuCanCoreState),
-        VMSTATE_UINT32(ewl_erp_fault_state.u32, CtuCanCoreState),
-        VMSTATE_UINT32(rec_tec.u32, CtuCanCoreState),
-        VMSTATE_UINT32(err_norm_err_fd.u32, CtuCanCoreState),
-        VMSTATE_UINT32(ctr_pres.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_a_mask.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_a_val.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_b_mask.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_b_val.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_c_mask.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_c_val.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_ran_low.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_ran_high.u32, CtuCanCoreState),
-        VMSTATE_UINT32(filter_control_filter_status.u32, CtuCanCoreState),
-        VMSTATE_UINT32(rx_mem_info.u32, CtuCanCoreState),
-        VMSTATE_UINT32(rx_pointers.u32, CtuCanCoreState),
-        VMSTATE_UINT32(rx_status_rx_settings.u32, CtuCanCoreState),
-        VMSTATE_UINT32(tx_status.u32, CtuCanCoreState),
-        VMSTATE_UINT32(tx_priority.u32, CtuCanCoreState),
-        VMSTATE_UINT32(err_capt_alc.u32, CtuCanCoreState),
-        VMSTATE_UINT32(trv_delay_ssp_cfg.u32, CtuCanCoreState),
-        VMSTATE_UINT32(rx_fr_ctr.u32, CtuCanCoreState),
-        VMSTATE_UINT32(tx_fr_ctr.u32, CtuCanCoreState),
-        VMSTATE_UINT32(debug_register.u32, CtuCanCoreState),
-        VMSTATE_UINT32(yolo_reg.u32, CtuCanCoreState),
-        VMSTATE_UINT32(timestamp_low.u32, CtuCanCoreState),
-        VMSTATE_UINT32(timestamp_high.u32, CtuCanCoreState),
-
-        VMSTATE_STRUCT_ARRAY(tx_buffer, CtuCanCoreState,
-                CTUCAN_CORE_TXBUF_NUM, 0, vmstate_qemu_ctucan_tx_buffer,
-                CtuCanCoreMsgBuffer),
-
-        VMSTATE_BUFFER(rx_buff, CtuCanCoreState),
-        VMSTATE_UINT32(rx_tail_pos, CtuCanCoreState),
-        VMSTATE_UINT32(rx_cnt, CtuCanCoreState),
-        VMSTATE_UINT32(rx_frame_rem, CtuCanCoreState),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ctucan_fields,
 };

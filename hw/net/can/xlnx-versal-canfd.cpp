@@ -1552,66 +1552,76 @@ static uint64_t canfd_write_check_prew(RegisterInfo *reg, uint64_t val64)
 }
 
 static const RegisterAccessInfo canfd_regs_info[] = {
-    {   .name = "SOFTWARE_RESET_REGISTER",  .addr = A_SOFTWARE_RESET_REGISTER,
+    {   .name = "SOFTWARE_RESET_REGISTER",
         .pre_write = canfd_srr_pre_write,
-    },{ .name = "MODE_SELECT_REGISTER",  .addr = A_MODE_SELECT_REGISTER,
+        .addr = A_SOFTWARE_RESET_REGISTER,
+    },{ .name = "MODE_SELECT_REGISTER",
         .pre_write = canfd_msr_pre_write,
+        .addr = A_MODE_SELECT_REGISTER,
     },{ .name = "ARBITRATION_PHASE_BAUD_RATE_PRESCALER_REGISTER",
+        .pre_write = canfd_write_check_prew,
         .addr = A_ARBITRATION_PHASE_BAUD_RATE_PRESCALER_REGISTER,
-        .pre_write = canfd_write_check_prew,
     },{ .name = "ARBITRATION_PHASE_BIT_TIMING_REGISTER",
-        .addr = A_ARBITRATION_PHASE_BIT_TIMING_REGISTER,
         .pre_write = canfd_write_check_prew,
-    },{ .name = "ERROR_COUNTER_REGISTER",  .addr = A_ERROR_COUNTER_REGISTER,
+        .addr = A_ARBITRATION_PHASE_BIT_TIMING_REGISTER,
+    },{ .name = "ERROR_COUNTER_REGISTER",
         .ro = 0xffff,
-    },{ .name = "ERROR_STATUS_REGISTER",  .addr = A_ERROR_STATUS_REGISTER,
+        .addr = A_ERROR_COUNTER_REGISTER,
+    },{ .name = "ERROR_STATUS_REGISTER",
         .w1c = 0xf1f,
-    },{ .name = "STATUS_REGISTER",  .addr = A_STATUS_REGISTER,
-        .reset = 0x1,
+        .addr = A_ERROR_STATUS_REGISTER,
+    },{ .name = "STATUS_REGISTER",
         .ro = 0x7f17ff,
+        .reset = 0x1,
+        .addr = A_STATUS_REGISTER,
     },{ .name = "INTERRUPT_STATUS_REGISTER",
-        .addr = A_INTERRUPT_STATUS_REGISTER,
         .ro = 0xffffff7f,
+        .addr = A_INTERRUPT_STATUS_REGISTER,
     },{ .name = "INTERRUPT_ENABLE_REGISTER",
-        .addr = A_INTERRUPT_ENABLE_REGISTER,
         .post_write = canfd_ier_post_write,
+        .addr = A_INTERRUPT_ENABLE_REGISTER,
     },{ .name = "INTERRUPT_CLEAR_REGISTER",
-        .addr = A_INTERRUPT_CLEAR_REGISTER, .pre_write = canfd_icr_pre_write,
-    },{ .name = "TIMESTAMP_REGISTER",  .addr = A_TIMESTAMP_REGISTER,
+        .pre_write = canfd_icr_pre_write,
+        .addr = A_INTERRUPT_CLEAR_REGISTER,
+    },{ .name = "TIMESTAMP_REGISTER",
         .ro = 0xffff0000,
         .pre_write = canfd_tsr_pre_write,
+        .addr = A_TIMESTAMP_REGISTER,
     },{ .name = "DATA_PHASE_BAUD_RATE_PRESCALER_REGISTER",
+        .pre_write = canfd_write_check_prew,
         .addr = A_DATA_PHASE_BAUD_RATE_PRESCALER_REGISTER,
-        .pre_write = canfd_write_check_prew,
     },{ .name = "DATA_PHASE_BIT_TIMING_REGISTER",
-        .addr = A_DATA_PHASE_BIT_TIMING_REGISTER,
         .pre_write = canfd_write_check_prew,
+        .addr = A_DATA_PHASE_BIT_TIMING_REGISTER,
     },{ .name = "TX_BUFFER_READY_REQUEST_REGISTER",
-        .addr = A_TX_BUFFER_READY_REQUEST_REGISTER,
         .pre_write = canfd_trr_reg_prew,
         .post_write = canfd_trr_reg_postw,
+        .addr = A_TX_BUFFER_READY_REQUEST_REGISTER,
     },{ .name = "INTERRUPT_ENABLE_TX_BUFFER_READY_REQUEST_REGISTER",
         .addr = A_INTERRUPT_ENABLE_TX_BUFFER_READY_REQUEST_REGISTER,
     },{ .name = "TX_BUFFER_CANCEL_REQUEST_REGISTER",
-        .addr = A_TX_BUFFER_CANCEL_REQUEST_REGISTER,
         .post_write = canfd_cancel_reg_postw,
+        .addr = A_TX_BUFFER_CANCEL_REQUEST_REGISTER,
     },{ .name = "INTERRUPT_ENABLE_TX_BUFFER_CANCELLATION_REQUEST_REGISTER",
         .addr = A_INTERRUPT_ENABLE_TX_BUFFER_CANCELLATION_REQUEST_REGISTER,
     },{ .name = "TX_EVENT_FIFO_STATUS_REGISTER",
+        .ro = 0x3f1f,
+        .pre_write = canfd_tx_fifo_status_prew,
         .addr = A_TX_EVENT_FIFO_STATUS_REGISTER,
-        .ro = 0x3f1f, .pre_write = canfd_tx_fifo_status_prew,
     },{ .name = "TX_EVENT_FIFO_WATERMARK_REGISTER",
-        .addr = A_TX_EVENT_FIFO_WATERMARK_REGISTER,
         .reset = 0xf,
         .pre_write = canfd_write_check_prew,
+        .addr = A_TX_EVENT_FIFO_WATERMARK_REGISTER,
     },{ .name = "ACCEPTANCE_FILTER_CONTROL_REGISTER",
         .addr = A_ACCEPTANCE_FILTER_CONTROL_REGISTER,
-    },{ .name = "RX_FIFO_STATUS_REGISTER",  .addr = A_RX_FIFO_STATUS_REGISTER,
-        .ro = 0x7f3f7f3f, .pre_write = canfd_rx_fifo_status_prew,
+    },{ .name = "RX_FIFO_STATUS_REGISTER",
+        .ro = 0x7f3f7f3f,
+        .pre_write = canfd_rx_fifo_status_prew,
+        .addr = A_RX_FIFO_STATUS_REGISTER,
     },{ .name = "RX_FIFO_WATERMARK_REGISTER",
-        .addr = A_RX_FIFO_WATERMARK_REGISTER,
         .reset = 0x1f0f0f,
         .pre_write = canfd_write_check_prew,
+        .addr = A_RX_FIFO_WATERMARK_REGISTER,
     }
 };
 
@@ -1753,6 +1763,12 @@ static const MemoryRegionOps canfd_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
@@ -1763,6 +1779,12 @@ static const MemoryRegionOps canfd_regs_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
@@ -1891,16 +1913,18 @@ static void canfd_init(Object *obj)
                           XLNX_VERSAL_CANFD_R_MAX * 4);
 }
 
+static const VMStateField vmstate_canfd_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersalCANFDState,
+                         XLNX_VERSAL_CANFD_R_MAX),
+    VMSTATE_PTIMER(canfd_timer, XlnxVersalCANFDState),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_canfd = {
     .name = TYPE_XILINX_CANFD,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersalCANFDState,
-                             XLNX_VERSAL_CANFD_R_MAX),
-        VMSTATE_PTIMER(canfd_timer, XlnxVersalCANFDState),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_canfd_fields,
 };
 
 static const Property canfd_core_properties[] = {
@@ -1929,8 +1953,8 @@ static const TypeInfo canfd_info = {
     .name          = TYPE_XILINX_CANFD,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCANFDState),
-    .class_init    = canfd_class_init,
     .instance_init = canfd_init,
+    .class_init    = canfd_class_init,
 };
 
 static void canfd_register_types(void)

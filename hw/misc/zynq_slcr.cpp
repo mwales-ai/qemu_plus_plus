@@ -503,7 +503,7 @@ static bool zynq_slcr_check_offset(hwaddr offset, bool rnw)
 static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
     unsigned size)
 {
-    ZynqSLCRState *s = opaque;
+    ZynqSLCRState *s = static_cast<ZynqSLCRState *>(opaque);
     offset /= 4;
     uint32_t ret = s->regs[offset];
 
@@ -612,15 +612,17 @@ static void zynq_slcr_init(Object *obj)
     qdev_init_clocks(DEVICE(obj), zynq_slcr_clocks);
 }
 
+static const VMStateField vmstate_zynq_slcr_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, ZynqSLCRState, ZYNQ_SLCR_NUM_REGS),
+    VMSTATE_CLOCK_V(ps_clk, ZynqSLCRState, 3),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_zynq_slcr = {
     .name = "zynq_slcr",
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, ZynqSLCRState, ZYNQ_SLCR_NUM_REGS),
-        VMSTATE_CLOCK_V(ps_clk, ZynqSLCRState, 3),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_zynq_slcr_fields,
 };
 
 static const Property zynq_slcr_props[] = {
@@ -641,11 +643,11 @@ static void zynq_slcr_class_init(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo zynq_slcr_info = {
-    .class_init = zynq_slcr_class_init,
     .name  = TYPE_ZYNQ_SLCR,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(ZynqSLCRState),
     .instance_init = zynq_slcr_init,
+    .class_init = zynq_slcr_class_init,
 };
 
 static void zynq_slcr_register_types(void)

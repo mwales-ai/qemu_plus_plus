@@ -103,6 +103,10 @@ typedef struct CtuCanCoreState {
     CanBusClientState bus_client;
 } CtuCanCoreState;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void ctucan_hardware_reset(CtuCanCoreState *s);
 
 void ctucan_mem_write(CtuCanCoreState *s, hwaddr addr, uint64_t val,
@@ -122,5 +126,9 @@ ssize_t ctucan_receive(CanBusClientState *client,
                         const qemu_can_frame *frames, size_t frames_cnt);
 
 extern const VMStateDescription vmstate_ctucan;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

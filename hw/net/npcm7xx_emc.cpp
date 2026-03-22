@@ -374,7 +374,7 @@ static void emc_try_send_next_packet(NPCM7xxEMCState *emc)
     buf = &tx_send_buffer[0];
 
     if (length > sizeof(tx_send_buffer)) {
-        malloced_buf = g_malloc(length);
+        malloced_buf = static_cast<uint8_t *>(g_malloc(length));
         buf = malloced_buf;
     }
 
@@ -615,7 +615,7 @@ static ssize_t emc_receive(NetClientState *nc, const uint8_t *buf, size_t len1)
 
 static uint64_t npcm7xx_emc_read(void *opaque, hwaddr offset, unsigned size)
 {
-    NPCM7xxEMCState *emc = opaque;
+    NPCM7xxEMCState *emc = static_cast<NPCM7xxEMCState *>(opaque);
     uint32_t reg = offset / sizeof(uint32_t);
     uint32_t result;
 
@@ -653,7 +653,7 @@ static uint64_t npcm7xx_emc_read(void *opaque, hwaddr offset, unsigned size)
 static void npcm7xx_emc_write(void *opaque, hwaddr offset,
                               uint64_t v, unsigned size)
 {
-    NPCM7xxEMCState *emc = opaque;
+    NPCM7xxEMCState *emc = static_cast<NPCM7xxEMCState *>(opaque);
     uint32_t reg = offset / sizeof(uint32_t);
     uint32_t value = v;
 
@@ -791,6 +791,11 @@ static const struct MemoryRegionOps npcm7xx_emc_ops = {
         .max_access_size = 4,
         .unaligned = false,
     },
+    .impl = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
 };
 
 static void emc_cleanup(NetClientState *nc)
@@ -801,8 +806,8 @@ static void emc_cleanup(NetClientState *nc)
 static NetClientInfo net_npcm7xx_emc_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = emc_can_receive,
     .receive = emc_receive,
+    .can_receive = emc_can_receive,
     .cleanup = emc_cleanup,
     .link_status_changed = emc_set_link,
 };
@@ -832,17 +837,19 @@ static void npcm7xx_emc_unrealize(DeviceState *dev)
     qemu_del_nic(emc->nic);
 }
 
+static const VMStateField vmstate_npcm7xx_emc_fields[] = {
+    VMSTATE_UINT8(emc_num, NPCM7xxEMCState),
+    VMSTATE_UINT32_ARRAY(regs, NPCM7xxEMCState, NPCM7XX_NUM_EMC_REGS),
+    VMSTATE_BOOL(tx_active, NPCM7xxEMCState),
+    VMSTATE_BOOL(rx_active, NPCM7xxEMCState),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_npcm7xx_emc = {
     .name = TYPE_NPCM7XX_EMC,
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(emc_num, NPCM7xxEMCState),
-        VMSTATE_UINT32_ARRAY(regs, NPCM7xxEMCState, NPCM7XX_NUM_EMC_REGS),
-        VMSTATE_BOOL(tx_active, NPCM7xxEMCState),
-        VMSTATE_BOOL(rx_active, NPCM7xxEMCState),
-        VMSTATE_END_OF_LIST(),
-    },
+    .fields = vmstate_npcm7xx_emc_fields,
 };
 
 static const Property npcm7xx_emc_properties[] = {

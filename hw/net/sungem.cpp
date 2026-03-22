@@ -447,7 +447,7 @@ static bool sungem_rx_full(SunGEMState *s, uint32_t kick, uint32_t done)
 
 static bool sungem_can_receive(NetClientState *nc)
 {
-    SunGEMState *s = qemu_get_nic_opaque(nc);
+    SunGEMState *s = static_cast<SunGEMState *>(qemu_get_nic_opaque(nc));
     uint32_t kick, done, rxdma_cfg, rxmac_cfg;
     bool full;
 
@@ -557,7 +557,7 @@ static int sungem_check_rx_mac(SunGEMState *s, const uint8_t *mac, uint32_t crc)
 static ssize_t sungem_receive(NetClientState *nc, const uint8_t *buf,
                               size_t size)
 {
-    SunGEMState *s = qemu_get_nic_opaque(nc);
+    SunGEMState *s = static_cast<SunGEMState *>(qemu_get_nic_opaque(nc));
     PCIDevice *d = PCI_DEVICE(s);
     uint32_t mac_crc, done, kick, max_fsize;
     uint32_t fcs_size, ints, rxdma_cfg, rxmac_cfg, csum, coff;
@@ -831,7 +831,7 @@ static uint32_t sungem_mii_op(SunGEMState *s, uint32_t val)
 static void sungem_mmio_greg_write(void *opaque, hwaddr addr, uint64_t val,
                                    unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
 
     if (!(addr < 0x20) && !(addr >= 0x1000 && addr <= 0x1010)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -885,7 +885,7 @@ static void sungem_mmio_greg_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t sungem_mmio_greg_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
     uint32_t val;
 
     if (!(addr < 0x20) && !(addr >= 0x1000 && addr <= 0x1010)) {
@@ -925,16 +925,22 @@ static const MemoryRegionOps sungem_mmio_greg_ops = {
     .read = sungem_mmio_greg_read,
     .write = sungem_mmio_greg_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
 static void sungem_mmio_txdma_write(void *opaque, hwaddr addr, uint64_t val,
                                     unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
 
     if (!(addr < 0x38) && !(addr >= 0x100 && addr <= 0x118)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -973,7 +979,7 @@ static void sungem_mmio_txdma_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t sungem_mmio_txdma_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
     uint32_t val;
 
     if (!(addr < 0x38) && !(addr >= 0x100 && addr <= 0x118)) {
@@ -994,16 +1000,22 @@ static const MemoryRegionOps sungem_mmio_txdma_ops = {
     .read = sungem_mmio_txdma_read,
     .write = sungem_mmio_txdma_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
 static void sungem_mmio_rxdma_write(void *opaque, hwaddr addr, uint64_t val,
                                     unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
 
     if (!(addr <= 0x28) && !(addr >= 0x100 && addr <= 0x120)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1046,7 +1058,7 @@ static void sungem_mmio_rxdma_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t sungem_mmio_rxdma_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
     uint32_t val;
 
     if (!(addr <= 0x28) && !(addr >= 0x100 && addr <= 0x120)) {
@@ -1067,9 +1079,15 @@ static const MemoryRegionOps sungem_mmio_rxdma_ops = {
     .read = sungem_mmio_rxdma_read,
     .write = sungem_mmio_rxdma_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
@@ -1104,16 +1122,22 @@ static const MemoryRegionOps sungem_mmio_wol_ops = {
     .read = sungem_mmio_wol_read,
     .write = sungem_mmio_wol_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
 static void sungem_mmio_mac_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
 
     if (!(addr <= 0x134)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1162,7 +1186,7 @@ static void sungem_mmio_mac_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t sungem_mmio_mac_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
     uint32_t val;
 
     if (!(addr <= 0x134)) {
@@ -1201,16 +1225,22 @@ static const MemoryRegionOps sungem_mmio_mac_ops = {
     .read = sungem_mmio_mac_read,
     .write = sungem_mmio_mac_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
 static void sungem_mmio_mif_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
 
     if (!(addr <= 0x1c)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1246,7 +1276,7 @@ static void sungem_mmio_mif_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t sungem_mmio_mif_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
     uint32_t val;
 
     if (!(addr <= 0x1c)) {
@@ -1267,16 +1297,22 @@ static const MemoryRegionOps sungem_mmio_mif_ops = {
     .read = sungem_mmio_mif_read,
     .write = sungem_mmio_mif_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
 static void sungem_mmio_pcs_write(void *opaque, hwaddr addr, uint64_t val,
                                   unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
 
     if (!(addr <= 0x18) && !(addr >= 0x50 && addr <= 0x5c)) {
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1301,7 +1337,7 @@ static void sungem_mmio_pcs_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t sungem_mmio_pcs_read(void *opaque, hwaddr addr, unsigned size)
 {
-    SunGEMState *s = opaque;
+    SunGEMState *s = static_cast<SunGEMState *>(opaque);
     uint32_t val;
 
     if (!(addr <= 0x18) && !(addr >= 0x50 && addr <= 0x5c)) {
@@ -1322,9 +1358,15 @@ static const MemoryRegionOps sungem_mmio_pcs_ops = {
     .read = sungem_mmio_pcs_read,
     .write = sungem_mmio_pcs_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
@@ -1338,8 +1380,8 @@ static void sungem_uninit(PCIDevice *dev)
 static NetClientInfo net_sungem_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = sungem_can_receive,
     .receive = sungem_receive,
+    .can_receive = sungem_can_receive,
     .link_status_changed = sungem_set_link_status,
 };
 
@@ -1429,29 +1471,31 @@ static const Property sungem_properties[] = {
     DEFINE_PROP_UINT32("phy_addr", SunGEMState, phy_addr, 0),
 };
 
+static const VMStateField vmstate_sungem_fields[] = {
+    VMSTATE_PCI_DEVICE(pdev, SunGEMState),
+    VMSTATE_MACADDR(conf.macaddr, SunGEMState),
+    VMSTATE_UINT32(phy_addr, SunGEMState),
+    VMSTATE_UINT32_ARRAY(gregs, SunGEMState, (SUNGEM_MMIO_GREG_SIZE >> 2)),
+    VMSTATE_UINT32_ARRAY(txdmaregs, SunGEMState,
+                         (SUNGEM_MMIO_TXDMA_SIZE >> 2)),
+    VMSTATE_UINT32_ARRAY(rxdmaregs, SunGEMState,
+                         (SUNGEM_MMIO_RXDMA_SIZE >> 2)),
+    VMSTATE_UINT32_ARRAY(macregs, SunGEMState, (SUNGEM_MMIO_MAC_SIZE >> 2)),
+    VMSTATE_UINT32_ARRAY(mifregs, SunGEMState, (SUNGEM_MMIO_MIF_SIZE >> 2)),
+    VMSTATE_UINT32_ARRAY(pcsregs, SunGEMState, (SUNGEM_MMIO_PCS_SIZE >> 2)),
+    VMSTATE_UINT32(rx_mask, SunGEMState),
+    VMSTATE_UINT32(tx_mask, SunGEMState),
+    VMSTATE_UINT8_ARRAY(tx_data, SunGEMState, MAX_PACKET_SIZE),
+    VMSTATE_UINT32(tx_size, SunGEMState),
+    VMSTATE_UINT64(tx_first_ctl, SunGEMState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_sungem = {
     .name = "sungem",
     .version_id = 0,
     .minimum_version_id = 0,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(pdev, SunGEMState),
-        VMSTATE_MACADDR(conf.macaddr, SunGEMState),
-        VMSTATE_UINT32(phy_addr, SunGEMState),
-        VMSTATE_UINT32_ARRAY(gregs, SunGEMState, (SUNGEM_MMIO_GREG_SIZE >> 2)),
-        VMSTATE_UINT32_ARRAY(txdmaregs, SunGEMState,
-                             (SUNGEM_MMIO_TXDMA_SIZE >> 2)),
-        VMSTATE_UINT32_ARRAY(rxdmaregs, SunGEMState,
-                             (SUNGEM_MMIO_RXDMA_SIZE >> 2)),
-        VMSTATE_UINT32_ARRAY(macregs, SunGEMState, (SUNGEM_MMIO_MAC_SIZE >> 2)),
-        VMSTATE_UINT32_ARRAY(mifregs, SunGEMState, (SUNGEM_MMIO_MIF_SIZE >> 2)),
-        VMSTATE_UINT32_ARRAY(pcsregs, SunGEMState, (SUNGEM_MMIO_PCS_SIZE >> 2)),
-        VMSTATE_UINT32(rx_mask, SunGEMState),
-        VMSTATE_UINT32(tx_mask, SunGEMState),
-        VMSTATE_UINT8_ARRAY(tx_data, SunGEMState, MAX_PACKET_SIZE),
-        VMSTATE_UINT32(tx_size, SunGEMState),
-        VMSTATE_UINT64(tx_first_ctl, SunGEMState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_sungem_fields,
 };
 
 static void sungem_class_init(ObjectClass *klass, const void *data)
@@ -1471,16 +1515,18 @@ static void sungem_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
+static const InterfaceInfo sungem_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { }
+};
+
 static const TypeInfo sungem_info = {
     .name          = TYPE_SUNGEM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(SunGEMState),
-    .class_init    = sungem_class_init,
     .instance_init = sungem_instance_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+    .class_init    = sungem_class_init,
+    .interfaces    = sungem_interfaces,
 };
 
 static void sungem_register_types(void)

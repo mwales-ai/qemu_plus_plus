@@ -180,7 +180,7 @@ static uint32_t fifo8_pop_word(Fifo8 *fifo)
 
 static bool aw_emac_can_receive(NetClientState *nc)
 {
-    AwEmacState *s = qemu_get_nic_opaque(nc);
+    AwEmacState *s = static_cast<AwEmacState *>(qemu_get_nic_opaque(nc));
 
     /*
      * To avoid packet drops, allow reception only when there is space
@@ -192,7 +192,7 @@ static bool aw_emac_can_receive(NetClientState *nc)
 static ssize_t aw_emac_receive(NetClientState *nc, const uint8_t *buf,
                                size_t size)
 {
-    AwEmacState *s = qemu_get_nic_opaque(nc);
+    AwEmacState *s = static_cast<AwEmacState *>(qemu_get_nic_opaque(nc));
     Fifo8 *fifo = &s->rx_fifo;
     size_t padded_size, total_size;
     uint32_t crc;
@@ -246,7 +246,7 @@ static void aw_emac_reset(DeviceState *dev)
 
 static uint64_t aw_emac_read(void *opaque, hwaddr offset, unsigned size)
 {
-    AwEmacState *s = opaque;
+    AwEmacState *s = static_cast<AwEmacState *>(opaque);
     Fifo8 *fifo = &s->rx_fifo;
     NetClientState *nc;
     uint64_t ret;
@@ -314,7 +314,7 @@ static uint64_t aw_emac_read(void *opaque, hwaddr offset, unsigned size)
 static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
                           unsigned size)
 {
-    AwEmacState *s = opaque;
+    AwEmacState *s = static_cast<AwEmacState *>(opaque);
     Fifo8 *fifo;
     NetClientState *nc = qemu_get_queue(s->nic);
     int chan;
@@ -413,7 +413,7 @@ static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
 
 static void aw_emac_set_link(NetClientState *nc)
 {
-    AwEmacState *s = qemu_get_nic_opaque(nc);
+    AwEmacState *s = static_cast<AwEmacState *>(qemu_get_nic_opaque(nc));
 
     mii_set_link(&s->mii, !nc->link_down);
 }
@@ -425,14 +425,20 @@ static const MemoryRegionOps aw_emac_mem_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
     },
 };
 
 static NetClientInfo net_aw_emac_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = aw_emac_can_receive,
     .receive = aw_emac_receive,
+    .can_receive = aw_emac_can_receive,
     .link_status_changed = aw_emac_set_link,
 };
 
@@ -467,51 +473,55 @@ static const Property aw_emac_properties[] = {
     DEFINE_PROP_UINT8("phy-addr", AwEmacState, phy_addr, 0),
 };
 
+static const VMStateField vmstate_mii_fields[] = {
+    VMSTATE_UINT16(bmcr, RTL8201CPState),
+    VMSTATE_UINT16(bmsr, RTL8201CPState),
+    VMSTATE_UINT16(anar, RTL8201CPState),
+    VMSTATE_UINT16(anlpar, RTL8201CPState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_mii = {
     .name = "rtl8201cp",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(bmcr, RTL8201CPState),
-        VMSTATE_UINT16(bmsr, RTL8201CPState),
-        VMSTATE_UINT16(anar, RTL8201CPState),
-        VMSTATE_UINT16(anlpar, RTL8201CPState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_mii_fields,
 };
 
 static int aw_emac_post_load(void *opaque, int version_id)
 {
-    AwEmacState *s = opaque;
+    AwEmacState *s = static_cast<AwEmacState *>(opaque);
 
     aw_emac_set_link(qemu_get_queue(s->nic));
 
     return 0;
 }
 
+static const VMStateField vmstate_aw_emac_fields[] = {
+    VMSTATE_STRUCT(mii, AwEmacState, 1, vmstate_mii, RTL8201CPState),
+    VMSTATE_UINT32(ctl, AwEmacState),
+    VMSTATE_UINT32(tx_mode, AwEmacState),
+    VMSTATE_UINT32(rx_ctl, AwEmacState),
+    VMSTATE_UINT32(int_ctl, AwEmacState),
+    VMSTATE_UINT32(int_sta, AwEmacState),
+    VMSTATE_UINT32(phy_target, AwEmacState),
+    VMSTATE_FIFO8(rx_fifo, AwEmacState),
+    VMSTATE_UINT32(rx_num_packets, AwEmacState),
+    VMSTATE_UINT32(rx_packet_size, AwEmacState),
+    VMSTATE_UINT32(rx_packet_pos, AwEmacState),
+    VMSTATE_STRUCT_ARRAY(tx_fifo, AwEmacState, NUM_TX_FIFOS, 1,
+                         vmstate_fifo8, Fifo8),
+    VMSTATE_UINT32_ARRAY(tx_length, AwEmacState, NUM_TX_FIFOS),
+    VMSTATE_UINT32(tx_channel, AwEmacState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aw_emac = {
     .name = "allwinner_emac",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = aw_emac_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(mii, AwEmacState, 1, vmstate_mii, RTL8201CPState),
-        VMSTATE_UINT32(ctl, AwEmacState),
-        VMSTATE_UINT32(tx_mode, AwEmacState),
-        VMSTATE_UINT32(rx_ctl, AwEmacState),
-        VMSTATE_UINT32(int_ctl, AwEmacState),
-        VMSTATE_UINT32(int_sta, AwEmacState),
-        VMSTATE_UINT32(phy_target, AwEmacState),
-        VMSTATE_FIFO8(rx_fifo, AwEmacState),
-        VMSTATE_UINT32(rx_num_packets, AwEmacState),
-        VMSTATE_UINT32(rx_packet_size, AwEmacState),
-        VMSTATE_UINT32(rx_packet_pos, AwEmacState),
-        VMSTATE_STRUCT_ARRAY(tx_fifo, AwEmacState, NUM_TX_FIFOS, 1,
-                             vmstate_fifo8, Fifo8),
-        VMSTATE_UINT32_ARRAY(tx_length, AwEmacState, NUM_TX_FIFOS),
-        VMSTATE_UINT32(tx_channel, AwEmacState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aw_emac_fields,
 };
 
 static void aw_emac_class_init(ObjectClass *klass, const void *data)

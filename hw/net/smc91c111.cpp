@@ -65,34 +65,36 @@ struct smc91c111_state {
     MemoryRegion mmio;
 };
 
+static const VMStateField vmstate_smc91c111_fields[] = {
+    VMSTATE_UINT16(tcr, smc91c111_state),
+    VMSTATE_UINT16(rcr, smc91c111_state),
+    VMSTATE_UINT16(cr, smc91c111_state),
+    VMSTATE_UINT16(ctr, smc91c111_state),
+    VMSTATE_UINT16(gpr, smc91c111_state),
+    VMSTATE_UINT16(ptr, smc91c111_state),
+    VMSTATE_UINT16(ercv, smc91c111_state),
+    VMSTATE_INT32(bank, smc91c111_state),
+    VMSTATE_INT32(packet_num, smc91c111_state),
+    VMSTATE_INT32(tx_alloc, smc91c111_state),
+    VMSTATE_INT32(allocated, smc91c111_state),
+    VMSTATE_INT32(tx_fifo_len, smc91c111_state),
+    VMSTATE_INT32_ARRAY(tx_fifo, smc91c111_state, NUM_PACKETS),
+    VMSTATE_INT32(rx_fifo_len, smc91c111_state),
+    VMSTATE_INT32_ARRAY(rx_fifo, smc91c111_state, NUM_PACKETS),
+    VMSTATE_INT32(tx_fifo_done_len, smc91c111_state),
+    VMSTATE_INT32_ARRAY(tx_fifo_done, smc91c111_state, NUM_PACKETS),
+    VMSTATE_BUFFER_UNSAFE(data, smc91c111_state, 0,
+                          NUM_PACKETS * MAX_PACKET_SIZE),
+    VMSTATE_UINT8(int_level, smc91c111_state),
+    VMSTATE_UINT8(int_mask, smc91c111_state),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_smc91c111 = {
     .name = "smc91c111",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT16(tcr, smc91c111_state),
-        VMSTATE_UINT16(rcr, smc91c111_state),
-        VMSTATE_UINT16(cr, smc91c111_state),
-        VMSTATE_UINT16(ctr, smc91c111_state),
-        VMSTATE_UINT16(gpr, smc91c111_state),
-        VMSTATE_UINT16(ptr, smc91c111_state),
-        VMSTATE_UINT16(ercv, smc91c111_state),
-        VMSTATE_INT32(bank, smc91c111_state),
-        VMSTATE_INT32(packet_num, smc91c111_state),
-        VMSTATE_INT32(tx_alloc, smc91c111_state),
-        VMSTATE_INT32(allocated, smc91c111_state),
-        VMSTATE_INT32(tx_fifo_len, smc91c111_state),
-        VMSTATE_INT32_ARRAY(tx_fifo, smc91c111_state, NUM_PACKETS),
-        VMSTATE_INT32(rx_fifo_len, smc91c111_state),
-        VMSTATE_INT32_ARRAY(rx_fifo, smc91c111_state, NUM_PACKETS),
-        VMSTATE_INT32(tx_fifo_done_len, smc91c111_state),
-        VMSTATE_INT32_ARRAY(tx_fifo_done, smc91c111_state, NUM_PACKETS),
-        VMSTATE_BUFFER_UNSAFE(data, smc91c111_state, 0,
-                              NUM_PACKETS * MAX_PACKET_SIZE),
-        VMSTATE_UINT8(int_level, smc91c111_state),
-        VMSTATE_UINT8(int_mask, smc91c111_state),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_smc91c111_fields,
 };
 
 #define RCR_SOFT_RST  0x8000
@@ -788,14 +790,14 @@ static void smc91c111_writefn(void *opaque, hwaddr addr,
 
 static bool smc91c111_can_receive_nc(NetClientState *nc)
 {
-    smc91c111_state *s = qemu_get_nic_opaque(nc);
+    smc91c111_state *s = static_cast<smc91c111_state *>(qemu_get_nic_opaque(nc));
 
     return smc91c111_can_receive(s);
 }
 
 static ssize_t smc91c111_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    smc91c111_state *s = qemu_get_nic_opaque(nc);
+    smc91c111_state *s = static_cast<smc91c111_state *>(qemu_get_nic_opaque(nc));
     int status;
     int packetsize;
     uint32_t crc;
@@ -880,15 +882,24 @@ static const MemoryRegionOps smc91c111_mem_ops = {
      */
     .read = smc91c111_readfn,
     .write = smc91c111_writefn,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+        .unaligned = false,
+    },
+    .impl = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
 };
 
 static NetClientInfo net_smc91c111_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = smc91c111_can_receive_nc,
     .receive = smc91c111_receive,
+    .can_receive = smc91c111_can_receive_nc,
 };
 
 static void smc91c111_realize(DeviceState *dev, Error **errp)

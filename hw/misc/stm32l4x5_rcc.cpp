@@ -75,7 +75,7 @@ static void clock_mux_update(RccClockMuxState *mux, bool bypass_source)
 
 static void clock_mux_src_update(void *opaque, ClockEvent event)
 {
-    RccClockMuxState **backref = opaque;
+    RccClockMuxState **backref = static_cast<RccClockMuxState **>(opaque);
     RccClockMuxState *s = *backref;
     /*
      * The backref value is equal to:
@@ -125,20 +125,22 @@ static void clock_mux_reset_exit(Object *obj, ResetType type)
     clock_mux_update(s, false);
 }
 
+static const VMStateField clock_mux_vmstate_fields[] = {
+    VMSTATE_UINT32(id, RccClockMuxState),
+    VMSTATE_ARRAY_CLOCK(srcs, RccClockMuxState,
+                        RCC_NUM_CLOCK_MUX_SRC),
+    VMSTATE_BOOL(enabled, RccClockMuxState),
+    VMSTATE_UINT32(src, RccClockMuxState),
+    VMSTATE_UINT32(multiplier, RccClockMuxState),
+    VMSTATE_UINT32(divider, RccClockMuxState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription clock_mux_vmstate = {
     .name = TYPE_RCC_CLOCK_MUX,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(id, RccClockMuxState),
-        VMSTATE_ARRAY_CLOCK(srcs, RccClockMuxState,
-                            RCC_NUM_CLOCK_MUX_SRC),
-        VMSTATE_BOOL(enabled, RccClockMuxState),
-        VMSTATE_UINT32(src, RccClockMuxState),
-        VMSTATE_UINT32(multiplier, RccClockMuxState),
-        VMSTATE_UINT32(divider, RccClockMuxState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = clock_mux_vmstate_fields,
 };
 
 static void clock_mux_class_init(ObjectClass *klass, const void *data)
@@ -238,7 +240,7 @@ static void pll_update(RccPllState *pll, bool bypass_source)
 
 static void pll_src_update(void *opaque, ClockEvent event)
 {
-    RccPllState *s = opaque;
+    RccPllState *s = static_cast<RccPllState *>(opaque);
     pll_update(s, false);
 }
 
@@ -277,22 +279,24 @@ static void pll_reset_exit(Object *obj, ResetType type)
     pll_update(s, false);
 }
 
+static const VMStateField pll_vmstate_fields[] = {
+    VMSTATE_UINT32(id, RccPllState),
+    VMSTATE_CLOCK(in, RccPllState),
+    VMSTATE_ARRAY_CLOCK(channels, RccPllState,
+                        RCC_NUM_CHANNEL_PLL_OUT),
+    VMSTATE_BOOL(enabled, RccPllState),
+    VMSTATE_UINT32(vco_multiplier, RccPllState),
+    VMSTATE_BOOL_ARRAY(channel_enabled, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
+    VMSTATE_BOOL_ARRAY(channel_exists, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
+    VMSTATE_UINT32_ARRAY(channel_divider, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription pll_vmstate = {
     .name = TYPE_RCC_PLL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(id, RccPllState),
-        VMSTATE_CLOCK(in, RccPllState),
-        VMSTATE_ARRAY_CLOCK(channels, RccPllState,
-                            RCC_NUM_CHANNEL_PLL_OUT),
-        VMSTATE_BOOL(enabled, RccPllState),
-        VMSTATE_UINT32(vco_multiplier, RccPllState),
-        VMSTATE_BOOL_ARRAY(channel_enabled, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
-        VMSTATE_BOOL_ARRAY(channel_exists, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
-        VMSTATE_UINT32_ARRAY(channel_divider, RccPllState, RCC_NUM_CHANNEL_PLL_OUT),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = pll_vmstate_fields,
 };
 
 static void pll_class_init(ObjectClass *klass, const void *data)
@@ -570,7 +574,7 @@ static void rcc_update_cfgr_register(Stm32l4x5RccState *s)
         } else {
             clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_MCO], true);
             clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_MCO],
-                                 val - 1);
+                                 static_cast<RccClockMuxSource>(val - 1));
         }
     }
 
@@ -610,7 +614,7 @@ static void rcc_update_cfgr_register(Stm32l4x5RccState *s)
     /* Update SWS */
     val = FIELD_EX32(s->cfgr, CFGR, SW);
     clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_SYSCLK],
-                         val);
+                         static_cast<RccClockMuxSource>(val));
     s->cfgr &= ~R_CFGR_SWS_MASK;
     s->cfgr |= val << R_CFGR_SWS_SHIFT;
 }
@@ -820,7 +824,8 @@ static void rcc_update_pllcfgr(Stm32l4x5RccState *s)
     if (val == 0) {
         clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_PLL_INPUT], false);
     } else {
-        clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_PLL_INPUT], val - 1);
+        clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_PLL_INPUT],
+                             static_cast<RccClockMuxSource>(val - 1));
         clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_PLL_INPUT], true);
     }
 }
@@ -829,7 +834,7 @@ static void rcc_update_ccipr(Stm32l4x5RccState *s)
 {
     #define CCIPR_SET_SOURCE(_peripheral_name) \
         clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_##_peripheral_name], \
-            FIELD_EX32(s->ccipr, CCIPR, _peripheral_name##SEL))
+            static_cast<RccClockMuxSource>(FIELD_EX32(s->ccipr, CCIPR, _peripheral_name##SEL)))
 
     CCIPR_SET_SOURCE(DFSDM1);
     CCIPR_SET_SOURCE(SWPMI1);
@@ -858,7 +863,8 @@ static void rcc_update_bdcr(Stm32l4x5RccState *s)
 
     /* LSCOSEL */
     val = FIELD_EX32(s->bdcr, BDCR, LSCOSEL);
-    clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_LSCO], val);
+    clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_LSCO],
+                         static_cast<RccClockMuxSource>(val));
 
     val = FIELD_EX32(s->bdcr, BDCR, LSCOEN);
     clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_LSCO], val);
@@ -873,7 +879,8 @@ static void rcc_update_bdcr(Stm32l4x5RccState *s)
     clock_mux_set_enable(&s->clock_muxes[RCC_CLOCK_MUX_RTC], val);
     /* LCD and RTC share the same clock */
     val = FIELD_EX32(s->bdcr, BDCR, RTCSEL);
-    clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_LCD_AND_RTC_COMMON], val);
+    clock_mux_set_source(&s->clock_muxes[RCC_CLOCK_MUX_LCD_AND_RTC_COMMON],
+                         static_cast<RccClockMuxSource>(val));
 
     /* LSECSSON */
     /* LSEDRV[1:0] */
@@ -965,7 +972,7 @@ static void stm32l4x5_rcc_reset_hold(Object *obj, ResetType type)
 static uint64_t stm32l4x5_rcc_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    Stm32l4x5RccState *s = opaque;
+    Stm32l4x5RccState *s = static_cast<Stm32l4x5RccState *>(opaque);
     uint64_t retvalue = 0;
 
     switch (addr) {
@@ -1073,7 +1080,7 @@ static uint64_t stm32l4x5_rcc_read(void *opaque, hwaddr addr,
 static void stm32l4x5_rcc_write(void *opaque, hwaddr addr,
                                   uint64_t val64, unsigned int size)
 {
-    Stm32l4x5RccState *s = opaque;
+    Stm32l4x5RccState *s = static_cast<Stm32l4x5RccState *>(opaque);
     uint32_t previous_value = 0;
     const uint32_t value = val64;
 
@@ -1231,14 +1238,14 @@ static const MemoryRegionOps stm32l4x5_rcc_ops = {
     .write = stm32l4x5_rcc_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .max_access_size = 4,
         .min_access_size = 4,
-        .unaligned = false
+        .max_access_size = 4,
+        .unaligned = false,
     },
     .impl = {
-        .max_access_size = 4,
         .min_access_size = 4,
-        .unaligned = false
+        .max_access_size = 4,
+        .unaligned = false,
     },
 };
 
@@ -1270,7 +1277,7 @@ static void stm32l4x5_rcc_init(Object *obj)
     for (i = 0; i < RCC_NUM_PLL; i++) {
         object_initialize_child(obj, PLL_INIT_INFO[i].name,
                                 &s->plls[i], TYPE_RCC_PLL);
-        set_pll_init_info(&s->plls[i], i);
+        set_pll_init_info(&s->plls[i], static_cast<RccPll>(i));
     }
 
     for (i = 0; i < RCC_NUM_CLOCK_MUX; i++) {
@@ -1279,7 +1286,7 @@ static void stm32l4x5_rcc_init(Object *obj)
         object_initialize_child(obj, CLOCK_MUX_INIT_INFO[i].name,
                                 &s->clock_muxes[i],
                                 TYPE_RCC_CLOCK_MUX);
-        set_clock_mux_init_info(&s->clock_muxes[i], i);
+        set_clock_mux_init_info(&s->clock_muxes[i], static_cast<RccClockMux>(i));
 
         if (!CLOCK_MUX_INIT_INFO[i].hidden) {
             /* Expose muxes output as RCC outputs */
@@ -1341,49 +1348,51 @@ static void connect_mux_sources(Stm32l4x5RccState *s,
 }
 
 
+static const VMStateField vmstate_stm32l4x5_rcc_fields[] = {
+    VMSTATE_UINT32(cr, Stm32l4x5RccState),
+    VMSTATE_UINT32(icscr, Stm32l4x5RccState),
+    VMSTATE_UINT32(cfgr, Stm32l4x5RccState),
+    VMSTATE_UINT32(pllcfgr, Stm32l4x5RccState),
+    VMSTATE_UINT32(pllsai1cfgr, Stm32l4x5RccState),
+    VMSTATE_UINT32(pllsai2cfgr, Stm32l4x5RccState),
+    VMSTATE_UINT32(cier, Stm32l4x5RccState),
+    VMSTATE_UINT32(cifr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb1rstr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb2rstr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb3rstr, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb1rstr1, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb1rstr2, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb2rstr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb1enr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb2enr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb3enr, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb1enr1, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb1enr2, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb2enr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb1smenr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb2smenr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ahb3smenr, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb1smenr1, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb1smenr2, Stm32l4x5RccState),
+    VMSTATE_UINT32(apb2smenr, Stm32l4x5RccState),
+    VMSTATE_UINT32(ccipr, Stm32l4x5RccState),
+    VMSTATE_UINT32(bdcr, Stm32l4x5RccState),
+    VMSTATE_UINT32(csr, Stm32l4x5RccState),
+    VMSTATE_CLOCK(hsi16_rc, Stm32l4x5RccState),
+    VMSTATE_CLOCK(msi_rc, Stm32l4x5RccState),
+    VMSTATE_CLOCK(hse, Stm32l4x5RccState),
+    VMSTATE_CLOCK(lsi_rc, Stm32l4x5RccState),
+    VMSTATE_CLOCK(lse_crystal, Stm32l4x5RccState),
+    VMSTATE_CLOCK(sai1_extclk, Stm32l4x5RccState),
+    VMSTATE_CLOCK(sai2_extclk, Stm32l4x5RccState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_stm32l4x5_rcc = {
     .name = TYPE_STM32L4X5_RCC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(cr, Stm32l4x5RccState),
-        VMSTATE_UINT32(icscr, Stm32l4x5RccState),
-        VMSTATE_UINT32(cfgr, Stm32l4x5RccState),
-        VMSTATE_UINT32(pllcfgr, Stm32l4x5RccState),
-        VMSTATE_UINT32(pllsai1cfgr, Stm32l4x5RccState),
-        VMSTATE_UINT32(pllsai2cfgr, Stm32l4x5RccState),
-        VMSTATE_UINT32(cier, Stm32l4x5RccState),
-        VMSTATE_UINT32(cifr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb1rstr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb2rstr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb3rstr, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb1rstr1, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb1rstr2, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb2rstr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb1enr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb2enr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb3enr, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb1enr1, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb1enr2, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb2enr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb1smenr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb2smenr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ahb3smenr, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb1smenr1, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb1smenr2, Stm32l4x5RccState),
-        VMSTATE_UINT32(apb2smenr, Stm32l4x5RccState),
-        VMSTATE_UINT32(ccipr, Stm32l4x5RccState),
-        VMSTATE_UINT32(bdcr, Stm32l4x5RccState),
-        VMSTATE_UINT32(csr, Stm32l4x5RccState),
-        VMSTATE_CLOCK(hsi16_rc, Stm32l4x5RccState),
-        VMSTATE_CLOCK(msi_rc, Stm32l4x5RccState),
-        VMSTATE_CLOCK(hse, Stm32l4x5RccState),
-        VMSTATE_CLOCK(lsi_rc, Stm32l4x5RccState),
-        VMSTATE_CLOCK(lse_crystal, Stm32l4x5RccState),
-        VMSTATE_CLOCK(sai1_extclk, Stm32l4x5RccState),
-        VMSTATE_CLOCK(sai2_extclk, Stm32l4x5RccState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_stm32l4x5_rcc_fields,
 };
 
 

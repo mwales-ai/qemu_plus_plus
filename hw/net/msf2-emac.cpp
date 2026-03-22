@@ -261,7 +261,7 @@ static void msf2_emac_do_reset(MSF2EmacState *s)
 
 static uint64_t emac_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    MSF2EmacState *s = opaque;
+    MSF2EmacState *s = static_cast<MSF2EmacState *>(opaque);
     uint32_t r = 0;
 
     addr >>= 2;
@@ -286,7 +286,7 @@ static uint64_t emac_read(void *opaque, hwaddr addr, unsigned int size)
 static void emac_write(void *opaque, hwaddr addr, uint64_t val64,
         unsigned int size)
 {
-    MSF2EmacState *s = opaque;
+    MSF2EmacState *s = static_cast<MSF2EmacState *>(opaque);
     uint32_t value = val64;
     uint32_t enreqbits;
     uint8_t pktcnt;
@@ -413,15 +413,21 @@ static const MemoryRegionOps emac_ops = {
     .read = emac_read,
     .write = emac_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 0,
+        .max_access_size = 0,
+        .unaligned = false,
+    },
     .impl = {
         .min_access_size = 4,
-        .max_access_size = 4
-    }
+        .max_access_size = 4,
+        .unaligned = false,
+    },
 };
 
 static bool emac_can_rx(NetClientState *nc)
 {
-    MSF2EmacState *s = qemu_get_nic_opaque(nc);
+    MSF2EmacState *s = static_cast<MSF2EmacState *>(qemu_get_nic_opaque(nc));
 
     return (s->regs[R_CFG1] & R_CFG1_RX_EN_MASK) &&
            (s->regs[R_DMA_RX_CTL] & R_DMA_RX_CTL_EN_MASK);
@@ -460,7 +466,7 @@ static bool addr_filter_ok(MSF2EmacState *s, const uint8_t *buf)
 
 static ssize_t emac_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
-    MSF2EmacState *s = qemu_get_nic_opaque(nc);
+    MSF2EmacState *s = static_cast<MSF2EmacState *>(qemu_get_nic_opaque(nc));
     EmacDesc d;
     uint8_t pktcnt;
     uint32_t status;
@@ -504,7 +510,7 @@ static void msf2_emac_reset(DeviceState *dev)
 
 static void emac_set_link(NetClientState *nc)
 {
-    MSF2EmacState *s = qemu_get_nic_opaque(nc);
+    MSF2EmacState *s = static_cast<MSF2EmacState *>(qemu_get_nic_opaque(nc));
 
     msf2_phy_update_link(s);
 }
@@ -512,8 +518,8 @@ static void emac_set_link(NetClientState *nc)
 static NetClientInfo net_msf2_emac_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = emac_can_rx,
     .receive = emac_rx,
+    .can_receive = emac_can_rx,
     .link_status_changed = emac_set_link,
 };
 
@@ -552,17 +558,19 @@ static const Property msf2_emac_properties[] = {
     DEFINE_NIC_PROPERTIES(MSF2EmacState, conf),
 };
 
+static const VMStateField vmstate_msf2_emac_fields[] = {
+    VMSTATE_UINT8_ARRAY(mac_addr, MSF2EmacState, ETH_ALEN),
+    VMSTATE_UINT32(rx_desc, MSF2EmacState),
+    VMSTATE_UINT16_ARRAY(phy_regs, MSF2EmacState, PHY_MAX_REGS),
+    VMSTATE_UINT32_ARRAY(regs, MSF2EmacState, R_MAX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_msf2_emac = {
     .name = TYPE_MSS_EMAC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(mac_addr, MSF2EmacState, ETH_ALEN),
-        VMSTATE_UINT32(rx_desc, MSF2EmacState),
-        VMSTATE_UINT16_ARRAY(phy_regs, MSF2EmacState, PHY_MAX_REGS),
-        VMSTATE_UINT32_ARRAY(regs, MSF2EmacState, R_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_msf2_emac_fields,
 };
 
 static void msf2_emac_class_init(ObjectClass *klass, const void *data)
