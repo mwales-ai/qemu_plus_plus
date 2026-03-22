@@ -160,7 +160,7 @@ bool vfio_device_irq_set_signaling(VFIODevice *vbasedev, int index, int subindex
 
     argsz = sizeof(*irq_set) + sizeof(*pfd);
 
-    irq_set = g_malloc0(argsz);
+    irq_set = static_cast<struct vfio_irq_set *>(g_malloc0(argsz));
     irq_set->argsz = argsz;
     irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | action;
     irq_set->index = index;
@@ -220,7 +220,7 @@ int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
         }
     }
 
-    *info = g_malloc0(argsz);
+    *info = static_cast<struct vfio_region_info *>(g_malloc0(argsz));
 
     (*info)->index = index;
 retry:
@@ -235,7 +235,7 @@ retry:
 
     if ((*info)->argsz > argsz) {
         argsz = (*info)->argsz;
-        *info = g_realloc(*info, argsz);
+        *info = static_cast<struct vfio_region_info *>(g_realloc(*info, argsz));
 
         if (fd != -1) {
             close(fd);
@@ -365,7 +365,96 @@ void vfio_device_set_fd(VFIODevice *vbasedev, const char *str, Error **errp)
     vbasedev->fd = cpr_get_fd_param(vbasedev->dev->id, str, 0, errp);
 }
 
-static VFIODeviceIOOps vfio_device_io_ops_ioctl;
+
+/*
+ * Traditional ioctl() based io
+ */
+
+static int vfio_device_io_device_feature(VFIODevice *vbasedev,
+                                         struct vfio_device_feature *feature)
+{
+    int ret;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_get_region_info(VFIODevice *vbasedev,
+                                          struct vfio_region_info *info,
+                                          int *fd)
+{
+    int ret;
+
+    *fd = -1;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, info);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_get_irq_info(VFIODevice *vbasedev,
+                                       struct vfio_irq_info *info)
+{
+    int ret;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_IRQ_INFO, info);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_set_irqs(VFIODevice *vbasedev,
+                                   struct vfio_irq_set *irqs)
+{
+    int ret;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irqs);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_region_read(VFIODevice *vbasedev, uint8_t index,
+                                      off_t off, uint32_t size, void *data)
+{
+    struct vfio_region_info *info;
+    int ret;
+
+    ret = vfio_device_get_region_info(vbasedev, index, &info);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = pread(vbasedev->fd, data, size, info->offset + off);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static int vfio_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
+                                       off_t off, uint32_t size, void *data,
+                                       bool post)
+{
+    struct vfio_region_info *info;
+    int ret;
+
+    ret = vfio_device_get_region_info(vbasedev, index, &info);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = pwrite(vbasedev->fd, data, size, info->offset + off);
+
+    return ret < 0 ? -errno : ret;
+}
+
+static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
+    .device_feature = vfio_device_io_device_feature,
+    .get_region_info = vfio_device_io_get_region_info,
+    .get_irq_info = vfio_device_io_get_irq_info,
+    .set_irqs = vfio_device_io_set_irqs,
+    .region_read = vfio_device_io_region_read,
+    .region_write = vfio_device_io_region_write,
+};
+
 
 void vfio_device_init(VFIODevice *vbasedev, int type, VFIODeviceOps *ops,
                       DeviceState *dev, bool ram_discard)
@@ -390,7 +479,7 @@ int vfio_device_get_aw_bits(VFIODevice *vdev)
     GList *l = g_list_last(vdev->bcontainer->iova_ranges);
 
     if (l) {
-        Range *range = l->data;
+        Range *range = static_cast<Range *>(l->data);
         return range_get_last_bit(range) + 1;
     }
 
@@ -515,91 +604,3 @@ void vfio_device_unprepare(VFIODevice *vbasedev)
     vbasedev->bcontainer = NULL;
 }
 
-/*
- * Traditional ioctl() based io
- */
-
-static int vfio_device_io_device_feature(VFIODevice *vbasedev,
-                                         struct vfio_device_feature *feature)
-{
-    int ret;
-
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_FEATURE, feature);
-
-    return ret < 0 ? -errno : ret;
-}
-
-static int vfio_device_io_get_region_info(VFIODevice *vbasedev,
-                                          struct vfio_region_info *info,
-                                          int *fd)
-{
-    int ret;
-
-    *fd = -1;
-
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_REGION_INFO, info);
-
-    return ret < 0 ? -errno : ret;
-}
-
-static int vfio_device_io_get_irq_info(VFIODevice *vbasedev,
-                                       struct vfio_irq_info *info)
-{
-    int ret;
-
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_GET_IRQ_INFO, info);
-
-    return ret < 0 ? -errno : ret;
-}
-
-static int vfio_device_io_set_irqs(VFIODevice *vbasedev,
-                                   struct vfio_irq_set *irqs)
-{
-    int ret;
-
-    ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irqs);
-
-    return ret < 0 ? -errno : ret;
-}
-
-static int vfio_device_io_region_read(VFIODevice *vbasedev, uint8_t index,
-                                      off_t off, uint32_t size, void *data)
-{
-    struct vfio_region_info *info;
-    int ret;
-
-    ret = vfio_device_get_region_info(vbasedev, index, &info);
-    if (ret != 0) {
-        return ret;
-    }
-
-    ret = pread(vbasedev->fd, data, size, info->offset + off);
-
-    return ret < 0 ? -errno : ret;
-}
-
-static int vfio_device_io_region_write(VFIODevice *vbasedev, uint8_t index,
-                                       off_t off, uint32_t size, void *data,
-                                       bool post)
-{
-    struct vfio_region_info *info;
-    int ret;
-
-    ret = vfio_device_get_region_info(vbasedev, index, &info);
-    if (ret != 0) {
-        return ret;
-    }
-
-    ret = pwrite(vbasedev->fd, data, size, info->offset + off);
-
-    return ret < 0 ? -errno : ret;
-}
-
-static VFIODeviceIOOps vfio_device_io_ops_ioctl = {
-    .device_feature = vfio_device_io_device_feature,
-    .get_region_info = vfio_device_io_get_region_info,
-    .get_irq_info = vfio_device_io_get_irq_info,
-    .set_irqs = vfio_device_io_set_irqs,
-    .region_read = vfio_device_io_region_read,
-    .region_write = vfio_device_io_region_write,
-};

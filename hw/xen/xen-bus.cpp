@@ -203,9 +203,14 @@ static void xen_bus_type_enumerate(XenBus *xenbus, const char *type)
         enum xenbus_state state;
         unsigned int online;
 
-        if (xs_node_scanf(xenbus->xsh, XBT_NULL, backend_path, "state",
-                          NULL, "%u", &state) != 1)
-            state = XenbusStateUnknown;
+        {
+            unsigned int tmp_state;
+            if (xs_node_scanf(xenbus->xsh, XBT_NULL, backend_path, "state",
+                              NULL, "%u", &tmp_state) != 1)
+                state = XenbusStateUnknown;
+            else
+                state = static_cast<enum xenbus_state>(tmp_state);
+        }
 
         if (xs_node_scanf(xenbus->xsh, XBT_NULL, backend_path, "online",
                           NULL, "%u", &online) != 1)
@@ -283,7 +288,7 @@ static void xen_bus_cleanup(XenBus *xenbus)
 
 static void xen_bus_backend_changed(void *opaque, const char *path)
 {
-    XenBus *xenbus = opaque;
+    XenBus *xenbus = static_cast<XenBus *>(opaque);
 
     xen_bus_enumerate(xenbus);
     xen_bus_cleanup(xenbus);
@@ -380,10 +385,10 @@ static void xen_bus_unplug_request(HotplugHandler *hotplug,
     xen_device_unplug(xendev, errp);
 }
 
-static void xen_bus_class_init(ObjectClass *class, const void *data)
+static void xen_bus_class_init(ObjectClass *klass, const void *data)
 {
-    BusClass *bus_class = BUS_CLASS(class);
-    HotplugHandlerClass *hotplug_class = HOTPLUG_HANDLER_CLASS(class);
+    BusClass *bus_class = BUS_CLASS(klass);
+    HotplugHandlerClass *hotplug_class = HOTPLUG_HANDLER_CLASS(klass);
 
     bus_class->print_dev = xen_bus_print_dev;
     bus_class->get_dev_path = xen_bus_get_dev_path;
@@ -496,15 +501,20 @@ static bool xen_device_frontend_is_active(XenDevice *xendev)
 
 static void xen_device_backend_changed(void *opaque, const char *path)
 {
-    XenDevice *xendev = opaque;
+    XenDevice *xendev = static_cast<XenDevice *>(opaque);
     const char *type = object_get_typename(OBJECT(xendev));
     enum xenbus_state state;
     unsigned int online;
 
     trace_xen_device_backend_changed(type, xendev->name);
 
-    if (xen_device_backend_scanf(xendev, "state", "%u", &state) != 1) {
-        state = XenbusStateUnknown;
+    {
+        unsigned int tmp_state;
+        if (xen_device_backend_scanf(xendev, "state", "%u", &tmp_state) != 1) {
+            state = XenbusStateUnknown;
+        } else {
+            state = static_cast<enum xenbus_state>(tmp_state);
+        }
     }
 
     xen_device_backend_set_state(xendev, state);
@@ -681,15 +691,20 @@ static void xen_device_frontend_set_state(XenDevice *xendev,
 
 static void xen_device_frontend_changed(void *opaque, const char *path)
 {
-    XenDevice *xendev = opaque;
+    XenDevice *xendev = static_cast<XenDevice *>(opaque);
     XenDeviceClass *xendev_class = XEN_DEVICE_GET_CLASS(xendev);
     const char *type = object_get_typename(OBJECT(xendev));
     enum xenbus_state state;
 
     trace_xen_device_frontend_changed(type, xendev->name);
 
-    if (xen_device_frontend_scanf(xendev, "state", "%u", &state) != 1) {
-        state = XenbusStateUnknown;
+    {
+        unsigned int tmp_state;
+        if (xen_device_frontend_scanf(xendev, "state", "%u", &tmp_state) != 1) {
+            state = XenbusStateUnknown;
+        } else {
+            state = static_cast<enum xenbus_state>(tmp_state);
+        }
     }
 
     xen_device_frontend_set_state(xendev, state, false);
@@ -718,9 +733,8 @@ static void xen_device_frontend_changed(void *opaque, const char *path)
 
 static bool xen_device_frontend_exists(XenDevice *xendev)
 {
-    enum xenbus_state state;
-
-    return (xen_device_frontend_scanf(xendev, "state", "%u", &state) == 1);
+    unsigned int tmp_state;
+    return (xen_device_frontend_scanf(xendev, "state", "%u", &tmp_state) == 1);
 }
 
 static void xen_device_frontend_create(XenDevice *xendev, Error **errp)
@@ -839,14 +853,14 @@ struct XenEventChannel {
 
 static bool xen_device_poll(void *opaque)
 {
-    XenEventChannel *channel = opaque;
+    XenEventChannel *channel = static_cast<XenEventChannel *>(opaque);
 
     return channel->handler(channel->opaque);
 }
 
 static void xen_device_event(void *opaque)
 {
-    XenEventChannel *channel = opaque;
+    XenEventChannel *channel = static_cast<XenEventChannel *>(opaque);
     unsigned long port = qemu_xen_evtchn_pending(channel->xeh);
 
     if (port == channel->local_port) {
@@ -1107,9 +1121,9 @@ static const Property xen_device_props[] = {
                        DOMID_INVALID),
 };
 
-static void xen_device_class_init(ObjectClass *class, const void *data)
+static void xen_device_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(class);
+    DeviceClass *dev_class = DEVICE_CLASS(klass);
 
     dev_class->realize = xen_device_realize;
     dev_class->unrealize = xen_device_unrealize;

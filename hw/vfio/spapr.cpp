@@ -159,9 +159,9 @@ static void vfio_prereg_listener_region_del(MemoryListener *listener,
 }
 
 static const MemoryListener vfio_prereg_listener = {
-    .name = "vfio-pre-reg",
     .region_add = vfio_prereg_listener_region_add,
     .region_del = vfio_prereg_listener_region_del,
+    .name = "vfio-pre-reg",
 };
 
 static void vfio_host_win_add(VFIOSpaprContainer *scontainer, hwaddr min_iova,
@@ -178,7 +178,7 @@ static void vfio_host_win_add(VFIOSpaprContainer *scontainer, hwaddr min_iova,
         }
     }
 
-    hostwin = g_malloc0(sizeof(*hostwin));
+    hostwin = static_cast<VFIOHostDMAWindow *>(g_malloc0(sizeof(*hostwin)));
 
     hostwin->min_iova = min_iova;
     hostwin->max_iova = max_iova;

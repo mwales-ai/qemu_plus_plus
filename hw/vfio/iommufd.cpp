@@ -380,7 +380,7 @@ static bool iommufd_cdev_autodomains_get(VFIODevice *vbasedev,
     }
 
 skip_alloc:
-    hwpt = g_malloc0(sizeof(*hwpt));
+    hwpt = static_cast<VFIOIOASHwpt *>(g_malloc0(sizeof(*hwpt)));
     hwpt->hwpt_id = hwpt_id;
     hwpt->hwpt_flags = flags;
     QLIST_INIT(&hwpt->device_list);
@@ -473,7 +473,7 @@ static bool iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
     struct iommu_iova_range *iova_ranges;
     int sz, fd = container->be->fd;
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<struct iommu_ioas_iova_ranges *>(g_malloc0(sizeof(*info)));
     info->size = sizeof(*info);
     info->ioas_id = ioas_id;
 
@@ -482,7 +482,7 @@ static bool iommufd_cdev_get_info_iova_range(VFIOIOMMUFDContainer *container,
     }
 
     sz = info->num_iovas * sizeof(struct iommu_iova_range);
-    info = g_realloc(info, sizeof(*info) + sz);
+    info = static_cast<struct iommu_ioas_iova_ranges *>(g_realloc(info, sizeof(*info) + sz));
     info->allowed_iovas = (uintptr_t)(info + 1);
 
     if (ioctl(fd, IOMMU_IOAS_IOVA_RANGES, info)) {
@@ -808,7 +808,7 @@ static int iommufd_cdev_pci_hot_reset(VFIODevice *vbasedev, bool single)
     }
 
     /* Use zero length array for hot reset with iommufd backend */
-    reset = g_malloc0(sizeof(*reset));
+    reset = static_cast<struct vfio_pci_hot_reset *>(g_malloc0(sizeof(*reset)));
     reset->argsz = sizeof(*reset);
 
      /* Bus reset! */
@@ -858,7 +858,7 @@ static bool
 host_iommu_device_iommufd_vfio_attach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
                                            uint32_t hwpt_id, Error **errp)
 {
-    VFIODevice *vbasedev = HOST_IOMMU_DEVICE(idev)->agent;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(HOST_IOMMU_DEVICE(idev)->agent);
 
     return !iommufd_cdev_attach_ioas_hwpt(vbasedev, hwpt_id, errp);
 }
@@ -867,7 +867,7 @@ static bool
 host_iommu_device_iommufd_vfio_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
                                            Error **errp)
 {
-    VFIODevice *vbasedev = HOST_IOMMU_DEVICE(idev)->agent;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(HOST_IOMMU_DEVICE(idev)->agent);
 
     return iommufd_cdev_detach_ioas_hwpt(vbasedev, errp);
 }
@@ -875,11 +875,11 @@ host_iommu_device_iommufd_vfio_detach_hwpt(HostIOMMUDeviceIOMMUFD *idev,
 static bool hiod_iommufd_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
                                       Error **errp)
 {
-    VFIODevice *vdev = opaque;
+    VFIODevice *vdev = static_cast<VFIODevice *>(opaque);
     HostIOMMUDeviceIOMMUFD *idev;
     HostIOMMUDeviceCaps *caps = &hiod->caps;
     VendorCaps *vendor_caps = &caps->vendor_caps;
-    enum iommu_hw_info_type type;
+    uint32_t type;
     uint64_t hw_caps;
 
     hiod->agent = opaque;
@@ -905,7 +905,7 @@ static bool hiod_iommufd_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
 static GList *
 hiod_iommufd_vfio_get_iova_ranges(HostIOMMUDevice *hiod)
 {
-    VFIODevice *vdev = hiod->agent;
+    VFIODevice *vdev = static_cast<VFIODevice *>(hiod->agent);
 
     g_assert(vdev);
     return vfio_container_get_iova_ranges(vdev->bcontainer);
@@ -914,7 +914,7 @@ hiod_iommufd_vfio_get_iova_ranges(HostIOMMUDevice *hiod)
 static uint64_t
 hiod_iommufd_vfio_get_page_size_mask(HostIOMMUDevice *hiod)
 {
-    VFIODevice *vdev = hiod->agent;
+    VFIODevice *vdev = static_cast<VFIODevice *>(hiod->agent);
 
     g_assert(vdev);
     return vfio_container_get_page_size_mask(vdev->bcontainer);

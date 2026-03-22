@@ -106,7 +106,7 @@ static void vfio_migration_send_event(VFIODevice *vbasedev)
     qom_path = object_get_canonical_path(obj);
 
     qapi_event_send_vfio_migration(
-        dev->id, qom_path, mig_state_to_qapi_state(migration->device_state));
+        dev->id, qom_path, mig_state_to_qapi_state(static_cast<enum vfio_device_mig_state>(migration->device_state)));
 }
 
 static void vfio_migration_set_device_state(VFIODevice *vbasedev,
@@ -241,7 +241,7 @@ static int vfio_load_buffer(QEMUFile *f, VFIODevice *vbasedev,
 
 int vfio_save_device_config_state(QEMUFile *f, void *opaque, Error **errp)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     int ret;
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_CONFIG_STATE);
@@ -266,7 +266,7 @@ int vfio_save_device_config_state(QEMUFile *f, void *opaque, Error **errp)
 
 int vfio_load_device_config_state(QEMUFile *f, void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     uint64_t data;
 
     trace_vfio_load_device_config_state_start(vbasedev->name);
@@ -374,7 +374,7 @@ static ssize_t vfio_save_block(QEMUFile *f, VFIOMigration *migration)
 
     qemu_put_be64(f, VFIO_MIG_FLAG_DEV_DATA_STATE);
     qemu_put_be64(f, data_size);
-    qemu_put_buffer(f, migration->data_buffer, data_size);
+    qemu_put_buffer(f, static_cast<const uint8_t *>(migration->data_buffer), data_size);
     vfio_migration_add_bytes_transferred(data_size);
 
     trace_vfio_save_block(migration->vbasedev->name, data_size);
@@ -418,7 +418,7 @@ static bool vfio_precopy_supported(VFIODevice *vbasedev)
 
 static int vfio_save_prepare(void *opaque, Error **errp)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
 
     /*
      * Snapshot doesn't use postcopy nor background snapshot, so allow snapshot
@@ -448,7 +448,7 @@ static int vfio_save_prepare(void *opaque, Error **errp)
 
 static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
     uint64_t stop_copy_size = VFIO_MIG_DEFAULT_DATA_BUFFER_SIZE;
     int ret;
@@ -508,7 +508,7 @@ static int vfio_save_setup(QEMUFile *f, void *opaque, Error **errp)
 
 static void vfio_save_cleanup(void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
     Error *local_err = NULL;
     int ret;
@@ -541,7 +541,7 @@ static void vfio_save_cleanup(void *opaque)
 static void vfio_state_pending_estimate(void *opaque, uint64_t *must_precopy,
                                         uint64_t *can_postcopy)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
 
     if (!vfio_device_state_is_precopy(vbasedev)) {
@@ -566,7 +566,7 @@ static void vfio_state_pending_estimate(void *opaque, uint64_t *must_precopy,
 static void vfio_state_pending_exact(void *opaque, uint64_t *must_precopy,
                                      uint64_t *can_postcopy)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
     uint64_t stop_copy_size = VFIO_MIG_STOP_COPY_SIZE;
 
@@ -588,7 +588,7 @@ static void vfio_state_pending_exact(void *opaque, uint64_t *must_precopy,
 
 static bool vfio_is_active_iterate(void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
 
     return vfio_device_state_is_precopy(vbasedev);
 }
@@ -601,7 +601,7 @@ static bool vfio_is_active_iterate(void *opaque)
  */
 static int vfio_save_iterate(QEMUFile *f, void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
     ssize_t data_size;
 
@@ -633,7 +633,7 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
 
 static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     ssize_t data_size;
     int ret;
     Error *local_err = NULL;
@@ -670,7 +670,7 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
 
 static void vfio_save_state(QEMUFile *f, void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     Error *local_err = NULL;
     int ret;
 
@@ -694,7 +694,7 @@ static void vfio_save_state(QEMUFile *f, void *opaque)
 
 static int vfio_load_setup(QEMUFile *f, void *opaque, Error **errp)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
     int ret;
 
@@ -703,7 +703,7 @@ static int vfio_load_setup(QEMUFile *f, void *opaque, Error **errp)
     }
 
     ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_RESUMING,
-                                   migration->device_state, errp);
+                                   static_cast<enum vfio_device_mig_state>(migration->device_state), errp);
     if (ret) {
         return ret;
     }
@@ -713,7 +713,7 @@ static int vfio_load_setup(QEMUFile *f, void *opaque, Error **errp)
 
 static int vfio_load_cleanup(void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
 
     vfio_multifd_cleanup(vbasedev);
 
@@ -725,7 +725,7 @@ static int vfio_load_cleanup(void *opaque)
 
 static int vfio_load_state(QEMUFile *f, void *opaque, int version_id)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     int ret = 0;
     uint64_t data;
 
@@ -808,14 +808,14 @@ static int vfio_load_state(QEMUFile *f, void *opaque, int version_id)
 
 static bool vfio_switchover_ack_needed(void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
 
     return vfio_precopy_supported(vbasedev);
 }
 
 static int vfio_switchover_start(void *opaque)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
 
     if (vfio_multifd_transfer_enabled(vbasedev)) {
         return vfio_multifd_switchover_start(vbasedev);
@@ -825,25 +825,22 @@ static int vfio_switchover_start(void *opaque)
 }
 
 static const SaveVMHandlers savevm_vfio_handlers = {
+    .save_state = vfio_save_state,
     .save_prepare = vfio_save_prepare,
     .save_setup = vfio_save_setup,
     .save_cleanup = vfio_save_cleanup,
-    .state_pending_estimate = vfio_state_pending_estimate,
-    .state_pending_exact = vfio_state_pending_exact,
+    .save_complete = vfio_save_complete_precopy,
+    .save_complete_precopy_thread = vfio_multifd_save_complete_precopy_thread,
     .is_active_iterate = vfio_is_active_iterate,
     .save_live_iterate = vfio_save_iterate,
-    .save_complete = vfio_save_complete_precopy,
-    .save_state = vfio_save_state,
+    .state_pending_estimate = vfio_state_pending_estimate,
+    .state_pending_exact = vfio_state_pending_exact,
+    .load_state = vfio_load_state,
+    .load_state_buffer = vfio_multifd_load_state_buffer,
     .load_setup = vfio_load_setup,
     .load_cleanup = vfio_load_cleanup,
-    .load_state = vfio_load_state,
     .switchover_ack_needed = vfio_switchover_ack_needed,
-    /*
-     * Multifd support
-     */
-    .load_state_buffer = vfio_multifd_load_state_buffer,
     .switchover_start = vfio_switchover_start,
-    .save_complete_precopy_thread = vfio_multifd_save_complete_precopy_thread,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -851,7 +848,7 @@ static const SaveVMHandlers savevm_vfio_handlers = {
 static void vfio_vmstate_change_prepare(void *opaque, bool running,
                                         RunState state)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
     enum vfio_device_mig_state new_state;
     Error *local_err = NULL;
@@ -877,7 +874,7 @@ static void vfio_vmstate_change_prepare(void *opaque, bool running,
 
 static void vfio_vmstate_change(void *opaque, bool running, RunState state)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     enum vfio_device_mig_state new_state;
     Error *local_err = NULL;
     int ret;

@@ -1,28 +1,28 @@
 system_ss.add(when: ['CONFIG_XEN_BUS'], if_true: files(
   'xen-backend.cpp',
   'xen-bus-helper.cpp',
-  'xen-bus.c',
-  'xen-legacy-backend.c',
+  'xen-bus.cpp',
+  'xen-legacy-backend.cpp',
   'xen_devconfig.cpp',
   'xen_pvdev.cpp',
 ))
 
 xen_common_ss = ss.source_set()
 xen_common_ss.add(files(
-  'xen-hvm-common.c',
-  'xen-mapcache.c',
-  'xen-operations.c',
+  'xen-hvm-common.cpp',
+  'xen-mapcache.cpp',
+  'xen-operations.cpp',
   'xen-pvh-common.cpp',
 ))
 
 if have_xen_pci_passthrough
   xen_common_ss.add(files(
-    'xen-host-pci-device.c',
-    'xen_pt.c',
-    'xen_pt_config_init.c',
-    'xen_pt_graphics.c',
+    'xen-host-pci-device.cpp',
+    'xen_pt.cpp',
+    'xen_pt_config_init.cpp',
+    'xen_pt_graphics.cpp',
     'xen_pt_load_rom.cpp',
-    'xen_pt_msi.c',
+    'xen_pt_msi.cpp',
   ))
 else
   xen_common_ss.add(files('xen_pt_stub.cpp'))

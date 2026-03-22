@@ -37,7 +37,7 @@
 void vfio_region_write(void *opaque, hwaddr addr,
                        uint64_t data, unsigned size)
 {
-    VFIORegion *region = opaque;
+    VFIORegion *region = static_cast<VFIORegion *>(opaque);
     VFIODevice *vbasedev = region->vbasedev;
     union {
         uint8_t byte;
@@ -90,7 +90,7 @@ void vfio_region_write(void *opaque, hwaddr addr,
 uint64_t vfio_region_read(void *opaque,
                           hwaddr addr, unsigned size)
 {
-    VFIORegion *region = opaque;
+    VFIORegion *region = static_cast<VFIORegion *>(opaque);
     VFIODevice *vbasedev = region->vbasedev;
     union {
         uint8_t byte;
@@ -138,14 +138,8 @@ static const MemoryRegionOps vfio_region_ops = {
     .read = vfio_region_read,
     .write = vfio_region_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-    },
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 8,
-    },
+    .valid = { 1, 8 },
+    .impl = { 1, 8 },
 };
 
 static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
@@ -179,7 +173,7 @@ static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
     }
 
     region->nr_mmaps = j;
-    region->mmaps = g_realloc(region->mmaps, j * sizeof(VFIOMmap));
+    region->mmaps = static_cast<VFIOMmap *>(g_realloc(region->mmaps, j * sizeof(VFIOMmap)));
 
     return 0;
 }
@@ -276,9 +270,9 @@ int vfio_region_mmap(VFIORegion *region)
         fd = vfio_device_get_region_fd(region->vbasedev, region->nr);
 
         map_align = (void *)ROUND_UP((uintptr_t)map_base, (uintptr_t)align);
-        munmap(map_base, map_align - map_base);
-        munmap(map_align + region->mmaps[i].size,
-               align - (map_align - map_base));
+        munmap(map_base, static_cast<char *>(map_align) - static_cast<char *>(map_base));
+        munmap(static_cast<char *>(map_align) + region->mmaps[i].size,
+               align - (static_cast<char *>(map_align) - static_cast<char *>(map_base)));
 
         region->mmaps[i].mmap = mmap(map_align, region->mmaps[i].size, prot,
                                      MAP_SHARED | MAP_FIXED, fd,

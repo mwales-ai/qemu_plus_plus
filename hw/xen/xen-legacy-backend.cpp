@@ -162,7 +162,7 @@ static struct XenLegacyDevice *xen_be_get_xendev(const char *type, int dom,
     }
 
     /* init new xendev */
-    xendev = g_malloc0(ops->size);
+    xendev = static_cast<struct XenLegacyDevice *>(g_malloc0(ops->size));
     object_initialize(xendev, ops->size, TYPE_XENBACKEND);
     OBJECT(xendev)->free = g_free;
     qdev_set_id(DEVICE(xendev), g_strdup_printf("xen-%s-%d", type, dev),
@@ -232,12 +232,12 @@ static void xen_be_frontend_changed(struct XenLegacyDevice *xendev,
         if (xenstore_read_fe_int(xendev, "state", &fe_state) == -1) {
             fe_state = XenbusStateUnknown;
         }
-        if (xendev->fe_state != fe_state) {
+        if (xendev->fe_state != static_cast<enum xenbus_state>(fe_state)) {
             xen_pv_printf(xendev, 1, "frontend state: %s -> %s\n",
                           xenbus_strstate(xendev->fe_state),
-                          xenbus_strstate(fe_state));
+                          xenbus_strstate(static_cast<enum xenbus_state>(fe_state)));
         }
-        xendev->fe_state = fe_state;
+        xendev->fe_state = static_cast<enum xenbus_state>(fe_state);
     }
     if (node == NULL  ||  strcmp(node, "protocol") == 0) {
         g_free(xendev->protocol);
@@ -258,7 +258,7 @@ static void xen_be_frontend_changed(struct XenLegacyDevice *xendev,
 
 static void xenstore_update_fe(void *opaque, const char *watch)
 {
-    struct XenLegacyDevice *xendev = opaque;
+    struct XenLegacyDevice *xendev = static_cast<struct XenLegacyDevice *>(opaque);
     const char *node;
     unsigned int len;
 
@@ -295,9 +295,9 @@ static int xen_be_try_setup(struct XenLegacyDevice *xendev)
         return -1;
     }
 
-    if (be_state != XenbusStateInitialising) {
+    if (static_cast<enum xenbus_state>(be_state) != XenbusStateInitialising) {
         xen_pv_printf(xendev, 0, "initial backend state is wrong (%s)\n",
-                      xenbus_strstate(be_state));
+                      xenbus_strstate(static_cast<enum xenbus_state>(be_state)));
         return -1;
     }
 
@@ -507,7 +507,7 @@ struct xenstore_be {
 
 static void xenstore_update_be(void *opaque, const char *watch)
 {
-    struct xenstore_be *be = opaque;
+    struct xenstore_be *be = static_cast<struct xenstore_be *>(opaque);
     struct XenLegacyDevice *xendev;
     char path[XEN_BUFSIZE], *bepath;
     unsigned int len, dev;
@@ -528,7 +528,7 @@ static void xenstore_update_be(void *opaque, const char *watch)
 
     xendev = xen_be_get_xendev(be->type, be->dom, dev, be->ops);
     if (xendev != NULL) {
-        bepath = qemu_xen_xs_read(xenstore, 0, xendev->be, &len);
+        bepath = static_cast<char *>(qemu_xen_xs_read(xenstore, 0, xendev->be, &len));
         if (bepath == NULL) {
             xen_pv_del_xendev(xendev);
         } else {
@@ -646,8 +646,8 @@ static void xendev_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo xendev_type_info = {
     .name          = TYPE_XENBACKEND,
     .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
-    .class_init    = xendev_class_init,
     .instance_size = sizeof(XenLegacyDevice),
+    .class_init    = xendev_class_init,
 };
 
 static void xen_sysbus_class_init(ObjectClass *klass, const void *data)

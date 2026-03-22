@@ -83,13 +83,13 @@ static int vfio_dma_unmap_bitmap(const VFIOLegacyContainer *container,
         return ret;
     }
 
-    unmap = g_malloc0(sizeof(*unmap) + sizeof(*bitmap));
+    unmap = static_cast<struct vfio_iommu_type1_dma_unmap *>(g_malloc0(sizeof(*unmap) + sizeof(*bitmap)));
 
     unmap->argsz = sizeof(*unmap) + sizeof(*bitmap);
     unmap->iova = iova;
     unmap->size = size;
     unmap->flags |= VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP;
-    bitmap = (struct vfio_bitmap *)&unmap->data;
+    bitmap = reinterpret_cast<struct vfio_bitmap *>(&unmap->data);
 
     /*
      * physical_memory_set_dirty_lebitmap() supports pages in bitmap of
@@ -260,11 +260,11 @@ static int vfio_legacy_query_dirty_bitmap(const VFIOContainer *bcontainer,
     struct vfio_iommu_type1_dirty_bitmap_get *range;
     int ret;
 
-    dbitmap = g_malloc0(sizeof(*dbitmap) + sizeof(*range));
+    dbitmap = static_cast<struct vfio_iommu_type1_dirty_bitmap *>(g_malloc0(sizeof(*dbitmap) + sizeof(*range)));
 
     dbitmap->argsz = sizeof(*dbitmap) + sizeof(*range);
     dbitmap->flags = VFIO_IOMMU_DIRTY_PAGES_FLAG_GET_BITMAP;
-    range = (struct vfio_iommu_type1_dirty_bitmap_get *)&dbitmap->data;
+    range = reinterpret_cast<struct vfio_iommu_type1_dirty_bitmap_get *>(&dbitmap->data);
     range->iova = iova;
     range->size = size;
 
@@ -303,7 +303,7 @@ static bool vfio_get_info_iova_range(struct vfio_iommu_type1_info *info,
         return false;
     }
 
-    cap = (void *)hdr;
+    cap = reinterpret_cast<struct vfio_iommu_type1_info_cap_iova_range *>(hdr);
 
     for (int i = 0; i < cap->nr_iovas; i++) {
         Range *range = g_new(Range, 1);
@@ -446,7 +446,7 @@ again:
 
     if (((*info)->argsz > argsz)) {
         argsz = (*info)->argsz;
-        *info = g_realloc(*info, argsz);
+        *info = static_cast<struct vfio_iommu_type1_info *>(g_realloc(*info, argsz));
         goto again;
     }
 
@@ -463,7 +463,7 @@ vfio_get_iommu_info_cap(struct vfio_iommu_type1_info *info, uint16_t id)
         return NULL;
     }
 
-    for (hdr = ptr + info->cap_offset; hdr != ptr; hdr = ptr + hdr->next) {
+    for (hdr = reinterpret_cast<struct vfio_info_cap_header *>(static_cast<char *>(ptr) + info->cap_offset); hdr != ptr; hdr = reinterpret_cast<struct vfio_info_cap_header *>(static_cast<char *>(ptr) + hdr->next)) {
         if (hdr->id == id) {
             return hdr;
         }
@@ -776,7 +776,7 @@ static VFIOGroup *vfio_group_get(int groupid, AddressSpace *as, Error **errp)
         }
     }
 
-    group = g_malloc0(sizeof(*group));
+    group = static_cast<VFIOGroup *>(g_malloc0(sizeof(*group)));
 
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
     group->fd = cpr_open_fd(path, O_RDWR, "vfio_group", groupid, errp);
@@ -1106,7 +1106,7 @@ static int vfio_legacy_pci_hot_reset(VFIODevice *vbasedev, bool single)
         }
     }
 
-    reset = g_malloc0(sizeof(*reset) + (count * sizeof(*fds)));
+    reset = static_cast<struct vfio_pci_hot_reset *>(g_malloc0(sizeof(*reset) + (count * sizeof(*fds))));
     reset->argsz = sizeof(*reset) + (count * sizeof(*fds));
     fds = &reset->group_fds[0];
 
@@ -1194,7 +1194,7 @@ static void vfio_iommu_legacy_class_init(ObjectClass *klass, const void *data)
 static bool hiod_legacy_vfio_realize(HostIOMMUDevice *hiod, void *opaque,
                                      Error **errp)
 {
-    VFIODevice *vdev = opaque;
+    VFIODevice *vdev = static_cast<VFIODevice *>(opaque);
 
     hiod->name = g_strdup(vdev->name);
     hiod->agent = opaque;
@@ -1207,7 +1207,7 @@ static int hiod_legacy_vfio_get_cap(HostIOMMUDevice *hiod, int cap,
 {
     switch (cap) {
     case HOST_IOMMU_DEVICE_CAP_AW_BITS:
-        return vfio_device_get_aw_bits(hiod->agent);
+        return vfio_device_get_aw_bits(static_cast<VFIODevice *>(hiod->agent));
     default:
         error_setg(errp, "%s: unsupported capability %x", hiod->name, cap);
         return -EINVAL;
@@ -1217,7 +1217,7 @@ static int hiod_legacy_vfio_get_cap(HostIOMMUDevice *hiod, int cap,
 static GList *
 hiod_legacy_vfio_get_iova_ranges(HostIOMMUDevice *hiod)
 {
-    VFIODevice *vdev = hiod->agent;
+    VFIODevice *vdev = static_cast<VFIODevice *>(hiod->agent);
 
     g_assert(vdev);
     return vfio_container_get_iova_ranges(vdev->bcontainer);
@@ -1226,7 +1226,7 @@ hiod_legacy_vfio_get_iova_ranges(HostIOMMUDevice *hiod)
 static uint64_t
 hiod_legacy_vfio_get_page_size_mask(HostIOMMUDevice *hiod)
 {
-    VFIODevice *vdev = hiod->agent;
+    VFIODevice *vdev = static_cast<VFIODevice *>(hiod->agent);
 
     g_assert(vdev);
     return vfio_container_get_page_size_mask(vdev->bcontainer);
@@ -1253,8 +1253,8 @@ static const TypeInfo types[] = {
     {
         .name = TYPE_VFIO_IOMMU_LEGACY,
         .parent = TYPE_VFIO_IOMMU,
-        .instance_init = vfio_iommu_legacy_instance_init,
         .instance_size = sizeof(VFIOLegacyContainer),
+        .instance_init = vfio_iommu_legacy_instance_init,
         .class_init = vfio_iommu_legacy_class_init,
     }, {
         .name = TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO,

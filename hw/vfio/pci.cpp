@@ -103,7 +103,7 @@ static void vfio_notifier_cleanup(VFIOPCIDevice *vdev, EventNotifier *e,
  */
 static void vfio_intx_mmap_enable(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
 
     if (vdev->intx.pending) {
         timer_mod(vdev->intx.mmap_timer,
@@ -116,7 +116,7 @@ static void vfio_intx_mmap_enable(void *opaque)
 
 static void vfio_intx_interrupt(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     PCIDevice *pdev = PCI_DEVICE(vdev);
 
     if (!event_notifier_test_and_clear(&vdev->intx.interrupt)) {
@@ -433,7 +433,7 @@ void vfio_pci_intx_set_handler(VFIOPCIDevice *vdev, bool enable)
  */
 static void vfio_msi_interrupt(void *opaque)
 {
-    VFIOMSIVector *vector = opaque;
+    VFIOMSIVector *vector = static_cast<VFIOMSIVector *>(opaque);
     VFIOPCIDevice *vdev = vector->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
     MSIMessage (*get_msg)(PCIDevice *dev, unsigned vector);
@@ -488,7 +488,7 @@ static int vfio_enable_msix_no_vec(VFIOPCIDevice *vdev)
 
     argsz = sizeof(*irq_set) + sizeof(*fd);
 
-    irq_set = g_malloc0(argsz);
+    irq_set = static_cast<struct vfio_irq_set *>(g_malloc0(argsz));
     irq_set->argsz = argsz;
     irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
                      VFIO_IRQ_SET_ACTION_TRIGGER;
@@ -527,7 +527,7 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
 
     argsz = sizeof(*irq_set) + (vdev->nr_vectors * sizeof(*fds));
 
-    irq_set = g_malloc0(argsz);
+    irq_set = static_cast<struct vfio_irq_set *>(g_malloc0(argsz));
     irq_set->argsz = argsz;
     irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER;
     irq_set->index = msix ? VFIO_PCI_MSIX_IRQ_INDEX : VFIO_PCI_MSI_IRQ_INDEX;
@@ -1093,19 +1093,19 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
      * recompute the checksum.  Intel IGD devices need this and are known
      * to have bogus checksums so we can't simply adjust the checksum.
      */
-    if (pci_get_word(vdev->rom) == 0xaa55 &&
-        pci_get_word(vdev->rom + 0x18) + 8 < vdev->rom_size &&
-        !memcmp(vdev->rom + pci_get_word(vdev->rom + 0x18), "PCIR", 4)) {
+    if (pci_get_word(static_cast<const uint8_t *>(vdev->rom)) == 0xaa55 &&
+        pci_get_word(static_cast<const uint8_t *>(vdev->rom) + 0x18) + 8 < vdev->rom_size &&
+        !memcmp(static_cast<const uint8_t *>(vdev->rom) + pci_get_word(static_cast<const uint8_t *>(vdev->rom) + 0x18), "PCIR", 4)) {
         uint16_t vid, did;
 
-        vid = pci_get_word(vdev->rom + pci_get_word(vdev->rom + 0x18) + 4);
-        did = pci_get_word(vdev->rom + pci_get_word(vdev->rom + 0x18) + 6);
+        vid = pci_get_word(static_cast<const uint8_t *>(vdev->rom) + pci_get_word(static_cast<const uint8_t *>(vdev->rom) + 0x18) + 4);
+        did = pci_get_word(static_cast<const uint8_t *>(vdev->rom) + pci_get_word(static_cast<const uint8_t *>(vdev->rom) + 0x18) + 6);
 
         if (vid == vdev->vendor_id && did != vdev->device_id) {
             int i;
-            uint8_t csum, *data = vdev->rom;
+            uint8_t csum, *data = static_cast<uint8_t *>(vdev->rom);
 
-            pci_set_word(vdev->rom + pci_get_word(vdev->rom + 0x18) + 6,
+            pci_set_word(static_cast<uint8_t *>(vdev->rom) + pci_get_word(static_cast<const uint8_t *>(vdev->rom) + 0x18) + 6,
                          vdev->device_id);
             data[6] = 0;
 
@@ -1138,7 +1138,7 @@ static int vfio_pci_config_space_write(VFIOPCIDevice *vdev, off_t offset,
 
 static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     union {
         uint8_t byte;
         uint16_t word;
@@ -1152,7 +1152,7 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
         vfio_pci_load_rom(vdev);
     }
 
-    memcpy(&val, vdev->rom + addr,
+    memcpy(&val, static_cast<const uint8_t *>(vdev->rom) + addr,
            (addr < vdev->rom_size) ? MIN(size, vdev->rom_size - addr) : 0);
 
     switch (size) {
@@ -1256,8 +1256,8 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
 void vfio_vga_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
 {
-    VFIOVGARegion *region = opaque;
-    VFIOVGA *vga = container_of(region, VFIOVGA, region[region->nr]);
+    VFIOVGARegion *region = static_cast<VFIOVGARegion *>(opaque);
+    VFIOVGA *vga = reinterpret_cast<VFIOVGA *>(reinterpret_cast<char *>(region) - offsetof(VFIOVGA, region) - region->nr * sizeof(VFIOVGARegion));
     union {
         uint8_t byte;
         uint16_t word;
@@ -1291,8 +1291,8 @@ void vfio_vga_write(void *opaque, hwaddr addr,
 
 uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size)
 {
-    VFIOVGARegion *region = opaque;
-    VFIOVGA *vga = container_of(region, VFIOVGA, region[region->nr]);
+    VFIOVGARegion *region = static_cast<VFIOVGARegion *>(opaque);
+    VFIOVGA *vga = reinterpret_cast<VFIOVGA *>(reinterpret_cast<char *>(region) - offsetof(VFIOVGA, region) - region->nr * sizeof(VFIOVGARegion));
     union {
         uint8_t byte;
         uint16_t word;
@@ -1775,7 +1775,7 @@ static bool vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
     table = le32_to_cpu(table);
     pba = le32_to_cpu(pba);
 
-    msix = g_malloc0(sizeof(*msix));
+    msix = static_cast<VFIOMSIXInfo *>(g_malloc0(sizeof(*msix)));
     msix->table_bar = table & PCI_MSIX_FLAGS_BIRMASK;
     msix->table_offset = table & ~PCI_MSIX_FLAGS_BIRMASK;
     msix->pba_bar = pba & PCI_MSIX_FLAGS_BIRMASK;
@@ -2144,7 +2144,7 @@ static void vfio_pci_enable_rp_atomics(VFIOPCIDevice *vdev)
         return;
     }
 
-    cap = (void *)hdr;
+    cap = reinterpret_cast<struct vfio_device_info_cap_pci_atomic_comp *>(hdr);
     if (cap->flags & VFIO_PCI_ATOMIC_COMP32) {
         mask |= PCI_EXP_DEVCAP2_ATOMIC_COMP32;
     }
@@ -2518,7 +2518,7 @@ static void vfio_add_ext_cap(VFIOPCIDevice *vdev)
      * physical device, we cache the config space to avoid overwriting
      * the original config space when we parse the extended capabilities.
      */
-    config = g_memdup(pdev->config, vdev->config_size);
+    config = static_cast<uint8_t *>(g_memdup(pdev->config, vdev->config_size));
 
     /*
      * Extended capabilities are chained with each pointing to the next, so we
@@ -2689,7 +2689,7 @@ int vfio_pci_get_pci_hot_reset_info(VFIOPCIDevice *vdev,
 
     assert(info_p && !*info_p);
 
-    info = g_malloc0(sizeof(*info));
+    info = static_cast<struct vfio_pci_hot_reset_info *>(g_malloc0(sizeof(*info)));
     info->argsz = sizeof(*info);
 
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
@@ -2704,7 +2704,7 @@ int vfio_pci_get_pci_hot_reset_info(VFIOPCIDevice *vdev,
     }
 
     count = info->count;
-    info = g_realloc(info, sizeof(*info) + (count * sizeof(info->devices[0])));
+    info = static_cast<struct vfio_pci_hot_reset_info *>(g_realloc(info, sizeof(*info) + (count * sizeof(info->devices[0]))));
     info->argsz = sizeof(*info) + (count * sizeof(info->devices[0]));
 
     ret = ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
@@ -2770,14 +2770,14 @@ static Object *vfio_pci_get_object(VFIODevice *vbasedev)
 
 static bool vfio_msix_present(void *opaque, int version_id)
 {
-    PCIDevice *pdev = opaque;
+    PCIDevice *pdev = static_cast<PCIDevice *>(opaque);
 
     return msix_present(pdev);
 }
 
 static bool vfio_display_migration_needed(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
 
     /*
      * We need to migrate the VFIODisplay object if ramfb *migration* was
@@ -2790,31 +2790,37 @@ static bool vfio_display_migration_needed(void *opaque)
         (vdev->ramfb_migrate == ON_OFF_AUTO_AUTO && vdev->enable_ramfb);
 }
 
+static const VMStateField vmstate_vfio_display_fields[] = {
+    VMSTATE_STRUCT_POINTER(dpy, VFIOPCIDevice, vfio_display_vmstate,
+                           VFIODisplay),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_vfio_display = {
     .name = "VFIOPCIDevice/VFIODisplay",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = vfio_display_migration_needed,
-    .fields = (const VMStateField[]){
-        VMSTATE_STRUCT_POINTER(dpy, VFIOPCIDevice, vfio_display_vmstate,
-                               VFIODisplay),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_vfio_display_fields,
+};
+
+static const VMStateField vmstate_vfio_pci_config_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, VFIOPCIDevice),
+    VMSTATE_MSIX_TEST(parent_obj, VFIOPCIDevice, vfio_msix_present),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_vfio_pci_config_subsections[] = {
+    &vmstate_vfio_display,
+    NULL
 };
 
 static const VMStateDescription vmstate_vfio_pci_config = {
     .name = "VFIOPCIDevice",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, VFIOPCIDevice),
-        VMSTATE_MSIX_TEST(parent_obj, VFIOPCIDevice, vfio_msix_present),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_vfio_display,
-        NULL
-    }
+    .fields = vmstate_vfio_pci_config_fields,
+    .subsections = vmstate_vfio_pci_config_subsections,
 };
 
 static int vfio_pci_save_config(VFIODevice *vbasedev, QEMUFile *f, Error **errp)
@@ -3065,7 +3071,7 @@ void vfio_pci_put_device(VFIOPCIDevice *vdev)
 
 static void vfio_err_notifier_handler(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
 
     if (!event_notifier_test_and_clear(&vdev->err_notifier)) {
         return;
@@ -3143,7 +3149,7 @@ static void vfio_unregister_err_notifier(VFIOPCIDevice *vdev)
 
 static void vfio_req_notifier_handler(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     Error *err = NULL;
 
     if (!event_notifier_test_and_clear(&vdev->req_notifier)) {
@@ -3246,7 +3252,7 @@ bool vfio_pci_config_setup(VFIOPCIDevice *vdev, Error **errp)
     }
 
     /* vfio emulates a lot for us, but some bits need extra love */
-    vdev->emulated_config_bits = g_malloc0(vdev->config_size);
+    vdev->emulated_config_bits = static_cast<uint8_t *>(g_malloc0(vdev->config_size));
 
     /* QEMU can choose to expose the ROM or not */
     memset(vdev->emulated_config_bits + PCI_ROM_ADDRESS, 0xff, 4);
@@ -3714,10 +3720,9 @@ static const Property vfio_pci_properties[] = {
                             igd_legacy_mode, ON_OFF_AUTO_AUTO),
     DEFINE_PROP_ON_OFF_AUTO("enable-migration", VFIOPCIDevice,
                             vbasedev.enable_migration, ON_OFF_AUTO_AUTO),
-    DEFINE_PROP("x-migration-multifd-transfer", VFIOPCIDevice,
+    DEFINE_PROP_ON_OFF_AUTO("x-migration-multifd-transfer", VFIOPCIDevice,
                 vbasedev.migration_multifd_transfer,
-                vfio_pci_migration_multifd_transfer_prop, OnOffAuto,
-                .set_default = true, .defval.i = ON_OFF_AUTO_AUTO),
+                ON_OFF_AUTO_AUTO),
     DEFINE_PROP_ON_OFF_AUTO("x-migration-load-config-after-iter", VFIOPCIDevice,
                             vbasedev.migration_load_config_after_iter,
                             ON_OFF_AUTO_AUTO),
@@ -3918,9 +3923,9 @@ static void vfio_pci_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo vfio_pci_info = {
     .name = TYPE_VFIO_PCI,
     .parent = TYPE_VFIO_PCI_DEVICE,
-    .class_init = vfio_pci_class_init,
     .instance_init = vfio_pci_init,
     .instance_finalize = vfio_pci_finalize,
+    .class_init = vfio_pci_class_init,
 };
 
 static const Property vfio_pci_nohotplug_properties[] = {

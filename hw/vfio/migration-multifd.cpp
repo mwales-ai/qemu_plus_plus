@@ -76,7 +76,7 @@ typedef struct VFIOMultifd {
 
 static void vfio_state_buffer_clear(gpointer data)
 {
-    VFIOStateBuffer *lb = data;
+    VFIOStateBuffer *lb = static_cast<VFIOStateBuffer *>(data);
 
     if (!lb->is_present) {
         return;
@@ -155,7 +155,7 @@ static bool vfio_load_state_buffer_insert(VFIODevice *vbasedev,
         return false;
     }
 
-    lb->data = g_memdup2(&packet->data, data_size);
+    lb->data = static_cast<char *>(g_memdup2(&packet->data, data_size));
     lb->len = data_size;
     lb->is_present = true;
 
@@ -165,7 +165,7 @@ static bool vfio_load_state_buffer_insert(VFIODevice *vbasedev,
 bool vfio_multifd_load_state_buffer(void *opaque, char *data, size_t data_size,
                                     Error **errp)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
     VFIOMultifd *multifd = migration->multifd;
     VFIODeviceStatePacket *packet = (VFIODeviceStatePacket *)data;
@@ -314,7 +314,7 @@ static bool vfio_load_state_buffer_write(VFIODevice *vbasedev,
                                                    multifd->load_buf_idx);
 
     /* lb might become re-allocated when we drop the lock */
-    buf = g_steal_pointer(&lb->data);
+    buf = static_cast<char *>(g_steal_pointer(&lb->data));
     buf_cur = buf;
     buf_len = lb->len;
     while (buf_len > 0) {
@@ -371,7 +371,7 @@ static bool vfio_load_bufs_thread_want_exit(VFIOMultifd *multifd,
  */
 static bool vfio_load_bufs_thread(void *opaque, bool *should_quit, Error **errp)
 {
-    VFIODevice *vbasedev = opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(opaque);
     VFIOMigration *migration = vbasedev->migration;
     VFIOMultifd *multifd = migration->multifd;
     bool ret = false;
@@ -638,7 +638,7 @@ vfio_save_complete_precopy_thread_config_state(VFIODevice *vbasedev,
     g_autoptr(QIOChannelBuffer) bioc = NULL;
     g_autoptr(QEMUFile) f = NULL;
     int ret;
-    g_autofree VFIODeviceStatePacket *packet = NULL;
+    VFIODeviceStatePacket *packet = NULL;
     size_t packet_len;
 
     bioc = qio_channel_buffer_new(0);
@@ -658,7 +658,7 @@ vfio_save_complete_precopy_thread_config_state(VFIODevice *vbasedev,
     }
 
     packet_len = sizeof(*packet) + bioc->usage;
-    packet = g_malloc0(packet_len);
+    packet = static_cast<VFIODeviceStatePacket *>(g_malloc0(packet_len));
     packet->version = cpu_to_be32(VFIO_DEVICE_STATE_PACKET_VER_CURRENT);
     packet->idx = cpu_to_be32(idx);
     packet->flags = cpu_to_be32(VFIO_DEVICE_STATE_CONFIG_STATE);
@@ -690,10 +690,10 @@ bool
 vfio_multifd_save_complete_precopy_thread(SaveCompletePrecopyThreadData *d,
                                           Error **errp)
 {
-    VFIODevice *vbasedev = d->handler_opaque;
+    VFIODevice *vbasedev = static_cast<VFIODevice *>(d->handler_opaque);
     VFIOMigration *migration = vbasedev->migration;
     bool ret = false;
-    g_autofree VFIODeviceStatePacket *packet = NULL;
+    VFIODeviceStatePacket *packet = NULL;
     uint32_t idx;
 
     if (!vfio_multifd_transfer_enabled(vbasedev)) {
@@ -710,7 +710,7 @@ vfio_multifd_save_complete_precopy_thread(SaveCompletePrecopyThreadData *d,
         goto thread_exit;
     }
 
-    packet = g_malloc0(sizeof(*packet) + migration->data_buffer_size);
+    packet = static_cast<VFIODeviceStatePacket *>(g_malloc0(sizeof(*packet) + migration->data_buffer_size));
     packet->version = cpu_to_be32(VFIO_DEVICE_STATE_PACKET_VER_CURRENT);
 
     for (idx = 0; ; idx++) {

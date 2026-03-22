@@ -537,7 +537,7 @@ void vfio_container_region_add(VFIOContainer *bcontainer,
          * would be the right place to wire that up (tell the KVM
          * device emulation the VFIO iommu handles to use).
          */
-        giommu = g_malloc0(sizeof(*giommu));
+        giommu = static_cast<VFIOGuestIOMMU *>(g_malloc0(sizeof(*giommu)));
         giommu->iommu_mr = iommu_mr;
         giommu->iommu_offset = section->offset_within_address_space -
                                section->offset_within_region;
@@ -548,7 +548,7 @@ void vfio_container_region_add(VFIOContainer *bcontainer,
         iommu_idx = memory_region_iommu_attrs_to_index(iommu_mr,
                                                        MEMTXATTRS_UNSPECIFIED);
         iommu_notifier_init(&giommu->n, vfio_iommu_map_notify,
-                            IOMMU_NOTIFIER_IOTLB_EVENTS,
+                            static_cast<IOMMUNotifierFlag>(IOMMU_NOTIFIER_IOTLB_EVENTS),
                             section->offset_within_region,
                             int128_get64(llend),
                             iommu_idx);
@@ -832,8 +832,8 @@ static void vfio_dirty_tracking_update(MemoryListener *listener,
 }
 
 static const MemoryListener vfio_dirty_tracking_listener = {
-    .name = "vfio-tracking",
     .region_add = vfio_dirty_tracking_update,
+    .name = "vfio-tracking",
 };
 
 static void vfio_dirty_tracking_init(VFIOContainer *bcontainer,
@@ -865,7 +865,7 @@ static void vfio_devices_dma_logging_stop(VFIOContainer *bcontainer)
 {
     uint64_t buf[DIV_ROUND_UP(sizeof(struct vfio_device_feature),
                               sizeof(uint64_t))] = {};
-    struct vfio_device_feature *feature = (struct vfio_device_feature *)buf;
+    struct vfio_device_feature *feature = reinterpret_cast<struct vfio_device_feature *>(buf);
     VFIODevice *vbasedev;
 
     feature->argsz = sizeof(buf);
@@ -900,7 +900,7 @@ vfio_device_feature_dma_logging_start_create(VFIOContainer *bcontainer,
 
     feature_size = sizeof(struct vfio_device_feature) +
                    sizeof(struct vfio_device_feature_dma_logging_control);
-    feature = g_try_malloc0(feature_size);
+    feature = static_cast<struct vfio_device_feature *>(g_try_malloc0(feature_size));
     if (!feature) {
         errno = ENOMEM;
         return NULL;
@@ -909,7 +909,7 @@ vfio_device_feature_dma_logging_start_create(VFIOContainer *bcontainer,
     feature->flags = VFIO_DEVICE_FEATURE_SET |
                      VFIO_DEVICE_FEATURE_DMA_LOGGING_START;
 
-    control = (struct vfio_device_feature_dma_logging_control *)feature->data;
+    control = reinterpret_cast<struct vfio_device_feature_dma_logging_control *>(feature->data);
     control->page_size = qemu_real_host_page_size();
 
     /*
@@ -1111,7 +1111,7 @@ static int vfio_ram_discard_query_dirty_bitmap(MemoryRegionSection *section,
     const hwaddr iova = section->offset_within_address_space;
     const hwaddr translated_addr = memory_region_get_ram_addr(section->mr) +
                                    section->offset_within_region;
-    VFIORamDiscardListener *vrdl = opaque;
+    VFIORamDiscardListener *vrdl = static_cast<VFIORamDiscardListener *>(opaque);
     Error *local_err = NULL;
     int ret;
 
@@ -1232,14 +1232,14 @@ static void vfio_listener_log_sync(MemoryListener *listener,
 }
 
 static const MemoryListener vfio_memory_listener = {
-    .name = "vfio",
     .begin = vfio_listener_begin,
     .commit = vfio_listener_commit,
     .region_add = vfio_listener_region_add,
     .region_del = vfio_listener_region_del,
+    .log_sync = vfio_listener_log_sync,
     .log_global_start = vfio_listener_log_global_start,
     .log_global_stop = vfio_listener_log_global_stop,
-    .log_sync = vfio_listener_log_sync,
+    .name = "vfio",
 };
 
 bool vfio_listener_register(VFIOContainer *bcontainer, Error **errp)

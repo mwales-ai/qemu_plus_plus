@@ -71,7 +71,7 @@ static uint64_t vfio_generic_window_quirk_address_read(void *opaque,
                                                        hwaddr addr,
                                                        unsigned size)
 {
-    VFIOConfigWindowQuirk *window = opaque;
+    VFIOConfigWindowQuirk *window = static_cast<VFIOConfigWindowQuirk *>(opaque);
     VFIOPCIDevice *vdev = window->vdev;
 
     return vfio_region_read(&vdev->bars[window->bar].region,
@@ -82,7 +82,7 @@ static void vfio_generic_window_quirk_address_write(void *opaque, hwaddr addr,
                                                     uint64_t data,
                                                     unsigned size)
 {
-    VFIOConfigWindowQuirk *window = opaque;
+    VFIOConfigWindowQuirk *window = static_cast<VFIOConfigWindowQuirk *>(opaque);
     VFIOPCIDevice *vdev = window->vdev;
     int i;
 
@@ -111,7 +111,7 @@ const MemoryRegionOps vfio_generic_window_address_quirk = {
 static uint64_t vfio_generic_window_quirk_data_read(void *opaque,
                                                     hwaddr addr, unsigned size)
 {
-    VFIOConfigWindowQuirk *window = opaque;
+    VFIOConfigWindowQuirk *window = static_cast<VFIOConfigWindowQuirk *>(opaque);
     VFIOPCIDevice *vdev = window->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
     uint64_t data;
@@ -132,7 +132,7 @@ static uint64_t vfio_generic_window_quirk_data_read(void *opaque,
 static void vfio_generic_window_quirk_data_write(void *opaque, hwaddr addr,
                                                  uint64_t data, unsigned size)
 {
-    VFIOConfigWindowQuirk *window = opaque;
+    VFIOConfigWindowQuirk *window = static_cast<VFIOConfigWindowQuirk *>(opaque);
     VFIOPCIDevice *vdev = window->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
 
@@ -156,7 +156,7 @@ const MemoryRegionOps vfio_generic_window_data_quirk = {
 static uint64_t vfio_generic_quirk_mirror_read(void *opaque,
                                                hwaddr addr, unsigned size)
 {
-    VFIOConfigMirrorQuirk *mirror = opaque;
+    VFIOConfigMirrorQuirk *mirror = static_cast<VFIOConfigMirrorQuirk *>(opaque);
     VFIOPCIDevice *vdev = mirror->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
     uint64_t data;
@@ -176,7 +176,7 @@ static uint64_t vfio_generic_quirk_mirror_read(void *opaque,
 static void vfio_generic_quirk_mirror_write(void *opaque, hwaddr addr,
                                             uint64_t data, unsigned size)
 {
-    VFIOConfigMirrorQuirk *mirror = opaque;
+    VFIOConfigMirrorQuirk *mirror = static_cast<VFIOConfigMirrorQuirk *>(opaque);
     VFIOPCIDevice *vdev = mirror->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
 
@@ -214,7 +214,7 @@ static bool vfio_range_contained(uint64_t first1, uint64_t len1,
 static uint64_t vfio_ati_3c3_quirk_read(void *opaque,
                                         hwaddr addr, unsigned size)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     PCIDevice *pdev = PCI_DEVICE(vdev);
     uint64_t data = vfio_pci_read_config(pdev,
                                          PCI_BASE_ADDRESS_4 + 1, size);
@@ -293,7 +293,7 @@ static void vfio_drop_dynamic_eventfds(VFIOPCIDevice *vdev, VFIOQuirk *quirk)
 
 static void vfio_ioeventfd_handler(void *opaque)
 {
-    VFIOIOEventFD *ioeventfd = opaque;
+    VFIOIOEventFD *ioeventfd = static_cast<VFIOIOEventFD *>(opaque);
 
     if (event_notifier_test_and_clear(&ioeventfd->e)) {
         vfio_region_write(ioeventfd->region, ioeventfd->region_addr,
@@ -316,7 +316,7 @@ static VFIOIOEventFD *vfio_ioeventfd_init(VFIOPCIDevice *vdev,
         return NULL;
     }
 
-    ioeventfd = g_malloc0(sizeof(*ioeventfd));
+    ioeventfd = static_cast<VFIOIOEventFD *>(g_malloc0(sizeof(*ioeventfd)));
 
     if (event_notifier_init(&ioeventfd->e, 0)) {
         g_free(ioeventfd);
@@ -413,8 +413,9 @@ static void vfio_probe_ati_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = vfio_quirk_alloc(2);
-    window = quirk->data = g_malloc0(sizeof(*window) +
-                                     sizeof(VFIOConfigWindowMatch));
+    window = static_cast<VFIOConfigWindowQuirk *>(g_malloc0(sizeof(*window) +
+                                     sizeof(VFIOConfigWindowMatch)));
+    quirk->data = window;
     window->vdev = vdev;
     window->address_offset = 0;
     window->data_offset = 4;
@@ -459,7 +460,8 @@ static void vfio_probe_ati_bar2_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = vfio_quirk_alloc(1);
-    mirror = quirk->data = g_malloc0(sizeof(*mirror));
+    mirror = static_cast<VFIOConfigMirrorQuirk *>(g_malloc0(sizeof(*mirror)));
+    quirk->data = mirror;
     mirror->mem = quirk->mem;
     mirror->vdev = vdev;
     mirror->offset = 0x4000;
@@ -511,7 +513,7 @@ typedef struct VFIONvidia3d0Quirk {
 static uint64_t vfio_nvidia_3d4_quirk_read(void *opaque,
                                            hwaddr addr, unsigned size)
 {
-    VFIONvidia3d0Quirk *quirk = opaque;
+    VFIONvidia3d0Quirk *quirk = static_cast<VFIONvidia3d0Quirk *>(opaque);
     VFIOPCIDevice *vdev = quirk->vdev;
 
     quirk->state = NONE;
@@ -523,7 +525,7 @@ static uint64_t vfio_nvidia_3d4_quirk_read(void *opaque,
 static void vfio_nvidia_3d4_quirk_write(void *opaque, hwaddr addr,
                                         uint64_t data, unsigned size)
 {
-    VFIONvidia3d0Quirk *quirk = opaque;
+    VFIONvidia3d0Quirk *quirk = static_cast<VFIONvidia3d0Quirk *>(opaque);
     VFIOPCIDevice *vdev = quirk->vdev;
     VFIONvidia3d0State old_state = quirk->state;
 
@@ -566,7 +568,7 @@ static const MemoryRegionOps vfio_nvidia_3d4_quirk = {
 static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
                                            hwaddr addr, unsigned size)
 {
-    VFIONvidia3d0Quirk *quirk = opaque;
+    VFIONvidia3d0Quirk *quirk = static_cast<VFIONvidia3d0Quirk *>(opaque);
     VFIOPCIDevice *vdev = quirk->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
     VFIONvidia3d0State old_state = quirk->state;
@@ -590,7 +592,7 @@ static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
 static void vfio_nvidia_3d0_quirk_write(void *opaque, hwaddr addr,
                                         uint64_t data, unsigned size)
 {
-    VFIONvidia3d0Quirk *quirk = opaque;
+    VFIONvidia3d0Quirk *quirk = static_cast<VFIONvidia3d0Quirk *>(opaque);
     VFIOPCIDevice *vdev = quirk->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
     VFIONvidia3d0State old_state = quirk->state;
@@ -635,7 +637,7 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
     }
 
     quirk = vfio_quirk_alloc(2);
-    quirk->data = data = g_malloc0(sizeof(*data));
+    quirk->data = data = static_cast<VFIONvidia3d0Quirk *>(g_malloc0(sizeof(*data)));
     data->vdev = vdev;
 
     memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_nvidia_3d4_quirk,
@@ -688,7 +690,7 @@ static void vfio_nvidia_bar5_enable(VFIONvidiaBAR5Quirk *bar5)
 static uint64_t vfio_nvidia_bar5_quirk_master_read(void *opaque,
                                                    hwaddr addr, unsigned size)
 {
-    VFIONvidiaBAR5Quirk *bar5 = opaque;
+    VFIONvidiaBAR5Quirk *bar5 = static_cast<VFIONvidiaBAR5Quirk *>(opaque);
     VFIOPCIDevice *vdev = bar5->window.vdev;
 
     return vfio_region_read(&vdev->bars[5].region, addr, size);
@@ -697,7 +699,7 @@ static uint64_t vfio_nvidia_bar5_quirk_master_read(void *opaque,
 static void vfio_nvidia_bar5_quirk_master_write(void *opaque, hwaddr addr,
                                                 uint64_t data, unsigned size)
 {
-    VFIONvidiaBAR5Quirk *bar5 = opaque;
+    VFIONvidiaBAR5Quirk *bar5 = static_cast<VFIONvidiaBAR5Quirk *>(opaque);
     VFIOPCIDevice *vdev = bar5->window.vdev;
 
     vfio_region_write(&vdev->bars[5].region, addr, data, size);
@@ -715,7 +717,7 @@ static const MemoryRegionOps vfio_nvidia_bar5_quirk_master = {
 static uint64_t vfio_nvidia_bar5_quirk_enable_read(void *opaque,
                                                    hwaddr addr, unsigned size)
 {
-    VFIONvidiaBAR5Quirk *bar5 = opaque;
+    VFIONvidiaBAR5Quirk *bar5 = static_cast<VFIONvidiaBAR5Quirk *>(opaque);
     VFIOPCIDevice *vdev = bar5->window.vdev;
 
     return vfio_region_read(&vdev->bars[5].region, addr + 4, size);
@@ -724,7 +726,7 @@ static uint64_t vfio_nvidia_bar5_quirk_enable_read(void *opaque,
 static void vfio_nvidia_bar5_quirk_enable_write(void *opaque, hwaddr addr,
                                                 uint64_t data, unsigned size)
 {
-    VFIONvidiaBAR5Quirk *bar5 = opaque;
+    VFIONvidiaBAR5Quirk *bar5 = static_cast<VFIONvidiaBAR5Quirk *>(opaque);
     VFIOPCIDevice *vdev = bar5->window.vdev;
 
     vfio_region_write(&vdev->bars[5].region, addr + 4, data, size);
@@ -752,8 +754,9 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = vfio_quirk_alloc(4);
-    bar5 = quirk->data = g_malloc0(sizeof(*bar5) +
-                                   (sizeof(VFIOConfigWindowMatch) * 2));
+    bar5 = static_cast<VFIONvidiaBAR5Quirk *>(g_malloc0(sizeof(*bar5) +
+                                   (sizeof(VFIOConfigWindowMatch) * 2)));
+    quirk->data = bar5;
     window = &bar5->window;
 
     window->vdev = vdev;
@@ -820,10 +823,10 @@ typedef struct LastDataSet {
 static void vfio_nvidia_quirk_mirror_write(void *opaque, hwaddr addr,
                                            uint64_t data, unsigned size)
 {
-    VFIOConfigMirrorQuirk *mirror = opaque;
+    VFIOConfigMirrorQuirk *mirror = static_cast<VFIOConfigMirrorQuirk *>(opaque);
     VFIOPCIDevice *vdev = mirror->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
-    LastDataSet *last = (LastDataSet *)&mirror->data;
+    LastDataSet *last = reinterpret_cast<LastDataSet *>(&mirror->data);
 
     vfio_generic_quirk_mirror_write(opaque, addr, data, size);
 
@@ -891,8 +894,8 @@ static const MemoryRegionOps vfio_nvidia_mirror_quirk = {
 
 static void vfio_nvidia_bar0_quirk_reset(VFIOPCIDevice *vdev, VFIOQuirk *quirk)
 {
-    VFIOConfigMirrorQuirk *mirror = quirk->data;
-    LastDataSet *last = (LastDataSet *)&mirror->data;
+    VFIOConfigMirrorQuirk *mirror = static_cast<VFIOConfigMirrorQuirk *>(quirk->data);
+    LastDataSet *last = reinterpret_cast<LastDataSet *>(&mirror->data);
 
     last->addr = last->data = last->size = last->hits = last->added = 0;
 
@@ -913,7 +916,8 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 
     quirk = vfio_quirk_alloc(1);
     quirk->reset = vfio_nvidia_bar0_quirk_reset;
-    mirror = quirk->data = g_malloc0(sizeof(*mirror) + sizeof(LastDataSet));
+    mirror = static_cast<VFIOConfigMirrorQuirk *>(g_malloc0(sizeof(*mirror) + sizeof(LastDataSet)));
+    quirk->data = mirror;
     mirror->mem = quirk->mem;
     mirror->vdev = vdev;
     mirror->offset = 0x88000;
@@ -934,7 +938,8 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     if (vdev->vga) {
         quirk = vfio_quirk_alloc(1);
         quirk->reset = vfio_nvidia_bar0_quirk_reset;
-        mirror = quirk->data = g_malloc0(sizeof(*mirror) + sizeof(LastDataSet));
+        mirror = static_cast<VFIOConfigMirrorQuirk *>(g_malloc0(sizeof(*mirror) + sizeof(LastDataSet)));
+    quirk->data = mirror;
         mirror->mem = quirk->mem;
         mirror->vdev = vdev;
         mirror->offset = 0x1800;
@@ -995,7 +1000,7 @@ typedef struct VFIOrtl8168Quirk {
 static uint64_t vfio_rtl8168_quirk_address_read(void *opaque,
                                                 hwaddr addr, unsigned size)
 {
-    VFIOrtl8168Quirk *rtl = opaque;
+    VFIOrtl8168Quirk *rtl = static_cast<VFIOrtl8168Quirk *>(opaque);
     VFIOPCIDevice *vdev = rtl->vdev;
     uint64_t data = vfio_region_read(&vdev->bars[2].region, addr + 0x74, size);
 
@@ -1010,7 +1015,7 @@ static uint64_t vfio_rtl8168_quirk_address_read(void *opaque,
 static void vfio_rtl8168_quirk_address_write(void *opaque, hwaddr addr,
                                              uint64_t data, unsigned size)
 {
-    VFIOrtl8168Quirk *rtl = opaque;
+    VFIOrtl8168Quirk *rtl = static_cast<VFIOrtl8168Quirk *>(opaque);
     VFIOPCIDevice *vdev = rtl->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
 
@@ -1031,7 +1036,7 @@ static void vfio_rtl8168_quirk_address_write(void *opaque, hwaddr addr,
                 /* Write to the proper guest MSI-X table instead */
                 memory_region_dispatch_write(&pdev->msix_table_mmio,
                                              offset, val,
-                                             size_memop(size) | MO_LE,
+                                             static_cast<MemOp>(size_memop(size) | MO_LE),
                                              MEMTXATTRS_UNSPECIFIED);
             }
             return; /* Do not write guest MSI-X data to hardware */
@@ -1044,18 +1049,14 @@ static void vfio_rtl8168_quirk_address_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps vfio_rtl_address_quirk = {
     .read = vfio_rtl8168_quirk_address_read,
     .write = vfio_rtl8168_quirk_address_write,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { 4, 4, false },
 };
 
 static uint64_t vfio_rtl8168_quirk_data_read(void *opaque,
                                              hwaddr addr, unsigned size)
 {
-    VFIOrtl8168Quirk *rtl = opaque;
+    VFIOrtl8168Quirk *rtl = static_cast<VFIOrtl8168Quirk *>(opaque);
     VFIOPCIDevice *vdev = rtl->vdev;
     PCIDevice *pdev = PCI_DEVICE(vdev);
     uint64_t data = vfio_region_read(&vdev->bars[2].region, addr + 0x70, size);
@@ -1063,7 +1064,7 @@ static uint64_t vfio_rtl8168_quirk_data_read(void *opaque,
     if (rtl->enabled && (pdev->cap_present & QEMU_PCI_CAP_MSIX)) {
         hwaddr offset = rtl->addr & 0xfff;
         memory_region_dispatch_read(&pdev->msix_table_mmio, offset,
-                                    &data, size_memop(size) | MO_LE,
+                                    &data, static_cast<MemOp>(size_memop(size) | MO_LE),
                                     MEMTXATTRS_UNSPECIFIED);
         trace_vfio_quirk_rtl8168_msix_read(vdev->vbasedev.name, offset, data);
     }
@@ -1074,7 +1075,7 @@ static uint64_t vfio_rtl8168_quirk_data_read(void *opaque,
 static void vfio_rtl8168_quirk_data_write(void *opaque, hwaddr addr,
                                           uint64_t data, unsigned size)
 {
-    VFIOrtl8168Quirk *rtl = opaque;
+    VFIOrtl8168Quirk *rtl = static_cast<VFIOrtl8168Quirk *>(opaque);
     VFIOPCIDevice *vdev = rtl->vdev;
 
     rtl->data = (uint32_t)data;
@@ -1085,12 +1086,8 @@ static void vfio_rtl8168_quirk_data_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps vfio_rtl_data_quirk = {
     .read = vfio_rtl8168_quirk_data_read,
     .write = vfio_rtl8168_quirk_data_write,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = { 4, 4, false },
 };
 
 static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
@@ -1103,7 +1100,7 @@ static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = vfio_quirk_alloc(2);
-    quirk->data = rtl = g_malloc0(sizeof(*rtl));
+    quirk->data = rtl = static_cast<VFIOrtl8168Quirk *>(g_malloc0(sizeof(*rtl)));
     rtl->vdev = vdev;
 
     memory_region_init_io(&quirk->mem[0], OBJECT(vdev),
@@ -1415,8 +1412,8 @@ static void get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
-    const Property *prop = opaque;
-    uint8_t *ptr = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    uint8_t *ptr = static_cast<uint8_t *>(object_field_prop_ptr(obj, prop));
 
     visit_type_uint8(v, name, ptr, errp);
 }
@@ -1425,8 +1422,8 @@ static void set_nv_gpudirect_clique_id(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
-    const Property *prop = opaque;
-    uint8_t value, *ptr = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    uint8_t value, *ptr = static_cast<uint8_t *>(object_field_prop_ptr(obj, prop));
 
     if (!visit_type_uint8(v, name, &value, errp)) {
         return;

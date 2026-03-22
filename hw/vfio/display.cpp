@@ -39,7 +39,7 @@
 
 static void vfio_display_edid_link_up(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     VFIODisplay *dpy = vdev->dpy;
     int fd = vdev->vbasedev.fd;
 
@@ -60,10 +60,10 @@ static void vfio_display_edid_update(VFIOPCIDevice *vdev, bool enabled,
     VFIODisplay *dpy = vdev->dpy;
     int fd = vdev->vbasedev.fd;
     qemu_edid_info edid = {
-        .maxx  = dpy->edid_regs->max_xres,
-        .maxy  = dpy->edid_regs->max_yres,
         .prefx = prefx ?: vdev->display_xres,
         .prefy = prefy ?: vdev->display_yres,
+        .maxx  = dpy->edid_regs->max_xres,
+        .maxy  = dpy->edid_regs->max_yres,
     };
 
     timer_del(dpy->edid_link_timer);
@@ -109,7 +109,7 @@ err:
 static void vfio_display_edid_ui_info(void *opaque, uint32_t idx,
                                       QemuUIInfo *info)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     VFIODisplay *dpy = vdev->dpy;
 
     if (!dpy->edid_regs) {
@@ -153,7 +153,7 @@ static bool vfio_display_edid_init(VFIOPCIDevice *vdev, Error **errp)
         goto err;
     }
 
-    dpy->edid_blob = g_malloc0(dpy->edid_regs->edid_max_size);
+    dpy->edid_blob = static_cast<uint8_t *>(g_malloc0(dpy->edid_regs->edid_max_size));
 
     /* if xres + yres properties are unset use the maximum resolution */
     if (!vdev->display_xres) {
@@ -287,7 +287,7 @@ static void vfio_display_free_dmabufs(VFIOPCIDevice *vdev)
 
 static void vfio_display_dmabuf_update(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     VFIODisplay *dpy = vdev->dpy;
     VFIODMABuf *primary, *cursor;
     uint32_t width, height;
@@ -401,7 +401,7 @@ void vfio_display_reset(VFIOPCIDevice *vdev)
 
 static void vfio_display_region_update(void *opaque)
 {
-    VFIOPCIDevice *vdev = opaque;
+    VFIOPCIDevice *vdev = static_cast<VFIOPCIDevice *>(opaque);
     VFIODisplay *dpy = vdev->dpy;
     struct vfio_device_gfx_plane_info plane = {
         .argsz = sizeof(plane),
@@ -468,7 +468,7 @@ static void vfio_display_region_update(void *opaque)
         /* create surface */
         dpy->region.surface = qemu_create_displaysurface_from
             (plane.width, plane.height, format,
-             plane.stride, dpy->region.buffer.mmaps[0].mmap);
+             plane.stride, static_cast<uint8_t *>(dpy->region.buffer.mmaps[0].mmap));
         dpy_gfx_replace_surface(dpy->con, dpy->region.surface);
     }
 
@@ -559,7 +559,7 @@ void vfio_display_finalize(VFIOPCIDevice *vdev)
 
 static bool migrate_needed(void *opaque)
 {
-    VFIODisplay *dpy = opaque;
+    VFIODisplay *dpy = static_cast<VFIODisplay *>(opaque);
     bool ramfb_exists = dpy->ramfb != NULL;
 
     /* see vfio_display_migration_needed() */
@@ -567,13 +567,15 @@ static bool migrate_needed(void *opaque)
     return ramfb_exists;
 }
 
+static const VMStateField vfio_display_vmstate_fields[] = {
+    VMSTATE_STRUCT_POINTER(ramfb, VFIODisplay, ramfb_vmstate, RAMFBState),
+    VMSTATE_END_OF_LIST(),
+};
+
 const VMStateDescription vfio_display_vmstate = {
     .name = "VFIODisplay",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = migrate_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_POINTER(ramfb, VFIODisplay, ramfb_vmstate, RAMFBState),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vfio_display_vmstate_fields,
 };
