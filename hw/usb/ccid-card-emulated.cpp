@@ -140,7 +140,7 @@ static void emulated_apdu_from_guest(CCIDCardState *base,
     const uint8_t *apdu, uint32_t len)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
-    EmulEvent *event = g_malloc(sizeof(EmulEvent) + len);
+    EmulEvent *event = static_cast<EmulEvent *>(g_malloc(sizeof(EmulEvent) + len));
 
     assert(event);
     event->p.data.type = EMUL_GUEST_APDU;
@@ -231,7 +231,7 @@ static void emulated_push_response_apdu(EmulatedState *card,
 #define APDU_BUF_SIZE 270
 static void *handle_apdu_thread(void* arg)
 {
-    EmulatedState *card = arg;
+    EmulatedState *card = static_cast<EmulatedState *>(arg);
     uint8_t recv_data[APDU_BUF_SIZE];
     int recv_len;
     VReaderStatus reader_status;
@@ -282,7 +282,7 @@ static void *event_thread(void *arg)
     int atr_len = MAX_ATR_SIZE;
     uint8_t atr[MAX_ATR_SIZE];
     VEvent *event = NULL;
-    EmulatedState *card = arg;
+    EmulatedState *card = static_cast<EmulatedState *>(arg);
 
     while (1) {
         const char *reader_name;
@@ -521,7 +521,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
     /* TODO: a passthru backend that works on local machine. third card type?*/
     if (card->backend == BACKEND_CERTIFICATES) {
         if (card->cert1 != NULL && card->cert2 != NULL && card->cert3 != NULL) {
-            ret = emulated_initialize_vcard_from_certificates(card);
+            ret = static_cast<VCardEmulError>(emulated_initialize_vcard_from_certificates(card));
         } else {
             error_setg(errp, "%s: you must provide all three certs for"
                        " certificates backend", TYPE_EMULATED_CCID);
@@ -540,7 +540,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
             goto out2;
         }
         /* default to mirroring the local hardware readers */
-        ret = wrap_vcard_emul_init(NULL);
+        ret = static_cast<VCardEmulError>(wrap_vcard_emul_init(NULL));
     }
     if (ret != VCARD_EMUL_OK) {
         error_setg(errp, "%s: failed to initialize vcard", TYPE_EMULATED_CCID);

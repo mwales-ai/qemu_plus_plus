@@ -112,6 +112,10 @@ typedef struct VhostShadowVirtqueue {
     uint16_t num_free;
 } VhostShadowVirtqueue;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool vhost_svq_valid_features(uint64_t features, Error **errp);
 
 uint16_t vhost_svq_available_slots(const VhostShadowVirtqueue *svq);
@@ -138,6 +142,11 @@ VhostShadowVirtqueue *vhost_svq_new(const VhostShadowVirtqueueOps *ops,
                                     void *ops_opaque);
 
 void vhost_svq_free(gpointer vq);
+
+#ifdef __cplusplus
+}
+#endif
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(VhostShadowVirtqueue, vhost_svq_free);
 
 #endif

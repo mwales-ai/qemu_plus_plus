@@ -139,7 +139,7 @@ static void vhost_vdpa_device_realize(DeviceState *dev, Error **errp)
         goto vhost_cleanup;
     }
 
-    v->config = g_malloc0(v->config_size);
+    v->config = static_cast<uint8_t *>(g_malloc0(v->config_size));
 
     ret = vhost_dev_get_config(&v->dev, v->config, v->config_size, NULL);
     if (ret < 0) {
@@ -349,15 +349,17 @@ static const Property vhost_vdpa_device_properties[] = {
     DEFINE_PROP_UINT16("queue-size", VhostVdpaDevice, queue_size, 0),
 };
 
+static const VMStateField vmstate_vhost_vdpa_device_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_vhost_vdpa_device = {
     .name = "vhost-vdpa-device",
     .unmigratable = 1,
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_vhost_vdpa_device_fields,
 };
 
 static void vhost_vdpa_device_class_init(ObjectClass *klass, const void *data)
@@ -378,7 +380,7 @@ static void vhost_vdpa_device_class_init(ObjectClass *klass, const void *data)
     vdc->get_vhost = vhost_vdpa_device_get_vhost;
 }
 
-static void vhost_vdpa_device_instance_init(Object *obj)
+static void __attribute__((used)) vhost_vdpa_device_instance_init(Object *obj)
 {
     VhostVdpaDevice *s = VHOST_VDPA_DEVICE(obj);
 
@@ -390,8 +392,8 @@ static const TypeInfo vhost_vdpa_device_info = {
     .name = TYPE_VHOST_VDPA_DEVICE,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VhostVdpaDevice),
-    .class_init = vhost_vdpa_device_class_init,
     .instance_init = vhost_vdpa_device_instance_init,
+    .class_init = vhost_vdpa_device_class_init,
 };
 
 static void register_vhost_vdpa_device_type(void)

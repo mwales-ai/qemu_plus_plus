@@ -35,8 +35,8 @@
 
 #include CONFIG_DEVICES
 
-#define FEATURE_ENTRY(name, desc) (qmp_virtio_feature_map_t) \
-    { .virtio_bit = name, .feature_desc = desc }
+#define FEATURE_ENTRY(name, desc) \
+    { name, desc }
 
 /* Virtio transport features mapping */
 static const qmp_virtio_feature_map_t virtio_transport_map[] = {
@@ -724,7 +724,7 @@ VirtioDeviceFeatures *qmp_decode_features(uint16_t device_id,
 
 static int query_dev_child(Object *child, void *opaque)
 {
-    VirtioInfoList **vdevs = opaque;
+    VirtioInfoList **vdevs = static_cast<VirtioInfoList **>(opaque);
     Object *dev = object_dynamic_cast(child, TYPE_VIRTIO_DEVICE);
     if (dev != NULL && DEVICE(dev)->realized) {
         VirtIODevice *vdev = VIRTIO_DEVICE(dev);

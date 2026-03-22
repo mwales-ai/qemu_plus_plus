@@ -207,7 +207,7 @@ static void spi_flush_txfifo(XilinxSPI *s)
 static uint64_t
 spi_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    XilinxSPI *s = opaque;
+    XilinxSPI *s = static_cast<XilinxSPI *>(opaque);
     uint32_t r = 0;
 
     addr >>= 2;
@@ -245,7 +245,7 @@ static void
 spi_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
-    XilinxSPI *s = opaque;
+    XilinxSPI *s = static_cast<XilinxSPI *>(opaque);
     uint32_t value = val64;
 
     DB_PRINT("addr=" HWADDR_FMT_plx " = %x\n", addr, value);
@@ -316,18 +316,20 @@ done:
     xlx_spi_update_irq(s);
 }
 
-static const MemoryRegionOps spi_ops[2] = {
-    [0 ... 1] = {
-        .read = spi_read,
-        .write = spi_write,
-        .valid = {
-            .min_access_size = 4,
-            .max_access_size = 4,
-        },
-    },
-    [0].endianness = DEVICE_LITTLE_ENDIAN,
-    [1].endianness = DEVICE_BIG_ENDIAN,
-};
+static MemoryRegionOps spi_ops[2];
+
+static void __attribute__((constructor)) init_spi_ops(void)
+{
+    memset(spi_ops, 0, sizeof(spi_ops));
+    for (int i = 0; i < 2; i++) {
+        spi_ops[i].read = spi_read;
+        spi_ops[i].write = spi_write;
+        spi_ops[i].valid.min_access_size = 4;
+        spi_ops[i].valid.max_access_size = 4;
+    }
+    spi_ops[0].endianness = DEVICE_LITTLE_ENDIAN;
+    spi_ops[1].endianness = DEVICE_BIG_ENDIAN;
+}
 
 static void xilinx_spi_realize(DeviceState *dev, Error **errp)
 {
@@ -362,16 +364,18 @@ static void xilinx_spi_realize(DeviceState *dev, Error **errp)
     fifo8_create(&s->rx_fifo, FIFO_CAPACITY);
 }
 
+static const VMStateField vmstate_xilinx_spi_fields[] = {
+    VMSTATE_FIFO8(tx_fifo, XilinxSPI),
+    VMSTATE_FIFO8(rx_fifo, XilinxSPI),
+    VMSTATE_UINT32_ARRAY(regs, XilinxSPI, R_MAX),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xilinx_spi = {
     .name = "xilinx_spi",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO8(tx_fifo, XilinxSPI),
-        VMSTATE_FIFO8(rx_fifo, XilinxSPI),
-        VMSTATE_UINT32_ARRAY(regs, XilinxSPI, R_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xilinx_spi_fields,
 };
 
 static const Property xilinx_spi_properties[] = {

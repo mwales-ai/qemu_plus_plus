@@ -70,17 +70,25 @@ struct U2FKeyState {
  * API to be used by the U2F key device variants (i.e. hw/u2f-*.c)
  * to interact with the U2F key base device (i.e. hw/u2f.c)
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void u2f_send_to_guest(U2FKeyState *key,
                        const uint8_t packet[U2FHID_PACKET_SIZE]);
 
 extern const VMStateDescription vmstate_u2f_key;
 
+#ifdef __cplusplus
+}
+#endif
+
 #define VMSTATE_U2F_KEY(_field, _state) {                            \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(U2FKeyState),                               \
-    .vmsd       = &vmstate_u2f_key,                                  \
-    .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, U2FKeyState), \
+    .size       = sizeof(U2FKeyState),                               \
+    .flags      = VMS_STRUCT,                                        \
+    .vmsd       = &vmstate_u2f_key,                                  \
 }
 
 #endif /* U2F_H */

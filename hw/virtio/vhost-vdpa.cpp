@@ -235,7 +235,7 @@ static void vhost_vdpa_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
             error_report_err(local_err);
             return;
         }
-        vaddr = memory_region_get_ram_ptr(mr) + xlat;
+        vaddr = static_cast<char *>(memory_region_get_ram_ptr(mr)) + xlat;
         read_only = !(iotlb->perm & IOMMU_WO) || mr->readonly;
 
         ret = vhost_vdpa_dma_map(s, VHOST_VDPA_GUEST_PA_ASID, iova,
@@ -269,7 +269,7 @@ static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
 
     iommu_mr = IOMMU_MEMORY_REGION(section->mr);
 
-    iommu = g_malloc0(sizeof(*iommu));
+    iommu = static_cast<struct vdpa_iommu *>(g_malloc0(sizeof(*iommu)));
     end = int128_add(int128_make64(section->offset_within_region),
                      section->size);
     end = int128_sub(end, int128_one());
@@ -277,7 +277,7 @@ static void vhost_vdpa_iommu_region_add(MemoryListener *listener,
                                                    MEMTXATTRS_UNSPECIFIED);
     iommu->iommu_mr = iommu_mr;
     iommu_notifier_init(&iommu->n, vhost_vdpa_iommu_map_notify,
-                        IOMMU_NOTIFIER_IOTLB_EVENTS,
+                        static_cast<IOMMUNotifierFlag>(IOMMU_NOTIFIER_IOTLB_EVENTS),
                         section->offset_within_region,
                         int128_get64(end),
                         iommu_idx);
@@ -353,7 +353,7 @@ static void vhost_vdpa_listener_region_add(MemoryListener *listener,
 
     /* Here we assume that memory_region_is_ram(section->mr)==true */
 
-    vaddr = memory_region_get_ram_ptr(section->mr) +
+    vaddr = static_cast<char *>(memory_region_get_ram_ptr(section->mr)) +
             section->offset_within_region +
             (iova - section->offset_within_address_space);
 
@@ -495,16 +495,16 @@ static void vhost_vdpa_listener_region_del(MemoryListener *listener,
  * depends on the addnop().
  */
 static const MemoryListener vhost_vdpa_memory_listener = {
-    .name = "vhost-vdpa",
     .commit = vhost_vdpa_listener_commit,
     .region_add = vhost_vdpa_listener_region_add,
     .region_del = vhost_vdpa_listener_region_del,
+    .name = "vhost-vdpa",
 };
 
 static int vhost_vdpa_call(struct vhost_dev *dev, unsigned long int request,
                              void *arg)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     int fd = v->shared->device_fd;
     int ret;
 
@@ -564,7 +564,7 @@ int vhost_vdpa_get_iova_range(int fd, struct vhost_vdpa_iova_range *iova_range)
  */
 static bool vhost_vdpa_first_dev(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
 
     return v->index == 0;
 }
@@ -596,12 +596,12 @@ static void vhost_vdpa_init_svq(struct vhost_dev *hdev, struct vhost_vdpa *v)
         g_ptr_array_add(shadow_vqs, svq);
     }
 
-    v->shadow_vqs = g_steal_pointer(&shadow_vqs);
+    v->shadow_vqs = static_cast<GPtrArray *>(g_steal_pointer(&shadow_vqs));
 }
 
 static int vhost_vdpa_set_backend_cap(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
 
     uint64_t features;
     uint64_t f = 0x1ULL << VHOST_BACKEND_F_IOTLB_MSG_V2 |
@@ -631,7 +631,7 @@ static int vhost_vdpa_set_backend_cap(struct vhost_dev *dev)
 
 static int vhost_vdpa_init(struct vhost_dev *dev, void *opaque, Error **errp)
 {
-    struct vhost_vdpa *v = opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(opaque);
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
     trace_vhost_vdpa_init(dev, v->shared, opaque);
     int ret;
@@ -687,7 +687,7 @@ static void vhost_vdpa_host_notifier_uninit(struct vhost_dev *dev,
                                             int queue_index)
 {
     size_t page_size = qemu_real_host_page_size();
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     VirtIODevice *vdev = dev->vdev;
     VhostVDPAHostNotifier *n;
 
@@ -704,7 +704,7 @@ static void vhost_vdpa_host_notifier_uninit(struct vhost_dev *dev,
 static int vhost_vdpa_host_notifier_init(struct vhost_dev *dev, int queue_index)
 {
     size_t page_size = qemu_real_host_page_size();
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     VirtIODevice *vdev = dev->vdev;
     VhostVDPAHostNotifier *n;
     int fd = v->shared->device_fd;
@@ -760,7 +760,7 @@ static void vhost_vdpa_host_notifiers_uninit(struct vhost_dev *dev, int n)
 
 static void vhost_vdpa_host_notifiers_init(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     int i;
 
     if (v->shadow_vqs_enabled) {
@@ -787,11 +787,11 @@ static void vhost_vdpa_host_notifiers_init(struct vhost_dev *dev)
 
 static void vhost_vdpa_svq_cleanup(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     size_t idx;
 
     for (idx = 0; idx < v->shadow_vqs->len; ++idx) {
-        vhost_svq_stop(g_ptr_array_index(v->shadow_vqs, idx));
+        vhost_svq_stop(static_cast<VhostShadowVirtqueue *>(g_ptr_array_index(v->shadow_vqs, idx)));
     }
     g_ptr_array_free(v->shadow_vqs, true);
 }
@@ -800,7 +800,7 @@ static int vhost_vdpa_cleanup(struct vhost_dev *dev)
 {
     struct vhost_vdpa *v;
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA);
-    v = dev->opaque;
+    v = static_cast<struct vhost_vdpa *>(dev->opaque);
     trace_vhost_vdpa_cleanup(dev, v);
     if (vhost_vdpa_first_dev(dev)) {
         ram_block_discard_disable(false);
@@ -850,7 +850,7 @@ static int vhost_vdpa_set_mem_table(struct vhost_dev *dev,
 static int vhost_vdpa_set_features(struct vhost_dev *dev,
                                    uint64_t features)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     int ret;
 
     if (!vhost_vdpa_first_dev(dev)) {
@@ -893,7 +893,7 @@ static int vhost_vdpa_get_device_id(struct vhost_dev *dev,
 
 static int vhost_vdpa_reset_device(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     int ret;
     uint8_t status = 0;
 
@@ -933,7 +933,7 @@ static int vhost_vdpa_set_vring_enable_one(struct vhost_vdpa *v, unsigned idx,
 
 static int vhost_vdpa_set_vring_enable(struct vhost_dev *dev, int enable)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     unsigned int i;
     int ret;
 
@@ -983,7 +983,7 @@ static int vhost_vdpa_set_config(struct vhost_dev *dev, const uint8_t *data,
     unsigned long config_size = offsetof(struct vhost_vdpa_config, buf);
 
     trace_vhost_vdpa_set_config(dev, offset, size, flags);
-    config = g_malloc(size + config_size);
+    config = static_cast<struct vhost_vdpa_config *>(g_malloc(size + config_size));
     config->off = offset;
     config->len = size;
     memcpy(config->buf, data, size);
@@ -1004,7 +1004,7 @@ static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
     int ret;
 
     trace_vhost_vdpa_get_config(dev, config, config_len);
-    v_config = g_malloc(config_len + config_size);
+    v_config = static_cast<struct vhost_vdpa_config *>(g_malloc(config_len + config_size));
     v_config->len = config_len;
     v_config->off = 0;
     ret = vhost_vdpa_call(dev, VHOST_VDPA_GET_CONFIG, v_config);
@@ -1020,7 +1020,7 @@ static int vhost_vdpa_get_config(struct vhost_dev *dev, uint8_t *config,
 static int vhost_vdpa_set_dev_vring_base(struct vhost_dev *dev,
                                          struct vhost_vring_state *ring)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
 
     trace_vhost_vdpa_set_dev_vring_base(dev, ring->index, ring->num,
                                         v->shadow_vqs_enabled);
@@ -1145,7 +1145,7 @@ static void vhost_vdpa_svq_unmap_ring(struct vhost_vdpa *v, hwaddr addr)
 static void vhost_vdpa_svq_unmap_rings(struct vhost_dev *dev,
                                        const VhostShadowVirtqueue *svq)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     struct vhost_vring_addr svq_addr;
 
     vhost_svq_get_vring_addr(svq, &svq_addr);
@@ -1208,7 +1208,7 @@ static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
     ERRP_GUARD();
     DMAMap device_region, driver_region;
     struct vhost_vring_addr svq_addr;
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     size_t device_size = vhost_svq_device_area_size(svq);
     size_t driver_size = vhost_svq_driver_area_size(svq);
     size_t avail_offset;
@@ -1216,10 +1216,9 @@ static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
 
     vhost_svq_get_vring_addr(svq, &svq_addr);
 
-    driver_region = (DMAMap) {
-        .size = driver_size - 1,
-        .perm = IOMMU_RO,
-    };
+    memset(&driver_region, 0, sizeof(driver_region));
+    driver_region.size = driver_size - 1;
+    driver_region.perm = IOMMU_RO;
     ok = vhost_vdpa_svq_map_ring(v, &driver_region, svq_addr.desc_user_addr,
                                  errp);
     if (unlikely(!ok)) {
@@ -1230,10 +1229,9 @@ static bool vhost_vdpa_svq_map_rings(struct vhost_dev *dev,
     avail_offset = svq_addr.avail_user_addr - svq_addr.desc_user_addr;
     addr->avail_user_addr = driver_region.iova + avail_offset;
 
-    device_region = (DMAMap) {
-        .size = device_size - 1,
-        .perm = IOMMU_RW,
-    };
+    memset(&device_region, 0, sizeof(device_region));
+    device_region.size = device_size - 1;
+    device_region.perm = IOMMU_RW;
     ok = vhost_vdpa_svq_map_ring(v, &device_region, svq_addr.used_user_addr,
                                  errp);
     if (unlikely(!ok)) {
@@ -1267,7 +1265,7 @@ static bool vhost_vdpa_svq_setup(struct vhost_dev *dev,
 
 static bool vhost_vdpa_svqs_start(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     Error *err = NULL;
     unsigned i;
 
@@ -1277,7 +1275,7 @@ static bool vhost_vdpa_svqs_start(struct vhost_dev *dev)
 
     for (i = 0; i < v->shadow_vqs->len; ++i) {
         VirtQueue *vq = virtio_get_queue(dev->vdev, dev->vq_index + i);
-        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, i);
+        VhostShadowVirtqueue *svq = static_cast<VhostShadowVirtqueue *>(g_ptr_array_index(v->shadow_vqs, i));
         struct vhost_vring_addr addr = {
             .index = dev->vq_index + i,
         };
@@ -1304,15 +1302,15 @@ static bool vhost_vdpa_svqs_start(struct vhost_dev *dev)
     return true;
 
 err_set_addr:
-    vhost_vdpa_svq_unmap_rings(dev, g_ptr_array_index(v->shadow_vqs, i));
+    vhost_vdpa_svq_unmap_rings(dev, static_cast<VhostShadowVirtqueue *>(g_ptr_array_index(v->shadow_vqs, i)));
 
 err_map:
-    vhost_svq_stop(g_ptr_array_index(v->shadow_vqs, i));
+    vhost_svq_stop(static_cast<VhostShadowVirtqueue *>(g_ptr_array_index(v->shadow_vqs, i)));
 
 err:
     error_reportf_err(err, "Cannot setup SVQ %u: ", i);
     for (unsigned j = 0; j < i; ++j) {
-        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, j);
+        VhostShadowVirtqueue *svq = static_cast<VhostShadowVirtqueue *>(g_ptr_array_index(v->shadow_vqs, j));
         vhost_vdpa_svq_unmap_rings(dev, svq);
         vhost_svq_stop(svq);
     }
@@ -1322,14 +1320,14 @@ err:
 
 static void vhost_vdpa_svqs_stop(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
 
     if (!v->shadow_vqs_enabled) {
         return;
     }
 
     for (unsigned i = 0; i < v->shadow_vqs->len; ++i) {
-        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, i);
+        VhostShadowVirtqueue *svq = static_cast<VhostShadowVirtqueue *>(g_ptr_array_index(v->shadow_vqs, i));
 
         vhost_svq_stop(svq);
         vhost_vdpa_svq_unmap_rings(dev, svq);
@@ -1341,7 +1339,7 @@ static void vhost_vdpa_svqs_stop(struct vhost_dev *dev)
 
 static void vhost_vdpa_suspend(struct vhost_dev *dev)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     int r;
 
     if (!vhost_vdpa_first_dev(dev)) {
@@ -1364,7 +1362,7 @@ static void vhost_vdpa_suspend(struct vhost_dev *dev)
 
 static int vhost_vdpa_dev_start(struct vhost_dev *dev, bool started)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     bool ok;
     trace_vhost_vdpa_dev_start(dev, started);
 
@@ -1420,7 +1418,7 @@ static void vhost_vdpa_reset_status(struct vhost_dev *dev)
 static int vhost_vdpa_set_log_base(struct vhost_dev *dev, uint64_t base,
                                      struct vhost_log *log)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     if (v->shadow_vqs_enabled || !vhost_vdpa_first_dev(dev)) {
         return 0;
     }
@@ -1433,7 +1431,7 @@ static int vhost_vdpa_set_log_base(struct vhost_dev *dev, uint64_t base,
 static int vhost_vdpa_set_vring_addr(struct vhost_dev *dev,
                                        struct vhost_vring_addr *addr)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
 
     if (v->shadow_vqs_enabled) {
         /*
@@ -1456,7 +1454,7 @@ static int vhost_vdpa_set_vring_num(struct vhost_dev *dev,
 static int vhost_vdpa_set_vring_base(struct vhost_dev *dev,
                                        struct vhost_vring_state *ring)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
 
     if (v->shadow_vqs_enabled) {
         /*
@@ -1472,7 +1470,7 @@ static int vhost_vdpa_set_vring_base(struct vhost_dev *dev,
 static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
                                        struct vhost_vring_state *ring)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     int ret;
 
     if (v->shadow_vqs_enabled) {
@@ -1497,11 +1495,11 @@ static int vhost_vdpa_get_vring_base(struct vhost_dev *dev,
 static int vhost_vdpa_set_vring_kick(struct vhost_dev *dev,
                                        struct vhost_vring_file *file)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     int vdpa_idx = file->index - dev->vq_index;
 
     if (v->shadow_vqs_enabled) {
-        VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, vdpa_idx);
+        VhostShadowVirtqueue *svq = static_cast<VhostShadowVirtqueue *>(g_ptr_array_index(v->shadow_vqs, vdpa_idx));
         vhost_svq_set_svq_kick_fd(svq, file->fd);
         return 0;
     } else {
@@ -1512,9 +1510,9 @@ static int vhost_vdpa_set_vring_kick(struct vhost_dev *dev,
 static int vhost_vdpa_set_vring_call(struct vhost_dev *dev,
                                        struct vhost_vring_file *file)
 {
-    struct vhost_vdpa *v = dev->opaque;
+    struct vhost_vdpa *v = static_cast<struct vhost_vdpa *>(dev->opaque);
     int vdpa_idx = file->index - dev->vq_index;
-    VhostShadowVirtqueue *svq = g_ptr_array_index(v->shadow_vqs, vdpa_idx);
+    VhostShadowVirtqueue *svq = static_cast<VhostShadowVirtqueue *>(g_ptr_array_index(v->shadow_vqs, vdpa_idx));
 
     /* Remember last call fd because we can switch to SVQ anytime. */
     vhost_svq_set_svq_call_fd(svq, file->fd);
@@ -1565,7 +1563,7 @@ static int vhost_vdpa_set_owner(struct vhost_dev *dev)
      * Being optimistic and listening address space memory. If the device
      * uses vIOMMU, it is changed at vhost_vdpa_dev_start.
      */
-    v = dev->opaque;
+    v = static_cast<struct vhost_vdpa *>(dev->opaque);
     memory_listener_register(&v->shared->listener, &address_space_memory);
     v->shared->listener_registered = true;
     return 0;
@@ -1592,32 +1590,32 @@ const VhostOps vdpa_ops = {
         .backend_type = VHOST_BACKEND_TYPE_VDPA,
         .vhost_backend_init = vhost_vdpa_init,
         .vhost_backend_cleanup = vhost_vdpa_cleanup,
+        .vhost_backend_memslots_limit = vhost_vdpa_memslots_limit,
+        .vhost_net_set_mtu = NULL,
         .vhost_set_log_base = vhost_vdpa_set_log_base,
+        .vhost_set_mem_table = vhost_vdpa_set_mem_table,
         .vhost_set_vring_addr = vhost_vdpa_set_vring_addr,
+        .vhost_set_vring_endian = NULL,
         .vhost_set_vring_num = vhost_vdpa_set_vring_num,
         .vhost_set_vring_base = vhost_vdpa_set_vring_base,
         .vhost_get_vring_base = vhost_vdpa_get_vring_base,
         .vhost_set_vring_kick = vhost_vdpa_set_vring_kick,
         .vhost_set_vring_call = vhost_vdpa_set_vring_call,
+        .vhost_set_features = vhost_vdpa_set_features,
         .vhost_get_features = vhost_vdpa_get_features,
         .vhost_set_owner = vhost_vdpa_set_owner,
-        .vhost_set_vring_endian = NULL,
-        .vhost_backend_memslots_limit = vhost_vdpa_memslots_limit,
-        .vhost_set_mem_table = vhost_vdpa_set_mem_table,
-        .vhost_set_features = vhost_vdpa_set_features,
         .vhost_reset_device = vhost_vdpa_reset_device,
         .vhost_get_vq_index = vhost_vdpa_get_vq_index,
         .vhost_set_vring_enable = vhost_vdpa_set_vring_enable,
-        .vhost_get_config  = vhost_vdpa_get_config,
-        .vhost_set_config = vhost_vdpa_set_config,
         .vhost_requires_shm_log = NULL,
         .vhost_migration_done = NULL,
-        .vhost_net_set_mtu = NULL,
         .vhost_set_iotlb_callback = NULL,
         .vhost_send_device_iotlb_msg = NULL,
+        .vhost_get_config  = vhost_vdpa_get_config,
+        .vhost_set_config = vhost_vdpa_set_config,
         .vhost_dev_start = vhost_vdpa_dev_start,
-        .vhost_get_device_id = vhost_vdpa_get_device_id,
         .vhost_vq_get_addr = vhost_vdpa_vq_get_addr,
+        .vhost_get_device_id = vhost_vdpa_get_device_id,
         .vhost_force_iommu = vhost_vdpa_force_iommu,
         .vhost_set_config_call = vhost_vdpa_set_config_call,
         .vhost_reset_status = vhost_vdpa_reset_status,

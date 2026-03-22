@@ -101,7 +101,7 @@ static bool error_response(struct iovec *response, enum NSMResponseTypes error,
         goto err;
     }
 
-    len = cbor_serialize(root, response->iov_base, response->iov_len);
+    len = cbor_serialize(root, static_cast<unsigned char *>(response->iov_base), response->iov_len);
     if (len == 0) {
         error_setg(errp, "Response buffer is small for %s response",
                    error_string(error));
@@ -158,7 +158,7 @@ static bool handle_get_random(VirtIONSM *vnsm, struct iovec *request,
         goto err;
     }
 
-    len = cbor_serialize(root, response->iov_base, response->iov_len);
+    len = cbor_serialize(root, static_cast<unsigned char *>(response->iov_base), response->iov_len);
     if (len == 0) {
         if (error_response(response, NSM_INPUT_TOO_LARGE, errp)) {
             r = true;
@@ -261,7 +261,7 @@ static bool handle_describe_nsm(VirtIONSM *vnsm, struct iovec *request,
         goto err;
     }
 
-    len = cbor_serialize(root, response->iov_base, response->iov_len);
+    len = cbor_serialize(root, static_cast<unsigned char *>(response->iov_base), response->iov_len);
     if (len == 0) {
         if (error_response(response, NSM_INPUT_TOO_LARGE, errp)) {
             r = true;
@@ -378,7 +378,7 @@ static bool handle_describe_pcr(VirtIONSM *vnsm, struct iovec *request,
     struct PCRInfo *pcr;
     bool r = false;
 
-    type = get_nsm_describe_pcr_req(request->iov_base, request->iov_len,
+    type = get_nsm_describe_pcr_req(static_cast<uint8_t *>(request->iov_base), request->iov_len,
                                     &nsm_req);
     if (type != NSM_SUCCESS) {
         if (error_response(response, type, errp)) {
@@ -412,7 +412,7 @@ static bool handle_describe_pcr(VirtIONSM *vnsm, struct iovec *request,
         goto err;
     }
 
-    len = cbor_serialize(root, response->iov_base, response->iov_len);
+    len = cbor_serialize(root, static_cast<unsigned char *>(response->iov_base), response->iov_len);
     if (len == 0) {
         if (error_response(response, NSM_INPUT_TOO_LARGE, errp)) {
             r = true;
@@ -563,9 +563,9 @@ static bool handle_extend_pcr(VirtIONSM *vnsm, struct iovec *request,
     struct PCRInfo *pcr;
     enum NSMResponseTypes type;
     bool r = false;
-    g_autofree NSMExtendPCRReq *nsm_req = g_malloc(sizeof(NSMExtendPCRReq));
+    g_autofree NSMExtendPCRReq *nsm_req = static_cast<NSMExtendPCRReq *>(g_malloc(sizeof(NSMExtendPCRReq)));
 
-    type = get_nsm_extend_pcr_req(request->iov_base, request->iov_len,
+    type = get_nsm_extend_pcr_req(static_cast<uint8_t *>(request->iov_base), request->iov_len,
                                   nsm_req);
     if (type != NSM_SUCCESS) {
         if (error_response(response, type, errp)) {
@@ -611,7 +611,7 @@ static bool handle_extend_pcr(VirtIONSM *vnsm, struct iovec *request,
         goto err;
     }
 
-    len = cbor_serialize(root, response->iov_base, response->iov_len);
+    len = cbor_serialize(root, static_cast<unsigned char *>(response->iov_base), response->iov_len);
     if (len == 0) {
         if (error_response(response, NSM_BUFFER_TOO_SMALL, errp)) {
             r = true;
@@ -716,7 +716,7 @@ static bool handle_lock_pcr(VirtIONSM *vnsm, struct iovec *request,
     struct PCRInfo *pcr;
     bool r = false;
 
-    type = get_nsm_lock_pcr_req(request->iov_base, request->iov_len, &nsm_req);
+    type = get_nsm_lock_pcr_req(static_cast<uint8_t *>(request->iov_base), request->iov_len, &nsm_req);
     if (type != NSM_SUCCESS) {
         if (error_response(response, type, errp)) {
             r = true;
@@ -746,7 +746,7 @@ static bool handle_lock_pcr(VirtIONSM *vnsm, struct iovec *request,
         goto err;
     }
 
-    len = cbor_serialize(root, response->iov_base, response->iov_len);
+    len = cbor_serialize(root, static_cast<unsigned char *>(response->iov_base), response->iov_len);
     if (len == 0) {
         if (error_response(response, NSM_BUFFER_TOO_SMALL, errp)) {
             r = true;
@@ -850,7 +850,7 @@ static bool handle_lock_pcrs(VirtIONSM *vnsm, struct iovec *request,
     enum NSMResponseTypes type;
     bool r = false;
 
-    type = get_nsm_lock_pcrs_req(request->iov_base, request->iov_len, &nsm_req);
+    type = get_nsm_lock_pcrs_req(static_cast<uint8_t *>(request->iov_base), request->iov_len, &nsm_req);
     if (type != NSM_SUCCESS) {
         if (error_response(response, type, errp)) {
             r = true;
@@ -873,7 +873,7 @@ static bool handle_lock_pcrs(VirtIONSM *vnsm, struct iovec *request,
         goto err;
     }
 
-    len = cbor_serialize(root, response->iov_base, response->iov_len);
+    len = cbor_serialize(root, static_cast<unsigned char *>(response->iov_base), response->iov_len);
     if (len == 0) {
         if (error_response(response, NSM_BUFFER_TOO_SMALL, errp)) {
             r = true;
@@ -1048,7 +1048,7 @@ static bool add_protected_header_to_cose(cbor_item_t *cose)
     size_t len;
     bool r = false;
     size_t buf_len = 4096;
-    g_autofree uint8_t *buf = g_malloc(buf_len);
+    g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(buf_len));
 
     map = cbor_new_definite_map(1);
     if (!map) {
@@ -1173,7 +1173,7 @@ static bool add_payload_to_cose(cbor_item_t *cose, VirtIONSM *vnsm,
     uint8_t zero[64] = {0};
     bool r = false;
     size_t buf_len = 16384;
-    g_autofree uint8_t *buf = g_malloc(buf_len);
+    g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(buf_len));
 
     root = cbor_new_definite_map(payload_map_size);
     if (!root) {
@@ -1360,14 +1360,14 @@ static bool handle_attestation(VirtIONSM *vnsm, struct iovec *request,
     enum NSMResponseTypes type;
     bool r = false;
     size_t buf_len = 16384;
-    g_autofree uint8_t *buf = g_malloc(buf_len);
-    g_autofree NSMAttestationReq *nsm_req = g_malloc(sizeof(NSMAttestationReq));
+    g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(buf_len));
+    g_autofree NSMAttestationReq *nsm_req = static_cast<NSMAttestationReq *>(g_malloc(sizeof(NSMAttestationReq)));
 
     nsm_req->public_key.is_null = true;
     nsm_req->user_data.is_null = true;
     nsm_req->nonce.is_null = true;
 
-    type = get_nsm_attestation_req(request->iov_base, request->iov_len,
+    type = get_nsm_attestation_req(static_cast<uint8_t *>(request->iov_base), request->iov_len,
                                    nsm_req);
     if (type != NSM_SUCCESS) {
         if (error_response(response, type, errp)) {
@@ -1409,7 +1409,7 @@ static bool handle_attestation(VirtIONSM *vnsm, struct iovec *request,
         goto err;
     }
 
-    len = cbor_serialize(root, response->iov_base, response->iov_len);
+    len = cbor_serialize(root, static_cast<unsigned char *>(response->iov_base), response->iov_len);
     if (len == 0) {
         if (error_response(response, NSM_INPUT_TOO_LARGE, errp)) {
             r = true;
@@ -1522,7 +1522,7 @@ static bool get_nsm_request_response(VirtIONSM *vnsm, struct iovec *req,
         return false;
     }
 
-    cmd = get_nsm_request_cmd(req->iov_base, req->iov_len);
+    cmd = get_nsm_request_cmd(static_cast<uint8_t *>(req->iov_base), req->iov_len);
 
     if (cmd == NULL) {
         if (error_response(resp, NSM_INVALID_OPERATION, errp)) {
@@ -1545,7 +1545,7 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
     struct iovec req = {.iov_base = NULL, .iov_len = 0};
     struct iovec res = {.iov_base = NULL, .iov_len = 0};
 
-    out_elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    out_elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
     if (!out_elem) {
         /* nothing in virtqueue */
         return;
@@ -1558,7 +1558,7 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
         goto cleanup;
     }
 
-    in_elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
+    in_elem = static_cast<VirtQueueElement *>(virtqueue_pop(vq, sizeof(VirtQueueElement)));
     if (!in_elem) {
         virtio_error(vdev, "Expected response buffer after request buffer "
                      "in virtqueue");
@@ -1671,37 +1671,43 @@ static void virtio_nsm_device_unrealize(DeviceState *dev)
     virtio_cleanup(vdev);
 }
 
+static const VMStateField vmstate_pcr_info_entry_fields[] = {
+    VMSTATE_BOOL(locked, struct PCRInfo),
+    VMSTATE_UINT8_ARRAY(data, struct PCRInfo,
+                        QCRYPTO_HASH_DIGEST_LEN_SHA384),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_pcr_info_entry = {
     .name = "pcr_info_entry",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(locked, struct PCRInfo),
-        VMSTATE_UINT8_ARRAY(data, struct PCRInfo,
-                            QCRYPTO_HASH_DIGEST_LEN_SHA384),
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_pcr_info_entry_fields,
+};
+
+static const VMStateField vmstate_virtio_nsm_device_fields[] = {
+    VMSTATE_STRUCT_ARRAY(pcrs, VirtIONSM, NSM_MAX_PCRS, 1,
+                         vmstate_pcr_info_entry, struct PCRInfo),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_virtio_nsm_device = {
     .name = "virtio-nsm-device",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(pcrs, VirtIONSM, NSM_MAX_PCRS, 1,
-                             vmstate_pcr_info_entry, struct PCRInfo),
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_virtio_nsm_device_fields,
+};
+
+static const VMStateField vmstate_virtio_nsm_fields[] = {
+    VMSTATE_VIRTIO_DEVICE,
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_virtio_nsm = {
     .name = "virtio-nsm",
-    .minimum_version_id = 1,
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VIRTIO_DEVICE,
-        VMSTATE_END_OF_LIST()
-    },
+    .minimum_version_id = 1,
+    .fields = vmstate_virtio_nsm_fields,
 };
 
 static const Property virtio_nsm_properties[] = {

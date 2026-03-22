@@ -7,11 +7,11 @@ system_virtio_ss.add(when: 'CONFIG_VIRTIO_MMIO', if_true: files('virtio-mmio.cpp
 system_virtio_ss.add(when: 'CONFIG_VIRTIO_CRYPTO', if_true: files('virtio-crypto.cpp'))
 system_virtio_ss.add(when: 'CONFIG_VHOST_VSOCK_COMMON', if_true: files('vhost-vsock-common.cpp'))
 system_virtio_ss.add(when: 'CONFIG_VIRTIO_IOMMU', if_true: files('virtio-iommu.cpp'))
-system_virtio_ss.add(when: 'CONFIG_VHOST_VDPA_DEV', if_true: files('vdpa-dev.c'))
+system_virtio_ss.add(when: 'CONFIG_VHOST_VDPA_DEV', if_true: files('vdpa-dev.cpp'))
 
 specific_virtio_ss = ss.source_set()
 specific_virtio_ss.add(files('virtio.cpp'))
-specific_virtio_ss.add(files('virtio-qmp.c'))
+specific_virtio_ss.add(files('virtio-qmp.cpp'))
 
 if have_vhost
   system_virtio_ss.add(files('vhost.cpp'))
@@ -44,8 +44,8 @@ if have_vhost
                          if_true: files('vhost-user-input-pci.cpp'))
   endif
   if have_vhost_vdpa
-    system_virtio_ss.add(files('vhost-vdpa.c'))
-    system_virtio_ss.add(files('vhost-shadow-virtqueue.c'))
+    system_virtio_ss.add(files('vhost-vdpa.cpp'))
+    system_virtio_ss.add(files('vhost-shadow-virtqueue.cpp'))
   endif
 else
   system_virtio_ss.add(files('vhost-stub.cpp'))
@@ -58,7 +58,7 @@ specific_virtio_ss.add(when: 'CONFIG_VHOST_USER_FS', if_true: files('vhost-user-
 specific_virtio_ss.add(when: 'CONFIG_VIRTIO_PMEM', if_true: files('virtio-pmem.cpp'))
 specific_virtio_ss.add(when: 'CONFIG_VHOST_VSOCK', if_true: files('vhost-vsock.cpp'))
 system_virtio_ss.add(when: 'CONFIG_VIRTIO_MEM', if_true: files('virtio-mem.cpp'))
-system_virtio_ss.add(when: 'CONFIG_VIRTIO_NSM', if_true: files('virtio-nsm.c'))
+system_virtio_ss.add(when: 'CONFIG_VIRTIO_NSM', if_true: files('virtio-nsm.cpp'))
 system_virtio_ss.add(when: 'CONFIG_VIRTIO_NSM', if_true: [files('cbor-helpers.cpp'), libcbor])
 system_virtio_ss.add(when: 'CONFIG_VHOST_USER_SCMI', if_true: files('vhost-user-scmi.cpp'))
 

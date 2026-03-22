@@ -170,7 +170,7 @@ static const MemoryRegionOps usb2_ctrl_regs_ops = {
     },
 };
 
-static void usb2_ctrl_regs_init(Object *obj)
+static void __attribute__((used)) usb2_ctrl_regs_init(Object *obj)
 {
     VersalUsb2CtrlRegs *s = XILINX_VERSAL_USB2_CTRL_REGS(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -192,14 +192,16 @@ static void usb2_ctrl_regs_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_ir);
 }
 
+static const VMStateField vmstate_usb2_ctrl_regs_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, VersalUsb2CtrlRegs, USB2_REGS_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_usb2_ctrl_regs = {
     .name = TYPE_XILINX_VERSAL_USB2_CTRL_REGS,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, VersalUsb2CtrlRegs, USB2_REGS_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_usb2_ctrl_regs_fields
 };
 
 static void usb2_ctrl_regs_class_init(ObjectClass *klass, const void *data)
@@ -216,8 +218,8 @@ static const TypeInfo usb2_ctrl_regs_info = {
     .name          = TYPE_XILINX_VERSAL_USB2_CTRL_REGS,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VersalUsb2CtrlRegs),
-    .class_init    = usb2_ctrl_regs_class_init,
     .instance_init = usb2_ctrl_regs_init,
+    .class_init    = usb2_ctrl_regs_class_init,
 };
 
 static void usb2_ctrl_regs_register_types(void)

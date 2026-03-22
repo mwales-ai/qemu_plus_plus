@@ -109,8 +109,8 @@ static void ccid_card_vscard_send_error(PassthruState *s,
 static void ccid_card_vscard_send_init(PassthruState *s)
 {
     VSCMsgInit msg = {
-        .version = htonl(VSCARD_VERSION),
         .magic = VSCARD_MAGIC,
+        .version = htonl(VSCARD_VERSION),
         .capabilities = {0}
     };
 
@@ -120,7 +120,7 @@ static void ccid_card_vscard_send_init(PassthruState *s)
 
 static int ccid_card_vscard_can_read(void *opaque)
 {
-    PassthruState *card = opaque;
+    PassthruState *card = static_cast<PassthruState *>(opaque);
 
     return VSCARD_IN_SIZE >= card->vscard_in_pos ?
            VSCARD_IN_SIZE - card->vscard_in_pos : 0;
@@ -278,7 +278,7 @@ static void ccid_card_vscard_drop_connection(PassthruState *card)
 
 static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
 {
-    PassthruState *card = opaque;
+    PassthruState *card = static_cast<PassthruState *>(opaque);
     VSCMsgHeader *hdr;
 
     if (card->vscard_in_pos + size > VSCARD_IN_SIZE) {
@@ -311,7 +311,7 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
 
 static void ccid_card_vscard_event(void *opaque, QEMUChrEvent event)
 {
-    PassthruState *card = opaque;
+    PassthruState *card = static_cast<PassthruState *>(opaque);
 
     switch (event) {
     case CHR_EVENT_BREAK:
@@ -374,18 +374,20 @@ static void passthru_realize(CCIDCardState *base, Error **errp)
     card->atr_length = sizeof(DEFAULT_ATR);
 }
 
+static const VMStateField vmstate_passthru_fields[] = {
+    VMSTATE_BUFFER(vscard_in_data, PassthruState),
+    VMSTATE_UINT32(vscard_in_pos, PassthruState),
+    VMSTATE_UINT32(vscard_in_hdr, PassthruState),
+    VMSTATE_BUFFER(atr, PassthruState),
+    VMSTATE_UINT8(atr_length, PassthruState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription passthru_vmstate = {
     .name = "ccid-card-passthru",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BUFFER(vscard_in_data, PassthruState),
-        VMSTATE_UINT32(vscard_in_pos, PassthruState),
-        VMSTATE_UINT32(vscard_in_hdr, PassthruState),
-        VMSTATE_BUFFER(atr, PassthruState),
-        VMSTATE_UINT8(atr_length, PassthruState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_passthru_fields
 };
 
 static const Property passthru_card_properties[] = {

@@ -95,19 +95,16 @@ static bool vhost_svq_translate_addr(const VhostShadowVirtqueue *svq,
         DMAMap needle;
 
         /* Check if the descriptor is backed by guest memory  */
+        memset(&needle, 0, sizeof(needle));
         if (gpas) {
             /* Search the GPA->IOVA tree */
-            needle = (DMAMap) {
-                .translated_addr = gpas[i],
-                .size = iovec[i].iov_len,
-            };
+            needle.translated_addr = gpas[i];
+            needle.size = iovec[i].iov_len;
             map = vhost_iova_tree_find_gpa(svq->iova_tree, &needle);
         } else {
             /* Search the IOVA->HVA tree */
-            needle = (DMAMap) {
-                .translated_addr = (hwaddr)(uintptr_t)iovec[i].iov_base,
-                .size = iovec[i].iov_len,
-            };
+            needle.translated_addr = (hwaddr)(uintptr_t)iovec[i].iov_base;
+            needle.size = iovec[i].iov_len;
             map = vhost_iova_tree_find_iova(svq->iova_tree, &needle);
         }
 
@@ -328,9 +325,9 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
             int r;
 
             if (svq->next_guest_avail_elem) {
-                elem = g_steal_pointer(&svq->next_guest_avail_elem);
+                elem = static_cast<VirtQueueElement *>(g_steal_pointer(&svq->next_guest_avail_elem));
             } else {
-                elem = virtqueue_pop(svq->vq, sizeof(*elem));
+                elem = static_cast<VirtQueueElement *>(virtqueue_pop(svq->vq, sizeof(*elem)));
             }
 
             if (!elem) {
@@ -355,7 +352,7 @@ static void vhost_handle_guest_kick(VhostShadowVirtqueue *svq)
                      * queue the current guest descriptor and ignore kicks
                      * until some elements are used.
                      */
-                    svq->next_guest_avail_elem = g_steal_pointer(&elem);
+                    svq->next_guest_avail_elem = static_cast<VirtQueueElement *>(g_steal_pointer(&elem));
                 }
 
                 /* VQ is full or broken, just return and ignore kicks */
@@ -477,7 +474,7 @@ static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
     svq->num_free += num;
 
     *len = used_elem.len;
-    return g_steal_pointer(&svq->desc_state[used_elem.id].elem);
+    return static_cast<VirtQueueElement *>(g_steal_pointer(&svq->desc_state[used_elem.id].elem));
 }
 
 /**
@@ -628,16 +625,18 @@ void vhost_svq_get_vring_addr(const VhostShadowVirtqueue *svq,
 size_t vhost_svq_driver_area_size(const VhostShadowVirtqueue *svq)
 {
     size_t desc_size = sizeof(vring_desc_t) * svq->vring.num;
-    size_t avail_size = offsetof(vring_avail_t, ring[svq->vring.num]) +
-                                                              sizeof(uint16_t);
+    size_t avail_size = offsetof(vring_avail_t, ring) +
+                        sizeof(uint16_t) * svq->vring.num +
+                        sizeof(uint16_t);
 
     return ROUND_UP(desc_size + avail_size, qemu_real_host_page_size());
 }
 
 size_t vhost_svq_device_area_size(const VhostShadowVirtqueue *svq)
 {
-    size_t used_size = offsetof(vring_used_t, ring[svq->vring.num]) +
-                                                              sizeof(uint16_t);
+    size_t used_size = offsetof(vring_used_t, ring) +
+                       sizeof(vring_used_elem_t) * svq->vring.num +
+                       sizeof(uint16_t);
     return ROUND_UP(used_size, qemu_real_host_page_size());
 }
 
@@ -695,14 +694,14 @@ void vhost_svq_start(VhostShadowVirtqueue *svq, VirtIODevice *vdev,
 
     svq->vring.num = virtio_queue_get_num(vdev, virtio_get_queue_index(vq));
     svq->num_free = svq->vring.num;
-    svq->vring.desc = mmap(NULL, vhost_svq_driver_area_size(svq),
+    svq->vring.desc = static_cast<vring_desc_t *>(mmap(NULL, vhost_svq_driver_area_size(svq),
                            PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
-                           -1, 0);
+                           -1, 0));
     desc_size = sizeof(vring_desc_t) * svq->vring.num;
-    svq->vring.avail = (void *)((char *)svq->vring.desc + desc_size);
-    svq->vring.used = mmap(NULL, vhost_svq_device_area_size(svq),
+    svq->vring.avail = (vring_avail_t *)((char *)svq->vring.desc + desc_size);
+    svq->vring.used = static_cast<vring_used_t *>(mmap(NULL, vhost_svq_device_area_size(svq),
                            PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS,
-                           -1, 0);
+                           -1, 0));
     svq->desc_state = g_new0(SVQDescState, svq->vring.num);
     svq->desc_next = g_new0(uint16_t, svq->vring.num);
     for (unsigned i = 0; i < svq->vring.num - 1; i++) {
@@ -728,7 +727,7 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
 
     for (unsigned i = 0; i < svq->vring.num; ++i) {
         g_autofree VirtQueueElement *elem = NULL;
-        elem = g_steal_pointer(&svq->desc_state[i].elem);
+        elem = static_cast<VirtQueueElement *>(g_steal_pointer(&svq->desc_state[i].elem));
         if (elem) {
             /*
              * TODO: This is ok for networking, but other kinds of devices
@@ -738,7 +737,7 @@ void vhost_svq_stop(VhostShadowVirtqueue *svq)
         }
     }
 
-    next_avail_elem = g_steal_pointer(&svq->next_guest_avail_elem);
+    next_avail_elem = static_cast<VirtQueueElement *>(g_steal_pointer(&svq->next_guest_avail_elem));
     if (next_avail_elem) {
         virtqueue_unpop(svq->vq, next_avail_elem, 0);
     }
@@ -775,7 +774,7 @@ VhostShadowVirtqueue *vhost_svq_new(const VhostShadowVirtqueueOps *ops,
  */
 void vhost_svq_free(gpointer pvq)
 {
-    VhostShadowVirtqueue *vq = pvq;
+    VhostShadowVirtqueue *vq = static_cast<VhostShadowVirtqueue *>(pvq);
     vhost_svq_stop(vq);
     g_free(vq);
 }

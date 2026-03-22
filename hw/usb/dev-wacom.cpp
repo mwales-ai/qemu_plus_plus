@@ -39,6 +39,11 @@
 #define WACOM_GET_REPORT    0x2101
 #define WACOM_SET_REPORT    0x2109
 
+enum WacomMode {
+    WACOM_MODE_HID = 1,
+    WACOM_MODE_WACOM = 2,
+};
+
 struct USBWacomState {
     USBDevice dev;
     USBEndpoint *intr;
@@ -46,10 +51,7 @@ struct USBWacomState {
     int dx, dy, dz, buttons_state;
     int x, y;
     int mouse_grabbed;
-    enum {
-        WACOM_MODE_HID = 1,
-        WACOM_MODE_WACOM = 2,
-    } mode;
+    enum WacomMode mode;
     uint8_t idle;
     int changed;
 };
@@ -64,9 +66,10 @@ enum {
 };
 
 static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER]     = "QEMU",
-    [STR_PRODUCT]          = "Wacom PenPartner",
-    [STR_SERIALNUMBER]     = "1",
+    NULL,                   /* 0 */
+    "QEMU",                /* STR_MANUFACTURER */
+    "Wacom PenPartner",    /* STR_PRODUCT */
+    "1",                   /* STR_SERIALNUMBER */
 };
 
 static const uint8_t qemu_wacom_hid_report_descriptor[] = {
@@ -128,6 +131,32 @@ static const uint8_t qemu_wacom_hid_report_descriptor[] = {
     0xc0             /* End Collection */
 };
 
+static const uint8_t desc_wacom_hid_data[] = {
+    0x09,          /*  u8  bLength */
+    USB_DT_HID,    /*  u8  bDescriptorType */
+    0x01, 0x10,    /*  u16 HID_class */
+    0x00,          /*  u8  country_code */
+    0x01,          /*  u8  num_descriptors */
+    USB_DT_REPORT, /*  u8  type: Report */
+    sizeof(qemu_wacom_hid_report_descriptor), 0, /*  u16 len */
+};
+
+static USBDescOther desc_wacom_descs[] = {
+    {
+        /* HID descriptor */
+        .data = desc_wacom_hid_data,
+    },
+};
+
+static USBDescEndpoint desc_wacom_eps[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_INT,
+        .wMaxPacketSize        = 8,
+        .bInterval             = 0x0a,
+    },
+};
+
 static const USBDescIface desc_iface_wacom = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 1,
@@ -135,27 +164,18 @@ static const USBDescIface desc_iface_wacom = {
     .bInterfaceSubClass            = 0x01, /* boot */
     .bInterfaceProtocol            = 0x02,
     .ndesc                         = 1,
-    .descs = (USBDescOther[]) {
-        {
-            /* HID descriptor */
-            .data = (uint8_t[]) {
-                0x09,          /*  u8  bLength */
-                USB_DT_HID,    /*  u8  bDescriptorType */
-                0x01, 0x10,    /*  u16 HID_class */
-                0x00,          /*  u8  country_code */
-                0x01,          /*  u8  num_descriptors */
-                USB_DT_REPORT, /*  u8  type: Report */
-                sizeof(qemu_wacom_hid_report_descriptor), 0, /*  u16 len */
-            },
-        },
-    },
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
-            .bInterval             = 0x0a,
-        },
+    .descs = desc_wacom_descs,
+    .eps = desc_wacom_eps,
+};
+
+static const USBDescConfig desc_confs_wacom[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .bmAttributes          = USB_CFG_ATT_ONE,
+        .bMaxPower             = 40,
+        .nif = 1,
+        .ifs = &desc_iface_wacom,
     },
 };
 
@@ -163,16 +183,7 @@ static const USBDescDevice desc_device_wacom = {
     .bcdUSB                        = 0x0110,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .bmAttributes          = USB_CFG_ATT_ONE,
-            .bMaxPower             = 40,
-            .nif = 1,
-            .ifs = &desc_iface_wacom,
-        },
-    },
+    .confs = desc_confs_wacom,
 };
 
 static const USBDesc desc_wacom = {
@@ -191,7 +202,7 @@ static const USBDesc desc_wacom = {
 static void usb_mouse_event(void *opaque,
                             int dx1, int dy1, int dz1, int buttons_state)
 {
-    USBWacomState *s = opaque;
+    USBWacomState *s = static_cast<USBWacomState *>(opaque);
 
     s->dx += dx1;
     s->dy += dy1;
@@ -204,7 +215,7 @@ static void usb_mouse_event(void *opaque,
 static void usb_wacom_event(void *opaque,
                             int x, int y, int dz, int buttons_state)
 {
-    USBWacomState *s = opaque;
+    USBWacomState *s = static_cast<USBWacomState *>(opaque);
 
     /* scale to Penpartner resolution */
     s->x = (x * 5040 / 0x7FFF);
@@ -341,7 +352,7 @@ static void usb_wacom_handle_control(USBDevice *dev, USBPacket *p,
             qemu_remove_mouse_event_handler(s->eh_entry);
             s->mouse_grabbed = 0;
         }
-        s->mode = data[0];
+        s->mode = static_cast<WacomMode>(data[0]);
         break;
     case WACOM_GET_REPORT:
         data[0] = 0;
@@ -371,7 +382,7 @@ static void usb_wacom_handle_control(USBDevice *dev, USBPacket *p,
 static void usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBWacomState *s = (USBWacomState *) dev;
-    g_autofree uint8_t *buf = g_malloc(p->iov.size);
+    g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(p->iov.size));
     int len = 0;
 
     switch (p->pid) {

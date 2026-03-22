@@ -47,12 +47,25 @@ enum {
 };
 
 static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER] = "QEMU",
-    [STR_PRODUCT]      = "QEMU USB HARDDRIVE",
-    [STR_SERIALNUMBER] = "1",
-    [STR_CONFIG_FULL]  = "Full speed config (usb 1.1)",
-    [STR_CONFIG_HIGH]  = "High speed config (usb 2.0)",
-    [STR_CONFIG_SUPER] = "Super speed config (usb 3.0)",
+    NULL,                               /* 0 */
+    "QEMU",                             /* STR_MANUFACTURER */
+    "QEMU USB HARDDRIVE",              /* STR_PRODUCT */
+    "1",                                /* STR_SERIALNUMBER */
+    "Full speed config (usb 1.1)",     /* STR_CONFIG_FULL */
+    "High speed config (usb 2.0)",     /* STR_CONFIG_HIGH */
+    "Super speed config (usb 3.0)",    /* STR_CONFIG_SUPER */
+};
+
+static USBDescEndpoint desc_eps_full[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 64,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | 0x02,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 64,
+    },
 };
 
 static const USBDescIface desc_iface_full = {
@@ -61,32 +74,36 @@ static const USBDescIface desc_iface_full = {
     .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
     .bInterfaceSubClass            = 0x06, /* SCSI */
     .bInterfaceProtocol            = 0x50, /* Bulk */
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 64,
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | 0x02,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 64,
-        },
-    }
+    .eps = desc_eps_full,
+};
+
+static const USBDescConfig desc_confs_full[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_FULL,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
+        .nif = 1,
+        .ifs = &desc_iface_full,
+    },
 };
 
 static const USBDescDevice desc_device_full = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 8,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_FULL,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
-            .nif = 1,
-            .ifs = &desc_iface_full,
-        },
+    .confs = desc_confs_full,
+};
+
+static USBDescEndpoint desc_eps_high[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 512,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | 0x02,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 512,
     },
 };
 
@@ -96,32 +113,38 @@ static const USBDescIface desc_iface_high = {
     .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
     .bInterfaceSubClass            = 0x06, /* SCSI */
     .bInterfaceProtocol            = 0x50, /* Bulk */
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 512,
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | 0x02,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 512,
-        },
-    }
+    .eps = desc_eps_high,
+};
+
+static const USBDescConfig desc_confs_high[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_HIGH,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
+        .nif = 1,
+        .ifs = &desc_iface_high,
+    },
 };
 
 static const USBDescDevice desc_device_high = {
     .bcdUSB                        = 0x0200,
     .bMaxPacketSize0               = 64,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_HIGH,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
-            .nif = 1,
-            .ifs = &desc_iface_high,
-        },
+    .confs = desc_confs_high,
+};
+
+static USBDescEndpoint desc_eps_super[] = {
+    {
+        .bEndpointAddress      = USB_DIR_IN | 0x01,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 1024,
+        .bMaxBurst             = 15,
+    },{
+        .bEndpointAddress      = USB_DIR_OUT | 0x02,
+        .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+        .wMaxPacketSize        = 1024,
+        .bMaxBurst             = 15,
     },
 };
 
@@ -131,35 +154,25 @@ static const USBDescIface desc_iface_super = {
     .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
     .bInterfaceSubClass            = 0x06, /* SCSI */
     .bInterfaceProtocol            = 0x50, /* Bulk */
-    .eps = (USBDescEndpoint[]) {
-        {
-            .bEndpointAddress      = USB_DIR_IN | 0x01,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 1024,
-            .bMaxBurst             = 15,
-        },{
-            .bEndpointAddress      = USB_DIR_OUT | 0x02,
-            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
-            .wMaxPacketSize        = 1024,
-            .bMaxBurst             = 15,
-        },
-    }
+    .eps = desc_eps_super,
+};
+
+static const USBDescConfig desc_confs_super[] = {
+    {
+        .bNumInterfaces        = 1,
+        .bConfigurationValue   = 1,
+        .iConfiguration        = STR_CONFIG_SUPER,
+        .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
+        .nif = 1,
+        .ifs = &desc_iface_super,
+    },
 };
 
 static const USBDescDevice desc_device_super = {
     .bcdUSB                        = 0x0300,
     .bMaxPacketSize0               = 9,
     .bNumConfigurations            = 1,
-    .confs = (USBDescConfig[]) {
-        {
-            .bNumInterfaces        = 1,
-            .bConfigurationValue   = 1,
-            .iConfiguration        = STR_CONFIG_SUPER,
-            .bmAttributes          = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
-            .nif = 1,
-            .ifs = &desc_iface_super,
-        },
-    },
+    .confs = desc_confs_super,
 };
 
 static const USBDesc desc = {
@@ -567,22 +580,24 @@ void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
     return NULL;
 }
 
+static const VMStateField vmstate_usb_msd_fields[] = {
+    VMSTATE_USB_DEVICE(dev, MSDState),
+    VMSTATE_UINT32(mode, MSDState),
+    VMSTATE_UINT32(scsi_len, MSDState),
+    VMSTATE_UINT32(scsi_off, MSDState),
+    VMSTATE_UINT32(data_len, MSDState),
+    VMSTATE_UINT32(csw.sig, MSDState),
+    VMSTATE_UINT32(csw.tag, MSDState),
+    VMSTATE_UINT32(csw.residue, MSDState),
+    VMSTATE_UINT8(csw.status, MSDState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_usb_msd = {
     .name = "usb-storage",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_USB_DEVICE(dev, MSDState),
-        VMSTATE_UINT32(mode, MSDState),
-        VMSTATE_UINT32(scsi_len, MSDState),
-        VMSTATE_UINT32(scsi_off, MSDState),
-        VMSTATE_UINT32(data_len, MSDState),
-        VMSTATE_UINT32(csw.sig, MSDState),
-        VMSTATE_UINT32(csw.tag, MSDState),
-        VMSTATE_UINT32(csw.residue, MSDState),
-        VMSTATE_UINT8(csw.status, MSDState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_usb_msd_fields
 };
 
 static void usb_msd_class_initfn_common(ObjectClass *klass, const void *data)

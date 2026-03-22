@@ -605,7 +605,10 @@ static void usbback_hotplug_notify(struct usbback_info *usbif)
     usb_hp = QSIMPLEQ_FIRST(&usbif->hotplug_q);
     QSIMPLEQ_REMOVE_HEAD(&usbif->hotplug_q, q);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-qualifiers"
     RING_COPY_REQUEST(ring, ring->req_cons, &req);
+#pragma GCC diagnostic pop
     ring->req_cons++;
     ring->sring->req_event = ring->req_cons + 1;
 
@@ -638,7 +641,7 @@ static void usbback_bh(void *opaque)
     RING_IDX rc, rp;
     unsigned int more_to_do;
 
-    usbif = opaque;
+    usbif = static_cast<struct usbback_info *>(opaque);
     if (usbif->ring_error) {
         return;
     }
@@ -667,7 +670,10 @@ static void usbback_bh(void *opaque)
         }
         usbback_req = usbback_get_req(usbif);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-qualifiers"
         RING_COPY_REQUEST(urb_ring, rc, &usbback_req->req);
+#pragma GCC diagnostic pop
         usbback_req->usbif = usbif;
 
         usbback_dispatch(usbback_req);
@@ -858,7 +864,7 @@ static void usbback_disconnect(struct XenLegacyDevice *xendev)
     TR_BUS(xendev, "finished\n");
 }
 
-static int usbback_connect(struct XenLegacyDevice *xendev)
+static int __attribute__((used)) usbback_connect(struct XenLegacyDevice *xendev)
 {
     struct usbback_info *usbif;
     struct usbif_urb_sring *urb_sring;
@@ -900,8 +906,8 @@ static int usbback_connect(struct XenLegacyDevice *xendev)
 
     usbif->urb_ring_ref = urb_ring_ref;
     usbif->conn_ring_ref = conn_ring_ref;
-    urb_sring = usbif->urb_sring;
-    conn_sring = usbif->conn_sring;
+    urb_sring = static_cast<struct usbif_urb_sring *>(usbif->urb_sring);
+    conn_sring = static_cast<struct usbif_conn_sring *>(usbif->conn_sring);
     BACK_RING_INIT(&usbif->urb_ring, urb_sring, XEN_PAGE_SIZE);
     BACK_RING_INIT(&usbif->conn_ring, conn_sring, XEN_PAGE_SIZE);
 
@@ -964,7 +970,7 @@ static void xen_bus_attach(USBPort *port)
 {
     struct usbback_info *usbif;
 
-    usbif = port->opaque;
+    usbif = static_cast<struct usbback_info *>(port->opaque);
     TR_BUS(&usbif->xendev, "\n");
     usbif->ports[port->index].attached = true;
     usbback_hotplug_enq(usbif, port->index + 1);
@@ -974,7 +980,7 @@ static void xen_bus_detach(USBPort *port)
 {
     struct usbback_info *usbif;
 
-    usbif = port->opaque;
+    usbif = static_cast<struct usbback_info *>(port->opaque);
     TR_BUS(&usbif->xendev, "\n");
     usbback_portid_detach(usbif, port->index + 1);
 }
@@ -983,7 +989,7 @@ static void xen_bus_child_detach(USBPort *port, USBDevice *child)
 {
     struct usbback_info *usbif;
 
-    usbif = port->opaque;
+    usbif = static_cast<struct usbback_info *>(port->opaque);
     TR_BUS(&usbif->xendev, "\n");
 }
 
@@ -1013,7 +1019,7 @@ static USBPortOps xen_usb_port_ops = {
 static USBBusOps xen_usb_bus_ops = {
 };
 
-static void usbback_alloc(struct XenLegacyDevice *xendev)
+static void __attribute__((used)) usbback_alloc(struct XenLegacyDevice *xendev)
 {
     struct usbback_info *usbif;
     USBPort *p;
@@ -1036,7 +1042,7 @@ static void usbback_alloc(struct XenLegacyDevice *xendev)
                                     &DEVICE(xendev)->mem_reentrancy_guard);
 }
 
-static int usbback_free(struct XenLegacyDevice *xendev)
+static int __attribute__((used)) usbback_free(struct XenLegacyDevice *xendev)
 {
     struct usbback_info *usbif;
     struct usbback_req *usbback_req;
@@ -1075,7 +1081,7 @@ static int usbback_free(struct XenLegacyDevice *xendev)
     return 0;
 }
 
-static void usbback_event(struct XenLegacyDevice *xendev)
+static void __attribute__((used)) usbback_event(struct XenLegacyDevice *xendev)
 {
     struct usbback_info *usbif;
 
@@ -1086,13 +1092,13 @@ static void usbback_event(struct XenLegacyDevice *xendev)
 static const struct XenDevOps xen_usb_ops = {
     .size            = sizeof(struct usbback_info),
     .flags           = DEVOPS_FLAG_NEED_GNTDEV,
-    .init            = usbback_init,
     .alloc           = usbback_alloc,
+    .init            = usbback_init,
+    .initialise      = usbback_connect,
+    .event           = usbback_event,
+    .disconnect      = usbback_disconnect,
     .free            = usbback_free,
     .backend_changed = usbback_backend_changed,
-    .initialise      = usbback_connect,
-    .disconnect      = usbback_disconnect,
-    .event           = usbback_event,
 };
 
 static void xen_usb_register_backend(void)

@@ -1571,7 +1571,7 @@ static RegisterAccessInfo ospi_regs_info[] = {
 /* Return dev-obj from reg-region created by register_init_block32 */
 static XlnxVersalOspi *xilinx_ospi_of_mr(void *mr_accessor)
 {
-    RegisterInfoArray *reg_array = mr_accessor;
+    RegisterInfoArray *reg_array = static_cast<RegisterInfoArray *>(mr_accessor);
     Object *dev;
 
     dev = reg_array->mem.owner;
@@ -1589,15 +1589,17 @@ static void ospi_write(void *opaque, hwaddr addr, uint64_t value,
     ospi_update_irq_line(s);
 }
 
-static const MemoryRegionOps ospi_ops = {
-    .read = register_read_memory,
-    .write = ospi_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
+static MemoryRegionOps ospi_ops;
+
+static void __attribute__((constructor)) init_ospi_ops(void)
+{
+    memset(&ospi_ops, 0, sizeof(ospi_ops));
+    ospi_ops.read = register_read_memory;
+    ospi_ops.write = ospi_write;
+    ospi_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    ospi_ops.valid.min_access_size = 4;
+    ospi_ops.valid.max_access_size = 4;
+}
 
 static uint64_t ospi_indac_read(void *opaque, unsigned int size)
 {
@@ -1715,15 +1717,17 @@ static void ospi_dac_write(void *opaque, hwaddr addr, uint64_t value,
     }
 }
 
-static const MemoryRegionOps ospi_dac_ops = {
-    .read = ospi_dac_read,
-    .write = ospi_dac_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
+static MemoryRegionOps ospi_dac_ops;
+
+static void __attribute__((constructor)) init_ospi_dac_ops(void)
+{
+    memset(&ospi_dac_ops, 0, sizeof(ospi_dac_ops));
+    ospi_dac_ops.read = ospi_dac_read;
+    ospi_dac_ops.write = ospi_dac_write;
+    ospi_dac_ops.endianness = DEVICE_LITTLE_ENDIAN;
+    ospi_dac_ops.valid.min_access_size = 4;
+    ospi_dac_ops.valid.max_access_size = 4;
+}
 
 static void ospi_update_dac_status(void *opaque, int n, int level)
 {
@@ -1750,7 +1754,7 @@ static void xlnx_versal_ospi_realize(DeviceState *dev, Error **errp)
     fifo8_create(&s->tx_sram, TXFF_SZ);
 }
 
-static void xlnx_versal_ospi_init(Object *obj)
+static void __attribute__((used)) xlnx_versal_ospi_init(Object *obj)
 {
     XlnxVersalOspi *s = XILINX_VERSAL_OSPI(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -1789,40 +1793,44 @@ static void xlnx_versal_ospi_init(Object *obj)
     qdev_init_gpio_in_named(dev, ospi_update_dac_status, "ospi-mux-sel", 1);
 }
 
+static const VMStateField vmstate_ind_op_fields[] = {
+    VMSTATE_UINT32(flash_addr, IndOp),
+    VMSTATE_UINT32(num_bytes, IndOp),
+    VMSTATE_UINT32(done_bytes, IndOp),
+    VMSTATE_BOOL(completed, IndOp),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ind_op = {
     .name = "OSPIIndOp",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(flash_addr, IndOp),
-        VMSTATE_UINT32(num_bytes, IndOp),
-        VMSTATE_UINT32(done_bytes, IndOp),
-        VMSTATE_BOOL(completed, IndOp),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ind_op_fields,
+};
+
+static const VMStateField vmstate_xlnx_versal_ospi_fields[] = {
+    VMSTATE_FIFO8(rx_fifo, XlnxVersalOspi),
+    VMSTATE_FIFO8(tx_fifo, XlnxVersalOspi),
+    VMSTATE_FIFO8(rx_sram, XlnxVersalOspi),
+    VMSTATE_FIFO8(tx_sram, XlnxVersalOspi),
+    VMSTATE_BOOL(ind_write_disabled, XlnxVersalOspi),
+    VMSTATE_BOOL(dac_with_indac, XlnxVersalOspi),
+    VMSTATE_BOOL(dac_enable, XlnxVersalOspi),
+    VMSTATE_BOOL(src_dma_inprog, XlnxVersalOspi),
+    VMSTATE_STRUCT_ARRAY(rd_ind_op, XlnxVersalOspi, 2, 1,
+                         vmstate_ind_op, IndOp),
+    VMSTATE_STRUCT_ARRAY(wr_ind_op, XlnxVersalOspi, 2, 1,
+                         vmstate_ind_op, IndOp),
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersalOspi, XILINX_VERSAL_OSPI_R_MAX),
+    VMSTATE_UINT8_ARRAY(stig_membank, XlnxVersalOspi, 512),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_xlnx_versal_ospi = {
     .name = TYPE_XILINX_VERSAL_OSPI,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO8(rx_fifo, XlnxVersalOspi),
-        VMSTATE_FIFO8(tx_fifo, XlnxVersalOspi),
-        VMSTATE_FIFO8(rx_sram, XlnxVersalOspi),
-        VMSTATE_FIFO8(tx_sram, XlnxVersalOspi),
-        VMSTATE_BOOL(ind_write_disabled, XlnxVersalOspi),
-        VMSTATE_BOOL(dac_with_indac, XlnxVersalOspi),
-        VMSTATE_BOOL(dac_enable, XlnxVersalOspi),
-        VMSTATE_BOOL(src_dma_inprog, XlnxVersalOspi),
-        VMSTATE_STRUCT_ARRAY(rd_ind_op, XlnxVersalOspi, 2, 1,
-                             vmstate_ind_op, IndOp),
-        VMSTATE_STRUCT_ARRAY(wr_ind_op, XlnxVersalOspi, 2, 1,
-                             vmstate_ind_op, IndOp),
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersalOspi, XILINX_VERSAL_OSPI_R_MAX),
-        VMSTATE_UINT8_ARRAY(stig_membank, XlnxVersalOspi, 512),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_xlnx_versal_ospi_fields,
 };
 
 static const Property xlnx_versal_ospi_properties[] = {
@@ -1845,8 +1853,8 @@ static const TypeInfo xlnx_versal_ospi_info = {
     .name          = TYPE_XILINX_VERSAL_OSPI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalOspi),
-    .class_init    = xlnx_versal_ospi_class_init,
     .instance_init = xlnx_versal_ospi_init,
+    .class_init    = xlnx_versal_ospi_class_init,
 };
 
 static void xlnx_versal_ospi_register_types(void)

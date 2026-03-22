@@ -2,10 +2,10 @@ hw_usb_modules = {}
 
 # usb subsystem core
 system_ss.add(when: 'CONFIG_USB', if_true: files(
-  'bus.c',
+  'bus.cpp',
   'combined-packet.cpp',
-  'core.c',
-  'desc.c',
+  'core.cpp',
+  'desc.cpp',
   'desc-msos.cpp',
   'libhw.cpp',
   'pcap.cpp',
@@ -23,20 +23,20 @@ system_ss.add(when: 'CONFIG_USB_XHCI', if_true: files('hcd-xhci.cpp'))
 system_ss.add(when: 'CONFIG_USB_XHCI_PCI', if_true: files('hcd-xhci-pci.cpp'))
 system_ss.add(when: 'CONFIG_USB_XHCI_SYSBUS', if_true: files('hcd-xhci-sysbus.cpp'))
 system_ss.add(when: 'CONFIG_USB_XHCI_NEC', if_true: files('hcd-xhci-nec.cpp'))
-system_ss.add(when: 'CONFIG_USB_DWC2', if_true: files('hcd-dwc2.c'))
-system_ss.add(when: 'CONFIG_USB_DWC3', if_true: files('hcd-dwc3.c'))
+system_ss.add(when: 'CONFIG_USB_DWC2', if_true: files('hcd-dwc2.cpp'))
+system_ss.add(when: 'CONFIG_USB_DWC3', if_true: files('hcd-dwc3.cpp'))
 system_ss.add(when: 'CONFIG_USB_CHIPIDEA', if_true: files('chipidea.cpp'))
 
 system_ss.add(when: 'CONFIG_IMX_USBPHY', if_true: files('imx-usb-phy.cpp'))
 system_ss.add(when: 'CONFIG_VT82C686', if_true: files('vt82c686-uhci-pci.cpp'))
-system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files('xlnx-versal-usb2-ctrl-regs.c'))
+system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files('xlnx-versal-usb2-ctrl-regs.cpp'))
 system_ss.add(when: 'CONFIG_XLNX_USB_SUBSYS', if_true: files('xlnx-usb-subsystem.cpp'))
 
 # emulated usb devices
 system_ss.add(when: 'CONFIG_USB_HUB', if_true: files('dev-hub.cpp'))
 system_ss.add(when: 'CONFIG_USB_HID', if_true: files('dev-hid.cpp'))
-system_ss.add(when: 'CONFIG_USB_TABLET_WACOM', if_true: files('dev-wacom.c'))
-system_ss.add(when: 'CONFIG_USB_STORAGE_CORE', if_true: files('dev-storage.c'))
+system_ss.add(when: 'CONFIG_USB_TABLET_WACOM', if_true: files('dev-wacom.cpp'))
+system_ss.add(when: 'CONFIG_USB_STORAGE_CORE', if_true: files('dev-storage.cpp'))
 system_ss.add(when: 'CONFIG_USB_STORAGE_BOT', if_true: files('dev-storage-bot.cpp'))
 system_ss.add(when: 'CONFIG_USB_STORAGE_CLASSIC', if_true: files('dev-storage-classic.cpp'))
 system_ss.add(when: 'CONFIG_USB_STORAGE_UAS', if_true: files('dev-uas.cpp'))
@@ -53,17 +53,17 @@ system_ss.add(when: 'CONFIG_USB_SMARTCARD', if_true: files('dev-smartcard-reader
 if cacard.found()
   usbsmartcard_ss = ss.source_set()
   usbsmartcard_ss.add(when: 'CONFIG_USB_SMARTCARD',
-                      if_true: [cacard, files('ccid-card-emulated.c', 'ccid-card-passthru.c')])
+                      if_true: [cacard, files('ccid-card-emulated.cpp', 'ccid-card-passthru.cpp')])
   hw_usb_modules += {'smartcard': usbsmartcard_ss}
 endif
 
 # U2F
 system_ss.add(when: 'CONFIG_USB_U2F', if_true: files('u2f.cpp'))
 if host_os == 'linux'
-  system_ss.add(when: 'CONFIG_USB_U2F', if_true: [libudev, files('u2f-passthru.c')])
+  system_ss.add(when: 'CONFIG_USB_U2F', if_true: [libudev, files('u2f-passthru.cpp')])
 endif
 if u2f.found()
-  system_ss.add(when: 'CONFIG_USB_U2F', if_true: [u2f, files('u2f-emulated.c')])
+  system_ss.add(when: 'CONFIG_USB_U2F', if_true: [u2f, files('u2f-emulated.cpp')])
 endif
 
 # CanoKey
@@ -87,6 +87,6 @@ if libusb.found()
   hw_usb_modules += {'host': usbhost_ss}
 endif
 
-system_ss.add(when: ['CONFIG_USB', 'CONFIG_XEN_BUS', libusb], if_true: files('xen-usb.c'))
+system_ss.add(when: ['CONFIG_USB', 'CONFIG_XEN_BUS', libusb], if_true: files('xen-usb.cpp'))
 
 modules += { 'hw-usb': hw_usb_modules }

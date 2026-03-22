@@ -37,15 +37,17 @@ static void usb_bus_class_init(ObjectClass *klass, const void *data)
     hc->unplug = qdev_simple_device_unplug_cb;
 }
 
+static const InterfaceInfo usb_bus_interfaces[] = {
+    { TYPE_HOTPLUG_HANDLER },
+    { }
+};
+
 static const TypeInfo usb_bus_info = {
     .name = TYPE_USB_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(USBBus),
     .class_init = usb_bus_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
+    .interfaces = usb_bus_interfaces
 };
 
 static int next_usb_bus = 0;
@@ -53,7 +55,7 @@ static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
 
 static int usb_device_post_load(void *opaque, int version_id)
 {
-    USBDevice *dev = opaque;
+    USBDevice *dev = static_cast<USBDevice *>(opaque);
 
     if (dev->state == USB_STATE_NOTATTACHED) {
         dev->attached = false;
@@ -63,21 +65,23 @@ static int usb_device_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_usb_device_fields[] = {
+    VMSTATE_UINT8(addr, USBDevice),
+    VMSTATE_INT32(state, USBDevice),
+    VMSTATE_INT32(remote_wakeup, USBDevice),
+    VMSTATE_INT32(setup_state, USBDevice),
+    VMSTATE_INT32(setup_len, USBDevice),
+    VMSTATE_INT32(setup_index, USBDevice),
+    VMSTATE_UINT8_ARRAY(setup_buf, USBDevice, 8),
+    VMSTATE_END_OF_LIST(),
+};
+
 const VMStateDescription vmstate_usb_device = {
     .name = "USBDevice",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = usb_device_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(addr, USBDevice),
-        VMSTATE_INT32(state, USBDevice),
-        VMSTATE_INT32(remote_wakeup, USBDevice),
-        VMSTATE_INT32(setup_state, USBDevice),
-        VMSTATE_INT32(setup_len, USBDevice),
-        VMSTATE_INT32(setup_index, USBDevice),
-        VMSTATE_UINT8_ARRAY(setup_buf, USBDevice, 8),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_usb_device_fields
 };
 
 void usb_bus_new(USBBus *bus, size_t bus_size,
@@ -307,7 +311,7 @@ void usb_legacy_register(const char *type_name, const char *usbdevice_name,
                          USBDevice *(*usbdevice_init)(void))
 {
     if (usbdevice_name) {
-        LegacyUSBFactory *f = g_malloc0(sizeof(*f));
+        LegacyUSBFactory *f = static_cast<LegacyUSBFactory *>(g_malloc0(sizeof(*f)));
         f->name = type_name;
         f->usbdevice_name = usbdevice_name;
         f->usbdevice_init = usbdevice_init;
@@ -532,12 +536,15 @@ int usb_device_detach(USBDevice *dev)
 
 static const char *usb_speed(unsigned int speed)
 {
-    static const char *txt[] = {
-        [ USB_SPEED_LOW  ] = "1.5",
-        [ USB_SPEED_FULL ] = "12",
-        [ USB_SPEED_HIGH ] = "480",
-        [ USB_SPEED_SUPER ] = "5000",
-    };
+    static const char *txt[USB_SPEED_SUPER + 1] = {};
+    static bool txt_init = false;
+    if (!txt_init) {
+        txt[USB_SPEED_LOW]   = "1.5";
+        txt[USB_SPEED_FULL]  = "12";
+        txt[USB_SPEED_HIGH]  = "480";
+        txt[USB_SPEED_SUPER] = "5000";
+        txt_init = true;
+    }
     if (speed >= ARRAY_SIZE(txt))
         return "?";
     return txt[speed];
@@ -578,7 +585,7 @@ static char *usb_get_fw_dev_path(DeviceState *qdev)
     long nr;
 
     fw_len = 32 + strlen(dev->port->path) * 6;
-    fw_path = g_malloc(fw_len);
+    fw_path = static_cast<char *>(g_malloc(fw_len));
     in = dev->port->path;
     while (fw_len - pos > 0) {
         nr = strtol(in, &in, 10);
@@ -641,7 +648,7 @@ USBDevice *usbdevice_create(const char *driver)
     }
 
     for (i = legacy_usb_factory; i; i = i->next) {
-        f = i->data;
+        f = static_cast<LegacyUSBFactory *>(i->data);
         if (strcmp(f->usbdevice_name, driver) == 0) {
             break;
         }

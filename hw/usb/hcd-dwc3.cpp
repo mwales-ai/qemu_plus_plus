@@ -594,7 +594,7 @@ static const MemoryRegionOps usb_dwc3_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
-    },
+    }
 };
 
 static void usb_dwc3_realize(DeviceState *dev, Error **errp)
@@ -627,7 +627,7 @@ static void usb_dwc3_realize(DeviceState *dev, Error **errp)
     s->regs[R_GHWPARAMS8] = 0x478;
 }
 
-static void usb_dwc3_init(Object *obj)
+static void __attribute__((used)) usb_dwc3_init(Object *obj)
 {
     USBDWC3 *s = USB_DWC3(obj);
     RegisterInfoArray *reg_array;
@@ -650,15 +650,17 @@ static void usb_dwc3_init(Object *obj)
     s->cfg.mode = HOST_MODE;
 }
 
+static const VMStateField vmstate_usb_dwc3_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, USBDWC3, USB_DWC3_R_MAX),
+    VMSTATE_UINT8(cfg.mode, USBDWC3),
+    VMSTATE_UINT32(cfg.dwc_usb3_user, USBDWC3),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_usb_dwc3 = {
     .name = "usb-dwc3",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, USBDWC3, USB_DWC3_R_MAX),
-        VMSTATE_UINT8(cfg.mode, USBDWC3),
-        VMSTATE_UINT32(cfg.dwc_usb3_user, USBDWC3),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_usb_dwc3_fields
 };
 
 static const Property usb_dwc3_properties[] = {
@@ -680,8 +682,8 @@ static const TypeInfo usb_dwc3_info = {
     .name          = TYPE_USB_DWC3,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(USBDWC3),
-    .class_init    = usb_dwc3_class_init,
     .instance_init = usb_dwc3_init,
+    .class_init    = usb_dwc3_class_init,
 };
 
 static void usb_dwc3_register_types(void)

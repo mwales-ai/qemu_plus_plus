@@ -875,7 +875,7 @@ static void xlnx_zynqmp_qspips_notify(void *opaque)
 static uint64_t xilinx_spips_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
-    XilinxSPIPS *s = opaque;
+    XilinxSPIPS *s = static_cast<XilinxSPIPS *>(opaque);
     uint32_t mask = ~0;
     uint32_t ret;
     uint8_t rx_buf[4];
@@ -970,7 +970,7 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
     int mask = ~0;
-    XilinxSPIPS *s = opaque;
+    XilinxSPIPS *s = static_cast<XilinxSPIPS *>(opaque);
     bool try_flush = true;
 
     DB_PRINT_L(0, "addr=" HWADDR_FMT_plx " = %x\n", addr, (unsigned)value);
@@ -1149,8 +1149,8 @@ static const MemoryRegionOps xlnx_zynqmp_qspips_ops = {
 
 static void lqspi_load_cache(void *opaque, hwaddr addr)
 {
-    XilinxQSPIPS *q = opaque;
-    XilinxSPIPS *s = opaque;
+    XilinxQSPIPS *q = static_cast<XilinxQSPIPS *>(opaque);
+    XilinxSPIPS *s = static_cast<XilinxSPIPS *>(opaque);
     int i;
     int flash_addr = ((addr & ~(LQSPI_CACHE_SIZE - 1))
                    / num_effective_busses(s));
@@ -1251,19 +1251,19 @@ static MemTxResult lqspi_write(void *opaque, hwaddr offset, uint64_t value,
     return MEMTX_ERROR;
 }
 
-static const MemoryRegionOps lqspi_ops = {
-    .read_with_attrs = lqspi_read,
-    .write_with_attrs = lqspi_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-    .valid = {
-        .min_access_size = 1,
-        .max_access_size = 4
-    }
-};
+static MemoryRegionOps lqspi_ops;
+
+static void __attribute__((constructor)) init_lqspi_ops(void)
+{
+    memset(&lqspi_ops, 0, sizeof(lqspi_ops));
+    lqspi_ops.read_with_attrs = lqspi_read;
+    lqspi_ops.write_with_attrs = lqspi_write;
+    lqspi_ops.endianness = DEVICE_NATIVE_ENDIAN;
+    lqspi_ops.impl.min_access_size = 4;
+    lqspi_ops.impl.max_access_size = 4;
+    lqspi_ops.valid.min_access_size = 1;
+    lqspi_ops.valid.max_access_size = 4;
+}
 
 static void xilinx_spips_realize(DeviceState *dev, Error **errp)
 {
@@ -1366,18 +1366,20 @@ static int xilinx_spips_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_xilinx_spips_fields[] = {
+    VMSTATE_FIFO8(tx_fifo, XilinxSPIPS),
+    VMSTATE_FIFO8(rx_fifo, XilinxSPIPS),
+    VMSTATE_UINT32_ARRAY(regs, XilinxSPIPS, XLNX_SPIPS_R_MAX),
+    VMSTATE_UINT8(snoop_state, XilinxSPIPS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xilinx_spips = {
     .name = "xilinx_spips",
     .version_id = 2,
     .minimum_version_id = 2,
     .post_load = xilinx_spips_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_FIFO8(tx_fifo, XilinxSPIPS),
-        VMSTATE_FIFO8(rx_fifo, XilinxSPIPS),
-        VMSTATE_UINT32_ARRAY(regs, XilinxSPIPS, XLNX_SPIPS_R_MAX),
-        VMSTATE_UINT8(snoop_state, XilinxSPIPS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xilinx_spips_fields,
 };
 
 static int xlnx_zynqmp_qspips_post_load(void *opaque, int version_id)
@@ -1393,15 +1395,27 @@ static int xlnx_zynqmp_qspips_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_xilinx_qspips_fields[] = {
+    VMSTATE_STRUCT(parent_obj, XilinxQSPIPS, 0,
+                   vmstate_xilinx_spips, XilinxSPIPS),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xilinx_qspips = {
     .name = "xilinx_qspips",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(parent_obj, XilinxQSPIPS, 0,
-                       vmstate_xilinx_spips, XilinxSPIPS),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xilinx_qspips_fields,
+};
+
+static const VMStateField vmstate_xlnx_zynqmp_qspips_fields[] = {
+    VMSTATE_STRUCT(parent_obj, XlnxZynqMPQSPIPS, 0,
+                   vmstate_xilinx_qspips, XilinxQSPIPS),
+    VMSTATE_FIFO8(tx_fifo_g, XlnxZynqMPQSPIPS),
+    VMSTATE_FIFO8(rx_fifo_g, XlnxZynqMPQSPIPS),
+    VMSTATE_FIFO32(fifo_g, XlnxZynqMPQSPIPS),
+    VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPQSPIPS, XLNX_ZYNQMP_SPIPS_R_MAX),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_xlnx_zynqmp_qspips = {
@@ -1409,15 +1423,7 @@ static const VMStateDescription vmstate_xlnx_zynqmp_qspips = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = xlnx_zynqmp_qspips_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT(parent_obj, XlnxZynqMPQSPIPS, 0,
-                       vmstate_xilinx_qspips, XilinxQSPIPS),
-        VMSTATE_FIFO8(tx_fifo_g, XlnxZynqMPQSPIPS),
-        VMSTATE_FIFO8(rx_fifo_g, XlnxZynqMPQSPIPS),
-        VMSTATE_FIFO32(fifo_g, XlnxZynqMPQSPIPS),
-        VMSTATE_UINT32_ARRAY(regs, XlnxZynqMPQSPIPS, XLNX_ZYNQMP_SPIPS_R_MAX),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xlnx_zynqmp_qspips_fields,
 };
 
 static const Property xilinx_zynqmp_qspips_properties[] = {
@@ -1477,8 +1483,8 @@ static const TypeInfo xilinx_spips_info = {
     .name  = TYPE_XILINX_SPIPS,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(XilinxSPIPS),
-    .class_init = xilinx_spips_class_init,
     .class_size = sizeof(XilinxSPIPSClass),
+    .class_init = xilinx_spips_class_init,
 };
 
 static const TypeInfo xilinx_qspips_info = {

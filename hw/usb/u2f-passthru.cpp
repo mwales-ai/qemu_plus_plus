@@ -127,7 +127,7 @@ static void u2f_passthru_reset(U2FPassthruState *key)
 
 static void u2f_timeout_check(void *opaque)
 {
-    U2FPassthruState *key = opaque;
+    U2FPassthruState *key = static_cast<U2FPassthruState *>(opaque);
     int64_t time = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
 
     if (time > key->last_transaction_time + TRANSACTION_TIMEOUT) {
@@ -304,7 +304,7 @@ static void u2f_passthru_recv_from_host(U2FPassthruState *key,
 
 static void u2f_passthru_read(void *opaque)
 {
-    U2FPassthruState *key = opaque;
+    U2FPassthruState *key = static_cast<U2FPassthruState *>(opaque);
     U2FKeyState *base = &key->base;
     uint8_t packet[2 * U2FHID_PACKET_SIZE];
     int ret;
@@ -500,20 +500,22 @@ static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
 
 static int u2f_passthru_post_load(void *opaque, int version_id)
 {
-    U2FPassthruState *key = opaque;
+    U2FPassthruState *key = static_cast<U2FPassthruState *>(opaque);
     u2f_passthru_reset(key);
     return 0;
 }
+
+static const VMStateField vmstate_u2f_passthru_fields[] = {
+    VMSTATE_U2F_KEY(base, U2FPassthruState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription u2f_passthru_vmstate = {
     .name = "u2f-key-passthru",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = u2f_passthru_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_U2F_KEY(base, U2FPassthruState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_u2f_passthru_fields
 };
 
 static const Property u2f_passthru_properties[] = {

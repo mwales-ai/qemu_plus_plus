@@ -148,7 +148,7 @@ static void dwc2_sof(DWC2State *s)
 /* Do frame processing on frame boundary */
 static void dwc2_frame_boundary(void *opaque)
 {
-    DWC2State *s = opaque;
+    DWC2State *s = static_cast<DWC2State *>(opaque);
     int64_t now;
     uint16_t frcnt;
 
@@ -411,7 +411,7 @@ static const char *speeds[] = {
 
 static void dwc2_attach(USBPort *port)
 {
-    DWC2State *s = port->opaque;
+    DWC2State *s = static_cast<DWC2State *>(port->opaque);
     int hispd = 0;
 
     trace_usb_dwc2_attach(port);
@@ -463,7 +463,7 @@ static void dwc2_attach(USBPort *port)
 
 static void dwc2_detach(USBPort *port)
 {
-    DWC2State *s = port->opaque;
+    DWC2State *s = static_cast<DWC2State *>(port->opaque);
 
     trace_usb_dwc2_detach(port);
     assert(port->index == 0);
@@ -484,7 +484,7 @@ static void dwc2_child_detach(USBPort *port, USBDevice *child)
 
 static void dwc2_wakeup(USBPort *port)
 {
-    DWC2State *s = port->opaque;
+    DWC2State *s = static_cast<DWC2State *>(port->opaque);
 
     trace_usb_dwc2_wakeup(port);
     assert(port->index == 0);
@@ -499,7 +499,7 @@ static void dwc2_wakeup(USBPort *port)
 
 static void dwc2_async_packet_complete(USBPort *port, USBPacket *packet)
 {
-    DWC2State *s = port->opaque;
+    DWC2State *s = static_cast<DWC2State *>(port->opaque);
     DWC2Packet *p;
     USBDevice *dev;
     USBEndpoint *ep;
@@ -566,7 +566,7 @@ out:
 
 static void dwc2_work_bh(void *opaque)
 {
-    DWC2State *s = opaque;
+    DWC2State *s = static_cast<DWC2State *>(opaque);
     DWC2Packet *p;
     USBDevice *dev;
     USBEndpoint *ep;
@@ -671,7 +671,7 @@ static const char *glbregnm[] = {
 static uint64_t dwc2_glbreg_read(void *ptr, hwaddr addr, int index,
                                  unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint32_t val;
 
     if (addr > GINTSTS2) {
@@ -700,7 +700,7 @@ static uint64_t dwc2_glbreg_read(void *ptr, hwaddr addr, int index,
 static void dwc2_glbreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
                               unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint64_t orig = val;
     uint32_t *mmio;
     uint32_t old;
@@ -799,7 +799,7 @@ static void dwc2_glbreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
 static uint64_t dwc2_fszreg_read(void *ptr, hwaddr addr, int index,
                                  unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint32_t val;
 
     if (addr != HPTXFSIZ) {
@@ -817,7 +817,7 @@ static uint64_t dwc2_fszreg_read(void *ptr, hwaddr addr, int index,
 static void dwc2_fszreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
                               unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint64_t orig = val;
     uint32_t *mmio;
     uint32_t old;
@@ -845,7 +845,7 @@ static const char *hreg0nm[] = {
 static uint64_t dwc2_hreg0_read(void *ptr, hwaddr addr, int index,
                                 unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint32_t val;
 
     if (addr < HCFG || addr > HPRT0) {
@@ -872,7 +872,7 @@ static uint64_t dwc2_hreg0_read(void *ptr, hwaddr addr, int index,
 static void dwc2_hreg0_write(void *ptr, hwaddr addr, int index, uint64_t val,
                              unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     USBDevice *dev = s->uport.dev;
     uint64_t orig = val;
     uint32_t *mmio;
@@ -968,7 +968,7 @@ static const char *hreg1nm[] = {
 static uint64_t dwc2_hreg1_read(void *ptr, hwaddr addr, int index,
                                 unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint32_t val;
 
     if (addr < HCCHAR(0) || addr > HCDMAB(DWC2_NB_CHAN - 1)) {
@@ -986,7 +986,7 @@ static uint64_t dwc2_hreg1_read(void *ptr, hwaddr addr, int index,
 static void dwc2_hreg1_write(void *ptr, hwaddr addr, int index, uint64_t val,
                              unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint64_t orig = val;
     uint32_t *mmio;
     uint32_t old;
@@ -1063,7 +1063,7 @@ static const char *pcgregnm[] = {
 static uint64_t dwc2_pcgreg_read(void *ptr, hwaddr addr, int index,
                                  unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint32_t val;
 
     if (addr < PCGCTL || addr > PCGCCTL1) {
@@ -1081,7 +1081,7 @@ static uint64_t dwc2_pcgreg_read(void *ptr, hwaddr addr, int index,
 static void dwc2_pcgreg_write(void *ptr, hwaddr addr, int index,
                               uint64_t val, unsigned size)
 {
-    DWC2State *s = ptr;
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint64_t orig = val;
     uint32_t *mmio;
     uint32_t old;
@@ -1172,8 +1172,8 @@ static void dwc2_hsotg_write(void *ptr, hwaddr addr, uint64_t val,
 static const MemoryRegionOps dwc2_mmio_hsotg_ops = {
     .read = dwc2_hsotg_read,
     .write = dwc2_hsotg_write,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static uint64_t dwc2_hreg2_read(void *ptr, hwaddr addr, unsigned size)
@@ -1197,8 +1197,8 @@ static void dwc2_hreg2_write(void *ptr, hwaddr addr, uint64_t val,
 static const MemoryRegionOps dwc2_mmio_hreg2_ops = {
     .read = dwc2_hreg2_read,
     .write = dwc2_hreg2_write,
-    .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
 static void dwc2_wakeup_endpoint(USBBus *bus, USBEndpoint *ep,
@@ -1218,7 +1218,7 @@ static USBBusOps dwc2_bus_ops = {
 
 static void dwc2_work_timer(void *opaque)
 {
-    DWC2State *s = opaque;
+    DWC2State *s = static_cast<DWC2State *>(opaque);
 
     trace_usb_dwc2_work_timer();
     qemu_bh_schedule(s->async_bh);
@@ -1390,60 +1390,64 @@ static void dwc2_init(Object *obj)
     memory_region_add_subregion(&s->container, 0x1000, &s->fifos);
 }
 
+static const VMStateField vmstate_dwc2_state_packet_fields[] = {
+    VMSTATE_UINT32(devadr, DWC2Packet),
+    VMSTATE_UINT32(epnum, DWC2Packet),
+    VMSTATE_UINT32(epdir, DWC2Packet),
+    VMSTATE_UINT32(mps, DWC2Packet),
+    VMSTATE_UINT32(pid, DWC2Packet),
+    VMSTATE_UINT32(index, DWC2Packet),
+    VMSTATE_UINT32(pcnt, DWC2Packet),
+    VMSTATE_UINT32(len, DWC2Packet),
+    VMSTATE_INT32(async, DWC2Packet),
+    VMSTATE_BOOL(small, DWC2Packet),
+    VMSTATE_BOOL(needs_service, DWC2Packet),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_dwc2_state_packet = {
     .name = "dwc2/packet",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(devadr, DWC2Packet),
-        VMSTATE_UINT32(epnum, DWC2Packet),
-        VMSTATE_UINT32(epdir, DWC2Packet),
-        VMSTATE_UINT32(mps, DWC2Packet),
-        VMSTATE_UINT32(pid, DWC2Packet),
-        VMSTATE_UINT32(index, DWC2Packet),
-        VMSTATE_UINT32(pcnt, DWC2Packet),
-        VMSTATE_UINT32(len, DWC2Packet),
-        VMSTATE_INT32(async, DWC2Packet),
-        VMSTATE_BOOL(small, DWC2Packet),
-        VMSTATE_BOOL(needs_service, DWC2Packet),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_dwc2_state_packet_fields,
+};
+
+static const VMStateField vmstate_dwc2_state_fields[] = {
+    VMSTATE_UINT32_ARRAY(glbreg, DWC2State,
+                         DWC2_GLBREG_SIZE / sizeof(uint32_t)),
+    VMSTATE_UINT32_ARRAY(fszreg, DWC2State,
+                         DWC2_FSZREG_SIZE / sizeof(uint32_t)),
+    VMSTATE_UINT32_ARRAY(hreg0, DWC2State,
+                         DWC2_HREG0_SIZE / sizeof(uint32_t)),
+    VMSTATE_UINT32_ARRAY(hreg1, DWC2State,
+                         DWC2_HREG1_SIZE / sizeof(uint32_t)),
+    VMSTATE_UINT32_ARRAY(pcgreg, DWC2State,
+                         DWC2_PCGREG_SIZE / sizeof(uint32_t)),
+
+    VMSTATE_TIMER_PTR(eof_timer, DWC2State),
+    VMSTATE_TIMER_PTR(frame_timer, DWC2State),
+    VMSTATE_INT64(sof_time, DWC2State),
+    VMSTATE_INT64(usb_frame_time, DWC2State),
+    VMSTATE_INT64(usb_bit_time, DWC2State),
+    VMSTATE_UINT32(usb_version, DWC2State),
+    VMSTATE_UINT16(frame_number, DWC2State),
+    VMSTATE_UINT16(fi, DWC2State),
+    VMSTATE_UINT16(next_chan, DWC2State),
+    VMSTATE_BOOL(working, DWC2State),
+
+    VMSTATE_STRUCT_ARRAY(packet, DWC2State, DWC2_NB_CHAN, 1,
+                         vmstate_dwc2_state_packet, DWC2Packet),
+    VMSTATE_UINT8_2DARRAY(usb_buf, DWC2State, DWC2_NB_CHAN,
+                          DWC2_MAX_XFER_SIZE),
+
+    VMSTATE_END_OF_LIST()
 };
 
 const VMStateDescription vmstate_dwc2_state = {
     .name = "dwc2",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(glbreg, DWC2State,
-                             DWC2_GLBREG_SIZE / sizeof(uint32_t)),
-        VMSTATE_UINT32_ARRAY(fszreg, DWC2State,
-                             DWC2_FSZREG_SIZE / sizeof(uint32_t)),
-        VMSTATE_UINT32_ARRAY(hreg0, DWC2State,
-                             DWC2_HREG0_SIZE / sizeof(uint32_t)),
-        VMSTATE_UINT32_ARRAY(hreg1, DWC2State,
-                             DWC2_HREG1_SIZE / sizeof(uint32_t)),
-        VMSTATE_UINT32_ARRAY(pcgreg, DWC2State,
-                             DWC2_PCGREG_SIZE / sizeof(uint32_t)),
-
-        VMSTATE_TIMER_PTR(eof_timer, DWC2State),
-        VMSTATE_TIMER_PTR(frame_timer, DWC2State),
-        VMSTATE_INT64(sof_time, DWC2State),
-        VMSTATE_INT64(usb_frame_time, DWC2State),
-        VMSTATE_INT64(usb_bit_time, DWC2State),
-        VMSTATE_UINT32(usb_version, DWC2State),
-        VMSTATE_UINT16(frame_number, DWC2State),
-        VMSTATE_UINT16(fi, DWC2State),
-        VMSTATE_UINT16(next_chan, DWC2State),
-        VMSTATE_BOOL(working, DWC2State),
-
-        VMSTATE_STRUCT_ARRAY(packet, DWC2State, DWC2_NB_CHAN, 1,
-                             vmstate_dwc2_state_packet, DWC2Packet),
-        VMSTATE_UINT8_2DARRAY(usb_buf, DWC2State, DWC2_NB_CHAN,
-                              DWC2_MAX_XFER_SIZE),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dwc2_state_fields
 };
 
 static const Property dwc2_usb_properties[] = {

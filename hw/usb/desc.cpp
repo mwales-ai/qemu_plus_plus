@@ -10,7 +10,7 @@ int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     bool msos, uint8_t *dest, size_t len)
 {
     uint8_t bLength = 0x12;
-    USBDescriptor *d = (void *)dest;
+    USBDescriptor *d = reinterpret_cast<USBDescriptor *>(dest);
 
     if (len < bLength) {
         return -1;
@@ -55,7 +55,7 @@ int usb_desc_device_qualifier(const USBDescDevice *dev,
                               uint8_t *dest, size_t len)
 {
     uint8_t bLength = 0x0a;
-    USBDescriptor *d = (void *)dest;
+    USBDescriptor *d = reinterpret_cast<USBDescriptor *>(dest);
 
     if (len < bLength) {
         return -1;
@@ -81,7 +81,7 @@ int usb_desc_config(const USBDescConfig *conf, int flags,
 {
     uint8_t  bLength = 0x09;
     uint16_t wTotalLength = 0;
-    USBDescriptor *d = (void *)dest;
+    USBDescriptor *d = reinterpret_cast<USBDescriptor *>(dest);
     int i, rc;
 
     if (len < bLength) {
@@ -164,7 +164,7 @@ int usb_desc_iface(const USBDescIface *iface, int flags,
 {
     uint8_t bLength = 0x09;
     int i, rc, pos = 0;
-    USBDescriptor *d = (void *)dest;
+    USBDescriptor *d = reinterpret_cast<USBDescriptor *>(dest);
 
     if (len < bLength) {
         return -1;
@@ -207,7 +207,7 @@ int usb_desc_endpoint(const USBDescEndpoint *ep, int flags,
     uint8_t bLength = ep->is_audio ? 0x09 : 0x07;
     uint8_t extralen = ep->extra ? ep->extra[0] : 0;
     uint8_t superlen = (flags & USB_DESC_FLAG_SUPER) ? 0x06 : 0;
-    USBDescriptor *d = (void *)dest;
+    USBDescriptor *d = reinterpret_cast<USBDescriptor *>(dest);
 
     if (len < bLength + extralen + superlen) {
         return -1;
@@ -227,7 +227,7 @@ int usb_desc_endpoint(const USBDescEndpoint *ep, int flags,
     }
 
     if (superlen) {
-        d = (void *)(dest + bLength);
+        d = reinterpret_cast<USBDescriptor *>(dest + bLength);
 
         d->bLength                       = 0x06;
         d->bDescriptorType               = USB_DT_ENDPOINT_COMPANION;
@@ -262,7 +262,7 @@ int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
 static int usb_desc_cap_usb2_ext(const USBDesc *desc, uint8_t *dest, size_t len)
 {
     uint8_t  bLength = 0x07;
-    USBDescriptor *d = (void *)dest;
+    USBDescriptor *d = reinterpret_cast<USBDescriptor *>(dest);
 
     if (len < bLength) {
         return -1;
@@ -283,7 +283,7 @@ static int usb_desc_cap_usb2_ext(const USBDesc *desc, uint8_t *dest, size_t len)
 static int usb_desc_cap_super(const USBDesc *desc, uint8_t *dest, size_t len)
 {
     uint8_t  bLength = 0x0a;
-    USBDescriptor *d = (void *)dest;
+    USBDescriptor *d = reinterpret_cast<USBDescriptor *>(dest);
 
     if (len < bLength) {
         return -1;
@@ -326,7 +326,7 @@ static int usb_desc_bos(const USBDesc *desc, uint8_t *dest, size_t len)
     uint8_t  bLength = 0x05;
     uint16_t wTotalLength = 0;
     uint8_t  bNumDeviceCaps = 0;
-    USBDescriptor *d = (void *)dest;
+    USBDescriptor *d = reinterpret_cast<USBDescriptor *>(dest);
     int rc;
 
     if (len < bLength) {
@@ -531,7 +531,7 @@ void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str)
         }
     }
     if (s == NULL) {
-        s = g_malloc0(sizeof(*s));
+        s = static_cast<USBDescString *>(g_malloc0(sizeof(*s)));
         s->index = index;
         QLIST_INSERT_HEAD(&dev->strings, s, next);
     }
@@ -633,7 +633,7 @@ int usb_desc_get_descriptor(USBDevice *dev, USBPacket *p,
     const USBDesc *desc = usb_device_get_usb_desc(dev);
     const USBDescDevice *other_dev;
     size_t buflen = USB_DESC_MAX_LEN;
-    g_autofree uint8_t *buf = g_malloc(buflen);
+    g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(buflen));
     uint8_t type = value >> 8;
     uint8_t index = value & 0xff;
     int flags, ret = -1;
