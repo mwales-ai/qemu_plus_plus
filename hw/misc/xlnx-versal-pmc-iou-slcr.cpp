@@ -1408,15 +1408,17 @@ static void xlnx_versal_pmc_iou_slcr_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq_imr);
 }
 
+static const VMStateField vmstate_pmc_iou_slcr_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersalPmcIouSlcr,
+                         XILINX_VERSAL_PMC_IOU_SLCR_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_pmc_iou_slcr = {
     .name = TYPE_XILINX_VERSAL_PMC_IOU_SLCR,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersalPmcIouSlcr,
-                             XILINX_VERSAL_PMC_IOU_SLCR_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_pmc_iou_slcr_fields,
 };
 
 static void xlnx_versal_pmc_iou_slcr_class_init(ObjectClass *klass,
@@ -1435,8 +1437,8 @@ static const TypeInfo xlnx_versal_pmc_iou_slcr_info = {
     .name          = TYPE_XILINX_VERSAL_PMC_IOU_SLCR,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalPmcIouSlcr),
-    .class_init    = xlnx_versal_pmc_iou_slcr_class_init,
     .instance_init = xlnx_versal_pmc_iou_slcr_init,
+    .class_init    = xlnx_versal_pmc_iou_slcr_class_init,
 };
 
 static void xlnx_versal_pmc_iou_slcr_register_types(void)

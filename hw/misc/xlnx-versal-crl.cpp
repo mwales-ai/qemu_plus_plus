@@ -144,19 +144,19 @@ static uint64_t crl_rst_cpu_prew(RegisterInfo *reg, uint64_t val64)
     dev = xvcbc->decode_periph_rst(s, reg->access->addr, &count);
 
     for (i = 0; i < 2; i++) {
-        bool prev, new;
+        bool prev, new_val;
         uint64_t aff;
 
         prev = extract32(s->regs[reg->access->addr / 4], i, 1);
-        new = extract32(val64, i, 1);
+        new_val = extract32(val64, i, 1);
 
-        if (prev == new) {
+        if (prev == new_val) {
             continue;
         }
 
         aff = arm_cpu_mp_affinity(ARM_CPU(dev[i]));
 
-        if (new) {
+        if (new_val) {
             arm_set_cpu_off(aff);
         } else {
             arm_set_cpu_on_and_reset(aff);
@@ -171,7 +171,7 @@ static uint64_t crl_rst_dev_prew(RegisterInfo *reg, uint64_t val64)
     XlnxVersalCRLBase *s = XLNX_VERSAL_CRL_BASE(reg->opaque);
     XlnxVersalCRLBaseClass *xvcbc = XLNX_VERSAL_CRL_BASE_GET_CLASS(s);
     DeviceState **dev;
-    bool prev, new;
+    bool prev, new_val;
     size_t i, count;
 
     dev = xvcbc->decode_periph_rst(s, reg->access->addr, &count);
@@ -181,9 +181,9 @@ static uint64_t crl_rst_dev_prew(RegisterInfo *reg, uint64_t val64)
     }
 
     prev = s->regs[reg->access->addr / 4] & 0x1;
-    new = val64 & 0x1;
+    new_val = val64 & 0x1;
 
-    if (prev == new) {
+    if (prev == new_val) {
         return val64;
     }
 
@@ -506,8 +506,8 @@ static const RegisterAccessInfo versal2_crl_regs_info[] = {
         .reset = 0x1,
         .pre_write = crl_rst_dev_prew,
     },{ .name = "RST_SDMA",  .addr = A_VERSAL2_RST_SDMA,
-        .pre_write = crl_rst_dev_prew,
         .reset = 0x1,
+        .pre_write = crl_rst_dev_prew,
     },{ .name = "RST_GEM0",  .addr = A_VERSAL2_RST_GEM0,
         .reset = 0x1,
         .pre_write = crl_rst_dev_prew,
@@ -751,24 +751,28 @@ static void versal2_crl_init(Object *obj)
     }
 }
 
+static const VMStateField vmstate_versal_crl_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersalCRL, CRL_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_versal_crl = {
     .name = TYPE_XLNX_VERSAL_CRL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersalCRL, CRL_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_versal_crl_fields,
+};
+
+static const VMStateField vmstate_versal2_crl_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxVersal2CRL, VERSAL2_CRL_R_MAX),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_versal2_crl = {
     .name = TYPE_XLNX_VERSAL2_CRL,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxVersal2CRL, VERSAL2_CRL_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_versal2_crl_fields,
 };
 
 static void versal_crl_class_init(ObjectClass *klass, const void *data)
@@ -798,8 +802,8 @@ static const TypeInfo crl_base_info = {
     .name          = TYPE_XLNX_VERSAL_CRL_BASE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XlnxVersalCRLBase),
+    .is_abstract   = true,
     .class_size    = sizeof(XlnxVersalCRLBaseClass),
-    .is_abstract      = true,
 };
 
 static const TypeInfo versal_crl_info = {

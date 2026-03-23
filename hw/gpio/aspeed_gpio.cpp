@@ -305,11 +305,11 @@ static void aspeed_gpio_update(AspeedGPIOState *s, GPIOSets *regs,
     uint32_t input_mask = regs->input_mask;
     uint32_t direction = regs->direction;
     uint32_t old = regs->data_value;
-    uint32_t new = value;
+    uint32_t new_val = value;
     uint32_t diff;
     int gpio;
 
-    diff = (old ^ new);
+    diff = (old ^ new_val);
     diff &= mode_mask;
     if (diff) {
         for (gpio = 0; gpio < ASPEED_GPIOS_PER_SET; gpio++) {
@@ -326,7 +326,7 @@ static void aspeed_gpio_update(AspeedGPIOState *s, GPIOSets *regs,
             }
 
             /* ...then update the state. */
-            if (mask & new) {
+            if (mask & new_val) {
                 regs->data_value |= mask;
             } else {
                 regs->data_value &= ~mask;
@@ -336,7 +336,7 @@ static void aspeed_gpio_update(AspeedGPIOState *s, GPIOSets *regs,
             if (direction & mask) {
                 /* ...trigger the line-state IRQ */
                 ptrdiff_t set = aspeed_gpio_set_idx(s, regs);
-                qemu_set_irq(s->gpios[set][gpio], !!(new & mask));
+                qemu_set_irq(s->gpios[set][gpio], !!(new_val & mask));
             } else {
                 /* ...otherwise if we meet the line's current IRQ policy... */
                 if (aspeed_evaluate_irq(regs, old & mask, gpio)) {
@@ -418,161 +418,156 @@ static uint32_t update_value_control_source(GPIOSets *regs, uint32_t old_value,
     return new_value;
 }
 
-static const AspeedGPIOReg aspeed_3_3v_gpios[GPIO_3_3V_REG_ARRAY_SIZE] = {
-    /* Set ABCD */
-    [GPIO_ABCD_DATA_VALUE] =     { 0, gpio_reg_data_value },
-    [GPIO_ABCD_DIRECTION] =      { 0, gpio_reg_direction },
-    [GPIO_ABCD_INT_ENABLE] =     { 0, gpio_reg_int_enable },
-    [GPIO_ABCD_INT_SENS_0] =     { 0, gpio_reg_int_sens_0 },
-    [GPIO_ABCD_INT_SENS_1] =     { 0, gpio_reg_int_sens_1 },
-    [GPIO_ABCD_INT_SENS_2] =     { 0, gpio_reg_int_sens_2 },
-    [GPIO_ABCD_INT_STATUS] =     { 0, gpio_reg_int_status },
-    [GPIO_ABCD_RESET_TOLERANT] = { 0, gpio_reg_reset_tolerant },
-    [GPIO_ABCD_DEBOUNCE_1] =     { 0, gpio_reg_debounce_1 },
-    [GPIO_ABCD_DEBOUNCE_2] =     { 0, gpio_reg_debounce_2 },
-    [GPIO_ABCD_COMMAND_SRC_0] =  { 0, gpio_reg_cmd_source_0 },
-    [GPIO_ABCD_COMMAND_SRC_1] =  { 0, gpio_reg_cmd_source_1 },
-    [GPIO_ABCD_DATA_READ] =      { 0, gpio_reg_data_read },
-    [GPIO_ABCD_INPUT_MASK] =     { 0, gpio_reg_input_mask },
-    /* Set EFGH */
-    [GPIO_EFGH_DATA_VALUE] =     { 1, gpio_reg_data_value },
-    [GPIO_EFGH_DIRECTION] =      { 1, gpio_reg_direction },
-    [GPIO_EFGH_INT_ENABLE] =     { 1, gpio_reg_int_enable },
-    [GPIO_EFGH_INT_SENS_0] =     { 1, gpio_reg_int_sens_0 },
-    [GPIO_EFGH_INT_SENS_1] =     { 1, gpio_reg_int_sens_1 },
-    [GPIO_EFGH_INT_SENS_2] =     { 1, gpio_reg_int_sens_2 },
-    [GPIO_EFGH_INT_STATUS] =     { 1, gpio_reg_int_status },
-    [GPIO_EFGH_RESET_TOLERANT] = { 1, gpio_reg_reset_tolerant },
-    [GPIO_EFGH_DEBOUNCE_1] =     { 1, gpio_reg_debounce_1 },
-    [GPIO_EFGH_DEBOUNCE_2] =     { 1, gpio_reg_debounce_2 },
-    [GPIO_EFGH_COMMAND_SRC_0] =  { 1, gpio_reg_cmd_source_0 },
-    [GPIO_EFGH_COMMAND_SRC_1] =  { 1, gpio_reg_cmd_source_1 },
-    [GPIO_EFGH_DATA_READ] =      { 1, gpio_reg_data_read },
-    [GPIO_EFGH_INPUT_MASK] =     { 1, gpio_reg_input_mask },
-    /* Set IJKL */
-    [GPIO_IJKL_DATA_VALUE] =     { 2, gpio_reg_data_value },
-    [GPIO_IJKL_DIRECTION] =      { 2, gpio_reg_direction },
-    [GPIO_IJKL_INT_ENABLE] =     { 2, gpio_reg_int_enable },
-    [GPIO_IJKL_INT_SENS_0] =     { 2, gpio_reg_int_sens_0 },
-    [GPIO_IJKL_INT_SENS_1] =     { 2, gpio_reg_int_sens_1 },
-    [GPIO_IJKL_INT_SENS_2] =     { 2, gpio_reg_int_sens_2 },
-    [GPIO_IJKL_INT_STATUS] =     { 2, gpio_reg_int_status },
-    [GPIO_IJKL_RESET_TOLERANT] = { 2, gpio_reg_reset_tolerant },
-    [GPIO_IJKL_DEBOUNCE_1] =     { 2, gpio_reg_debounce_1 },
-    [GPIO_IJKL_DEBOUNCE_2] =     { 2, gpio_reg_debounce_2 },
-    [GPIO_IJKL_COMMAND_SRC_0] =  { 2, gpio_reg_cmd_source_0 },
-    [GPIO_IJKL_COMMAND_SRC_1] =  { 2, gpio_reg_cmd_source_1 },
-    [GPIO_IJKL_DATA_READ] =      { 2, gpio_reg_data_read },
-    [GPIO_IJKL_INPUT_MASK] =     { 2, gpio_reg_input_mask },
-    /* Set MNOP */
-    [GPIO_MNOP_DATA_VALUE] =     { 3, gpio_reg_data_value },
-    [GPIO_MNOP_DIRECTION] =      { 3, gpio_reg_direction },
-    [GPIO_MNOP_INT_ENABLE] =     { 3, gpio_reg_int_enable },
-    [GPIO_MNOP_INT_SENS_0] =     { 3, gpio_reg_int_sens_0 },
-    [GPIO_MNOP_INT_SENS_1] =     { 3, gpio_reg_int_sens_1 },
-    [GPIO_MNOP_INT_SENS_2] =     { 3, gpio_reg_int_sens_2 },
-    [GPIO_MNOP_INT_STATUS] =     { 3, gpio_reg_int_status },
-    [GPIO_MNOP_RESET_TOLERANT] = { 3, gpio_reg_reset_tolerant },
-    [GPIO_MNOP_DEBOUNCE_1] =     { 3, gpio_reg_debounce_1 },
-    [GPIO_MNOP_DEBOUNCE_2] =     { 3, gpio_reg_debounce_2 },
-    [GPIO_MNOP_COMMAND_SRC_0] =  { 3, gpio_reg_cmd_source_0 },
-    [GPIO_MNOP_COMMAND_SRC_1] =  { 3, gpio_reg_cmd_source_1 },
-    [GPIO_MNOP_DATA_READ] =      { 3, gpio_reg_data_read },
-    [GPIO_MNOP_INPUT_MASK] =     { 3, gpio_reg_input_mask },
-    /* Set QRST */
-    [GPIO_QRST_DATA_VALUE] =     { 4, gpio_reg_data_value },
-    [GPIO_QRST_DIRECTION] =      { 4, gpio_reg_direction },
-    [GPIO_QRST_INT_ENABLE] =     { 4, gpio_reg_int_enable },
-    [GPIO_QRST_INT_SENS_0] =     { 4, gpio_reg_int_sens_0 },
-    [GPIO_QRST_INT_SENS_1] =     { 4, gpio_reg_int_sens_1 },
-    [GPIO_QRST_INT_SENS_2] =     { 4, gpio_reg_int_sens_2 },
-    [GPIO_QRST_INT_STATUS] =     { 4, gpio_reg_int_status },
-    [GPIO_QRST_RESET_TOLERANT] = { 4, gpio_reg_reset_tolerant },
-    [GPIO_QRST_DEBOUNCE_1] =     { 4, gpio_reg_debounce_1 },
-    [GPIO_QRST_DEBOUNCE_2] =     { 4, gpio_reg_debounce_2 },
-    [GPIO_QRST_COMMAND_SRC_0] =  { 4, gpio_reg_cmd_source_0 },
-    [GPIO_QRST_COMMAND_SRC_1] =  { 4, gpio_reg_cmd_source_1 },
-    [GPIO_QRST_DATA_READ] =      { 4, gpio_reg_data_read },
-    [GPIO_QRST_INPUT_MASK] =     { 4, gpio_reg_input_mask },
-    /* Set UVWX */
-    [GPIO_UVWX_DATA_VALUE] =     { 5, gpio_reg_data_value },
-    [GPIO_UVWX_DIRECTION] =      { 5, gpio_reg_direction },
-    [GPIO_UVWX_INT_ENABLE] =     { 5, gpio_reg_int_enable },
-    [GPIO_UVWX_INT_SENS_0] =     { 5, gpio_reg_int_sens_0 },
-    [GPIO_UVWX_INT_SENS_1] =     { 5, gpio_reg_int_sens_1 },
-    [GPIO_UVWX_INT_SENS_2] =     { 5, gpio_reg_int_sens_2 },
-    [GPIO_UVWX_INT_STATUS] =     { 5, gpio_reg_int_status },
-    [GPIO_UVWX_RESET_TOLERANT] = { 5, gpio_reg_reset_tolerant },
-    [GPIO_UVWX_DEBOUNCE_1] =     { 5, gpio_reg_debounce_1 },
-    [GPIO_UVWX_DEBOUNCE_2] =     { 5, gpio_reg_debounce_2 },
-    [GPIO_UVWX_COMMAND_SRC_0] =  { 5, gpio_reg_cmd_source_0 },
-    [GPIO_UVWX_COMMAND_SRC_1] =  { 5, gpio_reg_cmd_source_1 },
-    [GPIO_UVWX_DATA_READ] =      { 5, gpio_reg_data_read },
-    [GPIO_UVWX_INPUT_MASK] =     { 5, gpio_reg_input_mask },
-    /* Set YZAAAB */
-    [GPIO_YZAAAB_DATA_VALUE] =     { 6, gpio_reg_data_value },
-    [GPIO_YZAAAB_DIRECTION] =      { 6, gpio_reg_direction },
-    [GPIO_YZAAAB_INT_ENABLE] =     { 6, gpio_reg_int_enable },
-    [GPIO_YZAAAB_INT_SENS_0] =     { 6, gpio_reg_int_sens_0 },
-    [GPIO_YZAAAB_INT_SENS_1] =     { 6, gpio_reg_int_sens_1 },
-    [GPIO_YZAAAB_INT_SENS_2] =     { 6, gpio_reg_int_sens_2 },
-    [GPIO_YZAAAB_INT_STATUS] =     { 6, gpio_reg_int_status },
-    [GPIO_YZAAAB_RESET_TOLERANT] = { 6, gpio_reg_reset_tolerant },
-    [GPIO_YZAAAB_DEBOUNCE_1] =     { 6, gpio_reg_debounce_1 },
-    [GPIO_YZAAAB_DEBOUNCE_2] =     { 6, gpio_reg_debounce_2 },
-    [GPIO_YZAAAB_COMMAND_SRC_0] =  { 6, gpio_reg_cmd_source_0 },
-    [GPIO_YZAAAB_COMMAND_SRC_1] =  { 6, gpio_reg_cmd_source_1 },
-    [GPIO_YZAAAB_DATA_READ] =      { 6, gpio_reg_data_read },
-    [GPIO_YZAAAB_INPUT_MASK] =     { 6, gpio_reg_input_mask },
-    /* Set AC  (ast2500 only) */
-    [GPIO_AC_DATA_VALUE] =         { 7, gpio_reg_data_value },
-    [GPIO_AC_DIRECTION] =          { 7, gpio_reg_direction },
-    [GPIO_AC_INT_ENABLE] =         { 7, gpio_reg_int_enable },
-    [GPIO_AC_INT_SENS_0] =         { 7, gpio_reg_int_sens_0 },
-    [GPIO_AC_INT_SENS_1] =         { 7, gpio_reg_int_sens_1 },
-    [GPIO_AC_INT_SENS_2] =         { 7, gpio_reg_int_sens_2 },
-    [GPIO_AC_INT_STATUS] =         { 7, gpio_reg_int_status },
-    [GPIO_AC_RESET_TOLERANT] =     { 7, gpio_reg_reset_tolerant },
-    [GPIO_AC_DEBOUNCE_1] =         { 7, gpio_reg_debounce_1 },
-    [GPIO_AC_DEBOUNCE_2] =         { 7, gpio_reg_debounce_2 },
-    [GPIO_AC_COMMAND_SRC_0] =      { 7, gpio_reg_cmd_source_0 },
-    [GPIO_AC_COMMAND_SRC_1] =      { 7, gpio_reg_cmd_source_1 },
-    [GPIO_AC_DATA_READ] =          { 7, gpio_reg_data_read },
-    [GPIO_AC_INPUT_MASK] =         { 7, gpio_reg_input_mask },
-};
+static AspeedGPIOReg aspeed_3_3v_gpios[GPIO_3_3V_REG_ARRAY_SIZE];
 
-static const AspeedGPIOReg aspeed_1_8v_gpios[GPIO_1_8V_REG_ARRAY_SIZE] = {
-    /* 1.8V Set ABCD */
-    [GPIO_1_8V_ABCD_DATA_VALUE] =     {0, gpio_reg_data_value},
-    [GPIO_1_8V_ABCD_DIRECTION] =      {0, gpio_reg_direction},
-    [GPIO_1_8V_ABCD_INT_ENABLE] =     {0, gpio_reg_int_enable},
-    [GPIO_1_8V_ABCD_INT_SENS_0] =     {0, gpio_reg_int_sens_0},
-    [GPIO_1_8V_ABCD_INT_SENS_1] =     {0, gpio_reg_int_sens_1},
-    [GPIO_1_8V_ABCD_INT_SENS_2] =     {0, gpio_reg_int_sens_2},
-    [GPIO_1_8V_ABCD_INT_STATUS] =     {0, gpio_reg_int_status},
-    [GPIO_1_8V_ABCD_RESET_TOLERANT] = {0, gpio_reg_reset_tolerant},
-    [GPIO_1_8V_ABCD_DEBOUNCE_1] =     {0, gpio_reg_debounce_1},
-    [GPIO_1_8V_ABCD_DEBOUNCE_2] =     {0, gpio_reg_debounce_2},
-    [GPIO_1_8V_ABCD_COMMAND_SRC_0] =  {0, gpio_reg_cmd_source_0},
-    [GPIO_1_8V_ABCD_COMMAND_SRC_1] =  {0, gpio_reg_cmd_source_1},
-    [GPIO_1_8V_ABCD_DATA_READ] =      {0, gpio_reg_data_read},
-    [GPIO_1_8V_ABCD_INPUT_MASK] =     {0, gpio_reg_input_mask},
-    /* 1.8V Set E */
-    [GPIO_1_8V_E_DATA_VALUE] =     {1, gpio_reg_data_value},
-    [GPIO_1_8V_E_DIRECTION] =      {1, gpio_reg_direction},
-    [GPIO_1_8V_E_INT_ENABLE] =     {1, gpio_reg_int_enable},
-    [GPIO_1_8V_E_INT_SENS_0] =     {1, gpio_reg_int_sens_0},
-    [GPIO_1_8V_E_INT_SENS_1] =     {1, gpio_reg_int_sens_1},
-    [GPIO_1_8V_E_INT_SENS_2] =     {1, gpio_reg_int_sens_2},
-    [GPIO_1_8V_E_INT_STATUS] =     {1, gpio_reg_int_status},
-    [GPIO_1_8V_E_RESET_TOLERANT] = {1, gpio_reg_reset_tolerant},
-    [GPIO_1_8V_E_DEBOUNCE_1] =     {1, gpio_reg_debounce_1},
-    [GPIO_1_8V_E_DEBOUNCE_2] =     {1, gpio_reg_debounce_2},
-    [GPIO_1_8V_E_COMMAND_SRC_0] =  {1, gpio_reg_cmd_source_0},
-    [GPIO_1_8V_E_COMMAND_SRC_1] =  {1, gpio_reg_cmd_source_1},
-    [GPIO_1_8V_E_DATA_READ] =      {1, gpio_reg_data_read},
-    [GPIO_1_8V_E_INPUT_MASK] =     {1, gpio_reg_input_mask},
-};
+static AspeedGPIOReg aspeed_1_8v_gpios[GPIO_1_8V_REG_ARRAY_SIZE];
+
+static void __attribute__((constructor)) init_aspeed_gpio_regs(void)
+{
+    aspeed_3_3v_gpios[GPIO_ABCD_DATA_VALUE] = {0, gpio_reg_data_value};
+    aspeed_3_3v_gpios[GPIO_ABCD_DIRECTION] = {0, gpio_reg_direction};
+    aspeed_3_3v_gpios[GPIO_ABCD_INT_ENABLE] = {0, gpio_reg_int_enable};
+    aspeed_3_3v_gpios[GPIO_ABCD_INT_SENS_0] = {0, gpio_reg_int_sens_0};
+    aspeed_3_3v_gpios[GPIO_ABCD_INT_SENS_1] = {0, gpio_reg_int_sens_1};
+    aspeed_3_3v_gpios[GPIO_ABCD_INT_SENS_2] = {0, gpio_reg_int_sens_2};
+    aspeed_3_3v_gpios[GPIO_ABCD_INT_STATUS] = {0, gpio_reg_int_status};
+    aspeed_3_3v_gpios[GPIO_ABCD_RESET_TOLERANT] = {0, gpio_reg_reset_tolerant};
+    aspeed_3_3v_gpios[GPIO_ABCD_DEBOUNCE_1] = {0, gpio_reg_debounce_1};
+    aspeed_3_3v_gpios[GPIO_ABCD_DEBOUNCE_2] = {0, gpio_reg_debounce_2};
+    aspeed_3_3v_gpios[GPIO_ABCD_COMMAND_SRC_0] = {0, gpio_reg_cmd_source_0};
+    aspeed_3_3v_gpios[GPIO_ABCD_COMMAND_SRC_1] = {0, gpio_reg_cmd_source_1};
+    aspeed_3_3v_gpios[GPIO_ABCD_DATA_READ] = {0, gpio_reg_data_read};
+    aspeed_3_3v_gpios[GPIO_ABCD_INPUT_MASK] = {0, gpio_reg_input_mask};
+    aspeed_3_3v_gpios[GPIO_EFGH_DATA_VALUE] = {1, gpio_reg_data_value};
+    aspeed_3_3v_gpios[GPIO_EFGH_DIRECTION] = {1, gpio_reg_direction};
+    aspeed_3_3v_gpios[GPIO_EFGH_INT_ENABLE] = {1, gpio_reg_int_enable};
+    aspeed_3_3v_gpios[GPIO_EFGH_INT_SENS_0] = {1, gpio_reg_int_sens_0};
+    aspeed_3_3v_gpios[GPIO_EFGH_INT_SENS_1] = {1, gpio_reg_int_sens_1};
+    aspeed_3_3v_gpios[GPIO_EFGH_INT_SENS_2] = {1, gpio_reg_int_sens_2};
+    aspeed_3_3v_gpios[GPIO_EFGH_INT_STATUS] = {1, gpio_reg_int_status};
+    aspeed_3_3v_gpios[GPIO_EFGH_RESET_TOLERANT] = {1, gpio_reg_reset_tolerant};
+    aspeed_3_3v_gpios[GPIO_EFGH_DEBOUNCE_1] = {1, gpio_reg_debounce_1};
+    aspeed_3_3v_gpios[GPIO_EFGH_DEBOUNCE_2] = {1, gpio_reg_debounce_2};
+    aspeed_3_3v_gpios[GPIO_EFGH_COMMAND_SRC_0] = {1, gpio_reg_cmd_source_0};
+    aspeed_3_3v_gpios[GPIO_EFGH_COMMAND_SRC_1] = {1, gpio_reg_cmd_source_1};
+    aspeed_3_3v_gpios[GPIO_EFGH_DATA_READ] = {1, gpio_reg_data_read};
+    aspeed_3_3v_gpios[GPIO_EFGH_INPUT_MASK] = {1, gpio_reg_input_mask};
+    aspeed_3_3v_gpios[GPIO_IJKL_DATA_VALUE] = {2, gpio_reg_data_value};
+    aspeed_3_3v_gpios[GPIO_IJKL_DIRECTION] = {2, gpio_reg_direction};
+    aspeed_3_3v_gpios[GPIO_IJKL_INT_ENABLE] = {2, gpio_reg_int_enable};
+    aspeed_3_3v_gpios[GPIO_IJKL_INT_SENS_0] = {2, gpio_reg_int_sens_0};
+    aspeed_3_3v_gpios[GPIO_IJKL_INT_SENS_1] = {2, gpio_reg_int_sens_1};
+    aspeed_3_3v_gpios[GPIO_IJKL_INT_SENS_2] = {2, gpio_reg_int_sens_2};
+    aspeed_3_3v_gpios[GPIO_IJKL_INT_STATUS] = {2, gpio_reg_int_status};
+    aspeed_3_3v_gpios[GPIO_IJKL_RESET_TOLERANT] = {2, gpio_reg_reset_tolerant};
+    aspeed_3_3v_gpios[GPIO_IJKL_DEBOUNCE_1] = {2, gpio_reg_debounce_1};
+    aspeed_3_3v_gpios[GPIO_IJKL_DEBOUNCE_2] = {2, gpio_reg_debounce_2};
+    aspeed_3_3v_gpios[GPIO_IJKL_COMMAND_SRC_0] = {2, gpio_reg_cmd_source_0};
+    aspeed_3_3v_gpios[GPIO_IJKL_COMMAND_SRC_1] = {2, gpio_reg_cmd_source_1};
+    aspeed_3_3v_gpios[GPIO_IJKL_DATA_READ] = {2, gpio_reg_data_read};
+    aspeed_3_3v_gpios[GPIO_IJKL_INPUT_MASK] = {2, gpio_reg_input_mask};
+    aspeed_3_3v_gpios[GPIO_MNOP_DATA_VALUE] = {3, gpio_reg_data_value};
+    aspeed_3_3v_gpios[GPIO_MNOP_DIRECTION] = {3, gpio_reg_direction};
+    aspeed_3_3v_gpios[GPIO_MNOP_INT_ENABLE] = {3, gpio_reg_int_enable};
+    aspeed_3_3v_gpios[GPIO_MNOP_INT_SENS_0] = {3, gpio_reg_int_sens_0};
+    aspeed_3_3v_gpios[GPIO_MNOP_INT_SENS_1] = {3, gpio_reg_int_sens_1};
+    aspeed_3_3v_gpios[GPIO_MNOP_INT_SENS_2] = {3, gpio_reg_int_sens_2};
+    aspeed_3_3v_gpios[GPIO_MNOP_INT_STATUS] = {3, gpio_reg_int_status};
+    aspeed_3_3v_gpios[GPIO_MNOP_RESET_TOLERANT] = {3, gpio_reg_reset_tolerant};
+    aspeed_3_3v_gpios[GPIO_MNOP_DEBOUNCE_1] = {3, gpio_reg_debounce_1};
+    aspeed_3_3v_gpios[GPIO_MNOP_DEBOUNCE_2] = {3, gpio_reg_debounce_2};
+    aspeed_3_3v_gpios[GPIO_MNOP_COMMAND_SRC_0] = {3, gpio_reg_cmd_source_0};
+    aspeed_3_3v_gpios[GPIO_MNOP_COMMAND_SRC_1] = {3, gpio_reg_cmd_source_1};
+    aspeed_3_3v_gpios[GPIO_MNOP_DATA_READ] = {3, gpio_reg_data_read};
+    aspeed_3_3v_gpios[GPIO_MNOP_INPUT_MASK] = {3, gpio_reg_input_mask};
+    aspeed_3_3v_gpios[GPIO_QRST_DATA_VALUE] = {4, gpio_reg_data_value};
+    aspeed_3_3v_gpios[GPIO_QRST_DIRECTION] = {4, gpio_reg_direction};
+    aspeed_3_3v_gpios[GPIO_QRST_INT_ENABLE] = {4, gpio_reg_int_enable};
+    aspeed_3_3v_gpios[GPIO_QRST_INT_SENS_0] = {4, gpio_reg_int_sens_0};
+    aspeed_3_3v_gpios[GPIO_QRST_INT_SENS_1] = {4, gpio_reg_int_sens_1};
+    aspeed_3_3v_gpios[GPIO_QRST_INT_SENS_2] = {4, gpio_reg_int_sens_2};
+    aspeed_3_3v_gpios[GPIO_QRST_INT_STATUS] = {4, gpio_reg_int_status};
+    aspeed_3_3v_gpios[GPIO_QRST_RESET_TOLERANT] = {4, gpio_reg_reset_tolerant};
+    aspeed_3_3v_gpios[GPIO_QRST_DEBOUNCE_1] = {4, gpio_reg_debounce_1};
+    aspeed_3_3v_gpios[GPIO_QRST_DEBOUNCE_2] = {4, gpio_reg_debounce_2};
+    aspeed_3_3v_gpios[GPIO_QRST_COMMAND_SRC_0] = {4, gpio_reg_cmd_source_0};
+    aspeed_3_3v_gpios[GPIO_QRST_COMMAND_SRC_1] = {4, gpio_reg_cmd_source_1};
+    aspeed_3_3v_gpios[GPIO_QRST_DATA_READ] = {4, gpio_reg_data_read};
+    aspeed_3_3v_gpios[GPIO_QRST_INPUT_MASK] = {4, gpio_reg_input_mask};
+    aspeed_3_3v_gpios[GPIO_UVWX_DATA_VALUE] = {5, gpio_reg_data_value};
+    aspeed_3_3v_gpios[GPIO_UVWX_DIRECTION] = {5, gpio_reg_direction};
+    aspeed_3_3v_gpios[GPIO_UVWX_INT_ENABLE] = {5, gpio_reg_int_enable};
+    aspeed_3_3v_gpios[GPIO_UVWX_INT_SENS_0] = {5, gpio_reg_int_sens_0};
+    aspeed_3_3v_gpios[GPIO_UVWX_INT_SENS_1] = {5, gpio_reg_int_sens_1};
+    aspeed_3_3v_gpios[GPIO_UVWX_INT_SENS_2] = {5, gpio_reg_int_sens_2};
+    aspeed_3_3v_gpios[GPIO_UVWX_INT_STATUS] = {5, gpio_reg_int_status};
+    aspeed_3_3v_gpios[GPIO_UVWX_RESET_TOLERANT] = {5, gpio_reg_reset_tolerant};
+    aspeed_3_3v_gpios[GPIO_UVWX_DEBOUNCE_1] = {5, gpio_reg_debounce_1};
+    aspeed_3_3v_gpios[GPIO_UVWX_DEBOUNCE_2] = {5, gpio_reg_debounce_2};
+    aspeed_3_3v_gpios[GPIO_UVWX_COMMAND_SRC_0] = {5, gpio_reg_cmd_source_0};
+    aspeed_3_3v_gpios[GPIO_UVWX_COMMAND_SRC_1] = {5, gpio_reg_cmd_source_1};
+    aspeed_3_3v_gpios[GPIO_UVWX_DATA_READ] = {5, gpio_reg_data_read};
+    aspeed_3_3v_gpios[GPIO_UVWX_INPUT_MASK] = {5, gpio_reg_input_mask};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_DATA_VALUE] = {6, gpio_reg_data_value};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_DIRECTION] = {6, gpio_reg_direction};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_INT_ENABLE] = {6, gpio_reg_int_enable};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_INT_SENS_0] = {6, gpio_reg_int_sens_0};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_INT_SENS_1] = {6, gpio_reg_int_sens_1};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_INT_SENS_2] = {6, gpio_reg_int_sens_2};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_INT_STATUS] = {6, gpio_reg_int_status};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_RESET_TOLERANT] = {6, gpio_reg_reset_tolerant};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_DEBOUNCE_1] = {6, gpio_reg_debounce_1};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_DEBOUNCE_2] = {6, gpio_reg_debounce_2};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_COMMAND_SRC_0] = {6, gpio_reg_cmd_source_0};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_COMMAND_SRC_1] = {6, gpio_reg_cmd_source_1};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_DATA_READ] = {6, gpio_reg_data_read};
+    aspeed_3_3v_gpios[GPIO_YZAAAB_INPUT_MASK] = {6, gpio_reg_input_mask};
+    aspeed_3_3v_gpios[GPIO_AC_DATA_VALUE] = {7, gpio_reg_data_value};
+    aspeed_3_3v_gpios[GPIO_AC_DIRECTION] = {7, gpio_reg_direction};
+    aspeed_3_3v_gpios[GPIO_AC_INT_ENABLE] = {7, gpio_reg_int_enable};
+    aspeed_3_3v_gpios[GPIO_AC_INT_SENS_0] = {7, gpio_reg_int_sens_0};
+    aspeed_3_3v_gpios[GPIO_AC_INT_SENS_1] = {7, gpio_reg_int_sens_1};
+    aspeed_3_3v_gpios[GPIO_AC_INT_SENS_2] = {7, gpio_reg_int_sens_2};
+    aspeed_3_3v_gpios[GPIO_AC_INT_STATUS] = {7, gpio_reg_int_status};
+    aspeed_3_3v_gpios[GPIO_AC_RESET_TOLERANT] = {7, gpio_reg_reset_tolerant};
+    aspeed_3_3v_gpios[GPIO_AC_DEBOUNCE_1] = {7, gpio_reg_debounce_1};
+    aspeed_3_3v_gpios[GPIO_AC_DEBOUNCE_2] = {7, gpio_reg_debounce_2};
+    aspeed_3_3v_gpios[GPIO_AC_COMMAND_SRC_0] = {7, gpio_reg_cmd_source_0};
+    aspeed_3_3v_gpios[GPIO_AC_COMMAND_SRC_1] = {7, gpio_reg_cmd_source_1};
+    aspeed_3_3v_gpios[GPIO_AC_DATA_READ] = {7, gpio_reg_data_read};
+    aspeed_3_3v_gpios[GPIO_AC_INPUT_MASK] = {7, gpio_reg_input_mask};
+
+
+
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_DATA_VALUE] = {0, gpio_reg_data_value};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_DIRECTION] = {0, gpio_reg_direction};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_INT_ENABLE] = {0, gpio_reg_int_enable};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_INT_SENS_0] = {0, gpio_reg_int_sens_0};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_INT_SENS_1] = {0, gpio_reg_int_sens_1};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_INT_SENS_2] = {0, gpio_reg_int_sens_2};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_INT_STATUS] = {0, gpio_reg_int_status};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_RESET_TOLERANT] = {0, gpio_reg_reset_tolerant};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_DEBOUNCE_1] = {0, gpio_reg_debounce_1};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_DEBOUNCE_2] = {0, gpio_reg_debounce_2};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_COMMAND_SRC_0] = {0, gpio_reg_cmd_source_0};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_COMMAND_SRC_1] = {0, gpio_reg_cmd_source_1};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_DATA_READ] = {0, gpio_reg_data_read};
+    aspeed_1_8v_gpios[GPIO_1_8V_ABCD_INPUT_MASK] = {0, gpio_reg_input_mask};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_DATA_VALUE] = {1, gpio_reg_data_value};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_DIRECTION] = {1, gpio_reg_direction};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_INT_ENABLE] = {1, gpio_reg_int_enable};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_INT_SENS_0] = {1, gpio_reg_int_sens_0};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_INT_SENS_1] = {1, gpio_reg_int_sens_1};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_INT_SENS_2] = {1, gpio_reg_int_sens_2};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_INT_STATUS] = {1, gpio_reg_int_status};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_RESET_TOLERANT] = {1, gpio_reg_reset_tolerant};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_DEBOUNCE_1] = {1, gpio_reg_debounce_1};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_DEBOUNCE_2] = {1, gpio_reg_debounce_2};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_COMMAND_SRC_0] = {1, gpio_reg_cmd_source_0};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_COMMAND_SRC_1] = {1, gpio_reg_cmd_source_1};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_DATA_READ] = {1, gpio_reg_data_read};
+    aspeed_1_8v_gpios[GPIO_1_8V_E_INPUT_MASK] = {1, gpio_reg_input_mask};
+}
 
 static uint64_t aspeed_gpio_read(void *opaque, hwaddr offset, uint32_t size)
 {
@@ -1492,40 +1487,44 @@ static void aspeed_gpio_init(Object *obj)
     }
 }
 
+static const VMStateField vmstate_gpio_regs_fields[] = {
+    VMSTATE_UINT32(data_value,   GPIOSets),
+    VMSTATE_UINT32(data_read,    GPIOSets),
+    VMSTATE_UINT32(direction,    GPIOSets),
+    VMSTATE_UINT32(int_enable,   GPIOSets),
+    VMSTATE_UINT32(int_sens_0,   GPIOSets),
+    VMSTATE_UINT32(int_sens_1,   GPIOSets),
+    VMSTATE_UINT32(int_sens_2,   GPIOSets),
+    VMSTATE_UINT32(int_status,   GPIOSets),
+    VMSTATE_UINT32(reset_tol,    GPIOSets),
+    VMSTATE_UINT32(cmd_source_0, GPIOSets),
+    VMSTATE_UINT32(cmd_source_1, GPIOSets),
+    VMSTATE_UINT32(debounce_1,   GPIOSets),
+    VMSTATE_UINT32(debounce_2,   GPIOSets),
+    VMSTATE_UINT32(input_mask,   GPIOSets),
+    VMSTATE_END_OF_LIST(),
+};
+
 static const VMStateDescription vmstate_gpio_regs = {
     .name = TYPE_ASPEED_GPIO"/regs",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(data_value,   GPIOSets),
-        VMSTATE_UINT32(data_read,    GPIOSets),
-        VMSTATE_UINT32(direction,    GPIOSets),
-        VMSTATE_UINT32(int_enable,   GPIOSets),
-        VMSTATE_UINT32(int_sens_0,   GPIOSets),
-        VMSTATE_UINT32(int_sens_1,   GPIOSets),
-        VMSTATE_UINT32(int_sens_2,   GPIOSets),
-        VMSTATE_UINT32(int_status,   GPIOSets),
-        VMSTATE_UINT32(reset_tol,    GPIOSets),
-        VMSTATE_UINT32(cmd_source_0, GPIOSets),
-        VMSTATE_UINT32(cmd_source_1, GPIOSets),
-        VMSTATE_UINT32(debounce_1,   GPIOSets),
-        VMSTATE_UINT32(debounce_2,   GPIOSets),
-        VMSTATE_UINT32(input_mask,   GPIOSets),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_gpio_regs_fields,
+};
+
+static const VMStateField vmstate_aspeed_gpio_fields[] = {
+    VMSTATE_STRUCT_ARRAY(sets, AspeedGPIOState, ASPEED_GPIO_MAX_NR_SETS,
+                         1, vmstate_gpio_regs, GPIOSets),
+    VMSTATE_UINT32_ARRAY(debounce_regs, AspeedGPIOState,
+                         ASPEED_GPIO_NR_DEBOUNCE_REGS),
+    VMSTATE_END_OF_LIST(),
 };
 
 static const VMStateDescription vmstate_aspeed_gpio = {
     .name = TYPE_ASPEED_GPIO,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_STRUCT_ARRAY(sets, AspeedGPIOState, ASPEED_GPIO_MAX_NR_SETS,
-                             1, vmstate_gpio_regs, GPIOSets),
-        VMSTATE_UINT32_ARRAY(debounce_regs, AspeedGPIOState,
-                             ASPEED_GPIO_NR_DEBOUNCE_REGS),
-        VMSTATE_END_OF_LIST(),
-   }
+    .fields = vmstate_aspeed_gpio_fields,
 };
 
 static void aspeed_gpio_class_init(ObjectClass *klass, const void *data)
@@ -1621,51 +1620,51 @@ static const TypeInfo aspeed_gpio_info = {
     .name           = TYPE_ASPEED_GPIO,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(AspeedGPIOState),
+    .is_abstract    = true,
     .class_size     = sizeof(AspeedGPIOClass),
     .class_init     = aspeed_gpio_class_init,
-    .is_abstract       = true,
 };
 
 static const TypeInfo aspeed_gpio_ast2400_info = {
     .name           = TYPE_ASPEED_GPIO "-ast2400",
     .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_ast2400_class_init,
     .instance_init  = aspeed_gpio_init,
+    .class_init     = aspeed_gpio_ast2400_class_init,
 };
 
 static const TypeInfo aspeed_gpio_ast2500_info = {
     .name           = TYPE_ASPEED_GPIO "-ast2500",
     .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_2500_class_init,
     .instance_init  = aspeed_gpio_init,
+    .class_init     = aspeed_gpio_2500_class_init,
 };
 
 static const TypeInfo aspeed_gpio_ast2600_3_3v_info = {
     .name           = TYPE_ASPEED_GPIO "-ast2600",
     .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_ast2600_3_3v_class_init,
     .instance_init  = aspeed_gpio_init,
+    .class_init     = aspeed_gpio_ast2600_3_3v_class_init,
 };
 
 static const TypeInfo aspeed_gpio_ast2600_1_8v_info = {
     .name           = TYPE_ASPEED_GPIO "-ast2600-1_8v",
     .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_ast2600_1_8v_class_init,
     .instance_init  = aspeed_gpio_init,
+    .class_init     = aspeed_gpio_ast2600_1_8v_class_init,
 };
 
 static const TypeInfo aspeed_gpio_ast1030_info = {
     .name           = TYPE_ASPEED_GPIO "-ast1030",
     .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_1030_class_init,
     .instance_init  = aspeed_gpio_init,
+    .class_init     = aspeed_gpio_1030_class_init,
 };
 
 static const TypeInfo aspeed_gpio_ast2700_info = {
     .name           = TYPE_ASPEED_GPIO "-ast2700",
     .parent         = TYPE_ASPEED_GPIO,
-    .class_init     = aspeed_gpio_2700_class_init,
     .instance_init  = aspeed_gpio_init,
+    .class_init     = aspeed_gpio_2700_class_init,
 };
 
 static void aspeed_gpio_register_types(void)

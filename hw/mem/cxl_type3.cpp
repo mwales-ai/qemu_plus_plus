@@ -65,87 +65,63 @@ static void ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
     CDATDslbis *dslbis3;
     CDATDsemts *dsemts;
 
-    dsmas = g_malloc(sizeof(*dsmas));
-    *dsmas = (CDATDsmas) {
-        .header = {
-            .type = CDAT_TYPE_DSMAS,
-            .length = sizeof(*dsmas),
-        },
-        .DSMADhandle = dsmad_handle,
-        .flags = (is_pmem ? CDAT_DSMAS_FLAG_NV : 0) |
-                 (is_dynamic ? CDAT_DSMAS_FLAG_DYNAMIC_CAP : 0),
-        .DPA_base = dpa_base,
-        .DPA_length = size,
-    };
+    dsmas = static_cast<CDATDsmas *>(g_malloc0(sizeof(*dsmas)));
+    dsmas->header.type = CDAT_TYPE_DSMAS;
+    dsmas->header.length = sizeof(*dsmas);
+    dsmas->DSMADhandle = dsmad_handle;
+    dsmas->flags = (is_pmem ? CDAT_DSMAS_FLAG_NV : 0) |
+                   (is_dynamic ? CDAT_DSMAS_FLAG_DYNAMIC_CAP : 0);
+    dsmas->DPA_base = dpa_base;
+    dsmas->DPA_length = size;
 
     /* For now, no memory side cache, plausiblish numbers */
-    dslbis0 = g_malloc(sizeof(*dslbis0));
-    *dslbis0 = (CDATDslbis) {
-        .header = {
-            .type = CDAT_TYPE_DSLBIS,
-            .length = sizeof(*dslbis0),
-        },
-        .handle = dsmad_handle,
-        .flags = HMAT_LB_MEM_MEMORY,
-        .data_type = HMAT_LB_DATA_READ_LATENCY,
-        .entry_base_unit = 10000, /* 10ns base */
-        .entry[0] = 15, /* 150ns */
-    };
+    dslbis0 = static_cast<CDATDslbis *>(g_malloc0(sizeof(*dslbis0)));
+    dslbis0->header.type = CDAT_TYPE_DSLBIS;
+    dslbis0->header.length = sizeof(*dslbis0);
+    dslbis0->handle = dsmad_handle;
+    dslbis0->flags = HMAT_LB_MEM_MEMORY;
+    dslbis0->data_type = HMAT_LB_DATA_READ_LATENCY;
+    dslbis0->entry_base_unit = 10000; /* 10ns base */
+    dslbis0->entry[0] = 15; /* 150ns */
 
-    dslbis1 = g_malloc(sizeof(*dslbis1));
-    *dslbis1 = (CDATDslbis) {
-        .header = {
-            .type = CDAT_TYPE_DSLBIS,
-            .length = sizeof(*dslbis1),
-        },
-        .handle = dsmad_handle,
-        .flags = HMAT_LB_MEM_MEMORY,
-        .data_type = HMAT_LB_DATA_WRITE_LATENCY,
-        .entry_base_unit = 10000,
-        .entry[0] = 25, /* 250ns */
-    };
+    dslbis1 = static_cast<CDATDslbis *>(g_malloc0(sizeof(*dslbis1)));
+    dslbis1->header.type = CDAT_TYPE_DSLBIS;
+    dslbis1->header.length = sizeof(*dslbis1);
+    dslbis1->handle = dsmad_handle;
+    dslbis1->flags = HMAT_LB_MEM_MEMORY;
+    dslbis1->data_type = HMAT_LB_DATA_WRITE_LATENCY;
+    dslbis1->entry_base_unit = 10000;
+    dslbis1->entry[0] = 25; /* 250ns */
 
-    dslbis2 = g_malloc(sizeof(*dslbis2));
-    *dslbis2 = (CDATDslbis) {
-        .header = {
-            .type = CDAT_TYPE_DSLBIS,
-            .length = sizeof(*dslbis2),
-        },
-        .handle = dsmad_handle,
-        .flags = HMAT_LB_MEM_MEMORY,
-        .data_type = HMAT_LB_DATA_READ_BANDWIDTH,
-        .entry_base_unit = 1000, /* GB/s */
-        .entry[0] = 16,
-    };
+    dslbis2 = static_cast<CDATDslbis *>(g_malloc0(sizeof(*dslbis2)));
+    dslbis2->header.type = CDAT_TYPE_DSLBIS;
+    dslbis2->header.length = sizeof(*dslbis2);
+    dslbis2->handle = dsmad_handle;
+    dslbis2->flags = HMAT_LB_MEM_MEMORY;
+    dslbis2->data_type = HMAT_LB_DATA_READ_BANDWIDTH;
+    dslbis2->entry_base_unit = 1000; /* GB/s */
+    dslbis2->entry[0] = 16;
 
-    dslbis3 = g_malloc(sizeof(*dslbis3));
-    *dslbis3 = (CDATDslbis) {
-        .header = {
-            .type = CDAT_TYPE_DSLBIS,
-            .length = sizeof(*dslbis3),
-        },
-        .handle = dsmad_handle,
-        .flags = HMAT_LB_MEM_MEMORY,
-        .data_type = HMAT_LB_DATA_WRITE_BANDWIDTH,
-        .entry_base_unit = 1000, /* GB/s */
-        .entry[0] = 16,
-    };
+    dslbis3 = static_cast<CDATDslbis *>(g_malloc0(sizeof(*dslbis3)));
+    dslbis3->header.type = CDAT_TYPE_DSLBIS;
+    dslbis3->header.length = sizeof(*dslbis3);
+    dslbis3->handle = dsmad_handle;
+    dslbis3->flags = HMAT_LB_MEM_MEMORY;
+    dslbis3->data_type = HMAT_LB_DATA_WRITE_BANDWIDTH;
+    dslbis3->entry_base_unit = 1000; /* GB/s */
+    dslbis3->entry[0] = 16;
 
-    dsemts = g_malloc(sizeof(*dsemts));
-    *dsemts = (CDATDsemts) {
-        .header = {
-            .type = CDAT_TYPE_DSEMTS,
-            .length = sizeof(*dsemts),
-        },
-        .DSMAS_handle = dsmad_handle,
-        /*
-         * NV: Reserved - the non volatile from DSMAS matters
-         * V: EFI_MEMORY_SP
-         */
-        .EFI_memory_type_attr = is_pmem ? 2 : 1,
-        .DPA_offset = 0,
-        .DPA_length = size,
-    };
+    dsemts = static_cast<CDATDsemts *>(g_malloc0(sizeof(*dsemts)));
+    dsemts->header.type = CDAT_TYPE_DSEMTS;
+    dsemts->header.length = sizeof(*dsemts);
+    dsemts->DSMAS_handle = dsmad_handle;
+    /*
+     * NV: Reserved - the non volatile from DSMAS matters
+     * V: EFI_MEMORY_SP
+     */
+    dsemts->EFI_memory_type_attr = is_pmem ? 2 : 1;
+    dsemts->DPA_offset = 0;
+    dsemts->DPA_length = size;
 
     /* Header always at start of structure */
     cdat_table[CT3_CDAT_DSMAS] = (CDATSubHeader *)dsmas;
@@ -159,7 +135,7 @@ static void ct3_build_cdat_entries_for_mr(CDATSubHeader **cdat_table,
 static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
 {
     g_autofree CDATSubHeader **table = NULL;
-    CXLType3Dev *ct3d = priv;
+    CXLType3Dev *ct3d = static_cast<CXLType3Dev *>(priv);
     MemoryRegion *volatile_mr = NULL, *nonvolatile_mr = NULL;
     MemoryRegion *dc_mr = NULL;
     uint64_t vmr_size = 0, pmr_size = 0;
@@ -200,7 +176,7 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
         len += CT3_CDAT_NUM_ENTRIES * ct3d->dc.num_regions;
     }
 
-    table = g_malloc0(len * sizeof(*table));
+    table = static_cast<CDATSubHeader **>(g_malloc0(len * sizeof(*table)));
 
     /* Now fill them in */
     if (volatile_mr) {
@@ -245,7 +221,7 @@ static int ct3_build_cdat_table(CDATSubHeader ***cdat_table, void *priv)
 
     assert(len == cur_ent);
 
-    *cdat_table = g_steal_pointer(&table);
+    *cdat_table = static_cast<CDATSubHeader **>(g_steal_pointer(&table));
 
     return len;
 }
@@ -266,7 +242,7 @@ static bool cxl_doe_cdat_rsp(DOECap *doe_cap)
     uint16_t ent;
     void *base;
     uint32_t len;
-    CDATReq *req = pcie_doe_get_write_mbox_ptr(doe_cap);
+    CDATReq *req = static_cast<CDATReq *>(pcie_doe_get_write_mbox_ptr(doe_cap));
     CDATRsp rsp;
 
     assert(cdat->entry_len);
@@ -281,18 +257,15 @@ static bool cxl_doe_cdat_rsp(DOECap *doe_cap)
     base = cdat->entry[ent].base;
     len = cdat->entry[ent].length;
 
-    rsp = (CDATRsp) {
-        .header = {
-            .vendor_id = CXL_VENDOR_ID,
-            .data_obj_type = CXL_DOE_TABLE_ACCESS,
-            .reserved = 0x0,
-            .length = DIV_ROUND_UP((sizeof(rsp) + len), DWORD_BYTE),
-        },
-        .rsp_code = CXL_DOE_TAB_RSP,
-        .table_type = CXL_DOE_TAB_TYPE_CDAT,
-        .entry_handle = (ent < cdat->entry_len - 1) ?
-                        ent + 1 : CXL_DOE_TAB_ENT_MAX,
-    };
+    memset(&rsp, 0, sizeof(rsp));
+    rsp.header.vendor_id = CXL_VENDOR_ID;
+    rsp.header.data_obj_type = CXL_DOE_TABLE_ACCESS;
+    rsp.header.reserved = 0x0;
+    rsp.header.length = DIV_ROUND_UP((sizeof(rsp) + len), DWORD_BYTE);
+    rsp.rsp_code = CXL_DOE_TAB_RSP;
+    rsp.table_type = CXL_DOE_TAB_TYPE_CDAT;
+    rsp.entry_handle = (ent < cdat->entry_len - 1) ?
+                       ent + 1 : CXL_DOE_TAB_ENT_MAX;
 
     memcpy(doe_cap->read_mbox, &rsp, sizeof(rsp));
     memcpy(doe_cap->read_mbox + DIV_ROUND_UP(sizeof(rsp), DWORD_BYTE),
@@ -366,48 +339,49 @@ static void build_dvsecs(CXLType3Dev *ct3d)
         range1_size_lo = (2 << 5) | (2 << 2) | 0x3;
     }
 
-    dvsec = (uint8_t *)&(CXLDVSECDevice){
-        .cap = 0x1e,
-        .ctrl = 0x2,
-        .status2 = 0x2,
-        .range1_size_hi = range1_size_hi,
-        .range1_size_lo = range1_size_lo,
-        .range1_base_hi = range1_base_hi,
-        .range1_base_lo = range1_base_lo,
-        .range2_size_hi = range2_size_hi,
-        .range2_size_lo = range2_size_lo,
-        .range2_base_hi = range2_base_hi,
-        .range2_base_lo = range2_base_lo,
-    };
+    CXLDVSECDevice dvsec_dev = {};
+    dvsec_dev.cap = 0x1e;
+    dvsec_dev.ctrl = 0x2;
+    dvsec_dev.status2 = 0x2;
+    dvsec_dev.range1_size_hi = range1_size_hi;
+    dvsec_dev.range1_size_lo = range1_size_lo;
+    dvsec_dev.range1_base_hi = range1_base_hi;
+    dvsec_dev.range1_base_lo = range1_base_lo;
+    dvsec_dev.range2_size_hi = range2_size_hi;
+    dvsec_dev.range2_size_lo = range2_size_lo;
+    dvsec_dev.range2_base_hi = range2_base_hi;
+    dvsec_dev.range2_base_lo = range2_base_lo;
+    dvsec = reinterpret_cast<uint8_t *>(&dvsec_dev);
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
                                PCIE_CXL_DEVICE_DVSEC_LENGTH,
                                PCIE_CXL_DEVICE_DVSEC,
                                PCIE_CXL31_DEVICE_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECRegisterLocator){
-        .rsvd         = 0,
-        .reg0_base_lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX,
-        .reg0_base_hi = 0,
-        .reg1_base_lo = RBI_CXL_DEVICE_REG | CXL_DEVICE_REG_BAR_IDX,
-        .reg1_base_hi = 0,
-    };
+    CXLDVSECRegisterLocator dvsec_reg_loc = {};
+    dvsec_reg_loc.rsvd = 0;
+    dvsec_reg_loc.reg0_base_lo = RBI_COMPONENT_REG | CXL_COMPONENT_REG_BAR_IDX;
+    dvsec_reg_loc.reg0_base_hi = 0;
+    dvsec_reg_loc.reg1_base_lo = RBI_CXL_DEVICE_REG | CXL_DEVICE_REG_BAR_IDX;
+    dvsec_reg_loc.reg1_base_hi = 0;
+    dvsec = reinterpret_cast<uint8_t *>(&dvsec_reg_loc);
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
                                REG_LOC_DVSEC_LENGTH, REG_LOC_DVSEC,
                                REG_LOC_DVSEC_REVID, dvsec);
-    dvsec = (uint8_t *)&(CXLDVSECDeviceGPF){
-        .phase2_duration = 0x603, /* 3 seconds */
-        .phase2_power = 0x33, /* 0x33 miliwatts */
-    };
+
+    CXLDVSECDeviceGPF dvsec_gpf = {};
+    dvsec_gpf.phase2_duration = 0x603; /* 3 seconds */
+    dvsec_gpf.phase2_power = 0x33; /* 0x33 miliwatts */
+    dvsec = reinterpret_cast<uint8_t *>(&dvsec_gpf);
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
                                GPF_DEVICE_DVSEC_LENGTH, GPF_DEVICE_DVSEC,
                                GPF_DEVICE_DVSEC_REVID, dvsec);
 
-    dvsec = (uint8_t *)&(CXLDVSECPortFlexBus){
-        .cap                     = 0x26, /* 68B, IO, Mem, non-MLD */
-        .ctrl                    = 0x02, /* IO always enabled */
-        .status                  = 0x26, /* same as capabilities */
-        .rcvd_mod_ts_data_phase1 = 0xef, /* WTF? */
-    };
+    CXLDVSECPortFlexBus dvsec_flexbus = {};
+    dvsec_flexbus.cap = 0x26; /* 68B, IO, Mem, non-MLD */
+    dvsec_flexbus.ctrl = 0x02; /* IO always enabled */
+    dvsec_flexbus.status = 0x26; /* same as capabilities */
+    dvsec_flexbus.rcvd_mod_ts_data_phase1 = 0xef; /* WTF? */
+    dvsec = reinterpret_cast<uint8_t *>(&dvsec_flexbus);
     cxl_component_create_dvsec(cxl_cstate, CXL2_TYPE3_DEVICE,
                                PCIE_CXL3_FLEXBUS_PORT_DVSEC_LENGTH,
                                PCIE_FLEXBUS_PORT_DVSEC,
@@ -507,7 +481,7 @@ static int ct3d_qmp_cor_err_to_cxl(CxlCorErrorType qmp_err)
 static void ct3d_reg_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
-    CXLComponentState *cxl_cstate = opaque;
+    CXLComponentState *cxl_cstate = static_cast<CXLComponentState *>(opaque);
     ComponentRegisters *cregs = &cxl_cstate->crb;
     CXLType3Dev *ct3d = container_of(cxl_cstate, CXLType3Dev, cxl_cstate);
     uint32_t *cache_mem = cregs->cache_mem_registers;
@@ -1502,7 +1476,7 @@ void qmp_cxl_inject_uncorrectable_errors(const char *path,
             continue;
         }
 
-        cxl_err = g_malloc0(sizeof(*cxl_err));
+        cxl_err = static_cast<CXLError *>(g_malloc0(sizeof(*cxl_err)));
 
         cxl_err->type = cxl_err_code;
         while (header && header_count < 32) {
@@ -1705,7 +1679,7 @@ void qmp_cxl_inject_general_media_event(const char *path, CxlEventLog log,
 
     stw_le_p(&gem.validity_flags, valid_flags);
 
-    if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&gem)) {
+    if (cxl_event_insert(cxlds, static_cast<CXLEventLogType>(enc_log), (CXLEventRecordRaw *)&gem)) {
         cxl_event_irq_assert(ct3d);
     }
 }
@@ -1816,7 +1790,7 @@ void qmp_cxl_inject_dram_event(const char *path, CxlEventLog log, uint8_t flags,
 
     stw_le_p(&dram.validity_flags, valid_flags);
 
-    if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&dram)) {
+    if (cxl_event_insert(cxlds, static_cast<CXLEventLogType>(enc_log), (CXLEventRecordRaw *)&dram)) {
         cxl_event_irq_assert(ct3d);
     }
 }
@@ -1875,7 +1849,7 @@ void qmp_cxl_inject_memory_module_event(const char *path, CxlEventLog log,
     stl_le_p(&module.corrected_persistent_error_count,
              corrected_persist_error_count);
 
-    if (cxl_event_insert(cxlds, enc_log, (CXLEventRecordRaw *)&module)) {
+    if (cxl_event_insert(cxlds, static_cast<CXLEventLogType>(enc_log), (CXLEventRecordRaw *)&module)) {
         cxl_event_irq_assert(ct3d);
     }
 }
@@ -2153,17 +2127,19 @@ static void ct3_class_init(ObjectClass *oc, const void *data)
     cvc->set_cacheline = set_cacheline;
 }
 
+static const InterfaceInfo ct3d_interfaces[] = {
+    { INTERFACE_CXL_DEVICE },
+    { INTERFACE_PCIE_DEVICE },
+    {}
+};
+
 static const TypeInfo ct3d_info = {
     .name = TYPE_CXL_TYPE3,
     .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(CXLType3Dev),
     .class_size = sizeof(struct CXLType3Class),
     .class_init = ct3_class_init,
-    .instance_size = sizeof(CXLType3Dev),
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CXL_DEVICE },
-        { INTERFACE_PCIE_DEVICE },
-        {}
-    },
+    .interfaces = ct3d_interfaces,
 };
 
 static void ct3d_registers(void)

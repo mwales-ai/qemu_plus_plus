@@ -16,6 +16,10 @@
 
 typedef struct XenstoreImplState XenstoreImplState;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 XenstoreImplState *xs_impl_create(unsigned int dom_id);
 
 char *xs_perm_as_string(unsigned int perm, unsigned int domid);
@@ -59,5 +63,9 @@ GByteArray *xs_impl_serialize(XenstoreImplState *s);
 int xs_impl_deserialize(XenstoreImplState *s, GByteArray *bytes,
                         unsigned int dom_id, xs_impl_watch_fn watch_fn,
                         void *watch_opaque);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* QEMU_XENSTORE_IMPL_H */

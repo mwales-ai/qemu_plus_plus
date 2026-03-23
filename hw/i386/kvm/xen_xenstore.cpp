@@ -80,7 +80,43 @@ struct XenXenstoreState *xen_xenstore_singleton;
 static void xen_xenstore_event(void *opaque);
 static void fire_watch_cb(void *opaque, const char *path, const char *token);
 
-static struct xenstore_backend_ops emu_xenstore_backend_ops;
+/* Forward declarations for emu_xenstore_backend_ops */
+static struct qemu_xs_handle *xs_be_open(void);
+static void xs_be_close(struct qemu_xs_handle *h);
+static char *xs_be_get_domain_path(struct qemu_xs_handle *h, unsigned int domid);
+static char **xs_be_directory(struct qemu_xs_handle *h, xs_transaction_t t,
+                              const char *path, unsigned int *num);
+static void *xs_be_read(struct qemu_xs_handle *h, xs_transaction_t t,
+                        const char *path, unsigned int *len);
+static bool xs_be_write(struct qemu_xs_handle *h, xs_transaction_t t,
+                        const char *path, const void *data, unsigned int len);
+static bool xs_be_create(struct qemu_xs_handle *h, xs_transaction_t t,
+                         unsigned int owner, unsigned int domid,
+                         unsigned int perms, const char *path);
+static bool xs_be_destroy(struct qemu_xs_handle *h, xs_transaction_t t,
+                          const char *path);
+static struct qemu_xs_watch *xs_be_watch(struct qemu_xs_handle *h,
+                                         const char *path, xs_watch_fn fn,
+                                         void *opaque);
+static void xs_be_unwatch(struct qemu_xs_handle *h, struct qemu_xs_watch *w);
+static xs_transaction_t xs_be_transaction_start(struct qemu_xs_handle *h);
+static bool xs_be_transaction_end(struct qemu_xs_handle *h, xs_transaction_t t,
+                                  bool abort);
+
+static struct xenstore_backend_ops emu_xenstore_backend_ops = {
+    .open = xs_be_open,
+    .close = xs_be_close,
+    .get_domain_path = xs_be_get_domain_path,
+    .directory = xs_be_directory,
+    .read = xs_be_read,
+    .write = xs_be_write,
+    .create = xs_be_create,
+    .destroy = xs_be_destroy,
+    .watch = xs_be_watch,
+    .unwatch = xs_be_unwatch,
+    .transaction_start = xs_be_transaction_start,
+    .transaction_end = xs_be_transaction_end,
+};
 
 static void G_GNUC_PRINTF (4, 5) relpath_printf(XenXenstoreState *s,
                                                 GList *perms,
@@ -98,7 +134,7 @@ static void G_GNUC_PRINTF (4, 5) relpath_printf(XenXenstoreState *s,
     value = g_strdup_vprintf(fmt, args);
     va_end(args);
 
-    data = g_byte_array_new_take((void *)value, strlen(value));
+    data = g_byte_array_new_take(reinterpret_cast<guint8 *>(value), strlen(value));
 
     err = xs_impl_write(s->impl, DOMID_QEMU, XBT_NULL, abspath, data);
     assert(!err);
@@ -123,7 +159,7 @@ static void xen_xenstore_realize(DeviceState *dev, Error **errp)
     memory_region_init_ram(&s->xenstore_page, OBJECT(dev), "xen:xenstore_page",
                            XEN_PAGE_SIZE, &error_abort);
     memory_region_set_enabled(&s->xenstore_page, true);
-    s->xs = memory_region_get_ram_ptr(&s->xenstore_page);
+    s->xs = static_cast<struct xenstore_domain_interface *>(memory_region_get_ram_ptr(&s->xenstore_page));
     memset(s->xs, 0, XEN_PAGE_SIZE);
 
     /* We can't map it this early as KVM isn't ready */
@@ -189,7 +225,7 @@ static bool xen_xenstore_is_needed(void *opaque)
 
 static int xen_xenstore_pre_save(void *opaque)
 {
-    XenXenstoreState *s = opaque;
+    XenXenstoreState *s = static_cast<XenXenstoreState *>(opaque);
     GByteArray *save;
 
     if (s->eh) {
@@ -207,7 +243,7 @@ static int xen_xenstore_pre_save(void *opaque)
 
 static int xen_xenstore_post_load(void *opaque, int ver)
 {
-    XenXenstoreState *s = opaque;
+    XenXenstoreState *s = static_cast<XenXenstoreState *>(opaque);
     GByteArray *save;
 
     /*
@@ -233,30 +269,32 @@ static int xen_xenstore_post_load(void *opaque, int ver)
     return xs_impl_deserialize(s->impl, save, xen_domid, fire_watch_cb, s);
 }
 
+static const VMStateField xen_xenstore_vmstate_fields[] = {
+    VMSTATE_UINT8_ARRAY(req_data, XenXenstoreState,
+                        sizeof_field(XenXenstoreState, req_data)),
+    VMSTATE_UINT8_ARRAY(rsp_data, XenXenstoreState,
+                        sizeof_field(XenXenstoreState, rsp_data)),
+    VMSTATE_UINT32(req_offset, XenXenstoreState),
+    VMSTATE_UINT32(rsp_offset, XenXenstoreState),
+    VMSTATE_BOOL(rsp_pending, XenXenstoreState),
+    VMSTATE_UINT32(guest_port, XenXenstoreState),
+    VMSTATE_BOOL(fatal_error, XenXenstoreState),
+    VMSTATE_UINT32(impl_state_size, XenXenstoreState),
+    VMSTATE_VARRAY_UINT32_ALLOC(impl_state, XenXenstoreState,
+                                impl_state_size, 0,
+                                vmstate_info_uint8, uint8_t),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription xen_xenstore_vmstate = {
     .name = "xen_xenstore",
     .unmigratable = 1, /* The PV back ends don't migrate yet */
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = xen_xenstore_is_needed,
-    .pre_save = xen_xenstore_pre_save,
     .post_load = xen_xenstore_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8_ARRAY(req_data, XenXenstoreState,
-                            sizeof_field(XenXenstoreState, req_data)),
-        VMSTATE_UINT8_ARRAY(rsp_data, XenXenstoreState,
-                            sizeof_field(XenXenstoreState, rsp_data)),
-        VMSTATE_UINT32(req_offset, XenXenstoreState),
-        VMSTATE_UINT32(rsp_offset, XenXenstoreState),
-        VMSTATE_BOOL(rsp_pending, XenXenstoreState),
-        VMSTATE_UINT32(guest_port, XenXenstoreState),
-        VMSTATE_BOOL(fatal_error, XenXenstoreState),
-        VMSTATE_UINT32(impl_state_size, XenXenstoreState),
-        VMSTATE_VARRAY_UINT32_ALLOC(impl_state, XenXenstoreState,
-                                    impl_state_size, 0,
-                                    vmstate_info_uint8, uint8_t),
-        VMSTATE_END_OF_LIST()
-    }
+    .pre_save = xen_xenstore_pre_save,
+    .needed = xen_xenstore_is_needed,
+    .fields = xen_xenstore_vmstate_fields,
 };
 
 static void xen_xenstore_class_init(ObjectClass *klass, const void *data)
@@ -611,8 +649,8 @@ static void xs_append_strings(XenXenstoreState *s, struct xsd_sockmsg *rsp,
     GList *l;
 
     for (l = strings; l; l = l->next) {
-        size_t len = strlen(l->data) + 1; /* Including the NUL termination */
-        char *str = l->data;
+        size_t len = strlen(static_cast<const char *>(l->data)) + 1; /* Including the NUL termination */
+        char *str = static_cast<char *>(l->data);
 
         if (rsp->len + len > XENSTORE_PAYLOAD_MAX) {
             if (truncate) {
@@ -1041,30 +1079,39 @@ struct xsd_req {
     const char *name;
     xs_impl fn;
 };
-#define XSD_REQ(_type, _fn)                           \
-    [_type] = { .name = #_type, .fn = _fn }
+/* XS_RESET_WATCHES is typically the highest-numbered XS command we handle */
+#define XSD_REQS_SIZE (XS_RESET_WATCHES + 2)
+struct xsd_req xsd_reqs[XSD_REQS_SIZE];
 
-struct xsd_req xsd_reqs[] = {
-    XSD_REQ(XS_READ, xs_read),
-    XSD_REQ(XS_WRITE, xs_write),
-    XSD_REQ(XS_MKDIR, xs_mkdir),
-    XSD_REQ(XS_DIRECTORY, xs_directory),
-    XSD_REQ(XS_DIRECTORY_PART, xs_directory_part),
-    XSD_REQ(XS_TRANSACTION_START, xs_transaction_start),
-    XSD_REQ(XS_TRANSACTION_END, xs_transaction_end),
-    XSD_REQ(XS_RM, xs_rm),
-    XSD_REQ(XS_GET_PERMS, xs_get_perms),
-    XSD_REQ(XS_SET_PERMS, xs_set_perms),
-    XSD_REQ(XS_WATCH, xs_watch),
-    XSD_REQ(XS_UNWATCH, xs_unwatch),
-    XSD_REQ(XS_CONTROL, xs_priv),
-    XSD_REQ(XS_INTRODUCE, xs_priv),
-    XSD_REQ(XS_RELEASE, xs_priv),
-    XSD_REQ(XS_IS_DOMAIN_INTRODUCED, xs_priv),
-    XSD_REQ(XS_RESUME, xs_priv),
-    XSD_REQ(XS_SET_TARGET, xs_priv),
-    XSD_REQ(XS_RESET_WATCHES, xs_reset_watches),
-};
+static void __attribute__((constructor)) init_xsd_reqs(void)
+{
+#define XSD_REQ(_type, _fn) do { \
+    xsd_reqs[_type].name = #_type; \
+    xsd_reqs[_type].fn = _fn; \
+} while (0)
+
+    XSD_REQ(XS_READ, xs_read);
+    XSD_REQ(XS_WRITE, xs_write);
+    XSD_REQ(XS_MKDIR, xs_mkdir);
+    XSD_REQ(XS_DIRECTORY, xs_directory);
+    XSD_REQ(XS_DIRECTORY_PART, xs_directory_part);
+    XSD_REQ(XS_TRANSACTION_START, xs_transaction_start);
+    XSD_REQ(XS_TRANSACTION_END, xs_transaction_end);
+    XSD_REQ(XS_RM, xs_rm);
+    XSD_REQ(XS_GET_PERMS, xs_get_perms);
+    XSD_REQ(XS_SET_PERMS, xs_set_perms);
+    XSD_REQ(XS_WATCH, xs_watch);
+    XSD_REQ(XS_UNWATCH, xs_unwatch);
+    XSD_REQ(XS_CONTROL, xs_priv);
+    XSD_REQ(XS_INTRODUCE, xs_priv);
+    XSD_REQ(XS_RELEASE, xs_priv);
+    XSD_REQ(XS_IS_DOMAIN_INTRODUCED, xs_priv);
+    XSD_REQ(XS_RESUME, xs_priv);
+    XSD_REQ(XS_SET_TARGET, xs_priv);
+    XSD_REQ(XS_RESET_WATCHES, xs_reset_watches);
+
+#undef XSD_REQ
+}
 
 static void process_req(XenXenstoreState *s)
 {
@@ -1217,7 +1264,7 @@ static unsigned int get_req(XenXenstoreState *s)
     assert(!req_pending(s));
 
     if (s->req_offset < XENSTORE_HEADER_SIZE) {
-        void *ptr = s->req_data + s->req_offset;
+        uint8_t *ptr = s->req_data + s->req_offset;
         unsigned int len = XENSTORE_HEADER_SIZE;
         unsigned int copylen = copy_from_ring(s, ptr, len);
 
@@ -1234,7 +1281,7 @@ static unsigned int get_req(XenXenstoreState *s)
             return 0;
         }
 
-        void *ptr = s->req_data + s->req_offset;
+        uint8_t *ptr = s->req_data + s->req_offset;
         unsigned int len = XENSTORE_HEADER_SIZE + req->len - s->req_offset;
         unsigned int copylen = copy_from_ring(s, ptr, len);
 
@@ -1256,7 +1303,7 @@ static unsigned int put_rsp(XenXenstoreState *s)
     struct xsd_sockmsg *rsp = (struct xsd_sockmsg *)s->rsp_data;
     assert(s->rsp_offset < XENSTORE_HEADER_SIZE + rsp->len);
 
-    void *ptr = s->rsp_data + s->rsp_offset;
+    uint8_t *ptr = s->rsp_data + s->rsp_offset;
     unsigned int len = XENSTORE_HEADER_SIZE + rsp->len - s->rsp_offset;
     unsigned int copylen = copy_to_ring(s, ptr, len);
 
@@ -1341,7 +1388,7 @@ static void queue_watch(XenXenstoreState *s, const char *path,
 
 static void fire_watch_cb(void *opaque, const char *path, const char *token)
 {
-    XenXenstoreState *s = opaque;
+    XenXenstoreState *s = static_cast<XenXenstoreState *>(opaque);
 
     assert(bql_locked());
 
@@ -1371,7 +1418,7 @@ static void fire_watch_cb(void *opaque, const char *path, const char *token)
 
 static void process_watch_events(XenXenstoreState *s)
 {
-    struct watch_event *ev = s->watch_events->data;
+    struct watch_event *ev = static_cast<struct watch_event *>(s->watch_events->data);
 
     deliver_watch(s, ev->path, ev->token);
 
@@ -1381,7 +1428,7 @@ static void process_watch_events(XenXenstoreState *s)
 
 static void xen_xenstore_event(void *opaque)
 {
-    XenXenstoreState *s = opaque;
+    XenXenstoreState *s = static_cast<XenXenstoreState *>(opaque);
     evtchn_port_t port = xen_be_evtchn_pending(s->eh);
     unsigned int copied_to, copied_from;
     bool processed, notify = false;
@@ -1534,7 +1581,7 @@ static char **xs_be_directory(struct qemu_xs_handle *h, xs_transaction_t t,
     items_ret = g_new0(char *, g_list_length(items) + 1);
     *num = 0;
     for (l = items; l; l = l->next) {
-        items_ret[i++] = l->data;
+        items_ret[i++] = static_cast<char *>(l->data);
         (*num)++;
     }
     g_list_free(items);
@@ -1557,7 +1604,7 @@ static void *xs_be_read(struct qemu_xs_handle *h, xs_transaction_t t,
             *len = data->len;
         }
         /* The xen-bus-helper code expects to get NUL terminated string! */
-        g_byte_array_append(data, (void *)"", 1);
+        g_byte_array_append(data, reinterpret_cast<const guint8 *>(""), 1);
     }
 
     return g_byte_array_free(data, free_segment);
@@ -1569,7 +1616,7 @@ static bool xs_be_write(struct qemu_xs_handle *h, xs_transaction_t t,
     GByteArray *gdata = g_byte_array_new();
     int err;
 
-    g_byte_array_append(gdata, data, len);
+    g_byte_array_append(gdata, static_cast<const guint8 *>(data), len);
     err = xs_impl_write(h->impl, DOMID_QEMU, t, path, gdata);
     g_byte_array_unref(gdata);
     if (err) {
@@ -1624,14 +1671,14 @@ static bool xs_be_destroy(struct qemu_xs_handle *h, xs_transaction_t t,
 
 static void be_watch_bh(void *_h)
 {
-    struct qemu_xs_handle *h = _h;
+    struct qemu_xs_handle *h = static_cast<struct qemu_xs_handle *>(_h);
     GList *l;
 
     for (l = h->watches; l; l = l->next) {
-        struct qemu_xs_watch *w = l->data;
+        struct qemu_xs_watch *w = static_cast<struct qemu_xs_watch *>(l->data);
 
         while (w->events) {
-            struct watch_event *ev = w->events->data;
+            struct watch_event *ev = static_cast<struct watch_event *>(w->events->data);
 
             w->fn(w->opaque, ev->path);
 
@@ -1644,7 +1691,7 @@ static void be_watch_bh(void *_h)
 static void xs_be_watch_cb(void *opaque, const char *path, const char *token)
 {
     struct watch_event *ev = g_new0(struct watch_event, 1);
-    struct qemu_xs_watch *w = opaque;
+    struct qemu_xs_watch *w = static_cast<struct qemu_xs_watch *>(opaque);
 
     /* We don't care about the token */
     ev->path = g_strdup(path);
@@ -1729,25 +1776,10 @@ static struct qemu_xs_handle *xs_be_open(void)
 static void xs_be_close(struct qemu_xs_handle *h)
 {
     while (h->watches) {
-        struct qemu_xs_watch *w = h->watches->data;
+        struct qemu_xs_watch *w = static_cast<struct qemu_xs_watch *>(h->watches->data);
         xs_be_unwatch(h, w);
     }
 
     qemu_bh_delete(h->watch_bh);
     g_free(h);
 }
-
-static struct xenstore_backend_ops emu_xenstore_backend_ops = {
-    .open = xs_be_open,
-    .close = xs_be_close,
-    .get_domain_path = xs_be_get_domain_path,
-    .directory = xs_be_directory,
-    .read = xs_be_read,
-    .write = xs_be_write,
-    .create = xs_be_create,
-    .destroy = xs_be_destroy,
-    .watch = xs_be_watch,
-    .unwatch = xs_be_unwatch,
-    .transaction_start = xs_be_transaction_start,
-    .transaction_end = xs_be_transaction_end,
-};

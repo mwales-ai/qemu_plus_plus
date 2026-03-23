@@ -259,21 +259,23 @@ enum DPVideoFmt {
 typedef enum DPGraphicFmt DPGraphicFmt;
 typedef enum DPVideoFmt DPVideoFmt;
 
+static const VMStateField vmstate_dp_fields[] = {
+    VMSTATE_UINT32_ARRAY(core_registers, XlnxDPState,
+                         DP_CORE_REG_ARRAY_SIZE),
+    VMSTATE_UINT32_ARRAY(avbufm_registers, XlnxDPState,
+                         DP_AVBUF_REG_ARRAY_SIZE),
+    VMSTATE_UINT32_ARRAY(vblend_registers, XlnxDPState,
+                         DP_VBLEND_REG_ARRAY_SIZE),
+    VMSTATE_UINT32_ARRAY(audio_registers, XlnxDPState,
+                         DP_AUDIO_REG_ARRAY_SIZE),
+    VMSTATE_PTIMER(vblank, XlnxDPState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_dp = {
     .name = TYPE_XLNX_DP,
     .version_id = 2,
-    .fields = (const VMStateField[]){
-        VMSTATE_UINT32_ARRAY(core_registers, XlnxDPState,
-                             DP_CORE_REG_ARRAY_SIZE),
-        VMSTATE_UINT32_ARRAY(avbufm_registers, XlnxDPState,
-                             DP_AVBUF_REG_ARRAY_SIZE),
-        VMSTATE_UINT32_ARRAY(vblend_registers, XlnxDPState,
-                             DP_VBLEND_REG_ARRAY_SIZE),
-        VMSTATE_UINT32_ARRAY(audio_registers, XlnxDPState,
-                             DP_AUDIO_REG_ARRAY_SIZE),
-        VMSTATE_PTIMER(vblank, XlnxDPState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dp_fields,
 };
 
 #define DP_VBLANK_PTIMER_POLICY (PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD | \
@@ -518,7 +520,7 @@ static uint32_t xlnx_dp_aux_get_address(XlnxDPState *s)
 static void xlnx_dp_aux_set_command(XlnxDPState *s, uint32_t value)
 {
     bool address_only = (value & AUX_ADDR_ONLY_MASK) != 0;
-    AUXCommand cmd = (value & AUX_COMMAND_MASK) >> AUX_COMMAND_SHIFT;
+    AUXCommand cmd = static_cast<AUXCommand>((value & AUX_COMMAND_MASK) >> AUX_COMMAND_SHIFT);
     uint8_t nbytes = (value & AUX_COMMAND_NBYTES) + 1;
     uint8_t buf[16];
     int i;

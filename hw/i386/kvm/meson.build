@@ -6,9 +6,9 @@ i386_kvm_ss.add(when: 'CONFIG_I8259', if_true: files('i8259.cpp'))
 i386_kvm_ss.add(when: 'CONFIG_IOAPIC', if_true: files('ioapic.cpp'))
 i386_kvm_ss.add(when: 'CONFIG_XEN_EMU', if_true: files(
   'xen_overlay.cpp',
-  'xen_evtchn.c',
-  'xen_gnttab.c',
-  'xen_xenstore.c',
+  'xen_evtchn.cpp',
+  'xen_gnttab.cpp',
+  'xen_xenstore.cpp',
   'xen_primary_console.cpp',
   'xenstore_impl.c',
   ))

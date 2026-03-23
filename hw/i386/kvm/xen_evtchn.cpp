@@ -186,7 +186,7 @@ static void unbind_backend_ports(XenEvtchnState *s);
 
 static int xen_evtchn_pre_load(void *opaque)
 {
-    XenEvtchnState *s = opaque;
+    XenEvtchnState *s = static_cast<XenEvtchnState *>(opaque);
 
     /* Unbind all the backend-side ports; they need to rebind */
     unbind_backend_ports(s);
@@ -200,7 +200,7 @@ static int xen_evtchn_pre_load(void *opaque)
 
 static int xen_evtchn_post_load(void *opaque, int version_id)
 {
-    XenEvtchnState *s = opaque;
+    XenEvtchnState *s = static_cast<XenEvtchnState *>(opaque);
     uint32_t i;
 
     if (s->callback_param) {
@@ -238,37 +238,41 @@ static bool xen_evtchn_is_needed(void *opaque)
     return xen_mode == XEN_EMULATE;
 }
 
+static const VMStateField xen_evtchn_port_vmstate_fields[] = {
+    VMSTATE_UINT32(vcpu, XenEvtchnPort),
+    VMSTATE_UINT16(type, XenEvtchnPort),
+    VMSTATE_UINT16(u.val, XenEvtchnPort),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription xen_evtchn_port_vmstate = {
     .name = "xen_evtchn_port",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(vcpu, XenEvtchnPort),
-        VMSTATE_UINT16(type, XenEvtchnPort),
-        VMSTATE_UINT16(u.val, XenEvtchnPort),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = xen_evtchn_port_vmstate_fields,
+};
+
+static const VMStateField xen_evtchn_vmstate_fields[] = {
+    VMSTATE_UINT64(callback_param, XenEvtchnState),
+    VMSTATE_UINT32(nr_ports, XenEvtchnState),
+    VMSTATE_STRUCT_VARRAY_UINT32(port_table, XenEvtchnState, nr_ports, 1,
+                                 xen_evtchn_port_vmstate, XenEvtchnPort),
+    VMSTATE_UINT16_ARRAY(gsi_pirq, XenEvtchnState, IOAPIC_NUM_PINS),
+    VMSTATE_VARRAY_UINT16_ALLOC(pirq_inuse_bitmap, XenEvtchnState,
+                                nr_pirq_inuse_words, 0,
+                                vmstate_info_uint64, uint64_t),
+    VMSTATE_UINT32(pirq_gsi_set, XenEvtchnState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription xen_evtchn_vmstate = {
     .name = "xen_evtchn",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = xen_evtchn_is_needed,
     .pre_load = xen_evtchn_pre_load,
     .post_load = xen_evtchn_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT64(callback_param, XenEvtchnState),
-        VMSTATE_UINT32(nr_ports, XenEvtchnState),
-        VMSTATE_STRUCT_VARRAY_UINT32(port_table, XenEvtchnState, nr_ports, 1,
-                                     xen_evtchn_port_vmstate, XenEvtchnPort),
-        VMSTATE_UINT16_ARRAY(gsi_pirq, XenEvtchnState, IOAPIC_NUM_PINS),
-        VMSTATE_VARRAY_UINT16_ALLOC(pirq_inuse_bitmap, XenEvtchnState,
-                                    nr_pirq_inuse_words, 0,
-                                    vmstate_info_uint64, uint64_t),
-        VMSTATE_UINT32(pirq_gsi_set, XenEvtchnState),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = xen_evtchn_is_needed,
+    .fields = xen_evtchn_vmstate_fields,
 };
 
 static void xen_evtchn_class_init(ObjectClass *klass, const void *data)
@@ -298,7 +302,7 @@ static struct evtchn_backend_ops emu_evtchn_backend_ops = {
 
 static void gsi_assert_bh(void *opaque)
 {
-    struct vcpu_info *vi = kvm_xen_get_vcpu_info_hva(0);
+    struct vcpu_info *vi = static_cast<struct vcpu_info *>(kvm_xen_get_vcpu_info_hva(0));
     if (vi) {
         xen_evtchn_set_callback_level(!!vi->evtchn_upcall_pending);
     }
@@ -521,7 +525,7 @@ int xen_evtchn_set_callback_param(uint64_t param)
         s->evtchn_in_kernel = in_kernel;
 
         if (gsi != s->callback_gsi) {
-            struct vcpu_info *vi = kvm_xen_get_vcpu_info_hva(0);
+            struct vcpu_info *vi = static_cast<struct vcpu_info *>(kvm_xen_get_vcpu_info_hva(0));
 
             xen_evtchn_set_callback_level(0);
             s->callback_gsi = gsi;
@@ -827,9 +831,13 @@ static int unmask_port(XenEvtchnState *s, evtchn_port_t port, bool do_unmask)
     }
 
     if (xen_is_long_mode()) {
-        return do_unmask_port_lm(s, port, do_unmask, shinfo, vcpu_info);
+        return do_unmask_port_lm(s, port, do_unmask,
+                                 static_cast<struct shared_info *>(shinfo),
+                                 static_cast<struct vcpu_info *>(vcpu_info));
     } else {
-        return do_unmask_port_compat(s, port, do_unmask, shinfo, vcpu_info);
+        return do_unmask_port_compat(s, port, do_unmask,
+                                     static_cast<struct compat_shared_info *>(shinfo),
+                                     static_cast<struct compat_vcpu_info *>(vcpu_info));
     }
 }
 
@@ -954,9 +962,13 @@ static int set_port_pending(XenEvtchnState *s, evtchn_port_t port)
     }
 
     if (xen_is_long_mode()) {
-        return do_set_port_lm(s, port, shinfo, vcpu_info);
+        return do_set_port_lm(s, port,
+                              static_cast<struct shared_info *>(shinfo),
+                              static_cast<struct vcpu_info *>(vcpu_info));
     } else {
-        return do_set_port_compat(s, port, shinfo, vcpu_info);
+        return do_set_port_compat(s, port,
+                                  static_cast<struct compat_shared_info *>(shinfo),
+                                  static_cast<struct compat_vcpu_info *>(vcpu_info));
     }
 }
 
@@ -969,7 +981,7 @@ static int clear_port_pending(XenEvtchnState *s, evtchn_port_t port)
     }
 
     if (xen_is_long_mode()) {
-        struct shared_info *shinfo = p;
+        struct shared_info *shinfo = static_cast<struct shared_info *>(p);
         const int bits_per_word = BITS_PER_BYTE * sizeof(shinfo->evtchn_pending[0]);
         typeof(shinfo->evtchn_pending[0]) mask;
         int idx = port / bits_per_word;
@@ -979,7 +991,7 @@ static int clear_port_pending(XenEvtchnState *s, evtchn_port_t port)
 
         qatomic_fetch_and(&shinfo->evtchn_pending[idx], ~mask);
     } else {
-        struct compat_shared_info *shinfo = p;
+        struct compat_shared_info *shinfo = static_cast<struct compat_shared_info *>(p);
         const int bits_per_word = BITS_PER_BYTE * sizeof(shinfo->evtchn_pending[0]);
         typeof(shinfo->evtchn_pending[0]) mask;
         int idx = port / bits_per_word;
@@ -1638,7 +1650,7 @@ bool xen_evtchn_set_gsi(int gsi, int *level)
              * eveht channel GSI should still be asserted.
              */
             if (!s->extern_gsi_level) {
-                struct vcpu_info *vi = kvm_xen_get_vcpu_info_hva(0);
+                struct vcpu_info *vi = static_cast<struct vcpu_info *>(kvm_xen_get_vcpu_info_hva(0));
                 if (vi && vi->evtchn_upcall_pending) {
                     /* Need to poll for deassertion */
                     kvm_xen_set_callback_asserted();
@@ -2263,7 +2275,8 @@ EvtchnInfoList *qmp_xen_event_list(Error **errp)
 {
     XenEvtchnState *s = xen_evtchn_singleton;
     EvtchnInfoList *head = NULL, **tail = &head;
-    void *shinfo, *pending, *mask;
+    void *shinfo;
+    const unsigned long *pending, *mask;
     int i;
 
     if (!s) {
@@ -2278,11 +2291,15 @@ EvtchnInfoList *qmp_xen_event_list(Error **errp)
     }
 
     if (xen_is_long_mode()) {
-        pending = shinfo + offsetof(struct shared_info, evtchn_pending);
-        mask = shinfo + offsetof(struct shared_info, evtchn_mask);
+        pending = reinterpret_cast<const unsigned long *>(
+            static_cast<char *>(shinfo) + offsetof(struct shared_info, evtchn_pending));
+        mask = reinterpret_cast<const unsigned long *>(
+            static_cast<char *>(shinfo) + offsetof(struct shared_info, evtchn_mask));
     } else {
-        pending = shinfo + offsetof(struct compat_shared_info, evtchn_pending);
-        mask = shinfo + offsetof(struct compat_shared_info, evtchn_mask);
+        pending = reinterpret_cast<const unsigned long *>(
+            static_cast<char *>(shinfo) + offsetof(struct compat_shared_info, evtchn_pending));
+        mask = reinterpret_cast<const unsigned long *>(
+            static_cast<char *>(shinfo) + offsetof(struct compat_shared_info, evtchn_mask));
     }
 
     QEMU_LOCK_GUARD(&s->port_lock);
@@ -2305,7 +2322,7 @@ EvtchnInfoList *qmp_xen_event_list(Error **errp)
         qemu_build_assert(EVTCHN_PORT_TYPE_VIRQ == EVTCHNSTAT_virq);
         qemu_build_assert(EVTCHN_PORT_TYPE_IPI == EVTCHNSTAT_ipi);
 
-        info->type = p->type;
+        info->type = static_cast<EvtchnPortType>(p->type);
         if (p->type == EVTCHNSTAT_interdomain) {
             info->remote_domain = g_strdup(p->u.interdomain.to_qemu ?
                                            "qemu" : "loopback");

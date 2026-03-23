@@ -183,52 +183,59 @@ static void usb_host_attach_kernel(USBHostDevice *s);
 # define HAVE_SUPER_PLUS 1
 #endif
 
-static const char *speed_name[] = {
-    [LIBUSB_SPEED_UNKNOWN] = "?",
-    [LIBUSB_SPEED_LOW]     = "1.5",
-    [LIBUSB_SPEED_FULL]    = "12",
-    [LIBUSB_SPEED_HIGH]    = "480",
-    [LIBUSB_SPEED_SUPER]   = "5000",
 #ifdef HAVE_SUPER_PLUS
-    [LIBUSB_SPEED_SUPER_PLUS] = "5000+",
+#define SPEED_TABLE_SIZE (LIBUSB_SPEED_SUPER_PLUS + 1)
+#else
+#define SPEED_TABLE_SIZE (LIBUSB_SPEED_SUPER + 1)
 #endif
-};
 
-static const unsigned int speed_map[] = {
-    [LIBUSB_SPEED_LOW]     = USB_SPEED_LOW,
-    [LIBUSB_SPEED_FULL]    = USB_SPEED_FULL,
-    [LIBUSB_SPEED_HIGH]    = USB_SPEED_HIGH,
-    [LIBUSB_SPEED_SUPER]   = USB_SPEED_SUPER,
+static const char *speed_name[SPEED_TABLE_SIZE];
+static unsigned int speed_map[SPEED_TABLE_SIZE];
+
+static unsigned int status_map[LIBUSB_TRANSFER_OVERFLOW + 1];
+static const char *err_names[-LIBUSB_ERROR_OTHER + 1];
+
+static void __attribute__((constructor)) init_usb_host_tables(void)
+{
+    speed_name[LIBUSB_SPEED_UNKNOWN] = "?";
+    speed_name[LIBUSB_SPEED_LOW]     = "1.5";
+    speed_name[LIBUSB_SPEED_FULL]    = "12";
+    speed_name[LIBUSB_SPEED_HIGH]    = "480";
+    speed_name[LIBUSB_SPEED_SUPER]   = "5000";
 #ifdef HAVE_SUPER_PLUS
-    [LIBUSB_SPEED_SUPER_PLUS] = USB_SPEED_SUPER,
+    speed_name[LIBUSB_SPEED_SUPER_PLUS] = "5000+";
 #endif
-};
 
-static const unsigned int status_map[] = {
-    [LIBUSB_TRANSFER_COMPLETED] = USB_RET_SUCCESS,
-    [LIBUSB_TRANSFER_ERROR]     = USB_RET_IOERROR,
-    [LIBUSB_TRANSFER_TIMED_OUT] = USB_RET_IOERROR,
-    [LIBUSB_TRANSFER_CANCELLED] = USB_RET_IOERROR,
-    [LIBUSB_TRANSFER_STALL]     = USB_RET_STALL,
-    [LIBUSB_TRANSFER_NO_DEVICE] = USB_RET_NODEV,
-    [LIBUSB_TRANSFER_OVERFLOW]  = USB_RET_BABBLE,
-};
+    speed_map[LIBUSB_SPEED_LOW]     = USB_SPEED_LOW;
+    speed_map[LIBUSB_SPEED_FULL]    = USB_SPEED_FULL;
+    speed_map[LIBUSB_SPEED_HIGH]    = USB_SPEED_HIGH;
+    speed_map[LIBUSB_SPEED_SUPER]   = USB_SPEED_SUPER;
+#ifdef HAVE_SUPER_PLUS
+    speed_map[LIBUSB_SPEED_SUPER_PLUS] = USB_SPEED_SUPER;
+#endif
 
-static const char *err_names[] = {
-    [-LIBUSB_ERROR_IO]               = "IO",
-    [-LIBUSB_ERROR_INVALID_PARAM]    = "INVALID_PARAM",
-    [-LIBUSB_ERROR_ACCESS]           = "ACCESS",
-    [-LIBUSB_ERROR_NO_DEVICE]        = "NO_DEVICE",
-    [-LIBUSB_ERROR_NOT_FOUND]        = "NOT_FOUND",
-    [-LIBUSB_ERROR_BUSY]             = "BUSY",
-    [-LIBUSB_ERROR_TIMEOUT]          = "TIMEOUT",
-    [-LIBUSB_ERROR_OVERFLOW]         = "OVERFLOW",
-    [-LIBUSB_ERROR_PIPE]             = "PIPE",
-    [-LIBUSB_ERROR_INTERRUPTED]      = "INTERRUPTED",
-    [-LIBUSB_ERROR_NO_MEM]           = "NO_MEM",
-    [-LIBUSB_ERROR_NOT_SUPPORTED]    = "NOT_SUPPORTED",
-    [-LIBUSB_ERROR_OTHER]            = "OTHER",
-};
+    status_map[LIBUSB_TRANSFER_COMPLETED] = USB_RET_SUCCESS;
+    status_map[LIBUSB_TRANSFER_ERROR]     = USB_RET_IOERROR;
+    status_map[LIBUSB_TRANSFER_TIMED_OUT] = USB_RET_IOERROR;
+    status_map[LIBUSB_TRANSFER_CANCELLED] = USB_RET_IOERROR;
+    status_map[LIBUSB_TRANSFER_STALL]     = USB_RET_STALL;
+    status_map[LIBUSB_TRANSFER_NO_DEVICE] = USB_RET_NODEV;
+    status_map[LIBUSB_TRANSFER_OVERFLOW]  = USB_RET_BABBLE;
+
+    err_names[-LIBUSB_ERROR_IO]               = "IO";
+    err_names[-LIBUSB_ERROR_INVALID_PARAM]    = "INVALID_PARAM";
+    err_names[-LIBUSB_ERROR_ACCESS]           = "ACCESS";
+    err_names[-LIBUSB_ERROR_NO_DEVICE]        = "NO_DEVICE";
+    err_names[-LIBUSB_ERROR_NOT_FOUND]        = "NOT_FOUND";
+    err_names[-LIBUSB_ERROR_BUSY]             = "BUSY";
+    err_names[-LIBUSB_ERROR_TIMEOUT]          = "TIMEOUT";
+    err_names[-LIBUSB_ERROR_OVERFLOW]         = "OVERFLOW";
+    err_names[-LIBUSB_ERROR_PIPE]             = "PIPE";
+    err_names[-LIBUSB_ERROR_INTERRUPTED]      = "INTERRUPTED";
+    err_names[-LIBUSB_ERROR_NO_MEM]           = "NO_MEM";
+    err_names[-LIBUSB_ERROR_NOT_SUPPORTED]    = "NOT_SUPPORTED";
+    err_names[-LIBUSB_ERROR_OTHER]            = "OTHER";
+}
 
 static libusb_context *ctx;
 static uint32_t loglevel;
@@ -385,7 +392,7 @@ static USBHostRequest *usb_host_req_alloc(USBHostDevice *s, USBPacket *p,
     r->in = in;
     r->xfer = libusb_alloc_transfer(0);
     if (bufsize) {
-        r->buffer = g_malloc(bufsize);
+        r->buffer = static_cast<unsigned char *>(g_malloc(bufsize));
     }
     QTAILQ_INSERT_TAIL(&s->requests, r, next);
 #ifdef CONFIG_WIN32
@@ -420,7 +427,7 @@ static USBHostRequest *usb_host_req_find(USBHostDevice *s, USBPacket *p)
 
 static void LIBUSB_CALL usb_host_req_complete_ctrl(struct libusb_transfer *xfer)
 {
-    USBHostRequest *r = xfer->user_data;
+    USBHostRequest *r = static_cast<USBHostRequest *>(xfer->user_data);
     USBHostDevice  *s = r->host;
     bool disconnect = (xfer->status == LIBUSB_TRANSFER_NO_DEVICE);
 
@@ -432,7 +439,7 @@ static void LIBUSB_CALL usb_host_req_complete_ctrl(struct libusb_transfer *xfer)
     r->p->actual_length = xfer->actual_length;
     if (r->in && xfer->actual_length) {
         USBDevice *udev = USB_DEVICE(s);
-        struct libusb_config_descriptor *conf = (void *)r->cbuf;
+        struct libusb_config_descriptor *conf = reinterpret_cast<struct libusb_config_descriptor *>(r->cbuf);
         memcpy(r->cbuf, r->buffer + 8, xfer->actual_length);
 
         /* Fix up USB-3 ep0 maxpacket size to allow superspeed connected devices
@@ -470,7 +477,7 @@ out:
 
 static void LIBUSB_CALL usb_host_req_complete_data(struct libusb_transfer *xfer)
 {
-    USBHostRequest *r = xfer->user_data;
+    USBHostRequest *r = static_cast<USBHostRequest *>(xfer->user_data);
     USBHostDevice  *s = r->host;
     bool disconnect = (xfer->status == LIBUSB_TRANSFER_NO_DEVICE);
 
@@ -522,7 +529,7 @@ static void usb_host_req_abort(USBHostRequest *r)
 static void LIBUSB_CALL
 usb_host_req_complete_iso(struct libusb_transfer *transfer)
 {
-    USBHostIsoXfer *xfer = transfer->user_data;
+    USBHostIsoXfer *xfer = static_cast<USBHostIsoXfer *>(transfer->user_data);
 
     if (!xfer) {
         /* USBHostIsoXfer released while inflight */
@@ -575,7 +582,7 @@ static USBHostIsoRing *usb_host_iso_alloc(USBHostDevice *s, USBEndpoint *ep)
 
         xfer->xfer->num_iso_packets = packets;
         xfer->xfer->length = ring->ep->max_packet_size * packets;
-        xfer->xfer->buffer = g_malloc0(xfer->xfer->length);
+        xfer->xfer->buffer = static_cast<unsigned char *>(g_malloc0(xfer->xfer->length));
 
         QTAILQ_INSERT_TAIL(&ring->unused, xfer, next);
     }
@@ -1134,7 +1141,7 @@ static int usb_host_close(USBHostDevice *s)
 
 static void usb_host_nodev_bh(void *opaque)
 {
-    USBHostDevice *s = opaque;
+    USBHostDevice *s = static_cast<USBHostDevice *>(opaque);
     usb_host_close(s);
 }
 
@@ -1721,7 +1728,7 @@ static void usb_host_free_streams(USBDevice *udev, USBEndpoint **eps,
  */
 static void usb_host_post_load_bh(void *opaque)
 {
-    USBHostDevice *dev = opaque;
+    USBHostDevice *dev = static_cast<USBHostDevice *>(opaque);
     USBDevice *udev = USB_DEVICE(dev);
 
     if (dev->dh != NULL) {
@@ -1736,7 +1743,7 @@ static void usb_host_post_load_bh(void *opaque)
 
 static int usb_host_post_load(void *opaque, int version_id)
 {
-    USBHostDevice *dev = opaque;
+    USBHostDevice *dev = static_cast<USBHostDevice *>(opaque);
 
     if (!dev->bh_postld) {
         dev->bh_postld = qemu_bh_new_guarded(usb_host_post_load_bh, dev,
@@ -1747,15 +1754,17 @@ static int usb_host_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_usb_host_fields[] = {
+    VMSTATE_USB_DEVICE(parent_obj, USBHostDevice),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_usb_host = {
     .name = "usb-host",
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = usb_host_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_USB_DEVICE(parent_obj, USBHostDevice),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_usb_host_fields,
 };
 
 static const Property usb_host_dev_properties[] = {
@@ -1805,8 +1814,8 @@ static const TypeInfo usb_host_dev_info = {
     .name          = TYPE_USB_HOST_DEVICE,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHostDevice),
-    .class_init    = usb_host_class_initfn,
     .instance_init = usb_host_instance_init,
+    .class_init    = usb_host_class_initfn,
 };
 module_obj(TYPE_USB_HOST_DEVICE);
 module_kconfig(USB);

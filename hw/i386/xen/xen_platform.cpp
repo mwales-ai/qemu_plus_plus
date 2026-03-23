@@ -176,7 +176,7 @@ struct ide_unplug_state {
 
 static int ide_dev_unplug(DeviceState *dev, void *_st)
 {
-    struct ide_unplug_state *st = _st;
+    struct ide_unplug_state *st = static_cast<struct ide_unplug_state *>(_st);
     IDEDevice *idedev;
     IDEBus *idebus;
     BlockBackend *blk;
@@ -264,7 +264,7 @@ static void pci_unplug_disks(PCIBus *bus, uint32_t flags)
 
 static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    PCIXenPlatformState *s = opaque;
+    PCIXenPlatformState *s = static_cast<PCIXenPlatformState *>(opaque);
 
     switch (addr) {
     case 0: {
@@ -310,7 +310,7 @@ static void platform_fixed_ioport_writel(void *opaque, uint32_t addr,
 
 static void platform_fixed_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
-    PCIXenPlatformState *s = opaque;
+    PCIXenPlatformState *s = static_cast<PCIXenPlatformState *>(opaque);
 
     switch (addr) {
     case 0: /* Platform flags */
@@ -352,7 +352,7 @@ static uint32_t platform_fixed_ioport_readw(void *opaque, uint32_t addr)
 
 static uint32_t platform_fixed_ioport_readb(void *opaque, uint32_t addr)
 {
-    PCIXenPlatformState *s = opaque;
+    PCIXenPlatformState *s = static_cast<PCIXenPlatformState *>(opaque);
 
     switch (addr) {
     case 0:
@@ -368,7 +368,7 @@ static uint32_t platform_fixed_ioport_readb(void *opaque, uint32_t addr)
 
 static void platform_fixed_ioport_reset(void *opaque)
 {
-    PCIXenPlatformState *s = opaque;
+    PCIXenPlatformState *s = static_cast<PCIXenPlatformState *>(opaque);
 
     platform_fixed_ioport_writeb(s, 0, 0);
 }
@@ -408,6 +408,7 @@ static void platform_fixed_ioport_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps platform_fixed_io_ops = {
     .read = platform_fixed_ioport_read,
     .write = platform_fixed_ioport_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .unaligned = true,
     },
@@ -416,7 +417,6 @@ static const MemoryRegionOps platform_fixed_io_ops = {
         .max_access_size = 4,
         .unaligned = true,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void platform_fixed_ioport_init(PCIXenPlatformState* s)
@@ -442,7 +442,7 @@ static uint64_t xen_platform_ioport_readb(void *opaque, hwaddr addr,
 static void xen_platform_ioport_writeb(void *opaque, hwaddr addr,
                                        uint64_t val, unsigned int size)
 {
-    PCIXenPlatformState *s = opaque;
+    PCIXenPlatformState *s = static_cast<PCIXenPlatformState *>(opaque);
     PCIDevice *pci_dev = PCI_DEVICE(s);
 
     switch (addr) {
@@ -524,23 +524,25 @@ static void platform_mmio_setup(PCIXenPlatformState *d)
 
 static int xen_platform_post_load(void *opaque, int version_id)
 {
-    PCIXenPlatformState *s = opaque;
+    PCIXenPlatformState *s = static_cast<PCIXenPlatformState *>(opaque);
 
     platform_fixed_ioport_writeb(s, 0, s->flags);
 
     return 0;
 }
 
+static const VMStateField vmstate_xen_platform_fields[] = {
+    VMSTATE_PCI_DEVICE(parent_obj, PCIXenPlatformState),
+    VMSTATE_UINT8(flags, PCIXenPlatformState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_xen_platform = {
     .name = "platform",
     .version_id = 4,
     .minimum_version_id = 4,
     .post_load = xen_platform_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PCIXenPlatformState),
-        VMSTATE_UINT8(flags, PCIXenPlatformState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_xen_platform_fields,
 };
 
 static void xen_platform_realize(PCIDevice *dev, Error **errp)
@@ -598,15 +600,17 @@ static void xen_platform_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_xen_platform;
 }
 
+static const InterfaceInfo xen_platform_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo xen_platform_info = {
     .name          = TYPE_XEN_PLATFORM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIXenPlatformState),
     .class_init    = xen_platform_class_init,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces    = xen_platform_interfaces,
 };
 
 static void xen_platform_register_types(void)

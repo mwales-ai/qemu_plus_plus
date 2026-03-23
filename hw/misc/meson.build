@@ -98,9 +98,9 @@ system_ss.add(when: 'CONFIG_ZYNQ', if_true: files('zynq_slcr.cpp'))
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files('xlnx-zynqmp-crf.cpp'))
 system_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files('xlnx-zynqmp-apu-ctrl.cpp'))
 system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files(
-  'xlnx-versal-crl.c',
+  'xlnx-versal-crl.cpp',
   'xlnx-versal-xramc.cpp',
-  'xlnx-versal-pmc-iou-slcr.c',
+  'xlnx-versal-pmc-iou-slcr.cpp',
   'xlnx-versal-cfu.cpp',
   'xlnx-cfi-if.cpp',
   'xlnx-versal-cframe-reg.cpp',

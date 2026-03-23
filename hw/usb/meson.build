@@ -83,7 +83,7 @@ endif
 if libusb.found()
   usbhost_ss = ss.source_set()
   usbhost_ss.add(when: ['CONFIG_USB', libusb],
-                 if_true: files('host-libusb.c'))
+                 if_true: files('host-libusb.cpp'))
   hw_usb_modules += {'host': usbhost_ss}
 endif
 

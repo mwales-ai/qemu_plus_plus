@@ -38,7 +38,29 @@ OBJECT_DECLARE_SIMPLE_TYPE(XenGnttabState, XEN_GNTTAB)
 
 #define ENTRIES_PER_FRAME_V1 (XEN_PAGE_SIZE / sizeof(grant_entry_v1_t))
 
-static struct gnttab_backend_ops emu_gnttab_backend_ops;
+/* Forward declarations for emu_gnttab_backend_ops */
+static struct xengntdev_handle *xen_be_gnttab_open(void);
+static int xen_be_gnttab_close(struct xengntdev_handle *xgt);
+static int xen_be_gnttab_copy(struct xengntdev_handle *xgt, bool to_domain,
+                              uint32_t domid, XenGrantCopySegment *segs,
+                              uint32_t nr_segs, Error **errp);
+static int xen_be_gnttab_set_max_grants(struct xengntdev_handle *xgt,
+                                        uint32_t nr_grants);
+static void *xen_be_gnttab_map_refs(struct xengntdev_handle *xgt,
+                                    uint32_t count, uint32_t domid,
+                                    uint32_t *refs, int prot);
+static int xen_be_gnttab_unmap(struct xengntdev_handle *xgt,
+                               void *start_address, uint32_t *refs,
+                               uint32_t count);
+
+static struct gnttab_backend_ops emu_gnttab_backend_ops = {
+    .open = xen_be_gnttab_open,
+    .close = xen_be_gnttab_close,
+    .grant_copy = xen_be_gnttab_copy,
+    .set_max_grants = xen_be_gnttab_set_max_grants,
+    .map_refs = xen_be_gnttab_map_refs,
+    .unmap = xen_be_gnttab_unmap,
+};
 
 struct XenGnttabState {
     /*< private >*/
@@ -77,11 +99,11 @@ static void xen_gnttab_realize(DeviceState *dev, Error **errp)
     memory_region_init_ram(&s->gnt_frames, OBJECT(dev), "xen:grant_table",
                            XEN_PAGE_SIZE * s->max_frames, &error_abort);
     memory_region_set_enabled(&s->gnt_frames, true);
-    s->entries.v1 = memory_region_get_ram_ptr(&s->gnt_frames);
+    s->entries.v1 = static_cast<grant_entry_v1_t *>(memory_region_get_ram_ptr(&s->gnt_frames));
 
     /* Create individual page-sizes aliases for overlays */
-    s->gnt_aliases = (void *)g_new0(MemoryRegion, s->max_frames);
-    s->gnt_frame_gpas = (void *)g_new(uint64_t, s->max_frames);
+    s->gnt_aliases = g_new0(MemoryRegion, s->max_frames);
+    s->gnt_frame_gpas = g_new(uint64_t, s->max_frames);
     for (i = 0; i < s->max_frames; i++) {
         memory_region_init_alias(&s->gnt_aliases[i], OBJECT(dev),
                                  NULL, &s->gnt_frames,
@@ -121,18 +143,20 @@ static bool xen_gnttab_is_needed(void *opaque)
     return xen_mode == XEN_EMULATE;
 }
 
+static const VMStateField xen_gnttab_vmstate_fields[] = {
+    VMSTATE_UINT32(nr_frames, XenGnttabState),
+    VMSTATE_VARRAY_UINT32(gnt_frame_gpas, XenGnttabState, nr_frames, 0,
+                          vmstate_info_uint64, uint64_t),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription xen_gnttab_vmstate = {
     .name = "xen_gnttab",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = xen_gnttab_is_needed,
     .post_load = xen_gnttab_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(nr_frames, XenGnttabState),
-        VMSTATE_VARRAY_UINT32(gnt_frame_gpas, XenGnttabState, nr_frames, 0,
-                              vmstate_info_uint64, uint64_t),
-        VMSTATE_END_OF_LIST()
-    }
+    .needed = xen_gnttab_is_needed,
+    .fields = xen_gnttab_vmstate_fields,
 };
 
 static void xen_gnttab_class_init(ObjectClass *klass, const void *data)
@@ -293,7 +317,7 @@ static uint64_t gnt_ref(XenGnttabState *s, grant_ref_t ref, int prot)
         uint16_t new_flags;
 
         /* Read the entry before an atomic operation on its flags */
-        gnt = *(volatile grant_entry_v1_t *)gnt_p;
+        memcpy(&gnt, const_cast<grant_entry_v1_t *>(gnt_p), sizeof(gnt));
 
         if ((gnt.flags & mask) != GTF_permit_access ||
             gnt.domid != DOMID_QEMU) {
@@ -360,7 +384,7 @@ static void *xen_be_gnttab_map_refs(struct xengntdev_handle *xgt,
 
     QEMU_LOCK_GUARD(&s->gnt_lock);
 
-    act = g_hash_table_lookup(xgt->active_maps, GINT_TO_POINTER(refs[0]));
+    act = static_cast<struct active_ref *>(g_hash_table_lookup(xgt->active_maps, GINT_TO_POINTER(refs[0])));
     if (act) {
         if ((prot & PROT_WRITE) && !(act->prot & PROT_WRITE)) {
             if (gnt_ref(s, refs[0], prot) == INVALID_GPA) {
@@ -403,9 +427,9 @@ static void *xen_be_gnttab_map_refs(struct xengntdev_handle *xgt,
 
 static gboolean do_unmap(gpointer key, gpointer value, gpointer user_data)
 {
-    XenGnttabState *s = user_data;
+    XenGnttabState *s = static_cast<XenGnttabState *>(user_data);
     grant_ref_t gref = GPOINTER_TO_INT(key);
-    struct active_ref *act = value;
+    struct active_ref *act = static_cast<struct active_ref *>(value);
 
     gnt_unref(s, gref, &act->mrs, act->prot);
     g_free(act);
@@ -429,7 +453,7 @@ static int xen_be_gnttab_unmap(struct xengntdev_handle *xgt,
 
     QEMU_LOCK_GUARD(&s->gnt_lock);
 
-    act = g_hash_table_lookup(xgt->active_maps, GINT_TO_POINTER(refs[0]));
+    act = static_cast<struct active_ref *>(g_hash_table_lookup(xgt->active_maps, GINT_TO_POINTER(refs[0])));
     if (!act) {
         return -ENOENT;
     }
@@ -476,10 +500,11 @@ static int xen_be_gnttab_copy(struct xengntdev_handle *xgt, bool to_domain,
         }
 
         if (to_domain) {
-            memcpy(page + seg->dest.foreign.offset, seg->source.virt,
-                   seg->len);
+            memcpy(static_cast<char *>(page) + seg->dest.foreign.offset,
+                   seg->source.virt, seg->len);
         } else {
-            memcpy(seg->dest.virt, page + seg->source.foreign.offset,
+            memcpy(seg->dest.virt,
+                   static_cast<char *>(page) + seg->source.foreign.offset,
                    seg->len);
         }
 
@@ -515,15 +540,6 @@ static int xen_be_gnttab_close(struct xengntdev_handle *xgt)
     g_free(xgt);
     return 0;
 }
-
-static struct gnttab_backend_ops emu_gnttab_backend_ops = {
-    .open = xen_be_gnttab_open,
-    .close = xen_be_gnttab_close,
-    .grant_copy = xen_be_gnttab_copy,
-    .set_max_grants = xen_be_gnttab_set_max_grants,
-    .map_refs = xen_be_gnttab_map_refs,
-    .unmap = xen_be_gnttab_unmap,
-};
 
 int xen_gnttab_reset(void)
 {
