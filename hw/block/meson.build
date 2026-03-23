@@ -11,7 +11,7 @@ system_ss.add(when: 'CONFIG_PFLASH_CFI02', if_true: files('pflash_cfi02.cpp'))
 system_ss.add(when: 'CONFIG_SSI_M25P80', if_true: files('m25p80.cpp'))
 system_ss.add(when: 'CONFIG_SSI_M25P80', if_true: files('m25p80_sfdp.cpp'))
 system_ss.add(when: 'CONFIG_SWIM', if_true: files('swim.cpp'))
-system_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen-block.c'))
+system_ss.add(when: 'CONFIG_XEN_BUS', if_true: files('xen-block.cpp'))
 
 specific_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio-blk.cpp'))
 system_ss.add(when: 'CONFIG_VIRTIO_BLK', if_true: files('virtio-blk-common.cpp'))

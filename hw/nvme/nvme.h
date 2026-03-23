@@ -181,6 +181,18 @@ static const uint8_t nvme_fdp_evf_shifts[FDP_EVT_MAX] = {
     [FDP_EVT_MEDIA_REALLOC]             = 32,
     [FDP_EVT_RUH_IMPLICIT_RU_CHANGE]    = 33,
 };
+#else
+static uint8_t nvme_fdp_evf_shifts[FDP_EVT_MAX];
+
+static void __attribute__((constructor)) nvme_init_fdp_evf_shifts(void)
+{
+    nvme_fdp_evf_shifts[FDP_EVT_RU_NOT_FULLY_WRITTEN]      = 0;
+    nvme_fdp_evf_shifts[FDP_EVT_RU_ATL_EXCEEDED]           = 1;
+    nvme_fdp_evf_shifts[FDP_EVT_CTRL_RESET_RUH]            = 2;
+    nvme_fdp_evf_shifts[FDP_EVT_INVALID_PID]               = 3;
+    nvme_fdp_evf_shifts[FDP_EVT_MEDIA_REALLOC]             = 32;
+    nvme_fdp_evf_shifts[FDP_EVT_RUH_IMPLICIT_RU_CHANGE]    = 33;
+}
 #endif
 
 #define NGUID_LEN 16
@@ -422,11 +434,17 @@ static inline void nvme_fdp_stat_inc(uint64_t *a, uint64_t b)
     *a = ret < *a ? UINT64_MAX : ret;
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void nvme_ns_init_format(NvmeNamespace *ns);
 int nvme_ns_setup(NvmeNamespace *ns, Error **errp);
 void nvme_ns_drain(NvmeNamespace *ns);
 void nvme_ns_shutdown(NvmeNamespace *ns);
 void nvme_ns_cleanup(NvmeNamespace *ns);
+#ifdef __cplusplus
+}
+#endif
 
 typedef struct NvmeAsyncEvent {
     QTAILQ_ENTRY(NvmeAsyncEvent) entry;
@@ -756,6 +774,10 @@ static inline NvmeSecCtrlEntry *nvme_sctrl_for_cntlid(NvmeCtrl *n,
     return NULL;
 }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void nvme_attach_ns(NvmeCtrl *n, NvmeNamespace *ns);
 uint16_t nvme_bounce_data(NvmeCtrl *n, void *ptr, uint32_t len,
                           NvmeTxDirection dir, NvmeRequest *req);
@@ -769,5 +791,9 @@ void nvme_atomic_configure_max_write_size(bool dn, uint16_t awun,
                                           uint16_t awupf, NvmeAtomic *atomic);
 void nvme_ns_atomic_configure_boundary(bool dn, uint16_t nabsn,
                                        uint16_t nabspf, NvmeAtomic *atomic);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* HW_NVME_NVME_H */

@@ -118,11 +118,11 @@ typedef struct IntelHDAStream IntelHDAStream;
 typedef struct IntelHDAState IntelHDAState;
 typedef struct IntelHDAReg IntelHDAReg;
 
-typedef struct bpl {
+typedef struct BDLEntry {
     uint64_t addr;
     uint32_t len;
     uint32_t flags;
-} bpl;
+} BDLEntry;
 
 struct IntelHDAStream {
     /* registers */
@@ -135,7 +135,7 @@ struct IntelHDAStream {
     uint32_t bdlp_ubase;
 
     /* state */
-    bpl      *bpl;
+    BDLEntry *bpl;
     uint32_t bentries;
     uint32_t bsize, be, bp;
 };
@@ -429,7 +429,8 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
         dprint(d, 3, "dma: entry %d, pos %d/%d, copy %d\n",
                st->be, st->bp, st->bpl[st->be].len, copy);
 
-        pci_dma_rw(&d->pci, st->bpl[st->be].addr + st->bp, buf, copy, !output,
+        pci_dma_rw(&d->pci, st->bpl[st->be].addr + st->bp, buf, copy,
+                   output ? DMA_DIRECTION_FROM_DEVICE : DMA_DIRECTION_TO_DEVICE,
                    attrs);
         st->lpib += copy;
         st->bp += copy;
@@ -473,7 +474,7 @@ static void intel_hda_parse_bdl(IntelHDAState *d, IntelHDAStream *st)
     addr = intel_hda_addr(st->bdlp_lbase, st->bdlp_ubase);
     st->bentries = st->lvi +1;
     g_free(st->bpl);
-    st->bpl = g_new(bpl, st->bentries);
+    st->bpl = g_new(BDLEntry, st->bentries);
     for (i = 0; i < st->bentries; i++, addr += 16) {
         pci_dma_read(&d->pci, addr, buf, 16);
         st->bpl[i].addr  = le64_to_cpu(*(uint64_t *)buf);
@@ -605,292 +606,191 @@ static void intel_hda_set_st_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint3
 
 #define ST_REG(_n, _o) (0x80 + (_n) * 0x20 + (_o))
 
-static const struct IntelHDAReg regtab[] = {
+/* Maximum register address in the table */
+#define REGTAB_SIZE (ST_REG(7, ICH6_REG_SD_BDLPU) + 1)
+
+static struct IntelHDAReg regtab[REGTAB_SIZE];
+
+static void intel_hda_set_reg(int idx, const char *name, uint32_t size,
+                              uint32_t reset, uint32_t wmask, uint32_t wclear,
+                              uint32_t offset, uint32_t shift, uint32_t stream,
+                              void (*whandler)(IntelHDAState *, const IntelHDAReg *, uint32_t),
+                              void (*rhandler)(IntelHDAState *, const IntelHDAReg *))
+{
+    regtab[idx].name     = name;
+    regtab[idx].size     = size;
+    regtab[idx].reset    = reset;
+    regtab[idx].wmask    = wmask;
+    regtab[idx].wclear   = wclear;
+    regtab[idx].offset   = offset;
+    regtab[idx].shift    = shift;
+    regtab[idx].stream   = stream;
+    regtab[idx].whandler = whandler;
+    regtab[idx].rhandler = rhandler;
+}
+
+#define HDA_STREAM_INIT(_t, _i)  do {                                 \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_CTL),                    \
+        _t stringify(_i) " CTL", 4, 0, 0x1cff001f, 0,                \
+        offsetof(IntelHDAState, st[_i].ctl), 0, _i,                   \
+        intel_hda_set_st_ctl, NULL);                                   \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_CTL) + 2,                \
+        _t stringify(_i) " CTL(stnr)", 1, 0, 0x00ff0000, 0,          \
+        offsetof(IntelHDAState, st[_i].ctl), 16, _i,                  \
+        intel_hda_set_st_ctl, NULL);                                   \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_STS),                    \
+        _t stringify(_i) " CTL(sts)", 1, SD_STS_FIFO_READY << 24,    \
+        0x1c000000, 0x1c000000,                                       \
+        offsetof(IntelHDAState, st[_i].ctl), 24, _i,                  \
+        intel_hda_set_st_ctl, NULL);                                   \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_LPIB),                   \
+        _t stringify(_i) " LPIB", 4, 0, 0, 0,                        \
+        offsetof(IntelHDAState, st[_i].lpib), 0, _i,                  \
+        NULL, NULL);                                                   \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_CBL),                    \
+        _t stringify(_i) " CBL", 4, 0, 0xffffffff, 0,                \
+        offsetof(IntelHDAState, st[_i].cbl), 0, _i,                   \
+        NULL, NULL);                                                   \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_LVI),                    \
+        _t stringify(_i) " LVI", 2, 0, 0x00ff, 0,                    \
+        offsetof(IntelHDAState, st[_i].lvi), 0, _i,                   \
+        NULL, NULL);                                                   \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_FIFOSIZE),               \
+        _t stringify(_i) " FIFOS", 2, HDA_BUFFER_SIZE, 0, 0,         \
+        0, 0, _i, NULL, NULL);                                        \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_FORMAT),                 \
+        _t stringify(_i) " FMT", 2, 0, 0x7f7f, 0,                   \
+        offsetof(IntelHDAState, st[_i].fmt), 0, _i,                   \
+        NULL, NULL);                                                   \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_BDLPL),                  \
+        _t stringify(_i) " BDLPL", 4, 0, 0xffffff80, 0,              \
+        offsetof(IntelHDAState, st[_i].bdlp_lbase), 0, _i,            \
+        NULL, NULL);                                                   \
+    intel_hda_set_reg(ST_REG(_i, ICH6_REG_SD_BDLPU),                  \
+        _t stringify(_i) " BDLPU", 4, 0, 0xffffffff, 0,              \
+        offsetof(IntelHDAState, st[_i].bdlp_ubase), 0, _i,            \
+        NULL, NULL);                                                   \
+    } while (0)
+
+static void __attribute__((constructor)) init_regtab(void)
+{
+    memset(regtab, 0, sizeof(regtab));
+
     /* global */
-    [ ICH6_REG_GCAP ] = {
-        .name     = "GCAP",
-        .size     = 2,
-        .reset    = 0x4401,
-    },
-    [ ICH6_REG_VMIN ] = {
-        .name     = "VMIN",
-        .size     = 1,
-    },
-    [ ICH6_REG_VMAJ ] = {
-        .name     = "VMAJ",
-        .size     = 1,
-        .reset    = 1,
-    },
-    [ ICH6_REG_OUTPAY ] = {
-        .name     = "OUTPAY",
-        .size     = 2,
-        .reset    = 0x3c,
-    },
-    [ ICH6_REG_INPAY ] = {
-        .name     = "INPAY",
-        .size     = 2,
-        .reset    = 0x1d,
-    },
-    [ ICH6_REG_GCTL ] = {
-        .name     = "GCTL",
-        .size     = 4,
-        .wmask    = 0x0103,
-        .offset   = offsetof(IntelHDAState, g_ctl),
-        .whandler = intel_hda_set_g_ctl,
-    },
-    [ ICH6_REG_WAKEEN ] = {
-        .name     = "WAKEEN",
-        .size     = 2,
-        .wmask    = 0x7fff,
-        .offset   = offsetof(IntelHDAState, wake_en),
-        .whandler = intel_hda_set_wake_en,
-    },
-    [ ICH6_REG_STATESTS ] = {
-        .name     = "STATESTS",
-        .size     = 2,
-        .wmask    = 0x7fff,
-        .wclear   = 0x7fff,
-        .offset   = offsetof(IntelHDAState, state_sts),
-        .whandler = intel_hda_set_state_sts,
-    },
+    intel_hda_set_reg(ICH6_REG_GCAP,
+        "GCAP", 2, 0x4401, 0, 0, 0, 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_VMIN,
+        "VMIN", 1, 0, 0, 0, 0, 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_VMAJ,
+        "VMAJ", 1, 1, 0, 0, 0, 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_OUTPAY,
+        "OUTPAY", 2, 0x3c, 0, 0, 0, 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_INPAY,
+        "INPAY", 2, 0x1d, 0, 0, 0, 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_GCTL,
+        "GCTL", 4, 0, 0x0103, 0,
+        offsetof(IntelHDAState, g_ctl), 0, 0,
+        intel_hda_set_g_ctl, NULL);
+    intel_hda_set_reg(ICH6_REG_WAKEEN,
+        "WAKEEN", 2, 0, 0x7fff, 0,
+        offsetof(IntelHDAState, wake_en), 0, 0,
+        intel_hda_set_wake_en, NULL);
+    intel_hda_set_reg(ICH6_REG_STATESTS,
+        "STATESTS", 2, 0, 0x7fff, 0x7fff,
+        offsetof(IntelHDAState, state_sts), 0, 0,
+        intel_hda_set_state_sts, NULL);
 
     /* interrupts */
-    [ ICH6_REG_INTCTL ] = {
-        .name     = "INTCTL",
-        .size     = 4,
-        .wmask    = 0xc00000ff,
-        .offset   = offsetof(IntelHDAState, int_ctl),
-        .whandler = intel_hda_set_int_ctl,
-    },
-    [ ICH6_REG_INTSTS ] = {
-        .name     = "INTSTS",
-        .size     = 4,
-        .wmask    = 0xc00000ff,
-        .wclear   = 0xc00000ff,
-        .offset   = offsetof(IntelHDAState, int_sts),
-    },
+    intel_hda_set_reg(ICH6_REG_INTCTL,
+        "INTCTL", 4, 0, 0xc00000ff, 0,
+        offsetof(IntelHDAState, int_ctl), 0, 0,
+        intel_hda_set_int_ctl, NULL);
+    intel_hda_set_reg(ICH6_REG_INTSTS,
+        "INTSTS", 4, 0, 0xc00000ff, 0xc00000ff,
+        offsetof(IntelHDAState, int_sts), 0, 0, NULL, NULL);
 
     /* misc */
-    [ ICH6_REG_WALLCLK ] = {
-        .name     = "WALLCLK",
-        .size     = 4,
-        .offset   = offsetof(IntelHDAState, wall_clk),
-        .rhandler = intel_hda_get_wall_clk,
-    },
+    intel_hda_set_reg(ICH6_REG_WALLCLK,
+        "WALLCLK", 4, 0, 0, 0,
+        offsetof(IntelHDAState, wall_clk), 0, 0,
+        NULL, intel_hda_get_wall_clk);
 
     /* dma engine */
-    [ ICH6_REG_CORBLBASE ] = {
-        .name     = "CORBLBASE",
-        .size     = 4,
-        .wmask    = 0xffffff80,
-        .offset   = offsetof(IntelHDAState, corb_lbase),
-    },
-    [ ICH6_REG_CORBUBASE ] = {
-        .name     = "CORBUBASE",
-        .size     = 4,
-        .wmask    = 0xffffffff,
-        .offset   = offsetof(IntelHDAState, corb_ubase),
-    },
-    [ ICH6_REG_CORBWP ] = {
-        .name     = "CORBWP",
-        .size     = 2,
-        .wmask    = 0xff,
-        .offset   = offsetof(IntelHDAState, corb_wp),
-        .whandler = intel_hda_set_corb_wp,
-    },
-    [ ICH6_REG_CORBRP ] = {
-        .name     = "CORBRP",
-        .size     = 2,
-        .wmask    = 0x80ff,
-        .offset   = offsetof(IntelHDAState, corb_rp),
-    },
-    [ ICH6_REG_CORBCTL ] = {
-        .name     = "CORBCTL",
-        .size     = 1,
-        .wmask    = 0x03,
-        .offset   = offsetof(IntelHDAState, corb_ctl),
-        .whandler = intel_hda_set_corb_ctl,
-    },
-    [ ICH6_REG_CORBSTS ] = {
-        .name     = "CORBSTS",
-        .size     = 1,
-        .wmask    = 0x01,
-        .wclear   = 0x01,
-        .offset   = offsetof(IntelHDAState, corb_sts),
-    },
-    [ ICH6_REG_CORBSIZE ] = {
-        .name     = "CORBSIZE",
-        .size     = 1,
-        .reset    = 0x42,
-        .offset   = offsetof(IntelHDAState, corb_size),
-    },
-    [ ICH6_REG_RIRBLBASE ] = {
-        .name     = "RIRBLBASE",
-        .size     = 4,
-        .wmask    = 0xffffff80,
-        .offset   = offsetof(IntelHDAState, rirb_lbase),
-    },
-    [ ICH6_REG_RIRBUBASE ] = {
-        .name     = "RIRBUBASE",
-        .size     = 4,
-        .wmask    = 0xffffffff,
-        .offset   = offsetof(IntelHDAState, rirb_ubase),
-    },
-    [ ICH6_REG_RIRBWP ] = {
-        .name     = "RIRBWP",
-        .size     = 2,
-        .wmask    = 0x8000,
-        .offset   = offsetof(IntelHDAState, rirb_wp),
-        .whandler = intel_hda_set_rirb_wp,
-    },
-    [ ICH6_REG_RINTCNT ] = {
-        .name     = "RINTCNT",
-        .size     = 2,
-        .wmask    = 0xff,
-        .offset   = offsetof(IntelHDAState, rirb_cnt),
-    },
-    [ ICH6_REG_RIRBCTL ] = {
-        .name     = "RIRBCTL",
-        .size     = 1,
-        .wmask    = 0x07,
-        .offset   = offsetof(IntelHDAState, rirb_ctl),
-    },
-    [ ICH6_REG_RIRBSTS ] = {
-        .name     = "RIRBSTS",
-        .size     = 1,
-        .wmask    = 0x05,
-        .wclear   = 0x05,
-        .offset   = offsetof(IntelHDAState, rirb_sts),
-        .whandler = intel_hda_set_rirb_sts,
-    },
-    [ ICH6_REG_RIRBSIZE ] = {
-        .name     = "RIRBSIZE",
-        .size     = 1,
-        .reset    = 0x42,
-        .offset   = offsetof(IntelHDAState, rirb_size),
-    },
+    intel_hda_set_reg(ICH6_REG_CORBLBASE,
+        "CORBLBASE", 4, 0, 0xffffff80, 0,
+        offsetof(IntelHDAState, corb_lbase), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_CORBUBASE,
+        "CORBUBASE", 4, 0, 0xffffffff, 0,
+        offsetof(IntelHDAState, corb_ubase), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_CORBWP,
+        "CORBWP", 2, 0, 0xff, 0,
+        offsetof(IntelHDAState, corb_wp), 0, 0,
+        intel_hda_set_corb_wp, NULL);
+    intel_hda_set_reg(ICH6_REG_CORBRP,
+        "CORBRP", 2, 0, 0x80ff, 0,
+        offsetof(IntelHDAState, corb_rp), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_CORBCTL,
+        "CORBCTL", 1, 0, 0x03, 0,
+        offsetof(IntelHDAState, corb_ctl), 0, 0,
+        intel_hda_set_corb_ctl, NULL);
+    intel_hda_set_reg(ICH6_REG_CORBSTS,
+        "CORBSTS", 1, 0, 0x01, 0x01,
+        offsetof(IntelHDAState, corb_sts), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_CORBSIZE,
+        "CORBSIZE", 1, 0x42, 0, 0,
+        offsetof(IntelHDAState, corb_size), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_RIRBLBASE,
+        "RIRBLBASE", 4, 0, 0xffffff80, 0,
+        offsetof(IntelHDAState, rirb_lbase), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_RIRBUBASE,
+        "RIRBUBASE", 4, 0, 0xffffffff, 0,
+        offsetof(IntelHDAState, rirb_ubase), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_RIRBWP,
+        "RIRBWP", 2, 0, 0x8000, 0,
+        offsetof(IntelHDAState, rirb_wp), 0, 0,
+        intel_hda_set_rirb_wp, NULL);
+    intel_hda_set_reg(ICH6_REG_RINTCNT,
+        "RINTCNT", 2, 0, 0xff, 0,
+        offsetof(IntelHDAState, rirb_cnt), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_RIRBCTL,
+        "RIRBCTL", 1, 0, 0x07, 0,
+        offsetof(IntelHDAState, rirb_ctl), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_RIRBSTS,
+        "RIRBSTS", 1, 0, 0x05, 0x05,
+        offsetof(IntelHDAState, rirb_sts), 0, 0,
+        intel_hda_set_rirb_sts, NULL);
+    intel_hda_set_reg(ICH6_REG_RIRBSIZE,
+        "RIRBSIZE", 1, 0x42, 0, 0,
+        offsetof(IntelHDAState, rirb_size), 0, 0, NULL, NULL);
 
-    [ ICH6_REG_DPLBASE ] = {
-        .name     = "DPLBASE",
-        .size     = 4,
-        .wmask    = 0xffffff81,
-        .offset   = offsetof(IntelHDAState, dp_lbase),
-    },
-    [ ICH6_REG_DPUBASE ] = {
-        .name     = "DPUBASE",
-        .size     = 4,
-        .wmask    = 0xffffffff,
-        .offset   = offsetof(IntelHDAState, dp_ubase),
-    },
+    intel_hda_set_reg(ICH6_REG_DPLBASE,
+        "DPLBASE", 4, 0, 0xffffff81, 0,
+        offsetof(IntelHDAState, dp_lbase), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_DPUBASE,
+        "DPUBASE", 4, 0, 0xffffffff, 0,
+        offsetof(IntelHDAState, dp_ubase), 0, 0, NULL, NULL);
 
-    [ ICH6_REG_IC ] = {
-        .name     = "ICW",
-        .size     = 4,
-        .wmask    = 0xffffffff,
-        .offset   = offsetof(IntelHDAState, icw),
-    },
-    [ ICH6_REG_IR ] = {
-        .name     = "IRR",
-        .size     = 4,
-        .offset   = offsetof(IntelHDAState, irr),
-    },
-    [ ICH6_REG_IRS ] = {
-        .name     = "ICS",
-        .size     = 2,
-        .wmask    = 0x0003,
-        .wclear   = 0x0002,
-        .offset   = offsetof(IntelHDAState, ics),
-        .whandler = intel_hda_set_ics,
-    },
+    intel_hda_set_reg(ICH6_REG_IC,
+        "ICW", 4, 0, 0xffffffff, 0,
+        offsetof(IntelHDAState, icw), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_IR,
+        "IRR", 4, 0, 0, 0,
+        offsetof(IntelHDAState, irr), 0, 0, NULL, NULL);
+    intel_hda_set_reg(ICH6_REG_IRS,
+        "ICS", 2, 0, 0x0003, 0x0002,
+        offsetof(IntelHDAState, ics), 0, 0,
+        intel_hda_set_ics, NULL);
 
-#define HDA_STREAM(_t, _i)                                            \
-    [ ST_REG(_i, ICH6_REG_SD_CTL) ] = {                               \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " CTL",                          \
-        .size     = 4,                                                \
-        .wmask    = 0x1cff001f,                                       \
-        .offset   = offsetof(IntelHDAState, st[_i].ctl),              \
-        .whandler = intel_hda_set_st_ctl,                             \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_CTL) + 2] = {                            \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " CTL(stnr)",                    \
-        .size     = 1,                                                \
-        .shift    = 16,                                               \
-        .wmask    = 0x00ff0000,                                       \
-        .offset   = offsetof(IntelHDAState, st[_i].ctl),              \
-        .whandler = intel_hda_set_st_ctl,                             \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_STS)] = {                                \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " CTL(sts)",                     \
-        .size     = 1,                                                \
-        .shift    = 24,                                               \
-        .wmask    = 0x1c000000,                                       \
-        .wclear   = 0x1c000000,                                       \
-        .offset   = offsetof(IntelHDAState, st[_i].ctl),              \
-        .whandler = intel_hda_set_st_ctl,                             \
-        .reset    = SD_STS_FIFO_READY << 24                           \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_LPIB) ] = {                              \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " LPIB",                         \
-        .size     = 4,                                                \
-        .offset   = offsetof(IntelHDAState, st[_i].lpib),             \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_CBL) ] = {                               \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " CBL",                          \
-        .size     = 4,                                                \
-        .wmask    = 0xffffffff,                                       \
-        .offset   = offsetof(IntelHDAState, st[_i].cbl),              \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_LVI) ] = {                               \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " LVI",                          \
-        .size     = 2,                                                \
-        .wmask    = 0x00ff,                                           \
-        .offset   = offsetof(IntelHDAState, st[_i].lvi),              \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_FIFOSIZE) ] = {                          \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " FIFOS",                        \
-        .size     = 2,                                                \
-        .reset    = HDA_BUFFER_SIZE,                                  \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_FORMAT) ] = {                            \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " FMT",                          \
-        .size     = 2,                                                \
-        .wmask    = 0x7f7f,                                           \
-        .offset   = offsetof(IntelHDAState, st[_i].fmt),              \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_BDLPL) ] = {                             \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " BDLPL",                        \
-        .size     = 4,                                                \
-        .wmask    = 0xffffff80,                                       \
-        .offset   = offsetof(IntelHDAState, st[_i].bdlp_lbase),       \
-    },                                                                \
-    [ ST_REG(_i, ICH6_REG_SD_BDLPU) ] = {                             \
-        .stream   = _i,                                               \
-        .name     = _t stringify(_i) " BDLPU",                        \
-        .size     = 4,                                                \
-        .wmask    = 0xffffffff,                                       \
-        .offset   = offsetof(IntelHDAState, st[_i].bdlp_ubase),       \
-    },                                                                \
+    HDA_STREAM_INIT("IN", 0);
+    HDA_STREAM_INIT("IN", 1);
+    HDA_STREAM_INIT("IN", 2);
+    HDA_STREAM_INIT("IN", 3);
 
-    HDA_STREAM("IN", 0)
-    HDA_STREAM("IN", 1)
-    HDA_STREAM("IN", 2)
-    HDA_STREAM("IN", 3)
-
-    HDA_STREAM("OUT", 4)
-    HDA_STREAM("OUT", 5)
-    HDA_STREAM("OUT", 6)
-    HDA_STREAM("OUT", 7)
-
-};
+    HDA_STREAM_INIT("OUT", 4);
+    HDA_STREAM_INIT("OUT", 5);
+    HDA_STREAM_INIT("OUT", 6);
+    HDA_STREAM_INIT("OUT", 7);
+}
 
 static const IntelHDAReg *intel_hda_reg_find(IntelHDAState *d, hwaddr addr)
 {
@@ -912,7 +812,7 @@ noreg:
 
 static uint32_t *intel_hda_reg_addr(IntelHDAState *d, const IntelHDAReg *reg)
 {
-    uint8_t *addr = (void*)d;
+    uint8_t *addr = reinterpret_cast<uint8_t *>(d);
 
     addr += reg->offset;
     return (uint32_t*)addr;
@@ -1043,7 +943,7 @@ static void intel_hda_regs_reset(IntelHDAState *d)
 static void intel_hda_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                                  unsigned size)
 {
-    IntelHDAState *d = opaque;
+    IntelHDAState *d = static_cast<IntelHDAState *>(opaque);
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
 
     intel_hda_reg_write(d, reg, val, MAKE_64BIT_MASK(0, size * 8));
@@ -1051,7 +951,7 @@ static void intel_hda_mmio_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t intel_hda_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    IntelHDAState *d = opaque;
+    IntelHDAState *d = static_cast<IntelHDAState *>(opaque);
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
 
     return intel_hda_reg_read(d, reg, MAKE_64BIT_MASK(0, size * 8));
@@ -1060,11 +960,11 @@ static uint64_t intel_hda_mmio_read(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps intel_hda_mmio_ops = {
     .read = intel_hda_mmio_read,
     .write = intel_hda_mmio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* --------------------------------------------------------------------- */
@@ -1141,7 +1041,7 @@ static void intel_hda_exit(PCIDevice *pci)
 
 static int intel_hda_post_load(void *opaque, int version)
 {
-    IntelHDAState* d = opaque;
+    IntelHDAState* d = static_cast<IntelHDAState *>(opaque);
     int i;
 
     dprint(d, 1, "%s\n", __func__);
@@ -1154,64 +1054,68 @@ static int intel_hda_post_load(void *opaque, int version)
     return 0;
 }
 
+static const VMStateField vmstate_intel_hda_stream_fields[] = {
+    VMSTATE_UINT32(ctl, IntelHDAStream),
+    VMSTATE_UINT32(lpib, IntelHDAStream),
+    VMSTATE_UINT32(cbl, IntelHDAStream),
+    VMSTATE_UINT32(lvi, IntelHDAStream),
+    VMSTATE_UINT32(fmt, IntelHDAStream),
+    VMSTATE_UINT32(bdlp_lbase, IntelHDAStream),
+    VMSTATE_UINT32(bdlp_ubase, IntelHDAStream),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_intel_hda_stream = {
     .name = "intel-hda-stream",
     .version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(ctl, IntelHDAStream),
-        VMSTATE_UINT32(lpib, IntelHDAStream),
-        VMSTATE_UINT32(cbl, IntelHDAStream),
-        VMSTATE_UINT32(lvi, IntelHDAStream),
-        VMSTATE_UINT32(fmt, IntelHDAStream),
-        VMSTATE_UINT32(bdlp_lbase, IntelHDAStream),
-        VMSTATE_UINT32(bdlp_ubase, IntelHDAStream),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_intel_hda_stream_fields,
+};
+
+static const VMStateField vmstate_intel_hda_fields[] = {
+    VMSTATE_PCI_DEVICE(pci, IntelHDAState),
+
+    /* registers */
+    VMSTATE_UINT32(g_ctl, IntelHDAState),
+    VMSTATE_UINT32(wake_en, IntelHDAState),
+    VMSTATE_UINT32(state_sts, IntelHDAState),
+    VMSTATE_UINT32(int_ctl, IntelHDAState),
+    VMSTATE_UINT32(int_sts, IntelHDAState),
+    VMSTATE_UINT32(wall_clk, IntelHDAState),
+    VMSTATE_UINT32(corb_lbase, IntelHDAState),
+    VMSTATE_UINT32(corb_ubase, IntelHDAState),
+    VMSTATE_UINT32(corb_rp, IntelHDAState),
+    VMSTATE_UINT32(corb_wp, IntelHDAState),
+    VMSTATE_UINT32(corb_ctl, IntelHDAState),
+    VMSTATE_UINT32(corb_sts, IntelHDAState),
+    VMSTATE_UINT32(corb_size, IntelHDAState),
+    VMSTATE_UINT32(rirb_lbase, IntelHDAState),
+    VMSTATE_UINT32(rirb_ubase, IntelHDAState),
+    VMSTATE_UINT32(rirb_wp, IntelHDAState),
+    VMSTATE_UINT32(rirb_cnt, IntelHDAState),
+    VMSTATE_UINT32(rirb_ctl, IntelHDAState),
+    VMSTATE_UINT32(rirb_sts, IntelHDAState),
+    VMSTATE_UINT32(rirb_size, IntelHDAState),
+    VMSTATE_UINT32(dp_lbase, IntelHDAState),
+    VMSTATE_UINT32(dp_ubase, IntelHDAState),
+    VMSTATE_UINT32(icw, IntelHDAState),
+    VMSTATE_UINT32(irr, IntelHDAState),
+    VMSTATE_UINT32(ics, IntelHDAState),
+    VMSTATE_STRUCT_ARRAY(st, IntelHDAState, 8, 0,
+                         vmstate_intel_hda_stream,
+                         IntelHDAStream),
+
+    /* additional state info */
+    VMSTATE_UINT32(rirb_count, IntelHDAState),
+    VMSTATE_INT64(wall_base_ns, IntelHDAState),
+
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_intel_hda = {
     .name = "intel-hda",
     .version_id = 1,
     .post_load = intel_hda_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_PCI_DEVICE(pci, IntelHDAState),
-
-        /* registers */
-        VMSTATE_UINT32(g_ctl, IntelHDAState),
-        VMSTATE_UINT32(wake_en, IntelHDAState),
-        VMSTATE_UINT32(state_sts, IntelHDAState),
-        VMSTATE_UINT32(int_ctl, IntelHDAState),
-        VMSTATE_UINT32(int_sts, IntelHDAState),
-        VMSTATE_UINT32(wall_clk, IntelHDAState),
-        VMSTATE_UINT32(corb_lbase, IntelHDAState),
-        VMSTATE_UINT32(corb_ubase, IntelHDAState),
-        VMSTATE_UINT32(corb_rp, IntelHDAState),
-        VMSTATE_UINT32(corb_wp, IntelHDAState),
-        VMSTATE_UINT32(corb_ctl, IntelHDAState),
-        VMSTATE_UINT32(corb_sts, IntelHDAState),
-        VMSTATE_UINT32(corb_size, IntelHDAState),
-        VMSTATE_UINT32(rirb_lbase, IntelHDAState),
-        VMSTATE_UINT32(rirb_ubase, IntelHDAState),
-        VMSTATE_UINT32(rirb_wp, IntelHDAState),
-        VMSTATE_UINT32(rirb_cnt, IntelHDAState),
-        VMSTATE_UINT32(rirb_ctl, IntelHDAState),
-        VMSTATE_UINT32(rirb_sts, IntelHDAState),
-        VMSTATE_UINT32(rirb_size, IntelHDAState),
-        VMSTATE_UINT32(dp_lbase, IntelHDAState),
-        VMSTATE_UINT32(dp_ubase, IntelHDAState),
-        VMSTATE_UINT32(icw, IntelHDAState),
-        VMSTATE_UINT32(irr, IntelHDAState),
-        VMSTATE_UINT32(ics, IntelHDAState),
-        VMSTATE_STRUCT_ARRAY(st, IntelHDAState, 8, 0,
-                             vmstate_intel_hda_stream,
-                             IntelHDAStream),
-
-        /* additional state info */
-        VMSTATE_UINT32(rirb_count, IntelHDAState),
-        VMSTATE_INT64(wall_base_ns, IntelHDAState),
-
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_intel_hda_fields,
 };
 
 static const Property intel_hda_properties[] = {
@@ -1256,16 +1160,18 @@ static void intel_hda_class_init_ich9(ObjectClass *klass, const void *data)
     dc->desc = "Intel HD Audio Controller (ich9)";
 }
 
+static const InterfaceInfo intel_hda_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
+};
+
 static const TypeInfo intel_hda_info = {
     .name          = TYPE_INTEL_HDA_GENERIC,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IntelHDAState),
+    .is_abstract   = true,
     .class_init    = intel_hda_class_init,
-    .is_abstract      = true,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+    .interfaces    = intel_hda_interfaces,
 };
 
 static const TypeInfo intel_hda_info_ich6 = {

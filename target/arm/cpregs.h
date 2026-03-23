@@ -1048,8 +1048,14 @@ struct ARMCPRegInfo {
     CPResetFn *resetfn;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs);
 void define_arm_cp_regs_len(ARMCPU *cpu, const ARMCPRegInfo *regs, size_t len);
+#ifdef __cplusplus
+}
+#endif
 
 #define define_arm_cp_regs(CPU, REGS)                           \
     do {                                                        \

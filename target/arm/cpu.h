@@ -2152,6 +2152,9 @@ static inline ARMSecuritySpace arm_secure_to_space(bool secure)
  * an exception return to those levels.  Unlike arm_security_space,
  * this doesn't care about the current EL.
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 ARMSecuritySpace arm_security_space_below_el3(CPUARMState *env);
 
 /**
@@ -2190,6 +2193,9 @@ static inline bool arm_is_el3_or_mon(CPUARMState *env)
  *
  * Return the current security space of the cpu.
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 ARMSecuritySpace arm_security_space(CPUARMState *env);
 
 /**
@@ -2264,10 +2270,16 @@ static inline bool arm_is_el2_enabled(CPUARMState *env)
  * "for all purposes other than a direct read or write access of HCR_EL2."
  * Not included here is HCR_RW.
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
 uint64_t arm_hcr_el2_eff_secstate(CPUARMState *env, ARMSecuritySpace space);
 uint64_t arm_hcr_el2_eff(CPUARMState *env);
 uint64_t arm_hcr_el2_nvx_eff(CPUARMState *env);
 uint64_t arm_hcrx_el2_eff(CPUARMState *env);
+#ifdef __cplusplus
+}
+#endif
 
 /*
  * Function for determining whether guest cp register reads and writes should
@@ -2618,6 +2630,9 @@ void arm_register_pre_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
  * Note that any registered hooks registered here are guaranteed to be called
  * if pre-change hooks have been.
  */
+#ifdef __cplusplus
+extern "C"
+#endif
 void arm_register_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook, void
         *opaque);
 

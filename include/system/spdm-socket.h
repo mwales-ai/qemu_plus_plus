@@ -23,6 +23,10 @@
 #ifndef SPDM_REQUESTER_H
 #define SPDM_REQUESTER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * spdm_socket_connect: connect to an external SPDM socket
  * @port: port to connect to
@@ -129,5 +133,9 @@ extern const PropertyInfo qdev_prop_spdm_trans;
 #define DEFINE_PROP_SPDM_TRANS(_name, _state, _field, _default) \
     DEFINE_PROP_UNSIGNED(_name, _state, _field, _default, \
                          qdev_prop_spdm_trans, SpdmTransportType)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

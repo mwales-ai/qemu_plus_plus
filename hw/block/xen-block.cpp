@@ -305,7 +305,7 @@ static void xen_block_set_size(XenBlockDevice *blockdev)
 
 static void xen_block_resize_cb(void *opaque)
 {
-    XenBlockDevice *blockdev = opaque;
+    XenBlockDevice *blockdev = static_cast<XenBlockDevice *>(opaque);
     XenDevice *xendev = XEN_DEVICE(blockdev);
     enum xenbus_state state = xen_device_backend_get_state(xendev);
 
@@ -321,7 +321,7 @@ static void xen_block_resize_cb(void *opaque)
 /* Suspend request handling */
 static void xen_block_drained_begin(void *opaque)
 {
-    XenBlockDevice *blockdev = opaque;
+    XenBlockDevice *blockdev = static_cast<XenBlockDevice *>(opaque);
 
     xen_block_dataplane_detach(blockdev->dataplane);
 }
@@ -329,15 +329,15 @@ static void xen_block_drained_begin(void *opaque)
 /* Resume request handling */
 static void xen_block_drained_end(void *opaque)
 {
-    XenBlockDevice *blockdev = opaque;
+    XenBlockDevice *blockdev = static_cast<XenBlockDevice *>(opaque);
 
     xen_block_dataplane_attach(blockdev->dataplane);
 }
 
 static const BlockDevOps xen_block_dev_ops = {
-    .resize_cb     = xen_block_resize_cb,
     .drained_begin = xen_block_drained_begin,
     .drained_end   = xen_block_drained_end,
+    .resize_cb     = xen_block_resize_cb,
 };
 
 static void xen_block_realize(XenDevice *xendev, Error **errp)
@@ -488,8 +488,8 @@ static char *disk_to_vbd_name(unsigned int disk)
 static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    const Property *prop = opaque;
-    XenBlockVdev *vdev = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    XenBlockVdev *vdev = static_cast<XenBlockVdev *>(object_field_prop_ptr(obj, prop));
     char *str;
 
     switch (vdev->type) {
@@ -548,8 +548,8 @@ static int vbd_name_to_disk(const char *name, const char **endp,
 static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    const Property *prop = opaque;
-    XenBlockVdev *vdev = object_field_prop_ptr(obj, prop);
+    const Property *prop = static_cast<const Property *>(opaque);
+    XenBlockVdev *vdev = static_cast<XenBlockVdev *>(object_field_prop_ptr(obj, prop));
     char *str, *p;
     const char *end;
 
@@ -679,10 +679,10 @@ static const Property xen_block_props[] = {
                      TYPE_IOTHREAD, IOThread *),
 };
 
-static void xen_block_class_init(ObjectClass *class, const void *data)
+static void xen_block_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(class);
-    XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(class);
+    DeviceClass *dev_class = DEVICE_CLASS(klass);
+    XenDeviceClass *xendev_class = XEN_DEVICE_CLASS(klass);
 
     xendev_class->backend = "qdisk";
     xendev_class->device = "vbd";
@@ -724,10 +724,10 @@ static void xen_disk_realize(XenBlockDevice *blockdev, Error **errp)
     blockdev->info = blk_supports_write_perm(conf->blk) ? 0 : VDISK_READONLY;
 }
 
-static void xen_disk_class_init(ObjectClass *class, const void *data)
+static void xen_disk_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(class);
-    XenBlockDeviceClass *blockdev_class = XEN_BLOCK_DEVICE_CLASS(class);
+    DeviceClass *dev_class = DEVICE_CLASS(klass);
+    XenBlockDeviceClass *blockdev_class = XEN_BLOCK_DEVICE_CLASS(klass);
 
     blockdev_class->realize = xen_disk_realize;
     blockdev_class->unrealize = xen_disk_unrealize;
@@ -771,10 +771,10 @@ static void xen_cdrom_realize(XenBlockDevice *blockdev, Error **errp)
     blockdev->info = VDISK_READONLY | VDISK_CDROM;
 }
 
-static void xen_cdrom_class_init(ObjectClass *class, const void *data)
+static void xen_cdrom_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dev_class = DEVICE_CLASS(class);
-    XenBlockDeviceClass *blockdev_class = XEN_BLOCK_DEVICE_CLASS(class);
+    DeviceClass *dev_class = DEVICE_CLASS(klass);
+    XenBlockDeviceClass *blockdev_class = XEN_BLOCK_DEVICE_CLASS(klass);
 
     blockdev_class->realize = xen_cdrom_realize;
     blockdev_class->unrealize = xen_cdrom_unrealize;

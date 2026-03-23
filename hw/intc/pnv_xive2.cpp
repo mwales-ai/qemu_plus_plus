@@ -53,19 +53,21 @@ typedef struct XiveVstInfo {
     uint32_t    max_blocks;
 } XiveVstInfo;
 
-static const XiveVstInfo vst_infos[] = {
+/* Indexed by VST_ESB(0), VST_EAS(1), VST_END(2), VST_NVP(3),
+ * VST_NVG(4), VST_NVC(5), VST_IC(6), VST_SYNC(7), VST_ERQ(8) */
+static XiveVstInfo vst_infos[VST_ERQ + 1];
 
-    [VST_EAS]  = { "EAT",  sizeof(Xive2Eas),     16 },
-    [VST_ESB]  = { "ESB",  1,                    16 },
-    [VST_END]  = { "ENDT", sizeof(Xive2End),     16 },
-
-    [VST_NVP]  = { "NVPT", sizeof(Xive2Nvp),     16 },
-    [VST_NVG]  = { "NVGT", sizeof(Xive2Nvgc),    16 },
-    [VST_NVC]  = { "NVCT", sizeof(Xive2Nvgc),    16 },
-
-    [VST_IC]  =  { "IC",   1, /* ? */            16 }, /* Topology # */
-    [VST_SYNC] = { "SYNC", sizeof(XiveThreadNA), 16 }, /* Topology # */
-
+static void __attribute__((constructor)) init_vst_infos(void)
+{
+    memset(vst_infos, 0, sizeof(vst_infos));
+    vst_infos[VST_ESB]  = { "ESB",  1,                    16 };
+    vst_infos[VST_EAS]  = { "EAT",  sizeof(Xive2Eas),     16 };
+    vst_infos[VST_END]  = { "ENDT", sizeof(Xive2End),     16 };
+    vst_infos[VST_NVP]  = { "NVPT", sizeof(Xive2Nvp),     16 };
+    vst_infos[VST_NVG]  = { "NVGT", sizeof(Xive2Nvgc),    16 };
+    vst_infos[VST_NVC]  = { "NVCT", sizeof(Xive2Nvgc),    16 };
+    vst_infos[VST_IC]   = { "IC",   1,                    16 }; /* Topology # */
+    vst_infos[VST_SYNC] = { "SYNC", sizeof(XiveThreadNA), 16 }; /* Topology # */
     /*
      * This table contains the backing store pages for the interrupt
      * fifos of the VC sub-engine in case of overflow.
@@ -78,8 +80,8 @@ static const XiveVstInfo vst_infos[] = {
      * 5 - Pool-Queue,
      * 6 - Hard-Queue
      */
-    [VST_ERQ]  = { "ERQ",  1,                   VC_QUEUE_COUNT },
-};
+    vst_infos[VST_ERQ]  = { "ERQ",  1,                   VC_QUEUE_COUNT };
+}
 
 #define xive2_error(xive, fmt, ...)                                      \
     qemu_log_mask(LOG_GUEST_ERROR, "XIVE[%x] - " fmt "\n",              \
@@ -1013,29 +1015,11 @@ typedef struct PnvXive2Region {
     const MemoryRegionOps *ops;
 } PnvXive2Region;
 
-static const MemoryRegionOps pnv_xive2_ic_cq_ops;
-static const MemoryRegionOps pnv_xive2_ic_pc_ops;
-static const MemoryRegionOps pnv_xive2_ic_vc_ops;
-static const MemoryRegionOps pnv_xive2_ic_tctxt_ops;
-static const MemoryRegionOps pnv_xive2_ic_notify_ops;
-static const MemoryRegionOps pnv_xive2_ic_sync_ops;
-static const MemoryRegionOps pnv_xive2_ic_lsi_ops;
-static const MemoryRegionOps pnv_xive2_ic_tm_indirect_ops;
-
-/* 512 pages. 4K: 2M range, 64K: 32M range */
-static const PnvXive2Region pnv_xive2_ic_regions[] = {
-    { "xive-ic-cq",        0,   1,   &pnv_xive2_ic_cq_ops     },
-    { "xive-ic-vc",        1,   1,   &pnv_xive2_ic_vc_ops     },
-    { "xive-ic-pc",        2,   1,   &pnv_xive2_ic_pc_ops     },
-    { "xive-ic-tctxt",     3,   1,   &pnv_xive2_ic_tctxt_ops  },
-    { "xive-ic-notify",    4,   1,   &pnv_xive2_ic_notify_ops },
-    /* page 5 reserved */
-    { "xive-ic-sync",      6,   2,   &pnv_xive2_ic_sync_ops   },
-    { "xive-ic-lsi",       8,   2,   &pnv_xive2_ic_lsi_ops    },
-    /* pages 10-255 reserved */
-    { "xive-ic-tm-indirect", 256, 128, &pnv_xive2_ic_tm_indirect_ops  },
-    /* pages 384-511 reserved */
-};
+/*
+ * pnv_xive2_ic_regions[] - populated by init_pnv_xive2_ic_regions()
+ * constructor after all MemoryRegionOps are defined.
+ */
+static PnvXive2Region pnv_xive2_ic_regions[8];
 
 /*
  * CQ operations
@@ -1960,12 +1944,12 @@ static void pnv_xive2_ic_notify_write(void *opaque, hwaddr offset,
     switch (offset) {
     case 0x000 ... 0x7FF:
         /* TODO: check IPI notify sub-page routing */
-        pnv_xive2_ic_hw_trigger(opaque, offset, val);
+        pnv_xive2_ic_hw_trigger(static_cast<PnvXive2 *>(opaque), offset, val);
         break;
 
     /* VC: HW triggers */
     case 0x800 ... 0xFFF:
-        pnv_xive2_ic_hw_trigger(opaque, offset, val);
+        pnv_xive2_ic_hw_trigger(static_cast<PnvXive2 *>(opaque), offset, val);
         break;
 
     default:
@@ -2231,6 +2215,22 @@ static const MemoryRegionOps pnv_xive2_ic_tm_indirect_ops = {
         .max_access_size = 8,
     },
 };
+
+/* 512 pages. 4K: 2M range, 64K: 32M range */
+static void __attribute__((constructor)) init_pnv_xive2_ic_regions(void)
+{
+    pnv_xive2_ic_regions[0] = { "xive-ic-cq",          0,   1,   &pnv_xive2_ic_cq_ops     };
+    pnv_xive2_ic_regions[1] = { "xive-ic-vc",          1,   1,   &pnv_xive2_ic_vc_ops     };
+    pnv_xive2_ic_regions[2] = { "xive-ic-pc",          2,   1,   &pnv_xive2_ic_pc_ops     };
+    pnv_xive2_ic_regions[3] = { "xive-ic-tctxt",       3,   1,   &pnv_xive2_ic_tctxt_ops  };
+    pnv_xive2_ic_regions[4] = { "xive-ic-notify",      4,   1,   &pnv_xive2_ic_notify_ops };
+    /* page 5 reserved */
+    pnv_xive2_ic_regions[5] = { "xive-ic-sync",        6,   2,   &pnv_xive2_ic_sync_ops   };
+    pnv_xive2_ic_regions[6] = { "xive-ic-lsi",         8,   2,   &pnv_xive2_ic_lsi_ops    };
+    /* pages 10-255 reserved */
+    pnv_xive2_ic_regions[7] = { "xive-ic-tm-indirect", 256, 128, &pnv_xive2_ic_tm_indirect_ops };
+    /* pages 384-511 reserved */
+}
 
 /*
  * TIMA ops
@@ -2608,17 +2608,19 @@ static void pnv_xive2_class_init(ObjectClass *klass, const void *data)
     xpc->broadcast  = pnv_xive2_broadcast;
 };
 
+static const InterfaceInfo pnv_xive2_interfaces[] = {
+    { TYPE_PNV_XSCOM_INTERFACE },
+    { }
+};
+
 static const TypeInfo pnv_xive2_info = {
     .name          = TYPE_PNV_XIVE2,
     .parent        = TYPE_XIVE2_ROUTER,
-    .instance_init = pnv_xive2_instance_init,
     .instance_size = sizeof(PnvXive2),
-    .class_init    = pnv_xive2_class_init,
+    .instance_init = pnv_xive2_instance_init,
     .class_size    = sizeof(PnvXive2Class),
-    .interfaces    = (const InterfaceInfo[]) {
-        { TYPE_PNV_XSCOM_INTERFACE },
-        { }
-    }
+    .class_init    = pnv_xive2_class_init,
+    .interfaces    = pnv_xive2_interfaces,
 };
 
 static void pnv_xive2_register_types(void)

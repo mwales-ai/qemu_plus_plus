@@ -100,11 +100,13 @@ cd_read_sector_sync(IDEState *s)
     switch (s->cd_sector_size) {
     case 2048:
         ret = blk_pread(s->blk, (int64_t)s->lba << ATAPI_SECTOR_BITS,
-                        ATAPI_SECTOR_SIZE, s->io_buffer, 0);
+                        ATAPI_SECTOR_SIZE, s->io_buffer,
+                        static_cast<BdrvRequestFlags>(0));
         break;
     case 2352:
         ret = blk_pread(s->blk, (int64_t)s->lba << ATAPI_SECTOR_BITS,
-                        ATAPI_SECTOR_SIZE, s->io_buffer + 16, 0);
+                        ATAPI_SECTOR_SIZE, s->io_buffer + 16,
+                        static_cast<BdrvRequestFlags>(0));
         if (ret >= 0) {
             cd_data_to_raw(s->io_buffer, s->lba);
         }
@@ -127,7 +129,7 @@ cd_read_sector_sync(IDEState *s)
 
 static void cd_read_sector_cb(void *opaque, int ret)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     trace_cd_read_sector_cb(s->lba, ret);
 
@@ -347,7 +349,7 @@ static void ide_atapi_cmd_check_status(IDEState *s)
 
 static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     int data_offset, n;
 
     if (ret < 0) {
@@ -626,7 +628,7 @@ static void cmd_get_event_status_notification(IDEState *s,
         uint8_t opcode;
         uint8_t polled;        /* lsb bit is polled; others are reserved */
         uint8_t reserved2[2];
-        uint8_t class;
+        uint8_t klass;
         uint8_t reserved3[2];
         uint16_t len;
         uint8_t control;
@@ -639,8 +641,8 @@ static void cmd_get_event_status_notification(IDEState *s,
     } QEMU_PACKED *gesn_event_header;
     unsigned int max_len, used_len;
 
-    gesn_cdb = (void *)packet;
-    gesn_event_header = (void *)buf;
+    gesn_cdb = (typeof(gesn_cdb))(void *)packet;
+    gesn_event_header = (typeof(gesn_event_header))(void *)buf;
 
     max_len = be16_to_cpu(gesn_cdb->len);
 
@@ -676,7 +678,7 @@ static void cmd_get_event_status_notification(IDEState *s,
      * notification_class_request_type enum above specifies the
      * priority: upper elements are higher prio than lower ones.
      */
-    if (gesn_cdb->class & (1 << GESN_MEDIA)) {
+    if (gesn_cdb->klass & (1 << GESN_MEDIA)) {
         gesn_event_header->notification_class |= GESN_MEDIA;
         used_len = event_status_media(s, buf);
     } else {
@@ -1277,35 +1279,42 @@ enum {
     CONDDATA = 0x08,
 };
 
-static const struct AtapiCmd {
+struct AtapiCmd {
     void (*handler)(IDEState *s, uint8_t *buf);
     int flags;
-} atapi_cmd_table[0x100] = {
-    [ 0x00 ] = { cmd_test_unit_ready,               CHECK_READY | NONDATA },
-    [ 0x03 ] = { cmd_request_sense,                 ALLOW_UA },
-    [ 0x12 ] = { cmd_inquiry,                       ALLOW_UA },
-    [ 0x1b ] = { cmd_start_stop_unit,               NONDATA }, /* [1] */
-    [ 0x1e ] = { cmd_prevent_allow_medium_removal,  NONDATA },
-    [ 0x25 ] = { cmd_read_cdvd_capacity,            CHECK_READY },
-    [ 0x28 ] = { cmd_read, /* (10) */               CHECK_READY },
-    [ 0x2b ] = { cmd_seek,                          CHECK_READY | NONDATA },
-    [ 0x43 ] = { cmd_read_toc_pma_atip,             CHECK_READY },
-    [ 0x46 ] = { cmd_get_configuration,             ALLOW_UA },
-    [ 0x4a ] = { cmd_get_event_status_notification, ALLOW_UA },
-    [ 0x51 ] = { cmd_read_disc_information,         CHECK_READY },
-    [ 0x5a ] = { cmd_mode_sense, /* (10) */         0 },
-    [ 0xa8 ] = { cmd_read, /* (12) */               CHECK_READY },
-    [ 0xad ] = { cmd_read_dvd_structure,            CHECK_READY },
-    [ 0xbb ] = { cmd_set_speed,                     NONDATA },
-    [ 0xbd ] = { cmd_mechanism_status,              0 },
-    [ 0xbe ] = { cmd_read_cd,                       CHECK_READY | CONDDATA },
-    /* [1] handler detects and reports not ready condition itself */
 };
+
+static AtapiCmd atapi_cmd_table[0x100];
+
+static void __attribute__((constructor)) init_atapi_cmd_table(void)
+{
+    memset(atapi_cmd_table, 0, sizeof(atapi_cmd_table));
+
+    atapi_cmd_table[0x00] = { cmd_test_unit_ready,               CHECK_READY | NONDATA };
+    atapi_cmd_table[0x03] = { cmd_request_sense,                 ALLOW_UA };
+    atapi_cmd_table[0x12] = { cmd_inquiry,                       ALLOW_UA };
+    atapi_cmd_table[0x1b] = { cmd_start_stop_unit,               NONDATA }; /* [1] */
+    atapi_cmd_table[0x1e] = { cmd_prevent_allow_medium_removal,  NONDATA };
+    atapi_cmd_table[0x25] = { cmd_read_cdvd_capacity,            CHECK_READY };
+    atapi_cmd_table[0x28] = { cmd_read, /* (10) */               CHECK_READY };
+    atapi_cmd_table[0x2b] = { cmd_seek,                          CHECK_READY | NONDATA };
+    atapi_cmd_table[0x43] = { cmd_read_toc_pma_atip,             CHECK_READY };
+    atapi_cmd_table[0x46] = { cmd_get_configuration,             ALLOW_UA };
+    atapi_cmd_table[0x4a] = { cmd_get_event_status_notification, ALLOW_UA };
+    atapi_cmd_table[0x51] = { cmd_read_disc_information,         CHECK_READY };
+    atapi_cmd_table[0x5a] = { cmd_mode_sense, /* (10) */         0 };
+    atapi_cmd_table[0xa8] = { cmd_read, /* (12) */               CHECK_READY };
+    atapi_cmd_table[0xad] = { cmd_read_dvd_structure,            CHECK_READY };
+    atapi_cmd_table[0xbb] = { cmd_set_speed,                     NONDATA };
+    atapi_cmd_table[0xbd] = { cmd_mechanism_status,              0 };
+    atapi_cmd_table[0xbe] = { cmd_read_cd,                       CHECK_READY | CONDDATA };
+    /* [1] handler detects and reports not ready condition itself */
+}
 
 void ide_atapi_cmd(IDEState *s)
 {
     uint8_t *buf = s->io_buffer;
-    const struct AtapiCmd *cmd = &atapi_cmd_table[s->io_buffer[0]];
+    const AtapiCmd *cmd = &atapi_cmd_table[s->io_buffer[0]];
 
     trace_ide_atapi_cmd(s, s->io_buffer[0]);
 

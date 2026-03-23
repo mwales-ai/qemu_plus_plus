@@ -205,8 +205,19 @@
  * controller. These can be changed when board is initialized with the
  * Segment Address Registers.
  */
-static const AspeedSegments aspeed_2500_spi1_segments[];
-static const AspeedSegments aspeed_2500_spi2_segments[];
+/*
+ * These segment arrays are defined here (out of order) because they are
+ * referenced by aspeed_smc_flash_set_segment() below.
+ */
+static const AspeedSegments aspeed_2500_spi1_segments[] = {
+    { 0x30000000, 32 * MiB }, /* start address is readonly */
+    { 0x32000000, 96 * MiB }, /* end address is readonly */
+};
+
+static const AspeedSegments aspeed_2500_spi2_segments[] = {
+    { 0x38000000, 32 * MiB }, /* start address is readonly */
+    { 0x3A000000, 96 * MiB }, /* end address is readonly */
+};
 
 #define ASPEED_SMC_FEATURE_DMA       0x1
 #define ASPEED_SMC_FEATURE_DMA_GRANT 0x2
@@ -232,7 +243,7 @@ static inline bool aspeed_smc_has_dma64(const AspeedSMCClass *asc)
     qemu_log_mask(LOG_GUEST_ERROR, "%s: " fmt "\n", __func__, ## __VA_ARGS__)
 
 static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
-                                     const AspeedSegments *new,
+                                     const AspeedSegments *new_seg,
                                      int cs)
 {
     AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
@@ -246,12 +257,12 @@ static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
 
         asc->reg_to_segment(s, s->regs[R_SEG_ADDR0 + i], &seg);
 
-        if (new->addr + new->size > seg.addr &&
-            new->addr < seg.addr + seg.size) {
+        if (new_seg->addr + new_seg->size > seg.addr &&
+            new_seg->addr < seg.addr + seg.size) {
             aspeed_smc_error("new segment CS%d [ 0x%"
                              HWADDR_PRIx" - 0x%"HWADDR_PRIx" ] overlaps with "
                              "CS%d [ 0x%"HWADDR_PRIx" - 0x%"HWADDR_PRIx" ]",
-                             cs, new->addr, new->addr + new->size,
+                             cs, new_seg->addr, new_seg->addr + new_seg->size,
                              i, seg.addr, seg.addr + seg.size);
             return true;
         }
@@ -282,21 +293,21 @@ static void aspeed_smc_flash_set_segment_region(AspeedSMCState *s, int cs,
 }
 
 static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
-                                         uint64_t new)
+                                         uint64_t new_val)
 {
     AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
     AspeedSegments seg;
 
-    asc->reg_to_segment(s, new, &seg);
+    asc->reg_to_segment(s, new_val, &seg);
 
-    trace_aspeed_smc_flash_set_segment(cs, new, seg.addr, seg.addr + seg.size);
+    trace_aspeed_smc_flash_set_segment(cs, new_val, seg.addr, seg.addr + seg.size);
 
     /* The start address of CS0 is read-only */
     if (cs == 0 && seg.addr != asc->flash_window_base) {
         aspeed_smc_error("Tried to change CS0 start address to 0x%"
                          HWADDR_PRIx, seg.addr);
         seg.addr = asc->flash_window_base;
-        new = asc->segment_to_reg(s, &seg);
+        new_val = asc->segment_to_reg(s, &seg);
     }
 
     /*
@@ -312,7 +323,7 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
                          HWADDR_PRIx, cs, seg.addr + seg.size);
         seg.size = asc->segments[cs].addr + asc->segments[cs].size -
             seg.addr;
-        new = asc->segment_to_reg(s, &seg);
+        new_val = asc->segment_to_reg(s, &seg);
     }
 
     /* Keep the segment in the overall flash window */
@@ -336,7 +347,7 @@ static void aspeed_smc_flash_set_segment(AspeedSMCState *s, int cs,
     aspeed_smc_flash_overlap(s, &seg, cs);
 
     /* All should be fine now to move the region */
-    aspeed_smc_flash_set_segment_region(s, cs, new);
+    aspeed_smc_flash_set_segment_region(s, cs, new_val);
 }
 
 static uint64_t aspeed_smc_flash_default_read(void *opaque, hwaddr addr,
@@ -495,7 +506,7 @@ static void aspeed_smc_flash_setup(AspeedSMCFlash *fl, uint32_t addr)
 
 static uint64_t aspeed_smc_flash_read(void *opaque, hwaddr addr, unsigned size)
 {
-    AspeedSMCFlash *fl = opaque;
+    AspeedSMCFlash *fl = static_cast<AspeedSMCFlash *>(opaque);
     AspeedSMCState *s = fl->controller;
     uint64_t ret = 0;
     int i;
@@ -627,7 +638,7 @@ static bool aspeed_smc_do_snoop(AspeedSMCFlash *fl,  uint64_t data,
 static void aspeed_smc_flash_write(void *opaque, hwaddr addr, uint64_t data,
                                    unsigned size)
 {
-    AspeedSMCFlash *fl = opaque;
+    AspeedSMCFlash *fl = static_cast<AspeedSMCFlash *>(opaque);
     AspeedSMCState *s = fl->controller;
     int i;
 
@@ -757,7 +768,7 @@ static void aspeed_smc_reset(DeviceState *d)
 static uint64_t aspeed_smc_read(void *opaque, hwaddr addr, unsigned int size)
 {
     AspeedSMCState *s = ASPEED_SMC(opaque);
-    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(opaque);
+    AspeedSMCClass *asc = ASPEED_SMC_GET_CLASS(s);
 
     addr >>= 2;
 
@@ -1274,17 +1285,19 @@ static void aspeed_smc_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateField vmstate_aspeed_smc_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, AspeedSMCState, ASPEED_SMC_R_MAX),
+    VMSTATE_UINT8(snoop_index, AspeedSMCState),
+    VMSTATE_UINT8(snoop_dummies, AspeedSMCState),
+    VMSTATE_BOOL_V(unselect, AspeedSMCState, 3),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_aspeed_smc = {
     .name = "aspeed.smc",
     .version_id = 3,
     .minimum_version_id = 2,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, AspeedSMCState, ASPEED_SMC_R_MAX),
-        VMSTATE_UINT8(snoop_index, AspeedSMCState),
-        VMSTATE_UINT8(snoop_dummies, AspeedSMCState),
-        VMSTATE_BOOL_V(unselect, AspeedSMCState, 3),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_aspeed_smc_fields,
 };
 
 static const Property aspeed_smc_properties[] = {
@@ -1307,11 +1320,11 @@ static void aspeed_smc_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo aspeed_smc_info = {
     .name           = TYPE_ASPEED_SMC,
     .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_init  = aspeed_smc_instance_init,
     .instance_size  = sizeof(AspeedSMCState),
+    .instance_init  = aspeed_smc_instance_init,
+    .is_abstract    = true,
     .class_size     = sizeof(AspeedSMCClass),
     .class_init     = aspeed_smc_class_init,
-    .is_abstract       = true,
 };
 
 static void aspeed_smc_flash_realize(DeviceState *dev, Error **errp)
@@ -1413,13 +1426,16 @@ static const TypeInfo aspeed_2400_smc_info = {
     .class_init = aspeed_2400_smc_class_init,
 };
 
-static const uint32_t aspeed_2400_fmc_resets[ASPEED_SMC_R_MAX] = {
+static uint32_t aspeed_2400_fmc_resets[ASPEED_SMC_R_MAX];
+
+static void __attribute__((constructor)) init_aspeed_2400_fmc_resets(void)
+{
     /*
      * CE0 and CE1 types are HW strapped in SCU70. Do it here to
      * simplify the model.
      */
-    [R_CONF] = CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0,
-};
+    aspeed_2400_fmc_resets[R_CONF] = CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0;
+}
 
 static const AspeedSegments aspeed_2400_fmc_segments[] = {
     { 0x20000000, 64 * MiB }, /* start address is readonly */
@@ -1504,10 +1520,13 @@ static const TypeInfo aspeed_2400_spi1_info = {
     .class_init = aspeed_2400_spi1_class_init,
 };
 
-static const uint32_t aspeed_2500_fmc_resets[ASPEED_SMC_R_MAX] = {
-    [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
-                CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1),
-};
+static uint32_t aspeed_2500_fmc_resets[ASPEED_SMC_R_MAX];
+
+static void __attribute__((constructor)) init_aspeed_2500_fmc_resets(void)
+{
+    aspeed_2500_fmc_resets[R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
+                                      CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1);
+}
 
 static const AspeedSegments aspeed_2500_fmc_segments[] = {
     { 0x20000000, 128 * MiB }, /* start address is readonly */
@@ -1550,11 +1569,6 @@ static const TypeInfo aspeed_2500_fmc_info = {
     .class_init = aspeed_2500_fmc_class_init,
 };
 
-static const AspeedSegments aspeed_2500_spi1_segments[] = {
-    { 0x30000000, 32 * MiB }, /* start address is readonly */
-    { 0x32000000, 96 * MiB }, /* end address is readonly */
-};
-
 static void aspeed_2500_spi1_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1584,11 +1598,6 @@ static const TypeInfo aspeed_2500_spi1_info = {
     .name =  "aspeed.spi1-ast2500",
     .parent = TYPE_ASPEED_SMC,
     .class_init = aspeed_2500_spi1_class_init,
-};
-
-static const AspeedSegments aspeed_2500_spi2_segments[] = {
-    { 0x38000000, 32 * MiB }, /* start address is readonly */
-    { 0x3A000000, 96 * MiB }, /* end address is readonly */
 };
 
 static void aspeed_2500_spi2_class_init(ObjectClass *klass, const void *data)
@@ -1662,11 +1671,14 @@ static void aspeed_2600_smc_reg_to_segment(const AspeedSMCState *s,
     }
 }
 
-static const uint32_t aspeed_2600_fmc_resets[ASPEED_SMC_R_MAX] = {
-    [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
-                CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1 |
-                CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE2),
-};
+static uint32_t aspeed_2600_fmc_resets[ASPEED_SMC_R_MAX];
+
+static void __attribute__((constructor)) init_aspeed_2600_fmc_resets(void)
+{
+    aspeed_2600_fmc_resets[R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
+                                      CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1 |
+                                      CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE2);
+}
 
 static const AspeedSegments aspeed_2600_fmc_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
@@ -1828,10 +1840,13 @@ static void aspeed_1030_smc_reg_to_segment(const AspeedSMCState *s,
     }
 }
 
-static const uint32_t aspeed_1030_fmc_resets[ASPEED_SMC_R_MAX] = {
-    [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
-                            CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1),
-};
+static uint32_t aspeed_1030_fmc_resets[ASPEED_SMC_R_MAX];
+
+static void __attribute__((constructor)) init_aspeed_1030_fmc_resets(void)
+{
+    aspeed_1030_fmc_resets[R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
+                                      CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1);
+}
 
 static const AspeedSegments aspeed_1030_fmc_segments[] = {
     { 0x0, 128 * MiB }, /* start address is readonly */
@@ -1989,22 +2004,25 @@ static void aspeed_2700_smc_reg_to_segment(const AspeedSMCState *s,
     }
 }
 
-static const uint32_t aspeed_2700_fmc_resets[ASPEED_SMC_R_MAX] = {
-    [R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
-            CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1),
-    [R_CE_CTRL] = 0x0000aa00,
-    [R_CTRL0] = 0x406b0641,
-    [R_CTRL1] = 0x00000400,
-    [R_CTRL2] = 0x00000400,
-    [R_CTRL3] = 0x00000400,
-    [R_SEG_ADDR0] = 0x08000000,
-    [R_SEG_ADDR1] = 0x10000800,
-    [R_SEG_ADDR2] = 0x00000000,
-    [R_SEG_ADDR3] = 0x00000000,
-    [R_DUMMY_DATA] = 0x00010000,
-    [R_DMA_DRAM_ADDR_HIGH] = 0x00000000,
-    [R_TIMINGS] = 0x007b0000,
-};
+static uint32_t aspeed_2700_fmc_resets[ASPEED_SMC_R_MAX];
+
+static void __attribute__((constructor)) init_aspeed_2700_fmc_resets(void)
+{
+    aspeed_2700_fmc_resets[R_CONF] = (CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE0 |
+                                      CONF_FLASH_TYPE_SPI << CONF_FLASH_TYPE1);
+    aspeed_2700_fmc_resets[R_CE_CTRL] = 0x0000aa00;
+    aspeed_2700_fmc_resets[R_CTRL0] = 0x406b0641;
+    aspeed_2700_fmc_resets[R_CTRL1] = 0x00000400;
+    aspeed_2700_fmc_resets[R_CTRL2] = 0x00000400;
+    aspeed_2700_fmc_resets[R_CTRL3] = 0x00000400;
+    aspeed_2700_fmc_resets[R_SEG_ADDR0] = 0x08000000;
+    aspeed_2700_fmc_resets[R_SEG_ADDR1] = 0x10000800;
+    aspeed_2700_fmc_resets[R_SEG_ADDR2] = 0x00000000;
+    aspeed_2700_fmc_resets[R_SEG_ADDR3] = 0x00000000;
+    aspeed_2700_fmc_resets[R_DUMMY_DATA] = 0x00010000;
+    aspeed_2700_fmc_resets[R_DMA_DRAM_ADDR_HIGH] = 0x00000000;
+    aspeed_2700_fmc_resets[R_TIMINGS] = 0x007b0000;
+}
 
 static const MemoryRegionOps aspeed_2700_smc_flash_ops = {
     .read = aspeed_smc_flash_read,

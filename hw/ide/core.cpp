@@ -65,10 +65,10 @@ static const int smart_attributes[][12] = {
 };
 
 const char *IDE_DMA_CMD_lookup[IDE_DMA__COUNT] = {
-    [IDE_DMA_READ] = "DMA READ",
-    [IDE_DMA_WRITE] = "DMA WRITE",
-    [IDE_DMA_TRIM] = "DMA TRIM",
-    [IDE_DMA_ATAPI] = "DMA ATAPI"
+    /* IDE_DMA_READ */  "DMA READ",
+    /* IDE_DMA_WRITE */ "DMA WRITE",
+    /* IDE_DMA_TRIM */  "DMA TRIM",
+    /* IDE_DMA_ATAPI */ "DMA ATAPI"
 };
 
 static const char *IDE_DMA_CMD_str(enum ide_dma_cmd enval)
@@ -441,13 +441,13 @@ static void trim_aio_cancel(BlockAIOCB *acb)
 }
 
 static const AIOCBInfo trim_aiocb_info = {
-    .aiocb_size         = sizeof(TrimAIOCB),
     .cancel_async       = trim_aio_cancel,
+    .aiocb_size         = sizeof(TrimAIOCB),
 };
 
 static void ide_trim_bh_cb(void *opaque)
 {
-    TrimAIOCB *iocb = opaque;
+    TrimAIOCB *iocb = static_cast<TrimAIOCB *>(opaque);
     BlockBackend *blk = iocb->s->blk;
 
     iocb->common.cb(iocb->common.opaque, iocb->ret);
@@ -462,7 +462,7 @@ static void ide_trim_bh_cb(void *opaque)
 
 static void ide_issue_trim_cb(void *opaque, int ret)
 {
-    TrimAIOCB *iocb = opaque;
+    TrimAIOCB *iocb = static_cast<TrimAIOCB *>(opaque);
     IDEState *s = iocb->s;
 
     if (iocb->i >= 0) {
@@ -478,7 +478,7 @@ static void ide_issue_trim_cb(void *opaque, int ret)
             int j = iocb->j;
             while (++iocb->i < iocb->qiov->iov[j].iov_len / 8) {
                 int i = iocb->i;
-                uint64_t *buffer = iocb->qiov->iov[j].iov_base;
+                uint64_t *buffer = static_cast<uint64_t *>(iocb->qiov->iov[j].iov_base);
 
                 /* 6-byte LBA + 2-byte range per entry */
                 uint64_t entry = le64_to_cpu(buffer[i]);
@@ -524,14 +524,14 @@ BlockAIOCB *ide_issue_trim(
         int64_t offset, QEMUIOVector *qiov,
         BlockCompletionFunc *cb, void *cb_opaque, void *opaque)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     IDEDevice *dev = s->unit ? s->bus->slave : s->bus->master;
     TrimAIOCB *iocb;
 
     /* Paired with a decrement in ide_trim_bh_cb() */
     blk_inc_in_flight(s->blk);
 
-    iocb = blk_aio_get(&trim_aiocb_info, s->blk, cb, cb_opaque);
+    iocb = static_cast<TrimAIOCB *>(blk_aio_get(&trim_aiocb_info, s->blk, cb, cb_opaque));
     iocb->s = s;
     iocb->bh = qemu_bh_new_guarded(ide_trim_bh_cb, iocb,
                                    &DEVICE(dev)->mem_reentrancy_guard);
@@ -673,7 +673,7 @@ static void ide_rw_error(IDEState *s) {
 
 static void ide_buffered_readv_cb(void *opaque, int ret)
 {
-    IDEBufferedRequest *req = opaque;
+    IDEBufferedRequest *req = static_cast<IDEBufferedRequest *>(opaque);
     if (!req->orphaned) {
         if (!ret) {
             assert(req->qiov.size == req->original_qiov->size);
@@ -713,7 +713,7 @@ BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
                         iov->size);
 
     aioreq = blk_aio_preadv(s->blk, sector_num << BDRV_SECTOR_BITS,
-                            &req->qiov, 0, ide_buffered_readv_cb, req);
+                            &req->qiov, static_cast<BdrvRequestFlags>(0), ide_buffered_readv_cb, req);
 
     QLIST_INSERT_HEAD(&s->buffered_requests, req, list);
     return aioreq;
@@ -734,7 +734,7 @@ void ide_cancel_dma_sync(IDEState *s)
      * write requests) pending and we can avoid to drain. */
     QLIST_FOREACH(req, &s->buffered_requests, list) {
         if (!req->orphaned) {
-            trace_ide_cancel_dma_sync_buffered(req->original_cb, req);
+            trace_ide_cancel_dma_sync_buffered(reinterpret_cast<void *>(req->original_cb), req);
             req->original_cb(req->original_opaque, -ECANCELED);
         }
         req->orphaned = true;
@@ -763,7 +763,7 @@ static void ide_sector_read(IDEState *s);
 
 static void ide_sector_read_cb(void *opaque, int ret)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     int n;
 
     s->pio_aiocb = NULL;
@@ -878,7 +878,7 @@ int ide_handle_rw_error(IDEState *s, int error, int op)
 
 static void ide_dma_cb(void *opaque, int ret)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     int n;
     int64_t sector_num;
     uint64_t offset;
@@ -1019,13 +1019,13 @@ static void ide_sector_write(IDEState *s);
 
 static void ide_sector_write_timer_cb(void *opaque)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     ide_bus_set_irq(s->bus);
 }
 
 static void ide_sector_write_cb(void *opaque, int ret)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     int n;
 
     s->pio_aiocb = NULL;
@@ -1098,12 +1098,12 @@ static void ide_sector_write(IDEState *s)
     block_acct_start(blk_get_stats(s->blk), &s->acct,
                      n * BDRV_SECTOR_SIZE, BLOCK_ACCT_WRITE);
     s->pio_aiocb = blk_aio_pwritev(s->blk, sector_num << BDRV_SECTOR_BITS,
-                                   &s->qiov, 0, ide_sector_write_cb, s);
+                                   &s->qiov, static_cast<BdrvRequestFlags>(0), ide_sector_write_cb, s);
 }
 
 static void ide_flush_cb(void *opaque, int ret)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     s->pio_aiocb = NULL;
 
@@ -1191,7 +1191,7 @@ static void ide_cfata_metadata_write(IDEState *s)
 /* called when the inserted state of the media has changed */
 static void ide_cd_change_cb(void *opaque, bool load, Error **errp)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     uint64_t nb_sectors;
 
     s->tray_open = !load;
@@ -1213,7 +1213,7 @@ static void ide_cd_change_cb(void *opaque, bool load, Error **errp)
 
 static void ide_cd_eject_request_cb(void *opaque, bool force)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     s->events.eject_request = true;
     if (force) {
@@ -1265,19 +1265,19 @@ enum ATA_IOPORT_WR {
 };
 
 const char *ATA_IOPORT_WR_lookup[ATA_IOPORT_WR_NUM_REGISTERS] = {
-    [ATA_IOPORT_WR_DATA] = "Data",
-    [ATA_IOPORT_WR_FEATURES] = "Features",
-    [ATA_IOPORT_WR_SECTOR_COUNT] = "Sector Count",
-    [ATA_IOPORT_WR_SECTOR_NUMBER] = "Sector Number",
-    [ATA_IOPORT_WR_CYLINDER_LOW] = "Cylinder Low",
-    [ATA_IOPORT_WR_CYLINDER_HIGH] = "Cylinder High",
-    [ATA_IOPORT_WR_DEVICE_HEAD] = "Device/Head",
-    [ATA_IOPORT_WR_COMMAND] = "Command"
+    /* ATA_IOPORT_WR_DATA */           "Data",
+    /* ATA_IOPORT_WR_FEATURES */       "Features",
+    /* ATA_IOPORT_WR_SECTOR_COUNT */   "Sector Count",
+    /* ATA_IOPORT_WR_SECTOR_NUMBER */  "Sector Number",
+    /* ATA_IOPORT_WR_CYLINDER_LOW */   "Cylinder Low",
+    /* ATA_IOPORT_WR_CYLINDER_HIGH */  "Cylinder High",
+    /* ATA_IOPORT_WR_DEVICE_HEAD */    "Device/Head",
+    /* ATA_IOPORT_WR_COMMAND */        "Command"
 };
 
 void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s = ide_bus_active_if(bus);
     int reg_num = addr & 7;
 
@@ -2079,69 +2079,74 @@ abort_cmd:
 #define SET_DSC (1u << 8)
 
 /* See ACS-2 T13/2015-D Table B.2 Command codes */
-static const struct {
+struct IdeCmdTableEntry {
     /* Returns true if the completion code should be run */
     bool (*handler)(IDEState *s, uint8_t cmd);
     int flags;
-} ide_cmd_table[0x100] = {
-    /* NOP not implemented, mandatory for CD */
-    [CFA_REQ_EXT_ERROR_CODE]      = { cmd_cfa_req_ext_error_code, CFA_OK },
-    [WIN_DSM]                     = { cmd_data_set_management, HD_CFA_OK },
-    [WIN_DEVICE_RESET]            = { cmd_device_reset, CD_OK },
-    [WIN_RECAL]                   = { cmd_nop, HD_CFA_OK | SET_DSC},
-    [WIN_READ]                    = { cmd_read_pio, ALL_OK },
-    [WIN_READ_ONCE]               = { cmd_read_pio, HD_CFA_OK },
-    [WIN_READ_EXT]                = { cmd_read_pio, HD_CFA_OK },
-    [WIN_READDMA_EXT]             = { cmd_read_dma, HD_CFA_OK },
-    [WIN_READ_NATIVE_MAX_EXT]     = { cmd_read_native_max, HD_CFA_OK | SET_DSC },
-    [WIN_MULTREAD_EXT]            = { cmd_read_multiple, HD_CFA_OK },
-    [WIN_WRITE]                   = { cmd_write_pio, HD_CFA_OK },
-    [WIN_WRITE_ONCE]              = { cmd_write_pio, HD_CFA_OK },
-    [WIN_WRITE_EXT]               = { cmd_write_pio, HD_CFA_OK },
-    [WIN_WRITEDMA_EXT]            = { cmd_write_dma, HD_CFA_OK },
-    [CFA_WRITE_SECT_WO_ERASE]     = { cmd_write_pio, CFA_OK },
-    [WIN_MULTWRITE_EXT]           = { cmd_write_multiple, HD_CFA_OK },
-    [WIN_WRITE_VERIFY]            = { cmd_write_pio, HD_CFA_OK },
-    [WIN_VERIFY]                  = { cmd_verify, HD_CFA_OK | SET_DSC },
-    [WIN_VERIFY_ONCE]             = { cmd_verify, HD_CFA_OK | SET_DSC },
-    [WIN_VERIFY_EXT]              = { cmd_verify, HD_CFA_OK | SET_DSC },
-    [WIN_SEEK]                    = { cmd_seek, HD_CFA_OK | SET_DSC },
-    [CFA_TRANSLATE_SECTOR]        = { cmd_cfa_translate_sector, CFA_OK },
-    [WIN_DIAGNOSE]                = { cmd_exec_dev_diagnostic, ALL_OK },
-    [WIN_SPECIFY]                 = { cmd_specify, HD_CFA_OK | SET_DSC },
-    [WIN_STANDBYNOW2]             = { cmd_nop, HD_CFA_OK },
-    [WIN_IDLEIMMEDIATE2]          = { cmd_nop, HD_CFA_OK },
-    [WIN_STANDBY2]                = { cmd_nop, HD_CFA_OK },
-    [WIN_SETIDLE2]                = { cmd_nop, HD_CFA_OK },
-    [WIN_CHECKPOWERMODE2]         = { cmd_check_power_mode, HD_CFA_OK | SET_DSC },
-    [WIN_SLEEPNOW2]               = { cmd_nop, HD_CFA_OK },
-    [WIN_PACKETCMD]               = { cmd_packet, CD_OK },
-    [WIN_PIDENTIFY]               = { cmd_identify_packet, CD_OK },
-    [WIN_SMART]                   = { cmd_smart, HD_CFA_OK | SET_DSC },
-    [CFA_ACCESS_METADATA_STORAGE] = { cmd_cfa_access_metadata_storage, CFA_OK },
-    [CFA_ERASE_SECTORS]           = { cmd_cfa_erase_sectors, CFA_OK | SET_DSC },
-    [WIN_MULTREAD]                = { cmd_read_multiple, HD_CFA_OK },
-    [WIN_MULTWRITE]               = { cmd_write_multiple, HD_CFA_OK },
-    [WIN_SETMULT]                 = { cmd_set_multiple_mode, HD_CFA_OK | SET_DSC },
-    [WIN_READDMA]                 = { cmd_read_dma, HD_CFA_OK },
-    [WIN_READDMA_ONCE]            = { cmd_read_dma, HD_CFA_OK },
-    [WIN_WRITEDMA]                = { cmd_write_dma, HD_CFA_OK },
-    [WIN_WRITEDMA_ONCE]           = { cmd_write_dma, HD_CFA_OK },
-    [CFA_WRITE_MULTI_WO_ERASE]    = { cmd_write_multiple, CFA_OK },
-    [WIN_STANDBYNOW1]             = { cmd_nop, HD_CFA_OK },
-    [WIN_IDLEIMMEDIATE]           = { cmd_nop, HD_CFA_OK },
-    [WIN_STANDBY]                 = { cmd_nop, HD_CFA_OK },
-    [WIN_SETIDLE1]                = { cmd_nop, HD_CFA_OK },
-    [WIN_CHECKPOWERMODE1]         = { cmd_check_power_mode, HD_CFA_OK | SET_DSC },
-    [WIN_SLEEPNOW1]               = { cmd_nop, HD_CFA_OK },
-    [WIN_FLUSH_CACHE]             = { cmd_flush_cache, ALL_OK },
-    [WIN_FLUSH_CACHE_EXT]         = { cmd_flush_cache, HD_CFA_OK },
-    [WIN_IDENTIFY]                = { cmd_identify, ALL_OK },
-    [WIN_SETFEATURES]             = { cmd_set_features, ALL_OK | SET_DSC },
-    [IBM_SENSE_CONDITION]         = { cmd_ibm_sense_condition, CFA_OK | SET_DSC },
-    [CFA_WEAR_LEVEL]              = { cmd_cfa_erase_sectors, HD_CFA_OK | SET_DSC },
-    [WIN_READ_NATIVE_MAX]         = { cmd_read_native_max, HD_CFA_OK | SET_DSC },
 };
+
+static struct IdeCmdTableEntry ide_cmd_table[0x100];
+
+static void __attribute__((constructor)) ide_init_cmd_table(void)
+{
+    /* NOP not implemented, mandatory for CD */
+    ide_cmd_table[CFA_REQ_EXT_ERROR_CODE]      = { cmd_cfa_req_ext_error_code, CFA_OK };
+    ide_cmd_table[WIN_DSM]                     = { cmd_data_set_management, HD_CFA_OK };
+    ide_cmd_table[WIN_DEVICE_RESET]            = { cmd_device_reset, CD_OK };
+    ide_cmd_table[WIN_RECAL]                   = { cmd_nop, HD_CFA_OK | SET_DSC};
+    ide_cmd_table[WIN_READ]                    = { cmd_read_pio, ALL_OK };
+    ide_cmd_table[WIN_READ_ONCE]               = { cmd_read_pio, HD_CFA_OK };
+    ide_cmd_table[WIN_READ_EXT]                = { cmd_read_pio, HD_CFA_OK };
+    ide_cmd_table[WIN_READDMA_EXT]             = { cmd_read_dma, HD_CFA_OK };
+    ide_cmd_table[WIN_READ_NATIVE_MAX_EXT]     = { cmd_read_native_max, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_MULTREAD_EXT]            = { cmd_read_multiple, HD_CFA_OK };
+    ide_cmd_table[WIN_WRITE]                   = { cmd_write_pio, HD_CFA_OK };
+    ide_cmd_table[WIN_WRITE_ONCE]              = { cmd_write_pio, HD_CFA_OK };
+    ide_cmd_table[WIN_WRITE_EXT]               = { cmd_write_pio, HD_CFA_OK };
+    ide_cmd_table[WIN_WRITEDMA_EXT]            = { cmd_write_dma, HD_CFA_OK };
+    ide_cmd_table[CFA_WRITE_SECT_WO_ERASE]     = { cmd_write_pio, CFA_OK };
+    ide_cmd_table[WIN_MULTWRITE_EXT]           = { cmd_write_multiple, HD_CFA_OK };
+    ide_cmd_table[WIN_WRITE_VERIFY]            = { cmd_write_pio, HD_CFA_OK };
+    ide_cmd_table[WIN_VERIFY]                  = { cmd_verify, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_VERIFY_ONCE]             = { cmd_verify, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_VERIFY_EXT]              = { cmd_verify, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_SEEK]                    = { cmd_seek, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[CFA_TRANSLATE_SECTOR]        = { cmd_cfa_translate_sector, CFA_OK };
+    ide_cmd_table[WIN_DIAGNOSE]                = { cmd_exec_dev_diagnostic, ALL_OK };
+    ide_cmd_table[WIN_SPECIFY]                 = { cmd_specify, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_STANDBYNOW2]             = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_IDLEIMMEDIATE2]          = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_STANDBY2]                = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_SETIDLE2]                = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_CHECKPOWERMODE2]         = { cmd_check_power_mode, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_SLEEPNOW2]               = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_PACKETCMD]               = { cmd_packet, CD_OK };
+    ide_cmd_table[WIN_PIDENTIFY]               = { cmd_identify_packet, CD_OK };
+    ide_cmd_table[WIN_SMART]                   = { cmd_smart, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[CFA_ACCESS_METADATA_STORAGE] = { cmd_cfa_access_metadata_storage, CFA_OK };
+    ide_cmd_table[CFA_ERASE_SECTORS]           = { cmd_cfa_erase_sectors, CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_MULTREAD]                = { cmd_read_multiple, HD_CFA_OK };
+    ide_cmd_table[WIN_MULTWRITE]               = { cmd_write_multiple, HD_CFA_OK };
+    ide_cmd_table[WIN_SETMULT]                 = { cmd_set_multiple_mode, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_READDMA]                 = { cmd_read_dma, HD_CFA_OK };
+    ide_cmd_table[WIN_READDMA_ONCE]            = { cmd_read_dma, HD_CFA_OK };
+    ide_cmd_table[WIN_WRITEDMA]                = { cmd_write_dma, HD_CFA_OK };
+    ide_cmd_table[WIN_WRITEDMA_ONCE]           = { cmd_write_dma, HD_CFA_OK };
+    ide_cmd_table[CFA_WRITE_MULTI_WO_ERASE]    = { cmd_write_multiple, CFA_OK };
+    ide_cmd_table[WIN_STANDBYNOW1]             = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_IDLEIMMEDIATE]           = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_STANDBY]                 = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_SETIDLE1]                = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_CHECKPOWERMODE1]         = { cmd_check_power_mode, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_SLEEPNOW1]               = { cmd_nop, HD_CFA_OK };
+    ide_cmd_table[WIN_FLUSH_CACHE]             = { cmd_flush_cache, ALL_OK };
+    ide_cmd_table[WIN_FLUSH_CACHE_EXT]         = { cmd_flush_cache, HD_CFA_OK };
+    ide_cmd_table[WIN_IDENTIFY]                = { cmd_identify, ALL_OK };
+    ide_cmd_table[WIN_SETFEATURES]             = { cmd_set_features, ALL_OK | SET_DSC };
+    ide_cmd_table[IBM_SENSE_CONDITION]         = { cmd_ibm_sense_condition, CFA_OK | SET_DSC };
+    ide_cmd_table[CFA_WEAR_LEVEL]              = { cmd_cfa_erase_sectors, HD_CFA_OK | SET_DSC };
+    ide_cmd_table[WIN_READ_NATIVE_MAX]         = { cmd_read_native_max, HD_CFA_OK | SET_DSC };
+}
 
 static bool ide_cmd_permitted(IDEState *s, uint32_t cmd)
 {
@@ -2220,7 +2225,7 @@ const char *ATA_IOPORT_RR_lookup[ATA_IOPORT_RR_NUM_REGISTERS] = {
 
 uint32_t ide_ioport_read(void *opaque, uint32_t addr)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s = ide_bus_active_if(bus);
     uint32_t reg_num;
     int ret, hob;
@@ -2306,7 +2311,7 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
 
 uint32_t ide_status_read(void *opaque, uint32_t addr)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s = ide_bus_active_if(bus);
     int ret;
 
@@ -2340,7 +2345,7 @@ static void ide_perform_srst(IDEState *s)
 
 static void ide_bus_perform_srst(void *opaque)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s;
     int i;
 
@@ -2354,7 +2359,7 @@ static void ide_bus_perform_srst(void *opaque)
 
 void ide_ctrl_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s;
     int i;
 
@@ -2395,7 +2400,7 @@ static bool ide_is_pio_out(IDEState *s)
 
 void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s = ide_bus_active_if(bus);
     uint8_t *p;
 
@@ -2431,7 +2436,7 @@ void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
 
 uint32_t ide_data_readw(void *opaque, uint32_t addr)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s = ide_bus_active_if(bus);
     uint8_t *p;
     int ret;
@@ -2469,7 +2474,7 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr)
 
 void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s = ide_bus_active_if(bus);
     uint8_t *p;
 
@@ -2497,7 +2502,7 @@ void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
 
 uint32_t ide_data_readl(void *opaque, uint32_t addr)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s = ide_bus_active_if(bus);
     uint8_t *p;
     int ret;
@@ -2570,7 +2575,7 @@ static bool ide_cd_is_medium_locked(void *opaque)
 
 static void ide_resize_cb(void *opaque)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     uint64_t nb_sectors;
 
     if (!s->identify_set) {
@@ -2593,8 +2598,8 @@ static void ide_resize_cb(void *opaque)
 static const BlockDevOps ide_cd_block_ops = {
     .change_media_cb = ide_cd_change_cb,
     .eject_request_cb = ide_cd_eject_request_cb,
-    .is_tray_open = ide_cd_is_tray_open,
     .is_medium_locked = ide_cd_is_medium_locked,
+    .is_tray_open = ide_cd_is_tray_open,
 };
 
 static const BlockDevOps ide_hd_block_ops = {
@@ -2678,10 +2683,10 @@ static void ide_init1(IDEBus *bus, int unit)
     s->drive_serial = drive_serial++;
     /* we need at least 2k alignment for accessing CDROMs using O_DIRECT */
     s->io_buffer_total_len = IDE_DMA_BUF_SECTORS*512 + 4;
-    s->io_buffer = qemu_memalign(2048, s->io_buffer_total_len);
+    s->io_buffer = static_cast<uint8_t *>(qemu_memalign(2048, s->io_buffer_total_len));
     memset(s->io_buffer, 0, s->io_buffer_total_len);
 
-    s->smart_selftest_data = blk_blockalign(s->blk, 512);
+    s->smart_selftest_data = static_cast<uint8_t *>(blk_blockalign(s->blk, 512));
     memset(s->smart_selftest_data, 0, 512);
 
     s->sector_write_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
@@ -2704,8 +2709,8 @@ static int32_t ide_nop_int32(const IDEDMA *dma, int32_t l)
 
 static const IDEDMAOps ide_dma_nop_ops = {
     .prepare_buf    = ide_nop_int32,
-    .restart_dma    = ide_nop,
     .rw_buf         = ide_nop_int,
+    .restart_dma    = ide_nop,
 };
 
 static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
@@ -2721,7 +2726,7 @@ static void ide_restart_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
 
 static void ide_restart_bh(void *opaque)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
     IDEState *s;
     bool is_read;
     int error_status;
@@ -2771,7 +2776,7 @@ static void ide_restart_bh(void *opaque)
 
 static void ide_restart_cb(void *opaque, bool running, RunState state)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
 
     if (!running)
         return;
@@ -2822,7 +2827,7 @@ void ide_exit(IDEState *s)
 
 static bool is_identify_set(void *opaque, int version_id)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     return s->identify_set != 0;
 }
@@ -2849,7 +2854,7 @@ static int transfer_end_table_idx(EndTransferFunc *fn)
 
 static int ide_drive_post_load(void *opaque, int version_id)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     if (s->blk && s->identify_set) {
         blk_set_enable_write_cache(s->blk, !!(s->identify_data[85] & (1 << 5)));
@@ -2859,7 +2864,7 @@ static int ide_drive_post_load(void *opaque, int version_id)
 
 static int ide_drive_pio_post_load(void *opaque, int version_id)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     if (s->end_transfer_fn_idx >= ARRAY_SIZE(transfer_end_table)) {
         return -EINVAL;
@@ -2874,7 +2879,7 @@ static int ide_drive_pio_post_load(void *opaque, int version_id)
 
 static int ide_drive_pio_pre_save(void *opaque)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
     int idx;
 
     s->cur_io_buffer_offset = s->data_ptr - s->io_buffer;
@@ -2894,7 +2899,7 @@ static int ide_drive_pio_pre_save(void *opaque)
 
 static bool ide_drive_pio_state_needed(void *opaque)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     return ((s->status & DRQ_STAT) != 0)
         || (s->bus->error_status & IDE_RETRY_PIO);
@@ -2902,36 +2907,44 @@ static bool ide_drive_pio_state_needed(void *opaque)
 
 static bool ide_tray_state_needed(void *opaque)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     return s->tray_open || s->tray_locked;
 }
 
 static bool ide_atapi_gesn_needed(void *opaque)
 {
-    IDEState *s = opaque;
+    IDEState *s = static_cast<IDEState *>(opaque);
 
     return s->events.new_media || s->events.eject_request;
 }
 
 static bool ide_error_needed(void *opaque)
 {
-    IDEBus *bus = opaque;
+    IDEBus *bus = static_cast<IDEBus *>(opaque);
 
     return (bus->error_status != 0);
 }
 
 /* Fields for GET_EVENT_STATUS_NOTIFICATION ATAPI command */
+static const VMStateField vmstate_ide_atapi_gesn_fields[] = {
+    VMSTATE_BOOL(events.new_media, IDEState),
+    VMSTATE_BOOL(events.eject_request, IDEState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ide_atapi_gesn_state = {
     .name ="ide_drive/atapi/gesn_state",
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ide_atapi_gesn_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(events.new_media, IDEState),
-        VMSTATE_BOOL(events.eject_request, IDEState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ide_atapi_gesn_fields,
+};
+
+static const VMStateField vmstate_ide_tray_fields[] = {
+    VMSTATE_BOOL(tray_open, IDEState),
+    VMSTATE_BOOL(tray_locked, IDEState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_ide_tray_state = {
@@ -2939,31 +2952,60 @@ static const VMStateDescription vmstate_ide_tray_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .needed = ide_tray_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_BOOL(tray_open, IDEState),
-        VMSTATE_BOOL(tray_locked, IDEState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ide_tray_fields,
+};
+
+static const VMStateField vmstate_ide_drive_pio_fields[] = {
+    VMSTATE_INT32(req_nb_sectors, IDEState),
+    VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
+                         vmstate_info_uint8, uint8_t),
+    VMSTATE_INT32(cur_io_buffer_offset, IDEState),
+    VMSTATE_INT32(cur_io_buffer_len, IDEState),
+    VMSTATE_UINT8(end_transfer_fn_idx, IDEState),
+    VMSTATE_INT32(elementary_transfer_size, IDEState),
+    VMSTATE_INT32(packet_transfer_size, IDEState),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_ide_drive_pio_state = {
     .name = "ide_drive/pio_state",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_save = ide_drive_pio_pre_save,
     .post_load = ide_drive_pio_post_load,
+    .pre_save = ide_drive_pio_pre_save,
     .needed = ide_drive_pio_state_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(req_nb_sectors, IDEState),
-        VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
-                             vmstate_info_uint8, uint8_t),
-        VMSTATE_INT32(cur_io_buffer_offset, IDEState),
-        VMSTATE_INT32(cur_io_buffer_len, IDEState),
-        VMSTATE_UINT8(end_transfer_fn_idx, IDEState),
-        VMSTATE_INT32(elementary_transfer_size, IDEState),
-        VMSTATE_INT32(packet_transfer_size, IDEState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ide_drive_pio_fields,
+};
+
+static const VMStateField vmstate_ide_drive_fields[] = {
+    VMSTATE_INT32(mult_sectors, IDEState),
+    VMSTATE_INT32(identify_set, IDEState),
+    VMSTATE_BUFFER_TEST(identify_data, IDEState, is_identify_set),
+    VMSTATE_UINT8(feature, IDEState),
+    VMSTATE_UINT8(error, IDEState),
+    VMSTATE_UINT32(nsector, IDEState),
+    VMSTATE_UINT8(sector, IDEState),
+    VMSTATE_UINT8(lcyl, IDEState),
+    VMSTATE_UINT8(hcyl, IDEState),
+    VMSTATE_UINT8(hob_feature, IDEState),
+    VMSTATE_UINT8(hob_sector, IDEState),
+    VMSTATE_UINT8(hob_nsector, IDEState),
+    VMSTATE_UINT8(hob_lcyl, IDEState),
+    VMSTATE_UINT8(hob_hcyl, IDEState),
+    VMSTATE_UINT8(select, IDEState),
+    VMSTATE_UINT8(status, IDEState),
+    VMSTATE_UINT8(lba48, IDEState),
+    VMSTATE_UINT8(sense_key, IDEState),
+    VMSTATE_UINT8(asc, IDEState),
+    VMSTATE_UINT8_V(cdrom_changed, IDEState, 3),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_ide_drive_subsections[] = {
+    &vmstate_ide_drive_pio_state,
+    &vmstate_ide_tray_state,
+    &vmstate_ide_atapi_gesn_state,
+    NULL
 };
 
 const VMStateDescription vmstate_ide_drive = {
@@ -2971,35 +3013,16 @@ const VMStateDescription vmstate_ide_drive = {
     .version_id = 3,
     .minimum_version_id = 0,
     .post_load = ide_drive_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(mult_sectors, IDEState),
-        VMSTATE_INT32(identify_set, IDEState),
-        VMSTATE_BUFFER_TEST(identify_data, IDEState, is_identify_set),
-        VMSTATE_UINT8(feature, IDEState),
-        VMSTATE_UINT8(error, IDEState),
-        VMSTATE_UINT32(nsector, IDEState),
-        VMSTATE_UINT8(sector, IDEState),
-        VMSTATE_UINT8(lcyl, IDEState),
-        VMSTATE_UINT8(hcyl, IDEState),
-        VMSTATE_UINT8(hob_feature, IDEState),
-        VMSTATE_UINT8(hob_sector, IDEState),
-        VMSTATE_UINT8(hob_nsector, IDEState),
-        VMSTATE_UINT8(hob_lcyl, IDEState),
-        VMSTATE_UINT8(hob_hcyl, IDEState),
-        VMSTATE_UINT8(select, IDEState),
-        VMSTATE_UINT8(status, IDEState),
-        VMSTATE_UINT8(lba48, IDEState),
-        VMSTATE_UINT8(sense_key, IDEState),
-        VMSTATE_UINT8(asc, IDEState),
-        VMSTATE_UINT8_V(cdrom_changed, IDEState, 3),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_ide_drive_pio_state,
-        &vmstate_ide_tray_state,
-        &vmstate_ide_atapi_gesn_state,
-        NULL
-    }
+    .fields = vmstate_ide_drive_fields,
+    .subsections = vmstate_ide_drive_subsections,
+};
+
+static const VMStateField vmstate_ide_error_fields[] = {
+    VMSTATE_INT32(error_status, IDEBus),
+    VMSTATE_INT64_V(retry_sector_num, IDEBus, 2),
+    VMSTATE_UINT32_V(retry_nsector, IDEBus, 2),
+    VMSTATE_UINT8_V(retry_unit, IDEBus, 2),
+    VMSTATE_END_OF_LIST()
 };
 
 static const VMStateDescription vmstate_ide_error_status = {
@@ -3007,28 +3030,26 @@ static const VMStateDescription vmstate_ide_error_status = {
     .version_id = 2,
     .minimum_version_id = 1,
     .needed = ide_error_needed,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT32(error_status, IDEBus),
-        VMSTATE_INT64_V(retry_sector_num, IDEBus, 2),
-        VMSTATE_UINT32_V(retry_nsector, IDEBus, 2),
-        VMSTATE_UINT8_V(retry_unit, IDEBus, 2),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ide_error_fields,
+};
+
+static const VMStateField vmstate_ide_bus_fields[] = {
+    VMSTATE_UINT8(cmd, IDEBus),
+    VMSTATE_UINT8(unit, IDEBus),
+    VMSTATE_END_OF_LIST()
+};
+
+static const VMStateDescription * const vmstate_ide_bus_subsections[] = {
+    &vmstate_ide_error_status,
+    NULL
 };
 
 const VMStateDescription vmstate_ide_bus = {
     .name = "ide_bus",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(cmd, IDEBus),
-        VMSTATE_UINT8(unit, IDEBus),
-        VMSTATE_END_OF_LIST()
-    },
-    .subsections = (const VMStateDescription * const []) {
-        &vmstate_ide_error_status,
-        NULL
-    }
+    .fields = vmstate_ide_bus_fields,
+    .subsections = vmstate_ide_bus_subsections,
 };
 
 void ide_drive_get(DriveInfo **hd, int n)

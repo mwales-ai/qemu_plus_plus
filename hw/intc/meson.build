@@ -39,7 +39,7 @@ endif
 
 specific_ss.add(when: 'CONFIG_APIC', if_true: files('apic.cpp', 'apic_common.cpp'))
 arm_common_ss.add(when: 'CONFIG_ARM_GIC', if_true: files('arm_gicv3_cpuif_common.cpp'))
-arm_common_ss.add(when: 'CONFIG_ARM_GICV3', if_true: files('arm_gicv3_cpuif.c'))
+arm_common_ss.add(when: 'CONFIG_ARM_GICV3', if_true: files('arm_gicv3_cpuif.cpp'))
 specific_ss.add(when: 'CONFIG_ARM_GIC_KVM', if_true: files('arm_gic_kvm.cpp'))
 specific_ss.add(when: ['CONFIG_ARM_GIC_KVM', 'TARGET_AARCH64'], if_true: files('arm_gicv3_kvm.cpp', 'arm_gicv3_its_kvm.cpp'))
 arm_common_ss.add(when: 'CONFIG_ARM_V7M', if_true: files('armv7m_nvic.cpp'))
@@ -50,7 +50,7 @@ specific_ss.add(when: 'CONFIG_MIPS_CPS', if_true: files('mips_gic.cpp'))
 specific_ss.add(when: 'CONFIG_OMPIC', if_true: files('ompic.cpp'))
 specific_ss.add(when: ['CONFIG_KVM', 'CONFIG_OPENPIC'],
 		if_true: files('openpic_kvm.cpp'))
-specific_ss.add(when: 'CONFIG_POWERNV', if_true: files('xics_pnv.cpp', 'pnv_xive.cpp', 'pnv_xive2.c'))
+specific_ss.add(when: 'CONFIG_POWERNV', if_true: files('xics_pnv.cpp', 'pnv_xive.cpp', 'pnv_xive2.cpp'))
 specific_ss.add(when: 'CONFIG_PPC_UIC', if_true: files('ppc-uic.cpp'))
 specific_ss.add(when: 'CONFIG_RX_ICU', if_true: files('rx_icu.cpp'))
 specific_ss.add(when: 'CONFIG_S390_FLIC', if_true: files('s390_flic.cpp'))
