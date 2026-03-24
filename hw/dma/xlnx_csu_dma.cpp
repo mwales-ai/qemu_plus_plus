@@ -522,124 +522,124 @@ static MemTxResult xlnx_csu_dma_class_read(XlnxCSUDMA *s, hwaddr addr,
  */
 static const RegisterAccessInfo xlnx_csu_dma_src_regs_info[] = {
     {   .name = "DMA_SRC_ADDR",
-        .pre_write = addr_pre_write,
         .addr = A_ADDR,
+        .pre_write = addr_pre_write,
     }, {
         .name = "DMA_SRC_SIZE",
+        .addr = A_SIZE,
         .pre_write = size_pre_write,
         .post_write = size_post_write,
         .post_read = size_post_read,
-        .addr = A_SIZE,
     }, {
         .name = "DMA_SRC_STATUS",
+        .addr = A_STATUS,
         .ro = (R_STATUS_BUSY_MASK
                | R_STATUS_FIFO_LEVEL_MASK
                | R_STATUS_OUTSTANDING_MASK),
         .w1c = R_STATUS_DONE_CNT_MASK,
         .pre_write = status_pre_write,
-        .addr = A_STATUS,
     }, {
         .name = "DMA_SRC_CTRL",
+        .addr = A_CTRL,
         .reset = ((R_CTRL_TIMEOUT_VAL_RESET << R_CTRL_TIMEOUT_VAL_SHIFT)
                   | (R_CTRL_FIFO_THRESH_RESET << R_CTRL_FIFO_THRESH_SHIFT)),
         .post_write = ctrl_post_write,
-        .addr = A_CTRL,
     }, {
         .name = "DMA_SRC_CRC",
         .addr = A_CRC,
     }, {
         .name = "DMA_SRC_INT_STATUS",
+        .addr = A_INT_STATUS,
         .pre_write = int_status_pre_write,
         .post_write = int_status_post_write,
-        .addr = A_INT_STATUS,
     }, {
         .name = "DMA_SRC_INT_ENABLE",
+        .addr = A_INT_ENABLE,
         .pre_write = int_enable_pre_write,
         .post_write = int_enable_post_write,
-        .addr = A_INT_ENABLE,
     }, {
         .name = "DMA_SRC_INT_DISABLE",
+        .addr = A_INT_DISABLE,
         .pre_write = int_disable_pre_write,
         .post_write = int_disable_post_write,
-        .addr = A_INT_DISABLE,
     }, {
         .name = "DMA_SRC_INT_MASK",
-        .ro = ~0,
-        .reset = XLNX_CSU_DMA_INT_R_MASK,
         .addr = A_INT_MASK,
+        .reset = XLNX_CSU_DMA_INT_R_MASK,
+        .ro = ~0,
     }, {
         .name = "DMA_SRC_CTRL2",
+        .addr = A_CTRL2,
         .reset = ((R_CTRL2_TIMEOUT_PRE_RESET
                    << R_CTRL2_TIMEOUT_PRE_SHIFT)
                   | (R_CTRL2_MAX_OUTS_CMDS_RESET
                      << R_CTRL2_MAX_OUTS_CMDS_SHIFT)),
-        .addr = A_CTRL2,
     }, {
         .name = "DMA_SRC_ADDR_MSB",
-        .pre_write = addr_msb_pre_write,
         .addr = A_ADDR_MSB,
+        .pre_write = addr_msb_pre_write,
     }
 };
 
 static const RegisterAccessInfo xlnx_csu_dma_dst_regs_info[] = {
     {   .name = "DMA_DST_ADDR",
-        .pre_write = addr_pre_write,
         .addr = A_ADDR,
+        .pre_write = addr_pre_write,
     }, {
         .name = "DMA_DST_SIZE",
+        .addr = A_SIZE,
         .pre_write = size_pre_write,
         .post_write = size_post_write,
         .post_read = size_post_read,
-        .addr = A_SIZE,
     }, {
         .name = "DMA_DST_STATUS",
+        .addr = A_STATUS,
         .ro = (R_STATUS_BUSY_MASK
                | R_STATUS_FIFO_LEVEL_MASK
                | R_STATUS_OUTSTANDING_MASK),
         .w1c = R_STATUS_DONE_CNT_MASK,
         .pre_write = status_pre_write,
-        .addr = A_STATUS,
     }, {
         .name = "DMA_DST_CTRL",
+        .addr = A_CTRL,
         .reset = ((R_CTRL_TIMEOUT_VAL_RESET << R_CTRL_TIMEOUT_VAL_SHIFT)
                   | (R_CTRL_FIFO_THRESH_RESET << R_CTRL_FIFO_THRESH_SHIFT)
                   | (R_CTRL_FIFOTHRESH_RESET << R_CTRL_FIFOTHRESH_SHIFT)),
         .post_write = ctrl_post_write,
-        .addr = A_CTRL,
     }, {
         .name = "DMA_DST_CRC",
         .addr = A_CRC,
     }, {
         .name = "DMA_DST_INT_STATUS",
+        .addr = A_INT_STATUS,
         .pre_write = int_status_pre_write,
         .post_write = int_status_post_write,
-        .addr = A_INT_STATUS,
     }, {
         .name = "DMA_DST_INT_ENABLE",
+        .addr = A_INT_ENABLE,
         .pre_write = int_enable_pre_write,
         .post_write = int_enable_post_write,
-        .addr = A_INT_ENABLE,
     }, {
         .name = "DMA_DST_INT_DISABLE",
+        .addr = A_INT_DISABLE,
         .pre_write = int_disable_pre_write,
         .post_write = int_disable_post_write,
-        .addr = A_INT_DISABLE,
     }, {
         .name = "DMA_DST_INT_MASK",
-        .ro = ~0,
-        .reset = XLNX_CSU_DMA_INT_R_MASK,
         .addr = A_INT_MASK,
+        .reset = XLNX_CSU_DMA_INT_R_MASK,
+        .ro = ~0,
     }, {
         .name = "DMA_DST_CTRL2",
+        .addr = A_CTRL2,
         .reset = ((R_CTRL2_TIMEOUT_PRE_RESET
                    << R_CTRL2_TIMEOUT_PRE_SHIFT)
                   | (R_CTRL2_MAX_OUTS_CMDS_RESET
                      << R_CTRL2_MAX_OUTS_CMDS_SHIFT)),
-        .addr = A_CTRL2,
     }, {
         .name = "DMA_DST_ADDR_MSB",
-        .pre_write = addr_msb_pre_write,
         .addr = A_ADDR_MSB,
+        .pre_write = addr_msb_pre_write,
     }
 };
 

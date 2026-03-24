@@ -850,7 +850,7 @@ union mfi_evt {
     struct {
         uint16_t locale;
         uint8_t reserved;
-        int8_t class;
+        int8_t klass;
     } members;
     uint32_t word;
 } QEMU_PACKED;
@@ -886,7 +886,7 @@ struct mfi_evt_detail {
     uint32_t seq;
     uint32_t time;
     uint32_t code;
-    union mfi_evt class;
+    union mfi_evt klass;
     uint8_t arg_type;
     uint8_t reserved1[15];
 

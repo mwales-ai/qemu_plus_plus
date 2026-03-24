@@ -24,7 +24,22 @@ OBJECT_DECLARE_TYPE(AspeedGPIOState, AspeedGPIOClass, ASPEED_GPIO)
 #define ASPEED_GPIO_NR_DEBOUNCE_REGS 3
 #define ASPEED_CHARS_PER_GROUP_LABEL 4
 
-typedef struct GPIOSets GPIOSets;
+struct GPIOSets {
+    uint32_t data_value; /* Reflects pin values */
+    uint32_t data_read; /* Contains last value written to data value */
+    uint32_t direction;
+    uint32_t int_enable;
+    uint32_t int_sens_0;
+    uint32_t int_sens_1;
+    uint32_t int_sens_2;
+    uint32_t int_status;
+    uint32_t reset_tol;
+    uint32_t cmd_source_0;
+    uint32_t cmd_source_1;
+    uint32_t debounce_1;
+    uint32_t debounce_2;
+    uint32_t input_mask;
+};
 
 typedef struct GPIOSetProperties {
     uint32_t input;
@@ -92,22 +107,7 @@ struct AspeedGPIOState {
 
     /* Parallel GPIO Registers */
     uint32_t debounce_regs[ASPEED_GPIO_NR_DEBOUNCE_REGS];
-    struct GPIOSets {
-        uint32_t data_value; /* Reflects pin values */
-        uint32_t data_read; /* Contains last value written to data value */
-        uint32_t direction;
-        uint32_t int_enable;
-        uint32_t int_sens_0;
-        uint32_t int_sens_1;
-        uint32_t int_sens_2;
-        uint32_t int_status;
-        uint32_t reset_tol;
-        uint32_t cmd_source_0;
-        uint32_t cmd_source_1;
-        uint32_t debounce_1;
-        uint32_t debounce_2;
-        uint32_t input_mask;
-    } sets[ASPEED_GPIO_MAX_NR_SETS];
+    GPIOSets sets[ASPEED_GPIO_MAX_NR_SETS];
 };
 
 #endif /* ASPEED_GPIO_H */

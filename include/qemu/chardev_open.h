@@ -12,5 +12,14 @@
 #ifndef QEMU_CHARDEV_OPEN_H
 #define QEMU_CHARDEV_OPEN_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int open_cdev(const char *devpath, dev_t cdev);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

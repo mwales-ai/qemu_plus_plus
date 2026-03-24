@@ -13,8 +13,16 @@
 #ifndef QEMU_9P_LOCAL_H
 #define QEMU_9P_LOCAL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int local_open_nofollow(FsContext *fs_ctx, const char *path, int flags,
                         mode_t mode);
 int local_opendir_nofollow(FsContext *fs_ctx, const char *path);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

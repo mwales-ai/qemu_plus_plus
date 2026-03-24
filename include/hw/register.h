@@ -48,19 +48,18 @@ typedef struct RegisterInfoArray RegisterInfoArray;
 
 struct RegisterAccessInfo {
     const char *name;
+    hwaddr addr;
+    uint64_t reset;
+    uint64_t rsvd;
     uint64_t ro;
     uint64_t w1c;
-    uint64_t reset;
     uint64_t cor;
-    uint64_t rsvd;
     uint64_t unimp;
 
     uint64_t (*pre_write)(RegisterInfo *reg, uint64_t val);
     void (*post_write)(RegisterInfo *reg, uint64_t val);
 
     uint64_t (*post_read)(RegisterInfo *reg, uint64_t val);
-
-    hwaddr addr;
 };
 
 /**
