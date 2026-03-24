@@ -1880,7 +1880,7 @@ typedef struct CPUArchState {
     uint64_t efer;
 
     /* Beginning of state preserved by INIT (dummy marker).  */
-    struct {} start_init_save;
+    QEMU_STRUCT_MARKER(start_init_save);
 
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
@@ -1970,7 +1970,7 @@ typedef struct CPUArchState {
     uint64_t virt_ssbd;
 
     /* End of state preserved by INIT (dummy marker).  */
-    struct {} end_init_save;
+    QEMU_STRUCT_MARKER(end_init_save);
 
     uint64_t system_time_msr;
     uint64_t wall_clock_msr;
@@ -2059,7 +2059,7 @@ typedef struct CPUArchState {
     uint64_t msr_pkg_energy_status;
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    QEMU_STRUCT_MARKER(end_reset_fields);
 
     /* Fields after this point are preserved across CPU reset. */
 

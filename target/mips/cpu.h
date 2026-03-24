@@ -1171,7 +1171,7 @@ typedef struct CPUArchState {
     uint64_t insn_flags; /* Supported instruction set */
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    QEMU_STRUCT_MARKER(end_reset_fields);
 
     /* Fields from here on are preserved across CPU reset. */
     CPUMIPSMVPContext *mvp;

@@ -65,7 +65,7 @@ typedef struct CPUArchState {
     uint64_t diag318_info;
 
     /* Fields up to this point are not cleared by initial CPU reset */
-    struct {} start_initial_reset_fields;
+    QEMU_STRUCT_MARKER(start_initial_reset_fields);
 
     uint32_t fpc;          /* floating-point control register */
     uint32_t cc_op;
@@ -110,7 +110,7 @@ typedef struct CPUArchState {
     uint64_t pp;
 
     /* Fields up to this point are not cleared by normal CPU reset */
-    struct {} start_normal_reset_fields;
+    QEMU_STRUCT_MARKER(start_normal_reset_fields);
     uint8_t riccb[64];     /* runtime instrumentation control */
 
     int pending_int;
@@ -123,7 +123,7 @@ typedef struct CPUArchState {
 #endif
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    QEMU_STRUCT_MARKER(end_reset_fields);
 
 #if !defined(CONFIG_USER_ONLY)
     uint32_t core_id; /* PoP "CPU address", same as cpu_index */

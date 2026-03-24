@@ -151,7 +151,7 @@ typedef struct CPUArchState {
     int pending_level;
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    QEMU_STRUCT_MARKER(end_reset_fields);
 
     /* Fields from here on are preserved across CPU reset. */
     uint64_t features;

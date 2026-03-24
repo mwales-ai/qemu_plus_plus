@@ -760,7 +760,7 @@ typedef struct CPUArchState {
     ARMMMUFaultInfo *tlb_fi;
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    QEMU_STRUCT_MARKER(end_reset_fields);
 
     /* Fields after this point are preserved across CPU reset. */
 
