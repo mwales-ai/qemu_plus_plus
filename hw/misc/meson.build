@@ -1,3 +1,4 @@
+system_ss.add(files('cpp_demo_timer.cpp'))
 system_ss.add(when: 'CONFIG_APPLESMC', if_true: files('applesmc.cpp'))
 system_ss.add(when: 'CONFIG_EDU', if_true: files('edu.cpp'))
 system_ss.add(when: 'CONFIG_FW_CFG_DMA', if_true: files('vmcoreinfo.cpp'))
