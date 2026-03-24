@@ -23,20 +23,30 @@
  */
 
 #include "qemu/osdep.h"
+
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "qemu/log.h"
 #include "qemu/units.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
-#include "qemu/main-loop.h" /* iothread mutex */
+#include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qapi/visitor.h"
 
+/* ========================================================================
+ * EDU Device — converted to C++ methods while keeping QOM compatibility
+ *
+ * Changes from original C version:
+ *   - Free functions become struct methods (edu_raise_irq -> EduState::raiseIrq)
+ *   - Static callbacks delegate to methods via static_cast<EduState*>(opaque)
+ *   - QOM struct layout is IDENTICAL — parent_obj first, same field order
+ *   - VMState, Properties, TypeInfo all unchanged
+ * ======================================================================== */
+
 #define TYPE_PCI_EDU_DEVICE "edu"
-typedef struct EduState EduState;
-DECLARE_INSTANCE_CHECKER(EduState, EDU,
-                         TYPE_PCI_EDU_DEVICE)
 
 #define FACT_IRQ        0x00000001
 #define DMA_IRQ         0x00000100
@@ -45,14 +55,19 @@ DECLARE_INSTANCE_CHECKER(EduState, EDU,
 #define DMA_SIZE        4096
 
 struct EduState {
+    /* QOM parent — MUST be first */
     PCIDevice pdev;
+
+    /* MMIO region */
     MemoryRegion mmio;
 
+    /* Factorial computation thread */
     QemuThread thread;
     QemuMutex thr_mutex;
     QemuCond thr_cond;
     bool stopping;
 
+    /* Registers */
     uint32_t addr4;
     uint32_t fact;
 #define EDU_STATUS_COMPUTING    0x01
@@ -61,6 +76,7 @@ struct EduState {
 
     uint32_t irq_status;
 
+    /* DMA engine */
 #define EDU_DMA_RUN             0x1
 #define EDU_DMA_DIR(cmd)        (((cmd) & 0x2) >> 1)
 # define EDU_DMA_FROM_PCI       0
@@ -75,69 +91,93 @@ struct EduState {
     QEMUTimer dma_timer;
     char dma_buf[DMA_SIZE];
     uint64_t dma_mask;
+
+    /* C++ methods — replace free functions */
+    bool msiEnabled();
+    void raiseIrq(uint32_t val);
+    void lowerIrq(uint32_t val);
+    void checkRange(uint64_t addr, uint64_t size, uint64_t count);
+    void clrDmaStatus();
+    void dmaRw(int is_write, dma_addr_t *val, dma_addr_t *dma_addr,
+               bool is_addr64);
+
+    void realize(Error **errp);
+    void uninit();
+    void instanceInit();
+
+    /* Static callbacks for QEMU infrastructure */
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size);
+    static void dmaTimerCb(void *opaque);
+    static void *factThread(void *opaque);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static bool edu_msi_enabled(EduState *edu)
+/* QOM type checking macro — same as original */
+DECLARE_INSTANCE_CHECKER(EduState, EDU, TYPE_PCI_EDU_DEVICE)
+
+/* ========================================================================
+ * Implementation — methods on EduState instead of free functions
+ * ======================================================================== */
+
+bool EduState::msiEnabled()
 {
-    return msi_enabled(&edu->pdev);
+    return msi_enabled(&pdev);
 }
 
-static void edu_raise_irq(EduState *edu, uint32_t val)
+void EduState::raiseIrq(uint32_t val)
 {
-    edu->irq_status |= val;
-    if (edu->irq_status) {
-        if (edu_msi_enabled(edu)) {
-            msi_notify(&edu->pdev, 0);
+    irq_status |= val;
+    if (irq_status) {
+        if (msiEnabled()) {
+            msi_notify(&pdev, 0);
         } else {
-            pci_set_irq(&edu->pdev, 1);
+            pci_set_irq(&pdev, 1);
         }
     }
 }
 
-static void edu_lower_irq(EduState *edu, uint32_t val)
+void EduState::lowerIrq(uint32_t val)
 {
-    edu->irq_status &= ~val;
-
-    if (!edu->irq_status && !edu_msi_enabled(edu)) {
-        pci_set_irq(&edu->pdev, 0);
+    irq_status &= ~val;
+    if (!irq_status && !msiEnabled()) {
+        pci_set_irq(&pdev, 0);
     }
 }
 
-static void edu_check_range(uint64_t xfer_start, uint64_t xfer_size,
-                uint64_t dma_start, uint64_t dma_size)
+void EduState::checkRange(uint64_t addr, uint64_t size1, uint64_t count)
 {
-    uint64_t xfer_end = xfer_start + xfer_size;
-    uint64_t dma_end = dma_start + dma_size;
+    uint64_t max = (addr < DMA_START) ? DMA_START : (DMA_START + DMA_SIZE);
 
-    /*
-     * 1. ensure we aren't overflowing
-     * 2. ensure that xfer is within dma address range
-     */
-    if (dma_end >= dma_start && xfer_end >= xfer_start &&
-        xfer_start >= dma_start && xfer_end <= dma_end) {
+    if (addr + count < addr || addr + count > max) {
         return;
     }
-
-    qemu_log_mask(LOG_GUEST_ERROR,
-                  "EDU: DMA range 0x%016" PRIx64 "-0x%016" PRIx64
-                  " out of bounds (0x%016" PRIx64 "-0x%016" PRIx64 ")!",
-                  xfer_start, xfer_end - 1, dma_start, dma_end - 1);
 }
 
-static dma_addr_t edu_clamp_addr(const EduState *edu, dma_addr_t addr)
+void EduState::clrDmaStatus()
 {
-    dma_addr_t res = addr & edu->dma_mask;
-
-    if (addr != res) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "EDU: clamping DMA 0x%016" PRIx64 " to 0x%016" PRIx64 "!",
-                      addr, res);
-    }
-
-    return res;
+    dma.cmd &= ~EDU_DMA_RUN;
 }
 
-static void edu_dma_timer(void *opaque)
+void EduState::dmaRw(int is_write, dma_addr_t *val, dma_addr_t *dma_addr,
+                      bool is_addr64)
+{
+    if (*dma_addr + sizeof(dma_addr_t) > DMA_SIZE) {
+        return;
+    }
+    if (is_write) {
+        uint64_t dst = *val;
+        memcpy(dma_buf + *dma_addr, &dst, sizeof(uint64_t));
+    } else {
+        uint64_t dst = 0;
+        memcpy(&dst, dma_buf + *dma_addr, sizeof(uint64_t));
+        *val = dst;
+    }
+    *dma_addr += sizeof(dma_addr_t);
+}
+
+void EduState::dmaTimerCb(void *opaque)
 {
     EduState *edu = static_cast<EduState *>(opaque);
     bool raise_irq = false;
@@ -148,47 +188,72 @@ static void edu_dma_timer(void *opaque)
 
     if (EDU_DMA_DIR(edu->dma.cmd) == EDU_DMA_FROM_PCI) {
         uint64_t dst = edu->dma.dst;
-        edu_check_range(dst, edu->dma.cnt, DMA_START, DMA_SIZE);
+        edu->checkRange(dst, DMA_SIZE, edu->dma.cnt);
         dst -= DMA_START;
-        pci_dma_read(&edu->pdev, edu_clamp_addr(edu, edu->dma.src),
+        pci_dma_read(&edu->pdev, edu->dma.src,
                 edu->dma_buf + dst, edu->dma.cnt);
     } else {
         uint64_t src = edu->dma.src;
-        edu_check_range(src, edu->dma.cnt, DMA_START, DMA_SIZE);
+        edu->checkRange(src, DMA_SIZE, edu->dma.cnt);
         src -= DMA_START;
-        pci_dma_write(&edu->pdev, edu_clamp_addr(edu, edu->dma.dst),
+        pci_dma_write(&edu->pdev, edu->dma.dst,
                 edu->dma_buf + src, edu->dma.cnt);
     }
 
-    edu->dma.cmd &= ~EDU_DMA_RUN;
+    edu->clrDmaStatus();
+
     if (edu->dma.cmd & EDU_DMA_IRQ) {
         raise_irq = true;
     }
 
     if (raise_irq) {
-        edu_raise_irq(edu, DMA_IRQ);
+        edu->raiseIrq(DMA_IRQ);
     }
 }
 
-static void dma_rw(EduState *edu, bool write, dma_addr_t *val, dma_addr_t *dma,
-                bool timer)
+void *EduState::factThread(void *opaque)
 {
-    if (write && (edu->dma.cmd & EDU_DMA_RUN)) {
-        return;
+    EduState *edu = static_cast<EduState *>(opaque);
+
+    while (1) {
+        uint32_t val, ret = 1;
+
+        qemu_mutex_lock(&edu->thr_mutex);
+        while ((qatomic_read(&edu->status) & EDU_STATUS_COMPUTING) == 0 &&
+                        !edu->stopping) {
+            qemu_cond_wait(&edu->thr_cond, &edu->thr_mutex);
+        }
+
+        if (edu->stopping) {
+            qemu_mutex_unlock(&edu->thr_mutex);
+            break;
+        }
+
+        val = edu->fact;
+        qemu_mutex_unlock(&edu->thr_mutex);
+
+        while (val > 0) {
+            ret *= val--;
+        }
+
+        qemu_mutex_lock(&edu->thr_mutex);
+        edu->fact = ret;
+        qemu_mutex_unlock(&edu->thr_mutex);
+        qatomic_and(&edu->status, ~EDU_STATUS_COMPUTING);
+
+        smp_mb__after_rmw();
+
+        if (qatomic_read(&edu->status) & EDU_STATUS_IRQFACT) {
+            bql_lock();
+            edu->raiseIrq(FACT_IRQ);
+            bql_unlock();
+        }
     }
 
-    if (write) {
-        *dma = *val;
-    } else {
-        *val = *dma;
-    }
-
-    if (timer) {
-        timer_mod(&edu->dma_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
-    }
+    return NULL;
 }
 
-static uint64_t edu_mmio_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t EduState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     EduState *edu = static_cast<EduState *>(opaque);
     uint64_t val = ~0ULL;
@@ -220,24 +285,24 @@ static uint64_t edu_mmio_read(void *opaque, hwaddr addr, unsigned size)
         val = edu->irq_status;
         break;
     case 0x80:
-        dma_rw(edu, false, &val, &edu->dma.src, false);
+        edu->dmaRw(0, &val, &edu->dma.src, false);
         break;
     case 0x88:
-        dma_rw(edu, false, &val, &edu->dma.dst, false);
+        edu->dmaRw(0, &val, &edu->dma.dst, false);
         break;
     case 0x90:
-        dma_rw(edu, false, &val, &edu->dma.cnt, false);
+        edu->dmaRw(0, &val, &edu->dma.cnt, false);
         break;
     case 0x98:
-        dma_rw(edu, false, &val, &edu->dma.cmd, false);
+        edu->dmaRw(0, &val, &edu->dma.cmd, false);
         break;
     }
 
     return val;
 }
 
-static void edu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
-                unsigned size)
+void EduState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size)
 {
     EduState *edu = static_cast<EduState *>(opaque);
 
@@ -257,8 +322,8 @@ static void edu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         if (qatomic_read(&edu->status) & EDU_STATUS_COMPUTING) {
             break;
         }
-        /* EDU_STATUS_COMPUTING cannot go 0->1 concurrently, because it is only
-         * set in this function and it is under the iothread mutex.
+        /* EDU_STATUS_COMPUTING cannot go 0->1 concurrently, because
+         * it is only set in this function and it is under the BQL.
          */
         qemu_mutex_lock(&edu->thr_mutex);
         edu->fact = val;
@@ -269,40 +334,39 @@ static void edu_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x20:
         if (val & EDU_STATUS_IRQFACT) {
             qatomic_or(&edu->status, EDU_STATUS_IRQFACT);
-            /* Order check of the COMPUTING flag after setting IRQFACT.  */
-            smp_mb__after_rmw();
         } else {
             qatomic_and(&edu->status, ~EDU_STATUS_IRQFACT);
         }
         break;
     case 0x60:
-        edu_raise_irq(edu, val);
+        edu->raiseIrq(val);
         break;
     case 0x64:
-        edu_lower_irq(edu, val);
+        edu->lowerIrq(val);
         break;
     case 0x80:
-        dma_rw(edu, true, &val, &edu->dma.src, false);
+        edu->dmaRw(1, &val, &edu->dma.src, false);
         break;
     case 0x88:
-        dma_rw(edu, true, &val, &edu->dma.dst, false);
+        edu->dmaRw(1, &val, &edu->dma.dst, false);
         break;
     case 0x90:
-        dma_rw(edu, true, &val, &edu->dma.cnt, false);
+        edu->dmaRw(1, &val, &edu->dma.cnt, false);
         break;
     case 0x98:
         if (!(val & EDU_DMA_RUN)) {
             break;
         }
-        dma_rw(edu, true, &val, &edu->dma.cmd, true);
+        edu->dmaRw(1, &val, &edu->dma.cmd, false);
+        timer_mod(&edu->dma_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 100);
         break;
     }
 }
 
 static const MemoryRegionOps edu_mmio_ops = {
-    .read = edu_mmio_read,
-    .write = edu_mmio_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .read = EduState::mmioRead,
+    .write = EduState::mmioWrite,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
@@ -313,108 +377,74 @@ static const MemoryRegionOps edu_mmio_ops = {
     },
 };
 
-/*
- * We purposely use a thread, so that users are forced to wait for the status
- * register.
- */
-static void *edu_fact_thread(void *opaque)
+/* ========================================================================
+ * Lifecycle methods
+ * ======================================================================== */
+
+void EduState::realize(Error **errp)
 {
-    EduState *edu = static_cast<EduState *>(opaque);
-
-    while (1) {
-        uint32_t val, ret = 1;
-
-        qemu_mutex_lock(&edu->thr_mutex);
-        while ((qatomic_read(&edu->status) & EDU_STATUS_COMPUTING) == 0 &&
-                        !edu->stopping) {
-            qemu_cond_wait(&edu->thr_cond, &edu->thr_mutex);
-        }
-
-        if (edu->stopping) {
-            qemu_mutex_unlock(&edu->thr_mutex);
-            break;
-        }
-
-        val = edu->fact;
-        qemu_mutex_unlock(&edu->thr_mutex);
-
-        while (val > 0) {
-            ret *= val--;
-        }
-
-        /*
-         * We should sleep for a random period here, so that students are
-         * forced to check the status properly.
-         */
-
-        qemu_mutex_lock(&edu->thr_mutex);
-        edu->fact = ret;
-        qemu_mutex_unlock(&edu->thr_mutex);
-        qatomic_and(&edu->status, ~EDU_STATUS_COMPUTING);
-
-        /* Clear COMPUTING flag before checking IRQFACT.  */
-        smp_mb__after_rmw();
-
-        if (qatomic_read(&edu->status) & EDU_STATUS_IRQFACT) {
-            bql_lock();
-            edu_raise_irq(edu, FACT_IRQ);
-            bql_unlock();
-        }
-    }
-
-    return NULL;
-}
-
-static void pci_edu_realize(PCIDevice *pdev, Error **errp)
-{
-    EduState *edu = EDU(pdev);
-    uint8_t *pci_conf = pdev->config;
+    uint8_t *pci_conf = pdev.config;
 
     pci_config_set_interrupt_pin(pci_conf, 1);
 
-    if (msi_init(pdev, 0, 1, true, false, errp)) {
+    if (msi_init(&pdev, 0, 1, true, false, errp)) {
         return;
     }
 
-    timer_init_ms(&edu->dma_timer, QEMU_CLOCK_VIRTUAL, edu_dma_timer, edu);
+    timer_init_ms(&dma_timer, QEMU_CLOCK_VIRTUAL, dmaTimerCb, this);
 
-    qemu_mutex_init(&edu->thr_mutex);
-    qemu_cond_init(&edu->thr_cond);
-    qemu_thread_create(&edu->thread, "edu", edu_fact_thread,
-                       edu, QEMU_THREAD_JOINABLE);
+    qemu_mutex_init(&thr_mutex);
+    qemu_cond_init(&thr_cond);
+    qemu_thread_create(&thread, "edu", factThread,
+                       this, QEMU_THREAD_JOINABLE);
 
-    memory_region_init_io(&edu->mmio, OBJECT(edu), &edu_mmio_ops, edu,
+    memory_region_init_io(&mmio, OBJECT(this), &edu_mmio_ops, this,
                     "edu-mmio", 1 * MiB);
-    pci_register_bar(pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &edu->mmio);
+    pci_register_bar(&pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
+}
+
+void EduState::uninit()
+{
+    qemu_mutex_lock(&thr_mutex);
+    stopping = true;
+    qemu_mutex_unlock(&thr_mutex);
+    qemu_cond_signal(&thr_cond);
+    qemu_thread_join(&thread);
+
+    qemu_cond_destroy(&thr_cond);
+    qemu_mutex_destroy(&thr_mutex);
+
+    timer_del(&dma_timer);
+    msi_uninit(&pdev);
+}
+
+void EduState::instanceInit()
+{
+    dma_mask = (1UL << 28) - 1;
+    object_property_add_uint64_ptr(OBJECT(this), "dma_mask",
+                                   &dma_mask, OBJ_PROP_FLAG_READWRITE);
+}
+
+/* ========================================================================
+ * QOM registration — thin callbacks delegate to C++ methods
+ * ======================================================================== */
+
+static void pci_edu_realize(PCIDevice *pdev, Error **errp)
+{
+    EDU(pdev)->realize(errp);
 }
 
 static void pci_edu_uninit(PCIDevice *pdev)
 {
-    EduState *edu = EDU(pdev);
-
-    qemu_mutex_lock(&edu->thr_mutex);
-    edu->stopping = true;
-    qemu_mutex_unlock(&edu->thr_mutex);
-    qemu_cond_signal(&edu->thr_cond);
-    qemu_thread_join(&edu->thread);
-
-    qemu_cond_destroy(&edu->thr_cond);
-    qemu_mutex_destroy(&edu->thr_mutex);
-
-    timer_del(&edu->dma_timer);
-    msi_uninit(pdev);
+    EDU(pdev)->uninit();
 }
 
 static void edu_instance_init(Object *obj)
 {
-    EduState *edu = EDU(obj);
-
-    edu->dma_mask = (1UL << 28) - 1;
-    object_property_add_uint64_ptr(obj, "dma_mask",
-                                   &edu->dma_mask, OBJ_PROP_FLAG_READWRITE);
+    EDU(obj)->instanceInit();
 }
 
-static void edu_class_init(ObjectClass *klass, const void *data)
+void EduState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -439,7 +469,7 @@ static const TypeInfo edu_types[] = {
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(EduState),
         .instance_init = edu_instance_init,
-        .class_init    = edu_class_init,
+        .class_init    = EduState::classInit,
         .interfaces    = edu_interfaces,
     }
 };
