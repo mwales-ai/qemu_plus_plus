@@ -68,6 +68,19 @@
     container_of(dev, type, field);}))
 
 #define typeof_field(type, field) typeof(((type *)0)->field)
+
+/*
+ * QEMU_STRUCT_MARKER: zero-size struct field used as a boundary marker.
+ * In C, struct {} has size 0 (GCC extension). In C++, all objects must
+ * have non-zero size, so struct {} is 1 byte — which shifts all subsequent
+ * field offsets and causes C/C++ struct layout mismatches.
+ * Use char[0] in C++ (GCC extension) to get zero-size behavior.
+ */
+#ifdef __cplusplus
+#define QEMU_STRUCT_MARKER(name) char name[0]
+#else
+#define QEMU_STRUCT_MARKER(name) struct {} name
+#endif
 #ifdef __cplusplus
 /* C++ doesn't allow pointer subtraction between unrelated types;
    use sizeof comparison instead (catches size mismatches at compile time) */

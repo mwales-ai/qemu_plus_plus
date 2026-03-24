@@ -268,7 +268,7 @@ typedef struct CPUArchState {
     HPPATLBEntry tlb[HPPA_TLB_ENTRIES];
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    QEMU_STRUCT_MARKER(end_reset_fields);
 
     bool is_pa20;
 

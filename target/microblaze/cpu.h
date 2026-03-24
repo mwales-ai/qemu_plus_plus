@@ -289,7 +289,7 @@ struct CPUArchState {
 #endif
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    QEMU_STRUCT_MARKER(end_reset_fields);
 
     /* These fields are preserved on reset.  */
 };

@@ -94,7 +94,7 @@ typedef struct CPUArchState {
     uint64_t acc;
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    QEMU_STRUCT_MARKER(end_reset_fields);
 
     /* Internal use */
     uint32_t in_sleep;
