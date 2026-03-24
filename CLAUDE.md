@@ -2,9 +2,44 @@
 
 ## Project Overview
 
-This is QEMU++ (qemu_plus_plus): an incremental port of QEMU from C to C++17.
-Branch `cpp-port` is based on QEMU v10.2.1 (stable release).
-GitHub: github.com/mwales-ai/qemu_plus_plus
+This is QEMU++ (qemu_plus_plus): an incremental port of QEMU from C to C++17,
+followed by replacing QEMU's C-based Object Model (QOM) with native C++ classes.
+
+- Branch `cpp-port` — the C-to-C++17 file renaming/porting (complete, tagged `cpp-port-complete`)
+- Branch `qom-replacement` — **current phase**: replacing QOM with C++ inheritance/virtual methods
+- Based on QEMU v10.2.1 (stable release)
+- GitHub: github.com/mwales-ai/qemu_plus_plus
+
+## Current Phase: QOM Replacement
+
+**We are now in Phase 2: replacing QEMU's QOM with native C++ objects.**
+
+The C++ file port is essentially complete (2211 .cpp files, 6 .c remaining as
+hard-blocked). The next goal is to leverage C++ inheritance, virtual methods,
+and compile-time type checking to replace QOM's runtime type system.
+
+See `docs/cpp-port/research.md` for the full design document covering:
+- What QOM does today and why it's problematic in C++
+- The proposed C++ class hierarchy (QemuObject, QemuDevice, QemuSysBusDevice, QemuPCIDevice)
+- Migration strategy (4 phases: infrastructure, pilot devices, mass conversion, QOM removal)
+- How virtual methods, type checking, interfaces, and properties change
+- Risks, mitigations, and open questions
+
+### QOM Replacement Priorities
+
+Focus on the 5 target ISAs first:
+- **x86_64**: hw/i386/, target/i386/ (machine: q35)
+- **aarch64/arm**: hw/arm/, target/arm/ (machine: virt)
+- **ppc64**: hw/ppc/, target/ppc/ (machine: pseries)
+- **riscv64**: hw/riscv/, target/riscv/ (machine: virt)
+
+Start with simple, self-contained devices to validate the approach before
+tackling core infrastructure. Good pilot candidates:
+- hw/misc/mos6522.cpp — simple SysBus device with virtual methods
+- hw/char/serial.cpp — character device with VMState
+- hw/timer/hpet.cpp — timer with MMIO and IRQs
+- hw/net/e1000e.cpp — PCI device with complex state
+- hw/block/virtio-blk.cpp — VirtIO device
 
 ## Repository Layout
 
@@ -163,10 +198,11 @@ When converting a `.c` file to `.cpp`:
 ## Key Files for QOM Understanding
 
 - `include/qom/object.h` - Object model core (TypeInfo, ObjectClass, Object)
-- `qom/object.c` - Object model implementation
+- `qom/object.cpp` - Object model implementation
 - `include/hw/qdev-core.h` - Device model base
 - `include/hw/qdev-properties.h` - Device properties
-- `hw/core/qdev.c` - Device model implementation
+- `hw/core/qdev.cpp` - Device model implementation
+- `docs/cpp-port/research.md` - QOM replacement design document
 
 ## Common Pitfalls
 
@@ -180,7 +216,8 @@ When converting a `.c` file to `.cpp`:
 
 ## Git Workflow
 
-- All work on the `cpp-port` branch
+- `cpp-port` branch: C++ file porting (complete, tagged `cpp-port-complete`)
+- `qom-replacement` branch: QOM → C++ class migration (current work)
 - One logical change per commit
 - Run smoke tests before committing
-- Reference the PLANNING.md phase in commit messages
+- All 5 targets must build clean before committing
