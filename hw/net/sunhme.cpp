@@ -876,8 +876,8 @@ ssize_t SunHMEState::receive(NetClientState *nc, const uint8_t *buf,
 static NetClientInfo net_sunhme_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = SunHMEState::canReceive,
     .receive = SunHMEState::receive,
+    .can_receive = SunHMEState::canReceive,
     .link_status_changed = SunHMEState::linkStatusChanged,
 };
 
@@ -1000,9 +1000,9 @@ void SunHMEState::classInit(ObjectClass *klass, const void *data)
 static const TypeInfo sunhme_info = {
     .name          = TYPE_SUNHME,
     .parent        = TYPE_PCI_DEVICE,
-    .class_init    = SunHMEState::classInit,
     .instance_size = sizeof(SunHMEState),
     .instance_init = sunhme_instance_init,
+    .class_init    = SunHMEState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }

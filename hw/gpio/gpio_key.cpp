@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -39,6 +40,60 @@ struct GPIOKEYState {
 
     QEMUTimer *timer;
     qemu_irq irq;
+
+    void deviceReset()
+    {
+        timer_del(timer);
+    }
+
+    static void timerExpired(void *opaque)
+    {
+        GPIOKEYState *s = static_cast<GPIOKEYState *>(opaque);
+
+        qemu_set_irq(s->irq, 0);
+        timer_del(s->timer);
+    }
+
+    static void setIrq(void *opaque, int irq, int level)
+    {
+        GPIOKEYState *s = static_cast<GPIOKEYState *>(opaque);
+
+        qemu_set_irq(s->irq, 1);
+        timer_mod(s->timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + GPIO_KEY_LATENCY);
+    }
+
+    void realize(Error **errp)
+    {
+        SysBusDevice *sbd = SYS_BUS_DEVICE(DEVICE(this));
+
+        sysbus_init_irq(sbd, &irq);
+        qdev_init_gpio_in(DEVICE(this), setIrq, 1);
+        timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, timerExpired, this);
+    }
+
+    static void deviceReset_static(DeviceState *dev)
+    {
+        GPIOKEYState *s = GPIOKEY(dev);
+        s->deviceReset();
+    }
+
+    static void deviceRealize(DeviceState *dev, Error **errp)
+    {
+        GPIOKEYState *s = GPIOKEY(dev);
+        s->realize(errp);
+    }
+
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+
+        dc->realize = deviceRealize;
+        dc->vmsd = &vmstate_gpio_key;
+        device_class_set_legacy_reset(dc, deviceReset_static);
+    }
+
+    static const VMStateDescription vmstate_gpio_key;
 };
 
 static const VMStateField vmstate_gpio_key_fields[] = {
@@ -46,61 +101,18 @@ static const VMStateField vmstate_gpio_key_fields[] = {
     VMSTATE_END_OF_LIST()
 };
 
-static const VMStateDescription vmstate_gpio_key = {
+const VMStateDescription GPIOKEYState::vmstate_gpio_key = {
     .name = "gpio-key",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = vmstate_gpio_key_fields,
 };
 
-static void gpio_key_reset(DeviceState *dev)
-{
-    GPIOKEYState *s = GPIOKEY(dev);
-
-    timer_del(s->timer);
-}
-
-static void gpio_key_timer_expired(void *opaque)
-{
-    GPIOKEYState *s = (GPIOKEYState *)opaque;
-
-    qemu_set_irq(s->irq, 0);
-    timer_del(s->timer);
-}
-
-static void gpio_key_set_irq(void *opaque, int irq, int level)
-{
-    GPIOKEYState *s = (GPIOKEYState *)opaque;
-
-    qemu_set_irq(s->irq, 1);
-    timer_mod(s->timer,
-              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + GPIO_KEY_LATENCY);
-}
-
-static void gpio_key_realize(DeviceState *dev, Error **errp)
-{
-    GPIOKEYState *s = GPIOKEY(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    sysbus_init_irq(sbd, &s->irq);
-    qdev_init_gpio_in(dev, gpio_key_set_irq, 1);
-    s->timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, gpio_key_timer_expired, s);
-}
-
-static void gpio_key_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = gpio_key_realize;
-    dc->vmsd = &vmstate_gpio_key;
-    device_class_set_legacy_reset(dc, gpio_key_reset);
-}
-
 static const TypeInfo gpio_key_info = {
     .name          = TYPE_GPIOKEY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GPIOKEYState),
-    .class_init    = gpio_key_class_init,
+    .class_init    = GPIOKEYState::classInit,
 };
 
 static void gpio_key_register_types(void)

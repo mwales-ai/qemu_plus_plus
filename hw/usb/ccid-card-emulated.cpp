@@ -27,6 +27,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include <libcacard.h>
 
 #include "qemu/thread.h"
@@ -134,9 +135,32 @@ struct EmulatedState {
     EventNotifier notifier;
     int      quit_apdu_thread;
     QemuThread apdu_thread_id;
+
+    /* Instance methods */
+    void pushEvent(EmulEvent *event);
+    void pushType(uint32_t type);
+    void pushError(uint64_t code);
+    void pushDataType(uint32_t type, const uint8_t *data, uint32_t len);
+    void pushReaderInsert();
+    void pushReaderRemove();
+    void pushCardInsert(const uint8_t *atr, uint32_t len);
+    void pushCardRemove();
+    void pushResponseApdu(const uint8_t *apdu, uint32_t len);
+    int initEventNotifier(Error **errp);
+    void cleanEventNotifier();
+
+    /* Static callbacks */
+    static void apduFromGuest(CCIDCardState *base, const uint8_t *apdu, uint32_t len);
+    static const uint8_t *getAtr(CCIDCardState *base, uint32_t *len);
+    static void *handleApduThread(void *arg);
+    static void *eventThread(void *arg);
+    static void cardEventHandler(EventNotifier *notifier);
+    static void emulRealize(CCIDCardState *base, Error **errp);
+    static void emulUnrealize(CCIDCardState *base);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void emulated_apdu_from_guest(CCIDCardState *base,
+void EmulatedState::apduFromGuest(CCIDCardState *base,
     const uint8_t *apdu, uint32_t len)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
@@ -154,7 +178,7 @@ static void emulated_apdu_from_guest(CCIDCardState *base,
     qemu_mutex_unlock(&card->handle_apdu_mutex);
 }
 
-static const uint8_t *emulated_get_atr(CCIDCardState *base, uint32_t *len)
+const uint8_t *EmulatedState::getAtr(CCIDCardState *base, uint32_t *len)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
 
@@ -162,34 +186,34 @@ static const uint8_t *emulated_get_atr(CCIDCardState *base, uint32_t *len)
     return card->atr;
 }
 
-static void emulated_push_event(EmulatedState *card, EmulEvent *event)
+void EmulatedState::pushEvent(EmulEvent *event)
 {
-    qemu_mutex_lock(&card->event_list_mutex);
-    QSIMPLEQ_INSERT_TAIL(&(card->event_list), event, entry);
-    qemu_mutex_unlock(&card->event_list_mutex);
-    event_notifier_set(&card->notifier);
+    qemu_mutex_lock(&event_list_mutex);
+    QSIMPLEQ_INSERT_TAIL(&event_list, event, entry);
+    qemu_mutex_unlock(&event_list_mutex);
+    event_notifier_set(&notifier);
 }
 
-static void emulated_push_type(EmulatedState *card, uint32_t type)
+void EmulatedState::pushType(uint32_t type)
 {
     EmulEvent *event = g_new(EmulEvent, 1);
 
     assert(event);
     event->p.gen.type = type;
-    emulated_push_event(card, event);
+    pushEvent(event);
 }
 
-static void emulated_push_error(EmulatedState *card, uint64_t code)
+void EmulatedState::pushError(uint64_t code)
 {
     EmulEvent *event = g_new(EmulEvent, 1);
 
     assert(event);
     event->p.error.type = EMUL_ERROR;
     event->p.error.code = code;
-    emulated_push_event(card, event);
+    pushEvent(event);
 }
 
-static void emulated_push_data_type(EmulatedState *card, uint32_t type,
+void EmulatedState::pushDataType(uint32_t type,
     const uint8_t *data, uint32_t len)
 {
     EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent) + len);
@@ -198,38 +222,38 @@ static void emulated_push_data_type(EmulatedState *card, uint32_t type,
     event->p.data.type = type;
     event->p.data.len = len;
     memcpy(event->p.data.data, data, len);
-    emulated_push_event(card, event);
+    pushEvent(event);
 }
 
-static void emulated_push_reader_insert(EmulatedState *card)
+void EmulatedState::pushReaderInsert()
 {
-    emulated_push_type(card, EMUL_READER_INSERT);
+    pushType(EMUL_READER_INSERT);
 }
 
-static void emulated_push_reader_remove(EmulatedState *card)
+void EmulatedState::pushReaderRemove()
 {
-    emulated_push_type(card, EMUL_READER_REMOVE);
+    pushType(EMUL_READER_REMOVE);
 }
 
-static void emulated_push_card_insert(EmulatedState *card,
+void EmulatedState::pushCardInsert(
     const uint8_t *atr, uint32_t len)
 {
-    emulated_push_data_type(card, EMUL_CARD_INSERT, atr, len);
+    pushDataType(EMUL_CARD_INSERT, atr, len);
 }
 
-static void emulated_push_card_remove(EmulatedState *card)
+void EmulatedState::pushCardRemove()
 {
-    emulated_push_type(card, EMUL_CARD_REMOVE);
+    pushType(EMUL_CARD_REMOVE);
 }
 
-static void emulated_push_response_apdu(EmulatedState *card,
+void EmulatedState::pushResponseApdu(
     const uint8_t *apdu, uint32_t len)
 {
-    emulated_push_data_type(card, EMUL_RESPONSE_APDU, apdu, len);
+    pushDataType(EMUL_RESPONSE_APDU, apdu, len);
 }
 
 #define APDU_BUF_SIZE 270
-static void *handle_apdu_thread(void* arg)
+void *EmulatedState::handleApduThread(void *arg)
 {
     EmulatedState *card = static_cast<EmulatedState *>(arg);
     uint8_t recv_data[APDU_BUF_SIZE];
@@ -266,9 +290,9 @@ static void *handle_apdu_thread(void* arg)
                         recv_data, &recv_len);
                 DPRINTF(card, 2, "got back apdu of length %d\n", recv_len);
                 if (reader_status == VREADER_OK) {
-                    emulated_push_response_apdu(card, recv_data, recv_len);
+                    card->pushResponseApdu( recv_data, recv_len);
                 } else {
-                    emulated_push_error(card, reader_status);
+                    card->pushError( reader_status);
                 }
                 g_free(event);
             }
@@ -277,7 +301,7 @@ static void *handle_apdu_thread(void* arg)
     return NULL;
 }
 
-static void *event_thread(void *arg)
+void *EmulatedState::eventThread(void *arg)
 {
     int atr_len = MAX_ATR_SIZE;
     uint8_t atr[MAX_ATR_SIZE];
@@ -319,13 +343,13 @@ static void *event_thread(void *arg)
                 qemu_mutex_lock(&card->vreader_mutex);
                 vreader_free(card->reader);
                 qemu_mutex_unlock(&card->vreader_mutex);
-                emulated_push_reader_remove(card);
+                card->pushReaderRemove();
             }
             qemu_mutex_lock(&card->vreader_mutex);
             DPRINTF(card, 2, "READER INSERT %s\n", reader_name);
             card->reader = vreader_reference(event->reader);
             qemu_mutex_unlock(&card->vreader_mutex);
-            emulated_push_reader_insert(card);
+            card->pushReaderInsert();
             break;
         case VEVENT_READER_REMOVE:
             DPRINTF(card, 2, " READER REMOVE: %s\n",
@@ -334,7 +358,7 @@ static void *event_thread(void *arg)
             vreader_free(card->reader);
             card->reader = NULL;
             qemu_mutex_unlock(&card->vreader_mutex);
-            emulated_push_reader_remove(card);
+            card->pushReaderRemove();
             break;
         case VEVENT_CARD_INSERT:
             /* get the ATR (intended as a response to a power on from the
@@ -343,11 +367,11 @@ static void *event_thread(void *arg)
             vreader_power_on(event->reader, atr, &atr_len);
             card->atr_length = (uint8_t)atr_len;
             DPRINTF(card, 2, " CARD INSERT\n");
-            emulated_push_card_insert(card, atr, atr_len);
+            card->pushCardInsert( atr, atr_len);
             break;
         case VEVENT_CARD_REMOVE:
             DPRINTF(card, 2, " CARD REMOVE\n");
-            emulated_push_card_remove(card);
+            card->pushCardRemove();
             break;
         case VEVENT_LAST: /* quit */
             vevent_delete(event);
@@ -360,7 +384,7 @@ static void *event_thread(void *arg)
     return NULL;
 }
 
-static void card_event_handler(EventNotifier *notifier)
+void EmulatedState::cardEventHandler(EventNotifier *notifier)
 {
     EmulatedState *card = container_of(notifier, EmulatedState, notifier);
     EmulEvent *event, *next;
@@ -401,20 +425,20 @@ static void card_event_handler(EventNotifier *notifier)
     QSIMPLEQ_INIT(&card->event_list);
 }
 
-static int init_event_notifier(EmulatedState *card, Error **errp)
+int EmulatedState::initEventNotifier(Error **errp)
 {
-    if (event_notifier_init(&card->notifier, false) < 0) {
+    if (event_notifier_init(&notifier, false) < 0) {
         error_setg(errp, "ccid-card-emul: event notifier creation failed");
         return -1;
     }
-    event_notifier_set_handler(&card->notifier, card_event_handler);
+    event_notifier_set_handler(&notifier, EmulatedState::cardEventHandler);
     return 0;
 }
 
-static void clean_event_notifier(EmulatedState *card)
+void EmulatedState::cleanEventNotifier()
 {
-    event_notifier_set_handler(&card->notifier, NULL);
-    event_notifier_cleanup(&card->notifier);
+    event_notifier_set_handler(&notifier, NULL);
+    event_notifier_cleanup(&notifier);
 }
 
 #define CERTIFICATES_DEFAULT_DB "/etc/pki/nssdb"
@@ -486,7 +510,7 @@ static uint32_t parse_enumeration(char *str,
     return ret;
 }
 
-static void emulated_realize(CCIDCardState *base, Error **errp)
+void EmulatedState::emulRealize(CCIDCardState *base, Error **errp)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VCardEmulError ret;
@@ -500,7 +524,7 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
     qemu_cond_init(&card->handle_apdu_cond);
     card->reader = NULL;
     card->quit_apdu_thread = 0;
-    if (init_event_notifier(card, errp) < 0) {
+    if (card->initEventNotifier(errp) < 0) {
         goto out1;
     }
 
@@ -546,15 +570,15 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
         error_setg(errp, "%s: failed to initialize vcard", TYPE_EMULATED_CCID);
         goto out2;
     }
-    qemu_thread_create(&card->event_thread_id, "ccid/event", event_thread,
+    qemu_thread_create(&card->event_thread_id, "ccid/event", EmulatedState::eventThread,
                        card, QEMU_THREAD_JOINABLE);
-    qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", handle_apdu_thread,
+    qemu_thread_create(&card->apdu_thread_id, "ccid/apdu", EmulatedState::handleApduThread,
                        card, QEMU_THREAD_JOINABLE);
 
     return;
 
 out2:
-    clean_event_notifier(card);
+    card->cleanEventNotifier();
 out1:
     qemu_cond_destroy(&card->handle_apdu_cond);
     qemu_mutex_destroy(&card->handle_apdu_mutex);
@@ -562,7 +586,7 @@ out1:
     qemu_mutex_destroy(&card->event_list_mutex);
 }
 
-static void emulated_unrealize(CCIDCardState *base)
+void EmulatedState::emulUnrealize(CCIDCardState *base)
 {
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VEvent *vevent = vevent_new(VEVENT_LAST, NULL, NULL);
@@ -574,7 +598,7 @@ static void emulated_unrealize(CCIDCardState *base)
     qemu_cond_signal(&card->handle_apdu_cond);
     qemu_thread_join(&card->apdu_thread_id);
 
-    clean_event_notifier(card);
+    card->cleanEventNotifier();
     /* threads exited, can destroy all condvars/mutexes */
     qemu_cond_destroy(&card->handle_apdu_cond);
     qemu_mutex_destroy(&card->handle_apdu_mutex);
@@ -591,15 +615,15 @@ static const Property emulated_card_properties[] = {
     DEFINE_PROP_UINT8("debug", EmulatedState, debug, 0),
 };
 
-static void emulated_class_initfn(ObjectClass *klass, const void *data)
+void EmulatedState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CCIDCardClass *cc = CCID_CARD_CLASS(klass);
 
-    cc->realize = emulated_realize;
-    cc->unrealize = emulated_unrealize;
-    cc->get_atr = emulated_get_atr;
-    cc->apdu_from_guest = emulated_apdu_from_guest;
+    cc->realize = EmulatedState::emulRealize;
+    cc->unrealize = EmulatedState::emulUnrealize;
+    cc->get_atr = EmulatedState::getAtr;
+    cc->apdu_from_guest = EmulatedState::apduFromGuest;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "emulated smartcard";
     device_class_set_props(dc, emulated_card_properties);
@@ -609,7 +633,7 @@ static const TypeInfo emulated_card_info = {
     .name          = TYPE_EMULATED_CCID,
     .parent        = TYPE_CCID_CARD,
     .instance_size = sizeof(EmulatedState),
-    .class_init    = emulated_class_initfn,
+    .class_init    = EmulatedState::classInit,
 };
 module_obj(TYPE_EMULATED_CCID);
 module_kconfig(USB);
