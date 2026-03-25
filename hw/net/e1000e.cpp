@@ -34,6 +34,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "net/eth.h"
 #include "net/net.h"
@@ -82,6 +83,50 @@ struct E1000EState {
     E1000ECore core;
     bool init_vet;
     bool timadj;
+
+    /* ----- methods ----- */
+    void realize(PCIDevice *pci_dev, Error **errp);
+    void uninit(PCIDevice *pci_dev);
+    void resetHold(Object *obj, ResetType type);
+    void instanceInit(Object *obj);
+
+    static void classInit(ObjectClass *klass, const void *data);
+
+    /* static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size);
+
+    /* static IO callbacks */
+    static uint64_t ioRead(void *opaque, hwaddr addr, unsigned size);
+    static void ioWrite(void *opaque, hwaddr addr, uint64_t val,
+                        unsigned size);
+
+    /* static net callbacks */
+    static bool ncCanReceive(NetClientState *nc);
+    static ssize_t ncReceiveIov(NetClientState *nc, const struct iovec *iov,
+                                int iovcnt);
+    static ssize_t ncReceive(NetClientState *nc, const uint8_t *buf,
+                             size_t size);
+    static void setLinkStatus(NetClientState *nc);
+
+    /* static config callback */
+    static void writeConfig(PCIDevice *pci_dev, uint32_t address,
+                            uint32_t val, int len);
+
+    /* static VMState callbacks */
+    static int preSave(void *opaque);
+    static int postLoad(void *opaque, int version_id);
+    static bool migrateTimadj(void *opaque, int version_id);
+
+private:
+    bool ioGetRegIndex(uint32_t *idx);
+    void coreRealize();
+    void unuseMsixVectors(int num_vectors);
+    void useMsixVectors(int num_vectors);
+    void initMsix();
+    void cleanupMsix();
+    void initNetPeer(PCIDevice *pci_dev, uint8_t *macaddr);
 };
 
 #define E1000E_MMIO_IDX     0
@@ -97,45 +142,41 @@ struct E1000EState {
 #define E1000E_MSIX_TABLE   (0x0000)
 #define E1000E_MSIX_PBA     (0x2000)
 
-static uint64_t
-e1000e_mmio_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t E1000EState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     E1000EState *s = static_cast<E1000EState *>(opaque);
     return e1000e_core_read(&s->core, addr, size);
 }
 
-static void
-e1000e_mmio_write(void *opaque, hwaddr addr,
-                   uint64_t val, unsigned size)
+void E1000EState::mmioWrite(void *opaque, hwaddr addr,
+                             uint64_t val, unsigned size)
 {
     E1000EState *s = static_cast<E1000EState *>(opaque);
     e1000e_core_write(&s->core, addr, val, size);
 }
 
-static bool
-e1000e_io_get_reg_index(E1000EState *s, uint32_t *idx)
+bool E1000EState::ioGetRegIndex(uint32_t *idx)
 {
-    if (s->ioaddr < 0x1FFFF) {
-        *idx = s->ioaddr;
+    if (ioaddr < 0x1FFFF) {
+        *idx = ioaddr;
         return true;
     }
 
-    if (s->ioaddr < 0x7FFFF) {
-        trace_e1000e_wrn_io_addr_undefined(s->ioaddr);
+    if (ioaddr < 0x7FFFF) {
+        trace_e1000e_wrn_io_addr_undefined(ioaddr);
         return false;
     }
 
-    if (s->ioaddr < 0xFFFFF) {
-        trace_e1000e_wrn_io_addr_flash(s->ioaddr);
+    if (ioaddr < 0xFFFFF) {
+        trace_e1000e_wrn_io_addr_flash(ioaddr);
         return false;
     }
 
-    trace_e1000e_wrn_io_addr_unknown(s->ioaddr);
+    trace_e1000e_wrn_io_addr_unknown(ioaddr);
     return false;
 }
 
-static uint64_t
-e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t E1000EState::ioRead(void *opaque, hwaddr addr, unsigned size)
 {
     E1000EState *s = static_cast<E1000EState *>(opaque);
     uint32_t idx = 0;
@@ -146,7 +187,7 @@ e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
         trace_e1000e_io_read_addr(s->ioaddr);
         return s->ioaddr;
     case E1000_IODATA:
-        if (e1000e_io_get_reg_index(s, &idx)) {
+        if (s->ioGetRegIndex(&idx)) {
             val = e1000e_core_read(&s->core, idx, sizeof(val));
             trace_e1000e_io_read_data(idx, val);
             return val;
@@ -158,9 +199,8 @@ e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
     }
 }
 
-static void
-e1000e_io_write(void *opaque, hwaddr addr,
-                uint64_t val, unsigned size)
+void E1000EState::ioWrite(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned size)
 {
     E1000EState *s = static_cast<E1000EState *>(opaque);
     uint32_t idx = 0;
@@ -171,7 +211,7 @@ e1000e_io_write(void *opaque, hwaddr addr,
         s->ioaddr = (uint32_t) val;
         return;
     case E1000_IODATA:
-        if (e1000e_io_get_reg_index(s, &idx)) {
+        if (s->ioGetRegIndex(&idx)) {
             trace_e1000e_io_write_data(idx, val);
             e1000e_core_write(&s->core, idx, val, sizeof(val));
         }
@@ -183,8 +223,8 @@ e1000e_io_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps mmio_ops = {
-    .read = e1000e_mmio_read,
-    .write = e1000e_mmio_write,
+    .read = E1000EState::mmioRead,
+    .write = E1000EState::mmioWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -193,8 +233,8 @@ static const MemoryRegionOps mmio_ops = {
 };
 
 static const MemoryRegionOps io_ops = {
-    .read = e1000e_io_read,
-    .write = e1000e_io_write,
+    .read = E1000EState::ioRead,
+    .write = E1000EState::ioWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -202,29 +242,27 @@ static const MemoryRegionOps io_ops = {
     },
 };
 
-static bool
-e1000e_nc_can_receive(NetClientState *nc)
+bool E1000EState::ncCanReceive(NetClientState *nc)
 {
     E1000EState *s = static_cast<E1000EState *>(qemu_get_nic_opaque(nc));
     return e1000e_can_receive(&s->core);
 }
 
-static ssize_t
-e1000e_nc_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
+ssize_t E1000EState::ncReceiveIov(NetClientState *nc,
+                                   const struct iovec *iov, int iovcnt)
 {
     E1000EState *s = static_cast<E1000EState *>(qemu_get_nic_opaque(nc));
     return e1000e_receive_iov(&s->core, iov, iovcnt);
 }
 
-static ssize_t
-e1000e_nc_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+ssize_t E1000EState::ncReceive(NetClientState *nc, const uint8_t *buf,
+                                size_t size)
 {
     E1000EState *s = static_cast<E1000EState *>(qemu_get_nic_opaque(nc));
     return e1000e_receive(&s->core, buf, size);
 }
 
-static void
-e1000e_set_link_status(NetClientState *nc)
+void E1000EState::setLinkStatus(NetClientState *nc)
 {
     E1000EState *s = static_cast<E1000EState *>(qemu_get_nic_opaque(nc));
     e1000e_core_set_link_status(&s->core);
@@ -233,10 +271,10 @@ e1000e_set_link_status(NetClientState *nc)
 static NetClientInfo net_e1000e_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .receive = e1000e_nc_receive,
-    .receive_iov = e1000e_nc_receive_iov,
-    .can_receive = e1000e_nc_can_receive,
-    .link_status_changed = e1000e_set_link_status,
+    .receive = E1000EState::ncReceive,
+    .receive_iov = E1000EState::ncReceiveIov,
+    .can_receive = E1000EState::ncCanReceive,
+    .link_status_changed = E1000EState::setLinkStatus,
 };
 
 /*
@@ -262,86 +300,82 @@ static const uint16_t e1000e_eeprom_template[64] = {
     0xffff, 0xffff, 0xffff, 0xffff, 0x0000, 0x0120, 0xffff, 0x0000,
 };
 
-static void e1000e_core_realize(E1000EState *s)
+void E1000EState::coreRealize()
 {
-    s->core.owner = &s->parent_obj;
-    s->core.owner_nic = s->nic;
+    core.owner = &parent_obj;
+    core.owner_nic = nic;
 }
 
-static void
-e1000e_unuse_msix_vectors(E1000EState *s, int num_vectors)
+void E1000EState::unuseMsixVectors(int num_vectors)
 {
     int i;
     for (i = 0; i < num_vectors; i++) {
-        msix_vector_unuse(PCI_DEVICE(s), i);
+        msix_vector_unuse(PCI_DEVICE(this), i);
     }
 }
 
-static void
-e1000e_use_msix_vectors(E1000EState *s, int num_vectors)
+void E1000EState::useMsixVectors(int num_vectors)
 {
     int i;
     for (i = 0; i < num_vectors; i++) {
-        msix_vector_use(PCI_DEVICE(s), i);
+        msix_vector_use(PCI_DEVICE(this), i);
     }
 }
 
-static void
-e1000e_init_msix(E1000EState *s)
+void E1000EState::initMsix()
 {
-    int res = msix_init(PCI_DEVICE(s), E1000E_MSIX_VEC_NUM,
-                        &s->msix,
+    int res = msix_init(PCI_DEVICE(this), E1000E_MSIX_VEC_NUM,
+                        &msix,
                         E1000E_MSIX_IDX, E1000E_MSIX_TABLE,
-                        &s->msix,
+                        &msix,
                         E1000E_MSIX_IDX, E1000E_MSIX_PBA,
                         0xA0, NULL);
 
     if (res < 0) {
         trace_e1000e_msix_init_fail(res);
     } else {
-        e1000e_use_msix_vectors(s, E1000E_MSIX_VEC_NUM);
+        useMsixVectors(E1000E_MSIX_VEC_NUM);
     }
 }
 
-static void
-e1000e_cleanup_msix(E1000EState *s)
+void E1000EState::cleanupMsix()
 {
-    if (msix_present(PCI_DEVICE(s))) {
-        e1000e_unuse_msix_vectors(s, E1000E_MSIX_VEC_NUM);
-        msix_uninit(PCI_DEVICE(s), &s->msix, &s->msix);
+    if (msix_present(PCI_DEVICE(this))) {
+        unuseMsixVectors(E1000E_MSIX_VEC_NUM);
+        msix_uninit(PCI_DEVICE(this), &msix, &msix);
     }
 }
 
-static void
-e1000e_init_net_peer(E1000EState *s, PCIDevice *pci_dev, uint8_t *macaddr)
+void E1000EState::initNetPeer(PCIDevice *pci_dev, uint8_t *macaddr)
 {
     DeviceState *dev = DEVICE(pci_dev);
     NetClientState *nc;
     int i;
 
-    s->nic = qemu_new_nic(&net_e1000e_info, &s->conf,
-        object_get_typename(OBJECT(s)), dev->id, &dev->mem_reentrancy_guard, s);
+    nic = qemu_new_nic(&net_e1000e_info, &conf,
+        object_get_typename(OBJECT(this)), dev->id,
+        &dev->mem_reentrancy_guard, this);
 
-    s->core.max_queue_num = s->conf.peers.queues ? s->conf.peers.queues - 1 : 0;
+    core.max_queue_num = conf.peers.queues ? conf.peers.queues - 1 : 0;
 
     trace_e1000e_mac_set_permanent(MAC_ARG(macaddr));
-    memcpy(s->core.permanent_mac, macaddr, sizeof(s->core.permanent_mac));
+    memcpy(core.permanent_mac, macaddr, sizeof(core.permanent_mac));
 
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), macaddr);
+    qemu_format_nic_info_str(qemu_get_queue(nic), macaddr);
 
     /* Setup virtio headers */
-    if (s->disable_vnet) {
-        s->core.has_vnet = false;
+    if (disable_vnet) {
+        core.has_vnet = false;
         trace_e1000e_cfg_support_virtio(false);
         return;
     } else {
-        s->core.has_vnet = true;
+        core.has_vnet = true;
     }
 
-    for (i = 0; i < s->conf.peers.queues; i++) {
-        nc = qemu_get_subqueue(s->nic, i);
+    for (i = 0; i < conf.peers.queues; i++) {
+        nc = qemu_get_subqueue(nic, i);
         if (!nc->peer || !qemu_has_vnet_hdr(nc->peer)) {
-            s->core.has_vnet = false;
+            core.has_vnet = false;
             trace_e1000e_cfg_support_virtio(false);
             return;
         }
@@ -349,8 +383,8 @@ e1000e_init_net_peer(E1000EState *s, PCIDevice *pci_dev, uint8_t *macaddr)
 
     trace_e1000e_cfg_support_virtio(true);
 
-    for (i = 0; i < s->conf.peers.queues; i++) {
-        nc = qemu_get_subqueue(s->nic, i);
+    for (i = 0; i < conf.peers.queues; i++) {
+        nc = qemu_get_subqueue(nic, i);
         qemu_set_vnet_hdr_len(nc->peer, sizeof(struct virtio_net_hdr));
     }
 }
@@ -394,8 +428,8 @@ e1000e_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
     return ret;
 }
 
-static void e1000e_write_config(PCIDevice *pci_dev, uint32_t address,
-                                uint32_t val, int len)
+void E1000EState::writeConfig(PCIDevice *pci_dev, uint32_t address,
+                               uint32_t val, int len)
 {
     E1000EState *s = E1000E(pci_dev);
 
@@ -407,65 +441,70 @@ static void e1000e_write_config(PCIDevice *pci_dev, uint32_t address,
     }
 }
 
-static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
+static void e1000e_pci_realize_wrapper(PCIDevice *pci_dev, Error **errp)
+{
+    E1000EState *s = E1000E(pci_dev);
+    s->realize(pci_dev, errp);
+}
+
+void E1000EState::realize(PCIDevice *pci_dev, Error **errp)
 {
     static const uint16_t e1000e_pmrb_offset = 0x0C8;
     static const uint16_t e1000e_pcie_offset = 0x0E0;
     static const uint16_t e1000e_aer_offset =  0x100;
     static const uint16_t e1000e_dsn_offset =  0x140;
-    E1000EState *s = E1000E(pci_dev);
     uint8_t *macaddr;
     int ret;
 
     trace_e1000e_cb_pci_realize();
 
-    pci_dev->config_write = e1000e_write_config;
+    pci_dev->config_write = E1000EState::writeConfig;
 
     pci_dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     pci_dev->config[PCI_INTERRUPT_PIN] = 1;
 
-    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, s->subsys_ven);
-    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID, s->subsys);
+    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID, subsys_ven);
+    pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID, subsys);
 
-    s->subsys_ven_used = s->subsys_ven;
-    s->subsys_used = s->subsys;
+    subsys_ven_used = subsys_ven;
+    subsys_used = subsys;
 
     /* Define IO/MMIO regions */
-    memory_region_init_io(&s->mmio, OBJECT(s), &mmio_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &mmio_ops, this,
                           "e1000e-mmio", E1000E_MMIO_SIZE);
     pci_register_bar(pci_dev, E1000E_MMIO_IDX,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
 
     /*
      * We provide a dummy implementation for the flash BAR
      * for drivers that may theoretically probe for its presence.
      */
-    memory_region_init(&s->flash, OBJECT(s),
+    memory_region_init(&flash, OBJECT(this),
                        "e1000e-flash", E1000E_FLASH_SIZE);
     pci_register_bar(pci_dev, E1000E_FLASH_IDX,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, &s->flash);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &flash);
 
-    memory_region_init_io(&s->io, OBJECT(s), &io_ops, s,
+    memory_region_init_io(&io, OBJECT(this), &io_ops, this,
                           "e1000e-io", E1000E_IO_SIZE);
     pci_register_bar(pci_dev, E1000E_IO_IDX,
-                     PCI_BASE_ADDRESS_SPACE_IO, &s->io);
+                     PCI_BASE_ADDRESS_SPACE_IO, &io);
 
-    memory_region_init(&s->msix, OBJECT(s), "e1000e-msix",
+    memory_region_init(&msix, OBJECT(this), "e1000e-msix",
                        E1000E_MSIX_SIZE);
     pci_register_bar(pci_dev, E1000E_MSIX_IDX,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, &s->msix);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &msix);
 
     /* Create networking backend */
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    macaddr = s->conf.macaddr.a;
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    macaddr = conf.macaddr.a;
 
-    e1000e_init_msix(s);
+    initMsix();
 
     if (pcie_endpoint_cap_v1_init(pci_dev, e1000e_pcie_offset) < 0) {
         hw_error("Failed to initialize PCIe capability");
     }
 
-    ret = msi_init(PCI_DEVICE(s), 0xD0, 1, true, false, NULL);
+    ret = msi_init(PCI_DEVICE(this), 0xD0, 1, true, false, NULL);
     if (ret) {
         trace_e1000e_msi_init_fail(ret);
     }
@@ -483,48 +522,56 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     pcie_dev_ser_num_init(pci_dev, e1000e_dsn_offset,
                           e1000e_gen_dsn(macaddr));
 
-    e1000e_init_net_peer(s, pci_dev, macaddr);
+    initNetPeer(pci_dev, macaddr);
 
     /* Initialize core */
-    e1000e_core_realize(s);
+    coreRealize();
 
-    e1000e_core_pci_realize(&s->core,
+    e1000e_core_pci_realize(&core,
                             e1000e_eeprom_template,
                             sizeof(e1000e_eeprom_template),
                             macaddr);
 }
 
-static void e1000e_pci_uninit(PCIDevice *pci_dev)
+static void e1000e_pci_uninit_wrapper(PCIDevice *pci_dev)
 {
     E1000EState *s = E1000E(pci_dev);
+    s->uninit(pci_dev);
+}
 
+void E1000EState::uninit(PCIDevice *pci_dev)
+{
     trace_e1000e_cb_pci_uninit();
 
-    e1000e_core_pci_uninit(&s->core);
+    e1000e_core_pci_uninit(&core);
 
     pcie_aer_exit(pci_dev);
     pcie_cap_exit(pci_dev);
 
-    qemu_del_nic(s->nic);
+    qemu_del_nic(nic);
 
-    e1000e_cleanup_msix(s);
+    cleanupMsix();
     msi_uninit(pci_dev);
 }
 
-static void e1000e_qdev_reset_hold(Object *obj, ResetType type)
+static void e1000e_qdev_reset_hold_wrapper(Object *obj, ResetType type)
 {
     E1000EState *s = E1000E(obj);
+    s->resetHold(obj, type);
+}
 
+void E1000EState::resetHold(Object *obj, ResetType type)
+{
     trace_e1000e_cb_qdev_reset_hold();
 
-    e1000e_core_reset(&s->core);
+    e1000e_core_reset(&core);
 
-    if (s->init_vet) {
-        s->core.mac[VET] = ETH_P_VLAN;
+    if (init_vet) {
+        core.mac[VET] = ETH_P_VLAN;
     }
 }
 
-static int e1000e_pre_save(void *opaque)
+int E1000EState::preSave(void *opaque)
 {
     E1000EState *s = static_cast<E1000EState *>(opaque);
 
@@ -535,7 +582,7 @@ static int e1000e_pre_save(void *opaque)
     return 0;
 }
 
-static int e1000e_post_load(void *opaque, int version_id)
+int E1000EState::postLoad(void *opaque, int version_id)
 {
     E1000EState *s = static_cast<E1000EState *>(opaque);
 
@@ -552,7 +599,7 @@ static int e1000e_post_load(void *opaque, int version_id)
     return e1000e_core_post_load(&s->core);
 }
 
-static bool e1000e_migrate_timadj(void *opaque, int version_id)
+bool E1000EState::migrateTimadj(void *opaque, int version_id)
 {
     E1000EState *s = static_cast<E1000EState *>(opaque);
     return s->timadj;
@@ -648,7 +695,7 @@ static const VMStateField e1000e_vmstate_fields[] = {
     VMSTATE_STRUCT_ARRAY(core.tx, E1000EState, E1000E_NUM_QUEUES, 0,
                          e1000e_vmstate_tx, e1000e_tx),
 
-    VMSTATE_INT64_TEST(core.timadj, E1000EState, e1000e_migrate_timadj),
+    VMSTATE_INT64_TEST(core.timadj, E1000EState, E1000EState::migrateTimadj),
 
     VMSTATE_END_OF_LIST()
 };
@@ -657,8 +704,8 @@ static const VMStateDescription e1000e_vmstate = {
     .name = "e1000e",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = e1000e_post_load,
-    .pre_save = e1000e_pre_save,
+    .post_load = E1000EState::postLoad,
+    .pre_save = E1000EState::preSave,
     .fields = e1000e_vmstate_fields,
 };
 
@@ -679,21 +726,21 @@ static const Property e1000e_properties[] = {
     DEFINE_PROP_BOOL("migrate-timadj", E1000EState, timadj, true),
 };
 
-static void e1000e_class_init(ObjectClass *klass, const void *data)
+void E1000EState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
 
-    c->realize = e1000e_pci_realize;
-    c->exit = e1000e_pci_uninit;
+    c->realize = e1000e_pci_realize_wrapper;
+    c->exit = e1000e_pci_uninit_wrapper;
     c->vendor_id = PCI_VENDOR_ID_INTEL;
     c->device_id = E1000_DEV_ID_82574L;
     c->revision = 0;
     c->romfile = "efi-e1000e.rom";
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
 
-    rc->phases.hold = e1000e_qdev_reset_hold;
+    rc->phases.hold = e1000e_qdev_reset_hold_wrapper;
 
     dc->desc = "Intel 82574L GbE Controller";
     dc->vmsd = &e1000e_vmstate;
@@ -713,10 +760,15 @@ static void e1000e_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
-static void e1000e_instance_init(Object *obj)
+static void e1000e_instance_init_wrapper(Object *obj)
 {
     E1000EState *s = E1000E(obj);
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+    s->instanceInit(obj);
+}
+
+void E1000EState::instanceInit(Object *obj)
+{
+    device_add_bootindex_property(obj, &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   DEVICE(obj));
 }
@@ -730,8 +782,8 @@ static const TypeInfo e1000e_info = {
     .name = TYPE_E1000E,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E1000EState),
-    .instance_init = e1000e_instance_init,
-    .class_init = e1000e_class_init,
+    .instance_init = e1000e_instance_init_wrapper,
+    .class_init = E1000EState::classInit,
     .interfaces = e1000e_interfaces,
 };
 

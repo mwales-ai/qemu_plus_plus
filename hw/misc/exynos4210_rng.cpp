@@ -18,6 +18,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -79,18 +81,32 @@ struct Exynos4210RngState {
     /* Register values */
     uint32_t reg_control;
     uint32_t reg_status;
+
+    /* Instance methods */
+    void instanceInit();
+    void reset();
+    bool seedReady() const;
+    void setSeed(unsigned int i, uint64_t val);
+    void runEngine();
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t val,
+                          unsigned size);
+
+    /* Class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static bool exynos4210_rng_seed_ready(const Exynos4210RngState *s)
+bool Exynos4210RngState::seedReady() const
 {
     uint32_t mask = MAKE_64BIT_MASK(0, EXYNOS4210_RNG_PRNG_NUM);
 
     /* Return true if all the seed-set bits are set. */
-    return (s->seed_set & mask) == mask;
+    return (seed_set & mask) == mask;
 }
 
-static void exynos4210_rng_set_seed(Exynos4210RngState *s, unsigned int i,
-                                    uint64_t val)
+void Exynos4210RngState::setSeed(unsigned int i, uint64_t val)
 {
     /*
      * We actually ignore the seed and always generate true random numbers.
@@ -98,52 +114,52 @@ static void exynos4210_rng_set_seed(Exynos4210RngState *s, unsigned int i,
      * a Pseudo Random Number Generator but testing shown that it always
      * generates random numbers regardless of the seed value.
      */
-    s->seed_set |= BIT(i);
+    seed_set |= BIT(i);
 
     /* If all seeds were written, update the status to reflect it */
-    if (exynos4210_rng_seed_ready(s)) {
-        s->reg_status |= EXYNOS4210_RNG_STATUS_SEED_SETTING_DONE;
+    if (seedReady()) {
+        reg_status |= EXYNOS4210_RNG_STATUS_SEED_SETTING_DONE;
     } else {
-        s->reg_status &= ~EXYNOS4210_RNG_STATUS_SEED_SETTING_DONE;
+        reg_status &= ~EXYNOS4210_RNG_STATUS_SEED_SETTING_DONE;
     }
 }
 
-static void exynos4210_rng_run_engine(Exynos4210RngState *s)
+void Exynos4210RngState::runEngine()
 {
     Error *err = NULL;
 
     /* Seed set? */
-    if ((s->reg_status & EXYNOS4210_RNG_STATUS_SEED_SETTING_DONE) == 0) {
+    if ((reg_status & EXYNOS4210_RNG_STATUS_SEED_SETTING_DONE) == 0) {
         goto out;
     }
 
     /* PRNG engine chosen? */
-    if ((s->reg_control & EXYNOS4210_RNG_CONTROL_1_PRNG) == 0) {
+    if ((reg_control & EXYNOS4210_RNG_CONTROL_1_PRNG) == 0) {
         goto out;
     }
 
     /* PRNG engine started? */
-    if ((s->reg_control & EXYNOS4210_RNG_CONTROL_1_START_INIT) == 0) {
+    if ((reg_control & EXYNOS4210_RNG_CONTROL_1_START_INIT) == 0) {
         goto out;
     }
 
     /* Get randoms */
-    if (qemu_guest_getrandom(s->randr_value, sizeof(s->randr_value), &err)) {
+    if (qemu_guest_getrandom(randr_value, sizeof(randr_value), &err)) {
         error_report_err(err);
     } else {
         /* Notify that PRNG is ready */
-        s->reg_status |= EXYNOS4210_RNG_STATUS_PRNG_DONE;
+        reg_status |= EXYNOS4210_RNG_STATUS_PRNG_DONE;
     }
 
 out:
     /* Always clear start engine bit */
-    s->reg_control &= ~EXYNOS4210_RNG_CONTROL_1_START_INIT;
+    reg_control &= ~EXYNOS4210_RNG_CONTROL_1_START_INIT;
 }
 
-static uint64_t exynos4210_rng_read(void *opaque, hwaddr offset,
-                                    unsigned size)
+uint64_t Exynos4210RngState::mmioRead(void *opaque, hwaddr offset,
+                                       unsigned size)
 {
-    Exynos4210RngState *s = (Exynos4210RngState *)opaque;
+    Exynos4210RngState *s = static_cast<Exynos4210RngState *>(opaque);
     uint32_t val = 0;
 
     assert(size == 4);
@@ -176,10 +192,10 @@ static uint64_t exynos4210_rng_read(void *opaque, hwaddr offset,
     return val;
 }
 
-static void exynos4210_rng_write(void *opaque, hwaddr offset,
-                                 uint64_t val, unsigned size)
+void Exynos4210RngState::mmioWrite(void *opaque, hwaddr offset,
+                                    uint64_t val, unsigned size)
 {
-    Exynos4210RngState *s = (Exynos4210RngState *)opaque;
+    Exynos4210RngState *s = static_cast<Exynos4210RngState *>(opaque);
 
     assert(size == 4);
 
@@ -187,7 +203,7 @@ static void exynos4210_rng_write(void *opaque, hwaddr offset,
     case EXYNOS4210_RNG_CONTROL_1:
         DPRINTF("RNG_CONTROL_1 = 0x%" PRIx64 "\n", val);
         s->reg_control = val;
-        exynos4210_rng_run_engine(s);
+        s->runEngine();
         break;
 
     case EXYNOS4210_RNG_STATUS:
@@ -201,9 +217,7 @@ static void exynos4210_rng_write(void *opaque, hwaddr offset,
     case EXYNOS4210_RNG_SEED_IN_OFFSET(2):
     case EXYNOS4210_RNG_SEED_IN_OFFSET(3):
     case EXYNOS4210_RNG_SEED_IN_OFFSET(4):
-        exynos4210_rng_set_seed(s,
-                                (offset - EXYNOS4210_RNG_SEED_IN_OFFSET(0)) / 4,
-                                val);
+        s->setSeed((offset - EXYNOS4210_RNG_SEED_IN_OFFSET(0)) / 4, val);
         break;
 
     default:
@@ -214,8 +228,8 @@ static void exynos4210_rng_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps exynos4210_rng_ops = {
-    .read = exynos4210_rng_read,
-    .write = exynos4210_rng_write,
+    .read = Exynos4210RngState::mmioRead,
+    .write = Exynos4210RngState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
@@ -223,21 +237,28 @@ static const MemoryRegionOps exynos4210_rng_ops = {
 static void exynos4210_rng_reset(DeviceState *dev)
 {
     Exynos4210RngState *s = EXYNOS4210_RNG(dev);
+    s->reset();
+}
 
-    s->reg_control = 0;
-    s->reg_status = EXYNOS4210_RNG_STATUS_BUFFER_READY;
-    memset(s->randr_value, 0, sizeof(s->randr_value));
-    s->seed_set = 0;
+void Exynos4210RngState::reset()
+{
+    reg_control = 0;
+    reg_status = EXYNOS4210_RNG_STATUS_BUFFER_READY;
+    memset(randr_value, 0, sizeof(randr_value));
+    seed_set = 0;
 }
 
 static void exynos4210_rng_init(Object *obj)
 {
     Exynos4210RngState *s = EXYNOS4210_RNG(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    s->instanceInit();
+}
 
-    memory_region_init_io(&s->iomem, obj, &exynos4210_rng_ops, s,
+void Exynos4210RngState::instanceInit()
+{
+    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_rng_ops, this,
                           TYPE_EXYNOS4210_RNG, EXYNOS4210_RNG_REGS_MEM_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const VMStateField vmstate_exynos4210_rng_vmstate_fields[] = {
@@ -256,7 +277,7 @@ static const VMStateDescription exynos4210_rng_vmstate = {
     .fields = vmstate_exynos4210_rng_vmstate_fields,
 };
 
-static void exynos4210_rng_class_init(ObjectClass *klass, const void *data)
+void Exynos4210RngState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -269,7 +290,7 @@ static const TypeInfo exynos4210_rng_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210RngState),
     .instance_init = exynos4210_rng_init,
-    .class_init    = exynos4210_rng_class_init,
+    .class_init    = Exynos4210RngState::classInit,
 };
 
 static void exynos4210_rng_register(void)

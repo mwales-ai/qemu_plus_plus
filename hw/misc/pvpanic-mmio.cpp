@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "hw/qdev-properties.h"
 #include "hw/misc/pvpanic.h"
@@ -21,14 +22,24 @@ struct PVPanicMMIOState {
     SysBusDevice parent_obj;
 
     PVPanicState pvpanic;
+
+    /* Instance methods */
+    void instanceInit();
+
+    /* Class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void pvpanic_mmio_initfn(Object *obj)
 {
     PVPanicMMIOState *s = PVPANIC_MMIO_DEVICE(obj);
+    s->instanceInit();
+}
 
-    pvpanic_setup_io(&s->pvpanic, DEVICE(s), PVPANIC_MMIO_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->pvpanic.mr);
+void PVPanicMMIOState::instanceInit()
+{
+    pvpanic_setup_io(&pvpanic, DEVICE(this), PVPANIC_MMIO_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &pvpanic.mr);
 }
 
 static const Property pvpanic_mmio_properties[] = {
@@ -36,7 +47,7 @@ static const Property pvpanic_mmio_properties[] = {
                       PVPANIC_PANICKED | PVPANIC_CRASH_LOADED),
 };
 
-static void pvpanic_mmio_class_init(ObjectClass *klass, const void *data)
+void PVPanicMMIOState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -49,7 +60,7 @@ static const TypeInfo pvpanic_mmio_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PVPanicMMIOState),
     .instance_init = pvpanic_mmio_initfn,
-    .class_init    = pvpanic_mmio_class_init,
+    .class_init    = PVPanicMMIOState::classInit,
 };
 
 static void pvpanic_register_types(void)

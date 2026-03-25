@@ -15,6 +15,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/sysbus.h"
 #include "hw/misc/arm_integrator_debug.h"
 #include "qemu/log.h"
@@ -27,10 +29,21 @@ struct IntegratorDebugState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+
+    /* Instance methods */
+    void instanceInit();
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset,
+                          uint64_t value, unsigned size);
+
+    /* Class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static uint64_t intdbg_control_read(void *opaque, hwaddr offset,
-                                    unsigned size)
+uint64_t IntegratorDebugState::mmioRead(void *opaque, hwaddr offset,
+                                        unsigned size)
 {
     switch (offset >> 2) {
     case 0: /* ALPHA */
@@ -48,8 +61,8 @@ static uint64_t intdbg_control_read(void *opaque, hwaddr offset,
     }
 }
 
-static void intdbg_control_write(void *opaque, hwaddr offset,
-                                 uint64_t value, unsigned size)
+void IntegratorDebugState::mmioWrite(void *opaque, hwaddr offset,
+                                     uint64_t value, unsigned size)
 {
     switch (offset >> 2) {
     case 1: /* ALPHA */
@@ -70,19 +83,27 @@ static void intdbg_control_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps intdbg_control_ops = {
-    .read = intdbg_control_read,
-    .write = intdbg_control_write,
+    .read = IntegratorDebugState::mmioRead,
+    .write = IntegratorDebugState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void intdbg_control_init(Object *obj)
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
     IntegratorDebugState *s = INTEGRATOR_DEBUG(obj);
+    s->instanceInit();
+}
 
-    memory_region_init_io(&s->iomem, obj, &intdbg_control_ops,
+void IntegratorDebugState::instanceInit()
+{
+    memory_region_init_io(&iomem, OBJECT(this), &intdbg_control_ops,
                           NULL, "dbg-leds", 0x1000000);
-    sysbus_init_mmio(sd, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+}
+
+void IntegratorDebugState::classInit(ObjectClass *klass, const void *data)
+{
+    /* No special class init needed */
 }
 
 static const TypeInfo intdbg_info = {
@@ -90,6 +111,7 @@ static const TypeInfo intdbg_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IntegratorDebugState),
     .instance_init = intdbg_control_init,
+    .class_init    = IntegratorDebugState::classInit,
 };
 
 static void intdbg_register_types(void)

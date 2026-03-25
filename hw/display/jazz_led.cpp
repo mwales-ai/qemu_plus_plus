@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
@@ -45,41 +46,28 @@ struct LedState {
     uint8_t segments;
     QemuConsole *con;
     screen_state_t state;
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned int size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned int size);
+
+    /* Static display callbacks */
+    static void updateDisplay(void *opaque);
+    static void invalidateDisplay(void *opaque);
+    static void textUpdate(void *opaque, console_ch_t *chardata);
+
+    /* Static VMState callback */
+    static int postLoad(void *opaque, int version_id);
+
+    /* Instance methods */
+    void initfn(Object *obj);
+    void realize(DeviceState *dev, Error **errp);
+    void reset(DeviceState *d);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
-
-static uint64_t jazz_led_read(void *opaque, hwaddr addr,
-                              unsigned int size)
-{
-    LedState *s = opaque;
-    uint8_t val;
-
-    val = s->segments;
-    trace_jazz_led_read(addr, val);
-
-    return val;
-}
-
-static void jazz_led_write(void *opaque, hwaddr addr,
-                           uint64_t val, unsigned int size)
-{
-    LedState *s = opaque;
-    uint8_t new_val = val & 0xff;
-
-    trace_jazz_led_write(addr, new_val);
-
-    s->segments = new_val;
-    s->state |= REDRAW_SEGMENTS;
-}
-
-static const MemoryRegionOps led_ops = {
-    .read = jazz_led_read,
-    .write = jazz_led_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = { .min_access_size = 1, .max_access_size = 1, },
-};
-
-/***********************************************************/
-/* jazz_led display */
 
 static void draw_horizontal_line(DisplaySurface *ds,
                                  int posy, int posx1, int posx2,
@@ -143,9 +131,39 @@ static void draw_vertical_line(DisplaySurface *ds,
     }
 }
 
-static void jazz_led_update_display(void *opaque)
+uint64_t LedState::mmioRead(void *opaque, hwaddr addr, unsigned int size)
 {
-    LedState *s = opaque;
+    LedState *s = static_cast<LedState *>(opaque);
+    uint8_t val;
+
+    val = s->segments;
+    trace_jazz_led_read(addr, val);
+
+    return val;
+}
+
+void LedState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned int size)
+{
+    LedState *s = static_cast<LedState *>(opaque);
+    uint8_t new_val = val & 0xff;
+
+    trace_jazz_led_write(addr, new_val);
+
+    s->segments = new_val;
+    s->state |= REDRAW_SEGMENTS;
+}
+
+static const MemoryRegionOps led_ops = {
+    .read = LedState::mmioRead,
+    .write = LedState::mmioWrite,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = { .min_access_size = 1, .max_access_size = 1, },
+};
+
+void LedState::updateDisplay(void *opaque)
+{
+    LedState *s = static_cast<LedState *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     uint8_t *d1;
     uint32_t color_segment, color_led;
@@ -219,15 +237,15 @@ static void jazz_led_update_display(void *opaque)
     dpy_gfx_update_full(s->con);
 }
 
-static void jazz_led_invalidate_display(void *opaque)
+void LedState::invalidateDisplay(void *opaque)
 {
-    LedState *s = opaque;
+    LedState *s = static_cast<LedState *>(opaque);
     s->state |= REDRAW_SEGMENTS | REDRAW_BACKGROUND;
 }
 
-static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
+void LedState::textUpdate(void *opaque, console_ch_t *chardata)
 {
-    LedState *s = opaque;
+    LedState *s = static_cast<LedState *>(opaque);
     char buf[3];
 
     dpy_text_cursor(s->con, -1, -1);
@@ -243,10 +261,10 @@ static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
     dpy_text_update(s->con, 0, 0, 2, 1);
 }
 
-static int jazz_led_post_load(void *opaque, int version_id)
+int LedState::postLoad(void *opaque, int version_id)
 {
     /* force refresh */
-    jazz_led_invalidate_display(opaque);
+    LedState::invalidateDisplay(opaque);
 
     return 0;
 }
@@ -255,7 +273,7 @@ static const VMStateDescription vmstate_jazz_led = {
     .name = "jazz-led",
     .version_id = 0,
     .minimum_version_id = 0,
-    .post_load = jazz_led_post_load,
+    .post_load = LedState::postLoad,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8(segments, LedState),
         VMSTATE_END_OF_LIST()
@@ -263,12 +281,12 @@ static const VMStateDescription vmstate_jazz_led = {
 };
 
 static const GraphicHwOps jazz_led_ops = {
-    .invalidate  = jazz_led_invalidate_display,
-    .gfx_update  = jazz_led_update_display,
-    .text_update = jazz_led_text_update,
+    .invalidate  = LedState::invalidateDisplay,
+    .gfx_update  = LedState::updateDisplay,
+    .text_update = LedState::textUpdate,
 };
 
-static void jazz_led_init(Object *obj)
+void LedState::initfn(Object *obj)
 {
     LedState *s = JAZZ_LED(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
@@ -277,14 +295,26 @@ static void jazz_led_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static void jazz_led_realize(DeviceState *dev, Error **errp)
+static void jazz_led_init(Object *obj)
+{
+    LedState *s = JAZZ_LED(obj);
+    s->initfn(obj);
+}
+
+void LedState::realize(DeviceState *dev, Error **errp)
 {
     LedState *s = JAZZ_LED(dev);
 
     s->con = graphic_console_init(dev, 0, &jazz_led_ops, s);
 }
 
-static void jazz_led_reset(DeviceState *d)
+static void jazz_led_realize(DeviceState *dev, Error **errp)
+{
+    LedState *s = JAZZ_LED(dev);
+    s->realize(dev, errp);
+}
+
+void LedState::reset(DeviceState *d)
 {
     LedState *s = JAZZ_LED(d);
 
@@ -293,7 +323,13 @@ static void jazz_led_reset(DeviceState *d)
     qemu_console_resize(s->con, 60, 80);
 }
 
-static void jazz_led_class_init(ObjectClass *klass, const void *data)
+static void jazz_led_reset(DeviceState *d)
+{
+    LedState *s = JAZZ_LED(d);
+    s->reset(d);
+}
+
+void LedState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -308,7 +344,7 @@ static const TypeInfo jazz_led_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(LedState),
     .instance_init = jazz_led_init,
-    .class_init    = jazz_led_class_init,
+    .class_init    = LedState::classInit,
 };
 
 static void jazz_led_register(void)

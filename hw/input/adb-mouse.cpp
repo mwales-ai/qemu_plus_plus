@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "ui/console.h"
 #include "hw/input/adb.h"
 #include "migration/vmstate.h"
@@ -41,6 +42,21 @@ struct MouseState {
     QemuInputHandlerState *hs;
     int buttons_state, last_buttons_state;
     int dx, dy, dz;
+
+    /* Static callbacks */
+    static void handleEvent(DeviceState *dev, QemuConsole *src,
+                            InputEvent *evt);
+
+    /* Instance methods */
+    int poll(ADBDevice *d, uint8_t *obuf);
+    int request(ADBDevice *d, uint8_t *obuf, const uint8_t *buf, int len);
+    bool hasData(ADBDevice *d);
+    void reset(DeviceState *dev);
+    void realize(DeviceState *dev, Error **errp);
+    void initfn(Object *obj);
+
+    /* Class init */
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 
@@ -55,8 +71,8 @@ struct ADBMouseClass {
 #define ADB_MOUSE_BUTTON_LEFT   0x01
 #define ADB_MOUSE_BUTTON_RIGHT  0x02
 
-static void adb_mouse_handle_event(DeviceState *dev, QemuConsole *src,
-                                   InputEvent *evt)
+void MouseState::handleEvent(DeviceState *dev, QemuConsole *src,
+                              InputEvent *evt)
 {
     MouseState *s = (MouseState *)dev;
     InputMoveEvent *move;
@@ -99,7 +115,7 @@ static void adb_mouse_handle_event(DeviceState *dev, QemuConsole *src,
 static const QemuInputHandler adb_mouse_handler = {
     .name  = "QEMU ADB Mouse",
     .mask  = INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_REL,
-    .event = adb_mouse_handle_event,
+    .event = MouseState::handleEvent,
     /*
      * We do not need the .sync handler because unlike e.g. PS/2 where async
      * mouse events are sent over the serial port, an ADB mouse is constantly
@@ -107,7 +123,7 @@ static const QemuInputHandler adb_mouse_handler = {
      */
 };
 
-static int adb_mouse_poll(ADBDevice *d, uint8_t *obuf)
+int MouseState::poll(ADBDevice *d, uint8_t *obuf)
 {
     MouseState *s = ADB_MOUSE(d);
     int dx, dy;
@@ -150,8 +166,14 @@ static int adb_mouse_poll(ADBDevice *d, uint8_t *obuf)
     return 2;
 }
 
-static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
-                             const uint8_t *buf, int len)
+static int adb_mouse_poll(ADBDevice *d, uint8_t *obuf)
+{
+    MouseState *s = ADB_MOUSE(d);
+    return s->poll(d, obuf);
+}
+
+int MouseState::request(ADBDevice *d, uint8_t *obuf,
+                         const uint8_t *buf, int len)
 {
     MouseState *s = ADB_MOUSE(d);
     int cmd, reg, olen;
@@ -238,7 +260,14 @@ static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
     return olen;
 }
 
-static bool adb_mouse_has_data(ADBDevice *d)
+static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
+                             const uint8_t *buf, int len)
+{
+    MouseState *s = ADB_MOUSE(d);
+    return s->request(d, obuf, buf, len);
+}
+
+bool MouseState::hasData(ADBDevice *d)
 {
     MouseState *s = ADB_MOUSE(d);
 
@@ -246,7 +275,13 @@ static bool adb_mouse_has_data(ADBDevice *d)
              s->dx == 0 && s->dy == 0);
 }
 
-static void adb_mouse_reset(DeviceState *dev)
+static bool adb_mouse_has_data(ADBDevice *d)
+{
+    MouseState *s = ADB_MOUSE(d);
+    return s->hasData(d);
+}
+
+void MouseState::reset(DeviceState *dev)
 {
     ADBDevice *d = ADB_DEVICE(dev);
     MouseState *s = ADB_MOUSE(dev);
@@ -255,6 +290,12 @@ static void adb_mouse_reset(DeviceState *dev)
     d->devaddr = ADB_DEVID_MOUSE;
     s->last_buttons_state = s->buttons_state = 0;
     s->dx = s->dy = s->dz = 0;
+}
+
+static void adb_mouse_reset(DeviceState *dev)
+{
+    MouseState *s = ADB_MOUSE(dev);
+    s->reset(dev);
 }
 
 static const VMStateDescription vmstate_adb_mouse = {
@@ -273,7 +314,7 @@ static const VMStateDescription vmstate_adb_mouse = {
     }
 };
 
-static void adb_mouse_realizefn(DeviceState *dev, Error **errp)
+void MouseState::realize(DeviceState *dev, Error **errp)
 {
     MouseState *s = ADB_MOUSE(dev);
     ADBMouseClass *amc = ADB_MOUSE_GET_CLASS(dev);
@@ -283,14 +324,26 @@ static void adb_mouse_realizefn(DeviceState *dev, Error **errp)
     s->hs = qemu_input_handler_register(dev, &adb_mouse_handler);
 }
 
-static void adb_mouse_initfn(Object *obj)
+static void adb_mouse_realizefn(DeviceState *dev, Error **errp)
+{
+    MouseState *s = ADB_MOUSE(dev);
+    s->realize(dev, errp);
+}
+
+void MouseState::initfn(Object *obj)
 {
     ADBDevice *d = ADB_DEVICE(obj);
 
     d->devaddr = ADB_DEVID_MOUSE;
 }
 
-static void adb_mouse_class_init(ObjectClass *oc, const void *data)
+static void adb_mouse_initfn(Object *obj)
+{
+    MouseState *s = ADB_MOUSE(obj);
+    s->initfn(obj);
+}
+
+void MouseState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);
@@ -312,7 +365,7 @@ static const TypeInfo adb_mouse_type_info = {
     .instance_size = sizeof(MouseState),
     .instance_init = adb_mouse_initfn,
     .class_size = sizeof(ADBMouseClass),
-    .class_init = adb_mouse_class_init,
+    .class_init = MouseState::classInit,
 };
 
 static void adb_mouse_register_types(void)

@@ -1,4 +1,6 @@
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
@@ -18,9 +20,19 @@ struct RAMFBStandaloneState {
     RAMFBState *state;
     bool migrate;
     bool use_legacy_x86_rom;
+
+    /* Instance methods */
+    void realize(Error **errp);
+
+    /* Static callbacks */
+    static void displayUpdate(void *dev);
+    static bool migrateNeeded(void *opaque);
+
+    /* Class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void display_update_wrapper(void *dev)
+void RAMFBStandaloneState::displayUpdate(void *dev)
 {
     RAMFBStandaloneState *ramfb = RAMFB(dev);
 
@@ -32,18 +44,22 @@ static void display_update_wrapper(void *dev)
 }
 
 static const GraphicHwOps wrapper_ops = {
-    .gfx_update = display_update_wrapper,
+    .gfx_update = RAMFBStandaloneState::displayUpdate,
 };
 
 static void ramfb_realizefn(DeviceState *dev, Error **errp)
 {
     RAMFBStandaloneState *ramfb = RAMFB(dev);
-
-    ramfb->con = graphic_console_init(dev, 0, &wrapper_ops, dev);
-    ramfb->state = ramfb_setup(ramfb->use_legacy_x86_rom, errp);
+    ramfb->realize(errp);
 }
 
-static bool migrate_needed(void *opaque)
+void RAMFBStandaloneState::realize(Error **errp)
+{
+    con = graphic_console_init(DEVICE(this), 0, &wrapper_ops, this);
+    state = ramfb_setup(use_legacy_x86_rom, errp);
+}
+
+bool RAMFBStandaloneState::migrateNeeded(void *opaque)
 {
     RAMFBStandaloneState *ramfb = RAMFB(opaque);
 
@@ -59,7 +75,7 @@ static const VMStateDescription ramfb_dev_vmstate = {
     .name = "ramfb-dev",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = migrate_needed,
+    .needed = RAMFBStandaloneState::migrateNeeded,
     .fields = ramfb_dev_vmstate_fields,
 };
 
@@ -69,7 +85,7 @@ static const Property ramfb_properties[] = {
                      use_legacy_x86_rom, false),
 };
 
-static void ramfb_class_initfn(ObjectClass *klass, const void *data)
+void RAMFBStandaloneState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -84,7 +100,7 @@ static const TypeInfo ramfb_info = {
     .name          = TYPE_RAMFB_DEVICE,
     .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
     .instance_size = sizeof(RAMFBStandaloneState),
-    .class_init    = ramfb_class_initfn,
+    .class_init    = RAMFBStandaloneState::classInit,
 };
 
 static void ramfb_register_types(void)

@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/input/adb.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
@@ -41,6 +42,22 @@ struct KBDState {
 
     uint8_t data[128];
     int rptr, wptr, count;
+
+    /* Static callbacks */
+    static void keyboardEvent(DeviceState *dev, QemuConsole *src,
+                              InputEvent *evt);
+
+    /* Instance methods */
+    void putKeycode(int keycode);
+    int poll(ADBDevice *d, uint8_t *obuf);
+    int request(ADBDevice *d, uint8_t *obuf, const uint8_t *buf, int len);
+    bool hasData(ADBDevice *d);
+    void reset(DeviceState *dev);
+    void realize(DeviceState *dev, Error **errp);
+    void initfn(Object *obj);
+
+    /* Class init */
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 
@@ -181,20 +198,18 @@ static void __attribute__((constructor)) init_qcode_to_adb_keycode(void)
     qcode_to_adb_keycode_init[Q_KEY_CODE_POWER]         = ADB_KEY_POWER;
 }
 
-static void adb_kbd_put_keycode(void *opaque, int keycode)
+void KBDState::putKeycode(int keycode)
 {
-    KBDState *s = static_cast<KBDState *>(opaque);
-
-    if (s->count < sizeof(s->data)) {
-        s->data[s->wptr] = keycode;
-        if (++s->wptr == sizeof(s->data)) {
-            s->wptr = 0;
+    if (count < (int)sizeof(data)) {
+        data[wptr] = keycode;
+        if (++wptr == (int)sizeof(data)) {
+            wptr = 0;
         }
-        s->count++;
+        count++;
     }
 }
 
-static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
+int KBDState::poll(ADBDevice *d, uint8_t *obuf)
 {
     KBDState *s = ADB_KEYBOARD(d);
     int keycode;
@@ -204,7 +219,7 @@ static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
     }
     keycode = s->data[s->rptr];
     s->rptr++;
-    if (s->rptr == sizeof(s->data)) {
+    if (s->rptr == (int)sizeof(s->data)) {
         s->rptr = 0;
     }
     s->count--;
@@ -229,8 +244,14 @@ static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
     return 2;
 }
 
-static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
-                           const uint8_t *buf, int len)
+static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
+{
+    KBDState *s = ADB_KEYBOARD(d);
+    return s->poll(d, obuf);
+}
+
+int KBDState::request(ADBDevice *d, uint8_t *obuf,
+                       const uint8_t *buf, int len)
 {
     KBDState *s = ADB_KEYBOARD(d);
     int cmd, reg, olen;
@@ -303,22 +324,35 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
     return olen;
 }
 
-static bool adb_kbd_has_data(ADBDevice *d)
+static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
+                           const uint8_t *buf, int len)
+{
+    KBDState *s = ADB_KEYBOARD(d);
+    return s->request(d, obuf, buf, len);
+}
+
+bool KBDState::hasData(ADBDevice *d)
 {
     KBDState *s = ADB_KEYBOARD(d);
 
     return s->count > 0;
 }
 
+static bool adb_kbd_has_data(ADBDevice *d)
+{
+    KBDState *s = ADB_KEYBOARD(d);
+    return s->hasData(d);
+}
+
 /* This is where keyboard events enter this file */
-static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
-                               InputEvent *evt)
+void KBDState::keyboardEvent(DeviceState *dev, QemuConsole *src,
+                              InputEvent *evt)
 {
     KBDState *s = (KBDState *)dev;
     int qcode, keycode;
 
     qcode = qemu_input_key_value_to_qcode(evt->u.key.data->key);
-    if (qcode >= ARRAY_SIZE(qcode_to_adb_keycode)) {
+    if (qcode >= (int)ARRAY_SIZE(qcode_to_adb_keycode)) {
         return;
     }
     /* FIXME: take handler into account when translating qcode */
@@ -331,7 +365,7 @@ static void adb_keyboard_event(DeviceState *dev, QemuConsole *src,
         keycode = keycode | 0x80;   /* create keyboard break code */
     }
 
-    adb_kbd_put_keycode(s, keycode);
+    s->putKeycode(keycode);
 }
 
 static const VMStateDescription vmstate_adb_kbd = {
@@ -348,7 +382,7 @@ static const VMStateDescription vmstate_adb_kbd = {
     }
 };
 
-static void adb_kbd_reset(DeviceState *dev)
+void KBDState::reset(DeviceState *dev)
 {
     ADBDevice *d = ADB_DEVICE(dev);
     KBDState *s = ADB_KEYBOARD(dev);
@@ -361,27 +395,45 @@ static void adb_kbd_reset(DeviceState *dev)
     s->count = 0;
 }
 
+static void adb_kbd_reset(DeviceState *dev)
+{
+    KBDState *s = ADB_KEYBOARD(dev);
+    s->reset(dev);
+}
+
 static const QemuInputHandler adb_keyboard_handler = {
     .name  = "QEMU ADB Keyboard",
     .mask  = INPUT_EVENT_MASK_KEY,
-    .event = adb_keyboard_event,
+    .event = KBDState::keyboardEvent,
 };
 
-static void adb_kbd_realizefn(DeviceState *dev, Error **errp)
+void KBDState::realize(DeviceState *dev, Error **errp)
 {
     ADBKeyboardClass *akc = ADB_KEYBOARD_GET_CLASS(dev);
     akc->parent_realize(dev, errp);
     qemu_input_handler_register(dev, &adb_keyboard_handler);
 }
 
-static void adb_kbd_initfn(Object *obj)
+static void adb_kbd_realizefn(DeviceState *dev, Error **errp)
+{
+    KBDState *s = ADB_KEYBOARD(dev);
+    s->realize(dev, errp);
+}
+
+void KBDState::initfn(Object *obj)
 {
     ADBDevice *d = ADB_DEVICE(obj);
 
     d->devaddr = ADB_DEVID_KEYBOARD;
 }
 
-static void adb_kbd_class_init(ObjectClass *oc, const void *data)
+static void adb_kbd_initfn(Object *obj)
+{
+    KBDState *s = ADB_KEYBOARD(obj);
+    s->initfn(obj);
+}
+
+void KBDState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);
@@ -403,7 +455,7 @@ static const TypeInfo adb_kbd_type_info = {
     .instance_size = sizeof(KBDState),
     .instance_init = adb_kbd_initfn,
     .class_size = sizeof(ADBKeyboardClass),
-    .class_init = adb_kbd_class_init,
+    .class_init = KBDState::classInit,
 };
 
 static void adb_kbd_register_types(void)

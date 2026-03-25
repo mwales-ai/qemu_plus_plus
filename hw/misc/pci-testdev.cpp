@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "qemu/event_notifier.h"
@@ -92,6 +93,24 @@ struct PCITestDevState {
     uint64_t membar_size;
     bool membar_backed;
     MemoryRegion membar;
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWriteImpl(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size, int type);
+    static void mmioWriteMmio(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size);
+    static void mmioWritePio(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned size);
+
+    /* Instance methods */
+    void resetDev();
+    void realize(PCIDevice *pci_dev, Error **errp);
+    void uninit(PCIDevice *dev);
+    void reset(DeviceState *dev);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_PCI_TEST_DEV "pci-testdev"
@@ -133,14 +152,13 @@ static void pci_testdev_stop(IOTest *test)
                               &test->notifier);
 }
 
-static void
-pci_testdev_reset(PCITestDevState *d)
+void PCITestDevState::resetDev()
 {
-    if (d->current == -1) {
+    if (current == -1) {
         return;
     }
-    pci_testdev_stop(&d->tests[d->current]);
-    d->current = -1;
+    pci_testdev_stop(&tests[current]);
+    current = -1;
 }
 
 static void pci_testdev_inc(IOTest *test, unsigned inc)
@@ -149,16 +167,15 @@ static void pci_testdev_inc(IOTest *test, unsigned inc)
     test->hdr->count = cpu_to_le32(c + inc);
 }
 
-static void
-pci_testdev_write(void *opaque, hwaddr addr, uint64_t val,
-                  unsigned size, int type)
+void PCITestDevState::mmioWriteImpl(void *opaque, hwaddr addr, uint64_t val,
+                                     unsigned size, int type)
 {
     PCITestDevState *d = static_cast<PCITestDevState *>(opaque);
     IOTest *test;
     int t, r;
 
     if (addr == offsetof(PCITestDevHdr, test)) {
-        pci_testdev_reset(d);
+        d->resetDev();
         if (val >= IOTEST_MAX_TEST) {
             return;
         }
@@ -186,8 +203,7 @@ pci_testdev_write(void *opaque, hwaddr addr, uint64_t val,
     pci_testdev_inc(test, 1);
 }
 
-static uint64_t
-pci_testdev_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t PCITestDevState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     PCITestDevState *d = static_cast<PCITestDevState *>(opaque);
     const char *buf;
@@ -206,23 +222,21 @@ pci_testdev_read(void *opaque, hwaddr addr, unsigned size)
     return buf[addr];
 }
 
-static void
-pci_testdev_mmio_write(void *opaque, hwaddr addr, uint64_t val,
-                       unsigned size)
+void PCITestDevState::mmioWriteMmio(void *opaque, hwaddr addr, uint64_t val,
+                                     unsigned size)
 {
-    pci_testdev_write(opaque, addr, val, size, 0);
+    PCITestDevState::mmioWriteImpl(opaque, addr, val, size, 0);
 }
 
-static void
-pci_testdev_pio_write(void *opaque, hwaddr addr, uint64_t val,
-                       unsigned size)
+void PCITestDevState::mmioWritePio(void *opaque, hwaddr addr, uint64_t val,
+                                    unsigned size)
 {
-    pci_testdev_write(opaque, addr, val, size, 1);
+    PCITestDevState::mmioWriteImpl(opaque, addr, val, size, 1);
 }
 
 static const MemoryRegionOps pci_testdev_mmio_ops = {
-    .read = pci_testdev_read,
-    .write = pci_testdev_mmio_write,
+    .read = PCITestDevState::mmioRead,
+    .write = PCITestDevState::mmioWriteMmio,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -231,8 +245,8 @@ static const MemoryRegionOps pci_testdev_mmio_ops = {
 };
 
 static const MemoryRegionOps pci_testdev_pio_ops = {
-    .read = pci_testdev_read,
-    .write = pci_testdev_pio_write,
+    .read = PCITestDevState::mmioRead,
+    .write = PCITestDevState::mmioWritePio,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -240,7 +254,7 @@ static const MemoryRegionOps pci_testdev_pio_ops = {
     },
 };
 
-static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
+void PCITestDevState::realize(PCIDevice *pci_dev, Error **errp)
 {
     PCITestDevState *d = PCI_TEST_DEV(pci_dev);
     uint8_t *pci_conf;
@@ -305,13 +319,18 @@ static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
     }
 }
 
-static void
-pci_testdev_uninit(PCIDevice *dev)
+static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
+{
+    PCITestDevState *d = PCI_TEST_DEV(pci_dev);
+    d->realize(pci_dev, errp);
+}
+
+void PCITestDevState::uninit(PCIDevice *dev)
 {
     PCITestDevState *d = PCI_TEST_DEV(dev);
     size_t i;
 
-    pci_testdev_reset(d);
+    d->resetDev();
     for (i = 0; i < IOTEST_MAX; ++i) {
         if (d->tests[i].hasnotifier) {
             event_notifier_cleanup(&d->tests[i].notifier);
@@ -321,10 +340,22 @@ pci_testdev_uninit(PCIDevice *dev)
     g_free(d->tests);
 }
 
+static void pci_testdev_uninit(PCIDevice *dev)
+{
+    PCITestDevState *d = PCI_TEST_DEV(dev);
+    d->uninit(dev);
+}
+
+void PCITestDevState::reset(DeviceState *dev)
+{
+    PCITestDevState *d = PCI_TEST_DEV(dev);
+    d->resetDev();
+}
+
 static void qdev_pci_testdev_reset(DeviceState *dev)
 {
     PCITestDevState *d = PCI_TEST_DEV(dev);
-    pci_testdev_reset(d);
+    d->reset(dev);
 }
 
 static const Property pci_testdev_properties[] = {
@@ -332,7 +363,7 @@ static const Property pci_testdev_properties[] = {
     DEFINE_PROP_BOOL("membar-backed", PCITestDevState, membar_backed, false),
 };
 
-static void pci_testdev_class_init(ObjectClass *klass, const void *data)
+void PCITestDevState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -358,7 +389,7 @@ static const TypeInfo pci_testdev_info = {
     .name          = TYPE_PCI_TEST_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCITestDevState),
-    .class_init    = pci_testdev_class_init,
+    .class_init    = PCITestDevState::classInit,
     .interfaces = pci_testdev_interfaces,
 };
 

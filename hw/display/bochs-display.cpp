@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "hw/pci/pci_device.h"
@@ -54,6 +55,28 @@ struct BochsDisplayState {
 
     /* device state */
     BochsDisplayMode mode;
+
+    /* Static MMIO callbacks */
+    static uint64_t vbeRead(void *ptr, hwaddr addr, unsigned size);
+    static void vbeWrite(void *ptr, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t qextRead(void *ptr, hwaddr addr, unsigned size);
+    static void qextWrite(void *ptr, hwaddr addr, uint64_t val, unsigned size);
+
+    /* Static display callback */
+    static void updateDisplay(void *opaque);
+
+    /* Instance methods */
+    int getMode(BochsDisplayMode *mode);
+    void realize(PCIDevice *dev, Error **errp);
+    void exit(PCIDevice *dev);
+    void initfn(Object *obj);
+
+    /* Static QOM property callbacks */
+    static bool getBigEndianFb(Object *obj, Error **errp);
+    static void setBigEndianFb(Object *obj, bool value, Error **errp);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_BOCHS_DISPLAY "bochs-display"
@@ -71,8 +94,7 @@ static const VMStateDescription vmstate_bochs_display = {
     .fields = vmstate_bochs_display_fields,
 };
 
-static uint64_t bochs_display_vbe_read(void *ptr, hwaddr addr,
-                                       unsigned size)
+uint64_t BochsDisplayState::vbeRead(void *ptr, hwaddr addr, unsigned size)
 {
     BochsDisplayState *s = static_cast<BochsDisplayState *>(ptr);
     unsigned int index = addr >> 1;
@@ -90,8 +112,8 @@ static uint64_t bochs_display_vbe_read(void *ptr, hwaddr addr,
     return s->vbe_regs[index];
 }
 
-static void bochs_display_vbe_write(void *ptr, hwaddr addr,
-                                    uint64_t val, unsigned size)
+void BochsDisplayState::vbeWrite(void *ptr, hwaddr addr,
+                                  uint64_t val, unsigned size)
 {
     BochsDisplayState *s = static_cast<BochsDisplayState *>(ptr);
     unsigned int index = addr >> 1;
@@ -103,15 +125,14 @@ static void bochs_display_vbe_write(void *ptr, hwaddr addr,
 }
 
 static const MemoryRegionOps bochs_display_vbe_ops = {
-    .read = bochs_display_vbe_read,
-    .write = bochs_display_vbe_write,
+    .read = BochsDisplayState::vbeRead,
+    .write = BochsDisplayState::vbeWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4 },
     .impl = { .min_access_size = 2, .max_access_size = 2 },
 };
 
-static uint64_t bochs_display_qext_read(void *ptr, hwaddr addr,
-                                        unsigned size)
+uint64_t BochsDisplayState::qextRead(void *ptr, hwaddr addr, unsigned size)
 {
     BochsDisplayState *s = static_cast<BochsDisplayState *>(ptr);
 
@@ -126,8 +147,8 @@ static uint64_t bochs_display_qext_read(void *ptr, hwaddr addr,
     }
 }
 
-static void bochs_display_qext_write(void *ptr, hwaddr addr,
-                                     uint64_t val, unsigned size)
+void BochsDisplayState::qextWrite(void *ptr, hwaddr addr,
+                                   uint64_t val, unsigned size)
 {
     BochsDisplayState *s = static_cast<BochsDisplayState *>(ptr);
 
@@ -144,16 +165,15 @@ static void bochs_display_qext_write(void *ptr, hwaddr addr,
 }
 
 static const MemoryRegionOps bochs_display_qext_ops = {
-    .read = bochs_display_qext_read,
-    .write = bochs_display_qext_write,
+    .read = BochsDisplayState::qextRead,
+    .write = BochsDisplayState::qextWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 4, .max_access_size = 4 },
 };
 
-static int bochs_display_get_mode(BochsDisplayState *s,
-                                   BochsDisplayMode *mode)
+int BochsDisplayState::getMode(BochsDisplayMode *mode)
 {
-    uint16_t *vbe = s->vbe_regs;
+    uint16_t *vbe = vbe_regs;
     uint32_t virt_width;
 
     if (!(vbe[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED)) {
@@ -168,7 +188,7 @@ static int bochs_display_get_mode(BochsDisplayState *s,
         mode->bytepp = 2;
         break;
     case 32:
-        mode->format = s->big_endian_fb
+        mode->format = big_endian_fb
             ? PIXMAN_BE_x8r8g8b8
             : PIXMAN_LE_x8r8g8b8;
         mode->bytepp = 4;
@@ -193,13 +213,13 @@ static int bochs_display_get_mode(BochsDisplayState *s,
     if (mode->width < 64 || mode->height < 64) {
         return -1;
     }
-    if (mode->offset + mode->size > s->vgamem) {
+    if (mode->offset + mode->size > vgamem) {
         return -1;
     }
     return 0;
 }
 
-static void bochs_display_update(void *opaque)
+void BochsDisplayState::updateDisplay(void *opaque)
 {
     BochsDisplayState *s = static_cast<BochsDisplayState *>(opaque);
     DirtyBitmapSnapshot *snap = NULL;
@@ -210,7 +230,7 @@ static void bochs_display_update(void *opaque)
     bool dirty;
     int y, ys, ret;
 
-    ret = bochs_display_get_mode(s, &mode);
+    ret = s->getMode(&mode);
     if (ret < 0) {
         /* no (valid) video mode */
         return;
@@ -259,10 +279,10 @@ static void bochs_display_update(void *opaque)
 }
 
 static const GraphicHwOps bochs_display_gfx_ops = {
-    .gfx_update = bochs_display_update,
+    .gfx_update = BochsDisplayState::updateDisplay,
 };
 
-static void bochs_display_realize(PCIDevice *dev, Error **errp)
+void BochsDisplayState::realize(PCIDevice *dev, Error **errp)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(dev);
     Object *obj = OBJECT(dev);
@@ -312,38 +332,55 @@ static void bochs_display_realize(PCIDevice *dev, Error **errp)
     memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
 }
 
-static bool bochs_display_get_big_endian_fb(Object *obj, Error **errp)
+static void bochs_display_realize(PCIDevice *dev, Error **errp)
+{
+    BochsDisplayState *s = BOCHS_DISPLAY(dev);
+    s->realize(dev, errp);
+}
+
+bool BochsDisplayState::getBigEndianFb(Object *obj, Error **errp)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(obj);
 
     return s->big_endian_fb;
 }
 
-static void bochs_display_set_big_endian_fb(Object *obj, bool value,
-                                            Error **errp)
+void BochsDisplayState::setBigEndianFb(Object *obj, bool value, Error **errp)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(obj);
 
     s->big_endian_fb = value;
 }
 
-static void bochs_display_init(Object *obj)
+void BochsDisplayState::initfn(Object *obj)
 {
     PCIDevice *dev = PCI_DEVICE(obj);
 
     /* Expose framebuffer byteorder via QOM */
     object_property_add_bool(obj, "big-endian-framebuffer",
-                             bochs_display_get_big_endian_fb,
-                             bochs_display_set_big_endian_fb);
+                             BochsDisplayState::getBigEndianFb,
+                             BochsDisplayState::setBigEndianFb);
 
     dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+}
+
+static void bochs_display_init(Object *obj)
+{
+    BochsDisplayState *s = BOCHS_DISPLAY(obj);
+    s->initfn(obj);
+}
+
+void BochsDisplayState::exit(PCIDevice *dev)
+{
+    BochsDisplayState *s = BOCHS_DISPLAY(dev);
+
+    graphic_console_close(s->con);
 }
 
 static void bochs_display_exit(PCIDevice *dev)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(dev);
-
-    graphic_console_close(s->con);
+    s->exit(dev);
 }
 
 static const Property bochs_display_properties[] = {
@@ -352,7 +389,7 @@ static const Property bochs_display_properties[] = {
     DEFINE_EDID_PROPERTIES(BochsDisplayState, edid_info),
 };
 
-static void bochs_display_class_init(ObjectClass *klass, const void *data)
+void BochsDisplayState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -380,7 +417,7 @@ static const TypeInfo bochs_display_type_info = {
     .parent         = TYPE_PCI_DEVICE,
     .instance_size  = sizeof(BochsDisplayState),
     .instance_init  = bochs_display_init,
-    .class_init     = bochs_display_class_init,
+    .class_init     = BochsDisplayState::classInit,
     .interfaces     = bochs_display_interfaces,
 };
 

@@ -18,6 +18,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
@@ -60,12 +62,24 @@ struct Exynos4210ClkState {
 
     MemoryRegion iomem;
     uint32_t reg[EXYNOS4210_REGS_NUM];
+
+    /* Instance methods */
+    void instanceInit();
+    void reset();
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t val,
+                          unsigned size);
+
+    /* Class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static uint64_t exynos4210_clk_read(void *opaque, hwaddr offset,
-                                    unsigned size)
+uint64_t Exynos4210ClkState::mmioRead(void *opaque, hwaddr offset,
+                                       unsigned size)
 {
-    const Exynos4210ClkState *s = (Exynos4210ClkState *)opaque;
+    const Exynos4210ClkState *s = static_cast<Exynos4210ClkState *>(opaque);
     const Exynos4210Reg *regs = exynos4210_clk_regs;
     unsigned int i;
 
@@ -80,10 +94,10 @@ static uint64_t exynos4210_clk_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void exynos4210_clk_write(void *opaque, hwaddr offset,
-                                 uint64_t val, unsigned size)
+void Exynos4210ClkState::mmioWrite(void *opaque, hwaddr offset,
+                                    uint64_t val, unsigned size)
 {
-    Exynos4210ClkState *s = (Exynos4210ClkState *)opaque;
+    Exynos4210ClkState *s = static_cast<Exynos4210ClkState *>(opaque);
     const Exynos4210Reg *regs = exynos4210_clk_regs;
     unsigned int i;
 
@@ -99,8 +113,8 @@ static void exynos4210_clk_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps exynos4210_clk_ops = {
-    .read = exynos4210_clk_read,
-    .write = exynos4210_clk_write,
+    .read = Exynos4210ClkState::mmioRead,
+    .write = Exynos4210ClkState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -112,23 +126,31 @@ static const MemoryRegionOps exynos4210_clk_ops = {
 static void exynos4210_clk_reset(DeviceState *dev)
 {
     Exynos4210ClkState *s = EXYNOS4210_CLK(dev);
+    s->reset();
+}
+
+void Exynos4210ClkState::reset()
+{
     unsigned int i;
 
     /* Set default values for registers */
     for (i = 0; i < EXYNOS4210_REGS_NUM; i++) {
-        s->reg[i] = exynos4210_clk_regs[i].reset_value;
+        reg[i] = exynos4210_clk_regs[i].reset_value;
     }
 }
 
 static void exynos4210_clk_init(Object *obj)
 {
     Exynos4210ClkState *s = EXYNOS4210_CLK(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    s->instanceInit();
+}
 
+void Exynos4210ClkState::instanceInit()
+{
     /* memory mapping */
-    memory_region_init_io(&s->iomem, obj, &exynos4210_clk_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_clk_ops, this,
                           TYPE_EXYNOS4210_CLK, EXYNOS4210_CLK_REGS_MEM_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const VMStateDescription exynos4210_clk_vmstate = {
@@ -141,7 +163,7 @@ static const VMStateDescription exynos4210_clk_vmstate = {
     }
 };
 
-static void exynos4210_clk_class_init(ObjectClass *klass, const void *data)
+void Exynos4210ClkState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -154,7 +176,7 @@ static const TypeInfo exynos4210_clk_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210ClkState),
     .instance_init = exynos4210_clk_init,
-    .class_init    = exynos4210_clk_class_init,
+    .class_init    = Exynos4210ClkState::classInit,
 };
 
 static void exynos4210_clk_register(void)

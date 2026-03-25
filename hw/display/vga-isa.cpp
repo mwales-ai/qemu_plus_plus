@@ -25,6 +25,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/isa/isa.h"
 #include "vga_int.h"
 #include "ui/pixel_ops.h"
@@ -44,42 +46,57 @@ struct ISAVGAState {
     struct VGACommonState state;
     PortioList portio_vga;
     PortioList portio_vbe;
+
+    /* Instance methods */
+    void reset();
+    void realize(Error **errp);
+
+    /* Class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void vga_isa_reset(DeviceState *dev)
 {
     ISAVGAState *d = ISA_VGA(dev);
-    VGACommonState *s = &d->state;
+    d->reset();
+}
 
-    vga_common_reset(s);
+void ISAVGAState::reset()
+{
+    vga_common_reset(&state);
 }
 
 static void vga_isa_realizefn(DeviceState *dev, Error **errp)
 {
-    ISADevice *isadev = ISA_DEVICE(dev);
     ISAVGAState *d = ISA_VGA(dev);
-    VGACommonState *s = &d->state;
+    d->realize(errp);
+}
+
+void ISAVGAState::realize(Error **errp)
+{
+    ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+    VGACommonState *s = &state;
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
 
     s->global_vmstate = true;
-    if (!vga_common_init(s, OBJECT(dev), errp)) {
+    if (!vga_common_init(s, OBJECT(this), errp)) {
         return;
     }
 
     s->legacy_address_space = isa_address_space(isadev);
-    vga_io_memory = vga_init_io(s, OBJECT(dev), &vga_ports, &vbe_ports);
-    isa_register_portio_list(isadev, &d->portio_vga,
+    vga_io_memory = vga_init_io(s, OBJECT(this), &vga_ports, &vbe_ports);
+    isa_register_portio_list(isadev, &portio_vga,
                              0x3b0, vga_ports, s, "vga");
     if (vbe_ports) {
-        isa_register_portio_list(isadev, &d->portio_vbe,
+        isa_register_portio_list(isadev, &portio_vbe,
                                  0x1ce, vbe_ports, s, "vbe");
     }
     memory_region_add_subregion_overlap(isa_address_space(isadev),
                                         0x000a0000,
                                         vga_io_memory, 1);
     memory_region_set_coalescing(vga_io_memory);
-    s->con = graphic_console_init(dev, 0, s->hw_ops, s);
+    s->con = graphic_console_init(DEVICE(this), 0, s->hw_ops, s);
 
     memory_region_add_subregion(isa_address_space(isadev),
                                 VBE_DISPI_LFB_PHYSICAL_ADDRESS,
@@ -92,7 +109,7 @@ static const Property vga_isa_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 8),
 };
 
-static void vga_isa_class_initfn(ObjectClass *klass, const void *data)
+void ISAVGAState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -107,7 +124,7 @@ static const TypeInfo vga_isa_info = {
     .name          = TYPE_ISA_VGA,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAVGAState),
-    .class_init    = vga_isa_class_initfn,
+    .class_init    = ISAVGAState::classInit,
 };
 
 static void vga_isa_register_types(void)

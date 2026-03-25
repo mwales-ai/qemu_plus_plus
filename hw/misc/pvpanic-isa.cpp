@@ -13,6 +13,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "qemu/module.h"
 #include "system/runstate.h"
 
@@ -34,20 +36,39 @@ struct PVPanicISAState {
 
     uint16_t ioport;
     PVPanicState pvpanic;
+
+    /* Instance methods */
+    void instanceInit();
+    void realize(Error **errp);
+
+    /* Static callbacks */
+    static void buildDevAml(AcpiDevAmlIf *adev, Aml *scope);
+
+    /* Class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void pvpanic_isa_initfn(Object *obj)
 {
     PVPanicISAState *s = PVPANIC_ISA_DEVICE(obj);
+    s->instanceInit();
+}
 
-    pvpanic_setup_io(&s->pvpanic, DEVICE(s), 1);
+void PVPanicISAState::instanceInit()
+{
+    pvpanic_setup_io(&pvpanic, DEVICE(this), 1);
 }
 
 static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
 {
-    ISADevice *d = ISA_DEVICE(dev);
     PVPanicISAState *s = PVPANIC_ISA_DEVICE(dev);
-    PVPanicState *ps = &s->pvpanic;
+    s->realize(errp);
+}
+
+void PVPanicISAState::realize(Error **errp)
+{
+    ISADevice *d = ISA_DEVICE(DEVICE(this));
+    PVPanicState *ps = &pvpanic;
     FWCfgState *fw_cfg = fw_cfg_find();
     uint16_t *pvpanic_port;
 
@@ -56,14 +77,14 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
     }
 
     pvpanic_port = static_cast<uint16_t *>(g_malloc(sizeof(*pvpanic_port)));
-    *pvpanic_port = cpu_to_le16(s->ioport);
+    *pvpanic_port = cpu_to_le16(ioport);
     fw_cfg_add_file(fw_cfg, "etc/pvpanic-port", pvpanic_port,
                     sizeof(*pvpanic_port));
 
-    isa_register_ioport(d, &ps->mr, s->ioport);
+    isa_register_ioport(d, &ps->mr, ioport);
 }
 
-static void build_pvpanic_isa_aml(AcpiDevAmlIf *adev, Aml *scope)
+void PVPanicISAState::buildDevAml(AcpiDevAmlIf *adev, Aml *scope)
 {
     Aml *crs, *field, *method;
     PVPanicISAState *s = PVPANIC_ISA_DEVICE(adev);
@@ -104,7 +125,7 @@ static const Property pvpanic_isa_properties[] = {
                       PVPANIC_EVENTS),
 };
 
-static void pvpanic_isa_class_init(ObjectClass *klass, const void *data)
+void PVPanicISAState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
@@ -112,7 +133,7 @@ static void pvpanic_isa_class_init(ObjectClass *klass, const void *data)
     dc->realize = pvpanic_isa_realizefn;
     device_class_set_props(dc, pvpanic_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    adevc->build_dev_aml = build_pvpanic_isa_aml;
+    adevc->build_dev_aml = PVPanicISAState::buildDevAml;
 }
 
 static const InterfaceInfo pvpanic_isa_interfaces[] = {
@@ -125,7 +146,7 @@ static const TypeInfo pvpanic_isa_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PVPanicISAState),
     .instance_init = pvpanic_isa_initfn,
-    .class_init    = pvpanic_isa_class_init,
+    .class_init    = PVPanicISAState::classInit,
     .interfaces = pvpanic_isa_interfaces,
 };
 

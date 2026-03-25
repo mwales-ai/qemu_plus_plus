@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "hw/loader.h"
@@ -42,10 +44,22 @@ struct NeXTFbState {
     uint32_t cols;
     uint32_t rows;
     int invalidate;
+
+    /* Instance methods */
+    void realize(Error **errp);
+
+    /* Static callbacks */
+    static void drawLine(void *opaque, uint8_t *d, const uint8_t *s,
+                         int width, int pitch);
+    static void gfxUpdate(void *opaque);
+    static void gfxInvalidate(void *opaque);
+
+    /* Class methods */
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
-static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
-                             int width, int pitch)
+void NeXTFbState::drawLine(void *opaque, uint8_t *d, const uint8_t *s,
+                            int width, int pitch)
 {
     NeXTFbState *nfbstate = NEXTFB(opaque);
     static const uint32_t pal[4] = {
@@ -54,7 +68,7 @@ static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
     uint32_t *buf = (uint32_t *)d;
     int i = 0;
 
-    for (i = 0; i < nfbstate->cols / 4; i++) {
+    for (i = 0; i < static_cast<int>(nfbstate->cols) / 4; i++) {
         int j = i * 4;
         uint8_t src = s[i];
         buf[j + 3] = pal[src & 0x3];
@@ -67,7 +81,7 @@ static void nextfb_draw_line(void *opaque, uint8_t *d, const uint8_t *s,
     }
 }
 
-static void nextfb_update(void *opaque)
+void NeXTFbState::gfxUpdate(void *opaque)
 {
     NeXTFbState *s = NEXTFB(opaque);
     int dest_width = 4;
@@ -86,45 +100,50 @@ static void nextfb_update(void *opaque)
     }
 
     framebuffer_update_display(surface, &s->fbsection, s->cols, s->rows,
-                               src_width, dest_width, 0, 1, nextfb_draw_line,
+                               src_width, dest_width, 0, 1,
+                               NeXTFbState::drawLine,
                                s, &first, &last);
 
     dpy_gfx_update(s->con, 0, 0, s->cols, s->rows);
 }
 
-static void nextfb_invalidate(void *opaque)
+void NeXTFbState::gfxInvalidate(void *opaque)
 {
     NeXTFbState *s = NEXTFB(opaque);
     s->invalidate = 1;
 }
 
 static const GraphicHwOps nextfb_ops = {
-    .invalidate  = nextfb_invalidate,
-    .gfx_update  = nextfb_update,
+    .invalidate  = NeXTFbState::gfxInvalidate,
+    .gfx_update  = NeXTFbState::gfxUpdate,
 };
 
-static void nextfb_realize(DeviceState *dev, Error **errp)
+static void nextfb_realizefn(DeviceState *dev, Error **errp)
 {
     NeXTFbState *s = NEXTFB(dev);
-
-    memory_region_init_ram(&s->fb_mr, OBJECT(dev), "next-video", 0x1CB100,
-                           &error_fatal);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->fb_mr);
-
-    s->invalidate = 1;
-    s->cols = 1120;
-    s->rows = 832;
-
-    s->con = graphic_console_init(dev, 0, &nextfb_ops, s);
-    qemu_console_resize(s->con, s->cols, s->rows);
+    s->realize(errp);
 }
 
-static void nextfb_class_init(ObjectClass *oc, const void *data)
+void NeXTFbState::realize(Error **errp)
+{
+    memory_region_init_ram(&fb_mr, OBJECT(this), "next-video", 0x1CB100,
+                           &error_fatal);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &fb_mr);
+
+    invalidate = 1;
+    cols = 1120;
+    rows = 832;
+
+    con = graphic_console_init(DEVICE(this), 0, &nextfb_ops, this);
+    qemu_console_resize(con, cols, rows);
+}
+
+void NeXTFbState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->realize = nextfb_realize;
+    dc->realize = nextfb_realizefn;
 
     /* Note: This device does not have any state that we have to reset or migrate */
 }
@@ -133,7 +152,7 @@ static const TypeInfo nextfb_info = {
     .name          = TYPE_NEXTFB,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(NeXTFbState),
-    .class_init    = nextfb_class_init,
+    .class_init    = NeXTFbState::classInit,
 };
 
 static void nextfb_register_types(void)

@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -205,6 +206,19 @@ struct SP804State {
     uint32_t freq0, freq1;
     int level[2];
     qemu_irq irq;
+
+    /* Static MMIO callbacks */
+    static void setIrq(void *opaque, int irq, int level);
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
+                          unsigned size);
+
+    /* Instance methods */
+    void initfn(Object *obj);
+    void realize(DeviceState *dev, Error **errp);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const uint8_t sp804_ids[] = {
@@ -215,18 +229,17 @@ static const uint8_t sp804_ids[] = {
 };
 
 /* Merge the IRQs from the two component devices.  */
-static void sp804_set_irq(void *opaque, int irq, int level)
+void SP804State::setIrq(void *opaque, int irq, int level)
 {
-    SP804State *s = (SP804State *)opaque;
+    SP804State *s = static_cast<SP804State *>(opaque);
 
     s->level[irq] = level;
     qemu_set_irq(s->irq, s->level[0] || s->level[1]);
 }
 
-static uint64_t sp804_read(void *opaque, hwaddr offset,
-                           unsigned size)
+uint64_t SP804State::mmioRead(void *opaque, hwaddr offset, unsigned size)
 {
-    SP804State *s = (SP804State *)opaque;
+    SP804State *s = static_cast<SP804State *>(opaque);
 
     if (offset < 0x20) {
         return arm_timer_read(s->timer[0], offset);
@@ -255,10 +268,10 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void sp804_write(void *opaque, hwaddr offset,
-                        uint64_t value, unsigned size)
+void SP804State::mmioWrite(void *opaque, hwaddr offset,
+                            uint64_t value, unsigned size)
 {
-    SP804State *s = (SP804State *)opaque;
+    SP804State *s = static_cast<SP804State *>(opaque);
 
     if (offset < 0x20) {
         arm_timer_write(s->timer[0], offset, value);
@@ -276,8 +289,8 @@ static void sp804_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps sp804_ops = {
-    .read = sp804_read,
-    .write = sp804_write,
+    .read = SP804State::mmioRead,
+    .write = SP804State::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -293,7 +306,7 @@ static const VMStateDescription vmstate_sp804 = {
     .fields = vmstate_sp804_fields,
 };
 
-static void sp804_init(Object *obj)
+void SP804State::initfn(Object *obj)
 {
     SP804State *s = SP804(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
@@ -304,14 +317,26 @@ static void sp804_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void sp804_realize(DeviceState *dev, Error **errp)
+static void sp804_init(Object *obj)
+{
+    SP804State *s = SP804(obj);
+    s->initfn(obj);
+}
+
+void SP804State::realize(DeviceState *dev, Error **errp)
 {
     SP804State *s = SP804(dev);
 
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
-    s->timer[0]->irq = qemu_allocate_irq(sp804_set_irq, s, 0);
-    s->timer[1]->irq = qemu_allocate_irq(sp804_set_irq, s, 1);
+    s->timer[0]->irq = qemu_allocate_irq(SP804State::setIrq, s, 0);
+    s->timer[1]->irq = qemu_allocate_irq(SP804State::setIrq, s, 1);
+}
+
+static void sp804_realize(DeviceState *dev, Error **errp)
+{
+    SP804State *s = SP804(dev);
+    s->realize(dev, errp);
 }
 
 /* Integrator/CP timer module.  */
@@ -324,12 +349,19 @@ struct icp_pit_state {
 
     MemoryRegion iomem;
     arm_timer_state *timer[3];
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
+                          unsigned size);
+
+    /* Instance methods */
+    void initfn(Object *obj);
 };
 
-static uint64_t icp_pit_read(void *opaque, hwaddr offset,
-                             unsigned size)
+uint64_t icp_pit_state::mmioRead(void *opaque, hwaddr offset, unsigned size)
 {
-    icp_pit_state *s = (icp_pit_state *)opaque;
+    icp_pit_state *s = static_cast<icp_pit_state *>(opaque);
     int n;
 
     /* ??? Don't know the PrimeCell ID for this device.  */
@@ -342,10 +374,10 @@ static uint64_t icp_pit_read(void *opaque, hwaddr offset,
     return arm_timer_read(s->timer[n], offset & 0xff);
 }
 
-static void icp_pit_write(void *opaque, hwaddr offset,
-                          uint64_t value, unsigned size)
+void icp_pit_state::mmioWrite(void *opaque, hwaddr offset,
+                               uint64_t value, unsigned size)
 {
-    icp_pit_state *s = (icp_pit_state *)opaque;
+    icp_pit_state *s = static_cast<icp_pit_state *>(opaque);
     int n;
 
     n = offset >> 8;
@@ -358,12 +390,12 @@ static void icp_pit_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps icp_pit_ops = {
-    .read = icp_pit_read,
-    .write = icp_pit_write,
+    .read = icp_pit_state::mmioRead,
+    .write = icp_pit_state::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void icp_pit_init(Object *obj)
+void icp_pit_state::initfn(Object *obj)
 {
     icp_pit_state *s = INTEGRATOR_PIT(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
@@ -385,6 +417,12 @@ static void icp_pit_init(Object *obj)
        save themselves.  */
 }
 
+static void icp_pit_init(Object *obj)
+{
+    icp_pit_state *s = INTEGRATOR_PIT(obj);
+    s->initfn(obj);
+}
+
 static const TypeInfo icp_pit_info = {
     .name          = TYPE_INTEGRATOR_PIT,
     .parent        = TYPE_SYS_BUS_DEVICE,
@@ -397,7 +435,7 @@ static const Property sp804_properties[] = {
     DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
 };
 
-static void sp804_class_init(ObjectClass *klass, const void *data)
+void SP804State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 
@@ -411,7 +449,7 @@ static const TypeInfo sp804_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SP804State),
     .instance_init = sp804_init,
-    .class_init    = sp804_class_init,
+    .class_init    = SP804State::classInit,
 };
 
 static void arm_timer_register_types(void)

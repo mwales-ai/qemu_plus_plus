@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
@@ -137,9 +138,25 @@ struct ECCState {
     uint32_t regs[ECC_NREGS];
     uint8_t diag[ECC_DIAG_SIZE];
     uint32_t version;
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size);
+    static uint64_t diagRead(void *opaque, hwaddr addr, unsigned size);
+    static void diagWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size);
+
+    /* Instance methods */
+    void initfn(Object *obj);
+    void realize(DeviceState *dev, Error **errp);
+    void reset(DeviceState *d);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void ecc_mem_write(void *opaque, hwaddr addr, uint64_t val,
+void ECCState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
                           unsigned size)
 {
     ECCState *s = static_cast<ECCState *>(opaque);
@@ -182,8 +199,7 @@ static void ecc_mem_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static uint64_t ecc_mem_read(void *opaque, hwaddr addr,
-                             unsigned size)
+uint64_t ECCState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     ECCState *s = static_cast<ECCState *>(opaque);
     uint32_t ret = 0;
@@ -230,8 +246,8 @@ static uint64_t ecc_mem_read(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps ecc_mem_ops = {
-    .read = ecc_mem_read,
-    .write = ecc_mem_write,
+    .read = ECCState::mmioRead,
+    .write = ECCState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -239,8 +255,8 @@ static const MemoryRegionOps ecc_mem_ops = {
     },
 };
 
-static void ecc_diag_mem_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
+void ECCState::diagWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size)
 {
     ECCState *s = static_cast<ECCState *>(opaque);
 
@@ -248,8 +264,7 @@ static void ecc_diag_mem_write(void *opaque, hwaddr addr,
     s->diag[addr & ECC_DIAG_MASK] = val;
 }
 
-static uint64_t ecc_diag_mem_read(void *opaque, hwaddr addr,
-                                  unsigned size)
+uint64_t ECCState::diagRead(void *opaque, hwaddr addr, unsigned size)
 {
     ECCState *s = static_cast<ECCState *>(opaque);
     uint32_t ret = s->diag[(int)addr];
@@ -259,8 +274,8 @@ static uint64_t ecc_diag_mem_read(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps ecc_diag_mem_ops = {
-    .read = ecc_diag_mem_read,
-    .write = ecc_diag_mem_write,
+    .read = ECCState::diagRead,
+    .write = ECCState::diagWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -280,7 +295,7 @@ static const VMStateDescription vmstate_ecc = {
     }
 };
 
-static void ecc_reset(DeviceState *d)
+void ECCState::reset(DeviceState *d)
 {
     ECCState *s = ECC_MEMCTL(d);
 
@@ -300,7 +315,13 @@ static void ecc_reset(DeviceState *d)
     s->regs[ECC_ECR1] = 0;
 }
 
-static void ecc_init(Object *obj)
+static void ecc_reset(DeviceState *d)
+{
+    ECCState *s = ECC_MEMCTL(d);
+    s->reset(d);
+}
+
+void ECCState::initfn(Object *obj)
 {
     ECCState *s = ECC_MEMCTL(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
@@ -311,7 +332,13 @@ static void ecc_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static void ecc_realize(DeviceState *dev, Error **errp)
+static void ecc_init(Object *obj)
+{
+    ECCState *s = ECC_MEMCTL(obj);
+    s->initfn(obj);
+}
+
+void ECCState::realize(DeviceState *dev, Error **errp)
 {
     ECCState *s = ECC_MEMCTL(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
@@ -325,11 +352,17 @@ static void ecc_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static void ecc_realize(DeviceState *dev, Error **errp)
+{
+    ECCState *s = ECC_MEMCTL(dev);
+    s->realize(dev, errp);
+}
+
 static const Property ecc_properties[] = {
     DEFINE_PROP_UINT32("version", ECCState, version, -1),
 };
 
-static void ecc_class_init(ObjectClass *klass, const void *data)
+void ECCState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -344,7 +377,7 @@ static const TypeInfo ecc_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ECCState),
     .instance_init = ecc_init,
-    .class_init    = ecc_class_init,
+    .class_init    = ECCState::classInit,
 };
 
 

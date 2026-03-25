@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -83,11 +84,31 @@ struct CG3State {
     uint8_t r[256], g[256], b[256];
     uint16_t width, height, depth;
     uint8_t dac_index, dac_state;
+
+    /* Static MMIO callbacks */
+    static uint64_t regRead(void *opaque, hwaddr addr, unsigned size);
+    static void regWrite(void *opaque, hwaddr addr, uint64_t val,
+                         unsigned size);
+
+    /* Static display callbacks */
+    static void updateDisplay(void *opaque);
+    static void invalidateDisplay(void *opaque);
+
+    /* Static VMState callback */
+    static int postLoad(void *opaque, int version_id);
+
+    /* Instance methods */
+    void initfn(Object *obj);
+    void realize(DeviceState *dev, Error **errp);
+    void reset(DeviceState *d);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void cg3_update_display(void *opaque)
+void CG3State::updateDisplay(void *opaque)
 {
-    CG3State *s = opaque;
+    CG3State *s = static_cast<CG3State *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     const uint8_t *pix;
     uint32_t *data;
@@ -104,7 +125,7 @@ static void cg3_update_display(void *opaque)
     height = s->height;
 
     y_start = -1;
-    pix = memory_region_get_ram_ptr(&s->vram_mem);
+    pix = static_cast<const uint8_t *>(memory_region_get_ram_ptr(&s->vram_mem));
     data = (uint32_t *)surface_data(surface);
 
     if (!s->full_update) {
@@ -113,7 +134,7 @@ static void cg3_update_display(void *opaque)
                                               DIRTY_MEMORY_VGA);
     }
 
-    for (y = 0; y < height; y++) {
+    for (y = 0; y < (int)height; y++) {
         int update;
 
         page = (ram_addr_t)y * width;
@@ -130,7 +151,7 @@ static void cg3_update_display(void *opaque)
                 y_start = y;
             }
 
-            for (x = 0; x < width; x++) {
+            for (x = 0; x < (int)width; x++) {
                 dval = *pix++;
                 dval = (s->r[dval] << 16) | (s->g[dval] << 8) | s->b[dval];
                 *data++ = dval;
@@ -156,16 +177,16 @@ static void cg3_update_display(void *opaque)
     g_free(snap);
 }
 
-static void cg3_invalidate_display(void *opaque)
+void CG3State::invalidateDisplay(void *opaque)
 {
-    CG3State *s = opaque;
+    CG3State *s = static_cast<CG3State *>(opaque);
 
     memory_region_set_dirty(&s->vram_mem, 0, CG3_VRAM_SIZE);
 }
 
-static uint64_t cg3_reg_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t CG3State::regRead(void *opaque, hwaddr addr, unsigned size)
 {
-    CG3State *s = opaque;
+    CG3State *s = static_cast<CG3State *>(opaque);
     int val;
 
     switch (addr) {
@@ -196,10 +217,10 @@ static uint64_t cg3_reg_read(void *opaque, hwaddr addr, unsigned size)
     return val;
 }
 
-static void cg3_reg_write(void *opaque, hwaddr addr, uint64_t val,
-                          unsigned size)
+void CG3State::regWrite(void *opaque, hwaddr addr, uint64_t val,
+                         unsigned size)
 {
-    CG3State *s = opaque;
+    CG3State *s = static_cast<CG3State *>(opaque);
     uint8_t regval;
     int i;
 
@@ -215,7 +236,7 @@ static void cg3_reg_write(void *opaque, hwaddr addr, uint64_t val,
             val <<= 24;
         }
 
-        for (i = 0; i < size; i++) {
+        for (i = 0; i < (int)size; i++) {
             regval = val >> 24;
 
             switch (s->dac_state) {
@@ -263,8 +284,8 @@ static void cg3_reg_write(void *opaque, hwaddr addr, uint64_t val,
 }
 
 static const MemoryRegionOps cg3_reg_ops = {
-    .read = cg3_reg_read,
-    .write = cg3_reg_write,
+    .read = CG3State::regRead,
+    .write = CG3State::regWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -273,11 +294,11 @@ static const MemoryRegionOps cg3_reg_ops = {
 };
 
 static const GraphicHwOps cg3_ops = {
-    .invalidate = cg3_invalidate_display,
-    .gfx_update = cg3_update_display,
+    .invalidate = CG3State::invalidateDisplay,
+    .gfx_update = CG3State::updateDisplay,
 };
 
-static void cg3_initfn(Object *obj)
+void CG3State::initfn(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     CG3State *s = CG3(obj);
@@ -291,7 +312,13 @@ static void cg3_initfn(Object *obj)
     sysbus_init_mmio(sbd, &s->reg);
 }
 
-static void cg3_realizefn(DeviceState *dev, Error **errp)
+static void cg3_initfn(Object *obj)
+{
+    CG3State *s = CG3(obj);
+    s->initfn(obj);
+}
+
+void CG3State::realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     CG3State *s = CG3(dev);
@@ -320,11 +347,17 @@ static void cg3_realizefn(DeviceState *dev, Error **errp)
     qemu_console_resize(s->con, s->width, s->height);
 }
 
-static int vmstate_cg3_post_load(void *opaque, int version_id)
+static void cg3_realizefn(DeviceState *dev, Error **errp)
 {
-    CG3State *s = opaque;
+    CG3State *s = CG3(dev);
+    s->realize(dev, errp);
+}
 
-    cg3_invalidate_display(s);
+int CG3State::postLoad(void *opaque, int version_id)
+{
+    CG3State *s = static_cast<CG3State *>(opaque);
+
+    CG3State::invalidateDisplay(s);
 
     return 0;
 }
@@ -333,7 +366,7 @@ static const VMStateDescription vmstate_cg3 = {
     .name = "cg3",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = vmstate_cg3_post_load,
+    .post_load = CG3State::postLoad,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT16(height, CG3State),
         VMSTATE_UINT16(width, CG3State),
@@ -347,7 +380,7 @@ static const VMStateDescription vmstate_cg3 = {
     }
 };
 
-static void cg3_reset(DeviceState *d)
+void CG3State::reset(DeviceState *d)
 {
     CG3State *s = CG3(d);
 
@@ -361,6 +394,12 @@ static void cg3_reset(DeviceState *d)
     qemu_irq_lower(s->irq);
 }
 
+static void cg3_reset(DeviceState *d)
+{
+    CG3State *s = CG3(d);
+    s->reset(d);
+}
+
 static const Property cg3_properties[] = {
     DEFINE_PROP_UINT32("vram-size",    CG3State, vram_size, -1),
     DEFINE_PROP_UINT16("width",        CG3State, width,     -1),
@@ -368,7 +407,7 @@ static const Property cg3_properties[] = {
     DEFINE_PROP_UINT16("depth",        CG3State, depth,     -1),
 };
 
-static void cg3_class_init(ObjectClass *klass, const void *data)
+void CG3State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -383,7 +422,7 @@ static const TypeInfo cg3_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(CG3State),
     .instance_init = cg3_initfn,
-    .class_init    = cg3_class_init,
+    .class_init    = CG3State::classInit,
 };
 
 static void cg3_register_types(void)

@@ -31,6 +31,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "ui/console.h"
@@ -115,10 +116,31 @@ struct AppleSMCState {
     uint8_t data[255];
     char *osk;
     QLIST_HEAD(, AppleSMCData) data_def;
+
+    /* Static MMIO callbacks */
+    static void ioCmdWrite(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned size);
+    static void ioDataWrite(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned size);
+    static void ioErrWrite(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned size);
+    static uint64_t ioDataRead(void *opaque, hwaddr addr, unsigned size);
+    static uint64_t ioCmdRead(void *opaque, hwaddr addr, unsigned size);
+    static uint64_t ioErrRead(void *opaque, hwaddr addr, unsigned size);
+
+    /* Instance methods */
+    const struct AppleSMCData *findKey();
+    void addKey(const char *key, int len, const char *data);
+    void realize(DeviceState *dev, Error **errp);
+    void unrealize(DeviceState *dev);
+    void reset(DeviceState *dev);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
-                                  unsigned size)
+void AppleSMCState::ioCmdWrite(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
 {
     AppleSMCState *s = static_cast<AppleSMCState *>(opaque);
     uint8_t status = s->status & 0x0f;
@@ -145,20 +167,20 @@ static void applesmc_io_cmd_write(void *opaque, hwaddr addr, uint64_t val,
     s->data_pos = 0;
 }
 
-static const struct AppleSMCData *applesmc_find_key(AppleSMCState *s)
+const struct AppleSMCData *AppleSMCState::findKey()
 {
     struct AppleSMCData *d;
 
-    QLIST_FOREACH(d, &s->data_def, node) {
-        if (!memcmp(d->key, s->key, 4)) {
+    QLIST_FOREACH(d, &data_def, node) {
+        if (!memcmp(d->key, key, 4)) {
             return d;
         }
     }
     return NULL;
 }
 
-static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
-                                   unsigned size)
+void AppleSMCState::ioDataWrite(void *opaque, hwaddr addr, uint64_t val,
+                                 unsigned size)
 {
     AppleSMCState *s = static_cast<AppleSMCState *>(opaque);
     const struct AppleSMCData *d;
@@ -173,7 +195,7 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
             s->key[s->read_pos] = val;
             s->status = APPLESMC_ST_ACK;
         } else if (s->read_pos == 4) {
-            d = applesmc_find_key(s);
+            d = s->findKey();
             if (d != NULL) {
                 memcpy(s->data, d->data, d->len);
                 s->data_len = d->len;
@@ -195,14 +217,14 @@ static void applesmc_io_data_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static void applesmc_io_err_write(void *opaque, hwaddr addr, uint64_t val,
-                                  unsigned size)
+void AppleSMCState::ioErrWrite(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
 {
     smc_debug("ERR_CODE received: 0x%02x, ignoring!\n", (uint8_t)val);
     /* NOTE: writing to the error port not supported! */
 }
 
-static uint64_t applesmc_io_data_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t AppleSMCState::ioDataRead(void *opaque, hwaddr addr, unsigned size)
 {
     AppleSMCState *s = static_cast<AppleSMCState *>(opaque);
 
@@ -236,7 +258,7 @@ static uint64_t applesmc_io_data_read(void *opaque, hwaddr addr, unsigned size)
     return s->last_ret;
 }
 
-static uint64_t applesmc_io_cmd_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t AppleSMCState::ioCmdRead(void *opaque, hwaddr addr, unsigned size)
 {
     AppleSMCState *s = static_cast<AppleSMCState *>(opaque);
 
@@ -244,7 +266,7 @@ static uint64_t applesmc_io_cmd_read(void *opaque, hwaddr addr, unsigned size)
     return s->status;
 }
 
-static uint64_t applesmc_io_err_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t AppleSMCState::ioErrRead(void *opaque, hwaddr addr, unsigned size)
 {
     AppleSMCState *s = static_cast<AppleSMCState *>(opaque);
 
@@ -253,8 +275,7 @@ static uint64_t applesmc_io_err_read(void *opaque, hwaddr addr, unsigned size)
     return s->status_1e;
 }
 
-static void applesmc_add_key(AppleSMCState *s, const char *key,
-                             int len, const char *data)
+void AppleSMCState::addKey(const char *key, int len, const char *data)
 {
     struct AppleSMCData *def;
 
@@ -263,10 +284,10 @@ static void applesmc_add_key(AppleSMCState *s, const char *key,
     def->len = len;
     def->data = data;
 
-    QLIST_INSERT_HEAD(&s->data_def, def, node);
+    QLIST_INSERT_HEAD(&data_def, def, node);
 }
 
-static void qdev_applesmc_isa_reset(DeviceState *dev)
+void AppleSMCState::reset(DeviceState *dev)
 {
     AppleSMCState *s = APPLE_SMC(dev);
 
@@ -275,9 +296,15 @@ static void qdev_applesmc_isa_reset(DeviceState *dev)
     s->last_ret = 0x00;
 }
 
+static void qdev_applesmc_isa_reset(DeviceState *dev)
+{
+    AppleSMCState *s = APPLE_SMC(dev);
+    s->reset(dev);
+}
+
 static const MemoryRegionOps applesmc_data_io_ops = {
-    .read = applesmc_io_data_read,
-    .write = applesmc_io_data_write,
+    .read = AppleSMCState::ioDataRead,
+    .write = AppleSMCState::ioDataWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -286,8 +313,8 @@ static const MemoryRegionOps applesmc_data_io_ops = {
 };
 
 static const MemoryRegionOps applesmc_cmd_io_ops = {
-    .read = applesmc_io_cmd_read,
-    .write = applesmc_io_cmd_write,
+    .read = AppleSMCState::ioCmdRead,
+    .write = AppleSMCState::ioCmdWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -296,8 +323,8 @@ static const MemoryRegionOps applesmc_cmd_io_ops = {
 };
 
 static const MemoryRegionOps applesmc_err_io_ops = {
-    .read = applesmc_io_err_read,
-    .write = applesmc_io_err_write,
+    .read = AppleSMCState::ioErrRead,
+    .write = AppleSMCState::ioErrWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -305,7 +332,7 @@ static const MemoryRegionOps applesmc_err_io_ops = {
     },
 };
 
-static void applesmc_isa_realize(DeviceState *dev, Error **errp)
+void AppleSMCState::realize(DeviceState *dev, Error **errp)
 {
     AppleSMCState *s = APPLE_SMC(dev);
 
@@ -330,15 +357,21 @@ static void applesmc_isa_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->data_def);
-    applesmc_add_key(s, "REV ", 6, "\x01\x13\x0f\x00\x00\x03");
-    applesmc_add_key(s, "OSK0", 32, s->osk);
-    applesmc_add_key(s, "OSK1", 32, s->osk + 32);
-    applesmc_add_key(s, "NATJ", 1, "\0");
-    applesmc_add_key(s, "MSSP", 1, "\0");
-    applesmc_add_key(s, "MSSD", 1, "\0x3");
+    s->addKey("REV ", 6, "\x01\x13\x0f\x00\x00\x03");
+    s->addKey("OSK0", 32, s->osk);
+    s->addKey("OSK1", 32, s->osk + 32);
+    s->addKey("NATJ", 1, "\0");
+    s->addKey("MSSP", 1, "\0");
+    s->addKey("MSSD", 1, "\0x3");
 }
 
-static void applesmc_unrealize(DeviceState *dev)
+static void applesmc_isa_realize(DeviceState *dev, Error **errp)
+{
+    AppleSMCState *s = APPLE_SMC(dev);
+    s->realize(dev, errp);
+}
+
+void AppleSMCState::unrealize(DeviceState *dev)
 {
     AppleSMCState *s = APPLE_SMC(dev);
     struct AppleSMCData *d, *next;
@@ -348,6 +381,12 @@ static void applesmc_unrealize(DeviceState *dev)
         QLIST_REMOVE(d, node);
         g_free(d);
     }
+}
+
+static void applesmc_unrealize(DeviceState *dev)
+{
+    AppleSMCState *s = APPLE_SMC(dev);
+    s->unrealize(dev);
 }
 
 static const Property applesmc_isa_properties[] = {
@@ -375,7 +414,7 @@ static void build_applesmc_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-static void qdev_applesmc_class_init(ObjectClass *klass, const void *data)
+void AppleSMCState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
@@ -397,7 +436,7 @@ static const TypeInfo applesmc_isa_info = {
     .name          = TYPE_APPLE_SMC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(AppleSMCState),
-    .class_init    = qdev_applesmc_class_init,
+    .class_init    = AppleSMCState::classInit,
     .interfaces    = applesmc_isa_interfaces,
 };
 

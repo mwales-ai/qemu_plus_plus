@@ -19,6 +19,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -43,6 +45,18 @@ struct L2x0State {
     uint32_t tag_ctrl;
     uint32_t filter_start;
     uint32_t filter_end;
+
+    /* Instance methods */
+    void instanceInit();
+    void reset();
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
+                          unsigned size);
+
+    /* Class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateDescription vmstate_l2x0 = {
@@ -60,12 +74,10 @@ static const VMStateDescription vmstate_l2x0 = {
     }
 };
 
-
-static uint64_t l2x0_priv_read(void *opaque, hwaddr offset,
-                               unsigned size)
+uint64_t L2x0State::mmioRead(void *opaque, hwaddr offset, unsigned size)
 {
     uint32_t cache_data;
-    L2x0State *s = (L2x0State *)opaque;
+    L2x0State *s = static_cast<L2x0State *>(opaque);
     offset &= 0xfff;
     if (offset >= 0x730 && offset < 0x800) {
         return 0; /* cache ops complete */
@@ -104,10 +116,10 @@ static uint64_t l2x0_priv_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void l2x0_priv_write(void *opaque, hwaddr offset,
-                            uint64_t value, unsigned size)
+void L2x0State::mmioWrite(void *opaque, hwaddr offset,
+                           uint64_t value, unsigned size)
 {
-    L2x0State *s = (L2x0State *)opaque;
+    L2x0State *s = static_cast<L2x0State *>(opaque);
     offset &= 0xfff;
     if (offset >= 0x730 && offset < 0x800) {
         /* ignore */
@@ -148,36 +160,43 @@ static void l2x0_priv_write(void *opaque, hwaddr offset,
 static void l2x0_priv_reset(DeviceState *dev)
 {
     L2x0State *s = ARM_L2X0(dev);
+    s->reset();
+}
 
-    s->ctrl = 0;
-    s->aux_ctrl = 0x02020000;
-    s->tag_ctrl = 0;
-    s->data_ctrl = 0;
-    s->filter_start = 0;
-    s->filter_end = 0;
+void L2x0State::reset()
+{
+    ctrl = 0;
+    aux_ctrl = 0x02020000;
+    tag_ctrl = 0;
+    data_ctrl = 0;
+    filter_start = 0;
+    filter_end = 0;
 }
 
 static const MemoryRegionOps l2x0_mem_ops = {
-    .read = l2x0_priv_read,
-    .write = l2x0_priv_write,
+    .read = L2x0State::mmioRead,
+    .write = L2x0State::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
  };
 
 static void l2x0_priv_init(Object *obj)
 {
     L2x0State *s = ARM_L2X0(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    s->instanceInit();
+}
 
-    memory_region_init_io(&s->iomem, obj, &l2x0_mem_ops, s,
+void L2x0State::instanceInit()
+{
+    memory_region_init_io(&iomem, OBJECT(this), &l2x0_mem_ops, this,
                           "l2x0_cc", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const Property l2x0_properties[] = {
     DEFINE_PROP_UINT32("cache-type", L2x0State, cache_type, 0x1c100100),
 };
 
-static void l2x0_class_init(ObjectClass *klass, const void *data)
+void L2x0State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -191,7 +210,7 @@ static const TypeInfo l2x0_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(L2x0State),
     .instance_init = l2x0_priv_init,
-    .class_init = l2x0_class_init,
+    .class_init = L2x0State::classInit,
 };
 
 static void l2x0_register_types(void)
