@@ -149,31 +149,27 @@ const Property OR1KOMPICState::or1k_ompic_properties[] = {
     DEFINE_PROP_UINT32("num-cpus", OR1KOMPICState, num_cpus, 1),
 };
 
-static const VMStateField vmstate_or1k_ompic_cpu_fields[] = {
-     VMSTATE_UINT32(status, OR1KOMPICCPUState),
-     VMSTATE_UINT32(control, OR1KOMPICCPUState),
-     VMSTATE_END_OF_LIST()
-};
-
 static const VMStateDescription vmstate_or1k_ompic_cpu = {
     .name = "or1k_ompic_cpu",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = vmstate_or1k_ompic_cpu_fields,
-};
-
-static const VMStateField vmstate_or1k_ompic_fields[] = {
-     VMSTATE_STRUCT_ARRAY(cpus, OR1KOMPICState, OMPIC_MAX_CPUS, 1,
-         vmstate_or1k_ompic_cpu, OR1KOMPICCPUState),
-     VMSTATE_UINT32(num_cpus, OR1KOMPICState),
-     VMSTATE_END_OF_LIST()
+    .fields = (const VMStateField[]) {
+         VMSTATE_UINT32(status, OR1KOMPICCPUState),
+         VMSTATE_UINT32(control, OR1KOMPICCPUState),
+         VMSTATE_END_OF_LIST()
+    }
 };
 
 const VMStateDescription OR1KOMPICState::vmstate_or1k_ompic = {
     .name = TYPE_OR1K_OMPIC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = vmstate_or1k_ompic_fields,
+    .fields = (const VMStateField[]) {
+         VMSTATE_STRUCT_ARRAY(cpus, OR1KOMPICState, OMPIC_MAX_CPUS, 1,
+             vmstate_or1k_ompic_cpu, OR1KOMPICCPUState),
+         VMSTATE_UINT32(num_cpus, OR1KOMPICState),
+         VMSTATE_END_OF_LIST()
+    }
 };
 
 void OR1KOMPICState::classInit(ObjectClass *klass, const void *data)

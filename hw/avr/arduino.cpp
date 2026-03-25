@@ -1,7 +1,7 @@
 /*
  * QEMU Arduino boards
  *
- * Copyright (c) 2019-2020 Philippe Mathieu-Daudé
+ * Copyright (c) 2019-2020 Philippe Mathieu-Daude
  *
  * This work is licensed under the terms of the GNU GPLv2 or later.
  * See the COPYING file in the top-level directory.

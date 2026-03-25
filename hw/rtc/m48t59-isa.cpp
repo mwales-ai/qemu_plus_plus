@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "hw/rtc/m48t59.h"
@@ -38,17 +39,86 @@ typedef struct M48txxISAState M48txxISAState;
 DECLARE_OBJ_CHECKERS(M48txxISAState, M48txxISADeviceClass,
                      M48TXX_ISA, TYPE_M48TXX_ISA)
 
+struct M48txxISADeviceClass {
+    DeviceClass parent_class;
+    M48txxInfo info;
+};
+
 struct M48txxISAState {
     ISADevice parent_obj;
     M48t59State state;
     uint32_t io_base;
     uint8_t isairq;
     MemoryRegion io;
-};
 
-struct M48txxISADeviceClass {
-    DeviceClass parent_class;
-    M48txxInfo info;
+    static uint32_t nvramRead(Nvram *obj, uint32_t addr)
+    {
+        M48txxISAState *d = M48TXX_ISA(obj);
+        return m48t59_read(&d->state, addr);
+    }
+
+    static void nvramWrite(Nvram *obj, uint32_t addr, uint32_t val)
+    {
+        M48txxISAState *d = M48TXX_ISA(obj);
+        m48t59_write(&d->state, addr, val);
+    }
+
+    static void nvramToggleLock(Nvram *obj, int lock)
+    {
+        M48txxISAState *d = M48TXX_ISA(obj);
+        m48t59_toggle_lock(&d->state, lock);
+    }
+
+    void deviceReset()
+    {
+        M48t59State *NVRAM = &state;
+        m48t59_reset_common(NVRAM);
+    }
+
+    void realize(Error **errp)
+    {
+        M48txxISADeviceClass *u = M48TXX_ISA_GET_CLASS(DEVICE(this));
+        ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+        M48t59State *s = &state;
+
+        if (isairq >= ISA_NUM_IRQS) {
+            error_setg(errp, "Maximum value for \"irq\" is: %u", ISA_NUM_IRQS - 1);
+            return;
+        }
+
+        s->model = u->info.model;
+        s->size = u->info.size;
+        s->IRQ = isa_get_irq(isadev, isairq);
+        m48t59_realize_common(s, errp);
+        memory_region_init_io(&io, OBJECT(this), &m48t59_io_ops, s, "m48t59", 4);
+        if (io_base != 0) {
+            isa_register_ioport(isadev, &io, io_base);
+        }
+    }
+
+    static void deviceReset_static(DeviceState *d)
+    {
+        M48txxISAState *isa = M48TXX_ISA(d);
+        isa->deviceReset();
+    }
+
+    static void deviceRealize(DeviceState *dev, Error **errp)
+    {
+        M48txxISAState *s = M48TXX_ISA(dev);
+        s->realize(errp);
+    }
+
+    static void classInit(ObjectClass *klass, const void *data);
+
+    static void concreteClassInit(ObjectClass *klass, const void *data)
+    {
+        M48txxISADeviceClass *u = M48TXX_ISA_CLASS(klass);
+        const M48txxInfo *info = static_cast<const M48txxInfo *>(data);
+
+        u->info = *info;
+    }
+
+    static const Property m48t59_isa_properties[];
 };
 
 static M48txxInfo m48txx_isa_info[] = {
@@ -59,79 +129,23 @@ static M48txxInfo m48txx_isa_info[] = {
     }
 };
 
-static uint32_t m48txx_isa_read(Nvram *obj, uint32_t addr)
-{
-    M48txxISAState *d = M48TXX_ISA(obj);
-    return m48t59_read(&d->state, addr);
-}
-
-static void m48txx_isa_write(Nvram *obj, uint32_t addr, uint32_t val)
-{
-    M48txxISAState *d = M48TXX_ISA(obj);
-    m48t59_write(&d->state, addr, val);
-}
-
-static void m48txx_isa_toggle_lock(Nvram *obj, int lock)
-{
-    M48txxISAState *d = M48TXX_ISA(obj);
-    m48t59_toggle_lock(&d->state, lock);
-}
-
-static const Property m48t59_isa_properties[] = {
+const Property M48txxISAState::m48t59_isa_properties[] = {
     DEFINE_PROP_INT32("base-year", M48txxISAState, state.base_year, 0),
     DEFINE_PROP_UINT32("iobase", M48txxISAState, io_base, 0x74),
     DEFINE_PROP_UINT8("irq", M48txxISAState, isairq, 8),
 };
 
-static void m48t59_reset_isa(DeviceState *d)
-{
-    M48txxISAState *isa = M48TXX_ISA(d);
-    M48t59State *NVRAM = &isa->state;
-
-    m48t59_reset_common(NVRAM);
-}
-
-static void m48t59_isa_realize(DeviceState *dev, Error **errp)
-{
-    M48txxISADeviceClass *u = M48TXX_ISA_GET_CLASS(dev);
-    ISADevice *isadev = ISA_DEVICE(dev);
-    M48txxISAState *d = M48TXX_ISA(dev);
-    M48t59State *s = &d->state;
-
-    if (d->isairq >= ISA_NUM_IRQS) {
-        error_setg(errp, "Maximum value for \"irq\" is: %u", ISA_NUM_IRQS - 1);
-        return;
-    }
-
-    s->model = u->info.model;
-    s->size = u->info.size;
-    s->IRQ = isa_get_irq(isadev, d->isairq);
-    m48t59_realize_common(s, errp);
-    memory_region_init_io(&d->io, OBJECT(dev), &m48t59_io_ops, s, "m48t59", 4);
-    if (d->io_base != 0) {
-        isa_register_ioport(isadev, &d->io, d->io_base);
-    }
-}
-
-static void m48txx_isa_class_init(ObjectClass *klass, const void *data)
+void M48txxISAState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     NvramClass *nc = NVRAM_CLASS(klass);
 
-    dc->realize = m48t59_isa_realize;
-    device_class_set_legacy_reset(dc, m48t59_reset_isa);
+    dc->realize = deviceRealize;
+    device_class_set_legacy_reset(dc, deviceReset_static);
     device_class_set_props(dc, m48t59_isa_properties);
-    nc->read = m48txx_isa_read;
-    nc->write = m48txx_isa_write;
-    nc->toggle_lock = m48txx_isa_toggle_lock;
-}
-
-static void m48txx_isa_concrete_class_init(ObjectClass *klass, const void *data)
-{
-    M48txxISADeviceClass *u = M48TXX_ISA_CLASS(klass);
-    const M48txxInfo *info = static_cast<const M48txxInfo *>(data);
-
-    u->info = *info;
+    nc->read = nvramRead;
+    nc->write = nvramWrite;
+    nc->toggle_lock = nvramToggleLock;
 }
 
 static const InterfaceInfo m48txx_isa_interfaces[] = {
@@ -144,7 +158,7 @@ static const TypeInfo m48txx_isa_type_info = {
     .parent = TYPE_ISA_DEVICE,
     .instance_size = sizeof(M48txxISAState),
     .is_abstract = true,
-    .class_init = m48txx_isa_class_init,
+    .class_init = M48txxISAState::classInit,
     .interfaces = m48txx_isa_interfaces,
 };
 
@@ -153,7 +167,7 @@ static void m48t59_isa_register_types(void)
     TypeInfo isa_type_info = {
         .parent = TYPE_M48TXX_ISA,
         .class_size = sizeof(M48txxISADeviceClass),
-        .class_init = m48txx_isa_concrete_class_init,
+        .class_init = M48txxISAState::concreteClassInit,
     };
     size_t i;
 

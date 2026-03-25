@@ -98,18 +98,16 @@ static const MemoryRegionOps nvram_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static const VMStateField vmstate_nvram_fields[] = {
-    VMSTATE_VARRAY_UINT32(contents, NvRamState, chip_size, 0,
-                          vmstate_info_uint8, uint8_t),
-    VMSTATE_END_OF_LIST()
-};
-
 static const VMStateDescription vmstate_nvram = {
     .name = "nvram",
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = NvRamState::postLoad,
-    .fields = vmstate_nvram_fields,
+    .fields = (const VMStateField[]) {
+        VMSTATE_VARRAY_UINT32(contents, NvRamState, chip_size, 0,
+                              vmstate_info_uint8, uint8_t),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 #define TYPE_DS1225Y "ds1225y"
