@@ -76,6 +76,19 @@ struct SerialState {
 
     QEMUTimer *modem_status_poll;
     MemoryRegion io;
+
+#ifdef __cplusplus
+    /* C++ methods — called from QOM callbacks in serial.cpp */
+    void realize(Error **errp);
+    void reset();
+    void updateIrq();
+    void updateMsl();
+    void updateParameters();
+    void recvFifoPut(uint8_t chr);
+    void xmitFifoGet();
+    void writeReg(hwaddr addr, uint64_t val);
+    uint64_t readReg(hwaddr addr);
+#endif
 };
 
 extern const VMStateDescription vmstate_serial;
