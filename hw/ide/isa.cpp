@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -45,14 +46,40 @@ struct ISAIDEState {
     uint32_t  iobase;
     uint32_t  iobase2;
     uint32_t  irqnum;
+
+    void deviceReset()
+    {
+        ide_bus_reset(&bus);
+    }
+
+    void realize(Error **errp)
+    {
+        ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+
+        ide_bus_init(&bus, sizeof(bus), DEVICE(this), 0, 2);
+        ide_init_ioport(&bus, isadev, iobase, iobase2);
+        ide_bus_init_output_irq(&bus, isa_get_irq(isadev, irqnum));
+        vmstate_register_any(VMSTATE_IF(DEVICE(this)), &vmstate_ide_isa, this);
+        ide_bus_register_restart_cb(&bus);
+    }
+
+    static void deviceReset_static(DeviceState *d)
+    {
+        ISAIDEState *s = ISA_IDE(d);
+        s->deviceReset();
+    }
+
+    static void deviceRealize(DeviceState *dev, Error **errp)
+    {
+        ISAIDEState *s = ISA_IDE(dev);
+        s->realize(errp);
+    }
+
+    static void classInit(ObjectClass *klass, const void *data);
+
+    static const VMStateDescription vmstate_ide_isa;
+    static const Property isa_ide_properties[];
 };
-
-static void isa_ide_reset(DeviceState *d)
-{
-    ISAIDEState *s = ISA_IDE(d);
-
-    ide_bus_reset(&s->bus);
-}
 
 static const VMStateField vmstate_ide_isa_fields[] = {
     VMSTATE_IDE_BUS(bus, ISAIDEState),
@@ -60,23 +87,28 @@ static const VMStateField vmstate_ide_isa_fields[] = {
     VMSTATE_END_OF_LIST()
 };
 
-static const VMStateDescription vmstate_ide_isa = {
+const VMStateDescription ISAIDEState::vmstate_ide_isa = {
     .name = "isa-ide",
     .version_id = 3,
     .minimum_version_id = 0,
     .fields = vmstate_ide_isa_fields
 };
 
-static void isa_ide_realizefn(DeviceState *dev, Error **errp)
-{
-    ISADevice *isadev = ISA_DEVICE(dev);
-    ISAIDEState *s = ISA_IDE(dev);
+const Property ISAIDEState::isa_ide_properties[] = {
+    DEFINE_PROP_UINT32("iobase",  ISAIDEState, iobase,  0x1f0),
+    DEFINE_PROP_UINT32("iobase2", ISAIDEState, iobase2, 0x3f6),
+    DEFINE_PROP_UINT32("irq",     ISAIDEState, irqnum,  14),
+};
 
-    ide_bus_init(&s->bus, sizeof(s->bus), dev, 0, 2);
-    ide_init_ioport(&s->bus, isadev, s->iobase, s->iobase2);
-    ide_bus_init_output_irq(&s->bus, isa_get_irq(isadev, s->irqnum));
-    vmstate_register_any(VMSTATE_IF(dev), &vmstate_ide_isa, s);
-    ide_bus_register_restart_cb(&s->bus);
+void ISAIDEState::classInit(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->realize = deviceRealize;
+    dc->fw_name = "ide";
+    device_class_set_legacy_reset(dc, deviceReset_static);
+    device_class_set_props(dc, isa_ide_properties);
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
@@ -103,28 +135,11 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
     return isadev;
 }
 
-static const Property isa_ide_properties[] = {
-    DEFINE_PROP_UINT32("iobase",  ISAIDEState, iobase,  0x1f0),
-    DEFINE_PROP_UINT32("iobase2", ISAIDEState, iobase2, 0x3f6),
-    DEFINE_PROP_UINT32("irq",     ISAIDEState, irqnum,  14),
-};
-
-static void isa_ide_class_initfn(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = isa_ide_realizefn;
-    dc->fw_name = "ide";
-    device_class_set_legacy_reset(dc, isa_ide_reset);
-    device_class_set_props(dc, isa_ide_properties);
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-}
-
 static const TypeInfo isa_ide_info = {
     .name          = TYPE_ISA_IDE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAIDEState),
-    .class_init    = isa_ide_class_initfn,
+    .class_init    = ISAIDEState::classInit,
 };
 
 static void isa_ide_register_types(void)

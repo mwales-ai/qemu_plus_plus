@@ -1,7 +1,7 @@
 /*
  * QEMU NVRAM emulation for DS1225Y chip
  *
- * Copyright (c) 2007-2008 Hervé Poussineau
+ * Copyright (c) 2007-2008 Herve Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -31,43 +32,65 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 
-typedef struct {
+typedef struct NvRamState {
     MemoryRegion iomem;
     uint32_t chip_size;
     char *filename;
     FILE *file;
     uint8_t *contents;
+
+    static uint64_t ioRead(void *opaque, hwaddr addr, unsigned size)
+    {
+        NvRamState *s = static_cast<NvRamState *>(opaque);
+        uint32_t val;
+
+        val = s->contents[addr];
+        trace_nvram_read(addr, val);
+        return val;
+    }
+
+    static void ioWrite(void *opaque, hwaddr addr, uint64_t val,
+                        unsigned size)
+    {
+        NvRamState *s = static_cast<NvRamState *>(opaque);
+
+        val &= 0xff;
+        trace_nvram_write(addr, s->contents[addr], val);
+
+        s->contents[addr] = val;
+        if (s->file) {
+            fseek(s->file, addr, SEEK_SET);
+            fputc(val, s->file);
+            fflush(s->file);
+        }
+    }
+
+    static int postLoad(void *opaque, int version_id)
+    {
+        NvRamState *s = static_cast<NvRamState *>(opaque);
+
+        /* Close file, as filename may has changed in load/store process */
+        if (s->file) {
+            fclose(s->file);
+        }
+
+        /* Write back nvram contents */
+        s->file = s->filename ? fopen(s->filename, "wb") : NULL;
+        if (s->file) {
+            /* Write back contents, as 'wb' mode cleaned the file */
+            if (fwrite(s->contents, s->chip_size, 1, s->file) != 1) {
+                printf("nvram_post_load: short write\n");
+            }
+            fflush(s->file);
+        }
+
+        return 0;
+    }
 } NvRamState;
 
-static uint64_t nvram_read(void *opaque, hwaddr addr, unsigned size)
-{
-    NvRamState *s = opaque;
-    uint32_t val;
-
-    val = s->contents[addr];
-    trace_nvram_read(addr, val);
-    return val;
-}
-
-static void nvram_write(void *opaque, hwaddr addr, uint64_t val,
-                        unsigned size)
-{
-    NvRamState *s = opaque;
-
-    val &= 0xff;
-    trace_nvram_write(addr, s->contents[addr], val);
-
-    s->contents[addr] = val;
-    if (s->file) {
-        fseek(s->file, addr, SEEK_SET);
-        fputc(val, s->file);
-        fflush(s->file);
-    }
-}
-
 static const MemoryRegionOps nvram_ops = {
-    .read = nvram_read,
-    .write = nvram_write,
+    .read = NvRamState::ioRead,
+    .write = NvRamState::ioWrite,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -75,38 +98,18 @@ static const MemoryRegionOps nvram_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int nvram_post_load(void *opaque, int version_id)
-{
-    NvRamState *s = opaque;
-
-    /* Close file, as filename may has changed in load/store process */
-    if (s->file) {
-        fclose(s->file);
-    }
-
-    /* Write back nvram contents */
-    s->file = s->filename ? fopen(s->filename, "wb") : NULL;
-    if (s->file) {
-        /* Write back contents, as 'wb' mode cleaned the file */
-        if (fwrite(s->contents, s->chip_size, 1, s->file) != 1) {
-            printf("nvram_post_load: short write\n");
-        }
-        fflush(s->file);
-    }
-
-    return 0;
-}
+static const VMStateField vmstate_nvram_fields[] = {
+    VMSTATE_VARRAY_UINT32(contents, NvRamState, chip_size, 0,
+                          vmstate_info_uint8, uint8_t),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_nvram = {
     .name = "nvram",
     .version_id = 0,
     .minimum_version_id = 0,
-    .post_load = nvram_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_VARRAY_UINT32(contents, NvRamState, chip_size, 0,
-                              vmstate_info_uint8, uint8_t),
-        VMSTATE_END_OF_LIST()
-    }
+    .post_load = NvRamState::postLoad,
+    .fields = vmstate_nvram_fields,
 };
 
 #define TYPE_DS1225Y "ds1225y"
@@ -116,42 +119,51 @@ struct SysBusNvRamState {
     SysBusDevice parent_obj;
 
     NvRamState nvram;
+
+    void realize(Error **errp)
+    {
+        NvRamState *s = &nvram;
+        FILE *file;
+
+        s->contents = static_cast<uint8_t *>(g_malloc0(s->chip_size));
+
+        memory_region_init_io(&s->iomem, OBJECT(this), &nvram_ops, s,
+                              "nvram", s->chip_size);
+        sysbus_init_mmio(SYS_BUS_DEVICE(this), &s->iomem);
+
+        /* Read current file */
+        file = s->filename ? fopen(s->filename, "rb") : NULL;
+        if (file) {
+            /* Read nvram contents */
+            if (fread(s->contents, s->chip_size, 1, file) != 1) {
+                error_report("nvram_sysbus_realize: short read");
+            }
+            fclose(file);
+        }
+        NvRamState::postLoad(s, 0);
+    }
+
+    static void deviceRealize(DeviceState *dev, Error **errp)
+    {
+        SysBusNvRamState *sys = DS1225Y(dev);
+        sys->realize(errp);
+    }
+
+    static void classInit(ObjectClass *klass, const void *data);
+
+    static const Property nvram_sysbus_properties[];
 };
 
-static void nvram_sysbus_realize(DeviceState *dev, Error **errp)
-{
-    SysBusNvRamState *sys = DS1225Y(dev);
-    NvRamState *s = &sys->nvram;
-    FILE *file;
-
-    s->contents = g_malloc0(s->chip_size);
-
-    memory_region_init_io(&s->iomem, OBJECT(dev), &nvram_ops, s,
-                          "nvram", s->chip_size);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-
-    /* Read current file */
-    file = s->filename ? fopen(s->filename, "rb") : NULL;
-    if (file) {
-        /* Read nvram contents */
-        if (fread(s->contents, s->chip_size, 1, file) != 1) {
-            error_report("nvram_sysbus_realize: short read");
-        }
-        fclose(file);
-    }
-    nvram_post_load(s, 0);
-}
-
-static const Property nvram_sysbus_properties[] = {
+const Property SysBusNvRamState::nvram_sysbus_properties[] = {
     DEFINE_PROP_UINT32("size", SysBusNvRamState, nvram.chip_size, 0x2000),
     DEFINE_PROP_STRING("filename", SysBusNvRamState, nvram.filename),
 };
 
-static void nvram_sysbus_class_init(ObjectClass *klass, const void *data)
+void SysBusNvRamState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = nvram_sysbus_realize;
+    dc->realize = deviceRealize;
     dc->vmsd = &vmstate_nvram;
     device_class_set_props(dc, nvram_sysbus_properties);
 }
@@ -160,7 +172,7 @@ static const TypeInfo nvram_sysbus_info = {
     .name          = TYPE_DS1225Y,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusNvRamState),
-    .class_init    = nvram_sysbus_class_init,
+    .class_init    = SysBusNvRamState::classInit,
 };
 
 static void nvram_register_types(void)

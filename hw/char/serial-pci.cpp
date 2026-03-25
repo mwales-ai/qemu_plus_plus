@@ -26,6 +26,7 @@
 /* see docs/specs/pci-serial.rst */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/char/serial.h"
@@ -35,41 +36,82 @@
 #include "migration/vmstate.h"
 #include "qom/object.h"
 
+#define TYPE_PCI_SERIAL "pci-serial"
+
 struct PCISerialState {
     PCIDevice dev;
     SerialState state;
-};
 
-#define TYPE_PCI_SERIAL "pci-serial"
-OBJECT_DECLARE_SIMPLE_TYPE(PCISerialState, PCI_SERIAL)
+    void realize(Error **errp)
+    {
+        SerialState *s = &state;
 
-static void serial_pci_realize(PCIDevice *dev, Error **errp)
-{
-    PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
-    SerialState *s = &pci->state;
+        if (!qdev_realize(DEVICE(s), NULL, errp)) {
+            return;
+        }
 
-    if (!qdev_realize(DEVICE(s), NULL, errp)) {
-        return;
+        dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
+        dev.config[PCI_INTERRUPT_PIN] = 1;
+        s->irq = pci_allocate_irq(&dev);
+
+        memory_region_init_io(&s->io, OBJECT(this), &serial_io_ops, s, "serial", 8);
+        pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     }
 
-    pci->dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
-    pci->dev.config[PCI_INTERRUPT_PIN] = 1;
-    s->irq = pci_allocate_irq(&pci->dev);
+    void exitDevice()
+    {
+        SerialState *s = &state;
 
-    memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s, "serial", 8);
-    pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
-}
+        qdev_unrealize(DEVICE(s));
+        qemu_free_irq(s->irq);
+    }
 
-static void serial_pci_exit(PCIDevice *dev)
+    static void pciRealize(PCIDevice *dev, Error **errp);
+    static void pciExit(PCIDevice *dev);
+    static void instanceInit(Object *o);
+    static void classInit(ObjectClass *klass, const void *data);
+
+    static const VMStateDescription vmstate_pci_serial;
+};
+
+OBJECT_DECLARE_SIMPLE_TYPE(PCISerialState, PCI_SERIAL)
+
+void PCISerialState::pciRealize(PCIDevice *dev, Error **errp)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
-    SerialState *s = &pci->state;
-
-    qdev_unrealize(DEVICE(s));
-    qemu_free_irq(s->irq);
+    pci->realize(errp);
 }
 
-static const VMStateDescription vmstate_pci_serial = {
+void PCISerialState::pciExit(PCIDevice *dev)
+{
+    PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
+    pci->exitDevice();
+}
+
+void PCISerialState::instanceInit(Object *o)
+{
+    PCISerialState *ps = PCI_SERIAL(o);
+
+    object_initialize_child(o, "serial", &ps->state, TYPE_SERIAL);
+
+    qdev_alias_all_properties(DEVICE(&ps->state), o);
+}
+
+void PCISerialState::classInit(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
+    pc->realize = pciRealize;
+    pc->exit = pciExit;
+    pc->vendor_id = PCI_VENDOR_ID_REDHAT;
+    pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL;
+    pc->revision = 1;
+    pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
+    dc->vmsd = &vmstate_pci_serial;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+}
+
+const VMStateDescription PCISerialState::vmstate_pci_serial = {
     .name = "pci-serial",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -80,35 +122,12 @@ static const VMStateDescription vmstate_pci_serial = {
     }
 };
 
-static void serial_pci_class_initfn(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->realize = serial_pci_realize;
-    pc->exit = serial_pci_exit;
-    pc->vendor_id = PCI_VENDOR_ID_REDHAT;
-    pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL;
-    pc->revision = 1;
-    pc->class_id = PCI_CLASS_COMMUNICATION_SERIAL;
-    dc->vmsd = &vmstate_pci_serial;
-    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-}
-
-static void serial_pci_init(Object *o)
-{
-    PCISerialState *ps = PCI_SERIAL(o);
-
-    object_initialize_child(o, "serial", &ps->state, TYPE_SERIAL);
-
-    qdev_alias_all_properties(DEVICE(&ps->state), o);
-}
-
 static const TypeInfo serial_pci_info = {
     .name          = TYPE_PCI_SERIAL,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCISerialState),
-    .instance_init = serial_pci_init,
-    .class_init    = serial_pci_class_initfn,
+    .instance_init = PCISerialState::instanceInit,
+    .class_init    = PCISerialState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

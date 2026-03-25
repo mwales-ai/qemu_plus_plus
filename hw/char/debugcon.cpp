@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "chardev/char-fe.h"
@@ -49,81 +50,90 @@ struct ISADebugconState {
 
     uint32_t iobase;
     DebugconState state;
+
+    static void ioPortWrite(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned width)
+    {
+        DebugconState *s = static_cast<DebugconState *>(opaque);
+        unsigned char ch = val;
+
+#ifdef DEBUG_DEBUGCON
+        printf(" [debugcon: write addr=0x%04" HWADDR_PRIx " val=0x%02" PRIx64 "]\n", addr, val);
+#endif
+
+        /* XXX this blocks entire thread. Rewrite to use
+         * qemu_chr_fe_write and background I/O callbacks */
+        qemu_chr_fe_write_all(&s->chr, &ch, 1);
+    }
+
+    static uint64_t ioPortRead(void *opaque, hwaddr addr, unsigned width)
+    {
+        DebugconState *s = static_cast<DebugconState *>(opaque);
+
+#ifdef DEBUG_DEBUGCON
+        printf("debugcon: read addr=0x%04" HWADDR_PRIx "\n", addr);
+#endif
+
+        return s->readback;
+    }
+
+    static void realizeCore(DebugconState *s, Error **errp)
+    {
+        if (!qemu_chr_fe_backend_connected(&s->chr)) {
+            error_setg(errp, "Can't create debugcon device, empty char device");
+            return;
+        }
+
+        qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL, s, NULL, true);
+    }
+
+    void realize(Error **errp)
+    {
+        ISADevice *d = ISA_DEVICE(DEVICE(this));
+        DebugconState *s = &state;
+        Error *err = NULL;
+
+        realizeCore(s, &err);
+        if (err != NULL) {
+            error_propagate(errp, err);
+            return;
+        }
+        memory_region_init_io(&s->io, OBJECT(this), &debugcon_ops, s,
+                              TYPE_ISA_DEBUGCON_DEVICE, 1);
+        memory_region_add_subregion(isa_address_space_io(d),
+                                    iobase, &s->io);
+    }
+
+    static void deviceRealize(DeviceState *dev, Error **errp)
+    {
+        ISADebugconState *s = ISA_DEBUGCON_DEVICE(dev);
+        s->realize(errp);
+    }
+
+    static void classInit(ObjectClass *klass, const void *data);
+
+    static const MemoryRegionOps debugcon_ops;
+    static const Property debugcon_isa_properties[];
 };
 
-static void debugcon_ioport_write(void *opaque, hwaddr addr, uint64_t val,
-                                  unsigned width)
-{
-    DebugconState *s = static_cast<DebugconState *>(opaque);
-    unsigned char ch = val;
-
-#ifdef DEBUG_DEBUGCON
-    printf(" [debugcon: write addr=0x%04" HWADDR_PRIx " val=0x%02" PRIx64 "]\n", addr, val);
-#endif
-
-    /* XXX this blocks entire thread. Rewrite to use
-     * qemu_chr_fe_write and background I/O callbacks */
-    qemu_chr_fe_write_all(&s->chr, &ch, 1);
-}
-
-
-static uint64_t debugcon_ioport_read(void *opaque, hwaddr addr, unsigned width)
-{
-    DebugconState *s = static_cast<DebugconState *>(opaque);
-
-#ifdef DEBUG_DEBUGCON
-    printf("debugcon: read addr=0x%04" HWADDR_PRIx "\n", addr);
-#endif
-
-    return s->readback;
-}
-
-static const MemoryRegionOps debugcon_ops = {
-    .read = debugcon_ioport_read,
-    .write = debugcon_ioport_write,
+const MemoryRegionOps ISADebugconState::debugcon_ops = {
+    .read = ISADebugconState::ioPortRead,
+    .write = ISADebugconState::ioPortWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 1, },
 };
 
-static void debugcon_realize_core(DebugconState *s, Error **errp)
-{
-    if (!qemu_chr_fe_backend_connected(&s->chr)) {
-        error_setg(errp, "Can't create debugcon device, empty char device");
-        return;
-    }
-
-    qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL, s, NULL, true);
-}
-
-static void debugcon_isa_realizefn(DeviceState *dev, Error **errp)
-{
-    ISADevice *d = ISA_DEVICE(dev);
-    ISADebugconState *isa = ISA_DEBUGCON_DEVICE(dev);
-    DebugconState *s = &isa->state;
-    Error *err = NULL;
-
-    debugcon_realize_core(s, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
-        return;
-    }
-    memory_region_init_io(&s->io, OBJECT(dev), &debugcon_ops, s,
-                          TYPE_ISA_DEBUGCON_DEVICE, 1);
-    memory_region_add_subregion(isa_address_space_io(d),
-                                isa->iobase, &s->io);
-}
-
-static const Property debugcon_isa_properties[] = {
+const Property ISADebugconState::debugcon_isa_properties[] = {
     DEFINE_PROP_UINT32("iobase", ISADebugconState, iobase, 0xe9),
     DEFINE_PROP_CHR("chardev",  ISADebugconState, state.chr),
     DEFINE_PROP_UINT32("readback", ISADebugconState, state.readback, 0xe9),
 };
 
-static void debugcon_isa_class_initfn(ObjectClass *klass, const void *data)
+void ISADebugconState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = debugcon_isa_realizefn;
+    dc->realize = deviceRealize;
     device_class_set_props(dc, debugcon_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
@@ -132,7 +142,7 @@ static const TypeInfo debugcon_isa_info = {
     .name          = TYPE_ISA_DEBUGCON_DEVICE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISADebugconState),
-    .class_init    = debugcon_isa_class_initfn,
+    .class_init    = ISADebugconState::classInit,
 };
 
 static void debugcon_register_types(void)
