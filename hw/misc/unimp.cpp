@@ -12,15 +12,25 @@
  */
 
 #include "qemu/osdep.h"
+
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/sysbus.h"
 #include "hw/misc/unimp.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
 
+/*
+ * Note: UnimplementedDeviceState is defined in the header (unimp.h)
+ * because create_unimplemented_device() needs it. We add methods
+ * as static helpers that take the struct pointer, keeping the header
+ * unchanged for C compatibility.
+ */
+
 static uint64_t unimp_read(void *opaque, hwaddr offset, unsigned size)
 {
-    UnimplementedDeviceState *s = UNIMPLEMENTED_DEVICE(opaque);
+    UnimplementedDeviceState *s = static_cast<UnimplementedDeviceState *>(opaque);
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device read  "
                   "(size %d, offset 0x%0*" HWADDR_PRIx ")\n",
@@ -31,7 +41,7 @@ static uint64_t unimp_read(void *opaque, hwaddr offset, unsigned size)
 static void unimp_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    UnimplementedDeviceState *s = UNIMPLEMENTED_DEVICE(opaque);
+    UnimplementedDeviceState *s = static_cast<UnimplementedDeviceState *>(opaque);
 
     qemu_log_mask(LOG_UNIMP, "%s: unimplemented device write "
                   "(size %d, offset 0x%0*" HWADDR_PRIx
