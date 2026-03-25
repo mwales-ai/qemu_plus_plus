@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/usb.h"
@@ -43,13 +44,24 @@ struct OHCIPCIState {
     char *masterbus;
     uint32_t num_ports;
     uint32_t firstport;
+
+    /* methods */
+    void realize(PCIDevice *dev, Error **errp);
+    void exit(PCIDevice *dev);
+    void reset(DeviceState *d);
+
+    /* static callbacks */
+    static void pciDie(struct OHCIState *ohci);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-/**
- * A typical PCI OHCI will additionally set PERR in its configspace to
- * signal that it got an error.
- */
-static void ohci_pci_die(struct OHCIState *ohci)
+static const Property ohci_pci_properties[] = {
+    DEFINE_PROP_STRING("masterbus", OHCIPCIState, masterbus),
+    DEFINE_PROP_UINT32("num-ports", OHCIPCIState, num_ports, 3),
+    DEFINE_PROP_UINT32("firstport", OHCIPCIState, firstport, 0),
+};
+
+void OHCIPCIState::pciDie(struct OHCIState *ohci)
 {
     OHCIPCIState *dev = container_of(ohci, OHCIPCIState, state);
 
@@ -59,7 +71,7 @@ static void ohci_pci_die(struct OHCIState *ohci)
                  PCI_STATUS_DETECTED_PARITY);
 }
 
-static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
+void OHCIPCIState::realize(PCIDevice *dev, Error **errp)
 {
     Error *err = NULL;
     OHCIPCIState *ohci = PCI_OHCI(dev);
@@ -69,7 +81,7 @@ static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
 
     usb_ohci_init(&ohci->state, DEVICE(dev), ohci->num_ports, 0,
                   ohci->masterbus, ohci->firstport,
-                  pci_get_address_space(dev), ohci_pci_die, &err);
+                  pci_get_address_space(dev), OHCIPCIState::pciDie, &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -79,7 +91,13 @@ static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
     pci_register_bar(dev, 0, 0, &ohci->state.mem);
 }
 
-static void usb_ohci_exit(PCIDevice *dev)
+static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
+{
+    OHCIPCIState *ohci = PCI_OHCI(dev);
+    ohci->realize(dev, errp);
+}
+
+void OHCIPCIState::exit(PCIDevice *dev)
 {
     OHCIPCIState *ohci = PCI_OHCI(dev);
     OHCIState *s = &ohci->state;
@@ -100,7 +118,13 @@ static void usb_ohci_exit(PCIDevice *dev)
     timer_free(s->eof_timer);
 }
 
-static void usb_ohci_reset_pci(DeviceState *d)
+static void usb_ohci_exit(PCIDevice *dev)
+{
+    OHCIPCIState *ohci = PCI_OHCI(dev);
+    ohci->exit(dev);
+}
+
+void OHCIPCIState::reset(DeviceState *d)
 {
     PCIDevice *dev = PCI_DEVICE(d);
     OHCIPCIState *ohci = PCI_OHCI(dev);
@@ -109,11 +133,11 @@ static void usb_ohci_reset_pci(DeviceState *d)
     ohci_hard_reset(s);
 }
 
-static const Property ohci_pci_properties[] = {
-    DEFINE_PROP_STRING("masterbus", OHCIPCIState, masterbus),
-    DEFINE_PROP_UINT32("num-ports", OHCIPCIState, num_ports, 3),
-    DEFINE_PROP_UINT32("firstport", OHCIPCIState, firstport, 0),
-};
+static void usb_ohci_reset_pci(DeviceState *d)
+{
+    OHCIPCIState *ohci = PCI_OHCI(PCI_DEVICE(d));
+    ohci->reset(d);
+}
 
 static const VMStateDescription vmstate_ohci = {
     .name = "ohci",
@@ -126,7 +150,7 @@ static const VMStateDescription vmstate_ohci = {
     }
 };
 
-static void ohci_pci_class_init(ObjectClass *klass, const void *data)
+void OHCIPCIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -148,7 +172,7 @@ static const TypeInfo ohci_pci_info = {
     .name          = TYPE_PCI_OHCI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(OHCIPCIState),
-    .class_init    = ohci_pci_class_init,
+    .class_init    = OHCIPCIState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

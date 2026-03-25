@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/datadir.h"
 #include "qapi/error.h"
 #include "ui/console.h"
@@ -94,49 +95,88 @@ struct TCXState {
     uint32_t cursbits[32];
     uint16_t cursx;
     uint16_t cursy;
+
+    /* Instance methods */
+    void doReset();
+    void realize(DeviceState *dev, Error **errp);
+
+    /* Static display callbacks */
+    static void updateDisplay(void *opaque);
+    static void update24Display(void *opaque);
+    static void invalidateDisplay(void *opaque);
+    static void invalidate24Display(void *opaque);
+
+    /* Static MMIO callbacks */
+    static uint64_t dacReadl(void *opaque, hwaddr addr, unsigned size);
+    static void dacWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t stipReadl(void *opaque, hwaddr addr, unsigned size);
+    static void stipWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static void rstipWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t blitReadl(void *opaque, hwaddr addr, unsigned size);
+    static void blitWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static void rblitWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t thcReadl(void *opaque, hwaddr addr, unsigned size);
+    static void thcWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t dummyReadl(void *opaque, hwaddr addr, unsigned size);
+    static void dummyWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+
+    /* Static VMState callback */
+    static int postLoad(void *opaque, int version_id);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
+
+private:
+    void setDirty(ram_addr_t addr, int len);
+    int checkDirty(DirtyBitmapSnapshot *snap, ram_addr_t addr, int len);
+    void updatePaletteEntries(int start, int end);
+    void drawLine32(uint8_t *d, const uint8_t *s, int width);
+    void drawCursor32(uint8_t *d, int y, int width);
+    void draw24Line32(uint8_t *d, const uint8_t *s, int width,
+                      const uint32_t *cplane, const uint32_t *s24);
+    void invalidateCursorPosition();
 };
 
-static void tcx_set_dirty(TCXState *s, ram_addr_t addr, int len)
+void TCXState::setDirty(ram_addr_t addr, int len)
 {
-    memory_region_set_dirty(&s->vram_mem, addr, len);
+    memory_region_set_dirty(&vram_mem, addr, len);
 
-    if (s->depth == 24) {
-        memory_region_set_dirty(&s->vram_mem, s->vram24_offset + addr * 4,
+    if (depth == 24) {
+        memory_region_set_dirty(&vram_mem, vram24_offset + addr * 4,
                                 len * 4);
-        memory_region_set_dirty(&s->vram_mem, s->cplane_offset + addr * 4,
+        memory_region_set_dirty(&vram_mem, cplane_offset + addr * 4,
                                 len * 4);
     }
 }
 
-static int tcx_check_dirty(TCXState *s, DirtyBitmapSnapshot *snap,
-                           ram_addr_t addr, int len)
+int TCXState::checkDirty(DirtyBitmapSnapshot *snap,
+                         ram_addr_t addr, int len)
 {
     int ret;
 
-    ret = memory_region_snapshot_get_dirty(&s->vram_mem, snap, addr, len);
+    ret = memory_region_snapshot_get_dirty(&vram_mem, snap, addr, len);
 
-    if (s->depth == 24) {
-        ret |= memory_region_snapshot_get_dirty(&s->vram_mem, snap,
-                                       s->vram24_offset + addr * 4, len * 4);
-        ret |= memory_region_snapshot_get_dirty(&s->vram_mem, snap,
-                                       s->cplane_offset + addr * 4, len * 4);
+    if (depth == 24) {
+        ret |= memory_region_snapshot_get_dirty(&vram_mem, snap,
+                                       vram24_offset + addr * 4, len * 4);
+        ret |= memory_region_snapshot_get_dirty(&vram_mem, snap,
+                                       cplane_offset + addr * 4, len * 4);
     }
 
     return ret;
 }
 
-static void update_palette_entries(TCXState *s, int start, int end)
+void TCXState::updatePaletteEntries(int start, int end)
 {
     int i;
 
     for (i = start; i < end; i++) {
-        s->palette[i] = rgb_to_pixel32(s->r[i], s->g[i], s->b[i]);
+        palette[i] = rgb_to_pixel32(r[i], g[i], b[i]);
     }
-    tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
+    setDirty(0, memory_region_size(&vram_mem));
 }
 
-static void tcx_draw_line32(TCXState *s1, uint8_t *d,
-                            const uint8_t *s, int width)
+void TCXState::drawLine32(uint8_t *d, const uint8_t *s, int width)
 {
     int x;
     uint8_t val;
@@ -144,28 +184,27 @@ static void tcx_draw_line32(TCXState *s1, uint8_t *d,
 
     for (x = 0; x < width; x++) {
         val = *s++;
-        *p++ = s1->palette[val];
+        *p++ = palette[val];
     }
 }
 
-static void tcx_draw_cursor32(TCXState *s1, uint8_t *d,
-                              int y, int width)
+void TCXState::drawCursor32(uint8_t *d, int y, int width)
 {
     int x, len;
     uint32_t mask, bits;
     uint32_t *p = (uint32_t *)d;
 
-    y = y - s1->cursy;
-    mask = s1->cursmask[y];
-    bits = s1->cursbits[y];
-    len = MIN(width - s1->cursx, 32);
-    p = &p[s1->cursx];
+    y = y - cursy;
+    mask = cursmask[y];
+    bits = cursbits[y];
+    len = MIN(width - cursx, 32);
+    p = &p[cursx];
     for (x = 0; x < len; x++) {
         if (mask & 0x80000000) {
             if (bits & 0x80000000) {
-                *p = s1->palette[259];
+                *p = palette[259];
             } else {
-                *p = s1->palette[258];
+                *p = palette[258];
             }
         }
         p++;
@@ -178,40 +217,38 @@ static void tcx_draw_cursor32(TCXState *s1, uint8_t *d,
  * XXX Could be much more optimal:
  * detect if line/page/whole screen is in 24 bit mode
  */
-static inline void tcx24_draw_line32(TCXState *s1, uint8_t *d,
-                                     const uint8_t *s, int width,
-                                     const uint32_t *cplane,
-                                     const uint32_t *s24)
+void TCXState::draw24Line32(uint8_t *d, const uint8_t *s, int width,
+                            const uint32_t *cpl, const uint32_t *s24)
 {
-    int x, r, g, b;
+    int x, rv, gv, bv;
     uint8_t val, *p8;
     uint32_t *p = (uint32_t *)d;
     uint32_t dval;
     for(x = 0; x < width; x++, s++, s24++) {
-        if (be32_to_cpu(*cplane) & 0x03000000) {
+        if (be32_to_cpu(*cpl) & 0x03000000) {
             /* 24-bit direct, BGR order */
             p8 = (uint8_t *)s24;
             p8++;
-            b = *p8++;
-            g = *p8++;
-            r = *p8;
-            dval = rgb_to_pixel32(r, g, b);
+            bv = *p8++;
+            gv = *p8++;
+            rv = *p8;
+            dval = rgb_to_pixel32(rv, gv, bv);
         } else {
             /* 8-bit pseudocolor */
             val = *s;
-            dval = s1->palette[val];
+            dval = palette[val];
         }
         *p++ = dval;
-        cplane++;
+        cpl++;
     }
 }
 
 /* Fixed line length 1024 allows us to do nice tricks not possible on
    VGA... */
 
-static void tcx_update_display(void *opaque)
+void TCXState::updateDisplay(void *opaque)
 {
-    TCXState *ts = opaque;
+    TCXState *ts = static_cast<TCXState *>(opaque);
     DisplaySurface *surface = qemu_console_surface(ts->con);
     ram_addr_t page;
     DirtyBitmapSnapshot *snap = NULL;
@@ -222,7 +259,7 @@ static void tcx_update_display(void *opaque)
 
     page = 0;
     y_start = -1;
-    d = surface_data(surface);
+    d = static_cast<uint8_t *>(surface_data(surface));
     s = ts->vram;
     dd = surface_stride(surface);
     ds = 1024;
@@ -232,13 +269,13 @@ static void tcx_update_display(void *opaque)
                                              DIRTY_MEMORY_VGA);
 
     for (y = 0; y < ts->height; y++, page += ds) {
-        if (tcx_check_dirty(ts, snap, page, ds)) {
+        if (ts->checkDirty(snap, page, ds)) {
             if (y_start < 0)
                 y_start = y;
 
-            tcx_draw_line32(ts, d, s, ts->width);
+            ts->drawLine32(d, s, ts->width);
             if (y >= ts->cursy && y < ts->cursy + 32 && ts->cursx < ts->width) {
-                tcx_draw_cursor32(ts, d, y, ts->width);
+                ts->drawCursor32(d, y, ts->width);
             }
         } else {
             if (y_start >= 0) {
@@ -259,9 +296,9 @@ static void tcx_update_display(void *opaque)
     g_free(snap);
 }
 
-static void tcx24_update_display(void *opaque)
+void TCXState::update24Display(void *opaque)
 {
-    TCXState *ts = opaque;
+    TCXState *ts = static_cast<TCXState *>(opaque);
     DisplaySurface *surface = qemu_console_surface(ts->con);
     ram_addr_t page;
     DirtyBitmapSnapshot *snap = NULL;
@@ -273,7 +310,7 @@ static void tcx24_update_display(void *opaque)
 
     page = 0;
     y_start = -1;
-    d = surface_data(surface);
+    d = static_cast<uint8_t *>(surface_data(surface));
     s = ts->vram;
     s24 = ts->vram24;
     cptr = ts->cplane;
@@ -285,13 +322,13 @@ static void tcx24_update_display(void *opaque)
                                              DIRTY_MEMORY_VGA);
 
     for (y = 0; y < ts->height; y++, page += ds) {
-        if (tcx_check_dirty(ts, snap, page, ds)) {
+        if (ts->checkDirty(snap, page, ds)) {
             if (y_start < 0)
                 y_start = y;
 
-            tcx24_draw_line32(ts, d, s, ts->width, cptr, s24);
+            ts->draw24Line32(d, s, ts->width, cptr, s24);
             if (y >= ts->cursy && y < ts->cursy+32 && ts->cursx < ts->width) {
-                tcx_draw_cursor32(ts, d, y, ts->width);
+                ts->drawCursor32(d, y, ts->width);
             }
         } else {
             if (y_start >= 0) {
@@ -314,28 +351,28 @@ static void tcx24_update_display(void *opaque)
     g_free(snap);
 }
 
-static void tcx_invalidate_display(void *opaque)
+void TCXState::invalidateDisplay(void *opaque)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
 
-    tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
+    s->setDirty(0, memory_region_size(&s->vram_mem));
     qemu_console_resize(s->con, s->width, s->height);
 }
 
-static void tcx24_invalidate_display(void *opaque)
+void TCXState::invalidate24Display(void *opaque)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
 
-    tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
+    s->setDirty(0, memory_region_size(&s->vram_mem));
     qemu_console_resize(s->con, s->width, s->height);
 }
 
-static int vmstate_tcx_post_load(void *opaque, int version_id)
+int TCXState::postLoad(void *opaque, int version_id)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
 
-    update_palette_entries(s, 0, 256);
-    tcx_set_dirty(s, 0, memory_region_size(&s->vram_mem));
+    s->updatePaletteEntries(0, 256);
+    s->setDirty(0, memory_region_size(&s->vram_mem));
     return 0;
 }
 
@@ -343,7 +380,7 @@ static const VMStateDescription vmstate_tcx = {
     .name ="tcx",
     .version_id = 4,
     .minimum_version_id = 4,
-    .post_load = vmstate_tcx_post_load,
+    .post_load = TCXState::postLoad,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT16(height, TCXState),
         VMSTATE_UINT16(width, TCXState),
@@ -357,31 +394,35 @@ static const VMStateDescription vmstate_tcx = {
     }
 };
 
+void TCXState::doReset()
+{
+    /* Initialize palette */
+    memset(r, 0, 260);
+    memset(g, 0, 260);
+    memset(b, 0, 260);
+    r[255] = g[255] = b[255] = 255;
+    r[256] = g[256] = b[256] = 255;
+    r[258] = g[258] = b[258] = 255;
+    updatePaletteEntries(0, 260);
+    memset(vram, 0, MAXX*MAXY);
+    memory_region_reset_dirty(&vram_mem, 0, MAXX * MAXY * (1 + 4 + 4),
+                              DIRTY_MEMORY_VGA);
+    dac_index = 0;
+    dac_state = 0;
+    cursx = 0xf000; /* Put cursor off screen */
+    cursy = 0xf000;
+}
+
 static void tcx_reset(DeviceState *d)
 {
     TCXState *s = TCX(d);
-
-    /* Initialize palette */
-    memset(s->r, 0, 260);
-    memset(s->g, 0, 260);
-    memset(s->b, 0, 260);
-    s->r[255] = s->g[255] = s->b[255] = 255;
-    s->r[256] = s->g[256] = s->b[256] = 255;
-    s->r[258] = s->g[258] = s->b[258] = 255;
-    update_palette_entries(s, 0, 260);
-    memset(s->vram, 0, MAXX*MAXY);
-    memory_region_reset_dirty(&s->vram_mem, 0, MAXX * MAXY * (1 + 4 + 4),
-                              DIRTY_MEMORY_VGA);
-    s->dac_index = 0;
-    s->dac_state = 0;
-    s->cursx = 0xf000; /* Put cursor off screen */
-    s->cursy = 0xf000;
+    s->doReset();
 }
 
-static uint64_t tcx_dac_readl(void *opaque, hwaddr addr,
-                              unsigned size)
+uint64_t TCXState::dacReadl(void *opaque, hwaddr addr,
+                            unsigned size)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
     uint32_t val = 0;
 
     switch (s->dac_state) {
@@ -405,10 +446,10 @@ static uint64_t tcx_dac_readl(void *opaque, hwaddr addr,
     return val;
 }
 
-static void tcx_dac_writel(void *opaque, hwaddr addr, uint64_t val,
-                           unsigned size)
+void TCXState::dacWritel(void *opaque, hwaddr addr, uint64_t val,
+                         unsigned size)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
     unsigned index;
 
     switch (addr) {
@@ -426,17 +467,17 @@ static void tcx_dac_writel(void *opaque, hwaddr addr, uint64_t val,
         switch (s->dac_state) {
         case 0:
             s->r[index] = val >> 24;
-            update_palette_entries(s, index, index + 1);
+            s->updatePaletteEntries(index, index + 1);
             s->dac_state++;
             break;
         case 1:
             s->g[index] = val >> 24;
-            update_palette_entries(s, index, index + 1);
+            s->updatePaletteEntries(index, index + 1);
             s->dac_state++;
             break;
         case 2:
             s->b[index] = val >> 24;
-            update_palette_entries(s, index, index + 1);
+            s->updatePaletteEntries(index, index + 1);
             s->dac_index = (s->dac_index + 1) & 0xff; /* Index autoincrement */
             /* fall through */
         default:
@@ -450,8 +491,8 @@ static void tcx_dac_writel(void *opaque, hwaddr addr, uint64_t val,
 }
 
 static const MemoryRegionOps tcx_dac_ops = {
-    .read = tcx_dac_readl,
-    .write = tcx_dac_writel,
+    .read = TCXState::dacReadl,
+    .write = TCXState::dacWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -459,16 +500,16 @@ static const MemoryRegionOps tcx_dac_ops = {
     },
 };
 
-static uint64_t tcx_stip_readl(void *opaque, hwaddr addr,
-                               unsigned size)
+uint64_t TCXState::stipReadl(void *opaque, hwaddr addr,
+                             unsigned size)
 {
     return 0;
 }
 
-static void tcx_stip_writel(void *opaque, hwaddr addr,
-                            uint64_t val, unsigned size)
+void TCXState::stipWritel(void *opaque, hwaddr addr,
+                          uint64_t val, unsigned size)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
     int i;
     uint32_t col;
 
@@ -493,14 +534,14 @@ static void tcx_stip_writel(void *opaque, hwaddr addr,
                 val <<= 1;
             }
         }
-        tcx_set_dirty(s, addr, 32);
+        s->setDirty( addr, 32);
     }
 }
 
-static void tcx_rstip_writel(void *opaque, hwaddr addr,
-                             uint64_t val, unsigned size)
+void TCXState::rstipWritel(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned size)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
     int i;
     uint32_t col;
 
@@ -526,48 +567,48 @@ static void tcx_rstip_writel(void *opaque, hwaddr addr,
                 val <<= 1;
             }
         }
-        tcx_set_dirty(s, addr, 32);
+        s->setDirty( addr, 32);
     }
 }
 
 static const MemoryRegionOps tcx_stip_ops = {
-    .read = tcx_stip_readl,
-    .write = tcx_stip_writel,
+    .read = TCXState::stipReadl,
+    .write = TCXState::stipWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
 };
 
 static const MemoryRegionOps tcx_rstip_ops = {
-    .read = tcx_stip_readl,
-    .write = tcx_rstip_writel,
+    .read = TCXState::stipReadl,
+    .write = TCXState::rstipWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
     },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
-static uint64_t tcx_blit_readl(void *opaque, hwaddr addr,
-                               unsigned size)
+uint64_t TCXState::blitReadl(void *opaque, hwaddr addr,
+                             unsigned size)
 {
     return 0;
 }
 
-static void tcx_blit_writel(void *opaque, hwaddr addr,
-                            uint64_t val, unsigned size)
+void TCXState::blitWritel(void *opaque, hwaddr addr,
+                          uint64_t val, unsigned size)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
     uint32_t adsr, len;
     int i;
 
@@ -592,14 +633,14 @@ static void tcx_blit_writel(void *opaque, hwaddr addr,
                 memcpy(&s->vram24[addr], &s->vram24[adsr], len * 4);
             }
         }
-        tcx_set_dirty(s, addr, len);
+        s->setDirty( addr, len);
     }
 }
 
-static void tcx_rblit_writel(void *opaque, hwaddr addr,
-                         uint64_t val, unsigned size)
+void TCXState::rblitWritel(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned size)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
     uint32_t adsr, len;
     int i;
 
@@ -626,58 +667,58 @@ static void tcx_rblit_writel(void *opaque, hwaddr addr,
                 memcpy(&s->cplane[addr], &s->cplane[adsr], len * 4);
             }
         }
-        tcx_set_dirty(s, addr, len);
+        s->setDirty( addr, len);
     }
 }
 
 static const MemoryRegionOps tcx_blit_ops = {
-    .read = tcx_blit_readl,
-    .write = tcx_blit_writel,
+    .read = TCXState::blitReadl,
+    .write = TCXState::blitWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
 };
 
 static const MemoryRegionOps tcx_rblit_ops = {
-    .read = tcx_blit_readl,
-    .write = tcx_rblit_writel,
+    .read = TCXState::blitReadl,
+    .write = TCXState::rblitWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
     .valid = {
         .min_access_size = 4,
         .max_access_size = 8,
     },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
-static void tcx_invalidate_cursor_position(TCXState *s)
+void TCXState::invalidateCursorPosition()
 {
     int ymin, ymax, start, end;
 
     /* invalidate only near the cursor */
-    ymin = s->cursy;
-    if (ymin >= s->height) {
+    ymin = cursy;
+    if (ymin >= height) {
         return;
     }
-    ymax = MIN(s->height, ymin + 32);
+    ymax = MIN(height, ymin + 32);
     start = ymin * 1024;
     end   = ymax * 1024;
 
-    tcx_set_dirty(s, start, end - start);
+    setDirty(start, end - start);
 }
 
-static uint64_t tcx_thc_readl(void *opaque, hwaddr addr,
+uint64_t TCXState::thcReadl(void *opaque, hwaddr addr,
                             unsigned size)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
     uint64_t val;
 
     if (addr == TCX_THC_MISC) {
@@ -688,22 +729,22 @@ static uint64_t tcx_thc_readl(void *opaque, hwaddr addr,
     return val;
 }
 
-static void tcx_thc_writel(void *opaque, hwaddr addr,
+void TCXState::thcWritel(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
-    TCXState *s = opaque;
+    TCXState *s = static_cast<TCXState *>(opaque);
 
     if (addr == TCX_THC_CURSXY) {
-        tcx_invalidate_cursor_position(s);
+        s->invalidateCursorPosition();
         s->cursx = val >> 16;
         s->cursy = val;
-        tcx_invalidate_cursor_position(s);
+        s->invalidateCursorPosition();
     } else if (addr >= TCX_THC_CURSMASK && addr < TCX_THC_CURSMASK + 128) {
         s->cursmask[(addr - TCX_THC_CURSMASK) >> 2] = val;
-        tcx_invalidate_cursor_position(s);
+        s->invalidateCursorPosition();
     } else if (addr >= TCX_THC_CURSBITS && addr < TCX_THC_CURSBITS + 128) {
         s->cursbits[(addr - TCX_THC_CURSBITS) >> 2] = val;
-        tcx_invalidate_cursor_position(s);
+        s->invalidateCursorPosition();
     } else if (addr == TCX_THC_MISC) {
         s->thcmisc = val;
     }
@@ -711,8 +752,8 @@ static void tcx_thc_writel(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps tcx_thc_ops = {
-    .read = tcx_thc_readl,
-    .write = tcx_thc_writel,
+    .read = TCXState::thcReadl,
+    .write = TCXState::thcWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -720,20 +761,20 @@ static const MemoryRegionOps tcx_thc_ops = {
     },
 };
 
-static uint64_t tcx_dummy_readl(void *opaque, hwaddr addr,
-                            unsigned size)
+uint64_t TCXState::dummyReadl(void *opaque, hwaddr addr,
+                              unsigned size)
 {
     return 0;
 }
 
-static void tcx_dummy_writel(void *opaque, hwaddr addr,
-                         uint64_t val, unsigned size)
+void TCXState::dummyWritel(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned size)
 {
 }
 
 static const MemoryRegionOps tcx_dummy_ops = {
-    .read = tcx_dummy_readl,
-    .write = tcx_dummy_writel,
+    .read = TCXState::dummyReadl,
+    .write = TCXState::dummyWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -742,13 +783,13 @@ static const MemoryRegionOps tcx_dummy_ops = {
 };
 
 static const GraphicHwOps tcx_ops = {
-    .invalidate = tcx_invalidate_display,
-    .gfx_update = tcx_update_display,
+    .invalidate = TCXState::invalidateDisplay,
+    .gfx_update = TCXState::updateDisplay,
 };
 
 static const GraphicHwOps tcx24_ops = {
-    .invalidate = tcx24_invalidate_display,
-    .gfx_update = tcx24_update_display,
+    .invalidate = TCXState::invalidate24Display,
+    .gfx_update = TCXState::update24Display,
 };
 
 static void tcx_initfn(Object *obj)
@@ -806,7 +847,7 @@ static void tcx_initfn(Object *obj)
     sysbus_init_mmio(sbd, &s->alt);
 }
 
-static void tcx_realizefn(DeviceState *dev, Error **errp)
+void TCXState::realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     TCXState *s = TCX(dev);
@@ -819,7 +860,7 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
                            s->vram_size * (1 + 4 + 4), &error_fatal);
     vmstate_register_ram_global(&s->vram_mem);
     memory_region_set_log(&s->vram_mem, true, DIRTY_MEMORY_VGA);
-    vram_base = memory_region_get_ram_ptr(&s->vram_mem);
+    vram_base = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->vram_mem));
 
     /* 10/ROM : FCode ROM */
     vmstate_register_ram_global(&s->rom);
@@ -885,7 +926,13 @@ static const Property tcx_properties[] = {
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
 };
 
-static void tcx_class_init(ObjectClass *klass, const void *data)
+static void tcx_realizefn(DeviceState *dev, Error **errp)
+{
+    TCXState *s = TCX(dev);
+    s->realize(dev, errp);
+}
+
+void TCXState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -900,7 +947,7 @@ static const TypeInfo tcx_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TCXState),
     .instance_init = tcx_initfn,
-    .class_init    = tcx_class_init,
+    .class_init    = TCXState::classInit,
 };
 
 static void tcx_register_types(void)

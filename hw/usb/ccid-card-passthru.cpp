@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include <libcacard.h>
@@ -63,6 +64,27 @@ struct PassthruState {
     uint8_t  atr[MAX_ATR_SIZE];
     uint8_t  atr_length;
     uint8_t  debug;
+
+    /* methods */
+    void sendMsg(VSCMsgType type, uint32_t reader_id,
+                 const uint8_t *payload, uint32_t length);
+    void sendApdu(const uint8_t *apdu, uint32_t length);
+    void sendError(uint32_t reader_id, VSCErrorCode code);
+    void sendInit();
+    void handleInit(VSCMsgHeader *hdr, VSCMsgInit *init);
+    int checkAtr(uint8_t *data, int len);
+    void handleMessage(VSCMsgHeader *scr_msg_header);
+    void dropConnection();
+    void doRealize(CCIDCardState *base, Error **errp);
+
+    /* static callbacks */
+    static int canRead(void *opaque);
+    static void readData(void *opaque, const uint8_t *buf, int size);
+    static void chrEvent(void *opaque, QEMUChrEvent event);
+    static void apduFromGuest(CCIDCardState *base,
+                              const uint8_t *apdu, uint32_t len);
+    static const uint8_t *getAtr(CCIDCardState *base, uint32_t *len);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_CCID_PASSTHRU "ccid-card-passthru"
@@ -74,9 +96,8 @@ DECLARE_INSTANCE_CHECKER(PassthruState, PASSTHRU_CCID_CARD,
  * This code should not depend on the card type.
  */
 
-static void ccid_card_vscard_send_msg(PassthruState *s,
-        VSCMsgType type, uint32_t reader_id,
-        const uint8_t *payload, uint32_t length)
+void PassthruState::sendMsg(VSCMsgType type, uint32_t reader_id,
+                            const uint8_t *payload, uint32_t length)
 {
     VSCMsgHeader scr_msg_header;
 
@@ -85,28 +106,24 @@ static void ccid_card_vscard_send_msg(PassthruState *s,
     scr_msg_header.length = htonl(length);
     /* XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks */
-    qemu_chr_fe_write_all(&s->cs, (uint8_t *)&scr_msg_header,
+    qemu_chr_fe_write_all(&cs, (uint8_t *)&scr_msg_header,
                           sizeof(VSCMsgHeader));
-    qemu_chr_fe_write_all(&s->cs, payload, length);
+    qemu_chr_fe_write_all(&cs, payload, length);
 }
 
-static void ccid_card_vscard_send_apdu(PassthruState *s,
-    const uint8_t *apdu, uint32_t length)
+void PassthruState::sendApdu(const uint8_t *apdu, uint32_t length)
 {
-    ccid_card_vscard_send_msg(
-        s, VSC_APDU, VSCARD_MINIMAL_READER_ID, apdu, length);
+    sendMsg(VSC_APDU, VSCARD_MINIMAL_READER_ID, apdu, length);
 }
 
-static void ccid_card_vscard_send_error(PassthruState *s,
-                    uint32_t reader_id, VSCErrorCode code)
+void PassthruState::sendError(uint32_t reader_id, VSCErrorCode code)
 {
     VSCMsgError msg = {.code = htonl(code)};
 
-    ccid_card_vscard_send_msg(
-        s, VSC_Error, reader_id, (uint8_t *)&msg, sizeof(msg));
+    sendMsg(VSC_Error, reader_id, (uint8_t *)&msg, sizeof(msg));
 }
 
-static void ccid_card_vscard_send_init(PassthruState *s)
+void PassthruState::sendInit()
 {
     VSCMsgInit msg = {
         .magic = VSCARD_MAGIC,
@@ -114,11 +131,11 @@ static void ccid_card_vscard_send_init(PassthruState *s)
         .capabilities = {0}
     };
 
-    ccid_card_vscard_send_msg(s, VSC_Init, VSCARD_UNDEFINED_READER_ID,
-                         (uint8_t *)&msg, sizeof(msg));
+    sendMsg(VSC_Init, VSCARD_UNDEFINED_READER_ID,
+            (uint8_t *)&msg, sizeof(msg));
 }
 
-static int ccid_card_vscard_can_read(void *opaque)
+int PassthruState::canRead(void *opaque)
 {
     PassthruState *card = static_cast<PassthruState *>(opaque);
 
@@ -126,8 +143,7 @@ static int ccid_card_vscard_can_read(void *opaque)
            VSCARD_IN_SIZE - card->vscard_in_pos : 0;
 }
 
-static void ccid_card_vscard_handle_init(
-    PassthruState *card, VSCMsgHeader *hdr, VSCMsgInit *init)
+void PassthruState::handleInit(VSCMsgHeader *hdr, VSCMsgInit *init)
 {
     uint32_t *capabilities;
     int num_capabilities;
@@ -145,14 +161,14 @@ static void ccid_card_vscard_handle_init(
         /* we can't disconnect the chardev */
     }
     if (init->version != VSCARD_VERSION) {
-        DPRINTF(card, D_WARN,
+        DPRINTF(this, D_WARN,
             "got version %d, have %d", init->version, VSCARD_VERSION);
     }
     /* future handling of capabilities, none exist atm */
-    ccid_card_vscard_send_init(card);
+    sendInit();
 }
 
-static int check_atr(PassthruState *card, uint8_t *data, int len)
+int PassthruState::checkAtr(uint8_t *data, int len)
 {
     int historical_length, opt_bytes;
     int td_count = 0;
@@ -164,7 +180,7 @@ static int check_atr(PassthruState *card, uint8_t *data, int len)
     historical_length = data[1] & 0xf;
     opt_bytes = 0;
     if (data[0] != 0x3b && data[0] != 0x3f) {
-        DPRINTF(card, D_WARN, "atr's T0 is 0x%X, not in {0x3b, 0x3f}\n",
+        DPRINTF(this, D_WARN, "atr's T0 is 0x%X, not in {0x3b, 0x3f}\n",
                 data[0]);
         return 0;
     }
@@ -187,96 +203,86 @@ static int check_atr(PassthruState *card, uint8_t *data, int len)
         }
     }
     if (len < 2 + historical_length + opt_bytes) {
-        DPRINTF(card, D_WARN,
+        DPRINTF(this, D_WARN,
             "atr too short: len %d, but historical_len %d, T1 0x%X\n",
             len, historical_length, data[1]);
         return 0;
     }
     if (len > 2 + historical_length + opt_bytes) {
-        DPRINTF(card, D_WARN,
+        DPRINTF(this, D_WARN,
             "atr too long: len %d, but hist/opt %d/%d, T1 0x%X\n",
             len, historical_length, opt_bytes, data[1]);
         /* let it through */
     }
-    DPRINTF(card, D_VERBOSE,
+    DPRINTF(this, D_VERBOSE,
             "atr passes check: %d total length, %d historical, %d optional\n",
             len, historical_length, opt_bytes);
 
     return 1;
 }
 
-static void ccid_card_vscard_handle_message(PassthruState *card,
-    VSCMsgHeader *scr_msg_header)
+void PassthruState::handleMessage(VSCMsgHeader *scr_msg_header)
 {
     uint8_t *data = (uint8_t *)&scr_msg_header[1];
 
     switch (scr_msg_header->type) {
     case VSC_ATR:
-        DPRINTF(card, D_INFO, "VSC_ATR %d\n", scr_msg_header->length);
+        DPRINTF(this, D_INFO, "VSC_ATR %d\n", scr_msg_header->length);
         if (scr_msg_header->length > MAX_ATR_SIZE) {
             error_report("ATR size exceeds spec, ignoring");
-            ccid_card_vscard_send_error(card, scr_msg_header->reader_id,
-                                        VSC_GENERAL_ERROR);
+            sendError(scr_msg_header->reader_id, VSC_GENERAL_ERROR);
             break;
         }
-        if (!check_atr(card, data, scr_msg_header->length)) {
+        if (!checkAtr(data, scr_msg_header->length)) {
             error_report("ATR is inconsistent, ignoring");
-            ccid_card_vscard_send_error(card, scr_msg_header->reader_id,
-                                        VSC_GENERAL_ERROR);
+            sendError(scr_msg_header->reader_id, VSC_GENERAL_ERROR);
             break;
         }
-        memcpy(card->atr, data, scr_msg_header->length);
-        card->atr_length = scr_msg_header->length;
-        ccid_card_card_inserted(&card->base);
-        ccid_card_vscard_send_error(card, scr_msg_header->reader_id,
-                                    VSC_SUCCESS);
+        memcpy(atr, data, scr_msg_header->length);
+        atr_length = scr_msg_header->length;
+        ccid_card_card_inserted(&base);
+        sendError(scr_msg_header->reader_id, VSC_SUCCESS);
         break;
     case VSC_APDU:
-        ccid_card_send_apdu_to_guest(
-            &card->base, data, scr_msg_header->length);
+        ccid_card_send_apdu_to_guest(&base, data, scr_msg_header->length);
         break;
     case VSC_CardRemove:
-        DPRINTF(card, D_INFO, "VSC_CardRemove\n");
-        ccid_card_card_removed(&card->base);
-        ccid_card_vscard_send_error(card,
-            scr_msg_header->reader_id, VSC_SUCCESS);
+        DPRINTF(this, D_INFO, "VSC_CardRemove\n");
+        ccid_card_card_removed(&base);
+        sendError(scr_msg_header->reader_id, VSC_SUCCESS);
         break;
     case VSC_Init:
-        ccid_card_vscard_handle_init(
-            card, scr_msg_header, (VSCMsgInit *)data);
+        handleInit(scr_msg_header, (VSCMsgInit *)data);
         break;
     case VSC_Error:
-        ccid_card_card_error(&card->base, *(uint32_t *)data);
+        ccid_card_card_error(&base, *(uint32_t *)data);
         break;
     case VSC_ReaderAdd:
-        if (ccid_card_ccid_attach(&card->base) < 0) {
-            ccid_card_vscard_send_error(card, VSCARD_UNDEFINED_READER_ID,
-                                      VSC_CANNOT_ADD_MORE_READERS);
+        if (ccid_card_ccid_attach(&base) < 0) {
+            sendError(VSCARD_UNDEFINED_READER_ID,
+                      VSC_CANNOT_ADD_MORE_READERS);
         } else {
-            ccid_card_vscard_send_error(card, VSCARD_MINIMAL_READER_ID,
-                                        VSC_SUCCESS);
+            sendError(VSCARD_MINIMAL_READER_ID, VSC_SUCCESS);
         }
         break;
     case VSC_ReaderRemove:
-        ccid_card_ccid_detach(&card->base);
-        ccid_card_vscard_send_error(card,
-            scr_msg_header->reader_id, VSC_SUCCESS);
+        ccid_card_ccid_detach(&base);
+        sendError(scr_msg_header->reader_id, VSC_SUCCESS);
         break;
     default:
         printf("usb-ccid: chardev: unexpected message of type %X\n",
                scr_msg_header->type);
-        ccid_card_vscard_send_error(card, scr_msg_header->reader_id,
-            VSC_GENERAL_ERROR);
+        sendError(scr_msg_header->reader_id, VSC_GENERAL_ERROR);
     }
 }
 
-static void ccid_card_vscard_drop_connection(PassthruState *card)
+void PassthruState::dropConnection()
 {
-    qemu_chr_fe_deinit(&card->cs, true);
-    card->vscard_in_pos = card->vscard_in_hdr = 0;
+    qemu_chr_fe_deinit(&cs, true);
+    vscard_in_pos = vscard_in_hdr = 0;
 }
 
-static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
+void PassthruState::readData(void *opaque, const uint8_t *buf, int size)
 {
     PassthruState *card = static_cast<PassthruState *>(opaque);
     VSCMsgHeader *hdr;
@@ -285,7 +291,7 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
         error_report("no room for data: pos %u +  size %d > %" PRId64 "."
                      " dropping connection.",
                      card->vscard_in_pos, size, VSCARD_IN_SIZE);
-        ccid_card_vscard_drop_connection(card);
+        card->dropConnection();
         return;
     }
     assert(card->vscard_in_pos < VSCARD_IN_SIZE);
@@ -300,7 +306,7 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
         hdr->reader_id = ntohl(hdr->reader_id);
         hdr->length = ntohl(hdr->length);
         hdr->type = ntohl(hdr->type);
-        ccid_card_vscard_handle_message(card, hdr);
+        card->handleMessage(hdr);
         card->vscard_in_hdr += hdr->length + sizeof(VSCMsgHeader);
         hdr = (VSCMsgHeader *)(card->vscard_in_data + card->vscard_in_hdr);
     }
@@ -309,7 +315,7 @@ static void ccid_card_vscard_read(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void ccid_card_vscard_event(void *opaque, QEMUChrEvent event)
+void PassthruState::chrEvent(void *opaque, QEMUChrEvent event)
 {
     PassthruState *card = static_cast<PassthruState *>(opaque);
 
@@ -330,8 +336,8 @@ static void ccid_card_vscard_event(void *opaque, QEMUChrEvent event)
 
 /* End VSCard handling */
 
-static void passthru_apdu_from_guest(
-    CCIDCardState *base, const uint8_t *apdu, uint32_t len)
+void PassthruState::apduFromGuest(CCIDCardState *base,
+                                  const uint8_t *apdu, uint32_t len)
 {
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
@@ -339,10 +345,10 @@ static void passthru_apdu_from_guest(
         printf("ccid-passthru: no chardev, discarding apdu length %u\n", len);
         return;
     }
-    ccid_card_vscard_send_apdu(card, apdu, len);
+    card->sendApdu(apdu, len);
 }
 
-static const uint8_t *passthru_get_atr(CCIDCardState *base, uint32_t *len)
+const uint8_t *PassthruState::getAtr(CCIDCardState *base, uint32_t *len)
 {
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
@@ -350,7 +356,7 @@ static const uint8_t *passthru_get_atr(CCIDCardState *base, uint32_t *len)
     return card->atr;
 }
 
-static void passthru_realize(CCIDCardState *base, Error **errp)
+void PassthruState::doRealize(CCIDCardState *base, Error **errp)
 {
     PassthruState *card = PASSTHRU_CCID_CARD(base);
 
@@ -359,10 +365,10 @@ static void passthru_realize(CCIDCardState *base, Error **errp)
     if (qemu_chr_fe_backend_connected(&card->cs)) {
         DPRINTF(card, D_INFO, "ccid-card-passthru: initing chardev");
         qemu_chr_fe_set_handlers(&card->cs,
-            ccid_card_vscard_can_read,
-            ccid_card_vscard_read,
-            ccid_card_vscard_event, NULL, card, NULL, true);
-        ccid_card_vscard_send_init(card);
+            PassthruState::canRead,
+            PassthruState::readData,
+            PassthruState::chrEvent, NULL, card, NULL, true);
+        card->sendInit();
     } else {
         error_setg(errp, "missing chardev");
         return;
@@ -372,6 +378,12 @@ static void passthru_realize(CCIDCardState *base, Error **errp)
     assert(sizeof(DEFAULT_ATR) <= MAX_ATR_SIZE);
     memcpy(card->atr, DEFAULT_ATR, sizeof(DEFAULT_ATR));
     card->atr_length = sizeof(DEFAULT_ATR);
+}
+
+static void passthru_realize(CCIDCardState *base, Error **errp)
+{
+    PassthruState *card = PASSTHRU_CCID_CARD(base);
+    card->doRealize(base, errp);
 }
 
 static const VMStateField vmstate_passthru_fields[] = {
@@ -395,14 +407,14 @@ static const Property passthru_card_properties[] = {
     DEFINE_PROP_UINT8("debug", PassthruState, debug, 0),
 };
 
-static void passthru_class_initfn(ObjectClass *klass, const void *data)
+void PassthruState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CCIDCardClass *cc = CCID_CARD_CLASS(klass);
 
     cc->realize = passthru_realize;
-    cc->get_atr = passthru_get_atr;
-    cc->apdu_from_guest = passthru_apdu_from_guest;
+    cc->get_atr = PassthruState::getAtr;
+    cc->apdu_from_guest = PassthruState::apduFromGuest;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "passthrough smartcard";
     dc->vmsd = &passthru_vmstate;
@@ -413,7 +425,7 @@ static const TypeInfo passthru_card_info = {
     .name          = TYPE_CCID_PASSTHRU,
     .parent        = TYPE_CCID_CARD,
     .instance_size = sizeof(PassthruState),
-    .class_init    = passthru_class_initfn,
+    .class_init    = PassthruState::classInit,
 };
 module_obj(TYPE_CCID_PASSTHRU);
 module_kconfig(USB);

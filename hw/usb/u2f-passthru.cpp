@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "qemu/main-loop.h"
 #include "qemu/error-report.h"
@@ -73,6 +74,27 @@ struct U2FPassthruState {
     /* Transaction time checking */
     int64_t last_transaction_time;
     QEMUTimer timer;
+
+    /* methods */
+    void resetState();
+    int transactionGetIndex(uint32_t cid);
+    struct transaction *transactionGet(uint32_t cid);
+    struct transaction *transactionGetFromNonce(const uint8_t nonce[NONCE_SIZE]);
+    void transactionClose(uint32_t cid);
+    void transactionAdd(uint32_t cid, const uint8_t nonce[NONCE_SIZE]);
+    void transactionStart(const struct packet_init *packet_init);
+    void recvFromHost(const uint8_t packet[U2FHID_PACKET_SIZE]);
+    void doRealize(U2FKeyState *base, Error **errp);
+    void doUnrealize(U2FKeyState *base);
+
+    /* static callbacks */
+    static void timeoutCheck(void *opaque);
+    static void readFromHost(void *opaque);
+    static void recvFromGuest(U2FKeyState *base,
+                              const uint8_t packet[U2FHID_PACKET_SIZE]);
+    static bool isU2fDevice(int fd);
+    static int postLoad(void *opaque, int version_id);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_U2F_PASSTHRU "u2f-passthru"
@@ -115,194 +137,192 @@ static inline uint16_t packet_init_get_bcnt(
     return bcnt;
 }
 
-static void u2f_passthru_reset(U2FPassthruState *key)
+void U2FPassthruState::resetState()
 {
-    timer_del(&key->timer);
-    qemu_set_fd_handler(key->hidraw_fd, NULL, NULL, key);
-    key->last_transaction_time = 0;
-    key->current_transactions_start = 0;
-    key->current_transactions_end = 0;
-    key->current_transactions_num = 0;
+    timer_del(&timer);
+    qemu_set_fd_handler(hidraw_fd, NULL, NULL, this);
+    last_transaction_time = 0;
+    current_transactions_start = 0;
+    current_transactions_end = 0;
+    current_transactions_num = 0;
 }
 
-static void u2f_timeout_check(void *opaque)
+void U2FPassthruState::timeoutCheck(void *opaque)
 {
     U2FPassthruState *key = static_cast<U2FPassthruState *>(opaque);
     int64_t time = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
 
     if (time > key->last_transaction_time + TRANSACTION_TIMEOUT) {
-        u2f_passthru_reset(key);
+        key->resetState();
     } else {
         timer_mod(&key->timer, time + TRANSACTION_TIMEOUT / 4);
     }
 }
 
-static int u2f_transaction_get_index(U2FPassthruState *key, uint32_t cid)
+int U2FPassthruState::transactionGetIndex(uint32_t cid)
 {
-    for (int i = 0; i < key->current_transactions_num; ++i) {
-        int index = (key->current_transactions_start + i)
+    for (int i = 0; i < current_transactions_num; ++i) {
+        int index = (current_transactions_start + i)
             % CURRENT_TRANSACTIONS_NUM;
-        if (cid == key->current_transactions[index].cid) {
+        if (cid == current_transactions[index].cid) {
             return index;
         }
     }
     return -1;
 }
 
-static struct transaction *u2f_transaction_get(U2FPassthruState *key,
-                                               uint32_t cid)
+struct transaction *U2FPassthruState::transactionGet(uint32_t cid)
 {
-    int index = u2f_transaction_get_index(key, cid);
+    int index = transactionGetIndex(cid);
     if (index < 0) {
         return NULL;
     }
-    return &key->current_transactions[index];
+    return &current_transactions[index];
 }
 
-static struct transaction *u2f_transaction_get_from_nonce(U2FPassthruState *key,
+struct transaction *U2FPassthruState::transactionGetFromNonce(
                                 const uint8_t nonce[NONCE_SIZE])
 {
-    for (int i = 0; i < key->current_transactions_num; ++i) {
-        int index = (key->current_transactions_start + i)
+    for (int i = 0; i < current_transactions_num; ++i) {
+        int index = (current_transactions_start + i)
             % CURRENT_TRANSACTIONS_NUM;
-        if (key->current_transactions[index].cid == BROADCAST_CID
-            && memcmp(nonce, key->current_transactions[index].nonce,
+        if (current_transactions[index].cid == BROADCAST_CID
+            && memcmp(nonce, current_transactions[index].nonce,
                       NONCE_SIZE) == 0) {
-            return &key->current_transactions[index];
+            return &current_transactions[index];
         }
     }
     return NULL;
 }
 
-static void u2f_transaction_close(U2FPassthruState *key, uint32_t cid)
+void U2FPassthruState::transactionClose(uint32_t cid)
 {
     int index, next_index;
-    index = u2f_transaction_get_index(key, cid);
+    index = transactionGetIndex(cid);
     if (index < 0) {
         return;
     }
     next_index = (index + 1) % CURRENT_TRANSACTIONS_NUM;
 
     /* Rearrange to ensure the oldest is at the start position */
-    while (next_index != key->current_transactions_end) {
-        memcpy(&key->current_transactions[index],
-               &key->current_transactions[next_index],
+    while (next_index != current_transactions_end) {
+        memcpy(&current_transactions[index],
+               &current_transactions[next_index],
                sizeof(struct transaction));
 
         index = next_index;
         next_index = (index + 1) % CURRENT_TRANSACTIONS_NUM;
     }
 
-    key->current_transactions_end = index;
-    --key->current_transactions_num;
+    current_transactions_end = index;
+    --current_transactions_num;
 
-    if (key->current_transactions_num == 0) {
-        u2f_passthru_reset(key);
+    if (current_transactions_num == 0) {
+        resetState();
     }
 }
 
-static void u2f_transaction_add(U2FPassthruState *key, uint32_t cid,
-                                const uint8_t nonce[NONCE_SIZE])
+void U2FPassthruState::transactionAdd(uint32_t cid,
+                                      const uint8_t nonce[NONCE_SIZE])
 {
     uint8_t index;
-    struct transaction *transaction;
+    struct transaction *t;
 
-    if (key->current_transactions_num >= CURRENT_TRANSACTIONS_NUM) {
+    if (current_transactions_num >= CURRENT_TRANSACTIONS_NUM) {
         /* Close the oldest transaction */
-        index = key->current_transactions_start;
-        transaction = &key->current_transactions[index];
-        u2f_transaction_close(key, transaction->cid);
+        index = current_transactions_start;
+        t = &current_transactions[index];
+        transactionClose(t->cid);
     }
 
     /* Index */
-    index = key->current_transactions_end;
-    key->current_transactions_end = (index + 1) % CURRENT_TRANSACTIONS_NUM;
-    ++key->current_transactions_num;
+    index = current_transactions_end;
+    current_transactions_end = (index + 1) % CURRENT_TRANSACTIONS_NUM;
+    ++current_transactions_num;
 
     /* Transaction */
-    transaction = &key->current_transactions[index];
-    transaction->cid = cid;
-    transaction->resp_bcnt = 0;
-    transaction->resp_size = 0;
+    t = &current_transactions[index];
+    t->cid = cid;
+    t->resp_bcnt = 0;
+    t->resp_size = 0;
 
     /* Nonce */
     if (nonce != NULL) {
-        memcpy(transaction->nonce, nonce, NONCE_SIZE);
+        memcpy(t->nonce, nonce, NONCE_SIZE);
     }
 }
 
-static void u2f_passthru_read(void *opaque);
-
-static void u2f_transaction_start(U2FPassthruState *key,
-                                  const struct packet_init *packet_init)
+void U2FPassthruState::transactionStart(
+                                  const struct packet_init *pkt_init)
 {
     int64_t time;
 
     /* Transaction */
-    if (packet_init->cid == BROADCAST_CID) {
-        u2f_transaction_add(key, packet_init->cid, packet_init->data);
+    if (pkt_init->cid == BROADCAST_CID) {
+        transactionAdd(pkt_init->cid, pkt_init->data);
     } else {
-        u2f_transaction_add(key, packet_init->cid, NULL);
+        transactionAdd(pkt_init->cid, NULL);
     }
 
     /* Time */
     time = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
-    if (key->last_transaction_time == 0) {
-        qemu_set_fd_handler(key->hidraw_fd, u2f_passthru_read, NULL, key);
-        timer_init_ms(&key->timer, QEMU_CLOCK_VIRTUAL, u2f_timeout_check, key);
-        timer_mod(&key->timer, time + TRANSACTION_TIMEOUT / 4);
+    if (last_transaction_time == 0) {
+        qemu_set_fd_handler(hidraw_fd, U2FPassthruState::readFromHost,
+                            NULL, this);
+        timer_init_ms(&timer, QEMU_CLOCK_VIRTUAL,
+                      U2FPassthruState::timeoutCheck, this);
+        timer_mod(&timer, time + TRANSACTION_TIMEOUT / 4);
     }
-    key->last_transaction_time = time;
+    last_transaction_time = time;
 }
 
-static void u2f_passthru_recv_from_host(U2FPassthruState *key,
+void U2FPassthruState::recvFromHost(
                                     const uint8_t packet[U2FHID_PACKET_SIZE])
 {
-    struct transaction *transaction;
+    struct transaction *t;
     uint32_t cid;
 
     /* Retrieve transaction */
     cid = packet_get_cid(packet);
     if (cid == BROADCAST_CID) {
-        struct packet_init *packet_init;
+        struct packet_init *pkt_init;
         if (!packet_is_init(packet)) {
             return;
         }
-        packet_init = (struct packet_init *)packet;
-        transaction = u2f_transaction_get_from_nonce(key, packet_init->data);
+        pkt_init = (struct packet_init *)packet;
+        t = transactionGetFromNonce(pkt_init->data);
     } else {
-        transaction = u2f_transaction_get(key, cid);
+        t = transactionGet(cid);
     }
 
     /* Ignore no started transaction */
-    if (transaction == NULL) {
+    if (t == NULL) {
         return;
     }
 
     if (packet_is_init(packet)) {
-        struct packet_init *packet_init = (struct packet_init *)packet;
-        transaction->resp_bcnt = packet_init_get_bcnt(packet_init);
-        transaction->resp_size = PACKET_INIT_DATA_SIZE;
+        struct packet_init *pkt_init = (struct packet_init *)packet;
+        t->resp_bcnt = packet_init_get_bcnt(pkt_init);
+        t->resp_size = PACKET_INIT_DATA_SIZE;
 
-        if (packet_init->cid == BROADCAST_CID) {
+        if (pkt_init->cid == BROADCAST_CID) {
             /* Nonce checking for legitimate response */
-            if (memcmp(transaction->nonce, packet_init->data, NONCE_SIZE)
-                != 0) {
+            if (memcmp(t->nonce, pkt_init->data, NONCE_SIZE) != 0) {
                 return;
             }
         }
     } else {
-        transaction->resp_size += PACKET_CONT_DATA_SIZE;
+        t->resp_size += PACKET_CONT_DATA_SIZE;
     }
 
     /* Transaction end check */
-    if (transaction->resp_size >= transaction->resp_bcnt) {
-        u2f_transaction_close(key, cid);
+    if (t->resp_size >= t->resp_bcnt) {
+        transactionClose(cid);
     }
-    u2f_send_to_guest(&key->base, packet);
+    u2f_send_to_guest(&base, packet);
 }
 
-static void u2f_passthru_read(void *opaque)
+void U2FPassthruState::readFromHost(void *opaque)
 {
     U2FPassthruState *key = static_cast<U2FPassthruState *>(opaque);
     U2FKeyState *base = &key->base;
@@ -319,17 +339,17 @@ static void u2f_passthru_read(void *opaque)
         /* Detach */
         if (base->dev.attached) {
             usb_device_detach(&base->dev);
-            u2f_passthru_reset(key);
+            key->resetState();
         }
         return;
     }
     if (ret != U2FHID_PACKET_SIZE) {
         return;
     }
-    u2f_passthru_recv_from_host(key, packet);
+    key->recvFromHost(packet);
 }
 
-static void u2f_passthru_recv_from_guest(U2FKeyState *base,
+void U2FPassthruState::recvFromGuest(U2FKeyState *base,
                                     const uint8_t packet[U2FHID_PACKET_SIZE])
 {
     U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
@@ -337,7 +357,7 @@ static void u2f_passthru_recv_from_guest(U2FKeyState *base,
     ssize_t written;
 
     if (packet_is_init(packet)) {
-        u2f_transaction_start(key, (struct packet_init *)packet);
+        key->transactionStart((struct packet_init *)packet);
     }
 
     host_packet[0] = 0;
@@ -350,7 +370,7 @@ static void u2f_passthru_recv_from_guest(U2FKeyState *base,
     }
 }
 
-static bool u2f_passthru_is_u2f_device(int fd)
+bool U2FPassthruState::isU2fDevice(int fd)
 {
     int ret, rdesc_size;
     struct hidraw_report_descriptor rdesc;
@@ -386,7 +406,7 @@ static int u2f_passthru_open_from_device(struct udev_device *device)
     int fd = qemu_open_old(devnode, O_RDWR);
     if (fd < 0) {
         return -1;
-    } else if (!u2f_passthru_is_u2f_device(fd)) {
+    } else if (!U2FPassthruState::isU2fDevice(fd)) {
         qemu_close(fd);
         return -1;
     }
@@ -456,15 +476,21 @@ static int u2f_passthru_open_from_scan(void)
 }
 #endif
 
-static void u2f_passthru_unrealize(U2FKeyState *base)
+void U2FPassthruState::doUnrealize(U2FKeyState *base)
 {
     U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
 
-    u2f_passthru_reset(key);
+    key->resetState();
     qemu_close(key->hidraw_fd);
 }
 
-static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
+static void u2f_passthru_unrealize(U2FKeyState *base)
+{
+    U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
+    key->doUnrealize(base);
+}
+
+void U2FPassthruState::doRealize(U2FKeyState *base, Error **errp)
 {
     U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
     int fd;
@@ -487,7 +513,7 @@ static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
             return;
         }
 
-        if (!u2f_passthru_is_u2f_device(fd)) {
+        if (!isU2fDevice(fd)) {
             qemu_close(fd);
             error_setg(errp, "%s: Passed hidraw does not represent "
                        "a U2F HID device", TYPE_U2F_PASSTHRU);
@@ -495,13 +521,19 @@ static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
         }
     }
     key->hidraw_fd = fd;
-    u2f_passthru_reset(key);
+    key->resetState();
 }
 
-static int u2f_passthru_post_load(void *opaque, int version_id)
+static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
+{
+    U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
+    key->doRealize(base, errp);
+}
+
+int U2FPassthruState::postLoad(void *opaque, int version_id)
 {
     U2FPassthruState *key = static_cast<U2FPassthruState *>(opaque);
-    u2f_passthru_reset(key);
+    key->resetState();
     return 0;
 }
 
@@ -514,7 +546,7 @@ static const VMStateDescription u2f_passthru_vmstate = {
     .name = "u2f-key-passthru",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = u2f_passthru_post_load,
+    .post_load = U2FPassthruState::postLoad,
     .fields = vmstate_u2f_passthru_fields
 };
 
@@ -522,14 +554,14 @@ static const Property u2f_passthru_properties[] = {
     DEFINE_PROP_STRING("hidraw", U2FPassthruState, hidraw),
 };
 
-static void u2f_passthru_class_init(ObjectClass *klass, const void *data)
+void U2FPassthruState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     U2FKeyClass *kc = U2F_KEY_CLASS(klass);
 
     kc->realize = u2f_passthru_realize;
     kc->unrealize = u2f_passthru_unrealize;
-    kc->recv_from_guest = u2f_passthru_recv_from_guest;
+    kc->recv_from_guest = U2FPassthruState::recvFromGuest;
     dc->desc = "QEMU U2F passthrough key";
     dc->vmsd = &u2f_passthru_vmstate;
     device_class_set_props(dc, u2f_passthru_properties);
@@ -540,7 +572,7 @@ static const TypeInfo u2f_key_passthru_info = {
     .name = TYPE_U2F_PASSTHRU,
     .parent = TYPE_U2F_KEY,
     .instance_size = sizeof(U2FPassthruState),
-    .class_init = u2f_passthru_class_init
+    .class_init = U2FPassthruState::classInit
 };
 
 static void u2f_key_passthru_register_types(void)

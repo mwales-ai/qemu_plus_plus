@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -175,37 +176,73 @@ struct SunHMEState {
     uint32_t mifregs[HME_MIF_REG_SIZE >> 2];
 
     uint16_t miiregs[HME_MII_REGS_SIZE];
+
+    /* Instance methods */
+    void resetTx();
+    void resetRx();
+    void updateIrq();
+    void transmit();
+    void transmitFrame(uint8_t *buf, int size);
+    void miiWrite(uint8_t reg, uint16_t data);
+    uint16_t miiRead(uint8_t reg);
+    void doReset();
+    void realize(PCIDevice *pci_dev, Error **errp);
+
+    inline int getTxRingCount();
+    inline int getTxRingNr();
+    inline void setTxRingNr(int i);
+    inline int getRxRingCount();
+    inline int getRxRingNr();
+    inline void setRxRingNr(int i);
+
+    /* Static callbacks */
+    static void sebWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t sebRead(void *opaque, hwaddr addr, unsigned size);
+    static void etxWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t etxRead(void *opaque, hwaddr addr, unsigned size);
+    static void erxWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t erxRead(void *opaque, hwaddr addr, unsigned size);
+    static void macWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t macRead(void *opaque, hwaddr addr, unsigned size);
+    static void mifWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t mifRead(void *opaque, hwaddr addr, unsigned size);
+
+    static bool canReceive(NetClientState *nc);
+    static void linkStatusChanged(NetClientState *nc);
+    static ssize_t receive(NetClientState *nc, const uint8_t *buf, size_t size);
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const Property sunhme_properties[] = {
     DEFINE_NIC_PROPERTIES(SunHMEState, conf),
 };
 
-static void sunhme_reset_tx(SunHMEState *s)
+void SunHMEState::resetTx()
 {
     /* Indicate TX reset complete */
-    s->sebregs[HME_SEBI_RESET] &= ~HME_SEB_RESET_ETX;
+    sebregs[HME_SEBI_RESET] &= ~HME_SEB_RESET_ETX;
 }
 
-static void sunhme_reset_rx(SunHMEState *s)
+void SunHMEState::resetRx()
 {
     /* Indicate RX reset complete */
-    s->sebregs[HME_SEBI_RESET] &= ~HME_SEB_RESET_ERX;
+    sebregs[HME_SEBI_RESET] &= ~HME_SEB_RESET_ERX;
 }
 
-static void sunhme_update_irq(SunHMEState *s)
+void SunHMEState::updateIrq()
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = PCI_DEVICE(this);
     int level;
 
     /* MIF interrupt mask (16-bit) */
-    uint32_t mifmask = ~(s->mifregs[HME_MIFI_IMASK >> 2]) & 0xffff;
-    uint32_t mif = s->mifregs[HME_MIFI_STAT >> 2] & mifmask;
+    uint32_t mifmask = ~(mifregs[HME_MIFI_IMASK >> 2]) & 0xffff;
+    uint32_t mif = mifregs[HME_MIFI_STAT >> 2] & mifmask;
 
     /* Main SEB interrupt mask (include MIF status from above) */
-    uint32_t sebmask = ~(s->sebregs[HME_SEBI_IMASK >> 2]) &
+    uint32_t sebmask = ~(sebregs[HME_SEBI_IMASK >> 2]) &
                        ~HME_SEB_STAT_MIFIRQ;
-    uint32_t seb = s->sebregs[HME_SEBI_STAT >> 2] & sebmask;
+    uint32_t seb = sebregs[HME_SEBI_STAT >> 2] & sebmask;
     if (mif) {
         seb |= HME_SEB_STAT_MIFIRQ;
     }
@@ -216,7 +253,7 @@ static void sunhme_update_irq(SunHMEState *s)
     pci_set_irq(d, level);
 }
 
-static void sunhme_seb_write(void *opaque, hwaddr addr,
+void SunHMEState::sebWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -239,10 +276,10 @@ static void sunhme_seb_write(void *opaque, hwaddr addr,
     switch (addr) {
     case HME_SEBI_RESET:
         if (val & HME_SEB_RESET_ETX) {
-            sunhme_reset_tx(s);
+            s->resetTx();
         }
         if (val & HME_SEB_RESET_ERX) {
-            sunhme_reset_rx(s);
+            s->resetRx();
         }
         val = s->sebregs[HME_SEBI_RESET >> 2];
         break;
@@ -251,7 +288,7 @@ static void sunhme_seb_write(void *opaque, hwaddr addr,
     s->sebregs[addr >> 2] = val;
 }
 
-static uint64_t sunhme_seb_read(void *opaque, hwaddr addr,
+uint64_t SunHMEState::sebRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -276,7 +313,7 @@ static uint64_t sunhme_seb_read(void *opaque, hwaddr addr,
     case HME_SEBI_STAT:
         /* Autoclear status (except MIF) */
         s->sebregs[HME_SEBI_STAT >> 2] &= HME_SEB_STAT_MIFIRQ;
-        sunhme_update_irq(s);
+        s->updateIrq();
         break;
     }
 
@@ -286,8 +323,8 @@ static uint64_t sunhme_seb_read(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sunhme_seb_ops = {
-    .read = sunhme_seb_read,
-    .write = sunhme_seb_write,
+    .read = SunHMEState::sebRead,
+    .write = SunHMEState::sebWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -295,9 +332,7 @@ static const MemoryRegionOps sunhme_seb_ops = {
     },
 };
 
-static void sunhme_transmit(SunHMEState *s);
-
-static void sunhme_etx_write(void *opaque, hwaddr addr,
+void SunHMEState::etxWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -307,7 +342,7 @@ static void sunhme_etx_write(void *opaque, hwaddr addr,
     switch (addr) {
     case HME_ETXI_PENDING:
         if (val) {
-            sunhme_transmit(s);
+            s->transmit();
         }
         break;
     }
@@ -315,7 +350,7 @@ static void sunhme_etx_write(void *opaque, hwaddr addr,
     s->etxregs[addr >> 2] = val;
 }
 
-static uint64_t sunhme_etx_read(void *opaque, hwaddr addr,
+uint64_t SunHMEState::etxRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -329,8 +364,8 @@ static uint64_t sunhme_etx_read(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sunhme_etx_ops = {
-    .read = sunhme_etx_read,
-    .write = sunhme_etx_write,
+    .read = SunHMEState::etxRead,
+    .write = SunHMEState::etxWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -338,7 +373,7 @@ static const MemoryRegionOps sunhme_etx_ops = {
     },
 };
 
-static void sunhme_erx_write(void *opaque, hwaddr addr,
+void SunHMEState::erxWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -348,7 +383,7 @@ static void sunhme_erx_write(void *opaque, hwaddr addr,
     s->erxregs[addr >> 2] = val;
 }
 
-static uint64_t sunhme_erx_read(void *opaque, hwaddr addr,
+uint64_t SunHMEState::erxRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -362,8 +397,8 @@ static uint64_t sunhme_erx_read(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sunhme_erx_ops = {
-    .read = sunhme_erx_read,
-    .write = sunhme_erx_write,
+    .read = SunHMEState::erxRead,
+    .write = SunHMEState::erxWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -371,7 +406,7 @@ static const MemoryRegionOps sunhme_erx_ops = {
     },
 };
 
-static void sunhme_mac_write(void *opaque, hwaddr addr,
+void SunHMEState::macWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -391,7 +426,7 @@ static void sunhme_mac_write(void *opaque, hwaddr addr,
     }
 }
 
-static uint64_t sunhme_mac_read(void *opaque, hwaddr addr,
+uint64_t SunHMEState::macRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -405,8 +440,8 @@ static uint64_t sunhme_mac_read(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sunhme_mac_ops = {
-    .read = sunhme_mac_read,
-    .write = sunhme_mac_write,
+    .read = SunHMEState::macRead,
+    .write = SunHMEState::macWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -414,7 +449,7 @@ static const MemoryRegionOps sunhme_mac_ops = {
     },
 };
 
-static void sunhme_mii_write(SunHMEState *s, uint8_t reg, uint16_t data)
+void SunHMEState::miiWrite(uint8_t reg, uint16_t data)
 {
     trace_sunhme_mii_write(reg, data);
 
@@ -430,29 +465,29 @@ static void sunhme_mii_write(SunHMEState *s, uint8_t reg, uint16_t data)
             data &= ~MII_BMCR_ANRESTART;
 
             /* Indicate negotiation complete */
-            s->miiregs[MII_BMSR] |= MII_BMSR_AN_COMP;
+            miiregs[MII_BMSR] |= MII_BMSR_AN_COMP;
 
-            if (!qemu_get_queue(s->nic)->link_down) {
-                s->miiregs[MII_ANLPAR] |= MII_ANLPAR_TXFD;
-                s->miiregs[MII_BMSR] |= MII_BMSR_LINK_ST;
+            if (!qemu_get_queue(nic)->link_down) {
+                miiregs[MII_ANLPAR] |= MII_ANLPAR_TXFD;
+                miiregs[MII_BMSR] |= MII_BMSR_LINK_ST;
             }
         }
         break;
     }
 
-    s->miiregs[reg] = data;
+    miiregs[reg] = data;
 }
 
-static uint16_t sunhme_mii_read(SunHMEState *s, uint8_t reg)
+uint16_t SunHMEState::miiRead(uint8_t reg)
 {
-    uint16_t data = s->miiregs[reg];
+    uint16_t data = miiregs[reg];
 
     trace_sunhme_mii_read(reg, data);
 
     return data;
 }
 
-static void sunhme_mif_write(void *opaque, hwaddr addr,
+void SunHMEState::mifWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -489,12 +524,12 @@ static void sunhme_mif_write(void *opaque, hwaddr addr,
 
         switch (cmd) {
         case MII_COMMAND_WRITE:
-            sunhme_mii_write(s, reg, data);
+            s->miiWrite(reg, data);
             break;
 
         case MII_COMMAND_READ:
             val &= ~HME_MIF_FO_DATA;
-            val |= sunhme_mii_read(s, reg);
+            val |= s->miiRead(reg);
             break;
         }
 
@@ -505,7 +540,7 @@ static void sunhme_mif_write(void *opaque, hwaddr addr,
     s->mifregs[addr >> 2] = val;
 }
 
-static uint64_t sunhme_mif_read(void *opaque, hwaddr addr,
+uint64_t SunHMEState::mifRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
     SunHMEState *s = SUNHME(opaque);
@@ -517,7 +552,7 @@ static uint64_t sunhme_mif_read(void *opaque, hwaddr addr,
     case HME_MIFI_STAT:
         /* Autoclear MIF interrupt status */
         s->mifregs[HME_MIFI_STAT >> 2] = 0;
-        sunhme_update_irq(s);
+        s->updateIrq();
         break;
     }
 
@@ -527,8 +562,8 @@ static uint64_t sunhme_mif_read(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sunhme_mif_ops = {
-    .read = sunhme_mif_read,
-    .write = sunhme_mif_write,
+    .read = SunHMEState::mifRead,
+    .write = SunHMEState::mifWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -536,41 +571,41 @@ static const MemoryRegionOps sunhme_mif_ops = {
     },
 };
 
-static void sunhme_transmit_frame(SunHMEState *s, uint8_t *buf, int size)
+void SunHMEState::transmitFrame(uint8_t *buf, int size)
 {
-    qemu_send_packet(qemu_get_queue(s->nic), buf, size);
+    qemu_send_packet(qemu_get_queue(nic), buf, size);
 }
 
-static inline int sunhme_get_tx_ring_count(SunHMEState *s)
+inline int SunHMEState::getTxRingCount()
 {
-    return (s->etxregs[HME_ETXI_RSIZE >> 2] + 1) << 4;
+    return (etxregs[HME_ETXI_RSIZE >> 2] + 1) << 4;
 }
 
-static inline int sunhme_get_tx_ring_nr(SunHMEState *s)
+inline int SunHMEState::getTxRingNr()
 {
-    return s->etxregs[HME_ETXI_RING >> 2] & HME_ETXI_RING_OFFSET;
+    return etxregs[HME_ETXI_RING >> 2] & HME_ETXI_RING_OFFSET;
 }
 
-static inline void sunhme_set_tx_ring_nr(SunHMEState *s, int i)
+inline void SunHMEState::setTxRingNr(int i)
 {
-    uint32_t ring = s->etxregs[HME_ETXI_RING >> 2] & ~HME_ETXI_RING_OFFSET;
+    uint32_t ring = etxregs[HME_ETXI_RING >> 2] & ~HME_ETXI_RING_OFFSET;
     ring |= i & HME_ETXI_RING_OFFSET;
 
-    s->etxregs[HME_ETXI_RING >> 2] = ring;
+    etxregs[HME_ETXI_RING >> 2] = ring;
 }
 
-static void sunhme_transmit(SunHMEState *s)
+void SunHMEState::transmit()
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = PCI_DEVICE(this);
     dma_addr_t tb, addr;
     uint32_t intstatus, status, buffer, sum = 0;
     int cr, nr, len, xmit_pos, csum_offset = 0, csum_stuff_offset = 0;
     uint16_t csum = 0;
     uint8_t xmit_buffer[HME_FIFO_SIZE];
 
-    tb = s->etxregs[HME_ETXI_RING >> 2] & HME_ETXI_RING_ADDR;
-    nr = sunhme_get_tx_ring_count(s);
-    cr = sunhme_get_tx_ring_nr(s);
+    tb = etxregs[HME_ETXI_RING >> 2] & HME_ETXI_RING_ADDR;
+    nr = getTxRingCount();
+    cr = getTxRingNr();
 
     pci_dma_read(d, tb + cr * HME_DESC_SIZE, &status, 4);
     pci_dma_read(d, tb + cr * HME_DESC_SIZE + 4, &buffer, 4);
@@ -619,8 +654,8 @@ static void sunhme_transmit(SunHMEState *s)
                 trace_sunhme_tx_xsum_stuff(csum, csum_stuff_offset);
             }
 
-            if (s->macregs[HME_MACI_TXCFG >> 2] & HME_MAC_TXCFG_ENABLE) {
-                sunhme_transmit_frame(s, xmit_buffer, xmit_pos);
+            if (macregs[HME_MACI_TXCFG >> 2] & HME_MAC_TXCFG_ENABLE) {
+                transmitFrame(xmit_buffer, xmit_pos);
                 trace_sunhme_tx_done(xmit_pos);
             }
         }
@@ -634,39 +669,39 @@ static void sunhme_transmit(SunHMEState *s)
         if (cr >= nr) {
             cr = 0;
         }
-        sunhme_set_tx_ring_nr(s, cr);
+        setTxRingNr(cr);
 
         pci_dma_read(d, tb + cr * HME_DESC_SIZE, &status, 4);
         pci_dma_read(d, tb + cr * HME_DESC_SIZE + 4, &buffer, 4);
 
         /* Indicate TX complete */
-        intstatus = s->sebregs[HME_SEBI_STAT >> 2];
+        intstatus = sebregs[HME_SEBI_STAT >> 2];
         intstatus |= HME_SEB_STAT_HOSTTOTX;
-        s->sebregs[HME_SEBI_STAT >> 2] = intstatus;
+        sebregs[HME_SEBI_STAT >> 2] = intstatus;
 
         /* Autoclear TX pending */
-        s->etxregs[HME_ETXI_PENDING >> 2] = 0;
+        etxregs[HME_ETXI_PENDING >> 2] = 0;
 
-        sunhme_update_irq(s);
+        updateIrq();
     }
 
     /* TX FIFO now clear */
-    intstatus = s->sebregs[HME_SEBI_STAT >> 2];
+    intstatus = sebregs[HME_SEBI_STAT >> 2];
     intstatus |= HME_SEB_STAT_TXALL;
-    s->sebregs[HME_SEBI_STAT >> 2] = intstatus;
-    sunhme_update_irq(s);
+    sebregs[HME_SEBI_STAT >> 2] = intstatus;
+    updateIrq();
 }
 
-static bool sunhme_can_receive(NetClientState *nc)
+bool SunHMEState::canReceive(NetClientState *nc)
 {
-    SunHMEState *s = qemu_get_nic_opaque(nc);
+    SunHMEState *s = static_cast<SunHMEState *>(qemu_get_nic_opaque(nc));
 
     return !!(s->macregs[HME_MACI_RXCFG >> 2] & HME_MAC_RXCFG_ENABLE);
 }
 
-static void sunhme_link_status_changed(NetClientState *nc)
+void SunHMEState::linkStatusChanged(NetClientState *nc)
 {
-    SunHMEState *s = qemu_get_nic_opaque(nc);
+    SunHMEState *s = static_cast<SunHMEState *>(qemu_get_nic_opaque(nc));
 
     if (nc->link_down) {
         s->miiregs[MII_ANLPAR] &= ~MII_ANLPAR_TXFD;
@@ -678,12 +713,12 @@ static void sunhme_link_status_changed(NetClientState *nc)
 
     /* Exact bits unknown */
     s->mifregs[HME_MIFI_STAT >> 2] = 0xffff;
-    sunhme_update_irq(s);
+    s->updateIrq();
 }
 
-static inline int sunhme_get_rx_ring_count(SunHMEState *s)
+inline int SunHMEState::getRxRingCount()
 {
-    uint32_t rings = (s->erxregs[HME_ERXI_CFG >> 2] & HME_ERX_CFG_RINGSIZE)
+    uint32_t rings = (erxregs[HME_ERXI_CFG >> 2] & HME_ERX_CFG_RINGSIZE)
                       >> HME_ERX_CFG_RINGSIZE_SHIFT;
 
     switch (rings) {
@@ -700,23 +735,23 @@ static inline int sunhme_get_rx_ring_count(SunHMEState *s)
     return 0;
 }
 
-static inline int sunhme_get_rx_ring_nr(SunHMEState *s)
+inline int SunHMEState::getRxRingNr()
 {
-    return s->erxregs[HME_ERXI_RING >> 2] & HME_ERXI_RING_OFFSET;
+    return erxregs[HME_ERXI_RING >> 2] & HME_ERXI_RING_OFFSET;
 }
 
-static inline void sunhme_set_rx_ring_nr(SunHMEState *s, int i)
+inline void SunHMEState::setRxRingNr(int i)
 {
-    uint32_t ring = s->erxregs[HME_ERXI_RING >> 2] & ~HME_ERXI_RING_OFFSET;
+    uint32_t ring = erxregs[HME_ERXI_RING >> 2] & ~HME_ERXI_RING_OFFSET;
     ring |= i & HME_ERXI_RING_OFFSET;
 
-    s->erxregs[HME_ERXI_RING >> 2] = ring;
+    erxregs[HME_ERXI_RING >> 2] = ring;
 }
 
-static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
+ssize_t SunHMEState::receive(NetClientState *nc, const uint8_t *buf,
                               size_t size)
 {
-    SunHMEState *s = qemu_get_nic_opaque(nc);
+    SunHMEState *s = static_cast<SunHMEState *>(qemu_get_nic_opaque(nc));
     PCIDevice *d = PCI_DEVICE(s);
     dma_addr_t rb, addr;
     uint32_t intstatus, status, buffer, buffersize, sum;
@@ -772,8 +807,8 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
     trace_sunhme_rx_filter_accept();
 
     rb = s->erxregs[HME_ERXI_RING >> 2] & HME_ERXI_RING_ADDR;
-    nr = sunhme_get_rx_ring_count(s);
-    cr = sunhme_get_rx_ring_nr(s);
+    nr = s->getRxRingCount();
+    cr = s->getRxRingNr();
 
     pci_dma_read(d, rb + cr * HME_DESC_SIZE, &status, 4);
     pci_dma_read(d, rb + cr * HME_DESC_SIZE + 4, &buffer, 4);
@@ -781,7 +816,7 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
     /* If we don't own the current descriptor then indicate overflow error */
     if (!(status & HME_XD_OWN)) {
         s->sebregs[HME_SEBI_STAT >> 2] |= HME_SEB_STAT_NORXD;
-        sunhme_update_irq(s);
+        s->updateIrq();
         trace_sunhme_rx_norxd();
         return -1;
     }
@@ -826,14 +861,14 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
         cr = 0;
     }
 
-    sunhme_set_rx_ring_nr(s, cr);
+    s->setRxRingNr(cr);
 
     /* Indicate RX complete */
     intstatus = s->sebregs[HME_SEBI_STAT >> 2];
     intstatus |= HME_SEB_STAT_RXTOHOST;
     s->sebregs[HME_SEBI_STAT >> 2] = intstatus;
 
-    sunhme_update_irq(s);
+    s->updateIrq();
 
     return len;
 }
@@ -841,12 +876,12 @@ static ssize_t sunhme_receive(NetClientState *nc, const uint8_t *buf,
 static NetClientInfo net_sunhme_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = sunhme_can_receive,
-    .receive = sunhme_receive,
-    .link_status_changed = sunhme_link_status_changed,
+    .can_receive = SunHMEState::canReceive,
+    .receive = SunHMEState::receive,
+    .link_status_changed = SunHMEState::linkStatusChanged,
 };
 
-static void sunhme_realize(PCIDevice *pci_dev, Error **errp)
+void SunHMEState::realize(PCIDevice *pci_dev, Error **errp)
 {
     SunHMEState *s = SUNHME(pci_dev);
     DeviceState *d = DEVICE(pci_dev);
@@ -885,6 +920,12 @@ static void sunhme_realize(PCIDevice *pci_dev, Error **errp)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
+static void sunhme_realize(PCIDevice *pci_dev, Error **errp)
+{
+    SunHMEState *s = SUNHME(pci_dev);
+    s->realize(pci_dev, errp);
+}
+
 static void sunhme_instance_init(Object *obj)
 {
     SunHMEState *s = SUNHME(obj);
@@ -894,30 +935,34 @@ static void sunhme_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static void sunhme_reset(DeviceState *ds)
+void SunHMEState::doReset()
 {
-    SunHMEState *s = SUNHME(ds);
-
     /* Configure internal transceiver */
-    s->mifregs[HME_MIFI_CFG >> 2] |= HME_MIF_CFG_MDI0;
+    mifregs[HME_MIFI_CFG >> 2] |= HME_MIF_CFG_MDI0;
 
     /* Advertise auto, 100Mbps FD */
-    s->miiregs[MII_ANAR] = MII_ANAR_TXFD;
-    s->miiregs[MII_BMSR] = MII_BMSR_AUTONEG | MII_BMSR_100TX_FD |
+    miiregs[MII_ANAR] = MII_ANAR_TXFD;
+    miiregs[MII_BMSR] = MII_BMSR_AUTONEG | MII_BMSR_100TX_FD |
                            MII_BMSR_AN_COMP;
 
-    if (!qemu_get_queue(s->nic)->link_down) {
-        s->miiregs[MII_ANLPAR] |= MII_ANLPAR_TXFD;
-        s->miiregs[MII_BMSR] |= MII_BMSR_LINK_ST;
+    if (!qemu_get_queue(nic)->link_down) {
+        miiregs[MII_ANLPAR] |= MII_ANLPAR_TXFD;
+        miiregs[MII_BMSR] |= MII_BMSR_LINK_ST;
     }
 
     /* Set manufacturer */
-    s->miiregs[MII_PHYID1] = DP83840_PHYID1;
-    s->miiregs[MII_PHYID2] = DP83840_PHYID2;
+    miiregs[MII_PHYID1] = DP83840_PHYID1;
+    miiregs[MII_PHYID2] = DP83840_PHYID2;
 
     /* Configure default interrupt mask */
-    s->mifregs[HME_MIFI_IMASK >> 2] = 0xffff;
-    s->sebregs[HME_SEBI_IMASK >> 2] = 0xff7fffff;
+    mifregs[HME_MIFI_IMASK >> 2] = 0xffff;
+    sebregs[HME_SEBI_IMASK >> 2] = 0xff7fffff;
+}
+
+static void sunhme_reset(DeviceState *ds)
+{
+    SunHMEState *s = SUNHME(ds);
+    s->doReset();
 }
 
 static const VMStateDescription vmstate_hme = {
@@ -937,7 +982,7 @@ static const VMStateDescription vmstate_hme = {
     }
 };
 
-static void sunhme_class_init(ObjectClass *klass, const void *data)
+void SunHMEState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -955,7 +1000,7 @@ static void sunhme_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo sunhme_info = {
     .name          = TYPE_SUNHME,
     .parent        = TYPE_PCI_DEVICE,
-    .class_init    = sunhme_class_init,
+    .class_init    = SunHMEState::classInit,
     .instance_size = sizeof(SunHMEState),
     .instance_init = sunhme_instance_init,
     .interfaces = (const InterfaceInfo[]) {

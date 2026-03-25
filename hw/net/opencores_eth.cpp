@@ -300,11 +300,6 @@ struct OpenEthState {
     static uint64_t descRead(void *opaque, hwaddr addr, unsigned int size);
     static void descWrite(void *opaque, hwaddr addr, uint64_t val, unsigned int size);
 
-    /* Static net callbacks */
-    static bool canReceive(NetClientState *nc);
-    static ssize_t receive(NetClientState *nc, const uint8_t *buf, size_t size);
-    static void setLinkStatus(NetClientState *nc);
-
     /* Class init */
     static void classInit(ObjectClass *klass, const void *data);
 };
@@ -338,7 +333,7 @@ static void open_eth_int_source_write(OpenEthState *s,
             s->regs[INT_SOURCE] & s->regs[INT_MASK]);
 }
 
-void OpenEthState::setLinkStatus(NetClientState *nc)
+static void open_eth_set_link_status(NetClientState *nc)
 {
     OpenEthState *s = static_cast<OpenEthState *>(qemu_get_nic_opaque(nc));
 
@@ -366,17 +361,17 @@ void OpenEthState::doReset()
     s->rx_desc = 0x40;
 
     mii_reset(&s->mii);
-    OpenEthState::setLinkStatus(qemu_get_queue(s->nic));
+    open_eth_set_link_status(qemu_get_queue(s->nic));
 }
 
-bool OpenEthState::canReceive(NetClientState *nc)
+static bool open_eth_can_receive(NetClientState *nc)
 {
     OpenEthState *s = static_cast<OpenEthState *>(qemu_get_nic_opaque(nc));
 
     return GET_REGBIT(s, MODER, RXEN) && (s->regs[TX_BD_NUM] < 0x80);
 }
 
-ssize_t OpenEthState::receive(NetClientState *nc,
+static ssize_t open_eth_receive(NetClientState *nc,
         const uint8_t *buf, size_t size)
 {
     OpenEthState *s = static_cast<OpenEthState *>(qemu_get_nic_opaque(nc));
@@ -496,9 +491,9 @@ ssize_t OpenEthState::receive(NetClientState *nc,
 static NetClientInfo net_open_eth_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = OpenEthState::canReceive,
-    .receive = OpenEthState::receive,
-    .link_status_changed = OpenEthState::setLinkStatus,
+    .can_receive = open_eth_can_receive,
+    .receive = open_eth_receive,
+    .link_status_changed = open_eth_set_link_status,
 };
 
 static void open_eth_start_xmit(OpenEthState *s, desc *tx)
@@ -586,7 +581,7 @@ static void open_eth_notify_can_receive(OpenEthState *s)
 {
     NetClientState *nc = qemu_get_queue(s->nic);
 
-    if (OpenEthState::canReceive(nc)) {
+    if (open_eth_can_receive(nc)) {
         qemu_flush_queued_packets(nc);
     }
 }

@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
@@ -83,7 +84,7 @@
 #define DMA_CUR_TX_DESC_ADDR    0x000003d2   /* Current Host Tx Descriptor */
 #define DMA_CUR_RX_DESC_ADDR    0x000003d3   /* Current Host Rx Descriptor */
 #define DMA_CUR_TX_BUF_ADDR     0x000003d4   /* Current Host Tx Buffer */
-#define DMA_CUR_RX_BUF_ADDR     0x000003d5   /* Current Host Rx Buffer */
+#define DMA_CUR_RX_BUF_ADDR    0x000003d5   /* Current Host Rx Buffer */
 #define DMA_HW_FEATURE          0x000003d6   /* Enabled Hardware Features */
 
 /* DMA Status register defines */
@@ -153,6 +154,20 @@ struct XgmacState {
 
     struct RxTxStats stats;
     uint32_t regs[R_MAX];
+
+    /* Instance methods */
+    void readDesc(struct desc *d, int rx);
+    void writeDesc(struct desc *d, int rx);
+    void enetSend();
+    void updateIrq();
+    int canRx();
+    void realize(DeviceState *dev, Error **errp);
+
+    /* Static callbacks */
+    static uint64_t enetRead(void *opaque, hwaddr addr, unsigned size);
+    static void enetWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    static ssize_t ethRx(NetClientState *nc, const uint8_t *buf, size_t size);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateField vmstate_rxtx_stats_fields[] = {
@@ -184,29 +199,29 @@ static const VMStateDescription vmstate_xgmac = {
     .fields = vmstate_xgmac_fields,
 };
 
-static void xgmac_read_desc(XgmacState *s, struct desc *d, int rx)
+void XgmacState::readDesc(struct desc *d, int rx)
 {
-    uint32_t addr = rx ? s->regs[DMA_CUR_RX_DESC_ADDR] :
-        s->regs[DMA_CUR_TX_DESC_ADDR];
+    uint32_t addr = rx ? regs[DMA_CUR_RX_DESC_ADDR] :
+        regs[DMA_CUR_TX_DESC_ADDR];
     cpu_physical_memory_read(addr, d, sizeof(*d));
 }
 
-static void xgmac_write_desc(XgmacState *s, struct desc *d, int rx)
+void XgmacState::writeDesc(struct desc *d, int rx)
 {
     int reg = rx ? DMA_CUR_RX_DESC_ADDR : DMA_CUR_TX_DESC_ADDR;
-    uint32_t addr = s->regs[reg];
+    uint32_t addr = regs[reg];
 
     if (!rx && (d->ctl_stat & 0x00200000)) {
-        s->regs[reg] = s->regs[DMA_TX_BASE_ADDR];
+        regs[reg] = regs[DMA_TX_BASE_ADDR];
     } else if (rx && (d->buffer1_size & 0x8000)) {
-        s->regs[reg] = s->regs[DMA_RCV_BASE_ADDR];
+        regs[reg] = regs[DMA_RCV_BASE_ADDR];
     } else {
-        s->regs[reg] += sizeof(*d);
+        regs[reg] += sizeof(*d);
     }
     cpu_physical_memory_write(addr, d, sizeof(*d));
 }
 
-static void xgmac_enet_send(XgmacState *s)
+void XgmacState::enetSend()
 {
     struct desc bd;
     int frame_size;
@@ -217,7 +232,7 @@ static void xgmac_enet_send(XgmacState *s)
     ptr = frame;
     frame_size = 0;
     while (1) {
-        xgmac_read_desc(s, &bd, 0);
+        readDesc(&bd, 0);
         if ((bd.ctl_stat & 0x80000000) == 0) {
             /* Run out of descriptors to transmit.  */
             break;
@@ -256,24 +271,24 @@ static void xgmac_enet_send(XgmacState *s)
         frame_size += len;
         if (bd.ctl_stat & 0x20000000) {
             /* Last buffer in frame.  */
-            qemu_send_packet(qemu_get_queue(s->nic), frame, len);
+            qemu_send_packet(qemu_get_queue(nic), frame, len);
             ptr = frame;
             frame_size = 0;
-            s->regs[DMA_STATUS] |= DMA_STATUS_TI | DMA_STATUS_NIS;
+            regs[DMA_STATUS] |= DMA_STATUS_TI | DMA_STATUS_NIS;
         }
         bd.ctl_stat &= ~0x80000000;
         /* Write back the modified descriptor.  */
-        xgmac_write_desc(s, &bd, 0);
+        writeDesc(&bd, 0);
     }
 }
 
-static void enet_update_irq(XgmacState *s)
+void XgmacState::updateIrq()
 {
-    int stat = s->regs[DMA_STATUS] & s->regs[DMA_INTR_ENA];
-    qemu_set_irq(s->sbd_irq, !!stat);
+    int stat = regs[DMA_STATUS] & regs[DMA_INTR_ENA];
+    qemu_set_irq(sbd_irq, !!stat);
 }
 
-static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t XgmacState::enetRead(void *opaque, hwaddr addr, unsigned size)
 {
     XgmacState *s = static_cast<XgmacState *>(opaque);
     uint64_t r = 0;
@@ -292,7 +307,7 @@ static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
     return r;
 }
 
-static void enet_write(void *opaque, hwaddr addr,
+void XgmacState::enetWrite(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
     XgmacState *s = static_cast<XgmacState *>(opaque);
@@ -303,7 +318,7 @@ static void enet_write(void *opaque, hwaddr addr,
         s->regs[DMA_BUS_MODE] = value & ~0x1;
         break;
     case DMA_XMT_POLL_DEMAND:
-        xgmac_enet_send(s);
+        s->enetSend();
         break;
     case DMA_STATUS:
         s->regs[DMA_STATUS] = s->regs[DMA_STATUS] & ~value;
@@ -320,22 +335,22 @@ static void enet_write(void *opaque, hwaddr addr,
         }
         break;
     }
-    enet_update_irq(s);
+    s->updateIrq();
 }
 
 static const MemoryRegionOps enet_mem_ops = {
-    .read = enet_read,
-    .write = enet_write,
+    .read = XgmacState::enetRead,
+    .write = XgmacState::enetWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int eth_can_rx(XgmacState *s)
+int XgmacState::canRx()
 {
     /* RX enabled?  */
-    return s->regs[DMA_CONTROL] & DMA_CONTROL_SR;
+    return regs[DMA_CONTROL] & DMA_CONTROL_SR;
 }
 
-static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
+ssize_t XgmacState::ethRx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     XgmacState *s = static_cast<XgmacState *>(qemu_get_nic_opaque(nc));
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
@@ -344,7 +359,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     struct desc bd;
     ssize_t ret;
 
-    if (!eth_can_rx(s)) {
+    if (!s->canRx()) {
         return -1;
     }
     unicast = ~buf[0] & 0x1;
@@ -356,7 +371,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
         goto out;
     }
 
-    xgmac_read_desc(s, &bd, 1);
+    s->readDesc(&bd, 1);
     if ((bd.ctl_stat & 0x80000000) == 0) {
         s->regs[DMA_STATUS] |= DMA_STATUS_RU | DMA_STATUS_AIS;
         ret = size;
@@ -368,7 +383,7 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     /* Add in the 4 bytes for crc (the real hw returns length incl crc) */
     size += 4;
     bd.ctl_stat = (size << 16) | 0x300;
-    xgmac_write_desc(s, &bd, 1);
+    s->writeDesc(&bd, 1);
 
     s->stats.rx_bytes += size;
     s->stats.rx++;
@@ -382,17 +397,17 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     ret = size;
 
 out:
-    enet_update_irq(s);
+    s->updateIrq();
     return ret;
 }
 
 static NetClientInfo net_xgmac_enet_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .receive = eth_rx,
+    .receive = XgmacState::ethRx,
 };
 
-static void xgmac_enet_realize(DeviceState *dev, Error **errp)
+void XgmacState::realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     XgmacState *s = XGMAC(dev);
@@ -418,11 +433,17 @@ static void xgmac_enet_realize(DeviceState *dev, Error **errp)
                                   s->conf.macaddr.a[0];
 }
 
+static void xgmac_enet_realize(DeviceState *dev, Error **errp)
+{
+    XgmacState *s = XGMAC(dev);
+    s->realize(dev, errp);
+}
+
 static const Property xgmac_properties[] = {
     DEFINE_NIC_PROPERTIES(XgmacState, conf),
 };
 
-static void xgmac_enet_class_init(ObjectClass *klass, const void *data)
+void XgmacState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -435,7 +456,7 @@ static const TypeInfo xgmac_enet_info = {
     .name          = TYPE_XGMAC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XgmacState),
-    .class_init    = xgmac_enet_class_init,
+    .class_init    = XgmacState::classInit,
 };
 
 static void xgmac_enet_register_types(void)

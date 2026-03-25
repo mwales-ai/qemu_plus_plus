@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
@@ -95,57 +96,74 @@ struct U2FEmulatedState {
     QemuThread key_thread;
     bool stop_thread;
     EventNotifier notifier;
+
+    /* methods */
+    void resetState();
+    void pendingOutAdd(const uint8_t packet[U2FHID_PACKET_SIZE]);
+    uint8_t *pendingOutGet();
+    u2f_emu_rc setupVdevManualy();
+    void doRealize(U2FKeyState *base, Error **errp);
+    void doUnrealize(U2FKeyState *base);
+
+    /* static callbacks */
+    static void recvFromGuest(U2FKeyState *base,
+                              const uint8_t packet[U2FHID_PACKET_SIZE]);
+    static void *emulatedThread(void *arg);
+    static ssize_t readFile(const char *path, char *buffer, size_t buffer_len);
+    static bool setupCounter(const char *path, struct synced_counter *counter);
+    static void eventHandler(EventNotifier *notifier);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_U2F_EMULATED "u2f-emulated"
 #define EMULATED_U2F_KEY(obj) \
     OBJECT_CHECK(U2FEmulatedState, (obj), TYPE_U2F_EMULATED)
 
-static void u2f_emulated_reset(U2FEmulatedState *key)
+void U2FEmulatedState::resetState()
 {
-    key->pending_out_start = 0;
-    key->pending_out_end = 0;
-    key->pending_out_num = 0;
+    pending_out_start = 0;
+    pending_out_end = 0;
+    pending_out_num = 0;
 }
 
-static void u2f_pending_out_add(U2FEmulatedState *key,
-                                const uint8_t packet[U2FHID_PACKET_SIZE])
+void U2FEmulatedState::pendingOutAdd(
+    const uint8_t packet[U2FHID_PACKET_SIZE])
 {
     int index;
 
-    if (key->pending_out_num >= PENDING_OUT_NUM) {
+    if (pending_out_num >= PENDING_OUT_NUM) {
         return;
     }
 
-    index = key->pending_out_end;
-    key->pending_out_end = (index + 1) % PENDING_OUT_NUM;
-    ++key->pending_out_num;
+    index = pending_out_end;
+    pending_out_end = (index + 1) % PENDING_OUT_NUM;
+    ++pending_out_num;
 
-    memcpy(&key->pending_out[index], packet, U2FHID_PACKET_SIZE);
+    memcpy(&pending_out[index], packet, U2FHID_PACKET_SIZE);
 }
 
-static uint8_t *u2f_pending_out_get(U2FEmulatedState *key)
+uint8_t *U2FEmulatedState::pendingOutGet()
 {
     int index;
 
-    if (key->pending_out_num == 0) {
+    if (pending_out_num == 0) {
         return NULL;
     }
 
-    index  = key->pending_out_start;
-    key->pending_out_start = (index + 1) % PENDING_OUT_NUM;
-    --key->pending_out_num;
+    index  = pending_out_start;
+    pending_out_start = (index + 1) % PENDING_OUT_NUM;
+    --pending_out_num;
 
-    return key->pending_out[index];
+    return pending_out[index];
 }
 
-static void u2f_emulated_recv_from_guest(U2FKeyState *base,
-                                    const uint8_t packet[U2FHID_PACKET_SIZE])
+void U2FEmulatedState::recvFromGuest(U2FKeyState *base,
+                                const uint8_t packet[U2FHID_PACKET_SIZE])
 {
     U2FEmulatedState *key = EMULATED_U2F_KEY(base);
 
     qemu_mutex_lock(&key->pending_out_mutex);
-    u2f_pending_out_add(key, packet);
+    key->pendingOutAdd(packet);
     qemu_mutex_unlock(&key->pending_out_mutex);
 
     qemu_mutex_lock(&key->key_mutex);
@@ -153,9 +171,9 @@ static void u2f_emulated_recv_from_guest(U2FKeyState *base,
     qemu_mutex_unlock(&key->key_mutex);
 }
 
-static void *u2f_emulated_thread(void* arg)
+void *U2FEmulatedState::emulatedThread(void *arg)
 {
-    U2FEmulatedState *key = arg;
+    U2FEmulatedState *key = static_cast<U2FEmulatedState *>(arg);
     uint8_t packet[U2FHID_PACKET_SIZE];
     uint8_t *packet_out = NULL;
 
@@ -173,7 +191,7 @@ static void *u2f_emulated_thread(void* arg)
         }
 
         qemu_mutex_lock(&key->pending_out_mutex);
-        packet_out = u2f_pending_out_get(key);
+        packet_out = key->pendingOutGet();
         if (packet_out == NULL) {
             qemu_mutex_unlock(&key->pending_out_mutex);
             continue;
@@ -194,8 +212,8 @@ static void *u2f_emulated_thread(void* arg)
     return NULL;
 }
 
-static ssize_t u2f_emulated_read(const char *path, char *buffer,
-                                 size_t buffer_len)
+ssize_t U2FEmulatedState::readFile(const char *path, char *buffer,
+                                   size_t buffer_len)
 {
     int fd;
     ssize_t ret;
@@ -211,8 +229,8 @@ static ssize_t u2f_emulated_read(const char *path, char *buffer,
     return ret;
 }
 
-static bool u2f_emulated_setup_counter(const char *path,
-                                       struct synced_counter *counter)
+bool U2FEmulatedState::setupCounter(const char *path,
+                                    struct synced_counter *counter)
 {
     int fd, ret;
     FILE *fp;
@@ -238,45 +256,45 @@ static bool u2f_emulated_setup_counter(const char *path,
     return true;
 }
 
-static u2f_emu_rc u2f_emulated_setup_vdev_manualy(U2FEmulatedState *key)
+u2f_emu_rc U2FEmulatedState::setupVdevManualy()
 {
     ssize_t ret;
     char cert_pem[4096], privkey_pem[2048];
     struct u2f_emu_vdev_setup setup_info;
 
     /* Certificate */
-    ret = u2f_emulated_read(key->cert, cert_pem, sizeof(cert_pem));
+    ret = readFile(cert, cert_pem, sizeof(cert_pem));
     if (ret < 0) {
         return -1;
     }
 
     /* Private key */
-    ret = u2f_emulated_read(key->privkey, privkey_pem, sizeof(privkey_pem));
+    ret = readFile(privkey, privkey_pem, sizeof(privkey_pem));
     if (ret < 0) {
         return -1;
     }
 
     /* Entropy */
-    ret = u2f_emulated_read(key->entropy, (char *)&setup_info.entropy,
-                            sizeof(setup_info.entropy));
+    ret = readFile(entropy, (char *)&setup_info.entropy,
+                   sizeof(setup_info.entropy));
     if (ret < 0) {
         return -1;
     }
 
     /* Counter */
-    if (!u2f_emulated_setup_counter(key->counter, &key->synced_counter)) {
+    if (!setupCounter(counter, &synced_counter)) {
         return -1;
     }
 
     /* Setup */
     setup_info.certificate = cert_pem;
     setup_info.private_key = privkey_pem;
-    setup_info.counter = (struct u2f_emu_vdev_counter *)&key->synced_counter;
+    setup_info.counter = (struct u2f_emu_vdev_counter *)&synced_counter;
 
-    return u2f_emu_vdev_new(&key->vdev, &setup_info);
+    return u2f_emu_vdev_new(&vdev, &setup_info);
 }
 
-static void u2f_emulated_event_handler(EventNotifier *notifier)
+void U2FEmulatedState::eventHandler(EventNotifier *notifier)
 {
     U2FEmulatedState *key = container_of(notifier, U2FEmulatedState, notifier);
     size_t packet_size;
@@ -295,7 +313,7 @@ static void u2f_emulated_event_handler(EventNotifier *notifier)
     qemu_mutex_unlock(&key->vdev_mutex);
 }
 
-static void u2f_emulated_realize(U2FKeyState *base, Error **errp)
+void U2FEmulatedState::doRealize(U2FKeyState *base, Error **errp)
 {
     U2FEmulatedState *key = EMULATED_U2F_KEY(base);
     u2f_emu_rc rc;
@@ -304,7 +322,7 @@ static void u2f_emulated_realize(U2FKeyState *base, Error **errp)
         || key->counter != NULL) {
         if (key->cert != NULL && key->privkey != NULL
             && key->entropy != NULL && key->counter != NULL) {
-            rc = u2f_emulated_setup_vdev_manualy(key);
+            rc = key->setupVdevManualy();
         } else {
             error_setg(errp, "%s: cert, priv, entropy and counter "
                        "parameters must be provided to manually configure "
@@ -328,22 +346,29 @@ static void u2f_emulated_realize(U2FKeyState *base, Error **errp)
         return;
     }
     /* Notifier */
-    event_notifier_set_handler(&key->notifier, u2f_emulated_event_handler);
+    event_notifier_set_handler(&key->notifier, U2FEmulatedState::eventHandler);
 
     /* Synchronization */
     qemu_cond_init(&key->key_cond);
     qemu_mutex_init(&key->vdev_mutex);
     qemu_mutex_init(&key->pending_out_mutex);
     qemu_mutex_init(&key->key_mutex);
-    u2f_emulated_reset(key);
+    key->resetState();
 
     /* Thread */
     key->stop_thread = false;
-    qemu_thread_create(&key->key_thread, "u2f-key", u2f_emulated_thread,
+    qemu_thread_create(&key->key_thread, "u2f-key",
+                       U2FEmulatedState::emulatedThread,
                        key, QEMU_THREAD_JOINABLE);
 }
 
-static void u2f_emulated_unrealize(U2FKeyState *base)
+static void u2f_emulated_realize(U2FKeyState *base, Error **errp)
+{
+    U2FEmulatedState *key = EMULATED_U2F_KEY(base);
+    key->doRealize(base, errp);
+}
+
+void U2FEmulatedState::doUnrealize(U2FKeyState *base)
 {
     U2FEmulatedState *key = EMULATED_U2F_KEY(base);
 
@@ -369,6 +394,12 @@ static void u2f_emulated_unrealize(U2FKeyState *base)
     }
 }
 
+static void u2f_emulated_unrealize(U2FKeyState *base)
+{
+    U2FEmulatedState *key = EMULATED_U2F_KEY(base);
+    key->doUnrealize(base);
+}
+
 static const Property u2f_emulated_properties[] = {
     DEFINE_PROP_STRING("dir", U2FEmulatedState, dir),
     DEFINE_PROP_STRING("cert", U2FEmulatedState, cert),
@@ -377,14 +408,14 @@ static const Property u2f_emulated_properties[] = {
     DEFINE_PROP_STRING("counter", U2FEmulatedState, counter),
 };
 
-static void u2f_emulated_class_init(ObjectClass *klass, const void *data)
+void U2FEmulatedState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     U2FKeyClass *kc = U2F_KEY_CLASS(klass);
 
     kc->realize = u2f_emulated_realize;
     kc->unrealize = u2f_emulated_unrealize;
-    kc->recv_from_guest = u2f_emulated_recv_from_guest;
+    kc->recv_from_guest = U2FEmulatedState::recvFromGuest;
     dc->desc = "QEMU U2F emulated key";
     device_class_set_props(dc, u2f_emulated_properties);
 }
@@ -393,7 +424,7 @@ static const TypeInfo u2f_key_emulated_info = {
     .name = TYPE_U2F_EMULATED,
     .parent = TYPE_U2F_KEY,
     .instance_size = sizeof(U2FEmulatedState),
-    .class_init = u2f_emulated_class_init
+    .class_init = U2FEmulatedState::classInit
 };
 
 static void u2f_key_emulated_register_types(void)

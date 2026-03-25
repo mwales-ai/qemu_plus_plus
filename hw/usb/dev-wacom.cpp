@@ -27,6 +27,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "hw/usb/hid.h"
@@ -54,6 +55,24 @@ struct USBWacomState {
     enum WacomMode mode;
     uint8_t idle;
     int changed;
+
+    /* methods */
+    int mousePoll(uint8_t *buf, int len);
+    int wacomPoll(uint8_t *buf, int len);
+    void doRealize(USBDevice *dev, Error **errp);
+    void doUnrealize(USBDevice *dev);
+
+    /* static callbacks */
+    static void mouseEvent(void *opaque,
+                           int dx1, int dy1, int dz1, int buttons_state);
+    static void wacomEvent(void *opaque,
+                           int x, int y, int dz, int buttons_state);
+    static void handleReset(USBDevice *dev);
+    static void handleControl(USBDevice *dev, USBPacket *p,
+                              int request, int value, int index,
+                              int length, uint8_t *data);
+    static void handleData(USBDevice *dev, USBPacket *p);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_USB_WACOM "usb-wacom-tablet"
@@ -199,8 +218,8 @@ static const USBDesc desc_wacom = {
     .str  = desc_strings,
 };
 
-static void usb_mouse_event(void *opaque,
-                            int dx1, int dy1, int dz1, int buttons_state)
+void USBWacomState::mouseEvent(void *opaque,
+                               int dx1, int dy1, int dz1, int buttons_state)
 {
     USBWacomState *s = static_cast<USBWacomState *>(opaque);
 
@@ -212,8 +231,8 @@ static void usb_mouse_event(void *opaque,
     usb_wakeup(s->intr, 0);
 }
 
-static void usb_wacom_event(void *opaque,
-                            int x, int y, int dz, int buttons_state)
+void USBWacomState::wacomEvent(void *opaque,
+                               int x, int y, int dz, int buttons_state)
 {
     USBWacomState *s = static_cast<USBWacomState *>(opaque);
 
@@ -236,72 +255,74 @@ static inline int int_clamp(int val, int vmin, int vmax)
         return val;
 }
 
-static int usb_mouse_poll(USBWacomState *s, uint8_t *buf, int len)
+int USBWacomState::mousePoll(uint8_t *buf, int len)
 {
-    int dx, dy, dz, b, l;
+    int dx_val, dy_val, dz_val, b, l;
 
-    if (!s->mouse_grabbed) {
-        s->eh_entry = qemu_add_mouse_event_handler(usb_mouse_event, s, 0,
-                        "QEMU PenPartner tablet");
-        qemu_activate_mouse_event_handler(s->eh_entry);
-        s->mouse_grabbed = 1;
+    if (!mouse_grabbed) {
+        eh_entry = qemu_add_mouse_event_handler(USBWacomState::mouseEvent,
+                                                this, 0,
+                                                "QEMU PenPartner tablet");
+        qemu_activate_mouse_event_handler(eh_entry);
+        mouse_grabbed = 1;
     }
 
-    dx = int_clamp(s->dx, -128, 127);
-    dy = int_clamp(s->dy, -128, 127);
-    dz = int_clamp(s->dz, -128, 127);
+    dx_val = int_clamp(dx, -128, 127);
+    dy_val = int_clamp(dy, -128, 127);
+    dz_val = int_clamp(dz, -128, 127);
 
-    s->dx -= dx;
-    s->dy -= dy;
-    s->dz -= dz;
+    dx -= dx_val;
+    dy -= dy_val;
+    dz -= dz_val;
 
     b = 0;
-    if (s->buttons_state & MOUSE_EVENT_LBUTTON)
+    if (buttons_state & MOUSE_EVENT_LBUTTON)
         b |= 0x01;
-    if (s->buttons_state & MOUSE_EVENT_RBUTTON)
+    if (buttons_state & MOUSE_EVENT_RBUTTON)
         b |= 0x02;
-    if (s->buttons_state & MOUSE_EVENT_MBUTTON)
+    if (buttons_state & MOUSE_EVENT_MBUTTON)
         b |= 0x04;
 
     buf[0] = b;
-    buf[1] = dx;
-    buf[2] = dy;
+    buf[1] = dx_val;
+    buf[2] = dy_val;
     l = 3;
     if (len >= 4) {
-        buf[3] = dz;
+        buf[3] = dz_val;
         l = 4;
     }
     return l;
 }
 
-static int usb_wacom_poll(USBWacomState *s, uint8_t *buf, int len)
+int USBWacomState::wacomPoll(uint8_t *buf, int len)
 {
     int b;
 
-    if (!s->mouse_grabbed) {
-        s->eh_entry = qemu_add_mouse_event_handler(usb_wacom_event, s, 1,
-                        "QEMU PenPartner tablet");
-        qemu_activate_mouse_event_handler(s->eh_entry);
-        s->mouse_grabbed = 1;
+    if (!mouse_grabbed) {
+        eh_entry = qemu_add_mouse_event_handler(USBWacomState::wacomEvent,
+                                                this, 1,
+                                                "QEMU PenPartner tablet");
+        qemu_activate_mouse_event_handler(eh_entry);
+        mouse_grabbed = 1;
     }
 
     b = 0;
-    if (s->buttons_state & MOUSE_EVENT_LBUTTON)
+    if (buttons_state & MOUSE_EVENT_LBUTTON)
         b |= 0x01;
-    if (s->buttons_state & MOUSE_EVENT_RBUTTON)
+    if (buttons_state & MOUSE_EVENT_RBUTTON)
         b |= 0x40;
-    if (s->buttons_state & MOUSE_EVENT_MBUTTON)
+    if (buttons_state & MOUSE_EVENT_MBUTTON)
         b |= 0x20; /* eraser */
 
     if (len < 7)
         return 0;
 
-    buf[0] = s->mode;
+    buf[0] = mode;
     buf[5] = 0x00 | (b & 0xf0);
-    buf[1] = s->x & 0xff;
-    buf[2] = s->x >> 8;
-    buf[3] = s->y & 0xff;
-    buf[4] = s->y >> 8;
+    buf[1] = x & 0xff;
+    buf[2] = x >> 8;
+    buf[3] = y & 0xff;
+    buf[4] = y >> 8;
     if (b & 0x3f) {
         buf[6] = 0;
     } else {
@@ -311,7 +332,7 @@ static int usb_wacom_poll(USBWacomState *s, uint8_t *buf, int len)
     return 7;
 }
 
-static void usb_wacom_handle_reset(USBDevice *dev)
+void USBWacomState::handleReset(USBDevice *dev)
 {
     USBWacomState *s = (USBWacomState *) dev;
 
@@ -324,7 +345,7 @@ static void usb_wacom_handle_reset(USBDevice *dev)
     s->mode = WACOM_MODE_HID;
 }
 
-static void usb_wacom_handle_control(USBDevice *dev, USBPacket *p,
+void USBWacomState::handleControl(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     USBWacomState *s = (USBWacomState *) dev;
@@ -362,9 +383,9 @@ static void usb_wacom_handle_control(USBDevice *dev, USBPacket *p,
     /* USB HID requests */
     case HID_GET_REPORT:
         if (s->mode == WACOM_MODE_HID)
-            p->actual_length = usb_mouse_poll(s, data, length);
+            p->actual_length = s->mousePoll(data, length);
         else if (s->mode == WACOM_MODE_WACOM)
-            p->actual_length = usb_wacom_poll(s, data, length);
+            p->actual_length = s->wacomPoll(data, length);
         break;
     case HID_GET_IDLE:
         data[0] = s->idle;
@@ -379,7 +400,7 @@ static void usb_wacom_handle_control(USBDevice *dev, USBPacket *p,
     }
 }
 
-static void usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
+void USBWacomState::handleData(USBDevice *dev, USBPacket *p)
 {
     USBWacomState *s = (USBWacomState *) dev;
     g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(p->iov.size));
@@ -394,9 +415,9 @@ static void usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
             }
             s->changed = 0;
             if (s->mode == WACOM_MODE_HID)
-                len = usb_mouse_poll(s, buf, p->iov.size);
+                len = s->mousePoll(buf, p->iov.size);
             else if (s->mode == WACOM_MODE_WACOM)
-                len = usb_wacom_poll(s, buf, p->iov.size);
+                len = s->wacomPoll(buf, p->iov.size);
             usb_packet_copy(p, buf, len);
             break;
         }
@@ -407,7 +428,7 @@ static void usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_wacom_unrealize(USBDevice *dev)
+void USBWacomState::doUnrealize(USBDevice *dev)
 {
     USBWacomState *s = (USBWacomState *) dev;
 
@@ -417,7 +438,13 @@ static void usb_wacom_unrealize(USBDevice *dev)
     }
 }
 
-static void usb_wacom_realize(USBDevice *dev, Error **errp)
+static void usb_wacom_unrealize(USBDevice *dev)
+{
+    USBWacomState *s = USB_WACOM(dev);
+    s->doUnrealize(dev);
+}
+
+void USBWacomState::doRealize(USBDevice *dev, Error **errp)
 {
     USBWacomState *s = USB_WACOM(dev);
     usb_desc_create_serial(dev);
@@ -426,12 +453,18 @@ static void usb_wacom_realize(USBDevice *dev, Error **errp)
     s->changed = 1;
 }
 
+static void usb_wacom_realize(USBDevice *dev, Error **errp)
+{
+    USBWacomState *s = USB_WACOM(dev);
+    s->doRealize(dev, errp);
+}
+
 static const VMStateDescription vmstate_usb_wacom = {
     .name = "usb-wacom",
     .unmigratable = 1,
 };
 
-static void usb_wacom_class_init(ObjectClass *klass, const void *data)
+void USBWacomState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -439,9 +472,9 @@ static void usb_wacom_class_init(ObjectClass *klass, const void *data)
     uc->product_desc   = "QEMU PenPartner Tablet";
     uc->usb_desc       = &desc_wacom;
     uc->realize        = usb_wacom_realize;
-    uc->handle_reset   = usb_wacom_handle_reset;
-    uc->handle_control = usb_wacom_handle_control;
-    uc->handle_data    = usb_wacom_handle_data;
+    uc->handle_reset   = USBWacomState::handleReset;
+    uc->handle_control = USBWacomState::handleControl;
+    uc->handle_data    = USBWacomState::handleData;
     uc->unrealize      = usb_wacom_unrealize;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "QEMU PenPartner Tablet";
@@ -452,7 +485,7 @@ static const TypeInfo wacom_info = {
     .name          = TYPE_USB_WACOM,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBWacomState),
-    .class_init    = usb_wacom_class_init,
+    .class_init    = USBWacomState::classInit,
 };
 
 static void usb_wacom_register_types(void)

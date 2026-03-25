@@ -27,6 +27,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -259,9 +260,26 @@ struct AUXTOI2CState {
 
     /*< public >*/
     I2CBus *i2c_bus;
+
+    /* methods */
+    void init();
+
+    /* class init */
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
-static void aux_bridge_class_init(ObjectClass *oc, const void *data)
+void AUXTOI2CState::init()
+{
+    i2c_bus = i2c_init_bus(DEVICE(this), "aux-i2c");
+}
+
+static void aux_bridge_init(Object *obj)
+{
+    AUXTOI2CState *s = AUXTOI2C(obj);
+    s->init();
+}
+
+void AUXTOI2CState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -269,13 +287,6 @@ static void aux_bridge_class_init(ObjectClass *oc, const void *data)
      * aux-bus in aux_bus_init(..). So don't allow the user to add one.
      */
     dc->user_creatable = false;
-}
-
-static void aux_bridge_init(Object *obj)
-{
-    AUXTOI2CState *s = AUXTOI2C(obj);
-
-    s->i2c_bus = i2c_init_bus(DEVICE(obj), "aux-i2c");
 }
 
 static inline I2CBus *aux_bridge_get_i2c_bus(AUXTOI2CState *bridge)
@@ -288,7 +299,7 @@ static const TypeInfo aux_to_i2c_type_info = {
     .parent = TYPE_AUX_SLAVE,
     .instance_size = sizeof(AUXTOI2CState),
     .instance_init = aux_bridge_init,
-    .class_init = aux_bridge_class_init,
+    .class_init = AUXTOI2CState::classInit,
 };
 
 /* aux-slave implementation */

@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/usb.h"
 #include "qemu/module.h"
 #include "hw/pci/pci.h"
@@ -34,6 +35,12 @@ struct XHCINecState {
 
     uint32_t intrs;
     uint32_t slots;
+
+    /* instance init */
+    void instanceInit();
+
+    /* class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const Property nec_xhci_properties[] = {
@@ -41,16 +48,21 @@ static const Property nec_xhci_properties[] = {
     DEFINE_PROP_UINT32("slots", XHCINecState, slots, XHCI_MAXSLOTS),
 };
 
-static void nec_xhci_instance_init(Object *obj)
+void XHCINecState::instanceInit()
 {
-    XHCIPciState *pci = XHCI_PCI(obj);
-    XHCINecState *nec = NEC_XHCI(obj);
+    XHCIPciState *pci = XHCI_PCI(this);
 
-    pci->xhci.numintrs = nec->intrs;
-    pci->xhci.numslots = nec->slots;
+    pci->xhci.numintrs = intrs;
+    pci->xhci.numslots = slots;
 }
 
-static void nec_xhci_class_init(ObjectClass *klass, const void *data)
+static void nec_xhci_instance_init(Object *obj)
+{
+    XHCINecState *nec = NEC_XHCI(obj);
+    nec->instanceInit();
+}
+
+void XHCINecState::classInit(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -66,7 +78,7 @@ static const TypeInfo nec_xhci_info = {
     .parent        = TYPE_XHCI_PCI,
     .instance_size = sizeof(XHCINecState),
     .instance_init = nec_xhci_instance_init,
-    .class_init    = nec_xhci_class_init,
+    .class_init    = XHCINecState::classInit,
 };
 
 static void nec_xhci_register_types(void)
