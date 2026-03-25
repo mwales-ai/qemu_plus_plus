@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
@@ -61,9 +62,25 @@ struct PCIPCNetState {
 
     PCNetState state;
     MemoryRegion io_bar;
+
+    /* methods */
+    static void apromWriteb(void *opaque, uint32_t addr, uint32_t val);
+    static uint32_t apromReadb(void *opaque, uint32_t addr);
+    static uint64_t ioportRead(void *opaque, hwaddr addr, unsigned size);
+    static void ioportWrite(void *opaque, hwaddr addr, uint64_t data,
+                            unsigned size);
+    static void pciPhysicalMemoryWrite(void *dma_opaque, hwaddr addr,
+                                       uint8_t *buf, int len, int do_bswap);
+    static void pciPhysicalMemoryRead(void *dma_opaque, hwaddr addr,
+                                      uint8_t *buf, int len, int do_bswap);
+    void pciUninit();
+    void pciRealize(Error **errp);
+    void reset();
+    void instanceInit();
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
+void PCIPCNetState::apromWriteb(void *opaque, uint32_t addr, uint32_t val)
 {
     PCNetState *s = static_cast<PCNetState *>(opaque);
 
@@ -73,7 +90,7 @@ static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
+uint32_t PCIPCNetState::apromReadb(void *opaque, uint32_t addr)
 {
     PCNetState *s = static_cast<PCNetState *>(opaque);
     uint32_t val = s->prom[addr & 15];
@@ -82,23 +99,23 @@ static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
     return val;
 }
 
-static uint64_t pcnet_ioport_read(void *opaque, hwaddr addr,
-                                  unsigned size)
+uint64_t PCIPCNetState::ioportRead(void *opaque, hwaddr addr,
+                                   unsigned size)
 {
     PCNetState *d = static_cast<PCNetState *>(opaque);
 
     trace_pcnet_ioport_read(opaque, addr, size);
     if (addr < 0x10) {
         if (!BCR_DWIO(d) && size == 1) {
-            return pcnet_aprom_readb(d, addr);
+            return apromReadb(d, addr);
         } else if (!BCR_DWIO(d) && (addr & 1) == 0 && size == 2) {
-            return pcnet_aprom_readb(d, addr) |
-                   (pcnet_aprom_readb(d, addr + 1) << 8);
+            return apromReadb(d, addr) |
+                   (apromReadb(d, addr + 1) << 8);
         } else if (BCR_DWIO(d) && (addr & 3) == 0 && size == 4) {
-            return pcnet_aprom_readb(d, addr) |
-                   (pcnet_aprom_readb(d, addr + 1) << 8) |
-                   (pcnet_aprom_readb(d, addr + 2) << 16) |
-                   (pcnet_aprom_readb(d, addr + 3) << 24);
+            return apromReadb(d, addr) |
+                   (apromReadb(d, addr + 1) << 8) |
+                   (apromReadb(d, addr + 2) << 16) |
+                   (apromReadb(d, addr + 3) << 24);
         }
     } else {
         if (size == 2) {
@@ -110,23 +127,23 @@ static uint64_t pcnet_ioport_read(void *opaque, hwaddr addr,
     return ((uint64_t)1 << (size * 8)) - 1;
 }
 
-static void pcnet_ioport_write(void *opaque, hwaddr addr,
-                               uint64_t data, unsigned size)
+void PCIPCNetState::ioportWrite(void *opaque, hwaddr addr,
+                                uint64_t data, unsigned size)
 {
     PCNetState *d = static_cast<PCNetState *>(opaque);
 
     trace_pcnet_ioport_write(opaque, addr, data, size);
     if (addr < 0x10) {
         if (!BCR_DWIO(d) && size == 1) {
-            pcnet_aprom_writeb(d, addr, data);
+            apromWriteb(d, addr, data);
         } else if (!BCR_DWIO(d) && (addr & 1) == 0 && size == 2) {
-            pcnet_aprom_writeb(d, addr, data & 0xff);
-            pcnet_aprom_writeb(d, addr + 1, data >> 8);
+            apromWriteb(d, addr, data & 0xff);
+            apromWriteb(d, addr + 1, data >> 8);
         } else if (BCR_DWIO(d) && (addr & 3) == 0 && size == 4) {
-            pcnet_aprom_writeb(d, addr, data & 0xff);
-            pcnet_aprom_writeb(d, addr + 1, (data >> 8) & 0xff);
-            pcnet_aprom_writeb(d, addr + 2, (data >> 16) & 0xff);
-            pcnet_aprom_writeb(d, addr + 3, data >> 24);
+            apromWriteb(d, addr, data & 0xff);
+            apromWriteb(d, addr + 1, (data >> 8) & 0xff);
+            apromWriteb(d, addr + 2, (data >> 16) & 0xff);
+            apromWriteb(d, addr + 3, data >> 24);
         }
     } else {
         if (size == 2) {
@@ -138,8 +155,8 @@ static void pcnet_ioport_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps pcnet_io_ops = {
-    .read = pcnet_ioport_read,
-    .write = pcnet_ioport_write,
+    .read = PCIPCNetState::ioportRead,
+    .write = PCIPCNetState::ioportWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -159,21 +176,21 @@ static const VMStateDescription vmstate_pci_pcnet = {
 /* PCI interface */
 
 static const MemoryRegionOps pcnet_mmio_ops = {
-    .read = pcnet_ioport_read,
-    .write = pcnet_ioport_write,
+    .read = PCIPCNetState::ioportRead,
+    .write = PCIPCNetState::ioportWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 4, },
 };
 
-static void pci_physical_memory_write(void *dma_opaque, hwaddr addr,
-                                      uint8_t *buf, int len, int do_bswap)
+void PCIPCNetState::pciPhysicalMemoryWrite(void *dma_opaque, hwaddr addr,
+                                           uint8_t *buf, int len, int do_bswap)
 {
     pci_dma_write(static_cast<PCIDevice *>(dma_opaque), addr, buf, len);
 }
 
-static void pci_physical_memory_read(void *dma_opaque, hwaddr addr,
-                                     uint8_t *buf, int len, int do_bswap)
+void PCIPCNetState::pciPhysicalMemoryRead(void *dma_opaque, hwaddr addr,
+                                          uint8_t *buf, int len, int do_bswap)
 {
     pci_dma_read(static_cast<PCIDevice *>(dma_opaque), addr, buf, len);
 }
@@ -181,10 +198,14 @@ static void pci_physical_memory_read(void *dma_opaque, hwaddr addr,
 static void pci_pcnet_uninit(PCIDevice *dev)
 {
     PCIPCNetState *d = PCI_PCNET(dev);
+    d->pciUninit();
+}
 
-    qemu_free_irq(d->state.irq);
-    timer_free(d->state.poll_timer);
-    qemu_del_nic(d->state.nic);
+void PCIPCNetState::pciUninit()
+{
+    qemu_free_irq(this->state.irq);
+    timer_free(this->state.poll_timer);
+    qemu_del_nic(this->state.nic);
 }
 
 static NetClientInfo net_pci_pcnet_info = {
@@ -197,7 +218,13 @@ static NetClientInfo net_pci_pcnet_info = {
 static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
 {
     PCIPCNetState *d = PCI_PCNET(pci_dev);
-    PCNetState *s = &d->state;
+    d->pciRealize(errp);
+}
+
+void PCIPCNetState::pciRealize(Error **errp)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(DEVICE(this));
+    PCNetState *s = &this->state;
     uint8_t *pci_conf;
 
 #if 0
@@ -218,18 +245,18 @@ static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
     pci_conf[PCI_MAX_LAT] = 0xff;
 
     /* Handler for memory-mapped I/O */
-    memory_region_init_io(&d->state.mmio, OBJECT(d), &pcnet_mmio_ops, s,
+    memory_region_init_io(&this->state.mmio, OBJECT(this), &pcnet_mmio_ops, s,
                           "pcnet-mmio", PCNET_PNPMMIO_SIZE);
 
-    memory_region_init_io(&d->io_bar, OBJECT(d), &pcnet_io_ops, s, "pcnet-io",
+    memory_region_init_io(&this->io_bar, OBJECT(this), &pcnet_io_ops, s, "pcnet-io",
                           PCNET_IOPORT_SIZE);
-    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->io_bar);
+    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &this->io_bar);
 
     pci_register_bar(pci_dev, 1, 0, &s->mmio);
 
     s->irq = pci_allocate_irq(pci_dev);
-    s->phys_mem_read = pci_physical_memory_read;
-    s->phys_mem_write = pci_physical_memory_write;
+    s->phys_mem_read = PCIPCNetState::pciPhysicalMemoryRead;
+    s->phys_mem_write = PCIPCNetState::pciPhysicalMemoryWrite;
     s->dma_opaque = DEVICE(pci_dev);
 
     pcnet_common_init(DEVICE(pci_dev), s, &net_pci_pcnet_info);
@@ -238,25 +265,34 @@ static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
 static void pci_reset(DeviceState *dev)
 {
     PCIPCNetState *d = PCI_PCNET(dev);
+    d->reset();
+}
 
-    pcnet_h_reset(&d->state);
+void PCIPCNetState::reset()
+{
+    pcnet_h_reset(&this->state);
 }
 
 static void pcnet_instance_init(Object *obj)
 {
     PCIPCNetState *d = PCI_PCNET(obj);
-    PCNetState *s = &d->state;
+    d->instanceInit();
+}
 
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+void PCIPCNetState::instanceInit()
+{
+    PCNetState *s = &this->state;
+
+    device_add_bootindex_property(OBJECT(this), &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
+                                  DEVICE(this));
 }
 
 static const Property pcnet_properties[] = {
     DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
 };
 
-static void pcnet_class_init(ObjectClass *klass, const void *data)
+void PCIPCNetState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -284,7 +320,7 @@ static const TypeInfo pcnet_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIPCNetState),
     .instance_init = pcnet_instance_init,
-    .class_init    = pcnet_class_init,
+    .class_init    = PCIPCNetState::classInit,
     .interfaces    = pcnet_interfaces,
 };
 

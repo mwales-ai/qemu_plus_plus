@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/display/vga.h"
@@ -49,9 +50,17 @@ struct VGAMmioState {
     MemoryRegion lowmem;
 
     uint8_t it_shift;
+
+    /* methods */
+    static uint64_t mmRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmWrite(void *opaque, hwaddr addr, uint64_t value,
+                        unsigned size);
+    void realize(Error **errp);
+    void reset();
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static uint64_t vga_mm_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t VGAMmioState::mmRead(void *opaque, hwaddr addr, unsigned size)
 {
     VGAMmioState *s = static_cast<VGAMmioState *>(opaque);
 
@@ -59,8 +68,8 @@ static uint64_t vga_mm_read(void *opaque, hwaddr addr, unsigned size)
         MAKE_64BIT_MASK(0, size * 8);
 }
 
-static void vga_mm_write(void *opaque, hwaddr addr, uint64_t value,
-                         unsigned size)
+void VGAMmioState::mmWrite(void *opaque, hwaddr addr, uint64_t value,
+                            unsigned size)
 {
     VGAMmioState *s = static_cast<VGAMmioState *>(opaque);
 
@@ -69,8 +78,8 @@ static void vga_mm_write(void *opaque, hwaddr addr, uint64_t value,
 }
 
 static const MemoryRegionOps vga_mm_ctrl_ops = {
-    .read = vga_mm_read,
-    .write = vga_mm_write,
+    .read = VGAMmioState::mmRead,
+    .write = VGAMmioState::mmWrite,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
@@ -79,34 +88,43 @@ static const MemoryRegionOps vga_mm_ctrl_ops = {
 static void vga_mmio_reset(DeviceState *dev)
 {
     VGAMmioState *s = VGA_MMIO(dev);
+    s->reset();
+}
 
-    vga_common_reset(&s->vga);
+void VGAMmioState::reset()
+{
+    vga_common_reset(&this->vga);
 }
 
 static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
 {
     VGAMmioState *s = VGA_MMIO(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    s->realize(errp);
+}
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &vga_mm_ctrl_ops, s,
+void VGAMmioState::realize(Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(DEVICE(this));
+
+    memory_region_init_io(&this->iomem, OBJECT(this), &vga_mm_ctrl_ops, this,
                           "vga-mmio", 0x100000);
-    memory_region_set_flush_coalesced(&s->iomem);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_set_flush_coalesced(&this->iomem);
+    sysbus_init_mmio(sbd, &this->iomem);
 
     /* XXX: endianness? */
-    memory_region_init_io(&s->lowmem, OBJECT(dev), &vga_mem_ops, &s->vga,
+    memory_region_init_io(&this->lowmem, OBJECT(this), &vga_mem_ops, &this->vga,
                           "vga-lowmem", 0x20000);
-    memory_region_set_coalescing(&s->lowmem);
-    sysbus_init_mmio(sbd, &s->lowmem);
+    memory_region_set_coalescing(&this->lowmem);
+    sysbus_init_mmio(sbd, &this->lowmem);
 
-    s->vga.bank_offset = 0;
-    s->vga.global_vmstate = true;
-    if (!vga_common_init(&s->vga, OBJECT(dev), errp)) {
+    this->vga.bank_offset = 0;
+    this->vga.global_vmstate = true;
+    if (!vga_common_init(&this->vga, OBJECT(this), errp)) {
         return;
     }
 
-    sysbus_init_mmio(sbd, &s->vga.vram);
-    s->vga.con = graphic_console_init(dev, 0, s->vga.hw_ops, &s->vga);
+    sysbus_init_mmio(sbd, &this->vga.vram);
+    this->vga.con = graphic_console_init(DEVICE(this), 0, this->vga.hw_ops, &this->vga);
 }
 
 static const Property vga_mmio_properties[] = {
@@ -114,7 +132,7 @@ static const Property vga_mmio_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", VGAMmioState, vga.vram_size_mb, 8),
 };
 
-static void vga_mmio_class_initfn(ObjectClass *klass, const void *data)
+void VGAMmioState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -129,7 +147,7 @@ static const TypeInfo vga_mmio_info = {
     .name          = TYPE_VGA_MMIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VGAMmioState),
-    .class_init    = vga_mmio_class_initfn,
+    .class_init    = VGAMmioState::classInit,
 };
 
 static void vga_mmio_register_types(void)

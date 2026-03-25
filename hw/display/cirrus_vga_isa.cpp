@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/loader.h"
@@ -40,13 +41,22 @@ struct ISACirrusVGAState {
     ISADevice parent_obj;
 
     CirrusVGAState cirrus_vga;
+
+    /* methods */
+    void realize(Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
 {
-    ISADevice *isadev = ISA_DEVICE(dev);
     ISACirrusVGAState *d = ISA_CIRRUS_VGA(dev);
-    VGACommonState *s = &d->cirrus_vga.vga;
+    d->realize(errp);
+}
+
+void ISACirrusVGAState::realize(Error **errp)
+{
+    ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+    VGACommonState *s = &this->cirrus_vga.vga;
 
     /* follow real hardware, cirrus card emulated has 4 MB video memory.
        Also accept 8 MB/16 MB for backward compatibility. */
@@ -57,13 +67,13 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
         return;
     }
     s->global_vmstate = true;
-    if (!vga_common_init(s, OBJECT(dev), errp)) {
+    if (!vga_common_init(s, OBJECT(this), errp)) {
         return;
     }
-    cirrus_init_common(&d->cirrus_vga, OBJECT(dev), CIRRUS_ID_CLGD5430, 0,
+    cirrus_init_common(&this->cirrus_vga, OBJECT(this), CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(isadev),
                        isa_address_space_io(isadev));
-    s->con = graphic_console_init(dev, 0, s->hw_ops, s);
+    s->con = graphic_console_init(DEVICE(this), 0, s->hw_ops, s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
     /* FIXME not qdev yet */
@@ -76,7 +86,7 @@ static const Property isa_cirrus_vga_properties[] = {
                      cirrus_vga.enable_blitter, true),
 };
 
-static void isa_cirrus_vga_class_init(ObjectClass *klass, const void *data)
+void ISACirrusVGAState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -90,7 +100,7 @@ static const TypeInfo isa_cirrus_vga_info = {
     .name          = TYPE_ISA_CIRRUS_VGA,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISACirrusVGAState),
-    .class_init = isa_cirrus_vga_class_init,
+    .class_init = ISACirrusVGAState::classInit,
 };
 
 static void cirrus_vga_isa_register_types(void)

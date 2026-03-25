@@ -32,6 +32,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/net/mii.h"
 #include "hw/qdev-properties.h"
@@ -288,6 +289,24 @@ struct OpenEthState {
     unsigned tx_desc;
     unsigned rx_desc;
     desc desc[128];
+
+    /* Instance methods */
+    void doReset();
+    void realize(DeviceState *dev, Error **errp);
+
+    /* Static MMIO callbacks */
+    static uint64_t regRead(void *opaque, hwaddr addr, unsigned int size);
+    static void regWrite(void *opaque, hwaddr addr, uint64_t val, unsigned int size);
+    static uint64_t descRead(void *opaque, hwaddr addr, unsigned int size);
+    static void descWrite(void *opaque, hwaddr addr, uint64_t val, unsigned int size);
+
+    /* Static net callbacks */
+    static bool canReceive(NetClientState *nc);
+    static ssize_t receive(NetClientState *nc, const uint8_t *buf, size_t size);
+    static void setLinkStatus(NetClientState *nc);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static desc *rx_desc(OpenEthState *s)
@@ -301,11 +320,11 @@ static desc *tx_desc(OpenEthState *s)
 }
 
 static void open_eth_update_irq(OpenEthState *s,
-        uint32_t old, uint32_t new)
+        uint32_t old, uint32_t new_val)
 {
-    if (!old != !new) {
-        trace_open_eth_update_irq(new);
-        qemu_set_irq(s->irq, new);
+    if (!old != !new_val) {
+        trace_open_eth_update_irq(new_val);
+        qemu_set_irq(s->irq, new_val);
     }
 }
 
@@ -319,9 +338,9 @@ static void open_eth_int_source_write(OpenEthState *s,
             s->regs[INT_SOURCE] & s->regs[INT_MASK]);
 }
 
-static void open_eth_set_link_status(NetClientState *nc)
+void OpenEthState::setLinkStatus(NetClientState *nc)
 {
-    OpenEthState *s = qemu_get_nic_opaque(nc);
+    OpenEthState *s = static_cast<OpenEthState *>(qemu_get_nic_opaque(nc));
 
     if (GET_REGBIT(s, MIICOMMAND, SCANSTAT)) {
         SET_REGFIELD(s, MIISTATUS, LINKFAIL, nc->link_down);
@@ -329,9 +348,9 @@ static void open_eth_set_link_status(NetClientState *nc)
     mii_set_link(&s->mii, !nc->link_down);
 }
 
-static void open_eth_reset(void *opaque)
+void OpenEthState::doReset()
 {
-    OpenEthState *s = opaque;
+    OpenEthState *s = this;
 
     memset(s->regs, 0, sizeof(s->regs));
     s->regs[MODER] = 0xa000;
@@ -347,20 +366,20 @@ static void open_eth_reset(void *opaque)
     s->rx_desc = 0x40;
 
     mii_reset(&s->mii);
-    open_eth_set_link_status(qemu_get_queue(s->nic));
+    OpenEthState::setLinkStatus(qemu_get_queue(s->nic));
 }
 
-static bool open_eth_can_receive(NetClientState *nc)
+bool OpenEthState::canReceive(NetClientState *nc)
 {
-    OpenEthState *s = qemu_get_nic_opaque(nc);
+    OpenEthState *s = static_cast<OpenEthState *>(qemu_get_nic_opaque(nc));
 
     return GET_REGBIT(s, MODER, RXEN) && (s->regs[TX_BD_NUM] < 0x80);
 }
 
-static ssize_t open_eth_receive(NetClientState *nc,
+ssize_t OpenEthState::receive(NetClientState *nc,
         const uint8_t *buf, size_t size)
 {
-    OpenEthState *s = qemu_get_nic_opaque(nc);
+    OpenEthState *s = static_cast<OpenEthState *>(qemu_get_nic_opaque(nc));
     size_t maxfl = GET_REGFIELD(s, PACKETLEN, MAXFL);
     size_t minfl = GET_REGFIELD(s, PACKETLEN, MINFL);
     size_t fcsl = 4;
@@ -477,9 +496,9 @@ static ssize_t open_eth_receive(NetClientState *nc,
 static NetClientInfo net_open_eth_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .can_receive = open_eth_can_receive,
-    .receive = open_eth_receive,
-    .link_status_changed = open_eth_set_link_status,
+    .can_receive = OpenEthState::canReceive,
+    .receive = OpenEthState::receive,
+    .link_status_changed = OpenEthState::setLinkStatus,
 };
 
 static void open_eth_start_xmit(OpenEthState *s, desc *tx)
@@ -543,12 +562,12 @@ static void open_eth_check_start_xmit(OpenEthState *s)
     }
 }
 
-static uint64_t open_eth_reg_read(void *opaque,
+uint64_t OpenEthState::regRead(void *opaque,
         hwaddr addr, unsigned int size)
 {
     static uint32_t (*reg_read[REG_MAX])(OpenEthState *s) = {
     };
-    OpenEthState *s = opaque;
+    OpenEthState *s = static_cast<OpenEthState *>(opaque);
     unsigned idx = addr / 4;
     uint64_t v = 0;
 
@@ -567,7 +586,7 @@ static void open_eth_notify_can_receive(OpenEthState *s)
 {
     NetClientState *nc = qemu_get_queue(s->nic);
 
-    if (open_eth_can_receive(nc)) {
+    if (OpenEthState::canReceive(nc)) {
         qemu_flush_queued_packets(nc);
     }
 }
@@ -581,7 +600,7 @@ static void open_eth_moder_host_write(OpenEthState *s, uint32_t val)
     uint32_t set = val & ~s->regs[MODER];
 
     if (set & MODER_RST) {
-        open_eth_reset(s);
+        s->doReset();
     }
 
     s->regs[MODER] = val;
@@ -657,7 +676,7 @@ static void open_eth_mii_tx_host_write(OpenEthState *s, uint32_t val)
     }
 }
 
-static void open_eth_reg_write(void *opaque,
+void OpenEthState::regWrite(void *opaque,
         hwaddr addr, uint64_t val, unsigned int size)
 {
     static void (*reg_write[REG_MAX])(OpenEthState *s, uint32_t val) = {
@@ -669,7 +688,7 @@ static void open_eth_reg_write(void *opaque,
         [MIITX_DATA] = open_eth_mii_tx_host_write,
         [MIISTATUS] = open_eth_ro,
     };
-    OpenEthState *s = opaque;
+    OpenEthState *s = static_cast<OpenEthState *>(opaque);
     unsigned idx = addr / 4;
 
     if (idx < REG_MAX) {
@@ -682,10 +701,10 @@ static void open_eth_reg_write(void *opaque,
     }
 }
 
-static uint64_t open_eth_desc_read(void *opaque,
+uint64_t OpenEthState::descRead(void *opaque,
         hwaddr addr, unsigned int size)
 {
-    OpenEthState *s = opaque;
+    OpenEthState *s = static_cast<OpenEthState *>(opaque);
     uint64_t v = 0;
 
     addr &= 0x3ff;
@@ -694,10 +713,10 @@ static uint64_t open_eth_desc_read(void *opaque,
     return v;
 }
 
-static void open_eth_desc_write(void *opaque,
+void OpenEthState::descWrite(void *opaque,
         hwaddr addr, uint64_t val, unsigned int size)
 {
-    OpenEthState *s = opaque;
+    OpenEthState *s = static_cast<OpenEthState *>(opaque);
 
     addr &= 0x3ff;
     trace_open_eth_desc_write((uint32_t)addr, (uint32_t)val);
@@ -707,16 +726,16 @@ static void open_eth_desc_write(void *opaque,
 
 
 static const MemoryRegionOps open_eth_reg_ops = {
-    .read = open_eth_reg_read,
-    .write = open_eth_reg_write,
+    .read = OpenEthState::regRead,
+    .write = OpenEthState::regWrite,
 };
 
 static const MemoryRegionOps open_eth_desc_ops = {
-    .read = open_eth_desc_read,
-    .write = open_eth_desc_write,
+    .read = OpenEthState::descRead,
+    .write = OpenEthState::descWrite,
 };
 
-static void sysbus_open_eth_realize(DeviceState *dev, Error **errp)
+void OpenEthState::realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     OpenEthState *s = OPEN_ETH(dev);
@@ -736,18 +755,23 @@ static void sysbus_open_eth_realize(DeviceState *dev, Error **errp)
                           &dev->mem_reentrancy_guard, s);
 }
 
+static void sysbus_open_eth_realize(DeviceState *dev, Error **errp)
+{
+    OpenEthState *s = OPEN_ETH(dev);
+    s->realize(dev, errp);
+}
+
 static void qdev_open_eth_reset(DeviceState *dev)
 {
     OpenEthState *d = OPEN_ETH(dev);
-
-    open_eth_reset(d);
+    d->doReset();
 }
 
 static const Property open_eth_properties[] = {
     DEFINE_NIC_PROPERTIES(OpenEthState, conf),
 };
 
-static void open_eth_class_init(ObjectClass *klass, const void *data)
+void OpenEthState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -762,7 +786,7 @@ static const TypeInfo open_eth_info = {
     .name          = TYPE_OPEN_ETH,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OpenEthState),
-    .class_init    = open_eth_class_init,
+    .class_init    = OpenEthState::classInit,
 };
 
 static void open_eth_register_types(void)

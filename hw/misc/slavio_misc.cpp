@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -60,6 +61,30 @@ struct MiscState {
     uint8_t diag, mctrl;
     uint8_t sysctrl;
     uint16_t leds;
+
+    /* Instance methods */
+    void updateIrq();
+    void reset();
+
+    /* Static MMIO callbacks */
+    static uint64_t cfgMemReadb(void *opaque, hwaddr addr, unsigned size);
+    static void cfgMemWriteb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t diagMemReadb(void *opaque, hwaddr addr, unsigned size);
+    static void diagMemWriteb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t mdmMemReadb(void *opaque, hwaddr addr, unsigned size);
+    static void mdmMemWriteb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t aux1MemReadb(void *opaque, hwaddr addr, unsigned size);
+    static void aux1MemWriteb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t aux2MemReadb(void *opaque, hwaddr addr, unsigned size);
+    static void aux2MemWriteb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t sysctrlMemReadl(void *opaque, hwaddr addr, unsigned size);
+    static void sysctrlMemWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t ledMemReadw(void *opaque, hwaddr addr, unsigned size);
+    static void ledMemWritew(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+
+    /* Static GPIO/reset callbacks */
+    static void setPowerFail(void *opaque, int irq, int power_failing);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_APC "apc"
@@ -72,6 +97,10 @@ struct APCState {
 
     MemoryRegion iomem;
     qemu_irq cpu_halt;
+
+    /* Static MMIO callbacks */
+    static uint64_t memReadb(void *opaque, hwaddr addr, unsigned size);
+    static void memWriteb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 };
 
 #define MISC_SIZE 1
@@ -89,28 +118,30 @@ struct APCState {
 #define SYS_RESET      0x01
 #define SYS_RESETSTAT  0x02
 
-static void slavio_misc_update_irq(void *opaque)
+void MiscState::updateIrq()
 {
-    MiscState *s = static_cast<MiscState *>(opaque);
-
-    if ((s->aux2 & AUX2_PWRFAIL) && (s->config & CFG_PWRINTEN)) {
+    if ((aux2 & AUX2_PWRFAIL) && (config & CFG_PWRINTEN)) {
         trace_slavio_misc_update_irq_raise();
-        qemu_irq_raise(s->irq);
+        qemu_irq_raise(irq);
     } else {
         trace_slavio_misc_update_irq_lower();
-        qemu_irq_lower(s->irq);
+        qemu_irq_lower(irq);
     }
+}
+
+void MiscState::reset()
+{
+    // Diagnostic and system control registers not cleared in reset
+    config = aux1 = aux2 = mctrl = 0;
 }
 
 static void slavio_misc_reset(DeviceState *d)
 {
     MiscState *s = SLAVIO_MISC(d);
-
-    // Diagnostic and system control registers not cleared in reset
-    s->config = s->aux1 = s->aux2 = s->mctrl = 0;
+    s->reset();
 }
 
-static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
+void MiscState::setPowerFail(void *opaque, int irq, int power_failing)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
 
@@ -120,21 +151,21 @@ static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
     } else {
         s->aux2 &= ~AUX2_PWRFAIL;
     }
-    slavio_misc_update_irq(s);
+    s->updateIrq();
 }
 
-static void slavio_cfg_mem_writeb(void *opaque, hwaddr addr,
-                                  uint64_t val, unsigned size)
+void MiscState::cfgMemWriteb(void *opaque, hwaddr addr,
+                              uint64_t val, unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
 
     trace_slavio_cfg_mem_writeb(val & 0xff);
     s->config = val & 0xff;
-    slavio_misc_update_irq(s);
+    s->updateIrq();
 }
 
-static uint64_t slavio_cfg_mem_readb(void *opaque, hwaddr addr,
-                                     unsigned size)
+uint64_t MiscState::cfgMemReadb(void *opaque, hwaddr addr,
+                                 unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
@@ -145,8 +176,8 @@ static uint64_t slavio_cfg_mem_readb(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps slavio_cfg_mem_ops = {
-    .read = slavio_cfg_mem_readb,
-    .write = slavio_cfg_mem_writeb,
+    .read = MiscState::cfgMemReadb,
+    .write = MiscState::cfgMemWriteb,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -154,8 +185,8 @@ static const MemoryRegionOps slavio_cfg_mem_ops = {
     },
 };
 
-static void slavio_diag_mem_writeb(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned size)
+void MiscState::diagMemWriteb(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
 
@@ -163,8 +194,8 @@ static void slavio_diag_mem_writeb(void *opaque, hwaddr addr,
     s->diag = val & 0xff;
 }
 
-static uint64_t slavio_diag_mem_readb(void *opaque, hwaddr addr,
-                                      unsigned size)
+uint64_t MiscState::diagMemReadb(void *opaque, hwaddr addr,
+                                  unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
@@ -175,8 +206,8 @@ static uint64_t slavio_diag_mem_readb(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps slavio_diag_mem_ops = {
-    .read = slavio_diag_mem_readb,
-    .write = slavio_diag_mem_writeb,
+    .read = MiscState::diagMemReadb,
+    .write = MiscState::diagMemWriteb,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -184,8 +215,8 @@ static const MemoryRegionOps slavio_diag_mem_ops = {
     },
 };
 
-static void slavio_mdm_mem_writeb(void *opaque, hwaddr addr,
-                                  uint64_t val, unsigned size)
+void MiscState::mdmMemWriteb(void *opaque, hwaddr addr,
+                              uint64_t val, unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
 
@@ -193,8 +224,8 @@ static void slavio_mdm_mem_writeb(void *opaque, hwaddr addr,
     s->mctrl = val & 0xff;
 }
 
-static uint64_t slavio_mdm_mem_readb(void *opaque, hwaddr addr,
-                                     unsigned size)
+uint64_t MiscState::mdmMemReadb(void *opaque, hwaddr addr,
+                                 unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
@@ -205,8 +236,8 @@ static uint64_t slavio_mdm_mem_readb(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps slavio_mdm_mem_ops = {
-    .read = slavio_mdm_mem_readb,
-    .write = slavio_mdm_mem_writeb,
+    .read = MiscState::mdmMemReadb,
+    .write = MiscState::mdmMemWriteb,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -214,8 +245,8 @@ static const MemoryRegionOps slavio_mdm_mem_ops = {
     },
 };
 
-static void slavio_aux1_mem_writeb(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned size)
+void MiscState::aux1MemWriteb(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
 
@@ -231,8 +262,8 @@ static void slavio_aux1_mem_writeb(void *opaque, hwaddr addr,
     s->aux1 = val & 0xff;
 }
 
-static uint64_t slavio_aux1_mem_readb(void *opaque, hwaddr addr,
-                                      unsigned size)
+uint64_t MiscState::aux1MemReadb(void *opaque, hwaddr addr,
+                                  unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
@@ -243,8 +274,8 @@ static uint64_t slavio_aux1_mem_readb(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps slavio_aux1_mem_ops = {
-    .read = slavio_aux1_mem_readb,
-    .write = slavio_aux1_mem_writeb,
+    .read = MiscState::aux1MemReadb,
+    .write = MiscState::aux1MemWriteb,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -252,8 +283,8 @@ static const MemoryRegionOps slavio_aux1_mem_ops = {
     },
 };
 
-static void slavio_aux2_mem_writeb(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned size)
+void MiscState::aux2MemWriteb(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
 
@@ -265,11 +296,11 @@ static void slavio_aux2_mem_writeb(void *opaque, hwaddr addr,
     s->aux2 = val;
     if (val & AUX2_PWROFF)
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
-    slavio_misc_update_irq(s);
+    s->updateIrq();
 }
 
-static uint64_t slavio_aux2_mem_readb(void *opaque, hwaddr addr,
-                                      unsigned size)
+uint64_t MiscState::aux2MemReadb(void *opaque, hwaddr addr,
+                                  unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
@@ -280,8 +311,8 @@ static uint64_t slavio_aux2_mem_readb(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps slavio_aux2_mem_ops = {
-    .read = slavio_aux2_mem_readb,
-    .write = slavio_aux2_mem_writeb,
+    .read = MiscState::aux2MemReadb,
+    .write = MiscState::aux2MemWriteb,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -289,8 +320,8 @@ static const MemoryRegionOps slavio_aux2_mem_ops = {
     },
 };
 
-static void apc_mem_writeb(void *opaque, hwaddr addr,
-                           uint64_t val, unsigned size)
+void APCState::memWriteb(void *opaque, hwaddr addr,
+                          uint64_t val, unsigned size)
 {
     APCState *s = static_cast<APCState *>(opaque);
 
@@ -298,7 +329,7 @@ static void apc_mem_writeb(void *opaque, hwaddr addr,
     qemu_irq_raise(s->cpu_halt);
 }
 
-static uint64_t apc_mem_readb(void *opaque, hwaddr addr,
+uint64_t APCState::memReadb(void *opaque, hwaddr addr,
                               unsigned size)
 {
     uint32_t ret = 0;
@@ -308,8 +339,8 @@ static uint64_t apc_mem_readb(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps apc_mem_ops = {
-    .read = apc_mem_readb,
-    .write = apc_mem_writeb,
+    .read = APCState::memReadb,
+    .write = APCState::memWriteb,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -317,8 +348,8 @@ static const MemoryRegionOps apc_mem_ops = {
     }
 };
 
-static uint64_t slavio_sysctrl_mem_readl(void *opaque, hwaddr addr,
-                                         unsigned size)
+uint64_t MiscState::sysctrlMemReadl(void *opaque, hwaddr addr,
+                                     unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
@@ -334,8 +365,8 @@ static uint64_t slavio_sysctrl_mem_readl(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void slavio_sysctrl_mem_writel(void *opaque, hwaddr addr,
-                                      uint64_t val, unsigned size)
+void MiscState::sysctrlMemWritel(void *opaque, hwaddr addr,
+                                  uint64_t val, unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
 
@@ -353,8 +384,8 @@ static void slavio_sysctrl_mem_writel(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps slavio_sysctrl_mem_ops = {
-    .read = slavio_sysctrl_mem_readl,
-    .write = slavio_sysctrl_mem_writel,
+    .read = MiscState::sysctrlMemReadl,
+    .write = MiscState::sysctrlMemWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -362,8 +393,8 @@ static const MemoryRegionOps slavio_sysctrl_mem_ops = {
     },
 };
 
-static uint64_t slavio_led_mem_readw(void *opaque, hwaddr addr,
-                                     unsigned size)
+uint64_t MiscState::ledMemReadw(void *opaque, hwaddr addr,
+                                 unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
     uint32_t ret = 0;
@@ -379,8 +410,8 @@ static uint64_t slavio_led_mem_readw(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void slavio_led_mem_writew(void *opaque, hwaddr addr,
-                                  uint64_t val, unsigned size)
+void MiscState::ledMemWritew(void *opaque, hwaddr addr,
+                              uint64_t val, unsigned size)
 {
     MiscState *s = static_cast<MiscState *>(opaque);
 
@@ -395,8 +426,8 @@ static void slavio_led_mem_writew(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps slavio_led_mem_ops = {
-    .read = slavio_led_mem_readw,
-    .write = slavio_led_mem_writew,
+    .read = MiscState::ledMemReadw,
+    .write = MiscState::ledMemWritew,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 2,
@@ -482,10 +513,10 @@ static void slavio_misc_init(Object *obj)
                           "software-powerdown-control", MISC_SIZE);
     sysbus_init_mmio(sbd, &s->aux2_iomem);
 
-    qdev_init_gpio_in(dev, slavio_set_power_fail, 1);
+    qdev_init_gpio_in(dev, MiscState::setPowerFail, 1);
 }
 
-static void slavio_misc_class_init(ObjectClass *klass, const void *data)
+void MiscState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -498,7 +529,7 @@ static const TypeInfo slavio_misc_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MiscState),
     .instance_init = slavio_misc_init,
-    .class_init    = slavio_misc_class_init,
+    .class_init    = MiscState::classInit,
 };
 
 static const TypeInfo apc_info = {

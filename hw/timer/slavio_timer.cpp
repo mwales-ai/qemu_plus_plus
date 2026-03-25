@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/timer.h"
 #include "hw/irq.h"
 #include "hw/ptimer.h"
@@ -68,6 +69,11 @@ struct SLAVIO_TIMERState {
     uint32_t num_cpus;
     uint32_t cputimer_mode;
     CPUTimerState cputimer[MAX_CPUS + 1];
+
+    /* methods */
+    void reset();
+    void instanceInit();
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 typedef struct TimerContext {
@@ -123,7 +129,7 @@ static void slavio_timer_get_out(CPUTimerState *t)
 // timer callback
 static void slavio_timer_irq(void *opaque)
 {
-    TimerContext *tc = opaque;
+    TimerContext *tc = static_cast<TimerContext *>(opaque);
     SLAVIO_TIMERState *s = tc->s;
     CPUTimerState *t = &s->cputimer[tc->timer_index];
 
@@ -142,7 +148,7 @@ static void slavio_timer_irq(void *opaque)
 static uint64_t slavio_timer_mem_readl(void *opaque, hwaddr addr,
                                        unsigned size)
 {
-    TimerContext *tc = opaque;
+    TimerContext *tc = static_cast<TimerContext *>(opaque);
     SLAVIO_TIMERState *s = tc->s;
     uint32_t saddr, ret;
     unsigned int timer_index = tc->timer_index;
@@ -202,7 +208,7 @@ static uint64_t slavio_timer_mem_readl(void *opaque, hwaddr addr,
 static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
-    TimerContext *tc = opaque;
+    TimerContext *tc = static_cast<TimerContext *>(opaque);
     SLAVIO_TIMERState *s = tc->s;
     uint32_t saddr;
     unsigned int timer_index = tc->timer_index;
@@ -369,15 +375,20 @@ static const VMStateDescription vmstate_slavio_timer = {
 static void slavio_timer_reset(DeviceState *d)
 {
     SLAVIO_TIMERState *s = SLAVIO_TIMER(d);
+    s->reset();
+}
+
+void SLAVIO_TIMERState::reset()
+{
     unsigned int i;
     CPUTimerState *curr_timer;
 
     for (i = 0; i <= MAX_CPUS; i++) {
-        curr_timer = &s->cputimer[i];
+        curr_timer = &this->cputimer[i];
         curr_timer->limit = 0;
         curr_timer->count = 0;
         curr_timer->reached = 0;
-        if (i <= s->num_cpus) {
+        if (i <= this->num_cpus) {
             ptimer_transaction_begin(curr_timer->timer);
             ptimer_set_limit(curr_timer->timer,
                              LIMIT_TO_PERIODS(TIMER_MAX_COUNT32), 1);
@@ -386,13 +397,18 @@ static void slavio_timer_reset(DeviceState *d)
             ptimer_transaction_commit(curr_timer->timer);
         }
     }
-    s->cputimer_mode = 0;
+    this->cputimer_mode = 0;
 }
 
 static void slavio_timer_init(Object *obj)
 {
     SLAVIO_TIMERState *s = SLAVIO_TIMER(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    s->instanceInit();
+}
+
+void SLAVIO_TIMERState::instanceInit()
+{
+    SysBusDevice *dev = SYS_BUS_DEVICE(DEVICE(this));
     unsigned int i;
     TimerContext *tc;
 
@@ -401,22 +417,22 @@ static void slavio_timer_init(Object *obj)
         char timer_name[20];
 
         tc = g_new0(TimerContext, 1);
-        tc->s = s;
+        tc->s = this;
         tc->timer_index = i;
 
-        s->cputimer[i].timer = ptimer_init(slavio_timer_irq, tc,
+        this->cputimer[i].timer = ptimer_init(slavio_timer_irq, tc,
                                            PTIMER_POLICY_LEGACY);
-        ptimer_transaction_begin(s->cputimer[i].timer);
-        ptimer_set_period(s->cputimer[i].timer, TIMER_PERIOD);
-        ptimer_transaction_commit(s->cputimer[i].timer);
+        ptimer_transaction_begin(this->cputimer[i].timer);
+        ptimer_set_period(this->cputimer[i].timer, TIMER_PERIOD);
+        ptimer_transaction_commit(this->cputimer[i].timer);
 
         size = i == 0 ? SYS_TIMER_SIZE : CPU_TIMER_SIZE;
         snprintf(timer_name, sizeof(timer_name), "timer-%i", i);
-        memory_region_init_io(&tc->iomem, obj, &slavio_timer_mem_ops, tc,
+        memory_region_init_io(&tc->iomem, OBJECT(this), &slavio_timer_mem_ops, tc,
                               timer_name, size);
         sysbus_init_mmio(dev, &tc->iomem);
 
-        sysbus_init_irq(dev, &s->cputimer[i].irq);
+        sysbus_init_irq(dev, &this->cputimer[i].irq);
     }
 }
 
@@ -424,7 +440,7 @@ static const Property slavio_timer_properties[] = {
     DEFINE_PROP_UINT32("num_cpus",  SLAVIO_TIMERState, num_cpus,  0),
 };
 
-static void slavio_timer_class_init(ObjectClass *klass, const void *data)
+void SLAVIO_TIMERState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -438,7 +454,7 @@ static const TypeInfo slavio_timer_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SLAVIO_TIMERState),
     .instance_init = slavio_timer_init,
-    .class_init    = slavio_timer_class_init,
+    .class_init    = SLAVIO_TIMERState::classInit,
 };
 
 static void slavio_timer_register_types(void)

@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
@@ -50,6 +51,19 @@ typedef struct G364State {
     QemuConsole *con;
     int depth;
     int blanked;
+
+    /* methods */
+    void drawGraphic8();
+    void drawBlank();
+    static void updateDisplay(void *opaque);
+    static void invalidateDisplay(void *opaque);
+    void resetState();
+    static uint64_t ctrlRead(void *opaque, hwaddr addr, unsigned int size);
+    static void ctrlWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned int size);
+    void updateDepth();
+    void invalidateCursorPosition();
+    static int postLoad(void *opaque, int version_id);
 } G364State;
 
 #define REG_BOOT     0x000000
@@ -73,9 +87,9 @@ static inline int check_dirty(G364State *s, DirtyBitmapSnapshot *snap, ram_addr_
     return memory_region_snapshot_get_dirty(&s->mem_vram, snap, page, G364_PAGE_SIZE);
 }
 
-static void g364fb_draw_graphic8(G364State *s)
+void G364State::drawGraphic8()
 {
-    DisplaySurface *surface = qemu_console_surface(s->con);
+    DisplaySurface *surface = qemu_console_surface(this->con);
     DirtyBitmapSnapshot *snap;
     int i, w;
     uint8_t *vram;
@@ -113,25 +127,25 @@ static void g364fb_draw_graphic8(G364State *s)
     page = 0;
 
     x = y = 0;
-    xmin = s->width;
+    xmin = this->width;
     xmax = 0;
-    ymin = s->height;
+    ymin = this->height;
     ymax = 0;
 
-    if (!(s->ctla & CTLA_NO_CURSOR)) {
-        xcursor = s->cursor_position >> 12;
-        ycursor = s->cursor_position & 0xfff;
+    if (!(this->ctla & CTLA_NO_CURSOR)) {
+        xcursor = this->cursor_position >> 12;
+        ycursor = this->cursor_position & 0xfff;
     } else {
         xcursor = ycursor = -65;
     }
 
-    vram = memory_region_get_ram_ptr(&s->mem_vram) + s->top_of_screen;
+    vram = static_cast<uint8_t *>(memory_region_get_ram_ptr(&this->mem_vram)) + this->top_of_screen;
     /* XXX: out of range in vram? */
     data_display = dd = surface_data(surface);
-    snap = memory_region_snapshot_and_clear_dirty(&s->mem_vram, 0, s->vram_size,
+    snap = memory_region_snapshot_and_clear_dirty(&this->mem_vram, 0, this->vram_size,
                                                   DIRTY_MEMORY_VGA);
-    while (y < s->height) {
-        if (check_dirty(s, snap, page)) {
+    while (y < (int)this->height) {
+        if (check_dirty(this, snap, page)) {
             if (y < ymin)
                 ymin = ymax = y;
             if (x < xmin)
@@ -143,40 +157,40 @@ static void g364fb_draw_graphic8(G364State *s)
                     (x >= xcursor && x < xcursor + 64))) {
                     /* pointer area */
                     int xdiff = x - xcursor;
-                    uint16_t curs = s->cursor[(y - ycursor) * 8 + xdiff / 8];
+                    uint16_t curs = this->cursor[(y - ycursor) * 8 + xdiff / 8];
                     int op = (curs >> ((xdiff & 7) * 2)) & 3;
                     if (likely(op == 0)) {
                         /* transparent */
                         index = *vram;
                         color = (*rgb_to_pixel)(
-                            s->color_palette[index][0],
-                            s->color_palette[index][1],
-                            s->color_palette[index][2]);
+                            this->color_palette[index][0],
+                            this->color_palette[index][1],
+                            this->color_palette[index][2]);
                     } else {
                         /* get cursor color */
                         index = op - 1;
                         color = (*rgb_to_pixel)(
-                            s->cursor_palette[index][0],
-                            s->cursor_palette[index][1],
-                            s->cursor_palette[index][2]);
+                            this->cursor_palette[index][0],
+                            this->cursor_palette[index][1],
+                            this->cursor_palette[index][2]);
                     }
                 } else {
                     /* normal area */
                     index = *vram;
                     color = (*rgb_to_pixel)(
-                        s->color_palette[index][0],
-                        s->color_palette[index][1],
-                        s->color_palette[index][2]);
+                        this->color_palette[index][0],
+                        this->color_palette[index][1],
+                        this->color_palette[index][2]);
                 }
                 memcpy(dd, &color, w);
                 dd += w;
                 x++;
                 vram++;
-                if (x == s->width) {
-                    xmax = s->width - 1;
+                if (x == (int)this->width) {
+                    xmax = this->width - 1;
                     y++;
-                    if (y == s->height) {
-                        ymax = s->height - 1;
+                    if (y == (int)this->height) {
+                        ymax = this->height - 1;
                         goto done;
                     }
                     data_display = dd = data_display + surface_stride(surface);
@@ -191,16 +205,16 @@ static void g364fb_draw_graphic8(G364State *s)
         } else {
             int dy;
             if (xmax || ymax) {
-                dpy_gfx_update(s->con, xmin, ymin,
+                dpy_gfx_update(this->con, xmin, ymin,
                                xmax - xmin + 1, ymax - ymin + 1);
-                xmin = s->width;
+                xmin = this->width;
                 xmax = 0;
-                ymin = s->height;
+                ymin = this->height;
                 ymax = 0;
             }
             x += G364_PAGE_SIZE;
-            dy = x / s->width;
-            x = x % s->width;
+            dy = x / this->width;
+            x = x % this->width;
             y += dy;
             vram += G364_PAGE_SIZE;
             data_display += dy * surface_stride(surface);
@@ -211,36 +225,36 @@ static void g364fb_draw_graphic8(G364State *s)
 
 done:
     if (xmax || ymax) {
-        dpy_gfx_update(s->con, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
+        dpy_gfx_update(this->con, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
     }
     g_free(snap);
 }
 
-static void g364fb_draw_blank(G364State *s)
+void G364State::drawBlank()
 {
-    DisplaySurface *surface = qemu_console_surface(s->con);
+    DisplaySurface *surface = qemu_console_surface(this->con);
     int i, w;
     uint8_t *d;
 
-    if (s->blanked) {
+    if (this->blanked) {
         /* Screen is already blank. No need to redraw it */
         return;
     }
 
-    w = s->width * surface_bytes_per_pixel(surface);
+    w = this->width * surface_bytes_per_pixel(surface);
     d = surface_data(surface);
-    for (i = 0; i < s->height; i++) {
+    for (i = 0; i < (int)this->height; i++) {
         memset(d, 0, w);
         d += surface_stride(surface);
     }
 
-    dpy_gfx_update_full(s->con);
-    s->blanked = 1;
+    dpy_gfx_update_full(this->con);
+    this->blanked = 1;
 }
 
-static void g364fb_update_display(void *opaque)
+void G364State::updateDisplay(void *opaque)
 {
-    G364State *s = opaque;
+    G364State *s = static_cast<G364State *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
 
     qemu_flush_coalesced_mmio_buffer();
@@ -248,15 +262,15 @@ static void g364fb_update_display(void *opaque)
     if (s->width == 0 || s->height == 0)
         return;
 
-    if (s->width != surface_width(surface) ||
-        s->height != surface_height(surface)) {
+    if (s->width != (uint32_t)surface_width(surface) ||
+        s->height != (uint32_t)surface_height(surface)) {
         qemu_console_resize(s->con, s->width, s->height);
     }
 
     if (s->ctla & CTLA_FORCE_BLANK) {
-        g364fb_draw_blank(s);
+        s->drawBlank();
     } else if (s->depth == 8) {
-        g364fb_draw_graphic8(s);
+        s->drawGraphic8();
     } else {
         error_report("g364: unknown guest depth %d", s->depth);
     }
@@ -264,37 +278,37 @@ static void g364fb_update_display(void *opaque)
     qemu_irq_raise(s->irq);
 }
 
-static inline void g364fb_invalidate_display(void *opaque)
+void G364State::invalidateDisplay(void *opaque)
 {
-    G364State *s = opaque;
+    G364State *s = static_cast<G364State *>(opaque);
 
     s->blanked = 0;
     memory_region_set_dirty(&s->mem_vram, 0, s->vram_size);
 }
 
-static void g364fb_reset(G364State *s)
+void G364State::resetState()
 {
-    uint8_t *vram = memory_region_get_ram_ptr(&s->mem_vram);
+    uint8_t *vram = static_cast<uint8_t *>(memory_region_get_ram_ptr(&this->mem_vram));
 
-    qemu_irq_lower(s->irq);
+    qemu_irq_lower(this->irq);
 
-    memset(s->color_palette, 0, sizeof(s->color_palette));
-    memset(s->cursor_palette, 0, sizeof(s->cursor_palette));
-    memset(s->cursor, 0, sizeof(s->cursor));
-    s->cursor_position = 0;
-    s->ctla = 0;
-    s->top_of_screen = 0;
-    s->width = s->height = 0;
-    memset(vram, 0, s->vram_size);
-    g364fb_invalidate_display(s);
+    memset(this->color_palette, 0, sizeof(this->color_palette));
+    memset(this->cursor_palette, 0, sizeof(this->cursor_palette));
+    memset(this->cursor, 0, sizeof(this->cursor));
+    this->cursor_position = 0;
+    this->ctla = 0;
+    this->top_of_screen = 0;
+    this->width = this->height = 0;
+    memset(vram, 0, this->vram_size);
+    G364State::invalidateDisplay(this);
 }
 
 /* called for accesses to io ports */
-static uint64_t g364fb_ctrl_read(void *opaque,
-                                 hwaddr addr,
-                                 unsigned int size)
+uint64_t G364State::ctrlRead(void *opaque,
+                              hwaddr addr,
+                              unsigned int size)
 {
-    G364State *s = opaque;
+    G364State *s = static_cast<G364State *>(opaque);
     uint32_t val;
 
     if (addr >= REG_CURS_PAT && addr < REG_CURS_PAT + 0x1000) {
@@ -333,32 +347,32 @@ static uint64_t g364fb_ctrl_read(void *opaque,
     return val;
 }
 
-static void g364fb_update_depth(G364State *s)
+void G364State::updateDepth()
 {
     static const int depths[8] = { 1, 2, 4, 8, 15, 16, 0 };
-    s->depth = depths[(s->ctla & 0x00700000) >> 20];
+    this->depth = depths[(this->ctla & 0x00700000) >> 20];
 }
 
-static void g364_invalidate_cursor_position(G364State *s)
+void G364State::invalidateCursorPosition()
 {
-    DisplaySurface *surface = qemu_console_surface(s->con);
+    DisplaySurface *surface = qemu_console_surface(this->con);
     int ymin, ymax, start, end;
 
     /* invalidate only near the cursor */
-    ymin = s->cursor_position & 0xfff;
-    ymax = MIN(s->height, ymin + 64);
+    ymin = this->cursor_position & 0xfff;
+    ymax = MIN(this->height, (uint32_t)(ymin + 64));
     start = ymin * surface_stride(surface);
     end = (ymax + 1) * surface_stride(surface);
 
-    memory_region_set_dirty(&s->mem_vram, start, end - start);
+    memory_region_set_dirty(&this->mem_vram, start, end - start);
 }
 
-static void g364fb_ctrl_write(void *opaque,
-                              hwaddr addr,
-                              uint64_t val,
-                              unsigned int size)
+void G364State::ctrlWrite(void *opaque,
+                           hwaddr addr,
+                           uint64_t val,
+                           unsigned int size)
 {
-    G364State *s = opaque;
+    G364State *s = static_cast<G364State *>(opaque);
 
     trace_g364fb_write(addr, val);
 
@@ -368,19 +382,19 @@ static void g364fb_ctrl_write(void *opaque,
         s->color_palette[idx][0] = (val >> 16) & 0xff;
         s->color_palette[idx][1] = (val >> 8) & 0xff;
         s->color_palette[idx][2] = val & 0xff;
-        g364fb_invalidate_display(s);
+        G364State::invalidateDisplay(s);
     } else if (addr >= REG_CURS_PAT && addr < REG_CURS_PAT + 0x1000) {
         /* cursor pattern */
         int idx = (addr - REG_CURS_PAT) >> 3;
         s->cursor[idx] = val;
-        g364fb_invalidate_display(s);
+        G364State::invalidateDisplay(s);
     } else if (addr >= REG_CURS_PAL && addr < REG_CURS_PAL + 0x18) {
         /* cursor palette */
         int idx = (addr - REG_CURS_PAL) >> 3;
         s->cursor_palette[idx][0] = (val >> 16) & 0xff;
         s->cursor_palette[idx][1] = (val >> 8) & 0xff;
         s->cursor_palette[idx][2] = val & 0xff;
-        g364fb_invalidate_display(s);
+        G364State::invalidateDisplay(s);
     } else {
         switch (addr) {
         case REG_BOOT: /* Boot timing */
@@ -401,7 +415,7 @@ static void g364fb_ctrl_write(void *opaque,
             break;
         case REG_TOP:
             s->top_of_screen = val;
-            g364fb_invalidate_display(s);
+            G364State::invalidateDisplay(s);
             break;
         case REG_DISPLAY:
             s->width = val * 4;
@@ -411,16 +425,16 @@ static void g364fb_ctrl_write(void *opaque,
             break;
         case REG_CTLA:
             s->ctla = val;
-            g364fb_update_depth(s);
-            g364fb_invalidate_display(s);
+            s->updateDepth();
+            G364State::invalidateDisplay(s);
             break;
         case REG_CURS_POS:
-            g364_invalidate_cursor_position(s);
+            s->invalidateCursorPosition();
             s->cursor_position = val;
-            g364_invalidate_cursor_position(s);
+            s->invalidateCursorPosition();
             break;
         case REG_RESET:
-            g364fb_reset(s);
+            s->resetState();
             break;
         default:
             error_report("g364: invalid write of 0x%" PRIx64
@@ -432,19 +446,19 @@ static void g364fb_ctrl_write(void *opaque,
 }
 
 static const MemoryRegionOps g364fb_ctrl_ops = {
-    .read = g364fb_ctrl_read,
-    .write = g364fb_ctrl_write,
+    .read = G364State::ctrlRead,
+    .write = G364State::ctrlWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static int g364fb_post_load(void *opaque, int version_id)
+int G364State::postLoad(void *opaque, int version_id)
 {
-    G364State *s = opaque;
+    G364State *s = static_cast<G364State *>(opaque);
 
     /* force refresh */
-    g364fb_update_depth(s);
-    g364fb_invalidate_display(s);
+    s->updateDepth();
+    G364State::invalidateDisplay(s);
 
     return 0;
 }
@@ -453,7 +467,7 @@ static const VMStateDescription vmstate_g364fb = {
     .name = "g364fb",
     .version_id = 2,
     .minimum_version_id = 2,
-    .post_load = g364fb_post_load,
+    .post_load = G364State::postLoad,
     .fields = (const VMStateField[]) {
         VMSTATE_BUFFER_UNSAFE(color_palette, G364State, 0, 256 * 3),
         VMSTATE_BUFFER_UNSAFE(cursor_palette, G364State, 0, 9),
@@ -468,8 +482,8 @@ static const VMStateDescription vmstate_g364fb = {
 };
 
 static const GraphicHwOps g364fb_ops = {
-    .invalidate  = g364fb_invalidate_display,
-    .gfx_update  = g364fb_update_display,
+    .invalidate  = G364State::invalidateDisplay,
+    .gfx_update  = G364State::updateDisplay,
 };
 
 static void g364fb_init(DeviceState *dev, G364State *s)
@@ -490,15 +504,25 @@ struct G364SysBusState {
     SysBusDevice parent_obj;
 
     G364State g364;
+
+    /* methods */
+    void realize(Error **errp);
+    void reset();
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void g364fb_sysbus_realize(DeviceState *dev, Error **errp)
 {
     G364SysBusState *sbs = G364(dev);
-    G364State *s = &sbs->g364;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    sbs->realize(errp);
+}
 
-    g364fb_init(dev, s);
+void G364SysBusState::realize(Error **errp)
+{
+    G364State *s = &this->g364;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(DEVICE(this));
+
+    g364fb_init(DEVICE(this), s);
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_mmio(sbd, &s->mem_ctrl);
     sysbus_init_mmio(sbd, &s->mem_vram);
@@ -507,8 +531,12 @@ static void g364fb_sysbus_realize(DeviceState *dev, Error **errp)
 static void g364fb_sysbus_reset(DeviceState *d)
 {
     G364SysBusState *s = G364(d);
+    s->reset();
+}
 
-    g364fb_reset(&s->g364);
+void G364SysBusState::reset()
+{
+    this->g364.resetState();
 }
 
 static const Property g364fb_sysbus_properties[] = {
@@ -525,7 +553,7 @@ static const VMStateDescription vmstate_g364fb_sysbus = {
     }
 };
 
-static void g364fb_sysbus_class_init(ObjectClass *klass, const void *data)
+void G364SysBusState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -541,7 +569,7 @@ static const TypeInfo g364fb_sysbus_info = {
     .name          = TYPE_G364,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(G364SysBusState),
-    .class_init    = g364fb_sysbus_class_init,
+    .class_init    = G364SysBusState::classInit,
 };
 
 static void g364fb_register_types(void)

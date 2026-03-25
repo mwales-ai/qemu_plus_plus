@@ -38,6 +38,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "net/eth.h"
 #include "net/net.h"
@@ -79,6 +80,36 @@ struct IGBState {
 
     IGBCore core;
     bool has_flr;
+
+    /* Instance methods */
+    void realize(PCIDevice *pci_dev, Error **errp);
+    void uninit(PCIDevice *pci_dev);
+    void initMsix();
+    void cleanupMsix();
+    void initNetPeer(PCIDevice *pci_dev, uint8_t *macaddr);
+    void coreRealize();
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t ioRead(void *opaque, hwaddr addr, unsigned size);
+    static void ioWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+
+    /* Static config/net/vmstate callbacks */
+    static void writeConfig(PCIDevice *dev, uint32_t addr, uint32_t val, int len);
+    static bool ncCanReceive(NetClientState *nc);
+    static ssize_t ncReceiveIov(NetClientState *nc, const struct iovec *iov, int iovcnt);
+    static ssize_t ncReceive(NetClientState *nc, const uint8_t *buf, size_t size);
+    static void setLinkStatus(NetClientState *nc);
+    static void resetHold(Object *obj, ResetType type);
+    static int preSave(void *opaque);
+    static int postLoad(void *opaque, int version_id);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
+
+private:
+    bool ioGetRegIndex(uint32_t *idx);
 };
 
 #define IGB_CAP_SRIOV_OFFSET    (0x160)
@@ -95,7 +126,7 @@ struct IGBState {
 #define E1000E_IO_SIZE      (32)
 #define E1000E_MSIX_SIZE    (16 * KiB)
 
-static void igb_write_config(PCIDevice *dev, uint32_t addr,
+void IGBState::writeConfig(PCIDevice *dev, uint32_t addr,
     uint32_t val, int len)
 {
     IGBState *s = IGB(dev);
@@ -113,17 +144,29 @@ static void igb_write_config(PCIDevice *dev, uint32_t addr,
 }
 
 uint64_t
-igb_mmio_read(void *opaque, hwaddr addr, unsigned size)
+IGBState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     IGBState *s = static_cast<IGBState *>(opaque);
     return igb_core_read(&s->core, addr, size);
 }
 
 void
-igb_mmio_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+IGBState::mmioWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     IGBState *s = static_cast<IGBState *>(opaque);
     igb_core_write(&s->core, addr, val, size);
+}
+
+/* Backward-compatible wrappers — called from igbvf.cpp via igb_common.h */
+extern "C" uint64_t igb_mmio_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return IGBState::mmioRead(opaque, addr, size);
+}
+
+extern "C" void igb_mmio_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
+{
+    IGBState::mmioWrite(opaque, addr, val, size);
 }
 
 void igb_vf_reset(void *opaque, uint16_t vfn)
@@ -132,9 +175,10 @@ void igb_vf_reset(void *opaque, uint16_t vfn)
     igb_core_vf_reset(&s->core, vfn);
 }
 
-static bool
-igb_io_get_reg_index(IGBState *s, uint32_t *idx)
+bool
+IGBState::ioGetRegIndex(uint32_t *idx)
 {
+    IGBState *s = this;
     if (s->ioaddr < 0x1FFFF) {
         *idx = s->ioaddr;
         return true;
@@ -154,8 +198,8 @@ igb_io_get_reg_index(IGBState *s, uint32_t *idx)
     return false;
 }
 
-static uint64_t
-igb_io_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t
+IGBState::ioRead(void *opaque, hwaddr addr, unsigned size)
 {
     IGBState *s = static_cast<IGBState *>(opaque);
     uint32_t idx = 0;
@@ -166,7 +210,7 @@ igb_io_read(void *opaque, hwaddr addr, unsigned size)
         trace_e1000e_io_read_addr(s->ioaddr);
         return s->ioaddr;
     case E1000_IODATA:
-        if (igb_io_get_reg_index(s, &idx)) {
+        if (s->ioGetRegIndex(&idx)) {
             val = igb_core_read(&s->core, idx, sizeof(val));
             trace_e1000e_io_read_data(idx, val);
             return val;
@@ -178,8 +222,8 @@ igb_io_read(void *opaque, hwaddr addr, unsigned size)
     }
 }
 
-static void
-igb_io_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
+void
+IGBState::ioWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     IGBState *s = static_cast<IGBState *>(opaque);
     uint32_t idx = 0;
@@ -190,7 +234,7 @@ igb_io_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
         s->ioaddr = (uint32_t) val;
         return;
     case E1000_IODATA:
-        if (igb_io_get_reg_index(s, &idx)) {
+        if (s->ioGetRegIndex(&idx)) {
             trace_e1000e_io_write_data(idx, val);
             igb_core_write(&s->core, idx, val, sizeof(val));
         }
@@ -202,8 +246,8 @@ igb_io_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 }
 
 static const MemoryRegionOps mmio_ops = {
-    .read = igb_mmio_read,
-    .write = igb_mmio_write,
+    .read = IGBState::mmioRead,
+    .write = IGBState::mmioWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -212,8 +256,8 @@ static const MemoryRegionOps mmio_ops = {
 };
 
 static const MemoryRegionOps io_ops = {
-    .read = igb_io_read,
-    .write = igb_io_write,
+    .read = IGBState::ioRead,
+    .write = IGBState::ioWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -222,29 +266,29 @@ static const MemoryRegionOps io_ops = {
 };
 
 
-static bool
-igb_nc_can_receive(NetClientState *nc)
+bool
+IGBState::ncCanReceive(NetClientState *nc)
 {
     IGBState *s = static_cast<IGBState *>(qemu_get_nic_opaque(nc));
     return igb_can_receive(&s->core);
 }
 
-static ssize_t
-igb_nc_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
+ssize_t
+IGBState::ncReceiveIov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
     IGBState *s = static_cast<IGBState *>(qemu_get_nic_opaque(nc));
     return igb_receive_iov(&s->core, iov, iovcnt);
 }
 
-static ssize_t
-igb_nc_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+ssize_t
+IGBState::ncReceive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     IGBState *s = static_cast<IGBState *>(qemu_get_nic_opaque(nc));
     return igb_receive(&s->core, buf, size);
 }
 
-static void
-igb_set_link_status(NetClientState *nc)
+void
+IGBState::setLinkStatus(NetClientState *nc)
 {
     IGBState *s = static_cast<IGBState *>(qemu_get_nic_opaque(nc));
     igb_core_set_link_status(&s->core);
@@ -253,10 +297,10 @@ igb_set_link_status(NetClientState *nc)
 static NetClientInfo net_igb_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .receive = igb_nc_receive,
-    .receive_iov = igb_nc_receive_iov,
-    .can_receive = igb_nc_can_receive,
-    .link_status_changed = igb_set_link_status,
+    .receive = IGBState::ncReceive,
+    .receive_iov = IGBState::ncReceiveIov,
+    .can_receive = IGBState::ncCanReceive,
+    .link_status_changed = IGBState::setLinkStatus,
 };
 
 /*
@@ -284,15 +328,16 @@ static const uint16_t igb_eeprom_template[] = {
     0x0003,
 };
 
-static void igb_core_realize(IGBState *s)
+void IGBState::coreRealize()
 {
-    s->core.owner = &s->parent_obj;
-    s->core.owner_nic = s->nic;
+    core.owner = &parent_obj;
+    core.owner_nic = nic;
 }
 
-static void
-igb_init_msix(IGBState *s)
+void
+IGBState::initMsix()
 {
+    IGBState *s = this;
     int i, res;
 
     res = msix_init(PCI_DEVICE(s), IGB_MSIX_VEC_NUM,
@@ -311,16 +356,17 @@ igb_init_msix(IGBState *s)
     }
 }
 
-static void
-igb_cleanup_msix(IGBState *s)
+void
+IGBState::cleanupMsix()
 {
-    msix_unuse_all_vectors(PCI_DEVICE(s));
-    msix_uninit(PCI_DEVICE(s), &s->msix, &s->msix);
+    msix_unuse_all_vectors(PCI_DEVICE(this));
+    msix_uninit(PCI_DEVICE(this), &msix, &msix);
 }
 
-static void
-igb_init_net_peer(IGBState *s, PCIDevice *pci_dev, uint8_t *macaddr)
+void
+IGBState::initNetPeer(PCIDevice *pci_dev, uint8_t *macaddr)
 {
+    IGBState *s = this;
     DeviceState *dev = DEVICE(pci_dev);
     NetClientState *nc;
     int i;
@@ -379,7 +425,7 @@ igb_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
     return ret;
 }
 
-static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
+void IGBState::realize(PCIDevice *pci_dev, Error **errp)
 {
     IGBState *s = IGB(pci_dev);
     uint8_t *macaddr;
@@ -387,7 +433,7 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     trace_e1000e_cb_pci_realize();
 
-    pci_dev->config_write = igb_write_config;
+    pci_dev->config_write = IGBState::writeConfig;
 
     pci_dev->config[PCI_CACHE_LINE_SIZE] = 0x10;
     pci_dev->config[PCI_INTERRUPT_PIN] = 1;
@@ -424,7 +470,7 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
     /* Add PCI capabilities in reverse order */
     assert(pcie_endpoint_cap_init(pci_dev, 0xa0) > 0);
 
-    igb_init_msix(s);
+    s->initMsix();
 
     ret = msi_init(pci_dev, 0x50, 1, true, true, NULL);
     if (ret) {
@@ -450,7 +496,7 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
                             IGB_82576_VF_DEV_ID, IGB_MAX_VF_FUNCTIONS,
                             IGB_MAX_VF_FUNCTIONS, IGB_VF_OFFSET, IGB_VF_STRIDE,
                             errp)) {
-        igb_cleanup_msix(s);
+        s->cleanupMsix();
         return;
     }
 
@@ -461,10 +507,10 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
         PCI_BASE_ADDRESS_MEM_TYPE_64 | PCI_BASE_ADDRESS_MEM_PREFETCH,
         IGBVF_MSIX_SIZE);
 
-    igb_init_net_peer(s, pci_dev, macaddr);
+    s->initNetPeer(pci_dev, macaddr);
 
     /* Initialize core */
-    igb_core_realize(s);
+    s->coreRealize();
 
     igb_core_pci_realize(&s->core,
                          igb_eeprom_template,
@@ -472,24 +518,34 @@ static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
                          macaddr);
 }
 
-static void igb_pci_uninit(PCIDevice *pci_dev)
+static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     IGBState *s = IGB(pci_dev);
+    s->realize(pci_dev, errp);
+}
 
+void IGBState::uninit(PCIDevice *pci_dev)
+{
     trace_e1000e_cb_pci_uninit();
 
-    igb_core_pci_uninit(&s->core);
+    igb_core_pci_uninit(&core);
 
     pcie_sriov_pf_exit(pci_dev);
     pcie_cap_exit(pci_dev);
 
-    qemu_del_nic(s->nic);
+    qemu_del_nic(nic);
 
-    igb_cleanup_msix(s);
+    cleanupMsix();
     msi_uninit(pci_dev);
 }
 
-static void igb_qdev_reset_hold(Object *obj, ResetType type)
+static void igb_pci_uninit(PCIDevice *pci_dev)
+{
+    IGBState *s = IGB(pci_dev);
+    s->uninit(pci_dev);
+}
+
+void IGBState::resetHold(Object *obj, ResetType type)
 {
     IGBState *s = IGB(obj);
 
@@ -498,7 +554,7 @@ static void igb_qdev_reset_hold(Object *obj, ResetType type)
     igb_core_reset(&s->core);
 }
 
-static int igb_pre_save(void *opaque)
+int IGBState::preSave(void *opaque)
 {
     IGBState *s = static_cast<IGBState *>(opaque);
 
@@ -509,7 +565,7 @@ static int igb_pre_save(void *opaque)
     return 0;
 }
 
-static int igb_post_load(void *opaque, int version_id)
+int IGBState::postLoad(void *opaque, int version_id)
 {
     IGBState *s = static_cast<IGBState *>(opaque);
 
@@ -598,8 +654,8 @@ static const VMStateDescription igb_vmstate = {
     .name = "igb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = igb_post_load,
-    .pre_save = igb_pre_save,
+    .post_load = IGBState::postLoad,
+    .pre_save = IGBState::preSave,
     .fields = igb_vmstate_fields,
 };
 
@@ -608,7 +664,7 @@ static const Property igb_properties[] = {
     DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
 };
 
-static void igb_class_init(ObjectClass *klass, const void *data)
+void IGBState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -621,7 +677,7 @@ static void igb_class_init(ObjectClass *klass, const void *data)
     c->revision = 1;
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
 
-    rc->phases.hold = igb_qdev_reset_hold;
+    rc->phases.hold = IGBState::resetHold;
 
     dc->desc = "Intel 82576 Gigabit Ethernet Controller";
     dc->vmsd = &igb_vmstate;
@@ -648,7 +704,7 @@ static const TypeInfo igb_info = {
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IGBState),
     .instance_init = igb_instance_init,
-    .class_init = igb_class_init,
+    .class_init = IGBState::classInit,
     .interfaces = igb_interfaces,
 };
 

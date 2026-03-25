@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "qemu/module.h"
 #include "qemu/timer.h"
@@ -100,6 +101,34 @@ struct I6300State {
     int previous_reboot_flag;   /* If the watchdog caused the previous
                                  * reboot, this flag will be set.
                                  */
+
+    /* Instance methods */
+    void restartTimer(int stage);
+    void disableTimer();
+    void reset(DeviceState *dev);
+    void realize(PCIDevice *dev, Error **errp);
+    void exit(PCIDevice *dev);
+    void configWrite(PCIDevice *dev, uint32_t addr, uint32_t data, int len);
+    uint32_t configRead(PCIDevice *dev, uint32_t addr, int len);
+
+    /* Static timer callback */
+    static void timerExpired(void *vp);
+
+    /* Static MMIO callbacks */
+    static uint64_t memReadfn(void *opaque, hwaddr addr, unsigned size);
+    static void memWritefn(void *opaque, hwaddr addr, uint64_t value,
+                           unsigned size);
+
+    /* Static MMIO helpers */
+    static uint32_t memReadb(void *vp, hwaddr addr);
+    static uint32_t memReadw(void *vp, hwaddr addr);
+    static uint32_t memReadl(void *vp, hwaddr addr);
+    static void memWriteb(void *vp, hwaddr addr, uint32_t val);
+    static void memWritew(void *vp, hwaddr addr, uint32_t val);
+    static void memWritel(void *vp, hwaddr addr, uint32_t val);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 
@@ -109,21 +138,21 @@ OBJECT_DECLARE_SIMPLE_TYPE(I6300State, WATCHDOG_I6300ESB_DEVICE)
 /* This function is called when the watchdog has either been enabled
  * (hence it starts counting down) or has been keep-alived.
  */
-static void i6300esb_restart_timer(I6300State *d, int stage)
+void I6300State::restartTimer(int stage)
 {
     int64_t timeout;
 
-    if (!d->enabled)
+    if (!enabled)
         return;
 
-    d->stage = stage;
+    this->stage = stage;
 
-    if (d->stage <= 1)
-        timeout = d->timer1_preload;
+    if (this->stage <= 1)
+        timeout = timer1_preload;
     else
-        timeout = d->timer2_preload;
+        timeout = timer2_preload;
 
-    if (d->clock_scale == CLOCK_SCALE_1KHZ)
+    if (clock_scale == CLOCK_SCALE_1KHZ)
         timeout <<= 15;
     else
         timeout <<= 5;
@@ -132,27 +161,27 @@ static void i6300esb_restart_timer(I6300State *d, int stage)
 
     timeout = timeout * 30; /* on a PCI bus, 1 tick is 30 ns*/
 
-    i6300esb_debug("stage %d, timeout %" PRIi64 "\n", d->stage, timeout);
+    i6300esb_debug("stage %d, timeout %" PRIi64 "\n", this->stage, timeout);
 
-    timer_mod(d->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + timeout);
+    timer_mod(timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + timeout);
 }
 
 /* This is called when the guest disables the watchdog. */
-static void i6300esb_disable_timer(I6300State *d)
+void I6300State::disableTimer()
 {
     i6300esb_debug("timer disabled\n");
 
-    timer_del(d->timer);
+    timer_del(timer);
 }
 
-static void i6300esb_reset(DeviceState *dev)
+void I6300State::reset(DeviceState *dev)
 {
     PCIDevice *pdev = PCI_DEVICE(dev);
     I6300State *d = WATCHDOG_I6300ESB_DEVICE(pdev);
 
     i6300esb_debug("I6300State = %p\n", d);
 
-    i6300esb_disable_timer(d);
+    d->disableTimer();
 
     /* NB: Don't change d->previous_reboot_flag in this function. */
 
@@ -168,6 +197,12 @@ static void i6300esb_reset(DeviceState *dev)
     d->unlock_state = 0;
 }
 
+static void i6300esb_reset(DeviceState *dev)
+{
+    I6300State *d = WATCHDOG_I6300ESB_DEVICE(PCI_DEVICE(dev));
+    d->reset(dev);
+}
+
 /* This function is called when the watchdog expires.  Note that
  * the hardware has two timers, and so expiry happens in two stages.
  * If d->stage == 1 then we perform the first stage action (usually,
@@ -175,7 +210,7 @@ static void i6300esb_reset(DeviceState *dev)
  * second stage.  If the second stage expires then the watchdog
  * really has run out.
  */
-static void i6300esb_timer_expired(void *vp)
+void I6300State::timerExpired(void *vp)
 {
     I6300State *d = static_cast<I6300State *>(vp);
 
@@ -193,7 +228,7 @@ static void i6300esb_timer_expired(void *vp)
         }
 
         /* Start the second stage. */
-        i6300esb_restart_timer(d, 2);
+        d->restartTimer(2);
     } else {
         /* Second stage expired, reboot for real. */
         if (d->reboot_enabled) {
@@ -204,12 +239,12 @@ static void i6300esb_timer_expired(void *vp)
 
         /* In "free running mode" we start stage 1 again. */
         if (d->free_run)
-            i6300esb_restart_timer(d, 1);
+            d->restartTimer(1);
     }
 }
 
-static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
-                                  uint32_t data, int len)
+void I6300State::configWrite(PCIDevice *dev, uint32_t addr,
+                              uint32_t data, int len)
 {
     I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
     int old;
@@ -228,16 +263,23 @@ static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
             old = d->enabled;
             d->enabled = (data & ESB_WDT_ENABLE) != 0;
             if (!old && d->enabled) /* Enabled transitioned from 0 -> 1 */
-                i6300esb_restart_timer(d, 1);
+                d->restartTimer(1);
             else if (!d->enabled)
-                i6300esb_disable_timer(d);
+                d->disableTimer();
         }
     } else {
         pci_default_write_config(dev, addr, data, len);
     }
 }
 
-static uint32_t i6300esb_config_read(PCIDevice *dev, uint32_t addr, int len)
+static void i6300esb_config_write(PCIDevice *dev, uint32_t addr,
+                                  uint32_t data, int len)
+{
+    I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
+    d->configWrite(dev, addr, data, len);
+}
+
+uint32_t I6300State::configRead(PCIDevice *dev, uint32_t addr, int len)
 {
     I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
     uint32_t data;
@@ -261,14 +303,20 @@ static uint32_t i6300esb_config_read(PCIDevice *dev, uint32_t addr, int len)
     }
 }
 
-static uint32_t i6300esb_mem_readb(void *vp, hwaddr addr)
+static uint32_t i6300esb_config_read(PCIDevice *dev, uint32_t addr, int len)
+{
+    I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
+    return d->configRead(dev, addr, len);
+}
+
+uint32_t I6300State::memReadb(void *vp, hwaddr addr)
 {
     i6300esb_debug ("addr = %x\n", (int) addr);
 
     return 0;
 }
 
-static uint32_t i6300esb_mem_readw(void *vp, hwaddr addr)
+uint32_t I6300State::memReadw(void *vp, hwaddr addr)
 {
     uint32_t data = 0;
     I6300State *d = static_cast<I6300State *>(vp);
@@ -286,14 +334,14 @@ static uint32_t i6300esb_mem_readw(void *vp, hwaddr addr)
     return data;
 }
 
-static uint32_t i6300esb_mem_readl(void *vp, hwaddr addr)
+uint32_t I6300State::memReadl(void *vp, hwaddr addr)
 {
     i6300esb_debug("addr = %x\n", (int) addr);
 
     return 0;
 }
 
-static void i6300esb_mem_writeb(void *vp, hwaddr addr, uint32_t val)
+void I6300State::memWriteb(void *vp, hwaddr addr, uint32_t val)
 {
     I6300State *d = static_cast<I6300State *>(vp);
 
@@ -305,7 +353,7 @@ static void i6300esb_mem_writeb(void *vp, hwaddr addr, uint32_t val)
         d->unlock_state = 2;
 }
 
-static void i6300esb_mem_writew(void *vp, hwaddr addr, uint32_t val)
+void I6300State::memWritew(void *vp, hwaddr addr, uint32_t val)
 {
     I6300State *d = static_cast<I6300State *>(vp);
 
@@ -322,7 +370,7 @@ static void i6300esb_mem_writew(void *vp, hwaddr addr, uint32_t val)
                     /* This is the "ping" from the userspace watchdog in
                      * the guest ...
                      */
-                    i6300esb_restart_timer(d, 1);
+                    d->restartTimer(1);
 
                 /* Setting bit 9 resets the previous reboot flag.
                  * There's a bug in the Linux driver where it sets
@@ -338,7 +386,7 @@ static void i6300esb_mem_writew(void *vp, hwaddr addr, uint32_t val)
     }
 }
 
-static void i6300esb_mem_writel(void *vp, hwaddr addr, uint32_t val)
+void I6300State::memWritel(void *vp, hwaddr addr, uint32_t val)
 {
     I6300State *d = static_cast<I6300State *>(vp);
 
@@ -360,32 +408,32 @@ static void i6300esb_mem_writel(void *vp, hwaddr addr, uint32_t val)
     }
 }
 
-static uint64_t i6300esb_mem_readfn(void *opaque, hwaddr addr, unsigned size)
+uint64_t I6300State::memReadfn(void *opaque, hwaddr addr, unsigned size)
 {
     switch (size) {
     case 1:
-        return i6300esb_mem_readb(opaque, addr);
+        return I6300State::memReadb(opaque, addr);
     case 2:
-        return i6300esb_mem_readw(opaque, addr);
+        return I6300State::memReadw(opaque, addr);
     case 4:
-        return i6300esb_mem_readl(opaque, addr);
+        return I6300State::memReadl(opaque, addr);
     default:
         g_assert_not_reached();
     }
 }
 
-static void i6300esb_mem_writefn(void *opaque, hwaddr addr,
-                                 uint64_t value, unsigned size)
+void I6300State::memWritefn(void *opaque, hwaddr addr,
+                             uint64_t value, unsigned size)
 {
     switch (size) {
     case 1:
-        i6300esb_mem_writeb(opaque, addr, value);
+        I6300State::memWriteb(opaque, addr, value);
         break;
     case 2:
-        i6300esb_mem_writew(opaque, addr, value);
+        I6300State::memWritew(opaque, addr, value);
         break;
     case 4:
-        i6300esb_mem_writel(opaque, addr, value);
+        I6300State::memWritel(opaque, addr, value);
         break;
     default:
         g_assert_not_reached();
@@ -393,8 +441,8 @@ static void i6300esb_mem_writefn(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps i6300esb_ops = {
-    .read = i6300esb_mem_readfn,
-    .write = i6300esb_mem_writefn,
+    .read = I6300State::memReadfn,
+    .write = I6300State::memWritefn,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -440,13 +488,13 @@ static const VMStateDescription vmstate_i6300esb = {
     .fields = vmstate_i6300esb_fields
 };
 
-static void i6300esb_realize(PCIDevice *dev, Error **errp)
+void I6300State::realize(PCIDevice *dev, Error **errp)
 {
     I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
 
     i6300esb_debug("I6300State = %p\n", d);
 
-    d->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, i6300esb_timer_expired, d);
+    d->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, I6300State::timerExpired, d);
     d->previous_reboot_flag = 0;
 
     memory_region_init_io(&d->io_mem, OBJECT(d), &i6300esb_ops, d,
@@ -454,14 +502,26 @@ static void i6300esb_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(&d->dev, 0, 0, &d->io_mem);
 }
 
-static void i6300esb_exit(PCIDevice *dev)
+static void i6300esb_realize(PCIDevice *dev, Error **errp)
+{
+    I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
+    d->realize(dev, errp);
+}
+
+void I6300State::exit(PCIDevice *dev)
 {
     I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
 
     timer_free(d->timer);
 }
 
-static void i6300esb_class_init(ObjectClass *klass, const void *data)
+static void i6300esb_exit(PCIDevice *dev)
+{
+    I6300State *d = WATCHDOG_I6300ESB_DEVICE(dev);
+    d->exit(dev);
+}
+
+void I6300State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -488,7 +548,7 @@ static const TypeInfo i6300esb_info = {
     .name          = TYPE_WATCHDOG_I6300ESB_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(I6300State),
-    .class_init    = i6300esb_class_init,
+    .class_init    = I6300State::classInit,
     .interfaces = i6300esb_interfaces,
 };
 

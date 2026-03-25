@@ -38,6 +38,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 extern "C" {
 #include "trace.h"
@@ -61,9 +62,21 @@ struct IgbVfState {
 
     MemoryRegion mmio;
     MemoryRegion msix;
+
+    /* methods */
+    static hwaddr vfToPfAddr(hwaddr addr, uint16_t vfn, bool write);
+    static void writeConfig(PCIDevice *dev, uint32_t addr, uint32_t val,
+                            int len);
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size);
+    void pciRealize(Error **errp);
+    void resetHold(ResetType type);
+    void pciUninit();
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static hwaddr vf_to_pf_addr(hwaddr addr, uint16_t vfn, bool write)
+hwaddr IgbVfState::vfToPfAddr(hwaddr addr, uint16_t vfn, bool write)
 {
     switch (addr) {
     case E1000_CTRL:
@@ -210,7 +223,7 @@ static hwaddr vf_to_pf_addr(hwaddr addr, uint16_t vfn, bool write)
     return HWADDR_MAX;
 }
 
-static void igbvf_write_config(PCIDevice *dev, uint32_t addr, uint32_t val,
+void IgbVfState::writeConfig(PCIDevice *dev, uint32_t addr, uint32_t val,
     int len)
 {
     trace_igbvf_write_config(addr, val, len);
@@ -221,30 +234,30 @@ static void igbvf_write_config(PCIDevice *dev, uint32_t addr, uint32_t val,
     }
 }
 
-static uint64_t igbvf_mmio_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t IgbVfState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     PCIDevice *vf = PCI_DEVICE(opaque);
     PCIDevice *pf = pcie_sriov_get_pf(vf);
 
-    addr = vf_to_pf_addr(addr, pcie_sriov_vf_number(vf), false);
+    addr = vfToPfAddr(addr, pcie_sriov_vf_number(vf), false);
     return addr == HWADDR_MAX ? 0 : igb_mmio_read(pf, addr, size);
 }
 
-static void igbvf_mmio_write(void *opaque, hwaddr addr, uint64_t val,
+void IgbVfState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
     unsigned size)
 {
     PCIDevice *vf = PCI_DEVICE(opaque);
     PCIDevice *pf = pcie_sriov_get_pf(vf);
 
-    addr = vf_to_pf_addr(addr, pcie_sriov_vf_number(vf), true);
+    addr = vfToPfAddr(addr, pcie_sriov_vf_number(vf), true);
     if (addr != HWADDR_MAX) {
         igb_mmio_write(pf, addr, val, size);
     }
 }
 
 static const MemoryRegionOps mmio_ops = {
-    .read = igbvf_mmio_read,
-    .write = igbvf_mmio_write,
+    .read = IgbVfState::mmioRead,
+    .write = IgbVfState::mmioWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -255,22 +268,28 @@ static const MemoryRegionOps mmio_ops = {
 static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
 {
     IgbVfState *s = IGBVF(dev);
+    s->pciRealize(errp);
+}
+
+void IgbVfState::pciRealize(Error **errp)
+{
+    PCIDevice *dev = PCI_DEVICE(DEVICE(this));
     int ret;
     int i;
 
-    dev->config_write = igbvf_write_config;
+    dev->config_write = IgbVfState::writeConfig;
 
-    memory_region_init_io(&s->mmio, OBJECT(dev), &mmio_ops, s, "igbvf-mmio",
+    memory_region_init_io(&this->mmio, OBJECT(this), &mmio_ops, this, "igbvf-mmio",
         IGBVF_MMIO_SIZE);
     pci_register_bar(dev, IGBVF_MMIO_BAR_IDX, PCI_BASE_ADDRESS_MEM_TYPE_64 |
-                     PCI_BASE_ADDRESS_MEM_PREFETCH, &s->mmio);
+                     PCI_BASE_ADDRESS_MEM_PREFETCH, &this->mmio);
 
-    memory_region_init(&s->msix, OBJECT(dev), "igbvf-msix", IGBVF_MSIX_SIZE);
+    memory_region_init(&this->msix, OBJECT(this), "igbvf-msix", IGBVF_MSIX_SIZE);
     pci_register_bar(dev, IGBVF_MSIX_BAR_IDX, PCI_BASE_ADDRESS_MEM_TYPE_64 |
-                     PCI_BASE_ADDRESS_MEM_PREFETCH, &s->msix);
+                     PCI_BASE_ADDRESS_MEM_PREFETCH, &this->msix);
 
-    ret = msix_init(dev, IGBVF_MSIX_VEC_NUM, &s->msix, IGBVF_MSIX_BAR_IDX, 0,
-        &s->msix, IGBVF_MSIX_BAR_IDX, 0x2000, 0x70, errp);
+    ret = msix_init(dev, IGBVF_MSIX_VEC_NUM, &this->msix, IGBVF_MSIX_BAR_IDX, 0,
+        &this->msix, IGBVF_MSIX_BAR_IDX, 0x2000, 0x70, errp);
     if (ret) {
         return;
     }
@@ -297,7 +316,13 @@ static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
 
 static void igbvf_qdev_reset_hold(Object *obj, ResetType type)
 {
-    PCIDevice *vf = PCI_DEVICE(obj);
+    IgbVfState *s = IGBVF(obj);
+    s->resetHold(type);
+}
+
+void IgbVfState::resetHold(ResetType type)
+{
+    PCIDevice *vf = PCI_DEVICE(DEVICE(this));
 
     igb_vf_reset(pcie_sriov_get_pf(vf), pcie_sriov_vf_number(vf));
 }
@@ -305,14 +330,20 @@ static void igbvf_qdev_reset_hold(Object *obj, ResetType type)
 static void igbvf_pci_uninit(PCIDevice *dev)
 {
     IgbVfState *s = IGBVF(dev);
+    s->pciUninit();
+}
+
+void IgbVfState::pciUninit()
+{
+    PCIDevice *dev = PCI_DEVICE(DEVICE(this));
 
     pcie_aer_exit(dev);
     pcie_cap_exit(dev);
     msix_unuse_all_vectors(dev);
-    msix_uninit(dev, &s->msix, &s->msix);
+    msix_uninit(dev, &this->msix, &this->msix);
 }
 
-static void igbvf_class_init(ObjectClass *klass, const void *data)
+void IgbVfState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
@@ -342,7 +373,7 @@ static const TypeInfo igbvf_info = {
     .name = TYPE_IGBVF,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IgbVfState),
-    .class_init = igbvf_class_init,
+    .class_init = IgbVfState::classInit,
     .interfaces = igbvf_interfaces,
 };
 

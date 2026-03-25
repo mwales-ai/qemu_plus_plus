@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
@@ -77,9 +78,36 @@ struct PL110State {
     uint32_t raw_palette[128];
     qemu_irq irq;
     MemoryRegion *fbmem;
-};
 
-static int vmstate_pl110_post_load(void *opaque, int version_id);
+    /* ----- methods ----- */
+    void realize(DeviceState *dev, Error **errp);
+
+    static void classInit(ObjectClass *klass, const void *data);
+
+    /* static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t val,
+                          unsigned size);
+
+    /* static timer callback */
+    static void vblankInterrupt(void *opaque);
+
+    /* static display callbacks */
+    static void updateDisplay(void *opaque);
+    static void invalidateDisplay(void *opaque);
+
+    /* static GPIO callback */
+    static void muxCtrlSet(void *opaque, int line, int level);
+
+    /* static VMState callback */
+    static int postLoad(void *opaque, int version_id);
+
+private:
+    bool isEnabled();
+    void updatePalette(int n);
+    void resize(int width, int height);
+    void updateIrq();
+};
 
 static const VMStateField vmstate_pl110_fields[] = {
     VMSTATE_INT32(version, PL110State),
@@ -103,7 +131,7 @@ static const VMStateDescription vmstate_pl110 = {
     .name = "pl110",
     .version_id = 2,
     .minimum_version_id = 1,
-    .post_load = vmstate_pl110_post_load,
+    .post_load = PL110State::postLoad,
     .fields = vmstate_pl110_fields,
 };
 
@@ -207,14 +235,14 @@ static drawfn pl110_draw_fn_32[48] = {
     pl110_draw_line12_lbbp_rgb,
 };
 
-static int pl110_enabled(PL110State *s)
+bool PL110State::isEnabled()
 {
-  return (s->cr & PL110_CR_EN) && (s->cr & PL110_CR_PWR);
+  return (cr & PL110_CR_EN) && (cr & PL110_CR_PWR);
 }
 
-static void pl110_update_display(void *opaque)
+void PL110State::updateDisplay(void *opaque)
 {
-    PL110State *s = (PL110State *)opaque;
+    PL110State *s = static_cast<PL110State *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     drawfn fn;
     int src_width;
@@ -222,7 +250,7 @@ static void pl110_update_display(void *opaque)
     int first;
     int last;
 
-    if (!pl110_enabled(s)) {
+    if (!s->isEnabled()) {
         return;
     }
 
@@ -310,23 +338,23 @@ static void pl110_update_display(void *opaque)
     s->invalidate = 0;
 }
 
-static void pl110_invalidate_display(void * opaque)
+void PL110State::invalidateDisplay(void *opaque)
 {
-    PL110State *s = (PL110State *)opaque;
+    PL110State *s = static_cast<PL110State *>(opaque);
     s->invalidate = 1;
-    if (pl110_enabled(s)) {
+    if (s->isEnabled()) {
         qemu_console_resize(s->con, s->cols, s->rows);
     }
 }
 
-static void pl110_update_palette(PL110State *s, int n)
+void PL110State::updatePalette(int n)
 {
-    DisplaySurface *surface = qemu_console_surface(s->con);
+    DisplaySurface *surface = qemu_console_surface(con);
     int i;
     uint32_t raw;
     unsigned int r, g, b;
 
-    raw = s->raw_palette[n];
+    raw = raw_palette[n];
     n <<= 1;
     for (i = 0; i < 2; i++) {
         r = (raw & 0x1f) << 3;
@@ -338,46 +366,46 @@ static void pl110_update_palette(PL110State *s, int n)
         raw >>= 6;
         switch (surface_bits_per_pixel(surface)) {
         case 8:
-            s->palette[n] = rgb_to_pixel8(r, g, b);
+            palette[n] = rgb_to_pixel8(r, g, b);
             break;
         case 15:
-            s->palette[n] = rgb_to_pixel15(r, g, b);
+            palette[n] = rgb_to_pixel15(r, g, b);
             break;
         case 16:
-            s->palette[n] = rgb_to_pixel16(r, g, b);
+            palette[n] = rgb_to_pixel16(r, g, b);
             break;
         case 24:
         case 32:
-            s->palette[n] = rgb_to_pixel32(r, g, b);
+            palette[n] = rgb_to_pixel32(r, g, b);
             break;
         }
         n++;
     }
 }
 
-static void pl110_resize(PL110State *s, int width, int height)
+void PL110State::resize(int width, int height)
 {
-    if (width != s->cols || height != s->rows) {
-        if (pl110_enabled(s)) {
-            qemu_console_resize(s->con, width, height);
+    if (width != cols || height != rows) {
+        if (isEnabled()) {
+            qemu_console_resize(con, width, height);
         }
     }
-    s->cols = width;
-    s->rows = height;
+    cols = width;
+    rows = height;
 }
 
 /* Update interrupts.  */
-static void pl110_update(PL110State *s)
+void PL110State::updateIrq()
 {
     /* Raise IRQ if enabled and any status bit is 1 */
-    if (s->int_status & s->int_mask) {
-        qemu_irq_raise(s->irq);
+    if (int_status & int_mask) {
+        qemu_irq_raise(irq);
     } else {
-        qemu_irq_lower(s->irq);
+        qemu_irq_lower(irq);
     }
 }
 
-static void pl110_vblank_interrupt(void *opaque)
+void PL110State::vblankInterrupt(void *opaque)
 {
     PL110State *s = static_cast<PL110State *>(opaque);
 
@@ -386,13 +414,12 @@ static void pl110_vblank_interrupt(void *opaque)
     timer_mod(s->vblank_timer,
               qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                                 NANOSECONDS_PER_SECOND / 60);
-    pl110_update(s);
+    s->updateIrq();
 }
 
-static uint64_t pl110_read(void *opaque, hwaddr offset,
-                           unsigned size)
+uint64_t PL110State::mmioRead(void *opaque, hwaddr offset, unsigned size)
 {
-    PL110State *s = (PL110State *)opaque;
+    PL110State *s = static_cast<PL110State *>(opaque);
 
     if (offset >= 0xfe0 && offset < 0x1000) {
         return idregs[s->version][(offset - 0xfe0) >> 2];
@@ -439,10 +466,10 @@ static uint64_t pl110_read(void *opaque, hwaddr offset,
     }
 }
 
-static void pl110_write(void *opaque, hwaddr offset,
-                        uint64_t val, unsigned size)
+void PL110State::mmioWrite(void *opaque, hwaddr offset,
+                            uint64_t val, unsigned size)
 {
-    PL110State *s = (PL110State *)opaque;
+    PL110State *s = static_cast<PL110State *>(opaque);
     int n;
 
     /* For simplicity invalidate the display whenever a control register
@@ -452,19 +479,19 @@ static void pl110_write(void *opaque, hwaddr offset,
         /* Palette.  */
         n = (offset - 0x200) >> 2;
         s->raw_palette[(offset - 0x200) >> 2] = val;
-        pl110_update_palette(s, n);
+        s->updatePalette(n);
         return;
     }
     switch (offset >> 2) {
     case 0: /* LCDTiming0 */
         s->timing[0] = val;
         n = ((val & 0xfc) + 4) * 4;
-        pl110_resize(s, n, s->rows);
+        s->resize(n, s->rows);
         break;
     case 1: /* LCDTiming1 */
         s->timing[1] = val;
         n = (val & 0x3ff) + 1;
-        pl110_resize(s, s->cols, n);
+        s->resize(s->cols, n);
         break;
     case 2: /* LCDTiming2 */
         s->timing[2] = val;
@@ -484,7 +511,7 @@ static void pl110_write(void *opaque, hwaddr offset,
         }
     imsc:
         s->int_mask = val;
-        pl110_update(s);
+        s->updateIrq();
         break;
     case 7: /* LCDControl */
         if (s->version != VERSION_PL110) {
@@ -493,7 +520,7 @@ static void pl110_write(void *opaque, hwaddr offset,
     control:
         s->cr = val;
         s->bpp = static_cast<pl110_bppmode>((val >> 1) & 7);
-        if (pl110_enabled(s)) {
+        if (s->isEnabled()) {
             qemu_console_resize(s->con, s->cols, s->rows);
             timer_mod(s->vblank_timer,
                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
@@ -504,7 +531,7 @@ static void pl110_write(void *opaque, hwaddr offset,
         break;
     case 10: /* LCDICR */
         s->int_status &= ~val;
-        pl110_update(s);
+        s->updateIrq();
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -513,28 +540,28 @@ static void pl110_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps pl110_ops = {
-    .read = pl110_read,
-    .write = pl110_write,
+    .read = PL110State::mmioRead,
+    .write = PL110State::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pl110_mux_ctrl_set(void *opaque, int line, int level)
+void PL110State::muxCtrlSet(void *opaque, int line, int level)
 {
-    PL110State *s = (PL110State *)opaque;
+    PL110State *s = static_cast<PL110State *>(opaque);
     s->mux_ctrl = level;
 }
 
-static int vmstate_pl110_post_load(void *opaque, int version_id)
+int PL110State::postLoad(void *opaque, int version_id)
 {
     PL110State *s = static_cast<PL110State *>(opaque);
     /* Make sure we redraw, and at the right size */
-    pl110_invalidate_display(s);
+    PL110State::invalidateDisplay(s);
     return 0;
 }
 
 static const GraphicHwOps pl110_gfx_ops = {
-    .invalidate  = pl110_invalidate_display,
-    .gfx_update  = pl110_update_display,
+    .invalidate  = PL110State::invalidateDisplay,
+    .gfx_update  = PL110State::updateDisplay,
 };
 
 static const Property pl110_properties[] = {
@@ -542,23 +569,29 @@ static const Property pl110_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void pl110_realize(DeviceState *dev, Error **errp)
+static void pl110_realize_wrapper(DeviceState *dev, Error **errp)
 {
     PL110State *s = PL110(dev);
+    s->realize(dev, errp);
+}
+
+void PL110State::realize(DeviceState *dev, Error **errp)
+{
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    if (!s->fbmem) {
+    if (!fbmem) {
         error_setg(errp, "'framebuffer-memory' property was not set");
         return;
     }
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl110_ops, s, "pl110", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-    s->vblank_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                   pl110_vblank_interrupt, s);
-    qdev_init_gpio_in(dev, pl110_mux_ctrl_set, 1);
-    s->con = graphic_console_init(dev, 0, &pl110_gfx_ops, s);
+    memory_region_init_io(&iomem, OBJECT(this), &pl110_ops, this,
+                          "pl110", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
+    vblank_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                PL110State::vblankInterrupt, this);
+    qdev_init_gpio_in(dev, PL110State::muxCtrlSet, 1);
+    con = graphic_console_init(dev, 0, &pl110_gfx_ops, this);
 }
 
 static void pl110_init(Object *obj)
@@ -582,13 +615,13 @@ static void pl111_init(Object *obj)
     s->version = VERSION_PL111;
 }
 
-static void pl110_class_init(ObjectClass *klass, const void *data)
+void PL110State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->vmsd = &vmstate_pl110;
-    dc->realize = pl110_realize;
+    dc->realize = pl110_realize_wrapper;
     device_class_set_props(dc, pl110_properties);
 }
 
@@ -597,7 +630,7 @@ static const TypeInfo pl110_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL110State),
     .instance_init = pl110_init,
-    .class_init    = pl110_class_init,
+    .class_init    = PL110State::classInit,
 };
 
 static const TypeInfo pl110_versatile_info = {

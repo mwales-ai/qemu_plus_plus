@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/isa/isa.h"
 #include "hw/net/ne2000-isa.h"
 #include "migration/vmstate.h"
@@ -41,6 +42,15 @@ struct ISANE2000State {
     uint32_t iobase;
     uint32_t isairq;
     NE2000State ne2000;
+
+    /* methods */
+    void realize(Error **errp);
+    void instanceInit();
+    static void getBootindex(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp);
+    static void setBootindex(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static NetClientInfo net_ne2000_isa_info = {
@@ -61,21 +71,26 @@ static const VMStateDescription vmstate_isa_ne2000 = {
 
 static void isa_ne2000_realizefn(DeviceState *dev, Error **errp)
 {
-    ISADevice *isadev = ISA_DEVICE(dev);
     ISANE2000State *isa = ISA_NE2000(dev);
-    NE2000State *s = &isa->ne2000;
+    isa->realize(errp);
+}
+
+void ISANE2000State::realize(Error **errp)
+{
+    ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+    NE2000State *s = &this->ne2000;
 
     ne2000_setup_io(s, DEVICE(isadev), 0x20);
-    isa_register_ioport(isadev, &s->io, isa->iobase);
+    isa_register_ioport(isadev, &s->io, this->iobase);
 
-    s->irq = isa_get_irq(isadev, isa->isairq);
+    s->irq = isa_get_irq(isadev, this->isairq);
 
     qemu_macaddr_default_if_unset(&s->c.macaddr);
     ne2000_reset(s);
 
     s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
+                          object_get_typename(OBJECT(this)), DEVICE(this)->id,
+                          &DEVICE(this)->mem_reentrancy_guard, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 }
 
@@ -85,7 +100,7 @@ static const Property ne2000_isa_properties[] = {
     DEFINE_NIC_PROPERTIES(ISANE2000State, ne2000.c),
 };
 
-static void isa_ne2000_class_initfn(ObjectClass *klass, const void *data)
+void ISANE2000State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -95,9 +110,9 @@ static void isa_ne2000_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
-static void isa_ne2000_get_bootindex(Object *obj, Visitor *v,
-                                     const char *name, void *opaque,
-                                     Error **errp)
+void ISANE2000State::getBootindex(Object *obj, Visitor *v,
+                                  const char *name, void *opaque,
+                                  Error **errp)
 {
     ISANE2000State *isa = ISA_NE2000(obj);
     NE2000State *s = &isa->ne2000;
@@ -105,9 +120,9 @@ static void isa_ne2000_get_bootindex(Object *obj, Visitor *v,
     visit_type_int32(v, name, &s->c.bootindex, errp);
 }
 
-static void isa_ne2000_set_bootindex(Object *obj, Visitor *v,
-                                     const char *name, void *opaque,
-                                     Error **errp)
+void ISANE2000State::setBootindex(Object *obj, Visitor *v,
+                                  const char *name, void *opaque,
+                                  Error **errp)
 {
     ISANE2000State *isa = ISA_NE2000(obj);
     NE2000State *s = &isa->ne2000;
@@ -131,17 +146,24 @@ out:
 
 static void isa_ne2000_instance_init(Object *obj)
 {
-    object_property_add(obj, "bootindex", "int32",
-                        isa_ne2000_get_bootindex,
-                        isa_ne2000_set_bootindex, NULL, NULL);
-    object_property_set_int(obj, "bootindex", -1, NULL);
+    ISANE2000State *isa = ISA_NE2000(obj);
+    isa->instanceInit();
 }
+
+void ISANE2000State::instanceInit()
+{
+    object_property_add(OBJECT(this), "bootindex", "int32",
+                        ISANE2000State::getBootindex,
+                        ISANE2000State::setBootindex, NULL, NULL);
+    object_property_set_int(OBJECT(this), "bootindex", -1, NULL);
+}
+
 static const TypeInfo ne2000_isa_info = {
     .name          = TYPE_ISA_NE2000,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISANE2000State),
     .instance_init = isa_ne2000_instance_init,
-    .class_init    = isa_ne2000_class_initfn,
+    .class_init    = ISANE2000State::classInit,
 };
 
 static void ne2000_isa_register_types(void)

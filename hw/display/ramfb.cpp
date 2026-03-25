@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "hw/loader.h"
 #include "hw/display/ramfb.h"
@@ -34,9 +35,17 @@ struct RAMFBState {
     DisplaySurface *ds;
     uint32_t width, height;
     struct RAMFBCfg cfg;
+
+    /* methods */
+    static void unmapDisplaySurface(pixman_image_t *image, void *unused);
+    static DisplaySurface *createDisplaySurface(int width, int height,
+                                                pixman_format_code_t format,
+                                                hwaddr stride, hwaddr addr);
+    static void fwCfgWrite(void *dev, off_t offset, size_t len);
+    static int postLoad(void *opaque, int version_id);
 };
 
-static void ramfb_unmap_display_surface(pixman_image_t *image, void *unused)
+void RAMFBState::unmapDisplaySurface(pixman_image_t *image, void *unused)
 {
     void *data = pixman_image_get_data(image);
     uint32_t size = pixman_image_get_stride(image) *
@@ -44,9 +53,9 @@ static void ramfb_unmap_display_surface(pixman_image_t *image, void *unused)
     cpu_physical_memory_unmap(data, size, 0, 0);
 }
 
-static DisplaySurface *ramfb_create_display_surface(int width, int height,
-                                                    pixman_format_code_t format,
-                                                    hwaddr stride, hwaddr addr)
+DisplaySurface *RAMFBState::createDisplaySurface(int width, int height,
+                                                  pixman_format_code_t format,
+                                                  hwaddr stride, hwaddr addr)
 {
     DisplaySurface *surface;
     hwaddr size, mapsize, linesize;
@@ -73,12 +82,12 @@ static DisplaySurface *ramfb_create_display_surface(int width, int height,
                                               format, stride,
                                               static_cast<uint8_t *>(data));
     pixman_image_set_destroy_function(surface->image,
-                                      ramfb_unmap_display_surface, NULL);
+                                      RAMFBState::unmapDisplaySurface, NULL);
 
     return surface;
 }
 
-static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
+void RAMFBState::fwCfgWrite(void *dev, off_t offset, size_t len)
 {
     RAMFBState *s = static_cast<RAMFBState *>(dev);
     DisplaySurface *surface;
@@ -92,9 +101,9 @@ static void ramfb_fw_cfg_write(void *dev, off_t offset, size_t len)
     addr   = be64_to_cpu(s->cfg.addr);
     format = qemu_drm_format_to_pixman(fourcc);
 
-    surface = ramfb_create_display_surface(width, height,
-                                           static_cast<pixman_format_code_t>(format),
-                                           stride, addr);
+    surface = RAMFBState::createDisplaySurface(width, height,
+                                               static_cast<pixman_format_code_t>(format),
+                                               stride, addr);
     if (!surface) {
         return;
     }
@@ -120,9 +129,9 @@ void ramfb_display_update(QemuConsole *con, RAMFBState *s)
     dpy_gfx_update_full(con);
 }
 
-static int ramfb_post_load(void *opaque, int version_id)
+int RAMFBState::postLoad(void *opaque, int version_id)
 {
-    ramfb_fw_cfg_write(opaque, 0, 0);
+    RAMFBState::fwCfgWrite(opaque, 0, 0);
     return 0;
 }
 
@@ -135,7 +144,7 @@ const VMStateDescription ramfb_vmstate = {
     .name = "ramfb",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = ramfb_post_load,
+    .post_load = RAMFBState::postLoad,
     .fields = vmstate_ramfb_fields,
 };
 
@@ -155,7 +164,7 @@ RAMFBState *ramfb_setup(bool romfile, Error **errp)
         rom_add_vga("vgabios-ramfb.bin");
     }
     fw_cfg_add_file_callback(fw_cfg, "etc/ramfb",
-                             NULL, ramfb_fw_cfg_write, s,
+                             NULL, RAMFBState::fwCfgWrite, s,
                              &s->cfg, sizeof(s->cfg), false);
     return s;
 }

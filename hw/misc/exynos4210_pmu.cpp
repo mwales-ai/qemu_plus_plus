@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
@@ -402,6 +403,16 @@ struct Exynos4210PmuState {
 
     MemoryRegion iomem;
     uint32_t reg[PMU_NUM_OF_REGISTERS];
+
+    /* Instance methods */
+    void reset();
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t val, unsigned size);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void exynos4210_pmu_poweroff(void)
@@ -410,10 +421,10 @@ static void exynos4210_pmu_poweroff(void)
     qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
 }
 
-static uint64_t exynos4210_pmu_read(void *opaque, hwaddr offset,
-                                    unsigned size)
+uint64_t Exynos4210PmuState::mmioRead(void *opaque, hwaddr offset,
+                                      unsigned size)
 {
-    Exynos4210PmuState *s = (Exynos4210PmuState *)opaque;
+    Exynos4210PmuState *s = static_cast<Exynos4210PmuState *>(opaque);
     const Exynos4210PmuReg *reg_p = exynos4210_pmu_regs;
     unsigned int i;
 
@@ -429,10 +440,10 @@ static uint64_t exynos4210_pmu_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void exynos4210_pmu_write(void *opaque, hwaddr offset,
-                                 uint64_t val, unsigned size)
+void Exynos4210PmuState::mmioWrite(void *opaque, hwaddr offset,
+                                   uint64_t val, unsigned size)
 {
-    Exynos4210PmuState *s = (Exynos4210PmuState *)opaque;
+    Exynos4210PmuState *s = static_cast<Exynos4210PmuState *>(opaque);
     const Exynos4210PmuReg *reg_p = exynos4210_pmu_regs;
     unsigned int i;
 
@@ -456,8 +467,8 @@ static void exynos4210_pmu_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps exynos4210_pmu_ops = {
-    .read = exynos4210_pmu_read,
-    .write = exynos4210_pmu_write,
+    .read = Exynos4210PmuState::mmioRead,
+    .write = Exynos4210PmuState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -466,15 +477,20 @@ static const MemoryRegionOps exynos4210_pmu_ops = {
     }
 };
 
-static void exynos4210_pmu_reset(DeviceState *dev)
+void Exynos4210PmuState::reset()
 {
-    Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
     unsigned i;
 
     /* Set default values for registers */
     for (i = 0; i < PMU_NUM_OF_REGISTERS; i++) {
-        s->reg[i] = exynos4210_pmu_regs[i].reset_value;
+        reg[i] = exynos4210_pmu_regs[i].reset_value;
     }
+}
+
+static void exynos4210_pmu_reset(DeviceState *dev)
+{
+    Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
+    s->reset();
 }
 
 static void exynos4210_pmu_init(Object *obj)
@@ -498,7 +514,7 @@ static const VMStateDescription exynos4210_pmu_vmstate = {
     }
 };
 
-static void exynos4210_pmu_class_init(ObjectClass *klass, const void *data)
+void Exynos4210PmuState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -511,7 +527,7 @@ static const TypeInfo exynos4210_pmu_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PmuState),
     .instance_init = exynos4210_pmu_init,
-    .class_init    = exynos4210_pmu_class_init,
+    .class_init    = Exynos4210PmuState::classInit,
 };
 
 static void exynos4210_pmu_register(void)

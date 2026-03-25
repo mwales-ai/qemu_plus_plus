@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/timer.h"
 #include "system/runstate.h"
 #include "hw/sysbus.h"
@@ -199,6 +200,24 @@ struct ZynqSLCRState {
     Clock *uart0_ref_clk;
     Clock *uart1_ref_clk;
     uint8_t boot_mode;
+
+    /* Instance methods */
+    void computeClocks();
+    void propagateClocks();
+    void realize(Error **errp);
+
+    /* Static MMIO callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t val, unsigned size);
+
+    /* Static callbacks */
+    static void psClkCallback(void *opaque, ClockEvent event);
+    static void resetInit(Object *obj, ResetType type);
+    static void resetHold(Object *obj, ResetType type);
+    static void resetExit(Object *obj, ResetType type);
+
+    /* Class init */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /*
@@ -293,16 +312,16 @@ static void zynq_slcr_compute_clocks_internal(ZynqSLCRState *s, uint64_t ps_clk)
  * But do not propagate them further. Connected clocks
  * will not receive any updates (See zynq_slcr_compute_clocks())
  */
-static void zynq_slcr_compute_clocks(ZynqSLCRState *s)
+void ZynqSLCRState::computeClocks()
 {
-    uint64_t ps_clk = clock_get(s->ps_clk);
+    uint64_t ps_clk_val = clock_get(ps_clk);
 
     /* consider outputs clocks are disabled while in reset */
-    if (device_is_in_reset(DEVICE(s))) {
-        ps_clk = 0;
+    if (device_is_in_reset(DEVICE(this))) {
+        ps_clk_val = 0;
     }
 
-    zynq_slcr_compute_clocks_internal(s, ps_clk);
+    zynq_slcr_compute_clocks_internal(this, ps_clk_val);
 }
 
 /**
@@ -310,21 +329,21 @@ static void zynq_slcr_compute_clocks(ZynqSLCRState *s)
  * zynq_slcr_compute_clocks() should have been called before
  * to configure them.
  */
-static void zynq_slcr_propagate_clocks(ZynqSLCRState *s)
+void ZynqSLCRState::propagateClocks()
 {
-    clock_propagate(s->uart0_ref_clk);
-    clock_propagate(s->uart1_ref_clk);
+    clock_propagate(uart0_ref_clk);
+    clock_propagate(uart1_ref_clk);
 }
 
-static void zynq_slcr_ps_clk_callback(void *opaque, ClockEvent event)
+void ZynqSLCRState::psClkCallback(void *opaque, ClockEvent event)
 {
-    ZynqSLCRState *s = (ZynqSLCRState *) opaque;
+    ZynqSLCRState *s = static_cast<ZynqSLCRState *>(opaque);
 
-    zynq_slcr_compute_clocks(s);
-    zynq_slcr_propagate_clocks(s);
+    s->computeClocks();
+    s->propagateClocks();
 }
 
-static void zynq_slcr_reset_init(Object *obj, ResetType type)
+void ZynqSLCRState::resetInit(Object *obj, ResetType type)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
     int i;
@@ -420,22 +439,22 @@ static void zynq_slcr_reset_init(Object *obj, ResetType type)
     s->regs[R_DDRIOB + 12] = 0x00000021;
 }
 
-static void zynq_slcr_reset_hold(Object *obj, ResetType type)
+void ZynqSLCRState::resetHold(Object *obj, ResetType type)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
 
     /* will disable all output clocks */
     zynq_slcr_compute_clocks_internal(s, 0);
-    zynq_slcr_propagate_clocks(s);
+    s->propagateClocks();
 }
 
-static void zynq_slcr_reset_exit(Object *obj, ResetType type)
+void ZynqSLCRState::resetExit(Object *obj, ResetType type)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(obj);
 
     /* will compute output clocks according to ps_clk and registers */
     zynq_slcr_compute_clocks_internal(s, clock_get(s->ps_clk));
-    zynq_slcr_propagate_clocks(s);
+    s->propagateClocks();
 }
 
 static bool zynq_slcr_check_offset(hwaddr offset, bool rnw)
@@ -500,7 +519,7 @@ static bool zynq_slcr_check_offset(hwaddr offset, bool rnw)
     }
 }
 
-static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
+uint64_t ZynqSLCRState::mmioRead(void *opaque, hwaddr offset,
     unsigned size)
 {
     ZynqSLCRState *s = static_cast<ZynqSLCRState *>(opaque);
@@ -516,10 +535,10 @@ static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
     return ret;
 }
 
-static void zynq_slcr_write(void *opaque, hwaddr offset,
-                          uint64_t val, unsigned size)
+void ZynqSLCRState::mmioWrite(void *opaque, hwaddr offset,
+                              uint64_t val, unsigned size)
 {
-    ZynqSLCRState *s = (ZynqSLCRState *)opaque;
+    ZynqSLCRState *s = static_cast<ZynqSLCRState *>(opaque);
     offset /= 4;
 
     DB_PRINT("addr: %08" HWADDR_PRIx " data: %08" PRIx64 "\n", offset * 4, val);
@@ -573,32 +592,36 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
     case R_ARM_PLL_CTRL:
     case R_DDR_PLL_CTRL:
     case R_UART_CLK_CTRL:
-        zynq_slcr_compute_clocks(s);
-        zynq_slcr_propagate_clocks(s);
+        s->computeClocks();
+        s->propagateClocks();
         break;
     }
 }
 
 static const MemoryRegionOps slcr_ops = {
-    .read = zynq_slcr_read,
-    .write = zynq_slcr_write,
+    .read = ZynqSLCRState::mmioRead,
+    .write = ZynqSLCRState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const ClockPortInitArray zynq_slcr_clocks = {
-    QDEV_CLOCK_IN(ZynqSLCRState, ps_clk, zynq_slcr_ps_clk_callback, ClockUpdate),
+    QDEV_CLOCK_IN(ZynqSLCRState, ps_clk, ZynqSLCRState::psClkCallback, ClockUpdate),
     QDEV_CLOCK_OUT(ZynqSLCRState, uart0_ref_clk),
     QDEV_CLOCK_OUT(ZynqSLCRState, uart1_ref_clk),
     QDEV_CLOCK_END
 };
 
+void ZynqSLCRState::realize(Error **errp)
+{
+    if (boot_mode > 0xF) {
+        error_setg(errp, "Invalid boot mode %d specified", boot_mode);
+    }
+}
+
 static void zynq_slcr_realize(DeviceState *dev, Error **errp)
 {
     ZynqSLCRState *s = ZYNQ_SLCR(dev);
-
-    if (s->boot_mode > 0xF) {
-        error_setg(errp, "Invalid boot mode %d specified", s->boot_mode);
-    }
+    s->realize(errp);
 }
 
 static void zynq_slcr_init(Object *obj)
@@ -629,16 +652,16 @@ static const Property zynq_slcr_props[] = {
     DEFINE_PROP_UINT8("boot-mode", ZynqSLCRState, boot_mode, 1),
 };
 
-static void zynq_slcr_class_init(ObjectClass *klass, const void *data)
+void ZynqSLCRState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_zynq_slcr;
     dc->realize = zynq_slcr_realize;
-    rc->phases.enter = zynq_slcr_reset_init;
-    rc->phases.hold  = zynq_slcr_reset_hold;
-    rc->phases.exit  = zynq_slcr_reset_exit;
+    rc->phases.enter = ZynqSLCRState::resetInit;
+    rc->phases.hold  = ZynqSLCRState::resetHold;
+    rc->phases.exit  = ZynqSLCRState::resetExit;
     device_class_set_props(dc, zynq_slcr_props);
 }
 
@@ -647,7 +670,7 @@ static const TypeInfo zynq_slcr_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(ZynqSLCRState),
     .instance_init = zynq_slcr_init,
-    .class_init = zynq_slcr_class_init,
+    .class_init = ZynqSLCRState::classInit,
 };
 
 static void zynq_slcr_register_types(void)
