@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 extern "C" {
 #include "qemu/module.h"
@@ -99,27 +100,37 @@ struct Exynos4210I2CState {
     uint8_t i2cds;
     uint8_t i2clc;
     bool scl_free;
+
+    void raiseInterrupt();
+    static void dataReceive(void *opaque);
+    static void dataSend(void *opaque);
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
+                          unsigned size);
+    void reset();
+    static void initfn(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static inline void exynos4210_i2c_raise_interrupt(Exynos4210I2CState *s)
+void Exynos4210I2CState::raiseInterrupt()
 {
-    if (s->i2ccon & I2CCON_INTRS_EN) {
-        s->i2ccon |= I2CCON_INT_PEND;
-        qemu_irq_raise(s->irq);
+    if (i2ccon & I2CCON_INTRS_EN) {
+        i2ccon |= I2CCON_INT_PEND;
+        qemu_irq_raise(irq);
     }
 }
 
-static void exynos4210_i2c_data_receive(void *opaque)
+void Exynos4210I2CState::dataReceive(void *opaque)
 {
     Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
 
     s->i2cstat &= ~I2CSTAT_LAST_BIT;
     s->scl_free = false;
     s->i2cds = i2c_recv(s->bus);
-    exynos4210_i2c_raise_interrupt(s);
+    s->raiseInterrupt();
 }
 
-static void exynos4210_i2c_data_send(void *opaque)
+void Exynos4210I2CState::dataSend(void *opaque)
 {
     Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
 
@@ -128,11 +139,11 @@ static void exynos4210_i2c_data_send(void *opaque)
     if (i2c_send(s->bus, s->i2cds) < 0 && (s->i2ccon & I2CCON_ACK_GEN)) {
         s->i2cstat |= I2CSTAT_LAST_BIT;
     }
-    exynos4210_i2c_raise_interrupt(s);
+    s->raiseInterrupt();
 }
 
-static uint64_t exynos4210_i2c_read(void *opaque, hwaddr offset,
-                                 unsigned size)
+uint64_t Exynos4210I2CState::mmioRead(void *opaque, hwaddr offset,
+                                       unsigned size)
 {
     Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
     uint8_t value;
@@ -153,7 +164,7 @@ static uint64_t exynos4210_i2c_read(void *opaque, hwaddr offset,
         if (EXYNOS4_I2C_MODE(s->i2cstat) == I2CMODE_MASTER_Rx &&
                (s->i2cstat & I2CSTAT_START_BUSY) &&
                !(s->i2ccon & I2CCON_INT_PEND)) {
-            exynos4210_i2c_data_receive(s);
+            Exynos4210I2CState::dataReceive(s);
         }
         break;
     case I2CLC_ADDR:
@@ -170,8 +181,8 @@ static uint64_t exynos4210_i2c_read(void *opaque, hwaddr offset,
     return value;
 }
 
-static void exynos4210_i2c_write(void *opaque, hwaddr offset,
-                              uint64_t value, unsigned size)
+void Exynos4210I2CState::mmioWrite(void *opaque, hwaddr offset,
+                                    uint64_t value, unsigned size)
 {
     Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
     uint8_t v = value & 0xff;
@@ -192,10 +203,10 @@ static void exynos4210_i2c_write(void *opaque, hwaddr offset,
             if (s->i2cstat & I2CSTAT_START_BUSY) {
                 if (s->scl_free) {
                     if (EXYNOS4_I2C_MODE(s->i2cstat) == I2CMODE_MASTER_Tx) {
-                        exynos4210_i2c_data_send(s);
+                        Exynos4210I2CState::dataSend(s);
                     } else if (EXYNOS4_I2C_MODE(s->i2cstat) ==
                             I2CMODE_MASTER_Rx) {
-                        exynos4210_i2c_data_receive(s);
+                        Exynos4210I2CState::dataReceive(s);
                     }
                 } else {
                     s->i2ccon |= I2CCON_INT_PEND;
@@ -230,9 +241,9 @@ static void exynos4210_i2c_write(void *opaque, hwaddr offset,
                     (s->i2ccon & I2CCON_ACK_GEN)) {
                 s->i2cstat |= I2CSTAT_LAST_BIT;
             } else if (EXYNOS4_I2C_MODE(s->i2cstat) == I2CMODE_MASTER_Rx) {
-                exynos4210_i2c_data_receive(s);
+                Exynos4210I2CState::dataReceive(s);
             }
-            exynos4210_i2c_raise_interrupt(s);
+            s->raiseInterrupt();
         } else {
             i2c_end_transfer(s->bus);
             if (!(s->i2ccon & I2CCON_INT_PEND)) {
@@ -253,7 +264,7 @@ static void exynos4210_i2c_write(void *opaque, hwaddr offset,
             if (EXYNOS4_I2C_MODE(s->i2cstat) == I2CMODE_MASTER_Tx &&
                     (s->i2cstat & I2CSTAT_START_BUSY) &&
                     !(s->i2ccon & I2CCON_INT_PEND)) {
-                exynos4210_i2c_data_send(s);
+                Exynos4210I2CState::dataSend(s);
             }
         }
         break;
@@ -267,8 +278,8 @@ static void exynos4210_i2c_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps exynos4210_i2c_ops = {
-    .read = exynos4210_i2c_read,
-    .write = exynos4210_i2c_write,
+    .read = Exynos4210I2CState::mmioRead,
+    .write = Exynos4210I2CState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -289,19 +300,23 @@ static const VMStateDescription exynos4210_i2c_vmstate = {
     .fields = vmstate_exynos4210_i2c_fields,
 };
 
-static void exynos4210_i2c_reset(DeviceState *d)
+static void exynos4210_i2c_reset_wrapper(DeviceState *d)
 {
     Exynos4210I2CState *s = EXYNOS4_I2C(d);
-
-    s->i2ccon  = 0x00;
-    s->i2cstat = 0x00;
-    s->i2cds   = 0xFF;
-    s->i2clc   = 0x00;
-    s->i2cadd  = 0xFF;
-    s->scl_free = true;
+    s->reset();
 }
 
-static void exynos4210_i2c_init(Object *obj)
+void Exynos4210I2CState::reset()
+{
+    i2ccon  = 0x00;
+    i2cstat = 0x00;
+    i2cds   = 0xFF;
+    i2clc   = 0x00;
+    i2cadd  = 0xFF;
+    scl_free = true;
+}
+
+void Exynos4210I2CState::initfn(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     Exynos4210I2CState *s = EXYNOS4_I2C(obj);
@@ -314,20 +329,20 @@ static void exynos4210_i2c_init(Object *obj)
     s->bus = i2c_init_bus(dev, "i2c");
 }
 
-static void exynos4210_i2c_class_init(ObjectClass *klass, const void *data)
+void Exynos4210I2CState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &exynos4210_i2c_vmstate;
-    device_class_set_legacy_reset(dc, exynos4210_i2c_reset);
+    device_class_set_legacy_reset(dc, exynos4210_i2c_reset_wrapper);
 }
 
 static const TypeInfo exynos4210_i2c_type_info = {
     .name = TYPE_EXYNOS4_I2C,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210I2CState),
-    .instance_init = exynos4210_i2c_init,
-    .class_init = exynos4210_i2c_class_init,
+    .instance_init = Exynos4210I2CState::initfn,
+    .class_init = Exynos4210I2CState::classInit,
 };
 
 static void exynos4210_i2c_register_types(void)

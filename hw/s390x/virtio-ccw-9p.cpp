@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio.h"
 #include "qapi/error.h"
@@ -23,23 +24,25 @@ OBJECT_DECLARE_SIMPLE_TYPE(V9fsCCWState, VIRTIO_9P_CCW)
 struct V9fsCCWState {
     VirtioCcwDevice parent_obj;
     V9fsVirtioState vdev;
+
+    static void realize(VirtioCcwDevice *ccw_dev, Error **errp)
+    {
+        V9fsCCWState *dev = VIRTIO_9P_CCW(ccw_dev);
+        DeviceState *vdev = DEVICE(&dev->vdev);
+
+        qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
+    }
+
+    static void instanceInit(Object *obj)
+    {
+        V9fsCCWState *dev = VIRTIO_9P_CCW(obj);
+
+        virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                    TYPE_VIRTIO_9P);
+    }
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
-
-static void virtio_ccw_9p_realize(VirtioCcwDevice *ccw_dev, Error **errp)
-{
-    V9fsCCWState *dev = VIRTIO_9P_CCW(ccw_dev);
-    DeviceState *vdev = DEVICE(&dev->vdev);
-
-    qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
-}
-
-static void virtio_ccw_9p_instance_init(Object *obj)
-{
-    V9fsCCWState *dev = VIRTIO_9P_CCW(obj);
-
-    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
-                                TYPE_VIRTIO_9P);
-}
 
 static const Property virtio_ccw_9p_properties[] = {
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
@@ -48,12 +51,12 @@ static const Property virtio_ccw_9p_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-static void virtio_ccw_9p_class_init(ObjectClass *klass, const void *data)
+void V9fsCCWState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
 
-    k->realize = virtio_ccw_9p_realize;
+    k->realize = realize;
     device_class_set_props(dc, virtio_ccw_9p_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
@@ -62,8 +65,8 @@ static const TypeInfo virtio_ccw_9p_info = {
     .name          = TYPE_VIRTIO_9P_CCW,
     .parent        = TYPE_VIRTIO_CCW_DEVICE,
     .instance_size = sizeof(V9fsCCWState),
-    .instance_init = virtio_ccw_9p_instance_init,
-    .class_init    = virtio_ccw_9p_class_init,
+    .instance_init = V9fsCCWState::instanceInit,
+    .class_init    = V9fsCCWState::classInit,
 };
 
 static void virtio_ccw_9p_register(void)

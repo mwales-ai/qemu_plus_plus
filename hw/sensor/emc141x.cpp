@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/i2c/i2c.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -39,6 +40,19 @@ struct EMC141XState {
     uint8_t len;
     uint8_t data;
     uint8_t pointer;
+
+    static void getTemperature(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp);
+    static void setTemperature(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp);
+    void read();
+    void write();
+    static uint8_t rx(I2CSlave *i2c);
+    static int tx(I2CSlave *i2c, uint8_t data);
+    static int event(I2CSlave *i2c, enum i2c_event event);
+    void reset();
+    static void initfn(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 struct EMC141XClass {
@@ -50,8 +64,8 @@ struct EMC141XClass {
 #define TYPE_EMC141X "emc141x"
 OBJECT_DECLARE_TYPE(EMC141XState, EMC141XClass, EMC141X)
 
-static void emc141x_get_temperature(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
+void EMC141XState::getTemperature(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     EMC141XState *s = EMC141X(obj);
     EMC141XClass *sc = EMC141X_GET_CLASS(s);
@@ -73,8 +87,8 @@ static void emc141x_get_temperature(Object *obj, Visitor *v, const char *name,
     visit_type_int(v, name, &value, errp);
 }
 
-static void emc141x_set_temperature(Object *obj, Visitor *v, const char *name,
-                                    void *opaque, Error **errp)
+void EMC141XState::setTemperature(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     EMC141XState *s = EMC141X(obj);
     EMC141XClass *sc = EMC141X_GET_CLASS(s);
@@ -98,93 +112,93 @@ static void emc141x_set_temperature(Object *obj, Visitor *v, const char *name,
     s->sensor[tempid].raw_temp_current = temp / 1000;
 }
 
-static void emc141x_read(EMC141XState *s)
+void EMC141XState::read()
 {
-    EMC141XClass *sc = EMC141X_GET_CLASS(s);
-    switch (s->pointer) {
+    EMC141XClass *sc = EMC141X_GET_CLASS(this);
+    switch (pointer) {
     case EMC141X_DEVICE_ID:
-        s->data = sc->model;
+        data = sc->model;
         break;
     case EMC141X_MANUFACTURER_ID:
-        s->data = MANUFACTURER_ID;
+        data = MANUFACTURER_ID;
         break;
     case EMC141X_REVISION:
-        s->data = REVISION;
+        data = REVISION;
         break;
     case EMC141X_TEMP_HIGH0:
-        s->data = s->sensor[0].raw_temp_current;
+        data = sensor[0].raw_temp_current;
         break;
     case EMC141X_TEMP_HIGH1:
-        s->data = s->sensor[1].raw_temp_current;
+        data = sensor[1].raw_temp_current;
         break;
     case EMC141X_TEMP_HIGH2:
-        s->data = s->sensor[2].raw_temp_current;
+        data = sensor[2].raw_temp_current;
         break;
     case EMC141X_TEMP_HIGH3:
-        s->data = s->sensor[3].raw_temp_current;
+        data = sensor[3].raw_temp_current;
         break;
     case EMC141X_TEMP_MAX_HIGH0:
-        s->data = s->sensor[0].raw_temp_max;
+        data = sensor[0].raw_temp_max;
         break;
     case EMC141X_TEMP_MAX_HIGH1:
-        s->data = s->sensor[1].raw_temp_max;
+        data = sensor[1].raw_temp_max;
         break;
     case EMC141X_TEMP_MAX_HIGH2:
-        s->data = s->sensor[2].raw_temp_max;
+        data = sensor[2].raw_temp_max;
         break;
     case EMC141X_TEMP_MAX_HIGH3:
-        s->data = s->sensor[3].raw_temp_max;
+        data = sensor[3].raw_temp_max;
         break;
     case EMC141X_TEMP_MIN_HIGH0:
-        s->data = s->sensor[0].raw_temp_min;
+        data = sensor[0].raw_temp_min;
         break;
     case EMC141X_TEMP_MIN_HIGH1:
-        s->data = s->sensor[1].raw_temp_min;
+        data = sensor[1].raw_temp_min;
         break;
     case EMC141X_TEMP_MIN_HIGH2:
-        s->data = s->sensor[2].raw_temp_min;
+        data = sensor[2].raw_temp_min;
         break;
     case EMC141X_TEMP_MIN_HIGH3:
-        s->data = s->sensor[3].raw_temp_min;
+        data = sensor[3].raw_temp_min;
         break;
     default:
-        s->data = 0;
+        data = 0;
     }
 }
 
-static void emc141x_write(EMC141XState *s)
+void EMC141XState::write()
 {
-    switch (s->pointer) {
+    switch (pointer) {
     case EMC141X_TEMP_MAX_HIGH0:
-        s->sensor[0].raw_temp_max = s->data;
+        sensor[0].raw_temp_max = data;
         break;
     case EMC141X_TEMP_MAX_HIGH1:
-        s->sensor[1].raw_temp_max = s->data;
+        sensor[1].raw_temp_max = data;
         break;
     case EMC141X_TEMP_MAX_HIGH2:
-        s->sensor[2].raw_temp_max = s->data;
+        sensor[2].raw_temp_max = data;
         break;
     case EMC141X_TEMP_MAX_HIGH3:
-        s->sensor[3].raw_temp_max = s->data;
+        sensor[3].raw_temp_max = data;
         break;
     case EMC141X_TEMP_MIN_HIGH0:
-        s->sensor[0].raw_temp_min = s->data;
+        sensor[0].raw_temp_min = data;
         break;
     case EMC141X_TEMP_MIN_HIGH1:
-        s->sensor[1].raw_temp_min = s->data;
+        sensor[1].raw_temp_min = data;
         break;
     case EMC141X_TEMP_MIN_HIGH2:
-        s->sensor[2].raw_temp_min = s->data;
+        sensor[2].raw_temp_min = data;
         break;
     case EMC141X_TEMP_MIN_HIGH3:
-        s->sensor[3].raw_temp_min = s->data;
+        sensor[3].raw_temp_min = data;
         break;
     default:
-        s->data = 0;
+        data = 0;
     }
 }
 
-static uint8_t emc141x_rx(I2CSlave *i2c)
+uint8_t EMC141XState::rx(I2CSlave *i2c)
 {
     EMC141XState *s = EMC141X(i2c);
 
@@ -196,7 +210,7 @@ static uint8_t emc141x_rx(I2CSlave *i2c)
     }
 }
 
-static int emc141x_tx(I2CSlave *i2c, uint8_t data)
+int EMC141XState::tx(I2CSlave *i2c, uint8_t data)
 {
     EMC141XState *s = EMC141X(i2c);
 
@@ -206,18 +220,18 @@ static int emc141x_tx(I2CSlave *i2c, uint8_t data)
         s->len++;
     } else if (s->len == 1) {
         s->data = data;
-        emc141x_write(s);
+        s->write();
     }
 
     return 0;
 }
 
-static int emc141x_event(I2CSlave *i2c, enum i2c_event event)
+int EMC141XState::event(I2CSlave *i2c, enum i2c_event event)
 {
     EMC141XState *s = EMC141X(i2c);
 
     if (event == I2C_START_RECV) {
-        emc141x_read(s);
+        s->read();
     }
 
     s->len = 0;
@@ -240,40 +254,45 @@ static const VMStateDescription vmstate_emc141x = {
 static void emc141x_reset(DeviceState *dev)
 {
     EMC141XState *s = EMC141X(dev);
+    s->reset();
+}
+
+void EMC141XState::reset()
+{
     int i;
 
     for (i = 0; i < SENSORS_COUNT_MAX; i++) {
-        s->sensor[i].raw_temp_max = 0x55;
+        sensor[i].raw_temp_max = 0x55;
     }
-    s->pointer = 0;
-    s->len = 0;
+    pointer = 0;
+    len = 0;
 }
 
-static void emc141x_initfn(Object *obj)
+void EMC141XState::initfn(Object *obj)
 {
     object_property_add(obj, "temperature0", "int",
-                        emc141x_get_temperature,
-                        emc141x_set_temperature, NULL, NULL);
+                        EMC141XState::getTemperature,
+                        EMC141XState::setTemperature, NULL, NULL);
     object_property_add(obj, "temperature1", "int",
-                        emc141x_get_temperature,
-                        emc141x_set_temperature, NULL, NULL);
+                        EMC141XState::getTemperature,
+                        EMC141XState::setTemperature, NULL, NULL);
     object_property_add(obj, "temperature2", "int",
-                        emc141x_get_temperature,
-                        emc141x_set_temperature, NULL, NULL);
+                        EMC141XState::getTemperature,
+                        EMC141XState::setTemperature, NULL, NULL);
     object_property_add(obj, "temperature3", "int",
-                        emc141x_get_temperature,
-                        emc141x_set_temperature, NULL, NULL);
+                        EMC141XState::getTemperature,
+                        EMC141XState::setTemperature, NULL, NULL);
 }
 
-static void emc141x_class_init(ObjectClass *klass, const void *data)
+void EMC141XState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     device_class_set_legacy_reset(dc, emc141x_reset);
-    k->event = emc141x_event;
-    k->recv = emc141x_rx;
-    k->send = emc141x_tx;
+    k->event = EMC141XState::event;
+    k->recv = EMC141XState::rx;
+    k->send = EMC141XState::tx;
     dc->vmsd = &vmstate_emc141x;
 }
 
@@ -281,7 +300,7 @@ static void emc1413_class_init(ObjectClass *klass, const void *data)
 {
     EMC141XClass *ec = EMC141X_CLASS(klass);
 
-    emc141x_class_init(klass, data);
+    EMC141XState::classInit(klass, data);
     ec->model = EMC1413_DEVICE_ID;
     ec->sensors_count = 3;
 }
@@ -290,7 +309,7 @@ static void emc1414_class_init(ObjectClass *klass, const void *data)
 {
     EMC141XClass *ec = EMC141X_CLASS(klass);
 
-    emc141x_class_init(klass, data);
+    EMC141XState::classInit(klass, data);
     ec->model = EMC1414_DEVICE_ID;
     ec->sensors_count = 4;
 }
@@ -299,7 +318,7 @@ static const TypeInfo emc141x_info = {
     .name          = TYPE_EMC141X,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(EMC141XState),
-    .instance_init = emc141x_initfn,
+    .instance_init = EMC141XState::initfn,
     .is_abstract   = true,
     .class_size    = sizeof(EMC141XClass),
 };

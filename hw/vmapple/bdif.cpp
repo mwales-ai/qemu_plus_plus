@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -29,6 +30,14 @@ struct VMAppleBdifState {
     BlockBackend *aux;
     BlockBackend *root;
     MemoryRegion mmio;
+
+    static uint64_t read(void *opaque, hwaddr offset, unsigned size);
+    static void write(void *opaque, hwaddr offset, uint64_t value,
+                      unsigned size);
+
+    void initfn(Object *obj);
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define VMAPPLE_BDIF_SIZE   0x00200000
@@ -75,7 +84,8 @@ typedef struct VblkReq {
 #define VBLK_RET_SUCCESS  0
 #define VBLK_RET_FAILED   1
 
-static uint64_t bdif_read(void *opaque, hwaddr offset, unsigned size)
+static uint64_t VMAppleBdifState::read(void *opaque, hwaddr offset,
+                                        unsigned size)
 {
     uint64_t ret = -1;
     uint64_t devid = offset & REG_DEVID_MASK;
@@ -200,8 +210,8 @@ out:
                      MEMTXATTRS_UNSPECIFIED);
 }
 
-static void bdif_write(void *opaque, hwaddr offset,
-                       uint64_t value, unsigned size)
+static void VMAppleBdifState::write(void *opaque, hwaddr offset,
+                                     uint64_t value, unsigned size)
 {
     VMAppleBdifState *s = static_cast<VMAppleBdifState *>(opaque);
     uint64_t devid = (offset & REG_DEVID_MASK);
@@ -223,8 +233,8 @@ static void bdif_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps bdif_ops = {
-    .read = bdif_read,
-    .write = bdif_write,
+    .read = VMAppleBdifState::read,
+    .write = VMAppleBdifState::write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -236,7 +246,7 @@ static const MemoryRegionOps bdif_ops = {
     },
 };
 
-static void bdif_init(Object *obj)
+void VMAppleBdifState::initfn(Object *obj)
 {
     VMAppleBdifState *s = VMAPPLE_BDIF(obj);
 
@@ -250,7 +260,7 @@ static const Property bdif_properties[] = {
     DEFINE_PROP_DRIVE("root", VMAppleBdifState, root),
 };
 
-static void bdif_class_init(ObjectClass *klass, const void *data)
+void VMAppleBdifState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -262,8 +272,8 @@ static const TypeInfo bdif_info = {
     .name          = TYPE_VMAPPLE_BDIF,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VMAppleBdifState),
-    .instance_init = bdif_init,
-    .class_init    = bdif_class_init,
+    .instance_init = VMAppleBdifState::initfn,
+    .class_init    = VMAppleBdifState::classInit,
 };
 
 static void bdif_register_types(void)

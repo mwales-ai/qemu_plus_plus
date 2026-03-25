@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/vmapple/vmapple.h"
 #include "hw/sysbus.h"
 #include "qemu/log.h"
@@ -63,22 +64,21 @@ struct VMAppleCfgState {
     char *serial;
     char *model;
     char *soc_name;
+
+    static bool setFixlenPropertyOrError(char *__restrict__ dst,
+                                         const char *__restrict__ src,
+                                         size_t dst_size, Error **errp,
+                                         const char *property_name);
+    static void reset(Object *obj, ResetType type);
+    static void realize(DeviceState *dev, Error **errp);
+    static void initfn(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void vmapple_cfg_reset(Object *obj, ResetType type)
-{
-    VMAppleCfgState *s = VMAPPLE_CFG(obj);
-    VMAppleCfg *cfg;
-
-    cfg = memory_region_get_ram_ptr(&s->mem);
-    memset(cfg, 0, VMAPPLE_CFG_SIZE);
-    *cfg = s->cfg;
-}
-
-static bool set_fixlen_property_or_error(char *restrict dst,
-                                         const char *restrict src,
-                                         size_t dst_size, Error **errp,
-                                         const char *property_name)
+bool VMAppleCfgState::setFixlenPropertyOrError(char *__restrict__ dst,
+                                               const char *__restrict__ src,
+                                               size_t dst_size, Error **errp,
+                                               const char *property_name)
 {
     ERRP_GUARD();
     size_t len;
@@ -96,14 +96,24 @@ static bool set_fixlen_property_or_error(char *restrict dst,
 
 #define set_fixlen_property_or_return(dst_array, src, errp, property_name) \
     do { \
-        if (!set_fixlen_property_or_error((dst_array), (src), \
+        if (!VMAppleCfgState::setFixlenPropertyOrError((dst_array), (src), \
                                           ARRAY_SIZE(dst_array), \
                                           (errp), (property_name))) { \
             return; \
         } \
     } while (0)
 
-static void vmapple_cfg_realize(DeviceState *dev, Error **errp)
+void VMAppleCfgState::reset(Object *obj, ResetType type)
+{
+    VMAppleCfgState *s = VMAPPLE_CFG(obj);
+    VMAppleCfg *cfg;
+
+    cfg = static_cast<VMAppleCfg *>(memory_region_get_ram_ptr(&s->mem));
+    memset(cfg, 0, VMAPPLE_CFG_SIZE);
+    *cfg = s->cfg;
+}
+
+void VMAppleCfgState::realize(DeviceState *dev, Error **errp)
 {
     VMAppleCfgState *s = VMAPPLE_CFG(dev);
     uint32_t i;
@@ -143,7 +153,7 @@ static void vmapple_cfg_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void vmapple_cfg_init(Object *obj)
+void VMAppleCfgState::initfn(Object *obj)
 {
     VMAppleCfgState *s = VMAPPLE_CFG(obj);
 
@@ -168,23 +178,23 @@ static const Property vmapple_cfg_properties[] = {
     DEFINE_PROP_STRING("soc_name", VMAppleCfgState, soc_name),
 };
 
-static void vmapple_cfg_class_init(ObjectClass *klass, const void *data)
+void VMAppleCfgState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    dc->realize = vmapple_cfg_realize;
+    dc->realize = VMAppleCfgState::realize;
     dc->desc = "VMApple Configuration Region";
     device_class_set_props(dc, vmapple_cfg_properties);
-    rc->phases.hold = vmapple_cfg_reset;
+    rc->phases.hold = VMAppleCfgState::reset;
 }
 
 static const TypeInfo vmapple_cfg_info = {
     .name          = TYPE_VMAPPLE_CFG,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VMAppleCfgState),
-    .instance_init = vmapple_cfg_init,
-    .class_init    = vmapple_cfg_class_init,
+    .instance_init = VMAppleCfgState::initfn,
+    .class_init    = VMAppleCfgState::classInit,
 };
 
 static void vmapple_cfg_register_types(void)

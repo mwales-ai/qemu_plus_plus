@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 extern "C" {
 #include "qemu/log.h"
@@ -69,11 +70,23 @@ struct NextKBDState {
     MemoryRegion mr;
     KBDQueue queue;
     uint16_t shift;
+
+    static uint32_t readByte(void *opaque, hwaddr addr);
+    static uint32_t readWord(void *opaque, hwaddr addr);
+    static uint32_t readLong(void *opaque, hwaddr addr);
+    static uint64_t readfn(void *opaque, hwaddr addr, unsigned size);
+    static void writefn(void *opaque, hwaddr addr, uint64_t value,
+                        unsigned size);
+    void putKeycode(int keycode);
+    static void kbdEvent(DeviceState *dev, QemuConsole *src, InputEvent *evt);
+    void reset();
+    void realize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 
 /* lots of magic numbers here */
-static uint32_t kbd_read_byte(void *opaque, hwaddr addr)
+uint32_t NextKBDState::readByte(void *opaque, hwaddr addr)
 {
     switch (addr & 0x3) {
     case 0x0:   /* 0xe000 */
@@ -93,14 +106,14 @@ static uint32_t kbd_read_byte(void *opaque, hwaddr addr)
     return 0;
 }
 
-static uint32_t kbd_read_word(void *opaque, hwaddr addr)
+uint32_t NextKBDState::readWord(void *opaque, hwaddr addr)
 {
     qemu_log_mask(LOG_UNIMP, "NeXT kbd read word %" HWADDR_PRIx "\n", addr);
     return 0;
 }
 
 /* even more magic numbers */
-static uint32_t kbd_read_long(void *opaque, hwaddr addr)
+uint32_t NextKBDState::readLong(void *opaque, hwaddr addr)
 {
     int key = 0;
     NextKBDState *s = NEXTKBD(opaque);
@@ -139,30 +152,30 @@ static uint32_t kbd_read_long(void *opaque, hwaddr addr)
     }
 }
 
-static uint64_t kbd_readfn(void *opaque, hwaddr addr, unsigned size)
+uint64_t NextKBDState::readfn(void *opaque, hwaddr addr, unsigned size)
 {
     switch (size) {
     case 1:
-        return kbd_read_byte(opaque, addr);
+        return NextKBDState::readByte(opaque, addr);
     case 2:
-        return kbd_read_word(opaque, addr);
+        return NextKBDState::readWord(opaque, addr);
     case 4:
-        return kbd_read_long(opaque, addr);
+        return NextKBDState::readLong(opaque, addr);
     default:
         g_assert_not_reached();
     }
 }
 
-static void kbd_writefn(void *opaque, hwaddr addr, uint64_t value,
-                        unsigned size)
+void NextKBDState::writefn(void *opaque, hwaddr addr, uint64_t value,
+                            unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "NeXT kbd write: size=%u addr=0x%" HWADDR_PRIx
                   "val=0x%" PRIx64 "\n", size, addr, value);
 }
 
 static MemoryRegionOps kbd_ops = {
-    .read = kbd_readfn,
-    .write = kbd_writefn,
+    .read = NextKBDState::readfn,
+    .write = NextKBDState::writefn,
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
@@ -228,9 +241,9 @@ static const int qcode_to_nextkbd_keycode[] = {
     [Q_KEY_CODE_SPC]           = 0x38,
 };
 
-static void nextkbd_put_keycode(NextKBDState *s, int keycode)
+void NextKBDState::putKeycode(int keycode)
 {
-    KBDQueue *q = &s->queue;
+    KBDQueue *q = &queue;
 
     if (q->count >= KBD_QUEUE_SIZE) {
         return;
@@ -250,7 +263,7 @@ static void nextkbd_put_keycode(NextKBDState *s, int keycode)
     /* s->update_irq(s->update_arg, 1); */
 }
 
-static void nextkbd_event(DeviceState *dev, QemuConsole *src, InputEvent *evt)
+void NextKBDState::kbdEvent(DeviceState *dev, QemuConsole *src, InputEvent *evt)
 {
     NextKBDState *s = NEXTKBD(dev);
     int qcode, keycode;
@@ -288,24 +301,28 @@ static void nextkbd_event(DeviceState *dev, QemuConsole *src, InputEvent *evt)
         keycode |= 0x80;
     }
 
-    nextkbd_put_keycode(s, keycode);
+    s->putKeycode(keycode);
 }
 
 static const QemuInputHandler nextkbd_handler = {
     .name  = "QEMU NeXT Keyboard",
     .mask  = INPUT_EVENT_MASK_KEY,
-    .event = nextkbd_event,
+    .event = NextKBDState::kbdEvent,
 };
 
-static void nextkbd_reset(DeviceState *dev)
+static void nextkbd_reset_wrapper(DeviceState *dev)
 {
     NextKBDState *nks = NEXTKBD(dev);
-
-    memset(&nks->queue, 0, sizeof(KBDQueue));
-    nks->shift = 0;
+    nks->reset();
 }
 
-static void nextkbd_realize(DeviceState *dev, Error **errp)
+void NextKBDState::reset()
+{
+    memset(&queue, 0, sizeof(KBDQueue));
+    shift = 0;
+}
+
+void NextKBDState::realize(DeviceState *dev, Error **errp)
 {
     NextKBDState *s = NEXTKBD(dev);
 
@@ -315,26 +332,32 @@ static void nextkbd_realize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &nextkbd_handler);
 }
 
+static void nextkbd_realize_wrapper(DeviceState *dev, Error **errp)
+{
+    NextKBDState *s = NEXTKBD(dev);
+    s->realize(dev, errp);
+}
+
 static const VMStateDescription nextkbd_vmstate = {
     .name = TYPE_NEXTKBD,
     .unmigratable = 1,    /* TODO: Implement this when m68k CPU is migratable */
 };
 
-static void nextkbd_class_init(ObjectClass *oc, const void *data)
+void NextKBDState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->vmsd = &nextkbd_vmstate;
-    dc->realize = nextkbd_realize;
-    device_class_set_legacy_reset(dc, nextkbd_reset);
+    dc->realize = nextkbd_realize_wrapper;
+    device_class_set_legacy_reset(dc, nextkbd_reset_wrapper);
 }
 
 static const TypeInfo nextkbd_info = {
     .name          = TYPE_NEXTKBD,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(NextKBDState),
-    .class_init    = nextkbd_class_init,
+    .class_init    = NextKBDState::classInit,
 };
 
 static void nextkbd_register_types(void)

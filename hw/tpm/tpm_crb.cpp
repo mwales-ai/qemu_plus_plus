@@ -11,10 +11,11 @@
  *
  * tpm_crb is a device for TPM 2.0 Command Response Buffer (CRB) Interface
  * as defined in TCG PC Client Platform TPM Profile (PTP) Specification
- * Family “2.0” Level 00 Revision 01.03 v22
+ * Family "2.0" Level 00 Revision 01.03 v22
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -45,6 +46,17 @@ struct CRBState {
 
     bool ppi_enabled;
     TPMPPI ppi;
+
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    uint8_t getActiveLocty();
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size);
+    static void requestCompleted(TPMIf *ti, int ret);
+    static enum TPMVersion getVersion(TPMIf *ti);
+    static int preSave(void *opaque);
+    void reset();
+    void realize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 typedef struct CRBState CRBState;
 
@@ -84,8 +96,7 @@ enum crb_cancel {
 
 #define TPM_CRB_NO_LOCALITY 0xff
 
-static uint64_t tpm_crb_mmio_read(void *opaque, hwaddr addr,
-                                  unsigned size)
+uint64_t CRBState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     CRBState *s = CRB(opaque);
     void *regs = static_cast<void *>(reinterpret_cast<char *>(&s->regs) + (addr & ~3));
@@ -103,16 +114,16 @@ static uint64_t tpm_crb_mmio_read(void *opaque, hwaddr addr,
     return val;
 }
 
-static uint8_t tpm_crb_get_active_locty(CRBState *s)
+uint8_t CRBState::getActiveLocty()
 {
-    if (!ARRAY_FIELD_EX32(s->regs, CRB_LOC_STATE, locAssigned)) {
+    if (!ARRAY_FIELD_EX32(regs, CRB_LOC_STATE, locAssigned)) {
         return TPM_CRB_NO_LOCALITY;
     }
-    return ARRAY_FIELD_EX32(s->regs, CRB_LOC_STATE, activeLocality);
+    return ARRAY_FIELD_EX32(regs, CRB_LOC_STATE, activeLocality);
 }
 
-static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
+void CRBState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size)
 {
     CRBState *s = CRB(opaque);
     uint8_t locty =  addr >> 12;
@@ -141,7 +152,7 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
     case A_CRB_CTRL_START:
         if (val == CRB_START_INVOKE &&
             !(s->regs[R_CRB_CTRL_START] & CRB_START_INVOKE) &&
-            tpm_crb_get_active_locty(s) == locty) {
+            s->getActiveLocty() == locty) {
             void *mem = memory_region_get_ram_ptr(&s->cmdmem);
 
             s->regs[R_CRB_CTRL_START] |= CRB_START_INVOKE;
@@ -179,8 +190,8 @@ static void tpm_crb_mmio_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps tpm_crb_memory_ops = {
-    .read = tpm_crb_mmio_read,
-    .write = tpm_crb_mmio_write,
+    .read = CRBState::mmioRead,
+    .write = CRBState::mmioWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -188,7 +199,7 @@ static const MemoryRegionOps tpm_crb_memory_ops = {
     },
 };
 
-static void tpm_crb_request_completed(TPMIf *ti, int ret)
+void CRBState::requestCompleted(TPMIf *ti, int ret)
 {
     CRBState *s = CRB(ti);
 
@@ -200,14 +211,14 @@ static void tpm_crb_request_completed(TPMIf *ti, int ret)
     memory_region_set_dirty(&s->cmdmem, 0, CRB_CTRL_CMD_SIZE);
 }
 
-static enum TPMVersion tpm_crb_get_version(TPMIf *ti)
+enum TPMVersion CRBState::getVersion(TPMIf *ti)
 {
     CRBState *s = CRB(ti);
 
     return tpm_backend_get_tpm_version(s->tpmbe);
 }
 
-static int tpm_crb_pre_save(void *opaque)
+int CRBState::preSave(void *opaque)
 {
     CRBState *s = static_cast<CRBState *>(opaque);
 
@@ -223,7 +234,7 @@ static const VMStateField vmstate_tpm_crb_fields[] = {
 
 static const VMStateDescription vmstate_tpm_crb = {
     .name = "tpm-crb",
-    .pre_save = tpm_crb_pre_save,
+    .pre_save = CRBState::preSave,
     .fields = vmstate_tpm_crb_fields
 };
 
@@ -232,56 +243,60 @@ static const Property tpm_crb_properties[] = {
     DEFINE_PROP_BOOL("ppi", CRBState, ppi_enabled, true),
 };
 
-static void tpm_crb_reset(void *dev)
+static void tpm_crb_reset_wrapper(void *dev)
 {
     CRBState *s = CRB(dev);
+    s->reset();
+}
 
-    if (s->ppi_enabled) {
-        tpm_ppi_reset(&s->ppi);
+void CRBState::reset()
+{
+    if (ppi_enabled) {
+        tpm_ppi_reset(&ppi);
     }
-    tpm_backend_reset(s->tpmbe);
+    tpm_backend_reset(tpmbe);
 
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(regs, 0, sizeof(regs));
 
-    ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
+    ARRAY_FIELD_DP32(regs, CRB_LOC_STATE,
                      tpmRegValidSts, 1);
-    ARRAY_FIELD_DP32(s->regs, CRB_CTRL_STS,
+    ARRAY_FIELD_DP32(regs, CRB_CTRL_STS,
                      tpmIdle, 1);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      InterfaceType, CRB_INTF_TYPE_CRB_ACTIVE);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      InterfaceVersion, CRB_INTF_VERSION_CRB);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      CapLocality, CRB_INTF_CAP_LOCALITY_0_ONLY);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      CapCRBIdleBypass, CRB_INTF_CAP_IDLE_FAST);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      CapDataXferSizeSupport, CRB_INTF_CAP_XFER_SIZE_64);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      CapFIFO, CRB_INTF_CAP_FIFO_NOT_SUPPORTED);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      CapCRB, CRB_INTF_CAP_CRB_SUPPORTED);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      InterfaceSelector, CRB_INTF_IF_SELECTOR_CRB);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID,
                      RID, 0b0000);
-    ARRAY_FIELD_DP32(s->regs, CRB_INTF_ID2,
+    ARRAY_FIELD_DP32(regs, CRB_INTF_ID2,
                      VID, PCI_VENDOR_ID_IBM);
 
-    s->regs[R_CRB_CTRL_CMD_SIZE] = CRB_CTRL_CMD_SIZE;
-    s->regs[R_CRB_CTRL_CMD_LADDR] = TPM_CRB_ADDR_BASE + A_CRB_DATA_BUFFER;
-    s->regs[R_CRB_CTRL_RSP_SIZE] = CRB_CTRL_CMD_SIZE;
-    s->regs[R_CRB_CTRL_RSP_ADDR] = TPM_CRB_ADDR_BASE + A_CRB_DATA_BUFFER;
+    regs[R_CRB_CTRL_CMD_SIZE] = CRB_CTRL_CMD_SIZE;
+    regs[R_CRB_CTRL_CMD_LADDR] = TPM_CRB_ADDR_BASE + A_CRB_DATA_BUFFER;
+    regs[R_CRB_CTRL_RSP_SIZE] = CRB_CTRL_CMD_SIZE;
+    regs[R_CRB_CTRL_RSP_ADDR] = TPM_CRB_ADDR_BASE + A_CRB_DATA_BUFFER;
 
-    s->be_buffer_size = MIN(tpm_backend_get_buffer_size(s->tpmbe),
+    be_buffer_size = MIN(tpm_backend_get_buffer_size(tpmbe),
                             CRB_CTRL_CMD_SIZE);
 
-    if (tpm_backend_startup_tpm(s->tpmbe, s->be_buffer_size) < 0) {
+    if (tpm_backend_startup_tpm(tpmbe, be_buffer_size) < 0) {
         exit(1);
     }
 }
 
-static void tpm_crb_realize(DeviceState *dev, Error **errp)
+void CRBState::realize(DeviceState *dev, Error **errp)
 {
     CRBState *s = CRB(dev);
 
@@ -310,24 +325,30 @@ static void tpm_crb_realize(DeviceState *dev, Error **errp)
     }
 
     if (xen_enabled()) {
-        tpm_crb_reset(dev);
+        tpm_crb_reset_wrapper(dev);
     } else {
-        qemu_register_reset(tpm_crb_reset, dev);
+        qemu_register_reset(tpm_crb_reset_wrapper, dev);
     }
 }
 
-static void tpm_crb_class_init(ObjectClass *klass, const void *data)
+static void tpm_crb_realize_wrapper(DeviceState *dev, Error **errp)
+{
+    CRBState *s = CRB(dev);
+    s->realize(dev, errp);
+}
+
+void CRBState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
-    dc->realize = tpm_crb_realize;
+    dc->realize = tpm_crb_realize_wrapper;
     device_class_set_props(dc, tpm_crb_properties);
     dc->vmsd  = &vmstate_tpm_crb;
     dc->user_creatable = true;
     tc->model = TPM_MODEL_TPM_CRB;
-    tc->get_version = tpm_crb_get_version;
-    tc->request_completed = tpm_crb_request_completed;
+    tc->get_version = CRBState::getVersion;
+    tc->request_completed = CRBState::requestCompleted;
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
@@ -342,7 +363,7 @@ static const TypeInfo tpm_crb_info = {
     /* could be TYPE_SYS_BUS_DEVICE (or LPC etc) */
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CRBState),
-    .class_init  = tpm_crb_class_init,
+    .class_init  = CRBState::classInit,
     .interfaces = tpm_crb_interfaces
 };
 

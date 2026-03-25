@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
@@ -83,114 +84,134 @@ struct MPCI2CState {
     uint8_t sr;
     uint8_t dr;
     uint8_t dfsrr;
+
+    bool isEnabled();
+    bool isMaster();
+    bool directionIsTx();
+    bool irqPending();
+    bool irqIsEnabled();
+    void reset();
+    void updateIrq();
+    void softReset();
+    void addressSend();
+    void dataSend();
+    void dataReceive();
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t value,
+                          unsigned size);
+    void realize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static bool mpc_i2c_is_enabled(MPCI2CState *s)
+bool MPCI2CState::isEnabled()
 {
-    return s->cr & CCR_MEN;
+    return cr & CCR_MEN;
 }
 
-static bool mpc_i2c_is_master(MPCI2CState *s)
+bool MPCI2CState::isMaster()
 {
-    return s->cr & CCR_MSTA;
+    return cr & CCR_MSTA;
 }
 
-static bool mpc_i2c_direction_is_tx(MPCI2CState *s)
+bool MPCI2CState::directionIsTx()
 {
-    return s->cr & CCR_MTX;
+    return cr & CCR_MTX;
 }
 
-static bool mpc_i2c_irq_pending(MPCI2CState *s)
+bool MPCI2CState::irqPending()
 {
-    return s->sr & CSR_MIF;
+    return sr & CSR_MIF;
 }
 
-static bool mpc_i2c_irq_is_enabled(MPCI2CState *s)
+bool MPCI2CState::irqIsEnabled()
 {
-    return s->cr & CCR_MIEN;
+    return cr & CCR_MIEN;
 }
 
-static void mpc_i2c_reset(DeviceState *dev)
+static void mpc_i2c_reset_wrapper(DeviceState *dev)
 {
     MPCI2CState *i2c = MPC_I2C(dev);
-
-    i2c->address = 0xFF;
-    i2c->adr = 0x00;
-    i2c->fdr = 0x00;
-    i2c->cr =  0x00;
-    i2c->sr =  0x81;
-    i2c->dr =  0x00;
+    i2c->reset();
 }
 
-static void mpc_i2c_irq(MPCI2CState *s)
+void MPCI2CState::reset()
+{
+    address = 0xFF;
+    adr = 0x00;
+    fdr = 0x00;
+    cr =  0x00;
+    sr =  0x81;
+    dr =  0x00;
+}
+
+void MPCI2CState::updateIrq()
 {
     bool irq_active = false;
 
-    if (mpc_i2c_is_enabled(s) && mpc_i2c_irq_is_enabled(s)
-                              && mpc_i2c_irq_pending(s)) {
+    if (isEnabled() && irqIsEnabled() && irqPending()) {
         irq_active = true;
     }
 
     if (irq_active) {
-        qemu_irq_raise(s->irq);
+        qemu_irq_raise(irq);
     } else {
-        qemu_irq_lower(s->irq);
+        qemu_irq_lower(irq);
     }
 }
 
-static void mpc_i2c_soft_reset(MPCI2CState *s)
+void MPCI2CState::softReset()
 {
     /* This is a soft reset. ADR is preserved during soft resets */
-    uint8_t adr = s->adr;
-    mpc_i2c_reset(DEVICE(s));
-    s->adr = adr;
+    uint8_t saved_adr = adr;
+    reset();
+    adr = saved_adr;
 }
 
-static void  mpc_i2c_address_send(MPCI2CState *s)
+void MPCI2CState::addressSend()
 {
     /* if returns non zero slave address is not right */
-    if (i2c_start_transfer(s->bus, s->dr >> 1, s->dr & (0x01))) {
-        s->sr |= CSR_RXAK;
+    if (i2c_start_transfer(bus, dr >> 1, dr & (0x01))) {
+        sr |= CSR_RXAK;
     } else {
-        s->address = s->dr;
-        s->sr &= ~CSR_RXAK;
-        s->sr |=  CSR_MCF; /* Set after Byte Transfer is completed */
-        s->sr |=  CSR_MIF; /* Set after Byte Transfer is completed */
-        mpc_i2c_irq(s);
+        address = dr;
+        sr &= ~CSR_RXAK;
+        sr |=  CSR_MCF; /* Set after Byte Transfer is completed */
+        sr |=  CSR_MIF; /* Set after Byte Transfer is completed */
+        updateIrq();
     }
 }
 
-static void  mpc_i2c_data_send(MPCI2CState *s)
+void MPCI2CState::dataSend()
 {
-    if (i2c_send(s->bus, s->dr)) {
+    if (i2c_send(bus, dr)) {
         /* End of transfer */
-        s->sr |= CSR_RXAK;
-        i2c_end_transfer(s->bus);
+        sr |= CSR_RXAK;
+        i2c_end_transfer(bus);
     } else {
-        s->sr &= ~CSR_RXAK;
-        s->sr |=  CSR_MCF; /* Set after Byte Transfer is completed */
-        s->sr |=  CSR_MIF; /* Set after Byte Transfer is completed */
-        mpc_i2c_irq(s);
+        sr &= ~CSR_RXAK;
+        sr |=  CSR_MCF; /* Set after Byte Transfer is completed */
+        sr |=  CSR_MIF; /* Set after Byte Transfer is completed */
+        updateIrq();
     }
 }
 
-static void  mpc_i2c_data_recive(MPCI2CState *s)
+void MPCI2CState::dataReceive()
 {
     int ret;
     /* get the next byte */
-    ret = i2c_recv(s->bus);
+    ret = i2c_recv(bus);
     if (ret >= 0) {
-        s->sr |= CSR_MCF; /* Set after Byte Transfer is completed */
-        s->sr |= CSR_MIF; /* Set after Byte Transfer is completed */
-        mpc_i2c_irq(s);
+        sr |= CSR_MCF; /* Set after Byte Transfer is completed */
+        sr |= CSR_MIF; /* Set after Byte Transfer is completed */
+        updateIrq();
     } else {
         DPRINTF("read failed for device");
         ret = 0xff;
     }
-    s->dr = ret;
+    dr = ret;
 }
 
-static uint64_t mpc_i2c_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t MPCI2CState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     MPCI2CState *s = static_cast<MPCI2CState *>(opaque);
     uint8_t value;
@@ -210,11 +231,11 @@ static uint64_t mpc_i2c_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case MPC_I2C_DR:
         value = s->dr;
-        if (mpc_i2c_is_master(s)) { /* master mode */
-            if (mpc_i2c_direction_is_tx(s)) {
+        if (s->isMaster()) { /* master mode */
+            if (s->directionIsTx()) {
                 DPRINTF("MTX is set not in recv mode\n");
             } else {
-                mpc_i2c_data_recive(s);
+                s->dataReceive();
             }
         }
         break;
@@ -229,8 +250,8 @@ static uint64_t mpc_i2c_read(void *opaque, hwaddr addr, unsigned size)
     return (uint64_t)value;
 }
 
-static void mpc_i2c_write(void *opaque, hwaddr addr,
-                            uint64_t value, unsigned size)
+void MPCI2CState::mmioWrite(void *opaque, hwaddr addr,
+                             uint64_t value, unsigned size)
 {
     MPCI2CState *s = static_cast<MPCI2CState *>(opaque);
 
@@ -244,13 +265,13 @@ static void mpc_i2c_write(void *opaque, hwaddr addr,
         s->fdr = value & CFDR_MASK;
         break;
     case MPC_I2C_CR:
-        if (mpc_i2c_is_enabled(s) && ((value & CCR_MEN) == 0)) {
-            mpc_i2c_soft_reset(s);
+        if (s->isEnabled() && ((value & CCR_MEN) == 0)) {
+            s->softReset();
             break;
         }
         /* normal write */
         s->cr = value & CCR_MASK;
-        if (mpc_i2c_is_master(s)) { /* master mode */
+        if (s->isMaster()) { /* master mode */
             /* set the bus to busy after master is set as per RM */
             s->sr |= CSR_MBB;
         } else {
@@ -275,20 +296,20 @@ static void mpc_i2c_write(void *opaque, hwaddr addr,
         s->sr = value & CSR_MASK;
         /* Lower the interrupt */
         if (!(s->sr & CSR_MIF) || !(s->sr & CSR_MAL)) {
-            mpc_i2c_irq(s);
+            s->updateIrq();
         }
         break;
     case MPC_I2C_DR:
         /* if the device is not enabled, nothing to do */
-        if (!mpc_i2c_is_enabled(s)) {
+        if (!s->isEnabled()) {
             break;
         }
         s->dr = value & CDR_MASK;
-        if (mpc_i2c_is_master(s)) { /* master mode */
+        if (s->isMaster()) { /* master mode */
             if (s->address == CYCLE_RESET) {
-                mpc_i2c_address_send(s);
+                s->addressSend();
             } else {
-                mpc_i2c_data_send(s);
+                s->dataSend();
             }
         }
         break;
@@ -302,8 +323,8 @@ static void mpc_i2c_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps i2c_ops = {
-    .read =  mpc_i2c_read,
-    .write =  mpc_i2c_write,
+    .read =  MPCI2CState::mmioRead,
+    .write =  MPCI2CState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = { .max_access_size = 1, },
 };
@@ -324,9 +345,9 @@ static const VMStateDescription mpc_i2c_vmstate = {
     }
 };
 
-static void mpc_i2c_realize(DeviceState *dev, Error **errp)
+void MPCI2CState::realize(DeviceState *dev, Error **errp)
 {
-    MPCI2CState  *i2c = MPC_I2C(dev);
+    MPCI2CState *i2c = MPC_I2C(dev);
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &i2c->irq);
     memory_region_init_io(&i2c->iomem, OBJECT(i2c), &i2c_ops, i2c,
                           "mpc-i2c", 0x15);
@@ -334,13 +355,19 @@ static void mpc_i2c_realize(DeviceState *dev, Error **errp)
     i2c->bus = i2c_init_bus(dev, "i2c");
 }
 
-static void mpc_i2c_class_init(ObjectClass *klass, const void *data)
+static void mpc_i2c_realize_wrapper(DeviceState *dev, Error **errp)
+{
+    MPCI2CState *s = MPC_I2C(dev);
+    s->realize(dev, errp);
+}
+
+void MPCI2CState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd  = &mpc_i2c_vmstate ;
-    device_class_set_legacy_reset(dc, mpc_i2c_reset);
-    dc->realize = mpc_i2c_realize;
+    device_class_set_legacy_reset(dc, mpc_i2c_reset_wrapper);
+    dc->realize = mpc_i2c_realize_wrapper;
     dc->desc = "MPC I2C Controller";
 }
 
@@ -349,7 +376,7 @@ static const TypeInfo mpc_i2c_types[] = {
         .name          = TYPE_MPC_I2C,
         .parent        = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(MPCI2CState),
-        .class_init    = mpc_i2c_class_init,
+        .class_init    = MPCI2CState::classInit,
     },
 };
 

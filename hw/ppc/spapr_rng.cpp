@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
@@ -30,13 +31,6 @@
 #include "qom/object.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(SpaprRngState, SPAPR_RNG)
-
-struct SpaprRngState {
-    /*< private >*/
-    DeviceState ds;
-    RngBackend *backend;
-    bool use_kvm;
-};
 
 struct HRandomData {
     QemuSemaphore sem;
@@ -62,73 +56,87 @@ static void random_recv(void *dest, const void *src, size_t size)
     qemu_sem_post(&hrdp->sem);
 }
 
-/* Handler for the H_RANDOM hypercall */
-static target_ulong h_random(PowerPCCPU *cpu, SpaprMachineState *spapr,
-                             target_ulong opcode, target_ulong *args)
-{
-    SpaprRngState *rngstate;
-    HRandomData hrdata;
+struct SpaprRngState {
+    /*< private >*/
+    DeviceState ds;
+    RngBackend *backend;
+    bool use_kvm;
 
-    rngstate = SPAPR_RNG(object_resolve_path_type("", TYPE_SPAPR_RNG, NULL));
+    /* Handler for the H_RANDOM hypercall */
+    static target_ulong hRandom(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                                target_ulong opcode, target_ulong *args)
+    {
+        SpaprRngState *rngstate;
+        HRandomData hrdata;
 
-    if (!rngstate || !rngstate->backend) {
-        return H_HARDWARE;
+        rngstate = SPAPR_RNG(object_resolve_path_type("", TYPE_SPAPR_RNG, NULL));
+
+        if (!rngstate || !rngstate->backend) {
+            return H_HARDWARE;
+        }
+
+        qemu_sem_init(&hrdata.sem, 0);
+        hrdata.val.v64 = 0;
+        hrdata.received = 0;
+
+        while (hrdata.received < 8) {
+            rng_backend_request_entropy(rngstate->backend, 8 - hrdata.received,
+                                        random_recv, &hrdata);
+            bql_unlock();
+            qemu_sem_wait(&hrdata.sem);
+            bql_lock();
+        }
+
+        qemu_sem_destroy(&hrdata.sem);
+        args[0] = hrdata.val.v64;
+
+        return H_SUCCESS;
     }
 
-    qemu_sem_init(&hrdata.sem, 0);
-    hrdata.val.v64 = 0;
-    hrdata.received = 0;
-
-    while (hrdata.received < 8) {
-        rng_backend_request_entropy(rngstate->backend, 8 - hrdata.received,
-                                    random_recv, &hrdata);
-        bql_unlock();
-        qemu_sem_wait(&hrdata.sem);
-        bql_lock();
-    }
-
-    qemu_sem_destroy(&hrdata.sem);
-    args[0] = hrdata.val.v64;
-
-    return H_SUCCESS;
-}
-
-static void spapr_rng_instance_init(Object *obj)
-{
-    if (object_resolve_path_type("", TYPE_SPAPR_RNG, NULL) != NULL) {
-        error_report("spapr-rng can not be instantiated twice!");
-        return;
-    }
-
-    object_property_set_description(obj, "rng",
-                                    "ID of the random number generator backend");
-}
-
-static void spapr_rng_realize(DeviceState *dev, Error **errp)
-{
-
-    SpaprRngState *rngstate = SPAPR_RNG(dev);
-
-    if (rngstate->use_kvm) {
-        if (kvmppc_enable_hwrng() == 0) {
+    static void instanceInit(Object *obj)
+    {
+        if (object_resolve_path_type("", TYPE_SPAPR_RNG, NULL) != NULL) {
+            error_report("spapr-rng can not be instantiated twice!");
             return;
         }
-        /*
-         * If user specified both, use-kvm and a backend, we fall back to
-         * the backend now. If not, provide an appropriate error message.
-         */
-        if (!rngstate->backend) {
-            error_setg(errp, "Could not initialize in-kernel H_RANDOM call!");
-            return;
+
+        object_property_set_description(obj, "rng",
+                                        "ID of the random number generator backend");
+    }
+
+    void realize(DeviceState *dev, Error **errp)
+    {
+        SpaprRngState *rngstate = SPAPR_RNG(dev);
+
+        if (rngstate->use_kvm) {
+            if (kvmppc_enable_hwrng() == 0) {
+                return;
+            }
+            /*
+             * If user specified both, use-kvm and a backend, we fall back to
+             * the backend now. If not, provide an appropriate error message.
+             */
+            if (!rngstate->backend) {
+                error_setg(errp, "Could not initialize in-kernel H_RANDOM call!");
+                return;
+            }
+        }
+
+        if (rngstate->backend) {
+            spapr_register_hypercall(H_RANDOM, hRandom);
+        } else {
+            error_setg(errp, "spapr-rng needs an RNG backend!");
         }
     }
 
-    if (rngstate->backend) {
-        spapr_register_hypercall(H_RANDOM, h_random);
-    } else {
-        error_setg(errp, "spapr-rng needs an RNG backend!");
+    static void realizeWrapper(DeviceState *dev, Error **errp)
+    {
+        SpaprRngState *s = SPAPR_RNG(dev);
+        s->realize(dev, errp);
     }
-}
+
+    static void classInit(ObjectClass *oc, const void *data);
+};
 
 static const Property spapr_rng_properties[] = {
     DEFINE_PROP_BOOL("use-kvm", SpaprRngState, use_kvm, false),
@@ -136,11 +144,11 @@ static const Property spapr_rng_properties[] = {
                      RngBackend *),
 };
 
-static void spapr_rng_class_init(ObjectClass *oc, const void *data)
+void SpaprRngState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->realize = spapr_rng_realize;
+    dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     device_class_set_props(dc, spapr_rng_properties);
     dc->hotpluggable = false;
@@ -150,8 +158,8 @@ static const TypeInfo spapr_rng_info = {
     .name          = TYPE_SPAPR_RNG,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(SpaprRngState),
-    .instance_init = spapr_rng_instance_init,
-    .class_init    = spapr_rng_class_init,
+    .instance_init = SpaprRngState::instanceInit,
+    .class_init    = SpaprRngState::classInit,
 };
 
 static void spapr_rng_register_type(void)

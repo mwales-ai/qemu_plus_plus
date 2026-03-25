@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "hw/audio/model.h"
 #include "hw/irq.h"
@@ -65,42 +66,50 @@ struct GUSState {
     IsaDma *isa_dma;
     PortioList portio_list1;
     PortioList portio_list2;
+
+    static uint32_t readb(void *opaque, uint32_t nport);
+    static void writeb(void *opaque, uint32_t nport, uint32_t val);
+    int writeAudio(int samples);
+    static void audioCallback(void *opaque, int free);
+    static int readDMA(void *opaque, int nchan, int dma_pos, int dma_len);
+    void realize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static uint32_t gus_readb(void *opaque, uint32_t nport)
+uint32_t GUSState::readb(void *opaque, uint32_t nport)
 {
     GUSState *s = static_cast<GUSState *>(opaque);
 
     return gus_read (&s->emu, nport, 1);
 }
 
-static void gus_writeb(void *opaque, uint32_t nport, uint32_t val)
+void GUSState::writeb(void *opaque, uint32_t nport, uint32_t val)
 {
     GUSState *s = static_cast<GUSState *>(opaque);
 
     gus_write (&s->emu, nport, 1, val);
 }
 
-static int write_audio (GUSState *s, int samples)
+int GUSState::writeAudio(int samples)
 {
     int net = 0;
-    int pos = s->pos;
+    int pos_local = pos;
 
     while (samples) {
         int nbytes, wbytes, wsampl;
 
-        nbytes = samples << s->shift;
+        nbytes = samples << shift;
         wbytes = AUD_write (
-            s->voice,
-            s->mixbuf + (pos << (s->shift - 1)),
+            voice,
+            mixbuf + (pos_local << (shift - 1)),
             nbytes
             );
 
         if (wbytes) {
-            wsampl = wbytes >> s->shift;
+            wsampl = wbytes >> shift;
 
             samples -= wsampl;
-            pos = (pos + wsampl) % s->samples;
+            pos_local = (pos_local + wsampl) % this->samples;
 
             net += wsampl;
         }
@@ -112,16 +121,16 @@ static int write_audio (GUSState *s, int samples)
     return net;
 }
 
-static void GUS_callback (void *opaque, int free)
+void GUSState::audioCallback(void *opaque, int free)
 {
-    int samples, to_play, net = 0;
+    int samples_local, to_play, net = 0;
     GUSState *s = static_cast<GUSState *>(opaque);
 
-    samples = free >> s->shift;
-    to_play = MIN (samples, s->left);
+    samples_local = free >> s->shift;
+    to_play = MIN (samples_local, s->left);
 
     while (to_play) {
-        int written = write_audio (s, to_play);
+        int written = s->writeAudio(to_play);
 
         if (!written) {
             goto reset;
@@ -129,24 +138,24 @@ static void GUS_callback (void *opaque, int free)
 
         s->left -= written;
         to_play -= written;
-        samples -= written;
+        samples_local -= written;
         net += written;
     }
 
-    samples = MIN (samples, s->samples);
-    if (samples) {
-        gus_mixvoices (&s->emu, s->freq, samples, s->mixbuf);
+    samples_local = MIN (samples_local, s->samples);
+    if (samples_local) {
+        gus_mixvoices (&s->emu, s->freq, samples_local, s->mixbuf);
 
-        while (samples) {
-            int written = write_audio (s, samples);
+        while (samples_local) {
+            int written = s->writeAudio(samples_local);
             if (!written) {
                 break;
             }
-            samples -= written;
+            samples_local -= written;
             net += written;
         }
     }
-    s->left = samples;
+    s->left = samples_local;
 
  reset:
     gus_irqgen (&s->emu, (uint64_t)net * 1000000 / s->freq);
@@ -186,24 +195,24 @@ void GUS_dmarequest (GUSEmuState *emu)
     k->hold_DREQ(s->isa_dma, s->emu.gusdma);
 }
 
-static int GUS_read_DMA (void *opaque, int nchan, int dma_pos, int dma_len)
+int GUSState::readDMA(void *opaque, int nchan, int dma_pos, int dma_len)
 {
     GUSState *s = static_cast<GUSState *>(opaque);
     IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
     QEMU_UNINITIALIZED char tmpbuf[4096];
-    int pos = dma_pos, mode, left = dma_len - dma_pos;
+    int pos_local = dma_pos, mode, left_local = dma_len - dma_pos;
 
     ldebug("read DMA 0x%x %d", dma_pos, dma_len);
     mode = k->has_autoinitialization(s->isa_dma, s->emu.gusdma);
-    while (left) {
-        int to_copy = MIN ((size_t) left, sizeof (tmpbuf));
+    while (left_local) {
+        int to_copy = MIN ((size_t) left_local, sizeof (tmpbuf));
         int copied;
 
-        ldebug("left=%d to_copy=%d pos=%d", left, to_copy, pos);
-        copied = k->read_memory(s->isa_dma, nchan, tmpbuf, pos, to_copy);
-        gus_dma_transferdata (&s->emu, tmpbuf, copied, left == copied);
-        left -= copied;
-        pos += copied;
+        ldebug("left=%d to_copy=%d pos=%d", left_local, to_copy, pos_local);
+        copied = k->read_memory(s->isa_dma, nchan, tmpbuf, pos_local, to_copy);
+        gus_dma_transferdata (&s->emu, tmpbuf, copied, left_local == copied);
+        left_local -= copied;
+        pos_local += copied;
     }
 
     if (((mode >> 4) & 1) == 0) {
@@ -231,18 +240,24 @@ static const VMStateDescription vmstate_gus = {
 };
 
 static const MemoryRegionPortio gus_portio_list1[] = {
-    {0x000,  1, 1, .write = gus_writeb },
-    {0x006, 10, 1, .read = gus_readb, .write = gus_writeb },
-    {0x100,  8, 1, .read = gus_readb, .write = gus_writeb },
+    {0x000,  1, 1, .write = GUSState::writeb },
+    {0x006, 10, 1, .read = GUSState::readb, .write = GUSState::writeb },
+    {0x100,  8, 1, .read = GUSState::readb, .write = GUSState::writeb },
     PORTIO_END_OF_LIST (),
 };
 
 static const MemoryRegionPortio gus_portio_list2[] = {
-    {0, 2, 1, .read = gus_readb },
+    {0, 2, 1, .read = GUSState::readb },
     PORTIO_END_OF_LIST (),
 };
 
-static void gus_realizefn (DeviceState *dev, Error **errp)
+static void gus_realizefn(DeviceState *dev, Error **errp)
+{
+    GUSState *s = GUS(dev);
+    s->realize(dev, errp);
+}
+
+void GUSState::realize(DeviceState *dev, Error **errp)
 {
     ISADevice *d = ISA_DEVICE(dev);
     ISABus *bus = isa_bus_from_device(d);
@@ -270,7 +285,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
         NULL,
         "gus",
         s,
-        GUS_callback,
+        GUSState::audioCallback,
         &as
         );
 
@@ -289,7 +304,7 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
                              gus_portio_list2, s, "gus");
 
     k = ISADMA_GET_CLASS(s->isa_dma);
-    k->register_channel(s->isa_dma, s->emu.gusdma, GUS_read_DMA, s);
+    k->register_channel(s->isa_dma, s->emu.gusdma, GUSState::readDMA, s);
     s->emu.himemaddr = s->himem;
     s->emu.gusdatapos = s->emu.himemaddr + 1024 * 1024 + 32;
     s->emu.opaque = s;
@@ -306,7 +321,7 @@ static const Property gus_properties[] = {
     DEFINE_PROP_UINT32 ("dma",     GUSState, emu.gusdma,  3),
 };
 
-static void gus_class_initfn(ObjectClass *klass, const void *data)
+void GUSState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 
@@ -321,7 +336,7 @@ static const TypeInfo gus_info = {
     .name          = TYPE_GUS,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (GUSState),
-    .class_init    = gus_class_initfn,
+    .class_init    = GUSState::classInit,
 };
 
 static void gus_register_types (void)

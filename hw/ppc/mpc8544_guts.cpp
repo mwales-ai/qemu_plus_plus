@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "system/runstate.h"
 #include "cpu.h"
@@ -69,60 +70,70 @@ struct GutsState {
     /*< public >*/
 
     MemoryRegion iomem;
+
+    static uint64_t read(void *opaque, hwaddr addr, unsigned size)
+    {
+        uint32_t value = 0;
+        CPUPPCState *env = cpu_env(current_cpu);
+
+        addr &= MPC8544_GUTS_MMIO_SIZE - 1;
+        switch (addr) {
+        case MPC8544_GUTS_ADDR_PORPLLSR:
+            value = FIELD_DP32(value, GUTS_PORPLLSR, E500_1_RATIO, 6); /* 3:1 */
+            value = FIELD_DP32(value, GUTS_PORPLLSR, E500_0_RATIO, 6); /* 3:1 */
+            value = FIELD_DP32(value, GUTS_PORPLLSR, DDR_RATIO, 12); /* 12:1 */
+            value = FIELD_DP32(value, GUTS_PORPLLSR, PLAT_RATIO, 6); /* 6:1 */
+            break;
+        case MPC8544_GUTS_ADDR_PVR:
+            value = env->spr[SPR_PVR];
+            break;
+        case MPC8544_GUTS_ADDR_SVR:
+            value = env->spr[SPR_E500_SVR];
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: Unknown register 0x%" HWADDR_PRIx "\n",
+                          __func__, addr);
+            break;
+        }
+
+        return value;
+    }
+
+    static void write(void *opaque, hwaddr addr,
+                      uint64_t value, unsigned size)
+    {
+        addr &= MPC8544_GUTS_MMIO_SIZE - 1;
+
+        switch (addr) {
+        case MPC8544_GUTS_ADDR_RSTCR:
+            if (value & MPC8544_GUTS_RSTCR_RESET) {
+                qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+            }
+            break;
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown register 0x%" HWADDR_PRIx
+                           " = 0x%" PRIx64 "\n", __func__, addr, value);
+            break;
+        }
+    }
+
+    static const MemoryRegionOps ops;
+
+    static void instanceInit(Object *obj)
+    {
+        SysBusDevice *d = SYS_BUS_DEVICE(obj);
+        GutsState *s = MPC8544_GUTS(obj);
+
+        memory_region_init_io(&s->iomem, OBJECT(s), &ops, s,
+                              "mpc8544.guts", MPC8544_GUTS_MMIO_SIZE);
+        sysbus_init_mmio(d, &s->iomem);
+    }
 };
 
-
-static uint64_t mpc8544_guts_read(void *opaque, hwaddr addr,
-                                  unsigned size)
-{
-    uint32_t value = 0;
-    CPUPPCState *env = cpu_env(current_cpu);
-
-    addr &= MPC8544_GUTS_MMIO_SIZE - 1;
-    switch (addr) {
-    case MPC8544_GUTS_ADDR_PORPLLSR:
-        value = FIELD_DP32(value, GUTS_PORPLLSR, E500_1_RATIO, 6); /* 3:1 */
-        value = FIELD_DP32(value, GUTS_PORPLLSR, E500_0_RATIO, 6); /* 3:1 */
-        value = FIELD_DP32(value, GUTS_PORPLLSR, DDR_RATIO, 12); /* 12:1 */
-        value = FIELD_DP32(value, GUTS_PORPLLSR, PLAT_RATIO, 6); /* 6:1 */
-        break;
-    case MPC8544_GUTS_ADDR_PVR:
-        value = env->spr[SPR_PVR];
-        break;
-    case MPC8544_GUTS_ADDR_SVR:
-        value = env->spr[SPR_E500_SVR];
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Unknown register 0x%" HWADDR_PRIx "\n",
-                      __func__, addr);
-        break;
-    }
-
-    return value;
-}
-
-static void mpc8544_guts_write(void *opaque, hwaddr addr,
-                               uint64_t value, unsigned size)
-{
-    addr &= MPC8544_GUTS_MMIO_SIZE - 1;
-
-    switch (addr) {
-    case MPC8544_GUTS_ADDR_RSTCR:
-        if (value & MPC8544_GUTS_RSTCR_RESET) {
-            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
-        }
-        break;
-    default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: Unknown register 0x%" HWADDR_PRIx
-                       " = 0x%" PRIx64 "\n", __func__, addr, value);
-        break;
-    }
-}
-
-static const MemoryRegionOps mpc8544_guts_ops = {
-    .read = mpc8544_guts_read,
-    .write = mpc8544_guts_write,
+const MemoryRegionOps GutsState::ops = {
+    .read = GutsState::read,
+    .write = GutsState::write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -130,22 +141,12 @@ static const MemoryRegionOps mpc8544_guts_ops = {
     },
 };
 
-static void mpc8544_guts_initfn(Object *obj)
-{
-    SysBusDevice *d = SYS_BUS_DEVICE(obj);
-    GutsState *s = MPC8544_GUTS(obj);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &mpc8544_guts_ops, s,
-                          "mpc8544.guts", MPC8544_GUTS_MMIO_SIZE);
-    sysbus_init_mmio(d, &s->iomem);
-}
-
 static const TypeInfo mpc8544_guts_types[] = {
     {
         .name          = TYPE_MPC8544_GUTS,
         .parent        = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(GutsState),
-        .instance_init = mpc8544_guts_initfn,
+        .instance_init = GutsState::instanceInit,
     },
 };
 

@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "system/address-spaces.h"
@@ -27,70 +28,69 @@ struct Ppe42MachineState {
     MachineState parent_obj;
 
     PowerPCCPU cpu;
+
+    static void mainCpuReset(void *opaque)
+    {
+        PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
+
+        cpu_reset(CPU(cpu));
+    }
+
+    static void init(MachineState *machine)
+    {
+        Ppe42MachineState *pms = PPE42_MACHINE(machine);
+        PowerPCCPU *cpu = &pms->cpu;
+
+        if (kvm_enabled()) {
+            error_report("machine %s does not support the KVM accelerator",
+                         MACHINE_GET_CLASS(machine)->name);
+            exit(EXIT_FAILURE);
+        }
+        if (machine->ram_size > 512 * KiB) {
+            error_report("RAM size more than 512 KiB is not supported");
+            exit(1);
+        }
+
+        /* init CPU */
+        object_initialize_child(OBJECT(pms), "cpu", cpu, machine->cpu_type);
+        if (!qdev_realize(DEVICE(cpu), NULL, &error_fatal)) {
+            return;
+        }
+
+        qemu_register_reset(mainCpuReset, cpu);
+
+        /* This sets the decrementer timebase */
+        ppc_booke_timers_init(cpu, 37500000, PPC_TIMER_PPE);
+
+        /* RAM */
+        memory_region_add_subregion(get_system_memory(), 0xfff80000, machine->ram);
+    }
+
+    static void classInit(ObjectClass *oc, const void *data)
+    {
+        MachineClass *mc = MACHINE_CLASS(oc);
+        static const char * const valid_cpu_types[] = {
+            POWERPC_CPU_TYPE_NAME("PPE42"),
+            POWERPC_CPU_TYPE_NAME("PPE42X"),
+            POWERPC_CPU_TYPE_NAME("PPE42XM"),
+            NULL,
+        };
+
+        mc->desc = "PPE42 Test Machine";
+        mc->init = init;
+        mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("PPE42XM");
+        mc->valid_cpu_types = valid_cpu_types;
+        mc->default_ram_id = "ram";
+        mc->default_ram_size = 512 * KiB;
+    }
 };
-
-static void main_cpu_reset(void *opaque)
-{
-    PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
-
-    cpu_reset(CPU(cpu));
-}
-
-static void ppe42_machine_init(MachineState *machine)
-{
-    Ppe42MachineState *pms = PPE42_MACHINE(machine);
-    PowerPCCPU *cpu = &pms->cpu;
-
-    if (kvm_enabled()) {
-        error_report("machine %s does not support the KVM accelerator",
-                     MACHINE_GET_CLASS(machine)->name);
-        exit(EXIT_FAILURE);
-    }
-    if (machine->ram_size > 512 * KiB) {
-        error_report("RAM size more than 512 KiB is not supported");
-        exit(1);
-    }
-
-    /* init CPU */
-    object_initialize_child(OBJECT(pms), "cpu", cpu, machine->cpu_type);
-    if (!qdev_realize(DEVICE(cpu), NULL, &error_fatal)) {
-        return;
-    }
-
-    qemu_register_reset(main_cpu_reset, cpu);
-
-    /* This sets the decrementer timebase */
-    ppc_booke_timers_init(cpu, 37500000, PPC_TIMER_PPE);
-
-    /* RAM */
-    memory_region_add_subregion(get_system_memory(), 0xfff80000, machine->ram);
-}
-
-
-static void ppe42_machine_class_init(ObjectClass *oc, const void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    static const char * const valid_cpu_types[] = {
-        POWERPC_CPU_TYPE_NAME("PPE42"),
-        POWERPC_CPU_TYPE_NAME("PPE42X"),
-        POWERPC_CPU_TYPE_NAME("PPE42XM"),
-        NULL,
-    };
-
-    mc->desc = "PPE42 Test Machine";
-    mc->init = ppe42_machine_init;
-    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("PPE42XM");
-    mc->valid_cpu_types = valid_cpu_types;
-    mc->default_ram_id = "ram";
-    mc->default_ram_size = 512 * KiB;
-}
 
 static const TypeInfo ppe42_machine_info = {
         .name          = TYPE_PPE42_MACHINE,
         .parent        = TYPE_MACHINE,
         .instance_size = sizeof(Ppe42MachineState),
         .class_size    = sizeof(Ppe42MachineClass),
-        .class_init    = ppe42_machine_class_init,
+        .class_init    = Ppe42MachineState::classInit,
 };
 
 static void ppe42_machine_register_types(void)

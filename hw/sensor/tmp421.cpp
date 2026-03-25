@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/i2c/i2c.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -64,6 +65,18 @@ struct TMP421State {
     uint8_t buf[2];
     uint8_t pointer;
 
+    static void getTemperature(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp);
+    static void setTemperature(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp);
+    void readRegs();
+    void writeRegs();
+    static uint8_t rx(I2CSlave *i2c);
+    static int tx(I2CSlave *i2c, uint8_t data);
+    static int event(I2CSlave *i2c, enum i2c_event event);
+    void reset();
+    void realize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 struct TMP421Class {
@@ -107,8 +120,8 @@ OBJECT_DECLARE_TYPE(TMP421State, TMP421Class, TMP421)
 static const int32_t mins[2] = { -40000, -55000 };
 static const int32_t maxs[2] = { 127000, 150000 };
 
-static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
+void TMP421State::getTemperature(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     TMP421State *s = TMP421(obj);
     bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
@@ -134,8 +147,8 @@ static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
 /* Units are 0.001 centigrades relative to 0 C.  s->temperature is 8.8
  * fixed point, so units are 1/256 centigrades.  A simple ratio will do.
  */
-static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
+void TMP421State::setTemperature(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
 {
     TMP421State *s = TMP421(obj);
     int64_t temp;
@@ -166,85 +179,83 @@ static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
     s->temperature[tempid] = (int16_t) ((temp * 256 - 128) / 1000) + offset;
 }
 
-static void tmp421_read(TMP421State *s)
+void TMP421State::readRegs()
 {
-    TMP421Class *sc = TMP421_GET_CLASS(s);
+    TMP421Class *sc = TMP421_GET_CLASS(this);
 
-    s->len = 0;
+    len = 0;
 
-    switch (s->pointer) {
+    switch (pointer) {
     case TMP421_MANUFACTURER_ID_REG:
-        s->buf[s->len++] = TMP421_MANUFACTURER_ID;
+        buf[len++] = TMP421_MANUFACTURER_ID;
         break;
     case TMP421_DEVICE_ID_REG:
-        s->buf[s->len++] = sc->dev->model;
+        buf[len++] = sc->dev->model;
         break;
     case TMP421_CONFIG_REG_1:
-        s->buf[s->len++] = s->config[0];
+        buf[len++] = config[0];
         break;
     case TMP421_CONFIG_REG_2:
-        s->buf[s->len++] = s->config[1];
+        buf[len++] = config[1];
         break;
     case TMP421_CONVERSION_RATE_REG:
-        s->buf[s->len++] = s->rate;
+        buf[len++] = rate;
         break;
     case TMP421_STATUS_REG:
-        s->buf[s->len++] = s->status;
+        buf[len++] = status;
         break;
 
         /* FIXME: check for channel enablement in config registers */
     case TMP421_TEMP_MSB0:
-        s->buf[s->len++] = (((uint16_t) s->temperature[0]) >> 8);
-        s->buf[s->len++] = (((uint16_t) s->temperature[0]) >> 0) & 0xf0;
+        buf[len++] = (((uint16_t) temperature[0]) >> 8);
+        buf[len++] = (((uint16_t) temperature[0]) >> 0) & 0xf0;
         break;
     case TMP421_TEMP_MSB1:
-        s->buf[s->len++] = (((uint16_t) s->temperature[1]) >> 8);
-        s->buf[s->len++] = (((uint16_t) s->temperature[1]) >> 0) & 0xf0;
+        buf[len++] = (((uint16_t) temperature[1]) >> 8);
+        buf[len++] = (((uint16_t) temperature[1]) >> 0) & 0xf0;
         break;
     case TMP421_TEMP_MSB2:
-        s->buf[s->len++] = (((uint16_t) s->temperature[2]) >> 8);
-        s->buf[s->len++] = (((uint16_t) s->temperature[2]) >> 0) & 0xf0;
+        buf[len++] = (((uint16_t) temperature[2]) >> 8);
+        buf[len++] = (((uint16_t) temperature[2]) >> 0) & 0xf0;
         break;
     case TMP421_TEMP_MSB3:
-        s->buf[s->len++] = (((uint16_t) s->temperature[3]) >> 8);
-        s->buf[s->len++] = (((uint16_t) s->temperature[3]) >> 0) & 0xf0;
+        buf[len++] = (((uint16_t) temperature[3]) >> 8);
+        buf[len++] = (((uint16_t) temperature[3]) >> 0) & 0xf0;
         break;
     case TMP421_TEMP_LSB0:
-        s->buf[s->len++] = (((uint16_t) s->temperature[0]) >> 0) & 0xf0;
+        buf[len++] = (((uint16_t) temperature[0]) >> 0) & 0xf0;
         break;
     case TMP421_TEMP_LSB1:
-        s->buf[s->len++] = (((uint16_t) s->temperature[1]) >> 0) & 0xf0;
+        buf[len++] = (((uint16_t) temperature[1]) >> 0) & 0xf0;
         break;
     case TMP421_TEMP_LSB2:
-        s->buf[s->len++] = (((uint16_t) s->temperature[2]) >> 0) & 0xf0;
+        buf[len++] = (((uint16_t) temperature[2]) >> 0) & 0xf0;
         break;
     case TMP421_TEMP_LSB3:
-        s->buf[s->len++] = (((uint16_t) s->temperature[3]) >> 0) & 0xf0;
+        buf[len++] = (((uint16_t) temperature[3]) >> 0) & 0xf0;
         break;
     }
 }
 
-static void tmp421_reset(I2CSlave *i2c);
-
-static void tmp421_write(TMP421State *s)
+void TMP421State::writeRegs()
 {
-    switch (s->pointer) {
+    switch (pointer) {
     case TMP421_CONVERSION_RATE_REG:
-        s->rate = s->buf[0];
+        rate = buf[0];
         break;
     case TMP421_CONFIG_REG_1:
-        s->config[0] = s->buf[0];
+        config[0] = buf[0];
         break;
     case TMP421_CONFIG_REG_2:
-        s->config[1] = s->buf[0];
+        config[1] = buf[0];
         break;
     case TMP421_RESET:
-        tmp421_reset(I2C_SLAVE(s));
+        reset();
         break;
     }
 }
 
-static uint8_t tmp421_rx(I2CSlave *i2c)
+uint8_t TMP421State::rx(I2CSlave *i2c)
 {
     TMP421State *s = TMP421(i2c);
 
@@ -255,7 +266,7 @@ static uint8_t tmp421_rx(I2CSlave *i2c)
     }
 }
 
-static int tmp421_tx(I2CSlave *i2c, uint8_t data)
+int TMP421State::tx(I2CSlave *i2c, uint8_t data)
 {
     TMP421State *s = TMP421(i2c);
 
@@ -268,18 +279,18 @@ static int tmp421_tx(I2CSlave *i2c, uint8_t data)
         /* second byte is the data to write. The device only supports
          * one byte writes */
         s->buf[0] = data;
-        tmp421_write(s);
+        s->writeRegs();
     }
 
     return 0;
 }
 
-static int tmp421_event(I2CSlave *i2c, enum i2c_event event)
+int TMP421State::event(I2CSlave *i2c, enum i2c_event event)
 {
     TMP421State *s = TMP421(i2c);
 
     if (event == I2C_START_RECV) {
-        tmp421_read(s);
+        s->readRegs();
     }
 
     s->len = 0;
@@ -303,65 +314,69 @@ static const VMStateDescription vmstate_tmp421 = {
     }
 };
 
-static void tmp421_reset(I2CSlave *i2c)
+void TMP421State::reset()
 {
-    TMP421State *s = TMP421(i2c);
-    TMP421Class *sc = TMP421_GET_CLASS(s);
+    TMP421Class *sc = TMP421_GET_CLASS(this);
 
-    memset(s->temperature, 0, sizeof(s->temperature));
-    s->pointer = 0;
+    memset(temperature, 0, sizeof(temperature));
+    pointer = 0;
 
-    s->config[0] = 0; /* TMP421_CONFIG_RANGE */
+    config[0] = 0; /* TMP421_CONFIG_RANGE */
 
      /* resistance correction and channel enablement */
     switch (sc->dev->model) {
     case TMP421_DEVICE_ID:
-        s->config[1] = 0x1c;
+        config[1] = 0x1c;
         break;
     case TMP422_DEVICE_ID:
-        s->config[1] = 0x3c;
+        config[1] = 0x3c;
         break;
     case TMP423_DEVICE_ID:
-        s->config[1] = 0x7c;
+        config[1] = 0x7c;
         break;
     }
 
-    s->rate = 0x7;       /* 8Hz */
-    s->status = 0;
+    rate = 0x7;       /* 8Hz */
+    status = 0;
 }
 
-static void tmp421_realize(DeviceState *dev, Error **errp)
+void TMP421State::realize(DeviceState *dev, Error **errp)
 {
     TMP421State *s = TMP421(dev);
-
-    tmp421_reset(&s->i2c);
+    s->reset();
 }
 
-static void tmp421_class_init(ObjectClass *klass, const void *data)
+static void tmp421_realize_wrapper(DeviceState *dev, Error **errp)
+{
+    TMP421State *s = TMP421(dev);
+    s->realize(dev, errp);
+}
+
+void TMP421State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
 
-    dc->realize = tmp421_realize;
-    k->event = tmp421_event;
-    k->recv = tmp421_rx;
-    k->send = tmp421_tx;
+    dc->realize = tmp421_realize_wrapper;
+    k->event = TMP421State::event;
+    k->recv = TMP421State::rx;
+    k->send = TMP421State::tx;
     dc->vmsd = &vmstate_tmp421;
     sc->dev = (DeviceInfo *) data;
 
     object_class_property_add(klass, "temperature0", "int",
-                              tmp421_get_temperature,
-                              tmp421_set_temperature, NULL, NULL);
+                              TMP421State::getTemperature,
+                              TMP421State::setTemperature, NULL, NULL);
     object_class_property_add(klass, "temperature1", "int",
-                              tmp421_get_temperature,
-                              tmp421_set_temperature, NULL, NULL);
+                              TMP421State::getTemperature,
+                              TMP421State::setTemperature, NULL, NULL);
     object_class_property_add(klass, "temperature2", "int",
-                              tmp421_get_temperature,
-                              tmp421_set_temperature, NULL, NULL);
+                              TMP421State::getTemperature,
+                              TMP421State::setTemperature, NULL, NULL);
     object_class_property_add(klass, "temperature3", "int",
-                              tmp421_get_temperature,
-                              tmp421_set_temperature, NULL, NULL);
+                              TMP421State::getTemperature,
+                              TMP421State::setTemperature, NULL, NULL);
 }
 
 static const TypeInfo tmp421_info = {
@@ -381,7 +396,7 @@ static void tmp421_register_types(void)
         TypeInfo ti = {
             .name       = devices[i].name,
             .parent     = TYPE_TMP421,
-            .class_init = tmp421_class_init,
+            .class_init = TMP421State::classInit,
             .class_data = &devices[i],
         };
         type_register_static(&ti);

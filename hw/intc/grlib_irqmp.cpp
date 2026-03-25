@@ -27,6 +27,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 
@@ -71,6 +72,10 @@ struct IRQMP {
     IRQMPState *state;
     qemu_irq start_signal[IRQMP_MAX_CPU];
     qemu_irq irq[IRQMP_MAX_CPU];
+
+    void reset();
+    void realize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 struct IRQMPState {
@@ -85,36 +90,42 @@ struct IRQMPState {
     uint32_t extended[IRQMP_MAX_CPU];
 
     IRQMP    *parent;
+
+    void checkIrqs();
+    void ackMask(unsigned int cpu, uint32_t mask);
+    static void setIrq(void *opaque, int irq, int level);
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t value,
+                          unsigned size);
 };
 
-static void grlib_irqmp_check_irqs(IRQMPState *state)
+void IRQMPState::checkIrqs()
 {
     int i;
 
-    assert(state != NULL);
-    assert(state->parent != NULL);
+    assert(this != NULL);
+    assert(parent != NULL);
 
-    for (i = 0; i < state->parent->ncpus; i++) {
-        uint32_t pend = (state->pending | state->force[i]) & state->mask[i];
-        uint32_t level0 = pend & ~state->level;
-        uint32_t level1 = pend &  state->level;
+    for (i = 0; i < parent->ncpus; i++) {
+        uint32_t pend = (pending | force[i]) & mask[i];
+        uint32_t level0 = pend & ~level;
+        uint32_t level1 = pend &  level;
 
-        trace_grlib_irqmp_check_irqs(state->pending, state->force[i],
-                                     state->mask[i], level1, level0);
+        trace_grlib_irqmp_check_irqs(pending, force[i],
+                                     mask[i], level1, level0);
 
         /* Trigger level1 interrupt first and level0 if there is no level1 */
-        qemu_set_irq(state->parent->irq[i], level1 ?: level0);
+        qemu_set_irq(parent->irq[i], level1 ?: level0);
     }
 }
 
-static void grlib_irqmp_ack_mask(IRQMPState *state, unsigned int cpu,
-                                 uint32_t mask)
+void IRQMPState::ackMask(unsigned int cpu, uint32_t mask_val)
 {
     /* Clear registers */
-    state->pending  &= ~mask;
-    state->force[cpu] &= ~mask;
+    pending  &= ~mask_val;
+    force[cpu] &= ~mask_val;
 
-    grlib_irqmp_check_irqs(state);
+    checkIrqs();
 }
 
 void grlib_irqmp_ack(DeviceState *dev, unsigned int cpu, int intno)
@@ -131,10 +142,10 @@ void grlib_irqmp_ack(DeviceState *dev, unsigned int cpu, int intno)
 
     trace_grlib_irqmp_ack(intno);
 
-    grlib_irqmp_ack_mask(state, cpu, mask);
+    state->ackMask(cpu, mask);
 }
 
-static void grlib_irqmp_set_irq(void *opaque, int irq, int level)
+void IRQMPState::setIrq(void *opaque, int irq, int level)
 {
     IRQMP      *irqmp = GRLIB_IRQMP(opaque);
     IRQMPState *s;
@@ -156,14 +167,13 @@ static void grlib_irqmp_set_irq(void *opaque, int irq, int level)
         } else {
             s->pending |= 1 << irq;
         }
-        grlib_irqmp_check_irqs(s);
+        s->checkIrqs();
     }
 }
 
-static uint64_t grlib_irqmp_read(void *opaque, hwaddr addr,
-                                 unsigned size)
+uint64_t IRQMPState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
-    IRQMP      *irqmp = opaque;
+    IRQMP      *irqmp = static_cast<IRQMP *>(opaque);
     IRQMPState *state;
 
     assert(irqmp != NULL);
@@ -226,10 +236,10 @@ static uint64_t grlib_irqmp_read(void *opaque, hwaddr addr,
     return 0;
 }
 
-static void grlib_irqmp_write(void *opaque, hwaddr addr,
-                              uint64_t value, unsigned size)
+void IRQMPState::mmioWrite(void *opaque, hwaddr addr,
+                            uint64_t value, unsigned size)
 {
-    IRQMP *irqmp = opaque;
+    IRQMP *irqmp = static_cast<IRQMP *>(opaque);
     IRQMPState *state;
     int i;
 
@@ -255,13 +265,13 @@ static void grlib_irqmp_write(void *opaque, hwaddr addr,
 
         value &= 0xFFFE; /* clean up the value */
         state->force[0] = value;
-        grlib_irqmp_check_irqs(irqmp->state);
+        state->checkIrqs();
         return;
 
     case CLEAR_OFFSET:
         value &= ~1; /* clean up the value */
         for (i = 0; i < irqmp->ncpus; i++) {
-            grlib_irqmp_ack_mask(state, i, value);
+            state->ackMask(i, value);
         }
         return;
 
@@ -296,7 +306,7 @@ static void grlib_irqmp_write(void *opaque, hwaddr addr,
 
         value &= ~1; /* clean up the value */
         state->mask[cpu] = value;
-        grlib_irqmp_check_irqs(irqmp->state);
+        state->checkIrqs();
         return;
     }
 
@@ -305,12 +315,12 @@ static void grlib_irqmp_write(void *opaque, hwaddr addr,
         int cpu = (addr - FORCE_OFFSET) / 4;
         assert(cpu >= 0 && cpu < IRQMP_MAX_CPU);
 
-        uint32_t force = value & 0xFFFE;
+        uint32_t force_val = value & 0xFFFE;
         uint32_t clear = (value >> 16) & 0xFFFE;
         uint32_t old   = state->force[cpu];
 
-        state->force[cpu] = (old | force) & ~clear;
-        grlib_irqmp_check_irqs(irqmp->state);
+        state->force[cpu] = (old | force_val) & ~clear;
+        state->checkIrqs();
         return;
     }
 
@@ -328,8 +338,8 @@ static void grlib_irqmp_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps grlib_irqmp_ops = {
-    .read = grlib_irqmp_read,
-    .write = grlib_irqmp_write,
+    .read = IRQMPState::mmioRead,
+    .write = IRQMPState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -337,18 +347,29 @@ static const MemoryRegionOps grlib_irqmp_ops = {
     },
 };
 
-static void grlib_irqmp_reset(DeviceState *d)
+static void grlib_irqmp_reset_wrapper(DeviceState *d)
 {
     IRQMP *irqmp = GRLIB_IRQMP(d);
-    assert(irqmp->state != NULL);
-
-    memset(irqmp->state, 0, sizeof *irqmp->state);
-    irqmp->state->parent = irqmp;
-    irqmp->state->mpstatus = ((irqmp->ncpus - 1) << MP_STATUS_NCPU_SHIFT) |
-        ((1 << irqmp->ncpus) - 2);
+    irqmp->reset();
 }
 
-static void grlib_irqmp_realize(DeviceState *dev, Error **errp)
+void IRQMP::reset()
+{
+    assert(state != NULL);
+
+    memset(state, 0, sizeof *state);
+    state->parent = this;
+    state->mpstatus = ((ncpus - 1) << MP_STATUS_NCPU_SHIFT) |
+        ((1 << ncpus) - 2);
+}
+
+static void grlib_irqmp_realize_wrapper(DeviceState *dev, Error **errp)
+{
+    IRQMP *irqmp = GRLIB_IRQMP(dev);
+    irqmp->realize(dev, errp);
+}
+
+void IRQMP::realize(DeviceState *dev, Error **errp)
 {
     IRQMP *irqmp = GRLIB_IRQMP(dev);
 
@@ -359,7 +380,7 @@ static void grlib_irqmp_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qdev_init_gpio_in(dev, grlib_irqmp_set_irq, MAX_PILS);
+    qdev_init_gpio_in(dev, IRQMPState::setIrq, MAX_PILS);
 
     /*
      * Transitionning from 0 to 1 starts the CPUs. The opposite can't
@@ -371,7 +392,7 @@ static void grlib_irqmp_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&irqmp->iomem, OBJECT(dev), &grlib_irqmp_ops, irqmp,
                           "irqmp", IRQMP_REG_SIZE);
 
-    irqmp->state = g_malloc0(sizeof *irqmp->state);
+    irqmp->state = static_cast<IRQMPState *>(g_malloc0(sizeof *irqmp->state));
 
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &irqmp->iomem);
 }
@@ -380,12 +401,12 @@ static const Property grlib_irqmp_properties[] = {
     DEFINE_PROP_UINT32("ncpus", IRQMP, ncpus, 1),
 };
 
-static void grlib_irqmp_class_init(ObjectClass *klass, const void *data)
+void IRQMP::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = grlib_irqmp_realize;
-    device_class_set_legacy_reset(dc, grlib_irqmp_reset);
+    dc->realize = grlib_irqmp_realize_wrapper;
+    device_class_set_legacy_reset(dc, grlib_irqmp_reset_wrapper);
     device_class_set_props(dc, grlib_irqmp_properties);
 }
 
@@ -393,7 +414,7 @@ static const TypeInfo grlib_irqmp_info = {
     .name          = TYPE_GRLIB_IRQMP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IRQMP),
-    .class_init    = grlib_irqmp_class_init,
+    .class_init    = IRQMP::classInit,
 };
 
 static void grlib_irqmp_register_types(void)

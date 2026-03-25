@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/audio/model.h"
@@ -74,38 +75,49 @@ struct AdlibState {
     QEMUAudioTimeStamp ats;
     FM_OPL *opl;
     PortioList port_list;
+
+    void stopOplTimer(size_t n);
+    void killTimers();
+    static void portWrite(void *opaque, uint32_t nport, uint32_t val);
+    static uint32_t portRead(void *opaque, uint32_t nport);
+    static void timerHandler(void *opaque, int c, double interval_Sec);
+    int writeAudio(int samples);
+    static void callback(void *opaque, int free);
+    void fini();
+    void realize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void adlib_stop_opl_timer (AdlibState *s, size_t n)
+void AdlibState::stopOplTimer(size_t n)
 {
-    OPLTimerOver (s->opl, n);
-    s->ticking[n] = 0;
+    OPLTimerOver (opl, n);
+    ticking[n] = 0;
 }
 
-static void adlib_kill_timers (AdlibState *s)
+void AdlibState::killTimers()
 {
     size_t i;
 
     for (i = 0; i < 2; ++i) {
-        if (s->ticking[i]) {
+        if (ticking[i]) {
             uint64_t delta;
 
-            delta = AUD_get_elapsed_usec_out (s->voice, &s->ats);
+            delta = AUD_get_elapsed_usec_out (voice, &ats);
             ldebug (
                 "delta = %f dexp = %f expired => %d",
                 delta / 1000000.0,
-                s->dexp[i] / 1000000.0,
-                delta >= s->dexp[i]
+                dexp[i] / 1000000.0,
+                delta >= dexp[i]
                 );
-            if (ADLIB_KILL_TIMERS || delta >= s->dexp[i]) {
-                adlib_stop_opl_timer (s, i);
-                AUD_init_time_stamp_out (s->voice, &s->ats);
+            if (ADLIB_KILL_TIMERS || delta >= dexp[i]) {
+                stopOplTimer(i);
+                AUD_init_time_stamp_out (voice, &ats);
             }
         }
     }
 }
 
-static void adlib_write(void *opaque, uint32_t nport, uint32_t val)
+void AdlibState::portWrite(void *opaque, uint32_t nport, uint32_t val)
 {
     AdlibState *s = static_cast<AdlibState *>(opaque);
     int a = nport & 3;
@@ -113,21 +125,21 @@ static void adlib_write(void *opaque, uint32_t nport, uint32_t val)
     s->active = 1;
     AUD_set_active_out (s->voice, 1);
 
-    adlib_kill_timers (s);
+    s->killTimers();
 
     OPLWrite (s->opl, a, val);
 }
 
-static uint32_t adlib_read(void *opaque, uint32_t nport)
+uint32_t AdlibState::portRead(void *opaque, uint32_t nport)
 {
     AdlibState *s = static_cast<AdlibState *>(opaque);
     int a = nport & 3;
 
-    adlib_kill_timers (s);
+    s->killTimers();
     return OPLRead (s->opl, a);
 }
 
-static void timer_handler (void *opaque, int c, double interval_Sec)
+void AdlibState::timerHandler(void *opaque, int c, double interval_Sec)
 {
     AdlibState *s = static_cast<AdlibState *>(opaque);
     unsigned n = c & 1;
@@ -152,18 +164,18 @@ static void timer_handler (void *opaque, int c, double interval_Sec)
     AUD_init_time_stamp_out (s->voice, &s->ats);
 }
 
-static int write_audio (AdlibState *s, int samples)
+int AdlibState::writeAudio(int samples)
 {
     int net = 0;
-    int pos = s->pos;
+    int pos_local = pos;
 
     while (samples) {
         int nbytes, wbytes, wsampl;
 
         nbytes = samples << SHIFT;
         wbytes = AUD_write (
-            s->voice,
-            s->mixbuf + (pos << (SHIFT - 1)),
+            voice,
+            mixbuf + (pos_local << (SHIFT - 1)),
             nbytes
             );
 
@@ -171,7 +183,7 @@ static int write_audio (AdlibState *s, int samples)
             wsampl = wbytes >> SHIFT;
 
             samples -= wsampl;
-            pos = (pos + wsampl) % s->samples;
+            pos_local = (pos_local + wsampl) % this->samples;
 
             net += wsampl;
         }
@@ -183,23 +195,23 @@ static int write_audio (AdlibState *s, int samples)
     return net;
 }
 
-static void adlib_callback (void *opaque, int free)
+void AdlibState::callback(void *opaque, int free)
 {
     AdlibState *s = static_cast<AdlibState *>(opaque);
-    int samples, to_play, written;
+    int samples_local, to_play, written;
 
-    samples = free >> SHIFT;
-    if (!(s->active && s->enabled) || !samples) {
+    samples_local = free >> SHIFT;
+    if (!(s->active && s->enabled) || !samples_local) {
         return;
     }
 
-    to_play = MIN (s->left, samples);
+    to_play = MIN (s->left, samples_local);
     while (to_play) {
-        written = write_audio (s, to_play);
+        written = s->writeAudio(to_play);
 
         if (written) {
             s->left -= written;
-            samples -= written;
+            samples_local -= written;
             to_play -= written;
             s->pos = (s->pos + written) % s->samples;
         }
@@ -208,48 +220,48 @@ static void adlib_callback (void *opaque, int free)
         }
     }
 
-    samples = MIN (samples, s->samples - s->pos);
-    if (!samples) {
+    samples_local = MIN (samples_local, s->samples - s->pos);
+    if (!samples_local) {
         return;
     }
 
-    YM3812UpdateOne (s->opl, s->mixbuf + s->pos, samples);
+    YM3812UpdateOne (s->opl, s->mixbuf + s->pos, samples_local);
 
-    while (samples) {
-        written = write_audio (s, samples);
+    while (samples_local) {
+        written = s->writeAudio(samples_local);
 
         if (written) {
-            samples -= written;
+            samples_local -= written;
             s->pos = (s->pos + written) % s->samples;
         }
         else {
-            s->left = samples;
+            s->left = samples_local;
             return;
         }
     }
 }
 
-static void Adlib_fini (AdlibState *s)
+void AdlibState::fini()
 {
-    if (s->opl) {
-        OPLDestroy (s->opl);
-        s->opl = NULL;
+    if (opl) {
+        OPLDestroy (opl);
+        opl = NULL;
     }
 
-    g_free(s->mixbuf);
+    g_free(mixbuf);
 
-    s->active = 0;
-    s->enabled = 0;
+    active = 0;
+    enabled = 0;
 }
 
 static MemoryRegionPortio adlib_portio_list[] = {
-    { 0, 4, 1, adlib_read, adlib_write },
-    { 0, 2, 1, adlib_read, adlib_write },
-    { 0x388, 4, 1, adlib_read, adlib_write },
+    { 0, 4, 1, AdlibState::portRead, AdlibState::portWrite },
+    { 0, 2, 1, AdlibState::portRead, AdlibState::portWrite },
+    { 0x388, 4, 1, AdlibState::portRead, AdlibState::portWrite },
     PORTIO_END_OF_LIST(),
 };
 
-static void adlib_realizefn (DeviceState *dev, Error **errp)
+void AdlibState::realize(DeviceState *dev, Error **errp)
 {
     AdlibState *s = ADLIB(dev);
     struct audsettings as;
@@ -264,7 +276,7 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
         return;
     }
     else {
-        OPLSetTimerHandler(s->opl, timer_handler, s);
+        OPLSetTimerHandler(s->opl, AdlibState::timerHandler, s);
         s->enabled = 1;
     }
 
@@ -278,11 +290,11 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
         s->voice,
         "adlib",
         s,
-        adlib_callback,
+        AdlibState::callback,
         &as
         );
     if (!s->voice) {
-        Adlib_fini (s);
+        s->fini();
         error_setg (errp, "Initializing audio voice failed");
         return;
     }
@@ -296,13 +308,19 @@ static void adlib_realizefn (DeviceState *dev, Error **errp)
     portio_list_add (&s->port_list, isa_address_space_io(&s->parent_obj), 0);
 }
 
+static void adlib_realizefn(DeviceState *dev, Error **errp)
+{
+    AdlibState *s = ADLIB(dev);
+    s->realize(dev, errp);
+}
+
 static const Property adlib_properties[] = {
     DEFINE_AUDIO_PROPERTIES(AdlibState, audio_be),
     DEFINE_PROP_UINT32 ("iobase",  AdlibState, port, 0x220),
     DEFINE_PROP_UINT32 ("freq",    AdlibState, freq,  44100),
 };
 
-static void adlib_class_initfn(ObjectClass *klass, const void *data)
+void AdlibState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 
@@ -316,7 +334,7 @@ static const TypeInfo adlib_info = {
     .name          = TYPE_ADLIB,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (AdlibState),
-    .class_init    = adlib_class_initfn,
+    .class_init    = AdlibState::classInit,
 };
 
 static void adlib_register_types (void)

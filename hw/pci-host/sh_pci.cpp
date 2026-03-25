@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "hw/sysbus.h"
 #include "hw/sh4/sh.h"
@@ -47,9 +48,16 @@ struct SHPCIState {
     uint32_t par;
     uint32_t mbr;
     uint32_t iobr;
+
+    static void regWrite(void *p, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t regRead(void *p, hwaddr addr, unsigned size);
+    static int mapIrq(PCIDevice *d, int irq_num);
+    static void setIrq(void *opaque, int irq_num, int level);
+    static void realize(DeviceState *dev, Error **errp);
+    static void hostClassInit(ObjectClass *klass, const void *data);
 };
 
-static void sh_pci_reg_write(void *p, hwaddr addr, uint64_t val, unsigned size)
+void SHPCIState::regWrite(void *p, hwaddr addr, uint64_t val, unsigned size)
 {
     SHPCIState *pcic = static_cast<SHPCIState *>(p);
     PCIHostState *phb = PCI_HOST_BRIDGE(pcic);
@@ -74,7 +82,7 @@ static void sh_pci_reg_write(void *p, hwaddr addr, uint64_t val, unsigned size)
     }
 }
 
-static uint64_t sh_pci_reg_read(void *p, hwaddr addr, unsigned size)
+uint64_t SHPCIState::regRead(void *p, hwaddr addr, unsigned size)
 {
     SHPCIState *pcic = static_cast<SHPCIState *>(p);
     PCIHostState *phb = PCI_HOST_BRIDGE(pcic);
@@ -95,8 +103,8 @@ static uint64_t sh_pci_reg_read(void *p, hwaddr addr, unsigned size)
 }
 
 static const MemoryRegionOps sh_pci_reg_ops = {
-    .read = sh_pci_reg_read,
-    .write = sh_pci_reg_write,
+    .read = SHPCIState::regRead,
+    .write = SHPCIState::regWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -104,19 +112,19 @@ static const MemoryRegionOps sh_pci_reg_ops = {
     },
 };
 
-static int sh_pci_map_irq(PCIDevice *d, int irq_num)
+int SHPCIState::mapIrq(PCIDevice *d, int irq_num)
 {
     return PCI_SLOT(d->devfn);
 }
 
-static void sh_pci_set_irq(void *opaque, int irq_num, int level)
+void SHPCIState::setIrq(void *opaque, int irq_num, int level)
 {
     qemu_irq *pic = static_cast<qemu_irq *>(opaque);
 
     qemu_set_irq(pic[irq_num], level);
 }
 
-static void sh_pcic_host_realize(DeviceState *dev, Error **errp)
+void SHPCIState::realize(DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     SHPCIState *s = SH_PCI_HOST_BRIDGE(dev);
@@ -127,7 +135,7 @@ static void sh_pcic_host_realize(DeviceState *dev, Error **errp)
         sysbus_init_irq(sbd, &s->irq[i]);
     }
     phb->bus = pci_register_root_bus(dev, "pci",
-                                     sh_pci_set_irq, sh_pci_map_irq,
+                                     SHPCIState::setIrq, SHPCIState::mapIrq,
                                      s->irq,
                                      get_system_memory(),
                                      get_system_io(),
@@ -168,11 +176,11 @@ static void sh_pcic_pci_class_init(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static void sh_pcic_host_class_init(ObjectClass *klass, const void *data)
+void SHPCIState::hostClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = sh_pcic_host_realize;
+    dc->realize = SHPCIState::realize;
 }
 
 static const InterfaceInfo sh_pci_host_interfaces[] = {
@@ -185,7 +193,7 @@ static const TypeInfo sh_pcic_types[] = {
         .name           = TYPE_SH_PCI_HOST_BRIDGE,
         .parent         = TYPE_PCI_HOST_BRIDGE,
         .instance_size  = sizeof(SHPCIState),
-        .class_init     = sh_pcic_host_class_init,
+        .class_init     = SHPCIState::hostClassInit,
     }, {
         .name           = "sh_pci_host",
         .parent         = TYPE_PCI_DEVICE,
