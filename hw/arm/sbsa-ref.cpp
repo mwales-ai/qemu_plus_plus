@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/cutils.h"
 #include "qemu/datadir.h"
 #include "qapi/error.h"

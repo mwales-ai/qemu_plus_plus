@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 extern "C" {
 #include "qapi/error.h"
@@ -73,6 +74,28 @@ struct VMMouseState {
     uint8_t absolute;
     QEMUPutMouseEntry *entry;
     ISAKBDState *i8042;
+
+    /* methods */
+    uint32_t getStatus();
+    void readId();
+    void requestRelative();
+    void requestAbsolute();
+    void disable();
+    void getData(uint32_t *data, uint32_t size);
+    void removeHandler();
+    void updateHandler(int absolute);
+
+    static void mouseEvent(void *opaque, int x, int y, int dz, int buttons_state);
+    static uint32_t ioportRead(void *opaque, uint32_t addr);
+    static int postLoad(void *opaque, int version_id);
+
+    void reset();
+    static void resetWrapper(DeviceState *d);
+
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void vmmouse_get_data(uint32_t *data)
@@ -95,14 +118,14 @@ static void vmmouse_set_data(const uint32_t *data)
     env->regs[R_ESI] = data[4]; env->regs[R_EDI] = data[5];
 }
 
-static uint32_t vmmouse_get_status(VMMouseState *s)
+uint32_t VMMouseState::getStatus()
 {
     trace_vmmouse_get_status();
 
-    return (s->status << 16) | s->nb_queue;
+    return (status << 16) | nb_queue;
 }
 
-static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_state)
+void VMMouseState::mouseEvent(void *opaque, int x, int y, int dz, int buttons_state)
 {
     VMMouseState *s = static_cast<VMMouseState *>(opaque);
     int buttons = 0;
@@ -141,87 +164,87 @@ static void vmmouse_mouse_event(void *opaque, int x, int y, int dz, int buttons_
     i8042_isa_mouse_fake_event(s->i8042);
 }
 
-static void vmmouse_remove_handler(VMMouseState *s)
+void VMMouseState::removeHandler()
 {
-    if (s->entry) {
-        qemu_remove_mouse_event_handler(s->entry);
-        s->entry = NULL;
+    if (entry) {
+        qemu_remove_mouse_event_handler(entry);
+        entry = NULL;
     }
 }
 
-static void vmmouse_update_handler(VMMouseState *s, int absolute)
+void VMMouseState::updateHandler(int abs)
 {
-    if (s->status != 0) {
+    if (status != 0) {
         return;
     }
-    if (s->absolute != absolute) {
-        s->absolute = absolute;
-        vmmouse_remove_handler(s);
+    if (absolute != abs) {
+        absolute = abs;
+        removeHandler();
     }
-    if (s->entry == NULL) {
-        s->entry = qemu_add_mouse_event_handler(vmmouse_mouse_event,
-                                                s, s->absolute,
+    if (entry == NULL) {
+        entry = qemu_add_mouse_event_handler(VMMouseState::mouseEvent,
+                                                this, absolute,
                                                 "vmmouse");
-        qemu_activate_mouse_event_handler(s->entry);
+        qemu_activate_mouse_event_handler(entry);
     }
 }
 
-static void vmmouse_read_id(VMMouseState *s)
+void VMMouseState::readId()
 {
     trace_vmmouse_read_id();
 
-    if (s->nb_queue == VMMOUSE_QUEUE_SIZE)
+    if (nb_queue == VMMOUSE_QUEUE_SIZE)
         return;
 
-    s->queue[s->nb_queue++] = VMMOUSE_VERSION;
-    s->status = 0;
-    vmmouse_update_handler(s, s->absolute);
+    queue[nb_queue++] = VMMOUSE_VERSION;
+    status = 0;
+    updateHandler(absolute);
 }
 
-static void vmmouse_request_relative(VMMouseState *s)
+void VMMouseState::requestRelative()
 {
     trace_vmmouse_request_relative();
 
-    vmmouse_update_handler(s, 0);
+    updateHandler(0);
 }
 
-static void vmmouse_request_absolute(VMMouseState *s)
+void VMMouseState::requestAbsolute()
 {
     trace_vmmouse_request_absolute();
 
-    vmmouse_update_handler(s, 1);
+    updateHandler(1);
 }
 
-static void vmmouse_disable(VMMouseState *s)
+void VMMouseState::disable()
 {
     trace_vmmouse_disable();
 
-    s->status = 0xffff;
-    vmmouse_remove_handler(s);
+    status = 0xffff;
+    removeHandler();
 }
 
-static void vmmouse_data(VMMouseState *s, uint32_t *data, uint32_t size)
+void VMMouseState::getData(uint32_t *data, uint32_t size)
 {
     int i;
 
     trace_vmmouse_data(size);
 
-    if (size == 0 || size > 6 || size > s->nb_queue) {
+    if (size == 0 || size > 6 || size > nb_queue) {
         printf("vmmouse: driver requested too much data %d\n", size);
-        s->status = 0xffff;
-        vmmouse_remove_handler(s);
+        status = 0xffff;
+        removeHandler();
         return;
     }
 
     for (i = 0; i < size; i++)
-        data[i] = s->queue[i];
+        data[i] = queue[i];
 
-    s->nb_queue -= size;
-    if (s->nb_queue)
-        memmove(s->queue, &s->queue[size], sizeof(s->queue[0]) * s->nb_queue);
+    nb_queue -= size;
+    if (nb_queue)
+        memmove(queue, &queue[size], sizeof(queue[0]) * nb_queue);
 }
 
-static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
+uint32_t VMMouseState::ioportRead(void *opaque, uint32_t addr)
 {
     VMMouseState *s = static_cast<VMMouseState *>(opaque);
     uint32_t data[6];
@@ -233,21 +256,21 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
 
     switch (command) {
     case VMPORT_CMD_VMMOUSE_STATUS:
-        data[0] = vmmouse_get_status(s);
+        data[0] = s->getStatus();
         break;
     case VMPORT_CMD_VMMOUSE_COMMAND:
         switch (data[1]) {
         case VMMOUSE_DISABLE:
-            vmmouse_disable(s);
+            s->disable();
             break;
         case VMMOUSE_READ_ID:
-            vmmouse_read_id(s);
+            s->readId();
             break;
         case VMMOUSE_REQUEST_RELATIVE:
-            vmmouse_request_relative(s);
+            s->requestRelative();
             break;
         case VMMOUSE_REQUEST_ABSOLUTE:
-            vmmouse_request_absolute(s);
+            s->requestAbsolute();
             break;
         default:
             printf("vmmouse: unknown command %x\n", data[1]);
@@ -255,7 +278,7 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
         }
         break;
     case VMPORT_CMD_VMMOUSE_DATA:
-        vmmouse_data(s, data, data[1]);
+        s->getData(data, data[1]);
         break;
     default:
         printf("vmmouse: unknown command %x\n", command);
@@ -266,12 +289,12 @@ static uint32_t vmmouse_ioport_read(void *opaque, uint32_t addr)
     return data[0];
 }
 
-static int vmmouse_post_load(void *opaque, int version_id)
+int VMMouseState::postLoad(void *opaque, int version_id)
 {
     VMMouseState *s = static_cast<VMMouseState *>(opaque);
 
-    vmmouse_remove_handler(s);
-    vmmouse_update_handler(s, s->absolute);
+    s->removeHandler();
+    s->updateHandler(s->absolute);
     return 0;
 }
 
@@ -288,27 +311,35 @@ static const VMStateDescription vmstate_vmmouse = {
     .name = "vmmouse",
     .version_id = 0,
     .minimum_version_id = 0,
-    .post_load = vmmouse_post_load,
+    .post_load = VMMouseState::postLoad,
     .fields = vmstate_vmmouse_fields,
 };
 
-static void vmmouse_reset(DeviceState *d)
+void VMMouseState::resetWrapper(DeviceState *d)
 {
     VMMouseState *s = VMMOUSE(d);
-
-    s->queue_size = VMMOUSE_QUEUE_SIZE;
-    s->nb_queue = 0;
-
-    vmmouse_disable(s);
+    s->reset();
 }
 
-static void vmmouse_realizefn(DeviceState *dev, Error **errp)
+void VMMouseState::reset()
+{
+    queue_size = VMMOUSE_QUEUE_SIZE;
+    nb_queue = 0;
+
+    disable();
+}
+
+void VMMouseState::realizeWrapper(DeviceState *dev, Error **errp)
 {
     VMMouseState *s = VMMOUSE(dev);
+    s->realize(errp);
+}
 
+void VMMouseState::realize(Error **errp)
+{
     trace_vmmouse_init();
 
-    if (!s->i8042) {
+    if (!i8042) {
         error_setg(errp, "'i8042' link is not set");
         return;
     }
@@ -317,21 +348,21 @@ static void vmmouse_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    vmport_register(VMPORT_CMD_VMMOUSE_STATUS, vmmouse_ioport_read, s);
-    vmport_register(VMPORT_CMD_VMMOUSE_COMMAND, vmmouse_ioport_read, s);
-    vmport_register(VMPORT_CMD_VMMOUSE_DATA, vmmouse_ioport_read, s);
+    vmport_register(VMPORT_CMD_VMMOUSE_STATUS, VMMouseState::ioportRead, this);
+    vmport_register(VMPORT_CMD_VMMOUSE_COMMAND, VMMouseState::ioportRead, this);
+    vmport_register(VMPORT_CMD_VMMOUSE_DATA, VMMouseState::ioportRead, this);
 }
 
 static const Property vmmouse_properties[] = {
     DEFINE_PROP_LINK("i8042", VMMouseState, i8042, TYPE_I8042, ISAKBDState *),
 };
 
-static void vmmouse_class_initfn(ObjectClass *klass, const void *data)
+void VMMouseState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = vmmouse_realizefn;
-    device_class_set_legacy_reset(dc, vmmouse_reset);
+    dc->realize = VMMouseState::realizeWrapper;
+    device_class_set_legacy_reset(dc, VMMouseState::resetWrapper);
     dc->vmsd = &vmstate_vmmouse;
     device_class_set_props(dc, vmmouse_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
@@ -341,7 +372,7 @@ static const TypeInfo vmmouse_info = {
     .name          = TYPE_VMMOUSE,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(VMMouseState),
-    .class_init    = vmmouse_class_initfn,
+    .class_init    = VMMouseState::classInit,
 };
 
 static void vmmouse_register_types(void)

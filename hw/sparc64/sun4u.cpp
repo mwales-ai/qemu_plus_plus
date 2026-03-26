@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -91,6 +92,14 @@ struct EbusState {
     uint64_t console_serial_base;
     MemoryRegion bar0;
     MemoryRegion bar1;
+
+    /* Methods */
+    void realizeDevice(Error **errp);
+
+    /* Callbacks */
+    static void isaIrqHandler(void *opaque, int n, int level);
+    static void realizeWrapper(PCIDevice *pci_dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_EBUS "ebus"
@@ -118,7 +127,7 @@ const char *fw_cfg_arch_key_name(uint16_t key)
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
-    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_modify_i16(static_cast<FWCfgState *>(opaque), FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
 static int sun4u_NVRAM_set_params(Nvram *nvram, uint16_t NVRAM_size,
@@ -229,16 +238,25 @@ struct PowerDevice {
     SysBusDevice parent_obj;
 
     MemoryRegion power_mmio;
+
+    /* Methods */
+    void realizeDevice(Error **errp);
+
+    /* Callbacks */
+    static uint64_t readOp(void *opaque, hwaddr addr, unsigned size);
+    static void writeOp(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /* Power */
-static uint64_t power_mem_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t PowerDevice::readOp(void *opaque, hwaddr addr, unsigned size)
 {
     return 0;
 }
 
-static void power_mem_write(void *opaque, hwaddr addr,
-                            uint64_t val, unsigned size)
+void PowerDevice::writeOp(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned size)
 {
     /* According to a real Ultra 5, bit 24 controls the power */
     if (val & 0x1000000) {
@@ -247,8 +265,8 @@ static void power_mem_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps power_mem_ops = {
-    .read = power_mem_read,
-    .write = power_mem_write,
+    .read = PowerDevice::readOp,
+    .write = PowerDevice::writeOp,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -256,32 +274,37 @@ static const MemoryRegionOps power_mem_ops = {
     },
 };
 
-static void power_realize(DeviceState *dev, Error **errp)
+void PowerDevice::realizeWrapper(DeviceState *dev, Error **errp)
 {
     PowerDevice *d = SUN4U_POWER(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    memory_region_init_io(&d->power_mmio, OBJECT(dev), &power_mem_ops, d,
-                          "power", sizeof(uint32_t));
-
-    sysbus_init_mmio(sbd, &d->power_mmio);
+    d->realizeDevice(errp);
 }
 
-static void power_class_init(ObjectClass *klass, const void *data)
+void PowerDevice::realizeDevice(Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+
+    memory_region_init_io(&power_mmio, OBJECT(this), &power_mem_ops, this,
+                          "power", sizeof(uint32_t));
+
+    sysbus_init_mmio(sbd, &power_mmio);
+}
+
+void PowerDevice::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = power_realize;
+    dc->realize = PowerDevice::realizeWrapper;
 }
 
 static const TypeInfo power_info = {
     .name          = TYPE_SUN4U_POWER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PowerDevice),
-    .class_init    = power_class_init,
+    .class_init    = PowerDevice::classInit,
 };
 
-static void ebus_isa_irq_handler(void *opaque, int n, int level)
+void EbusState::isaIrqHandler(void *opaque, int n, int level)
 {
     EbusState *s = EBUS(opaque);
     qemu_irq irq = s->isa_irqs_out[n];
@@ -294,42 +317,48 @@ static void ebus_isa_irq_handler(void *opaque, int n, int level)
 }
 
 /* EBUS (Eight bit bus) bridge */
-static void ebus_realize(PCIDevice *pci_dev, Error **errp)
+void EbusState::realizeWrapper(PCIDevice *pci_dev, Error **errp)
 {
     EbusState *s = EBUS(pci_dev);
+    s->realizeDevice(errp);
+}
+
+void EbusState::realizeDevice(Error **errp)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(this);
     ISADevice *isa_dev;
     SysBusDevice *sbd;
     DeviceState *dev;
     DriveInfo *fd[MAX_FD];
     int i;
 
-    s->isa_bus = isa_bus_new(DEVICE(pci_dev), get_system_memory(),
-                             pci_address_space_io(pci_dev), errp);
-    if (!s->isa_bus) {
+    isa_bus = isa_bus_new(DEVICE(pci_dev), get_system_memory(),
+                          pci_address_space_io(pci_dev), errp);
+    if (!isa_bus) {
         error_setg(errp, "unable to instantiate EBUS ISA bus");
         return;
     }
 
     /* ISA bus */
-    s->isa_irqs_in = qemu_allocate_irqs(ebus_isa_irq_handler, s, ISA_NUM_IRQS);
-    isa_bus_register_input_irqs(s->isa_bus, s->isa_irqs_in);
-    qdev_init_gpio_out_named(DEVICE(s), s->isa_irqs_out, "isa-irq",
+    isa_irqs_in = qemu_allocate_irqs(EbusState::isaIrqHandler, this, ISA_NUM_IRQS);
+    isa_bus_register_input_irqs(isa_bus, isa_irqs_in);
+    qdev_init_gpio_out_named(DEVICE(this), isa_irqs_out, "isa-irq",
                              ISA_NUM_IRQS);
 
     /* Serial ports */
     i = 0;
-    if (s->console_serial_base) {
-        serial_mm_init(pci_address_space(pci_dev), s->console_serial_base,
+    if (console_serial_base) {
+        serial_mm_init(pci_address_space(pci_dev), console_serial_base,
                        0, NULL, 115200, serial_hd(i), DEVICE_BIG_ENDIAN);
         i++;
     }
-    serial_hds_isa_init(s->isa_bus, i, MAX_ISA_SERIAL_PORTS);
+    serial_hds_isa_init(isa_bus, i, MAX_ISA_SERIAL_PORTS);
 
     /* Parallel ports */
-    parallel_hds_isa_init(s->isa_bus, MAX_PARALLEL_PORTS);
+    parallel_hds_isa_init(isa_bus, MAX_PARALLEL_PORTS);
 
     /* Keyboard */
-    isa_create_simple(s->isa_bus, TYPE_I8042);
+    isa_create_simple(isa_bus, TYPE_I8042);
 
     /* Floppy */
     for (i = 0; i < MAX_FD; i++) {
@@ -338,7 +367,7 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
     isa_dev = isa_new(TYPE_ISA_FDC);
     dev = DEVICE(isa_dev);
     qdev_prop_set_uint32(dev, "dma", -1);
-    isa_realize_and_unref(isa_dev, s->isa_bus, &error_fatal);
+    isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
     isa_fdc_init_drives(isa_dev, fd);
 
     /* Power */
@@ -361,12 +390,12 @@ static void ebus_realize(PCIDevice *pci_dev, Error **errp)
      * memory access to this region to succeed which allows the OpenBSD kernel
      * to boot.
      */
-    memory_region_init_io(&s->bar0, OBJECT(s), &unassigned_io_ops, s,
+    memory_region_init_io(&bar0, OBJECT(this), &unassigned_io_ops, this,
                           "bar0", 0x1000000);
-    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar0);
-    memory_region_init_alias(&s->bar1, OBJECT(s), "bar1",
+    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &bar0);
+    memory_region_init_alias(&bar1, OBJECT(this), "bar1",
                              pci_address_space_io(pci_dev), 0, 0x8000);
-    pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
+    pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &bar1);
 }
 
 static const Property ebus_properties[] = {
@@ -374,12 +403,12 @@ static const Property ebus_properties[] = {
                        console_serial_base, 0),
 };
 
-static void ebus_class_init(ObjectClass *klass, const void *data)
+void EbusState::classInit(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->realize = ebus_realize;
+    k->realize = EbusState::realizeWrapper;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_EBUS;
     k->revision = 0x01;
@@ -390,7 +419,7 @@ static void ebus_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo ebus_info = {
     .name          = TYPE_EBUS,
     .parent        = TYPE_PCI_DEVICE,
-    .class_init    = ebus_class_init,
+    .class_init    = EbusState::classInit,
     .instance_size = sizeof(EbusState),
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -407,6 +436,13 @@ struct PROMState {
     SysBusDevice parent_obj;
 
     MemoryRegion prom;
+
+    /* Methods */
+    void realizeDevice(Error **errp);
+
+    /* Callbacks */
+    static void realizeWrapper(DeviceState *ds, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static uint64_t translate_prom_address(void *opaque, uint64_t addr)
@@ -450,33 +486,38 @@ static void prom_init(hwaddr addr, const char *bios_name)
     }
 }
 
-static void prom_realize(DeviceState *ds, Error **errp)
+void PROMState::realizeWrapper(DeviceState *ds, Error **errp)
 {
     PROMState *s = OPENPROM(ds);
-    SysBusDevice *dev = SYS_BUS_DEVICE(ds);
+    s->realizeDevice(errp);
+}
 
-    if (!memory_region_init_ram_nomigrate(&s->prom, OBJECT(ds), "sun4u.prom",
+void PROMState::realizeDevice(Error **errp)
+{
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+
+    if (!memory_region_init_ram_nomigrate(&prom, OBJECT(this), "sun4u.prom",
                                           PROM_SIZE_MAX, errp)) {
         return;
     }
 
-    vmstate_register_ram_global(&s->prom);
-    memory_region_set_readonly(&s->prom, true);
-    sysbus_init_mmio(dev, &s->prom);
+    vmstate_register_ram_global(&prom);
+    memory_region_set_readonly(&prom, true);
+    sysbus_init_mmio(dev, &prom);
 }
 
-static void prom_class_init(ObjectClass *klass, const void *data)
+void PROMState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = prom_realize;
+    dc->realize = PROMState::realizeWrapper;
 }
 
 static const TypeInfo prom_info = {
     .name          = TYPE_OPENPROM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PROMState),
-    .class_init    = prom_class_init,
+    .class_init    = PROMState::classInit,
 };
 
 
@@ -490,18 +531,30 @@ struct RamDevice {
 
     MemoryRegion ram;
     uint64_t size;
+
+    /* Methods */
+    void realizeDevice(Error **errp);
+
+    /* Callbacks */
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /* System RAM */
-static void ram_realize(DeviceState *dev, Error **errp)
+void RamDevice::realizeWrapper(DeviceState *dev, Error **errp)
 {
     RamDevice *d = SUN4U_RAM(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    d->realizeDevice(errp);
+}
 
-    memory_region_init_ram_nomigrate(&d->ram, OBJECT(d), "sun4u.ram", d->size,
+void RamDevice::realizeDevice(Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+
+    memory_region_init_ram_nomigrate(&ram, OBJECT(this), "sun4u.ram", size,
                            &error_fatal);
-    vmstate_register_ram_global(&d->ram);
-    sysbus_init_mmio(sbd, &d->ram);
+    vmstate_register_ram_global(&ram);
+    sysbus_init_mmio(sbd, &ram);
 }
 
 static void ram_init(hwaddr addr, ram_addr_t RAM_size)
@@ -525,11 +578,11 @@ static const Property ram_properties[] = {
     DEFINE_PROP_UINT64("size", RamDevice, size, 0),
 };
 
-static void ram_class_init(ObjectClass *klass, const void *data)
+void RamDevice::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = ram_realize;
+    dc->realize = RamDevice::realizeWrapper;
     device_class_set_props(dc, ram_properties);
 }
 
@@ -537,7 +590,7 @@ static const TypeInfo ram_info = {
     .name          = TYPE_SUN4U_MEMORY,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RamDevice),
-    .class_init    = ram_class_init,
+    .class_init    = RamDevice::classInit,
 };
 
 static void sun4uv_init(MemoryRegion *address_space_mem,

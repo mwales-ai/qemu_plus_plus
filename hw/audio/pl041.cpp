@@ -22,7 +22,6 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
-
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
@@ -94,23 +93,24 @@ struct PL041State {
     pl041_channel fifo1;
     lm4549_state codec;
 
-    static uint8_t computePeriphId3(PL041State *s);
-    void softReset();
+    /* methods */
+    uint8_t computePeriphid3();
+    void resetState();
     void fifo1Write(uint32_t value);
     void fifo1Transmit();
     void isr1Update();
 
     static void requestData(void *opaque);
-    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
-    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
-                          unsigned size);
+    static uint64_t readOp(void *opaque, hwaddr offset, unsigned size);
+    static void writeOp(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
 
     void reset();
     static void resetWrapper(DeviceState *d);
 
-    static void instanceInit(Object *obj);
-    void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void initfn(Object *obj);
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -139,12 +139,12 @@ static const char *get_reg_name(hwaddr offset)
 }
 #endif
 
-uint8_t PL041State::computePeriphId3(PL041State *s)
+uint8_t PL041State::computePeriphid3()
 {
     uint8_t id3 = 1; /* One channel */
 
     /* Add the fifo depth information */
-    switch (s->fifo_depth) {
+    switch (fifo_depth) {
     case 8:
         id3 |= 0 << 3;
         break;
@@ -174,7 +174,7 @@ uint8_t PL041State::computePeriphId3(PL041State *s)
     return id3;
 }
 
-void PL041State::softReset()
+void PL041State::resetState()
 {
     DBG_L1("pl041_reset\n");
 
@@ -359,14 +359,14 @@ void PL041State::requestData(void *opaque)
     s->isr1Update();
 }
 
-uint64_t PL041State::mmioRead(void *opaque, hwaddr offset, unsigned size)
+uint64_t PL041State::readOp(void *opaque, hwaddr offset, unsigned size)
 {
     PL041State *s = static_cast<PL041State *>(opaque);
     int value;
 
     if ((offset >= PL041_periphid0) && (offset <= PL041_pcellid3)) {
         if (offset == PL041_periphid3) {
-            value = computePeriphId3(s);
+            value = s->computePeriphid3();
         } else {
             value = pl041_default_id[(offset - PL041_periphid0) >> 2];
         }
@@ -392,8 +392,8 @@ uint64_t PL041State::mmioRead(void *opaque, hwaddr offset, unsigned size)
     return value;
 }
 
-void PL041State::mmioWrite(void *opaque, hwaddr offset,
-                            uint64_t value, unsigned size)
+void PL041State::writeOp(void *opaque, hwaddr offset,
+                          uint64_t value, unsigned size)
 {
     PL041State *s = static_cast<PL041State *>(opaque);
     uint16_t control, data;
@@ -513,7 +513,7 @@ void PL041State::mmioWrite(void *opaque, hwaddr offset,
 #endif
 
         if ((s->regs.maincr & AACIFE) == 0) {
-            s->softReset();
+            s->resetState();
         }
         break;
     }
@@ -533,24 +533,24 @@ void PL041State::mmioWrite(void *opaque, hwaddr offset,
     s->isr1Update();
 }
 
-void PL041State::reset()
-{
-    softReset();
-}
-
 void PL041State::resetWrapper(DeviceState *d)
 {
     PL041State *s = PL041(d);
     s->reset();
 }
 
+void PL041State::reset()
+{
+    resetState();
+}
+
 static const MemoryRegionOps pl041_ops = {
-    .read = PL041State::mmioRead,
-    .write = PL041State::mmioWrite,
+    .read = PL041State::readOp,
+    .write = PL041State::writeOp,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void PL041State::instanceInit(Object *obj)
+void PL041State::initfn(Object *obj)
 {
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     PL041State *s = PL041(dev);
@@ -561,6 +561,12 @@ void PL041State::instanceInit(Object *obj)
     memory_region_init_io(&s->iomem, obj, &pl041_ops, s, "pl041", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
+}
+
+void PL041State::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    PL041State *s = PL041(dev);
+    s->realize(errp);
 }
 
 void PL041State::realize(Error **errp)
@@ -586,13 +592,7 @@ void PL041State::realize(Error **errp)
     }
 
     /* Init the codec */
-    lm4549_init(&codec, &requestData, static_cast<void *>(this), errp);
-}
-
-void PL041State::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    PL041State *s = PL041(dev);
-    s->realize(errp);
+    lm4549_init(&codec, &PL041State::requestData, static_cast<void *>(this), errp);
 }
 
 static const VMStateDescription vmstate_pl041_regfile = {
@@ -664,9 +664,9 @@ void PL041State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = realizeWrapper;
+    dc->realize = PL041State::realizeWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    device_class_set_legacy_reset(dc, resetWrapper);
+    device_class_set_legacy_reset(dc, PL041State::resetWrapper);
     dc->vmsd = &vmstate_pl041;
     device_class_set_props(dc, pl041_device_properties);
 }
@@ -675,7 +675,7 @@ static const TypeInfo pl041_device_info = {
     .name          = TYPE_PL041,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL041State),
-    .instance_init = PL041State::instanceInit,
+    .instance_init = PL041State::initfn,
     .class_init    = PL041State::classInit,
 };
 

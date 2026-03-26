@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "exec/target_page.h"
 #include "system/system.h"
@@ -71,6 +72,21 @@ struct VAPICROMState {
     size_t rom_size;
     bool rom_mapped_writable;
     VMChangeStateEntry *vmsentry;
+
+    /* methods */
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+
+    static void vapicWrite(void *opaque, hwaddr addr, uint64_t data,
+                           unsigned int size);
+    static uint64_t vapicRead(void *opaque, hwaddr addr, unsigned size);
+    static int postLoad(void *opaque, int version_id);
+    static void vmStateChange(void *opaque, bool running, RunState state);
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_VAPIC "kvmvapic"
@@ -165,11 +181,6 @@ static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
     if (s->state == VAPIC_ACTIVE) {
         return 0;
     }
-    /*
-     * If there is no prior TPR access instruction we could analyze (which is
-     * the case after resume from hibernation), we need to scan the possible
-     * virtual address space for the APIC mapping.
-     */
     for (addr = 0xfffff000; addr >= 0x80000000; addr -= TARGET_PAGE_SIZE) {
         paddr = cpu_get_phys_page_debug(cs, addr);
         if (paddr != APIC_DEFAULT_ADDRESS) {
@@ -215,25 +226,11 @@ static int evaluate_tpr_instruction(VAPICROMState *s, X86CPU *cpu,
         return -1;
     }
 
-    /*
-     * Early Windows 2003 SMP initialization contains a
-     *
-     *   mov imm32, r/m32
-     *
-     * instruction that is patched by TPR optimization. The problem is that
-     * RSP, used by the patched instruction, is zero, so the guest gets a
-     * double fault and dies.
-     */
     if (cpu->env.regs[R_ESP] == 0) {
         return -1;
     }
 
     if (kvm_enabled() && !kvm_irqchip_in_kernel()) {
-        /*
-         * KVM without kernel-based TPR access reporting will pass an IP that
-         * points after the accessing instruction. So we need to look backward
-         * to find the reason.
-         */
         for (i = 0; i < ARRAY_SIZE(tpr_instr); i++) {
             instr = &tpr_instr[i];
             if (instr->access != access) {
@@ -263,10 +260,6 @@ static int evaluate_tpr_instruction(VAPICROMState *s, X86CPU *cpu,
     }
 
 instruction_ok:
-    /*
-     * Grab the virtual TPR address from the instruction
-     * and update the cached values.
-     */
     if (cpu_memory_rw_debug(cs, ip + instr->addr_offset,
                             (void *)&real_tpr_addr,
                             sizeof(real_tpr_addr), 0) < 0) {
@@ -290,17 +283,14 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
     uint32_t rom_state_vaddr;
     uint32_t pos, patch, offset;
 
-    /* nothing to do if already activated */
     if (s->state == VAPIC_ACTIVE) {
         return 0;
     }
 
-    /* bail out if ROM init code was not executed (missing ROM?) */
     if (s->state == VAPIC_INACTIVE) {
         return -1;
     }
 
-    /* find out virtual address of the ROM */
     rom_state_vaddr = s->rom_state_paddr + (ip & 0xf0000000);
     paddr = cpu_get_phys_page_debug(cs, rom_state_vaddr);
     if (paddr == -1) {
@@ -316,7 +306,6 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
     }
     s->rom_state_vaddr = rom_state_vaddr;
 
-    /* fixup addresses in ROM if needed */
     if (rom_state_vaddr == le32_to_cpu(s->rom_state.vaddr)) {
         return 0;
     }
@@ -339,12 +328,6 @@ static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong i
     return 0;
 }
 
-/*
- * Tries to read the unique processor number from the Kernel Processor Control
- * Region (KPCR) of 32-bit Windows XP and Server 2003. Returns -1 if the KPCR
- * cannot be accessed or is considered invalid. This also ensures that we are
- * not patching the wrong guest.
- */
 static int get_kpcr_number(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
@@ -405,7 +388,7 @@ typedef struct PatchInfo {
 static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
 {
     X86CPU *x86_cpu = X86_CPU(cs);
-    PatchInfo *info = (PatchInfo *) data.host_ptr;
+    PatchInfo *info = static_cast<PatchInfo *>(data.host_ptr);
     VAPICHandlers *handlers = info->handler;
     target_ulong ip = info->ip;
     uint8_t opcode[2];
@@ -515,20 +498,19 @@ static void vapic_enable_tpr_reporting(bool enable)
     }
 }
 
-static void vapic_reset(DeviceState *dev)
+void VAPICROMState::resetWrapper(DeviceState *dev)
 {
     VAPICROMState *s = VAPIC(dev);
+    s->reset();
+}
 
-    s->state = VAPIC_INACTIVE;
-    s->rom_state_paddr = 0;
+void VAPICROMState::reset()
+{
+    state = VAPIC_INACTIVE;
+    rom_state_paddr = 0;
     vapic_enable_tpr_reporting(false);
 }
 
-/*
- * Set the IRQ polling hypercalls to the supported variant:
- *  - vmcall if using KVM in-kernel irqchip
- *  - 32-bit VAPIC port write otherwise
- */
 static int patch_hypercalls(VAPICROMState *s)
 {
     hwaddr rom_paddr = s->rom_state_paddr & ROM_BLOCK_MASK;
@@ -562,11 +544,6 @@ static int patch_hypercalls(VAPICROMState *s)
         if (memcmp(rom + pos, pattern, 7) == 0 &&
             (rom[pos + 7] == alternates[0] || rom[pos + 7] == alternates[1])) {
             cpu_physical_memory_write(rom_paddr + pos + 5, patch, 3);
-            /*
-             * Don't flush the tb here. Under ordinary conditions, the patched
-             * calls are miles away from the current IP. Under malicious
-             * conditions, the guest could trick us to crash.
-             */
         }
     }
 
@@ -574,11 +551,6 @@ static int patch_hypercalls(VAPICROMState *s)
     return 0;
 }
 
-/*
- * For TCG mode or the time KVM honors read-only memory regions, we need to
- * enable write access to the option ROM so that variables can be updated by
- * the guest.
- */
 static int vapic_map_rom_writable(VAPICROMState *s)
 {
     hwaddr rom_paddr = s->rom_state_paddr & ROM_BLOCK_MASK;
@@ -592,10 +564,8 @@ static int vapic_map_rom_writable(VAPICROMState *s)
         object_unparent(OBJECT(&s->rom));
     }
 
-    /* grab RAM memory region (region @rom_paddr may still be pc.rom) */
     section = memory_region_find(mr, 0, 1);
 
-    /* read ROM size from RAM region */
     if (rom_paddr + 2 >= memory_region_size(section.mr)) {
         return -1;
     }
@@ -606,8 +576,6 @@ static int vapic_map_rom_writable(VAPICROMState *s)
     }
     s->rom_size = rom_size;
 
-    /* We need to round to avoid creating subpages
-     * from which we cannot run code. */
     rom_size += rom_paddr & ~TARGET_PAGE_MASK;
     rom_paddr &= TARGET_PAGE_MASK;
     rom_size = TARGET_PAGE_ALIGN(rom_size);
@@ -636,8 +604,8 @@ static int vapic_prepare(VAPICROMState *s)
     return 0;
 }
 
-static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
-                        unsigned int size)
+void VAPICROMState::vapicWrite(void *opaque, hwaddr addr, uint64_t data,
+                                unsigned int size)
 {
     VAPICROMState *s = static_cast<VAPICROMState *>(opaque);
     X86CPU *cpu;
@@ -652,17 +620,6 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
     cpu = X86_CPU(current_cpu);
     env = &cpu->env;
 
-    /*
-     * The VAPIC supports two PIO-based hypercalls, both via port 0x7E.
-     *  o 16-bit write access:
-     *    Reports the option ROM initialization to the hypervisor. Written
-     *    value is the offset of the state structure in the ROM.
-     *  o 8-bit write access:
-     *    Reactivates the VAPIC after a guest hibernation, i.e. after the
-     *    option ROM content has been re-initialized by a guest power cycle.
-     *  o 32-bit write access:
-     *    Poll for pending IRQs, considering the current VAPIC state.
-     */
     switch (size) {
     case 2:
         if (s->state == VAPIC_INACTIVE) {
@@ -679,12 +636,6 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
         break;
     case 1:
         if (kvm_enabled()) {
-            /*
-             * Disable triggering instruction in ROM by writing a NOP.
-             *
-             * We cannot do this in TCG mode as the reported IP is not
-             * accurate.
-             */
             pause_all_vcpus();
             patch_byte(cpu, env->eip - 2, 0x66);
             patch_byte(cpu, env->eip - 1, 0x90);
@@ -711,24 +662,29 @@ static void vapic_write(void *opaque, hwaddr addr, uint64_t data,
     }
 }
 
-static uint64_t vapic_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t VAPICROMState::vapicRead(void *opaque, hwaddr addr, unsigned size)
 {
     return 0xffffffff;
 }
 
 static const MemoryRegionOps vapic_ops = {
-    .read = vapic_read,
-    .write = vapic_write,
+    .read = VAPICROMState::vapicRead,
+    .write = VAPICROMState::vapicWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void vapic_realize(DeviceState *dev, Error **errp)
+void VAPICROMState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     VAPICROMState *s = VAPIC(dev);
+    s->realize(errp);
+}
 
-    memory_region_init_io(&s->io, OBJECT(s), &vapic_ops, s, "kvmvapic", 2);
-    memory_region_add_subregion(get_system_io(), VAPIC_IO_PORT, &s->io);
+void VAPICROMState::realize(Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(&busdev);
+
+    memory_region_init_io(&io, OBJECT(this), &vapic_ops, this, "kvmvapic", 2);
+    memory_region_add_subregion(get_system_io(), VAPIC_IO_PORT, &io);
     sysbus_init_ioports(sbd, VAPIC_IO_PORT, 2);
 
     option_rom[nb_option_roms].name = "kvmvapic.bin";
@@ -748,7 +704,7 @@ static void do_vapic_enable(CPUState *cs, run_on_cpu_data data)
     s->state = VAPIC_ACTIVE;
 }
 
-static void vapic_vm_state_change(void *opaque, bool running, RunState state)
+void VAPICROMState::vmStateChange(void *opaque, bool running, RunState state)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     VAPICROMState *s = static_cast<VAPICROMState *>(opaque);
@@ -773,14 +729,10 @@ static void vapic_vm_state_change(void *opaque, bool running, RunState state)
     s->vmsentry = NULL;
 }
 
-static int vapic_post_load(void *opaque, int version_id)
+int VAPICROMState::postLoad(void *opaque, int version_id)
 {
     VAPICROMState *s = static_cast<VAPICROMState *>(opaque);
 
-    /*
-     * The old implementation of qemu-kvm did not provide the state
-     * VAPIC_STANDBY. Reconstruct it.
-     */
     if (s->state == VAPIC_INACTIVE && s->rom_state_paddr != 0) {
         s->state = VAPIC_STANDBY;
     }
@@ -793,7 +745,7 @@ static int vapic_post_load(void *opaque, int version_id)
 
     if (!s->vmsentry) {
         s->vmsentry =
-            qemu_add_vm_change_state_handler(vapic_vm_state_change, s);
+            qemu_add_vm_change_state_handler(VAPICROMState::vmStateChange, s);
     }
     return 0;
 }
@@ -849,24 +801,24 @@ static const VMStateDescription vmstate_vapic = {
     .name = "kvm-tpr-opt",      /* compatible with qemu-kvm VAPIC */
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = vapic_post_load,
+    .post_load = VAPICROMState::postLoad,
     .fields = vmstate_vapic_fields,
 };
 
-static void vapic_class_init(ObjectClass *klass, const void *data)
+void VAPICROMState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, vapic_reset);
+    device_class_set_legacy_reset(dc, VAPICROMState::resetWrapper);
     dc->vmsd    = &vmstate_vapic;
-    dc->realize = vapic_realize;
+    dc->realize = VAPICROMState::realizeWrapper;
 }
 
 static const TypeInfo vapic_type = {
     .name          = TYPE_VAPIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(VAPICROMState),
-    .class_init    = vapic_class_init,
+    .class_init    = VAPICROMState::classInit,
 };
 
 static void vapic_register(void)

@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "exec/cpu-interrupt.h"

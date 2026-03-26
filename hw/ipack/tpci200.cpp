@@ -70,8 +70,22 @@ struct TPCI200State {
     uint16_t status;
     uint8_t int_set;
 
+    /* methods */
+    static void setIrq(void *opaque, int intno, int level);
+    static uint64_t readCfg(void *opaque, hwaddr addr, unsigned size);
+    static void writeCfg(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t readLas0(void *opaque, hwaddr addr, unsigned size);
+    static void writeLas0(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t readLas1(void *opaque, hwaddr addr, unsigned size);
+    static void writeLas1(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t readLas2(void *opaque, hwaddr addr, unsigned size);
+    static void writeLas2(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t readLas3(void *opaque, hwaddr addr, unsigned size);
+    static void writeLas3(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+
     void realize(Error **errp);
     static void realizeWrapper(PCIDevice *pci_dev, Error **errp);
+
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -92,8 +106,6 @@ static const uint8_t local_config_regs[] = {
 
 static void adjust_addr(bool big_endian, hwaddr *addr, unsigned size)
 {
-    /* During 8 bit access in big endian mode,
-       odd and even addresses are swapped */
     if (big_endian && size == 1) {
         *addr ^= 1;
     }
@@ -101,15 +113,13 @@ static void adjust_addr(bool big_endian, hwaddr *addr, unsigned size)
 
 static uint64_t adjust_value(bool big_endian, uint64_t *val, unsigned size)
 {
-    /* Local spaces only support 8/16 bit access,
-     * so there's no need to care for sizes > 2 */
     if (big_endian && size == 2) {
         *val = bswap16(*val);
     }
     return *val;
 }
 
-static void tpci200_set_irq(void *opaque, int intno, int level)
+void TPCI200State::setIrq(void *opaque, int intno, int level)
 {
     IPackDevice *ip = static_cast<IPackDevice *>(opaque);
     IPackBus *bus = IPACK_BUS(qdev_get_parent_bus(DEVICE(ip)));
@@ -120,27 +130,22 @@ static void tpci200_set_irq(void *opaque, int intno, int level)
 
     assert(ip->slot >= 0 && ip->slot < N_MODULES);
 
-    /* The requested interrupt must be enabled in the IP CONTROL
-     * register */
     if (!(dev->ctrl[ip_n] & CTRL_INT(intno))) {
         return;
     }
 
-    /* Update the interrupt status in the IP STATUS register */
     if (level) {
         dev->status |=  STATUS_INT(ip_n, intno);
     } else {
         dev->status &= ~STATUS_INT(ip_n, intno);
     }
 
-    /* Return if there are no changes */
     if (dev->status == prev_status) {
         return;
     }
 
     DPRINTF("IP %u INT%u#: %u\n", ip_n, intno, level);
 
-    /* Check if the interrupt is edge sensitive */
     if (dev->ctrl[ip_n] & CTRL_INT_EDGE(intno)) {
         if (level) {
             pci_set_irq(&dev->dev, !dev->int_set);
@@ -150,9 +155,6 @@ static void tpci200_set_irq(void *opaque, int intno, int level)
         unsigned i, j;
         uint16_t level_status = dev->status;
 
-        /* Check if there are any level sensitive interrupts set by
-           removing the ones that are edge sensitive from the status
-           register */
         for (i = 0; i < N_MODULES; i++) {
             for (j = 0; j < 2; j++) {
                 if (dev->ctrl[i] & CTRL_INT_EDGE(j)) {
@@ -171,14 +173,13 @@ static void tpci200_set_irq(void *opaque, int intno, int level)
     }
 }
 
-static uint64_t tpci200_read_cfg(void *opaque, hwaddr addr, unsigned size)
+uint64_t TPCI200State::readCfg(void *opaque, hwaddr addr, unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
     uint8_t ret = 0;
     if (addr < ARRAY_SIZE(local_config_regs)) {
         ret = local_config_regs[addr];
     }
-    /* Endianness is stored in the first bit of these registers */
     if ((addr == 0x2b && s->big_endian[0]) ||
         (addr == 0x2f && s->big_endian[1]) ||
         (addr == 0x33 && s->big_endian[2])) {
@@ -188,11 +189,10 @@ static uint64_t tpci200_read_cfg(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static void tpci200_write_cfg(void *opaque, hwaddr addr, uint64_t val,
-                              unsigned size)
+void TPCI200State::writeCfg(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
-    /* Endianness is stored in the first bit of these registers */
     if (addr == 0x2b || addr == 0x2f || addr == 0x33) {
         unsigned las = (addr - 0x2b) / 4;
         s->big_endian[las] = val & 1;
@@ -202,17 +202,15 @@ static void tpci200_write_cfg(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static uint64_t tpci200_read_las0(void *opaque, hwaddr addr, unsigned size)
+uint64_t TPCI200State::readLas0(void *opaque, hwaddr addr, unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
     uint64_t ret = 0;
 
     switch (addr) {
-
     case REG_REV_ID:
-        DPRINTF("Read REVISION ID\n"); /* Current value is 0x00 */
+        DPRINTF("Read REVISION ID\n");
         break;
-
     case REG_IP_A_CTRL:
     case REG_IP_B_CTRL:
     case REG_IP_C_CTRL:
@@ -223,17 +221,13 @@ static uint64_t tpci200_read_las0(void *opaque, hwaddr addr, unsigned size)
             DPRINTF("Read IP %c CONTROL: 0x%x\n", 'A' + ip_n, (unsigned) ret);
         }
         break;
-
     case REG_RESET:
-        DPRINTF("Read RESET\n"); /* Not implemented */
+        DPRINTF("Read RESET\n");
         break;
-
     case REG_STATUS:
         ret = s->status;
         DPRINTF("Read STATUS: 0x%x\n", (unsigned) ret);
         break;
-
-    /* Reserved */
     default:
         DPRINTF("Unsupported read from LAS0 0x%x\n", (unsigned) addr);
         break;
@@ -242,19 +236,17 @@ static uint64_t tpci200_read_las0(void *opaque, hwaddr addr, unsigned size)
     return adjust_value(s->big_endian[0], &ret, size);
 }
 
-static void tpci200_write_las0(void *opaque, hwaddr addr, uint64_t val,
-                               unsigned size)
+void TPCI200State::writeLas0(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
 
     adjust_value(s->big_endian[0], &val, size);
 
     switch (addr) {
-
     case REG_REV_ID:
-        DPRINTF("Write Revision ID: 0x%x\n", (unsigned) val); /* No effect */
+        DPRINTF("Write Revision ID: 0x%x\n", (unsigned) val);
         break;
-
     case REG_IP_A_CTRL:
     case REG_IP_B_CTRL:
     case REG_IP_C_CTRL:
@@ -265,18 +257,14 @@ static void tpci200_write_las0(void *opaque, hwaddr addr, uint64_t val,
             DPRINTF("Write IP %c CONTROL: 0x%x\n", 'A' + ip_n, (unsigned) val);
         }
         break;
-
     case REG_RESET:
-        DPRINTF("Write RESET: 0x%x\n", (unsigned) val); /* Not implemented */
+        DPRINTF("Write RESET: 0x%x\n", (unsigned) val);
         break;
-
     case REG_STATUS:
         {
             unsigned i;
-
             for (i = 0; i < N_MODULES; i++) {
                 IPackDevice *ip = ipack_device_find(&s->bus, i);
-
                 if (ip != NULL) {
                     if (val & STATUS_INT(i, 0)) {
                         DPRINTF("Clear IP %c INT0# status\n", 'A' + i);
@@ -287,21 +275,17 @@ static void tpci200_write_las0(void *opaque, hwaddr addr, uint64_t val,
                         qemu_irq_lower(&ip->irq[1]);
                     }
                 }
-
                 if (val & STATUS_TIME(i)) {
                     DPRINTF("Clear IP %c timeout\n", 'A' + i);
                     s->status &= ~STATUS_TIME(i);
                 }
             }
-
             if (val & STATUS_ERR_ANY) {
                 DPRINTF("Unexpected write to STATUS register: 0x%x\n",
                         (unsigned) val);
             }
         }
         break;
-
-    /* Reserved */
     default:
         DPRINTF("Unsupported write to LAS0 0x%x: 0x%x\n",
                 (unsigned) addr, (unsigned) val);
@@ -309,7 +293,7 @@ static void tpci200_write_las0(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
+uint64_t TPCI200State::readLas1(void *opaque, hwaddr addr, unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
@@ -319,10 +303,6 @@ static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
 
     adjust_addr(s->big_endian[1], &addr, size);
 
-    /*
-     * The address is divided into the IP module number (0-4), the IP
-     * address space (I/O, ID, INT) and the offset within that space.
-     */
     ip_n = addr >> 8;
     space = (addr >> 6) & 3;
     ip = ipack_device_find(&s->bus, ip_n);
@@ -332,18 +312,14 @@ static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
     } else {
         IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
         switch (space) {
-
         case IP_ID_SPACE:
             offset = addr & IP_ID_SPACE_ADDR_MASK;
             if (k->id_read) {
                 ret = k->id_read(ip, offset);
             }
             break;
-
         case IP_INT_SPACE:
             offset = addr & IP_INT_SPACE_ADDR_MASK;
-
-            /* Read address 0 to ACK IP INT0# and address 2 to ACK IP INT1# */
             if (offset == 0 || offset == 2) {
                 unsigned intno = offset / 2;
                 bool int_set = s->status & STATUS_INT(ip_n, intno);
@@ -352,12 +328,10 @@ static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
                     qemu_irq_lower(&ip->irq[intno]);
                 }
             }
-
             if (k->int_read) {
                 ret = k->int_read(ip, offset);
             }
             break;
-
         default:
             offset = addr & IP_IO_SPACE_ADDR_MASK;
             if (k->io_read) {
@@ -370,8 +344,8 @@ static uint64_t tpci200_read_las1(void *opaque, hwaddr addr, unsigned size)
     return adjust_value(s->big_endian[1], &ret, size);
 }
 
-static void tpci200_write_las1(void *opaque, hwaddr addr, uint64_t val,
-                               unsigned size)
+void TPCI200State::writeLas1(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
@@ -381,10 +355,6 @@ static void tpci200_write_las1(void *opaque, hwaddr addr, uint64_t val,
     adjust_addr(s->big_endian[1], &addr, size);
     adjust_value(s->big_endian[1], &val, size);
 
-    /*
-     * The address is divided into the IP module number, the IP
-     * address space (I/O, ID, INT) and the offset within that space.
-     */
     ip_n = addr >> 8;
     space = (addr >> 6) & 3;
     ip = ipack_device_find(&s->bus, ip_n);
@@ -394,21 +364,18 @@ static void tpci200_write_las1(void *opaque, hwaddr addr, uint64_t val,
     } else {
         IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
         switch (space) {
-
         case IP_ID_SPACE:
             offset = addr & IP_ID_SPACE_ADDR_MASK;
             if (k->id_write) {
                 k->id_write(ip, offset, val);
             }
             break;
-
         case IP_INT_SPACE:
             offset = addr & IP_INT_SPACE_ADDR_MASK;
             if (k->int_write) {
                 k->int_write(ip, offset, val);
             }
             break;
-
         default:
             offset = addr & IP_IO_SPACE_ADDR_MASK;
             if (k->io_write) {
@@ -419,7 +386,7 @@ static void tpci200_write_las1(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static uint64_t tpci200_read_las2(void *opaque, hwaddr addr, unsigned size)
+uint64_t TPCI200State::readLas2(void *opaque, hwaddr addr, unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
@@ -429,10 +396,6 @@ static uint64_t tpci200_read_las2(void *opaque, hwaddr addr, unsigned size)
 
     adjust_addr(s->big_endian[2], &addr, size);
 
-    /*
-     * The address is divided into the IP module number and the offset
-     * within the IP module MEM space.
-     */
     ip_n = addr >> 23;
     offset = addr & 0x7fffff;
     ip = ipack_device_find(&s->bus, ip_n);
@@ -449,8 +412,8 @@ static uint64_t tpci200_read_las2(void *opaque, hwaddr addr, unsigned size)
     return adjust_value(s->big_endian[2], &ret, size);
 }
 
-static void tpci200_write_las2(void *opaque, hwaddr addr, uint64_t val,
-                               unsigned size)
+void TPCI200State::writeLas2(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
@@ -460,10 +423,6 @@ static void tpci200_write_las2(void *opaque, hwaddr addr, uint64_t val,
     adjust_addr(s->big_endian[2], &addr, size);
     adjust_value(s->big_endian[2], &val, size);
 
-    /*
-     * The address is divided into the IP module number and the offset
-     * within the IP module MEM space.
-     */
     ip_n = addr >> 23;
     offset = addr & 0x7fffff;
     ip = ipack_device_find(&s->bus, ip_n);
@@ -478,15 +437,11 @@ static void tpci200_write_las2(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static uint64_t tpci200_read_las3(void *opaque, hwaddr addr, unsigned size)
+uint64_t TPCI200State::readLas3(void *opaque, hwaddr addr, unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
     uint64_t ret = 0;
-    /*
-     * The address is divided into the IP module number and the offset
-     * within the IP module MEM space.
-     */
     unsigned ip_n = addr >> 22;
     uint32_t offset = addr & 0x3fffff;
 
@@ -504,15 +459,11 @@ static uint64_t tpci200_read_las3(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static void tpci200_write_las3(void *opaque, hwaddr addr, uint64_t val,
-                               unsigned size)
+void TPCI200State::writeLas3(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
 {
     TPCI200State *s = static_cast<TPCI200State *>(opaque);
     IPackDevice *ip;
-    /*
-     * The address is divided into the IP module number and the offset
-     * within the IP module MEM space.
-     */
     unsigned ip_n = addr >> 22;
     uint32_t offset = addr & 0x3fffff;
 
@@ -529,8 +480,8 @@ static void tpci200_write_las3(void *opaque, hwaddr addr, uint64_t val,
 }
 
 static const MemoryRegionOps tpci200_cfg_ops = {
-    .read = tpci200_read_cfg,
-    .write = tpci200_write_cfg,
+    .read = TPCI200State::readCfg,
+    .write = TPCI200State::writeCfg,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid =  {
         .min_access_size = 1,
@@ -543,8 +494,8 @@ static const MemoryRegionOps tpci200_cfg_ops = {
 };
 
 static const MemoryRegionOps tpci200_las0_ops = {
-    .read = tpci200_read_las0,
-    .write = tpci200_write_las0,
+    .read = TPCI200State::readLas0,
+    .write = TPCI200State::writeLas0,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid =  {
         .min_access_size = 2,
@@ -553,8 +504,8 @@ static const MemoryRegionOps tpci200_las0_ops = {
 };
 
 static const MemoryRegionOps tpci200_las1_ops = {
-    .read = tpci200_read_las1,
-    .write = tpci200_write_las1,
+    .read = TPCI200State::readLas1,
+    .write = TPCI200State::writeLas1,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid =  {
         .min_access_size = 1,
@@ -563,8 +514,8 @@ static const MemoryRegionOps tpci200_las1_ops = {
 };
 
 static const MemoryRegionOps tpci200_las2_ops = {
-    .read = tpci200_read_las2,
-    .write = tpci200_write_las2,
+    .read = TPCI200State::readLas2,
+    .write = TPCI200State::writeLas2,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid =  {
         .min_access_size = 1,
@@ -573,14 +524,20 @@ static const MemoryRegionOps tpci200_las2_ops = {
 };
 
 static const MemoryRegionOps tpci200_las3_ops = {
-    .read = tpci200_read_las3,
-    .write = tpci200_write_las3,
+    .read = TPCI200State::readLas3,
+    .write = TPCI200State::writeLas3,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid =  {
         .min_access_size = 1,
         .max_access_size = 1
     }
 };
+
+void TPCI200State::realizeWrapper(PCIDevice *pci_dev, Error **errp)
+{
+    TPCI200State *s = TPCI200(pci_dev);
+    s->realize(errp);
+}
 
 void TPCI200State::realize(Error **errp)
 {
@@ -589,7 +546,7 @@ void TPCI200State::realize(Error **errp)
     pci_set_word(c + PCI_COMMAND, 0x0003);
     pci_set_word(c + PCI_STATUS,  0x0280);
 
-    pci_set_byte(c + PCI_INTERRUPT_PIN, 0x01); /* Interrupt pin A */
+    pci_set_byte(c + PCI_INTERRUPT_PIN, 0x01);
 
     pci_set_byte(c + PCI_CAPABILITY_LIST, 0x40);
     pci_set_long(c + 0x40, 0x48014801);
@@ -615,14 +572,8 @@ void TPCI200State::realize(Error **errp)
     pci_register_bar(&dev, 4, PCI_BASE_ADDRESS_SPACE_MEMORY, &las2);
     pci_register_bar(&dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &las3);
 
-    ipack_bus_init(&bus, sizeof(bus), DEVICE(this),
-                   N_MODULES, tpci200_set_irq);
-}
-
-void TPCI200State::realizeWrapper(PCIDevice *pci_dev, Error **errp)
-{
-    TPCI200State *s = TPCI200(pci_dev);
-    s->realize(errp);
+    ipack_bus_init(&bus, sizeof(bus), DEVICE(&dev),
+                   N_MODULES, TPCI200State::setIrq);
 }
 
 static const VMStateDescription vmstate_tpci200 = {

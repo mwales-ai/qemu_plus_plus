@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qemu/datadir.h"
@@ -180,11 +181,11 @@ static void init_boot_param(unsigned cpu_count, uint32_t processor_id)
     struct boot_params *bp;
 
     p = g_malloc0(loader_rommap[LOADER_PARAM].size);
-    bp = p;
+    bp = static_cast<struct boot_params *>(p);
 
     bp->efi.smbios.vers = cpu_to_le16(1);
     init_reset_system(&(bp->reset_system));
-    p += ROUND_UP(sizeof(struct boot_params), 64);
+    p = static_cast<char *>(p) + ROUND_UP(sizeof(struct boot_params), 64);
     init_loongson_params(&(bp->efi.smbios.lp), p, cpu_count, processor_id,
                          loaderparams.cpu_freq, loaderparams.ram_size);
 
@@ -278,7 +279,7 @@ static void init_boot_rom(void)
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
-    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_modify_i16(static_cast<FWCfgState *>(opaque), FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
 static void fw_conf_init(void)
@@ -317,7 +318,7 @@ static int set_prom_cmdline(ram_addr_t initrd_offset, long initrd_size)
      * argv[0], argv[1], 0, env[0], env[1], ... env[i], 0,
      * argv[0]'s data, argv[1]'s data, env[0]'data, ..., env[i]'s data, 0
      */
-    parg_env = (void *)cmdline_buf;
+    parg_env = static_cast<unsigned int *>(cmdline_buf);
 
     ret = (3 + 1) * 4;
     *parg_env++ = cmdline_vaddr + ret;
@@ -403,7 +404,7 @@ static uint64_t load_kernel(CPUMIPSState *env)
 
 static void generic_cpu_reset(void *opaque)
 {
-    MIPSCPU *cpu = opaque;
+    MIPSCPU *cpu = static_cast<MIPSCPU *>(opaque);
     CPUMIPSState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
@@ -418,7 +419,7 @@ static void main_cpu_reset(void *opaque)
     generic_cpu_reset(opaque);
 
     if (loaderparams.kernel_filename) {
-        MIPSCPU *cpu = opaque;
+        MIPSCPU *cpu = static_cast<MIPSCPU *>(opaque);
         CPUMIPSState *env = &cpu->env;
 
         env->active_tc.gpr[4] = loaderparams.a0;

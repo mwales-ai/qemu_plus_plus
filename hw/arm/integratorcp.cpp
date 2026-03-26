@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -53,6 +54,18 @@ struct IntegratorCMState {
     uint32_t int_level;
     uint32_t irq_enabled;
     uint32_t fiq_enabled;
+
+    /* Methods */
+    void doRemap();
+    void setCtrl(uint32_t value);
+    void update();
+
+    /* Callbacks */
+    static uint64_t readOp(void *opaque, hwaddr offset, unsigned size);
+    static void writeOp(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    static void instanceInit(Object *obj);
+    static void realize(DeviceState *d, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static uint8_t integrator_spd[128] = {
@@ -80,8 +93,8 @@ static const VMStateDescription vmstate_integratorcm = {
     }
 };
 
-static uint64_t integratorcm_read(void *opaque, hwaddr offset,
-                                  unsigned size)
+uint64_t IntegratorCMState::readOp(void *opaque, hwaddr offset,
+                                   unsigned size)
 {
     IntegratorCMState *s = static_cast<IntegratorCMState *>(opaque);
     if (offset >= 0x100 && offset < 0x200) {
@@ -155,20 +168,20 @@ static uint64_t integratorcm_read(void *opaque, hwaddr offset,
     }
 }
 
-static void integratorcm_do_remap(IntegratorCMState *s)
+void IntegratorCMState::doRemap()
 {
     /* Sync memory region state with CM_CTRL REMAP bit:
      * bit 0 => flash at address 0; bit 1 => RAM
      */
-    memory_region_set_enabled(&s->flash, !(s->cm_ctrl & 4));
+    memory_region_set_enabled(&flash, !(cm_ctrl & 4));
 }
 
-static void integratorcm_set_ctrl(IntegratorCMState *s, uint32_t value)
+void IntegratorCMState::setCtrl(uint32_t value)
 {
     if (value & 8) {
         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
     }
-    if ((s->cm_ctrl ^ value) & 1) {
+    if ((cm_ctrl ^ value) & 1) {
         /* (value & 1) != 0 means the green "MISC LED" is lit.
          * We don't have any nice place to display LEDs. printf is a bad
          * idea because Linux uses the LED as a heartbeat and the output
@@ -176,20 +189,20 @@ static void integratorcm_set_ctrl(IntegratorCMState *s, uint32_t value)
          */
     }
     /* Note that the RESET bit [3] always reads as zero */
-    s->cm_ctrl = (s->cm_ctrl & ~5) | (value & 5);
-    integratorcm_do_remap(s);
+    cm_ctrl = (cm_ctrl & ~5) | (value & 5);
+    doRemap();
 }
 
-static void integratorcm_update(IntegratorCMState *s)
+void IntegratorCMState::update()
 {
     /* ??? The CPU irq/fiq is raised when either the core module or base PIC
        are active.  */
-    if (s->int_level & (s->irq_enabled | s->fiq_enabled))
+    if (int_level & (irq_enabled | fiq_enabled))
         hw_error("Core module interrupt\n");
 }
 
-static void integratorcm_write(void *opaque, hwaddr offset,
-                               uint64_t value, unsigned size)
+void IntegratorCMState::writeOp(void *opaque, hwaddr offset,
+                                uint64_t value, unsigned size)
 {
     IntegratorCMState *s = static_cast<IntegratorCMState *>(opaque);
     switch (offset >> 2) {
@@ -198,7 +211,7 @@ static void integratorcm_write(void *opaque, hwaddr offset,
             s->cm_osc = value;
         break;
     case 3: /* CM_CTRL */
-        integratorcm_set_ctrl(s, value);
+        s->setCtrl(value);
         break;
     case 5: /* CM_LOCK */
         s->cm_lock = value & 0xffff;
@@ -228,27 +241,27 @@ static void integratorcm_write(void *opaque, hwaddr offset,
         break;
     case 18: /* CM_IRQ_ENSET */
         s->irq_enabled |= value;
-        integratorcm_update(s);
+        s->update();
         break;
     case 19: /* CM_IRQ_ENCLR */
         s->irq_enabled &= ~value;
-        integratorcm_update(s);
+        s->update();
         break;
     case 20: /* CM_SOFT_INTSET */
         s->int_level |= (value & 1);
-        integratorcm_update(s);
+        s->update();
         break;
     case 21: /* CM_SOFT_INTCLR */
         s->int_level &= ~(value & 1);
-        integratorcm_update(s);
+        s->update();
         break;
     case 26: /* CM_FIQ_ENSET */
         s->fiq_enabled |= value;
-        integratorcm_update(s);
+        s->update();
         break;
     case 27: /* CM_FIQ_ENCLR */
         s->fiq_enabled &= ~value;
-        integratorcm_update(s);
+        s->update();
         break;
     case 32: /* CM_VOLTAGE_CTL0 */
     case 33: /* CM_VOLTAGE_CTL1 */
@@ -267,12 +280,12 @@ static void integratorcm_write(void *opaque, hwaddr offset,
 /* Integrator/CM control registers.  */
 
 static const MemoryRegionOps integratorcm_ops = {
-    .read = integratorcm_read,
-    .write = integratorcm_write,
+    .read = IntegratorCMState::readOp,
+    .write = IntegratorCMState::writeOp,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void integratorcm_init(Object *obj)
+void IntegratorCMState::instanceInit(Object *obj)
 {
     IntegratorCMState *s = INTEGRATOR_CM(obj);
 
@@ -288,7 +301,7 @@ static void integratorcm_init(Object *obj)
     /* ??? Save/restore.  */
 }
 
-static void integratorcm_realize(DeviceState *d, Error **errp)
+void IntegratorCMState::realize(DeviceState *d, Error **errp)
 {
     IntegratorCMState *s = INTEGRATOR_CM(d);
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
@@ -302,7 +315,7 @@ static void integratorcm_realize(DeviceState *d, Error **errp)
                           "integratorcm", 0x00800000);
     sysbus_init_mmio(dev, &s->iomem);
 
-    integratorcm_do_remap(s);
+    s->doRemap();
 
     if (s->memsz >= 256) {
         integrator_spd[31] = 64;
@@ -338,6 +351,16 @@ struct icp_pic_state {
     uint32_t fiq_enabled;
     qemu_irq parent_irq;
     qemu_irq parent_fiq;
+
+    /* Methods */
+    void update();
+
+    /* Callbacks */
+    static void setIrq(void *opaque, int irq, int level);
+    static uint64_t readOp(void *opaque, hwaddr offset, unsigned size);
+    static void writeOp(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateDescription vmstate_icp_pic = {
@@ -352,30 +375,30 @@ static const VMStateDescription vmstate_icp_pic = {
     }
 };
 
-static void icp_pic_update(icp_pic_state *s)
+void icp_pic_state::update()
 {
     uint32_t flags;
 
-    flags = (s->level & s->irq_enabled);
-    qemu_set_irq(s->parent_irq, flags != 0);
-    flags = (s->level & s->fiq_enabled);
-    qemu_set_irq(s->parent_fiq, flags != 0);
+    flags = (level & irq_enabled);
+    qemu_set_irq(parent_irq, flags != 0);
+    flags = (level & fiq_enabled);
+    qemu_set_irq(parent_fiq, flags != 0);
 }
 
-static void icp_pic_set_irq(void *opaque, int irq, int level)
+void icp_pic_state::setIrq(void *opaque, int irq, int level)
 {
-    icp_pic_state *s = (icp_pic_state *)opaque;
+    icp_pic_state *s = static_cast<icp_pic_state *>(opaque);
     if (level)
         s->level |= 1 << irq;
     else
         s->level &= ~(1 << irq);
-    icp_pic_update(s);
+    s->update();
 }
 
-static uint64_t icp_pic_read(void *opaque, hwaddr offset,
-                             unsigned size)
+uint64_t icp_pic_state::readOp(void *opaque, hwaddr offset,
+                                unsigned size)
 {
-    icp_pic_state *s = (icp_pic_state *)opaque;
+    icp_pic_state *s = static_cast<icp_pic_state *>(opaque);
 
     switch (offset >> 2) {
     case 0: /* IRQ_STATUS */
@@ -402,10 +425,10 @@ static uint64_t icp_pic_read(void *opaque, hwaddr offset,
     }
 }
 
-static void icp_pic_write(void *opaque, hwaddr offset,
-                          uint64_t value, unsigned size)
+void icp_pic_state::writeOp(void *opaque, hwaddr offset,
+                             uint64_t value, unsigned size)
 {
-    icp_pic_state *s = (icp_pic_state *)opaque;
+    icp_pic_state *s = static_cast<icp_pic_state *>(opaque);
 
     switch (offset >> 2) {
     case 2: /* IRQ_ENABLESET */
@@ -416,11 +439,11 @@ static void icp_pic_write(void *opaque, hwaddr offset,
         break;
     case 4: /* INT_SOFTSET */
         if (value & 1)
-            icp_pic_set_irq(s, 0, 1);
+            icp_pic_state::setIrq(s, 0, 1);
         break;
     case 5: /* INT_SOFTCLR */
         if (value & 1)
-            icp_pic_set_irq(s, 0, 0);
+            icp_pic_state::setIrq(s, 0, 0);
         break;
     case 10: /* FRQ_ENABLESET */
         s->fiq_enabled |= value;
@@ -437,22 +460,22 @@ static void icp_pic_write(void *opaque, hwaddr offset,
                       __func__, offset);
         return;
     }
-    icp_pic_update(s);
+    s->update();
 }
 
 static const MemoryRegionOps icp_pic_ops = {
-    .read = icp_pic_read,
-    .write = icp_pic_write,
+    .read = icp_pic_state::readOp,
+    .write = icp_pic_state::writeOp,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void icp_pic_init(Object *obj)
+void icp_pic_state::instanceInit(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     icp_pic_state *s = INTEGRATOR_PIC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    qdev_init_gpio_in(dev, icp_pic_set_irq, 32);
+    qdev_init_gpio_in(dev, icp_pic_state::setIrq, 32);
     sysbus_init_irq(sbd, &s->parent_irq);
     sysbus_init_irq(sbd, &s->parent_fiq);
     memory_region_init_io(&s->iomem, obj, &icp_pic_ops, s,
@@ -474,6 +497,14 @@ struct ICPCtrlRegsState {
 
     qemu_irq mmc_irq;
     uint32_t intreg_state;
+
+    /* Callbacks */
+    static uint64_t readOp(void *opaque, hwaddr offset, unsigned size);
+    static void writeOp(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    static void mmcWprot(void *opaque, int line, int level);
+    static void mmcCardin(void *opaque, int line, int level);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define ICP_GPIO_MMC_WPROT      "mmc-wprot"
@@ -492,8 +523,8 @@ static const VMStateDescription vmstate_icp_control = {
     }
 };
 
-static uint64_t icp_control_read(void *opaque, hwaddr offset,
-                                 unsigned size)
+uint64_t ICPCtrlRegsState::readOp(void *opaque, hwaddr offset,
+                                  unsigned size)
 {
     ICPCtrlRegsState *s = static_cast<ICPCtrlRegsState *>(opaque);
 
@@ -513,8 +544,8 @@ static uint64_t icp_control_read(void *opaque, hwaddr offset,
     }
 }
 
-static void icp_control_write(void *opaque, hwaddr offset,
-                          uint64_t value, unsigned size)
+void ICPCtrlRegsState::writeOp(void *opaque, hwaddr offset,
+                               uint64_t value, unsigned size)
 {
     ICPCtrlRegsState *s = static_cast<ICPCtrlRegsState *>(opaque);
 
@@ -534,12 +565,12 @@ static void icp_control_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps icp_control_ops = {
-    .read = icp_control_read,
-    .write = icp_control_write,
+    .read = ICPCtrlRegsState::readOp,
+    .write = ICPCtrlRegsState::writeOp,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void icp_control_mmc_wprot(void *opaque, int line, int level)
+void ICPCtrlRegsState::mmcWprot(void *opaque, int line, int level)
 {
     ICPCtrlRegsState *s = static_cast<ICPCtrlRegsState *>(opaque);
 
@@ -549,7 +580,7 @@ static void icp_control_mmc_wprot(void *opaque, int line, int level)
     }
 }
 
-static void icp_control_mmc_cardin(void *opaque, int line, int level)
+void ICPCtrlRegsState::mmcCardin(void *opaque, int line, int level)
 {
     ICPCtrlRegsState *s = static_cast<ICPCtrlRegsState *>(opaque);
 
@@ -560,7 +591,7 @@ static void icp_control_mmc_cardin(void *opaque, int line, int level)
     }
 }
 
-static void icp_control_init(Object *obj)
+void ICPCtrlRegsState::instanceInit(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     ICPCtrlRegsState *s = ICP_CONTROL_REGS(obj);
@@ -570,8 +601,8 @@ static void icp_control_init(Object *obj)
                           "icp_ctrl_regs", 0x00800000);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    qdev_init_gpio_in_named(dev, icp_control_mmc_wprot, ICP_GPIO_MMC_WPROT, 1);
-    qdev_init_gpio_in_named(dev, icp_control_mmc_cardin,
+    qdev_init_gpio_in_named(dev, ICPCtrlRegsState::mmcWprot, ICP_GPIO_MMC_WPROT, 1);
+    qdev_init_gpio_in_named(dev, ICPCtrlRegsState::mmcCardin,
                             ICP_GPIO_MMC_CARDIN, 1);
     sysbus_init_irq(sbd, &s->mmc_irq);
 }
@@ -700,23 +731,23 @@ static const Property core_properties[] = {
     DEFINE_PROP_UINT32("memsz", IntegratorCMState, memsz, 0),
 };
 
-static void core_class_init(ObjectClass *klass, const void *data)
+void IntegratorCMState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_props(dc, core_properties);
-    dc->realize = integratorcm_realize;
+    dc->realize = IntegratorCMState::realize;
     dc->vmsd = &vmstate_integratorcm;
 }
 
-static void icp_pic_class_init(ObjectClass *klass, const void *data)
+void icp_pic_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_icp_pic;
 }
 
-static void icp_control_class_init(ObjectClass *klass, const void *data)
+void ICPCtrlRegsState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -727,24 +758,24 @@ static const TypeInfo core_info = {
     .name          = TYPE_INTEGRATOR_CM,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(IntegratorCMState),
-    .instance_init = integratorcm_init,
-    .class_init    = core_class_init,
+    .instance_init = IntegratorCMState::instanceInit,
+    .class_init    = IntegratorCMState::classInit,
 };
 
 static const TypeInfo icp_pic_info = {
     .name          = TYPE_INTEGRATOR_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(icp_pic_state),
-    .instance_init = icp_pic_init,
-    .class_init    = icp_pic_class_init,
+    .instance_init = icp_pic_state::instanceInit,
+    .class_init    = icp_pic_state::classInit,
 };
 
 static const TypeInfo icp_ctrl_regs_info = {
     .name          = TYPE_ICP_CONTROL_REGS,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ICPCtrlRegsState),
-    .instance_init = icp_control_init,
-    .class_init    = icp_control_class_init,
+    .instance_init = ICPCtrlRegsState::instanceInit,
+    .class_init    = ICPCtrlRegsState::classInit,
 };
 
 static void integratorcp_register_types(void)
