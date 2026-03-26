@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -91,6 +92,16 @@ struct StrongARMPICState {
     uint32_t enabled;
     uint32_t is_fiq;
     uint32_t int_idle;
+
+    /* Methods */
+    void update();
+    static void setIrq(void *opaque, int irq, int level);
+    static uint64_t memRead(void *opaque, hwaddr offset, unsigned size);
+    static void memWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    void initfn();
+    static void initfnWrapper(Object *obj);
+    static int postLoad(void *opaque, int version_id);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define ICIP    0x00
@@ -103,16 +114,16 @@ struct StrongARMPICState {
 #define SA_PIC_SRCS     32
 
 
-static void strongarm_pic_update(void *opaque)
+void StrongARMPICState::update()
 {
-    StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
+    StrongARMPICState *s = this;
 
     /* FIXME: reflect DIM */
     qemu_set_irq(s->fiq, s->pending & s->enabled &  s->is_fiq);
     qemu_set_irq(s->irq, s->pending & s->enabled & ~s->is_fiq);
 }
 
-static void strongarm_pic_set_irq(void *opaque, int irq, int level)
+void StrongARMPICState::setIrq(void *opaque, int irq, int level)
 {
     StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
 
@@ -122,10 +133,10 @@ static void strongarm_pic_set_irq(void *opaque, int irq, int level)
         s->pending &= ~(1 << irq);
     }
 
-    strongarm_pic_update(s);
+    s->update();
 }
 
-static uint64_t strongarm_pic_mem_read(void *opaque, hwaddr offset,
+uint64_t StrongARMPICState::memRead(void *opaque, hwaddr offset,
                                        unsigned size)
 {
     StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
@@ -151,7 +162,7 @@ static uint64_t strongarm_pic_mem_read(void *opaque, hwaddr offset,
     }
 }
 
-static void strongarm_pic_mem_write(void *opaque, hwaddr offset,
+void StrongARMPICState::memWrite(void *opaque, hwaddr offset,
                                     uint64_t value, unsigned size)
 {
     StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
@@ -172,22 +183,23 @@ static void strongarm_pic_mem_write(void *opaque, hwaddr offset,
                      __func__, offset);
         break;
     }
-    strongarm_pic_update(s);
+    s->update();
 }
 
 static const MemoryRegionOps strongarm_pic_ops = {
-    .read = strongarm_pic_mem_read,
-    .write = strongarm_pic_mem_write,
+    .read = StrongARMPICState::memRead,
+    .write = StrongARMPICState::memWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void strongarm_pic_initfn(Object *obj)
+void StrongARMPICState::initfn()
 {
+    Object *obj = OBJECT(this);
     DeviceState *dev = DEVICE(obj);
-    StrongARMPICState *s = STRONGARM_PIC(obj);
+    StrongARMPICState *s = this;
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    qdev_init_gpio_in(dev, strongarm_pic_set_irq, SA_PIC_SRCS);
+    qdev_init_gpio_in(dev, StrongARMPICState::setIrq, SA_PIC_SRCS);
     memory_region_init_io(&s->iomem, obj, &strongarm_pic_ops, s,
                           "pic", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
@@ -195,9 +207,16 @@ static void strongarm_pic_initfn(Object *obj)
     sysbus_init_irq(sbd, &s->fiq);
 }
 
-static int strongarm_pic_post_load(void *opaque, int version_id)
+void StrongARMPICState::initfnWrapper(Object *obj)
 {
-    strongarm_pic_update(opaque);
+    StrongARMPICState *s = STRONGARM_PIC(obj);
+    s->initfn();
+}
+
+int StrongARMPICState::postLoad(void *opaque, int version_id)
+{
+    StrongARMPICState *s = static_cast<StrongARMPICState *>(opaque);
+    s->update();
     return 0;
 }
 
@@ -205,7 +224,7 @@ static const VMStateDescription vmstate_strongarm_pic_regs = {
     .name = "strongarm_pic",
     .version_id = 0,
     .minimum_version_id = 0,
-    .post_load = strongarm_pic_post_load,
+    .post_load = StrongARMPICState::postLoad,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(pending, StrongARMPICState),
         VMSTATE_UINT32(enabled, StrongARMPICState),
@@ -215,7 +234,7 @@ static const VMStateDescription vmstate_strongarm_pic_regs = {
     },
 };
 
-static void strongarm_pic_class_init(ObjectClass *klass, const void *data)
+void StrongARMPICState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -227,8 +246,8 @@ static const TypeInfo strongarm_pic_info = {
     .name          = TYPE_STRONGARM_PIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPICState),
-    .instance_init = strongarm_pic_initfn,
-    .class_init    = strongarm_pic_class_init,
+    .instance_init = StrongARMPICState::initfnWrapper,
+    .class_init    = StrongARMPICState::classInit,
 };
 
 /* Real-Time Clock */
@@ -262,24 +281,43 @@ struct StrongARMRTCState {
     QEMUTimer *rtc_hz;
     qemu_irq rtc_irq;
     qemu_irq rtc_hz_irq;
+
+    /* Methods */
+    void intUpdate();
+    void hzUpdate();
+    void timerUpdate();
+    static void alarmTick(void *opaque);
+    static void hzTick(void *opaque);
+    static uint64_t read(void *opaque, hwaddr addr, unsigned size);
+    static void write(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    void instanceInit();
+    static void instanceInitWrapper(Object *obj);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static int preSave(void *opaque);
+    static int postLoad(void *opaque, int version_id);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static inline void strongarm_rtc_int_update(StrongARMRTCState *s)
+void StrongARMRTCState::intUpdate()
 {
+    StrongARMRTCState *s = this;
     qemu_set_irq(s->rtc_irq, s->rtsr & RTSR_AL);
     qemu_set_irq(s->rtc_hz_irq, s->rtsr & RTSR_HZ);
 }
 
-static void strongarm_rtc_hzupdate(StrongARMRTCState *s)
+void StrongARMRTCState::hzUpdate()
 {
+    StrongARMRTCState *s = this;
     int64_t rt = qemu_clock_get_ms(rtc_clock);
     s->last_rcnr += ((rt - s->last_hz) << 15) /
             (1000 * ((s->rttr & 0xffff) + 1));
     s->last_hz = rt;
 }
 
-static inline void strongarm_rtc_timer_update(StrongARMRTCState *s)
+void StrongARMRTCState::timerUpdate()
 {
+    StrongARMRTCState *s = this;
     if ((s->rtsr & RTSR_HZE) && !(s->rtsr & RTSR_HZ)) {
         timer_mod(s->rtc_hz, s->last_hz + 1000);
     } else {
@@ -295,23 +333,23 @@ static inline void strongarm_rtc_timer_update(StrongARMRTCState *s)
     }
 }
 
-static inline void strongarm_rtc_alarm_tick(void *opaque)
+void StrongARMRTCState::alarmTick(void *opaque)
 {
     StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
     s->rtsr |= RTSR_AL;
-    strongarm_rtc_timer_update(s);
-    strongarm_rtc_int_update(s);
+    s->timerUpdate();
+    s->intUpdate();
 }
 
-static inline void strongarm_rtc_hz_tick(void *opaque)
+void StrongARMRTCState::hzTick(void *opaque)
 {
     StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
     s->rtsr |= RTSR_HZ;
-    strongarm_rtc_timer_update(s);
-    strongarm_rtc_int_update(s);
+    s->timerUpdate();
+    s->intUpdate();
 }
 
-static uint64_t strongarm_rtc_read(void *opaque, hwaddr addr,
+uint64_t StrongARMRTCState::read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
@@ -335,7 +373,7 @@ static uint64_t strongarm_rtc_read(void *opaque, hwaddr addr,
     }
 }
 
-static void strongarm_rtc_write(void *opaque, hwaddr addr,
+void StrongARMRTCState::write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
     StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
@@ -343,9 +381,9 @@ static void strongarm_rtc_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case RTTR:
-        strongarm_rtc_hzupdate(s);
+        s->hzUpdate();
         s->rttr = value;
-        strongarm_rtc_timer_update(s);
+        s->timerUpdate();
         break;
 
     case RTSR:
@@ -354,21 +392,21 @@ static void strongarm_rtc_write(void *opaque, hwaddr addr,
                   (s->rtsr & ~(value & (RTSR_AL | RTSR_HZ)));
 
         if (s->rtsr != old_rtsr) {
-            strongarm_rtc_timer_update(s);
+            s->timerUpdate();
         }
 
-        strongarm_rtc_int_update(s);
+        s->intUpdate();
         break;
 
     case RTAR:
         s->rtar = value;
-        strongarm_rtc_timer_update(s);
+        s->timerUpdate();
         break;
 
     case RCNR:
-        strongarm_rtc_hzupdate(s);
+        s->hzUpdate();
         s->last_rcnr = value;
-        strongarm_rtc_timer_update(s);
+        s->timerUpdate();
         break;
 
     default:
@@ -379,14 +417,15 @@ static void strongarm_rtc_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps strongarm_rtc_ops = {
-    .read = strongarm_rtc_read,
-    .write = strongarm_rtc_write,
+    .read = StrongARMRTCState::read,
+    .write = StrongARMRTCState::write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void strongarm_rtc_init(Object *obj)
+void StrongARMRTCState::instanceInit()
 {
-    StrongARMRTCState *s = STRONGARM_RTC(obj);
+    StrongARMRTCState *s = this;
+    Object *obj = OBJECT(this);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     struct tm tm;
 
@@ -406,28 +445,40 @@ static void strongarm_rtc_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static void strongarm_rtc_realize(DeviceState *dev, Error **errp)
+void StrongARMRTCState::realize(Error **errp)
 {
-    StrongARMRTCState *s = STRONGARM_RTC(dev);
-    s->rtc_alarm = timer_new_ms(rtc_clock, strongarm_rtc_alarm_tick, s);
-    s->rtc_hz = timer_new_ms(rtc_clock, strongarm_rtc_hz_tick, s);
+    StrongARMRTCState *s = this;
+    s->rtc_alarm = timer_new_ms(rtc_clock, StrongARMRTCState::alarmTick, s);
+    s->rtc_hz = timer_new_ms(rtc_clock, StrongARMRTCState::hzTick, s);
 }
 
-static int strongarm_rtc_pre_save(void *opaque)
+void StrongARMRTCState::instanceInitWrapper(Object *obj)
+{
+    StrongARMRTCState *s = STRONGARM_RTC(obj);
+    s->instanceInit();
+}
+
+void StrongARMRTCState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    StrongARMRTCState *s = STRONGARM_RTC(dev);
+    s->realize(errp);
+}
+
+int StrongARMRTCState::preSave(void *opaque)
 {
     StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
 
-    strongarm_rtc_hzupdate(s);
+    s->hzUpdate();
 
     return 0;
 }
 
-static int strongarm_rtc_post_load(void *opaque, int version_id)
+int StrongARMRTCState::postLoad(void *opaque, int version_id)
 {
     StrongARMRTCState *s = static_cast<StrongARMRTCState *>(opaque);
 
-    strongarm_rtc_timer_update(s);
-    strongarm_rtc_int_update(s);
+    s->timerUpdate();
+    s->intUpdate();
 
     return 0;
 }
@@ -436,8 +487,8 @@ static const VMStateDescription vmstate_strongarm_rtc_regs = {
     .name = "strongarm-rtc",
     .version_id = 0,
     .minimum_version_id = 0,
-    .post_load = strongarm_rtc_post_load,
-    .pre_save = strongarm_rtc_pre_save,
+    .post_load = StrongARMRTCState::postLoad,
+    .pre_save = StrongARMRTCState::preSave,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT32(rttr, StrongARMRTCState),
         VMSTATE_UINT32(rtsr, StrongARMRTCState),
@@ -448,22 +499,22 @@ static const VMStateDescription vmstate_strongarm_rtc_regs = {
     },
 };
 
-static void strongarm_rtc_sysbus_class_init(ObjectClass *klass,
+void StrongARMRTCState::classInit(ObjectClass *klass,
                                             const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "StrongARM RTC Controller";
     dc->vmsd = &vmstate_strongarm_rtc_regs;
-    dc->realize = strongarm_rtc_realize;
+    dc->realize = StrongARMRTCState::realizeWrapper;
 }
 
 static const TypeInfo strongarm_rtc_sysbus_info = {
     .name          = TYPE_STRONGARM_RTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMRTCState),
-    .instance_init = strongarm_rtc_init,
-    .class_init    = strongarm_rtc_sysbus_class_init,
+    .instance_init = StrongARMRTCState::instanceInitWrapper,
+    .class_init    = StrongARMRTCState::classInit,
 };
 
 /* GPIO */
@@ -495,11 +546,22 @@ struct StrongARMGPIOInfo {
     uint32_t gafr;
 
     uint32_t prev_level;
+
+    /* Methods */
+    void irqUpdate();
+    void handlerUpdate();
+    static void setGpio(void *opaque, int line, int level);
+    static uint64_t gpioRead(void *opaque, hwaddr offset, unsigned size);
+    static void gpioWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    void initfn();
+    static void initfnWrapper(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 
-static void strongarm_gpio_irq_update(StrongARMGPIOInfo *s)
+void StrongARMGPIOInfo::irqUpdate()
 {
+    StrongARMGPIOInfo *s = this;
     int i;
     for (i = 0; i < 11; i++) {
         qemu_set_irq(s->irqs[i], s->status & (1 << i));
@@ -508,7 +570,7 @@ static void strongarm_gpio_irq_update(StrongARMGPIOInfo *s)
     qemu_set_irq(s->irqX, (s->status & ~0x7ff));
 }
 
-static void strongarm_gpio_set(void *opaque, int line, int level)
+void StrongARMGPIOInfo::setGpio(void *opaque, int line, int level)
 {
     StrongARMGPIOInfo *s = static_cast<StrongARMGPIOInfo *>(opaque);
     uint32_t mask;
@@ -526,12 +588,13 @@ static void strongarm_gpio_set(void *opaque, int line, int level)
     }
 
     if (s->status & mask) {
-        strongarm_gpio_irq_update(s);
+        s->irqUpdate();
     }
 }
 
-static void strongarm_gpio_handler_update(StrongARMGPIOInfo *s)
+void StrongARMGPIOInfo::handlerUpdate()
 {
+    StrongARMGPIOInfo *s = this;
     uint32_t level, diff;
     int bit;
 
@@ -545,7 +608,7 @@ static void strongarm_gpio_handler_update(StrongARMGPIOInfo *s)
     s->prev_level = level;
 }
 
-static uint64_t strongarm_gpio_read(void *opaque, hwaddr offset,
+uint64_t StrongARMGPIOInfo::gpioRead(void *opaque, hwaddr offset,
                                     unsigned size)
 {
     StrongARMGPIOInfo *s = static_cast<StrongARMGPIOInfo *>(opaque);
@@ -589,7 +652,7 @@ static uint64_t strongarm_gpio_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void strongarm_gpio_write(void *opaque, hwaddr offset,
+void StrongARMGPIOInfo::gpioWrite(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
     StrongARMGPIOInfo *s = static_cast<StrongARMGPIOInfo *>(opaque);
@@ -597,17 +660,17 @@ static void strongarm_gpio_write(void *opaque, hwaddr offset,
     switch (offset) {
     case GPDR:        /* GPIO Pin-Direction registers */
         s->dir = value & 0x0fffffff;
-        strongarm_gpio_handler_update(s);
+        s->handlerUpdate();
         break;
 
     case GPSR:        /* GPIO Pin-Output Set registers */
         s->olevel |= value & 0x0fffffff;
-        strongarm_gpio_handler_update(s);
+        s->handlerUpdate();
         break;
 
     case GPCR:        /* GPIO Pin-Output Clear registers */
         s->olevel &= ~value;
-        strongarm_gpio_handler_update(s);
+        s->handlerUpdate();
         break;
 
     case GRER:        /* GPIO Rising-Edge Detect Enable registers */
@@ -624,7 +687,7 @@ static void strongarm_gpio_write(void *opaque, hwaddr offset,
 
     case GEDR:        /* GPIO Edge Detect Status registers */
         s->status &= ~value;
-        strongarm_gpio_irq_update(s);
+        s->irqUpdate();
         break;
 
     default:
@@ -635,8 +698,8 @@ static void strongarm_gpio_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps strongarm_gpio_ops = {
-    .read = strongarm_gpio_read,
-    .write = strongarm_gpio_write,
+    .read = StrongARMGPIOInfo::gpioRead,
+    .write = StrongARMGPIOInfo::gpioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -657,14 +720,15 @@ static DeviceState *strongarm_gpio_init(hwaddr base,
     return dev;
 }
 
-static void strongarm_gpio_initfn(Object *obj)
+void StrongARMGPIOInfo::initfn()
 {
+    Object *obj = OBJECT(this);
     DeviceState *dev = DEVICE(obj);
-    StrongARMGPIOInfo *s = STRONGARM_GPIO(obj);
+    StrongARMGPIOInfo *s = this;
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     int i;
 
-    qdev_init_gpio_in(dev, strongarm_gpio_set, 28);
+    qdev_init_gpio_in(dev, StrongARMGPIOInfo::setGpio, 28);
     qdev_init_gpio_out(dev, s->handler, 28);
 
     memory_region_init_io(&s->iomem, obj, &strongarm_gpio_ops, s,
@@ -694,7 +758,13 @@ static const VMStateDescription vmstate_strongarm_gpio_regs = {
     },
 };
 
-static void strongarm_gpio_class_init(ObjectClass *klass, const void *data)
+void StrongARMGPIOInfo::initfnWrapper(Object *obj)
+{
+    StrongARMGPIOInfo *s = STRONGARM_GPIO(obj);
+    s->initfn();
+}
+
+void StrongARMGPIOInfo::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -706,8 +776,8 @@ static const TypeInfo strongarm_gpio_info = {
     .name          = TYPE_STRONGARM_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMGPIOInfo),
-    .instance_init = strongarm_gpio_initfn,
-    .class_init    = strongarm_gpio_class_init,
+    .instance_init = StrongARMGPIOInfo::initfnWrapper,
+    .class_init    = StrongARMGPIOInfo::classInit,
 };
 
 /* Peripheral Pin Controller */
@@ -734,9 +804,18 @@ struct StrongARMPPCInfo {
     uint32_t ppfr;
 
     uint32_t prev_level;
+
+    /* Methods */
+    void handlerUpdate();
+    static void setPpc(void *opaque, int line, int level);
+    static uint64_t ppcRead(void *opaque, hwaddr offset, unsigned size);
+    static void ppcWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    void instanceInit();
+    static void instanceInitWrapper(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void strongarm_ppc_set(void *opaque, int line, int level)
+void StrongARMPPCInfo::setPpc(void *opaque, int line, int level)
 {
     StrongARMPPCInfo *s = static_cast<StrongARMPPCInfo *>(opaque);
 
@@ -747,8 +826,9 @@ static void strongarm_ppc_set(void *opaque, int line, int level)
     }
 }
 
-static void strongarm_ppc_handler_update(StrongARMPPCInfo *s)
+void StrongARMPPCInfo::handlerUpdate()
 {
+    StrongARMPPCInfo *s = this;
     uint32_t level, diff;
     int bit;
 
@@ -762,7 +842,7 @@ static void strongarm_ppc_handler_update(StrongARMPPCInfo *s)
     s->prev_level = level;
 }
 
-static uint64_t strongarm_ppc_read(void *opaque, hwaddr offset,
+uint64_t StrongARMPPCInfo::ppcRead(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     StrongARMPPCInfo *s = static_cast<StrongARMPPCInfo *>(opaque);
@@ -794,7 +874,7 @@ static uint64_t strongarm_ppc_read(void *opaque, hwaddr offset,
     return 0;
 }
 
-static void strongarm_ppc_write(void *opaque, hwaddr offset,
+void StrongARMPPCInfo::ppcWrite(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     StrongARMPPCInfo *s = static_cast<StrongARMPPCInfo *>(opaque);
@@ -802,12 +882,12 @@ static void strongarm_ppc_write(void *opaque, hwaddr offset,
     switch (offset) {
     case PPDR:        /* PPC Pin Direction registers */
         s->dir = value & 0x3fffff;
-        strongarm_ppc_handler_update(s);
+        s->handlerUpdate();
         break;
 
     case PPSR:        /* PPC Pin State registers */
         s->olevel = value & s->dir & 0x3fffff;
-        strongarm_ppc_handler_update(s);
+        s->handlerUpdate();
         break;
 
     case PPAR:
@@ -830,18 +910,19 @@ static void strongarm_ppc_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps strongarm_ppc_ops = {
-    .read = strongarm_ppc_read,
-    .write = strongarm_ppc_write,
+    .read = StrongARMPPCInfo::ppcRead,
+    .write = StrongARMPPCInfo::ppcWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void strongarm_ppc_init(Object *obj)
+void StrongARMPPCInfo::instanceInit()
 {
+    Object *obj = OBJECT(this);
     DeviceState *dev = DEVICE(obj);
-    StrongARMPPCInfo *s = STRONGARM_PPC(obj);
+    StrongARMPPCInfo *s = this;
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    qdev_init_gpio_in(dev, strongarm_ppc_set, 22);
+    qdev_init_gpio_in(dev, StrongARMPPCInfo::setPpc, 22);
     qdev_init_gpio_out(dev, s->handler, 22);
 
     memory_region_init_io(&s->iomem, obj, &strongarm_ppc_ops, s,
@@ -866,7 +947,13 @@ static const VMStateDescription vmstate_strongarm_ppc_regs = {
     },
 };
 
-static void strongarm_ppc_class_init(ObjectClass *klass, const void *data)
+void StrongARMPPCInfo::instanceInitWrapper(Object *obj)
+{
+    StrongARMPPCInfo *s = STRONGARM_PPC(obj);
+    s->instanceInit();
+}
+
+void StrongARMPPCInfo::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -878,8 +965,8 @@ static const TypeInfo strongarm_ppc_info = {
     .name          = TYPE_STRONGARM_PPC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMPPCInfo),
-    .instance_init = strongarm_ppc_init,
-    .class_init    = strongarm_ppc_class_init,
+    .instance_init = StrongARMPPCInfo::instanceInitWrapper,
+    .class_init    = StrongARMPPCInfo::classInit,
 };
 
 /* UART Ports */
@@ -947,10 +1034,32 @@ struct StrongARMUARTState {
     bool wait_break_end;
     QEMUTimer *rx_timeout_timer;
     QEMUTimer *tx_timer;
+
+    /* Methods */
+    void updateStatus();
+    void updateIntStatus();
+    void updateParameters();
+    void rxPush(uint16_t c);
+    static void rxTo(void *opaque);
+    static int canReceive(void *opaque);
+    static void receive(void *opaque, const uint8_t *buf, int size);
+    static void event(void *opaque, QEMUChrEvent event);
+    static void tx(void *opaque);
+    static uint64_t uartRead(void *opaque, hwaddr addr, unsigned size);
+    static void uartWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    void instanceInit();
+    static void instanceInitWrapper(Object *obj);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+    static int postLoad(void *opaque, int version_id);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void strongarm_uart_update_status(StrongARMUARTState *s)
+void StrongARMUARTState::updateStatus()
 {
+    StrongARMUARTState *s = this;
     uint16_t utsr1 = 0;
 
     if (s->tx_len != 8) {
@@ -975,8 +1084,9 @@ static void strongarm_uart_update_status(StrongARMUARTState *s)
     s->utsr1 = utsr1;
 }
 
-static void strongarm_uart_update_int_status(StrongARMUARTState *s)
+void StrongARMUARTState::updateIntStatus()
 {
+    StrongARMUARTState *s = this;
     uint16_t utsr0 = s->utsr0 &
             (UTSR0_REB | UTSR0_RBB | UTSR0_RID);
     int i;
@@ -1003,8 +1113,9 @@ static void strongarm_uart_update_int_status(StrongARMUARTState *s)
     qemu_set_irq(s->irq, utsr0);
 }
 
-static void strongarm_uart_update_parameters(StrongARMUARTState *s)
+void StrongARMUARTState::updateParameters()
 {
+    StrongARMUARTState *s = this;
     int speed, parity, data_bits, stop_bits, frame_size;
     QEMUSerialSetParams ssp;
 
@@ -1046,18 +1157,19 @@ static void strongarm_uart_update_parameters(StrongARMUARTState *s)
                                            stop_bits);
 }
 
-static void strongarm_uart_rx_to(void *opaque)
+void StrongARMUARTState::rxTo(void *opaque)
 {
     StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
 
     if (s->rx_len) {
         s->utsr0 |= UTSR0_RID;
-        strongarm_uart_update_int_status(s);
+        s->updateIntStatus();
     }
 }
 
-static void strongarm_uart_rx_push(StrongARMUARTState *s, uint16_t c)
+void StrongARMUARTState::rxPush(uint16_t c)
 {
+    StrongARMUARTState *s = this;
     if ((s->utcr3 & UTCR3_RXE) == 0) {
         /* rx disabled */
         return;
@@ -1075,7 +1187,7 @@ static void strongarm_uart_rx_push(StrongARMUARTState *s, uint16_t c)
         s->rx_fifo[(s->rx_start + 11) % 12] |= RX_FIFO_ROR;
 }
 
-static int strongarm_uart_can_receive(void *opaque)
+int StrongARMUARTState::canReceive(void *opaque)
 {
     StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
 
@@ -1089,42 +1201,42 @@ static int strongarm_uart_can_receive(void *opaque)
     return 1;
 }
 
-static void strongarm_uart_receive(void *opaque, const uint8_t *buf, int size)
+void StrongARMUARTState::receive(void *opaque, const uint8_t *buf, int size)
 {
     StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
     int i;
 
     for (i = 0; i < size; i++) {
-        strongarm_uart_rx_push(s, buf[i]);
+        s->rxPush(buf[i]);
     }
 
     /* call the timeout receive callback in 3 char transmit time */
     timer_mod(s->rx_timeout_timer,
                     qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time * 3);
 
-    strongarm_uart_update_status(s);
-    strongarm_uart_update_int_status(s);
+    s->updateStatus();
+    s->updateIntStatus();
 }
 
-static void strongarm_uart_event(void *opaque, QEMUChrEvent event)
+void StrongARMUARTState::event(void *opaque, QEMUChrEvent event)
 {
     StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
     if (event == CHR_EVENT_BREAK) {
         s->utsr0 |= UTSR0_RBB;
-        strongarm_uart_rx_push(s, RX_FIFO_FRE);
+        s->rxPush(RX_FIFO_FRE);
         s->wait_break_end = true;
-        strongarm_uart_update_status(s);
-        strongarm_uart_update_int_status(s);
+        s->updateStatus();
+        s->updateIntStatus();
     }
 }
 
-static void strongarm_uart_tx(void *opaque)
+void StrongARMUARTState::tx(void *opaque)
 {
     StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
     uint64_t new_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     if (s->utcr3 & UTCR3_LBM) /* loopback */ {
-        strongarm_uart_receive(s, &s->tx_fifo[s->tx_start], 1);
+        StrongARMUARTState::receive(s, &s->tx_fifo[s->tx_start], 1);
     } else if (qemu_chr_fe_backend_connected(&s->chr)) {
         /* XXX this blocks entire thread. Rewrite to use
          * qemu_chr_fe_write and background I/O callbacks */
@@ -1136,11 +1248,11 @@ static void strongarm_uart_tx(void *opaque)
     if (s->tx_len) {
         timer_mod(s->tx_timer, new_xmit_ts + s->char_transmit_time);
     }
-    strongarm_uart_update_status(s);
-    strongarm_uart_update_int_status(s);
+    s->updateStatus();
+    s->updateIntStatus();
 }
 
-static uint64_t strongarm_uart_read(void *opaque, hwaddr addr,
+uint64_t StrongARMUARTState::uartRead(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
@@ -1164,8 +1276,8 @@ static uint64_t strongarm_uart_read(void *opaque, hwaddr addr,
             ret = s->rx_fifo[s->rx_start];
             s->rx_start = (s->rx_start + 1) % 12;
             s->rx_len--;
-            strongarm_uart_update_status(s);
-            strongarm_uart_update_int_status(s);
+            s->updateStatus();
+            s->updateIntStatus();
             return ret;
         }
         return 0;
@@ -1184,7 +1296,7 @@ static uint64_t strongarm_uart_read(void *opaque, hwaddr addr,
     }
 }
 
-static void strongarm_uart_write(void *opaque, hwaddr addr,
+void StrongARMUARTState::uartWrite(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
     StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
@@ -1192,17 +1304,17 @@ static void strongarm_uart_write(void *opaque, hwaddr addr,
     switch (addr) {
     case UTCR0:
         s->utcr0 = value & 0x7f;
-        strongarm_uart_update_parameters(s);
+        s->updateParameters();
         break;
 
     case UTCR1:
         s->brd = (s->brd & 0xff) | ((value & 0xf) << 8);
-        strongarm_uart_update_parameters(s);
+        s->updateParameters();
         break;
 
     case UTCR2:
         s->brd = (s->brd & 0xf00) | (value & 0xff);
-        strongarm_uart_update_parameters(s);
+        s->updateParameters();
         break;
 
     case UTCR3:
@@ -1213,18 +1325,18 @@ static void strongarm_uart_write(void *opaque, hwaddr addr,
         if ((s->utcr3 & UTCR3_TXE) == 0) {
             s->tx_len = 0;
         }
-        strongarm_uart_update_status(s);
-        strongarm_uart_update_int_status(s);
+        s->updateStatus();
+        s->updateIntStatus();
         break;
 
     case UTDR:
         if ((s->utcr3 & UTCR3_TXE) && s->tx_len != 8) {
             s->tx_fifo[(s->tx_start + s->tx_len) % 8] = value;
             s->tx_len++;
-            strongarm_uart_update_status(s);
-            strongarm_uart_update_int_status(s);
+            s->updateStatus();
+            s->updateIntStatus();
             if (s->tx_len == 1) {
-                strongarm_uart_tx(s);
+                StrongARMUARTState::tx(s);
             }
         }
         break;
@@ -1232,7 +1344,7 @@ static void strongarm_uart_write(void *opaque, hwaddr addr,
     case UTSR0:
         s->utsr0 = s->utsr0 & ~(value &
                 (UTSR0_REB | UTSR0_RBB | UTSR0_RID));
-        strongarm_uart_update_int_status(s);
+        s->updateIntStatus();
         break;
 
     default:
@@ -1243,14 +1355,15 @@ static void strongarm_uart_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps strongarm_uart_ops = {
-    .read = strongarm_uart_read,
-    .write = strongarm_uart_write,
+    .read = StrongARMUARTState::uartRead,
+    .write = StrongARMUARTState::uartWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void strongarm_uart_init(Object *obj)
+void StrongARMUARTState::instanceInit()
 {
-    StrongARMUARTState *s = STRONGARM_UART(obj);
+    StrongARMUARTState *s = this;
+    Object *obj = OBJECT(this);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     memory_region_init_io(&s->iomem, obj, &strongarm_uart_ops, s,
@@ -1259,24 +1372,24 @@ static void strongarm_uart_init(Object *obj)
     sysbus_init_irq(dev, &s->irq);
 }
 
-static void strongarm_uart_realize(DeviceState *dev, Error **errp)
+void StrongARMUARTState::realize(Error **errp)
 {
-    StrongARMUARTState *s = STRONGARM_UART(dev);
+    StrongARMUARTState *s = this;
 
     s->rx_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                       strongarm_uart_rx_to,
+                                       StrongARMUARTState::rxTo,
                                        s);
-    s->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, strongarm_uart_tx, s);
+    s->tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, StrongARMUARTState::tx, s);
     qemu_chr_fe_set_handlers(&s->chr,
-                             strongarm_uart_can_receive,
-                             strongarm_uart_receive,
-                             strongarm_uart_event,
+                             StrongARMUARTState::canReceive,
+                             StrongARMUARTState::receive,
+                             StrongARMUARTState::event,
                              NULL, s, NULL, true);
 }
 
-static void strongarm_uart_reset(DeviceState *dev)
+void StrongARMUARTState::reset()
 {
-    StrongARMUARTState *s = STRONGARM_UART(dev);
+    StrongARMUARTState *s = this;
 
     s->utcr0 = UTCR0_DSS; /* 8 data, no parity */
     s->brd = 23;    /* 9600 */
@@ -1285,22 +1398,22 @@ static void strongarm_uart_reset(DeviceState *dev)
 
     s->rx_len = s->tx_len = 0;
 
-    strongarm_uart_update_parameters(s);
-    strongarm_uart_update_status(s);
-    strongarm_uart_update_int_status(s);
+    s->updateParameters();
+    s->updateStatus();
+    s->updateIntStatus();
 }
 
-static int strongarm_uart_post_load(void *opaque, int version_id)
+int StrongARMUARTState::postLoad(void *opaque, int version_id)
 {
     StrongARMUARTState *s = static_cast<StrongARMUARTState *>(opaque);
 
-    strongarm_uart_update_parameters(s);
-    strongarm_uart_update_status(s);
-    strongarm_uart_update_int_status(s);
+    s->updateParameters();
+    s->updateStatus();
+    s->updateIntStatus();
 
     /* tx and restart timer */
     if (s->tx_len) {
-        strongarm_uart_tx(s);
+        StrongARMUARTState::tx(s);
     }
 
     /* restart rx timeout timer */
@@ -1316,7 +1429,7 @@ static const VMStateDescription vmstate_strongarm_uart_regs = {
     .name = "strongarm-uart",
     .version_id = 0,
     .minimum_version_id = 0,
-    .post_load = strongarm_uart_post_load,
+    .post_load = StrongARMUARTState::postLoad,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT8(utcr0, StrongARMUARTState),
         VMSTATE_UINT16(brd, StrongARMUARTState),
@@ -1337,23 +1450,41 @@ static const Property strongarm_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", StrongARMUARTState, chr),
 };
 
-static void strongarm_uart_class_init(ObjectClass *klass, const void *data)
+void StrongARMUARTState::instanceInitWrapper(Object *obj)
+{
+    StrongARMUARTState *s = STRONGARM_UART(obj);
+    s->instanceInit();
+}
+
+void StrongARMUARTState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    StrongARMUARTState *s = STRONGARM_UART(dev);
+    s->realize(errp);
+}
+
+void StrongARMUARTState::resetWrapper(DeviceState *dev)
+{
+    StrongARMUARTState *s = STRONGARM_UART(dev);
+    s->reset();
+}
+
+void StrongARMUARTState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "StrongARM UART controller";
-    device_class_set_legacy_reset(dc, strongarm_uart_reset);
+    device_class_set_legacy_reset(dc, StrongARMUARTState::resetWrapper);
     dc->vmsd = &vmstate_strongarm_uart_regs;
     device_class_set_props(dc, strongarm_uart_properties);
-    dc->realize = strongarm_uart_realize;
+    dc->realize = StrongARMUARTState::realizeWrapper;
 }
 
 static const TypeInfo strongarm_uart_info = {
     .name          = TYPE_STRONGARM_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMUARTState),
-    .instance_init = strongarm_uart_init,
-    .class_init    = strongarm_uart_class_init,
+    .instance_init = StrongARMUARTState::instanceInitWrapper,
+    .class_init    = StrongARMUARTState::classInit,
 };
 
 /* Synchronous Serial Ports */
@@ -1374,6 +1505,18 @@ struct StrongARMSSPState {
     uint16_t rx_fifo[8];
     uint8_t rx_level;
     uint8_t rx_start;
+
+    /* Methods */
+    void intUpdate();
+    void fifoUpdate();
+    static uint64_t sspRead(void *opaque, hwaddr addr, unsigned size);
+    static void sspWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    void instanceInit();
+    static void instanceInitWrapper(Object *obj);
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+    static int postLoad(void *opaque, int version_id);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define SSCR0 0x60 /* SSP Control register 0 */
@@ -1398,8 +1541,9 @@ struct StrongARMSSPState {
 #define SSSR_ROR        (1 << 7)
 #define SSSR_RW         0x0080
 
-static void strongarm_ssp_int_update(StrongARMSSPState *s)
+void StrongARMSSPState::intUpdate()
 {
+    StrongARMSSPState *s = this;
     int level = 0;
 
     level |= (s->sssr & SSSR_ROR);
@@ -1408,8 +1552,9 @@ static void strongarm_ssp_int_update(StrongARMSSPState *s)
     qemu_set_irq(s->irq, level);
 }
 
-static void strongarm_ssp_fifo_update(StrongARMSSPState *s)
+void StrongARMSSPState::fifoUpdate()
 {
+    StrongARMSSPState *s = this;
     s->sssr &= ~SSSR_TFS;
     s->sssr &= ~SSSR_TNF;
     if (s->sscr[0] & SSCR0_SSE) {
@@ -1429,10 +1574,10 @@ static void strongarm_ssp_fifo_update(StrongARMSSPState *s)
         s->sssr |= SSSR_TNF;
     }
 
-    strongarm_ssp_int_update(s);
+    s->intUpdate();
 }
 
-static uint64_t strongarm_ssp_read(void *opaque, hwaddr addr,
+uint64_t StrongARMSSPState::sspRead(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     StrongARMSSPState *s = static_cast<StrongARMSSPState *>(opaque);
@@ -1456,7 +1601,7 @@ static uint64_t strongarm_ssp_read(void *opaque, hwaddr addr,
         s->rx_level--;
         retval = s->rx_fifo[s->rx_start++];
         s->rx_start &= 0x7;
-        strongarm_ssp_fifo_update(s);
+        s->fifoUpdate();
         return retval;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -1467,7 +1612,7 @@ static uint64_t strongarm_ssp_read(void *opaque, hwaddr addr,
     return 0;
 }
 
-static void strongarm_ssp_write(void *opaque, hwaddr addr,
+void StrongARMSSPState::sspWrite(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
     StrongARMSSPState *s = static_cast<StrongARMSSPState *>(opaque);
@@ -1483,7 +1628,7 @@ static void strongarm_ssp_write(void *opaque, hwaddr addr,
             s->sssr = 0;
             s->rx_level = 0;
         }
-        strongarm_ssp_fifo_update(s);
+        s->fifoUpdate();
         break;
 
     case SSCR1:
@@ -1493,12 +1638,12 @@ static void strongarm_ssp_write(void *opaque, hwaddr addr,
                           "%s: Attempt to use SSP LBM mode\n",
                           __func__);
         }
-        strongarm_ssp_fifo_update(s);
+        s->fifoUpdate();
         break;
 
     case SSSR:
         s->sssr &= ~(value & SSSR_RW);
-        strongarm_ssp_int_update(s);
+        s->intUpdate();
         break;
 
     case SSDR:
@@ -1525,7 +1670,7 @@ static void strongarm_ssp_write(void *opaque, hwaddr addr,
                 s->sssr |= SSSR_ROR;
             }
         }
-        strongarm_ssp_fifo_update(s);
+        s->fifoUpdate();
         break;
 
     default:
@@ -1537,25 +1682,26 @@ static void strongarm_ssp_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps strongarm_ssp_ops = {
-    .read = strongarm_ssp_read,
-    .write = strongarm_ssp_write,
+    .read = StrongARMSSPState::sspRead,
+    .write = StrongARMSSPState::sspWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int strongarm_ssp_post_load(void *opaque, int version_id)
+int StrongARMSSPState::postLoad(void *opaque, int version_id)
 {
     StrongARMSSPState *s = static_cast<StrongARMSSPState *>(opaque);
 
-    strongarm_ssp_fifo_update(s);
+    s->fifoUpdate();
 
     return 0;
 }
 
-static void strongarm_ssp_init(Object *obj)
+void StrongARMSSPState::instanceInit()
 {
+    Object *obj = OBJECT(this);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     DeviceState *dev = DEVICE(sbd);
-    StrongARMSSPState *s = STRONGARM_SSP(dev);
+    StrongARMSSPState *s = this;
 
     sysbus_init_irq(sbd, &s->irq);
 
@@ -1566,9 +1712,9 @@ static void strongarm_ssp_init(Object *obj)
     s->bus = ssi_create_bus(dev, "ssi");
 }
 
-static void strongarm_ssp_reset(DeviceState *dev)
+void StrongARMSSPState::reset()
 {
-    StrongARMSSPState *s = STRONGARM_SSP(dev);
+    StrongARMSSPState *s = this;
 
     s->sssr = 0x03; /* 3 bit data, SPI, disabled */
     s->rx_start = 0;
@@ -1579,7 +1725,7 @@ static const VMStateDescription vmstate_strongarm_ssp_regs = {
     .name = "strongarm-ssp",
     .version_id = 0,
     .minimum_version_id = 0,
-    .post_load = strongarm_ssp_post_load,
+    .post_load = StrongARMSSPState::postLoad,
     .fields = (const VMStateField[]) {
         VMSTATE_UINT16_ARRAY(sscr, StrongARMSSPState, 2),
         VMSTATE_UINT16(sssr, StrongARMSSPState),
@@ -1590,12 +1736,24 @@ static const VMStateDescription vmstate_strongarm_ssp_regs = {
     },
 };
 
-static void strongarm_ssp_class_init(ObjectClass *klass, const void *data)
+void StrongARMSSPState::instanceInitWrapper(Object *obj)
+{
+    StrongARMSSPState *s = STRONGARM_SSP(obj);
+    s->instanceInit();
+}
+
+void StrongARMSSPState::resetWrapper(DeviceState *dev)
+{
+    StrongARMSSPState *s = STRONGARM_SSP(dev);
+    s->reset();
+}
+
+void StrongARMSSPState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "StrongARM SSP controller";
-    device_class_set_legacy_reset(dc, strongarm_ssp_reset);
+    device_class_set_legacy_reset(dc, StrongARMSSPState::resetWrapper);
     dc->vmsd = &vmstate_strongarm_ssp_regs;
 }
 
@@ -1603,8 +1761,8 @@ static const TypeInfo strongarm_ssp_info = {
     .name          = TYPE_STRONGARM_SSP,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StrongARMSSPState),
-    .instance_init = strongarm_ssp_init,
-    .class_init    = strongarm_ssp_class_init,
+    .instance_init = StrongARMSSPState::instanceInitWrapper,
+    .class_init    = StrongARMSSPState::classInit,
 };
 
 /* Main CPU functions */

@@ -33,6 +33,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "qemu/log.h"
@@ -184,6 +185,11 @@ typedef void (*cirrus_fill_t)(struct CirrusVGAState *s,
 struct PCICirrusVGAState {
     PCIDevice dev;
     CirrusVGAState cirrus_vga;
+
+    /* Methods */
+    void realize(Error **errp);
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_PCI_CIRRUS_VGA "cirrus-vga"
@@ -2939,9 +2945,10 @@ void cirrus_init_common(CirrusVGAState *s, Object *owner,
  *
  ***************************************/
 
-static void pci_cirrus_vga_realize(PCIDevice *dev, Error **errp)
+void PCICirrusVGAState::realize(Error **errp)
 {
-    PCICirrusVGAState *d = PCI_CIRRUS_VGA(dev);
+    PCICirrusVGAState *d = this;
+    PCIDevice *dev = PCI_DEVICE(this);
     CirrusVGAState *s = &d->cirrus_vga;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     int16_t device_id = pc->device_id;
@@ -2991,12 +2998,18 @@ static const Property pci_vga_cirrus_properties[] = {
                      cirrus_vga.vga.global_vmstate, false),
 };
 
-static void cirrus_vga_class_init(ObjectClass *klass, const void *data)
+void PCICirrusVGAState::realizeWrapper(PCIDevice *dev, Error **errp)
+{
+    PCICirrusVGAState *d = PCI_CIRRUS_VGA(dev);
+    d->realize(errp);
+}
+
+void PCICirrusVGAState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = pci_cirrus_vga_realize;
+    k->realize = PCICirrusVGAState::realizeWrapper;
     k->romfile = VGABIOS_CIRRUS_FILENAME;
     k->vendor_id = PCI_VENDOR_ID_CIRRUS;
     k->device_id = CIRRUS_ID_CLGD5446;
@@ -3012,7 +3025,7 @@ static const TypeInfo cirrus_vga_info = {
     .name          = TYPE_PCI_CIRRUS_VGA,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCICirrusVGAState),
-    .class_init    = cirrus_vga_class_init,
+    .class_init    = PCICirrusVGAState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

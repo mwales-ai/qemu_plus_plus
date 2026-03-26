@@ -35,6 +35,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
@@ -313,6 +314,14 @@ struct USBCCIDState {
     uint8_t  powered;
     uint8_t  notify_slot_change;
     uint8_t  debug;
+
+    /* Methods */
+    void ccidRealize(Error **errp);
+    static void ccidRealizeWrapper(USBDevice *dev, Error **errp);
+    static void handleReset(USBDevice *dev);
+    static void classInit(ObjectClass *klass, const void *data);
+    static int postLoad(void *opaque, int version_id);
+    static int preSave(void *opaque);
 };
 
 /*
@@ -638,7 +647,7 @@ static void ccid_detach(USBCCIDState *s)
     ccid_reset(s);
 }
 
-static void ccid_handle_reset(USBDevice *dev)
+void USBCCIDState::handleReset(USBDevice *dev)
 {
     USBCCIDState *s = USB_CCID_DEV(dev);
 
@@ -1320,9 +1329,10 @@ static void ccid_card_realize(DeviceState *qdev, Error **errp)
     s->card = card;
 }
 
-static void ccid_realize(USBDevice *dev, Error **errp)
+void USBCCIDState::ccidRealize(Error **errp)
 {
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    USBCCIDState *s = this;
+    USBDevice *dev = USB_DEVICE(this);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -1347,7 +1357,7 @@ static void ccid_realize(USBDevice *dev, Error **errp)
     s->debug = parse_debug_env("QEMU_CCID_DEBUG", D_VERBOSE, s->debug);
 }
 
-static int ccid_post_load(void *opaque, int version_id)
+int USBCCIDState::postLoad(void *opaque, int version_id)
 {
     USBCCIDState *s = static_cast<USBCCIDState *>(opaque);
 
@@ -1361,7 +1371,7 @@ static int ccid_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static int ccid_pre_save(void *opaque)
+int USBCCIDState::preSave(void *opaque)
 {
     USBCCIDState *s = static_cast<USBCCIDState *>(opaque);
 
@@ -1441,8 +1451,8 @@ static const VMStateDescription ccid_vmstate = {
     .name = "usb-ccid",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = ccid_post_load,
-    .pre_save = ccid_pre_save,
+    .post_load = USBCCIDState::postLoad,
+    .pre_save = USBCCIDState::preSave,
     .fields = ccid_vmstate_fields,
 };
 
@@ -1450,16 +1460,22 @@ static const Property ccid_properties[] = {
     DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
 };
 
-static void ccid_class_initfn(ObjectClass *klass, const void *data)
+void USBCCIDState::ccidRealizeWrapper(USBDevice *dev, Error **errp)
+{
+    USBCCIDState *s = USB_CCID_DEV(dev);
+    s->ccidRealize(errp);
+}
+
+void USBCCIDState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
-    uc->realize        = ccid_realize;
+    uc->realize        = USBCCIDState::ccidRealizeWrapper;
     uc->product_desc   = "QEMU USB CCID";
     uc->usb_desc       = &desc_ccid;
-    uc->handle_reset   = ccid_handle_reset;
+    uc->handle_reset   = USBCCIDState::handleReset;
     uc->handle_control = ccid_handle_control;
     uc->handle_data    = ccid_handle_data;
     uc->unrealize      = ccid_unrealize;
@@ -1479,7 +1495,7 @@ static const TypeInfo ccid_info = {
     .name          = TYPE_USB_CCID_DEV,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBCCIDState),
-    .class_init    = ccid_class_initfn,
+    .class_init    = USBCCIDState::classInit,
     .interfaces = ccid_interfaces,
 };
 

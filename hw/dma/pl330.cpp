@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/cutils.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -281,6 +282,15 @@ struct PL330State {
     /* Memory region that DMA operation access */
     MemoryRegion *mem_mr;
     AddressSpace *mem_as;
+
+    /* Methods */
+    static void iomemWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    static uint64_t iomemRead(void *opaque, hwaddr offset, unsigned size);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateField vmstate_pl330_fields[] = {
@@ -1346,10 +1356,10 @@ static void pl330_debug_exec(PL330State *s)
 
 /* IOMEM mapped registers */
 
-static void pl330_iomem_write(void *opaque, hwaddr offset,
+void PL330State::iomemWrite(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
-    PL330State *s = (PL330State *) opaque;
+    PL330State *s = static_cast<PL330State *>(opaque);
     int i;
 
     trace_pl330_iomem_write((unsigned)offset, (unsigned)value);
@@ -1394,7 +1404,7 @@ static void pl330_iomem_write(void *opaque, hwaddr offset,
 static inline uint32_t pl330_iomem_read_imp(void *opaque,
         hwaddr offset)
 {
-    PL330State *s = (PL330State *)opaque;
+    PL330State *s = static_cast<PL330State *>(opaque);
     int chan_id;
     int i;
     uint32_t res;
@@ -1501,7 +1511,7 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
     return 0;
 }
 
-static uint64_t pl330_iomem_read(void *opaque, hwaddr offset,
+uint64_t PL330State::iomemRead(void *opaque, hwaddr offset,
         unsigned size)
 {
     uint32_t ret = pl330_iomem_read_imp(opaque, offset);
@@ -1510,8 +1520,8 @@ static uint64_t pl330_iomem_read(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps pl330_ops = {
-    .read = pl330_iomem_read,
-    .write = pl330_iomem_write,
+    .read = PL330State::iomemRead,
+    .write = PL330State::iomemWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1534,10 +1544,10 @@ static void pl330_chan_reset(PL330Chan *ch)
     ch->fault_type = 0;
 }
 
-static void pl330_reset(DeviceState *d)
+void PL330State::reset()
 {
     int i;
-    PL330State *s = PL330(d);
+    PL330State *s = this;
 
     s->inten = 0;
     s->int_status = 0;
@@ -1559,10 +1569,11 @@ static void pl330_reset(DeviceState *d)
     timer_del(s->timer);
 }
 
-static void pl330_realize(DeviceState *dev, Error **errp)
+void PL330State::realize(Error **errp)
 {
     int i;
-    PL330State *s = PL330(dev);
+    PL330State *s = this;
+    DeviceState *dev = DEVICE(this);
 
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq_abort);
     memory_region_init_io(&s->iomem, OBJECT(s), &pl330_ops, s,
@@ -1679,12 +1690,24 @@ static const Property pl330_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void pl330_class_init(ObjectClass *klass, const void *data)
+void PL330State::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    PL330State *s = PL330(dev);
+    s->realize(errp);
+}
+
+void PL330State::resetWrapper(DeviceState *dev)
+{
+    PL330State *s = PL330(dev);
+    s->reset();
+}
+
+void PL330State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = pl330_realize;
-    device_class_set_legacy_reset(dc, pl330_reset);
+    dc->realize = PL330State::realizeWrapper;
+    device_class_set_legacy_reset(dc, PL330State::resetWrapper);
     device_class_set_props(dc, pl330_properties);
     dc->vmsd = &vmstate_pl330;
 }
@@ -1693,7 +1716,7 @@ static const TypeInfo pl330_type_info = {
     .name           = TYPE_PL330,
     .parent         = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(PL330State),
-    .class_init      = pl330_class_init,
+    .class_init      = PL330State::classInit,
 };
 
 static void pl330_register_types(void)

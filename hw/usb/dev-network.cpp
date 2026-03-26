@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/usb.h"
@@ -655,6 +656,14 @@ struct USBNetState {
     NICState *nic;
     NICConf conf;
     QTAILQ_HEAD(, rndis_response) rndis_resp;
+
+    /* Methods */
+    void netRealize(Error **errp);
+    static void netRealizeWrapper(USBDevice *dev, Error **errp);
+    void instanceInit();
+    static void instanceInitWrapper(Object *obj);
+    static void handleReset(USBDevice *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_USB_NET "usb-net"
@@ -1063,14 +1072,14 @@ static int rndis_parse(USBNetState *s, uint8_t *data, int length)
     return USB_RET_STALL;
 }
 
-static void usb_net_handle_reset(USBDevice *dev)
+void USBNetState::handleReset(USBDevice *dev)
 {
 }
 
 static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USBNetState *s = (USBNetState *) dev;
+    USBNetState *s = USB_NET(dev);
     int ret;
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
@@ -1246,7 +1255,7 @@ static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
 
 static void usb_net_handle_data(USBDevice *dev, USBPacket *p)
 {
-    USBNetState *s = (USBNetState *) dev;
+    USBNetState *s = USB_NET(dev);
 
     switch(p->pid) {
     case USB_TOKEN_IN:
@@ -1349,7 +1358,7 @@ static void usbnet_cleanup(NetClientState *nc)
 
 static void usb_net_unrealize(USBDevice *dev)
 {
-    USBNetState *s = (USBNetState *) dev;
+    USBNetState *s = USB_NET(dev);
 
     /* TODO: remove the nd_table[] entry */
     rndis_clear_responsequeue(s);
@@ -1363,9 +1372,10 @@ static NetClientInfo net_usbnet_info = {
     .cleanup = usbnet_cleanup,
 };
 
-static void usb_net_realize(USBDevice *dev, Error **errp)
+void USBNetState::netRealize(Error **errp)
 {
-    USBNetState *s = USB_NET(dev);
+    USBNetState *s = this;
+    USBDevice *dev = USB_DEVICE(this);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -1398,10 +1408,11 @@ static void usb_net_realize(USBDevice *dev, Error **errp)
     usb_desc_set_string(dev, STRING_ETHADDR, s->usbstring_mac);
 }
 
-static void usb_net_instance_init(Object *obj)
+void USBNetState::instanceInit()
 {
+    Object *obj = OBJECT(this);
     USBDevice *dev = USB_DEVICE(obj);
-    USBNetState *s = USB_NET(dev);
+    USBNetState *s = this;
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
@@ -1417,15 +1428,27 @@ static const Property net_properties[] = {
     DEFINE_NIC_PROPERTIES(USBNetState, conf),
 };
 
-static void usb_net_class_initfn(ObjectClass *klass, const void *data)
+void USBNetState::netRealizeWrapper(USBDevice *dev, Error **errp)
+{
+    USBNetState *s = USB_NET(dev);
+    s->netRealize(errp);
+}
+
+void USBNetState::instanceInitWrapper(Object *obj)
+{
+    USBNetState *s = USB_NET(obj);
+    s->instanceInit();
+}
+
+void USBNetState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize        = usb_net_realize;
+    uc->realize        = USBNetState::netRealizeWrapper;
     uc->product_desc   = "QEMU USB Network Interface";
     uc->usb_desc       = &desc_net;
-    uc->handle_reset   = usb_net_handle_reset;
+    uc->handle_reset   = USBNetState::handleReset;
     uc->handle_control = usb_net_handle_control;
     uc->handle_data    = usb_net_handle_data;
     uc->unrealize      = usb_net_unrealize;
@@ -1439,8 +1462,8 @@ static const TypeInfo net_info = {
     .name          = TYPE_USB_NET,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBNetState),
-    .instance_init = usb_net_instance_init,
-    .class_init    = usb_net_class_initfn,
+    .instance_init = USBNetState::instanceInitWrapper,
+    .class_init    = USBNetState::classInit,
 };
 
 static void usb_net_register_types(void)

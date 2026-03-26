@@ -53,6 +53,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -264,6 +265,16 @@ struct Exynos4210MCTState {
     Exynos4210MCTGT g_timer;
 
     uint32_t    freq;                   /* all timers tick frequency, TCLK */
+
+    /* Methods */
+    static uint64_t mctRead(void *opaque, hwaddr offset, unsigned size);
+    static void mctWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    void instanceInit();
+    static void instanceInitWrapper(Object *obj);
+    static void instanceFinalize(Object *obj);
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /*** VMState ***/
@@ -1039,9 +1050,9 @@ static void exynos4210_mct_update_freq(Exynos4210MCTState *s)
 }
 
 /* set defaul_timer values for all fields */
-static void exynos4210_mct_reset(DeviceState *d)
+void Exynos4210MCTState::reset()
 {
-    Exynos4210MCTState *s = EXYNOS4210_MCT(d);
+    Exynos4210MCTState *s = this;
     uint32_t i;
 
     s->reg_mct_cfg = 0;
@@ -1075,10 +1086,10 @@ static void exynos4210_mct_reset(DeviceState *d)
 }
 
 /* Multi Core Timer read */
-static uint64_t exynos4210_mct_read(void *opaque, hwaddr offset,
+uint64_t Exynos4210MCTState::mctRead(void *opaque, hwaddr offset,
         unsigned size)
 {
-    Exynos4210MCTState *s = (Exynos4210MCTState *)opaque;
+    Exynos4210MCTState *s = static_cast<Exynos4210MCTState *>(opaque);
     int index;
     int shift;
     uint64_t count;
@@ -1186,10 +1197,10 @@ static uint64_t exynos4210_mct_read(void *opaque, hwaddr offset,
 }
 
 /* MCT write */
-static void exynos4210_mct_write(void *opaque, hwaddr offset,
+void Exynos4210MCTState::mctWrite(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
-    Exynos4210MCTState *s = (Exynos4210MCTState *)opaque;
+    Exynos4210MCTState *s = static_cast<Exynos4210MCTState *>(opaque);
     int index;  /* index in buffer which represents register set */
     int shift;
     int lt_i;
@@ -1511,16 +1522,17 @@ static void exynos4210_mct_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps exynos4210_mct_ops = {
-    .read = exynos4210_mct_read,
-    .write = exynos4210_mct_write,
+    .read = Exynos4210MCTState::mctRead,
+    .write = Exynos4210MCTState::mctWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* MCT init */
-static void exynos4210_mct_init(Object *obj)
+void Exynos4210MCTState::instanceInit()
 {
     int i;
-    Exynos4210MCTState *s = EXYNOS4210_MCT(obj);
+    Exynos4210MCTState *s = this;
+    Object *obj = OBJECT(this);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
 
     /* Global timer */
@@ -1552,7 +1564,7 @@ static void exynos4210_mct_init(Object *obj)
     sysbus_init_mmio(dev, &s->iomem);
 }
 
-static void exynos4210_mct_finalize(Object *obj)
+void Exynos4210MCTState::instanceFinalize(Object *obj)
 {
     int i;
     Exynos4210MCTState *s = EXYNOS4210_MCT(obj);
@@ -1565,11 +1577,23 @@ static void exynos4210_mct_finalize(Object *obj)
     }
 }
 
-static void exynos4210_mct_class_init(ObjectClass *klass, const void *data)
+void Exynos4210MCTState::instanceInitWrapper(Object *obj)
+{
+    Exynos4210MCTState *s = EXYNOS4210_MCT(obj);
+    s->instanceInit();
+}
+
+void Exynos4210MCTState::resetWrapper(DeviceState *dev)
+{
+    Exynos4210MCTState *s = EXYNOS4210_MCT(dev);
+    s->reset();
+}
+
+void Exynos4210MCTState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, exynos4210_mct_reset);
+    device_class_set_legacy_reset(dc, Exynos4210MCTState::resetWrapper);
     dc->vmsd = &vmstate_exynos4210_mct_state;
 }
 
@@ -1577,9 +1601,9 @@ static const TypeInfo exynos4210_mct_info = {
     .name          = TYPE_EXYNOS4210_MCT,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210MCTState),
-    .instance_init = exynos4210_mct_init,
-    .instance_finalize = exynos4210_mct_finalize,
-    .class_init    = exynos4210_mct_class_init,
+    .instance_init = Exynos4210MCTState::instanceInitWrapper,
+    .instance_finalize = Exynos4210MCTState::instanceFinalize,
+    .class_init    = Exynos4210MCTState::classInit,
 };
 
 static void exynos4210_mct_register_types(void)

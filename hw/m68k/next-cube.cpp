@@ -1239,13 +1239,13 @@ static const VMStateDescription next_pc_vmstate = {
     },
 };
 
-static void next_pc_class_init(ObjectClass *klass, const void *data)
+void NeXTPC::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->desc = "NeXT Peripheral Controller";
-    dc->realize = next_pc_realize;
+    dc->realize = realizeWrapper;
     device_class_set_props(dc, next_pc_properties);
     dc->vmsd = &next_pc_vmstate;
     rc->phases.hold = next_pc_reset_hold;
@@ -1254,12 +1254,12 @@ static void next_pc_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo next_pc_info = {
     .name = TYPE_NEXT_PC,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_init = next_pc_init,
+    .instance_init = NeXTPC::instanceInit,
     .instance_size = sizeof(NeXTPC),
-    .class_init = next_pc_class_init,
+    .class_init = NeXTPC::classInit,
 };
 
-static void next_cube_init(MachineState *machine)
+void NeXTState::machineInit(MachineState *machine)
 {
     NeXTState *m = NEXT_MACHINE(machine);
     M68kCPU *cpu;
@@ -1359,12 +1359,12 @@ static void next_cube_init(MachineState *machine)
     memory_region_add_subregion(sysmem, 0x02000000, &m->dmamem);
 }
 
-static void next_machine_class_init(ObjectClass *oc, const void *data)
+void NeXTState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "NeXT Cube";
-    mc->init = next_cube_init;
+    mc->init = machineInit;
     mc->block_default_type = IF_SCSI;
     mc->default_ram_size = RAM_SIZE;
     mc->default_ram_id = "next.ram";
@@ -1375,7 +1375,7 @@ static void next_machine_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo next_typeinfo = {
     .name = TYPE_NEXT_MACHINE,
     .parent = TYPE_MACHINE,
-    .class_init = next_machine_class_init,
+    .class_init = NeXTState::classInit,
     .instance_size = sizeof(NeXTState),
 };
 

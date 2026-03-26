@@ -45,6 +45,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "qemu/cutils.h"
 #include "qapi/error.h"
@@ -138,6 +139,10 @@ struct MPS2TZMachineClass {
     const RAMInfo *raminfo;
     const char *armsse_type;
     uint32_t boot_ram_size; /* size of ram at address 0; 0 == find in raminfo */
+
+    /* Methods */
+    static void classInit(ObjectClass *oc, const void *data);
+    void setDefaultRamInfo();
 };
 
 struct MPS2TZMachineState {
@@ -171,6 +176,17 @@ struct MPS2TZMachineState {
 
     bool remap;
     qemu_irq remap_irq;
+
+    /* Methods */
+    const RAMInfo *findRaminfoForMpc(int mpc);
+    MemoryRegion *mrForRaminfo(const RAMInfo *raminfo);
+    qemu_irq getSseIrqIn(int irqno);
+    hwaddr bootMemBase();
+    void remapMemory(int map);
+    void createNonMpcRam();
+    uint32_t bootRamSize();
+    void machineReset(ResetType type);
+    static void machineResetWrapper(MachineState *machine, ResetType type);
 };
 
 #define TYPE_MPS2TZ_MACHINE "mps2tz"
@@ -309,8 +325,9 @@ static const RAMInfo an547_raminfo[] = { {
     },
 };
 
-static const RAMInfo *find_raminfo_for_mpc(MPS2TZMachineState *mms, int mpc)
+const RAMInfo *MPS2TZMachineState::findRaminfoForMpc(int mpc)
 {
+    MPS2TZMachineState *mms = this;
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
     const RAMInfo *p;
     const RAMInfo *found = NULL;
@@ -327,9 +344,9 @@ static const RAMInfo *find_raminfo_for_mpc(MPS2TZMachineState *mms, int mpc)
     return found;
 }
 
-static MemoryRegion *mr_for_raminfo(MPS2TZMachineState *mms,
-                                    const RAMInfo *raminfo)
+MemoryRegion *MPS2TZMachineState::mrForRaminfo(const RAMInfo *raminfo)
 {
+    MPS2TZMachineState *mms = this;
     /* Return an initialized MemoryRegion for the RAMInfo. */
     MemoryRegion *ram;
 
@@ -362,8 +379,9 @@ static void make_ram_alias(MemoryRegion *mr, const char *name,
     memory_region_add_subregion(get_system_memory(), base, mr);
 }
 
-static qemu_irq get_sse_irq_in(MPS2TZMachineState *mms, int irqno)
+qemu_irq MPS2TZMachineState::getSseIrqIn(int irqno)
 {
+    MPS2TZMachineState *mms = this;
     /*
      * Return a qemu_irq which will signal IRQ n to all CPUs in the
      * SSE.  The irqno should be as the CPU sees it, so the first
@@ -453,11 +471,11 @@ static MemoryRegion *make_uart(MPS2TZMachineState *mms, void *opaque,
     qdev_prop_set_uint32(DEVICE(uart), "pclk-frq", mmc->apb_periph_frq);
     sysbus_realize(SYS_BUS_DEVICE(uart), &error_fatal);
     s = SYS_BUS_DEVICE(uart);
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[1]));
-    sysbus_connect_irq(s, 1, get_sse_irq_in(mms, irqs[0]));
+    sysbus_connect_irq(s, 0, mms->getSseIrqIn(irqs[1]));
+    sysbus_connect_irq(s, 1, mms->getSseIrqIn(irqs[0]));
     sysbus_connect_irq(s, 2, qdev_get_gpio_in(orgate_dev, i * 2));
     sysbus_connect_irq(s, 3, qdev_get_gpio_in(orgate_dev, i * 2 + 1));
-    sysbus_connect_irq(s, 4, get_sse_irq_in(mms, irqs[2]));
+    sysbus_connect_irq(s, 4, mms->getSseIrqIn(irqs[2]));
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(uart), 0);
 }
 
@@ -518,7 +536,7 @@ static MemoryRegion *make_eth_dev(MPS2TZMachineState *mms, void *opaque,
 
     s = SYS_BUS_DEVICE(mms->lan9118);
     sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
+    sysbus_connect_irq(s, 0, mms->getSseIrqIn(irqs[0]));
     return sysbus_mmio_get_region(s, 0);
 }
 
@@ -545,7 +563,7 @@ static MemoryRegion *make_eth_usb(MPS2TZMachineState *mms, void *opaque,
 
     s = SYS_BUS_DEVICE(mms->lan9118);
     sysbus_realize_and_unref(s, &error_fatal);
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
+    sysbus_connect_irq(s, 0, mms->getSseIrqIn(irqs[0]));
 
     memory_region_add_subregion(&mms->eth_usb_container,
                                 0, sysbus_mmio_get_region(s, 0));
@@ -571,8 +589,8 @@ static MemoryRegion *make_mpc(MPS2TZMachineState *mms, void *opaque,
     TZMPC *mpc = static_cast<TZMPC *>(opaque);
     int i = mpc - &mms->mpc[0];
     MemoryRegion *upstream;
-    const RAMInfo *raminfo = find_raminfo_for_mpc(mms, i);
-    MemoryRegion *ram = mr_for_raminfo(mms, raminfo);
+    const RAMInfo *raminfo = mms->findRaminfoForMpc(i);
+    MemoryRegion *ram = mms->mrForRaminfo(raminfo);
 
     object_initialize_child(OBJECT(mms), name, mpc, TYPE_TZ_MPC);
     object_property_set_link(OBJECT(mpc), "downstream", OBJECT(ram),
@@ -590,8 +608,9 @@ static MemoryRegion *make_mpc(MPS2TZMachineState *mms, void *opaque,
     return sysbus_mmio_get_region(SYS_BUS_DEVICE(mpc), 0);
 }
 
-static hwaddr boot_mem_base(MPS2TZMachineState *mms)
+hwaddr MPS2TZMachineState::bootMemBase()
 {
+    MPS2TZMachineState *mms = this;
     /*
      * Return the canonical address of the block which will be mapped
      * at address 0x0 (i.e. where the vector table is).
@@ -601,8 +620,9 @@ static hwaddr boot_mem_base(MPS2TZMachineState *mms)
     return mms->remap ? 0x28000000 : 0;
 }
 
-static void remap_memory(MPS2TZMachineState *mms, int map)
+void MPS2TZMachineState::remapMemory(int map)
 {
+    MPS2TZMachineState *mms = this;
     /*
      * Remap the memory for the AN524. 'map' is the value of
      * SCC CFG_REG0 bit 0, i.e. 0 for the default map and 1
@@ -633,7 +653,7 @@ static void remap_irq_fn(void *opaque, int n, int level)
 {
     MPS2TZMachineState *mms = static_cast<MPS2TZMachineState *>(opaque);
 
-    remap_memory(mms, level);
+    mms->remapMemory(level);
 }
 
 static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
@@ -685,9 +705,9 @@ static MemoryRegion *make_dma(MPS2TZMachineState *mms, void *opaque,
 
     s = SYS_BUS_DEVICE(dma);
     /* Wire up DMACINTR, DMACINTERR, DMACINTTC */
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
-    sysbus_connect_irq(s, 1, get_sse_irq_in(mms, irqs[1]));
-    sysbus_connect_irq(s, 2, get_sse_irq_in(mms, irqs[2]));
+    sysbus_connect_irq(s, 0, mms->getSseIrqIn(irqs[0]));
+    sysbus_connect_irq(s, 1, mms->getSseIrqIn(irqs[1]));
+    sysbus_connect_irq(s, 2, mms->getSseIrqIn(irqs[2]));
 
     g_free(mscname);
     return sysbus_mmio_get_region(s, 0);
@@ -711,7 +731,7 @@ static MemoryRegion *make_spi(MPS2TZMachineState *mms, void *opaque,
     object_initialize_child(OBJECT(mms), name, spi, TYPE_PL022);
     sysbus_realize(SYS_BUS_DEVICE(spi), &error_fatal);
     s = SYS_BUS_DEVICE(spi);
-    sysbus_connect_irq(s, 0, get_sse_irq_in(mms, irqs[0]));
+    sysbus_connect_irq(s, 0, mms->getSseIrqIn(irqs[0]));
     return sysbus_mmio_get_region(s, 0);
 }
 
@@ -759,8 +779,9 @@ static MemoryRegion *make_rtc(MPS2TZMachineState *mms, void *opaque,
     return sysbus_mmio_get_region(s, 0);
 }
 
-static void create_non_mpc_ram(MPS2TZMachineState *mms)
+void MPS2TZMachineState::createNonMpcRam()
 {
+    MPS2TZMachineState *mms = this;
     /*
      * Handle the RAMs which are either not behind MPCs or which are
      * aliases to another MPC.
@@ -775,14 +796,15 @@ static void create_non_mpc_ram(MPS2TZMachineState *mms)
             make_ram_alias(&mms->ram[p->mrindex], p->name, upstream, p->base);
         } else if (p->mpc == -1) {
             /* RAM not behind an MPC */
-            MemoryRegion *mr = mr_for_raminfo(mms, p);
+            MemoryRegion *mr = mms->mrForRaminfo(p);
             memory_region_add_subregion(get_system_memory(), p->base, mr);
         }
     }
 }
 
-static uint32_t boot_ram_size(MPS2TZMachineState *mms)
+uint32_t MPS2TZMachineState::bootRamSize()
 {
+    MPS2TZMachineState *mms = this;
     /* Return the size of the RAM block at guest address zero */
     const RAMInfo *p;
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
@@ -796,7 +818,7 @@ static uint32_t boot_ram_size(MPS2TZMachineState *mms)
     }
 
     for (p = mmc->raminfo; p->name; p++) {
-        if (p->base == boot_mem_base(mms)) {
+        if (p->base == mms->bootMemBase()) {
             return p->size;
         }
     }
@@ -924,7 +946,7 @@ static void mps2tz_common_init(MachineState *machine)
                             &error_fatal);
     qdev_realize(DEVICE(&mms->uart_irq_orgate), NULL, &error_fatal);
     qdev_connect_gpio_out(DEVICE(&mms->uart_irq_orgate), 0,
-                          get_sse_irq_in(mms, mmc->uart_overflow_irq));
+                          mms->getSseIrqIn(mmc->uart_overflow_irq));
 
     /* Most of the devices in the FPGA are behind Peripheral Protection
      * Controllers. The required order for initializing things is:
@@ -1205,7 +1227,7 @@ static void mps2tz_common_init(MachineState *machine)
         create_unimplemented_device("U55 timing adapter 1", 0x48103000, 0x1000);
     }
 
-    create_non_mpc_ram(mms);
+    mms->createNonMpcRam();
 
     if (mmc->fpga_type == FPGA_AN524) {
         /*
@@ -1218,7 +1240,7 @@ static void mps2tz_common_init(MachineState *machine)
     }
 
     armv7m_load_kernel(mms->iotkit.armv7m[0].cpu, machine->kernel_filename,
-                       0, boot_ram_size(mms));
+                       0, mms->bootRamSize());
 }
 
 static void mps2_tz_idau_check(IDAUInterface *ii, uint32_t address,
@@ -1260,27 +1282,33 @@ static void mps2_set_remap(Object *obj, const char *value, Error **errp)
     }
 }
 
-static void mps2_machine_reset(MachineState *machine, ResetType type)
+void MPS2TZMachineState::machineReset(ResetType type)
 {
-    MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
+    MPS2TZMachineState *mms = this;
 
     /*
      * Set the initial memory mapping before triggering the reset of
      * the rest of the system, so that the guest image loader and CPU
      * reset see the correct mapping.
      */
-    remap_memory(mms, mms->remap);
+    mms->remapMemory(mms->remap);
     qemu_devices_reset(type);
 }
 
-static void mps2tz_class_init(ObjectClass *oc, const void *data)
+void MPS2TZMachineState::machineResetWrapper(MachineState *machine, ResetType type)
+{
+    MPS2TZMachineState *mms = MPS2TZ_MACHINE(machine);
+    mms->machineReset(type);
+}
+
+void MPS2TZMachineClass::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     IDAUInterfaceClass *iic = IDAU_INTERFACE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
 
     mc->init = mps2tz_common_init;
-    mc->reset = mps2_machine_reset;
+    mc->reset = MPS2TZMachineState::machineResetWrapper;
     iic->check = mps2_tz_idau_check;
 
     /* Most machines leave these at the SSE defaults */
@@ -1290,12 +1318,13 @@ static void mps2tz_class_init(ObjectClass *oc, const void *data)
     mmc->cpu1_mpu_s = MPU_REGION_DEFAULT;
 }
 
-static void mps2tz_set_default_ram_info(MPS2TZMachineClass *mmc)
+void MPS2TZMachineClass::setDefaultRamInfo()
 {
     /*
      * Set mc->default_ram_size and default_ram_id from the
      * information in mmc->raminfo.
      */
+    MPS2TZMachineClass *mmc = this;
     MachineClass *mc = MACHINE_CLASS(mmc);
     const RAMInfo *p;
 
@@ -1341,7 +1370,7 @@ static void mps2tz_an505_class_init(ObjectClass *oc, const void *data)
     mmc->raminfo = an505_raminfo;
     mmc->armsse_type = TYPE_IOTKIT;
     mmc->boot_ram_size = 0;
-    mps2tz_set_default_ram_info(mmc);
+    mmc->setDefaultRamInfo();
 }
 
 static void mps2tz_an521_class_init(ObjectClass *oc, const void *data)
@@ -1375,7 +1404,7 @@ static void mps2tz_an521_class_init(ObjectClass *oc, const void *data)
     mmc->raminfo = an505_raminfo; /* AN521 is the same as AN505 here */
     mmc->armsse_type = TYPE_SSE200;
     mmc->boot_ram_size = 0;
-    mps2tz_set_default_ram_info(mmc);
+    mmc->setDefaultRamInfo();
 }
 
 static void mps3tz_an524_class_init(ObjectClass *oc, const void *data)
@@ -1409,7 +1438,7 @@ static void mps3tz_an524_class_init(ObjectClass *oc, const void *data)
     mmc->raminfo = an524_raminfo;
     mmc->armsse_type = TYPE_SSE200;
     mmc->boot_ram_size = 0;
-    mps2tz_set_default_ram_info(mmc);
+    mmc->setDefaultRamInfo();
 
     object_class_property_add_str(oc, "remap", mps2_get_remap, mps2_set_remap);
     object_class_property_set_description(oc, "remap",
@@ -1449,7 +1478,7 @@ static void mps3tz_an547_class_init(ObjectClass *oc, const void *data)
     mmc->raminfo = an547_raminfo;
     mmc->armsse_type = TYPE_SSE300;
     mmc->boot_ram_size = 512 * KiB;
-    mps2tz_set_default_ram_info(mmc);
+    mmc->setDefaultRamInfo();
 }
 
 static const InterfaceInfo mps2tz_info_interfaces[] = {
@@ -1463,7 +1492,7 @@ static const TypeInfo mps2tz_info = {
     .instance_size = sizeof(MPS2TZMachineState),
     .is_abstract = true,
     .class_size = sizeof(MPS2TZMachineClass),
-    .class_init = mps2tz_class_init,
+    .class_init = MPS2TZMachineClass::classInit,
     .interfaces = mps2tz_info_interfaces,
 };
 
