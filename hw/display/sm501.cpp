@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -2026,11 +2027,25 @@ struct SM501SysBusState {
     uint32_t vram_size;
     SerialMM serial;
     OHCISysBusState ohci;
+
+    /* methods */
+    void realize(Error **errp);
+    void reset();
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void instanceInit(Object *o);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
+void SM501SysBusState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    SM501SysBusState *s = SYSBUS_SM501(dev);
+    SYSBUS_SM501(dev)->realize(errp);
+}
+
+void SM501SysBusState::realize(Error **errp)
+{
+    SM501SysBusState *s = this;
+    DeviceState *dev = DEVICE(s);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     MemoryRegion *mr;
 
@@ -2062,10 +2077,14 @@ static const Property sm501_sysbus_properties[] = {
     DEFINE_PROP_UINT8("x-pixman", SM501SysBusState, state.use_pixman, DEFAULT_X_PIXMAN),
 };
 
-static void sm501_reset_sysbus(DeviceState *dev)
+void SM501SysBusState::reset()
 {
-    SM501SysBusState *s = SYSBUS_SM501(dev);
-    sm501_reset(&s->state);
+    sm501_reset(&this->state);
+}
+
+void SM501SysBusState::resetWrapper(DeviceState *dev)
+{
+    SYSBUS_SM501(dev)->reset();
 }
 
 static const VMStateDescription vmstate_sm501_sysbus = {
@@ -2079,19 +2098,19 @@ static const VMStateDescription vmstate_sm501_sysbus = {
      }
 };
 
-static void sm501_sysbus_class_init(ObjectClass *klass, const void *data)
+void SM501SysBusState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = sm501_realize_sysbus;
+    dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "SM501 Multimedia Companion";
     device_class_set_props(dc, sm501_sysbus_properties);
-    device_class_set_legacy_reset(dc, sm501_reset_sysbus);
+    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_sm501_sysbus;
 }
 
-static void sm501_sysbus_init(Object *o)
+void SM501SysBusState::instanceInit(Object *o)
 {
     SM501SysBusState *sm501 = SYSBUS_SM501(o);
     OHCISysBusState *ohci = &sm501->ohci;
@@ -2113,8 +2132,8 @@ static const TypeInfo sm501_sysbus_info = {
     .name          = TYPE_SYSBUS_SM501,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SM501SysBusState),
-    .instance_init = sm501_sysbus_init,
-    .class_init    = sm501_sysbus_class_init,
+    .instance_init = SM501SysBusState::instanceInit,
+    .class_init    = SM501SysBusState::classInit,
 };
 
 #define TYPE_PCI_SM501 "sm501"
@@ -2126,11 +2145,25 @@ struct SM501PCIState {
     /*< public >*/
     SM501State state;
     uint32_t vram_size;
+
+    /* methods */
+    void realize(Error **errp);
+    void reset();
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void instanceInit(Object *o);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void sm501_realize_pci(PCIDevice *dev, Error **errp)
+void SM501PCIState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    SM501PCIState *s = PCI_SM501(dev);
+    PCI_SM501(dev)->realize(errp);
+}
+
+void SM501PCIState::realize(Error **errp)
+{
+    SM501PCIState *s = this;
+    PCIDevice *dev = &s->parent_obj;
 
     sm501_init(&s->state, DEVICE(dev), s->vram_size);
     if (get_local_mem_size(&s->state) != s->vram_size) {
@@ -2149,12 +2182,16 @@ static const Property sm501_pci_properties[] = {
     DEFINE_PROP_UINT8("x-pixman", SM501PCIState, state.use_pixman, DEFAULT_X_PIXMAN),
 };
 
-static void sm501_reset_pci(DeviceState *dev)
+void SM501PCIState::reset()
 {
-    SM501PCIState *s = PCI_SM501(dev);
-    sm501_reset(&s->state);
+    sm501_reset(&this->state);
     /* Bits 2:0 of misc_control register is 001 for PCI */
-    s->state.misc_control |= 1;
+    this->state.misc_control |= 1;
+}
+
+void SM501PCIState::resetWrapper(DeviceState *dev)
+{
+    PCI_SM501(dev)->reset();
 }
 
 static const VMStateDescription vmstate_sm501_pci = {
@@ -2169,24 +2206,24 @@ static const VMStateDescription vmstate_sm501_pci = {
      }
 };
 
-static void sm501_pci_class_init(ObjectClass *klass, const void *data)
+void SM501PCIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = sm501_realize_pci;
+    k->realize = realizeWrapper;
     k->vendor_id = PCI_VENDOR_ID_SILICON_MOTION;
     k->device_id = PCI_DEVICE_ID_SM501;
     k->class_id = PCI_CLASS_DISPLAY_OTHER;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "SM501 Display Controller";
     device_class_set_props(dc, sm501_pci_properties);
-    device_class_set_legacy_reset(dc, sm501_reset_pci);
+    device_class_set_legacy_reset(dc, resetWrapper);
     dc->hotpluggable = false;
     dc->vmsd = &vmstate_sm501_pci;
 }
 
-static void sm501_pci_init(Object *o)
+void SM501PCIState::instanceInit(Object *o)
 {
     object_property_set_description(o, "x-pixman", "Use pixman for: "
                                     "1: fill, 2: blit, 4: overlap blit");
@@ -2201,8 +2238,8 @@ static const TypeInfo sm501_pci_info = {
     .name          = TYPE_PCI_SM501,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(SM501PCIState),
-    .instance_init = sm501_pci_init,
-    .class_init    = sm501_pci_class_init,
+    .instance_init = SM501PCIState::instanceInit,
+    .class_init    = SM501PCIState::classInit,
     .interfaces = sm501_pci_interfaces,
 };
 

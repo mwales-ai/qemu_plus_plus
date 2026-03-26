@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "exec/hwaddr.h"
 #include "exec/cpu-interrupt.h"
 #include "system/system.h"
@@ -111,6 +112,12 @@ struct NeXTPC {
     NeXTRTC rtc;
     qemu_irq rtc_data_irq;
     qemu_irq rtc_cmd_reset_irq;
+
+    /* methods */
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 typedef struct next_dma {
@@ -143,6 +150,10 @@ struct NeXTState {
     MemoryRegion bmapm2;
 
     next_dma dma[10];
+
+    /* methods */
+    static void machineInit(MachineState *machine);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 /* Thanks to NeXT forums for this */
@@ -1101,9 +1112,15 @@ static void next_pc_reset_hold(Object *obj, ResetType type)
     s->old_scr2 = s->scr2;
 }
 
-static void next_pc_realize(DeviceState *dev, Error **errp)
+void NeXTPC::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    NeXTPC *s = NEXT_PC(dev);
+    NEXT_PC(dev)->realize(errp);
+}
+
+void NeXTPC::realize(Error **errp)
+{
+    NeXTPC *s = this;
+    DeviceState *dev = DEVICE(s);
     SysBusDevice *sbd;
     DeviceState *d;
 
@@ -1156,7 +1173,7 @@ static void next_pc_realize(DeviceState *dev, Error **errp)
                                 qdev_get_gpio_in(dev, NEXT_PWR_I));
 }
 
-static void next_pc_init(Object *obj)
+void NeXTPC::instanceInit(Object *obj)
 {
     NeXTPC *s = NEXT_PC(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);

@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/ppc/ppc.h"
@@ -82,6 +83,13 @@ struct PegasosMachineState {
     uint64_t kernel_size;
     uint64_t initrd_addr;
     uint64_t initrd_size;
+
+    /* methods */
+    static void machineInit(MachineState *machine);
+    static void pegasos1InstanceInit(Object *obj);
+    static void pegasos2InstanceInit(Object *obj);
+    static void pegasos1ClassInit(ObjectClass *oc, const void *data);
+    static void pegasos2ClassInit(ObjectClass *oc, const void *data);
 };
 
 static void *pegasos1_build_fdt(PegasosMachineState *pm, int *fdt_size);
@@ -144,7 +152,7 @@ static void pegasos2_setup_pci_irq(PegasosMachineState *pm)
                                 qdev_get_gpio_in_named(pm->nb, "gpp", 31));
 }
 
-static void pegasos_init(MachineState *machine)
+void PegasosMachineState::machineInit(MachineState *machine)
 {
     PegasosMachineState *pm = PEGASOS_MACHINE(machine);
     CPUPPCState *env;
@@ -735,7 +743,7 @@ static void pegasos_machine_init(MachineClass *mc)
     PPCVirtualHypervisorClass *vhc = PPC_VIRTUAL_HYPERVISOR_CLASS(mc);
     VofMachineIfClass *vmc = VOF_MACHINE_CLASS(mc);
 
-    mc->init = pegasos_init;
+    mc->init = PegasosMachineState::machineInit;
     mc->reset = pegasos_machine_reset;
     mc->block_default_type = IF_IDE;
     mc->default_boot_order = "cd";
@@ -753,7 +761,7 @@ static void pegasos_machine_init(MachineClass *mc)
     vmc->setprop = pegasos_setprop;
 }
 
-static void pegasos1_init(Object *obj)
+void PegasosMachineState::pegasos1InstanceInit(Object *obj)
 {
     PegasosMachineState *pm = PEGASOS_MACHINE(obj);
 
@@ -761,7 +769,7 @@ static void pegasos1_init(Object *obj)
     pm->bus_freq_hz = 33000000;
 }
 
-static void pegasos1_machine_class_init(ObjectClass *oc, const void *data)
+void PegasosMachineState::pegasos1ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -769,7 +777,7 @@ static void pegasos1_machine_class_init(ObjectClass *oc, const void *data)
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("750cxe_v3.1b");
 }
 
-static void pegasos2_init(Object *obj)
+void PegasosMachineState::pegasos2InstanceInit(Object *obj)
 {
     PegasosMachineState *pm = PEGASOS_MACHINE(obj);
 
@@ -777,7 +785,7 @@ static void pegasos2_init(Object *obj)
     pm->bus_freq_hz = 133333333;
 }
 
-static void pegasos2_machine_class_init(ObjectClass *oc, const void *data)
+void PegasosMachineState::pegasos2ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -794,14 +802,14 @@ static const TypeInfo pegasos_machine_types[] = {
     {
         .name          = MACHINE_TYPE_NAME("pegasos1"),
         .parent        = TYPE_PEGASOS_MACHINE,
-        .instance_init = pegasos1_init,
-        .class_init    = pegasos1_machine_class_init,
+        .instance_init = PegasosMachineState::pegasos1InstanceInit,
+        .class_init    = PegasosMachineState::pegasos1ClassInit,
     },
     {
         .name          = MACHINE_TYPE_NAME("pegasos2"),
         .parent        = TYPE_PEGASOS_MACHINE,
-        .instance_init = pegasos2_init,
-        .class_init    = pegasos2_machine_class_init,
+        .instance_init = PegasosMachineState::pegasos2InstanceInit,
+        .class_init    = PegasosMachineState::pegasos2ClassInit,
     },
 };
 

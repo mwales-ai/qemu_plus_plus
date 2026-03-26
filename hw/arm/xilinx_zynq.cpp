@@ -16,6 +16,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
@@ -94,6 +95,11 @@ struct ZynqMachineState {
     Clock *ps_clk;
     ARMCPU *cpu[ZYNQ_MAX_CPUS];
     uint8_t boot_mode;
+
+    /* methods */
+    static void setBootMode(Object *obj, const char *str, Error **errp);
+    static void machineInit(MachineState *machine);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 static void zynq_write_board_setup(ARMCPU *cpu,
@@ -180,7 +186,7 @@ static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
     return unit;
 }
 
-static void zynq_set_boot_mode(Object *obj, const char *str,
+void ZynqMachineState::setBootMode(Object *obj, const char *str,
                                                Error **errp)
 {
     ZynqMachineState *m = ZYNQ_MACHINE(obj);
@@ -201,7 +207,7 @@ static void zynq_set_boot_mode(Object *obj, const char *str,
     m->boot_mode = mode;
 }
 
-static void zynq_init(MachineState *machine)
+void ZynqMachineState::machineInit(MachineState *machine)
 {
     ZynqMachineState *zynq_machine = ZYNQ_MACHINE(machine);
     MemoryRegion *address_space_mem = get_system_memory();
@@ -454,7 +460,7 @@ static void zynq_init(MachineState *machine)
     arm_load_kernel(zynq_machine->cpu[0], machine, &zynq_binfo);
 }
 
-static void zynq_machine_class_init(ObjectClass *oc, const void *data)
+void ZynqMachineState::classInit(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a9"),
@@ -463,13 +469,13 @@ static void zynq_machine_class_init(ObjectClass *oc, const void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     ObjectProperty *prop;
     mc->desc = "Xilinx Zynq 7000 Platform Baseboard for Cortex-A9";
-    mc->init = zynq_init;
+    mc->init = machineInit;
     mc->max_cpus = ZYNQ_MAX_CPUS;
     mc->ignore_memory_transaction_failures = true;
     mc->valid_cpu_types = valid_cpu_types;
     mc->default_ram_id = "zynq.ext_ram";
     prop = object_class_property_add_str(oc, "boot-mode", NULL,
-                                         zynq_set_boot_mode);
+                                         setBootMode);
     object_class_property_set_description(oc, "boot-mode",
                                           "Supported boot modes:"
                                           " jtag qspi sd nor");
@@ -480,7 +486,7 @@ static const TypeInfo zynq_machine_type = {
     .name = TYPE_ZYNQ_MACHINE,
     .parent = TYPE_MACHINE,
     .instance_size = sizeof(ZynqMachineState),
-    .class_init = zynq_machine_class_init,
+    .class_init = ZynqMachineState::classInit,
     .interfaces = arm_machine_interfaces,
 };
 

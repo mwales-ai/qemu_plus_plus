@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/audio/model.h"
 #include "qemu/audio.h"
 #include "hw/irq.h"
@@ -112,6 +113,12 @@ struct SB16State {
     int mixer_nreg;
     uint8_t mixer_regs[256];
     PortioList portio_list;
+
+    /* methods */
+    void realize(Error **errp);
+    static void realizefnWrapper(DeviceState *dev, Error **errp);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define SAMPLE_RATE_MIN 5000
@@ -1389,18 +1396,24 @@ static const MemoryRegionPortio sb16_ioport_list[] = {
 };
 
 
-static void sb16_initfn (Object *obj)
+void SB16State::instanceInit(Object *obj)
 {
     SB16State *s = SB16 (obj);
 
     s->cmd = -1;
 }
 
-static void sb16_realizefn (DeviceState *dev, Error **errp)
+void SB16State::realizefnWrapper(DeviceState *dev, Error **errp)
 {
+    SB16(dev)->realize(errp);
+}
+
+void SB16State::realize(Error **errp)
+{
+    SB16State *s = this;
+    DeviceState *dev = DEVICE(s);
     ISADevice *isadev = ISA_DEVICE (dev);
     ISABus *bus = isa_bus_from_device(isadev);
-    SB16State *s = SB16 (dev);
     IsaDmaClass *k;
 
     if (!AUD_backend_check(&s->audio_be, errp)) {
@@ -1450,11 +1463,11 @@ static const Property sb16_properties[] = {
     DEFINE_PROP_UINT32 ("dma16",   SB16State, hdma, 5),
 };
 
-static void sb16_class_initfn(ObjectClass *klass, const void *data)
+void SB16State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 
-    dc->realize = sb16_realizefn;
+    dc->realize = realizefnWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Creative Sound Blaster 16";
     dc->vmsd = &vmstate_sb16;
@@ -1465,8 +1478,8 @@ static const TypeInfo sb16_info = {
     .name          = TYPE_SB16,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (SB16State),
-    .instance_init = sb16_initfn,
-    .class_init    = sb16_class_initfn,
+    .instance_init = SB16State::instanceInit,
+    .class_init    = SB16State::classInit,
 };
 
 static void sb16_register_types (void)

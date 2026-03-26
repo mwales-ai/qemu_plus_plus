@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "system/system.h"
 #include "system/block-backend.h"
 #include "hw/boards.h"
@@ -35,6 +36,16 @@ struct Fby35State {
     Aspeed10x0SoCState bic;
 
     bool mmio_exec;
+
+    /* methods */
+    void bmcInit();
+    void bicInit();
+
+    static void machineInit(MachineState *machine);
+    static bool getMmioExec(Object *obj, Error **errp);
+    static void setMmioExec(Object *obj, bool value, Error **errp);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 #define FBY35_BMC_RAM_SIZE (2 * GiB)
@@ -72,8 +83,9 @@ static void fby35_bmc_write_boot_rom(DriveInfo *dinfo, MemoryRegion *mr,
     memcpy(static_cast<uint8_t *>(memory_region_get_ram_ptr(mr)) + offset, storage, rom_size);
 }
 
-static void fby35_bmc_init(Fby35State *s)
+void Fby35State::bmcInit()
 {
+    Fby35State *s = this;
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
 
@@ -122,8 +134,9 @@ static void fby35_bmc_init(Fby35State *s)
     }
 }
 
-static void fby35_bic_init(Fby35State *s)
+void Fby35State::bicInit()
 {
+    Fby35State *s = this;
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
 
@@ -149,45 +162,45 @@ static void fby35_bic_init(Fby35State *s)
     aspeed_board_init_flashes(&soc->spi[1], "sst25vf032b", 2, 6);
 }
 
-static void fby35_init(MachineState *machine)
+void Fby35State::machineInit(MachineState *machine)
 {
     Fby35State *s = FBY35(machine);
 
-    fby35_bmc_init(s);
-    fby35_bic_init(s);
+    s->bmcInit();
+    s->bicInit();
 }
 
 
-static bool fby35_get_mmio_exec(Object *obj, Error **errp)
+bool Fby35State::getMmioExec(Object *obj, Error **errp)
 {
     return FBY35(obj)->mmio_exec;
 }
 
-static void fby35_set_mmio_exec(Object *obj, bool value, Error **errp)
+void Fby35State::setMmioExec(Object *obj, bool value, Error **errp)
 {
     FBY35(obj)->mmio_exec = value;
 }
 
-static void fby35_instance_init(Object *obj)
+void Fby35State::instanceInit(Object *obj)
 {
     FBY35(obj)->mmio_exec = false;
 }
 
-static void fby35_class_init(ObjectClass *oc, const void *data)
+void Fby35State::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "Meta Platforms fby35";
     mc->deprecation_reason = "For a multi-soc machine, use 'ast2700fc' instead";
-    mc->init = fby35_init;
+    mc->init = machineInit;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->auto_create_sdcard = true;
     mc->min_cpus = mc->max_cpus = mc->default_cpus = 3;
 
     object_class_property_add_bool(oc, "execute-in-place",
-                                   fby35_get_mmio_exec,
-                                   fby35_set_mmio_exec);
+                                   getMmioExec,
+                                   setMmioExec);
     object_class_property_set_description(oc, "execute-in-place",
                            "boot directly from CE0 flash device");
 }
@@ -197,8 +210,8 @@ static const TypeInfo fby35_types[] = {
         .name = MACHINE_TYPE_NAME("fby35"),
         .parent = TYPE_MACHINE,
         .instance_size = sizeof(Fby35State),
-        .instance_init = fby35_instance_init,
-        .class_init = fby35_class_init,
+        .instance_init = Fby35State::instanceInit,
+        .class_init = Fby35State::classInit,
         .interfaces = arm_machine_interfaces,
     },
 };

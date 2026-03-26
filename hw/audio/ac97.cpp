@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/audio/model.h"
 #include "qemu/audio.h"
 #include "hw/pci/pci_device.h"
@@ -135,6 +136,14 @@ struct AC97LinkState {
     int bup_flag;
     MemoryRegion io_nam;
     MemoryRegion io_nabm;
+
+    /* methods */
+    void realize(Error **errp);
+    void reset();
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void exitWrapper(PCIDevice *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 enum {
@@ -1258,9 +1267,9 @@ static const MemoryRegionOps ac97_io_nabm_ops = {
     },
 };
 
-static void ac97_on_reset(DeviceState *dev)
+void AC97LinkState::reset()
 {
-    AC97LinkState *s = AC97(dev);
+    AC97LinkState *s = this;
 
     reset_bm_regs(s, &s->bm_regs[0]);
     reset_bm_regs(s, &s->bm_regs[1]);
@@ -1274,9 +1283,19 @@ static void ac97_on_reset(DeviceState *dev)
     mixer_reset(s);
 }
 
-static void ac97_realize(PCIDevice *dev, Error **errp)
+void AC97LinkState::resetWrapper(DeviceState *dev)
 {
-    AC97LinkState *s = AC97(dev);
+    AC97(dev)->reset();
+}
+
+void AC97LinkState::realizeWrapper(PCIDevice *dev, Error **errp)
+{
+    AC97(dev)->realize(errp);
+}
+
+void AC97LinkState::realize(Error **errp)
+{
+    AC97LinkState *s = this;
     uint8_t *c = s->dev.config;
 
     if (!AUD_backend_check (&s->audio_be, errp)) {
@@ -1298,10 +1317,10 @@ static void ac97_realize(PCIDevice *dev, Error **errp)
     pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nam);
     pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nabm);
 
-    ac97_on_reset(DEVICE(s));
+    reset();
 }
 
-static void ac97_exit(PCIDevice *dev)
+void AC97LinkState::exitWrapper(PCIDevice *dev)
 {
     AC97LinkState *s = AC97(dev);
 
@@ -1314,13 +1333,13 @@ static const Property ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(AC97LinkState, audio_be),
 };
 
-static void ac97_class_init(ObjectClass *klass, const void *data)
+void AC97LinkState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = ac97_realize;
-    k->exit = ac97_exit;
+    k->realize = realizeWrapper;
+    k->exit = exitWrapper;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801AA_5;
     k->revision = 0x01;
@@ -1329,7 +1348,7 @@ static void ac97_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Intel 82801AA AC97 Audio";
     dc->vmsd = &vmstate_ac97;
     device_class_set_props(dc, ac97_properties);
-    device_class_set_legacy_reset(dc, ac97_on_reset);
+    device_class_set_legacy_reset(dc, resetWrapper);
 }
 
 static const InterfaceInfo ac97_interfaces[] = {
@@ -1341,7 +1360,7 @@ static const TypeInfo ac97_info = {
     .name          = TYPE_AC97,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AC97LinkState),
-    .class_init    = ac97_class_init,
+    .class_init    = AC97LinkState::classInit,
     .interfaces = ac97_interfaces,
 };
 

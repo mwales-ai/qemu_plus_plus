@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
@@ -755,6 +756,11 @@ struct PPC460EXPCIEState {
     uint32_t reg_mask;
     uint32_t special;
     uint32_t cfg;
+
+    /* methods */
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 enum {
@@ -991,9 +997,15 @@ static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s)
     PPC440_PCIE_DCR(s, PEGPL_CFG);
 }
 
-static void ppc460ex_pcie_realize(DeviceState *dev, Error **errp)
+void PPC460EXPCIEState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PPC460EXPCIEState *s = PPC460EX_PCIE_HOST(dev);
+    PPC460EX_PCIE_HOST(dev)->realize(errp);
+}
+
+void PPC460EXPCIEState::realize(Error **errp)
+{
+    PPC460EXPCIEState *s = this;
+    DeviceState *dev = DEVICE(s);
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     int i;
     char buf[20];
@@ -1027,12 +1039,12 @@ static const Property ppc460ex_pcie_props[] = {
                      PowerPCCPU *),
 };
 
-static void ppc460ex_pcie_class_init(ObjectClass *klass, const void *data)
+void PPC460EXPCIEState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->realize = ppc460ex_pcie_realize;
+    dc->realize = realizeWrapper;
     device_class_set_props(dc, ppc460ex_pcie_props);
     dc->hotpluggable = false;
 }
@@ -1041,7 +1053,7 @@ static const TypeInfo ppc460ex_pcie_host_info = {
     .name = TYPE_PPC460EX_PCIE_HOST,
     .parent = TYPE_PCIE_HOST_BRIDGE,
     .instance_size = sizeof(PPC460EXPCIEState),
-    .class_init = ppc460ex_pcie_class_init,
+    .class_init = PPC460EXPCIEState::classInit,
 };
 
 static void ppc460ex_pcie_register(void)

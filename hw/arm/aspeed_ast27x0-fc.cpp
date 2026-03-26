@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "system/block-backend.h"
 #include "system/system.h"
@@ -51,6 +52,13 @@ struct Ast2700FCState {
     Aspeed27x0SoCState ca35;
     Aspeed27x0CoprocessorState ssp;
     Aspeed27x0CoprocessorState tsp;
+
+    /* methods */
+    static bool ca35Init(MachineState *machine, Error **errp);
+    static bool sspInit(MachineState *machine, Error **errp);
+    static bool tspInit(MachineState *machine, Error **errp);
+    static void machineInit(MachineState *machine);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 #define AST2700FC_BMC_RAM_SIZE (1 * GiB)
@@ -61,7 +69,7 @@ struct Ast2700FCState {
 #define AST2700FC_FMC_MODEL "w25q01jvq"
 #define AST2700FC_SPI_MODEL "w25q512jv"
 
-static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
+bool Ast2700FCState::ca35Init(MachineState *machine, Error **errp)
 {
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *soc;
@@ -138,7 +146,7 @@ static bool ast2700fc_ca35_init(MachineState *machine, Error **errp)
     return true;
 }
 
-static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
+bool Ast2700FCState::sspInit(MachineState *machine, Error **errp)
 {
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
@@ -170,7 +178,7 @@ static bool ast2700fc_ssp_init(MachineState *machine, Error **errp)
     return true;
 }
 
-static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
+bool Ast2700FCState::tspInit(MachineState *machine, Error **errp)
 {
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
@@ -202,19 +210,19 @@ static bool ast2700fc_tsp_init(MachineState *machine, Error **errp)
     return true;
 }
 
-static void ast2700fc_init(MachineState *machine)
+void Ast2700FCState::machineInit(MachineState *machine)
 {
-    ast2700fc_ca35_init(machine, &error_abort);
-    ast2700fc_ssp_init(machine, &error_abort);
-    ast2700fc_tsp_init(machine, &error_abort);
+    ca35Init(machine, &error_abort);
+    sspInit(machine, &error_abort);
+    tspInit(machine, &error_abort);
 }
 
-static void ast2700fc_class_init(ObjectClass *oc, const void *data)
+void Ast2700FCState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "ast2700 full core support";
-    mc->init = ast2700fc_init;
+    mc->init = machineInit;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->min_cpus = mc->max_cpus = mc->default_cpus = 6;
@@ -225,7 +233,7 @@ static const TypeInfo ast2700fc_types[] = {
         .name           = MACHINE_TYPE_NAME("ast2700fc"),
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(Ast2700FCState),
-        .class_init     = ast2700fc_class_init,
+        .class_init     = Ast2700FCState::classInit,
         .interfaces     = aarch64_machine_interfaces,
     },
 };
