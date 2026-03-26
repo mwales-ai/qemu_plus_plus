@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include <wchar.h>
@@ -208,6 +209,13 @@ struct MTPState {
         uint32_t size;
         char *filename;
     } dataset;
+
+    /* methods */
+    void realize(Error **errp);
+    void handleReset();
+    static void realizeWrapper(USBDevice *dev, Error **errp);
+    static void handleResetWrapper(USBDevice *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /*
@@ -1499,7 +1507,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
 
 /* ----------------------------------------------------------------------- */
 
-static void usb_mtp_handle_reset(USBDevice *dev)
+void MTPState::handleResetWrapper(USBDevice *dev)
 {
     MTPState *s = USB_MTP(dev);
 
@@ -2039,7 +2047,7 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_mtp_realize(USBDevice *dev, Error **errp)
+void MTPState::realizeWrapper(USBDevice *dev, Error **errp)
 {
     MTPState *s = USB_MTP(dev);
 
@@ -2092,17 +2100,17 @@ static const Property mtp_properties[] = {
     DEFINE_PROP_BOOL("readonly", MTPState, readonly, true),
 };
 
-static void usb_mtp_class_initfn(ObjectClass *klass, const void *data)
+void MTPState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize        = usb_mtp_realize;
+    uc->realize        = realizeWrapper;
     uc->product_desc   = "QEMU USB MTP";
-    uc->usb_desc       = &desc;
+    uc->usb_desc       = &::desc;
     uc->cancel_packet  = usb_mtp_cancel_packet;
     uc->handle_attach  = usb_desc_attach;
-    uc->handle_reset   = usb_mtp_handle_reset;
+    uc->handle_reset   = handleResetWrapper;
     uc->handle_control = usb_mtp_handle_control;
     uc->handle_data    = usb_mtp_handle_data;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
@@ -2116,7 +2124,7 @@ static const TypeInfo mtp_info = {
     .name          = TYPE_USB_MTP,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(MTPState),
-    .class_init    = usb_mtp_class_initfn,
+    .class_init    = MTPState::classInit,
 };
 
 static void usb_mtp_register_types(void)

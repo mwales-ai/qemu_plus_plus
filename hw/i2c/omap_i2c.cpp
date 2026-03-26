@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/i2c/i2c.h"
@@ -53,6 +54,14 @@ struct OMAPI2CState {
     uint8_t divider;
     uint8_t times[2];
     uint16_t test;
+
+    /* methods */
+    void reset();
+    void realize(Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
+    static void instanceInit(Object *obj);
 };
 
 #define OMAP2_INTR_REV  0x34
@@ -135,9 +144,10 @@ static void omap_i2c_fifo_run(OMAPI2CState *s)
         s->control &= ~(1 << 1);                /* STP */
 }
 
-static void omap_i2c_reset(DeviceState *dev)
+void OMAPI2CState::resetWrapper(DeviceState *dev) { OMAP_I2C(dev)->reset(); }
+void OMAPI2CState::reset()
 {
-    OMAPI2CState *s = OMAP_I2C(dev);
+    OMAPI2CState *s = this;
 
     s->mask = 0;
     s->stat = 0;
@@ -328,7 +338,7 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
         }
 
         if (value & 2) {
-            omap_i2c_reset(DEVICE(s));
+            OMAPI2CState::resetWrapper(DEVICE(s));
         }
         break;
 
@@ -336,7 +346,7 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
         s->control = value & 0xcf87;
         if (~value & (1 << 15)) {               /* I2C_EN */
             if (s->revision < OMAP2_INTR_REV) {
-                omap_i2c_reset(DEVICE(s));
+                OMAPI2CState::resetWrapper(DEVICE(s));
             }
             break;
         }
@@ -469,7 +479,7 @@ static const MemoryRegionOps omap_i2c_ops = {
     .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
-static void omap_i2c_init(Object *obj)
+void OMAPI2CState::instanceInit(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     OMAPI2CState *s = OMAP_I2C(obj);
@@ -482,11 +492,12 @@ static void omap_i2c_init(Object *obj)
     s->bus = i2c_init_bus(dev, NULL);
 }
 
-static void omap_i2c_realize(DeviceState *dev, Error **errp)
+void OMAPI2CState::realizeWrapper(DeviceState *dev, Error **errp) { OMAP_I2C(dev)->realize(errp); }
+void OMAPI2CState::realize(Error **errp)
 {
-    OMAPI2CState *s = OMAP_I2C(dev);
+    OMAPI2CState *s = this;
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &omap_i2c_ops, s, "omap.i2c",
+    memory_region_init_io(&s->iomem, OBJECT(s), &omap_i2c_ops, s, "omap.i2c",
                           (s->revision < OMAP2_INTR_REV) ? 0x800 : 0x1000);
 
     if (!s->fclk) {
@@ -514,23 +525,23 @@ static const Property omap_i2c_properties[] = {
     DEFINE_PROP_UINT8("revision", OMAPI2CState, revision, 0),
 };
 
-static void omap_i2c_class_init(ObjectClass *klass, const void *data)
+void OMAPI2CState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     device_class_set_props(dc, omap_i2c_properties);
-    device_class_set_legacy_reset(dc, omap_i2c_reset);
+    device_class_set_legacy_reset(dc, resetWrapper);
     /* Reason: pointer properties "iclk", "fclk" */
     dc->user_creatable = false;
-    dc->realize = omap_i2c_realize;
+    dc->realize = realizeWrapper;
 }
 
 static const TypeInfo omap_i2c_info = {
     .name = TYPE_OMAP_I2C,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OMAPI2CState),
-    .instance_init = omap_i2c_init,
-    .class_init = omap_i2c_class_init,
+    .instance_init = OMAPI2CState::instanceInit,
+    .class_init = OMAPI2CState::classInit,
 };
 
 static void omap_i2c_register_types(void)

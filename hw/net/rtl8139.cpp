@@ -49,6 +49,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include <zlib.h> /* for crc32 */
 
 #include "hw/pci/pci_device.h"
@@ -513,6 +514,10 @@ struct RTL8139State {
     int rtl8139_mmio_io_addr_dummy;
 
     /* methods */
+    void realize(Error **errp);
+    void reset();
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void resetWrapper(DeviceState *d);
     static void classInit(ObjectClass *klass, const void *data);
     static void instanceInit(Object *obj);
 };
@@ -1212,9 +1217,14 @@ static void rtl8139_reset_phy(RTL8139State *s)
     s->CSCR = CSCR_F_LINK_100 | CSCR_HEART_BIT | CSCR_LD;
 }
 
-static void rtl8139_reset(DeviceState *d)
+void RTL8139State::resetWrapper(DeviceState *d)
 {
-    RTL8139State *s = RTL8139(d);
+    RTL8139(d)->reset();
+}
+
+void RTL8139State::reset()
+{
+    RTL8139State *s = this;
     int i;
 
     /* restore MAC address */
@@ -1358,7 +1368,7 @@ static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
     if (val & CmdReset)
     {
         DPRINTF("ChipCmd reset\n");
-        rtl8139_reset(d);
+        RTL8139State::resetWrapper(d);
     }
     if (val & CmdRxEnb)
     {
@@ -1538,7 +1548,7 @@ static void rtl8139_Cfg9346_write(RTL8139State *s, uint32_t val)
     } else if (opmode == 0x40) {
         /* Reset.  */
         val = 0;
-        rtl8139_reset(d);
+        RTL8139State::resetWrapper(d);
     }
 
     s->Cfg9346 = val;
@@ -3365,9 +3375,15 @@ static NetClientInfo net_rtl8139_info = {
     .link_status_changed = rtl8139_set_link_status,
 };
 
-static void pci_rtl8139_realize(PCIDevice *dev, Error **errp)
+void RTL8139State::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    RTL8139State *s = RTL8139(dev);
+    RTL8139(dev)->realize(errp);
+}
+
+void RTL8139State::realize(Error **errp)
+{
+    RTL8139State *s = this;
+    PCIDevice *dev = &s->parent_obj;
     DeviceState *d = DEVICE(dev);
     uint8_t *pci_conf;
 
@@ -3428,14 +3444,14 @@ void RTL8139State::classInit(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = pci_rtl8139_realize;
+    k->realize = realizeWrapper;
     k->exit = pci_rtl8139_uninit;
     k->romfile = "efi-rtl8139.rom";
     k->vendor_id = PCI_VENDOR_ID_REALTEK;
     k->device_id = PCI_DEVICE_ID_REALTEK_8139;
     k->revision = RTL8139_PCI_REVID; /* >=0x20 is for 8139C+ */
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    device_class_set_legacy_reset(dc, rtl8139_reset);
+    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_rtl8139;
     device_class_set_props(dc, rtl8139_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);

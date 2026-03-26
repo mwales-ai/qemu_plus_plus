@@ -33,6 +33,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "hw/irq.h"
@@ -204,9 +205,20 @@ struct SDState {
     QEMUTimer *ocr_power_timer;
     uint8_t dat_lines;
     bool cmd_line;
+
+    /* Methods */
+    static void sdRealize(DeviceState *dev, Error **errp);
+    static void emmcRealize(DeviceState *dev, Error **errp);
+    static void sdReset(DeviceState *dev);
+    static void instanceInit(Object *obj);
+    static void instanceFinalize(Object *obj);
+    static void commonClassInit(ObjectClass *klass, const void *data);
+    static void sdClassInit(ObjectClass *klass, const void *data);
+    static void sdSpiClassInit(ObjectClass *klass, const void *data);
+    static void emmcClassInit(ObjectClass *klass, const void *data);
 };
 
-static void sd_realize(DeviceState *dev, Error **errp);
+/* Forward declaration - see SDState::sdRealize below */
 
 static SDProto sd_proto_spi;
 static SDProto sd_proto_emmc;
@@ -906,7 +918,7 @@ static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
     return addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT);
 }
 
-static void sd_reset(DeviceState *dev)
+void SDState::sdReset(DeviceState *dev)
 {
     SDState *sd = SDMMC_COMMON(dev);
     SDCardClass *sc = SDMMC_COMMON_GET_CLASS(sd);
@@ -973,7 +985,7 @@ static void sd_cardchange(void *opaque, bool load, Error **errp)
 
     if (inserted) {
         trace_sdcard_inserted(readonly);
-        sd_reset(dev);
+        SDState::sdReset(dev);
     } else {
         trace_sdcard_ejected();
     }
@@ -1667,7 +1679,7 @@ static sd_rsp_type_t sd_cmd_GO_IDLE_STATE(SDState *sd, SDRequest req)
     }
     if (sd->state != sd_inactive_state) {
         sd->state = sd_idle_state;
-        sd_reset(DEVICE(sd));
+        SDState::sdReset(DEVICE(sd));
     }
 
     return sd_is_spi(sd) ? sd_r1 : sd_r0;
@@ -3034,7 +3046,7 @@ static void __attribute__((constructor)) sd_proto_init(void)
     SD_CMD_ENTRY(sd_proto_emmc, 56, 8,  sd_adtc, "GEN_CMD", sd_cmd_GEN_CMD);
 }
 
-static void sd_instance_init(Object *obj)
+void SDState::instanceInit(Object *obj)
 {
     SDState *sd = SDMMC_COMMON(obj);
     SDCardClass *sc = SDMMC_COMMON_GET_CLASS(sd);
@@ -3044,7 +3056,7 @@ static void sd_instance_init(Object *obj)
     sd->ocr_power_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sd_ocr_powerup, sd);
 }
 
-static void sd_instance_finalize(Object *obj)
+void SDState::instanceFinalize(Object *obj)
 {
     SDState *sd = SDMMC_COMMON(obj);
 
@@ -3073,7 +3085,7 @@ static void sd_blk_size_error(SDState *sd, int64_t blk_size,
     g_free(blk_size_str);
 }
 
-static void sd_realize(DeviceState *dev, Error **errp)
+void SDState::sdRealize(DeviceState *dev, Error **errp)
 {
     SDState *sd = SDMMC_COMMON(dev);
     int64_t blk_size = -ENOMEDIUM;
@@ -3150,13 +3162,13 @@ static void sd_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void emmc_realize(DeviceState *dev, Error **errp)
+void SDState::emmcRealize(DeviceState *dev, Error **errp)
 {
     SDState *sd = SDMMC_COMMON(dev);
 
     sd->spec_version = SD_PHY_SPECv3_01_VERS; /* Actually v4.5 */
 
-    sd_realize(dev, errp);
+    SDState::sdRealize(dev, errp);
 }
 
 static const Property sdmmc_common_properties[] = {
@@ -3174,14 +3186,14 @@ static const Property emmc_properties[] = {
     DEFINE_PROP_UINT64("rpmb-partition-size", SDState, rpmb_part_size, 0),
 };
 
-static void sdmmc_common_class_init(ObjectClass *klass, const void *data)
+void SDState::commonClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
 
     device_class_set_props(dc, sdmmc_common_properties);
     dc->vmsd = &sd_vmstate;
-    device_class_set_legacy_reset(dc, sd_reset);
+    device_class_set_legacy_reset(dc, SDState::sdReset);
     dc->bus_type = TYPE_SD_BUS;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 
@@ -3197,12 +3209,12 @@ static void sdmmc_common_class_init(ObjectClass *klass, const void *data)
     sc->get_readonly = sd_get_readonly;
 }
 
-static void sd_class_init(ObjectClass *klass, const void *data)
+void SDState::sdClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
 
-    dc->realize = sd_realize;
+    dc->realize = SDState::sdRealize;
     device_class_set_props(dc, sd_properties);
 
     sc->set_cid = sd_set_cid;
@@ -3216,7 +3228,7 @@ static void sd_class_init(ObjectClass *klass, const void *data)
  * board to ensure that ssi transfers only occur when the chip select
  * is asserted.
  */
-static void sd_spi_class_init(ObjectClass *klass, const void *data)
+void SDState::sdSpiClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
@@ -3225,7 +3237,7 @@ static void sd_spi_class_init(ObjectClass *klass, const void *data)
     sc->proto = &sd_proto_spi;
 }
 
-static void emmc_class_init(ObjectClass *klass, const void *data)
+void SDState::emmcClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
@@ -3233,7 +3245,7 @@ static void emmc_class_init(ObjectClass *klass, const void *data)
     assert(qcrypto_hmac_supports(QCRYPTO_HASH_ALGO_SHA256));
 
     dc->desc = "eMMC";
-    dc->realize = emmc_realize;
+    dc->realize = SDState::emmcRealize;
     device_class_set_props(dc, emmc_properties);
 
     sc->proto = &sd_proto_emmc;
@@ -3247,26 +3259,26 @@ static const TypeInfo sd_types[] = {
         .name           = TYPE_SDMMC_COMMON,
         .parent         = TYPE_DEVICE,
         .instance_size  = sizeof(SDState),
-        .instance_init  = sd_instance_init,
-        .instance_finalize = sd_instance_finalize,
+        .instance_init  = SDState::instanceInit,
+        .instance_finalize = SDState::instanceFinalize,
         .is_abstract    = true,
         .class_size     = sizeof(SDCardClass),
-        .class_init     = sdmmc_common_class_init,
+        .class_init     = SDState::commonClassInit,
     },
     {
         .name           = TYPE_SD_CARD,
         .parent         = TYPE_SDMMC_COMMON,
-        .class_init     = sd_class_init,
+        .class_init     = SDState::sdClassInit,
     },
     {
         .name           = TYPE_SD_CARD_SPI,
         .parent         = TYPE_SD_CARD,
-        .class_init     = sd_spi_class_init,
+        .class_init     = SDState::sdSpiClassInit,
     },
     {
         .name           = TYPE_EMMC,
         .parent         = TYPE_SDMMC_COMMON,
-        .class_init     = emmc_class_init,
+        .class_init     = SDState::emmcClassInit,
     },
 };
 
