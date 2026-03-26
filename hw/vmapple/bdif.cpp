@@ -34,9 +34,7 @@ struct VMAppleBdifState {
     static uint64_t read(void *opaque, hwaddr offset, unsigned size);
     static void write(void *opaque, hwaddr offset, uint64_t value,
                       unsigned size);
-
-    void initfn(Object *obj);
-
+    static void initfn(Object *obj);
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -84,8 +82,8 @@ typedef struct VblkReq {
 #define VBLK_RET_SUCCESS  0
 #define VBLK_RET_FAILED   1
 
-static uint64_t VMAppleBdifState::read(void *opaque, hwaddr offset,
-                                        unsigned size)
+uint64_t VMAppleBdifState::read(void *opaque, hwaddr offset,
+                                 unsigned size)
 {
     uint64_t ret = -1;
     uint64_t devid = offset & REG_DEVID_MASK;
@@ -210,8 +208,8 @@ out:
                      MEMTXATTRS_UNSPECIFIED);
 }
 
-static void VMAppleBdifState::write(void *opaque, hwaddr offset,
-                                     uint64_t value, unsigned size)
+void VMAppleBdifState::write(void *opaque, hwaddr offset,
+                              uint64_t value, unsigned size)
 {
     VMAppleBdifState *s = static_cast<VMAppleBdifState *>(opaque);
     uint64_t devid = (offset & REG_DEVID_MASK);

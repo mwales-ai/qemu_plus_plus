@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/sysbus.h"
 #include "hw/irq.h"
 #include "hw/qdev-core.h"
@@ -76,18 +77,33 @@ struct SHSerialState {
     qemu_irq txi;
     qemu_irq tei;
     qemu_irq bri;
+
+    void clearFifo();
+    static void mmioWrite(void *opaque, hwaddr offs, uint64_t val,
+                          unsigned size);
+    static uint64_t mmioRead(void *opaque, hwaddr offs, unsigned size);
+    int canReceive();
+    void receiveBreak();
+    static int canReceive1(void *opaque);
+    static void timeoutInt(void *opaque);
+    static void receive1(void *opaque, const uint8_t *buf, int size);
+    static void chrEvent(void *opaque, QEMUChrEvent event);
+    void reset();
+    void realize(DeviceState *d, Error **errp);
+    void unrealize(DeviceState *dev);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
-static void sh_serial_clear_fifo(SHSerialState *s)
+void SHSerialState::clearFifo()
 {
-    memset(s->rx_fifo, 0, SH_RX_FIFO_LENGTH);
-    s->rx_cnt = 0;
-    s->rx_head = 0;
-    s->rx_tail = 0;
+    memset(rx_fifo, 0, SH_RX_FIFO_LENGTH);
+    rx_cnt = 0;
+    rx_head = 0;
+    rx_tail = 0;
 }
 
-static void sh_serial_write(void *opaque, hwaddr offs,
-                            uint64_t val, unsigned size)
+void SHSerialState::mmioWrite(void *opaque, hwaddr offs,
+                               uint64_t val, unsigned size)
 {
     SHSerialState *s = static_cast<SHSerialState *>(opaque);
     DeviceState *d = DEVICE(s);
@@ -174,7 +190,7 @@ static void sh_serial_write(void *opaque, hwaddr offs,
                 break;
             }
             if (val & (1 << 1)) {
-                sh_serial_clear_fifo(s);
+                s->clearFifo();
                 s->sr &= ~(1 << 1);
             }
 
@@ -205,8 +221,8 @@ static void sh_serial_write(void *opaque, hwaddr offs,
                   __func__, offs);
 }
 
-static uint64_t sh_serial_read(void *opaque, hwaddr offs,
-                               unsigned size)
+uint64_t SHSerialState::mmioRead(void *opaque, hwaddr offs,
+                                  unsigned size)
 {
     SHSerialState *s = static_cast<SHSerialState *>(opaque);
     DeviceState *d = DEVICE(s);
@@ -314,25 +330,25 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
     return ret;
 }
 
-static int sh_serial_can_receive(SHSerialState *s)
+int SHSerialState::canReceive()
 {
-    return s->scr & (1 << 4) ? SH_RX_FIFO_LENGTH - s->rx_head : 0;
+    return scr & (1 << 4) ? SH_RX_FIFO_LENGTH - rx_head : 0;
 }
 
-static void sh_serial_receive_break(SHSerialState *s)
+void SHSerialState::receiveBreak()
 {
-    if (s->feat & SH_SERIAL_FEAT_SCIF) {
-        s->sr |= (1 << 4);
+    if (feat & SH_SERIAL_FEAT_SCIF) {
+        sr |= (1 << 4);
     }
 }
 
-static int sh_serial_can_receive1(void *opaque)
+int SHSerialState::canReceive1(void *opaque)
 {
     SHSerialState *s = static_cast<SHSerialState *>(opaque);
-    return sh_serial_can_receive(s);
+    return s->canReceive();
 }
 
-static void sh_serial_timeout_int(void *opaque)
+void SHSerialState::timeoutInt(void *opaque)
 {
     SHSerialState *s = static_cast<SHSerialState *>(opaque);
 
@@ -342,7 +358,7 @@ static void sh_serial_timeout_int(void *opaque)
     }
 }
 
-static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
+void SHSerialState::receive1(void *opaque, const uint8_t *buf, int size)
 {
     SHSerialState *s = static_cast<SHSerialState *>(opaque);
 
@@ -370,42 +386,52 @@ static void sh_serial_receive1(void *opaque, const uint8_t *buf, int size)
     }
 }
 
-static void sh_serial_event(void *opaque, QEMUChrEvent event)
+void SHSerialState::chrEvent(void *opaque, QEMUChrEvent event)
 {
     SHSerialState *s = static_cast<SHSerialState *>(opaque);
     if (event == CHR_EVENT_BREAK) {
-        sh_serial_receive_break(s);
+        s->receiveBreak();
     }
 }
 
 static const MemoryRegionOps sh_serial_ops = {
-    .read = sh_serial_read,
-    .write = sh_serial_write,
+    .read = SHSerialState::mmioRead,
+    .write = SHSerialState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void sh_serial_reset(DeviceState *dev)
+static void sh_serial_reset_wrapper(DeviceState *dev)
 {
     SHSerialState *s = SH_SERIAL(dev);
-
-    s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
-    s->rtrg = 1;
-
-    s->smr = 0;
-    s->brr = 0xff;
-    s->scr = 1 << 5; /* pretend that TX is enabled so early printk works */
-    s->sptr = 0;
-
-    if (s->feat & SH_SERIAL_FEAT_SCIF) {
-        s->fcr = 0;
-    } else {
-        s->dr = 0xff;
-    }
-
-    sh_serial_clear_fifo(s);
+    s->reset();
 }
 
-static void sh_serial_realize(DeviceState *d, Error **errp)
+void SHSerialState::reset()
+{
+    flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
+    rtrg = 1;
+
+    smr = 0;
+    brr = 0xff;
+    scr = 1 << 5; /* pretend that TX is enabled so early printk works */
+    sptr = 0;
+
+    if (feat & SH_SERIAL_FEAT_SCIF) {
+        fcr = 0;
+    } else {
+        dr = 0xff;
+    }
+
+    clearFifo();
+}
+
+static void sh_serial_realize_wrapper(DeviceState *d, Error **errp)
+{
+    SHSerialState *s = SH_SERIAL(d);
+    s->realize(d, errp);
+}
+
+void SHSerialState::realize(DeviceState *d, Error **errp)
 {
     SHSerialState *s = SH_SERIAL(d);
     MemoryRegion *iomem = static_cast<MemoryRegion *>(g_malloc(sizeof(*iomem)));
@@ -420,21 +446,25 @@ static void sh_serial_realize(DeviceState *d, Error **errp)
     qdev_init_gpio_out_named(d, &s->bri, "bri", 1);
 
     if (qemu_chr_fe_backend_connected(&s->chr)) {
-        qemu_chr_fe_set_handlers(&s->chr, sh_serial_can_receive1,
-                                 sh_serial_receive1,
-                                 sh_serial_event, NULL, s, NULL, true);
+        qemu_chr_fe_set_handlers(&s->chr, SHSerialState::canReceive1,
+                                 SHSerialState::receive1,
+                                 SHSerialState::chrEvent, NULL, s, NULL, true);
     }
 
     timer_init_ns(&s->fifo_timeout_timer, QEMU_CLOCK_VIRTUAL,
-                  sh_serial_timeout_int, s);
+                  SHSerialState::timeoutInt, s);
     s->etu = NANOSECONDS_PER_SECOND / 9600;
 }
 
-static void sh_serial_unrealize(DeviceState *dev)
+static void sh_serial_unrealize_wrapper(DeviceState *dev)
 {
     SHSerialState *s = SH_SERIAL(dev);
+    s->unrealize(dev);
+}
 
-    timer_del(&s->fifo_timeout_timer);
+void SHSerialState::unrealize(DeviceState *dev)
+{
+    timer_del(&fifo_timeout_timer);
 }
 
 static const Property sh_serial_properties[] = {
@@ -442,14 +472,14 @@ static const Property sh_serial_properties[] = {
     DEFINE_PROP_UINT8("features", SHSerialState, feat, 0),
 };
 
-static void sh_serial_class_init(ObjectClass *oc, const void *data)
+void SHSerialState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     device_class_set_props(dc, sh_serial_properties);
-    dc->realize = sh_serial_realize;
-    dc->unrealize = sh_serial_unrealize;
-    device_class_set_legacy_reset(dc, sh_serial_reset);
+    dc->realize = sh_serial_realize_wrapper;
+    dc->unrealize = sh_serial_unrealize_wrapper;
+    device_class_set_legacy_reset(dc, sh_serial_reset_wrapper);
     /* Reason: part of SuperH CPU/SoC, needs to be wired up */
     dc->user_creatable = false;
 }
@@ -459,7 +489,7 @@ static const TypeInfo sh_serial_types[] = {
         .name           = TYPE_SH_SERIAL,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(SHSerialState),
-        .class_init     = sh_serial_class_init,
+        .class_init     = SHSerialState::classInit,
     },
 };
 

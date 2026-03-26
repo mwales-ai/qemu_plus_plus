@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "qemu/range.h"
 #include "hw/i386/pc.h"
@@ -62,6 +63,26 @@ struct I440FXState {
     bool pci_hole64_fix;
 
     char *pci_type;
+
+    static void pciRealize(PCIDevice *dev, Error **errp);
+    static void updateMemoryMappings(PCII440FXState *d);
+    static void writeConfig(PCIDevice *dev, uint32_t address, uint32_t val,
+                            int len);
+    static int postLoad(void *opaque, int version_id);
+    static void getPciHoleStart(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp);
+    static void getPciHoleEnd(Object *obj, Visitor *v, const char *name,
+                              void *opaque, Error **errp);
+    static uint64_t getPciHole64StartValue(Object *obj);
+    static void getPciHole64Start(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp);
+    static void getPciHole64End(Object *obj, Visitor *v, const char *name,
+                                void *opaque, Error **errp);
+    static void initfn(Object *obj);
+    void realize(DeviceState *dev, Error **errp);
+    static void pciClassInit(ObjectClass *klass, const void *data);
+    static const char *rootBusPath(PCIHostState *host_bridge, PCIBus *rootbus);
+    static void hostClassInit(ObjectClass *klass, const void *data);
 };
 
 #define I440FX_PAM      0x59
@@ -76,7 +97,7 @@ struct I440FXState {
  */
 #define I440FX_COREBOOT_RAM_SIZE 0x57
 
-static void i440fx_realize(PCIDevice *dev, Error **errp)
+void I440FXState::pciRealize(PCIDevice *dev, Error **errp)
 {
     dev->config[I440FX_SMRAM] = 0x02;
 
@@ -85,7 +106,7 @@ static void i440fx_realize(PCIDevice *dev, Error **errp)
     }
 }
 
-static void i440fx_update_memory_mappings(PCII440FXState *d)
+void I440FXState::updateMemoryMappings(PCII440FXState *d)
 {
     int i;
     PCIDevice *pd = PCI_DEVICE(d);
@@ -103,8 +124,8 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
 }
 
 
-static void i440fx_write_config(PCIDevice *dev,
-                                uint32_t address, uint32_t val, int len)
+void I440FXState::writeConfig(PCIDevice *dev,
+                               uint32_t address, uint32_t val, int len)
 {
     PCII440FXState *d = I440FX_PCI_DEVICE(dev);
 
@@ -112,15 +133,15 @@ static void i440fx_write_config(PCIDevice *dev,
     pci_default_write_config(dev, address, val, len);
     if (ranges_overlap(address, len, I440FX_PAM, I440FX_PAM_SIZE) ||
         range_covers_byte(address, len, I440FX_SMRAM)) {
-        i440fx_update_memory_mappings(d);
+        I440FXState::updateMemoryMappings(d);
     }
 }
 
-static int i440fx_post_load(void *opaque, int version_id)
+int I440FXState::postLoad(void *opaque, int version_id)
 {
     PCII440FXState *d = static_cast<PCII440FXState *>(opaque);
 
-    i440fx_update_memory_mappings(d);
+    I440FXState::updateMemoryMappings(d);
     return 0;
 }
 
@@ -137,13 +158,13 @@ static const VMStateDescription vmstate_i440fx = {
     .name = "I440FX",
     .version_id = 3,
     .minimum_version_id = 3,
-    .post_load = i440fx_post_load,
+    .post_load = I440FXState::postLoad,
     .fields = vmstate_i440fx_fields,
 };
 
-static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
-                                              const char *name, void *opaque,
-                                              Error **errp)
+void I440FXState::getPciHoleStart(Object *obj, Visitor *v,
+                                   const char *name, void *opaque,
+                                   Error **errp)
 {
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
     uint64_t val64;
@@ -155,9 +176,9 @@ static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
     visit_type_uint32(v, name, &value, errp);
 }
 
-static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
-                                            const char *name, void *opaque,
-                                            Error **errp)
+void I440FXState::getPciHoleEnd(Object *obj, Visitor *v,
+                                 const char *name, void *opaque,
+                                 Error **errp)
 {
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
     uint64_t val64;
@@ -176,7 +197,7 @@ static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
  * the 64bit PCI hole will start after "over 4G RAM" and the
  * reserved space for memory hotplug if any.
  */
-static uint64_t i440fx_pcihost_get_pci_hole64_start_value(Object *obj)
+uint64_t I440FXState::getPciHole64StartValue(Object *obj)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
@@ -191,11 +212,11 @@ static uint64_t i440fx_pcihost_get_pci_hole64_start_value(Object *obj)
     return value;
 }
 
-static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
-                                                const char *name,
-                                                void *opaque, Error **errp)
+void I440FXState::getPciHole64Start(Object *obj, Visitor *v,
+                                     const char *name,
+                                     void *opaque, Error **errp)
 {
-    uint64_t hole64_start = i440fx_pcihost_get_pci_hole64_start_value(obj);
+    uint64_t hole64_start = I440FXState::getPciHole64StartValue(obj);
 
     visit_type_uint64(v, name, &hole64_start, errp);
 }
@@ -206,13 +227,13 @@ static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
  * Then it is expanded to the PCI_HOST_PROP_PCI_HOLE64_SIZE
  * that can be configured by the user.
  */
-static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
-                                              const char *name, void *opaque,
-                                              Error **errp)
+void I440FXState::getPciHole64End(Object *obj, Visitor *v,
+                                   const char *name, void *opaque,
+                                   Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
-    uint64_t hole64_start = i440fx_pcihost_get_pci_hole64_start_value(obj);
+    uint64_t hole64_start = I440FXState::getPciHole64StartValue(obj);
     Range w64;
     uint64_t value, hole64_end;
 
@@ -225,7 +246,7 @@ static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
     visit_type_uint64(v, name, &value, errp);
 }
 
-static void i440fx_pcihost_initfn(Object *obj)
+void I440FXState::initfn(Object *obj)
 {
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
     PCIHostState *phb = PCI_HOST_BRIDGE(obj);
@@ -252,7 +273,13 @@ static void i440fx_pcihost_initfn(Object *obj)
                              qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 }
 
-static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
+static void i440fx_pcihost_realize_wrapper(DeviceState *dev, Error **errp)
+{
+    I440FXState *s = I440FX_PCI_HOST_BRIDGE(dev);
+    s->realize(dev, errp);
+}
+
+void I440FXState::realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
     I440FXState *s = I440FX_PCI_HOST_BRIDGE(dev);
@@ -318,16 +345,16 @@ static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
     }
     d->config[I440FX_COREBOOT_RAM_SIZE] = ram_size;
 
-    i440fx_update_memory_mappings(f);
+    I440FXState::updateMemoryMappings(f);
 }
 
-static void i440fx_class_init(ObjectClass *klass, const void *data)
+void I440FXState::pciClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = i440fx_realize;
-    k->config_write = i440fx_write_config;
+    k->realize = I440FXState::pciRealize;
+    k->config_write = I440FXState::writeConfig;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82441;
     k->revision = 0x02;
@@ -351,12 +378,12 @@ static const TypeInfo i440fx_info = {
     .name          = TYPE_I440FX_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCII440FXState),
-    .class_init    = i440fx_class_init,
+    .class_init    = I440FXState::pciClassInit,
     .interfaces = i440fx_interfaces,
 };
 
-static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
-                                                PCIBus *rootbus)
+const char *I440FXState::rootBusPath(PCIHostState *host_bridge,
+                                      PCIBus *rootbus)
 {
     return "0000:00";
 }
@@ -372,32 +399,32 @@ static const Property i440fx_props[] = {
     DEFINE_PROP_STRING(I440FX_HOST_PROP_PCI_TYPE, I440FXState, pci_type),
 };
 
-static void i440fx_pcihost_class_init(ObjectClass *klass, const void *data)
+void I440FXState::hostClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
 
-    hc->root_bus_path = i440fx_pcihost_root_bus_path;
-    dc->realize = i440fx_pcihost_realize;
+    hc->root_bus_path = I440FXState::rootBusPath;
+    dc->realize = i440fx_pcihost_realize_wrapper;
     dc->fw_name = "pci";
     device_class_set_props(dc, i440fx_props);
     /* Reason: needs to be wired up by pc_init1 */
     dc->user_creatable = false;
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
-                              i440fx_pcihost_get_pci_hole_start,
+                              I440FXState::getPciHoleStart,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE_END, "uint32",
-                              i440fx_pcihost_get_pci_hole_end,
+                              I440FXState::getPciHoleEnd,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE64_START, "uint64",
-                              i440fx_pcihost_get_pci_hole64_start,
+                              I440FXState::getPciHole64Start,
                               NULL, NULL, NULL);
 
     object_class_property_add(klass, PCI_HOST_PROP_PCI_HOLE64_END, "uint64",
-                              i440fx_pcihost_get_pci_hole64_end,
+                              I440FXState::getPciHole64End,
                               NULL, NULL, NULL);
 }
 
@@ -405,8 +432,8 @@ static const TypeInfo i440fx_pcihost_info = {
     .name          = TYPE_I440FX_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(I440FXState),
-    .instance_init = i440fx_pcihost_initfn,
-    .class_init    = i440fx_pcihost_class_init,
+    .instance_init = I440FXState::initfn,
+    .class_init    = I440FXState::hostClassInit,
 };
 
 static void i440fx_register_types(void)
