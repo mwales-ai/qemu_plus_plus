@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "intel-hda.h"
@@ -188,6 +189,10 @@ struct HDAAudioState {
     uint32_t debug;
     bool     mixer;
     bool     use_timer;
+
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+    static void baseClassInit(ObjectClass *klass, const void *data);
 };
 
 static inline uint32_t hda_bytes_per_second(HDAAudioStream *st)
@@ -788,19 +793,24 @@ static int hda_audio_post_load(void *opaque, int version)
     return 0;
 }
 
-static void hda_audio_reset(DeviceState *dev)
+void HDAAudioState::reset()
 {
-    HDAAudioState *a = HDA_AUDIO(dev);
     HDAAudioStream *st;
     int i;
 
-    dprint(a, 1, "%s\n", __func__);
-    for (i = 0; i < ARRAY_SIZE(a->st); i++) {
-        st = a->st + i;
+    dprint(this, 1, "%s\n", __func__);
+    for (i = 0; i < ARRAY_SIZE(this->st); i++) {
+        st = this->st + i;
         if (st->node != NULL) {
             hda_audio_set_running(st, false);
         }
     }
+}
+
+void HDAAudioState::resetWrapper(DeviceState *dev)
+{
+    HDAAudioState *a = HDA_AUDIO(dev);
+    a->reset();
 }
 
 static bool vmstate_hda_audio_stream_buf_needed(void *opaque)
@@ -909,7 +919,7 @@ static void hda_audio_init_micro(HDACodecDevice *hda, Error **errp)
     hda_audio_init(hda, desc, errp);
 }
 
-static void hda_audio_base_class_init(ObjectClass *klass, const void *data)
+void HDAAudioState::baseClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
@@ -918,7 +928,7 @@ static void hda_audio_base_class_init(ObjectClass *klass, const void *data)
     k->command = hda_audio_command;
     k->stream = hda_audio_stream;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    device_class_set_legacy_reset(dc, hda_audio_reset);
+    device_class_set_legacy_reset(dc, HDAAudioState::resetWrapper);
     dc->vmsd = &vmstate_hda_audio;
     device_class_set_props(dc, hda_audio_properties);
 }
@@ -928,7 +938,7 @@ static const TypeInfo hda_audio_info = {
     .parent        = TYPE_HDA_CODEC_DEVICE,
     .instance_size = sizeof(HDAAudioState),
     .is_abstract   = true,
-    .class_init    = hda_audio_base_class_init,
+    .class_init    = HDAAudioState::baseClassInit,
 };
 
 static void hda_audio_output_class_init(ObjectClass *klass, const void *data)

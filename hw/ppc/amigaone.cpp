@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/datadir.h"
 #include "qemu/log.h"
@@ -93,6 +94,10 @@ struct A1NVRAMState {
 
     MemoryRegion mr;
     BlockBackend *blk;
+
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 static uint64_t nvram_read(void *opaque, hwaddr addr, unsigned int size)
@@ -123,26 +128,25 @@ static const MemoryRegionOps nvram_ops = {
     },
 };
 
-static void nvram_realize(DeviceState *dev, Error **errp)
+void A1NVRAMState::realize(Error **errp)
 {
-    A1NVRAMState *s = A1_NVRAM(dev);
     void *p;
     uint32_t crc, *c;
 
-    memory_region_init_rom_device(&s->mr, NULL, &nvram_ops, s, "nvram",
+    memory_region_init_rom_device(&mr, NULL, &nvram_ops, this, "nvram",
                                   NVRAM_SIZE, &error_fatal);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
-    p = memory_region_get_ram_ptr(&s->mr);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mr);
+    p = memory_region_get_ram_ptr(&mr);
     c = static_cast<uint32_t *>(p);
-    if (s->blk) {
-        if (blk_getlength(s->blk) != NVRAM_SIZE) {
+    if (blk) {
+        if (blk_getlength(blk) != NVRAM_SIZE) {
             error_setg(errp, "NVRAM backing file size must be %" PRId64 "bytes",
                        NVRAM_SIZE);
             return;
         }
-        blk_set_perm(s->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+        blk_set_perm(blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
                      BLK_PERM_ALL, &error_fatal);
-        if (blk_pread(s->blk, 0, NVRAM_SIZE, p, static_cast<BdrvRequestFlags>(0)) < 0) {
+        if (blk_pread(blk, 0, NVRAM_SIZE, p, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "Cannot read NVRAM contents from backing file");
             return;
         }
@@ -152,17 +156,17 @@ static void nvram_realize(DeviceState *dev, Error **errp)
         *c = cpu_to_be32(CRC32_DEFAULT_ENV);
         /* Also copies terminating \0 as env is terminated by \0\0 */
         memcpy(static_cast<uint8_t *>(p) + 4, default_env, sizeof(default_env));
-        if (s->blk &&
-            blk_pwrite(s->blk, 0, sizeof(crc) + sizeof(default_env), p, static_cast<BdrvRequestFlags>(0)) < 0
+        if (blk &&
+            blk_pwrite(blk, 0, sizeof(crc) + sizeof(default_env), p, static_cast<BdrvRequestFlags>(0)) < 0
            ) {
-            error_report("%s: could not write %s", __func__, blk_name(s->blk));
+            error_report("%s: could not write %s", __func__, blk_name(blk));
         }
         return;
     }
     if (*c == 0) {
         *c = cpu_to_be32(crc32(0, static_cast<const Bytef *>(p) + 4, NVRAM_SIZE - 4));
-        if (s->blk && blk_pwrite(s->blk, 0, 4, p, static_cast<BdrvRequestFlags>(0)) < 0) {
-            error_report("%s: could not write %s", __func__, blk_name(s->blk));
+        if (blk && blk_pwrite(blk, 0, 4, p, static_cast<BdrvRequestFlags>(0)) < 0) {
+            error_report("%s: could not write %s", __func__, blk_name(blk));
         }
     }
     if (be32_to_cpu(*c) != crc) {
@@ -170,15 +174,21 @@ static void nvram_realize(DeviceState *dev, Error **errp)
     }
 }
 
+void A1NVRAMState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    A1NVRAMState *s = A1_NVRAM(dev);
+    s->realize(errp);
+}
+
 static const Property nvram_properties[] = {
     DEFINE_PROP_DRIVE("drive", A1NVRAMState, blk),
 };
 
-static void nvram_class_init(ObjectClass *oc, const void *data)
+void A1NVRAMState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->realize = nvram_realize;
+    dc->realize = A1NVRAMState::realizeWrapper;
     device_class_set_props(dc, nvram_properties);
 }
 
@@ -187,7 +197,7 @@ static const TypeInfo nvram_types[] = {
         .name = TYPE_A1_NVRAM,
         .parent = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(A1NVRAMState),
-        .class_init = nvram_class_init,
+        .class_init = A1NVRAMState::classInit,
     },
 };
 DEFINE_TYPES(nvram_types)

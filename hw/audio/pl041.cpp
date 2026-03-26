@@ -21,6 +21,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
@@ -91,6 +93,25 @@ struct PL041State {
     pl041_regfile regs;
     pl041_channel fifo1;
     lm4549_state codec;
+
+    static uint8_t computePeriphId3(PL041State *s);
+    void softReset();
+    void fifo1Write(uint32_t value);
+    void fifo1Transmit();
+    void isr1Update();
+
+    static void requestData(void *opaque);
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
+                          unsigned size);
+
+    void reset();
+    static void resetWrapper(DeviceState *d);
+
+    static void instanceInit(Object *obj);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 
@@ -118,7 +139,7 @@ static const char *get_reg_name(hwaddr offset)
 }
 #endif
 
-static uint8_t pl041_compute_periphid3(PL041State *s)
+uint8_t PL041State::computePeriphId3(PL041State *s)
 {
     uint8_t id3 = 1; /* One channel */
 
@@ -153,30 +174,30 @@ static uint8_t pl041_compute_periphid3(PL041State *s)
     return id3;
 }
 
-static void pl041_reset(PL041State *s)
+void PL041State::softReset()
 {
     DBG_L1("pl041_reset\n");
 
-    memset(&s->regs, 0x00, sizeof(pl041_regfile));
+    memset(&regs, 0x00, sizeof(pl041_regfile));
 
-    s->regs.slfr = SL1TXEMPTY | SL2TXEMPTY | SL12TXEMPTY;
-    s->regs.sr1 = TXFE | RXFE | TXHE;
-    s->regs.isr1 = 0;
+    regs.slfr = SL1TXEMPTY | SL2TXEMPTY | SL12TXEMPTY;
+    regs.sr1 = TXFE | RXFE | TXHE;
+    regs.isr1 = 0;
 
-    memset(&s->fifo1, 0x00, sizeof(s->fifo1));
+    memset(&fifo1, 0x00, sizeof(fifo1));
 }
 
 
-static void pl041_fifo1_write(PL041State *s, uint32_t value)
+void PL041State::fifo1Write(uint32_t value)
 {
-    pl041_channel *channel = &s->fifo1;
-    pl041_fifo *fifo = &s->fifo1.tx_fifo;
+    pl041_channel *channel = &fifo1;
+    pl041_fifo *fifo = &fifo1.tx_fifo;
 
     /* Push the value in the FIFO */
     if (channel->tx_compact_mode == 0) {
         /* Non-compact mode */
 
-        if (fifo->level < s->fifo_depth) {
+        if (fifo->level < fifo_depth) {
             /* Pad the value with 0 to obtain a 20-bit sample */
             switch (channel->tx_sample_size) {
             case 12:
@@ -204,7 +225,7 @@ static void pl041_fifo1_write(PL041State *s, uint32_t value)
     } else {
         /* Compact mode */
 
-        if ((fifo->level + 2) < s->fifo_depth) {
+        if ((fifo->level + 2) < fifo_depth) {
             uint32_t i = 0;
             uint32_t sample = 0;
 
@@ -236,30 +257,30 @@ static void pl041_fifo1_write(PL041State *s, uint32_t value)
 
     /* Update the status register */
     if (fifo->level > 0) {
-        s->regs.sr1 &= ~(TXUNDERRUN | TXFE);
+        regs.sr1 &= ~(TXUNDERRUN | TXFE);
     }
 
-    if (fifo->level >= (s->fifo_depth / 2)) {
-        s->regs.sr1 &= ~TXHE;
+    if (fifo->level >= (fifo_depth / 2)) {
+        regs.sr1 &= ~TXHE;
     }
 
-    if (fifo->level >= s->fifo_depth) {
-        s->regs.sr1 |= TXFF;
+    if (fifo->level >= fifo_depth) {
+        regs.sr1 |= TXFF;
     }
 
-    DBG_L2("fifo1_push sr1 = 0x%08x\n", s->regs.sr1);
+    DBG_L2("fifo1_push sr1 = 0x%08x\n", regs.sr1);
 }
 
-static void pl041_fifo1_transmit(PL041State *s)
+void PL041State::fifo1Transmit()
 {
-    pl041_channel *channel = &s->fifo1;
-    pl041_fifo *fifo = &s->fifo1.tx_fifo;
-    uint32_t slots = s->regs.txcr1 & TXSLOT_MASK;
+    pl041_channel *channel = &fifo1;
+    pl041_fifo *fifo = &fifo1.tx_fifo;
+    uint32_t slots = regs.txcr1 & TXSLOT_MASK;
     uint32_t written_samples;
 
     /* Check if FIFO1 transmit is enabled */
     if ((channel->tx_enabled) && (slots & (TXSLOT3 | TXSLOT4))) {
-        if (fifo->level >= (s->fifo_depth / 2)) {
+        if (fifo->level >= (fifo_depth / 2)) {
             int i;
 
             DBG_L1("Transfer FIFO level = %i\n", fifo->level);
@@ -270,7 +291,7 @@ static void pl041_fifo1_transmit(PL041State *s)
                 uint32_t right = fifo->data[i * 2 + 1];
 
                  /* Transmit two 20-bit samples to the codec */
-                if (lm4549_write_samples(&s->codec, left, right) == 0) {
+                if (lm4549_write_samples(&codec, left, right) == 0) {
                     DBG_L1("Codec buffer full\n");
                     break;
                 }
@@ -287,14 +308,14 @@ static void pl041_fifo1_transmit(PL041State *s)
                 }
 
                 /* Update the status register */
-                s->regs.sr1 &= ~TXFF;
+                regs.sr1 &= ~TXFF;
 
-                if (fifo->level <= (s->fifo_depth / 2)) {
-                    s->regs.sr1 |= TXHE;
+                if (fifo->level <= (fifo_depth / 2)) {
+                    regs.sr1 |= TXHE;
                 }
 
                 if (fifo->level == 0) {
-                    s->regs.sr1 |= TXFE | TXUNDERRUN;
+                    regs.sr1 |= TXFE | TXUNDERRUN;
                     DBG_L1("Empty FIFO\n");
                 }
             }
@@ -302,51 +323,50 @@ static void pl041_fifo1_transmit(PL041State *s)
     }
 }
 
-static void pl041_isr1_update(PL041State *s)
+void PL041State::isr1Update()
 {
     /* Update ISR1 */
-    if (s->regs.sr1 & TXUNDERRUN) {
-        s->regs.isr1 |= URINTR;
+    if (regs.sr1 & TXUNDERRUN) {
+        regs.isr1 |= URINTR;
     } else {
-        s->regs.isr1 &= ~URINTR;
+        regs.isr1 &= ~URINTR;
     }
 
-    if (s->regs.sr1 & TXHE) {
-        s->regs.isr1 |= TXINTR;
+    if (regs.sr1 & TXHE) {
+        regs.isr1 |= TXINTR;
     } else {
-        s->regs.isr1 &= ~TXINTR;
+        regs.isr1 &= ~TXINTR;
     }
 
-    if (!(s->regs.sr1 & TXBUSY) && (s->regs.sr1 & TXFE)) {
-        s->regs.isr1 |= TXCINTR;
+    if (!(regs.sr1 & TXBUSY) && (regs.sr1 & TXFE)) {
+        regs.isr1 |= TXCINTR;
     } else {
-        s->regs.isr1 &= ~TXCINTR;
+        regs.isr1 &= ~TXCINTR;
     }
 
     /* Update the irq state */
-    qemu_set_irq(s->irq, ((s->regs.isr1 & s->regs.ie1) > 0) ? 1 : 0);
+    qemu_set_irq(irq, ((regs.isr1 & regs.ie1) > 0) ? 1 : 0);
     DBG_L2("Set interrupt sr1 = 0x%08x isr1 = 0x%08x masked = 0x%08x\n",
-           s->regs.sr1, s->regs.isr1, s->regs.isr1 & s->regs.ie1);
+           regs.sr1, regs.isr1, regs.isr1 & regs.ie1);
 }
 
-static void pl041_request_data(void *opaque)
+void PL041State::requestData(void *opaque)
 {
-    PL041State *s = (PL041State *)opaque;
+    PL041State *s = static_cast<PL041State *>(opaque);
 
     /* Trigger pending transfers */
-    pl041_fifo1_transmit(s);
-    pl041_isr1_update(s);
+    s->fifo1Transmit();
+    s->isr1Update();
 }
 
-static uint64_t pl041_read(void *opaque, hwaddr offset,
-                                unsigned size)
+uint64_t PL041State::mmioRead(void *opaque, hwaddr offset, unsigned size)
 {
-    PL041State *s = (PL041State *)opaque;
+    PL041State *s = static_cast<PL041State *>(opaque);
     int value;
 
     if ((offset >= PL041_periphid0) && (offset <= PL041_pcellid3)) {
         if (offset == PL041_periphid3) {
-            value = pl041_compute_periphid3(s);
+            value = computePeriphId3(s);
         } else {
             value = pl041_default_id[(offset - PL041_periphid0) >> 2];
         }
@@ -372,10 +392,10 @@ static uint64_t pl041_read(void *opaque, hwaddr offset,
     return value;
 }
 
-static void pl041_write(void *opaque, hwaddr offset,
-                             uint64_t value, unsigned size)
+void PL041State::mmioWrite(void *opaque, hwaddr offset,
+                            uint64_t value, unsigned size)
 {
-    PL041State *s = (PL041State *)opaque;
+    PL041State *s = static_cast<PL041State *>(opaque);
     uint16_t control, data;
     uint32_t result;
 
@@ -493,7 +513,7 @@ static void pl041_write(void *opaque, hwaddr offset,
 #endif
 
         if ((s->regs.maincr & AACIFE) == 0) {
-            pl041_reset(s);
+            s->softReset();
         }
         break;
     }
@@ -502,31 +522,35 @@ static void pl041_write(void *opaque, hwaddr offset,
     case PL041_dr1_1:
     case PL041_dr1_2:
     case PL041_dr1_3:
-        pl041_fifo1_write(s, value);
+        s->fifo1Write(value);
         break;
     }
 
     /* Transmit the FIFO content */
-    pl041_fifo1_transmit(s);
+    s->fifo1Transmit();
 
     /* Update the ISR1 register */
-    pl041_isr1_update(s);
+    s->isr1Update();
 }
 
-static void pl041_device_reset(DeviceState *d)
+void PL041State::reset()
+{
+    softReset();
+}
+
+void PL041State::resetWrapper(DeviceState *d)
 {
     PL041State *s = PL041(d);
-
-    pl041_reset(s);
+    s->reset();
 }
 
 static const MemoryRegionOps pl041_ops = {
-    .read = pl041_read,
-    .write = pl041_write,
+    .read = PL041State::mmioRead,
+    .write = PL041State::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pl041_init(Object *obj)
+void PL041State::instanceInit(Object *obj)
 {
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     PL041State *s = PL041(dev);
@@ -539,12 +563,10 @@ static void pl041_init(Object *obj)
     sysbus_init_irq(dev, &s->irq);
 }
 
-static void pl041_realize(DeviceState *dev, Error **errp)
+void PL041State::realize(Error **errp)
 {
-    PL041State *s = PL041(dev);
-
     /* Check the device properties */
-    switch (s->fifo_depth) {
+    switch (fifo_depth) {
     case 8:
     case 32:
     case 64:
@@ -560,11 +582,17 @@ static void pl041_realize(DeviceState *dev, Error **errp)
            AACIPERIPHID3 overlap with the id for the default NC FIFO depth */
         qemu_log_mask(LOG_UNIMP,
                       "pl041: unsupported non-compact fifo depth [%i]\n",
-                      s->fifo_depth);
+                      fifo_depth);
     }
 
     /* Init the codec */
-    lm4549_init(&s->codec, &pl041_request_data, (void *)s, errp);
+    lm4549_init(&codec, &requestData, static_cast<void *>(this), errp);
+}
+
+void PL041State::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    PL041State *s = PL041(dev);
+    s->realize(errp);
 }
 
 static const VMStateDescription vmstate_pl041_regfile = {
@@ -632,13 +660,13 @@ static const Property pl041_device_properties[] = {
                        DEFAULT_FIFO_DEPTH),
 };
 
-static void pl041_device_class_init(ObjectClass *klass, const void *data)
+void PL041State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = pl041_realize;
+    dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    device_class_set_legacy_reset(dc, pl041_device_reset);
+    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_pl041;
     device_class_set_props(dc, pl041_device_properties);
 }
@@ -647,8 +675,8 @@ static const TypeInfo pl041_device_info = {
     .name          = TYPE_PL041,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL041State),
-    .instance_init = pl041_init,
-    .class_init    = pl041_device_class_init,
+    .instance_init = PL041State::instanceInit,
+    .class_init    = PL041State::classInit,
 };
 
 static void pl041_register_types(void)

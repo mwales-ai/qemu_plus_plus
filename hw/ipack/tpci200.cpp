@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "hw/ipack/ipack.h"
 #include "hw/irq.h"
@@ -68,6 +69,10 @@ struct TPCI200State {
     uint8_t ctrl[N_MODULES];
     uint16_t status;
     uint8_t int_set;
+
+    void realize(Error **errp);
+    static void realizeWrapper(PCIDevice *pci_dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_TPCI200 "tpci200"
@@ -577,10 +582,9 @@ static const MemoryRegionOps tpci200_las3_ops = {
     }
 };
 
-static void tpci200_realize(PCIDevice *pci_dev, Error **errp)
+void TPCI200State::realize(Error **errp)
 {
-    TPCI200State *s = TPCI200(pci_dev);
-    uint8_t *c = s->dev.config;
+    uint8_t *c = dev.config;
 
     pci_set_word(c + PCI_COMMAND, 0x0003);
     pci_set_word(c + PCI_STATUS,  0x0280);
@@ -592,27 +596,33 @@ static void tpci200_realize(PCIDevice *pci_dev, Error **errp)
     pci_set_long(c + 0x48, 0x00024C06);
     pci_set_long(c + 0x4C, 0x00000003);
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &tpci200_cfg_ops,
-                          s, "tpci200_mmio", 128);
-    memory_region_init_io(&s->io, OBJECT(s),   &tpci200_cfg_ops,
-                          s, "tpci200_io",   128);
-    memory_region_init_io(&s->las0, OBJECT(s), &tpci200_las0_ops,
-                          s, "tpci200_las0", 256);
-    memory_region_init_io(&s->las1, OBJECT(s), &tpci200_las1_ops,
-                          s, "tpci200_las1", 1024);
-    memory_region_init_io(&s->las2, OBJECT(s), &tpci200_las2_ops,
-                          s, "tpci200_las2", 32 * MiB);
-    memory_region_init_io(&s->las3, OBJECT(s), &tpci200_las3_ops,
-                          s, "tpci200_las3", 16 * MiB);
-    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
-    pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO,     &s->io);
-    pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->las0);
-    pci_register_bar(&s->dev, 3, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->las1);
-    pci_register_bar(&s->dev, 4, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->las2);
-    pci_register_bar(&s->dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->las3);
+    memory_region_init_io(&mmio, OBJECT(this), &tpci200_cfg_ops,
+                          this, "tpci200_mmio", 128);
+    memory_region_init_io(&io, OBJECT(this),   &tpci200_cfg_ops,
+                          this, "tpci200_io",   128);
+    memory_region_init_io(&las0, OBJECT(this), &tpci200_las0_ops,
+                          this, "tpci200_las0", 256);
+    memory_region_init_io(&las1, OBJECT(this), &tpci200_las1_ops,
+                          this, "tpci200_las1", 1024);
+    memory_region_init_io(&las2, OBJECT(this), &tpci200_las2_ops,
+                          this, "tpci200_las2", 32 * MiB);
+    memory_region_init_io(&las3, OBJECT(this), &tpci200_las3_ops,
+                          this, "tpci200_las3", 16 * MiB);
+    pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
+    pci_register_bar(&dev, 1, PCI_BASE_ADDRESS_SPACE_IO,     &io);
+    pci_register_bar(&dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &las0);
+    pci_register_bar(&dev, 3, PCI_BASE_ADDRESS_SPACE_MEMORY, &las1);
+    pci_register_bar(&dev, 4, PCI_BASE_ADDRESS_SPACE_MEMORY, &las2);
+    pci_register_bar(&dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &las3);
 
-    ipack_bus_init(&s->bus, sizeof(s->bus), DEVICE(pci_dev),
+    ipack_bus_init(&bus, sizeof(bus), DEVICE(this),
                    N_MODULES, tpci200_set_irq);
+}
+
+void TPCI200State::realizeWrapper(PCIDevice *pci_dev, Error **errp)
+{
+    TPCI200State *s = TPCI200(pci_dev);
+    s->realize(errp);
 }
 
 static const VMStateDescription vmstate_tpci200 = {
@@ -629,12 +639,12 @@ static const VMStateDescription vmstate_tpci200 = {
     }
 };
 
-static void tpci200_class_init(ObjectClass *klass, const void *data)
+void TPCI200State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = tpci200_realize;
+    k->realize = TPCI200State::realizeWrapper;
     k->vendor_id = PCI_VENDOR_ID_TEWS;
     k->device_id = PCI_DEVICE_ID_TEWS_TPCI200;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
@@ -654,7 +664,7 @@ static const TypeInfo tpci200_info = {
     .name          = TYPE_TPCI200,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(TPCI200State),
-    .class_init    = tpci200_class_init,
+    .class_init    = TPCI200State::classInit,
     .interfaces    = tpci200_interfaces,
 };
 

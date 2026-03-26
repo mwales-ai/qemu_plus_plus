@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -100,6 +101,13 @@ struct ARTISTState {
     uint32_t font_write_pos_y;
 
     int draw_line_pattern;
+
+    void realize(Error **errp);
+    void initfn();
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void initWrapper(Object *obj);
+    static void resetWrapper(DeviceState *qdev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /* hardware allows up to 64x64, but we emulate 32x32 only. */
@@ -861,7 +869,7 @@ static int vram_bit_write(ARTISTState *s, uint32_t pos, int posy,
 static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned size)
 {
-    ARTISTState *s = opaque;
+    ARTISTState *s = static_cast<ARTISTState *>(opaque);
 
     s->vram_char_y = 0;
     trace_artist_vram_write(size, addr, val);
@@ -870,7 +878,7 @@ static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ARTISTState *s = opaque;
+    ARTISTState *s = static_cast<ARTISTState *>(opaque);
     struct vram_buffer *buf;
     unsigned int offset;
     uint64_t val;
@@ -909,7 +917,7 @@ static uint64_t artist_vram_read(void *opaque, hwaddr addr, unsigned size)
 static void artist_reg_write(void *opaque, hwaddr addr, uint64_t val,
                              unsigned size)
 {
-    ARTISTState *s = opaque;
+    ARTISTState *s = static_cast<ARTISTState *>(opaque);
     int width, height;
     uint64_t oldval;
 
@@ -1154,7 +1162,7 @@ static uint64_t combine_read_reg(hwaddr addr, int size, void *in)
 
 static uint64_t artist_reg_read(void *opaque, hwaddr addr, unsigned size)
 {
-    ARTISTState *s = opaque;
+    ARTISTState *s = static_cast<ARTISTState *>(opaque);
     uint32_t val = 0;
 
     switch (addr & ~3ULL) {
@@ -1311,7 +1319,7 @@ static void artist_draw_line(void *opaque, uint8_t *d, const uint8_t *src,
 
 static void artist_update_display(void *opaque)
 {
-    ARTISTState *s = opaque;
+    ARTISTState *s = static_cast<ARTISTState *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     int first = 0, last;
 
@@ -1339,17 +1347,22 @@ static const GraphicHwOps artist_ops = {
     .gfx_update = artist_update_display,
 };
 
-static void artist_initfn(Object *obj)
+void ARTISTState::initfn()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ARTISTState *s = ARTIST(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->reg, obj, &artist_reg_ops, s, "artist.reg",
-                          4 * MiB);
-    memory_region_init_io(&s->vram_mem, obj, &artist_vram_ops, s, "artist.vram",
-                          8 * MiB);
-    sysbus_init_mmio(sbd, &s->reg);
-    sysbus_init_mmio(sbd, &s->vram_mem);
+    memory_region_init_io(&reg, OBJECT(this), &artist_reg_ops, this,
+                          "artist.reg", 4 * MiB);
+    memory_region_init_io(&vram_mem, OBJECT(this), &artist_vram_ops, this,
+                          "artist.vram", 8 * MiB);
+    sysbus_init_mmio(sbd, &reg);
+    sysbus_init_mmio(sbd, &vram_mem);
+}
+
+void ARTISTState::initWrapper(Object *obj)
+{
+    ARTISTState *s = ARTIST(obj);
+    s->initfn();
 }
 
 static void artist_create_buffer(ARTISTState *s, const char *name,
@@ -1370,58 +1383,63 @@ static void artist_create_buffer(ARTISTState *s, const char *name,
     *offset += buf->size;
 }
 
-static void artist_realizefn(DeviceState *dev, Error **errp)
+void ARTISTState::realize(Error **errp)
 {
-    ARTISTState *s = ARTIST(dev);
     struct vram_buffer *buf;
     hwaddr offset = 0;
 
-    if (s->width > 2048 || s->height > 2048) {
+    if (width > 2048 || height > 2048) {
         error_report("artist: screen size can not exceed 2048 x 2048 pixel.");
-        s->width = MIN(s->width, 2048);
-        s->height = MIN(s->height, 2048);
+        width = MIN(width, 2048);
+        height = MIN(height, 2048);
     }
 
-    if (s->width < 640 || s->height < 480) {
+    if (width < 640 || height < 480) {
         error_report("artist: minimum screen size is 640 x 480 pixel.");
-        s->width = MAX(s->width, 640);
-        s->height = MAX(s->height, 480);
+        width = MAX(width, 640);
+        height = MAX(height, 480);
     }
 
-    memory_region_init(&s->mem_as_root, OBJECT(dev), "artist", ~0ull);
-    address_space_init(&s->as, &s->mem_as_root, "artist");
+    memory_region_init(&mem_as_root, OBJECT(this), "artist", ~0ull);
+    address_space_init(&as, &mem_as_root, "artist");
 
-    artist_create_buffer(s, "cmap", &offset, ARTIST_BUFFER_CMAP, 2048, 4);
-    artist_create_buffer(s, "ap", &offset, ARTIST_BUFFER_AP,
-                         s->width, s->height);
-    artist_create_buffer(s, "cursor1", &offset, ARTIST_BUFFER_CURSOR1, 64, 64);
-    artist_create_buffer(s, "cursor2", &offset, ARTIST_BUFFER_CURSOR2, 64, 64);
-    artist_create_buffer(s, "attribute", &offset, ARTIST_BUFFER_ATTRIBUTE,
+    artist_create_buffer(this, "cmap", &offset, ARTIST_BUFFER_CMAP, 2048, 4);
+    artist_create_buffer(this, "ap", &offset, ARTIST_BUFFER_AP,
+                         width, height);
+    artist_create_buffer(this, "cursor1", &offset, ARTIST_BUFFER_CURSOR1, 64, 64);
+    artist_create_buffer(this, "cursor2", &offset, ARTIST_BUFFER_CURSOR2, 64, 64);
+    artist_create_buffer(this, "attribute", &offset, ARTIST_BUFFER_ATTRIBUTE,
                          64, 64);
 
-    buf = &s->vram_buffer[ARTIST_BUFFER_AP];
-    framebuffer_update_memory_section(&s->fbsection, &buf->mr, 0,
+    buf = &vram_buffer[ARTIST_BUFFER_AP];
+    framebuffer_update_memory_section(&fbsection, &buf->mr, 0,
                                       buf->width, buf->height);
     /*
      * Artist cursor max size
      */
-    s->cursor_height = NGLE_MAX_SPRITE_SIZE;
-    s->cursor_width = NGLE_MAX_SPRITE_SIZE;
+    cursor_height = NGLE_MAX_SPRITE_SIZE;
+    cursor_width = NGLE_MAX_SPRITE_SIZE;
 
     /*
      * These two registers are not initialized by seabios's STI implementation.
      * Initialize them here to sane values so artist also works with older
      * (not-fixed) seabios versions.
      */
-    s->image_bitmap_op = 0x23000300;
-    s->plane_mask = 0xff;
+    image_bitmap_op = 0x23000300;
+    plane_mask = 0xff;
 
     /* enable screen */
-    s->misc_video |= 0x0A000000;
-    s->misc_ctrl  |= 0x00800000;
+    misc_video |= 0x0A000000;
+    misc_ctrl  |= 0x00800000;
 
-    s->con = graphic_console_init(dev, 0, &artist_ops, s);
-    qemu_console_resize(s->con, s->width, s->height);
+    con = graphic_console_init(DEVICE(this), 0, &artist_ops, this);
+    qemu_console_resize(con, width, height);
+}
+
+void ARTISTState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    ARTISTState *s = ARTIST(dev);
+    s->realize(errp);
 }
 
 static int vmstate_artist_post_load(void *opaque, int version_id)
@@ -1482,17 +1500,17 @@ static const Property artist_properties[] = {
     DEFINE_PROP_BOOL("disable",        ARTISTState, disable, false),
 };
 
-static void artist_reset(DeviceState *qdev)
+void ARTISTState::resetWrapper(DeviceState *qdev)
 {
 }
 
-static void artist_class_init(ObjectClass *klass, const void *data)
+void ARTISTState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = artist_realizefn;
+    dc->realize = ARTISTState::realizeWrapper;
     dc->vmsd = &vmstate_artist;
-    device_class_set_legacy_reset(dc, artist_reset);
+    device_class_set_legacy_reset(dc, ARTISTState::resetWrapper);
     device_class_set_props(dc, artist_properties);
 }
 
@@ -1500,8 +1518,8 @@ static const TypeInfo artist_info = {
     .name          = TYPE_ARTIST,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARTISTState),
-    .instance_init = artist_initfn,
-    .class_init    = artist_class_init,
+    .instance_init = ARTISTState::initWrapper,
+    .class_init    = ARTISTState::classInit,
 };
 
 static void artist_register_types(void)

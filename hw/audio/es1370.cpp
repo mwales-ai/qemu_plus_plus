@@ -26,6 +26,7 @@
 #define VERBOSE_ES1370 0
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/audio/model.h"
 #include "qemu/audio.h"
 #include "hw/pci/pci_device.h"
@@ -269,6 +270,13 @@ struct ES1370State {
     uint32_t mempage;
     uint32_t codec;
     uint32_t sctl;
+
+    void realize(Error **errp);
+    void reset();
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void exitWrapper(PCIDevice *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 struct chan_bits {
@@ -825,19 +833,16 @@ static const VMStateDescription vmstate_es1370 = {
     .fields = vmstate_es1370_fields,
 };
 
-static void es1370_on_reset(DeviceState *dev)
+void ES1370State::reset()
 {
-    ES1370State *s = ES1370(dev);
-
-    es1370_reset (s);
+    es1370_reset(this);
 }
 
-static void es1370_realize(PCIDevice *dev, Error **errp)
+void ES1370State::realize(Error **errp)
 {
-    ES1370State *s = ES1370(dev);
-    uint8_t *c = s->dev.config;
+    uint8_t *c = dev.config;
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!AUD_backend_check(&audio_be, errp)) {
         return;
     }
 
@@ -853,13 +858,25 @@ static void es1370_realize(PCIDevice *dev, Error **errp)
     c[PCI_MIN_GNT] = 0x0c;
     c[PCI_MAX_LAT] = 0x80;
 
-    memory_region_init_io (&s->io, OBJECT(s), &es1370_io_ops, s, "es1370", 256);
-    pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
+    memory_region_init_io (&io, OBJECT(this), &es1370_io_ops, this, "es1370", 256);
+    pci_register_bar (&dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &io);
 
-    es1370_reset (s);
+    es1370_reset(this);
 }
 
-static void es1370_exit(PCIDevice *dev)
+void ES1370State::resetWrapper(DeviceState *dev)
+{
+    ES1370State *s = ES1370(dev);
+    s->reset();
+}
+
+void ES1370State::realizeWrapper(PCIDevice *dev, Error **errp)
+{
+    ES1370State *s = ES1370(dev);
+    s->realize(errp);
+}
+
+void ES1370State::exitWrapper(PCIDevice *dev)
 {
     ES1370State *s = ES1370(dev);
     int i;
@@ -875,13 +892,13 @@ static const Property es1370_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ES1370State, audio_be),
 };
 
-static void es1370_class_init(ObjectClass *klass, const void *data)
+void ES1370State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
 
-    k->realize = es1370_realize;
-    k->exit = es1370_exit;
+    k->realize = ES1370State::realizeWrapper;
+    k->exit = ES1370State::exitWrapper;
     k->vendor_id = PCI_VENDOR_ID_ENSONIQ;
     k->device_id = PCI_DEVICE_ID_ENSONIQ_ES1370;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
@@ -890,7 +907,7 @@ static void es1370_class_init(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "ENSONIQ AudioPCI ES1370";
     dc->vmsd = &vmstate_es1370;
-    device_class_set_legacy_reset(dc, es1370_on_reset);
+    device_class_set_legacy_reset(dc, ES1370State::resetWrapper);
     device_class_set_props(dc, es1370_properties);
 }
 
@@ -903,7 +920,7 @@ static const TypeInfo es1370_info = {
     .name          = TYPE_ES1370,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof (ES1370State),
-    .class_init    = es1370_class_init,
+    .class_init    = ES1370State::classInit,
     .interfaces = es1370_interfaces,
 };
 

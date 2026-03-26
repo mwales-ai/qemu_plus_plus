@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/audio/model.h"
 #include "qemu/audio.h"
 #include "hw/irq.h"
@@ -85,6 +86,27 @@ struct CSState {
     int aci_counter;
     SWVoiceOut *voice;
     const int16_t *tab;
+
+    /* methods */
+    void resetState();
+    void resetVoices(uint32_t val);
+    int writeAudio(int nchan, int dma_pos, int dma_len, int len);
+
+    static void audioCallback(void *opaque, int free);
+    static uint64_t readOp(void *opaque, hwaddr addr, unsigned size);
+    static void writeOp(void *opaque, hwaddr addr, uint64_t val64, unsigned size);
+    static int dmaRead(void *opaque, int nchan, int dma_pos, int dma_len);
+    static int preLoad(void *opaque);
+    static int postLoad(void *opaque, int version_id);
+
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+
+    static void initfn(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define MODE2 (1 << 6)
@@ -220,60 +242,64 @@ static const int16_t ALawDecompressTable[256] =
       944,   912,  1008,   976,   816,   784,   880,   848
 };
 
-static void cs4231a_reset (DeviceState *dev)
+void CSState::resetWrapper(DeviceState *dev)
 {
-    CSState *s = CS4231A (dev);
-
-    s->regs[Index_Address] = 0x40;
-    s->regs[Index_Data]    = 0x00;
-    s->regs[Status]        = 0x00;
-    s->regs[PIO_Data]      = 0x00;
-
-    s->dregs[Left_ADC_Input_Control]          = 0x00;
-    s->dregs[Right_ADC_Input_Control]         = 0x00;
-    s->dregs[Left_AUX1_Input_Control]         = 0x88;
-    s->dregs[Right_AUX1_Input_Control]        = 0x88;
-    s->dregs[Left_AUX2_Input_Control]         = 0x88;
-    s->dregs[Right_AUX2_Input_Control]        = 0x88;
-    s->dregs[Left_DAC_Output_Control]         = 0x80;
-    s->dregs[Right_DAC_Output_Control]        = 0x80;
-    s->dregs[FS_And_Playback_Data_Format]     = 0x00;
-    s->dregs[Interface_Configuration]         = 0x08;
-    s->dregs[Pin_Control]                     = 0x00;
-    s->dregs[Error_Status_And_Initialization] = 0x00;
-    s->dregs[MODE_And_ID]                     = 0x8a;
-    s->dregs[Loopback_Control]                = 0x00;
-    s->dregs[Playback_Upper_Base_Count]       = 0x00;
-    s->dregs[Playback_Lower_Base_Count]       = 0x00;
-    s->dregs[Alternate_Feature_Enable_I]      = 0x00;
-    s->dregs[Alternate_Feature_Enable_II]     = 0x00;
-    s->dregs[Left_Line_Input_Control]         = 0x88;
-    s->dregs[Right_Line_Input_Control]        = 0x88;
-    s->dregs[Timer_Low_Base]                  = 0x00;
-    s->dregs[Timer_High_Base]                 = 0x00;
-    s->dregs[RESERVED]                        = 0x00;
-    s->dregs[Alternate_Feature_Enable_III]    = 0x00;
-    s->dregs[Alternate_Feature_Status]        = 0x00;
-    s->dregs[Version_Chip_ID]                 = 0xa0;
-    s->dregs[Mono_Input_And_Output_Control]   = 0xa0;
-    s->dregs[RESERVED_2]                      = 0x00;
-    s->dregs[Capture_Data_Format]             = 0x00;
-    s->dregs[RESERVED_3]                      = 0x00;
-    s->dregs[Capture_Upper_Base_Count]        = 0x00;
-    s->dregs[Capture_Lower_Base_Count]        = 0x00;
+    CSState *s = CS4231A(dev);
+    s->reset();
 }
 
-static void cs_audio_callback (void *opaque, int free)
+void CSState::reset()
+{
+    regs[Index_Address] = 0x40;
+    regs[Index_Data]    = 0x00;
+    regs[Status]        = 0x00;
+    regs[PIO_Data]      = 0x00;
+
+    dregs[Left_ADC_Input_Control]          = 0x00;
+    dregs[Right_ADC_Input_Control]         = 0x00;
+    dregs[Left_AUX1_Input_Control]         = 0x88;
+    dregs[Right_AUX1_Input_Control]        = 0x88;
+    dregs[Left_AUX2_Input_Control]         = 0x88;
+    dregs[Right_AUX2_Input_Control]        = 0x88;
+    dregs[Left_DAC_Output_Control]         = 0x80;
+    dregs[Right_DAC_Output_Control]        = 0x80;
+    dregs[FS_And_Playback_Data_Format]     = 0x00;
+    dregs[Interface_Configuration]         = 0x08;
+    dregs[Pin_Control]                     = 0x00;
+    dregs[Error_Status_And_Initialization] = 0x00;
+    dregs[MODE_And_ID]                     = 0x8a;
+    dregs[Loopback_Control]                = 0x00;
+    dregs[Playback_Upper_Base_Count]       = 0x00;
+    dregs[Playback_Lower_Base_Count]       = 0x00;
+    dregs[Alternate_Feature_Enable_I]      = 0x00;
+    dregs[Alternate_Feature_Enable_II]     = 0x00;
+    dregs[Left_Line_Input_Control]         = 0x88;
+    dregs[Right_Line_Input_Control]        = 0x88;
+    dregs[Timer_Low_Base]                  = 0x00;
+    dregs[Timer_High_Base]                 = 0x00;
+    dregs[RESERVED]                        = 0x00;
+    dregs[Alternate_Feature_Enable_III]    = 0x00;
+    dregs[Alternate_Feature_Status]        = 0x00;
+    dregs[Version_Chip_ID]                 = 0xa0;
+    dregs[Mono_Input_And_Output_Control]   = 0xa0;
+    dregs[RESERVED_2]                      = 0x00;
+    dregs[Capture_Data_Format]             = 0x00;
+    dregs[RESERVED_3]                      = 0x00;
+    dregs[Capture_Upper_Base_Count]        = 0x00;
+    dregs[Capture_Lower_Base_Count]        = 0x00;
+}
+
+void CSState::audioCallback(void *opaque, int free)
 {
     CSState *s = static_cast<CSState *>(opaque);
     s->audio_free = free;
 }
 
-static void cs_reset_voices (CSState *s, uint32_t val)
+void CSState::resetVoices(uint32_t val)
 {
     int xtal;
     struct audsettings as;
-    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
 
 #ifdef DEBUG_XLAW
     if (val == 0 || val == 32)
@@ -290,23 +316,23 @@ static void cs_reset_voices (CSState *s, uint32_t val)
 
     as.nchannels = (val & (1 << 4)) ? 2 : 1;
     as.endianness = 0;
-    s->tab = NULL;
+    tab = NULL;
 
-    switch ((val >> 5) & ((s->dregs[MODE_And_ID] & MODE2) ? 7 : 3)) {
+    switch ((val >> 5) & ((dregs[MODE_And_ID] & MODE2) ? 7 : 3)) {
     case 0:
         as.fmt = AUDIO_FORMAT_U8;
-        s->shift = as.nchannels == 2;
+        shift = as.nchannels == 2;
         break;
 
     case 1:
-        s->tab = MuLawDecompressTable;
+        tab = MuLawDecompressTable;
         goto x_law;
     case 3:
-        s->tab = ALawDecompressTable;
+        tab = ALawDecompressTable;
     x_law:
         as.fmt = AUDIO_FORMAT_S16;
         as.endianness = HOST_BIG_ENDIAN;
-        s->shift = as.nchannels == 2;
+        shift = as.nchannels == 2;
         break;
 
     case 6:
@@ -314,7 +340,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
         /* fall through */
     case 2:
         as.fmt = AUDIO_FORMAT_S16;
-        s->shift = as.nchannels;
+        shift = as.nchannels;
         break;
 
     case 7:
@@ -327,40 +353,40 @@ static void cs_reset_voices (CSState *s, uint32_t val)
         goto error;
     }
 
-    s->voice = AUD_open_out (
-        s->audio_be,
-        s->voice,
+    voice = AUD_open_out (
+        audio_be,
+        voice,
         "cs4231a",
-        s,
-        cs_audio_callback,
+        this,
+        CSState::audioCallback,
         &as
         );
 
-    if (s->dregs[Interface_Configuration] & PEN) {
-        if (!s->dma_running) {
-            k->hold_DREQ(s->isa_dma, s->dma);
-            AUD_set_active_out (s->voice, 1);
-            s->transferred = 0;
+    if (dregs[Interface_Configuration] & PEN) {
+        if (!dma_running) {
+            k->hold_DREQ(isa_dma, dma);
+            AUD_set_active_out (voice, 1);
+            transferred = 0;
         }
-        s->dma_running = 1;
+        dma_running = 1;
     }
     else {
-        if (s->dma_running) {
-            k->release_DREQ(s->isa_dma, s->dma);
-            AUD_set_active_out (s->voice, 0);
+        if (dma_running) {
+            k->release_DREQ(isa_dma, dma);
+            AUD_set_active_out (voice, 0);
         }
-        s->dma_running = 0;
+        dma_running = 0;
     }
     return;
 
  error:
-    if (s->dma_running) {
-        k->release_DREQ(s->isa_dma, s->dma);
-        AUD_set_active_out (s->voice, 0);
+    if (dma_running) {
+        k->release_DREQ(isa_dma, dma);
+        AUD_set_active_out (voice, 0);
     }
 }
 
-static uint64_t cs_read (void *opaque, hwaddr addr, unsigned size)
+uint64_t CSState::readOp(void *opaque, hwaddr addr, unsigned size)
 {
     CSState *s = static_cast<CSState *>(opaque);
     uint32_t saddr, iaddr, ret;
@@ -397,8 +423,8 @@ static uint64_t cs_read (void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static void cs_write (void *opaque, hwaddr addr,
-                      uint64_t val64, unsigned size)
+void CSState::writeOp(void *opaque, hwaddr addr,
+                       uint64_t val64, unsigned size)
 {
     CSState *s = static_cast<CSState *>(opaque);
     uint32_t saddr, iaddr, val;
@@ -431,12 +457,12 @@ static void cs_write (void *opaque, hwaddr addr,
 
         case FS_And_Playback_Data_Format:
             if (s->regs[Index_Address] & MCE) {
-                cs_reset_voices (s, val);
+                s->resetVoices(val);
             }
             else {
                 if (s->dregs[Alternate_Feature_Status] & PMCE) {
                     val = (val & ~0x0f) | (s->dregs[iaddr] & 0x0f);
-                    cs_reset_voices (s, val);
+                    s->resetVoices(val);
                 }
                 else {
                     lwarn("[P]MCE(0x%x, 0x%x) is not set, val=0x%x",
@@ -458,7 +484,7 @@ static void cs_write (void *opaque, hwaddr addr,
             }
             if (val & PEN) {
                 if (!s->dma_running) {
-                    cs_reset_voices (s, s->dregs[FS_And_Playback_Data_Format]);
+                    s->resetVoices(s->dregs[FS_And_Playback_Data_Format]);
                 }
             }
             else {
@@ -524,12 +550,12 @@ static void cs_write (void *opaque, hwaddr addr,
     }
 }
 
-static int cs_write_audio (CSState *s, int nchan, int dma_pos,
-                           int dma_len, int len)
+int CSState::writeAudio(int nchan, int dma_pos,
+                         int dma_len, int len)
 {
     int temp, net;
     QEMU_UNINITIALIZED uint8_t tmpbuf[4096];
-    IsaDmaClass *k = ISADMA_GET_CLASS(s->isa_dma);
+    IsaDmaClass *k = ISADMA_GET_CLASS(isa_dma);
 
     temp = len;
     net = 0;
@@ -544,18 +570,18 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
             to_copy = sizeof (tmpbuf);
         }
 
-        copied = k->read_memory(s->isa_dma, nchan, tmpbuf, dma_pos, to_copy);
-        if (s->tab) {
+        copied = k->read_memory(isa_dma, nchan, tmpbuf, dma_pos, to_copy);
+        if (tab) {
             int i;
             QEMU_UNINITIALIZED int16_t linbuf[4096];
 
             for (i = 0; i < copied; ++i)
-                linbuf[i] = s->tab[tmpbuf[i]];
-            copied = AUD_write (s->voice, linbuf, copied << 1);
+                linbuf[i] = tab[tmpbuf[i]];
+            copied = AUD_write (voice, linbuf, copied << 1);
             copied >>= 1;
         }
         else {
-            copied = AUD_write (s->voice, tmpbuf, copied);
+            copied = AUD_write (voice, tmpbuf, copied);
         }
 
         temp -= copied;
@@ -570,7 +596,7 @@ static int cs_write_audio (CSState *s, int nchan, int dma_pos,
     return net;
 }
 
-static int cs_dma_read (void *opaque, int nchan, int dma_pos, int dma_len)
+int CSState::dmaRead(void *opaque, int nchan, int dma_pos, int dma_len)
 {
     CSState *s = static_cast<CSState *>(opaque);
     int copy, written;
@@ -589,7 +615,7 @@ static int cs_dma_read (void *opaque, int nchan, int dma_pos, int dma_len)
         return dma_pos;
     }
 
-    written = cs_write_audio (s, nchan, dma_pos, dma_len, copy);
+    written = s->writeAudio(nchan, dma_pos, dma_len, copy);
 
     dma_pos = (dma_pos + written) % dma_len;
     s->audio_free -= (written << (s->tab != NULL));
@@ -607,7 +633,7 @@ static int cs_dma_read (void *opaque, int nchan, int dma_pos, int dma_len)
     return dma_pos;
 }
 
-static int cs4231a_pre_load (void *opaque)
+int CSState::preLoad(void *opaque)
 {
     CSState *s = static_cast<CSState *>(opaque);
 
@@ -620,13 +646,13 @@ static int cs4231a_pre_load (void *opaque)
     return 0;
 }
 
-static int cs4231a_post_load (void *opaque, int version_id)
+int CSState::postLoad(void *opaque, int version_id)
 {
     CSState *s = static_cast<CSState *>(opaque);
 
     if (s->dma_running && (s->dregs[Interface_Configuration] & PEN)) {
         s->dma_running = 0;
-        cs_reset_voices (s, s->dregs[FS_And_Playback_Data_Format]);
+        s->resetVoices(s->dregs[FS_And_Playback_Data_Format]);
     }
     return 0;
 }
@@ -645,8 +671,8 @@ static const VMStateDescription vmstate_cs4231a = {
     .name = "cs4231a",
     .version_id = 1,
     .minimum_version_id = 1,
-    .pre_load = cs4231a_pre_load,
-    .post_load = cs4231a_post_load,
+    .pre_load = CSState::preLoad,
+    .post_load = CSState::postLoad,
     .fields = vmstate_cs4231a_fields,
 };
 
@@ -655,13 +681,13 @@ static MemoryRegionOps cs_ioport_ops;
 static void __attribute__((constructor)) init_cs_ioport_ops(void)
 {
     memset(&cs_ioport_ops, 0, sizeof(cs_ioport_ops));
-    cs_ioport_ops.read = cs_read;
-    cs_ioport_ops.write = cs_write;
+    cs_ioport_ops.read = CSState::readOp;
+    cs_ioport_ops.write = CSState::writeOp;
     cs_ioport_ops.impl.min_access_size = 1;
     cs_ioport_ops.impl.max_access_size = 1;
 }
 
-static void cs4231a_initfn (Object *obj)
+void CSState::initfn(Object *obj)
 {
     CSState *s = CS4231A (obj);
 
@@ -669,32 +695,37 @@ static void cs4231a_initfn (Object *obj)
                            "cs4231a", 4);
 }
 
-static void cs4231a_realizefn (DeviceState *dev, Error **errp)
+void CSState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    ISADevice *d = ISA_DEVICE (dev);
+    CSState *s = CS4231A(dev);
+    s->realize(errp);
+}
+
+void CSState::realize(Error **errp)
+{
+    ISADevice *d = ISA_DEVICE (&dev);
     ISABus *bus = isa_bus_from_device(d);
-    CSState *s = CS4231A (dev);
     IsaDmaClass *k;
 
-    s->isa_dma = isa_bus_get_dma(bus, s->dma);
-    if (!s->isa_dma) {
+    isa_dma = isa_bus_get_dma(bus, dma);
+    if (!isa_dma) {
         error_setg(errp, "ISA controller does not support DMA");
         return;
     }
 
-    if (!AUD_backend_check(&s->audio_be, errp)) {
+    if (!AUD_backend_check(&audio_be, errp)) {
         return;
     }
 
-    if (s->irq >= ISA_NUM_IRQS) {
-        error_setg(errp, "Invalid IRQ %d (max %d)", s->irq, ISA_NUM_IRQS - 1);
+    if (irq >= ISA_NUM_IRQS) {
+        error_setg(errp, "Invalid IRQ %d (max %d)", irq, ISA_NUM_IRQS - 1);
         return;
     }
-    s->pic = isa_bus_get_irq(bus, s->irq);
-    k = ISADMA_GET_CLASS(s->isa_dma);
-    k->register_channel(s->isa_dma, s->dma, cs_dma_read, s);
+    pic = isa_bus_get_irq(bus, irq);
+    k = ISADMA_GET_CLASS(isa_dma);
+    k->register_channel(isa_dma, dma, CSState::dmaRead, this);
 
-    isa_register_ioport (d, &s->ioports, s->port);
+    isa_register_ioport (d, &ioports, port);
 }
 
 static const Property cs4231a_properties[] = {
@@ -704,12 +735,12 @@ static const Property cs4231a_properties[] = {
     DEFINE_PROP_UINT32 ("dma",     CSState, dma,  3),
 };
 
-static void cs4231a_class_initfn(ObjectClass *klass, const void *data)
+void CSState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 
-    dc->realize = cs4231a_realizefn;
-    device_class_set_legacy_reset(dc, cs4231a_reset);
+    dc->realize = CSState::realizeWrapper;
+    device_class_set_legacy_reset(dc, CSState::resetWrapper);
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Crystal Semiconductor CS4231A";
     dc->vmsd = &vmstate_cs4231a;
@@ -720,8 +751,8 @@ static const TypeInfo cs4231a_info = {
     .name          = TYPE_CS4231A,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (CSState),
-    .instance_init = cs4231a_initfn,
-    .class_init    = cs4231a_class_initfn,
+    .instance_init = CSState::initfn,
+    .class_init    = CSState::classInit,
 };
 
 static void cs4231a_register_types (void)

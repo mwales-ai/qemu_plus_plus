@@ -109,6 +109,12 @@ struct HighbankRegsState {
 
     MemoryRegion iomem;
     uint32_t regs[NUM_REGS];
+
+    void reset();
+    void initfn();
+    static void resetWrapper(DeviceState *dev);
+    static void initWrapper(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateDescription vmstate_highbank_regs = {
@@ -121,41 +127,50 @@ static const VMStateDescription vmstate_highbank_regs = {
     },
 };
 
-static void highbank_regs_reset(DeviceState *dev)
+void HighbankRegsState::reset()
+{
+    regs[0x40] = 0x05F20121;
+    regs[0x41] = 0x2;
+    regs[0x42] = 0x05F30121;
+    regs[0x43] = 0x05F40121;
+}
+
+void HighbankRegsState::initfn()
+{
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+
+    memory_region_init_io(&iomem, OBJECT(this), &hb_mem_ops, regs,
+                          "highbank_regs", 0x1000);
+    sysbus_init_mmio(dev, &iomem);
+}
+
+void HighbankRegsState::resetWrapper(DeviceState *dev)
 {
     HighbankRegsState *s = HIGHBANK_REGISTERS(dev);
-
-    s->regs[0x40] = 0x05F20121;
-    s->regs[0x41] = 0x2;
-    s->regs[0x42] = 0x05F30121;
-    s->regs[0x43] = 0x05F40121;
+    s->reset();
 }
 
-static void highbank_regs_init(Object *obj)
+void HighbankRegsState::initWrapper(Object *obj)
 {
     HighbankRegsState *s = HIGHBANK_REGISTERS(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->iomem, obj, &hb_mem_ops, s->regs,
-                          "highbank_regs", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    s->initfn();
 }
 
-static void highbank_regs_class_init(ObjectClass *klass, const void *data)
+void HighbankRegsState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->desc = "Calxeda Highbank registers";
     dc->vmsd = &vmstate_highbank_regs;
-    device_class_set_legacy_reset(dc, highbank_regs_reset);
+    device_class_set_legacy_reset(dc, HighbankRegsState::resetWrapper);
 }
 
 static const TypeInfo highbank_regs_info = {
     .name          = TYPE_HIGHBANK_REGISTERS,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(HighbankRegsState),
-    .instance_init = highbank_regs_init,
-    .class_init    = highbank_regs_class_init,
+    .instance_init = HighbankRegsState::initWrapper,
+    .class_init    = HighbankRegsState::classInit,
 };
 
 static void highbank_regs_register_types(void)
