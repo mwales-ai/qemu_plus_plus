@@ -108,6 +108,11 @@ struct Core99MachineState {
     MachineState parent;
 
     Core99ViaConfig via_config;
+
+    static void classInit(ObjectClass *oc, const void *data);
+    static void instanceInit(Object *obj);
+    static char *getViaConfig(Object *obj, Error **errp);
+    static void setViaConfig(Object *obj, const char *value, Error **errp);
 };
 
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
@@ -558,7 +563,7 @@ static int core99_kvm_type(MachineState *machine, const char *arg)
     return 2;
 }
 
-static void core99_machine_class_init(ObjectClass *oc, const void *data)
+void Core99MachineState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
@@ -582,7 +587,7 @@ static void core99_machine_class_init(ObjectClass *oc, const void *data)
     fwc->get_dev_path = core99_fw_dev_path;
 }
 
-static char *core99_get_via_config(Object *obj, Error **errp)
+char *Core99MachineState::getViaConfig(Object *obj, Error **errp)
 {
     Core99MachineState *cms = CORE99_MACHINE(obj);
 
@@ -599,7 +604,7 @@ static char *core99_get_via_config(Object *obj, Error **errp)
     }
 }
 
-static void core99_set_via_config(Object *obj, const char *value, Error **errp)
+void Core99MachineState::setViaConfig(Object *obj, const char *value, Error **errp)
 {
     Core99MachineState *cms = CORE99_MACHINE(obj);
 
@@ -615,14 +620,14 @@ static void core99_set_via_config(Object *obj, const char *value, Error **errp)
     }
 }
 
-static void core99_instance_init(Object *obj)
+void Core99MachineState::instanceInit(Object *obj)
 {
     Core99MachineState *cms = CORE99_MACHINE(obj);
 
     /* Default via_config is CORE99_VIA_CONFIG_CUDA */
     cms->via_config = CORE99_VIA_CONFIG_CUDA;
-    object_property_add_str(obj, "via", core99_get_via_config,
-                            core99_set_via_config);
+    object_property_add_str(obj, "via", Core99MachineState::getViaConfig,
+                            Core99MachineState::setViaConfig);
     object_property_set_description(obj, "via",
                                     "Set VIA configuration. "
                                     "Valid values are cuda, pmu and pmu-adb");
@@ -637,8 +642,8 @@ static const TypeInfo core99_machine_info = {
     .name          = MACHINE_TYPE_NAME("mac99"),
     .parent        = TYPE_MACHINE,
     .instance_size = sizeof(Core99MachineState),
-    .instance_init = core99_instance_init,
-    .class_init    = core99_machine_class_init,
+    .instance_init = Core99MachineState::instanceInit,
+    .class_init    = Core99MachineState::classInit,
     .interfaces    = core99_machine_interfaces,
 };
 

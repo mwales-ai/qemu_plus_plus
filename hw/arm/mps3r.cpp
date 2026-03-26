@@ -121,6 +121,7 @@ struct MPS3RMachineState {
 
     /* Static class methods */
     static void commonInit(MachineState *machine);
+    static void baseClassInit(ObjectClass *oc, const void *data);
     static void an536ClassInit(ObjectClass *oc, const void *data);
 };
 
@@ -588,7 +589,7 @@ static void mps3r_set_default_ram_info(MPS3RMachineClass *mmc)
     g_assert_not_reached();
 }
 
-static void __attribute__((unused)) mps3r_class_init(ObjectClass *oc, const void *data)
+void MPS3RMachineState::baseClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -634,7 +635,7 @@ static const TypeInfo mps3r_machine_types[] = {
         .instance_size = sizeof(MPS3RMachineState),
         .is_abstract = true,
         .class_size = sizeof(MPS3RMachineClass),
-        .class_init = mps3r_class_init,
+        .class_init = MPS3RMachineState::baseClassInit,
     }, {
         .name = TYPE_MPS3R_AN536_MACHINE,
         .parent = TYPE_MPS3R_MACHINE,

@@ -208,6 +208,8 @@ struct PCSpkState {
     }
 
     static const char *s_spk;
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 const char *PCSpkState::s_spk = "pcspk";
@@ -240,7 +242,7 @@ static const Property pcspk_properties[] = {
     DEFINE_PROP_LINK("pit", PCSpkState, pit, TYPE_PIT_COMMON, PITCommonState *),
 };
 
-static void pcspk_class_initfn(ObjectClass *klass, const void *data)
+void PCSpkState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -257,7 +259,7 @@ static const TypeInfo pcspk_info = {
     .parent         = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(PCSpkState),
     .instance_init  = PCSpkState::instanceInit,
-    .class_init     = pcspk_class_initfn,
+    .class_init     = PCSpkState::classInit,
 };
 
 static void pcspk_register(void)

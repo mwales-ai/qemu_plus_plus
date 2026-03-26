@@ -186,6 +186,8 @@ struct RS6000MCState {
     }
 
     static const MemoryRegionPortio rs6000mc_port_list[];
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 const MemoryRegionPortio RS6000MCState::rs6000mc_port_list[] = {
@@ -212,7 +214,7 @@ static const Property rs6000mc_properties[] = {
     DEFINE_PROP_BOOL("auto-configure", RS6000MCState, autoconfigure, true),
 };
 
-static void rs6000mc_class_initfn(ObjectClass *klass, const void *data)
+void RS6000MCState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -225,7 +227,7 @@ static const TypeInfo rs6000mc_info = {
     .name          = TYPE_RS6000MC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(RS6000MCState),
-    .class_init    = rs6000mc_class_initfn,
+    .class_init    = RS6000MCState::classInit,
 };
 
 static void rs6000mc_types(void)

@@ -170,6 +170,8 @@ struct ARMGICv2mState {
                               "gicv2m", 0x1000);
         sysbus_init_mmio(sbd, &s->iomem);
     }
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 const MemoryRegionOps ARMGICv2mState::ops = {
@@ -183,7 +185,7 @@ static const Property gicv2m_properties[] = {
     DEFINE_PROP_UINT32("num-spi", ARMGICv2mState, num_spi, 64),
 };
 
-static void gicv2m_class_init(ObjectClass *klass, const void *data)
+void ARMGICv2mState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -196,7 +198,7 @@ static const TypeInfo gicv2m_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARMGICv2mState),
     .instance_init = ARMGICv2mState::instanceInit,
-    .class_init    = gicv2m_class_init,
+    .class_init    = ARMGICv2mState::classInit,
 };
 
 static void gicv2m_register_types(void)

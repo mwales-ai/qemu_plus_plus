@@ -51,6 +51,13 @@ struct RxGdbSimMachineState {
     MachineState parent_obj;
     /*< public >*/
     RX62NState mcu;
+
+    static void loadImage(RXCPU *cpu, const char *filename,
+                          uint32_t start, uint32_t size);
+    static void machineInit(MachineState *machine);
+    static void classInit(ObjectClass *oc, const void *data);
+    static void rx62n7ClassInit(ObjectClass *oc, const void *data);
+    static void rx62n8ClassInit(ObjectClass *oc, const void *data);
 };
 typedef struct RxGdbSimMachineState RxGdbSimMachineState;
 
@@ -60,8 +67,8 @@ DECLARE_OBJ_CHECKERS(RxGdbSimMachineState, RxGdbSimMachineClass,
                      RX_GDBSIM_MACHINE, TYPE_RX_GDBSIM_MACHINE)
 
 
-static void rx_load_image(RXCPU *cpu, const char *filename,
-                          uint32_t start, uint32_t size)
+void RxGdbSimMachineState::loadImage(RXCPU *cpu, const char *filename,
+                                     uint32_t start, uint32_t size)
 {
     static uint32_t extable[32];
     long kernel_size;
@@ -82,7 +89,7 @@ static void rx_load_image(RXCPU *cpu, const char *filename,
     rom_add_blob_fixed("extable", extable, sizeof(extable), VECTOR_TABLE_BASE);
 }
 
-static void rx_gdbsim_init(MachineState *machine)
+void RxGdbSimMachineState::machineInit(MachineState *machine)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     RxGdbSimMachineState *s = RX_GDBSIM_MACHINE(machine);
@@ -128,7 +135,7 @@ static void rx_gdbsim_init(MachineState *machine)
          * the latter half of the SDRAM space.
          */
         kernel_offset = machine->ram_size / 2;
-        rx_load_image(&s->mcu.cpu, kernel_filename,
+        RxGdbSimMachineState::loadImage(&s->mcu.cpu, kernel_filename,
                       SDRAM_BASE + kernel_offset, kernel_offset);
         if (dtb_filename) {
             ram_addr_t dtb_offset;
@@ -159,17 +166,17 @@ static void rx_gdbsim_init(MachineState *machine)
     }
 }
 
-static void rx_gdbsim_class_init(ObjectClass *oc, const void *data)
+void RxGdbSimMachineState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->init = rx_gdbsim_init;
+    mc->init = RxGdbSimMachineState::machineInit;
     mc->default_cpu_type = TYPE_RX62N_CPU;
     mc->default_ram_size = 16 * MiB;
     mc->default_ram_id = "ext-sdram";
 }
 
-static void rx62n7_class_init(ObjectClass *oc, const void *data)
+void RxGdbSimMachineState::rx62n7ClassInit(ObjectClass *oc, const void *data)
 {
     RxGdbSimMachineClass *rxc = RX_GDBSIM_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -177,9 +184,9 @@ static void rx62n7_class_init(ObjectClass *oc, const void *data)
     rxc->mcu_name = TYPE_R5F562N7_MCU;
     rxc->xtal_freq_hz = 12 * 1000 * 1000;
     mc->desc = "gdb simulator (R5F562N7 MCU and external RAM)";
-};
+}
 
-static void rx62n8_class_init(ObjectClass *oc, const void *data)
+void RxGdbSimMachineState::rx62n8ClassInit(ObjectClass *oc, const void *data)
 {
     RxGdbSimMachineClass *rxc = RX_GDBSIM_MACHINE_CLASS(oc);
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -187,23 +194,23 @@ static void rx62n8_class_init(ObjectClass *oc, const void *data)
     rxc->mcu_name = TYPE_R5F562N8_MCU;
     rxc->xtal_freq_hz = 12 * 1000 * 1000;
     mc->desc = "gdb simulator (R5F562N8 MCU and external RAM)";
-};
+}
 
 static const TypeInfo rx_gdbsim_types[] = {
     {
         .name           = MACHINE_TYPE_NAME("gdbsim-r5f562n7"),
         .parent         = TYPE_RX_GDBSIM_MACHINE,
-        .class_init     = rx62n7_class_init,
+        .class_init     = RxGdbSimMachineState::rx62n7ClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("gdbsim-r5f562n8"),
         .parent         = TYPE_RX_GDBSIM_MACHINE,
-        .class_init     = rx62n8_class_init,
+        .class_init     = RxGdbSimMachineState::rx62n8ClassInit,
     }, {
         .name           = TYPE_RX_GDBSIM_MACHINE,
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(RxGdbSimMachineState),
         .class_size     = sizeof(RxGdbSimMachineClass),
-        .class_init     = rx_gdbsim_class_init,
+        .class_init     = RxGdbSimMachineState::classInit,
         .is_abstract       = true,
      }
 };

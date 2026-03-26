@@ -90,6 +90,7 @@ struct MuscaMachineState {
 
     /* Static class methods */
     static void init(MachineState *machine);
+    static void baseClassInit(ObjectClass *oc, const void *data);
     static void muscaAClassInit(ObjectClass *oc, const void *data);
     static void muscaB1ClassInit(ObjectClass *oc, const void *data);
 };
@@ -601,7 +602,7 @@ void MuscaMachineState::init(MachineState *machine)
                        0, 0x2000000);
 }
 
-static void __attribute__((unused)) musca_class_init(ObjectClass *oc, const void *data)
+void MuscaMachineState::baseClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -657,7 +658,7 @@ static const TypeInfo musca_info = {
     .instance_size = sizeof(MuscaMachineState),
     .is_abstract = true,
     .class_size = sizeof(MuscaMachineClass),
-    .class_init = musca_class_init,
+    .class_init = MuscaMachineState::baseClassInit,
 };
 
 static const TypeInfo musca_a_info = {

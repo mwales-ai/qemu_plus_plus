@@ -207,6 +207,8 @@ struct EEPROMState {
         EEPROMState *ee = AT24C_EE(state);
         ee->reset();
     }
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 extern "C"
@@ -241,7 +243,7 @@ static const Property at24c_eeprom_props[] = {
     DEFINE_PROP_DRIVE("drive", EEPROMState, blk),
 };
 
-static void at24c_eeprom_class_init(ObjectClass *klass, const void *data)
+void EEPROMState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
@@ -260,7 +262,7 @@ static const TypeInfo at24c_eeprom_type = {
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(EEPROMState),
     .class_size = sizeof(I2CSlaveClass),
-    .class_init = at24c_eeprom_class_init,
+    .class_init = EEPROMState::classInit,
 };
 
 static void at24c_eeprom_register(void)

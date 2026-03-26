@@ -63,14 +63,19 @@ struct S3Adsp1800MachineState {
     MachineState parent_class;
 
     EndianMode endianness;
+
+    static void machineInit(MachineState *machine);
+    static int getEndianness(Object *obj, Error **errp);
+    static void setEndianness(Object *obj, int endianness, Error **errp);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 OBJECT_DECLARE_TYPE(S3Adsp1800MachineState, MachineClass,
                     PETALOGIX_S3ADSP1800_MACHINE)
 
 
-static void
-petalogix_s3adsp1800_init(MachineState *machine)
+void
+S3Adsp1800MachineState::machineInit(MachineState *machine)
 {
     S3Adsp1800MachineState *psms = PETALOGIX_S3ADSP1800_MACHINE(machine);
     ram_addr_t ram_size = machine->ram_size;
@@ -152,32 +157,32 @@ petalogix_s3adsp1800_init(MachineState *machine)
                            NULL);
 }
 
-static int machine_get_endianness(Object *obj, Error **errp G_GNUC_UNUSED)
+int S3Adsp1800MachineState::getEndianness(Object *obj, Error **errp G_GNUC_UNUSED)
 {
     S3Adsp1800MachineState *ms = PETALOGIX_S3ADSP1800_MACHINE(obj);
     return ms->endianness;
 }
 
-static void machine_set_endianness(Object *obj, int endianness, Error **errp)
+void S3Adsp1800MachineState::setEndianness(Object *obj, int endianness, Error **errp)
 {
     S3Adsp1800MachineState *ms = PETALOGIX_S3ADSP1800_MACHINE(obj);
     ms->endianness = endianness;
 }
 
-static void petalogix_s3adsp1800_machine_class_init(ObjectClass *oc,
-                                                    const void *data)
+void S3Adsp1800MachineState::classInit(ObjectClass *oc,
+                                       const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     ObjectProperty *prop;
 
     mc->desc = "PetaLogix linux refdesign for xilinx Spartan 3ADSP1800";
-    mc->init = petalogix_s3adsp1800_init;
+    mc->init = S3Adsp1800MachineState::machineInit;
     mc->is_default = true;
 
     prop = object_class_property_add_enum(oc, "endianness", "EndianMode",
                                           &EndianMode_lookup,
-                                          machine_get_endianness,
-                                          machine_set_endianness);
+                                          S3Adsp1800MachineState::getEndianness,
+                                          S3Adsp1800MachineState::setEndianness);
     object_property_set_default_str(prop, TARGET_BIG_ENDIAN ? "big" : "little");
     object_class_property_set_description(oc, "endianness",
             "Defines whether the machine runs in big or little endian mode");
@@ -187,7 +192,7 @@ static const TypeInfo petalogix_s3adsp1800_machine_types[] = {
     {
         .name           = TYPE_PETALOGIX_S3ADSP1800_MACHINE,
         .parent         = TYPE_MACHINE,
-        .class_init     = petalogix_s3adsp1800_machine_class_init,
+        .class_init     = S3Adsp1800MachineState::classInit,
         .instance_size  = sizeof(S3Adsp1800MachineState),
     },
 };

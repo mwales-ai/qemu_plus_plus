@@ -115,6 +115,8 @@ struct ISASerialState {
 
         qdev_alias_all_properties(DEVICE(&self->state), o);
     }
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateDescription vmstate_isa_serial = {
@@ -133,7 +135,7 @@ static const Property serial_isa_properties[] = {
     DEFINE_PROP_UINT32("irq",    ISASerialState, isairq,  -1),
 };
 
-static void serial_isa_class_initfn(ObjectClass *klass, const void *data)
+void ISASerialState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
@@ -150,7 +152,7 @@ static const TypeInfo serial_isa_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISASerialState),
     .instance_init = ISASerialState::instanceInit,
-    .class_init    = serial_isa_class_initfn,
+    .class_init    = ISASerialState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_ACPI_DEV_AML_IF },
         { },
