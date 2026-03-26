@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -122,6 +123,13 @@ struct SCSIDiskState {
      */
     uint16_t rotation_rate;
     bool migrate_emulated_scsi_request;
+
+    /* methods */
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+    static void baseClassInit(ObjectClass *klass, const void *data);
+    static void hdClassInit(ObjectClass *klass, const void *data);
+    static void cdClassInit(ObjectClass *klass, const void *data);
 };
 
 static void scsi_free_request(SCSIRequest *req)
@@ -2386,9 +2394,14 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     }
 }
 
-static void scsi_disk_reset(DeviceState *dev)
+void SCSIDiskState::resetWrapper(DeviceState *dev)
 {
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev.qdev, dev);
+    DO_UPCAST(SCSIDiskState, qdev.qdev, dev)->reset();
+}
+
+void SCSIDiskState::reset()
+{
+    SCSIDiskState *s = this;
     uint64_t nb_sectors;
 
     scsi_device_purge_requests(&s->qdev, SENSE_CODE(RESET));
@@ -3164,13 +3177,13 @@ static void scsi_property_add_specifics(DeviceClass *dc)
     }
 }
 
-static void scsi_disk_base_class_initfn(ObjectClass *klass, const void *data)
+void SCSIDiskState::baseClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
 
     dc->fw_name = "disk";
-    device_class_set_legacy_reset(dc, scsi_disk_reset);
+    device_class_set_legacy_reset(dc, SCSIDiskState::resetWrapper);
     sdc->dma_readv = scsi_dma_readv;
     sdc->dma_writev = scsi_dma_writev;
     sdc->need_fua  = scsi_is_cmd_fua;
@@ -3182,7 +3195,7 @@ static const TypeInfo scsi_disk_base_info = {
     .instance_size = sizeof(SCSIDiskState),
     .is_abstract      = true,
     .class_size    = sizeof(SCSIDiskClass),
-    .class_init    = scsi_disk_base_class_initfn,
+    .class_init    = SCSIDiskState::baseClassInit,
 };
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                   \
@@ -3236,7 +3249,7 @@ static const VMStateDescription vmstate_scsi_disk_state = {
     .fields = vmstate_scsi_disk_state_fields,
 };
 
-static void scsi_hd_class_initfn(ObjectClass *klass, const void *data)
+void SCSIDiskState::hdClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
@@ -3255,7 +3268,7 @@ static void scsi_hd_class_initfn(ObjectClass *klass, const void *data)
 static const TypeInfo scsi_hd_info = {
     .name          = "scsi-hd",
     .parent        = TYPE_SCSI_DISK_BASE,
-    .class_init    = scsi_hd_class_initfn,
+    .class_init    = SCSIDiskState::hdClassInit,
 };
 
 static const Property scsi_cd_properties[] = {
@@ -3278,7 +3291,7 @@ static const Property scsi_cd_properties[] = {
                     SCSI_DISK_QUIRK_MODE_PAGE_TRUNCATED, 0),
 };
 
-static void scsi_cd_class_initfn(ObjectClass *klass, const void *data)
+void SCSIDiskState::cdClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
@@ -3296,7 +3309,7 @@ static void scsi_cd_class_initfn(ObjectClass *klass, const void *data)
 static const TypeInfo scsi_cd_info = {
     .name          = "scsi-cd",
     .parent        = TYPE_SCSI_DISK_BASE,
-    .class_init    = scsi_cd_class_initfn,
+    .class_init    = SCSIDiskState::cdClassInit,
 };
 
 #ifdef __linux__

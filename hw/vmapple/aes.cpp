@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "trace.h"
 #include "crypto/hash.h"
 #include "crypto/aes.h"
@@ -133,6 +134,15 @@ struct AESState {
     IV iv[4];
     bool is_encrypt;
     QCryptoCipherMode block_mode;
+
+    /* methods */
+    static uint64_t aes1Read(void *opaque, hwaddr offset, unsigned size);
+    static void aes1Write(void *opaque, hwaddr offset, uint64_t val, unsigned size);
+    static uint64_t aes2Read(void *opaque, hwaddr offset, unsigned size);
+    static void aes2Write(void *opaque, hwaddr offset, uint64_t val, unsigned size);
+    static void resetHold(Object *obj, ResetType type);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void aes_update_irq(AESState *s)
@@ -140,9 +150,9 @@ static void aes_update_irq(AESState *s)
     qemu_set_irq(s->irq, !!(s->irq_status & s->irq_enable));
 }
 
-static uint64_t aes1_read(void *opaque, hwaddr offset, unsigned size)
+uint64_t AESState::aes1Read(void *opaque, hwaddr offset, unsigned size)
 {
-    AESState *s = opaque;
+    AESState *s = static_cast<AESState *>(opaque);
     uint64_t res = 0;
 
     switch (offset) {
@@ -447,9 +457,9 @@ static void fifo_process(AESState *s)
     trace_aes_fifo_process(cmd, success);
 }
 
-static void aes1_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
+void AESState::aes1Write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 {
-    AESState *s = opaque;
+    AESState *s = static_cast<AESState *>(opaque);
 
     trace_aes_write(offset, val);
 
@@ -475,8 +485,8 @@ static void aes1_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 }
 
 static const MemoryRegionOps aes1_ops = {
-    .read = aes1_read,
-    .write = aes1_write,
+    .read = AESState::aes1Read,
+    .write = AESState::aes1Write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -488,7 +498,7 @@ static const MemoryRegionOps aes1_ops = {
     },
 };
 
-static uint64_t aes2_read(void *opaque, hwaddr offset, unsigned size)
+uint64_t AESState::aes2Read(void *opaque, hwaddr offset, unsigned size)
 {
     uint64_t res = 0;
 
@@ -508,7 +518,7 @@ static uint64_t aes2_read(void *opaque, hwaddr offset, unsigned size)
     return res;
 }
 
-static void aes2_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
+void AESState::aes2Write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 {
     trace_aes_2_write(offset, val);
 
@@ -522,8 +532,8 @@ static void aes2_write(void *opaque, hwaddr offset, uint64_t val, unsigned size)
 }
 
 static const MemoryRegionOps aes2_ops = {
-    .read = aes2_read,
-    .write = aes2_write,
+    .read = AESState::aes2Read,
+    .write = AESState::aes2Write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -535,7 +545,7 @@ static const MemoryRegionOps aes2_ops = {
     },
 };
 
-static void aes_reset(Object *obj, ResetType type)
+void AESState::resetHold(Object *obj, ResetType type)
 {
     AESState *s = APPLE_AES(obj);
 
@@ -546,7 +556,7 @@ static void aes_reset(Object *obj, ResetType type)
     s->watermark = 0;
 }
 
-static void aes_init(Object *obj)
+void AESState::instanceInit(Object *obj)
 {
     AESState *s = APPLE_AES(obj);
 
@@ -558,19 +568,19 @@ static void aes_init(Object *obj)
     s->as = &address_space_memory;
 }
 
-static void aes_class_init(ObjectClass *klass, const void *data)
+void AESState::classInit(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    rc->phases.hold = aes_reset;
+    rc->phases.hold = resetHold;
 }
 
 static const TypeInfo aes_info = {
     .name          = TYPE_APPLE_AES,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(AESState),
-    .class_init    = aes_class_init,
-    .instance_init = aes_init,
+    .class_init    = AESState::classInit,
+    .instance_init = AESState::instanceInit,
 };
 
 static void aes_register_types(void)

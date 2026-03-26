@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/bitops.h"
 #include "qemu/datadir.h"
 #include "qemu/error-report.h"
@@ -69,6 +70,10 @@ struct VMAppleMachineState {
     MemoryRegion fw_mr;
     MemoryRegion ecam_alias;
     uint64_t uuid;
+
+    /* methods */
+    static void machineClassInit(ObjectClass *oc, const void *data);
+    static void instanceInit(Object *obj);
 };
 
 #define TYPE_VMAPPLE_MACHINE   MACHINE_TYPE_NAME("vmapple")
@@ -572,7 +577,7 @@ static GlobalProperty vmapple_compat_defaults[] = {
     { TYPE_XHCI_PCI, "conditional-intr-mapping", "on" },
 };
 
-static void vmapple_machine_class_init(ObjectClass *oc, const void *data)
+void VMAppleMachineState::machineClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -593,7 +598,7 @@ static void vmapple_machine_class_init(ObjectClass *oc, const void *data)
                      G_N_ELEMENTS(vmapple_compat_defaults));
 }
 
-static void vmapple_instance_init(Object *obj)
+void VMAppleMachineState::instanceInit(Object *obj)
 {
     VMAppleMachineState *vms = VMAPPLE_MACHINE(obj);
 
@@ -608,8 +613,8 @@ static const TypeInfo vmapple_machine_info = {
     .name          = TYPE_VMAPPLE_MACHINE,
     .parent        = TYPE_MACHINE,
     .instance_size = sizeof(VMAppleMachineState),
-    .class_init    = vmapple_machine_class_init,
-    .instance_init = vmapple_instance_init,
+    .class_init    = VMAppleMachineState::machineClassInit,
+    .instance_init = VMAppleMachineState::instanceInit,
 };
 
 static void machvmapple_machine_init(void)

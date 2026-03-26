@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qobject/qnum.h"
 #include "acpi-build.h"
@@ -1890,6 +1891,9 @@ struct AcpiBuildState {
     uint8_t patched;
     MemoryRegion *rsdp_mr;
     MemoryRegion *linker_mr;
+
+    void reset();
+    static void resetWrapper(void *build_opaque);
 } AcpiBuildState;
 
 static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
@@ -2156,10 +2160,15 @@ static void acpi_build_update(void *build_opaque)
     acpi_build_tables_cleanup(&tables, true);
 }
 
-static void acpi_build_reset(void *build_opaque)
+void AcpiBuildState::resetWrapper(void *build_opaque)
 {
     AcpiBuildState *build_state = static_cast<AcpiBuildState *>(build_opaque);
-    build_state->patched = 0;
+    build_state->reset();
+}
+
+void AcpiBuildState::reset()
+{
+    patched = 0;
 }
 
 static const VMStateField vmstate_acpi_build_fields[] = {
@@ -2242,8 +2251,8 @@ void acpi_setup(void)
                                              build_state, tables.rsdp,
                                              ACPI_BUILD_RSDP_FILE);
 
-    qemu_register_reset(acpi_build_reset, build_state);
-    acpi_build_reset(build_state);
+    qemu_register_reset(AcpiBuildState::resetWrapper, build_state);
+    AcpiBuildState::resetWrapper(build_state);
     vmstate_register(NULL, 0, &vmstate_acpi_build, build_state);
 
     /* Cleanup tables but don't free the memory: we track it

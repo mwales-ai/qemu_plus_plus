@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "system/dma.h"
@@ -119,6 +120,14 @@ struct MegasasState {
     MegasasCmd frames[MEGASAS_MAX_FRAMES];
     DECLARE_BITMAP(frame_map, MEGASAS_MAX_FRAMES);
     SCSIBus bus;
+
+    /* Methods */
+    void realize(PCIDevice *dev, Error **errp);
+    void reset();
+
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 typedef struct MegasasState MegasasState;
 
@@ -2265,11 +2274,15 @@ static void megasas_soft_reset(MegasasState *s)
     s->boot_event = s->event_count;
 }
 
-static void megasas_scsi_reset(DeviceState *dev)
+void MegasasState::resetWrapper(DeviceState *dev)
 {
     MegasasState *s = MEGASAS(dev);
+    s->reset();
+}
 
-    megasas_soft_reset(s);
+void MegasasState::reset()
+{
+    megasas_soft_reset(this);
 }
 
 static const VMStateField vmstate_megasas_gen1_fields[] = {
@@ -2331,10 +2344,15 @@ static const struct SCSIBusInfo megasas_scsi_info = {
     .get_sg_list = megasas_get_sg_list,
 };
 
-static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
+void MegasasState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
     MegasasState *s = MEGASAS(dev);
-    MegasasBaseClass *b = MEGASAS_GET_CLASS(s);
+    s->realize(dev, errp);
+}
+
+void MegasasState::realize(PCIDevice *dev, Error **errp)
+{
+    MegasasBaseClass *b = MEGASAS_GET_CLASS(this);
     uint8_t *pci_conf;
     uint32_t sge;
     int i, bar_type;
@@ -2348,12 +2366,12 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     /* Interrupt pin 1 */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
-    if (s->msi != ON_OFF_AUTO_OFF) {
+    if (msi != ON_OFF_AUTO_OFF) {
         ret = msi_init(dev, 0x50, 1, true, false, &err);
         /* Any error other than -ENOTSUP(board's MSI support is broken)
          * is a programming error */
         assert(!ret || ret == -ENOTSUP);
-        if (ret && s->msi == ON_OFF_AUTO_ON) {
+        if (ret && msi == ON_OFF_AUTO_ON) {
             /* Can't satisfy user's explicit msi=on request, fail */
             error_append_hint(&err, "You have to use msi=auto (default) or "
                     "msi=off with this machine type.\n");
@@ -2361,23 +2379,23 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
             return;
         } else if (ret) {
             /* With msi=auto, we fall back to MSI off silently */
-            s->msi = ON_OFF_AUTO_OFF;
+            msi = ON_OFF_AUTO_OFF;
             error_free(err);
         }
     }
 
-    memory_region_init_io(&s->mmio_io, OBJECT(s), &megasas_mmio_ops, s,
+    memory_region_init_io(&mmio_io, OBJECT(this), &megasas_mmio_ops, this,
                           "megasas-mmio", 0x4000);
-    memory_region_init_io(&s->port_io, OBJECT(s), &megasas_port_ops, s,
+    memory_region_init_io(&port_io, OBJECT(this), &megasas_port_ops, this,
                           "megasas-io", 256);
-    memory_region_init_io(&s->queue_io, OBJECT(s), &megasas_queue_ops, s,
+    memory_region_init_io(&queue_io, OBJECT(this), &megasas_queue_ops, this,
                           "megasas-queue", 0x40000);
 
-    if (megasas_use_msix(s) &&
-        msix_init(dev, 15, &s->mmio_io, b->mmio_bar, 0x2000,
-                  &s->mmio_io, b->mmio_bar, 0x3800, 0x68, NULL)) {
+    if (megasas_use_msix(this) &&
+        msix_init(dev, 15, &mmio_io, b->mmio_bar, 0x2000,
+                  &mmio_io, b->mmio_bar, 0x3800, 0x68, NULL)) {
         /* TODO: check msix_init's error, and should fail on msix=on */
-        s->msix = ON_OFF_AUTO_OFF;
+        msix = ON_OFF_AUTO_OFF;
     }
 
     if (pci_is_express(dev)) {
@@ -2386,55 +2404,55 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
 
     bar_type = PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64;
     pci_register_bar(dev, b->ioport_bar,
-                     PCI_BASE_ADDRESS_SPACE_IO, &s->port_io);
-    pci_register_bar(dev, b->mmio_bar, bar_type, &s->mmio_io);
-    pci_register_bar(dev, 3, bar_type, &s->queue_io);
+                     PCI_BASE_ADDRESS_SPACE_IO, &port_io);
+    pci_register_bar(dev, b->mmio_bar, bar_type, &mmio_io);
+    pci_register_bar(dev, 3, bar_type, &queue_io);
 
-    if (megasas_use_msix(s)) {
+    if (megasas_use_msix(this)) {
         msix_vector_use(dev, 0);
     }
 
-    s->fw_state = MFI_FWSTATE_READY;
-    if (!s->sas_addr) {
-        s->sas_addr = ((NAA_LOCALLY_ASSIGNED_ID << 24) |
+    fw_state = MFI_FWSTATE_READY;
+    if (!sas_addr) {
+        sas_addr = ((NAA_LOCALLY_ASSIGNED_ID << 24) |
                        IEEE_COMPANY_LOCALLY_ASSIGNED) << 36;
-        s->sas_addr |= pci_dev_bus_num(dev) << 16;
-        s->sas_addr |= PCI_SLOT(dev->devfn) << 8;
-        s->sas_addr |= PCI_FUNC(dev->devfn);
+        sas_addr |= pci_dev_bus_num(dev) << 16;
+        sas_addr |= PCI_SLOT(dev->devfn) << 8;
+        sas_addr |= PCI_FUNC(dev->devfn);
     }
-    if (!s->hba_serial) {
-        s->hba_serial = g_strdup(MEGASAS_HBA_SERIAL);
+    if (!hba_serial) {
+        hba_serial = g_strdup(MEGASAS_HBA_SERIAL);
     }
 
-    sge = s->fw_sge + MFI_PASS_FRAME_SIZE;
+    sge = fw_sge + MFI_PASS_FRAME_SIZE;
     if (sge < MEGASAS_MIN_SGE) {
         sge = MEGASAS_MIN_SGE;
     } else if (sge >= MEGASAS_MAX_SGE) {
         sge = MEGASAS_MAX_SGE;
     }
-    s->fw_sge = sge - MFI_PASS_FRAME_SIZE;
+    fw_sge = sge - MFI_PASS_FRAME_SIZE;
 
-    if (s->fw_cmds > MEGASAS_MAX_FRAMES) {
-        s->fw_cmds = MEGASAS_MAX_FRAMES;
+    if (fw_cmds > MEGASAS_MAX_FRAMES) {
+        fw_cmds = MEGASAS_MAX_FRAMES;
     }
-    trace_megasas_init(s->fw_sge, s->fw_cmds,
-                       megasas_is_jbod(s) ? "jbod" : "raid");
+    trace_megasas_init(fw_sge, fw_cmds,
+                       megasas_is_jbod(this) ? "jbod" : "raid");
 
-    if (megasas_is_jbod(s)) {
-        s->fw_luns = MFI_MAX_SYS_PDS;
+    if (megasas_is_jbod(this)) {
+        fw_luns = MFI_MAX_SYS_PDS;
     } else {
-        s->fw_luns = MFI_MAX_LD;
+        fw_luns = MFI_MAX_LD;
     }
-    s->producer_pa = 0;
-    s->consumer_pa = 0;
-    for (i = 0; i < s->fw_cmds; i++) {
-        s->frames[i].index = i;
-        s->frames[i].context = -1;
-        s->frames[i].pa = 0;
-        s->frames[i].state = s;
+    producer_pa = 0;
+    consumer_pa = 0;
+    for (i = 0; i < fw_cmds; i++) {
+        frames[i].index = i;
+        frames[i].context = -1;
+        frames[i].pa = 0;
+        frames[i].state = this;
     }
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &megasas_scsi_info);
+    scsi_bus_init(&bus, sizeof(bus), DEVICE(dev), &megasas_scsi_info);
 }
 
 static const Property megasas_properties_gen1[] = {
@@ -2521,14 +2539,14 @@ static struct MegasasInfo megasas_devices[] = {
     }
 };
 
-static void megasas_class_init(ObjectClass *oc, const void *data)
+void MegasasState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
     MegasasBaseClass *e = MEGASAS_CLASS(oc);
     const MegasasInfo *info = static_cast<const MegasasInfo *>(data);
 
-    pc->realize = megasas_scsi_realize;
+    pc->realize = MegasasState::realizeWrapper;
     pc->exit = megasas_scsi_uninit;
     pc->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     pc->device_id = info->device_id;
@@ -2541,7 +2559,7 @@ static void megasas_class_init(ObjectClass *oc, const void *data)
     e->product_name = info->product_name;
     e->product_version = info->product_version;
     device_class_set_props_n(dc, info->props, info->props_count);
-    device_class_set_legacy_reset(dc, megasas_scsi_reset);
+    device_class_set_legacy_reset(dc, MegasasState::resetWrapper);
     dc->vmsd = info->vmsd;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = info->desc;
@@ -2567,7 +2585,7 @@ static void megasas_register_types(void)
         type_info.name = info->name;
         type_info.parent = TYPE_MEGASAS_BASE;
         type_info.class_data = info;
-        type_info.class_init = megasas_class_init;
+        type_info.class_init = MegasasState::classInit;
         type_info.interfaces = info->interfaces;
 
         type_register_static(&type_info);

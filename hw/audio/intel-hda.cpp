@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/msi.h"
@@ -197,6 +198,14 @@ struct IntelHDAState {
     uint32_t debug;
     OnOffAuto msi;
     bool old_msi_addr;
+
+    /* Methods */
+    void realize(Error **errp);
+    void reset();
+
+    static void realizeWrapper(PCIDevice *pci, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_INTEL_HDA_GENERIC "intel-hda-generic"
@@ -969,66 +978,76 @@ static const MemoryRegionOps intel_hda_mmio_ops = {
 
 /* --------------------------------------------------------------------- */
 
-static void intel_hda_reset(DeviceState *dev)
+void IntelHDAState::resetWrapper(DeviceState *dev)
 {
-    BusChild *kid;
     IntelHDAState *d = INTEL_HDA(dev);
-    HDACodecDevice *cdev;
-
-    intel_hda_regs_reset(d);
-    d->wall_base_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-
-    QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
-        DeviceState *qdev = kid->child;
-        cdev = HDA_CODEC_DEVICE(qdev);
-        d->state_sts |= (1 << cdev->cad);
-    }
-    intel_hda_update_irq(d);
+    d->reset();
 }
 
-static void intel_hda_realize(PCIDevice *pci, Error **errp)
+void IntelHDAState::reset()
 {
-    IntelHDAState *d = INTEL_HDA(pci);
-    uint8_t *conf = d->pci.config;
+    BusChild *kid;
+    HDACodecDevice *cdev;
+
+    intel_hda_regs_reset(this);
+    wall_base_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    QTAILQ_FOREACH(kid, &codecs.qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
+        cdev = HDA_CODEC_DEVICE(qdev);
+        state_sts |= (1 << cdev->cad);
+    }
+    intel_hda_update_irq(this);
+}
+
+void IntelHDAState::realizeWrapper(PCIDevice *pci_dev, Error **errp)
+{
+    IntelHDAState *d = INTEL_HDA(pci_dev);
+    d->realize(errp);
+}
+
+void IntelHDAState::realize(Error **errp)
+{
+    uint8_t *conf = pci.config;
     Error *err = NULL;
     int ret;
 
-    d->name = object_get_typename(OBJECT(d));
+    name = object_get_typename(OBJECT(this));
 
     pci_config_set_interrupt_pin(conf, 1);
 
     /* HDCTL off 0x40 bit 0 selects signaling mode (1-HDA, 0 - Ac97) 18.1.19 */
     conf[0x40] = 0x01;
 
-    if (d->msi != ON_OFF_AUTO_OFF) {
-        ret = msi_init(&d->pci, d->old_msi_addr ? 0x50 : 0x60,
+    if (msi != ON_OFF_AUTO_OFF) {
+        ret = msi_init(&pci, old_msi_addr ? 0x50 : 0x60,
                        1, true, false, &err);
         /* Any error other than -ENOTSUP(board's MSI support is broken)
          * is a programming error */
         assert(!ret || ret == -ENOTSUP);
-        if (ret && d->msi == ON_OFF_AUTO_ON) {
+        if (ret && msi == ON_OFF_AUTO_ON) {
             /* Can't satisfy user's explicit msi=on request, fail */
             error_append_hint(&err, "You have to use msi=auto (default) or "
                     "msi=off with this machine type.\n");
             error_propagate(errp, err);
             return;
         }
-        assert(!err || d->msi == ON_OFF_AUTO_AUTO);
+        assert(!err || msi == ON_OFF_AUTO_AUTO);
         /* With msi=auto, we fall back to MSI off silently */
         error_free(err);
     }
 
-    memory_region_init(&d->container, OBJECT(d),
+    memory_region_init(&container, OBJECT(this),
                        "intel-hda-container", 0x4000);
-    memory_region_init_io(&d->mmio, OBJECT(d), &intel_hda_mmio_ops, d,
+    memory_region_init_io(&mmio, OBJECT(this), &intel_hda_mmio_ops, this,
                           "intel-hda", 0x2000);
-    memory_region_add_subregion(&d->container, 0x0000, &d->mmio);
-    memory_region_init_alias(&d->alias, OBJECT(d), "intel-hda-alias",
-                             &d->mmio, 0, 0x2000);
-    memory_region_add_subregion(&d->container, 0x2000, &d->alias);
-    pci_register_bar(&d->pci, 0, 0, &d->container);
+    memory_region_add_subregion(&container, 0x0000, &mmio);
+    memory_region_init_alias(&alias, OBJECT(this), "intel-hda-alias",
+                             &mmio, 0, 0x2000);
+    memory_region_add_subregion(&container, 0x2000, &alias);
+    pci_register_bar(&pci, 0, 0, &container);
 
-    hda_codec_bus_init(DEVICE(pci), &d->codecs, sizeof(d->codecs),
+    hda_codec_bus_init(DEVICE(this), &codecs, sizeof(codecs),
                        intel_hda_response, intel_hda_xfer);
 }
 
@@ -1124,16 +1143,16 @@ static const Property intel_hda_properties[] = {
     DEFINE_PROP_BOOL("old_msi_addr", IntelHDAState, old_msi_addr, false),
 };
 
-static void intel_hda_class_init(ObjectClass *klass, const void *data)
+void IntelHDAState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = intel_hda_realize;
+    k->realize = IntelHDAState::realizeWrapper;
     k->exit = intel_hda_exit;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->class_id = PCI_CLASS_MULTIMEDIA_HD_AUDIO;
-    device_class_set_legacy_reset(dc, intel_hda_reset);
+    device_class_set_legacy_reset(dc, IntelHDAState::resetWrapper);
     dc->vmsd = &vmstate_intel_hda;
     device_class_set_props(dc, intel_hda_properties);
 }
@@ -1170,7 +1189,7 @@ static const TypeInfo intel_hda_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IntelHDAState),
     .is_abstract   = true,
-    .class_init    = intel_hda_class_init,
+    .class_init    = IntelHDAState::classInit,
     .interfaces    = intel_hda_interfaces,
 };
 

@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -233,6 +234,16 @@ struct SunGEMState {
     uint8_t tx_data[MAX_PACKET_SIZE];
     uint32_t tx_size;
     uint64_t tx_first_ctl;
+
+    /* Methods */
+    void realize(PCIDevice *pci_dev, Error **errp);
+    void reset();
+    void instanceInit();
+
+    static void realizeWrapper(PCIDevice *pci_dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void instanceInitWrapper(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 
@@ -1385,10 +1396,15 @@ static NetClientInfo net_sungem_info = {
     .link_status_changed = sungem_set_link_status,
 };
 
-static void sungem_realize(PCIDevice *pci_dev, Error **errp)
+void SunGEMState::realizeWrapper(PCIDevice *pci_dev, Error **errp)
+{
+    SunGEMState *s = SUNGEM(pci_dev);
+    s->realize(pci_dev, errp);
+}
+
+void SunGEMState::realize(PCIDevice *pci_dev, Error **errp)
 {
     DeviceState *dev = DEVICE(pci_dev);
-    SunGEMState *s = SUNGEM(pci_dev);
     uint8_t *pci_conf;
 
     pci_conf = pci_dev->config;
@@ -1405,61 +1421,69 @@ static void sungem_realize(PCIDevice *pci_dev, Error **errp)
     pci_conf[PCI_MIN_GNT] = 0x40;
     pci_conf[PCI_MAX_LAT] = 0x40;
 
-    sungem_reset_all(s, true);
-    memory_region_init(&s->sungem, OBJECT(s), "sungem", SUNGEM_MMIO_SIZE);
+    sungem_reset_all(this, true);
+    memory_region_init(&sungem, OBJECT(this), "sungem", SUNGEM_MMIO_SIZE);
 
-    memory_region_init_io(&s->greg, OBJECT(s), &sungem_mmio_greg_ops, s,
+    memory_region_init_io(&greg, OBJECT(this), &sungem_mmio_greg_ops, this,
                           "sungem.greg", SUNGEM_MMIO_GREG_SIZE);
-    memory_region_add_subregion(&s->sungem, 0, &s->greg);
+    memory_region_add_subregion(&sungem, 0, &greg);
 
-    memory_region_init_io(&s->txdma, OBJECT(s), &sungem_mmio_txdma_ops, s,
+    memory_region_init_io(&txdma, OBJECT(this), &sungem_mmio_txdma_ops, this,
                           "sungem.txdma", SUNGEM_MMIO_TXDMA_SIZE);
-    memory_region_add_subregion(&s->sungem, 0x2000, &s->txdma);
+    memory_region_add_subregion(&sungem, 0x2000, &txdma);
 
-    memory_region_init_io(&s->rxdma, OBJECT(s), &sungem_mmio_rxdma_ops, s,
+    memory_region_init_io(&rxdma, OBJECT(this), &sungem_mmio_rxdma_ops, this,
                           "sungem.rxdma", SUNGEM_MMIO_RXDMA_SIZE);
-    memory_region_add_subregion(&s->sungem, 0x4000, &s->rxdma);
+    memory_region_add_subregion(&sungem, 0x4000, &rxdma);
 
-    memory_region_init_io(&s->wol, OBJECT(s), &sungem_mmio_wol_ops, s,
+    memory_region_init_io(&wol, OBJECT(this), &sungem_mmio_wol_ops, this,
                           "sungem.wol", SUNGEM_MMIO_WOL_SIZE);
-    memory_region_add_subregion(&s->sungem, 0x3000, &s->wol);
+    memory_region_add_subregion(&sungem, 0x3000, &wol);
 
-    memory_region_init_io(&s->mac, OBJECT(s), &sungem_mmio_mac_ops, s,
+    memory_region_init_io(&mac, OBJECT(this), &sungem_mmio_mac_ops, this,
                           "sungem.mac", SUNGEM_MMIO_MAC_SIZE);
-    memory_region_add_subregion(&s->sungem, 0x6000, &s->mac);
+    memory_region_add_subregion(&sungem, 0x6000, &mac);
 
-    memory_region_init_io(&s->mif, OBJECT(s), &sungem_mmio_mif_ops, s,
+    memory_region_init_io(&mif, OBJECT(this), &sungem_mmio_mif_ops, this,
                           "sungem.mif", SUNGEM_MMIO_MIF_SIZE);
-    memory_region_add_subregion(&s->sungem, 0x6200, &s->mif);
+    memory_region_add_subregion(&sungem, 0x6200, &mif);
 
-    memory_region_init_io(&s->pcs, OBJECT(s), &sungem_mmio_pcs_ops, s,
+    memory_region_init_io(&pcs, OBJECT(this), &sungem_mmio_pcs_ops, this,
                           "sungem.pcs", SUNGEM_MMIO_PCS_SIZE);
-    memory_region_add_subregion(&s->sungem, 0x9000, &s->pcs);
+    memory_region_add_subregion(&sungem, 0x9000, &pcs);
 
-    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->sungem);
+    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &sungem);
 
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_sungem_info, &s->conf,
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_sungem_info, &conf,
                           object_get_typename(OBJECT(dev)),
-                          dev->id, &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic),
-                             s->conf.macaddr.a);
+                          dev->id, &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic),
+                             conf.macaddr.a);
 }
 
-static void sungem_reset(DeviceState *dev)
+void SunGEMState::resetWrapper(DeviceState *dev)
 {
     SunGEMState *s = SUNGEM(dev);
-
-    sungem_reset_all(s, true);
+    s->reset();
 }
 
-static void sungem_instance_init(Object *obj)
+void SunGEMState::reset()
+{
+    sungem_reset_all(this, true);
+}
+
+void SunGEMState::instanceInitWrapper(Object *obj)
 {
     SunGEMState *s = SUNGEM(obj);
+    s->instanceInit();
+}
 
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+void SunGEMState::instanceInit()
+{
+    device_add_bootindex_property(OBJECT(this), &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
+                                  DEVICE(this));
 }
 
 static const Property sungem_properties[] = {
@@ -1498,19 +1522,19 @@ static const VMStateDescription vmstate_sungem = {
     .fields = vmstate_sungem_fields,
 };
 
-static void sungem_class_init(ObjectClass *klass, const void *data)
+void SunGEMState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = sungem_realize;
+    k->realize = SunGEMState::realizeWrapper;
     k->exit = sungem_uninit;
     k->vendor_id = PCI_VENDOR_ID_APPLE;
     k->device_id = PCI_DEVICE_ID_APPLE_UNI_N_GMAC;
     k->revision = 0x01;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     dc->vmsd = &vmstate_sungem;
-    device_class_set_legacy_reset(dc, sungem_reset);
+    device_class_set_legacy_reset(dc, SunGEMState::resetWrapper);
     device_class_set_props(dc, sungem_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
@@ -1524,8 +1548,8 @@ static const TypeInfo sungem_info = {
     .name          = TYPE_SUNGEM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(SunGEMState),
-    .instance_init = sungem_instance_init,
-    .class_init    = sungem_class_init,
+    .instance_init = SunGEMState::instanceInitWrapper,
+    .class_init    = SunGEMState::classInit,
     .interfaces    = sungem_interfaces,
 };
 

@@ -511,6 +511,10 @@ struct RTL8139State {
 
     /* Support migration to/from old versions */
     int rtl8139_mmio_io_addr_dummy;
+
+    /* methods */
+    static void classInit(ObjectClass *klass, const void *data);
+    static void instanceInit(Object *obj);
 };
 
 /* Writes tally counters to memory via DMA */
@@ -3406,7 +3410,7 @@ static void pci_rtl8139_realize(PCIDevice *dev, Error **errp)
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rtl8139_timer, s);
 }
 
-static void rtl8139_instance_init(Object *obj)
+void RTL8139State::instanceInit(Object *obj)
 {
     RTL8139State *s = RTL8139(obj);
 
@@ -3419,7 +3423,7 @@ static const Property rtl8139_properties[] = {
     DEFINE_NIC_PROPERTIES(RTL8139State, conf),
 };
 
-static void rtl8139_class_init(ObjectClass *klass, const void *data)
+void RTL8139State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -3446,8 +3450,8 @@ static const TypeInfo rtl8139_info = {
     .name          = TYPE_RTL8139,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(RTL8139State),
-    .instance_init = rtl8139_instance_init,
-    .class_init    = rtl8139_class_init,
+    .instance_init = RTL8139State::instanceInit,
+    .class_init    = RTL8139State::classInit,
     .interfaces    = rtl8139_interfaces,
 };
 

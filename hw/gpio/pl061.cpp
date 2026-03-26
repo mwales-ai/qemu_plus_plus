@@ -30,6 +30,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
@@ -81,6 +82,18 @@ struct PL061State {
     /* Properties, for non-Luminary PL061 */
     uint8_t pullups;
     uint8_t pulldowns;
+
+    /* methods */
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    static void setIrq(void *opaque, int irq, int level);
+    static void enterReset(Object *obj, ResetType type);
+    static void holdReset(Object *obj, ResetType type);
+    static void instanceInit(Object *obj);
+    static void luminaryInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateDescription vmstate_pl061 = {
@@ -219,10 +232,10 @@ static void pl061_update(PL061State *s)
     qemu_set_irq(s->irq, (s->istate & s->im) != 0);
 }
 
-static uint64_t pl061_read(void *opaque, hwaddr offset,
+uint64_t PL061State::mmioRead(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    PL061State *s = (PL061State *)opaque;
+    PL061State *s = static_cast<PL061State *>(opaque);
     uint64_t r = 0;
 
     switch (offset) {
@@ -333,10 +346,10 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
     return r;
 }
 
-static void pl061_write(void *opaque, hwaddr offset,
+void PL061State::mmioWrite(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    PL061State *s = (PL061State *)opaque;
+    PL061State *s = static_cast<PL061State *>(opaque);
     uint8_t mask;
 
     trace_pl061_write(DEVICE(s)->canonical_path, offset, value);
@@ -445,7 +458,7 @@ static void pl061_write(void *opaque, hwaddr offset,
     pl061_update(s);
 }
 
-static void pl061_enter_reset(Object *obj, ResetType type)
+void PL061State::enterReset(Object *obj, ResetType type)
 {
     PL061State *s = PL061(obj);
 
@@ -483,7 +496,7 @@ static void pl061_enter_reset(Object *obj, ResetType type)
     s->amsel = 0;
 }
 
-static void pl061_hold_reset(Object *obj, ResetType type)
+void PL061State::holdReset(Object *obj, ResetType type)
 {
     PL061State *s = PL061(obj);
     int i, level;
@@ -501,9 +514,9 @@ static void pl061_hold_reset(Object *obj, ResetType type)
     s->old_out_data = pullups;
 }
 
-static void pl061_set_irq(void * opaque, int irq, int level)
+void PL061State::setIrq(void *opaque, int irq, int level)
 {
-    PL061State *s = (PL061State *)opaque;
+    PL061State *s = static_cast<PL061State *>(opaque);
     uint8_t mask;
 
     mask = 1 << irq;
@@ -516,19 +529,19 @@ static void pl061_set_irq(void * opaque, int irq, int level)
 }
 
 static const MemoryRegionOps pl061_ops = {
-    .read = pl061_read,
-    .write = pl061_write,
+    .read = PL061State::mmioRead,
+    .write = PL061State::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pl061_luminary_init(Object *obj)
+void PL061State::luminaryInit(Object *obj)
 {
     PL061State *s = PL061(obj);
 
     s->id = pl061_id_luminary;
 }
 
-static void pl061_init(Object *obj)
+void PL061State::instanceInit(Object *obj)
 {
     PL061State *s = PL061(obj);
     DeviceState *dev = DEVICE(obj);
@@ -539,13 +552,18 @@ static void pl061_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &pl061_ops, s, "pl061", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
-    qdev_init_gpio_in(dev, pl061_set_irq, N_GPIOS);
+    qdev_init_gpio_in(dev, setIrq, N_GPIOS);
     qdev_init_gpio_out(dev, s->out, N_GPIOS);
 }
 
-static void pl061_realize(DeviceState *dev, Error **errp)
+void PL061State::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PL061State *s = PL061(dev);
+    PL061(dev)->realize(errp);
+}
+
+void PL061State::realize(Error **errp)
+{
+    PL061State *s = this;
 
     if (s->pullups & s->pulldowns) {
         error_setg(errp, "no bit may be set both in pullups and pulldowns");
@@ -558,30 +576,30 @@ static const Property pl061_props[] = {
     DEFINE_PROP_UINT8("pulldowns", PL061State, pulldowns, 0x0),
 };
 
-static void pl061_class_init(ObjectClass *klass, const void *data)
+void PL061State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_pl061;
-    dc->realize = pl061_realize;
+    dc->realize = realizeWrapper;
     device_class_set_props(dc, pl061_props);
-    rc->phases.enter = pl061_enter_reset;
-    rc->phases.hold = pl061_hold_reset;
+    rc->phases.enter = enterReset;
+    rc->phases.hold = holdReset;
 }
 
 static const TypeInfo pl061_info = {
     .name          = TYPE_PL061,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL061State),
-    .instance_init = pl061_init,
-    .class_init    = pl061_class_init,
+    .instance_init = PL061State::instanceInit,
+    .class_init    = PL061State::classInit,
 };
 
 static const TypeInfo pl061_luminary_info = {
     .name          = "pl061_luminary",
     .parent        = TYPE_PL061,
-    .instance_init = pl061_luminary_init,
+    .instance_init = PL061State::luminaryInit,
 };
 
 static void pl061_register_types(void)

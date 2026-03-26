@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
@@ -42,6 +43,14 @@ struct SynICState {
 
     QemuMutex sint_routes_mutex;
     QLIST_HEAD(, HvSintRoute) sint_routes;
+
+    /* Methods */
+    void realize(Error **errp);
+    void reset();
+
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_SYNIC "hyperv-synic"
@@ -100,46 +109,56 @@ void hyperv_synic_update(CPUState *cs, bool sctl_enable,
     synic_update(synic, sctl_enable, msg_page_addr, event_page_addr);
 }
 
-static void synic_realize(DeviceState *dev, Error **errp)
+void SynICState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    Object *obj = OBJECT(dev);
     SynICState *synic = SYNIC(dev);
+    synic->realize(errp);
+}
+
+void SynICState::realize(Error **errp)
+{
+    Object *obj = OBJECT(this);
     char *msgp_name, *eventp_name;
     uint32_t vp_index;
 
     /* memory region names have to be globally unique */
-    vp_index = hyperv_vp_index(synic->cs);
+    vp_index = hyperv_vp_index(cs);
     msgp_name = g_strdup_printf("synic-%u-msg-page", vp_index);
     eventp_name = g_strdup_printf("synic-%u-event-page", vp_index);
 
-    memory_region_init_ram(&synic->msg_page_mr, obj, msgp_name,
-                           sizeof(*synic->msg_page), &error_abort);
-    memory_region_init_ram(&synic->event_page_mr, obj, eventp_name,
-                           sizeof(*synic->event_page), &error_abort);
-    synic->msg_page = static_cast<struct hyperv_message_page *>(memory_region_get_ram_ptr(&synic->msg_page_mr));
-    synic->event_page = static_cast<struct hyperv_event_flags_page *>(memory_region_get_ram_ptr(&synic->event_page_mr));
-    qemu_mutex_init(&synic->sint_routes_mutex);
-    QLIST_INIT(&synic->sint_routes);
+    memory_region_init_ram(&msg_page_mr, obj, msgp_name,
+                           sizeof(*msg_page), &error_abort);
+    memory_region_init_ram(&event_page_mr, obj, eventp_name,
+                           sizeof(*event_page), &error_abort);
+    msg_page = static_cast<struct hyperv_message_page *>(memory_region_get_ram_ptr(&msg_page_mr));
+    event_page = static_cast<struct hyperv_event_flags_page *>(memory_region_get_ram_ptr(&event_page_mr));
+    qemu_mutex_init(&sint_routes_mutex);
+    QLIST_INIT(&sint_routes);
 
     g_free(msgp_name);
     g_free(eventp_name);
 }
 
-static void synic_reset(DeviceState *dev)
+void SynICState::resetWrapper(DeviceState *dev)
 {
     SynICState *synic = SYNIC(dev);
-    memset(synic->msg_page, 0, sizeof(*synic->msg_page));
-    memset(synic->event_page, 0, sizeof(*synic->event_page));
-    synic_update(synic, false, 0, 0);
-    assert(QLIST_EMPTY(&synic->sint_routes));
+    synic->reset();
 }
 
-static void synic_class_init(ObjectClass *klass, const void *data)
+void SynICState::reset()
+{
+    memset(msg_page, 0, sizeof(*msg_page));
+    memset(event_page, 0, sizeof(*event_page));
+    synic_update(this, false, 0, 0);
+    assert(QLIST_EMPTY(&sint_routes));
+}
+
+void SynICState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = synic_realize;
-    device_class_set_legacy_reset(dc, synic_reset);
+    dc->realize = SynICState::realizeWrapper;
+    device_class_set_legacy_reset(dc, SynICState::resetWrapper);
     dc->user_creatable = false;
 }
 
@@ -170,7 +189,7 @@ static const TypeInfo synic_type_info = {
     .name = TYPE_SYNIC,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SynICState),
-    .class_init = synic_class_init,
+    .class_init = SynICState::classInit,
 };
 
 static void synic_register_types(void)

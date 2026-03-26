@@ -15,6 +15,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -108,6 +109,11 @@ struct PPCE500PCIState {
     MemoryRegion iomem;
     MemoryRegion pio;
     MemoryRegion busmem;
+
+    /* methods */
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_PPC_E500_PCI_BRIDGE "e500-host-bridge"
@@ -443,8 +449,14 @@ static const PCIIOMMUOps ppce500_iommu_ops = {
     .get_address_space = e500_pcihost_set_iommu,
 };
 
-static void e500_pcihost_realize(DeviceState *dev, Error **errp)
+void PPCE500PCIState::realizeWrapper(DeviceState *dev, Error **errp)
 {
+    PPC_E500_PCI_HOST_BRIDGE(dev)->realize(errp);
+}
+
+void PPCE500PCIState::realize(Error **errp)
+{
+    DeviceState *dev = DEVICE(this);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PCIHostState *h;
     PPCE500PCIState *s;
@@ -495,7 +507,7 @@ static void e500_pcihost_realize(DeviceState *dev, Error **errp)
     pci_bus_set_route_irq_fn(b, e500_route_intx_pin_to_irq);
 }
 
-static void e500_host_bridge_class_init(ObjectClass *klass, const void *data)
+static void e500_host_bridge_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -517,11 +529,11 @@ static const Property pcihost_properties[] = {
     DEFINE_PROP_UINT32("first_pin_irq", PPCE500PCIState, first_pin_irq, 0x1),
 };
 
-static void e500_pcihost_class_init(ObjectClass *klass, const void *data)
+void PPCE500PCIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = e500_pcihost_realize;
+    dc->realize = PPCE500PCIState::realizeWrapper;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     device_class_set_props(dc, pcihost_properties);
     dc->vmsd = &vmstate_ppce500_pci;
@@ -536,7 +548,7 @@ static const TypeInfo e500_pci_bridge_info = {
     .name          = TYPE_PPC_E500_PCI_BRIDGE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PPCE500PCIBridgeState),
-    .class_init    = e500_host_bridge_class_init,
+    .class_init    = e500_host_bridge_class_initfn,
     .interfaces    = e500_pci_bridge_interfaces,
 };
 
@@ -544,7 +556,7 @@ static const TypeInfo e500_pci_host_info = {
     .name          = TYPE_PPC_E500_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPCE500PCIState),
-    .class_init    = e500_pcihost_class_init,
+    .class_init    = PPCE500PCIState::classInit,
 };
 
 static void e500_pci_register_types(void)

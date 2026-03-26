@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/qdev-properties.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
@@ -327,6 +328,16 @@ struct Exynos4210fimdState {
     uint8_t *ifb;           /* Internal frame buffer */
     bool invalidate;        /* Image needs to be redrawn */
     bool enabled;           /* Display controller is enabled */
+
+    /* Methods */
+    void realize(Error **errp);
+    void reset();
+    void instanceInit();
+
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void instanceInitWrapper(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /* Perform byte/halfword/word swap of data according to WINCON */
@@ -1349,33 +1360,38 @@ static void exynos4210_fimd_update(void *opaque)
     exynos4210_fimd_update_irq(s);
 }
 
-static void exynos4210_fimd_reset(DeviceState *d)
+void Exynos4210fimdState::resetWrapper(DeviceState *d)
 {
     Exynos4210fimdState *s = EXYNOS4210_FIMD(d);
+    s->reset();
+}
+
+void Exynos4210fimdState::reset()
+{
     unsigned w;
 
     DPRINT_TRACE("Display controller reset\n");
     /* Set all display controller registers to 0 */
-    memset(&s->vidcon, 0, (uint8_t *)&s->window - (uint8_t *)&s->vidcon);
+    memset(&vidcon, 0, (uint8_t *)&window - (uint8_t *)&vidcon);
     for (w = 0; w < NUM_OF_WINDOWS; w++) {
-        memset(&s->window[w], 0, sizeof(Exynos4210fimdWindow));
-        s->window[w].blendeq = 0xC2;
-        exynos4210_fimd_update_win_bppmode(s, w);
-        exynos4210_fimd_trace_bppmode(s, w, 0xFFFFFFFF);
-        fimd_update_get_alpha(s, w);
+        memset(&window[w], 0, sizeof(Exynos4210fimdWindow));
+        window[w].blendeq = 0xC2;
+        exynos4210_fimd_update_win_bppmode(this, w);
+        exynos4210_fimd_trace_bppmode(this, w, 0xFFFFFFFF);
+        fimd_update_get_alpha(this, w);
     }
 
-    g_free(s->ifb);
-    s->ifb = NULL;
+    g_free(ifb);
+    ifb = NULL;
 
-    exynos4210_fimd_invalidate(s);
-    exynos4210_fimd_enable(s, false);
+    exynos4210_fimd_invalidate(this);
+    exynos4210_fimd_enable(this, false);
     /* Some registers have non-zero initial values */
-    s->winchmap = 0x7D517D51;
-    s->colorgaincon = 0x10040100;
-    s->huecoef_cr[0] = s->huecoef_cr[3] = 0x01000100;
-    s->huecoef_cb[0] = s->huecoef_cb[3] = 0x01000100;
-    s->hueoffset = 0x01800080;
+    winchmap = 0x7D517D51;
+    colorgaincon = 0x10040100;
+    huecoef_cr[0] = huecoef_cr[3] = 0x01000100;
+    huecoef_cb[0] = huecoef_cb[3] = 0x01000100;
+    hueoffset = 0x01800080;
 }
 
 static void exynos4210_fimd_write(void *opaque, hwaddr offset,
@@ -1940,41 +1956,50 @@ static const Property exynos4210_fimd_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void exynos4210_fimd_init(Object *obj)
+void Exynos4210fimdState::instanceInitWrapper(Object *obj)
 {
     Exynos4210fimdState *s = EXYNOS4210_FIMD(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-
-    s->ifb = NULL;
-
-    sysbus_init_irq(dev, &s->irq[0]);
-    sysbus_init_irq(dev, &s->irq[1]);
-    sysbus_init_irq(dev, &s->irq[2]);
-
-    memory_region_init_io(&s->iomem, obj, &exynos4210_fimd_mmio_ops, s,
-            "exynos4210.fimd", FIMD_REGS_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    s->instanceInit();
 }
 
-static void exynos4210_fimd_realize(DeviceState *dev, Error **errp)
+void Exynos4210fimdState::instanceInit()
+{
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+
+    ifb = NULL;
+
+    sysbus_init_irq(dev, &irq[0]);
+    sysbus_init_irq(dev, &irq[1]);
+    sysbus_init_irq(dev, &irq[2]);
+
+    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_fimd_mmio_ops, this,
+            "exynos4210.fimd", FIMD_REGS_SIZE);
+    sysbus_init_mmio(dev, &iomem);
+}
+
+void Exynos4210fimdState::realizeWrapper(DeviceState *dev, Error **errp)
 {
     Exynos4210fimdState *s = EXYNOS4210_FIMD(dev);
+    s->realize(errp);
+}
 
-    if (!s->fbmem) {
+void Exynos4210fimdState::realize(Error **errp)
+{
+    if (!fbmem) {
         error_setg(errp, "'framebuffer-memory' property was not set");
         return;
     }
 
-    s->console = graphic_console_init(dev, 0, &exynos4210_fimd_ops, s);
+    console = graphic_console_init(DEVICE(this), 0, &exynos4210_fimd_ops, this);
 }
 
-static void exynos4210_fimd_class_init(ObjectClass *klass, const void *data)
+void Exynos4210fimdState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &exynos4210_fimd_vmstate;
-    device_class_set_legacy_reset(dc, exynos4210_fimd_reset);
-    dc->realize = exynos4210_fimd_realize;
+    device_class_set_legacy_reset(dc, Exynos4210fimdState::resetWrapper);
+    dc->realize = Exynos4210fimdState::realizeWrapper;
     device_class_set_props(dc, exynos4210_fimd_properties);
 }
 
@@ -1982,8 +2007,8 @@ static const TypeInfo exynos4210_fimd_info = {
     .name = TYPE_EXYNOS4210_FIMD,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210fimdState),
-    .instance_init = exynos4210_fimd_init,
-    .class_init = exynos4210_fimd_class_init,
+    .instance_init = Exynos4210fimdState::instanceInitWrapper,
+    .class_init = Exynos4210fimdState::classInit,
 };
 
 static void exynos4210_fimd_register_types(void)

@@ -6,6 +6,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/bitmap.h"
@@ -304,6 +305,9 @@ struct AcpiBuildState {
     void *rsdp;
     MemoryRegion *rsdp_mr;
     MemoryRegion *linker_mr;
+
+    void reset();
+    static void resetWrapper(void *build_opaque);
 } AcpiBuildState;
 
 static void build_uart_device_aml(Aml *table, int index)
@@ -663,20 +667,27 @@ static void acpi_build_update(void *build_opaque)
     acpi_build_tables_cleanup(&tables, true);
 }
 
-static void acpi_build_reset(void *build_opaque)
+void AcpiBuildState::resetWrapper(void *build_opaque)
 {
-    AcpiBuildState *build_state = build_opaque;
-    build_state->patched = 0;
+    AcpiBuildState *build_state = static_cast<AcpiBuildState *>(build_opaque);
+    build_state->reset();
 }
+
+void AcpiBuildState::reset()
+{
+    patched = 0;
+}
+
+static const VMStateField vmstate_acpi_build_fields[] = {
+    VMSTATE_UINT8(patched, AcpiBuildState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_acpi_build = {
     .name = "acpi_build",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(patched, AcpiBuildState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_acpi_build_fields,
 };
 
 static bool virt_is_acpi_enabled(LoongArchVirtMachineState *lvms)
@@ -702,7 +713,7 @@ void virt_acpi_setup(LoongArchVirtMachineState *lvms)
         return;
     }
 
-    build_state = g_malloc0(sizeof *build_state);
+    build_state = static_cast<AcpiBuildState *>(g_malloc0(sizeof *build_state));
 
     acpi_build_tables_init(&tables);
     acpi_build(&tables, MACHINE(lvms));
@@ -724,8 +735,8 @@ void virt_acpi_setup(LoongArchVirtMachineState *lvms)
     fw_cfg_add_file(lvms->fw_cfg, ACPI_BUILD_TPMLOG_FILE, tables.tcpalog->data,
                     acpi_data_len(tables.tcpalog));
 
-    qemu_register_reset(acpi_build_reset, build_state);
-    acpi_build_reset(build_state);
+    qemu_register_reset(AcpiBuildState::resetWrapper, build_state);
+    AcpiBuildState::resetWrapper(build_state);
     vmstate_register(NULL, 0, &vmstate_acpi_build, build_state);
 
     /*

@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "hw/irq.h"
 #include "hw/pci/pci_device.h"
@@ -306,6 +307,14 @@ struct LSIState {
     uint32_t adder;
 
     uint8_t script_ram[2048 * sizeof(uint32_t)];
+
+    /* methods */
+    void realize(Error **errp);
+    void reset();
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void classInit(ObjectClass *klass, const void *data);
+    static void lsi53c810ClassInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_LSI53C810  "lsi53c810"
@@ -2185,11 +2194,14 @@ static const MemoryRegionOps lsi_io_ops = {
     .impl = { .min_access_size = 1, .max_access_size = 1 },
 };
 
-static void lsi_scsi_reset(DeviceState *dev)
+void LSIState::resetWrapper(DeviceState *dev)
 {
-    LSIState *s = LSI53C895A(dev);
+    LSI53C895A(dev)->reset();
+}
 
-    lsi_soft_reset(s);
+void LSIState::reset()
+{
+    lsi_soft_reset(this);
 }
 
 static int lsi_pre_save(void *opaque)
@@ -2324,9 +2336,15 @@ static void scripts_timer_cb(void *opaque)
     lsi_execute_script(s);
 }
 
-static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
+void LSIState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    LSIState *s = LSI53C895A(dev);
+    LSI53C895A(dev)->realize(errp);
+}
+
+void LSIState::realize(Error **errp)
+{
+    LSIState *s = this;
+    PCIDevice *dev = &s->parent_obj;
     DeviceState *d = DEVICE(dev);
     uint8_t *pci_conf;
 
@@ -2371,18 +2389,18 @@ static void lsi_scsi_exit(PCIDevice *dev)
     timer_free(s->scripts_timer);
 }
 
-static void lsi_class_init(ObjectClass *klass, const void *data)
+void LSIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = lsi_scsi_realize;
+    k->realize = realizeWrapper;
     k->exit = lsi_scsi_exit;
     k->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     k->device_id = PCI_DEVICE_ID_LSI_53C895A;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     k->subsystem_id = 0x1000;
-    device_class_set_legacy_reset(dc, lsi_scsi_reset);
+    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_lsi_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
@@ -2396,11 +2414,11 @@ static const TypeInfo lsi_info = {
     .name          = TYPE_LSI53C895A,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(LSIState),
-    .class_init    = lsi_class_init,
+    .class_init    = LSIState::classInit,
     .interfaces = lsi_interfaces,
 };
 
-static void lsi53c810_class_init(ObjectClass *klass, const void *data)
+void LSIState::lsi53c810ClassInit(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
@@ -2410,7 +2428,7 @@ static void lsi53c810_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo lsi53c810_info = {
     .name          = TYPE_LSI53C810,
     .parent        = TYPE_LSI53C895A,
-    .class_init    = lsi53c810_class_init,
+    .class_init    = LSIState::lsi53c810ClassInit,
 };
 
 static void lsi53c895a_register_types(void)

@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -101,6 +102,16 @@ struct PCIVPBState {
     uint32_t selfid;
     uint32_t flags;
     uint8_t irq_mapping;
+
+    /* methods */
+    void reset();
+    static void resetWrapper(DeviceState *d);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
+    static void realviewInit(Object *obj);
+    static void hostClassInit(ObjectClass *klass, const void *data);
 };
 typedef struct PCIVPBState PCIVPBState;
 
@@ -366,9 +377,14 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-static void pci_vpb_reset(DeviceState *d)
+void PCIVPBState::resetWrapper(DeviceState *d)
 {
-    PCIVPBState *s = PCI_VPB(d);
+    PCI_VPB(d)->reset();
+}
+
+void PCIVPBState::reset()
+{
+    PCIVPBState *s = this;
 
     s->imap[0] = 0;
     s->imap[1] = 0;
@@ -383,7 +399,7 @@ static void pci_vpb_reset(DeviceState *d)
     pci_vpb_update_all_windows(s);
 }
 
-static void pci_vpb_init(Object *obj)
+void PCIVPBState::instanceInit(Object *obj)
 {
     PCIVPBState *s = PCI_VPB(obj);
 
@@ -393,9 +409,15 @@ static void pci_vpb_init(Object *obj)
     s->mem_win_size[2] = 0x10000000;
 }
 
-static void pci_vpb_realize(DeviceState *dev, Error **errp)
+void PCIVPBState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PCIVPBState *s = PCI_VPB(dev);
+    PCI_VPB(dev)->realize(errp);
+}
+
+void PCIVPBState::realize(Error **errp)
+{
+    PCIVPBState *s = this;
+    DeviceState *dev = DEVICE(this);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     pci_map_irq_fn mapfn;
@@ -470,7 +492,7 @@ static void versatile_pci_host_realize(PCIDevice *d, Error **errp)
     pci_set_byte(d->config + PCI_LATENCY_TIMER, 0x10);
 }
 
-static void versatile_pci_host_class_init(ObjectClass *klass, const void *data)
+void PCIVPBState::hostClassInit(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -495,7 +517,7 @@ static const TypeInfo versatile_pci_host_info = {
     .name          = TYPE_VERSATILE_PCI_HOST,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
-    .class_init    = versatile_pci_host_class_init,
+    .class_init    = PCIVPBState::hostClassInit,
     .interfaces = versatile_pci_host_interfaces,
 };
 
@@ -504,12 +526,12 @@ static const Property pci_vpb_properties[] = {
                       PCI_VPB_IRQMAP_ASSUME_OK),
 };
 
-static void pci_vpb_class_init(ObjectClass *klass, const void *data)
+void PCIVPBState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = pci_vpb_realize;
-    device_class_set_legacy_reset(dc, pci_vpb_reset);
+    dc->realize = PCIVPBState::realizeWrapper;
+    device_class_set_legacy_reset(dc, PCIVPBState::resetWrapper);
     dc->vmsd = &pci_vpb_vmstate;
     device_class_set_props(dc, pci_vpb_properties);
 }
@@ -518,11 +540,11 @@ static const TypeInfo pci_vpb_info = {
     .name          = TYPE_VERSATILE_PCI,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PCIVPBState),
-    .instance_init = pci_vpb_init,
-    .class_init    = pci_vpb_class_init,
+    .instance_init = PCIVPBState::instanceInit,
+    .class_init    = PCIVPBState::classInit,
 };
 
-static void pci_realview_init(Object *obj)
+void PCIVPBState::realviewInit(Object *obj)
 {
     PCIVPBState *s = PCI_VPB(obj);
 
@@ -536,7 +558,7 @@ static void pci_realview_init(Object *obj)
 static const TypeInfo pci_realview_info = {
     .name          = "realview_pci",
     .parent        = TYPE_VERSATILE_PCI,
-    .instance_init = pci_realview_init,
+    .instance_init = PCIVPBState::realviewInit,
 };
 
 static void versatile_pci_register_types(void)

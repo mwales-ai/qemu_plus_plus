@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/ipack/ipack.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -123,6 +124,11 @@ struct IPOctalState {
     SCC2698Channel ch[N_CHANNELS];
     SCC2698Block blk[N_BLOCKS];
     uint8_t irq_vector;
+
+    /* methods */
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateField vmstate_scc2698_channel_fields[] = {
@@ -542,14 +548,18 @@ static void hostdev_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-static void ipoctal_realize(DeviceState *dev, Error **errp)
+void IPOctalState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    IPOctalState *s = IPOCTAL(dev);
+    IPOCTAL(dev)->realize(errp);
+}
+
+void IPOctalState::realize(Error **errp)
+{
     unsigned i;
 
     for (i = 0; i < N_CHANNELS; i++) {
-        SCC2698Channel *ch = &s->ch[i];
-        ch->ipoctal = s;
+        SCC2698Channel *ch = &this->ch[i];
+        ch->ipoctal = this;
 
         /* Redirect IP-Octal channels to host character devices */
         if (qemu_chr_fe_backend_connected(&ch->dev)) {
@@ -574,12 +584,12 @@ static const Property ipoctal_properties[] = {
     DEFINE_PROP_CHR("chardev7", IPOctalState, ch[7].dev),
 };
 
-static void ipoctal_class_init(ObjectClass *klass, const void *data)
+void IPOctalState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IPackDeviceClass *ic = IPACK_DEVICE_CLASS(klass);
 
-    ic->realize     = ipoctal_realize;
+    ic->realize     = IPOctalState::realizeWrapper;
     ic->io_read     = io_read;
     ic->io_write    = io_write;
     ic->id_read     = id_read;
@@ -601,7 +611,7 @@ static const TypeInfo ipoctal_info = {
     .name          = TYPE_IPOCTAL,
     .parent        = TYPE_IPACK_DEVICE,
     .instance_size = sizeof(IPOctalState),
-    .class_init    = ipoctal_class_init,
+    .class_init    = IPOctalState::classInit,
 };
 
 static void ipoctal_register_types(void)

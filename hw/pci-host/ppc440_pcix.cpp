@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -64,6 +65,13 @@ struct PPC440PCIXState {
     MemoryRegion iomem;
     MemoryRegion busmem;
     MemoryRegion regs;
+
+    /* methods */
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define PPC440_REG_BASE     0x80000
@@ -395,9 +403,14 @@ static const MemoryRegionOps pci_reg_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void ppc440_pcix_reset(DeviceState *dev)
+void PPC440PCIXState::resetWrapper(DeviceState *dev)
 {
-    struct PPC440PCIXState *s = PPC440_PCIX_HOST(dev);
+    PPC440_PCIX_HOST(dev)->reset();
+}
+
+void PPC440PCIXState::reset()
+{
+    struct PPC440PCIXState *s = this;
     int i;
 
     for (i = 0; i < PPC440_PCIX_NR_POMS; i++) {
@@ -484,8 +497,14 @@ const MemoryRegionOps ppc440_pcix_host_conf_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
+void PPC440PCIXState::realizeWrapper(DeviceState *dev, Error **errp)
 {
+    PPC440_PCIX_HOST(dev)->realize(errp);
+}
+
+void PPC440PCIXState::realize(Error **errp)
+{
+    DeviceState *dev = DEVICE(this);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PPC440PCIXState *s;
     PCIHostState *h;
@@ -519,19 +538,19 @@ static void ppc440_pcix_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void ppc440_pcix_class_init(ObjectClass *klass, const void *data)
+void PPC440PCIXState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = ppc440_pcix_realize;
-    device_class_set_legacy_reset(dc, ppc440_pcix_reset);
+    dc->realize = PPC440PCIXState::realizeWrapper;
+    device_class_set_legacy_reset(dc, PPC440PCIXState::resetWrapper);
 }
 
 static const TypeInfo ppc440_pcix_info = {
     .name          = TYPE_PPC440_PCIX_HOST,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC440PCIXState),
-    .class_init    = ppc440_pcix_class_init,
+    .class_init    = PPC440PCIXState::classInit,
 };
 
 static void ppc440_pcix_register_types(void)

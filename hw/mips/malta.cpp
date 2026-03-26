@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/bitops.h"
 #include "qemu/datadir.h"
@@ -103,6 +104,10 @@ struct MaltaState {
 
     Clock *cpuclk;
     MIPSCPSState cps;
+
+    /* Methods */
+    void instanceInit();
+    static void instanceInitWrapper(Object *obj);
 };
 
 static struct _loaderparams {
@@ -1263,19 +1268,23 @@ void mips_malta_init(MachineState *machine)
     pci_vga_init(pci_bus);
 }
 
-static void mips_malta_instance_init(Object *obj)
+void MaltaState::instanceInitWrapper(Object *obj)
 {
     MaltaState *s = MIPS_MALTA(obj);
+    s->instanceInit();
+}
 
-    s->cpuclk = qdev_init_clock_out(DEVICE(obj), "cpu-refclk");
-    clock_set_hz(s->cpuclk, 320000000); /* 320 MHz */
+void MaltaState::instanceInit()
+{
+    cpuclk = qdev_init_clock_out(DEVICE(this), "cpu-refclk");
+    clock_set_hz(cpuclk, 320000000); /* 320 MHz */
 }
 
 static const TypeInfo mips_malta_device = {
     .name          = TYPE_MIPS_MALTA,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MaltaState),
-    .instance_init = mips_malta_instance_init,
+    .instance_init = MaltaState::instanceInitWrapper,
 };
 
 GlobalProperty malta_compat[] = {
