@@ -55,6 +55,8 @@ struct SHPCIState {
     static void setIrq(void *opaque, int irq_num, int level);
     static void realize(DeviceState *dev, Error **errp);
     static void hostClassInit(ObjectClass *klass, const void *data);
+    static void pciDeviceRealize(PCIDevice *d, Error **errp);
+    static void pciDeviceClassInit(ObjectClass *klass, const void *data);
 };
 
 void SHPCIState::regWrite(void *p, hwaddr addr, uint64_t val, unsigned size)
@@ -154,19 +156,19 @@ void SHPCIState::realize(DeviceState *dev, Error **errp)
     s->dev = pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "sh_pci_host");
 }
 
-static void sh_pcic_pci_realize(PCIDevice *d, Error **errp)
+void SHPCIState::pciDeviceRealize(PCIDevice *d, Error **errp)
 {
     pci_set_word(d->config + PCI_COMMAND, PCI_COMMAND_WAIT);
     pci_set_word(d->config + PCI_STATUS, PCI_STATUS_CAP_LIST |
                  PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
 }
 
-static void sh_pcic_pci_class_init(ObjectClass *klass, const void *data)
+void SHPCIState::pciDeviceClassInit(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->realize = sh_pcic_pci_realize;
+    k->realize = SHPCIState::pciDeviceRealize;
     k->vendor_id = PCI_VENDOR_ID_HITACHI;
     k->device_id = PCI_DEVICE_ID_HITACHI_SH7751R;
     /*
@@ -198,7 +200,7 @@ static const TypeInfo sh_pcic_types[] = {
         .name           = "sh_pci_host",
         .parent         = TYPE_PCI_DEVICE,
         .instance_size  = sizeof(PCIDevice),
-        .class_init     = sh_pcic_pci_class_init,
+        .class_init     = SHPCIState::pciDeviceClassInit,
         .interfaces     = sh_pci_host_interfaces,
     },
 };
