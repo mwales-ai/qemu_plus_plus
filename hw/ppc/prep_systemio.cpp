@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
@@ -54,6 +56,28 @@ struct PrepSystemIoState {
     uint8_t ibm_planar_id; /* 0x0852 */
     qemu_irq softreset_irq;
     PortioList portio;
+
+    static void port0092Write(void *opaque, uint32_t addr, uint32_t val);
+    static uint32_t port0092Read(void *opaque, uint32_t addr);
+    static void port0808Write(void *opaque, uint32_t addr, uint32_t val);
+    static void port0810Write(void *opaque, uint32_t addr, uint32_t val);
+    static void port0812Write(void *opaque, uint32_t addr, uint32_t val);
+    static void port0814Write(void *opaque, uint32_t addr, uint32_t val);
+    static uint32_t port0818Read(void *opaque, uint32_t addr);
+    static uint32_t port080cRead(void *opaque, uint32_t addr);
+    static void port081cWrite(void *opaque, uint32_t addr, uint32_t val);
+    static uint32_t port081cRead(void *opaque, uint32_t addr);
+    static uint32_t port0852Read(void *opaque, uint32_t addr);
+    static uint32_t port0850Read(void *opaque, uint32_t addr);
+    static void port0850Write(void *opaque, uint32_t addr, uint32_t val);
+    static uint64_t parityErrorRead(void *opaque, hwaddr addr,
+                                    unsigned int size);
+    static void parityErrorWrite(void *opaque, hwaddr addr, uint64_t data,
+                                 unsigned size);
+
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /* PORT 0092 -- Special Port 92 (Read/Write) */
@@ -63,7 +87,7 @@ enum {
     PORT0092_LE_MODE    = PREP_BIT(6),
 };
 
-static void prep_port0092_write(void *opaque, uint32_t addr, uint32_t val)
+void PrepSystemIoState::port0092Write(void *opaque, uint32_t addr, uint32_t val)
 {
     PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
 
@@ -81,7 +105,7 @@ static void prep_port0092_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t prep_port0092_read(void *opaque, uint32_t addr)
+uint32_t PrepSystemIoState::port0092Read(void *opaque, uint32_t addr)
 {
     PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->sreset);
@@ -94,7 +118,7 @@ enum {
     PORT0808_HARDFILE_LIGHT_ON  = PREP_BIT(7),
 };
 
-static void prep_port0808_write(void *opaque, uint32_t addr, uint32_t val)
+void PrepSystemIoState::port0808Write(void *opaque, uint32_t addr, uint32_t val)
 {
     trace_prep_systemio_write(addr, val);
 }
@@ -102,7 +126,7 @@ static void prep_port0808_write(void *opaque, uint32_t addr, uint32_t val)
 /* PORT 0810 -- Password Protect 1 Register (Write Only) */
 
 /* reset by port 0x4D in the SIO */
-static void prep_port0810_write(void *opaque, uint32_t addr, uint32_t val)
+void PrepSystemIoState::port0810Write(void *opaque, uint32_t addr, uint32_t val)
 {
     trace_prep_systemio_write(addr, val);
 }
@@ -110,14 +134,14 @@ static void prep_port0810_write(void *opaque, uint32_t addr, uint32_t val)
 /* PORT 0812 -- Password Protect 2 Register (Write Only) */
 
 /* reset by port 0x4D in the SIO */
-static void prep_port0812_write(void *opaque, uint32_t addr, uint32_t val)
+void PrepSystemIoState::port0812Write(void *opaque, uint32_t addr, uint32_t val)
 {
     trace_prep_systemio_write(addr, val);
 }
 
 /* PORT 0814 -- L2 Invalidate Register (Write Only) */
 
-static void prep_port0814_write(void *opaque, uint32_t addr, uint32_t val)
+void PrepSystemIoState::port0814Write(void *opaque, uint32_t addr, uint32_t val)
 {
     trace_prep_systemio_write(addr, val);
 }
@@ -128,7 +152,7 @@ enum {
     PORT0818_KEYLOCK_SIGNAL_HIGH    = PREP_BIT(7),
 };
 
-static uint32_t prep_port0818_read(void *opaque, uint32_t addr)
+uint32_t PrepSystemIoState::port0818Read(void *opaque, uint32_t addr)
 {
     uint32_t val = 0;
     trace_prep_systemio_read(addr, val);
@@ -145,7 +169,7 @@ enum {
     PORT080C_L2                     = PREP_BIT(7),
 };
 
-static uint32_t prep_port080c_read(void *opaque, uint32_t addr)
+uint32_t PrepSystemIoState::port080cRead(void *opaque, uint32_t addr)
 {
     PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->equipment);
@@ -161,7 +185,7 @@ enum {
     PORT081C_L2_CACHEMISS_INHIBIT   = PREP_BIT(0),
 };
 
-static void prep_port081c_write(void *opaque, uint32_t addr, uint32_t val)
+void PrepSystemIoState::port081cWrite(void *opaque, uint32_t addr, uint32_t val)
 {
     static const uint8_t mask = PORT081C_FLOPPY_MOTOR_INHIBIT |
                                 PORT081C_MASK_TEA |
@@ -172,7 +196,7 @@ static void prep_port081c_write(void *opaque, uint32_t addr, uint32_t val)
     s->system_control = val & mask;
 }
 
-static uint32_t prep_port081c_read(void *opaque, uint32_t addr)
+uint32_t PrepSystemIoState::port081cRead(void *opaque, uint32_t addr)
 {
     PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->system_control);
@@ -181,7 +205,7 @@ static uint32_t prep_port081c_read(void *opaque, uint32_t addr)
 
 /* System Board Identification */
 
-static uint32_t prep_port0852_read(void *opaque, uint32_t addr)
+uint32_t PrepSystemIoState::port0852Read(void *opaque, uint32_t addr)
 {
     PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->ibm_planar_id);
@@ -194,14 +218,14 @@ enum {
     PORT0850_IOMAP_NONCONTIGUOUS    = PREP_BIT(7),
 };
 
-static uint32_t prep_port0850_read(void *opaque, uint32_t addr)
+uint32_t PrepSystemIoState::port0850Read(void *opaque, uint32_t addr)
 {
     PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
     trace_prep_systemio_read(addr, s->iomap_type);
     return s->iomap_type;
 }
 
-static void prep_port0850_write(void *opaque, uint32_t addr, uint32_t val)
+void PrepSystemIoState::port0850Write(void *opaque, uint32_t addr, uint32_t val)
 {
     PrepSystemIoState *s = static_cast<PrepSystemIoState *>(opaque);
 
@@ -212,65 +236,70 @@ static void prep_port0850_write(void *opaque, uint32_t addr, uint32_t val)
 }
 
 static const MemoryRegionPortio ppc_io800_port_list[] = {
-    { 0x092, 1, 1, .read = prep_port0092_read,
-                   .write = prep_port0092_write, },
-    { 0x808, 1, 1, .write = prep_port0808_write, },
-    { 0x80c, 1, 1, .read = prep_port080c_read, },
-    { 0x810, 1, 1, .write = prep_port0810_write, },
-    { 0x812, 1, 1, .write = prep_port0812_write, },
-    { 0x814, 1, 1, .write = prep_port0814_write, },
-    { 0x818, 1, 1, .read = prep_port0818_read },
-    { 0x81c, 1, 1, .read = prep_port081c_read,
-                   .write = prep_port081c_write, },
-    { 0x850, 1, 1, .read = prep_port0850_read,
-                   .write = prep_port0850_write, },
-    { 0x852, 1, 1, .read = prep_port0852_read, },
+    { 0x092, 1, 1, .read = PrepSystemIoState::port0092Read,
+                   .write = PrepSystemIoState::port0092Write, },
+    { 0x808, 1, 1, .write = PrepSystemIoState::port0808Write, },
+    { 0x80c, 1, 1, .read = PrepSystemIoState::port080cRead, },
+    { 0x810, 1, 1, .write = PrepSystemIoState::port0810Write, },
+    { 0x812, 1, 1, .write = PrepSystemIoState::port0812Write, },
+    { 0x814, 1, 1, .write = PrepSystemIoState::port0814Write, },
+    { 0x818, 1, 1, .read = PrepSystemIoState::port0818Read },
+    { 0x81c, 1, 1, .read = PrepSystemIoState::port081cRead,
+                   .write = PrepSystemIoState::port081cWrite, },
+    { 0x850, 1, 1, .read = PrepSystemIoState::port0850Read,
+                   .write = PrepSystemIoState::port0850Write, },
+    { 0x852, 1, 1, .read = PrepSystemIoState::port0852Read, },
     PORTIO_END_OF_LIST()
 };
 
-static uint64_t ppc_parity_error_readl(void *opaque, hwaddr addr,
-                                       unsigned int size)
+uint64_t PrepSystemIoState::parityErrorRead(void *opaque, hwaddr addr,
+                                            unsigned int size)
 {
     uint32_t val = 0;
     trace_prep_systemio_read((unsigned int)addr, val);
     return val;
 }
 
-static void ppc_parity_error_writel(void *opaque, hwaddr addr,
-                                    uint64_t data, unsigned size)
+void PrepSystemIoState::parityErrorWrite(void *opaque, hwaddr addr,
+                                         uint64_t data, unsigned size)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid access\n", __func__);
 }
 
 static const MemoryRegionOps ppc_parity_error_ops = {
-    .read = ppc_parity_error_readl,
-    .write = ppc_parity_error_writel,
+    .read = PrepSystemIoState::parityErrorRead,
+    .write = PrepSystemIoState::parityErrorWrite,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
 };
 
-static void prep_systemio_realize(DeviceState *dev, Error **errp)
+void PrepSystemIoState::realize(Error **errp)
 {
-    ISADevice *isa = ISA_DEVICE(dev);
-    PrepSystemIoState *s = PREP_SYSTEMIO(dev);
+    ISADevice *isa = ISA_DEVICE(this);
     PowerPCCPU *cpu;
 
-    qdev_init_gpio_out(dev, &s->non_contiguous_io_map_irq, 1);
-    s->iomap_type = PORT0850_IOMAP_NONCONTIGUOUS;
-    qemu_set_irq(s->non_contiguous_io_map_irq,
-                 s->iomap_type & PORT0850_IOMAP_NONCONTIGUOUS);
+    qdev_init_gpio_out(DEVICE(this), &non_contiguous_io_map_irq, 1);
+    iomap_type = PORT0850_IOMAP_NONCONTIGUOUS;
+    qemu_set_irq(non_contiguous_io_map_irq,
+                 iomap_type & PORT0850_IOMAP_NONCONTIGUOUS);
     cpu = POWERPC_CPU(first_cpu);
-    s->softreset_irq = qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_HRESET);
+    softreset_irq = qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_HRESET);
 
-    isa_register_portio_list(isa, &s->portio, 0x0, ppc_io800_port_list, s,
+    isa_register_portio_list(isa, &portio, 0x0, ppc_io800_port_list, this,
                              "systemio800");
 
-    memory_region_init_io(&s->ppc_parity_mem, OBJECT(dev),
-                          &ppc_parity_error_ops, s, "ppc-parity", 0x4);
+    memory_region_init_io(&ppc_parity_mem, OBJECT(this),
+                          &ppc_parity_error_ops, this, "ppc-parity", 0x4);
     memory_region_add_subregion(get_system_memory(), 0xbfffeff0,
-                                &s->ppc_parity_mem);
+                                &ppc_parity_mem);
+}
+
+void PrepSystemIoState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    PrepSystemIoState *s = PREP_SYSTEMIO(dev);
+    s->realize(errp);
 }
 
 static const VMStateDescription vmstate_prep_systemio = {
@@ -290,11 +319,11 @@ static const Property prep_systemio_properties[] = {
     DEFINE_PROP_UINT8("equipment", PrepSystemIoState, equipment, 0),
 };
 
-static void prep_systemio_class_initfn(ObjectClass *klass, const void *data)
+void PrepSystemIoState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = prep_systemio_realize;
+    dc->realize = realizeWrapper;
     dc->vmsd = &vmstate_prep_systemio;
     device_class_set_props(dc, prep_systemio_properties);
 }
@@ -303,7 +332,7 @@ static const TypeInfo prep_systemio800_info = {
     .name          = TYPE_PREP_SYSTEMIO,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(PrepSystemIoState),
-    .class_init    = prep_systemio_class_initfn,
+    .class_init    = PrepSystemIoState::classInit,
 };
 
 static void prep_systemio_register_types(void)

@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
@@ -160,6 +161,29 @@ struct Exynos4210UartState {
 
     uint32_t channel;
 
+    /* instance methods */
+    void updateDmabusy();
+    void updateIrq();
+    void updateParameters();
+    void rxTimeoutSet();
+    void reset();
+    void initfn();
+    void realize(Error **errp);
+
+    /* static callbacks */
+    static void timeoutInt(void *opaque);
+    static void writeReg(void *opaque, hwaddr offset,
+                         uint64_t val, unsigned size);
+    static uint64_t readReg(void *opaque, hwaddr offset, unsigned size);
+    static int canReceive(void *opaque);
+    static void receive(void *opaque, const uint8_t *buf, int size);
+    static void event(void *opaque, QEMUChrEvent event);
+
+    /* static QOM wrappers */
+    static void resetWrapper(DeviceState *dev);
+    static void initWrapper(Object *obj);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 
@@ -265,65 +289,64 @@ exynos4210_uart_Rx_FIFO_trigger_level(const Exynos4210UartState *s)
 }
 
 /*
- * Update Rx DMA busy signal if Rx DMA is enabled. For simplicity,
- * mark DMA as busy if DMA is enabled and the receive buffer is empty.
+ * Update Rx DMA busy signal if Rx DMA is enabled.
  */
-static void exynos4210_uart_update_dmabusy(Exynos4210UartState *s)
+void Exynos4210UartState::updateDmabusy()
 {
-    bool rx_dma_enabled = (s->reg[I_(UCON)] & 0x03) == 0x02;
-    uint32_t count = fifo_elements_number(&s->rx);
+    bool rx_dma_enabled = (reg[I_(UCON)] & 0x03) == 0x02;
+    uint32_t count = fifo_elements_number(&rx);
 
     if (rx_dma_enabled && !count) {
-        qemu_irq_raise(s->dmairq);
-        trace_exynos_uart_dmabusy(s->channel);
+        qemu_irq_raise(dmairq);
+        trace_exynos_uart_dmabusy(channel);
     } else {
-        qemu_irq_lower(s->dmairq);
-        trace_exynos_uart_dmaready(s->channel);
+        qemu_irq_lower(dmairq);
+        trace_exynos_uart_dmaready(channel);
     }
 }
 
-static void exynos4210_uart_update_irq(Exynos4210UartState *s)
+void Exynos4210UartState::updateIrq()
 {
     /*
      * The Tx interrupt is always requested if the number of data in the
      * transmit FIFO is smaller than the trigger level.
      */
-    if (s->reg[I_(UFCON)] & UFCON_FIFO_ENABLE) {
-        uint32_t count = (s->reg[I_(UFSTAT)] & UFSTAT_Tx_FIFO_COUNT) >>
+    if (reg[I_(UFCON)] & UFCON_FIFO_ENABLE) {
+        uint32_t count = (reg[I_(UFSTAT)] & UFSTAT_Tx_FIFO_COUNT) >>
                 UFSTAT_Tx_FIFO_COUNT_SHIFT;
 
-        if (count <= exynos4210_uart_Tx_FIFO_trigger_level(s)) {
-            s->reg[I_(UINTSP)] |= UINTSP_TXD;
+        if (count <= exynos4210_uart_Tx_FIFO_trigger_level(this)) {
+            reg[I_(UINTSP)] |= UINTSP_TXD;
         }
 
         /*
          * Rx interrupt if trigger level is reached or if rx timeout
          * interrupt is disabled and there is data in the receive buffer
          */
-        count = fifo_elements_number(&s->rx);
-        if ((count && !(s->reg[I_(UCON)] & 0x80)) ||
-            count >= exynos4210_uart_Rx_FIFO_trigger_level(s)) {
-            exynos4210_uart_update_dmabusy(s);
-            s->reg[I_(UINTSP)] |= UINTSP_RXD;
-            timer_del(s->fifo_timeout_timer);
+        count = fifo_elements_number(&rx);
+        if ((count && !(reg[I_(UCON)] & 0x80)) ||
+            count >= exynos4210_uart_Rx_FIFO_trigger_level(this)) {
+            updateDmabusy();
+            reg[I_(UINTSP)] |= UINTSP_RXD;
+            timer_del(fifo_timeout_timer);
         }
-    } else if (s->reg[I_(UTRSTAT)] & UTRSTAT_Rx_BUFFER_DATA_READY) {
-        exynos4210_uart_update_dmabusy(s);
-        s->reg[I_(UINTSP)] |= UINTSP_RXD;
+    } else if (reg[I_(UTRSTAT)] & UTRSTAT_Rx_BUFFER_DATA_READY) {
+        updateDmabusy();
+        reg[I_(UINTSP)] |= UINTSP_RXD;
     }
 
-    s->reg[I_(UINTP)] = s->reg[I_(UINTSP)] & ~s->reg[I_(UINTM)];
+    reg[I_(UINTP)] = reg[I_(UINTSP)] & ~reg[I_(UINTM)];
 
-    if (s->reg[I_(UINTP)]) {
-        qemu_irq_raise(s->irq);
-        trace_exynos_uart_irq_raised(s->channel, s->reg[I_(UINTP)]);
+    if (reg[I_(UINTP)]) {
+        qemu_irq_raise(irq);
+        trace_exynos_uart_irq_raised(channel, reg[I_(UINTP)]);
     } else {
-        qemu_irq_lower(s->irq);
-        trace_exynos_uart_irq_lowered(s->channel);
+        qemu_irq_lower(irq);
+        trace_exynos_uart_irq_lowered(channel);
     }
 }
 
-static void exynos4210_uart_timeout_int(void *opaque)
+void Exynos4210UartState::timeoutInt(void *opaque)
 {
     Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
 
@@ -334,23 +357,23 @@ static void exynos4210_uart_timeout_int(void *opaque)
         (s->reg[I_(UCON)] & (1 << 11))) {
         s->reg[I_(UINTSP)] |= UINTSP_RXD;
         s->reg[I_(UTRSTAT)] |= UTRSTAT_Rx_TIMEOUT;
-        exynos4210_uart_update_dmabusy(s);
-        exynos4210_uart_update_irq(s);
+        s->updateDmabusy();
+        s->updateIrq();
     }
 }
 
-static void exynos4210_uart_update_parameters(Exynos4210UartState *s)
+void Exynos4210UartState::updateParameters()
 {
     int speed, parity, data_bits, stop_bits;
     QEMUSerialSetParams ssp;
     uint64_t uclk_rate;
 
-    if (s->reg[I_(UBRDIV)] == 0) {
+    if (reg[I_(UBRDIV)] == 0) {
         return;
     }
 
-    if (s->reg[I_(ULCON)] & 0x20) {
-        if (s->reg[I_(ULCON)] & 0x28) {
+    if (reg[I_(ULCON)] & 0x20) {
+        if (reg[I_(ULCON)] & 0x28) {
             parity = 'E';
         } else {
             parity = 'O';
@@ -359,48 +382,48 @@ static void exynos4210_uart_update_parameters(Exynos4210UartState *s)
         parity = 'N';
     }
 
-    if (s->reg[I_(ULCON)] & 0x4) {
+    if (reg[I_(ULCON)] & 0x4) {
         stop_bits = 2;
     } else {
         stop_bits = 1;
     }
 
-    data_bits = (s->reg[I_(ULCON)] & 0x3) + 5;
+    data_bits = (reg[I_(ULCON)] & 0x3) + 5;
 
     uclk_rate = 24000000;
 
-    speed = uclk_rate / ((16 * (s->reg[I_(UBRDIV)]) & 0xffff) +
-            (s->reg[I_(UFRACVAL)] & 0x7) + 16);
+    speed = uclk_rate / ((16 * (reg[I_(UBRDIV)]) & 0xffff) +
+            (reg[I_(UFRACVAL)] & 0x7) + 16);
 
     ssp.speed     = speed;
     ssp.parity    = parity;
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
 
-    s->wordtime = NANOSECONDS_PER_SECOND * (data_bits + stop_bits + 1) / speed;
+    wordtime = NANOSECONDS_PER_SECOND * (data_bits + stop_bits + 1) / speed;
 
-    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
+    qemu_chr_fe_ioctl(&chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 
     trace_exynos_uart_update_params(
-                s->channel, speed, parity, data_bits, stop_bits, s->wordtime);
+                channel, speed, parity, data_bits, stop_bits, wordtime);
 }
 
-static void exynos4210_uart_rx_timeout_set(Exynos4210UartState *s)
+void Exynos4210UartState::rxTimeoutSet()
 {
-    if (s->reg[I_(UCON)] & 0x80) {
-        uint32_t timeout = ((s->reg[I_(UCON)] >> 12) & 0x0f) * s->wordtime;
+    if (reg[I_(UCON)] & 0x80) {
+        uint32_t timeout = ((reg[I_(UCON)] >> 12) & 0x0f) * wordtime;
 
-        timer_mod(s->fifo_timeout_timer,
+        timer_mod(fifo_timeout_timer,
                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + timeout);
     } else {
-        timer_del(s->fifo_timeout_timer);
+        timer_del(fifo_timeout_timer);
     }
 }
 
-static void exynos4210_uart_write(void *opaque, hwaddr offset,
+void Exynos4210UartState::writeReg(void *opaque, hwaddr offset,
                                uint64_t val, unsigned size)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
+    Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
     uint8_t ch;
 
     trace_exynos_uart_write(s->channel, offset,
@@ -411,7 +434,7 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
     case UBRDIV:
     case UFRACVAL:
         s->reg[I_(offset)] = val;
-        exynos4210_uart_update_parameters(s);
+        s->updateParameters();
         break;
     case UFCON:
         s->reg[I_(UFCON)] = val;
@@ -439,7 +462,7 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
             s->reg[I_(UTRSTAT)] |= UTRSTAT_TRANSMITTER_EMPTY |
                     UTRSTAT_Tx_BUFFER_EMPTY;
             s->reg[I_(UINTSP)]  |= UINTSP_TXD;
-            exynos4210_uart_update_irq(s);
+            s->updateIrq();
         }
         break;
 
@@ -447,7 +470,7 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
         s->reg[I_(UINTP)] &= ~val;
         s->reg[I_(UINTSP)] &= ~val;
         trace_exynos_uart_intclr(s->channel, s->reg[I_(UINTP)]);
-        exynos4210_uart_update_irq(s);
+        s->updateIrq();
         break;
     case UTRSTAT:
         if (val & UTRSTAT_Rx_TIMEOUT) {
@@ -466,7 +489,7 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
         break;
     case UINTM:
         s->reg[I_(UINTM)] = val;
-        exynos4210_uart_update_irq(s);
+        s->updateIrq();
         break;
     case UCON:
     case UMCON:
@@ -476,10 +499,10 @@ static void exynos4210_uart_write(void *opaque, hwaddr offset,
     }
 }
 
-static uint64_t exynos4210_uart_read(void *opaque, hwaddr offset,
+uint64_t Exynos4210UartState::readReg(void *opaque, hwaddr offset,
                                   unsigned size)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
+    Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
     uint32_t res;
 
     switch (offset) {
@@ -512,7 +535,7 @@ static uint64_t exynos4210_uart_read(void *opaque, hwaddr offset,
             } else {
                 trace_exynos_uart_rx_error(s->channel);
                 s->reg[I_(UINTSP)] |= UINTSP_ERROR;
-                exynos4210_uart_update_irq(s);
+                s->updateIrq();
                 res = 0;
             }
         } else {
@@ -520,7 +543,7 @@ static uint64_t exynos4210_uart_read(void *opaque, hwaddr offset,
             res = s->reg[I_(URXH)];
         }
         qemu_chr_fe_accept_input(&s->chr);
-        exynos4210_uart_update_dmabusy(s);
+        s->updateDmabusy();
         trace_exynos_uart_read(s->channel, offset,
                                exynos4210_uart_regname(offset), res);
         return res;
@@ -541,8 +564,8 @@ static uint64_t exynos4210_uart_read(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps exynos4210_uart_ops = {
-    .read = exynos4210_uart_read,
-    .write = exynos4210_uart_write,
+    .read = Exynos4210UartState::readReg,
+    .write = Exynos4210UartState::writeReg,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .max_access_size = 4,
@@ -550,9 +573,9 @@ static const MemoryRegionOps exynos4210_uart_ops = {
     },
 };
 
-static int exynos4210_uart_can_receive(void *opaque)
+int Exynos4210UartState::canReceive(void *opaque)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
+    Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
 
     if (s->reg[I_(UFCON)] & UFCON_FIFO_ENABLE) {
         return fifo_empty_elements_number(&s->rx);
@@ -561,9 +584,9 @@ static int exynos4210_uart_can_receive(void *opaque)
     }
 }
 
-static void exynos4210_uart_receive(void *opaque, const uint8_t *buf, int size)
+void Exynos4210UartState::receive(void *opaque, const uint8_t *buf, int size)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
+    Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
     int i;
 
     if (s->reg[I_(UFCON)] & UFCON_FIFO_ENABLE) {
@@ -574,52 +597,51 @@ static void exynos4210_uart_receive(void *opaque, const uint8_t *buf, int size)
         for (i = 0; i < size; i++) {
             fifo_store(&s->rx, buf[i]);
         }
-        exynos4210_uart_rx_timeout_set(s);
+        s->rxTimeoutSet();
     } else {
         s->reg[I_(URXH)] = buf[0];
     }
     s->reg[I_(UTRSTAT)] |= UTRSTAT_Rx_BUFFER_DATA_READY;
 
-    exynos4210_uart_update_irq(s);
+    s->updateIrq();
 }
 
 
-static void exynos4210_uart_event(void *opaque, QEMUChrEvent event)
+void Exynos4210UartState::event(void *opaque, QEMUChrEvent event)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
+    Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
 
     if (event == CHR_EVENT_BREAK) {
         /* When the RxDn is held in logic 0, then a null byte is pushed into the
          * fifo */
         fifo_store(&s->rx, '\0');
         s->reg[I_(UERSTAT)] |= UERSTAT_BREAK;
-        exynos4210_uart_update_irq(s);
+        s->updateIrq();
     }
 }
 
 
-static void exynos4210_uart_reset(DeviceState *dev)
+void Exynos4210UartState::reset()
 {
-    Exynos4210UartState *s = EXYNOS4210_UART(dev);
     size_t i;
 
     for (i = 0; i < ARRAY_SIZE(exynos4210_uart_regs); i++) {
-        s->reg[I_(exynos4210_uart_regs[i].offset)] =
+        reg[I_(exynos4210_uart_regs[i].offset)] =
                 exynos4210_uart_regs[i].reset_value;
     }
 
-    fifo_reset(&s->rx);
-    fifo_reset(&s->tx);
+    fifo_reset(&rx);
+    fifo_reset(&tx);
 
-    trace_exynos_uart_rxsize(s->channel, s->rx.size);
+    trace_exynos_uart_rxsize(channel, rx.size);
 }
 
 static int exynos4210_uart_post_load(void *opaque, int version_id)
 {
-    Exynos4210UartState *s = (Exynos4210UartState *)opaque;
+    Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
 
-    exynos4210_uart_update_parameters(s);
-    exynos4210_uart_rx_timeout_set(s);
+    s->updateParameters();
+    s->rxTimeoutSet();
 
     return 0;
 }
@@ -680,32 +702,49 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     return dev;
 }
 
-static void exynos4210_uart_init(Object *obj)
+void Exynos4210UartState::initfn()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    Exynos4210UartState *s = EXYNOS4210_UART(dev);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
 
-    s->wordtime = NANOSECONDS_PER_SECOND * 10 / 9600;
+    wordtime = NANOSECONDS_PER_SECOND * 10 / 9600;
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, obj, &exynos4210_uart_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_uart_ops, this,
                           "exynos4210.uart", EXYNOS4210_UART_REGS_MEM_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(dev, &iomem);
 
-    sysbus_init_irq(dev, &s->irq);
-    sysbus_init_irq(dev, &s->dmairq);
+    sysbus_init_irq(dev, &irq);
+    sysbus_init_irq(dev, &dmairq);
 }
 
-static void exynos4210_uart_realize(DeviceState *dev, Error **errp)
+void Exynos4210UartState::realize(Error **errp)
+{
+    fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                      Exynos4210UartState::timeoutInt, this);
+
+    qemu_chr_fe_set_handlers(&chr, Exynos4210UartState::canReceive,
+                             Exynos4210UartState::receive,
+                             Exynos4210UartState::event,
+                             NULL, this, NULL, true);
+}
+
+/* static QOM wrappers */
+void Exynos4210UartState::resetWrapper(DeviceState *dev)
 {
     Exynos4210UartState *s = EXYNOS4210_UART(dev);
+    s->reset();
+}
 
-    s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                         exynos4210_uart_timeout_int, s);
+void Exynos4210UartState::initWrapper(Object *obj)
+{
+    Exynos4210UartState *s = EXYNOS4210_UART(obj);
+    s->initfn();
+}
 
-    qemu_chr_fe_set_handlers(&s->chr, exynos4210_uart_can_receive,
-                             exynos4210_uart_receive, exynos4210_uart_event,
-                             NULL, s, NULL, true);
+void Exynos4210UartState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    Exynos4210UartState *s = EXYNOS4210_UART(dev);
+    s->realize(errp);
 }
 
 static const Property exynos4210_uart_properties[] = {
@@ -715,12 +754,12 @@ static const Property exynos4210_uart_properties[] = {
     DEFINE_PROP_UINT32("tx-size", Exynos4210UartState, tx.size, 16),
 };
 
-static void exynos4210_uart_class_init(ObjectClass *klass, const void *data)
+void Exynos4210UartState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = exynos4210_uart_realize;
-    device_class_set_legacy_reset(dc, exynos4210_uart_reset);
+    dc->realize = Exynos4210UartState::realizeWrapper;
+    device_class_set_legacy_reset(dc, Exynos4210UartState::resetWrapper);
     device_class_set_props(dc, exynos4210_uart_properties);
     dc->vmsd = &vmstate_exynos4210_uart;
 }
@@ -729,8 +768,8 @@ static const TypeInfo exynos4210_uart_info = {
     .name          = TYPE_EXYNOS4210_UART,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210UartState),
-    .instance_init = exynos4210_uart_init,
-    .class_init    = exynos4210_uart_class_init,
+    .instance_init = Exynos4210UartState::initWrapper,
+    .class_init    = Exynos4210UartState::classInit,
 };
 
 static void exynos4210_uart_register(void)

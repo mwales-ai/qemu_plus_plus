@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"

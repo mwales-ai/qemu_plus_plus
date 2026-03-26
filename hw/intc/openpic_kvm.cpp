@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "qapi/error.h"
 #include <sys/ioctl.h>
 #include "hw/ppc/openpic.h"
@@ -49,15 +51,33 @@ struct KVMOpenPICState {
     uint32_t fd;
     uint32_t model;
     hwaddr mapped;
+
+    static void setIrq(void *opaque, int n_IRQ, int level);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned size);
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+
+    void reset();
+    static void resetWrapper(DeviceState *d);
+
+    static void regionAdd(MemoryListener *listener,
+                          MemoryRegionSection *section);
+    static void regionDel(MemoryListener *listener,
+                          MemoryRegionSection *section);
+
+    static void instanceInit(Object *obj);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
-static void kvm_openpic_set_irq(void *opaque, int n_IRQ, int level)
+void KVMOpenPICState::setIrq(void *opaque, int n_IRQ, int level)
 {
     kvm_set_irq(kvm_state, n_IRQ, level);
 }
 
-static void kvm_openpic_write(void *opaque, hwaddr addr, uint64_t val,
-                              unsigned size)
+void KVMOpenPICState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
 {
     KVMOpenPICState *opp = static_cast<KVMOpenPICState *>(opaque);
     struct kvm_device_attr attr;
@@ -75,15 +95,19 @@ static void kvm_openpic_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
-static void kvm_openpic_reset(DeviceState *d)
+void KVMOpenPICState::reset()
 {
-    KVMOpenPICState *opp = KVM_OPENPIC(d);
-
     /* Trigger the GCR.RESET bit to reset the PIC */
-    kvm_openpic_write(opp, 0x1020, GCR_RESET, sizeof(uint32_t));
+    mmioWrite(this, 0x1020, GCR_RESET, sizeof(uint32_t));
 }
 
-static uint64_t kvm_openpic_read(void *opaque, hwaddr addr, unsigned size)
+void KVMOpenPICState::resetWrapper(DeviceState *d)
+{
+    KVMOpenPICState *opp = KVM_OPENPIC(d);
+    opp->reset();
+}
+
+uint64_t KVMOpenPICState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     KVMOpenPICState *opp = static_cast<KVMOpenPICState *>(opaque);
     struct kvm_device_attr attr;
@@ -105,8 +129,8 @@ static uint64_t kvm_openpic_read(void *opaque, hwaddr addr, unsigned size)
 }
 
 static const MemoryRegionOps kvm_openpic_mem_ops = {
-    .write = kvm_openpic_write,
-    .read  = kvm_openpic_read,
+    .write = KVMOpenPICState::mmioWrite,
+    .read  = KVMOpenPICState::mmioRead,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -114,8 +138,8 @@ static const MemoryRegionOps kvm_openpic_mem_ops = {
     },
 };
 
-static void kvm_openpic_region_add(MemoryListener *listener,
-                                   MemoryRegionSection *section)
+void KVMOpenPICState::regionAdd(MemoryListener *listener,
+                                MemoryRegionSection *section)
 {
     KVMOpenPICState *opp = container_of(listener, KVMOpenPICState,
                                         mem_listener);
@@ -150,8 +174,8 @@ static void kvm_openpic_region_add(MemoryListener *listener,
     }
 }
 
-static void kvm_openpic_region_del(MemoryListener *listener,
-                                   MemoryRegionSection *section)
+void KVMOpenPICState::regionDel(MemoryListener *listener,
+                                MemoryRegionSection *section)
 {
     KVMOpenPICState *opp = container_of(listener, KVMOpenPICState,
                                         mem_listener);
@@ -184,7 +208,7 @@ static void kvm_openpic_region_del(MemoryListener *listener,
     }
 }
 
-static void kvm_openpic_init(Object *obj)
+void KVMOpenPICState::instanceInit(Object *obj)
 {
     KVMOpenPICState *opp = KVM_OPENPIC(obj);
 
@@ -192,10 +216,10 @@ static void kvm_openpic_init(Object *obj)
                           "kvm-openpic", 0x40000);
 }
 
-static void kvm_openpic_realize(DeviceState *dev, Error **errp)
+void KVMOpenPICState::realize(Error **errp)
 {
+    DeviceState *dev = DEVICE(this);
     SysBusDevice *d = SYS_BUS_DEVICE(dev);
-    KVMOpenPICState *opp = KVM_OPENPIC(dev);
     KVMState *s = kvm_state;
     int kvm_openpic_model;
     struct kvm_create_device cd = {0};
@@ -206,7 +230,7 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    switch (opp->model) {
+    switch (model) {
     case OPENPIC_MODEL_FSL_MPIC_20:
         kvm_openpic_model = KVM_DEV_TYPE_FSL_MPIC_20;
         break;
@@ -216,7 +240,7 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
         break;
 
     default:
-        error_setg(errp, "Unsupported OpenPIC model %" PRIu32, opp->model);
+        error_setg(errp, "Unsupported OpenPIC model %" PRIu32, model);
         return;
     }
 
@@ -227,15 +251,15 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
                    cd.type, strerror(errno));
         return;
     }
-    opp->fd = cd.fd;
+    fd = cd.fd;
 
-    sysbus_init_mmio(d, &opp->mem);
-    qdev_init_gpio_in(dev, kvm_openpic_set_irq, OPENPIC_MAX_IRQ);
+    sysbus_init_mmio(d, &mem);
+    qdev_init_gpio_in(dev, setIrq, OPENPIC_MAX_IRQ);
 
-    opp->mem_listener.region_add = kvm_openpic_region_add;
-    opp->mem_listener.region_del = kvm_openpic_region_del;
-    opp->mem_listener.name = "openpic-kvm";
-    memory_listener_register(&opp->mem_listener, &address_space_memory);
+    mem_listener.region_add = regionAdd;
+    mem_listener.region_del = regionDel;
+    mem_listener.name = "openpic-kvm";
+    memory_listener_register(&mem_listener, &address_space_memory);
 
     /* indicate pic capabilities */
     msi_nonbroken = true;
@@ -254,6 +278,12 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
     kvm_irqchip_commit_routes(s);
 }
 
+void KVMOpenPICState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    KVMOpenPICState *opp = KVM_OPENPIC(dev);
+    opp->realize(errp);
+}
+
 int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
 {
     KVMOpenPICState *opp = KVM_OPENPIC(d);
@@ -267,13 +297,13 @@ static const Property kvm_openpic_properties[] = {
                        OPENPIC_MODEL_FSL_MPIC_20),
 };
 
-static void kvm_openpic_class_init(ObjectClass *oc, const void *data)
+void KVMOpenPICState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->realize = kvm_openpic_realize;
+    dc->realize = realizeWrapper;
     device_class_set_props(dc, kvm_openpic_properties);
-    device_class_set_legacy_reset(dc, kvm_openpic_reset);
+    device_class_set_legacy_reset(dc, resetWrapper);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
@@ -281,8 +311,8 @@ static const TypeInfo kvm_openpic_info = {
     .name          = TYPE_KVM_OPENPIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(KVMOpenPICState),
-    .instance_init = kvm_openpic_init,
-    .class_init    = kvm_openpic_class_init,
+    .instance_init = KVMOpenPICState::instanceInit,
+    .class_init    = KVMOpenPICState::classInit,
 };
 
 static void kvm_openpic_register_types(void)

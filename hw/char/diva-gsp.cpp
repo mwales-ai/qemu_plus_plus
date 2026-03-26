@@ -16,6 +16,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "qemu/units.h"
 #include "hw/char/serial.h"
 #include "hw/irq.h"
@@ -52,9 +54,22 @@ typedef struct PCIDivaSerialState {
     uint32_t     level[PCI_SERIAL_MAX_PORTS];
     qemu_irq     *irqs;
     bool         disable;
+
+    static void pciExit(PCIDevice *dev);
+    static void irqMux(void *opaque, int n, int level);
+    static struct diva_info getDivaInfo(PCIDeviceClass *pc);
+    void realize(Error **errp);
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void instanceInit(Object *o);
+    static void classInit(ObjectClass *klass, const void *data);
 } PCIDivaSerialState;
 
-static void diva_pci_exit(PCIDevice *dev)
+struct diva_info {
+    unsigned int nports:4; /* number of serial ports */
+    unsigned int omask:12; /* offset mask: BIT(1) -> offset 8 */
+};
+
+void PCIDivaSerialState::pciExit(PCIDevice *dev)
 {
     PCIDivaSerialState *pci = DO_UPCAST(PCIDivaSerialState, dev, dev);
     SerialState *s;
@@ -69,7 +84,7 @@ static void diva_pci_exit(PCIDevice *dev)
     qemu_free_irqs(pci->irqs, pci->ports);
 }
 
-static void multi_serial_irq_mux(void *opaque, int n, int level)
+void PCIDivaSerialState::irqMux(void *opaque, int n, int level)
 {
     PCIDivaSerialState *pci = static_cast<PCIDivaSerialState *>(opaque);
     int i, pending = 0;
@@ -83,12 +98,7 @@ static void multi_serial_irq_mux(void *opaque, int n, int level)
     pci_set_irq(&pci->dev, pending);
 }
 
-struct diva_info {
-    unsigned int nports:4; /* number of serial ports */
-    unsigned int omask:12; /* offset mask: BIT(1) -> offset 8 */
-};
-
-static struct diva_info diva_get_diva_info(PCIDeviceClass *pc)
+struct diva_info PCIDivaSerialState::getDivaInfo(PCIDeviceClass *pc)
 {
     switch (pc->subsystem_id) {
     case PCI_DEVICE_ID_HP_DIVA_POWERBAR:
@@ -114,47 +124,52 @@ static struct diva_info diva_get_diva_info(PCIDeviceClass *pc)
 }
 
 
-static void diva_pci_realize(PCIDevice *dev, Error **errp)
+void PCIDivaSerialState::realize(Error **errp)
 {
-    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
-    PCIDivaSerialState *pci = DO_UPCAST(PCIDivaSerialState, dev, dev);
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(&dev);
     SerialState *s;
-    struct diva_info di = diva_get_diva_info(pc);
+    struct diva_info di = getDivaInfo(pc);
     size_t i, offset = 0;
     size_t portmask = di.omask;
 
-    pci->dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
-    pci->dev.config[PCI_INTERRUPT_PIN] = 1;
-    memory_region_init(&pci->membar, OBJECT(pci), "serial_ports", 4096);
-    pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &pci->membar);
-    pci->irqs = qemu_allocate_irqs(multi_serial_irq_mux, pci, di.nports);
+    dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
+    dev.config[PCI_INTERRUPT_PIN] = 1;
+    memory_region_init(&membar, OBJECT(this), "serial_ports", 4096);
+    pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &membar);
+    irqs = qemu_allocate_irqs(irqMux, this, di.nports);
 
     for (i = 0; i < di.nports; i++) {
-        s = pci->state + i;
+        s = state + i;
         if (!qdev_realize(DEVICE(s), NULL, errp)) {
-            diva_pci_exit(dev);
+            pciExit(&dev);
             return;
         }
-        s->irq = pci->irqs[i];
-        pci->name[i] = g_strdup_printf("uart #%zu", i + 1);
-        memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s,
-                              pci->name[i], 8);
+        s->irq = irqs[i];
+        name[i] = g_strdup_printf("uart #%zu", i + 1);
+        memory_region_init_io(&s->io, OBJECT(this), &serial_io_ops, s,
+                              name[i], 8);
 
         /* calculate offset of given port based on bitmask */
         while ((portmask & BIT(0)) == 0) {
             offset += 8;
             portmask >>= 1;
         }
-        memory_region_add_subregion(&pci->membar, offset, &s->io);
+        memory_region_add_subregion(&membar, offset, &s->io);
         offset += 8;
         portmask >>= 1;
-        pci->ports++;
+        ports++;
     }
 
     /* mailbox bar */
-    memory_region_init(&pci->mailboxbar, OBJECT(pci), "mailbox", 128 * KiB);
-    pci_register_bar(&pci->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY |
-                     PCI_BASE_ADDRESS_MEM_PREFETCH, &pci->mailboxbar);
+    memory_region_init(&mailboxbar, OBJECT(this), "mailbox", 128 * KiB);
+    pci_register_bar(&dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY |
+                     PCI_BASE_ADDRESS_MEM_PREFETCH, &mailboxbar);
+}
+
+void PCIDivaSerialState::realizeWrapper(PCIDevice *dev, Error **errp)
+{
+    PCIDivaSerialState *pci = DO_UPCAST(PCIDivaSerialState, dev, dev);
+    pci->realize(errp);
 }
 
 static const VMStateDescription vmstate_pci_diva = {
@@ -181,12 +196,12 @@ static const Property diva_serial_properties[] = {
                                     PCI_DEVICE_ID_HP_DIVA_TOSCA1),
 };
 
-static void diva_serial_class_initfn(ObjectClass *klass, const void *data)
+void PCIDivaSerialState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->realize = diva_pci_realize;
-    pc->exit = diva_pci_exit;
+    pc->realize = realizeWrapper;
+    pc->exit = pciExit;
     pc->vendor_id = PCI_VENDOR_ID_HP;
     pc->device_id = PCI_DEVICE_ID_HP_DIVA;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_HP;
@@ -198,11 +213,11 @@ static void diva_serial_class_initfn(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static void diva_serial_init(Object *o)
+void PCIDivaSerialState::instanceInit(Object *o)
 {
     PCIDevice *dev = PCI_DEVICE(o);
     PCIDivaSerialState *pms = DO_UPCAST(PCIDivaSerialState, dev, dev);
-    struct diva_info di = diva_get_diva_info(PCI_DEVICE_GET_CLASS(dev));
+    struct diva_info di = getDivaInfo(PCI_DEVICE_GET_CLASS(dev));
     size_t i;
 
     for (i = 0; i < di.nports; i++) {
@@ -217,35 +232,45 @@ struct DivaAuxState {
     PCIDevice dev;
     MemoryRegion mem;
     qemu_irq irq;
+
+    void realize(Error **errp);
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void exit(PCIDevice *dev);
+    static void instanceInit(Object *o);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_DIVA_AUX "diva-aux"
 OBJECT_DECLARE_SIMPLE_TYPE(DivaAuxState, DIVA_AUX)
 
-static void diva_aux_realize(PCIDevice *dev, Error **errp)
+void DivaAuxState::realize(Error **errp)
 {
-    DivaAuxState *pci = DO_UPCAST(DivaAuxState, dev, dev);
+    dev.config[PCI_CLASS_PROG] = 0x02;
+    dev.config[PCI_INTERRUPT_PIN] = 0x01;
+    irq = pci_allocate_irq(&dev);
 
-    pci->dev.config[PCI_CLASS_PROG] = 0x02;
-    pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
-    pci->irq = pci_allocate_irq(&pci->dev);
-
-    memory_region_init(&pci->mem, OBJECT(pci), "mem", 16);
-    pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &pci->mem);
+    memory_region_init(&mem, OBJECT(this), "mem", 16);
+    pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &mem);
 }
 
-static void diva_aux_exit(PCIDevice *dev)
+void DivaAuxState::realizeWrapper(PCIDevice *dev, Error **errp)
+{
+    DivaAuxState *pci = DO_UPCAST(DivaAuxState, dev, dev);
+    pci->realize(errp);
+}
+
+void DivaAuxState::exit(PCIDevice *dev)
 {
     DivaAuxState *pci = DO_UPCAST(DivaAuxState, dev, dev);
     qemu_free_irq(pci->irq);
 }
 
-static void diva_aux_class_initfn(ObjectClass *klass, const void *data)
+void DivaAuxState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->realize = diva_aux_realize;
-    pc->exit = diva_aux_exit;
+    pc->realize = realizeWrapper;
+    pc->exit = exit;
     pc->vendor_id = PCI_VENDOR_ID_HP;
     pc->device_id = PCI_DEVICE_ID_HP_DIVA_AUX;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_HP;
@@ -256,7 +281,7 @@ static void diva_aux_class_initfn(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static void diva_aux_init(Object *o)
+void DivaAuxState::instanceInit(Object *o)
 {
 }
 
@@ -264,8 +289,8 @@ static const TypeInfo diva_aux_info = {
     .name          = TYPE_DIVA_AUX,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(DivaAuxState),
-    .instance_init = diva_aux_init,
-    .class_init    = diva_aux_class_initfn,
+    .instance_init = DivaAuxState::instanceInit,
+    .class_init    = DivaAuxState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -278,8 +303,8 @@ static const TypeInfo diva_serial_pci_info = {
     .name          = "diva-gsp",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDivaSerialState),
-    .instance_init = diva_serial_init,
-    .class_init    = diva_serial_class_initfn,
+    .instance_init = PCIDivaSerialState::instanceInit,
+    .class_init    = PCIDivaSerialState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

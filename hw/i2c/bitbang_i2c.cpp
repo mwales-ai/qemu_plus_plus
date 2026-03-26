@@ -11,6 +11,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/irq.h"
 #include "hw/i2c/bitbang_i2c.h"
 #include "hw/sysbus.h"
@@ -196,9 +198,13 @@ struct GPIOI2CState {
     bitbang_i2c_interface bitbang;
     int last_level;
     qemu_irq out;
+
+    static void gpioSet(void *opaque, int irq, int level);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void bitbang_i2c_gpio_set(void *opaque, int irq, int level)
+void GPIOI2CState::gpioSet(void *opaque, int irq, int level)
 {
     GPIOI2CState *s = static_cast<GPIOI2CState *>(opaque);
 
@@ -209,7 +215,7 @@ static void bitbang_i2c_gpio_set(void *opaque, int irq, int level)
     }
 }
 
-static void gpio_i2c_init(Object *obj)
+void GPIOI2CState::instanceInit(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     GPIOI2CState *s = GPIO_I2C(obj);
@@ -218,11 +224,11 @@ static void gpio_i2c_init(Object *obj)
     bus = i2c_init_bus(dev, "i2c");
     bitbang_i2c_init(&s->bitbang, bus);
 
-    qdev_init_gpio_in(dev, bitbang_i2c_gpio_set, 2);
+    qdev_init_gpio_in(dev, gpioSet, 2);
     qdev_init_gpio_out(dev, &s->out, 1);
 }
 
-static void gpio_i2c_class_init(ObjectClass *klass, const void *data)
+void GPIOI2CState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -234,8 +240,8 @@ static const TypeInfo gpio_i2c_info = {
     .name          = TYPE_GPIO_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GPIOI2CState),
-    .instance_init = gpio_i2c_init,
-    .class_init    = gpio_i2c_class_init,
+    .instance_init = GPIOI2CState::instanceInit,
+    .class_init    = GPIOI2CState::classInit,
 };
 
 static void bitbang_i2c_register_types(void)

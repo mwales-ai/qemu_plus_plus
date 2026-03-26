@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 extern "C" {
 #include "qemu/log.h"
@@ -43,6 +44,8 @@ struct omap_gpio_s {
     uint16_t mask;
     uint16_t ints;
     uint16_t pins;
+
+    static void gpioReset(struct omap_gpio_s *s);
 };
 
 struct Omap1GpioState {
@@ -52,10 +55,23 @@ struct Omap1GpioState {
     int mpu_model;
     void *clk;
     struct omap_gpio_s omap1;
+
+    static void gpioSet(void *opaque, int line, int level);
+    static uint64_t gpioRead(void *opaque, hwaddr addr, unsigned size);
+    static void gpioWrite(void *opaque, hwaddr addr, uint64_t value,
+                          unsigned size);
+
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+
+    static void instanceInit(Object *obj);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /* General-Purpose I/O of OMAP1 */
-static void omap_gpio_set(void *opaque, int line, int level)
+void Omap1GpioState::gpioSet(void *opaque, int line, int level)
 {
     Omap1GpioState *p = static_cast<Omap1GpioState *>(opaque);
     struct omap_gpio_s *s = &p->omap1;
@@ -73,8 +89,7 @@ static void omap_gpio_set(void *opaque, int line, int level)
     }
 }
 
-static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
-                               unsigned size)
+uint64_t Omap1GpioState::gpioRead(void *opaque, hwaddr addr, unsigned size)
 {
     struct omap_gpio_s *s = static_cast<struct omap_gpio_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
@@ -111,8 +126,8 @@ static uint64_t omap_gpio_read(void *opaque, hwaddr addr,
     return 0;
 }
 
-static void omap_gpio_write(void *opaque, hwaddr addr,
-                            uint64_t value, unsigned size)
+void Omap1GpioState::gpioWrite(void *opaque, hwaddr addr,
+                                uint64_t value, unsigned size)
 {
     struct omap_gpio_s *s = static_cast<struct omap_gpio_s *>(opaque);
     int offset = addr & OMAP_MPUI_REG_MASK;
@@ -178,12 +193,12 @@ static void omap_gpio_write(void *opaque, hwaddr addr,
 
 /* *Some* sources say the memory region is 32-bit.  */
 static const MemoryRegionOps omap_gpio_ops = {
-    .read = omap_gpio_read,
-    .write = omap_gpio_write,
+    .read = Omap1GpioState::gpioRead,
+    .write = Omap1GpioState::gpioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void omap_gpio_reset(struct omap_gpio_s *s)
+void omap_gpio_s::gpioReset(struct omap_gpio_s *s)
 {
     s->inputs = 0;
     s->outputs = ~0;
@@ -194,20 +209,24 @@ static void omap_gpio_reset(struct omap_gpio_s *s)
     s->pins = ~0;
 }
 
-static void omap_gpif_reset(DeviceState *dev)
+void Omap1GpioState::reset()
 {
-    Omap1GpioState *s = OMAP1_GPIO(dev);
-
-    omap_gpio_reset(&s->omap1);
+    omap_gpio_s::gpioReset(&omap1);
 }
 
-static void omap_gpio_init(Object *obj)
+void Omap1GpioState::resetWrapper(DeviceState *dev)
+{
+    Omap1GpioState *s = OMAP1_GPIO(dev);
+    s->reset();
+}
+
+void Omap1GpioState::instanceInit(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     Omap1GpioState *s = OMAP1_GPIO(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    qdev_init_gpio_in(dev, omap_gpio_set, 16);
+    qdev_init_gpio_in(dev, gpioSet, 16);
     qdev_init_gpio_out(dev, s->omap1.handler, 16);
     sysbus_init_irq(sbd, &s->omap1.irq);
     memory_region_init_io(&s->iomem, obj, &omap_gpio_ops, &s->omap1,
@@ -215,13 +234,17 @@ static void omap_gpio_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
-static void omap_gpio_realize(DeviceState *dev, Error **errp)
+void Omap1GpioState::realize(Error **errp)
 {
-    Omap1GpioState *s = OMAP1_GPIO(dev);
-
-    if (!s->clk) {
+    if (!clk) {
         error_setg(errp, "omap-gpio: clk not connected");
     }
+}
+
+void Omap1GpioState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    Omap1GpioState *s = OMAP1_GPIO(dev);
+    s->realize(errp);
 }
 
 extern "C"
@@ -234,12 +257,12 @@ static const Property omap_gpio_properties[] = {
     DEFINE_PROP_INT32("mpu_model", Omap1GpioState, mpu_model, 0),
 };
 
-static void omap_gpio_class_init(ObjectClass *klass, const void *data)
+void Omap1GpioState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = omap_gpio_realize;
-    device_class_set_legacy_reset(dc, omap_gpif_reset);
+    dc->realize = realizeWrapper;
+    device_class_set_legacy_reset(dc, resetWrapper);
     device_class_set_props(dc, omap_gpio_properties);
     /* Reason: pointer property "clk" */
     dc->user_creatable = false;
@@ -249,8 +272,8 @@ static const TypeInfo omap_gpio_info = {
     .name          = TYPE_OMAP1_GPIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Omap1GpioState),
-    .instance_init = omap_gpio_init,
-    .class_init    = omap_gpio_class_init,
+    .instance_init = Omap1GpioState::instanceInit,
+    .class_init    = Omap1GpioState::classInit,
 };
 
 static void omap_gpio_register_types(void)

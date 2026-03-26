@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "qemu/log.h"
 #include "qapi/error.h"
@@ -48,17 +49,30 @@ struct ArticiaState {
     uint32_t gpio; /* bits 0-7 in, 8-15 out, 16-23 direction (0 in, 1 out) */
     hwaddr gpio_base;
     MemoryRegion gpio_reg;
+
+    static uint64_t gpioRead(void *opaque, hwaddr addr, unsigned int size);
+    static void gpioWrite(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned int size);
+    static uint64_t regRead(void *opaque, hwaddr addr, unsigned int size);
+    static void regWrite(void *opaque, hwaddr addr, uint64_t val,
+                         unsigned int size);
+    static void setIrq(void *opaque, int n, int level);
+    static int bus0MapIrq(PCIDevice *pdev, int pin);
+
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
-static uint64_t articia_gpio_read(void *opaque, hwaddr addr, unsigned int size)
+uint64_t ArticiaState::gpioRead(void *opaque, hwaddr addr, unsigned int size)
 {
     ArticiaState *s = static_cast<ArticiaState *>(opaque);
 
     return (s->gpio >> (addr * 8)) & 0xff;
 }
 
-static void articia_gpio_write(void *opaque, hwaddr addr, uint64_t val,
-                               unsigned int size)
+void ArticiaState::gpioWrite(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned int size)
 {
     ArticiaState *s = static_cast<ArticiaState *>(opaque);
     uint32_t sh = addr * 8;
@@ -83,8 +97,8 @@ static void articia_gpio_write(void *opaque, hwaddr addr, uint64_t val,
 }
 
 static MemoryRegionOps articia_gpio_ops = {
-    .read = articia_gpio_read,
-    .write = articia_gpio_write,
+    .read = ArticiaState::gpioRead,
+    .write = ArticiaState::gpioWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -94,7 +108,7 @@ static void __attribute__((constructor)) init_articia_gpio_ops(void)
     articia_gpio_ops.valid.max_access_size = 1;
 }
 
-static uint64_t articia_reg_read(void *opaque, hwaddr addr, unsigned int size)
+uint64_t ArticiaState::regRead(void *opaque, hwaddr addr, unsigned int size)
 {
     ArticiaState *s = static_cast<ArticiaState *>(opaque);
     uint64_t ret = UINT_MAX;
@@ -117,8 +131,8 @@ static uint64_t articia_reg_read(void *opaque, hwaddr addr, unsigned int size)
     return ret;
 }
 
-static void articia_reg_write(void *opaque, hwaddr addr, uint64_t val,
-                              unsigned int size)
+void ArticiaState::regWrite(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned int size)
 {
     ArticiaState *s = static_cast<ArticiaState *>(opaque);
 
@@ -137,8 +151,8 @@ static void articia_reg_write(void *opaque, hwaddr addr, uint64_t val,
 }
 
 static MemoryRegionOps articia_reg_ops = {
-    .read = articia_reg_read,
-    .write = articia_reg_write,
+    .read = ArticiaState::regRead,
+    .write = ArticiaState::regWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -148,7 +162,7 @@ static void __attribute__((constructor)) init_articia_reg_ops(void)
     articia_reg_ops.valid.max_access_size = 4;
 }
 
-static void articia_pcihost_set_irq(void *opaque, int n, int level)
+void ArticiaState::setIrq(void *opaque, int n, int level)
 {
     ArticiaState *s = static_cast<ArticiaState *>(opaque);
     qemu_set_irq(s->irq[n], level);
@@ -161,7 +175,7 @@ static void articia_pcihost_set_irq(void *opaque, int n, int level)
  * refspec: v2010.06
  * file: board/MAI/AmigaOneG3SE/articiaS_pci.c
  */
-static int amigaone_pcihost_bus0_map_irq(PCIDevice *pdev, int pin)
+int ArticiaState::bus0MapIrq(PCIDevice *pdev, int pin)
 {
     int devfn_slot = PCI_SLOT(pdev->devfn);
 
@@ -176,41 +190,47 @@ static int amigaone_pcihost_bus0_map_irq(PCIDevice *pdev, int pin)
 
 }
 
-static void articia_realize(DeviceState *dev, Error **errp)
+void ArticiaState::realize(Error **errp)
 {
-    ArticiaState *s = ARTICIA(dev);
+    DeviceState *dev = DEVICE(this);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
     PCIDevice *pdev;
 
-    bitbang_i2c_init(&s->smbus, i2c_init_bus(dev, "smbus"));
-    memory_region_init_io(&s->gpio_reg, OBJECT(s), &articia_gpio_ops, s,
+    bitbang_i2c_init(&smbus, i2c_init_bus(dev, "smbus"));
+    memory_region_init_io(&gpio_reg, OBJECT(this), &articia_gpio_ops, this,
                           TYPE_ARTICIA, 4);
 
-    memory_region_init(&s->mem, OBJECT(dev), "pci-mem", UINT64_MAX);
-    memory_region_init(&s->io, OBJECT(dev), "pci-io", 0xc00000);
-    memory_region_init_io(&s->reg, OBJECT(s), &articia_reg_ops, s,
+    memory_region_init(&mem, OBJECT(dev), "pci-mem", UINT64_MAX);
+    memory_region_init(&io, OBJECT(dev), "pci-io", 0xc00000);
+    memory_region_init_io(&reg, OBJECT(this), &articia_reg_ops, this,
                           TYPE_ARTICIA, 0x1000000);
-    memory_region_add_subregion_overlap(&s->reg, 0, &s->io, 1);
+    memory_region_add_subregion_overlap(&reg, 0, &io, 1);
 
     /* devfn_min is 8 that matches first PCI slot in AmigaOne */
-    h->bus = pci_register_root_bus(dev, NULL, articia_pcihost_set_irq,
-                                   amigaone_pcihost_bus0_map_irq, dev, &s->mem,
-                                   &s->io, PCI_DEVFN(8, 0), 4, TYPE_PCI_BUS);
+    h->bus = pci_register_root_bus(dev, NULL, setIrq,
+                                   bus0MapIrq, dev, &mem,
+                                   &io, PCI_DEVFN(8, 0), 4, TYPE_PCI_BUS);
     pdev = pci_create_simple_multifunction(h->bus, PCI_DEVFN(0, 0),
                                            TYPE_ARTICIA_PCI_HOST);
-    ARTICIA_PCI_HOST(pdev)->as = s;
+    ARTICIA_PCI_HOST(pdev)->as = this;
     pci_create_simple(h->bus, PCI_DEVFN(0, 1), TYPE_ARTICIA_PCI_BRIDGE);
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->reg);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mem);
-    qdev_init_gpio_out(dev, s->irq, ARRAY_SIZE(s->irq));
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &reg);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mem);
+    qdev_init_gpio_out(dev, irq, ARRAY_SIZE(irq));
 }
 
-static void articia_class_init(ObjectClass *klass, const void *data)
+void ArticiaState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    ArticiaState *s = ARTICIA(dev);
+    s->realize(errp);
+}
+
+void ArticiaState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = articia_realize;
+    dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
@@ -287,7 +307,7 @@ static const TypeInfo articia_types[] = {
         .name          = TYPE_ARTICIA,
         .parent        = TYPE_PCI_HOST_BRIDGE,
         .instance_size = sizeof(ArticiaState),
-        .class_init    = articia_class_init,
+        .class_init    = ArticiaState::classInit,
     },
     {
         .name          = TYPE_ARTICIA_PCI_HOST,

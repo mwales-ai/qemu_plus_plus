@@ -23,6 +23,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "qemu/units.h"
 #include "hw/irq.h"
 #include "hw/mips/mips.h"
@@ -101,23 +103,49 @@ struct rc4030State {
 
     MemoryRegion iomem_chipset;
     MemoryRegion iomem_jazzio;
+
+    void setNextTick();
+    void updateJazzIrq();
+    void doDma(int n, uint8_t *buf, int len, bool is_write);
+
+    static uint64_t chipsetRead(void *opaque, hwaddr addr, unsigned int size);
+    static void chipsetWrite(void *opaque, hwaddr addr, uint64_t data,
+                             unsigned int size);
+    static void irqJazzRequest(void *opaque, int irq, int level);
+    static void periodicTimer(void *opaque);
+    static uint64_t jazzioRead(void *opaque, hwaddr addr, unsigned int size);
+    static void jazzioWrite(void *opaque, hwaddr addr, uint64_t data,
+                            unsigned int size);
+    static IOMMUTLBEntry dmaTranslate(IOMMUMemoryRegion *iommu, hwaddr addr,
+                                      IOMMUAccessFlags flag, int iommu_idx);
+
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+    static int postLoad(void *opaque, int version_id);
+
+    static void instanceInit(Object *obj);
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    void unrealize();
+    static void unrealizeWrapper(DeviceState *dev);
+    static void classInit(ObjectClass *klass, const void *class_data);
 };
 
-static void set_next_tick(rc4030State *s)
+void rc4030State::setNextTick()
 {
     uint32_t tm_hz;
-    qemu_irq_lower(s->timer_irq);
+    qemu_irq_lower(timer_irq);
 
-    tm_hz = 1000 / (s->itr + 1);
+    tm_hz = 1000 / (itr + 1);
 
-    timer_mod(s->periodic_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+    timer_mod(periodic_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    NANOSECONDS_PER_SECOND / tm_hz);
 }
 
 /* called for accesses to rc4030 */
-static uint64_t rc4030_read(void *opaque, hwaddr addr, unsigned int size)
+uint64_t rc4030State::chipsetRead(void *opaque, hwaddr addr, unsigned int size)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = static_cast<rc4030State *>(opaque);
     uint32_t val;
 
     addr &= 0x3fff;
@@ -255,10 +283,10 @@ static uint64_t rc4030_read(void *opaque, hwaddr addr, unsigned int size)
     return val;
 }
 
-static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
-                         unsigned int size)
+void rc4030State::chipsetWrite(void *opaque, hwaddr addr, uint64_t data,
+                               unsigned int size)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = static_cast<rc4030State *>(opaque);
     uint32_t val = data;
     addr &= 0x3fff;
 
@@ -371,7 +399,7 @@ static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
     case 0x0228:
         s->itr = val & 0x01FF;
         qemu_irq_lower(s->timer_irq);
-        set_next_tick(s);
+        s->setNextTick();
         break;
     /* EISA interrupt */
     case 0x0238:
@@ -385,28 +413,28 @@ static void rc4030_write(void *opaque, hwaddr addr, uint64_t data,
 }
 
 static const MemoryRegionOps rc4030_ops = {
-    .read = rc4030_read,
-    .write = rc4030_write,
+    .read = rc4030State::chipsetRead,
+    .write = rc4030State::chipsetWrite,
     .impl = { .min_access_size = 4, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void update_jazz_irq(rc4030State *s)
+void rc4030State::updateJazzIrq()
 {
     uint16_t pending;
 
-    pending = s->isr_jazz & s->imr_jazz;
+    pending = isr_jazz & imr_jazz;
 
     if (pending != 0) {
-        qemu_irq_raise(s->jazz_bus_irq);
+        qemu_irq_raise(jazz_bus_irq);
     } else {
-        qemu_irq_lower(s->jazz_bus_irq);
+        qemu_irq_lower(jazz_bus_irq);
     }
 }
 
-static void rc4030_irq_jazz_request(void *opaque, int irq, int level)
+void rc4030State::irqJazzRequest(void *opaque, int irq, int level)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = static_cast<rc4030State *>(opaque);
 
     if (level) {
         s->isr_jazz |= 1 << irq;
@@ -414,20 +442,20 @@ static void rc4030_irq_jazz_request(void *opaque, int irq, int level)
         s->isr_jazz &= ~(1 << irq);
     }
 
-    update_jazz_irq(s);
+    s->updateJazzIrq();
 }
 
-static void rc4030_periodic_timer(void *opaque)
+void rc4030State::periodicTimer(void *opaque)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = static_cast<rc4030State *>(opaque);
 
-    set_next_tick(s);
+    s->setNextTick();
     qemu_irq_raise(s->timer_irq);
 }
 
-static uint64_t jazzio_read(void *opaque, hwaddr addr, unsigned int size)
+uint64_t rc4030State::jazzioRead(void *opaque, hwaddr addr, unsigned int size)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = static_cast<rc4030State *>(opaque);
     uint32_t val;
     uint32_t irq;
     addr &= 0xfff;
@@ -464,10 +492,10 @@ static uint64_t jazzio_read(void *opaque, hwaddr addr, unsigned int size)
     return val;
 }
 
-static void jazzio_write(void *opaque, hwaddr addr, uint64_t data,
-                         unsigned int size)
+void rc4030State::jazzioWrite(void *opaque, hwaddr addr, uint64_t data,
+                              unsigned int size)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = static_cast<rc4030State *>(opaque);
     uint32_t val = data;
     addr &= 0xfff;
 
@@ -477,7 +505,7 @@ static void jazzio_write(void *opaque, hwaddr addr, uint64_t data,
     /* Local bus int enable mask */
     case 0x02:
         s->imr_jazz = val;
-        update_jazz_irq(s);
+        s->updateJazzIrq();
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
@@ -488,14 +516,14 @@ static void jazzio_write(void *opaque, hwaddr addr, uint64_t data,
 }
 
 static const MemoryRegionOps jazzio_ops = {
-    .read = jazzio_read,
-    .write = jazzio_write,
+    .read = rc4030State::jazzioRead,
+    .write = rc4030State::jazzioWrite,
     .impl = { .min_access_size = 2, .max_access_size = 2, },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
-                                          IOMMUAccessFlags flag, int iommu_idx)
+IOMMUTLBEntry rc4030State::dmaTranslate(IOMMUMemoryRegion *iommu, hwaddr addr,
+                                         IOMMUAccessFlags flag, int iommu_idx)
 {
     rc4030State *s = container_of(iommu, rc4030State, dma_mr);
     IOMMUTLBEntry ret = {
@@ -522,42 +550,47 @@ static IOMMUTLBEntry rc4030_dma_translate(IOMMUMemoryRegion *iommu, hwaddr addr,
     return ret;
 }
 
-static void rc4030_reset(DeviceState *dev)
+void rc4030State::reset()
 {
-    rc4030State *s = RC4030(dev);
     int i;
 
-    s->config = 0x410; /* some boards seem to accept 0x104 too */
-    s->revision = 1;
-    s->invalid_address_register = 0;
+    config = 0x410; /* some boards seem to accept 0x104 too */
+    revision = 1;
+    invalid_address_register = 0;
 
-    memset(s->dma_regs, 0, sizeof(s->dma_regs));
+    memset(dma_regs, 0, sizeof(dma_regs));
 
-    s->remote_failed_address = s->memory_failed_address = 0;
-    s->cache_maint = 0;
-    s->cache_ptag = s->cache_ltag = 0;
-    s->cache_bmask = 0;
+    remote_failed_address = memory_failed_address = 0;
+    cache_maint = 0;
+    cache_ptag = cache_ltag = 0;
+    cache_bmask = 0;
 
-    s->memory_refresh_rate = 0x18186;
-    s->nvram_protect = 7;
+    memory_refresh_rate = 0x18186;
+    nvram_protect = 7;
     for (i = 0; i < 15; i++) {
-        s->rem_speed[i] = 7;
+        rem_speed[i] = 7;
     }
-    s->imr_jazz = 0x10; /* XXX: required by firmware, but why? */
-    s->isr_jazz = 0;
+    imr_jazz = 0x10; /* XXX: required by firmware, but why? */
+    isr_jazz = 0;
 
-    s->itr = 0;
+    itr = 0;
 
-    qemu_irq_lower(s->timer_irq);
-    qemu_irq_lower(s->jazz_bus_irq);
+    qemu_irq_lower(timer_irq);
+    qemu_irq_lower(jazz_bus_irq);
 }
 
-static int rc4030_post_load(void *opaque, int version_id)
+void rc4030State::resetWrapper(DeviceState *dev)
 {
-    rc4030State *s = opaque;
+    rc4030State *s = RC4030(dev);
+    s->reset();
+}
 
-    set_next_tick(s);
-    update_jazz_irq(s);
+int rc4030State::postLoad(void *opaque, int version_id)
+{
+    rc4030State *s = static_cast<rc4030State *>(opaque);
+
+    s->setNextTick();
+    s->updateJazzIrq();
 
     return 0;
 }
@@ -565,7 +598,7 @@ static int rc4030_post_load(void *opaque, int version_id)
 static const VMStateDescription vmstate_rc4030 = {
     .name = "rc4030",
     .version_id = 3,
-    .post_load = rc4030_post_load,
+    .post_load = rc4030State::postLoad,
     .fields = (const VMStateField []) {
         VMSTATE_UINT32(config, rc4030State),
         VMSTATE_UINT32(invalid_address_register, rc4030State),
@@ -588,37 +621,35 @@ static const VMStateDescription vmstate_rc4030 = {
     }
 };
 
-static void rc4030_do_dma(void *opaque, int n, uint8_t *buf,
-                          int len, bool is_write)
+void rc4030State::doDma(int n, uint8_t *buf, int len, bool is_write)
 {
-    rc4030State *s = opaque;
     hwaddr dma_addr;
     int dev_to_mem;
 
-    s->dma_regs[n][DMA_REG_ENABLE] &=
+    dma_regs[n][DMA_REG_ENABLE] &=
            ~(DMA_FLAG_TC_INTR | DMA_FLAG_MEM_INTR | DMA_FLAG_ADDR_INTR);
 
     /* Check DMA channel consistency */
-    dev_to_mem = (s->dma_regs[n][DMA_REG_ENABLE] & DMA_FLAG_MEM_TO_DEV) ? 0 : 1;
-    if (!(s->dma_regs[n][DMA_REG_ENABLE] & DMA_FLAG_ENABLE) ||
+    dev_to_mem = (dma_regs[n][DMA_REG_ENABLE] & DMA_FLAG_MEM_TO_DEV) ? 0 : 1;
+    if (!(dma_regs[n][DMA_REG_ENABLE] & DMA_FLAG_ENABLE) ||
         (is_write != dev_to_mem)) {
-        s->dma_regs[n][DMA_REG_ENABLE] |= DMA_FLAG_MEM_INTR;
-        s->nmi_interrupt |= 1 << n;
+        dma_regs[n][DMA_REG_ENABLE] |= DMA_FLAG_MEM_INTR;
+        nmi_interrupt |= 1 << n;
         return;
     }
 
     /* Get start address and len */
-    if (len > s->dma_regs[n][DMA_REG_COUNT]) {
-        len = s->dma_regs[n][DMA_REG_COUNT];
+    if (len > dma_regs[n][DMA_REG_COUNT]) {
+        len = dma_regs[n][DMA_REG_COUNT];
     }
-    dma_addr = s->dma_regs[n][DMA_REG_ADDRESS];
+    dma_addr = dma_regs[n][DMA_REG_ADDRESS];
 
     /* Read/write data at right place */
-    address_space_rw(&s->dma_as, dma_addr, MEMTXATTRS_UNSPECIFIED,
+    address_space_rw(&dma_as, dma_addr, MEMTXATTRS_UNSPECIFIED,
                      buf, len, is_write);
 
-    s->dma_regs[n][DMA_REG_ENABLE] |= DMA_FLAG_TC_INTR;
-    s->dma_regs[n][DMA_REG_COUNT] -= len;
+    dma_regs[n][DMA_REG_ENABLE] |= DMA_FLAG_TC_INTR;
+    dma_regs[n][DMA_REG_COUNT] -= len;
 }
 
 struct rc4030DMAState {
@@ -628,14 +659,16 @@ struct rc4030DMAState {
 
 void rc4030_dma_read(void *dma, uint8_t *buf, int len)
 {
-    rc4030_dma s = dma;
-    rc4030_do_dma(s->opaque, s->n, buf, len, false);
+    rc4030_dma s = static_cast<struct rc4030DMAState *>(dma);
+    rc4030State *state = static_cast<rc4030State *>(s->opaque);
+    state->doDma(s->n, buf, len, false);
 }
 
 void rc4030_dma_write(void *dma, uint8_t *buf, int len)
 {
-    rc4030_dma s = dma;
-    rc4030_do_dma(s->opaque, s->n, buf, len, true);
+    rc4030_dma s = static_cast<struct rc4030DMAState *>(dma);
+    rc4030State *state = static_cast<rc4030State *>(s->opaque);
+    state->doDma(s->n, buf, len, true);
 }
 
 static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
@@ -655,13 +688,13 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
     return s;
 }
 
-static void rc4030_initfn(Object *obj)
+void rc4030State::instanceInit(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     rc4030State *s = RC4030(obj);
     SysBusDevice *sysbus = SYS_BUS_DEVICE(obj);
 
-    qdev_init_gpio_in(dev, rc4030_irq_jazz_request, 16);
+    qdev_init_gpio_in(dev, irqJazzRequest, 16);
 
     sysbus_init_irq(sysbus, &s->timer_irq);
     sysbus_init_irq(sysbus, &s->jazz_bus_irq);
@@ -670,42 +703,51 @@ static void rc4030_initfn(Object *obj)
     sysbus_init_mmio(sysbus, &s->iomem_jazzio);
 }
 
-static void rc4030_realize(DeviceState *dev, Error **errp)
+void rc4030State::realize(Error **errp)
 {
-    rc4030State *s = RC4030(dev);
-    Object *o = OBJECT(dev);
+    Object *o = OBJECT(this);
 
-    s->periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                     rc4030_periodic_timer, s);
+    periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                  periodicTimer, this);
 
-    memory_region_init_io(&s->iomem_chipset, o, &rc4030_ops, s,
+    memory_region_init_io(&iomem_chipset, o, &rc4030_ops, this,
                           "rc4030.chipset", 0x300);
-    memory_region_init_io(&s->iomem_jazzio, o, &jazzio_ops, s,
+    memory_region_init_io(&iomem_jazzio, o, &jazzio_ops, this,
                           "rc4030.jazzio", 0x00001000);
 
-    memory_region_init_iommu(&s->dma_mr, sizeof(s->dma_mr),
+    memory_region_init_iommu(&dma_mr, sizeof(dma_mr),
                              TYPE_RC4030_IOMMU_MEMORY_REGION,
                              o, "rc4030.dma", 4 * GiB);
-    address_space_init(&s->dma_as, MEMORY_REGION(&s->dma_mr), "rc4030-dma");
+    address_space_init(&dma_as, MEMORY_REGION(&dma_mr), "rc4030-dma");
 }
 
-static void rc4030_unrealize(DeviceState *dev)
+void rc4030State::realizeWrapper(DeviceState *dev, Error **errp)
 {
     rc4030State *s = RC4030(dev);
-
-    timer_free(s->periodic_timer);
-
-    address_space_destroy(&s->dma_as);
-    object_unparent(OBJECT(&s->dma_mr));
+    s->realize(errp);
 }
 
-static void rc4030_class_init(ObjectClass *klass, const void *class_data)
+void rc4030State::unrealize()
+{
+    timer_free(periodic_timer);
+
+    address_space_destroy(&dma_as);
+    object_unparent(OBJECT(&dma_mr));
+}
+
+void rc4030State::unrealizeWrapper(DeviceState *dev)
+{
+    rc4030State *s = RC4030(dev);
+    s->unrealize();
+}
+
+void rc4030State::classInit(ObjectClass *klass, const void *class_data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = rc4030_realize;
-    dc->unrealize = rc4030_unrealize;
-    device_class_set_legacy_reset(dc, rc4030_reset);
+    dc->realize = realizeWrapper;
+    dc->unrealize = unrealizeWrapper;
+    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_rc4030;
 }
 
@@ -713,8 +755,8 @@ static const TypeInfo rc4030_info = {
     .name = TYPE_RC4030,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(rc4030State),
-    .instance_init = rc4030_initfn,
-    .class_init = rc4030_class_init,
+    .instance_init = rc4030State::instanceInit,
+    .class_init = rc4030State::classInit,
 };
 
 static void rc4030_iommu_memory_region_class_init(ObjectClass *klass,
@@ -722,7 +764,7 @@ static void rc4030_iommu_memory_region_class_init(ObjectClass *klass,
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
-    imrc->translate = rc4030_dma_translate;
+    imrc->translate = rc4030State::dmaTranslate;
 }
 
 static const TypeInfo rc4030_iommu_memory_region_info = {

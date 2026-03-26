@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "qemu/log.h"
 #include "qapi/error.h"
@@ -60,51 +61,73 @@ struct PREPPCIState {
     AddressSpace bm_as;
 
     int contiguous_map;
+
+    static inline uint32_t idselToAddr(hwaddr addr);
+    static void mmcfgWrite(void *opaque, hwaddr addr, uint64_t val,
+                           unsigned int size);
+    static uint64_t mmcfgRead(void *opaque, hwaddr addr, unsigned int size);
+    static uint64_t intackRead(void *opaque, hwaddr addr, unsigned int size);
+    static void intackWrite(void *opaque, hwaddr addr, uint64_t data,
+                            unsigned size);
+    inline hwaddr ioAddress(hwaddr addr);
+    static uint64_t ioRead(void *opaque, hwaddr addr, unsigned int size);
+    static void ioWrite(void *opaque, hwaddr addr, uint64_t val,
+                        unsigned int size);
+    static int mapIrq(PCIDevice *pci_dev, int irq_num);
+    static void setIrq(void *opaque, int irq_num, int level);
+    static AddressSpace *setIommu(PCIBus *bus, void *opaque, int devfn);
+    static void changeGpio(void *opaque, int n, int level);
+
+    void realize(Error **errp);
+    static void realizeFnWrapper(DeviceState *d, Error **errp);
+    void initfn(Object *obj);
+    static void initfnWrapper(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define PCI_IO_BASE_ADDR    0x80000000  /* Physical address on main bus */
 
-static inline uint32_t raven_idsel_to_addr(hwaddr addr)
+inline uint32_t PREPPCIState::idselToAddr(hwaddr addr)
 {
     return (ctz16(addr >> 11) << 11) | (addr & 0x7ff);
 }
 
-static void raven_mmcfg_write(void *opaque, hwaddr addr, uint64_t val,
-                              unsigned int size)
+void PREPPCIState::mmcfgWrite(void *opaque, hwaddr addr, uint64_t val,
+                               unsigned int size)
 {
     PCIBus *hbus = static_cast<PCIBus *>(opaque);
 
-    pci_data_write(hbus, raven_idsel_to_addr(addr), val, size);
+    pci_data_write(hbus, idselToAddr(addr), val, size);
 }
 
-static uint64_t raven_mmcfg_read(void *opaque, hwaddr addr, unsigned int size)
+uint64_t PREPPCIState::mmcfgRead(void *opaque, hwaddr addr, unsigned int size)
 {
     PCIBus *hbus = static_cast<PCIBus *>(opaque);
 
-    return pci_data_read(hbus, raven_idsel_to_addr(addr), size);
+    return pci_data_read(hbus, idselToAddr(addr), size);
 }
 
 static const MemoryRegionOps raven_mmcfg_ops = {
-    .read = raven_mmcfg_read,
-    .write = raven_mmcfg_write,
+    .read = PREPPCIState::mmcfgRead,
+    .write = PREPPCIState::mmcfgWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint64_t raven_intack_read(void *opaque, hwaddr addr,
-                                  unsigned int size)
+uint64_t PREPPCIState::intackRead(void *opaque, hwaddr addr,
+                                   unsigned int size)
 {
     return pic_read_irq(isa_pic);
 }
 
-static void raven_intack_write(void *opaque, hwaddr addr,
-                                        uint64_t data, unsigned size)
+void PREPPCIState::intackWrite(void *opaque, hwaddr addr,
+                                uint64_t data, unsigned size)
 {
     qemu_log_mask(LOG_UNIMP, "%s not implemented\n", __func__);
 }
 
 static MemoryRegionOps raven_intack_ops = {
-    .read = raven_intack_read,
-    .write = raven_intack_write,
+    .read = PREPPCIState::intackRead,
+    .write = PREPPCIState::intackWrite,
 };
 
 static void raven_intack_ops_init(void) __attribute__((constructor));
@@ -113,10 +136,9 @@ static void raven_intack_ops_init(void)
     raven_intack_ops.valid.max_access_size = 1;
 }
 
-static inline hwaddr raven_io_address(PREPPCIState *s,
-                                      hwaddr addr)
+hwaddr PREPPCIState::ioAddress(hwaddr addr)
 {
-    if (s->contiguous_map == 0) {
+    if (contiguous_map == 0) {
         /* 64 KB contiguous space for IOs */
         addr &= 0xFFFF;
     } else {
@@ -129,13 +151,12 @@ static inline hwaddr raven_io_address(PREPPCIState *s,
     return addr;
 }
 
-static uint64_t raven_io_read(void *opaque, hwaddr addr,
-                              unsigned int size)
+uint64_t PREPPCIState::ioRead(void *opaque, hwaddr addr, unsigned int size)
 {
     PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
     uint8_t buf[4];
 
-    addr = raven_io_address(s, addr);
+    addr = s->ioAddress(addr);
     address_space_read(&s->pci_io_as, addr + PCI_IO_BASE_ADDR,
                        MEMTXATTRS_UNSPECIFIED, buf, size);
 
@@ -150,13 +171,13 @@ static uint64_t raven_io_read(void *opaque, hwaddr addr,
     }
 }
 
-static void raven_io_write(void *opaque, hwaddr addr,
-                           uint64_t val, unsigned int size)
+void PREPPCIState::ioWrite(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned int size)
 {
     PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
     uint8_t buf[4];
 
-    addr = raven_io_address(s, addr);
+    addr = s->ioAddress(addr);
 
     if (size == 1) {
         buf[0] = val;
@@ -173,8 +194,8 @@ static void raven_io_write(void *opaque, hwaddr addr,
 }
 
 static MemoryRegionOps raven_io_ops = {
-    .read = raven_io_read,
-    .write = raven_io_write,
+    .read = PREPPCIState::ioRead,
+    .write = PREPPCIState::ioWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -186,20 +207,19 @@ static void raven_io_ops_init(void)
     raven_io_ops.valid.unaligned = true;
 }
 
-static int raven_map_irq(PCIDevice *pci_dev, int irq_num)
+int PREPPCIState::mapIrq(PCIDevice *pci_dev, int irq_num)
 {
     return (irq_num + (pci_dev->devfn >> 3)) & 1;
 }
 
-static void raven_set_irq(void *opaque, int irq_num, int level)
+void PREPPCIState::setIrq(void *opaque, int irq_num, int level)
 {
     PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
 
     qemu_set_irq(s->pci_irqs[irq_num], level);
 }
 
-static AddressSpace *raven_pcihost_set_iommu(PCIBus *bus, void *opaque,
-                                             int devfn)
+AddressSpace *PREPPCIState::setIommu(PCIBus *bus, void *opaque, int devfn)
 {
     PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
 
@@ -207,21 +227,21 @@ static AddressSpace *raven_pcihost_set_iommu(PCIBus *bus, void *opaque,
 }
 
 static const PCIIOMMUOps raven_iommu_ops = {
-    .get_address_space = raven_pcihost_set_iommu,
+    .get_address_space = PREPPCIState::setIommu,
 };
 
-static void raven_change_gpio(void *opaque, int n, int level)
+void PREPPCIState::changeGpio(void *opaque, int n, int level)
 {
     PREPPCIState *s = static_cast<PREPPCIState *>(opaque);
 
     s->contiguous_map = level;
 }
 
-static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
+void PREPPCIState::realize(Error **errp)
 {
+    DeviceState *d = DEVICE(this);
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
     PCIHostState *h = PCI_HOST_BRIDGE(dev);
-    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(dev);
     MemoryRegion *address_space_mem = get_system_memory();
     int i;
 
@@ -229,86 +249,97 @@ static void raven_pcihost_realizefn(DeviceState *d, Error **errp)
      * According to PReP specification section 6.1.6 "System Interrupt
      * Assignments", all PCI interrupts are routed via IRQ 15
      */
-    s->or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
-    object_property_set_int(OBJECT(s->or_irq), "num-lines", PCI_NUM_PINS,
+    or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
+    object_property_set_int(OBJECT(or_irq), "num-lines", PCI_NUM_PINS,
                             &error_fatal);
-    qdev_realize(DEVICE(s->or_irq), NULL, &error_fatal);
-    sysbus_init_irq(dev, &s->or_irq->out_irq);
+    qdev_realize(DEVICE(or_irq), NULL, &error_fatal);
+    sysbus_init_irq(dev, &or_irq->out_irq);
 
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        s->pci_irqs[i] = qdev_get_gpio_in(DEVICE(s->or_irq), i);
+        pci_irqs[i] = qdev_get_gpio_in(DEVICE(or_irq), i);
     }
 
-    qdev_init_gpio_in(d, raven_change_gpio, 1);
+    qdev_init_gpio_in(d, changeGpio, 1);
 
-    h->bus = pci_register_root_bus(d, NULL, raven_set_irq, raven_map_irq,
-                                   s, &s->pci_memory, &s->pci_io, 0, 4,
+    h->bus = pci_register_root_bus(d, NULL, setIrq, mapIrq,
+                                   this, &pci_memory, &pci_io, 0, 4,
                                    TYPE_PCI_BUS);
 
-    memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, s,
+    memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, this,
                           "pci-conf-idx", 4);
-    memory_region_add_subregion(&s->pci_io, 0xcf8, &h->conf_mem);
+    memory_region_add_subregion(&pci_io, 0xcf8, &h->conf_mem);
 
-    memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops, s,
+    memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops, this,
                           "pci-conf-data", 4);
-    memory_region_add_subregion(&s->pci_io, 0xcfc, &h->data_mem);
+    memory_region_add_subregion(&pci_io, 0xcfc, &h->data_mem);
 
     memory_region_init_io(&h->mmcfg, OBJECT(h), &raven_mmcfg_ops, h->bus,
                           "pci-mmcfg", 0x00400000);
     memory_region_add_subregion(address_space_mem, 0x80800000, &h->mmcfg);
 
-    memory_region_init_io(&s->pci_intack, OBJECT(s), &raven_intack_ops, s,
+    memory_region_init_io(&pci_intack, OBJECT(this), &raven_intack_ops, this,
                           "pci-intack", 1);
-    memory_region_add_subregion(address_space_mem, 0xbffffff0, &s->pci_intack);
+    memory_region_add_subregion(address_space_mem, 0xbffffff0, &pci_intack);
 
     pci_create_simple(h->bus, PCI_DEVFN(0, 0), TYPE_RAVEN_PCI_DEVICE);
 
-    address_space_init(&s->bm_as, &s->bm, "raven-bm");
-    pci_setup_iommu(h->bus, &raven_iommu_ops, s);
+    address_space_init(&bm_as, &bm, "raven-bm");
+    pci_setup_iommu(h->bus, &raven_iommu_ops, this);
 }
 
-static void raven_pcihost_initfn(Object *obj)
+void PREPPCIState::realizeFnWrapper(DeviceState *d, Error **errp)
 {
-    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(obj);
+    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(d);
+    s->realize(errp);
+}
+
+void PREPPCIState::initfn(Object *obj)
+{
     MemoryRegion *address_space_mem = get_system_memory();
 
-    memory_region_init(&s->pci_io, obj, "pci-io", 0x3f800000);
-    memory_region_init_io(&s->pci_io_non_contiguous, obj, &raven_io_ops, s,
+    memory_region_init(&pci_io, obj, "pci-io", 0x3f800000);
+    memory_region_init_io(&pci_io_non_contiguous, obj, &raven_io_ops, this,
                           "pci-io-non-contiguous", 0x00800000);
-    memory_region_init(&s->pci_memory, obj, "pci-memory", 0x3f000000);
-    address_space_init(&s->pci_io_as, &s->pci_io, "raven-io");
+    memory_region_init(&pci_memory, obj, "pci-memory", 0x3f000000);
+    address_space_init(&pci_io_as, &pci_io, "raven-io");
 
     /*
      * Raven's raven_io_ops use the address-space API to access pci-conf-idx
      * (which is also owned by the raven device). As such, mark the
      * pci_io_non_contiguous as re-entrancy safe.
      */
-    s->pci_io_non_contiguous.disable_reentrancy_guard = true;
+    pci_io_non_contiguous.disable_reentrancy_guard = true;
 
     /* CPU address space */
     memory_region_add_subregion(address_space_mem, PCI_IO_BASE_ADDR,
-                                &s->pci_io);
+                                &pci_io);
     memory_region_add_subregion_overlap(address_space_mem, PCI_IO_BASE_ADDR,
-                                        &s->pci_io_non_contiguous, 1);
-    memory_region_add_subregion(address_space_mem, 0xc0000000, &s->pci_memory);
+                                        &pci_io_non_contiguous, 1);
+    memory_region_add_subregion(address_space_mem, 0xc0000000, &pci_memory);
 
     /* Bus master address space */
-    memory_region_init(&s->bm, obj, "bm-raven", 4 * GiB);
-    memory_region_init_alias(&s->bm_pci_memory_alias, obj, "bm-pci-memory",
-                             &s->pci_memory, 0,
-                             memory_region_size(&s->pci_memory));
-    memory_region_init_alias(&s->bm_ram_alias, obj, "bm-system",
+    memory_region_init(&bm, obj, "bm-raven", 4 * GiB);
+    memory_region_init_alias(&bm_pci_memory_alias, obj, "bm-pci-memory",
+                             &pci_memory, 0,
+                             memory_region_size(&pci_memory));
+    memory_region_init_alias(&bm_ram_alias, obj, "bm-system",
                              get_system_memory(), 0, 0x80000000);
-    memory_region_add_subregion(&s->bm, 0         , &s->bm_pci_memory_alias);
-    memory_region_add_subregion(&s->bm, 0x80000000, &s->bm_ram_alias);
+    memory_region_add_subregion(&bm, 0         , &bm_pci_memory_alias);
+    memory_region_add_subregion(&bm, 0x80000000, &bm_ram_alias);
 }
 
-static void raven_pcihost_class_init(ObjectClass *klass, const void *data)
+void PREPPCIState::initfnWrapper(Object *obj)
+{
+    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(obj);
+    s->initfn(obj);
+}
+
+void PREPPCIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->realize = raven_pcihost_realizefn;
+    dc->realize = realizeFnWrapper;
     dc->fw_name = "pci";
 }
 
@@ -347,8 +378,8 @@ static const TypeInfo raven_types[] = {
         .name = TYPE_RAVEN_PCI_HOST_BRIDGE,
         .parent = TYPE_PCI_HOST_BRIDGE,
         .instance_size = sizeof(PREPPCIState),
-        .instance_init = raven_pcihost_initfn,
-        .class_init = raven_pcihost_class_init,
+        .instance_init = PREPPCIState::initfnWrapper,
+        .class_init = PREPPCIState::classInit,
     },
     {
         .name = TYPE_RAVEN_PCI_DEVICE,

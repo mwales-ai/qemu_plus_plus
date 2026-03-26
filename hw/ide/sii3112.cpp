@@ -13,6 +13,8 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "hw/ide/pci.h"
 #include "qemu/module.h"
 #include "trace.h"
@@ -33,14 +35,27 @@ struct SiI3112PCIState {
     PCIIDEState i;
     MemoryRegion mmio;
     SiI3112Regs regs[2];
+
+    static uint64_t regRead(void *opaque, hwaddr addr, unsigned int size);
+    static void regWrite(void *opaque, hwaddr addr, uint64_t val,
+                         unsigned int size);
+    void updateIrq();
+    static void setIrq(void *opaque, int channel, int level);
+
+    void reset();
+    static void resetWrapper(DeviceState *dev);
+
+    void realize(Error **errp);
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /* The sii3112_reg_read and sii3112_reg_write functions implement the
  * Internal Register Space - BAR5 (section 6.7 of the data sheet).
  */
 
-static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
-                                unsigned int size)
+uint64_t SiI3112PCIState::regRead(void *opaque, hwaddr addr,
+                                   unsigned int size)
 {
     SiI3112PCIState *d = static_cast<SiI3112PCIState *>(opaque);
     uint64_t val;
@@ -133,8 +148,8 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
     return val;
 }
 
-static void sii3112_reg_write(void *opaque, hwaddr addr,
-                              uint64_t val, unsigned int size)
+void SiI3112PCIState::regWrite(void *opaque, hwaddr addr,
+                                uint64_t val, unsigned int size)
 {
     SiI3112PCIState *d = static_cast<SiI3112PCIState *>(opaque);
 
@@ -206,23 +221,23 @@ static void sii3112_reg_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sii3112_reg_ops = {
-    .read = sii3112_reg_read,
-    .write = sii3112_reg_write,
+    .read = SiI3112PCIState::regRead,
+    .write = SiI3112PCIState::regWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /* the PCI irq level is the logical OR of the two channels */
-static void sii3112_update_irq(SiI3112PCIState *s)
+void SiI3112PCIState::updateIrq()
 {
     int i, set = 0;
 
     for (i = 0; i < 2; i++) {
-        set |= s->regs[i].confstat & (1UL << 11);
+        set |= regs[i].confstat & (1UL << 11);
     }
-    pci_set_irq(PCI_DEVICE(s), (set ? 1 : 0));
+    pci_set_irq(PCI_DEVICE(this), (set ? 1 : 0));
 }
 
-static void sii3112_set_irq(void *opaque, int channel, int level)
+void SiI3112PCIState::setIrq(void *opaque, int channel, int level)
 {
     SiI3112PCIState *s = static_cast<SiI3112PCIState *>(opaque);
 
@@ -233,64 +248,75 @@ static void sii3112_set_irq(void *opaque, int channel, int level)
         s->regs[channel].confstat &= ~(1UL << 11);
     }
 
-    sii3112_update_irq(s);
+    s->updateIrq();
 }
 
-static void sii3112_reset(DeviceState *dev)
+void SiI3112PCIState::reset()
 {
-    SiI3112PCIState *s = SII3112_PCI(dev);
     int i;
 
     for (i = 0; i < 2; i++) {
-        s->regs[i].confstat = 0x6515 << 16;
-        ide_bus_reset(&s->i.bus[i]);
+        regs[i].confstat = 0x6515 << 16;
+        ide_bus_reset(&this->i.bus[i]);
     }
 }
 
-static void sii3112_pci_realize(PCIDevice *dev, Error **errp)
+void SiI3112PCIState::resetWrapper(DeviceState *dev)
 {
-    SiI3112PCIState *d = SII3112_PCI(dev);
+    SiI3112PCIState *s = SII3112_PCI(dev);
+    s->reset();
+}
+
+void SiI3112PCIState::realize(Error **errp)
+{
+    PCIDevice *dev = PCI_DEVICE(this);
     PCIIDEState *s = PCI_IDE(dev);
     DeviceState *ds = DEVICE(dev);
     MemoryRegion *mr;
-    int i;
+    int idx;
 
     pci_config_set_interrupt_pin(dev->config, 1);
     pci_set_byte(dev->config + PCI_CACHE_LINE_SIZE, 8);
 
     /* BAR5 is in PCI memory space */
-    memory_region_init_io(&d->mmio, OBJECT(d), &sii3112_reg_ops, d,
+    memory_region_init_io(&mmio, OBJECT(this), &sii3112_reg_ops, this,
                          "sii3112.bar5", 0x200);
-    pci_register_bar(dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
+    pci_register_bar(dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
 
     /* BAR0-BAR4 are PCI I/O space aliases into BAR5 */
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar0", &d->mmio, 0x80, 8);
+    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar0", &mmio, 0x80, 8);
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar1", &d->mmio, 0x88, 4);
+    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar1", &mmio, 0x88, 4);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar2", &d->mmio, 0xc0, 8);
+    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar2", &mmio, 0xc0, 8);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar3", &d->mmio, 0xc8, 4);
+    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar3", &mmio, 0xc8, 4);
     pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(d), "sii3112.bar4", &d->mmio, 0, 16);
+    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar4", &mmio, 0, 16);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, mr);
 
-    qdev_init_gpio_in(ds, sii3112_set_irq, 2);
-    for (i = 0; i < 2; i++) {
-        ide_bus_init(&s->bus[i], sizeof(s->bus[i]), ds, i, 1);
-        ide_bus_init_output_irq(&s->bus[i], qdev_get_gpio_in(ds, i));
+    qdev_init_gpio_in(ds, setIrq, 2);
+    for (idx = 0; idx < 2; idx++) {
+        ide_bus_init(&s->bus[idx], sizeof(s->bus[idx]), ds, idx, 1);
+        ide_bus_init_output_irq(&s->bus[idx], qdev_get_gpio_in(ds, idx));
 
-        bmdma_init(&s->bus[i], &s->bmdma[i], s);
-        ide_bus_register_restart_cb(&s->bus[i]);
+        bmdma_init(&s->bus[idx], &s->bmdma[idx], s);
+        ide_bus_register_restart_cb(&s->bus[idx]);
     }
 }
 
-static void sii3112_pci_class_init(ObjectClass *klass, const void *data)
+void SiI3112PCIState::realizeWrapper(PCIDevice *dev, Error **errp)
+{
+    SiI3112PCIState *s = SII3112_PCI(dev);
+    s->realize(errp);
+}
+
+void SiI3112PCIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pd = PCI_DEVICE_CLASS(klass);
@@ -299,8 +325,8 @@ static void sii3112_pci_class_init(ObjectClass *klass, const void *data)
     pd->device_id = 0x3112;
     pd->class_id = PCI_CLASS_STORAGE_RAID;
     pd->revision = 1;
-    pd->realize = sii3112_pci_realize;
-    device_class_set_legacy_reset(dc, sii3112_reset);
+    pd->realize = realizeWrapper;
+    device_class_set_legacy_reset(dc, resetWrapper);
     dc->desc = "SiI3112A SATA controller";
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
@@ -309,7 +335,7 @@ static const TypeInfo sii3112_pci_info = {
     .name = TYPE_SII3112_PCI,
     .parent = TYPE_PCI_IDE,
     .instance_size = sizeof(SiI3112PCIState),
-    .class_init = sii3112_pci_class_init,
+    .class_init = SiI3112PCIState::classInit,
 };
 
 static void sii3112_register_types(void)
