@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -118,6 +119,15 @@ struct PVSCSIState {
     uint8_t msi_used;                    /* For migration compatibility      */
     PVSCSIRingInfo rings;                /* Data transfer rings manager      */
     uint32_t resetting;                  /* Reset in progress                */
+
+    /* Static callbacks / class methods */
+    static void realizeFn(PCIDevice *pci_dev, Error **errp);
+    static void uninit(PCIDevice *pci_dev);
+    static void reset(DeviceState *dev);
+    static void hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp);
+    static void hotUnplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 typedef struct PVSCSIRequest {
@@ -589,16 +599,16 @@ pvscsi_send_msg(PVSCSIState *s, SCSIDevice *dev, uint32_t msg_type)
     }
 }
 
-static void
-pvscsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
+void
+PVSCSIState::hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
 {
     PVSCSIState *s = PVSCSI(hotplug_dev);
 
     pvscsi_send_msg(s, SCSI_DEVICE(dev), PVSCSI_MSG_DEV_ADDED);
 }
 
-static void
-pvscsi_hot_unplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
+void
+PVSCSIState::hotUnplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
 {
     PVSCSIState *s = PVSCSI(hotplug_dev);
 
@@ -1113,8 +1123,8 @@ static const struct SCSIBusInfo pvscsi_scsi_info = {
         .get_sg_list = pvscsi_get_sg_list,
 };
 
-static void
-pvscsi_realizefn(PCIDevice *pci_dev, Error **errp)
+void
+PVSCSIState::realizeFn(PCIDevice *pci_dev, Error **errp)
 {
     PVSCSIState *s = PVSCSI(pci_dev);
 
@@ -1152,8 +1162,8 @@ pvscsi_realizefn(PCIDevice *pci_dev, Error **errp)
     pvscsi_reset_state(s);
 }
 
-static void
-pvscsi_uninit(PCIDevice *pci_dev)
+void
+PVSCSIState::uninit(PCIDevice *pci_dev)
 {
     PVSCSIState *s = PVSCSI(pci_dev);
 
@@ -1163,8 +1173,8 @@ pvscsi_uninit(PCIDevice *pci_dev)
     pvscsi_cleanup_msi(s);
 }
 
-static void
-pvscsi_reset(DeviceState *dev)
+void
+PVSCSIState::reset(DeviceState *dev)
 {
     PCIDevice *d = PCI_DEVICE(dev);
     PVSCSIState *s = PVSCSI(d);
@@ -1249,29 +1259,29 @@ static const Property pvscsi_properties[] = {
     DEFINE_PROP_UINT8("use_msg", PVSCSIState, use_msg, 1),
 };
 
-static void pvscsi_instance_init(Object *obj)
+void PVSCSIState::instanceInit(Object *obj)
 {
     PCI_DEVICE(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
-static void pvscsi_class_init(ObjectClass *klass, const void *data)
+void PVSCSIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
-    k->realize = pvscsi_realizefn;
-    k->exit = pvscsi_uninit;
+    k->realize = PVSCSIState::realizeFn;
+    k->exit = PVSCSIState::uninit;
     k->vendor_id = PCI_VENDOR_ID_VMWARE;
     k->device_id = PCI_DEVICE_ID_VMWARE_PVSCSI;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     k->subsystem_id = 0x1000;
-    device_class_set_legacy_reset(dc, pvscsi_reset);
+    device_class_set_legacy_reset(dc, PVSCSIState::reset);
     dc->vmsd = &vmstate_pvscsi;
     device_class_set_props(dc, pvscsi_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    hc->unplug = pvscsi_hot_unplug;
-    hc->plug = pvscsi_hotplug;
+    hc->unplug = PVSCSIState::hotUnplug;
+    hc->plug = PVSCSIState::hotplug;
 }
 
 static const InterfaceInfo pvscsi_interfaces[] = {
@@ -1285,9 +1295,9 @@ static const TypeInfo pvscsi_info = {
     .name          = TYPE_PVSCSI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PVSCSIState),
-    .instance_init = pvscsi_instance_init,
+    .instance_init = PVSCSIState::instanceInit,
     .class_size    = sizeof(PVSCSIClass),
-    .class_init    = pvscsi_class_init,
+    .class_init    = PVSCSIState::classInit,
     .interfaces = pvscsi_interfaces,
 };
 

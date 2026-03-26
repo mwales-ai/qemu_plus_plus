@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -106,6 +107,31 @@ struct USBSerialState {
     QEMUSerialSetParams params;
     int latency;        /* ms */
     CharFrontend cs;
+
+    /* Methods */
+    void setFlowControl(uint8_t flow_control);
+    void setXonXoff(int xonxoff);
+    void resetState(void);
+    uint8_t getModemLines(void);
+    void tokenIn(USBPacket *p);
+
+    /* Static callbacks for USB device class */
+    static void handleReset(USBDevice *dev);
+    static void handleControl(USBDevice *dev, USBPacket *p,
+                              int request, int value, int index,
+                              int length, uint8_t *data);
+    static void handleData(USBDevice *dev, USBPacket *p);
+    static void realize(USBDevice *dev, Error **errp);
+
+    /* Static callbacks for chardev */
+    static int canRead(void *opaque);
+    static void charRead(void *opaque, const uint8_t *buf, int size);
+    static void charEvent(void *opaque, QEMUChrEvent event);
+
+    /* Class init */
+    static void devClassInit(ObjectClass *klass, const void *data);
+    static void serialClassInit(ObjectClass *klass, const void *data);
+    static void brailleClassInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_USB_SERIAL "usb-serial-dev"
@@ -193,55 +219,54 @@ static const USBDesc desc_braille = {
     .str  = desc_strings,
 };
 
-static void usb_serial_set_flow_control(USBSerialState *s,
-                                        uint8_t flow_control)
+void USBSerialState::setFlowControl(uint8_t fc)
 {
-    USBDevice *dev = USB_DEVICE(s);
-    USBBus *bus = usb_bus_from_device(dev);
+    USBDevice *udev = USB_DEVICE(this);
+    USBBus *bus = usb_bus_from_device(udev);
 
     /* TODO: ioctl */
-    s->flow_control = flow_control;
-    trace_usb_serial_set_flow_control(bus->busnr, dev->addr, flow_control);
+    this->flow_control = fc;
+    trace_usb_serial_set_flow_control(bus->busnr, udev->addr, fc);
 }
 
-static void usb_serial_set_xonxoff(USBSerialState *s, int xonxoff)
+void USBSerialState::setXonXoff(int xonxoff)
 {
-    USBDevice *dev = USB_DEVICE(s);
-    USBBus *bus = usb_bus_from_device(dev);
+    USBDevice *udev = USB_DEVICE(this);
+    USBBus *bus = usb_bus_from_device(udev);
 
-    s->xon = xonxoff & 0xff;
-    s->xoff = (xonxoff >> 8) & 0xff;
+    this->xon = xonxoff & 0xff;
+    this->xoff = (xonxoff >> 8) & 0xff;
 
-    trace_usb_serial_set_xonxoff(bus->busnr, dev->addr, s->xon, s->xoff);
+    trace_usb_serial_set_xonxoff(bus->busnr, udev->addr, this->xon, this->xoff);
 }
 
-static void usb_serial_reset(USBSerialState *s)
+void USBSerialState::resetState(void)
 {
-    s->event_chr = 0x0d;
-    s->event_trigger = 0;
-    s->recv_ptr = 0;
-    s->recv_used = 0;
+    this->event_chr = 0x0d;
+    this->event_trigger = 0;
+    this->recv_ptr = 0;
+    this->recv_used = 0;
     /* TODO: purge in char driver */
-    usb_serial_set_flow_control(s, FTDI_NO_HS);
+    this->setFlowControl(FTDI_NO_HS);
 }
 
-static void usb_serial_handle_reset(USBDevice *dev)
+void USBSerialState::handleReset(USBDevice *dev)
 {
     USBSerialState *s = USB_SERIAL(dev);
     USBBus *bus = usb_bus_from_device(dev);
 
     trace_usb_serial_reset(bus->busnr, dev->addr);
 
-    usb_serial_reset(s);
+    s->resetState();
     /* TODO: Reset char device, send BREAK? */
 }
 
-static uint8_t usb_get_modem_lines(USBSerialState *s)
+uint8_t USBSerialState::getModemLines(void)
 {
     int flags;
     uint8_t ret;
 
-    if (qemu_chr_fe_ioctl(&s->cs,
+    if (qemu_chr_fe_ioctl(&this->cs,
                           CHR_IOCTL_SERIAL_GET_TIOCM, &flags) == -ENOTSUP) {
         return FTDI_CTS | FTDI_DSR | FTDI_RLSD;
     }
@@ -263,9 +288,9 @@ static uint8_t usb_get_modem_lines(USBSerialState *s)
     return ret;
 }
 
-static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
-                                      int request, int value, int index,
-                                      int length, uint8_t *data)
+void USBSerialState::handleControl(USBDevice *dev, USBPacket *p,
+                                   int request, int value, int index,
+                                   int length, uint8_t *data)
 {
     USBSerialState *s = USB_SERIAL(dev);
     USBBus *bus = usb_bus_from_device(dev);
@@ -286,7 +311,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
     case VendorDeviceOutRequest | FTDI_RESET:
         switch (value) {
         case FTDI_RESET_SIO:
-            usb_serial_reset(s);
+            s->resetState();
             break;
         case FTDI_RESET_RX:
             s->recv_ptr = 0;
@@ -320,11 +345,11 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         break;
     }
     case VendorDeviceOutRequest | FTDI_SET_FLOW_CTRL: {
-        uint8_t flow_control = index >> 8;
+        uint8_t fc = index >> 8;
 
-        usb_serial_set_flow_control(s, flow_control);
-        if (flow_control & FTDI_XON_XOFF_HS) {
-            usb_serial_set_xonxoff(s, value);
+        s->setFlowControl(fc);
+        if (fc & FTDI_XON_XOFF_HS) {
+            s->setXonXoff(value);
         }
         break;
     }
@@ -400,7 +425,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         /* TODO: TX ON/OFF */
         break;
     case VendorDeviceRequest | FTDI_GET_MDM_ST:
-        data[0] = usb_get_modem_lines(s) | 1;
+        data[0] = s->getModemLines() | 1;
         data[1] = FTDI_THRE | FTDI_TEMT;
         p->actual_length = 2;
         break;
@@ -428,7 +453,7 @@ static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
     }
 }
 
-static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
+void USBSerialState::tokenIn(USBPacket *p)
 {
     const int max_packet_size = desc_iface0.eps[0].wMaxPacketSize;
     int packet_len;
@@ -440,11 +465,11 @@ static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
         return;
     }
 
-    header[0] = usb_get_modem_lines(s) | 1;
+    header[0] = this->getModemLines() | 1;
     /* We do not have the uart details */
     /* handle serial break */
-    if (s->event_trigger && s->event_trigger & FTDI_BI) {
-        s->event_trigger &= ~FTDI_BI;
+    if (this->event_trigger && this->event_trigger & FTDI_BI) {
+        this->event_trigger &= ~FTDI_BI;
         header[1] = FTDI_BI;
         usb_packet_copy(p, header, 2);
         return;
@@ -452,36 +477,36 @@ static void usb_serial_token_in(USBSerialState *s, USBPacket *p)
         header[1] = 0;
     }
 
-    if (!s->recv_used) {
+    if (!this->recv_used) {
         p->status = USB_RET_NAK;
         return;
     }
 
-    while (s->recv_used && packet_len > 2) {
+    while (this->recv_used && packet_len > 2) {
         int first_len, len;
 
         len = MIN(packet_len, max_packet_size);
         len -= 2;
-        if (len > s->recv_used) {
-            len = s->recv_used;
+        if (len > this->recv_used) {
+            len = this->recv_used;
         }
 
-        first_len = RECV_BUF - s->recv_ptr;
+        first_len = RECV_BUF - this->recv_ptr;
         if (first_len > len) {
             first_len = len;
         }
         usb_packet_copy(p, header, 2);
-        usb_packet_copy(p, s->recv_buf + s->recv_ptr, first_len);
+        usb_packet_copy(p, this->recv_buf + this->recv_ptr, first_len);
         if (len > first_len) {
-            usb_packet_copy(p, s->recv_buf, len - first_len);
+            usb_packet_copy(p, this->recv_buf, len - first_len);
         }
-        s->recv_used -= len;
-        s->recv_ptr = (s->recv_ptr + len) % RECV_BUF;
+        this->recv_used -= len;
+        this->recv_ptr = (this->recv_ptr + len) % RECV_BUF;
         packet_len -= len + 2;
     }
 }
 
-static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
+void USBSerialState::handleData(USBDevice *dev, USBPacket *p)
 {
     USBSerialState *s = USB_SERIAL(dev);
     USBBus *bus = usb_bus_from_device(dev);
@@ -509,7 +534,7 @@ static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
         if (devep != 1) {
             goto fail;
         }
-        usb_serial_token_in(s, p);
+        s->tokenIn(p);
         break;
 
     default:
@@ -520,7 +545,7 @@ static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static int usb_serial_can_read(void *opaque)
+int USBSerialState::canRead(void *opaque)
 {
     USBSerialState *s = static_cast<USBSerialState *>(opaque);
 
@@ -530,7 +555,7 @@ static int usb_serial_can_read(void *opaque)
     return RECV_BUF - s->recv_used;
 }
 
-static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
+void USBSerialState::charRead(void *opaque, const uint8_t *buf, int size)
 {
     USBSerialState *s = static_cast<USBSerialState *>(opaque);
     int first_size, start;
@@ -563,7 +588,7 @@ static void usb_serial_read(void *opaque, const uint8_t *buf, int size)
     usb_wakeup(s->intr, 0);
 }
 
-static void usb_serial_event(void *opaque, QEMUChrEvent event)
+void USBSerialState::charEvent(void *opaque, QEMUChrEvent event)
 {
     USBSerialState *s = static_cast<USBSerialState *>(opaque);
 
@@ -588,7 +613,7 @@ static void usb_serial_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-static void usb_serial_realize(USBDevice *dev, Error **errp)
+void USBSerialState::realize(USBDevice *dev, Error **errp)
 {
     USBSerialState *s = USB_SERIAL(dev);
     Error *local_err = NULL;
@@ -608,9 +633,10 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
         return;
     }
 
-    qemu_chr_fe_set_handlers(&s->cs, usb_serial_can_read, usb_serial_read,
-                             usb_serial_event, NULL, s, NULL, true);
-    usb_serial_handle_reset(dev);
+    qemu_chr_fe_set_handlers(&s->cs, USBSerialState::canRead,
+                             USBSerialState::charRead,
+                             USBSerialState::charEvent, NULL, s, NULL, true);
+    USBSerialState::handleReset(dev);
 
     if ((s->always_plugged || qemu_chr_fe_backend_open(&s->cs)) &&
         !dev->attached) {
@@ -644,15 +670,15 @@ static const Property serial_properties[] = {
     DEFINE_PROP_BOOL("always-plugged", USBSerialState, always_plugged, false),
 };
 
-static void usb_serial_dev_class_init(ObjectClass *klass, const void *data)
+void USBSerialState::devClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize        = usb_serial_realize;
-    uc->handle_reset   = usb_serial_handle_reset;
-    uc->handle_control = usb_serial_handle_control;
-    uc->handle_data    = usb_serial_handle_data;
+    uc->realize        = USBSerialState::realize;
+    uc->handle_reset   = USBSerialState::handleReset;
+    uc->handle_control = USBSerialState::handleControl;
+    uc->handle_data    = USBSerialState::handleData;
     dc->vmsd = &vmstate_usb_serial;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
@@ -662,10 +688,10 @@ static const TypeInfo usb_serial_dev_type_info = {
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBSerialState),
     .is_abstract = true,
-    .class_init = usb_serial_dev_class_init,
+    .class_init = USBSerialState::devClassInit,
 };
 
-static void usb_serial_class_initfn(ObjectClass *klass, const void *data)
+void USBSerialState::serialClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -678,14 +704,14 @@ static void usb_serial_class_initfn(ObjectClass *klass, const void *data)
 static const TypeInfo serial_info = {
     .name          = "usb-serial",
     .parent        = TYPE_USB_SERIAL,
-    .class_init    = usb_serial_class_initfn,
+    .class_init    = USBSerialState::serialClassInit,
 };
 
 static const Property braille_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
 };
 
-static void usb_braille_class_initfn(ObjectClass *klass, const void *data)
+void USBSerialState::brailleClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
@@ -698,7 +724,7 @@ static void usb_braille_class_initfn(ObjectClass *klass, const void *data)
 static const TypeInfo braille_info = {
     .name          = "usb-braille",
     .parent        = TYPE_USB_SERIAL,
-    .class_init    = usb_braille_class_initfn,
+    .class_init    = USBSerialState::brailleClassInit,
 };
 
 static void usb_serial_register_types(void)

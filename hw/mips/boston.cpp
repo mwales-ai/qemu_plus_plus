@@ -155,7 +155,7 @@ enum boston_plat_reg {
 
 static void boston_lcd_event(void *opaque, QEMUChrEvent event)
 {
-    BostonState *s = opaque;
+    BostonState *s = static_cast<BostonState *>(opaque);
     if (event == CHR_EVENT_OPENED && !s->lcd_inited) {
         qemu_chr_fe_printf(&s->lcd_display, "        ");
         s->lcd_inited = true;
@@ -165,7 +165,7 @@ static void boston_lcd_event(void *opaque, QEMUChrEvent event)
 static uint64_t boston_lcd_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    BostonState *s = opaque;
+    BostonState *s = static_cast<BostonState *>(opaque);
     uint64_t val = 0;
 
     switch (size) {
@@ -193,7 +193,7 @@ static uint64_t boston_lcd_read(void *opaque, hwaddr addr,
 static void boston_lcd_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
-    BostonState *s = opaque;
+    BostonState *s = static_cast<BostonState *>(opaque);
 
     switch (size) {
     case 8:
@@ -227,7 +227,7 @@ static const MemoryRegionOps boston_lcd_ops = {
 static uint64_t boston_platreg_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-    BostonState *s = opaque;
+    BostonState *s = static_cast<BostonState *>(opaque);
     uint32_t gic_freq, val;
 
     if (size != 4) {

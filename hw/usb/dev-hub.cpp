@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "trace.h"
@@ -49,6 +50,27 @@ struct USBHubState {
     bool port_power;
     QEMUTimer *port_timer;
     USBHubPort ports[MAX_PORTS];
+
+    /* Methods */
+    static void handleReset(USBDevice *dev);
+    static void handleControl(USBDevice *dev, USBPacket *p,
+               int request, int value, int index, int length, uint8_t *data);
+    static void handleData(USBDevice *dev, USBPacket *p);
+    static void realize(USBDevice *dev, Error **errp);
+    static void unrealize(USBDevice *dev);
+    static USBDevice *findDevice(USBDevice *dev, uint8_t addr);
+    static void classInit(ObjectClass *klass, const void *data);
+
+    /* Port ops (static callbacks) */
+    static void portAttach(USBPort *port1);
+    static void portDetach(USBPort *port1);
+    static void portChildDetach(USBPort *port1, USBDevice *child);
+    static void portWakeup(USBPort *port1);
+    static void portComplete(USBPort *port, USBPacket *packet);
+    static void portUpdateTimer(void *opaque);
+
+    /* VMState */
+    static bool portTimerNeeded(void *opaque);
 };
 
 #define TYPE_USB_HUB "usb-hub"
@@ -217,7 +239,7 @@ static bool usb_hub_port_update(USBHubPort *port)
     return notify;
 }
 
-static void usb_hub_port_update_timer(void *opaque)
+void USBHubState::portUpdateTimer(void *opaque)
 {
     USBHubState *s = static_cast<USBHubState *>(opaque);
     bool notify = false;
@@ -231,7 +253,7 @@ static void usb_hub_port_update_timer(void *opaque)
     }
 }
 
-static void usb_hub_attach(USBPort *port1)
+void USBHubState::portAttach(USBPort *port1)
 {
     USBHubState *s = static_cast<USBHubState *>(port1->opaque);
     USBHubPort *port = &s->ports[port1->index];
@@ -241,7 +263,7 @@ static void usb_hub_attach(USBPort *port1)
     usb_wakeup(s->intr, 0);
 }
 
-static void usb_hub_detach(USBPort *port1)
+void USBHubState::portDetach(USBPort *port1)
 {
     USBHubState *s = static_cast<USBHubState *>(port1->opaque);
     USBHubPort *port = &s->ports[port1->index];
@@ -258,7 +280,7 @@ static void usb_hub_detach(USBPort *port1)
     usb_wakeup(s->intr, 0);
 }
 
-static void usb_hub_child_detach(USBPort *port1, USBDevice *child)
+void USBHubState::portChildDetach(USBPort *port1, USBDevice *child)
 {
     USBHubState *s = static_cast<USBHubState *>(port1->opaque);
 
@@ -266,7 +288,7 @@ static void usb_hub_child_detach(USBPort *port1, USBDevice *child)
     s->dev.port->ops->child_detach(s->dev.port, child);
 }
 
-static void usb_hub_wakeup(USBPort *port1)
+void USBHubState::portWakeup(USBPort *port1)
 {
     USBHubState *s = static_cast<USBHubState *>(port1->opaque);
     USBHubPort *port = &s->ports[port1->index];
@@ -276,7 +298,7 @@ static void usb_hub_wakeup(USBPort *port1)
     }
 }
 
-static void usb_hub_complete(USBPort *port, USBPacket *packet)
+void USBHubState::portComplete(USBPort *port, USBPacket *packet)
 {
     USBHubState *s = static_cast<USBHubState *>(port->opaque);
 
@@ -293,7 +315,7 @@ static void usb_hub_complete(USBPort *port, USBPacket *packet)
     s->dev.port->ops->complete(s->dev.port, packet);
 }
 
-static USBDevice *usb_hub_find_device(USBDevice *dev, uint8_t addr)
+USBDevice *USBHubState::findDevice(USBDevice *dev, uint8_t addr)
 {
     USBHubState *s = USB_HUB(dev);
     USBHubPort *port;
@@ -313,7 +335,7 @@ static USBDevice *usb_hub_find_device(USBDevice *dev, uint8_t addr)
     return NULL;
 }
 
-static void usb_hub_handle_reset(USBDevice *dev)
+void USBHubState::handleReset(USBDevice *dev)
 {
     USBHubState *s = USB_HUB(dev);
     USBHubPort *port;
@@ -357,7 +379,7 @@ static const char *feature_name(int feature)
     return name[feature] ?: "?";
 }
 
-static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
+void USBHubState::handleControl(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     USBHubState *s = (USBHubState *)dev;
@@ -532,7 +554,7 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
     }
 }
 
-static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
+void USBHubState::handleData(USBDevice *dev, USBPacket *p)
 {
     USBHubState *s = (USBHubState *)dev;
 
@@ -577,7 +599,7 @@ static void usb_hub_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_hub_unrealize(USBDevice *dev)
+void USBHubState::unrealize(USBDevice *dev)
 {
     USBHubState *s = (USBHubState *)dev;
     int i;
@@ -591,14 +613,14 @@ static void usb_hub_unrealize(USBDevice *dev)
 }
 
 static USBPortOps usb_hub_port_ops = {
-    .attach = usb_hub_attach,
-    .detach = usb_hub_detach,
-    .child_detach = usb_hub_child_detach,
-    .wakeup = usb_hub_wakeup,
-    .complete = usb_hub_complete,
+    .attach = USBHubState::portAttach,
+    .detach = USBHubState::portDetach,
+    .child_detach = USBHubState::portChildDetach,
+    .wakeup = USBHubState::portWakeup,
+    .complete = USBHubState::portComplete,
 };
 
-static void usb_hub_realize(USBDevice *dev, Error **errp)
+void USBHubState::realize(USBDevice *dev, Error **errp)
 {
     USBHubState *s = USB_HUB(dev);
     USBHubPort *port;
@@ -618,7 +640,7 @@ static void usb_hub_realize(USBDevice *dev, Error **errp)
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     s->port_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                 usb_hub_port_update_timer, s);
+                                 USBHubState::portUpdateTimer, s);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     for (i = 0; i < s->num_ports; i++) {
         port = &s->ports[i];
@@ -627,7 +649,7 @@ static void usb_hub_realize(USBDevice *dev, Error **errp)
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
         usb_port_location(&port->port, dev->port, i+1);
     }
-    usb_hub_handle_reset(dev);
+    USBHubState::handleReset(dev);
 }
 
 static const VMStateField vmstate_usb_hub_port_fields[] = {
@@ -643,7 +665,7 @@ static const VMStateDescription vmstate_usb_hub_port = {
     .fields = vmstate_usb_hub_port_fields,
 };
 
-static bool usb_hub_port_timer_needed(void *opaque)
+bool USBHubState::portTimerNeeded(void *opaque)
 {
     USBHubState *s = static_cast<USBHubState *>(opaque);
 
@@ -659,7 +681,7 @@ static const VMStateDescription vmstate_usb_hub_port_timer = {
     .name = "usb-hub/port-timer",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = usb_hub_port_timer_needed,
+    .needed = USBHubState::portTimerNeeded,
     .fields = vmstate_usb_hub_port_timer_fields,
 };
 
@@ -688,19 +710,19 @@ static const Property usb_hub_properties[] = {
     DEFINE_PROP_BOOL("port-power", USBHubState, port_power, false),
 };
 
-static void usb_hub_class_initfn(ObjectClass *klass, const void *data)
+void USBHubState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize        = usb_hub_realize;
+    uc->realize        = USBHubState::realize;
     uc->product_desc   = "QEMU USB Hub";
     uc->usb_desc       = &desc_hub;
-    uc->find_device    = usb_hub_find_device;
-    uc->handle_reset   = usb_hub_handle_reset;
-    uc->handle_control = usb_hub_handle_control;
-    uc->handle_data    = usb_hub_handle_data;
-    uc->unrealize      = usb_hub_unrealize;
+    uc->find_device    = USBHubState::findDevice;
+    uc->handle_reset   = USBHubState::handleReset;
+    uc->handle_control = USBHubState::handleControl;
+    uc->handle_data    = USBHubState::handleData;
+    uc->unrealize      = USBHubState::unrealize;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "hub";
     dc->vmsd = &vmstate_usb_hub;
@@ -711,7 +733,7 @@ static const TypeInfo hub_info = {
     .name          = TYPE_USB_HUB,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHubState),
-    .class_init    = usb_hub_class_initfn,
+    .class_init    = USBHubState::classInit,
 };
 
 static void usb_hub_register_types(void)

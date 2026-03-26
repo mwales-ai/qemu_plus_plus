@@ -30,6 +30,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "hw/usb.h"
@@ -660,6 +661,17 @@ struct USBAudioState {
     uint32_t debug;
     uint32_t buffer_user, buffer;
     bool multi;
+
+    /* Methods */
+    static void handleReset(USBDevice *dev);
+    static void handleControl(USBDevice *dev, USBPacket *p,
+                             int request, int value, int index,
+                             int length, uint8_t *data);
+    static void handleData(USBDevice *dev, USBPacket *p);
+    static void setInterface(USBDevice *dev, int iface, int old, int value);
+    static void realize(USBDevice *dev, Error **errp);
+    static void unrealize(USBDevice *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_USB_AUDIO "usb-audio"
@@ -820,7 +832,7 @@ static int usb_audio_set_control(USBAudioState *s, uint8_t attrib,
     return ret;
 }
 
-static void usb_audio_handle_control(USBDevice *dev, USBPacket *p,
+void USBAudioState::handleControl(USBDevice *dev, USBPacket *p,
                                     int request, int value, int index,
                                     int length, uint8_t *data)
 {
@@ -880,8 +892,8 @@ fail:
     }
 }
 
-static void usb_audio_set_interface(USBDevice *dev, int iface,
-                                    int old, int value)
+void USBAudioState::setInterface(USBDevice *dev, int iface,
+                                 int old, int value)
 {
     USBAudioState *s = USB_AUDIO(dev);
 
@@ -890,7 +902,7 @@ static void usb_audio_set_interface(USBDevice *dev, int iface,
     }
 }
 
-static void usb_audio_handle_reset(USBDevice *dev)
+void USBAudioState::handleReset(USBDevice *dev)
 {
     USBAudioState *s = USB_AUDIO(dev);
 
@@ -914,7 +926,7 @@ static void usb_audio_handle_dataout(USBAudioState *s, USBPacket *p)
     }
 }
 
-static void usb_audio_handle_data(USBDevice *dev, USBPacket *p)
+void USBAudioState::handleData(USBDevice *dev, USBPacket *p)
 {
     USBAudioState *s = (USBAudioState *) dev;
 
@@ -931,7 +943,7 @@ static void usb_audio_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static void usb_audio_unrealize(USBDevice *dev)
+void USBAudioState::unrealize(USBDevice *dev)
 {
     USBAudioState *s = USB_AUDIO(dev);
 
@@ -945,7 +957,7 @@ static void usb_audio_unrealize(USBDevice *dev)
     streambuf_fini(&s->out.buf);
 }
 
-static void usb_audio_realize(USBDevice *dev, Error **errp)
+void USBAudioState::realize(USBDevice *dev, Error **errp)
 {
     USBAudioState *s = USB_AUDIO(dev);
     int i;
@@ -1005,7 +1017,7 @@ static const Property usb_audio_properties[] = {
     DEFINE_PROP_BOOL("multi", USBAudioState, multi, false),
 };
 
-static void usb_audio_class_init(ObjectClass *klass, const void *data)
+void USBAudioState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *k = USB_DEVICE_CLASS(klass);
@@ -1014,19 +1026,19 @@ static void usb_audio_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, usb_audio_properties);
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     k->product_desc   = "QEMU USB Audio Interface";
-    k->realize        = usb_audio_realize;
-    k->handle_reset   = usb_audio_handle_reset;
-    k->handle_control = usb_audio_handle_control;
-    k->handle_data    = usb_audio_handle_data;
-    k->unrealize      = usb_audio_unrealize;
-    k->set_interface  = usb_audio_set_interface;
+    k->realize        = USBAudioState::realize;
+    k->handle_reset   = USBAudioState::handleReset;
+    k->handle_control = USBAudioState::handleControl;
+    k->handle_data    = USBAudioState::handleData;
+    k->unrealize      = USBAudioState::unrealize;
+    k->set_interface  = USBAudioState::setInterface;
 }
 
 static const TypeInfo usb_audio_info = {
     .name          = TYPE_USB_AUDIO,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBAudioState),
-    .class_init    = usb_audio_class_init,
+    .class_init    = USBAudioState::classInit,
 };
 
 static void usb_audio_register_types(void)

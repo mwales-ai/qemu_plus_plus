@@ -812,7 +812,7 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
 
 static void typhoon_alarm_timer(void *opaque)
 {
-    TyphoonState *s = (TyphoonState *)((uintptr_t)opaque & ~3);
+    TyphoonState *s = reinterpret_cast<TyphoonState *>((uintptr_t)opaque & ~3);
     int cpu = (uintptr_t)opaque & 3;
 
     /* Set the ITI bit for this cpu.  */

@@ -322,17 +322,17 @@ static int set_prom_cmdline(ram_addr_t initrd_offset, long initrd_size)
 
     ret = (3 + 1) * 4;
     *parg_env++ = cmdline_vaddr + ret;
-    ret += (1 + snprintf(cmdline_buf + ret, 256 - ret, "g"));
+    ret += (1 + snprintf(static_cast<char *>(cmdline_buf) + ret, 256 - ret, "g"));
 
     /* argv1 */
     *parg_env++ = cmdline_vaddr + ret;
     if (initrd_size > 0)
-        ret += (1 + snprintf(cmdline_buf + ret, 256 - ret,
+        ret += (1 + snprintf(static_cast<char *>(cmdline_buf) + ret, 256 - ret,
                 "rd_start=0x" TARGET_FMT_lx " rd_size=%li %s",
                 cpu_mips_phys_to_kseg0(NULL, initrd_offset),
                 initrd_size, loaderparams.kernel_cmdline));
     else
-        ret += (1 + snprintf(cmdline_buf + ret, 256 - ret, "%s",
+        ret += (1 + snprintf(static_cast<char *>(cmdline_buf) + ret, 256 - ret, "%s",
                 loaderparams.kernel_cmdline));
 
     /* argv2 */

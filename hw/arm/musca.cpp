@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "system/address-spaces.h"
@@ -86,6 +87,11 @@ struct MuscaMachineState {
     UnimplementedDeviceState cryptoisland;
     Clock *sysclk;
     Clock *s32kclk;
+
+    /* Static class methods */
+    static void init(MachineState *machine);
+    static void muscaAClassInit(ObjectClass *oc, const void *data);
+    static void muscaB1ClassInit(ObjectClass *oc, const void *data);
 };
 
 #define TYPE_MUSCA_MACHINE "musca"
@@ -352,7 +358,7 @@ static MemoryRegion *make_musca_a_devs(MuscaMachineState *mms, void *opaque,
     return &mms->container;
 }
 
-static void musca_init(MachineState *machine)
+void MuscaMachineState::init(MachineState *machine)
 {
     MuscaMachineState *mms = MUSCA_MACHINE(machine);
     MuscaMachineClass *mmc = MUSCA_MACHINE_GET_CLASS(mms);
@@ -607,10 +613,10 @@ static void __attribute__((unused)) musca_class_init(ObjectClass *oc, const void
     mc->min_cpus = mc->default_cpus;
     mc->max_cpus = mc->default_cpus;
     mc->valid_cpu_types = valid_cpu_types;
-    mc->init = musca_init;
+    mc->init = MuscaMachineState::init;
 }
 
-static void musca_a_class_init(ObjectClass *oc, const void *data)
+void MuscaMachineState::muscaAClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MuscaMachineClass *mmc = MUSCA_MACHINE_CLASS(oc);
@@ -624,7 +630,7 @@ static void musca_a_class_init(ObjectClass *oc, const void *data)
     mmc->num_mpcs = ARRAY_SIZE(a_mpc_info);
 }
 
-static void musca_b1_class_init(ObjectClass *oc, const void *data)
+void MuscaMachineState::muscaB1ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MuscaMachineClass *mmc = MUSCA_MACHINE_CLASS(oc);
@@ -657,14 +663,14 @@ static const TypeInfo musca_info = {
 static const TypeInfo musca_a_info = {
     .name = TYPE_MUSCA_A_MACHINE,
     .parent = TYPE_MUSCA_MACHINE,
-    .class_init = musca_a_class_init,
+    .class_init = MuscaMachineState::muscaAClassInit,
     .interfaces = arm_machine_interfaces,
 };
 
 static const TypeInfo musca_b1_info = {
     .name = TYPE_MUSCA_B1_MACHINE,
     .parent = TYPE_MUSCA_MACHINE,
-    .class_init = musca_b1_class_init,
+    .class_init = MuscaMachineState::muscaB1ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 

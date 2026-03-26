@@ -33,6 +33,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "hw/scsi/scsi.h"
 #include "migration/vmstate.h"
@@ -96,6 +97,11 @@ struct VSCSIState {
     SpaprVioDevice vdev;
     SCSIBus bus;
     vscsi_req reqs[VSCSI_REQ_LIMIT];
+
+    /* Static callbacks / class methods */
+    static void realize(SpaprVioDevice *dev, Error **errp);
+    static void vscsiReset(SpaprVioDevice *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static union viosrp_iu *req_iu(vscsi_req *req)
@@ -1210,7 +1216,7 @@ static const struct SCSIBusInfo vscsi_scsi_info = {
     .load_request = vscsi_load_request,
 };
 
-static void spapr_vscsi_reset(SpaprVioDevice *dev)
+void VSCSIState::vscsiReset(SpaprVioDevice *dev)
 {
     VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
     int i;
@@ -1221,7 +1227,7 @@ static void spapr_vscsi_reset(SpaprVioDevice *dev)
     }
 }
 
-static void spapr_vscsi_realize(SpaprVioDevice *dev, Error **errp)
+void VSCSIState::realize(SpaprVioDevice *dev, Error **errp)
 {
     VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
 
@@ -1278,13 +1284,13 @@ static const VMStateDescription vmstate_spapr_vscsi = {
     .fields = vmstate_spapr_vscsi_fields,
 };
 
-static void spapr_vscsi_class_init(ObjectClass *klass, const void *data)
+void VSCSIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
-    k->realize = spapr_vscsi_realize;
-    k->reset = spapr_vscsi_reset;
+    k->realize = VSCSIState::realize;
+    k->reset = VSCSIState::vscsiReset;
     k->devnode = spapr_vscsi_devnode;
     k->dt_name = "v-scsi";
     k->dt_type = "vscsi";
@@ -1300,7 +1306,7 @@ static const TypeInfo spapr_vscsi_info = {
     .name          = TYPE_VIO_SPAPR_VSCSI_DEVICE,
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(VSCSIState),
-    .class_init    = spapr_vscsi_class_init,
+    .class_init    = VSCSIState::classInit,
 };
 
 static void spapr_vscsi_register_types(void)

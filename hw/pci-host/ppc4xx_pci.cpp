@@ -22,6 +22,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/pci-host/ppc4xx.h"
@@ -61,15 +62,24 @@ struct PPC4xxPCIState {
 
     MemoryRegion container;
     MemoryRegion iomem;
+
+    /* methods */
+    static uint64_t regRead4(void *opaque, hwaddr offset, unsigned size);
+    static void regWrite4(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    static void pciReset(void *opaque);
+    static int mapIrq(PCIDevice *pci_dev, int irq_num);
+    static void setIrq(void *opaque, int irq_num, int level);
+
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+
+    static void pcihostClassInit(ObjectClass *klass, const void *data);
+    static void hostBridgeClassInit(ObjectClass *klass, const void *data);
 };
 
 #define PCIC0_CFGADDR       0x0
 #define PCIC0_CFGDATA       0x4
 
-/*
- * PLB Memory Map (PMM) registers specify which PLB addresses are translated to
- * PCI accesses.
- */
 #define PCIL0_PMM0LA        0x0
 #define PCIL0_PMM0MA        0x4
 #define PCIL0_PMM0PCILA     0x8
@@ -83,10 +93,6 @@ struct PPC4xxPCIState {
 #define PCIL0_PMM2PCILA     0x28
 #define PCIL0_PMM2PCIHA     0x2c
 
-/*
- * PCI Target Map (PTM) registers specify which PCI addresses are translated to
- * PLB accesses.
- */
 #define PCIL0_PTM1MS        0x30
 #define PCIL0_PTM1LA        0x34
 #define PCIL0_PTM2MS        0x38
@@ -96,68 +102,28 @@ struct PPC4xxPCIState {
 
 #define PCI_ALL_SIZE        (PCI_REG_BASE + PCI_REG_SIZE)
 
-static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
-                                  uint64_t value, unsigned size)
+void PPC4xxPCIState::regWrite4(void *opaque, hwaddr offset,
+                                uint64_t value, unsigned size)
 {
     struct PPC4xxPCIState *pci = static_cast<struct PPC4xxPCIState *>(opaque);
 
-    /*
-     * We ignore all target attempts at PCI configuration, effectively
-     * assuming a bidirectional 1:1 mapping of PLB and PCI space.
-     */
     switch (offset) {
-    case PCIL0_PMM0LA:
-        pci->pmm[0].la = value;
-        break;
-    case PCIL0_PMM0MA:
-        pci->pmm[0].ma = value;
-        break;
-    case PCIL0_PMM0PCIHA:
-        pci->pmm[0].pciha = value;
-        break;
-    case PCIL0_PMM0PCILA:
-        pci->pmm[0].pcila = value;
-        break;
-
-    case PCIL0_PMM1LA:
-        pci->pmm[1].la = value;
-        break;
-    case PCIL0_PMM1MA:
-        pci->pmm[1].ma = value;
-        break;
-    case PCIL0_PMM1PCIHA:
-        pci->pmm[1].pciha = value;
-        break;
-    case PCIL0_PMM1PCILA:
-        pci->pmm[1].pcila = value;
-        break;
-
-    case PCIL0_PMM2LA:
-        pci->pmm[2].la = value;
-        break;
-    case PCIL0_PMM2MA:
-        pci->pmm[2].ma = value;
-        break;
-    case PCIL0_PMM2PCIHA:
-        pci->pmm[2].pciha = value;
-        break;
-    case PCIL0_PMM2PCILA:
-        pci->pmm[2].pcila = value;
-        break;
-
-    case PCIL0_PTM1MS:
-        pci->ptm[0].ms = value;
-        break;
-    case PCIL0_PTM1LA:
-        pci->ptm[0].la = value;
-        break;
-    case PCIL0_PTM2MS:
-        pci->ptm[1].ms = value;
-        break;
-    case PCIL0_PTM2LA:
-        pci->ptm[1].la = value;
-        break;
-
+    case PCIL0_PMM0LA:    pci->pmm[0].la = value; break;
+    case PCIL0_PMM0MA:    pci->pmm[0].ma = value; break;
+    case PCIL0_PMM0PCIHA: pci->pmm[0].pciha = value; break;
+    case PCIL0_PMM0PCILA: pci->pmm[0].pcila = value; break;
+    case PCIL0_PMM1LA:    pci->pmm[1].la = value; break;
+    case PCIL0_PMM1MA:    pci->pmm[1].ma = value; break;
+    case PCIL0_PMM1PCIHA: pci->pmm[1].pciha = value; break;
+    case PCIL0_PMM1PCILA: pci->pmm[1].pcila = value; break;
+    case PCIL0_PMM2LA:    pci->pmm[2].la = value; break;
+    case PCIL0_PMM2MA:    pci->pmm[2].ma = value; break;
+    case PCIL0_PMM2PCIHA: pci->pmm[2].pciha = value; break;
+    case PCIL0_PMM2PCILA: pci->pmm[2].pcila = value; break;
+    case PCIL0_PTM1MS:    pci->ptm[0].ms = value; break;
+    case PCIL0_PTM1LA:    pci->ptm[0].la = value; break;
+    case PCIL0_PTM2MS:    pci->ptm[1].ms = value; break;
+    case PCIL0_PTM2LA:    pci->ptm[1].la = value; break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                      "%s: unhandled PCI internal register 0x%" HWADDR_PRIx "\n",
@@ -166,65 +132,29 @@ static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
     }
 }
 
-static uint64_t ppc4xx_pci_reg_read4(void *opaque, hwaddr offset,
-                                     unsigned size)
+uint64_t PPC4xxPCIState::regRead4(void *opaque, hwaddr offset,
+                                   unsigned size)
 {
     struct PPC4xxPCIState *pci = static_cast<struct PPC4xxPCIState *>(opaque);
     uint32_t value;
 
     switch (offset) {
-    case PCIL0_PMM0LA:
-        value = pci->pmm[0].la;
-        break;
-    case PCIL0_PMM0MA:
-        value = pci->pmm[0].ma;
-        break;
-    case PCIL0_PMM0PCIHA:
-        value = pci->pmm[0].pciha;
-        break;
-    case PCIL0_PMM0PCILA:
-        value = pci->pmm[0].pcila;
-        break;
-
-    case PCIL0_PMM1LA:
-        value = pci->pmm[1].la;
-        break;
-    case PCIL0_PMM1MA:
-        value = pci->pmm[1].ma;
-        break;
-    case PCIL0_PMM1PCIHA:
-        value = pci->pmm[1].pciha;
-        break;
-    case PCIL0_PMM1PCILA:
-        value = pci->pmm[1].pcila;
-        break;
-
-    case PCIL0_PMM2LA:
-        value = pci->pmm[2].la;
-        break;
-    case PCIL0_PMM2MA:
-        value = pci->pmm[2].ma;
-        break;
-    case PCIL0_PMM2PCIHA:
-        value = pci->pmm[2].pciha;
-        break;
-    case PCIL0_PMM2PCILA:
-        value = pci->pmm[2].pcila;
-        break;
-
-    case PCIL0_PTM1MS:
-        value = pci->ptm[0].ms;
-        break;
-    case PCIL0_PTM1LA:
-        value = pci->ptm[0].la;
-        break;
-    case PCIL0_PTM2MS:
-        value = pci->ptm[1].ms;
-        break;
-    case PCIL0_PTM2LA:
-        value = pci->ptm[1].la;
-        break;
-
+    case PCIL0_PMM0LA:    value = pci->pmm[0].la; break;
+    case PCIL0_PMM0MA:    value = pci->pmm[0].ma; break;
+    case PCIL0_PMM0PCIHA: value = pci->pmm[0].pciha; break;
+    case PCIL0_PMM0PCILA: value = pci->pmm[0].pcila; break;
+    case PCIL0_PMM1LA:    value = pci->pmm[1].la; break;
+    case PCIL0_PMM1MA:    value = pci->pmm[1].ma; break;
+    case PCIL0_PMM1PCIHA: value = pci->pmm[1].pciha; break;
+    case PCIL0_PMM1PCILA: value = pci->pmm[1].pcila; break;
+    case PCIL0_PMM2LA:    value = pci->pmm[2].la; break;
+    case PCIL0_PMM2MA:    value = pci->pmm[2].ma; break;
+    case PCIL0_PMM2PCIHA: value = pci->pmm[2].pciha; break;
+    case PCIL0_PMM2PCILA: value = pci->pmm[2].pcila; break;
+    case PCIL0_PTM1MS:    value = pci->ptm[0].ms; break;
+    case PCIL0_PTM1LA:    value = pci->ptm[0].la; break;
+    case PCIL0_PTM2MS:    value = pci->ptm[1].ms; break;
+    case PCIL0_PTM2LA:    value = pci->ptm[1].la; break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s: invalid PCI internal register 0x%" HWADDR_PRIx "\n",
@@ -236,12 +166,12 @@ static uint64_t ppc4xx_pci_reg_read4(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps pci_reg_ops = {
-    .read = ppc4xx_pci_reg_read4,
-    .write = ppc4xx_pci_reg_write4,
+    .read = PPC4xxPCIState::regRead4,
+    .write = PPC4xxPCIState::regWrite4,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void ppc4xx_pci_reset(void *opaque)
+void PPC4xxPCIState::pciReset(void *opaque)
 {
     struct PPC4xxPCIState *pci = static_cast<struct PPC4xxPCIState *>(opaque);
 
@@ -249,11 +179,7 @@ static void ppc4xx_pci_reset(void *opaque)
     memset(pci->ptm, 0, sizeof(pci->ptm));
 }
 
-/*
- * On Bamboo, all pins from each slot are tied to a single board IRQ.
- * This may need further refactoring for other boards.
- */
-static int ppc4xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
+int PPC4xxPCIState::mapIrq(PCIDevice *pci_dev, int irq_num)
 {
     int slot = PCI_SLOT(pci_dev->devfn);
 
@@ -262,7 +188,7 @@ static int ppc4xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
     return slot > 0 ? slot - 1 : PPC4xx_PCI_NUM_DEVS - 1;
 }
 
-static void ppc4xx_pci_set_irq(void *opaque, int irq_num, int level)
+void PPC4xxPCIState::setIrq(void *opaque, int irq_num, int level)
 {
     qemu_irq *pci_irqs = static_cast<qemu_irq *>(opaque);
 
@@ -317,45 +243,49 @@ static const VMStateDescription vmstate_ppc4xx_pci = {
 };
 
 /* XXX Interrupt acknowledge cycles not supported. */
-static void ppc4xx_pcihost_realize(DeviceState *dev, Error **errp)
+void PPC4xxPCIState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    PPC4xxPCIState *s;
+    PPC4xxPCIState *s = PPC4xx_PCI_HOST(dev);
+    s->realize(errp);
+}
+
+void PPC4xxPCIState::realize(Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     PCIHostState *h;
     PCIBus *b;
     int i;
 
-    h = PCI_HOST_BRIDGE(dev);
-    s = PPC4xx_PCI_HOST(dev);
+    h = PCI_HOST_BRIDGE(this);
 
-    for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
+    for (i = 0; i < ARRAY_SIZE(irq); i++) {
+        sysbus_init_irq(sbd, &irq[i]);
     }
 
-    b = pci_register_root_bus(dev, NULL, ppc4xx_pci_set_irq,
-                              ppc4xx_pci_map_irq, s->irq, get_system_memory(),
-                              get_system_io(), 0, ARRAY_SIZE(s->irq),
+    b = pci_register_root_bus(DEVICE(this), NULL, PPC4xxPCIState::setIrq,
+                              PPC4xxPCIState::mapIrq, irq, get_system_memory(),
+                              get_system_io(), 0, ARRAY_SIZE(irq),
                               TYPE_PCI_BUS);
     h->bus = b;
 
     pci_create_simple(b, 0, TYPE_PPC4xx_HOST_BRIDGE);
 
     /* XXX split into 2 memory regions, one for config space, one for regs */
-    memory_region_init(&s->container, OBJECT(s), "pci-container", PCI_ALL_SIZE);
-    memory_region_init_io(&h->conf_mem, OBJECT(s), &pci_host_conf_le_ops, h,
+    memory_region_init(&container, OBJECT(this), "pci-container", PCI_ALL_SIZE);
+    memory_region_init_io(&h->conf_mem, OBJECT(this), &pci_host_conf_le_ops, h,
                           "pci-conf-idx", 4);
-    memory_region_init_io(&h->data_mem, OBJECT(s), &pci_host_data_le_ops, h,
+    memory_region_init_io(&h->data_mem, OBJECT(this), &pci_host_data_le_ops, h,
                           "pci-conf-data", 4);
-    memory_region_init_io(&s->iomem, OBJECT(s), &pci_reg_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &pci_reg_ops, this,
                           "pci.reg", PCI_REG_SIZE);
-    memory_region_add_subregion(&s->container, PCIC0_CFGADDR, &h->conf_mem);
-    memory_region_add_subregion(&s->container, PCIC0_CFGDATA, &h->data_mem);
-    memory_region_add_subregion(&s->container, PCI_REG_BASE, &s->iomem);
-    sysbus_init_mmio(sbd, &s->container);
-    qemu_register_reset(ppc4xx_pci_reset, s);
+    memory_region_add_subregion(&container, PCIC0_CFGADDR, &h->conf_mem);
+    memory_region_add_subregion(&container, PCIC0_CFGDATA, &h->data_mem);
+    memory_region_add_subregion(&container, PCI_REG_BASE, &iomem);
+    sysbus_init_mmio(sbd, &container);
+    qemu_register_reset(PPC4xxPCIState::pciReset, this);
 }
 
-static void ppc4xx_host_bridge_class_init(ObjectClass *klass, const void *data)
+void PPC4xxPCIState::hostBridgeClassInit(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -364,10 +294,6 @@ static void ppc4xx_host_bridge_class_init(ObjectClass *klass, const void *data)
     k->vendor_id    = PCI_VENDOR_ID_IBM;
     k->device_id    = PCI_DEVICE_ID_IBM_440GX;
     k->class_id     = PCI_CLASS_BRIDGE_OTHER;
-    /*
-     * PCI-facing part of the host bridge, not usable without the
-     * host-facing part, which can't be device_add'ed, yet.
-     */
     dc->user_creatable = false;
 }
 
@@ -380,15 +306,15 @@ static const TypeInfo ppc4xx_host_bridge_info = {
     .name          = TYPE_PPC4xx_HOST_BRIDGE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
-    .class_init    = ppc4xx_host_bridge_class_init,
+    .class_init    = PPC4xxPCIState::hostBridgeClassInit,
     .interfaces = ppc4xx_host_bridge_interfaces,
 };
 
-static void ppc4xx_pcihost_class_init(ObjectClass *klass, const void *data)
+void PPC4xxPCIState::pcihostClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = ppc4xx_pcihost_realize;
+    dc->realize = PPC4xxPCIState::realizeWrapper;
     dc->vmsd = &vmstate_ppc4xx_pci;
 }
 
@@ -396,7 +322,7 @@ static const TypeInfo ppc4xx_pcihost_info = {
     .name          = TYPE_PPC4xx_PCI_HOST,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC4xxPCIState),
-    .class_init    = ppc4xx_pcihost_class_init,
+    .class_init    = PPC4xxPCIState::pcihostClassInit,
 };
 
 static void ppc4xx_pci_register_types(void)

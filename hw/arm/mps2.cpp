@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
@@ -90,6 +91,14 @@ struct MPS2MachineState {
     CMSDKAPBTimer timer[2];
     Clock *sysclk;
     Clock *refclk;
+
+    /* Static class methods */
+    static void commonInit(MachineState *machine);
+    static void mps2ClassInit(ObjectClass *oc, const void *data);
+    static void an385ClassInit(ObjectClass *oc, const void *data);
+    static void an386ClassInit(ObjectClass *oc, const void *data);
+    static void an500ClassInit(ObjectClass *oc, const void *data);
+    static void an511ClassInit(ObjectClass *oc, const void *data);
 };
 
 #define TYPE_MPS2_MACHINE "mps2"
@@ -133,7 +142,7 @@ static void make_ram_alias(MemoryRegion *mr, const char *name,
     memory_region_add_subregion(get_system_memory(), base, mr);
 }
 
-static void mps2_common_init(MachineState *machine)
+void MPS2MachineState::commonInit(MachineState *machine)
 {
     MPS2MachineState *mms = MPS2_MACHINE(machine);
     MPS2MachineClass *mmc = MPS2_MACHINE_GET_CLASS(machine);
@@ -469,17 +478,17 @@ static void mps2_common_init(MachineState *machine)
                        0, 0x400000);
 }
 
-static void mps2_class_init(ObjectClass *oc, const void *data)
+void MPS2MachineState::mps2ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->init = mps2_common_init;
+    mc->init = MPS2MachineState::commonInit;
     mc->max_cpus = 1;
     mc->default_ram_size = 16 * MiB;
     mc->default_ram_id = "mps.ram";
 }
 
-static void mps2_an385_class_init(ObjectClass *oc, const void *data)
+void MPS2MachineState::an385ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
@@ -498,7 +507,7 @@ static void mps2_an385_class_init(ObjectClass *oc, const void *data)
     mmc->has_block_ram = true;
 }
 
-static void mps2_an386_class_init(ObjectClass *oc, const void *data)
+void MPS2MachineState::an386ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
@@ -517,7 +526,7 @@ static void mps2_an386_class_init(ObjectClass *oc, const void *data)
     mmc->has_block_ram = true;
 }
 
-static void mps2_an500_class_init(ObjectClass *oc, const void *data)
+void MPS2MachineState::an500ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
@@ -536,7 +545,7 @@ static void mps2_an500_class_init(ObjectClass *oc, const void *data)
     mmc->has_block_ram = false;
 }
 
-static void mps2_an511_class_init(ObjectClass *oc, const void *data)
+void MPS2MachineState::an511ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2MachineClass *mmc = MPS2_MACHINE_CLASS(oc);
@@ -561,34 +570,34 @@ static const TypeInfo mps2_info = {
     .instance_size = sizeof(MPS2MachineState),
     .is_abstract = true,
     .class_size = sizeof(MPS2MachineClass),
-    .class_init = mps2_class_init,
+    .class_init = MPS2MachineState::mps2ClassInit,
 };
 
 static const TypeInfo mps2_an385_info = {
     .name = TYPE_MPS2_AN385_MACHINE,
     .parent = TYPE_MPS2_MACHINE,
-    .class_init = mps2_an385_class_init,
+    .class_init = MPS2MachineState::an385ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 
 static const TypeInfo mps2_an386_info = {
     .name = TYPE_MPS2_AN386_MACHINE,
     .parent = TYPE_MPS2_MACHINE,
-    .class_init = mps2_an386_class_init,
+    .class_init = MPS2MachineState::an386ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 
 static const TypeInfo mps2_an500_info = {
     .name = TYPE_MPS2_AN500_MACHINE,
     .parent = TYPE_MPS2_MACHINE,
-    .class_init = mps2_an500_class_init,
+    .class_init = MPS2MachineState::an500ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 
 static const TypeInfo mps2_an511_info = {
     .name = TYPE_MPS2_AN511_MACHINE,
     .parent = TYPE_MPS2_MACHINE,
-    .class_init = mps2_an511_class_init,
+    .class_init = MPS2MachineState::an511ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 

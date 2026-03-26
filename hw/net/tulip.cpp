@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/pci/pci_device.h"
@@ -44,6 +45,13 @@ struct TULIPState {
 
     uint32_t rx_status;
     uint8_t filter[16][6];
+
+    /* Static callbacks / class methods */
+    static void qdevReset(DeviceState *dev);
+    static void pciRealize(PCIDevice *pci_dev, Error **errp);
+    static void pciExit(PCIDevice *pci_dev);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateDescription vmstate_pci_tulip = {
@@ -738,7 +746,7 @@ static void tulip_reset(TULIPState *s)
     s->csr[15] = 0x8ff00000;
 }
 
-static void tulip_qdev_reset(DeviceState *dev)
+void TULIPState::qdevReset(DeviceState *dev)
 {
     PCIDevice *d = PCI_DEVICE(dev);
     TULIPState *s = TULIP(d);
@@ -957,7 +965,7 @@ static void tulip_fill_eeprom(TULIPState *s)
     eeprom[63] = cpu_to_le16(tulip_srom_crc(s, (uint8_t *)eeprom, 126));
 }
 
-static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
+void TULIPState::pciRealize(PCIDevice *pci_dev, Error **errp)
 {
     TULIPState *s = DO_UPCAST(TULIPState, dev, pci_dev);
     uint8_t *pci_conf;
@@ -988,7 +996,7 @@ static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 }
 
-static void pci_tulip_exit(PCIDevice *pci_dev)
+void TULIPState::pciExit(PCIDevice *pci_dev)
 {
     TULIPState *s = DO_UPCAST(TULIPState, dev, pci_dev);
 
@@ -997,7 +1005,7 @@ static void pci_tulip_exit(PCIDevice *pci_dev)
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
 }
 
-static void tulip_instance_init(Object *obj)
+void TULIPState::instanceInit(Object *obj)
 {
     PCIDevice *pci_dev = PCI_DEVICE(obj);
     TULIPState *d = DO_UPCAST(TULIPState, dev, pci_dev);
@@ -1011,13 +1019,13 @@ static const Property tulip_properties[] = {
     DEFINE_NIC_PROPERTIES(TULIPState, c),
 };
 
-static void tulip_class_init(ObjectClass *klass, const void *data)
+void TULIPState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->realize = pci_tulip_realize;
-    k->exit = pci_tulip_exit;
+    k->realize = TULIPState::pciRealize;
+    k->exit = TULIPState::pciExit;
     k->vendor_id = PCI_VENDOR_ID_DEC;
     k->device_id = PCI_DEVICE_ID_DEC_21143;
     k->subsystem_vendor_id = PCI_VENDOR_ID_HP;
@@ -1025,7 +1033,7 @@ static void tulip_class_init(ObjectClass *klass, const void *data)
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     dc->vmsd = &vmstate_pci_tulip;
     device_class_set_props(dc, tulip_properties);
-    device_class_set_legacy_reset(dc, tulip_qdev_reset);
+    device_class_set_legacy_reset(dc, TULIPState::qdevReset);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
@@ -1038,8 +1046,8 @@ static const TypeInfo tulip_info = {
     .name          = TYPE_TULIP,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(TULIPState),
-    .instance_init = tulip_instance_init,
-    .class_init    = tulip_class_init,
+    .instance_init = TULIPState::instanceInit,
+    .class_init    = TULIPState::classInit,
     .interfaces    = tulip_interfaces,
 };
 

@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "hw/core/split-irq.h"
@@ -121,6 +122,9 @@ struct ssys_state {
     uint32_t dc2;
     uint32_t dc3;
     uint32_t dc4;
+
+    /* Static class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void ssys_update(ssys_state *s)
@@ -509,6 +513,9 @@ struct stellaris_i2c_state {
     uint32_t mimr;
     uint32_t mris;
     uint32_t mcr;
+
+    /* Static class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define STELLARIS_I2C_MCS_BUSY    0x01
@@ -740,6 +747,9 @@ struct StellarisADCState {
     uint32_t ssctl[4];
     uint32_t noise;
     qemu_irq irq[4];
+
+    /* Static class methods */
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static uint32_t stellaris_adc_fifo_read(StellarisADCState *s, int n)
@@ -1461,7 +1471,7 @@ static void stellaris_machine_init(void)
 
 type_init(stellaris_machine_init)
 
-static void stellaris_i2c_class_init(ObjectClass *klass, const void *data)
+void stellaris_i2c_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1477,10 +1487,10 @@ static const TypeInfo stellaris_i2c_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_i2c_state),
     .instance_init = stellaris_i2c_init,
-    .class_init    = stellaris_i2c_class_init,
+    .class_init    = stellaris_i2c_state::classInit,
 };
 
-static void stellaris_adc_class_init(ObjectClass *klass, const void *data)
+void StellarisADCState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1494,10 +1504,10 @@ static const TypeInfo stellaris_adc_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StellarisADCState),
     .instance_init = stellaris_adc_init,
-    .class_init    = stellaris_adc_class_init,
+    .class_init    = StellarisADCState::classInit,
 };
 
-static void stellaris_sys_class_init(ObjectClass *klass, const void *data)
+void ssys_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1514,7 +1524,7 @@ static const TypeInfo stellaris_sys_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ssys_state),
     .instance_init = stellaris_sys_instance_init,
-    .class_init = stellaris_sys_class_init,
+    .class_init = ssys_state::classInit,
 };
 
 static void stellaris_register_types(void)

@@ -25,6 +25,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qobject/qlist.h"
@@ -117,6 +118,10 @@ struct MPS3RMachineState {
     UnimplementedDeviceState i2s_audio;
     PL031State rtc;
     Clock *clk;
+
+    /* Static class methods */
+    static void commonInit(MachineState *machine);
+    static void an536ClassInit(ObjectClass *oc, const void *data);
 };
 
 #define TYPE_MPS3R_MACHINE "mps3r"
@@ -351,7 +356,7 @@ static void create_uart(MPS3RMachineState *mms, unsigned int uartno, MemoryRegio
     sysbus_connect_irq(sbd, 4, combirq);
 }
 
-static void mps3r_common_init(MachineState *machine)
+void MPS3RMachineState::commonInit(MachineState *machine)
 {
     MPS3RMachineState *mms = MPS3R_MACHINE(machine);
     MPS3RMachineClass *mmc = MPS3R_MACHINE_GET_CLASS(mms);
@@ -587,10 +592,10 @@ static void __attribute__((unused)) mps3r_class_init(ObjectClass *oc, const void
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->init = mps3r_common_init;
+    mc->init = MPS3RMachineState::commonInit;
 }
 
-static void mps3r_an536_class_init(ObjectClass *oc, const void *data)
+void MPS3RMachineState::an536ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS3RMachineClass *mmc = MPS3R_MACHINE_CLASS(oc);
@@ -633,7 +638,7 @@ static const TypeInfo mps3r_machine_types[] = {
     }, {
         .name = TYPE_MPS3R_AN536_MACHINE,
         .parent = TYPE_MPS3R_MACHINE,
-        .class_init = mps3r_an536_class_init,
+        .class_init = MPS3RMachineState::an536ClassInit,
         .interfaces = arm_machine_interfaces,
     },
 };

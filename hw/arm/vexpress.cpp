@@ -489,7 +489,7 @@ static uint32_t find_int_controller(void *fdt)
 static void vexpress_modify_dtb(const struct arm_boot_info *info, void *fdt)
 {
     uint32_t acells, scells, intc;
-    const VEDBoardInfo *daughterboard = (const VEDBoardInfo *)info;
+    const VEDBoardInfo *daughterboard = reinterpret_cast<const VEDBoardInfo *>(info);
 
     acells = qemu_fdt_getprop_cell(fdt, "/", "#address-cells",
                                    NULL, &error_fatal);

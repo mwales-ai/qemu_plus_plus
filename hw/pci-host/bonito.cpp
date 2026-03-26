@@ -39,6 +39,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -229,6 +230,22 @@ struct PCIBonitoState {
     MemoryRegion bonito_pciio;
     MemoryRegion bonito_localio;
 
+    /* methods */
+    static void writel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t readl(void *opaque, hwaddr addr, unsigned size);
+    static void pciconfWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t pciconfReadl(void *opaque, hwaddr addr, unsigned size);
+    static uint64_t ldmaReadl(void *opaque, hwaddr addr, unsigned size);
+    static void ldmaWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t copReadl(void *opaque, hwaddr addr, unsigned size);
+    static void copWritel(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint32_t sbridgePciaddr(void *opaque, hwaddr addr);
+    static void spciconfWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint64_t spciconfRead(void *opaque, hwaddr addr, unsigned size);
+
+    static void resetHold(Object *obj, ResetType type);
+    static void pciRealize(PCIDevice *dev, Error **errp);
+    static void pciClassInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_PCI_BONITO "Bonito"
@@ -239,12 +256,18 @@ struct BonitoState {
     qemu_irq *pic;
     PCIBonitoState *pci_dev;
     MemoryRegion pci_mem;
+
+    /* methods */
+    static void setIrq(void *opaque, int irq_num, int level);
+    static int mapIrq(PCIDevice *pci_dev, int irq_num);
+    static void hostRealize(DeviceState *dev, Error **errp);
+    static void hostClassInit(ObjectClass *klass, const void *data);
 };
 
-static void bonito_writel(void *opaque, hwaddr addr,
-                          uint64_t val, unsigned size)
+void PCIBonitoState::writel(void *opaque, hwaddr addr,
+                             uint64_t val, unsigned size)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
     uint32_t saddr;
     int reset = 0;
 
@@ -305,10 +328,10 @@ static void bonito_writel(void *opaque, hwaddr addr,
     }
 }
 
-static uint64_t bonito_readl(void *opaque, hwaddr addr,
-                             unsigned size)
+uint64_t PCIBonitoState::readl(void *opaque, hwaddr addr,
+                                unsigned size)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
     uint32_t saddr;
 
     saddr = addr >> 2;
@@ -323,8 +346,8 @@ static uint64_t bonito_readl(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps bonito_ops = {
-    .read = bonito_readl,
-    .write = bonito_writel,
+    .read = PCIBonitoState::readl,
+    .write = PCIBonitoState::writel,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -332,21 +355,20 @@ static const MemoryRegionOps bonito_ops = {
     },
 };
 
-static void bonito_pciconf_writel(void *opaque, hwaddr addr,
-                                  uint64_t val, unsigned size)
+void PCIBonitoState::pciconfWritel(void *opaque, hwaddr addr,
+                                    uint64_t val, unsigned size)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
     PCIDevice *d = PCI_DEVICE(s);
 
     DPRINTF("bonito_pciconf_writel "HWADDR_FMT_plx" val %lx\n", addr, val);
     d->config_write(d, addr, val, 4);
 }
 
-static uint64_t bonito_pciconf_readl(void *opaque, hwaddr addr,
-                                     unsigned size)
+uint64_t PCIBonitoState::pciconfReadl(void *opaque, hwaddr addr,
+                                       unsigned size)
 {
-
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
     PCIDevice *d = PCI_DEVICE(s);
 
     DPRINTF("bonito_pciconf_readl "HWADDR_FMT_plx"\n", addr);
@@ -356,8 +378,8 @@ static uint64_t bonito_pciconf_readl(void *opaque, hwaddr addr,
 /* north bridge PCI configure space. 0x1fe0 0000 - 0x1fe0 00ff */
 
 static const MemoryRegionOps bonito_pciconf_ops = {
-    .read = bonito_pciconf_readl,
-    .write = bonito_pciconf_writel,
+    .read = PCIBonitoState::pciconfReadl,
+    .write = PCIBonitoState::pciconfWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -365,11 +387,11 @@ static const MemoryRegionOps bonito_pciconf_ops = {
     },
 };
 
-static uint64_t bonito_ldma_readl(void *opaque, hwaddr addr,
-                                  unsigned size)
+uint64_t PCIBonitoState::ldmaReadl(void *opaque, hwaddr addr,
+                                    unsigned size)
 {
     uint32_t val;
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
 
     if (addr >= sizeof(s->bonldma)) {
         return 0;
@@ -380,10 +402,10 @@ static uint64_t bonito_ldma_readl(void *opaque, hwaddr addr,
     return val;
 }
 
-static void bonito_ldma_writel(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned size)
+void PCIBonitoState::ldmaWritel(void *opaque, hwaddr addr,
+                                 uint64_t val, unsigned size)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
 
     if (addr >= sizeof(s->bonldma)) {
         return;
@@ -393,8 +415,8 @@ static void bonito_ldma_writel(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps bonito_ldma_ops = {
-    .read = bonito_ldma_readl,
-    .write = bonito_ldma_writel,
+    .read = PCIBonitoState::ldmaReadl,
+    .write = PCIBonitoState::ldmaWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -402,11 +424,11 @@ static const MemoryRegionOps bonito_ldma_ops = {
     },
 };
 
-static uint64_t bonito_cop_readl(void *opaque, hwaddr addr,
-                                 unsigned size)
+uint64_t PCIBonitoState::copReadl(void *opaque, hwaddr addr,
+                                   unsigned size)
 {
     uint32_t val;
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
 
     if (addr >= sizeof(s->boncop)) {
         return 0;
@@ -417,10 +439,10 @@ static uint64_t bonito_cop_readl(void *opaque, hwaddr addr,
     return val;
 }
 
-static void bonito_cop_writel(void *opaque, hwaddr addr,
-                              uint64_t val, unsigned size)
+void PCIBonitoState::copWritel(void *opaque, hwaddr addr,
+                                uint64_t val, unsigned size)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
 
     if (addr >= sizeof(s->boncop)) {
         return;
@@ -430,8 +452,8 @@ static void bonito_cop_writel(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps bonito_cop_ops = {
-    .read = bonito_cop_readl,
-    .write = bonito_cop_writel,
+    .read = PCIBonitoState::copReadl,
+    .write = PCIBonitoState::copWritel,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -439,9 +461,9 @@ static const MemoryRegionOps bonito_cop_ops = {
     },
 };
 
-static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
+uint32_t PCIBonitoState::sbridgePciaddr(void *opaque, hwaddr addr)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
     PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t cfgaddr;
     uint32_t idsel;
@@ -476,10 +498,10 @@ static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
     return pciaddr;
 }
 
-static void bonito_spciconf_write(void *opaque, hwaddr addr, uint64_t val,
-                                  unsigned size)
+void PCIBonitoState::spciconfWrite(void *opaque, hwaddr addr, uint64_t val,
+                                    unsigned size)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
     PCIDevice *d = PCI_DEVICE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t pciaddr;
@@ -488,7 +510,7 @@ static void bonito_spciconf_write(void *opaque, hwaddr addr, uint64_t val,
     DPRINTF("bonito_spciconf_write "HWADDR_FMT_plx" size %d val %lx\n",
             addr, size, val);
 
-    pciaddr = bonito_sbridge_pciaddr(s, addr);
+    pciaddr = PCIBonitoState::sbridgePciaddr(s, addr);
 
     if (pciaddr == 0xffffffff) {
         return;
@@ -507,9 +529,9 @@ static void bonito_spciconf_write(void *opaque, hwaddr addr, uint64_t val,
     pci_set_word(d->config + PCI_STATUS, status);
 }
 
-static uint64_t bonito_spciconf_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t PCIBonitoState::spciconfRead(void *opaque, hwaddr addr, unsigned size)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
     PCIDevice *d = PCI_DEVICE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t pciaddr;
@@ -517,7 +539,7 @@ static uint64_t bonito_spciconf_read(void *opaque, hwaddr addr, unsigned size)
 
     DPRINTF("bonito_spciconf_read "HWADDR_FMT_plx" size %d\n", addr, size);
 
-    pciaddr = bonito_sbridge_pciaddr(s, addr);
+    pciaddr = PCIBonitoState::sbridgePciaddr(s, addr);
 
     if (pciaddr == 0xffffffff) {
         return MAKE_64BIT_MASK(0, size * 8);
@@ -539,8 +561,8 @@ static uint64_t bonito_spciconf_read(void *opaque, hwaddr addr, unsigned size)
 
 /* south bridge PCI configure space. 0x1fe8 0000 - 0x1fef ffff */
 static const MemoryRegionOps bonito_spciconf_ops = {
-    .read = bonito_spciconf_read,
-    .write = bonito_spciconf_write,
+    .read = PCIBonitoState::spciconfRead,
+    .write = PCIBonitoState::spciconfWrite,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_NATIVE_ENDIAN,
@@ -548,9 +570,9 @@ static const MemoryRegionOps bonito_spciconf_ops = {
 
 #define BONITO_IRQ_BASE 32
 
-static void pci_bonito_set_irq(void *opaque, int irq_num, int level)
+void BonitoState::setIrq(void *opaque, int irq_num, int level)
 {
-    BonitoState *s = opaque;
+    BonitoState *s = static_cast<BonitoState *>(opaque);
     qemu_irq *pic = s->pic;
     PCIBonitoState *bonito_state = s->pci_dev;
     int internal_irq = irq_num - BONITO_IRQ_BASE;
@@ -567,7 +589,7 @@ static void pci_bonito_set_irq(void *opaque, int irq_num, int level)
 }
 
 /* map the original irq (0~3) to bonito irq (16~47, but 16~31 are unused) */
-static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
+int BonitoState::mapIrq(PCIDevice *pci_dev, int irq_num)
 {
     int slot;
 
@@ -587,7 +609,7 @@ static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
     }
 }
 
-static void bonito_reset_hold(Object *obj, ResetType type)
+void PCIBonitoState::resetHold(Object *obj, ResetType type)
 {
     PCIBonitoState *s = PCI_BONITO(obj);
     uint32_t val = 0;
@@ -622,7 +644,7 @@ static const VMStateDescription vmstate_bonito = {
     }
 };
 
-static void bonito_host_realize(DeviceState *dev, Error **errp)
+void BonitoState::hostRealize(DeviceState *dev, Error **errp)
 {
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
@@ -630,7 +652,7 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
 
     memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCIHI_SIZE);
     phb->bus = pci_register_root_bus(dev, "pci",
-                                     pci_bonito_set_irq, pci_bonito_map_irq,
+                                     BonitoState::setIrq, BonitoState::mapIrq,
                                      dev, &bs->pci_mem, get_system_io(),
                                      PCI_DEVFN(5, 0), 32, TYPE_PCI_BUS);
 
@@ -648,7 +670,7 @@ static void bonito_host_realize(DeviceState *dev, Error **errp)
     create_unimplemented_device("pci.io", BONITO_PCIIO_BASE, 1 * MiB);
 }
 
-static void bonito_pci_realize(PCIDevice *dev, Error **errp)
+void PCIBonitoState::pciRealize(PCIDevice *dev, Error **errp)
 {
     PCIBonitoState *s = PCI_BONITO(dev);
     MemoryRegion *host_mem = get_system_memory();
@@ -656,10 +678,6 @@ static void bonito_pci_realize(PCIDevice *dev, Error **errp)
     BonitoState *bs = s->pcihost;
     MemoryRegion *pcimem_alias = g_new(MemoryRegion, 1);
 
-    /*
-     * Bonito North Bridge, built on FPGA,
-     * VENDOR_ID/DEVICE_ID are "undefined"
-     */
     pci_config_set_prog_interface(dev->config, 0x00);
 
     /* set the north bridge register mapping */
@@ -754,24 +772,20 @@ PCIBus *bonito_init(qemu_irq *pic)
     return phb->bus;
 }
 
-static void bonito_pci_class_init(ObjectClass *klass, const void *data)
+void PCIBonitoState::pciClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    rc->phases.hold = bonito_reset_hold;
-    k->realize = bonito_pci_realize;
+    rc->phases.hold = PCIBonitoState::resetHold;
+    k->realize = PCIBonitoState::pciRealize;
     k->vendor_id = 0xdf53;
     k->device_id = 0x00d5;
     k->revision = 0x01;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
     dc->desc = "Host bridge";
     dc->vmsd = &vmstate_bonito;
-    /*
-     * PCI-facing part of the host bridge, not usable without the
-     * host-facing part, which can't be device_add'ed, yet.
-     */
     dc->user_creatable = false;
 }
 
@@ -779,25 +793,25 @@ static const TypeInfo bonito_pci_info = {
     .name          = TYPE_PCI_BONITO,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBonitoState),
-    .class_init    = bonito_pci_class_init,
+    .class_init    = PCIBonitoState::pciClassInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },
 };
 
-static void bonito_host_class_init(ObjectClass *klass, const void *data)
+void BonitoState::hostClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = bonito_host_realize;
+    dc->realize = BonitoState::hostRealize;
 }
 
 static const TypeInfo bonito_host_info = {
     .name          = TYPE_BONITO_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(BonitoState),
-    .class_init    = bonito_host_class_init,
+    .class_init    = BonitoState::hostClassInit,
 };
 
 static void bonito_register_types(void)
