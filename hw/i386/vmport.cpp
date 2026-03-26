@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/isa/isa.h"
 #include "hw/i386/vmport.h"
 #include "hw/qdev-properties.h"
@@ -79,6 +80,18 @@ struct VMPortState {
     uint8_t vmware_vmx_type;
 
     uint32_t compat_flags;
+
+    /* methods */
+    void realize(Error **errp);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static uint64_t ioportRead(void *opaque, hwaddr addr, unsigned size);
+    static void ioportWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
+    static uint32_t cmdGetVersion(void *opaque, uint32_t addr);
+    static uint32_t cmdGetBiosUuid(void *opaque, uint32_t addr);
+    static uint32_t cmdRamSize(void *opaque, uint32_t addr);
+    static uint32_t cmdGetHz(void *opaque, uint32_t addr);
+    static uint32_t cmdGetVcpuInfo(void *opaque, uint32_t addr);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static VMPortState *port_state;
@@ -93,7 +106,12 @@ extern "C" void vmport_register(VMPortCommand command, VMPortReadFunc *func, voi
     port_state->opaque[command] = opaque;
 }
 
-static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
+void VMPortState::realizeWrapper(DeviceState *dev, Error **errp)
+{
+    VMPORT(dev)->realize(errp);
+}
+
+uint64_t VMPortState::ioportRead(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     VMPortState *s = static_cast<VMPortState *>(opaque);
@@ -146,7 +164,7 @@ out:
     return eax;
 }
 
-static void vmport_ioport_write(void *opaque, hwaddr addr,
+void VMPortState::ioportWrite(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
@@ -154,10 +172,10 @@ static void vmport_ioport_write(void *opaque, hwaddr addr,
     if (qtest_enabled()) {
         return;
     }
-    cpu->env.regs[R_EAX] = vmport_ioport_read(opaque, addr, 4);
+    cpu->env.regs[R_EAX] = ioportRead(opaque, addr, 4);
 }
 
-static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
+uint32_t VMPortState::cmdGetVersion(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
 
@@ -171,7 +189,7 @@ static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
     return port_state->vmware_vmx_version;
 }
 
-static uint32_t vmport_cmd_get_bios_uuid(void *opaque, uint32_t addr)
+uint32_t VMPortState::cmdGetBiosUuid(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
     uint32_t *uuid_parts = (uint32_t *)(qemu_uuid.data);
@@ -183,7 +201,7 @@ static uint32_t vmport_cmd_get_bios_uuid(void *opaque, uint32_t addr)
     return cpu->env.regs[R_EAX];
 }
 
-static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
+uint32_t VMPortState::cmdRamSize(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
 
@@ -194,7 +212,7 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
     return current_machine->ram_size;
 }
 
-static uint32_t vmport_cmd_get_hz(void *opaque, uint32_t addr)
+uint32_t VMPortState::cmdGetHz(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
 
@@ -212,7 +230,7 @@ static uint32_t vmport_cmd_get_hz(void *opaque, uint32_t addr)
     return cpu->env.regs[R_EAX];
 }
 
-static uint32_t vmport_cmd_get_vcpu_info(void *opaque, uint32_t addr)
+uint32_t VMPortState::cmdGetVcpuInfo(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
     uint32_t ret = 0;
@@ -225,8 +243,8 @@ static uint32_t vmport_cmd_get_vcpu_info(void *opaque, uint32_t addr)
 }
 
 static const MemoryRegionOps vmport_ops = {
-    .read = vmport_ioport_read,
-    .write = vmport_ioport_write,
+    .read = VMPortState::ioportRead,
+    .write = VMPortState::ioportWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -234,10 +252,10 @@ static const MemoryRegionOps vmport_ops = {
     },
 };
 
-static void vmport_realizefn(DeviceState *dev, Error **errp)
+void VMPortState::realize(Error **errp)
 {
-    ISADevice *isadev = ISA_DEVICE(dev);
-    VMPortState *s = VMPORT(dev);
+    VMPortState *s = this;
+    ISADevice *isadev = ISA_DEVICE(s);
 
     memory_region_init_io(&s->io, OBJECT(s), &vmport_ops, s, "vmport", 1);
     isa_register_ioport(isadev, &s->io, 0x5658);
@@ -245,12 +263,12 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
     port_state = s;
 
     /* Register some generic port commands */
-    vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);
-    vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
+    vmport_register(VMPORT_CMD_GETVERSION, cmdGetVersion, NULL);
+    vmport_register(VMPORT_CMD_GETRAMSIZE, cmdRamSize, NULL);
     if (s->compat_flags & VMPORT_COMPAT_CMDS_V2) {
-        vmport_register(VMPORT_CMD_GETBIOSUUID, vmport_cmd_get_bios_uuid, NULL);
-        vmport_register(VMPORT_CMD_GETHZ, vmport_cmd_get_hz, NULL);
-        vmport_register(VMPORT_CMD_GET_VCPU_INFO, vmport_cmd_get_vcpu_info,
+        vmport_register(VMPORT_CMD_GETBIOSUUID, cmdGetBiosUuid, NULL);
+        vmport_register(VMPORT_CMD_GETHZ, cmdGetHz, NULL);
+        vmport_register(VMPORT_CMD_GET_VCPU_INFO, cmdGetVcpuInfo,
                         NULL);
     }
 }
@@ -289,11 +307,11 @@ static const Property vmport_properties[] = {
     DEFINE_PROP_UINT8("vmware-vmx-type", VMPortState, vmware_vmx_type, 2),
 };
 
-static void vmport_class_initfn(ObjectClass *klass, const void *data)
+void VMPortState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = vmport_realizefn;
+    dc->realize = realizeWrapper;
     /* Reason: realize sets global port_state */
     dc->user_creatable = false;
     device_class_set_props(dc, vmport_properties);
@@ -303,7 +321,7 @@ static const TypeInfo vmport_info = {
     .name          = TYPE_VMPORT,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(VMPortState),
-    .class_init    = vmport_class_initfn,
+    .class_init    = VMPortState::classInit,
 };
 
 static void vmport_register_types(void)

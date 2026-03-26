@@ -16,6 +16,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "system/address-spaces.h"
 #include "hw/boards.h"
@@ -54,88 +55,91 @@ struct XlnxZynqMPPMUSoCState {
     MicroBlazeCPU cpu;
     XlnxPMUIOIntc intc;
     XlnxZynqMPIPI ipi[XLNX_ZYNQMP_PMU_NUM_IPIS];
+
+    void realize(Error **errp)
+    {
+        object_property_set_uint(OBJECT(&cpu), "base-vectors",
+                                 XLNX_ZYNQMP_PMU_ROM_ADDR, &error_abort);
+        object_property_set_bool(OBJECT(&cpu), "use-stack-protection", true,
+                                 &error_abort);
+        object_property_set_uint(OBJECT(&cpu), "use-fpu", 0, &error_abort);
+        object_property_set_uint(OBJECT(&cpu), "use-hw-mul", 0, &error_abort);
+        object_property_set_bool(OBJECT(&cpu), "use-barrel", true,
+                                 &error_abort);
+        object_property_set_bool(OBJECT(&cpu), "use-msr-instr", true,
+                                 &error_abort);
+        object_property_set_bool(OBJECT(&cpu), "use-pcmp-instr", true,
+                                 &error_abort);
+        object_property_set_bool(OBJECT(&cpu), "use-mmu", false, &error_abort);
+        object_property_set_bool(OBJECT(&cpu), "little-endian", true,
+                                 &error_abort);
+        object_property_set_str(OBJECT(&cpu), "version", "8.40.b",
+                                &error_abort);
+        object_property_set_uint(OBJECT(&cpu), "pvr", 0, &error_abort);
+        if (!qdev_realize(DEVICE(&cpu), NULL, errp)) {
+            return;
+        }
+
+        object_property_set_uint(OBJECT(&intc), "intc-intr-size", 0x10,
+                                 &error_abort);
+        object_property_set_uint(OBJECT(&intc), "intc-level-edge", 0x0,
+                                 &error_abort);
+        object_property_set_uint(OBJECT(&intc), "intc-positive", 0xffff,
+                                 &error_abort);
+        if (!sysbus_realize(SYS_BUS_DEVICE(&intc), errp)) {
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&intc), 0, XLNX_ZYNQMP_PMU_INTC_ADDR);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&intc), 0,
+                           qdev_get_gpio_in(DEVICE(&cpu), MB_CPU_IRQ));
+
+        /* Connect the IPI device */
+        for (int i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
+            sysbus_realize(SYS_BUS_DEVICE(&ipi[i]), &error_abort);
+            sysbus_mmio_map(SYS_BUS_DEVICE(&ipi[i]), 0, ipi_addr[i]);
+            sysbus_connect_irq(SYS_BUS_DEVICE(&ipi[i]), 0,
+                               qdev_get_gpio_in(DEVICE(&intc), ipi_irq[i]));
+        }
+    }
+
+    static void realizeWrapper(DeviceState *dev, Error **errp)
+    {
+        XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(dev);
+        s->realize(errp);
+    }
+
+    static void instanceInit(Object *obj)
+    {
+        XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(obj);
+
+        object_initialize_child(obj, "pmu-cpu", &s->cpu, TYPE_MICROBLAZE_CPU);
+
+        object_initialize_child(obj, "intc", &s->intc, TYPE_XLNX_PMU_IO_INTC);
+
+        /* Create the IPI device */
+        for (int i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
+            char *name = g_strdup_printf("ipi%d", i);
+            object_initialize_child(obj, name, &s->ipi[i], TYPE_XLNX_ZYNQMP_IPI);
+            g_free(name);
+        }
+    }
+
+    static void classInit(ObjectClass *oc, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(oc);
+
+        /* xlnx-zynqmp-pmu-soc causes crashes when cold-plugged twice */
+        dc->user_creatable = false;
+        dc->realize = realizeWrapper;
+    }
 };
-
-
-static void xlnx_zynqmp_pmu_soc_init(Object *obj)
-{
-    XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(obj);
-
-    object_initialize_child(obj, "pmu-cpu", &s->cpu, TYPE_MICROBLAZE_CPU);
-
-    object_initialize_child(obj, "intc", &s->intc, TYPE_XLNX_PMU_IO_INTC);
-
-    /* Create the IPI device */
-    for (int i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
-        char *name = g_strdup_printf("ipi%d", i);
-        object_initialize_child(obj, name, &s->ipi[i], TYPE_XLNX_ZYNQMP_IPI);
-        g_free(name);
-    }
-}
-
-static void xlnx_zynqmp_pmu_soc_realize(DeviceState *dev, Error **errp)
-{
-    XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(dev);
-
-    object_property_set_uint(OBJECT(&s->cpu), "base-vectors",
-                             XLNX_ZYNQMP_PMU_ROM_ADDR, &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-stack-protection", true,
-                             &error_abort);
-    object_property_set_uint(OBJECT(&s->cpu), "use-fpu", 0, &error_abort);
-    object_property_set_uint(OBJECT(&s->cpu), "use-hw-mul", 0, &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-barrel", true,
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-msr-instr", true,
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-pcmp-instr", true,
-                             &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "use-mmu", false, &error_abort);
-    object_property_set_bool(OBJECT(&s->cpu), "little-endian", true,
-                             &error_abort);
-    object_property_set_str(OBJECT(&s->cpu), "version", "8.40.b",
-                            &error_abort);
-    object_property_set_uint(OBJECT(&s->cpu), "pvr", 0, &error_abort);
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
-        return;
-    }
-
-    object_property_set_uint(OBJECT(&s->intc), "intc-intr-size", 0x10,
-                             &error_abort);
-    object_property_set_uint(OBJECT(&s->intc), "intc-level-edge", 0x0,
-                             &error_abort);
-    object_property_set_uint(OBJECT(&s->intc), "intc-positive", 0xffff,
-                             &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->intc), errp)) {
-        return;
-    }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->intc), 0, XLNX_ZYNQMP_PMU_INTC_ADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->intc), 0,
-                       qdev_get_gpio_in(DEVICE(&s->cpu), MB_CPU_IRQ));
-
-    /* Connect the IPI device */
-    for (int i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
-        sysbus_realize(SYS_BUS_DEVICE(&s->ipi[i]), &error_abort);
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ipi[i]), 0, ipi_addr[i]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ipi[i]), 0,
-                           qdev_get_gpio_in(DEVICE(&s->intc), ipi_irq[i]));
-    }
-}
-
-static void xlnx_zynqmp_pmu_soc_class_init(ObjectClass *oc, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    /* xlnx-zynqmp-pmu-soc causes crashes when cold-plugged twice */
-    dc->user_creatable = false;
-    dc->realize = xlnx_zynqmp_pmu_soc_realize;
-}
 
 static const TypeInfo xlnx_zynqmp_pmu_soc_type_info = {
     .name = TYPE_XLNX_ZYNQMP_PMU_SOC,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(XlnxZynqMPPMUSoCState),
-    .instance_init = xlnx_zynqmp_pmu_soc_init,
-    .class_init = xlnx_zynqmp_pmu_soc_class_init,
+    .instance_init = XlnxZynqMPPMUSoCState::instanceInit,
+    .class_init = XlnxZynqMPPMUSoCState::classInit,
 };
 
 static void xlnx_zynqmp_pmu_soc_register_types(void)

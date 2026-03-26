@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 extern "C" {
 #include "qemu/cutils.h"

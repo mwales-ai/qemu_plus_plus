@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/module.h"
 #include "qemu/units.h"
 #include "hw/hw.h"
@@ -49,27 +50,6 @@ typedef struct spin_info {
 
 #define TYPE_E500_SPIN "e500-spin"
 OBJECT_DECLARE_SIMPLE_TYPE(SpinState, E500_SPIN)
-
-struct SpinState {
-    SysBusDevice parent_obj;
-
-    MemoryRegion iomem;
-    SpinInfo spin[MAX_CPUS];
-};
-
-static void spin_reset(DeviceState *dev)
-{
-    SpinState *s = E500_SPIN(dev);
-    int i;
-
-    for (i = 0; i < MAX_CPUS; i++) {
-        SpinInfo *info = &s->spin[i];
-
-        stl_p(&info->pir, i);
-        stq_p(&info->r3, i);
-        stq_p(&info->addr, 1);
-    }
-}
 
 static void spin_kick(CPUState *cs, run_on_cpu_data data)
 {
@@ -102,91 +82,119 @@ static void spin_kick(CPUState *cs, run_on_cpu_data data)
     cpu_resume(cs);
 }
 
-static void spin_write(void *opaque, hwaddr addr, uint64_t value,
-                       unsigned len)
-{
-    SpinState *s = static_cast<SpinState *>(opaque);
-    int env_idx = addr / sizeof(SpinInfo);
-    CPUState *cpu;
-    SpinInfo *curspin = &s->spin[env_idx];
-    uint8_t *curspin_p = (uint8_t*)curspin;
+struct SpinState {
+    SysBusDevice parent_obj;
 
-    cpu = qemu_get_cpu(env_idx);
-    if (cpu == NULL) {
-        /* Unknown CPU */
-        return;
+    MemoryRegion iomem;
+    SpinInfo spin[MAX_CPUS];
+
+    void reset()
+    {
+        int i;
+
+        for (i = 0; i < MAX_CPUS; i++) {
+            SpinInfo *info = &spin[i];
+
+            stl_p(&info->pir, i);
+            stq_p(&info->r3, i);
+            stq_p(&info->addr, 1);
+        }
     }
 
-    if (cpu->cpu_index == 0) {
-        /* primary CPU doesn't spin */
-        return;
+    static void resetWrapper(DeviceState *dev)
+    {
+        SpinState *s = E500_SPIN(dev);
+        s->reset();
     }
 
-    curspin_p = &curspin_p[addr % sizeof(SpinInfo)];
-    switch (len) {
-    case 1:
-        stb_p(curspin_p, value);
-        break;
-    case 2:
-        stw_p(curspin_p, value);
-        break;
-    case 4:
-        stl_p(curspin_p, value);
-        break;
+    static void write(void *opaque, hwaddr addr, uint64_t value,
+                      unsigned len)
+    {
+        SpinState *s = static_cast<SpinState *>(opaque);
+        int env_idx = addr / sizeof(SpinInfo);
+        CPUState *cpu;
+        SpinInfo *curspin = &s->spin[env_idx];
+        uint8_t *curspin_p = reinterpret_cast<uint8_t *>(curspin);
+
+        cpu = qemu_get_cpu(env_idx);
+        if (cpu == NULL) {
+            /* Unknown CPU */
+            return;
+        }
+
+        if (cpu->cpu_index == 0) {
+            /* primary CPU doesn't spin */
+            return;
+        }
+
+        curspin_p = &curspin_p[addr % sizeof(SpinInfo)];
+        switch (len) {
+        case 1:
+            stb_p(curspin_p, value);
+            break;
+        case 2:
+            stw_p(curspin_p, value);
+            break;
+        case 4:
+            stl_p(curspin_p, value);
+            break;
+        }
+
+        if (!(ldq_p(&curspin->addr) & 1)) {
+            /* run CPU */
+            run_on_cpu(cpu, spin_kick, RUN_ON_CPU_HOST_PTR(curspin));
+        }
     }
 
-    if (!(ldq_p(&curspin->addr) & 1)) {
-        /* run CPU */
-        run_on_cpu(cpu, spin_kick, RUN_ON_CPU_HOST_PTR(curspin));
+    static uint64_t read(void *opaque, hwaddr addr, unsigned len)
+    {
+        SpinState *s = static_cast<SpinState *>(opaque);
+        uint8_t *spin_p = &(reinterpret_cast<uint8_t *>(s->spin))[addr];
+
+        switch (len) {
+        case 1:
+            return ldub_p(spin_p);
+        case 2:
+            return lduw_p(spin_p);
+        case 4:
+            return ldl_p(spin_p);
+        default:
+            hw_error("ppce500: unexpected %s with len = %u", __func__, len);
+        }
     }
-}
 
-static uint64_t spin_read(void *opaque, hwaddr addr, unsigned len)
-{
-    SpinState *s = static_cast<SpinState *>(opaque);
-    uint8_t *spin_p = &((uint8_t*)s->spin)[addr];
+    static const MemoryRegionOps ops;
 
-    switch (len) {
-    case 1:
-        return ldub_p(spin_p);
-    case 2:
-        return lduw_p(spin_p);
-    case 4:
-        return ldl_p(spin_p);
-    default:
-        hw_error("ppce500: unexpected %s with len = %u", __func__, len);
+    static void instanceInit(Object *obj)
+    {
+        SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+        SpinState *s = E500_SPIN(dev);
+
+        memory_region_init_io(&s->iomem, obj, &ops, s,
+                              "e500 spin pv device", sizeof(SpinInfo) * MAX_CPUS);
+        sysbus_init_mmio(dev, &s->iomem);
     }
-}
 
-static const MemoryRegionOps spin_rw_ops = {
-    .read = spin_read,
-    .write = spin_write,
-    .endianness = DEVICE_BIG_ENDIAN,
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+
+        device_class_set_legacy_reset(dc, resetWrapper);
+    }
 };
 
-static void ppce500_spin_initfn(Object *obj)
-{
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    SpinState *s = E500_SPIN(dev);
-
-    memory_region_init_io(&s->iomem, obj, &spin_rw_ops, s,
-                          "e500 spin pv device", sizeof(SpinInfo) * MAX_CPUS);
-    sysbus_init_mmio(dev, &s->iomem);
-}
-
-static void ppce500_spin_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, spin_reset);
-}
+const MemoryRegionOps SpinState::ops = {
+    .read = SpinState::read,
+    .write = SpinState::write,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
 
 static const TypeInfo ppce500_spin_info = {
     .name          = TYPE_E500_SPIN,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SpinState),
-    .instance_init = ppce500_spin_initfn,
-    .class_init    = ppce500_spin_class_init,
+    .instance_init = SpinState::instanceInit,
+    .class_init    = SpinState::classInit,
 };
 
 static void ppce500_spin_register_types(void)

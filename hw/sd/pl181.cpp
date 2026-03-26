@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "system/blockdev.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -57,6 +58,17 @@ struct PL181State {
     /* GPIO outputs for 'card is readonly' and 'card inserted' */
     qemu_irq card_readonly;
     qemu_irq card_inserted;
+
+    /* methods */
+    void reset();
+    static void resetWrapper(DeviceState *d);
+    static void setReadonly(DeviceState *dev, bool level);
+    static void setInserted(DeviceState *dev, bool level);
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
+    static void busClassInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateDescription vmstate_pl181 = {
@@ -287,10 +299,10 @@ static void pl181_fifo_run(PL181State *s)
     }
 }
 
-static uint64_t pl181_read(void *opaque, hwaddr offset,
+uint64_t PL181State::mmioRead(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    PL181State *s = (PL181State *)opaque;
+    PL181State *s = static_cast<PL181State *>(opaque);
     uint32_t tmp;
 
     if (offset >= 0xfe0 && offset < 0x1000) {
@@ -371,10 +383,10 @@ static uint64_t pl181_read(void *opaque, hwaddr offset,
     }
 }
 
-static void pl181_write(void *opaque, hwaddr offset,
+void PL181State::mmioWrite(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    PL181State *s = (PL181State *)opaque;
+    PL181State *s = static_cast<PL181State *>(opaque);
 
     switch (offset) {
     case 0x00: /* Power */
@@ -444,28 +456,33 @@ static void pl181_write(void *opaque, hwaddr offset,
 }
 
 static const MemoryRegionOps pl181_ops = {
-    .read = pl181_read,
-    .write = pl181_write,
+    .read = PL181State::mmioRead,
+    .write = PL181State::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pl181_set_readonly(DeviceState *dev, bool level)
+void PL181State::setReadonly(DeviceState *dev, bool level)
 {
-    PL181State *s = (PL181State *)dev;
+    PL181State *s = PL181(dev);
 
     qemu_set_irq(s->card_readonly, level);
 }
 
-static void pl181_set_inserted(DeviceState *dev, bool level)
+void PL181State::setInserted(DeviceState *dev, bool level)
 {
-    PL181State *s = (PL181State *)dev;
+    PL181State *s = PL181(dev);
 
     qemu_set_irq(s->card_inserted, level);
 }
 
-static void pl181_reset(DeviceState *d)
+void PL181State::resetWrapper(DeviceState *d)
 {
-    PL181State *s = PL181(d);
+    PL181(d)->reset();
+}
+
+void PL181State::reset()
+{
+    PL181State *s = this;
 
     s->power = 0;
     s->cmdarg = 0;
@@ -487,11 +504,11 @@ static void pl181_reset(DeviceState *d)
     s->mask[1] = 0;
 
     /* Reset other state based on current card insertion/readonly status */
-    pl181_set_inserted(DEVICE(s), sdbus_get_inserted(&s->sdbus));
-    pl181_set_readonly(DEVICE(s), sdbus_get_readonly(&s->sdbus));
+    setInserted(DEVICE(s), sdbus_get_inserted(&s->sdbus));
+    setReadonly(DEVICE(s), sdbus_get_readonly(&s->sdbus));
 }
 
-static void pl181_init(Object *obj)
+void PL181State::instanceInit(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     PL181State *s = PL181(obj);
@@ -507,22 +524,22 @@ static void pl181_init(Object *obj)
     qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_PL181_BUS, dev, "sd-bus");
 }
 
-static void pl181_class_init(ObjectClass *klass, const void *data)
+void PL181State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 
     k->vmsd = &vmstate_pl181;
-    device_class_set_legacy_reset(k, pl181_reset);
+    device_class_set_legacy_reset(k, resetWrapper);
     /* Reason: output IRQs should be wired up */
     k->user_creatable = false;
 }
 
-static void pl181_bus_class_init(ObjectClass *klass, const void *data)
+void PL181State::busClassInit(ObjectClass *klass, const void *data)
 {
     SDBusClass *sbc = SD_BUS_CLASS(klass);
 
-    sbc->set_inserted = pl181_set_inserted;
-    sbc->set_readonly = pl181_set_readonly;
+    sbc->set_inserted = setInserted;
+    sbc->set_readonly = setReadonly;
 }
 
 static const TypeInfo pl181_info[] = {
@@ -530,14 +547,14 @@ static const TypeInfo pl181_info[] = {
         .name           = TYPE_PL181,
         .parent         = TYPE_SYS_BUS_DEVICE,
         .instance_size  = sizeof(PL181State),
-        .instance_init  = pl181_init,
-        .class_init     = pl181_class_init,
+        .instance_init  = PL181State::instanceInit,
+        .class_init     = PL181State::classInit,
     },
     {
         .name           = TYPE_PL181_BUS,
         .parent         = TYPE_SD_BUS,
         .instance_size  = sizeof(SDBus),
-        .class_init     = pl181_bus_class_init,
+        .class_init     = PL181State::busClassInit,
     },
 };
 

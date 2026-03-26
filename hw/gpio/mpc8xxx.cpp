@@ -20,6 +20,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
@@ -41,6 +42,149 @@ struct MPC8XXXGPIOState {
     uint32_t ier;
     uint32_t imr;
     uint32_t icr;
+
+    void update()
+    {
+        qemu_set_irq(irq, !!(ier & imr));
+    }
+
+    void writeData(uint32_t new_data)
+    {
+        uint32_t old_data = dat;
+        uint32_t diff = old_data ^ new_data;
+        int i;
+
+        for (i = 0; i < 32; i++) {
+            uint32_t mask = 0x80000000 >> i;
+            if (!(diff & mask)) {
+                continue;
+            }
+
+            if (dir & mask) {
+                /* Output */
+                qemu_set_irq(out[i], (new_data & mask) != 0);
+            }
+        }
+
+        dat = new_data;
+    }
+
+    static uint64_t read(void *opaque, hwaddr offset,
+                         unsigned size)
+    {
+        MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
+
+        if (size != 4) {
+            /* All registers are 32bit */
+            return 0;
+        }
+
+        switch (offset) {
+        case 0x0: /* Direction */
+            return s->dir;
+        case 0x4: /* Open Drain */
+            return s->odr;
+        case 0x8: /* Data */
+            return s->dat;
+        case 0xC: /* Interrupt Event */
+            return s->ier;
+        case 0x10: /* Interrupt Mask */
+            return s->imr;
+        case 0x14: /* Interrupt Control */
+            return s->icr;
+        default:
+            return 0;
+        }
+    }
+
+    static void write(void *opaque, hwaddr offset,
+                      uint64_t value, unsigned size)
+    {
+        MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
+
+        if (size != 4) {
+            /* All registers are 32bit */
+            return;
+        }
+
+        switch (offset) {
+        case 0x0: /* Direction */
+            s->dir = value;
+            break;
+        case 0x4: /* Open Drain */
+            s->odr = value;
+            break;
+        case 0x8: /* Data */
+            s->writeData(value);
+            break;
+        case 0xC: /* Interrupt Event */
+            s->ier &= ~value;
+            break;
+        case 0x10: /* Interrupt Mask */
+            s->imr = value;
+            break;
+        case 0x14: /* Interrupt Control */
+            s->icr = value;
+            break;
+        }
+
+        s->update();
+    }
+
+    void reset()
+    {
+        dir = 0;
+        odr = 0;
+        dat = 0;
+        ier = 0;
+        imr = 0;
+        icr = 0;
+    }
+
+    static void resetWrapper(DeviceState *dev)
+    {
+        MPC8XXXGPIOState *s = MPC8XXX_GPIO(dev);
+        s->reset();
+    }
+
+    static void setIrq(void *opaque, int irq_num, int level)
+    {
+        MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
+        uint32_t mask;
+
+        mask = 0x80000000 >> irq_num;
+        if ((s->dir & mask) == 0) {
+            uint32_t old_value = s->dat & mask;
+
+            s->dat &= ~mask;
+            if (level)
+                s->dat |= mask;
+
+            if (!(s->icr & irq_num) || (old_value && !level)) {
+                s->ier |= mask;
+            }
+
+            s->update();
+        }
+    }
+
+    static const MemoryRegionOps ops;
+
+    static void instanceInit(Object *obj)
+    {
+        DeviceState *dev = DEVICE(obj);
+        MPC8XXXGPIOState *s = MPC8XXX_GPIO(obj);
+        SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+
+        memory_region_init_io(&s->iomem, obj, &ops,
+                              s, "mpc8xxx_gpio", 0x1000);
+        sysbus_init_mmio(sbd, &s->iomem);
+        sysbus_init_irq(sbd, &s->irq);
+        qdev_init_gpio_in(dev, setIrq, 32);
+        qdev_init_gpio_out(dev, s->out, 32);
+    }
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static const VMStateField vmstate_mpc8xxx_gpio_fields[] = {
@@ -60,162 +204,27 @@ static const VMStateDescription vmstate_mpc8xxx_gpio = {
     .fields = vmstate_mpc8xxx_gpio_fields,
 };
 
-static void mpc8xxx_gpio_update(MPC8XXXGPIOState *s)
-{
-    qemu_set_irq(s->irq, !!(s->ier & s->imr));
-}
-
-static uint64_t mpc8xxx_gpio_read(void *opaque, hwaddr offset,
-                                  unsigned size)
-{
-    MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
-
-    if (size != 4) {
-        /* All registers are 32bit */
-        return 0;
-    }
-
-    switch (offset) {
-    case 0x0: /* Direction */
-        return s->dir;
-    case 0x4: /* Open Drain */
-        return s->odr;
-    case 0x8: /* Data */
-        return s->dat;
-    case 0xC: /* Interrupt Event */
-        return s->ier;
-    case 0x10: /* Interrupt Mask */
-        return s->imr;
-    case 0x14: /* Interrupt Control */
-        return s->icr;
-    default:
-        return 0;
-    }
-}
-
-static void mpc8xxx_write_data(MPC8XXXGPIOState *s, uint32_t new_data)
-{
-    uint32_t old_data = s->dat;
-    uint32_t diff = old_data ^ new_data;
-    int i;
-
-    for (i = 0; i < 32; i++) {
-        uint32_t mask = 0x80000000 >> i;
-        if (!(diff & mask)) {
-            continue;
-        }
-
-        if (s->dir & mask) {
-            /* Output */
-            qemu_set_irq(s->out[i], (new_data & mask) != 0);
-        }
-    }
-
-    s->dat = new_data;
-}
-
-static void mpc8xxx_gpio_write(void *opaque, hwaddr offset,
-                        uint64_t value, unsigned size)
-{
-    MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
-
-    if (size != 4) {
-        /* All registers are 32bit */
-        return;
-    }
-
-    switch (offset) {
-    case 0x0: /* Direction */
-        s->dir = value;
-        break;
-    case 0x4: /* Open Drain */
-        s->odr = value;
-        break;
-    case 0x8: /* Data */
-        mpc8xxx_write_data(s, value);
-        break;
-    case 0xC: /* Interrupt Event */
-        s->ier &= ~value;
-        break;
-    case 0x10: /* Interrupt Mask */
-        s->imr = value;
-        break;
-    case 0x14: /* Interrupt Control */
-        s->icr = value;
-        break;
-    }
-
-    mpc8xxx_gpio_update(s);
-}
-
-static void mpc8xxx_gpio_reset(DeviceState *dev)
-{
-    MPC8XXXGPIOState *s = MPC8XXX_GPIO(dev);
-
-    s->dir = 0;
-    s->odr = 0;
-    s->dat = 0;
-    s->ier = 0;
-    s->imr = 0;
-    s->icr = 0;
-}
-
-static void mpc8xxx_gpio_set_irq(void * opaque, int irq, int level)
-{
-    MPC8XXXGPIOState *s = static_cast<MPC8XXXGPIOState *>(opaque);
-    uint32_t mask;
-
-    mask = 0x80000000 >> irq;
-    if ((s->dir & mask) == 0) {
-        uint32_t old_value = s->dat & mask;
-
-        s->dat &= ~mask;
-        if (level)
-            s->dat |= mask;
-
-        if (!(s->icr & irq) || (old_value && !level)) {
-            s->ier |= mask;
-        }
-
-        mpc8xxx_gpio_update(s);
-    }
-}
-
-static const MemoryRegionOps mpc8xxx_gpio_ops = {
-    .read = mpc8xxx_gpio_read,
-    .write = mpc8xxx_gpio_write,
-    .endianness = DEVICE_BIG_ENDIAN,
-};
-
-static void mpc8xxx_gpio_initfn(Object *obj)
-{
-    DeviceState *dev = DEVICE(obj);
-    MPC8XXXGPIOState *s = MPC8XXX_GPIO(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->iomem, obj, &mpc8xxx_gpio_ops,
-                          s, "mpc8xxx_gpio", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-    qdev_init_gpio_in(dev, mpc8xxx_gpio_set_irq, 32);
-    qdev_init_gpio_out(dev, s->out, 32);
-}
-
-static void mpc8xxx_gpio_class_init(ObjectClass *klass, const void *data)
+void MPC8XXXGPIOState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_mpc8xxx_gpio;
-    device_class_set_legacy_reset(dc, mpc8xxx_gpio_reset);
+    device_class_set_legacy_reset(dc, resetWrapper);
 }
+
+const MemoryRegionOps MPC8XXXGPIOState::ops = {
+    .read = MPC8XXXGPIOState::read,
+    .write = MPC8XXXGPIOState::write,
+    .endianness = DEVICE_BIG_ENDIAN,
+};
 
 static const TypeInfo mpc8xxx_gpio_types[] = {
     {
         .name          = TYPE_MPC8XXX_GPIO,
         .parent        = TYPE_SYS_BUS_DEVICE,
         .instance_size = sizeof(MPC8XXXGPIOState),
-        .instance_init = mpc8xxx_gpio_initfn,
-        .class_init    = mpc8xxx_gpio_class_init,
+        .instance_init = MPC8XXXGPIOState::instanceInit,
+        .class_init    = MPC8XXXGPIOState::classInit,
     },
 };
 

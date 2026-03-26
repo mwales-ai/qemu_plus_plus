@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/omap.h"
@@ -56,6 +57,17 @@ struct OMAPIntcState {
     int autoidle;
     uint32_t mask;
     struct omap_intr_handler_bank_s bank[3];
+
+    /* methods */
+    void reset();
+    void realize(Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void setIntr(void *opaque, int irq, int req);
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    static void instanceInit(Object *obj);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void omap_inth_sir_update(OMAPIntcState *s, int is_fiq)
@@ -105,7 +117,7 @@ static inline void omap_inth_update(OMAPIntcState *s, int is_fiq)
 #define INT_FALLING_EDGE    0
 #define INT_LOW_LEVEL       1
 
-static void omap_set_intr(void *opaque, int irq, int req)
+void OMAPIntcState::setIntr(void *opaque, int irq, int req)
 {
     OMAPIntcState *ih = static_cast<OMAPIntcState *>(opaque);
     uint32_t rise;
@@ -131,7 +143,7 @@ static void omap_set_intr(void *opaque, int irq, int req)
     }
 }
 
-static uint64_t omap_inth_read(void *opaque, hwaddr addr,
+uint64_t OMAPIntcState::mmioRead(void *opaque, hwaddr addr,
                                unsigned size)
 {
     OMAPIntcState *s = static_cast<OMAPIntcState *>(opaque);
@@ -209,7 +221,7 @@ static uint64_t omap_inth_read(void *opaque, hwaddr addr,
     return 0;
 }
 
-static void omap_inth_write(void *opaque, hwaddr addr,
+void OMAPIntcState::mmioWrite(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     OMAPIntcState *s = static_cast<OMAPIntcState *>(opaque);
@@ -294,7 +306,7 @@ static void omap_inth_write(void *opaque, hwaddr addr,
     case 0x9c:  /* ISR */
         for (i = 0; i < 32; i ++)
             if (value & (1 << i)) {
-                omap_set_intr(s, 32 * bank_no + i, 1);
+                setIntr(s, 32 * bank_no + i, 1);
                 return;
             }
         return;
@@ -303,8 +315,8 @@ static void omap_inth_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps omap_inth_mem_ops = {
-    .read = omap_inth_read,
-    .write = omap_inth_write,
+    .read = OMAPIntcState::mmioRead,
+    .write = OMAPIntcState::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -312,9 +324,14 @@ static const MemoryRegionOps omap_inth_mem_ops = {
     },
 };
 
-static void omap_inth_reset(DeviceState *dev)
+void OMAPIntcState::resetWrapper(DeviceState *dev)
 {
-    OMAPIntcState *s = OMAP_INTC(dev);
+    OMAP_INTC(dev)->reset();
+}
+
+void OMAPIntcState::reset()
+{
+    OMAPIntcState *s = this;
     int i;
 
     for (i = 0; i < s->nbanks; ++i){
@@ -341,7 +358,7 @@ static void omap_inth_reset(DeviceState *dev)
     qemu_set_irq(s->parent_intr[1], 0);
 }
 
-static void omap_intc_init(Object *obj)
+void OMAPIntcState::instanceInit(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     OMAPIntcState *s = OMAP_INTC(obj);
@@ -350,15 +367,20 @@ static void omap_intc_init(Object *obj)
     s->nbanks = 1;
     sysbus_init_irq(sbd, &s->parent_intr[0]);
     sysbus_init_irq(sbd, &s->parent_intr[1]);
-    qdev_init_gpio_in(dev, omap_set_intr, s->nbanks * 32);
+    qdev_init_gpio_in(dev, setIntr, s->nbanks * 32);
     memory_region_init_io(&s->mmio, obj, &omap_inth_mem_ops, s,
                           "omap-intc", s->size);
     sysbus_init_mmio(sbd, &s->mmio);
 }
 
-static void omap_intc_realize(DeviceState *dev, Error **errp)
+void OMAPIntcState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    OMAPIntcState *s = OMAP_INTC(dev);
+    OMAP_INTC(dev)->realize(errp);
+}
+
+void OMAPIntcState::realize(Error **errp)
+{
+    OMAPIntcState *s = this;
 
     if (!s->iclk) {
         error_setg(errp, "omap-intc: clk not connected");
@@ -379,23 +401,23 @@ static const Property omap_intc_properties[] = {
     DEFINE_PROP_UINT32("size", OMAPIntcState, size, 0x100),
 };
 
-static void omap_intc_class_init(ObjectClass *klass, const void *data)
+void OMAPIntcState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, omap_inth_reset);
+    device_class_set_legacy_reset(dc, resetWrapper);
     device_class_set_props(dc, omap_intc_properties);
     /* Reason: pointer property "clk" */
     dc->user_creatable = false;
-    dc->realize = omap_intc_realize;
+    dc->realize = realizeWrapper;
 }
 
 static const TypeInfo omap_intc_info = {
     .name          = TYPE_OMAP_INTC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(OMAPIntcState),
-    .instance_init = omap_intc_init,
-    .class_init    = omap_intc_class_init,
+    .instance_init = OMAPIntcState::instanceInit,
+    .class_init    = OMAPIntcState::classInit,
 };
 
 static void omap_intc_register_types(void)

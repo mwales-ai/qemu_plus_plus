@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "system/system.h"
@@ -37,15 +38,6 @@
 
 OBJECT_DECLARE_SIMPLE_TYPE(ISASerialState, ISA_SERIAL)
 
-struct ISASerialState {
-    ISADevice parent_obj;
-
-    uint32_t index;
-    uint32_t iobase;
-    uint32_t isairq;
-    SerialState state;
-};
-
 static const int isa_serial_io[MAX_ISA_SERIAL_PORTS] = {
     0x3f8, 0x2f8, 0x3e8, 0x2e8
 };
@@ -53,55 +45,77 @@ static const int isa_serial_irq[MAX_ISA_SERIAL_PORTS] = {
     4, 3, 4, 3
 };
 
-static void serial_isa_realizefn(DeviceState *dev, Error **errp)
-{
-    static int index;
-    ISADevice *isadev = ISA_DEVICE(dev);
-    ISASerialState *isa = ISA_SERIAL(dev);
-    SerialState *s = &isa->state;
+struct ISASerialState {
+    ISADevice parent_obj;
 
-    if (isa->index == static_cast<uint32_t>(-1)) {
-        isa->index = index;
+    uint32_t index;
+    uint32_t iobase;
+    uint32_t isairq;
+    SerialState state;
+
+    void realize(Error **errp)
+    {
+        static int idx;
+        ISADevice *isadev = ISA_DEVICE(this);
+
+        if (index == static_cast<uint32_t>(-1)) {
+            index = idx;
+        }
+        if (index >= MAX_ISA_SERIAL_PORTS) {
+            error_setg(errp, "Max. supported number of ISA serial ports is %d.",
+                       MAX_ISA_SERIAL_PORTS);
+            return;
+        }
+        if (iobase == static_cast<uint32_t>(-1)) {
+            iobase = isa_serial_io[index];
+        }
+        if (isairq == static_cast<uint32_t>(-1)) {
+            isairq = isa_serial_irq[index];
+        }
+        idx++;
+
+        state.irq = isa_get_irq(isadev, isairq);
+        qdev_realize(DEVICE(&state), NULL, errp);
+        qdev_set_legacy_instance_id(DEVICE(this), iobase, 3);
+
+        memory_region_init_io(&state.io, OBJECT(this), &serial_io_ops, &state, "serial", 8);
+        isa_register_ioport(isadev, &state.io, iobase);
     }
-    if (isa->index >= MAX_ISA_SERIAL_PORTS) {
-        error_setg(errp, "Max. supported number of ISA serial ports is %d.",
-                   MAX_ISA_SERIAL_PORTS);
-        return;
+
+    static void realizeWrapper(DeviceState *dev, Error **errp)
+    {
+        ISASerialState *s = ISA_SERIAL(dev);
+        s->realize(errp);
     }
-    if (isa->iobase == static_cast<uint32_t>(-1)) {
-        isa->iobase = isa_serial_io[isa->index];
+
+    static void buildAml(AcpiDevAmlIf *adev, Aml *scope)
+    {
+        ISASerialState *isa = ISA_SERIAL(adev);
+        Aml *dev;
+        Aml *crs;
+
+        crs = aml_resource_template();
+        aml_append(crs, aml_io(AML_DECODE16, isa->iobase, isa->iobase, 0x00, 0x08));
+        aml_append(crs, aml_irq_no_flags(isa->isairq));
+
+        dev = aml_device("COM%d", isa->index + 1);
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0501")));
+        aml_append(dev, aml_name_decl("_UID", aml_int(isa->index + 1)));
+        aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
+        aml_append(dev, aml_name_decl("_CRS", crs));
+
+        aml_append(scope, dev);
     }
-    if (isa->isairq == static_cast<uint32_t>(-1)) {
-        isa->isairq = isa_serial_irq[isa->index];
+
+    static void instanceInit(Object *o)
+    {
+        ISASerialState *self = ISA_SERIAL(o);
+
+        object_initialize_child(o, "serial", &self->state, TYPE_SERIAL);
+
+        qdev_alias_all_properties(DEVICE(&self->state), o);
     }
-    index++;
-
-    s->irq = isa_get_irq(isadev, isa->isairq);
-    qdev_realize(DEVICE(s), NULL, errp);
-    qdev_set_legacy_instance_id(dev, isa->iobase, 3);
-
-    memory_region_init_io(&s->io, OBJECT(isa), &serial_io_ops, s, "serial", 8);
-    isa_register_ioport(isadev, &s->io, isa->iobase);
-}
-
-static void serial_isa_build_aml(AcpiDevAmlIf *adev, Aml *scope)
-{
-    ISASerialState *isa = ISA_SERIAL(adev);
-    Aml *dev;
-    Aml *crs;
-
-    crs = aml_resource_template();
-    aml_append(crs, aml_io(AML_DECODE16, isa->iobase, isa->iobase, 0x00, 0x08));
-    aml_append(crs, aml_irq_no_flags(isa->isairq));
-
-    dev = aml_device("COM%d", isa->index + 1);
-    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0501")));
-    aml_append(dev, aml_name_decl("_UID", aml_int(isa->index + 1)));
-    aml_append(dev, aml_name_decl("_STA", aml_int(0xf)));
-    aml_append(dev, aml_name_decl("_CRS", crs));
-
-    aml_append(scope, dev);
-}
+};
 
 static const VMStateDescription vmstate_isa_serial = {
     .name = "serial",
@@ -124,27 +138,18 @@ static void serial_isa_class_initfn(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
 
-    dc->realize = serial_isa_realizefn;
+    dc->realize = ISASerialState::realizeWrapper;
     dc->vmsd = &vmstate_isa_serial;
-    adevc->build_dev_aml = serial_isa_build_aml;
+    adevc->build_dev_aml = ISASerialState::buildAml;
     device_class_set_props(dc, serial_isa_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-}
-
-static void serial_isa_initfn(Object *o)
-{
-    ISASerialState *self = ISA_SERIAL(o);
-
-    object_initialize_child(o, "serial", &self->state, TYPE_SERIAL);
-
-    qdev_alias_all_properties(DEVICE(&self->state), o);
 }
 
 static const TypeInfo serial_isa_info = {
     .name          = TYPE_ISA_SERIAL,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISASerialState),
-    .instance_init = serial_isa_initfn,
+    .instance_init = ISASerialState::instanceInit,
     .class_init    = serial_isa_class_initfn,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_ACPI_DEV_AML_IF },

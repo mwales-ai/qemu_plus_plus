@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
@@ -86,6 +87,13 @@ struct SpaprTpmState {
     TPMVersion be_tpm_version;
 
     size_t be_buffer_size;
+
+    /* methods */
+    void realize(Error **errp);
+    void tpmReset();
+    static void realizeWrapper(SpaprVioDevice *dev, Error **errp);
+    static void resetWrapper(SpaprVioDevice *dev);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /*
@@ -290,9 +298,14 @@ static const char *tpm_spapr_get_dt_compatible(SpaprVioDevice *dev)
     }
 }
 
-static void tpm_spapr_reset(SpaprVioDevice *dev)
+void SpaprTpmState::resetWrapper(SpaprVioDevice *dev)
 {
-    SpaprTpmState *s = VIO_SPAPR_VTPM(dev);
+    VIO_SPAPR_VTPM(dev)->tpmReset();
+}
+
+void SpaprTpmState::tpmReset()
+{
+    SpaprTpmState *s = this;
 
     s->state = SPAPR_VTPM_STATE_NONE;
     s->numbytes = 0;
@@ -371,9 +384,15 @@ static const Property tpm_spapr_properties[] = {
     DEFINE_PROP_TPMBE("tpmdev", SpaprTpmState, be_driver),
 };
 
-static void tpm_spapr_realizefn(SpaprVioDevice *dev, Error **errp)
+void SpaprTpmState::realizeWrapper(SpaprVioDevice *dev, Error **errp)
 {
-    SpaprTpmState *s = VIO_SPAPR_VTPM(dev);
+    VIO_SPAPR_VTPM(dev)->realize(errp);
+}
+
+void SpaprTpmState::realize(Error **errp)
+{
+    SpaprTpmState *s = this;
+    SpaprVioDevice *dev = &s->vdev;
 
     if (!tpm_find()) {
         error_setg(errp, "at most one TPM device is permitted");
@@ -389,14 +408,14 @@ static void tpm_spapr_realizefn(SpaprVioDevice *dev, Error **errp)
     s->buffer = static_cast<unsigned char *>(g_malloc(TPM_SPAPR_BUFFER_MAX));
 }
 
-static void tpm_spapr_class_init(ObjectClass *klass, const void *data)
+void SpaprTpmState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
 
-    k->realize = tpm_spapr_realizefn;
-    k->reset = tpm_spapr_reset;
+    k->realize = realizeWrapper;
+    k->reset = resetWrapper;
     k->dt_name = "vtpm";
     k->dt_type = "IBM,vtpm";
     k->get_dt_compatible = tpm_spapr_get_dt_compatible;
@@ -420,7 +439,7 @@ static const TypeInfo tpm_spapr_info = {
     .name          = TYPE_TPM_SPAPR,
     .parent        = TYPE_VIO_SPAPR_DEVICE,
     .instance_size = sizeof(SpaprTpmState),
-    .class_init    = tpm_spapr_class_init,
+    .class_init    = SpaprTpmState::classInit,
     .interfaces    = tpm_spapr_interfaces,
 };
 

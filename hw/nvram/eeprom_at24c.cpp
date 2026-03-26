@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -56,87 +57,157 @@ struct EEPROMState {
 
     const uint8_t *init_rom;
     uint32_t init_rom_size;
-};
 
-static
-int at24c_eeprom_event(I2CSlave *s, enum i2c_event event)
-{
-    EEPROMState *ee = AT24C_EE(s);
+    static int event(I2CSlave *s, enum i2c_event event)
+    {
+        EEPROMState *ee = AT24C_EE(s);
 
-    switch (event) {
-    case I2C_START_SEND:
-    case I2C_FINISH:
-        ee->haveaddr = 0;
-        /* fallthrough */
-    case I2C_START_RECV:
-        DPRINTK("clear\n");
-        if (ee->blk && ee->changed) {
-            int ret = blk_pwrite(ee->blk, 0, ee->rsize, ee->mem, static_cast<BdrvRequestFlags>(0));
-            if (ret < 0) {
-                error_report("%s: failed to write backing file", __func__);
+        switch (event) {
+        case I2C_START_SEND:
+        case I2C_FINISH:
+            ee->haveaddr = 0;
+            /* fallthrough */
+        case I2C_START_RECV:
+            DPRINTK("clear\n");
+            if (ee->blk && ee->changed) {
+                int ret = blk_pwrite(ee->blk, 0, ee->rsize, ee->mem, static_cast<BdrvRequestFlags>(0));
+                if (ret < 0) {
+                    error_report("%s: failed to write backing file", __func__);
+                }
+                DPRINTK("Wrote to backing file\n");
             }
-            DPRINTK("Wrote to backing file\n");
+            ee->changed = false;
+            break;
+        case I2C_NACK:
+            break;
+        default:
+            return -1;
         }
-        ee->changed = false;
-        break;
-    case I2C_NACK:
-        break;
-    default:
-        return -1;
-    }
-    return 0;
-}
-
-static
-uint8_t at24c_eeprom_recv(I2CSlave *s)
-{
-    EEPROMState *ee = AT24C_EE(s);
-    uint8_t ret;
-
-    /*
-     * If got the byte address but not completely with address size
-     * will return the invalid value
-     */
-    if (ee->haveaddr > 0 && ee->haveaddr < ee->asize) {
-        return 0xff;
+        return 0;
     }
 
-    ret = ee->mem[ee->cur];
+    static uint8_t recv(I2CSlave *s)
+    {
+        EEPROMState *ee = AT24C_EE(s);
+        uint8_t ret;
 
-    ee->cur = (ee->cur + 1u) % ee->rsize;
-    DPRINTK("Recv %02x %c\n", ret, ret);
-
-    return ret;
-}
-
-static
-int at24c_eeprom_send(I2CSlave *s, uint8_t data)
-{
-    EEPROMState *ee = AT24C_EE(s);
-
-    if (ee->haveaddr < ee->asize) {
-        ee->cur <<= 8;
-        ee->cur |= data;
-        ee->haveaddr++;
-        if (ee->haveaddr == ee->asize) {
-            ee->cur %= ee->rsize;
-            DPRINTK("Set pointer %04x\n", ee->cur);
+        /*
+         * If got the byte address but not completely with address size
+         * will return the invalid value
+         */
+        if (ee->haveaddr > 0 && ee->haveaddr < ee->asize) {
+            return 0xff;
         }
 
-    } else {
-        if (ee->writable) {
-            DPRINTK("Send %02x\n", data);
-            ee->mem[ee->cur] = data;
-            ee->changed = true;
-        } else {
-            DPRINTK("Send error %02x read-only\n", data);
-        }
+        ret = ee->mem[ee->cur];
+
         ee->cur = (ee->cur + 1u) % ee->rsize;
+        DPRINTK("Recv %02x %c\n", ret, ret);
 
+        return ret;
     }
 
-    return 0;
-}
+    static int send(I2CSlave *s, uint8_t data)
+    {
+        EEPROMState *ee = AT24C_EE(s);
+
+        if (ee->haveaddr < ee->asize) {
+            ee->cur <<= 8;
+            ee->cur |= data;
+            ee->haveaddr++;
+            if (ee->haveaddr == ee->asize) {
+                ee->cur %= ee->rsize;
+                DPRINTK("Set pointer %04x\n", ee->cur);
+            }
+
+        } else {
+            if (ee->writable) {
+                DPRINTK("Send %02x\n", data);
+                ee->mem[ee->cur] = data;
+                ee->changed = true;
+            } else {
+                DPRINTK("Send error %02x read-only\n", data);
+            }
+            ee->cur = (ee->cur + 1u) % ee->rsize;
+
+        }
+
+        return 0;
+    }
+
+    void realize(Error **errp)
+    {
+        if (init_rom_size > rsize) {
+            error_setg(errp, "%s: init rom is larger than rom: %u > %u",
+                       TYPE_AT24C_EE, init_rom_size, rsize);
+            return;
+        }
+
+        if (blk) {
+            int64_t len = blk_getlength(blk);
+
+            if (len != rsize) {
+                error_setg(errp, "%s: Backing file size %" PRId64 " != %u",
+                           TYPE_AT24C_EE, len, rsize);
+                return;
+            }
+
+            if (blk_set_perm(blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+                             BLK_PERM_ALL, &error_fatal) < 0)
+            {
+                error_setg(errp, "%s: Backing file incorrect permission",
+                           TYPE_AT24C_EE);
+                return;
+            }
+        }
+
+        mem = static_cast<uint8_t *>(g_malloc0(rsize));
+
+        if (blk) {
+            int ret = blk_pread(blk, 0, rsize, mem, static_cast<BdrvRequestFlags>(0));
+
+            if (ret < 0) {
+                error_setg(errp, "%s: Failed initial sync with backing file",
+                           TYPE_AT24C_EE);
+                return;
+            }
+            DPRINTK("Reset read backing file\n");
+        } else if (init_rom) {
+            memcpy(mem, init_rom, MIN(init_rom_size, rsize));
+        }
+
+        /*
+         * If address size didn't define with property set
+         *   value is 0 as default, setting it by Rom size detecting.
+         */
+        if (asize == 0) {
+            if (rsize <= 256) {
+                asize = 1;
+            } else {
+                asize = 2;
+            }
+        }
+    }
+
+    static void realizeWrapper(DeviceState *dev, Error **errp)
+    {
+        EEPROMState *s = AT24C_EE(dev);
+        s->realize(errp);
+    }
+
+    void reset()
+    {
+        changed = false;
+        cur = 0;
+        haveaddr = 0;
+    }
+
+    static void resetWrapper(DeviceState *state)
+    {
+        EEPROMState *ee = AT24C_EE(state);
+        ee->reset();
+    }
+};
 
 extern "C"
 I2CSlave *at24c_eeprom_init(I2CBus *bus, uint8_t address, uint32_t rom_size)
@@ -163,72 +234,6 @@ I2CSlave *at24c_eeprom_init_rom(I2CBus *bus, uint8_t address, uint32_t rom_size,
     return I2C_SLAVE(s);
 }
 
-static void at24c_eeprom_realize(DeviceState *dev, Error **errp)
-{
-    EEPROMState *ee = AT24C_EE(dev);
-
-    if (ee->init_rom_size > ee->rsize) {
-        error_setg(errp, "%s: init rom is larger than rom: %u > %u",
-                   TYPE_AT24C_EE, ee->init_rom_size, ee->rsize);
-        return;
-    }
-
-    if (ee->blk) {
-        int64_t len = blk_getlength(ee->blk);
-
-        if (len != ee->rsize) {
-            error_setg(errp, "%s: Backing file size %" PRId64 " != %u",
-                       TYPE_AT24C_EE, len, ee->rsize);
-            return;
-        }
-
-        if (blk_set_perm(ee->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
-                         BLK_PERM_ALL, &error_fatal) < 0)
-        {
-            error_setg(errp, "%s: Backing file incorrect permission",
-                       TYPE_AT24C_EE);
-            return;
-        }
-    }
-
-    ee->mem = static_cast<uint8_t *>(g_malloc0(ee->rsize));
-
-    if (ee->blk) {
-        int ret = blk_pread(ee->blk, 0, ee->rsize, ee->mem, static_cast<BdrvRequestFlags>(0));
-
-        if (ret < 0) {
-            error_setg(errp, "%s: Failed initial sync with backing file",
-                       TYPE_AT24C_EE);
-            return;
-        }
-        DPRINTK("Reset read backing file\n");
-    } else if (ee->init_rom) {
-        memcpy(ee->mem, ee->init_rom, MIN(ee->init_rom_size, ee->rsize));
-    }
-
-    /*
-     * If address size didn't define with property set
-     *   value is 0 as default, setting it by Rom size detecting.
-     */
-    if (ee->asize == 0) {
-        if (ee->rsize <= 256) {
-            ee->asize = 1;
-        } else {
-            ee->asize = 2;
-        }
-    }
-}
-
-static
-void at24c_eeprom_reset(DeviceState *state)
-{
-    EEPROMState *ee = AT24C_EE(state);
-
-    ee->changed = false;
-    ee->cur = 0;
-    ee->haveaddr = 0;
-}
-
 static const Property at24c_eeprom_props[] = {
     DEFINE_PROP_UINT32("rom-size", EEPROMState, rsize, 0),
     DEFINE_PROP_UINT8("address-size", EEPROMState, asize, 0),
@@ -236,23 +241,21 @@ static const Property at24c_eeprom_props[] = {
     DEFINE_PROP_DRIVE("drive", EEPROMState, blk),
 };
 
-static
-void at24c_eeprom_class_init(ObjectClass *klass, const void *data)
+static void at24c_eeprom_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    dc->realize = &at24c_eeprom_realize;
-    k->event = &at24c_eeprom_event;
-    k->recv = &at24c_eeprom_recv;
-    k->send = &at24c_eeprom_send;
+    dc->realize = EEPROMState::realizeWrapper;
+    k->event = EEPROMState::event;
+    k->recv = EEPROMState::recv;
+    k->send = EEPROMState::send;
 
     device_class_set_props(dc, at24c_eeprom_props);
-    device_class_set_legacy_reset(dc, at24c_eeprom_reset);
+    device_class_set_legacy_reset(dc, EEPROMState::resetWrapper);
 }
 
-static
-const TypeInfo at24c_eeprom_type = {
+static const TypeInfo at24c_eeprom_type = {
     .name = TYPE_AT24C_EE,
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(EEPROMState),

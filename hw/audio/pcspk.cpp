@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 extern "C" {
 #include "hw/isa/isa.h"
@@ -62,147 +63,154 @@ struct PCSpkState {
     uint8_t data_on;
     uint8_t dummy_refresh_clock;
     bool migrate;
-};
 
-static const char *s_spk = "pcspk";
+    void generateSamples()
+    {
+        unsigned int i;
 
-static inline void generate_samples(PCSpkState *s)
-{
-    unsigned int i;
+        if (pit_count) {
+            const uint32_t m = PCSPK_SAMPLE_RATE * pit_count;
+            const uint32_t n = ((uint64_t)PIT_FREQ << 32) / m;
 
-    if (s->pit_count) {
-        const uint32_t m = PCSPK_SAMPLE_RATE * s->pit_count;
-        const uint32_t n = ((uint64_t)PIT_FREQ << 32) / m;
-
-        /* multiple of wavelength for gapless looping */
-        s->samples = (QEMU_ALIGN_DOWN(PCSPK_BUF_LEN * PIT_FREQ, m) / (PIT_FREQ >> 1) + 1) >> 1;
-        for (i = 0; i < s->samples; ++i)
-            s->sample_buf[i] = (64 & (n * i >> 25)) - 32;
-    } else {
-        s->samples = PCSPK_BUF_LEN;
-        for (i = 0; i < PCSPK_BUF_LEN; ++i)
-            s->sample_buf[i] = 128; /* silence */
-    }
-}
-
-static void pcspk_callback(void *opaque, int free)
-{
-    PCSpkState *s = static_cast<PCSpkState *>(opaque);
-    PITChannelInfo ch;
-    unsigned int n;
-
-    pit_get_channel_info(s->pit, 2, &ch);
-
-    if (ch.mode != 3) {
-        return;
+            /* multiple of wavelength for gapless looping */
+            samples = (QEMU_ALIGN_DOWN(PCSPK_BUF_LEN * PIT_FREQ, m) / (PIT_FREQ >> 1) + 1) >> 1;
+            for (i = 0; i < samples; ++i)
+                sample_buf[i] = (64 & (n * i >> 25)) - 32;
+        } else {
+            samples = PCSPK_BUF_LEN;
+            for (i = 0; i < PCSPK_BUF_LEN; ++i)
+                sample_buf[i] = 128; /* silence */
+        }
     }
 
-    n = ch.initial_count;
-    /* avoid frequencies that are not reproducible with sample rate */
-    if (n < PCSPK_MIN_COUNT)
-        n = 0;
+    static void callback(void *opaque, int free)
+    {
+        PCSpkState *s = static_cast<PCSpkState *>(opaque);
+        PITChannelInfo ch;
+        unsigned int n;
 
-    if (s->pit_count != n) {
-        s->pit_count = n;
-        s->play_pos = 0;
-        generate_samples(s);
+        pit_get_channel_info(s->pit, 2, &ch);
+
+        if (ch.mode != 3) {
+            return;
+        }
+
+        n = ch.initial_count;
+        /* avoid frequencies that are not reproducible with sample rate */
+        if (n < PCSPK_MIN_COUNT)
+            n = 0;
+
+        if (s->pit_count != n) {
+            s->pit_count = n;
+            s->play_pos = 0;
+            s->generateSamples();
+        }
+
+        while (free > 0) {
+            n = MIN(s->samples - s->play_pos, (unsigned int)free);
+            n = AUD_write(s->voice, &s->sample_buf[s->play_pos], n);
+            if (!n)
+                break;
+            s->play_pos = (s->play_pos + n) % s->samples;
+            free -= n;
+        }
     }
 
-    while (free > 0) {
-        n = MIN(s->samples - s->play_pos, (unsigned int)free);
-        n = AUD_write(s->voice, &s->sample_buf[s->play_pos], n);
-        if (!n)
-            break;
-        s->play_pos = (s->play_pos + n) % s->samples;
-        free -= n;
-    }
-}
+    int audioInit()
+    {
+        struct audsettings as;
+        memset(&as, 0, sizeof(as));
+        as.freq = PCSPK_SAMPLE_RATE;
+        as.nchannels = 1;
+        as.fmt = AUDIO_FORMAT_U8;
+        as.endianness = 0;
 
-static int pcspk_audio_init(PCSpkState *s)
-{
-    struct audsettings as;
-    memset(&as, 0, sizeof(as));
-    as.freq = PCSPK_SAMPLE_RATE;
-    as.nchannels = 1;
-    as.fmt = AUDIO_FORMAT_U8;
-    as.endianness = 0;
+        if (voice) {
+            /* already initialized */
+            return 0;
+        }
 
-    if (s->voice) {
-        /* already initialized */
+        voice = AUD_open_out(audio_be, voice, s_spk, this, callback, &as);
+        if (!voice) {
+            error_report("pcspk: Could not open voice");
+            return -1;
+        }
+
         return 0;
     }
 
-    s->voice = AUD_open_out(s->audio_be, s->voice, s_spk, s, pcspk_callback, &as);
-    if (!s->voice) {
-        error_report("pcspk: Could not open voice");
-        return -1;
-    }
-
-    return 0;
-}
-
-static uint64_t pcspk_io_read(void *opaque, hwaddr addr,
-                              unsigned size)
-{
-    PCSpkState *s = static_cast<PCSpkState *>(opaque);
-    PITChannelInfo ch;
-    uint8_t val;
-
-    pit_get_channel_info(s->pit, 2, &ch);
-
-    s->dummy_refresh_clock ^= (1 << 4);
-
-    val = ch.gate | (s->data_on << 1) | s->dummy_refresh_clock |
-       (ch.out << 5);
-
-    trace_pcspk_io_read(s->iobase, val);
-
-    return val;
-}
-
-static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
+    static uint64_t ioRead(void *opaque, hwaddr addr,
                            unsigned size)
-{
-    PCSpkState *s = static_cast<PCSpkState *>(opaque);
-    const int gate = val & 1;
+    {
+        PCSpkState *s = static_cast<PCSpkState *>(opaque);
+        PITChannelInfo ch;
+        uint8_t val;
 
-    trace_pcspk_io_write(s->iobase, val);
+        pit_get_channel_info(s->pit, 2, &ch);
 
-    s->data_on = (val >> 1) & 1;
-    pit_set_gate(s->pit, 2, gate);
-    if (s->voice) {
-        if (gate) /* restart */
-            s->play_pos = 0;
-        AUD_set_active_out(s->voice, gate & s->data_on);
-    }
-}
+        s->dummy_refresh_clock ^= (1 << 4);
 
-static MemoryRegionOps pcspk_io_ops;
+        val = ch.gate | (s->data_on << 1) | s->dummy_refresh_clock |
+           (ch.out << 5);
 
-static void pcspk_initfn(Object *obj)
-{
-    PCSpkState *s = PC_SPEAKER(obj);
+        trace_pcspk_io_read(s->iobase, val);
 
-    memory_region_init_io(&s->ioport, OBJECT(s), &pcspk_io_ops, s, "pcspk", 1);
-}
-
-static void pcspk_realizefn(DeviceState *dev, Error **errp)
-{
-    ISADevice *isadev = ISA_DEVICE(dev);
-    PCSpkState *s = PC_SPEAKER(dev);
-
-    if (!s->pit) {
-        error_setg(errp, "pcspk: No \"pit\" set or available");
-        return;
+        return val;
     }
 
-    isa_register_ioport(isadev, &s->ioport, s->iobase);
+    static void ioWrite(void *opaque, hwaddr addr, uint64_t val,
+                        unsigned size)
+    {
+        PCSpkState *s = static_cast<PCSpkState *>(opaque);
+        const int gate = val & 1;
 
-    if (s->audio_be && AUD_backend_check(&s->audio_be, errp)) {
-        pcspk_audio_init(s);
-        return;
+        trace_pcspk_io_write(s->iobase, val);
+
+        s->data_on = (val >> 1) & 1;
+        pit_set_gate(s->pit, 2, gate);
+        if (s->voice) {
+            if (gate) /* restart */
+                s->play_pos = 0;
+            AUD_set_active_out(s->voice, gate & s->data_on);
+        }
     }
-}
+
+    static MemoryRegionOps ioOps;
+
+    void realize(Error **errp)
+    {
+        ISADevice *isadev = ISA_DEVICE(this);
+
+        if (!pit) {
+            error_setg(errp, "pcspk: No \"pit\" set or available");
+            return;
+        }
+
+        isa_register_ioport(isadev, &ioport, iobase);
+
+        if (audio_be && AUD_backend_check(&audio_be, errp)) {
+            audioInit();
+            return;
+        }
+    }
+
+    static void realizeWrapper(DeviceState *dev, Error **errp)
+    {
+        PCSpkState *s = PC_SPEAKER(dev);
+        s->realize(errp);
+    }
+
+    static void instanceInit(Object *obj)
+    {
+        PCSpkState *s = PC_SPEAKER(obj);
+
+        memory_region_init_io(&s->ioport, OBJECT(s), &ioOps, s, "pcspk", 1);
+    }
+
+    static const char *s_spk;
+};
+
+const char *PCSpkState::s_spk = "pcspk";
 
 static bool migrate_needed(void *opaque)
 {
@@ -236,7 +244,7 @@ static void pcspk_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->realize = pcspk_realizefn;
+    dc->realize = PCSpkState::realizeWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->vmsd = &vmstate_spk;
     device_class_set_props(dc, pcspk_properties);
@@ -248,7 +256,7 @@ static const TypeInfo pcspk_info = {
     .name           = TYPE_PC_SPEAKER,
     .parent         = TYPE_ISA_DEVICE,
     .instance_size  = sizeof(PCSpkState),
-    .instance_init  = pcspk_initfn,
+    .instance_init  = PCSpkState::instanceInit,
     .class_init     = pcspk_class_initfn,
 };
 
@@ -258,11 +266,13 @@ static void pcspk_register(void)
 }
 type_init(pcspk_register)
 
+MemoryRegionOps PCSpkState::ioOps;
+
 static void __attribute__((constructor)) init_pcspk_io_ops(void)
 {
-    memset(&pcspk_io_ops, 0, sizeof(pcspk_io_ops));
-    pcspk_io_ops.read = pcspk_io_read;
-    pcspk_io_ops.write = pcspk_io_write;
-    pcspk_io_ops.impl.min_access_size = 1;
-    pcspk_io_ops.impl.max_access_size = 1;
+    memset(&PCSpkState::ioOps, 0, sizeof(PCSpkState::ioOps));
+    PCSpkState::ioOps.read = PCSpkState::ioRead;
+    PCSpkState::ioOps.write = PCSpkState::ioWrite;
+    PCSpkState::ioOps.impl.min_access_size = 1;
+    PCSpkState::ioOps.impl.max_access_size = 1;
 }
