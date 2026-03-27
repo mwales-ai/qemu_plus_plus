@@ -130,6 +130,9 @@ struct SCSIDiskState {
     static void baseClassInit(ObjectClass *klass, const void *data);
     static void hdClassInit(ObjectClass *klass, const void *data);
     static void cdClassInit(ObjectClass *klass, const void *data);
+#ifdef __linux__
+    static void blockClassInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 static void scsi_free_request(SCSIRequest *req)
@@ -3328,7 +3331,7 @@ static const Property scsi_block_properties[] = {
                        DEFAULT_IO_TIMEOUT),
 };
 
-static void scsi_block_class_initfn(ObjectClass *klass, const void *data)
+void SCSIDiskState::blockClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
@@ -3349,7 +3352,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, const void *data)
 static const TypeInfo scsi_block_info = {
     .name          = "scsi-block",
     .parent        = TYPE_SCSI_DISK_BASE,
-    .class_init    = scsi_block_class_initfn,
+    .class_init    = SCSIDiskState::blockClassInit,
 };
 #endif
 
