@@ -100,6 +100,8 @@ struct LoongsonMachineState {
     MemoryRegion *mmio_alias;
     MemoryRegion *ecam_alias;
     MemoryRegion *core_iocsr[LOONGSON_MAX_VCPUS];
+
+    static void classInit(ObjectClass *oc, const void *data);
 };
 typedef struct LoongsonMachineState LoongsonMachineState;
 
@@ -671,7 +673,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
     loongson3_virt_devices_init(machine, liointc);
 }
 
-static void loongson3v_machine_class_init(ObjectClass *oc, const void *data)
+void LoongsonMachineState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -689,7 +691,7 @@ static const TypeInfo loongson3_machine_types[] = {
         .name           = TYPE_LOONGSON_MACHINE,
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(LoongsonMachineState),
-        .class_init     = loongson3v_machine_class_init,
+        .class_init     = LoongsonMachineState::classInit,
     }
 };
 

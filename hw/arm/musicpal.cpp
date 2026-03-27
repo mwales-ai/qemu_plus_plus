@@ -125,6 +125,8 @@ struct musicpal_lcd_state {
     uint32_t page_off;
     QemuConsole *con;
     uint8_t video_ram[128*64/8];
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static uint8_t scale_lcd_color(musicpal_lcd_state *s, uint8_t col)
@@ -290,7 +292,7 @@ static const VMStateDescription musicpal_lcd_vmsd = {
     .fields = musicpal_lcd_vmsd_fields,
 };
 
-static void musicpal_lcd_class_init(ObjectClass *klass, const void *data)
+void musicpal_lcd_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -303,7 +305,7 @@ static const TypeInfo musicpal_lcd_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_lcd_state),
     .instance_init = musicpal_lcd_init,
-    .class_init    = musicpal_lcd_class_init,
+    .class_init    = musicpal_lcd_state::classInit,
 };
 
 /* PIC register offsets */
@@ -323,6 +325,8 @@ struct mv88w8618_pic_state {
     uint32_t level;
     uint32_t enabled;
     qemu_irq parent_irq;
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void mv88w8618_pic_update(mv88w8618_pic_state *s)
@@ -413,7 +417,7 @@ static const VMStateDescription mv88w8618_pic_vmsd = {
     .fields = mv88w8618_pic_vmsd_fields,
 };
 
-static void mv88w8618_pic_class_init(ObjectClass *klass, const void *data)
+void mv88w8618_pic_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -426,7 +430,7 @@ static const TypeInfo mv88w8618_pic_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_pic_state),
     .instance_init = mv88w8618_pic_init,
-    .class_init    = mv88w8618_pic_class_init,
+    .class_init    = mv88w8618_pic_state::classInit,
 };
 
 /* PIT register offsets */
@@ -459,6 +463,8 @@ struct mv88w8618_pit_state {
 
     MemoryRegion iomem;
     mv88w8618_timer_state timer[4];
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void mv88w8618_timer_tick(void *opaque)
@@ -611,7 +617,7 @@ static const VMStateDescription mv88w8618_pit_vmsd = {
     .fields = mv88w8618_pit_vmsd_fields,
 };
 
-static void mv88w8618_pit_class_init(ObjectClass *klass, const void *data)
+void mv88w8618_pit_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -625,7 +631,7 @@ static const TypeInfo mv88w8618_pit_info = {
     .instance_size = sizeof(mv88w8618_pit_state),
     .instance_init = mv88w8618_pit_init,
     .instance_finalize = mv88w8618_pit_finalize,
-    .class_init    = mv88w8618_pit_class_init,
+    .class_init    = mv88w8618_pit_state::classInit,
 };
 
 /* Flash config register offsets */
@@ -641,6 +647,8 @@ struct mv88w8618_flashcfg_state {
 
     MemoryRegion iomem;
     uint32_t cfgr0;
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static uint64_t mv88w8618_flashcfg_read(void *opaque,
@@ -699,7 +707,7 @@ static const VMStateDescription mv88w8618_flashcfg_vmsd = {
     .fields = mv88w8618_flashcfg_vmsd_fields,
 };
 
-static void mv88w8618_flashcfg_class_init(ObjectClass *klass, const void *data)
+void mv88w8618_flashcfg_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -711,7 +719,7 @@ static const TypeInfo mv88w8618_flashcfg_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(mv88w8618_flashcfg_state),
     .instance_init = mv88w8618_flashcfg_init,
-    .class_init    = mv88w8618_flashcfg_class_init,
+    .class_init    = mv88w8618_flashcfg_state::classInit,
 };
 
 /* Misc register offsets */
@@ -846,6 +854,8 @@ struct musicpal_gpio_state {
     uint32_t isr;
     qemu_irq irq;
     qemu_irq out[5]; /* 3 brightness out + 2 lcd (data and clock ) */
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void musicpal_gpio_brightness_update(musicpal_gpio_state *s) {
@@ -1040,7 +1050,7 @@ static const VMStateDescription musicpal_gpio_vmsd = {
     .fields = musicpal_gpio_vmsd_fields,
 };
 
-static void musicpal_gpio_class_init(ObjectClass *klass, const void *data)
+void musicpal_gpio_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1053,7 +1063,7 @@ static const TypeInfo musicpal_gpio_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_gpio_state),
     .instance_init = musicpal_gpio_init,
-    .class_init    = musicpal_gpio_class_init,
+    .class_init    = musicpal_gpio_state::classInit,
 };
 
 /* Keyboard codes & masks */
@@ -1076,6 +1086,8 @@ struct musicpal_key_state {
 
     uint32_t pressed_keys;
     qemu_irq out[8];
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
@@ -1187,7 +1199,7 @@ static const VMStateDescription musicpal_key_vmsd = {
     .fields = musicpal_key_vmsd_fields,
 };
 
-static void musicpal_key_class_init(ObjectClass *klass, const void *data)
+void musicpal_key_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1200,7 +1212,7 @@ static const TypeInfo musicpal_key_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(musicpal_key_state),
     .instance_init = musicpal_key_init,
-    .class_init    = musicpal_key_class_init,
+    .class_init    = musicpal_key_state::classInit,
 };
 
 #define FLASH_SECTOR_SIZE   (64 * KiB)

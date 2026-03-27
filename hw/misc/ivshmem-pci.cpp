@@ -133,6 +133,8 @@ struct IVShmemState {
     void reset(DeviceState *d);
 
     static void commonClassInit(ObjectClass *klass, const void *data);
+    static void plainClassInit(ObjectClass *klass, const void *data);
+    static void doorbellClassInit(ObjectClass *klass, const void *data);
 
     /* static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
@@ -1114,7 +1116,7 @@ static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
     ivshmem_common_realize_wrapper(dev, errp);
 }
 
-static void ivshmem_plain_class_init(ObjectClass *klass, const void *data)
+void IVShmemState::plainClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1128,7 +1130,7 @@ static const TypeInfo ivshmem_plain_info = {
     .name          = TYPE_IVSHMEM_PLAIN,
     .parent        = TYPE_IVSHMEM_COMMON,
     .instance_size = sizeof(IVShmemState),
-    .class_init    = ivshmem_plain_class_init,
+    .class_init    = IVShmemState::plainClassInit,
 };
 
 static const VMStateField ivshmem_doorbell_vmsd_fields[] = {
@@ -1175,7 +1177,7 @@ static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
     ivshmem_common_realize_wrapper(dev, errp);
 }
 
-static void ivshmem_doorbell_class_init(ObjectClass *klass, const void *data)
+void IVShmemState::doorbellClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -1190,7 +1192,7 @@ static const TypeInfo ivshmem_doorbell_info = {
     .parent        = TYPE_IVSHMEM_COMMON,
     .instance_size = sizeof(IVShmemState),
     .instance_init = ivshmem_doorbell_init,
-    .class_init    = ivshmem_doorbell_class_init,
+    .class_init    = IVShmemState::doorbellClassInit,
 };
 
 static void ivshmem_register_types(void)

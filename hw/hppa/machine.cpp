@@ -44,6 +44,11 @@ OBJECT_DECLARE_SIMPLE_TYPE(HppaMachineState, HPPA_COMMON_MACHINE)
 
 struct HppaMachineState {
     MachineState parent_obj;
+
+    static void commonClassInit(ObjectClass *oc, const void *data);
+    static void b160lClassInit(ObjectClass *oc, const void *data);
+    static void c3700ClassInit(ObjectClass *oc, const void *data);
+    static void hp715ClassInit(ObjectClass *oc, const void *data);
 };
 
 #define MIN_SEABIOS_HPPA_VERSION 19 /* require at least this fw version */
@@ -773,7 +778,7 @@ static void hppa_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void hppa_machine_common_class_init(ObjectClass *oc, const void *data)
+void HppaMachineState::commonClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
@@ -789,7 +794,7 @@ static void hppa_machine_common_class_init(ObjectClass *oc, const void *data)
     nc->nmi_monitor_handler = hppa_nmi;
 }
 
-static void HP_B160L_machine_init_class_init(ObjectClass *oc, const void *data)
+void HppaMachineState::b160lClassInit(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         TYPE_HPPA_CPU,
@@ -805,7 +810,7 @@ static void HP_B160L_machine_init_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 512 * MiB;
 }
 
-static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
+void HppaMachineState::c3700ClassInit(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         TYPE_HPPA64_CPU,
@@ -821,7 +826,7 @@ static void HP_C3700_machine_init_class_init(ObjectClass *oc, const void *data)
     mc->default_ram_size = 1024 * MiB;
 }
 
-static void HP_715_machine_init_class_init(ObjectClass *oc, const void *data)
+void HppaMachineState::hp715ClassInit(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         TYPE_HPPA_CPU,
@@ -845,7 +850,7 @@ static const TypeInfo hppa_machine_types[] = {
         .name           = TYPE_HPPA_COMMON_MACHINE,
         .parent         = TYPE_MACHINE,
         .instance_size  = sizeof(HppaMachineState),
-        .class_init     = hppa_machine_common_class_init,
+        .class_init     = HppaMachineState::commonClassInit,
         .is_abstract       = true,
         .interfaces = (const InterfaceInfo[]) {
             { TYPE_NMI },
@@ -854,15 +859,15 @@ static const TypeInfo hppa_machine_types[] = {
     }, {
         .name = MACHINE_TYPE_NAME("B160L"),
         .parent = TYPE_HPPA_COMMON_MACHINE,
-        .class_init = HP_B160L_machine_init_class_init,
+        .class_init = HppaMachineState::b160lClassInit,
     }, {
         .name = MACHINE_TYPE_NAME("C3700"),
         .parent = TYPE_HPPA_COMMON_MACHINE,
-        .class_init = HP_C3700_machine_init_class_init,
+        .class_init = HppaMachineState::c3700ClassInit,
     }, {
         .name = MACHINE_TYPE_NAME("715"),
         .parent = TYPE_HPPA_COMMON_MACHINE,
-        .class_init = HP_715_machine_init_class_init,
+        .class_init = HppaMachineState::hp715ClassInit,
     },
 };
 

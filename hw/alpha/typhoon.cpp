@@ -58,6 +58,8 @@ struct TyphoonState {
     TyphoonCchip cchip;
     TyphoonPchip pchip;
     MemoryRegion dchip_region;
+
+    static void iommuMemoryRegionClassInit(ObjectClass *klass, const void *data);
 };
 
 /* Called when one of DRIR or DIM changes.  */
@@ -935,8 +937,8 @@ static const TypeInfo typhoon_pcihost_info = {
     .instance_size = sizeof(TyphoonState),
 };
 
-static void typhoon_iommu_memory_region_class_init(ObjectClass *klass,
-                                                   const void *data)
+void TyphoonState::iommuMemoryRegionClassInit(ObjectClass *klass,
+                                               const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
@@ -946,7 +948,7 @@ static void typhoon_iommu_memory_region_class_init(ObjectClass *klass,
 static const TypeInfo typhoon_iommu_memory_region_info = {
     .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_TYPHOON_IOMMU_MEMORY_REGION,
-    .class_init = typhoon_iommu_memory_region_class_init,
+    .class_init = TyphoonState::iommuMemoryRegionClassInit,
 };
 
 static void typhoon_register_types(void)

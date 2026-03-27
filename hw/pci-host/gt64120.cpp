@@ -263,6 +263,9 @@ struct GT64120State {
 
     /* properties */
     bool cpu_little_endian;
+
+    static void pciClassInit(ObjectClass *klass, const void *data);
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 /* Adjust range to avoid touching space which isn't mappable via PCI */
@@ -1259,7 +1262,7 @@ static void gt64120_pci_reset_hold(Object *obj, ResetType type)
     pci_set_byte(d->config + 0x3d, 0x01);
 }
 
-static void gt64120_pci_class_init(ObjectClass *klass, const void *data)
+void GT64120State::pciClassInit(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1282,7 +1285,7 @@ static const TypeInfo gt64120_pci_info = {
     .name          = "gt64120_pci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
-    .class_init    = gt64120_pci_class_init,
+    .class_init    = GT64120State::pciClassInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
@@ -1294,7 +1297,7 @@ static const Property gt64120_properties[] = {
                      cpu_little_endian, false),
 };
 
-static void gt64120_class_init(ObjectClass *klass, const void *data)
+void GT64120State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1309,7 +1312,7 @@ static const TypeInfo gt64120_info = {
     .name          = TYPE_GT64120_PCI_HOST_BRIDGE,
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(GT64120State),
-    .class_init    = gt64120_class_init,
+    .class_init    = GT64120State::classInit,
 };
 
 static void gt64120_pci_register_types(void)

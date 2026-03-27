@@ -193,6 +193,9 @@ struct HDAAudioState {
     void reset();
     static void resetWrapper(DeviceState *dev);
     static void baseClassInit(ObjectClass *klass, const void *data);
+    static void outputClassInit(ObjectClass *klass, const void *data);
+    static void duplexClassInit(ObjectClass *klass, const void *data);
+    static void microClassInit(ObjectClass *klass, const void *data);
 };
 
 static inline uint32_t hda_bytes_per_second(HDAAudioStream *st)
@@ -941,7 +944,7 @@ static const TypeInfo hda_audio_info = {
     .class_init    = HDAAudioState::baseClassInit,
 };
 
-static void hda_audio_output_class_init(ObjectClass *klass, const void *data)
+void HDAAudioState::outputClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
@@ -953,10 +956,10 @@ static void hda_audio_output_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo hda_audio_output_info = {
     .name          = "hda-output",
     .parent        = TYPE_HDA_AUDIO,
-    .class_init    = hda_audio_output_class_init,
+    .class_init    = HDAAudioState::outputClassInit,
 };
 
-static void hda_audio_duplex_class_init(ObjectClass *klass, const void *data)
+void HDAAudioState::duplexClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
@@ -968,10 +971,10 @@ static void hda_audio_duplex_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo hda_audio_duplex_info = {
     .name          = "hda-duplex",
     .parent        = TYPE_HDA_AUDIO,
-    .class_init    = hda_audio_duplex_class_init,
+    .class_init    = HDAAudioState::duplexClassInit,
 };
 
-static void hda_audio_micro_class_init(ObjectClass *klass, const void *data)
+void HDAAudioState::microClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
@@ -983,7 +986,7 @@ static void hda_audio_micro_class_init(ObjectClass *klass, const void *data)
 static const TypeInfo hda_audio_micro_info = {
     .name          = "hda-micro",
     .parent        = TYPE_HDA_AUDIO,
-    .class_init    = hda_audio_micro_class_init,
+    .class_init    = HDAAudioState::microClassInit,
 };
 
 static void hda_audio_register_types(void)

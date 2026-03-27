@@ -60,6 +60,9 @@ struct M48txxSysBusState {
     SysBusDevice parent_obj;
     M48t59State state;
     MemoryRegion io;
+
+    static void classInit(ObjectClass *klass, const void *data);
+    static void concreteClassInit(ObjectClass *klass, const void *data);
 };
 
 struct M48txxSysBusDeviceClass {
@@ -623,7 +626,7 @@ static const Property m48t59_sysbus_properties[] = {
     DEFINE_PROP_INT32("base-year", M48txxSysBusState, state.base_year, 0),
 };
 
-static void m48txx_sysbus_class_init(ObjectClass *klass, const void *data)
+void M48txxSysBusState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     NvramClass *nc = NVRAM_CLASS(klass);
@@ -637,8 +640,8 @@ static void m48txx_sysbus_class_init(ObjectClass *klass, const void *data)
     nc->toggle_lock = m48txx_sysbus_toggle_lock;
 }
 
-static void m48txx_sysbus_concrete_class_init(ObjectClass *klass,
-                                              const void *data)
+void M48txxSysBusState::concreteClassInit(ObjectClass *klass,
+                                           const void *data)
 {
     M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_CLASS(klass);
     const M48txxInfo *info = static_cast<const M48txxInfo *>(data);
@@ -658,7 +661,7 @@ static const TypeInfo m48txx_sysbus_type_info = {
     .instance_size = sizeof(M48txxSysBusState),
     .instance_init = m48t59_init1,
     .is_abstract = true,
-    .class_init = m48txx_sysbus_class_init,
+    .class_init = M48txxSysBusState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_NVRAM },
         { }
@@ -670,7 +673,7 @@ static void m48t59_register_types(void)
     TypeInfo sysbus_type_info = {
         .parent = TYPE_M48TXX_SYS_BUS,
         .class_size = sizeof(M48txxSysBusDeviceClass),
-        .class_init = m48txx_sysbus_concrete_class_init,
+        .class_init = M48txxSysBusState::concreteClassInit,
     };
     int i;
 

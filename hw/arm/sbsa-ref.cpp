@@ -108,6 +108,8 @@ struct SBSAMachineState {
     int psci_conduit;
     DeviceState *gic;
     PFlashCFI01 *flash[2];
+
+    static void classInit(ObjectClass *oc, const void *data);
 };
 
 #define TYPE_SBSA_MACHINE   MACHINE_TYPE_NAME("sbsa-ref")
@@ -893,7 +895,7 @@ static void sbsa_ref_instance_init(Object *obj)
     sbsa_flash_create(sms);
 }
 
-static void sbsa_ref_class_init(ObjectClass *oc, const void *data)
+void SBSAMachineState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     static const char * const valid_cpu_types[] = {
@@ -932,7 +934,7 @@ static const TypeInfo sbsa_ref_info = {
     .parent        = TYPE_MACHINE,
     .instance_size = sizeof(SBSAMachineState),
     .instance_init = sbsa_ref_instance_init,
-    .class_init    = sbsa_ref_class_init,
+    .class_init    = SBSAMachineState::classInit,
     .interfaces    = aarch64_machine_interfaces,
 };
 

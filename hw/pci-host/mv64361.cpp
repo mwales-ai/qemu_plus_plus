@@ -26,7 +26,28 @@
 
 #define TYPE_MV64361_PCI_BRIDGE "mv64361-pcibridge"
 
-static void mv64361_pcibridge_class_init(ObjectClass *klass, const void *data)
+#define TYPE_MV64361_PCI "mv64361-pcihost"
+OBJECT_DECLARE_SIMPLE_TYPE(MV64361PCIState, MV64361_PCI)
+
+struct MV64361PCIState {
+    PCIHostState parent_obj;
+
+    uint8_t index;
+    MemoryRegion io;
+    MemoryRegion mem;
+    qemu_irq irq[PCI_NUM_PINS];
+
+    uint32_t io_base;
+    uint32_t io_size;
+    uint32_t mem_base[4];
+    uint32_t mem_size[4];
+    uint64_t remap[5];
+
+    static void pciBridgeClassInit(ObjectClass *klass, const void *data);
+    static void hostClassInit(ObjectClass *klass, const void *data);
+};
+
+void MV64361PCIState::pciBridgeClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -50,27 +71,8 @@ static const TypeInfo mv64361_pcibridge_info = {
     .name          = TYPE_MV64361_PCI_BRIDGE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
-    .class_init    = mv64361_pcibridge_class_init,
+    .class_init    = MV64361PCIState::pciBridgeClassInit,
     .interfaces    = mv64361_pcibridge_interfaces,
-};
-
-
-#define TYPE_MV64361_PCI "mv64361-pcihost"
-OBJECT_DECLARE_SIMPLE_TYPE(MV64361PCIState, MV64361_PCI)
-
-struct MV64361PCIState {
-    PCIHostState parent_obj;
-
-    uint8_t index;
-    MemoryRegion io;
-    MemoryRegion mem;
-    qemu_irq irq[PCI_NUM_PINS];
-
-    uint32_t io_base;
-    uint32_t io_size;
-    uint32_t mem_base[4];
-    uint32_t mem_size[4];
-    uint64_t remap[5];
 };
 
 static void mv64361_pcihost_set_irq(void *opaque, int n, int level)
@@ -104,7 +106,7 @@ static const Property mv64361_pcihost_props[] = {
     DEFINE_PROP_UINT8("index", MV64361PCIState, index, 0),
 };
 
-static void mv64361_pcihost_class_init(ObjectClass *klass, const void *data)
+void MV64361PCIState::hostClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -117,7 +119,7 @@ static const TypeInfo mv64361_pcihost_info = {
        .name          = TYPE_MV64361_PCI,
        .parent        = TYPE_PCI_HOST_BRIDGE,
        .instance_size = sizeof(MV64361PCIState),
-       .class_init    = mv64361_pcihost_class_init,
+       .class_init    = MV64361PCIState::hostClassInit,
 };
 
 static void mv64361_pci_register_types(void)
@@ -151,6 +153,8 @@ struct MV64361State {
     uint32_t gpp_int_cr;
     uint32_t gpp_int_mask;
     bool gpp_int_level;
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 enum mv64361_irq_cause {
@@ -924,7 +928,7 @@ static void mv64361_reset(DeviceState *dev)
     set_mem_windows(s, 0xfbfff);
 }
 
-static void mv64361_class_init(ObjectClass *klass, const void *data)
+void MV64361State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -936,7 +940,7 @@ static const TypeInfo mv64361_type_info = {
     .name = TYPE_MV64361,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MV64361State),
-    .class_init = mv64361_class_init,
+    .class_init = MV64361State::classInit,
 };
 
 static void mv64361_register_types(void)

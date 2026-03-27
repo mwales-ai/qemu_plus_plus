@@ -190,6 +190,10 @@ struct VexpressMachineState {
     MemoryRegion a15sram;
     bool secure;
     bool virt;
+
+    static void classInit(ObjectClass *oc, const void *data);
+    static void a9ClassInit(ObjectClass *oc, const void *data);
+    static void a15ClassInit(ObjectClass *oc, const void *data);
 };
 
 #define TYPE_VEXPRESS_MACHINE   "vexpress"
@@ -784,7 +788,7 @@ static void vexpress_a9_instance_init(Object *obj)
     vms->virt = false;
 }
 
-static void vexpress_class_init(ObjectClass *oc, const void *data)
+void VexpressMachineState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -802,7 +806,7 @@ static void vexpress_class_init(ObjectClass *oc, const void *data)
                                           "Security Extensions (TrustZone)");
 }
 
-static void vexpress_a9_class_init(ObjectClass *oc, const void *data)
+void VexpressMachineState::a9ClassInit(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a9"),
@@ -818,7 +822,7 @@ static void vexpress_a9_class_init(ObjectClass *oc, const void *data)
     vmc->daughterboard = &a9_daughterboard;
 }
 
-static void vexpress_a15_class_init(ObjectClass *oc, const void *data)
+void VexpressMachineState::a15ClassInit(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a15"),
@@ -849,14 +853,14 @@ static const TypeInfo vexpress_info = {
     .instance_init = vexpress_instance_init,
     .is_abstract = true,
     .class_size = sizeof(VexpressMachineClass),
-    .class_init = vexpress_class_init,
+    .class_init = VexpressMachineState::classInit,
 };
 
 static const TypeInfo vexpress_a9_info = {
     .name = TYPE_VEXPRESS_A9_MACHINE,
     .parent = TYPE_VEXPRESS_MACHINE,
     .instance_init = vexpress_a9_instance_init,
-    .class_init = vexpress_a9_class_init,
+    .class_init = VexpressMachineState::a9ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 
@@ -864,7 +868,7 @@ static const TypeInfo vexpress_a15_info = {
     .name = TYPE_VEXPRESS_A15_MACHINE,
     .parent = TYPE_VEXPRESS_MACHINE,
     .instance_init = vexpress_a15_instance_init,
-    .class_init = vexpress_a15_class_init,
+    .class_init = VexpressMachineState::a15ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 

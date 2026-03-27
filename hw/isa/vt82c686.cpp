@@ -49,6 +49,8 @@ struct ViaPMState {
     ACPIREGS ar;
     APMState apm;
     PMSMBus smb;
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 static void pm_io_space_update(ViaPMState *s)
@@ -222,7 +224,7 @@ typedef struct via_pm_init_info {
     uint16_t device_id;
 } ViaPMInitInfo;
 
-static void via_pm_class_init(ObjectClass *klass, const void *data)
+void ViaPMState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -262,7 +264,7 @@ static const ViaPMInitInfo vt82c686b_pm_init_info = {
 static const TypeInfo vt82c686b_pm_info = {
     .name          = TYPE_VT82C686B_PM,
     .parent        = TYPE_VIA_PM,
-    .class_init    = via_pm_class_init,
+    .class_init    = ViaPMState::classInit,
     .class_data    = &vt82c686b_pm_init_info,
 };
 
@@ -275,7 +277,7 @@ static const ViaPMInitInfo vt8231_pm_init_info = {
 static const TypeInfo vt8231_pm_info = {
     .name          = TYPE_VT8231_PM,
     .parent        = TYPE_VIA_PM,
-    .class_init    = via_pm_class_init,
+    .class_init    = ViaPMState::classInit,
     .class_data    = &vt8231_pm_init_info,
 };
 
@@ -288,6 +290,10 @@ struct ViaSuperIOState {
     uint8_t regs[0x100];
     const MemoryRegionOps *io_ops;
     MemoryRegion io;
+
+    static void baseClassInit(ObjectClass *klass, const void *data);
+    static void vt82c686bClassInit(ObjectClass *klass, const void *data);
+    static void vt8231ClassInit(ObjectClass *klass, const void *data);
 };
 
 static inline void via_superio_io_enable(ViaSuperIOState *s, bool enable)
@@ -341,7 +347,7 @@ static void via_superio_devices_enable(ViaSuperIOState *s, uint8_t data)
     isa_fdc_set_enabled(s->superio.floppy, data & BIT(4));
 }
 
-static void via_superio_class_init(ObjectClass *klass, const void *data)
+void ViaSuperIOState::baseClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
@@ -356,7 +362,7 @@ static const TypeInfo via_superio_info = {
     .instance_size = sizeof(ViaSuperIOState),
     .is_abstract      = true,
     .class_size    = sizeof(ISASuperIOClass),
-    .class_init    = via_superio_class_init,
+    .class_init    = ViaSuperIOState::baseClassInit,
 };
 
 #define TYPE_VT82C686B_SUPERIO "vt82c686b-superio"
@@ -460,7 +466,7 @@ static void vt82c686b_superio_init(Object *obj)
     VIA_SUPERIO(obj)->io_ops = &vt82c686b_superio_cfg_ops;
 }
 
-static void vt82c686b_superio_class_init(ObjectClass *klass, const void *data)
+void ViaSuperIOState::vt82c686bClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
@@ -478,7 +484,7 @@ static const TypeInfo vt82c686b_superio_info = {
     .instance_size = sizeof(ViaSuperIOState),
     .instance_init = vt82c686b_superio_init,
     .class_size    = sizeof(ISASuperIOClass),
-    .class_init    = vt82c686b_superio_class_init,
+    .class_init    = ViaSuperIOState::vt82c686bClassInit,
 };
 
 
@@ -569,7 +575,7 @@ static void vt8231_superio_init(Object *obj)
     VIA_SUPERIO(obj)->io_ops = &vt8231_superio_cfg_ops;
 }
 
-static void vt8231_superio_class_init(ObjectClass *klass, const void *data)
+void ViaSuperIOState::vt8231ClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
@@ -587,7 +593,7 @@ static const TypeInfo vt8231_superio_info = {
     .instance_size = sizeof(ViaSuperIOState),
     .instance_init = vt8231_superio_init,
     .class_size    = sizeof(ISASuperIOClass),
-    .class_init    = vt8231_superio_class_init,
+    .class_init    = ViaSuperIOState::vt8231ClassInit,
 };
 
 
@@ -596,6 +602,8 @@ OBJECT_DECLARE_SIMPLE_TYPE(ViaISAState, VIA_ISA)
 
 struct ViaISAState {
     PCIDevice dev;
+    static void vt82c686bClassInit(ObjectClass *klass, const void *data);
+    static void vt8231ClassInit(ObjectClass *klass, const void *data);
 
     IRQState i8259_irq;
     qemu_irq cpu_intr;
@@ -841,7 +849,7 @@ static void vt82c686b_init(Object *obj)
     object_initialize_child(obj, "pm", &s->pm, TYPE_VT82C686B_PM);
 }
 
-static void vt82c686b_class_init(ObjectClass *klass, const void *data)
+void ViaISAState::vt82c686bClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -864,7 +872,7 @@ static const TypeInfo vt82c686b_isa_info = {
     .parent        = TYPE_VIA_ISA,
     .instance_size = sizeof(ViaISAState),
     .instance_init = vt82c686b_init,
-    .class_init    = vt82c686b_class_init,
+    .class_init    = ViaISAState::vt82c686bClassInit,
 };
 
 /* TYPE_VT8231_ISA */
@@ -906,7 +914,7 @@ static void vt8231_init(Object *obj)
     object_initialize_child(obj, "pm", &s->pm, TYPE_VT8231_PM);
 }
 
-static void vt8231_class_init(ObjectClass *klass, const void *data)
+void ViaISAState::vt8231ClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -929,7 +937,7 @@ static const TypeInfo vt8231_isa_info = {
     .parent        = TYPE_VIA_ISA,
     .instance_size = sizeof(ViaISAState),
     .instance_init = vt8231_init,
-    .class_init    = vt8231_class_init,
+    .class_init    = ViaISAState::vt8231ClassInit,
 };
 
 
