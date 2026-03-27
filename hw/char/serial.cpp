@@ -24,6 +24,9 @@
  */
 
 #include "qemu/osdep.h"
+
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+
 #include "qemu/bitops.h"
 #include "hw/char/serial.h"
 #include "hw/irq.h"
@@ -105,47 +108,57 @@
 static void serial_receive1(void *opaque, const uint8_t *buf, int size);
 static void serial_xmit(SerialState *s);
 
-static inline void recv_fifo_put(SerialState *s, uint8_t chr)
+/* C++ method — replaces recv_fifo_put(SerialState *s, uint8_t chr) */
+void SerialState::recvFifoPut(uint8_t chr)
 {
     /* Receive overruns do not overwrite FIFO contents. */
-    if (!fifo8_is_full(&s->recv_fifo)) {
-        fifo8_push(&s->recv_fifo, chr);
+    if (!fifo8_is_full(&recv_fifo)) {
+        fifo8_push(&recv_fifo, chr);
     } else {
-        s->lsr |= UART_LSR_OE;
+        lsr |= UART_LSR_OE;
     }
 }
 
-static void serial_update_irq(SerialState *s)
+/* Compatibility wrapper */
+static inline void recv_fifo_put(SerialState *s, uint8_t chr) { s->recvFifoPut(chr); }
+
+/* C++ method — replaces serial_update_irq(SerialState *s) */
+void SerialState::updateIrq()
 {
     uint8_t tmp_iir = UART_IIR_NO_INT;
 
-    if ((s->ier & UART_IER_RLSI) && (s->lsr & UART_LSR_INT_ANY)) {
+    if ((ier & UART_IER_RLSI) && (lsr & UART_LSR_INT_ANY)) {
         tmp_iir = UART_IIR_RLSI;
-    } else if ((s->ier & UART_IER_RDI) && s->timeout_ipending) {
-        /* Note that(s->ier & UART_IER_RDI) can mask this interrupt,
+    } else if ((ier & UART_IER_RDI) && timeout_ipending) {
+        /* Note that(ier & UART_IER_RDI) can mask this interrupt,
          * this is not in the specification but is observed on existing
          * hardware.  */
         tmp_iir = UART_IIR_CTI;
-    } else if ((s->ier & UART_IER_RDI) && (s->lsr & UART_LSR_DR) &&
-               (!(s->fcr & UART_FCR_FE) ||
-                s->recv_fifo.num >= s->recv_fifo_itl)) {
+    } else if ((ier & UART_IER_RDI) && (lsr & UART_LSR_DR) &&
+               (!(fcr & UART_FCR_FE) ||
+                recv_fifo.num >= recv_fifo_itl)) {
         tmp_iir = UART_IIR_RDI;
-    } else if ((s->ier & UART_IER_THRI) && s->thr_ipending) {
+    } else if ((ier & UART_IER_THRI) && thr_ipending) {
         tmp_iir = UART_IIR_THRI;
-    } else if ((s->ier & UART_IER_MSI) && (s->msr & UART_MSR_ANY_DELTA)) {
+    } else if ((ier & UART_IER_MSI) && (msr & UART_MSR_ANY_DELTA)) {
         tmp_iir = UART_IIR_MSI;
     }
 
-    s->iir = tmp_iir | (s->iir & 0xF0);
+    iir = tmp_iir | (iir & 0xF0);
 
     if (tmp_iir != UART_IIR_NO_INT) {
-        qemu_irq_raise(s->irq);
+        qemu_irq_raise(irq);
     } else {
-        qemu_irq_lower(s->irq);
+        qemu_irq_lower(irq);
     }
+
 }
 
-static void serial_update_parameters(SerialState *s)
+/* Compatibility wrapper — existing code calls serial_update_irq(s) */
+static void serial_update_irq(SerialState *s) { s->updateIrq(); }
+
+/* C++ method — replaces serial_update_parameters(SerialState *s) */
+void SerialState::updateParameters()
 {
     float speed;
     int parity, data_bits, stop_bits, frame_size;
@@ -153,34 +166,37 @@ static void serial_update_parameters(SerialState *s)
 
     /* Start bit. */
     frame_size = 1;
-    if (s->lcr & 0x08) {
+    if (lcr & 0x08) {
         /* Parity bit. */
         frame_size++;
-        if (s->lcr & 0x10)
+        if (lcr & 0x10)
             parity = 'E';
         else
             parity = 'O';
     } else {
             parity = 'N';
     }
-    if (s->lcr & 0x04) {
+    if (lcr & 0x04) {
         stop_bits = 2;
     } else {
         stop_bits = 1;
     }
 
-    data_bits = (s->lcr & 0x03) + 5;
+    data_bits = (lcr & 0x03) + 5;
     frame_size += data_bits + stop_bits;
     /* Zero divisor should give about 3500 baud */
-    speed = (s->divider == 0) ? 3500 : (float) s->baudbase / s->divider;
+    speed = (divider == 0) ? 3500 : (float) baudbase / divider;
     ssp.speed = speed;
     ssp.parity = parity;
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
-    s->char_transmit_time =  (NANOSECONDS_PER_SECOND / speed) * frame_size;
-    qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
+    char_transmit_time = (NANOSECONDS_PER_SECOND / speed) * frame_size;
+    qemu_chr_fe_ioctl(&chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
     trace_serial_update_parameters(speed, parity, data_bits, stop_bits);
 }
+
+/* Compatibility wrapper */
+static void serial_update_parameters(SerialState *s) { s->updateParameters(); }
 
 static void serial_update_msl(SerialState *s)
 {
