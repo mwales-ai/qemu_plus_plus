@@ -134,15 +134,15 @@ static const uint32_t irqmask[] = {
     INT_E,
 };
 
-static void pl011_update(PL011State *s)
+void PL011State::updateIrq()
 {
     uint32_t flags;
     size_t i;
 
-    flags = s->int_level & s->int_enabled;
+    flags = int_level & int_enabled;
     trace_pl011_irq_state(flags != 0);
-    for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
-        qemu_set_irq(s->irq[i], (flags & irqmask[i]) != 0);
+    for (i = 0; i < ARRAY_SIZE(irq); i++) {
+        qemu_set_irq(irq[i], (flags & irqmask[i]) != 0);
     }
 }
 
@@ -179,25 +179,24 @@ static inline void pl011_reset_tx_fifo(PL011State *s)
     s->flags |= PL011_FLAG_TXFE;
 }
 
-static void pl011_fifo_rx_put(void *opaque, uint32_t value)
+void PL011State::putFifo(uint32_t value)
 {
-    PL011State *s = static_cast<PL011State *>(opaque);
     int slot;
     unsigned pipe_depth;
 
-    pipe_depth = pl011_get_fifo_depth(s);
-    slot = (s->read_pos + s->read_count) & (pipe_depth - 1);
-    s->read_fifo[slot] = value;
-    s->read_count++;
-    s->flags &= ~PL011_FLAG_RXFE;
-    trace_pl011_fifo_rx_put(value, s->read_count, pipe_depth);
-    if (static_cast<unsigned>(s->read_count) == pipe_depth) {
+    pipe_depth = pl011_get_fifo_depth(this);
+    slot = (read_pos + read_count) & (pipe_depth - 1);
+    read_fifo[slot] = value;
+    read_count++;
+    flags &= ~PL011_FLAG_RXFE;
+    trace_pl011_fifo_rx_put(value, read_count, pipe_depth);
+    if (static_cast<unsigned>(read_count) == pipe_depth) {
         trace_pl011_fifo_rx_full();
-        s->flags |= PL011_FLAG_RXFF;
+        flags |= PL011_FLAG_RXFF;
     }
-    if (s->read_count == s->read_trigger) {
-        s->int_level |= INT_RX;
-        pl011_update(s);
+    if (read_count == read_trigger) {
+        int_level |= INT_RX;
+        updateIrq();
     }
 }
 
@@ -226,7 +225,7 @@ static void pl011_loopback_tx(PL011State *s, uint32_t value)
      *
      * For simplicity, the above described is not emulated.
      */
-    pl011_fifo_rx_put(s, value);
+    s->putFifo(value);
 }
 
 static void pl011_write_txdata(PL011State *s, uint8_t data)
@@ -247,7 +246,7 @@ static void pl011_write_txdata(PL011State *s, uint8_t data)
     qemu_chr_fe_write_all(&s->chr, &data, 1);
     pl011_loopback_tx(s, data);
     s->int_level |= INT_TX;
-    pl011_update(s);
+    s->updateIrq();
 }
 
 static uint32_t pl011_read_rxdata(PL011State *s)
@@ -269,13 +268,12 @@ static uint32_t pl011_read_rxdata(PL011State *s)
     }
     trace_pl011_read_fifo(s->read_count, fifo_depth);
     s->rsr = c >> 8;
-    pl011_update(s);
+    s->updateIrq();
     qemu_chr_fe_accept_input(&s->chr);
     return c;
 }
 
-static uint64_t pl011_read(void *opaque, hwaddr offset,
-                           unsigned size)
+uint64_t PL011State::mmioRead(void *opaque, hwaddr offset, unsigned size)
 {
     PL011State *s = static_cast<PL011State *>(opaque);
     uint64_t r;
@@ -334,18 +332,18 @@ static uint64_t pl011_read(void *opaque, hwaddr offset,
     return r;
 }
 
-static void pl011_set_read_trigger(PL011State *s)
+void PL011State::setReadTrigger()
 {
 #if 0
     /* The docs say the RX interrupt is triggered when the FIFO exceeds
        the threshold.  However linux only reads the FIFO in response to an
        interrupt.  Triggering the interrupt when the FIFO is non-empty seems
        to make things work.  */
-    if (s->lcr & LCR_FEN)
-        s->read_trigger = (s->ifl >> 1) & 0x1c;
+    if (lcr & LCR_FEN)
+        read_trigger = (ifl >> 1) & 0x1c;
     else
 #endif
-        s->read_trigger = 1;
+        read_trigger = 1;
 }
 
 static unsigned int pl011_get_baudrate(const PL011State *s)
@@ -405,7 +403,7 @@ static void pl011_loopback_mdmctrl(PL011State *s)
 
     s->flags = fr;
     s->int_level = il;
-    pl011_update(s);
+    s->updateIrq();
 }
 
 static void pl011_loopback_break(PL011State *s, int brk_enable)
@@ -415,8 +413,8 @@ static void pl011_loopback_break(PL011State *s, int brk_enable)
     }
 }
 
-static void pl011_write(void *opaque, hwaddr offset,
-                        uint64_t value, unsigned size)
+void PL011State::mmioWrite(void *opaque, hwaddr offset,
+                            uint64_t value, unsigned size)
 {
     PL011State *s = static_cast<PL011State *>(opaque);
     unsigned char ch;
@@ -458,7 +456,7 @@ static void pl011_write(void *opaque, hwaddr offset,
             pl011_loopback_break(s, break_enable);
         }
         s->lcr = value;
-        pl011_set_read_trigger(s);
+        s->setReadTrigger();
         break;
     case 12: /* UARTCR */
         /* ??? Need to implement the enable bit.  */
@@ -467,15 +465,15 @@ static void pl011_write(void *opaque, hwaddr offset,
         break;
     case 13: /* UARTIFS */
         s->ifl = value;
-        pl011_set_read_trigger(s);
+        s->setReadTrigger();
         break;
     case 14: /* UARTIMSC */
         s->int_enabled = value;
-        pl011_update(s);
+        s->updateIrq();
         break;
     case 17: /* UARTICR */
         s->int_level &= ~value;
-        pl011_update(s);
+        s->updateIrq();
         break;
     case 18: /* UARTDMACR */
         s->dmacr = value;
@@ -523,7 +521,7 @@ static void pl011_receive(void *opaque, const uint8_t *buf, int size)
     }
 
     for (int i = 0; i < size; i++) {
-        pl011_fifo_rx_put(s, buf[i]);
+        s->putFifo(buf[i]);
     }
 }
 
@@ -531,7 +529,7 @@ static void pl011_event(void *opaque, QEMUChrEvent event)
 {
     PL011State *s = static_cast<PL011State *>(opaque);
     if (event == CHR_EVENT_BREAK && !pl011_loopback_enabled(s)) {
-        pl011_fifo_rx_put(s, DR_BE);
+        s->putFifo(DR_BE);
     }
 }
 
@@ -543,8 +541,8 @@ static void pl011_clock_update(void *opaque, ClockEvent event)
 }
 
 static const MemoryRegionOps pl011_ops = {
-    .read = pl011_read,
-    .write = pl011_write,
+    .read = PL011State::mmioRead,
+    .write = PL011State::mmioWrite,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
@@ -653,60 +651,58 @@ static void pl011_init(Object *obj)
     s->id = pl011_id_arm;
 }
 
-static void pl011_realize_impl(PL011State *s, Error **errp)
+void PL011State::realize(Error **errp)
 {
-    qemu_chr_fe_set_handlers(&s->chr, pl011_can_receive, pl011_receive,
-                             pl011_event, NULL, s, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, pl011_can_receive, pl011_receive,
+                             pl011_event, NULL, this, NULL, true);
 }
 
-static void pl011_reset_impl(PL011State *s)
+void PL011State::reset()
 {
-    s->lcr = 0;
-    s->rsr = 0;
-    s->dmacr = 0;
-    s->int_enabled = 0;
-    s->int_level = 0;
-    s->ilpr = 0;
-    s->ibrd = 0;
-    s->fbrd = 0;
-    s->read_trigger = 1;
-    s->ifl = 0x12;
-    s->cr = 0x300;
-    s->flags = 0;
-    pl011_reset_rx_fifo(s);
-    pl011_reset_tx_fifo(s);
+    lcr = 0;
+    rsr = 0;
+    dmacr = 0;
+    int_enabled = 0;
+    int_level = 0;
+    ilpr = 0;
+    ibrd = 0;
+    fbrd = 0;
+    read_trigger = 1;
+    ifl = 0x12;
+    cr = 0x300;
+    flags = 0;
+    pl011_reset_rx_fifo(this);
+    pl011_reset_tx_fifo(this);
 }
 
-struct PL011Methods {
-    static void realize(DeviceState *dev, Error **errp)
-    {
-        PL011State *s = PL011(dev);
-        pl011_realize_impl(s, errp);
-    }
+static void pl011_realize(DeviceState *dev, Error **errp)
+{
+    PL011State *s = PL011(dev);
+    s->realize(errp);
+}
 
-    static void reset(DeviceState *dev)
-    {
-        PL011State *s = PL011(dev);
-        pl011_reset_impl(s);
-    }
+static void pl011_reset(DeviceState *dev)
+{
+    PL011State *s = PL011(dev);
+    s->reset();
+}
 
-    static void classInit(ObjectClass *oc, const void *data)
-    {
-        DeviceClass *dc = DEVICE_CLASS(oc);
+void PL011State::classInit(ObjectClass *oc, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
 
-        dc->realize = PL011Methods::realize;
-        device_class_set_legacy_reset(dc, PL011Methods::reset);
-        dc->vmsd = &vmstate_pl011;
-        device_class_set_props(dc, pl011_properties);
-    }
-};
+    dc->realize = pl011_realize;
+    device_class_set_legacy_reset(dc, pl011_reset);
+    dc->vmsd = &vmstate_pl011;
+    device_class_set_props(dc, pl011_properties);
+}
 
 static const TypeInfo pl011_arm_info = {
     .name          = TYPE_PL011,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL011State),
     .instance_init = pl011_init,
-    .class_init    = PL011Methods::classInit,
+    .class_init    = PL011State::classInit,
 };
 
 static void pl011_luminary_init(Object *obj)
