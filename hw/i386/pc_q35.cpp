@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "hw/acpi/acpi.h"
 #include "hw/char/parallel-isa.h"

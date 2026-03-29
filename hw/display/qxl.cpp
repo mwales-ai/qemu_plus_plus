@@ -329,7 +329,7 @@ static ram_addr_t qxl_rom_size(void)
 static void init_qxl_rom(PCIQXLDevice *d)
 {
     QXLRom *rom = static_cast<QXLRom *>(memory_region_get_ram_ptr(&d->rom_bar));
-    QXLModes *modes = (QXLModes *)(rom + 1);
+    QXLModes *modes = reinterpret_cast<QXLModes *>(rom + 1);
     uint32_t ram_header_size;
     uint32_t surface0_area_size;
     uint32_t num_pages;
@@ -410,7 +410,7 @@ static void init_qxl_ram(PCIQXLDevice *d)
     QXLReleaseRing *ring;
 
     buf = d->vga.vram_ptr;
-    d->ram = (QXLRam *)(buf + le32_to_cpu(d->shadow_rom.ram_header_offset));
+    d->ram = reinterpret_cast<QXLRam *>(buf + le32_to_cpu(d->shadow_rom.ram_header_offset));
     if (cpr_is_incoming()) {
         return;
     }
@@ -979,7 +979,7 @@ static void interface_update_area_complete(QXLInstance *sin,
 static void interface_async_complete(QXLInstance *sin, uint64_t cookie_token)
 {
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
-    QXLCookie *cookie = (QXLCookie *)(uintptr_t)cookie_token;
+    QXLCookie *cookie = reinterpret_cast<QXLCookie *>(static_cast<uintptr_t>(cookie_token));
 
     switch (cookie->type) {
     case QXL_COOKIE_TYPE_IO:
@@ -2343,10 +2343,10 @@ static int qxl_post_load(void *opaque, int version)
     if (d->last_release_offset == 0) {
         d->last_release = NULL;
     } else {
-        d->last_release = (QXLReleaseInfo *)(ram_start + d->last_release_offset);
+        d->last_release = reinterpret_cast<QXLReleaseInfo *>(ram_start + d->last_release_offset);
     }
 
-    d->modes = (QXLModes*)((uint8_t*)d->rom + d->rom->modes_offset);
+    d->modes = reinterpret_cast<QXLModes *>(reinterpret_cast<uint8_t *>(d->rom) + d->rom->modes_offset);
 
     trace_qxl_post_load(d->id, qxl_mode_to_string(d->mode));
     newmode = d->mode;

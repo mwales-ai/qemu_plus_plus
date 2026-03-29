@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "trace.h"
 #include "hw/qdev-properties.h"
@@ -28,6 +29,11 @@ DECLARE_OBJ_CHECKERS(GICv3ITSState, GICv3ITSClass,
 struct GICv3ITSClass {
     GICv3ITSCommonClass parent_class;
     ResettablePhases parent_phases;
+
+    static void classInit(ObjectClass *klass, const void *data);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
+    static void resetHoldWrapper(Object *obj, ResetType type);
+    static void postLoad(GICv3ITSState *s);
 };
 
 /*
@@ -1915,7 +1921,7 @@ static const MemoryRegionOps gicv3_its_translation_ops = {
     .impl = { .min_access_size = 2, .max_access_size = 4, },
 };
 
-static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
+void GICv3ITSClass::realizeWrapper(DeviceState *dev, Error **errp)
 {
     GICv3ITSState *s = ARM_GICV3_ITS_COMMON(dev);
     int i;
@@ -1946,7 +1952,7 @@ static void gicv3_arm_its_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void gicv3_its_reset_hold(Object *obj, ResetType type)
+void GICv3ITSClass::resetHoldWrapper(Object *obj, ResetType type)
 {
     GICv3ITSState *s = ARM_GICV3_ITS_COMMON(obj);
     GICv3ITSClass *c = ARM_GICV3_ITS_GET_CLASS(s);
@@ -1990,7 +1996,7 @@ static void gicv3_its_reset_hold(Object *obj, ResetType type)
     }
 }
 
-static void gicv3_its_post_load(GICv3ITSState *s)
+void GICv3ITSClass::postLoad(GICv3ITSState *s)
 {
     if (s->ctlr & R_GITS_CTLR_ENABLED_MASK) {
         extract_table_params(s);
@@ -2003,18 +2009,19 @@ static const Property gicv3_its_props[] = {
                      GICv3State *),
 };
 
-static void gicv3_its_class_init(ObjectClass *klass, const void *data)
+void GICv3ITSClass::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     GICv3ITSClass *ic = ARM_GICV3_ITS_CLASS(klass);
     GICv3ITSCommonClass *icc = ARM_GICV3_ITS_COMMON_CLASS(klass);
 
-    dc->realize = gicv3_arm_its_realize;
+    dc->realize = GICv3ITSClass::realizeWrapper;
     device_class_set_props(dc, gicv3_its_props);
-    resettable_class_set_parent_phases(rc, NULL, gicv3_its_reset_hold, NULL,
+    resettable_class_set_parent_phases(rc, NULL,
+                                       GICv3ITSClass::resetHoldWrapper, NULL,
                                        &ic->parent_phases);
-    icc->post_load = gicv3_its_post_load;
+    icc->post_load = GICv3ITSClass::postLoad;
 }
 
 static const TypeInfo gicv3_its_info = {
@@ -2022,7 +2029,7 @@ static const TypeInfo gicv3_its_info = {
     .parent = TYPE_ARM_GICV3_ITS_COMMON,
     .instance_size = sizeof(GICv3ITSState),
     .class_size = sizeof(GICv3ITSClass),
-    .class_init = gicv3_its_class_init,
+    .class_init = GICv3ITSClass::classInit,
 };
 
 static void gicv3_its_register_types(void)
