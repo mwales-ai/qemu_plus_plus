@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "chardev/char-parallel.h"
@@ -496,11 +497,10 @@ static int parallel_can_receive(void *opaque)
      return 1;
 }
 
-static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
+static void parallel_isa_realizefn_impl(ISAParallelState *isa, DeviceState *dev, Error **errp)
 {
     static int index;
     ISADevice *isadev = ISA_DEVICE(dev);
-    ISAParallelState *isa = ISA_PARALLEL(dev);
     ParallelState *s = &isa->state;
     int base;
     uint8_t dummy;
@@ -611,17 +611,25 @@ static const Property parallel_isa_properties[] = {
     DEFINE_PROP_CHR("chardev",  ISAParallelState, state.chr),
 };
 
-static void parallel_isa_class_initfn(ObjectClass *klass, const void *data)
+static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
-
-    dc->realize = parallel_isa_realizefn;
-    dc->vmsd = &vmstate_parallel_isa;
-    adevc->build_dev_aml = parallel_isa_build_aml;
-    device_class_set_props(dc, parallel_isa_properties);
-    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    ISAParallelState *isa = ISA_PARALLEL(dev);
+    parallel_isa_realizefn_impl(isa, dev, errp);
 }
+
+struct ParallelISAMethods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+        AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+
+        dc->realize = parallel_isa_realizefn;
+        dc->vmsd = &vmstate_parallel_isa;
+        adevc->build_dev_aml = parallel_isa_build_aml;
+        device_class_set_props(dc, parallel_isa_properties);
+        set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    }
+};
 
 static const InterfaceInfo parallel_isa_interfaces[] = {
     { TYPE_ACPI_DEV_AML_IF },
@@ -632,7 +640,7 @@ static const TypeInfo parallel_isa_info = {
     .name          = TYPE_ISA_PARALLEL,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAParallelState),
-    .class_init    = parallel_isa_class_initfn,
+    .class_init    = ParallelISAMethods::classInit,
     .interfaces = parallel_isa_interfaces,
 };
 

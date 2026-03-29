@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/defer-call.h"
 #include "qapi/error.h"
 #include "qemu/iov.h"
@@ -1010,7 +1011,7 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOBlock *s = (VirtIOBlock *)vdev;
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
 
     if (!s->ioeventfd_disabled && !s->ioeventfd_started) {
         /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start
@@ -1687,10 +1688,9 @@ static void virtio_blk_stop_ioeventfd(VirtIODevice *vdev)
     s->ioeventfd_stopping = false;
 }
 
-static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
+static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *conf = &s->conf;
     BlockDriverState *bs;
     Error *err = NULL;
@@ -1813,10 +1813,15 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                          conf->conf.lsecs);
 }
 
-static void virtio_blk_device_unrealize(DeviceState *dev)
+static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
+{
+    VirtIOBlock *s = VIRTIO_BLK(dev);
+    virtio_blk_device_realize_impl(s, dev, errp);
+}
+
+static void virtio_blk_device_unrealize_impl(VirtIOBlock *s, DeviceState *dev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *conf = &s->conf;
     unsigned i;
 
@@ -1884,16 +1889,23 @@ static const Property virtio_blk_properties[] = {
                      conf.x_enable_wce_if_config_wce, true),
 };
 
-static void virtio_blk_class_init(ObjectClass *klass, const void *data)
+static void virtio_blk_device_unrealize(DeviceState *dev)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    VirtIOBlock *s = VIRTIO_BLK(dev);
+    virtio_blk_device_unrealize_impl(s, dev);
+}
 
-    device_class_set_props(dc, virtio_blk_properties);
-    dc->vmsd = &vmstate_virtio_blk;
-    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->realize = virtio_blk_device_realize;
-    vdc->unrealize = virtio_blk_device_unrealize;
+struct VirtIOBlkMethods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+        VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+        device_class_set_props(dc, virtio_blk_properties);
+        dc->vmsd = &vmstate_virtio_blk;
+        set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+        vdc->realize = virtio_blk_device_realize;
+        vdc->unrealize = virtio_blk_device_unrealize;
     vdc->get_config = virtio_blk_update_config;
     vdc->set_config = virtio_blk_set_config;
     vdc->get_features = virtio_blk_get_features;
@@ -1903,7 +1915,8 @@ static void virtio_blk_class_init(ObjectClass *klass, const void *data)
     vdc->load = virtio_blk_load_device;
     vdc->start_ioeventfd = virtio_blk_start_ioeventfd;
     vdc->stop_ioeventfd = virtio_blk_stop_ioeventfd;
-}
+    }
+};
 
 static const TypeInfo virtio_blk_info = {
     .name = TYPE_VIRTIO_BLK,
@@ -1911,7 +1924,7 @@ static const TypeInfo virtio_blk_info = {
     .instance_size = sizeof(VirtIOBlock),
     .instance_init = virtio_blk_instance_init,
     .class_size = sizeof(VirtIOBlkClass),
-    .class_init = virtio_blk_class_init,
+    .class_init = VirtIOBlkMethods::classInit,
 };
 
 static void virtio_register_types(void)

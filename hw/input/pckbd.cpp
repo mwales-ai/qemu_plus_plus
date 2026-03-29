@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
@@ -681,17 +682,20 @@ static void i8042_mmio_set_mouse_irq(void *opaque, int n, int level)
     kbd_update_aux_irq(ks, level);
 }
 
-static void i8042_mmio_reset(DeviceState *dev)
+static void i8042_mmio_reset_impl(MMIOKBDState *s)
 {
-    MMIOKBDState *s = I8042_MMIO(dev);
     KBDState *ks = &s->kbd;
-
     kbd_reset(ks);
 }
 
-static void i8042_mmio_realize(DeviceState *dev, Error **errp)
+static void i8042_mmio_reset(DeviceState *dev)
 {
     MMIOKBDState *s = I8042_MMIO(dev);
+    i8042_mmio_reset_impl(s);
+}
+
+static void i8042_mmio_realize_impl(MMIOKBDState *s, DeviceState *dev, Error **errp)
+{
     KBDState *ks = &s->kbd;
 
     memory_region_init_io(&s->region, OBJECT(dev), &i8042_mmio_ops, ks,
@@ -749,23 +753,31 @@ static const VMStateDescription vmstate_kbd_mmio = {
     }
 };
 
-static void i8042_mmio_class_init(ObjectClass *klass, const void *data)
+static void i8042_mmio_realize(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = i8042_mmio_realize;
-    device_class_set_legacy_reset(dc, i8042_mmio_reset);
-    dc->vmsd = &vmstate_kbd_mmio;
-    device_class_set_props(dc, i8042_mmio_properties);
-    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    MMIOKBDState *s = I8042_MMIO(dev);
+    i8042_mmio_realize_impl(s, dev, errp);
 }
+
+struct I8042MMIOMethods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+
+        dc->realize = i8042_mmio_realize;
+        device_class_set_legacy_reset(dc, i8042_mmio_reset);
+        dc->vmsd = &vmstate_kbd_mmio;
+        device_class_set_props(dc, i8042_mmio_properties);
+        set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    }
+};
 
 static const TypeInfo i8042_mmio_info = {
     .name          = TYPE_I8042_MMIO,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MMIOKBDState),
     .instance_init = i8042_mmio_init,
-    .class_init    = i8042_mmio_class_init
+    .class_init    = I8042MMIOMethods::classInit
 };
 
 void i8042_isa_mouse_fake_event(ISAKBDState *isa)
@@ -822,12 +834,16 @@ static void i8042_set_mouse_irq(void *opaque, int n, int level)
 }
 
 
+static void i8042_reset_impl(ISAKBDState *s)
+{
+    KBDState *ks = &s->kbd;
+    kbd_reset(ks);
+}
+
 static void i8042_reset(DeviceState *dev)
 {
     ISAKBDState *s = I8042(dev);
-    KBDState *ks = &s->kbd;
-
-    kbd_reset(ks);
+    i8042_reset_impl(s);
 }
 
 static void i8042_initfn(Object *obj)
@@ -853,10 +869,9 @@ static void i8042_initfn(Object *obj)
                             "ps2-mouse-input-irq", 1);
 }
 
-static void i8042_realizefn(DeviceState *dev, Error **errp)
+static void i8042_realizefn_impl(ISAKBDState *isa_s, DeviceState *dev, Error **errp)
 {
     ISADevice *isadev = ISA_DEVICE(dev);
-    ISAKBDState *isa_s = I8042(dev);
     KBDState *s = &isa_s->kbd;
 
     if (isa_s->kbd_irq >= ISA_NUM_IRQS) {
@@ -938,25 +953,33 @@ static const Property i8042_properties[] = {
     DEFINE_PROP_UINT8("mouse-irq", ISAKBDState, mouse_irq, 12),
 };
 
-static void i8042_class_initfn(ObjectClass *klass, const void *data)
+static void i8042_realizefn(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
-
-    device_class_set_props(dc, i8042_properties);
-    device_class_set_legacy_reset(dc, i8042_reset);
-    dc->realize = i8042_realizefn;
-    dc->vmsd = &vmstate_kbd_isa;
-    adevc->build_dev_aml = i8042_build_aml;
-    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    ISAKBDState *isa_s = I8042(dev);
+    i8042_realizefn_impl(isa_s, dev, errp);
 }
+
+struct I8042Methods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+        AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+
+        device_class_set_props(dc, i8042_properties);
+        device_class_set_legacy_reset(dc, i8042_reset);
+        dc->realize = i8042_realizefn;
+        dc->vmsd = &vmstate_kbd_isa;
+        adevc->build_dev_aml = i8042_build_aml;
+        set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    }
+};
 
 static const TypeInfo i8042_info = {
     .name          = TYPE_I8042,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(ISAKBDState),
     .instance_init = i8042_initfn,
-    .class_init    = i8042_class_initfn,
+    .class_init    = I8042Methods::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_ACPI_DEV_AML_IF },
         { },

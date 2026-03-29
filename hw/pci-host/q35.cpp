@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "qemu/log.h"
 #include "hw/i386/pc.h"
@@ -48,10 +49,9 @@ extern "C" {
 
 #define Q35_PCI_HOST_HOLE64_SIZE_DEFAULT (1ULL << 35)
 
-static void q35_host_realize(DeviceState *dev, Error **errp)
+static void q35_host_realize_impl(Q35PCIHost *s, DeviceState *dev, Error **errp)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    Q35PCIHost *s = Q35_HOST_DEVICE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
     memory_region_add_subregion(s->mch.address_space_io,
@@ -188,19 +188,27 @@ static const Property q35_host_props[] = {
     DEFINE_PROP_BOOL("x-pci-hole64-fix", Q35PCIHost, pci_hole64_fix, true),
 };
 
-static void q35_host_class_init(ObjectClass *klass, const void *data)
+static void q35_host_realize(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
-
-    hc->root_bus_path = q35_host_root_bus_path;
-    dc->realize = q35_host_realize;
-    device_class_set_props(dc, q35_host_props);
-    /* Reason: needs to be wired up by pc_q35_init */
-    dc->user_creatable = false;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->fw_name = "pci";
+    Q35PCIHost *s = Q35_HOST_DEVICE(dev);
+    q35_host_realize_impl(s, dev, errp);
 }
+
+struct Q35HostMethods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+        PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
+
+        hc->root_bus_path = q35_host_root_bus_path;
+        dc->realize = q35_host_realize;
+        device_class_set_props(dc, q35_host_props);
+        /* Reason: needs to be wired up by pc_q35_init */
+        dc->user_creatable = false;
+        set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+        dc->fw_name = "pci";
+    }
+};
 
 static void q35_host_initfn(Object *obj)
 {
@@ -261,7 +269,7 @@ static const TypeInfo q35_host_info = {
     .parent     = TYPE_PCIE_HOST_BRIDGE,
     .instance_size = sizeof(Q35PCIHost),
     .instance_init = q35_host_initfn,
-    .class_init = q35_host_class_init,
+    .class_init = Q35HostMethods::classInit,
 };
 
 /****************************************************************************
@@ -545,10 +553,8 @@ static const VMStateDescription vmstate_mch = {
     .fields = vmstate_mch_fields,
 };
 
-static void mch_reset(DeviceState *qdev)
+static void mch_reset_impl(MCHPCIState *mch, PCIDevice *d)
 {
-    PCIDevice *d = PCI_DEVICE(qdev);
-    MCHPCIState *mch = MCH_PCI_DEVICE(d);
 
     pci_set_quad(d->config + MCH_HOST_BRIDGE_PCIEXBAR,
                  MCH_HOST_BRIDGE_PCIEXBAR_DEFAULT);
@@ -571,10 +577,16 @@ static void mch_reset(DeviceState *qdev)
     mch_update(mch);
 }
 
-static void mch_realize(PCIDevice *d, Error **errp)
+static void mch_reset(DeviceState *qdev)
+{
+    PCIDevice *d = PCI_DEVICE(qdev);
+    MCHPCIState *mch = MCH_PCI_DEVICE(d);
+    mch_reset_impl(mch, d);
+}
+
+static void mch_realize_impl(MCHPCIState *mch, PCIDevice *d, Error **errp)
 {
     int i;
-    MCHPCIState *mch = MCH_PCI_DEVICE(d);
 
     if (mch->ext_tseg_mbytes > MCH_HOST_BRIDGE_EXT_TSEG_MBYTES_MAX) {
         error_setg(errp, "invalid extended-tseg-mbytes value: %" PRIu16,
@@ -673,12 +685,19 @@ static const Property mch_props[] = {
     DEFINE_PROP_BOOL("smbase-smram", MCHPCIState, has_smram_at_smbase, true),
 };
 
-static void mch_class_init(ObjectClass *klass, const void *data)
+static void mch_realize(PCIDevice *d, Error **errp)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    MCHPCIState *mch = MCH_PCI_DEVICE(d);
+    mch_realize_impl(mch, d, errp);
+}
 
-    k->realize = mch_realize;
+struct MCHMethods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+        DeviceClass *dc = DEVICE_CLASS(klass);
+
+        k->realize = mch_realize;
     k->config_write = mch_write_config;
     device_class_set_legacy_reset(dc, mch_reset);
     device_class_set_props(dc, mch_props);
@@ -702,7 +721,8 @@ static void mch_class_init(ObjectClass *klass, const void *data)
      * host-facing part, which can't be device_add'ed, yet.
      */
     dc->user_creatable = false;
-}
+    }
+};
 
 static const InterfaceInfo mch_interfaces[] = {
     { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -713,7 +733,7 @@ static const TypeInfo mch_info = {
     .name = TYPE_MCH_PCI_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MCHPCIState),
-    .class_init = mch_class_init,
+    .class_init = MCHMethods::classInit,
     .interfaces = mch_interfaces,
 };
 

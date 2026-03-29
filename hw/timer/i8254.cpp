@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 #include "hw/irq.h"
 #include "qemu/module.h"
@@ -47,6 +48,21 @@ struct PITClass {
     PITCommonClass parent_class;
 
     DeviceRealize parent_realize;
+
+    /* Static callback wrappers */
+    static void realizefn(DeviceState *dev, Error **errp);
+    static void resetfn(DeviceState *dev);
+    static void classInit(ObjectClass *klass, const void *data);
+
+    /* Static callbacks */
+    static void irq_timer(void *opaque);
+    static void irq_control(void *opaque, int n, int enable);
+    static void ioport_write(void *opaque, hwaddr addr,
+                             uint64_t val, unsigned size);
+    static uint64_t ioport_read(void *opaque, hwaddr addr, unsigned size);
+    static void post_load(PITCommonState *s);
+    static void set_channel_gate(PITCommonState *s, PITChannelState *sc,
+                                 int val);
 };
 
 static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
@@ -77,8 +93,8 @@ static int pit_get_count(PITChannelState *s)
 }
 
 /* val must be 0 or 1 */
-static void pit_set_channel_gate(PITCommonState *s, PITChannelState *sc,
-                                 int val)
+void PITClass::set_channel_gate(PITCommonState *s, PITChannelState *sc,
+                                int val)
 {
     switch (sc->mode) {
     default:
@@ -125,8 +141,8 @@ static void pit_latch_count(PITChannelState *s)
     }
 }
 
-static void pit_ioport_write(void *opaque, hwaddr addr,
-                             uint64_t val, unsigned size)
+void PITClass::ioport_write(void *opaque, hwaddr addr,
+                            uint64_t val, unsigned size)
 {
     PITCommonState *pit = static_cast<PITCommonState *>(opaque);
     int channel, access;
@@ -195,8 +211,8 @@ static void pit_ioport_write(void *opaque, hwaddr addr,
     }
 }
 
-static uint64_t pit_ioport_read(void *opaque, hwaddr addr,
-                                unsigned size)
+uint64_t PITClass::ioport_read(void *opaque, hwaddr addr,
+                               unsigned size)
 {
     PITCommonState *pit = static_cast<PITCommonState *>(opaque);
     int ret, count;
@@ -281,14 +297,14 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
         timer_del(s->irq_timer);
 }
 
-static void pit_irq_timer(void *opaque)
+void PITClass::irq_timer(void *opaque)
 {
     PITChannelState *s = static_cast<PITChannelState *>(opaque);
 
     pit_irq_timer_update(s, s->next_transition_time);
 }
 
-static void pit_reset(DeviceState *dev)
+void PITClass::resetfn(DeviceState *dev)
 {
     PITCommonState *pit = PIT_COMMON(dev);
     PITChannelState *s;
@@ -303,7 +319,7 @@ static void pit_reset(DeviceState *dev)
 
 /* When HPET is operating in legacy mode, suppress the ignored timer IRQ,
  * reenable it when legacy mode is left again. */
-static void pit_irq_control(void *opaque, int n, int enable)
+void PITClass::irq_control(void *opaque, int n, int enable)
 {
     PITCommonState *pit = static_cast<PITCommonState *>(opaque);
     PITChannelState *s = &pit->channels[0];
@@ -318,8 +334,8 @@ static void pit_irq_control(void *opaque, int n, int enable)
 }
 
 static const MemoryRegionOps pit_ioport_ops = {
-    .read = pit_ioport_read,
-    .write = pit_ioport_write,
+    .read = PITClass::ioport_read,
+    .write = PITClass::ioport_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -327,7 +343,7 @@ static const MemoryRegionOps pit_ioport_ops = {
     },
 };
 
-static void pit_post_load(PITCommonState *s)
+void PITClass::post_load(PITCommonState *s)
 {
     PITChannelState *sc = &s->channels[0];
 
@@ -338,7 +354,7 @@ static void pit_post_load(PITCommonState *s)
     }
 }
 
-static void pit_realizefn(DeviceState *dev, Error **errp)
+void PITClass::realizefn(DeviceState *dev, Error **errp)
 {
     PITCommonState *pit = PIT_COMMON(dev);
     PITClass *pc = PIT_GET_CLASS(dev);
@@ -346,28 +362,28 @@ static void pit_realizefn(DeviceState *dev, Error **errp)
 
     s = &pit->channels[0];
     /* the timer 0 is connected to an IRQ */
-    s->irq_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pit_irq_timer, s);
+    s->irq_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, PITClass::irq_timer, s);
     qdev_init_gpio_out(dev, &s->irq, 1);
 
     memory_region_init_io(&pit->ioports, OBJECT(pit), &pit_ioport_ops,
                           pit, "pit", 4);
 
-    qdev_init_gpio_in(dev, pit_irq_control, 1);
+    qdev_init_gpio_in(dev, PITClass::irq_control, 1);
 
     pc->parent_realize(dev, errp);
 }
 
-static void pit_class_initfn(ObjectClass *klass, const void *data)
+void PITClass::classInit(ObjectClass *klass, const void *data)
 {
     PITClass *pc = PIT_CLASS(klass);
     PITCommonClass *k = PIT_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_parent_realize(dc, pit_realizefn, &pc->parent_realize);
-    k->set_channel_gate = pit_set_channel_gate;
+    device_class_set_parent_realize(dc, PITClass::realizefn, &pc->parent_realize);
+    k->set_channel_gate = PITClass::set_channel_gate;
     k->get_channel_info = pit_get_channel_info_common;
-    k->post_load = pit_post_load;
-    device_class_set_legacy_reset(dc, pit_reset);
+    k->post_load = PITClass::post_load;
+    device_class_set_legacy_reset(dc, PITClass::resetfn);
 }
 
 static const TypeInfo pit_info = {
@@ -375,7 +391,7 @@ static const TypeInfo pit_info = {
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(PITCommonState),
     .class_size    = sizeof(PITClass),
-    .class_init    = pit_class_initfn,
+    .class_init    = PITClass::classInit,
 };
 
 static void pit_register_types(void)

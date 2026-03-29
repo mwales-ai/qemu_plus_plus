@@ -26,6 +26,7 @@
 
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/net/mii.h"
 #include "hw/pci/pci_device.h"
 #include "hw/qdev-properties.h"
@@ -136,6 +137,19 @@ struct E1000State_st {
     bool received_tx_tso;
     bool use_tso_for_migration;
     e1000x_txd_props mig_props;
+
+    /* instance methods */
+    void linkUp();
+    void autonegDone();
+    bool haveAutoneg();
+    void resetHoldImpl(ResetType type);
+    void realizeImpl(Error **errp);
+
+    /* static callback wrappers */
+    static void resetHoldStatic(Object *obj, ResetType type);
+    static void realizeStatic(PCIDevice *pci_dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
+    static void instanceInit(Object *obj);
 };
 typedef struct E1000State_st E1000State;
 
@@ -153,28 +167,44 @@ DECLARE_OBJ_CHECKERS(E1000State, E1000BaseClass,
                      E1000, TYPE_E1000_BASE)
 
 
+void E1000State_st::linkUp()
+{
+    e1000x_update_regs_on_link_up(mac_reg, phy_reg);
+
+    /* E1000_STATUS_LU is tested by e1000_can_receive() */
+    qemu_flush_queued_packets(qemu_get_queue(nic));
+}
+
+void E1000State_st::autonegDone()
+{
+    e1000x_update_regs_on_autoneg_done(mac_reg, phy_reg);
+
+    /* E1000_STATUS_LU is tested by e1000_can_receive() */
+    qemu_flush_queued_packets(qemu_get_queue(nic));
+}
+
+bool E1000State_st::haveAutoneg()
+{
+    return (phy_reg[MII_BMCR] & MII_BMCR_AUTOEN);
+}
+
+/* Free-function wrappers for legacy call sites */
 static void
 e1000_link_up(E1000State *s)
 {
-    e1000x_update_regs_on_link_up(s->mac_reg, s->phy_reg);
-
-    /* E1000_STATUS_LU is tested by e1000_can_receive() */
-    qemu_flush_queued_packets(qemu_get_queue(s->nic));
+    s->linkUp();
 }
 
 static void
 e1000_autoneg_done(E1000State *s)
 {
-    e1000x_update_regs_on_autoneg_done(s->mac_reg, s->phy_reg);
-
-    /* E1000_STATUS_LU is tested by e1000_can_receive() */
-    qemu_flush_queued_packets(qemu_get_queue(s->nic));
+    s->autonegDone();
 }
 
 static bool
 have_autoneg(E1000State *s)
 {
-    return (s->phy_reg[MII_BMCR] & MII_BMCR_AUTOEN);
+    return s->haveAutoneg();
 }
 
 static void
@@ -378,35 +408,41 @@ static bool e1000_vet_init_need(void *opaque)
     return chkflag(VET);
 }
 
-static void e1000_reset_hold(Object *obj, ResetType type)
+void E1000State_st::resetHoldImpl(ResetType type)
+{
+    E1000BaseClass *edc = E1000_GET_CLASS(this);
+    uint8_t *macaddr = conf.macaddr.a;
+
+    timer_del(autoneg_timer);
+    timer_del(mit_timer);
+    timer_del(flush_queue_timer);
+    mit_timer_on = 0;
+    mit_irq_level = 0;
+    mit_ide = 0;
+    memset(phy_reg, 0, sizeof phy_reg);
+    memcpy(phy_reg, phy_reg_init, sizeof phy_reg_init);
+    phy_reg[MII_PHYID2] = edc->phy_id2;
+    memset(mac_reg, 0, sizeof mac_reg);
+    memcpy(mac_reg, mac_reg_init, sizeof mac_reg_init);
+    rxbuf_min_shift = 1;
+    memset(&tx, 0, sizeof tx);
+
+    if (qemu_get_queue(nic)->link_down) {
+        e1000x_update_regs_on_link_down(mac_reg, phy_reg);
+    }
+
+    e1000x_reset_mac_addr(nic, mac_reg, macaddr);
+
+    if (e1000_vet_init_need(this)) {
+        mac_reg[VET] = ETH_P_VLAN;
+    }
+}
+
+/* static wrapper */
+void E1000State_st::resetHoldStatic(Object *obj, ResetType type)
 {
     E1000State *d = E1000(obj);
-    E1000BaseClass *edc = E1000_GET_CLASS(d);
-    uint8_t *macaddr = d->conf.macaddr.a;
-
-    timer_del(d->autoneg_timer);
-    timer_del(d->mit_timer);
-    timer_del(d->flush_queue_timer);
-    d->mit_timer_on = 0;
-    d->mit_irq_level = 0;
-    d->mit_ide = 0;
-    memset(d->phy_reg, 0, sizeof d->phy_reg);
-    memcpy(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
-    d->phy_reg[MII_PHYID2] = edc->phy_id2;
-    memset(d->mac_reg, 0, sizeof d->mac_reg);
-    memcpy(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
-    d->rxbuf_min_shift = 1;
-    memset(&d->tx, 0, sizeof d->tx);
-
-    if (qemu_get_queue(d->nic)->link_down) {
-        e1000x_update_regs_on_link_down(d->mac_reg, d->phy_reg);
-    }
-
-    e1000x_reset_mac_addr(d->nic, d->mac_reg, macaddr);
-
-    if (e1000_vet_init_need(d)) {
-        d->mac_reg[VET] = ETH_P_VLAN;
-    }
+    d->resetHoldImpl(type);
 }
 
 static void
@@ -779,7 +815,7 @@ start_xmit(E1000State *s)
         pci_dma_read(d, base, &desc, sizeof(desc));
 
         DBGOUT(TX, "index %d: %p : %x %x\n", s->mac_reg[TDH],
-               (void *)(intptr_t)desc.buffer_addr, desc.lower.data,
+               reinterpret_cast<void *>(static_cast<intptr_t>(desc.buffer_addr)), desc.lower.data,
                desc.upper.data);
 
         process_tx_desc(s, &desc);
@@ -1798,10 +1834,10 @@ static void e1000_write_config(PCIDevice *pci_dev, uint32_t address,
     }
 }
 
-static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)
+void E1000State_st::realizeImpl(Error **errp)
 {
+    PCIDevice *pci_dev = PCI_DEVICE(this);
     DeviceState *dev = DEVICE(pci_dev);
-    E1000State *d = E1000(pci_dev);
     uint8_t *pci_conf;
     uint8_t *macaddr;
 
@@ -1814,31 +1850,38 @@ static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)
 
     pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
 
-    e1000_mmio_setup(d);
+    e1000_mmio_setup(this);
 
-    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
+    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
 
-    pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->io);
+    pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &io);
 
-    qemu_macaddr_default_if_unset(&d->conf.macaddr);
-    macaddr = d->conf.macaddr.a;
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    macaddr = conf.macaddr.a;
 
-    e1000x_core_prepare_eeprom(d->eeprom_data,
+    e1000x_core_prepare_eeprom(eeprom_data,
                                e1000_eeprom_template,
                                sizeof(e1000_eeprom_template),
                                PCI_DEVICE_GET_CLASS(pci_dev)->device_id,
                                macaddr);
 
-    d->nic = qemu_new_nic(&net_e1000_info, &d->conf,
-                          object_get_typename(OBJECT(d)), dev->id,
-                          &dev->mem_reentrancy_guard, d);
+    nic = qemu_new_nic(&net_e1000_info, &conf,
+                       object_get_typename(OBJECT(this)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
 
-    qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
+    qemu_format_nic_info_str(qemu_get_queue(nic), macaddr);
 
-    d->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, d);
-    d->mit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000_mit_timer, d);
-    d->flush_queue_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
-                                        e1000_flush_queue_timer, d);
+    autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, this);
+    mit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000_mit_timer, this);
+    flush_queue_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                     e1000_flush_queue_timer, this);
+}
+
+/* static wrapper */
+void E1000State_st::realizeStatic(PCIDevice *pci_dev, Error **errp)
+{
+    E1000State *d = E1000(pci_dev);
+    d->realizeImpl(errp);
 }
 
 static const Property e1000_properties[] = {
@@ -1856,7 +1899,7 @@ typedef struct E1000Info {
     uint16_t   phy_id2;
 } E1000Info;
 
-static void e1000_class_init(ObjectClass *klass, const void *data)
+/* static */ void E1000State_st::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1864,7 +1907,7 @@ static void e1000_class_init(ObjectClass *klass, const void *data)
     E1000BaseClass *e = E1000_CLASS(klass);
     const E1000Info *info = static_cast<const E1000Info *>(data);
 
-    k->realize = pci_e1000_realize;
+    k->realize = E1000State_st::realizeStatic;
     k->exit = pci_e1000_uninit;
     k->romfile = "efi-e1000.rom";
     k->vendor_id = PCI_VENDOR_ID_INTEL;
@@ -1872,14 +1915,14 @@ static void e1000_class_init(ObjectClass *klass, const void *data)
     k->revision = info->revision;
     e->phy_id2 = info->phy_id2;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    rc->phases.hold = e1000_reset_hold;
+    rc->phases.hold = E1000State_st::resetHoldStatic;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Intel Gigabit Ethernet";
     dc->vmsd = &vmstate_e1000;
     device_class_set_props(dc, e1000_properties);
 }
 
-static void e1000_instance_init(Object *obj)
+/* static */ void E1000State_st::instanceInit(Object *obj)
 {
     E1000State *n = E1000(obj);
     device_add_bootindex_property(obj, &n->conf.bootindex,
@@ -1896,7 +1939,7 @@ static const TypeInfo e1000_base_info = {
     .name          = TYPE_E1000_BASE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(E1000State),
-    .instance_init = e1000_instance_init,
+    .instance_init = E1000State_st::instanceInit,
     .is_abstract   = true,
     .class_size    = sizeof(E1000BaseClass),
     .interfaces    = e1000_interfaces,
@@ -1935,7 +1978,7 @@ static void e1000_register_types(void)
         type_info.name = info->name;
         type_info.parent = TYPE_E1000_BASE;
         type_info.class_data = info;
-        type_info.class_init = e1000_class_init;
+        type_info.class_init = E1000State_st::classInit;
 
         type_register_static(&type_info);
     }

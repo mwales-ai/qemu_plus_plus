@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/qdev-properties.h"
 #include "hw/usb.h"
 #include "qapi/error.h"
@@ -26,15 +27,19 @@ static const Property usb_props[] = {
     DEFINE_PROP_STRING("pcap", USBDevice, pcap_filename),
 };
 
-static void usb_bus_class_init(ObjectClass *klass, const void *data)
+static void usb_bus_class_init_impl(BusClass *k, HotplugHandlerClass *hc)
 {
-    BusClass *k = BUS_CLASS(klass);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
-
     k->print_dev = usb_bus_dev_print;
     k->get_dev_path = usb_get_dev_path;
     k->get_fw_dev_path = usb_get_fw_dev_path;
     hc->unplug = qdev_simple_device_unplug_cb;
+}
+
+static void usb_bus_class_init(ObjectClass *klass, const void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    usb_bus_class_init_impl(k, hc);
 }
 
 static const InterfaceInfo usb_bus_interfaces[] = {
@@ -229,9 +234,9 @@ void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps)
     }
 }
 
-static void usb_qdev_realize(DeviceState *qdev, Error **errp)
+static void usb_qdev_realize_impl(USBDevice *dev, Error **errp)
 {
-    USBDevice *dev = USB_DEVICE(qdev);
+    DeviceState *qdev = DEVICE(dev);
     Error *local_err = NULL;
 
     pstrcpy(dev->product_desc, sizeof(dev->product_desc),
@@ -272,6 +277,12 @@ static void usb_qdev_realize(DeviceState *qdev, Error **errp)
         dev->pcap = fdopen(fd, "wb");
         usb_pcap_init(dev->pcap);
     }
+}
+
+static void usb_qdev_realize(DeviceState *qdev, Error **errp)
+{
+    USBDevice *dev = USB_DEVICE(qdev);
+    usb_qdev_realize_impl(dev, errp);
 }
 
 static void usb_qdev_unrealize(DeviceState *qdev)
@@ -719,13 +730,18 @@ static void usb_device_instance_init(Object *obj)
     }
 }
 
-static void usb_device_class_init(ObjectClass *klass, const void *data)
+static void usb_device_class_init_impl(DeviceClass *k)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
     k->bus_type = TYPE_USB_BUS;
     k->realize  = usb_qdev_realize;
     k->unrealize = usb_qdev_unrealize;
     device_class_set_props(k, usb_props);
+}
+
+static void usb_device_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    usb_device_class_init_impl(k);
 }
 
 static const TypeInfo usb_device_type_info = {

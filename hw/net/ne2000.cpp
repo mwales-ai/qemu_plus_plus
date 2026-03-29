@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "net/eth.h"
 #include "qemu/module.h"
 #include "system/memory.h"

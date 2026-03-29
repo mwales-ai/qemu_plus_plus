@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
@@ -1271,42 +1272,46 @@ static void ps2_mouse_realize(DeviceState *dev, Error **errp)
     qemu_input_handler_register(dev, &ps2_mouse_handler);
 }
 
-static void ps2_kbd_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
+struct PS2KbdMethods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+        ResettableClass *rc = RESETTABLE_CLASS(klass);
+        PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
 
-    dc->realize = ps2_kbd_realize;
-    resettable_class_set_parent_phases(rc, NULL, ps2_kbd_reset_hold, NULL,
-                                       &ps2dc->parent_phases);
-    dc->vmsd = &vmstate_ps2_keyboard;
-}
+        dc->realize = ps2_kbd_realize;
+        resettable_class_set_parent_phases(rc, NULL, ps2_kbd_reset_hold, NULL,
+                                           &ps2dc->parent_phases);
+        dc->vmsd = &vmstate_ps2_keyboard;
+    }
+};
 
 static const TypeInfo ps2_kbd_info = {
     .name          = TYPE_PS2_KBD_DEVICE,
     .parent        = TYPE_PS2_DEVICE,
     .instance_size = sizeof(PS2KbdState),
-    .class_init    = ps2_kbd_class_init
+    .class_init    = PS2KbdMethods::classInit
 };
 
-static void ps2_mouse_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
+struct PS2MouseMethods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+        ResettableClass *rc = RESETTABLE_CLASS(klass);
+        PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
 
-    dc->realize = ps2_mouse_realize;
-    resettable_class_set_parent_phases(rc, NULL, ps2_mouse_reset_hold, NULL,
-                                       &ps2dc->parent_phases);
-    dc->vmsd = &vmstate_ps2_mouse;
-}
+        dc->realize = ps2_mouse_realize;
+        resettable_class_set_parent_phases(rc, NULL, ps2_mouse_reset_hold, NULL,
+                                           &ps2dc->parent_phases);
+        dc->vmsd = &vmstate_ps2_mouse;
+    }
+};
 
 static const TypeInfo ps2_mouse_info = {
     .name          = TYPE_PS2_MOUSE_DEVICE,
     .parent        = TYPE_PS2_DEVICE,
     .instance_size = sizeof(PS2MouseState),
-    .class_init    = ps2_mouse_class_init
+    .class_init    = PS2MouseMethods::classInit
 };
 
 static void ps2_init(Object *obj)
@@ -1316,15 +1321,17 @@ static void ps2_init(Object *obj)
     qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
 }
 
-static void ps2_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+struct PS2Methods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+        ResettableClass *rc = RESETTABLE_CLASS(klass);
 
-    rc->phases.hold = ps2_reset_hold;
-    rc->phases.exit = ps2_reset_exit;
-    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-}
+        rc->phases.hold = ps2_reset_hold;
+        rc->phases.exit = ps2_reset_exit;
+        set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+    }
+};
 
 static const TypeInfo ps2_info = {
     .name          = TYPE_PS2_DEVICE,
@@ -1333,7 +1340,7 @@ static const TypeInfo ps2_info = {
     .instance_init = ps2_init,
     .is_abstract   = true,
     .class_size    = sizeof(PS2DeviceClass),
-    .class_init    = ps2_class_init,
+    .class_init    = PS2Methods::classInit,
 };
 
 static void ps2_register_types(void)

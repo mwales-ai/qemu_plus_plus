@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/sysbus.h"
 #include "hw/register.h"
 #include "qemu/bitops.h"
@@ -568,9 +569,8 @@ static const RegisterAccessInfo usb_dwc3_regs_info[] = {
     }
 };
 
-static void usb_dwc3_reset(DeviceState *dev)
+static void usb_dwc3_reset_impl(USBDWC3 *s)
 {
-    USBDWC3 *s = USB_DWC3(dev);
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
@@ -587,6 +587,12 @@ static void usb_dwc3_reset(DeviceState *dev)
     xhci_sysbus_reset(DEVICE(&s->sysbus_xhci));
 }
 
+static void usb_dwc3_reset(DeviceState *dev)
+{
+    USBDWC3 *s = USB_DWC3(dev);
+    usb_dwc3_reset_impl(s);
+}
+
 static const MemoryRegionOps usb_dwc3_ops = {
     .read = register_read_memory,
     .write = register_write_memory,
@@ -597,10 +603,9 @@ static const MemoryRegionOps usb_dwc3_ops = {
     }
 };
 
-static void usb_dwc3_realize(DeviceState *dev, Error **errp)
+static void usb_dwc3_realize_impl(USBDWC3 *s, Error **errp)
 {
-    USBDWC3 *s = USB_DWC3(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
     Error *err = NULL;
 
     sysbus_realize(SYS_BUS_DEVICE(&s->sysbus_xhci), &err);
@@ -625,6 +630,12 @@ static void usb_dwc3_realize(DeviceState *dev, Error **errp)
     s->regs[R_GHWPARAMS6] = 0x7850c20;
     s->regs[R_GHWPARAMS7] = 0x0;
     s->regs[R_GHWPARAMS8] = 0x478;
+}
+
+static void usb_dwc3_realize(DeviceState *dev, Error **errp)
+{
+    USBDWC3 *s = USB_DWC3(dev);
+    usb_dwc3_realize_impl(s, errp);
 }
 
 static void __attribute__((used)) usb_dwc3_init(Object *obj)

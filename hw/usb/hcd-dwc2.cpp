@@ -32,6 +32,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/usb/dwc2-regs.h"
@@ -1224,10 +1225,9 @@ static void dwc2_work_timer(void *opaque)
     qemu_bh_schedule(s->async_bh);
 }
 
-static void dwc2_reset_enter(Object *obj, ResetType type)
+static void dwc2_reset_enter_impl(DWC2State *s, Object *obj, ResetType type)
 {
     DWC2Class *c = DWC2_USB_GET_CLASS(obj);
-    DWC2State *s = DWC2_USB(obj);
     int i;
 
     trace_usb_dwc2_reset_enter();
@@ -1308,10 +1308,15 @@ static void dwc2_reset_enter(Object *obj, ResetType type)
     }
 }
 
-static void dwc2_reset_hold(Object *obj, ResetType type)
+static void dwc2_reset_enter(Object *obj, ResetType type)
+{
+    DWC2State *s = DWC2_USB(obj);
+    dwc2_reset_enter_impl(s, obj, type);
+}
+
+static void dwc2_reset_hold_impl(DWC2State *s, Object *obj, ResetType type)
 {
     DWC2Class *c = DWC2_USB_GET_CLASS(obj);
-    DWC2State *s = DWC2_USB(obj);
 
     trace_usb_dwc2_reset_hold();
 
@@ -1322,10 +1327,15 @@ static void dwc2_reset_hold(Object *obj, ResetType type)
     dwc2_update_irq(s);
 }
 
-static void dwc2_reset_exit(Object *obj, ResetType type)
+static void dwc2_reset_hold(Object *obj, ResetType type)
+{
+    DWC2State *s = DWC2_USB(obj);
+    dwc2_reset_hold_impl(s, obj, type);
+}
+
+static void dwc2_reset_exit_impl(DWC2State *s, Object *obj, ResetType type)
 {
     DWC2Class *c = DWC2_USB_GET_CLASS(obj);
-    DWC2State *s = DWC2_USB(obj);
 
     trace_usb_dwc2_reset_exit();
 
@@ -1340,10 +1350,15 @@ static void dwc2_reset_exit(Object *obj, ResetType type)
     }
 }
 
-static void dwc2_realize(DeviceState *dev, Error **errp)
+static void dwc2_reset_exit(Object *obj, ResetType type)
+{
+    DWC2State *s = DWC2_USB(obj);
+    dwc2_reset_exit_impl(s, obj, type);
+}
+
+static void dwc2_realize_impl(DWC2State *s, DeviceState *dev, Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    DWC2State *s = DWC2_USB(dev);
     Object *obj;
 
     obj = object_property_get_link(OBJECT(dev), "dma-mr", &error_abort);
@@ -1371,6 +1386,12 @@ static void dwc2_realize(DeviceState *dev, Error **errp)
                                       &dev->mem_reentrancy_guard);
 
     sysbus_init_irq(sbd, &s->irq);
+}
+
+static void dwc2_realize(DeviceState *dev, Error **errp)
+{
+    DWC2State *s = DWC2_USB(dev);
+    dwc2_realize_impl(s, dev, errp);
 }
 
 static void dwc2_init(Object *obj)

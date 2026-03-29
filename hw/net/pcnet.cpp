@@ -36,6 +36,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -460,7 +461,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
         {                                       \
             uint16_t rda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR), \
-                (void *)&rda[0], sizeof(rda), 0); \
+                static_cast<void *>(&rda[0]), sizeof(rda), 0); \
             (RES) |= (rda[2] & 0xf000)!=0xf000; \
             (RES) |= (rda[3] & 0xf000)!=0x0000; \
         }                                       \
@@ -470,7 +471,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
         {                                       \
             uint32_t rda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR), \
-                (void *)&rda[0], sizeof(rda), 0); \
+                static_cast<void *>(&rda[0]), sizeof(rda), 0); \
             (RES) |= (rda[1] & 0x0000f000L)!=0x0000f000L; \
             (RES) |= (rda[2] & 0x0000f000L)!=0x00000000L; \
         }                                       \
@@ -479,7 +480,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
         {                                       \
             uint32_t rda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR), \
-                (void *)&rda[0], sizeof(rda), 0); \
+                static_cast<void *>(&rda[0]), sizeof(rda), 0); \
             (RES) |= (rda[0] & 0x0000f000L)!=0x00000000L; \
             (RES) |= (rda[1] & 0x0000f000L)!=0x0000f000L; \
         }                                       \
@@ -493,7 +494,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
         {                                       \
             uint16_t xda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR), \
-                (void *)&xda[0], sizeof(xda), 0); \
+                static_cast<void *>(&xda[0]), sizeof(xda), 0); \
             (RES) |= (xda[2] & 0xf000)!=0xf000; \
         }                                       \
         break;                                  \
@@ -503,7 +504,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
         {                                       \
             uint32_t xda[4];                    \
             s->phys_mem_read(s->dma_opaque, (ADDR), \
-                (void *)&xda[0], sizeof(xda), 0); \
+                static_cast<void *>(&xda[0]), sizeof(xda), 0); \
             (RES) |= (xda[1] & 0x0000f000L)!=0x0000f000L; \
         }                                       \
         break;                                  \
@@ -513,7 +514,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
 #endif
 
 #define PRINT_PKTHDR(BUF) do {                  \
-    struct qemu_ether_header *hdr = (void *)(BUF); \
+    struct qemu_ether_header *hdr = static_cast<struct qemu_ether_header *>(static_cast<void *>(BUF)); \
     printf("packet dhost=%02x:%02x:%02x:%02x:%02x:%02x, " \
            "shost=%02x:%02x:%02x:%02x:%02x:%02x, " \
            "type=0x%04x\n",                     \
@@ -671,7 +672,7 @@ static uint32_t pcnet_csr_readw(PCNetState *s, uint32_t rap);
 static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value);
 static void pcnet_bcr_writew(PCNetState *s, uint32_t rap, uint32_t val);
 
-static void pcnet_s_reset(PCNetState *s)
+static void pcnet_s_reset_impl(PCNetState *s)
 {
     trace_pcnet_s_reset(s);
 
@@ -710,6 +711,11 @@ static void pcnet_s_reset(PCNetState *s)
     s->csr[124] = 0x0000;
 
     s->tx_busy = 0;
+}
+
+static void pcnet_s_reset(PCNetState *s)
+{
+    pcnet_s_reset_impl(s);
 }
 
 static void pcnet_update_irq(PCNetState *s)

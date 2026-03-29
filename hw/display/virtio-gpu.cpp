@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include "qemu/iov.h"
 #include "system/cpus.h"
@@ -1486,10 +1487,10 @@ static int virtio_gpu_post_load(void *opaque, int version_id)
     return 0;
 }
 
-void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
+static void virtio_gpu_device_realize_impl(VirtIOGPU *g, DeviceState *qdev,
+                                            Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
-    VirtIOGPU *g = VIRTIO_GPU(qdev);
 
     if (virtio_gpu_blob_enabled(g->parent_obj.conf)) {
         if (!virtio_gpu_rutabaga_enabled(g->parent_obj.conf) &&
@@ -1540,6 +1541,12 @@ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     QTAILQ_INIT(&g->reslist);
     QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
+}
+
+void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
+{
+    VirtIOGPU *g = VIRTIO_GPU(qdev);
+    virtio_gpu_device_realize_impl(g, qdev, errp);
 }
 
 static void virtio_gpu_device_unrealize(DeviceState *qdev)
@@ -1713,11 +1720,10 @@ static const Property virtio_gpu_properties[] = {
     DEFINE_PROP_UINT8("x-scanout-vmstate-version", VirtIOGPU, scanout_vmstate_version, 2),
 };
 
-static void virtio_gpu_class_init(ObjectClass *klass, const void *data)
+static void virtio_gpu_class_init_impl(DeviceClass *dc,
+                                        VirtioDeviceClass *vdc,
+                                        VirtIOGPUClass *vgc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
     VirtIOGPUBaseClass *vgbc = &vgc->parent;
 
     vgc->handle_ctrl = virtio_gpu_handle_ctrl;
@@ -1734,6 +1740,14 @@ static void virtio_gpu_class_init(ObjectClass *klass, const void *data)
 
     dc->vmsd = &vmstate_virtio_gpu;
     device_class_set_props(dc, virtio_gpu_properties);
+}
+
+static void virtio_gpu_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
+    virtio_gpu_class_init_impl(dc, vdc, vgc);
 }
 
 static const TypeInfo virtio_gpu_info = {

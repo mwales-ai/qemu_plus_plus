@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -360,9 +361,8 @@ static bool scsi_bus_check_address(BusState *qbus, DeviceState *qdev, Error **er
     return true;
 }
 
-static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
+static void scsi_qdev_realize_impl(SCSIDevice *dev, Error **errp)
 {
-    SCSIDevice *dev = SCSI_DEVICE(qdev);
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
     bool is_free;
     Error *local_err = NULL;
@@ -401,6 +401,12 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     }
     dev->vmsentry = qdev_add_vm_change_state_handler(DEVICE(dev),
             scsi_dma_restart_cb, NULL, dev);
+}
+
+static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
+{
+    SCSIDevice *dev = SCSI_DEVICE(qdev);
+    scsi_qdev_realize_impl(dev, errp);
 }
 
 static void scsi_qdev_unrealize(DeviceState *qdev)
@@ -2002,14 +2008,19 @@ static const Property scsi_props[] = {
     DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
 };
 
-static void scsi_device_class_init(ObjectClass *klass, const void *data)
+static void scsi_device_class_init_impl(DeviceClass *k)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type  = TYPE_SCSI_BUS;
     k->realize   = scsi_qdev_realize;
     k->unrealize = scsi_qdev_unrealize;
     device_class_set_props(k, scsi_props);
+}
+
+static void scsi_device_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    scsi_device_class_init_impl(k);
 }
 
 static void scsi_dev_instance_init(Object *obj)
@@ -2031,15 +2042,19 @@ static const TypeInfo scsi_device_type_info = {
     .class_init = scsi_device_class_init,
 };
 
-static void scsi_bus_class_init(ObjectClass *klass, const void *data)
+static void scsi_bus_class_init_impl(BusClass *k, HotplugHandlerClass *hc)
 {
-    BusClass *k = BUS_CLASS(klass);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
-
     k->get_dev_path = scsibus_get_dev_path;
     k->get_fw_dev_path = scsibus_get_fw_dev_path;
     k->check_address = scsi_bus_check_address;
     hc->unplug = qdev_simple_device_unplug_cb;
+}
+
+static void scsi_bus_class_init(ObjectClass *klass, const void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    scsi_bus_class_init_impl(k, hc);
 }
 
 static const InterfaceInfo scsi_bus_interfaces[] = {

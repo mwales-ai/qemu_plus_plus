@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "hw/virtio/virtio-scsi.h"
@@ -1005,10 +1006,9 @@ static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
     return requested_features;
 }
 
-static void virtio_scsi_reset(VirtIODevice *vdev)
+static void virtio_scsi_reset_impl(VirtIOSCSI *s)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
 
     assert(!s->dataplane_started);
 
@@ -1024,6 +1024,12 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     WITH_QEMU_LOCK_GUARD(&s->event_lock) {
         s->events_dropped = false;
     }
+}
+
+static void virtio_scsi_reset(VirtIODevice *vdev)
+{
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    virtio_scsi_reset_impl(s);
 }
 
 typedef struct {
@@ -1320,10 +1326,10 @@ void virtio_scsi_common_realize(DeviceState *dev,
     }
 }
 
-static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
+static void virtio_scsi_device_realize_impl(VirtIOSCSI *s, DeviceState *dev,
+                                             Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOSCSI *s = VIRTIO_SCSI(dev);
     Error *err = NULL;
 
     qemu_mutex_init(&s->ctrl_lock);
@@ -1345,6 +1351,12 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
     qbus_set_hotplug_handler(BUS(&s->bus), OBJECT(dev));
 
     virtio_scsi_dataplane_setup(s, errp);
+}
+
+static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
+{
+    VirtIOSCSI *s = VIRTIO_SCSI(dev);
+    virtio_scsi_device_realize_impl(s, dev, errp);
 }
 
 void virtio_scsi_common_unrealize(DeviceState *dev)
@@ -1407,21 +1419,24 @@ static const VMStateDescription vmstate_virtio_scsi = {
     .fields = vmstate_virtio_scsi_fields,
 };
 
-static void virtio_scsi_common_class_init(ObjectClass *klass, const void *data)
+static void virtio_scsi_common_class_init_impl(VirtioDeviceClass *vdc,
+                                                DeviceClass *dc)
 {
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     vdc->get_config = virtio_scsi_get_config;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static void virtio_scsi_class_init(ObjectClass *klass, const void *data)
+static void virtio_scsi_common_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    virtio_scsi_common_class_init_impl(vdc, dc);
+}
 
+static void virtio_scsi_class_init_impl(DeviceClass *dc,
+                                         VirtioDeviceClass *vdc,
+                                         HotplugHandlerClass *hc)
+{
     device_class_set_props(dc, virtio_scsi_properties);
     dc->vmsd = &vmstate_virtio_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
@@ -1435,6 +1450,14 @@ static void virtio_scsi_class_init(ObjectClass *klass, const void *data)
     hc->pre_plug = virtio_scsi_pre_hotplug;
     hc->plug = virtio_scsi_hotplug;
     hc->unplug = virtio_scsi_hotunplug;
+}
+
+static void virtio_scsi_class_init(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    virtio_scsi_class_init_impl(dc, vdc, hc);
 }
 
 static const TypeInfo virtio_scsi_common_info = {

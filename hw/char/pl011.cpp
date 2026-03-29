@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "hw/char/pl011.h"
 #include "hw/irq.h"
@@ -180,7 +181,7 @@ static inline void pl011_reset_tx_fifo(PL011State *s)
 
 static void pl011_fifo_rx_put(void *opaque, uint32_t value)
 {
-    PL011State *s = (PL011State *)opaque;
+    PL011State *s = static_cast<PL011State *>(opaque);
     int slot;
     unsigned pipe_depth;
 
@@ -276,7 +277,7 @@ static uint32_t pl011_read_rxdata(PL011State *s)
 static uint64_t pl011_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
-    PL011State *s = (PL011State *)opaque;
+    PL011State *s = static_cast<PL011State *>(opaque);
     uint64_t r;
 
     switch (offset >> 2) {
@@ -417,7 +418,7 @@ static void pl011_loopback_break(PL011State *s, int brk_enable)
 static void pl011_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
-    PL011State *s = (PL011State *)opaque;
+    PL011State *s = static_cast<PL011State *>(opaque);
     unsigned char ch;
 
     trace_pl011_write(offset, value, pl011_regname(offset));
@@ -490,7 +491,7 @@ static void pl011_write(void *opaque, hwaddr offset,
 
 static int pl011_can_receive(void *opaque)
 {
-    PL011State *s = (PL011State *)opaque;
+    PL011State *s = static_cast<PL011State *>(opaque);
     unsigned fifo_depth = pl011_get_fifo_depth(s);
     unsigned fifo_available = fifo_depth - s->read_count;
 
@@ -652,18 +653,14 @@ static void pl011_init(Object *obj)
     s->id = pl011_id_arm;
 }
 
-static void pl011_realize(DeviceState *dev, Error **errp)
+static void pl011_realize_impl(PL011State *s, Error **errp)
 {
-    PL011State *s = PL011(dev);
-
     qemu_chr_fe_set_handlers(&s->chr, pl011_can_receive, pl011_receive,
                              pl011_event, NULL, s, NULL, true);
 }
 
-static void pl011_reset(DeviceState *dev)
+static void pl011_reset_impl(PL011State *s)
 {
-    PL011State *s = PL011(dev);
-
     s->lcr = 0;
     s->rsr = 0;
     s->dmacr = 0;
@@ -680,22 +677,36 @@ static void pl011_reset(DeviceState *dev)
     pl011_reset_tx_fifo(s);
 }
 
-static void pl011_class_init(ObjectClass *oc, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(oc);
+struct PL011Methods {
+    static void realize(DeviceState *dev, Error **errp)
+    {
+        PL011State *s = PL011(dev);
+        pl011_realize_impl(s, errp);
+    }
 
-    dc->realize = pl011_realize;
-    device_class_set_legacy_reset(dc, pl011_reset);
-    dc->vmsd = &vmstate_pl011;
-    device_class_set_props(dc, pl011_properties);
-}
+    static void reset(DeviceState *dev)
+    {
+        PL011State *s = PL011(dev);
+        pl011_reset_impl(s);
+    }
+
+    static void classInit(ObjectClass *oc, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(oc);
+
+        dc->realize = PL011Methods::realize;
+        device_class_set_legacy_reset(dc, PL011Methods::reset);
+        dc->vmsd = &vmstate_pl011;
+        device_class_set_props(dc, pl011_properties);
+    }
+};
 
 static const TypeInfo pl011_arm_info = {
     .name          = TYPE_PL011,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PL011State),
     .instance_init = pl011_init,
-    .class_init    = pl011_class_init,
+    .class_init    = PL011Methods::classInit,
 };
 
 static void pl011_luminary_init(Object *obj)

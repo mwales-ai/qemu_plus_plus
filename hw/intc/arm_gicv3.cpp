@@ -16,6 +16,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/intc/arm_gicv3.h"
@@ -430,10 +431,9 @@ static const MemoryRegionOps gic_ops[] = {
     }
 };
 
-static void arm_gic_realize(DeviceState *dev, Error **errp)
+static void arm_gic_realize_impl(GICv3State *s, DeviceState *dev, Error **errp)
 {
     /* Device instance realize function for the GIC sysbus device */
-    GICv3State *s = ARM_GICV3(dev);
     ARMGICv3Class *agc = ARM_GICV3_GET_CLASS(s);
     Error *local_err = NULL;
 
@@ -448,22 +448,30 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
     gicv3_init_cpuif(s);
 }
 
-static void arm_gicv3_class_init(ObjectClass *klass, const void *data)
+static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
-    ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
-
-    agcc->post_load = arm_gicv3_post_load;
-    device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
+    GICv3State *s = ARM_GICV3(dev);
+    arm_gic_realize_impl(s, dev, errp);
 }
+
+struct ARMGICv3Methods {
+    static void classInit(ObjectClass *klass, const void *data)
+    {
+        DeviceClass *dc = DEVICE_CLASS(klass);
+        ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
+        ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
+
+        agcc->post_load = arm_gicv3_post_load;
+        device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
+    }
+};
 
 static const TypeInfo arm_gicv3_info = {
     .name = TYPE_ARM_GICV3,
     .parent = TYPE_ARM_GICV3_COMMON,
     .instance_size = sizeof(GICv3State),
     .class_size = sizeof(ARMGICv3Class),
-    .class_init = arm_gicv3_class_init,
+    .class_init = ARMGICv3Methods::classInit,
 };
 
 static void arm_gicv3_register_types(void)
