@@ -278,6 +278,12 @@ struct GICv3State {
     GPtrArray *itslist;
 
     NotifierWithReturn cpr_notifier;
+
+#ifdef __cplusplus
+    void realize(DeviceState *dev, Error **errp);
+    void postLoad();
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 #define GICV3_BITMAP_ACCESSORS(BMP)                                     \

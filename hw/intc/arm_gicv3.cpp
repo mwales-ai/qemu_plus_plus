@@ -400,18 +400,23 @@ static void gicv3_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static void arm_gicv3_post_load(GICv3State *s)
+void GICv3State::postLoad()
 {
     int i;
     /* Recalculate our cached idea of the current highest priority
      * pending interrupt, but don't set IRQ or FIQ lines.
      */
-    for (i = 0; i < s->num_cpu; i++) {
-        gicv3_redist_update_lpi_only(&s->cpu[i]);
+    for (i = 0; i < num_cpu; i++) {
+        gicv3_redist_update_lpi_only(&cpu[i]);
     }
-    gicv3_full_update_noirqset(s);
+    gicv3_full_update_noirqset(this);
     /* Repopulate the cache of GICv3CPUState pointers for target CPUs */
-    gicv3_cache_all_target_cpustates(s);
+    gicv3_cache_all_target_cpustates(this);
+}
+
+static void arm_gicv3_post_load(GICv3State *s)
+{
+    s->postLoad();
 }
 
 static const MemoryRegionOps gic_ops[] = {
@@ -431,10 +436,10 @@ static const MemoryRegionOps gic_ops[] = {
     }
 };
 
-static void arm_gic_realize_impl(GICv3State *s, DeviceState *dev, Error **errp)
+void GICv3State::realize(DeviceState *dev, Error **errp)
 {
     /* Device instance realize function for the GIC sysbus device */
-    ARMGICv3Class *agc = ARM_GICV3_GET_CLASS(s);
+    ARMGICv3Class *agc = ARM_GICV3_GET_CLASS(this);
     Error *local_err = NULL;
 
     agc->parent_realize(dev, &local_err);
@@ -443,35 +448,33 @@ static void arm_gic_realize_impl(GICv3State *s, DeviceState *dev, Error **errp)
         return;
     }
 
-    gicv3_init_irqs_and_mmio(s, gicv3_set_irq, gic_ops);
+    gicv3_init_irqs_and_mmio(this, gicv3_set_irq, gic_ops);
 
-    gicv3_init_cpuif(s);
+    gicv3_init_cpuif(this);
 }
 
 static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
     GICv3State *s = ARM_GICV3(dev);
-    arm_gic_realize_impl(s, dev, errp);
+    s->realize(dev, errp);
 }
 
-struct ARMGICv3Methods {
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = DEVICE_CLASS(klass);
-        ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
-        ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
+void GICv3State::classInit(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
+    ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
 
-        agcc->post_load = arm_gicv3_post_load;
-        device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
-    }
-};
+    agcc->post_load = arm_gicv3_post_load;
+    device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
+}
 
 static const TypeInfo arm_gicv3_info = {
     .name = TYPE_ARM_GICV3,
     .parent = TYPE_ARM_GICV3_COMMON,
     .instance_size = sizeof(GICv3State),
     .class_size = sizeof(ARMGICv3Class),
-    .class_init = ARMGICv3Methods::classInit,
+    .class_init = GICv3State::classInit,
 };
 
 static void arm_gicv3_register_types(void)

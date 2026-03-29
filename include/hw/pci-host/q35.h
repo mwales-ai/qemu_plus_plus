@@ -56,6 +56,18 @@ struct MCHPCIState {
     uint64_t above_4g_mem_size;
     uint64_t pci_hole64_size;
     uint16_t ext_tseg_mbytes;
+
+#ifdef __cplusplus
+    void realize(PCIDevice *d, Error **errp);
+    void reset(PCIDevice *d);
+    void update();
+    void updatePciexbar();
+    void updatePam();
+    void updateSmram();
+    void updateExtTsegMbytes();
+    void updateSmbaseSmram();
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 struct Q35PCIHost {
@@ -65,6 +77,11 @@ struct Q35PCIHost {
 
     bool pci_hole64_fix;
     MCHPCIState mch;
+
+#ifdef __cplusplus
+    void realize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 #define Q35_MASK(bit, ms_bit, ls_bit) \
