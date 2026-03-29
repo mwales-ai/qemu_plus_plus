@@ -78,6 +78,13 @@ struct VirtIOBlock {
     uint64_t host_features;
     size_t config_size;
     BlockRAMRegistrar blk_ram_registrar;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void unrealize();
+    void reset();
+    static void classInit(ObjectClass *oc, const void *data);
+#endif
 };
 
 typedef struct VirtIOBlockReq {

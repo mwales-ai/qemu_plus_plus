@@ -1104,23 +1104,22 @@ static void virtio_blk_dma_restart_cb(void *opaque, bool running,
     }
 }
 
-static void virtio_blk_reset(VirtIODevice *vdev)
+void VirtIOBlock::reset()
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
     VirtIOBlockReq *req;
 
     /* Dataplane has stopped... */
-    assert(!s->ioeventfd_started);
+    assert(!ioeventfd_started);
 
     /* ...but requests may still be in flight. */
-    blk_drain(s->blk);
+    blk_drain(blk);
 
     /* We drop queued requests after blk_drain() because blk_drain() itself can
      * produce them. */
-    WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
-        while (s->rq) {
-            req = s->rq;
-            s->rq = req->next;
+    WITH_QEMU_LOCK_GUARD(&rq_lock) {
+        while (rq) {
+            req = rq;
+            rq = req->next;
 
             /* No other threads can access req->vq here */
             virtqueue_detach_element(req->vq, &req->elem, 0);
@@ -1129,7 +1128,13 @@ static void virtio_blk_reset(VirtIODevice *vdev)
         }
     }
 
-    blk_set_enable_write_cache(s->blk, s->original_wce);
+    blk_set_enable_write_cache(blk, original_wce);
+}
+
+static void virtio_blk_reset(VirtIODevice *vdev)
+{
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    s->reset();
 }
 
 /* coalesce internal state, copy to pci i/o region 0
@@ -1688,10 +1693,11 @@ static void virtio_blk_stop_ioeventfd(VirtIODevice *vdev)
     s->ioeventfd_stopping = false;
 }
 
-static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Error **errp)
+void VirtIOBlock::realize(Error **errp)
 {
+    DeviceState *dev = DEVICE(this);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOBlkConf *conf = &s->conf;
+    VirtIOBlkConf *conf = &this->conf;
     BlockDriverState *bs;
     Error *err = NULL;
     unsigned i;
@@ -1729,7 +1735,7 @@ static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Err
                                        true, errp)) {
         return;
     }
-    s->original_wce = blk_enable_write_cache(conf->conf.blk);
+    original_wce = blk_enable_write_cache(conf->conf.blk);
     if (!blkconf_geometry(&conf->conf, NULL, 65535, 255, 255, errp)) {
         return;
     }
@@ -1740,13 +1746,13 @@ static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Err
 
     bs = blk_bs(conf->conf.blk);
     if (bs->bl.zoned != BLK_Z_NONE) {
-        virtio_add_feature(&s->host_features, VIRTIO_BLK_F_ZONED);
+        virtio_add_feature(&host_features, VIRTIO_BLK_F_ZONED);
         if (bs->bl.zoned == BLK_Z_HM) {
-            virtio_clear_feature(&s->host_features, VIRTIO_BLK_F_DISCARD);
+            virtio_clear_feature(&host_features, VIRTIO_BLK_F_DISCARD);
         }
     }
 
-    if (virtio_has_feature(s->host_features, VIRTIO_BLK_F_DISCARD) &&
+    if (virtio_has_feature(host_features, VIRTIO_BLK_F_DISCARD) &&
         (!conf->max_discard_sectors ||
          conf->max_discard_sectors > BDRV_REQUEST_MAX_SECTORS)) {
         error_setg(errp, "invalid max-discard-sectors property (%" PRIu32 ")"
@@ -1755,7 +1761,7 @@ static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Err
         return;
     }
 
-    if (virtio_has_feature(s->host_features, VIRTIO_BLK_F_WRITE_ZEROES) &&
+    if (virtio_has_feature(host_features, VIRTIO_BLK_F_WRITE_ZEROES) &&
         (!conf->max_write_zeroes_sectors ||
          conf->max_write_zeroes_sectors > BDRV_REQUEST_MAX_SECTORS)) {
         error_setg(errp, "invalid max-write-zeroes-sectors property (%" PRIu32
@@ -1765,15 +1771,15 @@ static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Err
         return;
     }
 
-    s->config_size = virtio_get_config_size(&virtio_blk_cfg_size_params,
-                                            s->host_features);
-    virtio_init(vdev, VIRTIO_ID_BLOCK, s->config_size);
+    config_size = virtio_get_config_size(&virtio_blk_cfg_size_params,
+                                         host_features);
+    virtio_init(vdev, VIRTIO_ID_BLOCK, config_size);
 
-    qemu_mutex_init(&s->rq_lock);
+    qemu_mutex_init(&rq_lock);
 
-    s->blk = conf->conf.blk;
-    s->rq = NULL;
-    s->sector_mask = (s->conf.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
+    blk = conf->conf.blk;
+    rq = NULL;
+    sector_mask = (this->conf.conf.logical_block_size / BDRV_SECTOR_SIZE) - 1;
 
     for (i = 0; i < conf->num_queues; i++) {
         virtio_add_queue(vdev, conf->queue_size, virtio_blk_handle_output);
@@ -1782,10 +1788,10 @@ static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Err
 
     /* Don't start ioeventfd if transport does not support notifiers. */
     if (!virtio_device_ioeventfd_enabled(vdev)) {
-        s->ioeventfd_disabled = true;
+        ioeventfd_disabled = true;
     }
 
-    virtio_blk_vq_aio_context_init(s, &err);
+    virtio_blk_vq_aio_context_init(this, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         for (i = 0; i < conf->num_queues; i++) {
@@ -1799,13 +1805,13 @@ static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Err
      * This must be after virtio_init() so virtio_blk_dma_restart_cb() gets
      * called after ->start_ioeventfd() has already set blk's AioContext.
      */
-    s->change =
-        qdev_add_vm_change_state_handler(dev, virtio_blk_dma_restart_cb, NULL, s);
+    change =
+        qdev_add_vm_change_state_handler(dev, virtio_blk_dma_restart_cb, NULL, this);
 
-    blk_ram_registrar_init(&s->blk_ram_registrar, s->blk);
-    blk_set_dev_ops(s->blk, &virtio_block_ops, s);
+    blk_ram_registrar_init(&blk_ram_registrar, blk);
+    blk_set_dev_ops(blk, &virtio_block_ops, this);
 
-    blk_iostatus_enable(s->blk);
+    blk_iostatus_enable(blk);
 
     add_boot_device_lchs(dev, "/disk@0,0",
                          conf->conf.lcyls,
@@ -1816,26 +1822,27 @@ static void virtio_blk_device_realize_impl(VirtIOBlock *s, DeviceState *dev, Err
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIOBlock *s = VIRTIO_BLK(dev);
-    virtio_blk_device_realize_impl(s, dev, errp);
+    s->realize(errp);
 }
 
-static void virtio_blk_device_unrealize_impl(VirtIOBlock *s, DeviceState *dev)
+void VirtIOBlock::unrealize()
 {
+    DeviceState *dev = DEVICE(this);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOBlkConf *conf = &s->conf;
+    VirtIOBlkConf *conf = &this->conf;
     unsigned i;
 
-    blk_drain(s->blk);
+    blk_drain(blk);
     del_boot_device_lchs(dev, "/disk@0,0");
-    virtio_blk_vq_aio_context_cleanup(s);
+    virtio_blk_vq_aio_context_cleanup(this);
     for (i = 0; i < conf->num_queues; i++) {
         virtio_del_queue(vdev, i);
     }
     qemu_coroutine_dec_pool_size(conf->num_queues * conf->queue_size / 2);
-    qemu_mutex_destroy(&s->rq_lock);
-    blk_ram_registrar_destroy(&s->blk_ram_registrar);
-    qemu_del_vm_change_state_handler(s->change);
-    blockdev_mark_auto_del(s->blk);
+    qemu_mutex_destroy(&rq_lock);
+    blk_ram_registrar_destroy(&blk_ram_registrar);
+    qemu_del_vm_change_state_handler(change);
+    blockdev_mark_auto_del(blk);
     virtio_cleanup(vdev);
 }
 
@@ -1892,20 +1899,19 @@ static const Property virtio_blk_properties[] = {
 static void virtio_blk_device_unrealize(DeviceState *dev)
 {
     VirtIOBlock *s = VIRTIO_BLK(dev);
-    virtio_blk_device_unrealize_impl(s, dev);
+    s->unrealize();
 }
 
-struct VirtIOBlkMethods {
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = DEVICE_CLASS(klass);
-        VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+void VirtIOBlock::classInit(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
-        device_class_set_props(dc, virtio_blk_properties);
-        dc->vmsd = &vmstate_virtio_blk;
-        set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-        vdc->realize = virtio_blk_device_realize;
-        vdc->unrealize = virtio_blk_device_unrealize;
+    device_class_set_props(dc, virtio_blk_properties);
+    dc->vmsd = &vmstate_virtio_blk;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    vdc->realize = virtio_blk_device_realize;
+    vdc->unrealize = virtio_blk_device_unrealize;
     vdc->get_config = virtio_blk_update_config;
     vdc->set_config = virtio_blk_set_config;
     vdc->get_features = virtio_blk_get_features;
@@ -1915,8 +1921,7 @@ struct VirtIOBlkMethods {
     vdc->load = virtio_blk_load_device;
     vdc->start_ioeventfd = virtio_blk_start_ioeventfd;
     vdc->stop_ioeventfd = virtio_blk_stop_ioeventfd;
-    }
-};
+}
 
 static const TypeInfo virtio_blk_info = {
     .name = TYPE_VIRTIO_BLK,
@@ -1924,7 +1929,7 @@ static const TypeInfo virtio_blk_info = {
     .instance_size = sizeof(VirtIOBlock),
     .instance_init = virtio_blk_instance_init,
     .class_size = sizeof(VirtIOBlkClass),
-    .class_init = VirtIOBlkMethods::classInit,
+    .class_init = VirtIOBlock::classInit,
 };
 
 static void virtio_register_types(void)
