@@ -1424,7 +1424,11 @@ static void lm3s6965evb_init(MachineState *machine)
  * Stellaris LM3S811 Evaluation Board Schematics:
  * https://www.ti.com/lit/ug/symlink/spmu030.pdf
  */
-static void lm3s811evb_class_init(ObjectClass *oc, const void *data)
+struct LM3S811EVBMachine {
+    static void classInit(ObjectClass *oc, const void *data);
+};
+
+void LM3S811EVBMachine::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -1437,7 +1441,7 @@ static void lm3s811evb_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo lm3s811evb_type = {
     .name = MACHINE_TYPE_NAME("lm3s811evb"),
     .parent = TYPE_MACHINE,
-    .class_init = lm3s811evb_class_init,
+    .class_init = LM3S811EVBMachine::classInit,
     .interfaces = arm_machine_interfaces,
 };
 
@@ -1445,7 +1449,11 @@ static const TypeInfo lm3s811evb_type = {
  * Stellaris: LM3S6965 Evaluation Board Schematics:
  * https://www.ti.com/lit/ug/symlink/spmu029.pdf
  */
-static void lm3s6965evb_class_init(ObjectClass *oc, const void *data)
+struct LM3S6965EVBMachine {
+    static void classInit(ObjectClass *oc, const void *data);
+};
+
+void LM3S6965EVBMachine::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -1459,7 +1467,7 @@ static void lm3s6965evb_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo lm3s6965evb_type = {
     .name = MACHINE_TYPE_NAME("lm3s6965evb"),
     .parent = TYPE_MACHINE,
-    .class_init = lm3s6965evb_class_init,
+    .class_init = LM3S6965EVBMachine::classInit,
     .interfaces = arm_machine_interfaces,
 };
 

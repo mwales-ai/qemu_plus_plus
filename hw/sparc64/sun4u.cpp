@@ -841,7 +841,11 @@ static GlobalProperty hw_compat_sparc64[] = {
 };
 static const size_t hw_compat_sparc64_len = G_N_ELEMENTS(hw_compat_sparc64);
 
-static void sun4u_class_init(ObjectClass *oc, const void *data)
+struct Sun4uMachine {
+    static void classInit(ObjectClass *oc, const void *data);
+};
+
+void Sun4uMachine::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
@@ -864,14 +868,18 @@ static void sun4u_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo sun4u_type = {
     .name = MACHINE_TYPE_NAME("sun4u"),
     .parent = TYPE_MACHINE,
-    .class_init = sun4u_class_init,
+    .class_init = Sun4uMachine::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
         { }
     },
 };
 
-static void sun4v_class_init(ObjectClass *oc, const void *data)
+struct Sun4vMachine {
+    static void classInit(ObjectClass *oc, const void *data);
+};
+
+void Sun4vMachine::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -889,7 +897,7 @@ static void sun4v_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo sun4v_type = {
     .name = MACHINE_TYPE_NAME("sun4v"),
     .parent = TYPE_MACHINE,
-    .class_init = sun4v_class_init,
+    .class_init = Sun4vMachine::classInit,
 };
 
 static void sun4u_register_types(void)

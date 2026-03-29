@@ -51,7 +51,11 @@ static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static inline I2CBus *aux_bridge_get_i2c_bus(AUXTOI2CState *bridge);
 
 /* aux-bus implementation (internal not public) */
-static void aux_bus_class_init(ObjectClass *klass, const void *data)
+struct AUXBusClass {
+    static void classInit(ObjectClass *klass, const void *data);
+};
+
+void AUXBusClass::classInit(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
 
@@ -250,7 +254,7 @@ static const TypeInfo aux_bus_info = {
     .name = TYPE_AUX_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(AUXBus),
-    .class_init = aux_bus_class_init
+    .class_init = AUXBusClass::classInit
 };
 
 /* aux-i2c implementation (internal not public) */
@@ -328,7 +332,11 @@ void aux_init_mmio(AUXSlave *aux_slave, MemoryRegion *mmio)
     aux_slave->mmio = mmio;
 }
 
-static void aux_slave_class_init(ObjectClass *klass, const void *data)
+struct AUXSlaveClass {
+    static void classInit(ObjectClass *klass, const void *data);
+};
+
+void AUXSlaveClass::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 
@@ -341,7 +349,7 @@ static const TypeInfo aux_slave_type_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(AUXSlave),
     .is_abstract = true,
-    .class_init = aux_slave_class_init,
+    .class_init = AUXSlaveClass::classInit,
 };
 
 static void aux_register_types(void)

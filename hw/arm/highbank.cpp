@@ -359,7 +359,11 @@ static void midway_init(MachineState *machine)
     calxeda_init(machine, CALXEDA_MIDWAY);
 }
 
-static void highbank_class_init(ObjectClass *oc, const void *data)
+struct HighbankMachine {
+    static void classInit(ObjectClass *oc, const void *data);
+};
+
+void HighbankMachine::classInit(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a9"),
@@ -381,11 +385,15 @@ static void highbank_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo highbank_type = {
     .name = MACHINE_TYPE_NAME("highbank"),
     .parent = TYPE_MACHINE,
-    .class_init = highbank_class_init,
+    .class_init = HighbankMachine::classInit,
     .interfaces = arm_machine_interfaces,
 };
 
-static void midway_class_init(ObjectClass *oc, const void *data)
+struct MidwayMachine {
+    static void classInit(ObjectClass *oc, const void *data);
+};
+
+void MidwayMachine::classInit(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a15"),
@@ -407,7 +415,7 @@ static void midway_class_init(ObjectClass *oc, const void *data)
 static const TypeInfo midway_type = {
     .name = MACHINE_TYPE_NAME("midway"),
     .parent = TYPE_MACHINE,
-    .class_init = midway_class_init,
+    .class_init = MidwayMachine::classInit,
     .interfaces = arm_machine_interfaces,
 };
 

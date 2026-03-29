@@ -1376,7 +1376,11 @@ static void musicpal_machine_init(MachineClass *mc)
 
 DEFINE_MACHINE_ARM("musicpal", musicpal_machine_init)
 
-static void mv88w8618_wlan_class_init(ObjectClass *klass, const void *data)
+struct mv88w8618_wlan_state {
+    static void classInit(ObjectClass *klass, const void *data);
+};
+
+void mv88w8618_wlan_state::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1387,7 +1391,7 @@ static const TypeInfo mv88w8618_wlan_info = {
     .name          = "mv88w8618_wlan",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusDevice),
-    .class_init    = mv88w8618_wlan_class_init,
+    .class_init    = mv88w8618_wlan_state::classInit,
 };
 
 static void musicpal_register_types(void)
