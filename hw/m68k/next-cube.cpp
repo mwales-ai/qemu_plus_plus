@@ -62,6 +62,8 @@ struct NeXTRTC {
 
     qemu_irq data_out_irq;
     qemu_irq power_irq;
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_NEXT_SCSI "next-scsi"
@@ -78,6 +80,8 @@ struct NeXTSCSI {
     MemoryRegion scsi_csr_mem;
     uint8_t scsi_csr_1;
     uint8_t scsi_csr_2;
+
+    static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_NEXT_PC "next-pc"
@@ -802,7 +806,7 @@ static const VMStateDescription next_scsi_vmstate = {
     },
 };
 
-static void next_scsi_class_init(ObjectClass *klass, const void *data)
+void NeXTSCSI::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -816,7 +820,7 @@ static const TypeInfo next_scsi_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_init = next_scsi_init,
     .instance_size = sizeof(NeXTSCSI),
-    .class_init = next_scsi_class_init,
+    .class_init = NeXTSCSI::classInit,
 };
 
 static void next_floppy_write(void *opaque, hwaddr addr, uint64_t val,
@@ -1069,7 +1073,7 @@ static const VMStateDescription next_rtc_vmstate = {
     },
 };
 
-static void next_rtc_class_init(ObjectClass *klass, const void *data)
+void NeXTRTC::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -1084,7 +1088,7 @@ static const TypeInfo next_rtc_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_init = next_rtc_init,
     .instance_size = sizeof(NeXTRTC),
-    .class_init = next_rtc_class_init,
+    .class_init = NeXTRTC::classInit,
 };
 
 static void next_pc_rtc_data_in_irq(void *opaque, int n, int level)

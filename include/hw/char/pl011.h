@@ -61,6 +61,20 @@ struct PL011State {
      * ensure that the C struct is at least as big as the Rust one.
      */
     uint8_t padding_for_rust[16];
+
+#ifdef __cplusplus
+    /* C++ methods — no vtable, safe for embedding */
+    void realize(Error **errp);
+    void reset();
+    void updateIrq();
+    void setReadTrigger();
+    void putFifo(uint32_t value);
+
+    static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
+    static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
+                          unsigned size);
+    static void classInit(ObjectClass *oc, const void *data);
+#endif
 };
 
 DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr);

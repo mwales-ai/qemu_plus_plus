@@ -59,6 +59,9 @@ struct EMC141XClass {
     I2CSlaveClass parent_class;
     uint8_t model;
     unsigned sensors_count;
+
+    static void emc1413ClassInit(ObjectClass *klass, const void *data);
+    static void emc1414ClassInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_EMC141X "emc141x"
@@ -296,7 +299,7 @@ void EMC141XState::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_emc141x;
 }
 
-static void emc1413_class_init(ObjectClass *klass, const void *data)
+void EMC141XClass::emc1413ClassInit(ObjectClass *klass, const void *data)
 {
     EMC141XClass *ec = EMC141X_CLASS(klass);
 
@@ -305,7 +308,7 @@ static void emc1413_class_init(ObjectClass *klass, const void *data)
     ec->sensors_count = 3;
 }
 
-static void emc1414_class_init(ObjectClass *klass, const void *data)
+void EMC141XClass::emc1414ClassInit(ObjectClass *klass, const void *data)
 {
     EMC141XClass *ec = EMC141X_CLASS(klass);
 
@@ -326,13 +329,13 @@ static const TypeInfo emc141x_info = {
 static const TypeInfo emc1413_info = {
     .name          = "emc1413",
     .parent        = TYPE_EMC141X,
-    .class_init    = emc1413_class_init,
+    .class_init    = EMC141XClass::emc1413ClassInit,
 };
 
 static const TypeInfo emc1414_info = {
     .name          = "emc1414",
     .parent        = TYPE_EMC141X,
-    .class_init    = emc1414_class_init,
+    .class_init    = EMC141XClass::emc1414ClassInit,
 };
 
 static void emc141x_register_types(void)

@@ -83,6 +83,7 @@ struct PREPPCIState {
     void initfn(Object *obj);
     static void initfnWrapper(Object *obj);
     static void classInit(ObjectClass *klass, const void *data);
+    static void ravenPciClassInit(ObjectClass *klass, const void *data);
 };
 
 #define PCI_IO_BASE_ADDR    0x80000000  /* Physical address on main bus */
@@ -350,7 +351,7 @@ static void raven_realize(PCIDevice *d, Error **errp)
     d->config[PCI_CAPABILITY_LIST] = 0x00;
 }
 
-static void raven_class_init(ObjectClass *klass, const void *data)
+void PREPPCIState::ravenPciClassInit(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -384,7 +385,7 @@ static const TypeInfo raven_types[] = {
     {
         .name = TYPE_RAVEN_PCI_DEVICE,
         .parent = TYPE_PCI_DEVICE,
-        .class_init = raven_class_init,
+        .class_init = PREPPCIState::ravenPciClassInit,
         .interfaces = raven_pci_interfaces,
     },
 };

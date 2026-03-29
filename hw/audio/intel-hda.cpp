@@ -206,6 +206,7 @@ struct IntelHDAState {
     static void realizeWrapper(PCIDevice *pci, Error **errp);
     static void resetWrapper(DeviceState *dev);
     static void classInit(ObjectClass *klass, const void *data);
+    static void hdaCodecDeviceClassInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_INTEL_HDA_GENERIC "intel-hda-generic"
@@ -1205,7 +1206,7 @@ static const TypeInfo intel_hda_info_ich9 = {
     .class_init    = intel_hda_class_init_ich9,
 };
 
-static void hda_codec_device_class_init(ObjectClass *klass, const void *data)
+void IntelHDAState::hdaCodecDeviceClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = hda_codec_dev_realize;
@@ -1221,7 +1222,7 @@ static const TypeInfo hda_codec_device_type_info = {
     .instance_size = sizeof(HDACodecDevice),
     .is_abstract = true,
     .class_size = sizeof(HDACodecDeviceClass),
-    .class_init = hda_codec_device_class_init,
+    .class_init = IntelHDAState::hdaCodecDeviceClassInit,
 };
 
 /*

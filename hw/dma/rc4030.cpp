@@ -129,6 +129,7 @@ struct rc4030State {
     void unrealize();
     static void unrealizeWrapper(DeviceState *dev);
     static void classInit(ObjectClass *klass, const void *class_data);
+    static void iommuClassInit(ObjectClass *klass, const void *data);
 };
 
 void rc4030State::setNextTick()
@@ -759,8 +760,7 @@ static const TypeInfo rc4030_info = {
     .class_init = rc4030State::classInit,
 };
 
-static void rc4030_iommu_memory_region_class_init(ObjectClass *klass,
-                                                  const void *data)
+void rc4030State::iommuClassInit(ObjectClass *klass, const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 
@@ -770,7 +770,7 @@ static void rc4030_iommu_memory_region_class_init(ObjectClass *klass,
 static const TypeInfo rc4030_iommu_memory_region_info = {
     .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_RC4030_IOMMU_MEMORY_REGION,
-    .class_init = rc4030_iommu_memory_region_class_init,
+    .class_init = rc4030State::iommuClassInit,
 };
 
 static void rc4030_register_types(void)

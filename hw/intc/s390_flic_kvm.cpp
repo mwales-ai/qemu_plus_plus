@@ -599,6 +599,8 @@ static const VMStateDescription kvm_s390_flic_vmstate = {
 struct KVMS390FLICStateClass {
     S390FLICStateClass parent_class;
     DeviceRealize parent_realize;
+
+    static void classInit(ObjectClass *oc, const void *data);
 };
 typedef struct KVMS390FLICStateClass KVMS390FLICStateClass;
 
@@ -670,7 +672,7 @@ static void kvm_s390_flic_reset(DeviceState *dev)
     flic_enable_pfault(flic);
 }
 
-static void kvm_s390_flic_class_init(ObjectClass *oc, const void *data)
+void KVMS390FLICStateClass::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
@@ -697,7 +699,7 @@ static const TypeInfo kvm_s390_flic_info = {
     .parent        = TYPE_S390_FLIC_COMMON,
     .instance_size = sizeof(KVMS390FLICState),
     .class_size    = sizeof(KVMS390FLICStateClass),
-    .class_init    = kvm_s390_flic_class_init,
+    .class_init    = KVMS390FLICStateClass::classInit,
 };
 
 static void kvm_s390_flic_register_types(void)

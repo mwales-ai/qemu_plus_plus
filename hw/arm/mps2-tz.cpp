@@ -143,6 +143,10 @@ struct MPS2TZMachineClass {
     /* Methods */
     static void classInit(ObjectClass *oc, const void *data);
     void setDefaultRamInfo();
+    static void an505ClassInit(ObjectClass *oc, const void *data);
+    static void an521ClassInit(ObjectClass *oc, const void *data);
+    static void an524ClassInit(ObjectClass *oc, const void *data);
+    static void an547ClassInit(ObjectClass *oc, const void *data);
 };
 
 struct MPS2TZMachineState {
@@ -1339,7 +1343,7 @@ void MPS2TZMachineClass::setDefaultRamInfo()
     g_assert_not_reached();
 }
 
-static void mps2tz_an505_class_init(ObjectClass *oc, const void *data)
+void MPS2TZMachineClass::an505ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
@@ -1373,7 +1377,7 @@ static void mps2tz_an505_class_init(ObjectClass *oc, const void *data)
     mmc->setDefaultRamInfo();
 }
 
-static void mps2tz_an521_class_init(ObjectClass *oc, const void *data)
+void MPS2TZMachineClass::an521ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
@@ -1407,7 +1411,7 @@ static void mps2tz_an521_class_init(ObjectClass *oc, const void *data)
     mmc->setDefaultRamInfo();
 }
 
-static void mps3tz_an524_class_init(ObjectClass *oc, const void *data)
+void MPS2TZMachineClass::an524ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
@@ -1446,7 +1450,7 @@ static void mps3tz_an524_class_init(ObjectClass *oc, const void *data)
                                           "are BRAM (default) and QSPI.");
 }
 
-static void mps3tz_an547_class_init(ObjectClass *oc, const void *data)
+void MPS2TZMachineClass::an547ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_CLASS(oc);
@@ -1499,28 +1503,28 @@ static const TypeInfo mps2tz_info = {
 static const TypeInfo mps2tz_an505_info = {
     .name = TYPE_MPS2TZ_AN505_MACHINE,
     .parent = TYPE_MPS2TZ_MACHINE,
-    .class_init = mps2tz_an505_class_init,
+    .class_init = MPS2TZMachineClass::an505ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 
 static const TypeInfo mps2tz_an521_info = {
     .name = TYPE_MPS2TZ_AN521_MACHINE,
     .parent = TYPE_MPS2TZ_MACHINE,
-    .class_init = mps2tz_an521_class_init,
+    .class_init = MPS2TZMachineClass::an521ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 
 static const TypeInfo mps3tz_an524_info = {
     .name = TYPE_MPS3TZ_AN524_MACHINE,
     .parent = TYPE_MPS2TZ_MACHINE,
-    .class_init = mps3tz_an524_class_init,
+    .class_init = MPS2TZMachineClass::an524ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 
 static const TypeInfo mps3tz_an547_info = {
     .name = TYPE_MPS3TZ_AN547_MACHINE,
     .parent = TYPE_MPS2TZ_MACHINE,
-    .class_init = mps3tz_an547_class_init,
+    .class_init = MPS2TZMachineClass::an547ClassInit,
     .interfaces = arm_machine_interfaces,
 };
 

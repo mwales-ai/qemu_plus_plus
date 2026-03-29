@@ -320,6 +320,7 @@ struct USBCCIDState {
     static void ccidRealizeWrapper(USBDevice *dev, Error **errp);
     static void handleReset(USBDevice *dev);
     static void classInit(ObjectClass *klass, const void *data);
+    static void ccidCardClassInit(ObjectClass *klass, const void *data);
     static int postLoad(void *opaque, int version_id);
     static int preSave(void *opaque);
 };
@@ -1499,7 +1500,7 @@ static const TypeInfo ccid_info = {
     .interfaces = ccid_interfaces,
 };
 
-static void ccid_card_class_init(ObjectClass *klass, const void *data)
+void USBCCIDState::ccidCardClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->bus_type = TYPE_CCID_BUS;
@@ -1514,7 +1515,7 @@ static const TypeInfo ccid_card_type_info = {
     .instance_size = sizeof(CCIDCardState),
     .is_abstract = true,
     .class_size = sizeof(CCIDCardClass),
-    .class_init = ccid_card_class_init,
+    .class_init = USBCCIDState::ccidCardClassInit,
 };
 
 static void ccid_register_types(void)

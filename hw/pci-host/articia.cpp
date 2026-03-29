@@ -33,6 +33,9 @@ struct ArticiaHostState {
     PCIDevice parent_obj;
 
     ArticiaState *as;
+
+    static void pciHostClassInit(ObjectClass *klass, const void *data);
+    static void pciBridgeClassInit(ObjectClass *klass, const void *data);
 };
 
 /* TYPE_ARTICIA */
@@ -259,7 +262,7 @@ static void articia_pci_host_cfg_write(PCIDevice *d, uint32_t addr,
     }
 }
 
-static void articia_pci_host_class_init(ObjectClass *klass, const void *data)
+void ArticiaHostState::pciHostClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -277,7 +280,7 @@ static void articia_pci_host_class_init(ObjectClass *klass, const void *data)
 
 /* TYPE_ARTICIA_PCI_BRIDGE */
 
-static void articia_pci_bridge_class_init(ObjectClass *klass, const void *data)
+void ArticiaHostState::pciBridgeClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -313,14 +316,14 @@ static const TypeInfo articia_types[] = {
         .name          = TYPE_ARTICIA_PCI_HOST,
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(ArticiaHostState),
-        .class_init    = articia_pci_host_class_init,
+        .class_init    = ArticiaHostState::pciHostClassInit,
         .interfaces    = articia_pci_host_interfaces,
     },
     {
         .name          = TYPE_ARTICIA_PCI_BRIDGE,
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(PCIDevice),
-        .class_init    = articia_pci_bridge_class_init,
+        .class_init    = ArticiaHostState::pciBridgeClassInit,
         .interfaces    = articia_pci_bridge_interfaces,
     },
 };
