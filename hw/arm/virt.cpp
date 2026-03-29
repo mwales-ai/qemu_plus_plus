@@ -29,6 +29,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qemu/option.h"

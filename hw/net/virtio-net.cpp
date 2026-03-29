@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 
 /* Headers with deep dependency chains - must be outside extern "C" */
 #include "qapi/error.h"
@@ -190,7 +191,8 @@ static void virtio_net_get_config(VirtIODevice *vdev, uint8_t *config)
      * disconnect/reconnect a VDPA peer.
      */
     if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
-        ret = vhost_net_get_config(get_vhost_net(nc->peer), (uint8_t *)&netcfg,
+        ret = vhost_net_get_config(get_vhost_net(nc->peer),
+                                   reinterpret_cast<uint8_t *>(&netcfg),
                                    n->config_size);
         if (ret == -1) {
             return;
@@ -234,7 +236,8 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
      */
     if (nc->peer && nc->peer->info->type == NET_CLIENT_DRIVER_VHOST_VDPA) {
         vhost_net_set_config(get_vhost_net(nc->peer),
-                             (uint8_t *)&netcfg, 0, n->config_size,
+                             reinterpret_cast<uint8_t *>(&netcfg),
+                             0, n->config_size,
                              VHOST_SET_CONFIG_TYPE_FRONTEND);
       }
 }
@@ -870,8 +873,8 @@ typedef struct {
 static int failover_set_primary(DeviceState *dev, void *opaque)
 {
     FailoverDevice *fdev = static_cast<FailoverDevice *>(opaque);
-    PCIDevice *pci_dev = (PCIDevice *)
-        object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(
+        object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE));
 
     if (!pci_dev) {
         return 0;
@@ -1724,7 +1727,7 @@ static void receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
 {
     if (n->has_vnet_hdr) {
         /* FIXME this cast is evil */
-        uint8_t *wbuf = (uint8_t *)buf;
+        uint8_t *wbuf = const_cast<uint8_t *>(static_cast<const uint8_t *>(buf));
         work_around_broken_dhclient(reinterpret_cast<struct virtio_net_hdr *>(wbuf), wbuf + n->host_hdr_len,
                                     size - n->host_hdr_len);
 
@@ -1745,7 +1748,7 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
 {
     static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     static const uint8_t vlan[] = {0x81, 0x00};
-    uint8_t *ptr = (uint8_t *)buf;
+    uint8_t *ptr = const_cast<uint8_t *>(buf);
     int i;
 
     if (n->promisc)
@@ -1875,7 +1878,7 @@ static int virtio_net_process_rss(NetClientState *nc, const uint8_t *buf,
         VIRTIO_NET_HASH_REPORT_UDPv6_EX
     };
     struct iovec iov = {
-        .iov_base = (void *)buf,
+        .iov_base = const_cast<uint8_t *>(buf),
         .iov_len = size
     };
 
@@ -1998,7 +2001,7 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
             if (n->rss_data.populate_hash) {
                 offset = offsetof(typeof(extra_hdr), hash_value);
                 iov_from_buf(sg, elem->in_num, offset,
-                             (char *)&extra_hdr + offset,
+                             reinterpret_cast<char *>(&extra_hdr) + offset,
                              sizeof(extra_hdr.hash_value) +
                              sizeof(extra_hdr.hash_report));
             }
@@ -2087,12 +2090,14 @@ static void virtio_net_rsc_extract_unit4(VirtioNetRscChain *chain,
     uint16_t ip_hdrlen;
     struct ip_header *ip;
 
-    ip = (struct ip_header *)(buf + chain->n->guest_hdr_len
-                              + sizeof(struct eth_header));
-    unit->ip = (void *)ip;
+    ip = reinterpret_cast<struct ip_header *>(
+        const_cast<uint8_t *>(buf) + chain->n->guest_hdr_len
+        + sizeof(struct eth_header));
+    unit->ip = ip;
     ip_hdrlen = (ip->ip_ver_len & 0xF) << 2;
     unit->ip_plen = &ip->ip_len;
-    unit->tcp = (struct tcp_header *)(((uint8_t *)unit->ip) + ip_hdrlen);
+    unit->tcp = reinterpret_cast<struct tcp_header *>(
+        static_cast<uint8_t *>(unit->ip) + ip_hdrlen);
     unit->tcp_hdrlen = (htons(unit->tcp->th_offset_flags) & 0xF000) >> 10;
     unit->payload = read_unit_ip_len(unit) - ip_hdrlen - unit->tcp_hdrlen;
 }
@@ -2103,12 +2108,13 @@ static void virtio_net_rsc_extract_unit6(VirtioNetRscChain *chain,
 {
     struct ip6_header *ip6;
 
-    ip6 = (struct ip6_header *)(buf + chain->n->guest_hdr_len
-                                 + sizeof(struct eth_header));
+    ip6 = reinterpret_cast<struct ip6_header *>(
+        const_cast<uint8_t *>(buf) + chain->n->guest_hdr_len
+        + sizeof(struct eth_header));
     unit->ip = ip6;
     unit->ip_plen = &(ip6->ip6_ctlun.ip6_un1.ip6_un1_plen);
-    unit->tcp = (struct tcp_header *)(((uint8_t *)unit->ip)
-                                        + sizeof(struct ip6_header));
+    unit->tcp = reinterpret_cast<struct tcp_header *>(
+        static_cast<uint8_t *>(unit->ip) + sizeof(struct ip6_header));
     unit->tcp_hdrlen = (htons(unit->tcp->th_offset_flags) & 0xF000) >> 10;
 
     /* There is a difference between payload length in ipv4 and v6,
@@ -2148,7 +2154,7 @@ static size_t virtio_net_rsc_drain_seg(VirtioNetRscChain *chain,
 static void virtio_net_rsc_purge(void *opq)
 {
     VirtioNetRscSeg *seg, *rn;
-    VirtioNetRscChain *chain = (VirtioNetRscChain *)opq;
+    VirtioNetRscChain *chain = static_cast<VirtioNetRscChain *>(opq);
 
     QTAILQ_FOREACH_SAFE(seg, &chain->buffers, next, rn) {
         if (virtio_net_rsc_drain_seg(chain, seg) == 0) {
@@ -2272,7 +2278,7 @@ static int32_t virtio_net_rsc_coalesce_data(VirtioNetRscChain *chain,
         return RSC_FINAL;
     }
 
-    data = ((uint8_t *)n_unit->tcp) + n_unit->tcp_hdrlen;
+    data = reinterpret_cast<uint8_t *>(n_unit->tcp) + n_unit->tcp_hdrlen;
     if (nseq == oseq) {
         if ((o_unit->payload == 0) && n_unit->payload) {
             /* From no payload to payload, normal case, not a dup ack or etc */
@@ -2323,8 +2329,8 @@ static int32_t virtio_net_rsc_coalesce4(VirtioNetRscChain *chain,
 {
     struct ip_header *ip1, *ip2;
 
-    ip1 = (struct ip_header *)(unit->ip);
-    ip2 = (struct ip_header *)(seg->unit.ip);
+    ip1 = static_cast<struct ip_header *>(unit->ip);
+    ip2 = static_cast<struct ip_header *>(seg->unit.ip);
     if ((ip1->ip_src ^ ip2->ip_src) || (ip1->ip_dst ^ ip2->ip_dst)
         || (unit->tcp->th_sport ^ seg->unit.tcp->th_sport)
         || (unit->tcp->th_dport ^ seg->unit.tcp->th_dport)) {
@@ -2511,7 +2517,7 @@ static size_t virtio_net_rsc_receive4(VirtioNetRscChain *chain,
     uint16_t hdr_len;
     VirtioNetRscUnit unit;
 
-    hdr_len = ((VirtIONet *)(chain->n))->guest_hdr_len;
+    hdr_len = (static_cast<VirtIONet *>(chain->n))->guest_hdr_len;
 
     if (size < (hdr_len + sizeof(struct eth_header) + sizeof(struct ip_header)
         + sizeof(struct tcp_header))) {
@@ -2581,7 +2587,7 @@ static size_t virtio_net_rsc_receive6(void *opq, NetClientState *nc,
     VirtioNetRscUnit unit;
 
     chain = static_cast<VirtioNetRscChain *>(opq);
-    hdr_len = ((VirtIONet *)(chain->n))->guest_hdr_len;
+    hdr_len = (static_cast<VirtIONet *>(chain->n))->guest_hdr_len;
 
     if (size < (hdr_len + sizeof(struct eth_header) + sizeof(struct ip6_header)
         + sizeof(tcp_header))) {
@@ -2658,7 +2664,7 @@ static ssize_t virtio_net_rsc_receive(NetClientState *nc,
         return virtio_net_do_receive(nc, buf, size);
     }
 
-    eth = (struct eth_header *)(buf + n->guest_hdr_len);
+    eth = reinterpret_cast<struct eth_header *>(const_cast<uint8_t *>(buf) + n->guest_hdr_len);
     proto = htons(eth->h_proto);
 
     chain = virtio_net_rsc_lookup_chain(n, nc, proto);
@@ -4050,7 +4056,8 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         struct virtio_net_config netcfg = {};
         memcpy(&netcfg.mac, &n->nic_conf.macaddr, ETH_ALEN);
         vhost_net_set_config(get_vhost_net(nc->peer),
-            (uint8_t *)&netcfg, 0, ETH_ALEN, VHOST_SET_CONFIG_TYPE_FRONTEND);
+            reinterpret_cast<uint8_t *>(&netcfg),
+            0, ETH_ALEN, VHOST_SET_CONFIG_TYPE_FRONTEND);
     }
     QTAILQ_INIT(&n->rsc_chains);
     n->qdev = dev;

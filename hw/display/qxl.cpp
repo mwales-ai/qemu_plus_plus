@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/units.h"
 #include <zlib.h>
 
@@ -162,7 +163,7 @@ void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
     } else {
         assert(cookie != NULL);
         spice_qxl_update_area_async(&qxl->ssd.qxl, surface_id, area,
-                                    clear_dirty_region, (uintptr_t)cookie);
+                                    clear_dirty_region, reinterpret_cast<uintptr_t>(cookie));
     }
 }
 
@@ -186,7 +187,7 @@ static void qxl_spice_destroy_surface_wait(PCIQXLDevice *qxl, uint32_t id,
         cookie = qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                 QXL_IO_DESTROY_SURFACE_ASYNC);
         cookie->u.surface_id = id;
-        spice_qxl_destroy_surface_async(&qxl->ssd.qxl, id, (uintptr_t)cookie);
+        spice_qxl_destroy_surface_async(&qxl->ssd.qxl, id, reinterpret_cast<uintptr_t>(cookie));
     } else {
         spice_qxl_destroy_surface_wait(&qxl->ssd.qxl, id);
         qxl_spice_destroy_surface_wait_complete(qxl, id);
@@ -198,8 +199,8 @@ static void qxl_spice_flush_surfaces_async(PCIQXLDevice *qxl)
     trace_qxl_spice_flush_surfaces_async(qxl->id, qxl->guest_surfaces.count,
                                          qxl->num_free_res);
     spice_qxl_flush_surfaces_async(&qxl->ssd.qxl,
-        (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
-                                  QXL_IO_FLUSH_SURFACES_ASYNC));
+        reinterpret_cast<uintptr_t>(qxl_cookie_new(QXL_COOKIE_TYPE_IO,
+                                  QXL_IO_FLUSH_SURFACES_ASYNC)));
 }
 
 void qxl_spice_loadvm_commands(PCIQXLDevice *qxl, struct QXLCommandExt *ext,
@@ -236,8 +237,8 @@ static void qxl_spice_destroy_surfaces(PCIQXLDevice *qxl, qxl_async_io async)
     trace_qxl_spice_destroy_surfaces(qxl->id, async);
     if (async) {
         spice_qxl_destroy_surfaces_async(&qxl->ssd.qxl,
-                (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
-                                          QXL_IO_DESTROY_ALL_SURFACES_ASYNC));
+                reinterpret_cast<uintptr_t>(qxl_cookie_new(QXL_COOKIE_TYPE_IO,
+                                          QXL_IO_DESTROY_ALL_SURFACES_ASYNC)));
     } else {
         spice_qxl_destroy_surfaces(&qxl->ssd.qxl);
         qxl_spice_destroy_surfaces_complete(qxl);
@@ -259,9 +260,9 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
         spice_qxl_monitors_config_async(&qxl->ssd.qxl,
                 qxl->guest_monitors_config,
                 MEMSLOT_GROUP_GUEST,
-                (uintptr_t)qxl_cookie_new(
+                reinterpret_cast<uintptr_t>(qxl_cookie_new(
                     QXL_COOKIE_TYPE_POST_LOAD_MONITORS_CONFIG,
-                    0));
+                    0)));
     } else {
 #if SPICE_SERVER_VERSION < 0x000e02 /* release 0.14.2 */
         if (qxl->max_outputs) {
@@ -272,8 +273,8 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
         spice_qxl_monitors_config_async(&qxl->ssd.qxl,
                 qxl->ram->monitors_config,
                 MEMSLOT_GROUP_GUEST,
-                (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
-                                          QXL_IO_MONITORS_CONFIG_ASYNC));
+                reinterpret_cast<uintptr_t>(qxl_cookie_new(QXL_COOKIE_TYPE_IO,
+                                          QXL_IO_MONITORS_CONFIG_ASYNC)));
     }
 
     cfg = static_cast<QXLMonitorsConfig *>(qxl_phys2virt(qxl, qxl->guest_monitors_config, MEMSLOT_GROUP_GUEST,
@@ -1487,7 +1488,7 @@ void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id,
     switch (group_id) {
     case MEMSLOT_GROUP_HOST:
         offset = le64_to_cpu(pqxl) & 0xffffffffffff;
-        return (void *)(intptr_t)offset;
+        return reinterpret_cast<void *>(static_cast<intptr_t>(offset));
     case MEMSLOT_GROUP_GUEST:
         if (!qxl_get_check_slot_offset(qxl, pqxl, &slot, &offset, size)) {
             return NULL;
@@ -2301,7 +2302,7 @@ static int qxl_pre_save(void *opaque)
     if (d->last_release == NULL) {
         d->last_release_offset = 0;
     } else {
-        d->last_release_offset = (uint8_t *)d->last_release - ram_start;
+        d->last_release_offset = reinterpret_cast<uint8_t *>(d->last_release) - ram_start;
     }
     if (d->last_release_offset >= d->vga.vram_size) {
         return 1;
