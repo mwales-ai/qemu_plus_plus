@@ -116,6 +116,15 @@ struct Sun4mMachineClass {
 
     /* Methods */
     static void classInit(ObjectClass *oc, const void *data);
+    static void ss5ClassInit(ObjectClass *oc, const void *data);
+    static void ss10ClassInit(ObjectClass *oc, const void *data);
+    static void ss600mpClassInit(ObjectClass *oc, const void *data);
+    static void ss20ClassInit(ObjectClass *oc, const void *data);
+    static void voyagerClassInit(ObjectClass *oc, const void *data);
+    static void ssLxClassInit(ObjectClass *oc, const void *data);
+    static void ss4ClassInit(ObjectClass *oc, const void *data);
+    static void sclsClassInit(ObjectClass *oc, const void *data);
+    static void sbookClassInit(ObjectClass *oc, const void *data);
 };
 typedef struct Sun4mMachineClass Sun4mMachineClass;
 
@@ -1172,7 +1181,7 @@ void Sun4mMachineClass::classInit(ObjectClass *oc, const void *data)
     mc->default_ram_id = "sun4m.ram";
 }
 
-static void ss5_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::ss5ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1209,7 +1218,7 @@ static void ss5_class_init(ObjectClass *oc, const void *data)
     smc->hwdef = &ss5_hwdef;
 }
 
-static void ss10_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::ss10ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1244,7 +1253,7 @@ static void ss10_class_init(ObjectClass *oc, const void *data)
     smc->hwdef = &ss10_hwdef;
 }
 
-static void ss600mp_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::ss600mpClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1277,7 +1286,7 @@ static void ss600mp_class_init(ObjectClass *oc, const void *data)
     smc->hwdef = &ss600mp_hwdef;
 }
 
-static void ss20_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::ss20ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1328,7 +1337,7 @@ static void ss20_class_init(ObjectClass *oc, const void *data)
     smc->hwdef = &ss20_hwdef;
 }
 
-static void voyager_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::voyagerClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1360,7 +1369,7 @@ static void voyager_class_init(ObjectClass *oc, const void *data)
     smc->hwdef = &voyager_hwdef;
 }
 
-static void ss_lx_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::ssLxClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1393,7 +1402,7 @@ static void ss_lx_class_init(ObjectClass *oc, const void *data)
     smc->hwdef = &ss_lx_hwdef;
 }
 
-static void ss4_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::ss4ClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1426,7 +1435,7 @@ static void ss4_class_init(ObjectClass *oc, const void *data)
     smc->hwdef = &ss4_hwdef;
 }
 
-static void scls_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::sclsClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1458,7 +1467,7 @@ static void scls_class_init(ObjectClass *oc, const void *data)
     smc->hwdef = &scls_hwdef;
 }
 
-static void sbook_class_init(ObjectClass *oc, const void *data)
+void Sun4mMachineClass::sbookClassInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
@@ -1494,39 +1503,39 @@ static const TypeInfo sun4m_machine_types[] = {
     {
         .name           = MACHINE_TYPE_NAME("SS-5"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = ss5_class_init,
+        .class_init     = Sun4mMachineClass::ss5ClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("SS-10"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = ss10_class_init,
+        .class_init     = Sun4mMachineClass::ss10ClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("SS-600MP"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = ss600mp_class_init,
+        .class_init     = Sun4mMachineClass::ss600mpClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("SS-20"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = ss20_class_init,
+        .class_init     = Sun4mMachineClass::ss20ClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("Voyager"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = voyager_class_init,
+        .class_init     = Sun4mMachineClass::voyagerClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("LX"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = ss_lx_class_init,
+        .class_init     = Sun4mMachineClass::ssLxClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("SS-4"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = ss4_class_init,
+        .class_init     = Sun4mMachineClass::ss4ClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("SPARCClassic"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = scls_class_init,
+        .class_init     = Sun4mMachineClass::sclsClassInit,
     }, {
         .name           = MACHINE_TYPE_NAME("SPARCbook"),
         .parent         = TYPE_SUN4M_MACHINE,
-        .class_init     = sbook_class_init,
+        .class_init     = Sun4mMachineClass::sbookClassInit,
     }, {
         .name           = TYPE_SUN4M_MACHINE,
         .parent         = TYPE_MACHINE,
