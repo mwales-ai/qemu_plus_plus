@@ -20,6 +20,10 @@ extern "C" {
 #define I8042_KBD_IRQ      0
 #define I8042_MOUSE_IRQ    1
 
+#ifdef __cplusplus
+} /* end extern "C" - KBDState has methods, must be outside extern "C" */
+#endif
+
 typedef struct KBDState {
     uint8_t write_cmd; /* if non zero, write data to port 60 is expected */
     uint8_t status;
@@ -42,7 +46,34 @@ typedef struct KBDState {
     qemu_irq irqs[2];
     qemu_irq a20_out;
     hwaddr mask;
+
+#ifdef __cplusplus
+    void updateIrqLines();
+    void deassertIrq();
+    uint8_t getPending();
+    void updateIrq();
+    void safeUpdateIrq();
+    void queueCmd(int b, int aux);
+    uint8_t dequeue();
+    void outportWrite(uint32_t val);
+    void reset();
+    uint8_t outportDefault();
+
+    static void updateKbdIrq(void *opaque, int level);
+    static void updateAuxIrq(void *opaque, int level);
+    static void throttleTimeout(void *opaque);
+    static uint64_t readStatus(void *opaque, hwaddr addr, unsigned size);
+    static void writeCommand(void *opaque, hwaddr addr,
+                             uint64_t val, unsigned size);
+    static uint64_t readData(void *opaque, hwaddr addr, unsigned size);
+    static void writeData(void *opaque, hwaddr addr,
+                          uint64_t val, unsigned size);
+#endif
 } KBDState;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * QEMU interface:

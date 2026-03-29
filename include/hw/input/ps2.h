@@ -57,16 +57,49 @@ typedef struct {
 /* Output IRQ */
 #define PS2_DEVICE_IRQ      0
 
+#ifdef __cplusplus
+} /* end extern "C" - structs with methods must be outside extern "C" */
+#endif
+
 struct PS2State {
     SysBusDevice parent_obj;
 
     PS2Queue queue;
     int32_t write_cmd;
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void resetQueue();
+    int queueEmpty();
+    void queueNoirq(int b);
+    void raiseIrq();
+    void lowerIrq();
+    void queueByte(int b);
+    void queue2(int b1, int b2);
+    void queue3(int b1, int b2, int b3);
+    void queue4(int b1, int b2, int b3, int b4);
+    void cqueueData(int b);
+    void cqueue1(int b1);
+    void cqueue2(int b1, int b2);
+    void cqueue3(int b1, int b2, int b3);
+    void cqueueReset();
+    uint32_t readData();
+    void commonPostLoad();
+    void resetHold(ResetType type);
+    void resetExit(ResetType type);
+#endif
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define TYPE_PS2_DEVICE "ps2-device"
 OBJECT_DECLARE_TYPE(PS2State, PS2DeviceClass, PS2_DEVICE)
+
+#ifdef __cplusplus
+} /* end extern "C" */
+#endif
 
 struct PS2KbdState {
     PS2State parent_obj;
@@ -77,10 +110,32 @@ struct PS2KbdState {
     int ledstate;
     bool need_high_bit;
     unsigned int modifiers; /* bitmask of MOD_* constants above */
+
+#ifdef __cplusplus
+    void putKeycode(int keycode);
+    void setLedstate(int new_ledstate);
+    void resetKeyboard();
+    void writeKeyboard(int val);
+    void setTranslation(int mode);
+    void kbdResetHold(ResetType type);
+
+    static void keyboardEvent(DeviceState *dev, QemuConsole *src,
+                              struct InputEvent *evt);
+    static void kbdRealize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define TYPE_PS2_KBD_DEVICE "ps2-kbd"
 OBJECT_DECLARE_SIMPLE_TYPE(PS2KbdState, PS2_KBD_DEVICE)
+
+#ifdef __cplusplus
+} /* end extern "C" */
+#endif
 
 struct PS2MouseState {
     PS2State parent_obj;
@@ -96,7 +151,24 @@ struct PS2MouseState {
     int mouse_dz;
     int mouse_dw;
     uint8_t mouse_buttons;
+
+#ifdef __cplusplus
+    int sendPacket();
+    void writeMouse(int val);
+    void fakeEvent();
+    void mouseResetHold(ResetType type);
+
+    static void mouseEvent(DeviceState *dev, QemuConsole *src,
+                           struct InputEvent *evt);
+    static void mouseSync(DeviceState *dev);
+    static void mouseRealize(DeviceState *dev, Error **errp);
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define TYPE_PS2_MOUSE_DEVICE "ps2-mouse"
 OBJECT_DECLARE_SIMPLE_TYPE(PS2MouseState, PS2_MOUSE_DEVICE)
