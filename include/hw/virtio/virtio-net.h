@@ -235,6 +235,21 @@ struct VirtIONet {
     struct EBPFRSSContext ebpf_rss;
     uint32_t nr_ebpf_rss_fds;
     char **ebpf_rss_fds;
+
+#ifdef __cplusplus
+    /* C++ instance methods */
+    void realizeImpl(DeviceState *dev, Error **errp);
+    void unrealizeImpl(DeviceState *dev);
+    void resetImpl();
+    void instanceInitImpl();
+
+    /* static QOM callback wrappers */
+    static void realizeStatic(DeviceState *dev, Error **errp);
+    static void unrealizeStatic(DeviceState *dev);
+    static void resetStatic(VirtIODevice *vdev);
+    static void classInit(ObjectClass *klass, const void *data);
+    static void instanceInitStatic(Object *obj);
+#endif
 };
 
 size_t virtio_net_handle_ctrl_iov(VirtIODevice *vdev,
