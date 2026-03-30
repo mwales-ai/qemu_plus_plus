@@ -88,14 +88,16 @@ static int gpex_swizzle_map_irq_fn(PCIDevice *pci_dev, int pin)
     return (PCI_SLOT(pci_dev->devfn) + pin) % bus->nirq;
 }
 
-static void gpex_host_realize_impl(GPEXHost *s, DeviceState *dev, Error **errp)
+void GPEXHost::realize(Error **errp)
 {
+    DeviceState *dev = DEVICE(this);
+    GPEXHost *s = this;
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     PCIExpressHost *pex = PCIE_HOST_BRIDGE(dev);
     int i;
 
-    s->irq = static_cast<GPEXIrq *>(g_malloc0_n(s->num_irqs, sizeof(*s->irq)));
+    irq = static_cast<GPEXIrq *>(g_malloc0_n(num_irqs, sizeof(*irq)));
 
     pcie_host_mmcfg_init(pex, PCIE_MMCFG_SIZE_MAX);
     sysbus_init_mmio(sbd, &pex->mmio);
@@ -160,14 +162,18 @@ static void gpex_host_realize_impl(GPEXHost *s, DeviceState *dev, Error **errp)
 static void gpex_host_realize(DeviceState *dev, Error **errp)
 {
     GPEXHost *s = GPEX_HOST(dev);
-    gpex_host_realize_impl(s, dev, errp);
+    s->realize(errp);
+}
+
+void GPEXHost::unrealize()
+{
+    g_free(irq);
 }
 
 static void gpex_host_unrealize(DeviceState *dev)
 {
     GPEXHost *s = GPEX_HOST(dev);
-
-    g_free(s->irq);
+    s->unrealize();
 }
 
 static const char *gpex_host_root_bus_path(PCIHostState *host_bridge,
@@ -198,8 +204,7 @@ static const Property gpex_host_properties[] = {
     DEFINE_PROP_UINT8("num-irqs", GPEXHost, num_irqs, PCI_NUM_PINS),
 };
 
-struct GPEXHostMethods {
-    static void classInit(ObjectClass *klass, const void *data)
+void GPEXHost::classInit(ObjectClass *klass, const void *data)
     {
         DeviceClass *dc = DEVICE_CLASS(klass);
         PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
@@ -210,8 +215,7 @@ struct GPEXHostMethods {
         set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
         dc->fw_name = "pci";
         device_class_set_props(dc, gpex_host_properties);
-    }
-};
+}
 
 static void gpex_host_initfn(Object *obj)
 {
@@ -228,7 +232,7 @@ static const TypeInfo gpex_host_info = {
     .parent     = TYPE_PCIE_HOST_BRIDGE,
     .instance_size = sizeof(GPEXHost),
     .instance_init = gpex_host_initfn,
-    .class_init = GPEXHostMethods::classInit,
+    .class_init = GPEXHost::classInit,
 };
 
 /****************************************************************************

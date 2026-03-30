@@ -633,10 +633,10 @@ static void riscv_aplic_request(void *opaque, int irq, int level)
     }
 }
 
-static uint64_t riscv_aplic_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t RISCVAPLICState::mmioRead(hwaddr addr, unsigned size)
 {
     uint32_t irq, word, idc, sm;
-    RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
+    RISCVAPLICState *aplic = this;
 
     /* Reads must be 4 byte words */
     if ((addr & 0x3) != 0) {
@@ -734,10 +734,10 @@ err:
     return 0;
 }
 
-static void riscv_aplic_write(void *opaque, hwaddr addr, uint64_t value,
+void RISCVAPLICState::mmioWrite(hwaddr addr, uint64_t value,
         unsigned size)
 {
-    RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
+    RISCVAPLICState *aplic = this;
     uint32_t irq, word, idc = UINT32_MAX;
 
     /* Writes must be 4 byte words */
@@ -890,6 +890,19 @@ err:
                   __func__, addr);
 }
 
+static uint64_t riscv_aplic_read(void *opaque, hwaddr addr, unsigned size)
+{
+    RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
+    return aplic->mmioRead(addr, size);
+}
+
+static void riscv_aplic_write(void *opaque, hwaddr addr, uint64_t value,
+        unsigned size)
+{
+    RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
+    aplic->mmioWrite(addr, value, size);
+}
+
 static const MemoryRegionOps riscv_aplic_ops = {
     .read = riscv_aplic_read,
     .write = riscv_aplic_write,
@@ -900,54 +913,54 @@ static const MemoryRegionOps riscv_aplic_ops = {
     }
 };
 
-static void riscv_aplic_realize(DeviceState *dev, Error **errp)
+void RISCVAPLICState::realize(Error **errp)
 {
+    DeviceState *dev = DEVICE(this);
     uint32_t i;
-    RISCVAPLICState *aplic = RISCV_APLIC(dev);
 
-    if (riscv_use_emulated_aplic(aplic->msimode)) {
+    if (riscv_use_emulated_aplic(msimode)) {
         /* Create output IRQ lines for non-MSI mode */
-        if (!aplic->msimode) {
+        if (!msimode) {
             /* Claim the CPU interrupt to be triggered by this APLIC */
-            for (i = 0; i < aplic->num_harts; i++) {
-                CPUState *temp = cpu_by_arch_id(aplic->hartid_base + i);
+            for (i = 0; i < num_harts; i++) {
+                CPUState *temp = cpu_by_arch_id(hartid_base + i);
                 if (temp == NULL) {
                     /* Valid for sparse hart layouts - skip this hart ID */
                     continue;
                 }
                 RISCVCPU *cpu = RISCV_CPU(temp);
                 if (riscv_cpu_claim_interrupts(cpu,
-                    (aplic->mmode) ? MIP_MEIP : MIP_SEIP) < 0) {
+                    (mmode) ? MIP_MEIP : MIP_SEIP) < 0) {
                     error_report("%s already claimed",
-                                 (aplic->mmode) ? "MEIP" : "SEIP");
+                                 (mmode) ? "MEIP" : "SEIP");
                     exit(1);
                 }
             }
 
-            aplic->external_irqs = static_cast<qemu_irq *>(g_malloc(sizeof(qemu_irq) *
-                                            aplic->num_harts));
-            qdev_init_gpio_out(dev, aplic->external_irqs, aplic->num_harts);
+            external_irqs = static_cast<qemu_irq *>(g_malloc(sizeof(qemu_irq) *
+                                            num_harts));
+            qdev_init_gpio_out(dev, external_irqs, num_harts);
         }
 
-        aplic->bitfield_words = (aplic->num_irqs + 31) >> 5;
-        aplic->sourcecfg = g_new0(uint32_t, aplic->num_irqs);
-        aplic->state = g_new0(uint32_t, aplic->num_irqs);
-        aplic->target = g_new0(uint32_t, aplic->num_irqs);
-        if (!aplic->msimode) {
-            for (i = 0; i < aplic->num_irqs; i++) {
-                aplic->target[i] = 1;
+        bitfield_words = (num_irqs + 31) >> 5;
+        sourcecfg = g_new0(uint32_t, num_irqs);
+        state = g_new0(uint32_t, num_irqs);
+        target = g_new0(uint32_t, num_irqs);
+        if (!msimode) {
+            for (i = 0; i < num_irqs; i++) {
+                target[i] = 1;
             }
         }
-        aplic->idelivery = g_new0(uint32_t, aplic->num_harts);
-        aplic->iforce = g_new0(uint32_t, aplic->num_harts);
-        aplic->ithreshold = g_new0(uint32_t, aplic->num_harts);
+        idelivery = g_new0(uint32_t, num_harts);
+        iforce = g_new0(uint32_t, num_harts);
+        ithreshold = g_new0(uint32_t, num_harts);
 
-        memory_region_init_io(&aplic->mmio, OBJECT(dev), &riscv_aplic_ops,
-                              aplic, TYPE_RISCV_APLIC, aplic->aperture_size);
-        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &aplic->mmio);
+        memory_region_init_io(&mmio, OBJECT(dev), &riscv_aplic_ops,
+                              this, TYPE_RISCV_APLIC, aperture_size);
+        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mmio);
 
         if (kvm_enabled()) {
-            aplic->kvm_splitmode = true;
+            kvm_splitmode = true;
         }
     }
 
@@ -955,15 +968,21 @@ static void riscv_aplic_realize(DeviceState *dev, Error **errp)
      * Only root APLICs have hardware IRQ lines. All non-root APLICs
      * have IRQ lines delegated by their parent APLIC.
      */
-    if (!aplic->parent) {
-        if (kvm_enabled() && !riscv_use_emulated_aplic(aplic->msimode)) {
-            qdev_init_gpio_in(dev, riscv_kvm_aplic_request, aplic->num_irqs);
+    if (!parent) {
+        if (kvm_enabled() && !riscv_use_emulated_aplic(msimode)) {
+            qdev_init_gpio_in(dev, riscv_kvm_aplic_request, num_irqs);
         } else {
-            qdev_init_gpio_in(dev, riscv_aplic_request, aplic->num_irqs);
+            qdev_init_gpio_in(dev, riscv_aplic_request, num_irqs);
         }
     }
 
     msi_nonbroken = true;
+}
+
+static void riscv_aplic_realize(DeviceState *dev, Error **errp)
+{
+    RISCVAPLICState *aplic = RISCV_APLIC(dev);
+    aplic->realize(errp);
 }
 
 static const Property riscv_aplic_properties[] = {
@@ -1021,7 +1040,7 @@ static const VMStateDescription vmstate_riscv_aplic = {
     .fields = vmstate_riscv_aplic_fields,
 };
 
-static void riscv_aplic_class_init(ObjectClass *klass, const void *data)
+void RISCVAPLICState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1034,7 +1053,7 @@ static const TypeInfo riscv_aplic_info = {
     .name          = TYPE_RISCV_APLIC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RISCVAPLICState),
-    .class_init    = riscv_aplic_class_init,
+    .class_init    = RISCVAPLICState::classInit,
 };
 
 static void riscv_aplic_register_types(void)

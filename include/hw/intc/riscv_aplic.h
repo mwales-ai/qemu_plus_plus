@@ -77,6 +77,13 @@ struct RISCVAPLICState {
     bool kvm_splitmode;
     uint32_t kvm_msicfgaddr;
     uint32_t kvm_msicfgaddrH;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    uint64_t mmioRead(hwaddr addr, unsigned size);
+    void mmioWrite(hwaddr addr, uint64_t value, unsigned size);
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 void riscv_aplic_add_child(DeviceState *parent, DeviceState *child);

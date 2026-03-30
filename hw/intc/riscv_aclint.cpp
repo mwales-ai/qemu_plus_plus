@@ -57,41 +57,40 @@ static uint64_t cpu_riscv_read_rtc(void *opaque)
  * Called when timecmp is written to update the QEMU timer or immediately
  * trigger timer interrupt if mtimecmp <= current timer value.
  */
-static void riscv_aclint_mtimer_write_timecmp(RISCVAclintMTimerState *mtimer,
-                                              RISCVCPU *cpu,
-                                              int hartid,
-                                              uint64_t value)
+void RISCVAclintMTimerState::writeTimecmp(void * /* cpu_opaque */,
+                                           int hartid,
+                                           uint64_t value)
 {
-    uint32_t timebase_freq = mtimer->timebase_freq;
+    uint32_t tb_freq = timebase_freq;
     uint64_t next;
     uint64_t diff;
 
-    uint64_t rtc = cpu_riscv_read_rtc(mtimer);
+    uint64_t rtc = cpu_riscv_read_rtc(this);
 
     /* Compute the relative hartid w.r.t the socket */
-    hartid = hartid - mtimer->hartid_base;
+    hartid = hartid - this->hartid_base;
 
-    mtimer->timecmp[hartid] = value;
-    if (mtimer->timecmp[hartid] <= rtc) {
+    timecmp[hartid] = value;
+    if (timecmp[hartid] <= rtc) {
         /*
          * If we're setting an MTIMECMP value in the "past",
          * immediately raise the timer interrupt
          */
-        qemu_irq_raise(mtimer->timer_irqs[hartid]);
+        qemu_irq_raise(timer_irqs[hartid]);
         return;
     }
 
     /* otherwise, set up the future timer interrupt */
-    qemu_irq_lower(mtimer->timer_irqs[hartid]);
-    diff = mtimer->timecmp[hartid] - rtc;
+    qemu_irq_lower(timer_irqs[hartid]);
+    diff = timecmp[hartid] - rtc;
     /* back to ns (note args switched in muldiv64) */
-    uint64_t ns_diff = muldiv64(diff, NANOSECONDS_PER_SECOND, timebase_freq);
+    uint64_t ns_diff = muldiv64(diff, NANOSECONDS_PER_SECOND, tb_freq);
 
     /*
      * check if ns_diff overflowed and check if the addition would potentially
      * overflow
      */
-    if ((NANOSECONDS_PER_SECOND > timebase_freq && ns_diff < diff) ||
+    if ((NANOSECONDS_PER_SECOND > tb_freq && ns_diff < diff) ||
         ns_diff > INT64_MAX) {
         next = INT64_MAX;
     } else {
@@ -108,7 +107,7 @@ static void riscv_aclint_mtimer_write_timecmp(RISCVAclintMTimerState *mtimer,
         next = MIN(next, INT64_MAX);
     }
 
-    timer_mod(mtimer->timers[hartid], next);
+    timer_mod(timers[hartid], next);
 }
 
 /*
@@ -123,15 +122,12 @@ static void riscv_aclint_mtimer_cb(void *opaque)
 }
 
 /* CPU read MTIMER register */
-static uint64_t riscv_aclint_mtimer_read(void *opaque, hwaddr addr,
-    unsigned size)
+uint64_t RISCVAclintMTimerState::mmioRead(hwaddr addr, unsigned size)
 {
-    RISCVAclintMTimerState *mtimer = static_cast<RISCVAclintMTimerState *>(opaque);
-
-    if (addr >= mtimer->timecmp_base &&
-        addr < (mtimer->timecmp_base + (mtimer->num_harts << 3))) {
-        size_t hartid = mtimer->hartid_base +
-                        ((addr - mtimer->timecmp_base) >> 3);
+    if (addr >= timecmp_base &&
+        addr < (timecmp_base + (num_harts << 3))) {
+        size_t hartid = hartid_base +
+                        ((addr - timecmp_base) >> 3);
         CPUState *cpu = cpu_by_arch_id(hartid);
         CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         if (!env) {
@@ -139,24 +135,24 @@ static uint64_t riscv_aclint_mtimer_read(void *opaque, hwaddr addr,
                           "aclint-mtimer: invalid hartid: %zu", hartid);
         } else if ((addr & 0x7) == 0) {
             /* timecmp_lo for RV32/RV64 or timecmp for RV64 */
-            uint64_t timecmp = mtimer->timecmp[hartid];
-            return (size == 4) ? (timecmp & 0xFFFFFFFF) : timecmp;
+            uint64_t tc = timecmp[hartid];
+            return (size == 4) ? (tc & 0xFFFFFFFF) : tc;
         } else if ((addr & 0x7) == 4) {
             /* timecmp_hi */
-            uint64_t timecmp = mtimer->timecmp[hartid];
-            return (timecmp >> 32) & 0xFFFFFFFF;
+            uint64_t tc = timecmp[hartid];
+            return (tc >> 32) & 0xFFFFFFFF;
         } else {
             qemu_log_mask(LOG_UNIMP,
                           "aclint-mtimer: invalid read: %08x", (uint32_t)addr);
             return 0;
         }
-    } else if (addr == mtimer->time_base) {
+    } else if (addr == time_base) {
         /* time_lo for RV32/RV64 or timecmp for RV64 */
-        uint64_t rtc = cpu_riscv_read_rtc(mtimer);
+        uint64_t rtc = cpu_riscv_read_rtc(this);
         return (size == 4) ? (rtc & 0xFFFFFFFF) : rtc;
-    } else if (addr == mtimer->time_base + 4) {
+    } else if (addr == time_base + 4) {
         /* time_hi */
-        return (cpu_riscv_read_rtc(mtimer) >> 32) & 0xFFFFFFFF;
+        return (cpu_riscv_read_rtc(this) >> 32) & 0xFFFFFFFF;
     }
 
     qemu_log_mask(LOG_UNIMP,
@@ -165,16 +161,15 @@ static uint64_t riscv_aclint_mtimer_read(void *opaque, hwaddr addr,
 }
 
 /* CPU write MTIMER register */
-static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
-    uint64_t value, unsigned size)
+void RISCVAclintMTimerState::mmioWrite(hwaddr addr, uint64_t value,
+    unsigned size)
 {
-    RISCVAclintMTimerState *mtimer = static_cast<RISCVAclintMTimerState *>(opaque);
     int i;
 
-    if (addr >= mtimer->timecmp_base &&
-        addr < (mtimer->timecmp_base + (mtimer->num_harts << 3))) {
-        size_t hartid = mtimer->hartid_base +
-                        ((addr - mtimer->timecmp_base) >> 3);
+    if (addr >= timecmp_base &&
+        addr < (timecmp_base + (num_harts << 3))) {
+        size_t hartid = hartid_base +
+                        ((addr - timecmp_base) >> 3);
         CPUState *cpu = cpu_by_arch_id(hartid);
         CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         if (!env) {
@@ -183,19 +178,18 @@ static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
         } else if ((addr & 0x7) == 0) {
             if (size == 4) {
                 /* timecmp_lo for RV32/RV64 */
-                uint64_t timecmp_hi = mtimer->timecmp[hartid] >> 32;
-                riscv_aclint_mtimer_write_timecmp(mtimer, RISCV_CPU(cpu), hartid,
+                uint64_t timecmp_hi = timecmp[hartid] >> 32;
+                writeTimecmp(RISCV_CPU(cpu), hartid,
                     timecmp_hi << 32 | (value & 0xFFFFFFFF));
             } else {
                 /* timecmp for RV64 */
-                riscv_aclint_mtimer_write_timecmp(mtimer, RISCV_CPU(cpu), hartid,
-                                                  value);
+                writeTimecmp(RISCV_CPU(cpu), hartid, value);
             }
         } else if ((addr & 0x7) == 4) {
             if (size == 4) {
                 /* timecmp_hi for RV32/RV64 */
-                uint64_t timecmp_lo = mtimer->timecmp[hartid];
-                riscv_aclint_mtimer_write_timecmp(mtimer, RISCV_CPU(cpu), hartid,
+                uint64_t timecmp_lo = timecmp[hartid];
+                writeTimecmp(RISCV_CPU(cpu), hartid,
                     value << 32 | (timecmp_lo & 0xFFFFFFFF));
             } else {
                 qemu_log_mask(LOG_GUEST_ERROR,
@@ -208,22 +202,22 @@ static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
                           (uint32_t)addr);
         }
         return;
-    } else if (addr == mtimer->time_base || addr == mtimer->time_base + 4) {
-        uint64_t rtc_r = cpu_riscv_read_rtc_raw(mtimer->timebase_freq);
-        uint64_t rtc = cpu_riscv_read_rtc(mtimer);
+    } else if (addr == time_base || addr == time_base + 4) {
+        uint64_t rtc_r = cpu_riscv_read_rtc_raw(timebase_freq);
+        uint64_t rtc = cpu_riscv_read_rtc(this);
 
-        if (addr == mtimer->time_base) {
+        if (addr == time_base) {
             if (size == 4) {
                 /* time_lo for RV32/RV64 */
-                mtimer->time_delta = ((rtc & ~0xFFFFFFFFULL) | value) - rtc_r;
+                time_delta = ((rtc & ~0xFFFFFFFFULL) | value) - rtc_r;
             } else {
                 /* time for RV64 */
-                mtimer->time_delta = value - rtc_r;
+                time_delta = value - rtc_r;
             }
         } else {
             if (size == 4) {
                 /* time_hi for RV32/RV64 */
-                mtimer->time_delta = (value << 32 | (rtc & 0xFFFFFFFF)) - rtc_r;
+                time_delta = (value << 32 | (rtc & 0xFFFFFFFF)) - rtc_r;
             } else {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "aclint-mtimer: invalid time_hi write: %08x",
@@ -233,15 +227,15 @@ static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
         }
 
         /* Check if timer interrupt is triggered for each hart. */
-        for (i = 0; i < mtimer->num_harts; i++) {
-            CPUState *cpu = cpu_by_arch_id(mtimer->hartid_base + i);
+        for (i = 0; i < num_harts; i++) {
+            CPUState *cpu = cpu_by_arch_id(hartid_base + i);
             CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
             if (!env) {
                 continue;
             }
-            riscv_aclint_mtimer_write_timecmp(mtimer, RISCV_CPU(cpu),
-                                              mtimer->hartid_base + i,
-                                              mtimer->timecmp[i]);
+            writeTimecmp(RISCV_CPU(cpu),
+                         hartid_base + i,
+                         timecmp[i]);
             riscv_timer_write_timecmp(env, env->stimer, env->stimecmp, 0, MIP_STIP);
             riscv_timer_write_timecmp(env, env->vstimer, env->vstimecmp,
                                       env->htimedelta, MIP_VSTIP);
@@ -252,6 +246,20 @@ static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
 
     qemu_log_mask(LOG_UNIMP,
                   "aclint-mtimer: invalid write: %08x", (uint32_t)addr);
+}
+
+static uint64_t riscv_aclint_mtimer_read(void *opaque, hwaddr addr,
+    unsigned size)
+{
+    RISCVAclintMTimerState *mtimer = static_cast<RISCVAclintMTimerState *>(opaque);
+    return mtimer->mmioRead(addr, size);
+}
+
+static void riscv_aclint_mtimer_write(void *opaque, hwaddr addr,
+    uint64_t value, unsigned size)
+{
+    RISCVAclintMTimerState *mtimer = static_cast<RISCVAclintMTimerState *>(opaque);
+    mtimer->mmioWrite(addr, value, size);
 }
 
 static const MemoryRegionOps riscv_aclint_mtimer_ops = {
@@ -282,23 +290,23 @@ static const Property riscv_aclint_mtimer_properties[] = {
         timebase_freq, 0),
 };
 
-static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
+void RISCVAclintMTimerState::realize(Error **errp)
 {
-    RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(dev);
+    DeviceState *dev = DEVICE(this);
     int i;
 
-    memory_region_init_io(&s->mmio, OBJECT(dev), &riscv_aclint_mtimer_ops,
-                          s, TYPE_RISCV_ACLINT_MTIMER, s->aperture_size);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
+    memory_region_init_io(&mmio, OBJECT(dev), &riscv_aclint_mtimer_ops,
+                          this, TYPE_RISCV_ACLINT_MTIMER, aperture_size);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mmio);
 
-    s->timer_irqs = g_new(qemu_irq, s->num_harts);
-    qdev_init_gpio_out(dev, s->timer_irqs, s->num_harts);
+    timer_irqs = g_new(qemu_irq, num_harts);
+    qdev_init_gpio_out(dev, timer_irqs, num_harts);
 
-    s->timers = g_new0(QEMUTimer *, s->num_harts);
-    s->timecmp = g_new0(uint64_t, s->num_harts);
+    timers = g_new0(QEMUTimer *, num_harts);
+    timecmp = g_new0(uint64_t, num_harts);
     /* Claim timer interrupt bits */
-    for (i = 0; i < s->num_harts; i++) {
-        CPUState *cpu_by_hartid = cpu_by_arch_id(s->hartid_base + i);
+    for (i = 0; i < num_harts; i++) {
+        CPUState *cpu_by_hartid = cpu_by_arch_id(hartid_base + i);
         if (cpu_by_hartid == NULL) {
             /* Valid for sparse hart layouts - skip this hart ID */
             continue;
@@ -311,20 +319,31 @@ static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void riscv_aclint_mtimer_reset_enter(Object *obj, ResetType type)
+static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
+{
+    RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(dev);
+    s->realize(errp);
+}
+
+void RISCVAclintMTimerState::resetEnter(ResetType type)
 {
     /*
      * According to RISC-V ACLINT spec:
      *   - On MTIMER device reset, the MTIME register is cleared to zero.
      *   - On MTIMER device reset, the MTIMECMP registers are in unknown state.
      */
-    RISCVAclintMTimerState *mtimer = RISCV_ACLINT_MTIMER(obj);
 
     /*
      * Clear mtime register by writing to 0 it.
      * Pending mtime interrupts will also be cleared at the same time.
      */
-    riscv_aclint_mtimer_write(mtimer, mtimer->time_base, 0, 8);
+    mmioWrite(time_base, 0, 8);
+}
+
+static void riscv_aclint_mtimer_reset_enter(Object *obj, ResetType type)
+{
+    RISCVAclintMTimerState *mtimer = RISCV_ACLINT_MTIMER(obj);
+    mtimer->resetEnter(type);
 }
 
 static const VMStateField vmstate_riscv_mtimer_fields[] = {
@@ -344,7 +363,7 @@ static const VMStateDescription vmstate_riscv_mtimer = {
     .fields = vmstate_riscv_mtimer_fields,
 };
 
-static void riscv_aclint_mtimer_class_init(ObjectClass *klass, const void *data)
+void RISCVAclintMTimerState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = riscv_aclint_mtimer_realize;
@@ -358,7 +377,7 @@ static const TypeInfo riscv_aclint_mtimer_info = {
     .name          = TYPE_RISCV_ACLINT_MTIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RISCVAclintMTimerState),
-    .class_init    = riscv_aclint_mtimer_class_init,
+    .class_init    = RISCVAclintMTimerState::classInit,
 };
 
 /*
@@ -416,20 +435,17 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
 }
 
 /* CPU read [M|S]SWI register */
-static uint64_t riscv_aclint_swi_read(void *opaque, hwaddr addr,
-    unsigned size)
+uint64_t RISCVAclintSwiState::mmioRead(hwaddr addr, unsigned size)
 {
-    RISCVAclintSwiState *swi = static_cast<RISCVAclintSwiState *>(opaque);
-
-    if (addr < (swi->num_harts << 2)) {
-        size_t hartid = swi->hartid_base + (addr >> 2);
+    if (addr < (num_harts << 2)) {
+        size_t hartid = hartid_base + (addr >> 2);
         CPUState *cpu = cpu_by_arch_id(hartid);
         CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         if (!env) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "aclint-swi: invalid hartid: %zu", hartid);
         } else if ((addr & 0x3) == 0) {
-            return (swi->sswi) ? 0 : ((env->mip & MIP_MSIP) > 0);
+            return (sswi) ? 0 : ((env->mip & MIP_MSIP) > 0);
         }
     }
 
@@ -439,13 +455,11 @@ static uint64_t riscv_aclint_swi_read(void *opaque, hwaddr addr,
 }
 
 /* CPU write [M|S]SWI register */
-static void riscv_aclint_swi_write(void *opaque, hwaddr addr, uint64_t value,
+void RISCVAclintSwiState::mmioWrite(hwaddr addr, uint64_t value,
         unsigned size)
 {
-    RISCVAclintSwiState *swi = static_cast<RISCVAclintSwiState *>(opaque);
-
-    if (addr < (swi->num_harts << 2)) {
-        size_t hartid = swi->hartid_base + (addr >> 2);
+    if (addr < (num_harts << 2)) {
+        size_t hartid = hartid_base + (addr >> 2);
         CPUState *cpu = cpu_by_arch_id(hartid);
         CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         if (!env) {
@@ -453,10 +467,10 @@ static void riscv_aclint_swi_write(void *opaque, hwaddr addr, uint64_t value,
                           "aclint-swi: invalid hartid: %zu", hartid);
         } else if ((addr & 0x3) == 0) {
             if (value & 0x1) {
-                qemu_irq_raise(swi->soft_irqs[hartid - swi->hartid_base]);
+                qemu_irq_raise(soft_irqs[hartid - hartid_base]);
             } else {
-                if (!swi->sswi) {
-                    qemu_irq_lower(swi->soft_irqs[hartid - swi->hartid_base]);
+                if (!sswi) {
+                    qemu_irq_lower(soft_irqs[hartid - hartid_base]);
                 }
             }
             return;
@@ -465,6 +479,20 @@ static void riscv_aclint_swi_write(void *opaque, hwaddr addr, uint64_t value,
 
     qemu_log_mask(LOG_UNIMP,
                   "aclint-swi: invalid write: %08x", (uint32_t)addr);
+}
+
+static uint64_t riscv_aclint_swi_read(void *opaque, hwaddr addr,
+    unsigned size)
+{
+    RISCVAclintSwiState *swi = static_cast<RISCVAclintSwiState *>(opaque);
+    return swi->mmioRead(addr, size);
+}
+
+static void riscv_aclint_swi_write(void *opaque, hwaddr addr, uint64_t value,
+        unsigned size)
+{
+    RISCVAclintSwiState *swi = static_cast<RISCVAclintSwiState *>(opaque);
+    swi->mmioWrite(addr, value, size);
 }
 
 static const MemoryRegionOps riscv_aclint_swi_ops = {
@@ -483,35 +511,41 @@ static const Property riscv_aclint_swi_properties[] = {
     DEFINE_PROP_UINT32("sswi", RISCVAclintSwiState, sswi, false),
 };
 
-static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)
+void RISCVAclintSwiState::realize(Error **errp)
 {
-    RISCVAclintSwiState *swi = RISCV_ACLINT_SWI(dev);
+    DeviceState *dev = DEVICE(this);
     int i;
 
-    memory_region_init_io(&swi->mmio, OBJECT(dev), &riscv_aclint_swi_ops, swi,
+    memory_region_init_io(&mmio, OBJECT(dev), &riscv_aclint_swi_ops, this,
                           TYPE_RISCV_ACLINT_SWI, RISCV_ACLINT_SWI_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &swi->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mmio);
 
-    swi->soft_irqs = g_new(qemu_irq, swi->num_harts);
-    qdev_init_gpio_out(dev, swi->soft_irqs, swi->num_harts);
+    soft_irqs = g_new(qemu_irq, num_harts);
+    qdev_init_gpio_out(dev, soft_irqs, num_harts);
 
     /* Claim software interrupt bits */
-    for (i = 0; i < swi->num_harts; i++) {
-        CPUState *cpu_by_hartid = cpu_by_arch_id(swi->hartid_base + i);
+    for (i = 0; i < num_harts; i++) {
+        CPUState *cpu_by_hartid = cpu_by_arch_id(hartid_base + i);
         if (cpu_by_hartid == NULL) {
             /* Valid for sparse hart layouts - skip this hart ID */
             continue;
         }
         RISCVCPU *cpu = RISCV_CPU(cpu_by_hartid);
         /* We don't claim mip.SSIP because it is writable by software */
-        if (riscv_cpu_claim_interrupts(cpu, swi->sswi ? 0 : MIP_MSIP) < 0) {
+        if (riscv_cpu_claim_interrupts(cpu, sswi ? 0 : MIP_MSIP) < 0) {
             error_report("MSIP already claimed");
             exit(1);
         }
     }
 }
 
-static void riscv_aclint_swi_reset_enter(Object *obj, ResetType type)
+static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)
+{
+    RISCVAclintSwiState *swi = RISCV_ACLINT_SWI(dev);
+    swi->realize(errp);
+}
+
+void RISCVAclintSwiState::resetEnter(ResetType type)
 {
     /*
      * According to RISC-V ACLINT spec:
@@ -519,18 +553,23 @@ static void riscv_aclint_swi_reset_enter(Object *obj, ResetType type)
      *
      * p.s. SSWI device reset does nothing since SETSIP register always reads 0.
      */
-    RISCVAclintSwiState *swi = RISCV_ACLINT_SWI(obj);
     int i;
 
-    if (!swi->sswi) {
-        for (i = 0; i < swi->num_harts; i++) {
+    if (!sswi) {
+        for (i = 0; i < num_harts; i++) {
             /* Clear MSIP registers by lowering software interrupts. */
-            qemu_irq_lower(swi->soft_irqs[i]);
+            qemu_irq_lower(soft_irqs[i]);
         }
     }
 }
 
-static void riscv_aclint_swi_class_init(ObjectClass *klass, const void *data)
+static void riscv_aclint_swi_reset_enter(Object *obj, ResetType type)
+{
+    RISCVAclintSwiState *swi = RISCV_ACLINT_SWI(obj);
+    swi->resetEnter(type);
+}
+
+void RISCVAclintSwiState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = riscv_aclint_swi_realize;
@@ -543,7 +582,7 @@ static const TypeInfo riscv_aclint_swi_info = {
     .name          = TYPE_RISCV_ACLINT_SWI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(RISCVAclintSwiState),
-    .class_init    = riscv_aclint_swi_class_init,
+    .class_init    = RISCVAclintSwiState::classInit,
 };
 
 /*
