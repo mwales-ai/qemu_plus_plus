@@ -1487,14 +1487,13 @@ static int virtio_gpu_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static void virtio_gpu_device_realize_impl(VirtIOGPU *g, DeviceState *qdev,
-                                            Error **errp)
+void VirtIOGPU::realize(DeviceState *qdev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
 
-    if (virtio_gpu_blob_enabled(g->parent_obj.conf)) {
-        if (!virtio_gpu_rutabaga_enabled(g->parent_obj.conf) &&
-            !virtio_gpu_virgl_enabled(g->parent_obj.conf) &&
+    if (virtio_gpu_blob_enabled(parent_obj.conf)) {
+        if (!virtio_gpu_rutabaga_enabled(parent_obj.conf) &&
+            !virtio_gpu_virgl_enabled(parent_obj.conf) &&
             !virtio_gpu_have_udmabuf()) {
             error_setg(errp, "need rutabaga or udmabuf for blob resources");
             return;
@@ -1502,7 +1501,7 @@ static void virtio_gpu_device_realize_impl(VirtIOGPU *g, DeviceState *qdev,
 
 #ifdef VIRGL_VERSION_MAJOR
     #if VIRGL_VERSION_MAJOR < 1
-        if (virtio_gpu_virgl_enabled(g->parent_obj.conf)) {
+        if (virtio_gpu_virgl_enabled(parent_obj.conf)) {
             error_setg(errp, "old virglrenderer, blob resources unsupported");
             return;
         }
@@ -1510,11 +1509,11 @@ static void virtio_gpu_device_realize_impl(VirtIOGPU *g, DeviceState *qdev,
 #endif
     }
 
-    if (virtio_gpu_venus_enabled(g->parent_obj.conf)) {
+    if (virtio_gpu_venus_enabled(parent_obj.conf)) {
 #ifdef VIRGL_VERSION_MAJOR
     #if VIRGL_VERSION_MAJOR >= 1
-        if (!virtio_gpu_blob_enabled(g->parent_obj.conf) ||
-            !virtio_gpu_hostmem_enabled(g->parent_obj.conf)) {
+        if (!virtio_gpu_blob_enabled(parent_obj.conf) ||
+            !virtio_gpu_hostmem_enabled(parent_obj.conf)) {
             error_setg(errp, "venus requires enabled blob and hostmem options");
             return;
         }
@@ -1532,21 +1531,21 @@ static void virtio_gpu_device_realize_impl(VirtIOGPU *g, DeviceState *qdev,
         return;
     }
 
-    g->ctrl_vq = virtio_get_queue(vdev, 0);
-    g->cursor_vq = virtio_get_queue(vdev, 1);
-    g->ctrl_bh = virtio_bh_new_guarded(qdev, virtio_gpu_ctrl_bh, g);
-    g->cursor_bh = virtio_bh_new_guarded(qdev, virtio_gpu_cursor_bh, g);
-    g->reset_bh = qemu_bh_new(virtio_gpu_reset_bh, g);
-    qemu_cond_init(&g->reset_cond);
-    QTAILQ_INIT(&g->reslist);
-    QTAILQ_INIT(&g->cmdq);
-    QTAILQ_INIT(&g->fenceq);
+    ctrl_vq = virtio_get_queue(vdev, 0);
+    cursor_vq = virtio_get_queue(vdev, 1);
+    ctrl_bh = virtio_bh_new_guarded(qdev, virtio_gpu_ctrl_bh, this);
+    cursor_bh = virtio_bh_new_guarded(qdev, virtio_gpu_cursor_bh, this);
+    reset_bh = qemu_bh_new(virtio_gpu_reset_bh, this);
+    qemu_cond_init(&reset_cond);
+    QTAILQ_INIT(&reslist);
+    QTAILQ_INIT(&cmdq);
+    QTAILQ_INIT(&fenceq);
 }
 
 void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
 {
     VirtIOGPU *g = VIRTIO_GPU(qdev);
-    virtio_gpu_device_realize_impl(g, qdev, errp);
+    g->realize(qdev, errp);
 }
 
 static void virtio_gpu_device_unrealize(DeviceState *qdev)
@@ -1591,35 +1590,41 @@ static void virtio_gpu_reset_bh(void *opaque)
     qemu_cond_signal(&g->reset_cond);
 }
 
-void virtio_gpu_reset(VirtIODevice *vdev)
+void VirtIOGPU::reset(void)
 {
-    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIODevice *vdev = VIRTIO_DEVICE(this);
     struct virtio_gpu_ctrl_command *cmd;
 
     if (qemu_in_vcpu_thread()) {
-        g->reset_finished = false;
-        qemu_bh_schedule(g->reset_bh);
-        while (!g->reset_finished) {
-            qemu_cond_wait_bql(&g->reset_cond);
+        reset_finished = false;
+        qemu_bh_schedule(reset_bh);
+        while (!reset_finished) {
+            qemu_cond_wait_bql(&reset_cond);
         }
     } else {
-        aio_bh_call(g->reset_bh);
+        aio_bh_call(reset_bh);
     }
 
-    while (!QTAILQ_EMPTY(&g->cmdq)) {
-        cmd = QTAILQ_FIRST(&g->cmdq);
-        QTAILQ_REMOVE(&g->cmdq, cmd, next);
+    while (!QTAILQ_EMPTY(&cmdq)) {
+        cmd = QTAILQ_FIRST(&cmdq);
+        QTAILQ_REMOVE(&cmdq, cmd, next);
         g_free(cmd);
     }
 
-    while (!QTAILQ_EMPTY(&g->fenceq)) {
-        cmd = QTAILQ_FIRST(&g->fenceq);
-        QTAILQ_REMOVE(&g->fenceq, cmd, next);
-        g->inflight--;
+    while (!QTAILQ_EMPTY(&fenceq)) {
+        cmd = QTAILQ_FIRST(&fenceq);
+        QTAILQ_REMOVE(&fenceq, cmd, next);
+        inflight--;
         g_free(cmd);
     }
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
+}
+
+void virtio_gpu_reset(VirtIODevice *vdev)
+{
+    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    g->reset();
 }
 
 static void
@@ -1720,10 +1725,11 @@ static const Property virtio_gpu_properties[] = {
     DEFINE_PROP_UINT8("x-scanout-vmstate-version", VirtIOGPU, scanout_vmstate_version, 2),
 };
 
-static void virtio_gpu_class_init_impl(DeviceClass *dc,
-                                        VirtioDeviceClass *vdc,
-                                        VirtIOGPUClass *vgc)
+void VirtIOGPU::classInit(ObjectClass *klass, const void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
     VirtIOGPUBaseClass *vgbc = &vgc->parent;
 
     vgc->handle_ctrl = virtio_gpu_handle_ctrl;
@@ -1744,10 +1750,7 @@ static void virtio_gpu_class_init_impl(DeviceClass *dc,
 
 static void virtio_gpu_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
-    virtio_gpu_class_init_impl(dc, vdc, vgc);
+    VirtIOGPU::classInit(klass, data);
 }
 
 static const TypeInfo virtio_gpu_info = {

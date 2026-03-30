@@ -94,11 +94,16 @@ struct HPETState {
     uint64_t hpet_counter;      /* main counter */
     uint8_t  hpet_id;           /* instance id */
 
-    /* ----- helper methods (private) ----- */
+    /* ----- helper methods ----- */
     uint32_t inLegacyMode();
     uint32_t isEnabled();
     uint64_t getTicks();
     uint64_t getNs(uint64_t tick);
+
+    void updateIrq(HPETTimer *t, int set);
+    void armTimer(HPETTimer *t, uint64_t tick);
+    void setTimer(HPETTimer *t);
+    void delTimer(HPETTimer *t);
 
     /* ----- QOM callbacks ----- */
     void realize(DeviceState *dev, Error **errp);
@@ -223,50 +228,48 @@ static uint64_t hpet_next_wrap(uint64_t cur_tick)
     return (cur_tick | 0xffffffffU) + 1;
 }
 
-static void update_irq(struct HPETTimer *timer, int set)
+void HPETState::updateIrq(HPETTimer *t, int set)
 {
     uint64_t mask;
-    HPETState *s;
     int route;
 
-    if (timer->tn <= 1 && timer->state->inLegacyMode()) {
+    if (t->tn <= 1 && inLegacyMode()) {
         /* if LegacyReplacementRoute bit is set, HPET specification requires
          * timer0 be routed to IRQ0 in NON-APIC or IRQ2 in the I/O APIC,
          * timer1 be routed to IRQ8 in NON-APIC or IRQ8 in the I/O APIC.
          */
-        route = (timer->tn == 0) ? 0 : RTC_ISA_IRQ;
+        route = (t->tn == 0) ? 0 : RTC_ISA_IRQ;
     } else {
-        route = timer_int_route(timer);
+        route = timer_int_route(t);
     }
-    s = timer->state;
-    mask = 1 << timer->tn;
+    mask = 1 << t->tn;
 
-    if (set && (timer->config & HPET_TN_TYPE_LEVEL)) {
+    if (set && (t->config & HPET_TN_TYPE_LEVEL)) {
         /*
          * If HPET_TN_ENABLE bit is 0, "the timer will still operate and
          * generate appropriate status bits, but will not cause an interrupt"
          */
-        s->isr |= mask;
+        isr |= mask;
     } else {
-        s->isr &= ~mask;
+        isr &= ~mask;
     }
 
-    if (set && timer_enabled(timer) && s->isEnabled()) {
-        if (timer_fsb_route(timer)) {
-            address_space_stl_le(&address_space_memory, timer->fsb >> 32,
-                                 timer->fsb & 0xffffffff, MEMTXATTRS_UNSPECIFIED,
+    if (set && timer_enabled(t) && isEnabled()) {
+        if (timer_fsb_route(t)) {
+            address_space_stl_le(&address_space_memory, t->fsb >> 32,
+                                 t->fsb & 0xffffffff, MEMTXATTRS_UNSPECIFIED,
                                  NULL);
-        } else if (timer->config & HPET_TN_TYPE_LEVEL) {
+        } else if (t->config & HPET_TN_TYPE_LEVEL) {
             BQL_LOCK_GUARD();
-            qemu_irq_raise(s->irqs[route]);
+            qemu_irq_raise(irqs[route]);
         } else {
             BQL_LOCK_GUARD();
-            qemu_irq_pulse(s->irqs[route]);
+            qemu_irq_pulse(irqs[route]);
         }
     } else {
-        if (!timer_fsb_route(timer)) {
+        if (!timer_fsb_route(t)) {
             BQL_LOCK_GUARD();
-            qemu_irq_lower(s->irqs[route]);
+            qemu_irq_lower(irqs[route]);
         }
     }
 }
@@ -400,9 +403,9 @@ static const VMStateDescription vmstate_hpet = {
     .subsections = vmstate_hpet_subsections,
 };
 
-static void hpet_arm(HPETTimer *t, uint64_t tick)
+void HPETState::armTimer(HPETTimer *t, uint64_t tick)
 {
-    uint64_t ns = t->state->getNs(tick);
+    uint64_t ns = getNs(tick);
 
     /* Clamp period to reasonable min value (1 us) */
     if (timer_is_periodic(t) && ns - t->last < 1000) {
@@ -419,8 +422,9 @@ static void hpet_arm(HPETTimer *t, uint64_t tick)
 void HPETState::timerCallback(void *opaque)
 {
     HPETTimer *t = static_cast<HPETTimer *>(opaque);
+    HPETState *s = t->state;
     uint64_t period = t->period;
-    uint64_t cur_tick = t->state->getTicks();
+    uint64_t cur_tick = s->getTicks();
 
     if (timer_is_periodic(t) && period != 0) {
         while (hpet_time_after(cur_tick, t->cmp64)) {
@@ -431,17 +435,17 @@ void HPETState::timerCallback(void *opaque)
         } else {
             t->cmp = t->cmp64;
         }
-        hpet_arm(t, t->cmp64);
+        s->armTimer(t, t->cmp64);
     } else if (t->wrap_flag) {
         t->wrap_flag = 0;
-        hpet_arm(t, t->cmp64);
+        s->armTimer(t, t->cmp64);
     }
-    update_irq(t, 1);
+    s->updateIrq(t, 1);
 }
 
-static void hpet_set_timer(HPETTimer *t)
+void HPETState::setTimer(HPETTimer *t)
 {
-    uint64_t cur_tick = t->state->getTicks();
+    uint64_t cur_tick = getTicks();
 
     t->wrap_flag = 0;
     t->cmp64 = hpet_calculate_cmp64(t, cur_tick, t->cmp);
@@ -452,21 +456,20 @@ static void hpet_set_timer(HPETTimer *t)
          */
         if (!timer_is_periodic(t) && t->cmp64 > hpet_next_wrap(cur_tick)) {
             t->wrap_flag = 1;
-            hpet_arm(t, hpet_next_wrap(cur_tick));
+            armTimer(t, hpet_next_wrap(cur_tick));
             return;
         }
     }
-    hpet_arm(t, t->cmp64);
+    armTimer(t, t->cmp64);
 }
 
-static void hpet_del_timer(HPETTimer *t)
+void HPETState::delTimer(HPETTimer *t)
 {
-    HPETState *s = t->state;
     timer_del(t->qemu_timer);
 
-    if (s->isr & (1 << t->tn)) {
+    if (isr & (1 << t->tn)) {
         /* For level-triggered interrupt, this leaves ISR set but lowers irq.  */
-        update_irq(t, 1);
+        updateIrq(t, 1);
     }
 }
 
@@ -565,15 +568,15 @@ void HPETState::mmioWrite(void *opaque, hwaddr addr,
                     ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
                 for (i = 0; i < s->num_timers; i++) {
                     if (timer_enabled(&s->timer[i]) && (s->isr & (1 << i))) {
-                        update_irq(&s->timer[i], 1);
+                        s->updateIrq(&s->timer[i], 1);
                     }
-                    hpet_set_timer(&s->timer[i]);
+                    s->setTimer(&s->timer[i]);
                 }
             } else if (deactivating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                 /* Halt main counter and disable interrupt generation. */
                 s->hpet_counter = s->getTicks();
                 for (i = 0; i < s->num_timers; i++) {
-                    hpet_del_timer(&s->timer[i]);
+                    s->delTimer(&s->timer[i]);
                 }
             }
             seqlock_write_end(&s->state_version);
@@ -597,7 +600,7 @@ void HPETState::mmioWrite(void *opaque, hwaddr addr,
             cleared = new_val & s->isr;
             for (i = 0; i < s->num_timers; i++) {
                 if (cleared & (1 << i)) {
-                    update_irq(&s->timer[i], 0);
+                    s->updateIrq(&s->timer[i], 0);
                 }
             }
             break;
@@ -629,21 +632,21 @@ void HPETState::mmioWrite(void *opaque, hwaddr addr,
             if (deactivating_bit(old_val, new_val, HPET_TN_TYPE_LEVEL)) {
                 /*
                  * Do this before changing timer->config; otherwise, if
-                 * HPET_TN_FSB is set, update_irq will not lower the qemu_irq.
+                 * HPET_TN_FSB is set, updateIrq will not lower the qemu_irq.
                  */
-                update_irq(timer, 0);
+                s->updateIrq(timer, 0);
             }
             timer->config = new_val;
             if (activating_bit(old_val, new_val, HPET_TN_ENABLE)
                 && (s->isr & (1 << timer_id))) {
-                update_irq(timer, 1);
+                s->updateIrq(timer, 1);
             }
             if (new_val & HPET_TN_32BIT) {
                 timer->cmp = (uint32_t)timer->cmp;
                 timer->period = (uint32_t)timer->period;
             }
             if (s->isEnabled()) {
-                hpet_set_timer(timer);
+                s->setTimer(timer);
             }
             break;
         case HPET_TN_CMP: // comparator register
@@ -666,7 +669,7 @@ void HPETState::mmioWrite(void *opaque, hwaddr addr,
             }
             timer->config &= ~HPET_TN_SETVAL;
             if (s->isEnabled()) {
-                hpet_set_timer(timer);
+                s->setTimer(timer);
             }
             break;
         case HPET_TN_ROUTE:
@@ -708,7 +711,7 @@ void HPETState::reset(DeviceState *d)
     for (i = 0; i < num_timers; i++) {
         HPETTimer *t = &timer[i];
 
-        hpet_del_timer(t);
+        delTimer(t);
         t->cmp = ~0ULL;
         t->config = HPET_TN_PERIODIC_CAP | HPET_TN_SIZE_CAP;
         if (flags & (1 << HPET_MSI_SUPPORT)) {

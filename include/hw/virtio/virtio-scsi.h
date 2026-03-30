@@ -102,6 +102,13 @@ struct VirtIOSCSI {
     bool dataplane_stopping;
     bool dataplane_fenced;
     uint32_t host_features;
+
+#ifdef __cplusplus
+    /* C++ methods - implementations in virtio-scsi.cpp */
+    void realize(DeviceState *dev, Error **errp);
+    void reset(void);
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 void virtio_scsi_common_realize(DeviceState *dev,

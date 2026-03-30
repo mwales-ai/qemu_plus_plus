@@ -222,6 +222,13 @@ struct VirtIOGPU {
     } dmabuf;
 
     GArray *capset_ids;
+
+#ifdef __cplusplus
+    /* C++ methods - implementations in virtio-gpu.cpp */
+    void realize(DeviceState *qdev, Error **errp);
+    void reset(void);
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 struct VirtIOGPUClass {
