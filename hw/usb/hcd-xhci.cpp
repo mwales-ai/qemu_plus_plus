@@ -2697,50 +2697,55 @@ static void xhci_port_reset(XHCIPort *port, bool warm_reset)
     xhci_port_notify(port, PORTSC_PRC);
 }
 
-static void xhci_reset(DeviceState *dev)
+void XHCIState::reset()
 {
-    XHCIState *xhci = XHCI(dev);
     int i;
 
     trace_usb_xhci_reset();
-    if (!(xhci->usbsts & USBSTS_HCH)) {
+    if (!(usbsts & USBSTS_HCH)) {
         DPRINTF("xhci: reset while running!\n");
     }
 
-    xhci->usbcmd = 0;
-    xhci->usbsts = USBSTS_HCH;
-    xhci->dnctrl = 0;
-    xhci->crcr_low = 0;
-    xhci->crcr_high = 0;
-    xhci->dcbaap_low = 0;
-    xhci->dcbaap_high = 0;
-    xhci->config = 0;
+    usbcmd = 0;
+    usbsts = USBSTS_HCH;
+    dnctrl = 0;
+    crcr_low = 0;
+    crcr_high = 0;
+    dcbaap_low = 0;
+    dcbaap_high = 0;
+    config = 0;
 
-    for (i = 0; i < xhci->numslots; i++) {
-        xhci_disable_slot(xhci, i+1);
+    for (i = 0; i < numslots; i++) {
+        xhci_disable_slot(this, i+1);
     }
 
-    for (i = 0; i < xhci->numports; i++) {
-        xhci_port_update(xhci->ports + i, 0);
+    for (i = 0; i < numports; i++) {
+        xhci_port_update(ports + i, 0);
     }
 
-    for (i = 0; i < xhci->numintrs; i++) {
-        xhci->intr[i].iman = 0;
-        xhci->intr[i].imod = 0;
-        xhci->intr[i].erstsz = 0;
-        xhci->intr[i].erstba_low = 0;
-        xhci->intr[i].erstba_high = 0;
-        xhci->intr[i].erdp_low = 0;
-        xhci->intr[i].erdp_high = 0;
+    for (i = 0; i < numintrs; i++) {
+        intr[i].iman = 0;
+        intr[i].imod = 0;
+        intr[i].erstsz = 0;
+        intr[i].erstba_low = 0;
+        intr[i].erstba_high = 0;
+        intr[i].erdp_low = 0;
+        intr[i].erdp_high = 0;
 
-        xhci->intr[i].er_ep_idx = 0;
-        xhci->intr[i].er_pcs = 1;
-        xhci->intr[i].ev_buffer_put = 0;
-        xhci->intr[i].ev_buffer_get = 0;
+        intr[i].er_ep_idx = 0;
+        intr[i].er_pcs = 1;
+        intr[i].ev_buffer_put = 0;
+        intr[i].ev_buffer_get = 0;
     }
 
-    xhci->mfindex_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    xhci_mfwrap_update(xhci);
+    mfindex_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    xhci_mfwrap_update(this);
+}
+
+static void xhci_reset(DeviceState *dev)
+{
+    XHCIState *xhci = XHCI(dev);
+    xhci->reset();
 }
 
 static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
@@ -3384,88 +3389,98 @@ static void usb_xhci_init(XHCIState *xhci)
     }
 }
 
+void XHCIState::realize(Error **errp)
+{
+    int i;
+    DeviceState *dev = DEVICE(this);
+
+    if (numintrs > XHCI_MAXINTRS) {
+        numintrs = XHCI_MAXINTRS;
+    }
+    while (numintrs & (numintrs - 1)) {   /* ! power of 2 */
+        numintrs++;
+    }
+    if (numintrs < 1) {
+        numintrs = 1;
+    }
+    if (numslots > XHCI_MAXSLOTS) {
+        numslots = XHCI_MAXSLOTS;
+    }
+    if (numslots < 1) {
+        numslots = 1;
+    }
+    if (xhci_get_flag(this, XHCI_FLAG_ENABLE_STREAMS)) {
+        max_pstreams_mask = 7; /* == 256 primary streams */
+    } else {
+        max_pstreams_mask = 0;
+    }
+
+    usb_xhci_init(this);
+    mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, this);
+
+    memory_region_init(&mem, OBJECT(dev), "xhci", XHCI_LEN_REGS);
+    memory_region_init_io(&mem_cap, OBJECT(dev), &xhci_cap_ops, this,
+                          "capabilities", LEN_CAP);
+    memory_region_init_io(&mem_oper, OBJECT(dev), &xhci_oper_ops, this,
+                          "operational", 0x400);
+    memory_region_init_io(&mem_runtime, OBJECT(dev), &xhci_runtime_ops,
+                           this, "runtime", LEN_RUNTIME);
+    memory_region_init_io(&mem_doorbell, OBJECT(dev), &xhci_doorbell_ops,
+                           this, "doorbell", LEN_DOORBELL);
+
+    memory_region_add_subregion(&mem, 0,            &mem_cap);
+    memory_region_add_subregion(&mem, OFF_OPER,     &mem_oper);
+    memory_region_add_subregion(&mem, OFF_RUNTIME,  &mem_runtime);
+    memory_region_add_subregion(&mem, OFF_DOORBELL, &mem_doorbell);
+
+    for (i = 0; i < numports; i++) {
+        XHCIPort *port = &ports[i];
+        uint32_t offset = OFF_OPER + 0x400 + 0x10 * i;
+        port->xhci = this;
+        memory_region_init_io(&port->mem, OBJECT(dev), &xhci_port_ops, port,
+                              port->name, 0x10);
+        memory_region_add_subregion(&mem, offset, &port->mem);
+    }
+}
+
 static void usb_xhci_realize(DeviceState *dev, Error **errp)
+{
+    XHCIState *xhci = XHCI(dev);
+    xhci->realize(errp);
+}
+
+void XHCIState::unrealize()
 {
     int i;
 
-    XHCIState *xhci = XHCI(dev);
+    trace_usb_xhci_exit();
 
-    if (xhci->numintrs > XHCI_MAXINTRS) {
-        xhci->numintrs = XHCI_MAXINTRS;
-    }
-    while (xhci->numintrs & (xhci->numintrs - 1)) {   /* ! power of 2 */
-        xhci->numintrs++;
-    }
-    if (xhci->numintrs < 1) {
-        xhci->numintrs = 1;
-    }
-    if (xhci->numslots > XHCI_MAXSLOTS) {
-        xhci->numslots = XHCI_MAXSLOTS;
-    }
-    if (xhci->numslots < 1) {
-        xhci->numslots = 1;
-    }
-    if (xhci_get_flag(xhci, XHCI_FLAG_ENABLE_STREAMS)) {
-        xhci->max_pstreams_mask = 7; /* == 256 primary streams */
-    } else {
-        xhci->max_pstreams_mask = 0;
+    for (i = 0; i < numslots; i++) {
+        xhci_disable_slot(this, i + 1);
     }
 
-    usb_xhci_init(xhci);
-    xhci->mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, xhci);
-
-    memory_region_init(&xhci->mem, OBJECT(dev), "xhci", XHCI_LEN_REGS);
-    memory_region_init_io(&xhci->mem_cap, OBJECT(dev), &xhci_cap_ops, xhci,
-                          "capabilities", LEN_CAP);
-    memory_region_init_io(&xhci->mem_oper, OBJECT(dev), &xhci_oper_ops, xhci,
-                          "operational", 0x400);
-    memory_region_init_io(&xhci->mem_runtime, OBJECT(dev), &xhci_runtime_ops,
-                           xhci, "runtime", LEN_RUNTIME);
-    memory_region_init_io(&xhci->mem_doorbell, OBJECT(dev), &xhci_doorbell_ops,
-                           xhci, "doorbell", LEN_DOORBELL);
-
-    memory_region_add_subregion(&xhci->mem, 0,            &xhci->mem_cap);
-    memory_region_add_subregion(&xhci->mem, OFF_OPER,     &xhci->mem_oper);
-    memory_region_add_subregion(&xhci->mem, OFF_RUNTIME,  &xhci->mem_runtime);
-    memory_region_add_subregion(&xhci->mem, OFF_DOORBELL, &xhci->mem_doorbell);
-
-    for (i = 0; i < xhci->numports; i++) {
-        XHCIPort *port = &xhci->ports[i];
-        uint32_t offset = OFF_OPER + 0x400 + 0x10 * i;
-        port->xhci = xhci;
-        memory_region_init_io(&port->mem, OBJECT(dev), &xhci_port_ops, port,
-                              port->name, 0x10);
-        memory_region_add_subregion(&xhci->mem, offset, &port->mem);
+    if (mfwrap_timer) {
+        timer_free(mfwrap_timer);
+        mfwrap_timer = NULL;
     }
+
+    memory_region_del_subregion(&mem, &mem_cap);
+    memory_region_del_subregion(&mem, &mem_oper);
+    memory_region_del_subregion(&mem, &mem_runtime);
+    memory_region_del_subregion(&mem, &mem_doorbell);
+
+    for (i = 0; i < numports; i++) {
+        XHCIPort *port = &ports[i];
+        memory_region_del_subregion(&mem, &port->mem);
+    }
+
+    usb_bus_release(&bus);
 }
 
 static void usb_xhci_unrealize(DeviceState *dev)
 {
-    int i;
     XHCIState *xhci = XHCI(dev);
-
-    trace_usb_xhci_exit();
-
-    for (i = 0; i < xhci->numslots; i++) {
-        xhci_disable_slot(xhci, i + 1);
-    }
-
-    if (xhci->mfwrap_timer) {
-        timer_free(xhci->mfwrap_timer);
-        xhci->mfwrap_timer = NULL;
-    }
-
-    memory_region_del_subregion(&xhci->mem, &xhci->mem_cap);
-    memory_region_del_subregion(&xhci->mem, &xhci->mem_oper);
-    memory_region_del_subregion(&xhci->mem, &xhci->mem_runtime);
-    memory_region_del_subregion(&xhci->mem, &xhci->mem_doorbell);
-
-    for (i = 0; i < xhci->numports; i++) {
-        XHCIPort *port = &xhci->ports[i];
-        memory_region_del_subregion(&xhci->mem, &port->mem);
-    }
-
-    usb_bus_release(&xhci->bus);
+    xhci->unrealize();
 }
 
 static int usb_xhci_post_load(void *opaque, int version_id)
@@ -3664,7 +3679,7 @@ static const Property xhci_properties[] = {
                      DeviceState *),
 };
 
-static void xhci_class_init(ObjectClass *klass, const void *data)
+void XHCIState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -3679,7 +3694,7 @@ static const TypeInfo xhci_info = {
     .name          = TYPE_XHCI,
     .parent        = TYPE_DEVICE,
     .instance_size = sizeof(XHCIState),
-    .class_init    = xhci_class_init,
+    .class_init    = XHCIState::classInit,
 };
 
 static void xhci_register_types(void)

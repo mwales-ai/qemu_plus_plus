@@ -70,6 +70,14 @@ struct GPEXHost {
     bool allow_unmapped_accesses;
 
     struct GPEXConfig gpex_cfg;
+
+#ifdef __cplusplus
+    /* C++ methods */
+    void realize(Error **errp);
+    void unrealize();
+
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 int gpex_set_irq_num(GPEXHost *s, int index, int gsi);

@@ -48,6 +48,15 @@ typedef struct RISCVAclintMTimerState {
     uint32_t aperture_size;
     uint32_t timebase_freq;
     qemu_irq *timer_irqs;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void resetEnter(ResetType type);
+    uint64_t mmioRead(hwaddr addr, unsigned size);
+    void mmioWrite(hwaddr addr, uint64_t value, unsigned size);
+    void writeTimecmp(void *cpu, int hartid, uint64_t value);
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 } RISCVAclintMTimerState;
 
 DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
@@ -70,6 +79,14 @@ typedef struct RISCVAclintSwiState {
     uint32_t num_harts;
     uint32_t sswi;
     qemu_irq *soft_irqs;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void resetEnter(ResetType type);
+    uint64_t mmioRead(hwaddr addr, unsigned size);
+    void mmioWrite(hwaddr addr, uint64_t value, unsigned size);
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 } RISCVAclintSwiState;
 
 DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,

@@ -223,6 +223,15 @@ typedef struct XHCIState {
     XHCIRing cmd_ring;
 
     bool nec_quirks;
+
+#ifdef __cplusplus
+    /* C++ methods */
+    void realize(Error **errp);
+    void unrealize();
+    void reset();
+
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 } XHCIState;
 
 extern const VMStateDescription vmstate_xhci;
