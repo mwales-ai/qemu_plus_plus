@@ -146,37 +146,37 @@ void PL011State::updateIrq()
     }
 }
 
-static bool pl011_loopback_enabled(PL011State *s)
+bool PL011State::loopbackEnabled() const
 {
-    return !!(s->cr & CR_LBE);
+    return !!(cr & CR_LBE);
 }
 
-static bool pl011_is_fifo_enabled(PL011State *s)
+bool PL011State::isFifoEnabled() const
 {
-    return (s->lcr & LCR_FEN) != 0;
+    return (lcr & LCR_FEN) != 0;
 }
 
-static inline unsigned pl011_get_fifo_depth(PL011State *s)
+unsigned PL011State::getFifoDepth() const
 {
     /* Note: FIFO depth is expected to be power-of-2 */
-    return pl011_is_fifo_enabled(s) ? PL011_FIFO_DEPTH : 1;
+    return isFifoEnabled() ? PL011_FIFO_DEPTH : 1;
 }
 
-static inline void pl011_reset_rx_fifo(PL011State *s)
+void PL011State::resetRxFifo()
 {
-    s->read_count = 0;
-    s->read_pos = 0;
+    read_count = 0;
+    read_pos = 0;
 
     /* Reset FIFO flags */
-    s->flags &= ~PL011_FLAG_RXFF;
-    s->flags |= PL011_FLAG_RXFE;
+    flags &= ~PL011_FLAG_RXFF;
+    flags |= PL011_FLAG_RXFE;
 }
 
-static inline void pl011_reset_tx_fifo(PL011State *s)
+void PL011State::resetTxFifo()
 {
     /* Reset FIFO flags */
-    s->flags &= ~PL011_FLAG_TXFF;
-    s->flags |= PL011_FLAG_TXFE;
+    flags &= ~PL011_FLAG_TXFF;
+    flags |= PL011_FLAG_TXFE;
 }
 
 void PL011State::putFifo(uint32_t value)
@@ -184,7 +184,7 @@ void PL011State::putFifo(uint32_t value)
     int slot;
     unsigned pipe_depth;
 
-    pipe_depth = pl011_get_fifo_depth(this);
+    pipe_depth = getFifoDepth();
     slot = (read_pos + read_count) & (pipe_depth - 1);
     read_fifo[slot] = value;
     read_count++;
@@ -200,9 +200,9 @@ void PL011State::putFifo(uint32_t value)
     }
 }
 
-static void pl011_loopback_tx(PL011State *s, uint32_t value)
+void PL011State::loopbackTx(uint32_t value)
 {
-    if (!pl011_loopback_enabled(s)) {
+    if (!loopbackEnabled()) {
         return;
     }
 
@@ -225,16 +225,16 @@ static void pl011_loopback_tx(PL011State *s, uint32_t value)
      *
      * For simplicity, the above described is not emulated.
      */
-    s->putFifo(value);
+    putFifo(value);
 }
 
-static void pl011_write_txdata(PL011State *s, uint8_t data)
+void PL011State::writeTxData(uint8_t data)
 {
-    if (!(s->cr & CR_UARTEN)) {
+    if (!(cr & CR_UARTEN)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "PL011 data written to disabled UART\n");
     }
-    if (!(s->cr & CR_TXE)) {
+    if (!(cr & CR_TXE)) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "PL011 data written to disabled TX UART\n");
     }
@@ -243,33 +243,33 @@ static void pl011_write_txdata(PL011State *s, uint8_t data)
      * XXX this blocks entire thread. Rewrite to use
      * qemu_chr_fe_write and background I/O callbacks
      */
-    qemu_chr_fe_write_all(&s->chr, &data, 1);
-    pl011_loopback_tx(s, data);
-    s->int_level |= INT_TX;
-    s->updateIrq();
+    qemu_chr_fe_write_all(&chr, &data, 1);
+    loopbackTx(data);
+    int_level |= INT_TX;
+    updateIrq();
 }
 
-static uint32_t pl011_read_rxdata(PL011State *s)
+uint32_t PL011State::readRxData()
 {
     uint32_t c;
-    unsigned fifo_depth = pl011_get_fifo_depth(s);
+    unsigned fifo_depth = getFifoDepth();
 
-    s->flags &= ~PL011_FLAG_RXFF;
-    c = s->read_fifo[s->read_pos];
-    if (s->read_count > 0) {
-        s->read_count--;
-        s->read_pos = (s->read_pos + 1) & (fifo_depth - 1);
+    flags &= ~PL011_FLAG_RXFF;
+    c = read_fifo[read_pos];
+    if (read_count > 0) {
+        read_count--;
+        read_pos = (read_pos + 1) & (fifo_depth - 1);
     }
-    if (s->read_count == 0) {
-        s->flags |= PL011_FLAG_RXFE;
+    if (read_count == 0) {
+        flags |= PL011_FLAG_RXFE;
     }
-    if (s->read_count == s->read_trigger - 1) {
-        s->int_level &= ~INT_RX;
+    if (read_count == read_trigger - 1) {
+        int_level &= ~INT_RX;
     }
-    trace_pl011_read_fifo(s->read_count, fifo_depth);
-    s->rsr = c >> 8;
-    s->updateIrq();
-    qemu_chr_fe_accept_input(&s->chr);
+    trace_pl011_read_fifo(read_count, fifo_depth);
+    rsr = c >> 8;
+    updateIrq();
+    qemu_chr_fe_accept_input(&chr);
     return c;
 }
 
@@ -280,7 +280,7 @@ uint64_t PL011State::mmioRead(void *opaque, hwaddr offset, unsigned size)
 
     switch (offset >> 2) {
     case 0: /* UARTDR */
-        r = pl011_read_rxdata(s);
+        r = s->readRxData();
         break;
     case 1: /* UARTRSR */
         r = s->rsr;
@@ -346,30 +346,30 @@ void PL011State::setReadTrigger()
         read_trigger = 1;
 }
 
-static unsigned int pl011_get_baudrate(const PL011State *s)
+unsigned PL011State::getBaudrate() const
 {
-    uint64_t clk;
+    uint64_t clk_hz;
 
-    if (s->ibrd == 0) {
+    if (ibrd == 0) {
         return 0;
     }
 
-    clk = clock_get_hz(s->clk);
-    return (clk / ((s->ibrd << 6) + s->fbrd)) << 2;
+    clk_hz = clock_get_hz(clk);
+    return (clk_hz / ((ibrd << 6) + fbrd)) << 2;
 }
 
-static void pl011_trace_baudrate_change(const PL011State *s)
+void PL011State::traceBaudrateChange() const
 {
-    trace_pl011_baudrate_change(pl011_get_baudrate(s),
-                                clock_get_hz(s->clk),
-                                s->ibrd, s->fbrd);
+    trace_pl011_baudrate_change(getBaudrate(),
+                                clock_get_hz(clk),
+                                ibrd, fbrd);
 }
 
-static void pl011_loopback_mdmctrl(PL011State *s)
+void PL011State::loopbackMdmctrl()
 {
-    uint32_t cr, fr, il;
+    uint32_t cr_val, fr, il;
 
-    if (!pl011_loopback_enabled(s)) {
+    if (!loopbackEnabled()) {
         return;
     }
 
@@ -386,30 +386,30 @@ static void pl011_loopback_mdmctrl(PL011State *s)
      * CTS/RTS updates due to enabled hardware flow controls are not
      * dealt with here.
      */
-    cr = s->cr;
-    fr = s->flags & ~(PL011_FLAG_RI | PL011_FLAG_DCD |
+    cr_val = cr;
+    fr = flags & ~(PL011_FLAG_RI | PL011_FLAG_DCD |
                       PL011_FLAG_DSR | PL011_FLAG_CTS);
-    fr |= (cr & CR_OUT2) ? PL011_FLAG_RI  : 0;
-    fr |= (cr & CR_OUT1) ? PL011_FLAG_DCD : 0;
-    fr |= (cr & CR_RTS)  ? PL011_FLAG_CTS : 0;
-    fr |= (cr & CR_DTR)  ? PL011_FLAG_DSR : 0;
+    fr |= (cr_val & CR_OUT2) ? PL011_FLAG_RI  : 0;
+    fr |= (cr_val & CR_OUT1) ? PL011_FLAG_DCD : 0;
+    fr |= (cr_val & CR_RTS)  ? PL011_FLAG_CTS : 0;
+    fr |= (cr_val & CR_DTR)  ? PL011_FLAG_DSR : 0;
 
     /* Change interrupts based on updated FR */
-    il = s->int_level & ~(INT_DSR | INT_DCD | INT_CTS | INT_RI);
+    il = int_level & ~(INT_DSR | INT_DCD | INT_CTS | INT_RI);
     il |= (fr & PL011_FLAG_DSR) ? INT_DSR : 0;
     il |= (fr & PL011_FLAG_DCD) ? INT_DCD : 0;
     il |= (fr & PL011_FLAG_CTS) ? INT_CTS : 0;
     il |= (fr & PL011_FLAG_RI)  ? INT_RI  : 0;
 
-    s->flags = fr;
-    s->int_level = il;
-    s->updateIrq();
+    flags = fr;
+    int_level = il;
+    updateIrq();
 }
 
-static void pl011_loopback_break(PL011State *s, int brk_enable)
+void PL011State::loopbackBreak(int brk_enable)
 {
     if (brk_enable) {
-        pl011_loopback_tx(s, DR_BE);
+        loopbackTx(DR_BE);
     }
 }
 
@@ -424,7 +424,7 @@ void PL011State::mmioWrite(void *opaque, hwaddr offset,
     switch (offset >> 2) {
     case 0: /* UARTDR */
         ch = value;
-        pl011_write_txdata(s, ch);
+        s->writeTxData(ch);
         break;
     case 1: /* UARTRSR/UARTECR */
         s->rsr = 0;
@@ -437,23 +437,23 @@ void PL011State::mmioWrite(void *opaque, hwaddr offset,
         break;
     case 9: /* UARTIBRD */
         s->ibrd = value & IBRD_MASK;
-        pl011_trace_baudrate_change(s);
+        s->traceBaudrateChange();
         break;
     case 10: /* UARTFBRD */
         s->fbrd = value & FBRD_MASK;
-        pl011_trace_baudrate_change(s);
+        s->traceBaudrateChange();
         break;
     case 11: /* UARTLCR_H */
         /* Reset the FIFO state on FIFO enable or disable */
         if ((s->lcr ^ value) & LCR_FEN) {
-            pl011_reset_rx_fifo(s);
-            pl011_reset_tx_fifo(s);
+            s->resetRxFifo();
+            s->resetTxFifo();
         }
         if ((s->lcr ^ value) & LCR_BRK) {
             int break_enable = value & LCR_BRK;
             qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_BREAK,
                               &break_enable);
-            pl011_loopback_break(s, break_enable);
+            s->loopbackBreak(break_enable);
         }
         s->lcr = value;
         s->setReadTrigger();
@@ -461,7 +461,7 @@ void PL011State::mmioWrite(void *opaque, hwaddr offset,
     case 12: /* UARTCR */
         /* ??? Need to implement the enable bit.  */
         s->cr = value;
-        pl011_loopback_mdmctrl(s);
+        s->loopbackMdmctrl();
         break;
     case 13: /* UARTIFS */
         s->ifl = value;
@@ -487,11 +487,10 @@ void PL011State::mmioWrite(void *opaque, hwaddr offset,
     }
 }
 
-static int pl011_can_receive(void *opaque)
+int PL011State::canReceive()
 {
-    PL011State *s = static_cast<PL011State *>(opaque);
-    unsigned fifo_depth = pl011_get_fifo_depth(s);
-    unsigned fifo_available = fifo_depth - s->read_count;
+    unsigned fifo_depth = getFifoDepth();
+    unsigned fifo_available = fifo_depth - read_count;
 
     /*
      * In theory we should check the UART and RX enable bits here and
@@ -503,41 +502,58 @@ static int pl011_can_receive(void *opaque)
      * UART continuously enabled regardless of the enable bits.
      */
 
-    trace_pl011_can_receive(s->lcr, s->read_count, fifo_depth, fifo_available);
+    trace_pl011_can_receive(lcr, read_count, fifo_depth, fifo_available);
     return fifo_available;
 }
 
-static void pl011_receive(void *opaque, const uint8_t *buf, int size)
+void PL011State::receive(const uint8_t *buf, int size)
 {
-    PL011State *s = static_cast<PL011State *>(opaque);
     trace_pl011_receive(size);
     /*
      * In loopback mode, the RX input signal is internally disconnected
      * from the entire receiving logics; thus, all inputs are ignored,
      * and BREAK detection on RX input signal is also not performed.
      */
-    if (pl011_loopback_enabled(s)) {
+    if (loopbackEnabled()) {
         return;
     }
 
     for (int i = 0; i < size; i++) {
-        s->putFifo(buf[i]);
+        putFifo(buf[i]);
     }
+}
+
+void PL011State::charEvent(QEMUChrEvent event)
+{
+    if (event == CHR_EVENT_BREAK && !loopbackEnabled()) {
+        putFifo(DR_BE);
+    }
+}
+
+/* Chardev callback wrappers */
+static int pl011_can_receive(void *opaque)
+{
+    PL011State *s = static_cast<PL011State *>(opaque);
+    return s->canReceive();
+}
+
+static void pl011_receive(void *opaque, const uint8_t *buf, int size)
+{
+    PL011State *s = static_cast<PL011State *>(opaque);
+    s->receive(buf, size);
 }
 
 static void pl011_event(void *opaque, QEMUChrEvent event)
 {
     PL011State *s = static_cast<PL011State *>(opaque);
-    if (event == CHR_EVENT_BREAK && !pl011_loopback_enabled(s)) {
-        s->putFifo(DR_BE);
-    }
+    s->charEvent(event);
 }
 
 static void pl011_clock_update(void *opaque, ClockEvent event)
 {
     PL011State *s = PL011(opaque);
 
-    pl011_trace_baudrate_change(s);
+    s->traceBaudrateChange();
 }
 
 static const MemoryRegionOps pl011_ops = {
@@ -577,7 +593,7 @@ static int pl011_post_load(void *opaque, int version_id)
         return -1;
     }
 
-    if (!pl011_is_fifo_enabled(s) && s->read_count > 0 && s->read_pos > 0) {
+    if (!s->isFifoEnabled() && s->read_count > 0 && s->read_pos > 0) {
         /*
          * Older versions of PL011 didn't ensure that the single
          * character in the FIFO in FIFO-disabled mode is in
@@ -671,8 +687,8 @@ void PL011State::reset()
     ifl = 0x12;
     cr = 0x300;
     flags = 0;
-    pl011_reset_rx_fifo(this);
-    pl011_reset_tx_fifo(this);
+    resetRxFifo();
+    resetTxFifo();
 }
 
 static void pl011_realize(DeviceState *dev, Error **errp)

@@ -69,6 +69,21 @@ struct PL011State {
     void updateIrq();
     void setReadTrigger();
     void putFifo(uint32_t value);
+    bool loopbackEnabled() const;
+    bool isFifoEnabled() const;
+    unsigned getFifoDepth() const;
+    void resetRxFifo();
+    void resetTxFifo();
+    void loopbackTx(uint32_t value);
+    void writeTxData(uint8_t data);
+    uint32_t readRxData();
+    unsigned getBaudrate() const;
+    void traceBaudrateChange() const;
+    void loopbackMdmctrl();
+    void loopbackBreak(int brk_enable);
+    int canReceive();
+    void receive(const uint8_t *buf, int size);
+    void charEvent(QEMUChrEvent event);
 
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,

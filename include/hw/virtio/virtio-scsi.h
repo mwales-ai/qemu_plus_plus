@@ -108,6 +108,21 @@ struct VirtIOSCSI {
     void realize(DeviceState *dev, Error **errp);
     void reset(void);
     static void classInit(ObjectClass *klass, const void *data);
+
+    /* Internal helper methods */
+    void initReq(VirtQueue *vq, struct VirtIOSCSIReq *req);
+    struct VirtIOSCSIReq *popReq(VirtQueue *vq, QemuMutex *vq_lock);
+    void handleCtrlReq(struct VirtIOSCSIReq *req);
+    void handleCtrlVq(VirtQueue *vq);
+    bool deferToDataplane();
+    void handleCmdVq(VirtQueue *vq);
+    int handleCmdReqPrepare(struct VirtIOSCSIReq *req);
+    void handleCmdReqSubmit(struct VirtIOSCSIReq *req);
+    void pushEvent(const void *info);
+    void handleEventVq(VirtQueue *vq);
+    void flushDeferTmfToAioContext();
+    SCSIDevice *deviceGet(uint8_t *lun);
+    int doTmf(struct VirtIOSCSIReq *req);
 #endif
 };
 

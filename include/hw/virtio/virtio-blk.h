@@ -83,20 +83,6 @@ struct VirtIOBlock {
     void realize(Error **errp);
     void unrealize();
     void reset();
-    void initRequest(VirtQueue *vq, VirtIOBlockReq *req);
-    VirtIOBlockReq *getRequest(VirtQueue *vq);
-    void submitRequests(MultiReqBuffer *mrb, int start, int num_reqs, int niov);
-    void submitMultireq(MultiReqBuffer *mrb);
-    bool sectRangeOk(uint64_t sector, size_t size);
-    bool checkZonedRequest(int64_t offset, int64_t len, bool append,
-                           uint8_t *status);
-    void handleVq(VirtQueue *vq);
-    void handleOutput(VirtQueue *vq);
-    void ioeventfdDetach();
-    void ioeventfdAttach();
-    bool vqAioContextInit(Error **errp);
-    void vqAioContextCleanup();
-    int startIoeventfd();
     void stopIoeventfd();
     void updateConfig(uint8_t *config);
     void setConfig(const uint8_t *config);
