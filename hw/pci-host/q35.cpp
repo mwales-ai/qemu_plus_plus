@@ -49,6 +49,97 @@ extern "C" {
 
 #define Q35_PCI_HOST_HOLE64_SIZE_DEFAULT (1ULL << 35)
 
+const char *Q35PCIHost::rootBusPath(PCIBus *rootbus)
+{
+    return "0000:00";
+}
+
+void Q35PCIHost::getPciHoleStart(Object *obj, Visitor *v,
+                                  const char *name, void *opaque,
+                                  Error **errp)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    uint64_t val64;
+    uint32_t value;
+
+    val64 = range_is_empty(&s->mch.pci_hole)
+        ? 0 : range_lob(&s->mch.pci_hole);
+    value = val64;
+    assert(value == val64);
+    visit_type_uint32(v, name, &value, errp);
+}
+
+void Q35PCIHost::getPciHoleEnd(Object *obj, Visitor *v,
+                                const char *name, void *opaque,
+                                Error **errp)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    uint64_t val64;
+    uint32_t value;
+
+    val64 = range_is_empty(&s->mch.pci_hole)
+        ? 0 : range_upb(&s->mch.pci_hole) + 1;
+    value = val64;
+    assert(value == val64);
+    visit_type_uint32(v, name, &value, errp);
+}
+
+/*
+ * The 64bit PCI hole start is set by the Guest firmware
+ * as the address of the first 64bit PCI MEM resource.
+ * If no PCI device has resources on the 64bit area,
+ * the 64bit PCI hole will start after "over 4G RAM" and the
+ * reserved space for memory hotplug if any.
+ */
+uint64_t Q35PCIHost::getPciHole64StartValue()
+{
+    PCIHostState *h = PCI_HOST_BRIDGE(this);
+    Range w64;
+    uint64_t value;
+
+    pci_bus_get_w64_range(h->bus, &w64);
+    value = range_is_empty(&w64) ? 0 : range_lob(&w64);
+    if (!value && pci_hole64_fix) {
+        value = pc_pci_hole64_start();
+    }
+    return value;
+}
+
+void Q35PCIHost::getPciHole64Start(Object *obj, Visitor *v,
+                                    const char *name, void *opaque,
+                                    Error **errp)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    uint64_t hole64_start = s->getPciHole64StartValue();
+
+    visit_type_uint64(v, name, &hole64_start, errp);
+}
+
+/*
+ * The 64bit PCI hole end is set by the Guest firmware
+ * as the address of the last 64bit PCI MEM resource.
+ * Then it is expanded to the PCI_HOST_PROP_PCI_HOLE64_SIZE
+ * that can be configured by the user.
+ */
+void Q35PCIHost::getPciHole64End(Object *obj, Visitor *v,
+                                  const char *name, void *opaque,
+                                  Error **errp)
+{
+    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    uint64_t hole64_start = s->getPciHole64StartValue();
+    Range w64;
+    uint64_t value, hole64_end;
+
+    pci_bus_get_w64_range(h->bus, &w64);
+    value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
+    hole64_end = ROUND_UP(hole64_start + s->mch.pci_hole64_size, 1ULL << 30);
+    if (s->pci_hole64_fix && value < hole64_end) {
+        value = hole64_end;
+    }
+    visit_type_uint64(v, name, &value, errp);
+}
+
 void Q35PCIHost::realize(DeviceState *dev, Error **errp)
 {
     PCIHostState *pci = PCI_HOST_BRIDGE(dev);
@@ -74,96 +165,58 @@ void Q35PCIHost::realize(DeviceState *dev, Error **errp)
     qdev_realize(DEVICE(&mch), BUS(pci->bus), &error_fatal);
 }
 
-static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
-                                          PCIBus *rootbus)
-{
-    return "0000:00";
-}
-
-static void q35_host_get_pci_hole_start(Object *obj, Visitor *v,
-                                        const char *name, void *opaque,
-                                        Error **errp)
+void Q35PCIHost::initInstance(Object *obj)
 {
     Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    uint64_t val64;
-    uint32_t value;
+    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
+    PCIExpressHost *pehb = PCIE_HOST_BRIDGE(obj);
 
-    val64 = range_is_empty(&s->mch.pci_hole)
-        ? 0 : range_lob(&s->mch.pci_hole);
-    value = val64;
-    assert(value == val64);
-    visit_type_uint32(v, name, &value, errp);
-}
+    memory_region_init_io(&phb->conf_mem, obj, &pci_host_conf_le_ops, phb,
+                          "pci-conf-idx", 4);
+    memory_region_init_io(&phb->data_mem, obj, &pci_host_data_le_ops, phb,
+                          "pci-conf-data", 4);
 
-static void q35_host_get_pci_hole_end(Object *obj, Visitor *v,
-                                      const char *name, void *opaque,
-                                      Error **errp)
-{
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    uint64_t val64;
-    uint32_t value;
+    object_initialize_child(OBJECT(s), "mch", &s->mch, TYPE_MCH_PCI_DEVICE);
+    qdev_prop_set_int32(DEVICE(&s->mch), "addr", PCI_DEVFN(0, 0));
+    qdev_prop_set_bit(DEVICE(&s->mch), "multifunction", false);
+    /* mch's object_initialize resets the default value, set it again */
+    qdev_prop_set_uint64(DEVICE(s), PCI_HOST_PROP_PCI_HOLE64_SIZE,
+                         Q35_PCI_HOST_HOLE64_SIZE_DEFAULT);
 
-    val64 = range_is_empty(&s->mch.pci_hole)
-        ? 0 : range_upb(&s->mch.pci_hole) + 1;
-    value = val64;
-    assert(value == val64);
-    visit_type_uint32(v, name, &value, errp);
-}
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
+                        Q35PCIHost::getPciHoleStart,
+                        NULL, NULL, NULL);
 
-/*
- * The 64bit PCI hole start is set by the Guest firmware
- * as the address of the first 64bit PCI MEM resource.
- * If no PCI device has resources on the 64bit area,
- * the 64bit PCI hole will start after "over 4G RAM" and the
- * reserved space for memory hotplug if any.
- */
-static uint64_t q35_host_get_pci_hole64_start_value(Object *obj)
-{
-    PCIHostState *h = PCI_HOST_BRIDGE(obj);
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    Range w64;
-    uint64_t value;
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_END, "uint32",
+                        Q35PCIHost::getPciHoleEnd,
+                        NULL, NULL, NULL);
 
-    pci_bus_get_w64_range(h->bus, &w64);
-    value = range_is_empty(&w64) ? 0 : range_lob(&w64);
-    if (!value && s->pci_hole64_fix) {
-        value = pc_pci_hole64_start();
-    }
-    return value;
-}
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_START, "uint64",
+                        Q35PCIHost::getPciHole64Start,
+                        NULL, NULL, NULL);
 
-static void q35_host_get_pci_hole64_start(Object *obj, Visitor *v,
-                                          const char *name, void *opaque,
-                                          Error **errp)
-{
-    uint64_t hole64_start = q35_host_get_pci_hole64_start_value(obj);
+    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_END, "uint64",
+                        Q35PCIHost::getPciHole64End,
+                        NULL, NULL, NULL);
 
-    visit_type_uint64(v, name, &hole64_start, errp);
-}
+    object_property_add_uint64_ptr(obj, PCIE_HOST_MCFG_SIZE,
+                                   &pehb->size, OBJ_PROP_FLAG_READ);
 
-/*
- * The 64bit PCI hole end is set by the Guest firmware
- * as the address of the last 64bit PCI MEM resource.
- * Then it is expanded to the PCI_HOST_PROP_PCI_HOLE64_SIZE
- * that can be configured by the user.
- */
-static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
-                                        const char *name, void *opaque,
-                                        Error **errp)
-{
-    PCIHostState *h = PCI_HOST_BRIDGE(obj);
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    uint64_t hole64_start = q35_host_get_pci_hole64_start_value(obj);
-    Range w64;
-    uint64_t value, hole64_end;
+    object_property_add_link(obj, PCI_HOST_PROP_RAM_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.ram_memory,
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 
-    pci_bus_get_w64_range(h->bus, &w64);
-    value = range_is_empty(&w64) ? 0 : range_upb(&w64) + 1;
-    hole64_end = ROUND_UP(hole64_start + s->mch.pci_hole64_size, 1ULL << 30);
-    if (s->pci_hole64_fix && value < hole64_end) {
-        value = hole64_end;
-    }
-    visit_type_uint64(v, name, &value, errp);
+    object_property_add_link(obj, PCI_HOST_PROP_PCI_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.pci_address_space,
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
+
+    object_property_add_link(obj, PCI_HOST_PROP_SYSTEM_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.system_memory,
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
+
+    object_property_add_link(obj, PCI_HOST_PROP_IO_MEM, TYPE_MEMORY_REGION,
+                             (Object **) &s->mch.address_space_io,
+                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 /*
@@ -194,6 +247,19 @@ static void q35_host_realize(DeviceState *dev, Error **errp)
     s->realize(dev, errp);
 }
 
+static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
+                                          PCIBus *rootbus)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(host_bridge);
+    return s->rootBusPath(rootbus);
+}
+
+static void q35_host_initfn(Object *obj)
+{
+    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    s->initInstance(obj);
+}
+
 void Q35PCIHost::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -206,60 +272,6 @@ void Q35PCIHost::classInit(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
-}
-
-static void q35_host_initfn(Object *obj)
-{
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
-    PCIExpressHost *pehb = PCIE_HOST_BRIDGE(obj);
-
-    memory_region_init_io(&phb->conf_mem, obj, &pci_host_conf_le_ops, phb,
-                          "pci-conf-idx", 4);
-    memory_region_init_io(&phb->data_mem, obj, &pci_host_data_le_ops, phb,
-                          "pci-conf-data", 4);
-
-    object_initialize_child(OBJECT(s), "mch", &s->mch, TYPE_MCH_PCI_DEVICE);
-    qdev_prop_set_int32(DEVICE(&s->mch), "addr", PCI_DEVFN(0, 0));
-    qdev_prop_set_bit(DEVICE(&s->mch), "multifunction", false);
-    /* mch's object_initialize resets the default value, set it again */
-    qdev_prop_set_uint64(DEVICE(s), PCI_HOST_PROP_PCI_HOLE64_SIZE,
-                         Q35_PCI_HOST_HOLE64_SIZE_DEFAULT);
-
-    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
-                        q35_host_get_pci_hole_start,
-                        NULL, NULL, NULL);
-
-    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_END, "uint32",
-                        q35_host_get_pci_hole_end,
-                        NULL, NULL, NULL);
-
-    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_START, "uint64",
-                        q35_host_get_pci_hole64_start,
-                        NULL, NULL, NULL);
-
-    object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_END, "uint64",
-                        q35_host_get_pci_hole64_end,
-                        NULL, NULL, NULL);
-
-    object_property_add_uint64_ptr(obj, PCIE_HOST_MCFG_SIZE,
-                                   &pehb->size, OBJ_PROP_FLAG_READ);
-
-    object_property_add_link(obj, PCI_HOST_PROP_RAM_MEM, TYPE_MEMORY_REGION,
-                             (Object **) &s->mch.ram_memory,
-                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
-
-    object_property_add_link(obj, PCI_HOST_PROP_PCI_MEM, TYPE_MEMORY_REGION,
-                             (Object **) &s->mch.pci_address_space,
-                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
-
-    object_property_add_link(obj, PCI_HOST_PROP_SYSTEM_MEM, TYPE_MEMORY_REGION,
-                             (Object **) &s->mch.system_memory,
-                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
-
-    object_property_add_link(obj, PCI_HOST_PROP_IO_MEM, TYPE_MEMORY_REGION,
-                             (Object **) &s->mch.address_space_io,
-                             qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
 }
 
 static const TypeInfo q35_host_info = {
@@ -471,40 +483,46 @@ void MCHPCIState::updateSmbaseSmram()
     memory_region_transaction_commit();
 }
 
-static void mch_write_config(PCIDevice *d,
-                              uint32_t address, uint32_t val, int len)
+void MCHPCIState::writeConfig(uint32_t address, uint32_t val, int len)
 {
-    MCHPCIState *mch = MCH_PCI_DEVICE(d);
+    PCIDevice *d = PCI_DEVICE(this);
 
     pci_default_write_config(d, address, val, len);
 
     if (ranges_overlap(address, len, MCH_HOST_BRIDGE_PAM0,
                        MCH_HOST_BRIDGE_PAM_SIZE)) {
-        mch->updatePam();
+        updatePam();
     }
 
     if (ranges_overlap(address, len, MCH_HOST_BRIDGE_PCIEXBAR,
                        MCH_HOST_BRIDGE_PCIEXBAR_SIZE)) {
-        mch->updatePciexbar();
+        updatePciexbar();
     }
 
-    if (!mch->has_smm_ranges) {
+    if (!has_smm_ranges) {
         return;
     }
 
     if (ranges_overlap(address, len, MCH_HOST_BRIDGE_SMRAM,
                        MCH_HOST_BRIDGE_SMRAM_SIZE)) {
-        mch->updateSmram();
+        updateSmram();
     }
 
     if (ranges_overlap(address, len, MCH_HOST_BRIDGE_EXT_TSEG_MBYTES,
                        MCH_HOST_BRIDGE_EXT_TSEG_MBYTES_SIZE)) {
-        mch->updateExtTsegMbytes();
+        updateExtTsegMbytes();
     }
 
     if (ranges_overlap(address, len, MCH_HOST_BRIDGE_F_SMBASE, 1)) {
-        mch->updateSmbaseSmram();
+        updateSmbaseSmram();
     }
+}
+
+static void mch_write_config(PCIDevice *d,
+                              uint32_t address, uint32_t val, int len)
+{
+    MCHPCIState *mch = MCH_PCI_DEVICE(d);
+    mch->writeConfig(address, val, len);
 }
 
 void MCHPCIState::update()

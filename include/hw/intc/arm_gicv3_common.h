@@ -282,6 +282,12 @@ struct GICv3State {
 #ifdef __cplusplus
     void realize(DeviceState *dev, Error **errp);
     void postLoad();
+    void setIrq(int irq, int level);
+    uint32_t gisdIntPending(int irq);
+    void updateNoirqset(int start, int len);
+    void update(int start, int len);
+    void fullUpdateNoirqset();
+    void fullUpdate();
     static void classInit(ObjectClass *klass, const void *data);
 #endif
 };

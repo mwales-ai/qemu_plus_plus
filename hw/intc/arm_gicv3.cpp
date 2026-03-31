@@ -53,7 +53,7 @@ static bool irqbetter(GICv3CPUState *cs, int irq, uint8_t prio, bool nmi)
     return false;
 }
 
-static uint32_t gicd_int_pending(GICv3State *s, int irq)
+uint32_t GICv3State::gisdIntPending(int irq)
 {
     /* Recalculate which distributor interrupts are actually pending
      * in the group of 32 interrupts starting at irq (which should be a multiple
@@ -68,31 +68,31 @@ static uint32_t gicd_int_pending(GICv3State *s, int irq)
      * Conveniently we can bulk-calculate this with bitwise operations.
      */
     uint32_t pend, grpmask;
-    uint32_t pending = *gic_bmp_ptr32(s->pending, irq);
-    uint32_t edge_trigger = *gic_bmp_ptr32(s->edge_trigger, irq);
-    uint32_t level = *gic_bmp_ptr32(s->level, irq);
-    uint32_t group = *gic_bmp_ptr32(s->group, irq);
-    uint32_t grpmod = *gic_bmp_ptr32(s->grpmod, irq);
-    uint32_t enable = *gic_bmp_ptr32(s->enabled, irq);
-    uint32_t active = *gic_bmp_ptr32(s->active, irq);
+    uint32_t pend_bmp = *gic_bmp_ptr32(pending, irq);
+    uint32_t edge_trig = *gic_bmp_ptr32(edge_trigger, irq);
+    uint32_t lvl = *gic_bmp_ptr32(level, irq);
+    uint32_t grp = *gic_bmp_ptr32(group, irq);
+    uint32_t grpmod_val = *gic_bmp_ptr32(grpmod, irq);
+    uint32_t enable = *gic_bmp_ptr32(enabled, irq);
+    uint32_t act = *gic_bmp_ptr32(active, irq);
 
-    pend = pending | (~edge_trigger & level);
+    pend = pend_bmp | (~edge_trig & lvl);
     pend &= enable;
-    pend &= ~active;
+    pend &= ~act;
 
-    if (s->gicd_ctlr & GICD_CTLR_DS) {
-        grpmod = 0;
+    if (gicd_ctlr & GICD_CTLR_DS) {
+        grpmod_val = 0;
     }
 
     grpmask = 0;
-    if (s->gicd_ctlr & GICD_CTLR_EN_GRP1NS) {
-        grpmask |= group;
+    if (gicd_ctlr & GICD_CTLR_EN_GRP1NS) {
+        grpmask |= grp;
     }
-    if (s->gicd_ctlr & GICD_CTLR_EN_GRP1S) {
-        grpmask |= (~group & grpmod);
+    if (gicd_ctlr & GICD_CTLR_EN_GRP1S) {
+        grpmask |= (~grp & grpmod_val);
     }
-    if (s->gicd_ctlr & GICD_CTLR_EN_GRP0) {
-        grpmask |= (~group & ~grpmod);
+    if (gicd_ctlr & GICD_CTLR_EN_GRP0) {
+        grpmask |= (~grp & ~grpmod_val);
     }
     pend &= grpmask;
 
@@ -237,7 +237,7 @@ static void gicv3_redist_update_noirqset(GICv3CPUState *cs)
     if (!seenbetter && cs->hppi.prio != 0xff &&
         (cs->hppi.irq < GIC_INTERNAL ||
          cs->hppi.irq >= GICV3_LPI_INTID_START)) {
-        gicv3_full_update_noirqset(cs->gic);
+        cs->gic->fullUpdateNoirqset();
     }
 }
 
@@ -255,18 +255,18 @@ void gicv3_redist_update(GICv3CPUState *cs)
  * changed affecting @len interrupts starting at @start,
  * but don't tell the CPU i/f.
  */
-static void gicv3_update_noirqset(GICv3State *s, int start, int len)
+void GICv3State::updateNoirqset(int start, int len)
 {
     int i;
     uint8_t prio;
     uint32_t pend = 0;
-    bool nmi = false;
+    bool nmi_val = false;
 
     assert(start >= GIC_INTERNAL);
     assert(len > 0);
 
-    for (i = 0; i < s->num_cpu; i++) {
-        s->cpu[i].seenbetter = false;
+    for (i = 0; i < num_cpu; i++) {
+        cpu[i].seenbetter = false;
     }
 
     /* Find the highest priority pending interrupt in this range. */
@@ -275,24 +275,24 @@ static void gicv3_update_noirqset(GICv3State *s, int start, int len)
 
         if (i == start || (i & 0x1f) == 0) {
             /* Calculate the next 32 bits worth of pending status */
-            pend = gicd_int_pending(s, i & ~0x1f);
+            pend = gisdIntPending(i & ~0x1f);
         }
 
         if (!(pend & (1 << (i & 0x1f)))) {
             continue;
         }
-        cs = s->gicd_irouter_target[i];
+        cs = gicd_irouter_target[i];
         if (!cs) {
             /* Interrupts targeting no implemented CPU should remain pending
              * and not be forwarded to any CPU.
              */
             continue;
         }
-        nmi = gicv3_get_priority(cs, false, i, &prio);
-        if (irqbetter(cs, i, prio, nmi)) {
+        nmi_val = gicv3_get_priority(cs, false, i, &prio);
+        if (irqbetter(cs, i, prio, nmi_val)) {
             cs->hppi.irq = i;
             cs->hppi.prio = prio;
-            cs->hppi.nmi = nmi;
+            cs->hppi.nmi = nmi_val;
             cs->seenbetter = true;
         }
     }
@@ -308,8 +308,8 @@ static void gicv3_update_noirqset(GICv3State *s, int start, int len)
      * interrupt has reduced in priority and any other interrupt could
      * now be the new best one).
      */
-    for (i = 0; i < s->num_cpu; i++) {
-        GICv3CPUState *cs = &s->cpu[i];
+    for (i = 0; i < num_cpu; i++) {
+        GICv3CPUState *cs = &cpu[i];
 
         if (cs->seenbetter) {
             cs->hppi.grp = gicv3_irq_group(cs->gic, cs, cs->hppi.irq);
@@ -317,61 +317,76 @@ static void gicv3_update_noirqset(GICv3State *s, int start, int len)
 
         if (!cs->seenbetter && cs->hppi.prio != 0xff &&
             cs->hppi.irq >= start && cs->hppi.irq < start + len) {
-            gicv3_full_update_noirqset(s);
+            fullUpdateNoirqset();
             break;
         }
     }
 }
 
-void gicv3_update(GICv3State *s, int start, int len)
+void GICv3State::update(int start, int len)
 {
     int i;
 
-    gicv3_update_noirqset(s, start, len);
-    for (i = 0; i < s->num_cpu; i++) {
-        gicv3_cpuif_update(&s->cpu[i]);
+    updateNoirqset(start, len);
+    for (i = 0; i < num_cpu; i++) {
+        gicv3_cpuif_update(&cpu[i]);
     }
 }
 
-void gicv3_full_update_noirqset(GICv3State *s)
+void gicv3_update(GICv3State *s, int start, int len)
+{
+    s->update(start, len);
+}
+
+void GICv3State::fullUpdateNoirqset()
 {
     /* Completely recalculate the GIC status from scratch, but
      * don't update any outbound IRQ lines.
      */
     int i;
 
-    for (i = 0; i < s->num_cpu; i++) {
-        s->cpu[i].hppi.prio = 0xff;
-        s->cpu[i].hppi.nmi = false;
+    for (i = 0; i < num_cpu; i++) {
+        cpu[i].hppi.prio = 0xff;
+        cpu[i].hppi.nmi = false;
     }
 
     /* Note that we can guarantee that these functions will not
-     * recursively call back into gicv3_full_update(), because
+     * recursively call back into fullUpdate(), because
      * at each point the "previous best" is always outside the
      * range we ask them to update.
      */
-    gicv3_update_noirqset(s, GIC_INTERNAL, s->num_irq - GIC_INTERNAL);
+    updateNoirqset(GIC_INTERNAL, num_irq - GIC_INTERNAL);
 
-    for (i = 0; i < s->num_cpu; i++) {
-        gicv3_redist_update_noirqset(&s->cpu[i]);
+    for (i = 0; i < num_cpu; i++) {
+        gicv3_redist_update_noirqset(&cpu[i]);
     }
 }
 
-void gicv3_full_update(GICv3State *s)
+void gicv3_full_update_noirqset(GICv3State *s)
+{
+    s->fullUpdateNoirqset();
+}
+
+void GICv3State::fullUpdate()
 {
     /* Completely recalculate the GIC status from scratch, including
      * updating outbound IRQ lines.
      */
     int i;
 
-    gicv3_full_update_noirqset(s);
-    for (i = 0; i < s->num_cpu; i++) {
-        gicv3_cpuif_update(&s->cpu[i]);
+    fullUpdateNoirqset();
+    for (i = 0; i < num_cpu; i++) {
+        gicv3_cpuif_update(&cpu[i]);
     }
 }
 
+void gicv3_full_update(GICv3State *s)
+{
+    s->fullUpdate();
+}
+
 /* Process a change in an external IRQ input. */
-static void gicv3_set_irq(void *opaque, int irq, int level)
+void GICv3State::setIrq(int irq, int level)
 {
     /* Meaning of the 'irq' parameter:
      *  [0..N-1] : external interrupts
@@ -379,25 +394,29 @@ static void gicv3_set_irq(void *opaque, int irq, int level)
      *  [N+32..N+63] : PPI (internal interrupts for CPU 1
      *  ...
      */
-    GICv3State *s = static_cast<GICv3State *>(opaque);
-
-    if (irq < (s->num_irq - GIC_INTERNAL)) {
+    if (irq < (num_irq - GIC_INTERNAL)) {
         /* external interrupt (SPI) */
-        gicv3_dist_set_irq(s, irq + GIC_INTERNAL, level);
+        gicv3_dist_set_irq(this, irq + GIC_INTERNAL, level);
     } else {
         /* per-cpu interrupt (PPI) */
-        int cpu;
+        int cpuidx;
 
-        irq -= (s->num_irq - GIC_INTERNAL);
-        cpu = irq / GIC_INTERNAL;
+        irq -= (num_irq - GIC_INTERNAL);
+        cpuidx = irq / GIC_INTERNAL;
         irq %= GIC_INTERNAL;
-        assert(cpu < s->num_cpu);
+        assert(cpuidx < num_cpu);
         /* Raising SGIs via this function would be a bug in how the board
          * model wires up interrupts.
          */
         assert(irq >= GIC_NR_SGIS);
-        gicv3_redist_set_irq(&s->cpu[cpu], irq, level);
+        gicv3_redist_set_irq(&cpu[cpuidx], irq, level);
     }
+}
+
+static void gicv3_set_irq(void *opaque, int irq, int level)
+{
+    GICv3State *s = static_cast<GICv3State *>(opaque);
+    s->setIrq(irq, level);
 }
 
 void GICv3State::postLoad()
@@ -409,7 +428,7 @@ void GICv3State::postLoad()
     for (i = 0; i < num_cpu; i++) {
         gicv3_redist_update_lpi_only(&cpu[i]);
     }
-    gicv3_full_update_noirqset(this);
+    fullUpdateNoirqset();
     /* Repopulate the cache of GICv3CPUState pointers for target CPUs */
     gicv3_cache_all_target_cpustates(this);
 }

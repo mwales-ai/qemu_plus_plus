@@ -66,6 +66,13 @@ typedef struct HPETTimer {  /* timers */
                              * mode. Next pop will be actual timer expiration.
                              */
     uint64_t last;          /* last value armed, to avoid timer storms */
+
+    /* ----- HPETTimer methods ----- */
+    uint32_t intRoute();
+    uint32_t fsbRoute();
+    uint32_t isPeriodic();
+    uint32_t isEnabled();
+    uint64_t calculateCmp64(uint64_t cur_tick, uint64_t target);
 } HPETTimer;
 
 struct HPETState {
@@ -131,25 +138,47 @@ struct HPETState {
     static bool rtcIrqLevelNeeded(void *opaque);
 };
 
-static uint32_t timer_int_route(struct HPETTimer *timer)
+/* ----- HPETTimer methods ----- */
+
+uint32_t HPETTimer::intRoute()
 {
-    return (timer->config & HPET_TN_INT_ROUTE_MASK) >> HPET_TN_INT_ROUTE_SHIFT;
+    return (config & HPET_TN_INT_ROUTE_MASK) >> HPET_TN_INT_ROUTE_SHIFT;
 }
 
-static uint32_t timer_fsb_route(HPETTimer *t)
+uint32_t HPETTimer::fsbRoute()
 {
-    return t->config & HPET_TN_FSB_ENABLE;
+    return config & HPET_TN_FSB_ENABLE;
 }
 
-static uint32_t timer_is_periodic(HPETTimer *t)
+uint32_t HPETTimer::isPeriodic()
 {
-    return t->config & HPET_TN_PERIODIC;
+    return config & HPET_TN_PERIODIC;
 }
 
-static uint32_t timer_enabled(HPETTimer *t)
+uint32_t HPETTimer::isEnabled()
 {
-    return t->config & HPET_TN_ENABLE;
+    return config & HPET_TN_ENABLE;
 }
+
+/*
+ * calculate next value of the general counter that matches the
+ * target (either entirely, or the low 32-bit only depending on
+ * the timer mode).
+ */
+uint64_t HPETTimer::calculateCmp64(uint64_t cur_tick, uint64_t target)
+{
+    if (config & HPET_TN_32BIT) {
+        uint64_t result = deposit64(cur_tick, 0, 32, target);
+        if (result < cur_tick) {
+            result += 0x100000000ULL;
+        }
+        return result;
+    } else {
+        return target;
+    }
+}
+
+/* ----- pure utility functions ----- */
 
 static uint32_t hpet_time_after(uint64_t a, uint64_t b)
 {
@@ -183,6 +212,11 @@ static int deactivating_bit(uint64_t old, uint64_t new_val, uint64_t mask)
     return ((old & mask) && !(new_val & mask));
 }
 
+static uint64_t hpet_next_wrap(uint64_t cur_tick)
+{
+    return (cur_tick | 0xffffffffU) + 1;
+}
+
 /* ----- HPETState methods ----- */
 
 uint32_t HPETState::inLegacyMode()
@@ -205,29 +239,6 @@ uint64_t HPETState::getNs(uint64_t tick)
     return ticks_to_ns(tick) - hpet_offset;
 }
 
-/*
- * calculate next value of the general counter that matches the
- * target (either entirely, or the low 32-bit only depending on
- * the timer mode).
- */
-static uint64_t hpet_calculate_cmp64(HPETTimer *t, uint64_t cur_tick, uint64_t target)
-{
-    if (t->config & HPET_TN_32BIT) {
-        uint64_t result = deposit64(cur_tick, 0, 32, target);
-        if (result < cur_tick) {
-            result += 0x100000000ULL;
-        }
-        return result;
-    } else {
-        return target;
-    }
-}
-
-static uint64_t hpet_next_wrap(uint64_t cur_tick)
-{
-    return (cur_tick | 0xffffffffU) + 1;
-}
-
 void HPETState::updateIrq(HPETTimer *t, int set)
 {
     uint64_t mask;
@@ -240,7 +251,7 @@ void HPETState::updateIrq(HPETTimer *t, int set)
          */
         route = (t->tn == 0) ? 0 : RTC_ISA_IRQ;
     } else {
-        route = timer_int_route(t);
+        route = t->intRoute();
     }
     mask = 1 << t->tn;
 
@@ -254,8 +265,8 @@ void HPETState::updateIrq(HPETTimer *t, int set)
         isr &= ~mask;
     }
 
-    if (set && timer_enabled(t) && isEnabled()) {
-        if (timer_fsb_route(t)) {
+    if (set && t->isEnabled() && isEnabled()) {
+        if (t->fsbRoute()) {
             address_space_stl_le(&address_space_memory, t->fsb >> 32,
                                  t->fsb & 0xffffffff, MEMTXATTRS_UNSPECIFIED,
                                  NULL);
@@ -267,7 +278,7 @@ void HPETState::updateIrq(HPETTimer *t, int set)
             qemu_irq_pulse(irqs[route]);
         }
     } else {
-        if (!timer_fsb_route(t)) {
+        if (!t->fsbRoute()) {
             BQL_LOCK_GUARD();
             qemu_irq_lower(irqs[route]);
         }
@@ -306,7 +317,7 @@ int HPETState::postLoad(void *opaque, int version_id)
 
     for (i = 0; i < s->num_timers; i++) {
         HPETTimer *t = &s->timer[i];
-        t->cmp64 = hpet_calculate_cmp64(t, s->hpet_counter, t->cmp);
+        t->cmp64 = t->calculateCmp64(s->hpet_counter, t->cmp);
         t->last = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - NANOSECONDS_PER_SECOND;
     }
     /* Recalculate the offset between the main counter and guest time */
@@ -408,7 +419,7 @@ void HPETState::armTimer(HPETTimer *t, uint64_t tick)
     uint64_t ns = getNs(tick);
 
     /* Clamp period to reasonable min value (1 us) */
-    if (timer_is_periodic(t) && ns - t->last < 1000) {
+    if (t->isPeriodic() && ns - t->last < 1000) {
         ns = t->last + 1000;
     }
 
@@ -426,7 +437,7 @@ void HPETState::timerCallback(void *opaque)
     uint64_t period = t->period;
     uint64_t cur_tick = s->getTicks();
 
-    if (timer_is_periodic(t) && period != 0) {
+    if (t->isPeriodic() && period != 0) {
         while (hpet_time_after(cur_tick, t->cmp64)) {
             t->cmp64 += period;
         }
@@ -448,13 +459,13 @@ void HPETState::setTimer(HPETTimer *t)
     uint64_t cur_tick = getTicks();
 
     t->wrap_flag = 0;
-    t->cmp64 = hpet_calculate_cmp64(t, cur_tick, t->cmp);
+    t->cmp64 = t->calculateCmp64(cur_tick, t->cmp);
     if (t->config & HPET_TN_32BIT) {
 
         /* hpet spec says in one-shot 32-bit mode, generate an interrupt when
          * counter wraps in addition to an interrupt with comparator match.
          */
-        if (!timer_is_periodic(t) && t->cmp64 > hpet_next_wrap(cur_tick)) {
+        if (!t->isPeriodic() && t->cmp64 > hpet_next_wrap(cur_tick)) {
             t->wrap_flag = 1;
             armTimer(t, hpet_next_wrap(cur_tick));
             return;
@@ -567,7 +578,7 @@ void HPETState::mmioWrite(void *opaque, hwaddr addr,
                 s->hpet_offset =
                     ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
                 for (i = 0; i < s->num_timers; i++) {
-                    if (timer_enabled(&s->timer[i]) && (s->isr & (1 << i))) {
+                    if (s->timer[i].isEnabled() && (s->isr & (1 << i))) {
                         s->updateIrq(&s->timer[i], 1);
                     }
                     s->setTimer(&s->timer[i]);
@@ -660,11 +671,11 @@ void HPETState::mmioWrite(void *opaque, hwaddr addr,
                 value = (uint32_t) value;
             }
             trace_hpet_ram_write_tn_cmp(addr & 4);
-            if (!timer_is_periodic(timer)
+            if (!timer->isPeriodic()
                 || (timer->config & HPET_TN_SETVAL)) {
                 timer->cmp = deposit64(timer->cmp, shift, len, value);
             }
-            if (timer_is_periodic(timer)) {
+            if (timer->isPeriodic()) {
                 timer->period = deposit64(timer->period, shift, len, value);
             }
             timer->config &= ~HPET_TN_SETVAL;

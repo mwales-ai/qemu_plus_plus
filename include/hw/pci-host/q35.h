@@ -66,6 +66,7 @@ struct MCHPCIState {
     void updateSmram();
     void updateExtTsegMbytes();
     void updateSmbaseSmram();
+    void writeConfig(uint32_t address, uint32_t val, int len);
     static void classInit(ObjectClass *klass, const void *data);
 #endif
 };
@@ -80,6 +81,21 @@ struct Q35PCIHost {
 
 #ifdef __cplusplus
     void realize(DeviceState *dev, Error **errp);
+    void initInstance(Object *obj);
+    const char *rootBusPath(PCIBus *rootbus);
+    uint64_t getPciHole64StartValue();
+    static void getPciHoleStart(Object *obj, Visitor *v,
+                                const char *name, void *opaque,
+                                Error **errp);
+    static void getPciHoleEnd(Object *obj, Visitor *v,
+                              const char *name, void *opaque,
+                              Error **errp);
+    static void getPciHole64Start(Object *obj, Visitor *v,
+                                  const char *name, void *opaque,
+                                  Error **errp);
+    static void getPciHole64End(Object *obj, Visitor *v,
+                                const char *name, void *opaque,
+                                Error **errp);
     static void classInit(ObjectClass *klass, const void *data);
 #endif
 };
