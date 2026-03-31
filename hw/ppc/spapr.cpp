@@ -4604,7 +4604,8 @@ static void spapr_cpu_exec_exit(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
     }
 }
 
-static void spapr_machine_class_init(ObjectClass *oc, const void *data)
+/* C++ method implementation */
+void SpaprMachineState::classInit(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(oc);
@@ -4731,7 +4732,7 @@ static const TypeInfo spapr_machine_info = {
     .instance_finalize = spapr_machine_finalizefn,
     .is_abstract   = true,
     .class_size    = sizeof(SpaprMachineClass),
-    .class_init    = spapr_machine_class_init,
+    .class_init    = SpaprMachineState::classInit,
     .interfaces    = spapr_machine_interfaces,
 };
 

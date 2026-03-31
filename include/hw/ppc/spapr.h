@@ -277,6 +277,11 @@ struct SpaprMachineState {
     bool fadump_registered;
     bool fadump_dump_active;
     FadumpMemStruct registered_fdm;
+
+#ifdef __cplusplus
+    /* C++ methods */
+    static void classInit(ObjectClass *oc, const void *data);
+#endif
 };
 
 #define H_SUCCESS         0
