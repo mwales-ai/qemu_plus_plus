@@ -227,6 +227,62 @@ struct VirtIOGPU {
     /* C++ methods - implementations in virtio-gpu.cpp */
     void realize(DeviceState *qdev, Error **errp);
     void reset(void);
+
+    /* Resource management */
+    struct virtio_gpu_simple_resource *findResource(uint32_t resource_id);
+    struct virtio_gpu_simple_resource *findCheckResource(
+        uint32_t resource_id, bool require_backing,
+        const char *caller, uint32_t *error);
+
+    /* Command handling */
+    void ctrlResponse(struct virtio_gpu_ctrl_command *cmd,
+                      struct virtio_gpu_ctrl_hdr *resp, size_t resp_len);
+    void ctrlResponseNodata(struct virtio_gpu_ctrl_command *cmd,
+                            enum virtio_gpu_ctrl_type type);
+    void getDisplayInfo(struct virtio_gpu_ctrl_command *cmd);
+    void getEdid(struct virtio_gpu_ctrl_command *cmd);
+    void resourceCreate2d(struct virtio_gpu_ctrl_command *cmd);
+    void resourceCreateBlob(struct virtio_gpu_ctrl_command *cmd);
+    void resourceUnref(struct virtio_gpu_ctrl_command *cmd);
+    void resourceFlush(struct virtio_gpu_ctrl_command *cmd);
+    void transferToHost2d(struct virtio_gpu_ctrl_command *cmd);
+    void setScanout(struct virtio_gpu_ctrl_command *cmd);
+    void setScanoutBlob(struct virtio_gpu_ctrl_command *cmd);
+    void resourceAttachBacking(struct virtio_gpu_ctrl_command *cmd);
+    void resourceDetachBacking(struct virtio_gpu_ctrl_command *cmd);
+    void simpleProcessCmd(struct virtio_gpu_ctrl_command *cmd);
+    void processCmdq();
+    void processFenceq();
+
+    /* Scanout management */
+    void disableScanout(int scanout_id);
+    void updateScanout(uint32_t scanout_id,
+                       struct virtio_gpu_simple_resource *res,
+                       struct virtio_gpu_framebuffer *fb,
+                       struct virtio_gpu_rect *r);
+    bool doSetScanout(uint32_t scanout_id,
+                      struct virtio_gpu_framebuffer *fb,
+                      struct virtio_gpu_simple_resource *res,
+                      struct virtio_gpu_rect *r, uint32_t *error);
+
+    /* Resource lifecycle */
+    void resourceDestroy(struct virtio_gpu_simple_resource *res,
+                         Error **errp);
+    int createMappingIov(uint32_t nr_entries, uint32_t offset,
+                         struct virtio_gpu_ctrl_command *cmd,
+                         uint64_t **addr, struct iovec **iov,
+                         uint32_t *niov);
+    void cleanupMappingIov(struct iovec *iov, uint32_t count);
+    void cleanupMapping(struct virtio_gpu_simple_resource *res);
+
+    /* Cursor */
+    void updateCursorData(struct virtio_gpu_scanout *s,
+                          uint32_t resource_id);
+    void updateCursor(struct virtio_gpu_update_cursor *cursor);
+
+    /* Migration helpers */
+    bool loadRestoreMapping(struct virtio_gpu_simple_resource *res);
+
     static void classInit(ObjectClass *klass, const void *data);
 #endif
 };
