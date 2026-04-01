@@ -39,12 +39,12 @@
 #include "hw/virtio/virtio-blk-common.h"
 #include "qemu/coroutine.h"
 
-static void virtio_blk_ioeventfd_attach(VirtIOBlock *s);
+/* Forward declarations for static wrappers that use the old names */
 
-static void virtio_blk_init_request(VirtIOBlock *s, VirtQueue *vq,
-                                    VirtIOBlockReq *req)
+void VirtIOBlock::initRequest(VirtQueue *vq, void *reqp)
 {
-    req->dev = s;
+    VirtIOBlockReq *req = static_cast<VirtIOBlockReq *>(reqp);
+    req->dev = this;
     req->vq = vq;
     req->qiov.size = 0;
     req->in_len = 0;
@@ -165,12 +165,12 @@ static void virtio_blk_discard_write_zeroes_complete(void *opaque, int ret)
     g_free(req);
 }
 
-static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s, VirtQueue *vq)
+void *VirtIOBlock::getRequest(VirtQueue *vq)
 {
     VirtIOBlockReq *req = static_cast<VirtIOBlockReq *>(virtqueue_pop(vq, sizeof(VirtIOBlockReq)));
 
     if (req) {
-        virtio_blk_init_request(s, vq, req);
+        initRequest(vq, req);
     }
     return req;
 }
@@ -210,10 +210,9 @@ fail:
     g_free(req);
 }
 
-static inline void submit_requests(VirtIOBlock *s, MultiReqBuffer *mrb,
-                                   int start, int num_reqs, int niov)
+void VirtIOBlock::submitRequests(void *mrbp, int start, int num_reqs, int niov)
 {
-    BlockBackend *blk = s->blk;
+    MultiReqBuffer *mrb = static_cast<MultiReqBuffer *>(mrbp);
     QEMUIOVector *qiov = &mrb->reqs[start]->qiov;
     int64_t sector_num = mrb->reqs[start]->sector_num;
     bool is_write = mrb->is_write;
@@ -248,7 +247,7 @@ static inline void submit_requests(VirtIOBlock *s, MultiReqBuffer *mrb,
                               num_reqs - 1);
     }
 
-    if (blk_ram_registrar_ok(&s->blk_ram_registrar)) {
+    if (blk_ram_registrar_ok(&blk_ram_registrar)) {
         flags = static_cast<BdrvRequestFlags>(flags | BDRV_REQ_REGISTERED_BUF);
     }
 
@@ -281,14 +280,15 @@ static int multireq_compare(const void *a, const void *b)
     }
 }
 
-static void virtio_blk_submit_multireq(VirtIOBlock *s, MultiReqBuffer *mrb)
+void VirtIOBlock::submitMultireq(void *mrbp)
 {
+    MultiReqBuffer *mrb = static_cast<MultiReqBuffer *>(mrbp);
     int i = 0, start = 0, num_reqs = 0, niov = 0, nb_sectors = 0;
     uint32_t max_transfer;
     int64_t sector_num = 0;
 
     if (mrb->num_reqs == 1) {
-        submit_requests(s, mrb, 0, 1, -1);
+        submitRequests(mrb, 0, 1, -1);
         mrb->num_reqs = 0;
         return;
     }
@@ -308,11 +308,11 @@ static void virtio_blk_submit_multireq(VirtIOBlock *s, MultiReqBuffer *mrb)
              * 3. merge would exceed maximum transfer length of backend device
              */
             if (sector_num + nb_sectors != req->sector_num ||
-                niov > blk_get_max_iov(s->blk) - req->qiov.niov ||
+                niov > blk_get_max_iov(blk) - req->qiov.niov ||
                 req->qiov.size > max_transfer ||
                 nb_sectors > (max_transfer -
                               req->qiov.size) / BDRV_SECTOR_SIZE) {
-                submit_requests(s, mrb, start, num_reqs, niov);
+                submitRequests(mrb, start, num_reqs, niov);
                 num_reqs = 0;
             }
         }
@@ -328,7 +328,7 @@ static void virtio_blk_submit_multireq(VirtIOBlock *s, MultiReqBuffer *mrb)
         num_reqs++;
     }
 
-    submit_requests(s, mrb, start, num_reqs, niov);
+    submitRequests(mrb, start, num_reqs, niov);
     mrb->num_reqs = 0;
 }
 
@@ -343,13 +343,12 @@ static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
      * Make sure all outstanding writes are posted to the backing device.
      */
     if (mrb->is_write && mrb->num_reqs > 0) {
-        virtio_blk_submit_multireq(s, mrb);
+        s->submitMultireq(mrb);
     }
     blk_aio_flush(s->blk, virtio_blk_flush_complete, req);
 }
 
-static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
-                                     uint64_t sector, size_t size)
+bool VirtIOBlock::sectRangeOk(uint64_t sector, size_t size)
 {
     uint64_t nb_sectors = size >> BDRV_SECTOR_BITS;
     uint64_t total_sectors;
@@ -357,13 +356,13 @@ static bool virtio_blk_sect_range_ok(VirtIOBlock *dev,
     if (nb_sectors > BDRV_REQUEST_MAX_SECTORS) {
         return false;
     }
-    if (sector & dev->sector_mask) {
+    if (sector & sector_mask) {
         return false;
     }
-    if (size % dev->conf.conf.logical_block_size) {
+    if (size % conf.conf.logical_block_size) {
         return false;
     }
-    blk_get_geometry(dev->blk, &total_sectors);
+    blk_get_geometry(blk, &total_sectors);
     if (sector > total_sectors || nb_sectors > total_sectors - sector) {
         return false;
     }
@@ -398,7 +397,7 @@ static uint8_t virtio_blk_handle_discard_write_zeroes(VirtIOBlockReq *req,
 
     bytes = num_sectors << BDRV_SECTOR_BITS;
 
-    if (unlikely(!virtio_blk_sect_range_ok(s, sector, bytes))) {
+    if (unlikely(!s->sectRangeOk(sector, bytes))) {
         err_status = VIRTIO_BLK_S_IOERR;
         goto err;
     }
@@ -468,12 +467,12 @@ typedef struct ZoneCmdData {
  * passed, return true.
  * append: true if only zone append requests issued.
  */
-static bool check_zoned_request(VirtIOBlock *s, int64_t offset, int64_t len,
+bool VirtIOBlock::checkZonedRequest(int64_t offset, int64_t len,
                              bool append, uint8_t *status) {
-    BlockDriverState *bs = blk_bs(s->blk);
+    BlockDriverState *bs = blk_bs(blk);
     int index;
 
-    if (!virtio_has_feature(s->host_features, VIRTIO_BLK_F_ZONED)) {
+    if (!virtio_has_feature(host_features, VIRTIO_BLK_F_ZONED)) {
         *status = VIRTIO_BLK_S_UNSUPP;
         return false;
     }
@@ -630,7 +629,7 @@ static void virtio_blk_handle_zone_report(VirtIOBlockReq *req,
 
     /* start byte offset of the zone report */
     offset = virtio_ldq_p(vdev, &req->out.sector) << BDRV_SECTOR_BITS;
-    if (!check_zoned_request(s, offset, 0, false, &err_status)) {
+    if (!s->checkZonedRequest(offset, 0, false, &err_status)) {
         goto out;
     }
     nr_zones = (req->in_len - sizeof(struct virtio_blk_inhdr) -
@@ -701,7 +700,7 @@ static int virtio_blk_handle_zone_mgmt(VirtIOBlockReq *req, BlockZoneOp op)
                                           len >> BDRV_SECTOR_BITS);
     }
 
-    if (!check_zoned_request(s, offset, len, false, &err_status)) {
+    if (!s->checkZonedRequest(offset, len, false, &err_status)) {
         goto out;
     }
 
@@ -760,7 +759,7 @@ static int virtio_blk_handle_zone_append(VirtIOBlockReq *req,
     ZoneCmdData *data;
 
     trace_virtio_blk_handle_zone_append(vdev, req, offset >> BDRV_SECTOR_BITS);
-    if (!check_zoned_request(s, offset, len, true, &err_status)) {
+    if (!s->checkZonedRequest(offset, len, true, &err_status)) {
         goto out;
     }
 
@@ -845,7 +844,7 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
                                          req->qiov.size / BDRV_SECTOR_SIZE);
         }
 
-        if (!virtio_blk_sect_range_ok(s, req->sector_num, req->qiov.size)) {
+        if (!s->sectRangeOk(req->sector_num, req->qiov.size)) {
             virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
             block_acct_invalid(blk_get_stats(s->blk),
                                is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
@@ -861,7 +860,7 @@ static int virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         if (mrb->num_reqs > 0 && (mrb->num_reqs == VIRTIO_BLK_MAX_MERGE_REQS ||
                                   is_write != mrb->is_write ||
                                   !s->conf.request_merging)) {
-            virtio_blk_submit_multireq(s, mrb);
+            s->submitMultireq(mrb);
         }
 
         assert(mrb->num_reqs < VIRTIO_BLK_MAX_MERGE_REQS);
@@ -989,7 +988,7 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
             virtio_queue_set_notification(vq, 0);
         }
 
-        while ((req = virtio_blk_get_request(s, vq))) {
+        while ((req = static_cast<VirtIOBlockReq *>(s->getRequest(vq)))) {
             if (virtio_blk_handle_request(req, &mrb)) {
                 virtqueue_detach_element(req->vq, &req->elem, 0);
                 g_free(req);
@@ -1003,7 +1002,7 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
     } while (!virtio_queue_empty(vq));
 
     if (mrb.num_reqs) {
-        virtio_blk_submit_multireq(s, &mrb);
+        s->submitMultireq(&mrb);
     }
 
     defer_call_end();
@@ -1051,7 +1050,7 @@ static void virtio_blk_dma_restart_bh(void *opaque)
     }
 
     if (mrb.num_reqs) {
-        virtio_blk_submit_multireq(s, &mrb);
+        s->submitMultireq(&mrb);
     }
 
     /* Paired with inc in virtio_blk_dma_restart_cb() */
@@ -1351,7 +1350,7 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
         }
 
         req = static_cast<VirtIOBlockReq *>(qemu_get_virtqueue_element(vdev, f, sizeof(VirtIOBlockReq)));
-        virtio_blk_init_request(s, virtio_get_queue(vdev, vq_idx), req);
+        s->initRequest(virtio_get_queue(vdev, vq_idx), req);
 
         WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
             req->next = s->rq;
@@ -1382,23 +1381,23 @@ static void virtio_blk_resize(void *opaque)
     aio_bh_schedule_oneshot(qemu_get_aio_context(), virtio_resize_cb, vdev);
 }
 
-static void virtio_blk_ioeventfd_detach(VirtIOBlock *s)
+void VirtIOBlock::ioeventfdDetach()
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtIODevice *vdev = VIRTIO_DEVICE(this);
 
-    for (uint16_t i = 0; i < s->conf.num_queues; i++) {
+    for (uint16_t i = 0; i < conf.num_queues; i++) {
         VirtQueue *vq = virtio_get_queue(vdev, i);
-        virtio_queue_aio_detach_host_notifier(vq, s->vq_aio_context[i]);
+        virtio_queue_aio_detach_host_notifier(vq, vq_aio_context[i]);
     }
 }
 
-static void virtio_blk_ioeventfd_attach(VirtIOBlock *s)
+void VirtIOBlock::ioeventfdAttach()
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtIODevice *vdev = VIRTIO_DEVICE(this);
 
-    for (uint16_t i = 0; i < s->conf.num_queues; i++) {
+    for (uint16_t i = 0; i < conf.num_queues; i++) {
         VirtQueue *vq = virtio_get_queue(vdev, i);
-        virtio_queue_aio_attach_host_notifier(vq, s->vq_aio_context[i]);
+        virtio_queue_aio_attach_host_notifier(vq, vq_aio_context[i]);
     }
 }
 
@@ -1408,7 +1407,7 @@ static void virtio_blk_drained_begin(void *opaque)
     VirtIOBlock *s = static_cast<VirtIOBlock *>(opaque);
 
     if (s->ioeventfd_started) {
-        virtio_blk_ioeventfd_detach(s);
+        s->ioeventfdDetach();
     }
 }
 
@@ -1418,7 +1417,7 @@ static void virtio_blk_drained_end(void *opaque)
     VirtIOBlock *s = static_cast<VirtIOBlock *>(opaque);
 
     if (s->ioeventfd_started) {
-        virtio_blk_ioeventfd_attach(s);
+        s->ioeventfdAttach();
     }
 }
 
@@ -1429,22 +1428,22 @@ static const BlockDevOps virtio_block_ops = {
 };
 
 /* Context: BQL held */
-static bool virtio_blk_vq_aio_context_init(VirtIOBlock *s, Error **errp)
+bool VirtIOBlock::vqAioContextInit(Error **errp)
 {
     ERRP_GUARD();
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
-    VirtIOBlkConf *conf = &s->conf;
+    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIOBlkConf *blkconf = &conf;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
-    if (conf->iothread && conf->iothread_vq_mapping_list) {
+    if (blkconf->iothread && blkconf->iothread_vq_mapping_list) {
         error_setg(errp,
                    "iothread and iothread-vq-mapping properties cannot be set "
                    "at the same time");
         return false;
     }
 
-    if (conf->iothread || conf->iothread_vq_mapping_list) {
+    if (blkconf->iothread || blkconf->iothread_vq_mapping_list) {
         if (!k->set_guest_notifiers || !k->ioeventfd_assign) {
             error_setg(errp,
                        "device is incompatible with iothread "
@@ -1457,29 +1456,29 @@ static bool virtio_blk_vq_aio_context_init(VirtIOBlock *s, Error **errp)
         }
     }
 
-    s->vq_aio_context = g_new(AioContext *, conf->num_queues);
+    vq_aio_context = g_new(AioContext *, blkconf->num_queues);
 
-    if (conf->iothread_vq_mapping_list) {
-        if (!iothread_vq_mapping_apply(conf->iothread_vq_mapping_list,
-                                       s->vq_aio_context,
-                                       conf->num_queues,
+    if (blkconf->iothread_vq_mapping_list) {
+        if (!iothread_vq_mapping_apply(blkconf->iothread_vq_mapping_list,
+                                       vq_aio_context,
+                                       blkconf->num_queues,
                                        errp)) {
-            g_free(s->vq_aio_context);
-            s->vq_aio_context = NULL;
+            g_free(vq_aio_context);
+            vq_aio_context = NULL;
             return false;
         }
-    } else if (conf->iothread) {
-        AioContext *ctx = iothread_get_aio_context(conf->iothread);
-        for (unsigned i = 0; i < conf->num_queues; i++) {
-            s->vq_aio_context[i] = ctx;
+    } else if (blkconf->iothread) {
+        AioContext *ctx = iothread_get_aio_context(blkconf->iothread);
+        for (unsigned i = 0; i < blkconf->num_queues; i++) {
+            vq_aio_context[i] = ctx;
         }
 
-        /* Released in virtio_blk_vq_aio_context_cleanup() */
-        object_ref(OBJECT(conf->iothread));
+        /* Released in vqAioContextCleanup() */
+        object_ref(OBJECT(blkconf->iothread));
     } else {
         AioContext *ctx = qemu_get_aio_context();
-        for (unsigned i = 0; i < conf->num_queues; i++) {
-            s->vq_aio_context[i] = ctx;
+        for (unsigned i = 0; i < blkconf->num_queues; i++) {
+            vq_aio_context[i] = ctx;
         }
     }
 
@@ -1487,22 +1486,22 @@ static bool virtio_blk_vq_aio_context_init(VirtIOBlock *s, Error **errp)
 }
 
 /* Context: BQL held */
-static void virtio_blk_vq_aio_context_cleanup(VirtIOBlock *s)
+void VirtIOBlock::vqAioContextCleanup()
 {
-    VirtIOBlkConf *conf = &s->conf;
+    VirtIOBlkConf *blkconf = &conf;
 
-    assert(!s->ioeventfd_started);
+    assert(!ioeventfd_started);
 
-    if (conf->iothread_vq_mapping_list) {
-        iothread_vq_mapping_cleanup(conf->iothread_vq_mapping_list);
+    if (blkconf->iothread_vq_mapping_list) {
+        iothread_vq_mapping_cleanup(blkconf->iothread_vq_mapping_list);
     }
 
-    if (conf->iothread) {
-        object_unref(OBJECT(conf->iothread));
+    if (blkconf->iothread) {
+        object_unref(OBJECT(blkconf->iothread));
     }
 
-    g_free(s->vq_aio_context);
-    s->vq_aio_context = NULL;
+    g_free(vq_aio_context);
+    vq_aio_context = NULL;
 }
 
 /* Context: BQL held */
@@ -1592,7 +1591,7 @@ static int virtio_blk_start_ioeventfd(VirtIODevice *vdev)
      * they may already have.
      */
     if (!blk_in_drain(s->conf.conf.blk)) {
-        virtio_blk_ioeventfd_attach(s);
+        s->ioeventfdAttach();
     }
     return 0;
 
@@ -1791,7 +1790,7 @@ void VirtIOBlock::realize(Error **errp)
         ioeventfd_disabled = true;
     }
 
-    virtio_blk_vq_aio_context_init(this, &err);
+    vqAioContextInit(&err);
     if (err != NULL) {
         error_propagate(errp, err);
         for (i = 0; i < conf->num_queues; i++) {
@@ -1834,7 +1833,7 @@ void VirtIOBlock::unrealize()
 
     blk_drain(blk);
     del_boot_device_lchs(dev, "/disk@0,0");
-    virtio_blk_vq_aio_context_cleanup(this);
+    vqAioContextCleanup();
     for (i = 0; i < conf->num_queues; i++) {
         virtio_del_queue(vdev, i);
     }

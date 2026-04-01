@@ -83,13 +83,20 @@ struct VirtIOBlock {
     void realize(Error **errp);
     void unrealize();
     void reset();
-    void stopIoeventfd();
-    void updateConfig(uint8_t *config);
-    void setConfig(const uint8_t *config);
-    uint64_t getFeatures(uint64_t features, Error **errp);
-    int setStatus(uint8_t status);
-    void saveDevice(QEMUFile *f);
-    int loadDevice(QEMUFile *f, int version_id);
+
+    /* Internal helper methods (converted from static functions) */
+    void initRequest(VirtQueue *vq, void *req);
+    void *getRequest(VirtQueue *vq);
+    void submitRequests(void *mrb, int start, int num_reqs, int niov);
+    void submitMultireq(void *mrb);
+    bool sectRangeOk(uint64_t sector, size_t size);
+    bool checkZonedRequest(int64_t offset, int64_t len, bool append,
+                           uint8_t *status);
+    void ioeventfdDetach();
+    void ioeventfdAttach();
+    bool vqAioContextInit(Error **errp);
+    void vqAioContextCleanup();
+
     static void classInit(ObjectClass *oc, const void *data);
 #endif
 };
