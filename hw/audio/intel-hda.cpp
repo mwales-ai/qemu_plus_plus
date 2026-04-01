@@ -199,7 +199,20 @@ struct IntelHDAState {
     OnOffAuto msi;
     bool old_msi_addr;
 
-    /* Methods */
+    /* Internal methods */
+    void updateIntSts();
+    void updateIrq();
+    int sendCommand(uint32_t verb);
+    void corbRun();
+    void parseBdl(IntelHDAStream *st);
+    void notifyCodecs(uint32_t stream, bool running, bool output);
+    const IntelHDAReg *regFind(hwaddr addr);
+    uint32_t *regAddr(const IntelHDAReg *reg);
+    void regWrite(const IntelHDAReg *reg, uint32_t val, uint32_t wmask);
+    uint32_t regRead(const IntelHDAReg *reg, uint32_t rmask);
+    void regsReset();
+
+    /* QOM methods */
     void realize(Error **errp);
     void reset();
 
@@ -234,61 +247,61 @@ static hwaddr intel_hda_addr(uint32_t lbase, uint32_t ubase)
     return ((uint64_t)ubase << 32) | lbase;
 }
 
-static void intel_hda_update_int_sts(IntelHDAState *d)
+void IntelHDAState::updateIntSts()
 {
     uint32_t sts = 0;
     uint32_t i;
 
     /* update controller status */
-    if (d->rirb_sts & ICH6_RBSTS_IRQ) {
+    if (rirb_sts & ICH6_RBSTS_IRQ) {
         sts |= (1 << 30);
     }
-    if (d->rirb_sts & ICH6_RBSTS_OVERRUN) {
+    if (rirb_sts & ICH6_RBSTS_OVERRUN) {
         sts |= (1 << 30);
     }
-    if (d->state_sts & d->wake_en) {
+    if (state_sts & wake_en) {
         sts |= (1 << 30);
     }
 
     /* update stream status */
     for (i = 0; i < 8; i++) {
         /* buffer completion interrupt */
-        if (d->st[i].ctl & (1 << 26)) {
+        if (st[i].ctl & (1 << 26)) {
             sts |= (1 << i);
         }
     }
 
     /* update global status */
-    if (sts & d->int_ctl) {
+    if (sts & int_ctl) {
         sts |= (1U << 31);
     }
 
-    d->int_sts = sts;
+    int_sts = sts;
 }
 
-static void intel_hda_update_irq(IntelHDAState *d)
+void IntelHDAState::updateIrq()
 {
-    bool msi = msi_enabled(&d->pci);
+    bool msi_on = msi_enabled(&pci);
     int level;
 
-    intel_hda_update_int_sts(d);
-    if (d->int_sts & (1U << 31) && d->int_ctl & (1U << 31)) {
+    updateIntSts();
+    if (int_sts & (1U << 31) && int_ctl & (1U << 31)) {
         level = 1;
     } else {
         level = 0;
     }
-    dprint(d, 2, "%s: level %d [%s]\n", __func__,
-           level, msi ? "msi" : "intx");
-    if (msi) {
+    dprint(this, 2, "%s: level %d [%s]\n", __func__,
+           level, msi_on ? "msi" : "intx");
+    if (msi_on) {
         if (level) {
-            msi_notify(&d->pci, 0);
+            msi_notify(&pci, 0);
         }
     } else {
-        pci_set_irq(&d->pci, level);
+        pci_set_irq(&pci, level);
     }
 }
 
-static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
+int IntelHDAState::sendCommand(uint32_t verb)
 {
     uint32_t cad, nid, data;
     HDACodecDevice *codec;
@@ -297,15 +310,15 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
     cad = (verb >> 28) & 0x0f;
     if (verb & (1 << 27)) {
         /* indirect node addressing, not specified in HDA 1.0 */
-        dprint(d, 1, "%s: indirect node addressing (guest bug?)\n", __func__);
+        dprint(this, 1, "%s: indirect node addressing (guest bug?)\n", __func__);
         return -1;
     }
     nid = (verb >> 20) & 0x7f;
     data = verb & 0xfffff;
 
-    codec = hda_codec_find(&d->codecs, cad);
+    codec = hda_codec_find(&codecs, cad);
     if (codec == NULL) {
-        dprint(d, 1, "%s: addressed non-existing codec\n", __func__);
+        dprint(this, 1, "%s: addressed non-existing codec\n", __func__);
         return -1;
     }
     cdc = HDA_CODEC_DEVICE_GET_CLASS(codec);
@@ -313,38 +326,38 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
     return 0;
 }
 
-static void intel_hda_corb_run(IntelHDAState *d)
+void IntelHDAState::corbRun()
 {
     hwaddr addr;
     uint32_t rp, verb;
 
-    if (d->ics & ICH6_IRS_BUSY) {
-        dprint(d, 2, "%s: [icw] verb 0x%08x\n", __func__, d->icw);
-        intel_hda_send_command(d, d->icw);
+    if (ics & ICH6_IRS_BUSY) {
+        dprint(this, 2, "%s: [icw] verb 0x%08x\n", __func__, icw);
+        sendCommand(icw);
         return;
     }
 
     for (;;) {
-        if (!(d->corb_ctl & ICH6_CORBCTL_RUN)) {
-            dprint(d, 2, "%s: !run\n", __func__);
+        if (!(corb_ctl & ICH6_CORBCTL_RUN)) {
+            dprint(this, 2, "%s: !run\n", __func__);
             return;
         }
-        if ((d->corb_rp & 0xff) == d->corb_wp) {
-            dprint(d, 2, "%s: corb ring empty\n", __func__);
+        if ((corb_rp & 0xff) == corb_wp) {
+            dprint(this, 2, "%s: corb ring empty\n", __func__);
             return;
         }
-        if (d->rirb_count == d->rirb_cnt) {
-            dprint(d, 2, "%s: rirb count reached\n", __func__);
+        if (rirb_count == rirb_cnt) {
+            dprint(this, 2, "%s: rirb count reached\n", __func__);
             return;
         }
 
-        rp = (d->corb_rp + 1) & 0xff;
-        addr = intel_hda_addr(d->corb_lbase, d->corb_ubase);
-        ldl_le_pci_dma(&d->pci, addr + 4 * rp, &verb, MEMTXATTRS_UNSPECIFIED);
-        d->corb_rp = rp;
+        rp = (corb_rp + 1) & 0xff;
+        addr = intel_hda_addr(corb_lbase, corb_ubase);
+        ldl_le_pci_dma(&pci, addr + 4 * rp, &verb, MEMTXATTRS_UNSPECIFIED);
+        corb_rp = rp;
 
-        dprint(d, 2, "%s: [rp 0x%x] verb 0x%08x\n", __func__, rp, verb);
-        intel_hda_send_command(d, verb);
+        dprint(this, 2, "%s: [rp 0x%x] verb 0x%08x\n", __func__, rp, verb);
+        sendCommand(verb);
     }
 }
 
@@ -378,7 +391,7 @@ static void intel_hda_response(HDACodecDevice *dev, bool solicited, uint32_t res
     res |= stl_le_pci_dma(&d->pci, addr + 8 * wp + 4, ex, attrs);
     if (res != MEMTX_OK && (d->rirb_ctl & ICH6_RBCTL_OVERRUN_EN)) {
         d->rirb_sts |= ICH6_RBSTS_OVERRUN;
-        intel_hda_update_irq(d);
+        d->updateIrq();
     }
     d->rirb_wp = wp;
 
@@ -390,14 +403,14 @@ static void intel_hda_response(HDACodecDevice *dev, bool solicited, uint32_t res
         dprint(d, 2, "%s: rirb count reached (%d)\n", __func__, d->rirb_count);
         if (d->rirb_ctl & ICH6_RBCTL_IRQ_EN) {
             d->rirb_sts |= ICH6_RBSTS_IRQ;
-            intel_hda_update_irq(d);
+            d->updateIrq();
         }
     } else if ((d->corb_rp & 0xff) == d->corb_wp) {
         dprint(d, 2, "%s: corb ring empty (%d/%d)\n", __func__,
                d->rirb_count, d->rirb_cnt);
         if (d->rirb_ctl & ICH6_RBCTL_IRQ_EN) {
             d->rirb_sts |= ICH6_RBSTS_IRQ;
-            intel_hda_update_irq(d);
+            d->updateIrq();
         }
     }
 }
@@ -470,42 +483,42 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
 
     if (irq) {
         st->ctl |= (1 << 26); /* buffer completion interrupt */
-        intel_hda_update_irq(d);
+        d->updateIrq();
     }
     return true;
 }
 
-static void intel_hda_parse_bdl(IntelHDAState *d, IntelHDAStream *st)
+void IntelHDAState::parseBdl(IntelHDAStream *stream)
 {
     hwaddr addr;
     uint8_t buf[16];
     uint32_t i;
 
-    addr = intel_hda_addr(st->bdlp_lbase, st->bdlp_ubase);
-    st->bentries = st->lvi +1;
-    g_free(st->bpl);
-    st->bpl = g_new(BDLEntry, st->bentries);
-    for (i = 0; i < st->bentries; i++, addr += 16) {
-        pci_dma_read(&d->pci, addr, buf, 16);
-        st->bpl[i].addr  = le64_to_cpu(*(uint64_t *)buf);
-        st->bpl[i].len   = le32_to_cpu(*(uint32_t *)(buf + 8));
-        st->bpl[i].flags = le32_to_cpu(*(uint32_t *)(buf + 12));
-        dprint(d, 1, "bdl/%d: 0x%" PRIx64 " +0x%x, 0x%x\n",
-               i, st->bpl[i].addr, st->bpl[i].len, st->bpl[i].flags);
+    addr = intel_hda_addr(stream->bdlp_lbase, stream->bdlp_ubase);
+    stream->bentries = stream->lvi +1;
+    g_free(stream->bpl);
+    stream->bpl = g_new(BDLEntry, stream->bentries);
+    for (i = 0; i < stream->bentries; i++, addr += 16) {
+        pci_dma_read(&pci, addr, buf, 16);
+        stream->bpl[i].addr  = le64_to_cpu(*(uint64_t *)buf);
+        stream->bpl[i].len   = le32_to_cpu(*(uint32_t *)(buf + 8));
+        stream->bpl[i].flags = le32_to_cpu(*(uint32_t *)(buf + 12));
+        dprint(this, 1, "bdl/%d: 0x%" PRIx64 " +0x%x, 0x%x\n",
+               i, stream->bpl[i].addr, stream->bpl[i].len, stream->bpl[i].flags);
     }
 
-    st->bsize = st->cbl;
-    st->lpib  = 0;
-    st->be    = 0;
-    st->bp    = 0;
+    stream->bsize = stream->cbl;
+    stream->lpib  = 0;
+    stream->be    = 0;
+    stream->bp    = 0;
 }
 
-static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool running, bool output)
+void IntelHDAState::notifyCodecs(uint32_t stream, bool running, bool output)
 {
     BusChild *kid;
     HDACodecDevice *cdev;
 
-    QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &codecs.qbus.children, sibling) {
         DeviceState *qdev = kid->child;
         HDACodecDeviceClass *cdc;
 
@@ -528,17 +541,17 @@ static void intel_hda_set_g_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32
 
 static void intel_hda_set_wake_en(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
-    intel_hda_update_irq(d);
+    d->updateIrq();
 }
 
 static void intel_hda_set_state_sts(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
-    intel_hda_update_irq(d);
+    d->updateIrq();
 }
 
 static void intel_hda_set_int_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
-    intel_hda_update_irq(d);
+    d->updateIrq();
 }
 
 static void intel_hda_get_wall_clk(IntelHDAState *d, const IntelHDAReg *reg)
@@ -551,12 +564,12 @@ static void intel_hda_get_wall_clk(IntelHDAState *d, const IntelHDAReg *reg)
 
 static void intel_hda_set_corb_wp(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
-    intel_hda_corb_run(d);
+    d->corbRun();
 }
 
 static void intel_hda_set_corb_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
-    intel_hda_corb_run(d);
+    d->corbRun();
 }
 
 static void intel_hda_set_rirb_wp(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
@@ -568,19 +581,19 @@ static void intel_hda_set_rirb_wp(IntelHDAState *d, const IntelHDAReg *reg, uint
 
 static void intel_hda_set_rirb_sts(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
-    intel_hda_update_irq(d);
+    d->updateIrq();
 
     if ((old & ICH6_RBSTS_IRQ) && !(d->rirb_sts & ICH6_RBSTS_IRQ)) {
         /* cleared ICH6_RBSTS_IRQ */
         d->rirb_count = 0;
-        intel_hda_corb_run(d);
+        d->corbRun();
     }
 }
 
 static void intel_hda_set_ics(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
     if (d->ics & ICH6_IRS_BUSY) {
-        intel_hda_corb_run(d);
+        d->corbRun();
     }
 }
 
@@ -601,15 +614,15 @@ static void intel_hda_set_st_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint3
             /* start */
             dprint(d, 1, "st #%d: start %d (ring buf %d bytes)\n",
                    reg->stream, stnr, st->cbl);
-            intel_hda_parse_bdl(d, st);
-            intel_hda_notify_codecs(d, stnr, true, output);
+            d->parseBdl(st);
+            d->notifyCodecs(stnr, true, output);
         } else {
             /* stop */
             dprint(d, 1, "st #%d: stop %d\n", reg->stream, stnr);
-            intel_hda_notify_codecs(d, stnr, false, output);
+            d->notifyCodecs(stnr, false, output);
         }
     }
-    intel_hda_update_irq(d);
+    d->updateIrq();
 }
 
 /* --------------------------------------------------------------------- */
@@ -802,7 +815,7 @@ static void __attribute__((constructor)) init_regtab(void)
     HDA_STREAM_INIT("OUT", 7);
 }
 
-static const IntelHDAReg *intel_hda_reg_find(IntelHDAState *d, hwaddr addr)
+const IntelHDAReg *IntelHDAState::regFind(hwaddr addr)
 {
     const IntelHDAReg *reg;
 
@@ -816,20 +829,20 @@ static const IntelHDAReg *intel_hda_reg_find(IntelHDAState *d, hwaddr addr)
     return reg;
 
 noreg:
-    dprint(d, 1, "unknown register, addr 0x%x\n", (int) addr);
+    dprint(this, 1, "unknown register, addr 0x%x\n", (int) addr);
     return NULL;
 }
 
-static uint32_t *intel_hda_reg_addr(IntelHDAState *d, const IntelHDAReg *reg)
+uint32_t *IntelHDAState::regAddr(const IntelHDAReg *reg)
 {
-    uint8_t *addr = reinterpret_cast<uint8_t *>(d);
+    uint8_t *addr = reinterpret_cast<uint8_t *>(this);
 
     addr += reg->offset;
     return (uint32_t*)addr;
 }
 
-static void intel_hda_reg_write(IntelHDAState *d, const IntelHDAReg *reg, uint32_t val,
-                                uint32_t wmask)
+void IntelHDAState::regWrite(const IntelHDAReg *reg, uint32_t val,
+                             uint32_t wmask)
 {
     uint32_t *addr;
     uint32_t old;
@@ -843,30 +856,30 @@ static void intel_hda_reg_write(IntelHDAState *d, const IntelHDAReg *reg, uint32
         return;
     }
 
-    if (d->debug) {
+    if (debug) {
         time_t now = time(NULL);
-        if (d->last_write && d->last_reg == reg && d->last_val == val) {
-            d->repeat_count++;
-            if (d->last_sec != now) {
-                dprint(d, 2, "previous register op repeated %d times\n", d->repeat_count);
-                d->last_sec = now;
-                d->repeat_count = 0;
+        if (last_write && last_reg == reg && last_val == val) {
+            repeat_count++;
+            if (last_sec != now) {
+                dprint(this, 2, "previous register op repeated %d times\n", repeat_count);
+                last_sec = now;
+                repeat_count = 0;
             }
         } else {
-            if (d->repeat_count) {
-                dprint(d, 2, "previous register op repeated %d times\n", d->repeat_count);
+            if (repeat_count) {
+                dprint(this, 2, "previous register op repeated %d times\n", repeat_count);
             }
-            dprint(d, 2, "write %-16s: 0x%x (%x)\n", reg->name, val, wmask);
-            d->last_write = 1;
-            d->last_reg   = reg;
-            d->last_val   = val;
-            d->last_sec   = now;
-            d->repeat_count = 0;
+            dprint(this, 2, "write %-16s: 0x%x (%x)\n", reg->name, val, wmask);
+            last_write = 1;
+            last_reg   = reg;
+            last_val   = val;
+            last_sec   = now;
+            repeat_count = 0;
         }
     }
     assert(reg->offset != 0);
 
-    addr = intel_hda_reg_addr(d, reg);
+    addr = regAddr(reg);
     old = *addr;
 
     if (reg->shift) {
@@ -879,12 +892,12 @@ static void intel_hda_reg_write(IntelHDAState *d, const IntelHDAReg *reg, uint32
     *addr &= ~(val & reg->wclear);
 
     if (reg->whandler) {
-        reg->whandler(d, reg, old);
+        reg->whandler(this, reg, old);
     }
 }
 
-static uint32_t intel_hda_reg_read(IntelHDAState *d, const IntelHDAReg *reg,
-                                   uint32_t rmask)
+uint32_t IntelHDAState::regRead(const IntelHDAReg *reg,
+                                uint32_t rmask)
 {
     uint32_t *addr, ret;
 
@@ -893,45 +906,45 @@ static uint32_t intel_hda_reg_read(IntelHDAState *d, const IntelHDAReg *reg,
     }
 
     if (reg->rhandler) {
-        reg->rhandler(d, reg);
+        reg->rhandler(this, reg);
     }
 
     if (reg->offset == 0) {
         /* constant read-only register */
         ret = reg->reset;
     } else {
-        addr = intel_hda_reg_addr(d, reg);
+        addr = regAddr(reg);
         ret = *addr;
         if (reg->shift) {
             ret >>= reg->shift;
         }
         ret &= rmask;
     }
-    if (d->debug) {
+    if (debug) {
         time_t now = time(NULL);
-        if (!d->last_write && d->last_reg == reg && d->last_val == ret) {
-            d->repeat_count++;
-            if (d->last_sec != now) {
-                dprint(d, 2, "previous register op repeated %d times\n", d->repeat_count);
-                d->last_sec = now;
-                d->repeat_count = 0;
+        if (!last_write && last_reg == reg && last_val == ret) {
+            repeat_count++;
+            if (last_sec != now) {
+                dprint(this, 2, "previous register op repeated %d times\n", repeat_count);
+                last_sec = now;
+                repeat_count = 0;
             }
         } else {
-            if (d->repeat_count) {
-                dprint(d, 2, "previous register op repeated %d times\n", d->repeat_count);
+            if (repeat_count) {
+                dprint(this, 2, "previous register op repeated %d times\n", repeat_count);
             }
-            dprint(d, 2, "read  %-16s: 0x%x (%x)\n", reg->name, ret, rmask);
-            d->last_write = 0;
-            d->last_reg   = reg;
-            d->last_val   = ret;
-            d->last_sec   = now;
-            d->repeat_count = 0;
+            dprint(this, 2, "read  %-16s: 0x%x (%x)\n", reg->name, ret, rmask);
+            last_write = 0;
+            last_reg   = reg;
+            last_val   = ret;
+            last_sec   = now;
+            repeat_count = 0;
         }
     }
     return ret;
 }
 
-static void intel_hda_regs_reset(IntelHDAState *d)
+void IntelHDAState::regsReset()
 {
     uint32_t *addr;
     int i;
@@ -943,7 +956,7 @@ static void intel_hda_regs_reset(IntelHDAState *d)
         if (regtab[i].offset == 0) {
             continue;
         }
-        addr = intel_hda_reg_addr(d, regtab + i);
+        addr = regAddr(regtab + i);
         *addr = regtab[i].reset;
     }
 }
@@ -954,17 +967,17 @@ static void intel_hda_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                                  unsigned size)
 {
     IntelHDAState *d = static_cast<IntelHDAState *>(opaque);
-    const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
+    const IntelHDAReg *reg = d->regFind(addr);
 
-    intel_hda_reg_write(d, reg, val, MAKE_64BIT_MASK(0, size * 8));
+    d->regWrite(reg, val, MAKE_64BIT_MASK(0, size * 8));
 }
 
 static uint64_t intel_hda_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     IntelHDAState *d = static_cast<IntelHDAState *>(opaque);
-    const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
+    const IntelHDAReg *reg = d->regFind(addr);
 
-    return intel_hda_reg_read(d, reg, MAKE_64BIT_MASK(0, size * 8));
+    return d->regRead(reg, MAKE_64BIT_MASK(0, size * 8));
 }
 
 static const MemoryRegionOps intel_hda_mmio_ops = {
@@ -990,7 +1003,7 @@ void IntelHDAState::reset()
     BusChild *kid;
     HDACodecDevice *cdev;
 
-    intel_hda_regs_reset(this);
+    regsReset();
     wall_base_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     QTAILQ_FOREACH(kid, &codecs.qbus.children, sibling) {
@@ -998,7 +1011,7 @@ void IntelHDAState::reset()
         cdev = HDA_CODEC_DEVICE(qdev);
         state_sts |= (1 << cdev->cad);
     }
-    intel_hda_update_irq(this);
+    updateIrq();
 }
 
 void IntelHDAState::realizeWrapper(PCIDevice *pci_dev, Error **errp)
@@ -1067,10 +1080,10 @@ static int intel_hda_post_load(void *opaque, int version)
     dprint(d, 1, "%s\n", __func__);
     for (i = 0; i < ARRAY_SIZE(d->st); i++) {
         if (d->st[i].ctl & 0x02) {
-            intel_hda_parse_bdl(d, &d->st[i]);
+            d->parseBdl(&d->st[i]);
         }
     }
-    intel_hda_update_irq(d);
+    d->updateIrq();
     return 0;
 }
 

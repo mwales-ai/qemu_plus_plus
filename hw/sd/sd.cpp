@@ -216,6 +216,54 @@ struct SDState {
     static void sdClassInit(ObjectClass *klass, const void *data);
     static void sdSpiClassInit(ObjectClass *klass, const void *data);
     static void emmcClassInit(ObjectClass *klass, const void *data);
+
+    /* Internal helpers */
+    bool isSpi();
+    bool isEmmc();
+    enum SDCardModes getMode();
+    void setOcr();
+    void setScr();
+    void emmcSetExtCsd(uint64_t size);
+    void setRca(uint16_t value);
+    uint16_t reqGetRca(SDRequest req);
+    bool reqRcaSame(SDRequest req);
+    void setCardstatus();
+    void setSdstatus();
+    size_t responseSize(sd_rsp_type_t rtype);
+    void responseR1Make(uint8_t *response);
+    void spiResponseR2Make(uint8_t *resp);
+    void responseR3Make(uint8_t *response);
+    void responseR6Make(uint8_t *response);
+    void responseR7Make(uint8_t *response);
+    uint32_t getBlkLen();
+    uint32_t getPartOffset();
+    uint64_t reqGetAddress(SDRequest req);
+    void blkRead(uint64_t addr, uint32_t len);
+    void blkWrite(uint64_t addr, uint32_t len);
+    bool rpmbCalcHmac(const RPMBDataFrame *frame,
+                      unsigned int num_blocks, uint8_t *mac);
+    void emmcRpmbBlkRead(uint64_t addr, uint32_t len);
+    void emmcRpmbBlkWrite(uint64_t addr, uint32_t len);
+    void doErase();
+    uint32_t getWpbits(uint64_t addr);
+    void emmcFunctionSwitch(uint32_t arg);
+    void sdFunctionSwitch(uint32_t arg);
+    bool wpAddr(uint64_t addr);
+    void lockCommand();
+    bool addressInRange(const char *desc, uint64_t addr, uint32_t length);
+    sd_rsp_type_t invalidStateForCmd(SDRequest req);
+    sd_rsp_type_t invalidModeForCmd(SDRequest req);
+    sd_rsp_type_t cmdToReceivingdata(SDRequest req,
+                                     uint64_t start, size_t size);
+    sd_rsp_type_t cmdToSendingdata(SDRequest req, uint64_t start,
+                                   const void *data, size_t size);
+    sd_rsp_type_t normalCommand(SDRequest req);
+    sd_rsp_type_t appCommand(SDRequest req);
+    bool cmdValidWhileLocked(unsigned cmd);
+    bool genericWriteByte(uint8_t value);
+    bool genericReadByte(uint8_t *value);
+    void blkSizeError(int64_t blk_size, int64_t blk_size_aligned,
+                      const char *rule, Error **errp);
 };
 
 /* Forward declaration - see SDState::sdRealize below */
@@ -224,14 +272,14 @@ static SDProto sd_proto_spi;
 static SDProto sd_proto_emmc;
 static SDProto sd_proto_sd;
 
-static bool sd_is_spi(SDState *sd)
+bool SDState::isSpi()
 {
-    return sd->proto == &sd_proto_spi;
+    return proto == &sd_proto_spi;
 }
 
-static bool sd_is_emmc(SDState *sd)
+bool SDState::isEmmc()
 {
-    return sd->proto == &sd_proto_emmc;
+    return proto == &sd_proto_emmc;
 }
 
 static const char *sd_version_str(enum SDPhySpecificationVersion version)
@@ -351,9 +399,9 @@ static void sd_set_voltage(SDState *sd, uint16_t millivolts)
     }
 }
 
-static enum SDCardModes sd_mode(SDState *sd)
+enum SDCardModes SDState::getMode()
 {
-    switch (sd->state) {
+    switch (state) {
     case sd_inactive_state:
         return sd_inactive;
     case sd_idle_state:
@@ -423,40 +471,40 @@ static void sd_ocr_powerup(void *opaque)
     }
 }
 
-static void sd_set_ocr(SDState *sd)
+void SDState::setOcr()
 {
     /* All voltages OK */
-    sd->ocr = R_OCR_VDD_VOLTAGE_WIN_HI_MASK;
+    ocr = R_OCR_VDD_VOLTAGE_WIN_HI_MASK;
 
-    if (sd_is_spi(sd)) {
+    if (isSpi()) {
         /*
          * We don't need to emulate power up sequence in SPI-mode.
          * Thus, the card's power up status bit should be set to 1 when reset.
          * The card's capacity status bit should also be set if SD card size
          * is larger than 2GB for SDHC support.
          */
-        sd_ocr_powerup(sd);
+        sd_ocr_powerup(this);
     }
 }
 
 /* SD Configuration register */
 
-static void sd_set_scr(SDState *sd)
+void SDState::setScr()
 {
-    sd->scr[0] = 0 << 4;        /* SCR structure version 1.0 */
-    sd->scr[0] |= 2;            /* Spec Version 2.00 or Version 3.0X */
-    sd->scr[1] = (2 << 4)       /* SDSC Card (Security Version 1.01) */
+    scr[0] = 0 << 4;        /* SCR structure version 1.0 */
+    scr[0] |= 2;            /* Spec Version 2.00 or Version 3.0X */
+    scr[1] = (2 << 4)       /* SDSC Card (Security Version 1.01) */
                  | 0b0101;      /* 1-bit or 4-bit width bus modes */
-    sd->scr[2] = 0x00;          /* Extended Security is not supported. */
-    if (sd->spec_version >= SD_PHY_SPECv3_01_VERS) {
-        sd->scr[2] |= 1 << 7;   /* Spec Version 3.0X */
+    scr[2] = 0x00;          /* Extended Security is not supported. */
+    if (spec_version >= SD_PHY_SPECv3_01_VERS) {
+        scr[2] |= 1 << 7;   /* Spec Version 3.0X */
     }
-    sd->scr[3] = 0x00;
+    scr[3] = 0x00;
     /* reserved for manufacturer usage */
-    sd->scr[4] = 0x00;
-    sd->scr[5] = 0x00;
-    sd->scr[6] = 0x00;
-    sd->scr[7] = 0x00;
+    scr[4] = 0x00;
+    scr[5] = 0x00;
+    scr[6] = 0x00;
+    scr[7] = 0x00;
 }
 
 /* Card IDentification register */
@@ -516,40 +564,40 @@ static const uint8_t sd_csd_rw_mask[16] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfc, 0xfe,
 };
 
-static void emmc_set_ext_csd(SDState *sd, uint64_t size)
+void SDState::emmcSetExtCsd(uint64_t size)
 {
     uint32_t sectcount = size >> HWBLOCK_SHIFT;
 
-    memset(sd->ext_csd, 0, sizeof(sd->ext_csd)); /* FIXME only RW at reset */
+    memset(ext_csd, 0, sizeof(ext_csd)); /* FIXME only RW at reset */
 
     /* Properties segment (RO) */
-    sd->ext_csd[EXT_CSD_S_CMD_SET] = 0b1; /* supported command sets */
-    sd->ext_csd[EXT_CSD_BOOT_INFO] = 0x0; /* Boot information */
+    ext_csd[EXT_CSD_S_CMD_SET] = 0b1; /* supported command sets */
+    ext_csd[EXT_CSD_BOOT_INFO] = 0x0; /* Boot information */
                                      /* Boot partition size. 128KB unit */
-    sd->ext_csd[EXT_CSD_BOOT_MULT] = sd->boot_part_size / (128 * KiB);
-    sd->ext_csd[EXT_CSD_ACC_SIZE] = 0x1; /* Access size */
-    sd->ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] = 0x01; /* HC Erase unit size */
-    sd->ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] = 0x01; /* HC erase timeout */
-    sd->ext_csd[EXT_CSD_REL_WR_SEC_C] = 0x1; /* Reliable write sector count */
-    sd->ext_csd[EXT_CSD_HC_WP_GRP_SIZE] = 0x01; /* HC write protect group size */
-    sd->ext_csd[EXT_CSD_S_C_VCC] = 0x01; /* Sleep current VCC  */
-    sd->ext_csd[EXT_CSD_S_C_VCCQ] = 0x01; /* Sleep current VCCQ */
-    sd->ext_csd[EXT_CSD_S_A_TIMEOUT] = 0x01; /* Sleep/Awake timeout */
-    stl_le_p(&sd->ext_csd[EXT_CSD_SEC_CNT], sectcount); /* Sector count */
-    sd->ext_csd[210] = 0x46; /* Min write perf for 8bit@52Mhz */
-    sd->ext_csd[209] = 0x46; /* Min read perf for 8bit@52Mhz  */
-    sd->ext_csd[208] = 0x46; /* Min write perf for 4bit@52Mhz */
-    sd->ext_csd[207] = 0x46; /* Min read perf for 4bit@52Mhz */
-    sd->ext_csd[206] = 0x46; /* Min write perf for 4bit@26Mhz */
-    sd->ext_csd[205] = 0x46; /* Min read perf for 4bit@26Mhz */
-    sd->ext_csd[EXT_CSD_CARD_TYPE] = 0b11;
-    sd->ext_csd[EXT_CSD_STRUCTURE] = 2;
-    sd->ext_csd[EXT_CSD_REV] = 5;
-    sd->ext_csd[EXT_CSD_RPMB_MULT] = sd->rpmb_part_size / (128 * KiB);
-    sd->ext_csd[EXT_CSD_PARTITION_SUPPORT] = 0b111;
+    ext_csd[EXT_CSD_BOOT_MULT] = boot_part_size / (128 * KiB);
+    ext_csd[EXT_CSD_ACC_SIZE] = 0x1; /* Access size */
+    ext_csd[EXT_CSD_HC_ERASE_GRP_SIZE] = 0x01; /* HC Erase unit size */
+    ext_csd[EXT_CSD_ERASE_TIMEOUT_MULT] = 0x01; /* HC erase timeout */
+    ext_csd[EXT_CSD_REL_WR_SEC_C] = 0x1; /* Reliable write sector count */
+    ext_csd[EXT_CSD_HC_WP_GRP_SIZE] = 0x01; /* HC write protect group size */
+    ext_csd[EXT_CSD_S_C_VCC] = 0x01; /* Sleep current VCC  */
+    ext_csd[EXT_CSD_S_C_VCCQ] = 0x01; /* Sleep current VCCQ */
+    ext_csd[EXT_CSD_S_A_TIMEOUT] = 0x01; /* Sleep/Awake timeout */
+    stl_le_p(&ext_csd[EXT_CSD_SEC_CNT], sectcount); /* Sector count */
+    ext_csd[210] = 0x46; /* Min write perf for 8bit@52Mhz */
+    ext_csd[209] = 0x46; /* Min read perf for 8bit@52Mhz  */
+    ext_csd[208] = 0x46; /* Min write perf for 4bit@52Mhz */
+    ext_csd[207] = 0x46; /* Min read perf for 4bit@52Mhz */
+    ext_csd[206] = 0x46; /* Min write perf for 4bit@26Mhz */
+    ext_csd[205] = 0x46; /* Min read perf for 4bit@26Mhz */
+    ext_csd[EXT_CSD_CARD_TYPE] = 0b11;
+    ext_csd[EXT_CSD_STRUCTURE] = 2;
+    ext_csd[EXT_CSD_REV] = 5;
+    ext_csd[EXT_CSD_RPMB_MULT] = rpmb_part_size / (128 * KiB);
+    ext_csd[EXT_CSD_PARTITION_SUPPORT] = 0b111;
 
     /* Mode segment (RW) */
-    sd->ext_csd[EXT_CSD_PART_CONFIG] = sd->boot_config;
+    ext_csd[EXT_CSD_PART_CONFIG] = boot_config;
 }
 
 static void emmc_set_csd(SDState *sd, uint64_t size)
@@ -588,7 +636,7 @@ static void emmc_set_csd(SDState *sd, uint64_t size)
         ((hwblock_shift << 6) & 0xc0);
     sd->csd[14] = 0x00;
     sd->csd[15] = (sd_crc7(sd->csd, 15) << 1) | 1;
-    emmc_set_ext_csd(sd, size);
+    sd->emmcSetExtCsd(size);
 }
 
 static void sd_set_csd(SDState *sd, uint64_t size)
@@ -651,15 +699,15 @@ static void sd_set_csd(SDState *sd, uint64_t size)
 
 /* Relative Card Address register */
 
-static void sd_set_rca(SDState *sd, uint16_t value)
+void SDState::setRca(uint16_t value)
 {
     trace_sdcard_set_rca(value);
-    sd->rca = value;
+    rca = value;
 }
 
-static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
+uint16_t SDState::reqGetRca(SDRequest req)
 {
-    switch (s->proto->cmd[req.cmd].type) {
+    switch (proto->cmd[req.cmd].type) {
     case sd_ac:
     case sd_adtc:
         return req.arg >> 16;
@@ -669,9 +717,9 @@ static uint16_t sd_req_get_rca(SDState *s, SDRequest req)
     }
 }
 
-static bool sd_req_rca_same(SDState *s, SDRequest req)
+bool SDState::reqRcaSame(SDRequest req)
 {
-    return sd_req_get_rca(s, req) == s->rca;
+    return reqGetRca(req) == rca;
 }
 
 /* Card Status register */
@@ -728,14 +776,14 @@ FIELD(CSR, OUT_OF_RANGE,               31,  1)
                                | R_CSR_ADDRESS_ERROR_MASK \
                                | R_CSR_OUT_OF_RANGE_MASK)
 
-static void sd_set_cardstatus(SDState *sd)
+void SDState::setCardstatus()
 {
-    sd->card_status = READY_FOR_DATA;
+    card_status = READY_FOR_DATA;
 }
 
-static void sd_set_sdstatus(SDState *sd)
+void SDState::setSdstatus()
 {
-    memset(sd->sd_status, 0, 64);
+    memset(sd_status, 0, 64);
 }
 
 static const uint8_t sd_tuning_block_pattern4[64] = {
@@ -762,112 +810,112 @@ static int sd_req_crc_validate(SDRequest *req)
     return sd_crc7(buffer, 5) != req->crc;  /* TODO */
 }
 
-static size_t sd_response_size(SDState *sd, sd_rsp_type_t rtype)
+size_t SDState::responseSize(sd_rsp_type_t rtype)
 {
     switch (rtype) {
     case sd_r1:
     case sd_r1b:
-        return sd_is_spi(sd) ? 1 : 4;
+        return isSpi() ? 1 : 4;
 
     case spi_r2:
-        assert(sd_is_spi(sd));
+        assert(isSpi());
         return 2;
 
     case sd_r2_i:
     case sd_r2_s:
-        assert(!sd_is_spi(sd));
+        assert(!isSpi());
         return 16;
 
     case sd_r3:
     case sd_r7:
-        return sd_is_spi(sd) ? 5 : 4;
+        return isSpi() ? 5 : 4;
 
     case sd_r6:
-        assert(!sd_is_spi(sd));
+        assert(!isSpi());
         return 4;
 
     case sd_r0:
     case sd_illegal:
-        return sd_is_spi(sd) ? 1 : 0;
+        return isSpi() ? 1 : 0;
 
     default:
         g_assert_not_reached();
     }
 }
 
-static void sd_response_r1_make(SDState *sd, uint8_t *response)
+void SDState::responseR1Make(uint8_t *response)
 {
-    if (sd_is_spi(sd)) {
-        response[0] = sd->state == sd_idle_state;
-        response[0] |= FIELD_EX32(sd->card_status, CSR, ERASE_RESET) << 1;
-        response[0] |= FIELD_EX32(sd->card_status, CSR, ILLEGAL_COMMAND) << 2;
-        response[0] |= FIELD_EX32(sd->card_status, CSR, COM_CRC_ERROR) << 3;
-        response[0] |= FIELD_EX32(sd->card_status, CSR, ERASE_SEQ_ERROR) << 4;
-        response[0] |= FIELD_EX32(sd->card_status, CSR, ADDRESS_ERROR) << 5;
-        response[0] |= FIELD_EX32(sd->card_status, CSR, BLOCK_LEN_ERROR) << 6;
+    if (isSpi()) {
+        response[0] = state == sd_idle_state;
+        response[0] |= FIELD_EX32(card_status, CSR, ERASE_RESET) << 1;
+        response[0] |= FIELD_EX32(card_status, CSR, ILLEGAL_COMMAND) << 2;
+        response[0] |= FIELD_EX32(card_status, CSR, COM_CRC_ERROR) << 3;
+        response[0] |= FIELD_EX32(card_status, CSR, ERASE_SEQ_ERROR) << 4;
+        response[0] |= FIELD_EX32(card_status, CSR, ADDRESS_ERROR) << 5;
+        response[0] |= FIELD_EX32(card_status, CSR, BLOCK_LEN_ERROR) << 6;
         response[0] |= 0 << 7;
     } else {
-        stl_be_p(response, sd->card_status);
+        stl_be_p(response, card_status);
     }
 
     /* Clear the "clear on read" status bits */
-    sd->card_status &= ~CARD_STATUS_C;
+    card_status &= ~CARD_STATUS_C;
 }
 
-static void spi_response_r2_make(SDState *sd, uint8_t *resp)
+void SDState::spiResponseR2Make(uint8_t *resp)
 {
     /* Prepend R1 */
-    sd_response_r1_make(sd, resp);
+    responseR1Make(resp);
 
-    resp[1]  = FIELD_EX32(sd->card_status, CSR, CARD_IS_LOCKED) << 0;
-    resp[1] |= (FIELD_EX32(sd->card_status, CSR, LOCK_UNLOCK_FAILED)
-                || FIELD_EX32(sd->card_status, CSR, WP_ERASE_SKIP)) << 1;
-    resp[1] |= FIELD_EX32(sd->card_status, CSR, ERROR) << 2;
-    resp[1] |= FIELD_EX32(sd->card_status, CSR, CC_ERROR) << 3;
-    resp[1] |= FIELD_EX32(sd->card_status, CSR, CARD_ECC_FAILED) << 4;
-    resp[1] |= FIELD_EX32(sd->card_status, CSR, WP_VIOLATION) << 5;
-    resp[1] |= FIELD_EX32(sd->card_status, CSR, ERASE_PARAM) << 6;
-    resp[1] |= FIELD_EX32(sd->card_status, CSR, OUT_OF_RANGE) << 7;
+    resp[1]  = FIELD_EX32(card_status, CSR, CARD_IS_LOCKED) << 0;
+    resp[1] |= (FIELD_EX32(card_status, CSR, LOCK_UNLOCK_FAILED)
+                || FIELD_EX32(card_status, CSR, WP_ERASE_SKIP)) << 1;
+    resp[1] |= FIELD_EX32(card_status, CSR, ERROR) << 2;
+    resp[1] |= FIELD_EX32(card_status, CSR, CC_ERROR) << 3;
+    resp[1] |= FIELD_EX32(card_status, CSR, CARD_ECC_FAILED) << 4;
+    resp[1] |= FIELD_EX32(card_status, CSR, WP_VIOLATION) << 5;
+    resp[1] |= FIELD_EX32(card_status, CSR, ERASE_PARAM) << 6;
+    resp[1] |= FIELD_EX32(card_status, CSR, OUT_OF_RANGE) << 7;
 }
 
-static void sd_response_r3_make(SDState *sd, uint8_t *response)
+void SDState::responseR3Make(uint8_t *response)
 {
-    if (sd_is_spi(sd)) {
+    if (isSpi()) {
         /* Prepend R1 */
-        sd_response_r1_make(sd, response);
+        responseR1Make(response);
         response++;
     }
-    stl_be_p(response, sd->ocr & ACMD41_R3_MASK);
+    stl_be_p(response, ocr & ACMD41_R3_MASK);
 }
 
-static void sd_response_r6_make(SDState *sd, uint8_t *response)
+void SDState::responseR6Make(uint8_t *response)
 {
     uint16_t status;
 
-    status = ((sd->card_status >> 8) & 0xc000) |
-             ((sd->card_status >> 6) & 0x2000) |
-              (sd->card_status & 0x1fff);
-    sd->card_status &= ~(CARD_STATUS_C & 0xc81fff);
-    stw_be_p(response + 0, sd->rca);
+    status = ((card_status >> 8) & 0xc000) |
+             ((card_status >> 6) & 0x2000) |
+              (card_status & 0x1fff);
+    card_status &= ~(CARD_STATUS_C & 0xc81fff);
+    stw_be_p(response + 0, rca);
     stw_be_p(response + 2, status);
 }
 
-static void sd_response_r7_make(SDState *sd, uint8_t *response)
+void SDState::responseR7Make(uint8_t *response)
 {
-    if (sd_is_spi(sd)) {
+    if (isSpi()) {
         /* Prepend R1 */
-        sd_response_r1_make(sd, response);
+        responseR1Make(response);
         response++;
     }
-    stl_be_p(response, sd->vhs);
+    stl_be_p(response, vhs);
 }
 
-static uint32_t sd_blk_len(SDState *sd)
+uint32_t SDState::getBlkLen()
 {
-    if (FIELD_EX32(sd->ocr, OCR, CARD_CAPACITY)) {
+    if (FIELD_EX32(ocr, OCR, CARD_CAPACITY)) {
         return 1 << HWBLOCK_SHIFT;
     }
-    return sd->blk_len;
+    return blk_len;
 }
 
 /*
@@ -876,35 +924,35 @@ static uint32_t sd_blk_len(SDState *sd)
  * partitions is the "boot-partition-size" property, the one of the RPMB
  * partition is 'rpmb-partition-size'.
  */
-static uint32_t sd_part_offset(SDState *sd)
+uint32_t SDState::getPartOffset()
 {
     unsigned partition_access;
 
-    if (!sd_is_emmc(sd)) {
+    if (!isEmmc()) {
         return 0;
     }
 
-    partition_access = sd->ext_csd[EXT_CSD_PART_CONFIG]
+    partition_access = ext_csd[EXT_CSD_PART_CONFIG]
                                  & EXT_CSD_PART_CONFIG_ACC_MASK;
     switch (partition_access) {
     case EXT_CSD_PART_CONFIG_ACC_DEFAULT:
-        return sd->boot_part_size * 2 + sd->rpmb_part_size;
+        return boot_part_size * 2 + rpmb_part_size;
     case EXT_CSD_PART_CONFIG_ACC_BOOT1:
         return 0;
     case EXT_CSD_PART_CONFIG_ACC_BOOT2:
-        return sd->boot_part_size * 1;
+        return boot_part_size * 1;
     case EXT_CSD_PART_CONFIG_ACC_RPMB:
-        return sd->boot_part_size * 2;
+        return boot_part_size * 2;
     default:
          g_assert_not_reached();
     }
 }
 
-static uint64_t sd_req_get_address(SDState *sd, SDRequest req)
+uint64_t SDState::reqGetAddress(SDRequest req)
 {
     uint64_t addr;
 
-    if (FIELD_EX32(sd->ocr, OCR, CARD_CAPACITY)) {
+    if (FIELD_EX32(ocr, OCR, CARD_CAPACITY)) {
         addr = (uint64_t) req.arg << HWBLOCK_SHIFT;
     } else {
         addr = req.arg;
@@ -932,7 +980,7 @@ void SDState::sdReset(DeviceState *dev)
         sect = 0;
     }
     size = sect << HWBLOCK_SHIFT;
-    if (sd_is_emmc(sd)) {
+    if (sd->isEmmc()) {
         size -= sd->boot_part_size * 2 + sd->rpmb_part_size;
     }
 
@@ -941,14 +989,14 @@ void SDState::sdReset(DeviceState *dev)
     sd->state = sd_idle_state;
 
     /* card registers */
-    sd->rca = sd_is_emmc(sd) ? 0x0001 : 0x0000;
+    sd->rca = sd->isEmmc() ? 0x0001 : 0x0000;
     sd->size = size;
-    sd_set_ocr(sd);
-    sd_set_scr(sd);
+    sd->setOcr();
+    sd->setScr();
     sc->set_cid(sd);
     sc->set_csd(sd, size);
-    sd_set_cardstatus(sd);
-    sd_set_sdstatus(sd);
+    sd->setCardstatus();
+    sd->setSdstatus();
 
     g_free(sd->wp_group_bmap);
     sd->wp_switch = sd->blk ? !blk_is_writable(sd->blk) : false;
@@ -1057,7 +1105,7 @@ static bool vmstate_needed_for_emmc(void *opaque)
 {
     SDState *sd = static_cast<SDState *>(opaque);
 
-    return sd_is_emmc(sd);
+    return sd->isEmmc();
 }
 
 static const VMStateField emmc_extcsd_vmstate_fields[] = {
@@ -1130,25 +1178,25 @@ static const VMStateDescription sd_vmstate = {
     .subsections = sd_vmstate_subsections,
 };
 
-static void sd_blk_read(SDState *sd, uint64_t addr, uint32_t len)
+void SDState::blkRead(uint64_t addr, uint32_t len)
 {
     trace_sdcard_read_block(addr, len);
-    addr += sd_part_offset(sd);
-    if (!sd->blk || blk_pread(sd->blk, addr, len, sd->data, static_cast<BdrvRequestFlags>(0)) < 0) {
+    addr += getPartOffset();
+    if (!blk || blk_pread(blk, addr, len, data, static_cast<BdrvRequestFlags>(0)) < 0) {
         fprintf(stderr, "sd_blk_read: read error on host side\n");
     }
 }
 
-static void sd_blk_write(SDState *sd, uint64_t addr, uint32_t len)
+void SDState::blkWrite(uint64_t addr, uint32_t len)
 {
     trace_sdcard_write_block(addr, len);
-    addr += sd_part_offset(sd);
-    if (!sd->blk || blk_pwrite(sd->blk, addr, len, sd->data, static_cast<BdrvRequestFlags>(0)) < 0) {
+    addr += getPartOffset();
+    if (!blk || blk_pwrite(blk, addr, len, data, static_cast<BdrvRequestFlags>(0)) < 0) {
         fprintf(stderr, "sd_blk_write: write error on host side\n");
     }
 }
 
-static bool rpmb_calc_hmac(SDState *sd, const RPMBDataFrame *frame,
+bool SDState::rpmbCalcHmac(const RPMBDataFrame *frame,
                            unsigned int num_blocks, uint8_t *mac)
 {
     g_autoptr(QCryptoHmac) hmac = NULL;
@@ -1157,7 +1205,7 @@ static bool rpmb_calc_hmac(SDState *sd, const RPMBDataFrame *frame,
     Error *err = NULL;
     uint64_t offset;
 
-    hmac = qcrypto_hmac_new(QCRYPTO_HASH_ALGO_SHA256, sd->rpmb.key,
+    hmac = qcrypto_hmac_new(QCRYPTO_HASH_ALGO_SHA256, rpmb.key,
                             RPMB_KEY_MAC_LEN, &err);
     if (!hmac) {
         error_report_err(err);
@@ -1175,9 +1223,9 @@ static bool rpmb_calc_hmac(SDState *sd, const RPMBDataFrame *frame,
          * the HMAC in one run. To avoid buffering a complete read sequence in
          * SDState, reconstruct all frames except for the last one.
          */
-        void *buf = sd->data;
+        void *buf = data;
 
-        assert(RPMB_HASH_LEN <= sizeof(sd->data));
+        assert(RPMB_HASH_LEN <= sizeof(data));
 
         /*
          * We will hash everything from data field to the end of RPMBDataFrame.
@@ -1186,9 +1234,9 @@ static bool rpmb_calc_hmac(SDState *sd, const RPMBDataFrame *frame,
                (uint8_t *)frame + offsetof(RPMBDataFrame, nonce),
                RPMB_HASH_LEN - RPMB_DATA_LEN);
 
-        offset = lduw_be_p(&frame->address) * RPMB_DATA_LEN + sd_part_offset(sd);
+        offset = lduw_be_p(&frame->address) * RPMB_DATA_LEN + getPartOffset();
         do {
-            if (blk_pread(sd->blk, offset, RPMB_DATA_LEN, buf, static_cast<BdrvRequestFlags>(0)) < 0) {
+            if (blk_pread(blk, offset, RPMB_DATA_LEN, buf, static_cast<BdrvRequestFlags>(0)) < 0) {
                 error_report("sd_blk_read: read error on host side");
                 success = false;
                 break;
@@ -1214,51 +1262,51 @@ static bool rpmb_calc_hmac(SDState *sd, const RPMBDataFrame *frame,
     return success;
 }
 
-static void emmc_rpmb_blk_read(SDState *sd, uint64_t addr, uint32_t len)
+void SDState::emmcRpmbBlkRead(uint64_t addr, uint32_t len)
 {
-    uint16_t resp = lduw_be_p(&sd->rpmb.result.req_resp);
-    uint16_t result = lduw_be_p(&sd->rpmb.result.result);
+    uint16_t resp = lduw_be_p(&rpmb.result.req_resp);
+    uint16_t result = lduw_be_p(&rpmb.result.result);
     unsigned int curr_block = 0;
 
     if ((result & ~RPMB_RESULT_COUTER_EXPIRED) == RPMB_RESULT_OK &&
         resp == RPMB_RESP(RPMB_REQ_AUTH_DATA_READ)) {
-        curr_block = lduw_be_p(&sd->rpmb.result.address);
-        if (sd->rpmb.result.block_count == 0) {
-            stw_be_p(&sd->rpmb.result.block_count, sd->multi_blk_cnt);
+        curr_block = lduw_be_p(&rpmb.result.address);
+        if (rpmb.result.block_count == 0) {
+            stw_be_p(&rpmb.result.block_count, multi_blk_cnt);
         } else {
-            curr_block += lduw_be_p(&sd->rpmb.result.block_count);
-            curr_block -= sd->multi_blk_cnt;
+            curr_block += lduw_be_p(&rpmb.result.block_count);
+            curr_block -= multi_blk_cnt;
         }
-        addr = curr_block * RPMB_DATA_LEN + sd_part_offset(sd);
-        if (blk_pread(sd->blk, addr, RPMB_DATA_LEN,
-                      sd->rpmb.result.data, static_cast<BdrvRequestFlags>(0)) < 0) {
+        addr = curr_block * RPMB_DATA_LEN + getPartOffset();
+        if (blk_pread(blk, addr, RPMB_DATA_LEN,
+                      rpmb.result.data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_report("sd_blk_read: read error on host side");
-            memset(sd->rpmb.result.data, 0, sizeof(sd->rpmb.result.data));
-            stw_be_p(&sd->rpmb.result.result,
+            memset(rpmb.result.data, 0, sizeof(rpmb.result.data));
+            stw_be_p(&rpmb.result.result,
                      RPMB_RESULT_READ_FAILURE
                      | (result & RPMB_RESULT_COUTER_EXPIRED));
         }
-        if (sd->multi_blk_cnt == 1 &&
-            !rpmb_calc_hmac(sd, &sd->rpmb.result,
-                            lduw_be_p(&sd->rpmb.result.block_count),
-                            sd->rpmb.result.key_mac)) {
-            memset(sd->rpmb.result.data, 0, sizeof(sd->rpmb.result.data));
-            stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_AUTH_FAILURE);
+        if (multi_blk_cnt == 1 &&
+            !rpmbCalcHmac(&rpmb.result,
+                            lduw_be_p(&rpmb.result.block_count),
+                            rpmb.result.key_mac)) {
+            memset(rpmb.result.data, 0, sizeof(rpmb.result.data));
+            stw_be_p(&rpmb.result.result, RPMB_RESULT_AUTH_FAILURE);
         }
-    } else if (!rpmb_calc_hmac(sd, &sd->rpmb.result, 1,
-                               sd->rpmb.result.key_mac)) {
-        memset(sd->rpmb.result.data, 0, sizeof(sd->rpmb.result.data));
-        stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_AUTH_FAILURE);
+    } else if (!rpmbCalcHmac(&rpmb.result, 1,
+                               rpmb.result.key_mac)) {
+        memset(rpmb.result.data, 0, sizeof(rpmb.result.data));
+        stw_be_p(&rpmb.result.result, RPMB_RESULT_AUTH_FAILURE);
     }
-    memcpy(sd->data, &sd->rpmb.result, sizeof(sd->rpmb.result));
+    memcpy(data, &rpmb.result, sizeof(rpmb.result));
 
     trace_sdcard_rpmb_read_block(resp, curr_block,
-                                 lduw_be_p(&sd->rpmb.result.result));
+                                 lduw_be_p(&rpmb.result.result));
 }
 
-static void emmc_rpmb_blk_write(SDState *sd, uint64_t addr, uint32_t len)
+void SDState::emmcRpmbBlkWrite(uint64_t addr, uint32_t len)
 {
-    RPMBDataFrame *frame = (RPMBDataFrame *)sd->data;
+    RPMBDataFrame *frame = (RPMBDataFrame *)data;
     uint16_t req = lduw_be_p(&frame->req_resp);
     uint8_t mac[RPMB_KEY_MAC_LEN];
 
@@ -1266,126 +1314,126 @@ static void emmc_rpmb_blk_write(SDState *sd, uint64_t addr, uint32_t len)
         /* just return the current result register */
         goto exit;
     }
-    memset(&sd->rpmb.result, 0, sizeof(sd->rpmb.result));
-    memcpy(sd->rpmb.result.nonce, frame->nonce, sizeof(sd->rpmb.result.nonce));
-    stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_OK);
-    stw_be_p(&sd->rpmb.result.req_resp, RPMB_RESP(req));
+    memset(&rpmb.result, 0, sizeof(rpmb.result));
+    memcpy(rpmb.result.nonce, frame->nonce, sizeof(rpmb.result.nonce));
+    stw_be_p(&rpmb.result.result, RPMB_RESULT_OK);
+    stw_be_p(&rpmb.result.req_resp, RPMB_RESP(req));
 
-    if (!sd->rpmb.key_set && req != RPMB_REQ_PROGRAM_AUTH_KEY) {
-        stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_NO_AUTH_KEY);
+    if (!rpmb.key_set && req != RPMB_REQ_PROGRAM_AUTH_KEY) {
+        stw_be_p(&rpmb.result.result, RPMB_RESULT_NO_AUTH_KEY);
         goto exit;
     }
 
     switch (req) {
     case RPMB_REQ_PROGRAM_AUTH_KEY:
-        if (sd->rpmb.key_set) {
-            stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_WRITE_FAILURE);
+        if (rpmb.key_set) {
+            stw_be_p(&rpmb.result.result, RPMB_RESULT_WRITE_FAILURE);
             break;
         }
-        memcpy(sd->rpmb.key, frame->key_mac, sizeof(sd->rpmb.key));
-        sd->rpmb.key_set = 1;
+        memcpy(rpmb.key, frame->key_mac, sizeof(rpmb.key));
+        rpmb.key_set = 1;
         break;
     case RPMB_REQ_READ_WRITE_COUNTER:
-        stl_be_p(&sd->rpmb.result.write_counter, sd->rpmb.write_counter);
+        stl_be_p(&rpmb.result.write_counter, rpmb.write_counter);
         break;
     case RPMB_REQ_AUTH_DATA_WRITE:
         /* We only support single-block writes so far */
-        if (sd->multi_blk_cnt != 1) {
-            stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_GENERAL_FAILURE);
+        if (multi_blk_cnt != 1) {
+            stw_be_p(&rpmb.result.result, RPMB_RESULT_GENERAL_FAILURE);
             break;
         }
-        if (sd->rpmb.write_counter == 0xffffffff) {
-            stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_WRITE_FAILURE);
+        if (rpmb.write_counter == 0xffffffff) {
+            stw_be_p(&rpmb.result.result, RPMB_RESULT_WRITE_FAILURE);
             break;
         }
-        if (!rpmb_calc_hmac(sd, frame, 1, mac) ||
+        if (!rpmbCalcHmac(frame, 1, mac) ||
             memcmp(frame->key_mac, mac, RPMB_KEY_MAC_LEN) != 0) {
-            stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_AUTH_FAILURE);
+            stw_be_p(&rpmb.result.result, RPMB_RESULT_AUTH_FAILURE);
             break;
         }
-        if (ldl_be_p(&frame->write_counter) != sd->rpmb.write_counter) {
-            stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_COUNTER_FAILURE);
+        if (ldl_be_p(&frame->write_counter) != rpmb.write_counter) {
+            stw_be_p(&rpmb.result.result, RPMB_RESULT_COUNTER_FAILURE);
             break;
         }
-        sd->rpmb.result.address = frame->address;
-        addr = lduw_be_p(&frame->address) * RPMB_DATA_LEN + sd_part_offset(sd);
-        if (blk_pwrite(sd->blk, addr, RPMB_DATA_LEN, frame->data, static_cast<BdrvRequestFlags>(0)) < 0) {
+        rpmb.result.address = frame->address;
+        addr = lduw_be_p(&frame->address) * RPMB_DATA_LEN + getPartOffset();
+        if (blk_pwrite(blk, addr, RPMB_DATA_LEN, frame->data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_report("sd_blk_write: write error on host side");
-            stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_WRITE_FAILURE);
+            stw_be_p(&rpmb.result.result, RPMB_RESULT_WRITE_FAILURE);
         } else {
-            sd->rpmb.write_counter++;
+            rpmb.write_counter++;
         }
-        stl_be_p(&sd->rpmb.result.write_counter, sd->rpmb.write_counter);
+        stl_be_p(&rpmb.result.write_counter, rpmb.write_counter);
         break;
     case RPMB_REQ_AUTH_DATA_READ:
-        sd->rpmb.result.address = frame->address;
+        rpmb.result.address = frame->address;
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "RPMB request %d not implemented\n", req);
-        stw_be_p(&sd->rpmb.result.result, RPMB_RESULT_GENERAL_FAILURE);
+        stw_be_p(&rpmb.result.result, RPMB_RESULT_GENERAL_FAILURE);
         break;
     }
 exit:
-    if (sd->rpmb.write_counter == 0xffffffff) {
-        stw_be_p(&sd->rpmb.result.result,
-                 lduw_be_p(&sd->rpmb.result.result) | RPMB_RESULT_COUTER_EXPIRED);
+    if (rpmb.write_counter == 0xffffffff) {
+        stw_be_p(&rpmb.result.result,
+                 lduw_be_p(&rpmb.result.result) | RPMB_RESULT_COUTER_EXPIRED);
     }
-    trace_sdcard_rpmb_write_block(req, lduw_be_p(&sd->rpmb.result.result));
+    trace_sdcard_rpmb_write_block(req, lduw_be_p(&rpmb.result.result));
 }
 
-static void sd_erase(SDState *sd)
+void SDState::doErase()
 {
-    uint64_t erase_start = sd->erase_start;
-    uint64_t erase_end = sd->erase_end;
+    uint64_t start = this->erase_start;
+    uint64_t end = this->erase_end;
     bool sdsc = true;
     uint64_t wpnum;
     uint64_t erase_addr;
     int erase_len = 1 << HWBLOCK_SHIFT;
 
-    trace_sdcard_erase(sd->erase_start, sd->erase_end);
-    if (sd->erase_start == INVALID_ADDRESS
-            || sd->erase_end == INVALID_ADDRESS) {
-        sd->card_status |= ERASE_SEQ_ERROR;
-        sd->erase_start = INVALID_ADDRESS;
-        sd->erase_end = INVALID_ADDRESS;
+    trace_sdcard_erase(start, end);
+    if (start == INVALID_ADDRESS
+            || end == INVALID_ADDRESS) {
+        card_status |= ERASE_SEQ_ERROR;
+        erase_start = INVALID_ADDRESS;
+        erase_end = INVALID_ADDRESS;
         return;
     }
 
-    if (FIELD_EX32(sd->ocr, OCR, CARD_CAPACITY)) {
+    if (FIELD_EX32(ocr, OCR, CARD_CAPACITY)) {
         /* High capacity memory card: erase units are 512 byte blocks */
-        erase_start <<= HWBLOCK_SHIFT;
-        erase_end <<= HWBLOCK_SHIFT;
+        start <<= HWBLOCK_SHIFT;
+        end <<= HWBLOCK_SHIFT;
         sdsc = false;
     }
 
-    if (erase_start > sd->size || erase_end > sd->size) {
-        sd->card_status |= OUT_OF_RANGE;
-        sd->erase_start = INVALID_ADDRESS;
-        sd->erase_end = INVALID_ADDRESS;
+    if (start > size || end > size) {
+        card_status |= OUT_OF_RANGE;
+        erase_start = INVALID_ADDRESS;
+        erase_end = INVALID_ADDRESS;
         return;
     }
 
-    sd->erase_start = INVALID_ADDRESS;
-    sd->erase_end = INVALID_ADDRESS;
-    sd->csd[14] |= 0x40;
+    erase_start = INVALID_ADDRESS;
+    erase_end = INVALID_ADDRESS;
+    csd[14] |= 0x40;
 
-    memset(sd->data, 0xff, erase_len);
-    for (erase_addr = erase_start; erase_addr <= erase_end;
+    memset(data, 0xff, erase_len);
+    for (erase_addr = start; erase_addr <= end;
          erase_addr += erase_len) {
         if (sdsc) {
             /* Only SDSC cards support write protect groups */
             wpnum = sd_addr_to_wpnum(erase_addr);
-            assert(wpnum < sd->wp_group_bits);
-            if (test_bit(wpnum, sd->wp_group_bmap)) {
-                sd->card_status |= WP_ERASE_SKIP;
+            assert(wpnum < wp_group_bits);
+            if (test_bit(wpnum, wp_group_bmap)) {
+                card_status |= WP_ERASE_SKIP;
                 continue;
             }
         }
-        sd_blk_write(sd, erase_addr, erase_len);
+        blkWrite(erase_addr, erase_len);
     }
 }
 
-static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
+uint32_t SDState::getWpbits(uint64_t addr)
 {
     uint32_t i, wpnum;
     uint32_t ret = 0;
@@ -1393,15 +1441,15 @@ static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
     wpnum = sd_addr_to_wpnum(addr);
 
     for (i = 0; i < 32; i++, wpnum++, addr += WPGROUP_SIZE) {
-        if (addr >= sd->size) {
+        if (addr >= size) {
             /*
              * If the addresses of the last groups are outside the valid range,
              * then the corresponding write protection bits shall be set to 0.
              */
             continue;
         }
-        assert(wpnum < sd->wp_group_bits);
-        if (test_bit(wpnum, sd->wp_group_bmap)) {
+        assert(wpnum < wp_group_bits);
+        if (test_bit(wpnum, wp_group_bmap)) {
             ret |= (1 << i);
         }
     }
@@ -1416,18 +1464,18 @@ enum ExtCsdAccessMode {
     EXT_CSD_ACCESS_MODE_WRITE_BYTE  = 3
 };
 
-static void emmc_function_switch(SDState *sd, uint32_t arg)
+void SDState::emmcFunctionSwitch(uint32_t arg)
 {
     uint8_t access = extract32(arg, 24, 2);
     uint8_t index = extract32(arg, 16, 8);
     uint8_t value = extract32(arg, 8, 8);
-    uint8_t b = sd->ext_csd[index];
+    uint8_t b = ext_csd[index];
 
     trace_sdcard_switch(access, index, value, extract32(arg, 0, 2));
 
     if (index >= 192) {
         qemu_log_mask(LOG_GUEST_ERROR, "MMC switching illegal offset\n");
-        sd->card_status |= R_CSR_SWITCH_ERROR_MASK;
+        card_status |= R_CSR_SWITCH_ERROR_MASK;
         return;
     }
 
@@ -1450,66 +1498,66 @@ static void emmc_function_switch(SDState *sd, uint32_t arg)
         uint8_t part = b & EXT_CSD_PART_CONFIG_ACC_MASK;
 
         if (((part == EXT_CSD_PART_CONFIG_ACC_BOOT1 ||
-              part == EXT_CSD_PART_CONFIG_ACC_BOOT2) && !sd->boot_part_size) ||
-            (part == EXT_CSD_PART_CONFIG_ACC_RPMB && !sd->rpmb_part_size)) {
+              part == EXT_CSD_PART_CONFIG_ACC_BOOT2) && !boot_part_size) ||
+            (part == EXT_CSD_PART_CONFIG_ACC_RPMB && !rpmb_part_size)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "MMC switching to illegal partition\n");
-            sd->card_status |= R_CSR_SWITCH_ERROR_MASK;
+            card_status |= R_CSR_SWITCH_ERROR_MASK;
             return;
         }
     }
 
-    trace_sdcard_ext_csd_update(index, sd->ext_csd[index], b);
-    sd->ext_csd[index] = b;
+    trace_sdcard_ext_csd_update(index, ext_csd[index], b);
+    ext_csd[index] = b;
 }
 
-static void sd_function_switch(SDState *sd, uint32_t arg)
+void SDState::sdFunctionSwitch(uint32_t arg)
 {
     int i, mode, new_func;
     mode = !!(arg & 0x80000000);
 
-    sd->data[0] = 0x00;     /* Maximum current consumption */
-    sd->data[1] = 0x01;
-    sd->data[2] = 0x80;     /* Supported group 6 functions */
-    sd->data[3] = 0x01;
-    sd->data[4] = 0x80;     /* Supported group 5 functions */
-    sd->data[5] = 0x01;
-    sd->data[6] = 0x80;     /* Supported group 4 functions */
-    sd->data[7] = 0x01;
-    sd->data[8] = 0x80;     /* Supported group 3 functions */
-    sd->data[9] = 0x01;
-    sd->data[10] = 0x80;    /* Supported group 2 functions */
-    sd->data[11] = 0x43;
-    sd->data[12] = 0x80;    /* Supported group 1 functions */
-    sd->data[13] = 0x03;
+    data[0] = 0x00;     /* Maximum current consumption */
+    data[1] = 0x01;
+    data[2] = 0x80;     /* Supported group 6 functions */
+    data[3] = 0x01;
+    data[4] = 0x80;     /* Supported group 5 functions */
+    data[5] = 0x01;
+    data[6] = 0x80;     /* Supported group 4 functions */
+    data[7] = 0x01;
+    data[8] = 0x80;     /* Supported group 3 functions */
+    data[9] = 0x01;
+    data[10] = 0x80;    /* Supported group 2 functions */
+    data[11] = 0x43;
+    data[12] = 0x80;    /* Supported group 1 functions */
+    data[13] = 0x03;
 
-    memset(&sd->data[14], 0, 3);
+    memset(&data[14], 0, 3);
     for (i = 0; i < 6; i ++) {
         new_func = (arg >> (i * 4)) & 0x0f;
         if (mode && new_func != 0x0f)
-            sd->function_group[i] = new_func;
-        sd->data[16 - (i >> 1)] |= new_func << ((i % 2) * 4);
+            function_group[i] = new_func;
+        data[16 - (i >> 1)] |= new_func << ((i % 2) * 4);
     }
-    memset(&sd->data[17], 0, 47);
+    memset(&data[17], 0, 47);
 }
 
-static inline bool sd_wp_addr(SDState *sd, uint64_t addr)
+bool SDState::wpAddr(uint64_t addr)
 {
-    return test_bit(sd_addr_to_wpnum(addr), sd->wp_group_bmap);
+    return test_bit(sd_addr_to_wpnum(addr), wp_group_bmap);
 }
 
-static void sd_lock_command(SDState *sd)
+void SDState::lockCommand()
 {
-    int erase, lock, clr_pwd, set_pwd, pwd_len;
-    erase = !!(sd->data[0] & 0x08);
-    lock = sd->data[0] & 0x04;
-    clr_pwd = sd->data[0] & 0x02;
-    set_pwd = sd->data[0] & 0x01;
+    int erase, lock, clr_pwd, set_pwd, pwd_len_local;
+    erase = !!(data[0] & 0x08);
+    lock = data[0] & 0x04;
+    clr_pwd = data[0] & 0x02;
+    set_pwd = data[0] & 0x01;
 
-    if (sd->blk_len > 1)
-        pwd_len = sd->data[1];
+    if (blk_len > 1)
+        pwd_len_local = data[1];
     else
-        pwd_len = 0;
+        pwd_len_local = 0;
 
     if (lock) {
         trace_sdcard_lock();
@@ -1517,87 +1565,87 @@ static void sd_lock_command(SDState *sd)
         trace_sdcard_unlock();
     }
     if (erase) {
-        if (!(sd->card_status & CARD_IS_LOCKED) || sd->blk_len > 1 ||
-                        set_pwd || clr_pwd || lock || sd->wp_switch ||
-                        (sd->csd[14] & 0x20)) {
-            sd->card_status |= LOCK_UNLOCK_FAILED;
+        if (!(card_status & CARD_IS_LOCKED) || blk_len > 1 ||
+                        set_pwd || clr_pwd || lock || wp_switch ||
+                        (csd[14] & 0x20)) {
+            card_status |= LOCK_UNLOCK_FAILED;
             return;
         }
-        bitmap_zero(sd->wp_group_bmap, sd->wp_group_bits);
-        sd->csd[14] &= ~0x10;
-        sd->card_status &= ~CARD_IS_LOCKED;
-        sd->pwd_len = 0;
+        bitmap_zero(wp_group_bmap, wp_group_bits);
+        csd[14] &= ~0x10;
+        card_status &= ~CARD_IS_LOCKED;
+        pwd_len = 0;
         /* Erasing the entire card here! */
         fprintf(stderr, "SD: Card force-erased by CMD42\n");
         return;
     }
 
-    if (sd->blk_len < 2 + pwd_len ||
-                    pwd_len <= sd->pwd_len ||
-                    pwd_len > sd->pwd_len + 16) {
-        sd->card_status |= LOCK_UNLOCK_FAILED;
+    if (blk_len < 2 + pwd_len_local ||
+                    pwd_len_local <= pwd_len ||
+                    pwd_len_local > pwd_len + 16) {
+        card_status |= LOCK_UNLOCK_FAILED;
         return;
     }
 
-    if (sd->pwd_len && memcmp(sd->pwd, sd->data + 2, sd->pwd_len)) {
-        sd->card_status |= LOCK_UNLOCK_FAILED;
+    if (pwd_len && memcmp(pwd, data + 2, pwd_len)) {
+        card_status |= LOCK_UNLOCK_FAILED;
         return;
     }
 
-    pwd_len -= sd->pwd_len;
-    if ((pwd_len && !set_pwd) ||
+    pwd_len_local -= pwd_len;
+    if ((pwd_len_local && !set_pwd) ||
                     (clr_pwd && (set_pwd || lock)) ||
-                    (lock && !sd->pwd_len && !set_pwd) ||
+                    (lock && !pwd_len && !set_pwd) ||
                     (!set_pwd && !clr_pwd &&
-                     (((sd->card_status & CARD_IS_LOCKED) && lock) ||
-                      (!(sd->card_status & CARD_IS_LOCKED) && !lock)))) {
-        sd->card_status |= LOCK_UNLOCK_FAILED;
+                     (((card_status & CARD_IS_LOCKED) && lock) ||
+                      (!(card_status & CARD_IS_LOCKED) && !lock)))) {
+        card_status |= LOCK_UNLOCK_FAILED;
         return;
     }
 
     if (set_pwd) {
-        memcpy(sd->pwd, sd->data + 2 + sd->pwd_len, pwd_len);
-        sd->pwd_len = pwd_len;
+        memcpy(pwd, data + 2 + pwd_len, pwd_len_local);
+        pwd_len = pwd_len_local;
     }
 
     if (clr_pwd) {
-        sd->pwd_len = 0;
+        pwd_len = 0;
     }
 
     if (lock)
-        sd->card_status |= CARD_IS_LOCKED;
+        card_status |= CARD_IS_LOCKED;
     else
-        sd->card_status &= ~CARD_IS_LOCKED;
+        card_status &= ~CARD_IS_LOCKED;
 }
 
-static bool address_in_range(SDState *sd, const char *desc,
+bool SDState::addressInRange(const char *desc,
                              uint64_t addr, uint32_t length)
 {
-    if (addr + length > sd->size) {
+    if (addr + length > size) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "%s offset %" PRIu64 " > card %" PRIu64 " [%%%u]\n",
-                      desc, addr, sd->size, length);
-        sd->card_status |= ADDRESS_ERROR;
+                      desc, addr, size, length);
+        card_status |= ADDRESS_ERROR;
         return false;
     }
     return true;
 }
 
-static sd_rsp_type_t sd_invalid_state_for_cmd(SDState *sd, SDRequest req)
+sd_rsp_type_t SDState::invalidStateForCmd(SDRequest req)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s: CMD%i in a wrong state: %s (spec %s)\n",
-                  sd->proto->name, req.cmd,
-                  sd_state_name(static_cast<SDCardStates>(sd->state)),
-                  sd_version_str(static_cast<SDPhySpecificationVersion>(sd->spec_version)));
+                  proto->name, req.cmd,
+                  sd_state_name(static_cast<SDCardStates>(state)),
+                  sd_version_str(static_cast<SDPhySpecificationVersion>(spec_version)));
 
     return sd_illegal;
 }
 
-static sd_rsp_type_t sd_invalid_mode_for_cmd(SDState *sd, SDRequest req)
+sd_rsp_type_t SDState::invalidModeForCmd(SDRequest req)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "%s: CMD%i in a wrong mode: %s (spec %s)\n",
-                  sd->proto->name, req.cmd, sd_mode_name(sd_mode(sd)),
-                  sd_version_str(static_cast<SDPhySpecificationVersion>(sd->spec_version)));
+                  proto->name, req.cmd, sd_mode_name(getMode()),
+                  sd_version_str(static_cast<SDPhySpecificationVersion>(spec_version)));
 
     return sd_illegal;
 }
@@ -1629,38 +1677,38 @@ static sd_rsp_type_t sd_cmd_optional(SDState *sd, SDRequest req)
 }
 
 /* Configure fields for following sd_generic_write_byte() calls */
-static sd_rsp_type_t sd_cmd_to_receivingdata(SDState *sd, SDRequest req,
+sd_rsp_type_t SDState::cmdToReceivingdata(SDRequest req,
                                              uint64_t start, size_t size)
 {
-    if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+    if (state != sd_transfer_state) {
+        return invalidStateForCmd(req);
     }
-    sd->state = sd_receivingdata_state;
-    sd->data_start = start;
-    sd->data_offset = 0;
-    /* sd->data[] used as receive buffer */
-    sd->data_size = size ?: sizeof(sd->data);
+    state = sd_receivingdata_state;
+    data_start = start;
+    data_offset = 0;
+    /* data[] used as receive buffer */
+    data_size = size ?: sizeof(data);
     return sd_r1;
 }
 
 /* Configure fields for following sd_generic_read_byte() calls */
-static sd_rsp_type_t sd_cmd_to_sendingdata(SDState *sd, SDRequest req,
+sd_rsp_type_t SDState::cmdToSendingdata(SDRequest req,
                                            uint64_t start,
-                                           const void *data, size_t size)
+                                           const void *src_data, size_t size)
 {
-    if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+    if (state != sd_transfer_state) {
+        return invalidStateForCmd(req);
     }
 
-    sd->state = sd_sendingdata_state;
-    sd->data_start = start;
-    sd->data_offset = 0;
-    if (data) {
-        assert(size > 0 && size <= sizeof(sd->data));
-        memcpy(sd->data, data, size);
+    state = sd_sendingdata_state;
+    data_start = start;
+    data_offset = 0;
+    if (src_data) {
+        assert(size > 0 && size <= sizeof(data));
+        memcpy(data, src_data, size);
     }
     if (size) {
-        sd->data_size = size;
+        data_size = size;
     }
     return sd_r1;
 }
@@ -1682,7 +1730,7 @@ static sd_rsp_type_t sd_cmd_GO_IDLE_STATE(SDState *sd, SDRequest req)
         SDState::sdReset(DEVICE(sd));
     }
 
-    return sd_is_spi(sd) ? sd_r1 : sd_r0;
+    return sd->isSpi() ? sd_r1 : sd_r0;
 }
 
 /* CMD2 */
@@ -1693,7 +1741,7 @@ static sd_rsp_type_t sd_cmd_ALL_SEND_CID(SDState *sd, SDRequest req)
         sd->state = sd_identification_state;
         return sd_r2_i;
     default:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 }
 
@@ -1707,11 +1755,11 @@ static sd_rsp_type_t sd_cmd_SEND_RELATIVE_ADDR(SDState *sd, SDRequest req)
     case sd_standby_state:
         sd->state = sd_standby_state;
         qemu_guest_getrandom_nofail(&random_rca, sizeof(random_rca));
-        sd_set_rca(sd, random_rca);
+        sd->setRca(random_rca);
         return sd_r6;
 
     default:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 }
 
@@ -1721,11 +1769,11 @@ static sd_rsp_type_t emmc_cmd_SET_RELATIVE_ADDR(SDState *sd, SDRequest req)
     case sd_identification_state:
     case sd_standby_state:
         sd->state = sd_standby_state;
-        sd_set_rca(sd, req.arg >> 16);
+        sd->setRca(req.arg >> 16);
         return sd_r1;
 
     default:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 }
 
@@ -1749,28 +1797,28 @@ static sd_rsp_type_t emmc_cmd_sleep_awake(SDState *sd, SDRequest req)
         return sd_r1b;
 
     default:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 }
 
 /* CMD6 */
 static sd_rsp_type_t sd_cmd_SWITCH_FUNCTION(SDState *sd, SDRequest req)
 {
-    if (sd_mode(sd) != sd_data_transfer_mode) {
-        return sd_invalid_mode_for_cmd(sd, req);
+    if (sd->getMode() != sd_data_transfer_mode) {
+        return sd->invalidModeForCmd(req);
     }
-    if (sd_is_spi(sd)) {
+    if (sd->isSpi()) {
         if (sd->state == sd_idle_state) {
-            return sd_invalid_state_for_cmd(sd, req);
+            return sd->invalidStateForCmd(req);
         }
     } else {
         if (sd->state != sd_transfer_state) {
-            return sd_invalid_state_for_cmd(sd, req);
+            return sd->invalidStateForCmd(req);
         }
     }
 
-    sd_function_switch(sd, req.arg);
-    return sd_cmd_to_sendingdata(sd, req, 0, NULL, 64);
+    sd->sdFunctionSwitch(req.arg);
+    return sd->cmdToSendingdata(req, 0, NULL, 64);
 }
 
 static sd_rsp_type_t emmc_cmd_SWITCH(SDState *sd, SDRequest req)
@@ -1778,18 +1826,18 @@ static sd_rsp_type_t emmc_cmd_SWITCH(SDState *sd, SDRequest req)
     switch (sd->state) {
     case sd_transfer_state:
         sd->state = sd_programming_state;
-        emmc_function_switch(sd, req.arg);
+        sd->emmcFunctionSwitch(req.arg);
         sd->state = sd_transfer_state;
         return sd_r1b;
     default:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 }
 
 /* CMD7 */
 static sd_rsp_type_t sd_cmd_DE_SELECT_CARD(SDState *sd, SDRequest req)
 {
-    bool same_rca = sd_req_rca_same(sd, req);
+    bool same_rca = sd->reqRcaSame(req);
 
     switch (sd->state) {
     case sd_standby_state:
@@ -1824,20 +1872,20 @@ static sd_rsp_type_t sd_cmd_DE_SELECT_CARD(SDState *sd, SDRequest req)
     default:
         break;
     }
-    return sd_invalid_state_for_cmd(sd, req);
+    return sd->invalidStateForCmd(req);
 }
 
 /* CMD8 */
 static sd_rsp_type_t sd_cmd_SEND_IF_COND(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_idle_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
     sd->vhs = 0;
 
     /* No response if not exactly one VHS bit is set.  */
     if (!(req.arg >> 8) || (req.arg >> (ctz32(req.arg & ~0xff) + 1))) {
-        return sd_is_spi(sd) ? sd_r7 : sd_r0;
+        return sd->isSpi() ? sd_r7 : sd_r0;
     }
 
     /* Accept.  */
@@ -1849,10 +1897,10 @@ static sd_rsp_type_t sd_cmd_SEND_IF_COND(SDState *sd, SDRequest req)
 static sd_rsp_type_t emmc_cmd_SEND_EXT_CSD(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
-    return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
+    return sd->cmdToSendingdata(req, sd->reqGetAddress(req),
                                  sd->ext_csd, sizeof(sd->ext_csd));
 }
 
@@ -1863,7 +1911,7 @@ static sd_rsp_type_t spi_cmd_SEND_CxD(SDState *sd, SDRequest req,
      * XXX as of v10.1.0-rc1 command is reached in sd_idle_state,
      * so disable this check.
     if (sd->state != sd_standby_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
     */
 
@@ -1873,7 +1921,7 @@ static sd_rsp_type_t spi_cmd_SEND_CxD(SDState *sd, SDRequest req,
      */
     sd->state = sd_transfer_state;
 
-    return sd_cmd_to_sendingdata(sd, req, 0, data, size);
+    return sd->cmdToSendingdata(req, 0, data, size);
 }
 
 /* CMD9 */
@@ -1885,10 +1933,10 @@ static sd_rsp_type_t spi_cmd_SEND_CSD(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_cmd_SEND_CSD(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_standby_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
-    return sd_req_rca_same(sd, req) ? sd_r2_s : sd_r0;
+    return sd->reqRcaSame(req) ? sd_r2_s : sd_r0;
 }
 
 /* CMD10 */
@@ -1900,10 +1948,10 @@ static sd_rsp_type_t spi_cmd_SEND_CID(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_cmd_SEND_CID(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_standby_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
-    return sd_req_rca_same(sd, req) ? sd_r2_i : sd_r0;
+    return sd->reqRcaSame(req) ? sd_r2_i : sd_r0;
 }
 
 /* CMD12 */
@@ -1919,15 +1967,15 @@ static sd_rsp_type_t sd_cmd_STOP_TRANSMISSION(SDState *sd, SDRequest req)
         sd->state = sd_transfer_state;
         return sd_r1;
     default:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 }
 
 /* CMD13 */
 static sd_rsp_type_t sd_cmd_SEND_STATUS(SDState *sd, SDRequest req)
 {
-    if (sd_mode(sd) != sd_data_transfer_mode) {
-        return sd_invalid_mode_for_cmd(sd, req);
+    if (sd->getMode() != sd_data_transfer_mode) {
+        return sd->invalidModeForCmd(req);
     }
 
     switch (sd->state) {
@@ -1939,21 +1987,21 @@ static sd_rsp_type_t sd_cmd_SEND_STATUS(SDState *sd, SDRequest req)
     case sd_disconnect_state:
         break;
     default:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
-    if (sd_is_spi(sd)) {
+    if (sd->isSpi()) {
         return spi_r2;
     }
 
-    return sd_req_rca_same(sd, req) ? sd_r1 : sd_r0;
+    return sd->reqRcaSame(req) ? sd_r1 : sd_r0;
 }
 
 /* CMD15 */
 static sd_rsp_type_t sd_cmd_GO_INACTIVE_STATE(SDState *sd, SDRequest req)
 {
-    if (sd_mode(sd) != sd_data_transfer_mode) {
-        return sd_invalid_mode_for_cmd(sd, req);
+    if (sd->getMode() != sd_data_transfer_mode) {
+        return sd->invalidModeForCmd(req);
     }
     switch (sd->state) {
     case sd_standby_state:
@@ -1964,9 +2012,9 @@ static sd_rsp_type_t sd_cmd_GO_INACTIVE_STATE(SDState *sd, SDRequest req)
     case sd_disconnect_state:
         break;
     default:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
-    if (sd_req_rca_same(sd, req)) {
+    if (sd->reqRcaSame(req)) {
         sd->state = sd_inactive_state;
     }
 
@@ -1977,7 +2025,7 @@ static sd_rsp_type_t sd_cmd_GO_INACTIVE_STATE(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_cmd_SET_BLOCKLEN(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
     if (req.arg > (1 << HWBLOCK_SHIFT)) {
         sd->card_status |= BLOCK_LEN_ERROR;
@@ -1995,16 +2043,16 @@ static sd_rsp_type_t sd_cmd_READ_SINGLE_BLOCK(SDState *sd, SDRequest req)
     uint64_t addr;
 
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
-    addr = sd_req_get_address(sd, req);
-    if (!address_in_range(sd, "READ_SINGLE_BLOCK", addr, sd->blk_len)) {
+    addr = sd->reqGetAddress(req);
+    if (!sd->addressInRange("READ_SINGLE_BLOCK", addr, sd->blk_len)) {
         return sd_r1;
     }
 
-    sd_blk_read(sd, addr, sd->blk_len);
-    return sd_cmd_to_sendingdata(sd, req, addr, NULL, sd->blk_len);
+    sd->blkRead(addr, sd->blk_len);
+    return sd->cmdToSendingdata(req, addr, NULL, sd->blk_len);
 }
 
 /* CMD19 */
@@ -2014,7 +2062,7 @@ static sd_rsp_type_t sd_cmd_SEND_TUNING_BLOCK(SDState *sd, SDRequest req)
         return sd_cmd_illegal(sd, req);
     }
 
-    return sd_cmd_to_sendingdata(sd, req, 0,
+    return sd->cmdToSendingdata(req, 0,
                                  sd_tuning_block_pattern4,
                                  sizeof(sd_tuning_block_pattern4));
 }
@@ -2027,11 +2075,11 @@ static sd_rsp_type_t sd_cmd_SET_BLOCK_COUNT(SDState *sd, SDRequest req)
     }
 
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
     sd->multi_blk_cnt = req.arg;
-    if (sd_is_emmc(sd)) {
+    if (sd->isEmmc()) {
         sd->multi_blk_cnt &= 0xffff;
     }
     trace_sdcard_set_block_count(sd->multi_blk_cnt);
@@ -2045,16 +2093,16 @@ static sd_rsp_type_t sd_cmd_WRITE_SINGLE_BLOCK(SDState *sd, SDRequest req)
     uint64_t addr;
 
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
-    addr = sd_req_get_address(sd, req);
-    if (!address_in_range(sd, "WRITE_SINGLE_BLOCK", addr, sd->blk_len)) {
+    addr = sd->reqGetAddress(req);
+    if (!sd->addressInRange("WRITE_SINGLE_BLOCK", addr, sd->blk_len)) {
         return sd_r1;
     }
 
     if (sd->size <= SDSC_MAX_CAPACITY) {
-        if (sd_wp_addr(sd, addr)) {
+        if (sd->wpAddr(addr)) {
             sd->card_status |= WP_VIOLATION;
         }
     }
@@ -2063,19 +2111,19 @@ static sd_rsp_type_t sd_cmd_WRITE_SINGLE_BLOCK(SDState *sd, SDRequest req)
     }
 
     sd->blk_written = 0;
-    return sd_cmd_to_receivingdata(sd, req, addr, sd->blk_len);
+    return sd->cmdToReceivingdata(req, addr, sd->blk_len);
 }
 
 /* CMD26 */
 static sd_rsp_type_t emmc_cmd_PROGRAM_CID(SDState *sd, SDRequest req)
 {
-    return sd_cmd_to_receivingdata(sd, req, 0, sizeof(sd->cid));
+    return sd->cmdToReceivingdata(req, 0, sizeof(sd->cid));
 }
 
 /* CMD27 */
 static sd_rsp_type_t sd_cmd_PROGRAM_CSD(SDState *sd, SDRequest req)
 {
-    return sd_cmd_to_receivingdata(sd, req, 0, sizeof(sd->csd));
+    return sd->cmdToReceivingdata(req, 0, sizeof(sd->csd));
 }
 
 static sd_rsp_type_t sd_cmd_SET_CLR_WRITE_PROT(SDState *sd, SDRequest req,
@@ -2088,11 +2136,11 @@ static sd_rsp_type_t sd_cmd_SET_CLR_WRITE_PROT(SDState *sd, SDRequest req,
     }
 
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
-    addr = sd_req_get_address(sd, req);
-    if (!address_in_range(sd, is_write ? "SET_WRITE_PROT" : "CLR_WRITE_PROT",
+    addr = sd->reqGetAddress(req);
+    if (!sd->addressInRange(is_write ? "SET_WRITE_PROT" : "CLR_WRITE_PROT",
                           addr, 1)) {
         return sd_r1b;
     }
@@ -2131,23 +2179,23 @@ static sd_rsp_type_t sd_cmd_SEND_WRITE_PROT(SDState *sd, SDRequest req)
     }
 
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
-    addr = sd_req_get_address(sd, req);
-    if (!address_in_range(sd, "SEND_WRITE_PROT", addr, sd->blk_len)) {
+    addr = sd->reqGetAddress(req);
+    if (!sd->addressInRange("SEND_WRITE_PROT", addr, sd->blk_len)) {
         return sd_r1;
     }
 
-    data = sd_wpbits(sd, req.arg);
-    return sd_cmd_to_sendingdata(sd, req, addr, &data, sizeof(data));
+    data = sd->getWpbits(req.arg);
+    return sd->cmdToSendingdata(req, addr, &data, sizeof(data));
 }
 
 /* CMD32 */
 static sd_rsp_type_t sd_cmd_ERASE_WR_BLK_START(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
     sd->erase_start = req.arg;
     return sd_r1;
@@ -2157,7 +2205,7 @@ static sd_rsp_type_t sd_cmd_ERASE_WR_BLK_START(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_cmd_ERASE_WR_BLK_END(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
     sd->erase_end = req.arg;
     return sd_r1;
@@ -2167,7 +2215,7 @@ static sd_rsp_type_t sd_cmd_ERASE_WR_BLK_END(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_cmd_ERASE(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
     if (sd->csd[14] & 0x30) {
         sd->card_status |= WP_VIOLATION;
@@ -2175,7 +2223,7 @@ static sd_rsp_type_t sd_cmd_ERASE(SDState *sd, SDRequest req)
     }
 
     sd->state = sd_programming_state;
-    sd_erase(sd);
+    sd->doErase();
     /* Bzzzzzzztt .... Operation complete.  */
     sd->state = sd_transfer_state;
     return sd_r1b;
@@ -2184,7 +2232,7 @@ static sd_rsp_type_t sd_cmd_ERASE(SDState *sd, SDRequest req)
 /* CMD42 */
 static sd_rsp_type_t sd_cmd_LOCK_UNLOCK(SDState *sd, SDRequest req)
 {
-    return sd_cmd_to_receivingdata(sd, req, 0, 0);
+    return sd->cmdToReceivingdata(req, 0, 0);
 }
 
 /* CMD55 */
@@ -2195,9 +2243,9 @@ static sd_rsp_type_t sd_cmd_APP_CMD(SDState *sd, SDRequest req)
     case sd_identification_state:
     case sd_inactive_state:
     case sd_sleep_state:
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     case sd_idle_state:
-        if (!sd_is_spi(sd) && sd_req_get_rca(sd, req) != 0x0000) {
+        if (!sd->isSpi() && sd->reqGetRca(req) != 0x0000) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "SD: illegal RCA 0x%04x for APP_CMD\n", req.cmd);
         }
@@ -2205,7 +2253,7 @@ static sd_rsp_type_t sd_cmd_APP_CMD(SDState *sd, SDRequest req)
     default:
         break;
     }
-    if (!sd_is_spi(sd) && !sd_req_rca_same(sd, req)) {
+    if (!sd->isSpi() && !sd->reqRcaSame(req)) {
         return sd_r0;
     }
     sd->expecting_acmd = true;
@@ -2218,15 +2266,15 @@ static sd_rsp_type_t sd_cmd_APP_CMD(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_cmd_GEN_CMD(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
     /* Vendor specific command: our model is RAZ/WI */
     if (req.arg & 1) {
         memset(sd->data, 0, sizeof(sd->data));
-        return sd_cmd_to_sendingdata(sd, req, 0, NULL, 0);
+        return sd->cmdToSendingdata(req, 0, NULL, 0);
     } else {
-        return sd_cmd_to_receivingdata(sd, req, 0, 0);
+        return sd->cmdToReceivingdata(req, 0, 0);
     }
 }
 
@@ -2246,7 +2294,7 @@ static sd_rsp_type_t spi_cmd_CRC_ON_OFF(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_acmd_SET_BUS_WIDTH(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
     sd->sd_status[0] &= 0x3f;
@@ -2259,9 +2307,9 @@ static sd_rsp_type_t sd_acmd_SD_STATUS(SDState *sd, SDRequest req)
 {
     sd_rsp_type_t rsp;
 
-    rsp = sd_cmd_to_sendingdata(sd, req, 0,
+    rsp = sd->cmdToSendingdata(req, 0,
                                 sd->sd_status, sizeof(sd->sd_status));
-    if (sd_is_spi(sd) && rsp != sd_illegal) {
+    if (sd->isSpi() && rsp != sd_illegal) {
         return spi_r2;
     }
     return rsp;
@@ -2270,7 +2318,7 @@ static sd_rsp_type_t sd_acmd_SD_STATUS(SDState *sd, SDRequest req)
 /* ACMD22 */
 static sd_rsp_type_t sd_acmd_SEND_NUM_WR_BLOCKS(SDState *sd, SDRequest req)
 {
-    return sd_cmd_to_sendingdata(sd, req, 0,
+    return sd->cmdToSendingdata(req, 0,
                                  &sd->blk_written, sizeof(sd->blk_written));
 }
 
@@ -2278,7 +2326,7 @@ static sd_rsp_type_t sd_acmd_SEND_NUM_WR_BLOCKS(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_acmd_SET_WR_BLK_ERASE_COUNT(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
     return sd_r1;
 }
@@ -2287,7 +2335,7 @@ static sd_rsp_type_t sd_acmd_SET_WR_BLK_ERASE_COUNT(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_idle_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
     /*
@@ -2314,7 +2362,7 @@ static sd_rsp_type_t sd_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
         }
     }
 
-    if (sd_is_spi(sd)) {
+    if (sd->isSpi()) {
         sd->state = sd_ready_state;
         return sd_r1;
     } else {
@@ -2335,7 +2383,7 @@ static sd_rsp_type_t sd_cmd_SEND_OP_COND(SDState *sd, SDRequest req)
 static sd_rsp_type_t sd_acmd_SET_CLR_CARD_DETECT(SDState *sd, SDRequest req)
 {
     if (sd->state != sd_transfer_state) {
-        return sd_invalid_state_for_cmd(sd, req);
+        return sd->invalidStateForCmd(req);
     }
 
     /* Bringing in the 50KOhm pull-up resistor... Done.  */
@@ -2345,58 +2393,58 @@ static sd_rsp_type_t sd_acmd_SET_CLR_CARD_DETECT(SDState *sd, SDRequest req)
 /* ACMD51 */
 static sd_rsp_type_t sd_acmd_SEND_SCR(SDState *sd, SDRequest req)
 {
-    return sd_cmd_to_sendingdata(sd, req, 0, sd->scr, sizeof(sd->scr));
+    return sd->cmdToSendingdata(req, 0, sd->scr, sizeof(sd->scr));
 }
 
-static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
+sd_rsp_type_t SDState::normalCommand(SDRequest req)
 {
     uint64_t addr;
 
-    sd->last_cmd_name = sd_cmd_name(sd, req.cmd);
+    last_cmd_name = sd_cmd_name(this, req.cmd);
     /* CMD55 precedes an ACMD, so we are not interested in tracing it.
      * However there is no ACMD55, so we want to trace this particular case.
      */
-    if (req.cmd != 55 || sd->expecting_acmd) {
-        trace_sdcard_normal_command(sd->proto->name,
-                                    sd->last_cmd_name, req.cmd,
+    if (req.cmd != 55 || expecting_acmd) {
+        trace_sdcard_normal_command(proto->name,
+                                    last_cmd_name, req.cmd,
                                     req.arg,
-                                    sd_mode_name(sd_mode(sd)),
-                                    sd_state_name(static_cast<SDCardStates>(sd->state)));
+                                    sd_mode_name(getMode()),
+                                    sd_state_name(static_cast<SDCardStates>(state)));
     }
 
     /* Not interpreting this as an app command */
-    sd->card_status &= ~APP_CMD;
+    card_status &= ~APP_CMD;
 
     /* CMD23 (set block count) must be immediately followed by CMD18 or CMD25
      * if not, its effects are cancelled */
-    if (sd->multi_blk_cnt != 0 && !(req.cmd == 18 || req.cmd == 25)) {
-        sd->multi_blk_cnt = 0;
+    if (multi_blk_cnt != 0 && !(req.cmd == 18 || req.cmd == 25)) {
+        multi_blk_cnt = 0;
     }
 
-    if (sd->proto->cmd[req.cmd].cmd_class == 6 && FIELD_EX32(sd->ocr, OCR,
+    if (proto->cmd[req.cmd].cmd_class == 6 && FIELD_EX32(ocr, OCR,
                                                              CARD_CAPACITY)) {
         /* Only Standard Capacity cards support class 6 commands */
         return sd_illegal;
     }
 
-    if (sd->proto->cmd[req.cmd].handler) {
-        return sd->proto->cmd[req.cmd].handler(sd, req);
+    if (proto->cmd[req.cmd].handler) {
+        return proto->cmd[req.cmd].handler(this, req);
     }
 
     switch (req.cmd) {
     /* Block read commands (Class 2) */
     case 18:  /* CMD18:  READ_MULTIPLE_BLOCK */
-        addr = sd_req_get_address(sd, req);
-        switch (sd->state) {
+        addr = reqGetAddress(req);
+        switch (state) {
         case sd_transfer_state:
 
-            if (!address_in_range(sd, "READ_BLOCK", addr, sd->blk_len)) {
+            if (!addressInRange("READ_BLOCK", addr, blk_len)) {
                 return sd_r1;
             }
 
-            sd->state = sd_sendingdata_state;
-            sd->data_start = addr;
-            sd->data_offset = 0;
+            state = sd_sendingdata_state;
+            data_start = addr;
+            data_offset = 0;
             return sd_r1;
 
         default:
@@ -2406,26 +2454,26 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
 
     /* Block write commands (Class 4) */
     case 25:  /* CMD25:  WRITE_MULTIPLE_BLOCK */
-        addr = sd_req_get_address(sd, req);
-        switch (sd->state) {
+        addr = reqGetAddress(req);
+        switch (state) {
         case sd_transfer_state:
 
-            if (!address_in_range(sd, "WRITE_BLOCK", addr, sd->blk_len)) {
+            if (!addressInRange("WRITE_BLOCK", addr, blk_len)) {
                 return sd_r1;
             }
 
-            sd->state = sd_receivingdata_state;
-            sd->data_start = addr;
-            sd->data_offset = 0;
-            sd->blk_written = 0;
+            state = sd_receivingdata_state;
+            data_start = addr;
+            data_offset = 0;
+            blk_written = 0;
 
-            if (sd->size <= SDSC_MAX_CAPACITY) {
-                if (sd_wp_addr(sd, sd->data_start)) {
-                    sd->card_status |= WP_VIOLATION;
+            if (size <= SDSC_MAX_CAPACITY) {
+                if (wpAddr(data_start)) {
+                    card_status |= WP_VIOLATION;
                 }
             }
-            if (sd->csd[14] & 0x30) {
-                sd->card_status |= WP_VIOLATION;
+            if (csd[14] & 0x30) {
+                card_status |= WP_VIOLATION;
             }
             return sd_r1;
 
@@ -2439,21 +2487,20 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
         return sd_illegal;
     }
 
-    return sd_invalid_state_for_cmd(sd, req);
+    return invalidStateForCmd(req);
 }
 
-static sd_rsp_type_t sd_app_command(SDState *sd,
-                                    SDRequest req)
+sd_rsp_type_t SDState::appCommand(SDRequest req)
 {
-    sd->last_cmd_name = sd_acmd_name(sd, req.cmd);
-    trace_sdcard_app_command(sd->proto->name, sd->last_cmd_name,
+    last_cmd_name = sd_acmd_name(this, req.cmd);
+    trace_sdcard_app_command(proto->name, last_cmd_name,
                              req.cmd, req.arg,
-                             sd_mode_name(sd_mode(sd)),
-                             sd_state_name(static_cast<SDCardStates>(sd->state)));
-    sd->card_status |= APP_CMD;
+                             sd_mode_name(getMode()),
+                             sd_state_name(static_cast<SDCardStates>(state)));
+    card_status |= APP_CMD;
 
-    if (sd->proto->acmd[req.cmd].handler) {
-        return sd->proto->acmd[req.cmd].handler(sd, req);
+    if (proto->acmd[req.cmd].handler) {
+        return proto->acmd[req.cmd].handler(this, req);
     }
 
     switch (req.cmd) {
@@ -2471,14 +2518,14 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
 
     default:
         /* Fall back to standard commands.  */
-        return sd_normal_command(sd, req);
+        return normalCommand(req);
     }
 
     qemu_log_mask(LOG_GUEST_ERROR, "SD: ACMD%i in a wrong state\n", req.cmd);
     return sd_illegal;
 }
 
-static bool cmd_valid_while_locked(SDState *sd, unsigned cmd)
+bool SDState::cmdValidWhileLocked(unsigned cmd)
 {
     unsigned cmd_class;
 
@@ -2490,16 +2537,16 @@ static bool cmd_valid_while_locked(SDState *sd, unsigned cmd)
      * ACMD41 and ACMD42
      * Anything else provokes an "illegal command" response.
      */
-    if (sd->expecting_acmd) {
+    if (expecting_acmd) {
         return cmd == 41 || cmd == 42;
     }
     if (cmd == 16 || cmd == 55) {
         return true;
     }
-    if (!sd->proto->cmd[cmd].handler) {
+    if (!proto->cmd[cmd].handler) {
         return false;
     }
-    cmd_class = sd->proto->cmd[cmd].cmd_class;
+    cmd_class = proto->cmd[cmd].cmd_class;
 
     return cmd_class == 0 || cmd_class == 7;
 }
@@ -2539,7 +2586,7 @@ static size_t sd_do_command(SDState *sd, SDRequest *req,
     }
 
     if (sd->card_status & CARD_IS_LOCKED) {
-        if (!cmd_valid_while_locked(sd, req->cmd)) {
+        if (!sd->cmdValidWhileLocked(req->cmd)) {
             sd->card_status |= ILLEGAL_COMMAND;
             sd->expecting_acmd = false;
             qemu_log_mask(LOG_GUEST_ERROR, "SD: Card is locked\n");
@@ -2552,9 +2599,9 @@ static size_t sd_do_command(SDState *sd, SDRequest *req,
 
     if (sd->expecting_acmd) {
         sd->expecting_acmd = false;
-        rtype = sd_app_command(sd, *req);
+        rtype = sd->appCommand(*req);
     } else {
-        rtype = sd_normal_command(sd, *req);
+        rtype = sd->normalCommand(*req);
     }
 
     if (rtype == sd_illegal) {
@@ -2568,17 +2615,17 @@ static size_t sd_do_command(SDState *sd, SDRequest *req,
     }
 
 send_response:
-    rsplen = sd_response_size(sd, rtype);
+    rsplen = sd->responseSize(rtype);
     assert(rsplen <= respsz);
 
     switch (rtype) {
     case sd_r1:
     case sd_r1b:
-        sd_response_r1_make(sd, response);
+        sd->responseR1Make(response);
         break;
 
     case spi_r2:
-        spi_response_r2_make(sd, response);
+        sd->spiResponseR2Make(response);
         break;
 
     case sd_r2_i:
@@ -2590,15 +2637,15 @@ send_response:
         break;
 
     case sd_r3:
-        sd_response_r3_make(sd, response);
+        sd->responseR3Make(response);
         break;
 
     case sd_r6:
-        sd_response_r6_make(sd, response);
+        sd->responseR6Make(response);
         break;
 
     case sd_r7:
-        sd_response_r7_make(sd, response);
+        sd->responseR7Make(response);
         break;
 
     case sd_r0:
@@ -2633,24 +2680,24 @@ send_response:
 }
 
 /* Return true if buffer is consumed. Configured by sd_cmd_to_receivingdata() */
-static bool sd_generic_write_byte(SDState *sd, uint8_t value)
+bool SDState::genericWriteByte(uint8_t value)
 {
-    sd->data[sd->data_offset] = value;
+    data[data_offset] = value;
 
-    if (++sd->data_offset >= sd->data_size) {
-        sd->state = sd_transfer_state;
+    if (++data_offset >= data_size) {
+        state = sd_transfer_state;
         return true;
     }
     return false;
 }
 
 /* Return true when buffer is consumed. Configured by sd_cmd_to_sendingdata() */
-static bool sd_generic_read_byte(SDState *sd, uint8_t *value)
+bool SDState::genericReadByte(uint8_t *value)
 {
-    *value = sd->data[sd->data_offset];
+    *value = data[data_offset];
 
-    if (++sd->data_offset >= sd->data_size) {
-        sd->state = sd_transfer_state;
+    if (++data_offset >= data_size) {
+        state = sd_transfer_state;
         return true;
     }
 
@@ -2680,10 +2727,10 @@ static void sd_write_byte(SDState *sd, uint8_t value)
                             sd->current_cmd, sd->data_offset, value);
     switch (sd->current_cmd) {
     case 24:  /* CMD24:  WRITE_SINGLE_BLOCK */
-        if (sd_generic_write_byte(sd, value)) {
+        if (sd->genericWriteByte(value)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
-            sd_blk_write(sd, sd->data_start, sd->data_offset);
+            sd->blkWrite(sd->data_start, sd->data_offset);
             sd->blk_written ++;
             sd->csd[14] |= 0x40;
             /* Bzzzzzzztt .... Operation complete.  */
@@ -2694,12 +2741,12 @@ static void sd_write_byte(SDState *sd, uint8_t value)
     case 25:  /* CMD25:  WRITE_MULTIPLE_BLOCK */
         if (sd->data_offset == 0) {
             /* Start of the block - let's check the address is valid */
-            if (!address_in_range(sd, "WRITE_MULTIPLE_BLOCK",
+            if (!sd->addressInRange("WRITE_MULTIPLE_BLOCK",
                                   sd->data_start, sd->blk_len)) {
                 break;
             }
             if (sd->size <= SDSC_MAX_CAPACITY) {
-                if (sd_wp_addr(sd, sd->data_start)) {
+                if (sd->wpAddr(sd->data_start)) {
                     sd->card_status |= WP_VIOLATION;
                     break;
                 }
@@ -2712,9 +2759,9 @@ static void sd_write_byte(SDState *sd, uint8_t value)
             partition_access = sd->ext_csd[EXT_CSD_PART_CONFIG]
                     & EXT_CSD_PART_CONFIG_ACC_MASK;
             if (partition_access == EXT_CSD_PART_CONFIG_ACC_RPMB) {
-                emmc_rpmb_blk_write(sd, sd->data_start, sd->data_offset);
+                sd->emmcRpmbBlkWrite(sd->data_start, sd->data_offset);
             } else {
-                sd_blk_write(sd, sd->data_start, sd->data_offset);
+                sd->blkWrite(sd->data_start, sd->data_offset);
             }
             sd->blk_written++;
             sd->data_start += sd->blk_len;
@@ -2735,7 +2782,7 @@ static void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 26:  /* CMD26:  PROGRAM_CID */
-        if (sd_generic_write_byte(sd, value)) {
+        if (sd->genericWriteByte(value)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
             for (i = 0; i < sizeof(sd->cid); i ++)
@@ -2753,7 +2800,7 @@ static void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 27:  /* CMD27:  PROGRAM_CSD */
-        if (sd_generic_write_byte(sd, value)) {
+        if (sd->genericWriteByte(value)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
             for (i = 0; i < sizeof(sd->csd); i ++)
@@ -2776,17 +2823,17 @@ static void sd_write_byte(SDState *sd, uint8_t value)
         break;
 
     case 42:  /* CMD42:  LOCK_UNLOCK */
-        if (sd_generic_write_byte(sd, value)) {
+        if (sd->genericWriteByte(value)) {
             /* TODO: Check CRC before committing */
             sd->state = sd_programming_state;
-            sd_lock_command(sd);
+            sd->lockCommand();
             /* Bzzzzzzztt .... Operation complete.  */
             sd->state = sd_transfer_state;
         }
         break;
 
     case 56:  /* CMD56:  GEN_CMD */
-        sd_generic_write_byte(sd, value);
+        sd->genericWriteByte(value);
         break;
 
     default:
@@ -2816,7 +2863,7 @@ static uint8_t sd_read_byte(SDState *sd)
         return dummy_byte;
     }
 
-    io_len = sd_blk_len(sd);
+    io_len = sd->getBlkLen();
 
     trace_sdcard_read_data(sd->proto->name,
                            sd->last_cmd_name, sd->current_cmd,
@@ -2833,21 +2880,21 @@ static uint8_t sd_read_byte(SDState *sd)
     case 30: /* CMD30:  SEND_WRITE_PROT */
     case 51: /* ACMD51: SEND_SCR */
     case 56: /* CMD56:  GEN_CMD */
-        sd_generic_read_byte(sd, &ret);
+        sd->genericReadByte(&ret);
         break;
 
     case 18:  /* CMD18:  READ_MULTIPLE_BLOCK */
         if (sd->data_offset == 0) {
-            if (!address_in_range(sd, "READ_MULTIPLE_BLOCK",
+            if (!sd->addressInRange("READ_MULTIPLE_BLOCK",
                                   sd->data_start, io_len)) {
                 return dummy_byte;
             }
             partition_access = sd->ext_csd[EXT_CSD_PART_CONFIG]
                     & EXT_CSD_PART_CONFIG_ACC_MASK;
             if (partition_access == EXT_CSD_PART_CONFIG_ACC_RPMB) {
-                emmc_rpmb_blk_read(sd, sd->data_start, io_len);
+                sd->emmcRpmbBlkRead(sd->data_start, io_len);
             } else {
-                sd_blk_read(sd, sd->data_start, io_len);
+                sd->blkRead(sd->data_start, io_len);
             }
         }
         ret = sd->data[sd->data_offset ++];
@@ -3063,11 +3110,11 @@ void SDState::instanceFinalize(Object *obj)
     timer_free(sd->ocr_power_timer);
 }
 
-static void sd_blk_size_error(SDState *sd, int64_t blk_size,
+void SDState::blkSizeError(int64_t blk_size,
                               int64_t blk_size_aligned, const char *rule,
                               Error **errp)
 {
-    const char *dev_type = sd_is_emmc(sd) ? "eMMC" : "SD card";
+    const char *dev_type = isEmmc() ? "eMMC" : "SD card";
     char *blk_size_str;
 
     blk_size_str = size_to_str(blk_size);
@@ -3111,22 +3158,22 @@ void SDState::sdRealize(DeviceState *dev, Error **errp)
     if (blk_size >= 0) {
         blk_size -= sd->boot_part_size * 2 + sd->rpmb_part_size;
         if (blk_size > SDSC_MAX_CAPACITY) {
-            if (sd_is_emmc(sd) &&
+            if (sd->isEmmc() &&
                 !QEMU_IS_ALIGNED(blk_size, 1 << HWBLOCK_SHIFT)) {
                 int64_t blk_size_aligned =
                     ((blk_size >> HWBLOCK_SHIFT) + 1) << HWBLOCK_SHIFT;
-                sd_blk_size_error(sd, blk_size, blk_size_aligned,
+                sd->blkSizeError(blk_size, blk_size_aligned,
                                   "multiples of 512", errp);
                 return;
-            } else if (!sd_is_emmc(sd) &&
+            } else if (!sd->isEmmc() &&
                 !QEMU_IS_ALIGNED(blk_size, 512 * KiB)) {
                 int64_t blk_size_aligned = ((blk_size >> 19) + 1) << 19;
-                sd_blk_size_error(sd, blk_size, blk_size_aligned,
+                sd->blkSizeError(blk_size, blk_size_aligned,
                                   "multiples of 512K", errp);
                 return;
             }
         } else if (blk_size > 0 && !is_power_of_2(blk_size)) {
-            sd_blk_size_error(sd, blk_size, pow2ceil(blk_size), "a power of 2",
+            sd->blkSizeError(blk_size, pow2ceil(blk_size), "a power of 2",
                               errp);
             return;
         } else if (blk_size < 0) {
