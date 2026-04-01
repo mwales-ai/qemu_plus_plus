@@ -243,6 +243,54 @@ struct VirtIONet {
     void resetImpl();
     void instanceInitImpl();
 
+    /* Internal helper methods (converted from static functions) */
+    bool started(uint8_t status);
+    void announceNotify();
+    void vhostStatus(uint8_t status);
+    void vnetEndianStatus(uint8_t status);
+    void *getVlanTable();
+    void peerTestVnetHdr();
+    int peerHasVnetHdr();
+    int peerHasUfo();
+    int peerHasUso();
+    bool peerHasTunnel();
+    void setMrgRxBufs(int mergeable_rx_bufs, int version_1,
+                      int hash_report, int tunnel);
+    int maxTxQueueSize();
+    int peerAttach(int index);
+    int peerDetach(int index);
+    void setQueuePairs();
+    void applyGuestOffloads();
+    void *failoverFindPrimaryDevice();
+    void failoverAddPrimary(Error **errp);
+    int handleRxMode(uint8_t cmd, struct iovec *iov, unsigned int iov_cnt);
+    int handleOffloads(uint8_t cmd, struct iovec *iov, unsigned int iov_cnt);
+    int handleMac(uint8_t cmd, struct iovec *iov, unsigned int iov_cnt);
+    int handleVlanTable(uint8_t cmd, struct iovec *iov, unsigned int iov_cnt);
+    int handleAnnounce(uint8_t cmd, struct iovec *iov, unsigned int iov_cnt);
+    bool attachEbpfRss();
+    void detachEbpfRss();
+    void commitRssConfig();
+    void disableRss();
+    bool loadEbpfFds(Error **errp);
+    bool loadEbpf(Error **errp);
+    void unloadEbpf();
+    uint16_t handleRss(struct iovec *iov, unsigned int iov_cnt, bool do_rss);
+    int handleMq(uint8_t cmd, struct iovec *iov, unsigned int iov_cnt);
+    void receiveHeader(const struct iovec *iov, int iov_cnt,
+                       const void *buf, size_t size);
+    int receiveFilter(const uint8_t *buf, int size);
+    void rscCleanup();
+    void *rscLookupChain(void *nc, uint16_t proto);
+    void addQueue(int index);
+    void delQueue(int index);
+    void changeNumQueues(int new_num_queues);
+    void setMultiqueue(int multiqueue);
+    void setConfigSize(uint64_t host_features);
+    bool failoverUnplugPrimary(void *dev);
+    bool failoverReplugPrimary(void *dev, Error **errp);
+    void handleMigrationPrimary(void *e);
+
     /* static QOM callback wrappers */
     static void realizeStatic(DeviceState *dev, Error **errp);
     static void unrealizeStatic(DeviceState *dev);
