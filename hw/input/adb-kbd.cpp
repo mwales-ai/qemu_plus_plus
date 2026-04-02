@@ -252,12 +252,11 @@ static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
 int KBDState::request(ADBDevice *d, uint8_t *obuf,
                        const uint8_t *buf, int len)
 {
-    KBDState *s = ADB_KEYBOARD(d);
     int cmd, reg, olen;
 
     if ((buf[0] & 0x0f) == ADB_FLUSH) {
         /* flush keyboard fifo */
-        s->wptr = s->rptr = s->count = 0;
+        wptr = rptr = count = 0;
         return 0;
     }
 
@@ -332,9 +331,7 @@ static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
 
 bool KBDState::hasData(ADBDevice *d)
 {
-    KBDState *s = ADB_KEYBOARD(d);
-
-    return s->count > 0;
+    return count > 0;
 }
 
 static bool adb_kbd_has_data(ADBDevice *d)
@@ -384,14 +381,13 @@ static const VMStateDescription vmstate_adb_kbd = {
 void KBDState::reset(DeviceState *dev)
 {
     ADBDevice *d = ADB_DEVICE(dev);
-    KBDState *s = ADB_KEYBOARD(dev);
 
     d->handler = 1;
     d->devaddr = ADB_DEVID_KEYBOARD;
-    memset(s->data, 0, sizeof(s->data));
-    s->rptr = 0;
-    s->wptr = 0;
-    s->count = 0;
+    memset(data, 0, sizeof(data));
+    rptr = 0;
+    wptr = 0;
+    count = 0;
 }
 
 static void adb_kbd_reset(DeviceState *dev)
