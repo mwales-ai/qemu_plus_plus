@@ -127,11 +127,17 @@ struct IVShmemState {
     OnOffAuto master;
     Error *migration_blocker;
 
-    /* ----- methods ----- */
+    /* ----- instance methods ----- */
+    bool hasFeature(unsigned int feature);
+    bool isMaster();
     void realize(PCIDevice *dev, Error **errp);
     void exit(PCIDevice *dev);
     void reset(DeviceState *d);
+    void plainRealize(PCIDevice *dev, Error **errp);
+    void doorbellRealize(PCIDevice *dev, Error **errp);
+    void doorbellInit();
 
+    /* static class init methods */
     static void commonClassInit(ObjectClass *klass, const void *data);
     static void plainClassInit(ObjectClass *klass, const void *data);
     static void doorbellClassInit(ObjectClass *klass, const void *data);
@@ -156,12 +162,19 @@ struct IVShmemState {
     /* static vector callback */
     static void vectorNotify(void *opaque);
 
+    /* static MSI-X vector callbacks (need C function signature) */
+    static int vectorUnmask(PCIDevice *dev, unsigned vector, MSIMessage msg);
+    static void vectorMask(PCIDevice *dev, unsigned vector);
+    static void vectorPoll(PCIDevice *dev, unsigned int vector_start,
+                           unsigned int vector_end);
+
 private:
     void intrMaskWrite(uint32_t val);
     uint32_t intrMaskRead();
     void intrStatusWrite(uint32_t val);
     uint32_t intrStatusRead();
     void msixVectorUse();
+    void watchVectorNotifier(EventNotifier *n, int vector);
     void addEventfd(int posn, int i);
     void delEventfd(int posn, int i);
     void closePeerEventfds(int posn);
@@ -180,15 +193,15 @@ private:
     void disableIrqfd();
 };
 
-static inline uint32_t ivshmem_has_feature(IVShmemState *ivs,
-                                                    unsigned int feature) {
-    return (ivs->features & (1 << feature));
+bool IVShmemState::hasFeature(unsigned int feature)
+{
+    return (features & (1 << feature)) != 0;
 }
 
-static inline bool ivshmem_is_master(IVShmemState *s)
+bool IVShmemState::isMaster()
 {
-    assert(s->master != ON_OFF_AUTO_AUTO);
-    return s->master == ON_OFF_AUTO_ON;
+    assert(master != ON_OFF_AUTO_AUTO);
+    return master == ON_OFF_AUTO_ON;
 }
 
 void IVShmemState::intrMaskWrite(uint32_t val)
@@ -309,7 +322,7 @@ void IVShmemState::vectorNotify(void *opaque)
     }
 
     IVSHMEM_DPRINTF("interrupt on vector %p %d\n", pdev, vector);
-    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+    if (s->hasFeature(IVSHMEM_MSI)) {
         if (msix_enabled(pdev)) {
             msix_notify(pdev, vector);
         }
@@ -318,8 +331,8 @@ void IVShmemState::vectorNotify(void *opaque)
     }
 }
 
-static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
-                                 MSIMessage msg)
+int IVShmemState::vectorUnmask(PCIDevice *dev, unsigned vector,
+                                MSIMessage msg)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
@@ -348,7 +361,7 @@ static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
     return 0;
 }
 
-static void ivshmem_vector_mask(PCIDevice *dev, unsigned vector)
+void IVShmemState::vectorMask(PCIDevice *dev, unsigned vector)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
@@ -370,9 +383,9 @@ static void ivshmem_vector_mask(PCIDevice *dev, unsigned vector)
     v->unmasked = false;
 }
 
-static void ivshmem_vector_poll(PCIDevice *dev,
-                                unsigned int vector_start,
-                                unsigned int vector_end)
+void IVShmemState::vectorPoll(PCIDevice *dev,
+                               unsigned int vector_start,
+                               unsigned int vector_end)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
     unsigned int vector;
@@ -394,16 +407,15 @@ static void ivshmem_vector_poll(PCIDevice *dev,
     }
 }
 
-static void watch_vector_notifier(IVShmemState *s, EventNotifier *n,
-                                 int vector)
+void IVShmemState::watchVectorNotifier(EventNotifier *n, int vector)
 {
     int eventfd = event_notifier_get_fd(n);
 
-    assert(!s->msi_vectors[vector].pdev);
-    s->msi_vectors[vector].pdev = PCI_DEVICE(s);
+    assert(!msi_vectors[vector].pdev);
+    msi_vectors[vector].pdev = PCI_DEVICE(this);
 
     qemu_set_fd_handler(eventfd, IVShmemState::vectorNotify,
-                        NULL, &s->msi_vectors[vector]);
+                        NULL, &msi_vectors[vector]);
 }
 
 void IVShmemState::addEventfd(int posn, int i)
@@ -433,7 +445,7 @@ void IVShmemState::closePeerEventfds(int posn)
     assert(posn >= 0 && posn < nb_peers);
     n = peers[posn].nb_eventfds;
 
-    if (ivshmem_has_feature(this, IVSHMEM_IOEVENTFD)) {
+    if (hasFeature(IVSHMEM_IOEVENTFD)) {
         memory_region_transaction_begin();
         for (i = 0; i < n; i++) {
             delEventfd(posn, i);
@@ -491,7 +503,7 @@ void IVShmemState::setupInterrupt(int vector, Error **errp)
 {
     EventNotifier *n = &peers[vm_id].eventfds[vector];
     bool with_irqfd = kvm_msi_via_irqfd_enabled() &&
-        ivshmem_has_feature(this, IVSHMEM_MSI);
+        hasFeature(IVSHMEM_MSI);
     PCIDevice *pdev = PCI_DEVICE(this);
     Error *err = NULL;
 
@@ -499,7 +511,7 @@ void IVShmemState::setupInterrupt(int vector, Error **errp)
 
     if (!with_irqfd) {
         IVSHMEM_DPRINTF("with eventfd\n");
-        watch_vector_notifier(this, n, vector);
+        watchVectorNotifier(n, vector);
     } else if (msix_enabled(pdev)) {
         IVSHMEM_DPRINTF("with irqfd\n");
         addKvmMsiVirq(vector, &err);
@@ -595,7 +607,7 @@ void IVShmemState::processMsgConnect(uint16_t posn, int fd, Error **errp)
         /* TODO do we need to handle the error? */
     }
 
-    if (ivshmem_has_feature(this, IVSHMEM_IOEVENTFD)) {
+    if (hasFeature(IVSHMEM_IOEVENTFD)) {
         addEventfd(posn, vector);
     }
 }
@@ -778,7 +790,7 @@ void IVShmemState::reset(DeviceState *d)
 
     intrstatus = 0;
     intrmask = 0;
-    if (ivshmem_has_feature(this, IVSHMEM_MSI)) {
+    if (hasFeature(IVSHMEM_MSI)) {
         msixVectorUse();
     }
 }
@@ -788,7 +800,7 @@ int IVShmemState::setupInterrupts(Error **errp)
     /* allocate QEMU callback data for receiving interrupts */
     msi_vectors = g_new0(MSIVector, vectors);
 
-    if (ivshmem_has_feature(this, IVSHMEM_MSI)) {
+    if (hasFeature(IVSHMEM_MSI)) {
         if (msix_init_exclusive_bar(PCI_DEVICE(this), vectors, 1, errp)) {
             return -1;
         }
@@ -830,9 +842,9 @@ void IVShmemState::enableIrqfd()
     }
 
     if (msix_set_vector_notifiers(pdev,
-                                  ivshmem_vector_unmask,
-                                  ivshmem_vector_mask,
-                                  ivshmem_vector_poll)) {
+                                  IVShmemState::vectorUnmask,
+                                  IVShmemState::vectorMask,
+                                  IVShmemState::vectorPoll)) {
         error_report("ivshmem: msix_set_vector_notifiers failed");
         goto undo;
     }
@@ -862,7 +874,7 @@ void IVShmemState::disableIrqfd()
          * unmasks balanced.
          */
         if (msi_vectors[i].unmasked) {
-            ivshmem_vector_mask(pdev, i);
+            IVShmemState::vectorMask(pdev, i);
         }
         removeKvmMsiVirq(i);
     }
@@ -900,8 +912,8 @@ void IVShmemState::realize(PCIDevice *dev, Error **errp)
     Error *err = NULL;
 
     /* IRQFD requires MSI */
-    if (ivshmem_has_feature(this, IVSHMEM_IOEVENTFD) &&
-        !ivshmem_has_feature(this, IVSHMEM_MSI)) {
+    if (hasFeature(IVSHMEM_IOEVENTFD) &&
+        !hasFeature(IVSHMEM_MSI)) {
         error_setg(errp, "ioeventfd/irqfd requires MSI");
         return;
     }
@@ -962,7 +974,7 @@ void IVShmemState::realize(PCIDevice *dev, Error **errp)
         master = vm_id == 0 ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
     }
 
-    if (!ivshmem_is_master(this)) {
+    if (!isMaster()) {
         error_setg(&migration_blocker,
                    "Migration is disabled when using feature 'peer mode' in device 'ivshmem'");
         if (migrate_add_blocker(&migration_blocker, errp) < 0) {
@@ -1018,7 +1030,7 @@ void IVShmemState::exit(PCIDevice *dev)
         g_free(peers);
     }
 
-    if (ivshmem_has_feature(this, IVSHMEM_MSI)) {
+    if (hasFeature(IVSHMEM_MSI)) {
         msix_uninit_exclusive_bar(dev);
     }
 
@@ -1029,7 +1041,7 @@ int IVShmemState::preLoad(void *opaque)
 {
     IVShmemState *s = static_cast<IVShmemState *>(opaque);
 
-    if (!ivshmem_is_master(s)) {
+    if (!s->isMaster()) {
         error_report("'peer' devices are not migratable");
         return -EINVAL;
     }
@@ -1041,7 +1053,7 @@ int IVShmemState::postLoad(void *opaque, int version_id)
 {
     IVShmemState *s = static_cast<IVShmemState *>(opaque);
 
-    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+    if (s->hasFeature(IVSHMEM_MSI)) {
         s->msixVectorUse();
     }
     return 0;
@@ -1100,7 +1112,7 @@ static const Property ivshmem_plain_properties[] = {
                      HostMemoryBackend *),
 };
 
-static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
+void IVShmemState::plainRealize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
 
@@ -1114,6 +1126,12 @@ static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
     }
 
     ivshmem_common_realize_wrapper(dev, errp);
+}
+
+static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
+{
+    IVShmemState *s = IVSHMEM_COMMON(dev);
+    s->plainRealize(dev, errp);
 }
 
 void IVShmemState::plainClassInit(ObjectClass *klass, const void *data)
@@ -1158,14 +1176,18 @@ static const Property ivshmem_doorbell_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("master", IVShmemState, master, ON_OFF_AUTO_OFF),
 };
 
+void IVShmemState::doorbellInit()
+{
+    features |= (1 << IVSHMEM_MSI);
+}
+
 static void ivshmem_doorbell_init(Object *obj)
 {
     IVShmemState *s = IVSHMEM_DOORBELL(obj);
-
-    s->features |= (1 << IVSHMEM_MSI);
+    s->doorbellInit();
 }
 
-static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
+void IVShmemState::doorbellRealize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM_COMMON(dev);
 
@@ -1175,6 +1197,12 @@ static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
     }
 
     ivshmem_common_realize_wrapper(dev, errp);
+}
+
+static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
+{
+    IVShmemState *s = IVSHMEM_COMMON(dev);
+    s->doorbellRealize(dev, errp);
 }
 
 void IVShmemState::doorbellClassInit(ObjectClass *klass, const void *data)

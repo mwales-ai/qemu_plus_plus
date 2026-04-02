@@ -680,20 +680,20 @@ void GT64120State::writel(hwaddr addr, uint64_t val, unsigned size)
     /* Interrupts */
     case GT_INTRCAUSE:
         /* not really implemented */
-        s->regs[saddr] = ~(~(s->regs[saddr]) | ~(val & 0xfffffffe));
-        s->regs[saddr] |= !!(s->regs[saddr] & 0xfffffffe);
+        this->regs[saddr] = ~(~(this->regs[saddr]) | ~(val & 0xfffffffe));
+        this->regs[saddr] |= !!(this->regs[saddr] & 0xfffffffe);
         trace_gt64120_write_intreg("INTRCAUSE", size, val);
         break;
     case GT_INTRMASK:
-        s->regs[saddr] = val & 0x3c3ffffe;
+        this->regs[saddr] = val & 0x3c3ffffe;
         trace_gt64120_write_intreg("INTRMASK", size, val);
         break;
     case GT_PCI0_ICMASK:
-        s->regs[saddr] = val & 0x03fffffe;
+        this->regs[saddr] = val & 0x03fffffe;
         trace_gt64120_write_intreg("ICMASK", size, val);
         break;
     case GT_PCI0_SERR0MASK:
-        s->regs[saddr] = val & 0x0000003f;
+        this->regs[saddr] = val & 0x0000003f;
         trace_gt64120_write_intreg("SERR0MASK", size, val);
         break;
 
@@ -716,7 +716,7 @@ void GT64120State::writel(hwaddr addr, uint64_t val, unsigned size)
          * We don't simulate electrical parameters of the SDRAM.
          * Accept, but ignore the values.
          */
-        s->regs[saddr] = val;
+        this->regs[saddr] = val;
         break;
 
     default:
@@ -731,7 +731,12 @@ void GT64120State::writel(hwaddr addr, uint64_t val, unsigned size)
 static uint64_t gt64120_readl(void *opaque,
                               hwaddr addr, unsigned size)
 {
-    GT64120State *s = opaque;
+    GT64120State *s = static_cast<GT64120State *>(opaque);
+    return s->readl(addr, size);
+}
+
+uint64_t GT64120State::readl(hwaddr addr, unsigned size)
+{
     uint32_t val;
     uint32_t saddr = addr >> 2;
 
@@ -743,7 +748,7 @@ static uint64_t gt64120_readl(void *opaque,
          * Only one GT64xxx is present on the CPU bus, return
          * the initial value.
          */
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* CPU Error Report */
@@ -753,7 +758,7 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_CPUERR_DATAHI:
     case GT_CPUERR_PARITY:
         /* Emulated memory has no error, always return the initial values. */
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* CPU Sync Barrier */
@@ -774,7 +779,7 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_ECC_CALC:
     case GT_ECC_ERRADDR:
         /* Emulated memory has no error, always return the initial values. */
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     case GT_CPU:
@@ -809,7 +814,7 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_PCI1M0REMAP:
     case GT_PCI1M1REMAP:
     case GT_ISD:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
     case GT_PCI0_IACK:
         /* Read the IRQ number */
@@ -836,7 +841,7 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_BOOTLD:
     case GT_BOOTHD:
     case GT_ADERR:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* SDRAM Configuration */
@@ -844,7 +849,7 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_SDRAM_OPMODE:
     case GT_SDRAM_BM:
     case GT_SDRAM_ADDRDECODE:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* SDRAM Parameters */
@@ -856,7 +861,7 @@ static uint64_t gt64120_readl(void *opaque,
          * We don't simulate electrical parameters of the SDRAM.
          * Just return the last written value.
          */
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* Device Parameters */
@@ -865,7 +870,7 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_DEV_B2:
     case GT_DEV_B3:
     case GT_DEV_BOOT:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* DMA Record */
@@ -889,7 +894,7 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_DMA1_CUR:
     case GT_DMA2_CUR:
     case GT_DMA3_CUR:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* DMA Channel Control */
@@ -897,12 +902,12 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_DMA1_CTRL:
     case GT_DMA2_CTRL:
     case GT_DMA3_CTRL:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* DMA Arbiter */
     case GT_DMA_ARB:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* Timer/Counter */
@@ -911,7 +916,7 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_TC2:
     case GT_TC3:
     case GT_TC_CONTROL:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* PCI Internal */
@@ -953,24 +958,24 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_PCI1_SCS3BT_BAR:
     case GT_PCI1_CFGADDR:
     case GT_PCI1_CFGDATA:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     /* Interrupts */
     case GT_INTRCAUSE:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         trace_gt64120_read_intreg("INTRCAUSE", size, val);
         break;
     case GT_INTRMASK:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         trace_gt64120_read_intreg("INTRMASK", size, val);
         break;
     case GT_PCI0_ICMASK:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         trace_gt64120_read_intreg("ICMASK", size, val);
         break;
     case GT_PCI0_SERR0MASK:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         trace_gt64120_read_intreg("SERR0MASK", size, val);
         break;
 
@@ -981,11 +986,11 @@ static uint64_t gt64120_readl(void *opaque,
     case GT_HINTRMASK:
     case GT_PCI0_HICMASK:
     case GT_PCI1_SERR1MASK:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         break;
 
     default:
-        val = s->regs[saddr];
+        val = this->regs[saddr];
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Illegal register read "
                       "reg:0x%03x size:%u value:0x%0*x\n",
@@ -993,7 +998,7 @@ static uint64_t gt64120_readl(void *opaque,
         break;
     }
 
-    if (!(s->regs[GT_CPU] & 0x00001000)) {
+    if (!(this->regs[GT_CPU] & 0x00001000)) {
         val = bswap32(val);
     }
     trace_gt64120_read(addr, val);
@@ -1011,36 +1016,45 @@ static const MemoryRegionOps isd_mem_ops = {
     },
 };
 
-static bool bswap(const GT64120State *s) 
+bool GT64120State::needsBswap() const
 {
-    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    PCIHostState *phb = PCI_HOST_BRIDGE(this);
     /*check for bus == 0 && device == 0, Bits 11:15 = Device , Bits 16:23 = Bus*/
     bool is_phb_dev0 = extract32(phb->config_reg, 11, 13) == 0;
-    bool le_mode = FIELD_EX32(s->regs[GT_PCI0_CMD], GT_PCI0_CMD, MByteSwap);
+    bool le_mode = FIELD_EX32(this->regs[GT_PCI0_CMD], GT_PCI0_CMD, MByteSwap);
     /* Only swap for non-bridge devices in big-endian mode */
     return !le_mode && !is_phb_dev0;
 }
 
 static uint64_t gt64120_pci_data_read(void *opaque, hwaddr addr, unsigned size)
 {
-    GT64120State *s = opaque;
-    uint32_t val = pci_host_data_le_ops.read(opaque, addr, size);
+    GT64120State *s = static_cast<GT64120State *>(opaque);
+    return s->pciDataRead(addr, size);
+}
 
-    if (bswap(s)) {
+uint64_t GT64120State::pciDataRead(hwaddr addr, unsigned size)
+{
+    uint32_t val = pci_host_data_le_ops.read(this, addr, size);
+
+    if (this->needsBswap()) {
         val = bswap32(val);
     }
     return val;
 }
 
-static void gt64120_pci_data_write(void *opaque, hwaddr addr, 
+static void gt64120_pci_data_write(void *opaque, hwaddr addr,
     uint64_t val, unsigned size)
 {
-    GT64120State *s = opaque;
+    GT64120State *s = static_cast<GT64120State *>(opaque);
+    s->pciDataWrite(addr, val, size);
+}
 
-    if (bswap(s)) {
-        val = bswap32(val); 
+void GT64120State::pciDataWrite(hwaddr addr, uint64_t val, unsigned size)
+{
+    if (this->needsBswap()) {
+        val = bswap32(val);
     }
-    pci_host_data_le_ops.write(opaque, addr, val, size);  
+    pci_host_data_le_ops.write(this, addr, val, size);
 }
 
 static const MemoryRegionOps gt64120_pci_data_ops = {
@@ -1056,184 +1070,194 @@ static const MemoryRegionOps gt64120_pci_data_ops = {
 static void gt64120_reset(DeviceState *dev)
 {
     GT64120State *s = GT64120_PCI_HOST_BRIDGE(dev);
+    s->doReset();
+}
 
+void GT64120State::doReset()
+{
     /* FIXME: Malta specific hw assumptions ahead */
 
     /* CPU Configuration */
-    s->regs[GT_CPU] = s->cpu_little_endian ? R_GT_CPU_Endianness_MASK : 0;
-    s->regs[GT_MULTI]         = 0x00000003;
+    this->regs[GT_CPU] = this->cpu_little_endian ? R_GT_CPU_Endianness_MASK : 0;
+    this->regs[GT_MULTI]         = 0x00000003;
 
     /* CPU Address decode */
-    s->regs[GT_SCS10LD]       = 0x00000000;
-    s->regs[GT_SCS10HD]       = 0x00000007;
-    s->regs[GT_SCS32LD]       = 0x00000008;
-    s->regs[GT_SCS32HD]       = 0x0000000f;
-    s->regs[GT_CS20LD]        = 0x000000e0;
-    s->regs[GT_CS20HD]        = 0x00000070;
-    s->regs[GT_CS3BOOTLD]     = 0x000000f8;
-    s->regs[GT_CS3BOOTHD]     = 0x0000007f;
+    this->regs[GT_SCS10LD]       = 0x00000000;
+    this->regs[GT_SCS10HD]       = 0x00000007;
+    this->regs[GT_SCS32LD]       = 0x00000008;
+    this->regs[GT_SCS32HD]       = 0x0000000f;
+    this->regs[GT_CS20LD]        = 0x000000e0;
+    this->regs[GT_CS20HD]        = 0x00000070;
+    this->regs[GT_CS3BOOTLD]     = 0x000000f8;
+    this->regs[GT_CS3BOOTHD]     = 0x0000007f;
 
-    s->regs[GT_PCI0IOLD]      = 0x00000080;
-    s->regs[GT_PCI0IOHD]      = 0x0000000f;
-    s->regs[GT_PCI0M0LD]      = 0x00000090;
-    s->regs[GT_PCI0M0HD]      = 0x0000001f;
-    s->regs[GT_ISD]           = 0x000000a0;
-    s->regs[GT_PCI0M1LD]      = 0x00000790;
-    s->regs[GT_PCI0M1HD]      = 0x0000001f;
-    s->regs[GT_PCI1IOLD]      = 0x00000100;
-    s->regs[GT_PCI1IOHD]      = 0x0000000f;
-    s->regs[GT_PCI1M0LD]      = 0x00000110;
-    s->regs[GT_PCI1M0HD]      = 0x0000001f;
-    s->regs[GT_PCI1M1LD]      = 0x00000120;
-    s->regs[GT_PCI1M1HD]      = 0x0000002f;
+    this->regs[GT_PCI0IOLD]      = 0x00000080;
+    this->regs[GT_PCI0IOHD]      = 0x0000000f;
+    this->regs[GT_PCI0M0LD]      = 0x00000090;
+    this->regs[GT_PCI0M0HD]      = 0x0000001f;
+    this->regs[GT_ISD]           = 0x000000a0;
+    this->regs[GT_PCI0M1LD]      = 0x00000790;
+    this->regs[GT_PCI0M1HD]      = 0x0000001f;
+    this->regs[GT_PCI1IOLD]      = 0x00000100;
+    this->regs[GT_PCI1IOHD]      = 0x0000000f;
+    this->regs[GT_PCI1M0LD]      = 0x00000110;
+    this->regs[GT_PCI1M0HD]      = 0x0000001f;
+    this->regs[GT_PCI1M1LD]      = 0x00000120;
+    this->regs[GT_PCI1M1HD]      = 0x0000002f;
 
-    s->regs[GT_SCS10AR]       = 0x00000000;
-    s->regs[GT_SCS32AR]       = 0x00000008;
-    s->regs[GT_CS20R]         = 0x000000e0;
-    s->regs[GT_CS3BOOTR]      = 0x000000f8;
+    this->regs[GT_SCS10AR]       = 0x00000000;
+    this->regs[GT_SCS32AR]       = 0x00000008;
+    this->regs[GT_CS20R]         = 0x000000e0;
+    this->regs[GT_CS3BOOTR]      = 0x000000f8;
 
-    s->regs[GT_PCI0IOREMAP]   = 0x00000080;
-    s->regs[GT_PCI0M0REMAP]   = 0x00000090;
-    s->regs[GT_PCI0M1REMAP]   = 0x00000790;
-    s->regs[GT_PCI1IOREMAP]   = 0x00000100;
-    s->regs[GT_PCI1M0REMAP]   = 0x00000110;
-    s->regs[GT_PCI1M1REMAP]   = 0x00000120;
+    this->regs[GT_PCI0IOREMAP]   = 0x00000080;
+    this->regs[GT_PCI0M0REMAP]   = 0x00000090;
+    this->regs[GT_PCI0M1REMAP]   = 0x00000790;
+    this->regs[GT_PCI1IOREMAP]   = 0x00000100;
+    this->regs[GT_PCI1M0REMAP]   = 0x00000110;
+    this->regs[GT_PCI1M1REMAP]   = 0x00000120;
 
     /* CPU Error Report */
-    s->regs[GT_CPUERR_ADDRLO] = 0x00000000;
-    s->regs[GT_CPUERR_ADDRHI] = 0x00000000;
-    s->regs[GT_CPUERR_DATALO] = 0xffffffff;
-    s->regs[GT_CPUERR_DATAHI] = 0xffffffff;
-    s->regs[GT_CPUERR_PARITY] = 0x000000ff;
+    this->regs[GT_CPUERR_ADDRLO] = 0x00000000;
+    this->regs[GT_CPUERR_ADDRHI] = 0x00000000;
+    this->regs[GT_CPUERR_DATALO] = 0xffffffff;
+    this->regs[GT_CPUERR_DATAHI] = 0xffffffff;
+    this->regs[GT_CPUERR_PARITY] = 0x000000ff;
 
     /* CPU Sync Barrier */
-    s->regs[GT_PCI0SYNC]      = 0x00000000;
-    s->regs[GT_PCI1SYNC]      = 0x00000000;
+    this->regs[GT_PCI0SYNC]      = 0x00000000;
+    this->regs[GT_PCI1SYNC]      = 0x00000000;
 
     /* SDRAM and Device Address Decode */
-    s->regs[GT_SCS0LD]        = 0x00000000;
-    s->regs[GT_SCS0HD]        = 0x00000007;
-    s->regs[GT_SCS1LD]        = 0x00000008;
-    s->regs[GT_SCS1HD]        = 0x0000000f;
-    s->regs[GT_SCS2LD]        = 0x00000010;
-    s->regs[GT_SCS2HD]        = 0x00000017;
-    s->regs[GT_SCS3LD]        = 0x00000018;
-    s->regs[GT_SCS3HD]        = 0x0000001f;
-    s->regs[GT_CS0LD]         = 0x000000c0;
-    s->regs[GT_CS0HD]         = 0x000000c7;
-    s->regs[GT_CS1LD]         = 0x000000c8;
-    s->regs[GT_CS1HD]         = 0x000000cf;
-    s->regs[GT_CS2LD]         = 0x000000d0;
-    s->regs[GT_CS2HD]         = 0x000000df;
-    s->regs[GT_CS3LD]         = 0x000000f0;
-    s->regs[GT_CS3HD]         = 0x000000fb;
-    s->regs[GT_BOOTLD]        = 0x000000fc;
-    s->regs[GT_BOOTHD]        = 0x000000ff;
-    s->regs[GT_ADERR]         = 0xffffffff;
+    this->regs[GT_SCS0LD]        = 0x00000000;
+    this->regs[GT_SCS0HD]        = 0x00000007;
+    this->regs[GT_SCS1LD]        = 0x00000008;
+    this->regs[GT_SCS1HD]        = 0x0000000f;
+    this->regs[GT_SCS2LD]        = 0x00000010;
+    this->regs[GT_SCS2HD]        = 0x00000017;
+    this->regs[GT_SCS3LD]        = 0x00000018;
+    this->regs[GT_SCS3HD]        = 0x0000001f;
+    this->regs[GT_CS0LD]         = 0x000000c0;
+    this->regs[GT_CS0HD]         = 0x000000c7;
+    this->regs[GT_CS1LD]         = 0x000000c8;
+    this->regs[GT_CS1HD]         = 0x000000cf;
+    this->regs[GT_CS2LD]         = 0x000000d0;
+    this->regs[GT_CS2HD]         = 0x000000df;
+    this->regs[GT_CS3LD]         = 0x000000f0;
+    this->regs[GT_CS3HD]         = 0x000000fb;
+    this->regs[GT_BOOTLD]        = 0x000000fc;
+    this->regs[GT_BOOTHD]        = 0x000000ff;
+    this->regs[GT_ADERR]         = 0xffffffff;
 
     /* SDRAM Configuration */
-    s->regs[GT_SDRAM_CFG]     = 0x00000200;
-    s->regs[GT_SDRAM_OPMODE]  = 0x00000000;
-    s->regs[GT_SDRAM_BM]      = 0x00000007;
-    s->regs[GT_SDRAM_ADDRDECODE] = 0x00000002;
+    this->regs[GT_SDRAM_CFG]     = 0x00000200;
+    this->regs[GT_SDRAM_OPMODE]  = 0x00000000;
+    this->regs[GT_SDRAM_BM]      = 0x00000007;
+    this->regs[GT_SDRAM_ADDRDECODE] = 0x00000002;
 
     /* SDRAM Parameters */
-    s->regs[GT_SDRAM_B0]      = 0x00000005;
-    s->regs[GT_SDRAM_B1]      = 0x00000005;
-    s->regs[GT_SDRAM_B2]      = 0x00000005;
-    s->regs[GT_SDRAM_B3]      = 0x00000005;
+    this->regs[GT_SDRAM_B0]      = 0x00000005;
+    this->regs[GT_SDRAM_B1]      = 0x00000005;
+    this->regs[GT_SDRAM_B2]      = 0x00000005;
+    this->regs[GT_SDRAM_B3]      = 0x00000005;
 
     /* ECC */
-    s->regs[GT_ECC_ERRDATALO] = 0x00000000;
-    s->regs[GT_ECC_ERRDATAHI] = 0x00000000;
-    s->regs[GT_ECC_MEM]       = 0x00000000;
-    s->regs[GT_ECC_CALC]      = 0x00000000;
-    s->regs[GT_ECC_ERRADDR]   = 0x00000000;
+    this->regs[GT_ECC_ERRDATALO] = 0x00000000;
+    this->regs[GT_ECC_ERRDATAHI] = 0x00000000;
+    this->regs[GT_ECC_MEM]       = 0x00000000;
+    this->regs[GT_ECC_CALC]      = 0x00000000;
+    this->regs[GT_ECC_ERRADDR]   = 0x00000000;
 
     /* Device Parameters */
-    s->regs[GT_DEV_B0]        = 0x386fffff;
-    s->regs[GT_DEV_B1]        = 0x386fffff;
-    s->regs[GT_DEV_B2]        = 0x386fffff;
-    s->regs[GT_DEV_B3]        = 0x386fffff;
-    s->regs[GT_DEV_BOOT]      = 0x146fffff;
+    this->regs[GT_DEV_B0]        = 0x386fffff;
+    this->regs[GT_DEV_B1]        = 0x386fffff;
+    this->regs[GT_DEV_B2]        = 0x386fffff;
+    this->regs[GT_DEV_B3]        = 0x386fffff;
+    this->regs[GT_DEV_BOOT]      = 0x146fffff;
 
     /* DMA registers are all zeroed at reset */
 
     /* Timer/Counter */
-    s->regs[GT_TC0]           = 0xffffffff;
-    s->regs[GT_TC1]           = 0x00ffffff;
-    s->regs[GT_TC2]           = 0x00ffffff;
-    s->regs[GT_TC3]           = 0x00ffffff;
-    s->regs[GT_TC_CONTROL]    = 0x00000000;
+    this->regs[GT_TC0]           = 0xffffffff;
+    this->regs[GT_TC1]           = 0x00ffffff;
+    this->regs[GT_TC2]           = 0x00ffffff;
+    this->regs[GT_TC3]           = 0x00ffffff;
+    this->regs[GT_TC_CONTROL]    = 0x00000000;
 
     /* PCI Internal */
-    s->regs[GT_PCI0_CMD] = s->cpu_little_endian ? R_GT_PCI0_CMD_ByteSwap_MASK : 0;
-    s->regs[GT_PCI0_TOR]      = 0x0000070f;
-    s->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
-    s->regs[GT_PCI0_BS_SCS32] = 0x00fff000;
-    s->regs[GT_PCI0_BS_CS20]  = 0x01fff000;
-    s->regs[GT_PCI0_BS_CS3BT] = 0x00fff000;
-    s->regs[GT_PCI1_IACK]     = 0x00000000;
-    s->regs[GT_PCI0_IACK]     = 0x00000000;
-    s->regs[GT_PCI0_BARE]     = 0x0000000f;
-    s->regs[GT_PCI0_PREFMBR]  = 0x00000040;
-    s->regs[GT_PCI0_SCS10_BAR] = 0x00000000;
-    s->regs[GT_PCI0_SCS32_BAR] = 0x01000000;
-    s->regs[GT_PCI0_CS20_BAR] = 0x1c000000;
-    s->regs[GT_PCI0_CS3BT_BAR] = 0x1f000000;
-    s->regs[GT_PCI0_SSCS10_BAR] = 0x00000000;
-    s->regs[GT_PCI0_SSCS32_BAR] = 0x01000000;
-    s->regs[GT_PCI0_SCS3BT_BAR] = 0x1f000000;
-    s->regs[GT_PCI1_CMD] = s->cpu_little_endian ? R_GT_PCI1_CMD_ByteSwap_MASK : 0;
-    s->regs[GT_PCI1_TOR]      = 0x0000070f;
-    s->regs[GT_PCI1_BS_SCS10] = 0x00fff000;
-    s->regs[GT_PCI1_BS_SCS32] = 0x00fff000;
-    s->regs[GT_PCI1_BS_CS20]  = 0x01fff000;
-    s->regs[GT_PCI1_BS_CS3BT] = 0x00fff000;
-    s->regs[GT_PCI1_BARE]     = 0x0000000f;
-    s->regs[GT_PCI1_PREFMBR]  = 0x00000040;
-    s->regs[GT_PCI1_SCS10_BAR] = 0x00000000;
-    s->regs[GT_PCI1_SCS32_BAR] = 0x01000000;
-    s->regs[GT_PCI1_CS20_BAR] = 0x1c000000;
-    s->regs[GT_PCI1_CS3BT_BAR] = 0x1f000000;
-    s->regs[GT_PCI1_SSCS10_BAR] = 0x00000000;
-    s->regs[GT_PCI1_SSCS32_BAR] = 0x01000000;
-    s->regs[GT_PCI1_SCS3BT_BAR] = 0x1f000000;
-    s->regs[GT_PCI1_CFGADDR]  = 0x00000000;
-    s->regs[GT_PCI1_CFGDATA]  = 0x00000000;
-    s->regs[GT_PCI0_CFGADDR]  = 0x00000000;
+    this->regs[GT_PCI0_CMD] = this->cpu_little_endian ? R_GT_PCI0_CMD_ByteSwap_MASK : 0;
+    this->regs[GT_PCI0_TOR]      = 0x0000070f;
+    this->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
+    this->regs[GT_PCI0_BS_SCS32] = 0x00fff000;
+    this->regs[GT_PCI0_BS_CS20]  = 0x01fff000;
+    this->regs[GT_PCI0_BS_CS3BT] = 0x00fff000;
+    this->regs[GT_PCI1_IACK]     = 0x00000000;
+    this->regs[GT_PCI0_IACK]     = 0x00000000;
+    this->regs[GT_PCI0_BARE]     = 0x0000000f;
+    this->regs[GT_PCI0_PREFMBR]  = 0x00000040;
+    this->regs[GT_PCI0_SCS10_BAR] = 0x00000000;
+    this->regs[GT_PCI0_SCS32_BAR] = 0x01000000;
+    this->regs[GT_PCI0_CS20_BAR] = 0x1c000000;
+    this->regs[GT_PCI0_CS3BT_BAR] = 0x1f000000;
+    this->regs[GT_PCI0_SSCS10_BAR] = 0x00000000;
+    this->regs[GT_PCI0_SSCS32_BAR] = 0x01000000;
+    this->regs[GT_PCI0_SCS3BT_BAR] = 0x1f000000;
+    this->regs[GT_PCI1_CMD] = this->cpu_little_endian ? R_GT_PCI1_CMD_ByteSwap_MASK : 0;
+    this->regs[GT_PCI1_TOR]      = 0x0000070f;
+    this->regs[GT_PCI1_BS_SCS10] = 0x00fff000;
+    this->regs[GT_PCI1_BS_SCS32] = 0x00fff000;
+    this->regs[GT_PCI1_BS_CS20]  = 0x01fff000;
+    this->regs[GT_PCI1_BS_CS3BT] = 0x00fff000;
+    this->regs[GT_PCI1_BARE]     = 0x0000000f;
+    this->regs[GT_PCI1_PREFMBR]  = 0x00000040;
+    this->regs[GT_PCI1_SCS10_BAR] = 0x00000000;
+    this->regs[GT_PCI1_SCS32_BAR] = 0x01000000;
+    this->regs[GT_PCI1_CS20_BAR] = 0x1c000000;
+    this->regs[GT_PCI1_CS3BT_BAR] = 0x1f000000;
+    this->regs[GT_PCI1_SSCS10_BAR] = 0x00000000;
+    this->regs[GT_PCI1_SSCS32_BAR] = 0x01000000;
+    this->regs[GT_PCI1_SCS3BT_BAR] = 0x1f000000;
+    this->regs[GT_PCI1_CFGADDR]  = 0x00000000;
+    this->regs[GT_PCI1_CFGDATA]  = 0x00000000;
+    this->regs[GT_PCI0_CFGADDR]  = 0x00000000;
 
     /* Interrupt registers are all zeroed at reset */
 
-    gt64120_isd_mapping(s);
-    gt64120_pci_mapping(s);
+    this->isdMapping();
+    this->pciMapping();
 }
 
 static void gt64120_realize(DeviceState *dev, Error **errp)
 {
     GT64120State *s = GT64120_PCI_HOST_BRIDGE(dev);
-    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
+    s->doRealize(errp);
+}
 
-    memory_region_init_io(&s->ISD_mem, OBJECT(dev), &isd_mem_ops, s,
+void GT64120State::doRealize(Error **errp)
+{
+    PCIHostState *phb = PCI_HOST_BRIDGE(this);
+    DeviceState *dev = DEVICE(this);
+
+    memory_region_init_io(&this->ISD_mem, OBJECT(this), &isd_mem_ops, this,
                           "gt64120-isd", 0x1000);
-    memory_region_init(&s->pci0_mem, OBJECT(dev), "pci0-mem", 4 * GiB);
-    address_space_init(&s->pci0_mem_as, &s->pci0_mem, "pci0-mem");
+    memory_region_init(&this->pci0_mem, OBJECT(this), "pci0-mem", 4 * GiB);
+    address_space_init(&this->pci0_mem_as, &this->pci0_mem, "pci0-mem");
     phb->bus = pci_root_bus_new(dev, "pci",
-                                &s->pci0_mem,
+                                &this->pci0_mem,
                                 get_system_io(),
                                 PCI_DEVFN(18, 0), TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
     memory_region_init_io(&phb->conf_mem, OBJECT(phb),
                           &pci_host_conf_le_ops,
-                          s, "pci-conf-idx", 4);
-    memory_region_add_subregion_overlap(&s->ISD_mem, GT_PCI0_CFGADDR << 2,
+                          this, "pci-conf-idx", 4);
+    memory_region_add_subregion_overlap(&this->ISD_mem, GT_PCI0_CFGADDR << 2,
                                         &phb->conf_mem, 1);
 
     memory_region_init_io(&phb->data_mem, OBJECT(phb),
                           &gt64120_pci_data_ops,
-                          s, "pci-conf-data", 4);
-    memory_region_add_subregion_overlap(&s->ISD_mem, GT_PCI0_CFGDATA << 2,
+                          this, "pci-conf-data", 4);
+    memory_region_add_subregion_overlap(&this->ISD_mem, GT_PCI0_CFGDATA << 2,
                                         &phb->data_mem, 1);
 
 

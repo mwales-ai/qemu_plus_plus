@@ -110,6 +110,12 @@ struct I6300State {
     void exit(PCIDevice *dev);
     void configWrite(PCIDevice *dev, uint32_t addr, uint32_t data, int len);
     uint32_t configRead(PCIDevice *dev, uint32_t addr, int len);
+    uint32_t doMemReadb(hwaddr addr);
+    uint32_t doMemReadw(hwaddr addr);
+    uint32_t doMemReadl(hwaddr addr);
+    void doMemWriteb(hwaddr addr, uint32_t val);
+    void doMemWritew(hwaddr addr, uint32_t val);
+    void doMemWritel(hwaddr addr, uint32_t val);
 
     /* Static timer callback */
     static void timerExpired(void *vp);
@@ -118,14 +124,6 @@ struct I6300State {
     static uint64_t memReadfn(void *opaque, hwaddr addr, unsigned size);
     static void memWritefn(void *opaque, hwaddr addr, uint64_t value,
                            unsigned size);
-
-    /* Static MMIO helpers */
-    static uint32_t memReadb(void *vp, hwaddr addr);
-    static uint32_t memReadw(void *vp, hwaddr addr);
-    static uint32_t memReadl(void *vp, hwaddr addr);
-    static void memWriteb(void *vp, hwaddr addr, uint32_t val);
-    static void memWritew(void *vp, hwaddr addr, uint32_t val);
-    static void memWritel(void *vp, hwaddr addr, uint32_t val);
 
     /* Class init */
     static void classInit(ObjectClass *klass, const void *data);
@@ -309,17 +307,16 @@ static uint32_t i6300esb_config_read(PCIDevice *dev, uint32_t addr, int len)
     return d->configRead(dev, addr, len);
 }
 
-uint32_t I6300State::memReadb(void *vp, hwaddr addr)
+uint32_t I6300State::doMemReadb(hwaddr addr)
 {
     i6300esb_debug ("addr = %x\n", (int) addr);
 
     return 0;
 }
 
-uint32_t I6300State::memReadw(void *vp, hwaddr addr)
+uint32_t I6300State::doMemReadw(hwaddr addr)
 {
     uint32_t data = 0;
-    I6300State *d = static_cast<I6300State *>(vp);
 
     i6300esb_debug("addr = %x\n", (int) addr);
 
@@ -328,95 +325,91 @@ uint32_t I6300State::memReadw(void *vp, hwaddr addr)
          * a bug in the Linux driver where it thinks it's bit 12.
          * Set both.
          */
-        data = d->previous_reboot_flag ? 0x1200 : 0;
+        data = previous_reboot_flag ? 0x1200 : 0;
     }
 
     return data;
 }
 
-uint32_t I6300State::memReadl(void *vp, hwaddr addr)
+uint32_t I6300State::doMemReadl(hwaddr addr)
 {
     i6300esb_debug("addr = %x\n", (int) addr);
 
     return 0;
 }
 
-void I6300State::memWriteb(void *vp, hwaddr addr, uint32_t val)
+void I6300State::doMemWriteb(hwaddr addr, uint32_t val)
 {
-    I6300State *d = static_cast<I6300State *>(vp);
-
     i6300esb_debug("addr = %x, val = %x\n", (int) addr, val);
 
     if (addr == 0xc && val == 0x80)
-        d->unlock_state = 1;
-    else if (addr == 0xc && val == 0x86 && d->unlock_state == 1)
-        d->unlock_state = 2;
+        unlock_state = 1;
+    else if (addr == 0xc && val == 0x86 && unlock_state == 1)
+        unlock_state = 2;
 }
 
-void I6300State::memWritew(void *vp, hwaddr addr, uint32_t val)
+void I6300State::doMemWritew(hwaddr addr, uint32_t val)
 {
-    I6300State *d = static_cast<I6300State *>(vp);
-
     i6300esb_debug("addr = %x, val = %x\n", (int) addr, val);
 
     if (addr == 0xc && val == 0x80)
-        d->unlock_state = 1;
-    else if (addr == 0xc && val == 0x86 && d->unlock_state == 1)
-        d->unlock_state = 2;
+        unlock_state = 1;
+    else if (addr == 0xc && val == 0x86 && unlock_state == 1)
+        unlock_state = 2;
     else {
-        if (d->unlock_state == 2) {
+        if (unlock_state == 2) {
             if (addr == 0xc) {
                 if ((val & 0x100) != 0)
                     /* This is the "ping" from the userspace watchdog in
                      * the guest ...
                      */
-                    d->restartTimer(1);
+                    restartTimer(1);
 
                 /* Setting bit 9 resets the previous reboot flag.
                  * There's a bug in the Linux driver where it sets
                  * bit 12 instead.
                  */
                 if ((val & 0x200) != 0 || (val & 0x1000) != 0) {
-                    d->previous_reboot_flag = 0;
+                    previous_reboot_flag = 0;
                 }
             }
 
-            d->unlock_state = 0;
+            unlock_state = 0;
         }
     }
 }
 
-void I6300State::memWritel(void *vp, hwaddr addr, uint32_t val)
+void I6300State::doMemWritel(hwaddr addr, uint32_t val)
 {
-    I6300State *d = static_cast<I6300State *>(vp);
-
     i6300esb_debug ("addr = %x, val = %x\n", (int) addr, val);
 
     if (addr == 0xc && val == 0x80)
-        d->unlock_state = 1;
-    else if (addr == 0xc && val == 0x86 && d->unlock_state == 1)
-        d->unlock_state = 2;
+        unlock_state = 1;
+    else if (addr == 0xc && val == 0x86 && unlock_state == 1)
+        unlock_state = 2;
     else {
-        if (d->unlock_state == 2) {
+        if (unlock_state == 2) {
             if (addr == 0)
-                d->timer1_preload = val & 0xfffff;
+                timer1_preload = val & 0xfffff;
             else if (addr == 4)
-                d->timer2_preload = val & 0xfffff;
+                timer2_preload = val & 0xfffff;
 
-            d->unlock_state = 0;
+            unlock_state = 0;
         }
     }
 }
 
 uint64_t I6300State::memReadfn(void *opaque, hwaddr addr, unsigned size)
 {
+    I6300State *s = static_cast<I6300State *>(opaque);
+
     switch (size) {
     case 1:
-        return I6300State::memReadb(opaque, addr);
+        return s->doMemReadb(addr);
     case 2:
-        return I6300State::memReadw(opaque, addr);
+        return s->doMemReadw(addr);
     case 4:
-        return I6300State::memReadl(opaque, addr);
+        return s->doMemReadl(addr);
     default:
         g_assert_not_reached();
     }
@@ -425,15 +418,17 @@ uint64_t I6300State::memReadfn(void *opaque, hwaddr addr, unsigned size)
 void I6300State::memWritefn(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
+    I6300State *s = static_cast<I6300State *>(opaque);
+
     switch (size) {
     case 1:
-        I6300State::memWriteb(opaque, addr, value);
+        s->doMemWriteb(addr, value);
         break;
     case 2:
-        I6300State::memWritew(opaque, addr, value);
+        s->doMemWritew(addr, value);
         break;
     case 4:
-        I6300State::memWritel(opaque, addr, value);
+        s->doMemWritel(addr, value);
         break;
     default:
         g_assert_not_reached();

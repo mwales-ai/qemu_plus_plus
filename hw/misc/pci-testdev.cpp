@@ -109,6 +109,12 @@ struct PCITestDevState {
     void uninit(PCIDevice *dev);
     void reset(DeviceState *dev);
 
+private:
+    static int startTest(IOTest *test);
+    static void stopTest(IOTest *test);
+    static void incTest(IOTest *test, unsigned inc);
+
+public:
     /* Class init */
     static void classInit(ObjectClass *klass, const void *data);
 };
@@ -123,7 +129,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PCITestDevState, PCI_TEST_DEV)
 #define IOTEST_PCI_BAR(i) (IOTEST_IS_MEM(i) ? PCI_BASE_ADDRESS_SPACE_MEMORY : \
                            PCI_BASE_ADDRESS_SPACE_IO)
 
-static int pci_testdev_start(IOTest *test)
+int PCITestDevState::startTest(IOTest *test)
 {
     test->hdr->count = 0;
     if (!test->hasnotifier) {
@@ -139,7 +145,7 @@ static int pci_testdev_start(IOTest *test)
     return 0;
 }
 
-static void pci_testdev_stop(IOTest *test)
+void PCITestDevState::stopTest(IOTest *test)
 {
     if (!test->hasnotifier) {
         return;
@@ -157,11 +163,11 @@ void PCITestDevState::resetDev()
     if (current == -1) {
         return;
     }
-    pci_testdev_stop(&tests[current]);
+    stopTest(&tests[current]);
     current = -1;
 }
 
-static void pci_testdev_inc(IOTest *test, unsigned inc)
+void PCITestDevState::incTest(IOTest *test, unsigned inc)
 {
     uint32_t c = le32_to_cpu(test->hdr->count);
     test->hdr->count = cpu_to_le32(c + inc);
@@ -180,7 +186,7 @@ void PCITestDevState::mmioWriteImpl(void *opaque, hwaddr addr, uint64_t val,
             return;
         }
         t = type * IOTEST_MAX_TEST + val;
-        r = pci_testdev_start(&d->tests[t]);
+        r = startTest(&d->tests[t]);
         if (r < 0) {
             return;
         }
@@ -200,7 +206,7 @@ void PCITestDevState::mmioWriteImpl(void *opaque, hwaddr addr, uint64_t val,
     if (test->match_data && val != test->hdr->data) {
         return;
     }
-    pci_testdev_inc(test, 1);
+    incTest(test, 1);
 }
 
 uint64_t PCITestDevState::mmioRead(void *opaque, hwaddr addr, unsigned size)

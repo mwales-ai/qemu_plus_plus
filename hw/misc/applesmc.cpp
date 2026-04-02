@@ -135,6 +135,9 @@ struct AppleSMCState {
     void unrealize(DeviceState *dev);
     void reset(DeviceState *dev);
 
+    /* Static AML callback */
+    static void buildAml(AcpiDevAmlIf *adev, Aml *scope);
+
     /* Class init */
     static void classInit(ObjectClass *klass, const void *data);
 };
@@ -395,7 +398,7 @@ static const Property applesmc_isa_properties[] = {
     DEFINE_PROP_STRING("osk", AppleSMCState, osk),
 };
 
-static void build_applesmc_aml(AcpiDevAmlIf *adev, Aml *scope)
+void AppleSMCState::buildAml(AcpiDevAmlIf *adev, Aml *scope)
 {
     Aml *crs;
     AppleSMCState *s = APPLE_SMC(adev);
@@ -424,7 +427,7 @@ void AppleSMCState::classInit(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, qdev_applesmc_isa_reset);
     device_class_set_props(dc, applesmc_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    adevc->build_dev_aml = build_applesmc_aml;
+    adevc->build_dev_aml = AppleSMCState::buildAml;
 }
 
 static const InterfaceInfo applesmc_isa_interfaces[] = {

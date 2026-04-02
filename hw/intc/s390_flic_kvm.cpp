@@ -33,6 +33,15 @@ struct KVMS390FLICState{
 
     uint32_t fd;
     bool clear_io_supported;
+
+    /* methods */
+    int getAllIrqs(void *buf, int len);
+    void enablePfault();
+    void disableWaitPfault();
+    int enqueueIrqs(void *buf, uint64_t len);
+    int getAllIrqsRetry(void **buf, int len);
+    void doRealize(Error **errp);
+    void doReset();
 };
 
 static KVMS390FLICState *s390_get_kvm_flic(S390FLICState *fs)
@@ -47,18 +56,16 @@ static KVMS390FLICState *s390_get_kvm_flic(S390FLICState *fs)
 }
 
 /**
- * flic_get_all_irqs - store all pending irqs in buffer
+ * getAllIrqs - store all pending irqs in buffer
  * @buf: pointer to buffer which is passed to kernel
  * @len: length of buffer
- * @flic: pointer to flic device state
  *
  * Returns: -ENOMEM if buffer is too small,
  * -EINVAL if attr.group is invalid,
  * -EFAULT if copying to userspace failed,
  * on success return number of stored interrupts
  */
-static int flic_get_all_irqs(KVMS390FLICState *flic,
-                             void *buf, int len)
+int KVMS390FLICState::getAllIrqs(void *buf, int len)
 {
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_GET_ALL_IRQS,
@@ -67,48 +74,46 @@ static int flic_get_all_irqs(KVMS390FLICState *flic,
     };
     int rc;
 
-    rc = ioctl(flic->fd, KVM_GET_DEVICE_ATTR, &attr);
+    rc = ioctl(this->fd, KVM_GET_DEVICE_ATTR, &attr);
 
     return rc == -1 ? -errno : rc;
 }
 
-static void flic_enable_pfault(KVMS390FLICState *flic)
+void KVMS390FLICState::enablePfault()
 {
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_APF_ENABLE,
     };
     int rc;
 
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = ioctl(this->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     if (rc) {
         fprintf(stderr, "flic: couldn't enable pfault\n");
     }
 }
 
-static void flic_disable_wait_pfault(KVMS390FLICState *flic)
+void KVMS390FLICState::disableWaitPfault()
 {
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_APF_DISABLE_WAIT,
     };
     int rc;
 
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = ioctl(this->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     if (rc) {
         fprintf(stderr, "flic: couldn't disable pfault\n");
     }
 }
 
-/** flic_enqueue_irqs - returns 0 on success
+/** enqueueIrqs - returns 0 on success
  * @buf: pointer to buffer which is passed to kernel
  * @len: length of buffer
- * @flic: pointer to flic device state
  *
  * Returns: -EINVAL if attr.group is unknown
  */
-static int flic_enqueue_irqs(void *buf, uint64_t len,
-                            KVMS390FLICState *flic)
+int KVMS390FLICState::enqueueIrqs(void *buf, uint64_t len)
 {
     int rc;
     struct kvm_device_attr attr = {
@@ -117,7 +122,7 @@ static int flic_enqueue_irqs(void *buf, uint64_t len,
         .attr = len,
     };
 
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = ioctl(this->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     return rc ? -errno : 0;
 }
@@ -128,7 +133,7 @@ static void kvm_s390_inject_flic(S390FLICState *fs, struct kvm_s390_irq *irq)
     int r;
 
     if (use_flic) {
-        r = flic_enqueue_irqs(irq, sizeof(*irq), s390_get_kvm_flic(fs));
+        r = s390_get_kvm_flic(fs)->enqueueIrqs(irq, sizeof(*irq));
         if (r == -ENOSYS) {
             use_flic = false;
         }
@@ -238,27 +243,25 @@ static int kvm_s390_inject_airq(S390FLICState *fs, uint8_t type,
 }
 
 /**
- * __get_all_irqs - store all pending irqs in buffer
- * @flic: pointer to flic device state
+ * getAllIrqsRetry - store all pending irqs in buffer
  * @buf: pointer to pointer to a buffer
  * @len: length of buffer
  *
- * Returns: return value of flic_get_all_irqs
- * Note: Retry and increase buffer size until flic_get_all_irqs
+ * Returns: return value of getAllIrqs
+ * Note: Retry and increase buffer size until getAllIrqs
  * either returns a value >= 0 or a negative error code.
  * -ENOMEM is an exception, which means the buffer is too small
  * and we should try again. Other negative error codes can be
  * -EFAULT and -EINVAL which we ignore at this point
  */
-static int __get_all_irqs(KVMS390FLICState *flic,
-                          void **buf, int len)
+int KVMS390FLICState::getAllIrqsRetry(void **buf, int len)
 {
     int r;
 
     do {
         /* returns -ENOMEM if buffer is too small and number
          * of queued interrupts on success */
-        r = flic_get_all_irqs(flic, *buf, len);
+        r = this->getAllIrqs(*buf, len);
         if (r >= 0) {
             break;
         }
@@ -414,13 +417,13 @@ static void kvm_s390_release_adapter_routes(S390FLICState *fs,
 static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,
                          const VMStateField *field, JSONWriter *vmdesc)
 {
-    KVMS390FLICState *flic = opaque;
+    KVMS390FLICState *flic = static_cast<KVMS390FLICState *>(opaque);
     int len = FLIC_SAVE_INITIAL_SIZE;
     void *buf;
     int count;
     int r = 0;
 
-    flic_disable_wait_pfault((struct KVMS390FLICState *) opaque);
+    flic->disableWaitPfault();
 
     buf = g_try_malloc0(len);
     if (!buf) {
@@ -432,7 +435,7 @@ static int kvm_flic_save(QEMUFile *f, void *opaque, size_t size,
         return -ENOMEM;
     }
 
-    count = __get_all_irqs(flic, &buf, len);
+    count = flic->getAllIrqsRetry(&buf, len);
     if (count < 0) {
         error_report("flic: couldn't retrieve irqs from kernel, rc %d",
                      count);
@@ -469,7 +472,8 @@ static int kvm_flic_load(QEMUFile *f, void *opaque, size_t size,
     void *buf = NULL;
     int r = 0;
 
-    flic_enable_pfault((struct KVMS390FLICState *) opaque);
+    KVMS390FLICState *flic = static_cast<KVMS390FLICState *>(opaque);
+    flic->enablePfault();
 
     count = qemu_get_be64(f);
     len = count * sizeof(struct kvm_s390_irq);
@@ -488,7 +492,7 @@ static int kvm_flic_load(QEMUFile *f, void *opaque, size_t size,
         r = -EINVAL;
         goto out_free;
     }
-    r = flic_enqueue_irqs(buf, len, (struct KVMS390FLICState *) opaque);
+    r = flic->enqueueIrqs(buf, len);
 
 out_free:
     g_free(buf);
@@ -611,17 +615,22 @@ DECLARE_CLASS_CHECKERS(KVMS390FLICStateClass, KVM_S390_FLIC,
 static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
 {
     KVMS390FLICState *flic_state = KVM_S390_FLIC(dev);
+    flic_state->doRealize(errp);
+}
+
+void KVMS390FLICState::doRealize(Error **errp)
+{
     struct kvm_create_device cd = {0};
     struct kvm_device_attr test_attr = {0};
     int ret;
     Error *err = NULL;
 
-    KVM_S390_FLIC_GET_CLASS(dev)->parent_realize(dev, &err);
+    KVM_S390_FLIC_GET_CLASS(this)->parent_realize(DEVICE(this), &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
-    flic_state->fd = -1;
+    this->fd = -1;
 
     cd.type = KVM_DEV_TYPE_FLIC;
     ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_DEVICE, &cd);
@@ -630,29 +639,34 @@ static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
         trace_flic_create_device(errno);
         return;
     }
-    flic_state->fd = cd.fd;
+    this->fd = cd.fd;
 
     /* Check clear_io_irq support */
     test_attr.group = KVM_DEV_FLIC_CLEAR_IO_IRQ;
-    flic_state->clear_io_supported = !ioctl(flic_state->fd,
-                                            KVM_HAS_DEVICE_ATTR, test_attr);
+    this->clear_io_supported = !ioctl(this->fd,
+                                      KVM_HAS_DEVICE_ATTR, test_attr);
 }
 
 static void kvm_s390_flic_reset(DeviceState *dev)
 {
     KVMS390FLICState *flic = KVM_S390_FLIC(dev);
-    S390FLICState *fs = S390_FLIC_COMMON(dev);
+    flic->doReset();
+}
+
+void KVMS390FLICState::doReset()
+{
+    S390FLICState *fs = S390_FLIC_COMMON(this);
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_CLEAR_IRQS,
     };
     int rc = 0;
     uint8_t isc;
 
-    if (flic->fd == -1) {
+    if (this->fd == -1) {
         return;
     }
 
-    flic_disable_wait_pfault(flic);
+    this->disableWaitPfault();
 
     if (fs->ais_supported) {
         for (isc = 0; isc <= MAX_ISC; isc++) {
@@ -664,12 +678,12 @@ static void kvm_s390_flic_reset(DeviceState *dev)
         }
     }
 
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = ioctl(this->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (rc) {
         trace_flic_reset_failed(errno);
     }
 
-    flic_enable_pfault(flic);
+    this->enablePfault();
 }
 
 void KVMS390FLICStateClass::classInit(ObjectClass *oc, const void *data)
