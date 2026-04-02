@@ -230,6 +230,71 @@ typedef struct XHCIState {
     void unrealize();
     void reset();
 
+    /* internal helpers -- converted from static functions */
+    uint64_t mfindexGet();
+    void mfwrapUpdate();
+    void die();
+    void dmaReadU32s(dma_addr_t addr, uint32_t *buf, size_t len);
+    void dmaWriteU32s(dma_addr_t addr, const uint32_t *buf, size_t len);
+    XHCIPort *lookupPort(struct USBPort *uport);
+    void intrUpdate(int v);
+    void intrRaise(int v);
+    int running();
+    void writeEvent(XHCIEvent *event, int v);
+    void event(XHCIEvent *event, int v);
+    void ringInit(XHCIRing *ring, dma_addr_t base);
+    int ringFetch(XHCIRing *ring, void *trb, dma_addr_t *addr);
+    int ringChainLength(const XHCIRing *ring);
+    void erReset(int v);
+    void run();
+    void stop();
+    int epmaskToEpsWithStreams(unsigned int slotid, uint32_t epmask,
+                               void **epctxs, USBEndpoint **eps);
+    void freeDeviceStreams(unsigned int slotid, uint32_t epmask);
+    TRBCCode allocDeviceStreams(unsigned int slotid, uint32_t epmask);
+    void setEpState(void *epctx, void *sctx, uint32_t state);
+    void *allocEpctx(unsigned int slotid, unsigned int epid);
+    TRBCCode enableEp(unsigned int slotid, unsigned int epid,
+                      dma_addr_t pctx, uint32_t *ctx);
+    int epNukeXfers(unsigned int slotid, unsigned int epid, TRBCCode report);
+    TRBCCode disableEp(unsigned int slotid, unsigned int epid);
+    TRBCCode stopEp(unsigned int slotid, unsigned int epid);
+    TRBCCode resetEp(unsigned int slotid, unsigned int epid);
+    TRBCCode setEpDequeue(unsigned int slotid, unsigned int epid,
+                          unsigned int streamid, uint64_t pdequeue);
+    int fireCtlTransfer(void *xfer);
+    void calcIntrKick(void *xfer, void *epctx, uint64_t mfindex);
+    void calcIsoKick(void *xfer, void *epctx, uint64_t mfindex);
+    void checkIntrIsoKick(void *xfer, void *epctx, uint64_t mfindex);
+    int submit(void *xfer, void *epctx);
+    int fireTransfer(void *xfer, void *epctx);
+    void kickEp(unsigned int slotid, unsigned int epid, unsigned int streamid);
+    bool slotOk(int slotid);
+    TRBCCode enableSlot(unsigned int slotid);
+    TRBCCode disableSlot(unsigned int slotid);
+    USBPort *lookupUport(uint32_t *slot_ctx);
+    TRBCCode addressSlot(unsigned int slotid, uint64_t pictx, bool bsr);
+    TRBCCode configureSlot(unsigned int slotid, uint64_t pictx, bool dc);
+    TRBCCode evaluateSlot(unsigned int slotid, uint64_t pictx);
+    TRBCCode resetSlot(unsigned int slotid);
+    unsigned int getSlot(XHCIEvent *event, void *trb);
+    void detachSlot(USBPort *uport);
+    TRBCCode getPortBandwidth(uint64_t pctx);
+    void processCommands();
+    void usbXhciInit();
+
+    /* MMIO read/write helpers */
+    uint64_t capRead(hwaddr reg, unsigned size);
+    uint64_t operRead(hwaddr reg, unsigned size);
+    void operWrite(hwaddr reg, uint64_t val, unsigned size);
+    uint64_t runtimeRead(hwaddr reg, unsigned size);
+    void runtimeWrite(hwaddr reg, uint64_t val, unsigned size);
+    uint64_t doorbellRead(hwaddr reg, unsigned size);
+    void doorbellWrite(hwaddr reg, uint64_t val, unsigned size);
+
+    bool getFlag(enum xhci_flags bit);
+    void setFlag(enum xhci_flags bit);
+
     static void classInit(ObjectClass *klass, const void *data);
 #endif
 } XHCIState;
