@@ -62,6 +62,16 @@ typedef struct M48t59State {
     /* NVRAM storage */
     uint16_t addr;
     uint8_t  lock;
+
+#ifdef __cplusplus
+    /* methods */
+    void alarmCb();
+    void setAlarm();
+    void getTime(struct tm *tm);
+    void setTime(struct tm *tm);
+    void watchdogCb();
+    void setUpWatchdog(uint8_t value);
+#endif
 } M48t59State;
 
 uint32_t m48t59_read(M48t59State *NVRAM, uint32_t addr);

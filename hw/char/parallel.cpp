@@ -75,49 +75,53 @@
 
 #define PARA_CTR_SIGNAL (PARA_CTR_SELECT|PARA_CTR_INIT|PARA_CTR_AUTOLF|PARA_CTR_STROBE)
 
-static void parallel_update_irq(ParallelState *s)
+void ParallelState::updateIrq()
 {
-    if (s->irq_pending)
-        qemu_irq_raise(s->irq);
+    if (this->irq_pending)
+        qemu_irq_raise(this->irq);
     else
-        qemu_irq_lower(s->irq);
+        qemu_irq_lower(this->irq);
 }
 
 static void
 parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    s->ioportWriteSw(addr, val);
+}
 
+void ParallelState::ioportWriteSw(uint32_t addr, uint32_t val)
+{
     addr &= 7;
     trace_parallel_ioport_write("SW", addr, val);
     switch(addr) {
     case PARA_REG_DATA:
-        s->dataw = val;
-        parallel_update_irq(s);
+        this->dataw = val;
+        this->updateIrq();
         break;
     case PARA_REG_CTR:
         val |= 0xc0;
         if ((val & PARA_CTR_INIT) == 0 ) {
-            s->status = PARA_STS_BUSY;
-            s->status |= PARA_STS_ACK;
-            s->status |= PARA_STS_ONLINE;
-            s->status |= PARA_STS_ERROR;
+            this->status = PARA_STS_BUSY;
+            this->status |= PARA_STS_ACK;
+            this->status |= PARA_STS_ONLINE;
+            this->status |= PARA_STS_ERROR;
         }
         else if (val & PARA_CTR_SELECT) {
             if (val & PARA_CTR_STROBE) {
-                s->status &= ~PARA_STS_BUSY;
-                if ((s->control & PARA_CTR_STROBE) == 0)
+                this->status &= ~PARA_STS_BUSY;
+                if ((this->control & PARA_CTR_STROBE) == 0)
                     /* XXX this blocks entire thread. Rewrite to use
                      * qemu_chr_fe_write and background I/O callbacks */
-                    qemu_chr_fe_write_all(&s->chr, &s->dataw, 1);
+                    qemu_chr_fe_write_all(&this->chr, &this->dataw, 1);
             } else {
-                if (s->control & PARA_CTR_INTEN) {
-                    s->irq_pending = 1;
+                if (this->control & PARA_CTR_INTEN) {
+                    this->irq_pending = 1;
                 }
             }
         }
-        parallel_update_irq(s);
-        s->control = val;
+        this->updateIrq();
+        this->control = val;
         break;
     }
 }
@@ -125,57 +129,62 @@ parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
 static void parallel_ioport_write_hw(void *opaque, uint32_t addr, uint32_t val)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    s->ioportWriteHw(addr, val);
+}
+
+void ParallelState::ioportWriteHw(uint32_t addr, uint32_t val)
+{
     uint8_t parm = val;
     int dir;
 
     /* Sometimes programs do several writes for timing purposes on old
        HW. Take care not to waste time on writes that do nothing. */
 
-    s->last_read_offset = ~0U;
+    this->last_read_offset = ~0U;
 
     addr &= 7;
     trace_parallel_ioport_write("HW", addr, val);
     switch(addr) {
     case PARA_REG_DATA:
-        if (s->dataw == val)
+        if (this->dataw == val)
             return;
         pdebug("wd%02x\n", val);
-        qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_WRITE_DATA, &parm);
-        s->dataw = val;
+        qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_WRITE_DATA, &parm);
+        this->dataw = val;
         break;
     case PARA_REG_STS:
         pdebug("ws%02x\n", val);
         if (val & PARA_STS_TMOUT)
-            s->epp_timeout = 0;
+            this->epp_timeout = 0;
         break;
     case PARA_REG_CTR:
         val |= 0xc0;
-        if (s->control == val)
+        if (this->control == val)
             return;
         pdebug("wc%02x\n", val);
 
-        if ((val & PARA_CTR_DIR) != (s->control & PARA_CTR_DIR)) {
+        if ((val & PARA_CTR_DIR) != (this->control & PARA_CTR_DIR)) {
             if (val & PARA_CTR_DIR) {
                 dir = 1;
             } else {
                 dir = 0;
             }
-            qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_DATA_DIR, &dir);
+            qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_DATA_DIR, &dir);
             parm &= ~PARA_CTR_DIR;
         }
 
-        qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_WRITE_CONTROL, &parm);
-        s->control = val;
+        qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_WRITE_CONTROL, &parm);
+        this->control = val;
         break;
     case PARA_REG_EPP_ADDR:
-        if ((s->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != PARA_CTR_INIT)
+        if ((this->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != PARA_CTR_INIT)
             /* Controls not correct for EPP address cycle, so do nothing */
             pdebug("wa%02x s\n", val);
         else {
             struct ParallelIOArg ioarg = { .buffer = &parm, .count = 1 };
-            if (qemu_chr_fe_ioctl(&s->chr,
+            if (qemu_chr_fe_ioctl(&this->chr,
                                   CHR_IOCTL_PP_EPP_WRITE_ADDR, &ioarg)) {
-                s->epp_timeout = 1;
+                this->epp_timeout = 1;
                 pdebug("wa%02x t\n", val);
             }
             else
@@ -183,13 +192,13 @@ static void parallel_ioport_write_hw(void *opaque, uint32_t addr, uint32_t val)
         }
         break;
     case PARA_REG_EPP_DATA:
-        if ((s->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != PARA_CTR_INIT)
+        if ((this->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != PARA_CTR_INIT)
             /* Controls not correct for EPP data cycle, so do nothing */
             pdebug("we%02x s\n", val);
         else {
             struct ParallelIOArg ioarg = { .buffer = &parm, .count = 1 };
-            if (qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_EPP_WRITE, &ioarg)) {
-                s->epp_timeout = 1;
+            if (qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_EPP_WRITE, &ioarg)) {
+                this->epp_timeout = 1;
                 pdebug("we%02x t\n", val);
             }
             else
@@ -203,6 +212,11 @@ static void
 parallel_ioport_eppdata_write_hw2(void *opaque, uint32_t addr, uint32_t val)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    s->ioportEppdataWriteHw2(addr, val);
+}
+
+void ParallelState::ioportEppdataWriteHw2(uint32_t addr, uint32_t val)
+{
     uint16_t eppdata = cpu_to_le16(val);
     int err;
     struct ParallelIOArg ioarg = {
@@ -210,14 +224,14 @@ parallel_ioport_eppdata_write_hw2(void *opaque, uint32_t addr, uint32_t val)
     };
 
     trace_parallel_ioport_write("EPP", addr, val);
-    if ((s->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != PARA_CTR_INIT) {
+    if ((this->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != PARA_CTR_INIT) {
         /* Controls not correct for EPP data cycle, so do nothing */
         pdebug("we%04x s\n", val);
         return;
     }
-    err = qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_EPP_WRITE, &ioarg);
+    err = qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_EPP_WRITE, &ioarg);
     if (err) {
-        s->epp_timeout = 1;
+        this->epp_timeout = 1;
         pdebug("we%04x t\n", val);
     }
     else
@@ -228,6 +242,11 @@ static void
 parallel_ioport_eppdata_write_hw4(void *opaque, uint32_t addr, uint32_t val)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    s->ioportEppdataWriteHw4(addr, val);
+}
+
+void ParallelState::ioportEppdataWriteHw4(uint32_t addr, uint32_t val)
+{
     uint32_t eppdata = cpu_to_le32(val);
     int err;
     struct ParallelIOArg ioarg = {
@@ -235,14 +254,14 @@ parallel_ioport_eppdata_write_hw4(void *opaque, uint32_t addr, uint32_t val)
     };
 
     trace_parallel_ioport_write("EPP", addr, val);
-    if ((s->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != PARA_CTR_INIT) {
+    if ((this->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != PARA_CTR_INIT) {
         /* Controls not correct for EPP data cycle, so do nothing */
         pdebug("we%08x s\n", val);
         return;
     }
-    err = qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_EPP_WRITE, &ioarg);
+    err = qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_EPP_WRITE, &ioarg);
     if (err) {
-        s->epp_timeout = 1;
+        this->epp_timeout = 1;
         pdebug("we%08x t\n", val);
     }
     else
@@ -252,33 +271,38 @@ parallel_ioport_eppdata_write_hw4(void *opaque, uint32_t addr, uint32_t val)
 static uint32_t parallel_ioport_read_sw(void *opaque, uint32_t addr)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    return s->ioportReadSw(addr);
+}
+
+uint32_t ParallelState::ioportReadSw(uint32_t addr)
+{
     uint32_t ret = 0xff;
 
     addr &= 7;
     switch(addr) {
     case PARA_REG_DATA:
-        if (s->control & PARA_CTR_DIR)
-            ret = s->datar;
+        if (this->control & PARA_CTR_DIR)
+            ret = this->datar;
         else
-            ret = s->dataw;
+            ret = this->dataw;
         break;
     case PARA_REG_STS:
-        ret = s->status;
-        s->irq_pending = 0;
-        if ((s->status & PARA_STS_BUSY) == 0 && (s->control & PARA_CTR_STROBE) == 0) {
+        ret = this->status;
+        this->irq_pending = 0;
+        if ((this->status & PARA_STS_BUSY) == 0 && (this->control & PARA_CTR_STROBE) == 0) {
             /* XXX Fixme: wait 5 microseconds */
-            if (s->status & PARA_STS_ACK)
-                s->status &= ~PARA_STS_ACK;
+            if (this->status & PARA_STS_ACK)
+                this->status &= ~PARA_STS_ACK;
             else {
                 /* XXX Fixme: wait 5 microseconds */
-                s->status |= PARA_STS_ACK;
-                s->status |= PARA_STS_BUSY;
+                this->status |= PARA_STS_ACK;
+                this->status |= PARA_STS_BUSY;
             }
         }
-        parallel_update_irq(s);
+        this->updateIrq();
         break;
     case PARA_REG_CTR:
-        ret = s->control;
+        ret = this->control;
         break;
     }
     trace_parallel_ioport_read("SW", addr, ret);
@@ -288,49 +312,54 @@ static uint32_t parallel_ioport_read_sw(void *opaque, uint32_t addr)
 static uint32_t parallel_ioport_read_hw(void *opaque, uint32_t addr)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    return s->ioportReadHw(addr);
+}
+
+uint32_t ParallelState::ioportReadHw(uint32_t addr)
+{
     uint8_t ret = 0xff;
     addr &= 7;
     switch(addr) {
     case PARA_REG_DATA:
-        qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_READ_DATA, &ret);
-        if (s->last_read_offset != addr || s->datar != ret)
+        qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_READ_DATA, &ret);
+        if (this->last_read_offset != addr || this->datar != ret)
             pdebug("rd%02x\n", ret);
-        s->datar = ret;
+        this->datar = ret;
         break;
     case PARA_REG_STS:
-        qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_READ_STATUS, &ret);
+        qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_READ_STATUS, &ret);
         ret &= ~PARA_STS_TMOUT;
-        if (s->epp_timeout)
+        if (this->epp_timeout)
             ret |= PARA_STS_TMOUT;
-        if (s->last_read_offset != addr || s->status != ret)
+        if (this->last_read_offset != addr || this->status != ret)
             pdebug("rs%02x\n", ret);
-        s->status = ret;
+        this->status = ret;
         break;
     case PARA_REG_CTR:
-        /* s->control has some bits fixed to 1. It is zero only when
+        /* this->control has some bits fixed to 1. It is zero only when
            it has not been yet written to.  */
-        if (s->control == 0) {
-            qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_READ_CONTROL, &ret);
-            if (s->last_read_offset != addr)
+        if (this->control == 0) {
+            qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_READ_CONTROL, &ret);
+            if (this->last_read_offset != addr)
                 pdebug("rc%02x\n", ret);
-            s->control = ret;
+            this->control = ret;
         }
         else {
-            ret = s->control;
-            if (s->last_read_offset != addr)
+            ret = this->control;
+            if (this->last_read_offset != addr)
                 pdebug("rc%02x\n", ret);
         }
         break;
     case PARA_REG_EPP_ADDR:
-        if ((s->control & (PARA_CTR_DIR | PARA_CTR_SIGNAL)) !=
+        if ((this->control & (PARA_CTR_DIR | PARA_CTR_SIGNAL)) !=
             (PARA_CTR_DIR | PARA_CTR_INIT))
             /* Controls not correct for EPP addr cycle, so do nothing */
             pdebug("ra%02x s\n", ret);
         else {
             struct ParallelIOArg ioarg = { .buffer = &ret, .count = 1 };
-            if (qemu_chr_fe_ioctl(&s->chr,
+            if (qemu_chr_fe_ioctl(&this->chr,
                                   CHR_IOCTL_PP_EPP_READ_ADDR, &ioarg)) {
-                s->epp_timeout = 1;
+                this->epp_timeout = 1;
                 pdebug("ra%02x t\n", ret);
             }
             else
@@ -338,14 +367,14 @@ static uint32_t parallel_ioport_read_hw(void *opaque, uint32_t addr)
         }
         break;
     case PARA_REG_EPP_DATA:
-        if ((s->control & (PARA_CTR_DIR | PARA_CTR_SIGNAL)) !=
+        if ((this->control & (PARA_CTR_DIR | PARA_CTR_SIGNAL)) !=
             (PARA_CTR_DIR | PARA_CTR_INIT))
             /* Controls not correct for EPP data cycle, so do nothing */
             pdebug("re%02x s\n", ret);
         else {
             struct ParallelIOArg ioarg = { .buffer = &ret, .count = 1 };
-            if (qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_EPP_READ, &ioarg)) {
-                s->epp_timeout = 1;
+            if (qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_EPP_READ, &ioarg)) {
+                this->epp_timeout = 1;
                 pdebug("re%02x t\n", ret);
             }
             else
@@ -354,7 +383,7 @@ static uint32_t parallel_ioport_read_hw(void *opaque, uint32_t addr)
         break;
     }
     trace_parallel_ioport_read("HW", addr, ret);
-    s->last_read_offset = addr;
+    this->last_read_offset = addr;
     return ret;
 }
 
@@ -362,22 +391,27 @@ static uint32_t
 parallel_ioport_eppdata_read_hw2(void *opaque, uint32_t addr)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    return s->ioportEppdataReadHw2(addr);
+}
+
+uint32_t ParallelState::ioportEppdataReadHw2(uint32_t addr)
+{
     uint32_t ret;
     uint16_t eppdata = ~0;
     int err;
     struct ParallelIOArg ioarg = {
         .buffer = &eppdata, .count = sizeof(eppdata)
     };
-    if ((s->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != (PARA_CTR_DIR|PARA_CTR_INIT)) {
+    if ((this->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != (PARA_CTR_DIR|PARA_CTR_INIT)) {
         /* Controls not correct for EPP data cycle, so do nothing */
         pdebug("re%04x s\n", eppdata);
         return eppdata;
     }
-    err = qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_EPP_READ, &ioarg);
+    err = qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_EPP_READ, &ioarg);
     ret = le16_to_cpu(eppdata);
 
     if (err) {
-        s->epp_timeout = 1;
+        this->epp_timeout = 1;
         pdebug("re%04x t\n", ret);
     }
     else
@@ -390,22 +424,27 @@ static uint32_t
 parallel_ioport_eppdata_read_hw4(void *opaque, uint32_t addr)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    return s->ioportEppdataReadHw4(addr);
+}
+
+uint32_t ParallelState::ioportEppdataReadHw4(uint32_t addr)
+{
     uint32_t ret;
     uint32_t eppdata = ~0U;
     int err;
     struct ParallelIOArg ioarg = {
         .buffer = &eppdata, .count = sizeof(eppdata)
     };
-    if ((s->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != (PARA_CTR_DIR|PARA_CTR_INIT)) {
+    if ((this->control & (PARA_CTR_DIR|PARA_CTR_SIGNAL)) != (PARA_CTR_DIR|PARA_CTR_INIT)) {
         /* Controls not correct for EPP data cycle, so do nothing */
         pdebug("re%08x s\n", eppdata);
         return eppdata;
     }
-    err = qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_PP_EPP_READ, &ioarg);
+    err = qemu_chr_fe_ioctl(&this->chr, CHR_IOCTL_PP_EPP_READ, &ioarg);
     ret = le32_to_cpu(eppdata);
 
     if (err) {
-        s->epp_timeout = 1;
+        this->epp_timeout = 1;
         pdebug("re%08x t\n", ret);
     }
     else
@@ -432,21 +471,25 @@ static uint32_t parallel_ioport_ecp_read(void *opaque, uint32_t addr)
 static void parallel_reset(void *opaque)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
+    s->reset();
+}
 
-    s->datar = ~0;
-    s->dataw = ~0;
-    s->status = PARA_STS_BUSY;
-    s->status |= PARA_STS_ACK;
-    s->status |= PARA_STS_ONLINE;
-    s->status |= PARA_STS_ERROR;
-    s->status |= PARA_STS_TMOUT;
-    s->control = PARA_CTR_SELECT;
-    s->control |= PARA_CTR_INIT;
-    s->control |= 0xc0;
-    s->irq_pending = 0;
-    s->hw_driver = 0;
-    s->epp_timeout = 0;
-    s->last_read_offset = ~0U;
+void ParallelState::reset()
+{
+    this->datar = ~0;
+    this->dataw = ~0;
+    this->status = PARA_STS_BUSY;
+    this->status |= PARA_STS_ACK;
+    this->status |= PARA_STS_ONLINE;
+    this->status |= PARA_STS_ERROR;
+    this->status |= PARA_STS_TMOUT;
+    this->control = PARA_CTR_SELECT;
+    this->control |= PARA_CTR_INIT;
+    this->control |= 0xc0;
+    this->irq_pending = 0;
+    this->hw_driver = 0;
+    this->epp_timeout = 0;
+    this->last_read_offset = ~0U;
 }
 
 static const int isa_parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
@@ -565,7 +608,7 @@ static uint64_t parallel_mm_readfn(void *opaque, hwaddr addr, unsigned size)
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
 
-    return parallel_ioport_read_sw(s, addr >> s->it_shift) &
+    return s->ioportReadSw(addr >> s->it_shift) &
         MAKE_64BIT_MASK(0, size * 8);
 }
 
@@ -574,8 +617,8 @@ static void parallel_mm_writefn(void *opaque, hwaddr addr,
 {
     ParallelState *s = static_cast<ParallelState *>(opaque);
 
-    parallel_ioport_write_sw(s, addr >> s->it_shift,
-                             value & MAKE_64BIT_MASK(0, size * 8));
+    s->ioportWriteSw(addr >> s->it_shift,
+                     value & MAKE_64BIT_MASK(0, size * 8));
 }
 
 static const MemoryRegionOps parallel_mm_ops = {

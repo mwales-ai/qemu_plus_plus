@@ -61,6 +61,14 @@ struct M48txxSysBusState {
     M48t59State state;
     MemoryRegion io;
 
+    /* methods */
+    void instanceInit();
+    void realize(Error **errp);
+    void resetSysbus();
+    uint32_t nvramRead(uint32_t addr);
+    void nvramWrite(uint32_t addr, uint32_t val);
+    void nvramToggleLock(int lock);
+
     static void classInit(ObjectClass *klass, const void *data);
     static void concreteClassInit(ObjectClass *klass, const void *data);
 };
@@ -90,101 +98,110 @@ static M48txxInfo m48txx_sysbus_info[] = {
 /* Fake timer functions */
 
 /* Alarm management */
-static void alarm_cb (void *opaque)
+static void alarm_cb(void *opaque)
+{
+    M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
+    NVRAM->alarmCb();
+}
+
+void M48t59State::alarmCb()
 {
     struct tm tm;
     uint64_t next_time;
-    M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
 
-    qemu_set_irq(NVRAM->IRQ, 1);
-    if ((NVRAM->buffer[0x1FF5] & 0x80) == 0 &&
-        (NVRAM->buffer[0x1FF4] & 0x80) == 0 &&
-        (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
-        (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
+    qemu_set_irq(this->IRQ, 1);
+    if ((this->buffer[0x1FF5] & 0x80) == 0 &&
+        (this->buffer[0x1FF4] & 0x80) == 0 &&
+        (this->buffer[0x1FF3] & 0x80) == 0 &&
+        (this->buffer[0x1FF2] & 0x80) == 0) {
         /* Repeat once a month */
-        qemu_get_timedate(&tm, NVRAM->time_offset);
+        qemu_get_timedate(&tm, this->time_offset);
         tm.tm_mon++;
         if (tm.tm_mon == 13) {
             tm.tm_mon = 1;
             tm.tm_year++;
         }
-        next_time = qemu_timedate_diff(&tm) - NVRAM->time_offset;
-    } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
-               (NVRAM->buffer[0x1FF4] & 0x80) == 0 &&
-               (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
-               (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
+        next_time = qemu_timedate_diff(&tm) - this->time_offset;
+    } else if ((this->buffer[0x1FF5] & 0x80) != 0 &&
+               (this->buffer[0x1FF4] & 0x80) == 0 &&
+               (this->buffer[0x1FF3] & 0x80) == 0 &&
+               (this->buffer[0x1FF2] & 0x80) == 0) {
         /* Repeat once a day */
         next_time = 24 * 60 * 60;
-    } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
-               (NVRAM->buffer[0x1FF4] & 0x80) != 0 &&
-               (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
-               (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
+    } else if ((this->buffer[0x1FF5] & 0x80) != 0 &&
+               (this->buffer[0x1FF4] & 0x80) != 0 &&
+               (this->buffer[0x1FF3] & 0x80) == 0 &&
+               (this->buffer[0x1FF2] & 0x80) == 0) {
         /* Repeat once an hour */
         next_time = 60 * 60;
-    } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
-               (NVRAM->buffer[0x1FF4] & 0x80) != 0 &&
-               (NVRAM->buffer[0x1FF3] & 0x80) != 0 &&
-               (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
+    } else if ((this->buffer[0x1FF5] & 0x80) != 0 &&
+               (this->buffer[0x1FF4] & 0x80) != 0 &&
+               (this->buffer[0x1FF3] & 0x80) != 0 &&
+               (this->buffer[0x1FF2] & 0x80) == 0) {
         /* Repeat once a minute */
         next_time = 60;
     } else {
         /* Repeat once a second */
         next_time = 1;
     }
-    timer_mod(NVRAM->alrm_timer, qemu_clock_get_ns(rtc_clock) +
+    timer_mod(this->alrm_timer, qemu_clock_get_ns(rtc_clock) +
                     next_time * 1000);
-    qemu_set_irq(NVRAM->IRQ, 0);
+    qemu_set_irq(this->IRQ, 0);
 }
 
-static void set_alarm(M48t59State *NVRAM)
+void M48t59State::setAlarm()
 {
     int64_t diff;
-    if (NVRAM->alrm_timer != NULL) {
-        timer_del(NVRAM->alrm_timer);
-        diff = qemu_timedate_diff(&NVRAM->alarm) - NVRAM->time_offset;
+    if (this->alrm_timer != NULL) {
+        timer_del(this->alrm_timer);
+        diff = qemu_timedate_diff(&this->alarm) - this->time_offset;
         if (diff > 0)
-            timer_mod(NVRAM->alrm_timer, diff * 1000);
+            timer_mod(this->alrm_timer, diff * 1000);
     }
 }
 
 /* RTC management helpers */
-static inline void get_time(M48t59State *NVRAM, struct tm *tm)
+void M48t59State::getTime(struct tm *tm)
 {
-    qemu_get_timedate(tm, NVRAM->time_offset);
+    qemu_get_timedate(tm, this->time_offset);
 }
 
-static void set_time(M48t59State *NVRAM, struct tm *tm)
+void M48t59State::setTime(struct tm *tm)
 {
-    NVRAM->time_offset = qemu_timedate_diff(tm);
-    set_alarm(NVRAM);
+    this->time_offset = qemu_timedate_diff(tm);
+    this->setAlarm();
 }
 
 /* Watchdog management */
-static void watchdog_cb (void *opaque)
+static void watchdog_cb(void *opaque)
 {
     M48t59State *NVRAM = static_cast<M48t59State *>(opaque);
+    NVRAM->watchdogCb();
+}
 
-    NVRAM->buffer[0x1FF0] |= 0x80;
-    if (NVRAM->buffer[0x1FF7] & 0x80) {
-        NVRAM->buffer[0x1FF7] = 0x00;
-        NVRAM->buffer[0x1FFC] &= ~0x40;
+void M48t59State::watchdogCb()
+{
+    this->buffer[0x1FF0] |= 0x80;
+    if (this->buffer[0x1FF7] & 0x80) {
+        this->buffer[0x1FF7] = 0x00;
+        this->buffer[0x1FFC] &= ~0x40;
         watchdog_perform_action();
     } else {
-        qemu_set_irq(NVRAM->IRQ, 1);
-        qemu_set_irq(NVRAM->IRQ, 0);
+        qemu_set_irq(this->IRQ, 1);
+        qemu_set_irq(this->IRQ, 0);
     }
 }
 
-static void set_up_watchdog(M48t59State *NVRAM, uint8_t value)
+void M48t59State::setUpWatchdog(uint8_t value)
 {
     uint64_t interval; /* in 1/16 seconds */
 
-    NVRAM->buffer[0x1FF0] &= ~0x80;
-    if (NVRAM->wd_timer != NULL) {
-        timer_del(NVRAM->wd_timer);
+    this->buffer[0x1FF0] &= ~0x80;
+    if (this->wd_timer != NULL) {
+        timer_del(this->wd_timer);
         if (value != 0) {
             interval = (1 << (2 * (value & 0x03))) * ((value >> 2) & 0x1F);
-            timer_mod(NVRAM->wd_timer, ((uint64_t)time(NULL) * 1000) +
+            timer_mod(this->wd_timer, ((uint64_t)time(NULL) * 1000) +
                            ((interval * 1000) >> 4));
         }
     }
@@ -219,7 +236,7 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         if (tmp >= 0 && tmp <= 59) {
             NVRAM->alarm.tm_sec = tmp;
             NVRAM->buffer[0x1FF2] = val;
-            set_alarm(NVRAM);
+            NVRAM->setAlarm();
         }
         break;
     case 0x1FF3:
@@ -228,7 +245,7 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         if (tmp >= 0 && tmp <= 59) {
             NVRAM->alarm.tm_min = tmp;
             NVRAM->buffer[0x1FF3] = val;
-            set_alarm(NVRAM);
+            NVRAM->setAlarm();
         }
         break;
     case 0x1FF4:
@@ -237,7 +254,7 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         if (tmp >= 0 && tmp <= 23) {
             NVRAM->alarm.tm_hour = tmp;
             NVRAM->buffer[0x1FF4] = val;
-            set_alarm(NVRAM);
+            NVRAM->setAlarm();
         }
         break;
     case 0x1FF5:
@@ -246,7 +263,7 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         if (tmp != 0) {
             NVRAM->alarm.tm_mday = tmp;
             NVRAM->buffer[0x1FF5] = val;
-            set_alarm(NVRAM);
+            NVRAM->setAlarm();
         }
         break;
     case 0x1FF6:
@@ -256,7 +273,7 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
     case 0x1FF7:
         /* watchdog */
         NVRAM->buffer[0x1FF7] = val;
-        set_up_watchdog(NVRAM, val);
+        NVRAM->setUpWatchdog(val);
         break;
     case 0x1FF8:
     case 0x07F8:
@@ -268,9 +285,9 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         /* seconds (BCD) */
         tmp = from_bcd(val & 0x7F);
         if (tmp >= 0 && tmp <= 59) {
-            get_time(NVRAM, &tm);
+            NVRAM->getTime(&tm);
             tm.tm_sec = tmp;
-            set_time(NVRAM, &tm);
+            NVRAM->setTime(&tm);
         }
         if ((val & 0x80) ^ (NVRAM->buffer[addr] & 0x80)) {
             if (val & 0x80) {
@@ -287,9 +304,9 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         /* minutes (BCD) */
         tmp = from_bcd(val & 0x7F);
         if (tmp >= 0 && tmp <= 59) {
-            get_time(NVRAM, &tm);
+            NVRAM->getTime(&tm);
             tm.tm_min = tmp;
-            set_time(NVRAM, &tm);
+            NVRAM->setTime(&tm);
         }
         break;
     case 0x1FFB:
@@ -297,18 +314,18 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         /* hours (BCD) */
         tmp = from_bcd(val & 0x3F);
         if (tmp >= 0 && tmp <= 23) {
-            get_time(NVRAM, &tm);
+            NVRAM->getTime(&tm);
             tm.tm_hour = tmp;
-            set_time(NVRAM, &tm);
+            NVRAM->setTime(&tm);
         }
         break;
     case 0x1FFC:
     case 0x07FC:
         /* day of the week / century */
         tmp = from_bcd(val & 0x07);
-        get_time(NVRAM, &tm);
+        NVRAM->getTime(&tm);
         tm.tm_wday = tmp;
-        set_time(NVRAM, &tm);
+        NVRAM->setTime(&tm);
         NVRAM->buffer[addr] = val & 0x40;
         break;
     case 0x1FFD:
@@ -316,9 +333,9 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         /* date (BCD) */
         tmp = from_bcd(val & 0x3F);
         if (tmp != 0) {
-            get_time(NVRAM, &tm);
+            NVRAM->getTime(&tm);
             tm.tm_mday = tmp;
-            set_time(NVRAM, &tm);
+            NVRAM->setTime(&tm);
         }
         break;
     case 0x1FFE:
@@ -326,9 +343,9 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         /* month */
         tmp = from_bcd(val & 0x1F);
         if (tmp >= 1 && tmp <= 12) {
-            get_time(NVRAM, &tm);
+            NVRAM->getTime(&tm);
             tm.tm_mon = tmp - 1;
-            set_time(NVRAM, &tm);
+            NVRAM->setTime(&tm);
         }
         break;
     case 0x1FFF:
@@ -336,9 +353,9 @@ void m48t59_write(M48t59State *NVRAM, uint32_t addr, uint32_t val)
         /* year */
         tmp = from_bcd(val);
         if (tmp >= 0 && tmp <= 99) {
-            get_time(NVRAM, &tm);
+            NVRAM->getTime(&tm);
             tm.tm_year = from_bcd(val) + NVRAM->base_year - 1900;
-            set_time(NVRAM, &tm);
+            NVRAM->setTime(&tm);
         }
         break;
     default:
@@ -393,7 +410,7 @@ uint32_t m48t59_read(M48t59State *NVRAM, uint32_t addr)
         goto do_read;
     case 0x1FF7:
         /* A read resets the watchdog */
-        set_up_watchdog(NVRAM, NVRAM->buffer[0x1FF7]);
+        NVRAM->setUpWatchdog(NVRAM->buffer[0x1FF7]);
         goto do_read;
     case 0x1FF8:
     case 0x07F8:
@@ -402,43 +419,43 @@ uint32_t m48t59_read(M48t59State *NVRAM, uint32_t addr)
     case 0x1FF9:
     case 0x07F9:
         /* seconds (BCD) */
-        get_time(NVRAM, &tm);
+        NVRAM->getTime(&tm);
         retval = (NVRAM->buffer[addr] & 0x80) | to_bcd(tm.tm_sec);
         break;
     case 0x1FFA:
     case 0x07FA:
         /* minutes (BCD) */
-        get_time(NVRAM, &tm);
+        NVRAM->getTime(&tm);
         retval = to_bcd(tm.tm_min);
         break;
     case 0x1FFB:
     case 0x07FB:
         /* hours (BCD) */
-        get_time(NVRAM, &tm);
+        NVRAM->getTime(&tm);
         retval = to_bcd(tm.tm_hour);
         break;
     case 0x1FFC:
     case 0x07FC:
         /* day of the week / century */
-        get_time(NVRAM, &tm);
+        NVRAM->getTime(&tm);
         retval = NVRAM->buffer[addr] | tm.tm_wday;
         break;
     case 0x1FFD:
     case 0x07FD:
         /* date */
-        get_time(NVRAM, &tm);
+        NVRAM->getTime(&tm);
         retval = to_bcd(tm.tm_mday);
         break;
     case 0x1FFE:
     case 0x07FE:
         /* month */
-        get_time(NVRAM, &tm);
+        NVRAM->getTime(&tm);
         retval = to_bcd(tm.tm_mon + 1);
         break;
     case 0x1FFF:
     case 0x07FF:
         /* year */
-        get_time(NVRAM, &tm);
+        NVRAM->getTime(&tm);
         retval = to_bcd((tm.tm_year + 1900 - NVRAM->base_year) % 100);
         break;
     default:
@@ -552,9 +569,12 @@ void m48t59_reset_common(M48t59State *NVRAM)
 static void m48t59_reset_sysbus(DeviceState *d)
 {
     M48txxSysBusState *sys = M48TXX_SYS_BUS(d);
-    M48t59State *NVRAM = &sys->state;
+    sys->resetSysbus();
+}
 
-    m48t59_reset_common(NVRAM);
+void M48txxSysBusState::resetSysbus()
+{
+    m48t59_reset_common(&this->state);
 }
 
 const MemoryRegionOps m48t59_io_ops = {
@@ -571,55 +591,80 @@ void m48t59_realize_common(M48t59State *s, Error **errp)
 {
     s->buffer = static_cast<uint8_t *>(g_malloc0(s->size));
     if (s->model == 59) {
-        s->alrm_timer = timer_new_ns(rtc_clock, &alarm_cb, s);
-        s->wd_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &watchdog_cb, s);
+        s->alrm_timer = timer_new_ns(rtc_clock, alarm_cb, s);
+        s->wd_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, watchdog_cb, s);
     }
     qemu_get_timedate(&s->alarm, 0);
 }
 
 static void m48t59_init1(Object *obj)
 {
-    M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_GET_CLASS(obj);
     M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    M48t59State *s = &d->state;
+    d->instanceInit();
+}
+
+void M48txxSysBusState::instanceInit()
+{
+    M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_GET_CLASS(this);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    M48t59State *s = &this->state;
 
     s->model = u->info.model;
     s->size = u->info.size;
     sysbus_init_irq(dev, &s->IRQ);
 
-    memory_region_init_io(&s->iomem, obj, &nvram_ops, s, "m48t59.nvram",
+    memory_region_init_io(&s->iomem, OBJECT(this), &nvram_ops, s, "m48t59.nvram",
                           s->size);
-    memory_region_init_io(&d->io, obj, &m48t59_io_ops, s, "m48t59", 4);
+    memory_region_init_io(&this->io, OBJECT(this), &m48t59_io_ops, s, "m48t59", 4);
 }
 
 static void m48t59_realize(DeviceState *dev, Error **errp)
 {
     M48txxSysBusState *d = M48TXX_SYS_BUS(dev);
-    M48t59State *s = &d->state;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    d->realize(errp);
+}
+
+void M48txxSysBusState::realize(Error **errp)
+{
+    M48t59State *s = &this->state;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
     sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_mmio(sbd, &d->io);
+    sysbus_init_mmio(sbd, &this->io);
     m48t59_realize_common(s, errp);
 }
 
 static uint32_t m48txx_sysbus_read(Nvram *obj, uint32_t addr)
 {
     M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
-    return m48t59_read(&d->state, addr);
+    return d->nvramRead(addr);
+}
+
+uint32_t M48txxSysBusState::nvramRead(uint32_t addr)
+{
+    return m48t59_read(&this->state, addr);
 }
 
 static void m48txx_sysbus_write(Nvram *obj, uint32_t addr, uint32_t val)
 {
     M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
-    m48t59_write(&d->state, addr, val);
+    d->nvramWrite(addr, val);
+}
+
+void M48txxSysBusState::nvramWrite(uint32_t addr, uint32_t val)
+{
+    m48t59_write(&this->state, addr, val);
 }
 
 static void m48txx_sysbus_toggle_lock(Nvram *obj, int lock)
 {
     M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
-    m48t59_toggle_lock(&d->state, lock);
+    d->nvramToggleLock(lock);
+}
+
+void M48txxSysBusState::nvramToggleLock(int lock)
+{
+    m48t59_toggle_lock(&this->state, lock);
 }
 
 static const Property m48t59_sysbus_properties[] = {

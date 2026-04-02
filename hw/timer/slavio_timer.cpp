@@ -71,6 +71,11 @@ struct SLAVIO_TIMERState {
     CPUTimerState cputimer[MAX_CPUS + 1];
 
     /* methods */
+    int isUserTimer(unsigned int timer_index);
+    static void getOut(CPUTimerState *t);
+    void timerIrq(unsigned int timer_index);
+    uint64_t memReadl(unsigned int timer_index, hwaddr addr);
+    void memWritel(unsigned int timer_index, hwaddr addr, uint64_t val);
     void reset();
     void instanceInit();
     static void classInit(ObjectClass *klass, const void *data);
@@ -100,17 +105,14 @@ typedef struct TimerContext {
 #define LIMIT_TO_PERIODS(l) (((l) >> 9) - 1)
 #define PERIODS_TO_LIMIT(l) (((l) + 1) << 9)
 
-static int slavio_timer_is_user(TimerContext *tc)
+int SLAVIO_TIMERState::isUserTimer(unsigned int timer_index)
 {
-    SLAVIO_TIMERState *s = tc->s;
-    unsigned int timer_index = tc->timer_index;
-
-    return timer_index != 0 && (s->cputimer_mode & (1 << (timer_index - 1)));
+    return timer_index != 0 && (this->cputimer_mode & (1 << (timer_index - 1)));
 }
 
 // Update count, set irq, update expire_time
 // Convert from ptimer countdown units
-static void slavio_timer_get_out(CPUTimerState *t)
+void SLAVIO_TIMERState::getOut(CPUTimerState *t)
 {
     uint64_t count, limit;
 
@@ -130,17 +132,21 @@ static void slavio_timer_get_out(CPUTimerState *t)
 static void slavio_timer_irq(void *opaque)
 {
     TimerContext *tc = static_cast<TimerContext *>(opaque);
-    SLAVIO_TIMERState *s = tc->s;
-    CPUTimerState *t = &s->cputimer[tc->timer_index];
+    tc->s->timerIrq(tc->timer_index);
+}
 
-    slavio_timer_get_out(t);
+void SLAVIO_TIMERState::timerIrq(unsigned int timer_index)
+{
+    CPUTimerState *t = &this->cputimer[timer_index];
+
+    SLAVIO_TIMERState::getOut(t);
     trace_slavio_timer_irq(t->counthigh, t->count);
     /* if limit is 0 (free-run), there will be no match */
     if (t->limit != 0) {
         t->reached = TIMER_REACHED;
     }
     /* there is no interrupt if user timer or free-run */
-    if (!slavio_timer_is_user(tc) && t->limit != 0) {
+    if (!this->isUserTimer(timer_index) && t->limit != 0) {
         qemu_irq_raise(t->irq);
     }
 }
@@ -149,19 +155,22 @@ static uint64_t slavio_timer_mem_readl(void *opaque, hwaddr addr,
                                        unsigned size)
 {
     TimerContext *tc = static_cast<TimerContext *>(opaque);
-    SLAVIO_TIMERState *s = tc->s;
+    return tc->s->memReadl(tc->timer_index, addr);
+}
+
+uint64_t SLAVIO_TIMERState::memReadl(unsigned int timer_index, hwaddr addr)
+{
     uint32_t saddr, ret;
-    unsigned int timer_index = tc->timer_index;
-    CPUTimerState *t = &s->cputimer[timer_index];
+    CPUTimerState *t = &this->cputimer[timer_index];
 
     saddr = addr >> 2;
     switch (saddr) {
     case TIMER_LIMIT:
         // read limit (system counter mode) or read most signifying
         // part of counter (user mode)
-        if (slavio_timer_is_user(tc)) {
+        if (this->isUserTimer(timer_index)) {
             // read user timer MSW
-            slavio_timer_get_out(t);
+            SLAVIO_TIMERState::getOut(t);
             ret = t->counthigh | t->reached;
         } else {
             // read limit
@@ -174,8 +183,8 @@ static uint64_t slavio_timer_mem_readl(void *opaque, hwaddr addr,
     case TIMER_COUNTER:
         // read counter and reached bit (system mode) or read lsbits
         // of counter (user mode)
-        slavio_timer_get_out(t);
-        if (slavio_timer_is_user(tc)) { // read user timer LSW
+        SLAVIO_TIMERState::getOut(t);
+        if (this->isUserTimer(timer_index)) { // read user timer LSW
             ret = t->count & TIMER_MAX_COUNT64;
         } else { // read limit
             ret = (t->count & TIMER_MAX_COUNT32) |
@@ -194,7 +203,7 @@ static uint64_t slavio_timer_mem_readl(void *opaque, hwaddr addr,
     case TIMER_MODE:
         // only available in system counter
         // read user/system mode
-        ret = s->cputimer_mode;
+        ret = this->cputimer_mode;
         break;
     default:
         trace_slavio_timer_mem_readl_invalid(addr);
@@ -209,17 +218,21 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
     TimerContext *tc = static_cast<TimerContext *>(opaque);
-    SLAVIO_TIMERState *s = tc->s;
+    tc->s->memWritel(tc->timer_index, addr, val);
+}
+
+void SLAVIO_TIMERState::memWritel(unsigned int timer_index, hwaddr addr,
+                                  uint64_t val)
+{
     uint32_t saddr;
-    unsigned int timer_index = tc->timer_index;
-    CPUTimerState *t = &s->cputimer[timer_index];
+    CPUTimerState *t = &this->cputimer[timer_index];
 
     trace_slavio_timer_mem_writel(addr, val);
     saddr = addr >> 2;
     switch (saddr) {
     case TIMER_LIMIT:
         ptimer_transaction_begin(t->timer);
-        if (slavio_timer_is_user(tc)) {
+        if (this->isUserTimer(timer_index)) {
             uint64_t count;
 
             // set user counter MSW, reset counter
@@ -243,7 +256,7 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
         ptimer_transaction_commit(t->timer);
         break;
     case TIMER_COUNTER:
-        if (slavio_timer_is_user(tc)) {
+        if (this->isUserTimer(timer_index)) {
             uint64_t count;
 
             // set user counter LSW, reset counter
@@ -272,7 +285,7 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
         break;
     case TIMER_STATUS:
         ptimer_transaction_begin(t->timer);
-        if (slavio_timer_is_user(tc)) {
+        if (this->isUserTimer(timer_index)) {
             // start/stop user counter
             if (val & 1) {
                 trace_slavio_timer_mem_writel_status_start(timer_index);
@@ -289,13 +302,13 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
         if (timer_index == 0) {
             unsigned int i;
 
-            for (i = 0; i < s->num_cpus; i++) {
+            for (i = 0; i < this->num_cpus; i++) {
                 unsigned int processor = 1 << i;
-                CPUTimerState *curr_timer = &s->cputimer[i + 1];
+                CPUTimerState *curr_timer = &this->cputimer[i + 1];
 
                 ptimer_transaction_begin(curr_timer->timer);
                 // check for a change in timer mode for this processor
-                if ((val & processor) != (s->cputimer_mode & processor)) {
+                if ((val & processor) != (this->cputimer_mode & processor)) {
                     if (val & processor) { // counter -> user timer
                         qemu_irq_lower(curr_timer->irq);
                         // counters are always running
@@ -309,14 +322,14 @@ static void slavio_timer_mem_writel(void *opaque, hwaddr addr,
                                          1);
                         // set this processors user timer bit in config
                         // register
-                        s->cputimer_mode |= processor;
+                        this->cputimer_mode |= processor;
                         trace_slavio_timer_mem_writel_mode_user(timer_index);
                     } else { // user timer -> counter
                         // start the counter
                         ptimer_run(curr_timer->timer, 0);
                         // clear this processors user timer bit in config
                         // register
-                        s->cputimer_mode &= ~processor;
+                        this->cputimer_mode &= ~processor;
                         trace_slavio_timer_mem_writel_mode_counter(timer_index);
                     }
                 }

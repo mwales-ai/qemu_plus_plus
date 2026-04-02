@@ -25,6 +25,20 @@ typedef struct ParallelState {
     uint32_t last_read_offset; /* For debugging */
     /* Memory-mapped interface */
     int it_shift;
+
+#ifdef __cplusplus
+    /* methods */
+    void updateIrq();
+    void ioportWriteSw(uint32_t addr, uint32_t val);
+    void ioportWriteHw(uint32_t addr, uint32_t val);
+    void ioportEppdataWriteHw2(uint32_t addr, uint32_t val);
+    void ioportEppdataWriteHw4(uint32_t addr, uint32_t val);
+    uint32_t ioportReadSw(uint32_t addr);
+    uint32_t ioportReadHw(uint32_t addr);
+    uint32_t ioportEppdataReadHw2(uint32_t addr);
+    uint32_t ioportEppdataReadHw4(uint32_t addr);
+    void reset();
+#endif
 } ParallelState;
 
 void parallel_hds_isa_init(ISABus *bus, int n);

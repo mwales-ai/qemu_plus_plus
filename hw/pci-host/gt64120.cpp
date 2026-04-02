@@ -264,6 +264,17 @@ struct GT64120State {
     /* properties */
     bool cpu_little_endian;
 
+    /* methods */
+    void isdMapping();
+    void pciMapping();
+    void writel(hwaddr addr, uint64_t val, unsigned size);
+    uint64_t readl(hwaddr addr, unsigned size);
+    bool needsBswap() const;
+    uint64_t pciDataRead(hwaddr addr, unsigned size);
+    void pciDataWrite(hwaddr addr, uint64_t val, unsigned size);
+    void doReset();
+    void doRealize(Error **errp);
+
     static void pciClassInit(ObjectClass *klass, const void *data);
     static void classInit(ObjectClass *klass, const void *data);
 };
@@ -302,88 +313,88 @@ static void check_reserved_space(hwaddr *start, hwaddr *length)
     *length = end - begin;
 }
 
-static void gt64120_isd_mapping(GT64120State *s)
+void GT64120State::isdMapping()
 {
     /* Bits 14:0 of ISD map to bits 35:21 of the start address.  */
-    hwaddr start = ((hwaddr)s->regs[GT_ISD] << 21) & 0xFFFE00000ull;
+    hwaddr start = ((hwaddr)this->regs[GT_ISD] << 21) & 0xFFFE00000ull;
     hwaddr length = 0x1000;
 
     memory_region_transaction_begin();
 
-    if (s->ISD_length) {
-        memory_region_del_subregion(get_system_memory(), &s->ISD_mem);
+    if (this->ISD_length) {
+        memory_region_del_subregion(get_system_memory(), &this->ISD_mem);
     }
     check_reserved_space(&start, &length);
     length = 0x1000;
     /* Map new address */
-    trace_gt64120_isd_remap(s->ISD_length, s->ISD_start, length, start);
-    s->ISD_start = start;
-    s->ISD_length = length;
-    memory_region_add_subregion(get_system_memory(), s->ISD_start, &s->ISD_mem);
+    trace_gt64120_isd_remap(this->ISD_length, this->ISD_start, length, start);
+    this->ISD_start = start;
+    this->ISD_length = length;
+    memory_region_add_subregion(get_system_memory(), this->ISD_start, &this->ISD_mem);
 
     memory_region_transaction_commit();
 }
 
-static void gt64120_pci_mapping(GT64120State *s)
+void GT64120State::pciMapping()
 {
     memory_region_transaction_begin();
 
     /* Update PCI0IO mapping */
-    if ((s->regs[GT_PCI0IOLD] & 0x7f) <= s->regs[GT_PCI0IOHD]) {
+    if ((this->regs[GT_PCI0IOLD] & 0x7f) <= this->regs[GT_PCI0IOHD]) {
         /* Unmap old IO address */
-        if (s->PCI0IO_length) {
-            memory_region_del_subregion(get_system_memory(), &s->PCI0IO_mem);
-            object_unparent(OBJECT(&s->PCI0IO_mem));
+        if (this->PCI0IO_length) {
+            memory_region_del_subregion(get_system_memory(), &this->PCI0IO_mem);
+            object_unparent(OBJECT(&this->PCI0IO_mem));
         }
         /* Map new IO address */
-        s->PCI0IO_start = s->regs[GT_PCI0IOLD] << 21;
-        s->PCI0IO_length = ((s->regs[GT_PCI0IOHD] + 1) -
-                            (s->regs[GT_PCI0IOLD] & 0x7f)) << 21;
-        if (s->PCI0IO_length) {
-            memory_region_init_alias(&s->PCI0IO_mem, OBJECT(s), "pci0-io",
-                                     get_system_io(), 0, s->PCI0IO_length);
-            memory_region_add_subregion(get_system_memory(), s->PCI0IO_start,
-                                        &s->PCI0IO_mem);
+        this->PCI0IO_start = this->regs[GT_PCI0IOLD] << 21;
+        this->PCI0IO_length = ((this->regs[GT_PCI0IOHD] + 1) -
+                            (this->regs[GT_PCI0IOLD] & 0x7f)) << 21;
+        if (this->PCI0IO_length) {
+            memory_region_init_alias(&this->PCI0IO_mem, OBJECT(this), "pci0-io",
+                                     get_system_io(), 0, this->PCI0IO_length);
+            memory_region_add_subregion(get_system_memory(), this->PCI0IO_start,
+                                        &this->PCI0IO_mem);
         }
     }
 
     /* Update PCI0M0 mapping */
-    if ((s->regs[GT_PCI0M0LD] & 0x7f) <= s->regs[GT_PCI0M0HD]) {
+    if ((this->regs[GT_PCI0M0LD] & 0x7f) <= this->regs[GT_PCI0M0HD]) {
         /* Unmap old MEM address */
-        if (s->PCI0M0_length) {
-            memory_region_del_subregion(get_system_memory(), &s->PCI0M0_mem);
-            object_unparent(OBJECT(&s->PCI0M0_mem));
+        if (this->PCI0M0_length) {
+            memory_region_del_subregion(get_system_memory(), &this->PCI0M0_mem);
+            object_unparent(OBJECT(&this->PCI0M0_mem));
         }
         /* Map new mem address */
-        s->PCI0M0_start = s->regs[GT_PCI0M0LD] << 21;
-        s->PCI0M0_length = ((s->regs[GT_PCI0M0HD] + 1) -
-                            (s->regs[GT_PCI0M0LD] & 0x7f)) << 21;
-        if (s->PCI0M0_length) {
-            memory_region_init_alias(&s->PCI0M0_mem, OBJECT(s), "pci0-mem0",
-                                     &s->pci0_mem, s->PCI0M0_start,
-                                     s->PCI0M0_length);
-            memory_region_add_subregion(get_system_memory(), s->PCI0M0_start,
-                                        &s->PCI0M0_mem);
+        this->PCI0M0_start = this->regs[GT_PCI0M0LD] << 21;
+        this->PCI0M0_length = ((this->regs[GT_PCI0M0HD] + 1) -
+                            (this->regs[GT_PCI0M0LD] & 0x7f)) << 21;
+        if (this->PCI0M0_length) {
+            memory_region_init_alias(&this->PCI0M0_mem, OBJECT(this), "pci0-mem0",
+                                     &this->pci0_mem, this->PCI0M0_start,
+                                     this->PCI0M0_length);
+            memory_region_add_subregion(get_system_memory(), this->PCI0M0_start,
+                                        &this->PCI0M0_mem);
         }
     }
 
     /* Update PCI0M1 mapping */
-    if ((s->regs[GT_PCI0M1LD] & 0x7f) <= s->regs[GT_PCI0M1HD]) {
+    if ((this->regs[GT_PCI0M1LD] & 0x7f) <= this->regs[GT_PCI0M1HD]) {
         /* Unmap old MEM address */
-        if (s->PCI0M1_length) {
-            memory_region_del_subregion(get_system_memory(), &s->PCI0M1_mem);
-            object_unparent(OBJECT(&s->PCI0M1_mem));
+        if (this->PCI0M1_length) {
+            memory_region_del_subregion(get_system_memory(), &this->PCI0M1_mem);
+            object_unparent(OBJECT(&this->PCI0M1_mem));
         }
         /* Map new mem address */
-        s->PCI0M1_start = s->regs[GT_PCI0M1LD] << 21;
-        s->PCI0M1_length = ((s->regs[GT_PCI0M1HD] + 1) -
-                            (s->regs[GT_PCI0M1LD] & 0x7f)) << 21;
-        if (s->PCI0M1_length) {
-            memory_region_init_alias(&s->PCI0M1_mem, OBJECT(s), "pci0-mem1",
-                                     &s->pci0_mem, s->PCI0M1_start,
-                                     s->PCI0M1_length);
-            memory_region_add_subregion(get_system_memory(), s->PCI0M1_start,
-                                        &s->PCI0M1_mem);
+        this->PCI0M1_start = this->regs[GT_PCI0M1LD] << 21;
+        this->PCI0M1_length = ((this->regs[GT_PCI0M1HD] + 1) -
+                            (this->regs[GT_PCI0M1LD] & 0x7f)) << 21;
+        if (this->PCI0M1_length) {
+            memory_region_init_alias(&this->PCI0M1_mem, OBJECT(this), "pci0-mem1",
+                                     &this->pci0_mem, this->PCI0M1_start,
+                                     this->PCI0M1_length);
+            memory_region_add_subregion(get_system_memory(), this->PCI0M1_start,
+                                        &this->PCI0M1_mem);
         }
     }
 
@@ -392,10 +403,10 @@ static void gt64120_pci_mapping(GT64120State *s)
 
 static int gt64120_post_load(void *opaque, int version_id)
 {
-    GT64120State *s = opaque;
+    GT64120State *s = static_cast<GT64120State *>(opaque);
 
-    gt64120_isd_mapping(s);
-    gt64120_pci_mapping(s);
+    s->isdMapping();
+    s->pciMapping();
 
     return 0;
 }
@@ -414,11 +425,16 @@ static const VMStateDescription vmstate_gt64120 = {
 static void gt64120_writel(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
-    GT64120State *s = opaque;
+    GT64120State *s = static_cast<GT64120State *>(opaque);
+    s->writel(addr, val, size);
+}
+
+void GT64120State::writel(hwaddr addr, uint64_t val, unsigned size)
+{
     uint32_t saddr = addr >> 2;
 
     trace_gt64120_write(addr, val);
-    if (!(s->regs[GT_CPU] & 0x00001000)) {
+    if (!(this->regs[GT_CPU] & 0x00001000)) {
         val = bswap32(val);
     }
 
@@ -426,7 +442,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
 
     /* CPU Configuration */
     case GT_CPU:
-        s->regs[GT_CPU] = val;
+        this->regs[GT_CPU] = val;
         break;
     case GT_MULTI:
         /* Read-only register as only one GT64xxx is present on the CPU bus */
@@ -434,46 +450,46 @@ static void gt64120_writel(void *opaque, hwaddr addr,
 
     /* CPU Address Decode */
     case GT_PCI0IOLD:
-        s->regs[GT_PCI0IOLD]    = val & 0x00007fff;
-        s->regs[GT_PCI0IOREMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        this->regs[GT_PCI0IOLD]    = val & 0x00007fff;
+        this->regs[GT_PCI0IOREMAP] = val & 0x000007ff;
+        this->pciMapping();
         break;
     case GT_PCI0M0LD:
-        s->regs[GT_PCI0M0LD]    = val & 0x00007fff;
-        s->regs[GT_PCI0M0REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        this->regs[GT_PCI0M0LD]    = val & 0x00007fff;
+        this->regs[GT_PCI0M0REMAP] = val & 0x000007ff;
+        this->pciMapping();
         break;
     case GT_PCI0M1LD:
-        s->regs[GT_PCI0M1LD]    = val & 0x00007fff;
-        s->regs[GT_PCI0M1REMAP] = val & 0x000007ff;
-        gt64120_pci_mapping(s);
+        this->regs[GT_PCI0M1LD]    = val & 0x00007fff;
+        this->regs[GT_PCI0M1REMAP] = val & 0x000007ff;
+        this->pciMapping();
         break;
     case GT_PCI1IOLD:
-        s->regs[GT_PCI1IOLD]    = val & 0x00007fff;
-        s->regs[GT_PCI1IOREMAP] = val & 0x000007ff;
+        this->regs[GT_PCI1IOLD]    = val & 0x00007fff;
+        this->regs[GT_PCI1IOREMAP] = val & 0x000007ff;
         break;
     case GT_PCI1M0LD:
-        s->regs[GT_PCI1M0LD]    = val & 0x00007fff;
-        s->regs[GT_PCI1M0REMAP] = val & 0x000007ff;
+        this->regs[GT_PCI1M0LD]    = val & 0x00007fff;
+        this->regs[GT_PCI1M0REMAP] = val & 0x000007ff;
         break;
     case GT_PCI1M1LD:
-        s->regs[GT_PCI1M1LD]    = val & 0x00007fff;
-        s->regs[GT_PCI1M1REMAP] = val & 0x000007ff;
+        this->regs[GT_PCI1M1LD]    = val & 0x00007fff;
+        this->regs[GT_PCI1M1REMAP] = val & 0x000007ff;
         break;
     case GT_PCI0M0HD:
     case GT_PCI0M1HD:
     case GT_PCI0IOHD:
-        s->regs[saddr] = val & 0x0000007f;
-        gt64120_pci_mapping(s);
+        this->regs[saddr] = val & 0x0000007f;
+        this->pciMapping();
         break;
     case GT_PCI1IOHD:
     case GT_PCI1M0HD:
     case GT_PCI1M1HD:
-        s->regs[saddr] = val & 0x0000007f;
+        this->regs[saddr] = val & 0x0000007f;
         break;
     case GT_ISD:
-        s->regs[saddr] = val & 0x00007fff;
-        gt64120_isd_mapping(s);
+        this->regs[saddr] = val & 0x00007fff;
+        this->isdMapping();
         break;
 
     case GT_PCI0IOREMAP:
@@ -482,7 +498,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_PCI1IOREMAP:
     case GT_PCI1M0REMAP:
     case GT_PCI1M1REMAP:
-        s->regs[saddr] = val & 0x000007ff;
+        this->regs[saddr] = val & 0x000007ff;
         break;
 
     /* CPU Error Report */
@@ -534,7 +550,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     case GT_SDRAM_BM:
     case GT_SDRAM_ADDRDECODE:
         /* Accept and ignore SDRAM interleave configuration */
-        s->regs[saddr] = val;
+        this->regs[saddr] = val;
         break;
 
     /* Device Parameters */
@@ -616,7 +632,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
     /* PCI Internal */
     case GT_PCI0_CMD:
     case GT_PCI1_CMD:
-        s->regs[saddr] = val & 0x0401fc0f;
+        this->regs[saddr] = val & 0x0401fc0f;
         break;
     case GT_PCI0_TOR:
     case GT_PCI0_BS_SCS10:
