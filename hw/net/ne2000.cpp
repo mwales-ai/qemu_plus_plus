@@ -138,31 +138,31 @@ void ne2000_reset(NE2000State *s)
     }
 }
 
-static void ne2000_update_irq(NE2000State *s)
+void NE2000State::updateIrq()
 {
     int isr;
-    isr = (s->isr & s->imr) & 0x7f;
+    isr = (this->isr & this->imr) & 0x7f;
 #if defined(DEBUG_NE2000)
     printf("NE2000: Set IRQ to %d (%02x %02x)\n",
-           isr ? 1 : 0, s->isr, s->imr);
+           isr ? 1 : 0, this->isr, this->imr);
 #endif
-    qemu_set_irq(s->irq, (isr != 0));
+    qemu_set_irq(this->irq, (isr != 0));
 }
 
-static int ne2000_buffer_full(NE2000State *s)
+int NE2000State::bufferFull()
 {
     int avail, index, boundary;
 
-    if (s->stop <= s->start) {
+    if (stop <= start) {
         return 1;
     }
 
-    index = s->curpag << 8;
-    boundary = s->boundary << 8;
+    index = curpag << 8;
+    boundary = this->boundary << 8;
     if (index < boundary)
         avail = boundary - index;
     else
-        avail = (s->stop - s->start) - (index - boundary);
+        avail = (stop - start) - (index - boundary);
     if (avail < (MAX_ETH_FRAME_SIZE + 4))
         return 1;
     return 0;
@@ -181,7 +181,7 @@ ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
     printf("NE2000: received len=%zu\n", size);
 #endif
 
-    if (s->cmd & E8390_STOP || ne2000_buffer_full(s))
+    if (s->cmd & E8390_STOP || s->bufferFull())
         return -1;
 
     /* XXX: check this */
@@ -253,159 +253,157 @@ ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 
     /* now we can signal we have received something */
     s->isr |= ENISR_RX;
-    ne2000_update_irq(s);
+    s->updateIrq();
 
     return size_;
 }
 
-static void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+void NE2000State::ioportWrite(uint32_t addr, uint32_t val)
 {
-    NE2000State *s = static_cast<NE2000State *>(opaque);
     int offset, page, index;
 
     addr &= 0xf;
     trace_ne2000_ioport_write(addr, val);
     if (addr == E8390_CMD) {
         /* control register */
-        s->cmd = val;
+        cmd = val;
         if (!(val & E8390_STOP)) { /* START bit makes no sense on RTL8029... */
-            s->isr &= ~ENISR_RESET;
+            isr &= ~ENISR_RESET;
             /* test specific case: zero length transfer */
             if ((val & (E8390_RREAD | E8390_RWRITE)) &&
-                s->rcnt == 0) {
-                s->isr |= ENISR_RDC;
-                ne2000_update_irq(s);
+                rcnt == 0) {
+                isr |= ENISR_RDC;
+                updateIrq();
             }
             if (val & E8390_TRANS) {
-                index = (s->tpsr << 8);
+                index = (tpsr << 8);
                 /* XXX: next 2 lines are a hack to make netware 3.11 work */
                 if (index >= NE2000_PMEM_END)
                     index -= NE2000_PMEM_SIZE;
                 /* fail safe: check range on the transmitted length  */
-                if (index + s->tcnt <= NE2000_PMEM_END) {
-                    qemu_send_packet(qemu_get_queue(s->nic), s->mem + index,
-                                     s->tcnt);
+                if (index + tcnt <= NE2000_PMEM_END) {
+                    qemu_send_packet(qemu_get_queue(nic), mem + index,
+                                     tcnt);
                 }
                 /* signal end of transfer */
-                s->tsr = ENTSR_PTX;
-                s->isr |= ENISR_TX;
-                s->cmd &= ~E8390_TRANS;
-                ne2000_update_irq(s);
+                tsr = ENTSR_PTX;
+                isr |= ENISR_TX;
+                cmd &= ~E8390_TRANS;
+                updateIrq();
             }
         }
     } else {
-        page = s->cmd >> 6;
+        page = cmd >> 6;
         offset = addr | (page << 4);
         switch(offset) {
         case EN0_STARTPG:
             if (val << 8 <= NE2000_PMEM_END) {
-                s->start = val << 8;
+                start = val << 8;
             }
             break;
         case EN0_STOPPG:
             if (val << 8 <= NE2000_PMEM_END) {
-                s->stop = val << 8;
+                stop = val << 8;
             }
             break;
         case EN0_BOUNDARY:
             if (val << 8 < NE2000_PMEM_END) {
-                s->boundary = val;
+                boundary = val;
             }
             break;
         case EN0_IMR:
-            s->imr = val;
-            ne2000_update_irq(s);
+            imr = val;
+            updateIrq();
             break;
         case EN0_TPSR:
-            s->tpsr = val;
+            tpsr = val;
             break;
         case EN0_TCNTLO:
-            s->tcnt = (s->tcnt & 0xff00) | val;
+            tcnt = (tcnt & 0xff00) | val;
             break;
         case EN0_TCNTHI:
-            s->tcnt = (s->tcnt & 0x00ff) | (val << 8);
+            tcnt = (tcnt & 0x00ff) | (val << 8);
             break;
         case EN0_RSARLO:
-            s->rsar = (s->rsar & 0xff00) | val;
+            rsar = (rsar & 0xff00) | val;
             break;
         case EN0_RSARHI:
-            s->rsar = (s->rsar & 0x00ff) | (val << 8);
+            rsar = (rsar & 0x00ff) | (val << 8);
             break;
         case EN0_RCNTLO:
-            s->rcnt = (s->rcnt & 0xff00) | val;
+            rcnt = (rcnt & 0xff00) | val;
             break;
         case EN0_RCNTHI:
-            s->rcnt = (s->rcnt & 0x00ff) | (val << 8);
+            rcnt = (rcnt & 0x00ff) | (val << 8);
             break;
         case EN0_RXCR:
-            s->rxcr = val;
+            rxcr = val;
             break;
         case EN0_DCFG:
-            s->dcfg = val;
+            dcfg = val;
             break;
         case EN0_ISR:
-            s->isr &= ~(val & 0x7f);
-            ne2000_update_irq(s);
+            isr &= ~(val & 0x7f);
+            updateIrq();
             break;
         case EN1_PHYS ... EN1_PHYS + 5:
-            s->phys[offset - EN1_PHYS] = val;
+            phys[offset - EN1_PHYS] = val;
             break;
         case EN1_CURPAG:
             if (val << 8 < NE2000_PMEM_END) {
-                s->curpag = val;
+                curpag = val;
             }
             break;
         case EN1_MULT ... EN1_MULT + 7:
-            s->mult[offset - EN1_MULT] = val;
+            mult[offset - EN1_MULT] = val;
             break;
         }
     }
 }
 
-static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
+uint32_t NE2000State::ioportRead(uint32_t addr)
 {
-    NE2000State *s = static_cast<NE2000State *>(opaque);
     int offset, page, ret;
 
     addr &= 0xf;
     if (addr == E8390_CMD) {
-        ret = s->cmd;
+        ret = cmd;
     } else {
-        page = s->cmd >> 6;
+        page = cmd >> 6;
         offset = addr | (page << 4);
         switch(offset) {
         case EN0_TSR:
-            ret = s->tsr;
+            ret = tsr;
             break;
         case EN0_BOUNDARY:
-            ret = s->boundary;
+            ret = boundary;
             break;
         case EN0_ISR:
-            ret = s->isr;
+            ret = isr;
             break;
         case EN0_RSARLO:
-            ret = s->rsar & 0x00ff;
+            ret = rsar & 0x00ff;
             break;
         case EN0_RSARHI:
-            ret = s->rsar >> 8;
+            ret = rsar >> 8;
             break;
         case EN1_PHYS ... EN1_PHYS + 5:
-            ret = s->phys[offset - EN1_PHYS];
+            ret = phys[offset - EN1_PHYS];
             break;
         case EN1_CURPAG:
-            ret = s->curpag;
+            ret = curpag;
             break;
         case EN1_MULT ... EN1_MULT + 7:
-            ret = s->mult[offset - EN1_MULT];
+            ret = mult[offset - EN1_MULT];
             break;
         case EN0_RSR:
-            ret = s->rsr;
+            ret = rsr;
             break;
         case EN2_STARTPG:
-            ret = s->start >> 8;
+            ret = start >> 8;
             break;
         case EN2_STOPPG:
-            ret = s->stop >> 8;
+            ret = stop >> 8;
             break;
         case EN0_RTL8029ID0:
             ret = 0x50;
@@ -431,120 +429,114 @@ static uint32_t ne2000_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-static inline void ne2000_mem_writeb(NE2000State *s, uint32_t addr,
-                                     uint32_t val)
+void NE2000State::memWriteb(uint32_t addr, uint32_t val)
 {
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        s->mem[addr] = val;
+        mem[addr] = val;
     }
 }
 
-static inline void ne2000_mem_writew(NE2000State *s, uint32_t addr,
-                                     uint32_t val)
+void NE2000State::memWritew(uint32_t addr, uint32_t val)
 {
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        *(uint16_t *)(s->mem + addr) = cpu_to_le16(val);
+        *(uint16_t *)(mem + addr) = cpu_to_le16(val);
     }
 }
 
-static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr,
-                                     uint32_t val)
+void NE2000State::memWritel(uint32_t addr, uint32_t val)
 {
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32
         || (addr >= NE2000_PMEM_START
             && addr + sizeof(uint32_t) <= NE2000_MEM_SIZE)) {
-        stl_le_p(s->mem + addr, val);
+        stl_le_p(mem + addr, val);
     }
 }
 
-static inline uint32_t ne2000_mem_readb(NE2000State *s, uint32_t addr)
+uint32_t NE2000State::memReadb(uint32_t addr)
 {
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        return s->mem[addr];
+        return mem[addr];
     } else {
         return 0xff;
     }
 }
 
-static inline uint32_t ne2000_mem_readw(NE2000State *s, uint32_t addr)
+uint32_t NE2000State::memReadw(uint32_t addr)
 {
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        return le16_to_cpu(*(uint16_t *)(s->mem + addr));
+        return le16_to_cpu(*(uint16_t *)(mem + addr));
     } else {
         return 0xffff;
     }
 }
 
-static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
+uint32_t NE2000State::memReadl(uint32_t addr)
 {
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32
         || (addr >= NE2000_PMEM_START
             && addr + sizeof(uint32_t) <= NE2000_MEM_SIZE)) {
-        return ldl_le_p(s->mem + addr);
+        return ldl_le_p(mem + addr);
     } else {
         return 0xffffffff;
     }
 }
 
-static inline void ne2000_dma_update(NE2000State *s, int len)
+void NE2000State::dmaUpdate(int len)
 {
-    s->rsar += len;
+    rsar += len;
     /* wrap */
     /* XXX: check what to do if rsar > stop */
-    if (s->rsar == s->stop)
-        s->rsar = s->start;
+    if (rsar == stop)
+        rsar = start;
 
-    if (s->rcnt <= len) {
-        s->rcnt = 0;
+    if (rcnt <= len) {
+        rcnt = 0;
         /* signal end of transfer */
-        s->isr |= ENISR_RDC;
-        ne2000_update_irq(s);
+        isr |= ENISR_RDC;
+        updateIrq();
     } else {
-        s->rcnt -= len;
+        rcnt -= len;
     }
 }
 
-static void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+void NE2000State::asicIoportWrite(uint32_t addr, uint32_t val)
 {
-    NE2000State *s = static_cast<NE2000State *>(opaque);
-
 #ifdef DEBUG_NE2000
     printf("NE2000: asic write val=0x%04x\n", val);
 #endif
-    if (s->rcnt == 0)
+    if (rcnt == 0)
         return;
-    if (s->dcfg & 0x01) {
+    if (dcfg & 0x01) {
         /* 16 bit access */
-        ne2000_mem_writew(s, s->rsar, val);
-        ne2000_dma_update(s, 2);
+        memWritew(rsar, val);
+        dmaUpdate(2);
     } else {
         /* 8 bit access */
-        ne2000_mem_writeb(s, s->rsar, val);
-        ne2000_dma_update(s, 1);
+        memWriteb(rsar, val);
+        dmaUpdate(1);
     }
 }
 
-static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
+uint32_t NE2000State::asicIoportRead(uint32_t addr)
 {
-    NE2000State *s = static_cast<NE2000State *>(opaque);
     int ret;
 
-    if (s->dcfg & 0x01) {
+    if (dcfg & 0x01) {
         /* 16 bit access */
-        ret = ne2000_mem_readw(s, s->rsar);
-        ne2000_dma_update(s, 2);
+        ret = memReadw(rsar);
+        dmaUpdate(2);
     } else {
         /* 8 bit access */
-        ret = ne2000_mem_readb(s, s->rsar);
-        ne2000_dma_update(s, 1);
+        ret = memReadb(rsar);
+        dmaUpdate(1);
     }
 #ifdef DEBUG_NE2000
     printf("NE2000: asic read val=0x%04x\n", ret);
@@ -552,28 +544,25 @@ static uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-static void ne2000_asic_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
+void NE2000State::asicIoportWritel(uint32_t addr, uint32_t val)
 {
-    NE2000State *s = static_cast<NE2000State *>(opaque);
-
 #ifdef DEBUG_NE2000
     printf("NE2000: asic writel val=0x%04x\n", val);
 #endif
-    if (s->rcnt == 0)
+    if (rcnt == 0)
         return;
     /* 32 bit access */
-    ne2000_mem_writel(s, s->rsar, val);
-    ne2000_dma_update(s, 4);
+    memWritel(rsar, val);
+    dmaUpdate(4);
 }
 
-static uint32_t ne2000_asic_ioport_readl(void *opaque, uint32_t addr)
+uint32_t NE2000State::asicIoportReadl(uint32_t addr)
 {
-    NE2000State *s = static_cast<NE2000State *>(opaque);
     int ret;
 
     /* 32 bit access */
-    ret = ne2000_mem_readl(s, s->rsar);
-    ne2000_dma_update(s, 4);
+    ret = memReadl(rsar);
+    dmaUpdate(4);
 #ifdef DEBUG_NE2000
     printf("NE2000: asic readl val=0x%04x\n", ret);
 #endif
@@ -585,10 +574,9 @@ static void ne2000_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     /* nothing to do (end of reset pulse) */
 }
 
-static uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr)
+uint32_t NE2000State::resetIoportRead(uint32_t addr)
 {
-    NE2000State *s = static_cast<NE2000State *>(opaque);
-    ne2000_reset(s);
+    ne2000_reset(this);
     return 0;
 }
 
@@ -640,15 +628,15 @@ static uint64_t ne2000_read(void *opaque, hwaddr addr,
     uint64_t val;
 
     if (addr < 0x10 && size == 1) {
-        val = ne2000_ioport_read(s, addr);
+        val = s->ioportRead(addr);
     } else if (addr == 0x10) {
         if (size <= 2) {
-            val = ne2000_asic_ioport_read(s, addr);
+            val = s->asicIoportRead(addr);
         } else {
-            val = ne2000_asic_ioport_readl(s, addr);
+            val = s->asicIoportReadl(addr);
         }
     } else if (addr == 0x1f && size == 1) {
-        val = ne2000_reset_ioport_read(s, addr);
+        val = s->resetIoportRead(addr);
     } else {
         val = ((uint64_t)1 << (size * 8)) - 1;
     }
@@ -664,12 +652,12 @@ static void ne2000_write(void *opaque, hwaddr addr,
 
     trace_ne2000_write(addr, data);
     if (addr < 0x10 && size == 1) {
-        ne2000_ioport_write(s, addr, data);
+        s->ioportWrite(addr, data);
     } else if (addr == 0x10) {
         if (size <= 2) {
-            ne2000_asic_ioport_write(s, addr, data);
+            s->asicIoportWrite(addr, data);
         } else {
-            ne2000_asic_ioport_writel(s, addr, data);
+            s->asicIoportWritel(addr, data);
         }
     } else if (addr == 0x1f && size == 1) {
         ne2000_reset_ioport_write(s, addr, data);

@@ -328,11 +328,7 @@ void PCNetState::tmdLoad(void *tmd_arg, uint64_t addr)
     }
 }
 
-static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
-                                  hwaddr addr)
-{
-    s->tmdLoad(tmd, addr);
-}
+
 
 void PCNetState::tmdStore(const void *tmd_arg, uint64_t addr)
 {
@@ -371,11 +367,7 @@ void PCNetState::tmdStore(const void *tmd_arg, uint64_t addr)
     }
 }
 
-static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
-                                   hwaddr addr)
-{
-    s->tmdStore(tmd, addr);
-}
+
 
 void PCNetState::rmdLoad(void *rmd_arg, uint64_t addr)
 {
@@ -408,11 +400,7 @@ void PCNetState::rmdLoad(void *rmd_arg, uint64_t addr)
     }
 }
 
-static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
-                                  hwaddr addr)
-{
-    s->rmdLoad(rmd, addr);
-}
+
 
 void PCNetState::rmdStore(void *rmd_arg, uint64_t addr)
 {
@@ -451,20 +439,16 @@ void PCNetState::rmdStore(void *rmd_arg, uint64_t addr)
     }
 }
 
-static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
-                                   hwaddr addr)
-{
-    s->rmdStore(rmd, addr);
-}
 
 
-#define TMDLOAD(TMD,ADDR) pcnet_tmd_load(s,TMD,ADDR)
 
-#define TMDSTORE(TMD,ADDR) pcnet_tmd_store(s,TMD,ADDR)
+#define TMDLOAD(TMD,ADDR) s->tmdLoad(TMD,ADDR)
 
-#define RMDLOAD(RMD,ADDR) pcnet_rmd_load(s,RMD,ADDR)
+#define TMDSTORE(TMD,ADDR) s->tmdStore(TMD,ADDR)
 
-#define RMDSTORE(RMD,ADDR) pcnet_rmd_store(s,RMD,ADDR)
+#define RMDLOAD(RMD,ADDR) s->rmdLoad(RMD,ADDR)
+
+#define RMDSTORE(RMD,ADDR) s->rmdStore(RMD,ADDR)
 
 #if 1
 
@@ -647,10 +631,7 @@ int PCNetState::padrMatch(const uint8_t *buf, int size)
     return result;
 }
 
-static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
-{
-    return s->padrMatch(buf, size);
-}
+
 
 int PCNetState::padrBcast(const uint8_t *buf, int size)
 {
@@ -664,10 +645,7 @@ int PCNetState::padrBcast(const uint8_t *buf, int size)
     return result;
 }
 
-static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
-{
-    return s->padrBcast(buf, size);
-}
+
 
 int PCNetState::ladrMatch(const uint8_t *buf, int size)
 {
@@ -687,10 +665,7 @@ int PCNetState::ladrMatch(const uint8_t *buf, int size)
     return 0;
 }
 
-static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
-{
-    return s->ladrMatch(buf, size);
-}
+
 
 uint64_t PCNetState::rdraAddr(int idx)
 {
@@ -701,10 +676,7 @@ uint64_t PCNetState::rdraAddr(int idx)
     return s->rdra + ((CSR_RCVRL(s) - idx) * (BCR_SWSTYLE(s) ? 16 : 8));
 }
 
-static inline hwaddr pcnet_rdra_addr(PCNetState *s, int idx)
-{
-    return s->rdraAddr(idx);
-}
+
 
 int64_t PCNetState::getNextPollTime(int64_t current_time)
 {
@@ -718,20 +690,15 @@ int64_t PCNetState::getNextPollTime(int64_t current_time)
     return next_time;
 }
 
-static inline int64_t pcnet_get_next_poll_time(PCNetState *s, int64_t current_time)
+
+
+
+
+
+
+void PCNetState::softResetImpl()
 {
-    return s->getNextPollTime(current_time);
-}
-
-static void pcnet_poll(PCNetState *s);
-static void pcnet_poll_timer(void *opaque);
-
-static uint32_t pcnet_csr_readw(PCNetState *s, uint32_t rap);
-static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value);
-static void pcnet_bcr_writew(PCNetState *s, uint32_t rap, uint32_t val);
-
-static void pcnet_s_reset_impl(PCNetState *s)
-{
+    PCNetState *s = this;
     trace_pcnet_s_reset(s);
 
     s->rdra = 0;
@@ -771,13 +738,15 @@ static void pcnet_s_reset_impl(PCNetState *s)
     s->tx_busy = 0;
 }
 
-static void pcnet_s_reset(PCNetState *s)
+void PCNetState::softReset()
 {
-    pcnet_s_reset_impl(s);
+    PCNetState *s = this;
+    s->softResetImpl();
 }
 
-static void pcnet_update_irq(PCNetState *s)
+void PCNetState::updateIrq()
 {
+    PCNetState *s = this;
     int isr = 0;
     s->csr[0] &= ~0x0080;
 
@@ -831,8 +800,9 @@ static void pcnet_update_irq(PCNetState *s)
     s->isr = isr;
 }
 
-static void pcnet_init(PCNetState *s)
+void PCNetState::init()
 {
+    PCNetState *s = this;
     int rlen, tlen;
     uint16_t padr[3], ladrf[4], mode;
     uint32_t rdra, tdra;
@@ -903,8 +873,9 @@ static void pcnet_init(PCNetState *s)
     qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
-static void pcnet_start(PCNetState *s)
+void PCNetState::start()
 {
+    PCNetState *s = this;
 #ifdef PCNET_DEBUG
     printf("pcnet_start\n");
 #endif
@@ -917,13 +888,14 @@ static void pcnet_start(PCNetState *s)
     }
     s->csr[0] &= ~0x0004;       /* clear STOP bit */
     s->csr[0] |= 0x0002;
-    pcnet_poll_timer(s);
+    s->pollTimer();
 
     qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
-static void pcnet_stop(PCNetState *s)
+void PCNetState::stop()
 {
+    PCNetState *s = this;
 #ifdef PCNET_DEBUG
     printf("pcnet_stop\n");
 #endif
@@ -931,18 +903,19 @@ static void pcnet_stop(PCNetState *s)
     s->csr[0] |= 0x0014;
     s->csr[4] &= ~0x02c2;
     s->csr[5] &= ~0x0011;
-    pcnet_poll_timer(s);
+    s->pollTimer();
 }
 
-static void pcnet_rdte_poll(PCNetState *s)
+void PCNetState::rdtePoll()
 {
+    PCNetState *s = this;
     s->csr[28] = s->csr[29] = 0;
     if (s->rdra) {
         int bad = 0;
 #if 1
-        hwaddr crda = pcnet_rdra_addr(s, CSR_RCVRC(s));
-        hwaddr nrda = pcnet_rdra_addr(s, -1 + CSR_RCVRC(s));
-        hwaddr nnrd = pcnet_rdra_addr(s, -2 + CSR_RCVRC(s));
+        hwaddr crda = s->rdraAddr(CSR_RCVRC(s));
+        hwaddr nrda = s->rdraAddr(-1 + CSR_RCVRC(s));
+        hwaddr nnrd = s->rdraAddr(-2 + CSR_RCVRC(s));
 #else
         hwaddr crda = s->rdra +
             (CSR_RCVRL(s) - CSR_RCVRC(s)) *
@@ -1007,8 +980,9 @@ static void pcnet_rdte_poll(PCNetState *s)
 
 }
 
-static int pcnet_tdte_poll(PCNetState *s)
+int PCNetState::tdtePoll()
 {
+    PCNetState *s = this;
     s->csr[34] = s->csr[35] = 0;
     if (s->tdra) {
         hwaddr cxda = s->tdra +
@@ -1064,11 +1038,11 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 #endif
 
     if (CSR_PROM(s)
-        || (is_padr=padr_match(s, buf, size))
-        || (is_bcast=padr_bcast(s, buf, size))
-        || (is_ladr=ladr_match(s, buf, size))) {
+        || (is_padr=s->padrMatch(buf, size))
+        || (is_bcast=s->padrBcast(buf, size))
+        || (is_ladr=s->ladrMatch(buf, size))) {
 
-        pcnet_rdte_poll(s);
+        s->rdtePoll();
 
         if (!(CSR_CRST(s) & 0x8000) && s->rdra) {
             struct pcnet_RMD rmd;
@@ -1087,7 +1061,7 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
                                 rcvrc, CSR_RCVRC(s));
 #endif
                     CSR_RCVRC(s) = rcvrc;
-                    pcnet_rdte_poll(s);
+                    s->rdtePoll();
                     break;
                 }
             }
@@ -1216,13 +1190,13 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
                 }
             }
 
-            pcnet_rdte_poll(s);
+            s->rdtePoll();
 
         }
     }
 
-    pcnet_poll(s);
-    pcnet_update_irq(s);
+    s->poll();
+    s->updateIrq();
 
     return size_;
 }
@@ -1234,8 +1208,9 @@ void pcnet_set_link_status(NetClientState *nc)
     d->lnkst = nc->link_down ? 0 : 0x40;
 }
 
-static void pcnet_transmit(PCNetState *s)
+void PCNetState::transmit()
 {
+    PCNetState *s = this;
     hwaddr xmit_cxda = 0;
     int count = CSR_XMTRL(s)-1;
     int add_crc = 0;
@@ -1250,7 +1225,7 @@ static void pcnet_transmit(PCNetState *s)
     s->tx_busy = 1;
 
 txagain:
-    if (pcnet_tdte_poll(s)) {
+    if (s->tdtePoll()) {
         struct pcnet_TMD tmd;
 
         TMDLOAD(&tmd, PHYSADDR(s,CSR_CXDA(s)));
@@ -1352,32 +1327,33 @@ txdone:
     s->tx_busy = 0;
 }
 
-static void pcnet_poll(PCNetState *s)
+void PCNetState::poll()
 {
+    PCNetState *s = this;
     if (CSR_RXON(s)) {
-        pcnet_rdte_poll(s);
+        s->rdtePoll();
     }
 
-    if (CSR_TDMD(s) || (CSR_TXON(s) && !CSR_DPOLL(s) && pcnet_tdte_poll(s))) {
+    if (CSR_TDMD(s) || (CSR_TXON(s) && !CSR_DPOLL(s) && s->tdtePoll())) {
         /* prevent recursion */
         if (s->tx_busy) {
             return;
         }
-        pcnet_transmit(s);
+        s->transmit();
     }
 }
 
-static void pcnet_poll_timer(void *opaque)
+void PCNetState::pollTimer()
 {
-    PCNetState *s = static_cast<PCNetState *>(opaque);
+    PCNetState *s = this;
 
     timer_del(s->poll_timer);
 
     if (CSR_TDMD(s)) {
-        pcnet_transmit(s);
+        s->transmit();
     }
 
-    pcnet_update_irq(s);
+    s->updateIrq();
 
     if (!CSR_STOP(s) && !CSR_SPND(s) && !CSR_DPOLL(s)) {
         uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) * 33;
@@ -1386,20 +1362,21 @@ static void pcnet_poll_timer(void *opaque)
         } else {
             uint64_t t = now - s->timer + CSR_POLL(s);
             if (t > 0xffffLL) {
-                pcnet_poll(s);
+                s->poll();
                 CSR_POLL(s) = CSR_PINT(s);
             } else {
                 CSR_POLL(s) = t;
             }
         }
         timer_mod(s->poll_timer,
-            pcnet_get_next_poll_time(s,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)));
+            s->getNextPollTime(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)));
     }
 }
 
 
-static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value)
+void PCNetState::csrWritew(uint32_t rap, uint32_t new_value)
 {
+    PCNetState *s = this;
     uint16_t val = new_value;
 #ifdef PCNET_DEBUG_CSR
     printf("pcnet_csr_writew rap=%d val=0x%04x\n", rap, val);
@@ -1417,16 +1394,16 @@ static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value)
             val &= ~3;
         }
         if (!CSR_STOP(s) && (val & 4)) {
-            pcnet_stop(s);
+            s->stop();
         }
         if (!CSR_INIT(s) && (val & 1)) {
-            pcnet_init(s);
+            s->init();
         }
         if (!CSR_STRT(s) && (val & 2)) {
-            pcnet_start(s);
+            s->start();
         }
         if (CSR_TDMD(s)) {
-            pcnet_transmit(s);
+            s->transmit();
         }
         return;
     case 1:
@@ -1492,13 +1469,13 @@ static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value)
         val &= ~0x0a90; val |= s->csr[5] & 0x0a90;
         break;
     case 16:
-        pcnet_csr_writew(s,1,val);
+        s->csrWritew(1,val);
         return;
     case 17:
-        pcnet_csr_writew(s,2,val);
+        s->csrWritew(2,val);
         return;
     case 58:
-        pcnet_bcr_writew(s,BCR_SWS,val);
+        s->bcrWritew(BCR_SWS,val);
         break;
     default:
         return;
@@ -1506,19 +1483,20 @@ static void pcnet_csr_writew(PCNetState *s, uint32_t rap, uint32_t new_value)
     s->csr[rap] = val;
 }
 
-static uint32_t pcnet_csr_readw(PCNetState *s, uint32_t rap)
+uint32_t PCNetState::csrReadw(uint32_t rap)
 {
+    PCNetState *s = this;
     uint32_t val;
     switch (rap) {
     case 0:
-        pcnet_update_irq(s);
+        s->updateIrq();
         val = s->csr[0];
         val |= (val & 0x7800) ? 0x8000 : 0;
         break;
     case 16:
-        return pcnet_csr_readw(s,1);
+        return s->csrReadw(1);
     case 17:
-        return pcnet_csr_readw(s,2);
+        return s->csrReadw(2);
     case 58:
         return pcnet_bcr_readw(s,BCR_SWS);
     case 88:
@@ -1535,8 +1513,9 @@ static uint32_t pcnet_csr_readw(PCNetState *s, uint32_t rap)
     return val;
 }
 
-static void pcnet_bcr_writew(PCNetState *s, uint32_t rap, uint32_t val)
+void PCNetState::bcrWritew(uint32_t rap, uint32_t val)
 {
+    PCNetState *s = this;
     rap &= 127;
 #ifdef PCNET_DEBUG_BCR
     printf("pcnet_bcr_writew rap=%d val=0x%04x\n", rap, val);
@@ -1622,49 +1601,49 @@ void pcnet_h_reset(void *opaque)
     s->bcr[BCR_SWS  ] = 0x0200;
     s->bcr[BCR_PLAT ] = 0xff06;
 
-    pcnet_s_reset(s);
-    pcnet_update_irq(s);
-    pcnet_poll_timer(s);
+    s->softReset();
+    s->updateIrq();
+    s->pollTimer();
 }
 
 void pcnet_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     PCNetState *s = static_cast<PCNetState *>(opaque);
-    pcnet_poll_timer(s);
+    s->pollTimer();
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_ioport_writew addr=0x%08x val=0x%04x\n", addr, val);
 #endif
     if (!BCR_DWIO(s)) {
         switch (addr & 0x0f) {
         case 0x00: /* RDP */
-            pcnet_csr_writew(s, s->rap, val);
+            s->csrWritew(s->rap, val);
             break;
         case 0x02:
             s->rap = val & 0x7f;
             break;
         case 0x06:
-            pcnet_bcr_writew(s, s->rap, val);
+            s->bcrWritew(s->rap, val);
             break;
         }
     }
-    pcnet_update_irq(s);
+    s->updateIrq();
 }
 
 uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr)
 {
     PCNetState *s = static_cast<PCNetState *>(opaque);
     uint32_t val = -1;
-    pcnet_poll_timer(s);
+    s->pollTimer();
     if (!BCR_DWIO(s)) {
         switch (addr & 0x0f) {
         case 0x00: /* RDP */
-            val = pcnet_csr_readw(s, s->rap);
+            val = s->csrReadw(s->rap);
             break;
         case 0x02:
             val = s->rap;
             break;
         case 0x04:
-            pcnet_s_reset(s);
+            s->softReset();
             val = 0;
             break;
         case 0x06:
@@ -1672,7 +1651,7 @@ uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr)
             break;
         }
     }
-    pcnet_update_irq(s);
+    s->updateIrq();
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_ioport_readw addr=0x%08x val=0x%04x\n", addr, val & 0xffff);
 #endif
@@ -1682,47 +1661,47 @@ uint32_t pcnet_ioport_readw(void *opaque, uint32_t addr)
 void pcnet_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 {
     PCNetState *s = static_cast<PCNetState *>(opaque);
-    pcnet_poll_timer(s);
+    s->pollTimer();
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_ioport_writel addr=0x%08x val=0x%08x\n", addr, val);
 #endif
     if (BCR_DWIO(s)) {
         switch (addr & 0x0f) {
         case 0x00: /* RDP */
-            pcnet_csr_writew(s, s->rap, val & 0xffff);
+            s->csrWritew(s->rap, val & 0xffff);
             break;
         case 0x04:
             s->rap = val & 0x7f;
             break;
         case 0x0c:
-            pcnet_bcr_writew(s, s->rap, val & 0xffff);
+            s->bcrWritew(s->rap, val & 0xffff);
             break;
         }
     } else if ((addr & 0x0f) == 0) {
         /* switch device to dword i/o mode */
-        pcnet_bcr_writew(s, BCR_BSBC, pcnet_bcr_readw(s, BCR_BSBC) | 0x0080);
+        s->bcrWritew(BCR_BSBC, pcnet_bcr_readw(s, BCR_BSBC) | 0x0080);
 #ifdef PCNET_DEBUG_IO
         printf("device switched into dword i/o mode\n");
 #endif
     }
-    pcnet_update_irq(s);
+    s->updateIrq();
 }
 
 uint32_t pcnet_ioport_readl(void *opaque, uint32_t addr)
 {
     PCNetState *s = static_cast<PCNetState *>(opaque);
     uint32_t val = -1;
-    pcnet_poll_timer(s);
+    s->pollTimer();
     if (BCR_DWIO(s)) {
         switch (addr & 0x0f) {
         case 0x00: /* RDP */
-            val = pcnet_csr_readw(s, s->rap);
+            val = s->csrReadw(s->rap);
             break;
         case 0x04:
             val = s->rap;
             break;
         case 0x08:
-            pcnet_s_reset(s);
+            s->softReset();
             val = 0;
             break;
         case 0x0c:
@@ -1730,7 +1709,7 @@ uint32_t pcnet_ioport_readl(void *opaque, uint32_t addr)
             break;
         }
     }
-    pcnet_update_irq(s);
+    s->updateIrq();
 #ifdef PCNET_DEBUG_IO
     printf("pcnet_ioport_readl addr=0x%08x val=0x%08x\n", addr, val);
 #endif
@@ -1767,12 +1746,17 @@ const VMStateDescription vmstate_pcnet = {
     .fields = vmstate_pcnet_fields,
 };
 
+static void pcnet_poll_timer_wrapper(void *opaque)
+{
+    static_cast<PCNetState *>(opaque)->pollTimer();
+}
+
 void pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
 {
     int i;
     uint16_t checksum;
 
-    s->poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pcnet_poll_timer, s);
+    s->poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pcnet_poll_timer_wrapper, s);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(info, &s->conf, object_get_typename(OBJECT(dev)),

@@ -36,6 +36,26 @@ typedef struct NE2000State {
     NICState *nic;
     NICConf c;
     uint8_t mem[NE2000_MEM_SIZE];
+
+#ifdef __cplusplus
+    /* C++ methods — converted from static helper functions */
+    void updateIrq();
+    int bufferFull();
+    void ioportWrite(uint32_t addr, uint32_t val);
+    uint32_t ioportRead(uint32_t addr);
+    void memWriteb(uint32_t addr, uint32_t val);
+    void memWritew(uint32_t addr, uint32_t val);
+    void memWritel(uint32_t addr, uint32_t val);
+    uint32_t memReadb(uint32_t addr);
+    uint32_t memReadw(uint32_t addr);
+    uint32_t memReadl(uint32_t addr);
+    void dmaUpdate(int len);
+    void asicIoportWrite(uint32_t addr, uint32_t val);
+    uint32_t asicIoportRead(uint32_t addr);
+    void asicIoportWritel(uint32_t addr, uint32_t val);
+    uint32_t asicIoportReadl(uint32_t addr);
+    uint32_t resetIoportRead(uint32_t addr);
+#endif /* __cplusplus */
 } NE2000State;
 
 void ne2000_setup_io(NE2000State *s, DeviceState *dev, unsigned size);
