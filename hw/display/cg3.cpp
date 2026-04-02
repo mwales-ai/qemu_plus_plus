@@ -98,9 +98,9 @@ struct CG3State {
     static int postLoad(void *opaque, int version_id);
 
     /* Instance methods */
-    void initfn(Object *obj);
-    void realize(DeviceState *dev, Error **errp);
-    void reset(DeviceState *d);
+    void initfn();
+    void realize(Error **errp);
+    void reset();
 
     /* Class init */
     static void classInit(ObjectClass *klass, const void *data);
@@ -298,59 +298,57 @@ static const GraphicHwOps cg3_ops = {
     .gfx_update = CG3State::updateDisplay,
 };
 
-void CG3State::initfn(Object *obj)
+void CG3State::initfn()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    CG3State *s = CG3(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_rom_nomigrate(&s->rom, obj, "cg3.prom",
+    memory_region_init_rom_nomigrate(&rom, OBJECT(this), "cg3.prom",
                                      FCODE_MAX_ROM_SIZE, &error_fatal);
-    sysbus_init_mmio(sbd, &s->rom);
+    sysbus_init_mmio(sbd, &rom);
 
-    memory_region_init_io(&s->reg, obj, &cg3_reg_ops, s, "cg3.reg",
+    memory_region_init_io(&reg, OBJECT(this), &cg3_reg_ops, this, "cg3.reg",
                           CG3_REG_SIZE);
-    sysbus_init_mmio(sbd, &s->reg);
+    sysbus_init_mmio(sbd, &reg);
 }
 
 static void cg3_initfn(Object *obj)
 {
     CG3State *s = CG3(obj);
-    s->initfn(obj);
+    s->initfn();
 }
 
-void CG3State::realize(DeviceState *dev, Error **errp)
+void CG3State::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    CG3State *s = CG3(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     int ret;
     char *fcode_filename;
 
     /* FCode ROM */
-    vmstate_register_ram_global(&s->rom);
+    vmstate_register_ram_global(&rom);
     fcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, CG3_ROM_FILE);
     if (fcode_filename) {
-        ret = load_image_mr(fcode_filename, &s->rom);
+        ret = load_image_mr(fcode_filename, &rom);
         g_free(fcode_filename);
         if (ret < 0 || ret > FCODE_MAX_ROM_SIZE) {
             warn_report("cg3: could not load prom '%s'", CG3_ROM_FILE);
         }
     }
 
-    memory_region_init_ram(&s->vram_mem, NULL, "cg3.vram", s->vram_size,
+    memory_region_init_ram(&vram_mem, NULL, "cg3.vram", vram_size,
                            &error_fatal);
-    memory_region_set_log(&s->vram_mem, true, DIRTY_MEMORY_VGA);
-    sysbus_init_mmio(sbd, &s->vram_mem);
+    memory_region_set_log(&vram_mem, true, DIRTY_MEMORY_VGA);
+    sysbus_init_mmio(sbd, &vram_mem);
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    s->con = graphic_console_init(dev, 0, &cg3_ops, s);
-    qemu_console_resize(s->con, s->width, s->height);
+    con = graphic_console_init(DEVICE(this), 0, &cg3_ops, this);
+    qemu_console_resize(con, width, height);
 }
 
 static void cg3_realizefn(DeviceState *dev, Error **errp)
 {
     CG3State *s = CG3(dev);
-    s->realize(dev, errp);
+    s->realize(errp);
 }
 
 int CG3State::postLoad(void *opaque, int version_id)
@@ -380,24 +378,22 @@ static const VMStateDescription vmstate_cg3 = {
     }
 };
 
-void CG3State::reset(DeviceState *d)
+void CG3State::reset()
 {
-    CG3State *s = CG3(d);
-
     /* Initialize palette */
-    memset(s->r, 0, 256);
-    memset(s->g, 0, 256);
-    memset(s->b, 0, 256);
+    memset(r, 0, 256);
+    memset(g, 0, 256);
+    memset(b, 0, 256);
 
-    s->dac_state = 0;
-    s->full_update = 1;
-    qemu_irq_lower(s->irq);
+    dac_state = 0;
+    full_update = 1;
+    qemu_irq_lower(irq);
 }
 
 static void cg3_reset(DeviceState *d)
 {
     CG3State *s = CG3(d);
-    s->reset(d);
+    s->reset();
 }
 
 static const Property cg3_properties[] = {

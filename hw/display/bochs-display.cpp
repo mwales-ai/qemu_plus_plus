@@ -67,9 +67,9 @@ struct BochsDisplayState {
 
     /* Instance methods */
     int getMode(BochsDisplayMode *mode);
-    void realize(PCIDevice *dev, Error **errp);
-    void exit(PCIDevice *dev);
-    void initfn(Object *obj);
+    void realize(Error **errp);
+    void exit();
+    void initfn();
 
     /* Static QOM property callbacks */
     static bool getBigEndianFb(Object *obj, Error **errp);
@@ -282,44 +282,44 @@ static const GraphicHwOps bochs_display_gfx_ops = {
     .gfx_update = BochsDisplayState::updateDisplay,
 };
 
-void BochsDisplayState::realize(PCIDevice *dev, Error **errp)
+void BochsDisplayState::realize(Error **errp)
 {
-    BochsDisplayState *s = BOCHS_DISPLAY(dev);
-    Object *obj = OBJECT(dev);
+    PCIDevice *dev = PCI_DEVICE(this);
+    Object *obj = OBJECT(this);
     int ret;
 
-    if (s->vgamem < 4 * MiB) {
+    if (vgamem < 4 * MiB) {
         error_setg(errp, "bochs-display: video memory too small");
         return;
     }
-    if (s->vgamem > 256 * MiB) {
+    if (vgamem > 256 * MiB) {
         error_setg(errp, "bochs-display: video memory too big");
         return;
     }
-    s->vgamem = pow2ceil(s->vgamem);
+    vgamem = pow2ceil(vgamem);
 
-    s->con = graphic_console_init(DEVICE(dev), 0, &bochs_display_gfx_ops, s);
+    con = graphic_console_init(DEVICE(dev), 0, &bochs_display_gfx_ops, this);
 
-    memory_region_init_ram(&s->vram, obj, "bochs-display-vram", s->vgamem,
+    memory_region_init_ram(&vram, obj, "bochs-display-vram", vgamem,
                            &error_fatal);
-    memory_region_init_io(&s->vbe, obj, &bochs_display_vbe_ops, s,
+    memory_region_init_io(&vbe, obj, &bochs_display_vbe_ops, this,
                           "bochs dispi interface", PCI_VGA_BOCHS_SIZE);
-    memory_region_init_io(&s->qext, obj, &bochs_display_qext_ops, s,
+    memory_region_init_io(&qext, obj, &bochs_display_qext_ops, this,
                           "qemu extended regs", PCI_VGA_QEXT_SIZE);
 
-    memory_region_init_io(&s->mmio, obj, &unassigned_io_ops, NULL,
+    memory_region_init_io(&mmio, obj, &unassigned_io_ops, NULL,
                           "bochs-display-mmio", PCI_VGA_MMIO_SIZE);
-    memory_region_add_subregion(&s->mmio, PCI_VGA_BOCHS_OFFSET, &s->vbe);
-    memory_region_add_subregion(&s->mmio, PCI_VGA_QEXT_OFFSET, &s->qext);
+    memory_region_add_subregion(&mmio, PCI_VGA_BOCHS_OFFSET, &vbe);
+    memory_region_add_subregion(&mmio, PCI_VGA_QEXT_OFFSET, &qext);
 
-    pci_set_byte(&s->pci.config[PCI_REVISION_ID], 2);
-    pci_register_bar(&s->pci, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
-    pci_register_bar(&s->pci, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
+    pci_set_byte(&pci.config[PCI_REVISION_ID], 2);
+    pci_register_bar(&pci, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &vram);
+    pci_register_bar(&pci, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
 
-    if (s->enable_edid) {
-        qemu_edid_generate(s->edid_blob, sizeof(s->edid_blob), &s->edid_info);
-        qemu_edid_region_io(&s->edid, obj, s->edid_blob, sizeof(s->edid_blob));
-        memory_region_add_subregion(&s->mmio, 0, &s->edid);
+    if (enable_edid) {
+        qemu_edid_generate(edid_blob, sizeof(edid_blob), &edid_info);
+        qemu_edid_region_io(&edid, obj, edid_blob, sizeof(edid_blob));
+        memory_region_add_subregion(&mmio, 0, &edid);
     }
 
     if (pci_bus_is_express(pci_get_bus(dev))) {
@@ -329,13 +329,13 @@ void BochsDisplayState::realize(PCIDevice *dev, Error **errp)
         dev->cap_present &= ~QEMU_PCI_CAP_EXPRESS;
     }
 
-    memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
+    memory_region_set_log(&vram, true, DIRTY_MEMORY_VGA);
 }
 
 static void bochs_display_realize(PCIDevice *dev, Error **errp)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(dev);
-    s->realize(dev, errp);
+    s->realize(errp);
 }
 
 bool BochsDisplayState::getBigEndianFb(Object *obj, Error **errp)
@@ -352,12 +352,12 @@ void BochsDisplayState::setBigEndianFb(Object *obj, bool value, Error **errp)
     s->big_endian_fb = value;
 }
 
-void BochsDisplayState::initfn(Object *obj)
+void BochsDisplayState::initfn()
 {
-    PCIDevice *dev = PCI_DEVICE(obj);
+    PCIDevice *dev = PCI_DEVICE(this);
 
     /* Expose framebuffer byteorder via QOM */
-    object_property_add_bool(obj, "big-endian-framebuffer",
+    object_property_add_bool(OBJECT(this), "big-endian-framebuffer",
                              BochsDisplayState::getBigEndianFb,
                              BochsDisplayState::setBigEndianFb);
 
@@ -367,20 +367,18 @@ void BochsDisplayState::initfn(Object *obj)
 static void bochs_display_init(Object *obj)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(obj);
-    s->initfn(obj);
+    s->initfn();
 }
 
-void BochsDisplayState::exit(PCIDevice *dev)
+void BochsDisplayState::exit()
 {
-    BochsDisplayState *s = BOCHS_DISPLAY(dev);
-
-    graphic_console_close(s->con);
+    graphic_console_close(con);
 }
 
 static void bochs_display_exit(PCIDevice *dev)
 {
     BochsDisplayState *s = BOCHS_DISPLAY(dev);
-    s->exit(dev);
+    s->exit();
 }
 
 static const Property bochs_display_properties[] = {

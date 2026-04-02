@@ -64,6 +64,7 @@ typedef struct G364State {
     void updateDepth();
     void invalidateCursorPosition();
     static int postLoad(void *opaque, int version_id);
+    void init(DeviceState *dev);
 } G364State;
 
 #define REG_BOOT     0x000000
@@ -89,7 +90,7 @@ static inline int check_dirty(G364State *s, DirtyBitmapSnapshot *snap, ram_addr_
 
 void G364State::drawGraphic8()
 {
-    DisplaySurface *surface = qemu_console_surface(this->con);
+    DisplaySurface *surface = qemu_console_surface(con);
     DirtyBitmapSnapshot *snap;
     int i, w;
     uint8_t *vram;
@@ -127,24 +128,24 @@ void G364State::drawGraphic8()
     page = 0;
 
     x = y = 0;
-    xmin = this->width;
+    xmin = width;
     xmax = 0;
-    ymin = this->height;
+    ymin = height;
     ymax = 0;
 
-    if (!(this->ctla & CTLA_NO_CURSOR)) {
-        xcursor = this->cursor_position >> 12;
-        ycursor = this->cursor_position & 0xfff;
+    if (!(ctla & CTLA_NO_CURSOR)) {
+        xcursor = cursor_position >> 12;
+        ycursor = cursor_position & 0xfff;
     } else {
         xcursor = ycursor = -65;
     }
 
-    vram = static_cast<uint8_t *>(memory_region_get_ram_ptr(&this->mem_vram)) + this->top_of_screen;
+    vram = static_cast<uint8_t *>(memory_region_get_ram_ptr(&mem_vram)) + top_of_screen;
     /* XXX: out of range in vram? */
     data_display = dd = surface_data(surface);
-    snap = memory_region_snapshot_and_clear_dirty(&this->mem_vram, 0, this->vram_size,
+    snap = memory_region_snapshot_and_clear_dirty(&mem_vram, 0, vram_size,
                                                   DIRTY_MEMORY_VGA);
-    while (y < (int)this->height) {
+    while (y < (int)height) {
         if (check_dirty(this, snap, page)) {
             if (y < ymin)
                 ymin = ymax = y;
@@ -157,40 +158,40 @@ void G364State::drawGraphic8()
                     (x >= xcursor && x < xcursor + 64))) {
                     /* pointer area */
                     int xdiff = x - xcursor;
-                    uint16_t curs = this->cursor[(y - ycursor) * 8 + xdiff / 8];
+                    uint16_t curs = cursor[(y - ycursor) * 8 + xdiff / 8];
                     int op = (curs >> ((xdiff & 7) * 2)) & 3;
                     if (likely(op == 0)) {
                         /* transparent */
                         index = *vram;
                         color = (*rgb_to_pixel)(
-                            this->color_palette[index][0],
-                            this->color_palette[index][1],
-                            this->color_palette[index][2]);
+                            color_palette[index][0],
+                            color_palette[index][1],
+                            color_palette[index][2]);
                     } else {
                         /* get cursor color */
                         index = op - 1;
                         color = (*rgb_to_pixel)(
-                            this->cursor_palette[index][0],
-                            this->cursor_palette[index][1],
-                            this->cursor_palette[index][2]);
+                            cursor_palette[index][0],
+                            cursor_palette[index][1],
+                            cursor_palette[index][2]);
                     }
                 } else {
                     /* normal area */
                     index = *vram;
                     color = (*rgb_to_pixel)(
-                        this->color_palette[index][0],
-                        this->color_palette[index][1],
-                        this->color_palette[index][2]);
+                        color_palette[index][0],
+                        color_palette[index][1],
+                        color_palette[index][2]);
                 }
                 memcpy(dd, &color, w);
                 dd += w;
                 x++;
                 vram++;
-                if (x == (int)this->width) {
-                    xmax = this->width - 1;
+                if (x == (int)width) {
+                    xmax = width - 1;
                     y++;
-                    if (y == (int)this->height) {
-                        ymax = this->height - 1;
+                    if (y == (int)height) {
+                        ymax = height - 1;
                         goto done;
                     }
                     data_display = dd = data_display + surface_stride(surface);
@@ -205,16 +206,16 @@ void G364State::drawGraphic8()
         } else {
             int dy;
             if (xmax || ymax) {
-                dpy_gfx_update(this->con, xmin, ymin,
+                dpy_gfx_update(con, xmin, ymin,
                                xmax - xmin + 1, ymax - ymin + 1);
-                xmin = this->width;
+                xmin = width;
                 xmax = 0;
-                ymin = this->height;
+                ymin = height;
                 ymax = 0;
             }
             x += G364_PAGE_SIZE;
-            dy = x / this->width;
-            x = x % this->width;
+            dy = x / width;
+            x = x % width;
             y += dy;
             vram += G364_PAGE_SIZE;
             data_display += dy * surface_stride(surface);
@@ -225,31 +226,31 @@ void G364State::drawGraphic8()
 
 done:
     if (xmax || ymax) {
-        dpy_gfx_update(this->con, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
+        dpy_gfx_update(con, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
     }
     g_free(snap);
 }
 
 void G364State::drawBlank()
 {
-    DisplaySurface *surface = qemu_console_surface(this->con);
+    DisplaySurface *surface = qemu_console_surface(con);
     int i, w;
     uint8_t *d;
 
-    if (this->blanked) {
+    if (blanked) {
         /* Screen is already blank. No need to redraw it */
         return;
     }
 
-    w = this->width * surface_bytes_per_pixel(surface);
+    w = width * surface_bytes_per_pixel(surface);
     d = surface_data(surface);
-    for (i = 0; i < (int)this->height; i++) {
+    for (i = 0; i < (int)height; i++) {
         memset(d, 0, w);
         d += surface_stride(surface);
     }
 
-    dpy_gfx_update_full(this->con);
-    this->blanked = 1;
+    dpy_gfx_update_full(con);
+    blanked = 1;
 }
 
 void G364State::updateDisplay(void *opaque)
@@ -288,18 +289,18 @@ void G364State::invalidateDisplay(void *opaque)
 
 void G364State::resetState()
 {
-    uint8_t *vram = static_cast<uint8_t *>(memory_region_get_ram_ptr(&this->mem_vram));
+    uint8_t *vram = static_cast<uint8_t *>(memory_region_get_ram_ptr(&mem_vram));
 
-    qemu_irq_lower(this->irq);
+    qemu_irq_lower(irq);
 
-    memset(this->color_palette, 0, sizeof(this->color_palette));
-    memset(this->cursor_palette, 0, sizeof(this->cursor_palette));
-    memset(this->cursor, 0, sizeof(this->cursor));
-    this->cursor_position = 0;
-    this->ctla = 0;
-    this->top_of_screen = 0;
-    this->width = this->height = 0;
-    memset(vram, 0, this->vram_size);
+    memset(color_palette, 0, sizeof(color_palette));
+    memset(cursor_palette, 0, sizeof(cursor_palette));
+    memset(cursor, 0, sizeof(cursor));
+    cursor_position = 0;
+    ctla = 0;
+    top_of_screen = 0;
+    width = height = 0;
+    memset(vram, 0, vram_size);
     G364State::invalidateDisplay(this);
 }
 
@@ -350,21 +351,21 @@ uint64_t G364State::ctrlRead(void *opaque,
 void G364State::updateDepth()
 {
     static const int depths[8] = { 1, 2, 4, 8, 15, 16, 0 };
-    this->depth = depths[(this->ctla & 0x00700000) >> 20];
+    depth = depths[(ctla & 0x00700000) >> 20];
 }
 
 void G364State::invalidateCursorPosition()
 {
-    DisplaySurface *surface = qemu_console_surface(this->con);
+    DisplaySurface *surface = qemu_console_surface(con);
     int ymin, ymax, start, end;
 
     /* invalidate only near the cursor */
-    ymin = this->cursor_position & 0xfff;
-    ymax = MIN(this->height, (uint32_t)(ymin + 64));
+    ymin = cursor_position & 0xfff;
+    ymax = MIN(height, (uint32_t)(ymin + 64));
     start = ymin * surface_stride(surface);
     end = (ymax + 1) * surface_stride(surface);
 
-    memory_region_set_dirty(&this->mem_vram, start, end - start);
+    memory_region_set_dirty(&mem_vram, start, end - start);
 }
 
 void G364State::ctrlWrite(void *opaque,
@@ -486,15 +487,15 @@ static const GraphicHwOps g364fb_ops = {
     .gfx_update  = G364State::updateDisplay,
 };
 
-static void g364fb_init(DeviceState *dev, G364State *s)
+void G364State::init(DeviceState *dev)
 {
-    s->con = graphic_console_init(dev, 0, &g364fb_ops, s);
+    con = graphic_console_init(dev, 0, &g364fb_ops, this);
 
-    memory_region_init_io(&s->mem_ctrl, OBJECT(dev), &g364fb_ctrl_ops, s,
+    memory_region_init_io(&mem_ctrl, OBJECT(dev), &g364fb_ctrl_ops, this,
                           "ctrl", 0x180000);
-    memory_region_init_ram(&s->mem_vram, NULL, "g364fb.vram", s->vram_size,
+    memory_region_init_ram(&mem_vram, NULL, "g364fb.vram", vram_size,
                            &error_fatal);
-    memory_region_set_log(&s->mem_vram, true, DIRTY_MEMORY_VGA);
+    memory_region_set_log(&mem_vram, true, DIRTY_MEMORY_VGA);
 }
 
 #define TYPE_G364 "sysbus-g364"
@@ -519,10 +520,10 @@ static void g364fb_sysbus_realize(DeviceState *dev, Error **errp)
 
 void G364SysBusState::realize(Error **errp)
 {
-    G364State *s = &this->g364;
+    G364State *s = &g364;
     SysBusDevice *sbd = SYS_BUS_DEVICE(DEVICE(this));
 
-    g364fb_init(DEVICE(this), s);
+    s->init(DEVICE(this));
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_mmio(sbd, &s->mem_ctrl);
     sysbus_init_mmio(sbd, &s->mem_vram);
@@ -536,7 +537,7 @@ static void g364fb_sysbus_reset(DeviceState *d)
 
 void G364SysBusState::reset()
 {
-    this->g364.resetState();
+    g364.resetState();
 }
 
 static const Property g364fb_sysbus_properties[] = {

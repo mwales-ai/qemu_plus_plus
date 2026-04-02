@@ -211,18 +211,17 @@ void KBDState::putKeycode(int keycode)
 
 int KBDState::poll(ADBDevice *d, uint8_t *obuf)
 {
-    KBDState *s = ADB_KEYBOARD(d);
     int keycode;
 
-    if (s->count == 0) {
+    if (count == 0) {
         return 0;
     }
-    keycode = s->data[s->rptr];
-    s->rptr++;
-    if (s->rptr == (int)sizeof(s->data)) {
-        s->rptr = 0;
+    keycode = data[rptr];
+    rptr++;
+    if (rptr == (int)sizeof(data)) {
+        rptr = 0;
     }
-    s->count--;
+    count--;
     /*
      * The power key is the only two byte value key, so it is a special case.
      * Since 0x7f is not a used keycode for ADB we overload it to indicate the
