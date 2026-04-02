@@ -297,9 +297,10 @@ struct pcnet_RMD {
         GET_FIELD((R)->msg_length, RMDM, MCNT),         \
         GET_FIELD((R)->msg_length, RMDM, ZEROS))
 
-static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
-                                  hwaddr addr)
+void PCNetState::tmdLoad(void *tmd_arg, uint64_t addr)
 {
+    struct pcnet_TMD *tmd = static_cast<struct pcnet_TMD *>(tmd_arg);
+    PCNetState *s = this;
     if (!BCR_SSIZE32(s)) {
         struct {
             uint32_t tbadr;
@@ -327,9 +328,16 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
     }
 }
 
-static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
-                                   hwaddr addr)
+static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
+                                  hwaddr addr)
 {
+    s->tmdLoad(tmd, addr);
+}
+
+void PCNetState::tmdStore(const void *tmd_arg, uint64_t addr)
+{
+    const struct pcnet_TMD *tmd = static_cast<const struct pcnet_TMD *>(tmd_arg);
+    PCNetState *s = this;
     if (!BCR_SSIZE32(s)) {
         struct {
             uint32_t tbadr;
@@ -363,9 +371,16 @@ static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
     }
 }
 
-static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
-                                  hwaddr addr)
+static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
+                                   hwaddr addr)
 {
+    s->tmdStore(tmd, addr);
+}
+
+void PCNetState::rmdLoad(void *rmd_arg, uint64_t addr)
+{
+    struct pcnet_RMD *rmd = static_cast<struct pcnet_RMD *>(rmd_arg);
+    PCNetState *s = this;
     if (!BCR_SSIZE32(s)) {
         struct {
             uint32_t rbadr;
@@ -393,9 +408,16 @@ static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
     }
 }
 
-static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
-                                   hwaddr addr)
+static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
+                                  hwaddr addr)
 {
+    s->rmdLoad(rmd, addr);
+}
+
+void PCNetState::rmdStore(void *rmd_arg, uint64_t addr)
+{
+    struct pcnet_RMD *rmd = static_cast<struct pcnet_RMD *>(rmd_arg);
+    PCNetState *s = this;
     if (!BCR_SSIZE32(s)) {
         struct {
             uint32_t rbadr;
@@ -427,6 +449,12 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
         }
         s->phys_mem_write(s->dma_opaque, addr, reinterpret_cast<uint8_t *>(&rda), sizeof(rda), 0);
     }
+}
+
+static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
+                                   hwaddr addr)
+{
+    s->rmdStore(rmd, addr);
 }
 
 
@@ -598,13 +626,14 @@ static const uint32_t crctab[256] = {
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
 };
 
-static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
+int PCNetState::padrMatch(const uint8_t *buf, int size)
 {
+    PCNetState *s = this;
     struct qemu_ether_header *hdr = reinterpret_cast<struct qemu_ether_header *>(const_cast<uint8_t *>(buf));
     uint8_t padr[6] = {
-        s->csr[12] & 0xff, s->csr[12] >> 8,
-        s->csr[13] & 0xff, s->csr[13] >> 8,
-        s->csr[14] & 0xff, s->csr[14] >> 8
+        static_cast<uint8_t>(s->csr[12] & 0xff), static_cast<uint8_t>(s->csr[12] >> 8),
+        static_cast<uint8_t>(s->csr[13] & 0xff), static_cast<uint8_t>(s->csr[13] >> 8),
+        static_cast<uint8_t>(s->csr[14] & 0xff), static_cast<uint8_t>(s->csr[14] >> 8)
     };
     int result = (!CSR_DRCVPA(s)) && !memcmp(hdr->ether_dhost, padr, 6);
 #ifdef PCNET_DEBUG_MATCH
@@ -618,8 +647,14 @@ static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
     return result;
 }
 
-static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
+static inline int padr_match(PCNetState *s, const uint8_t *buf, int size)
 {
+    return s->padrMatch(buf, size);
+}
+
+int PCNetState::padrBcast(const uint8_t *buf, int size)
+{
+    PCNetState *s = this;
     static const uint8_t BCAST[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
     struct qemu_ether_header *hdr = reinterpret_cast<struct qemu_ether_header *>(const_cast<uint8_t *>(buf));
     int result = !CSR_DRCVBC(s) && !memcmp(hdr->ether_dhost, BCAST, 6);
@@ -629,8 +664,14 @@ static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
     return result;
 }
 
-static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
+static inline int padr_bcast(PCNetState *s, const uint8_t *buf, int size)
 {
+    return s->padrBcast(buf, size);
+}
+
+int PCNetState::ladrMatch(const uint8_t *buf, int size)
+{
+    PCNetState *s = this;
     struct qemu_ether_header *hdr = reinterpret_cast<struct qemu_ether_header *>(const_cast<uint8_t *>(buf));
     if ((*(hdr->ether_dhost)&0x01) &&
         (s->csr[8] | s->csr[9] | s->csr[10] | s->csr[11]) != 0) {
@@ -646,16 +687,28 @@ static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
     return 0;
 }
 
-static inline hwaddr pcnet_rdra_addr(PCNetState *s, int idx)
+static inline int ladr_match(PCNetState *s, const uint8_t *buf, int size)
 {
+    return s->ladrMatch(buf, size);
+}
+
+uint64_t PCNetState::rdraAddr(int idx)
+{
+    PCNetState *s = this;
     while (idx < 1) {
         idx += CSR_RCVRL(s);
     }
     return s->rdra + ((CSR_RCVRL(s) - idx) * (BCR_SWSTYLE(s) ? 16 : 8));
 }
 
-static inline int64_t pcnet_get_next_poll_time(PCNetState *s, int64_t current_time)
+static inline hwaddr pcnet_rdra_addr(PCNetState *s, int idx)
 {
+    return s->rdraAddr(idx);
+}
+
+int64_t PCNetState::getNextPollTime(int64_t current_time)
+{
+    PCNetState *s = this;
     int64_t next_time = current_time +
                         (65536 - (CSR_SPND(s) ? 0 : CSR_POLL(s))) * 30;
 
@@ -663,6 +716,11 @@ static inline int64_t pcnet_get_next_poll_time(PCNetState *s, int64_t current_ti
         next_time = current_time + 1;
     }
     return next_time;
+}
+
+static inline int64_t pcnet_get_next_poll_time(PCNetState *s, int64_t current_time)
+{
+    return s->getNextPollTime(current_time);
 }
 
 static void pcnet_poll(PCNetState *s);

@@ -53,6 +53,39 @@ struct PCNetState_st {
     DeviceState *dma_opaque;
     int tx_busy;
     int looptest;
+
+#ifdef __cplusplus
+    /* C++ methods — converted from static helper functions */
+    void softReset();
+    void softResetImpl();
+    void updateIrq();
+    void init();
+    void start();
+    void stop();
+    void poll();
+    void pollTimer();
+    void transmit();
+    void rdtePoll();
+    int tdtePoll();
+    void csrWritew(uint32_t rap, uint32_t new_value);
+    uint32_t csrReadw(uint32_t rap);
+    void bcrWritew(uint32_t rap, uint32_t val);
+
+    /* TMD/RMD helpers — use types visible at this point */
+    void tmdLoad(void *tmd, uint64_t addr);
+    void tmdStore(const void *tmd, uint64_t addr);
+    void rmdLoad(void *rmd, uint64_t addr);
+    void rmdStore(void *rmd, uint64_t addr);
+
+    /* Match helpers */
+    int padrMatch(const uint8_t *buf, int size);
+    int padrBcast(const uint8_t *buf, int size);
+    int ladrMatch(const uint8_t *buf, int size);
+
+    /* Address calculation */
+    uint64_t rdraAddr(int idx);
+    int64_t getNextPollTime(int64_t current_time);
+#endif /* __cplusplus */
 };
 
 void pcnet_h_reset(void *opaque);

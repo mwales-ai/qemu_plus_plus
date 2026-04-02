@@ -40,6 +40,10 @@ struct GPEXRootState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
+
+#ifdef __cplusplus
+    static void classInit(ObjectClass *klass, const void *data);
+#endif
 };
 
 struct GPEXConfig {
@@ -76,6 +80,11 @@ struct GPEXHost {
     void realize(Error **errp);
     void unrealize();
 
+    static void setIrq(void *opaque, int irq_num, int level);
+    static PCIINTxRoute routeIntxPinToIrq(void *opaque, int pin);
+    static int swizzleMapIrqFn(PCIDevice *pci_dev, int pin);
+    static const char *rootBusPath(PCIHostState *host_bridge, PCIBus *rootbus);
+    static void initfn(Object *obj);
     static void classInit(ObjectClass *klass, const void *data);
 #endif
 };

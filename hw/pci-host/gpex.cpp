@@ -48,7 +48,7 @@ struct GPEXIrq {
     int irq_num;
 };
 
-static void gpex_set_irq(void *opaque, int irq_num, int level)
+void GPEXHost::setIrq(void *opaque, int irq_num, int level)
 {
     GPEXHost *s = static_cast<GPEXHost *>(opaque);
 
@@ -65,7 +65,7 @@ int gpex_set_irq_num(GPEXHost *s, int index, int gsi)
     return 0;
 }
 
-static PCIINTxRoute gpex_route_intx_pin_to_irq(void *opaque, int pin)
+PCIINTxRoute GPEXHost::routeIntxPinToIrq(void *opaque, int pin)
 {
     PCIINTxRoute route;
     GPEXHost *s = static_cast<GPEXHost *>(opaque);
@@ -81,7 +81,7 @@ static PCIINTxRoute gpex_route_intx_pin_to_irq(void *opaque, int pin)
     return route;
 }
 
-static int gpex_swizzle_map_irq_fn(PCIDevice *pci_dev, int pin)
+int GPEXHost::swizzleMapIrqFn(PCIDevice *pci_dev, int pin)
 {
     PCIBus *bus = pci_device_root_bus(pci_dev);
 
@@ -150,12 +150,12 @@ void GPEXHost::realize(Error **errp)
         s->irq[i].irq_num = -1;
     }
 
-    pci->bus = pci_register_root_bus(dev, "pcie.0", gpex_set_irq,
-                                     gpex_swizzle_map_irq_fn,
+    pci->bus = pci_register_root_bus(dev, "pcie.0", GPEXHost::setIrq,
+                                     GPEXHost::swizzleMapIrqFn,
                                      s, &s->io_mmio, &s->io_ioport, 0,
                                      s->num_irqs, TYPE_PCIE_BUS);
 
-    pci_bus_set_route_irq_fn(pci->bus, gpex_route_intx_pin_to_irq);
+    pci_bus_set_route_irq_fn(pci->bus, GPEXHost::routeIntxPinToIrq);
     qdev_realize(DEVICE(&s->gpex_root), BUS(pci->bus), &error_fatal);
 }
 
@@ -176,8 +176,8 @@ static void gpex_host_unrealize(DeviceState *dev)
     s->unrealize();
 }
 
-static const char *gpex_host_root_bus_path(PCIHostState *host_bridge,
-                                          PCIBus *rootbus)
+const char *GPEXHost::rootBusPath(PCIHostState *host_bridge,
+                                  PCIBus *rootbus)
 {
     return "0000:00";
 }
@@ -209,7 +209,7 @@ void GPEXHost::classInit(ObjectClass *klass, const void *data)
         DeviceClass *dc = DEVICE_CLASS(klass);
         PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
 
-        hc->root_bus_path = gpex_host_root_bus_path;
+        hc->root_bus_path = GPEXHost::rootBusPath;
         dc->realize = gpex_host_realize;
         dc->unrealize = gpex_host_unrealize;
         set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
@@ -217,7 +217,7 @@ void GPEXHost::classInit(ObjectClass *klass, const void *data)
         device_class_set_props(dc, gpex_host_properties);
 }
 
-static void gpex_host_initfn(Object *obj)
+void GPEXHost::initfn(Object *obj)
 {
     GPEXHost *s = GPEX_HOST(obj);
     GPEXRootState *root = &s->gpex_root;
@@ -231,7 +231,7 @@ static const TypeInfo gpex_host_info = {
     .name       = TYPE_GPEX_HOST,
     .parent     = TYPE_PCIE_HOST_BRIDGE,
     .instance_size = sizeof(GPEXHost),
-    .instance_init = gpex_host_initfn,
+    .instance_init = GPEXHost::initfn,
     .class_init = GPEXHost::classInit,
 };
 
@@ -249,32 +249,30 @@ static const VMStateDescription vmstate_gpex_root = {
     }
 };
 
-struct GPEXRootMethods {
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-        DeviceClass *dc = DEVICE_CLASS(klass);
+void GPEXRootState::classInit(ObjectClass *klass, const void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-        set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-        dc->desc = "QEMU generic PCIe host bridge";
-        dc->vmsd = &vmstate_gpex_root;
-        k->vendor_id = PCI_VENDOR_ID_REDHAT;
-        k->device_id = PCI_DEVICE_ID_REDHAT_PCIE_HOST;
-        k->revision = 0;
-        k->class_id = PCI_CLASS_BRIDGE_HOST;
-        /*
-         * PCI-facing part of the host bridge, not usable without the
-         * host-facing part, which can't be device_add'ed, yet.
-         */
-        dc->user_creatable = false;
-    }
-};
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->desc = "QEMU generic PCIe host bridge";
+    dc->vmsd = &vmstate_gpex_root;
+    k->vendor_id = PCI_VENDOR_ID_REDHAT;
+    k->device_id = PCI_DEVICE_ID_REDHAT_PCIE_HOST;
+    k->revision = 0;
+    k->class_id = PCI_CLASS_BRIDGE_HOST;
+    /*
+     * PCI-facing part of the host bridge, not usable without the
+     * host-facing part, which can't be device_add'ed, yet.
+     */
+    dc->user_creatable = false;
+}
 
 static const TypeInfo gpex_root_info = {
     .name = TYPE_GPEX_ROOT_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(GPEXRootState),
-    .class_init = GPEXRootMethods::classInit,
+    .class_init = GPEXRootState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },

@@ -563,9 +563,9 @@ uint64_t PCIBonitoState::spciconfRead(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps bonito_spciconf_ops = {
     .read = PCIBonitoState::spciconfRead,
     .write = PCIBonitoState::spciconfWrite,
+    .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = { .min_access_size = 1, .max_access_size = 4, },
     .impl = { .min_access_size = 1, .max_access_size = 4, },
-    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 #define BONITO_IRQ_BASE 32

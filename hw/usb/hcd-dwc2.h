@@ -170,6 +170,39 @@ struct DWC2State {
     USBPort uport;
     DWC2Packet packet[DWC2_NB_CHAN];                   /* one packet per chan */
     uint8_t usb_buf[DWC2_NB_CHAN][DWC2_MAX_XFER_SIZE]; /* one buffer per chan */
+
+#ifdef __cplusplus
+    /* C++ methods — converted from static helper functions */
+    void updateIrq();
+    void raiseGlobalIrq(uint32_t intr);
+    void lowerGlobalIrq(uint32_t intr);
+    void raiseHostIrq(uint32_t host_intr);
+    void lowerHostIrq(uint32_t host_intr);
+    void updateHcIrq(int index);
+    void eofTimer();
+    void sof();
+    void busStart();
+    void busStop();
+    USBDevice *findDevice(uint8_t addr);
+    void handlePacket(uint32_t devadr, USBDevice *dev,
+                      USBEndpoint *ep, uint32_t index, bool send);
+    uint32_t getFrameRemaining();
+    void enableChan(uint32_t index);
+    uint64_t glbregRead(uint64_t addr, int index, unsigned size);
+    void glbregWrite(uint64_t addr, int index, uint64_t val, unsigned size);
+    uint64_t fszregRead(uint64_t addr, int index, unsigned size);
+    void fszregWrite(uint64_t addr, int index, uint64_t val, unsigned size);
+    uint64_t hreg0Read(uint64_t addr, int index, unsigned size);
+    void hreg0Write(uint64_t addr, int index, uint64_t val, unsigned size);
+    uint64_t hreg1Read(uint64_t addr, int index, unsigned size);
+    void hreg1Write(uint64_t addr, int index, uint64_t val, unsigned size);
+    uint64_t pcgregRead(uint64_t addr, int index, unsigned size);
+    void pcgregWrite(uint64_t addr, int index, uint64_t val, unsigned size);
+    void resetEnterImpl(Object *obj, ResetType type);
+    void resetHoldImpl(Object *obj, ResetType type);
+    void resetExitImpl(Object *obj, ResetType type);
+    void realizeImpl(DeviceState *dev, Error **errp);
+#endif /* __cplusplus */
 };
 
 struct DWC2Class {
