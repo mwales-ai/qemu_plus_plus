@@ -98,6 +98,55 @@ typedef struct CirrusVGAState {
     int real_vram_size; /* XXX: suppress that */
     int device_id;
     int bustype;
+
+#ifdef __cplusplus
+    /* C++ methods — converted from static helper functions */
+    bool blitRegionIsUnsafe(int32_t pitch, int32_t addr);
+    bool blitIsUnsafe(bool dst_only);
+    void bitbltRopNop(uint32_t dstaddr, uint32_t srcaddr,
+                      int dstpitch, int srcpitch, int bltwidth, int bltheight);
+    void bitbltFillNop(uint32_t dstaddr, int dstpitch, int bltwidth, int bltheight);
+    uint8_t src(uint32_t srcaddr);
+    uint16_t src16(uint32_t srcaddr);
+    uint32_t src32(uint32_t srcaddr);
+    void bitbltFgcol();
+    void bitbltBgcol();
+    void invalidateRegion(int off_begin, int off_pitch, int bytesperline, int lines);
+    int bitbltCommonPatterncopy();
+    int bitbltSolidfill(int blt_rop);
+    int bitbltVideotovideoPatterncopy();
+    int doCopy(int dst, int src, int w, int h);
+    int bitbltVideotovideoCopy();
+    void bitbltCputovideoNext();
+    void bitbltReset();
+    int bitbltCputovideo();
+    int bitbltVideotocpu();
+    int bitbltVideotovideo();
+    void bitbltStart();
+    void writeBitblt(unsigned reg_value);
+    uint32_t getBpp16Depth();
+    void updateBankPtr(unsigned bank_index);
+    int vgaReadSr();
+    void vgaWriteSr(uint32_t val);
+    int readHiddenDac();
+    void writeHiddenDac(int reg_value);
+    int vgaReadPalette();
+    void vgaWritePalette(int reg_value);
+    int vgaReadGr(unsigned reg_index);
+    void vgaWriteGr(unsigned reg_index, int reg_value);
+    int vgaReadCr(unsigned reg_index);
+    void vgaWriteCr(int reg_value);
+    uint8_t mmioBltRead(unsigned address);
+    void mmioBltWrite(unsigned address, uint8_t value);
+    void memWritebMode4and58bpp(unsigned mode, unsigned offset, uint32_t mem_value);
+    void memWritebMode4and516bpp(unsigned mode, unsigned offset, uint32_t mem_value);
+    void updateMemoryAccess();
+    void invalidateCursor1();
+    void cursorComputeYrange();
+    void mapLinearVramBank(unsigned bank);
+    void mapLinearVram();
+    void unmapLinearVram();
+#endif /* __cplusplus */
 } CirrusVGAState;
 
 void cirrus_init_common(CirrusVGAState *s, Object *owner,

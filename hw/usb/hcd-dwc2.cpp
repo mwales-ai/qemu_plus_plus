@@ -63,8 +63,9 @@
     (!!((data) & (bitmask)))
 
 /* update irq line */
-static inline void dwc2_update_irq(DWC2State *s)
+void DWC2State::updateIrq()
 {
+    DWC2State *s = this;
     static int oldlevel;
     int level = 0;
 
@@ -79,71 +80,76 @@ static inline void dwc2_update_irq(DWC2State *s)
 }
 
 /* flag interrupt condition */
-static inline void dwc2_raise_global_irq(DWC2State *s, uint32_t intr)
+void DWC2State::raiseGlobalIrq(uint32_t intr)
 {
+    DWC2State *s = this;
     if (!(s->gintsts & intr)) {
         s->gintsts |= intr;
         trace_usb_dwc2_raise_global_irq(intr);
-        dwc2_update_irq(s);
+        s->updateIrq();
     }
 }
 
-static inline void dwc2_lower_global_irq(DWC2State *s, uint32_t intr)
+void DWC2State::lowerGlobalIrq(uint32_t intr)
 {
+    DWC2State *s = this;
     if (s->gintsts & intr) {
         s->gintsts &= ~intr;
         trace_usb_dwc2_lower_global_irq(intr);
-        dwc2_update_irq(s);
+        s->updateIrq();
     }
 }
 
-static inline void dwc2_raise_host_irq(DWC2State *s, uint32_t host_intr)
+void DWC2State::raiseHostIrq(uint32_t host_intr)
 {
+    DWC2State *s = this;
     if (!(s->haint & host_intr)) {
         s->haint |= host_intr;
         s->haint &= 0xffff;
         trace_usb_dwc2_raise_host_irq(host_intr);
         if (s->haint & s->haintmsk) {
-            dwc2_raise_global_irq(s, GINTSTS_HCHINT);
+            s->raiseGlobalIrq(GINTSTS_HCHINT);
         }
     }
 }
 
-static inline void dwc2_lower_host_irq(DWC2State *s, uint32_t host_intr)
+void DWC2State::lowerHostIrq(uint32_t host_intr)
 {
+    DWC2State *s = this;
     if (s->haint & host_intr) {
         s->haint &= ~host_intr;
         trace_usb_dwc2_lower_host_irq(host_intr);
         if (!(s->haint & s->haintmsk)) {
-            dwc2_lower_global_irq(s, GINTSTS_HCHINT);
+            s->lowerGlobalIrq(GINTSTS_HCHINT);
         }
     }
 }
 
-static inline void dwc2_update_hc_irq(DWC2State *s, int index)
+void DWC2State::updateHcIrq(int index)
 {
+    DWC2State *s = this;
     uint32_t host_intr = 1 << (index >> 3);
 
     if (s->hreg1[index + 2] & s->hreg1[index + 3]) {
-        dwc2_raise_host_irq(s, host_intr);
+        s->raiseHostIrq(host_intr);
     } else {
-        dwc2_lower_host_irq(s, host_intr);
+        s->lowerHostIrq(host_intr);
     }
 }
 
 /* set a timer for EOF */
-static void dwc2_eof_timer(DWC2State *s)
+void DWC2State::eofTimer()
 {
-    timer_mod(s->eof_timer, s->sof_time + s->usb_frame_time);
+    timer_mod(eof_timer, sof_time + usb_frame_time);
 }
 
 /* Set a timer for EOF and generate SOF event */
-static void dwc2_sof(DWC2State *s)
+void DWC2State::sof()
 {
-    s->sof_time += s->usb_frame_time;
-    trace_usb_dwc2_sof(s->sof_time);
-    dwc2_eof_timer(s);
-    dwc2_raise_global_irq(s, GINTSTS_SOF);
+    sof_time += usb_frame_time;
+    trace_usb_dwc2_sof(sof_time);
+    eofTimer();
+    raiseGlobalIrq(GINTSTS_SOF);
 }
 
 /* Do frame processing on frame boundary */
@@ -163,26 +169,27 @@ static void dwc2_frame_boundary(void *opaque)
     s->hfnum = s->frame_number & HFNUM_MAX_FRNUM;
 
     /* Do SOF stuff here */
-    dwc2_sof(s);
+    s->sof();
 }
 
 /* Start sending SOF tokens on the USB bus */
-static void dwc2_bus_start(DWC2State *s)
+void DWC2State::busStart()
 {
     trace_usb_dwc2_bus_start();
-    s->sof_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    dwc2_eof_timer(s);
+    sof_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    eofTimer();
 }
 
 /* Stop sending SOF tokens on the USB bus */
-static void dwc2_bus_stop(DWC2State *s)
+void DWC2State::busStop()
 {
     trace_usb_dwc2_bus_stop();
-    timer_del(s->eof_timer);
+    timer_del(eof_timer);
 }
 
-static USBDevice *dwc2_find_device(DWC2State *s, uint8_t addr)
+USBDevice *DWC2State::findDevice(uint8_t addr)
 {
+    DWC2State *s = this;
     USBDevice *dev;
 
     trace_usb_dwc2_find_device(addr);
@@ -221,9 +228,10 @@ static const char *dirs[] = {
     "Out", "In"
 };
 
-static void dwc2_handle_packet(DWC2State *s, uint32_t devadr, USBDevice *dev,
-                               USBEndpoint *ep, uint32_t index, bool send)
+void DWC2State::handlePacket(uint32_t devadr, USBDevice *dev,
+                             USBEndpoint *ep, uint32_t index, bool send)
 {
+    DWC2State *s = this;
     DWC2Packet *p;
     uint32_t hcchar = s->hreg1[index];
     uint32_t hctsiz = s->hreg1[index + 4];
@@ -385,7 +393,7 @@ babble:
         s->hreg1[index + 2] |= intr;
         p->needs_service = false;
         trace_usb_dwc2_packet_done(pstatus[stsidx], actual, len, pcnt);
-        dwc2_update_hc_irq(s, index);
+        s->updateHcIrq(index);
         return;
     }
 
@@ -400,7 +408,7 @@ babble:
     p->needs_service = true;
     trace_usb_dwc2_packet_next(pstatus[stsidx], len, pcnt);
     if (do_intr) {
-        dwc2_update_hc_irq(s, index);
+        s->updateHcIrq(index);
     }
 }
 
@@ -458,8 +466,8 @@ static void dwc2_attach(USBPort *port)
     s->fi = USB_FRMINTVL - 1;
     s->hprt0 |= HPRT0_CONNDET | HPRT0_CONNSTS;
 
-    dwc2_bus_start(s);
-    dwc2_raise_global_irq(s, GINTSTS_PRTINT);
+    s->busStart();
+    s->raiseGlobalIrq(GINTSTS_PRTINT);
 }
 
 static void dwc2_detach(USBPort *port)
@@ -469,12 +477,12 @@ static void dwc2_detach(USBPort *port)
     trace_usb_dwc2_detach(port);
     assert(port->index == 0);
 
-    dwc2_bus_stop(s);
+    s->busStop();
 
     s->hprt0 &= ~(HPRT0_SPD_MASK | HPRT0_SUSP | HPRT0_ENA | HPRT0_CONNSTS);
     s->hprt0 |= HPRT0_CONNDET | HPRT0_ENACHG;
 
-    dwc2_raise_global_irq(s, GINTSTS_PRTINT);
+    s->raiseGlobalIrq(GINTSTS_PRTINT);
 }
 
 static void dwc2_child_detach(USBPort *port, USBDevice *child)
@@ -492,7 +500,7 @@ static void dwc2_wakeup(USBPort *port)
 
     if (s->hprt0 & HPRT0_SUSP) {
         s->hprt0 |= HPRT0_RES;
-        dwc2_raise_global_irq(s, GINTSTS_PRTINT);
+        s->raiseGlobalIrq(GINTSTS_PRTINT);
     }
 
     qemu_bh_schedule(s->async_bh);
@@ -507,7 +515,7 @@ static void dwc2_async_packet_complete(USBPort *port, USBPacket *packet)
 
     assert(port->index == 0);
     p = container_of(packet, DWC2Packet, packet);
-    dev = dwc2_find_device(s, p->devadr);
+    dev = s->findDevice(p->devadr);
     ep = usb_ep_get(dev, p->pid, p->epnum);
     trace_usb_dwc2_async_packet_complete(port, packet, p->index >> 3, dev,
                                          p->epnum, dirs[p->epdir], p->len);
@@ -519,7 +527,7 @@ static void dwc2_async_packet_complete(USBPort *port, USBPacket *packet)
         return;
     }
 
-    dwc2_handle_packet(s, p->devadr, dev, ep, p->index, false);
+    s->handlePacket(p->devadr, dev, ep, p->index, false);
 
     p->async = DWC2_ASYNC_FINISHED;
     qemu_bh_schedule(s->async_bh);
@@ -533,8 +541,9 @@ static USBPortOps dwc2_port_ops = {
     .complete = dwc2_async_packet_complete,
 };
 
-static uint32_t dwc2_get_frame_remaining(DWC2State *s)
+uint32_t DWC2State::getFrameRemaining()
 {
+    DWC2State *s = this;
     uint32_t fr = 0;
     int64_t tks;
 
@@ -587,10 +596,10 @@ static void dwc2_work_bh(void *opaque)
     do {
         p = &s->packet[chan];
         if (p->needs_service) {
-            dev = dwc2_find_device(s, p->devadr);
+            dev = s->findDevice(p->devadr);
             ep = usb_ep_get(dev, p->pid, p->epnum);
             trace_usb_dwc2_work_bh_service(s->next_chan, chan, dev, p->epnum);
-            dwc2_handle_packet(s, p->devadr, dev, ep, p->index, true);
+            s->handlePacket(p->devadr, dev, ep, p->index, true);
             found = true;
         }
         if (++chan == DWC2_NB_CHAN) {
@@ -609,8 +618,9 @@ static void dwc2_work_bh(void *opaque)
     s->working = false;
 }
 
-static void dwc2_enable_chan(DWC2State *s,  uint32_t index)
+void DWC2State::enableChan(uint32_t index)
 {
+    DWC2State *s = this;
     USBDevice *dev;
     USBEndpoint *ep;
     uint32_t hcchar;
@@ -629,7 +639,7 @@ static void dwc2_enable_chan(DWC2State *s,  uint32_t index)
     pid = get_field(hctsiz, TSIZ_SC_MC_PID);
     len = get_field(hctsiz, TSIZ_XFERSIZE);
 
-    dev = dwc2_find_device(s, devadr);
+    dev = s->findDevice(devadr);
 
     trace_usb_dwc2_enable_chan(index >> 3, dev, &p->packet, epnum);
     if (dev == NULL) {
@@ -656,7 +666,7 @@ static void dwc2_enable_chan(DWC2State *s,  uint32_t index)
         p->small = true;
     }
 
-    dwc2_handle_packet(s, devadr, dev, ep, index, true);
+    s->handlePacket(devadr, dev, ep, index, true);
     qemu_bh_schedule(s->async_bh);
 }
 
@@ -669,10 +679,9 @@ static const char *glbregnm[] = {
     "GREFCLK  ", "GINTMSK2 ", "GINTSTS2 "
 };
 
-static uint64_t dwc2_glbreg_read(void *ptr, hwaddr addr, int index,
-                                 unsigned size)
+uint64_t DWC2State::glbregRead(uint64_t addr, int index, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint32_t val;
 
     if (addr > GINTSTS2) {
@@ -698,10 +707,9 @@ static uint64_t dwc2_glbreg_read(void *ptr, hwaddr addr, int index,
     return val;
 }
 
-static void dwc2_glbreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
-                              unsigned size)
+void DWC2State::glbregWrite(uint64_t addr, int index, uint64_t val, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint64_t orig = val;
     uint32_t *mmio;
     uint32_t old;
@@ -793,14 +801,13 @@ static void dwc2_glbreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
     *mmio = val;
 
     if (iflg) {
-        dwc2_update_irq(s);
+        s->updateIrq();
     }
 }
 
-static uint64_t dwc2_fszreg_read(void *ptr, hwaddr addr, int index,
-                                 unsigned size)
+uint64_t DWC2State::fszregRead(uint64_t addr, int index, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint32_t val;
 
     if (addr != HPTXFSIZ) {
@@ -815,10 +822,9 @@ static uint64_t dwc2_fszreg_read(void *ptr, hwaddr addr, int index,
     return val;
 }
 
-static void dwc2_fszreg_write(void *ptr, hwaddr addr, int index, uint64_t val,
-                              unsigned size)
+void DWC2State::fszregWrite(uint64_t addr, int index, uint64_t val, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint64_t orig = val;
     uint32_t *mmio;
     uint32_t old;
@@ -843,10 +849,9 @@ static const char *hreg0nm[] = {
     "<rsvd>   ", "HPRT0    "
 };
 
-static uint64_t dwc2_hreg0_read(void *ptr, hwaddr addr, int index,
-                                unsigned size)
+uint64_t DWC2State::hreg0Read(uint64_t addr, int index, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint32_t val;
 
     if (addr < HCFG || addr > HPRT0) {
@@ -859,7 +864,7 @@ static uint64_t dwc2_hreg0_read(void *ptr, hwaddr addr, int index,
 
     switch (addr) {
     case HFNUM:
-        val = (dwc2_get_frame_remaining(s) << HFNUM_FRREM_SHIFT) |
+        val = (s->getFrameRemaining() << HFNUM_FRREM_SHIFT) |
               (s->hfnum << HFNUM_FRNUM_SHIFT);
         break;
     default:
@@ -870,10 +875,9 @@ static uint64_t dwc2_hreg0_read(void *ptr, hwaddr addr, int index,
     return val;
 }
 
-static void dwc2_hreg0_write(void *ptr, hwaddr addr, int index, uint64_t val,
-                             unsigned size)
+void DWC2State::hreg0Write(uint64_t addr, int index, uint64_t val, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     USBDevice *dev = s->uport.dev;
     uint64_t orig = val;
     uint32_t *mmio;
@@ -954,10 +958,10 @@ static void dwc2_hreg0_write(void *ptr, hwaddr addr, int index, uint64_t val,
 
     if (iflg > 0) {
         trace_usb_dwc2_hreg0_action("enable PRTINT");
-        dwc2_raise_global_irq(s, GINTSTS_PRTINT);
+        s->raiseGlobalIrq(GINTSTS_PRTINT);
     } else if (iflg < 0) {
         trace_usb_dwc2_hreg0_action("disable PRTINT");
-        dwc2_lower_global_irq(s, GINTSTS_PRTINT);
+        s->lowerGlobalIrq(GINTSTS_PRTINT);
     }
 }
 
@@ -966,10 +970,9 @@ static const char *hreg1nm[] = {
     "<rsvd>  ", "HCDMAB  "
 };
 
-static uint64_t dwc2_hreg1_read(void *ptr, hwaddr addr, int index,
-                                unsigned size)
+uint64_t DWC2State::hreg1Read(uint64_t addr, int index, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint32_t val;
 
     if (addr < HCCHAR(0) || addr > HCDMAB(DWC2_NB_CHAN - 1)) {
@@ -984,10 +987,9 @@ static uint64_t dwc2_hreg1_read(void *ptr, hwaddr addr, int index,
     return val;
 }
 
-static void dwc2_hreg1_write(void *ptr, hwaddr addr, int index, uint64_t val,
-                             unsigned size)
+void DWC2State::hreg1Write(uint64_t addr, int index, uint64_t val, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint64_t orig = val;
     uint32_t *mmio;
     uint32_t old;
@@ -1049,11 +1051,11 @@ static void dwc2_hreg1_write(void *ptr, hwaddr addr, int index, uint64_t val,
     }
 
     if (enflg) {
-        dwc2_enable_chan(s, index & ~7);
+        s->enableChan(index & ~7);
     }
 
     if (iflg) {
-        dwc2_update_hc_irq(s, index & ~7);
+        s->updateHcIrq(index & ~7);
     }
 }
 
@@ -1061,10 +1063,9 @@ static const char *pcgregnm[] = {
         "PCGCTL   ", "PCGCCTL1 "
 };
 
-static uint64_t dwc2_pcgreg_read(void *ptr, hwaddr addr, int index,
-                                 unsigned size)
+uint64_t DWC2State::pcgregRead(uint64_t addr, int index, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint32_t val;
 
     if (addr < PCGCTL || addr > PCGCCTL1) {
@@ -1079,10 +1080,9 @@ static uint64_t dwc2_pcgreg_read(void *ptr, hwaddr addr, int index,
     return val;
 }
 
-static void dwc2_pcgreg_write(void *ptr, hwaddr addr, int index,
-                              uint64_t val, unsigned size)
+void DWC2State::pcgregWrite(uint64_t addr, int index, uint64_t val, unsigned size)
 {
-    DWC2State *s = static_cast<DWC2State *>(ptr);
+    DWC2State *s = this;
     uint64_t orig = val;
     uint32_t *mmio;
     uint32_t old;
@@ -1102,31 +1102,32 @@ static void dwc2_pcgreg_write(void *ptr, hwaddr addr, int index,
 
 static uint64_t dwc2_hsotg_read(void *ptr, hwaddr addr, unsigned size)
 {
+    DWC2State *s = static_cast<DWC2State *>(ptr);
     uint64_t val;
 
     switch (addr) {
     case HSOTG_REG(0x000) ... HSOTG_REG(0x0fc):
-        val = dwc2_glbreg_read(ptr, addr, (addr - HSOTG_REG(0x000)) >> 2, size);
+        val = s->glbregRead(addr, (addr - HSOTG_REG(0x000)) >> 2, size);
         break;
     case HSOTG_REG(0x100):
-        val = dwc2_fszreg_read(ptr, addr, (addr - HSOTG_REG(0x100)) >> 2, size);
+        val = s->fszregRead(addr, (addr - HSOTG_REG(0x100)) >> 2, size);
         break;
     case HSOTG_REG(0x104) ... HSOTG_REG(0x3fc):
         /* Gadget-mode registers, just return 0 for now */
         val = 0;
         break;
     case HSOTG_REG(0x400) ... HSOTG_REG(0x4fc):
-        val = dwc2_hreg0_read(ptr, addr, (addr - HSOTG_REG(0x400)) >> 2, size);
+        val = s->hreg0Read(addr, (addr - HSOTG_REG(0x400)) >> 2, size);
         break;
     case HSOTG_REG(0x500) ... HSOTG_REG(0x7fc):
-        val = dwc2_hreg1_read(ptr, addr, (addr - HSOTG_REG(0x500)) >> 2, size);
+        val = s->hreg1Read(addr, (addr - HSOTG_REG(0x500)) >> 2, size);
         break;
     case HSOTG_REG(0x800) ... HSOTG_REG(0xdfc):
         /* Gadget-mode registers, just return 0 for now */
         val = 0;
         break;
     case HSOTG_REG(0xe00) ... HSOTG_REG(0xffc):
-        val = dwc2_pcgreg_read(ptr, addr, (addr - HSOTG_REG(0xe00)) >> 2, size);
+        val = s->pcgregRead(addr, (addr - HSOTG_REG(0xe00)) >> 2, size);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
@@ -1141,27 +1142,29 @@ static uint64_t dwc2_hsotg_read(void *ptr, hwaddr addr, unsigned size)
 static void dwc2_hsotg_write(void *ptr, hwaddr addr, uint64_t val,
                              unsigned size)
 {
+    DWC2State *s = static_cast<DWC2State *>(ptr);
+
     switch (addr) {
     case HSOTG_REG(0x000) ... HSOTG_REG(0x0fc):
-        dwc2_glbreg_write(ptr, addr, (addr - HSOTG_REG(0x000)) >> 2, val, size);
+        s->glbregWrite(addr, (addr - HSOTG_REG(0x000)) >> 2, val, size);
         break;
     case HSOTG_REG(0x100):
-        dwc2_fszreg_write(ptr, addr, (addr - HSOTG_REG(0x100)) >> 2, val, size);
+        s->fszregWrite(addr, (addr - HSOTG_REG(0x100)) >> 2, val, size);
         break;
     case HSOTG_REG(0x104) ... HSOTG_REG(0x3fc):
         /* Gadget-mode registers, do nothing for now */
         break;
     case HSOTG_REG(0x400) ... HSOTG_REG(0x4fc):
-        dwc2_hreg0_write(ptr, addr, (addr - HSOTG_REG(0x400)) >> 2, val, size);
+        s->hreg0Write(addr, (addr - HSOTG_REG(0x400)) >> 2, val, size);
         break;
     case HSOTG_REG(0x500) ... HSOTG_REG(0x7fc):
-        dwc2_hreg1_write(ptr, addr, (addr - HSOTG_REG(0x500)) >> 2, val, size);
+        s->hreg1Write(addr, (addr - HSOTG_REG(0x500)) >> 2, val, size);
         break;
     case HSOTG_REG(0x800) ... HSOTG_REG(0xdfc):
         /* Gadget-mode registers, do nothing for now */
         break;
     case HSOTG_REG(0xe00) ... HSOTG_REG(0xffc):
-        dwc2_pcgreg_write(ptr, addr, (addr - HSOTG_REG(0xe00)) >> 2, val, size);
+        s->pcgregWrite(addr, (addr - HSOTG_REG(0xe00)) >> 2, val, size);
         break;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%"HWADDR_PRIx"\n",
@@ -1225,8 +1228,9 @@ static void dwc2_work_timer(void *opaque)
     qemu_bh_schedule(s->async_bh);
 }
 
-static void dwc2_reset_enter_impl(DWC2State *s, Object *obj, ResetType type)
+void DWC2State::resetEnterImpl(Object *obj, ResetType type)
 {
+    DWC2State *s = this;
     DWC2Class *c = DWC2_USB_GET_CLASS(obj);
     int i;
 
@@ -1243,7 +1247,7 @@ static void dwc2_reset_enter_impl(DWC2State *s, Object *obj, ResetType type)
         usb_detach(&s->uport);
     }
 
-    dwc2_bus_stop(s);
+    s->busStop();
 
     s->gotgctl = GOTGCTL_BSESVLD | GOTGCTL_ASESVLD | GOTGCTL_CONID_B;
     s->gotgint = 0;
@@ -1311,11 +1315,12 @@ static void dwc2_reset_enter_impl(DWC2State *s, Object *obj, ResetType type)
 static void dwc2_reset_enter(Object *obj, ResetType type)
 {
     DWC2State *s = DWC2_USB(obj);
-    dwc2_reset_enter_impl(s, obj, type);
+    s->resetEnterImpl(obj, type);
 }
 
-static void dwc2_reset_hold_impl(DWC2State *s, Object *obj, ResetType type)
+void DWC2State::resetHoldImpl(Object *obj, ResetType type)
 {
+    DWC2State *s = this;
     DWC2Class *c = DWC2_USB_GET_CLASS(obj);
 
     trace_usb_dwc2_reset_hold();
@@ -1324,17 +1329,18 @@ static void dwc2_reset_hold_impl(DWC2State *s, Object *obj, ResetType type)
         c->parent_phases.hold(obj, type);
     }
 
-    dwc2_update_irq(s);
+    s->updateIrq();
 }
 
 static void dwc2_reset_hold(Object *obj, ResetType type)
 {
     DWC2State *s = DWC2_USB(obj);
-    dwc2_reset_hold_impl(s, obj, type);
+    s->resetHoldImpl(obj, type);
 }
 
-static void dwc2_reset_exit_impl(DWC2State *s, Object *obj, ResetType type)
+void DWC2State::resetExitImpl(Object *obj, ResetType type)
 {
+    DWC2State *s = this;
     DWC2Class *c = DWC2_USB_GET_CLASS(obj);
 
     trace_usb_dwc2_reset_exit();
@@ -1353,11 +1359,12 @@ static void dwc2_reset_exit_impl(DWC2State *s, Object *obj, ResetType type)
 static void dwc2_reset_exit(Object *obj, ResetType type)
 {
     DWC2State *s = DWC2_USB(obj);
-    dwc2_reset_exit_impl(s, obj, type);
+    s->resetExitImpl(obj, type);
 }
 
-static void dwc2_realize_impl(DWC2State *s, DeviceState *dev, Error **errp)
+void DWC2State::realizeImpl(DeviceState *dev, Error **errp)
 {
+    DWC2State *s = this;
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     Object *obj;
 
@@ -1391,7 +1398,7 @@ static void dwc2_realize_impl(DWC2State *s, DeviceState *dev, Error **errp)
 static void dwc2_realize(DeviceState *dev, Error **errp)
 {
     DWC2State *s = DWC2_USB(dev);
-    dwc2_realize_impl(s, dev, errp);
+    s->realizeImpl(dev, errp);
 }
 
 static void dwc2_init(Object *obj)
