@@ -65,19 +65,25 @@ struct LedState {
     void realize(DeviceState *dev, Error **errp);
     void reset(DeviceState *d);
 
+    /* Static drawing helpers */
+    static void drawHorizontalLine(DisplaySurface *ds, int posy,
+                                   int posx1, int posx2, uint32_t color);
+    static void drawVerticalLine(DisplaySurface *ds, int posx,
+                                 int posy1, int posy2, uint32_t color);
+
     /* Class init */
     static void classInit(ObjectClass *klass, const void *data);
 };
 
-static void draw_horizontal_line(DisplaySurface *ds,
-                                 int posy, int posx1, int posx2,
-                                 uint32_t color)
+void LedState::drawHorizontalLine(DisplaySurface *ds,
+                                   int posy, int posx1, int posx2,
+                                   uint32_t color)
 {
     uint8_t *d;
     int x, bpp;
 
     bpp = (surface_bits_per_pixel(ds) + 7) >> 3;
-    d = surface_data(ds) + surface_stride(ds) * posy + bpp * posx1;
+    d = static_cast<uint8_t *>(surface_data(ds)) + surface_stride(ds) * posy + bpp * posx1;
     switch (bpp) {
     case 1:
         for (x = posx1; x <= posx2; x++) {
@@ -100,15 +106,15 @@ static void draw_horizontal_line(DisplaySurface *ds,
     }
 }
 
-static void draw_vertical_line(DisplaySurface *ds,
-                               int posx, int posy1, int posy2,
-                               uint32_t color)
+void LedState::drawVerticalLine(DisplaySurface *ds,
+                                 int posx, int posy1, int posy2,
+                                 uint32_t color)
 {
     uint8_t *d;
     int y, bpp;
 
     bpp = (surface_bits_per_pixel(ds) + 7) >> 3;
-    d = surface_data(ds) + surface_stride(ds) * posy1 + bpp * posx;
+    d = static_cast<uint8_t *>(surface_data(ds)) + surface_stride(ds) * posy1 + bpp * posx;
     switch (bpp) {
     case 1:
         for (y = posy1; y <= posy2; y++) {
@@ -151,7 +157,7 @@ void LedState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
     trace_jazz_led_write(addr, new_val);
 
     s->segments = new_val;
-    s->state |= REDRAW_SEGMENTS;
+    s->state = static_cast<screen_state_t>(s->state | REDRAW_SEGMENTS);
 }
 
 static const MemoryRegionOps led_ops = {
@@ -172,7 +178,7 @@ void LedState::updateDisplay(void *opaque)
     if (s->state & REDRAW_BACKGROUND) {
         /* clear screen */
         bpp = (surface_bits_per_pixel(surface) + 7) >> 3;
-        d1 = surface_data(surface);
+        d1 = static_cast<uint8_t *>(surface_data(surface));
         for (y = 0; y < surface_height(surface); y++) {
             memset(d1, 0x00, surface_width(surface) * bpp);
             d1 += surface_stride(surface);
@@ -207,30 +213,30 @@ void LedState::updateDisplay(void *opaque)
         }
 
         /* display segments */
-        draw_horizontal_line(surface, 40, 10, 40,
+        drawHorizontalLine(surface, 40, 10, 40,
                              (s->segments & 0x02) ? color_segment : 0);
-        draw_vertical_line(surface, 10, 10, 40,
+        drawVerticalLine(surface, 10, 10, 40,
                            (s->segments & 0x04) ? color_segment : 0);
-        draw_vertical_line(surface, 10, 40, 70,
+        drawVerticalLine(surface, 10, 40, 70,
                            (s->segments & 0x08) ? color_segment : 0);
-        draw_horizontal_line(surface, 70, 10, 40,
+        drawHorizontalLine(surface, 70, 10, 40,
                              (s->segments & 0x10) ? color_segment : 0);
-        draw_vertical_line(surface, 40, 40, 70,
+        drawVerticalLine(surface, 40, 40, 70,
                            (s->segments & 0x20) ? color_segment : 0);
-        draw_vertical_line(surface, 40, 10, 40,
+        drawVerticalLine(surface, 40, 10, 40,
                            (s->segments & 0x40) ? color_segment : 0);
-        draw_horizontal_line(surface, 10, 10, 40,
+        drawHorizontalLine(surface, 10, 10, 40,
                              (s->segments & 0x80) ? color_segment : 0);
 
         /* display led */
         if (!(s->segments & 0x01)) {
             color_led = 0; /* black */
         }
-        draw_horizontal_line(surface, 68, 50, 50, color_led);
-        draw_horizontal_line(surface, 69, 49, 51, color_led);
-        draw_horizontal_line(surface, 70, 48, 52, color_led);
-        draw_horizontal_line(surface, 71, 49, 51, color_led);
-        draw_horizontal_line(surface, 72, 50, 50, color_led);
+        drawHorizontalLine(surface, 68, 50, 50, color_led);
+        drawHorizontalLine(surface, 69, 49, 51, color_led);
+        drawHorizontalLine(surface, 70, 48, 52, color_led);
+        drawHorizontalLine(surface, 71, 49, 51, color_led);
+        drawHorizontalLine(surface, 72, 50, 50, color_led);
     }
 
     s->state = REDRAW_NONE;
@@ -240,7 +246,7 @@ void LedState::updateDisplay(void *opaque)
 void LedState::invalidateDisplay(void *opaque)
 {
     LedState *s = static_cast<LedState *>(opaque);
-    s->state |= REDRAW_SEGMENTS | REDRAW_BACKGROUND;
+    s->state = static_cast<screen_state_t>(s->state | REDRAW_SEGMENTS | REDRAW_BACKGROUND);
 }
 
 void LedState::textUpdate(void *opaque, console_ch_t *chardata)
@@ -319,7 +325,7 @@ void LedState::reset(DeviceState *d)
     LedState *s = JAZZ_LED(d);
 
     s->segments = 0;
-    s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
+    s->state = static_cast<screen_state_t>(REDRAW_SEGMENTS | REDRAW_BACKGROUND);
     qemu_console_resize(s->con, 60, 80);
 }
 

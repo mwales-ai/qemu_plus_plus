@@ -99,6 +99,7 @@ struct TCXState {
     /* Instance methods */
     void doReset();
     void realize(DeviceState *dev, Error **errp);
+    void initfn(Object *obj);
 
     /* Static display callbacks */
     static void updateDisplay(void *opaque);
@@ -792,59 +793,64 @@ static const GraphicHwOps tcx24_ops = {
     .gfx_update = TCXState::update24Display,
 };
 
-static void tcx_initfn(Object *obj)
+void TCXState::initfn(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    TCXState *s = TCX(obj);
 
-    memory_region_init_rom_nomigrate(&s->rom, obj, "tcx.prom",
+    memory_region_init_rom_nomigrate(&rom, obj, "tcx.prom",
                                      FCODE_MAX_ROM_SIZE, &error_fatal);
-    sysbus_init_mmio(sbd, &s->rom);
+    sysbus_init_mmio(sbd, &rom);
 
     /* 2/STIP : Stippler */
-    memory_region_init_io(&s->stip, obj, &tcx_stip_ops, s, "tcx.stip",
+    memory_region_init_io(&stip, obj, &tcx_stip_ops, this, "tcx.stip",
                           TCX_STIP_NREGS);
-    sysbus_init_mmio(sbd, &s->stip);
+    sysbus_init_mmio(sbd, &stip);
 
     /* 3/BLIT : Blitter */
-    memory_region_init_io(&s->blit, obj, &tcx_blit_ops, s, "tcx.blit",
+    memory_region_init_io(&blit, obj, &tcx_blit_ops, this, "tcx.blit",
                           TCX_BLIT_NREGS);
-    sysbus_init_mmio(sbd, &s->blit);
+    sysbus_init_mmio(sbd, &blit);
 
     /* 5/RSTIP : Raw Stippler */
-    memory_region_init_io(&s->rstip, obj, &tcx_rstip_ops, s, "tcx.rstip",
+    memory_region_init_io(&rstip, obj, &tcx_rstip_ops, this, "tcx.rstip",
                           TCX_RSTIP_NREGS);
-    sysbus_init_mmio(sbd, &s->rstip);
+    sysbus_init_mmio(sbd, &rstip);
 
     /* 6/RBLIT : Raw Blitter */
-    memory_region_init_io(&s->rblit, obj, &tcx_rblit_ops, s, "tcx.rblit",
+    memory_region_init_io(&rblit, obj, &tcx_rblit_ops, this, "tcx.rblit",
                           TCX_RBLIT_NREGS);
-    sysbus_init_mmio(sbd, &s->rblit);
+    sysbus_init_mmio(sbd, &rblit);
 
     /* 7/TEC : ??? */
-    memory_region_init_io(&s->tec, obj, &tcx_dummy_ops, s, "tcx.tec",
+    memory_region_init_io(&tec, obj, &tcx_dummy_ops, this, "tcx.tec",
                           TCX_TEC_NREGS);
-    sysbus_init_mmio(sbd, &s->tec);
+    sysbus_init_mmio(sbd, &tec);
 
     /* 8/CMAP : DAC */
-    memory_region_init_io(&s->dac, obj, &tcx_dac_ops, s, "tcx.dac",
+    memory_region_init_io(&dac, obj, &tcx_dac_ops, this, "tcx.dac",
                           TCX_DAC_NREGS);
-    sysbus_init_mmio(sbd, &s->dac);
+    sysbus_init_mmio(sbd, &dac);
 
     /* 9/THC : Cursor */
-    memory_region_init_io(&s->thc, obj, &tcx_thc_ops, s, "tcx.thc",
+    memory_region_init_io(&thc, obj, &tcx_thc_ops, this, "tcx.thc",
                           TCX_THC_NREGS);
-    sysbus_init_mmio(sbd, &s->thc);
+    sysbus_init_mmio(sbd, &thc);
 
     /* 11/DHC : ??? */
-    memory_region_init_io(&s->dhc, obj, &tcx_dummy_ops, s, "tcx.dhc",
+    memory_region_init_io(&dhc, obj, &tcx_dummy_ops, this, "tcx.dhc",
                           TCX_DHC_NREGS);
-    sysbus_init_mmio(sbd, &s->dhc);
+    sysbus_init_mmio(sbd, &dhc);
 
     /* 12/ALT : ??? */
-    memory_region_init_io(&s->alt, obj, &tcx_dummy_ops, s, "tcx.alt",
+    memory_region_init_io(&alt, obj, &tcx_dummy_ops, this, "tcx.alt",
                           TCX_ALT_NREGS);
-    sysbus_init_mmio(sbd, &s->alt);
+    sysbus_init_mmio(sbd, &alt);
+}
+
+static void tcx_initfn(Object *obj)
+{
+    TCXState *s = TCX(obj);
+    s->initfn(obj);
 }
 
 void TCXState::realize(DeviceState *dev, Error **errp)
