@@ -89,8 +89,11 @@ struct SHSerialState {
     static void receive1(void *opaque, const uint8_t *buf, int size);
     static void chrEvent(void *opaque, QEMUChrEvent event);
     void reset();
-    void realize(DeviceState *d, Error **errp);
-    void unrealize(DeviceState *dev);
+    void realize(Error **errp);
+    void unrealize();
+    static void resetWrapper(DeviceState *dev);
+    static void realizeWrapper(DeviceState *d, Error **errp);
+    static void unrealizeWrapper(DeviceState *dev);
     static void classInit(ObjectClass *oc, const void *data);
 };
 
@@ -400,7 +403,7 @@ static const MemoryRegionOps sh_serial_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void sh_serial_reset_wrapper(DeviceState *dev)
+void SHSerialState::resetWrapper(DeviceState *dev)
 {
     SHSerialState *s = SH_SERIAL(dev);
     s->reset();
@@ -425,44 +428,44 @@ void SHSerialState::reset()
     clearFifo();
 }
 
-static void sh_serial_realize_wrapper(DeviceState *d, Error **errp)
+void SHSerialState::realizeWrapper(DeviceState *d, Error **errp)
 {
     SHSerialState *s = SH_SERIAL(d);
-    s->realize(d, errp);
+    s->realize(errp);
 }
 
-void SHSerialState::realize(DeviceState *d, Error **errp)
+void SHSerialState::realize(Error **errp)
 {
-    SHSerialState *s = SH_SERIAL(d);
+    DeviceState *d = DEVICE(this);
     MemoryRegion *iomem = static_cast<MemoryRegion *>(g_malloc(sizeof(*iomem)));
 
     assert(d->id);
-    memory_region_init_io(iomem, OBJECT(d), &sh_serial_ops, s, d->id, 0x28);
-    sysbus_init_mmio(SYS_BUS_DEVICE(d), iomem);
-    qdev_init_gpio_out_named(d, &s->eri, "eri", 1);
-    qdev_init_gpio_out_named(d, &s->rxi, "rxi", 1);
-    qdev_init_gpio_out_named(d, &s->txi, "txi", 1);
-    qdev_init_gpio_out_named(d, &s->tei, "tei", 1);
-    qdev_init_gpio_out_named(d, &s->bri, "bri", 1);
+    memory_region_init_io(iomem, OBJECT(this), &sh_serial_ops, this, d->id, 0x28);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), iomem);
+    qdev_init_gpio_out_named(d, &eri, "eri", 1);
+    qdev_init_gpio_out_named(d, &rxi, "rxi", 1);
+    qdev_init_gpio_out_named(d, &txi, "txi", 1);
+    qdev_init_gpio_out_named(d, &tei, "tei", 1);
+    qdev_init_gpio_out_named(d, &bri, "bri", 1);
 
-    if (qemu_chr_fe_backend_connected(&s->chr)) {
-        qemu_chr_fe_set_handlers(&s->chr, SHSerialState::canReceive1,
+    if (qemu_chr_fe_backend_connected(&chr)) {
+        qemu_chr_fe_set_handlers(&chr, SHSerialState::canReceive1,
                                  SHSerialState::receive1,
-                                 SHSerialState::chrEvent, NULL, s, NULL, true);
+                                 SHSerialState::chrEvent, NULL, this, NULL, true);
     }
 
-    timer_init_ns(&s->fifo_timeout_timer, QEMU_CLOCK_VIRTUAL,
-                  SHSerialState::timeoutInt, s);
-    s->etu = NANOSECONDS_PER_SECOND / 9600;
+    timer_init_ns(&fifo_timeout_timer, QEMU_CLOCK_VIRTUAL,
+                  SHSerialState::timeoutInt, this);
+    etu = NANOSECONDS_PER_SECOND / 9600;
 }
 
-static void sh_serial_unrealize_wrapper(DeviceState *dev)
+void SHSerialState::unrealizeWrapper(DeviceState *dev)
 {
     SHSerialState *s = SH_SERIAL(dev);
-    s->unrealize(dev);
+    s->unrealize();
 }
 
-void SHSerialState::unrealize(DeviceState *dev)
+void SHSerialState::unrealize()
 {
     timer_del(&fifo_timeout_timer);
 }
@@ -477,9 +480,9 @@ void SHSerialState::classInit(ObjectClass *oc, const void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     device_class_set_props(dc, sh_serial_properties);
-    dc->realize = sh_serial_realize_wrapper;
-    dc->unrealize = sh_serial_unrealize_wrapper;
-    device_class_set_legacy_reset(dc, sh_serial_reset_wrapper);
+    dc->realize = SHSerialState::realizeWrapper;
+    dc->unrealize = SHSerialState::unrealizeWrapper;
+    device_class_set_legacy_reset(dc, SHSerialState::resetWrapper);
     /* Reason: part of SuperH CPU/SoC, needs to be wired up */
     dc->user_creatable = false;
 }

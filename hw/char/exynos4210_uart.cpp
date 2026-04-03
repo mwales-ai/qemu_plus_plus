@@ -166,6 +166,8 @@ struct Exynos4210UartState {
     void updateIrq();
     void updateParameters();
     void rxTimeoutSet();
+    uint32_t txFifoTriggerLevel() const;
+    uint32_t rxFifoTriggerLevel() const;
     void reset();
     void initfn();
     void realize(Error **errp);
@@ -178,6 +180,7 @@ struct Exynos4210UartState {
     static int canReceive(void *opaque);
     static void receive(void *opaque, const uint8_t *buf, int size);
     static void event(void *opaque, QEMUChrEvent event);
+    static int postLoad(void *opaque, int version_id);
 
     /* static QOM wrappers */
     static void resetWrapper(DeviceState *dev);
@@ -266,26 +269,24 @@ static uint32_t exynos4210_uart_FIFO_trigger_level(uint32_t channel,
     return level;
 }
 
-static uint32_t
-exynos4210_uart_Tx_FIFO_trigger_level(const Exynos4210UartState *s)
+uint32_t Exynos4210UartState::txFifoTriggerLevel() const
 {
-    uint32_t reg;
+    uint32_t r;
 
-    reg = (s->reg[I_(UFCON)] & UFCON_Tx_FIFO_TRIGGER_LEVEL) >>
+    r = (reg[I_(UFCON)] & UFCON_Tx_FIFO_TRIGGER_LEVEL) >>
             UFCON_Tx_FIFO_TRIGGER_LEVEL_SHIFT;
 
-    return exynos4210_uart_FIFO_trigger_level(s->channel, reg);
+    return exynos4210_uart_FIFO_trigger_level(channel, r);
 }
 
-static uint32_t
-exynos4210_uart_Rx_FIFO_trigger_level(const Exynos4210UartState *s)
+uint32_t Exynos4210UartState::rxFifoTriggerLevel() const
 {
-    uint32_t reg;
+    uint32_t r;
 
-    reg = ((s->reg[I_(UFCON)] & UFCON_Rx_FIFO_TRIGGER_LEVEL) >>
+    r = ((reg[I_(UFCON)] & UFCON_Rx_FIFO_TRIGGER_LEVEL) >>
             UFCON_Rx_FIFO_TRIGGER_LEVEL_SHIFT) + 1;
 
-    return exynos4210_uart_FIFO_trigger_level(s->channel, reg);
+    return exynos4210_uart_FIFO_trigger_level(channel, r);
 }
 
 /*
@@ -315,7 +316,7 @@ void Exynos4210UartState::updateIrq()
         uint32_t count = (reg[I_(UFSTAT)] & UFSTAT_Tx_FIFO_COUNT) >>
                 UFSTAT_Tx_FIFO_COUNT_SHIFT;
 
-        if (count <= exynos4210_uart_Tx_FIFO_trigger_level(this)) {
+        if (count <= txFifoTriggerLevel()) {
             reg[I_(UINTSP)] |= UINTSP_TXD;
         }
 
@@ -325,7 +326,7 @@ void Exynos4210UartState::updateIrq()
          */
         count = fifo_elements_number(&rx);
         if ((count && !(reg[I_(UCON)] & 0x80)) ||
-            count >= exynos4210_uart_Rx_FIFO_trigger_level(this)) {
+            count >= rxFifoTriggerLevel()) {
             updateDmabusy();
             reg[I_(UINTSP)] |= UINTSP_RXD;
             timer_del(fifo_timeout_timer);
@@ -636,7 +637,7 @@ void Exynos4210UartState::reset()
     trace_exynos_uart_rxsize(channel, rx.size);
 }
 
-static int exynos4210_uart_post_load(void *opaque, int version_id)
+int Exynos4210UartState::postLoad(void *opaque, int version_id)
 {
     Exynos4210UartState *s = static_cast<Exynos4210UartState *>(opaque);
 
@@ -672,7 +673,7 @@ static const VMStateDescription vmstate_exynos4210_uart = {
     .name = "exynos4210.uart",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = exynos4210_uart_post_load,
+    .post_load = Exynos4210UartState::postLoad,
     .fields = vmstate_exynos4210_uart_fields,
 };
 

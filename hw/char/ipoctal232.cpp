@@ -126,7 +126,25 @@ struct IPOctalState {
     uint8_t irq_vector;
 
     /* methods */
+    void updateIrq(unsigned block);
+    void writeCr(unsigned channel, uint8_t val);
     void realize(Error **errp);
+
+    static uint16_t ioRead(IPackDevice *ip, uint8_t addr);
+    static void ioWrite(IPackDevice *ip, uint8_t addr, uint16_t val);
+    static uint16_t idRead(IPackDevice *ip, uint8_t addr);
+    static void idWrite(IPackDevice *ip, uint8_t addr, uint16_t val);
+    static uint16_t intRead(IPackDevice *ip, uint8_t addr);
+    static void intWrite(IPackDevice *ip, uint8_t addr, uint16_t val);
+    static uint16_t memRead16(IPackDevice *ip, uint32_t addr);
+    static void memWrite16(IPackDevice *ip, uint32_t addr, uint16_t val);
+    static uint8_t memRead8(IPackDevice *ip, uint32_t addr);
+    static void memWrite8(IPackDevice *ip, uint32_t addr, uint8_t val);
+
+    static int hostdevCanReceive(void *opaque);
+    static void hostdevReceive(void *opaque, const uint8_t *buf, int size);
+    static void hostdevEvent(void *opaque, QEMUChrEvent event);
+
     static void realizeWrapper(DeviceState *dev, Error **errp);
     static void classInit(ObjectClass *klass, const void *data);
 };
@@ -185,13 +203,13 @@ static const uint8_t id_prom_data[] = {
     0xA1, 0x00, 0x00, 0x00, 0x0C, 0xCC
 };
 
-static void update_irq(IPOctalState *dev, unsigned block)
+void IPOctalState::updateIrq(unsigned block)
 {
-    IPackDevice *idev = IPACK_DEVICE(dev);
+    IPackDevice *idev = IPACK_DEVICE(this);
     /* Blocks A and B interrupt on INT0#, C and D on INT1#.
        Thus, to get the status we have to check two blocks. */
-    SCC2698Block *blk0 = &dev->blk[block];
-    SCC2698Block *blk1 = &dev->blk[block^1];
+    SCC2698Block *blk0 = &blk[block];
+    SCC2698Block *blk1 = &blk[block^1];
     unsigned intno = block / 2;
 
     if ((blk0->isr & blk0->imr) || (blk1->isr & blk1->imr)) {
@@ -201,31 +219,31 @@ static void update_irq(IPOctalState *dev, unsigned block)
     }
 }
 
-static void write_cr(IPOctalState *dev, unsigned channel, uint8_t val)
+void IPOctalState::writeCr(unsigned channel, uint8_t val)
 {
-    SCC2698Channel *ch = &dev->ch[channel];
-    SCC2698Block *blk = &dev->blk[channel / 2];
+    SCC2698Channel *ch_ptr = &ch[channel];
+    SCC2698Block *blk_ptr = &blk[channel / 2];
 
     DPRINTF("Write CR%c %u: ", channel + 'a', val);
 
     /* The lower 4 bits are used to enable and disable Tx and Rx */
     if (val & CR_ENABLE_RX) {
         DPRINTF2("Rx on, ");
-        ch->rx_enabled = true;
+        ch_ptr->rx_enabled = true;
     }
     if (val & CR_DISABLE_RX) {
         DPRINTF2("Rx off, ");
-        ch->rx_enabled = false;
+        ch_ptr->rx_enabled = false;
     }
     if (val & CR_ENABLE_TX) {
         DPRINTF2("Tx on, ");
-        ch->sr |= SR_TXRDY | SR_TXEMT;
-        blk->isr |= ISR_TXRDY(channel);
+        ch_ptr->sr |= SR_TXRDY | SR_TXEMT;
+        blk_ptr->isr |= ISR_TXRDY(channel);
     }
     if (val & CR_DISABLE_TX) {
         DPRINTF2("Tx off, ");
-        ch->sr &= ~(SR_TXRDY | SR_TXEMT);
-        blk->isr &= ~ISR_TXRDY(channel);
+        ch_ptr->sr &= ~(SR_TXRDY | SR_TXEMT);
+        blk_ptr->isr &= ~ISR_TXRDY(channel);
     }
 
     DPRINTF2("cmd: ");
@@ -237,27 +255,27 @@ static void write_cr(IPOctalState *dev, unsigned channel, uint8_t val)
         break;
     case CR_RESET_MR:
         DPRINTF2("reset MR");
-        ch->mr_idx = 0;
+        ch_ptr->mr_idx = 0;
         break;
     case CR_RESET_RX:
         DPRINTF2("reset Rx");
-        ch->rx_enabled = false;
-        ch->rx_pending = 0;
-        ch->sr &= ~SR_RXRDY;
-        blk->isr &= ~ISR_RXRDY(channel);
+        ch_ptr->rx_enabled = false;
+        ch_ptr->rx_pending = 0;
+        ch_ptr->sr &= ~SR_RXRDY;
+        blk_ptr->isr &= ~ISR_RXRDY(channel);
         break;
     case CR_RESET_TX:
         DPRINTF2("reset Tx");
-        ch->sr &= ~(SR_TXRDY | SR_TXEMT);
-        blk->isr &= ~ISR_TXRDY(channel);
+        ch_ptr->sr &= ~(SR_TXRDY | SR_TXEMT);
+        blk_ptr->isr &= ~ISR_TXRDY(channel);
         break;
     case CR_RESET_ERR:
         DPRINTF2("reset err");
-        ch->sr &= ~(SR_OVERRUN | SR_PARITY | SR_FRAMING | SR_BREAK);
+        ch_ptr->sr &= ~(SR_OVERRUN | SR_PARITY | SR_FRAMING | SR_BREAK);
         break;
     case CR_RESET_BRKINT:
         DPRINTF2("reset brk ch int");
-        blk->isr &= ~(ISR_BREAKA | ISR_BREAKB);
+        blk_ptr->isr &= ~(ISR_BREAKA | ISR_BREAKB);
         break;
     default:
         DPRINTF2("unsupported 0x%x", CR_CMD(val));
@@ -266,7 +284,7 @@ static void write_cr(IPOctalState *dev, unsigned channel, uint8_t val)
     DPRINTF2("\n");
 }
 
-static uint16_t io_read(IPackDevice *ip, uint8_t addr)
+uint16_t IPOctalState::ioRead(IPackDevice *ip, uint8_t addr)
 {
     IPOctalState *dev = IPOCTAL(ip);
     uint16_t ret = 0;
@@ -326,13 +344,13 @@ static uint16_t io_read(IPackDevice *ip, uint8_t addr)
     }
 
     if (old_isr != blk->isr) {
-        update_irq(dev, block);
+        dev->updateIrq(block);
     }
 
     return ret;
 }
 
-static void io_write(IPackDevice *ip, uint8_t addr, uint16_t val)
+void IPOctalState::ioWrite(IPackDevice *ip, uint8_t addr, uint16_t val)
 {
     IPOctalState *dev = IPOCTAL(ip);
     unsigned reg = val & 0xFF;
@@ -365,7 +383,7 @@ static void io_write(IPackDevice *ip, uint8_t addr, uint16_t val)
 
     case REG_CRa:
     case REG_CRb:
-        write_cr(dev, channel, reg);
+        dev->writeCr(channel, reg);
         break;
 
     case REG_THRa:
@@ -401,11 +419,11 @@ static void io_write(IPackDevice *ip, uint8_t addr, uint16_t val)
     }
 
     if (old_isr != blk->isr || old_imr != blk->imr) {
-        update_irq(dev, block);
+        dev->updateIrq(block);
     }
 }
 
-static uint16_t id_read(IPackDevice *ip, uint8_t addr)
+uint16_t IPOctalState::idRead(IPackDevice *ip, uint8_t addr)
 {
     uint16_t ret = 0;
     unsigned pos = addr / 2; /* The ID PROM data is stored every other byte */
@@ -419,7 +437,7 @@ static uint16_t id_read(IPackDevice *ip, uint8_t addr)
     return ret;
 }
 
-static void id_write(IPackDevice *ip, uint8_t addr, uint16_t val)
+void IPOctalState::idWrite(IPackDevice *ip, uint8_t addr, uint16_t val)
 {
     IPOctalState *dev = IPOCTAL(ip);
     if (addr == 1) {
@@ -430,7 +448,7 @@ static void id_write(IPackDevice *ip, uint8_t addr, uint16_t val)
     }
 }
 
-static uint16_t int_read(IPackDevice *ip, uint8_t addr)
+uint16_t IPOctalState::intRead(IPackDevice *ip, uint8_t addr)
 {
     IPOctalState *dev = IPOCTAL(ip);
     /* Read address 0 to ACK INT0# and address 2 to ACK INT1# */
@@ -439,34 +457,34 @@ static uint16_t int_read(IPackDevice *ip, uint8_t addr)
         return 0;
     } else {
         /* Update interrupts if necessary */
-        update_irq(dev, addr);
+        dev->updateIrq(addr);
         return dev->irq_vector;
     }
 }
 
-static void int_write(IPackDevice *ip, uint8_t addr, uint16_t val)
+void IPOctalState::intWrite(IPackDevice *ip, uint8_t addr, uint16_t val)
 {
     DPRINTF("Attempt to write 0x%x to 0x%x\n", val, addr);
 }
 
-static uint16_t mem_read16(IPackDevice *ip, uint32_t addr)
+uint16_t IPOctalState::memRead16(IPackDevice *ip, uint32_t addr)
 {
     DPRINTF("Attempt to read from 0x%x\n", addr);
     return 0;
 }
 
-static void mem_write16(IPackDevice *ip, uint32_t addr, uint16_t val)
+void IPOctalState::memWrite16(IPackDevice *ip, uint32_t addr, uint16_t val)
 {
     DPRINTF("Attempt to write 0x%x to 0x%x\n", val, addr);
 }
 
-static uint8_t mem_read8(IPackDevice *ip, uint32_t addr)
+uint8_t IPOctalState::memRead8(IPackDevice *ip, uint32_t addr)
 {
     DPRINTF("Attempt to read from 0x%x\n", addr);
     return 0;
 }
 
-static void mem_write8(IPackDevice *ip, uint32_t addr, uint8_t val)
+void IPOctalState::memWrite8(IPackDevice *ip, uint32_t addr, uint8_t val)
 {
     IPOctalState *dev = IPOCTAL(ip);
     if (addr == 1) {
@@ -477,14 +495,14 @@ static void mem_write8(IPackDevice *ip, uint32_t addr, uint8_t val)
     }
 }
 
-static int hostdev_can_receive(void *opaque)
+int IPOctalState::hostdevCanReceive(void *opaque)
 {
     SCC2698Channel *ch = static_cast<SCC2698Channel *>(opaque);
     int available_bytes = RX_FIFO_SIZE - ch->rx_pending;
     return ch->rx_enabled ? available_bytes : 0;
 }
 
-static void hostdev_receive(void *opaque, const uint8_t *buf, int size)
+void IPOctalState::hostdevReceive(void *opaque, const uint8_t *buf, int size)
 {
     SCC2698Channel *ch = static_cast<SCC2698Channel *>(opaque);
     IPOctalState *dev = ch->ipoctal;
@@ -511,11 +529,11 @@ static void hostdev_receive(void *opaque, const uint8_t *buf, int size)
         block = channel / 2;
         dev->blk[block].isr |= ISR_RXRDY(channel);
         ch->sr |= SR_RXRDY;
-        update_irq(dev, block);
+        dev->updateIrq(block);
     }
 }
 
-static void hostdev_event(void *opaque, QEMUChrEvent event)
+void IPOctalState::hostdevEvent(void *opaque, QEMUChrEvent event)
 {
     SCC2698Channel *ch = static_cast<SCC2698Channel *>(opaque);
     switch (event) {
@@ -540,7 +558,7 @@ static void hostdev_event(void *opaque, QEMUChrEvent event)
         }
 
         /* Put a zero character in the buffer */
-        hostdev_receive(ch, &zero, 1);
+        hostdevReceive(ch, &zero, 1);
     }
         break;
     default:
@@ -558,15 +576,15 @@ void IPOctalState::realize(Error **errp)
     unsigned i;
 
     for (i = 0; i < N_CHANNELS; i++) {
-        SCC2698Channel *ch = &this->ch[i];
-        ch->ipoctal = this;
+        SCC2698Channel *ch_ptr = &this->ch[i];
+        ch_ptr->ipoctal = this;
 
         /* Redirect IP-Octal channels to host character devices */
-        if (qemu_chr_fe_backend_connected(&ch->dev)) {
-            qemu_chr_fe_set_handlers(&ch->dev, hostdev_can_receive,
-                                     hostdev_receive, hostdev_event,
-                                     NULL, ch, NULL, true);
-            DPRINTF("Redirecting channel %u to %s\n", i, ch->dev->label);
+        if (qemu_chr_fe_backend_connected(&ch_ptr->dev)) {
+            qemu_chr_fe_set_handlers(&ch_ptr->dev, hostdevCanReceive,
+                                     hostdevReceive, hostdevEvent,
+                                     NULL, ch_ptr, NULL, true);
+            DPRINTF("Redirecting channel %u to %s\n", i, ch_ptr->dev->label);
         } else {
             DPRINTF("Could not redirect channel %u, no chardev set\n", i);
         }
@@ -590,16 +608,16 @@ void IPOctalState::classInit(ObjectClass *klass, const void *data)
     IPackDeviceClass *ic = IPACK_DEVICE_CLASS(klass);
 
     ic->realize     = IPOctalState::realizeWrapper;
-    ic->io_read     = io_read;
-    ic->io_write    = io_write;
-    ic->id_read     = id_read;
-    ic->id_write    = id_write;
-    ic->int_read    = int_read;
-    ic->int_write   = int_write;
-    ic->mem_read16  = mem_read16;
-    ic->mem_write16 = mem_write16;
-    ic->mem_read8   = mem_read8;
-    ic->mem_write8  = mem_write8;
+    ic->io_read     = ioRead;
+    ic->io_write    = ioWrite;
+    ic->id_read     = idRead;
+    ic->id_write    = idWrite;
+    ic->int_read    = intRead;
+    ic->int_write   = intWrite;
+    ic->mem_read16  = memRead16;
+    ic->mem_write16 = memWrite16;
+    ic->mem_read8   = memRead8;
+    ic->mem_write8  = memWrite8;
 
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc    = "GE IP-Octal 232 8-channel RS-232 IndustryPack";
