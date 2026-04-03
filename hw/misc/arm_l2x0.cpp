@@ -50,6 +50,10 @@ struct L2x0State {
     void instanceInit();
     void reset();
 
+    /* Instance MMIO methods */
+    uint64_t readReg(hwaddr offset, unsigned size);
+    void writeReg(hwaddr offset, uint64_t value, unsigned size);
+
     /* Static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
@@ -76,8 +80,13 @@ static const VMStateDescription vmstate_l2x0 = {
 
 uint64_t L2x0State::mmioRead(void *opaque, hwaddr offset, unsigned size)
 {
-    uint32_t cache_data;
     L2x0State *s = static_cast<L2x0State *>(opaque);
+    return s->readReg(offset, size);
+}
+
+uint64_t L2x0State::readReg(hwaddr offset, unsigned size)
+{
+    uint32_t cache_data;
     offset &= 0xfff;
     if (offset >= 0x730 && offset < 0x800) {
         return 0; /* cache ops complete */
@@ -87,21 +96,21 @@ uint64_t L2x0State::mmioRead(void *opaque, hwaddr offset, unsigned size)
         return CACHE_ID;
     case 0x4:
         /* aux_ctrl values affect cache_type values */
-        cache_data = (s->aux_ctrl & (7 << 17)) >> 15;
-        cache_data |= (s->aux_ctrl & (1 << 16)) >> 16;
-        return s->cache_type |= (cache_data << 18) | (cache_data << 6);
+        cache_data = (aux_ctrl & (7 << 17)) >> 15;
+        cache_data |= (aux_ctrl & (1 << 16)) >> 16;
+        return cache_type |= (cache_data << 18) | (cache_data << 6);
     case 0x100:
-        return s->ctrl;
+        return ctrl;
     case 0x104:
-        return s->aux_ctrl;
+        return aux_ctrl;
     case 0x108:
-        return s->tag_ctrl;
+        return tag_ctrl;
     case 0x10C:
-        return s->data_ctrl;
+        return data_ctrl;
     case 0xC00:
-        return s->filter_start;
+        return filter_start;
     case 0xC04:
-        return s->filter_end;
+        return filter_end;
     case 0xF40:
         return 0;
     case 0xF60:
@@ -120,6 +129,11 @@ void L2x0State::mmioWrite(void *opaque, hwaddr offset,
                            uint64_t value, unsigned size)
 {
     L2x0State *s = static_cast<L2x0State *>(opaque);
+    s->writeReg(offset, value, size);
+}
+
+void L2x0State::writeReg(hwaddr offset, uint64_t value, unsigned size)
+{
     offset &= 0xfff;
     if (offset >= 0x730 && offset < 0x800) {
         /* ignore */
@@ -127,22 +141,22 @@ void L2x0State::mmioWrite(void *opaque, hwaddr offset,
     }
     switch (offset) {
     case 0x100:
-        s->ctrl = value & 1;
+        ctrl = value & 1;
         break;
     case 0x104:
-        s->aux_ctrl = value;
+        aux_ctrl = value;
         break;
     case 0x108:
-        s->tag_ctrl = value;
+        tag_ctrl = value;
         break;
     case 0x10C:
-        s->data_ctrl = value;
+        data_ctrl = value;
         break;
     case 0xC00:
-        s->filter_start = value;
+        filter_start = value;
         break;
     case 0xC04:
-        s->filter_end = value;
+        filter_end = value;
         break;
     case 0xF40:
         return;

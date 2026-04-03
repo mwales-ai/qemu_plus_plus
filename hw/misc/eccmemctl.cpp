@@ -148,9 +148,13 @@ struct ECCState {
                           unsigned size);
 
     /* Instance methods */
-    void initfn(Object *obj);
-    void realize(DeviceState *dev, Error **errp);
-    void reset(DeviceState *d);
+    uint64_t readReg(hwaddr addr, unsigned size);
+    void writeReg(hwaddr addr, uint64_t val, unsigned size);
+    uint64_t readDiag(hwaddr addr, unsigned size);
+    void writeDiag(hwaddr addr, uint64_t val, unsigned size);
+    void initfn();
+    void realize();
+    void reset();
 
     /* Class init */
     static void classInit(ObjectClass *klass, const void *data);
@@ -160,40 +164,44 @@ void ECCState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
                           unsigned size)
 {
     ECCState *s = static_cast<ECCState *>(opaque);
+    s->writeReg(addr, val, size);
+}
 
+void ECCState::writeReg(hwaddr addr, uint64_t val, unsigned size)
+{
     switch (addr >> 2) {
     case ECC_MER:
-        if (s->version == ECC_MCC)
-            s->regs[ECC_MER] = (val & ECC_MER_MASK_0);
-        else if (s->version == ECC_EMC)
-            s->regs[ECC_MER] = s->version | (val & ECC_MER_MASK_1);
-        else if (s->version == ECC_SMC)
-            s->regs[ECC_MER] = s->version | (val & ECC_MER_MASK_2);
+        if (version == ECC_MCC)
+            regs[ECC_MER] = (val & ECC_MER_MASK_0);
+        else if (version == ECC_EMC)
+            regs[ECC_MER] = version | (val & ECC_MER_MASK_1);
+        else if (version == ECC_SMC)
+            regs[ECC_MER] = version | (val & ECC_MER_MASK_2);
         trace_ecc_mem_writel_mer(val);
         break;
     case ECC_MDR:
-        s->regs[ECC_MDR] =  val & ECC_MDR_MASK;
+        regs[ECC_MDR] =  val & ECC_MDR_MASK;
         trace_ecc_mem_writel_mdr(val);
         break;
     case ECC_MFSR:
-        s->regs[ECC_MFSR] =  val;
-        qemu_irq_lower(s->irq);
+        regs[ECC_MFSR] =  val;
+        qemu_irq_lower(irq);
         trace_ecc_mem_writel_mfsr(val);
         break;
     case ECC_VCR:
-        s->regs[ECC_VCR] =  val;
+        regs[ECC_VCR] =  val;
         trace_ecc_mem_writel_vcr(val);
         break;
     case ECC_DR:
-        s->regs[ECC_DR] =  val;
+        regs[ECC_DR] =  val;
         trace_ecc_mem_writel_dr(val);
         break;
     case ECC_ECR0:
-        s->regs[ECC_ECR0] =  val;
+        regs[ECC_ECR0] =  val;
         trace_ecc_mem_writel_ecr0(val);
         break;
     case ECC_ECR1:
-        s->regs[ECC_ECR0] =  val;
+        regs[ECC_ECR0] =  val;
         trace_ecc_mem_writel_ecr1(val);
         break;
     }
@@ -202,43 +210,48 @@ void ECCState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
 uint64_t ECCState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     ECCState *s = static_cast<ECCState *>(opaque);
+    return s->readReg(addr, size);
+}
+
+uint64_t ECCState::readReg(hwaddr addr, unsigned size)
+{
     uint32_t ret = 0;
 
     switch (addr >> 2) {
     case ECC_MER:
-        ret = s->regs[ECC_MER];
+        ret = regs[ECC_MER];
         trace_ecc_mem_readl_mer(ret);
         break;
     case ECC_MDR:
-        ret = s->regs[ECC_MDR];
+        ret = regs[ECC_MDR];
         trace_ecc_mem_readl_mdr(ret);
         break;
     case ECC_MFSR:
-        ret = s->regs[ECC_MFSR];
+        ret = regs[ECC_MFSR];
         trace_ecc_mem_readl_mfsr(ret);
         break;
     case ECC_VCR:
-        ret = s->regs[ECC_VCR];
+        ret = regs[ECC_VCR];
         trace_ecc_mem_readl_vcr(ret);
         break;
     case ECC_MFAR0:
-        ret = s->regs[ECC_MFAR0];
+        ret = regs[ECC_MFAR0];
         trace_ecc_mem_readl_mfar0(ret);
         break;
     case ECC_MFAR1:
-        ret = s->regs[ECC_MFAR1];
+        ret = regs[ECC_MFAR1];
         trace_ecc_mem_readl_mfar1(ret);
         break;
     case ECC_DR:
-        ret = s->regs[ECC_DR];
+        ret = regs[ECC_DR];
         trace_ecc_mem_readl_dr(ret);
         break;
     case ECC_ECR0:
-        ret = s->regs[ECC_ECR0];
+        ret = regs[ECC_ECR0];
         trace_ecc_mem_readl_ecr0(ret);
         break;
     case ECC_ECR1:
-        ret = s->regs[ECC_ECR0];
+        ret = regs[ECC_ECR0];
         trace_ecc_mem_readl_ecr1(ret);
         break;
     }
@@ -259,15 +272,24 @@ void ECCState::diagWrite(void *opaque, hwaddr addr, uint64_t val,
                           unsigned size)
 {
     ECCState *s = static_cast<ECCState *>(opaque);
+    s->writeDiag(addr, val, size);
+}
 
+void ECCState::writeDiag(hwaddr addr, uint64_t val, unsigned size)
+{
     trace_ecc_diag_mem_writeb(addr, val);
-    s->diag[addr & ECC_DIAG_MASK] = val;
+    diag[addr & ECC_DIAG_MASK] = val;
 }
 
 uint64_t ECCState::diagRead(void *opaque, hwaddr addr, unsigned size)
 {
     ECCState *s = static_cast<ECCState *>(opaque);
-    uint32_t ret = s->diag[(int)addr];
+    return s->readDiag(addr, size);
+}
+
+uint64_t ECCState::readDiag(hwaddr addr, unsigned size)
+{
+    uint32_t ret = diag[(int)addr];
 
     trace_ecc_diag_mem_readb(addr, ret);
     return ret;
@@ -295,67 +317,64 @@ static const VMStateDescription vmstate_ecc = {
     }
 };
 
-void ECCState::reset(DeviceState *d)
+void ECCState::reset()
 {
-    ECCState *s = ECC_MEMCTL(d);
-
-    if (s->version == ECC_MCC) {
-        s->regs[ECC_MER] &= ECC_MER_REU;
+    if (version == ECC_MCC) {
+        regs[ECC_MER] &= ECC_MER_REU;
     } else {
-        s->regs[ECC_MER] &= (ECC_MER_VER | ECC_MER_IMPL | ECC_MER_MRR |
+        regs[ECC_MER] &= (ECC_MER_VER | ECC_MER_IMPL | ECC_MER_MRR |
                              ECC_MER_DCI);
     }
-    s->regs[ECC_MDR] = 0x20;
-    s->regs[ECC_MFSR] = 0;
-    s->regs[ECC_VCR] = 0;
-    s->regs[ECC_MFAR0] = 0x07c00000;
-    s->regs[ECC_MFAR1] = 0;
-    s->regs[ECC_DR] = 0;
-    s->regs[ECC_ECR0] = 0;
-    s->regs[ECC_ECR1] = 0;
+    regs[ECC_MDR] = 0x20;
+    regs[ECC_MFSR] = 0;
+    regs[ECC_VCR] = 0;
+    regs[ECC_MFAR0] = 0x07c00000;
+    regs[ECC_MFAR1] = 0;
+    regs[ECC_DR] = 0;
+    regs[ECC_ECR0] = 0;
+    regs[ECC_ECR1] = 0;
 }
 
 static void ecc_reset(DeviceState *d)
 {
     ECCState *s = ECC_MEMCTL(d);
-    s->reset(d);
+    s->reset();
 }
 
-void ECCState::initfn(Object *obj)
+void ECCState::initfn()
 {
-    ECCState *s = ECC_MEMCTL(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(dev, &irq);
 
-    memory_region_init_io(&s->iomem, obj, &ecc_mem_ops, s, "ecc", ECC_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&iomem, OBJECT(this), &ecc_mem_ops, this, "ecc",
+                          ECC_SIZE);
+    sysbus_init_mmio(dev, &iomem);
 }
 
 static void ecc_init(Object *obj)
 {
     ECCState *s = ECC_MEMCTL(obj);
-    s->initfn(obj);
+    s->initfn();
 }
 
-void ECCState::realize(DeviceState *dev, Error **errp)
+void ECCState::realize()
 {
-    ECCState *s = ECC_MEMCTL(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    s->regs[0] = s->version;
+    regs[0] = version;
 
-    if (s->version == ECC_MCC) { // SS-600MP only
-        memory_region_init_io(&s->iomem_diag, OBJECT(dev), &ecc_diag_mem_ops, s,
-                              "ecc.diag", ECC_DIAG_SIZE);
-        sysbus_init_mmio(sbd, &s->iomem_diag);
+    if (version == ECC_MCC) { // SS-600MP only
+        memory_region_init_io(&iomem_diag, OBJECT(this), &ecc_diag_mem_ops,
+                              this, "ecc.diag", ECC_DIAG_SIZE);
+        sysbus_init_mmio(sbd, &iomem_diag);
     }
 }
 
 static void ecc_realize(DeviceState *dev, Error **errp)
 {
     ECCState *s = ECC_MEMCTL(dev);
-    s->realize(dev, errp);
+    s->realize();
 }
 
 static const Property ecc_properties[] = {

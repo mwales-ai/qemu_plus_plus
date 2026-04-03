@@ -47,15 +47,20 @@ struct CRBState {
     bool ppi_enabled;
     TPMPPI ppi;
 
-    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
+    /* Instance MMIO methods */
+    uint64_t readReg(hwaddr addr, unsigned size);
+    void writeReg(hwaddr addr, uint64_t val, unsigned size);
     uint8_t getActiveLocty();
+    void reset();
+    void realize(Error **errp);
+
+    /* Static callbacks */
+    static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
     static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
                           unsigned size);
     static void requestCompleted(TPMIf *ti, int ret);
     static enum TPMVersion getVersion(TPMIf *ti);
     static int preSave(void *opaque);
-    void reset();
-    void realize(DeviceState *dev, Error **errp);
     static void classInit(ObjectClass *klass, const void *data);
 };
 typedef struct CRBState CRBState;
@@ -99,13 +104,18 @@ enum crb_cancel {
 uint64_t CRBState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
     CRBState *s = CRB(opaque);
-    void *regs = static_cast<void *>(reinterpret_cast<char *>(&s->regs) + (addr & ~3));
+    return s->readReg(addr, size);
+}
+
+uint64_t CRBState::readReg(hwaddr addr, unsigned size)
+{
+    void *regptr = static_cast<void *>(reinterpret_cast<char *>(&regs) + (addr & ~3));
     unsigned offset = addr & 3;
-    uint32_t val = *static_cast<uint32_t *>(regs) >> (8 * offset);
+    uint32_t val = *static_cast<uint32_t *>(regptr) >> (8 * offset);
 
     switch (addr) {
     case A_CRB_LOC_STATE:
-        val |= !tpm_backend_get_tpm_established_flag(s->tpmbe);
+        val |= !tpm_backend_get_tpm_established_flag(tpmbe);
         break;
     }
 
@@ -126,6 +136,11 @@ void CRBState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
                           unsigned size)
 {
     CRBState *s = CRB(opaque);
+    s->writeReg(addr, val, size);
+}
+
+void CRBState::writeReg(hwaddr addr, uint64_t val, unsigned size)
+{
     uint8_t locty =  addr >> 12;
 
     trace_tpm_crb_mmio_write(addr, size, val);
@@ -134,35 +149,35 @@ void CRBState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
     case A_CRB_CTRL_REQ:
         switch (val) {
         case CRB_CTRL_REQ_CMD_READY:
-            ARRAY_FIELD_DP32(s->regs, CRB_CTRL_STS,
+            ARRAY_FIELD_DP32(regs, CRB_CTRL_STS,
                              tpmIdle, 0);
             break;
         case CRB_CTRL_REQ_GO_IDLE:
-            ARRAY_FIELD_DP32(s->regs, CRB_CTRL_STS,
+            ARRAY_FIELD_DP32(regs, CRB_CTRL_STS,
                              tpmIdle, 1);
             break;
         }
         break;
     case A_CRB_CTRL_CANCEL:
         if (val == CRB_CANCEL_INVOKE &&
-            s->regs[R_CRB_CTRL_START] & CRB_START_INVOKE) {
-            tpm_backend_cancel_cmd(s->tpmbe);
+            regs[R_CRB_CTRL_START] & CRB_START_INVOKE) {
+            tpm_backend_cancel_cmd(tpmbe);
         }
         break;
     case A_CRB_CTRL_START:
         if (val == CRB_START_INVOKE &&
-            !(s->regs[R_CRB_CTRL_START] & CRB_START_INVOKE) &&
-            s->getActiveLocty() == locty) {
-            void *mem = memory_region_get_ram_ptr(&s->cmdmem);
+            !(regs[R_CRB_CTRL_START] & CRB_START_INVOKE) &&
+            getActiveLocty() == locty) {
+            void *mem = memory_region_get_ram_ptr(&cmdmem);
 
-            s->regs[R_CRB_CTRL_START] |= CRB_START_INVOKE;
-            memset(&s->cmd, 0, sizeof(s->cmd));
-            s->cmd.in = static_cast<const uint8_t *>(mem);
-            s->cmd.in_len = MIN(tpm_cmd_get_size(mem), s->be_buffer_size);
-            s->cmd.out = static_cast<uint8_t *>(mem);
-            s->cmd.out_len = s->be_buffer_size;
+            regs[R_CRB_CTRL_START] |= CRB_START_INVOKE;
+            memset(&cmd, 0, sizeof(cmd));
+            cmd.in = static_cast<const uint8_t *>(mem);
+            cmd.in_len = MIN(tpm_cmd_get_size(mem), be_buffer_size);
+            cmd.out = static_cast<uint8_t *>(mem);
+            cmd.out_len = be_buffer_size;
 
-            tpm_backend_deliver_request(s->tpmbe, &s->cmd);
+            tpm_backend_deliver_request(tpmbe, &cmd);
         }
         break;
     case A_CRB_LOC_CTRL:
@@ -171,17 +186,17 @@ void CRBState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
             /* not loc 3 or 4 */
             break;
         case CRB_LOC_CTRL_RELINQUISH:
-            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
+            ARRAY_FIELD_DP32(regs, CRB_LOC_STATE,
                              locAssigned, 0);
-            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STS,
+            ARRAY_FIELD_DP32(regs, CRB_LOC_STS,
                              Granted, 0);
             break;
         case CRB_LOC_CTRL_REQUEST_ACCESS:
-            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STS,
+            ARRAY_FIELD_DP32(regs, CRB_LOC_STS,
                              Granted, 1);
-            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STS,
+            ARRAY_FIELD_DP32(regs, CRB_LOC_STS,
                              beenSeized, 0);
-            ARRAY_FIELD_DP32(s->regs, CRB_LOC_STATE,
+            ARRAY_FIELD_DP32(regs, CRB_LOC_STATE,
                              locAssigned, 1);
             break;
         }
@@ -296,45 +311,43 @@ void CRBState::reset()
     }
 }
 
-void CRBState::realize(DeviceState *dev, Error **errp)
+void CRBState::realize(Error **errp)
 {
-    CRBState *s = CRB(dev);
-
     if (!tpm_find()) {
         error_setg(errp, "at most one TPM device is permitted");
         return;
     }
-    if (!s->tpmbe) {
+    if (!tpmbe) {
         error_setg(errp, "'tpmdev' property is required");
         return;
     }
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &tpm_crb_memory_ops, s,
-        "tpm-crb-mmio", sizeof(s->regs));
-    memory_region_init_ram(&s->cmdmem, OBJECT(s),
+    memory_region_init_io(&mmio, OBJECT(this), &tpm_crb_memory_ops, this,
+        "tpm-crb-mmio", sizeof(regs));
+    memory_region_init_ram(&cmdmem, OBJECT(this),
         "tpm-crb-cmd", CRB_CTRL_CMD_SIZE, errp);
 
     memory_region_add_subregion(get_system_memory(),
-        TPM_CRB_ADDR_BASE, &s->mmio);
+        TPM_CRB_ADDR_BASE, &mmio);
     memory_region_add_subregion(get_system_memory(),
-        TPM_CRB_ADDR_BASE + sizeof(s->regs), &s->cmdmem);
+        TPM_CRB_ADDR_BASE + sizeof(regs), &cmdmem);
 
-    if (s->ppi_enabled) {
-        tpm_ppi_init(&s->ppi, get_system_memory(),
-                     TPM_PPI_ADDR_BASE, OBJECT(s));
+    if (ppi_enabled) {
+        tpm_ppi_init(&ppi, get_system_memory(),
+                     TPM_PPI_ADDR_BASE, OBJECT(this));
     }
 
     if (xen_enabled()) {
-        tpm_crb_reset_wrapper(dev);
+        tpm_crb_reset_wrapper(DEVICE(this));
     } else {
-        qemu_register_reset(tpm_crb_reset_wrapper, dev);
+        qemu_register_reset(tpm_crb_reset_wrapper, DEVICE(this));
     }
 }
 
 static void tpm_crb_realize_wrapper(DeviceState *dev, Error **errp)
 {
     CRBState *s = CRB(dev);
-    s->realize(dev, errp);
+    s->realize(errp);
 }
 
 void CRBState::classInit(ObjectClass *klass, const void *data)

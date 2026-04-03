@@ -117,15 +117,19 @@ struct Exynos4210PWMState {
 
     Exynos4210PWM timer[EXYNOS4210_PWM_TIMERS_NUM];
 
-    /* methods */
+    /* Instance methods */
     void updateFreq(uint32_t id);
+    uint64_t readReg(hwaddr offset, unsigned size);
+    void writeReg(hwaddr offset, uint64_t value, unsigned size);
+    void reset();
+    void init();
+    void finalize();
+
+    /* Static callbacks */
     static void tick(void *opaque);
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
                           unsigned size);
-    void reset();
-    void init();
-    void finalize();
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -171,20 +175,20 @@ static const VMStateDescription vmstate_exynos4210_pwm_state = {
 void Exynos4210PWMState::updateFreq(uint32_t id)
 {
     uint32_t freq;
-    freq = this->timer[id].freq;
+    freq = timer[id].freq;
     if (id > 1) {
-        this->timer[id].freq = 24000000 /
-        ((GET_PRESCALER(this->reg_tcfg[0], 1) + 1) *
-                (GET_DIVIDER(this->reg_tcfg[1], id)));
+        timer[id].freq = 24000000 /
+        ((GET_PRESCALER(reg_tcfg[0], 1) + 1) *
+                (GET_DIVIDER(reg_tcfg[1], id)));
     } else {
-        this->timer[id].freq = 24000000 /
-        ((GET_PRESCALER(this->reg_tcfg[0], 0) + 1) *
-                (GET_DIVIDER(this->reg_tcfg[1], id)));
+        timer[id].freq = 24000000 /
+        ((GET_PRESCALER(reg_tcfg[0], 0) + 1) *
+                (GET_DIVIDER(reg_tcfg[1], id)));
     }
 
-    if (freq != this->timer[id].freq) {
-        ptimer_set_freq(this->timer[id].ptimer, this->timer[id].freq);
-        DPRINTF("freq=%uHz\n", this->timer[id].freq);
+    if (freq != timer[id].freq) {
+        ptimer_set_freq(timer[id].ptimer, timer[id].freq);
+        DPRINTF("freq=%uHz\n", timer[id].freq);
     }
 }
 
@@ -235,39 +239,44 @@ uint64_t Exynos4210PWMState::mmioRead(void *opaque, hwaddr offset,
         unsigned size)
 {
     Exynos4210PWMState *s = static_cast<Exynos4210PWMState *>(opaque);
+    return s->readReg(offset, size);
+}
+
+uint64_t Exynos4210PWMState::readReg(hwaddr offset, unsigned size)
+{
     uint32_t value = 0;
     int index;
 
     switch (offset) {
     case TCFG0: case TCFG1:
         index = (offset - TCFG0) >> 2;
-        value = s->reg_tcfg[index];
+        value = reg_tcfg[index];
         break;
 
     case TCON:
-        value = s->reg_tcon;
+        value = reg_tcon;
         break;
 
     case TCNTB0: case TCNTB1:
     case TCNTB2: case TCNTB3: case TCNTB4:
         index = (offset - TCNTB0) / 0xC;
-        value = s->timer[index].reg_tcntb;
+        value = timer[index].reg_tcntb;
         break;
 
     case TCMPB0: case TCMPB1:
     case TCMPB2: case TCMPB3:
         index = (offset - TCMPB0) / 0xC;
-        value = s->timer[index].reg_tcmpb;
+        value = timer[index].reg_tcmpb;
         break;
 
     case TCNTO0: case TCNTO1:
     case TCNTO2: case TCNTO3: case TCNTO4:
         index = (offset == TCNTO4) ? 4 : (offset - TCNTO0) / 0xC;
-        value = ptimer_get_count(s->timer[index].ptimer);
+        value = ptimer_get_count(timer[index].ptimer);
         break;
 
     case TINT_CSTAT:
-        value = s->reg_tint_cstat;
+        value = reg_tint_cstat;
         break;
 
     default:
@@ -286,6 +295,12 @@ void Exynos4210PWMState::mmioWrite(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     Exynos4210PWMState *s = static_cast<Exynos4210PWMState *>(opaque);
+    s->writeReg(offset, value, size);
+}
+
+void Exynos4210PWMState::writeReg(hwaddr offset, uint64_t value,
+        unsigned size)
+{
     int index;
     uint32_t new_val;
     int i;
@@ -293,21 +308,21 @@ void Exynos4210PWMState::mmioWrite(void *opaque, hwaddr offset,
     switch (offset) {
     case TCFG0: case TCFG1:
         index = (offset - TCFG0) >> 2;
-        s->reg_tcfg[index] = value;
+        reg_tcfg[index] = value;
 
         /* update timers frequencies */
         for (i = 0; i < EXYNOS4210_PWM_TIMERS_NUM; i++) {
-            ptimer_transaction_begin(s->timer[i].ptimer);
-            s->updateFreq(s->timer[i].id);
-            ptimer_transaction_commit(s->timer[i].ptimer);
+            ptimer_transaction_begin(timer[i].ptimer);
+            updateFreq(timer[i].id);
+            ptimer_transaction_commit(timer[i].ptimer);
         }
         break;
 
     case TCON:
         for (i = 0; i < EXYNOS4210_PWM_TIMERS_NUM; i++) {
-            ptimer_transaction_begin(s->timer[i].ptimer);
+            ptimer_transaction_begin(timer[i].ptimer);
             if ((value & TCON_TIMER_MANUAL_UPD(i)) >
-            (s->reg_tcon & TCON_TIMER_MANUAL_UPD(i))) {
+            (reg_tcon & TCON_TIMER_MANUAL_UPD(i))) {
                 /*
                  * TCNTB and TCMPB are loaded into TCNT and TCMP.
                  * Update timers.
@@ -316,53 +331,53 @@ void Exynos4210PWMState::mmioWrite(void *opaque, hwaddr offset,
                 /* this will start timer to run, this ok, because
                  * during processing start bit timer will be stopped
                  * if needed */
-                ptimer_set_count(s->timer[i].ptimer, s->timer[i].reg_tcntb);
+                ptimer_set_count(timer[i].ptimer, timer[i].reg_tcntb);
                 DPRINTF("set timer %d count to %x\n", i,
-                        s->timer[i].reg_tcntb);
+                        timer[i].reg_tcntb);
             }
 
             if ((value & TCON_TIMER_START(i)) >
-            (s->reg_tcon & TCON_TIMER_START(i))) {
+            (reg_tcon & TCON_TIMER_START(i))) {
                 /* changed to start */
-                ptimer_run(s->timer[i].ptimer, 1);
+                ptimer_run(timer[i].ptimer, 1);
                 DPRINTF("run timer %d\n", i);
             }
 
             if ((value & TCON_TIMER_START(i)) <
-                    (s->reg_tcon & TCON_TIMER_START(i))) {
+                    (reg_tcon & TCON_TIMER_START(i))) {
                 /* changed to stop */
-                ptimer_stop(s->timer[i].ptimer);
+                ptimer_stop(timer[i].ptimer);
                 DPRINTF("stop timer %d\n", i);
             }
-            ptimer_transaction_commit(s->timer[i].ptimer);
+            ptimer_transaction_commit(timer[i].ptimer);
         }
-        s->reg_tcon = value;
+        reg_tcon = value;
         break;
 
     case TCNTB0: case TCNTB1:
     case TCNTB2: case TCNTB3: case TCNTB4:
         index = (offset - TCNTB0) / 0xC;
-        s->timer[index].reg_tcntb = value;
+        timer[index].reg_tcntb = value;
         break;
 
     case TCMPB0: case TCMPB1:
     case TCMPB2: case TCMPB3:
         index = (offset - TCMPB0) / 0xC;
-        s->timer[index].reg_tcmpb = value;
+        timer[index].reg_tcmpb = value;
         break;
 
     case TINT_CSTAT:
-        new_val = (s->reg_tint_cstat & 0x3E0) + (0x1F & value);
+        new_val = (reg_tint_cstat & 0x3E0) + (0x1F & value);
         new_val &= ~(0x3E0 & value);
 
         for (i = 0; i < EXYNOS4210_PWM_TIMERS_NUM; i++) {
             if ((new_val & TINT_CSTAT_STATUS(i)) <
-                    (s->reg_tint_cstat & TINT_CSTAT_STATUS(i))) {
-                qemu_irq_lower(s->timer[i].irq);
+                    (reg_tint_cstat & TINT_CSTAT_STATUS(i))) {
+                qemu_irq_lower(timer[i].irq);
             }
         }
 
-        s->reg_tint_cstat = new_val;
+        reg_tint_cstat = new_val;
         break;
 
     default:
@@ -386,18 +401,18 @@ static void exynos4210_pwm_reset(DeviceState *d)
 void Exynos4210PWMState::reset()
 {
     int i;
-    this->reg_tcfg[0] = 0x0101;
-    this->reg_tcfg[1] = 0x0;
-    this->reg_tcon = 0;
-    this->reg_tint_cstat = 0;
+    reg_tcfg[0] = 0x0101;
+    reg_tcfg[1] = 0x0;
+    reg_tcon = 0;
+    reg_tint_cstat = 0;
     for (i = 0; i < EXYNOS4210_PWM_TIMERS_NUM; i++) {
-        this->timer[i].reg_tcmpb = 0;
-        this->timer[i].reg_tcntb = 0;
+        timer[i].reg_tcmpb = 0;
+        timer[i].reg_tcntb = 0;
 
-        ptimer_transaction_begin(this->timer[i].ptimer);
-        this->updateFreq(this->timer[i].id);
-        ptimer_stop(this->timer[i].ptimer);
-        ptimer_transaction_commit(this->timer[i].ptimer);
+        ptimer_transaction_begin(timer[i].ptimer);
+        updateFreq(timer[i].id);
+        ptimer_stop(timer[i].ptimer);
+        ptimer_transaction_commit(timer[i].ptimer);
     }
 }
 
@@ -422,17 +437,17 @@ void Exynos4210PWMState::init()
     int i;
 
     for (i = 0; i < EXYNOS4210_PWM_TIMERS_NUM; i++) {
-        sysbus_init_irq(dev, &this->timer[i].irq);
-        this->timer[i].ptimer = ptimer_init(Exynos4210PWMState::tick,
-                                         &this->timer[i],
-                                         PTIMER_POLICY_LEGACY);
-        this->timer[i].id = i;
-        this->timer[i].parent = this;
+        sysbus_init_irq(dev, &timer[i].irq);
+        timer[i].ptimer = ptimer_init(Exynos4210PWMState::tick,
+                                      &timer[i],
+                                      PTIMER_POLICY_LEGACY);
+        timer[i].id = i;
+        timer[i].parent = this;
     }
 
-    memory_region_init_io(&this->iomem, OBJECT(this), &exynos4210_pwm_ops, this,
+    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_pwm_ops, this,
                           "exynos4210-pwm", EXYNOS4210_PWM_REG_MEM_SIZE);
-    sysbus_init_mmio(dev, &this->iomem);
+    sysbus_init_mmio(dev, &iomem);
 }
 
 static void exynos4210_pwm_finalize(Object *obj)
@@ -446,7 +461,7 @@ void Exynos4210PWMState::finalize()
     int i;
 
     for (i = 0; i < EXYNOS4210_PWM_TIMERS_NUM; i++) {
-        ptimer_free(this->timer[i].ptimer);
+        ptimer_free(timer[i].ptimer);
     }
 }
 

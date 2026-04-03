@@ -67,6 +67,10 @@ struct Exynos4210ClkState {
     void instanceInit();
     void reset();
 
+    /* Instance MMIO methods */
+    uint64_t readReg(hwaddr offset, unsigned size);
+    void writeReg(hwaddr offset, uint64_t val, unsigned size);
+
     /* Static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t val,
@@ -79,13 +83,18 @@ struct Exynos4210ClkState {
 uint64_t Exynos4210ClkState::mmioRead(void *opaque, hwaddr offset,
                                        unsigned size)
 {
-    const Exynos4210ClkState *s = static_cast<Exynos4210ClkState *>(opaque);
+    Exynos4210ClkState *s = static_cast<Exynos4210ClkState *>(opaque);
+    return s->readReg(offset, size);
+}
+
+uint64_t Exynos4210ClkState::readReg(hwaddr offset, unsigned size)
+{
     const Exynos4210Reg *regs = exynos4210_clk_regs;
     unsigned int i;
 
     for (i = 0; i < EXYNOS4210_REGS_NUM; i++) {
         if (regs->offset == offset) {
-            return s->reg[i];
+            return reg[i];
         }
         regs++;
     }
@@ -98,12 +107,17 @@ void Exynos4210ClkState::mmioWrite(void *opaque, hwaddr offset,
                                     uint64_t val, unsigned size)
 {
     Exynos4210ClkState *s = static_cast<Exynos4210ClkState *>(opaque);
+    s->writeReg(offset, val, size);
+}
+
+void Exynos4210ClkState::writeReg(hwaddr offset, uint64_t val, unsigned size)
+{
     const Exynos4210Reg *regs = exynos4210_clk_regs;
     unsigned int i;
 
     for (i = 0; i < EXYNOS4210_REGS_NUM; i++) {
         if (regs->offset == offset) {
-            s->reg[i] = val;
+            reg[i] = val;
             return;
         }
         regs++;

@@ -89,6 +89,10 @@ struct Exynos4210RngState {
     void setSeed(unsigned int i, uint64_t val);
     void runEngine();
 
+    /* Instance MMIO methods */
+    uint64_t readReg(hwaddr offset, unsigned size);
+    void writeReg(hwaddr offset, uint64_t val, unsigned size);
+
     /* Static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t val,
@@ -160,17 +164,22 @@ uint64_t Exynos4210RngState::mmioRead(void *opaque, hwaddr offset,
                                        unsigned size)
 {
     Exynos4210RngState *s = static_cast<Exynos4210RngState *>(opaque);
+    return s->readReg(offset, size);
+}
+
+uint64_t Exynos4210RngState::readReg(hwaddr offset, unsigned size)
+{
     uint32_t val = 0;
 
     assert(size == 4);
 
     switch (offset) {
     case EXYNOS4210_RNG_CONTROL_1:
-        val = s->reg_control;
+        val = reg_control;
         break;
 
     case EXYNOS4210_RNG_STATUS:
-        val = s->reg_status;
+        val = reg_status;
         break;
 
     case EXYNOS4210_RNG_PRNG_OFFSET(0):
@@ -178,7 +187,7 @@ uint64_t Exynos4210RngState::mmioRead(void *opaque, hwaddr offset,
     case EXYNOS4210_RNG_PRNG_OFFSET(2):
     case EXYNOS4210_RNG_PRNG_OFFSET(3):
     case EXYNOS4210_RNG_PRNG_OFFSET(4):
-        val = s->randr_value[(offset - EXYNOS4210_RNG_PRNG_OFFSET(0)) / 4];
+        val = randr_value[(offset - EXYNOS4210_RNG_PRNG_OFFSET(0)) / 4];
         DPRINTF("returning random @0x%" HWADDR_PRIx ": 0x%" PRIx32 "\n",
                 offset, val);
         break;
@@ -196,20 +205,24 @@ void Exynos4210RngState::mmioWrite(void *opaque, hwaddr offset,
                                     uint64_t val, unsigned size)
 {
     Exynos4210RngState *s = static_cast<Exynos4210RngState *>(opaque);
+    s->writeReg(offset, val, size);
+}
 
+void Exynos4210RngState::writeReg(hwaddr offset, uint64_t val, unsigned size)
+{
     assert(size == 4);
 
     switch (offset) {
     case EXYNOS4210_RNG_CONTROL_1:
         DPRINTF("RNG_CONTROL_1 = 0x%" PRIx64 "\n", val);
-        s->reg_control = val;
-        s->runEngine();
+        reg_control = val;
+        runEngine();
         break;
 
     case EXYNOS4210_RNG_STATUS:
         /* For clearing status fields */
-        s->reg_status &= ~EXYNOS4210_RNG_STATUS_WRITE_MASK;
-        s->reg_status |= val & EXYNOS4210_RNG_STATUS_WRITE_MASK;
+        reg_status &= ~EXYNOS4210_RNG_STATUS_WRITE_MASK;
+        reg_status |= val & EXYNOS4210_RNG_STATUS_WRITE_MASK;
         break;
 
     case EXYNOS4210_RNG_SEED_IN_OFFSET(0):
@@ -217,7 +230,7 @@ void Exynos4210RngState::mmioWrite(void *opaque, hwaddr offset,
     case EXYNOS4210_RNG_SEED_IN_OFFSET(2):
     case EXYNOS4210_RNG_SEED_IN_OFFSET(3):
     case EXYNOS4210_RNG_SEED_IN_OFFSET(4):
-        s->setSeed((offset - EXYNOS4210_RNG_SEED_IN_OFFSET(0)) / 4, val);
+        setSeed((offset - EXYNOS4210_RNG_SEED_IN_OFFSET(0)) / 4, val);
         break;
 
     default:

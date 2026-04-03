@@ -75,7 +75,7 @@ struct TMP421State {
     static int tx(I2CSlave *i2c, uint8_t data);
     static int event(I2CSlave *i2c, enum i2c_event event);
     void reset();
-    void realize(DeviceState *dev, Error **errp);
+    void realize(Error **errp);
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -340,16 +340,15 @@ void TMP421State::reset()
     status = 0;
 }
 
-void TMP421State::realize(DeviceState *dev, Error **errp)
+void TMP421State::realize(Error **errp)
 {
-    TMP421State *s = TMP421(dev);
-    s->reset();
+    reset();
 }
 
 static void tmp421_realize_wrapper(DeviceState *dev, Error **errp)
 {
     TMP421State *s = TMP421(dev);
-    s->realize(dev, errp);
+    s->realize(errp);
 }
 
 void TMP421State::classInit(ObjectClass *klass, const void *data)
