@@ -1314,8 +1314,7 @@ void DWC2State::resetEnterImpl(Object *obj, ResetType type)
 
 static void dwc2_reset_enter(Object *obj, ResetType type)
 {
-    DWC2State *s = DWC2_USB(obj);
-    s->resetEnterImpl(obj, type);
+    reinterpret_cast<DWC2State *>(obj)->resetEnterImpl(obj, type);
 }
 
 void DWC2State::resetHoldImpl(Object *obj, ResetType type)
@@ -1334,8 +1333,7 @@ void DWC2State::resetHoldImpl(Object *obj, ResetType type)
 
 static void dwc2_reset_hold(Object *obj, ResetType type)
 {
-    DWC2State *s = DWC2_USB(obj);
-    s->resetHoldImpl(obj, type);
+    reinterpret_cast<DWC2State *>(obj)->resetHoldImpl(obj, type);
 }
 
 void DWC2State::resetExitImpl(Object *obj, ResetType type)
@@ -1358,8 +1356,7 @@ void DWC2State::resetExitImpl(Object *obj, ResetType type)
 
 static void dwc2_reset_exit(Object *obj, ResetType type)
 {
-    DWC2State *s = DWC2_USB(obj);
-    s->resetExitImpl(obj, type);
+    reinterpret_cast<DWC2State *>(obj)->resetExitImpl(obj, type);
 }
 
 void DWC2State::realizeImpl(DeviceState *dev, Error **errp)
@@ -1397,14 +1394,13 @@ void DWC2State::realizeImpl(DeviceState *dev, Error **errp)
 
 static void dwc2_realize(DeviceState *dev, Error **errp)
 {
-    DWC2State *s = DWC2_USB(dev);
-    s->realizeImpl(dev, errp);
+    reinterpret_cast<DWC2State *>(dev)->realizeImpl(dev, errp);
 }
 
 static void dwc2_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DWC2State *s = DWC2_USB(obj);
+    DWC2State *s = reinterpret_cast<DWC2State *>(obj);
 
     memory_region_init(&s->container, obj, "dwc2", DWC2_MMIO_SIZE);
     sysbus_init_mmio(sbd, &s->container);

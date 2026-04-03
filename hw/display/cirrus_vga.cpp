@@ -3036,7 +3036,7 @@ static const Property pci_vga_cirrus_properties[] = {
 
 void PCICirrusVGAState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    PCICirrusVGAState *d = PCI_CIRRUS_VGA(dev);
+    PCICirrusVGAState *d = reinterpret_cast<PCICirrusVGAState *>(dev);
     d->realize(errp);
 }
 

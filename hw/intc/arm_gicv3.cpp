@@ -474,8 +474,7 @@ void GICv3State::realize(DeviceState *dev, Error **errp)
 
 static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
-    GICv3State *s = ARM_GICV3(dev);
-    s->realize(dev, errp);
+    reinterpret_cast<GICv3State *>(dev)->realize(dev, errp);
 }
 
 void GICv3State::classInit(ObjectClass *klass, const void *data)

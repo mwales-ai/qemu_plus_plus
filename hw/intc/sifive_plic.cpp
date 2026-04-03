@@ -297,8 +297,7 @@ void SiFivePLICState::reset()
 
 static void sifive_plic_reset(DeviceState *dev)
 {
-    SiFivePLICState *s = SIFIVE_PLIC(dev);
-    s->reset();
+    reinterpret_cast<SiFivePLICState *>(dev)->reset();
 }
 
 /*
@@ -429,8 +428,7 @@ void SiFivePLICState::realize(Error **errp)
 
 static void sifive_plic_realize(DeviceState *dev, Error **errp)
 {
-    SiFivePLICState *s = SIFIVE_PLIC(dev);
-    s->realize(errp);
+    reinterpret_cast<SiFivePLICState *>(dev)->realize(errp);
 }
 
 static const VMStateField vmstate_sifive_plic_fields[] = {
@@ -527,7 +525,7 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
 
-    plic = SIFIVE_PLIC(dev);
+    plic = reinterpret_cast<SiFivePLICState *>(dev);
 
     for (i = 0; i < plic->num_addrs; i++) {
         int cpu_num = plic->addr_config[i].hartid;

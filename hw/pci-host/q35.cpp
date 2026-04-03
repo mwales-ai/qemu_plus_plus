@@ -58,7 +58,7 @@ void Q35PCIHost::getPciHoleStart(Object *obj, Visitor *v,
                                   const char *name, void *opaque,
                                   Error **errp)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    Q35PCIHost *s = reinterpret_cast<Q35PCIHost *>(obj);
     uint64_t val64;
     uint32_t value;
 
@@ -73,7 +73,7 @@ void Q35PCIHost::getPciHoleEnd(Object *obj, Visitor *v,
                                 const char *name, void *opaque,
                                 Error **errp)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    Q35PCIHost *s = reinterpret_cast<Q35PCIHost *>(obj);
     uint64_t val64;
     uint32_t value;
 
@@ -109,7 +109,7 @@ void Q35PCIHost::getPciHole64Start(Object *obj, Visitor *v,
                                     const char *name, void *opaque,
                                     Error **errp)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    Q35PCIHost *s = reinterpret_cast<Q35PCIHost *>(obj);
     uint64_t hole64_start = s->getPciHole64StartValue();
 
     visit_type_uint64(v, name, &hole64_start, errp);
@@ -126,7 +126,7 @@ void Q35PCIHost::getPciHole64End(Object *obj, Visitor *v,
                                   Error **errp)
 {
     PCIHostState *h = PCI_HOST_BRIDGE(obj);
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    Q35PCIHost *s = reinterpret_cast<Q35PCIHost *>(obj);
     uint64_t hole64_start = s->getPciHole64StartValue();
     Range w64;
     uint64_t value, hole64_end;
@@ -167,7 +167,7 @@ void Q35PCIHost::realize(DeviceState *dev, Error **errp)
 
 void Q35PCIHost::initInstance(Object *obj)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
+    Q35PCIHost *s = reinterpret_cast<Q35PCIHost *>(obj);
     PCIHostState *phb = PCI_HOST_BRIDGE(obj);
     PCIExpressHost *pehb = PCIE_HOST_BRIDGE(obj);
 
@@ -243,21 +243,18 @@ static const Property q35_host_props[] = {
 
 static void q35_host_realize(DeviceState *dev, Error **errp)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(dev);
-    s->realize(dev, errp);
+    reinterpret_cast<Q35PCIHost *>(dev)->realize(dev, errp);
 }
 
 static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
                                           PCIBus *rootbus)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(host_bridge);
-    return s->rootBusPath(rootbus);
+    return reinterpret_cast<Q35PCIHost *>(host_bridge)->rootBusPath(rootbus);
 }
 
 static void q35_host_initfn(Object *obj)
 {
-    Q35PCIHost *s = Q35_HOST_DEVICE(obj);
-    s->initInstance(obj);
+    reinterpret_cast<Q35PCIHost *>(obj)->initInstance(obj);
 }
 
 void Q35PCIHost::classInit(ObjectClass *klass, const void *data)
@@ -521,8 +518,7 @@ void MCHPCIState::writeConfig(uint32_t address, uint32_t val, int len)
 static void mch_write_config(PCIDevice *d,
                               uint32_t address, uint32_t val, int len)
 {
-    MCHPCIState *mch = MCH_PCI_DEVICE(d);
-    mch->writeConfig(address, val, len);
+    reinterpret_cast<MCHPCIState *>(d)->writeConfig(address, val, len);
 }
 
 void MCHPCIState::update()
@@ -594,9 +590,7 @@ void MCHPCIState::reset(PCIDevice *d)
 
 static void mch_reset(DeviceState *qdev)
 {
-    PCIDevice *d = PCI_DEVICE(qdev);
-    MCHPCIState *mch = MCH_PCI_DEVICE(d);
-    mch->reset(d);
+    reinterpret_cast<MCHPCIState *>(qdev)->reset(PCI_DEVICE(qdev));
 }
 
 void MCHPCIState::realize(PCIDevice *d, Error **errp)
@@ -702,8 +696,7 @@ static const Property mch_props[] = {
 
 static void mch_realize(PCIDevice *d, Error **errp)
 {
-    MCHPCIState *mch = MCH_PCI_DEVICE(d);
-    mch->realize(d, errp);
+    reinterpret_cast<MCHPCIState *>(d)->realize(d, errp);
 }
 
 void MCHPCIState::classInit(ObjectClass *klass, const void *data)

@@ -1427,7 +1427,7 @@ void SB16State::instanceInit(Object *obj)
 
 void SB16State::realizefnWrapper(DeviceState *dev, Error **errp)
 {
-    SB16(dev)->realize(errp);
+    reinterpret_cast<SB16State *>(dev)->realize(errp);
 }
 
 void SB16State::realize(Error **errp)

@@ -321,8 +321,7 @@ void RISCVAclintMTimerState::realize(Error **errp)
 
 static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
 {
-    RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(dev);
-    s->realize(errp);
+    reinterpret_cast<RISCVAclintMTimerState *>(dev)->realize(errp);
 }
 
 void RISCVAclintMTimerState::resetEnter(ResetType type)
@@ -342,8 +341,7 @@ void RISCVAclintMTimerState::resetEnter(ResetType type)
 
 static void riscv_aclint_mtimer_reset_enter(Object *obj, ResetType type)
 {
-    RISCVAclintMTimerState *mtimer = RISCV_ACLINT_MTIMER(obj);
-    mtimer->resetEnter(type);
+    reinterpret_cast<RISCVAclintMTimerState *>(obj)->resetEnter(type);
 }
 
 static const VMStateField vmstate_riscv_mtimer_fields[] = {
@@ -390,7 +388,7 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
 {
     int i;
     DeviceState *dev = qdev_new(TYPE_RISCV_ACLINT_MTIMER);
-    RISCVAclintMTimerState *s = RISCV_ACLINT_MTIMER(dev);
+    RISCVAclintMTimerState *s = reinterpret_cast<RISCVAclintMTimerState *>(dev);
 
     assert(num_harts <= RISCV_ACLINT_MAX_HARTS);
     assert(!(addr & 0x7));
@@ -541,8 +539,7 @@ void RISCVAclintSwiState::realize(Error **errp)
 
 static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)
 {
-    RISCVAclintSwiState *swi = RISCV_ACLINT_SWI(dev);
-    swi->realize(errp);
+    reinterpret_cast<RISCVAclintSwiState *>(dev)->realize(errp);
 }
 
 void RISCVAclintSwiState::resetEnter(ResetType type)
@@ -565,8 +562,7 @@ void RISCVAclintSwiState::resetEnter(ResetType type)
 
 static void riscv_aclint_swi_reset_enter(Object *obj, ResetType type)
 {
-    RISCVAclintSwiState *swi = RISCV_ACLINT_SWI(obj);
-    swi->resetEnter(type);
+    reinterpret_cast<RISCVAclintSwiState *>(obj)->resetEnter(type);
 }
 
 void RISCVAclintSwiState::classInit(ObjectClass *klass, const void *data)

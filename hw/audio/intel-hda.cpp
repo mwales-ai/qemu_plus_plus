@@ -994,8 +994,7 @@ static const MemoryRegionOps intel_hda_mmio_ops = {
 
 void IntelHDAState::resetWrapper(DeviceState *dev)
 {
-    IntelHDAState *d = INTEL_HDA(dev);
-    d->reset();
+    reinterpret_cast<IntelHDAState *>(dev)->reset();
 }
 
 void IntelHDAState::reset()
@@ -1016,8 +1015,7 @@ void IntelHDAState::reset()
 
 void IntelHDAState::realizeWrapper(PCIDevice *pci_dev, Error **errp)
 {
-    IntelHDAState *d = INTEL_HDA(pci_dev);
-    d->realize(errp);
+    reinterpret_cast<IntelHDAState *>(pci_dev)->realize(errp);
 }
 
 void IntelHDAState::realize(Error **errp)
@@ -1067,7 +1065,7 @@ void IntelHDAState::realize(Error **errp)
 
 static void intel_hda_exit(PCIDevice *pci)
 {
-    IntelHDAState *d = INTEL_HDA(pci);
+    IntelHDAState *d = reinterpret_cast<IntelHDAState *>(pci);
 
     msi_uninit(&d->pci);
 }
