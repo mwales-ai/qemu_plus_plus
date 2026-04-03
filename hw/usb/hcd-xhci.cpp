@@ -2776,7 +2776,7 @@ void XHCIState::reset()
 
 static void xhci_reset(DeviceState *dev)
 {
-    XHCIState *xhci = XHCI(dev);
+    XHCIState *xhci = reinterpret_cast<XHCIState *>(dev);
     xhci->reset();
 }
 
@@ -3001,7 +3001,7 @@ static uint64_t xhci_oper_read(void *ptr, hwaddr reg, unsigned size)
 static void xhci_oper_write(void *ptr, hwaddr reg,
                             uint64_t val, unsigned size)
 {
-    XHCIState *xhci = XHCI(ptr);
+    XHCIState *xhci = static_cast<XHCIState *>(ptr);
 
     trace_usb_xhci_oper_write(reg, val);
 
@@ -3478,7 +3478,7 @@ void XHCIState::realize(Error **errp)
 
 static void usb_xhci_realize(DeviceState *dev, Error **errp)
 {
-    XHCIState *xhci = XHCI(dev);
+    XHCIState *xhci = reinterpret_cast<XHCIState *>(dev);
     xhci->realize(errp);
 }
 
@@ -3512,7 +3512,7 @@ void XHCIState::unrealize()
 
 static void usb_xhci_unrealize(DeviceState *dev)
 {
-    XHCIState *xhci = XHCI(dev);
+    XHCIState *xhci = reinterpret_cast<XHCIState *>(dev);
     xhci->unrealize();
 }
 

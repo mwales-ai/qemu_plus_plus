@@ -1010,7 +1010,7 @@ void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq)
 
 static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
 
     if (!s->ioeventfd_disabled && !s->ioeventfd_started) {
         /* Some guests kick before setting VIRTIO_CONFIG_S_DRIVER_OK so start
@@ -1132,7 +1132,7 @@ void VirtIOBlock::reset()
 
 static void virtio_blk_reset(VirtIODevice *vdev)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
     s->reset();
 }
 
@@ -1140,7 +1140,7 @@ static void virtio_blk_reset(VirtIODevice *vdev)
  */
 static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
     BlockConf *conf = &s->conf.conf;
     BlockDriverState *bs = blk_bs(s->blk);
     struct virtio_blk_config blkcfg;
@@ -1231,7 +1231,7 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 
 static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
     struct virtio_blk_config blkcfg;
 
     memcpy(&blkcfg, config, s->config_size);
@@ -1242,7 +1242,7 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
 static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
                                         Error **errp)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
 
     /* Firstly sync all virtio-blk possible supported features */
     features |= s->host_features;
@@ -1274,7 +1274,7 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
 
 static int virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
 
     if (!(status & (VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_DRIVER_OK))) {
         assert(!s->ioeventfd_started);
@@ -1309,7 +1309,7 @@ static int virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 
 static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
 
     WITH_QEMU_LOCK_GUARD(&s->rq_lock) {
         VirtIOBlockReq *req = s->rq;
@@ -1332,7 +1332,7 @@ static void virtio_blk_save_device(VirtIODevice *vdev, QEMUFile *f)
 static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
                                   int version_id)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
 
     while (qemu_get_sbyte(f)) {
         unsigned nvqs = s->conf.num_queues;
@@ -1507,7 +1507,7 @@ void VirtIOBlock::vqAioContextCleanup()
 /* Context: BQL held */
 static int virtio_blk_start_ioeventfd(VirtIODevice *vdev)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(s)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     unsigned i;
@@ -1624,7 +1624,7 @@ static void virtio_blk_ioeventfd_stop_vq_bh(void *opaque)
 /* Context: BQL held */
 static void virtio_blk_stop_ioeventfd(VirtIODevice *vdev)
 {
-    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
     BusState *qbus = qdev_get_parent_bus(DEVICE(s));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     unsigned i;
@@ -1820,7 +1820,7 @@ void VirtIOBlock::realize(Error **errp)
 
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
-    VirtIOBlock *s = VIRTIO_BLK(dev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(dev);
     s->realize(errp);
 }
 
@@ -1847,7 +1847,7 @@ void VirtIOBlock::unrealize()
 
 static void virtio_blk_instance_init(Object *obj)
 {
-    VirtIOBlock *s = VIRTIO_BLK(obj);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(obj);
 
     device_add_bootindex_property(obj, &s->conf.conf.bootindex,
                                   "bootindex", "/disk@0,0",
@@ -1897,7 +1897,7 @@ static const Property virtio_blk_properties[] = {
 
 static void virtio_blk_device_unrealize(DeviceState *dev)
 {
-    VirtIOBlock *s = VIRTIO_BLK(dev);
+    VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(dev);
     s->unrealize();
 }
 

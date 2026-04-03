@@ -2324,7 +2324,7 @@ void MegasasState::softReset()
 
 void MegasasState::resetWrapper(DeviceState *dev)
 {
-    MegasasState *s = MEGASAS(dev);
+    MegasasState *s = reinterpret_cast<MegasasState *>(dev);
     s->reset();
 }
 
@@ -2373,7 +2373,7 @@ static const VMStateDescription vmstate_megasas_gen2 = {
 
 static void megasas_scsi_uninit(PCIDevice *d)
 {
-    MegasasState *s = MEGASAS(d);
+    MegasasState *s = reinterpret_cast<MegasasState *>(d);
 
     if (s->useMsix()) {
         msix_uninit(d, &s->mmio_io, &s->mmio_io);
@@ -2394,7 +2394,7 @@ static const struct SCSIBusInfo megasas_scsi_info = {
 
 void MegasasState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    MegasasState *s = MEGASAS(dev);
+    MegasasState *s = reinterpret_cast<MegasasState *>(dev);
     s->realize(dev, errp);
 }
 

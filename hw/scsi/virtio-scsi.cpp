@@ -999,7 +999,7 @@ static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
                                          uint64_t requested_features,
                                          Error **errp)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(vdev);
 
     /* Firstly sync all virtio-scsi possible supported features */
     requested_features |= s->host_features;
@@ -1028,7 +1028,7 @@ void VirtIOSCSI::reset(void)
 
 static void virtio_scsi_reset(VirtIODevice *vdev)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(vdev);
     s->reset();
 }
 
@@ -1113,7 +1113,7 @@ void VirtIOSCSI::handleEventVq(VirtQueue *vq)
 
 static void virtio_scsi_handle_event(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(vdev);
 
     if (s->deferToDataplane()) {
         return;
@@ -1153,7 +1153,7 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(vdev);
     AioContext *ctx = s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED];
     SCSIDevice *sd = SCSI_DEVICE(dev);
 
@@ -1185,7 +1185,7 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                   Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
-    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(vdev);
     SCSIDevice *sd = SCSI_DEVICE(dev);
     VirtIOSCSIEventInfo info = {
         .event   = VIRTIO_SCSI_T_TRANSPORT_RESET,
@@ -1354,7 +1354,7 @@ void VirtIOSCSI::realize(DeviceState *dev, Error **errp)
 
 static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(dev);
+    VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(dev);
     s->realize(dev, errp);
 }
 
@@ -1376,7 +1376,7 @@ void virtio_scsi_common_unrealize(DeviceState *dev)
 /* main loop */
 static void virtio_scsi_device_unrealize(DeviceState *dev)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(dev);
+    VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(dev);
 
     virtio_scsi_dataplane_cleanup(s);
     qbus_set_hotplug_handler(BUS(&s->bus), NULL);
