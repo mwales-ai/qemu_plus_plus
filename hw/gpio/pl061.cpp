@@ -84,6 +84,9 @@ struct PL061State {
     uint8_t pulldowns;
 
     /* methods */
+    uint8_t floating();
+    uint8_t getPullups();
+    void update();
     void realize(Error **errp);
     static void realizeWrapper(DeviceState *dev, Error **errp);
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
@@ -126,58 +129,58 @@ static const VMStateDescription vmstate_pl061 = {
     }
 };
 
-static uint8_t pl061_floating(PL061State *s)
+uint8_t PL061State::floating()
 {
     /*
      * Return mask of bits which correspond to pins configured as inputs
      * and which are floating (neither pulled up to 1 nor down to 0).
      */
-    uint8_t floating;
+    uint8_t f;
 
-    if (s->id == pl061_id_luminary) {
+    if (id == pl061_id_luminary) {
         /*
          * If both PUR and PDR bits are clear, there is neither a pullup
          * nor a pulldown in place, and the output truly floats.
          */
-        floating = ~(s->pur | s->pdr);
+        f = ~(pur | pdr);
     } else {
-        floating = ~(s->pullups | s->pulldowns);
+        f = ~(pullups | pulldowns);
     }
-    return floating & ~s->dir;
+    return f & ~dir;
 }
 
-static uint8_t pl061_pullups(PL061State *s)
+uint8_t PL061State::getPullups()
 {
     /*
      * Return mask of bits which correspond to pins configured as inputs
      * and which are pulled up to 1.
      */
-    uint8_t pullups;
+    uint8_t p;
 
-    if (s->id == pl061_id_luminary) {
+    if (id == pl061_id_luminary) {
         /*
          * The Luminary variant of the PL061 has an extra registers which
          * the guest can use to configure whether lines should be pullup
          * or pulldown.
          */
-        pullups = s->pur;
+        p = pur;
     } else {
-        pullups = s->pullups;
+        p = pullups;
     }
-    return pullups & ~s->dir;
+    return p & ~dir;
 }
 
-static void pl061_update(PL061State *s)
+void PL061State::update()
 {
     uint8_t changed;
     uint8_t mask;
     uint8_t out;
     int i;
-    uint8_t pullups = pl061_pullups(s);
-    uint8_t floating = pl061_floating(s);
+    uint8_t pu = getPullups();
+    uint8_t fl = floating();
 
-    trace_pl061_update(DEVICE(s)->canonical_path, s->dir, s->data,
-                       pullups, floating);
+    trace_pl061_update(DEVICE(this)->canonical_path, dir, data,
+                       pu, fl);
 
     /*
      * Pins configured as output are driven from the data register;
@@ -185,38 +188,38 @@ static void pl061_update(PL061State *s)
      * then we give them the same value they had previously, so we don't
      * report any change to the other end.
      */
-    out = (s->data & s->dir) | pullups | (s->old_out_data & floating);
-    changed = s->old_out_data ^ out;
+    out = (data & dir) | pu | (old_out_data & fl);
+    changed = old_out_data ^ out;
     if (changed) {
-        s->old_out_data = out;
+        old_out_data = out;
         for (i = 0; i < N_GPIOS; i++) {
             mask = 1 << i;
             if (changed & mask) {
                 int level = (out & mask) != 0;
-                trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
-                qemu_set_irq(s->out[i], level);
+                trace_pl061_set_output(DEVICE(this)->canonical_path, i, level);
+                qemu_set_irq(this->out[i], level);
             }
         }
     }
 
     /* Inputs */
-    changed = (s->old_in_data ^ s->data) & ~s->dir;
+    changed = (old_in_data ^ data) & ~dir;
     if (changed) {
-        s->old_in_data = s->data;
+        old_in_data = data;
         for (i = 0; i < N_GPIOS; i++) {
             mask = 1 << i;
             if (changed & mask) {
-                trace_pl061_input_change(DEVICE(s)->canonical_path, i,
-                                         (s->data & mask) != 0);
+                trace_pl061_input_change(DEVICE(this)->canonical_path, i,
+                                         (data & mask) != 0);
 
-                if (!(s->isense & mask)) {
+                if (!(isense & mask)) {
                     /* Edge interrupt */
-                    if (s->ibe & mask) {
+                    if (ibe & mask) {
                         /* Any edge triggers the interrupt */
-                        s->istate |= mask;
+                        istate |= mask;
                     } else {
                         /* Edge is selected by IEV */
-                        s->istate |= ~(s->data ^ s->iev) & mask;
+                        istate |= ~(data ^ iev) & mask;
                     }
                 }
             }
@@ -224,12 +227,12 @@ static void pl061_update(PL061State *s)
     }
 
     /* Level interrupt */
-    s->istate |= ~(s->data ^ s->iev) & s->isense;
+    istate |= ~(data ^ iev) & isense;
 
-    trace_pl061_update_istate(DEVICE(s)->canonical_path,
-                              s->istate, s->im, (s->istate & s->im) != 0);
+    trace_pl061_update_istate(DEVICE(this)->canonical_path,
+                              istate, im, (istate & im) != 0);
 
-    qemu_set_irq(s->irq, (s->istate & s->im) != 0);
+    qemu_set_irq(irq, (istate & im) != 0);
 }
 
 uint64_t PL061State::mmioRead(void *opaque, hwaddr offset,
@@ -358,7 +361,7 @@ void PL061State::mmioWrite(void *opaque, hwaddr offset,
     case 0 ... 0x3ff:
         mask = (offset >> 2) & s->dir;
         s->data = (s->data & ~mask) | (value & mask);
-        pl061_update(s);
+        s->update();
         return;
     case 0x400: /* Direction */
         s->dir = value & 0xff;
@@ -455,7 +458,7 @@ void PL061State::mmioWrite(void *opaque, hwaddr offset,
                       "pl061_write: Bad offset %x\n", (int)offset);
         return;
     }
-    pl061_update(s);
+    s->update();
 }
 
 void PL061State::enterReset(Object *obj, ResetType type)
@@ -500,18 +503,18 @@ void PL061State::holdReset(Object *obj, ResetType type)
 {
     PL061State *s = PL061(obj);
     int i, level;
-    uint8_t floating = pl061_floating(s);
-    uint8_t pullups = pl061_pullups(s);
+    uint8_t fl = s->floating();
+    uint8_t pu = s->getPullups();
 
     for (i = 0; i < N_GPIOS; i++) {
-        if (extract32(floating, i, 1)) {
+        if (extract32(fl, i, 1)) {
             continue;
         }
-        level = extract32(pullups, i, 1);
+        level = extract32(pu, i, 1);
         trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
         qemu_set_irq(s->out[i], level);
     }
-    s->old_out_data = pullups;
+    s->old_out_data = pu;
 }
 
 void PL061State::setIrq(void *opaque, int irq, int level)
@@ -524,7 +527,7 @@ void PL061State::setIrq(void *opaque, int irq, int level)
         s->data &= ~mask;
         if (level)
             s->data |= mask;
-        pl061_update(s);
+        s->update();
     }
 }
 

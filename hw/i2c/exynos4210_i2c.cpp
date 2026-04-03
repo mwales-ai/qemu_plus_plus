@@ -102,12 +102,13 @@ struct Exynos4210I2CState {
     bool scl_free;
 
     void raiseInterrupt();
-    static void dataReceive(void *opaque);
-    static void dataSend(void *opaque);
+    void dataReceive();
+    void dataSend();
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
                           unsigned size);
     void reset();
+    static void resetWrapper(DeviceState *d);
     static void initfn(Object *obj);
     static void classInit(ObjectClass *klass, const void *data);
 };
@@ -120,26 +121,22 @@ void Exynos4210I2CState::raiseInterrupt()
     }
 }
 
-void Exynos4210I2CState::dataReceive(void *opaque)
+void Exynos4210I2CState::dataReceive()
 {
-    Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
-
-    s->i2cstat &= ~I2CSTAT_LAST_BIT;
-    s->scl_free = false;
-    s->i2cds = i2c_recv(s->bus);
-    s->raiseInterrupt();
+    i2cstat &= ~I2CSTAT_LAST_BIT;
+    scl_free = false;
+    i2cds = i2c_recv(bus);
+    raiseInterrupt();
 }
 
-void Exynos4210I2CState::dataSend(void *opaque)
+void Exynos4210I2CState::dataSend()
 {
-    Exynos4210I2CState *s = static_cast<Exynos4210I2CState *>(opaque);
-
-    s->i2cstat &= ~I2CSTAT_LAST_BIT;
-    s->scl_free = false;
-    if (i2c_send(s->bus, s->i2cds) < 0 && (s->i2ccon & I2CCON_ACK_GEN)) {
-        s->i2cstat |= I2CSTAT_LAST_BIT;
+    i2cstat &= ~I2CSTAT_LAST_BIT;
+    scl_free = false;
+    if (i2c_send(bus, i2cds) < 0 && (i2ccon & I2CCON_ACK_GEN)) {
+        i2cstat |= I2CSTAT_LAST_BIT;
     }
-    s->raiseInterrupt();
+    raiseInterrupt();
 }
 
 uint64_t Exynos4210I2CState::mmioRead(void *opaque, hwaddr offset,
@@ -164,7 +161,7 @@ uint64_t Exynos4210I2CState::mmioRead(void *opaque, hwaddr offset,
         if (EXYNOS4_I2C_MODE(s->i2cstat) == I2CMODE_MASTER_Rx &&
                (s->i2cstat & I2CSTAT_START_BUSY) &&
                !(s->i2ccon & I2CCON_INT_PEND)) {
-            Exynos4210I2CState::dataReceive(s);
+            s->dataReceive();
         }
         break;
     case I2CLC_ADDR:
@@ -203,10 +200,10 @@ void Exynos4210I2CState::mmioWrite(void *opaque, hwaddr offset,
             if (s->i2cstat & I2CSTAT_START_BUSY) {
                 if (s->scl_free) {
                     if (EXYNOS4_I2C_MODE(s->i2cstat) == I2CMODE_MASTER_Tx) {
-                        Exynos4210I2CState::dataSend(s);
+                        s->dataSend();
                     } else if (EXYNOS4_I2C_MODE(s->i2cstat) ==
                             I2CMODE_MASTER_Rx) {
-                        Exynos4210I2CState::dataReceive(s);
+                        s->dataReceive();
                     }
                 } else {
                     s->i2ccon |= I2CCON_INT_PEND;
@@ -241,7 +238,7 @@ void Exynos4210I2CState::mmioWrite(void *opaque, hwaddr offset,
                     (s->i2ccon & I2CCON_ACK_GEN)) {
                 s->i2cstat |= I2CSTAT_LAST_BIT;
             } else if (EXYNOS4_I2C_MODE(s->i2cstat) == I2CMODE_MASTER_Rx) {
-                Exynos4210I2CState::dataReceive(s);
+                s->dataReceive();
             }
             s->raiseInterrupt();
         } else {
@@ -264,7 +261,7 @@ void Exynos4210I2CState::mmioWrite(void *opaque, hwaddr offset,
             if (EXYNOS4_I2C_MODE(s->i2cstat) == I2CMODE_MASTER_Tx &&
                     (s->i2cstat & I2CSTAT_START_BUSY) &&
                     !(s->i2ccon & I2CCON_INT_PEND)) {
-                Exynos4210I2CState::dataSend(s);
+                s->dataSend();
             }
         }
         break;
@@ -300,7 +297,7 @@ static const VMStateDescription exynos4210_i2c_vmstate = {
     .fields = vmstate_exynos4210_i2c_fields,
 };
 
-static void exynos4210_i2c_reset_wrapper(DeviceState *d)
+void Exynos4210I2CState::resetWrapper(DeviceState *d)
 {
     Exynos4210I2CState *s = EXYNOS4_I2C(d);
     s->reset();
@@ -334,7 +331,7 @@ void Exynos4210I2CState::classInit(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &exynos4210_i2c_vmstate;
-    device_class_set_legacy_reset(dc, exynos4210_i2c_reset_wrapper);
+    device_class_set_legacy_reset(dc, resetWrapper);
 }
 
 static const TypeInfo exynos4210_i2c_type_info = {

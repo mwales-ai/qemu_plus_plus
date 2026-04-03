@@ -99,7 +99,9 @@ struct MPCI2CState {
     static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
     static void mmioWrite(void *opaque, hwaddr addr, uint64_t value,
                           unsigned size);
-    void realize(DeviceState *dev, Error **errp);
+    void realize(Error **errp);
+    static void resetWrapper(DeviceState *dev);
+    static void realizeWrapper(DeviceState *dev, Error **errp);
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -128,7 +130,7 @@ bool MPCI2CState::irqIsEnabled()
     return cr & CCR_MIEN;
 }
 
-static void mpc_i2c_reset_wrapper(DeviceState *dev)
+void MPCI2CState::resetWrapper(DeviceState *dev)
 {
     MPCI2CState *i2c = MPC_I2C(dev);
     i2c->reset();
@@ -345,20 +347,22 @@ static const VMStateDescription mpc_i2c_vmstate = {
     }
 };
 
-void MPCI2CState::realize(DeviceState *dev, Error **errp)
+void MPCI2CState::realize(Error **errp)
 {
-    MPCI2CState *i2c = MPC_I2C(dev);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &i2c->irq);
-    memory_region_init_io(&i2c->iomem, OBJECT(i2c), &i2c_ops, i2c,
+    DeviceState *dev = DEVICE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+
+    sysbus_init_irq(sbd, &irq);
+    memory_region_init_io(&iomem, OBJECT(this), &i2c_ops, this,
                           "mpc-i2c", 0x15);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &i2c->iomem);
-    i2c->bus = i2c_init_bus(dev, "i2c");
+    sysbus_init_mmio(sbd, &iomem);
+    bus = i2c_init_bus(dev, "i2c");
 }
 
-static void mpc_i2c_realize_wrapper(DeviceState *dev, Error **errp)
+void MPCI2CState::realizeWrapper(DeviceState *dev, Error **errp)
 {
     MPCI2CState *s = MPC_I2C(dev);
-    s->realize(dev, errp);
+    s->realize(errp);
 }
 
 void MPCI2CState::classInit(ObjectClass *klass, const void *data)
@@ -366,8 +370,8 @@ void MPCI2CState::classInit(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd  = &mpc_i2c_vmstate ;
-    device_class_set_legacy_reset(dc, mpc_i2c_reset_wrapper);
-    dc->realize = mpc_i2c_realize_wrapper;
+    device_class_set_legacy_reset(dc, resetWrapper);
+    dc->realize = realizeWrapper;
     dc->desc = "MPC I2C Controller";
 }
 

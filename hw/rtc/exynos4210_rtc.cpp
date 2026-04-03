@@ -122,6 +122,10 @@ struct Exynos4210RTCState {
     void initfn();
     void finalize();
 
+    /* helper methods */
+    static int getDaysInMonth(int month, int year);
+    static void nextSecond(struct tm *tm);
+
     /* static callbacks */
     static void tickHandler(void *opaque);
     static void tick1HzHandler(void *opaque);
@@ -232,7 +236,7 @@ void Exynos4210RTCState::updateFreq(uint32_t reg_value)
 }
 
 /* month is between 0 and 11. */
-static int get_days_in_month(int month, int year)
+int Exynos4210RTCState::getDaysInMonth(int month, int year)
 {
     static const int days_tab[12] = {
         31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
@@ -251,7 +255,7 @@ static int get_days_in_month(int month, int year)
 }
 
 /* update 'tm' to the next second */
-static void rtc_next_second(struct tm *tm)
+void Exynos4210RTCState::nextSecond(struct tm *tm)
 {
     int days_in_month;
 
@@ -269,8 +273,8 @@ static void rtc_next_second(struct tm *tm)
                 if ((unsigned)tm->tm_wday >= 7) {
                     tm->tm_wday = 0;
                 }
-                days_in_month = get_days_in_month(tm->tm_mon,
-                                                  tm->tm_year + 1900);
+                days_in_month = getDaysInMonth(tm->tm_mon,
+                                               tm->tm_year + 1900);
                 tm->tm_mday++;
                 if (tm->tm_mday < 1) {
                     tm->tm_mday = 1;
@@ -312,7 +316,7 @@ void Exynos4210RTCState::tick1HzHandler(void *opaque)
 {
     Exynos4210RTCState *s = static_cast<Exynos4210RTCState *>(opaque);
 
-    rtc_next_second(&s->current_tm);
+    nextSecond(&s->current_tm);
     /* DPRINTF("1Hz tick\n"); */
 
     /* raise IRQ */
