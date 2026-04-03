@@ -431,7 +431,7 @@ e1000e_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
 void E1000EState::writeConfig(PCIDevice *pci_dev, uint32_t address,
                                uint32_t val, int len)
 {
-    E1000EState *s = E1000E(pci_dev);
+    E1000EState *s = reinterpret_cast<E1000EState *>(pci_dev);
 
     pci_default_write_config(pci_dev, address, val, len);
 
@@ -443,8 +443,7 @@ void E1000EState::writeConfig(PCIDevice *pci_dev, uint32_t address,
 
 static void e1000e_pci_realize_wrapper(PCIDevice *pci_dev, Error **errp)
 {
-    E1000EState *s = E1000E(pci_dev);
-    s->realize(pci_dev, errp);
+    reinterpret_cast<E1000EState *>(pci_dev)->realize(pci_dev, errp);
 }
 
 void E1000EState::realize(PCIDevice *pci_dev, Error **errp)
@@ -535,8 +534,7 @@ void E1000EState::realize(PCIDevice *pci_dev, Error **errp)
 
 static void e1000e_pci_uninit_wrapper(PCIDevice *pci_dev)
 {
-    E1000EState *s = E1000E(pci_dev);
-    s->uninit(pci_dev);
+    reinterpret_cast<E1000EState *>(pci_dev)->uninit(pci_dev);
 }
 
 void E1000EState::uninit(PCIDevice *pci_dev)
@@ -556,8 +554,7 @@ void E1000EState::uninit(PCIDevice *pci_dev)
 
 static void e1000e_qdev_reset_hold_wrapper(Object *obj, ResetType type)
 {
-    E1000EState *s = E1000E(obj);
-    s->resetHold(obj, type);
+    reinterpret_cast<E1000EState *>(obj)->resetHold(obj, type);
 }
 
 void E1000EState::resetHold(Object *obj, ResetType type)
@@ -762,8 +759,7 @@ void E1000EState::classInit(ObjectClass *klass, const void *data)
 
 static void e1000e_instance_init_wrapper(Object *obj)
 {
-    E1000EState *s = E1000E(obj);
-    s->instanceInit(obj);
+    reinterpret_cast<E1000EState *>(obj)->instanceInit(obj);
 }
 
 void E1000EState::instanceInit(Object *obj)

@@ -37,11 +37,16 @@
 
 #define MAX_PORTS 8
 
-typedef struct USBHubPort {
+struct USBHubPort {
     USBPort port;
     uint16_t wPortStatus;
     uint16_t wPortChange;
-} USBHubPort;
+
+    bool portChange(uint16_t status);
+    bool portSet(uint16_t status);
+    bool portClear(uint16_t status);
+    bool portUpdate(void);
+};
 
 struct USBHubState {
     USBDevice dev;
@@ -195,45 +200,45 @@ static const uint8_t qemu_hub_hub_descriptor[] =
         /* DeviceRemovable and PortPwrCtrlMask patched in later */
 };
 
-static bool usb_hub_port_change(USBHubPort *port, uint16_t status)
+bool USBHubPort::portChange(uint16_t status)
 {
     bool notify = false;
 
     if (status & 0x1f) {
-        port->wPortChange |= status;
+        wPortChange |= status;
         notify = true;
     }
     return notify;
 }
 
-static bool usb_hub_port_set(USBHubPort *port, uint16_t status)
+bool USBHubPort::portSet(uint16_t status)
 {
-    if (port->wPortStatus & status) {
+    if (wPortStatus & status) {
         return false;
     }
-    port->wPortStatus |= status;
-    return usb_hub_port_change(port, status);
+    wPortStatus |= status;
+    return portChange(status);
 }
 
-static bool usb_hub_port_clear(USBHubPort *port, uint16_t status)
+bool USBHubPort::portClear(uint16_t status)
 {
-    if (!(port->wPortStatus & status)) {
+    if (!(wPortStatus & status)) {
         return false;
     }
-    port->wPortStatus &= ~status;
-    return usb_hub_port_change(port, status);
+    wPortStatus &= ~status;
+    return portChange(status);
 }
 
-static bool usb_hub_port_update(USBHubPort *port)
+bool USBHubPort::portUpdate(void)
 {
     bool notify = false;
 
-    if (port->port.dev && port->port.dev->attached) {
-        notify = usb_hub_port_set(port, PORT_STAT_CONNECTION);
-        if (port->port.dev->speed == USB_SPEED_LOW) {
-            usb_hub_port_set(port, PORT_STAT_LOW_SPEED);
+    if (port.dev && port.dev->attached) {
+        notify = portSet(PORT_STAT_CONNECTION);
+        if (port.dev->speed == USB_SPEED_LOW) {
+            portSet(PORT_STAT_LOW_SPEED);
         } else {
-            usb_hub_port_clear(port, PORT_STAT_LOW_SPEED);
+            portClear(PORT_STAT_LOW_SPEED);
         }
     }
     return notify;
@@ -246,7 +251,7 @@ void USBHubState::portUpdateTimer(void *opaque)
     int i;
 
     for (i = 0; i < s->num_ports; i++) {
-        notify |= usb_hub_port_update(&s->ports[i]);
+        notify |= s->ports[i].portUpdate();
     }
     if (notify) {
         usb_wakeup(s->intr, 0);
@@ -259,7 +264,7 @@ void USBHubState::portAttach(USBPort *port1)
     USBHubPort *port = &s->ports[port1->index];
 
     trace_usb_hub_attach(s->dev.addr, port1->index + 1);
-    usb_hub_port_update(port);
+    port->portUpdate();
     usb_wakeup(s->intr, 0);
 }
 
@@ -274,9 +279,9 @@ void USBHubState::portDetach(USBPort *port1)
     /* Let upstream know the device on this port is gone */
     s->dev.port->ops->child_detach(s->dev.port, port1->dev);
 
-    usb_hub_port_clear(port, PORT_STAT_CONNECTION);
-    usb_hub_port_clear(port, PORT_STAT_ENABLE);
-    usb_hub_port_clear(port, PORT_STAT_SUSPEND);
+    port->portClear(PORT_STAT_CONNECTION);
+    port->portClear(PORT_STAT_ENABLE);
+    port->portClear(PORT_STAT_SUSPEND);
     usb_wakeup(s->intr, 0);
 }
 
@@ -293,7 +298,7 @@ void USBHubState::portWakeup(USBPort *port1)
     USBHubState *s = static_cast<USBHubState *>(port1->opaque);
     USBHubPort *port = &s->ports[port1->index];
 
-    if (usb_hub_port_clear(port, PORT_STAT_SUSPEND)) {
+    if (port->portClear(PORT_STAT_SUSPEND)) {
         usb_wakeup(s->intr, 0);
     }
 }
@@ -346,8 +351,8 @@ void USBHubState::handleReset(USBDevice *dev)
         port = s->ports + i;
         port->wPortStatus = 0;
         port->wPortChange = 0;
-        usb_hub_port_set(port, PORT_STAT_POWER);
-        usb_hub_port_update(port);
+        port->portSet(PORT_STAT_POWER);
+        port->portUpdate();
     }
 }
 
@@ -449,18 +454,18 @@ void USBHubState::handleControl(USBDevice *dev, USBPacket *p,
                 port->wPortStatus |= PORT_STAT_SUSPEND;
                 break;
             case PORT_RESET:
-                usb_hub_port_set(port, PORT_STAT_RESET);
-                usb_hub_port_clear(port, PORT_STAT_RESET);
+                port->portSet(PORT_STAT_RESET);
+                port->portClear(PORT_STAT_RESET);
                 if (pdev && pdev->attached) {
                     usb_device_reset(pdev);
-                    usb_hub_port_set(port, PORT_STAT_ENABLE);
+                    port->portSet(PORT_STAT_ENABLE);
                 }
                 usb_wakeup(s->intr, 0);
                 break;
             case PORT_POWER:
                 if (s->port_power) {
                     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-                    usb_hub_port_set(port, PORT_STAT_POWER);
+                    port->portSet(PORT_STAT_POWER);
                     timer_mod(s->port_timer, now + 5000000); /* 5 ms */
                 }
                 break;
@@ -489,7 +494,7 @@ void USBHubState::handleControl(USBDevice *dev, USBPacket *p,
                 port->wPortChange &= ~PORT_STAT_C_ENABLE;
                 break;
             case PORT_SUSPEND:
-                usb_hub_port_clear(port, PORT_STAT_SUSPEND);
+                port->portClear(PORT_STAT_SUSPEND);
                 break;
             case PORT_C_SUSPEND:
                 port->wPortChange &= ~PORT_STAT_C_SUSPEND;
@@ -505,10 +510,10 @@ void USBHubState::handleControl(USBDevice *dev, USBPacket *p,
                 break;
             case PORT_POWER:
                 if (s->port_power) {
-                    usb_hub_port_clear(port, PORT_STAT_POWER);
-                    usb_hub_port_clear(port, PORT_STAT_CONNECTION);
-                    usb_hub_port_clear(port, PORT_STAT_ENABLE);
-                    usb_hub_port_clear(port, PORT_STAT_SUSPEND);
+                    port->portClear(PORT_STAT_POWER);
+                    port->portClear(PORT_STAT_CONNECTION);
+                    port->portClear(PORT_STAT_ENABLE);
+                    port->portClear(PORT_STAT_SUSPEND);
                     port->wPortChange = 0;
                 }
                 break;

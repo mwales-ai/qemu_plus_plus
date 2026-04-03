@@ -1294,7 +1294,7 @@ void RTL8139State::rtl8139_reset_phy()
 
 void RTL8139State::resetWrapper(DeviceState *d)
 {
-    RTL8139(d)->reset();
+    reinterpret_cast<RTL8139State *>(d)->reset();
 }
 
 void RTL8139State::reset()
@@ -3466,7 +3466,7 @@ static void rtl8139_timer(void *opaque)
 
 static void pci_rtl8139_uninit(PCIDevice *dev)
 {
-    RTL8139State *s = RTL8139(dev);
+    RTL8139State *s = reinterpret_cast<RTL8139State *>(dev);
 
     g_free(s->cplus_txbuffer);
     s->cplus_txbuffer = NULL;
@@ -3498,7 +3498,7 @@ static NetClientInfo net_rtl8139_info = {
 
 void RTL8139State::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    RTL8139(dev)->realize(errp);
+    reinterpret_cast<RTL8139State *>(dev)->realize(errp);
 }
 
 void RTL8139State::realize(Error **errp)
@@ -3549,7 +3549,7 @@ void RTL8139State::realize(Error **errp)
 
 void RTL8139State::instanceInit(Object *obj)
 {
-    RTL8139State *s = RTL8139(obj);
+    RTL8139State *s = reinterpret_cast<RTL8139State *>(obj);
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",

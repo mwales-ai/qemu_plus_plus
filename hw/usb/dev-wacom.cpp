@@ -59,8 +59,6 @@ struct USBWacomState {
     /* methods */
     int mousePoll(uint8_t *buf, int len);
     int wacomPoll(uint8_t *buf, int len);
-    void doRealize(USBDevice *dev, Error **errp);
-    void doUnrealize(USBDevice *dev);
 
     /* static callbacks */
     static void mouseEvent(void *opaque,
@@ -72,6 +70,8 @@ struct USBWacomState {
                               int request, int value, int index,
                               int length, uint8_t *data);
     static void handleData(USBDevice *dev, USBPacket *p);
+    static void realize(USBDevice *dev, Error **errp);
+    static void unrealize(USBDevice *dev);
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -428,9 +428,9 @@ void USBWacomState::handleData(USBDevice *dev, USBPacket *p)
     }
 }
 
-void USBWacomState::doUnrealize(USBDevice *dev)
+void USBWacomState::unrealize(USBDevice *dev)
 {
-    USBWacomState *s = (USBWacomState *) dev;
+    USBWacomState *s = USB_WACOM(dev);
 
     if (s->mouse_grabbed) {
         qemu_remove_mouse_event_handler(s->eh_entry);
@@ -438,25 +438,13 @@ void USBWacomState::doUnrealize(USBDevice *dev)
     }
 }
 
-static void usb_wacom_unrealize(USBDevice *dev)
-{
-    USBWacomState *s = USB_WACOM(dev);
-    s->doUnrealize(dev);
-}
-
-void USBWacomState::doRealize(USBDevice *dev, Error **errp)
+void USBWacomState::realize(USBDevice *dev, Error **errp)
 {
     USBWacomState *s = USB_WACOM(dev);
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     s->changed = 1;
-}
-
-static void usb_wacom_realize(USBDevice *dev, Error **errp)
-{
-    USBWacomState *s = USB_WACOM(dev);
-    s->doRealize(dev, errp);
 }
 
 static const VMStateDescription vmstate_usb_wacom = {
@@ -471,11 +459,11 @@ void USBWacomState::classInit(ObjectClass *klass, const void *data)
 
     uc->product_desc   = "QEMU PenPartner Tablet";
     uc->usb_desc       = &desc_wacom;
-    uc->realize        = usb_wacom_realize;
+    uc->realize        = USBWacomState::realize;
     uc->handle_reset   = USBWacomState::handleReset;
     uc->handle_control = USBWacomState::handleControl;
     uc->handle_data    = USBWacomState::handleData;
-    uc->unrealize      = usb_wacom_unrealize;
+    uc->unrealize      = USBWacomState::unrealize;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "QEMU PenPartner Tablet";
     dc->vmsd = &vmstate_usb_wacom;

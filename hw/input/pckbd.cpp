@@ -821,7 +821,7 @@ static const MemoryRegionOps i8042_cmd_ops = {
 
 static void i8042_set_kbd_irq(void *opaque, int n, int level)
 {
-    ISAKBDState *s = I8042(opaque);
+    ISAKBDState *s = reinterpret_cast<ISAKBDState *>(opaque);
     KBDState *ks = &s->kbd;
 
     KBDState::updateKbdIrq(ks, level);
@@ -829,7 +829,7 @@ static void i8042_set_kbd_irq(void *opaque, int n, int level)
 
 static void i8042_set_mouse_irq(void *opaque, int n, int level)
 {
-    ISAKBDState *s = I8042(opaque);
+    ISAKBDState *s = reinterpret_cast<ISAKBDState *>(opaque);
     KBDState *ks = &s->kbd;
 
     KBDState::updateAuxIrq(ks, level);
@@ -844,13 +844,13 @@ static void i8042_reset_impl(ISAKBDState *s)
 
 static void i8042_reset(DeviceState *dev)
 {
-    ISAKBDState *s = I8042(dev);
+    ISAKBDState *s = reinterpret_cast<ISAKBDState *>(dev);
     i8042_reset_impl(s);
 }
 
 static void i8042_initfn(Object *obj)
 {
-    ISAKBDState *isa_s = I8042(obj);
+    ISAKBDState *isa_s = reinterpret_cast<ISAKBDState *>(obj);
     KBDState *s = &isa_s->kbd;
 
     memory_region_init_io(isa_s->io + 0, obj, &i8042_data_ops, s,
@@ -921,7 +921,7 @@ static void i8042_realizefn_impl(ISAKBDState *isa_s, DeviceState *dev, Error **e
 
 static void i8042_build_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
-    ISAKBDState *isa_s = I8042(adev);
+    ISAKBDState *isa_s = reinterpret_cast<ISAKBDState *>(adev);
     Aml *kbd;
     Aml *mou;
     Aml *crs;
@@ -957,7 +957,7 @@ static const Property i8042_properties[] = {
 
 static void i8042_realizefn(DeviceState *dev, Error **errp)
 {
-    ISAKBDState *isa_s = I8042(dev);
+    ISAKBDState *isa_s = reinterpret_cast<ISAKBDState *>(dev);
     i8042_realizefn_impl(isa_s, dev, errp);
 }
 

@@ -1279,14 +1279,14 @@ void virtio_gpu_update_scanout(VirtIOGPU *g,
 extern "C"
 void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
 {
-    VirtIOGPU *g = VIRTIO_GPU(qdev);
+    VirtIOGPU *g = reinterpret_cast<VirtIOGPU *>(qdev);
     g->realize(qdev, errp);
 }
 
 extern "C"
 void virtio_gpu_reset(VirtIODevice *vdev)
 {
-    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPU *g = reinterpret_cast<VirtIOGPU *>(vdev);
     g->reset();
 }
 
@@ -1296,13 +1296,13 @@ void virtio_gpu_reset(VirtIODevice *vdev)
 
 static void virtio_gpu_handle_ctrl_cb(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPU *g = reinterpret_cast<VirtIOGPU *>(vdev);
     qemu_bh_schedule(g->ctrl_bh);
 }
 
 static void virtio_gpu_handle_cursor_cb(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPU *g = reinterpret_cast<VirtIOGPU *>(vdev);
     qemu_bh_schedule(g->cursor_bh);
 }
 
@@ -1316,7 +1316,7 @@ static void virtio_gpu_handle_gl_flushed(VirtIOGPUBase *b)
 
 static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPU *g = reinterpret_cast<VirtIOGPU *>(vdev);
     struct virtio_gpu_ctrl_command *cmd;
 
     if (!virtio_queue_ready(vq)) {
@@ -1345,7 +1345,7 @@ static void virtio_gpu_ctrl_bh(void *opaque)
 
 static void virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq)
 {
-    VirtIOGPU *g = VIRTIO_GPU(vdev);
+    VirtIOGPU *g = reinterpret_cast<VirtIOGPU *>(vdev);
     VirtQueueElement *elem;
     size_t s;
     struct virtio_gpu_update_cursor cursor_info;
@@ -1674,7 +1674,7 @@ static int virtio_gpu_post_load(void *opaque, int version_id)
 
 static void virtio_gpu_device_unrealize(DeviceState *qdev)
 {
-    VirtIOGPU *g = VIRTIO_GPU(qdev);
+    VirtIOGPU *g = reinterpret_cast<VirtIOGPU *>(qdev);
 
     g_clear_pointer(&g->ctrl_bh, qemu_bh_delete);
     g_clear_pointer(&g->cursor_bh, qemu_bh_delete);
@@ -1685,7 +1685,7 @@ static void virtio_gpu_device_unrealize(DeviceState *qdev)
 
 static void virtio_gpu_reset_bh(void *opaque)
 {
-    VirtIOGPU *g = VIRTIO_GPU(opaque);
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     VirtIOGPUClass *vgc = VIRTIO_GPU_GET_CLASS(g);
     struct virtio_gpu_simple_resource *res, *tmp;
     uint32_t resource_id;
@@ -1736,7 +1736,7 @@ virtio_gpu_set_config(VirtIODevice *vdev, const uint8_t *config)
 
 static bool virtio_gpu_blob_state_needed(void *opaque)
 {
-    VirtIOGPU *g = VIRTIO_GPU(opaque);
+    VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
 
     return virtio_gpu_blob_enabled(g->parent_obj.conf);
 }

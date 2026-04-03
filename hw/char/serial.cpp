@@ -980,13 +980,12 @@ void SerialState::realize(Error **errp)
 /* QOM realize callback wrapper */
 static void serial_realize(DeviceState *dev, Error **errp)
 {
-    SerialState *s = SERIAL(dev);
-    s->realize(errp);
+    reinterpret_cast<SerialState *>(dev)->realize(errp);
 }
 
 static void serial_unrealize(DeviceState *dev)
 {
-    SerialState *s = SERIAL(dev);
+    SerialState *s = reinterpret_cast<SerialState *>(dev);
 
     qemu_chr_fe_deinit(&s->chr, false);
 

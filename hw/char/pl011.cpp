@@ -551,9 +551,7 @@ static void pl011_event(void *opaque, QEMUChrEvent event)
 
 static void pl011_clock_update(void *opaque, ClockEvent event)
 {
-    PL011State *s = PL011(opaque);
-
-    s->traceBaudrateChange();
+    static_cast<PL011State *>(opaque)->traceBaudrateChange();
 }
 
 static const MemoryRegionOps pl011_ops = {
@@ -565,9 +563,7 @@ static const MemoryRegionOps pl011_ops = {
 
 static bool pl011_clock_needed(void *opaque)
 {
-    PL011State *s = PL011(opaque);
-
-    return s->migrate_clk;
+    return static_cast<PL011State *>(opaque)->migrate_clk;
 }
 
 static const VMStateField vmstate_pl011_clock_fields[] = {
@@ -652,7 +648,7 @@ static const Property pl011_properties[] = {
 static void pl011_init(Object *obj)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    PL011State *s = PL011(obj);
+    PL011State *s = reinterpret_cast<PL011State *>(obj);
     size_t i;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &pl011_ops, s, "pl011", 0x1000);
@@ -693,14 +689,12 @@ void PL011State::reset()
 
 static void pl011_realize(DeviceState *dev, Error **errp)
 {
-    PL011State *s = PL011(dev);
-    s->realize(errp);
+    reinterpret_cast<PL011State *>(dev)->realize(errp);
 }
 
 static void pl011_reset(DeviceState *dev)
 {
-    PL011State *s = PL011(dev);
-    s->reset();
+    reinterpret_cast<PL011State *>(dev)->reset();
 }
 
 void PL011State::classInit(ObjectClass *oc, const void *data)
@@ -723,9 +717,7 @@ static const TypeInfo pl011_arm_info = {
 
 static void pl011_luminary_init(Object *obj)
 {
-    PL011State *s = PL011(obj);
-
-    s->id = pl011_id_luminary;
+    reinterpret_cast<PL011State *>(obj)->id = pl011_id_luminary;
 }
 
 static const TypeInfo pl011_luminary_info = {

@@ -710,8 +710,7 @@ static const MemoryRegionOps hpet_ram_ops = {
 
 static void hpet_reset_wrapper(DeviceState *d)
 {
-    HPETState *s = HPET(d);
-    s->reset(d);
+    reinterpret_cast<HPETState *>(d)->reset(d);
 }
 
 void HPETState::reset(DeviceState *d)
@@ -747,7 +746,7 @@ void HPETState::reset(DeviceState *d)
 
 void HPETState::handleLegacyIrq(void *opaque, int n, int level)
 {
-    HPETState *s = HPET(opaque);
+    HPETState *s = static_cast<HPETState *>(opaque);
 
     if (n == HPET_LEGACY_PIT_INT) {
         if (!s->inLegacyMode()) {
@@ -765,8 +764,7 @@ void HPETState::handleLegacyIrq(void *opaque, int n, int level)
 
 static void hpet_init_wrapper(Object *obj)
 {
-    HPETState *s = HPET(obj);
-    s->initInstance(obj);
+    reinterpret_cast<HPETState *>(obj)->initInstance(obj);
 }
 
 void HPETState::initInstance(Object *obj)
@@ -783,8 +781,7 @@ void HPETState::initInstance(Object *obj)
 
 static void hpet_realize_wrapper(DeviceState *dev, Error **errp)
 {
-    HPETState *s = HPET(dev);
-    s->realize(dev, errp);
+    reinterpret_cast<HPETState *>(dev)->realize(dev, errp);
 }
 
 void HPETState::realize(DeviceState *dev, Error **errp)

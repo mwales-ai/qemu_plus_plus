@@ -431,17 +431,17 @@ void EduState::instanceInit()
 
 static void pci_edu_realize(PCIDevice *pdev, Error **errp)
 {
-    EDU(pdev)->realize(errp);
+    reinterpret_cast<EduState *>(pdev)->realize(errp);
 }
 
 static void pci_edu_uninit(PCIDevice *pdev)
 {
-    EDU(pdev)->uninit();
+    reinterpret_cast<EduState *>(pdev)->uninit();
 }
 
 static void edu_instance_init(Object *obj)
 {
-    EDU(obj)->instanceInit();
+    reinterpret_cast<EduState *>(obj)->instanceInit();
 }
 
 void EduState::classInit(ObjectClass *klass, const void *data)

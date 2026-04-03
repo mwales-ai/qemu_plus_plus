@@ -823,7 +823,7 @@ void LSIState::lsi_request_free(lsi_request *p)
 
 static void lsi_request_cancelled(SCSIRequest *req)
 {
-    LSIState *s = LSI53C895A(req->bus->qbus.parent);
+    LSIState *s = reinterpret_cast<LSIState *>(req->bus->qbus.parent);
     lsi_request *p = static_cast<lsi_request *>(req->hba_private);
 
     req->hba_private = NULL;
@@ -863,7 +863,7 @@ int LSIState::lsi_queue_req(SCSIRequest *req, uint32_t len)
  /* Callback to indicate that the SCSI layer has completed a command.  */
 static void lsi_command_complete(SCSIRequest *req, size_t resid)
 {
-    LSIState *s = LSI53C895A(req->bus->qbus.parent);
+    LSIState *s = reinterpret_cast<LSIState *>(req->bus->qbus.parent);
     int out, stop = 0;
 
     out = (s->sstat1 & PHASE_MASK) == PHASE_DO;
@@ -893,7 +893,7 @@ static void lsi_command_complete(SCSIRequest *req, size_t resid)
  /* Callback to indicate that the SCSI layer has completed a transfer.  */
 static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
 {
-    LSIState *s = LSI53C895A(req->bus->qbus.parent);
+    LSIState *s = reinterpret_cast<LSIState *>(req->bus->qbus.parent);
     int out;
 
     assert(req->hba_private);
@@ -2268,7 +2268,7 @@ static const MemoryRegionOps lsi_io_ops = {
 
 void LSIState::resetWrapper(DeviceState *dev)
 {
-    LSI53C895A(dev)->reset();
+    reinterpret_cast<LSIState *>(dev)->reset();
 }
 
 void LSIState::reset()
@@ -2410,7 +2410,7 @@ static void scripts_timer_cb(void *opaque)
 
 void LSIState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    LSI53C895A(dev)->realize(errp);
+    reinterpret_cast<LSIState *>(dev)->realize(errp);
 }
 
 void LSIState::realize(Error **errp)
@@ -2455,7 +2455,7 @@ void LSIState::realize(Error **errp)
 
 static void lsi_scsi_exit(PCIDevice *dev)
 {
-    LSIState *s = LSI53C895A(dev);
+    LSIState *s = reinterpret_cast<LSIState *>(dev);
 
     address_space_destroy(&s->pci_io_as);
     timer_free(s->scripts_timer);
@@ -2513,7 +2513,7 @@ type_init(lsi53c895a_register_types)
 
 void lsi53c8xx_handle_legacy_cmdline(DeviceState *lsi_dev)
 {
-    LSIState *s = LSI53C895A(lsi_dev);
+    LSIState *s = reinterpret_cast<LSIState *>(lsi_dev);
 
     scsi_bus_legacy_handle_cmdline(&s->bus);
 }

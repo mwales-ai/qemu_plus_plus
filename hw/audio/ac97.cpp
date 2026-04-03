@@ -1304,12 +1304,12 @@ void AC97LinkState::reset()
 
 void AC97LinkState::resetWrapper(DeviceState *dev)
 {
-    AC97(dev)->reset();
+    reinterpret_cast<AC97LinkState *>(dev)->reset();
 }
 
 void AC97LinkState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    AC97(dev)->realize(errp);
+    reinterpret_cast<AC97LinkState *>(dev)->realize(errp);
 }
 
 void AC97LinkState::realize(Error **errp)
@@ -1340,7 +1340,7 @@ void AC97LinkState::realize(Error **errp)
 
 void AC97LinkState::exitWrapper(PCIDevice *pci_dev)
 {
-    AC97LinkState *s = AC97(pci_dev);
+    AC97LinkState *s = reinterpret_cast<AC97LinkState *>(pci_dev);
 
     AUD_close_in(s->audio_be, s->voice_pi);
     AUD_close_out(s->audio_be, s->voice_po);
