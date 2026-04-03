@@ -406,10 +406,15 @@ struct Exynos4210PmuState {
 
     /* Instance methods */
     void reset();
+    void initfn();
 
     /* Static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t val, unsigned size);
+
+    /* Static QOM wrappers */
+    static void resetWrapper(DeviceState *dev);
+    static void initWrapper(Object *obj);
 
     /* Class init */
     static void classInit(ObjectClass *klass, const void *data);
@@ -487,21 +492,27 @@ void Exynos4210PmuState::reset()
     }
 }
 
-static void exynos4210_pmu_reset(DeviceState *dev)
+void Exynos4210PmuState::resetWrapper(DeviceState *dev)
 {
     Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
     s->reset();
 }
 
-static void exynos4210_pmu_init(Object *obj)
+void Exynos4210PmuState::initfn()
 {
-    Exynos4210PmuState *s = EXYNOS4210_PMU(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
 
     /* memory mapping */
-    memory_region_init_io(&s->iomem, obj, &exynos4210_pmu_ops, s,
+    memory_region_init_io(&iomem, obj, &exynos4210_pmu_ops, this,
                           "exynos4210.pmu", EXYNOS4210_PMU_REGS_MEM_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(dev, &iomem);
+}
+
+void Exynos4210PmuState::initWrapper(Object *obj)
+{
+    Exynos4210PmuState *s = EXYNOS4210_PMU(obj);
+    s->initfn();
 }
 
 static const VMStateDescription exynos4210_pmu_vmstate = {
@@ -518,7 +529,7 @@ void Exynos4210PmuState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, exynos4210_pmu_reset);
+    device_class_set_legacy_reset(dc, Exynos4210PmuState::resetWrapper);
     dc->vmsd = &exynos4210_pmu_vmstate;
 }
 
@@ -526,7 +537,7 @@ static const TypeInfo exynos4210_pmu_info = {
     .name          = TYPE_EXYNOS4210_PMU,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Exynos4210PmuState),
-    .instance_init = exynos4210_pmu_init,
+    .instance_init = Exynos4210PmuState::initWrapper,
     .class_init    = Exynos4210PmuState::classInit,
 };
 

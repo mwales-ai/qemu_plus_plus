@@ -286,10 +286,15 @@ struct PL330State {
     /* Methods */
     static void iomemWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
     static uint64_t iomemRead(void *opaque, hwaddr offset, unsigned size);
+    uint32_t iomemReadImp(hwaddr offset);
+    void debugExec();
+    void exec();
     void realize(Error **errp);
     static void realizeWrapper(DeviceState *dev, Error **errp);
     void reset();
     static void resetWrapper(DeviceState *dev);
+    static void execCycleTimer(void *opaque);
+    static void dmaStopIrq(void *opaque, int irq, int level);
     static void classInit(ObjectClass *klass, const void *data);
 };
 
@@ -1277,30 +1282,30 @@ static int pl330_exec_channel(PL330Chan *channel)
     return insr_exec;
 }
 
-static inline void pl330_exec(PL330State *s)
+void PL330State::exec()
 {
     int i, insr_exec;
     trace_pl330_exec();
     do {
-        insr_exec = pl330_exec_channel(&s->manager);
+        insr_exec = pl330_exec_channel(&manager);
 
-        for (i = 0; i < s->num_chnls; i++) {
-            insr_exec += pl330_exec_channel(&s->chan[i]);
+        for (i = 0; i < num_chnls; i++) {
+            insr_exec += pl330_exec_channel(&chan[i]);
         }
     } while (insr_exec);
 }
 
-static void pl330_exec_cycle_timer(void *opaque)
+void PL330State::execCycleTimer(void *opaque)
 {
-    PL330State *s = (PL330State *)opaque;
-    pl330_exec(s);
+    PL330State *s = static_cast<PL330State *>(opaque);
+    s->exec();
 }
 
 /* Stop or restore dma operations */
 
-static void pl330_dma_stop_irq(void *opaque, int irq, int level)
+void PL330State::dmaStopIrq(void *opaque, int irq, int level)
 {
-    PL330State *s = (PL330State *)opaque;
+    PL330State *s = static_cast<PL330State *>(opaque);
 
     if (s->periph_busy[irq] != level) {
         s->periph_busy[irq] = level;
@@ -1308,7 +1313,7 @@ static void pl330_dma_stop_irq(void *opaque, int irq, int level)
     }
 }
 
-static void pl330_debug_exec(PL330State *s)
+void PL330State::debugExec()
 {
     uint8_t args[5];
     uint8_t opcode;
@@ -1317,19 +1322,19 @@ static void pl330_debug_exec(PL330State *s)
     PL330Chan *ch;
     const PL330InsnDesc *insn;
 
-    s->debug_status = 1;
-    chan_id = (s->dbg[0] >>  8) & 0x07;
-    opcode  = (s->dbg[0] >> 16) & 0xff;
-    args[0] = (s->dbg[0] >> 24) & 0xff;
-    args[1] = (s->dbg[1] >>  0) & 0xff;
-    args[2] = (s->dbg[1] >>  8) & 0xff;
-    args[3] = (s->dbg[1] >> 16) & 0xff;
-    args[4] = (s->dbg[1] >> 24) & 0xff;
+    debug_status = 1;
+    chan_id = (dbg[0] >>  8) & 0x07;
+    opcode  = (dbg[0] >> 16) & 0xff;
+    args[0] = (dbg[0] >> 24) & 0xff;
+    args[1] = (dbg[1] >>  0) & 0xff;
+    args[2] = (dbg[1] >>  8) & 0xff;
+    args[3] = (dbg[1] >> 16) & 0xff;
+    args[4] = (dbg[1] >> 24) & 0xff;
     trace_pl330_debug_exec(chan_id);
-    if (s->dbg[0] & 1) {
-        ch = &s->chan[chan_id];
+    if (dbg[0] & 1) {
+        ch = &chan[chan_id];
     } else {
-        ch = &s->manager;
+        ch = &manager;
     }
     insn = NULL;
     for (i = 0; debug_insn_desc[i].size; i++) {
@@ -1351,7 +1356,7 @@ static void pl330_debug_exec(PL330State *s)
         qemu_log_mask(LOG_UNIMP, "pl330: stall of debug instruction not "
                       "implemented\n");
     }
-    s->debug_status = 0;
+    debug_status = 0;
 }
 
 /* IOMEM mapped registers */
@@ -1380,8 +1385,8 @@ void PL330State::iomemWrite(void *opaque, hwaddr offset,
         break;
     case PL330_REG_DBGCMD:
         if ((value & 3) == 0) {
-            pl330_debug_exec(s);
-            pl330_exec(s);
+            s->debugExec();
+            s->exec();
         } else {
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: write of illegal value %u "
                           "for offset " HWADDR_FMT_plx "\n", (unsigned)value,
@@ -1401,10 +1406,8 @@ void PL330State::iomemWrite(void *opaque, hwaddr offset,
     }
 }
 
-static inline uint32_t pl330_iomem_read_imp(void *opaque,
-        hwaddr offset)
+uint32_t PL330State::iomemReadImp(hwaddr offset)
 {
-    PL330State *s = static_cast<PL330State *>(opaque);
     int chan_id;
     int i;
     uint32_t res;
@@ -1413,27 +1416,27 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
         return pl330_id[(offset - PL330_REG_PERIPH_ID) >> 2];
     }
     if (offset >= PL330_REG_CR0_BASE && offset < PL330_REG_CR0_BASE + 24) {
-        return s->cfg[(offset - PL330_REG_CR0_BASE) >> 2];
+        return cfg[(offset - PL330_REG_CR0_BASE) >> 2];
     }
     if (offset >= PL330_REG_CHANCTRL && offset < PL330_REG_DBGSTATUS) {
         offset -= PL330_REG_CHANCTRL;
         chan_id = offset >> 5;
-        if (chan_id >= s->num_chnls) {
+        if (chan_id >= num_chnls) {
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
                           HWADDR_FMT_plx "\n", offset);
             return 0;
         }
         switch (offset & 0x1f) {
         case 0x00:
-            return s->chan[chan_id].src;
+            return chan[chan_id].src;
         case 0x04:
-            return s->chan[chan_id].dst;
+            return chan[chan_id].dst;
         case 0x08:
-            return s->chan[chan_id].control;
+            return chan[chan_id].control;
         case 0x0C:
-            return s->chan[chan_id].lc[0];
+            return chan[chan_id].lc[0];
         case 0x10:
-            return s->chan[chan_id].lc[1];
+            return chan[chan_id].lc[1];
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
                           HWADDR_FMT_plx "\n", offset);
@@ -1443,20 +1446,20 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
     if (offset >= PL330_REG_CSR_BASE && offset < 0x400) {
         offset -= PL330_REG_CSR_BASE;
         chan_id = offset >> 3;
-        if (chan_id >= s->num_chnls) {
+        if (chan_id >= num_chnls) {
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
                           HWADDR_FMT_plx "\n", offset);
             return 0;
         }
         switch ((offset >> 2) & 1) {
         case 0x0:
-            res = (s->chan[chan_id].ns << 21) |
-                    (s->chan[chan_id].wakeup << 4) |
-                    (s->chan[chan_id].state) |
-                    (s->chan[chan_id].wfp_sbp << 14);
+            res = (chan[chan_id].ns << 21) |
+                    (chan[chan_id].wakeup << 4) |
+                    (chan[chan_id].state) |
+                    (chan[chan_id].wfp_sbp << 14);
             return res;
         case 0x1:
-            return s->chan[chan_id].pc;
+            return chan[chan_id].pc;
         default:
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: read error\n");
             return 0;
@@ -1465,45 +1468,45 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
     if (offset >= PL330_REG_FTR_BASE && offset < 0x100) {
         offset -= PL330_REG_FTR_BASE;
         chan_id = offset >> 2;
-        if (chan_id >= s->num_chnls) {
+        if (chan_id >= num_chnls) {
             qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
                           HWADDR_FMT_plx "\n", offset);
             return 0;
         }
-        return s->chan[chan_id].fault_type;
+        return chan[chan_id].fault_type;
     }
     switch (offset) {
     case PL330_REG_DSR:
-        return (s->manager.ns << 9) | (s->manager.wakeup << 4) |
-            (s->manager.state & 0xf);
+        return (manager.ns << 9) | (manager.wakeup << 4) |
+            (manager.state & 0xf);
     case PL330_REG_DPC:
-        return s->manager.pc;
+        return manager.pc;
     case PL330_REG_INTEN:
-        return s->inten;
+        return inten;
     case PL330_REG_INT_EVENT_RIS:
-        return s->ev_status;
+        return ev_status;
     case PL330_REG_INTMIS:
-        return s->int_status;
+        return int_status;
     case PL330_REG_INTCLR:
         /* Documentation says that we can't read this register
          * but linux kernel does it
          */
         return 0;
     case PL330_REG_FSRD:
-        return s->manager.state ? 1 : 0;
+        return manager.state ? 1 : 0;
     case PL330_REG_FSRC:
         res = 0;
-        for (i = 0; i < s->num_chnls; i++) {
-            if (s->chan[i].state == pl330_chan_fault ||
-                s->chan[i].state == pl330_chan_fault_completing) {
+        for (i = 0; i < num_chnls; i++) {
+            if (chan[i].state == pl330_chan_fault ||
+                chan[i].state == pl330_chan_fault_completing) {
                 res |= 1 << i;
             }
         }
         return res;
     case PL330_REG_FTRD:
-        return s->manager.fault_type;
+        return manager.fault_type;
     case PL330_REG_DBGSTATUS:
-        return s->debug_status;
+        return debug_status;
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "pl330: bad read offset "
                       HWADDR_FMT_plx "\n", offset);
@@ -1514,7 +1517,8 @@ static inline uint32_t pl330_iomem_read_imp(void *opaque,
 uint64_t PL330State::iomemRead(void *opaque, hwaddr offset,
         unsigned size)
 {
-    uint32_t ret = pl330_iomem_read_imp(opaque, offset);
+    PL330State *s = static_cast<PL330State *>(opaque);
+    uint32_t ret = s->iomemReadImp(offset);
     trace_pl330_iomem_read((uint32_t)offset, ret);
     return ret;
 }
@@ -1547,122 +1551,120 @@ static void pl330_chan_reset(PL330Chan *ch)
 void PL330State::reset()
 {
     int i;
-    PL330State *s = this;
 
-    s->inten = 0;
-    s->int_status = 0;
-    s->ev_status = 0;
-    s->debug_status = 0;
-    s->num_faulting = 0;
-    s->manager.ns = s->mgr_ns_at_rst;
-    pl330_fifo_reset(&s->fifo);
-    pl330_queue_reset(&s->read_queue);
-    pl330_queue_reset(&s->write_queue);
+    inten = 0;
+    int_status = 0;
+    ev_status = 0;
+    debug_status = 0;
+    num_faulting = 0;
+    manager.ns = mgr_ns_at_rst;
+    pl330_fifo_reset(&fifo);
+    pl330_queue_reset(&read_queue);
+    pl330_queue_reset(&write_queue);
 
-    for (i = 0; i < s->num_chnls; i++) {
-        pl330_chan_reset(&s->chan[i]);
+    for (i = 0; i < num_chnls; i++) {
+        pl330_chan_reset(&chan[i]);
     }
-    for (i = 0; i < s->num_periph_req; i++) {
-        s->periph_busy[i] = 0;
+    for (i = 0; i < num_periph_req; i++) {
+        periph_busy[i] = 0;
     }
 
-    timer_del(s->timer);
+    timer_del(timer);
 }
 
 void PL330State::realize(Error **errp)
 {
     int i;
-    PL330State *s = this;
     DeviceState *dev = DEVICE(this);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq_abort);
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl330_ops, s,
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &irq_abort);
+    memory_region_init_io(&iomem, OBJECT(this), &pl330_ops, this,
                           "dma", PL330_IOMEM_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &iomem);
 
-    if (!s->mem_mr) {
+    if (!mem_mr) {
         error_setg(errp, "'memory' link is not set");
         return;
-    } else if (s->mem_mr == get_system_memory()) {
+    } else if (mem_mr == get_system_memory()) {
         /* Avoid creating new AS for system memory. */
-        s->mem_as = &address_space_memory;
+        mem_as = &address_space_memory;
     } else {
-        s->mem_as = g_new0(AddressSpace, 1);
-        address_space_init(s->mem_as, s->mem_mr,
-                           memory_region_name(s->mem_mr));
+        mem_as = g_new0(AddressSpace, 1);
+        address_space_init(mem_as, mem_mr,
+                           memory_region_name(mem_mr));
     }
 
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pl330_exec_cycle_timer, s);
+    timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, execCycleTimer, this);
 
-    s->cfg[0] = (s->mgr_ns_at_rst ? 0x4 : 0) |
-                (s->num_periph_req > 0 ? 1 : 0) |
-                ((s->num_chnls - 1) & 0x7) << 4 |
-                ((s->num_periph_req - 1) & 0x1f) << 12 |
-                ((s->num_events - 1) & 0x1f) << 17;
+    cfg[0] = (mgr_ns_at_rst ? 0x4 : 0) |
+                (num_periph_req > 0 ? 1 : 0) |
+                ((num_chnls - 1) & 0x7) << 4 |
+                ((num_periph_req - 1) & 0x1f) << 12 |
+                ((num_events - 1) & 0x1f) << 17;
 
-    switch (s->i_cache_len) {
+    switch (i_cache_len) {
     case (4):
-        s->cfg[1] |= 2;
+        cfg[1] |= 2;
         break;
     case (8):
-        s->cfg[1] |= 3;
+        cfg[1] |= 3;
         break;
     case (16):
-        s->cfg[1] |= 4;
+        cfg[1] |= 4;
         break;
     case (32):
-        s->cfg[1] |= 5;
+        cfg[1] |= 5;
         break;
     default:
         error_setg(errp, "Bad value for i-cache_len property: %" PRIx8,
-                   s->i_cache_len);
+                   i_cache_len);
         return;
     }
-    s->cfg[1] |= ((s->num_i_cache_lines - 1) & 0xf) << 4;
+    cfg[1] |= ((num_i_cache_lines - 1) & 0xf) << 4;
 
-    s->chan = g_new0(PL330Chan, s->num_chnls);
-    s->hi_seqn = g_new0(uint8_t, s->num_chnls);
-    s->lo_seqn = g_new0(uint8_t, s->num_chnls);
-    for (i = 0; i < s->num_chnls; i++) {
-        s->chan[i].parent = s;
-        s->chan[i].tag = (uint8_t)i;
+    chan = g_new0(PL330Chan, num_chnls);
+    hi_seqn = g_new0(uint8_t, num_chnls);
+    lo_seqn = g_new0(uint8_t, num_chnls);
+    for (i = 0; i < num_chnls; i++) {
+        chan[i].parent = this;
+        chan[i].tag = (uint8_t)i;
     }
-    s->manager.parent = s;
-    s->manager.tag = s->num_chnls;
-    s->manager.is_manager = true;
+    manager.parent = this;
+    manager.tag = num_chnls;
+    manager.is_manager = true;
 
-    s->irq = g_new0(qemu_irq, s->num_events);
-    for (i = 0; i < s->num_events; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
+    irq = g_new0(qemu_irq, num_events);
+    for (i = 0; i < num_events; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(dev), &irq[i]);
     }
 
-    qdev_init_gpio_in(dev, pl330_dma_stop_irq, PL330_PERIPH_NUM);
+    qdev_init_gpio_in(dev, dmaStopIrq, PL330_PERIPH_NUM);
 
-    switch (s->data_width) {
+    switch (data_width) {
     case (32):
-        s->cfg[CFG_CRD] |= 0x2;
+        cfg[CFG_CRD] |= 0x2;
         break;
     case (64):
-        s->cfg[CFG_CRD] |= 0x3;
+        cfg[CFG_CRD] |= 0x3;
         break;
     case (128):
-        s->cfg[CFG_CRD] |= 0x4;
+        cfg[CFG_CRD] |= 0x4;
         break;
     default:
         error_setg(errp, "Bad value for data_width property: %" PRIx8,
-                   s->data_width);
+                   data_width);
         return;
     }
 
-    s->cfg[CFG_CRD] |= ((s->wr_cap - 1) & 0x7) << 4 |
-                    ((s->wr_q_dep - 1) & 0xf) << 8 |
-                    ((s->rd_cap - 1) & 0x7) << 12 |
-                    ((s->rd_q_dep - 1) & 0xf) << 16 |
-                    ((s->data_buffer_dep - 1) & 0x1ff) << 20;
+    cfg[CFG_CRD] |= ((wr_cap - 1) & 0x7) << 4 |
+                    ((wr_q_dep - 1) & 0xf) << 8 |
+                    ((rd_cap - 1) & 0x7) << 12 |
+                    ((rd_q_dep - 1) & 0xf) << 16 |
+                    ((data_buffer_dep - 1) & 0x1ff) << 20;
 
-    pl330_queue_init(&s->read_queue, s->rd_q_dep, s);
-    pl330_queue_init(&s->write_queue, s->wr_q_dep, s);
-    pl330_fifo_init(&s->fifo, s->data_width / 4 * s->data_buffer_dep);
+    pl330_queue_init(&read_queue, rd_q_dep, this);
+    pl330_queue_init(&write_queue, wr_q_dep, this);
+    pl330_fifo_init(&fifo, data_width / 4 * data_buffer_dep);
 }
 
 static const Property pl330_properties[] = {
