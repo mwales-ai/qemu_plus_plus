@@ -659,25 +659,48 @@ struct USBNetState {
 
     /* Methods */
     void netRealize(Error **errp);
-    static void netRealizeWrapper(USBDevice *dev, Error **errp);
     void instanceInit();
+    int isRndis();
+    int ndisQuery(uint32_t oid, uint8_t *inbuf, unsigned int inlen, uint8_t *outbuf, size_t outlen);
+    int ndisSet(uint32_t oid, uint8_t *inbuf, unsigned int inlen);
+    int rndisGetResponse(uint8_t *buf);
+    void *rndisQueueResponse(unsigned int length);
+    void rndisClearResponseQueue();
+    int rndisInitResponse(rndis_init_msg_type *buf);
+    int rndisQueryResponse(rndis_query_msg_type *buf, unsigned int length);
+    int rndisSetResponse(rndis_set_msg_type *buf, unsigned int length);
+    int rndisResetResponse(rndis_reset_msg_type *buf);
+    int rndisKeepaliveResponse(rndis_keepalive_msg_type *buf);
+    void resetInBuf();
+    int rndisParse(uint8_t *data, int length);
+    void handleControl(USBPacket *p, int request, int value, int index, int length, uint8_t *data);
+    void handleStatusIn(USBPacket *p);
+    void handleDataIn(USBPacket *p);
+    void handleDataOut(USBPacket *p);
+
+    /* Static callbacks */
+    static void netRealizeWrapper(USBDevice *dev, Error **errp);
     static void instanceInitWrapper(Object *obj);
     static void handleReset(USBDevice *dev);
+    static void handleControlCb(USBDevice *dev, USBPacket *p, int request, int value, int index, int length, uint8_t *data);
+    static void handleDataCb(USBDevice *dev, USBPacket *p);
+    static ssize_t receiveCb(NetClientState *nc, const uint8_t *buf, size_t size);
+    static void cleanupCb(NetClientState *nc);
+    static void unrealize(USBDevice *dev);
     static void classInit(ObjectClass *klass, const void *data);
 };
 
 #define TYPE_USB_NET "usb-net"
 OBJECT_DECLARE_SIMPLE_TYPE(USBNetState, USB_NET)
 
-static int is_rndis(USBNetState *s)
+int USBNetState::isRndis()
 {
-    return s->dev.config ?
-            s->dev.config->bConfigurationValue == DEV_RNDIS_CONFIG_VALUE : 0;
+    return dev.config ?
+            dev.config->bConfigurationValue == DEV_RNDIS_CONFIG_VALUE : 0;
 }
 
-static int ndis_query(USBNetState *s, uint32_t oid,
-                      uint8_t *inbuf, unsigned int inlen, uint8_t *outbuf,
-                      size_t outlen)
+int USBNetState::ndisQuery(uint32_t oid, uint8_t *inbuf, unsigned int inlen, uint8_t *outbuf,
+                           size_t outlen)
 {
     unsigned int i;
 
@@ -697,12 +720,12 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_GEN_MEDIA_SUPPORTED:
-        stl_le_p(outbuf, s->medium);
+        stl_le_p(outbuf, medium);
         return sizeof(le32);
 
     /* mandatory */
     case OID_GEN_MEDIA_IN_USE:
-        stl_le_p(outbuf, s->medium);
+        stl_le_p(outbuf, medium);
         return sizeof(le32);
 
     /* mandatory */
@@ -712,7 +735,7 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_GEN_LINK_SPEED:
-        stl_le_p(outbuf, s->speed);
+        stl_le_p(outbuf, speed);
         return sizeof(le32);
 
     /* mandatory */
@@ -727,7 +750,7 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_GEN_VENDOR_ID:
-        stl_le_p(outbuf, s->vendorid);
+        stl_le_p(outbuf, vendorid);
         return sizeof(le32);
 
     /* mandatory */
@@ -741,7 +764,7 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_GEN_CURRENT_PACKET_FILTER:
-        stl_le_p(outbuf, s->filter);
+        stl_le_p(outbuf, filter);
         return sizeof(le32);
 
     /* mandatory */
@@ -751,7 +774,7 @@ static int ndis_query(USBNetState *s, uint32_t oid,
 
     /* mandatory */
     case OID_GEN_MEDIA_CONNECT_STATUS:
-        stl_le_p(outbuf, s->media_state);
+        stl_le_p(outbuf, media_state);
         return sizeof(le32);
 
     case OID_GEN_PHYSICAL_MEDIUM:
@@ -792,12 +815,12 @@ static int ndis_query(USBNetState *s, uint32_t oid,
     /* ieee802.3 OIDs (table 4-3) */
     /* mandatory */
     case OID_802_3_PERMANENT_ADDRESS:
-        memcpy(outbuf, s->conf.macaddr.a, 6);
+        memcpy(outbuf, conf.macaddr.a, 6);
         return 6;
 
     /* mandatory */
     case OID_802_3_CURRENT_ADDRESS:
-        memcpy(outbuf, s->conf.macaddr.a, 6);
+        memcpy(outbuf, conf.macaddr.a, 6);
         return 6;
 
     /* mandatory */
@@ -836,16 +859,15 @@ static int ndis_query(USBNetState *s, uint32_t oid,
     return -1;
 }
 
-static int ndis_set(USBNetState *s, uint32_t oid,
-                uint8_t *inbuf, unsigned int inlen)
+int USBNetState::ndisSet(uint32_t oid, uint8_t *inbuf, unsigned int inlen)
 {
     switch (oid) {
     case OID_GEN_CURRENT_PACKET_FILTER:
-        s->filter = ldl_le_p(inbuf);
-        if (s->filter) {
-            s->rndis_state = RNDIS_DATA_INITIALIZED;
+        filter = ldl_le_p(inbuf);
+        if (filter) {
+            rndis_state = RNDIS_DATA_INITIALIZED;
         } else {
-            s->rndis_state = RNDIS_INITIALIZED;
+            rndis_state = RNDIS_INITIALIZED;
         }
         return 0;
 
@@ -855,15 +877,15 @@ static int ndis_set(USBNetState *s, uint32_t oid,
     return -1;
 }
 
-static int rndis_get_response(USBNetState *s, uint8_t *buf)
+int USBNetState::rndisGetResponse(uint8_t *buf)
 {
     int ret = 0;
-    struct rndis_response *r = s->rndis_resp.tqh_first;
+    struct rndis_response *r = rndis_resp.tqh_first;
 
     if (!r)
         return ret;
 
-    QTAILQ_REMOVE(&s->rndis_resp, r, entries);
+    QTAILQ_REMOVE(&rndis_resp, r, entries);
     ret = r->length;
     memcpy(buf, r->buf, r->length);
     g_free(r);
@@ -871,35 +893,44 @@ static int rndis_get_response(USBNetState *s, uint8_t *buf)
     return ret;
 }
 
-static void *rndis_queue_response(USBNetState *s, unsigned int length)
+void *USBNetState::rndisQueueResponse(unsigned int length)
 {
     struct rndis_response *r = static_cast<struct rndis_response *>(
             g_malloc0(sizeof(struct rndis_response) + length));
 
-    if (QTAILQ_EMPTY(&s->rndis_resp)) {
-        usb_wakeup(s->intr, 0);
+    if (QTAILQ_EMPTY(&rndis_resp)) {
+        usb_wakeup(intr, 0);
     }
 
-    QTAILQ_INSERT_TAIL(&s->rndis_resp, r, entries);
+    QTAILQ_INSERT_TAIL(&rndis_resp, r, entries);
     r->length = length;
 
     return &r->buf[0];
 }
 
-static void rndis_clear_responsequeue(USBNetState *s)
+void USBNetState::rndisClearResponseQueue()
 {
     struct rndis_response *r;
 
-    while ((r = s->rndis_resp.tqh_first)) {
-        QTAILQ_REMOVE(&s->rndis_resp, r, entries);
+    while ((r = rndis_resp.tqh_first)) {
+        QTAILQ_REMOVE(&rndis_resp, r, entries);
         g_free(r);
     }
 }
 
-static int rndis_init_response(USBNetState *s, rndis_init_msg_type *buf)
+void USBNetState::unrealize(USBDevice *dev)
+{
+    USBNetState *s = USB_NET(dev);
+
+    /* TODO: remove the nd_table[] entry */
+    s->rndisClearResponseQueue();
+    qemu_del_nic(s->nic);
+}
+
+int USBNetState::rndisInitResponse(rndis_init_msg_type *buf)
 {
     rndis_init_cmplt_type *resp = static_cast<rndis_init_cmplt_type *>(
-            rndis_queue_response(s, sizeof(rndis_init_cmplt_type)));
+            rndisQueueResponse(sizeof(rndis_init_cmplt_type)));
 
     if (!resp)
         return USB_RET_STALL;
@@ -921,8 +952,7 @@ static int rndis_init_response(USBNetState *s, rndis_init_msg_type *buf)
     return 0;
 }
 
-static int rndis_query_response(USBNetState *s,
-                rndis_query_msg_type *buf, unsigned int length)
+int USBNetState::rndisQueryResponse(rndis_query_msg_type *buf, unsigned int length)
 {
     rndis_query_cmplt_type *resp;
     /* oid_supported_list is the largest data reply */
@@ -937,12 +967,12 @@ static int rndis_query_response(USBNetState *s,
         return USB_RET_STALL;
     }
 
-    infobuflen = ndis_query(s, le32_to_cpu(buf->OID),
+    infobuflen = ndisQuery(le32_to_cpu(buf->OID),
                             bufoffs + (uint8_t *) buf, buflen, infobuf,
                             sizeof(infobuf));
     resplen = sizeof(rndis_query_cmplt_type) +
             ((infobuflen < 0) ? 0 : infobuflen);
-    resp = static_cast<rndis_query_cmplt_type *>(rndis_queue_response(s, resplen));
+    resp = static_cast<rndis_query_cmplt_type *>(rndisQueueResponse(resplen));
     if (!resp)
         return USB_RET_STALL;
 
@@ -967,11 +997,10 @@ static int rndis_query_response(USBNetState *s,
     return 0;
 }
 
-static int rndis_set_response(USBNetState *s,
-                rndis_set_msg_type *buf, unsigned int length)
+int USBNetState::rndisSetResponse(rndis_set_msg_type *buf, unsigned int length)
 {
     rndis_set_cmplt_type *resp = static_cast<rndis_set_cmplt_type *>(
-            rndis_queue_response(s, sizeof(rndis_set_cmplt_type)));
+            rndisQueueResponse(sizeof(rndis_set_cmplt_type)));
     uint32_t bufoffs, buflen;
     int ret;
 
@@ -984,7 +1013,7 @@ static int rndis_set_response(USBNetState *s,
         return USB_RET_STALL;
     }
 
-    ret = ndis_set(s, le32_to_cpu(buf->OID),
+    ret = ndisSet(le32_to_cpu(buf->OID),
                     bufoffs + (uint8_t *) buf, buflen);
     resp->MessageType = cpu_to_le32(RNDIS_SET_CMPLT);
     resp->RequestID = buf->RequestID; /* Still LE in msg buffer */
@@ -999,10 +1028,10 @@ static int rndis_set_response(USBNetState *s,
     return 0;
 }
 
-static int rndis_reset_response(USBNetState *s, rndis_reset_msg_type *buf)
+int USBNetState::rndisResetResponse(rndis_reset_msg_type *buf)
 {
     rndis_reset_cmplt_type *resp = static_cast<rndis_reset_cmplt_type *>(
-            rndis_queue_response(s, sizeof(rndis_reset_cmplt_type)));
+            rndisQueueResponse(sizeof(rndis_reset_cmplt_type)));
 
     if (!resp)
         return USB_RET_STALL;
@@ -1015,11 +1044,10 @@ static int rndis_reset_response(USBNetState *s, rndis_reset_msg_type *buf)
     return 0;
 }
 
-static int rndis_keepalive_response(USBNetState *s,
-                rndis_keepalive_msg_type *buf)
+int USBNetState::rndisKeepaliveResponse(rndis_keepalive_msg_type *buf)
 {
     rndis_keepalive_cmplt_type *resp = static_cast<rndis_keepalive_cmplt_type *>(
-            rndis_queue_response(s, sizeof(rndis_keepalive_cmplt_type)));
+            rndisQueueResponse(sizeof(rndis_keepalive_cmplt_type)));
 
     if (!resp)
         return USB_RET_STALL;
@@ -1033,40 +1061,40 @@ static int rndis_keepalive_response(USBNetState *s,
 }
 
 /* Prepare to receive the next packet */
-static void usb_net_reset_in_buf(USBNetState *s)
+void USBNetState::resetInBuf()
 {
-    s->in_ptr = s->in_len = 0;
-    qemu_flush_queued_packets(qemu_get_queue(s->nic));
+    in_ptr = in_len = 0;
+    qemu_flush_queued_packets(qemu_get_queue(nic));
 }
 
-static int rndis_parse(USBNetState *s, uint8_t *data, int length)
+int USBNetState::rndisParse(uint8_t *data, int length)
 {
     uint32_t msg_type = ldl_le_p(data);
 
     switch (msg_type) {
     case RNDIS_INITIALIZE_MSG:
-        s->rndis_state = RNDIS_INITIALIZED;
-        return rndis_init_response(s, (rndis_init_msg_type *) data);
+        rndis_state = RNDIS_INITIALIZED;
+        return rndisInitResponse( (rndis_init_msg_type *) data);
 
     case RNDIS_HALT_MSG:
-        s->rndis_state = RNDIS_UNINITIALIZED;
+        rndis_state = RNDIS_UNINITIALIZED;
         return 0;
 
     case RNDIS_QUERY_MSG:
-        return rndis_query_response(s, (rndis_query_msg_type *) data, length);
+        return rndisQueryResponse((rndis_query_msg_type *) data, length);
 
     case RNDIS_SET_MSG:
-        return rndis_set_response(s, (rndis_set_msg_type *) data, length);
+        return rndisSetResponse((rndis_set_msg_type *) data, length);
 
     case RNDIS_RESET_MSG:
-        rndis_clear_responsequeue(s);
-        s->out_ptr = 0;
-        usb_net_reset_in_buf(s);
-        return rndis_reset_response(s, (rndis_reset_msg_type *) data);
+        rndisClearResponseQueue();
+        out_ptr = 0;
+        resetInBuf();
+        return rndisResetResponse((rndis_reset_msg_type *) data);
 
     case RNDIS_KEEPALIVE_MSG:
         /* For USB: host does this every 5 seconds */
-        return rndis_keepalive_response(s, (rndis_keepalive_msg_type *) data);
+        return rndisKeepaliveResponse((rndis_keepalive_msg_type *) data);
     }
 
     return USB_RET_STALL;
@@ -1076,10 +1104,15 @@ void USBNetState::handleReset(USBDevice *dev)
 {
 }
 
-static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
+void USBNetState::handleControlCb(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USBNetState *s = USB_NET(dev);
+    USB_NET(dev)->handleControl(p, request, value, index, length, data);
+}
+
+void USBNetState::handleControl(USBPacket *p, int request, int value, int index, int length, uint8_t *data)
+{
+    USBDevice *dev = USB_DEVICE(this);
     int ret;
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
@@ -1089,7 +1122,7 @@ static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
 
     switch(request) {
     case ClassInterfaceOutRequest | USB_CDC_SEND_ENCAPSULATED_COMMAND:
-        if (!is_rndis(s) || value || index != 0) {
+        if (!isRndis() || value || index != 0) {
             goto fail;
         }
 #ifdef TRAFFIC_DEBUG
@@ -1104,17 +1137,17 @@ static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
             fprintf(stderr, "\n\n");
         }
 #endif
-        ret = rndis_parse(s, data, length);
+        ret = rndisParse(data, length);
         if (ret < 0) {
             p->status = ret;
         }
         break;
 
     case ClassInterfaceRequest | USB_CDC_GET_ENCAPSULATED_RESPONSE:
-        if (!is_rndis(s) || value || index != 0) {
+        if (!isRndis() || value || index != 0) {
             goto fail;
         }
-        p->actual_length = rndis_get_response(s, data);
+        p->actual_length = rndisGetResponse(data);
         if (p->actual_length == 0) {
             data[0] = 0;
             p->actual_length = 1;
@@ -1134,7 +1167,7 @@ static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
         break;
 
     case ClassInterfaceOutRequest | USB_CDC_SET_ETHERNET_PACKET_FILTER:
-        if (is_rndis(s)) {
+        if (isRndis()) {
             goto fail;
         }
         break;
@@ -1149,7 +1182,7 @@ static void usb_net_handle_control(USBDevice *dev, USBPacket *p,
     }
 }
 
-static void usb_net_handle_statusin(USBNetState *s, USBPacket *p)
+void USBNetState::handleStatusIn(USBPacket *p)
 {
     le32 rbuf[2];
     uint16_t ebuf[4];
@@ -1159,17 +1192,17 @@ static void usb_net_handle_statusin(USBNetState *s, USBPacket *p)
         return;
     }
 
-    if (is_rndis(s)) {
+    if (isRndis()) {
         rbuf[0] = cpu_to_le32(1);
         rbuf[1] = cpu_to_le32(0);
         usb_packet_copy(p, rbuf, 8);
-        if (!s->rndis_resp.tqh_first) {
+        if (!rndis_resp.tqh_first) {
             p->status = USB_RET_NAK;
         }
     } else {
         ebuf[0] =
             cpu_to_be16(ClassInterfaceRequest | USB_CDC_NETWORK_CONNECTION);
-        ebuf[1] = cpu_to_le16(s->connection);
+        ebuf[1] = cpu_to_le16(connection);
         ebuf[2] = cpu_to_le16(1);
         ebuf[3] = cpu_to_le16(0);
         usb_packet_copy(p, ebuf, 8);
@@ -1182,29 +1215,29 @@ static void usb_net_handle_statusin(USBNetState *s, USBPacket *p)
 #endif
 }
 
-static void usb_net_handle_datain(USBNetState *s, USBPacket *p)
+void USBNetState::handleDataIn(USBPacket *p)
 {
     int len;
 
-    if (s->in_ptr > s->in_len) {
-        usb_net_reset_in_buf(s);
+    if (in_ptr > in_len) {
+        resetInBuf();
         p->status = USB_RET_NAK;
         return;
     }
-    if (!s->in_len) {
+    if (!in_len) {
         p->status = USB_RET_NAK;
         return;
     }
-    len = s->in_len - s->in_ptr;
+    len = in_len - in_ptr;
     if (len > p->iov.size) {
         len = p->iov.size;
     }
-    usb_packet_copy(p, &s->in_buf[s->in_ptr], len);
-    s->in_ptr += len;
-    if (s->in_ptr >= s->in_len &&
-                    (is_rndis(s) || (s->in_len & (64 - 1)) || !len)) {
+    usb_packet_copy(p, &in_buf[in_ptr], len);
+    in_ptr += len;
+    if (in_ptr >= in_len &&
+                    (isRndis() || (in_len & (64 - 1)) || !len)) {
         /* no short packet necessary */
-        usb_net_reset_in_buf(s);
+        resetInBuf();
     }
 
 #ifdef TRAFFIC_DEBUG
@@ -1213,11 +1246,11 @@ static void usb_net_handle_datain(USBNetState *s, USBPacket *p)
 #endif
 }
 
-static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
+void USBNetState::handleDataOut(USBPacket *p)
 {
-    int sz = sizeof(s->out_buf) - s->out_ptr;
+    int sz = sizeof(out_buf) - out_ptr;
     struct rndis_packet_msg_type *msg =
-            (struct rndis_packet_msg_type *) s->out_buf;
+            (struct rndis_packet_msg_type *) out_buf;
     uint32_t len;
 
 #ifdef TRAFFIC_DEBUG
@@ -1228,32 +1261,32 @@ static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
     if (sz > p->iov.size) {
         sz = p->iov.size;
     }
-    usb_packet_copy(p, &s->out_buf[s->out_ptr], sz);
-    s->out_ptr += sz;
+    usb_packet_copy(p, &out_buf[out_ptr], sz);
+    out_ptr += sz;
 
-    if (!is_rndis(s)) {
+    if (!isRndis()) {
         if (p->iov.size % 64 || p->iov.size == 0) {
-            qemu_send_packet(qemu_get_queue(s->nic), s->out_buf, s->out_ptr);
-            s->out_ptr = 0;
+            qemu_send_packet(qemu_get_queue(nic), out_buf, out_ptr);
+            out_ptr = 0;
         }
         return;
     }
     len = le32_to_cpu(msg->MessageLength);
-    if (s->out_ptr < 8 || s->out_ptr < len) {
+    if (out_ptr < 8 || out_ptr < len) {
         return;
     }
     if (le32_to_cpu(msg->MessageType) == RNDIS_PACKET_MSG) {
         uint32_t offs = 8 + le32_to_cpu(msg->DataOffset);
         uint32_t size = le32_to_cpu(msg->DataLength);
         if (offs < len && size < len && offs + size <= len) {
-            qemu_send_packet(qemu_get_queue(s->nic), s->out_buf + offs, size);
+            qemu_send_packet(qemu_get_queue(nic), out_buf + offs, size);
         }
     }
-    s->out_ptr -= len;
-    memmove(s->out_buf, &s->out_buf[len], s->out_ptr);
+    out_ptr -= len;
+    memmove(out_buf, &out_buf[len], out_ptr);
 }
 
-static void usb_net_handle_data(USBDevice *dev, USBPacket *p)
+void USBNetState::handleDataCb(USBDevice *dev, USBPacket *p)
 {
     USBNetState *s = USB_NET(dev);
 
@@ -1261,11 +1294,11 @@ static void usb_net_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         switch (p->ep->nr) {
         case 1:
-            usb_net_handle_statusin(s, p);
+            s->handleStatusIn(p);
             break;
 
         case 2:
-            usb_net_handle_datain(s, p);
+            s->handleDataIn(p);
             break;
 
         default:
@@ -1276,7 +1309,7 @@ static void usb_net_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_OUT:
         switch (p->ep->nr) {
         case 2:
-            usb_net_handle_dataout(s, p);
+            s->handleDataOut(p);
             break;
 
         default:
@@ -1297,7 +1330,7 @@ static void usb_net_handle_data(USBDevice *dev, USBPacket *p)
     }
 }
 
-static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+ssize_t USBNetState::receiveCb(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     USBNetState *s = static_cast<USBNetState *>(qemu_get_nic_opaque(nc));
     uint8_t *in_buf = s->in_buf;
@@ -1307,7 +1340,7 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
         return -1;
     }
 
-    if (is_rndis(s)) {
+    if (s->isRndis()) {
         if (s->rndis_state != RNDIS_DATA_INITIALIZED) {
             return -1;
         }
@@ -1322,7 +1355,7 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
         return 0;
     }
 
-    if (is_rndis(s)) {
+    if (s->isRndis()) {
         struct rndis_packet_msg_type *msg;
 
         msg = (struct rndis_packet_msg_type *)in_buf;
@@ -1349,27 +1382,20 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
     return size;
 }
 
-static void usbnet_cleanup(NetClientState *nc)
+void USBNetState::cleanupCb(NetClientState *nc)
 {
     USBNetState *s = static_cast<USBNetState *>(qemu_get_nic_opaque(nc));
 
     s->nic = NULL;
 }
 
-static void usb_net_unrealize(USBDevice *dev)
-{
-    USBNetState *s = USB_NET(dev);
 
-    /* TODO: remove the nd_table[] entry */
-    rndis_clear_responsequeue(s);
-    qemu_del_nic(s->nic);
-}
 
 static NetClientInfo net_usbnet_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
-    .receive = usbnet_receive,
-    .cleanup = usbnet_cleanup,
+    .receive = USBNetState::receiveCb,
+    .cleanup = USBNetState::cleanupCb,
 };
 
 void USBNetState::netRealize(Error **errp)
@@ -1380,7 +1406,7 @@ void USBNetState::netRealize(Error **errp)
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
 
-    s->rndis_state = RNDIS_UNINITIALIZED;
+    rndis_state = RNDIS_UNINITIALIZED;
     QTAILQ_INIT(&s->rndis_resp);
 
     s->medium = 0;      /* NDIS_MEDIUM_802_3 */
@@ -1449,9 +1475,9 @@ void USBNetState::classInit(ObjectClass *klass, const void *data)
     uc->product_desc   = "QEMU USB Network Interface";
     uc->usb_desc       = &desc_net;
     uc->handle_reset   = USBNetState::handleReset;
-    uc->handle_control = usb_net_handle_control;
-    uc->handle_data    = usb_net_handle_data;
-    uc->unrealize      = usb_net_unrealize;
+    uc->handle_control = USBNetState::handleControlCb;
+    uc->handle_data    = USBNetState::handleDataCb;
+    uc->unrealize      = USBNetState::unrealize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "network";
     dc->vmsd = &vmstate_usb_net;

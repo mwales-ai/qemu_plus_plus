@@ -126,6 +126,21 @@ struct SCSIDiskState {
 
     /* methods */
     void reset();
+    bool mediaIsDvd();
+    bool mediaIsCd();
+    int readDiscInformation(SCSIDiskReq *r, uint8_t *outbuf);
+    int readDvdStructure(SCSIDiskReq *r, uint8_t *outbuf);
+    int eventStatusMedia(uint8_t *outbuf);
+    int getEventStatusNotification(SCSIDiskReq *r, uint8_t *outbuf);
+    int getConfiguration(uint8_t *outbuf);
+    int emulateMechanismStatus(uint8_t *outbuf);
+    int modeSensePage(int page, uint8_t **p_outbuf, int page_control);
+    int checkModeSelect(int page, uint8_t *inbuf, int inlen);
+    void applyModeSelect(int page, uint8_t *p);
+    bool checkLbaRange(uint64_t sector_num, uint32_t nb_sectors);
+    int getDeviceType();
+    bool blockIsPassthrough(uint8_t *buf);
+
     static void resetWrapper(DeviceState *dev);
     static void baseClassInit(ObjectClass *klass, const void *data);
     static void hdClassInit(ObjectClass *klass, const void *data);
@@ -872,8 +887,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     return buflen;
 }
 
-static inline bool media_is_dvd(SCSIDiskState *s)
+bool SCSIDiskState::mediaIsDvd()
 {
+    SCSIDiskState *s = this;
     uint64_t nb_sectors;
     if (s->qdev.type != TYPE_ROM) {
         return false;
@@ -885,8 +901,9 @@ static inline bool media_is_dvd(SCSIDiskState *s)
     return nb_sectors > CD_MAX_SECTORS;
 }
 
-static inline bool media_is_cd(SCSIDiskState *s)
+bool SCSIDiskState::mediaIsCd()
 {
+    SCSIDiskState *s = this;
     uint64_t nb_sectors;
     if (s->qdev.type != TYPE_ROM) {
         return false;
@@ -898,9 +915,9 @@ static inline bool media_is_cd(SCSIDiskState *s)
     return nb_sectors <= CD_MAX_SECTORS;
 }
 
-static int scsi_read_disc_information(SCSIDiskState *s, SCSIDiskReq *r,
-                                      uint8_t *outbuf)
+int SCSIDiskState::readDiscInformation(SCSIDiskReq *r, uint8_t *outbuf)
 {
+    SCSIDiskState *s = this;
     uint8_t type = r->req.cmd.buf[1] & 7;
 
     if (s->qdev.type != TYPE_ROM) {
@@ -931,9 +948,9 @@ static int scsi_read_disc_information(SCSIDiskState *s, SCSIDiskReq *r,
     return 34;
 }
 
-static int scsi_read_dvd_structure(SCSIDiskState *s, SCSIDiskReq *r,
-                                   uint8_t *outbuf)
+int SCSIDiskState::readDvdStructure(SCSIDiskReq *r, uint8_t *outbuf)
 {
+    SCSIDiskState *s = this;
     static int rds_caps_size[5] = {};
     static bool rds_caps_size_init = false;
     if (!rds_caps_size_init) {
@@ -962,7 +979,7 @@ static int scsi_read_dvd_structure(SCSIDiskState *s, SCSIDiskReq *r,
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
             return -1;
         }
-        if (media_is_cd(s)) {
+        if (s->mediaIsCd()) {
             scsi_check_condition(r, SENSE_CODE(INCOMPATIBLE_FORMAT));
             return -1;
         }
@@ -1028,8 +1045,9 @@ fail:
     return -1;
 }
 
-static int scsi_event_status_media(SCSIDiskState *s, uint8_t *outbuf)
+int SCSIDiskState::eventStatusMedia(uint8_t *outbuf)
 {
+    SCSIDiskState *s = this;
     uint8_t event_code, media_status;
 
     media_status = 0;
@@ -1060,9 +1078,9 @@ static int scsi_event_status_media(SCSIDiskState *s, uint8_t *outbuf)
     return 4;
 }
 
-static int scsi_get_event_status_notification(SCSIDiskState *s, SCSIDiskReq *r,
-                                              uint8_t *outbuf)
+int SCSIDiskState::getEventStatusNotification(SCSIDiskReq *r, uint8_t *outbuf)
 {
+    SCSIDiskState *s = this;
     int size;
     uint8_t *buf = r->req.cmd.buf;
     uint8_t notification_class_request = buf[4];
@@ -1079,7 +1097,7 @@ static int scsi_get_event_status_notification(SCSIDiskState *s, SCSIDiskReq *r,
     outbuf[3] = 1 << GESN_MEDIA; /* supported events */
     if (notification_class_request & (1 << GESN_MEDIA)) {
         outbuf[2] = GESN_MEDIA;
-        size += scsi_event_status_media(s, &outbuf[size]);
+        size += s->eventStatusMedia(&outbuf[size]);
     } else {
         outbuf[2] = 0x80;
     }
@@ -1087,17 +1105,18 @@ static int scsi_get_event_status_notification(SCSIDiskState *s, SCSIDiskReq *r,
     return size;
 }
 
-static int scsi_get_configuration(SCSIDiskState *s, uint8_t *outbuf)
+int SCSIDiskState::getConfiguration(uint8_t *outbuf)
 {
+    SCSIDiskState *s = this;
     int current;
 
     if (s->qdev.type != TYPE_ROM) {
         return -1;
     }
 
-    if (media_is_dvd(s)) {
+    if (s->mediaIsDvd()) {
         current = MMC_PROFILE_DVD_ROM;
-    } else if (media_is_cd(s)) {
+    } else if (s->mediaIsCd()) {
         current = MMC_PROFILE_CD_ROM;
     } else {
         current = MMC_PROFILE_NONE;
@@ -1129,8 +1148,9 @@ static int scsi_get_configuration(SCSIDiskState *s, uint8_t *outbuf)
     return 40;
 }
 
-static int scsi_emulate_mechanism_status(SCSIDiskState *s, uint8_t *outbuf)
+int SCSIDiskState::emulateMechanismStatus(uint8_t *outbuf)
 {
+    SCSIDiskState *s = this;
     if (s->qdev.type != TYPE_ROM) {
         return -1;
     }
@@ -1139,9 +1159,10 @@ static int scsi_emulate_mechanism_status(SCSIDiskState *s, uint8_t *outbuf)
     return 8;
 }
 
-static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
-                           int page_control)
+int SCSIDiskState::modeSensePage(int page, uint8_t **p_outbuf,
+                                 int page_control)
 {
+    SCSIDiskState *s = this;
     static int mode_sense_valid[0x3f] = {};
     static bool mode_sense_valid_init = false;
     if (!mode_sense_valid_init) {
@@ -1432,10 +1453,10 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
 
     if (page == 0x3f) {
         for (page = 0; page <= 0x3e; page++) {
-            mode_sense_page(s, page, &p, page_control);
+            s->modeSensePage(page, &p, page_control);
         }
     } else {
-        ret = mode_sense_page(s, page, &p, page_control);
+        ret = s->modeSensePage(page, &p, page_control);
         if (ret == -1) {
             return -1;
         }
@@ -1536,9 +1557,10 @@ static void scsi_disk_emulate_read_data(SCSIRequest *req)
     scsi_req_complete(&r->req, GOOD);
 }
 
-static int scsi_disk_check_mode_select(SCSIDiskState *s, int page,
+int SCSIDiskState::checkModeSelect(int page,
                                        uint8_t *inbuf, int inlen)
 {
+    SCSIDiskState *s = this;
     uint8_t mode_current[SCSI_MAX_MODE_LEN];
     uint8_t mode_changeable[SCSI_MAX_MODE_LEN];
     uint8_t *p;
@@ -1559,14 +1581,14 @@ static int scsi_disk_check_mode_select(SCSIDiskState *s, int page,
 
     p = mode_current;
     memset(mode_current, 0, inlen + 2);
-    len = mode_sense_page(s, page, &p, 0);
+    len = s->modeSensePage(page, &p, 0);
     if (len < 0 || len != expected_len) {
         return -1;
     }
 
     p = mode_changeable;
     memset(mode_changeable, 0, inlen + 2);
-    changeable_len = mode_sense_page(s, page, &p, 1);
+    changeable_len = s->modeSensePage(page, &p, 1);
     assert(changeable_len == len);
 
     /* Check that unchangeable bits are the same as what MODE SENSE
@@ -1580,8 +1602,9 @@ static int scsi_disk_check_mode_select(SCSIDiskState *s, int page,
     return 0;
 }
 
-static void scsi_disk_apply_mode_select(SCSIDiskState *s, int page, uint8_t *p)
+void SCSIDiskState::applyModeSelect(int page, uint8_t *p)
 {
+    SCSIDiskState *s = this;
     switch (page) {
     case MODE_PAGE_CACHING:
         blk_set_enable_write_cache(s->qdev.conf.blk, (p[0] & 4) != 0);
@@ -1630,11 +1653,11 @@ static int mode_select_pages(SCSIDiskReq *r, uint8_t *p, int len, bool change)
         }
 
         if (!change) {
-            if (scsi_disk_check_mode_select(s, page, p, page_len) < 0) {
+            if (s->checkModeSelect(page, p, page_len) < 0) {
                 goto invalid_param;
             }
         } else {
-            scsi_disk_apply_mode_select(s, page, p);
+            s->applyModeSelect(page, p);
         }
 
         p += page_len;
@@ -1735,9 +1758,10 @@ invalid_field:
 }
 
 /* sector_num and nb_sectors expected to be in qdev blocksize */
-static inline bool check_lba_range(SCSIDiskState *s,
+bool SCSIDiskState::checkLbaRange(
                                    uint64_t sector_num, uint32_t nb_sectors)
 {
+    SCSIDiskState *s = this;
     /*
      * The first line tests that no overflow happens when computing the last
      * sector.  The second line tests that the last accessed sector is in
@@ -1772,7 +1796,7 @@ static void scsi_unmap_complete_noio(UnmapCBData *data, int ret)
         r->sector = sector_num * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
         r->sector_count = nb_sectors * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
 
-        if (!check_lba_range(s, sector_num, nb_sectors)) {
+        if (!s->checkLbaRange( sector_num, nb_sectors)) {
             block_acct_invalid(blk_get_stats(s->qdev.conf.blk),
                                BLOCK_ACCT_UNMAP);
             scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
@@ -1935,7 +1959,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
         scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
         return;
     }
-    if (!check_lba_range(s, r->req.cmd.lba, nb_sectors)) {
+    if (!s->checkLbaRange( r->req.cmd.lba, nb_sectors)) {
         scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
         return;
     }
@@ -2166,31 +2190,31 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         }
         break;
     case MECHANISM_STATUS:
-        buflen = scsi_emulate_mechanism_status(s, outbuf);
+        buflen = s->emulateMechanismStatus(outbuf);
         if (buflen < 0) {
             goto illegal_request;
         }
         break;
     case GET_CONFIGURATION:
-        buflen = scsi_get_configuration(s, outbuf);
+        buflen = s->getConfiguration(outbuf);
         if (buflen < 0) {
             goto illegal_request;
         }
         break;
     case GET_EVENT_STATUS_NOTIFICATION:
-        buflen = scsi_get_event_status_notification(s, r, outbuf);
+        buflen = s->getEventStatusNotification(r, outbuf);
         if (buflen < 0) {
             goto illegal_request;
         }
         break;
     case READ_DISC_INFORMATION:
-        buflen = scsi_read_disc_information(s, r, outbuf);
+        buflen = s->readDiscInformation(r, outbuf);
         if (buflen < 0) {
             goto illegal_request;
         }
         break;
     case READ_DVD_STRUCTURE:
-        buflen = scsi_read_dvd_structure(s, r, outbuf);
+        buflen = s->readDvdStructure(r, outbuf);
         if (buflen < 0) {
             goto illegal_request;
         }
@@ -2339,7 +2363,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         if (s->qdev.scsi_version > 2 && (r->req.cmd.buf[1] & 0xe0)) {
             goto illegal_request;
         }
-        if (!check_lba_range(s, r->req.cmd.lba, len)) {
+        if (!s->checkLbaRange( r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
@@ -2370,7 +2394,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         if (s->qdev.scsi_version > 2 && (r->req.cmd.buf[1] & 0xe0)) {
             goto illegal_request;
         }
-        if (!check_lba_range(s, r->req.cmd.lba, len)) {
+        if (!s->checkLbaRange( r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / BDRV_SECTOR_SIZE);
@@ -2763,8 +2787,9 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
 }
 
 #ifdef __linux__
-static int get_device_type(SCSIDiskState *s)
+int SCSIDiskState::getDeviceType()
 {
+    SCSIDiskState *s = this;
     uint8_t cmd[16];
     uint8_t buf[36];
     int ret;
@@ -2818,7 +2843,7 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
     }
 
     /* get device type from INQUIRY data */
-    rc = get_device_type(s);
+    rc = s->getDeviceType();
     if (rc < 0) {
         error_setg(errp, "INQUIRY failed");
         return;
@@ -2988,8 +3013,9 @@ static BlockAIOCB *scsi_block_dma_writev(int64_t offset,
                               SG_DXFER_TO_DEV, cb, cb_opaque);
 }
 
-static bool scsi_block_is_passthrough(SCSIDiskState *s, uint8_t *buf)
+bool SCSIDiskState::blockIsPassthrough(uint8_t *buf)
 {
+    SCSIDiskState *s = this;
     switch (buf[0]) {
     case VERIFY_10:
     case VERIFY_12:
@@ -3092,7 +3118,7 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
 
-    if (scsi_block_is_passthrough(s, buf)) {
+    if (s->blockIsPassthrough(buf)) {
         return scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
                               hba_private);
     } else {
@@ -3107,7 +3133,7 @@ static int scsi_block_parse_cdb(SCSIDevice *d, SCSICommand *cmd,
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
 
-    if (scsi_block_is_passthrough(s, buf)) {
+    if (s->blockIsPassthrough(buf)) {
         return scsi_bus_parse_cdb(&s->qdev, cmd, buf, buf_len, hba_private);
     } else {
         return scsi_req_parse_cdb(&s->qdev, cmd, buf, buf_len);
