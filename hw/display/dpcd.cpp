@@ -66,7 +66,7 @@ struct DPCDState {
 uint64_t DPCDState::mmioRead(void *opaque, hwaddr offset, unsigned size)
 {
     uint8_t ret;
-    DPCDState *e = DPCD(opaque);
+    DPCDState *e = reinterpret_cast<DPCDState *>(opaque);
 
     if (offset < DPCD_READABLE_AREA) {
         ret = e->dpcd_info[offset];
@@ -83,7 +83,7 @@ uint64_t DPCDState::mmioRead(void *opaque, hwaddr offset, unsigned size)
 void DPCDState::mmioWrite(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
-    DPCDState *e = DPCD(opaque);
+    DPCDState *e = reinterpret_cast<DPCDState *>(opaque);
 
     trace_dpcd_write(offset, value);
     if (offset < DPCD_READABLE_AREA) {
@@ -109,7 +109,7 @@ static const MemoryRegionOps aux_ops = {
 
 static void dpcd_reset_fn(DeviceState *dev)
 {
-    DPCDState *s = DPCD(dev);
+    DPCDState *s = reinterpret_cast<DPCDState *>(dev);
     s->reset();
 }
 
@@ -143,15 +143,15 @@ void DPCDState::reset()
 
 static void dpcd_init(Object *obj)
 {
-    DPCDState *s = DPCD(obj);
+    DPCDState *s = reinterpret_cast<DPCDState *>(obj);
     s->instanceInit();
 }
 
 void DPCDState::instanceInit()
 {
-    memory_region_init_io(&iomem, OBJECT(this), &aux_ops, this,
-                          TYPE_DPCD, 0x80000);
-    aux_init_mmio(AUX_SLAVE(this), &iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &aux_ops,
+                          this, TYPE_DPCD, 0x80000);
+    aux_init_mmio(reinterpret_cast<AUXSlave *>(this), &iomem);
 }
 
 static const VMStateDescription vmstate_dpcd = {
@@ -166,7 +166,7 @@ static const VMStateDescription vmstate_dpcd = {
 
 void DPCDState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     device_class_set_legacy_reset(dc, dpcd_reset_fn);
     dc->vmsd = &vmstate_dpcd;

@@ -79,9 +79,28 @@ struct RISCVAPLICState {
     uint32_t kvm_msicfgaddrH;
 
 #ifdef __cplusplus
+    /* Instance methods */
     void realize(Error **errp);
     uint64_t mmioRead(hwaddr addr, unsigned size);
     void mmioWrite(hwaddr addr, uint64_t value, unsigned size);
+
+    /* Internal helpers (converted from static functions) */
+    bool irqRectifiedVal(uint32_t irq);
+    uint32_t readInputWord(uint32_t word);
+    uint32_t readPendingWord(uint32_t word);
+    void setPendingRaw(uint32_t irq, bool pending);
+    void setPending(uint32_t irq, bool pending);
+    void setPendingWord(uint32_t word, uint32_t value, bool pending);
+    uint32_t readEnabledWord(int word);
+    void setEnabledRaw(uint32_t irq, bool enabled);
+    void setEnabled(uint32_t irq, bool enabled);
+    void setEnabledWord(uint32_t word, uint32_t value, bool enabled);
+    void msiSend(uint32_t hart_idx, uint32_t guest_idx, uint32_t eiid);
+    void msiIrqUpdate(uint32_t irq);
+    uint32_t idcTopi(uint32_t idc);
+    void idcUpdate(uint32_t idc);
+    uint32_t idcClaimi(uint32_t idc);
+
     static void classInit(ObjectClass *klass, const void *data);
 #endif
 };

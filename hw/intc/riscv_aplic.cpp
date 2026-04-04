@@ -155,6 +155,11 @@
 
 #define APLIC_IDC_CLAIMI               0x1c
 
+static inline RISCVAPLICState *riscv_aplic_from_obj(void *obj)
+{
+    return reinterpret_cast<RISCVAPLICState *>(RISCV_APLIC(obj));
+}
+
 /*
  * KVM AIA only supports APLIC MSI, fallback to QEMU emulation if we want to use
  * APLIC Wired.
@@ -193,9 +198,9 @@ void riscv_aplic_set_kvm_msicfgaddr(RISCVAPLICState *aplic, hwaddr addr)
 #endif
 }
 
-static bool riscv_aplic_irq_rectified_val(RISCVAPLICState *aplic,
-                                          uint32_t irq)
+bool RISCVAPLICState::irqRectifiedVal(uint32_t irq)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t sourcecfg, sm, raw_input, irq_inverted;
 
     if (!irq || aplic->num_irqs <= irq) {
@@ -219,24 +224,23 @@ static bool riscv_aplic_irq_rectified_val(RISCVAPLICState *aplic,
     return !!(raw_input ^ irq_inverted);
 }
 
-static uint32_t riscv_aplic_read_input_word(RISCVAPLICState *aplic,
-                                            uint32_t word)
+uint32_t RISCVAPLICState::readInputWord(uint32_t word)
 {
     uint32_t i, irq, rectified_val, ret = 0;
 
     for (i = 0; i < 32; i++) {
         irq = word * 32 + i;
 
-        rectified_val = riscv_aplic_irq_rectified_val(aplic, irq);
+        rectified_val = irqRectifiedVal(irq);
         ret |= rectified_val << i;
     }
 
     return ret;
 }
 
-static uint32_t riscv_aplic_read_pending_word(RISCVAPLICState *aplic,
-                                              uint32_t word)
+uint32_t RISCVAPLICState::readPendingWord(uint32_t word)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t i, irq, ret = 0;
 
     for (i = 0; i < 32; i++) {
@@ -251,9 +255,9 @@ static uint32_t riscv_aplic_read_pending_word(RISCVAPLICState *aplic,
     return ret;
 }
 
-static void riscv_aplic_set_pending_raw(RISCVAPLICState *aplic,
-                                        uint32_t irq, bool pending)
+void RISCVAPLICState::setPendingRaw(uint32_t irq, bool pending)
 {
+    RISCVAPLICState *aplic = this;
     if (pending) {
         aplic->state[irq] |= APLIC_ISTATE_PENDING;
     } else {
@@ -261,9 +265,9 @@ static void riscv_aplic_set_pending_raw(RISCVAPLICState *aplic,
     }
 }
 
-static void riscv_aplic_set_pending(RISCVAPLICState *aplic,
-                                    uint32_t irq, bool pending)
+void RISCVAPLICState::setPending(uint32_t irq, bool pending)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t sourcecfg, sm;
 
     if ((irq <= 0) || (aplic->num_irqs <= irq)) {
@@ -299,13 +303,13 @@ static void riscv_aplic_set_pending(RISCVAPLICState *aplic,
     }
 
 noskip_write_pending:
-    riscv_aplic_set_pending_raw(aplic, irq, pending);
+    setPendingRaw(irq, pending);
 }
 
-static void riscv_aplic_set_pending_word(RISCVAPLICState *aplic,
-                                         uint32_t word, uint32_t value,
-                                         bool pending)
+void RISCVAPLICState::setPendingWord(uint32_t word, uint32_t value,
+                                     bool pending)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t i, irq;
 
     for (i = 0; i < 32; i++) {
@@ -315,14 +319,14 @@ static void riscv_aplic_set_pending_word(RISCVAPLICState *aplic,
         }
 
         if (value & (1U << i)) {
-            riscv_aplic_set_pending(aplic, irq, pending);
+            setPending(irq, pending);
         }
     }
 }
 
-static uint32_t riscv_aplic_read_enabled_word(RISCVAPLICState *aplic,
-                                              int word)
+uint32_t RISCVAPLICState::readEnabledWord(int word)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t i, irq, ret = 0;
 
     for (i = 0; i < 32; i++) {
@@ -337,9 +341,9 @@ static uint32_t riscv_aplic_read_enabled_word(RISCVAPLICState *aplic,
     return ret;
 }
 
-static void riscv_aplic_set_enabled_raw(RISCVAPLICState *aplic,
-                                        uint32_t irq, bool enabled)
+void RISCVAPLICState::setEnabledRaw(uint32_t irq, bool enabled)
 {
+    RISCVAPLICState *aplic = this;
     if (enabled) {
         aplic->state[irq] |= APLIC_ISTATE_ENABLED;
     } else {
@@ -347,9 +351,9 @@ static void riscv_aplic_set_enabled_raw(RISCVAPLICState *aplic,
     }
 }
 
-static void riscv_aplic_set_enabled(RISCVAPLICState *aplic,
-                                    uint32_t irq, bool enabled)
+void RISCVAPLICState::setEnabled(uint32_t irq, bool enabled)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t sourcecfg, sm;
 
     if ((irq <= 0) || (aplic->num_irqs <= irq)) {
@@ -366,13 +370,13 @@ static void riscv_aplic_set_enabled(RISCVAPLICState *aplic,
         return;
     }
 
-    riscv_aplic_set_enabled_raw(aplic, irq, enabled);
+    setEnabledRaw(irq, enabled);
 }
 
-static void riscv_aplic_set_enabled_word(RISCVAPLICState *aplic,
-                                         uint32_t word, uint32_t value,
-                                         bool enabled)
+void RISCVAPLICState::setEnabledWord(uint32_t word, uint32_t value,
+                                     bool enabled)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t i, irq;
 
     for (i = 0; i < 32; i++) {
@@ -382,15 +386,15 @@ static void riscv_aplic_set_enabled_word(RISCVAPLICState *aplic,
         }
 
         if (value & (1U << i)) {
-            riscv_aplic_set_enabled(aplic, irq, enabled);
+            setEnabled(irq, enabled);
         }
     }
 }
 
-static void riscv_aplic_msi_send(RISCVAPLICState *aplic,
-                                 uint32_t hart_idx, uint32_t guest_idx,
-                                 uint32_t eiid)
+void RISCVAPLICState::msiSend(uint32_t hart_idx, uint32_t guest_idx,
+                              uint32_t eiid)
 {
+    RISCVAPLICState *aplic = this;
     uint64_t addr;
     MemTxResult result;
     RISCVAPLICState *aplic_m;
@@ -454,8 +458,9 @@ static void riscv_aplic_msi_send(RISCVAPLICState *aplic,
     }
 }
 
-static void riscv_aplic_msi_irq_update(RISCVAPLICState *aplic, uint32_t irq)
+void RISCVAPLICState::msiIrqUpdate(uint32_t irq)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t hart_idx, guest_idx, eiid;
 
     if (!aplic->msimode || (aplic->num_irqs <= irq) ||
@@ -467,7 +472,7 @@ static void riscv_aplic_msi_irq_update(RISCVAPLICState *aplic, uint32_t irq)
         return;
     }
 
-    riscv_aplic_set_pending_raw(aplic, irq, false);
+    setPendingRaw(irq, false);
 
     hart_idx = aplic->target[irq] >> APLIC_TARGET_HART_IDX_SHIFT;
     hart_idx &= APLIC_TARGET_HART_IDX_MASK;
@@ -479,11 +484,12 @@ static void riscv_aplic_msi_irq_update(RISCVAPLICState *aplic, uint32_t irq)
         guest_idx &= APLIC_TARGET_GUEST_IDX_MASK;
     }
     eiid = aplic->target[irq] & APLIC_TARGET_EIID_MASK;
-    riscv_aplic_msi_send(aplic, hart_idx, guest_idx, eiid);
+    msiSend(hart_idx, guest_idx, eiid);
 }
 
-static uint32_t riscv_aplic_idc_topi(RISCVAPLICState *aplic, uint32_t idc)
+uint32_t RISCVAPLICState::idcTopi(uint32_t idc)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t best_irq, best_iprio;
     uint32_t irq, iprio, ihartidx, ithres;
 
@@ -523,15 +529,16 @@ static uint32_t riscv_aplic_idc_topi(RISCVAPLICState *aplic, uint32_t idc)
     return 0;
 }
 
-static void riscv_aplic_idc_update(RISCVAPLICState *aplic, uint32_t idc)
+void RISCVAPLICState::idcUpdate(uint32_t idc)
 {
+    RISCVAPLICState *aplic = this;
     uint32_t topi;
 
     if (aplic->msimode || aplic->num_harts <= idc) {
         return;
     }
 
-    topi = riscv_aplic_idc_topi(aplic, idc);
+    topi = idcTopi(idc);
     if ((aplic->domaincfg & APLIC_DOMAINCFG_IE) &&
         aplic->idelivery[idc] &&
         (aplic->iforce[idc] || topi)) {
@@ -541,28 +548,29 @@ static void riscv_aplic_idc_update(RISCVAPLICState *aplic, uint32_t idc)
     }
 }
 
-static uint32_t riscv_aplic_idc_claimi(RISCVAPLICState *aplic, uint32_t idc)
+uint32_t RISCVAPLICState::idcClaimi(uint32_t idc)
 {
-    uint32_t irq, state, sm, topi = riscv_aplic_idc_topi(aplic, idc);
+    RISCVAPLICState *aplic = this;
+    uint32_t irq, sm, topi = idcTopi(idc);
 
     if (!topi) {
         aplic->iforce[idc] = 0;
-        riscv_aplic_idc_update(aplic, idc);
+        idcUpdate(idc);
         return 0;
     }
 
     irq = (topi >> APLIC_IDC_TOPI_ID_SHIFT) & APLIC_IDC_TOPI_ID_MASK;
     sm = aplic->sourcecfg[irq] & APLIC_SOURCECFG_SM_MASK;
-    state = aplic->state[irq];
-    riscv_aplic_set_pending_raw(aplic, irq, false);
+    uint32_t irq_state = aplic->state[irq];
+    setPendingRaw(irq, false);
     if ((sm == APLIC_SOURCECFG_SM_LEVEL_HIGH) &&
-        (state & APLIC_ISTATE_INPUT)) {
-        riscv_aplic_set_pending_raw(aplic, irq, true);
+        (irq_state & APLIC_ISTATE_INPUT)) {
+        setPendingRaw(irq, true);
     } else if ((sm == APLIC_SOURCECFG_SM_LEVEL_LOW) &&
-               !(state & APLIC_ISTATE_INPUT)) {
-        riscv_aplic_set_pending_raw(aplic, irq, true);
+               !(irq_state & APLIC_ISTATE_INPUT)) {
+        setPendingRaw(irq, true);
     }
-    riscv_aplic_idc_update(aplic, idc);
+    idcUpdate(idc);
 
     return topi;
 }
@@ -571,7 +579,7 @@ static void riscv_aplic_request(void *opaque, int irq, int level)
 {
     bool update = false;
     RISCVAPLICState *aplic = static_cast<RISCVAPLICState *>(opaque);
-    uint32_t sourcecfg, childidx, state, idc;
+    uint32_t sourcecfg, childidx, irq_state, idc;
 
     assert((0 < irq) && (irq < aplic->num_irqs));
 
@@ -584,31 +592,31 @@ static void riscv_aplic_request(void *opaque, int irq, int level)
         return;
     }
 
-    state = aplic->state[irq];
+    irq_state = aplic->state[irq];
     switch (sourcecfg & APLIC_SOURCECFG_SM_MASK) {
     case APLIC_SOURCECFG_SM_EDGE_RISE:
-        if ((level > 0) && !(state & APLIC_ISTATE_INPUT) &&
-            !(state & APLIC_ISTATE_PENDING)) {
-            riscv_aplic_set_pending_raw(aplic, irq, true);
+        if ((level > 0) && !(irq_state & APLIC_ISTATE_INPUT) &&
+            !(irq_state & APLIC_ISTATE_PENDING)) {
+            aplic->setPendingRaw(irq, true);
             update = true;
         }
         break;
     case APLIC_SOURCECFG_SM_EDGE_FALL:
-        if ((level <= 0) && (state & APLIC_ISTATE_INPUT) &&
-            !(state & APLIC_ISTATE_PENDING)) {
-            riscv_aplic_set_pending_raw(aplic, irq, true);
+        if ((level <= 0) && (irq_state & APLIC_ISTATE_INPUT) &&
+            !(irq_state & APLIC_ISTATE_PENDING)) {
+            aplic->setPendingRaw(irq, true);
             update = true;
         }
         break;
     case APLIC_SOURCECFG_SM_LEVEL_HIGH:
-        if ((level > 0) && !(state & APLIC_ISTATE_PENDING)) {
-            riscv_aplic_set_pending_raw(aplic, irq, true);
+        if ((level > 0) && !(irq_state & APLIC_ISTATE_PENDING)) {
+            aplic->setPendingRaw(irq, true);
             update = true;
         }
         break;
     case APLIC_SOURCECFG_SM_LEVEL_LOW:
-        if ((level <= 0) && !(state & APLIC_ISTATE_PENDING)) {
-            riscv_aplic_set_pending_raw(aplic, irq, true);
+        if ((level <= 0) && !(irq_state & APLIC_ISTATE_PENDING)) {
+            aplic->setPendingRaw(irq, true);
             update = true;
         }
         break;
@@ -624,11 +632,11 @@ static void riscv_aplic_request(void *opaque, int irq, int level)
 
     if (update) {
         if (aplic->msimode) {
-            riscv_aplic_msi_irq_update(aplic, irq);
+            aplic->msiIrqUpdate(irq);
         } else {
             idc = aplic->target[irq] >> APLIC_TARGET_HART_IDX_SHIFT;
             idc &= APLIC_TARGET_HART_IDX_MASK;
-            riscv_aplic_idc_update(aplic, idc);
+            aplic->idcUpdate(idc);
         }
     }
 }
@@ -674,19 +682,19 @@ uint64_t RISCVAPLICState::mmioRead(hwaddr addr, unsigned size)
     } else if ((APLIC_SETIP_BASE <= addr) &&
             (addr < (APLIC_SETIP_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_SETIP_BASE) >> 2;
-        return riscv_aplic_read_pending_word(aplic, word);
+        return readPendingWord(word);
     } else if (addr == APLIC_SETIPNUM) {
         return 0;
     } else if ((APLIC_CLRIP_BASE <= addr) &&
             (addr < (APLIC_CLRIP_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_CLRIP_BASE) >> 2;
-        return riscv_aplic_read_input_word(aplic, word);
+        return readInputWord(word);
     } else if (addr == APLIC_CLRIPNUM) {
         return 0;
     } else if ((APLIC_SETIE_BASE <= addr) &&
             (addr < (APLIC_SETIE_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_SETIE_BASE) >> 2;
-        return riscv_aplic_read_enabled_word(aplic, word);
+        return readEnabledWord(word);
     } else if (addr == APLIC_SETIENUM) {
         return 0;
     } else if ((APLIC_CLRIE_BASE <= addr) &&
@@ -719,9 +727,9 @@ uint64_t RISCVAPLICState::mmioRead(hwaddr addr, unsigned size)
         case APLIC_IDC_ITHRESHOLD:
             return aplic->ithreshold[idc];
         case APLIC_IDC_TOPI:
-            return riscv_aplic_idc_topi(aplic, idc);
+            return idcTopi(idc);
         case APLIC_IDC_CLAIMI:
-            return riscv_aplic_idc_claimi(aplic, idc);
+            return idcClaimi(idc);
         default:
             goto err;
         };
@@ -763,11 +771,11 @@ void RISCVAPLICState::mmioWrite(hwaddr addr, uint64_t value,
         aplic->sourcecfg[irq] = value;
         if ((aplic->sourcecfg[irq] & APLIC_SOURCECFG_D) ||
             (aplic->sourcecfg[irq] == 0)) {
-            riscv_aplic_set_pending_raw(aplic, irq, false);
-            riscv_aplic_set_enabled_raw(aplic, irq, false);
+            setPendingRaw(irq, false);
+            setEnabledRaw(irq, false);
         } else {
-            if (riscv_aplic_irq_rectified_val(aplic, irq)) {
-                riscv_aplic_set_pending_raw(aplic, irq, true);
+            if (irqRectifiedVal(irq)) {
+                setPendingRaw(irq, true);
             }
         }
     } else if (aplic->mmode && aplic->msimode &&
@@ -804,37 +812,36 @@ void RISCVAPLICState::mmioWrite(hwaddr addr, uint64_t value,
     } else if ((APLIC_SETIP_BASE <= addr) &&
             (addr < (APLIC_SETIP_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_SETIP_BASE) >> 2;
-        riscv_aplic_set_pending_word(aplic, word, value, true);
+        setPendingWord(word, value, true);
     } else if (addr == APLIC_SETIPNUM) {
-        riscv_aplic_set_pending(aplic, value, true);
+        setPending(value, true);
     } else if ((APLIC_CLRIP_BASE <= addr) &&
             (addr < (APLIC_CLRIP_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_CLRIP_BASE) >> 2;
-        riscv_aplic_set_pending_word(aplic, word, value, false);
+        setPendingWord(word, value, false);
     } else if (addr == APLIC_CLRIPNUM) {
-        riscv_aplic_set_pending(aplic, value, false);
+        setPending(value, false);
     } else if ((APLIC_SETIE_BASE <= addr) &&
             (addr < (APLIC_SETIE_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_SETIE_BASE) >> 2;
-        riscv_aplic_set_enabled_word(aplic, word, value, true);
+        setEnabledWord(word, value, true);
     } else if (addr == APLIC_SETIENUM) {
-        riscv_aplic_set_enabled(aplic, value, true);
+        setEnabled(value, true);
     } else if ((APLIC_CLRIE_BASE <= addr) &&
             (addr < (APLIC_CLRIE_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_CLRIE_BASE) >> 2;
-        riscv_aplic_set_enabled_word(aplic, word, value, false);
+        setEnabledWord(word, value, false);
     } else if (addr == APLIC_CLRIENUM) {
-        riscv_aplic_set_enabled(aplic, value, false);
+        setEnabled(value, false);
     } else if (addr == APLIC_SETIPNUM_LE) {
-        riscv_aplic_set_pending(aplic, value, true);
+        setPending(value, true);
     } else if (addr == APLIC_SETIPNUM_BE) {
-        riscv_aplic_set_pending(aplic, bswap32(value), true);
+        setPending(bswap32(value), true);
     } else if (addr == APLIC_GENMSI) {
         if (aplic->msimode) {
             aplic->genmsi = value & ~(APLIC_TARGET_GUEST_IDX_MASK <<
                                       APLIC_TARGET_GUEST_IDX_SHIFT);
-            riscv_aplic_msi_send(aplic,
-                                 value >> APLIC_TARGET_HART_IDX_SHIFT,
+            msiSend(value >> APLIC_TARGET_HART_IDX_SHIFT,
                                  0,
                                  value & APLIC_TARGET_EIID_MASK);
         }
@@ -870,15 +877,15 @@ void RISCVAPLICState::mmioWrite(hwaddr addr, uint64_t value,
 
     if (aplic->msimode) {
         for (irq = 1; irq < aplic->num_irqs; irq++) {
-            riscv_aplic_msi_irq_update(aplic, irq);
+            msiIrqUpdate(irq);
         }
     } else {
         if (idc == UINT32_MAX) {
             for (idc = 0; idc < aplic->num_harts; idc++) {
-                riscv_aplic_idc_update(aplic, idc);
+                idcUpdate(idc);
             }
         } else {
-            riscv_aplic_idc_update(aplic, idc);
+            idcUpdate(idc);
         }
     }
 
@@ -981,7 +988,7 @@ void RISCVAPLICState::realize(Error **errp)
 
 static void riscv_aplic_realize(DeviceState *dev, Error **errp)
 {
-    RISCVAPLICState *aplic = RISCV_APLIC(dev);
+    RISCVAPLICState *aplic = riscv_aplic_from_obj(dev);
     aplic->realize(errp);
 }
 
@@ -1072,8 +1079,8 @@ void riscv_aplic_add_child(DeviceState *parent, DeviceState *child)
     RISCVAPLICState *caplic, *paplic;
 
     assert(parent && child);
-    caplic = RISCV_APLIC(child);
-    paplic = RISCV_APLIC(parent);
+    caplic = riscv_aplic_from_obj(child);
+    paplic = riscv_aplic_from_obj(parent);
 
     assert(paplic->num_irqs == caplic->num_irqs);
     assert(paplic->num_children <= QEMU_APLIC_MAX_CHILDREN);

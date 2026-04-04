@@ -457,7 +457,7 @@ static const uint32_t sm501_mem_local_size[] = {
 };
 #define get_local_mem_size(s) sm501_mem_local_size[(s)->local_mem_size_index]
 
-typedef struct SM501State {
+struct SM501State {
     /* graphic console status */
     QemuConsole *con;
 
@@ -552,7 +552,35 @@ typedef struct SM501State {
     uint32_t twoD_destination_base;
     uint32_t twoD_alpha;
     uint32_t twoD_wrap;
-} SM501State;
+
+    /* Instance methods */
+    ram_addr_t getFbAddr(int crt);
+    int getWidth(int crt);
+    int getHeight(int crt);
+    int getBpp(int crt);
+    int isHwcEnabled(int crt);
+    uint8_t *getHwcAddress(int crt);
+    uint32_t getHwcY(int crt);
+    uint32_t getHwcX(int crt);
+    void getHwcPalette(int crt, uint8_t *palette);
+    void hwcInvalidate(int crt);
+    void twoDOperation();
+    void doReset();
+    void init(DeviceState *dev, uint32_t local_mem_bytes);
+
+    /* Static MMIO callbacks */
+    static uint64_t systemConfigRead(void *opaque, hwaddr addr, unsigned size);
+    static void systemConfigWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    static uint64_t i2cRead(void *opaque, hwaddr addr, unsigned size);
+    static void i2cWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    static uint32_t paletteRead(void *opaque, hwaddr addr);
+    static void paletteWrite(void *opaque, hwaddr addr, uint32_t value);
+    static uint64_t dispCtrlRead(void *opaque, hwaddr addr, unsigned size);
+    static void dispCtrlWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    static uint64_t twoDEngineRead(void *opaque, hwaddr addr, unsigned size);
+    static void twoDEngineWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
+    static void updateDisplay(void *opaque);
+};
 
 static uint32_t get_local_mem_size_index(uint32_t size)
 {
@@ -573,26 +601,26 @@ static uint32_t get_local_mem_size_index(uint32_t size)
     return index;
 }
 
-static ram_addr_t get_fb_addr(SM501State *s, int crt)
+ram_addr_t SM501State::getFbAddr(int crt)
 {
-    return (crt ? s->dc_crt_fb_addr : s->dc_panel_fb_addr) & 0x3FFFFF0;
+    return (crt ? dc_crt_fb_addr : dc_panel_fb_addr) & 0x3FFFFF0;
 }
 
-static inline int get_width(SM501State *s, int crt)
+int SM501State::getWidth(int crt)
 {
-    int width = crt ? s->dc_crt_h_total : s->dc_panel_h_total;
+    int width = crt ? dc_crt_h_total : dc_panel_h_total;
     return (width & 0x00000FFF) + 1;
 }
 
-static inline int get_height(SM501State *s, int crt)
+int SM501State::getHeight(int crt)
 {
-    int height = crt ? s->dc_crt_v_total : s->dc_panel_v_total;
+    int height = crt ? dc_crt_v_total : dc_panel_v_total;
     return (height & 0x00000FFF) + 1;
 }
 
-static inline int get_bpp(SM501State *s, int crt)
+int SM501State::getBpp(int crt)
 {
-    int bpp = crt ? s->dc_crt_control : s->dc_panel_control;
+    int bpp = crt ? dc_crt_control : dc_panel_control;
     return 1 << (bpp & 3);
 }
 
@@ -600,9 +628,9 @@ static inline int get_bpp(SM501State *s, int crt)
  * Check the availability of hardware cursor.
  * @param crt  0 for PANEL, 1 for CRT.
  */
-static inline int is_hwc_enabled(SM501State *state, int crt)
+int SM501State::isHwcEnabled(int crt)
 {
-    uint32_t addr = crt ? state->dc_crt_hwc_addr : state->dc_panel_hwc_addr;
+    uint32_t addr = crt ? dc_crt_hwc_addr : dc_panel_hwc_addr;
     return addr & SM501_HWC_EN;
 }
 
@@ -610,20 +638,20 @@ static inline int is_hwc_enabled(SM501State *state, int crt)
  * Get the address which holds cursor pattern data.
  * @param crt  0 for PANEL, 1 for CRT.
  */
-static inline uint8_t *get_hwc_address(SM501State *state, int crt)
+uint8_t *SM501State::getHwcAddress(int crt)
 {
-    uint32_t addr = crt ? state->dc_crt_hwc_addr : state->dc_panel_hwc_addr;
-    return state->local_mem + (addr & 0x03FFFFF0);
+    uint32_t addr = crt ? dc_crt_hwc_addr : dc_panel_hwc_addr;
+    return local_mem + (addr & 0x03FFFFF0);
 }
 
 /**
  * Get the cursor position in y coordinate.
  * @param crt  0 for PANEL, 1 for CRT.
  */
-static inline uint32_t get_hwc_y(SM501State *state, int crt)
+uint32_t SM501State::getHwcY(int crt)
 {
-    uint32_t location = crt ? state->dc_crt_hwc_location
-                            : state->dc_panel_hwc_location;
+    uint32_t location = crt ? dc_crt_hwc_location
+                            : dc_panel_hwc_location;
     return (location & 0x07FF0000) >> 16;
 }
 
@@ -631,10 +659,10 @@ static inline uint32_t get_hwc_y(SM501State *state, int crt)
  * Get the cursor position in x coordinate.
  * @param crt  0 for PANEL, 1 for CRT.
  */
-static inline uint32_t get_hwc_x(SM501State *state, int crt)
+uint32_t SM501State::getHwcX(int crt)
 {
-    uint32_t location = crt ? state->dc_crt_hwc_location
-                            : state->dc_panel_hwc_location;
+    uint32_t location = crt ? dc_crt_hwc_location
+                            : dc_panel_hwc_location;
     return location & 0x000007FF;
 }
 
@@ -643,7 +671,7 @@ static inline uint32_t get_hwc_x(SM501State *state, int crt)
  * @param crt  0 for PANEL, 1 for CRT.
  * @param palette  pointer to a [3 * 3] array to store color values in
  */
-static inline void get_hwc_palette(SM501State *state, int crt, uint8_t *palette)
+void SM501State::getHwcPalette(int crt, uint8_t *palette)
 {
     int i;
     uint32_t color_reg;
@@ -651,11 +679,11 @@ static inline void get_hwc_palette(SM501State *state, int crt, uint8_t *palette)
 
     for (i = 0; i < 3; i++) {
         if (i + 1 == 3) {
-            color_reg = crt ? state->dc_crt_hwc_color_3
-                            : state->dc_panel_hwc_color_3;
+            color_reg = crt ? dc_crt_hwc_color_3
+                            : dc_panel_hwc_color_3;
         } else {
-            color_reg = crt ? state->dc_crt_hwc_color_1_2
-                            : state->dc_panel_hwc_color_1_2;
+            color_reg = crt ? dc_crt_hwc_color_1_2
+                            : dc_panel_hwc_color_1_2;
         }
 
         if (i + 1 == 2) {
@@ -669,47 +697,47 @@ static inline void get_hwc_palette(SM501State *state, int crt, uint8_t *palette)
     }
 }
 
-static inline void hwc_invalidate(SM501State *s, int crt)
+void SM501State::hwcInvalidate(int crt)
 {
-    int w = get_width(s, crt);
-    int h = get_height(s, crt);
-    int bpp = get_bpp(s, crt);
-    int start = get_hwc_y(s, crt);
+    int w = this->getWidth(crt);
+    int h = this->getHeight(crt);
+    int bpp = this->getBpp(crt);
+    int start = this->getHwcY(crt);
     int end = MIN(h, start + SM501_HWC_HEIGHT) + 1;
 
     start *= w * bpp;
     end *= w * bpp;
 
-    memory_region_set_dirty(&s->local_mem_region,
-                            get_fb_addr(s, crt) + start, end - start);
+    memory_region_set_dirty(&this->local_mem_region,
+                            this->getFbAddr(crt) + start, end - start);
 }
 
-static void sm501_2d_operation(SM501State *s)
+void SM501State::twoDOperation()
 {
-    int cmd = (s->twoD_control >> 16) & 0x1F;
-    int rtl = s->twoD_control & BIT(27);
-    int format = (s->twoD_stretch >> 20) & 3;
+    int cmd = (twoD_control >> 16) & 0x1F;
+    int rtl = twoD_control & BIT(27);
+    int format = (twoD_stretch >> 20) & 3;
     int bypp = 1 << format; /* bytes per pixel */
-    int rop_mode = (s->twoD_control >> 15) & 1; /* 1 for rop2, else rop3 */
+    int rop_mode = (this->twoD_control >> 15) & 1; /* 1 for rop2, else rop3 */
     /* 1 if rop2 source is the pattern, otherwise the source is the bitmap */
-    int rop2_source_is_pattern = (s->twoD_control >> 14) & 1;
-    int rop = s->twoD_control & 0xFF;
-    unsigned int dst_x = (s->twoD_destination >> 16) & 0x01FFF;
-    unsigned int dst_y = s->twoD_destination & 0xFFFF;
-    unsigned int width = (s->twoD_dimension >> 16) & 0x1FFF;
-    unsigned int height = s->twoD_dimension & 0xFFFF;
-    uint32_t dst_base = s->twoD_destination_base & 0x03FFFFFF;
-    unsigned int dst_pitch = (s->twoD_pitch >> 16) & 0x1FFF;
-    int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
-    int fb_len = get_width(s, crt) * get_height(s, crt) * get_bpp(s, crt);
+    int rop2_source_is_pattern = (twoD_control >> 14) & 1;
+    int rop = twoD_control & 0xFF;
+    unsigned int dst_x = (twoD_destination >> 16) & 0x01FFF;
+    unsigned int dst_y = twoD_destination & 0xFFFF;
+    unsigned int width = (twoD_dimension >> 16) & 0x1FFF;
+    unsigned int height = twoD_dimension & 0xFFFF;
+    uint32_t dst_base = twoD_destination_base & 0x03FFFFFF;
+    unsigned int dst_pitch = (twoD_pitch >> 16) & 0x1FFF;
+    int crt = (dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
+    int fb_len = getWidth(crt) * getHeight(crt) * getBpp(crt);
     bool overlap = false, fallback = false;
 
-    if ((s->twoD_stretch >> 16) & 0xF) {
+    if ((twoD_stretch >> 16) & 0xF) {
         qemu_log_mask(LOG_UNIMP, "sm501: only XY addressing is supported.\n");
         return;
     }
 
-    if (s->twoD_source_base & BIT(27) || s->twoD_destination_base & BIT(27)) {
+    if (twoD_source_base & BIT(27) || twoD_destination_base & BIT(27)) {
         qemu_log_mask(LOG_UNIMP, "sm501: only local memory is supported.\n");
         return;
     }
@@ -729,9 +757,9 @@ static void sm501_2d_operation(SM501State *s)
         dst_y -= height - 1;
     }
 
-    if (dst_base >= get_local_mem_size(s) ||
+    if (dst_base >= get_local_mem_size(this) ||
         dst_base + (dst_x + width + (dst_y + height) * dst_pitch) * bypp >=
-        get_local_mem_size(s)) {
+        get_local_mem_size(this)) {
         qemu_log_mask(LOG_GUEST_ERROR, "sm501: 2D op dest is outside vram.\n");
         return;
     }
@@ -739,10 +767,10 @@ static void sm501_2d_operation(SM501State *s)
     switch (cmd) {
     case 0: /* BitBlt */
     {
-        unsigned int src_x = (s->twoD_source >> 16) & 0x01FFF;
-        unsigned int src_y = s->twoD_source & 0xFFFF;
-        uint32_t src_base = s->twoD_source_base & 0x03FFFFFF;
-        unsigned int src_pitch = s->twoD_pitch & 0x1FFF;
+        unsigned int src_x = (twoD_source >> 16) & 0x01FFF;
+        unsigned int src_y = twoD_source & 0xFFFF;
+        uint32_t src_base = twoD_source_base & 0x03FFFFFF;
+        unsigned int src_pitch = twoD_pitch & 0x1FFF;
 
         if (!src_pitch) {
             qemu_log_mask(LOG_GUEST_ERROR, "sm501: Zero src pitch.\n");
@@ -754,9 +782,9 @@ static void sm501_2d_operation(SM501State *s)
             src_y -= height - 1;
         }
 
-        if (src_base >= get_local_mem_size(s) ||
+        if (src_base >= get_local_mem_size(this) ||
             src_base + (src_x + width + (src_y + height) * src_pitch) * bypp >=
-            get_local_mem_size(s)) {
+            get_local_mem_size(this)) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "sm501: 2D op src is outside vram.\n");
             return;
@@ -765,7 +793,7 @@ static void sm501_2d_operation(SM501State *s)
         if ((rop_mode && rop == 0x5) || (!rop_mode && rop == 0x55)) {
             /* DSTINVERT, is there a way to do this with pixman? */
             unsigned int x, y, i;
-            uint8_t *d = s->local_mem + dst_base;
+            uint8_t *d = local_mem + dst_base;
 
             for (y = 0; y < height; y++) {
                 i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
@@ -776,8 +804,8 @@ static void sm501_2d_operation(SM501State *s)
         } else if (!rop_mode && rop == 0x99) {
             /* DSxn, is there a way to do this with pixman? */
             unsigned int x, y, i, j;
-            uint8_t *sp = s->local_mem + src_base;
-            uint8_t *d = s->local_mem + dst_base;
+            uint8_t *sp = local_mem + src_base;
+            uint8_t *d = local_mem + dst_base;
 
             for (y = 0; y < height; y++) {
                 i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
@@ -790,8 +818,8 @@ static void sm501_2d_operation(SM501State *s)
         } else if (!rop_mode && rop == 0xee) {
             /* SRCPAINT, is there a way to do this with pixman? */
             unsigned int x, y, i, j;
-            uint8_t *sp = s->local_mem + src_base;
-            uint8_t *d = s->local_mem + dst_base;
+            uint8_t *sp = local_mem + src_base;
+            uint8_t *d = local_mem + dst_base;
 
             for (y = 0; y < height; y++) {
                 i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
@@ -820,8 +848,8 @@ static void sm501_2d_operation(SM501State *s)
             if (width == 1 && height == 1) {
                 unsigned int si = (src_x + src_y * src_pitch) * bypp;
                 unsigned int di = (dst_x + dst_y * dst_pitch) * bypp;
-                stn_he_p(&s->local_mem[dst_base + di], bypp,
-                         ldn_he_p(&s->local_mem[src_base + si], bypp));
+                stn_he_p(&local_mem[dst_base + di], bypp,
+                         ldn_he_p(&local_mem[src_base + si], bypp));
                 break;
             }
             /* If reverse blit do simple check for overlaps */
@@ -837,7 +865,7 @@ static void sm501_2d_operation(SM501State *s)
                 overlap = (db < se && sb < de);
             }
 #ifdef CONFIG_PIXMAN
-            if (overlap && (s->use_pixman & BIT(2))) {
+            if (overlap && (use_pixman & BIT(2))) {
                 /* pixman can't do reverse blit: copy via temporary */
                 int tmp_stride = DIV_ROUND_UP(width * bypp, sizeof(uint32_t));
                 static uint32_t tmp_buf[16384];
@@ -846,7 +874,7 @@ static void sm501_2d_operation(SM501State *s)
                 if (tmp_stride * sizeof(uint32_t) * height > sizeof(tmp_buf)) {
                     tmp = static_cast<uint32_t *>(g_malloc(tmp_stride * sizeof(uint32_t) * height));
                 }
-                fallback = !pixman_blt((uint32_t *)&s->local_mem[src_base],
+                fallback = !pixman_blt((uint32_t *)&local_mem[src_base],
                                        tmp,
                                        src_pitch * bypp / sizeof(uint32_t),
                                        tmp_stride,
@@ -854,7 +882,7 @@ static void sm501_2d_operation(SM501State *s)
                                        src_x, src_y, 0, 0, width, height);
                 if (!fallback) {
                     fallback = !pixman_blt(tmp,
-                                       (uint32_t *)&s->local_mem[dst_base],
+                                       (uint32_t *)&local_mem[dst_base],
                                        tmp_stride,
                                        dst_pitch * bypp / sizeof(uint32_t),
                                        8 * bypp, 8 * bypp,
@@ -863,9 +891,9 @@ static void sm501_2d_operation(SM501State *s)
                 if (tmp != tmp_buf) {
                     g_free(tmp);
                 }
-            } else if (!overlap && (s->use_pixman & BIT(1))) {
-                fallback = !pixman_blt((uint32_t *)&s->local_mem[src_base],
-                                       (uint32_t *)&s->local_mem[dst_base],
+            } else if (!overlap && (use_pixman & BIT(1))) {
+                fallback = !pixman_blt((uint32_t *)&local_mem[src_base],
+                                       (uint32_t *)&local_mem[dst_base],
                                        src_pitch * bypp / sizeof(uint32_t),
                                        dst_pitch * bypp / sizeof(uint32_t),
                                        8 * bypp, 8 * bypp, src_x, src_y,
@@ -876,8 +904,8 @@ static void sm501_2d_operation(SM501State *s)
                 fallback = true;
             }
             if (fallback) {
-                uint8_t *sp = s->local_mem + src_base;
-                uint8_t *d = s->local_mem + dst_base;
+                uint8_t *sp = local_mem + src_base;
+                uint8_t *d = local_mem + dst_base;
                 unsigned int y, i, j;
                 for (y = 0; y < height; y++) {
                     if (overlap) { /* overlap also means rtl */
@@ -898,7 +926,7 @@ static void sm501_2d_operation(SM501State *s)
     }
     case 1: /* Rectangle Fill */
     {
-        uint32_t color = s->twoD_foreground;
+        uint32_t color = twoD_foreground;
 
         if (format == 2) {
             color = cpu_to_le32(color);
@@ -907,14 +935,14 @@ static void sm501_2d_operation(SM501State *s)
         }
 
 #ifdef CONFIG_PIXMAN
-        if (!(s->use_pixman & BIT(0)) || (width == 1 && height == 1) ||
-            !pixman_fill((uint32_t *)&s->local_mem[dst_base],
+        if (!(use_pixman & BIT(0)) || (width == 1 && height == 1) ||
+            !pixman_fill((uint32_t *)&local_mem[dst_base],
                          dst_pitch * bypp / sizeof(uint32_t), 8 * bypp,
                          dst_x, dst_y, width, height, color))
 #endif
             {
                 /* fallback when pixman failed or we don't want to call it */
-                uint8_t *d = s->local_mem + dst_base;
+                uint8_t *d = local_mem + dst_base;
                 unsigned int x, y, i;
                 for (y = 0; y < height; y++) {
                     i = (dst_x + (dst_y + y) * dst_pitch) * bypp;
@@ -931,17 +959,17 @@ static void sm501_2d_operation(SM501State *s)
         return;
     }
 
-    if (dst_base >= get_fb_addr(s, crt) &&
-        dst_base <= get_fb_addr(s, crt) + fb_len) {
+    if (dst_base >= getFbAddr(crt) &&
+        dst_base <= getFbAddr(crt) + fb_len) {
         int dst_len = MIN(fb_len, ((dst_y + height - 1) * dst_pitch +
                           dst_x + width) * bypp);
         if (dst_len) {
-            memory_region_set_dirty(&s->local_mem_region, dst_base, dst_len);
+            memory_region_set_dirty(&local_mem_region, dst_base, dst_len);
         }
     }
 }
 
-static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
+uint64_t SM501State::systemConfigRead(void *opaque, hwaddr addr,
                                          unsigned size)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
@@ -1001,7 +1029,7 @@ static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void sm501_system_config_write(void *opaque, hwaddr addr,
+void SM501State::systemConfigWrite(void *opaque, hwaddr addr,
                                       uint64_t value, unsigned size)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
@@ -1061,8 +1089,8 @@ static void sm501_system_config_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sm501_system_config_ops = {
-    .read = sm501_system_config_read,
-    .write = sm501_system_config_write,
+    .read = SM501State::systemConfigRead,
+    .write = SM501State::systemConfigWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -1070,7 +1098,7 @@ static const MemoryRegionOps sm501_system_config_ops = {
     },
 };
 
-static uint64_t sm501_i2c_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t SM501State::i2cRead(void *opaque, hwaddr addr, unsigned size)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
     uint8_t ret = 0;
@@ -1096,7 +1124,7 @@ static uint64_t sm501_i2c_read(void *opaque, hwaddr addr, unsigned size)
     return ret;
 }
 
-static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
+void SM501State::i2cWrite(void *opaque, hwaddr addr, uint64_t value,
                             unsigned size)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
@@ -1153,8 +1181,8 @@ static void sm501_i2c_write(void *opaque, hwaddr addr, uint64_t value,
 }
 
 static const MemoryRegionOps sm501_i2c_ops = {
-    .read = sm501_i2c_read,
-    .write = sm501_i2c_write,
+    .read = SM501State::i2cRead,
+    .write = SM501State::i2cWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 1,
@@ -1166,7 +1194,7 @@ static const MemoryRegionOps sm501_i2c_ops = {
     },
 };
 
-static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
+uint32_t SM501State::paletteRead(void *opaque, hwaddr addr)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
 
@@ -1179,7 +1207,7 @@ static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
     return *(uint32_t *)&s->dc_palette[addr];
 }
 
-static void sm501_palette_write(void *opaque, hwaddr addr,
+void SM501State::paletteWrite(void *opaque, hwaddr addr,
                                 uint32_t value)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
@@ -1194,7 +1222,7 @@ static void sm501_palette_write(void *opaque, hwaddr addr,
     s->do_full_update = true;
 }
 
-static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
+uint64_t SM501State::dispCtrlRead(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
@@ -1296,7 +1324,7 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
         break;
 
     case SM501_DC_PANEL_PALETTE ... SM501_DC_PANEL_PALETTE + 0x400 * 3 - 4:
-        ret = sm501_palette_read(opaque, addr - SM501_DC_PANEL_PALETTE);
+        ret = paletteRead(opaque, addr - SM501_DC_PANEL_PALETTE);
         break;
 
     default:
@@ -1307,7 +1335,7 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
+void SM501State::dispCtrlWrite(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
@@ -1362,14 +1390,14 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
     case SM501_DC_PANEL_HWC_ADDR:
         value &= 0x8FFFFFF0;
         if (value != s->dc_panel_hwc_addr) {
-            hwc_invalidate(s, 0);
+            s->hwcInvalidate(0);
             s->dc_panel_hwc_addr = value;
         }
         break;
     case SM501_DC_PANEL_HWC_LOC:
         value &= 0x0FFF0FFF;
         if (value != s->dc_panel_hwc_location) {
-            hwc_invalidate(s, 0);
+            s->hwcInvalidate(0);
             s->dc_panel_hwc_location = value;
         }
         break;
@@ -1413,14 +1441,14 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
     case SM501_DC_CRT_HWC_ADDR:
         value &= 0x8FFFFFF0;
         if (value != s->dc_crt_hwc_addr) {
-            hwc_invalidate(s, 1);
+            s->hwcInvalidate(1);
             s->dc_crt_hwc_addr = value;
         }
         break;
     case SM501_DC_CRT_HWC_LOC:
         value &= 0x0FFF0FFF;
         if (value != s->dc_crt_hwc_location) {
-            hwc_invalidate(s, 1);
+            s->hwcInvalidate(1);
             s->dc_crt_hwc_location = value;
         }
         break;
@@ -1432,7 +1460,7 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
         break;
 
     case SM501_DC_PANEL_PALETTE ... SM501_DC_PANEL_PALETTE + 0x400 * 3 - 4:
-        sm501_palette_write(opaque, addr - SM501_DC_PANEL_PALETTE, value);
+        paletteWrite(opaque, addr - SM501_DC_PANEL_PALETTE, value);
         break;
 
     default:
@@ -1443,8 +1471,8 @@ static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sm501_disp_ctrl_ops = {
-    .read = sm501_disp_ctrl_read,
-    .write = sm501_disp_ctrl_write,
+    .read = SM501State::dispCtrlRead,
+    .write = SM501State::dispCtrlWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -1452,7 +1480,7 @@ static const MemoryRegionOps sm501_disp_ctrl_ops = {
     },
 };
 
-static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
+uint64_t SM501State::twoDEngineRead(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
@@ -1530,7 +1558,7 @@ static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void sm501_2d_engine_write(void *opaque, hwaddr addr,
+void SM501State::twoDEngineWrite(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
@@ -1551,7 +1579,7 @@ static void sm501_2d_engine_write(void *opaque, hwaddr addr,
 
         /* do 2d operation if start flag is set. */
         if (value & 0x80000000) {
-            sm501_2d_operation(s);
+            s->twoDOperation();
             s->twoD_control &= ~0x80000000; /* start flag down */
         }
 
@@ -1618,8 +1646,8 @@ static void sm501_2d_engine_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps sm501_2d_engine_ops = {
-    .read = sm501_2d_engine_read,
-    .write = sm501_2d_engine_write,
+    .read = SM501State::twoDEngineRead,
+    .write = SM501State::twoDEngineWrite,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -1718,16 +1746,16 @@ static void draw_hwc_line_32(uint8_t *d, const uint8_t *s, int width,
     }
 }
 
-static void sm501_update_display(void *opaque)
+void SM501State::updateDisplay(void *opaque)
 {
     SM501State *s = static_cast<SM501State *>(opaque);
     DisplaySurface *surface = qemu_console_surface(s->con);
     DirtyBitmapSnapshot *snap;
     int y, c_x = 0, c_y = 0;
     int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
-    int width = get_width(s, crt);
-    int height = get_height(s, crt);
-    int src_bpp = get_bpp(s, crt);
+    int width = s->getWidth(crt);
+    int height = s->getHeight(crt);
+    int src_bpp = s->getBpp(crt);
     int dst_bpp = surface_bytes_per_pixel(surface);
     draw_line_func *draw_line = NULL;
     draw_hwc_line_func *draw_hwc_line = NULL;
@@ -1767,13 +1795,13 @@ static void sm501_update_display(void *opaque)
     }
 
     /* set up to draw hardware cursor */
-    if (is_hwc_enabled(s, crt)) {
+    if (s->isHwcEnabled(crt)) {
         /* choose cursor draw line function */
         draw_hwc_line = draw_hwc_line_32;
-        hwc_src = get_hwc_address(s, crt);
-        c_x = get_hwc_x(s, crt);
-        c_y = get_hwc_y(s, crt);
-        get_hwc_palette(s, crt, hwc_palette);
+        hwc_src = s->getHwcAddress(crt);
+        c_x = s->getHwcX(crt);
+        c_y = s->getHwcY(crt);
+        s->getHwcPalette(crt, hwc_palette);
     }
 
     /* adjust console size */
@@ -1792,7 +1820,7 @@ static void sm501_update_display(void *opaque)
     }
 
     /* draw each line according to conditions */
-    offset = get_fb_addr(s, crt);
+    offset = s->getFbAddr(crt);
     snap = memory_region_snapshot_and_clear_dirty(&s->local_mem_region,
               offset, width * height * src_bpp, DIRTY_MEMORY_VGA);
     for (y = 0; y < height; y++, offset += width * src_bpp) {
@@ -1838,12 +1866,12 @@ static void sm501_update_display(void *opaque)
 }
 
 static const GraphicHwOps sm501_ops = {
-    .gfx_update  = sm501_update_display,
+    .gfx_update  = SM501State::updateDisplay,
 };
 
-static void sm501_reset(SM501State *s)
+void SM501State::doReset()
 {
-    s->system_control = 0x00100000; /* 2D engine FIFO empty */
+    system_control = 0x00100000; /* 2D engine FIFO empty */
     /*
      * Bits 17 (SH), 7 (CDR), 6:5 (Test), 2:0 (Bus) are all supposed
      * to be determined at reset by GPIO lines which set config bits.
@@ -1853,90 +1881,90 @@ static void sm501_reset(SM501State *s)
      *  TEST = 0 : Normal mode (not testing the silicon)
      *  BUS = 0 : Hitachi SH3/SH4
      */
-    s->misc_control = SM501_MISC_DAC_POWER;
-    s->gpio_31_0_control = 0;
-    s->gpio_63_32_control = 0;
-    s->dram_control = 0;
-    s->arbitration_control = 0x05146732;
-    s->irq_mask = 0;
-    s->misc_timing = 0;
-    s->power_mode_control = 0;
-    s->i2c_byte_count = 0;
-    s->i2c_status = 0;
-    s->i2c_addr = 0;
-    memset(s->i2c_data, 0, 16);
-    s->dc_panel_control = 0x00010000; /* FIFO level 3 */
-    s->dc_video_control = 0;
-    s->dc_crt_control = 0x00010000;
-    s->twoD_source = 0;
-    s->twoD_destination = 0;
-    s->twoD_dimension = 0;
-    s->twoD_control = 0;
-    s->twoD_pitch = 0;
-    s->twoD_foreground = 0;
-    s->twoD_background = 0;
-    s->twoD_stretch = 0;
-    s->twoD_color_compare = 0;
-    s->twoD_color_compare_mask = 0;
-    s->twoD_mask = 0;
-    s->twoD_clip_tl = 0;
-    s->twoD_clip_br = 0;
-    s->twoD_mono_pattern_low = 0;
-    s->twoD_mono_pattern_high = 0;
-    s->twoD_window_width = 0;
-    s->twoD_source_base = 0;
-    s->twoD_destination_base = 0;
-    s->twoD_alpha = 0;
-    s->twoD_wrap = 0;
+    misc_control = SM501_MISC_DAC_POWER;
+    gpio_31_0_control = 0;
+    gpio_63_32_control = 0;
+    dram_control = 0;
+    arbitration_control = 0x05146732;
+    irq_mask = 0;
+    misc_timing = 0;
+    power_mode_control = 0;
+    i2c_byte_count = 0;
+    i2c_status = 0;
+    i2c_addr = 0;
+    memset(i2c_data, 0, 16);
+    dc_panel_control = 0x00010000; /* FIFO level 3 */
+    dc_video_control = 0;
+    dc_crt_control = 0x00010000;
+    twoD_source = 0;
+    twoD_destination = 0;
+    twoD_dimension = 0;
+    twoD_control = 0;
+    twoD_pitch = 0;
+    twoD_foreground = 0;
+    twoD_background = 0;
+    twoD_stretch = 0;
+    twoD_color_compare = 0;
+    twoD_color_compare_mask = 0;
+    twoD_mask = 0;
+    twoD_clip_tl = 0;
+    twoD_clip_br = 0;
+    twoD_mono_pattern_low = 0;
+    twoD_mono_pattern_high = 0;
+    twoD_window_width = 0;
+    twoD_source_base = 0;
+    twoD_destination_base = 0;
+    twoD_alpha = 0;
+    twoD_wrap = 0;
 }
 
-static void sm501_init(SM501State *s, DeviceState *dev,
+void SM501State::init(DeviceState *dev,
                        uint32_t local_mem_bytes)
 {
 #ifndef CONFIG_PIXMAN
-    if (s->use_pixman != 0) {
+    if (use_pixman != 0) {
         warn_report("x-pixman != 0, not effective without PIXMAN");
     }
 #endif
 
-    s->local_mem_size_index = get_local_mem_size_index(local_mem_bytes);
+    local_mem_size_index = get_local_mem_size_index(local_mem_bytes);
 
     /* local memory */
-    memory_region_init_ram(&s->local_mem_region, OBJECT(dev), "sm501.local",
-                           get_local_mem_size(s), &error_fatal);
-    memory_region_set_log(&s->local_mem_region, true, DIRTY_MEMORY_VGA);
-    s->local_mem = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->local_mem_region));
+    memory_region_init_ram(&local_mem_region, OBJECT(dev), "sm501.local",
+                           get_local_mem_size(this), &error_fatal);
+    memory_region_set_log(&local_mem_region, true, DIRTY_MEMORY_VGA);
+    local_mem = static_cast<uint8_t *>(memory_region_get_ram_ptr(&local_mem_region));
 
     /* i2c */
-    s->i2c_bus = i2c_init_bus(dev, "sm501.i2c");
+    i2c_bus = i2c_init_bus(dev, "sm501.i2c");
     /* ddc */
     I2CDDCState *ddc = I2CDDC(qdev_new(TYPE_I2CDDC));
     i2c_slave_set_address(I2C_SLAVE(ddc), 0x50);
-    qdev_realize_and_unref(DEVICE(ddc), BUS(s->i2c_bus), &error_abort);
+    qdev_realize_and_unref(DEVICE(ddc), BUS(i2c_bus), &error_abort);
 
     /* mmio */
-    memory_region_init(&s->mmio_region, OBJECT(dev), "sm501.mmio", MMIO_SIZE);
-    memory_region_init_io(&s->system_config_region, OBJECT(dev),
-                          &sm501_system_config_ops, s,
+    memory_region_init(&mmio_region, OBJECT(dev), "sm501.mmio", MMIO_SIZE);
+    memory_region_init_io(&system_config_region, OBJECT(dev),
+                          &sm501_system_config_ops, this,
                           "sm501-system-config", 0x6c);
-    memory_region_add_subregion(&s->mmio_region, SM501_SYS_CONFIG,
-                                &s->system_config_region);
-    memory_region_init_io(&s->i2c_region, OBJECT(dev), &sm501_i2c_ops, s,
+    memory_region_add_subregion(&mmio_region, SM501_SYS_CONFIG,
+                                &system_config_region);
+    memory_region_init_io(&i2c_region, OBJECT(dev), &sm501_i2c_ops, this,
                           "sm501-i2c", 0x14);
-    memory_region_add_subregion(&s->mmio_region, SM501_I2C, &s->i2c_region);
-    memory_region_init_io(&s->disp_ctrl_region, OBJECT(dev),
-                          &sm501_disp_ctrl_ops, s,
+    memory_region_add_subregion(&mmio_region, SM501_I2C, &i2c_region);
+    memory_region_init_io(&disp_ctrl_region, OBJECT(dev),
+                          &sm501_disp_ctrl_ops, this,
                           "sm501-disp-ctrl", 0x1000);
-    memory_region_add_subregion(&s->mmio_region, SM501_DC,
-                                &s->disp_ctrl_region);
-    memory_region_init_io(&s->twoD_engine_region, OBJECT(dev),
-                          &sm501_2d_engine_ops, s,
+    memory_region_add_subregion(&mmio_region, SM501_DC,
+                                &disp_ctrl_region);
+    memory_region_init_io(&twoD_engine_region, OBJECT(dev),
+                          &sm501_2d_engine_ops, this,
                           "sm501-2d-engine", 0x54);
-    memory_region_add_subregion(&s->mmio_region, SM501_2D_ENGINE,
-                                &s->twoD_engine_region);
+    memory_region_add_subregion(&mmio_region, SM501_2D_ENGINE,
+                                &twoD_engine_region);
 
     /* create qemu graphic console */
-    s->con = graphic_console_init(dev, 0, &sm501_ops, s);
+    con = graphic_console_init(dev, 0, &sm501_ops, this);
 }
 
 static const VMStateDescription vmstate_sm501_state = {
@@ -2019,6 +2047,11 @@ static const VMStateDescription vmstate_sm501_state = {
 #define TYPE_SYSBUS_SM501 "sysbus-sm501"
 OBJECT_DECLARE_SIMPLE_TYPE(SM501SysBusState, SYSBUS_SM501)
 
+static inline SM501SysBusState *sysbus_sm501_from_obj(void *obj)
+{
+    return reinterpret_cast<SM501SysBusState *>(SYSBUS_SM501(obj));
+}
+
 struct SM501SysBusState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -2039,7 +2072,7 @@ struct SM501SysBusState {
 
 void SM501SysBusState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    SYSBUS_SM501(dev)->realize(errp);
+    sysbus_sm501_from_obj(dev)->realize(errp);
 }
 
 void SM501SysBusState::realize(Error **errp)
@@ -2049,7 +2082,7 @@ void SM501SysBusState::realize(Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     MemoryRegion *mr;
 
-    sm501_init(&s->state, dev, s->vram_size);
+    s->state.init(dev, s->vram_size);
     if (get_local_mem_size(&s->state) != s->vram_size) {
         error_setg(errp, "Invalid VRAM size, nearest valid size is %" PRIu32,
                    get_local_mem_size(&s->state));
@@ -2079,12 +2112,12 @@ static const Property sm501_sysbus_properties[] = {
 
 void SM501SysBusState::reset()
 {
-    sm501_reset(&this->state);
+    state.doReset();
 }
 
 void SM501SysBusState::resetWrapper(DeviceState *dev)
 {
-    SYSBUS_SM501(dev)->reset();
+    sysbus_sm501_from_obj(dev)->reset();
 }
 
 static const VMStateDescription vmstate_sm501_sysbus = {
@@ -2112,7 +2145,7 @@ void SM501SysBusState::classInit(ObjectClass *klass, const void *data)
 
 void SM501SysBusState::instanceInit(Object *o)
 {
-    SM501SysBusState *sm501 = SYSBUS_SM501(o);
+    SM501SysBusState *sm501 = sysbus_sm501_from_obj(o);
     OHCISysBusState *ohci = &sm501->ohci;
     SerialMM *smm = &sm501->serial;
 
@@ -2139,6 +2172,11 @@ static const TypeInfo sm501_sysbus_info = {
 #define TYPE_PCI_SM501 "sm501"
 OBJECT_DECLARE_SIMPLE_TYPE(SM501PCIState, PCI_SM501)
 
+static inline SM501PCIState *pci_sm501_from_obj(void *obj)
+{
+    return reinterpret_cast<SM501PCIState *>(PCI_SM501(obj));
+}
+
 struct SM501PCIState {
     /*< private >*/
     PCIDevice parent_obj;
@@ -2157,7 +2195,7 @@ struct SM501PCIState {
 
 void SM501PCIState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    PCI_SM501(dev)->realize(errp);
+    pci_sm501_from_obj(dev)->realize(errp);
 }
 
 void SM501PCIState::realize(Error **errp)
@@ -2165,7 +2203,7 @@ void SM501PCIState::realize(Error **errp)
     SM501PCIState *s = this;
     PCIDevice *dev = &s->parent_obj;
 
-    sm501_init(&s->state, DEVICE(dev), s->vram_size);
+    s->state.init(DEVICE(dev), s->vram_size);
     if (get_local_mem_size(&s->state) != s->vram_size) {
         error_setg(errp, "Invalid VRAM size, nearest valid size is %" PRIu32,
                    get_local_mem_size(&s->state));
@@ -2184,14 +2222,14 @@ static const Property sm501_pci_properties[] = {
 
 void SM501PCIState::reset()
 {
-    sm501_reset(&this->state);
+    state.doReset();
     /* Bits 2:0 of misc_control register is 001 for PCI */
-    this->state.misc_control |= 1;
+    state.misc_control |= 1;
 }
 
 void SM501PCIState::resetWrapper(DeviceState *dev)
 {
-    PCI_SM501(dev)->reset();
+    pci_sm501_from_obj(dev)->reset();
 }
 
 static const VMStateDescription vmstate_sm501_pci = {

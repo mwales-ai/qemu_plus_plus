@@ -83,7 +83,7 @@ struct Exynos4210ClkState {
 uint64_t Exynos4210ClkState::mmioRead(void *opaque, hwaddr offset,
                                        unsigned size)
 {
-    Exynos4210ClkState *s = static_cast<Exynos4210ClkState *>(opaque);
+    Exynos4210ClkState *s = reinterpret_cast<Exynos4210ClkState *>(opaque);
     return s->readReg(offset, size);
 }
 
@@ -106,7 +106,7 @@ uint64_t Exynos4210ClkState::readReg(hwaddr offset, unsigned size)
 void Exynos4210ClkState::mmioWrite(void *opaque, hwaddr offset,
                                     uint64_t val, unsigned size)
 {
-    Exynos4210ClkState *s = static_cast<Exynos4210ClkState *>(opaque);
+    Exynos4210ClkState *s = reinterpret_cast<Exynos4210ClkState *>(opaque);
     s->writeReg(offset, val, size);
 }
 
@@ -139,7 +139,7 @@ static const MemoryRegionOps exynos4210_clk_ops = {
 
 static void exynos4210_clk_reset(DeviceState *dev)
 {
-    Exynos4210ClkState *s = EXYNOS4210_CLK(dev);
+    Exynos4210ClkState *s = reinterpret_cast<Exynos4210ClkState *>(dev);
     s->reset();
 }
 
@@ -155,16 +155,17 @@ void Exynos4210ClkState::reset()
 
 static void exynos4210_clk_init(Object *obj)
 {
-    Exynos4210ClkState *s = EXYNOS4210_CLK(obj);
+    Exynos4210ClkState *s = reinterpret_cast<Exynos4210ClkState *>(obj);
     s->instanceInit();
 }
 
 void Exynos4210ClkState::instanceInit()
 {
     /* memory mapping */
-    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_clk_ops, this,
-                          TYPE_EXYNOS4210_CLK, EXYNOS4210_CLK_REGS_MEM_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &exynos4210_clk_ops, this, TYPE_EXYNOS4210_CLK,
+                          EXYNOS4210_CLK_REGS_MEM_SIZE);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateDescription exynos4210_clk_vmstate = {
@@ -179,7 +180,7 @@ static const VMStateDescription exynos4210_clk_vmstate = {
 
 void Exynos4210ClkState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, exynos4210_clk_reset);
     dc->vmsd = &exynos4210_clk_vmstate;

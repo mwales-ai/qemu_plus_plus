@@ -135,7 +135,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(SunHMEState, SUNHME)
 
 static inline SunHMEState *sunhme_from_obj(void *obj)
 {
-    return reinterpret_cast<SunHMEState *>(SUNHME(obj));
+    return reinterpret_cast<SunHMEState *>(obj);
 }
 
 /* Maximum size of buffer */
@@ -191,6 +191,7 @@ struct SunHMEState {
     void miiWrite(uint8_t reg, uint16_t data);
     uint16_t miiRead(uint8_t reg);
     void doReset();
+    void instanceInit();
     void realize(PCIDevice *pci_dev, Error **errp);
 
     inline int getTxRingCount();
@@ -237,7 +238,7 @@ void SunHMEState::resetRx()
 
 void SunHMEState::updateIrq()
 {
-    PCIDevice *d = PCI_DEVICE(this);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(this);
     int level;
 
     /* MIF interrupt mask (16-bit) */
@@ -601,7 +602,7 @@ inline void SunHMEState::setTxRingNr(int i)
 
 void SunHMEState::transmit()
 {
-    PCIDevice *d = PCI_DEVICE(this);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(this);
     dma_addr_t tb, addr;
     uint32_t intstatus, status, buffer, sum = 0;
     int cr, nr, len, xmit_pos, csum_offset = 0, csum_stuff_offset = 0;
@@ -757,7 +758,7 @@ ssize_t SunHMEState::receive(NetClientState *nc, const uint8_t *buf,
                               size_t size)
 {
     SunHMEState *s = static_cast<SunHMEState *>(qemu_get_nic_opaque(nc));
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     dma_addr_t rb, addr;
     uint32_t intstatus, status, buffer, buffersize, sum;
     uint16_t csum;
@@ -888,41 +889,41 @@ static NetClientInfo net_sunhme_info = {
 
 void SunHMEState::realize(PCIDevice *pci_dev, Error **errp)
 {
-    SunHMEState *s = sunhme_from_obj(pci_dev);
-    DeviceState *d = DEVICE(pci_dev);
+    Object *obj = reinterpret_cast<Object *>(pci_dev);
+    DeviceState *d = reinterpret_cast<DeviceState *>(pci_dev);
     uint8_t *pci_conf;
 
     pci_conf = pci_dev->config;
     pci_conf[PCI_INTERRUPT_PIN] = 1;    /* interrupt pin A */
 
-    memory_region_init(&s->hme, OBJECT(pci_dev), "sunhme", HME_REG_SIZE);
-    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->hme);
+    memory_region_init(&hme, obj, "sunhme", HME_REG_SIZE);
+    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &hme);
 
-    memory_region_init_io(&s->sebreg, OBJECT(pci_dev), &sunhme_seb_ops, s,
+    memory_region_init_io(&sebreg, obj, &sunhme_seb_ops, this,
                           "sunhme.seb", HME_SEB_REG_SIZE);
-    memory_region_add_subregion(&s->hme, 0, &s->sebreg);
+    memory_region_add_subregion(&hme, 0, &sebreg);
 
-    memory_region_init_io(&s->etxreg, OBJECT(pci_dev), &sunhme_etx_ops, s,
+    memory_region_init_io(&etxreg, obj, &sunhme_etx_ops, this,
                           "sunhme.etx", HME_ETX_REG_SIZE);
-    memory_region_add_subregion(&s->hme, 0x2000, &s->etxreg);
+    memory_region_add_subregion(&hme, 0x2000, &etxreg);
 
-    memory_region_init_io(&s->erxreg, OBJECT(pci_dev), &sunhme_erx_ops, s,
+    memory_region_init_io(&erxreg, obj, &sunhme_erx_ops, this,
                           "sunhme.erx", HME_ERX_REG_SIZE);
-    memory_region_add_subregion(&s->hme, 0x4000, &s->erxreg);
+    memory_region_add_subregion(&hme, 0x4000, &erxreg);
 
-    memory_region_init_io(&s->macreg, OBJECT(pci_dev), &sunhme_mac_ops, s,
+    memory_region_init_io(&macreg, obj, &sunhme_mac_ops, this,
                           "sunhme.mac", HME_MAC_REG_SIZE);
-    memory_region_add_subregion(&s->hme, 0x6000, &s->macreg);
+    memory_region_add_subregion(&hme, 0x6000, &macreg);
 
-    memory_region_init_io(&s->mifreg, OBJECT(pci_dev), &sunhme_mif_ops, s,
+    memory_region_init_io(&mifreg, obj, &sunhme_mif_ops, this,
                           "sunhme.mif", HME_MIF_REG_SIZE);
-    memory_region_add_subregion(&s->hme, 0x7000, &s->mifreg);
+    memory_region_add_subregion(&hme, 0x7000, &mifreg);
 
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_sunhme_info, &s->conf,
-                          object_get_typename(OBJECT(d)), d->id,
-                          &d->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_sunhme_info, &conf,
+                        object_get_typename(obj), d->id,
+                        &d->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 }
 
 static void sunhme_realize(PCIDevice *pci_dev, Error **errp)
@@ -934,10 +935,15 @@ static void sunhme_realize(PCIDevice *pci_dev, Error **errp)
 static void sunhme_instance_init(Object *obj)
 {
     SunHMEState *s = sunhme_from_obj(obj);
+    s->instanceInit();
+}
 
-    device_add_bootindex_property(obj, &s->conf.bootindex,
-                                  "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
+void SunHMEState::instanceInit()
+{
+    device_add_bootindex_property(reinterpret_cast<Object *>(this),
+                                  &conf.bootindex, "bootindex",
+                                  "/ethernet-phy@0",
+                                  reinterpret_cast<DeviceState *>(this));
 }
 
 void SunHMEState::doReset()
@@ -989,8 +995,8 @@ static const VMStateDescription vmstate_hme = {
 
 void SunHMEState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = sunhme_realize;
     k->vendor_id = PCI_VENDOR_ID_SUN;

@@ -90,15 +90,15 @@ static const MemoryRegionOps intdbg_control_ops = {
 
 static void intdbg_control_init(Object *obj)
 {
-    IntegratorDebugState *s = INTEGRATOR_DEBUG(obj);
+    IntegratorDebugState *s = reinterpret_cast<IntegratorDebugState *>(obj);
     s->instanceInit();
 }
 
 void IntegratorDebugState::instanceInit()
 {
-    memory_region_init_io(&iomem, OBJECT(this), &intdbg_control_ops,
-                          NULL, "dbg-leds", 0x1000000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &intdbg_control_ops, NULL, "dbg-leds", 0x1000000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 void IntegratorDebugState::classInit(ObjectClass *klass, const void *data)

@@ -732,6 +732,11 @@ void ppc4xx_dma_init(CPUPPCState *env, int dcr_base)
 
 OBJECT_DECLARE_SIMPLE_TYPE(PPC460EXPCIEState, PPC460EX_PCIE_HOST)
 
+static inline PPC460EXPCIEState *ppc460ex_pcie_from_obj(void *obj)
+{
+    return reinterpret_cast<PPC460EXPCIEState *>(PPC460EX_PCIE_HOST(obj));
+}
+
 struct PPC460EXPCIEState {
     PCIExpressHost parent_obj;
 
@@ -999,7 +1004,7 @@ static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s)
 
 void PPC460EXPCIEState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PPC460EX_PCIE_HOST(dev)->realize(errp);
+    ppc460ex_pcie_from_obj(dev)->realize(errp);
 }
 
 void PPC460EXPCIEState::realize(Error **errp)

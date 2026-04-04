@@ -163,7 +163,7 @@ out:
 uint64_t Exynos4210RngState::mmioRead(void *opaque, hwaddr offset,
                                        unsigned size)
 {
-    Exynos4210RngState *s = static_cast<Exynos4210RngState *>(opaque);
+    Exynos4210RngState *s = reinterpret_cast<Exynos4210RngState *>(opaque);
     return s->readReg(offset, size);
 }
 
@@ -204,7 +204,7 @@ uint64_t Exynos4210RngState::readReg(hwaddr offset, unsigned size)
 void Exynos4210RngState::mmioWrite(void *opaque, hwaddr offset,
                                     uint64_t val, unsigned size)
 {
-    Exynos4210RngState *s = static_cast<Exynos4210RngState *>(opaque);
+    Exynos4210RngState *s = reinterpret_cast<Exynos4210RngState *>(opaque);
     s->writeReg(offset, val, size);
 }
 
@@ -249,7 +249,7 @@ static const MemoryRegionOps exynos4210_rng_ops = {
 
 static void exynos4210_rng_reset(DeviceState *dev)
 {
-    Exynos4210RngState *s = EXYNOS4210_RNG(dev);
+    Exynos4210RngState *s = reinterpret_cast<Exynos4210RngState *>(dev);
     s->reset();
 }
 
@@ -263,15 +263,16 @@ void Exynos4210RngState::reset()
 
 static void exynos4210_rng_init(Object *obj)
 {
-    Exynos4210RngState *s = EXYNOS4210_RNG(obj);
+    Exynos4210RngState *s = reinterpret_cast<Exynos4210RngState *>(obj);
     s->instanceInit();
 }
 
 void Exynos4210RngState::instanceInit()
 {
-    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_rng_ops, this,
-                          TYPE_EXYNOS4210_RNG, EXYNOS4210_RNG_REGS_MEM_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &exynos4210_rng_ops, this, TYPE_EXYNOS4210_RNG,
+                          EXYNOS4210_RNG_REGS_MEM_SIZE);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateField vmstate_exynos4210_rng_vmstate_fields[] = {
@@ -292,7 +293,7 @@ static const VMStateDescription exynos4210_rng_vmstate = {
 
 void Exynos4210RngState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, exynos4210_rng_reset);
     dc->vmsd = &exynos4210_rng_vmstate;

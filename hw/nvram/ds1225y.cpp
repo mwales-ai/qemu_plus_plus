@@ -41,7 +41,7 @@ typedef struct NvRamState {
 
     static uint64_t ioRead(void *opaque, hwaddr addr, unsigned size)
     {
-        NvRamState *s = static_cast<NvRamState *>(opaque);
+        NvRamState *s = reinterpret_cast<NvRamState *>(opaque);
         uint32_t val;
 
         val = s->contents[addr];
@@ -52,7 +52,7 @@ typedef struct NvRamState {
     static void ioWrite(void *opaque, hwaddr addr, uint64_t val,
                         unsigned size)
     {
-        NvRamState *s = static_cast<NvRamState *>(opaque);
+        NvRamState *s = reinterpret_cast<NvRamState *>(opaque);
 
         val &= 0xff;
         trace_nvram_write(addr, s->contents[addr], val);
@@ -67,7 +67,7 @@ typedef struct NvRamState {
 
     static int postLoad(void *opaque, int version_id)
     {
-        NvRamState *s = static_cast<NvRamState *>(opaque);
+        NvRamState *s = reinterpret_cast<NvRamState *>(opaque);
 
         /* Close file, as filename may has changed in load/store process */
         if (s->file) {
@@ -125,9 +125,9 @@ struct SysBusNvRamState {
 
         s->contents = static_cast<uint8_t *>(g_malloc0(s->chip_size));
 
-        memory_region_init_io(&s->iomem, OBJECT(this), &nvram_ops, s,
-                              "nvram", s->chip_size);
-        sysbus_init_mmio(SYS_BUS_DEVICE(this), &s->iomem);
+        memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(this),
+                              &nvram_ops, s, "nvram", s->chip_size);
+        sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &s->iomem);
 
         /* Read current file */
         file = s->filename ? fopen(s->filename, "rb") : NULL;
@@ -143,7 +143,7 @@ struct SysBusNvRamState {
 
     static void deviceRealize(DeviceState *dev, Error **errp)
     {
-        SysBusNvRamState *sys = DS1225Y(dev);
+        SysBusNvRamState *sys = reinterpret_cast<SysBusNvRamState *>(dev);
         sys->realize(errp);
     }
 
@@ -159,7 +159,7 @@ const Property SysBusNvRamState::nvram_sysbus_properties[] = {
 
 void SysBusNvRamState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = deviceRealize;
     dc->vmsd = &vmstate_nvram;

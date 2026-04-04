@@ -34,7 +34,7 @@ struct RAMFBStandaloneState {
 
 void RAMFBStandaloneState::displayUpdate(void *dev)
 {
-    RAMFBStandaloneState *ramfb = RAMFB(dev);
+    RAMFBStandaloneState *ramfb = reinterpret_cast<RAMFBStandaloneState *>(dev);
 
     if (0 /* native driver active */) {
         /* non-standalone device would run native display update here */;
@@ -49,19 +49,21 @@ static const GraphicHwOps wrapper_ops = {
 
 static void ramfb_realizefn(DeviceState *dev, Error **errp)
 {
-    RAMFBStandaloneState *ramfb = RAMFB(dev);
+    RAMFBStandaloneState *ramfb = reinterpret_cast<RAMFBStandaloneState *>(dev);
     ramfb->realize(errp);
 }
 
 void RAMFBStandaloneState::realize(Error **errp)
 {
-    con = graphic_console_init(DEVICE(this), 0, &wrapper_ops, this);
+    con = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0,
+                               &wrapper_ops, this);
     state = ramfb_setup(use_legacy_x86_rom, errp);
 }
 
 bool RAMFBStandaloneState::migrateNeeded(void *opaque)
 {
-    RAMFBStandaloneState *ramfb = RAMFB(opaque);
+    RAMFBStandaloneState *ramfb =
+        reinterpret_cast<RAMFBStandaloneState *>(opaque);
 
     return ramfb->migrate;
 }
@@ -87,7 +89,7 @@ static const Property ramfb_properties[] = {
 
 void RAMFBStandaloneState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->vmsd = &ramfb_dev_vmstate;

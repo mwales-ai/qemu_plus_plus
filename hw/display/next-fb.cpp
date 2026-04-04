@@ -61,7 +61,7 @@ struct NeXTFbState {
 void NeXTFbState::drawLine(void *opaque, uint8_t *d, const uint8_t *s,
                             int width, int pitch)
 {
-    NeXTFbState *nfbstate = NEXTFB(opaque);
+    NeXTFbState *nfbstate = reinterpret_cast<NeXTFbState *>(opaque);
     static const uint32_t pal[4] = {
         0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000
     };
@@ -83,7 +83,7 @@ void NeXTFbState::drawLine(void *opaque, uint8_t *d, const uint8_t *s,
 
 void NeXTFbState::gfxUpdate(void *opaque)
 {
-    NeXTFbState *s = NEXTFB(opaque);
+    NeXTFbState *s = reinterpret_cast<NeXTFbState *>(opaque);
     int dest_width = 4;
     int src_width;
     int first = 0;
@@ -109,7 +109,7 @@ void NeXTFbState::gfxUpdate(void *opaque)
 
 void NeXTFbState::gfxInvalidate(void *opaque)
 {
-    NeXTFbState *s = NEXTFB(opaque);
+    NeXTFbState *s = reinterpret_cast<NeXTFbState *>(opaque);
     s->invalidate = 1;
 }
 
@@ -120,27 +120,28 @@ static const GraphicHwOps nextfb_ops = {
 
 static void nextfb_realizefn(DeviceState *dev, Error **errp)
 {
-    NeXTFbState *s = NEXTFB(dev);
+    NeXTFbState *s = reinterpret_cast<NeXTFbState *>(dev);
     s->realize(errp);
 }
 
 void NeXTFbState::realize(Error **errp)
 {
-    memory_region_init_ram(&fb_mr, OBJECT(this), "next-video", 0x1CB100,
-                           &error_fatal);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), &fb_mr);
+    memory_region_init_ram(&fb_mr, reinterpret_cast<Object *>(this),
+                           "next-video", 0x1CB100, &error_fatal);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &fb_mr);
 
     invalidate = 1;
     cols = 1120;
     rows = 832;
 
-    con = graphic_console_init(DEVICE(this), 0, &nextfb_ops, this);
+    con = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0,
+                               &nextfb_ops, this);
     qemu_console_resize(con, cols, rows);
 }
 
 void NeXTFbState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->realize = nextfb_realizefn;
