@@ -763,11 +763,11 @@ void RISCVAPLICState::mmioWrite(hwaddr addr, uint64_t value,
         aplic->sourcecfg[irq] = value;
         if ((aplic->sourcecfg[irq] & APLIC_SOURCECFG_D) ||
             (aplic->sourcecfg[irq] == 0)) {
-            setPendingRaw(irq, false);
-            setEnabledRaw(irq, false);
+            riscv_aplic_set_pending_raw(aplic, irq, false);
+            riscv_aplic_set_enabled_raw(aplic, irq, false);
         } else {
-            if (irqRectifiedVal(irq)) {
-                setPendingRaw(irq, true);
+            if (riscv_aplic_irq_rectified_val(aplic, irq)) {
+                riscv_aplic_set_pending_raw(aplic, irq, true);
             }
         }
     } else if (aplic->mmode && aplic->msimode &&
@@ -804,38 +804,39 @@ void RISCVAPLICState::mmioWrite(hwaddr addr, uint64_t value,
     } else if ((APLIC_SETIP_BASE <= addr) &&
             (addr < (APLIC_SETIP_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_SETIP_BASE) >> 2;
-        setPendingWord(word, value, true);
+        riscv_aplic_set_pending_word(aplic, word, value, true);
     } else if (addr == APLIC_SETIPNUM) {
-        setPending(value, true);
+        riscv_aplic_set_pending(aplic, value, true);
     } else if ((APLIC_CLRIP_BASE <= addr) &&
             (addr < (APLIC_CLRIP_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_CLRIP_BASE) >> 2;
-        setPendingWord(word, value, false);
+        riscv_aplic_set_pending_word(aplic, word, value, false);
     } else if (addr == APLIC_CLRIPNUM) {
-        setPending(value, false);
+        riscv_aplic_set_pending(aplic, value, false);
     } else if ((APLIC_SETIE_BASE <= addr) &&
             (addr < (APLIC_SETIE_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_SETIE_BASE) >> 2;
-        setEnabledWord(word, value, true);
+        riscv_aplic_set_enabled_word(aplic, word, value, true);
     } else if (addr == APLIC_SETIENUM) {
-        setEnabled(value, true);
+        riscv_aplic_set_enabled(aplic, value, true);
     } else if ((APLIC_CLRIE_BASE <= addr) &&
             (addr < (APLIC_CLRIE_BASE + aplic->bitfield_words * 4))) {
         word = (addr - APLIC_CLRIE_BASE) >> 2;
-        setEnabledWord(word, value, false);
+        riscv_aplic_set_enabled_word(aplic, word, value, false);
     } else if (addr == APLIC_CLRIENUM) {
-        setEnabled(value, false);
+        riscv_aplic_set_enabled(aplic, value, false);
     } else if (addr == APLIC_SETIPNUM_LE) {
-        setPending(value, true);
+        riscv_aplic_set_pending(aplic, value, true);
     } else if (addr == APLIC_SETIPNUM_BE) {
-        setPending(bswap32(value), true);
+        riscv_aplic_set_pending(aplic, bswap32(value), true);
     } else if (addr == APLIC_GENMSI) {
         if (aplic->msimode) {
             aplic->genmsi = value & ~(APLIC_TARGET_GUEST_IDX_MASK <<
                                       APLIC_TARGET_GUEST_IDX_SHIFT);
-            msiSend(value >> APLIC_TARGET_HART_IDX_SHIFT,
-                    0,
-                    value & APLIC_TARGET_EIID_MASK);
+            riscv_aplic_msi_send(aplic,
+                                 value >> APLIC_TARGET_HART_IDX_SHIFT,
+                                 0,
+                                 value & APLIC_TARGET_EIID_MASK);
         }
     } else if ((APLIC_TARGET_BASE <= addr) &&
             (addr < (APLIC_TARGET_BASE + (aplic->num_irqs - 1) * 4))) {
