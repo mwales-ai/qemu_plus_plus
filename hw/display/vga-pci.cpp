@@ -79,6 +79,11 @@ struct PCIVGAState {
 #define TYPE_PCI_VGA "pci-vga"
 OBJECT_DECLARE_SIMPLE_TYPE(PCIVGAState, PCI_VGA)
 
+static inline PCIVGAState *pci_vga_from_obj(void *obj)
+{
+    return reinterpret_cast<PCIVGAState *>(PCI_VGA(obj));
+}
+
 static const VMStateDescription vmstate_vga_pci = {
     .name = "vga",
     .version_id = 2,
@@ -199,14 +204,14 @@ void PCIVGAState::qextWrite(void *ptr, hwaddr addr,
 
 bool PCIVGAState::getBigEndianFb(Object *obj, Error **errp)
 {
-    PCIVGAState *d = PCI_VGA(PCI_DEVICE(obj));
+    PCIVGAState *d = pci_vga_from_obj(PCI_DEVICE(obj));
 
     return d->vga.big_endian_fb;
 }
 
 void PCIVGAState::setBigEndianFb(Object *obj, bool value, Error **errp)
 {
-    PCIVGAState *d = PCI_VGA(PCI_DEVICE(obj));
+    PCIVGAState *d = pci_vga_from_obj(PCI_DEVICE(obj));
 
     d->vga.big_endian_fb = value;
 }
@@ -252,7 +257,7 @@ void pci_std_vga_mmio_region_init(VGACommonState *s,
 
 static void pci_std_vga_realize(PCIDevice *dev, Error **errp)
 {
-    PCIVGAState *d = PCI_VGA(dev);
+    PCIVGAState *d = pci_vga_from_obj(dev);
     d->stdRealize(errp);
 }
 
@@ -296,7 +301,7 @@ void PCIVGAState::stdRealize(Error **errp)
 
 static void pci_secondary_vga_realize(PCIDevice *dev, Error **errp)
 {
-    PCIVGAState *d = PCI_VGA(dev);
+    PCIVGAState *d = pci_vga_from_obj(dev);
     d->secondaryRealize(errp);
 }
 
@@ -331,7 +336,7 @@ void PCIVGAState::secondaryRealize(Error **errp)
 
 static void pci_secondary_vga_exit(PCIDevice *dev)
 {
-    PCIVGAState *d = PCI_VGA(dev);
+    PCIVGAState *d = pci_vga_from_obj(dev);
     d->secondaryExit();
 }
 
@@ -352,7 +357,7 @@ void PCIVGAState::secondaryExit()
 
 static void pci_secondary_vga_init(Object *obj)
 {
-    PCIVGAState *d = PCI_VGA(PCI_DEVICE(obj));
+    PCIVGAState *d = pci_vga_from_obj(PCI_DEVICE(obj));
     d->secondaryInit();
 }
 
@@ -366,7 +371,7 @@ void PCIVGAState::secondaryInit()
 
 static void pci_secondary_vga_reset(DeviceState *dev)
 {
-    PCIVGAState *d = PCI_VGA(PCI_DEVICE(dev));
+    PCIVGAState *d = pci_vga_from_obj(PCI_DEVICE(dev));
     d->secondaryReset();
 }
 

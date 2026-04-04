@@ -56,7 +56,7 @@ struct ISASerialState {
     void realize(Error **errp)
     {
         static int idx;
-        ISADevice *isadev = ISA_DEVICE(this);
+        ISADevice *isadev = reinterpret_cast<ISADevice *>(this);
 
         if (index == static_cast<uint32_t>(-1)) {
             index = idx;
@@ -75,22 +75,22 @@ struct ISASerialState {
         idx++;
 
         state.irq = isa_get_irq(isadev, isairq);
-        qdev_realize(DEVICE(&state), NULL, errp);
-        qdev_set_legacy_instance_id(DEVICE(this), iobase, 3);
+        qdev_realize(reinterpret_cast<DeviceState *>(&state), NULL, errp);
+        qdev_set_legacy_instance_id(reinterpret_cast<DeviceState *>(this), iobase, 3);
 
-        memory_region_init_io(&state.io, OBJECT(this), &serial_io_ops, &state, "serial", 8);
+        memory_region_init_io(&state.io, reinterpret_cast<Object *>(this), &serial_io_ops, &state, "serial", 8);
         isa_register_ioport(isadev, &state.io, iobase);
     }
 
     static void realizeWrapper(DeviceState *dev, Error **errp)
     {
-        ISASerialState *s = ISA_SERIAL(dev);
+        ISASerialState *s = reinterpret_cast<ISASerialState *>(dev);
         s->realize(errp);
     }
 
     static void buildAml(AcpiDevAmlIf *adev, Aml *scope)
     {
-        ISASerialState *isa = ISA_SERIAL(adev);
+        ISASerialState *isa = reinterpret_cast<ISASerialState *>(adev);
         Aml *dev;
         Aml *crs;
 
@@ -109,11 +109,11 @@ struct ISASerialState {
 
     static void instanceInit(Object *o)
     {
-        ISASerialState *self = ISA_SERIAL(o);
+        ISASerialState *self = reinterpret_cast<ISASerialState *>(o);
 
         object_initialize_child(o, "serial", &self->state, TYPE_SERIAL);
 
-        qdev_alias_all_properties(DEVICE(&self->state), o);
+        qdev_alias_all_properties(reinterpret_cast<DeviceState *>(&self->state), o);
     }
 
     static void classInit(ObjectClass *klass, const void *data);
@@ -137,8 +137,8 @@ static const Property serial_isa_properties[] = {
 
 void ISASerialState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
     dc->realize = ISASerialState::realizeWrapper;
     dc->vmsd = &vmstate_isa_serial;
@@ -172,7 +172,7 @@ static void serial_isa_init(ISABus *bus, int index, Chardev *chr)
     ISADevice *isadev;
 
     isadev = isa_new(TYPE_ISA_SERIAL);
-    dev = DEVICE(isadev);
+    dev = reinterpret_cast<DeviceState *>(isadev);
     qdev_prop_set_uint32(dev, "index", index);
     qdev_prop_set_chr(dev, "chardev", chr);
     isa_realize_and_unref(isadev, bus, &error_fatal);
@@ -194,7 +194,7 @@ void serial_hds_isa_init(ISABus *bus, int from, int to)
 
 void isa_serial_set_iobase(ISADevice *serial, hwaddr iobase)
 {
-    ISASerialState *s = ISA_SERIAL(serial);
+    ISASerialState *s = reinterpret_cast<ISASerialState *>(serial);
 
     serial->ioport_id = iobase;
     s->iobase = iobase;
@@ -203,5 +203,5 @@ void isa_serial_set_iobase(ISADevice *serial, hwaddr iobase)
 
 void isa_serial_set_enabled(ISADevice *serial, bool enabled)
 {
-    memory_region_set_enabled(&ISA_SERIAL(serial)->state.io, enabled);
+    memory_region_set_enabled(&reinterpret_cast<ISASerialState *>(serial)->state.io, enabled);
 }

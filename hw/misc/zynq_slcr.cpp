@@ -189,6 +189,11 @@ REG32(DDRIOB, 0xb40)
 #define TYPE_ZYNQ_SLCR "xilinx-zynq_slcr"
 OBJECT_DECLARE_SIMPLE_TYPE(ZynqSLCRState, ZYNQ_SLCR)
 
+static inline ZynqSLCRState *zynq_slcr_from_obj(void *obj)
+{
+    return reinterpret_cast<ZynqSLCRState *>(ZYNQ_SLCR(obj));
+}
+
 struct ZynqSLCRState {
     SysBusDevice parent_obj;
 
@@ -345,7 +350,7 @@ void ZynqSLCRState::psClkCallback(void *opaque, ClockEvent event)
 
 void ZynqSLCRState::resetInit(Object *obj, ResetType type)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(obj);
+    ZynqSLCRState *s = zynq_slcr_from_obj(obj);
     int i;
 
     DB_PRINT("RESET\n");
@@ -441,7 +446,7 @@ void ZynqSLCRState::resetInit(Object *obj, ResetType type)
 
 void ZynqSLCRState::resetHold(Object *obj, ResetType type)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(obj);
+    ZynqSLCRState *s = zynq_slcr_from_obj(obj);
 
     /* will disable all output clocks */
     zynq_slcr_compute_clocks_internal(s, 0);
@@ -450,7 +455,7 @@ void ZynqSLCRState::resetHold(Object *obj, ResetType type)
 
 void ZynqSLCRState::resetExit(Object *obj, ResetType type)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(obj);
+    ZynqSLCRState *s = zynq_slcr_from_obj(obj);
 
     /* will compute output clocks according to ps_clk and registers */
     zynq_slcr_compute_clocks_internal(s, clock_get(s->ps_clk));
@@ -620,13 +625,13 @@ void ZynqSLCRState::realize(Error **errp)
 
 static void zynq_slcr_realize(DeviceState *dev, Error **errp)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(dev);
+    ZynqSLCRState *s = zynq_slcr_from_obj(dev);
     s->realize(errp);
 }
 
 static void zynq_slcr_init(Object *obj)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(obj);
+    ZynqSLCRState *s = zynq_slcr_from_obj(obj);
 
     memory_region_init_io(&s->iomem, obj, &slcr_ops, s, "slcr",
                           ZYNQ_SLCR_MMIO_SIZE);

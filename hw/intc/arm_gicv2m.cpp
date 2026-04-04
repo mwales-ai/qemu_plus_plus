@@ -147,7 +147,7 @@ struct ARMGICv2mState {
         }
 
         for (i = 0; static_cast<uint32_t>(i) < num_spi; i++) {
-            sysbus_init_irq(SYS_BUS_DEVICE(this), &spi[i]);
+            sysbus_init_irq(reinterpret_cast<SysBusDevice *>(this), &spi[i]);
         }
 
         msi_nonbroken = true;
@@ -157,16 +157,16 @@ struct ARMGICv2mState {
 
     static void realizeWrapper(DeviceState *dev, Error **errp)
     {
-        ARMGICv2mState *s = ARM_GICV2M(dev);
+        ARMGICv2mState *s = reinterpret_cast<ARMGICv2mState *>(dev);
         s->realize(errp);
     }
 
     static void instanceInit(Object *obj)
     {
-        SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-        ARMGICv2mState *s = ARM_GICV2M(obj);
+        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+        ARMGICv2mState *s = reinterpret_cast<ARMGICv2mState *>(obj);
 
-        memory_region_init_io(&s->iomem, OBJECT(s), &ops, s,
+        memory_region_init_io(&s->iomem, obj, &ops, s,
                               "gicv2m", 0x1000);
         sysbus_init_mmio(sbd, &s->iomem);
     }
@@ -187,7 +187,7 @@ static const Property gicv2m_properties[] = {
 
 void ARMGICv2mState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_props(dc, gicv2m_properties);
     dc->realize = ARMGICv2mState::realizeWrapper;

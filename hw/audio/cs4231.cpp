@@ -68,7 +68,7 @@ struct CSState {
 
     static void resetWrapper(DeviceState *d)
     {
-        CSState *s = CS4231(d);
+        CSState *s = reinterpret_cast<CSState *>(d);
         s->reset();
     }
 
@@ -142,8 +142,8 @@ struct CSState {
 
     static void instanceInit(Object *obj)
     {
-        CSState *s = CS4231(obj);
-        SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+        CSState *s = reinterpret_cast<CSState *>(obj);
+        SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
 
         memory_region_init_io(&s->iomem, obj, &memOps, s, "cs4321",
                               CS_SIZE);
@@ -153,7 +153,7 @@ struct CSState {
 
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
         device_class_set_legacy_reset(dc, resetWrapper);
         dc->vmsd = &vmstate_cs4231;

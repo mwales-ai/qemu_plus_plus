@@ -44,8 +44,7 @@ struct I82378State {
 
     static void requestPicIrq(void *opaque, int irq, int level)
     {
-        DeviceState *dev = static_cast<DeviceState *>(opaque);
-        I82378State *s = I82378(dev);
+        I82378State *s = static_cast<I82378State *>(opaque);
 
         qemu_set_irq(s->isa_irqs_in[irq], level);
     }
@@ -53,7 +52,7 @@ struct I82378State {
     void realize(Error **errp)
     {
         PCIDevice *pci = &parent_obj;
-        DeviceState *dev = DEVICE(pci);
+        DeviceState *dev = reinterpret_cast<DeviceState *>(pci);
         uint8_t *pci_conf;
         ISABus *isabus;
         ISADevice *pit;
@@ -93,7 +92,7 @@ struct I82378State {
 
         /* speaker */
         pcspk = isa_new(TYPE_PC_SPEAKER);
-        object_property_set_link(OBJECT(pcspk), "pit", OBJECT(pit), &error_fatal);
+        object_property_set_link(reinterpret_cast<Object *>(pcspk), "pit", reinterpret_cast<Object *>(pit), &error_fatal);
         if (!isa_realize_and_unref(pcspk, isabus, errp)) {
             return;
         }
@@ -104,7 +103,7 @@ struct I82378State {
 
     void initfn()
     {
-        DeviceState *dev = DEVICE(this);
+        DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
         qdev_init_gpio_out(dev, &cpu_intr, 1);
         qdev_init_gpio_in(dev, requestPicIrq, 16);
@@ -112,21 +111,20 @@ struct I82378State {
 
     static void pciRealize(PCIDevice *pci, Error **errp)
     {
-        DeviceState *dev = DEVICE(pci);
-        I82378State *s = I82378(dev);
+        I82378State *s = reinterpret_cast<I82378State *>(pci);
         s->realize(errp);
     }
 
     static void instanceInit(Object *obj)
     {
-        I82378State *s = I82378(obj);
+        I82378State *s = reinterpret_cast<I82378State *>(obj);
         s->initfn();
     }
 
     static void classInit(ObjectClass *klass, const void *data)
     {
-        PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-        DeviceClass *dc = DEVICE_CLASS(klass);
+        PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
         k->realize = pciRealize;
         k->vendor_id = PCI_VENDOR_ID_INTEL;

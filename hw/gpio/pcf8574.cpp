@@ -99,7 +99,7 @@ struct PCF8574State {
 
     void realize(Error **errp)
     {
-        DeviceState *dev = DEVICE(this);
+        DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
         qdev_init_gpio_in(dev, gpioSet, ARRAY_SIZE(handler));
         qdev_init_gpio_out(dev, handler, ARRAY_SIZE(handler));
@@ -108,19 +108,19 @@ struct PCF8574State {
 
     static void deviceReset_static(DeviceState *dev)
     {
-        PCF8574State *s = PCF8574(dev);
+        PCF8574State *s = reinterpret_cast<PCF8574State *>(dev);
         s->deviceReset();
     }
 
     static uint8_t i2cRx(I2CSlave *i2c)
     {
-        PCF8574State *s = PCF8574(i2c);
+        PCF8574State *s = reinterpret_cast<PCF8574State *>(i2c);
         return s->rx();
     }
 
     static int i2cTx(I2CSlave *i2c, uint8_t data)
     {
-        PCF8574State *s = PCF8574(i2c);
+        PCF8574State *s = reinterpret_cast<PCF8574State *>(i2c);
         return s->tx(data);
     }
 
@@ -142,7 +142,7 @@ struct PCF8574State {
 
     static void deviceRealize(DeviceState *dev, Error **errp)
     {
-        PCF8574State *s = PCF8574(dev);
+        PCF8574State *s = reinterpret_cast<PCF8574State *>(dev);
         s->realize(errp);
     }
 
@@ -168,8 +168,8 @@ const VMStateDescription PCF8574State::vmstate_pcf8574 = {
 
 void PCF8574State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass   *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k  = I2C_SLAVE_CLASS(klass);
+    DeviceClass   *dc = reinterpret_cast<DeviceClass *>(klass);
+    I2CSlaveClass *k  = reinterpret_cast<I2CSlaveClass *>(klass);
 
     k->recv     = i2cRx;
     k->send     = i2cTx;

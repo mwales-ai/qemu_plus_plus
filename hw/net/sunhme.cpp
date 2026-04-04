@@ -133,6 +133,11 @@
 #define TYPE_SUNHME "sunhme"
 OBJECT_DECLARE_SIMPLE_TYPE(SunHMEState, SUNHME)
 
+static inline SunHMEState *sunhme_from_obj(void *obj)
+{
+    return reinterpret_cast<SunHMEState *>(SUNHME(obj));
+}
+
 /* Maximum size of buffer */
 #define HME_FIFO_SIZE          0x800
 
@@ -256,7 +261,7 @@ void SunHMEState::updateIrq()
 void SunHMEState::sebWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
 
     trace_sunhme_seb_write(addr, val);
 
@@ -291,7 +296,7 @@ void SunHMEState::sebWrite(void *opaque, hwaddr addr,
 uint64_t SunHMEState::sebRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
     uint64_t val;
 
     /* Handly buggy Linux drivers before 4.13 which have
@@ -335,7 +340,7 @@ static const MemoryRegionOps sunhme_seb_ops = {
 void SunHMEState::etxWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
 
     trace_sunhme_etx_write(addr, val);
 
@@ -353,7 +358,7 @@ void SunHMEState::etxWrite(void *opaque, hwaddr addr,
 uint64_t SunHMEState::etxRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
     uint64_t val;
 
     val = s->etxregs[addr >> 2];
@@ -376,7 +381,7 @@ static const MemoryRegionOps sunhme_etx_ops = {
 void SunHMEState::erxWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
 
     trace_sunhme_erx_write(addr, val);
 
@@ -386,7 +391,7 @@ void SunHMEState::erxWrite(void *opaque, hwaddr addr,
 uint64_t SunHMEState::erxRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
     uint64_t val;
 
     val = s->erxregs[addr >> 2];
@@ -409,7 +414,7 @@ static const MemoryRegionOps sunhme_erx_ops = {
 void SunHMEState::macWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
     uint64_t oldval = s->macregs[addr >> 2];
 
     trace_sunhme_mac_write(addr, val);
@@ -429,7 +434,7 @@ void SunHMEState::macWrite(void *opaque, hwaddr addr,
 uint64_t SunHMEState::macRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
     uint64_t val;
 
     val = s->macregs[addr >> 2];
@@ -490,7 +495,7 @@ uint16_t SunHMEState::miiRead(uint8_t reg)
 void SunHMEState::mifWrite(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
     uint8_t cmd, reg;
     uint16_t data;
 
@@ -543,7 +548,7 @@ void SunHMEState::mifWrite(void *opaque, hwaddr addr,
 uint64_t SunHMEState::mifRead(void *opaque, hwaddr addr,
                              unsigned size)
 {
-    SunHMEState *s = SUNHME(opaque);
+    SunHMEState *s = sunhme_from_obj(opaque);
     uint64_t val;
 
     val = s->mifregs[addr >> 2];
@@ -883,7 +888,7 @@ static NetClientInfo net_sunhme_info = {
 
 void SunHMEState::realize(PCIDevice *pci_dev, Error **errp)
 {
-    SunHMEState *s = SUNHME(pci_dev);
+    SunHMEState *s = sunhme_from_obj(pci_dev);
     DeviceState *d = DEVICE(pci_dev);
     uint8_t *pci_conf;
 
@@ -922,13 +927,13 @@ void SunHMEState::realize(PCIDevice *pci_dev, Error **errp)
 
 static void sunhme_realize(PCIDevice *pci_dev, Error **errp)
 {
-    SunHMEState *s = SUNHME(pci_dev);
+    SunHMEState *s = sunhme_from_obj(pci_dev);
     s->realize(pci_dev, errp);
 }
 
 static void sunhme_instance_init(Object *obj)
 {
-    SunHMEState *s = SUNHME(obj);
+    SunHMEState *s = sunhme_from_obj(obj);
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
@@ -961,7 +966,7 @@ void SunHMEState::doReset()
 
 static void sunhme_reset(DeviceState *ds)
 {
-    SunHMEState *s = SUNHME(ds);
+    SunHMEState *s = sunhme_from_obj(ds);
     s->doReset();
 }
 

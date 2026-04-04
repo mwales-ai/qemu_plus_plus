@@ -40,6 +40,11 @@
 
 OBJECT_DECLARE_SIMPLE_TYPE(VGAMmioState, VGA_MMIO)
 
+static inline VGAMmioState *vga_mmio_from_obj(void *obj)
+{
+    return reinterpret_cast<VGAMmioState *>(VGA_MMIO(obj));
+}
+
 struct VGAMmioState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -87,7 +92,7 @@ static const MemoryRegionOps vga_mm_ctrl_ops = {
 
 static void vga_mmio_reset(DeviceState *dev)
 {
-    VGAMmioState *s = VGA_MMIO(dev);
+    VGAMmioState *s = vga_mmio_from_obj(dev);
     s->reset();
 }
 
@@ -98,7 +103,7 @@ void VGAMmioState::reset()
 
 static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
 {
-    VGAMmioState *s = VGA_MMIO(dev);
+    VGAMmioState *s = vga_mmio_from_obj(dev);
     s->realize(errp);
 }
 

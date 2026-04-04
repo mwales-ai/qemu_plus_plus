@@ -143,7 +143,7 @@ struct MPC8XXXGPIOState {
 
     static void resetWrapper(DeviceState *dev)
     {
-        MPC8XXXGPIOState *s = MPC8XXX_GPIO(dev);
+        MPC8XXXGPIOState *s = reinterpret_cast<MPC8XXXGPIOState *>(dev);
         s->reset();
     }
 
@@ -172,9 +172,9 @@ struct MPC8XXXGPIOState {
 
     static void instanceInit(Object *obj)
     {
-        DeviceState *dev = DEVICE(obj);
-        MPC8XXXGPIOState *s = MPC8XXX_GPIO(obj);
-        SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+        DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+        MPC8XXXGPIOState *s = reinterpret_cast<MPC8XXXGPIOState *>(obj);
+        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
         memory_region_init_io(&s->iomem, obj, &ops,
                               s, "mpc8xxx_gpio", 0x1000);
@@ -206,7 +206,7 @@ static const VMStateDescription vmstate_mpc8xxx_gpio = {
 
 void MPC8XXXGPIOState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd = &vmstate_mpc8xxx_gpio;
     device_class_set_legacy_reset(dc, resetWrapper);

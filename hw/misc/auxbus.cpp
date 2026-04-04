@@ -48,7 +48,6 @@
 
 
 static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent);
-static inline I2CBus *aux_bridge_get_i2c_bus(AUXTOI2CState *bridge);
 
 /* aux-bus implementation (internal not public) */
 struct AUXBusClass {
@@ -57,7 +56,7 @@ struct AUXBusClass {
 
 void AUXBusClass::classInit(ObjectClass *klass, const void *data)
 {
-    BusClass *k = BUS_CLASS(klass);
+    BusClass *k = reinterpret_cast<BusClass *>(klass);
 
     /* AUXSlave has an MMIO so we need to change the way we print information
      * in monitor.
@@ -71,15 +70,16 @@ AUXBus *aux_bus_init(DeviceState *parent, const char *name)
     AUXBus *bus;
     Object *auxtoi2c;
 
-    bus = AUX_BUS(qbus_new(TYPE_AUX_BUS, parent, name));
-    auxtoi2c = object_new_with_props(TYPE_AUXTOI2C, OBJECT(bus), "i2c",
+    bus = reinterpret_cast<AUXBus *>(qbus_new(TYPE_AUX_BUS, parent, name));
+    auxtoi2c = object_new_with_props(TYPE_AUXTOI2C,
+                                     reinterpret_cast<Object *>(bus), "i2c",
                                      &error_abort, NULL);
 
-    bus->bridge = AUXTOI2C(auxtoi2c);
+    bus->bridge = reinterpret_cast<AUXTOI2CState *>(auxtoi2c);
 
     /* Memory related. */
     bus->aux_io = static_cast<MemoryRegion *>(g_malloc(sizeof(*bus->aux_io)));
-    memory_region_init(bus->aux_io, OBJECT(bus), "aux-io", 1 * MiB);
+    memory_region_init(bus->aux_io, reinterpret_cast<Object *>(bus), "aux-io", 1 * MiB);
     address_space_init(&bus->aux_addr_space, bus->aux_io, "aux-io");
     return bus;
 }
@@ -87,27 +87,24 @@ AUXBus *aux_bus_init(DeviceState *parent, const char *name)
 extern "C"
 void aux_bus_realize(AUXBus *bus)
 {
-    qdev_realize(DEVICE(bus->bridge), BUS(bus), &error_fatal);
+    qdev_realize(reinterpret_cast<DeviceState *>(bus->bridge),
+                 reinterpret_cast<BusState *>(bus), &error_fatal);
 }
 
 extern "C"
 void aux_map_slave(AUXSlave *aux_dev, hwaddr addr)
 {
-    DeviceState *dev = DEVICE(aux_dev);
-    AUXBus *bus = AUX_BUS(qdev_get_parent_bus(dev));
+    DeviceState *dev = reinterpret_cast<DeviceState *>(aux_dev);
+    AUXBus *bus = reinterpret_cast<AUXBus *>(qdev_get_parent_bus(dev));
     memory_region_add_subregion(bus->aux_io, addr, aux_dev->mmio);
 }
 
 static bool aux_bus_is_bridge(AUXBus *bus, DeviceState *dev)
 {
-    return (dev == DEVICE(bus->bridge));
+    return (dev == reinterpret_cast<DeviceState *>(bus->bridge));
 }
 
-extern "C"
-I2CBus *aux_get_i2c_bus(AUXBus *bus)
-{
-    return aux_bridge_get_i2c_bus(bus->bridge);
-}
+/* aux_get_i2c_bus defined below after AUXTOI2CState struct definition */
 
 extern "C"
 AUXReply aux_request(AUXBus *bus, AUXCommand cmd, uint32_t address,
@@ -267,6 +264,7 @@ struct AUXTOI2CState {
 
     /* methods */
     void init();
+    I2CBus *getI2CBus() { return i2c_bus; }
 
     /* class init */
     static void classInit(ObjectClass *oc, const void *data);
@@ -274,18 +272,18 @@ struct AUXTOI2CState {
 
 void AUXTOI2CState::init()
 {
-    i2c_bus = i2c_init_bus(DEVICE(this), "aux-i2c");
+    i2c_bus = i2c_init_bus(reinterpret_cast<DeviceState *>(this), "aux-i2c");
 }
 
 static void aux_bridge_init(Object *obj)
 {
-    AUXTOI2CState *s = AUXTOI2C(obj);
+    AUXTOI2CState *s = reinterpret_cast<AUXTOI2CState *>(obj);
     s->init();
 }
 
 void AUXTOI2CState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     /* This device is private and is created only once for each
      * aux-bus in aux_bus_init(..). So don't allow the user to add one.
@@ -293,9 +291,10 @@ void AUXTOI2CState::classInit(ObjectClass *oc, const void *data)
     dc->user_creatable = false;
 }
 
-static inline I2CBus *aux_bridge_get_i2c_bus(AUXTOI2CState *bridge)
+extern "C"
+I2CBus *aux_get_i2c_bus(AUXBus *bus)
 {
-    return bridge->i2c_bus;
+    return bus->bridge->getI2CBus();
 }
 
 static const TypeInfo aux_to_i2c_type_info = {
@@ -309,7 +308,7 @@ static const TypeInfo aux_to_i2c_type_info = {
 /* aux-slave implementation */
 static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
-    AUXBus *bus = AUX_BUS(qdev_get_parent_bus(dev));
+    AUXBus *bus = reinterpret_cast<AUXBus *>(qdev_get_parent_bus(dev));
     AUXSlave *s;
 
     /* Don't print anything if the device is I2C "bridge". */
@@ -317,11 +316,11 @@ static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent)
         return;
     }
 
-    s = AUX_SLAVE(dev);
+    s = reinterpret_cast<AUXSlave *>(dev);
 
     monitor_printf(mon, "%*smemory " HWADDR_FMT_plx "/" HWADDR_FMT_plx "\n",
                    indent, "",
-                   object_property_get_uint(OBJECT(s->mmio), "addr", NULL),
+                   object_property_get_uint(reinterpret_cast<Object *>(s->mmio), "addr", NULL),
                    memory_region_size(s->mmio));
 }
 
@@ -338,7 +337,7 @@ struct AUXSlaveClass {
 
 void AUXSlaveClass::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
+    DeviceClass *k = reinterpret_cast<DeviceClass *>(klass);
 
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
     k->bus_type = TYPE_AUX_BUS;

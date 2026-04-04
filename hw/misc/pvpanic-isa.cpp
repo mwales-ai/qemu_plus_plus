@@ -50,24 +50,24 @@ struct PVPanicISAState {
 
 static void pvpanic_isa_initfn(Object *obj)
 {
-    PVPanicISAState *s = PVPANIC_ISA_DEVICE(obj);
+    PVPanicISAState *s = reinterpret_cast<PVPanicISAState *>(obj);
     s->instanceInit();
 }
 
 void PVPanicISAState::instanceInit()
 {
-    pvpanic_setup_io(&pvpanic, DEVICE(this), 1);
+    pvpanic_setup_io(&pvpanic, reinterpret_cast<DeviceState *>(this), 1);
 }
 
 static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
 {
-    PVPanicISAState *s = PVPANIC_ISA_DEVICE(dev);
+    PVPanicISAState *s = reinterpret_cast<PVPanicISAState *>(dev);
     s->realize(errp);
 }
 
 void PVPanicISAState::realize(Error **errp)
 {
-    ISADevice *d = ISA_DEVICE(DEVICE(this));
+    ISADevice *d = reinterpret_cast<ISADevice *>(this);
     PVPanicState *ps = &pvpanic;
     FWCfgState *fw_cfg = fw_cfg_find();
     uint16_t *pvpanic_port;
@@ -87,7 +87,7 @@ void PVPanicISAState::realize(Error **errp)
 void PVPanicISAState::buildDevAml(AcpiDevAmlIf *adev, Aml *scope)
 {
     Aml *crs, *field, *method;
-    PVPanicISAState *s = PVPANIC_ISA_DEVICE(adev);
+    PVPanicISAState *s = reinterpret_cast<PVPanicISAState *>(adev);
     Aml *dev = aml_device("PEVT");
 
     aml_append(dev, aml_name_decl("_HID", aml_string("QEMU0001")));
@@ -127,8 +127,8 @@ static const Property pvpanic_isa_properties[] = {
 
 void PVPanicISAState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
     dc->realize = pvpanic_isa_realizefn;
     device_class_set_props(dc, pvpanic_isa_properties);

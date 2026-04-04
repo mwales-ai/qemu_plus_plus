@@ -217,8 +217,8 @@ void GPIOI2CState::gpioSet(void *opaque, int irq, int level)
 
 void GPIOI2CState::instanceInit(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    GPIOI2CState *s = GPIO_I2C(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    GPIOI2CState *s = reinterpret_cast<GPIOI2CState *>(obj);
     I2CBus *bus;
 
     bus = i2c_init_bus(dev, "i2c");
@@ -230,7 +230,7 @@ void GPIOI2CState::instanceInit(Object *obj)
 
 void GPIOI2CState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Virtual GPIO to I2C bridge";

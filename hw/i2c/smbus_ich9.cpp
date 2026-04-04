@@ -90,20 +90,20 @@ struct ICH9SMBState {
     static void pciWriteConfig(PCIDevice *d, uint32_t address,
                                uint32_t val, int len)
     {
-        ICH9SMBState *s = ICH9_SMB_DEVICE(d);
+        ICH9SMBState *s = reinterpret_cast<ICH9SMBState *>(d);
         s->writeConfig(address, val, len);
     }
 
     static void pciRealize(PCIDevice *d, Error **errp)
     {
-        ICH9SMBState *s = ICH9_SMB_DEVICE(d);
+        ICH9SMBState *s = reinterpret_cast<ICH9SMBState *>(d);
         s->realize(errp);
     }
 
     static void buildAml(AcpiDevAmlIf *adev, Aml *scope)
     {
-        ICH9SMBState *s = ICH9_SMB_DEVICE(adev);
-        BusState *bus = BUS(s->smb.smbus);
+        ICH9SMBState *s = reinterpret_cast<ICH9SMBState *>(adev);
+        BusState *bus = reinterpret_cast<BusState *>(s->smb.smbus);
 
         qbus_build_aml(bus, scope);
     }
@@ -115,9 +115,9 @@ struct ICH9SMBState {
 
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
-        PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-        AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+        PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+        AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
         k->vendor_id = PCI_VENDOR_ID_INTEL;
         k->device_id = PCI_DEVICE_ID_INTEL_ICH9_6;

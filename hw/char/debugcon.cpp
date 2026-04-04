@@ -77,28 +77,18 @@ struct ISADebugconState {
         return s->readback;
     }
 
-    static void realizeCore(DebugconState *s, Error **errp)
+    void realize(Error **errp)
     {
+        ISADevice *d = reinterpret_cast<ISADevice *>(this);
+        DebugconState *s = &state;
+
         if (!qemu_chr_fe_backend_connected(&s->chr)) {
             error_setg(errp, "Can't create debugcon device, empty char device");
             return;
         }
 
         qemu_chr_fe_set_handlers(&s->chr, NULL, NULL, NULL, NULL, s, NULL, true);
-    }
-
-    void realize(Error **errp)
-    {
-        ISADevice *d = ISA_DEVICE(DEVICE(this));
-        DebugconState *s = &state;
-        Error *err = NULL;
-
-        realizeCore(s, &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
-            return;
-        }
-        memory_region_init_io(&s->io, OBJECT(this), &debugcon_ops, s,
+        memory_region_init_io(&s->io, reinterpret_cast<Object *>(this), &debugcon_ops, s,
                               TYPE_ISA_DEBUGCON_DEVICE, 1);
         memory_region_add_subregion(isa_address_space_io(d),
                                     iobase, &s->io);
@@ -106,7 +96,7 @@ struct ISADebugconState {
 
     static void deviceRealize(DeviceState *dev, Error **errp)
     {
-        ISADebugconState *s = ISA_DEBUGCON_DEVICE(dev);
+        ISADebugconState *s = reinterpret_cast<ISADebugconState *>(dev);
         s->realize(errp);
     }
 
@@ -131,7 +121,7 @@ const Property ISADebugconState::debugcon_isa_properties[] = {
 
 void ISADebugconState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = deviceRealize;
     device_class_set_props(dc, debugcon_isa_properties);

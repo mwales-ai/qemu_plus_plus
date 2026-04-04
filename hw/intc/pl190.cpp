@@ -237,15 +237,15 @@ struct PL190State {
 
     static void resetWrapper(DeviceState *d)
     {
-        PL190State *s = PL190(d);
+        PL190State *s = reinterpret_cast<PL190State *>(d);
         s->reset();
     }
 
     static void instanceInit(Object *obj)
     {
-        DeviceState *dev = DEVICE(obj);
-        PL190State *s = PL190(obj);
-        SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+        DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+        PL190State *s = reinterpret_cast<PL190State *>(obj);
+        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
         memory_region_init_io(&s->iomem, obj, &ops, s, "pl190", 0x1000);
         sysbus_init_mmio(sbd, &s->iomem);
@@ -286,7 +286,7 @@ static const VMStateDescription vmstate_pl190 = {
 
 void PL190State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_pl190;
