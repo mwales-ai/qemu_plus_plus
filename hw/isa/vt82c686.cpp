@@ -103,7 +103,7 @@ static const VMStateDescription vmstate_acpi = {
 
 static void pm_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int len)
 {
-    ViaPMState *s = VIA_PM(d);
+    ViaPMState *s = reinterpret_cast<ViaPMState *>(d);
 
     trace_via_pm_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
@@ -180,7 +180,7 @@ static void pm_tmr_timer(ACPIREGS *ar)
 
 static void via_pm_reset(DeviceState *d)
 {
-    ViaPMState *s = VIA_PM(d);
+    ViaPMState *s = reinterpret_cast<ViaPMState *>(d);
 
     memset(s->dev.config + PCI_CONFIG_HEADER_SIZE, 0,
            PCI_CONFIG_SPACE_SIZE - PCI_CONFIG_HEADER_SIZE);
@@ -200,18 +200,18 @@ static void via_pm_reset(DeviceState *d)
 
 static void via_pm_realize(PCIDevice *dev, Error **errp)
 {
-    ViaPMState *s = VIA_PM(dev);
+    ViaPMState *s = reinterpret_cast<ViaPMState *>(dev);
 
     pci_set_word(dev->config + PCI_STATUS, PCI_STATUS_FAST_BACK |
                  PCI_STATUS_DEVSEL_MEDIUM);
 
-    pm_smbus_init(DEVICE(s), &s->smb, false);
+    pm_smbus_init(reinterpret_cast<DeviceState *>(s), &s->smb, false);
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->smb.io);
     memory_region_set_enabled(&s->smb.io, false);
 
     apm_init(dev, &s->apm, NULL, s);
 
-    memory_region_init_io(&s->io, OBJECT(dev), &pm_io_ops, s, "via-pm", 128);
+    memory_region_init_io(&s->io, reinterpret_cast<Object *>(dev), &pm_io_ops, s, "via-pm", 128);
     memory_region_add_subregion(pci_address_space_io(dev), 0, &s->io);
     memory_region_set_enabled(&s->io, false);
 
@@ -226,8 +226,8 @@ typedef struct via_pm_init_info {
 
 void ViaPMState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
     const ViaPMInitInfo *info = static_cast<const ViaPMInitInfo *>(data);
 
     k->realize = via_pm_realize;
@@ -303,7 +303,7 @@ static inline void via_superio_io_enable(ViaSuperIOState *s, bool enable)
 
 static void via_superio_realize(DeviceState *d, Error **errp)
 {
-    ViaSuperIOState *s = VIA_SUPERIO(d);
+    ViaSuperIOState *s = reinterpret_cast<ViaSuperIOState *>(d);
     ISASuperIOClass *ic = ISA_SUPERIO_GET_CLASS(s);
     Error *local_err = NULL;
 
@@ -313,10 +313,10 @@ static void via_superio_realize(DeviceState *d, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    memory_region_init_io(&s->io, OBJECT(d), s->io_ops, s, "via-superio", 2);
+    memory_region_init_io(&s->io, reinterpret_cast<Object *>(d), s->io_ops, s, "via-superio", 2);
     memory_region_set_enabled(&s->io, false);
     /* The floppy also uses 0x3f0 and 0x3f1 but this seems to work anyway */
-    memory_region_add_subregion(isa_address_space_io(ISA_DEVICE(s)), 0x3f0,
+    memory_region_add_subregion(isa_address_space_io(reinterpret_cast<ISADevice *>(s)), 0x3f0,
                                 &s->io);
 }
 
@@ -349,8 +349,8 @@ static void via_superio_devices_enable(ViaSuperIOState *s, uint8_t data)
 
 void ViaSuperIOState::baseClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ISASuperIOClass *sc = reinterpret_cast<ISASuperIOClass *>(klass);
 
     device_class_set_parent_realize(dc, via_superio_realize,
                                     &sc->parent_realize);
@@ -431,7 +431,7 @@ static const MemoryRegionOps vt82c686b_superio_cfg_ops = {
 
 static void vt82c686b_superio_reset(DeviceState *dev)
 {
-    ViaSuperIOState *s = VIA_SUPERIO(dev);
+    ViaSuperIOState *s = reinterpret_cast<ViaSuperIOState *>(dev);
 
     memset(s->regs, 0, sizeof(s->regs));
     /* Device ID */
@@ -463,13 +463,13 @@ static void vt82c686b_superio_reset(DeviceState *dev)
 
 static void vt82c686b_superio_init(Object *obj)
 {
-    VIA_SUPERIO(obj)->io_ops = &vt82c686b_superio_cfg_ops;
+    reinterpret_cast<ViaSuperIOState *>(obj)->io_ops = &vt82c686b_superio_cfg_ops;
 }
 
 void ViaSuperIOState::vt82c686bClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ISASuperIOClass *sc = reinterpret_cast<ISASuperIOClass *>(klass);
 
     device_class_set_legacy_reset(dc, vt82c686b_superio_reset);
     sc->serial.count = 2;
@@ -547,7 +547,7 @@ static const MemoryRegionOps vt8231_superio_cfg_ops = {
 
 static void vt8231_superio_reset(DeviceState *dev)
 {
-    ViaSuperIOState *s = VIA_SUPERIO(dev);
+    ViaSuperIOState *s = reinterpret_cast<ViaSuperIOState *>(dev);
 
     memset(s->regs, 0, sizeof(s->regs));
     /* Device ID */
@@ -572,13 +572,13 @@ static void vt8231_superio_reset(DeviceState *dev)
 
 static void vt8231_superio_init(Object *obj)
 {
-    VIA_SUPERIO(obj)->io_ops = &vt8231_superio_cfg_ops;
+    reinterpret_cast<ViaSuperIOState *>(obj)->io_ops = &vt8231_superio_cfg_ops;
 }
 
 void ViaSuperIOState::vt8231ClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ISASuperIOClass *sc = ISA_SUPERIO_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ISASuperIOClass *sc = reinterpret_cast<ISASuperIOClass *>(klass);
 
     device_class_set_legacy_reset(dc, vt8231_superio_reset);
     sc->serial.count = 1;
@@ -632,7 +632,7 @@ static const VMStateDescription vmstate_via = {
 
 static void via_isa_init(Object *obj)
 {
-    ViaISAState *s = VIA_ISA(obj);
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(obj);
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_MC146818_RTC);
     object_initialize_child(obj, "ide", &s->ide, TYPE_VIA_IDE);
@@ -673,7 +673,7 @@ static int via_isa_get_pci_irq(const ViaISAState *s, int pin)
 
 void via_isa_set_irq(PCIDevice *d, int pin, int level)
 {
-    ViaISAState *s = VIA_ISA(pci_get_function_0(d));
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(pci_get_function_0(d));
     uint8_t irq = d->config[PCI_INTERRUPT_LINE], max_irq = 15;
     int f = PCI_FUNC(d->devfn);
     uint16_t mask;
@@ -730,8 +730,8 @@ static void via_isa_request_i8259_irq(void *opaque, int irq, int level)
 
 static void via_isa_realize(PCIDevice *d, Error **errp)
 {
-    ViaISAState *s = VIA_ISA(d);
-    DeviceState *dev = DEVICE(d);
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(d);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(d);
     PCIBus *pci_bus = pci_get_bus(d);
     ISABus *isa_bus;
     int i;
@@ -749,14 +749,14 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
     s->isa_irqs_in = i8259_init(isa_bus, &s->i8259_irq);
     isa_bus_register_input_irqs(isa_bus, s->isa_irqs_in);
     i8254_pit_init(isa_bus, 0x40, 0, NULL);
-    i8257_dma_init(OBJECT(d), isa_bus, 0);
+    i8257_dma_init(reinterpret_cast<Object *>(d), isa_bus, 0);
 
     /* RTC */
-    qdev_prop_set_int32(DEVICE(&s->rtc), "base_year", 2000);
-    if (!qdev_realize(DEVICE(&s->rtc), BUS(isa_bus), errp)) {
+    qdev_prop_set_int32(reinterpret_cast<DeviceState *>(&s->rtc), "base_year", 2000);
+    if (!qdev_realize(reinterpret_cast<DeviceState *>(&s->rtc), reinterpret_cast<BusState *>(isa_bus), errp)) {
         return;
     }
-    isa_connect_gpio_out(ISA_DEVICE(&s->rtc), 0, s->rtc.isairq);
+    isa_connect_gpio_out(reinterpret_cast<ISADevice *>(&s->rtc), 0, s->rtc.isairq);
 
     for (i = 0; i < PCI_CONFIG_HEADER_SIZE; i++) {
         if (i < PCI_COMMAND || i >= PCI_REVISION_ID) {
@@ -765,43 +765,43 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
     }
 
     /* Super I/O */
-    if (!qdev_realize(DEVICE(&s->via_sio), BUS(isa_bus), errp)) {
+    if (!qdev_realize(reinterpret_cast<DeviceState *>(&s->via_sio), reinterpret_cast<BusState *>(isa_bus), errp)) {
         return;
     }
 
     /* Function 1: IDE */
-    qdev_prop_set_int32(DEVICE(&s->ide), "addr", d->devfn + 1);
-    if (!qdev_realize(DEVICE(&s->ide), BUS(pci_bus), errp)) {
+    qdev_prop_set_int32(reinterpret_cast<DeviceState *>(&s->ide), "addr", d->devfn + 1);
+    if (!qdev_realize(reinterpret_cast<DeviceState *>(&s->ide), reinterpret_cast<BusState *>(pci_bus), errp)) {
         return;
     }
     for (i = 0; i < 2; i++) {
-        qdev_connect_gpio_out_named(DEVICE(&s->ide), "isa-irq", i,
+        qdev_connect_gpio_out_named(reinterpret_cast<DeviceState *>(&s->ide), "isa-irq", i,
                                     s->isa_irqs_in[14 + i]);
     }
 
     /* Functions 2-3: USB Ports */
     for (i = 0; i < ARRAY_SIZE(s->uhci); i++) {
-        qdev_prop_set_int32(DEVICE(&s->uhci[i]), "addr", d->devfn + 2 + i);
-        if (!qdev_realize(DEVICE(&s->uhci[i]), BUS(pci_bus), errp)) {
+        qdev_prop_set_int32(reinterpret_cast<DeviceState *>(&s->uhci[i]), "addr", d->devfn + 2 + i);
+        if (!qdev_realize(reinterpret_cast<DeviceState *>(&s->uhci[i]), reinterpret_cast<BusState *>(pci_bus), errp)) {
             return;
         }
     }
 
     /* Function 4: Power Management */
-    qdev_prop_set_int32(DEVICE(&s->pm), "addr", d->devfn + 4);
-    if (!qdev_realize(DEVICE(&s->pm), BUS(pci_bus), errp)) {
+    qdev_prop_set_int32(reinterpret_cast<DeviceState *>(&s->pm), "addr", d->devfn + 4);
+    if (!qdev_realize(reinterpret_cast<DeviceState *>(&s->pm), reinterpret_cast<BusState *>(pci_bus), errp)) {
         return;
     }
 
     /* Function 5: AC97 Audio */
-    qdev_prop_set_int32(DEVICE(&s->ac97), "addr", d->devfn + 5);
-    if (!qdev_realize(DEVICE(&s->ac97), BUS(pci_bus), errp)) {
+    qdev_prop_set_int32(reinterpret_cast<DeviceState *>(&s->ac97), "addr", d->devfn + 5);
+    if (!qdev_realize(reinterpret_cast<DeviceState *>(&s->ac97), reinterpret_cast<BusState *>(pci_bus), errp)) {
         return;
     }
 
     /* Function 6: MC97 Modem */
-    qdev_prop_set_int32(DEVICE(&s->mc97), "addr", d->devfn + 6);
-    if (!qdev_realize(DEVICE(&s->mc97), BUS(pci_bus), errp)) {
+    qdev_prop_set_int32(reinterpret_cast<DeviceState *>(&s->mc97), "addr", d->devfn + 6);
+    if (!qdev_realize(reinterpret_cast<DeviceState *>(&s->mc97), reinterpret_cast<BusState *>(pci_bus), errp)) {
         return;
     }
 }
@@ -811,7 +811,7 @@ static void via_isa_realize(PCIDevice *d, Error **errp)
 static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
                                    uint32_t val, int len)
 {
-    ViaISAState *s = VIA_ISA(d);
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(d);
 
     trace_via_isa_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
@@ -823,7 +823,7 @@ static void vt82c686b_write_config(PCIDevice *d, uint32_t addr,
 
 static void vt82c686b_isa_reset(DeviceState *dev)
 {
-    ViaISAState *s = VIA_ISA(dev);
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(dev);
     uint8_t *pci_conf = s->dev.config;
 
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
@@ -843,7 +843,7 @@ static void vt82c686b_isa_reset(DeviceState *dev)
 
 static void vt82c686b_init(Object *obj)
 {
-    ViaISAState *s = VIA_ISA(obj);
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(obj);
 
     object_initialize_child(obj, "sio", &s->via_sio, TYPE_VT82C686B_SUPERIO);
     object_initialize_child(obj, "pm", &s->pm, TYPE_VT82C686B_PM);
@@ -851,8 +851,8 @@ static void vt82c686b_init(Object *obj)
 
 void ViaISAState::vt82c686bClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = via_isa_realize;
     k->config_write = vt82c686b_write_config;
@@ -880,7 +880,7 @@ static const TypeInfo vt82c686b_isa_info = {
 static void vt8231_write_config(PCIDevice *d, uint32_t addr,
                                 uint32_t val, int len)
 {
-    ViaISAState *s = VIA_ISA(d);
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(d);
 
     trace_via_isa_write(addr, val, len);
     pci_default_write_config(d, addr, val, len);
@@ -892,7 +892,7 @@ static void vt8231_write_config(PCIDevice *d, uint32_t addr,
 
 static void vt8231_isa_reset(DeviceState *dev)
 {
-    ViaISAState *s = VIA_ISA(dev);
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(dev);
     uint8_t *pci_conf = s->dev.config;
 
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
@@ -908,7 +908,7 @@ static void vt8231_isa_reset(DeviceState *dev)
 
 static void vt8231_init(Object *obj)
 {
-    ViaISAState *s = VIA_ISA(obj);
+    ViaISAState *s = reinterpret_cast<ViaISAState *>(obj);
 
     object_initialize_child(obj, "sio", &s->via_sio, TYPE_VT8231_SUPERIO);
     object_initialize_child(obj, "pm", &s->pm, TYPE_VT8231_PM);
@@ -916,8 +916,8 @@ static void vt8231_init(Object *obj)
 
 void ViaISAState::vt8231ClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = via_isa_realize;
     k->config_write = vt8231_write_config;

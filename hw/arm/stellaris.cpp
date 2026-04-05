@@ -410,7 +410,7 @@ static const MemoryRegionOps ssys_ops = {
 
 static void stellaris_sys_reset_enter(Object *obj, ResetType type)
 {
-    ssys_state *s = STELLARIS_SYS(obj);
+    ssys_state *s = reinterpret_cast<ssys_state *>(obj);
 
     s->pborctl = 0x7ffd;
     s->rcc = 0x078e3ac0;
@@ -427,7 +427,7 @@ static void stellaris_sys_reset_enter(Object *obj, ResetType type)
 
 static void stellaris_sys_reset_hold(Object *obj, ResetType type)
 {
-    ssys_state *s = STELLARIS_SYS(obj);
+    ssys_state *s = reinterpret_cast<ssys_state *>(obj);
 
     /* OK to propagate clocks from the hold phase */
     ssys_calculate_system_clock(s, true);
@@ -483,13 +483,13 @@ static const Property stellaris_sys_properties[] = {
 
 static void stellaris_sys_instance_init(Object *obj)
 {
-    ssys_state *s = STELLARIS_SYS(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
+    ssys_state *s = reinterpret_cast<ssys_state *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(s);
 
     memory_region_init_io(&s->iomem, obj, &ssys_ops, s, "ssys", 0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
-    s->sysclk = qdev_init_clock_out(DEVICE(s), "SYSCLK");
+    s->sysclk = qdev_init_clock_out(reinterpret_cast<DeviceState *>(s), "SYSCLK");
 }
 
 /*
@@ -645,7 +645,7 @@ static void stellaris_i2c_write(void *opaque, hwaddr offset,
 
 static void stellaris_i2c_reset_enter(Object *obj, ResetType type)
 {
-    stellaris_i2c_state *s = STELLARIS_I2C(obj);
+    stellaris_i2c_state *s = reinterpret_cast<stellaris_i2c_state *>(obj);
 
     if (s->mcs & STELLARIS_I2C_MCS_BUSBSY)
         i2c_end_transfer(s->bus);
@@ -653,7 +653,7 @@ static void stellaris_i2c_reset_enter(Object *obj, ResetType type)
 
 static void stellaris_i2c_reset_hold(Object *obj, ResetType type)
 {
-    stellaris_i2c_state *s = STELLARIS_I2C(obj);
+    stellaris_i2c_state *s = reinterpret_cast<stellaris_i2c_state *>(obj);
 
     s->msa = 0;
     s->mcs = 0;
@@ -666,7 +666,7 @@ static void stellaris_i2c_reset_hold(Object *obj, ResetType type)
 
 static void stellaris_i2c_reset_exit(Object *obj, ResetType type)
 {
-    stellaris_i2c_state *s = STELLARIS_I2C(obj);
+    stellaris_i2c_state *s = reinterpret_cast<stellaris_i2c_state *>(obj);
 
     stellaris_i2c_update(s);
 }
@@ -695,9 +695,9 @@ static const VMStateDescription vmstate_stellaris_i2c = {
 
 static void stellaris_i2c_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    stellaris_i2c_state *s = STELLARIS_I2C(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    stellaris_i2c_state *s = reinterpret_cast<stellaris_i2c_state *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
     I2CBus *bus;
 
     sysbus_init_irq(sbd, &s->irq);
@@ -825,7 +825,7 @@ static void stellaris_adc_trigger(void *opaque, int irq, int level)
 
 static void stellaris_adc_reset_hold(Object *obj, ResetType type)
 {
-    StellarisADCState *s = STELLARIS_ADC(obj);
+    StellarisADCState *s = reinterpret_cast<StellarisADCState *>(obj);
     int n;
 
     for (n = 0; n < 4; n++) {
@@ -985,9 +985,9 @@ static const VMStateDescription vmstate_stellaris_adc = {
 
 static void stellaris_adc_init(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    StellarisADCState *s = STELLARIS_ADC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    StellarisADCState *s = reinterpret_cast<StellarisADCState *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
     int n;
 
     for (n = 0; n < 4; n++) {
@@ -1091,7 +1091,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     sram_size = ((board->dc0 >> 18) + 1) * 1024;
 
     soc_container = object_new(TYPE_CONTAINER);
-    object_property_add_child(OBJECT(ms), "soc", soc_container);
+    object_property_add_child(reinterpret_cast<Object *>(ms), "soc", soc_container);
 
     /* Flash programming is done via the SCU, so pretend it is ROM.  */
     memory_region_init_rom(flash, NULL, "stellaris.flash", flash_size,
@@ -1107,7 +1107,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
      * need its sysclk output.
      */
     ssys_dev = qdev_new(TYPE_STELLARIS_SYS);
-    object_property_add_child(soc_container, "sys", OBJECT(ssys_dev));
+    object_property_add_child(soc_container, "sys", reinterpret_cast<Object *>(ssys_dev));
 
     /*
      * Most devices come preprogrammed with a MAC address in the user data.
@@ -1131,10 +1131,10 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     qdev_prop_set_uint32(ssys_dev, "dc2", board->dc2);
     qdev_prop_set_uint32(ssys_dev, "dc3", board->dc3);
     qdev_prop_set_uint32(ssys_dev, "dc4", board->dc4);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(ssys_dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(ssys_dev), &error_fatal);
 
     armv7m = qdev_new(TYPE_ARMV7M);
-    object_property_add_child(soc_container, "v7m", OBJECT(armv7m));
+    object_property_add_child(soc_container, "v7m", reinterpret_cast<Object *>(armv7m));
     qdev_prop_set_uint32(armv7m, "num-irq", NUM_IRQ_LINES);
     qdev_prop_set_uint8(armv7m, "num-prio-bits", NUM_PRIO_BITS);
     qdev_prop_set_string(armv7m, "cpu-type", ms->cpu_type);
@@ -1142,15 +1142,15 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     qdev_connect_clock_in(armv7m, "cpuclk",
                           qdev_get_clock_out(ssys_dev, "SYSCLK"));
     /* This SoC does not connect the systick reference clock */
-    object_property_set_link(OBJECT(armv7m), "memory",
-                             OBJECT(get_system_memory()), &error_abort);
+    object_property_set_link(reinterpret_cast<Object *>(armv7m), "memory",
+                             reinterpret_cast<Object *>(get_system_memory()), &error_abort);
     /* This will exit with an error if the user passed us a bad cpu_type */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(armv7m), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(armv7m), &error_fatal);
     nvic = armv7m;
 
     /* Now we can wire up the IRQ and MMIO of the system registers */
-    sysbus_mmio_map(SYS_BUS_DEVICE(ssys_dev), 0, 0x400fe000);
-    sysbus_connect_irq(SYS_BUS_DEVICE(ssys_dev), 0, qdev_get_gpio_in(nvic, 28));
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(ssys_dev), 0, 0x400fe000);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(ssys_dev), 0, qdev_get_gpio_in(nvic, 28));
 
     if (DEV_CAP(1, ADC)) {
         dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
@@ -1168,8 +1168,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             SysBusDevice *sbd;
 
             dev = qdev_new(TYPE_STELLARIS_GPTM);
-            sbd = SYS_BUS_DEVICE(dev);
-            object_property_add_child(soc_container, "gptm[*]", OBJECT(dev));
+            sbd = reinterpret_cast<SysBusDevice *>(dev);
+            object_property_add_child(soc_container, "gptm[*]", reinterpret_cast<Object *>(dev));
             qdev_connect_clock_in(dev, "clk",
                                   qdev_get_clock_out(ssys_dev, "SYSCLK"));
             sysbus_realize_and_unref(sbd, &error_fatal);
@@ -1183,15 +1183,15 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
 
     if (DEV_CAP(1, WDT)) {
         dev = qdev_new(TYPE_LUMINARY_WATCHDOG);
-        object_property_add_child(soc_container, "wdg", OBJECT(dev));
+        object_property_add_child(soc_container, "wdg", reinterpret_cast<Object *>(dev));
         qdev_connect_clock_in(dev, "WDOGCLK",
                               qdev_get_clock_out(ssys_dev, "SYSCLK"));
 
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(dev),
+        sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+        sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev),
                         0,
                         0x40000000u);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev),
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev),
                            0,
                            qdev_get_gpio_in(nvic, 18));
     }
@@ -1227,8 +1227,8 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
             SysBusDevice *sbd;
 
             dev = qdev_new("pl011_luminary");
-            object_property_add_child(soc_container, "uart[*]", OBJECT(dev));
-            sbd = SYS_BUS_DEVICE(dev);
+            object_property_add_child(soc_container, "uart[*]", reinterpret_cast<Object *>(dev));
+            sbd = reinterpret_cast<SysBusDevice *>(dev);
             qdev_prop_set_chr(dev, "chardev", serial_hd(i));
             sysbus_realize_and_unref(sbd, &error_fatal);
             sysbus_mmio_map(sbd, 0, 0x4000c000 + i * 0x1000);
@@ -1321,13 +1321,13 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
                                    &error_fatal);
 
             ssddev = qdev_new("ssd0323");
-            object_property_add_child(OBJECT(ms), "oled", OBJECT(ssddev));
+            object_property_add_child(reinterpret_cast<Object *>(ms), "oled", reinterpret_cast<Object *>(ssddev));
             qdev_prop_set_uint8(ssddev, "cs", 1);
             qdev_realize_and_unref(ssddev, static_cast<BusState *>(bus), &error_fatal);
 
             gpio_d_splitter = qdev_new(TYPE_SPLIT_IRQ);
-            object_property_add_child(OBJECT(ms), "splitter",
-                                      OBJECT(gpio_d_splitter));
+            object_property_add_child(reinterpret_cast<Object *>(ms), "splitter",
+                                      reinterpret_cast<Object *>(gpio_d_splitter));
             qdev_prop_set_uint32(gpio_d_splitter, "num-lines", 2);
             qdev_realize_and_unref(gpio_d_splitter, NULL, &error_fatal);
             qdev_connect_gpio_out(
@@ -1348,16 +1348,16 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         DeviceState *enet;
 
         enet = qdev_new("stellaris_enet");
-        object_property_add_child(soc_container, "enet", OBJECT(enet));
+        object_property_add_child(soc_container, "enet", reinterpret_cast<Object *>(enet));
         if (nd) {
             qdev_set_nic_properties(enet, nd);
         } else {
             qdev_prop_set_macaddr(enet, "mac", mac.a);
         }
 
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(enet), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(enet), 0, 0x40048000);
-        sysbus_connect_irq(SYS_BUS_DEVICE(enet), 0, qdev_get_gpio_in(nvic, 42));
+        sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(enet), &error_fatal);
+        sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(enet), 0, 0x40048000);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(enet), 0, qdev_get_gpio_in(nvic, 42));
     }
     if (board->peripherals & BP_GAMEPAD) {
         QList *gpad_keycode_list = qlist_new();
@@ -1368,12 +1368,12 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
         DeviceState *gpad;
 
         gpad = qdev_new(TYPE_STELLARIS_GAMEPAD);
-        object_property_add_child(OBJECT(ms), "gamepad", OBJECT(gpad));
+        object_property_add_child(reinterpret_cast<Object *>(ms), "gamepad", reinterpret_cast<Object *>(gpad));
         for (i = 0; i < ARRAY_SIZE(gpad_keycode); i++) {
             qlist_append_int(gpad_keycode_list, gpad_keycode[i]);
         }
         qdev_prop_set_array(gpad, "keycodes", gpad_keycode_list);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(gpad), &error_fatal);
+        sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(gpad), &error_fatal);
 
         qdev_connect_gpio_out(gpad, 0,
                               qemu_irq_invert(gpio_in[GPIO_E][0])); /* up */
@@ -1406,7 +1406,7 @@ static void stellaris_init(MachineState *ms, stellaris_board_info *board)
     create_unimplemented_device("hibernation", 0x400fc000, 0x1000);
     create_unimplemented_device("flash-control", 0x400fd000, 0x1000);
 
-    armv7m_load_kernel(ARMV7M(armv7m)->cpu, ms->kernel_filename, 0, flash_size);
+    armv7m_load_kernel(reinterpret_cast<ARMv7MState *>(armv7m)->cpu, ms->kernel_filename, 0, flash_size);
 }
 
 /* FIXME: Figure out how to generate these from stellaris_boards.  */
@@ -1430,7 +1430,7 @@ struct LM3S811EVBMachine {
 
 void LM3S811EVBMachine::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "Stellaris LM3S811EVB (Cortex-M3)";
     mc->init = lm3s811evb_init;
@@ -1455,7 +1455,7 @@ struct LM3S6965EVBMachine {
 
 void LM3S6965EVBMachine::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "Stellaris LM3S6965EVB (Cortex-M3)";
     mc->init = lm3s6965evb_init;
@@ -1481,8 +1481,8 @@ type_init(stellaris_machine_init)
 
 void stellaris_i2c_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     rc->phases.enter = stellaris_i2c_reset_enter;
     rc->phases.hold = stellaris_i2c_reset_hold;
@@ -1500,8 +1500,8 @@ static const TypeInfo stellaris_i2c_info = {
 
 void StellarisADCState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     rc->phases.hold = stellaris_adc_reset_hold;
     dc->vmsd = &vmstate_stellaris_adc;
@@ -1517,8 +1517,8 @@ static const TypeInfo stellaris_adc_info = {
 
 void ssys_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->vmsd = &vmstate_stellaris_sys;
     rc->phases.enter = stellaris_sys_reset_enter;

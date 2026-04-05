@@ -245,7 +245,7 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
             object_property_set_int(cpuobj, "reset-cbar", periphbase,
                                     &error_abort);
         }
-        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+        qdev_realize(reinterpret_cast<DeviceState *>(cpuobj), NULL, &error_fatal);
     }
 
     /* Create the private peripheral devices (including the GIC);
@@ -255,7 +255,7 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
     dev = qdev_new(privdev);
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_prop_set_uint32(dev, "num-irq", GIC_EXT_IRQS + GIC_INTERNAL);
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, periphbase);
 
@@ -271,7 +271,7 @@ static void init_cpus(MachineState *ms, const char *cpu_type,
 
     /* Connect the CPUs to the GIC */
     for (n = 0; n < smp_cpus; n++) {
-        DeviceState *cpudev = DEVICE(qemu_get_cpu(n));
+        DeviceState *cpudev = reinterpret_cast<DeviceState *>(qemu_get_cpu(n));
 
         sysbus_connect_irq(busdev, n, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         sysbus_connect_irq(busdev, n + smp_cpus,
@@ -288,7 +288,7 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
                                   const char *cpu_type,
                                   qemu_irq *pic)
 {
-    MachineState *machine = MACHINE(vms);
+    MachineState *machine = reinterpret_cast<MachineState *>(vms);
     MemoryRegion *sysmem = get_system_memory();
     DeviceState *dev;
 
@@ -313,11 +313,11 @@ static void a9_daughterboard_init(VexpressMachineState *vms,
 
     /* 0x10020000 PL111 CLCD (daughterboard) */
     dev = qdev_new("pl111");
-    object_property_set_link(OBJECT(dev), "framebuffer-memory",
-                             OBJECT(sysmem), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x10020000);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[44]);
+    object_property_set_link(reinterpret_cast<Object *>(dev), "framebuffer-memory",
+                             reinterpret_cast<Object *>(sysmem), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, 0x10020000);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, pic[44]);
 
     /* 0x10060000 AXI RAM */
     /* 0x100e0000 PL341 Dynamic Memory Controller */
@@ -371,7 +371,7 @@ static void a15_daughterboard_init(VexpressMachineState *vms,
                                    const char *cpu_type,
                                    qemu_irq *pic)
 {
-    MachineState *machine = MACHINE(vms);
+    MachineState *machine = reinterpret_cast<MachineState *>(vms);
     MemoryRegion *sysmem = get_system_memory();
 
     {
@@ -545,15 +545,15 @@ static PFlashCFI01 *ve_pflash_cfi01_register(hwaddr base, const char *name,
     qdev_prop_set_uint16(dev, "id2", 0x00);
     qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    return PFLASH_CFI01(dev);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, base);
+    return reinterpret_cast<PFlashCFI01 *>(dev);
 }
 
 static void vexpress_common_init(MachineState *machine)
 {
-    VexpressMachineState *vms = VEXPRESS_MACHINE(machine);
+    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(machine);
     VexpressMachineClass *vmc = VEXPRESS_MACHINE_GET_CLASS(machine);
     VEDBoardInfo *daughterboard = vmc->daughterboard;
     DeviceState *dev, *sysctl, *pl041;
@@ -619,8 +619,8 @@ static void vexpress_common_init(MachineState *machine)
     }
     qdev_prop_set_array(sysctl, "db-clock", db_clock);
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(sysctl), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, map[VE_SYSREGS]);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(sysctl), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(sysctl), 0, map[VE_SYSREGS]);
 
     /* VE_SP810: not modelled */
     /* VE_SERIALPCI: not modelled */
@@ -630,9 +630,9 @@ static void vexpress_common_init(MachineState *machine)
     if (machine->audiodev) {
         qdev_prop_set_string(pl041, "audiodev", machine->audiodev);
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(pl041), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(pl041), 0, map[VE_PL041]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(pl041), 0, pic[11]);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(pl041), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(pl041), 0, map[VE_PL041]);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(pl041), 0, pic[11]);
 
     dev = sysbus_create_varargs("pl181", map[VE_MMCI], pic[9], pic[10], NULL);
     /* Wire up MMC card detect and read-only signals */
@@ -671,11 +671,11 @@ static void vexpress_common_init(MachineState *machine)
     /* VE_COMPACTFLASH: not modelled */
 
     dev = qdev_new("pl111");
-    object_property_set_link(OBJECT(dev), "framebuffer-memory",
-                             OBJECT(sysmem), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, map[VE_CLCD]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[14]);
+    object_property_set_link(reinterpret_cast<Object *>(dev), "framebuffer-memory",
+                             reinterpret_cast<Object *>(sysmem), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, map[VE_CLCD]);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, pic[14]);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash0 = ve_pflash_cfi01_register(map[VE_NORFLASH0], "vexpress.flash0",
@@ -684,7 +684,7 @@ static void vexpress_common_init(MachineState *machine)
     if (map[VE_NORFLASHALIAS] != -1) {
         /* Map flash 0 as an alias into low memory */
         MemoryRegion *flash0mem;
-        flash0mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(pflash0), 0);
+        flash0mem = sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(pflash0), 0);
         memory_region_init_alias(&vms->flashalias, NULL, "vexpress.flashalias",
                                  flash0mem, 0, VEXPRESS_FLASH_SIZE);
         memory_region_add_subregion(sysmem, map[VE_NORFLASHALIAS], &vms->flashalias);
@@ -730,40 +730,40 @@ static void vexpress_common_init(MachineState *machine)
     daughterboard->bootinfo.modify_dtb = vexpress_modify_dtb;
     /* When booting Linux we should be in secure state if the CPU has one. */
     daughterboard->bootinfo.secure_boot = vms->secure;
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &daughterboard->bootinfo);
+    arm_load_kernel(reinterpret_cast<ARMCPU *>(first_cpu), machine, &daughterboard->bootinfo);
 }
 
 static bool vexpress_get_secure(Object *obj, Error **errp)
 {
-    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(obj);
 
     return vms->secure;
 }
 
 static void vexpress_set_secure(Object *obj, bool value, Error **errp)
 {
-    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(obj);
 
     vms->secure = value;
 }
 
 static bool vexpress_get_virt(Object *obj, Error **errp)
 {
-    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(obj);
 
     return vms->virt;
 }
 
 static void vexpress_set_virt(Object *obj, bool value, Error **errp)
 {
-    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(obj);
 
     vms->virt = value;
 }
 
 static void vexpress_instance_init(Object *obj)
 {
-    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(obj);
 
     /* EL3 is enabled by default on vexpress */
     vms->secure = true;
@@ -771,7 +771,7 @@ static void vexpress_instance_init(Object *obj)
 
 static void vexpress_a15_instance_init(Object *obj)
 {
-    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(obj);
 
     /*
      * For the vexpress-a15, EL2 is by default enabled if EL3 is,
@@ -782,7 +782,7 @@ static void vexpress_a15_instance_init(Object *obj)
 
 static void vexpress_a9_instance_init(Object *obj)
 {
-    VexpressMachineState *vms = VEXPRESS_MACHINE(obj);
+    VexpressMachineState *vms = reinterpret_cast<VexpressMachineState *>(obj);
 
     /* The A9 doesn't have the virt extensions */
     vms->virt = false;
@@ -790,7 +790,7 @@ static void vexpress_a9_instance_init(Object *obj)
 
 void VexpressMachineState::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "ARM Versatile Express";
     mc->init = vexpress_common_init;
@@ -812,8 +812,8 @@ void VexpressMachineState::a9ClassInit(ObjectClass *oc, const void *data)
         ARM_CPU_TYPE_NAME("cortex-a9"),
         NULL
     };
-    MachineClass *mc = MACHINE_CLASS(oc);
-    VexpressMachineClass *vmc = VEXPRESS_MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    VexpressMachineClass *vmc = reinterpret_cast<VexpressMachineClass *>(oc);
 
     mc->desc = "ARM Versatile Express for Cortex-A9";
     mc->valid_cpu_types = valid_cpu_types;
@@ -828,8 +828,8 @@ void VexpressMachineState::a15ClassInit(ObjectClass *oc, const void *data)
         ARM_CPU_TYPE_NAME("cortex-a15"),
         NULL
     };
-    MachineClass *mc = MACHINE_CLASS(oc);
-    VexpressMachineClass *vmc = VEXPRESS_MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    VexpressMachineClass *vmc = reinterpret_cast<VexpressMachineClass *>(oc);
 
     mc->desc = "ARM Versatile Express for Cortex-A15";
     mc->valid_cpu_types = valid_cpu_types;

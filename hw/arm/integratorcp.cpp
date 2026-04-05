@@ -287,7 +287,7 @@ static const MemoryRegionOps integratorcm_ops = {
 
 void IntegratorCMState::instanceInit(Object *obj)
 {
-    IntegratorCMState *s = INTEGRATOR_CM(obj);
+    IntegratorCMState *s = reinterpret_cast<IntegratorCMState *>(obj);
 
     s->cm_osc = 0x01000048;
     /* ??? What should the high bits of this value be?  */
@@ -303,15 +303,15 @@ void IntegratorCMState::instanceInit(Object *obj)
 
 void IntegratorCMState::realize(DeviceState *d, Error **errp)
 {
-    IntegratorCMState *s = INTEGRATOR_CM(d);
-    SysBusDevice *dev = SYS_BUS_DEVICE(d);
+    IntegratorCMState *s = reinterpret_cast<IntegratorCMState *>(d);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(d);
 
-    if (!memory_region_init_ram(&s->flash, OBJECT(d), "integrator.flash",
+    if (!memory_region_init_ram(&s->flash, reinterpret_cast<Object *>(d), "integrator.flash",
                                 0x100000, errp)) {
         return;
     }
 
-    memory_region_init_io(&s->iomem, OBJECT(d), &integratorcm_ops, s,
+    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(d), &integratorcm_ops, s,
                           "integratorcm", 0x00800000);
     sysbus_init_mmio(dev, &s->iomem);
 
@@ -471,9 +471,9 @@ static const MemoryRegionOps icp_pic_ops = {
 
 void icp_pic_state::instanceInit(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    icp_pic_state *s = INTEGRATOR_PIC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    icp_pic_state *s = reinterpret_cast<icp_pic_state *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     qdev_init_gpio_in(dev, icp_pic_state::setIrq, 32);
     sysbus_init_irq(sbd, &s->parent_irq);
@@ -593,11 +593,11 @@ void ICPCtrlRegsState::mmcCardin(void *opaque, int line, int level)
 
 void ICPCtrlRegsState::instanceInit(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ICPCtrlRegsState *s = ICP_CONTROL_REGS(obj);
-    DeviceState *dev = DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    ICPCtrlRegsState *s = reinterpret_cast<ICPCtrlRegsState *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &icp_control_ops, s,
+    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(s), &icp_control_ops, s,
                           "icp_ctrl_regs", 0x00800000);
     sysbus_init_mmio(sbd, &s->iomem);
 
@@ -637,9 +637,9 @@ static void integratorcp_init(MachineState *machine)
         object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
     }
 
-    qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+    qdev_realize(reinterpret_cast<DeviceState *>(cpuobj), NULL, &error_fatal);
 
-    cpu = ARM_CPU(cpuobj);
+    cpu = reinterpret_cast<ARMCPU *>(cpuobj);
 
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM should repeat to fill physical memory space.  */
@@ -652,12 +652,12 @@ static void integratorcp_init(MachineState *machine)
 
     dev = qdev_new(TYPE_INTEGRATOR_CM);
     qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
     dev = sysbus_create_varargs(TYPE_INTEGRATOR_PIC, 0x14000000,
-                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
-                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
+                                qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), ARM_CPU_IRQ),
+                                qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), ARM_CPU_FIQ),
                                 NULL);
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
@@ -694,20 +694,20 @@ static void integratorcp_init(MachineState *machine)
     if (machine->audiodev) {
         qdev_prop_set_string(dev, "audiodev", machine->audiodev);
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x1d000000);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[25]);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, 0x1d000000);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, pic[25]);
 
     if (qemu_find_nic_info("smc91c111", true, NULL)) {
         smc91c111_init(0xc8000000, pic[27]);
     }
 
     dev = qdev_new("pl110");
-    object_property_set_link(OBJECT(dev), "framebuffer-memory",
-                             OBJECT(address_space_mem), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xc0000000);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[22]);
+    object_property_set_link(reinterpret_cast<Object *>(dev), "framebuffer-memory",
+                             reinterpret_cast<Object *>(address_space_mem), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, 0xc0000000);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, pic[22]);
 
     integrator_binfo.ram_size = ram_size;
     arm_load_kernel(cpu, machine, &integrator_binfo);
@@ -733,7 +733,7 @@ static const Property core_properties[] = {
 
 void IntegratorCMState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_props(dc, core_properties);
     dc->realize = IntegratorCMState::realize;
@@ -742,14 +742,14 @@ void IntegratorCMState::classInit(ObjectClass *klass, const void *data)
 
 void icp_pic_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd = &vmstate_icp_pic;
 }
 
 void ICPCtrlRegsState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd = &vmstate_icp_control;
 }

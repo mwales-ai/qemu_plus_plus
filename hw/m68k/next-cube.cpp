@@ -218,7 +218,7 @@ static void next_scr2_rtc_update(NeXTPC *s)
 
 static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    NeXTPC *s = NEXT_PC(opaque);
+    NeXTPC *s = reinterpret_cast<NeXTPC *>(opaque);
     uint64_t val;
 
     switch (addr) {
@@ -254,7 +254,7 @@ static uint64_t next_mmio_read(void *opaque, hwaddr addr, unsigned size)
 static void next_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                             unsigned size)
 {
-    NeXTPC *s = NEXT_PC(opaque);
+    NeXTPC *s = reinterpret_cast<NeXTPC *>(opaque);
 
     switch (addr) {
     case 0x2000:    /* 0x2007000 */
@@ -317,7 +317,7 @@ static const MemoryRegionOps next_mmio_ops = {
 static void next_dma_write(void *opaque, hwaddr addr, uint64_t val,
                            unsigned int size)
 {
-    NeXTState *next_state = NEXT_MACHINE(opaque);
+    NeXTState *next_state = reinterpret_cast<NeXTState *>(opaque);
 
     switch (addr) {
     case NEXTDMA_ENRX(NEXTDMA_CSR):
@@ -405,7 +405,7 @@ static void next_dma_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t next_dma_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    NeXTState *next_state = NEXT_MACHINE(opaque);
+    NeXTState *next_state = reinterpret_cast<NeXTState *>(opaque);
     uint64_t val;
 
     switch (addr) {
@@ -473,7 +473,7 @@ static const MemoryRegionOps next_dma_ops = {
 
 static void next_irq(void *opaque, int number, int level)
 {
-    NeXTPC *s = NEXT_PC(opaque);
+    NeXTPC *s = reinterpret_cast<NeXTPC *>(opaque);
     M68kCPU *cpu = s->cpu;
     int shift = 0;
 
@@ -567,7 +567,7 @@ static void next_irq(void *opaque, int number, int level)
         }
     } else {
         s->int_status &= ~(1 << shift);
-        cpu_reset_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(reinterpret_cast<CPUState *>(cpu), CPU_INTERRUPT_HARD);
     }
 }
 
@@ -576,7 +576,7 @@ static void nextdma_write(void *opaque, uint8_t *buf, int size, int type)
     uint32_t base_addr;
     int irq = 0;
     uint8_t align = 16;
-    NeXTState *next_state = NEXT_MACHINE(qdev_get_machine());
+    NeXTState *next_state = reinterpret_cast<NeXTState *>(qdev_get_machine());
 
     if (type == NEXTDMA_ENRX || type == NEXTDMA_ENTX) {
         align = 32;
@@ -644,8 +644,8 @@ static void nextscsi_write(void *opaque, uint8_t *buf, int size)
 static void next_scsi_csr_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned size)
 {
-    NeXTSCSI *s = NEXT_SCSI(opaque);
-    NeXTPC *pc = NEXT_PC(container_of(s, NeXTPC, next_scsi));
+    NeXTSCSI *s = reinterpret_cast<NeXTSCSI *>(opaque);
+    NeXTPC *pc = reinterpret_cast<NeXTPC *>(container_of(s, NeXTPC, next_scsi));
 
     switch (addr) {
     case 0:
@@ -722,7 +722,7 @@ static void next_scsi_csr_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t next_scsi_csr_read(void *opaque, hwaddr addr, unsigned size)
 {
-    NeXTSCSI *s = NEXT_SCSI(opaque);
+    NeXTSCSI *s = reinterpret_cast<NeXTSCSI *>(opaque);
     uint64_t val;
 
     switch (addr) {
@@ -752,8 +752,8 @@ static const MemoryRegionOps next_scsi_csr_ops = {
 
 static void next_scsi_init(Object *obj)
 {
-    NeXTSCSI *s = NEXT_SCSI(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    NeXTSCSI *s = reinterpret_cast<NeXTSCSI *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     object_initialize_child(obj, "esp", &s->sysbus_esp, TYPE_SYSBUS_ESP);
 
@@ -766,23 +766,23 @@ static void next_scsi_init(Object *obj)
 
 static void next_scsi_realize(DeviceState *dev, Error **errp)
 {
-    NeXTSCSI *s = NEXT_SCSI(dev);
+    NeXTSCSI *s = reinterpret_cast<NeXTSCSI *>(dev);
     SysBusESPState *sysbus_esp;
     SysBusDevice *sbd;
     ESPState *esp;
     NeXTPC *pcdev;
 
-    pcdev = NEXT_PC(container_of(s, NeXTPC, next_scsi));
+    pcdev = reinterpret_cast<NeXTPC *>(container_of(s, NeXTPC, next_scsi));
 
     /* ESP */
-    sysbus_esp = SYSBUS_ESP(&s->sysbus_esp);
+    sysbus_esp = reinterpret_cast<SysBusESPState *>(&s->sysbus_esp);
     esp = &sysbus_esp->esp;
     esp->dma_memory_read = nextscsi_read;
     esp->dma_memory_write = nextscsi_write;
     esp->dma_opaque = pcdev;
     sysbus_esp->it_shift = 0;
     esp->dma_enabled = 1;
-    sbd = SYS_BUS_DEVICE(sysbus_esp);
+    sbd = reinterpret_cast<SysBusDevice *>(sysbus_esp);
     if (!sysbus_realize(sbd, errp)) {
         return;
     }
@@ -808,7 +808,7 @@ static const VMStateDescription next_scsi_vmstate = {
 
 void NeXTSCSI::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->desc = "NeXT SCSI Controller";
     dc->realize = next_scsi_realize;
@@ -944,7 +944,7 @@ static bool next_rtc_cmd_is_write(uint8_t cmd)
 
 static void next_rtc_data_in_irq(void *opaque, int n, int level)
 {
-    NeXTRTC *rtc = NEXT_RTC(opaque);
+    NeXTRTC *rtc = reinterpret_cast<NeXTRTC *>(opaque);
 
     if (rtc->phase < 8) {
         rtc->command = (rtc->command << 1) | level;
@@ -1024,7 +1024,7 @@ static void next_rtc_data_in_irq(void *opaque, int n, int level)
 
 static void next_rtc_cmd_reset_irq(void *opaque, int n, int level)
 {
-    NeXTRTC *rtc = NEXT_RTC(opaque);
+    NeXTRTC *rtc = reinterpret_cast<NeXTRTC *>(opaque);
 
     if (level) {
         rtc->phase = 0;
@@ -1035,7 +1035,7 @@ static void next_rtc_cmd_reset_irq(void *opaque, int n, int level)
 
 static void next_rtc_reset_hold(Object *obj, ResetType type)
 {
-    NeXTRTC *rtc = NEXT_RTC(obj);
+    NeXTRTC *rtc = reinterpret_cast<NeXTRTC *>(obj);
 
     rtc->status = 0x90;
 
@@ -1045,15 +1045,15 @@ static void next_rtc_reset_hold(Object *obj, ResetType type)
 
 static void next_rtc_init(Object *obj)
 {
-    NeXTRTC *rtc = NEXT_RTC(obj);
+    NeXTRTC *rtc = reinterpret_cast<NeXTRTC *>(obj);
 
-    qdev_init_gpio_in_named(DEVICE(obj), next_rtc_data_in_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), next_rtc_data_in_irq,
                             "rtc-data-in", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &rtc->data_out_irq,
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(obj), &rtc->data_out_irq,
                              "rtc-data-out", 1);
-    qdev_init_gpio_in_named(DEVICE(obj), next_rtc_cmd_reset_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), next_rtc_cmd_reset_irq,
                             "rtc-cmd-reset", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &rtc->power_irq,
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(obj), &rtc->power_irq,
                              "rtc-power-out", 1);
 }
 
@@ -1075,8 +1075,8 @@ static const VMStateDescription next_rtc_vmstate = {
 
 void NeXTRTC::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->desc = "NeXT RTC";
     dc->vmsd = &next_rtc_vmstate;
@@ -1093,7 +1093,7 @@ static const TypeInfo next_rtc_info = {
 
 static void next_pc_rtc_data_in_irq(void *opaque, int n, int level)
 {
-    NeXTPC *s = NEXT_PC(opaque);
+    NeXTPC *s = reinterpret_cast<NeXTPC *>(opaque);
     uint8_t scr2_2 = extract32(s->scr2, 8, 8);
 
     if (level) {
@@ -1107,7 +1107,7 @@ static void next_pc_rtc_data_in_irq(void *opaque, int n, int level)
 
 static void next_pc_reset_hold(Object *obj, ResetType type)
 {
-    NeXTPC *s = NEXT_PC(obj);
+    NeXTPC *s = reinterpret_cast<NeXTPC *>(obj);
 
     /* Set internal registers to initial values */
     /*     0x0000XX00 << vital bits */
@@ -1118,31 +1118,31 @@ static void next_pc_reset_hold(Object *obj, ResetType type)
 
 void NeXTPC::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    NEXT_PC(dev)->realize(errp);
+    reinterpret_cast<NeXTPC *>(dev)->realize(errp);
 }
 
 void NeXTPC::realize(Error **errp)
 {
     NeXTPC *s = this;
-    DeviceState *dev = DEVICE(s);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(s);
     SysBusDevice *sbd;
     DeviceState *d;
 
     /* SCSI */
-    sbd = SYS_BUS_DEVICE(&s->next_scsi);
+    sbd = reinterpret_cast<SysBusDevice *>(&s->next_scsi);
     if (!sysbus_realize(sbd, errp)) {
         return;
     }
 
-    d = DEVICE(object_resolve_path_component(OBJECT(&s->next_scsi), "esp"));
-    sysbus_connect_irq(SYS_BUS_DEVICE(d), 0,
-                       qdev_get_gpio_in(DEVICE(s), NEXT_SCSI_I));
+    d = reinterpret_cast<DeviceState *>(object_resolve_path_component(reinterpret_cast<Object *>(&s->next_scsi), "esp"));
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(d), 0,
+                       qdev_get_gpio_in(reinterpret_cast<DeviceState *>(s), NEXT_SCSI_I));
 
     s->scsi_reset = qdev_get_gpio_in(d, 0);
     s->scsi_dma = qdev_get_gpio_in(d, 1);
 
     /* ESCC */
-    d = DEVICE(&s->escc);
+    d = reinterpret_cast<DeviceState *>(&s->escc);
     qdev_prop_set_uint32(d, "disabled", 0);
     qdev_prop_set_uint32(d, "frequency", 9600 * 384);
     qdev_prop_set_uint32(d, "it_shift", 0);
@@ -1152,7 +1152,7 @@ void NeXTPC::realize(Error **errp)
     qdev_prop_set_uint32(d, "chnBtype", escc_serial);
     qdev_prop_set_uint32(d, "chnAtype", escc_serial);
 
-    sbd = SYS_BUS_DEVICE(d);
+    sbd = reinterpret_cast<SysBusDevice *>(d);
     if (!sysbus_realize(sbd, errp)) {
         return;
     }
@@ -1160,8 +1160,8 @@ void NeXTPC::realize(Error **errp)
     sysbus_connect_irq(sbd, 1, qdev_get_gpio_in(dev, NEXT_SCC_DMA_I));
 
     /* RTC */
-    d = DEVICE(&s->rtc);
-    if (!sysbus_realize(SYS_BUS_DEVICE(d), errp)) {
+    d = reinterpret_cast<DeviceState *>(&s->rtc);
+    if (!sysbus_realize(reinterpret_cast<SysBusDevice *>(d), errp)) {
         return;
     }
     /* Data from NeXTPC to RTC */
@@ -1179,42 +1179,42 @@ void NeXTPC::realize(Error **errp)
 
 void NeXTPC::instanceInit(Object *obj)
 {
-    NeXTPC *s = NEXT_PC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    NeXTPC *s = reinterpret_cast<NeXTPC *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
-    qdev_init_gpio_in(DEVICE(obj), next_irq, NEXT_NUM_IRQS);
+    qdev_init_gpio_in(reinterpret_cast<DeviceState *>(obj), next_irq, NEXT_NUM_IRQS);
 
-    memory_region_init_io(&s->mmiomem, OBJECT(s), &next_mmio_ops, s,
+    memory_region_init_io(&s->mmiomem, reinterpret_cast<Object *>(s), &next_mmio_ops, s,
                           "next.mmio", 0x9000);
     sysbus_init_mmio(sbd, &s->mmiomem);
 
-    memory_region_init_io(&s->dummyen_mem, OBJECT(s), &next_dummy_en_ops, s,
+    memory_region_init_io(&s->dummyen_mem, reinterpret_cast<Object *>(s), &next_dummy_en_ops, s,
                           "next.en", 0x20);
     sysbus_init_mmio(sbd, &s->dummyen_mem);
 
     object_initialize_child(obj, "next-scsi", &s->next_scsi, TYPE_NEXT_SCSI);
     sysbus_init_mmio(sbd,
-                     sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->next_scsi), 0));
+                     sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(&s->next_scsi), 0));
 
-    memory_region_init_io(&s->floppy_mem, OBJECT(s), &next_floppy_ops, s,
+    memory_region_init_io(&s->floppy_mem, reinterpret_cast<Object *>(s), &next_floppy_ops, s,
                           "next.floppy", 4);
     sysbus_init_mmio(sbd, &s->floppy_mem);
 
     object_initialize_child(obj, "escc", &s->escc, TYPE_ESCC);
     sysbus_init_mmio(sbd,
-                     sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->escc), 0));
+                     sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(&s->escc), 0));
 
-    memory_region_init_io(&s->timer_mem, OBJECT(s), &next_timer_ops, s,
+    memory_region_init_io(&s->timer_mem, reinterpret_cast<Object *>(s), &next_timer_ops, s,
                           "next.timer", 4);
     sysbus_init_mmio(sbd, &s->timer_mem);
 
     object_initialize_child(obj, "rtc", &s->rtc, TYPE_NEXT_RTC);
 
-    qdev_init_gpio_in_named(DEVICE(obj), next_pc_rtc_data_in_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), next_pc_rtc_data_in_irq,
                             "rtc-data-in", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->rtc_data_irq,
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(obj), &s->rtc_data_irq,
                              "rtc-data-out", 1);
-    qdev_init_gpio_out_named(DEVICE(obj), &s->rtc_cmd_reset_irq,
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(obj), &s->rtc_cmd_reset_irq,
                              "rtc-cmd-reset", 1);
 }
 
@@ -1245,8 +1245,8 @@ static const VMStateDescription next_pc_vmstate = {
 
 void NeXTPC::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->desc = "NeXT Peripheral Controller";
     dc->realize = realizeWrapper;
@@ -1265,7 +1265,7 @@ static const TypeInfo next_pc_info = {
 
 void NeXTState::machineInit(MachineState *machine)
 {
-    NeXTState *m = NEXT_MACHINE(machine);
+    NeXTState *m = reinterpret_cast<NeXTState *>(machine);
     M68kCPU *cpu;
     CPUM68KState *env;
     MemoryRegion *sysmem = get_system_memory();
@@ -1273,7 +1273,7 @@ void NeXTState::machineInit(MachineState *machine)
     DeviceState *pcdev;
 
     /* Initialize the cpu core */
-    cpu = M68K_CPU(cpu_create(machine->cpu_type));
+    cpu = reinterpret_cast<M68kCPU *>(cpu_create(machine->cpu_type));
     if (!cpu) {
         error_report("Unable to find m68k CPU definition");
         exit(1);
@@ -1286,8 +1286,8 @@ void NeXTState::machineInit(MachineState *machine)
 
     /* Peripheral Controller */
     pcdev = qdev_new(TYPE_NEXT_PC);
-    object_property_set_link(OBJECT(pcdev), "cpu", OBJECT(cpu), &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(pcdev), &error_fatal);
+    object_property_set_link(reinterpret_cast<Object *>(pcdev), "cpu", reinterpret_cast<Object *>(cpu), &error_abort);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(pcdev), &error_fatal);
 
     /* 64MB RAM starting at 0x04000000  */
     memory_region_add_subregion(sysmem, 0x04000000, machine->ram);
@@ -1296,13 +1296,13 @@ void NeXTState::machineInit(MachineState *machine)
     sysbus_create_simple(TYPE_NEXTFB, 0x0B000000, NULL);
 
     /* MMIO */
-    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 0, 0x02005000);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(pcdev), 0, 0x02005000);
 
     /* BMAP IO - acts as a catch-all for now */
-    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02100000);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(pcdev), 1, 0x02100000);
 
     /* en network (dummy) */
-    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 1, 0x02106000);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(pcdev), 1, 0x02106000);
 
     /* unknown: Brightness control register? */
     empty_slot_init("next.unknown.0", 0x02110000, 0x10);
@@ -1310,17 +1310,17 @@ void NeXTState::machineInit(MachineState *machine)
     empty_slot_init("next.unknown.1", 0x02112000, 0x10);
 
     /* SCSI */
-    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 2, 0x02114000);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(pcdev), 2, 0x02114000);
     /* Floppy */
-    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 3, 0x02114108);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(pcdev), 3, 0x02114108);
     /* ESCC */
-    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 4, 0x02118000);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(pcdev), 4, 0x02118000);
 
     /* unknown: Serial clock configuration register? */
     empty_slot_init("next.unknown.2", 0x02118004, 0x10);
 
     /* Timer */
-    sysbus_mmio_map(SYS_BUS_DEVICE(pcdev), 5, 0x0211a000);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(pcdev), 5, 0x0211a000);
 
     /* BMAP memory */
     memory_region_init_ram_flags_nomigrate(&m->bmapm1, NULL, "next.bmapmem",
@@ -1365,7 +1365,7 @@ void NeXTState::machineInit(MachineState *machine)
 
 void NeXTState::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "NeXT Cube";
     mc->init = machineInit;

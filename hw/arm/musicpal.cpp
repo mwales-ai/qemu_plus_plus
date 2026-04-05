@@ -255,16 +255,16 @@ static const GraphicHwOps musicpal_gfx_ops = {
 
 static void musicpal_lcd_realize(DeviceState *dev, Error **errp)
 {
-    musicpal_lcd_state *s = MUSICPAL_LCD(dev);
+    musicpal_lcd_state *s = reinterpret_cast<musicpal_lcd_state *>(dev);
     s->con = graphic_console_init(dev, 0, &musicpal_gfx_ops, s);
     qemu_console_resize(s->con, 128 * 3, 64 * 3);
 }
 
 static void musicpal_lcd_init(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DeviceState *dev = DEVICE(sbd);
-    musicpal_lcd_state *s = MUSICPAL_LCD(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(sbd);
+    musicpal_lcd_state *s = reinterpret_cast<musicpal_lcd_state *>(dev);
 
     s->brightness = 7;
 
@@ -294,7 +294,7 @@ static const VMStateDescription musicpal_lcd_vmsd = {
 
 void musicpal_lcd_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd = &musicpal_lcd_vmsd;
     dc->realize = musicpal_lcd_realize;
@@ -380,7 +380,7 @@ static void mv88w8618_pic_write(void *opaque, hwaddr offset,
 
 static void mv88w8618_pic_reset(DeviceState *d)
 {
-    mv88w8618_pic_state *s = MV88W8618_PIC(d);
+    mv88w8618_pic_state *s = reinterpret_cast<mv88w8618_pic_state *>(d);
 
     s->level = 0;
     s->enabled = 0;
@@ -394,10 +394,10 @@ static const MemoryRegionOps mv88w8618_pic_ops = {
 
 static void mv88w8618_pic_init(Object *obj)
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    mv88w8618_pic_state *s = MV88W8618_PIC(dev);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
+    mv88w8618_pic_state *s = reinterpret_cast<mv88w8618_pic_state *>(dev);
 
-    qdev_init_gpio_in(DEVICE(dev), mv88w8618_pic_set_irq, 32);
+    qdev_init_gpio_in(reinterpret_cast<DeviceState *>(dev), mv88w8618_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     memory_region_init_io(&s->iomem, obj, &mv88w8618_pic_ops, s,
                           "musicpal-pic", MP_PIC_SIZE);
@@ -419,7 +419,7 @@ static const VMStateDescription mv88w8618_pic_vmsd = {
 
 void mv88w8618_pic_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, mv88w8618_pic_reset);
     dc->vmsd = &mv88w8618_pic_vmsd;
@@ -545,7 +545,7 @@ static void mv88w8618_pit_write(void *opaque, hwaddr offset,
 
 static void mv88w8618_pit_reset(DeviceState *d)
 {
-    mv88w8618_pit_state *s = MV88W8618_PIT(d);
+    mv88w8618_pit_state *s = reinterpret_cast<mv88w8618_pit_state *>(d);
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -565,8 +565,8 @@ static const MemoryRegionOps mv88w8618_pit_ops = {
 
 static void mv88w8618_pit_init(Object *obj)
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    mv88w8618_pit_state *s = MV88W8618_PIT(dev);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
+    mv88w8618_pit_state *s = reinterpret_cast<mv88w8618_pit_state *>(dev);
     int i;
 
     /* Letting them all run at 1 MHz is likely just a pragmatic
@@ -582,8 +582,8 @@ static void mv88w8618_pit_init(Object *obj)
 
 static void mv88w8618_pit_finalize(Object *obj)
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    mv88w8618_pit_state *s = MV88W8618_PIT(dev);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
+    mv88w8618_pit_state *s = reinterpret_cast<mv88w8618_pit_state *>(dev);
     int i;
 
     for (i = 0; i < 4; i++) {
@@ -619,7 +619,7 @@ static const VMStateDescription mv88w8618_pit_vmsd = {
 
 void mv88w8618_pit_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, mv88w8618_pit_reset);
     dc->vmsd = &mv88w8618_pit_vmsd;
@@ -686,8 +686,8 @@ static const MemoryRegionOps mv88w8618_flashcfg_ops = {
 
 static void mv88w8618_flashcfg_init(Object *obj)
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    mv88w8618_flashcfg_state *s = MV88W8618_FLASHCFG(dev);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
+    mv88w8618_flashcfg_state *s = reinterpret_cast<mv88w8618_flashcfg_state *>(dev);
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
     memory_region_init_io(&s->iomem, obj, &mv88w8618_flashcfg_ops, s,
@@ -709,7 +709,7 @@ static const VMStateDescription mv88w8618_flashcfg_vmsd = {
 
 void mv88w8618_flashcfg_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd = &mv88w8618_flashcfg_vmsd;
 }
@@ -760,10 +760,10 @@ static const MemoryRegionOps musicpal_misc_ops = {
 
 static void musicpal_misc_init(Object *obj)
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    MusicPalMiscState *s = MUSICPAL_MISC(obj);
+    SysBusDevice *sd = reinterpret_cast<SysBusDevice *>(obj);
+    MusicPalMiscState *s = reinterpret_cast<MusicPalMiscState *>(obj);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &musicpal_misc_ops, NULL,
+    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(s), &musicpal_misc_ops, NULL,
                           "musicpal-misc", MP_MISC_SIZE);
     sysbus_init_mmio(sd, &s->iomem);
 }
@@ -810,9 +810,9 @@ static void mv88w8618_wlan_realize(DeviceState *dev, Error **errp)
 {
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
 
-    memory_region_init_io(iomem, OBJECT(dev), &mv88w8618_wlan_ops, NULL,
+    memory_region_init_io(iomem, reinterpret_cast<Object *>(dev), &mv88w8618_wlan_ops, NULL,
                           "musicpal-wlan", MP_WLAN_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), iomem);
 }
 
 /* GPIO register offsets */
@@ -1006,7 +1006,7 @@ static const MemoryRegionOps musicpal_gpio_ops = {
 
 static void musicpal_gpio_reset(DeviceState *d)
 {
-    musicpal_gpio_state *s = MUSICPAL_GPIO(d);
+    musicpal_gpio_state *s = reinterpret_cast<musicpal_gpio_state *>(d);
 
     s->lcd_brightness = 0;
     s->out_state = 0;
@@ -1018,9 +1018,9 @@ static void musicpal_gpio_reset(DeviceState *d)
 
 static void musicpal_gpio_init(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DeviceState *dev = DEVICE(sbd);
-    musicpal_gpio_state *s = MUSICPAL_GPIO(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(sbd);
+    musicpal_gpio_state *s = reinterpret_cast<musicpal_gpio_state *>(dev);
 
     sysbus_init_irq(sbd, &s->irq);
 
@@ -1052,7 +1052,7 @@ static const VMStateDescription musicpal_gpio_vmsd = {
 
 void musicpal_gpio_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, musicpal_gpio_reset);
     dc->vmsd = &musicpal_gpio_vmsd;
@@ -1093,7 +1093,7 @@ struct musicpal_key_state {
 static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
                                InputEvent *evt)
 {
-    musicpal_key_state *s = MUSICPAL_KEY(dev);
+    musicpal_key_state *s = reinterpret_cast<musicpal_key_state *>(dev);
     InputKeyEvent *key = evt->u.key.data;
     int qcode = qemu_input_key_value_to_qcode(key->key);
     uint32_t event = 0;
@@ -1167,9 +1167,9 @@ static void musicpal_key_event(DeviceState *dev, QemuConsole *src,
 
 static void musicpal_key_init(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DeviceState *dev = DEVICE(sbd);
-    musicpal_key_state *s = MUSICPAL_KEY(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(sbd);
+    musicpal_key_state *s = reinterpret_cast<musicpal_key_state *>(dev);
 
     s->pressed_keys = 0;
 
@@ -1201,7 +1201,7 @@ static const VMStateDescription musicpal_key_vmsd = {
 
 void musicpal_key_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd = &musicpal_key_vmsd;
     dc->realize = musicpal_key_realize;
@@ -1249,7 +1249,7 @@ static void musicpal_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    cpu = ARM_CPU(cpu_create(machine->cpu_type));
+    cpu = reinterpret_cast<ARMCPU *>(cpu_create(machine->cpu_type));
 
     memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
@@ -1258,7 +1258,7 @@ static void musicpal_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 
     pic = sysbus_create_simple(TYPE_MV88W8618_PIC, MP_PIC_BASE,
-                               qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
+                               qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), ARM_CPU_IRQ));
     sysbus_create_varargs(TYPE_MV88W8618_PIT, MP_PIT_BASE,
                           qdev_get_gpio_in(pic, MP_TIMER1_IRQ),
                           qdev_get_gpio_in(pic, MP_TIMER2_IRQ),
@@ -1267,7 +1267,7 @@ static void musicpal_init(MachineState *machine)
 
     /* Logically OR both UART IRQs together */
     uart_orgate = qdev_new(TYPE_OR_IRQ);
-    object_property_set_int(OBJECT(uart_orgate), "num-lines", 2, &error_fatal);
+    object_property_set_int(reinterpret_cast<Object *>(uart_orgate), "num-lines", 2, &error_fatal);
     qdev_realize_and_unref(uart_orgate, NULL, &error_fatal);
     qdev_connect_gpio_out(uart_orgate, 0,
                           qdev_get_gpio_in(pic, MP_UART_SHARED_IRQ));
@@ -1307,11 +1307,11 @@ static void musicpal_init(MachineState *machine)
 
     dev = qdev_new(TYPE_MV88W8618_ETH);
     qemu_configure_nic_device(dev, true, "mv88w8618");
-    object_property_set_link(OBJECT(dev), "dma-memory",
-                             OBJECT(get_system_memory()), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, MP_ETH_BASE);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
+    object_property_set_link(reinterpret_cast<Object *>(dev), "dma-memory",
+                             reinterpret_cast<Object *>(get_system_memory()), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, MP_ETH_BASE);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0,
                        qdev_get_gpio_in(pic, MP_ETH_IRQ));
 
     sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
@@ -1346,13 +1346,13 @@ static void musicpal_init(MachineState *machine)
 
     wm8750_dev = i2c_slave_new(TYPE_WM8750, MP_WM_ADDR);
     if (machine->audiodev) {
-        qdev_prop_set_string(DEVICE(wm8750_dev), "audiodev", machine->audiodev);
+        qdev_prop_set_string(reinterpret_cast<DeviceState *>(wm8750_dev), "audiodev", machine->audiodev);
     }
     i2c_slave_realize_and_unref(wm8750_dev, i2c, &error_abort);
 
     dev = qdev_new(TYPE_MV88W8618_AUDIO);
-    s = SYS_BUS_DEVICE(dev);
-    object_property_set_link(OBJECT(dev), "wm8750", OBJECT(wm8750_dev),
+    s = reinterpret_cast<SysBusDevice *>(dev);
+    object_property_set_link(reinterpret_cast<Object *>(dev), "wm8750", reinterpret_cast<Object *>(wm8750_dev),
                              NULL);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, MP_AUDIO_BASE);
@@ -1382,7 +1382,7 @@ struct mv88w8618_wlan_state {
 
 void mv88w8618_wlan_state::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = mv88w8618_wlan_realize;
 }

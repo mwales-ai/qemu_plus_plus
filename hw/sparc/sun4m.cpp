@@ -186,7 +186,7 @@ static void nvram_init(Nvram *nvram, uint8_t *macaddr,
 static void cpu_kick_irq(SPARCCPU *cpu)
 {
     CPUSPARCState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = reinterpret_cast<CPUState *>(cpu);
 
     cs->halted = 0;
     cpu_check_irqs(env);
@@ -216,7 +216,7 @@ static void dummy_cpu_set_irq(void *opaque, int irq, int level)
 static void sun4m_cpu_reset(void *opaque)
 {
     SPARCCPU *cpu = opaque;
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = reinterpret_cast<CPUState *>(cpu);
 
     cpu_reset(cs);
 }
@@ -299,7 +299,7 @@ static void *iommu_init(hwaddr addr, uint32_t version, qemu_irq irq)
 
     dev = qdev_new(TYPE_SUN4M_IOMMU);
     qdev_prop_set_uint32(dev, "version", version);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, irq);
     sysbus_mmio_map(s, 0, addr);
@@ -321,36 +321,36 @@ static void *sparc32_dma_init(hwaddr dma_base,
 
     dma = qdev_new(TYPE_SPARC32_DMA);
     espdma = SPARC32_ESPDMA_DEVICE(object_resolve_path_component(
-                                   OBJECT(dma), "espdma"));
+                                   reinterpret_cast<Object *>(dma), "espdma"));
 
-    esp = SYSBUS_ESP(object_resolve_path_component(OBJECT(espdma), "esp"));
+    esp = reinterpret_cast<SysBusESPState *>(object_resolve_path_component(reinterpret_cast<Object *>(espdma), "esp"));
 
-    ledma = SPARC32_LEDMA_DEVICE(object_resolve_path_component(
-                                 OBJECT(dma), "ledma"));
+    ledma = reinterpret_cast<LEDMADeviceState *>(object_resolve_path_component(
+                                 reinterpret_cast<Object *>(dma), "ledma"));
 
-    lance = SYSBUS_PCNET(object_resolve_path_component(
-                         OBJECT(ledma), "lance"));
+    lance = reinterpret_cast<SysBusPCNetState *>(object_resolve_path_component(
+                         reinterpret_cast<Object *>(ledma), "lance"));
 
     if (nd) {
-        qdev_set_nic_properties(DEVICE(lance), nd);
+        qdev_set_nic_properties(reinterpret_cast<DeviceState *>(lance), nd);
         memcpy(mac->a, nd->macaddr.a, sizeof(mac->a));
     } else {
         qemu_macaddr_default_if_unset(mac);
-        qdev_prop_set_macaddr(DEVICE(lance), "mac", mac->a);
+        qdev_prop_set_macaddr(reinterpret_cast<DeviceState *>(lance), "mac", mac->a);
     }
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dma), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dma), &error_fatal);
 
-    sysbus_connect_irq(SYS_BUS_DEVICE(espdma), 0, espdma_irq);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(espdma), 0, espdma_irq);
 
-    sysbus_connect_irq(SYS_BUS_DEVICE(ledma), 0, ledma_irq);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(ledma), 0, ledma_irq);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(dma), 0, dma_base);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dma), 0, dma_base);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(esp), 0, esp_base);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(esp), 0, esp_base);
     scsi_bus_legacy_handle_cmdline(&esp->esp.bus);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(lance), 0, le_base);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(lance), 0, le_base);
 
     return dma;
 }
@@ -365,7 +365,7 @@ static DeviceState *slavio_intctl_init(hwaddr addr,
 
     dev = qdev_new("slavio_intctl");
 
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
     for (i = 0; i < MAX_CPUS; i++) {
@@ -393,7 +393,7 @@ static void slavio_timer_init_all(hwaddr addr, qemu_irq master_irq,
 
     dev = qdev_new("slavio_timer");
     qdev_prop_set_uint32(dev, "num_cpus", num_cpus);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, master_irq);
     sysbus_mmio_map(s, 0, addr + SYS_TIMER_OFFSET);
@@ -430,7 +430,7 @@ static void slavio_misc_init(hwaddr base,
     SysBusDevice *s;
 
     dev = qdev_new("slavio_misc");
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     if (base) {
         /* 8 bit registers */
@@ -468,7 +468,7 @@ static void ecc_init(hwaddr base, qemu_irq irq, uint32_t version)
 
     dev = qdev_new("eccmemctl");
     qdev_prop_set_uint32(dev, "version", version);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, irq);
     sysbus_mmio_map(s, 0, base);
@@ -483,7 +483,7 @@ static void apc_init(hwaddr power_base, qemu_irq cpu_halt)
     SysBusDevice *s;
 
     dev = qdev_new("apc");
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     /* Power management (APC) XXX: not a Slavio device */
     sysbus_mmio_map(s, 0, power_base);
@@ -501,7 +501,7 @@ static void tcx_init(hwaddr addr, qemu_irq irq, int vram_size, int width,
     qdev_prop_set_uint16(dev, "width", width);
     qdev_prop_set_uint16(dev, "height", height);
     qdev_prop_set_uint16(dev, "depth", depth);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
     /* 10/ROM : FCode ROM */
@@ -553,7 +553,7 @@ static void cg3_init(hwaddr addr, qemu_irq irq, int vram_size, int width,
     qdev_prop_set_uint16(dev, "width", width);
     qdev_prop_set_uint16(dev, "height", height);
     qdev_prop_set_uint16(dev, "depth", depth);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
     /* FCode ROM */
@@ -578,7 +578,7 @@ static void idreg_init(hwaddr addr)
     SysBusDevice *s;
 
     dev = qdev_new(TYPE_MACIO_ID_REGISTER);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
@@ -603,10 +603,10 @@ struct IDRegState {
 void IDRegState::realize(Error **errp)
 {
     IDRegState *s = this;
-    DeviceState *ds = DEVICE(this);
-    SysBusDevice *dev = SYS_BUS_DEVICE(ds);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(ds);
 
-    if (!memory_region_init_ram_nomigrate(&s->mem, OBJECT(ds), "sun4m.idreg",
+    if (!memory_region_init_ram_nomigrate(&s->mem, reinterpret_cast<Object *>(ds), "sun4m.idreg",
                                           sizeof(idreg_data), errp)) {
         return;
     }
@@ -618,13 +618,13 @@ void IDRegState::realize(Error **errp)
 
 void IDRegState::realizeWrapper(DeviceState *ds, Error **errp)
 {
-    IDRegState *s = MACIO_ID_REGISTER(ds);
+    IDRegState *s = reinterpret_cast<IDRegState *>(ds);
     s->realize(errp);
 }
 
 void IDRegState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     dc->realize = IDRegState::realizeWrapper;
 }
@@ -657,7 +657,7 @@ static void afx_init(hwaddr addr)
     SysBusDevice *s;
 
     dev = qdev_new(TYPE_TCX_AFX);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
@@ -666,10 +666,10 @@ static void afx_init(hwaddr addr)
 void AFXState::realize(Error **errp)
 {
     AFXState *s = this;
-    DeviceState *ds = DEVICE(this);
-    SysBusDevice *dev = SYS_BUS_DEVICE(ds);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(ds);
 
-    if (!memory_region_init_ram_nomigrate(&s->mem, OBJECT(ds), "sun4m.afx",
+    if (!memory_region_init_ram_nomigrate(&s->mem, reinterpret_cast<Object *>(ds), "sun4m.afx",
                                           4, errp)) {
         return;
     }
@@ -680,13 +680,13 @@ void AFXState::realize(Error **errp)
 
 void AFXState::realizeWrapper(DeviceState *ds, Error **errp)
 {
-    AFXState *s = TCX_AFX(ds);
+    AFXState *s = reinterpret_cast<AFXState *>(ds);
     s->realize(errp);
 }
 
 void AFXState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     dc->realize = AFXState::realizeWrapper;
 }
@@ -729,7 +729,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
     int ret;
 
     dev = qdev_new(TYPE_OPENPROM);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
@@ -759,10 +759,10 @@ static void prom_init(hwaddr addr, const char *bios_name)
 void PROMState::realize(Error **errp)
 {
     PROMState *s = this;
-    DeviceState *ds = DEVICE(this);
-    SysBusDevice *dev = SYS_BUS_DEVICE(ds);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(ds);
 
-    if (!memory_region_init_ram_nomigrate(&s->prom, OBJECT(ds), "sun4m.prom",
+    if (!memory_region_init_ram_nomigrate(&s->prom, reinterpret_cast<Object *>(ds), "sun4m.prom",
                                           PROM_SIZE_MAX, errp)) {
         return;
     }
@@ -774,13 +774,13 @@ void PROMState::realize(Error **errp)
 
 void PROMState::realizeWrapper(DeviceState *ds, Error **errp)
 {
-    PROMState *s = OPENPROM(ds);
+    PROMState *s = reinterpret_cast<PROMState *>(ds);
     s->realize(errp);
 }
 
 void PROMState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = PROMState::realizeWrapper;
 }
@@ -813,16 +813,16 @@ struct RamDevice {
 void RamDevice::realize(Error **errp)
 {
     RamDevice *d = this;
-    DeviceState *dev = DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
     MemoryRegion *ram = host_memory_backend_get_memory(d->memdev);
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), ram);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), ram);
 }
 
 void RamDevice::instanceInit()
 {
     RamDevice *d = this;
-    Object *obj = OBJECT(this);
+    Object *obj = reinterpret_cast<Object *>(this);
     object_property_add_link(obj, "memdev", TYPE_MEMORY_BACKEND,
                              (Object **)&d->memdev,
                              object_property_allow_set_link,
@@ -833,19 +833,19 @@ void RamDevice::instanceInit()
 
 void RamDevice::instanceInitWrapper(Object *obj)
 {
-    RamDevice *d = SUN4M_RAM(obj);
+    RamDevice *d = reinterpret_cast<RamDevice *>(obj);
     d->instanceInit();
 }
 
 void RamDevice::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    RamDevice *d = SUN4M_RAM(dev);
+    RamDevice *d = reinterpret_cast<RamDevice *>(dev);
     d->realize(errp);
 }
 
 void RamDevice::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = RamDevice::realizeWrapper;
 }
@@ -864,13 +864,13 @@ static void cpu_devinit(const char *cpu_type, unsigned int id,
     SPARCCPU *cpu;
     CPUSPARCState *env;
 
-    cpu = SPARC_CPU(object_new(cpu_type));
+    cpu = reinterpret_cast<SPARCCPU *>(object_new(cpu_type));
     env = &cpu->env;
 
     qemu_register_reset(sun4m_cpu_reset, cpu);
-    object_property_set_bool(OBJECT(cpu), "start-powered-off", id != 0,
+    object_property_set_bool(reinterpret_cast<Object *>(cpu), "start-powered-off", id != 0,
                              &error_abort);
-    qdev_realize_and_unref(DEVICE(cpu), NULL, &error_fatal);
+    qdev_realize_and_unref(reinterpret_cast<DeviceState *>(cpu), NULL, &error_fatal);
     cpu_sparc_set_id(env, id);
     *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, cpu, MAX_PILS);
     env->prom_addr = prom_addr;
@@ -916,9 +916,9 @@ static void sun4m_hw_init(MachineState *machine)
 
     /* Create and map RAM frontend */
     dev = qdev_new("memory");
-    object_property_set_link(OBJECT(dev), "memdev", OBJECT(ram_memdev), &error_fatal);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0);
+    object_property_set_link(reinterpret_cast<Object *>(dev), "memdev", reinterpret_cast<Object *>(ram_memdev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, 0);
 
     /* models without ECC don't trap when missing ram is accessed */
     if (!hwdef->ecc_base) {
@@ -1018,7 +1018,7 @@ static void sun4m_hw_init(MachineState *machine)
 
     dev = qdev_new("sysbus-m48t08");
     qdev_prop_set_int32(dev, "base-year", 1968);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_connect_irq(s, 0, slavio_irq[0]);
     sysbus_mmio_map(s, 0, hwdef->nvram_base);
@@ -1036,13 +1036,13 @@ static void sun4m_hw_init(MachineState *machine)
     qdev_prop_set_chr(dev, "chrA", NULL);
     qdev_prop_set_uint32(dev, "chnBtype", escc_mouse);
     qdev_prop_set_uint32(dev, "chnAtype", escc_kbd);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, hwdef->ms_kb_base);
 
     /* Logically OR both its IRQs together */
     ms_kb_orgate = qdev_new(TYPE_OR_IRQ);
-    object_property_set_int(OBJECT(ms_kb_orgate), "num-lines", 2, &error_fatal);
+    object_property_set_int(reinterpret_cast<Object *>(ms_kb_orgate), "num-lines", 2, &error_fatal);
     qdev_realize_and_unref(ms_kb_orgate, NULL, &error_fatal);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(ms_kb_orgate, 0));
     sysbus_connect_irq(s, 1, qdev_get_gpio_in(ms_kb_orgate, 1));
@@ -1057,13 +1057,13 @@ static void sun4m_hw_init(MachineState *machine)
     qdev_prop_set_uint32(dev, "chnBtype", escc_serial);
     qdev_prop_set_uint32(dev, "chnAtype", escc_serial);
 
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, hwdef->serial_base);
 
     /* Logically OR both its IRQs together */
     serial_orgate = qdev_new(TYPE_OR_IRQ);
-    object_property_set_int(OBJECT(serial_orgate), "num-lines", 2,
+    object_property_set_int(reinterpret_cast<Object *>(serial_orgate), "num-lines", 2,
                             &error_fatal);
     qdev_realize_and_unref(serial_orgate, NULL, &error_fatal);
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(serial_orgate, 0));
@@ -1125,9 +1125,9 @@ static void sun4m_hw_init(MachineState *machine)
     fw_cfg = FW_CFG(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(qdev_get_machine()), TYPE_FW_CFG,
-                              OBJECT(fw_cfg));
-    s = SYS_BUS_DEVICE(dev);
+    object_property_add_child(reinterpret_cast<Object *>(qdev_get_machine()), TYPE_FW_CFG,
+                              reinterpret_cast<Object *>(fw_cfg));
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, CFG_ADDR);
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);
@@ -1172,7 +1172,7 @@ enum {
 
 void Sun4mMachineClass::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->init = sun4m_hw_init;
     mc->block_default_type = IF_SCSI;
@@ -1183,8 +1183,8 @@ void Sun4mMachineClass::classInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::ss5ClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef ss5_hwdef = {
         .iommu_base   = 0x10000000,
         .iommu_pad_base = 0x10004000,
@@ -1220,8 +1220,8 @@ void Sun4mMachineClass::ss5ClassInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::ss10ClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef ss10_hwdef = {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
@@ -1255,8 +1255,8 @@ void Sun4mMachineClass::ss10ClassInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::ss600mpClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef ss600mp_hwdef = {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
@@ -1288,8 +1288,8 @@ void Sun4mMachineClass::ss600mpClassInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::ss20ClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef ss20_hwdef = {
         .iommu_base   = 0xfe0000000ULL,
         .tcx_base     = 0xe20000000ULL,
@@ -1339,8 +1339,8 @@ void Sun4mMachineClass::ss20ClassInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::voyagerClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef voyager_hwdef = {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
@@ -1371,8 +1371,8 @@ void Sun4mMachineClass::voyagerClassInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::ssLxClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef ss_lx_hwdef = {
         .iommu_base   = 0x10000000,
         .iommu_pad_base = 0x10004000,
@@ -1404,8 +1404,8 @@ void Sun4mMachineClass::ssLxClassInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::ss4ClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef ss4_hwdef = {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
@@ -1437,8 +1437,8 @@ void Sun4mMachineClass::ss4ClassInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::sclsClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef scls_hwdef = {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000,
@@ -1469,8 +1469,8 @@ void Sun4mMachineClass::sclsClassInit(ObjectClass *oc, const void *data)
 
 void Sun4mMachineClass::sbookClassInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    Sun4mMachineClass *smc = SUN4M_MACHINE_CLASS(mc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    Sun4mMachineClass *smc = reinterpret_cast<Sun4mMachineClass *>(mc);
     static const struct sun4m_hwdef sbook_hwdef = {
         .iommu_base   = 0x10000000,
         .tcx_base     = 0x50000000, /* XXX */
