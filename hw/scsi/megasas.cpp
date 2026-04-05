@@ -354,7 +354,7 @@ int MegasasState::mapSgl(MegasasCmd *cmd, union mfi_sgl *sgl)
                                          MEGASAS_MAX_SGE);
         return -1;
     }
-    pci_dma_sglist_init(&cmd->qsg, PCI_DEVICE(this), iov_count);
+    pci_dma_sglist_init(&cmd->qsg, reinterpret_cast<PCIDevice *>(this), iov_count);
     for (i = 0; i < iov_count; i++) {
         dma_addr_t iov_pa, iov_size_p;
 
@@ -391,7 +391,7 @@ unmap:
  */
 int MegasasCmd::buildSense(uint8_t *sense_ptr, uint8_t sense_len)
 {
-    PCIDevice *pcid = PCI_DEVICE(state);
+    PCIDevice *pcid = reinterpret_cast<PCIDevice *>(state);
     uint32_t pa_hi = 0, pa_lo;
     hwaddr pa;
     int frame_sense_len;
@@ -528,7 +528,7 @@ MegasasCmd *MegasasState::lookupFrame(hwaddr frame)
 
 void MegasasState::unmapFrame(MegasasCmd *cmd)
 {
-    PCIDevice *p = PCI_DEVICE(this);
+    PCIDevice *p = reinterpret_cast<PCIDevice *>(this);
 
     if (cmd->pa_size) {
         pci_dma_unmap(p, cmd->frame, cmd->pa_size, DMA_DIRECTION_TO_DEVICE, 0);
@@ -546,7 +546,7 @@ void MegasasState::unmapFrame(MegasasCmd *cmd)
  */
 MegasasCmd *MegasasState::enqueueFrame(hwaddr frame, uint64_t context, int count)
 {
-    PCIDevice *pcid = PCI_DEVICE(this);
+    PCIDevice *pcid = reinterpret_cast<PCIDevice *>(this);
     MegasasCmd *cmd = NULL;
     int frame_size = MEGASAS_MAX_SGE * sizeof(union mfi_sgl);
     hwaddr frame_size_p = frame_size;
@@ -602,7 +602,7 @@ MegasasCmd *MegasasState::enqueueFrame(hwaddr frame, uint64_t context, int count
 void MegasasState::completeFrame(uint64_t context)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
-    PCIDevice *pci_dev = PCI_DEVICE(this);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(this);
     int tail, queue_offset;
 
     /* Decrement busy count */
@@ -695,7 +695,7 @@ void MegasasCmd::abortCommand()
 int MegasasState::initFirmware(MegasasCmd *cmd)
 {
     const MemTxAttrs attrs = MEMTXATTRS_UNSPECIFIED;
-    PCIDevice *pcid = PCI_DEVICE(this);
+    PCIDevice *pcid = reinterpret_cast<PCIDevice *>(this);
     uint32_t pa_hi, pa_lo;
     hwaddr iq_pa, initq_size = sizeof(struct mfi_init_qinfo);
     struct mfi_init_qinfo *initq = NULL;
@@ -771,7 +771,7 @@ int MegasasState::mapDcmd(MegasasCmd *cmd)
     }
     iov_pa = cmd->sglGetAddr(&cmd->frame->dcmd.sgl);
     iov_size = cmd->sglGetLen(&cmd->frame->dcmd.sgl);
-    pci_dma_sglist_init(&cmd->qsg, PCI_DEVICE(this), 1);
+    pci_dma_sglist_init(&cmd->qsg, reinterpret_cast<PCIDevice *>(this), 1);
     qemu_sglist_add(&cmd->qsg, iov_pa, iov_size);
     cmd->iov_size = iov_size;
     return 0;
@@ -794,7 +794,7 @@ void MegasasCmd::finishDcmd(uint32_t size)
 
 int MegasasState::ctrlGetInfo(MegasasCmd *cmd)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(this);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(this);
     PCIDeviceClass *pci_class = PCI_DEVICE_GET_CLASS(pci_dev);
     MegasasBaseClass *base_class = MEGASAS_GET_CLASS(this);
     struct mfi_ctrl_info info;
@@ -2076,7 +2076,7 @@ static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     MegasasState *s = static_cast<MegasasState *>(opaque);
-    PCIDevice *pci_dev = PCI_DEVICE(s);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(s);
     MegasasBaseClass *base_class = MEGASAS_GET_CLASS(s);
     uint32_t retval = 0;
 
@@ -2129,7 +2129,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     MegasasState *s = static_cast<MegasasState *>(opaque);
-    PCIDevice *pci_dev = PCI_DEVICE(s);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(s);
     uint64_t frame_addr;
     uint32_t frame_count;
     int i;
@@ -2432,11 +2432,11 @@ void MegasasState::realize(PCIDevice *dev, Error **errp)
         }
     }
 
-    memory_region_init_io(&mmio_io, OBJECT(this), &megasas_mmio_ops, this,
+    memory_region_init_io(&mmio_io, reinterpret_cast<Object *>(this), &megasas_mmio_ops, this,
                           "megasas-mmio", 0x4000);
-    memory_region_init_io(&port_io, OBJECT(this), &megasas_port_ops, this,
+    memory_region_init_io(&port_io, reinterpret_cast<Object *>(this), &megasas_port_ops, this,
                           "megasas-io", 256);
-    memory_region_init_io(&queue_io, OBJECT(this), &megasas_queue_ops, this,
+    memory_region_init_io(&queue_io, reinterpret_cast<Object *>(this), &megasas_queue_ops, this,
                           "megasas-queue", 0x40000);
 
     if (useMsix() &&
@@ -2500,7 +2500,7 @@ void MegasasState::realize(PCIDevice *dev, Error **errp)
         frames[i].state = this;
     }
 
-    scsi_bus_init(&bus, sizeof(bus), DEVICE(dev), &megasas_scsi_info);
+    scsi_bus_init(&bus, sizeof(bus), reinterpret_cast<DeviceState *>(dev), &megasas_scsi_info);
 }
 
 static const Property megasas_properties_gen1[] = {
@@ -2589,9 +2589,9 @@ static struct MegasasInfo megasas_devices[] = {
 
 void MegasasState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
-    MegasasBaseClass *e = MEGASAS_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
+    PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(oc);
+    MegasasBaseClass *e = reinterpret_cast<MegasasBaseClass *>(oc);
     const MegasasInfo *info = static_cast<const MegasasInfo *>(data);
 
     pc->realize = MegasasState::realizeWrapper;

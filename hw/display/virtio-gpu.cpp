@@ -196,7 +196,7 @@ void VirtIOGPU::ctrlResponse(struct virtio_gpu_ctrl_command *cmd,
                       __func__, s, resp_len);
     }
     virtqueue_push(cmd->vq, &cmd->elem, s);
-    virtio_notify(VIRTIO_DEVICE(this), cmd->vq);
+    virtio_notify(reinterpret_cast<VirtIODevice *>(this), cmd->vq);
     cmd->finished = true;
 }
 

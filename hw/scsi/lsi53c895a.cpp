@@ -503,7 +503,7 @@ void LSIState::lsi_mem_read(dma_addr_t addr,
         address_space_read(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED,
                            buf, len);
     } else {
-        pci_dma_read(PCI_DEVICE(s), addr, buf, len);
+        pci_dma_read(reinterpret_cast<PCIDevice *>(s), addr, buf, len);
     }
 }
 
@@ -515,7 +515,7 @@ void LSIState::lsi_mem_write(dma_addr_t addr,
         address_space_write(&s->pci_io_as, addr, MEMTXATTRS_UNSPECIFIED,
                             buf, len);
     } else {
-        pci_dma_write(PCI_DEVICE(s), addr, buf, len);
+        pci_dma_write(reinterpret_cast<PCIDevice *>(s), addr, buf, len);
     }
 }
 
@@ -524,7 +524,7 @@ uint32_t LSIState::read_dword(uint32_t addr)
     LSIState *s = this;
     uint32_t buf;
 
-    pci_dma_read(PCI_DEVICE(s), addr, &buf, 4);
+    pci_dma_read(reinterpret_cast<PCIDevice *>(s), addr, &buf, 4);
     return cpu_to_le32(buf);
 }
 
@@ -537,7 +537,7 @@ void LSIState::lsi_stop_script()
 void LSIState::lsi_set_irq(int level)
 {
     LSIState *s = this;
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
 
     if (s->ext_irq) {
         qemu_set_irq(s->ext_irq, level);
@@ -930,7 +930,7 @@ void LSIState::lsi_do_command()
     trace_lsi_do_command(s->dbc);
     if (s->dbc > 16)
         s->dbc = 16;
-    pci_dma_read(PCI_DEVICE(s), s->dnad, buf, s->dbc);
+    pci_dma_read(reinterpret_cast<PCIDevice *>(s), s->dnad, buf, s->dbc);
     s->sfbr = buf[0];
     s->command_complete = 0;
 
@@ -983,7 +983,7 @@ void LSIState::lsi_do_status()
     s->dbc = 1;
     status = s->status;
     s->sfbr = status;
-    pci_dma_write(PCI_DEVICE(s), s->dnad, &status, 1);
+    pci_dma_write(reinterpret_cast<PCIDevice *>(s), s->dnad, &status, 1);
     s->lsi_set_phase(PHASE_MI);
     s->msg_action = LSI_MSG_ACTION_DISCONNECT;
     s->lsi_add_msg_byte(0); /* COMMAND COMPLETE */
@@ -1001,7 +1001,7 @@ void LSIState::lsi_do_msgin()
         len = s->dbc;
 
     if (len) {
-        pci_dma_write(PCI_DEVICE(s), s->dnad, s->msg, len);
+        pci_dma_write(reinterpret_cast<PCIDevice *>(s), s->dnad, s->msg, len);
         /* Linux drivers rely on the last byte being in the SIDL.  */
         s->sidl = s->msg[len - 1];
         s->msg_len -= len;
@@ -1037,7 +1037,7 @@ uint8_t LSIState::lsi_get_msgbyte()
 {
     LSIState *s = this;
     uint8_t data;
-    pci_dma_read(PCI_DEVICE(s), s->dnad, &data, 1);
+    pci_dma_read(reinterpret_cast<PCIDevice *>(s), s->dnad, &data, 1);
     s->dnad++;
     s->dbc--;
     return data;
@@ -1230,7 +1230,7 @@ void LSIState::lsi_scripts_timer_start()
 void LSIState::lsi_execute_script()
 {
     LSIState *s = this;
-    PCIDevice *pci_dev = PCI_DEVICE(s);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(s);
     uint32_t insn;
     uint32_t addr, addr_high;
     int opcode;
@@ -2041,7 +2041,7 @@ void LSIState::lsi_reg_writeb(int offset, uint8_t val)
             s->lsi_execute_script();
         }
         if (val & LSI_ISTAT0_SRST) {
-            device_cold_reset(DEVICE(s));
+            device_cold_reset(reinterpret_cast<DeviceState *>(s));
         }
         break;
     case 0x16: /* MBOX0 */
@@ -2417,7 +2417,7 @@ void LSIState::realize(Error **errp)
 {
     LSIState *s = this;
     PCIDevice *dev = &s->parent_obj;
-    DeviceState *d = DEVICE(dev);
+    DeviceState *d = reinterpret_cast<DeviceState *>(dev);
     uint8_t *pci_conf;
 
     pci_conf = dev->config;
@@ -2427,11 +2427,11 @@ void LSIState::realize(Error **errp)
     /* Interrupt pin A */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
-    memory_region_init_io(&s->mmio_io, OBJECT(s), &lsi_mmio_ops, s,
+    memory_region_init_io(&s->mmio_io, reinterpret_cast<Object *>(s), &lsi_mmio_ops, s,
                           "lsi-mmio", 0x400);
-    memory_region_init_io(&s->ram_io, OBJECT(s), &lsi_ram_ops, s,
+    memory_region_init_io(&s->ram_io, reinterpret_cast<Object *>(s), &lsi_ram_ops, s,
                           "lsi-ram", 0x2000);
-    memory_region_init_io(&s->io_io, OBJECT(s), &lsi_io_ops, s,
+    memory_region_init_io(&s->io_io, reinterpret_cast<Object *>(s), &lsi_io_ops, s,
                           "lsi-io", 256);
     s->scripts_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, scripts_timer_cb, s);
 
@@ -2463,8 +2463,8 @@ static void lsi_scsi_exit(PCIDevice *dev)
 
 void LSIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = realizeWrapper;
     k->exit = lsi_scsi_exit;
@@ -2492,7 +2492,7 @@ static const TypeInfo lsi_info = {
 
 void LSIState::lsi53c810ClassInit(ObjectClass *klass, const void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->device_id = PCI_DEVICE_ID_LSI_53C810;
 }

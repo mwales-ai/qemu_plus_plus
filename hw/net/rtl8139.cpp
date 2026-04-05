@@ -780,7 +780,7 @@ void RTL8139State::prom9346_set_wire(int eecs, int eesk, int eedi)
 void RTL8139State::rtl8139_update_irq()
 {
     RTL8139State *s = this;
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     int isr;
     isr = (s->IntrStatus & s->IntrMask) & 0xffff;
 
@@ -824,7 +824,7 @@ int RTL8139State::rtl8139_cp_transmitter_enabled()
 void RTL8139State::rtl8139_write_buffer(const void *buf, int size)
 {
     RTL8139State *s = this;
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
 
     if (s->RxBufAddr + size > s->RxBufferSize)
     {
@@ -900,7 +900,7 @@ static bool rtl8139_can_receive(NetClientState *nc)
 static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t size_, int do_interrupt)
 {
     RTL8139State *s = static_cast<RTL8139State *>(qemu_get_nic_opaque(nc));
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     /* size is the length of the buffer passed to the driver */
     size_t size = size_;
     const uint8_t *dot1q_buf = NULL;
@@ -1387,7 +1387,7 @@ static void RTL8139TallyCounters_clear(RTL8139TallyCounters* counters)
 void RTL8139State::RTL8139TallyCounters_dma_write(dma_addr_t tc_addr)
 {
     RTL8139State *s = this;
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     RTL8139TallyCounters *tally_counters = &s->tally_counters;
     uint16_t val16;
     uint32_t val32;
@@ -1436,7 +1436,7 @@ void RTL8139State::RTL8139TallyCounters_dma_write(dma_addr_t tc_addr)
 void RTL8139State::rtl8139_ChipCmd_write(uint32_t val)
 {
     RTL8139State *s = this;
-    DeviceState *d = DEVICE(s);
+    DeviceState *d = reinterpret_cast<DeviceState *>(s);
 
     val &= 0xff;
 
@@ -1614,7 +1614,7 @@ uint32_t RTL8139State::rtl8139_BasicModeStatus_read()
 void RTL8139State::rtl8139_Cfg9346_write(uint32_t val)
 {
     RTL8139State *s = this;
-    DeviceState *d = DEVICE(s);
+    DeviceState *d = reinterpret_cast<DeviceState *>(s);
 
     val &= 0xff;
 
@@ -1931,7 +1931,7 @@ int RTL8139State::rtl8139_transmit_one(int descriptor)
 
     DPRINTF("+++ transmitting from descriptor %d\n", descriptor);
 
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     int txsize = s->TxStatus[descriptor] & 0x1fff;
     QEMU_UNINITIALIZED uint8_t txbuffer[0x2000];
 
@@ -2001,7 +2001,7 @@ int RTL8139State::rtl8139_cplus_transmit_one()
         return 0 ;
     }
 
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     int descriptor = s->currCPlusTxDesc;
 
     dma_addr_t cplus_tx_ring_desc = rtl8139_addr64(s->TxAddr[0], s->TxAddr[1]);
@@ -3505,7 +3505,7 @@ void RTL8139State::realize(Error **errp)
 {
     RTL8139State *s = this;
     PCIDevice *dev = &s->parent_obj;
-    DeviceState *d = DEVICE(dev);
+    DeviceState *d = reinterpret_cast<DeviceState *>(dev);
     uint8_t *pci_conf;
 
     pci_conf = dev->config;
@@ -3514,9 +3514,9 @@ void RTL8139State::realize(Error **errp)
      * list bit in status register, and offset 0xdc seems unused. */
     pci_conf[PCI_CAPABILITY_LIST] = 0xdc;
 
-    memory_region_init_io(&s->bar_io, OBJECT(s), &rtl8139_io_ops, s,
+    memory_region_init_io(&s->bar_io, reinterpret_cast<Object *>(s), &rtl8139_io_ops, s,
                           "rtl8139", 0x100);
-    memory_region_init_alias(&s->bar_mem, OBJECT(s), "rtl8139-mem", &s->bar_io,
+    memory_region_init_alias(&s->bar_mem, reinterpret_cast<Object *>(s), "rtl8139-mem", &s->bar_io,
                              0, 0x100);
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->bar_io);
@@ -3536,7 +3536,7 @@ void RTL8139State::realize(Error **errp)
     s->eeprom.contents[9] = s->conf.macaddr.a[4] | s->conf.macaddr.a[5] << 8;
 
     s->nic = qemu_new_nic(&net_rtl8139_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), d->id,
+                          object_get_typename(reinterpret_cast<Object *>(dev)), d->id,
                           &d->mem_reentrancy_guard, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
@@ -3553,7 +3553,7 @@ void RTL8139State::instanceInit(Object *obj)
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
+                                  reinterpret_cast<DeviceState *>(obj));
 }
 
 static const Property rtl8139_properties[] = {
@@ -3562,8 +3562,8 @@ static const Property rtl8139_properties[] = {
 
 void RTL8139State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = realizeWrapper;
     k->exit = pci_rtl8139_uninit;

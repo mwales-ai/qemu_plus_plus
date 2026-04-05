@@ -1328,9 +1328,9 @@ void AC97LinkState::realize(Error **errp)
     c[PCI_INTERRUPT_LINE] = 0x00;      /* intr_ln interrupt line rw */
     c[PCI_INTERRUPT_PIN] = 0x01;      /* intr_pn interrupt pin ro */
 
-    memory_region_init_io(&io_nam, OBJECT(this), &ac97_io_nam_ops, this,
+    memory_region_init_io(&io_nam, reinterpret_cast<Object *>(this), &ac97_io_nam_ops, this,
                           "ac97-nam", 1024);
-    memory_region_init_io(&io_nabm, OBJECT(this), &ac97_io_nabm_ops, this,
+    memory_region_init_io(&io_nabm, reinterpret_cast<Object *>(this), &ac97_io_nabm_ops, this,
                           "ac97-nabm", 256);
     pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &io_nam);
     pci_register_bar(&dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &io_nabm);
@@ -1353,8 +1353,8 @@ static const Property ac97_properties[] = {
 
 void AC97LinkState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = realizeWrapper;
     k->exit = exitWrapper;

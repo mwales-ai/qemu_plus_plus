@@ -310,7 +310,7 @@ void E1000EState::unuseMsixVectors(int num_vectors)
 {
     int i;
     for (i = 0; i < num_vectors; i++) {
-        msix_vector_unuse(PCI_DEVICE(this), i);
+        msix_vector_unuse(reinterpret_cast<PCIDevice *>(this), i);
     }
 }
 
@@ -318,13 +318,13 @@ void E1000EState::useMsixVectors(int num_vectors)
 {
     int i;
     for (i = 0; i < num_vectors; i++) {
-        msix_vector_use(PCI_DEVICE(this), i);
+        msix_vector_use(reinterpret_cast<PCIDevice *>(this), i);
     }
 }
 
 void E1000EState::initMsix()
 {
-    int res = msix_init(PCI_DEVICE(this), E1000E_MSIX_VEC_NUM,
+    int res = msix_init(reinterpret_cast<PCIDevice *>(this), E1000E_MSIX_VEC_NUM,
                         &msix,
                         E1000E_MSIX_IDX, E1000E_MSIX_TABLE,
                         &msix,
@@ -340,20 +340,20 @@ void E1000EState::initMsix()
 
 void E1000EState::cleanupMsix()
 {
-    if (msix_present(PCI_DEVICE(this))) {
+    if (msix_present(reinterpret_cast<PCIDevice *>(this))) {
         unuseMsixVectors(E1000E_MSIX_VEC_NUM);
-        msix_uninit(PCI_DEVICE(this), &msix, &msix);
+        msix_uninit(reinterpret_cast<PCIDevice *>(this), &msix, &msix);
     }
 }
 
 void E1000EState::initNetPeer(PCIDevice *pci_dev, uint8_t *macaddr)
 {
-    DeviceState *dev = DEVICE(pci_dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(pci_dev);
     NetClientState *nc;
     int i;
 
     nic = qemu_new_nic(&net_e1000e_info, &conf,
-        object_get_typename(OBJECT(this)), dev->id,
+        object_get_typename(reinterpret_cast<Object *>(this)), dev->id,
         &dev->mem_reentrancy_guard, this);
 
     core.max_queue_num = conf.peers.queues ? conf.peers.queues - 1 : 0;
@@ -469,7 +469,7 @@ void E1000EState::realize(PCIDevice *pci_dev, Error **errp)
     subsys_used = subsys;
 
     /* Define IO/MMIO regions */
-    memory_region_init_io(&mmio, OBJECT(this), &mmio_ops, this,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this), &mmio_ops, this,
                           "e1000e-mmio", E1000E_MMIO_SIZE);
     pci_register_bar(pci_dev, E1000E_MMIO_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
@@ -478,17 +478,17 @@ void E1000EState::realize(PCIDevice *pci_dev, Error **errp)
      * We provide a dummy implementation for the flash BAR
      * for drivers that may theoretically probe for its presence.
      */
-    memory_region_init(&flash, OBJECT(this),
+    memory_region_init(&flash, reinterpret_cast<Object *>(this),
                        "e1000e-flash", E1000E_FLASH_SIZE);
     pci_register_bar(pci_dev, E1000E_FLASH_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &flash);
 
-    memory_region_init_io(&io, OBJECT(this), &io_ops, this,
+    memory_region_init_io(&io, reinterpret_cast<Object *>(this), &io_ops, this,
                           "e1000e-io", E1000E_IO_SIZE);
     pci_register_bar(pci_dev, E1000E_IO_IDX,
                      PCI_BASE_ADDRESS_SPACE_IO, &io);
 
-    memory_region_init(&msix, OBJECT(this), "e1000e-msix",
+    memory_region_init(&msix, reinterpret_cast<Object *>(this), "e1000e-msix",
                        E1000E_MSIX_SIZE);
     pci_register_bar(pci_dev, E1000E_MSIX_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &msix);
@@ -503,7 +503,7 @@ void E1000EState::realize(PCIDevice *pci_dev, Error **errp)
         hw_error("Failed to initialize PCIe capability");
     }
 
-    ret = msi_init(PCI_DEVICE(this), 0xD0, 1, true, false, NULL);
+    ret = msi_init(reinterpret_cast<PCIDevice *>(this), 0xD0, 1, true, false, NULL);
     if (ret) {
         trace_e1000e_msi_init_fail(ret);
     }
@@ -725,9 +725,9 @@ static const Property e1000e_properties[] = {
 
 void E1000EState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
+    PCIDeviceClass *c = reinterpret_cast<PCIDeviceClass *>(klass);
 
     c->realize = e1000e_pci_realize_wrapper;
     c->exit = e1000e_pci_uninit_wrapper;
@@ -766,7 +766,7 @@ void E1000EState::instanceInit(Object *obj)
 {
     device_add_bootindex_property(obj, &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
+                                  reinterpret_cast<DeviceState *>(obj));
 }
 
 static const InterfaceInfo e1000e_interfaces[] = {

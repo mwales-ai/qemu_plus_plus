@@ -1455,7 +1455,7 @@ static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
     int i;
 
     xfer->int_req = false;
-    qemu_sglist_init(&xfer->sgl, DEVICE(xhci), xfer->trb_count, xhci->as);
+    qemu_sglist_init(&xfer->sgl, reinterpret_cast<DeviceState *>(xhci), xfer->trb_count, xhci->as);
     for (i = 0; i < xfer->trb_count; i++) {
         XHCITRB *trb = &xfer->trbs[i];
         dma_addr_t addr;
@@ -3023,7 +3023,7 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
         xhci->usbcmd = val & 0xc0f;
         xhci->mfwrapUpdate();
         if (val & USBCMD_HCRST) {
-            xhci_reset(DEVICE(xhci));
+            xhci_reset(reinterpret_cast<DeviceState *>(xhci));
         }
         xhci->intrUpdate(0);
         break;
@@ -3425,7 +3425,7 @@ void XHCIState::usbXhciInit()
 void XHCIState::realize(Error **errp)
 {
     int i;
-    DeviceState *dev = DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
     if (numintrs > XHCI_MAXINTRS) {
         numintrs = XHCI_MAXINTRS;
@@ -3451,14 +3451,14 @@ void XHCIState::realize(Error **errp)
     usbXhciInit();
     mfwrap_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, xhci_mfwrap_timer, this);
 
-    memory_region_init(&mem, OBJECT(dev), "xhci", XHCI_LEN_REGS);
-    memory_region_init_io(&mem_cap, OBJECT(dev), &xhci_cap_ops, this,
+    memory_region_init(&mem, reinterpret_cast<Object *>(dev), "xhci", XHCI_LEN_REGS);
+    memory_region_init_io(&mem_cap, reinterpret_cast<Object *>(dev), &xhci_cap_ops, this,
                           "capabilities", LEN_CAP);
-    memory_region_init_io(&mem_oper, OBJECT(dev), &xhci_oper_ops, this,
+    memory_region_init_io(&mem_oper, reinterpret_cast<Object *>(dev), &xhci_oper_ops, this,
                           "operational", 0x400);
-    memory_region_init_io(&mem_runtime, OBJECT(dev), &xhci_runtime_ops,
+    memory_region_init_io(&mem_runtime, reinterpret_cast<Object *>(dev), &xhci_runtime_ops,
                            this, "runtime", LEN_RUNTIME);
-    memory_region_init_io(&mem_doorbell, OBJECT(dev), &xhci_doorbell_ops,
+    memory_region_init_io(&mem_doorbell, reinterpret_cast<Object *>(dev), &xhci_doorbell_ops,
                            this, "doorbell", LEN_DOORBELL);
 
     memory_region_add_subregion(&mem, 0,            &mem_cap);
@@ -3470,7 +3470,7 @@ void XHCIState::realize(Error **errp)
         XHCIPort *port = &ports[i];
         uint32_t offset = OFF_OPER + 0x400 + 0x10 * i;
         port->xhci = this;
-        memory_region_init_io(&port->mem, OBJECT(dev), &xhci_port_ops, port,
+        memory_region_init_io(&port->mem, reinterpret_cast<Object *>(dev), &xhci_port_ops, port,
                               port->name, 0x10);
         memory_region_add_subregion(&mem, offset, &port->mem);
     }
@@ -3714,7 +3714,7 @@ static const Property xhci_properties[] = {
 
 void XHCIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = usb_xhci_realize;
     dc->unrealize = usb_xhci_unrealize;

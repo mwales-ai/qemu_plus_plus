@@ -715,7 +715,7 @@ static void hpet_reset_wrapper(DeviceState *d)
 
 void HPETState::reset(DeviceState *d)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(d);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(d);
     int i;
 
     for (i = 0; i < num_timers; i++) {
@@ -769,7 +769,7 @@ static void hpet_init_wrapper(Object *obj)
 
 void HPETState::initInstance(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     qemu_mutex_init(&lock);
     seqlock_init(&state_version);
@@ -786,7 +786,7 @@ static void hpet_realize_wrapper(DeviceState *dev, Error **errp)
 
 void HPETState::realize(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
     int i;
     HPETTimer *t;
 
@@ -841,7 +841,7 @@ static const Property hpet_device_properties[] = {
 
 void HPETState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = hpet_realize_wrapper;
     device_class_set_legacy_reset(dc, hpet_reset_wrapper);
