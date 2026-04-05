@@ -51,8 +51,8 @@ struct MV64361PCIState {
 
 void MV64361PCIState::pciBridgeClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->vendor_id = PCI_VENDOR_ID_MARVELL;
     k->device_id = PCI_DEVICE_ID_MARVELL_MV6436X;
@@ -85,15 +85,15 @@ void MV64361PCIState::setIrq(void *opaque, int n, int level)
 
 void MV64361PCIState::hostRealize(DeviceState *dev, Error **errp)
 {
-    MV64361PCIState *s = MV64361_PCI(dev);
-    PCIHostState *h = PCI_HOST_BRIDGE(dev);
+    MV64361PCIState *s = reinterpret_cast<MV64361PCIState *>(dev);
+    PCIHostState *h = reinterpret_cast<PCIHostState *>(dev);
     char *name;
 
     name = g_strdup_printf("pci%d-io", s->index);
-    memory_region_init(&s->io, OBJECT(dev), name, 0x10000);
+    memory_region_init(&s->io, reinterpret_cast<Object *>(dev), name, 0x10000);
     g_free(name);
     name = g_strdup_printf("pci%d-mem", s->index);
-    memory_region_init(&s->mem, OBJECT(dev), name, 1ULL << 32);
+    memory_region_init(&s->mem, reinterpret_cast<Object *>(dev), name, 1ULL << 32);
     g_free(name);
     name = g_strdup_printf("pci.%d", s->index);
     h->bus = pci_register_root_bus(dev, name, MV64361PCIState::setIrq,
@@ -110,7 +110,7 @@ static const Property mv64361_pcihost_props[] = {
 
 void MV64361PCIState::hostClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = MV64361PCIState::hostRealize;
     device_class_set_props(dc, mv64361_pcihost_props);
@@ -234,15 +234,15 @@ enum mv64361_irq_cause {
 
 PCIBus *mv64361_get_pci_bus(DeviceState *dev, int n)
 {
-    MV64361State *mv = MV64361(dev);
-    return PCI_HOST_BRIDGE(&mv->pci[n])->bus;
+    MV64361State *mv = reinterpret_cast<MV64361State *>(dev);
+    return reinterpret_cast<PCIHostState *>(&mv->pci[n])->bus;
 }
 
 void MV64361State::unmapRegion(MemoryRegion *mr)
 {
     if (memory_region_is_mapped(mr)) {
         memory_region_del_subregion(get_system_memory(), mr);
-        object_unparent(OBJECT(mr));
+        object_unparent(reinterpret_cast<Object *>(mr));
     }
 }
 
@@ -276,7 +276,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->io, OBJECT(s), "pci0-io-win",
+                    MV64361State::mapPciRegion(mr, &p->io, reinterpret_cast<Object *>(s), "pci0-io-win",
                                    p->remap[4], (p->io_size + 1) << 16,
                                    (p->io_base & 0xfffff) << 16);
                 }
@@ -285,7 +285,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->mem, OBJECT(s), "pci0-mem0-win",
+                    MV64361State::mapPciRegion(mr, &p->mem, reinterpret_cast<Object *>(s), "pci0-mem0-win",
                                    p->remap[0], (p->mem_size[0] + 1) << 16,
                                    (p->mem_base[0] & 0xfffff) << 16);
                 }
@@ -294,7 +294,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->mem, OBJECT(s), "pci0-mem1-win",
+                    MV64361State::mapPciRegion(mr, &p->mem, reinterpret_cast<Object *>(s), "pci0-mem1-win",
                                    p->remap[1], (p->mem_size[1] + 1) << 16,
                                    (p->mem_base[1] & 0xfffff) << 16);
                 }
@@ -303,7 +303,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->mem, OBJECT(s), "pci0-mem2-win",
+                    MV64361State::mapPciRegion(mr, &p->mem, reinterpret_cast<Object *>(s), "pci0-mem2-win",
                                    p->remap[2], (p->mem_size[2] + 1) << 16,
                                    (p->mem_base[2] & 0xfffff) << 16);
                 }
@@ -312,7 +312,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->mem, OBJECT(s), "pci0-mem3-win",
+                    MV64361State::mapPciRegion(mr, &p->mem, reinterpret_cast<Object *>(s), "pci0-mem3-win",
                                    p->remap[3], (p->mem_size[3] + 1) << 16,
                                    (p->mem_base[3] & 0xfffff) << 16);
                 }
@@ -321,7 +321,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->io, OBJECT(s), "pci1-io-win",
+                    MV64361State::mapPciRegion(mr, &p->io, reinterpret_cast<Object *>(s), "pci1-io-win",
                                    p->remap[4], (p->io_size + 1) << 16,
                                    (p->io_base & 0xfffff) << 16);
                 }
@@ -330,7 +330,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->mem, OBJECT(s), "pci1-mem0-win",
+                    MV64361State::mapPciRegion(mr, &p->mem, reinterpret_cast<Object *>(s), "pci1-mem0-win",
                                    p->remap[0], (p->mem_size[0] + 1) << 16,
                                    (p->mem_base[0] & 0xfffff) << 16);
                 }
@@ -339,7 +339,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->mem, OBJECT(s), "pci1-mem1-win",
+                    MV64361State::mapPciRegion(mr, &p->mem, reinterpret_cast<Object *>(s), "pci1-mem1-win",
                                    p->remap[1], (p->mem_size[1] + 1) << 16,
                                    (p->mem_base[1] & 0xfffff) << 16);
                 }
@@ -348,7 +348,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->mem, OBJECT(s), "pci1-mem2-win",
+                    MV64361State::mapPciRegion(mr, &p->mem, reinterpret_cast<Object *>(s), "pci1-mem2-win",
                                    p->remap[2], (p->mem_size[2] + 1) << 16,
                                    (p->mem_base[2] & 0xfffff) << 16);
                 }
@@ -357,7 +357,7 @@ void MV64361State::setMemWindows(MV64361State *s, uint32_t val)
                 mr = &s->cpu_win[i];
                 MV64361State::unmapRegion(mr);
                 if (!(val & mask)) {
-                    MV64361State::mapPciRegion(mr, &p->mem, OBJECT(s), "pci1-mem3-win",
+                    MV64361State::mapPciRegion(mr, &p->mem, reinterpret_cast<Object *>(s), "pci1-mem3-win",
                                    p->remap[3], (p->mem_size[3] + 1) << 16,
                                    (p->mem_base[3] & 0xfffff) << 16);
                 }
@@ -521,19 +521,19 @@ uint64_t MV64361State::read(void *opaque, hwaddr addr, unsigned int size)
         ret = s->base_addr_enable;
         break;
     case MV64340_PCI_0_CONFIG_ADDR:
-        ret = pci_host_conf_le_ops.read(PCI_HOST_BRIDGE(&s->pci[0]), 0, size);
+        ret = pci_host_conf_le_ops.read(reinterpret_cast<PCIHostState *>(&s->pci[0]), 0, size);
         break;
     case MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG ...
          MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG + 3:
-        ret = pci_host_data_le_ops.read(PCI_HOST_BRIDGE(&s->pci[0]),
+        ret = pci_host_data_le_ops.read(reinterpret_cast<PCIHostState *>(&s->pci[0]),
                   addr - MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG, size);
         break;
     case MV64340_PCI_1_CONFIG_ADDR:
-        ret = pci_host_conf_le_ops.read(PCI_HOST_BRIDGE(&s->pci[1]), 0, size);
+        ret = pci_host_conf_le_ops.read(reinterpret_cast<PCIHostState *>(&s->pci[1]), 0, size);
         break;
     case MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG ...
          MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG + 3:
-        ret = pci_host_data_le_ops.read(PCI_HOST_BRIDGE(&s->pci[1]),
+        ret = pci_host_data_le_ops.read(reinterpret_cast<PCIHostState *>(&s->pci[1]),
                   addr - MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG, size);
         break;
     case MV64340_PCI_1_INTERRUPT_ACKNOWLEDGE_VIRTUAL_REG:
@@ -783,19 +783,19 @@ void MV64361State::write(void *opaque, hwaddr addr, uint64_t val,
         MV64361State::setMemWindows(s, val);
         break;
     case MV64340_PCI_0_CONFIG_ADDR:
-        pci_host_conf_le_ops.write(PCI_HOST_BRIDGE(&s->pci[0]), 0, val, size);
+        pci_host_conf_le_ops.write(reinterpret_cast<PCIHostState *>(&s->pci[0]), 0, val, size);
         break;
     case MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG ...
          MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG + 3:
-        pci_host_data_le_ops.write(PCI_HOST_BRIDGE(&s->pci[0]),
+        pci_host_data_le_ops.write(reinterpret_cast<PCIHostState *>(&s->pci[0]),
             addr - MV64340_PCI_0_CONFIG_DATA_VIRTUAL_REG, val, size);
         break;
     case MV64340_PCI_1_CONFIG_ADDR:
-        pci_host_conf_le_ops.write(PCI_HOST_BRIDGE(&s->pci[1]), 0, val, size);
+        pci_host_conf_le_ops.write(reinterpret_cast<PCIHostState *>(&s->pci[1]), 0, val, size);
         break;
     case MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG ...
          MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG + 3:
-        pci_host_data_le_ops.write(PCI_HOST_BRIDGE(&s->pci[1]),
+        pci_host_data_le_ops.write(reinterpret_cast<PCIHostState *>(&s->pci[1]),
             addr - MV64340_PCI_1_CONFIG_DATA_VIRTUAL_REG, val, size);
         break;
     case MV64340_CPU_INTERRUPT0_MASK_LOW:
@@ -884,28 +884,28 @@ void MV64361State::gppIrq(void *opaque, int n, int level)
 
 void MV64361State::realize(DeviceState *dev, Error **errp)
 {
-    MV64361State *s = MV64361(dev);
+    MV64361State *s = reinterpret_cast<MV64361State *>(dev);
     int i;
 
     s->base_addr_enable = 0x1fffff;
-    memory_region_init_io(&s->regs, OBJECT(s), &mv64361_ops, s,
+    memory_region_init_io(&s->regs, reinterpret_cast<Object *>(s), &mv64361_ops, s,
                           TYPE_MV64361, 0x10000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->regs);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &s->regs);
     for (i = 0; i < 2; i++) {
         g_autofree char *name = g_strdup_printf("pcihost%d", i);
-        object_initialize_child(OBJECT(dev), name, &s->pci[i],
+        object_initialize_child(reinterpret_cast<Object *>(dev), name, &s->pci[i],
                                 TYPE_MV64361_PCI);
-        DeviceState *pci = DEVICE(&s->pci[i]);
+        DeviceState *pci = reinterpret_cast<DeviceState *>(&s->pci[i]);
         qdev_prop_set_uint8(pci, "index", i);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(pci), &error_fatal);
+        sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(pci), &error_fatal);
     }
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->cpu_irq);
+    sysbus_init_irq(reinterpret_cast<SysBusDevice *>(dev), &s->cpu_irq);
     qdev_init_gpio_in_named(dev, MV64361State::gppIrq, "gpp", 32);
 }
 
 void MV64361State::reset(DeviceState *dev)
 {
-    MV64361State *s = MV64361(dev);
+    MV64361State *s = reinterpret_cast<MV64361State *>(dev);
     int i, j;
 
     /*
@@ -947,7 +947,7 @@ void MV64361State::reset(DeviceState *dev)
 
 void MV64361State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = MV64361State::realize;
     device_class_set_legacy_reset(dc, MV64361State::reset);

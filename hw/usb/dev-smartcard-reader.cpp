@@ -687,7 +687,7 @@ void USBCCIDState::ccidDetach(void)
 
 void USBCCIDState::handleReset(USBDevice *dev)
 {
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
 
     DPRINTF(s, 1, "Reset\n");
 
@@ -730,7 +730,7 @@ const char *USBCCIDState::controlToStr(int request)
 void USBCCIDState::handleControl(USBDevice *dev, USBPacket *p, int request,
                                int value, int index, int length, uint8_t *data)
 {
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
     int ret;
 
     DPRINTF(s, 1, "%s: got control %s (%x), value %x\n", __func__,
@@ -1161,7 +1161,7 @@ void USBCCIDState::bulkInCopyToGuest(USBPacket *p,
 
 void USBCCIDState::handleData(USBDevice *dev, USBPacket *p)
 {
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
     uint8_t buf[2];
 
     switch (p->pid) {
@@ -1205,7 +1205,7 @@ void USBCCIDState::handleData(USBDevice *dev, USBPacket *p)
 
 void USBCCIDState::unrealize(USBDevice *dev)
 {
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
 
     s->bulkInClear();
 }
@@ -1237,9 +1237,9 @@ static const TypeInfo ccid_bus_info = {
 void ccid_card_send_apdu_to_guest(CCIDCardState *card,
                                   uint8_t *apdu, uint32_t len)
 {
-    DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    DeviceState *qdev = reinterpret_cast<DeviceState *>(card);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(qdev->parent_bus->parent);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
     Answer *answer;
 
     if (!s->hasPendingAnswers()) {
@@ -1260,9 +1260,9 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
 
 void ccid_card_card_removed(CCIDCardState *card)
 {
-    DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    DeviceState *qdev = reinterpret_cast<DeviceState *>(card);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(qdev->parent_bus->parent);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
 
     s->onSlotChange(false);
     s->flushPendingAnswers();
@@ -1271,9 +1271,9 @@ void ccid_card_card_removed(CCIDCardState *card)
 
 int ccid_card_ccid_attach(CCIDCardState *card)
 {
-    DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    DeviceState *qdev = reinterpret_cast<DeviceState *>(card);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(qdev->parent_bus->parent);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
 
     DPRINTF(s, 1, "CCID Attach\n");
     return 0;
@@ -1281,9 +1281,9 @@ int ccid_card_ccid_attach(CCIDCardState *card)
 
 void ccid_card_ccid_detach(CCIDCardState *card)
 {
-    DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    DeviceState *qdev = reinterpret_cast<DeviceState *>(card);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(qdev->parent_bus->parent);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
 
     DPRINTF(s, 1, "CCID Detach\n");
     if (s->cardInserted()) {
@@ -1294,9 +1294,9 @@ void ccid_card_ccid_detach(CCIDCardState *card)
 
 void ccid_card_card_error(CCIDCardState *card, uint64_t error)
 {
-    DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    DeviceState *qdev = reinterpret_cast<DeviceState *>(card);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(qdev->parent_bus->parent);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
 
     s->bmCommandStatus = COMMAND_STATUS_FAILED;
     s->last_answer_error = error;
@@ -1313,9 +1313,9 @@ void ccid_card_card_error(CCIDCardState *card, uint64_t error)
 
 void ccid_card_card_inserted(CCIDCardState *card)
 {
-    DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    DeviceState *qdev = reinterpret_cast<DeviceState *>(card);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(qdev->parent_bus->parent);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
 
     s->bmCommandStatus = COMMAND_STATUS_NO_ERROR;
     s->flushPendingAnswers();
@@ -1324,10 +1324,10 @@ void ccid_card_card_inserted(CCIDCardState *card)
 
 static void ccid_card_unrealize(DeviceState *qdev)
 {
-    CCIDCardState *card = CCID_CARD(qdev);
+    CCIDCardState *card = reinterpret_cast<CCIDCardState *>(qdev);
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(qdev->parent_bus->parent);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
 
     if (s->cardInserted()) {
         ccid_card_card_removed(card);
@@ -1340,10 +1340,10 @@ static void ccid_card_unrealize(DeviceState *qdev)
 
 static void ccid_card_realize(DeviceState *qdev, Error **errp)
 {
-    CCIDCardState *card = CCID_CARD(qdev);
+    CCIDCardState *card = reinterpret_cast<CCIDCardState *>(qdev);
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(qdev->parent_bus->parent);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
     Error *local_err = NULL;
 
     if (card->slot != 0) {
@@ -1368,12 +1368,12 @@ static void ccid_card_realize(DeviceState *qdev, Error **errp)
 void USBCCIDState::ccidRealize(Error **errp)
 {
     USBCCIDState *s = this;
-    USBDevice *dev = USB_DEVICE(this);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(this);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
-    qbus_init(&s->bus, sizeof(s->bus), TYPE_CCID_BUS, DEVICE(dev), NULL);
-    qbus_set_hotplug_handler(BUS(&s->bus), OBJECT(dev));
+    qbus_init(&s->bus, sizeof(s->bus), TYPE_CCID_BUS, reinterpret_cast<DeviceState *>(dev), NULL);
+    qbus_set_hotplug_handler(reinterpret_cast<BusState *>(&s->bus), reinterpret_cast<Object *>(dev));
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, CCID_INT_IN_EP);
     s->bulk = usb_ep_get(dev, USB_TOKEN_IN, CCID_BULK_IN_EP);
     s->card = NULL;
@@ -1498,15 +1498,15 @@ static const Property ccid_properties[] = {
 
 void USBCCIDState::ccidRealizeWrapper(USBDevice *dev, Error **errp)
 {
-    USBCCIDState *s = USB_CCID_DEV(dev);
+    USBCCIDState *s = reinterpret_cast<USBCCIDState *>(dev);
     s->ccidRealize(errp);
 }
 
 void USBCCIDState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
+    HotplugHandlerClass *hc = reinterpret_cast<HotplugHandlerClass *>(klass);
 
     uc->realize        = USBCCIDState::ccidRealizeWrapper;
     uc->product_desc   = "QEMU USB CCID";
@@ -1537,7 +1537,7 @@ static const TypeInfo ccid_info = {
 
 void USBCCIDState::ccidCardClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
+    DeviceClass *k = reinterpret_cast<DeviceClass *>(klass);
     k->bus_type = TYPE_CCID_BUS;
     k->realize = ccid_card_realize;
     k->unrealize = ccid_card_unrealize;

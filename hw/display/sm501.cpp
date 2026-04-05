@@ -1930,7 +1930,7 @@ void SM501State::init(DeviceState *dev,
     local_mem_size_index = get_local_mem_size_index(local_mem_bytes);
 
     /* local memory */
-    memory_region_init_ram(&local_mem_region, OBJECT(dev), "sm501.local",
+    memory_region_init_ram(&local_mem_region, reinterpret_cast<Object *>(dev), "sm501.local",
                            get_local_mem_size(this), &error_fatal);
     memory_region_set_log(&local_mem_region, true, DIRTY_MEMORY_VGA);
     local_mem = static_cast<uint8_t *>(memory_region_get_ram_ptr(&local_mem_region));
@@ -1939,25 +1939,25 @@ void SM501State::init(DeviceState *dev,
     i2c_bus = i2c_init_bus(dev, "sm501.i2c");
     /* ddc */
     I2CDDCState *ddc = I2CDDC(qdev_new(TYPE_I2CDDC));
-    i2c_slave_set_address(I2C_SLAVE(ddc), 0x50);
-    qdev_realize_and_unref(DEVICE(ddc), BUS(i2c_bus), &error_abort);
+    i2c_slave_set_address(reinterpret_cast<I2CSlave *>(ddc), 0x50);
+    qdev_realize_and_unref(reinterpret_cast<DeviceState *>(ddc), reinterpret_cast<BusState *>(i2c_bus), &error_abort);
 
     /* mmio */
-    memory_region_init(&mmio_region, OBJECT(dev), "sm501.mmio", MMIO_SIZE);
-    memory_region_init_io(&system_config_region, OBJECT(dev),
+    memory_region_init(&mmio_region, reinterpret_cast<Object *>(dev), "sm501.mmio", MMIO_SIZE);
+    memory_region_init_io(&system_config_region, reinterpret_cast<Object *>(dev),
                           &sm501_system_config_ops, this,
                           "sm501-system-config", 0x6c);
     memory_region_add_subregion(&mmio_region, SM501_SYS_CONFIG,
                                 &system_config_region);
-    memory_region_init_io(&i2c_region, OBJECT(dev), &sm501_i2c_ops, this,
+    memory_region_init_io(&i2c_region, reinterpret_cast<Object *>(dev), &sm501_i2c_ops, this,
                           "sm501-i2c", 0x14);
     memory_region_add_subregion(&mmio_region, SM501_I2C, &i2c_region);
-    memory_region_init_io(&disp_ctrl_region, OBJECT(dev),
+    memory_region_init_io(&disp_ctrl_region, reinterpret_cast<Object *>(dev),
                           &sm501_disp_ctrl_ops, this,
                           "sm501-disp-ctrl", 0x1000);
     memory_region_add_subregion(&mmio_region, SM501_DC,
                                 &disp_ctrl_region);
-    memory_region_init_io(&twoD_engine_region, OBJECT(dev),
+    memory_region_init_io(&twoD_engine_region, reinterpret_cast<Object *>(dev),
                           &sm501_2d_engine_ops, this,
                           "sm501-2d-engine", 0x54);
     memory_region_add_subregion(&mmio_region, SM501_2D_ENGINE,
@@ -2078,8 +2078,8 @@ void SM501SysBusState::realizeWrapper(DeviceState *dev, Error **errp)
 void SM501SysBusState::realize(Error **errp)
 {
     SM501SysBusState *s = this;
-    DeviceState *dev = DEVICE(s);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(s);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
     MemoryRegion *mr;
 
     s->state.init(dev, s->vram_size);
@@ -2092,14 +2092,14 @@ void SM501SysBusState::realize(Error **errp)
     sysbus_init_mmio(sbd, &s->state.mmio_region);
 
     /* bridge to usb host emulation module */
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->ohci), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(&s->ohci), &error_fatal);
     memory_region_add_subregion(&s->state.mmio_region, SM501_USB_HOST,
-                       sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->ohci), 0));
-    sysbus_pass_irq(sbd, SYS_BUS_DEVICE(&s->ohci));
+                       sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(&s->ohci), 0));
+    sysbus_pass_irq(sbd, reinterpret_cast<SysBusDevice *>(&s->ohci));
 
     /* bridge to serial emulation module */
-    sysbus_realize(SYS_BUS_DEVICE(&s->serial), &error_fatal);
-    mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->serial), 0);
+    sysbus_realize(reinterpret_cast<SysBusDevice *>(&s->serial), &error_fatal);
+    mr = sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(&s->serial), 0);
     memory_region_add_subregion(&s->state.mmio_region, SM501_UART0, mr);
     /* TODO : chain irq to IRL */
 }
@@ -2133,7 +2133,7 @@ static const VMStateDescription vmstate_sm501_sysbus = {
 
 void SM501SysBusState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
@@ -2150,15 +2150,15 @@ void SM501SysBusState::instanceInit(Object *o)
     SerialMM *smm = &sm501->serial;
 
     object_initialize_child(o, "ohci", ohci, TYPE_SYSBUS_OHCI);
-    object_property_add_alias(o, "dma-offset", OBJECT(ohci), "dma-offset");
-    qdev_prop_set_uint32(DEVICE(ohci), "num-ports", 2);
+    object_property_add_alias(o, "dma-offset", reinterpret_cast<Object *>(ohci), "dma-offset");
+    qdev_prop_set_uint32(reinterpret_cast<DeviceState *>(ohci), "num-ports", 2);
 
     object_initialize_child(o, "serial", smm, TYPE_SERIAL_MM);
-    qdev_set_legacy_instance_id(DEVICE(smm), SM501_UART0, 2);
-    qdev_prop_set_uint8(DEVICE(smm), "regshift", 2);
-    qdev_prop_set_uint8(DEVICE(smm), "endianness", DEVICE_LITTLE_ENDIAN);
+    qdev_set_legacy_instance_id(reinterpret_cast<DeviceState *>(smm), SM501_UART0, 2);
+    qdev_prop_set_uint8(reinterpret_cast<DeviceState *>(smm), "regshift", 2);
+    qdev_prop_set_uint8(reinterpret_cast<DeviceState *>(smm), "endianness", DEVICE_LITTLE_ENDIAN);
 
-    object_property_add_alias(o, "chardev", OBJECT(smm), "chardev");
+    object_property_add_alias(o, "chardev", reinterpret_cast<Object *>(smm), "chardev");
 }
 
 static const TypeInfo sm501_sysbus_info = {
@@ -2203,7 +2203,7 @@ void SM501PCIState::realize(Error **errp)
     SM501PCIState *s = this;
     PCIDevice *dev = &s->parent_obj;
 
-    s->state.init(DEVICE(dev), s->vram_size);
+    s->state.init(reinterpret_cast<DeviceState *>(dev), s->vram_size);
     if (get_local_mem_size(&s->state) != s->vram_size) {
         error_setg(errp, "Invalid VRAM size, nearest valid size is %" PRIu32,
                    get_local_mem_size(&s->state));
@@ -2246,8 +2246,8 @@ static const VMStateDescription vmstate_sm501_pci = {
 
 void SM501PCIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = realizeWrapper;
     k->vendor_id = PCI_VENDOR_ID_SILICON_MOTION;

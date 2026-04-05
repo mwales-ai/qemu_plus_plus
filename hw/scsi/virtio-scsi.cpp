@@ -86,13 +86,13 @@ SCSIDevice *VirtIOSCSI::deviceGet(uint8_t *lun)
 
 void VirtIOSCSI::initReq(VirtQueue *vq, VirtIOSCSIReq *req)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     const size_t zero_skip =
         offsetof(VirtIOSCSIReq, resp_iov) + sizeof(req->resp_iov);
 
     req->vq = vq;
     req->dev = this;
-    qemu_sglist_init(&req->qsgl, DEVICE(this), 8, vdev->dma_as);
+    qemu_sglist_init(&req->qsgl, reinterpret_cast<DeviceState *>(this), 8, vdev->dma_as);
     qemu_iovec_init(&req->resp_iov, 1);
     memset((uint8_t *)req + zero_skip, 0, sizeof(*req) - zero_skip);
 }
@@ -108,7 +108,7 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req, QemuMutex *vq_lock)
 {
     VirtIOSCSI *s = req->dev;
     VirtQueue *vq = req->vq;
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(s);
 
     qemu_iovec_from_buf(&req->resp_iov, 0, &req->resp, req->resp_size);
 
@@ -132,7 +132,7 @@ static void virtio_scsi_complete_req(VirtIOSCSIReq *req, QemuMutex *vq_lock)
 
 static void virtio_scsi_bad_req(VirtIOSCSIReq *req, QemuMutex *vq_lock)
 {
-    virtio_error(VIRTIO_DEVICE(req->dev), "wrong size for virtio-scsi headers");
+    virtio_error(reinterpret_cast<VirtIODevice *>(req->dev), "wrong size for virtio-scsi headers");
 
     if (vq_lock) {
         qemu_mutex_lock(vq_lock);
@@ -253,8 +253,8 @@ VirtIOSCSIReq *VirtIOSCSI::popReq(VirtQueue *vq, QemuMutex *vq_lock)
 static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
 {
     VirtIOSCSIReq *req = static_cast<VirtIOSCSIReq *>(sreq->hba_private);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(req->dev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(req->dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(req->dev);
     uint32_t n = virtio_get_queue_index(req->vq) - VIRTIO_SCSI_VQ_NUM_FIXED;
 
     assert(n < vs->conf.num_queues);
@@ -266,8 +266,8 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 {
     SCSIBus *bus = sreq->bus;
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(s);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(s);
     VirtIOSCSIReq *req;
     uint32_t n;
 
@@ -479,7 +479,7 @@ int VirtIOSCSI::doTmf(VirtIOSCSIReq *req)
      * to avoid compiler errors.
      */
     req->req.tmf.subtype =
-        virtio_tswap32(VIRTIO_DEVICE(this), req->req.tmf.subtype);
+        virtio_tswap32(reinterpret_cast<VirtIODevice *>(this), req->req.tmf.subtype);
 
     trace_virtio_scsi_tmf_req(virtio_scsi_get_lun(req->req.tmf.lun),
                               req->req.tmf.tag, req->req.tmf.subtype);
@@ -546,7 +546,7 @@ int VirtIOSCSI::doTmf(VirtIOSCSIReq *req)
 
         rcu_read_lock();
         QTAILQ_FOREACH_RCU(kid, &bus.qbus.children, sibling) {
-            SCSIDevice *d1 = SCSI_DEVICE(kid->child);
+            SCSIDevice *d1 = reinterpret_cast<SCSIDevice *>(kid->child);
             if (d1->channel == 0 && d1->id == target) {
                 device_cold_reset(&d1->qdev);
             }
@@ -615,17 +615,17 @@ int VirtIOSCSI::doTmf(VirtIOSCSIReq *req)
         break;
     }
 
-    object_unref(OBJECT(d));
+    object_unref(reinterpret_cast<Object *>(d));
     return ret;
 
 incorrect_lun:
     req->resp.tmf.response = VIRTIO_SCSI_S_INCORRECT_LUN;
-    object_unref(OBJECT(d));
+    object_unref(reinterpret_cast<Object *>(d));
     return ret;
 
 fail:
     req->resp.tmf.response = VIRTIO_SCSI_S_BAD_TARGET;
-    object_unref(OBJECT(d));
+    object_unref(reinterpret_cast<Object *>(d));
     return ret;
 }
 
@@ -659,7 +659,7 @@ void VirtIOSCSI::handleCtrlReq(VirtIOSCSIReq *req)
             return;
         } else {
             req->req.an.event_requested =
-                virtio_tswap32(VIRTIO_DEVICE(this), req->req.an.event_requested);
+                virtio_tswap32(reinterpret_cast<VirtIODevice *>(this), req->req.an.event_requested);
             trace_virtio_scsi_an_req(virtio_scsi_get_lun(req->req.an.lun),
                                      req->req.an.event_requested);
             req->resp.an.event_actual = 0;
@@ -785,7 +785,7 @@ static void virtio_scsi_command_complete(SCSIRequest *r, size_t resid)
     VirtIOSCSIReq *req = static_cast<VirtIOSCSIReq *>(r->hba_private);
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
-    VirtIODevice *vdev = VIRTIO_DEVICE(req->dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(req->dev);
 
     if (r->io_canceled) {
         return;
@@ -855,7 +855,7 @@ static void virtio_scsi_fail_cmd_req(VirtIOSCSIReq *req)
 
 int VirtIOSCSI::handleCmdReqPrepare(VirtIOSCSIReq *req)
 {
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(this);
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(this);
     SCSIDevice *d;
     int rc;
 
@@ -888,12 +888,12 @@ int VirtIOSCSI::handleCmdReqPrepare(VirtIOSCSIReq *req)
             req->sreq->cmd.xfer > req->qsgl.size)) {
         req->resp.cmd.response = VIRTIO_SCSI_S_OVERRUN;
         virtio_scsi_complete_cmd_req(req);
-        object_unref(OBJECT(d));
+        object_unref(reinterpret_cast<Object *>(d));
         return -ENOBUFS;
     }
     scsi_req_ref(req->sreq);
     defer_call_begin();
-    object_unref(OBJECT(d));
+    object_unref(reinterpret_cast<Object *>(d));
     return 0;
 }
 
@@ -963,7 +963,7 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
                                    uint8_t *config)
 {
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
-    VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(vdev);
+    VirtIOSCSICommon *s = reinterpret_cast<VirtIOSCSICommon *>(vdev);
 
     virtio_stl_p(vdev, &scsiconf->num_queues, s->conf.num_queues);
     virtio_stl_p(vdev, &scsiconf->seg_max,
@@ -982,7 +982,7 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
                                    const uint8_t *config)
 {
     VirtIOSCSIConfig *scsiconf = (VirtIOSCSIConfig *)config;
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(vdev);
 
     if ((uint32_t) virtio_ldl_p(vdev, &scsiconf->sense_size) >= 65536 ||
         (uint32_t) virtio_ldl_p(vdev, &scsiconf->cdb_size) >= 256) {
@@ -1008,14 +1008,14 @@ static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
 
 void VirtIOSCSI::reset(void)
 {
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(this);
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(this);
 
     assert(!dataplane_started);
 
     flushDeferTmfToAioContext();
 
     qatomic_inc(&resetting);
-    bus_cold_reset(BUS(&bus));
+    bus_cold_reset(reinterpret_cast<BusState *>(&bus));
     qatomic_dec(&resetting);
 
     vs->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
@@ -1047,10 +1047,10 @@ typedef struct {
 void VirtIOSCSI::pushEvent(const void *opaque_info)
 {
     const VirtIOSCSIEventInfo *info = static_cast<const VirtIOSCSIEventInfo *>(opaque_info);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(this);
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(this);
     VirtIOSCSIReq *req;
     VirtIOSCSIEvent *evt;
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     uint32_t event = info->event;
     uint32_t reason = info->reason;
 
@@ -1125,7 +1125,7 @@ static void virtio_scsi_handle_event(VirtIODevice *vdev, VirtQueue *vq)
 static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
 {
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(s);
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_CHANGE) &&
         dev->type != TYPE_ROM) {
@@ -1145,17 +1145,17 @@ static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
 static void virtio_scsi_pre_hotplug(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
-    SCSIDevice *sd = SCSI_DEVICE(dev);
+    SCSIDevice *sd = reinterpret_cast<SCSIDevice *>(dev);
     sd->hba_supports_iothread = true;
 }
 
 static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                 Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(hotplug_dev);
     VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(vdev);
     AioContext *ctx = s->vq_aio_context[VIRTIO_SCSI_VQ_NUM_FIXED];
-    SCSIDevice *sd = SCSI_DEVICE(dev);
+    SCSIDevice *sd = reinterpret_cast<SCSIDevice *>(dev);
 
     if (ctx != qemu_get_aio_context() && !s->dataplane_fenced) {
         /*
@@ -1184,9 +1184,9 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
 static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                   Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(hotplug_dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(hotplug_dev);
     VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(vdev);
-    SCSIDevice *sd = SCSI_DEVICE(dev);
+    SCSIDevice *sd = reinterpret_cast<SCSIDevice *>(dev);
     VirtIOSCSIEventInfo info = {
         .event   = VIRTIO_SCSI_T_TRANSPORT_RESET,
         .reason  = VIRTIO_SCSI_EVT_RESET_REMOVED,
@@ -1213,7 +1213,7 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
 static void virtio_scsi_drained_begin(SCSIBus *bus)
 {
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(s);
     uint32_t total_queues = VIRTIO_SCSI_VQ_NUM_FIXED +
                             s->parent_obj.conf.num_queues;
 
@@ -1240,8 +1240,8 @@ static void virtio_scsi_drained_begin(SCSIBus *bus)
 static void virtio_scsi_drained_end(SCSIBus *bus)
 {
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
-    VirtIODevice *vdev = VIRTIO_DEVICE(s);
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(s);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(s);
     uint32_t total_queues = VIRTIO_SCSI_VQ_NUM_FIXED +
                             s->parent_obj.conf.num_queues;
 
@@ -1292,8 +1292,8 @@ void virtio_scsi_common_realize(DeviceState *dev,
                                 VirtIOHandleOutput cmd,
                                 Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(dev);
+    VirtIOSCSICommon *s = reinterpret_cast<VirtIOSCSICommon *>(dev);
     int i;
 
     virtio_init(vdev, VIRTIO_ID_SCSI, sizeof(VirtIOSCSIConfig));
@@ -1328,7 +1328,7 @@ void virtio_scsi_common_realize(DeviceState *dev,
 
 void VirtIOSCSI::realize(DeviceState *dev, Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(dev);
     Error *err = NULL;
 
     qemu_mutex_init(&ctrl_lock);
@@ -1347,7 +1347,7 @@ void VirtIOSCSI::realize(DeviceState *dev, Error **errp)
     scsi_bus_init_named(&bus, sizeof(bus), dev,
                        &virtio_scsi_scsi_info, vdev->bus_name);
     /* override default SCSI bus hotplug-handler, with virtio-scsi's one */
-    qbus_set_hotplug_handler(BUS(&bus), OBJECT(dev));
+    qbus_set_hotplug_handler(reinterpret_cast<BusState *>(&bus), reinterpret_cast<Object *>(dev));
 
     virtio_scsi_dataplane_setup(this, errp);
 }
@@ -1360,8 +1360,8 @@ static void virtio_scsi_device_realize(DeviceState *dev, Error **errp)
 
 void virtio_scsi_common_unrealize(DeviceState *dev)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(dev);
+    VirtIOSCSICommon *vs = reinterpret_cast<VirtIOSCSICommon *>(dev);
     int i;
 
     virtio_delete_queue(vs->ctrl_vq);
@@ -1379,7 +1379,7 @@ static void virtio_scsi_device_unrealize(DeviceState *dev)
     VirtIOSCSI *s = reinterpret_cast<VirtIOSCSI *>(dev);
 
     virtio_scsi_dataplane_cleanup(s);
-    qbus_set_hotplug_handler(BUS(&s->bus), NULL);
+    qbus_set_hotplug_handler(reinterpret_cast<BusState *>(&s->bus), NULL);
     virtio_scsi_common_unrealize(dev);
     qemu_mutex_destroy(&s->event_lock);
     qemu_mutex_destroy(&s->ctrl_lock);
@@ -1427,16 +1427,16 @@ static void virtio_scsi_common_class_init_impl(VirtioDeviceClass *vdc,
 
 static void virtio_scsi_common_class_init(ObjectClass *klass, const void *data)
 {
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     virtio_scsi_common_class_init_impl(vdc, dc);
 }
 
 void VirtIOSCSI::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
+    HotplugHandlerClass *hc = reinterpret_cast<HotplugHandlerClass *>(klass);
 
     device_class_set_props(dc, virtio_scsi_properties);
     dc->vmsd = &vmstate_virtio_scsi;

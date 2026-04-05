@@ -734,7 +734,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PPC460EXPCIEState, PPC460EX_PCIE_HOST)
 
 static inline PPC460EXPCIEState *ppc460ex_pcie_from_obj(void *obj)
 {
-    return reinterpret_cast<PPC460EXPCIEState *>(PPC460EX_PCIE_HOST(obj));
+    return reinterpret_cast<PPC460EXPCIEState *>(reinterpret_cast<PPC460EXPCIEState *>(obj));
 }
 
 struct PPC460EXPCIEState {
@@ -897,7 +897,7 @@ static void dcr_write_pcie(void *opaque, int dcrn, uint32_t val)
         if (size > PCIE_MMCFG_SIZE_MAX) {
             size = PCIE_MMCFG_SIZE_MAX;
         }
-        pcie_host_mmcfg_update(PCIE_HOST_BRIDGE(s), val & 1, s->cfg_base, size);
+        pcie_host_mmcfg_update(reinterpret_cast<PCIExpressHost *>(s), val & 1, s->cfg_base, size);
         break;
     case PEGPL_MSGBAH:
         s->msg_base = ((uint64_t)val << 32) | (s->msg_base & 0xffffffff);
@@ -1010,8 +1010,8 @@ void PPC460EXPCIEState::realizeWrapper(DeviceState *dev, Error **errp)
 void PPC460EXPCIEState::realize(Error **errp)
 {
     PPC460EXPCIEState *s = this;
-    DeviceState *dev = DEVICE(s);
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(s);
+    PCIHostState *pci = reinterpret_cast<PCIHostState *>(dev);
     int i;
     char buf[20];
 
@@ -1024,14 +1024,14 @@ void PPC460EXPCIEState::realize(Error **errp)
         return;
     }
     snprintf(buf, sizeof(buf), "pcie%d-mem", s->num);
-    memory_region_init(&s->busmem, OBJECT(s), buf, UINT64_MAX);
+    memory_region_init(&s->busmem, reinterpret_cast<Object *>(s), buf, UINT64_MAX);
     snprintf(buf, sizeof(buf), "pcie%d-io", s->num);
-    memory_region_init(&s->iomem, OBJECT(s), buf, 64 * KiB);
+    memory_region_init(&s->iomem, reinterpret_cast<Object *>(s), buf, 64 * KiB);
     for (i = 0; i < 4; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
+        sysbus_init_irq(reinterpret_cast<SysBusDevice *>(dev), &s->irq[i]);
     }
     snprintf(buf, sizeof(buf), "pcie.%d", s->num);
-    pci->bus = pci_register_root_bus(DEVICE(s), buf, ppc460ex_set_irq,
+    pci->bus = pci_register_root_bus(reinterpret_cast<DeviceState *>(s), buf, ppc460ex_set_irq,
                                 pci_swizzle_map_irq_fn, s, &s->busmem,
                                 &s->iomem, 0, 4, TYPE_PCIE_BUS);
     ppc460ex_pcie_register_dcrs(s);
@@ -1046,7 +1046,7 @@ static const Property ppc460ex_pcie_props[] = {
 
 void PPC460EXPCIEState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->realize = realizeWrapper;

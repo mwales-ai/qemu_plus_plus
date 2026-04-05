@@ -582,7 +582,7 @@ void rc4030State::reset()
 
 void rc4030State::resetWrapper(DeviceState *dev)
 {
-    rc4030State *s = RC4030(dev);
+    rc4030State *s = reinterpret_cast<rc4030State *>(dev);
     s->reset();
 }
 
@@ -691,9 +691,9 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
 
 void rc4030State::instanceInit(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    rc4030State *s = RC4030(obj);
-    SysBusDevice *sysbus = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    rc4030State *s = reinterpret_cast<rc4030State *>(obj);
+    SysBusDevice *sysbus = reinterpret_cast<SysBusDevice *>(obj);
 
     qdev_init_gpio_in(dev, irqJazzRequest, 16);
 
@@ -706,7 +706,7 @@ void rc4030State::instanceInit(Object *obj)
 
 void rc4030State::realize(Error **errp)
 {
-    Object *o = OBJECT(this);
+    Object *o = reinterpret_cast<Object *>(this);
 
     periodic_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                   periodicTimer, this);
@@ -719,12 +719,12 @@ void rc4030State::realize(Error **errp)
     memory_region_init_iommu(&dma_mr, sizeof(dma_mr),
                              TYPE_RC4030_IOMMU_MEMORY_REGION,
                              o, "rc4030.dma", 4 * GiB);
-    address_space_init(&dma_as, MEMORY_REGION(&dma_mr), "rc4030-dma");
+    address_space_init(&dma_as, reinterpret_cast<MemoryRegion *>(&dma_mr), "rc4030-dma");
 }
 
 void rc4030State::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    rc4030State *s = RC4030(dev);
+    rc4030State *s = reinterpret_cast<rc4030State *>(dev);
     s->realize(errp);
 }
 
@@ -733,18 +733,18 @@ void rc4030State::unrealize()
     timer_free(periodic_timer);
 
     address_space_destroy(&dma_as);
-    object_unparent(OBJECT(&dma_mr));
+    object_unparent(reinterpret_cast<Object *>(&dma_mr));
 }
 
 void rc4030State::unrealizeWrapper(DeviceState *dev)
 {
-    rc4030State *s = RC4030(dev);
+    rc4030State *s = reinterpret_cast<rc4030State *>(dev);
     s->unrealize();
 }
 
 void rc4030State::classInit(ObjectClass *klass, const void *class_data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = realizeWrapper;
     dc->unrealize = unrealizeWrapper;
@@ -762,7 +762,7 @@ static const TypeInfo rc4030_info = {
 
 void rc4030State::iommuClassInit(ObjectClass *klass, const void *data)
 {
-    IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
+    IOMMUMemoryRegionClass *imrc = reinterpret_cast<IOMMUMemoryRegionClass *>(klass);
 
     imrc->translate = rc4030State::dmaTranslate;
 }
@@ -786,9 +786,9 @@ DeviceState *rc4030_init(rc4030_dma **dmas, IOMMUMemoryRegion **dma_mr)
     DeviceState *dev;
 
     dev = qdev_new(TYPE_RC4030);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
 
     *dmas = rc4030_allocate_dmas(dev, 4);
-    *dma_mr = &RC4030(dev)->dma_mr;
+    *dma_mr = &reinterpret_cast<rc4030State *>(dev)->dma_mr;
     return dev;
 }

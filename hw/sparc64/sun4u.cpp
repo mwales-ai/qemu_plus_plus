@@ -276,15 +276,15 @@ static const MemoryRegionOps power_mem_ops = {
 
 void PowerDevice::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PowerDevice *d = SUN4U_POWER(dev);
+    PowerDevice *d = reinterpret_cast<PowerDevice *>(dev);
     d->realizeDevice(errp);
 }
 
 void PowerDevice::realizeDevice(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&power_mmio, OBJECT(this), &power_mem_ops, this,
+    memory_region_init_io(&power_mmio, reinterpret_cast<Object *>(this), &power_mem_ops, this,
                           "power", sizeof(uint32_t));
 
     sysbus_init_mmio(sbd, &power_mmio);
@@ -292,7 +292,7 @@ void PowerDevice::realizeDevice(Error **errp)
 
 void PowerDevice::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = PowerDevice::realizeWrapper;
 }
@@ -306,7 +306,7 @@ static const TypeInfo power_info = {
 
 void EbusState::isaIrqHandler(void *opaque, int n, int level)
 {
-    EbusState *s = EBUS(opaque);
+    EbusState *s = reinterpret_cast<EbusState *>(opaque);
     qemu_irq irq = s->isa_irqs_out[n];
 
     /* Pass ISA bus IRQs onto their gpio equivalent */
@@ -319,20 +319,20 @@ void EbusState::isaIrqHandler(void *opaque, int n, int level)
 /* EBUS (Eight bit bus) bridge */
 void EbusState::realizeWrapper(PCIDevice *pci_dev, Error **errp)
 {
-    EbusState *s = EBUS(pci_dev);
+    EbusState *s = reinterpret_cast<EbusState *>(pci_dev);
     s->realizeDevice(errp);
 }
 
 void EbusState::realizeDevice(Error **errp)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(this);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(this);
     ISADevice *isa_dev;
     SysBusDevice *sbd;
     DeviceState *dev;
     DriveInfo *fd[MAX_FD];
     int i;
 
-    isa_bus = isa_bus_new(DEVICE(pci_dev), get_system_memory(),
+    isa_bus = isa_bus_new(reinterpret_cast<DeviceState *>(pci_dev), get_system_memory(),
                           pci_address_space_io(pci_dev), errp);
     if (!isa_bus) {
         error_setg(errp, "unable to instantiate EBUS ISA bus");
@@ -342,7 +342,7 @@ void EbusState::realizeDevice(Error **errp)
     /* ISA bus */
     isa_irqs_in = qemu_allocate_irqs(EbusState::isaIrqHandler, this, ISA_NUM_IRQS);
     isa_bus_register_input_irqs(isa_bus, isa_irqs_in);
-    qdev_init_gpio_out_named(DEVICE(this), isa_irqs_out, "isa-irq",
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(this), isa_irqs_out, "isa-irq",
                              ISA_NUM_IRQS);
 
     /* Serial ports */
@@ -365,14 +365,14 @@ void EbusState::realizeDevice(Error **errp)
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
     isa_dev = isa_new(TYPE_ISA_FDC);
-    dev = DEVICE(isa_dev);
+    dev = reinterpret_cast<DeviceState *>(isa_dev);
     qdev_prop_set_uint32(dev, "dma", -1);
     isa_realize_and_unref(isa_dev, isa_bus, &error_fatal);
     isa_fdc_init_drives(isa_dev, fd);
 
     /* Power */
     dev = qdev_new(TYPE_SUN4U_POWER);
-    sbd = SYS_BUS_DEVICE(dev);
+    sbd = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(sbd, &error_fatal);
     memory_region_add_subregion(pci_address_space_io(pci_dev), 0x7240,
                                 sysbus_mmio_get_region(sbd, 0));
@@ -390,10 +390,10 @@ void EbusState::realizeDevice(Error **errp)
      * memory access to this region to succeed which allows the OpenBSD kernel
      * to boot.
      */
-    memory_region_init_io(&bar0, OBJECT(this), &unassigned_io_ops, this,
+    memory_region_init_io(&bar0, reinterpret_cast<Object *>(this), &unassigned_io_ops, this,
                           "bar0", 0x1000000);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &bar0);
-    memory_region_init_alias(&bar1, OBJECT(this), "bar1",
+    memory_region_init_alias(&bar1, reinterpret_cast<Object *>(this), "bar1",
                              pci_address_space_io(pci_dev), 0, 0x8000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &bar1);
 }
@@ -405,8 +405,8 @@ static const Property ebus_properties[] = {
 
 void EbusState::classInit(ObjectClass *klass, const void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     k->realize = EbusState::realizeWrapper;
     k->vendor_id = PCI_VENDOR_ID_SUN;
@@ -460,7 +460,7 @@ static void prom_init(hwaddr addr, const char *bios_name)
     int ret;
 
     dev = qdev_new(TYPE_OPENPROM);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
 
     sysbus_mmio_map(s, 0, addr);
@@ -488,15 +488,15 @@ static void prom_init(hwaddr addr, const char *bios_name)
 
 void PROMState::realizeWrapper(DeviceState *ds, Error **errp)
 {
-    PROMState *s = OPENPROM(ds);
+    PROMState *s = reinterpret_cast<PROMState *>(ds);
     s->realizeDevice(errp);
 }
 
 void PROMState::realizeDevice(Error **errp)
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
-    if (!memory_region_init_ram_nomigrate(&prom, OBJECT(this), "sun4u.prom",
+    if (!memory_region_init_ram_nomigrate(&prom, reinterpret_cast<Object *>(this), "sun4u.prom",
                                           PROM_SIZE_MAX, errp)) {
         return;
     }
@@ -508,7 +508,7 @@ void PROMState::realizeDevice(Error **errp)
 
 void PROMState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = PROMState::realizeWrapper;
 }
@@ -543,15 +543,15 @@ struct RamDevice {
 /* System RAM */
 void RamDevice::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    RamDevice *d = SUN4U_RAM(dev);
+    RamDevice *d = reinterpret_cast<RamDevice *>(dev);
     d->realizeDevice(errp);
 }
 
 void RamDevice::realizeDevice(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_ram_nomigrate(&ram, OBJECT(this), "sun4u.ram", size,
+    memory_region_init_ram_nomigrate(&ram, reinterpret_cast<Object *>(this), "sun4u.ram", size,
                            &error_fatal);
     vmstate_register_ram_global(&ram);
     sysbus_init_mmio(sbd, &ram);
@@ -565,9 +565,9 @@ static void ram_init(hwaddr addr, ram_addr_t RAM_size)
 
     /* allocate RAM */
     dev = qdev_new(TYPE_SUN4U_MEMORY);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
 
-    d = SUN4U_RAM(dev);
+    d = reinterpret_cast<RamDevice *>(dev);
     d->size = RAM_size;
     sysbus_realize_and_unref(s, &error_fatal);
 
@@ -580,7 +580,7 @@ static const Property ram_properties[] = {
 
 void RamDevice::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = RamDevice::realizeWrapper;
     device_class_set_props(dc, ram_properties);
@@ -617,7 +617,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     /* IOMMU */
     iommu = qdev_new(TYPE_SUN4U_IOMMU);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(iommu), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(iommu), &error_fatal);
 
     /* set up devices */
     ram_init(0, machine->ram_size);
@@ -626,26 +626,26 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     /* Init sabre (PCI host bridge) */
     sabre = SABRE(qdev_new(TYPE_SABRE));
-    qdev_prop_set_uint64(DEVICE(sabre), "special-base", PBM_SPECIAL_BASE);
-    qdev_prop_set_uint64(DEVICE(sabre), "mem-base", PBM_MEM_BASE);
-    object_property_set_link(OBJECT(sabre), "iommu", OBJECT(iommu),
+    qdev_prop_set_uint64(reinterpret_cast<DeviceState *>(sabre), "special-base", PBM_SPECIAL_BASE);
+    qdev_prop_set_uint64(reinterpret_cast<DeviceState *>(sabre), "mem-base", PBM_MEM_BASE);
+    object_property_set_link(reinterpret_cast<Object *>(sabre), "iommu", reinterpret_cast<Object *>(iommu),
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(sabre), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(sabre), &error_fatal);
 
     /* sabre_config */
-    sysbus_mmio_map(SYS_BUS_DEVICE(sabre), 0, PBM_SPECIAL_BASE);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(sabre), 0, PBM_SPECIAL_BASE);
     /* PCI configuration space */
-    sysbus_mmio_map(SYS_BUS_DEVICE(sabre), 1, PBM_SPECIAL_BASE + 0x1000000ULL);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(sabre), 1, PBM_SPECIAL_BASE + 0x1000000ULL);
     /* pci_ioport */
-    sysbus_mmio_map(SYS_BUS_DEVICE(sabre), 2, PBM_SPECIAL_BASE + 0x2000000ULL);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(sabre), 2, PBM_SPECIAL_BASE + 0x2000000ULL);
 
     /* Wire up PCI interrupts to CPU */
     for (i = 0; i < IVEC_MAX; i++) {
-        qdev_connect_gpio_out_named(DEVICE(sabre), "ivec-irq", i,
-            qdev_get_gpio_in_named(DEVICE(cpu), "ivec-irq", i));
+        qdev_connect_gpio_out_named(reinterpret_cast<DeviceState *>(sabre), "ivec-irq", i,
+            qdev_get_gpio_in_named(reinterpret_cast<DeviceState *>(cpu), "ivec-irq", i));
     }
 
-    pci_bus = PCI_HOST_BRIDGE(sabre)->bus;
+    pci_bus = reinterpret_cast<PCIHostState *>(sabre)->bus;
     pci_busA = pci_bridge_get_sec_bus(sabre->bridgeA);
     pci_busB = pci_bridge_get_sec_bus(sabre->bridgeB);
 
@@ -657,21 +657,21 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_bus_set_slot_reserved_mask(pci_busB, 0xfffffff0);
 
     ebus = pci_new_multifunction(PCI_DEVFN(1, 0), TYPE_EBUS);
-    qdev_prop_set_uint64(DEVICE(ebus), "console-serial-base",
+    qdev_prop_set_uint64(reinterpret_cast<DeviceState *>(ebus), "console-serial-base",
                          hwdef->console_serial_base);
     pci_realize_and_unref(ebus, pci_busA, &error_fatal);
 
     /* Wire up "well-known" ISA IRQs to PBM legacy obio IRQs */
-    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 7,
-        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_LPT_IRQ));
-    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 6,
-        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_FDD_IRQ));
-    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 1,
-        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_KBD_IRQ));
-    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 12,
-        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_MSE_IRQ));
-    qdev_connect_gpio_out_named(DEVICE(ebus), "isa-irq", 4,
-        qdev_get_gpio_in_named(DEVICE(sabre), "pbm-irq", OBIO_SER_IRQ));
+    qdev_connect_gpio_out_named(reinterpret_cast<DeviceState *>(ebus), "isa-irq", 7,
+        qdev_get_gpio_in_named(reinterpret_cast<DeviceState *>(sabre), "pbm-irq", OBIO_LPT_IRQ));
+    qdev_connect_gpio_out_named(reinterpret_cast<DeviceState *>(ebus), "isa-irq", 6,
+        qdev_get_gpio_in_named(reinterpret_cast<DeviceState *>(sabre), "pbm-irq", OBIO_FDD_IRQ));
+    qdev_connect_gpio_out_named(reinterpret_cast<DeviceState *>(ebus), "isa-irq", 1,
+        qdev_get_gpio_in_named(reinterpret_cast<DeviceState *>(sabre), "pbm-irq", OBIO_KBD_IRQ));
+    qdev_connect_gpio_out_named(reinterpret_cast<DeviceState *>(ebus), "isa-irq", 12,
+        qdev_get_gpio_in_named(reinterpret_cast<DeviceState *>(sabre), "pbm-irq", OBIO_MSE_IRQ));
+    qdev_connect_gpio_out_named(reinterpret_cast<DeviceState *>(ebus), "isa-irq", 4,
+        qdev_get_gpio_in_named(reinterpret_cast<DeviceState *>(sabre), "pbm-irq", OBIO_SER_IRQ));
 
     switch (vga_interface_type) {
     case VGA_STD:
@@ -713,11 +713,11 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     /* Map NVRAM into I/O (ebus) space */
     dev = qdev_new("sysbus-m48t59");
     qdev_prop_set_int32(dev, "base-year", 1968);
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     memory_region_add_subregion(pci_address_space_io(ebus), 0x2000,
                                 sysbus_mmio_get_region(s, 0));
-    nvram = NVRAM(dev);
+    nvram = reinterpret_cast<Nvram *>(dev);
  
     initrd_size = 0;
     initrd_addr = 0;
@@ -738,12 +738,12 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     dev = qdev_new(TYPE_FW_CFG_IO);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(ebus), TYPE_FW_CFG, OBJECT(dev));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    object_property_add_child(reinterpret_cast<Object *>(ebus), TYPE_FW_CFG, reinterpret_cast<Object *>(dev));
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
     memory_region_add_subregion(pci_address_space_io(ebus), BIOS_CFG_IOPORT,
-                                &FW_CFG_IO(dev)->comb_iomem);
+                                &reinterpret_cast<FWCfgIoState *>(dev)->comb_iomem);
 
-    fw_cfg = FW_CFG(dev);
+    fw_cfg = reinterpret_cast<FWCfgState *>(dev);
     fw_cfg_add_i16(fw_cfg, FW_CFG_NB_CPUS, (uint16_t)machine->smp.cpus);
     fw_cfg_add_i16(fw_cfg, FW_CFG_MAX_CPUS, (uint16_t)machine->smp.max_cpus);
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)machine->ram_size);
@@ -782,8 +782,8 @@ static char *sun4u_fw_dev_path(FWPathProvider *p, BusState *bus,
 {
     PCIDevice *pci;
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "pbm-bridge")) {
-        pci = PCI_DEVICE(dev);
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "pbm-bridge")) {
+        pci = reinterpret_cast<PCIDevice *>(dev);
 
         if (PCI_FUNC(pci->devfn)) {
             return g_strdup_printf("pci@%x,%x", PCI_SLOT(pci->devfn),
@@ -793,15 +793,15 @@ static char *sun4u_fw_dev_path(FWPathProvider *p, BusState *bus,
         }
     }
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-hd")) {
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "ide-hd")) {
         return g_strdup("disk");
     }
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-cd")) {
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "ide-cd")) {
         return g_strdup("cdrom");
     }
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "virtio-blk-device")) {
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "virtio-blk-device")) {
         return g_strdup("disk");
     }
 
@@ -847,8 +847,8 @@ struct Sun4uMachine {
 
 void Sun4uMachine::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    FWPathProviderClass *fwc = reinterpret_cast<FWPathProviderClass *>(oc);
 
     mc->desc = "Sun4u platform";
     mc->init = sun4u_init;
@@ -881,7 +881,7 @@ struct Sun4vMachine {
 
 void Sun4vMachine::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "Sun4v platform";
     mc->init = sun4v_init;

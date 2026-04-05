@@ -202,7 +202,7 @@ static void sbsa_fdt_add_gic_node(SBSAMachineState *sms)
 static void create_fdt(SBSAMachineState *sms)
 {
     void *fdt = create_device_tree(&sms->fdt_size);
-    const MachineState *ms = MACHINE(sms);
+    const MachineState *ms = reinterpret_cast<MachineState *>(sms);
     int nb_numa_nodes = ms->numa_state->num_nodes;
     int cpu;
 
@@ -271,8 +271,8 @@ static void create_fdt(SBSAMachineState *sms)
 
     for (cpu = sms->smp_cpus - 1; cpu >= 0; cpu--) {
         char *nodename = g_strdup_printf("/cpus/cpu@%d", cpu);
-        ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
-        CPUState *cs = CPU(armcpu);
+        ARMCPU *armcpu = reinterpret_cast<ARMCPU *>(qemu_get_cpu(cpu));
+        CPUState *cs = reinterpret_cast<CPUState *>(armcpu);
         uint64_t mpidr = sbsa_ref_cpu_mp_affinity(sms, cpu);
 
         qemu_fdt_add_subnode(sms->fdt, nodename);
@@ -318,10 +318,10 @@ static PFlashCFI01 *sbsa_flash_create1(SBSAMachineState *sms,
     qdev_prop_set_uint16(dev, "id2", 0x00);
     qdev_prop_set_uint16(dev, "id3", 0x00);
     qdev_prop_set_string(dev, "name", name);
-    object_property_add_child(OBJECT(sms), name, OBJECT(dev));
-    object_property_add_alias(OBJECT(sms), alias_prop_name,
-                              OBJECT(dev), "drive");
-    return PFLASH_CFI01(dev);
+    object_property_add_child(reinterpret_cast<Object *>(sms), name, reinterpret_cast<Object *>(dev));
+    object_property_add_alias(reinterpret_cast<Object *>(sms), alias_prop_name,
+                              reinterpret_cast<Object *>(dev), "drive");
+    return reinterpret_cast<PFlashCFI01 *>(dev);
 }
 
 static void sbsa_flash_create(SBSAMachineState *sms)
@@ -334,15 +334,15 @@ static void sbsa_flash_map1(PFlashCFI01 *flash,
                             hwaddr base, hwaddr size,
                             MemoryRegion *sysmem)
 {
-    DeviceState *dev = DEVICE(flash);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(flash);
 
     assert(QEMU_IS_ALIGNED(size, SBSA_FLASH_SECTOR_SIZE));
     assert(size / SBSA_FLASH_SECTOR_SIZE <= UINT32_MAX);
     qdev_prop_set_uint32(dev, "num-blocks", size / SBSA_FLASH_SECTOR_SIZE);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
 
     memory_region_add_subregion(sysmem, base,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev),
+                                sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(dev),
                                                        0));
 }
 
@@ -383,7 +383,7 @@ static bool sbsa_firmware_init(SBSAMachineState *sms,
 
     pflash_blk0 = pflash_cfi01_get_blk(sms->flash[0]);
 
-    bios_name = MACHINE(sms)->firmware;
+    bios_name = reinterpret_cast<MachineState *>(sms)->firmware;
     if (bios_name) {
         char *fname;
         MemoryRegion *mr;
@@ -403,7 +403,7 @@ static bool sbsa_firmware_init(SBSAMachineState *sms,
             error_report("Could not find ROM image '%s'", bios_name);
             exit(1);
         }
-        mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(sms->flash[0]), 0);
+        mr = sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(sms->flash[0]), 0);
         image_size = load_image_mr(fname, mr);
         g_free(fname);
         if (image_size < 0) {
@@ -434,15 +434,15 @@ static void create_its(SBSAMachineState *sms)
 
     dev = qdev_new(itsclass);
 
-    object_property_set_link(OBJECT(dev), "parent-gicv3", OBJECT(sms->gic),
+    object_property_set_link(reinterpret_cast<Object *>(dev), "parent-gicv3", reinterpret_cast<Object *>(sms->gic),
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, sbsa_ref_memmap[SBSA_GIC_ITS].base);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, sbsa_ref_memmap[SBSA_GIC_ITS].base);
 }
 
 static void create_gic(SBSAMachineState *sms, MemoryRegion *mem)
 {
-    unsigned int smp_cpus = MACHINE(sms)->smp.cpus;
+    unsigned int smp_cpus = reinterpret_cast<MachineState *>(sms)->smp.cpus;
     SysBusDevice *gicbusdev;
     const char *gictype;
     uint32_t redist0_capacity, redist0_count;
@@ -469,11 +469,11 @@ static void create_gic(SBSAMachineState *sms, MemoryRegion *mem)
     qlist_append_int(redist_region_count, redist0_count);
     qdev_prop_set_array(sms->gic, "redist-region-count", redist_region_count);
 
-    object_property_set_link(OBJECT(sms->gic), "sysmem",
-                             OBJECT(mem), &error_fatal);
+    object_property_set_link(reinterpret_cast<Object *>(sms->gic), "sysmem",
+                             reinterpret_cast<Object *>(mem), &error_fatal);
     qdev_prop_set_bit(sms->gic, "has-lpi", true);
 
-    gicbusdev = SYS_BUS_DEVICE(sms->gic);
+    gicbusdev = reinterpret_cast<SysBusDevice *>(sms->gic);
     sysbus_realize_and_unref(gicbusdev, &error_fatal);
     sysbus_mmio_map(gicbusdev, 0, sbsa_ref_memmap[SBSA_GIC_DIST].base);
     sysbus_mmio_map(gicbusdev, 1, sbsa_ref_memmap[SBSA_GIC_REDIST].base);
@@ -484,7 +484,7 @@ static void create_gic(SBSAMachineState *sms, MemoryRegion *mem)
      * and the GIC's IRQ/FIQ/VIRQ/VFIQ interrupt outputs to the CPU's inputs.
      */
     for (i = 0; i < smp_cpus; i++) {
-        DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
+        DeviceState *cpudev = reinterpret_cast<DeviceState *>(qemu_get_cpu(i));
         int intidbase = NUM_IRQS + i * GIC_INTERNAL;
         int irq;
         /*
@@ -534,10 +534,10 @@ static void create_uart(const SBSAMachineState *sms, int uart,
     hwaddr base = sbsa_ref_memmap[uart].base;
     int irq = sbsa_ref_irqmap[uart];
     DeviceState *dev = qdev_new(TYPE_PL011);
-    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+    SysBusDevice *s = reinterpret_cast<SysBusDevice *>(dev);
 
     qdev_prop_set_chr(dev, "chardev", chr);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
     sysbus_connect_irq(s, 0, qdev_get_gpio_in(sms->gic, irq));
@@ -556,7 +556,7 @@ static void create_wdt(const SBSAMachineState *sms)
     hwaddr rbase = sbsa_ref_memmap[SBSA_GWDT_REFRESH].base;
     hwaddr cbase = sbsa_ref_memmap[SBSA_GWDT_CONTROL].base;
     DeviceState *dev = qdev_new(TYPE_WDT_SBSA);
-    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+    SysBusDevice *s = reinterpret_cast<SysBusDevice *>(dev);
     int irq = sbsa_ref_irqmap[SBSA_GWDT_WS0];
 
     qdev_prop_set_uint64(dev, "clock-frequency", SBSA_GTIMER_HZ);
@@ -603,11 +603,11 @@ static void create_ahci(const SBSAMachineState *sms)
 
     dev = qdev_new("sysbus-ahci");
     qdev_prop_set_uint32(dev, "num-ports", NUM_SATA_PORTS);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(sms->gic, irq));
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, base);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, qdev_get_gpio_in(sms->gic, irq));
 
-    sysahci = SYSBUS_AHCI(dev);
+    sysahci = reinterpret_cast<SysbusAHCIState *>(dev);
     ide_drive_get(hd, ARRAY_SIZE(hd));
     ahci_ide_create_devs(&sysahci->ahci, hd);
 }
@@ -619,9 +619,9 @@ static void create_xhci(const SBSAMachineState *sms)
     DeviceState *dev = qdev_new(TYPE_XHCI_SYSBUS);
     qdev_prop_set_uint32(dev, "slots", XHCI_MAXSLOTS);
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(sms->gic, irq));
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, base);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, qdev_get_gpio_in(sms->gic, irq));
 }
 
 static void create_smmu(const SBSAMachineState *sms, PCIBus *bus)
@@ -633,13 +633,13 @@ static void create_smmu(const SBSAMachineState *sms, PCIBus *bus)
 
     dev = qdev_new(TYPE_ARM_SMMUV3);
 
-    object_property_set_str(OBJECT(dev), "stage", "nested", &error_abort);
-    object_property_set_link(OBJECT(dev), "primary-bus", OBJECT(bus),
+    object_property_set_str(reinterpret_cast<Object *>(dev), "stage", "nested", &error_abort);
+    object_property_set_link(reinterpret_cast<Object *>(dev), "primary-bus", reinterpret_cast<Object *>(bus),
                              &error_abort);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, base);
     for (i = 0; i < NUM_SMMU_IRQS; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), i,
                            qdev_get_gpio_in(sms->gic, irq + i));
     }
 }
@@ -662,39 +662,39 @@ static void create_pcie(SBSAMachineState *sms)
     int i;
 
     dev = qdev_new(TYPE_GPEX_HOST);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
 
     /* Map ECAM space */
     ecam_alias = g_new0(MemoryRegion, 1);
-    ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_init_alias(ecam_alias, OBJECT(dev), "pcie-ecam",
+    ecam_reg = sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(dev), 0);
+    memory_region_init_alias(ecam_alias, reinterpret_cast<Object *>(dev), "pcie-ecam",
                              ecam_reg, 0, size_ecam);
     memory_region_add_subregion(get_system_memory(), base_ecam, ecam_alias);
 
     /* Map the MMIO space */
     mmio_alias = g_new0(MemoryRegion, 1);
-    mmio_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
-    memory_region_init_alias(mmio_alias, OBJECT(dev), "pcie-mmio",
+    mmio_reg = sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(dev), 1);
+    memory_region_init_alias(mmio_alias, reinterpret_cast<Object *>(dev), "pcie-mmio",
                              mmio_reg, base_mmio, size_mmio);
     memory_region_add_subregion(get_system_memory(), base_mmio, mmio_alias);
 
     /* Map the MMIO_HIGH space */
     mmio_alias_high = g_new0(MemoryRegion, 1);
-    memory_region_init_alias(mmio_alias_high, OBJECT(dev), "pcie-mmio-high",
+    memory_region_init_alias(mmio_alias_high, reinterpret_cast<Object *>(dev), "pcie-mmio-high",
                              mmio_reg, base_mmio_high, size_mmio_high);
     memory_region_add_subregion(get_system_memory(), base_mmio_high,
                                 mmio_alias_high);
 
     /* Map IO port space */
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_pio);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 2, base_pio);
 
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), i,
                            qdev_get_gpio_in(sms->gic, irq + i));
-        gpex_set_irq_num(GPEX_HOST(dev), i, irq + i);
+        gpex_set_irq_num(reinterpret_cast<GPEXHost *>(dev), i, irq + i);
     }
 
-    pci = PCI_HOST_BRIDGE(dev);
+    pci = reinterpret_cast<PCIHostState *>(dev);
 
     pci_init_nic_devices(pci->bus, mc->default_nic);
 
@@ -716,7 +716,7 @@ static void create_secure_ec(MemoryRegion *mem)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_SECURE_EC].base;
     DeviceState *dev = qdev_new("sbsa-ec");
-    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+    SysBusDevice *s = reinterpret_cast<SysBusDevice *>(dev);
 
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
@@ -726,7 +726,7 @@ static void sbsa_ref_init(MachineState *machine)
 {
     unsigned int smp_cpus = machine->smp.cpus;
     unsigned int max_cpus = machine->smp.max_cpus;
-    SBSAMachineState *sms = SBSA_MACHINE(machine);
+    SBSAMachineState *sms = reinterpret_cast<SBSAMachineState *>(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *secure_sysmem = g_new(MemoryRegion, 1);
@@ -745,7 +745,7 @@ static void sbsa_ref_init(MachineState *machine)
      * containing the system memory at low priority; any secure-only
      * devices go in at higher priority and take precedence.
      */
-    memory_region_init(secure_sysmem, OBJECT(machine), "secure-memory",
+    memory_region_init(secure_sysmem, reinterpret_cast<Object *>(machine), "secure-memory",
                        UINT64_MAX);
     memory_region_add_subregion_overlap(secure_sysmem, 0, sysmem, -1);
 
@@ -788,10 +788,10 @@ static void sbsa_ref_init(MachineState *machine)
         object_property_set_int(cpuobj, "mp-affinity",
                                 possible_cpus->cpus[n].arch_id, NULL);
 
-        cs = CPU(cpuobj);
+        cs = reinterpret_cast<CPUState *>(cpuobj);
         cs->cpu_index = n;
 
-        numa_cpu_pre_plug(&possible_cpus->cpus[cs->cpu_index], DEVICE(cpuobj),
+        numa_cpu_pre_plug(&possible_cpus->cpus[cs->cpu_index], reinterpret_cast<DeviceState *>(cpuobj),
                           &error_fatal);
 
         if (object_property_find(cpuobj, "reset-cbar")) {
@@ -802,13 +802,13 @@ static void sbsa_ref_init(MachineState *machine)
 
         object_property_set_int(cpuobj, "cntfrq", SBSA_GTIMER_HZ, &error_abort);
 
-        object_property_set_link(cpuobj, "memory", OBJECT(sysmem),
+        object_property_set_link(cpuobj, "memory", reinterpret_cast<Object *>(sysmem),
                                  &error_abort);
 
         object_property_set_link(cpuobj, "secure-memory",
-                                 OBJECT(secure_sysmem), &error_abort);
+                                 reinterpret_cast<Object *>(secure_sysmem), &error_abort);
 
-        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+        qdev_realize(reinterpret_cast<DeviceState *>(cpuobj), NULL, &error_fatal);
         object_unref(cpuobj);
     }
 
@@ -845,13 +845,13 @@ static void sbsa_ref_init(MachineState *machine)
     sms->bootinfo.loader_start = sbsa_ref_memmap[SBSA_MEM].base;
     sms->bootinfo.get_dtb = sbsa_ref_dtb;
     sms->bootinfo.firmware_loaded = firmware_loaded;
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &sms->bootinfo);
+    arm_load_kernel(reinterpret_cast<ARMCPU *>(first_cpu), machine, &sms->bootinfo);
 }
 
 static const CPUArchIdList *sbsa_ref_possible_cpu_arch_ids(MachineState *ms)
 {
     unsigned int max_cpus = ms->smp.max_cpus;
-    SBSAMachineState *sms = SBSA_MACHINE(ms);
+    SBSAMachineState *sms = reinterpret_cast<SBSAMachineState *>(ms);
     int n;
 
     if (ms->possible_cpus) {
@@ -890,14 +890,14 @@ sbsa_ref_get_default_cpu_node_id(const MachineState *ms, int idx)
 
 static void sbsa_ref_instance_init(Object *obj)
 {
-    SBSAMachineState *sms = SBSA_MACHINE(obj);
+    SBSAMachineState *sms = reinterpret_cast<SBSAMachineState *>(obj);
 
     sbsa_flash_create(sms);
 }
 
 void SBSAMachineState::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a57"),
         ARM_CPU_TYPE_NAME("cortex-a72"),
