@@ -244,14 +244,14 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
 
 bool VirtIONet::started(uint8_t status)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     return (status & VIRTIO_CONFIG_S_DRIVER_OK) &&
         (status & VIRTIO_NET_S_LINK_UP) && vdev->vm_running;
 }
 
 void VirtIONet::announceNotify()
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     trace_virtio_net_announce_notify();
 
     this->status |= VIRTIO_NET_S_ANNOUNCE;
@@ -270,7 +270,7 @@ static void virtio_net_announce_timer(void *opaque)
 static void virtio_net_announce(NetClientState *nc)
 {
     VirtIONet *n = static_cast<VirtIONet *>(qemu_get_nic_opaque(nc));
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
 
     /*
      * Make sure the virtio migration announcement timer isn't running
@@ -289,7 +289,7 @@ static void virtio_net_announce(NetClientState *nc)
 
 void VirtIONet::vhostStatus(uint8_t status)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     NetClientState *nc = qemu_get_queue(nic);
     int queue_pairs = multiqueue ? max_queue_pairs : 1;
     int cvq = virtio_vdev_has_feature(vdev, VIRTIO_NET_F_CTRL_VQ) ?
@@ -379,7 +379,7 @@ static bool virtio_net_set_vnet_endian(VirtIODevice *vdev, NetClientState *ncs,
 
 void VirtIONet::vnetEndianStatus(uint8_t status)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     int queue_pairs = multiqueue ? max_queue_pairs : 1;
 
     if (started(status)) {
@@ -470,7 +470,7 @@ static int virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
 static void virtio_net_set_link_status(NetClientState *nc)
 {
     VirtIONet *n = static_cast<VirtIONet *>(qemu_get_nic_opaque(nc));
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     uint16_t old_status = n->status;
 
     if (nc->link_down)
@@ -489,7 +489,7 @@ static void rxfilter_notify(NetClientState *nc)
     VirtIONet *n = static_cast<VirtIONet *>(qemu_get_nic_opaque(nc));
 
     if (nc->rxfilter_notify_enabled) {
-        char *path = object_get_canonical_path(OBJECT(n->qdev));
+        char *path = object_get_canonical_path(reinterpret_cast<Object *>(n->qdev));
         qapi_event_send_nic_rx_filter_changed(n->netclient_name, path);
         g_free(path);
 
@@ -518,7 +518,7 @@ void *VirtIONet::getVlanTable()
 static RxFilterInfo *virtio_net_query_rxfilter(NetClientState *nc)
 {
     VirtIONet *n = static_cast<VirtIONet *>(qemu_get_nic_opaque(nc));
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     RxFilterInfo *info;
     strList *str_list;
     int i;
@@ -854,7 +854,7 @@ virtio_net_guest_offloads_by_features(const uint64_t *features)
 
 uint64_t virtio_net_supported_guest_offloads(const VirtIONet *n)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    const VirtIODevice *vdev = reinterpret_cast<const VirtIODevice *>(n);
     return virtio_net_guest_offloads_by_features(vdev->guest_features_ex);
 }
 
@@ -874,7 +874,7 @@ static int failover_set_primary(DeviceState *dev, void *opaque)
 {
     FailoverDevice *fdev = static_cast<FailoverDevice *>(opaque);
     PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(
-        object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE));
+        object_dynamic_cast(reinterpret_cast<Object *>(dev), TYPE_PCI_DEVICE));
 
     if (!pci_dev) {
         return 0;
@@ -929,7 +929,7 @@ void VirtIONet::failoverAddPrimary(Error **errp)
         qobject_unref(primary_opts);
         primary_opts = NULL;
     } else {
-        object_unref(OBJECT(dev));
+        object_unref(reinterpret_cast<Object *>(dev));
     }
     error_propagate(errp, err);
 }
@@ -1047,7 +1047,7 @@ int VirtIONet::handleRxMode(uint8_t cmd,
 int VirtIONet::handleOffloads(uint8_t cmd,
                                      struct iovec *iov, unsigned int iov_cnt)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     uint64_t offloads;
     size_t s;
 
@@ -1092,7 +1092,7 @@ int VirtIONet::handleOffloads(uint8_t cmd,
 int VirtIONet::handleMac(uint8_t cmd,
                                  struct iovec *iov, unsigned int iov_cnt)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     struct virtio_net_ctrl_mac mac_data;
     size_t s;
     NetClientState *nc = qemu_get_queue(nic);
@@ -1188,7 +1188,7 @@ error:
 int VirtIONet::handleVlanTable(uint8_t cmd,
                                         struct iovec *iov, unsigned int iov_cnt)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     uint16_t vid;
     size_t s;
     NetClientState *nc = qemu_get_queue(nic);
@@ -1388,7 +1388,7 @@ uint16_t VirtIONet::handleRss(struct iovec *iov,
                                       unsigned int iov_cnt,
                                       bool do_rss)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     struct virtio_net_rss_config cfg;
     size_t s, offset = 0, size_get;
     uint16_t queue_pairs, i;
@@ -1506,7 +1506,7 @@ error:
 int VirtIONet::handleMq(uint8_t cmd,
                                 struct iovec *iov, unsigned int iov_cnt)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     uint16_t queue_pairs;
     NetClientState *nc = qemu_get_queue(nic);
 
@@ -1637,7 +1637,7 @@ static void virtio_net_handle_rx(VirtIODevice *vdev, VirtQueue *vq)
 static bool virtio_net_can_receive(NetClientState *nc)
 {
     VirtIONet *n = static_cast<VirtIONet *>(qemu_get_nic_opaque(nc));
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     VirtIONetQueue *q = virtio_net_get_subqueue(nc);
 
     if (!vdev->vm_running) {
@@ -1731,7 +1731,7 @@ void VirtIONet::receiveHeader(const struct iovec *iov, int iov_cnt,
                                     size - host_hdr_len);
 
         if (needs_vnet_hdr_swap) {
-            virtio_net_hdr_swap(VIRTIO_DEVICE(this), reinterpret_cast<struct virtio_net_hdr *>(wbuf));
+            virtio_net_hdr_swap(reinterpret_cast<VirtIODevice *>(this), reinterpret_cast<struct virtio_net_hdr *>(wbuf));
         }
         iov_from_buf(iov, iov_cnt, 0, buf, sizeof(struct virtio_net_hdr));
     } else {
@@ -1913,7 +1913,7 @@ static ssize_t virtio_net_receive_rcu(NetClientState *nc, const uint8_t *buf,
 {
     VirtIONet *n = static_cast<VirtIONet *>(qemu_get_nic_opaque(nc));
     VirtIONetQueue *q;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     QEMU_UNINITIALIZED VirtQueueElement *elems[VIRTQUEUE_MAX_SIZE];
     QEMU_UNINITIALIZED size_t lens[VIRTQUEUE_MAX_SIZE];
     QEMU_UNINITIALIZED struct iovec mhdr_sg[VIRTQUEUE_MAX_SIZE];
@@ -2693,7 +2693,7 @@ static void virtio_net_tx_complete(NetClientState *nc, ssize_t len)
 {
     VirtIONet *n = static_cast<VirtIONet *>(qemu_get_nic_opaque(nc));
     VirtIONetQueue *q = virtio_net_get_subqueue(nc);
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     int ret;
 
     virtqueue_push(q->tx_vq, q->async_tx.elem, 0);
@@ -2725,7 +2725,7 @@ static void virtio_net_tx_complete(NetClientState *nc, ssize_t len)
 static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
 {
     VirtIONet *n = q->n;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     VirtQueueElement *elem;
     int32_t num_packets = 0;
     int queue_index = vq2q(virtio_get_queue_index(q->tx_vq));
@@ -2885,7 +2885,7 @@ static void virtio_net_tx_timer(void *opaque)
 {
     VirtIONetQueue *q = static_cast<VirtIONetQueue *>(opaque);
     VirtIONet *n = q->n;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     int ret;
 
     /* This happens when device was stopped but BH wasn't. */
@@ -2935,7 +2935,7 @@ static void virtio_net_tx_bh(void *opaque)
 {
     VirtIONetQueue *q = static_cast<VirtIONetQueue *>(opaque);
     VirtIONet *n = q->n;
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     int32_t ret;
 
     /* This happens when device was stopped but BH wasn't. */
@@ -2982,7 +2982,7 @@ static void virtio_net_tx_bh(void *opaque)
 
 void VirtIONet::addQueue(int index)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
 
     vqs[index].rx_vq = virtio_add_queue(vdev, net_conf.rx_queue_size,
                                            virtio_net_handle_rx);
@@ -2999,7 +2999,7 @@ void VirtIONet::addQueue(int index)
             virtio_add_queue(vdev, net_conf.tx_queue_size,
                              virtio_net_handle_tx_bh);
         vqs[index].tx_bh = qemu_bh_new_guarded(virtio_net_tx_bh, &vqs[index],
-                                                  &DEVICE(vdev)->mem_reentrancy_guard);
+                                                  &reinterpret_cast<DeviceState *>(vdev)->mem_reentrancy_guard);
     }
 
     vqs[index].tx_waiting = 0;
@@ -3008,7 +3008,7 @@ void VirtIONet::addQueue(int index)
 
 void VirtIONet::delQueue(int index)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     VirtIONetQueue *q = &vqs[index];
     NetClientState *nc = qemu_get_subqueue(nic, index);
 
@@ -3028,7 +3028,7 @@ void VirtIONet::delQueue(int index)
 
 void VirtIONet::changeNumQueues(int new_num_queues)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     int old_num_queues = virtio_get_num_queues(vdev);
     int i;
 
@@ -3190,7 +3190,7 @@ static void virtio_net_get_features(VirtIODevice *vdev, uint64_t *features,
 static int virtio_net_post_load_device(void *opaque, int version_id)
 {
     VirtIONet *n = static_cast<VirtIONet *>(opaque);
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     int i, link_down;
     bool has_tunnel_hdr = virtio_has_tunnel_hdr(vdev->guest_features_ex);
 
@@ -3287,7 +3287,7 @@ static bool max_queue_pairs_gt_1(void *opaque, int version_id)
 
 static bool has_ctrl_guest_offloads(void *opaque, int version_id)
 {
-    return virtio_vdev_has_feature(VIRTIO_DEVICE(opaque),
+    return virtio_vdev_has_feature(reinterpret_cast<VirtIODevice *>(opaque),
                                    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS);
 }
 
@@ -3504,7 +3504,7 @@ static int vhost_user_net_save_state(QEMUFile *f, void *pv, size_t size,
                                      JSONWriter *vmdesc)
 {
     VirtIONet *n = static_cast<VirtIONet *>(pv);
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     struct vhost_dev *vhdev;
     Error *local_error = NULL;
     int ret;
@@ -3532,7 +3532,7 @@ static int vhost_user_net_load_state(QEMUFile *f, void *pv, size_t size,
                                      const VMStateField *field)
 {
     VirtIONet *n = static_cast<VirtIONet *>(pv);
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     struct vhost_dev *vhdev;
     Error *local_error = NULL;
     int ret;
@@ -3559,7 +3559,7 @@ static int vhost_user_net_load_state(QEMUFile *f, void *pv, size_t size,
 static bool vhost_user_net_is_internal_migration(void *opaque)
 {
     VirtIONet *n = static_cast<VirtIONet *>(opaque);
-    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(n);
     struct vhost_dev *vhdev;
 
     vhdev = virtio_net_get_vhost(vdev);
@@ -3756,7 +3756,7 @@ bool VirtIONet::failoverUnplugPrimary(void *devp)
 
     hotplug_ctrl = qdev_get_hotplug_handler(dev);
     if (hotplug_ctrl) {
-        pci_dev = PCI_DEVICE(dev);
+        pci_dev = reinterpret_cast<PCIDevice *>(dev);
         pci_dev->partially_hotplugged = true;
         hotplug_handler_unplug_request(hotplug_ctrl, dev, &err);
         if (err) {
@@ -3774,7 +3774,7 @@ bool VirtIONet::failoverReplugPrimary(void *devp, Error **errp)
     DeviceState *dev = static_cast<DeviceState *>(devp);
     Error *err = NULL;
     HotplugHandler *hotplug_ctrl;
-    PCIDevice *pdev = PCI_DEVICE(dev);
+    PCIDevice *pdev = reinterpret_cast<PCIDevice *>(dev);
     BusState *primary_bus;
 
     if (!pdev->partially_hotplugged) {
@@ -3894,7 +3894,7 @@ static bool failover_hide_primary_device(DeviceListener *listener,
 
 void VirtIONet::realizeImpl(DeviceState *dev, Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(dev);
     NetClientState *nc;
     int i;
 
@@ -4020,7 +4020,7 @@ void VirtIONet::realizeImpl(DeviceState *dev, Error **errp)
                            &dev->mem_reentrancy_guard, this);
     } else {
         nic = qemu_new_nic(&net_virtio_info, &nic_conf,
-                           object_get_typename(OBJECT(dev)), dev->id,
+                           object_get_typename(reinterpret_cast<Object *>(dev)), dev->id,
                            &dev->mem_reentrancy_guard, this);
     }
 
@@ -4085,7 +4085,7 @@ void VirtIONet::realizeStatic(DeviceState *dev, Error **errp)
 
 void VirtIONet::unrealizeImpl(DeviceState *dev)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(dev);
     int i, max_qp;
 
     if (virtio_has_feature(host_features, VIRTIO_NET_F_RSS)) {
@@ -4181,9 +4181,9 @@ void VirtIONet::instanceInitImpl()
      * Can be overridden with virtio_net_set_config_size.
      */
     config_size = sizeof(struct virtio_net_config);
-    device_add_bootindex_property(OBJECT(this), &nic_conf.bootindex,
+    device_add_bootindex_property(reinterpret_cast<Object *>(this), &nic_conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(this));
+                                  reinterpret_cast<DeviceState *>(this));
 
     ebpf_rss_init(&ebpf_rss);
 }
@@ -4210,7 +4210,7 @@ static bool primary_unplug_pending(void *opaque)
 {
     DeviceState *dev = static_cast<DeviceState *>(opaque);
     DeviceState *primary;
-    VirtIODevice *vdev = VIRTIO_DEVICE(dev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(dev);
     VirtIONet *n = reinterpret_cast<VirtIONet *>(vdev);
 
     if (!virtio_vdev_has_feature(vdev, VIRTIO_NET_F_STANDBY)) {
@@ -4370,8 +4370,8 @@ static const Property virtio_net_properties[] = {
 
 /* static */ void VirtIONet::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
 
     device_class_set_props(dc, virtio_net_properties);
     dc->vmsd = &vmstate_virtio_net;

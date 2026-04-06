@@ -824,7 +824,7 @@ int VirtIOGPU::createMappingIov(uint32_t nr_entries, uint32_t offset,
 
         do {
             len = l;
-            map = dma_memory_map(VIRTIO_DEVICE(this)->dma_as, a, &len,
+            map = dma_memory_map(reinterpret_cast<VirtIODevice *>(this)->dma_as, a, &len,
                                  DMA_DIRECTION_TO_DEVICE,
                                  MEMTXATTRS_UNSPECIFIED);
             if (!map) {
@@ -868,7 +868,7 @@ void VirtIOGPU::cleanupMappingIov(struct iovec *iov, uint32_t count)
     int i;
 
     for (i = 0; i < count; i++) {
-        dma_memory_unmap(VIRTIO_DEVICE(this)->dma_as,
+        dma_memory_unmap(reinterpret_cast<VirtIODevice *>(this)->dma_as,
                          iov[i].iov_base, iov[i].iov_len,
                          DMA_DIRECTION_TO_DEVICE,
                          iov[i].iov_len);
@@ -1066,13 +1066,13 @@ bool VirtIOGPU::loadRestoreMapping(struct virtio_gpu_simple_resource *res)
     for (i = 0; i < res->iov_cnt; i++) {
         hwaddr len = res->iov[i].iov_len;
         res->iov[i].iov_base =
-            dma_memory_map(VIRTIO_DEVICE(this)->dma_as, res->addrs[i], &len,
+            dma_memory_map(reinterpret_cast<VirtIODevice *>(this)->dma_as, res->addrs[i], &len,
                            DMA_DIRECTION_TO_DEVICE, MEMTXATTRS_UNSPECIFIED);
 
         if (!res->iov[i].iov_base || len != res->iov[i].iov_len) {
             /* Clean up the half-a-mapping we just created... */
             if (res->iov[i].iov_base) {
-                dma_memory_unmap(VIRTIO_DEVICE(this)->dma_as, res->iov[i].iov_base,
+                dma_memory_unmap(reinterpret_cast<VirtIODevice *>(this)->dma_as, res->iov[i].iov_base,
                                  len, DMA_DIRECTION_TO_DEVICE, 0);
             }
             /* ...and the mappings for previous loop iterations */
@@ -1089,7 +1089,7 @@ bool VirtIOGPU::loadRestoreMapping(struct virtio_gpu_simple_resource *res)
 
 void VirtIOGPU::realize(DeviceState *qdev, Error **errp)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(qdev);
 
     if (virtio_gpu_blob_enabled(parent_obj.conf)) {
         if (!virtio_gpu_rutabaga_enabled(parent_obj.conf) &&
@@ -1144,7 +1144,7 @@ void VirtIOGPU::realize(DeviceState *qdev, Error **errp)
 
 void VirtIOGPU::reset(void)
 {
-    VirtIODevice *vdev = VIRTIO_DEVICE(this);
+    VirtIODevice *vdev = reinterpret_cast<VirtIODevice *>(this);
     struct virtio_gpu_ctrl_command *cmd;
 
     if (qemu_in_vcpu_thread()) {
@@ -1340,7 +1340,7 @@ static void virtio_gpu_ctrl_bh(void *opaque)
     VirtIOGPU *g = static_cast<VirtIOGPU *>(opaque);
     VirtIOGPUClass *vgc = VIRTIO_GPU_GET_CLASS(g);
 
-    vgc->handle_ctrl(VIRTIO_DEVICE(g), g->ctrl_vq);
+    vgc->handle_ctrl(reinterpret_cast<VirtIODevice *>(g), g->ctrl_vq);
 }
 
 static void virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq)
@@ -1698,7 +1698,7 @@ static void virtio_gpu_reset_bh(void *opaque)
         if (local_err) {
             error_append_hint(&local_err, "%s: %s resource_destroy"
                               "for resource_id = %" PRIu32 " failed.\n",
-                              __func__, object_get_typename(OBJECT(g)),
+                              __func__, object_get_typename(reinterpret_cast<Object *>(g)),
                               resource_id);
             /* error_report_err frees the error object for us */
             error_report_err(local_err);
@@ -1839,9 +1839,9 @@ static void virtio_gpu_resource_destroy_wrapper(VirtIOGPU *g,
 
 void VirtIOGPU::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
+    VirtIOGPUClass *vgc = reinterpret_cast<VirtIOGPUClass *>(klass);
     VirtIOGPUBaseClass *vgbc = &vgc->parent;
 
     vgc->handle_ctrl = virtio_gpu_handle_ctrl;
