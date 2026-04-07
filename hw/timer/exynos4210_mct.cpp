@@ -1564,8 +1564,8 @@ static const MemoryRegionOps exynos4210_mct_ops = {
 void Exynos4210MCTState::instanceInit()
 {
     int i;
-    Object *obj = OBJECT(this);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
     /* Global timer */
     g_timer.ptimer_frc = ptimer_init(Exynos4210MCTState::gfrcEvent, this,
@@ -1599,7 +1599,7 @@ void Exynos4210MCTState::instanceInit()
 void Exynos4210MCTState::instanceFinalize(Object *obj)
 {
     int i;
-    Exynos4210MCTState *s = EXYNOS4210_MCT(obj);
+    Exynos4210MCTState *s = reinterpret_cast<Exynos4210MCTState *>(obj);
 
     ptimer_free(s->g_timer.ptimer_frc);
 
@@ -1611,13 +1611,13 @@ void Exynos4210MCTState::instanceFinalize(Object *obj)
 
 void Exynos4210MCTState::instanceInitWrapper(Object *obj)
 {
-    Exynos4210MCTState *s = EXYNOS4210_MCT(obj);
+    Exynos4210MCTState *s = reinterpret_cast<Exynos4210MCTState *>(obj);
     s->instanceInit();
 }
 
 void Exynos4210MCTState::resetWrapper(DeviceState *dev)
 {
-    Exynos4210MCTState *s = EXYNOS4210_MCT(dev);
+    Exynos4210MCTState *s = reinterpret_cast<Exynos4210MCTState *>(dev);
     s->reset();
 }
 

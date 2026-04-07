@@ -70,7 +70,7 @@ OBJECT_DECLARE_TYPE(EMC141XState, EMC141XClass, EMC141X)
 void EMC141XState::getTemperature(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    EMC141XState *s = EMC141X(obj);
+    EMC141XState *s = reinterpret_cast<EMC141XState *>(obj);
     EMC141XClass *sc = EMC141X_GET_CLASS(s);
     int64_t value;
     unsigned tempid;
@@ -93,7 +93,7 @@ void EMC141XState::getTemperature(Object *obj, Visitor *v, const char *name,
 void EMC141XState::setTemperature(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    EMC141XState *s = EMC141X(obj);
+    EMC141XState *s = reinterpret_cast<EMC141XState *>(obj);
     EMC141XClass *sc = EMC141X_GET_CLASS(s);
     int64_t temp;
     unsigned tempid;
@@ -203,7 +203,7 @@ void EMC141XState::write()
 
 uint8_t EMC141XState::rx(I2CSlave *i2c)
 {
-    EMC141XState *s = EMC141X(i2c);
+    EMC141XState *s = reinterpret_cast<EMC141XState *>(i2c);
 
     if (s->len == 0) {
         s->len++;
@@ -215,7 +215,7 @@ uint8_t EMC141XState::rx(I2CSlave *i2c)
 
 int EMC141XState::tx(I2CSlave *i2c, uint8_t data)
 {
-    EMC141XState *s = EMC141X(i2c);
+    EMC141XState *s = reinterpret_cast<EMC141XState *>(i2c);
 
     if (s->len == 0) {
         /* first byte is the reg pointer */
@@ -231,7 +231,7 @@ int EMC141XState::tx(I2CSlave *i2c, uint8_t data)
 
 int EMC141XState::event(I2CSlave *i2c, enum i2c_event event)
 {
-    EMC141XState *s = EMC141X(i2c);
+    EMC141XState *s = reinterpret_cast<EMC141XState *>(i2c);
 
     if (event == I2C_START_RECV) {
         s->read();
@@ -256,7 +256,7 @@ static const VMStateDescription vmstate_emc141x = {
 
 static void emc141x_reset(DeviceState *dev)
 {
-    EMC141XState *s = EMC141X(dev);
+    EMC141XState *s = reinterpret_cast<EMC141XState *>(dev);
     s->reset();
 }
 

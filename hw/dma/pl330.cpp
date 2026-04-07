@@ -1575,12 +1575,12 @@ void PL330State::reset()
 void PL330State::realize(Error **errp)
 {
     int i;
-    DeviceState *dev = DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &irq_abort);
-    memory_region_init_io(&iomem, OBJECT(this), &pl330_ops, this,
+    sysbus_init_irq(reinterpret_cast<SysBusDevice *>(this), &irq_abort);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &pl330_ops, this,
                           "dma", PL330_IOMEM_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 
     if (!mem_mr) {
         error_setg(errp, "'memory' link is not set");
@@ -1635,7 +1635,7 @@ void PL330State::realize(Error **errp)
 
     irq = g_new0(qemu_irq, num_events);
     for (i = 0; i < num_events; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &irq[i]);
+        sysbus_init_irq(reinterpret_cast<SysBusDevice *>(this), &irq[i]);
     }
 
     qdev_init_gpio_in(dev, dmaStopIrq, PL330_PERIPH_NUM);
@@ -1694,13 +1694,13 @@ static const Property pl330_properties[] = {
 
 void PL330State::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PL330State *s = PL330(dev);
+    PL330State *s = reinterpret_cast<PL330State *>(dev);
     s->realize(errp);
 }
 
 void PL330State::resetWrapper(DeviceState *dev)
 {
-    PL330State *s = PL330(dev);
+    PL330State *s = reinterpret_cast<PL330State *>(dev);
     s->reset();
 }
 

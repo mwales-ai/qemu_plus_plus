@@ -494,14 +494,14 @@ void Exynos4210PmuState::reset()
 
 void Exynos4210PmuState::resetWrapper(DeviceState *dev)
 {
-    Exynos4210PmuState *s = EXYNOS4210_PMU(dev);
+    Exynos4210PmuState *s = reinterpret_cast<Exynos4210PmuState *>(dev);
     s->reset();
 }
 
 void Exynos4210PmuState::initfn()
 {
-    Object *obj = OBJECT(this);
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    Object *obj = reinterpret_cast<Object *>(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
     /* memory mapping */
     memory_region_init_io(&iomem, obj, &exynos4210_pmu_ops, this,
@@ -511,7 +511,7 @@ void Exynos4210PmuState::initfn()
 
 void Exynos4210PmuState::initWrapper(Object *obj)
 {
-    Exynos4210PmuState *s = EXYNOS4210_PMU(obj);
+    Exynos4210PmuState *s = reinterpret_cast<Exynos4210PmuState *>(obj);
     s->initfn();
 }
 

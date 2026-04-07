@@ -173,7 +173,7 @@ void L2x0State::writeReg(hwaddr offset, uint64_t value, unsigned size)
 
 static void l2x0_priv_reset(DeviceState *dev)
 {
-    L2x0State *s = ARM_L2X0(dev);
+    L2x0State *s = reinterpret_cast<L2x0State *>(dev);
     s->reset();
 }
 
@@ -195,15 +195,15 @@ static const MemoryRegionOps l2x0_mem_ops = {
 
 static void l2x0_priv_init(Object *obj)
 {
-    L2x0State *s = ARM_L2X0(obj);
+    L2x0State *s = reinterpret_cast<L2x0State *>(obj);
     s->instanceInit();
 }
 
 void L2x0State::instanceInit()
 {
-    memory_region_init_io(&iomem, OBJECT(this), &l2x0_mem_ops, this,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &l2x0_mem_ops, this,
                           "l2x0_cc", 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const Property l2x0_properties[] = {

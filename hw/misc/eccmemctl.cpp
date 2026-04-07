@@ -337,35 +337,35 @@ void ECCState::reset()
 
 static void ecc_reset(DeviceState *d)
 {
-    ECCState *s = ECC_MEMCTL(d);
+    ECCState *s = reinterpret_cast<ECCState *>(d);
     s->reset();
 }
 
 void ECCState::initfn()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
     sysbus_init_irq(dev, &irq);
 
-    memory_region_init_io(&iomem, OBJECT(this), &ecc_mem_ops, this, "ecc",
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &ecc_mem_ops, this, "ecc",
                           ECC_SIZE);
     sysbus_init_mmio(dev, &iomem);
 }
 
 static void ecc_init(Object *obj)
 {
-    ECCState *s = ECC_MEMCTL(obj);
+    ECCState *s = reinterpret_cast<ECCState *>(obj);
     s->initfn();
 }
 
 void ECCState::realize()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     regs[0] = version;
 
     if (version == ECC_MCC) { // SS-600MP only
-        memory_region_init_io(&iomem_diag, OBJECT(this), &ecc_diag_mem_ops,
+        memory_region_init_io(&iomem_diag, reinterpret_cast<Object *>(this), &ecc_diag_mem_ops,
                               this, "ecc.diag", ECC_DIAG_SIZE);
         sysbus_init_mmio(sbd, &iomem_diag);
     }
@@ -373,7 +373,7 @@ void ECCState::realize()
 
 static void ecc_realize(DeviceState *dev, Error **errp)
 {
-    ECCState *s = ECC_MEMCTL(dev);
+    ECCState *s = reinterpret_cast<ECCState *>(dev);
     s->realize();
 }
 

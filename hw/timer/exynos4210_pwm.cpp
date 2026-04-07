@@ -394,7 +394,7 @@ void Exynos4210PWMState::writeReg(hwaddr offset, uint64_t value,
  */
 static void exynos4210_pwm_reset(DeviceState *d)
 {
-    Exynos4210PWMState *s = EXYNOS4210_PWM(d);
+    Exynos4210PWMState *s = reinterpret_cast<Exynos4210PWMState *>(d);
     s->reset();
 }
 
@@ -427,13 +427,13 @@ static const MemoryRegionOps exynos4210_pwm_ops = {
  */
 static void exynos4210_pwm_init(Object *obj)
 {
-    Exynos4210PWMState *s = EXYNOS4210_PWM(obj);
+    Exynos4210PWMState *s = reinterpret_cast<Exynos4210PWMState *>(obj);
     s->init();
 }
 
 void Exynos4210PWMState::init()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(DEVICE(this));
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
     int i;
 
     for (i = 0; i < EXYNOS4210_PWM_TIMERS_NUM; i++) {
@@ -445,14 +445,14 @@ void Exynos4210PWMState::init()
         timer[i].parent = this;
     }
 
-    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_pwm_ops, this,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &exynos4210_pwm_ops, this,
                           "exynos4210-pwm", EXYNOS4210_PWM_REG_MEM_SIZE);
     sysbus_init_mmio(dev, &iomem);
 }
 
 static void exynos4210_pwm_finalize(Object *obj)
 {
-    Exynos4210PWMState *s = EXYNOS4210_PWM(obj);
+    Exynos4210PWMState *s = reinterpret_cast<Exynos4210PWMState *>(obj);
     s->finalize();
 }
 

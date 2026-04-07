@@ -191,7 +191,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(ZynqSLCRState, ZYNQ_SLCR)
 
 static inline ZynqSLCRState *zynq_slcr_from_obj(void *obj)
 {
-    return reinterpret_cast<ZynqSLCRState *>(ZYNQ_SLCR(obj));
+    return reinterpret_cast<ZynqSLCRState *>(obj);
 }
 
 struct ZynqSLCRState {
@@ -322,7 +322,7 @@ void ZynqSLCRState::computeClocks()
     uint64_t ps_clk_val = clock_get(ps_clk);
 
     /* consider outputs clocks are disabled while in reset */
-    if (device_is_in_reset(DEVICE(this))) {
+    if (device_is_in_reset(reinterpret_cast<DeviceState *>(this))) {
         ps_clk_val = 0;
     }
 
@@ -635,9 +635,9 @@ static void zynq_slcr_init(Object *obj)
 
     memory_region_init_io(&s->iomem, obj, &slcr_ops, s, "slcr",
                           ZYNQ_SLCR_MMIO_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(obj), &s->iomem);
 
-    qdev_init_clocks(DEVICE(obj), zynq_slcr_clocks);
+    qdev_init_clocks(reinterpret_cast<DeviceState *>(obj), zynq_slcr_clocks);
 }
 
 static const VMStateField vmstate_zynq_slcr_fields[] = {

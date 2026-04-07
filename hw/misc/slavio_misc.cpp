@@ -147,7 +147,7 @@ void MiscState::reset()
 
 void MiscState::resetWrapper(DeviceState *d)
 {
-    MiscState *s = SLAVIO_MISC(d);
+    MiscState *s = reinterpret_cast<MiscState *>(d);
     s->reset();
 }
 
@@ -465,8 +465,8 @@ static const VMStateDescription vmstate_misc = {
 
 void APCState::initfn()
 {
-    Object *obj = OBJECT(this);
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    Object *obj = reinterpret_cast<Object *>(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
     sysbus_init_irq(dev, &cpu_halt);
 
@@ -478,15 +478,15 @@ void APCState::initfn()
 
 void APCState::initWrapper(Object *obj)
 {
-    APCState *s = APC(obj);
+    APCState *s = reinterpret_cast<APCState *>(obj);
     s->initfn();
 }
 
 void MiscState::initfn()
 {
-    Object *obj = OBJECT(this);
-    DeviceState *dev = DEVICE(this);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    Object *obj = reinterpret_cast<Object *>(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     sysbus_init_irq(sbd, &irq);
     sysbus_init_irq(sbd, &fdc_tc);
@@ -534,7 +534,7 @@ void MiscState::initfn()
 
 void MiscState::initWrapper(Object *obj)
 {
-    MiscState *s = SLAVIO_MISC(obj);
+    MiscState *s = reinterpret_cast<MiscState *>(obj);
     s->initfn();
 }
 

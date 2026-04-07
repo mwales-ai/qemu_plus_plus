@@ -693,7 +693,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     qdev_prop_set_uint32(dev, "rx-size", fifo_size);
     qdev_prop_set_uint32(dev, "tx-size", fifo_size);
 
-    bus = SYS_BUS_DEVICE(dev);
+    bus = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(bus, &error_fatal);
     if (addr != (hwaddr)-1) {
         sysbus_mmio_map(bus, 0, addr);
@@ -705,12 +705,12 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
 
 void Exynos4210UartState::initfn()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
     wordtime = NANOSECONDS_PER_SECOND * 10 / 9600;
 
     /* memory mapping */
-    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_uart_ops, this,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &exynos4210_uart_ops, this,
                           "exynos4210.uart", EXYNOS4210_UART_REGS_MEM_SIZE);
     sysbus_init_mmio(dev, &iomem);
 
@@ -732,19 +732,19 @@ void Exynos4210UartState::realize(Error **errp)
 /* static QOM wrappers */
 void Exynos4210UartState::resetWrapper(DeviceState *dev)
 {
-    Exynos4210UartState *s = EXYNOS4210_UART(dev);
+    Exynos4210UartState *s = reinterpret_cast<Exynos4210UartState *>(dev);
     s->reset();
 }
 
 void Exynos4210UartState::initWrapper(Object *obj)
 {
-    Exynos4210UartState *s = EXYNOS4210_UART(obj);
+    Exynos4210UartState *s = reinterpret_cast<Exynos4210UartState *>(obj);
     s->initfn();
 }
 
 void Exynos4210UartState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    Exynos4210UartState *s = EXYNOS4210_UART(dev);
+    Exynos4210UartState *s = reinterpret_cast<Exynos4210UartState *>(dev);
     s->realize(errp);
 }
 

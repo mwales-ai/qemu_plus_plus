@@ -387,7 +387,7 @@ static const VMStateDescription vmstate_slavio_timer = {
 
 static void slavio_timer_reset(DeviceState *d)
 {
-    SLAVIO_TIMERState *s = SLAVIO_TIMER(d);
+    SLAVIO_TIMERState *s = reinterpret_cast<SLAVIO_TIMERState *>(d);
     s->reset();
 }
 
@@ -415,13 +415,13 @@ void SLAVIO_TIMERState::reset()
 
 static void slavio_timer_init(Object *obj)
 {
-    SLAVIO_TIMERState *s = SLAVIO_TIMER(obj);
+    SLAVIO_TIMERState *s = reinterpret_cast<SLAVIO_TIMERState *>(obj);
     s->instanceInit();
 }
 
 void SLAVIO_TIMERState::instanceInit()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(DEVICE(this));
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
     unsigned int i;
     TimerContext *tc;
 
@@ -441,7 +441,7 @@ void SLAVIO_TIMERState::instanceInit()
 
         size = i == 0 ? SYS_TIMER_SIZE : CPU_TIMER_SIZE;
         snprintf(timer_name, sizeof(timer_name), "timer-%i", i);
-        memory_region_init_io(&tc->iomem, OBJECT(this), &slavio_timer_mem_ops, tc,
+        memory_region_init_io(&tc->iomem, reinterpret_cast<Object *>(this), &slavio_timer_mem_ops, tc,
                               timer_name, size);
         sysbus_init_mmio(dev, &tc->iomem);
 

@@ -308,8 +308,8 @@ static const VMStateDescription vmstate_sp804 = {
 
 void SP804State::initfn(Object *obj)
 {
-    SP804State *s = SP804(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SP804State *s = reinterpret_cast<SP804State *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     sysbus_init_irq(sbd, &s->irq);
     memory_region_init_io(&s->iomem, obj, &sp804_ops, s,
@@ -319,13 +319,13 @@ void SP804State::initfn(Object *obj)
 
 static void sp804_init(Object *obj)
 {
-    SP804State *s = SP804(obj);
+    SP804State *s = reinterpret_cast<SP804State *>(obj);
     s->initfn(obj);
 }
 
 void SP804State::realize(DeviceState *dev, Error **errp)
 {
-    SP804State *s = SP804(dev);
+    SP804State *s = reinterpret_cast<SP804State *>(dev);
 
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
@@ -335,7 +335,7 @@ void SP804State::realize(DeviceState *dev, Error **errp)
 
 static void sp804_realize(DeviceState *dev, Error **errp)
 {
-    SP804State *s = SP804(dev);
+    SP804State *s = reinterpret_cast<SP804State *>(dev);
     s->realize(dev, errp);
 }
 
@@ -397,8 +397,8 @@ static const MemoryRegionOps icp_pit_ops = {
 
 void icp_pit_state::initfn(Object *obj)
 {
-    icp_pit_state *s = INTEGRATOR_PIT(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    icp_pit_state *s = reinterpret_cast<icp_pit_state *>(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
 
     /* Timer 0 runs at the system clock speed (40MHz).  */
     s->timer[0] = arm_timer_init(40000000);
@@ -419,7 +419,7 @@ void icp_pit_state::initfn(Object *obj)
 
 static void icp_pit_init(Object *obj)
 {
-    icp_pit_state *s = INTEGRATOR_PIT(obj);
+    icp_pit_state *s = reinterpret_cast<icp_pit_state *>(obj);
     s->initfn(obj);
 }
 

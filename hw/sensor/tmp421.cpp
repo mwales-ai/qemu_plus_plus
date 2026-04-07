@@ -123,7 +123,7 @@ static const int32_t maxs[2] = { 127000, 150000 };
 void TMP421State::getTemperature(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    TMP421State *s = TMP421(obj);
+    TMP421State *s = reinterpret_cast<TMP421State *>(obj);
     bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
     int offset = ext_range * 64 * 256;
     int64_t value;
@@ -150,7 +150,7 @@ void TMP421State::getTemperature(Object *obj, Visitor *v, const char *name,
 void TMP421State::setTemperature(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    TMP421State *s = TMP421(obj);
+    TMP421State *s = reinterpret_cast<TMP421State *>(obj);
     int64_t temp;
     bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
     int offset = ext_range * 64 * 256;
@@ -257,7 +257,7 @@ void TMP421State::writeRegs()
 
 uint8_t TMP421State::rx(I2CSlave *i2c)
 {
-    TMP421State *s = TMP421(i2c);
+    TMP421State *s = reinterpret_cast<TMP421State *>(i2c);
 
     if (s->len < 2) {
         return s->buf[s->len++];
@@ -268,7 +268,7 @@ uint8_t TMP421State::rx(I2CSlave *i2c)
 
 int TMP421State::tx(I2CSlave *i2c, uint8_t data)
 {
-    TMP421State *s = TMP421(i2c);
+    TMP421State *s = reinterpret_cast<TMP421State *>(i2c);
 
     if (s->len == 0) {
         /* first byte is the register pointer for a read or write
@@ -287,7 +287,7 @@ int TMP421State::tx(I2CSlave *i2c, uint8_t data)
 
 int TMP421State::event(I2CSlave *i2c, enum i2c_event event)
 {
-    TMP421State *s = TMP421(i2c);
+    TMP421State *s = reinterpret_cast<TMP421State *>(i2c);
 
     if (event == I2C_START_RECV) {
         s->readRegs();
@@ -347,7 +347,7 @@ void TMP421State::realize(Error **errp)
 
 static void tmp421_realize_wrapper(DeviceState *dev, Error **errp)
 {
-    TMP421State *s = TMP421(dev);
+    TMP421State *s = reinterpret_cast<TMP421State *>(dev);
     s->realize(errp);
 }
 

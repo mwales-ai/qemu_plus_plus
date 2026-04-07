@@ -103,7 +103,7 @@ enum crb_cancel {
 
 uint64_t CRBState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
-    CRBState *s = CRB(opaque);
+    CRBState *s = reinterpret_cast<CRBState *>(opaque);
     return s->readReg(addr, size);
 }
 
@@ -135,7 +135,7 @@ uint8_t CRBState::getActiveLocty()
 void CRBState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
                           unsigned size)
 {
-    CRBState *s = CRB(opaque);
+    CRBState *s = reinterpret_cast<CRBState *>(opaque);
     s->writeReg(addr, val, size);
 }
 
@@ -216,7 +216,7 @@ static const MemoryRegionOps tpm_crb_memory_ops = {
 
 void CRBState::requestCompleted(TPMIf *ti, int ret)
 {
-    CRBState *s = CRB(ti);
+    CRBState *s = reinterpret_cast<CRBState *>(ti);
 
     s->regs[R_CRB_CTRL_START] &= ~CRB_START_INVOKE;
     if (ret != 0) {
@@ -228,7 +228,7 @@ void CRBState::requestCompleted(TPMIf *ti, int ret)
 
 enum TPMVersion CRBState::getVersion(TPMIf *ti)
 {
-    CRBState *s = CRB(ti);
+    CRBState *s = reinterpret_cast<CRBState *>(ti);
 
     return tpm_backend_get_tpm_version(s->tpmbe);
 }
@@ -260,7 +260,7 @@ static const Property tpm_crb_properties[] = {
 
 static void tpm_crb_reset_wrapper(void *dev)
 {
-    CRBState *s = CRB(dev);
+    CRBState *s = reinterpret_cast<CRBState *>(dev);
     s->reset();
 }
 
@@ -322,9 +322,9 @@ void CRBState::realize(Error **errp)
         return;
     }
 
-    memory_region_init_io(&mmio, OBJECT(this), &tpm_crb_memory_ops, this,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this), &tpm_crb_memory_ops, this,
         "tpm-crb-mmio", sizeof(regs));
-    memory_region_init_ram(&cmdmem, OBJECT(this),
+    memory_region_init_ram(&cmdmem, reinterpret_cast<Object *>(this),
         "tpm-crb-cmd", CRB_CTRL_CMD_SIZE, errp);
 
     memory_region_add_subregion(get_system_memory(),
@@ -334,19 +334,19 @@ void CRBState::realize(Error **errp)
 
     if (ppi_enabled) {
         tpm_ppi_init(&ppi, get_system_memory(),
-                     TPM_PPI_ADDR_BASE, OBJECT(this));
+                     TPM_PPI_ADDR_BASE, reinterpret_cast<Object *>(this));
     }
 
     if (xen_enabled()) {
-        tpm_crb_reset_wrapper(DEVICE(this));
+        tpm_crb_reset_wrapper(reinterpret_cast<DeviceState *>(this));
     } else {
-        qemu_register_reset(tpm_crb_reset_wrapper, DEVICE(this));
+        qemu_register_reset(tpm_crb_reset_wrapper, reinterpret_cast<DeviceState *>(this));
     }
 }
 
 static void tpm_crb_realize_wrapper(DeviceState *dev, Error **errp)
 {
-    CRBState *s = CRB(dev);
+    CRBState *s = reinterpret_cast<CRBState *>(dev);
     s->realize(errp);
 }
 
