@@ -108,12 +108,12 @@ void PCIESPState::updateIrq()
                     !!(dma_regs[DMA_STAT] & DMA_STAT_DONE) : 0;
     int level = scsi_level || dma_level;
 
-    pci_set_irq(PCI_DEVICE(this), level);
+    pci_set_irq(reinterpret_cast<PCIDevice *>(this), level);
 }
 
 void PCIESPState::irqHandler(void *opaque, int irq_num, int level)
 {
-    PCIESPState *pci = PCI_ESP(opaque);
+    PCIESPState *pci = reinterpret_cast<PCIESPState *>(opaque);
 
     if (level) {
         pci->dma_regs[DMA_STAT] |= DMA_STAT_SCSIINT;
@@ -338,7 +338,7 @@ void PCIESPState::dmaMemoryRw(uint8_t *buf, int len,
         len = dma_regs[DMA_WBC];
     }
 
-    pci_dma_rw(PCI_DEVICE(this), addr, buf, len, dir, MEMTXATTRS_UNSPECIFIED);
+    pci_dma_rw(reinterpret_cast<PCIDevice *>(this), addr, buf, len, dir, MEMTXATTRS_UNSPECIFIED);
 
     /* update status registers */
     dma_regs[DMA_WBC] -= len;
@@ -366,7 +366,7 @@ static const MemoryRegionOps esp_pci_io_ops = {
 
 void PCIESPState::hardReset(DeviceState *dev)
 {
-    PCIESPState *pci = PCI_ESP(dev);
+    PCIESPState *pci = reinterpret_cast<PCIESPState *>(dev);
     ESPState *s = &pci->esp;
 
     esp_hard_reset(s);
@@ -408,12 +408,12 @@ static const struct SCSIBusInfo esp_pci_scsi_info = {
 
 void PCIESPState::doRealize(PCIDevice *dev, Error **errp)
 {
-    PCIESPState *pci = PCI_ESP(dev);
-    DeviceState *d = DEVICE(dev);
+    PCIESPState *pci = reinterpret_cast<PCIESPState *>(dev);
+    DeviceState *d = reinterpret_cast<DeviceState *>(dev);
     ESPState *s = &pci->esp;
     uint8_t *pci_conf;
 
-    if (!qdev_realize(DEVICE(s), NULL, errp)) {
+    if (!qdev_realize(reinterpret_cast<DeviceState *>(s), NULL, errp)) {
         return;
     }
 
@@ -426,7 +426,7 @@ void PCIESPState::doRealize(PCIDevice *dev, Error **errp)
     s->dma_memory_write = PCIESPState::dmaMemoryWriteCb;
     s->dma_opaque = pci;
     s->chip_id = TCHI_AM53C974;
-    memory_region_init_io(&pci->io, OBJECT(pci), &esp_pci_io_ops, pci,
+    memory_region_init_io(&pci->io, reinterpret_cast<Object *>(pci), &esp_pci_io_ops, pci,
                           "esp-io", 0x80);
 
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
@@ -437,13 +437,13 @@ void PCIESPState::doRealize(PCIDevice *dev, Error **errp)
 
 static void esp_pci_scsi_realize(PCIDevice *dev, Error **errp)
 {
-    PCIESPState *pci = PCI_ESP(dev);
+    PCIESPState *pci = reinterpret_cast<PCIESPState *>(dev);
     pci->doRealize(dev, errp);
 }
 
 void PCIESPState::doExit(PCIDevice *d)
 {
-    PCIESPState *pci = PCI_ESP(d);
+    PCIESPState *pci = reinterpret_cast<PCIESPState *>(d);
     ESPState *s = &pci->esp;
 
     qemu_free_irq(s->irq);
@@ -451,18 +451,18 @@ void PCIESPState::doExit(PCIDevice *d)
 
 static void esp_pci_scsi_exit(PCIDevice *d)
 {
-    PCIESPState *pci = PCI_ESP(d);
+    PCIESPState *pci = reinterpret_cast<PCIESPState *>(d);
     pci->doExit(d);
 }
 
 void PCIESPState::instanceInit()
 {
-    object_initialize_child(OBJECT(this), "esp", &esp, TYPE_ESP);
+    object_initialize_child(reinterpret_cast<Object *>(this), "esp", &esp, TYPE_ESP);
 }
 
 static void esp_pci_init(Object *obj)
 {
-    PCIESPState *pci = PCI_ESP(obj);
+    PCIESPState *pci = reinterpret_cast<PCIESPState *>(obj);
     pci->instanceInit();
 }
 
@@ -533,7 +533,7 @@ DECLARE_INSTANCE_CHECKER(DC390State, DC390,
 
 uint32_t DC390State::readConfig(PCIDevice *dev, uint32_t addr, int l)
 {
-    DC390State *pci = DC390(dev);
+    DC390State *pci = reinterpret_cast<DC390State *>(dev);
     uint32_t val;
 
     val = pci_default_read_config(dev, addr, l);
@@ -551,7 +551,7 @@ uint32_t DC390State::readConfig(PCIDevice *dev, uint32_t addr, int l)
 void DC390State::writeConfig(PCIDevice *dev,
                              uint32_t addr, uint32_t val, int l)
 {
-    DC390State *pci = DC390(dev);
+    DC390State *pci = reinterpret_cast<DC390State *>(dev);
     if (addr == 0x80) {
         /* EEPROM write */
         int eesk = val & 0x80 ? 1 : 0;
@@ -567,14 +567,14 @@ void DC390State::writeConfig(PCIDevice *dev,
 
 void DC390State::doRealize(PCIDevice *dev, Error **errp)
 {
-    DC390State *s = DC390(dev);
+    DC390State *s = reinterpret_cast<DC390State *>(dev);
     Error *err = NULL;
     uint8_t *contents;
     uint16_t chksum = 0;
     int i;
 
     /* init base class */
-    PCIESPState *pci_esp = PCI_ESP(dev);
+    PCIESPState *pci_esp = reinterpret_cast<PCIESPState *>(dev);
     pci_esp->doRealize(dev, &err);
     if (err) {
         error_propagate(errp, err);
@@ -582,7 +582,7 @@ void DC390State::doRealize(PCIDevice *dev, Error **errp)
     }
 
     /* EEPROM */
-    s->eeprom = eeprom93xx_new(DEVICE(dev), 64);
+    s->eeprom = eeprom93xx_new(reinterpret_cast<DeviceState *>(dev), 64);
 
     /* set default eeprom values */
     contents = (uint8_t *)eeprom93xx_data(s->eeprom);
@@ -609,7 +609,7 @@ void DC390State::doRealize(PCIDevice *dev, Error **errp)
 
 static void dc390_scsi_realize(PCIDevice *dev, Error **errp)
 {
-    DC390State *s = DC390(dev);
+    DC390State *s = reinterpret_cast<DC390State *>(dev);
     s->doRealize(dev, errp);
 }
 

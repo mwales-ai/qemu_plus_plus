@@ -371,7 +371,7 @@ void PS2State::resetExit(ResetType type)
 /* keycode is the untranslated scancode in the current scancode set. */
 void PS2KbdState::putKeycode(int keycode)
 {
-    PS2State *ps = PS2_DEVICE(this);
+    PS2State *ps = reinterpret_cast<PS2State *>(this);
 
     trace_ps2_put_keycode(this, keycode);
     qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER, NULL);
@@ -627,7 +627,7 @@ void PS2KbdState::setLedstate(int new_ledstate)
 
 void PS2KbdState::resetKeyboard()
 {
-    PS2State *ps2 = PS2_DEVICE(this);
+    PS2State *ps2 = reinterpret_cast<PS2State *>(this);
 
     trace_ps2_reset_keyboard(this);
     scan_enabled = 1;
@@ -638,7 +638,7 @@ void PS2KbdState::resetKeyboard()
 
 void PS2KbdState::writeKeyboard(int val)
 {
-    PS2State *ps2 = PS2_DEVICE(this);
+    PS2State *ps2 = reinterpret_cast<PS2State *>(this);
 
     trace_ps2_write_keyboard(this, val);
     ps2->cqueueReset();
@@ -740,7 +740,7 @@ void PS2KbdState::kbdResetHold(ResetType type)
     trace_ps2_kbd_reset(this);
 
     if (ps2dc->parent_phases.hold) {
-        ps2dc->parent_phases.hold(OBJECT(this), type);
+        ps2dc->parent_phases.hold(reinterpret_cast<Object *>(this), type);
     }
 
     scan_enabled = 1;
@@ -753,7 +753,7 @@ void PS2KbdState::kbdResetHold(ResetType type)
 
 int PS2MouseState::sendPacket()
 {
-    PS2State *ps2 = PS2_DEVICE(this);
+    PS2State *ps2 = reinterpret_cast<PS2State *>(this);
     /* IMPS/2 and IMEX send 4 bytes, PS2 sends 3 bytes */
     const int needed = mouse_type ? 4 : 3;
     unsigned int b;
@@ -933,12 +933,12 @@ void PS2MouseState::fakeEvent()
 {
     trace_ps2_mouse_fake_event(this);
     mouse_dx++;
-    PS2MouseState::mouseSync(DEVICE(this));
+    PS2MouseState::mouseSync(reinterpret_cast<DeviceState *>(this));
 }
 
 void PS2MouseState::writeMouse(int val)
 {
-    PS2State *ps2 = PS2_DEVICE(this);
+    PS2State *ps2 = reinterpret_cast<PS2State *>(this);
 
     trace_ps2_write_mouse(this, val);
     switch (ps2->write_cmd) {
@@ -1073,7 +1073,7 @@ void PS2MouseState::mouseResetHold(ResetType type)
     trace_ps2_mouse_reset(this);
 
     if (ps2dc->parent_phases.hold) {
-        ps2dc->parent_phases.hold(OBJECT(this), type);
+        ps2dc->parent_phases.hold(reinterpret_cast<Object *>(this), type);
     }
 
     mouse_status = 0;
@@ -1201,7 +1201,7 @@ static const VMStateDescription vmstate_ps2_keyboard_need_high_bit = {
 static bool ps2_keyboard_cqueue_needed(void *opaque)
 {
     PS2KbdState *s = static_cast<PS2KbdState *>(opaque);
-    PS2State *ps2 = PS2_DEVICE(s);
+    PS2State *ps2 = reinterpret_cast<PS2State *>(s);
 
     return ps2->queue.cwptr != -1; /* the queue is mostly empty */
 }
@@ -1220,7 +1220,7 @@ static const VMStateDescription vmstate_ps2_keyboard_cqueue = {
 static int ps2_kbd_post_load(void *opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState *)opaque;
-    PS2State *ps2 = PS2_DEVICE(s);
+    PS2State *ps2 = reinterpret_cast<PS2State *>(s);
 
     if (version_id == 2) {
         s->scancode_set = 2;
@@ -1275,7 +1275,7 @@ static const VMStateDescription vmstate_ps2_keyboard = {
 static int ps2_mouse_post_load(void *opaque, int version_id)
 {
     PS2MouseState *s = (PS2MouseState *)opaque;
-    PS2State *ps2 = PS2_DEVICE(s);
+    PS2State *ps2 = reinterpret_cast<PS2State *>(s);
 
     ps2->commonPostLoad();
 
@@ -1310,25 +1310,25 @@ static const VMStateDescription vmstate_ps2_mouse = {
 
 static void ps2_reset_hold_trampoline(Object *obj, ResetType type)
 {
-    PS2State *s = PS2_DEVICE(obj);
+    PS2State *s = reinterpret_cast<PS2State *>(obj);
     s->resetHold(type);
 }
 
 static void ps2_reset_exit_trampoline(Object *obj, ResetType type)
 {
-    PS2State *s = PS2_DEVICE(obj);
+    PS2State *s = reinterpret_cast<PS2State *>(obj);
     s->resetExit(type);
 }
 
 static void ps2_kbd_reset_hold_trampoline(Object *obj, ResetType type)
 {
-    PS2KbdState *s = PS2_KBD_DEVICE(obj);
+    PS2KbdState *s = reinterpret_cast<PS2KbdState *>(obj);
     s->kbdResetHold(type);
 }
 
 static void ps2_mouse_reset_hold_trampoline(Object *obj, ResetType type)
 {
-    PS2MouseState *s = PS2_MOUSE_DEVICE(obj);
+    PS2MouseState *s = reinterpret_cast<PS2MouseState *>(obj);
     s->mouseResetHold(type);
 }
 
@@ -1386,9 +1386,9 @@ void PS2MouseState::classInit(ObjectClass *klass, const void *data)
 
 static void ps2_init(Object *obj)
 {
-    PS2State *s = PS2_DEVICE(obj);
+    PS2State *s = reinterpret_cast<PS2State *>(obj);
 
-    qdev_init_gpio_out(DEVICE(obj), &s->irq, 1);
+    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(obj), &s->irq, 1);
 }
 
 struct PS2Methods {

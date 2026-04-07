@@ -137,22 +137,22 @@ void HighbankRegsState::reset()
 
 void HighbankRegsState::initfn()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&iomem, OBJECT(this), &hb_mem_ops, regs,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &hb_mem_ops, regs,
                           "highbank_regs", 0x1000);
     sysbus_init_mmio(dev, &iomem);
 }
 
 void HighbankRegsState::resetWrapper(DeviceState *dev)
 {
-    HighbankRegsState *s = HIGHBANK_REGISTERS(dev);
+    HighbankRegsState *s = reinterpret_cast<HighbankRegsState *>(dev);
     s->reset();
 }
 
 void HighbankRegsState::initWrapper(Object *obj)
 {
-    HighbankRegsState *s = HIGHBANK_REGISTERS(obj);
+    HighbankRegsState *s = reinterpret_cast<HighbankRegsState *>(obj);
     s->initfn();
 }
 
@@ -224,9 +224,9 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         ARMCPU *cpu;
 
         cpuobj = object_new(machine->cpu_type);
-        cpu = ARM_CPU(cpuobj);
+        cpu = reinterpret_cast<ARMCPU *>(cpuobj);
 
-        object_property_add_child(OBJECT(machine), "cpu[*]", cpuobj);
+        object_property_add_child(reinterpret_cast<Object *>(machine), "cpu[*]", cpuobj);
         object_property_set_int(cpuobj, "psci-conduit", QEMU_PSCI_CONDUIT_SMC,
                                 &error_abort);
 
@@ -234,11 +234,11 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
             object_property_set_int(cpuobj, "reset-cbar", MPCORE_PERIPHBASE,
                                     &error_abort);
         }
-        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
-        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
-        cpu_fiq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ);
-        cpu_virq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_VIRQ);
-        cpu_vfiq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_VFIQ);
+        qdev_realize(reinterpret_cast<DeviceState *>(cpuobj), NULL, &error_fatal);
+        cpu_irq[n] = qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), ARM_CPU_IRQ);
+        cpu_fiq[n] = qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), ARM_CPU_FIQ);
+        cpu_virq[n] = qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), ARM_CPU_VIRQ);
+        cpu_vfiq[n] = qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), ARM_CPU_VFIQ);
     }
 
     sysmem = get_system_memory();
@@ -267,7 +267,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     switch (machine_id) {
     case CALXEDA_HIGHBANK:
         dev = qdev_new("l2x0");
-        busdev = SYS_BUS_DEVICE(dev);
+        busdev = reinterpret_cast<SysBusDevice *>(dev);
         sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, 0xfff12000);
 
@@ -279,7 +279,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     }
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_prop_set_uint32(dev, "num-irq", GIC_EXT_IRQS + GIC_INTERNAL);
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
     for (n = 0; n < smp_cpus; n++) {
@@ -296,14 +296,14 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     dev = qdev_new("sp804");
     qdev_prop_set_uint32(dev, "freq0", 150000000);
     qdev_prop_set_uint32(dev, "freq1", 150000000);
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0xfff34000);
     sysbus_connect_irq(busdev, 0, pic[18]);
     pl011_create(0xfff36000, pic[20], serial_hd(0));
 
     dev = qdev_new(TYPE_HIGHBANK_REGISTERS);
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0xfff3c000);
 
@@ -318,20 +318,20 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
 
     dev = qemu_create_nic_device("xgmac", true, NULL);
     if (dev) {
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xfff50000);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[77]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, pic[78]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 2, pic[79]);
+        sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+        sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, 0xfff50000);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, pic[77]);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 1, pic[78]);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 2, pic[79]);
     }
 
     dev = qemu_create_nic_device("xgmac", true, NULL);
     if (dev) {
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xfff51000);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[80]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 1, pic[81]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 2, pic[82]);
+        sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+        sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, 0xfff51000);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, pic[80]);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 1, pic[81]);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 2, pic[82]);
     }
 
     /* TODO create and connect IDE devices for ide_drive_get() */
@@ -346,7 +346,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     highbank_binfo.board_setup_addr = BOARD_SETUP_ADDR;
     highbank_binfo.psci_conduit = QEMU_PSCI_CONDUIT_SMC;
 
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &highbank_binfo);
+    arm_load_kernel(reinterpret_cast<ARMCPU *>(first_cpu), machine, &highbank_binfo);
 }
 
 static void highbank_init(MachineState *machine)

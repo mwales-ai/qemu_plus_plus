@@ -93,7 +93,7 @@ void Q35PCIHost::getPciHoleEnd(Object *obj, Visitor *v,
  */
 uint64_t Q35PCIHost::getPciHole64StartValue()
 {
-    PCIHostState *h = PCI_HOST_BRIDGE(this);
+    PCIHostState *h = reinterpret_cast<PCIHostState *>(this);
     Range w64;
     uint64_t value;
 
@@ -125,7 +125,7 @@ void Q35PCIHost::getPciHole64End(Object *obj, Visitor *v,
                                   const char *name, void *opaque,
                                   Error **errp)
 {
-    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    PCIHostState *h = reinterpret_cast<PCIHostState *>(obj);
     Q35PCIHost *s = reinterpret_cast<Q35PCIHost *>(obj);
     uint64_t hole64_start = s->getPciHole64StartValue();
     Range w64;
@@ -142,8 +142,8 @@ void Q35PCIHost::getPciHole64End(Object *obj, Visitor *v,
 
 void Q35PCIHost::realize(DeviceState *dev, Error **errp)
 {
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    PCIHostState *pci = reinterpret_cast<PCIHostState *>(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
 
     memory_region_add_subregion(mch.address_space_io,
                                 MCH_HOST_BRIDGE_CONFIG_ADDR, &pci->conf_mem);
@@ -157,30 +157,30 @@ void Q35PCIHost::realize(DeviceState *dev, Error **errp)
     memory_region_set_flush_coalesced(&pci->data_mem);
     memory_region_add_coalescing(&pci->conf_mem, 0, 4);
 
-    pci->bus = pci_root_bus_new(DEVICE(this), "pcie.0",
+    pci->bus = pci_root_bus_new(reinterpret_cast<DeviceState *>(this), "pcie.0",
                                 mch.pci_address_space,
                                 mch.address_space_io,
                                 0, TYPE_PCIE_BUS);
 
-    qdev_realize(DEVICE(&mch), BUS(pci->bus), &error_fatal);
+    qdev_realize(reinterpret_cast<DeviceState *>(&mch), reinterpret_cast<BusState *>(pci->bus), &error_fatal);
 }
 
 void Q35PCIHost::initInstance(Object *obj)
 {
     Q35PCIHost *s = reinterpret_cast<Q35PCIHost *>(obj);
-    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
-    PCIExpressHost *pehb = PCIE_HOST_BRIDGE(obj);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(obj);
+    PCIExpressHost *pehb = reinterpret_cast<PCIExpressHost *>(obj);
 
     memory_region_init_io(&phb->conf_mem, obj, &pci_host_conf_le_ops, phb,
                           "pci-conf-idx", 4);
     memory_region_init_io(&phb->data_mem, obj, &pci_host_data_le_ops, phb,
                           "pci-conf-data", 4);
 
-    object_initialize_child(OBJECT(s), "mch", &s->mch, TYPE_MCH_PCI_DEVICE);
-    qdev_prop_set_int32(DEVICE(&s->mch), "addr", PCI_DEVFN(0, 0));
-    qdev_prop_set_bit(DEVICE(&s->mch), "multifunction", false);
+    object_initialize_child(reinterpret_cast<Object *>(s), "mch", &s->mch, TYPE_MCH_PCI_DEVICE);
+    qdev_prop_set_int32(reinterpret_cast<DeviceState *>(&s->mch), "addr", PCI_DEVFN(0, 0));
+    qdev_prop_set_bit(reinterpret_cast<DeviceState *>(&s->mch), "multifunction", false);
     /* mch's object_initialize resets the default value, set it again */
-    qdev_prop_set_uint64(DEVICE(s), PCI_HOST_PROP_PCI_HOLE64_SIZE,
+    qdev_prop_set_uint64(reinterpret_cast<DeviceState *>(s), PCI_HOST_PROP_PCI_HOLE64_SIZE,
                          Q35_PCI_HOST_HOLE64_SIZE_DEFAULT);
 
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
@@ -310,9 +310,9 @@ static void __attribute__((constructor)) init_blackhole_ops(void) {
 /* PCIe MMCFG */
 void MCHPCIState::updatePciexbar()
 {
-    PCIDevice *pci_dev = PCI_DEVICE(this);
-    BusState *bus = qdev_get_parent_bus(DEVICE(this));
-    PCIExpressHost *pehb = PCIE_HOST_BRIDGE(bus->parent);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(this);
+    BusState *bus = qdev_get_parent_bus(reinterpret_cast<DeviceState *>(this));
+    PCIExpressHost *pehb = reinterpret_cast<PCIExpressHost *>(bus->parent);
 
     uint64_t pciexbar;
     int enable;
@@ -349,7 +349,7 @@ void MCHPCIState::updatePciexbar()
 /* PAM */
 void MCHPCIState::updatePam()
 {
-    PCIDevice *pd = PCI_DEVICE(this);
+    PCIDevice *pd = reinterpret_cast<PCIDevice *>(this);
     int i;
 
     memory_region_transaction_begin();
@@ -363,7 +363,7 @@ void MCHPCIState::updatePam()
 /* SMRAM */
 void MCHPCIState::updateSmram()
 {
-    PCIDevice *pd = PCI_DEVICE(this);
+    PCIDevice *pd = reinterpret_cast<PCIDevice *>(this);
     bool h_smrame = (pd->config[MCH_HOST_BRIDGE_ESMRAMC] & MCH_HOST_BRIDGE_ESMRAMC_H_SMRAME);
     uint32_t tseg_size;
 
@@ -434,7 +434,7 @@ void MCHPCIState::updateSmram()
 
 void MCHPCIState::updateExtTsegMbytes()
 {
-    PCIDevice *pd = PCI_DEVICE(this);
+    PCIDevice *pd = reinterpret_cast<PCIDevice *>(this);
     uint8_t *reg = pd->config + MCH_HOST_BRIDGE_EXT_TSEG_MBYTES;
 
     if (ext_tseg_mbytes > 0 &&
@@ -445,7 +445,7 @@ void MCHPCIState::updateExtTsegMbytes()
 
 void MCHPCIState::updateSmbaseSmram()
 {
-    PCIDevice *pd = PCI_DEVICE(this);
+    PCIDevice *pd = reinterpret_cast<PCIDevice *>(this);
     uint8_t *reg = pd->config + MCH_HOST_BRIDGE_F_SMBASE;
     bool lck;
 
@@ -482,7 +482,7 @@ void MCHPCIState::updateSmbaseSmram()
 
 void MCHPCIState::writeConfig(uint32_t address, uint32_t val, int len)
 {
-    PCIDevice *d = PCI_DEVICE(this);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(this);
 
     pci_default_write_config(d, address, val, len);
 
@@ -590,7 +590,7 @@ void MCHPCIState::reset(PCIDevice *d)
 
 static void mch_reset(DeviceState *qdev)
 {
-    reinterpret_cast<MCHPCIState *>(qdev)->reset(PCI_DEVICE(qdev));
+    reinterpret_cast<MCHPCIState *>(qdev)->reset(reinterpret_cast<PCIDevice *>(qdev));
 }
 
 void MCHPCIState::realize(PCIDevice *d, Error **errp)
@@ -607,11 +607,11 @@ void MCHPCIState::realize(PCIDevice *d, Error **errp)
     pc_pci_as_mapping_init(system_memory, pci_address_space);
 
     /* PAM */
-    init_pam(&pam_regions[0], OBJECT(this), ram_memory,
+    init_pam(&pam_regions[0], reinterpret_cast<Object *>(this), ram_memory,
              system_memory, pci_address_space,
              PAM_BIOS_BASE, PAM_BIOS_SIZE);
     for (i = 0; i < ARRAY_SIZE(pam_regions) - 1; ++i) {
-        init_pam(&pam_regions[i + 1], OBJECT(this), ram_memory,
+        init_pam(&pam_regions[i + 1], reinterpret_cast<Object *>(this), ram_memory,
                  system_memory, pci_address_space,
                  PAM_EXPAN_BASE + i * PAM_EXPAN_SIZE, PAM_EXPAN_SIZE);
     }
@@ -621,14 +621,14 @@ void MCHPCIState::realize(PCIDevice *d, Error **errp)
     }
 
     /* if *disabled* show SMRAM to all CPUs */
-    memory_region_init_alias(&smram_region, OBJECT(this), "smram-region",
+    memory_region_init_alias(&smram_region, reinterpret_cast<Object *>(this), "smram-region",
                              pci_address_space, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                              MCH_HOST_BRIDGE_SMRAM_C_SIZE);
     memory_region_add_subregion_overlap(system_memory, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                                         &smram_region, 1);
     memory_region_set_enabled(&smram_region, true);
 
-    memory_region_init_alias(&open_high_smram, OBJECT(this), "smram-open-high",
+    memory_region_init_alias(&open_high_smram, reinterpret_cast<Object *>(this), "smram-open-high",
                              ram_memory, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                              MCH_HOST_BRIDGE_SMRAM_C_SIZE);
     memory_region_add_subregion_overlap(system_memory, 0xfeda0000,
@@ -636,21 +636,21 @@ void MCHPCIState::realize(PCIDevice *d, Error **errp)
     memory_region_set_enabled(&open_high_smram, false);
 
     /* smram, as seen by SMM CPUs */
-    memory_region_init(&smram, OBJECT(this), "smram", 4 * GiB);
+    memory_region_init(&smram, reinterpret_cast<Object *>(this), "smram", 4 * GiB);
     memory_region_set_enabled(&smram, true);
-    memory_region_init_alias(&low_smram, OBJECT(this), "smram-low",
+    memory_region_init_alias(&low_smram, reinterpret_cast<Object *>(this), "smram-low",
                              ram_memory, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                              MCH_HOST_BRIDGE_SMRAM_C_SIZE);
     memory_region_set_enabled(&low_smram, true);
     memory_region_add_subregion(&smram, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                                 &low_smram);
-    memory_region_init_alias(&high_smram, OBJECT(this), "smram-high",
+    memory_region_init_alias(&high_smram, reinterpret_cast<Object *>(this), "smram-high",
                              ram_memory, MCH_HOST_BRIDGE_SMRAM_C_BASE,
                              MCH_HOST_BRIDGE_SMRAM_C_SIZE);
     memory_region_set_enabled(&high_smram, true);
     memory_region_add_subregion(&smram, 0xfeda0000, &high_smram);
 
-    memory_region_init_io(&tseg_blackhole, OBJECT(this),
+    memory_region_init_io(&tseg_blackhole, reinterpret_cast<Object *>(this),
                           &blackhole_ops, NULL,
                           "tseg-blackhole", 0);
     memory_region_set_enabled(&tseg_blackhole, false);
@@ -658,7 +658,7 @@ void MCHPCIState::realize(PCIDevice *d, Error **errp)
                                         below_4g_mem_size,
                                         &tseg_blackhole, 1);
 
-    memory_region_init_alias(&tseg_window, OBJECT(this), "tseg-window",
+    memory_region_init_alias(&tseg_window, reinterpret_cast<Object *>(this), "tseg-window",
                              ram_memory, below_4g_mem_size, 0);
     memory_region_set_enabled(&tseg_window, false);
     memory_region_add_subregion(&smram, below_4g_mem_size,
@@ -668,7 +668,7 @@ void MCHPCIState::realize(PCIDevice *d, Error **errp)
      * This is not what hardware does, so it's QEMU specific hack.
      * See commit message for details.
      */
-    memory_region_init_io(&smbase_blackhole, OBJECT(this), &blackhole_ops,
+    memory_region_init_io(&smbase_blackhole, reinterpret_cast<Object *>(this), &blackhole_ops,
                           NULL, "smbase-blackhole",
                           MCH_HOST_BRIDGE_SMBASE_SIZE);
     memory_region_set_enabled(&smbase_blackhole, false);
@@ -676,7 +676,7 @@ void MCHPCIState::realize(PCIDevice *d, Error **errp)
                                         MCH_HOST_BRIDGE_SMBASE_ADDR,
                                         &smbase_blackhole, 1);
 
-    memory_region_init_alias(&smbase_window, OBJECT(this),
+    memory_region_init_alias(&smbase_window, reinterpret_cast<Object *>(this),
                              "smbase-window", ram_memory,
                              MCH_HOST_BRIDGE_SMBASE_ADDR,
                              MCH_HOST_BRIDGE_SMBASE_SIZE);
@@ -685,7 +685,7 @@ void MCHPCIState::realize(PCIDevice *d, Error **errp)
                                 &smbase_window);
 
     object_property_add_const_link(qdev_get_machine(), "smram",
-                                   OBJECT(&smram));
+                                   reinterpret_cast<Object *>(&smram));
 }
 
 static const Property mch_props[] = {

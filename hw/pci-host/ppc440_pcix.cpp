@@ -134,7 +134,7 @@ static void ppc440_pcix_update_pim(PPC440PCIXState *s, int idx)
 
     name = g_strdup_printf("PCI Inbound Window %d", idx);
     size = ~(s->pim[idx].sa & ~7ULL) + 1;
-    memory_region_init_alias(mem, OBJECT(s), name, get_system_memory(),
+    memory_region_init_alias(mem, reinterpret_cast<Object *>(s), name, get_system_memory(),
                              s->pim[idx].la, size);
     memory_region_add_subregion_overlap(&s->bm, 0, mem, -1);
     g_free(name);
@@ -163,7 +163,7 @@ static void ppc440_pcix_update_pom(PPC440PCIXState *s, int idx)
     if (!size) {
         size = 0xffffffff;
     }
-    memory_region_init_alias(mem, OBJECT(s), name, &s->busmem,
+    memory_region_init_alias(mem, reinterpret_cast<Object *>(s), name, &s->busmem,
                              s->pom[idx].pcia, size);
     memory_region_add_subregion(address_space_mem, s->pom[idx].la, mem);
     g_free(name);
@@ -405,7 +405,7 @@ static const MemoryRegionOps pci_reg_ops = {
 
 void PPC440PCIXState::resetWrapper(DeviceState *dev)
 {
-    PPC440_PCIX_HOST(dev)->reset();
+    reinterpret_cast<PPC440PCIXState *>(dev)->reset();
 }
 
 void PPC440PCIXState::reset()
@@ -499,37 +499,37 @@ const MemoryRegionOps ppc440_pcix_host_conf_ops = {
 
 void PPC440PCIXState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PPC440_PCIX_HOST(dev)->realize(errp);
+    reinterpret_cast<PPC440PCIXState *>(dev)->realize(errp);
 }
 
 void PPC440PCIXState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
     PPC440PCIXState *s;
     PCIHostState *h;
 
-    h = PCI_HOST_BRIDGE(dev);
-    s = PPC440_PCIX_HOST(dev);
+    h = reinterpret_cast<PCIHostState *>(dev);
+    s = reinterpret_cast<PPC440PCIXState *>(dev);
 
     sysbus_init_irq(sbd, &s->irq);
-    memory_region_init(&s->busmem, OBJECT(dev), "pci-mem", UINT64_MAX);
-    memory_region_init(&s->iomem, OBJECT(dev), "pci-io", 64 * KiB);
+    memory_region_init(&s->busmem, reinterpret_cast<Object *>(dev), "pci-mem", UINT64_MAX);
+    memory_region_init(&s->iomem, reinterpret_cast<Object *>(dev), "pci-io", 64 * KiB);
     h->bus = pci_register_root_bus(dev, NULL, ppc440_pcix_set_irq,
                          ppc440_pcix_map_irq, &s->irq, &s->busmem, &s->iomem,
                          PCI_DEVFN(1, 0), 1, TYPE_PCI_BUS);
 
-    memory_region_init(&s->bm, OBJECT(s), "bm-ppc440-pcix", UINT64_MAX);
+    memory_region_init(&s->bm, reinterpret_cast<Object *>(s), "bm-ppc440-pcix", UINT64_MAX);
     memory_region_add_subregion(&s->bm, 0x0, &s->busmem);
     address_space_init(&s->bm_as, &s->bm, "pci-bm");
     pci_setup_iommu(h->bus, &ppc440_iommu_ops, s);
 
-    memory_region_init(&s->container, OBJECT(s), "pci-container", PCI_ALL_SIZE);
-    memory_region_init_io(&h->conf_mem, OBJECT(s), &ppc440_pcix_host_conf_ops,
+    memory_region_init(&s->container, reinterpret_cast<Object *>(s), "pci-container", PCI_ALL_SIZE);
+    memory_region_init_io(&h->conf_mem, reinterpret_cast<Object *>(s), &ppc440_pcix_host_conf_ops,
                           h, "pci-conf-idx", 4);
-    memory_region_init_io(&h->data_mem, OBJECT(s), &pci_host_data_le_ops,
+    memory_region_init_io(&h->data_mem, reinterpret_cast<Object *>(s), &pci_host_data_le_ops,
                           h, "pci-conf-data", 4);
-    memory_region_init_io(&s->regs, OBJECT(s), &pci_reg_ops, s, "pci-reg",
+    memory_region_init_io(&s->regs, reinterpret_cast<Object *>(s), &pci_reg_ops, s, "pci-reg",
                           PPC440_REG_SIZE);
     memory_region_add_subregion(&s->container, PCIC0_CFGADDR, &h->conf_mem);
     memory_region_add_subregion(&s->container, PCIC0_CFGDATA, &h->data_mem);

@@ -302,9 +302,9 @@ void SunGEMState::evalIrq()
     mask = gregs[GREG_IMASK >> 2];
     stat = gregs[GREG_STAT >> 2] & ~GREG_STAT_TXNR;
     if (stat & ~mask) {
-        pci_set_irq(PCI_DEVICE(this), 1);
+        pci_set_irq(reinterpret_cast<PCIDevice *>(this), 1);
     } else {
-        pci_set_irq(PCI_DEVICE(this), 0);
+        pci_set_irq(reinterpret_cast<PCIDevice *>(this), 0);
     }
 }
 
@@ -383,7 +383,7 @@ void SunGEMState::sendPacket(const uint8_t *buf, int size)
 
 void SunGEMState::processTxDesc(struct gem_txd *desc)
 {
-    PCIDevice *d = PCI_DEVICE(this);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(this);
     uint32_t len;
 
     /* If it's a start of frame, discard anything we had in the
@@ -431,7 +431,7 @@ void SunGEMState::processTxDesc(struct gem_txd *desc)
 
 void SunGEMState::txKick()
 {
-    PCIDevice *d = PCI_DEVICE(this);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(this);
     uint32_t comp, kick;
     uint32_t txdma_cfg, txmac_cfg, ints;
     uint64_t dbase;
@@ -616,7 +616,7 @@ ssize_t SunGEMState::receiveCb(NetClientState *nc, const uint8_t *buf,
                               size_t size)
 {
     SunGEMState *s = static_cast<SunGEMState *>(qemu_get_nic_opaque(nc));
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     uint32_t mac_crc, done, kick, max_fsize;
     uint32_t fcs_size, ints, rxdma_cfg, rxmac_cfg, csum, coff;
     struct gem_rxd desc;
@@ -1475,7 +1475,7 @@ static const MemoryRegionOps sungem_mmio_pcs_ops = {
 
 void SunGEMState::uninit(PCIDevice *dev)
 {
-    SunGEMState *s = SUNGEM(dev);
+    SunGEMState *s = reinterpret_cast<SunGEMState *>(dev);
 
     qemu_del_nic(s->nic);
 }
@@ -1490,13 +1490,13 @@ static NetClientInfo net_sungem_info = {
 
 void SunGEMState::realizeWrapper(PCIDevice *pci_dev, Error **errp)
 {
-    SunGEMState *s = SUNGEM(pci_dev);
+    SunGEMState *s = reinterpret_cast<SunGEMState *>(pci_dev);
     s->realize(pci_dev, errp);
 }
 
 void SunGEMState::realize(PCIDevice *pci_dev, Error **errp)
 {
-    DeviceState *dev = DEVICE(pci_dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(pci_dev);
     uint8_t *pci_conf;
 
     pci_conf = pci_dev->config;
@@ -1514,33 +1514,33 @@ void SunGEMState::realize(PCIDevice *pci_dev, Error **errp)
     pci_conf[PCI_MAX_LAT] = 0x40;
 
     resetAll(true);
-    memory_region_init(&sungem, OBJECT(this), "sungem", SUNGEM_MMIO_SIZE);
+    memory_region_init(&sungem, reinterpret_cast<Object *>(this), "sungem", SUNGEM_MMIO_SIZE);
 
-    memory_region_init_io(&greg, OBJECT(this), &sungem_mmio_greg_ops, this,
+    memory_region_init_io(&greg, reinterpret_cast<Object *>(this), &sungem_mmio_greg_ops, this,
                           "sungem.greg", SUNGEM_MMIO_GREG_SIZE);
     memory_region_add_subregion(&sungem, 0, &greg);
 
-    memory_region_init_io(&txdma, OBJECT(this), &sungem_mmio_txdma_ops, this,
+    memory_region_init_io(&txdma, reinterpret_cast<Object *>(this), &sungem_mmio_txdma_ops, this,
                           "sungem.txdma", SUNGEM_MMIO_TXDMA_SIZE);
     memory_region_add_subregion(&sungem, 0x2000, &txdma);
 
-    memory_region_init_io(&rxdma, OBJECT(this), &sungem_mmio_rxdma_ops, this,
+    memory_region_init_io(&rxdma, reinterpret_cast<Object *>(this), &sungem_mmio_rxdma_ops, this,
                           "sungem.rxdma", SUNGEM_MMIO_RXDMA_SIZE);
     memory_region_add_subregion(&sungem, 0x4000, &rxdma);
 
-    memory_region_init_io(&wol, OBJECT(this), &sungem_mmio_wol_ops, this,
+    memory_region_init_io(&wol, reinterpret_cast<Object *>(this), &sungem_mmio_wol_ops, this,
                           "sungem.wol", SUNGEM_MMIO_WOL_SIZE);
     memory_region_add_subregion(&sungem, 0x3000, &wol);
 
-    memory_region_init_io(&mac, OBJECT(this), &sungem_mmio_mac_ops, this,
+    memory_region_init_io(&mac, reinterpret_cast<Object *>(this), &sungem_mmio_mac_ops, this,
                           "sungem.mac", SUNGEM_MMIO_MAC_SIZE);
     memory_region_add_subregion(&sungem, 0x6000, &mac);
 
-    memory_region_init_io(&mif, OBJECT(this), &sungem_mmio_mif_ops, this,
+    memory_region_init_io(&mif, reinterpret_cast<Object *>(this), &sungem_mmio_mif_ops, this,
                           "sungem.mif", SUNGEM_MMIO_MIF_SIZE);
     memory_region_add_subregion(&sungem, 0x6200, &mif);
 
-    memory_region_init_io(&pcs, OBJECT(this), &sungem_mmio_pcs_ops, this,
+    memory_region_init_io(&pcs, reinterpret_cast<Object *>(this), &sungem_mmio_pcs_ops, this,
                           "sungem.pcs", SUNGEM_MMIO_PCS_SIZE);
     memory_region_add_subregion(&sungem, 0x9000, &pcs);
 
@@ -1548,7 +1548,7 @@ void SunGEMState::realize(PCIDevice *pci_dev, Error **errp)
 
     qemu_macaddr_default_if_unset(&conf.macaddr);
     nic = qemu_new_nic(&net_sungem_info, &conf,
-                          object_get_typename(OBJECT(dev)),
+                          object_get_typename(reinterpret_cast<Object *>(dev)),
                           dev->id, &dev->mem_reentrancy_guard, this);
     qemu_format_nic_info_str(qemu_get_queue(nic),
                              conf.macaddr.a);
@@ -1556,7 +1556,7 @@ void SunGEMState::realize(PCIDevice *pci_dev, Error **errp)
 
 void SunGEMState::resetWrapper(DeviceState *dev)
 {
-    SunGEMState *s = SUNGEM(dev);
+    SunGEMState *s = reinterpret_cast<SunGEMState *>(dev);
     s->reset();
 }
 
@@ -1567,15 +1567,15 @@ void SunGEMState::reset()
 
 void SunGEMState::instanceInitWrapper(Object *obj)
 {
-    SunGEMState *s = SUNGEM(obj);
+    SunGEMState *s = reinterpret_cast<SunGEMState *>(obj);
     s->instanceInit();
 }
 
 void SunGEMState::instanceInit()
 {
-    device_add_bootindex_property(OBJECT(this), &conf.bootindex,
+    device_add_bootindex_property(reinterpret_cast<Object *>(this), &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(this));
+                                  reinterpret_cast<DeviceState *>(this));
 }
 
 static const Property sungem_properties[] = {

@@ -710,7 +710,7 @@ static int usb_audio_set_output_altset(USBAudioState *s, int altset)
     case ALTSET_51:
     case ALTSET_71:
         if (s->out.channels != altset_channels[altset]) {
-            usb_audio_reinit(USB_DEVICE(s), altset_channels[altset]);
+            usb_audio_reinit(reinterpret_cast<USBDevice *>(s), altset_channels[altset]);
         }
         streambuf_init(&s->out.buf, s->buffer, s->out.channels);
         AUD_set_active_out(s->out.voice, true);
@@ -836,7 +836,7 @@ void USBAudioState::handleControl(USBDevice *dev, USBPacket *p,
                                     int request, int value, int index,
                                     int length, uint8_t *data)
 {
-    USBAudioState *s = USB_AUDIO(dev);
+    USBAudioState *s = reinterpret_cast<USBAudioState *>(dev);
     int ret = 0;
 
     if (s->debug) {
@@ -895,7 +895,7 @@ fail:
 void USBAudioState::setInterface(USBDevice *dev, int iface,
                                  int old, int value)
 {
-    USBAudioState *s = USB_AUDIO(dev);
+    USBAudioState *s = reinterpret_cast<USBAudioState *>(dev);
 
     if (iface == 1) {
         usb_audio_set_output_altset(s, value);
@@ -904,7 +904,7 @@ void USBAudioState::setInterface(USBDevice *dev, int iface,
 
 void USBAudioState::handleReset(USBDevice *dev)
 {
-    USBAudioState *s = USB_AUDIO(dev);
+    USBAudioState *s = reinterpret_cast<USBAudioState *>(dev);
 
     if (s->debug) {
         fprintf(stderr, "usb-audio: reset\n");
@@ -945,7 +945,7 @@ void USBAudioState::handleData(USBDevice *dev, USBPacket *p)
 
 void USBAudioState::unrealize(USBDevice *dev)
 {
-    USBAudioState *s = USB_AUDIO(dev);
+    USBAudioState *s = reinterpret_cast<USBAudioState *>(dev);
 
     if (s->debug) {
         fprintf(stderr, "usb-audio: destroy\n");
@@ -959,7 +959,7 @@ void USBAudioState::unrealize(USBDevice *dev)
 
 void USBAudioState::realize(USBDevice *dev, Error **errp)
 {
-    USBAudioState *s = USB_AUDIO(dev);
+    USBAudioState *s = reinterpret_cast<USBAudioState *>(dev);
     int i;
 
     if (!AUD_backend_check(&s->audio_be, errp)) {
@@ -983,7 +983,7 @@ void USBAudioState::realize(USBDevice *dev, Error **errp)
 
 static void usb_audio_reinit(USBDevice *dev, unsigned channels)
 {
-    USBAudioState *s = USB_AUDIO(dev);
+    USBAudioState *s = reinterpret_cast<USBAudioState *>(dev);
 
     s->out.channels      = channels;
     if (!s->buffer_user) {
