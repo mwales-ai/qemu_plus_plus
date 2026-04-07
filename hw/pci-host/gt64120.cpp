@@ -1018,7 +1018,7 @@ static const MemoryRegionOps isd_mem_ops = {
 
 bool GT64120State::needsBswap() const
 {
-    PCIHostState *phb = PCI_HOST_BRIDGE(this);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(this);
     /*check for bus == 0 && device == 0, Bits 11:15 = Device , Bits 16:23 = Bus*/
     bool is_phb_dev0 = extract32(phb->config_reg, 11, 13) == 0;
     bool le_mode = FIELD_EX32(this->regs[GT_PCI0_CMD], GT_PCI0_CMD, MByteSwap);
@@ -1069,7 +1069,7 @@ static const MemoryRegionOps gt64120_pci_data_ops = {
 
 static void gt64120_reset(DeviceState *dev)
 {
-    GT64120State *s = GT64120_PCI_HOST_BRIDGE(dev);
+    GT64120State *s = reinterpret_cast<GT64120State *>(dev);
     s->doReset();
 }
 
@@ -1229,14 +1229,14 @@ void GT64120State::doReset()
 
 static void gt64120_realize(DeviceState *dev, Error **errp)
 {
-    GT64120State *s = GT64120_PCI_HOST_BRIDGE(dev);
+    GT64120State *s = reinterpret_cast<GT64120State *>(dev);
     s->doRealize(errp);
 }
 
 void GT64120State::doRealize(Error **errp)
 {
-    PCIHostState *phb = PCI_HOST_BRIDGE(this);
-    DeviceState *dev = DEVICE(this);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
     memory_region_init_io(&this->ISD_mem, OBJECT(this), &isd_mem_ops, this,
                           "gt64120-isd", 0x1000);
@@ -1283,7 +1283,7 @@ static void gt64120_pci_realize(PCIDevice *d, Error **errp)
 
 static void gt64120_pci_reset_hold(Object *obj, ResetType type)
 {
-    PCIDevice *d = PCI_DEVICE(obj);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(obj);
 
     /* Values from chapter 17.16 "PCI Configuration" */
 

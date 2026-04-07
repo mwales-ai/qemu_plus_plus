@@ -1354,7 +1354,7 @@ static bool artist_screen_enabled(ARTISTState *s)
 static void artist_draw_line(void *opaque, uint8_t *d, const uint8_t *src,
                              int width, int pitch)
 {
-    ARTISTState *s = ARTIST(opaque);
+    ARTISTState *s = reinterpret_cast<ARTISTState *>(opaque);
     uint32_t *cmap, *data = (uint32_t *)d;
     int x;
 
@@ -1390,7 +1390,7 @@ static void artist_update_display(void *opaque)
 
 static void artist_invalidate(void *opaque)
 {
-    ARTISTState *s = ARTIST(opaque);
+    ARTISTState *s = reinterpret_cast<ARTISTState *>(opaque);
     struct vram_buffer *buf = &s->vram_buffer[ARTIST_BUFFER_AP];
 
     memory_region_set_dirty(&buf->mr, 0, buf->size);
@@ -1403,7 +1403,7 @@ static const GraphicHwOps artist_ops = {
 
 void ARTISTState::initfn()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     memory_region_init_io(&reg, OBJECT(this), &artist_reg_ops, this,
                           "artist.reg", 4 * MiB);
@@ -1415,7 +1415,7 @@ void ARTISTState::initfn()
 
 void ARTISTState::initWrapper(Object *obj)
 {
-    ARTISTState *s = ARTIST(obj);
+    ARTISTState *s = reinterpret_cast<ARTISTState *>(obj);
     s->initfn();
 }
 
@@ -1486,13 +1486,13 @@ void ARTISTState::realize(Error **errp)
     misc_video |= 0x0A000000;
     misc_ctrl  |= 0x00800000;
 
-    con = graphic_console_init(DEVICE(this), 0, &artist_ops, this);
+    con = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0, &artist_ops, this);
     qemu_console_resize(con, width, height);
 }
 
 void ARTISTState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    ARTISTState *s = ARTIST(dev);
+    ARTISTState *s = reinterpret_cast<ARTISTState *>(dev);
     s->realize(errp);
 }
 

@@ -292,7 +292,7 @@ void AppleSMCState::addKey(const char *key, int len, const char *data)
 
 void AppleSMCState::reset(DeviceState *dev)
 {
-    AppleSMCState *s = APPLE_SMC(dev);
+    AppleSMCState *s = reinterpret_cast<AppleSMCState *>(dev);
 
     s->status = 0x00;
     s->status_1e = 0x00;
@@ -301,7 +301,7 @@ void AppleSMCState::reset(DeviceState *dev)
 
 static void qdev_applesmc_isa_reset(DeviceState *dev)
 {
-    AppleSMCState *s = APPLE_SMC(dev);
+    AppleSMCState *s = reinterpret_cast<AppleSMCState *>(dev);
     s->reset(dev);
 }
 
@@ -337,7 +337,7 @@ static const MemoryRegionOps applesmc_err_io_ops = {
 
 void AppleSMCState::realize(DeviceState *dev, Error **errp)
 {
-    AppleSMCState *s = APPLE_SMC(dev);
+    AppleSMCState *s = reinterpret_cast<AppleSMCState *>(dev);
 
     memory_region_init_io(&s->io_data, OBJECT(s), &applesmc_data_io_ops, s,
                           "applesmc-data", 1);
@@ -370,13 +370,13 @@ void AppleSMCState::realize(DeviceState *dev, Error **errp)
 
 static void applesmc_isa_realize(DeviceState *dev, Error **errp)
 {
-    AppleSMCState *s = APPLE_SMC(dev);
+    AppleSMCState *s = reinterpret_cast<AppleSMCState *>(dev);
     s->realize(dev, errp);
 }
 
 void AppleSMCState::unrealize(DeviceState *dev)
 {
-    AppleSMCState *s = APPLE_SMC(dev);
+    AppleSMCState *s = reinterpret_cast<AppleSMCState *>(dev);
     struct AppleSMCData *d, *next;
 
     /* Remove existing entries */
@@ -388,7 +388,7 @@ void AppleSMCState::unrealize(DeviceState *dev)
 
 static void applesmc_unrealize(DeviceState *dev)
 {
-    AppleSMCState *s = APPLE_SMC(dev);
+    AppleSMCState *s = reinterpret_cast<AppleSMCState *>(dev);
     s->unrealize(dev);
 }
 
@@ -401,7 +401,7 @@ static const Property applesmc_isa_properties[] = {
 void AppleSMCState::buildAml(AcpiDevAmlIf *adev, Aml *scope)
 {
     Aml *crs;
-    AppleSMCState *s = APPLE_SMC(adev);
+    AppleSMCState *s = reinterpret_cast<AppleSMCState *>(adev);
     uint32_t iobase = s->iobase;
     Aml *dev = aml_device("SMC");
 

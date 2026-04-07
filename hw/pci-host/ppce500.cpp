@@ -427,8 +427,8 @@ static const VMStateDescription vmstate_ppce500_pci = {
 
 static void e500_pcihost_bridge_realize(PCIDevice *d, Error **errp)
 {
-    PPCE500PCIBridgeState *b = PPC_E500_PCI_BRIDGE(d);
-    SysBusDevice *ccsr = SYS_BUS_DEVICE(
+    PPCE500PCIBridgeState *b = reinterpret_cast<PPCE500PCIBridgeState *>(d);
+    SysBusDevice *ccsr = reinterpret_cast<SysBusDevice *>(
         object_resolve_path_component(qdev_get_machine(), "e500-ccsr"));
     MemoryRegion *ccsr_space = sysbus_mmio_get_region(ccsr, 0);
 
@@ -451,20 +451,20 @@ static const PCIIOMMUOps ppce500_iommu_ops = {
 
 void PPCE500PCIState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PPC_E500_PCI_HOST_BRIDGE(dev)->realize(errp);
+    reinterpret_cast<PPCE500PCIState *>(dev)->realize(errp);
 }
 
 void PPCE500PCIState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
     PCIHostState *h;
     PPCE500PCIState *s;
     PCIBus *b;
     int i;
 
-    h = PCI_HOST_BRIDGE(dev);
-    s = PPC_E500_PCI_HOST_BRIDGE(dev);
+    h = reinterpret_cast<PCIHostState *>(dev);
+    s = reinterpret_cast<PPCE500PCIState *>(dev);
 
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
         sysbus_init_irq(sbd, &s->irq[i]);

@@ -240,9 +240,9 @@ void PREPPCIState::changeGpio(void *opaque, int n, int level)
 
 void PREPPCIState::realize(Error **errp)
 {
-    DeviceState *d = DEVICE(this);
-    SysBusDevice *dev = SYS_BUS_DEVICE(d);
-    PCIHostState *h = PCI_HOST_BRIDGE(dev);
+    DeviceState *d = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(d);
+    PCIHostState *h = reinterpret_cast<PCIHostState *>(dev);
     MemoryRegion *address_space_mem = get_system_memory();
     int i;
 
@@ -250,14 +250,14 @@ void PREPPCIState::realize(Error **errp)
      * According to PReP specification section 6.1.6 "System Interrupt
      * Assignments", all PCI interrupts are routed via IRQ 15
      */
-    or_irq = OR_IRQ(object_new(TYPE_OR_IRQ));
+    or_irq = reinterpret_cast<OrIRQState *>(object_new(TYPE_OR_IRQ));
     object_property_set_int(OBJECT(or_irq), "num-lines", PCI_NUM_PINS,
                             &error_fatal);
-    qdev_realize(DEVICE(or_irq), NULL, &error_fatal);
+    qdev_realize(reinterpret_cast<DeviceState *>(or_irq), NULL, &error_fatal);
     sysbus_init_irq(dev, &or_irq->out_irq);
 
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        pci_irqs[i] = qdev_get_gpio_in(DEVICE(or_irq), i);
+        pci_irqs[i] = qdev_get_gpio_in(reinterpret_cast<DeviceState *>(or_irq), i);
     }
 
     qdev_init_gpio_in(d, changeGpio, 1);
@@ -290,7 +290,7 @@ void PREPPCIState::realize(Error **errp)
 
 void PREPPCIState::realizeFnWrapper(DeviceState *d, Error **errp)
 {
-    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(d);
+    PREPPCIState *s = reinterpret_cast<PREPPCIState *>(d);
     s->realize(errp);
 }
 
@@ -331,7 +331,7 @@ void PREPPCIState::initfn(Object *obj)
 
 void PREPPCIState::initfnWrapper(Object *obj)
 {
-    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(obj);
+    PREPPCIState *s = reinterpret_cast<PREPPCIState *>(obj);
     s->initfn(obj);
 }
 

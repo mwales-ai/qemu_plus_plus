@@ -294,8 +294,8 @@ static const GraphicHwOps jazz_led_ops = {
 
 void LedState::initfn(Object *obj)
 {
-    LedState *s = JAZZ_LED(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    LedState *s = reinterpret_cast<LedState *>(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
 
     memory_region_init_io(&s->iomem, obj, &led_ops, s, "led", 1);
     sysbus_init_mmio(dev, &s->iomem);
@@ -303,26 +303,26 @@ void LedState::initfn(Object *obj)
 
 static void jazz_led_init(Object *obj)
 {
-    LedState *s = JAZZ_LED(obj);
+    LedState *s = reinterpret_cast<LedState *>(obj);
     s->initfn(obj);
 }
 
 void LedState::realize(DeviceState *dev, Error **errp)
 {
-    LedState *s = JAZZ_LED(dev);
+    LedState *s = reinterpret_cast<LedState *>(dev);
 
     s->con = graphic_console_init(dev, 0, &jazz_led_ops, s);
 }
 
 static void jazz_led_realize(DeviceState *dev, Error **errp)
 {
-    LedState *s = JAZZ_LED(dev);
+    LedState *s = reinterpret_cast<LedState *>(dev);
     s->realize(dev, errp);
 }
 
 void LedState::reset(DeviceState *d)
 {
-    LedState *s = JAZZ_LED(d);
+    LedState *s = reinterpret_cast<LedState *>(d);
 
     s->segments = 0;
     s->state = static_cast<screen_state_t>(REDRAW_SEGMENTS | REDRAW_BACKGROUND);
@@ -331,7 +331,7 @@ void LedState::reset(DeviceState *d)
 
 static void jazz_led_reset(DeviceState *d)
 {
-    LedState *s = JAZZ_LED(d);
+    LedState *s = reinterpret_cast<LedState *>(d);
     s->reset(d);
 }
 

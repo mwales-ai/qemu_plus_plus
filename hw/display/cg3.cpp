@@ -300,7 +300,7 @@ static const GraphicHwOps cg3_ops = {
 
 void CG3State::initfn()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     memory_region_init_rom_nomigrate(&rom, OBJECT(this), "cg3.prom",
                                      FCODE_MAX_ROM_SIZE, &error_fatal);
@@ -313,13 +313,13 @@ void CG3State::initfn()
 
 static void cg3_initfn(Object *obj)
 {
-    CG3State *s = CG3(obj);
+    CG3State *s = reinterpret_cast<CG3State *>(obj);
     s->initfn();
 }
 
 void CG3State::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
     int ret;
     char *fcode_filename;
 
@@ -341,13 +341,13 @@ void CG3State::realize(Error **errp)
 
     sysbus_init_irq(sbd, &irq);
 
-    con = graphic_console_init(DEVICE(this), 0, &cg3_ops, this);
+    con = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0, &cg3_ops, this);
     qemu_console_resize(con, width, height);
 }
 
 static void cg3_realizefn(DeviceState *dev, Error **errp)
 {
-    CG3State *s = CG3(dev);
+    CG3State *s = reinterpret_cast<CG3State *>(dev);
     s->realize(errp);
 }
 
@@ -392,7 +392,7 @@ void CG3State::reset()
 
 static void cg3_reset(DeviceState *d)
 {
-    CG3State *s = CG3(d);
+    CG3State *s = reinterpret_cast<CG3State *>(d);
     s->reset();
 }
 

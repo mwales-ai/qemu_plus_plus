@@ -514,16 +514,16 @@ struct G364SysBusState {
 
 static void g364fb_sysbus_realize(DeviceState *dev, Error **errp)
 {
-    G364SysBusState *sbs = G364(dev);
+    G364SysBusState *sbs = reinterpret_cast<G364SysBusState *>(dev);
     sbs->realize(errp);
 }
 
 void G364SysBusState::realize(Error **errp)
 {
     G364State *s = &g364;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(DEVICE(this));
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    s->init(DEVICE(this));
+    s->init(reinterpret_cast<DeviceState *>(this));
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_mmio(sbd, &s->mem_ctrl);
     sysbus_init_mmio(sbd, &s->mem_vram);
@@ -531,7 +531,7 @@ void G364SysBusState::realize(Error **errp)
 
 static void g364fb_sysbus_reset(DeviceState *d)
 {
-    G364SysBusState *s = G364(d);
+    G364SysBusState *s = reinterpret_cast<G364SysBusState *>(d);
     s->reset();
 }
 

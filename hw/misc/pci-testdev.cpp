@@ -262,7 +262,7 @@ static const MemoryRegionOps pci_testdev_pio_ops = {
 
 void PCITestDevState::realize(PCIDevice *pci_dev, Error **errp)
 {
-    PCITestDevState *d = PCI_TEST_DEV(pci_dev);
+    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(pci_dev);
     uint8_t *pci_conf;
     char *name;
     int r;
@@ -327,13 +327,13 @@ void PCITestDevState::realize(PCIDevice *pci_dev, Error **errp)
 
 static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
 {
-    PCITestDevState *d = PCI_TEST_DEV(pci_dev);
+    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(pci_dev);
     d->realize(pci_dev, errp);
 }
 
 void PCITestDevState::uninit(PCIDevice *dev)
 {
-    PCITestDevState *d = PCI_TEST_DEV(dev);
+    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(dev);
     size_t i;
 
     d->resetDev();
@@ -348,19 +348,19 @@ void PCITestDevState::uninit(PCIDevice *dev)
 
 static void pci_testdev_uninit(PCIDevice *dev)
 {
-    PCITestDevState *d = PCI_TEST_DEV(dev);
+    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(dev);
     d->uninit(dev);
 }
 
 void PCITestDevState::reset(DeviceState *dev)
 {
-    PCITestDevState *d = PCI_TEST_DEV(dev);
+    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(dev);
     d->resetDev();
 }
 
 static void qdev_pci_testdev_reset(DeviceState *dev)
 {
-    PCITestDevState *d = PCI_TEST_DEV(dev);
+    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(dev);
     d->reset(dev);
 }
 

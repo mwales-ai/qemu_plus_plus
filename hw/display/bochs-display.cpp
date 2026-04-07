@@ -284,7 +284,7 @@ static const GraphicHwOps bochs_display_gfx_ops = {
 
 void BochsDisplayState::realize(Error **errp)
 {
-    PCIDevice *dev = PCI_DEVICE(this);
+    PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
     Object *obj = OBJECT(this);
     int ret;
 
@@ -298,7 +298,7 @@ void BochsDisplayState::realize(Error **errp)
     }
     vgamem = pow2ceil(vgamem);
 
-    con = graphic_console_init(DEVICE(dev), 0, &bochs_display_gfx_ops, this);
+    con = graphic_console_init(reinterpret_cast<DeviceState *>(dev), 0, &bochs_display_gfx_ops, this);
 
     memory_region_init_ram(&vram, obj, "bochs-display-vram", vgamem,
                            &error_fatal);
@@ -334,27 +334,27 @@ void BochsDisplayState::realize(Error **errp)
 
 static void bochs_display_realize(PCIDevice *dev, Error **errp)
 {
-    BochsDisplayState *s = BOCHS_DISPLAY(dev);
+    BochsDisplayState *s = reinterpret_cast<BochsDisplayState *>(dev);
     s->realize(errp);
 }
 
 bool BochsDisplayState::getBigEndianFb(Object *obj, Error **errp)
 {
-    BochsDisplayState *s = BOCHS_DISPLAY(obj);
+    BochsDisplayState *s = reinterpret_cast<BochsDisplayState *>(obj);
 
     return s->big_endian_fb;
 }
 
 void BochsDisplayState::setBigEndianFb(Object *obj, bool value, Error **errp)
 {
-    BochsDisplayState *s = BOCHS_DISPLAY(obj);
+    BochsDisplayState *s = reinterpret_cast<BochsDisplayState *>(obj);
 
     s->big_endian_fb = value;
 }
 
 void BochsDisplayState::initfn()
 {
-    PCIDevice *dev = PCI_DEVICE(this);
+    PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
 
     /* Expose framebuffer byteorder via QOM */
     object_property_add_bool(OBJECT(this), "big-endian-framebuffer",
@@ -366,7 +366,7 @@ void BochsDisplayState::initfn()
 
 static void bochs_display_init(Object *obj)
 {
-    BochsDisplayState *s = BOCHS_DISPLAY(obj);
+    BochsDisplayState *s = reinterpret_cast<BochsDisplayState *>(obj);
     s->initfn();
 }
 
@@ -377,7 +377,7 @@ void BochsDisplayState::exit()
 
 static void bochs_display_exit(PCIDevice *dev)
 {
-    BochsDisplayState *s = BOCHS_DISPLAY(dev);
+    BochsDisplayState *s = reinterpret_cast<BochsDisplayState *>(dev);
     s->exit();
 }
 

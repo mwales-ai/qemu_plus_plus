@@ -313,7 +313,7 @@ void IVShmemState::vectorNotify(void *opaque)
 {
     MSIVector *entry = static_cast<MSIVector *>(opaque);
     PCIDevice *pdev = entry->pdev;
-    IVShmemState *s = IVSHMEM_COMMON(pdev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(pdev);
     int vector = entry - s->msi_vectors;
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
 
@@ -334,7 +334,7 @@ void IVShmemState::vectorNotify(void *opaque)
 int IVShmemState::vectorUnmask(PCIDevice *dev, unsigned vector,
                                 MSIMessage msg)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
     MSIVector *v = &s->msi_vectors[vector];
     int ret;
@@ -363,7 +363,7 @@ int IVShmemState::vectorUnmask(PCIDevice *dev, unsigned vector,
 
 void IVShmemState::vectorMask(PCIDevice *dev, unsigned vector)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
     MSIVector *v = &s->msi_vectors[vector];
     int ret;
@@ -387,7 +387,7 @@ void IVShmemState::vectorPoll(PCIDevice *dev,
                                unsigned int vector_start,
                                unsigned int vector_end)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
     unsigned int vector;
 
     IVSHMEM_DPRINTF("vector poll %p %d-%d\n", dev, vector_start, vector_end);
@@ -412,7 +412,7 @@ void IVShmemState::watchVectorNotifier(EventNotifier *n, int vector)
     int eventfd = event_notifier_get_fd(n);
 
     assert(!msi_vectors[vector].pdev);
-    msi_vectors[vector].pdev = PCI_DEVICE(this);
+    msi_vectors[vector].pdev = reinterpret_cast<PCIDevice *>(this);
 
     qemu_set_fd_handler(eventfd, IVShmemState::vectorNotify,
                         NULL, &msi_vectors[vector]);
@@ -480,7 +480,7 @@ void IVShmemState::resizePeers(int new_nb_peers)
 
 void IVShmemState::addKvmMsiVirq(int vector, Error **errp)
 {
-    PCIDevice *pdev = PCI_DEVICE(this);
+    PCIDevice *pdev = reinterpret_cast<PCIDevice *>(this);
     KVMRouteChange c;
     int ret;
 
@@ -504,7 +504,7 @@ void IVShmemState::setupInterrupt(int vector, Error **errp)
     EventNotifier *n = &peers[vm_id].eventfds[vector];
     bool with_irqfd = kvm_msi_via_irqfd_enabled() &&
         hasFeature(IVSHMEM_MSI);
-    PCIDevice *pdev = PCI_DEVICE(this);
+    PCIDevice *pdev = reinterpret_cast<PCIDevice *>(this);
     Error *err = NULL;
 
     IVSHMEM_DPRINTF("setting up interrupt for vector: %d\n", vector);
@@ -770,7 +770,7 @@ void IVShmemState::recvSetup(Error **errp)
  * we just enable all vectors on init and after reset. */
 void IVShmemState::msixVectorUse()
 {
-    PCIDevice *d = PCI_DEVICE(this);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(this);
     int i;
 
     for (i = 0; i < static_cast<int>(vectors); i++) {
@@ -780,7 +780,7 @@ void IVShmemState::msixVectorUse()
 
 static void ivshmem_reset_wrapper(DeviceState *d)
 {
-    IVShmemState *s = IVSHMEM_COMMON(d);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(d);
     s->reset(d);
 }
 
@@ -801,7 +801,7 @@ int IVShmemState::setupInterrupts(Error **errp)
     msi_vectors = g_new0(MSIVector, vectors);
 
     if (hasFeature(IVSHMEM_MSI)) {
-        if (msix_init_exclusive_bar(PCI_DEVICE(this), vectors, 1, errp)) {
+        if (msix_init_exclusive_bar(reinterpret_cast<PCIDevice *>(this), vectors, 1, errp)) {
             return -1;
         }
 
@@ -828,7 +828,7 @@ void IVShmemState::removeKvmMsiVirq(int vector)
 
 void IVShmemState::enableIrqfd()
 {
-    PCIDevice *pdev = PCI_DEVICE(this);
+    PCIDevice *pdev = reinterpret_cast<PCIDevice *>(this);
     int i;
 
     for (i = 0; i < peers[vm_id].nb_eventfds; i++) {
@@ -858,7 +858,7 @@ void IVShmemState::enableIrqfd()
 
 void IVShmemState::disableIrqfd()
 {
-    PCIDevice *pdev = PCI_DEVICE(this);
+    PCIDevice *pdev = reinterpret_cast<PCIDevice *>(this);
     int i;
 
     if (!pdev->msix_vector_use_notifier) {
@@ -884,7 +884,7 @@ void IVShmemState::disableIrqfd()
 void IVShmemState::writeConfig(PCIDevice *pdev, uint32_t address,
                                 uint32_t val, int len)
 {
-    IVShmemState *s = IVSHMEM_COMMON(pdev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(pdev);
     int is_enabled, was_enabled = msix_enabled(pdev);
 
     pci_default_write_config(pdev, address, val, len);
@@ -901,7 +901,7 @@ void IVShmemState::writeConfig(PCIDevice *pdev, uint32_t address,
 
 static void ivshmem_common_realize_wrapper(PCIDevice *dev, Error **errp)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
     s->realize(dev, errp);
 }
 
@@ -982,8 +982,8 @@ void IVShmemState::realize(PCIDevice *dev, Error **errp)
         }
     }
 
-    vmstate_register_ram(ivshmem_bar2, DEVICE(this));
-    pci_register_bar(PCI_DEVICE(this), 2,
+    vmstate_register_ram(ivshmem_bar2, reinterpret_cast<DeviceState *>(this));
+    pci_register_bar(reinterpret_cast<PCIDevice *>(this), 2,
                      PCI_BASE_ADDRESS_SPACE_MEMORY |
                      PCI_BASE_ADDRESS_MEM_PREFETCH |
                      PCI_BASE_ADDRESS_MEM_TYPE_64,
@@ -992,7 +992,7 @@ void IVShmemState::realize(PCIDevice *dev, Error **errp)
 
 static void ivshmem_exit_wrapper(PCIDevice *dev)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
     s->exit(dev);
 }
 
@@ -1016,7 +1016,7 @@ void IVShmemState::exit(PCIDevice *dev)
             close(fd);
         }
 
-        vmstate_unregister_ram(ivshmem_bar2, DEVICE(dev));
+        vmstate_unregister_ram(ivshmem_bar2, reinterpret_cast<DeviceState *>(dev));
     }
 
     if (hostmem) {
@@ -1114,7 +1114,7 @@ static const Property ivshmem_plain_properties[] = {
 
 void IVShmemState::plainRealize(PCIDevice *dev, Error **errp)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
 
     if (!s->hostmem) {
         error_setg(errp, "You must specify a 'memdev'");
@@ -1130,7 +1130,7 @@ void IVShmemState::plainRealize(PCIDevice *dev, Error **errp)
 
 static void ivshmem_plain_realize(PCIDevice *dev, Error **errp)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
     s->plainRealize(dev, errp);
 }
 
@@ -1183,13 +1183,13 @@ void IVShmemState::doorbellInit()
 
 static void ivshmem_doorbell_init(Object *obj)
 {
-    IVShmemState *s = IVSHMEM_DOORBELL(obj);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(obj);
     s->doorbellInit();
 }
 
 void IVShmemState::doorbellRealize(PCIDevice *dev, Error **errp)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
 
     if (!qemu_chr_fe_backend_connected(&s->server_chr)) {
         error_setg(errp, "You must specify a 'chardev'");
@@ -1201,7 +1201,7 @@ void IVShmemState::doorbellRealize(PCIDevice *dev, Error **errp)
 
 static void ivshmem_doorbell_realize(PCIDevice *dev, Error **errp)
 {
-    IVShmemState *s = IVSHMEM_COMMON(dev);
+    IVShmemState *s = reinterpret_cast<IVShmemState *>(dev);
     s->doorbellRealize(dev, errp);
 }
 

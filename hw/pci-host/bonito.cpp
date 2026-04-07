@@ -359,7 +359,7 @@ void PCIBonitoState::pciconfWritel(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
     PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
 
     DPRINTF("bonito_pciconf_writel "HWADDR_FMT_plx" val %lx\n", addr, val);
     d->config_write(d, addr, val, 4);
@@ -369,7 +369,7 @@ uint64_t PCIBonitoState::pciconfReadl(void *opaque, hwaddr addr,
                                        unsigned size)
 {
     PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
 
     DPRINTF("bonito_pciconf_readl "HWADDR_FMT_plx"\n", addr);
     return d->config_read(d, addr, 4);
@@ -464,7 +464,7 @@ static const MemoryRegionOps bonito_cop_ops = {
 uint32_t PCIBonitoState::sbridgePciaddr(void *opaque, hwaddr addr)
 {
     PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(s->pcihost);
     uint32_t cfgaddr;
     uint32_t idsel;
     uint32_t devno;
@@ -502,8 +502,8 @@ void PCIBonitoState::spciconfWrite(void *opaque, hwaddr addr, uint64_t val,
                                     unsigned size)
 {
     PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
-    PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(s->pcihost);
     uint32_t pciaddr;
     uint16_t status;
 
@@ -532,8 +532,8 @@ void PCIBonitoState::spciconfWrite(void *opaque, hwaddr addr, uint64_t val,
 uint64_t PCIBonitoState::spciconfRead(void *opaque, hwaddr addr, unsigned size)
 {
     PCIBonitoState *s = static_cast<PCIBonitoState *>(opaque);
-    PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(s->pcihost);
     uint32_t pciaddr;
     uint16_t status;
 
@@ -611,7 +611,7 @@ int BonitoState::mapIrq(PCIDevice *pci_dev, int irq_num)
 
 void PCIBonitoState::resetHold(Object *obj, ResetType type)
 {
-    PCIBonitoState *s = PCI_BONITO(obj);
+    PCIBonitoState *s = reinterpret_cast<PCIBonitoState *>(obj);
     uint32_t val = 0;
 
     /* set the default value of north bridge registers */
@@ -646,8 +646,8 @@ static const VMStateDescription vmstate_bonito = {
 
 void BonitoState::hostRealize(DeviceState *dev, Error **errp)
 {
-    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
-    BonitoState *bs = BONITO_PCI_HOST_BRIDGE(dev);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(dev);
+    BonitoState *bs = reinterpret_cast<BonitoState *>(dev);
     MemoryRegion *pcimem_lo_alias = g_new(MemoryRegion, 3);
 
     memory_region_init(&bs->pci_mem, OBJECT(dev), "pci.mem", BONITO_PCIHI_SIZE);
@@ -672,9 +672,9 @@ void BonitoState::hostRealize(DeviceState *dev, Error **errp)
 
 void PCIBonitoState::pciRealize(PCIDevice *dev, Error **errp)
 {
-    PCIBonitoState *s = PCI_BONITO(dev);
+    PCIBonitoState *s = reinterpret_cast<PCIBonitoState *>(dev);
     MemoryRegion *host_mem = get_system_memory();
-    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(s->pcihost);
     BonitoState *bs = s->pcihost;
     MemoryRegion *pcimem_alias = g_new(MemoryRegion, 1);
 
@@ -758,13 +758,13 @@ PCIBus *bonito_init(qemu_irq *pic)
     PCIDevice *d;
 
     dev = qdev_new(TYPE_BONITO_PCI_HOST_BRIDGE);
-    phb = PCI_HOST_BRIDGE(dev);
-    pcihost = BONITO_PCI_HOST_BRIDGE(dev);
+    phb = reinterpret_cast<PCIHostState *>(dev);
+    pcihost = reinterpret_cast<BonitoState *>(dev);
     pcihost->pic = pic;
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
 
     d = pci_new(PCI_DEVFN(0, 0), TYPE_PCI_BONITO);
-    s = PCI_BONITO(d);
+    s = reinterpret_cast<PCIBonitoState *>(d);
     s->pcihost = pcihost;
     pcihost->pci_dev = s;
     pci_realize_and_unref(d, phb->bus, &error_fatal);

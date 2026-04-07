@@ -109,7 +109,7 @@ void I440FXState::pciRealize(PCIDevice *dev, Error **errp)
 void I440FXState::updateMemoryMappings(PCII440FXState *d)
 {
     int i;
-    PCIDevice *pd = PCI_DEVICE(d);
+    PCIDevice *pd = reinterpret_cast<PCIDevice *>(d);
 
     memory_region_transaction_begin();
     for (i = 0; i < ARRAY_SIZE(d->pam_regions); i++) {
@@ -127,7 +127,7 @@ void I440FXState::updateMemoryMappings(PCII440FXState *d)
 void I440FXState::writeConfig(PCIDevice *dev,
                                uint32_t address, uint32_t val, int len)
 {
-    PCII440FXState *d = I440FX_PCI_DEVICE(dev);
+    PCII440FXState *d = reinterpret_cast<PCII440FXState *>(dev);
 
     /* XXX: implement SMRAM.D_LOCK */
     pci_default_write_config(dev, address, val, len);
@@ -166,7 +166,7 @@ void I440FXState::getPciHoleStart(Object *obj, Visitor *v,
                                    const char *name, void *opaque,
                                    Error **errp)
 {
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
+    I440FXState *s = reinterpret_cast<I440FXState *>(obj);
     uint64_t val64;
     uint32_t value;
 
@@ -180,7 +180,7 @@ void I440FXState::getPciHoleEnd(Object *obj, Visitor *v,
                                  const char *name, void *opaque,
                                  Error **errp)
 {
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
+    I440FXState *s = reinterpret_cast<I440FXState *>(obj);
     uint64_t val64;
     uint32_t value;
 
@@ -199,8 +199,8 @@ void I440FXState::getPciHoleEnd(Object *obj, Visitor *v,
  */
 uint64_t I440FXState::getPciHole64StartValue(Object *obj)
 {
-    PCIHostState *h = PCI_HOST_BRIDGE(obj);
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
+    PCIHostState *h = reinterpret_cast<PCIHostState *>(obj);
+    I440FXState *s = reinterpret_cast<I440FXState *>(obj);
     Range w64;
     uint64_t value;
 
@@ -231,8 +231,8 @@ void I440FXState::getPciHole64End(Object *obj, Visitor *v,
                                    const char *name, void *opaque,
                                    Error **errp)
 {
-    PCIHostState *h = PCI_HOST_BRIDGE(obj);
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
+    PCIHostState *h = reinterpret_cast<PCIHostState *>(obj);
+    I440FXState *s = reinterpret_cast<I440FXState *>(obj);
     uint64_t hole64_start = I440FXState::getPciHole64StartValue(obj);
     Range w64;
     uint64_t value, hole64_end;
@@ -248,8 +248,8 @@ void I440FXState::getPciHole64End(Object *obj, Visitor *v,
 
 void I440FXState::initfn(Object *obj)
 {
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
-    PCIHostState *phb = PCI_HOST_BRIDGE(obj);
+    I440FXState *s = reinterpret_cast<I440FXState *>(obj);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(obj);
 
     memory_region_init_io(&phb->conf_mem, obj, &pci_host_conf_le_ops, phb,
                           "pci-conf-idx", 4);
@@ -275,16 +275,16 @@ void I440FXState::initfn(Object *obj)
 
 static void i440fx_pcihost_realize_wrapper(DeviceState *dev, Error **errp)
 {
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(dev);
+    I440FXState *s = reinterpret_cast<I440FXState *>(dev);
     s->realize(dev, errp);
 }
 
 void I440FXState::realize(DeviceState *dev, Error **errp)
 {
     ERRP_GUARD();
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(dev);
-    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    I440FXState *s = reinterpret_cast<I440FXState *>(dev);
+    PCIHostState *phb = reinterpret_cast<PCIHostState *>(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
     PCIBus *b;
     PCIDevice *d;
     PCII440FXState *f;
@@ -305,7 +305,7 @@ void I440FXState::realize(DeviceState *dev, Error **errp)
     phb->bus = b;
 
     d = pci_create_simple(b, 0, s->pci_type);
-    f = I440FX_PCI_DEVICE(d);
+    f = reinterpret_cast<PCII440FXState *>(d);
 
     range_set_bounds(&s->pci_hole, s->below_4g_mem_size,
                      IO_APIC_DEFAULT_ADDRESS - 1);

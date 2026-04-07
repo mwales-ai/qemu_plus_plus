@@ -416,7 +416,7 @@ void TCXState::doReset()
 
 static void tcx_reset(DeviceState *d)
 {
-    TCXState *s = TCX(d);
+    TCXState *s = reinterpret_cast<TCXState *>(d);
     s->doReset();
 }
 
@@ -795,7 +795,7 @@ static const GraphicHwOps tcx24_ops = {
 
 void TCXState::initfn(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     memory_region_init_rom_nomigrate(&rom, obj, "tcx.prom",
                                      FCODE_MAX_ROM_SIZE, &error_fatal);
@@ -849,14 +849,14 @@ void TCXState::initfn(Object *obj)
 
 static void tcx_initfn(Object *obj)
 {
-    TCXState *s = TCX(obj);
+    TCXState *s = reinterpret_cast<TCXState *>(obj);
     s->initfn(obj);
 }
 
 void TCXState::realize(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    TCXState *s = TCX(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
+    TCXState *s = reinterpret_cast<TCXState *>(dev);
     ram_addr_t vram_offset = 0;
     int size, ret;
     uint8_t *vram_base;
@@ -934,7 +934,7 @@ static const Property tcx_properties[] = {
 
 static void tcx_realizefn(DeviceState *dev, Error **errp)
 {
-    TCXState *s = TCX(dev);
+    TCXState *s = reinterpret_cast<TCXState *>(dev);
     s->realize(dev, errp);
 }
 
