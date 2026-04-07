@@ -197,7 +197,7 @@ void PCIPCNetState::pciPhysicalMemoryRead(void *dma_opaque, hwaddr addr,
 
 static void pci_pcnet_uninit(PCIDevice *dev)
 {
-    PCIPCNetState *d = PCI_PCNET(dev);
+    PCIPCNetState *d = reinterpret_cast<PCIPCNetState *>(dev);
     d->pciUninit();
 }
 
@@ -217,13 +217,13 @@ static NetClientInfo net_pci_pcnet_info = {
 
 static void pci_pcnet_realize(PCIDevice *pci_dev, Error **errp)
 {
-    PCIPCNetState *d = PCI_PCNET(pci_dev);
+    PCIPCNetState *d = reinterpret_cast<PCIPCNetState *>(pci_dev);
     d->pciRealize(errp);
 }
 
 void PCIPCNetState::pciRealize(Error **errp)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(DEVICE(this));
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(this);
     PCNetState *s = &this->state;
     uint8_t *pci_conf;
 
@@ -245,10 +245,10 @@ void PCIPCNetState::pciRealize(Error **errp)
     pci_conf[PCI_MAX_LAT] = 0xff;
 
     /* Handler for memory-mapped I/O */
-    memory_region_init_io(&this->state.mmio, OBJECT(this), &pcnet_mmio_ops, s,
+    memory_region_init_io(&this->state.mmio, reinterpret_cast<Object *>(this), &pcnet_mmio_ops, s,
                           "pcnet-mmio", PCNET_PNPMMIO_SIZE);
 
-    memory_region_init_io(&this->io_bar, OBJECT(this), &pcnet_io_ops, s, "pcnet-io",
+    memory_region_init_io(&this->io_bar, reinterpret_cast<Object *>(this), &pcnet_io_ops, s, "pcnet-io",
                           PCNET_IOPORT_SIZE);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &this->io_bar);
 
@@ -257,14 +257,14 @@ void PCIPCNetState::pciRealize(Error **errp)
     s->irq = pci_allocate_irq(pci_dev);
     s->phys_mem_read = PCIPCNetState::pciPhysicalMemoryRead;
     s->phys_mem_write = PCIPCNetState::pciPhysicalMemoryWrite;
-    s->dma_opaque = DEVICE(pci_dev);
+    s->dma_opaque = reinterpret_cast<DeviceState *>(pci_dev);
 
-    pcnet_common_init(DEVICE(pci_dev), s, &net_pci_pcnet_info);
+    pcnet_common_init(reinterpret_cast<DeviceState *>(pci_dev), s, &net_pci_pcnet_info);
 }
 
 static void pci_reset(DeviceState *dev)
 {
-    PCIPCNetState *d = PCI_PCNET(dev);
+    PCIPCNetState *d = reinterpret_cast<PCIPCNetState *>(dev);
     d->reset();
 }
 
@@ -275,7 +275,7 @@ void PCIPCNetState::reset()
 
 static void pcnet_instance_init(Object *obj)
 {
-    PCIPCNetState *d = PCI_PCNET(obj);
+    PCIPCNetState *d = reinterpret_cast<PCIPCNetState *>(obj);
     d->instanceInit();
 }
 
@@ -283,9 +283,9 @@ void PCIPCNetState::instanceInit()
 {
     PCNetState *s = &this->state;
 
-    device_add_bootindex_property(OBJECT(this), &s->conf.bootindex,
+    device_add_bootindex_property(reinterpret_cast<Object *>(this), &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(this));
+                                  reinterpret_cast<DeviceState *>(this));
 }
 
 static const Property pcnet_properties[] = {
@@ -294,8 +294,8 @@ static const Property pcnet_properties[] = {
 
 void PCIPCNetState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = pci_pcnet_realize;
     k->exit = pci_pcnet_uninit;

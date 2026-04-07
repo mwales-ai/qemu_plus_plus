@@ -118,10 +118,10 @@ uint64_t ArticiaState::regRead(void *opaque, hwaddr addr, unsigned int size)
 
     switch (addr) {
     case 0xc00cf8:
-        ret = pci_host_conf_le_ops.read(PCI_HOST_BRIDGE(s), 0, size);
+        ret = pci_host_conf_le_ops.read(reinterpret_cast<PCIHostState *>(s), 0, size);
         break;
     case 0xe00cfc ... 0xe00cff:
-        ret = pci_host_data_le_ops.read(PCI_HOST_BRIDGE(s), addr - 0xe00cfc, size);
+        ret = pci_host_data_le_ops.read(reinterpret_cast<PCIHostState *>(s), addr - 0xe00cfc, size);
         break;
     case 0xf00000:
         ret = pic_read_irq(isa_pic);
@@ -141,10 +141,10 @@ void ArticiaState::regWrite(void *opaque, hwaddr addr, uint64_t val,
 
     switch (addr) {
     case 0xc00cf8:
-        pci_host_conf_le_ops.write(PCI_HOST_BRIDGE(s), 0, val, size);
+        pci_host_conf_le_ops.write(reinterpret_cast<PCIHostState *>(s), 0, val, size);
         break;
     case 0xe00cfc ... 0xe00cff:
-        pci_host_data_le_ops.write(PCI_HOST_BRIDGE(s), addr, val, size);
+        pci_host_data_le_ops.write(reinterpret_cast<PCIHostState *>(s), addr, val, size);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: Unimplemented register write 0x%"
@@ -195,17 +195,17 @@ int ArticiaState::bus0MapIrq(PCIDevice *pdev, int pin)
 
 void ArticiaState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
-    PCIHostState *h = PCI_HOST_BRIDGE(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    PCIHostState *h = reinterpret_cast<PCIHostState *>(dev);
     PCIDevice *pdev;
 
     bitbang_i2c_init(&smbus, i2c_init_bus(dev, "smbus"));
-    memory_region_init_io(&gpio_reg, OBJECT(this), &articia_gpio_ops, this,
+    memory_region_init_io(&gpio_reg, reinterpret_cast<Object *>(this), &articia_gpio_ops, this,
                           TYPE_ARTICIA, 4);
 
-    memory_region_init(&mem, OBJECT(dev), "pci-mem", UINT64_MAX);
-    memory_region_init(&io, OBJECT(dev), "pci-io", 0xc00000);
-    memory_region_init_io(&reg, OBJECT(this), &articia_reg_ops, this,
+    memory_region_init(&mem, reinterpret_cast<Object *>(dev), "pci-mem", UINT64_MAX);
+    memory_region_init(&io, reinterpret_cast<Object *>(dev), "pci-io", 0xc00000);
+    memory_region_init_io(&reg, reinterpret_cast<Object *>(this), &articia_reg_ops, this,
                           TYPE_ARTICIA, 0x1000000);
     memory_region_add_subregion_overlap(&reg, 0, &io, 1);
 
@@ -215,23 +215,23 @@ void ArticiaState::realize(Error **errp)
                                    &io, PCI_DEVFN(8, 0), 4, TYPE_PCI_BUS);
     pdev = pci_create_simple_multifunction(h->bus, PCI_DEVFN(0, 0),
                                            TYPE_ARTICIA_PCI_HOST);
-    ARTICIA_PCI_HOST(pdev)->as = this;
+    reinterpret_cast<ArticiaHostState *>(pdev)->as = this;
     pci_create_simple(h->bus, PCI_DEVFN(0, 1), TYPE_ARTICIA_PCI_BRIDGE);
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &reg);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &reg);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &mem);
     qdev_init_gpio_out(dev, irq, ARRAY_SIZE(irq));
 }
 
 void ArticiaState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    ArticiaState *s = ARTICIA(dev);
+    ArticiaState *s = reinterpret_cast<ArticiaState *>(dev);
     s->realize(errp);
 }
 
 void ArticiaState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
@@ -242,7 +242,7 @@ void ArticiaState::classInit(ObjectClass *klass, const void *data)
 static void articia_pci_host_cfg_write(PCIDevice *d, uint32_t addr,
                                        uint32_t val, int len)
 {
-    ArticiaState *s = ARTICIA_PCI_HOST(d)->as;
+    ArticiaState *s = reinterpret_cast<ArticiaHostState *>(d)->as;
 
     pci_default_write_config(d, addr, val, len);
     switch (addr) {
@@ -264,8 +264,8 @@ static void articia_pci_host_cfg_write(PCIDevice *d, uint32_t addr,
 
 void ArticiaHostState::pciHostClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->config_write = articia_pci_host_cfg_write;
     k->vendor_id = 0x10cc;
@@ -282,8 +282,8 @@ void ArticiaHostState::pciHostClassInit(ObjectClass *klass, const void *data)
 
 void ArticiaHostState::pciBridgeClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->vendor_id = 0x10cc;
     k->device_id = 0x0661;

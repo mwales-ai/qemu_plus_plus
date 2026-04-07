@@ -129,8 +129,8 @@ static void gem_init(uint32_t base, qemu_irq irq)
 
     dev = qdev_new(TYPE_CADENCE_GEM);
     qemu_configure_nic_device(dev, true, NULL);
-    object_property_set_int(OBJECT(dev), "phy-addr", 7, &error_abort);
-    s = SYS_BUS_DEVICE(dev);
+    object_property_set_int(reinterpret_cast<Object *>(dev), "phy-addr", 7, &error_abort);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, base);
     sysbus_connect_irq(s, 0, irq);
@@ -152,7 +152,7 @@ static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
     qdev_prop_set_uint8(dev, "num-txrx-bytes", is_qspi ? 4 : 1);
     qdev_prop_set_uint8(dev, "num-ss-bits", num_ss);
     qdev_prop_set_uint8(dev, "num-busses", num_busses);
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, base_addr);
     if (is_qspi) {
@@ -176,7 +176,7 @@ static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
                                         &error_fatal);
             }
             qdev_prop_set_uint8(flash_dev, "cs", j);
-            qdev_realize_and_unref(flash_dev, BUS(spi), &error_fatal);
+            qdev_realize_and_unref(flash_dev, reinterpret_cast<BusState *>(spi), &error_fatal);
 
             cs_line = qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0);
             sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
@@ -189,7 +189,7 @@ static inline int zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
 void ZynqMachineState::setBootMode(Object *obj, const char *str,
                                                Error **errp)
 {
-    ZynqMachineState *m = ZYNQ_MACHINE(obj);
+    ZynqMachineState *m = reinterpret_cast<ZynqMachineState *>(obj);
     uint8_t mode = 0;
 
     if (!strncasecmp(str, "qspi", 4)) {
@@ -209,7 +209,7 @@ void ZynqMachineState::setBootMode(Object *obj, const char *str,
 
 void ZynqMachineState::machineInit(MachineState *machine)
 {
-    ZynqMachineState *zynq_machine = ZYNQ_MACHINE(machine);
+    ZynqMachineState *zynq_machine = reinterpret_cast<ZynqMachineState *>(machine);
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ocm_ram = g_new(MemoryRegion, 1);
     DeviceState *dev, *slcr;
@@ -232,9 +232,9 @@ void ZynqMachineState::machineInit(MachineState *machine)
         object_property_set_int(cpuobj, "reset-cbar", MPCORE_PERIPHBASE,
                                 &error_fatal);
 
-        qdev_realize(DEVICE(cpuobj), NULL, &error_fatal);
+        qdev_realize(reinterpret_cast<DeviceState *>(cpuobj), NULL, &error_fatal);
 
-        zynq_machine->cpu[n] = ARM_CPU(cpuobj);
+        zynq_machine->cpu[n] = reinterpret_cast<ARMCPU *>(cpuobj);
     }
 
     /* DDR remapped to address zero.  */
@@ -255,30 +255,30 @@ void ZynqMachineState::machineInit(MachineState *machine)
                           0);
 
     /* Create the main clock source, and feed slcr with it */
-    zynq_machine->ps_clk = CLOCK(object_new(TYPE_CLOCK));
-    object_property_add_child(OBJECT(zynq_machine), "ps_clk",
-                              OBJECT(zynq_machine->ps_clk));
-    object_unref(OBJECT(zynq_machine->ps_clk));
+    zynq_machine->ps_clk = reinterpret_cast<Clock *>(object_new(TYPE_CLOCK));
+    object_property_add_child(reinterpret_cast<Object *>(zynq_machine), "ps_clk",
+                              reinterpret_cast<Object *>(zynq_machine->ps_clk));
+    object_unref(reinterpret_cast<Object *>(zynq_machine->ps_clk));
     clock_set_hz(zynq_machine->ps_clk, PS_CLK_FREQUENCY);
 
     /* Create slcr, keep a pointer to connect clocks */
     slcr = qdev_new("xilinx-zynq_slcr");
     qdev_connect_clock_in(slcr, "ps_clk", zynq_machine->ps_clk);
     qdev_prop_set_uint8(slcr, "boot-mode", zynq_machine->boot_mode);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(slcr), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(slcr), 0, 0xF8000000);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(slcr), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(slcr), 0, 0xF8000000);
 
     dev = qdev_new(TYPE_A9MPCORE_PRIV);
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_prop_set_uint32(dev, "num-irq", GIC_EXT_IRQS + GIC_INTERNAL);
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
     zynq_binfo.gic_cpu_if_addr = MPCORE_PERIPHBASE + 0x100;
     sysbus_create_varargs("l2x0", MPCORE_PERIPHBASE + 0x2000, NULL);
     for (n = 0; n < smp_cpus; n++) {
         /* See "hw/intc/arm_gic.h" for the IRQ line association */
-        DeviceState *cpudev = DEVICE(zynq_machine->cpu[n]);
+        DeviceState *cpudev = reinterpret_cast<DeviceState *>(zynq_machine->cpu[n]);
         sysbus_connect_irq(busdev, n,
                            qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         sysbus_connect_irq(busdev, smp_cpus + n,
@@ -297,7 +297,7 @@ void ZynqMachineState::machineInit(MachineState *machine)
     sysbus_create_simple(TYPE_CHIPIDEA, 0xE0003000, pic[76 - GIC_INTERNAL]);
 
     dev = qdev_new(TYPE_CADENCE_UART);
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
     qdev_connect_clock_in(dev, "refclk",
                           qdev_get_clock_out(slcr, "uart0_ref_clk"));
@@ -305,7 +305,7 @@ void ZynqMachineState::machineInit(MachineState *machine)
     sysbus_mmio_map(busdev, 0, 0xE0000000);
     sysbus_connect_irq(busdev, 0, pic[59 - GIC_INTERNAL]);
     dev = qdev_new(TYPE_CADENCE_UART);
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     qdev_prop_set_chr(dev, "chardev", serial_hd(1));
     qdev_connect_clock_in(dev, "refclk",
                           qdev_get_clock_out(slcr, "uart1_ref_clk"));
@@ -336,9 +336,9 @@ void ZynqMachineState::machineInit(MachineState *machine)
         dev = qdev_new(TYPE_SYSBUS_SDHCI);
         qdev_prop_set_uint8(dev, "sd-spec-version", 2);
         qdev_prop_set_uint64(dev, "capareg", ZYNQ_SDHCI_CAPABILITIES);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, hci_addr);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[hci_irq - GIC_INTERNAL]);
+        sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+        sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, hci_addr);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, pic[hci_irq - GIC_INTERNAL]);
 
         di = drive_get(IF_SD, 0, n);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
@@ -349,13 +349,13 @@ void ZynqMachineState::machineInit(MachineState *machine)
     }
 
     dev = qdev_new(TYPE_ZYNQ_XADC);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xF8007100);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[39-GIC_INTERNAL]);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, 0xF8007100);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, pic[39-GIC_INTERNAL]);
 
     dev = qdev_new("pl330");
-    object_property_set_link(OBJECT(dev), "memory",
-                             OBJECT(address_space_mem),
+    object_property_set_link(reinterpret_cast<Object *>(dev), "memory",
+                             reinterpret_cast<Object *>(address_space_mem),
                              &error_fatal);
     qdev_prop_set_uint8(dev, "num_chnls",  8);
     qdev_prop_set_uint8(dev, "num_periph_req",  4);
@@ -368,7 +368,7 @@ void ZynqMachineState::machineInit(MachineState *machine)
     qdev_prop_set_uint8(dev, "rd_q_dep",  16);
     qdev_prop_set_uint16(dev, "data_buffer_dep",  256);
 
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, 0xF8003000);
     sysbus_connect_irq(busdev, 0, pic[45-GIC_INTERNAL]); /* abort irq line */
@@ -377,7 +377,7 @@ void ZynqMachineState::machineInit(MachineState *machine)
     }
 
     dev = qdev_new("xlnx.ps7-dev-cfg");
-    busdev = SYS_BUS_DEVICE(dev);
+    busdev = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_connect_irq(busdev, 0, pic[40 - GIC_INTERNAL]);
     sysbus_mmio_map(busdev, 0, 0xF8007000);
@@ -466,7 +466,7 @@ void ZynqMachineState::classInit(ObjectClass *oc, const void *data)
         ARM_CPU_TYPE_NAME("cortex-a9"),
         NULL
     };
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
     ObjectProperty *prop;
     mc->desc = "Xilinx Zynq 7000 Platform Baseboard for Cortex-A9";
     mc->init = machineInit;

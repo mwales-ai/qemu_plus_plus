@@ -131,7 +131,7 @@ static void ppc_core99_reset(void *opaque)
 {
     PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(reinterpret_cast<CPUState *>(cpu));
     /* 970 CPUs want to get their initial IP as part of their boot protocol */
     cpu->env.nip = PROM_BASE + 0x100;
 }
@@ -139,7 +139,7 @@ static void ppc_core99_reset(void *opaque)
 /* PowerPC Mac99 hardware initialisation */
 static void ppc_core99_init(MachineState *machine)
 {
-    Core99MachineState *core99_machine = CORE99_MACHINE(machine);
+    Core99MachineState *core99_machine = reinterpret_cast<Core99MachineState *>(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
@@ -166,7 +166,7 @@ static void ppc_core99_init(MachineState *machine)
 
     /* init CPUs */
     for (i = 0; i < machine->smp.cpus; i++) {
-        cpu = POWERPC_CPU(cpu_create(machine->cpu_type));
+        cpu = reinterpret_cast<PowerPCCPU *>(cpu_create(machine->cpu_type));
         env = &cpu->env;
 
         /* Set time-base frequency to 100 Mhz */
@@ -252,7 +252,7 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     openpic_irqs = g_new0(IrqLines, machine->smp.cpus);
-    dev = DEVICE(cpu);
+    dev = reinterpret_cast<DeviceState *>(cpu);
     for (i = 0; i < machine->smp.cpus; i++) {
         /* Mac99 IRQ connection between OpenPIC outputs pins
          * and PowerPC input pins
@@ -293,7 +293,7 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* UniN init */
-    s = SYS_BUS_DEVICE(qdev_new(TYPE_UNI_NORTH));
+    s = reinterpret_cast<SysBusDevice *>(qdev_new(TYPE_UNI_NORTH));
     sysbus_realize_and_unref(s, &error_fatal);
     memory_region_add_subregion(get_system_memory(), 0xf8000000,
                                 sysbus_mmio_get_region(s, 0));
@@ -303,7 +303,7 @@ static void ppc_core99_init(MachineState *machine)
         /* 970 gets a U3 bus */
         /* Uninorth AGP bus */
         uninorth_pci_dev = qdev_new(TYPE_U3_AGP_HOST_BRIDGE);
-        s = SYS_BUS_DEVICE(uninorth_pci_dev);
+        s = reinterpret_cast<SysBusDevice *>(uninorth_pci_dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
@@ -318,7 +318,7 @@ static void ppc_core99_init(MachineState *machine)
         /* Use values found on a real PowerMac */
         /* Uninorth AGP bus */
         uninorth_agp_dev = qdev_new(TYPE_UNI_NORTH_AGP_HOST_BRIDGE);
-        s = SYS_BUS_DEVICE(uninorth_agp_dev);
+        s = reinterpret_cast<SysBusDevice *>(uninorth_agp_dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf0800000);
         sysbus_mmio_map(s, 1, 0xf0c00000);
@@ -326,7 +326,7 @@ static void ppc_core99_init(MachineState *machine)
         /* Uninorth internal bus */
         uninorth_internal_dev = qdev_new(
                                 TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE);
-        s = SYS_BUS_DEVICE(uninorth_internal_dev);
+        s = reinterpret_cast<SysBusDevice *>(uninorth_internal_dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf4800000);
         sysbus_mmio_map(s, 1, 0xf4c00000);
@@ -334,7 +334,7 @@ static void ppc_core99_init(MachineState *machine)
         /* Uninorth main bus - this must be last to make it the default */
         uninorth_pci_dev = qdev_new(TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
         qdev_prop_set_uint32(uninorth_pci_dev, "ofw-addr", 0xf2000000);
-        s = SYS_BUS_DEVICE(uninorth_pci_dev);
+        s = reinterpret_cast<SysBusDevice *>(uninorth_pci_dev);
         sysbus_realize_and_unref(s, &error_fatal);
         sysbus_mmio_map(s, 0, 0xf2800000);
         sysbus_mmio_map(s, 1, 0xf2c00000);
@@ -352,22 +352,22 @@ static void ppc_core99_init(MachineState *machine)
                core99_machine->via_config == CORE99_VIA_CONFIG_PMU_ADB);
 
     /* init basic PC hardware */
-    pci_bus = PCI_HOST_BRIDGE(uninorth_pci_dev)->bus;
+    pci_bus = reinterpret_cast<PCIHostState *>(uninorth_pci_dev)->bus;
 
     /* MacIO */
-    macio = OBJECT(pci_new(-1, TYPE_NEWWORLD_MACIO));
-    dev = DEVICE(macio);
+    macio = reinterpret_cast<Object *>(pci_new(-1, TYPE_NEWWORLD_MACIO));
+    dev = reinterpret_cast<DeviceState *>(macio);
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     qdev_prop_set_bit(dev, "has-pmu", has_pmu);
     qdev_prop_set_bit(dev, "has-adb", has_adb);
 
-    dev = DEVICE(object_resolve_path_component(macio, "escc"));
+    dev = reinterpret_cast<DeviceState *>(object_resolve_path_component(macio, "escc"));
     qdev_prop_set_chr(dev, "chrA", serial_hd(0));
     qdev_prop_set_chr(dev, "chrB", serial_hd(1));
 
-    pci_realize_and_unref(PCI_DEVICE(macio), pci_bus, &error_fatal);
+    pci_realize_and_unref(reinterpret_cast<PCIDevice *>(macio), pci_bus, &error_fatal);
 
-    pic_dev = DEVICE(object_resolve_path_component(macio, "pic"));
+    pic_dev = reinterpret_cast<DeviceState *>(object_resolve_path_component(macio, "pic"));
     for (i = 0; i < 4; i++) {
         qdev_connect_gpio_out(uninorth_pci_dev, i,
                               qdev_get_gpio_in(pic_dev, 0x1b + i));
@@ -389,7 +389,7 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* OpenPIC */
-    s = SYS_BUS_DEVICE(pic_dev);
+    s = reinterpret_cast<SysBusDevice *>(pic_dev);
     k = 0;
     for (i = 0; i < machine->smp.cpus; i++) {
         for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
@@ -401,17 +401,17 @@ static void ppc_core99_init(MachineState *machine)
     /* We only emulate 2 out of 3 IDE controllers for now */
     ide_drive_get(hd, ARRAY_SIZE(hd));
 
-    macio_ide = MACIO_IDE(object_resolve_path_component(macio, "ide[0]"));
+    macio_ide = reinterpret_cast<MACIOIDEState *>(object_resolve_path_component(macio, "ide[0]"));
     macio_ide_init_drives(macio_ide, hd);
 
-    macio_ide = MACIO_IDE(object_resolve_path_component(macio, "ide[1]"));
+    macio_ide = reinterpret_cast<MACIOIDEState *>(object_resolve_path_component(macio, "ide[1]"));
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
     if (has_adb) {
         if (has_pmu) {
-            dev = DEVICE(object_resolve_path_component(macio, "pmu"));
+            dev = reinterpret_cast<DeviceState *>(object_resolve_path_component(macio, "pmu"));
         } else {
-            dev = DEVICE(object_resolve_path_component(macio, "cuda"));
+            dev = reinterpret_cast<DeviceState *>(object_resolve_path_component(macio, "cuda"));
         }
 
         adb_bus = qdev_get_child_bus(dev, "adb.0");
@@ -430,7 +430,7 @@ static void ppc_core99_init(MachineState *machine)
         if (!has_adb || machine_arch == ARCH_MAC99_U3) {
             USBBus *usb_bus;
 
-            usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
+            usb_bus = reinterpret_cast<USBBus *>(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                               &error_abort));
             usb_create_simple(usb_bus, "usb-kbd");
             usb_create_simple(usb_bus, "usb-mouse");
@@ -454,18 +454,18 @@ static void ppc_core99_init(MachineState *machine)
     dev = qdev_new(TYPE_MACIO_NVRAM);
     qdev_prop_set_uint32(dev, "size", MACIO_NVRAM_SIZE);
     qdev_prop_set_uint32(dev, "it_shift", 1);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, nvram_addr);
-    nvr = MACIO_NVRAM(dev);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, nvram_addr);
+    nvr = reinterpret_cast<MacIONVRAMState *>(dev);
     pmac_format_nvram_partition(nvr, MACIO_NVRAM_SIZE);
     /* No PCI init: the BIOS will do it */
 
     dev = qdev_new(TYPE_FW_CFG_MEM);
-    fw_cfg = FW_CFG(dev);
+    fw_cfg = reinterpret_cast<FWCfgState *>(dev);
     qdev_prop_set_uint32(dev, "data_width", 1);
     qdev_prop_set_bit(dev, "dma_enabled", false);
-    object_property_add_child(OBJECT(machine), TYPE_FW_CFG, OBJECT(fw_cfg));
-    s = SYS_BUS_DEVICE(dev);
+    object_property_add_child(reinterpret_cast<Object *>(machine), TYPE_FW_CFG, reinterpret_cast<Object *>(fw_cfg));
+    s = reinterpret_cast<SysBusDevice *>(dev);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, CFG_ADDR);
     sysbus_mmio_map(s, 1, CFG_ADDR + 2);
@@ -533,25 +533,25 @@ static char *core99_fw_dev_path(FWPathProvider *p, BusState *bus,
     PCIDevice *pci;
     MACIOIDEState *macio_ide;
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "macio-newworld")) {
-        pci = PCI_DEVICE(dev);
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "macio-newworld")) {
+        pci = reinterpret_cast<PCIDevice *>(dev);
         return g_strdup_printf("mac-io@%x", PCI_SLOT(pci->devfn));
     }
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "macio-ide")) {
-        macio_ide = MACIO_IDE(dev);
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "macio-ide")) {
+        macio_ide = reinterpret_cast<MACIOIDEState *>(dev);
         return g_strdup_printf("ata-3@%x", macio_ide->addr);
     }
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-hd")) {
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "ide-hd")) {
         return g_strdup("disk");
     }
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "ide-cd")) {
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "ide-cd")) {
         return g_strdup("cdrom");
     }
 
-    if (!strcmp(object_get_typename(OBJECT(dev)), "virtio-blk-device")) {
+    if (!strcmp(object_get_typename(reinterpret_cast<Object *>(dev)), "virtio-blk-device")) {
         return g_strdup("disk");
     }
 
@@ -565,8 +565,8 @@ static int core99_kvm_type(MachineState *machine, const char *arg)
 
 void Core99MachineState::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+    FWPathProviderClass *fwc = reinterpret_cast<FWPathProviderClass *>(oc);
 
     mc->desc = "Mac99 based PowerMac";
     mc->init = ppc_core99_init;
@@ -589,7 +589,7 @@ void Core99MachineState::classInit(ObjectClass *oc, const void *data)
 
 char *Core99MachineState::getViaConfig(Object *obj, Error **errp)
 {
-    Core99MachineState *cms = CORE99_MACHINE(obj);
+    Core99MachineState *cms = reinterpret_cast<Core99MachineState *>(obj);
 
     switch (cms->via_config) {
     default:

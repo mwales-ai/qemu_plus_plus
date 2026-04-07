@@ -379,7 +379,7 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
 
 void PCIVPBState::resetWrapper(DeviceState *d)
 {
-    PCI_VPB(d)->reset();
+    reinterpret_cast<PCIVPBState *>(d)->reset();
 }
 
 void PCIVPBState::reset()
@@ -401,7 +401,7 @@ void PCIVPBState::reset()
 
 void PCIVPBState::instanceInit(Object *obj)
 {
-    PCIVPBState *s = PCI_VPB(obj);
+    PCIVPBState *s = reinterpret_cast<PCIVPBState *>(obj);
 
     /* Window sizes for VersatilePB; realview_pci's init will override */
     s->mem_win_size[0] = 0x0c000000;
@@ -411,20 +411,20 @@ void PCIVPBState::instanceInit(Object *obj)
 
 void PCIVPBState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PCI_VPB(dev)->realize(errp);
+    reinterpret_cast<PCIVPBState *>(dev)->realize(errp);
 }
 
 void PCIVPBState::realize(Error **errp)
 {
     PCIVPBState *s = this;
-    DeviceState *dev = DEVICE(this);
-    PCIHostState *h = PCI_HOST_BRIDGE(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    PCIHostState *h = reinterpret_cast<PCIHostState *>(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
     pci_map_irq_fn mapfn;
     int i;
 
-    memory_region_init(&s->pci_io_space, OBJECT(s), "pci_io", 4 * GiB);
-    memory_region_init(&s->pci_mem_space, OBJECT(s), "pci_mem", 4 * GiB);
+    memory_region_init(&s->pci_io_space, reinterpret_cast<Object *>(s), "pci_io", 4 * GiB);
+    memory_region_init(&s->pci_mem_space, reinterpret_cast<Object *>(s), "pci_mem", 4 * GiB);
 
     pci_root_bus_init(&s->pci_bus, sizeof(s->pci_bus), dev, "pci",
                       &s->pci_mem_space, &s->pci_io_space,
@@ -453,20 +453,20 @@ void PCIVPBState::realize(Error **errp)
      * 3 : PCI IO window
      * 4..6 : PCI memory windows
      */
-    memory_region_init_io(&s->controlregs, OBJECT(s), &pci_vpb_reg_ops, s,
+    memory_region_init_io(&s->controlregs, reinterpret_cast<Object *>(s), &pci_vpb_reg_ops, s,
                           "pci-vpb-regs", 0x1000);
     sysbus_init_mmio(sbd, &s->controlregs);
-    memory_region_init_io(&s->mem_config, OBJECT(s), &pci_vpb_config_ops, s,
+    memory_region_init_io(&s->mem_config, reinterpret_cast<Object *>(s), &pci_vpb_config_ops, s,
                           "pci-vpb-selfconfig", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config);
-    memory_region_init_io(&s->mem_config2, OBJECT(s), &pci_vpb_config_ops, s,
+    memory_region_init_io(&s->mem_config2, reinterpret_cast<Object *>(s), &pci_vpb_config_ops, s,
                           "pci-vpb-config", 0x1000000);
     sysbus_init_mmio(sbd, &s->mem_config2);
 
     /* The window into I/O space is always into a fixed base address;
      * its size is the same for both realview and versatile.
      */
-    memory_region_init_alias(&s->pci_io_window, OBJECT(s), "pci-vbp-io-window",
+    memory_region_init_alias(&s->pci_io_window, reinterpret_cast<Object *>(s), "pci-vbp-io-window",
                              &s->pci_io_space, 0, 0x100000);
 
     sysbus_init_mmio(sbd, &s->pci_io_space);
@@ -476,13 +476,13 @@ void PCIVPBState::realize(Error **errp)
      * offsets are guest controllable via the IMAP registers.
      */
     for (i = 0; i < 3; i++) {
-        memory_region_init_alias(&s->pci_mem_window[i], OBJECT(s), "pci-vbp-window",
+        memory_region_init_alias(&s->pci_mem_window[i], reinterpret_cast<Object *>(s), "pci-vbp-window",
                                  &s->pci_mem_space, 0, s->mem_win_size[i]);
         sysbus_init_mmio(sbd, &s->pci_mem_window[i]);
     }
 
     /* TODO Remove once realize propagates to child devices. */
-    qdev_realize(DEVICE(&s->pci_dev), BUS(&s->pci_bus), errp);
+    qdev_realize(reinterpret_cast<DeviceState *>(&s->pci_dev), reinterpret_cast<BusState *>(&s->pci_bus), errp);
 }
 
 static void versatile_pci_host_realize(PCIDevice *d, Error **errp)
@@ -494,8 +494,8 @@ static void versatile_pci_host_realize(PCIDevice *d, Error **errp)
 
 void PCIVPBState::hostClassInit(ObjectClass *klass, const void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     k->realize = versatile_pci_host_realize;
     k->vendor_id = PCI_VENDOR_ID_XILINX;
@@ -528,7 +528,7 @@ static const Property pci_vpb_properties[] = {
 
 void PCIVPBState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = PCIVPBState::realizeWrapper;
     device_class_set_legacy_reset(dc, PCIVPBState::resetWrapper);
@@ -546,7 +546,7 @@ static const TypeInfo pci_vpb_info = {
 
 void PCIVPBState::realviewInit(Object *obj)
 {
-    PCIVPBState *s = PCI_VPB(obj);
+    PCIVPBState *s = reinterpret_cast<PCIVPBState *>(obj);
 
     s->realview = 1;
     /* The PCI window sizes are different on Realview boards */
