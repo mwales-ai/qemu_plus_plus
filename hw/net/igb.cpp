@@ -129,7 +129,7 @@ private:
 void IGBState::writeConfig(PCIDevice *dev, uint32_t addr,
     uint32_t val, int len)
 {
-    IGBState *s = IGB(dev);
+    IGBState *s = reinterpret_cast<IGBState *>(dev);
 
     trace_igb_write_config(addr, val, len);
     pci_default_write_config(dev, addr, val, len);
@@ -340,7 +340,7 @@ IGBState::initMsix()
     IGBState *s = this;
     int i, res;
 
-    res = msix_init(PCI_DEVICE(s), IGB_MSIX_VEC_NUM,
+    res = msix_init(reinterpret_cast<PCIDevice *>(s), IGB_MSIX_VEC_NUM,
                     &s->msix,
                     E1000E_MSIX_IDX, 0,
                     &s->msix,
@@ -351,7 +351,7 @@ IGBState::initMsix()
         trace_e1000e_msix_init_fail(res);
     } else {
         for (i = 0; i < IGB_MSIX_VEC_NUM; i++) {
-            msix_vector_use(PCI_DEVICE(s), i);
+            msix_vector_use(reinterpret_cast<PCIDevice *>(s), i);
         }
     }
 }
@@ -359,20 +359,20 @@ IGBState::initMsix()
 void
 IGBState::cleanupMsix()
 {
-    msix_unuse_all_vectors(PCI_DEVICE(this));
-    msix_uninit(PCI_DEVICE(this), &msix, &msix);
+    msix_unuse_all_vectors(reinterpret_cast<PCIDevice *>(this));
+    msix_uninit(reinterpret_cast<PCIDevice *>(this), &msix, &msix);
 }
 
 void
 IGBState::initNetPeer(PCIDevice *pci_dev, uint8_t *macaddr)
 {
     IGBState *s = this;
-    DeviceState *dev = DEVICE(pci_dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(pci_dev);
     NetClientState *nc;
     int i;
 
     s->nic = qemu_new_nic(&net_igb_info, &s->conf,
-        object_get_typename(OBJECT(s)), dev->id, &dev->mem_reentrancy_guard, s);
+        object_get_typename(reinterpret_cast<Object *>(s)), dev->id, &dev->mem_reentrancy_guard, s);
 
     s->core.max_queue_num = s->conf.peers.queues ? s->conf.peers.queues - 1 : 0;
 
@@ -427,7 +427,7 @@ igb_add_pm_capability(PCIDevice *pdev, uint8_t offset, uint16_t pmc)
 
 void IGBState::realize(PCIDevice *pci_dev, Error **errp)
 {
-    IGBState *s = IGB(pci_dev);
+    IGBState *s = reinterpret_cast<IGBState *>(pci_dev);
     uint8_t *macaddr;
     int ret;
 
@@ -439,7 +439,7 @@ void IGBState::realize(PCIDevice *pci_dev, Error **errp)
     pci_dev->config[PCI_INTERRUPT_PIN] = 1;
 
     /* Define IO/MMIO regions */
-    memory_region_init_io(&s->mmio, OBJECT(s), &mmio_ops, s,
+    memory_region_init_io(&s->mmio, reinterpret_cast<Object *>(s), &mmio_ops, s,
                           "igb-mmio", E1000E_MMIO_SIZE);
     pci_register_bar(pci_dev, E1000E_MMIO_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
@@ -448,17 +448,17 @@ void IGBState::realize(PCIDevice *pci_dev, Error **errp)
      * We provide a dummy implementation for the flash BAR
      * for drivers that may theoretically probe for its presence.
      */
-    memory_region_init(&s->flash, OBJECT(s),
+    memory_region_init(&s->flash, reinterpret_cast<Object *>(s),
                        "igb-flash", E1000E_FLASH_SIZE);
     pci_register_bar(pci_dev, E1000E_FLASH_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->flash);
 
-    memory_region_init_io(&s->io, OBJECT(s), &io_ops, s,
+    memory_region_init_io(&s->io, reinterpret_cast<Object *>(s), &io_ops, s,
                           "igb-io", E1000E_IO_SIZE);
     pci_register_bar(pci_dev, E1000E_IO_IDX,
                      PCI_BASE_ADDRESS_SPACE_IO, &s->io);
 
-    memory_region_init(&s->msix, OBJECT(s), "igb-msix",
+    memory_region_init(&s->msix, reinterpret_cast<Object *>(s), "igb-msix",
                        E1000E_MSIX_SIZE);
     pci_register_bar(pci_dev, E1000E_MSIX_IDX,
                      PCI_BASE_ADDRESS_MEM_TYPE_64, &s->msix);
@@ -520,7 +520,7 @@ void IGBState::realize(PCIDevice *pci_dev, Error **errp)
 
 static void igb_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
-    IGBState *s = IGB(pci_dev);
+    IGBState *s = reinterpret_cast<IGBState *>(pci_dev);
     s->realize(pci_dev, errp);
 }
 
@@ -541,13 +541,13 @@ void IGBState::uninit(PCIDevice *pci_dev)
 
 static void igb_pci_uninit(PCIDevice *pci_dev)
 {
-    IGBState *s = IGB(pci_dev);
+    IGBState *s = reinterpret_cast<IGBState *>(pci_dev);
     s->uninit(pci_dev);
 }
 
 void IGBState::resetHold(Object *obj, ResetType type)
 {
-    IGBState *s = IGB(obj);
+    IGBState *s = reinterpret_cast<IGBState *>(obj);
 
     trace_e1000e_cb_qdev_reset_hold();
 
@@ -666,9 +666,9 @@ static const Property igb_properties[] = {
 
 void IGBState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
+    PCIDeviceClass *c = reinterpret_cast<PCIDeviceClass *>(klass);
 
     c->realize = igb_pci_realize;
     c->exit = igb_pci_uninit;
@@ -688,10 +688,10 @@ void IGBState::classInit(ObjectClass *klass, const void *data)
 
 static void igb_instance_init(Object *obj)
 {
-    IGBState *s = IGB(obj);
+    IGBState *s = reinterpret_cast<IGBState *>(obj);
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
+                                  reinterpret_cast<DeviceState *>(obj));
 }
 
 static const InterfaceInfo igb_interfaces[] = {

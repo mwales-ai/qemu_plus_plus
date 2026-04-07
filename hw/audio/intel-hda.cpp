@@ -60,7 +60,7 @@ void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
 static void hda_codec_dev_realize(DeviceState *qdev, Error **errp)
 {
     HDACodecBus *bus = HDA_BUS(qdev->parent_bus);
-    HDACodecDevice *dev = HDA_CODEC_DEVICE(qdev);
+    HDACodecDevice *dev = reinterpret_cast<HDACodecDevice *>(qdev);
     HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
     if (dev->cad == -1) {
@@ -76,7 +76,7 @@ static void hda_codec_dev_realize(DeviceState *qdev, Error **errp)
 
 static void hda_codec_dev_unrealize(DeviceState *qdev)
 {
-    HDACodecDevice *dev = HDA_CODEC_DEVICE(qdev);
+    HDACodecDevice *dev = reinterpret_cast<HDACodecDevice *>(qdev);
     HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
     if (cdc->exit) {
@@ -91,7 +91,7 @@ HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
 
     QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
         DeviceState *qdev = kid->child;
-        cdev = HDA_CODEC_DEVICE(qdev);
+        cdev = reinterpret_cast<HDACodecDevice *>(qdev);
         if (cdev->cad == cad) {
             return cdev;
         }
@@ -522,7 +522,7 @@ void IntelHDAState::notifyCodecs(uint32_t stream, bool running, bool output)
         DeviceState *qdev = kid->child;
         HDACodecDeviceClass *cdc;
 
-        cdev = HDA_CODEC_DEVICE(qdev);
+        cdev = reinterpret_cast<HDACodecDevice *>(qdev);
         cdc = HDA_CODEC_DEVICE_GET_CLASS(cdev);
         if (cdc->stream) {
             cdc->stream(cdev, stream, running, output);
@@ -535,7 +535,7 @@ void IntelHDAState::notifyCodecs(uint32_t stream, bool running, bool output)
 static void intel_hda_set_g_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
     if ((d->g_ctl & ICH6_GCTL_RESET) == 0) {
-        device_cold_reset(DEVICE(d));
+        device_cold_reset(reinterpret_cast<DeviceState *>(d));
     }
 }
 
@@ -1007,7 +1007,7 @@ void IntelHDAState::reset()
 
     QTAILQ_FOREACH(kid, &codecs.qbus.children, sibling) {
         DeviceState *qdev = kid->child;
-        cdev = HDA_CODEC_DEVICE(qdev);
+        cdev = reinterpret_cast<HDACodecDevice *>(qdev);
         state_sts |= (1 << cdev->cad);
     }
     updateIrq();
@@ -1024,7 +1024,7 @@ void IntelHDAState::realize(Error **errp)
     Error *err = NULL;
     int ret;
 
-    name = object_get_typename(OBJECT(this));
+    name = object_get_typename(reinterpret_cast<Object *>(this));
 
     pci_config_set_interrupt_pin(conf, 1);
 
@@ -1049,17 +1049,17 @@ void IntelHDAState::realize(Error **errp)
         error_free(err);
     }
 
-    memory_region_init(&container, OBJECT(this),
+    memory_region_init(&container, reinterpret_cast<Object *>(this),
                        "intel-hda-container", 0x4000);
-    memory_region_init_io(&mmio, OBJECT(this), &intel_hda_mmio_ops, this,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this), &intel_hda_mmio_ops, this,
                           "intel-hda", 0x2000);
     memory_region_add_subregion(&container, 0x0000, &mmio);
-    memory_region_init_alias(&alias, OBJECT(this), "intel-hda-alias",
+    memory_region_init_alias(&alias, reinterpret_cast<Object *>(this), "intel-hda-alias",
                              &mmio, 0, 0x2000);
     memory_region_add_subregion(&container, 0x2000, &alias);
     pci_register_bar(&pci, 0, 0, &container);
 
-    hda_codec_bus_init(DEVICE(this), &codecs, sizeof(codecs),
+    hda_codec_bus_init(reinterpret_cast<DeviceState *>(this), &codecs, sizeof(codecs),
                        intel_hda_response, intel_hda_xfer);
 }
 
@@ -1157,8 +1157,8 @@ static const Property intel_hda_properties[] = {
 
 void IntelHDAState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = IntelHDAState::realizeWrapper;
     k->exit = intel_hda_exit;
@@ -1171,8 +1171,8 @@ void IntelHDAState::classInit(ObjectClass *klass, const void *data)
 
 static void intel_hda_class_init_ich6(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->device_id = 0x2668;
     k->revision = 1;
@@ -1182,8 +1182,8 @@ static void intel_hda_class_init_ich6(ObjectClass *klass, const void *data)
 
 static void intel_hda_class_init_ich9(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->device_id = 0x293e;
     k->revision = 3;
@@ -1219,7 +1219,7 @@ static const TypeInfo intel_hda_info_ich9 = {
 
 void IntelHDAState::hdaCodecDeviceClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
+    DeviceClass *k = reinterpret_cast<DeviceClass *>(klass);
     k->realize = hda_codec_dev_realize;
     k->unrealize = hda_codec_dev_unrealize;
     set_bit(DEVICE_CATEGORY_SOUND, k->categories);

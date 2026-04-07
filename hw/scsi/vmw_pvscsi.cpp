@@ -358,7 +358,7 @@ pvscsi_reset_state(PVSCSIState *s)
 static void
 pvscsi_update_irq_status(PVSCSIState *s)
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     bool should_raise = s->reg_interrupt_enabled & s->reg_interrupt_status;
 
     trace_pvscsi_update_irq_level(should_raise, s->reg_interrupt_enabled,
@@ -442,7 +442,7 @@ static void
 pvscsi_reset_adapter(PVSCSIState *s)
 {
     s->resetting++;
-    bus_cold_reset(BUS(&s->bus));
+    bus_cold_reset(reinterpret_cast<BusState *>(&s->bus));
     s->resetting--;
     pvscsi_process_completion_queue(s);
     assert(QTAILQ_EMPTY(&s->pending_queue));
@@ -602,7 +602,7 @@ pvscsi_send_msg(PVSCSIState *s, SCSIDevice *dev, uint32_t msg_type)
 void
 PVSCSIState::hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
 {
-    PVSCSIState *s = PVSCSI(hotplug_dev);
+    PVSCSIState *s = reinterpret_cast<PVSCSIState *>(hotplug_dev);
 
     pvscsi_send_msg(s, SCSI_DEVICE(dev), PVSCSI_MSG_DEV_ADDED);
 }
@@ -610,7 +610,7 @@ PVSCSIState::hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp
 void
 PVSCSIState::hotUnplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp)
 {
-    PVSCSIState *s = PVSCSI(hotplug_dev);
+    PVSCSIState *s = reinterpret_cast<PVSCSIState *>(hotplug_dev);
 
     pvscsi_send_msg(s, SCSI_DEVICE(dev), PVSCSI_MSG_DEV_REMOVED);
     qdev_simple_device_unplug_cb(hotplug_dev, dev, errp);
@@ -696,7 +696,7 @@ pvscsi_convert_sglist(PVSCSIRequest *r)
 static void
 pvscsi_build_sglist(PVSCSIState *s, PVSCSIRequest *r)
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
 
     pci_dma_sglist_init(&r->sgl, d, 1);
     if (r->req.flags & PVSCSI_FLAG_CMD_WITH_SG_LIST) {
@@ -891,7 +891,7 @@ pvscsi_on_cmd_reset_bus(PVSCSIState *s)
     trace_pvscsi_on_cmd_arrived("PVSCSI_CMD_RESET_BUS");
 
     s->resetting++;
-    bus_cold_reset(BUS(&s->bus));
+    bus_cold_reset(reinterpret_cast<BusState *>(&s->bus));
     s->resetting--;
     return PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
 }
@@ -1084,7 +1084,7 @@ static void
 pvscsi_init_msi(PVSCSIState *s)
 {
     int res;
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
 
     res = msi_init(d, PVSCSI_MSI_OFFSET, PVSCSI_MSIX_NUM_VECTORS,
                    PVSCSI_USE_64BIT, PVSCSI_PER_VECTOR_MASK, NULL);
@@ -1099,7 +1099,7 @@ pvscsi_init_msi(PVSCSIState *s)
 static void
 pvscsi_cleanup_msi(PVSCSIState *s)
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
 
     msi_uninit(d);
 }
@@ -1126,7 +1126,7 @@ static const struct SCSIBusInfo pvscsi_scsi_info = {
 void
 PVSCSIState::realizeFn(PCIDevice *pci_dev, Error **errp)
 {
-    PVSCSIState *s = PVSCSI(pci_dev);
+    PVSCSIState *s = reinterpret_cast<PVSCSIState *>(pci_dev);
 
     trace_pvscsi_state("init");
 
@@ -1143,7 +1143,7 @@ PVSCSIState::realizeFn(PCIDevice *pci_dev, Error **errp)
     /* Interrupt pin A */
     pci_config_set_interrupt_pin(pci_dev->config, 1);
 
-    memory_region_init_io(&s->io_space, OBJECT(s), &pvscsi_ops, s,
+    memory_region_init_io(&s->io_space, reinterpret_cast<Object *>(s), &pvscsi_ops, s,
                           "pvscsi-io", PVSCSI_MEM_SPACE_SIZE);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->io_space);
 
@@ -1154,18 +1154,18 @@ PVSCSIState::realizeFn(PCIDevice *pci_dev, Error **errp)
     }
 
     s->completion_worker = qemu_bh_new_guarded(pvscsi_process_completion_queue, s,
-                                               &DEVICE(pci_dev)->mem_reentrancy_guard);
+                                               &reinterpret_cast<DeviceState *>(pci_dev)->mem_reentrancy_guard);
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(pci_dev), &pvscsi_scsi_info);
+    scsi_bus_init(&s->bus, sizeof(s->bus), reinterpret_cast<DeviceState *>(pci_dev), &pvscsi_scsi_info);
     /* override default SCSI bus hotplug-handler, with pvscsi's one */
-    qbus_set_hotplug_handler(BUS(&s->bus), OBJECT(s));
+    qbus_set_hotplug_handler(reinterpret_cast<BusState *>(&s->bus), reinterpret_cast<Object *>(s));
     pvscsi_reset_state(s);
 }
 
 void
 PVSCSIState::uninit(PCIDevice *pci_dev)
 {
-    PVSCSIState *s = PVSCSI(pci_dev);
+    PVSCSIState *s = reinterpret_cast<PVSCSIState *>(pci_dev);
 
     trace_pvscsi_state("uninit");
     qemu_bh_delete(s->completion_worker);
@@ -1176,8 +1176,8 @@ PVSCSIState::uninit(PCIDevice *pci_dev)
 void
 PVSCSIState::reset(DeviceState *dev)
 {
-    PCIDevice *d = PCI_DEVICE(dev);
-    PVSCSIState *s = PVSCSI(d);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(dev);
+    PVSCSIState *s = reinterpret_cast<PVSCSIState *>(d);
 
     trace_pvscsi_state("reset");
     pvscsi_reset_adapter(s);
@@ -1261,14 +1261,14 @@ static const Property pvscsi_properties[] = {
 
 void PVSCSIState::instanceInit(Object *obj)
 {
-    PCI_DEVICE(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    reinterpret_cast<PCIDevice *>(obj)->cap_present |= QEMU_PCI_CAP_EXPRESS;
 }
 
 void PVSCSIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    HotplugHandlerClass *hc = reinterpret_cast<HotplugHandlerClass *>(klass);
 
     k->realize = PVSCSIState::realizeFn;
     k->exit = PVSCSIState::uninit;

@@ -309,7 +309,7 @@ mit_update_delay(uint32_t *curr, uint32_t value)
 static void
 set_interrupt_cause(E1000State *s, int index, uint32_t val)
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     uint32_t pending_ints;
     uint32_t mit_delay;
 
@@ -441,7 +441,7 @@ void E1000State_st::resetHoldImpl(ResetType type)
 /* static wrapper */
 void E1000State_st::resetHoldStatic(Object *obj, ResetType type)
 {
-    E1000State *d = E1000(obj);
+    E1000State *d = reinterpret_cast<E1000State *>(obj);
     d->resetHoldImpl(type);
 }
 
@@ -680,7 +680,7 @@ xmit_seg(E1000State *s)
 static void
 process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     uint32_t txd_lower = le32_to_cpu(dp->lower.data);
     uint32_t dtype = txd_lower & (E1000_TXD_CMD_DEXT | E1000_TXD_DTYP_D);
     unsigned int split_size = txd_lower & 0xffff, bytes, sz;
@@ -770,7 +770,7 @@ eop:
 static uint32_t
 txdesc_writeback(E1000State *s, dma_addr_t base, struct e1000_tx_desc *dp)
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     uint32_t txd_upper, txd_lower = le32_to_cpu(dp->lower.data);
 
     if (!(txd_lower & (E1000_TXD_CMD_RS|E1000_TXD_CMD_RPS)))
@@ -794,7 +794,7 @@ static uint64_t tx_desc_base(E1000State *s)
 static void
 start_xmit(E1000State *s)
 {
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     dma_addr_t base;
     struct e1000_tx_desc desc;
     uint32_t tdh_start = s->mac_reg[TDH], cause = E1000_ICS_TXQE;
@@ -916,7 +916,7 @@ static ssize_t
 e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
     E1000State *s = static_cast<E1000State *>(qemu_get_nic_opaque(nc));
-    PCIDevice *d = PCI_DEVICE(s);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(s);
     struct e1000_rx_desc desc;
     dma_addr_t base;
     unsigned int n, rdt;
@@ -1792,19 +1792,19 @@ e1000_mmio_setup(E1000State *d)
         E1000_IMC, E1000_TCTL, E1000_TDT, PNPMMIO_SIZE
     };
 
-    memory_region_init_io(&d->mmio, OBJECT(d), &e1000_mmio_ops, d,
+    memory_region_init_io(&d->mmio, reinterpret_cast<Object *>(d), &e1000_mmio_ops, d,
                           "e1000-mmio", PNPMMIO_SIZE);
     memory_region_add_coalescing(&d->mmio, 0, excluded_regs[0]);
     for (i = 0; excluded_regs[i] != PNPMMIO_SIZE; i++)
         memory_region_add_coalescing(&d->mmio, excluded_regs[i] + 4,
                                      excluded_regs[i+1] - excluded_regs[i] - 4);
-    memory_region_init_io(&d->io, OBJECT(d), &e1000_io_ops, d, "e1000-io", IOPORT_SIZE);
+    memory_region_init_io(&d->io, reinterpret_cast<Object *>(d), &e1000_io_ops, d, "e1000-io", IOPORT_SIZE);
 }
 
 static void
 pci_e1000_uninit(PCIDevice *dev)
 {
-    E1000State *d = E1000(dev);
+    E1000State *d = reinterpret_cast<E1000State *>(dev);
 
     timer_free(d->autoneg_timer);
     timer_free(d->mit_timer);
@@ -1824,7 +1824,7 @@ static NetClientInfo net_e1000_info = {
 static void e1000_write_config(PCIDevice *pci_dev, uint32_t address,
                                 uint32_t val, int len)
 {
-    E1000State *s = E1000(pci_dev);
+    E1000State *s = reinterpret_cast<E1000State *>(pci_dev);
 
     pci_default_write_config(pci_dev, address, val, len);
 
@@ -1836,8 +1836,8 @@ static void e1000_write_config(PCIDevice *pci_dev, uint32_t address,
 
 void E1000State_st::realizeImpl(Error **errp)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(this);
-    DeviceState *dev = DEVICE(pci_dev);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(pci_dev);
     uint8_t *pci_conf;
     uint8_t *macaddr;
 
@@ -1866,7 +1866,7 @@ void E1000State_st::realizeImpl(Error **errp)
                                macaddr);
 
     nic = qemu_new_nic(&net_e1000_info, &conf,
-                       object_get_typename(OBJECT(this)), dev->id,
+                       object_get_typename(reinterpret_cast<Object *>(this)), dev->id,
                        &dev->mem_reentrancy_guard, this);
 
     qemu_format_nic_info_str(qemu_get_queue(nic), macaddr);
@@ -1880,7 +1880,7 @@ void E1000State_st::realizeImpl(Error **errp)
 /* static wrapper */
 void E1000State_st::realizeStatic(PCIDevice *pci_dev, Error **errp)
 {
-    E1000State *d = E1000(pci_dev);
+    E1000State *d = reinterpret_cast<E1000State *>(pci_dev);
     d->realizeImpl(errp);
 }
 
@@ -1901,10 +1901,10 @@ typedef struct E1000Info {
 
 /* static */ void E1000State_st::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    E1000BaseClass *e = E1000_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    E1000BaseClass *e = reinterpret_cast<E1000BaseClass *>(klass);
     const E1000Info *info = static_cast<const E1000Info *>(data);
 
     k->realize = E1000State_st::realizeStatic;
@@ -1924,10 +1924,10 @@ typedef struct E1000Info {
 
 /* static */ void E1000State_st::instanceInit(Object *obj)
 {
-    E1000State *n = E1000(obj);
+    E1000State *n = reinterpret_cast<E1000State *>(obj);
     device_add_bootindex_property(obj, &n->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(n));
+                                  reinterpret_cast<DeviceState *>(n));
 }
 
 static const InterfaceInfo e1000_interfaces[] = {

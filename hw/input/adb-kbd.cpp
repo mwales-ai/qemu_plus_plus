@@ -245,7 +245,7 @@ int KBDState::poll(ADBDevice *d, uint8_t *obuf)
 
 static int adb_kbd_poll(ADBDevice *d, uint8_t *obuf)
 {
-    KBDState *s = ADB_KEYBOARD(d);
+    KBDState *s = reinterpret_cast<KBDState *>(d);
     return s->poll(d, obuf);
 }
 
@@ -325,7 +325,7 @@ int KBDState::request(ADBDevice *d, uint8_t *obuf,
 static int adb_kbd_request(ADBDevice *d, uint8_t *obuf,
                            const uint8_t *buf, int len)
 {
-    KBDState *s = ADB_KEYBOARD(d);
+    KBDState *s = reinterpret_cast<KBDState *>(d);
     return s->request(d, obuf, buf, len);
 }
 
@@ -336,7 +336,7 @@ bool KBDState::hasData(ADBDevice *d)
 
 static bool adb_kbd_has_data(ADBDevice *d)
 {
-    KBDState *s = ADB_KEYBOARD(d);
+    KBDState *s = reinterpret_cast<KBDState *>(d);
     return s->hasData(d);
 }
 
@@ -380,7 +380,7 @@ static const VMStateDescription vmstate_adb_kbd = {
 
 void KBDState::reset(DeviceState *dev)
 {
-    ADBDevice *d = ADB_DEVICE(dev);
+    ADBDevice *d = reinterpret_cast<ADBDevice *>(dev);
 
     d->handler = 1;
     d->devaddr = ADB_DEVID_KEYBOARD;
@@ -392,7 +392,7 @@ void KBDState::reset(DeviceState *dev)
 
 static void adb_kbd_reset(DeviceState *dev)
 {
-    KBDState *s = ADB_KEYBOARD(dev);
+    KBDState *s = reinterpret_cast<KBDState *>(dev);
     s->reset(dev);
 }
 
@@ -411,28 +411,28 @@ void KBDState::realize(DeviceState *dev, Error **errp)
 
 static void adb_kbd_realizefn(DeviceState *dev, Error **errp)
 {
-    KBDState *s = ADB_KEYBOARD(dev);
+    KBDState *s = reinterpret_cast<KBDState *>(dev);
     s->realize(dev, errp);
 }
 
 void KBDState::initfn(Object *obj)
 {
-    ADBDevice *d = ADB_DEVICE(obj);
+    ADBDevice *d = reinterpret_cast<ADBDevice *>(obj);
 
     d->devaddr = ADB_DEVID_KEYBOARD;
 }
 
 static void adb_kbd_initfn(Object *obj)
 {
-    KBDState *s = ADB_KEYBOARD(obj);
+    KBDState *s = reinterpret_cast<KBDState *>(obj);
     s->initfn(obj);
 }
 
 void KBDState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);
-    ADBKeyboardClass *akc = ADB_KEYBOARD_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
+    ADBDeviceClass *adc = reinterpret_cast<ADBDeviceClass *>(oc);
+    ADBKeyboardClass *akc = reinterpret_cast<ADBKeyboardClass *>(oc);
 
     device_class_set_parent_realize(dc, adb_kbd_realizefn,
                                     &akc->parent_realize);

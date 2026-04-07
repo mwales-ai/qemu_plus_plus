@@ -568,7 +568,7 @@ void m48t59_reset_common(M48t59State *NVRAM)
 
 static void m48t59_reset_sysbus(DeviceState *d)
 {
-    M48txxSysBusState *sys = M48TXX_SYS_BUS(d);
+    M48txxSysBusState *sys = reinterpret_cast<M48txxSysBusState *>(d);
     sys->resetSysbus();
 }
 
@@ -599,35 +599,35 @@ void m48t59_realize_common(M48t59State *s, Error **errp)
 
 static void m48t59_init1(Object *obj)
 {
-    M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
+    M48txxSysBusState *d = reinterpret_cast<M48txxSysBusState *>(obj);
     d->instanceInit();
 }
 
 void M48txxSysBusState::instanceInit()
 {
     M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_GET_CLASS(this);
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
     M48t59State *s = &this->state;
 
     s->model = u->info.model;
     s->size = u->info.size;
     sysbus_init_irq(dev, &s->IRQ);
 
-    memory_region_init_io(&s->iomem, OBJECT(this), &nvram_ops, s, "m48t59.nvram",
+    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(this), &nvram_ops, s, "m48t59.nvram",
                           s->size);
-    memory_region_init_io(&this->io, OBJECT(this), &m48t59_io_ops, s, "m48t59", 4);
+    memory_region_init_io(&this->io, reinterpret_cast<Object *>(this), &m48t59_io_ops, s, "m48t59", 4);
 }
 
 static void m48t59_realize(DeviceState *dev, Error **errp)
 {
-    M48txxSysBusState *d = M48TXX_SYS_BUS(dev);
+    M48txxSysBusState *d = reinterpret_cast<M48txxSysBusState *>(dev);
     d->realize(errp);
 }
 
 void M48txxSysBusState::realize(Error **errp)
 {
     M48t59State *s = &this->state;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_mmio(sbd, &this->io);
@@ -636,7 +636,7 @@ void M48txxSysBusState::realize(Error **errp)
 
 static uint32_t m48txx_sysbus_read(Nvram *obj, uint32_t addr)
 {
-    M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
+    M48txxSysBusState *d = reinterpret_cast<M48txxSysBusState *>(obj);
     return d->nvramRead(addr);
 }
 
@@ -647,7 +647,7 @@ uint32_t M48txxSysBusState::nvramRead(uint32_t addr)
 
 static void m48txx_sysbus_write(Nvram *obj, uint32_t addr, uint32_t val)
 {
-    M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
+    M48txxSysBusState *d = reinterpret_cast<M48txxSysBusState *>(obj);
     d->nvramWrite(addr, val);
 }
 
@@ -658,7 +658,7 @@ void M48txxSysBusState::nvramWrite(uint32_t addr, uint32_t val)
 
 static void m48txx_sysbus_toggle_lock(Nvram *obj, int lock)
 {
-    M48txxSysBusState *d = M48TXX_SYS_BUS(obj);
+    M48txxSysBusState *d = reinterpret_cast<M48txxSysBusState *>(obj);
     d->nvramToggleLock(lock);
 }
 
@@ -673,8 +673,8 @@ static const Property m48t59_sysbus_properties[] = {
 
 void M48txxSysBusState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    NvramClass *nc = NVRAM_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    NvramClass *nc = reinterpret_cast<NvramClass *>(klass);
 
     dc->realize = m48t59_realize;
     device_class_set_legacy_reset(dc, m48t59_reset_sysbus);
@@ -688,7 +688,7 @@ void M48txxSysBusState::classInit(ObjectClass *klass, const void *data)
 void M48txxSysBusState::concreteClassInit(ObjectClass *klass,
                                            const void *data)
 {
-    M48txxSysBusDeviceClass *u = M48TXX_SYS_BUS_CLASS(klass);
+    M48txxSysBusDeviceClass *u = reinterpret_cast<M48txxSysBusDeviceClass *>(klass);
     const M48txxInfo *info = static_cast<const M48txxInfo *>(data);
 
     u->info = *info;

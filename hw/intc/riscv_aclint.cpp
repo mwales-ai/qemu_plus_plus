@@ -179,17 +179,17 @@ void RISCVAclintMTimerState::mmioWrite(hwaddr addr, uint64_t value,
             if (size == 4) {
                 /* timecmp_lo for RV32/RV64 */
                 uint64_t timecmp_hi = timecmp[hartid] >> 32;
-                writeTimecmp(RISCV_CPU(cpu), hartid,
+                writeTimecmp(reinterpret_cast<RISCVCPU *>(cpu), hartid,
                     timecmp_hi << 32 | (value & 0xFFFFFFFF));
             } else {
                 /* timecmp for RV64 */
-                writeTimecmp(RISCV_CPU(cpu), hartid, value);
+                writeTimecmp(reinterpret_cast<RISCVCPU *>(cpu), hartid, value);
             }
         } else if ((addr & 0x7) == 4) {
             if (size == 4) {
                 /* timecmp_hi for RV32/RV64 */
                 uint64_t timecmp_lo = timecmp[hartid];
-                writeTimecmp(RISCV_CPU(cpu), hartid,
+                writeTimecmp(reinterpret_cast<RISCVCPU *>(cpu), hartid,
                     value << 32 | (timecmp_lo & 0xFFFFFFFF));
             } else {
                 qemu_log_mask(LOG_GUEST_ERROR,
@@ -233,7 +233,7 @@ void RISCVAclintMTimerState::mmioWrite(hwaddr addr, uint64_t value,
             if (!env) {
                 continue;
             }
-            writeTimecmp(RISCV_CPU(cpu),
+            writeTimecmp(reinterpret_cast<RISCVCPU *>(cpu),
                          hartid_base + i,
                          timecmp[i]);
             riscv_timer_write_timecmp(env, env->stimer, env->stimecmp, 0, MIP_STIP);
@@ -292,12 +292,12 @@ static const Property riscv_aclint_mtimer_properties[] = {
 
 void RISCVAclintMTimerState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
     int i;
 
-    memory_region_init_io(&mmio, OBJECT(dev), &riscv_aclint_mtimer_ops,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(dev), &riscv_aclint_mtimer_ops,
                           this, TYPE_RISCV_ACLINT_MTIMER, aperture_size);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &mmio);
 
     timer_irqs = g_new(qemu_irq, num_harts);
     qdev_init_gpio_out(dev, timer_irqs, num_harts);
@@ -311,7 +311,7 @@ void RISCVAclintMTimerState::realize(Error **errp)
             /* Valid for sparse hart layouts - skip this hart ID */
             continue;
         }
-        RISCVCPU *cpu = RISCV_CPU(cpu_by_hartid);
+        RISCVCPU *cpu = reinterpret_cast<RISCVCPU *>(cpu_by_hartid);
         if (riscv_cpu_claim_interrupts(cpu, MIP_MTIP) < 0) {
             error_report("MTIP already claimed");
             exit(1);
@@ -363,10 +363,10 @@ static const VMStateDescription vmstate_riscv_mtimer = {
 
 void RISCVAclintMTimerState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     dc->realize = riscv_aclint_mtimer_realize;
     device_class_set_props(dc, riscv_aclint_mtimer_properties);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
     rc->phases.enter = riscv_aclint_mtimer_reset_enter;
     dc->vmsd = &vmstate_riscv_mtimer;
 }
@@ -401,12 +401,12 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
     qdev_prop_set_uint32(dev, "time-base", time_base);
     qdev_prop_set_uint32(dev, "aperture-size", size);
     qdev_prop_set_uint32(dev, "timebase-freq", timebase_freq);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, addr);
 
     for (i = 0; i < num_harts; i++) {
         CPUState *cpu = cpu_by_arch_id(hartid_base + i);
-        RISCVCPU *rvcpu = RISCV_CPU(cpu);
+        RISCVCPU *rvcpu = reinterpret_cast<RISCVCPU *>(cpu);
         CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
         riscv_aclint_mtimer_callback *cb =
             g_new0(riscv_aclint_mtimer_callback, 1);
@@ -426,7 +426,7 @@ DeviceState *riscv_aclint_mtimer_create(hwaddr addr, hwaddr size,
         s->timecmp[i] = 0;
 
         qdev_connect_gpio_out(dev, i,
-                              qdev_get_gpio_in(DEVICE(rvcpu), IRQ_M_TIMER));
+                              qdev_get_gpio_in(reinterpret_cast<DeviceState *>(rvcpu), IRQ_M_TIMER));
     }
 
     return dev;
@@ -511,12 +511,12 @@ static const Property riscv_aclint_swi_properties[] = {
 
 void RISCVAclintSwiState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
     int i;
 
-    memory_region_init_io(&mmio, OBJECT(dev), &riscv_aclint_swi_ops, this,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(dev), &riscv_aclint_swi_ops, this,
                           TYPE_RISCV_ACLINT_SWI, RISCV_ACLINT_SWI_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &mmio);
 
     soft_irqs = g_new(qemu_irq, num_harts);
     qdev_init_gpio_out(dev, soft_irqs, num_harts);
@@ -528,7 +528,7 @@ void RISCVAclintSwiState::realize(Error **errp)
             /* Valid for sparse hart layouts - skip this hart ID */
             continue;
         }
-        RISCVCPU *cpu = RISCV_CPU(cpu_by_hartid);
+        RISCVCPU *cpu = reinterpret_cast<RISCVCPU *>(cpu_by_hartid);
         /* We don't claim mip.SSIP because it is writable by software */
         if (riscv_cpu_claim_interrupts(cpu, sswi ? 0 : MIP_MSIP) < 0) {
             error_report("MSIP already claimed");
@@ -567,10 +567,10 @@ static void riscv_aclint_swi_reset_enter(Object *obj, ResetType type)
 
 void RISCVAclintSwiState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     dc->realize = riscv_aclint_swi_realize;
     device_class_set_props(dc, riscv_aclint_swi_properties);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
     rc->phases.enter = riscv_aclint_swi_reset_enter;
 }
 
@@ -596,8 +596,8 @@ DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
     qdev_prop_set_uint32(dev, "hartid-base", hartid_base);
     qdev_prop_set_uint32(dev, "num-harts", num_harts);
     qdev_prop_set_uint32(dev, "sswi", sswi ? true : false);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, addr);
 
     for (i = 0; i < num_harts; i++) {
         CPUState *cpu = cpu_by_arch_id(hartid_base + i);
@@ -605,10 +605,10 @@ DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
             /* Valid for sparse hart layouts - skip this hart ID */
             continue;
         }
-        RISCVCPU *rvcpu = RISCV_CPU(cpu);
+        RISCVCPU *rvcpu = reinterpret_cast<RISCVCPU *>(cpu);
 
         qdev_connect_gpio_out(dev, i,
-                              qdev_get_gpio_in(DEVICE(rvcpu),
+                              qdev_get_gpio_in(reinterpret_cast<DeviceState *>(rvcpu),
                                   (sswi) ? IRQ_S_SOFT : IRQ_M_SOFT));
     }
 

@@ -228,7 +228,7 @@ void IgbVfState::writeConfig(PCIDevice *dev, uint32_t addr, uint32_t val,
 {
     trace_igbvf_write_config(addr, val, len);
     pci_default_write_config(dev, addr, val, len);
-    if (object_property_get_bool(OBJECT(pcie_sriov_get_pf(dev)),
+    if (object_property_get_bool(reinterpret_cast<Object *>(pcie_sriov_get_pf(dev)),
                                  "x-pcie-flr-init", &error_abort)) {
         pcie_cap_flr_write_config(dev, addr, val, len);
     }
@@ -236,7 +236,7 @@ void IgbVfState::writeConfig(PCIDevice *dev, uint32_t addr, uint32_t val,
 
 uint64_t IgbVfState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
-    PCIDevice *vf = PCI_DEVICE(opaque);
+    PCIDevice *vf = reinterpret_cast<PCIDevice *>(opaque);
     PCIDevice *pf = pcie_sriov_get_pf(vf);
 
     addr = vfToPfAddr(addr, pcie_sriov_vf_number(vf), false);
@@ -246,7 +246,7 @@ uint64_t IgbVfState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 void IgbVfState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
     unsigned size)
 {
-    PCIDevice *vf = PCI_DEVICE(opaque);
+    PCIDevice *vf = reinterpret_cast<PCIDevice *>(opaque);
     PCIDevice *pf = pcie_sriov_get_pf(vf);
 
     addr = vfToPfAddr(addr, pcie_sriov_vf_number(vf), true);
@@ -267,24 +267,24 @@ static const MemoryRegionOps mmio_ops = {
 
 static void igbvf_pci_realize(PCIDevice *dev, Error **errp)
 {
-    IgbVfState *s = IGBVF(dev);
+    IgbVfState *s = reinterpret_cast<IgbVfState *>(dev);
     s->pciRealize(errp);
 }
 
 void IgbVfState::pciRealize(Error **errp)
 {
-    PCIDevice *dev = PCI_DEVICE(DEVICE(this));
+    PCIDevice *dev = reinterpret_cast<PCIDevice *>(reinterpret_cast<DeviceState *>(this));
     int ret;
     int i;
 
     dev->config_write = IgbVfState::writeConfig;
 
-    memory_region_init_io(&this->mmio, OBJECT(this), &mmio_ops, this, "igbvf-mmio",
+    memory_region_init_io(&this->mmio, reinterpret_cast<Object *>(this), &mmio_ops, this, "igbvf-mmio",
         IGBVF_MMIO_SIZE);
     pci_register_bar(dev, IGBVF_MMIO_BAR_IDX, PCI_BASE_ADDRESS_MEM_TYPE_64 |
                      PCI_BASE_ADDRESS_MEM_PREFETCH, &this->mmio);
 
-    memory_region_init(&this->msix, OBJECT(this), "igbvf-msix", IGBVF_MSIX_SIZE);
+    memory_region_init(&this->msix, reinterpret_cast<Object *>(this), "igbvf-msix", IGBVF_MSIX_SIZE);
     pci_register_bar(dev, IGBVF_MSIX_BAR_IDX, PCI_BASE_ADDRESS_MEM_TYPE_64 |
                      PCI_BASE_ADDRESS_MEM_PREFETCH, &this->msix);
 
@@ -302,7 +302,7 @@ void IgbVfState::pciRealize(Error **errp)
         hw_error("Failed to initialize PCIe capability");
     }
 
-    if (object_property_get_bool(OBJECT(pcie_sriov_get_pf(dev)),
+    if (object_property_get_bool(reinterpret_cast<Object *>(pcie_sriov_get_pf(dev)),
                                  "x-pcie-flr-init", &error_abort)) {
         pcie_cap_flr_init(dev);
     }
@@ -316,26 +316,26 @@ void IgbVfState::pciRealize(Error **errp)
 
 static void igbvf_qdev_reset_hold(Object *obj, ResetType type)
 {
-    IgbVfState *s = IGBVF(obj);
+    IgbVfState *s = reinterpret_cast<IgbVfState *>(obj);
     s->resetHold(type);
 }
 
 void IgbVfState::resetHold(ResetType type)
 {
-    PCIDevice *vf = PCI_DEVICE(DEVICE(this));
+    PCIDevice *vf = reinterpret_cast<PCIDevice *>(reinterpret_cast<DeviceState *>(this));
 
     igb_vf_reset(pcie_sriov_get_pf(vf), pcie_sriov_vf_number(vf));
 }
 
 static void igbvf_pci_uninit(PCIDevice *dev)
 {
-    IgbVfState *s = IGBVF(dev);
+    IgbVfState *s = reinterpret_cast<IgbVfState *>(dev);
     s->pciUninit();
 }
 
 void IgbVfState::pciUninit()
 {
-    PCIDevice *dev = PCI_DEVICE(DEVICE(this));
+    PCIDevice *dev = reinterpret_cast<PCIDevice *>(reinterpret_cast<DeviceState *>(this));
 
     pcie_aer_exit(dev);
     pcie_cap_exit(dev);
@@ -345,9 +345,9 @@ void IgbVfState::pciUninit()
 
 void IgbVfState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *c = PCI_DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *c = reinterpret_cast<PCIDeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     c->realize = igbvf_pci_realize;
     c->exit = igbvf_pci_uninit;

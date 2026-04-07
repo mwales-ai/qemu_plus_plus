@@ -90,11 +90,11 @@ int GPEXHost::swizzleMapIrqFn(PCIDevice *pci_dev, int pin)
 
 void GPEXHost::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
     GPEXHost *s = this;
-    PCIHostState *pci = PCI_HOST_BRIDGE(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    PCIExpressHost *pex = PCIE_HOST_BRIDGE(dev);
+    PCIHostState *pci = reinterpret_cast<PCIHostState *>(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
+    PCIExpressHost *pex = reinterpret_cast<PCIExpressHost *>(dev);
     int i;
 
     irq = static_cast<GPEXIrq *>(g_malloc0_n(num_irqs, sizeof(*irq)));
@@ -125,15 +125,15 @@ void GPEXHost::realize(Error **errp)
      * the 'background' behaviour and which hold the real PCI MRs as
      * subregions.
      */
-    memory_region_init(&s->io_mmio, OBJECT(s), "gpex_mmio", UINT64_MAX);
-    memory_region_init(&s->io_ioport, OBJECT(s), "gpex_ioport", 64 * 1024);
+    memory_region_init(&s->io_mmio, reinterpret_cast<Object *>(s), "gpex_mmio", UINT64_MAX);
+    memory_region_init(&s->io_ioport, reinterpret_cast<Object *>(s), "gpex_ioport", 64 * 1024);
 
     if (s->allow_unmapped_accesses) {
-        memory_region_init_io(&s->io_mmio_window, OBJECT(s),
-                              &unassigned_io_ops, OBJECT(s),
+        memory_region_init_io(&s->io_mmio_window, reinterpret_cast<Object *>(s),
+                              &unassigned_io_ops, reinterpret_cast<Object *>(s),
                               "gpex_mmio_window", UINT64_MAX);
-        memory_region_init_io(&s->io_ioport_window, OBJECT(s),
-                              &unassigned_io_ops, OBJECT(s),
+        memory_region_init_io(&s->io_ioport_window, reinterpret_cast<Object *>(s),
+                              &unassigned_io_ops, reinterpret_cast<Object *>(s),
                               "gpex_ioport_window", 64 * 1024);
 
         memory_region_add_subregion(&s->io_mmio_window, 0, &s->io_mmio);
@@ -156,12 +156,12 @@ void GPEXHost::realize(Error **errp)
                                      s->num_irqs, TYPE_PCIE_BUS);
 
     pci_bus_set_route_irq_fn(pci->bus, GPEXHost::routeIntxPinToIrq);
-    qdev_realize(DEVICE(&s->gpex_root), BUS(pci->bus), &error_fatal);
+    qdev_realize(reinterpret_cast<DeviceState *>(&s->gpex_root), reinterpret_cast<BusState *>(pci->bus), &error_fatal);
 }
 
 static void gpex_host_realize(DeviceState *dev, Error **errp)
 {
-    GPEXHost *s = GPEX_HOST(dev);
+    GPEXHost *s = reinterpret_cast<GPEXHost *>(dev);
     s->realize(errp);
 }
 
@@ -172,7 +172,7 @@ void GPEXHost::unrealize()
 
 static void gpex_host_unrealize(DeviceState *dev)
 {
-    GPEXHost *s = GPEX_HOST(dev);
+    GPEXHost *s = reinterpret_cast<GPEXHost *>(dev);
     s->unrealize();
 }
 
@@ -206,8 +206,8 @@ static const Property gpex_host_properties[] = {
 
 void GPEXHost::classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
-        PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+        PCIHostBridgeClass *hc = reinterpret_cast<PCIHostBridgeClass *>(klass);
 
         hc->root_bus_path = GPEXHost::rootBusPath;
         dc->realize = gpex_host_realize;
@@ -219,12 +219,12 @@ void GPEXHost::classInit(ObjectClass *klass, const void *data)
 
 void GPEXHost::initfn(Object *obj)
 {
-    GPEXHost *s = GPEX_HOST(obj);
+    GPEXHost *s = reinterpret_cast<GPEXHost *>(obj);
     GPEXRootState *root = &s->gpex_root;
 
     object_initialize_child(obj, "gpex_root", root, TYPE_GPEX_ROOT_DEVICE);
-    qdev_prop_set_int32(DEVICE(root), "addr", PCI_DEVFN(0, 0));
-    qdev_prop_set_bit(DEVICE(root), "multifunction", false);
+    qdev_prop_set_int32(reinterpret_cast<DeviceState *>(root), "addr", PCI_DEVFN(0, 0));
+    qdev_prop_set_bit(reinterpret_cast<DeviceState *>(root), "multifunction", false);
 }
 
 static const TypeInfo gpex_host_info = {
@@ -251,8 +251,8 @@ static const VMStateDescription vmstate_gpex_root = {
 
 void GPEXRootState::classInit(ObjectClass *klass, const void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "QEMU generic PCIe host bridge";

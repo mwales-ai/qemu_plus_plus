@@ -179,7 +179,7 @@ void PL061State::update()
     uint8_t pu = getPullups();
     uint8_t fl = floating();
 
-    trace_pl061_update(DEVICE(this)->canonical_path, dir, data,
+    trace_pl061_update(reinterpret_cast<DeviceState *>(this)->canonical_path, dir, data,
                        pu, fl);
 
     /*
@@ -196,7 +196,7 @@ void PL061State::update()
             mask = 1 << i;
             if (changed & mask) {
                 int level = (out & mask) != 0;
-                trace_pl061_set_output(DEVICE(this)->canonical_path, i, level);
+                trace_pl061_set_output(reinterpret_cast<DeviceState *>(this)->canonical_path, i, level);
                 qemu_set_irq(this->out[i], level);
             }
         }
@@ -209,7 +209,7 @@ void PL061State::update()
         for (i = 0; i < N_GPIOS; i++) {
             mask = 1 << i;
             if (changed & mask) {
-                trace_pl061_input_change(DEVICE(this)->canonical_path, i,
+                trace_pl061_input_change(reinterpret_cast<DeviceState *>(this)->canonical_path, i,
                                          (data & mask) != 0);
 
                 if (!(isense & mask)) {
@@ -229,7 +229,7 @@ void PL061State::update()
     /* Level interrupt */
     istate |= ~(data ^ iev) & isense;
 
-    trace_pl061_update_istate(DEVICE(this)->canonical_path,
+    trace_pl061_update_istate(reinterpret_cast<DeviceState *>(this)->canonical_path,
                               istate, im, (istate & im) != 0);
 
     qemu_set_irq(irq, (istate & im) != 0);
@@ -345,7 +345,7 @@ uint64_t PL061State::mmioRead(void *opaque, hwaddr offset,
         break;
     }
 
-    trace_pl061_read(DEVICE(s)->canonical_path, offset, r);
+    trace_pl061_read(reinterpret_cast<DeviceState *>(s)->canonical_path, offset, r);
     return r;
 }
 
@@ -355,7 +355,7 @@ void PL061State::mmioWrite(void *opaque, hwaddr offset,
     PL061State *s = static_cast<PL061State *>(opaque);
     uint8_t mask;
 
-    trace_pl061_write(DEVICE(s)->canonical_path, offset, value);
+    trace_pl061_write(reinterpret_cast<DeviceState *>(s)->canonical_path, offset, value);
 
     switch (offset) {
     case 0 ... 0x3ff:
@@ -463,9 +463,9 @@ void PL061State::mmioWrite(void *opaque, hwaddr offset,
 
 void PL061State::enterReset(Object *obj, ResetType type)
 {
-    PL061State *s = PL061(obj);
+    PL061State *s = reinterpret_cast<PL061State *>(obj);
 
-    trace_pl061_reset(DEVICE(s)->canonical_path);
+    trace_pl061_reset(reinterpret_cast<DeviceState *>(s)->canonical_path);
 
     /* reset values from PL061 TRM, Stellaris LM3S5P31 & LM3S8962 Data Sheet */
 
@@ -501,7 +501,7 @@ void PL061State::enterReset(Object *obj, ResetType type)
 
 void PL061State::holdReset(Object *obj, ResetType type)
 {
-    PL061State *s = PL061(obj);
+    PL061State *s = reinterpret_cast<PL061State *>(obj);
     int i, level;
     uint8_t fl = s->floating();
     uint8_t pu = s->getPullups();
@@ -511,7 +511,7 @@ void PL061State::holdReset(Object *obj, ResetType type)
             continue;
         }
         level = extract32(pu, i, 1);
-        trace_pl061_set_output(DEVICE(s)->canonical_path, i, level);
+        trace_pl061_set_output(reinterpret_cast<DeviceState *>(s)->canonical_path, i, level);
         qemu_set_irq(s->out[i], level);
     }
     s->old_out_data = pu;
@@ -539,16 +539,16 @@ static const MemoryRegionOps pl061_ops = {
 
 void PL061State::luminaryInit(Object *obj)
 {
-    PL061State *s = PL061(obj);
+    PL061State *s = reinterpret_cast<PL061State *>(obj);
 
     s->id = pl061_id_luminary;
 }
 
 void PL061State::instanceInit(Object *obj)
 {
-    PL061State *s = PL061(obj);
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    PL061State *s = reinterpret_cast<PL061State *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     s->id = pl061_id;
 
@@ -561,7 +561,7 @@ void PL061State::instanceInit(Object *obj)
 
 void PL061State::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    PL061(dev)->realize(errp);
+    reinterpret_cast<PL061State *>(dev)->realize(errp);
 }
 
 void PL061State::realize(Error **errp)
@@ -581,8 +581,8 @@ static const Property pl061_props[] = {
 
 void PL061State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->vmsd = &vmstate_pl061;
     dc->realize = realizeWrapper;

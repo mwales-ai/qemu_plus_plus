@@ -167,7 +167,7 @@ int MouseState::poll(uint8_t *obuf)
 
 int MouseState::request(uint8_t *obuf, const uint8_t *buf, int len)
 {
-    ADBDevice *d = ADB_DEVICE(this);
+    ADBDevice *d = reinterpret_cast<ADBDevice *>(this);
     int cmd, reg, olen;
 
     if ((buf[0] & 0x0f) == ADB_FLUSH) {
@@ -255,7 +255,7 @@ int MouseState::request(uint8_t *obuf, const uint8_t *buf, int len)
 static int adb_mouse_request(ADBDevice *d, uint8_t *obuf,
                              const uint8_t *buf, int len)
 {
-    MouseState *s = ADB_MOUSE(d);
+    MouseState *s = reinterpret_cast<MouseState *>(d);
     return s->request(obuf, buf, len);
 }
 
@@ -267,13 +267,13 @@ bool MouseState::hasData()
 
 static bool adb_mouse_has_data(ADBDevice *d)
 {
-    MouseState *s = ADB_MOUSE(d);
+    MouseState *s = reinterpret_cast<MouseState *>(d);
     return s->hasData();
 }
 
 void MouseState::reset()
 {
-    ADBDevice *d = ADB_DEVICE(this);
+    ADBDevice *d = reinterpret_cast<ADBDevice *>(this);
 
     d->handler = 2;
     d->devaddr = ADB_DEVID_MOUSE;
@@ -283,7 +283,7 @@ void MouseState::reset()
 
 static void adb_mouse_reset(DeviceState *dev)
 {
-    MouseState *s = ADB_MOUSE(dev);
+    MouseState *s = reinterpret_cast<MouseState *>(dev);
     s->reset();
 }
 
@@ -307,35 +307,35 @@ void MouseState::realize(Error **errp)
 {
     ADBMouseClass *amc = ADB_MOUSE_GET_CLASS(this);
 
-    amc->parent_realize(DEVICE(this), errp);
+    amc->parent_realize(reinterpret_cast<DeviceState *>(this), errp);
 
-    hs = qemu_input_handler_register(DEVICE(this), &adb_mouse_handler);
+    hs = qemu_input_handler_register(reinterpret_cast<DeviceState *>(this), &adb_mouse_handler);
 }
 
 static void adb_mouse_realizefn(DeviceState *dev, Error **errp)
 {
-    MouseState *s = ADB_MOUSE(dev);
+    MouseState *s = reinterpret_cast<MouseState *>(dev);
     s->realize(errp);
 }
 
 void MouseState::initfn()
 {
-    ADBDevice *d = ADB_DEVICE(this);
+    ADBDevice *d = reinterpret_cast<ADBDevice *>(this);
 
     d->devaddr = ADB_DEVID_MOUSE;
 }
 
 static void adb_mouse_initfn(Object *obj)
 {
-    MouseState *s = ADB_MOUSE(obj);
+    MouseState *s = reinterpret_cast<MouseState *>(obj);
     s->initfn();
 }
 
 void MouseState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    ADBDeviceClass *adc = ADB_DEVICE_CLASS(oc);
-    ADBMouseClass *amc = ADB_MOUSE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
+    ADBDeviceClass *adc = reinterpret_cast<ADBDeviceClass *>(oc);
+    ADBMouseClass *amc = reinterpret_cast<ADBMouseClass *>(oc);
 
     device_class_set_parent_realize(dc, adb_mouse_realizefn,
                                     &amc->parent_realize);

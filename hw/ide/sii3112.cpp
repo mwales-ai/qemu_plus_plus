@@ -234,7 +234,7 @@ void SiI3112PCIState::updateIrq()
     for (i = 0; i < 2; i++) {
         set |= regs[i].confstat & (1UL << 11);
     }
-    pci_set_irq(PCI_DEVICE(this), (set ? 1 : 0));
+    pci_set_irq(reinterpret_cast<PCIDevice *>(this), (set ? 1 : 0));
 }
 
 void SiI3112PCIState::setIrq(void *opaque, int channel, int level)
@@ -263,15 +263,15 @@ void SiI3112PCIState::reset()
 
 void SiI3112PCIState::resetWrapper(DeviceState *dev)
 {
-    SiI3112PCIState *s = SII3112_PCI(dev);
+    SiI3112PCIState *s = reinterpret_cast<SiI3112PCIState *>(dev);
     s->reset();
 }
 
 void SiI3112PCIState::realize(Error **errp)
 {
-    PCIDevice *dev = PCI_DEVICE(this);
-    PCIIDEState *s = PCI_IDE(dev);
-    DeviceState *ds = DEVICE(dev);
+    PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
+    PCIIDEState *s = reinterpret_cast<PCIIDEState *>(dev);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(dev);
     MemoryRegion *mr;
     int idx;
 
@@ -279,25 +279,25 @@ void SiI3112PCIState::realize(Error **errp)
     pci_set_byte(dev->config + PCI_CACHE_LINE_SIZE, 8);
 
     /* BAR5 is in PCI memory space */
-    memory_region_init_io(&mmio, OBJECT(this), &sii3112_reg_ops, this,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this), &sii3112_reg_ops, this,
                          "sii3112.bar5", 0x200);
     pci_register_bar(dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
 
     /* BAR0-BAR4 are PCI I/O space aliases into BAR5 */
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar0", &mmio, 0x80, 8);
+    memory_region_init_alias(mr, reinterpret_cast<Object *>(this), "sii3112.bar0", &mmio, 0x80, 8);
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar1", &mmio, 0x88, 4);
+    memory_region_init_alias(mr, reinterpret_cast<Object *>(this), "sii3112.bar1", &mmio, 0x88, 4);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar2", &mmio, 0xc0, 8);
+    memory_region_init_alias(mr, reinterpret_cast<Object *>(this), "sii3112.bar2", &mmio, 0xc0, 8);
     pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar3", &mmio, 0xc8, 4);
+    memory_region_init_alias(mr, reinterpret_cast<Object *>(this), "sii3112.bar3", &mmio, 0xc8, 4);
     pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(this), "sii3112.bar4", &mmio, 0, 16);
+    memory_region_init_alias(mr, reinterpret_cast<Object *>(this), "sii3112.bar4", &mmio, 0, 16);
     pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, mr);
 
     qdev_init_gpio_in(ds, setIrq, 2);
@@ -312,14 +312,14 @@ void SiI3112PCIState::realize(Error **errp)
 
 void SiI3112PCIState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    SiI3112PCIState *s = SII3112_PCI(dev);
+    SiI3112PCIState *s = reinterpret_cast<SiI3112PCIState *>(dev);
     s->realize(errp);
 }
 
 void SiI3112PCIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *pd = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *pd = reinterpret_cast<PCIDeviceClass *>(klass);
 
     pd->vendor_id = 0x1095;
     pd->device_id = 0x3112;

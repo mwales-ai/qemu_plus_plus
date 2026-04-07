@@ -920,7 +920,7 @@ void USBNetState::rndisClearResponseQueue()
 
 void USBNetState::unrealize(USBDevice *dev)
 {
-    USBNetState *s = USB_NET(dev);
+    USBNetState *s = reinterpret_cast<USBNetState *>(dev);
 
     /* TODO: remove the nd_table[] entry */
     s->rndisClearResponseQueue();
@@ -1107,12 +1107,12 @@ void USBNetState::handleReset(USBDevice *dev)
 void USBNetState::handleControlCb(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USB_NET(dev)->handleControl(p, request, value, index, length, data);
+    reinterpret_cast<USBNetState *>(dev)->handleControl(p, request, value, index, length, data);
 }
 
 void USBNetState::handleControl(USBPacket *p, int request, int value, int index, int length, uint8_t *data)
 {
-    USBDevice *dev = USB_DEVICE(this);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(this);
     int ret;
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
@@ -1288,7 +1288,7 @@ void USBNetState::handleDataOut(USBPacket *p)
 
 void USBNetState::handleDataCb(USBDevice *dev, USBPacket *p)
 {
-    USBNetState *s = USB_NET(dev);
+    USBNetState *s = reinterpret_cast<USBNetState *>(dev);
 
     switch(p->pid) {
     case USB_TOKEN_IN:
@@ -1401,7 +1401,7 @@ static NetClientInfo net_usbnet_info = {
 void USBNetState::netRealize(Error **errp)
 {
     USBNetState *s = this;
-    USBDevice *dev = USB_DEVICE(this);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(this);
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -1420,7 +1420,7 @@ void USBNetState::netRealize(Error **errp)
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_usbnet_info, &s->conf,
-                          object_get_typename(OBJECT(s)), s->dev.qdev.id,
+                          object_get_typename(reinterpret_cast<Object *>(s)), s->dev.qdev.id,
                           &s->dev.qdev.mem_reentrancy_guard, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
     snprintf(s->usbstring_mac, sizeof(s->usbstring_mac),
@@ -1436,8 +1436,8 @@ void USBNetState::netRealize(Error **errp)
 
 void USBNetState::instanceInit()
 {
-    Object *obj = OBJECT(this);
-    USBDevice *dev = USB_DEVICE(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
+    USBDevice *dev = reinterpret_cast<USBDevice *>(obj);
     USBNetState *s = this;
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
@@ -1456,20 +1456,20 @@ static const Property net_properties[] = {
 
 void USBNetState::netRealizeWrapper(USBDevice *dev, Error **errp)
 {
-    USBNetState *s = USB_NET(dev);
+    USBNetState *s = reinterpret_cast<USBNetState *>(dev);
     s->netRealize(errp);
 }
 
 void USBNetState::instanceInitWrapper(Object *obj)
 {
-    USBNetState *s = USB_NET(obj);
+    USBNetState *s = reinterpret_cast<USBNetState *>(obj);
     s->instanceInit();
 }
 
 void USBNetState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = USBNetState::netRealizeWrapper;
     uc->product_desc   = "QEMU USB Network Interface";

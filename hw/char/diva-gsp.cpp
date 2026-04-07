@@ -134,19 +134,19 @@ void PCIDivaSerialState::realize(Error **errp)
 
     dev.config[PCI_CLASS_PROG] = 2; /* 16550 compatible */
     dev.config[PCI_INTERRUPT_PIN] = 1;
-    memory_region_init(&membar, OBJECT(this), "serial_ports", 4096);
+    memory_region_init(&membar, reinterpret_cast<Object *>(this), "serial_ports", 4096);
     pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &membar);
     irqs = qemu_allocate_irqs(irqMux, this, di.nports);
 
     for (i = 0; i < di.nports; i++) {
         s = state + i;
-        if (!qdev_realize(DEVICE(s), NULL, errp)) {
+        if (!qdev_realize(reinterpret_cast<DeviceState *>(s), NULL, errp)) {
             pciExit(&dev);
             return;
         }
         s->irq = irqs[i];
         name[i] = g_strdup_printf("uart #%zu", i + 1);
-        memory_region_init_io(&s->io, OBJECT(this), &serial_io_ops, s,
+        memory_region_init_io(&s->io, reinterpret_cast<Object *>(this), &serial_io_ops, s,
                               name[i], 8);
 
         /* calculate offset of given port based on bitmask */
@@ -161,7 +161,7 @@ void PCIDivaSerialState::realize(Error **errp)
     }
 
     /* mailbox bar */
-    memory_region_init(&mailboxbar, OBJECT(this), "mailbox", 128 * KiB);
+    memory_region_init(&mailboxbar, reinterpret_cast<Object *>(this), "mailbox", 128 * KiB);
     pci_register_bar(&dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY |
                      PCI_BASE_ADDRESS_MEM_PREFETCH, &mailboxbar);
 }
@@ -198,8 +198,8 @@ static const Property diva_serial_properties[] = {
 
 void PCIDivaSerialState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
     pc->realize = realizeWrapper;
     pc->exit = pciExit;
     pc->vendor_id = PCI_VENDOR_ID_HP;
@@ -215,7 +215,7 @@ void PCIDivaSerialState::classInit(ObjectClass *klass, const void *data)
 
 void PCIDivaSerialState::instanceInit(Object *o)
 {
-    PCIDevice *dev = PCI_DEVICE(o);
+    PCIDevice *dev = reinterpret_cast<PCIDevice *>(o);
     PCIDivaSerialState *pms = DO_UPCAST(PCIDivaSerialState, dev, dev);
     struct diva_info di = getDivaInfo(PCI_DEVICE_GET_CLASS(dev));
     size_t i;
@@ -249,7 +249,7 @@ void DivaAuxState::realize(Error **errp)
     dev.config[PCI_INTERRUPT_PIN] = 0x01;
     irq = pci_allocate_irq(&dev);
 
-    memory_region_init(&mem, OBJECT(this), "mem", 16);
+    memory_region_init(&mem, reinterpret_cast<Object *>(this), "mem", 16);
     pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &mem);
 }
 
@@ -267,8 +267,8 @@ void DivaAuxState::exit(PCIDevice *dev)
 
 void DivaAuxState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
     pc->realize = realizeWrapper;
     pc->exit = exit;
     pc->vendor_id = PCI_VENDOR_ID_HP;

@@ -692,7 +692,7 @@ static void i8042_mmio_reset_impl(MMIOKBDState *s)
 
 static void i8042_mmio_reset(DeviceState *dev)
 {
-    MMIOKBDState *s = I8042_MMIO(dev);
+    MMIOKBDState *s = reinterpret_cast<MMIOKBDState *>(dev);
     i8042_mmio_reset_impl(s);
 }
 
@@ -700,31 +700,31 @@ static void i8042_mmio_realize_impl(MMIOKBDState *s, DeviceState *dev, Error **e
 {
     KBDState *ks = &s->kbd;
 
-    memory_region_init_io(&s->region, OBJECT(dev), &i8042_mmio_ops, ks,
+    memory_region_init_io(&s->region, reinterpret_cast<Object *>(dev), &i8042_mmio_ops, ks,
                           "i8042", s->size);
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->region);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &s->region);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&ks->ps2kbd), errp)) {
+    if (!sysbus_realize(reinterpret_cast<SysBusDevice *>(&ks->ps2kbd), errp)) {
         return;
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&ks->ps2mouse), errp)) {
+    if (!sysbus_realize(reinterpret_cast<SysBusDevice *>(&ks->ps2mouse), errp)) {
         return;
     }
 
-    qdev_connect_gpio_out(DEVICE(&ks->ps2kbd), PS2_DEVICE_IRQ,
+    qdev_connect_gpio_out(reinterpret_cast<DeviceState *>(&ks->ps2kbd), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
                                                  0));
 
-    qdev_connect_gpio_out(DEVICE(&ks->ps2mouse), PS2_DEVICE_IRQ,
+    qdev_connect_gpio_out(reinterpret_cast<DeviceState *>(&ks->ps2mouse), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
                                                  0));
 }
 
 static void i8042_mmio_init(Object *obj)
 {
-    MMIOKBDState *s = I8042_MMIO(obj);
+    MMIOKBDState *s = reinterpret_cast<MMIOKBDState *>(obj);
     KBDState *ks = &s->kbd;
 
     ks->extended_state = true;
@@ -733,10 +733,10 @@ static void i8042_mmio_init(Object *obj)
     object_initialize_child(obj, "ps2mouse", &ks->ps2mouse,
                             TYPE_PS2_MOUSE_DEVICE);
 
-    qdev_init_gpio_out(DEVICE(obj), ks->irqs, 2);
-    qdev_init_gpio_in_named(DEVICE(obj), i8042_mmio_set_kbd_irq,
+    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(obj), ks->irqs, 2);
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), i8042_mmio_set_kbd_irq,
                             "ps2-kbd-input-irq", 1);
-    qdev_init_gpio_in_named(DEVICE(obj), i8042_mmio_set_mouse_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), i8042_mmio_set_mouse_irq,
                             "ps2-mouse-input-irq", 1);
 }
 
@@ -757,14 +757,14 @@ static const VMStateDescription vmstate_kbd_mmio = {
 
 static void i8042_mmio_realize(DeviceState *dev, Error **errp)
 {
-    MMIOKBDState *s = I8042_MMIO(dev);
+    MMIOKBDState *s = reinterpret_cast<MMIOKBDState *>(dev);
     i8042_mmio_realize_impl(s, dev, errp);
 }
 
 struct I8042MMIOMethods {
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
         dc->realize = i8042_mmio_realize;
         device_class_set_legacy_reset(dc, i8042_mmio_reset);
@@ -862,18 +862,18 @@ static void i8042_initfn(Object *obj)
     object_initialize_child(obj, "ps2mouse", &s->ps2mouse,
                             TYPE_PS2_MOUSE_DEVICE);
 
-    qdev_init_gpio_out_named(DEVICE(obj), &s->a20_out, I8042_A20_LINE, 1);
+    qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(obj), &s->a20_out, I8042_A20_LINE, 1);
 
-    qdev_init_gpio_out(DEVICE(obj), s->irqs, 2);
-    qdev_init_gpio_in_named(DEVICE(obj), i8042_set_kbd_irq,
+    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(obj), s->irqs, 2);
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), i8042_set_kbd_irq,
                             "ps2-kbd-input-irq", 1);
-    qdev_init_gpio_in_named(DEVICE(obj), i8042_set_mouse_irq,
+    qdev_init_gpio_in_named(reinterpret_cast<DeviceState *>(obj), i8042_set_mouse_irq,
                             "ps2-mouse-input-irq", 1);
 }
 
 static void i8042_realizefn_impl(ISAKBDState *isa_s, DeviceState *dev, Error **errp)
 {
-    ISADevice *isadev = ISA_DEVICE(dev);
+    ISADevice *isadev = reinterpret_cast<ISADevice *>(dev);
     KBDState *s = &isa_s->kbd;
 
     if (isa_s->kbd_irq >= ISA_NUM_IRQS) {
@@ -894,19 +894,19 @@ static void i8042_realizefn_impl(ISAKBDState *isa_s, DeviceState *dev, Error **e
     isa_register_ioport(isadev, isa_s->io + 0, 0x60);
     isa_register_ioport(isadev, isa_s->io + 1, 0x64);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ps2kbd), errp)) {
+    if (!sysbus_realize(reinterpret_cast<SysBusDevice *>(&s->ps2kbd), errp)) {
         return;
     }
 
-    qdev_connect_gpio_out(DEVICE(&s->ps2kbd), PS2_DEVICE_IRQ,
+    qdev_connect_gpio_out(reinterpret_cast<DeviceState *>(&s->ps2kbd), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-kbd-input-irq",
                                                  0));
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ps2mouse), errp)) {
+    if (!sysbus_realize(reinterpret_cast<SysBusDevice *>(&s->ps2mouse), errp)) {
         return;
     }
 
-    qdev_connect_gpio_out(DEVICE(&s->ps2mouse), PS2_DEVICE_IRQ,
+    qdev_connect_gpio_out(reinterpret_cast<DeviceState *>(&s->ps2mouse), PS2_DEVICE_IRQ,
                           qdev_get_gpio_in_named(dev, "ps2-mouse-input-irq",
                                                  0));
 
@@ -964,8 +964,8 @@ static void i8042_realizefn(DeviceState *dev, Error **errp)
 struct I8042Methods {
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
-        AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+        AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
         device_class_set_props(dc, i8042_properties);
         device_class_set_legacy_reset(dc, i8042_reset);
