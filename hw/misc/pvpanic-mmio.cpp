@@ -32,14 +32,14 @@ struct PVPanicMMIOState {
 
 static void pvpanic_mmio_initfn(Object *obj)
 {
-    PVPanicMMIOState *s = PVPANIC_MMIO_DEVICE(obj);
+    PVPanicMMIOState *s = reinterpret_cast<PVPanicMMIOState *>(obj);
     s->instanceInit();
 }
 
 void PVPanicMMIOState::instanceInit()
 {
-    pvpanic_setup_io(&pvpanic, DEVICE(this), PVPANIC_MMIO_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), &pvpanic.mr);
+    pvpanic_setup_io(&pvpanic, reinterpret_cast<DeviceState *>(this), PVPANIC_MMIO_SIZE);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &pvpanic.mr);
 }
 
 static const Property pvpanic_mmio_properties[] = {
@@ -49,7 +49,7 @@ static const Property pvpanic_mmio_properties[] = {
 
 void PVPanicMMIOState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_props(dc, pvpanic_mmio_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

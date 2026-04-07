@@ -334,7 +334,7 @@ int USBWacomState::wacomPoll(uint8_t *buf, int len)
 
 void USBWacomState::handleReset(USBDevice *dev)
 {
-    USBWacomState *s = (USBWacomState *) dev;
+    USBWacomState *s = reinterpret_cast<USBWacomState *>(dev);
 
     s->dx = 0;
     s->dy = 0;
@@ -348,7 +348,7 @@ void USBWacomState::handleReset(USBDevice *dev)
 void USBWacomState::handleControl(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USBWacomState *s = (USBWacomState *) dev;
+    USBWacomState *s = reinterpret_cast<USBWacomState *>(dev);
     int ret;
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
@@ -402,7 +402,7 @@ void USBWacomState::handleControl(USBDevice *dev, USBPacket *p,
 
 void USBWacomState::handleData(USBDevice *dev, USBPacket *p)
 {
-    USBWacomState *s = (USBWacomState *) dev;
+    USBWacomState *s = reinterpret_cast<USBWacomState *>(dev);
     g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(p->iov.size));
     int len = 0;
 
@@ -430,7 +430,7 @@ void USBWacomState::handleData(USBDevice *dev, USBPacket *p)
 
 void USBWacomState::unrealize(USBDevice *dev)
 {
-    USBWacomState *s = USB_WACOM(dev);
+    USBWacomState *s = reinterpret_cast<USBWacomState *>(dev);
 
     if (s->mouse_grabbed) {
         qemu_remove_mouse_event_handler(s->eh_entry);
@@ -440,7 +440,7 @@ void USBWacomState::unrealize(USBDevice *dev)
 
 void USBWacomState::realize(USBDevice *dev, Error **errp)
 {
-    USBWacomState *s = USB_WACOM(dev);
+    USBWacomState *s = reinterpret_cast<USBWacomState *>(dev);
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
@@ -454,8 +454,8 @@ static const VMStateDescription vmstate_usb_wacom = {
 
 void USBWacomState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->product_desc   = "QEMU PenPartner Tablet";
     uc->usb_desc       = &desc_wacom;

@@ -322,7 +322,7 @@ void USBHubState::portComplete(USBPort *port, USBPacket *packet)
 
 USBDevice *USBHubState::findDevice(USBDevice *dev, uint8_t addr)
 {
-    USBHubState *s = USB_HUB(dev);
+    USBHubState *s = reinterpret_cast<USBHubState *>(dev);
     USBHubPort *port;
     USBDevice *downstream;
     int i;
@@ -342,7 +342,7 @@ USBDevice *USBHubState::findDevice(USBDevice *dev, uint8_t addr)
 
 void USBHubState::handleReset(USBDevice *dev)
 {
-    USBHubState *s = USB_HUB(dev);
+    USBHubState *s = reinterpret_cast<USBHubState *>(dev);
     USBHubPort *port;
     int i;
 
@@ -387,7 +387,7 @@ static const char *feature_name(int feature)
 void USBHubState::handleControl(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USBHubState *s = (USBHubState *)dev;
+    USBHubState *s = reinterpret_cast<USBHubState *>(dev);
     int ret;
 
     trace_usb_hub_control(s->dev.addr, request, value, index, length);
@@ -561,7 +561,7 @@ void USBHubState::handleControl(USBDevice *dev, USBPacket *p,
 
 void USBHubState::handleData(USBDevice *dev, USBPacket *p)
 {
-    USBHubState *s = (USBHubState *)dev;
+    USBHubState *s = reinterpret_cast<USBHubState *>(dev);
 
     switch(p->pid) {
     case USB_TOKEN_IN:
@@ -606,7 +606,7 @@ void USBHubState::handleData(USBDevice *dev, USBPacket *p)
 
 void USBHubState::unrealize(USBDevice *dev)
 {
-    USBHubState *s = (USBHubState *)dev;
+    USBHubState *s = reinterpret_cast<USBHubState *>(dev);
     int i;
 
     for (i = 0; i < s->num_ports; i++) {
@@ -627,7 +627,7 @@ static USBPortOps usb_hub_port_ops = {
 
 void USBHubState::realize(USBDevice *dev, Error **errp)
 {
-    USBHubState *s = USB_HUB(dev);
+    USBHubState *s = reinterpret_cast<USBHubState *>(dev);
     USBHubPort *port;
     int i;
 
@@ -717,8 +717,8 @@ static const Property usb_hub_properties[] = {
 
 void USBHubState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = USBHubState::realize;
     uc->product_desc   = "QEMU USB Hub";

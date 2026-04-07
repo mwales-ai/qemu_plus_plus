@@ -160,7 +160,7 @@ uint8_t *U2FEmulatedState::pendingOutGet()
 void U2FEmulatedState::recvFromGuest(U2FKeyState *base,
                                 const uint8_t packet[U2FHID_PACKET_SIZE])
 {
-    U2FEmulatedState *key = EMULATED_U2F_KEY(base);
+    U2FEmulatedState *key = reinterpret_cast<U2FEmulatedState *>(base);
 
     qemu_mutex_lock(&key->pending_out_mutex);
     key->pendingOutAdd(packet);
@@ -315,7 +315,7 @@ void U2FEmulatedState::eventHandler(EventNotifier *notifier)
 
 void U2FEmulatedState::doRealize(U2FKeyState *base, Error **errp)
 {
-    U2FEmulatedState *key = EMULATED_U2F_KEY(base);
+    U2FEmulatedState *key = reinterpret_cast<U2FEmulatedState *>(base);
     u2f_emu_rc rc;
 
     if (key->cert != NULL || key->privkey != NULL || key->entropy != NULL
@@ -364,13 +364,13 @@ void U2FEmulatedState::doRealize(U2FKeyState *base, Error **errp)
 
 static void u2f_emulated_realize(U2FKeyState *base, Error **errp)
 {
-    U2FEmulatedState *key = EMULATED_U2F_KEY(base);
+    U2FEmulatedState *key = reinterpret_cast<U2FEmulatedState *>(base);
     key->doRealize(base, errp);
 }
 
 void U2FEmulatedState::doUnrealize(U2FKeyState *base)
 {
-    U2FEmulatedState *key = EMULATED_U2F_KEY(base);
+    U2FEmulatedState *key = reinterpret_cast<U2FEmulatedState *>(base);
 
     /* Thread */
     key->stop_thread = true;
@@ -396,7 +396,7 @@ void U2FEmulatedState::doUnrealize(U2FKeyState *base)
 
 static void u2f_emulated_unrealize(U2FKeyState *base)
 {
-    U2FEmulatedState *key = EMULATED_U2F_KEY(base);
+    U2FEmulatedState *key = reinterpret_cast<U2FEmulatedState *>(base);
     key->doUnrealize(base);
 }
 
@@ -410,8 +410,8 @@ static const Property u2f_emulated_properties[] = {
 
 void U2FEmulatedState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    U2FKeyClass *kc = U2F_KEY_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    U2FKeyClass *kc = reinterpret_cast<U2FKeyClass *>(klass);
 
     kc->realize = u2f_emulated_realize;
     kc->unrealize = u2f_emulated_unrealize;

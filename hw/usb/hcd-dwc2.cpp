@@ -1362,12 +1362,12 @@ static void dwc2_reset_exit(Object *obj, ResetType type)
 void DWC2State::realizeImpl(DeviceState *dev, Error **errp)
 {
     DWC2State *s = this;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
     Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), "dma-mr", &error_abort);
+    obj = object_property_get_link(reinterpret_cast<Object *>(dev), "dma-mr", &error_abort);
 
-    s->dma_mr = MEMORY_REGION(obj);
+    s->dma_mr = reinterpret_cast<MemoryRegion *>(obj);
     address_space_init(&s->dma_as, s->dma_mr, "dwc2");
 
     usb_bus_new(&s->bus, sizeof(s->bus), &dwc2_bus_ops, dev);
@@ -1399,7 +1399,7 @@ static void dwc2_realize(DeviceState *dev, Error **errp)
 
 static void dwc2_init(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
     DWC2State *s = reinterpret_cast<DWC2State *>(obj);
 
     memory_region_init(&s->container, obj, "dwc2", DWC2_MMIO_SIZE);
@@ -1480,9 +1480,9 @@ static const Property dwc2_usb_properties[] = {
 
 static void dwc2_class_init(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    DWC2Class *c = DWC2_USB_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    DWC2Class *c = reinterpret_cast<DWC2Class *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->realize = dwc2_realize;
     dc->vmsd = &vmstate_dwc2_state;

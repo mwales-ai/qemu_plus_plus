@@ -352,7 +352,7 @@ void U2FPassthruState::readFromHost(void *opaque)
 void U2FPassthruState::recvFromGuest(U2FKeyState *base,
                                     const uint8_t packet[U2FHID_PACKET_SIZE])
 {
-    U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
+    U2FPassthruState *key = reinterpret_cast<U2FPassthruState *>(base);
     uint8_t host_packet[U2FHID_PACKET_SIZE + 1];
     ssize_t written;
 
@@ -478,7 +478,7 @@ static int u2f_passthru_open_from_scan(void)
 
 void U2FPassthruState::doUnrealize(U2FKeyState *base)
 {
-    U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
+    U2FPassthruState *key = reinterpret_cast<U2FPassthruState *>(base);
 
     key->resetState();
     qemu_close(key->hidraw_fd);
@@ -486,13 +486,13 @@ void U2FPassthruState::doUnrealize(U2FKeyState *base)
 
 static void u2f_passthru_unrealize(U2FKeyState *base)
 {
-    U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
+    U2FPassthruState *key = reinterpret_cast<U2FPassthruState *>(base);
     key->doUnrealize(base);
 }
 
 void U2FPassthruState::doRealize(U2FKeyState *base, Error **errp)
 {
-    U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
+    U2FPassthruState *key = reinterpret_cast<U2FPassthruState *>(base);
     int fd;
 
     if (key->hidraw == NULL) {
@@ -526,7 +526,7 @@ void U2FPassthruState::doRealize(U2FKeyState *base, Error **errp)
 
 static void u2f_passthru_realize(U2FKeyState *base, Error **errp)
 {
-    U2FPassthruState *key = PASSTHRU_U2F_KEY(base);
+    U2FPassthruState *key = reinterpret_cast<U2FPassthruState *>(base);
     key->doRealize(base, errp);
 }
 
@@ -556,8 +556,8 @@ static const Property u2f_passthru_properties[] = {
 
 void U2FPassthruState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    U2FKeyClass *kc = U2F_KEY_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    U2FKeyClass *kc = reinterpret_cast<U2FKeyClass *>(klass);
 
     kc->realize = u2f_passthru_realize;
     kc->unrealize = u2f_passthru_unrealize;

@@ -163,7 +163,7 @@ struct EmulatedState {
 void EmulatedState::apduFromGuest(CCIDCardState *base,
     const uint8_t *apdu, uint32_t len)
 {
-    EmulatedState *card = EMULATED_CCID_CARD(base);
+    EmulatedState *card = reinterpret_cast<EmulatedState *>(base);
     EmulEvent *event = static_cast<EmulEvent *>(g_malloc(sizeof(EmulEvent) + len));
 
     assert(event);
@@ -180,7 +180,7 @@ void EmulatedState::apduFromGuest(CCIDCardState *base,
 
 const uint8_t *EmulatedState::getAtr(CCIDCardState *base, uint32_t *len)
 {
-    EmulatedState *card = EMULATED_CCID_CARD(base);
+    EmulatedState *card = reinterpret_cast<EmulatedState *>(base);
 
     *len = card->atr_length;
     return card->atr;
@@ -512,7 +512,7 @@ static uint32_t parse_enumeration(char *str,
 
 void EmulatedState::emulRealize(CCIDCardState *base, Error **errp)
 {
-    EmulatedState *card = EMULATED_CCID_CARD(base);
+    EmulatedState *card = reinterpret_cast<EmulatedState *>(base);
     VCardEmulError ret;
     const EnumTable *ptable;
 
@@ -588,7 +588,7 @@ out1:
 
 void EmulatedState::emulUnrealize(CCIDCardState *base)
 {
-    EmulatedState *card = EMULATED_CCID_CARD(base);
+    EmulatedState *card = reinterpret_cast<EmulatedState *>(base);
     VEvent *vevent = vevent_new(VEVENT_LAST, NULL, NULL);
 
     vevent_queue_vevent(vevent); /* stop vevent thread */
@@ -617,8 +617,8 @@ static const Property emulated_card_properties[] = {
 
 void EmulatedState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    CCIDCardClass *cc = CCID_CARD_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    CCIDCardClass *cc = reinterpret_cast<CCIDCardClass *>(klass);
 
     cc->realize = EmulatedState::emulRealize;
     cc->unrealize = EmulatedState::emulUnrealize;

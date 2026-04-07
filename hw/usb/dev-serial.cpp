@@ -221,7 +221,7 @@ static const USBDesc desc_braille = {
 
 void USBSerialState::setFlowControl(uint8_t fc)
 {
-    USBDevice *udev = USB_DEVICE(this);
+    USBDevice *udev = reinterpret_cast<USBDevice *>(this);
     USBBus *bus = usb_bus_from_device(udev);
 
     /* TODO: ioctl */
@@ -231,7 +231,7 @@ void USBSerialState::setFlowControl(uint8_t fc)
 
 void USBSerialState::setXonXoff(int xonxoff)
 {
-    USBDevice *udev = USB_DEVICE(this);
+    USBDevice *udev = reinterpret_cast<USBDevice *>(this);
     USBBus *bus = usb_bus_from_device(udev);
 
     this->xon = xonxoff & 0xff;
@@ -252,7 +252,7 @@ void USBSerialState::resetState(void)
 
 void USBSerialState::handleReset(USBDevice *dev)
 {
-    USBSerialState *s = USB_SERIAL(dev);
+    USBSerialState *s = reinterpret_cast<USBSerialState *>(dev);
     USBBus *bus = usb_bus_from_device(dev);
 
     trace_usb_serial_reset(bus->busnr, dev->addr);
@@ -292,7 +292,7 @@ void USBSerialState::handleControl(USBDevice *dev, USBPacket *p,
                                    int request, int value, int index,
                                    int length, uint8_t *data)
 {
-    USBSerialState *s = USB_SERIAL(dev);
+    USBSerialState *s = reinterpret_cast<USBSerialState *>(dev);
     USBBus *bus = usb_bus_from_device(dev);
     int ret;
 
@@ -508,7 +508,7 @@ void USBSerialState::tokenIn(USBPacket *p)
 
 void USBSerialState::handleData(USBDevice *dev, USBPacket *p)
 {
-    USBSerialState *s = USB_SERIAL(dev);
+    USBSerialState *s = reinterpret_cast<USBSerialState *>(dev);
     USBBus *bus = usb_bus_from_device(dev);
     uint8_t devep = p->ep->nr;
     struct iovec *iov;
@@ -615,7 +615,7 @@ void USBSerialState::charEvent(void *opaque, QEMUChrEvent event)
 
 void USBSerialState::realize(USBDevice *dev, Error **errp)
 {
-    USBSerialState *s = USB_SERIAL(dev);
+    USBSerialState *s = reinterpret_cast<USBSerialState *>(dev);
     Error *local_err = NULL;
 
     usb_desc_create_serial(dev);
@@ -672,8 +672,8 @@ static const Property serial_properties[] = {
 
 void USBSerialState::devClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = USBSerialState::realize;
     uc->handle_reset   = USBSerialState::handleReset;
@@ -693,8 +693,8 @@ static const TypeInfo usb_serial_dev_type_info = {
 
 void USBSerialState::serialClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->product_desc   = "QEMU USB Serial";
     uc->usb_desc       = &desc_serial;
@@ -713,8 +713,8 @@ static const Property braille_properties[] = {
 
 void USBSerialState::brailleClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->product_desc   = "QEMU USB Braille";
     uc->usb_desc       = &desc_braille;

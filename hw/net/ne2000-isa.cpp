@@ -71,16 +71,16 @@ static const VMStateDescription vmstate_isa_ne2000 = {
 
 static void isa_ne2000_realizefn(DeviceState *dev, Error **errp)
 {
-    ISANE2000State *isa = ISA_NE2000(dev);
+    ISANE2000State *isa = reinterpret_cast<ISANE2000State *>(dev);
     isa->realize(errp);
 }
 
 void ISANE2000State::realize(Error **errp)
 {
-    ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+    ISADevice *isadev = reinterpret_cast<ISADevice *>(this);
     NE2000State *s = &this->ne2000;
 
-    ne2000_setup_io(s, DEVICE(isadev), 0x20);
+    ne2000_setup_io(s, reinterpret_cast<DeviceState *>(isadev), 0x20);
     isa_register_ioport(isadev, &s->io, this->iobase);
 
     s->irq = isa_get_irq(isadev, this->isairq);
@@ -89,8 +89,8 @@ void ISANE2000State::realize(Error **errp)
     ne2000_reset(s);
 
     s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
-                          object_get_typename(OBJECT(this)), DEVICE(this)->id,
-                          &DEVICE(this)->mem_reentrancy_guard, s);
+                          object_get_typename(reinterpret_cast<Object *>(this)), reinterpret_cast<DeviceState *>(this)->id,
+                          &reinterpret_cast<DeviceState *>(this)->mem_reentrancy_guard, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
 }
 
@@ -102,7 +102,7 @@ static const Property ne2000_isa_properties[] = {
 
 void ISANE2000State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = isa_ne2000_realizefn;
     device_class_set_props(dc, ne2000_isa_properties);
@@ -114,7 +114,7 @@ void ISANE2000State::getBootindex(Object *obj, Visitor *v,
                                   const char *name, void *opaque,
                                   Error **errp)
 {
-    ISANE2000State *isa = ISA_NE2000(obj);
+    ISANE2000State *isa = reinterpret_cast<ISANE2000State *>(obj);
     NE2000State *s = &isa->ne2000;
 
     visit_type_int32(v, name, &s->c.bootindex, errp);
@@ -124,7 +124,7 @@ void ISANE2000State::setBootindex(Object *obj, Visitor *v,
                                   const char *name, void *opaque,
                                   Error **errp)
 {
-    ISANE2000State *isa = ISA_NE2000(obj);
+    ISANE2000State *isa = reinterpret_cast<ISANE2000State *>(obj);
     NE2000State *s = &isa->ne2000;
     int32_t boot_index;
     Error *local_err = NULL;
@@ -146,16 +146,16 @@ out:
 
 static void isa_ne2000_instance_init(Object *obj)
 {
-    ISANE2000State *isa = ISA_NE2000(obj);
+    ISANE2000State *isa = reinterpret_cast<ISANE2000State *>(obj);
     isa->instanceInit();
 }
 
 void ISANE2000State::instanceInit()
 {
-    object_property_add(OBJECT(this), "bootindex", "int32",
+    object_property_add(reinterpret_cast<Object *>(this), "bootindex", "int32",
                         ISANE2000State::getBootindex,
                         ISANE2000State::setBootindex, NULL, NULL);
-    object_property_set_int(OBJECT(this), "bootindex", -1, NULL);
+    object_property_set_int(reinterpret_cast<Object *>(this), "bootindex", -1, NULL);
 }
 
 static const TypeInfo ne2000_isa_info = {

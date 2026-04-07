@@ -631,7 +631,7 @@ void USBHIDState::hidChanged(HIDState *hs)
 
 void USBHIDState::handleReset(USBDevice *dev)
 {
-    USBHIDState *us = USB_HID(dev);
+    USBHIDState *us = reinterpret_cast<USBHIDState *>(dev);
 
     hid_reset(&us->hid);
 }
@@ -639,7 +639,7 @@ void USBHIDState::handleReset(USBDevice *dev)
 void USBHIDState::handleControl(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USBHIDState *us = USB_HID(dev);
+    USBHIDState *us = reinterpret_cast<USBHIDState *>(dev);
     HIDState *hs = &us->hid;
     int ret;
 
@@ -718,7 +718,7 @@ void USBHIDState::handleControl(USBDevice *dev, USBPacket *p,
 
 void USBHIDState::handleData(USBDevice *dev, USBPacket *p)
 {
-    USBHIDState *us = USB_HID(dev);
+    USBHIDState *us = reinterpret_cast<USBHIDState *>(dev);
     HIDState *hs = &us->hid;
     g_autofree uint8_t *buf = static_cast<uint8_t *>(g_malloc(p->iov.size));
     int len = 0;
@@ -754,7 +754,7 @@ void USBHIDState::handleData(USBDevice *dev, USBPacket *p)
 
 void USBHIDState::unrealize(USBDevice *dev)
 {
-    USBHIDState *us = USB_HID(dev);
+    USBHIDState *us = reinterpret_cast<USBHIDState *>(dev);
 
     hid_free(&us->hid);
 }
@@ -763,7 +763,7 @@ void USBHIDState::initfn(USBDevice *dev, int kind,
                            const USBDesc *usb1, const USBDesc *usb2,
                            Error **errp)
 {
-    USBHIDState *us = USB_HID(dev);
+    USBHIDState *us = reinterpret_cast<USBHIDState *>(dev);
     switch (us->usb_version) {
     case 1:
         dev->usb_desc = usb1;
@@ -844,7 +844,7 @@ static const VMStateDescription vmstate_usb_kbd = {
 
 void USBHIDState::hidClassInit(ObjectClass *klass, const void *data)
 {
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->handle_reset   = USBHIDState::handleReset;
     uc->handle_control = USBHIDState::handleControl;
@@ -869,8 +869,8 @@ static const Property usb_tablet_properties[] = {
 
 void USBHIDState::tabletClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = USBHIDState::tabletRealize;
     uc->product_desc   = "QEMU USB Tablet";
@@ -891,8 +891,8 @@ static const Property usb_mouse_properties[] = {
 
 void USBHIDState::mouseClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = USBHIDState::mouseRealize;
     uc->product_desc   = "QEMU USB Mouse";
@@ -914,8 +914,8 @@ static const Property usb_keyboard_properties[] = {
 
 void USBHIDState::keyboardClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = USBHIDState::keyboardRealize;
     uc->product_desc   = "QEMU USB Keyboard";

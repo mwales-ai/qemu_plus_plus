@@ -606,7 +606,7 @@ char *Core99MachineState::getViaConfig(Object *obj, Error **errp)
 
 void Core99MachineState::setViaConfig(Object *obj, const char *value, Error **errp)
 {
-    Core99MachineState *cms = CORE99_MACHINE(obj);
+    Core99MachineState *cms = reinterpret_cast<Core99MachineState *>(obj);
 
     if (!strcmp(value, "cuda")) {
         cms->via_config = CORE99_VIA_CONFIG_CUDA;
@@ -622,7 +622,7 @@ void Core99MachineState::setViaConfig(Object *obj, const char *value, Error **er
 
 void Core99MachineState::instanceInit(Object *obj)
 {
-    Core99MachineState *cms = CORE99_MACHINE(obj);
+    Core99MachineState *cms = reinterpret_cast<Core99MachineState *>(obj);
 
     /* Default via_config is CORE99_VIA_CONFIG_CUDA */
     cms->via_config = CORE99_VIA_CONFIG_CUDA;

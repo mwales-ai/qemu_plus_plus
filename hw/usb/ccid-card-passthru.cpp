@@ -339,7 +339,7 @@ void PassthruState::chrEvent(void *opaque, QEMUChrEvent event)
 void PassthruState::apduFromGuest(CCIDCardState *base,
                                   const uint8_t *apdu, uint32_t len)
 {
-    PassthruState *card = PASSTHRU_CCID_CARD(base);
+    PassthruState *card = reinterpret_cast<PassthruState *>(base);
 
     if (!qemu_chr_fe_backend_connected(&card->cs)) {
         printf("ccid-passthru: no chardev, discarding apdu length %u\n", len);
@@ -350,7 +350,7 @@ void PassthruState::apduFromGuest(CCIDCardState *base,
 
 const uint8_t *PassthruState::getAtr(CCIDCardState *base, uint32_t *len)
 {
-    PassthruState *card = PASSTHRU_CCID_CARD(base);
+    PassthruState *card = reinterpret_cast<PassthruState *>(base);
 
     *len = card->atr_length;
     return card->atr;
@@ -358,7 +358,7 @@ const uint8_t *PassthruState::getAtr(CCIDCardState *base, uint32_t *len)
 
 void PassthruState::doRealize(CCIDCardState *base, Error **errp)
 {
-    PassthruState *card = PASSTHRU_CCID_CARD(base);
+    PassthruState *card = reinterpret_cast<PassthruState *>(base);
 
     card->vscard_in_pos = 0;
     card->vscard_in_hdr = 0;
@@ -382,7 +382,7 @@ void PassthruState::doRealize(CCIDCardState *base, Error **errp)
 
 static void passthru_realize(CCIDCardState *base, Error **errp)
 {
-    PassthruState *card = PASSTHRU_CCID_CARD(base);
+    PassthruState *card = reinterpret_cast<PassthruState *>(base);
     card->doRealize(base, errp);
 }
 
@@ -409,8 +409,8 @@ static const Property passthru_card_properties[] = {
 
 void PassthruState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    CCIDCardClass *cc = CCID_CARD_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    CCIDCardClass *cc = reinterpret_cast<CCIDCardClass *>(klass);
 
     cc->realize = passthru_realize;
     cc->get_atr = PassthruState::getAtr;

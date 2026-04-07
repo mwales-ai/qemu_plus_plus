@@ -398,7 +398,7 @@ void EduState::realize(Error **errp)
     qemu_thread_create(&thread, "edu", factThread,
                        this, QEMU_THREAD_JOINABLE);
 
-    memory_region_init_io(&mmio, OBJECT(this), &edu_mmio_ops, this,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this), &edu_mmio_ops, this,
                     "edu-mmio", 1 * MiB);
     pci_register_bar(&pdev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
 }
@@ -421,7 +421,7 @@ void EduState::uninit()
 void EduState::instanceInit()
 {
     dma_mask = (1UL << 28) - 1;
-    object_property_add_uint64_ptr(OBJECT(this), "dma_mask",
+    object_property_add_uint64_ptr(reinterpret_cast<Object *>(this), "dma_mask",
                                    &dma_mask, OBJ_PROP_FLAG_READWRITE);
 }
 
@@ -446,8 +446,8 @@ static void edu_instance_init(Object *obj)
 
 void EduState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = pci_edu_realize;
     k->exit = pci_edu_uninit;
