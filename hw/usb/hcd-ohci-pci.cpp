@@ -74,12 +74,12 @@ void OHCIPCIState::pciDie(struct OHCIState *ohci)
 void OHCIPCIState::realize(PCIDevice *dev, Error **errp)
 {
     Error *err = NULL;
-    OHCIPCIState *ohci = PCI_OHCI(dev);
+    OHCIPCIState *ohci = reinterpret_cast<OHCIPCIState *>(dev);
 
     dev->config[PCI_CLASS_PROG] = 0x10; /* OHCI */
     dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
 
-    usb_ohci_init(&ohci->state, DEVICE(dev), ohci->num_ports, 0,
+    usb_ohci_init(&ohci->state, reinterpret_cast<DeviceState *>(dev), ohci->num_ports, 0,
                   ohci->masterbus, ohci->firstport,
                   pci_get_address_space(dev), OHCIPCIState::pciDie, &err);
     if (err) {
@@ -93,13 +93,13 @@ void OHCIPCIState::realize(PCIDevice *dev, Error **errp)
 
 static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
 {
-    OHCIPCIState *ohci = PCI_OHCI(dev);
+    OHCIPCIState *ohci = reinterpret_cast<OHCIPCIState *>(dev);
     ohci->realize(dev, errp);
 }
 
 void OHCIPCIState::exit(PCIDevice *dev)
 {
-    OHCIPCIState *ohci = PCI_OHCI(dev);
+    OHCIPCIState *ohci = reinterpret_cast<OHCIPCIState *>(dev);
     OHCIState *s = &ohci->state;
 
     trace_usb_ohci_exit(s->name);
@@ -120,14 +120,14 @@ void OHCIPCIState::exit(PCIDevice *dev)
 
 static void usb_ohci_exit(PCIDevice *dev)
 {
-    OHCIPCIState *ohci = PCI_OHCI(dev);
+    OHCIPCIState *ohci = reinterpret_cast<OHCIPCIState *>(dev);
     ohci->exit(dev);
 }
 
 void OHCIPCIState::reset(DeviceState *d)
 {
-    PCIDevice *dev = PCI_DEVICE(d);
-    OHCIPCIState *ohci = PCI_OHCI(dev);
+    PCIDevice *dev = reinterpret_cast<PCIDevice *>(d);
+    OHCIPCIState *ohci = reinterpret_cast<OHCIPCIState *>(dev);
     OHCIState *s = &ohci->state;
 
     ohci_hard_reset(s);
@@ -135,7 +135,7 @@ void OHCIPCIState::reset(DeviceState *d)
 
 static void usb_ohci_reset_pci(DeviceState *d)
 {
-    OHCIPCIState *ohci = PCI_OHCI(PCI_DEVICE(d));
+    OHCIPCIState *ohci = reinterpret_cast<OHCIPCIState *>(reinterpret_cast<PCIDevice *>(d));
     ohci->reset(d);
 }
 
@@ -152,8 +152,8 @@ static const VMStateDescription vmstate_ohci = {
 
 void OHCIPCIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = usb_ohci_realize_pci;
     k->exit = usb_ohci_exit;

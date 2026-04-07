@@ -379,12 +379,12 @@ static void sifive_plic_irq_request(void *opaque, int irq, int level)
 
 void SiFivePLICState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
     int i;
 
-    memory_region_init_io(&mmio, OBJECT(dev), &sifive_plic_ops, this,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(dev), &sifive_plic_ops, this,
                           TYPE_SIFIVE_PLIC, aperture_size);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &mmio);
 
     parseHartConfig();
 
@@ -416,7 +416,7 @@ void SiFivePLICState::realize(Error **errp)
      * hardware controlled when a PLIC is attached.
      */
     for (i = 0; i < num_harts; i++) {
-        RISCVCPU *cpu = RISCV_CPU(qemu_get_cpu(hartid_base + i));
+        RISCVCPU *cpu = reinterpret_cast<RISCVCPU *>(qemu_get_cpu(hartid_base + i));
         if (riscv_cpu_claim_interrupts(cpu, MIP_SEIP) < 0) {
             error_setg(errp, "SEIP already claimed");
             return;
@@ -472,7 +472,7 @@ static const Property sifive_plic_properties[] = {
 
 void SiFivePLICState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, sifive_plic_reset);
     device_class_set_props(dc, sifive_plic_properties);
@@ -522,8 +522,8 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
     qdev_prop_set_uint32(dev, "context-base", context_base);
     qdev_prop_set_uint32(dev, "context-stride", context_stride);
     qdev_prop_set_uint32(dev, "aperture-size", aperture_size);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, addr);
 
     plic = reinterpret_cast<SiFivePLICState *>(dev);
 
@@ -533,11 +533,11 @@ DeviceState *sifive_plic_create(hwaddr addr, char *hart_config,
 
         if (plic->addr_config[i].mode == PLICMode_M) {
             qdev_connect_gpio_out(dev, cpu_num - hartid_base + num_harts,
-                                  qdev_get_gpio_in(DEVICE(cpu), IRQ_M_EXT));
+                                  qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), IRQ_M_EXT));
         }
         if (plic->addr_config[i].mode == PLICMode_S) {
             qdev_connect_gpio_out(dev, cpu_num - hartid_base,
-                                  qdev_get_gpio_in(DEVICE(cpu), IRQ_S_EXT));
+                                  qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), IRQ_S_EXT));
         }
     }
 

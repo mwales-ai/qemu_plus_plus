@@ -1020,7 +1020,7 @@ static const Property serial_properties[] = {
 
 void SerialState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     /* internal device for serialio/serialmm, not user-creatable */
     dc->user_creatable = false;

@@ -77,7 +77,7 @@ void PCIDivaSerialState::pciExit(PCIDevice *dev)
 
     for (i = 0; i < pci->ports; i++) {
         s = pci->state + i;
-        qdev_unrealize(DEVICE(s));
+        qdev_unrealize(reinterpret_cast<DeviceState *>(s));
         memory_region_del_subregion(&pci->membar, &s->io);
         g_free(pci->name[i]);
     }

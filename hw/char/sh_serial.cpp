@@ -109,7 +109,7 @@ void SHSerialState::mmioWrite(void *opaque, hwaddr offs,
                                uint64_t val, unsigned size)
 {
     SHSerialState *s = static_cast<SHSerialState *>(opaque);
-    DeviceState *d = DEVICE(s);
+    DeviceState *d = reinterpret_cast<DeviceState *>(s);
     unsigned char ch;
 
     trace_sh_serial_write(d->id, size, offs, val);
@@ -228,7 +228,7 @@ uint64_t SHSerialState::mmioRead(void *opaque, hwaddr offs,
                                   unsigned size)
 {
     SHSerialState *s = static_cast<SHSerialState *>(opaque);
-    DeviceState *d = DEVICE(s);
+    DeviceState *d = reinterpret_cast<DeviceState *>(s);
     uint32_t ret = UINT32_MAX;
 
 #if 0
@@ -405,7 +405,7 @@ static const MemoryRegionOps sh_serial_ops = {
 
 void SHSerialState::resetWrapper(DeviceState *dev)
 {
-    SHSerialState *s = SH_SERIAL(dev);
+    SHSerialState *s = reinterpret_cast<SHSerialState *>(dev);
     s->reset();
 }
 
@@ -430,18 +430,18 @@ void SHSerialState::reset()
 
 void SHSerialState::realizeWrapper(DeviceState *d, Error **errp)
 {
-    SHSerialState *s = SH_SERIAL(d);
+    SHSerialState *s = reinterpret_cast<SHSerialState *>(d);
     s->realize(errp);
 }
 
 void SHSerialState::realize(Error **errp)
 {
-    DeviceState *d = DEVICE(this);
+    DeviceState *d = reinterpret_cast<DeviceState *>(this);
     MemoryRegion *iomem = static_cast<MemoryRegion *>(g_malloc(sizeof(*iomem)));
 
     assert(d->id);
-    memory_region_init_io(iomem, OBJECT(this), &sh_serial_ops, this, d->id, 0x28);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), iomem);
+    memory_region_init_io(iomem, reinterpret_cast<Object *>(this), &sh_serial_ops, this, d->id, 0x28);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), iomem);
     qdev_init_gpio_out_named(d, &eri, "eri", 1);
     qdev_init_gpio_out_named(d, &rxi, "rxi", 1);
     qdev_init_gpio_out_named(d, &txi, "txi", 1);
@@ -461,7 +461,7 @@ void SHSerialState::realize(Error **errp)
 
 void SHSerialState::unrealizeWrapper(DeviceState *dev)
 {
-    SHSerialState *s = SH_SERIAL(dev);
+    SHSerialState *s = reinterpret_cast<SHSerialState *>(dev);
     s->unrealize();
 }
 
@@ -477,7 +477,7 @@ static const Property sh_serial_properties[] = {
 
 void SHSerialState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     device_class_set_props(dc, sh_serial_properties);
     dc->realize = SHSerialState::realizeWrapper;

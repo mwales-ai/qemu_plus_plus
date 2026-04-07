@@ -1432,8 +1432,8 @@ void SB16State::realizefnWrapper(DeviceState *dev, Error **errp)
 
 void SB16State::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
-    ISADevice *isadev = ISA_DEVICE (dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    ISADevice *isadev = reinterpret_cast<ISADevice *>(dev);
     ISABus *bus = isa_bus_from_device(isadev);
     IsaDmaClass *k;
 

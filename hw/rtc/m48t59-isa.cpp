@@ -53,19 +53,19 @@ struct M48txxISAState {
 
     static uint32_t nvramRead(Nvram *obj, uint32_t addr)
     {
-        M48txxISAState *d = M48TXX_ISA(obj);
+        M48txxISAState *d = reinterpret_cast<M48txxISAState *>(obj);
         return m48t59_read(&d->state, addr);
     }
 
     static void nvramWrite(Nvram *obj, uint32_t addr, uint32_t val)
     {
-        M48txxISAState *d = M48TXX_ISA(obj);
+        M48txxISAState *d = reinterpret_cast<M48txxISAState *>(obj);
         m48t59_write(&d->state, addr, val);
     }
 
     static void nvramToggleLock(Nvram *obj, int lock)
     {
-        M48txxISAState *d = M48TXX_ISA(obj);
+        M48txxISAState *d = reinterpret_cast<M48txxISAState *>(obj);
         m48t59_toggle_lock(&d->state, lock);
     }
 
@@ -77,8 +77,8 @@ struct M48txxISAState {
 
     void realize(Error **errp)
     {
-        M48txxISADeviceClass *u = M48TXX_ISA_GET_CLASS(DEVICE(this));
-        ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+        M48txxISADeviceClass *u = reinterpret_cast<M48txxISADeviceClass *>(M48TXX_ISA_GET_CLASS(reinterpret_cast<DeviceState *>(this)));
+        ISADevice *isadev = reinterpret_cast<ISADevice *>(reinterpret_cast<DeviceState *>(this));
         M48t59State *s = &state;
 
         if (isairq >= ISA_NUM_IRQS) {
@@ -90,7 +90,7 @@ struct M48txxISAState {
         s->size = u->info.size;
         s->IRQ = isa_get_irq(isadev, isairq);
         m48t59_realize_common(s, errp);
-        memory_region_init_io(&io, OBJECT(this), &m48t59_io_ops, s, "m48t59", 4);
+        memory_region_init_io(&io, reinterpret_cast<Object *>(this), &m48t59_io_ops, s, "m48t59", 4);
         if (io_base != 0) {
             isa_register_ioport(isadev, &io, io_base);
         }
@@ -98,13 +98,13 @@ struct M48txxISAState {
 
     static void deviceReset_static(DeviceState *d)
     {
-        M48txxISAState *isa = M48TXX_ISA(d);
+        M48txxISAState *isa = reinterpret_cast<M48txxISAState *>(d);
         isa->deviceReset();
     }
 
     static void deviceRealize(DeviceState *dev, Error **errp)
     {
-        M48txxISAState *s = M48TXX_ISA(dev);
+        M48txxISAState *s = reinterpret_cast<M48txxISAState *>(dev);
         s->realize(errp);
     }
 
@@ -112,7 +112,7 @@ struct M48txxISAState {
 
     static void concreteClassInit(ObjectClass *klass, const void *data)
     {
-        M48txxISADeviceClass *u = M48TXX_ISA_CLASS(klass);
+        M48txxISADeviceClass *u = reinterpret_cast<M48txxISADeviceClass *>(klass);
         const M48txxInfo *info = static_cast<const M48txxInfo *>(data);
 
         u->info = *info;
@@ -137,8 +137,8 @@ const Property M48txxISAState::m48t59_isa_properties[] = {
 
 void M48txxISAState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    NvramClass *nc = NVRAM_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    NvramClass *nc = reinterpret_cast<NvramClass *>(klass);
 
     dc->realize = deviceRealize;
     device_class_set_legacy_reset(dc, deviceReset_static);

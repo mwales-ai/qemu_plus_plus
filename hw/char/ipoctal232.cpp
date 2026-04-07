@@ -205,7 +205,7 @@ static const uint8_t id_prom_data[] = {
 
 void IPOctalState::updateIrq(unsigned block)
 {
-    IPackDevice *idev = IPACK_DEVICE(this);
+    IPackDevice *idev = reinterpret_cast<IPackDevice *>(this);
     /* Blocks A and B interrupt on INT0#, C and D on INT1#.
        Thus, to get the status we have to check two blocks. */
     SCC2698Block *blk0 = &blk[block];
@@ -286,7 +286,7 @@ void IPOctalState::writeCr(unsigned channel, uint8_t val)
 
 uint16_t IPOctalState::ioRead(IPackDevice *ip, uint8_t addr)
 {
-    IPOctalState *dev = IPOCTAL(ip);
+    IPOctalState *dev = reinterpret_cast<IPOctalState *>(ip);
     uint16_t ret = 0;
     /* addr[7:6]: block   (A-D)
        addr[7:5]: channel (a-h)
@@ -352,7 +352,7 @@ uint16_t IPOctalState::ioRead(IPackDevice *ip, uint8_t addr)
 
 void IPOctalState::ioWrite(IPackDevice *ip, uint8_t addr, uint16_t val)
 {
-    IPOctalState *dev = IPOCTAL(ip);
+    IPOctalState *dev = reinterpret_cast<IPOctalState *>(ip);
     unsigned reg = val & 0xFF;
     /* addr[7:6]: block   (A-D)
        addr[7:5]: channel (a-h)
@@ -439,7 +439,7 @@ uint16_t IPOctalState::idRead(IPackDevice *ip, uint8_t addr)
 
 void IPOctalState::idWrite(IPackDevice *ip, uint8_t addr, uint16_t val)
 {
-    IPOctalState *dev = IPOCTAL(ip);
+    IPOctalState *dev = reinterpret_cast<IPOctalState *>(ip);
     if (addr == 1) {
         DPRINTF("Write IRQ vector: %u\n", (unsigned) val);
         dev->irq_vector = val; /* Undocumented, but the hw works like that */
@@ -450,7 +450,7 @@ void IPOctalState::idWrite(IPackDevice *ip, uint8_t addr, uint16_t val)
 
 uint16_t IPOctalState::intRead(IPackDevice *ip, uint8_t addr)
 {
-    IPOctalState *dev = IPOCTAL(ip);
+    IPOctalState *dev = reinterpret_cast<IPOctalState *>(ip);
     /* Read address 0 to ACK INT0# and address 2 to ACK INT1# */
     if (addr != 0 && addr != 2) {
         DPRINTF("Attempt to read from 0x%x\n", addr);
@@ -486,7 +486,7 @@ uint8_t IPOctalState::memRead8(IPackDevice *ip, uint32_t addr)
 
 void IPOctalState::memWrite8(IPackDevice *ip, uint32_t addr, uint8_t val)
 {
-    IPOctalState *dev = IPOCTAL(ip);
+    IPOctalState *dev = reinterpret_cast<IPOctalState *>(ip);
     if (addr == 1) {
         DPRINTF("Write IRQ vector: %u\n", (unsigned) val);
         dev->irq_vector = val;
@@ -568,7 +568,7 @@ void IPOctalState::hostdevEvent(void *opaque, QEMUChrEvent event)
 
 void IPOctalState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    IPOCTAL(dev)->realize(errp);
+    reinterpret_cast<IPOctalState *>(dev)->realize(errp);
 }
 
 void IPOctalState::realize(Error **errp)
@@ -604,8 +604,8 @@ static const Property ipoctal_properties[] = {
 
 void IPOctalState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    IPackDeviceClass *ic = IPACK_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    IPackDeviceClass *ic = reinterpret_cast<IPackDeviceClass *>(klass);
 
     ic->realize     = IPOctalState::realizeWrapper;
     ic->io_read     = ioRead;

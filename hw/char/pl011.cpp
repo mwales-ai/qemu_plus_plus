@@ -647,7 +647,7 @@ static const Property pl011_properties[] = {
 
 static void pl011_init(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
     PL011State *s = reinterpret_cast<PL011State *>(obj);
     size_t i;
 
@@ -657,7 +657,7 @@ static void pl011_init(Object *obj)
         sysbus_init_irq(sbd, &s->irq[i]);
     }
 
-    s->clk = qdev_init_clock_in(DEVICE(obj), "clk", pl011_clock_update, s,
+    s->clk = qdev_init_clock_in(reinterpret_cast<DeviceState *>(obj), "clk", pl011_clock_update, s,
                                 ClockUpdate);
 
     s->id = pl011_id_arm;
@@ -699,7 +699,7 @@ static void pl011_reset(DeviceState *dev)
 
 void PL011State::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     dc->realize = pl011_realize;
     device_class_set_legacy_reset(dc, pl011_reset);

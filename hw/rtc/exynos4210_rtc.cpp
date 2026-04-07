@@ -583,7 +583,7 @@ static const MemoryRegionOps exynos4210_rtc_ops = {
  */
 void Exynos4210RTCState::initfn()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
     ptimer = ptimer_init(Exynos4210RTCState::tickHandler, this,
                          PTIMER_POLICY_LEGACY);
@@ -601,7 +601,7 @@ void Exynos4210RTCState::initfn()
     sysbus_init_irq(dev, &alm_irq);
     sysbus_init_irq(dev, &tick_irq);
 
-    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_rtc_ops, this,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &exynos4210_rtc_ops, this,
                           "exynos4210-rtc", EXYNOS4210_RTC_REG_MEM_SIZE);
     sysbus_init_mmio(dev, &iomem);
 }
@@ -615,25 +615,25 @@ void Exynos4210RTCState::finalize()
 /* static QOM wrappers */
 void Exynos4210RTCState::resetWrapper(DeviceState *d)
 {
-    Exynos4210RTCState *s = EXYNOS4210_RTC(d);
+    Exynos4210RTCState *s = reinterpret_cast<Exynos4210RTCState *>(d);
     s->reset();
 }
 
 void Exynos4210RTCState::initWrapper(Object *obj)
 {
-    Exynos4210RTCState *s = EXYNOS4210_RTC(obj);
+    Exynos4210RTCState *s = reinterpret_cast<Exynos4210RTCState *>(obj);
     s->initfn();
 }
 
 void Exynos4210RTCState::finalizeWrapper(Object *obj)
 {
-    Exynos4210RTCState *s = EXYNOS4210_RTC(obj);
+    Exynos4210RTCState *s = reinterpret_cast<Exynos4210RTCState *>(obj);
     s->finalize();
 }
 
 void Exynos4210RTCState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, Exynos4210RTCState::resetWrapper);
     dc->vmsd = &vmstate_exynos4210_rtc_state;

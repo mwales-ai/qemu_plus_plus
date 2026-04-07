@@ -248,7 +248,7 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int ret, bool acct_failed)
 {
     bool is_read = (r->req.cmd.mode == SCSI_XFER_FROM_DEV);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
+    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(reinterpret_cast<Object *>(s));
     SCSISense sense = SENSE_CODE(NO_SENSE);
     int16_t host_status;
     int error;
@@ -490,7 +490,7 @@ static void scsi_read_complete(void *opaque, int ret)
 static void scsi_do_read(SCSIDiskReq *r, int ret)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
+    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(reinterpret_cast<Object *>(s));
 
     assert (r->req.aiocb == NULL);
     if (scsi_disk_req_check_error(r, ret, false)) {
@@ -624,7 +624,7 @@ static void scsi_write_data(SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
+    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(reinterpret_cast<Object *>(s));
     BlockCompletionFunc *cb;
 
     /* No data transfer may already be in progress */
@@ -2338,7 +2338,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
-    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
+    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(reinterpret_cast<Object *>(s));
     uint32_t len;
     uint8_t command;
 
@@ -3171,7 +3171,7 @@ BlockAIOCB *scsi_dma_writev(int64_t offset, QEMUIOVector *iov,
 
 static char *scsi_property_get_loadparm(Object *obj, Error **errp)
 {
-    return g_strdup(SCSI_DISK_BASE(obj)->loadparm);
+    return g_strdup(reinterpret_cast<SCSIDiskState *>(obj)->loadparm);
 }
 
 static void scsi_property_set_loadparm(Object *obj, const char *value,
@@ -3189,12 +3189,12 @@ static void scsi_property_set_loadparm(Object *obj, const char *value,
         g_free(lp_str);
         return;
     }
-    SCSI_DISK_BASE(obj)->loadparm = reinterpret_cast<char *>(lp_str);
+    reinterpret_cast<SCSIDiskState *>(obj)->loadparm = reinterpret_cast<char *>(lp_str);
 }
 
 static void scsi_property_add_specifics(DeviceClass *dc)
 {
-    ObjectClass *oc = OBJECT_CLASS(dc);
+    ObjectClass *oc = reinterpret_cast<ObjectClass *>(dc);
 
     /* The loadparm property is only supported on s390x */
     if (qemu_arch_available(QEMU_ARCH_S390X)) {
@@ -3208,8 +3208,8 @@ static void scsi_property_add_specifics(DeviceClass *dc)
 
 void SCSIDiskState::baseClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    SCSIDiskClass *sdc = reinterpret_cast<SCSIDiskClass *>(klass);
 
     dc->fw_name = "disk";
     device_class_set_legacy_reset(dc, SCSIDiskState::resetWrapper);
@@ -3280,8 +3280,8 @@ static const VMStateDescription vmstate_scsi_disk_state = {
 
 void SCSIDiskState::hdClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    SCSIDeviceClass *sc = reinterpret_cast<SCSIDeviceClass *>(klass);
 
     sc->realize      = scsi_hd_realize;
     sc->unrealize    = scsi_unrealize;
@@ -3322,8 +3322,8 @@ static const Property scsi_cd_properties[] = {
 
 void SCSIDiskState::cdClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    SCSIDeviceClass *sc = reinterpret_cast<SCSIDeviceClass *>(klass);
 
     sc->realize      = scsi_cd_realize;
     sc->alloc_req    = scsi_new_request;
@@ -3359,9 +3359,9 @@ static const Property scsi_block_properties[] = {
 
 void SCSIDiskState::blockClassInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
-    SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    SCSIDeviceClass *sc = reinterpret_cast<SCSIDeviceClass *>(klass);
+    SCSIDiskClass *sdc = reinterpret_cast<SCSIDiskClass *>(klass);
 
     sc->realize      = scsi_block_realize;
     sc->alloc_req    = scsi_block_new_request;

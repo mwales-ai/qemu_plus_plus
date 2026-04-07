@@ -168,7 +168,7 @@ static uint64_t get_cpu_freq_hz(const MIPSCPU *cpu)
     };
 
     if (kvm_enabled()) {
-        ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_ONE_REG, &freq_reg);
+        ret = kvm_vcpu_ioctl(reinterpret_cast<CPUState *>(cpu), KVM_GET_ONE_REG, &freq_reg);
         if (ret >= 0) {
             return freq * 2;
         }
@@ -409,7 +409,7 @@ static void generic_cpu_reset(void *opaque)
     MIPSCPU *cpu = static_cast<MIPSCPU *>(opaque);
     CPUMIPSState *env = &cpu->env;
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(reinterpret_cast<CPUState *>(cpu));
 
     if (loaderparams.kernel_filename) {
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
@@ -439,24 +439,24 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
     PCIBus *pci_bus;
     DeviceState *dev;
     MemoryRegion *mmio_reg, *ecam_reg;
-    MachineClass *mc = MACHINE_GET_CLASS(machine);
-    LoongsonMachineState *s = LOONGSON_MACHINE(machine);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(MACHINE_GET_CLASS(machine));
+    LoongsonMachineState *s = reinterpret_cast<LoongsonMachineState *>(machine);
 
     dev = qdev_new(TYPE_GPEX_HOST);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    pci_bus = PCI_HOST_BRIDGE(dev)->bus;
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    pci_bus = reinterpret_cast<PCIHostState *>(dev)->bus;
 
     s->ecam_alias = g_new0(MemoryRegion, 1);
-    ecam_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_init_alias(s->ecam_alias, OBJECT(dev), "pcie-ecam",
+    ecam_reg = sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(dev), 0);
+    memory_region_init_alias(s->ecam_alias, reinterpret_cast<Object *>(dev), "pcie-ecam",
                              ecam_reg, 0, virt_memmap[VIRT_PCIE_ECAM].size);
     memory_region_add_subregion(get_system_memory(),
                                 virt_memmap[VIRT_PCIE_ECAM].base,
                                 s->ecam_alias);
 
     s->mmio_alias = g_new0(MemoryRegion, 1);
-    mmio_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
-    memory_region_init_alias(s->mmio_alias, OBJECT(dev), "pcie-mmio",
+    mmio_reg = sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(dev), 1);
+    memory_region_init_alias(s->mmio_alias, reinterpret_cast<Object *>(dev), "pcie-mmio",
                              mmio_reg, virt_memmap[VIRT_PCIE_MMIO].base,
                              virt_memmap[VIRT_PCIE_MMIO].size);
     memory_region_add_subregion(get_system_memory(),
@@ -464,17 +464,17 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
                                 s->mmio_alias);
 
     s->pio_alias = g_new0(MemoryRegion, 1);
-    memory_region_init_alias(s->pio_alias, OBJECT(dev), "pcie-pio",
+    memory_region_init_alias(s->pio_alias, reinterpret_cast<Object *>(dev), "pcie-pio",
                              get_system_io(), 0,
                              virt_memmap[VIRT_PCIE_PIO].size);
     memory_region_add_subregion(get_system_memory(),
                                 virt_memmap[VIRT_PCIE_PIO].base, s->pio_alias);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, virt_memmap[VIRT_PCIE_PIO].base);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 2, virt_memmap[VIRT_PCIE_PIO].base);
 
     for (i = 0; i < PCI_NUM_PINS; i++) {
         irq = qdev_get_gpio_in(pic, PCIE_IRQ_BASE + i);
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, irq);
-        gpex_set_irq_num(GPEX_HOST(dev), i, PCIE_IRQ_BASE + i);
+        sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), i, irq);
+        gpex_set_irq_num(reinterpret_cast<GPEXHost *>(dev), i, PCIE_IRQ_BASE + i);
     }
     msi_nonbroken = true;
 
@@ -484,7 +484,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
         USBBus *usb_bus;
 
         pci_create_simple(pci_bus, -1, "pci-ohci");
-        usb_bus = USB_BUS(object_resolve_type_unambiguous(TYPE_USB_BUS,
+        usb_bus = reinterpret_cast<USBBus *>(object_resolve_type_unambiguous(TYPE_USB_BUS,
                                                           &error_abort));
         usb_create_simple(usb_bus, "usb-kbd");
         usb_create_simple(usb_bus, "usb-tablet");
@@ -506,7 +506,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     ram_addr_t ram_size = machine->ram_size;
-    LoongsonMachineState *s = LOONGSON_MACHINE(machine);
+    LoongsonMachineState *s = reinterpret_cast<LoongsonMachineState *>(machine);
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
@@ -545,23 +545,23 @@ static void mips_loongson3_virt_init(MachineState *machine)
     create_unimplemented_device("mmio fallback 0", 0x10000000, 256 * MiB);
     create_unimplemented_device("mmio fallback 1", 0x30000000, 256 * MiB);
 
-    memory_region_init(iocsr, OBJECT(machine), "loongson3.iocsr", UINT32_MAX);
+    memory_region_init(iocsr, reinterpret_cast<Object *>(machine), "loongson3.iocsr", UINT32_MAX);
 
     /* IPI controller is in kernel for KVM */
     if (!kvm_enabled()) {
         ipi = qdev_new(TYPE_LOONGSON_IPI);
         qdev_prop_set_uint32(ipi, "num-cpu", machine->smp.cpus);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(ipi), &error_fatal);
+        sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(ipi), &error_fatal);
         memory_region_add_subregion(iocsr, SMP_IPI_MAILBOX,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 0));
+                                sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(ipi), 0));
         memory_region_add_subregion(iocsr, MAIL_SEND_ADDR,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(ipi), 1));
+                                sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(ipi), 1));
     }
 
     liointc = qdev_new("loongson.liointc");
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(liointc), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(liointc), &error_fatal);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(liointc), 0, virt_memmap[VIRT_LIOINTC].base);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(liointc), 0, virt_memmap[VIRT_LIOINTC].base);
 
     serial_mm_init(address_space_mem, virt_memmap[VIRT_UART].base, 0,
                    qdev_get_gpio_in(liointc, UART_IRQ), 115200, serial_hd(0),
@@ -570,7 +570,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
     sysbus_create_simple("goldfish_rtc", virt_memmap[VIRT_RTC].base,
                          qdev_get_gpio_in(liointc, RTC_IRQ));
 
-    cpuclk = clock_new(OBJECT(machine), "cpu-refclk");
+    cpuclk = clock_new(reinterpret_cast<Object *>(machine), "cpu-refclk");
     clock_set_hz(cpuclk, DEF_LOONGSON3_FREQ);
 
     for (i = machine->smp.cpus - 1; i >= 0; --i) {
@@ -590,15 +590,15 @@ static void mips_loongson3_virt_init(MachineState *machine)
             hwaddr base = ((hwaddr)node << 44) + virt_memmap[VIRT_IPI].base;
             base += core * 0x100;
             qdev_connect_gpio_out(ipi, i, cpu->env.irq[6]);
-            sysbus_mmio_map(SYS_BUS_DEVICE(ipi), i + 2, base);
+            sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(ipi), i + 2, base);
         }
 
-        if (ase_lcsr_available(&MIPS_CPU(cpu)->env)) {
+        if (ase_lcsr_available(&reinterpret_cast<MIPSCPU *>(cpu)->env)) {
             MemoryRegion *core_iocsr = g_new(MemoryRegion, 1);
             g_autofree char *name = g_strdup_printf("core%d_iocsr", i);
-            memory_region_init_alias(core_iocsr, OBJECT(cpu), name,
+            memory_region_init_alias(core_iocsr, reinterpret_cast<Object *>(cpu), name,
                                      iocsr, 0, UINT32_MAX);
-            memory_region_add_subregion(&MIPS_CPU(cpu)->env.iocsr.mr,
+            memory_region_add_subregion(&reinterpret_cast<MIPSCPU *>(cpu)->env.iocsr.mr,
                                         0, core_iocsr);
             s->core_iocsr[i] = core_iocsr;
         }
@@ -609,7 +609,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
 
         for (ip = 0; ip < 4 ; ip++) {
             int pin = core * LOONGSON3_CORE_PER_NODE + ip;
-            sysbus_connect_irq(SYS_BUS_DEVICE(liointc),
+            sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(liointc),
                                pin, cpu->env.irq[ip + 2]);
         }
     }
@@ -675,7 +675,7 @@ static void mips_loongson3_virt_init(MachineState *machine)
 
 void LoongsonMachineState::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "Loongson-3 Virtualization Platform";
     mc->init = mips_loongson3_virt_init;

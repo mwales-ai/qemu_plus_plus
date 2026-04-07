@@ -50,7 +50,7 @@ static const Property nec_xhci_properties[] = {
 
 void XHCINecState::instanceInit()
 {
-    XHCIPciState *pci = XHCI_PCI(this);
+    XHCIPciState *pci = reinterpret_cast<XHCIPciState *>(this);
 
     pci->xhci.numintrs = intrs;
     pci->xhci.numslots = slots;
@@ -58,14 +58,14 @@ void XHCINecState::instanceInit()
 
 static void nec_xhci_instance_init(Object *obj)
 {
-    XHCINecState *nec = NEC_XHCI(obj);
+    XHCINecState *nec = reinterpret_cast<XHCINecState *>(obj);
     nec->instanceInit();
 }
 
 void XHCINecState::classInit(ObjectClass *klass, const void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_props(dc, nec_xhci_properties);
     k->vendor_id    = PCI_VENDOR_ID_NEC;

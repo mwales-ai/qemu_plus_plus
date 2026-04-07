@@ -670,7 +670,7 @@ static const MemoryRegionOps i8042_mmio_ops = {
 
 static void i8042_mmio_set_kbd_irq(void *opaque, int n, int level)
 {
-    MMIOKBDState *s = I8042_MMIO(opaque);
+    MMIOKBDState *s = reinterpret_cast<MMIOKBDState *>(opaque);
     KBDState *ks = &s->kbd;
 
     KBDState::updateKbdIrq(ks, level);
@@ -678,7 +678,7 @@ static void i8042_mmio_set_kbd_irq(void *opaque, int n, int level)
 
 static void i8042_mmio_set_mouse_irq(void *opaque, int n, int level)
 {
-    MMIOKBDState *s = I8042_MMIO(opaque);
+    MMIOKBDState *s = reinterpret_cast<MMIOKBDState *>(opaque);
     KBDState *ks = &s->kbd;
 
     KBDState::updateAuxIrq(ks, level);

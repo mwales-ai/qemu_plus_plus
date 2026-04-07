@@ -46,7 +46,7 @@ struct PCISerialState {
     {
         SerialState *s = &state;
 
-        if (!qdev_realize(DEVICE(s), NULL, errp)) {
+        if (!qdev_realize(reinterpret_cast<DeviceState *>(s), NULL, errp)) {
             return;
         }
 
@@ -54,7 +54,7 @@ struct PCISerialState {
         dev.config[PCI_INTERRUPT_PIN] = 1;
         s->irq = pci_allocate_irq(&dev);
 
-        memory_region_init_io(&s->io, OBJECT(this), &serial_io_ops, s, "serial", 8);
+        memory_region_init_io(&s->io, reinterpret_cast<Object *>(this), &serial_io_ops, s, "serial", 8);
         pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     }
 
@@ -62,7 +62,7 @@ struct PCISerialState {
     {
         SerialState *s = &state;
 
-        qdev_unrealize(DEVICE(s));
+        qdev_unrealize(reinterpret_cast<DeviceState *>(s));
         qemu_free_irq(s->irq);
     }
 
@@ -90,17 +90,17 @@ void PCISerialState::pciExit(PCIDevice *dev)
 
 void PCISerialState::instanceInit(Object *o)
 {
-    PCISerialState *ps = PCI_SERIAL(o);
+    PCISerialState *ps = reinterpret_cast<PCISerialState *>(o);
 
     object_initialize_child(o, "serial", &ps->state, TYPE_SERIAL);
 
-    qdev_alias_all_properties(DEVICE(&ps->state), o);
+    qdev_alias_all_properties(reinterpret_cast<DeviceState *>(&ps->state), o);
 }
 
 void PCISerialState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
     pc->realize = pciRealize;
     pc->exit = pciExit;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
