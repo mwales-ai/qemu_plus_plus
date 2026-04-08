@@ -65,10 +65,10 @@ struct GPIOKEYState {
 
     void realize(Error **errp)
     {
-        SysBusDevice *sbd = SYS_BUS_DEVICE(DEVICE(this));
+        SysBusDevice *sbd = SYS_BUS_DEVICE(reinterpret_cast<DeviceState *>(this));
 
         sysbus_init_irq(sbd, &irq);
-        qdev_init_gpio_in(DEVICE(this), setIrq, 1);
+        qdev_init_gpio_in(reinterpret_cast<DeviceState *>(this), setIrq, 1);
         timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, timerExpired, this);
     }
 
@@ -86,7 +86,7 @@ struct GPIOKEYState {
 
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
         dc->realize = deviceRealize;
         dc->vmsd = &vmstate_gpio_key;

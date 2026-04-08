@@ -518,8 +518,8 @@ static void i6300esb_exit(PCIDevice *dev)
 
 void I6300State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->config_read = i6300esb_config_read;
     k->config_write = i6300esb_config_write;

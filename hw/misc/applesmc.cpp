@@ -339,17 +339,17 @@ void AppleSMCState::realize(DeviceState *dev, Error **errp)
 {
     AppleSMCState *s = reinterpret_cast<AppleSMCState *>(dev);
 
-    memory_region_init_io(&s->io_data, OBJECT(s), &applesmc_data_io_ops, s,
+    memory_region_init_io(&s->io_data, reinterpret_cast<Object *>(s), &applesmc_data_io_ops, s,
                           "applesmc-data", 1);
     isa_register_ioport(&s->parent_obj, &s->io_data,
                         s->iobase + APPLESMC_DATA_PORT);
 
-    memory_region_init_io(&s->io_cmd, OBJECT(s), &applesmc_cmd_io_ops, s,
+    memory_region_init_io(&s->io_cmd, reinterpret_cast<Object *>(s), &applesmc_cmd_io_ops, s,
                           "applesmc-cmd", 1);
     isa_register_ioport(&s->parent_obj, &s->io_cmd,
                         s->iobase + APPLESMC_CMD_PORT);
 
-    memory_region_init_io(&s->io_err, OBJECT(s), &applesmc_err_io_ops, s,
+    memory_region_init_io(&s->io_err, reinterpret_cast<Object *>(s), &applesmc_err_io_ops, s,
                           "applesmc-err", 1);
     isa_register_ioport(&s->parent_obj, &s->io_err,
                         s->iobase + APPLESMC_ERR_PORT);
@@ -419,8 +419,8 @@ void AppleSMCState::buildAml(AcpiDevAmlIf *adev, Aml *scope)
 
 void AppleSMCState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
     dc->realize = applesmc_isa_realize;
     dc->unrealize = applesmc_unrealize;

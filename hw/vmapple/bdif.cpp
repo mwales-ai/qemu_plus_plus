@@ -250,7 +250,7 @@ void VMAppleBdifState::initfn(Object *obj)
 
     memory_region_init_io(&s->mmio, obj, &bdif_ops, obj,
                          "VMApple Backdoor Interface", VMAPPLE_BDIF_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(obj), &s->mmio);
 }
 
 static const Property bdif_properties[] = {
@@ -260,7 +260,7 @@ static const Property bdif_properties[] = {
 
 void VMAppleBdifState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->desc = "VMApple Backdoor Interface";
     device_class_set_props(dc, bdif_properties);

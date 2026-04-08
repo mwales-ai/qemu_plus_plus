@@ -194,7 +194,7 @@ struct RS5C372State {
 
     static void instanceInit(Object *obj)
     {
-        qdev_prop_set_uint8(DEVICE(obj), "address", 0x32);
+        qdev_prop_set_uint8(reinterpret_cast<DeviceState *>(obj), "address", 0x32);
     }
 
     static void classInit(ObjectClass *klass, const void *data);
@@ -220,9 +220,9 @@ static const VMStateDescription rs5c372_vmstate = {
 
 void RS5C372State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     k->event = event;
     k->recv = recv;

@@ -157,7 +157,7 @@
 
 static inline RISCVAPLICState *riscv_aplic_from_obj(void *obj)
 {
-    return reinterpret_cast<RISCVAPLICState *>(RISCV_APLIC(obj));
+    return reinterpret_cast<RISCVAPLICState *>(reinterpret_cast<RISCVAPLICState *>(obj));
 }
 
 /*
@@ -922,7 +922,7 @@ static const MemoryRegionOps riscv_aplic_ops = {
 
 void RISCVAPLICState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
     uint32_t i;
 
     if (riscv_use_emulated_aplic(msimode)) {
@@ -962,9 +962,9 @@ void RISCVAPLICState::realize(Error **errp)
         iforce = g_new0(uint32_t, num_harts);
         ithreshold = g_new0(uint32_t, num_harts);
 
-        memory_region_init_io(&mmio, OBJECT(dev), &riscv_aplic_ops,
+        memory_region_init_io(&mmio, reinterpret_cast<Object *>(dev), &riscv_aplic_ops,
                               this, TYPE_RISCV_APLIC, aperture_size);
-        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mmio);
+        sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &mmio);
 
         if (kvm_enabled()) {
             kvm_splitmode = true;
@@ -1049,7 +1049,7 @@ static const VMStateDescription vmstate_riscv_aplic = {
 
 void RISCVAPLICState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_props(dc, riscv_aplic_properties);
     dc->realize = riscv_aplic_realize;
@@ -1118,10 +1118,10 @@ DeviceState *riscv_aplic_create(hwaddr addr, hwaddr size,
         riscv_aplic_add_child(parent, dev);
     }
 
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
 
     if (riscv_use_emulated_aplic(msimode)) {
-        sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, addr);
+        sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, addr);
 
         if (!msimode) {
             for (i = 0; i < num_harts; i++) {
@@ -1132,7 +1132,7 @@ DeviceState *riscv_aplic_create(hwaddr addr, hwaddr size,
                 }
 
                 qdev_connect_gpio_out_named(dev, NULL, i,
-                                            qdev_get_gpio_in(DEVICE(cpu),
+                                            qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu),
                                             (mmode) ? IRQ_M_EXT : IRQ_S_EXT));
             }
         }

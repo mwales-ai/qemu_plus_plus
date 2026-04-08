@@ -55,7 +55,7 @@ static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
 
 void ISACirrusVGAState::realize(Error **errp)
 {
-    ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+    ISADevice *isadev = ISA_DEVICE(reinterpret_cast<DeviceState *>(this));
     VGACommonState *s = &this->cirrus_vga.vga;
 
     /* follow real hardware, cirrus card emulated has 4 MB video memory.
@@ -67,13 +67,13 @@ void ISACirrusVGAState::realize(Error **errp)
         return;
     }
     s->global_vmstate = true;
-    if (!vga_common_init(s, OBJECT(this), errp)) {
+    if (!vga_common_init(s, reinterpret_cast<Object *>(this), errp)) {
         return;
     }
-    cirrus_init_common(&this->cirrus_vga, OBJECT(this), CIRRUS_ID_CLGD5430, 0,
+    cirrus_init_common(&this->cirrus_vga, reinterpret_cast<Object *>(this), CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(isadev),
                        isa_address_space_io(isadev));
-    s->con = graphic_console_init(DEVICE(this), 0, s->hw_ops, s);
+    s->con = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0, s->hw_ops, s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
     /* FIXME not qdev yet */
@@ -88,7 +88,7 @@ static const Property isa_cirrus_vga_properties[] = {
 
 void ISACirrusVGAState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd  = &vmstate_cirrus_vga;
     dc->realize = isa_cirrus_vga_realizefn;

@@ -113,7 +113,7 @@ static void ppc440_pcix_clear_region(MemoryRegion *parent,
 {
     if (memory_region_is_mapped(mem)) {
         memory_region_del_subregion(parent, mem);
-        object_unparent(OBJECT(mem));
+        object_unparent(reinterpret_cast<Object *>(mem));
     }
 }
 
@@ -540,7 +540,7 @@ void PPC440PCIXState::realize(Error **errp)
 
 void PPC440PCIXState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = PPC440PCIXState::realizeWrapper;
     device_class_set_legacy_reset(dc, PPC440PCIXState::resetWrapper);

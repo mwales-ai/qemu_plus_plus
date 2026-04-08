@@ -862,7 +862,7 @@ void TCXState::realize(DeviceState *dev, Error **errp)
     uint8_t *vram_base;
     char *fcode_filename;
 
-    memory_region_init_ram_nomigrate(&s->vram_mem, OBJECT(s), "tcx.vram",
+    memory_region_init_ram_nomigrate(&s->vram_mem, reinterpret_cast<Object *>(s), "tcx.vram",
                            s->vram_size * (1 + 4 + 4), &error_fatal);
     vmstate_register_ram_global(&s->vram_mem);
     memory_region_set_log(&s->vram_mem, true, DIRTY_MEMORY_VGA);
@@ -882,7 +882,7 @@ void TCXState::realize(DeviceState *dev, Error **errp)
     /* 0/DFB8 : 8-bit plane */
     s->vram = vram_base;
     size = s->vram_size;
-    memory_region_init_alias(&s->vram_8bit, OBJECT(s), "tcx.vram.8bit",
+    memory_region_init_alias(&s->vram_8bit, reinterpret_cast<Object *>(s), "tcx.vram.8bit",
                              &s->vram_mem, vram_offset, size);
     sysbus_init_mmio(sbd, &s->vram_8bit);
     vram_offset += size;
@@ -892,7 +892,7 @@ void TCXState::realize(DeviceState *dev, Error **errp)
     size = s->vram_size * 4;
     s->vram24 = (uint32_t *)vram_base;
     s->vram24_offset = vram_offset;
-    memory_region_init_alias(&s->vram_24bit, OBJECT(s), "tcx.vram.24bit",
+    memory_region_init_alias(&s->vram_24bit, reinterpret_cast<Object *>(s), "tcx.vram.24bit",
                              &s->vram_mem, vram_offset, size);
     sysbus_init_mmio(sbd, &s->vram_24bit);
     vram_offset += size;
@@ -902,13 +902,13 @@ void TCXState::realize(DeviceState *dev, Error **errp)
     size = s->vram_size * 4;
     s->cplane = (uint32_t *)vram_base;
     s->cplane_offset = vram_offset;
-    memory_region_init_alias(&s->vram_cplane, OBJECT(s), "tcx.vram.cplane",
+    memory_region_init_alias(&s->vram_cplane, reinterpret_cast<Object *>(s), "tcx.vram.cplane",
                              &s->vram_mem, vram_offset, size);
     sysbus_init_mmio(sbd, &s->vram_cplane);
 
     /* 9/THC24bits : NetBSD writes here even with 8-bit display: dummy */
     if (s->depth == 8) {
-        memory_region_init_io(&s->thc24, OBJECT(s), &tcx_dummy_ops, s,
+        memory_region_init_io(&s->thc24, reinterpret_cast<Object *>(s), &tcx_dummy_ops, s,
                               "tcx.thc24", TCX_THC_NREGS);
         sysbus_init_mmio(sbd, &s->thc24);
     }
@@ -940,7 +940,7 @@ static void tcx_realizefn(DeviceState *dev, Error **errp)
 
 void TCXState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = tcx_realizefn;
     device_class_set_legacy_reset(dc, tcx_reset);

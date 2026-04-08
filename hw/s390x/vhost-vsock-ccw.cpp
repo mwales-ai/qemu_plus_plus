@@ -33,7 +33,7 @@ struct VHostVSockCCWState {
     static void instanceInit(Object *obj)
     {
         VHostVSockCCWState *dev = VHOST_VSOCK_CCW(obj);
-        VirtioCcwDevice *ccw_dev = VIRTIO_CCW_DEVICE(obj);
+        VirtioCcwDevice *ccw_dev = reinterpret_cast<VirtioCcwDevice *>(obj);
         VirtIODevice *virtio_dev;
 
         virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
@@ -60,8 +60,8 @@ static const Property vhost_vsock_ccw_properties[] = {
 
 void VHostVSockCCWState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    VirtIOCCWDeviceClass *k = reinterpret_cast<VirtIOCCWDeviceClass *>(klass);
 
     k->realize = realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

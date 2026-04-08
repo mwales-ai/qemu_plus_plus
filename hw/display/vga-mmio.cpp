@@ -109,27 +109,27 @@ static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
 
 void VGAMmioState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(DEVICE(this));
+    SysBusDevice *sbd = SYS_BUS_DEVICE(reinterpret_cast<DeviceState *>(this));
 
-    memory_region_init_io(&this->iomem, OBJECT(this), &vga_mm_ctrl_ops, this,
+    memory_region_init_io(&this->iomem, reinterpret_cast<Object *>(this), &vga_mm_ctrl_ops, this,
                           "vga-mmio", 0x100000);
     memory_region_set_flush_coalesced(&this->iomem);
     sysbus_init_mmio(sbd, &this->iomem);
 
     /* XXX: endianness? */
-    memory_region_init_io(&this->lowmem, OBJECT(this), &vga_mem_ops, &this->vga,
+    memory_region_init_io(&this->lowmem, reinterpret_cast<Object *>(this), &vga_mem_ops, &this->vga,
                           "vga-lowmem", 0x20000);
     memory_region_set_coalescing(&this->lowmem);
     sysbus_init_mmio(sbd, &this->lowmem);
 
     this->vga.bank_offset = 0;
     this->vga.global_vmstate = true;
-    if (!vga_common_init(&this->vga, OBJECT(this), errp)) {
+    if (!vga_common_init(&this->vga, reinterpret_cast<Object *>(this), errp)) {
         return;
     }
 
     sysbus_init_mmio(sbd, &this->vga.vram);
-    this->vga.con = graphic_console_init(DEVICE(this), 0, this->vga.hw_ops, &this->vga);
+    this->vga.con = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0, this->vga.hw_ops, &this->vga);
 }
 
 static const Property vga_mmio_properties[] = {
@@ -139,7 +139,7 @@ static const Property vga_mmio_properties[] = {
 
 void VGAMmioState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = vga_mmio_realizefn;
     device_class_set_legacy_reset(dc, vga_mmio_reset);

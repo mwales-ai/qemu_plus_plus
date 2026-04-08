@@ -65,7 +65,7 @@ bool hyperv_is_synic_enabled(void)
 
 static SynICState *get_synic(CPUState *cs)
 {
-    return SYNIC(object_resolve_path_component(OBJECT(cs), "synic"));
+    return SYNIC(object_resolve_path_component(reinterpret_cast<Object *>(cs), "synic"));
 }
 
 static void synic_update(SynICState *synic, bool sctl_enable,
@@ -117,7 +117,7 @@ void SynICState::realizeWrapper(DeviceState *dev, Error **errp)
 
 void SynICState::realize(Error **errp)
 {
-    Object *obj = OBJECT(this);
+    Object *obj = reinterpret_cast<Object *>(this);
     char *msgp_name, *eventp_name;
     uint32_t vp_index;
 
@@ -155,7 +155,7 @@ void SynICState::reset()
 
 void SynICState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = SynICState::realizeWrapper;
     device_class_set_legacy_reset(dc, SynICState::resetWrapper);
@@ -170,9 +170,9 @@ void hyperv_synic_add(CPUState *cs)
     obj = object_new(TYPE_SYNIC);
     synic = SYNIC(obj);
     synic->cs = cs;
-    object_property_add_child(OBJECT(cs), "synic", obj);
+    object_property_add_child(reinterpret_cast<Object *>(cs), "synic", obj);
     object_unref(obj);
-    qdev_realize(DEVICE(obj), NULL, &error_abort);
+    qdev_realize(reinterpret_cast<DeviceState *>(obj), NULL, &error_abort);
     synic_enabled = true;
 }
 
@@ -181,7 +181,7 @@ void hyperv_synic_reset(CPUState *cs)
     SynICState *synic = get_synic(cs);
 
     if (synic) {
-        device_cold_reset(DEVICE(synic));
+        device_cold_reset(reinterpret_cast<DeviceState *>(synic));
     }
 }
 

@@ -1964,7 +1964,7 @@ void Exynos4210fimdState::instanceInitWrapper(Object *obj)
 
 void Exynos4210fimdState::instanceInit()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(this);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
     ifb = NULL;
 
@@ -1972,7 +1972,7 @@ void Exynos4210fimdState::instanceInit()
     sysbus_init_irq(dev, &irq[1]);
     sysbus_init_irq(dev, &irq[2]);
 
-    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_fimd_mmio_ops, this,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &exynos4210_fimd_mmio_ops, this,
             "exynos4210.fimd", FIMD_REGS_SIZE);
     sysbus_init_mmio(dev, &iomem);
 }
@@ -1990,12 +1990,12 @@ void Exynos4210fimdState::realize(Error **errp)
         return;
     }
 
-    console = graphic_console_init(DEVICE(this), 0, &exynos4210_fimd_ops, this);
+    console = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0, &exynos4210_fimd_ops, this);
 }
 
 void Exynos4210fimdState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd = &exynos4210_fimd_vmstate;
     device_class_set_legacy_reset(dc, Exynos4210fimdState::resetWrapper);

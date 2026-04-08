@@ -54,24 +54,24 @@ struct ISAIDEState {
 
     void realize(Error **errp)
     {
-        ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+        ISADevice *isadev = ISA_DEVICE(reinterpret_cast<DeviceState *>(this));
 
-        ide_bus_init(&bus, sizeof(bus), DEVICE(this), 0, 2);
+        ide_bus_init(&bus, sizeof(bus), reinterpret_cast<DeviceState *>(this), 0, 2);
         ide_init_ioport(&bus, isadev, iobase, iobase2);
         ide_bus_init_output_irq(&bus, isa_get_irq(isadev, irqnum));
-        vmstate_register_any(VMSTATE_IF(DEVICE(this)), &vmstate_ide_isa, this);
+        vmstate_register_any(VMSTATE_IF(reinterpret_cast<DeviceState *>(this)), &vmstate_ide_isa, this);
         ide_bus_register_restart_cb(&bus);
     }
 
     static void deviceReset_static(DeviceState *d)
     {
-        ISAIDEState *s = ISA_IDE(d);
+        ISAIDEState *s = reinterpret_cast<ISAIDEState *>(d);
         s->deviceReset();
     }
 
     static void deviceRealize(DeviceState *dev, Error **errp)
     {
-        ISAIDEState *s = ISA_IDE(dev);
+        ISAIDEState *s = reinterpret_cast<ISAIDEState *>(dev);
         s->realize(errp);
     }
 
@@ -102,7 +102,7 @@ const Property ISAIDEState::isa_ide_properties[] = {
 
 void ISAIDEState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = deviceRealize;
     dc->fw_name = "ide";
@@ -119,13 +119,13 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
     ISAIDEState *s;
 
     isadev = isa_new(TYPE_ISA_IDE);
-    dev = DEVICE(isadev);
+    dev = reinterpret_cast<DeviceState *>(isadev);
     qdev_prop_set_uint32(dev, "iobase",  iobase);
     qdev_prop_set_uint32(dev, "iobase2", iobase2);
     qdev_prop_set_uint32(dev, "irq",     irqnum);
     isa_realize_and_unref(isadev, bus, &error_fatal);
 
-    s = ISA_IDE(dev);
+    s = reinterpret_cast<ISAIDEState *>(dev);
     if (hd0) {
         ide_bus_create_drive(&s->bus, 0, hd0);
     }

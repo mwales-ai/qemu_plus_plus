@@ -302,11 +302,11 @@ void CG3State::initfn()
 {
     SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_rom_nomigrate(&rom, OBJECT(this), "cg3.prom",
+    memory_region_init_rom_nomigrate(&rom, reinterpret_cast<Object *>(this), "cg3.prom",
                                      FCODE_MAX_ROM_SIZE, &error_fatal);
     sysbus_init_mmio(sbd, &rom);
 
-    memory_region_init_io(&reg, OBJECT(this), &cg3_reg_ops, this, "cg3.reg",
+    memory_region_init_io(&reg, reinterpret_cast<Object *>(this), &cg3_reg_ops, this, "cg3.reg",
                           CG3_REG_SIZE);
     sysbus_init_mmio(sbd, &reg);
 }
@@ -405,7 +405,7 @@ static const Property cg3_properties[] = {
 
 void CG3State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = cg3_realizefn;
     device_class_set_legacy_reset(dc, cg3_reset);

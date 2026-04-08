@@ -251,7 +251,7 @@ void PREPPCIState::realize(Error **errp)
      * Assignments", all PCI interrupts are routed via IRQ 15
      */
     or_irq = reinterpret_cast<OrIRQState *>(object_new(TYPE_OR_IRQ));
-    object_property_set_int(OBJECT(or_irq), "num-lines", PCI_NUM_PINS,
+    object_property_set_int(reinterpret_cast<Object *>(or_irq), "num-lines", PCI_NUM_PINS,
                             &error_fatal);
     qdev_realize(reinterpret_cast<DeviceState *>(or_irq), NULL, &error_fatal);
     sysbus_init_irq(dev, &or_irq->out_irq);
@@ -266,19 +266,19 @@ void PREPPCIState::realize(Error **errp)
                                    this, &pci_memory, &pci_io, 0, 4,
                                    TYPE_PCI_BUS);
 
-    memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_le_ops, this,
+    memory_region_init_io(&h->conf_mem, reinterpret_cast<Object *>(h), &pci_host_conf_le_ops, this,
                           "pci-conf-idx", 4);
     memory_region_add_subregion(&pci_io, 0xcf8, &h->conf_mem);
 
-    memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops, this,
+    memory_region_init_io(&h->data_mem, reinterpret_cast<Object *>(h), &pci_host_data_le_ops, this,
                           "pci-conf-data", 4);
     memory_region_add_subregion(&pci_io, 0xcfc, &h->data_mem);
 
-    memory_region_init_io(&h->mmcfg, OBJECT(h), &raven_mmcfg_ops, h->bus,
+    memory_region_init_io(&h->mmcfg, reinterpret_cast<Object *>(h), &raven_mmcfg_ops, h->bus,
                           "pci-mmcfg", 0x00400000);
     memory_region_add_subregion(address_space_mem, 0x80800000, &h->mmcfg);
 
-    memory_region_init_io(&pci_intack, OBJECT(this), &raven_intack_ops, this,
+    memory_region_init_io(&pci_intack, reinterpret_cast<Object *>(this), &raven_intack_ops, this,
                           "pci-intack", 1);
     memory_region_add_subregion(address_space_mem, 0xbffffff0, &pci_intack);
 
@@ -337,7 +337,7 @@ void PREPPCIState::initfnWrapper(Object *obj)
 
 void PREPPCIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->realize = realizeFnWrapper;
@@ -353,8 +353,8 @@ static void raven_realize(PCIDevice *d, Error **errp)
 
 void PREPPCIState::ravenPciClassInit(ObjectClass *klass, const void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     k->realize = raven_realize;
     k->vendor_id = PCI_VENDOR_ID_MOTOROLA;

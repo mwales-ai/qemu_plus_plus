@@ -103,15 +103,15 @@ struct I82374State {
 
     void realize(Error **errp)
     {
-        ISABus *isa_bus = isa_bus_from_device(ISA_DEVICE(DEVICE(this)));
+        ISABus *isa_bus = isa_bus_from_device(ISA_DEVICE(reinterpret_cast<DeviceState *>(this)));
 
         if (isa_bus_get_dma(isa_bus, 0)) {
             error_setg(errp, "DMA already initialized on ISA bus");
             return;
         }
-        i8257_dma_init(OBJECT(this), isa_bus, true);
+        i8257_dma_init(reinterpret_cast<Object *>(this), isa_bus, true);
 
-        portio_list_init(&port_list, OBJECT(this), i82374_portio_list, this,
+        portio_list_init(&port_list, reinterpret_cast<Object *>(this), i82374_portio_list, this,
                          "i82374");
         portio_list_add(&port_list, isa_address_space_io(&parent_obj),
                         iobase);
@@ -157,7 +157,7 @@ const Property I82374State::i82374_properties[] = {
 
 void I82374State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = deviceRealize;
     dc->vmsd = &vmstate_i82374;

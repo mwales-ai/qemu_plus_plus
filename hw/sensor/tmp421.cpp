@@ -353,8 +353,8 @@ static void tmp421_realize_wrapper(DeviceState *dev, Error **errp)
 
 void TMP421State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
 
     dc->realize = tmp421_realize_wrapper;

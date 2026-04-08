@@ -2102,8 +2102,8 @@ static const Property mtp_properties[] = {
 
 void MTPState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = realizeWrapper;
     uc->product_desc   = "QEMU USB MTP";

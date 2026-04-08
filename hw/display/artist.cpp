@@ -1405,9 +1405,9 @@ void ARTISTState::initfn()
 {
     SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&reg, OBJECT(this), &artist_reg_ops, this,
+    memory_region_init_io(&reg, reinterpret_cast<Object *>(this), &artist_reg_ops, this,
                           "artist.reg", 4 * MiB);
-    memory_region_init_io(&vram_mem, OBJECT(this), &artist_vram_ops, this,
+    memory_region_init_io(&vram_mem, reinterpret_cast<Object *>(this), &artist_vram_ops, this,
                           "artist.vram", 8 * MiB);
     sysbus_init_mmio(sbd, &reg);
     sysbus_init_mmio(sbd, &vram_mem);
@@ -1425,7 +1425,7 @@ static void artist_create_buffer(ARTISTState *s, const char *name,
 {
     struct vram_buffer *buf = s->vram_buffer + idx;
 
-    memory_region_init_ram(&buf->mr, OBJECT(s), name, width * height,
+    memory_region_init_ram(&buf->mr, reinterpret_cast<Object *>(s), name, width * height,
                            &error_fatal);
     memory_region_add_subregion_overlap(&s->mem_as_root, *offset, &buf->mr, 0);
 
@@ -1454,7 +1454,7 @@ void ARTISTState::realize(Error **errp)
         height = MAX(height, 480);
     }
 
-    memory_region_init(&mem_as_root, OBJECT(this), "artist", ~0ull);
+    memory_region_init(&mem_as_root, reinterpret_cast<Object *>(this), "artist", ~0ull);
     address_space_init(&as, &mem_as_root, "artist");
 
     artist_create_buffer(this, "cmap", &offset, ARTIST_BUFFER_CMAP, 2048, 4);
@@ -1560,7 +1560,7 @@ void ARTISTState::resetWrapper(DeviceState *qdev)
 
 void ARTISTState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = ARTISTState::realizeWrapper;
     dc->vmsd = &vmstate_artist;

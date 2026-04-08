@@ -39,11 +39,11 @@ struct MicrobitMachineState {
         MemoryRegion *system_memory = get_system_memory();
         MemoryRegion *mr;
 
-        object_initialize_child(OBJECT(machine), "nrf51", &s->nrf51,
+        object_initialize_child(reinterpret_cast<Object *>(machine), "nrf51", &s->nrf51,
                                 TYPE_NRF51_SOC);
         qdev_prop_set_chr(DEVICE(&s->nrf51), "serial0", serial_hd(0));
         object_property_set_link(OBJECT(&s->nrf51), "memory",
-                                 OBJECT(system_memory), &error_fatal);
+                                 reinterpret_cast<Object *>(system_memory), &error_fatal);
         sysbus_realize(SYS_BUS_DEVICE(&s->nrf51), &error_fatal);
 
         /*
@@ -51,7 +51,7 @@ struct MicrobitMachineState {
          * hack until we implement the nRF51 TWI controller properly and the
          * magnetometer/accelerometer devices.
          */
-        object_initialize_child(OBJECT(machine), "microbit.twi", &s->i2c,
+        object_initialize_child(reinterpret_cast<Object *>(machine), "microbit.twi", &s->i2c,
                                 TYPE_MICROBIT_I2C);
         sysbus_realize(SYS_BUS_DEVICE(&s->i2c), &error_fatal);
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->i2c), 0);
@@ -64,7 +64,7 @@ struct MicrobitMachineState {
 
     static void classInit(ObjectClass *oc, const void *data)
     {
-        MachineClass *mc = MACHINE_CLASS(oc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
         mc->desc = "BBC micro:bit (Cortex-M0)";
         mc->init = init;

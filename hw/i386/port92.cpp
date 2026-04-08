@@ -60,17 +60,17 @@ struct Port92State {
 
     void initfn()
     {
-        memory_region_init_io(&io, OBJECT(this), &port92_ops, this,
+        memory_region_init_io(&io, reinterpret_cast<Object *>(this), &port92_ops, this,
                               "port92", 1);
 
         outport = 0;
 
-        qdev_init_gpio_out_named(DEVICE(this), &a20_out, PORT92_A20_LINE, 1);
+        qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(this), &a20_out, PORT92_A20_LINE, 1);
     }
 
     void realize(Error **errp)
     {
-        ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+        ISADevice *isadev = ISA_DEVICE(reinterpret_cast<DeviceState *>(this));
 
         isa_register_ioport(isadev, &io, 0x92);
     }
@@ -95,7 +95,7 @@ struct Port92State {
 
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
         dc->realize = deviceRealize;
         device_class_set_legacy_reset(dc, deviceReset_static);

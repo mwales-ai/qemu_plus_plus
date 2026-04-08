@@ -491,7 +491,7 @@ void G364State::init(DeviceState *dev)
 {
     con = graphic_console_init(dev, 0, &g364fb_ops, this);
 
-    memory_region_init_io(&mem_ctrl, OBJECT(dev), &g364fb_ctrl_ops, this,
+    memory_region_init_io(&mem_ctrl, reinterpret_cast<Object *>(dev), &g364fb_ctrl_ops, this,
                           "ctrl", 0x180000);
     memory_region_init_ram(&mem_vram, NULL, "g364fb.vram", vram_size,
                            &error_fatal);
@@ -556,7 +556,7 @@ static const VMStateDescription vmstate_g364fb_sysbus = {
 
 void G364SysBusState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = g364fb_sysbus_realize;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);

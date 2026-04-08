@@ -229,8 +229,8 @@ static const VMStateDescription vmstate_ds1338 = {
 
 void DS1338State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
 
     k->event = event;
     k->recv = recv;

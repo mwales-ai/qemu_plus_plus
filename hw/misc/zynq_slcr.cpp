@@ -659,8 +659,8 @@ static const Property zynq_slcr_props[] = {
 
 void ZynqSLCRState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->vmsd = &vmstate_zynq_slcr;
     dc->realize = zynq_slcr_realize;

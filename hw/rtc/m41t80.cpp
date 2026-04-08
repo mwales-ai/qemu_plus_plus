@@ -113,8 +113,8 @@ struct M41t80State {
 
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
-        I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+        I2CSlaveClass *sc = reinterpret_cast<I2CSlaveClass *>(klass);
 
         dc->realize = deviceRealize;
         sc->send = i2cSend;

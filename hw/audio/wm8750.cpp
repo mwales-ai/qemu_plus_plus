@@ -732,8 +732,8 @@ static const Property wm8750_properties[] = {
 
 void WM8750State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    I2CSlaveClass *sc = reinterpret_cast<I2CSlaveClass *>(klass);
 
     dc->realize = WM8750State::realizeWrapper;
     sc->event = wm8750_event;

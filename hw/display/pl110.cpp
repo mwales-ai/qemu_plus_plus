@@ -577,14 +577,14 @@ static void pl110_realize_wrapper(DeviceState *dev, Error **errp)
 
 void PL110State::realize(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
 
     if (!fbmem) {
         error_setg(errp, "'framebuffer-memory' property was not set");
         return;
     }
 
-    memory_region_init_io(&iomem, OBJECT(this), &pl110_ops, this,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &pl110_ops, this,
                           "pl110", 0x1000);
     sysbus_init_mmio(sbd, &iomem);
     sysbus_init_irq(sbd, &irq);
@@ -617,7 +617,7 @@ static void pl111_init(Object *obj)
 
 void PL110State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->vmsd = &vmstate_pl110;

@@ -50,7 +50,7 @@ static KVMS390FLICState *s390_get_kvm_flic(S390FLICState *fs)
 
     if (!flic) {
         /* we only have one flic device, so this is fine to cache */
-        flic = KVM_S390_FLIC(fs);
+        flic = reinterpret_cast<KVMS390FLICState *>(fs);
     }
     return flic;
 }
@@ -286,7 +286,7 @@ static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
         .swap = swap,
         .flags = flags,
     };
-    KVMS390FLICState *flic = KVM_S390_FLIC(fs);
+    KVMS390FLICState *flic = reinterpret_cast<KVMS390FLICState *>(fs);
     int r;
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_ADAPTER_REGISTER,
@@ -614,7 +614,7 @@ DECLARE_CLASS_CHECKERS(KVMS390FLICStateClass, KVM_S390_FLIC,
 
 static void kvm_s390_flic_realize(DeviceState *dev, Error **errp)
 {
-    KVMS390FLICState *flic_state = KVM_S390_FLIC(dev);
+    KVMS390FLICState *flic_state = reinterpret_cast<KVMS390FLICState *>(dev);
     flic_state->doRealize(errp);
 }
 
@@ -625,7 +625,7 @@ void KVMS390FLICState::doRealize(Error **errp)
     int ret;
     Error *err = NULL;
 
-    KVM_S390_FLIC_GET_CLASS(this)->parent_realize(DEVICE(this), &err);
+    KVM_S390_FLIC_GET_CLASS(this)->parent_realize(reinterpret_cast<DeviceState *>(this), &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -649,13 +649,13 @@ void KVMS390FLICState::doRealize(Error **errp)
 
 static void kvm_s390_flic_reset(DeviceState *dev)
 {
-    KVMS390FLICState *flic = KVM_S390_FLIC(dev);
+    KVMS390FLICState *flic = reinterpret_cast<KVMS390FLICState *>(dev);
     flic->doReset();
 }
 
 void KVMS390FLICState::doReset()
 {
-    S390FLICState *fs = S390_FLIC_COMMON(this);
+    S390FLICState *fs = reinterpret_cast<S390FLICState *>(this);
     struct kvm_device_attr attr = {
         .group = KVM_DEV_FLIC_CLEAR_IRQS,
     };
@@ -688,8 +688,8 @@ void KVMS390FLICState::doReset()
 
 void KVMS390FLICStateClass::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    S390FLICStateClass *fsc = S390_FLIC_COMMON_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
+    S390FLICStateClass *fsc = reinterpret_cast<S390FLICStateClass *>(oc);
     KVMS390FLICStateClass *kfsc = KVM_S390_FLIC_CLASS(oc);
 
     device_class_set_parent_realize(dc, kvm_s390_flic_realize,

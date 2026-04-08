@@ -1616,8 +1616,8 @@ static const VMStateDescription vmstate_sungem = {
 
 void SunGEMState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = SunGEMState::realizeWrapper;
     k->exit = SunGEMState::uninit;

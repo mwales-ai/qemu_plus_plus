@@ -167,7 +167,7 @@ struct SpinState {
 
     static void instanceInit(Object *obj)
     {
-        SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+        SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
         SpinState *s = E500_SPIN(dev);
 
         memory_region_init_io(&s->iomem, obj, &ops, s,
@@ -177,7 +177,7 @@ struct SpinState {
 
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
         device_class_set_legacy_reset(dc, resetWrapper);
     }

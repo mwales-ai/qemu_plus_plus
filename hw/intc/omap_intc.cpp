@@ -326,7 +326,7 @@ static const MemoryRegionOps omap_inth_mem_ops = {
 
 void OMAPIntcState::resetWrapper(DeviceState *dev)
 {
-    OMAP_INTC(dev)->reset();
+    reinterpret_cast<OMAPIntcState *>(dev)->reset();
 }
 
 void OMAPIntcState::reset()
@@ -360,9 +360,9 @@ void OMAPIntcState::reset()
 
 void OMAPIntcState::instanceInit(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    OMAPIntcState *s = OMAP_INTC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    OMAPIntcState *s = reinterpret_cast<OMAPIntcState *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     s->nbanks = 1;
     sysbus_init_irq(sbd, &s->parent_intr[0]);
@@ -375,7 +375,7 @@ void OMAPIntcState::instanceInit(Object *obj)
 
 void OMAPIntcState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    OMAP_INTC(dev)->realize(errp);
+    reinterpret_cast<OMAPIntcState *>(dev)->realize(errp);
 }
 
 void OMAPIntcState::realize(Error **errp)
@@ -403,7 +403,7 @@ static const Property omap_intc_properties[] = {
 
 void OMAPIntcState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, resetWrapper);
     device_class_set_props(dc, omap_intc_properties);

@@ -110,8 +110,8 @@ void RxGdbSimMachineState::machineInit(MachineState *machine)
     memory_region_add_subregion(sysmem, SDRAM_BASE, machine->ram);
 
     /* Initialize MCU */
-    object_initialize_child(OBJECT(machine), "mcu", &s->mcu, rxc->mcu_name);
-    object_property_set_link(OBJECT(&s->mcu), "main-bus", OBJECT(sysmem),
+    object_initialize_child(reinterpret_cast<Object *>(machine), "mcu", &s->mcu, rxc->mcu_name);
+    object_property_set_link(OBJECT(&s->mcu), "main-bus", reinterpret_cast<Object *>(sysmem),
                              &error_abort);
     object_property_set_uint(OBJECT(&s->mcu), "xtal-frequency-hz",
                              rxc->xtal_freq_hz, &error_abort);
@@ -168,7 +168,7 @@ void RxGdbSimMachineState::machineInit(MachineState *machine)
 
 void RxGdbSimMachineState::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->init = RxGdbSimMachineState::machineInit;
     mc->default_cpu_type = TYPE_RX62N_CPU;
@@ -179,7 +179,7 @@ void RxGdbSimMachineState::classInit(ObjectClass *oc, const void *data)
 void RxGdbSimMachineState::rx62n7ClassInit(ObjectClass *oc, const void *data)
 {
     RxGdbSimMachineClass *rxc = RX_GDBSIM_MACHINE_CLASS(oc);
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     rxc->mcu_name = TYPE_R5F562N7_MCU;
     rxc->xtal_freq_hz = 12 * 1000 * 1000;
@@ -189,7 +189,7 @@ void RxGdbSimMachineState::rx62n7ClassInit(ObjectClass *oc, const void *data)
 void RxGdbSimMachineState::rx62n8ClassInit(ObjectClass *oc, const void *data)
 {
     RxGdbSimMachineClass *rxc = RX_GDBSIM_MACHINE_CLASS(oc);
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     rxc->mcu_name = TYPE_R5F562N8_MCU;
     rxc->xtal_freq_hz = 12 * 1000 * 1000;

@@ -272,20 +272,20 @@ void PCITestDevState::realize(PCIDevice *pci_dev, Error **errp)
 
     pci_conf[PCI_INTERRUPT_PIN] = 0; /* no interrupt pin */
 
-    memory_region_init_io(&d->mmio, OBJECT(d), &pci_testdev_mmio_ops, d,
+    memory_region_init_io(&d->mmio, reinterpret_cast<Object *>(d), &pci_testdev_mmio_ops, d,
                           "pci-testdev-mmio", IOTEST_MEMSIZE * 2);
-    memory_region_init_io(&d->portio, OBJECT(d), &pci_testdev_pio_ops, d,
+    memory_region_init_io(&d->portio, reinterpret_cast<Object *>(d), &pci_testdev_pio_ops, d,
                           "pci-testdev-portio", IOTEST_IOSIZE * 2);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->portio);
 
     if (d->membar_size) {
         if (d->membar_backed)
-            memory_region_init_ram(&d->membar, OBJECT(d),
+            memory_region_init_ram(&d->membar, reinterpret_cast<Object *>(d),
                                    "pci-testdev-membar-backed",
                                    d->membar_size, NULL);
         else
-            memory_region_init(&d->membar, OBJECT(d),
+            memory_region_init(&d->membar, reinterpret_cast<Object *>(d),
                                "pci-testdev-membar",
                                d->membar_size);
         pci_register_bar(pci_dev, 2,
@@ -371,8 +371,8 @@ static const Property pci_testdev_properties[] = {
 
 void PCITestDevState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = pci_testdev_realize;
     k->exit = pci_testdev_uninit;

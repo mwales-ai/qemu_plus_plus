@@ -159,7 +159,7 @@ void VMAppleCfgState::initfn(Object *obj)
 
     memory_region_init_ram(&s->mem, obj, "VMApple Config", VMAPPLE_CFG_SIZE,
                            &error_fatal);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(obj), &s->mem);
 }
 
 static const Property vmapple_cfg_properties[] = {
@@ -180,8 +180,8 @@ static const Property vmapple_cfg_properties[] = {
 
 void VMAppleCfgState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->realize = VMAppleCfgState::realize;
     dc->desc = "VMApple Configuration Region";

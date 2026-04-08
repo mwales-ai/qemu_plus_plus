@@ -179,7 +179,7 @@ struct PCSpkState {
 
     void realize(Error **errp)
     {
-        ISADevice *isadev = ISA_DEVICE(this);
+        ISADevice *isadev = reinterpret_cast<ISADevice *>(this);
 
         if (!pit) {
             error_setg(errp, "pcspk: No \"pit\" set or available");
@@ -204,7 +204,7 @@ struct PCSpkState {
     {
         PCSpkState *s = PC_SPEAKER(obj);
 
-        memory_region_init_io(&s->ioport, OBJECT(s), &ioOps, s, "pcspk", 1);
+        memory_region_init_io(&s->ioport, reinterpret_cast<Object *>(s), &ioOps, s, "pcspk", 1);
     }
 
     static const char *s_spk;
@@ -244,7 +244,7 @@ static const Property pcspk_properties[] = {
 
 void PCSpkState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = PCSpkState::realizeWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);

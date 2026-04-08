@@ -148,7 +148,7 @@ struct RS6000MCState {
             if (simm_size[socket]) {
                 char name[] = "simm.?";
                 name[5] = socket + '0';
-                if (!memory_region_init_ram(&simm[socket], OBJECT(this), name,
+                if (!memory_region_init_ram(&simm[socket], reinterpret_cast<Object *>(this), name,
                                             simm_size[socket] * MiB, errp)) {
                     return;
                 }
@@ -175,7 +175,7 @@ struct RS6000MCState {
             }
         }
 
-        isa_register_portio_list(ISA_DEVICE(this), &portio, 0x0,
+        isa_register_portio_list(reinterpret_cast<ISADevice *>(this), &portio, 0x0,
                                  rs6000mc_port_list, this, "rs6000mc");
     }
 
@@ -216,7 +216,7 @@ static const Property rs6000mc_properties[] = {
 
 void RS6000MCState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = RS6000MCState::realizeWrapper;
     dc->vmsd = &vmstate_rs6000mc;

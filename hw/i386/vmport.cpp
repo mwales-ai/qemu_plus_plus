@@ -255,9 +255,9 @@ static const MemoryRegionOps vmport_ops = {
 void VMPortState::realize(Error **errp)
 {
     VMPortState *s = this;
-    ISADevice *isadev = ISA_DEVICE(s);
+    ISADevice *isadev = reinterpret_cast<ISADevice *>(s);
 
-    memory_region_init_io(&s->io, OBJECT(s), &vmport_ops, s, "vmport", 1);
+    memory_region_init_io(&s->io, reinterpret_cast<Object *>(s), &vmport_ops, s, "vmport", 1);
     isa_register_ioport(isadev, &s->io, 0x5658);
 
     port_state = s;
@@ -309,7 +309,7 @@ static const Property vmport_properties[] = {
 
 void VMPortState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = realizeWrapper;
     /* Reason: realize sets global port_state */

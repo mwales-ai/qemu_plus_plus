@@ -62,9 +62,9 @@ static const Property virtio_9p_pci_properties[] = {
 
 void V9fsPCIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
-    VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *pcidev_k = reinterpret_cast<PCIDeviceClass *>(klass);
+    VirtioPCIClass *k = reinterpret_cast<VirtioPCIClass *>(klass);
 
     k->realize = realize;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;

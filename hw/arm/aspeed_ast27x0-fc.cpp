@@ -79,7 +79,7 @@ bool Ast2700FCState::ca35Init(MachineState *machine, Error **errp)
     DeviceState *dev = NULL;
     uint64_t rom_size;
 
-    object_initialize_child(OBJECT(s), "ca35", &s->ca35, "ast2700-a1");
+    object_initialize_child(reinterpret_cast<Object *>(s), "ca35", &s->ca35, "ast2700-a1");
     soc = ASPEED_SOC(&s->ca35);
     sc = ASPEED_SOC_GET_CLASS(soc);
 
@@ -151,10 +151,10 @@ bool Ast2700FCState::sspInit(MachineState *machine, Error **errp)
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
 
-    s->ssp_sysclk = clock_new(OBJECT(s), "SSP_SYSCLK");
+    s->ssp_sysclk = clock_new(reinterpret_cast<Object *>(s), "SSP_SYSCLK");
     clock_set_hz(s->ssp_sysclk, 200000000ULL);
 
-    object_initialize_child(OBJECT(s), "ssp", &s->ssp,
+    object_initialize_child(reinterpret_cast<Object *>(s), "ssp", &s->ssp,
                             TYPE_ASPEED27X0SSP_COPROCESSOR);
     memory_region_init(&s->ssp_memory, OBJECT(&s->ssp), "ssp-memory",
                        UINT64_MAX);
@@ -183,10 +183,10 @@ bool Ast2700FCState::tspInit(MachineState *machine, Error **errp)
     Ast2700FCState *s = AST2700A1FC(machine);
     AspeedSoCState *psp = ASPEED_SOC(&s->ca35);
 
-    s->tsp_sysclk = clock_new(OBJECT(s), "TSP_SYSCLK");
+    s->tsp_sysclk = clock_new(reinterpret_cast<Object *>(s), "TSP_SYSCLK");
     clock_set_hz(s->tsp_sysclk, 200000000ULL);
 
-    object_initialize_child(OBJECT(s), "tsp", &s->tsp,
+    object_initialize_child(reinterpret_cast<Object *>(s), "tsp", &s->tsp,
                             TYPE_ASPEED27X0TSP_COPROCESSOR);
     memory_region_init(&s->tsp_memory, OBJECT(&s->tsp), "tsp-memory",
                        UINT64_MAX);
@@ -219,7 +219,7 @@ void Ast2700FCState::machineInit(MachineState *machine)
 
 void Ast2700FCState::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "ast2700 full core support";
     mc->init = machineInit;

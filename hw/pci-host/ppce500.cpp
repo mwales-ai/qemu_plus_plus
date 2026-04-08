@@ -212,7 +212,7 @@ static void e500_update_piw(PPCE500PCIState *pci, int idx)
     if (memory_region_is_mapped(mem)) {
         /* Before we modify anything, unmap and destroy the region */
         memory_region_del_subregion(bm, mem);
-        object_unparent(OBJECT(mem));
+        object_unparent(reinterpret_cast<Object *>(mem));
     }
 
     if (!(war & PIWAR_EN)) {
@@ -221,7 +221,7 @@ static void e500_update_piw(PPCE500PCIState *pci, int idx)
     }
 
     name = g_strdup_printf("PCI Inbound Window %d", idx);
-    memory_region_init_alias(mem, OBJECT(pci), name, address_space_mem, tar,
+    memory_region_init_alias(mem, reinterpret_cast<Object *>(pci), name, address_space_mem, tar,
                              size);
     memory_region_add_subregion_overlap(bm, wbar, mem, -1);
     g_free(name);
@@ -244,7 +244,7 @@ static void e500_update_pow(PPCE500PCIState *pci, int idx)
     if (memory_region_is_mapped(mem)) {
         /* Before we modify anything, unmap and destroy the region */
         memory_region_del_subregion(address_space_mem, mem);
-        object_unparent(OBJECT(mem));
+        object_unparent(reinterpret_cast<Object *>(mem));
     }
 
     if (!(war & PIWAR_EN)) {
@@ -253,7 +253,7 @@ static void e500_update_pow(PPCE500PCIState *pci, int idx)
     }
 
     name = g_strdup_printf("PCI Outbound Window %d", idx);
-    memory_region_init_alias(mem, OBJECT(pci), name, &pci->busmem, tar,
+    memory_region_init_alias(mem, reinterpret_cast<Object *>(pci), name, &pci->busmem, tar,
                              size);
     memory_region_add_subregion(address_space_mem, wbar, mem);
     g_free(name);
@@ -432,7 +432,7 @@ static void e500_pcihost_bridge_realize(PCIDevice *d, Error **errp)
         object_resolve_path_component(qdev_get_machine(), "e500-ccsr"));
     MemoryRegion *ccsr_space = sysbus_mmio_get_region(ccsr, 0);
 
-    memory_region_init_alias(&b->bar0, OBJECT(ccsr), "e500-pci-bar0",
+    memory_region_init_alias(&b->bar0, reinterpret_cast<Object *>(ccsr), "e500-pci-bar0",
                              ccsr_space, 0, int128_get64(ccsr_space->size));
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &b->bar0);
 }
@@ -474,8 +474,8 @@ void PPCE500PCIState::realize(Error **errp)
         s->irq_num[i] = s->first_pin_irq + i;
     }
 
-    memory_region_init(&s->pio, OBJECT(s), "pci-pio", PCIE500_PCI_IOLEN);
-    memory_region_init(&s->busmem, OBJECT(s), "pci bus memory", UINT64_MAX);
+    memory_region_init(&s->pio, reinterpret_cast<Object *>(s), "pci-pio", PCIE500_PCI_IOLEN);
+    memory_region_init(&s->busmem, reinterpret_cast<Object *>(s), "pci bus memory", UINT64_MAX);
 
     /* PIO lives at the bottom of our bus space */
     memory_region_add_subregion_overlap(&s->busmem, 0, &s->pio, -2);
@@ -486,19 +486,19 @@ void PPCE500PCIState::realize(Error **errp)
     h->bus = b;
 
     /* Set up PCI view of memory */
-    memory_region_init(&s->bm, OBJECT(s), "bm-e500", UINT64_MAX);
+    memory_region_init(&s->bm, reinterpret_cast<Object *>(s), "bm-e500", UINT64_MAX);
     memory_region_add_subregion(&s->bm, 0x0, &s->busmem);
     address_space_init(&s->bm_as, &s->bm, "pci-bm");
     pci_setup_iommu(b, &ppce500_iommu_ops, s);
 
     pci_create_simple(b, 0, TYPE_PPC_E500_PCI_BRIDGE);
 
-    memory_region_init(&s->container, OBJECT(h), "pci-container", PCIE500_ALL_SIZE);
-    memory_region_init_io(&h->conf_mem, OBJECT(h), &pci_host_conf_be_ops, h,
+    memory_region_init(&s->container, reinterpret_cast<Object *>(h), "pci-container", PCIE500_ALL_SIZE);
+    memory_region_init_io(&h->conf_mem, reinterpret_cast<Object *>(h), &pci_host_conf_be_ops, h,
                           "pci-conf-idx", 4);
-    memory_region_init_io(&h->data_mem, OBJECT(h), &pci_host_data_le_ops, h,
+    memory_region_init_io(&h->data_mem, reinterpret_cast<Object *>(h), &pci_host_data_le_ops, h,
                           "pci-conf-data", 4);
-    memory_region_init_io(&s->iomem, OBJECT(s), &e500_pci_reg_ops, s,
+    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(s), &e500_pci_reg_ops, s,
                           "pci.reg", PCIE500_REG_SIZE);
     memory_region_add_subregion(&s->container, PCIE500_CFGADDR, &h->conf_mem);
     memory_region_add_subregion(&s->container, PCIE500_CFGDATA, &h->data_mem);
@@ -509,8 +509,8 @@ void PPCE500PCIState::realize(Error **errp)
 
 static void e500_host_bridge_class_initfn(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = e500_pcihost_bridge_realize;
     k->vendor_id = PCI_VENDOR_ID_FREESCALE;
@@ -531,7 +531,7 @@ static const Property pcihost_properties[] = {
 
 void PPCE500PCIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = PPCE500PCIState::realizeWrapper;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);

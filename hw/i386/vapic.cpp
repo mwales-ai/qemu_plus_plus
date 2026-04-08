@@ -214,7 +214,7 @@ static bool opcode_matches(uint8_t *opcode, const TPRInstruction *instr)
 static int evaluate_tpr_instruction(VAPICROMState *s, X86CPU *cpu,
                                     target_ulong *pip, TPRAccess access)
 {
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = reinterpret_cast<CPUState *>(cpu);
     const TPRInstruction *instr;
     target_ulong ip = *pip;
     uint8_t opcode[2];
@@ -338,7 +338,7 @@ static int get_kpcr_number(X86CPU *cpu)
         uint8_t  number;
     } QEMU_PACKED kpcr;
 
-    if (cpu_memory_rw_debug(CPU(cpu), env->segs[R_FS].base,
+    if (cpu_memory_rw_debug(reinterpret_cast<CPUState *>(cpu), env->segs[R_FS].base,
                             (void *)&kpcr, sizeof(kpcr), 0) < 0 ||
         kpcr.self != env->segs[R_FS].base) {
         return -1;
@@ -368,7 +368,7 @@ static int vapic_enable(VAPICROMState *s, X86CPU *cpu)
 
 static void patch_byte(X86CPU *cpu, target_ulong addr, uint8_t byte)
 {
-    cpu_memory_rw_debug(CPU(cpu), addr, &byte, 1, 1);
+    cpu_memory_rw_debug(reinterpret_cast<CPUState *>(cpu), addr, &byte, 1, 1);
 }
 
 static void patch_call(X86CPU *cpu, target_ulong ip, uint32_t target)
@@ -377,7 +377,7 @@ static void patch_call(X86CPU *cpu, target_ulong ip, uint32_t target)
 
     offset = cpu_to_le32(target - ip - 5);
     patch_byte(cpu, ip, 0xe8); /* call near */
-    cpu_memory_rw_debug(CPU(cpu), ip + 1, (void *)&offset, sizeof(offset), 1);
+    cpu_memory_rw_debug(reinterpret_cast<CPUState *>(cpu), ip + 1, (void *)&offset, sizeof(offset), 1);
 }
 
 typedef struct PatchInfo {
@@ -431,7 +431,7 @@ static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
 static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
-    CPUState *cs = CPU(cpu);
+    CPUState *cs = reinterpret_cast<CPUState *>(cpu);
     VAPICHandlers *handlers;
     PatchInfo *info;
 
@@ -580,7 +580,7 @@ static int vapic_map_rom_writable(VAPICROMState *s)
     rom_paddr &= TARGET_PAGE_MASK;
     rom_size = TARGET_PAGE_ALIGN(rom_size);
 
-    memory_region_init_alias(&s->rom, OBJECT(s), "kvmvapic-rom", section.mr,
+    memory_region_init_alias(&s->rom, reinterpret_cast<Object *>(s), "kvmvapic-rom", section.mr,
                              rom_paddr, rom_size);
     memory_region_add_subregion_overlap(mr, rom_paddr, &s->rom, 1000);
     s->rom_mapped_writable = true;
@@ -683,7 +683,7 @@ void VAPICROMState::realize(Error **errp)
 {
     SysBusDevice *sbd = SYS_BUS_DEVICE(&busdev);
 
-    memory_region_init_io(&io, OBJECT(this), &vapic_ops, this, "kvmvapic", 2);
+    memory_region_init_io(&io, reinterpret_cast<Object *>(this), &vapic_ops, this, "kvmvapic", 2);
     memory_region_add_subregion(get_system_io(), VAPIC_IO_PORT, &io);
     sysbus_init_ioports(sbd, VAPIC_IO_PORT, 2);
 
@@ -807,7 +807,7 @@ static const VMStateDescription vmstate_vapic = {
 
 void VAPICROMState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_legacy_reset(dc, VAPICROMState::resetWrapper);
     dc->vmsd    = &vmstate_vapic;

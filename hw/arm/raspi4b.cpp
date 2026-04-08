@@ -91,14 +91,14 @@ struct Raspi4bMachineState {
     static void init(MachineState *machine)
     {
         Raspi4bMachineState *s = RASPI4B_MACHINE(machine);
-        RaspiBaseMachineState *s_base = RASPI_BASE_MACHINE(machine);
+        RaspiBaseMachineState *s_base = reinterpret_cast<RaspiBaseMachineState *>(machine);
         RaspiBaseMachineClass *mc = RASPI_BASE_MACHINE_GET_CLASS(machine);
         BCM2838State *soc = &s->soc;
 
         s_base->binfo.modify_dtb = modifyDtb;
         s_base->binfo.board_id = mc->board_rev;
 
-        object_initialize_child(OBJECT(machine), "soc", soc,
+        object_initialize_child(reinterpret_cast<Object *>(machine), "soc", soc,
                                 board_soc_type(mc->board_rev));
 
         raspi_base_machine_init(machine, &soc->parent_obj);
@@ -106,8 +106,8 @@ struct Raspi4bMachineState {
 
     static void classInit(ObjectClass *oc, const void *data)
     {
-        MachineClass *mc = MACHINE_CLASS(oc);
-        RaspiBaseMachineClass *rmc = RASPI_BASE_MACHINE_CLASS(oc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+        RaspiBaseMachineClass *rmc = reinterpret_cast<RaspiBaseMachineClass *>(oc);
 
 #if HOST_LONG_BITS == 32
         rmc->board_rev = 0xa03111; /* Revision 1.1, 1 Gb RAM */

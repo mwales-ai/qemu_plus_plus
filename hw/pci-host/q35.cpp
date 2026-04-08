@@ -259,8 +259,8 @@ static void q35_host_initfn(Object *obj)
 
 void Q35PCIHost::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIHostBridgeClass *hc = reinterpret_cast<PCIHostBridgeClass *>(klass);
 
     hc->root_bus_path = q35_host_root_bus_path;
     dc->realize = q35_host_realize;
@@ -701,8 +701,8 @@ static void mch_realize(PCIDevice *d, Error **errp)
 
 void MCHPCIState::classInit(ObjectClass *klass, const void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     k->realize = mch_realize;
     k->config_write = mch_write_config;

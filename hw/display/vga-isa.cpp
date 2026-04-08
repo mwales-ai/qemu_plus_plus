@@ -74,18 +74,18 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
 
 void ISAVGAState::realize(Error **errp)
 {
-    ISADevice *isadev = ISA_DEVICE(DEVICE(this));
+    ISADevice *isadev = ISA_DEVICE(reinterpret_cast<DeviceState *>(this));
     VGACommonState *s = &state;
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
 
     s->global_vmstate = true;
-    if (!vga_common_init(s, OBJECT(this), errp)) {
+    if (!vga_common_init(s, reinterpret_cast<Object *>(this), errp)) {
         return;
     }
 
     s->legacy_address_space = isa_address_space(isadev);
-    vga_io_memory = vga_init_io(s, OBJECT(this), &vga_ports, &vbe_ports);
+    vga_io_memory = vga_init_io(s, reinterpret_cast<Object *>(this), &vga_ports, &vbe_ports);
     isa_register_portio_list(isadev, &portio_vga,
                              0x3b0, vga_ports, s, "vga");
     if (vbe_ports) {
@@ -96,7 +96,7 @@ void ISAVGAState::realize(Error **errp)
                                         0x000a0000,
                                         vga_io_memory, 1);
     memory_region_set_coalescing(vga_io_memory);
-    s->con = graphic_console_init(DEVICE(this), 0, s->hw_ops, s);
+    s->con = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0, s->hw_ops, s);
 
     memory_region_add_subregion(isa_address_space(isadev),
                                 VBE_DISPI_LFB_PHYSICAL_ADDRESS,
@@ -111,7 +111,7 @@ static const Property vga_isa_properties[] = {
 
 void ISAVGAState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = vga_isa_realizefn;
     device_class_set_legacy_reset(dc, vga_isa_reset);

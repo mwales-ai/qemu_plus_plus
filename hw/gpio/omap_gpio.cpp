@@ -216,15 +216,15 @@ void Omap1GpioState::reset()
 
 void Omap1GpioState::resetWrapper(DeviceState *dev)
 {
-    Omap1GpioState *s = OMAP1_GPIO(dev);
+    Omap1GpioState *s = reinterpret_cast<Omap1GpioState *>(dev);
     s->reset();
 }
 
 void Omap1GpioState::instanceInit(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    Omap1GpioState *s = OMAP1_GPIO(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    Omap1GpioState *s = reinterpret_cast<Omap1GpioState *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     qdev_init_gpio_in(dev, gpioSet, 16);
     qdev_init_gpio_out(dev, s->omap1.handler, 16);
@@ -243,7 +243,7 @@ void Omap1GpioState::realize(Error **errp)
 
 void Omap1GpioState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    Omap1GpioState *s = OMAP1_GPIO(dev);
+    Omap1GpioState *s = reinterpret_cast<Omap1GpioState *>(dev);
     s->realize(errp);
 }
 
@@ -259,7 +259,7 @@ static const Property omap_gpio_properties[] = {
 
 void Omap1GpioState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = realizeWrapper;
     device_class_set_legacy_reset(dc, resetWrapper);

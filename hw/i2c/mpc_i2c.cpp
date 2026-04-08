@@ -349,11 +349,11 @@ static const VMStateDescription mpc_i2c_vmstate = {
 
 void MPCI2CState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     sysbus_init_irq(sbd, &irq);
-    memory_region_init_io(&iomem, OBJECT(this), &i2c_ops, this,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &i2c_ops, this,
                           "mpc-i2c", 0x15);
     sysbus_init_mmio(sbd, &iomem);
     bus = i2c_init_bus(dev, "i2c");
@@ -367,7 +367,7 @@ void MPCI2CState::realizeWrapper(DeviceState *dev, Error **errp)
 
 void MPCI2CState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd  = &mpc_i2c_vmstate ;
     device_class_set_legacy_reset(dc, resetWrapper);

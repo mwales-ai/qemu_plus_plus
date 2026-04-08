@@ -33,7 +33,7 @@ struct Ppe42MachineState {
     {
         PowerPCCPU *cpu = static_cast<PowerPCCPU *>(opaque);
 
-        cpu_reset(CPU(cpu));
+        cpu_reset(reinterpret_cast<CPUState *>(cpu));
     }
 
     static void init(MachineState *machine)
@@ -52,8 +52,8 @@ struct Ppe42MachineState {
         }
 
         /* init CPU */
-        object_initialize_child(OBJECT(pms), "cpu", cpu, machine->cpu_type);
-        if (!qdev_realize(DEVICE(cpu), NULL, &error_fatal)) {
+        object_initialize_child(reinterpret_cast<Object *>(pms), "cpu", cpu, machine->cpu_type);
+        if (!qdev_realize(reinterpret_cast<DeviceState *>(cpu), NULL, &error_fatal)) {
             return;
         }
 
@@ -68,7 +68,7 @@ struct Ppe42MachineState {
 
     static void classInit(ObjectClass *oc, const void *data)
     {
-        MachineClass *mc = MACHINE_CLASS(oc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
         static const char * const valid_cpu_types[] = {
             POWERPC_CPU_TYPE_NAME("PPE42"),
             POWERPC_CPU_TYPE_NAME("PPE42X"),

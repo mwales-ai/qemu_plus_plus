@@ -315,9 +315,9 @@ void Exynos4210I2CState::reset()
 
 void Exynos4210I2CState::initfn(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
     Exynos4210I2CState *s = EXYNOS4_I2C(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     memory_region_init_io(&s->iomem, obj, &exynos4210_i2c_ops, s,
                           TYPE_EXYNOS4_I2C, EXYNOS4_I2C_MEM_SIZE);
@@ -328,7 +328,7 @@ void Exynos4210I2CState::initfn(Object *obj)
 
 void Exynos4210I2CState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->vmsd = &exynos4210_i2c_vmstate;
     device_class_set_legacy_reset(dc, resetWrapper);

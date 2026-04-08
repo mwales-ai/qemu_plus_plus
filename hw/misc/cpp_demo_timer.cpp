@@ -163,9 +163,9 @@ void CppDemoTimer::cppFinalize()
 
 void CppDemoTimer::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&theMmio, OBJECT(this), &cpp_demo_timer_ops,
+    memory_region_init_io(&theMmio, reinterpret_cast<Object *>(this), &cpp_demo_timer_ops,
                           this, "cpp-demo-timer", 0x100);
     sysbus_init_mmio(sbd, &theMmio);
     sysbus_init_irq(sbd, &theIrq);
@@ -299,7 +299,7 @@ static void cpp_demo_timer_reset(DeviceState *dev)
 
 static void cpp_demo_timer_class_init(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
     dc->realize = cpp_demo_timer_realize;
     device_class_set_legacy_reset(dc, cpp_demo_timer_reset);
     CppDemoTimer::classInit(dc);

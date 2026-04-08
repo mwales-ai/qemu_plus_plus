@@ -552,7 +552,7 @@ static const MemoryRegionOps pl041_ops = {
 
 void PL041State::initfn(Object *obj)
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
     PL041State *s = PL041(dev);
 
     DBG_L1("pl041_init 0x%08x\n", (uint32_t)s);
@@ -662,7 +662,7 @@ static const Property pl041_device_properties[] = {
 
 void PL041State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = PL041State::realizeWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);

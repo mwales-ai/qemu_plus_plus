@@ -604,7 +604,7 @@ PVSCSIState::hotplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **errp
 {
     PVSCSIState *s = reinterpret_cast<PVSCSIState *>(hotplug_dev);
 
-    pvscsi_send_msg(s, SCSI_DEVICE(dev), PVSCSI_MSG_DEV_ADDED);
+    pvscsi_send_msg(s, reinterpret_cast<SCSIDevice *>(dev), PVSCSI_MSG_DEV_ADDED);
 }
 
 void
@@ -612,7 +612,7 @@ PVSCSIState::hotUnplug(HotplugHandler *hotplug_dev, DeviceState *dev, Error **er
 {
     PVSCSIState *s = reinterpret_cast<PVSCSIState *>(hotplug_dev);
 
-    pvscsi_send_msg(s, SCSI_DEVICE(dev), PVSCSI_MSG_DEV_REMOVED);
+    pvscsi_send_msg(s, reinterpret_cast<SCSIDevice *>(dev), PVSCSI_MSG_DEV_REMOVED);
     qdev_simple_device_unplug_cb(hotplug_dev, dev, errp);
 }
 

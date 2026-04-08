@@ -95,16 +95,16 @@ struct OR1KOMPICState {
 
     void initfn()
     {
-        SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-        memory_region_init_io(&mr, OBJECT(this), &ompic_ops, this,
+        memory_region_init_io(&mr, reinterpret_cast<Object *>(this), &ompic_ops, this,
                               "or1k-ompic", OMPIC_ADDRSPACE_SZ);
         sysbus_init_mmio(sbd, &mr);
     }
 
     void realize(Error **errp)
     {
-        SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
         int i;
 
         if (num_cpus > OMPIC_MAX_CPUS) {
@@ -174,7 +174,7 @@ const VMStateDescription OR1KOMPICState::vmstate_or1k_ompic = {
 
 void OR1KOMPICState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_props(dc, or1k_ompic_properties);
     dc->realize = deviceRealize;

@@ -748,8 +748,8 @@ static void tulip_reset(TULIPState *s)
 
 void TULIPState::qdevReset(DeviceState *dev)
 {
-    PCIDevice *d = PCI_DEVICE(dev);
-    TULIPState *s = TULIP(d);
+    PCIDevice *d = reinterpret_cast<PCIDevice *>(dev);
+    TULIPState *s = reinterpret_cast<TULIPState *>(d);
 
     tulip_reset(s);
 }
@@ -990,7 +990,7 @@ void TULIPState::pciRealize(PCIDevice *pci_dev, Error **errp)
     s->irq = pci_allocate_irq(&s->dev);
 
     s->nic = qemu_new_nic(&net_tulip_info, &s->c,
-                          object_get_typename(OBJECT(pci_dev)),
+                          object_get_typename(reinterpret_cast<Object *>(pci_dev)),
                           pci_dev->qdev.id,
                           &pci_dev->qdev.mem_reentrancy_guard, s);
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
@@ -1007,7 +1007,7 @@ void TULIPState::pciExit(PCIDevice *pci_dev)
 
 void TULIPState::instanceInit(Object *obj)
 {
-    PCIDevice *pci_dev = PCI_DEVICE(obj);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(obj);
     TULIPState *d = DO_UPCAST(TULIPState, dev, pci_dev);
 
     device_add_bootindex_property(obj, &d->c.bootindex,
@@ -1021,8 +1021,8 @@ static const Property tulip_properties[] = {
 
 void TULIPState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = TULIPState::pciRealize;
     k->exit = TULIPState::pciExit;

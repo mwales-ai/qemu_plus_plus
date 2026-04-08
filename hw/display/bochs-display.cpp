@@ -285,7 +285,7 @@ static const GraphicHwOps bochs_display_gfx_ops = {
 void BochsDisplayState::realize(Error **errp)
 {
     PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
-    Object *obj = OBJECT(this);
+    Object *obj = reinterpret_cast<Object *>(this);
     int ret;
 
     if (vgamem < 4 * MiB) {
@@ -357,7 +357,7 @@ void BochsDisplayState::initfn()
     PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
 
     /* Expose framebuffer byteorder via QOM */
-    object_property_add_bool(OBJECT(this), "big-endian-framebuffer",
+    object_property_add_bool(reinterpret_cast<Object *>(this), "big-endian-framebuffer",
                              BochsDisplayState::getBigEndianFb,
                              BochsDisplayState::setBigEndianFb);
 
@@ -389,8 +389,8 @@ static const Property bochs_display_properties[] = {
 
 void BochsDisplayState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->class_id  = PCI_CLASS_DISPLAY_OTHER;
     k->vendor_id = PCI_VENDOR_ID_QEMU;

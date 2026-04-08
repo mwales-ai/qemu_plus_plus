@@ -277,20 +277,20 @@ static const MemoryRegionOps ppc_parity_error_ops = {
 
 void PrepSystemIoState::realize(Error **errp)
 {
-    ISADevice *isa = ISA_DEVICE(this);
+    ISADevice *isa = reinterpret_cast<ISADevice *>(this);
     PowerPCCPU *cpu;
 
-    qdev_init_gpio_out(DEVICE(this), &non_contiguous_io_map_irq, 1);
+    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(this), &non_contiguous_io_map_irq, 1);
     iomap_type = PORT0850_IOMAP_NONCONTIGUOUS;
     qemu_set_irq(non_contiguous_io_map_irq,
                  iomap_type & PORT0850_IOMAP_NONCONTIGUOUS);
     cpu = POWERPC_CPU(first_cpu);
-    softreset_irq = qdev_get_gpio_in(DEVICE(cpu), PPC6xx_INPUT_HRESET);
+    softreset_irq = qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), PPC6xx_INPUT_HRESET);
 
     isa_register_portio_list(isa, &portio, 0x0, ppc_io800_port_list, this,
                              "systemio800");
 
-    memory_region_init_io(&ppc_parity_mem, OBJECT(this),
+    memory_region_init_io(&ppc_parity_mem, reinterpret_cast<Object *>(this),
                           &ppc_parity_error_ops, this, "ppc-parity", 0x4);
     memory_region_add_subregion(get_system_memory(), 0xbfffeff0,
                                 &ppc_parity_mem);
@@ -321,7 +321,7 @@ static const Property prep_systemio_properties[] = {
 
 void PrepSystemIoState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = realizeWrapper;
     dc->vmsd = &vmstate_prep_systemio;

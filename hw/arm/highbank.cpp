@@ -158,7 +158,7 @@ void HighbankRegsState::initWrapper(Object *obj)
 
 void HighbankRegsState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->desc = "Calxeda Highbank registers";
     dc->vmsd = &vmstate_highbank_regs;
@@ -369,7 +369,7 @@ void HighbankMachine::classInit(ObjectClass *oc, const void *data)
         ARM_CPU_TYPE_NAME("cortex-a9"),
         NULL
     };
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "Calxeda Highbank (ECX-1000)";
     mc->init = highbank_init;
@@ -399,7 +399,7 @@ void MidwayMachine::classInit(ObjectClass *oc, const void *data)
         ARM_CPU_TYPE_NAME("cortex-a15"),
         NULL
     };
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "Calxeda Midway (ECX-2000)";
     mc->init = midway_init;

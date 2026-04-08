@@ -543,7 +543,7 @@ static int parallel_can_receive(void *opaque)
 static void parallel_isa_realizefn_impl(ISAParallelState *isa, DeviceState *dev, Error **errp)
 {
     static int index;
-    ISADevice *isadev = ISA_DEVICE(dev);
+    ISADevice *isadev = reinterpret_cast<ISADevice *>(dev);
     ParallelState *s = &isa->state;
     int base;
     uint8_t dummy;
@@ -586,7 +586,7 @@ static void parallel_isa_realizefn_impl(ISAParallelState *isa, DeviceState *dev,
 
 static void parallel_isa_build_aml(AcpiDevAmlIf *adev, Aml *scope)
 {
-    ISAParallelState *isa = ISA_PARALLEL(adev);
+    ISAParallelState *isa = reinterpret_cast<ISAParallelState *>(adev);
     Aml *dev;
     Aml *crs;
 
@@ -656,15 +656,15 @@ static const Property parallel_isa_properties[] = {
 
 static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
 {
-    ISAParallelState *isa = ISA_PARALLEL(dev);
+    ISAParallelState *isa = reinterpret_cast<ISAParallelState *>(dev);
     parallel_isa_realizefn_impl(isa, dev, errp);
 }
 
 struct ParallelISAMethods {
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
-        AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+        AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
         dc->realize = parallel_isa_realizefn;
         dc->vmsd = &vmstate_parallel_isa;

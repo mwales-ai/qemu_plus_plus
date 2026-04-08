@@ -91,10 +91,10 @@ S3Adsp1800MachineState::machineInit(MachineState *machine)
     EndianMode endianness = psms->endianness;
 
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
-    object_property_set_str(OBJECT(cpu), "version", "7.10.d", &error_abort);
-    object_property_set_bool(OBJECT(cpu), "little-endian",
+    object_property_set_str(reinterpret_cast<Object *>(cpu), "version", "7.10.d", &error_abort);
+    object_property_set_bool(reinterpret_cast<Object *>(cpu), "little-endian",
                              endianness == ENDIAN_MODE_LITTLE, &error_abort);
-    qdev_realize(DEVICE(cpu), NULL, &error_abort);
+    qdev_realize(reinterpret_cast<DeviceState *>(cpu), NULL, &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, NULL,
@@ -116,10 +116,10 @@ S3Adsp1800MachineState::machineInit(MachineState *machine)
     qdev_prop_set_enum(dev, "endianness", endianness);
     qdev_prop_set_uint32(dev, "kind-of-intr",
                          1 << ETHLITE_IRQ | 1 << UARTLITE_IRQ);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, INTC_BASEADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0,
-                       qdev_get_gpio_in(DEVICE(cpu), MB_CPU_IRQ));
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, INTC_BASEADDR);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0,
+                       qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu), MB_CPU_IRQ));
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(dev, i);
     }
@@ -127,27 +127,27 @@ S3Adsp1800MachineState::machineInit(MachineState *machine)
     dev = qdev_new(TYPE_XILINX_UARTLITE);
     qdev_prop_set_enum(dev, "endianness", endianness);
     qdev_prop_set_chr(dev, "chardev", serial_hd(0));
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, UARTLITE_BASEADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[UARTLITE_IRQ]);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, UARTLITE_BASEADDR);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, irq[UARTLITE_IRQ]);
 
     /* 2 timers at irq 2 @ 62 Mhz.  */
     dev = qdev_new("xlnx.xps-timer");
     qdev_prop_set_enum(dev, "endianness", endianness);
     qdev_prop_set_uint32(dev, "one-timer-only", 0);
     qdev_prop_set_uint32(dev, "clock-frequency", 62 * 1000000);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, TIMER_BASEADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[TIMER_IRQ]);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, TIMER_BASEADDR);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, irq[TIMER_IRQ]);
 
     dev = qdev_new("xlnx.xps-ethernetlite");
     qdev_prop_set_enum(dev, "endianness", endianness);
     qemu_configure_nic_device(dev, true, NULL);
     qdev_prop_set_uint32(dev, "tx-ping-pong", 0);
     qdev_prop_set_uint32(dev, "rx-ping-pong", 0);
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, ETHLITE_BASEADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, irq[ETHLITE_IRQ]);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
+    sysbus_mmio_map(reinterpret_cast<SysBusDevice *>(dev), 0, ETHLITE_BASEADDR);
+    sysbus_connect_irq(reinterpret_cast<SysBusDevice *>(dev), 0, irq[ETHLITE_IRQ]);
 
     create_unimplemented_device("xps_gpio", GPIO_BASEADDR, 0x10000);
 
@@ -172,7 +172,7 @@ void S3Adsp1800MachineState::setEndianness(Object *obj, int endianness, Error **
 void S3Adsp1800MachineState::classInit(ObjectClass *oc,
                                        const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
     ObjectProperty *prop;
 
     mc->desc = "PetaLogix linux refdesign for xilinx Spartan 3ADSP1800";

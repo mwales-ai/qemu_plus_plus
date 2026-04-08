@@ -306,7 +306,7 @@ void PITClass::irq_timer(void *opaque)
 
 void PITClass::resetfn(DeviceState *dev)
 {
-    PITCommonState *pit = PIT_COMMON(dev);
+    PITCommonState *pit = reinterpret_cast<PITCommonState *>(dev);
     PITChannelState *s;
 
     pit_reset_common(pit);
@@ -356,7 +356,7 @@ void PITClass::post_load(PITCommonState *s)
 
 void PITClass::realizefn(DeviceState *dev, Error **errp)
 {
-    PITCommonState *pit = PIT_COMMON(dev);
+    PITCommonState *pit = reinterpret_cast<PITCommonState *>(dev);
     PITClass *pc = PIT_GET_CLASS(dev);
     PITChannelState *s;
 
@@ -365,7 +365,7 @@ void PITClass::realizefn(DeviceState *dev, Error **errp)
     s->irq_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, PITClass::irq_timer, s);
     qdev_init_gpio_out(dev, &s->irq, 1);
 
-    memory_region_init_io(&pit->ioports, OBJECT(pit), &pit_ioport_ops,
+    memory_region_init_io(&pit->ioports, reinterpret_cast<Object *>(pit), &pit_ioport_ops,
                           pit, "pit", 4);
 
     qdev_init_gpio_in(dev, PITClass::irq_control, 1);
@@ -376,8 +376,8 @@ void PITClass::realizefn(DeviceState *dev, Error **errp)
 void PITClass::classInit(ObjectClass *klass, const void *data)
 {
     PITClass *pc = PIT_CLASS(klass);
-    PITCommonClass *k = PIT_COMMON_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    PITCommonClass *k = reinterpret_cast<PITCommonClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_parent_realize(dc, PITClass::realizefn, &pc->parent_realize);
     k->set_channel_gate = PITClass::set_channel_gate;

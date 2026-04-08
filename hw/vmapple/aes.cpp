@@ -562,15 +562,15 @@ void AESState::instanceInit(Object *obj)
 
     memory_region_init_io(&s->iomem1, obj, &aes1_ops, s, TYPE_APPLE_AES, 0x4000);
     memory_region_init_io(&s->iomem2, obj, &aes2_ops, s, TYPE_APPLE_AES, 0x4000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem1);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem2);
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->irq);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(s), &s->iomem1);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(s), &s->iomem2);
+    sysbus_init_irq(reinterpret_cast<SysBusDevice *>(s), &s->irq);
     s->as = &address_space_memory;
 }
 
 void AESState::classInit(ObjectClass *klass, const void *data)
 {
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     rc->phases.hold = resetHold;
 }

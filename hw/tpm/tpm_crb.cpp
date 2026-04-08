@@ -352,8 +352,8 @@ static void tpm_crb_realize_wrapper(DeviceState *dev, Error **errp)
 
 void CRBState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    TPMIfClass *tc = TPM_IF_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    TPMIfClass *tc = reinterpret_cast<TPMIfClass *>(klass);
 
     dc->realize = tpm_crb_realize_wrapper;
     device_class_set_props(dc, tpm_crb_properties);

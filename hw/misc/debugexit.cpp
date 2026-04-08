@@ -59,9 +59,9 @@ static const MemoryRegionOps debug_exit_ops = {
 
 void ISADebugExitState::realize(Error **errp)
 {
-    ISADevice *dev = ISA_DEVICE(this);
+    ISADevice *dev = reinterpret_cast<ISADevice *>(this);
 
-    memory_region_init_io(&io, OBJECT(dev), &debug_exit_ops, this,
+    memory_region_init_io(&io, reinterpret_cast<Object *>(dev), &debug_exit_ops, this,
                           TYPE_ISA_DEBUG_EXIT_DEVICE, iosize);
     memory_region_add_subregion(isa_address_space_io(dev), iobase, &io);
 }
@@ -78,7 +78,7 @@ static void debug_exit_realize(DeviceState *d, Error **errp)
 
 void ISADebugExitState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     dc->realize = debug_exit_realize;
     device_class_set_props(dc, debug_exit_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);

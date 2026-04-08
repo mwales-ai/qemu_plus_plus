@@ -126,7 +126,7 @@ struct XlnxZynqMPPMUSoCState {
 
     static void classInit(ObjectClass *oc, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(oc);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
         /* xlnx-zynqmp-pmu-soc causes crashes when cold-plugged twice */
         dc->user_creatable = false;
@@ -171,9 +171,9 @@ static void xlnx_zynqmp_pmu_init(MachineState *machine)
                                 pmu_ram);
 
     /* Create the PMU device */
-    object_initialize_child(OBJECT(machine), "pmu", pmu,
+    object_initialize_child(reinterpret_cast<Object *>(machine), "pmu", pmu,
                             TYPE_XLNX_ZYNQMP_PMU_SOC);
-    qdev_realize(DEVICE(pmu), NULL, &error_fatal);
+    qdev_realize(reinterpret_cast<DeviceState *>(pmu), NULL, &error_fatal);
 
     /* Load the kernel */
     microblaze_load_kernel(&pmu->cpu, true, XLNX_ZYNQMP_PMU_RAM_ADDR,

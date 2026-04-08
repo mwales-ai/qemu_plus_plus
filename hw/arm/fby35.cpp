@@ -89,7 +89,7 @@ void Fby35State::bmcInit()
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
 
-    object_initialize_child(OBJECT(s), "bmc", &s->bmc, "ast2600-a3");
+    object_initialize_child(reinterpret_cast<Object *>(s), "bmc", &s->bmc, "ast2600-a3");
     soc = ASPEED_SOC(&s->bmc);
     sc = ASPEED_SOC_GET_CLASS(soc);
 
@@ -140,10 +140,10 @@ void Fby35State::bicInit()
     AspeedSoCState *soc;
     AspeedSoCClass *sc;
 
-    s->bic_sysclk = clock_new(OBJECT(s), "SYSCLK");
+    s->bic_sysclk = clock_new(reinterpret_cast<Object *>(s), "SYSCLK");
     clock_set_hz(s->bic_sysclk, 200000000ULL);
 
-    object_initialize_child(OBJECT(s), "bic", &s->bic, "ast1030-a1");
+    object_initialize_child(reinterpret_cast<Object *>(s), "bic", &s->bic, "ast1030-a1");
     soc = ASPEED_SOC(&s->bic);
     sc = ASPEED_SOC_GET_CLASS(soc);
 
@@ -188,7 +188,7 @@ void Fby35State::instanceInit(Object *obj)
 
 void Fby35State::classInit(ObjectClass *oc, const void *data)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
     mc->desc = "Meta Platforms fby35";
     mc->deprecation_reason = "For a multi-soc machine, use 'ast2700fc' instead";

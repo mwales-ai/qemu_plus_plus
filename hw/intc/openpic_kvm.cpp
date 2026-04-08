@@ -212,14 +212,14 @@ void KVMOpenPICState::instanceInit(Object *obj)
 {
     KVMOpenPICState *opp = KVM_OPENPIC(obj);
 
-    memory_region_init_io(&opp->mem, OBJECT(opp), &kvm_openpic_mem_ops, opp,
+    memory_region_init_io(&opp->mem, reinterpret_cast<Object *>(opp), &kvm_openpic_mem_ops, opp,
                           "kvm-openpic", 0x40000);
 }
 
 void KVMOpenPICState::realize(Error **errp)
 {
-    DeviceState *dev = DEVICE(this);
-    SysBusDevice *d = SYS_BUS_DEVICE(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *d = reinterpret_cast<SysBusDevice *>(dev);
     KVMState *s = kvm_state;
     int kvm_openpic_model;
     struct kvm_create_device cd = {0};
@@ -299,7 +299,7 @@ static const Property kvm_openpic_properties[] = {
 
 void KVMOpenPICState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     dc->realize = realizeWrapper;
     device_class_set_props(dc, kvm_openpic_properties);

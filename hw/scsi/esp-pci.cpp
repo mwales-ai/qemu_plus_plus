@@ -468,8 +468,8 @@ static void esp_pci_init(Object *obj)
 
 void PCIESPState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = esp_pci_scsi_realize;
     k->exit = esp_pci_scsi_exit;
@@ -615,8 +615,8 @@ static void dc390_scsi_realize(PCIDevice *dev, Error **errp)
 
 void DC390State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = dc390_scsi_realize;
     k->config_read = DC390State::readConfig;

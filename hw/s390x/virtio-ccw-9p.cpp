@@ -53,8 +53,8 @@ static const Property virtio_ccw_9p_properties[] = {
 
 void V9fsCCWState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    VirtIOCCWDeviceClass *k = reinterpret_cast<VirtIOCCWDeviceClass *>(klass);
 
     k->realize = realize;
     device_class_set_props(dc, virtio_ccw_9p_properties);
