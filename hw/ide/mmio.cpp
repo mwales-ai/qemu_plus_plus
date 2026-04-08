@@ -58,7 +58,7 @@ struct MMIOIDEState {
 
     static void resetWrapper(DeviceState *dev)
     {
-        MMIOIDEState *s = MMIO_IDE(dev);
+        MMIOIDEState *s = reinterpret_cast<MMIOIDEState *>(dev);
         s->reset();
     }
 
@@ -101,13 +101,13 @@ struct MMIOIDEState {
 
     void realize(DeviceState *dev, Error **errp)
     {
-        SysBusDevice *d = SYS_BUS_DEVICE(dev);
+        SysBusDevice *d = reinterpret_cast<SysBusDevice *>(dev);
 
         ide_bus_init_output_irq(&bus, irq);
 
-        memory_region_init_io(&iomem1, OBJECT(this), &ioOps, this,
+        memory_region_init_io(&iomem1, reinterpret_cast<Object *>(this), &ioOps, this,
                               "ide-mmio.1", 16 << shift);
-        memory_region_init_io(&iomem2, OBJECT(this), &csOps, this,
+        memory_region_init_io(&iomem2, reinterpret_cast<Object *>(this), &csOps, this,
                               "ide-mmio.2", 2 << shift);
         sysbus_init_mmio(d, &iomem1);
         sysbus_init_mmio(d, &iomem2);
@@ -115,16 +115,16 @@ struct MMIOIDEState {
 
     static void realizeWrapper(DeviceState *dev, Error **errp)
     {
-        MMIOIDEState *s = MMIO_IDE(dev);
+        MMIOIDEState *s = reinterpret_cast<MMIOIDEState *>(dev);
         s->realize(dev, errp);
     }
 
     static void instanceInit(Object *obj)
     {
-        SysBusDevice *d = SYS_BUS_DEVICE(obj);
-        MMIOIDEState *s = MMIO_IDE(obj);
+        SysBusDevice *d = reinterpret_cast<SysBusDevice *>(obj);
+        MMIOIDEState *s = reinterpret_cast<MMIOIDEState *>(obj);
 
-        ide_bus_init(&s->bus, sizeof(s->bus), DEVICE(obj), 0, 2);
+        ide_bus_init(&s->bus, sizeof(s->bus), reinterpret_cast<DeviceState *>(obj), 0, 2);
         sysbus_init_irq(d, &s->irq);
     }
 
@@ -164,7 +164,7 @@ static const Property mmio_ide_properties[] = {
 
 void MMIOIDEState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     dc->realize = realizeWrapper;
     device_class_set_legacy_reset(dc, resetWrapper);
@@ -187,7 +187,7 @@ static void mmio_ide_register_types(void)
 
 void mmio_ide_init_drives(DeviceState *dev, DriveInfo *hd0, DriveInfo *hd1)
 {
-    MMIOIDEState *s = MMIO_IDE(dev);
+    MMIOIDEState *s = reinterpret_cast<MMIOIDEState *>(dev);
 
     if (hd0 != NULL) {
         ide_bus_create_drive(&s->bus, 0, hd0);

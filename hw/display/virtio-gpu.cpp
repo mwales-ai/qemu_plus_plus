@@ -217,7 +217,7 @@ void VirtIOGPU::getDisplayInfo(struct virtio_gpu_ctrl_command *cmd)
     trace_virtio_gpu_cmd_get_display_info();
     memset(&display_info, 0, sizeof(display_info));
     display_info.hdr.type = VIRTIO_GPU_RESP_OK_DISPLAY_INFO;
-    virtio_gpu_base_fill_display_info(VIRTIO_GPU_BASE(this), &display_info);
+    virtio_gpu_base_fill_display_info(reinterpret_cast<VirtIOGPUBase *>(this), &display_info);
     ctrlResponse(cmd, &display_info.hdr, sizeof(display_info));
 }
 
@@ -225,7 +225,7 @@ void VirtIOGPU::getEdid(struct virtio_gpu_ctrl_command *cmd)
 {
     struct virtio_gpu_resp_edid edid;
     struct virtio_gpu_cmd_get_edid get_edid;
-    VirtIOGPUBase *b = VIRTIO_GPU_BASE(this);
+    VirtIOGPUBase *b = reinterpret_cast<VirtIOGPUBase *>(this);
 
     VIRTIO_GPU_FILL_CMD(get_edid);
     virtio_gpu_bswap_32(&get_edid, sizeof(get_edid));
@@ -238,7 +238,7 @@ void VirtIOGPU::getEdid(struct virtio_gpu_ctrl_command *cmd)
     trace_virtio_gpu_cmd_get_edid(get_edid.scanout);
     memset(&edid, 0, sizeof(edid));
     edid.hdr.type = VIRTIO_GPU_RESP_OK_EDID;
-    virtio_gpu_base_generate_edid(VIRTIO_GPU_BASE(this), get_edid.scanout, &edid);
+    virtio_gpu_base_generate_edid(reinterpret_cast<VirtIOGPUBase *>(this), get_edid.scanout, &edid);
     ctrlResponse(cmd, &edid.hdr, sizeof(edid));
 }
 
@@ -1170,7 +1170,7 @@ void VirtIOGPU::reset(void)
         g_free(cmd);
     }
 
-    virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
+    virtio_gpu_base_reset(reinterpret_cast<VirtIOGPUBase *>(vdev));
 }
 
 /*
@@ -1717,7 +1717,7 @@ static void virtio_gpu_reset_bh(void *opaque)
 static void
 virtio_gpu_get_config(VirtIODevice *vdev, uint8_t *config)
 {
-    VirtIOGPUBase *g = VIRTIO_GPU_BASE(vdev);
+    VirtIOGPUBase *g = reinterpret_cast<VirtIOGPUBase *>(vdev);
 
     memcpy(config, &g->virtio_config, sizeof(g->virtio_config));
 }
@@ -1725,7 +1725,7 @@ virtio_gpu_get_config(VirtIODevice *vdev, uint8_t *config)
 static void
 virtio_gpu_set_config(VirtIODevice *vdev, const uint8_t *config)
 {
-    VirtIOGPUBase *g = VIRTIO_GPU_BASE(vdev);
+    VirtIOGPUBase *g = reinterpret_cast<VirtIOGPUBase *>(vdev);
     const struct virtio_gpu_config *vgconfig =
         (const struct virtio_gpu_config *)config;
 

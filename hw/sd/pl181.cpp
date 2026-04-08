@@ -463,21 +463,21 @@ static const MemoryRegionOps pl181_ops = {
 
 void PL181State::setReadonly(DeviceState *dev, bool level)
 {
-    PL181State *s = PL181(dev);
+    PL181State *s = reinterpret_cast<PL181State *>(dev);
 
     qemu_set_irq(s->card_readonly, level);
 }
 
 void PL181State::setInserted(DeviceState *dev, bool level)
 {
-    PL181State *s = PL181(dev);
+    PL181State *s = reinterpret_cast<PL181State *>(dev);
 
     qemu_set_irq(s->card_inserted, level);
 }
 
 void PL181State::resetWrapper(DeviceState *d)
 {
-    PL181(d)->reset();
+    reinterpret_cast<PL181State *>(d)->reset();
 }
 
 void PL181State::reset()
@@ -504,15 +504,15 @@ void PL181State::reset()
     s->mask[1] = 0;
 
     /* Reset other state based on current card insertion/readonly status */
-    setInserted(DEVICE(s), sdbus_get_inserted(&s->sdbus));
-    setReadonly(DEVICE(s), sdbus_get_readonly(&s->sdbus));
+    setInserted(reinterpret_cast<DeviceState *>(s), sdbus_get_inserted(&s->sdbus));
+    setReadonly(reinterpret_cast<DeviceState *>(s), sdbus_get_readonly(&s->sdbus));
 }
 
 void PL181State::instanceInit(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    PL181State *s = PL181(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    PL181State *s = reinterpret_cast<PL181State *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     memory_region_init_io(&s->iomem, obj, &pl181_ops, s, "pl181", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
@@ -526,7 +526,7 @@ void PL181State::instanceInit(Object *obj)
 
 void PL181State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
+    DeviceClass *k = reinterpret_cast<DeviceClass *>(klass);
 
     k->vmsd = &vmstate_pl181;
     device_class_set_legacy_reset(k, resetWrapper);
@@ -536,7 +536,7 @@ void PL181State::classInit(ObjectClass *klass, const void *data)
 
 void PL181State::busClassInit(ObjectClass *klass, const void *data)
 {
-    SDBusClass *sbc = SD_BUS_CLASS(klass);
+    SDBusClass *sbc = reinterpret_cast<SDBusClass *>(klass);
 
     sbc->set_inserted = setInserted;
     sbc->set_readonly = setReadonly;

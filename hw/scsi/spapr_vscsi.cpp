@@ -528,7 +528,7 @@ static int vscsi_preprocess_desc(vscsi_req *req)
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
 static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 {
-    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
+    VSCSIState *s = reinterpret_cast<VSCSIState *>(sreq->bus->qbus.parent);
     vscsi_req *req = static_cast<vscsi_req *>(sreq->hba_private);
     uint8_t *buf;
     int rc = 0;
@@ -558,7 +558,7 @@ static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
 static void vscsi_command_complete(SCSIRequest *sreq, size_t resid)
 {
-    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
+    VSCSIState *s = reinterpret_cast<VSCSIState *>(sreq->bus->qbus.parent);
     vscsi_req *req = static_cast<vscsi_req *>(sreq->hba_private);
     int32_t res_in = 0, res_out = 0;
 
@@ -599,7 +599,7 @@ static void vscsi_request_cancelled(SCSIRequest *sreq)
     vscsi_req *req = static_cast<vscsi_req *>(sreq->hba_private);
 
     if (req->dma_error) {
-        VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(sreq->bus->qbus.parent);
+        VSCSIState *s = reinterpret_cast<VSCSIState *>(sreq->bus->qbus.parent);
 
         vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
         vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
@@ -653,7 +653,7 @@ static void vscsi_save_request(QEMUFile *f, SCSIRequest *sreq)
 static void *vscsi_load_request(QEMUFile *f, SCSIRequest *sreq)
 {
     SCSIBus *bus = sreq->bus;
-    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(bus->qbus.parent);
+    VSCSIState *s = reinterpret_cast<VSCSIState *>(bus->qbus.parent);
     vscsi_req *req;
     int rc;
     Error *local_err = NULL;
@@ -1146,7 +1146,7 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
 
 static int vscsi_do_crq(struct SpaprVioDevice *dev, uint8_t *crq_data)
 {
-    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
+    VSCSIState *s = reinterpret_cast<VSCSIState *>(dev);
     vscsi_crq crq;
 
     memcpy(crq.raw, crq_data, 16);
@@ -1218,7 +1218,7 @@ static const struct SCSIBusInfo vscsi_scsi_info = {
 
 void VSCSIState::vscsiReset(SpaprVioDevice *dev)
 {
-    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
+    VSCSIState *s = reinterpret_cast<VSCSIState *>(dev);
     int i;
 
     memset(s->reqs, 0, sizeof(s->reqs));
@@ -1229,14 +1229,14 @@ void VSCSIState::vscsiReset(SpaprVioDevice *dev)
 
 void VSCSIState::realize(SpaprVioDevice *dev, Error **errp)
 {
-    VSCSIState *s = VIO_SPAPR_VSCSI_DEVICE(dev);
+    VSCSIState *s = reinterpret_cast<VSCSIState *>(dev);
 
     dev->crq.SendFunc = vscsi_do_crq;
 
-    scsi_bus_init(&s->bus, sizeof(s->bus), DEVICE(dev), &vscsi_scsi_info);
+    scsi_bus_init(&s->bus, sizeof(s->bus), reinterpret_cast<DeviceState *>(dev), &vscsi_scsi_info);
 
     /* ibmvscsi SCSI bus does not allow hotplug. */
-    qbus_set_hotplug_handler(BUS(&s->bus), NULL);
+    qbus_set_hotplug_handler(reinterpret_cast<BusState *>(&s->bus), NULL);
 }
 
 void spapr_vscsi_create(SpaprVioBus *bus)
@@ -1246,7 +1246,7 @@ void spapr_vscsi_create(SpaprVioBus *bus)
     dev = qdev_new("spapr-vscsi");
 
     qdev_realize_and_unref(dev, &bus->bus, &error_fatal);
-    scsi_bus_legacy_handle_cmdline(&VIO_SPAPR_VSCSI_DEVICE(dev)->bus);
+    scsi_bus_legacy_handle_cmdline(&reinterpret_cast<VSCSIState *>(dev)->bus);
 }
 
 static int spapr_vscsi_devnode(SpaprVioDevice *dev, void *fdt, int node_off)
@@ -1286,8 +1286,8 @@ static const VMStateDescription vmstate_spapr_vscsi = {
 
 void VSCSIState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    SpaprVioDeviceClass *k = reinterpret_cast<SpaprVioDeviceClass *>(klass);
 
     k->realize = VSCSIState::realize;
     k->reset = VSCSIState::vscsiReset;

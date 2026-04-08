@@ -135,7 +135,7 @@ void A1NVRAMState::realize(Error **errp)
 
     memory_region_init_rom_device(&mr, NULL, &nvram_ops, this, "nvram",
                                   NVRAM_SIZE, &error_fatal);
-    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mr);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mr);
     p = memory_region_get_ram_ptr(&mr);
     c = static_cast<uint32_t *>(p);
     if (blk) {
@@ -176,7 +176,7 @@ void A1NVRAMState::realize(Error **errp)
 
 void A1NVRAMState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    A1NVRAMState *s = A1_NVRAM(dev);
+    A1NVRAMState *s = reinterpret_cast<A1NVRAMState *>(dev);
     s->realize(errp);
 }
 
@@ -186,7 +186,7 @@ static const Property nvram_properties[] = {
 
 void A1NVRAMState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     dc->realize = A1NVRAMState::realizeWrapper;
     device_class_set_props(dc, nvram_properties);
@@ -317,9 +317,9 @@ static void amigaone_init(MachineState *machine)
     if (di) {
         qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(di));
     }
-    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+    sysbus_realize_and_unref(reinterpret_cast<SysBusDevice *>(dev), &error_fatal);
     memory_region_add_subregion(get_system_memory(), NVRAM_ADDR,
-                                sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0));
+                                sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(dev), 0));
 
     /* allocate and load firmware */
     rom = g_new(MemoryRegion, 1);
@@ -353,31 +353,31 @@ static void amigaone_init(MachineState *machine)
         smbus_eeprom_init_one(i2c_bus, 0x52, spd_data);
     }
 
-    pci_mem = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
+    pci_mem = sysbus_mmio_get_region(reinterpret_cast<SysBusDevice *>(dev), 1);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(dev), "pci-mem-low", pci_mem,
+    memory_region_init_alias(mr, reinterpret_cast<Object *>(dev), "pci-mem-low", pci_mem,
                              0, PCI_LOW_SIZE);
     memory_region_add_subregion(get_system_memory(), PCI_LOW_ADDR, mr);
     mr = g_new(MemoryRegion, 1);
-    memory_region_init_alias(mr, OBJECT(dev), "pci-mem-high", pci_mem,
+    memory_region_init_alias(mr, reinterpret_cast<Object *>(dev), "pci-mem-high", pci_mem,
                              PCI_HIGH_ADDR, PCI_HIGH_SIZE);
     memory_region_add_subregion(get_system_memory(), PCI_HIGH_ADDR, mr);
     pci_bus = PCI_BUS(qdev_get_child_bus(dev, "pci.0"));
 
     /* VIA VT82c686B South Bridge (multifunction PCI device) */
-    via = OBJECT(pci_create_simple_multifunction(pci_bus, PCI_DEVFN(7, 0),
+    via = reinterpret_cast<Object *>(pci_create_simple_multifunction(pci_bus, PCI_DEVFN(7, 0),
                                                  TYPE_VT82C686B_ISA));
-    object_property_add_alias(OBJECT(machine), "rtc-time",
+    object_property_add_alias(reinterpret_cast<Object *>(machine), "rtc-time",
                               object_resolve_path_component(via, "rtc"),
                               "date");
-    qdev_connect_gpio_out_named(DEVICE(via), "intr", 0,
-                                qdev_get_gpio_in(DEVICE(cpu),
+    qdev_connect_gpio_out_named(reinterpret_cast<DeviceState *>(via), "intr", 0,
+                                qdev_get_gpio_in(reinterpret_cast<DeviceState *>(cpu),
                                 PPC6xx_INPUT_INT));
     for (int i = 0; i < PCI_NUM_PINS; i++) {
-        qdev_connect_gpio_out(dev, i, qdev_get_gpio_in_named(DEVICE(via),
+        qdev_connect_gpio_out(dev, i, qdev_get_gpio_in_named(reinterpret_cast<DeviceState *>(via),
                                                              "pirq", i));
     }
-    pci_ide_create_devs(PCI_DEVICE(object_resolve_path_component(via, "ide")));
+    pci_ide_create_devs(reinterpret_cast<PCIDevice *>(object_resolve_path_component(via, "ide")));
     pci_vga_init(pci_bus);
 
     if (!machine->kernel_filename) {

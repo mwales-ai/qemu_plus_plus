@@ -130,7 +130,7 @@ void IRQMPState::ackMask(unsigned int cpu, uint32_t mask_val)
 
 void grlib_irqmp_ack(DeviceState *dev, unsigned int cpu, int intno)
 {
-    IRQMP        *irqmp = GRLIB_IRQMP(dev);
+    IRQMP        *irqmp = reinterpret_cast<IRQMP *>(dev);
     IRQMPState   *state;
     uint32_t      mask;
 
@@ -147,7 +147,7 @@ void grlib_irqmp_ack(DeviceState *dev, unsigned int cpu, int intno)
 
 void IRQMPState::setIrq(void *opaque, int irq, int level)
 {
-    IRQMP      *irqmp = GRLIB_IRQMP(opaque);
+    IRQMP      *irqmp = reinterpret_cast<IRQMP *>(opaque);
     IRQMPState *s;
     int         i = 0;
 
@@ -349,7 +349,7 @@ static const MemoryRegionOps grlib_irqmp_ops = {
 
 static void grlib_irqmp_reset_wrapper(DeviceState *d)
 {
-    IRQMP *irqmp = GRLIB_IRQMP(d);
+    IRQMP *irqmp = reinterpret_cast<IRQMP *>(d);
     irqmp->reset();
 }
 
@@ -365,13 +365,13 @@ void IRQMP::reset()
 
 static void grlib_irqmp_realize_wrapper(DeviceState *dev, Error **errp)
 {
-    IRQMP *irqmp = GRLIB_IRQMP(dev);
+    IRQMP *irqmp = reinterpret_cast<IRQMP *>(dev);
     irqmp->realize(dev, errp);
 }
 
 void IRQMP::realize(DeviceState *dev, Error **errp)
 {
-    IRQMP *irqmp = GRLIB_IRQMP(dev);
+    IRQMP *irqmp = reinterpret_cast<IRQMP *>(dev);
 
     if ((!irqmp->ncpus) || (irqmp->ncpus > IRQMP_MAX_CPU)) {
         error_setg(errp, "Invalid ncpus properties: "
@@ -389,12 +389,12 @@ void IRQMP::realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_out_named(dev, irqmp->start_signal, "grlib-start-cpu",
                              IRQMP_MAX_CPU);
     qdev_init_gpio_out_named(dev, irqmp->irq, "grlib-irq", irqmp->ncpus);
-    memory_region_init_io(&irqmp->iomem, OBJECT(dev), &grlib_irqmp_ops, irqmp,
+    memory_region_init_io(&irqmp->iomem, reinterpret_cast<Object *>(dev), &grlib_irqmp_ops, irqmp,
                           "irqmp", IRQMP_REG_SIZE);
 
     irqmp->state = static_cast<IRQMPState *>(g_malloc0(sizeof *irqmp->state));
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &irqmp->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &irqmp->iomem);
 }
 
 static const Property grlib_irqmp_properties[] = {
@@ -403,7 +403,7 @@ static const Property grlib_irqmp_properties[] = {
 
 void IRQMP::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = grlib_irqmp_realize_wrapper;
     device_class_set_legacy_reset(dc, grlib_irqmp_reset_wrapper);

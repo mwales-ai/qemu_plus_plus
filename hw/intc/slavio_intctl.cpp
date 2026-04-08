@@ -398,7 +398,7 @@ static const VMStateDescription vmstate_intctl = {
 
 void SLAVIO_INTCTLState::reset(DeviceState *d)
 {
-    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(d);
+    SLAVIO_INTCTLState *s = reinterpret_cast<SLAVIO_INTCTLState *>(d);
     int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
@@ -416,7 +416,7 @@ bool SLAVIO_INTCTLState::getStatistics(InterruptStatsProvider *obj,
                                         uint64_t **irq_counts,
                                         unsigned int *nb_irqs)
 {
-    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(obj);
+    SLAVIO_INTCTLState *s = reinterpret_cast<SLAVIO_INTCTLState *>(obj);
     *irq_counts = s->irq_count;
     *nb_irqs = ARRAY_SIZE(s->irq_count);
     return true;
@@ -425,7 +425,7 @@ bool SLAVIO_INTCTLState::getStatistics(InterruptStatsProvider *obj,
 
 void SLAVIO_INTCTLState::printInfo(InterruptStatsProvider *obj, GString *buf)
 {
-    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(obj);
+    SLAVIO_INTCTLState *s = reinterpret_cast<SLAVIO_INTCTLState *>(obj);
     int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
@@ -438,9 +438,9 @@ void SLAVIO_INTCTLState::printInfo(InterruptStatsProvider *obj, GString *buf)
 
 void SLAVIO_INTCTLState::instanceInit(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    SLAVIO_INTCTLState *s = SLAVIO_INTCTL(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    SLAVIO_INTCTLState *s = reinterpret_cast<SLAVIO_INTCTLState *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
     unsigned int i, j;
     char slave_name[45];
 
@@ -455,7 +455,7 @@ void SLAVIO_INTCTLState::instanceInit(Object *obj)
         for (j = 0; j < MAX_PILS; j++) {
             sysbus_init_irq(sbd, &s->cpu_irqs[i][j]);
         }
-        memory_region_init_io(&s->slaves[i].iomem, OBJECT(s),
+        memory_region_init_io(&s->slaves[i].iomem, reinterpret_cast<Object *>(s),
                               &slavio_intctl_mem_ops,
                               &s->slaves[i], slave_name, INTCTL_SIZE);
         sysbus_init_mmio(sbd, &s->slaves[i].iomem);
@@ -466,8 +466,8 @@ void SLAVIO_INTCTLState::instanceInit(Object *obj)
 
 void SLAVIO_INTCTLState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    InterruptStatsProviderClass *ic = INTERRUPT_STATS_PROVIDER_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    InterruptStatsProviderClass *ic = reinterpret_cast<InterruptStatsProviderClass *>(klass);
 
     device_class_set_legacy_reset(dc, reset);
     dc->vmsd = &vmstate_intctl;

@@ -289,8 +289,8 @@ void EMC141XState::initfn(Object *obj)
 
 void EMC141XState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
 
     device_class_set_legacy_reset(dc, emc141x_reset);
     k->event = EMC141XState::event;
@@ -301,7 +301,7 @@ void EMC141XState::classInit(ObjectClass *klass, const void *data)
 
 void EMC141XClass::emc1413ClassInit(ObjectClass *klass, const void *data)
 {
-    EMC141XClass *ec = EMC141X_CLASS(klass);
+    EMC141XClass *ec = reinterpret_cast<EMC141XClass *>(klass);
 
     EMC141XState::classInit(klass, data);
     ec->model = EMC1413_DEVICE_ID;
@@ -310,7 +310,7 @@ void EMC141XClass::emc1413ClassInit(ObjectClass *klass, const void *data)
 
 void EMC141XClass::emc1414ClassInit(ObjectClass *klass, const void *data)
 {
-    EMC141XClass *ec = EMC141X_CLASS(klass);
+    EMC141XClass *ec = reinterpret_cast<EMC141XClass *>(klass);
 
     EMC141XState::classInit(klass, data);
     ec->model = EMC1414_DEVICE_ID;

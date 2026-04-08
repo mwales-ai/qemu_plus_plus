@@ -344,14 +344,14 @@ void GT64120State::pciMapping()
         /* Unmap old IO address */
         if (this->PCI0IO_length) {
             memory_region_del_subregion(get_system_memory(), &this->PCI0IO_mem);
-            object_unparent(OBJECT(&this->PCI0IO_mem));
+            object_unparent(reinterpret_cast<Object *>(&this->PCI0IO_mem));
         }
         /* Map new IO address */
         this->PCI0IO_start = this->regs[GT_PCI0IOLD] << 21;
         this->PCI0IO_length = ((this->regs[GT_PCI0IOHD] + 1) -
                             (this->regs[GT_PCI0IOLD] & 0x7f)) << 21;
         if (this->PCI0IO_length) {
-            memory_region_init_alias(&this->PCI0IO_mem, OBJECT(this), "pci0-io",
+            memory_region_init_alias(&this->PCI0IO_mem, reinterpret_cast<Object *>(this), "pci0-io",
                                      get_system_io(), 0, this->PCI0IO_length);
             memory_region_add_subregion(get_system_memory(), this->PCI0IO_start,
                                         &this->PCI0IO_mem);
@@ -363,14 +363,14 @@ void GT64120State::pciMapping()
         /* Unmap old MEM address */
         if (this->PCI0M0_length) {
             memory_region_del_subregion(get_system_memory(), &this->PCI0M0_mem);
-            object_unparent(OBJECT(&this->PCI0M0_mem));
+            object_unparent(reinterpret_cast<Object *>(&this->PCI0M0_mem));
         }
         /* Map new mem address */
         this->PCI0M0_start = this->regs[GT_PCI0M0LD] << 21;
         this->PCI0M0_length = ((this->regs[GT_PCI0M0HD] + 1) -
                             (this->regs[GT_PCI0M0LD] & 0x7f)) << 21;
         if (this->PCI0M0_length) {
-            memory_region_init_alias(&this->PCI0M0_mem, OBJECT(this), "pci0-mem0",
+            memory_region_init_alias(&this->PCI0M0_mem, reinterpret_cast<Object *>(this), "pci0-mem0",
                                      &this->pci0_mem, this->PCI0M0_start,
                                      this->PCI0M0_length);
             memory_region_add_subregion(get_system_memory(), this->PCI0M0_start,
@@ -383,14 +383,14 @@ void GT64120State::pciMapping()
         /* Unmap old MEM address */
         if (this->PCI0M1_length) {
             memory_region_del_subregion(get_system_memory(), &this->PCI0M1_mem);
-            object_unparent(OBJECT(&this->PCI0M1_mem));
+            object_unparent(reinterpret_cast<Object *>(&this->PCI0M1_mem));
         }
         /* Map new mem address */
         this->PCI0M1_start = this->regs[GT_PCI0M1LD] << 21;
         this->PCI0M1_length = ((this->regs[GT_PCI0M1HD] + 1) -
                             (this->regs[GT_PCI0M1LD] & 0x7f)) << 21;
         if (this->PCI0M1_length) {
-            memory_region_init_alias(&this->PCI0M1_mem, OBJECT(this), "pci0-mem1",
+            memory_region_init_alias(&this->PCI0M1_mem, reinterpret_cast<Object *>(this), "pci0-mem1",
                                      &this->pci0_mem, this->PCI0M1_start,
                                      this->PCI0M1_length);
             memory_region_add_subregion(get_system_memory(), this->PCI0M1_start,
@@ -1238,9 +1238,9 @@ void GT64120State::doRealize(Error **errp)
     PCIHostState *phb = reinterpret_cast<PCIHostState *>(this);
     DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
-    memory_region_init_io(&this->ISD_mem, OBJECT(this), &isd_mem_ops, this,
+    memory_region_init_io(&this->ISD_mem, reinterpret_cast<Object *>(this), &isd_mem_ops, this,
                           "gt64120-isd", 0x1000);
-    memory_region_init(&this->pci0_mem, OBJECT(this), "pci0-mem", 4 * GiB);
+    memory_region_init(&this->pci0_mem, reinterpret_cast<Object *>(this), "pci0-mem", 4 * GiB);
     address_space_init(&this->pci0_mem_as, &this->pci0_mem, "pci0-mem");
     phb->bus = pci_root_bus_new(dev, "pci",
                                 &this->pci0_mem,
@@ -1248,13 +1248,13 @@ void GT64120State::doRealize(Error **errp)
                                 PCI_DEVFN(18, 0), TYPE_PCI_BUS);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
-    memory_region_init_io(&phb->conf_mem, OBJECT(phb),
+    memory_region_init_io(&phb->conf_mem, reinterpret_cast<Object *>(phb),
                           &pci_host_conf_le_ops,
                           this, "pci-conf-idx", 4);
     memory_region_add_subregion_overlap(&this->ISD_mem, GT_PCI0_CFGADDR << 2,
                                         &phb->conf_mem, 1);
 
-    memory_region_init_io(&phb->data_mem, OBJECT(phb),
+    memory_region_init_io(&phb->data_mem, reinterpret_cast<Object *>(phb),
                           &gt64120_pci_data_ops,
                           this, "pci-conf-data", 4);
     memory_region_add_subregion_overlap(&this->ISD_mem, GT_PCI0_CFGDATA << 2,
@@ -1304,9 +1304,9 @@ static void gt64120_pci_reset_hold(Object *obj, ResetType type)
 
 void GT64120State::pciClassInit(ObjectClass *klass, const void *data)
 {
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     rc->phases.hold = gt64120_pci_reset_hold;
     k->realize = gt64120_pci_realize;
@@ -1339,7 +1339,7 @@ static const Property gt64120_properties[] = {
 
 void GT64120State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     device_class_set_props(dc, gt64120_properties);

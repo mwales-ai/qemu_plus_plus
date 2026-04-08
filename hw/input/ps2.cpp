@@ -1347,9 +1347,9 @@ void PS2KbdState::kbdRealize(DeviceState *dev, Error **errp)
 
 void PS2KbdState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
+    PS2DeviceClass *ps2dc = reinterpret_cast<PS2DeviceClass *>(klass);
 
     dc->realize = PS2KbdState::kbdRealize;
     resettable_class_set_parent_phases(rc, NULL, ps2_kbd_reset_hold_trampoline,
@@ -1371,9 +1371,9 @@ void PS2MouseState::mouseRealize(DeviceState *dev, Error **errp)
 
 void PS2MouseState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    PS2DeviceClass *ps2dc = PS2_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
+    PS2DeviceClass *ps2dc = reinterpret_cast<PS2DeviceClass *>(klass);
 
     dc->realize = PS2MouseState::mouseRealize;
     resettable_class_set_parent_phases(rc, NULL,
@@ -1394,8 +1394,8 @@ static void ps2_init(Object *obj)
 struct PS2Methods {
     static void classInit(ObjectClass *klass, const void *data)
     {
-        DeviceClass *dc = DEVICE_CLASS(klass);
-        ResettableClass *rc = RESETTABLE_CLASS(klass);
+        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+        ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
         rc->phases.hold = ps2_reset_hold_trampoline;
         rc->phases.exit = ps2_reset_exit_trampoline;

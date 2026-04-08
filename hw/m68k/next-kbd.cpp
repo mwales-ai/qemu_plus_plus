@@ -116,7 +116,7 @@ uint32_t NextKBDState::readWord(void *opaque, hwaddr addr)
 uint32_t NextKBDState::readLong(void *opaque, hwaddr addr)
 {
     int key = 0;
-    NextKBDState *s = NEXTKBD(opaque);
+    NextKBDState *s = reinterpret_cast<NextKBDState *>(opaque);
     KBDQueue *q = &s->queue;
 
     switch (addr & 0xf) {
@@ -265,7 +265,7 @@ void NextKBDState::putKeycode(int keycode)
 
 void NextKBDState::kbdEvent(DeviceState *dev, QemuConsole *src, InputEvent *evt)
 {
-    NextKBDState *s = NEXTKBD(dev);
+    NextKBDState *s = reinterpret_cast<NextKBDState *>(dev);
     int qcode, keycode;
     bool key_down = evt->u.key.data->down;
 
@@ -312,7 +312,7 @@ static const QemuInputHandler nextkbd_handler = {
 
 static void nextkbd_reset_wrapper(DeviceState *dev)
 {
-    NextKBDState *nks = NEXTKBD(dev);
+    NextKBDState *nks = reinterpret_cast<NextKBDState *>(dev);
     nks->reset();
 }
 
@@ -324,17 +324,17 @@ void NextKBDState::reset()
 
 void NextKBDState::realize(DeviceState *dev, Error **errp)
 {
-    NextKBDState *s = NEXTKBD(dev);
+    NextKBDState *s = reinterpret_cast<NextKBDState *>(dev);
 
-    memory_region_init_io(&s->mr, OBJECT(dev), &kbd_ops, s, "next.kbd", 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mr);
+    memory_region_init_io(&s->mr, reinterpret_cast<Object *>(dev), &kbd_ops, s, "next.kbd", 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &s->mr);
 
     qemu_input_handler_register(dev, &nextkbd_handler);
 }
 
 static void nextkbd_realize_wrapper(DeviceState *dev, Error **errp)
 {
-    NextKBDState *s = NEXTKBD(dev);
+    NextKBDState *s = reinterpret_cast<NextKBDState *>(dev);
     s->realize(dev, errp);
 }
 
@@ -345,7 +345,7 @@ static const VMStateDescription nextkbd_vmstate = {
 
 void NextKBDState::classInit(ObjectClass *oc, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
 
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->vmsd = &nextkbd_vmstate;

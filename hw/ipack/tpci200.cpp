@@ -122,9 +122,9 @@ static uint64_t adjust_value(bool big_endian, uint64_t *val, unsigned size)
 void TPCI200State::setIrq(void *opaque, int intno, int level)
 {
     IPackDevice *ip = static_cast<IPackDevice *>(opaque);
-    IPackBus *bus = IPACK_BUS(qdev_get_parent_bus(DEVICE(ip)));
-    PCIDevice *pcidev = PCI_DEVICE(BUS(bus)->parent);
-    TPCI200State *dev = TPCI200(pcidev);
+    IPackBus *bus = reinterpret_cast<IPackBus *>(qdev_get_parent_bus(reinterpret_cast<DeviceState *>(ip)));
+    PCIDevice *pcidev = reinterpret_cast<PCIDevice *>(reinterpret_cast<BusState *>(bus)->parent);
+    TPCI200State *dev = reinterpret_cast<TPCI200State *>(pcidev);
     unsigned ip_n = ip->slot;
     uint16_t prev_status = dev->status;
 
@@ -535,7 +535,7 @@ static const MemoryRegionOps tpci200_las3_ops = {
 
 void TPCI200State::realizeWrapper(PCIDevice *pci_dev, Error **errp)
 {
-    TPCI200State *s = TPCI200(pci_dev);
+    TPCI200State *s = reinterpret_cast<TPCI200State *>(pci_dev);
     s->realize(errp);
 }
 
@@ -553,17 +553,17 @@ void TPCI200State::realize(Error **errp)
     pci_set_long(c + 0x48, 0x00024C06);
     pci_set_long(c + 0x4C, 0x00000003);
 
-    memory_region_init_io(&mmio, OBJECT(this), &tpci200_cfg_ops,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this), &tpci200_cfg_ops,
                           this, "tpci200_mmio", 128);
-    memory_region_init_io(&io, OBJECT(this),   &tpci200_cfg_ops,
+    memory_region_init_io(&io, reinterpret_cast<Object *>(this),   &tpci200_cfg_ops,
                           this, "tpci200_io",   128);
-    memory_region_init_io(&las0, OBJECT(this), &tpci200_las0_ops,
+    memory_region_init_io(&las0, reinterpret_cast<Object *>(this), &tpci200_las0_ops,
                           this, "tpci200_las0", 256);
-    memory_region_init_io(&las1, OBJECT(this), &tpci200_las1_ops,
+    memory_region_init_io(&las1, reinterpret_cast<Object *>(this), &tpci200_las1_ops,
                           this, "tpci200_las1", 1024);
-    memory_region_init_io(&las2, OBJECT(this), &tpci200_las2_ops,
+    memory_region_init_io(&las2, reinterpret_cast<Object *>(this), &tpci200_las2_ops,
                           this, "tpci200_las2", 32 * MiB);
-    memory_region_init_io(&las3, OBJECT(this), &tpci200_las3_ops,
+    memory_region_init_io(&las3, reinterpret_cast<Object *>(this), &tpci200_las3_ops,
                           this, "tpci200_las3", 16 * MiB);
     pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &mmio);
     pci_register_bar(&dev, 1, PCI_BASE_ADDRESS_SPACE_IO,     &io);
@@ -572,7 +572,7 @@ void TPCI200State::realize(Error **errp)
     pci_register_bar(&dev, 4, PCI_BASE_ADDRESS_SPACE_MEMORY, &las2);
     pci_register_bar(&dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &las3);
 
-    ipack_bus_init(&bus, sizeof(bus), DEVICE(&dev),
+    ipack_bus_init(&bus, sizeof(bus), reinterpret_cast<DeviceState *>(&dev),
                    N_MODULES, TPCI200State::setIrq);
 }
 
@@ -592,8 +592,8 @@ static const VMStateDescription vmstate_tpci200 = {
 
 void TPCI200State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = TPCI200State::realizeWrapper;
     k->vendor_id = PCI_VENDOR_ID_TEWS;

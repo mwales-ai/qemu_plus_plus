@@ -832,8 +832,8 @@ uint32_t MPS2TZMachineState::bootRamSize()
 static void mps2tz_common_init(MachineState *machine)
 {
     MPS2TZMachineState *mms = reinterpret_cast<MPS2TZMachineState *>(machine);
-    MPS2TZMachineClass *mmc = reinterpret_cast<MPS2TZMachineClass *>(MPS2TZ_MACHINE_GET_CLASS(mms));
-    MachineClass *mc = reinterpret_cast<MachineClass *>(MACHINE_GET_CLASS(machine));
+    MPS2TZMachineClass *mmc = MPS2TZ_MACHINE_GET_CLASS(mms);
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     MemoryRegion *system_memory = get_system_memory();
     DeviceState *iotkitdev;
     DeviceState *dev_splitter;

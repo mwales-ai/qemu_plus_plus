@@ -40,7 +40,7 @@ DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
     SysBusDevice *s;
 
     dev = qdev_new("pl011");
-    s = SYS_BUS_DEVICE(dev);
+    s = reinterpret_cast<SysBusDevice *>(dev);
     qdev_prop_set_chr(dev, "chardev", chr);
     sysbus_realize_and_unref(s, &error_fatal);
     sysbus_mmio_map(s, 0, addr);
@@ -651,7 +651,7 @@ static void pl011_init(Object *obj)
     PL011State *s = reinterpret_cast<PL011State *>(obj);
     size_t i;
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl011_ops, s, "pl011", 0x1000);
+    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(s), &pl011_ops, s, "pl011", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
         sysbus_init_irq(sbd, &s->irq[i]);

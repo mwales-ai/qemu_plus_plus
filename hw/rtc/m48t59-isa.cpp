@@ -77,7 +77,7 @@ struct M48txxISAState {
 
     void realize(Error **errp)
     {
-        M48txxISADeviceClass *u = reinterpret_cast<M48txxISADeviceClass *>(M48TXX_ISA_GET_CLASS(reinterpret_cast<DeviceState *>(this)));
+        M48txxISADeviceClass *u = M48TXX_ISA_GET_CLASS(reinterpret_cast<DeviceState *>(this));
         ISADevice *isadev = reinterpret_cast<ISADevice *>(reinterpret_cast<DeviceState *>(this));
         M48t59State *s = &state;
 

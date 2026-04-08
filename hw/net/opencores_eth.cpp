@@ -732,33 +732,33 @@ static const MemoryRegionOps open_eth_desc_ops = {
 
 void OpenEthState::realize(DeviceState *dev, Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    OpenEthState *s = OPEN_ETH(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
+    OpenEthState *s = reinterpret_cast<OpenEthState *>(dev);
 
-    memory_region_init_io(&s->reg_io, OBJECT(dev), &open_eth_reg_ops, s,
+    memory_region_init_io(&s->reg_io, reinterpret_cast<Object *>(dev), &open_eth_reg_ops, s,
             "open_eth.regs", 0x54);
     sysbus_init_mmio(sbd, &s->reg_io);
 
-    memory_region_init_io(&s->desc_io, OBJECT(dev), &open_eth_desc_ops, s,
+    memory_region_init_io(&s->desc_io, reinterpret_cast<Object *>(dev), &open_eth_desc_ops, s,
             "open_eth.desc", 0x400);
     sysbus_init_mmio(sbd, &s->desc_io);
 
     sysbus_init_irq(sbd, &s->irq);
 
     s->nic = qemu_new_nic(&net_open_eth_info, &s->conf,
-                          object_get_typename(OBJECT(s)), dev->id,
+                          object_get_typename(reinterpret_cast<Object *>(s)), dev->id,
                           &dev->mem_reentrancy_guard, s);
 }
 
 static void sysbus_open_eth_realize(DeviceState *dev, Error **errp)
 {
-    OpenEthState *s = OPEN_ETH(dev);
+    OpenEthState *s = reinterpret_cast<OpenEthState *>(dev);
     s->realize(dev, errp);
 }
 
 static void qdev_open_eth_reset(DeviceState *dev)
 {
-    OpenEthState *d = OPEN_ETH(dev);
+    OpenEthState *d = reinterpret_cast<OpenEthState *>(dev);
     d->doReset();
 }
 
@@ -768,7 +768,7 @@ static const Property open_eth_properties[] = {
 
 void OpenEthState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     dc->realize = sysbus_open_eth_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);

@@ -1019,8 +1019,8 @@ static const Property usb_audio_properties[] = {
 
 void USBAudioState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *k = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    USBDeviceClass *k = reinterpret_cast<USBDeviceClass *>(klass);
 
     dc->vmsd          = &vmstate_usb_audio;
     device_class_set_props(dc, usb_audio_properties);

@@ -60,7 +60,7 @@ struct EEPROMState {
 
     static int event(I2CSlave *s, enum i2c_event event)
     {
-        EEPROMState *ee = AT24C_EE(s);
+        EEPROMState *ee = reinterpret_cast<EEPROMState *>(s);
 
         switch (event) {
         case I2C_START_SEND:
@@ -88,7 +88,7 @@ struct EEPROMState {
 
     static uint8_t recv(I2CSlave *s)
     {
-        EEPROMState *ee = AT24C_EE(s);
+        EEPROMState *ee = reinterpret_cast<EEPROMState *>(s);
         uint8_t ret;
 
         /*
@@ -109,7 +109,7 @@ struct EEPROMState {
 
     static int send(I2CSlave *s, uint8_t data)
     {
-        EEPROMState *ee = AT24C_EE(s);
+        EEPROMState *ee = reinterpret_cast<EEPROMState *>(s);
 
         if (ee->haveaddr < ee->asize) {
             ee->cur <<= 8;
@@ -191,7 +191,7 @@ struct EEPROMState {
 
     static void realizeWrapper(DeviceState *dev, Error **errp)
     {
-        EEPROMState *s = AT24C_EE(dev);
+        EEPROMState *s = reinterpret_cast<EEPROMState *>(dev);
         s->realize(errp);
     }
 
@@ -204,7 +204,7 @@ struct EEPROMState {
 
     static void resetWrapper(DeviceState *state)
     {
-        EEPROMState *ee = AT24C_EE(state);
+        EEPROMState *ee = reinterpret_cast<EEPROMState *>(state);
         ee->reset();
     }
 
@@ -223,17 +223,17 @@ I2CSlave *at24c_eeprom_init_rom(I2CBus *bus, uint8_t address, uint32_t rom_size,
 {
     EEPROMState *s;
 
-    s = AT24C_EE(i2c_slave_new(TYPE_AT24C_EE, address));
+    s = reinterpret_cast<EEPROMState *>(i2c_slave_new(TYPE_AT24C_EE, address));
 
-    qdev_prop_set_uint32(DEVICE(s), "rom-size", rom_size);
+    qdev_prop_set_uint32(reinterpret_cast<DeviceState *>(s), "rom-size", rom_size);
 
     /* TODO: Model init_rom with QOM properties. */
     s->init_rom = init_rom;
     s->init_rom_size = init_rom_size;
 
-    i2c_slave_realize_and_unref(I2C_SLAVE(s), bus, &error_abort);
+    i2c_slave_realize_and_unref(reinterpret_cast<I2CSlave *>(s), bus, &error_abort);
 
-    return I2C_SLAVE(s);
+    return reinterpret_cast<I2CSlave *>(s);
 }
 
 static const Property at24c_eeprom_props[] = {
@@ -245,8 +245,8 @@ static const Property at24c_eeprom_props[] = {
 
 void EEPROMState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
 
     dc->realize = EEPROMState::realizeWrapper;
     k->event = EEPROMState::event;

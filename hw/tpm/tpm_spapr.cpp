@@ -138,7 +138,7 @@ static inline int spapr_tpm_send_crq(struct SpaprVioDevice *dev, TpmCrq *crq)
 
 static int tpm_spapr_do_crq(struct SpaprVioDevice *dev, uint8_t *crq_data)
 {
-    SpaprTpmState *s = VIO_SPAPR_VTPM(dev);
+    SpaprTpmState *s = reinterpret_cast<SpaprTpmState *>(dev);
     TpmCrq local_crq;
     TpmCrq *crq = &s->crq; /* requests only */
     int rc;
@@ -240,7 +240,7 @@ static int tpm_spapr_do_crq(struct SpaprVioDevice *dev, uint8_t *crq_data)
 
 static void tpm_spapr_request_completed(TPMIf *ti, int ret)
 {
-    SpaprTpmState *s = VIO_SPAPR_VTPM(ti);
+    SpaprTpmState *s = reinterpret_cast<SpaprTpmState *>(ti);
     TpmCrq *crq = &s->crq;
     uint32_t len;
     int rc;
@@ -286,7 +286,7 @@ static int tpm_spapr_do_startup_tpm(SpaprTpmState *s, size_t buffersize)
 
 static const char *tpm_spapr_get_dt_compatible(SpaprVioDevice *dev)
 {
-    SpaprTpmState *s = VIO_SPAPR_VTPM(dev);
+    SpaprTpmState *s = reinterpret_cast<SpaprTpmState *>(dev);
 
     switch (s->be_tpm_version) {
     case TPM_VERSION_1_2:
@@ -300,7 +300,7 @@ static const char *tpm_spapr_get_dt_compatible(SpaprVioDevice *dev)
 
 void SpaprTpmState::resetWrapper(SpaprVioDevice *dev)
 {
-    VIO_SPAPR_VTPM(dev)->tpmReset();
+    reinterpret_cast<SpaprTpmState *>(dev)->tpmReset();
 }
 
 void SpaprTpmState::tpmReset()
@@ -324,7 +324,7 @@ void SpaprTpmState::tpmReset()
 
 static enum TPMVersion tpm_spapr_get_version(TPMIf *ti)
 {
-    SpaprTpmState *s = VIO_SPAPR_VTPM(ti);
+    SpaprTpmState *s = reinterpret_cast<SpaprTpmState *>(ti);
 
     if (tpm_backend_had_startup_error(s->be_driver)) {
         return TPM_VERSION_UNSPEC;
@@ -354,7 +354,7 @@ static int tpm_spapr_post_load(void *opaque, int version_id)
     if (s->numbytes) {
         trace_tpm_spapr_post_load();
         /* deliver the results to the VM via DMA */
-        tpm_spapr_request_completed(TPM_IF(s), 0);
+        tpm_spapr_request_completed(reinterpret_cast<TPMIf *>(s), 0);
         s->numbytes = 0;
     }
 
@@ -386,7 +386,7 @@ static const Property tpm_spapr_properties[] = {
 
 void SpaprTpmState::realizeWrapper(SpaprVioDevice *dev, Error **errp)
 {
-    VIO_SPAPR_VTPM(dev)->realize(errp);
+    reinterpret_cast<SpaprTpmState *>(dev)->realize(errp);
 }
 
 void SpaprTpmState::realize(Error **errp)
@@ -410,9 +410,9 @@ void SpaprTpmState::realize(Error **errp)
 
 void SpaprTpmState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SpaprVioDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
-    TPMIfClass *tc = TPM_IF_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    SpaprVioDeviceClass *k = reinterpret_cast<SpaprVioDeviceClass *>(klass);
+    TPMIfClass *tc = reinterpret_cast<TPMIfClass *>(klass);
 
     k->realize = realizeWrapper;
     k->reset = resetWrapper;

@@ -234,7 +234,7 @@ void LS7ARtcState::rtcStart()
 
 uint64_t LS7ARtcState::readOp(void *opaque, hwaddr addr, unsigned size)
 {
-    LS7ARtcState *s = LS7A_RTC(opaque);
+    LS7ARtcState *s = reinterpret_cast<LS7ARtcState *>(opaque);
     struct tm tm;
     int val = 0;
 
@@ -297,7 +297,7 @@ void LS7ARtcState::writeOp(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
     int old_toyen, old_rtcen, new_toyen, new_rtcen;
-    LS7ARtcState *s = LS7A_RTC(opaque);
+    LS7ARtcState *s = reinterpret_cast<LS7ARtcState *>(opaque);
     struct tm tm;
 
     switch (addr) {
@@ -408,8 +408,8 @@ void LS7ARtcState::rtcTimerCb(void *opaque)
 void LS7ARtcState::realize(DeviceState *dev, Error **errp)
 {
     int i;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    LS7ARtcState *d = LS7A_RTC(sbd);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
+    LS7ARtcState *d = reinterpret_cast<LS7ARtcState *>(sbd);
     memory_region_init_io(&d->iomem, NULL, &ls7a_rtc_ops,
                          static_cast<void *>(d), "ls7a_rtc", 0x100);
 
@@ -431,8 +431,8 @@ void LS7ARtcState::realize(DeviceState *dev, Error **errp)
 void LS7ARtcState::reset(DeviceState *dev)
 {
     int i;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    LS7ARtcState *d = LS7A_RTC(sbd);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
+    LS7ARtcState *d = reinterpret_cast<LS7ARtcState *>(sbd);
     for (i = 0; i < TIMER_NUMS; i++) {
         if (d->toyEnabled()) {
             timer_del(d->toy_timer[i]);
@@ -448,7 +448,7 @@ void LS7ARtcState::reset(DeviceState *dev)
 
 int LS7ARtcState::preSave(void *opaque)
 {
-    LS7ARtcState *s = LS7A_RTC(opaque);
+    LS7ARtcState *s = reinterpret_cast<LS7ARtcState *>(opaque);
 
     s->toyStop();
     s->rtcStop();
@@ -458,7 +458,7 @@ int LS7ARtcState::preSave(void *opaque)
 
 int LS7ARtcState::postLoad(void *opaque, int version_id)
 {
-    LS7ARtcState *s = LS7A_RTC(opaque);
+    LS7ARtcState *s = reinterpret_cast<LS7ARtcState *>(opaque);
     if (s->toyEnabled()) {
         s->toyStart();
     }
@@ -488,7 +488,7 @@ static const VMStateDescription vmstate_ls7a_rtc = {
 
 void LS7ARtcState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     dc->vmsd = &vmstate_ls7a_rtc;
     dc->realize = realize;
     device_class_set_legacy_reset(dc, reset);

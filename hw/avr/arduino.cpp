@@ -35,12 +35,12 @@ struct ArduinoMachineClass {
     static void machineInit(MachineState *machine)
     {
         ArduinoMachineClass *amc = ARDUINO_MACHINE_GET_CLASS(machine);
-        ArduinoMachineState *ams = ARDUINO_MACHINE(machine);
+        ArduinoMachineState *ams = reinterpret_cast<ArduinoMachineState *>(machine);
 
-        object_initialize_child(OBJECT(machine), "mcu", &ams->mcu, amc->mcu_type);
-        object_property_set_uint(OBJECT(&ams->mcu), "xtal-frequency-hz",
+        object_initialize_child(reinterpret_cast<Object *>(machine), "mcu", &ams->mcu, amc->mcu_type);
+        object_property_set_uint(reinterpret_cast<Object *>(&ams->mcu), "xtal-frequency-hz",
                                  amc->xtal_hz, &error_abort);
-        sysbus_realize(SYS_BUS_DEVICE(&ams->mcu), &error_abort);
+        sysbus_realize(reinterpret_cast<SysBusDevice *>(&ams->mcu), &error_abort);
 
         if (machine->firmware) {
             if (!avr_load_firmware(&ams->mcu.cpu, machine,
@@ -52,7 +52,7 @@ struct ArduinoMachineClass {
 
     static void classInit(ObjectClass *oc, const void *data)
     {
-        MachineClass *mc = MACHINE_CLASS(oc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
 
         mc->init = machineInit;
         mc->default_cpus = 1;
@@ -65,8 +65,8 @@ struct ArduinoMachineClass {
 
     static void duemilanoveClassInit(ObjectClass *oc, const void *data)
     {
-        MachineClass *mc = MACHINE_CLASS(oc);
-        ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+        ArduinoMachineClass *amc = reinterpret_cast<ArduinoMachineClass *>(oc);
 
         /*
          * https://www.arduino.cc/en/Main/ArduinoBoardDuemilanove
@@ -80,8 +80,8 @@ struct ArduinoMachineClass {
 
     static void unoClassInit(ObjectClass *oc, const void *data)
     {
-        MachineClass *mc = MACHINE_CLASS(oc);
-        ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+        ArduinoMachineClass *amc = reinterpret_cast<ArduinoMachineClass *>(oc);
 
         /*
          * https://store.arduino.cc/arduino-uno-rev3
@@ -95,8 +95,8 @@ struct ArduinoMachineClass {
 
     static void megaClassInit(ObjectClass *oc, const void *data)
     {
-        MachineClass *mc = MACHINE_CLASS(oc);
-        ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+        ArduinoMachineClass *amc = reinterpret_cast<ArduinoMachineClass *>(oc);
 
         /*
          * https://www.arduino.cc/en/Main/ArduinoBoardMega
@@ -110,8 +110,8 @@ struct ArduinoMachineClass {
 
     static void mega2560ClassInit(ObjectClass *oc, const void *data)
     {
-        MachineClass *mc = MACHINE_CLASS(oc);
-        ArduinoMachineClass *amc = ARDUINO_MACHINE_CLASS(oc);
+        MachineClass *mc = reinterpret_cast<MachineClass *>(oc);
+        ArduinoMachineClass *amc = reinterpret_cast<ArduinoMachineClass *>(oc);
 
         /*
          * https://store.arduino.cc/arduino-mega-2560-rev3

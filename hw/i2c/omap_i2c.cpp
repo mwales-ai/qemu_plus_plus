@@ -144,7 +144,7 @@ static void omap_i2c_fifo_run(OMAPI2CState *s)
         s->control &= ~(1 << 1);                /* STP */
 }
 
-void OMAPI2CState::resetWrapper(DeviceState *dev) { OMAP_I2C(dev)->reset(); }
+void OMAPI2CState::resetWrapper(DeviceState *dev) { reinterpret_cast<OMAPI2CState *>(dev)->reset(); }
 void OMAPI2CState::reset()
 {
     OMAPI2CState *s = this;
@@ -338,7 +338,7 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
         }
 
         if (value & 2) {
-            OMAPI2CState::resetWrapper(DEVICE(s));
+            OMAPI2CState::resetWrapper(reinterpret_cast<DeviceState *>(s));
         }
         break;
 
@@ -346,7 +346,7 @@ static void omap_i2c_write(void *opaque, hwaddr addr,
         s->control = value & 0xcf87;
         if (~value & (1 << 15)) {               /* I2C_EN */
             if (s->revision < OMAP2_INTR_REV) {
-                OMAPI2CState::resetWrapper(DEVICE(s));
+                OMAPI2CState::resetWrapper(reinterpret_cast<DeviceState *>(s));
             }
             break;
         }
@@ -481,9 +481,9 @@ static const MemoryRegionOps omap_i2c_ops = {
 
 void OMAPI2CState::instanceInit(Object *obj)
 {
-    DeviceState *dev = DEVICE(obj);
-    OMAPI2CState *s = OMAP_I2C(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
+    OMAPI2CState *s = reinterpret_cast<OMAPI2CState *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
 
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_irq(sbd, &s->drq[0]);
@@ -492,12 +492,12 @@ void OMAPI2CState::instanceInit(Object *obj)
     s->bus = i2c_init_bus(dev, NULL);
 }
 
-void OMAPI2CState::realizeWrapper(DeviceState *dev, Error **errp) { OMAP_I2C(dev)->realize(errp); }
+void OMAPI2CState::realizeWrapper(DeviceState *dev, Error **errp) { reinterpret_cast<OMAPI2CState *>(dev)->realize(errp); }
 void OMAPI2CState::realize(Error **errp)
 {
     OMAPI2CState *s = this;
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &omap_i2c_ops, s, "omap.i2c",
+    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(s), &omap_i2c_ops, s, "omap.i2c",
                           (s->revision < OMAP2_INTR_REV) ? 0x800 : 0x1000);
 
     if (!s->fclk) {
@@ -527,7 +527,7 @@ static const Property omap_i2c_properties[] = {
 
 void OMAPI2CState::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
     device_class_set_props(dc, omap_i2c_properties);
     device_class_set_legacy_reset(dc, resetWrapper);
@@ -551,7 +551,7 @@ static void omap_i2c_register_types(void)
 
 I2CBus *omap_i2c_bus(DeviceState *omap_i2c)
 {
-    OMAPI2CState *s = OMAP_I2C(omap_i2c);
+    OMAPI2CState *s = reinterpret_cast<OMAPI2CState *>(omap_i2c);
     return s->bus;
 }
 

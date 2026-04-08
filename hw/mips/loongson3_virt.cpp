@@ -439,7 +439,7 @@ static inline void loongson3_virt_devices_init(MachineState *machine,
     PCIBus *pci_bus;
     DeviceState *dev;
     MemoryRegion *mmio_reg, *ecam_reg;
-    MachineClass *mc = reinterpret_cast<MachineClass *>(MACHINE_GET_CLASS(machine));
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     LoongsonMachineState *s = reinterpret_cast<LoongsonMachineState *>(machine);
 
     dev = qdev_new(TYPE_GPEX_HOST);
