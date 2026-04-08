@@ -571,7 +571,7 @@ static const Property pl110_properties[] = {
 
 static void pl110_realize_wrapper(DeviceState *dev, Error **errp)
 {
-    PL110State *s = PL110(dev);
+    PL110State *s = reinterpret_cast<PL110State *>(dev);
     s->realize(dev, errp);
 }
 
@@ -596,21 +596,21 @@ void PL110State::realize(DeviceState *dev, Error **errp)
 
 static void pl110_init(Object *obj)
 {
-    PL110State *s = PL110(obj);
+    PL110State *s = reinterpret_cast<PL110State *>(obj);
 
     s->version = VERSION_PL110;
 }
 
 static void pl110_versatile_init(Object *obj)
 {
-    PL110State *s = PL110(obj);
+    PL110State *s = reinterpret_cast<PL110State *>(obj);
 
     s->version = VERSION_PL110_VERSATILE;
 }
 
 static void pl111_init(Object *obj)
 {
-    PL110State *s = PL110(obj);
+    PL110State *s = reinterpret_cast<PL110State *>(obj);
 
     s->version = VERSION_PL111;
 }

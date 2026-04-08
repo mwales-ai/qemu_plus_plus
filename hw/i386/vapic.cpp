@@ -387,7 +387,7 @@ typedef struct PatchInfo {
 
 static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
 {
-    X86CPU *x86_cpu = X86_CPU(cs);
+    X86CPU *x86_cpu = reinterpret_cast<X86CPU *>(cs);
     PatchInfo *info = static_cast<PatchInfo *>(data.host_ptr);
     VAPICHandlers *handlers = info->handler;
     target_ulong ip = info->ip;
@@ -430,7 +430,7 @@ static void do_patch_instruction(CPUState *cs, run_on_cpu_data data)
 
 static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
+    MachineState *ms = reinterpret_cast<MachineState *>(qdev_get_machine());
     CPUState *cs = reinterpret_cast<CPUState *>(cpu);
     VAPICHandlers *handlers;
     PatchInfo *info;
@@ -451,8 +451,8 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
 void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
                              TPRAccess access)
 {
-    VAPICROMState *s = VAPIC(dev);
-    X86CPU *cpu = X86_CPU(cs);
+    VAPICROMState *s = reinterpret_cast<VAPICROMState *>(dev);
+    X86CPU *cpu = reinterpret_cast<X86CPU *>(cs);
     CPUX86State *env = &cpu->env;
 
     cpu_synchronize_state(cs);
@@ -492,7 +492,7 @@ static void vapic_enable_tpr_reporting(bool enable)
     X86CPU *cpu;
 
     CPU_FOREACH(cs) {
-        cpu = X86_CPU(cs);
+        cpu = reinterpret_cast<X86CPU *>(cs);
         info.apic = cpu->apic_state;
         run_on_cpu(cs, vapic_do_enable_tpr_reporting, RUN_ON_CPU_HOST_PTR(&info));
     }
@@ -500,7 +500,7 @@ static void vapic_enable_tpr_reporting(bool enable)
 
 void VAPICROMState::resetWrapper(DeviceState *dev)
 {
-    VAPICROMState *s = VAPIC(dev);
+    VAPICROMState *s = reinterpret_cast<VAPICROMState *>(dev);
     s->reset();
 }
 
@@ -561,7 +561,7 @@ static int vapic_map_rom_writable(VAPICROMState *s)
 
     if (s->rom_mapped_writable) {
         memory_region_del_subregion(mr, &s->rom);
-        object_unparent(OBJECT(&s->rom));
+        object_unparent(reinterpret_cast<Object *>(&s->rom));
     }
 
     section = memory_region_find(mr, 0, 1);
@@ -617,7 +617,7 @@ void VAPICROMState::vapicWrite(void *opaque, hwaddr addr, uint64_t data,
     }
 
     cpu_synchronize_state(current_cpu);
-    cpu = X86_CPU(current_cpu);
+    cpu = reinterpret_cast<X86CPU *>(current_cpu);
     env = &cpu->env;
 
     switch (size) {
@@ -675,13 +675,13 @@ static const MemoryRegionOps vapic_ops = {
 
 void VAPICROMState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    VAPICROMState *s = VAPIC(dev);
+    VAPICROMState *s = reinterpret_cast<VAPICROMState *>(dev);
     s->realize(errp);
 }
 
 void VAPICROMState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(&busdev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(&busdev);
 
     memory_region_init_io(&io, reinterpret_cast<Object *>(this), &vapic_ops, this, "kvmvapic", 2);
     memory_region_add_subregion(get_system_io(), VAPIC_IO_PORT, &io);
@@ -695,7 +695,7 @@ void VAPICROMState::realize(Error **errp)
 static void do_vapic_enable(CPUState *cs, run_on_cpu_data data)
 {
     VAPICROMState *s = static_cast<VAPICROMState *>(data.host_ptr);
-    X86CPU *cpu = X86_CPU(cs);
+    X86CPU *cpu = reinterpret_cast<X86CPU *>(cs);
 
     static const uint8_t enabled = 1;
     cpu_physical_memory_write(s->vapic_paddr + offsetof(VAPICState, enabled),
@@ -706,7 +706,7 @@ static void do_vapic_enable(CPUState *cs, run_on_cpu_data data)
 
 void VAPICROMState::vmStateChange(void *opaque, bool running, RunState state)
 {
-    MachineState *ms = MACHINE(qdev_get_machine());
+    MachineState *ms = reinterpret_cast<MachineState *>(qdev_get_machine());
     VAPICROMState *s = static_cast<VAPICROMState *>(opaque);
     uint8_t *zero;
 

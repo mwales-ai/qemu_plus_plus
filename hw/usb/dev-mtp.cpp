@@ -1509,7 +1509,7 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
 
 void MTPState::handleResetWrapper(USBDevice *dev)
 {
-    MTPState *s = USB_MTP(dev);
+    MTPState *s = reinterpret_cast<MTPState *>(dev);
 
     trace_usb_mtp_reset(s->dev.addr);
 
@@ -1529,7 +1529,7 @@ static void usb_mtp_handle_control(USBDevice *dev, USBPacket *p,
                                    int length, uint8_t *data)
 {
     int ret;
-    MTPState *s = USB_MTP(dev);
+    MTPState *s = reinterpret_cast<MTPState *>(dev);
     uint16_t *event = (uint16_t *)data;
 
     switch (request) {
@@ -1858,7 +1858,7 @@ static void usb_mtp_get_data(MTPState *s, mtp_container *container,
 
 static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
 {
-    MTPState *s = USB_MTP(dev);
+    MTPState *s = reinterpret_cast<MTPState *>(dev);
     MTPControl cmd;
     mtp_container container;
     uint32_t params[5];
@@ -2049,7 +2049,7 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
 
 void MTPState::realizeWrapper(USBDevice *dev, Error **errp)
 {
-    MTPState *s = USB_MTP(dev);
+    MTPState *s = reinterpret_cast<MTPState *>(dev);
 
     if ((s->root == NULL) || !g_path_is_absolute(s->root)) {
         error_setg(errp, "usb-mtp: rootdir must be configured and be an absolute path");

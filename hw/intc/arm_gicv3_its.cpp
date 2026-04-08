@@ -1923,7 +1923,7 @@ static const MemoryRegionOps gicv3_its_translation_ops = {
 
 void GICv3ITSClass::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    GICv3ITSState *s = ARM_GICV3_ITS_COMMON(dev);
+    GICv3ITSState *s = reinterpret_cast<GICv3ITSState *>(dev);
     int i;
 
     for (i = 0; i < s->gicv3->num_cpu; i++) {
@@ -1954,7 +1954,7 @@ void GICv3ITSClass::realizeWrapper(DeviceState *dev, Error **errp)
 
 void GICv3ITSClass::resetHoldWrapper(Object *obj, ResetType type)
 {
-    GICv3ITSState *s = ARM_GICV3_ITS_COMMON(obj);
+    GICv3ITSState *s = reinterpret_cast<GICv3ITSState *>(obj);
     GICv3ITSClass *c = ARM_GICV3_ITS_GET_CLASS(s);
 
     if (c->parent_phases.hold) {
@@ -2013,8 +2013,8 @@ void GICv3ITSClass::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
-    GICv3ITSClass *ic = ARM_GICV3_ITS_CLASS(klass);
-    GICv3ITSCommonClass *icc = ARM_GICV3_ITS_COMMON_CLASS(klass);
+    GICv3ITSClass *ic = reinterpret_cast<GICv3ITSClass *>(klass);
+    GICv3ITSCommonClass *icc = reinterpret_cast<GICv3ITSCommonClass *>(klass);
 
     dc->realize = GICv3ITSClass::realizeWrapper;
     device_class_set_props(dc, gicv3_its_props);

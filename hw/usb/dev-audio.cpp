@@ -928,7 +928,7 @@ static void usb_audio_handle_dataout(USBAudioState *s, USBPacket *p)
 
 void USBAudioState::handleData(USBDevice *dev, USBPacket *p)
 {
-    USBAudioState *s = (USBAudioState *) dev;
+    USBAudioState *s = reinterpret_cast<USBAudioState *>(dev);
 
     if (p->pid == USB_TOKEN_OUT && p->ep->nr == 1) {
         usb_audio_handle_dataout(s, p);

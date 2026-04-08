@@ -103,7 +103,7 @@ void KVMOpenPICState::reset()
 
 void KVMOpenPICState::resetWrapper(DeviceState *d)
 {
-    KVMOpenPICState *opp = KVM_OPENPIC(d);
+    KVMOpenPICState *opp = reinterpret_cast<KVMOpenPICState *>(d);
     opp->reset();
 }
 
@@ -210,7 +210,7 @@ void KVMOpenPICState::regionDel(MemoryListener *listener,
 
 void KVMOpenPICState::instanceInit(Object *obj)
 {
-    KVMOpenPICState *opp = KVM_OPENPIC(obj);
+    KVMOpenPICState *opp = reinterpret_cast<KVMOpenPICState *>(obj);
 
     memory_region_init_io(&opp->mem, reinterpret_cast<Object *>(opp), &kvm_openpic_mem_ops, opp,
                           "kvm-openpic", 0x40000);
@@ -280,13 +280,13 @@ void KVMOpenPICState::realize(Error **errp)
 
 void KVMOpenPICState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    KVMOpenPICState *opp = KVM_OPENPIC(dev);
+    KVMOpenPICState *opp = reinterpret_cast<KVMOpenPICState *>(dev);
     opp->realize(errp);
 }
 
 int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
 {
-    KVMOpenPICState *opp = KVM_OPENPIC(d);
+    KVMOpenPICState *opp = reinterpret_cast<KVMOpenPICState *>(d);
 
     return kvm_vcpu_enable_cap(cs, KVM_CAP_IRQ_MPIC, 0, opp->fd,
                                kvm_arch_vcpu_id(cs));

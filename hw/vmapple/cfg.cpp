@@ -105,7 +105,7 @@ bool VMAppleCfgState::setFixlenPropertyOrError(char *__restrict__ dst,
 
 void VMAppleCfgState::reset(Object *obj, ResetType type)
 {
-    VMAppleCfgState *s = VMAPPLE_CFG(obj);
+    VMAppleCfgState *s = reinterpret_cast<VMAppleCfgState *>(obj);
     VMAppleCfg *cfg;
 
     cfg = static_cast<VMAppleCfg *>(memory_region_get_ram_ptr(&s->mem));
@@ -115,7 +115,7 @@ void VMAppleCfgState::reset(Object *obj, ResetType type)
 
 void VMAppleCfgState::realize(DeviceState *dev, Error **errp)
 {
-    VMAppleCfgState *s = VMAPPLE_CFG(dev);
+    VMAppleCfgState *s = reinterpret_cast<VMAppleCfgState *>(dev);
     uint32_t i;
 
     if (!s->serial) {
@@ -155,7 +155,7 @@ void VMAppleCfgState::realize(DeviceState *dev, Error **errp)
 
 void VMAppleCfgState::initfn(Object *obj)
 {
-    VMAppleCfgState *s = VMAPPLE_CFG(obj);
+    VMAppleCfgState *s = reinterpret_cast<VMAppleCfgState *>(obj);
 
     memory_region_init_ram(&s->mem, obj, "VMApple Config", VMAPPLE_CFG_SIZE,
                            &error_fatal);

@@ -858,7 +858,7 @@ void ES1370State::realize(Error **errp)
     c[PCI_MIN_GNT] = 0x0c;
     c[PCI_MAX_LAT] = 0x80;
 
-    memory_region_init_io (&io, OBJECT(this), &es1370_io_ops, this, "es1370", 256);
+    memory_region_init_io (&io, reinterpret_cast<Object *>(this), &es1370_io_ops, this, "es1370", 256);
     pci_register_bar (&dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &io);
 
     es1370_reset(this);
@@ -866,19 +866,19 @@ void ES1370State::realize(Error **errp)
 
 void ES1370State::resetWrapper(DeviceState *dev)
 {
-    ES1370State *s = ES1370(dev);
+    ES1370State *s = reinterpret_cast<ES1370State *>(dev);
     s->reset();
 }
 
 void ES1370State::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    ES1370State *s = ES1370(dev);
+    ES1370State *s = reinterpret_cast<ES1370State *>(dev);
     s->realize(errp);
 }
 
 void ES1370State::exitWrapper(PCIDevice *dev)
 {
-    ES1370State *s = ES1370(dev);
+    ES1370State *s = reinterpret_cast<ES1370State *>(dev);
     int i;
 
     for (i = 0; i < 2; ++i) {
