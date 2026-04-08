@@ -5,7 +5,7 @@
 QEMU++ is replacing QEMU's C-based Object Model (QOM) with native C++ classes,
 virtual methods, and compile-time type checking. This document tracks progress.
 
-**Branch:** `qom-replacement` (84 commits)
+**Branch:** `qom-replacement` (87 commits)
 **Build:** All 5 target ISAs building clean
 **Tests:** 14/15 smoke tests passing
 
@@ -107,19 +107,18 @@ enforces member access. Code reads more naturally.
 
 | Metric | Value |
 |--------|-------|
-| `reinterpret_cast` uses | 2,113 |
-| QOM macro casts remaining | 663 |
-| **Conversion rate** | **76%** |
+| `reinterpret_cast` uses | 2,751 |
+| QOM macro casts remaining | 175 |
+| **Conversion rate** | **94%** |
 
 QOM's runtime type-checking macros (`SERIAL()`, `PL011()`, `VIRTIO_BLK()`,
 etc.) are being replaced with compile-time `reinterpret_cast`. This eliminates
 the runtime overhead of string-based type hierarchy walks and LRU cache checks.
 
-The remaining 663 QOM macros are in:
-- `hw/ppc/spapr.cpp` (~87 — large machine file with header-defined struct)
+The remaining 175 QOM macros are:
 - `_GET_CLASS` macros (runtime type lookup — intentionally kept)
 - VMSTATE and DEFINE_PROP macro expansions (infrastructure limitation)
-- A long tail of 3-5 casts across ~100 files
+- A small number of casts in complex polymorphic code paths
 
 ### Phase 4: Header Method Declarations - 20 device types
 
