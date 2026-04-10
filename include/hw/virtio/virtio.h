@@ -172,6 +172,27 @@ struct VirtIODevice
      */
     EventNotifier config_notifier;
     bool device_iotlb_enabled;
+
+#ifdef __cplusplus
+    /* Virtual method dispatch wrappers — defined after VirtioDeviceClass */
+    inline uint64_t getFeatures(uint64_t requested_features, Error **errp);
+    inline uint64_t badFeatures();
+    inline void setFeatures(uint64_t val);
+    inline int validateFeatures();
+    inline void getConfig(uint8_t *config);
+    inline void setConfig(const uint8_t *config);
+    inline void callReset();
+    inline int setStatus(uint8_t val);
+    inline void queueReset(uint32_t queue_index);
+    inline void queueEnable(uint32_t queue_index);
+    inline bool guestNotifierPending(int n);
+    inline void guestNotifierMask(int n, bool mask);
+    inline int startIoeventfd();
+    inline void stopIoeventfd();
+    inline void callSave(QEMUFile *f);
+    inline int callLoad(QEMUFile *f, int version_id);
+    inline int callPostLoad();
+#endif
 };
 
 struct VirtioDeviceClass {
@@ -553,6 +574,147 @@ QEMUBH *virtio_bh_new_guarded_full(DeviceState *dev,
 
 #ifdef __cplusplus
 }
+
+/*
+ * Virtual method dispatch wrappers on VirtIODevice.
+ *
+ * These inline methods dispatch through the QOM class function pointers,
+ * providing clean call syntax: vdev->setStatus(val) instead of
+ * VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev); k->set_status(vdev, val);
+ *
+ * This is a stepping stone toward replacing the VirtioDeviceClass
+ * function pointers with C++ virtual methods on the device object.
+ * When we do that, only the wrapper implementations change --
+ * all call sites stay the same.
+ */
+inline uint64_t VirtIODevice::getFeatures(uint64_t requested_features,
+                                          Error **errp) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->get_features) {
+        return k->get_features(this, requested_features, errp);
+    }
+    return requested_features;
+}
+
+inline uint64_t VirtIODevice::badFeatures() {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->bad_features) {
+        return k->bad_features(this);
+    }
+    return 0;
+}
+
+inline void VirtIODevice::setFeatures(uint64_t val) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->set_features) {
+        k->set_features(this, val);
+    }
+}
+
+inline int VirtIODevice::validateFeatures() {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->validate_features) {
+        return k->validate_features(this);
+    }
+    return 0;
+}
+
+inline void VirtIODevice::getConfig(uint8_t *config) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->get_config) {
+        k->get_config(this, config);
+    }
+}
+
+inline void VirtIODevice::setConfig(const uint8_t *config) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->set_config) {
+        k->set_config(this, config);
+    }
+}
+
+inline void VirtIODevice::callReset() {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->reset) {
+        k->reset(this);
+    }
+}
+
+inline int VirtIODevice::setStatus(uint8_t val) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->set_status) {
+        return k->set_status(this, val);
+    }
+    return 0;
+}
+
+inline void VirtIODevice::queueReset(uint32_t queue_index) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->queue_reset) {
+        k->queue_reset(this, queue_index);
+    }
+}
+
+inline void VirtIODevice::queueEnable(uint32_t queue_index) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->queue_enable) {
+        k->queue_enable(this, queue_index);
+    }
+}
+
+inline bool VirtIODevice::guestNotifierPending(int n) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->guest_notifier_pending) {
+        return k->guest_notifier_pending(this, n);
+    }
+    return false;
+}
+
+inline void VirtIODevice::guestNotifierMask(int n, bool mask) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->guest_notifier_mask) {
+        k->guest_notifier_mask(this, n, mask);
+    }
+}
+
+inline int VirtIODevice::startIoeventfd() {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->start_ioeventfd) {
+        return k->start_ioeventfd(this);
+    }
+    return -ENOSYS;
+}
+
+inline void VirtIODevice::stopIoeventfd() {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->stop_ioeventfd) {
+        k->stop_ioeventfd(this);
+    }
+}
+
+inline void VirtIODevice::callSave(QEMUFile *f) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->save) {
+        k->save(this, f);
+    }
+}
+
+inline int VirtIODevice::callLoad(QEMUFile *f, int version_id) {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->load) {
+        return k->load(this, f, version_id);
+    }
+    return 0;
+}
+
+inline int VirtIODevice::callPostLoad() {
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(this);
+    if (k->post_load) {
+        return k->post_load(this);
+    }
+    return 0;
+}
+
 #endif
 
 #endif

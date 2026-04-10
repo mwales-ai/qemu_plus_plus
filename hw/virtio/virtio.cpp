@@ -2239,23 +2239,16 @@ void virtio_update_irq(VirtIODevice *vdev)
 
 static int virtio_validate_features(VirtIODevice *vdev)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
-
     if (virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM) &&
         !virtio_vdev_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM)) {
         return -EFAULT;
     }
 
-    if (k->validate_features) {
-        return k->validate_features(vdev);
-    } else {
-        return 0;
-    }
+    return vdev->validateFeatures();
 }
 
 int virtio_set_status(VirtIODevice *vdev, uint8_t val)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
     trace_virtio_set_status(vdev, val);
     int ret = 0;
 
@@ -2274,12 +2267,10 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
         virtio_set_started(vdev, val & VIRTIO_CONFIG_S_DRIVER_OK);
     }
 
-    if (k->set_status) {
-        ret = k->set_status(vdev, val);
-        if (ret) {
-            qemu_log("set %s status to %d failed, old status: %d\n",
-                     vdev->name, val, vdev->status);
-        }
+    ret = vdev->setStatus(val);
+    if (ret) {
+        qemu_log("set %s status to %d failed, old status: %d\n",
+                 vdev->name, val, vdev->status);
     }
     vdev->status = val;
 
@@ -2326,19 +2317,13 @@ static void __virtio_queue_reset(VirtIODevice *vdev, uint32_t i)
 
 void virtio_queue_reset(VirtIODevice *vdev, uint32_t queue_index)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
-
-    if (k->queue_reset) {
-        k->queue_reset(vdev, queue_index);
-    }
+    vdev->queueReset(queue_index);
 
     __virtio_queue_reset(vdev, queue_index);
 }
 
 void virtio_queue_enable(VirtIODevice *vdev, uint32_t queue_index)
 {
-    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(vdev);
-
     /*
      * TODO: Seabios is currently out of spec and triggering this error.
      * So this needs to be fixed in Seabios, then this can
@@ -2351,9 +2336,7 @@ void virtio_queue_enable(VirtIODevice *vdev, uint32_t queue_index)
     }
     */
 
-    if (k->queue_enable) {
-        k->queue_enable(vdev, queue_index);
-    }
+    vdev->queueEnable(queue_index);
 }
 
 void virtio_queue_set_addr(VirtIODevice *vdev, int n, hwaddr addr)
@@ -3104,9 +3087,7 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
         }
     }
 
-    if (vdc->save != NULL) {
-        vdc->save(vdev, f);
-    }
+    vdev->callSave(f);
 
     if (vdc->vmsd) {
         ret = vmstate_save_state(f, vdc->vmsd, vdev, NULL, &local_err);
@@ -3159,9 +3140,9 @@ static int virtio_set_features_nocheck(VirtIODevice *vdev, const uint64_t *val)
 
     if (k->set_features_ex) {
         k->set_features_ex(vdev, val);
-    } else if (k->set_features) {
+    } else {
         bad = bad || virtio_features_use_ex(tmp);
-        k->set_features(vdev, tmp[0]);
+        vdev->setFeatures(tmp[0]);
     }
 
     virtio_features_copy(vdev->guest_features_ex, tmp);
@@ -3270,9 +3251,7 @@ void virtio_reset(void *opaque)
         }
     }
 
-    if (k->reset) {
-        k->reset(vdev);
-    }
+    vdev->callReset();
 
     vdev->start_on_kick = false;
     vdev->started = false;
@@ -3386,7 +3365,7 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     }
 
     if (vdc->pre_load_queues) {
-        ret = vdc->pre_load_queues(vdev, num);
+        ret = vdc->pre_load_queues(vdev, num);  /* no wrapper: rarely used */
         if (ret) {
             return ret;
         }
@@ -3417,11 +3396,9 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
 
     virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
 
-    if (vdc->load != NULL) {
-        ret = vdc->load(vdev, f, version_id);
-        if (ret) {
-            return ret;
-        }
+    ret = vdev->callLoad(f, version_id);
+    if (ret) {
+        return ret;
     }
 
     if (vdc->vmsd) {
@@ -3520,11 +3497,9 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         }
     }
 
-    if (vdc->post_load) {
-        ret = vdc->post_load(vdev);
-        if (ret) {
-            return ret;
-        }
+    ret = vdev->callPostLoad();
+    if (ret) {
+        return ret;
     }
 
     return 0;
