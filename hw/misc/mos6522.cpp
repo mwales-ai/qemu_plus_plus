@@ -27,6 +27,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/misc/mos6522.h"
+#include "qom/cpp/object.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
@@ -266,25 +267,44 @@ static void mos6522_timer2(void *opaque)
     mos6522_update_irq(s);
 }
 
-static uint64_t mos6522_get_counter_value(MOS6522State *s, MOS6522Timer *ti)
+/* Base class virtual method implementations */
+
+uint64_t MOS6522DeviceClass::get_timer1_counter_value(MOS6522State *s,
+                                                      MOS6522Timer *ti)
 {
     return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
                     ti->frequency, NANOSECONDS_PER_SECOND);
 }
 
-static uint64_t mos6522_get_load_time(MOS6522State *s, MOS6522Timer *ti)
+uint64_t MOS6522DeviceClass::get_timer2_counter_value(MOS6522State *s,
+                                                      MOS6522Timer *ti)
+{
+    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ti->load_time,
+                    ti->frequency, NANOSECONDS_PER_SECOND);
+}
+
+uint64_t MOS6522DeviceClass::get_timer1_load_time(MOS6522State *s,
+                                                   MOS6522Timer *ti)
 {
     uint64_t load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     return load_time;
 }
 
-static void mos6522_portA_write(MOS6522State *s)
+uint64_t MOS6522DeviceClass::get_timer2_load_time(MOS6522State *s,
+                                                   MOS6522Timer *ti)
+{
+    uint64_t load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+
+    return load_time;
+}
+
+void MOS6522DeviceClass::portA_write(MOS6522State *s)
 {
     qemu_log_mask(LOG_UNIMP, "portA_write unimplemented\n");
 }
 
-static void mos6522_portB_write(MOS6522State *s)
+void MOS6522DeviceClass::portB_write(MOS6522State *s)
 {
     qemu_log_mask(LOG_UNIMP, "portB_write unimplemented\n");
 }
@@ -700,17 +720,12 @@ static void mos6522_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
-    MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
+
+    qom_fixup_vtable<MOS6522DeviceClass>(oc);
 
     rc->phases.hold = mos6522_reset_hold;
     dc->vmsd = &vmstate_mos6522;
     device_class_set_props(dc, mos6522_properties);
-    mdc->portB_write = mos6522_portB_write;
-    mdc->portA_write = mos6522_portA_write;
-    mdc->get_timer1_counter_value = mos6522_get_counter_value;
-    mdc->get_timer2_counter_value = mos6522_get_counter_value;
-    mdc->get_timer1_load_time = mos6522_get_load_time;
-    mdc->get_timer2_load_time = mos6522_get_load_time;
 }
 
 static const TypeInfo mos6522_type_info = {

@@ -168,32 +168,27 @@ struct MOS6522State {
 OBJECT_DECLARE_TYPE(MOS6522State, MOS6522DeviceClass, MOS6522)
 
 /*
- * MOS6522DeviceClass — first QOM class struct to use C++ inheritance.
+ * MOS6522DeviceClass — QOM class struct using C++ virtual methods (Option D).
  *
- * Changed from:  struct MOS6522DeviceClass { SysBusDeviceClass parent_class; ... };
- * To:            struct MOS6522DeviceClass : SysBusDeviceClass { ... };
+ * Function pointers have been replaced with C++ virtual methods. Subclasses
+ * override these using standard C++ 'override' keyword. The vtable is
+ * restored in class_init() via qom_fixup_vtable<T>() after QOM's memcpy.
  *
- * This has IDENTICAL memory layout (verified by testing) — no vtable pointer
- * because there are no virtual methods yet. The parent_class field is now
- * accessed via C++ inheritance instead of explicit embedding.
- *
- * QOM's type_initialize() memcpy of parent class still works because the
- * layout is byte-for-byte identical. class_init still assigns function
- * pointers the same way.
- *
- * This is Step 1 of Option D. Next steps:
- *   Step 2: Add 'virtual' to function pointers one at a time
- *   Step 3: Replace function pointer assignments with virtual method overrides
+ * Memory layout: SysBusDeviceClass fields (inherited) + parent_phases +
+ * C++ vtable pointer (managed by compiler). No function pointer fields.
  */
 struct MOS6522DeviceClass : SysBusDeviceClass {
     ResettablePhases parent_phases;
-    void (*portB_write)(MOS6522State *dev);
-    void (*portA_write)(MOS6522State *dev);
+
+    virtual void portB_write(MOS6522State *dev);
+    virtual void portA_write(MOS6522State *dev);
     /* These are used to influence the CUDA MacOS timebase calibration */
-    uint64_t (*get_timer1_counter_value)(MOS6522State *dev, MOS6522Timer *ti);
-    uint64_t (*get_timer2_counter_value)(MOS6522State *dev, MOS6522Timer *ti);
-    uint64_t (*get_timer1_load_time)(MOS6522State *dev, MOS6522Timer *ti);
-    uint64_t (*get_timer2_load_time)(MOS6522State *dev, MOS6522Timer *ti);
+    virtual uint64_t get_timer1_counter_value(MOS6522State *dev,
+                                              MOS6522Timer *ti);
+    virtual uint64_t get_timer2_counter_value(MOS6522State *dev,
+                                              MOS6522Timer *ti);
+    virtual uint64_t get_timer1_load_time(MOS6522State *dev, MOS6522Timer *ti);
+    virtual uint64_t get_timer2_load_time(MOS6522State *dev, MOS6522Timer *ti);
 };
 
 
@@ -210,14 +205,12 @@ void hmp_info_via(Monitor *mon, const QDict *qdict);
 /*
  * Virtual method dispatch wrappers on MOS6522State.
  *
- * These inline methods dispatch through the QOM class function pointers,
+ * These inline methods dispatch through the QOM class virtual methods,
  * providing clean call syntax: s->portBWrite() instead of
  * MOS6522_GET_CLASS(s)->portB_write(s).
  *
- * This is a stepping stone toward Option D (replacing the *DeviceClass
- * function pointers with C++ virtual methods on the class object).
- * When we do Option D, only the wrapper implementations change —
- * all call sites stay the same.
+ * The MOS6522DeviceClass methods are now C++ virtual methods (Option D).
+ * These wrappers keep call sites clean and unchanged.
  */
 inline void MOS6522State::portBWrite() {
     MOS6522_GET_CLASS(this)->portB_write(this);

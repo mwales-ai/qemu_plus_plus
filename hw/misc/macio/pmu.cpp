@@ -33,6 +33,7 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/misc/macio/pmu.h"
+#include "qom/cpp/object.h"
 #include "qemu/timer.h"
 #include "system/runstate.h"
 #include "system/rtc.h"
@@ -789,7 +790,14 @@ static const TypeInfo pmu_type_info = {
     .class_init = pmu_class_init,
 };
 
-static void mos6522_pmu_portB_write(MOS6522State *s)
+/*
+ * MOS6522PMUDeviceClass — PMU-specific overrides for MOS6522.
+ */
+struct MOS6522PMUDeviceClass : MOS6522DeviceClass {
+    void portB_write(MOS6522State *dev) override;
+};
+
+void MOS6522PMUDeviceClass::portB_write(MOS6522State *s)
 {
     MOS6522PMUState *mps = container_of(s, MOS6522PMUState, parent_obj);
     PMUState *ps = container_of(mps, PMUState, mos6522_pmu);
@@ -819,15 +827,17 @@ static void mos6522_pmu_class_init(ObjectClass *oc, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
+    qom_fixup_vtable<MOS6522PMUDeviceClass>(oc);
+
     resettable_class_set_parent_phases(rc, NULL, mos6522_pmu_reset_hold,
                                        NULL, &mdc->parent_phases);
-    mdc->portB_write = mos6522_pmu_portB_write;
 }
 
 static const TypeInfo mos6522_pmu_type_info = {
     .name = TYPE_MOS6522_PMU,
     .parent = TYPE_MOS6522,
     .instance_size = sizeof(MOS6522PMUState),
+    .class_size = sizeof(MOS6522PMUDeviceClass),
     .class_init = mos6522_pmu_class_init,
 };
 

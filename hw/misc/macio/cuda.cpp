@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/misc/macio/cuda.h"
+#include "qom/cpp/object.h"
 #include "qemu/timer.h"
 #include "system/runstate.h"
 #include "system/rtc.h"
@@ -58,6 +59,21 @@
 
 static void cuda_receive_packet_from_host(CUDAState *s,
                                           const uint8_t *data, int len);
+
+/*
+ * MOS6522CudaDeviceClass — CUDA-specific overrides for MOS6522 virtual methods.
+ */
+struct MOS6522CudaDeviceClass : MOS6522DeviceClass {
+    void portB_write(MOS6522State *dev) override;
+    uint64_t get_timer1_counter_value(MOS6522State *dev,
+                                      MOS6522Timer *ti) override;
+    uint64_t get_timer2_counter_value(MOS6522State *dev,
+                                      MOS6522Timer *ti) override;
+    uint64_t get_timer1_load_time(MOS6522State *dev,
+                                  MOS6522Timer *ti) override;
+    uint64_t get_timer2_load_time(MOS6522State *dev,
+                                  MOS6522Timer *ti) override;
+};
 
 /* MacOS uses timer 1 for calibration on startup, so we use
  * the timebase frequency and cuda_get_counter_value() with
@@ -579,12 +595,36 @@ static const TypeInfo cuda_type_info = {
     .class_init = cuda_class_init,
 };
 
-static void mos6522_cuda_portB_write(MOS6522State *s)
+void MOS6522CudaDeviceClass::portB_write(MOS6522State *s)
 {
     MOS6522CUDAState *mcs = container_of(s, MOS6522CUDAState, parent_obj);
     CUDAState *cs = container_of(mcs, CUDAState, mos6522_cuda);
 
     cuda_update(cs);
+}
+
+uint64_t MOS6522CudaDeviceClass::get_timer1_counter_value(MOS6522State *s,
+                                                          MOS6522Timer *ti)
+{
+    return cuda_get_counter_value(s, ti);
+}
+
+uint64_t MOS6522CudaDeviceClass::get_timer2_counter_value(MOS6522State *s,
+                                                          MOS6522Timer *ti)
+{
+    return cuda_get_counter_value(s, ti);
+}
+
+uint64_t MOS6522CudaDeviceClass::get_timer1_load_time(MOS6522State *s,
+                                                       MOS6522Timer *ti)
+{
+    return cuda_get_load_time(s, ti);
+}
+
+uint64_t MOS6522CudaDeviceClass::get_timer2_load_time(MOS6522State *s,
+                                                       MOS6522Timer *ti)
+{
+    return cuda_get_load_time(s, ti);
 }
 
 static void mos6522_cuda_reset_hold(Object *obj, ResetType type)
@@ -605,19 +645,17 @@ static void mos6522_cuda_class_init(ObjectClass *oc, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
+    qom_fixup_vtable<MOS6522CudaDeviceClass>(oc);
+
     resettable_class_set_parent_phases(rc, NULL, mos6522_cuda_reset_hold,
                                        NULL, &mdc->parent_phases);
-    mdc->portB_write = mos6522_cuda_portB_write;
-    mdc->get_timer1_counter_value = cuda_get_counter_value;
-    mdc->get_timer2_counter_value = cuda_get_counter_value;
-    mdc->get_timer1_load_time = cuda_get_load_time;
-    mdc->get_timer2_load_time = cuda_get_load_time;
 }
 
 static const TypeInfo mos6522_cuda_type_info = {
     .name = TYPE_MOS6522_CUDA,
     .parent = TYPE_MOS6522,
     .instance_size = sizeof(MOS6522CUDAState),
+    .class_size = sizeof(MOS6522CudaDeviceClass),
     .class_init = mos6522_cuda_class_init,
 };
 

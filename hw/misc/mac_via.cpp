@@ -23,6 +23,7 @@
 #include "qemu/timer.h"
 #include "hw/misc/mac_via.h"
 #include "hw/misc/mos6522.h"
+#include "qom/cpp/object.h"
 #include "hw/input/adb.h"
 #include "system/runstate.h"
 #include "qapi/error.h"
@@ -1344,7 +1345,15 @@ static const TypeInfo mos6522_q800_via1_type_info = {
 };
 
 /* VIA 2 */
-static void mos6522_q800_via2_portB_write(MOS6522State *s)
+
+/*
+ * MOS6522Q800VIA2DeviceClass — VIA2-specific overrides for MOS6522.
+ */
+struct MOS6522Q800VIA2DeviceClass : MOS6522DeviceClass {
+    void portB_write(MOS6522State *dev) override;
+};
+
+void MOS6522Q800VIA2DeviceClass::portB_write(MOS6522State *s)
 {
     if (s->dirb & VIA2B_vPower && (s->b & VIA2B_vPower) == 0) {
         /* shutdown */
@@ -1419,10 +1428,11 @@ static void mos6522_q800_via2_class_init(ObjectClass *oc, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(oc);
     MOS6522DeviceClass *mdc = MOS6522_CLASS(oc);
 
+    qom_fixup_vtable<MOS6522Q800VIA2DeviceClass>(oc);
+
     resettable_class_set_parent_phases(rc, NULL, mos6522_q800_via2_reset_hold,
                                        NULL, &mdc->parent_phases);
     dc->vmsd = &vmstate_q800_via2;
-    mdc->portB_write = mos6522_q800_via2_portB_write;
 }
 
 static const TypeInfo mos6522_q800_via2_type_info = {
@@ -1430,6 +1440,7 @@ static const TypeInfo mos6522_q800_via2_type_info = {
     .parent = TYPE_MOS6522,
     .instance_size = sizeof(MOS6522Q800VIA2State),
     .instance_init = mos6522_q800_via2_init,
+    .class_size = sizeof(MOS6522Q800VIA2DeviceClass),
     .class_init = mos6522_q800_via2_class_init,
 };
 

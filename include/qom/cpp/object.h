@@ -44,6 +44,23 @@
  *   - Two-phase init (constructor + realize)
  */
 
+/*
+ * qom_fixup_vtable<T>(ptr): Restore C++ vtable after QOM's memcpy.
+ *
+ * QOM's type_initialize() copies parent class data via memcpy, which
+ * overwrites the C++ vtable pointer. Call this in class_init() for
+ * any class struct that uses C++ virtual methods.
+ *
+ * This copies just the vtable pointer (first sizeof(void*) bytes)
+ * from a properly-constructed temporary, preserving all other fields
+ * that were set by QOM's memcpy and class_base_init.
+ */
+template<typename T>
+inline void qom_fixup_vtable(void *obj) {
+    T tmp;
+    memcpy(obj, &tmp, sizeof(void *));
+}
+
 namespace qemu {
 
 /**
