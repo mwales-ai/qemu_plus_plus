@@ -61,6 +61,19 @@ struct PITCommonState {
     PITChannelState channels[3];
 };
 
+/*
+ * PITCommonClass — QOM class struct using C++ virtual methods (Option D).
+ */
+#ifdef __cplusplus
+struct PITCommonClass : DeviceClass {
+    virtual void set_channel_gate(PITCommonState *s, PITChannelState *sc,
+                                  int val);
+    virtual void get_channel_info(PITCommonState *s, PITChannelState *sc,
+                                  PITChannelInfo *info);
+    virtual void pre_save(PITCommonState *s);
+    virtual void post_load(PITCommonState *s);
+};
+#else
 struct PITCommonClass {
     DeviceClass parent_class;
 
@@ -70,6 +83,7 @@ struct PITCommonClass {
     void (*pre_save)(PITCommonState *s);
     void (*post_load)(PITCommonState *s);
 };
+#endif
 
 int pit_get_out(PITChannelState *s, int64_t current_time);
 int64_t pit_get_next_transition_time(PITChannelState *s, int64_t current_time);

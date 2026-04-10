@@ -30,6 +30,7 @@
 #include "qemu/timer.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
+#include "qom/cpp/object.h"
 #include "qom/object.h"
 #include "trace.h"
 
@@ -44,10 +45,15 @@ typedef struct PITClass PITClass;
 DECLARE_CLASS_CHECKERS(PITClass, PIT,
                        TYPE_I8254)
 
-struct PITClass {
-    PITCommonClass parent_class;
-
+struct PITClass : PITCommonClass {
     DeviceRealize parent_realize;
+
+    /* Virtual method overrides */
+    void set_channel_gate(PITCommonState *s, PITChannelState *sc,
+                          int val) override;
+    void get_channel_info(PITCommonState *s, PITChannelState *sc,
+                          PITChannelInfo *info) override;
+    void post_load(PITCommonState *s) override;
 
     /* Static callback wrappers */
     static void realizefn(DeviceState *dev, Error **errp);
@@ -60,9 +66,6 @@ struct PITClass {
     static void ioport_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size);
     static uint64_t ioport_read(void *opaque, hwaddr addr, unsigned size);
-    static void post_load(PITCommonState *s);
-    static void set_channel_gate(PITCommonState *s, PITChannelState *sc,
-                                 int val);
 };
 
 static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
@@ -373,16 +376,20 @@ void PITClass::realizefn(DeviceState *dev, Error **errp)
     pc->parent_realize(dev, errp);
 }
 
+void PITClass::get_channel_info(PITCommonState *s, PITChannelState *sc,
+                                PITChannelInfo *info)
+{
+    pit_get_channel_info_common(s, sc, info);
+}
+
 void PITClass::classInit(ObjectClass *klass, const void *data)
 {
     PITClass *pc = PIT_CLASS(klass);
-    PITCommonClass *k = reinterpret_cast<PITCommonClass *>(klass);
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
+    qom_fixup_vtable<PITClass>(klass);
+
     device_class_set_parent_realize(dc, PITClass::realizefn, &pc->parent_realize);
-    k->set_channel_gate = PITClass::set_channel_gate;
-    k->get_channel_info = pit_get_channel_info_common;
-    k->post_load = PITClass::post_load;
     device_class_set_legacy_reset(dc, PITClass::resetfn);
 }
 

@@ -29,7 +29,16 @@
 #include "qemu/timer.h"
 #include "hw/timer/i8254.h"
 #include "hw/timer/i8254_internal.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
+
+/* Default virtual method implementations for PITCommonClass */
+void PITCommonClass::set_channel_gate(PITCommonState *s, PITChannelState *sc,
+                                       int val) {}
+void PITCommonClass::get_channel_info(PITCommonState *s, PITChannelState *sc,
+                                       PITChannelInfo *info) {}
+void PITCommonClass::pre_save(PITCommonState *s) {}
+void PITCommonClass::post_load(PITCommonState *s) {}
 
 /* val must be 0 or 1 */
 extern "C" void pit_set_gate(PITCommonState *pit, int channel, int val)
@@ -207,9 +216,7 @@ static int pit_dispatch_pre_save(void *opaque)
     PITCommonState *s = static_cast<PITCommonState *>(opaque);
     PITCommonClass *c = PIT_COMMON_GET_CLASS(s);
 
-    if (c->pre_save) {
-        c->pre_save(s);
-    }
+    c->pre_save(s);
 
     return 0;
 }
@@ -219,9 +226,7 @@ static int pit_dispatch_post_load(void *opaque, int version_id)
     PITCommonState *s = static_cast<PITCommonState *>(opaque);
     PITCommonClass *c = PIT_COMMON_GET_CLASS(s);
 
-    if (c->post_load) {
-        c->post_load(s);
-    }
+    c->post_load(s);
     return 0;
 }
 
@@ -250,6 +255,8 @@ static const Property pit_common_properties[] = {
 static void pit_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<PITCommonClass>(klass);
 
     dc->realize = pit_common_realize;
     dc->vmsd = &vmstate_pit_common;

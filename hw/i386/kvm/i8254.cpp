@@ -40,6 +40,8 @@ extern "C" {
 #include "qom/object.h"
 }
 
+#include "qom/cpp/object.h"
+
 #define KVM_PIT_REINJECT_BIT 0
 
 #define CALIBRATION_ROUNDS   3
@@ -57,10 +59,14 @@ struct KVMPITState {
     int64_t kernel_clock_offset;
 };
 
-struct KVMPITClass {
-    PITCommonClass parent_class;
-
+struct KVMPITClass : PITCommonClass {
     DeviceRealize parent_realize;
+
+    /* Virtual method overrides */
+    void set_channel_gate(PITCommonState *s, PITChannelState *sc,
+                          int val) override;
+    void get_channel_info(PITCommonState *s, PITChannelState *sc,
+                          PITChannelInfo *info) override;
 };
 
 static void kvm_pit_update_clock_offset(KVMPITState *s)
@@ -164,7 +170,7 @@ static void kvm_pit_put(PITCommonState *pit)
     }
 }
 
-static void kvm_pit_set_gate(PITCommonState *s, PITChannelState *sc, int val)
+void KVMPITClass::set_channel_gate(PITCommonState *s, PITChannelState *sc, int val)
 {
     kvm_pit_get(s);
 
@@ -189,8 +195,8 @@ static void kvm_pit_set_gate(PITCommonState *s, PITChannelState *sc, int val)
     kvm_pit_put(s);
 }
 
-static void kvm_pit_get_channel_info(PITCommonState *s, PITChannelState *sc,
-                                     PITChannelInfo *info)
+void KVMPITClass::get_channel_info(PITCommonState *s, PITChannelState *sc,
+                                    PITChannelInfo *info)
 {
     kvm_pit_get(s);
 
@@ -293,13 +299,12 @@ static const Property kvm_pit_properties[] = {
 static void kvm_pit_class_init(ObjectClass *klass, const void *data)
 {
     KVMPITClass *kpc = KVM_PIT_CLASS(klass);
-    PITCommonClass *k = PIT_COMMON_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<KVMPITClass>(klass);
 
     device_class_set_parent_realize(dc, kvm_pit_realizefn,
                                     &kpc->parent_realize);
-    k->set_channel_gate = kvm_pit_set_gate;
-    k->get_channel_info = kvm_pit_get_channel_info;
     device_class_set_legacy_reset(dc, kvm_pit_reset);
     device_class_set_props(dc, kvm_pit_properties);
 }
