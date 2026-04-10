@@ -152,6 +152,16 @@ struct MOS6522State {
 
     qemu_irq irq;
     uint8_t last_irq_levels;
+
+#ifdef __cplusplus
+    /* Virtual method dispatch wrappers — defined after OBJECT_DECLARE_TYPE */
+    inline void portBWrite();
+    inline void portAWrite();
+    inline uint64_t getTimer1CounterValue(MOS6522Timer *ti);
+    inline uint64_t getTimer2CounterValue(MOS6522Timer *ti);
+    inline uint64_t getTimer1LoadTime(MOS6522Timer *ti);
+    inline uint64_t getTimer2LoadTime(MOS6522Timer *ti);
+#endif
 };
 
 #define TYPE_MOS6522 "mos6522"
@@ -179,6 +189,37 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 void hmp_info_via(Monitor *mon, const QDict *qdict);
 
 #ifdef __cplusplus
+}
+
+/*
+ * Virtual method dispatch wrappers on MOS6522State.
+ *
+ * These inline methods dispatch through the QOM class function pointers,
+ * providing clean call syntax: s->portBWrite() instead of
+ * MOS6522_GET_CLASS(s)->portB_write(s).
+ *
+ * This is a stepping stone toward Option D (replacing the *DeviceClass
+ * function pointers with C++ virtual methods on the class object).
+ * When we do Option D, only the wrapper implementations change —
+ * all call sites stay the same.
+ */
+inline void MOS6522State::portBWrite() {
+    MOS6522_GET_CLASS(this)->portB_write(this);
+}
+inline void MOS6522State::portAWrite() {
+    MOS6522_GET_CLASS(this)->portA_write(this);
+}
+inline uint64_t MOS6522State::getTimer1CounterValue(MOS6522Timer *ti) {
+    return MOS6522_GET_CLASS(this)->get_timer1_counter_value(this, ti);
+}
+inline uint64_t MOS6522State::getTimer2CounterValue(MOS6522Timer *ti) {
+    return MOS6522_GET_CLASS(this)->get_timer2_counter_value(this, ti);
+}
+inline uint64_t MOS6522State::getTimer1LoadTime(MOS6522Timer *ti) {
+    return MOS6522_GET_CLASS(this)->get_timer1_load_time(this, ti);
+}
+inline uint64_t MOS6522State::getTimer2LoadTime(MOS6522Timer *ti) {
+    return MOS6522_GET_CLASS(this)->get_timer2_load_time(this, ti);
 }
 #endif
 

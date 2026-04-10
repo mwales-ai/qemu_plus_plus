@@ -129,23 +129,19 @@ static void mos6522_set_irq(void *opaque, int n, int level)
 
 static uint64_t get_counter_value(MOS6522State *s, MOS6522Timer *ti)
 {
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-
     if (ti->index == 0) {
-        return mdc->get_timer1_counter_value(s, ti);
+        return s->getTimer1CounterValue(ti);
     } else {
-        return mdc->get_timer2_counter_value(s, ti);
+        return s->getTimer2CounterValue(ti);
     }
 }
 
 static uint64_t get_load_time(MOS6522State *s, MOS6522Timer *ti)
 {
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-
     if (ti->index == 0) {
-        return mdc->get_timer1_load_time(s, ti);
+        return s->getTimer1LoadTime(ti);
     } else {
-        return mdc->get_timer2_load_time(s, ti);
+        return s->getTimer2LoadTime(ti);
     }
 }
 
@@ -394,7 +390,6 @@ uint64_t mos6522_read(void *opaque, hwaddr addr, unsigned size)
 void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
     MOS6522State *s = static_cast<MOS6522State *>(opaque);
-    MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
     int ctrl;
 
     trace_mos6522_write(addr, mos6522_reg_names[addr], val);
@@ -402,7 +397,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     switch (addr) {
     case VIA_REG_B:
         s->b = (s->b & ~s->dirb) | (val & s->dirb);
-        mdc->portB_write(s);
+        s->portBWrite();
         ctrl = (s->pcr & CB2_CTRL_MASK) >> CB2_CTRL_SHIFT;
         if (!(ctrl & C2_IND)) {
             s->ifr &= ~CB2_INT;
@@ -415,7 +410,7 @@ void mos6522_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
        /* fall through */
     case VIA_REG_ANH:
         s->a = (s->a & ~s->dira) | (val & s->dira);
-        mdc->portA_write(s);
+        s->portAWrite();
         ctrl = (s->pcr & CA2_CTRL_MASK) >> CA2_CTRL_SHIFT;
         if (!(ctrl & C2_IND)) {
             s->ifr &= ~CA2_INT;
