@@ -263,8 +263,12 @@ OBJECT_DECLARE_TYPE(USBDevice, USBDeviceClass, USB_DEVICE)
 typedef void (*USBDeviceRealize)(USBDevice *dev, Error **errp);
 typedef void (*USBDeviceUnrealize)(USBDevice *dev);
 
+#ifdef __cplusplus
+struct USBDeviceClass : DeviceClass {
+#else
 struct USBDeviceClass {
     DeviceClass parent_class;
+#endif
 
     USBDeviceRealize realize;
     USBDeviceUnrealize unrealize;

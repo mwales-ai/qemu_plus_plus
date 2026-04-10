@@ -195,9 +195,13 @@ struct VirtIODevice
 #endif
 };
 
+#ifdef __cplusplus
+struct VirtioDeviceClass : DeviceClass {
+#else
 struct VirtioDeviceClass {
     /*< private >*/
     DeviceClass parent;
+#endif
     /*< public >*/
 
     /* This is what a VirtioDevice must implement */

@@ -62,8 +62,12 @@ struct SCSIRequest {
 #define TYPE_SCSI_DEVICE "scsi-device"
 OBJECT_DECLARE_TYPE(SCSIDevice, SCSIDeviceClass, SCSI_DEVICE)
 
+#ifdef __cplusplus
+struct SCSIDeviceClass : DeviceClass {
+#else
 struct SCSIDeviceClass {
     DeviceClass parent_class;
+#endif
     void (*realize)(SCSIDevice *dev, Error **errp);
     void (*unrealize)(SCSIDevice *dev);
     int (*parse_cdb)(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
