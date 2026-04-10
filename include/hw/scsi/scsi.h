@@ -99,6 +99,17 @@ struct SCSIDevice
     uint32_t io_timeout;
     bool needs_vpd_bl_emulation;
     bool hba_supports_iothread;
+
+#ifdef __cplusplus
+    /* Virtual method dispatch wrappers -- defined after OBJECT_DECLARE_TYPE */
+    inline void callRealize(Error **errp);
+    inline void callUnrealize();
+    inline int parseCdb(SCSICommand *cmd, uint8_t *buf,
+                        size_t buf_len, void *hba_private);
+    inline SCSIRequest *allocReq(uint32_t tag, uint32_t lun,
+                                 uint8_t *buf, void *hba_private);
+    inline void unitAttentionReported();
+#endif
 };
 
 extern const VMStateDescription vmstate_scsi_device;
@@ -253,6 +264,53 @@ extern const SCSIReqOps scsi_generic_req_ops;
 #define SCSI_DISK_QUIRK_MODE_PAGE_TRUNCATED                3
 
 #ifdef __cplusplus
+}
+
+/*
+ * Virtual method dispatch wrappers on SCSIDevice.
+ *
+ * These inline methods dispatch through the QOM class function pointers,
+ * providing clean call syntax: dev->callRealize(errp) instead of
+ * SCSI_DEVICE_GET_CLASS(dev)->realize(dev, errp).
+ *
+ * This is a stepping stone toward replacing the SCSIDeviceClass
+ * function pointers with C++ virtual methods on the device object.
+ * When we do that, only the wrapper implementations change --
+ * all call sites stay the same.
+ */
+inline void SCSIDevice::callRealize(Error **errp) {
+    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
+    if (sc->realize) {
+        sc->realize(this, errp);
+    }
+}
+inline void SCSIDevice::callUnrealize() {
+    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
+    if (sc->unrealize) {
+        sc->unrealize(this);
+    }
+}
+inline int SCSIDevice::parseCdb(SCSICommand *cmd, uint8_t *buf,
+                                size_t buf_len, void *hba_private) {
+    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
+    if (sc->parse_cdb) {
+        return sc->parse_cdb(this, cmd, buf, buf_len, hba_private);
+    }
+    return -1;
+}
+inline SCSIRequest *SCSIDevice::allocReq(uint32_t tag, uint32_t lun,
+                                         uint8_t *buf, void *hba_private) {
+    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
+    if (sc->alloc_req) {
+        return sc->alloc_req(this, tag, lun, buf, hba_private);
+    }
+    return NULL;
+}
+inline void SCSIDevice::unitAttentionReported() {
+    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
+    if (sc->unit_attention_reported) {
+        sc->unit_attention_reported(this);
+    }
 }
 #endif
 

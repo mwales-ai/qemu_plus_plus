@@ -217,18 +217,12 @@ static void scsi_device_for_each_req_async(SCSIDevice *s,
 
 static void scsi_device_realize(SCSIDevice *s, Error **errp)
 {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
-    if (sc->realize) {
-        sc->realize(s, errp);
-    }
+    s->callRealize(errp);
 }
 
 static void scsi_device_unrealize(SCSIDevice *s)
 {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
-    if (sc->unrealize) {
-        sc->unrealize(s);
-    }
+    s->callUnrealize();
 }
 
 int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
@@ -248,20 +242,12 @@ int scsi_bus_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
 static SCSIRequest *scsi_device_alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
                                           uint8_t *buf, void *hba_private)
 {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
-    if (sc->alloc_req) {
-        return sc->alloc_req(s, tag, lun, buf, hba_private);
-    }
-
-    return NULL;
+    return s->allocReq(tag, lun, buf, hba_private);
 }
 
 void scsi_device_unit_attention_reported(SCSIDevice *s)
 {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
-    if (sc->unit_attention_reported) {
-        sc->unit_attention_reported(s);
-    }
+    s->unitAttentionReported();
 }
 
 /* Create a scsi bus, and attach devices to it.  */
@@ -892,7 +878,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
     if (ops != NULL || !sc->parse_cdb) {
         ret = scsi_req_parse_cdb(d, &cmd, buf, buf_len);
     } else {
-        ret = sc->parse_cdb(d, &cmd, buf, buf_len, hba_private);
+        ret = d->parseCdb(&cmd, buf, buf_len, hba_private);
     }
 
     if (ret != 0) {

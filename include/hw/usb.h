@@ -243,6 +243,18 @@ struct USBDevice {
     int altsetting[USB_MAX_INTERFACES];
     const USBDescConfig *config;
     const USBDescIface  *ifaces[USB_MAX_INTERFACES];
+
+#ifdef __cplusplus
+    /* Virtual method dispatch wrappers -- defined after OBJECT_DECLARE_TYPE */
+    inline void handleReset();
+    inline void handleControl(USBPacket *p, int request, int value,
+                              int index, int length, uint8_t *data);
+    inline void handleData(USBPacket *p);
+    inline void cancelPacket(USBPacket *p);
+    inline void setInterface(int interface, int alt_old, int alt_new);
+    inline void flushEpQueue(USBEndpoint *ep);
+    inline void epStopped(USBEndpoint *ep);
+#endif
 };
 
 #define TYPE_USB_DEVICE "usb-device"
@@ -571,6 +583,62 @@ static inline USBDevice *usb_create_simple(USBBus *bus, const char *name)
 }
 
 #ifdef __cplusplus
+}
+
+/*
+ * Virtual method dispatch wrappers on USBDevice.
+ *
+ * These inline methods dispatch through the QOM class function pointers,
+ * providing clean call syntax: dev->handleReset() instead of
+ * USB_DEVICE_GET_CLASS(dev)->handle_reset(dev).
+ *
+ * This is a stepping stone toward replacing the USBDeviceClass
+ * function pointers with C++ virtual methods on the device object.
+ * When we do that, only the wrapper implementations change --
+ * all call sites stay the same.
+ */
+inline void USBDevice::handleReset() {
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
+    if (klass->handle_reset) {
+        klass->handle_reset(this);
+    }
+}
+inline void USBDevice::handleControl(USBPacket *p, int request, int value,
+                                     int index, int length, uint8_t *data) {
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
+    if (klass->handle_control) {
+        klass->handle_control(this, p, request, value, index, length, data);
+    }
+}
+inline void USBDevice::handleData(USBPacket *p) {
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
+    if (klass->handle_data) {
+        klass->handle_data(this, p);
+    }
+}
+inline void USBDevice::cancelPacket(USBPacket *p) {
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
+    if (klass->cancel_packet) {
+        klass->cancel_packet(this, p);
+    }
+}
+inline void USBDevice::setInterface(int interface, int alt_old, int alt_new) {
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
+    if (klass->set_interface) {
+        klass->set_interface(this, interface, alt_old, alt_new);
+    }
+}
+inline void USBDevice::flushEpQueue(USBEndpoint *ep) {
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
+    if (klass->flush_ep_queue) {
+        klass->flush_ep_queue(this, ep);
+    }
+}
+inline void USBDevice::epStopped(USBEndpoint *ep) {
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
+    if (klass->ep_stopped) {
+        klass->ep_stopped(this, ep);
+    }
 }
 #endif
 
