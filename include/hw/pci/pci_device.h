@@ -27,9 +27,14 @@ DECLARE_OBJ_CHECKERS(PCIDevice, PCIDeviceClass,
 /* Implemented by devices that can be plugged on Conventional PCI buses */
 #define INTERFACE_CONVENTIONAL_PCI_DEVICE "conventional-pci-device"
 
+/* Option D: C++ inheritance replaces parent_class embedding.
+ * Layout is identical — no virtual methods yet, so no vtable pointer. */
+#ifdef __cplusplus
+struct PCIDeviceClass : DeviceClass {
+#else
 struct PCIDeviceClass {
     DeviceClass parent_class;
-
+#endif
     void (*realize)(PCIDevice *dev, Error **errp);
     PCIUnregisterFunc *exit;
     PCIConfigReadFunc *config_read;
