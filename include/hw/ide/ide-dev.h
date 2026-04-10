@@ -146,10 +146,19 @@ struct IDEState {
     int ncq_queues;
 };
 
+/*
+ * IDEDeviceClass — QOM class struct using C++ virtual methods (Option D).
+ */
+#ifdef __cplusplus
+struct IDEDeviceClass : DeviceClass {
+    virtual void realize(IDEDevice *dev, Error **errp);
+};
+#else
 struct IDEDeviceClass {
     DeviceClass parent_class;
     void (*realize)(IDEDevice *dev, Error **errp);
 };
+#endif
 
 struct IDEDevice {
     DeviceState qdev;

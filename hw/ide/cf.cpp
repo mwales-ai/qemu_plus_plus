@@ -17,9 +17,14 @@
 
 #include "qemu/osdep.h"
 #include "hw/ide/ide-dev.h"
+#include "qom/cpp/object.h"
 #include "qapi/qapi-types-block.h"
 
-static void ide_cf_realize(IDEDevice *dev, Error **errp)
+struct IDECfClass : IDEDeviceClass {
+    void realize(IDEDevice *dev, Error **errp) override;
+};
+
+void IDECfClass::realize(IDEDevice *dev, Error **errp)
 {
     ide_dev_initfn(dev, IDE_CFATA, errp);
 }
@@ -34,9 +39,9 @@ static const Property ide_cf_properties[] = {
 static void ide_cf_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
 
-    k->realize  = ide_cf_realize;
+    qom_fixup_vtable<IDECfClass>(klass);
+
     dc->fw_name = "drive";
     dc->desc    = "virtual CompactFlash card";
     device_class_set_props(dc, ide_cf_properties);
@@ -46,6 +51,7 @@ static const TypeInfo ide_cf_info = {
     .name          = "ide-cf",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
+    .class_size    = sizeof(IDECfClass),
     .class_init    = ide_cf_class_init,
 };
 

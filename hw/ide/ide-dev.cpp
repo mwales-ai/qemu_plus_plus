@@ -23,6 +23,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/ide/ide-dev.h"
+#include "qom/cpp/object.h"
 #include "system/block-backend.h"
 #include "system/blockdev.h"
 #include "system/system.h"
@@ -181,12 +182,24 @@ static void ide_dev_instance_init(Object *obj)
     object_property_set_int(obj, "bootindex", -1, NULL);
 }
 
-static void ide_hd_realize(IDEDevice *dev, Error **errp)
+/* Default virtual method: do nothing */
+void IDEDeviceClass::realize(IDEDevice *dev, Error **errp) {}
+
+/* Subclass structs with virtual method overrides */
+struct IDEHdClass : IDEDeviceClass {
+    void realize(IDEDevice *dev, Error **errp) override;
+};
+
+struct IDECdClass : IDEDeviceClass {
+    void realize(IDEDevice *dev, Error **errp) override;
+};
+
+void IDEHdClass::realize(IDEDevice *dev, Error **errp)
 {
     ide_dev_initfn(dev, IDE_HD, errp);
 }
 
-static void ide_cd_realize(IDEDevice *dev, Error **errp)
+void IDECdClass::realize(IDEDevice *dev, Error **errp)
 {
     ide_dev_initfn(dev, IDE_CD, errp);
 }
@@ -202,9 +215,9 @@ static const Property ide_hd_properties[] = {
 static void ide_hd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
 
-    k->realize  = ide_hd_realize;
+    qom_fixup_vtable<IDEHdClass>(klass);
+
     dc->fw_name = "drive";
     dc->desc    = "virtual IDE disk";
     device_class_set_props(dc, ide_hd_properties);
@@ -214,6 +227,7 @@ static const TypeInfo ide_hd_info = {
     .name          = "ide-hd",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
+    .class_size    = sizeof(IDEHdClass),
     .class_init    = ide_hd_class_init,
 };
 
@@ -224,9 +238,9 @@ static const Property ide_cd_properties[] = {
 static void ide_cd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
 
-    k->realize  = ide_cd_realize;
+    qom_fixup_vtable<IDECdClass>(klass);
+
     dc->fw_name = "drive";
     dc->desc    = "virtual IDE CD-ROM";
     device_class_set_props(dc, ide_cd_properties);
@@ -236,12 +250,16 @@ static const TypeInfo ide_cd_info = {
     .name          = "ide-cd",
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
+    .class_size    = sizeof(IDECdClass),
     .class_init    = ide_cd_class_init,
 };
 
 static void ide_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<IDEDeviceClass>(klass);
+
     k->realize = ide_qdev_realize;
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
     k->bus_type = TYPE_IDE_BUS;
