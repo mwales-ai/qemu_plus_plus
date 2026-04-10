@@ -412,3 +412,53 @@ If we convert the top device class hierarchies:
 
 Total: ~7,600 manual function pointer assignments that become compiler-verified
 virtual method overrides.
+
+## Update: Layout Testing Results
+
+### Key Finding: C++ Inheritance Works for Class Objects
+
+Testing confirmed:
+- Adding `virtual` to a struct with embedded `parent_class` breaks offset 0: **FAILS**
+- Using C++ inheritance (`struct ChildClass : ParentClass`) preserves addresses: **WORKS**
+
+```
+// Embedding (QOM current pattern) + virtual = BROKEN
+struct ChildClass {
+    ParentClass parent_class;  // offset 8, NOT 0!
+    virtual void method();     // vtable at offset 0
+};
+
+// C++ inheritance + virtual = WORKS
+struct ChildClass : ParentClass {
+    virtual void method();     // vtable shared with parent
+};
+// (ParentClass *)child_ptr == child_ptr  ← correct!
+// dynamic_cast works
+```
+
+### Revised Option D Strategy
+
+**For class objects:** Use C++ inheritance. Replace `parent_class` embedding
+with `: public ParentClass`. This allows virtual methods with correct layout.
+
+**For instance objects:** Keep `parent_obj` embedding (offset 0 required by
+QOM's allocation and casting). No virtual methods on instances.
+
+This means the migration path is:
+1. Convert `MOS6522DeviceClass` from struct-with-embedding to C++ class hierarchy
+2. Replace function pointer assignments in `class_init` with virtual method overrides
+3. Keep `MOS6522State` using `parent_obj` embedding (no change to instances)
+4. Update `type_initialize()` to construct class objects via C++ `new` instead of memcpy
+
+### Instance vs Class Layout (After Option D)
+
+```
+Instance (MOS6522State) — NO CHANGE:
+  +0x0000: SysBusDevice parent_obj     ← embedding preserved
+  +...:    device-specific fields
+
+Class (MOS6522DeviceClass) — CHANGED to C++ inheritance:
+  +0x0000: vptr (C++ vtable)           ← NEW
+  +0x0008: SysBusDeviceClass fields    ← via C++ inheritance
+  +...:    (no more function pointer fields — they're in the vtable)
+```
