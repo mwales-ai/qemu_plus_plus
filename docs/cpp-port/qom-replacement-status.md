@@ -5,7 +5,7 @@
 QEMU++ is replacing QEMU's C-based Object Model (QOM) with native C++ classes,
 virtual methods, and compile-time type checking. This document tracks progress.
 
-**Branch:** `qom-replacement` (87 commits)
+**Branch:** `qom-replacement` (100+ commits)
 **Build:** All 5 target ISAs building clean
 **Tests:** 14/15 smoke tests passing
 
@@ -190,9 +190,62 @@ headers. This fixed 3 ARM/aarch64 boot failures.
 | **riscv64 (virt)** | PLIC, ACLINT, APLIC, GPEX PCIe, VirtIO block/net/GPU/SCSI |
 | **ppc64 (pseries)** | spapr machine, VirtIO block/net/SCSI |
 
+### Phase 5: Option D — C++ Virtual Methods on Class Structs
+
+| Metric | Value |
+|--------|-------|
+| Class hierarchies fully converted | 3 |
+| Class structs with C++ inheritance | 8 |
+| Virtual methods replacing function pointers | 14 |
+
+**Option D** is the key architectural change: replacing QOM's function pointer
+dispatch with actual C++ virtual methods on the class structs. This is done in
+stages:
+
+1. **Step 1:** Convert class struct from `parent_class` embedding to C++
+   inheritance (`: ParentClass`), keeping function pointers
+2. **Step 2:** Replace function pointers with `virtual` methods, convert
+   subclass assignments to `override` methods with `qom_fixup_vtable<T>()`
+
+The `qom_fixup_vtable<T>()` template (in `include/qom/cpp/object.h`) restores
+the C++ vtable pointer after QOM's `type_initialize()` memcpy overwrites it.
+
+**Fully converted to virtual methods (Option D Step 2):**
+
+| Class Hierarchy | Virtual Methods | Subclasses | Files |
+|----------------|----------------|------------|-------|
+| MOS6522DeviceClass | 6 | 4 (CUDA, VIA1, VIA2, PMU) | 5 files |
+| VirtIOSerialPortClass | 7 | 2 (virtserialport, virtconsole) | 3 files |
+| IDEDeviceClass | 1 | 3 (ide-hd, ide-cd, ide-cf) | 3 files |
+
+**Step 1 only (C++ inheritance, function pointers remain):**
+
+| Class Hierarchy | Function Pointers | Subclass Files |
+|----------------|-------------------|----------------|
+| PCIDeviceClass | 4 | 100+ |
+| VirtioDeviceClass | 23 | 7+ |
+| USBDeviceClass | 11 | 15+ |
+| SCSIDeviceClass | 5 | 4 (in progress) |
+
+**How virtual method dispatch works:**
+
+```cpp
+/* Before (QOM function pointer): */
+MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+mdc->portB_write(s);  /* runtime lookup + indirect call */
+
+/* After (C++ virtual method): */
+MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
+mdc->portB_write(s);  /* C++ virtual dispatch — same syntax, compiler-managed */
+```
+
+The call sites don't change — only the dispatch mechanism moves from manually-
+assigned function pointers to compiler-managed vtables.
+
 ## What's Next
 
-1. Complete QOM cast replacement in remaining files
-2. Replace QOM virtual method function pointers with C++ virtual methods
-3. Modernize the property system with typed C++ declarations
-4. Eventually remove the QOM runtime type registry entirely
+1. Continue Option D conversion for SCSIDeviceClass (5 function pointers, 4 subclasses)
+2. Convert USBDeviceClass (11 function pointers, 15+ subclass files)
+3. Convert VirtioDeviceClass (23 function pointers — highest impact)
+4. Eventually tackle PCIDeviceClass (100+ subclass files — mass conversion)
+5. Remove QOM runtime type registry once all hierarchies use C++ dispatch
