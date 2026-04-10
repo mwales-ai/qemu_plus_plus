@@ -167,9 +167,25 @@ struct MOS6522State {
 #define TYPE_MOS6522 "mos6522"
 OBJECT_DECLARE_TYPE(MOS6522State, MOS6522DeviceClass, MOS6522)
 
-struct MOS6522DeviceClass {
-    SysBusDeviceClass parent_class;
-
+/*
+ * MOS6522DeviceClass — first QOM class struct to use C++ inheritance.
+ *
+ * Changed from:  struct MOS6522DeviceClass { SysBusDeviceClass parent_class; ... };
+ * To:            struct MOS6522DeviceClass : SysBusDeviceClass { ... };
+ *
+ * This has IDENTICAL memory layout (verified by testing) — no vtable pointer
+ * because there are no virtual methods yet. The parent_class field is now
+ * accessed via C++ inheritance instead of explicit embedding.
+ *
+ * QOM's type_initialize() memcpy of parent class still works because the
+ * layout is byte-for-byte identical. class_init still assigns function
+ * pointers the same way.
+ *
+ * This is Step 1 of Option D. Next steps:
+ *   Step 2: Add 'virtual' to function pointers one at a time
+ *   Step 3: Replace function pointer assignments with virtual method overrides
+ */
+struct MOS6522DeviceClass : SysBusDeviceClass {
     ResettablePhases parent_phases;
     void (*portB_write)(MOS6522State *dev);
     void (*portA_write)(MOS6522State *dev);
