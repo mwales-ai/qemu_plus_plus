@@ -30,6 +30,7 @@
 #include "hw/qdev-properties.h"
 #include "trace.h"
 #include "hw/virtio/virtio-serial.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-access.h"
 
 static struct VirtIOSerialDevices {
@@ -436,17 +437,13 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
          * initialised. If some app is interested in knowing about
          * this event, let it know.
          */
-        if (vsc->guest_ready) {
-            vsc->guest_ready(port);
-        }
+        vsc->guest_ready(port);
         break;
 
     case VIRTIO_CONSOLE_PORT_OPEN:
         port->guest_connected = cpkt.value;
-        if (vsc->set_guest_connected) {
-            /* Send the guest opened notification if an app is interested */
-            vsc->set_guest_connected(port, cpkt.value);
-        }
+        /* Send the guest opened notification if an app is interested */
+        vsc->set_guest_connected(port, cpkt.value);
         break;
     }
 }
@@ -545,7 +542,7 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
      * early-boot queueing up of descriptors, which is just noise for
      * the host apps -- don't disturb them in that case.
      */
-    if (port->guest_connected && port->host_connected && vsc->guest_writable) {
+    if (port->guest_connected && port->host_connected) {
         vsc->guest_writable(port);
     }
 }
@@ -615,9 +612,7 @@ static void guest_reset(VirtIOSerial *vser)
 
         if (port->guest_connected) {
             port->guest_connected = false;
-            if (vsc->set_guest_connected) {
-                vsc->set_guest_connected(port, false);
-            }
+            vsc->set_guest_connected(port, false);
         }
     }
 }
@@ -646,9 +641,7 @@ static int set_status(VirtIODevice *vdev, uint8_t status)
 
     QTAILQ_FOREACH(port, &vser->ports, next) {
         VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
-        if (vsc->enable_backend) {
-            vsc->enable_backend(port, vdev->vm_running);
-        }
+        vsc->enable_backend(port, vdev->vm_running);
     }
     return 0;
 }
@@ -736,9 +729,7 @@ static void virtio_serial_post_load_timer_cb(void *opaque)
                                port->host_connected);
         }
         vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
-        if (vsc->set_guest_connected) {
-            vsc->set_guest_connected(port, port->guest_connected);
-        }
+        vsc->set_guest_connected(port, port->guest_connected);
     }
     g_free(s->post_load->connected);
     timer_free(s->post_load->timer);
@@ -938,8 +929,6 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
 
     port->vser = bus->vser;
 
-    assert(vsc->have_data);
-
     /*
      * Is the first console port we're seeing? If so, put it up at
      * location 0. This is done for backward compatibility (old
@@ -1015,9 +1004,7 @@ static void virtser_port_device_unrealize(DeviceState *dev)
 
     QTAILQ_REMOVE(&vser->ports, port, next);
 
-    if (vsc->unrealize) {
-        vsc->unrealize(dev);
-    }
+    vsc->unrealize(dev);
 }
 
 static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
@@ -1093,9 +1080,26 @@ static void virtio_serial_device_realize(DeviceState *dev, Error **errp)
     QLIST_INSERT_HEAD(&vserdevices.devices, vser, next);
 }
 
+/* Default virtual method implementations for VirtIOSerialPortClass */
+void VirtIOSerialPortClass::realize(DeviceState *dev, Error **errp) {}
+void VirtIOSerialPortClass::unrealize(DeviceState *dev) {}
+void VirtIOSerialPortClass::set_guest_connected(VirtIOSerialPort *port,
+                                                 int guest_connected) {}
+void VirtIOSerialPortClass::enable_backend(VirtIOSerialPort *port,
+                                            bool enable) {}
+void VirtIOSerialPortClass::guest_ready(VirtIOSerialPort *port) {}
+void VirtIOSerialPortClass::guest_writable(VirtIOSerialPort *port) {}
+ssize_t VirtIOSerialPortClass::have_data(VirtIOSerialPort *port,
+                                          const uint8_t *buf, ssize_t len)
+{
+    return 0;
+}
+
 static void virtio_serial_port_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VirtIOSerialPortClass>(klass);
 
     set_bit(DEVICE_CATEGORY_INPUT, k->categories);
     k->bus_type = TYPE_VIRTIO_SERIAL_BUS;

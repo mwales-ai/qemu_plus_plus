@@ -40,51 +40,54 @@ OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSerial, VIRTIO_SERIAL)
 OBJECT_DECLARE_SIMPLE_TYPE(VirtIOSerialBus, VIRTIO_SERIAL_BUS)
 
 
+/*
+ * VirtIOSerialPortClass — QOM class struct using C++ virtual methods (Option D).
+ *
+ * Function pointers have been replaced with C++ virtual methods. Subclasses
+ * override these using standard C++ 'override' keyword. The vtable is
+ * restored in class_init() via qom_fixup_vtable<T>() after QOM's memcpy.
+ */
+#ifdef __cplusplus
+struct VirtIOSerialPortClass : DeviceClass {
+#else
 struct VirtIOSerialPortClass {
     DeviceClass parent_class;
+#endif
 
     /* Is this a device that binds with hvc in the guest? */
     bool is_console;
 
-    /*
-     * The per-port (or per-app) realize function that's called when a
-     * new device is found on the bus.
-     */
-    DeviceRealize realize;
-    /*
-     * Per-port unrealize function that's called when a port gets
-     * hot-unplugged or removed.
-     */
-    DeviceUnrealize unrealize;
+#ifdef __cplusplus
+    /* Per-port realize/unrealize callbacks */
+    virtual void realize(DeviceState *dev, Error **errp);
+    virtual void unrealize(DeviceState *dev);
 
-    /* Callbacks for guest events */
-        /* Guest opened/closed device. */
-    void (*set_guest_connected)(VirtIOSerialPort *port, int guest_connected);
-
+    /* Guest opened/closed device */
+    virtual void set_guest_connected(VirtIOSerialPort *port,
+                                     int guest_connected);
     /* Enable/disable backend for virtio serial port */
-    void (*enable_backend)(VirtIOSerialPort *port, bool enable);
-
-        /* Guest is now ready to accept data (virtqueues set up). */
-    void (*guest_ready)(VirtIOSerialPort *port);
-
-        /*
-         * Guest has enqueued a buffer for the host to write into.
-         * Called each time a buffer is enqueued by the guest;
-         * irrespective of whether there already were free buffers the
-         * host could have consumed.
-         *
-         * This is dependent on both the guest and host end being
-         * connected.
-         */
-    void (*guest_writable)(VirtIOSerialPort *port);
-
+    virtual void enable_backend(VirtIOSerialPort *port, bool enable);
+    /* Guest is now ready to accept data (virtqueues set up) */
+    virtual void guest_ready(VirtIOSerialPort *port);
+    /* Guest has enqueued a buffer for the host to write into */
+    virtual void guest_writable(VirtIOSerialPort *port);
     /*
      * Guest wrote some data to the port. This data is handed over to
      * the app via this callback.  The app can return a size less than
      * 'len'.  In this case, throttling will be enabled for this port.
      */
+    virtual ssize_t have_data(VirtIOSerialPort *port, const uint8_t *buf,
+                              ssize_t len);
+#else
+    DeviceRealize realize;
+    DeviceUnrealize unrealize;
+    void (*set_guest_connected)(VirtIOSerialPort *port, int guest_connected);
+    void (*enable_backend)(VirtIOSerialPort *port, bool enable);
+    void (*guest_ready)(VirtIOSerialPort *port);
+    void (*guest_writable)(VirtIOSerialPort *port);
     ssize_t (*have_data)(VirtIOSerialPort *port, const uint8_t *buf,
                          ssize_t len);
+#endif
 };
 
 /*

@@ -16,6 +16,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/virtio/virtio-serial.h"
+#include "qom/cpp/object.h"
 #include "qom/object.h"
 
 extern "C" {
@@ -39,6 +40,20 @@ struct VirtConsole {
 };
 
 /*
+ * VirtConsolePortClass — virtserialport-specific overrides for VirtIOSerialPort.
+ */
+struct VirtConsolePortClass : VirtIOSerialPortClass {
+    void realize(DeviceState *dev, Error **errp) override;
+    void unrealize(DeviceState *dev) override;
+    ssize_t have_data(VirtIOSerialPort *port, const uint8_t *buf,
+                      ssize_t len) override;
+    void set_guest_connected(VirtIOSerialPort *port,
+                             int guest_connected) override;
+    void enable_backend(VirtIOSerialPort *port, bool enable) override;
+    void guest_writable(VirtIOSerialPort *port) override;
+};
+
+/*
  * Callback function that's called from chardevs when backend becomes
  * writable.
  */
@@ -53,8 +68,8 @@ static gboolean chr_write_unblocked(void *do_not_use, GIOCondition cond,
 }
 
 /* Callback function that's called when the guest sends us data */
-static ssize_t flush_buf(VirtIOSerialPort *port,
-                         const uint8_t *buf, ssize_t len)
+ssize_t VirtConsolePortClass::have_data(VirtIOSerialPort *port,
+                                        const uint8_t *buf, ssize_t len)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
     ssize_t ret;
@@ -68,8 +83,6 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
     trace_virtio_console_flush_buf(port->id, len, ret);
 
     if (ret < len) {
-        VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
-
         /*
          * Ideally we'd get a better error code than just -1, but
          * that's what the chardev interface gives us right now.  If
@@ -99,7 +112,7 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
          * if the guest had the fixed driver too, before we can
          * use throttling on host side.
          */
-        if (!k->is_console) {
+        if (!this->is_console) {
             virtio_serial_throttle_port(port, true);
             if (!vcon->watch) {
                 vcon->watch = qemu_chr_fe_add_watch(&vcon->chr,
@@ -112,13 +125,13 @@ static ssize_t flush_buf(VirtIOSerialPort *port,
 }
 
 /* Callback function that's called when the guest opens/closes the port */
-static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
+void VirtConsolePortClass::set_guest_connected(VirtIOSerialPort *port,
+                                               int guest_connected)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
     DeviceState *dev = DEVICE(port);
-    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
-    if (!k->is_console) {
+    if (!this->is_console) {
         qemu_chr_fe_set_open(&vcon->chr, guest_connected);
     }
 
@@ -127,7 +140,7 @@ static void set_guest_connected(VirtIOSerialPort *port, int guest_connected)
     }
 }
 
-static void guest_writable(VirtIOSerialPort *port)
+void VirtConsolePortClass::guest_writable(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
 
@@ -201,7 +214,7 @@ static int chr_be_change(void *opaque)
     return 0;
 }
 
-static void virtconsole_enable_backend(VirtIOSerialPort *port, bool enable)
+void VirtConsolePortClass::enable_backend(VirtIOSerialPort *port, bool enable)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(port);
 
@@ -210,10 +223,8 @@ static void virtconsole_enable_backend(VirtIOSerialPort *port, bool enable)
     }
 
     if (enable) {
-        VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
-
         qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
-                                 k->is_console ? NULL : chr_event,
+                                 this->is_console ? NULL : chr_event,
                                  chr_be_change, vcon, NULL, false);
     } else {
         qemu_chr_fe_set_handlers(&vcon->chr, NULL, NULL, NULL,
@@ -221,13 +232,12 @@ static void virtconsole_enable_backend(VirtIOSerialPort *port, bool enable)
     }
 }
 
-static void virtconsole_realize(DeviceState *dev, Error **errp)
+void VirtConsolePortClass::realize(DeviceState *dev, Error **errp)
 {
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
     VirtConsole *vcon = VIRTIO_CONSOLE(dev);
-    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(dev);
 
-    if (port->id == 0 && !k->is_console) {
+    if (port->id == 0 && !this->is_console) {
         error_setg(errp, "Port number 0 on virtio-serial devices reserved "
                    "for virtconsole devices for backward compatibility.");
         return;
@@ -243,7 +253,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
          * so we use the opened/closed signals from chardev to
          * trigger open/close of the device
          */
-        if (k->is_console) {
+        if (this->is_console) {
             qemu_chr_fe_set_handlers(&vcon->chr, chr_can_read, chr_read,
                                      NULL, chr_be_change,
                                      vcon, NULL, true);
@@ -256,7 +266,7 @@ static void virtconsole_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void virtconsole_unrealize(DeviceState *dev)
+void VirtConsolePortClass::unrealize(DeviceState *dev)
 {
     VirtConsole *vcon = VIRTIO_CONSOLE(dev);
 
@@ -285,14 +295,9 @@ static const Property virtserialport_properties[] = {
 static void virtserialport_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
-    k->realize = virtconsole_realize;
-    k->unrealize = virtconsole_unrealize;
-    k->have_data = flush_buf;
-    k->set_guest_connected = set_guest_connected;
-    k->enable_backend = virtconsole_enable_backend;
-    k->guest_writable = guest_writable;
+    qom_fixup_vtable<VirtConsolePortClass>(klass);
+
     device_class_set_props(dc, virtserialport_properties);
 }
 
@@ -300,6 +305,7 @@ static const TypeInfo virtserialport_info = {
     .name          = TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
     .parent        = TYPE_VIRTIO_SERIAL_PORT,
     .instance_size = sizeof(VirtConsole),
+    .class_size    = sizeof(VirtConsolePortClass),
     .class_init    = virtserialport_class_init,
 };
 
