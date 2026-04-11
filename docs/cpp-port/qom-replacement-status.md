@@ -152,10 +152,10 @@ files now):
 
 | Metric | Value |
 |--------|-------|
-| Class hierarchies fully converted | **10** |
-| Class structs with C++ inheritance | **16** |
-| Virtual methods replacing function pointers | **80** |
-| Subclass files converted | **~90** |
+| Class hierarchies fully converted | **13** |
+| Class structs with C++ inheritance | **20+** |
+| Virtual methods replacing function pointers | **88** |
+| Subclass files converted | **~145** |
 
 **Option D** is the key architectural change: replacing QOM's function pointer
 dispatch with actual C++ virtual methods on the class structs. This is done in
@@ -179,8 +179,11 @@ the C++ vtable pointer after QOM's `type_initialize()` memcpy overwrites it.
 | VirtIOSerialPortClass | 7 | 2 (virtserialport, virtconsole) | 3 files |
 | MOS6522DeviceClass | 6 | 4 (CUDA, VIA2, PMU) | 6 files |
 | SCSIDeviceClass | 5 | 4 (hd, cd, block, generic) | 4 files |
+| SSIPeripheralClass | 4 | 3 (ssi-sd, ssd0323, m25p80) | 5 files |
 | PITCommonClass | 4 | 2 (i8254, kvm-i8254) | 4 files |
 | HDACodecDeviceClass | 4 | 4 (output, duplex, micro) | 3 files |
+| PCIDeviceClass | 2 | 12 direct + 29 VirtioPCI (hybrid) | 49 files |
+| ADBDeviceClass | 2 | 2 (keyboard, mouse) | 4 files |
 | AwRtcClass | 2 | 3 (sun4i, sun6i, sun7i) | 2 files |
 | IDEDeviceClass | 1 | 3 (ide-hd, ide-cd, ide-cf) | 3 files |
 
@@ -192,11 +195,11 @@ the C++ vtable pointer after QOM's `type_initialize()` memcpy overwrites it.
 - VHostUserBaseClass (vhost-user devices)
 - SCSIDiskClass (scsi-disk sub-hierarchy)
 
-**Step 1 only (C++ inheritance, function pointers remain):**
+**Planned for next conversion:**
 
 | Class Hierarchy | Function Pointers | Subclass Files |
 |----------------|-------------------|----------------|
-| PCIDeviceClass | 4 | 100+ |
+| I2CSlaveClass + SMBus + PMBus | 5 + 3 + 3 | 15+ |
 
 **How virtual method dispatch works:**
 
@@ -286,12 +289,12 @@ that uses C++ virtual methods.
 
 ## What's Next
 
-1. Convert PCIDeviceClass (4 function pointers, 100+ subclass files — mass
-   conversion phase, requires scripted approach)
-2. Convert remaining small hierarchies (XenDevice, SSI, I2C, PCDIMMDevice,
+1. Convert I2CSlaveClass + SMBusDeviceClass + PMBusDeviceClass hierarchy
+2. Convert remaining small hierarchies (XenDevice, PCDIMMDevice,
    SysBusDevice, etc.)
-3. Modernize the property system with typed C++ declarations
-4. Slim down QOM infrastructure — the runtime type *registry* must stay
+3. Complete PCIDeviceClass hybrid → full conversion (remaining ~90 devices)
+4. Modernize the property system with typed C++ declarations
+5. Slim down QOM infrastructure — the runtime type *registry* must stay
    (it powers `-device`, `device_add`, QMP introspection, and hotplug),
    but the runtime type *checking* (OBJECT_CHECK string comparisons,
    dynamic_cast_assert) can be replaced with compile-time C++ casts
