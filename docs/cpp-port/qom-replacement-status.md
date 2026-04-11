@@ -291,4 +291,8 @@ that uses C++ virtual methods.
 2. Convert remaining small hierarchies (XenDevice, SSI, I2C, PCDIMMDevice,
    SysBusDevice, etc.)
 3. Modernize the property system with typed C++ declarations
-4. Eventually remove the QOM runtime type registry entirely
+4. Slim down QOM infrastructure — the runtime type *registry* must stay
+   (it powers `-device`, `device_add`, QMP introspection, and hotplug),
+   but the runtime type *checking* (OBJECT_CHECK string comparisons,
+   dynamic_cast_assert) can be replaced with compile-time C++ casts
+   wherever the type is statically known
