@@ -26,6 +26,7 @@
 #include "hw/virtio/vhost-backend.h"
 #include "hw/virtio/vhost-user-scsi.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "chardev/char-fe.h"
 #include "system/system.h"
 
@@ -392,23 +393,34 @@ static const VMStateDescription vmstate_vhost_scsi = {
     .fields = vmstate_vhost_scsi_fields,
 };
 
+struct VHostUserSCSIClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vhost_user_scsi_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { vhost_user_scsi_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return vhost_scsi_common_get_features(vdev, f, errp); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { vhost_scsi_common_set_config(vdev, config); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vhost_user_scsi_set_status(vdev, val); }
+    void reset(VirtIODevice *vdev) override
+        { vhost_user_scsi_reset(vdev); }
+    struct vhost_dev * get_vhost(VirtIODevice *vdev) override
+        { return vhost_user_scsi_get_vhost(vdev); }
+};
+
 static void vhost_user_scsi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(klass);
+
+    qom_fixup_vtable<VHostUserSCSIClass>(klass);
 
     device_class_set_props(dc, vhost_user_scsi_properties);
     dc->vmsd = &vmstate_vhost_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->realize = vhost_user_scsi_realize;
-    vdc->unrealize = vhost_user_scsi_unrealize;
-    vdc->get_features = vhost_scsi_common_get_features;
-    vdc->set_config = vhost_scsi_common_set_config;
-    vdc->set_status = vhost_user_scsi_set_status;
     fwc->get_dev_path = vhost_scsi_common_get_fw_dev_path;
-    vdc->reset = vhost_user_scsi_reset;
-    vdc->get_vhost = vhost_user_scsi_get_vhost;
 }
 
 static void vhost_user_scsi_instance_init(Object *obj)
@@ -432,6 +444,7 @@ static const TypeInfo vhost_user_scsi_info = {
     .parent = TYPE_VHOST_SCSI_COMMON,
     .instance_size = sizeof(VHostUserSCSI),
     .instance_init = vhost_user_scsi_instance_init,
+    .class_size = sizeof(VHostUserSCSIClass),
     .class_init = vhost_user_scsi_class_init,
     .interfaces = vhost_user_scsi_interfaces,
 };

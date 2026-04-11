@@ -12,6 +12,7 @@
 #include "standard-headers/linux/virtio_vsock.h"
 #include "qapi/error.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qom/cpp/object.h"
 #include "qemu/error-report.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost.h"
@@ -290,16 +291,23 @@ static const Property vhost_vsock_common_properties[] = {
                             ON_OFF_AUTO_AUTO),
 };
 
+struct VHostVSockCommonClass : VirtioDeviceClass {
+    void guest_notifier_mask(VirtIODevice *vdev, int n, bool mask) override
+        { vhost_vsock_common_guest_notifier_mask(vdev, n, mask); }
+    bool guest_notifier_pending(VirtIODevice *vdev, int n) override
+        { return vhost_vsock_common_guest_notifier_pending(vdev, n); }
+    struct vhost_dev * get_vhost(VirtIODevice *vdev) override
+        { return vhost_vsock_common_get_vhost(vdev); }
+};
+
 static void vhost_vsock_common_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VHostVSockCommonClass>(klass);
 
     device_class_set_props(dc, vhost_vsock_common_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->guest_notifier_mask = vhost_vsock_common_guest_notifier_mask;
-    vdc->guest_notifier_pending = vhost_vsock_common_guest_notifier_pending;
-    vdc->get_vhost = vhost_vsock_common_get_vhost;
 }
 
 static const TypeInfo vhost_vsock_common_info = {
@@ -307,6 +315,7 @@ static const TypeInfo vhost_vsock_common_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VHostVSockCommon),
     .is_abstract = true,
+    .class_size = sizeof(VHostVSockCommonClass),
     .class_init = vhost_vsock_common_class_init,
 };
 

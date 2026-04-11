@@ -15,6 +15,7 @@
 #include "qemu/sockets.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-gpu.h"
+#include "qom/cpp/object.h"
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "migration/blocker.h"
@@ -666,23 +667,34 @@ static const Property vhost_user_gpu_properties[] = {
     VIRTIO_GPU_BASE_PROPERTIES(VhostUserGPU, parent_obj.conf),
 };
 
+struct VhostUserGPUClass : VirtIOGPUBaseClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vhost_user_gpu_device_realize(dev, errp); }
+    void reset(VirtIODevice *vdev) override
+        { vhost_user_gpu_reset(vdev); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vhost_user_gpu_set_status(vdev, val); }
+    void guest_notifier_mask(VirtIODevice *vdev, int n, bool mask) override
+        { vhost_user_gpu_guest_notifier_mask(vdev, n, mask); }
+    bool guest_notifier_pending(VirtIODevice *vdev, int n) override
+        { return vhost_user_gpu_guest_notifier_pending(vdev, n); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { vhost_user_gpu_get_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { vhost_user_gpu_set_config(vdev, config); }
+    struct vhost_dev *get_vhost(VirtIODevice *vdev) override
+        { return vhost_user_gpu_get_vhost(vdev); }
+};
+
 static void
 vhost_user_gpu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOGPUBaseClass *vgc = VIRTIO_GPU_BASE_CLASS(klass);
 
-    vgc->gl_flushed = vhost_user_gpu_gl_flushed;
+    qom_fixup_vtable<VhostUserGPUClass>(klass);
 
-    vdc->realize = vhost_user_gpu_device_realize;
-    vdc->reset = vhost_user_gpu_reset;
-    vdc->set_status   = vhost_user_gpu_set_status;
-    vdc->guest_notifier_mask = vhost_user_gpu_guest_notifier_mask;
-    vdc->guest_notifier_pending = vhost_user_gpu_guest_notifier_pending;
-    vdc->get_config = vhost_user_gpu_get_config;
-    vdc->set_config = vhost_user_gpu_set_config;
-    vdc->get_vhost = vhost_user_gpu_get_vhost;
+    vgc->gl_flushed = vhost_user_gpu_gl_flushed;
 
     device_class_set_props(dc, vhost_user_gpu_properties);
 }
@@ -693,6 +705,7 @@ static const TypeInfo vhost_user_gpu_info = {
     .instance_size = sizeof(VhostUserGPU),
     .instance_init = vhost_user_gpu_instance_init,
     .instance_finalize = vhost_user_gpu_instance_finalize,
+    .class_size = sizeof(VhostUserGPUClass),
     .class_init = vhost_user_gpu_class_init,
 };
 module_obj(TYPE_VHOST_USER_GPU);

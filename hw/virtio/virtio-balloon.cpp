@@ -19,6 +19,7 @@
 #include "qemu/timer.h"
 #include "qemu/madvise.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/qdev-properties.h"
 #include "hw/boards.h"
@@ -1062,22 +1063,35 @@ static const Property virtio_balloon_properties[] = {
                      IOThread *),
 };
 
+struct VirtIOBalloonClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_balloon_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_balloon_device_unrealize(dev); }
+    void reset(VirtIODevice *vdev) override
+        { virtio_balloon_device_reset(vdev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_balloon_get_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { virtio_balloon_set_config(vdev, config); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t requested_features,
+                          Error **errp) override
+        { return virtio_balloon_get_features(vdev, requested_features, errp); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return virtio_balloon_set_status(vdev, val); }
+};
+
 static void virtio_balloon_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    qom_fixup_vtable<VirtIOBalloonClass>(klass);
+
     device_class_set_props(dc, virtio_balloon_properties);
     dc->vmsd = &vmstate_virtio_balloon;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->realize = virtio_balloon_device_realize;
-    vdc->unrealize = virtio_balloon_device_unrealize;
-    vdc->reset = virtio_balloon_device_reset;
-    vdc->get_config = virtio_balloon_get_config;
-    vdc->set_config = virtio_balloon_set_config;
-    vdc->get_features = virtio_balloon_get_features;
-    vdc->set_status = virtio_balloon_set_status;
     vdc->vmsd = &vmstate_virtio_balloon_device;
 
     rc->get_state = virtio_balloon_get_reset_state;
@@ -1089,6 +1103,7 @@ static const TypeInfo virtio_balloon_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOBalloon),
     .instance_init = virtio_balloon_instance_init,
+    .class_size = sizeof(VirtIOBalloonClass),
     .class_init = virtio_balloon_class_init,
 };
 

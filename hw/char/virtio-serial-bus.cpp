@@ -1099,8 +1099,6 @@ static void virtio_serial_port_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 
-    qom_fixup_vtable<VirtIOSerialPortClass>(klass);
-
     set_bit(DEVICE_CATEGORY_INPUT, k->categories);
     k->bus_type = TYPE_VIRTIO_SERIAL_BUS;
     k->realize = virtser_port_device_realize;
@@ -1164,26 +1162,39 @@ static const Property virtio_serial_properties[] = {
                       VIRTIO_CONSOLE_F_EMERG_WRITE, true),
 };
 
+struct VirtIOSerialClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_serial_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_serial_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return ::get_features(vdev, f, errp); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { ::get_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { ::set_config(vdev, config); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return ::set_status(vdev, val); }
+    void reset(VirtIODevice *vdev) override
+        { vser_reset(vdev); }
+    void save(VirtIODevice *vdev, QEMUFile *f) override
+        { virtio_serial_save_device(vdev, f); }
+    int load(VirtIODevice *vdev, QEMUFile *f, int version_id) override
+        { return virtio_serial_load_device(vdev, f, version_id); }
+};
+
 static void virtio_serial_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
+
+    qom_fixup_vtable<VirtIOSerialClass>(klass);
 
     QLIST_INIT(&vserdevices.devices);
 
     device_class_set_props(dc, virtio_serial_properties);
     dc->vmsd = &vmstate_virtio_console;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    vdc->realize = virtio_serial_device_realize;
-    vdc->unrealize = virtio_serial_device_unrealize;
-    vdc->get_features = get_features;
-    vdc->get_config = get_config;
-    vdc->set_config = set_config;
-    vdc->set_status = set_status;
-    vdc->reset = vser_reset;
-    vdc->save = virtio_serial_save_device;
-    vdc->load = virtio_serial_load_device;
     hc->plug = virtser_port_device_plug;
     hc->unplug = qdev_simple_device_unplug_cb;
 }

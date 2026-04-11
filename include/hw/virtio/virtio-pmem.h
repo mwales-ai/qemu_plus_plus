@@ -34,10 +34,7 @@ struct VirtIOPMEM {
     HostMemoryBackend *memdev;
 };
 
-struct VirtIOPMEMClass {
-    /* private */
-    VirtioDeviceClass parent_class;
-
+struct VirtIOPMEMClass : VirtioDeviceClass {
     /* public */
     void (*fill_device_info)(const VirtIOPMEM *pmem, VirtioPMEMDeviceInfo *vi);
     MemoryRegion *(*get_memory_region)(VirtIOPMEM *pmem, Error **errp);

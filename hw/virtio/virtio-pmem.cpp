@@ -22,6 +22,7 @@ extern "C" {
 #include "qemu/main-loop.h"
 
 #include "hw/virtio/virtio-pmem.h"
+#include "qom/cpp/object.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-access.h"
 #include "standard-headers/linux/virtio_ids.h"
@@ -167,18 +168,25 @@ static const Property virtio_pmem_properties[] = {
                      TYPE_MEMORY_BACKEND, HostMemoryBackend *),
 };
 
+struct VirtIOPMEMClassImpl : VirtIOPMEMClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_pmem_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_pmem_unrealize(dev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_pmem_get_config(vdev, config); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return virtio_pmem_get_features(vdev, f, errp); }
+};
+
 static void virtio_pmem_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOPMEMClass *vpc = VIRTIO_PMEM_CLASS(klass);
 
     device_class_set_props(dc, virtio_pmem_properties);
 
-    vdc->realize = virtio_pmem_realize;
-    vdc->unrealize = virtio_pmem_unrealize;
-    vdc->get_config = virtio_pmem_get_config;
-    vdc->get_features = virtio_pmem_get_features;
+    qom_fixup_vtable<VirtIOPMEMClassImpl>(klass);
 
     vpc->fill_device_info = virtio_pmem_fill_device_info;
     vpc->get_memory_region = virtio_pmem_get_memory_region;
@@ -189,7 +197,7 @@ static const TypeInfo virtio_pmem_info = {
     .name          = TYPE_VIRTIO_PMEM,
     .parent        = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOPMEM),
-    .class_size    = sizeof(VirtIOPMEMClass),
+    .class_size    = sizeof(VirtIOPMEMClassImpl),
     .class_init    = virtio_pmem_class_init,
 };
 

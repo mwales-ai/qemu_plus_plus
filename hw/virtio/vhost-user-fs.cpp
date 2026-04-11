@@ -18,6 +18,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-access.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/vhost.h"
@@ -431,22 +432,34 @@ static void vuf_instance_init(Object *obj)
                                   "/filesystem@0", DEVICE(obj));
 }
 
+struct VHostUserFSClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vuf_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { vuf_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return vuf_get_features(vdev, f, errp); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { vuf_get_config(vdev, config); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vuf_set_status(vdev, val); }
+    void guest_notifier_mask(VirtIODevice *vdev, int n, bool mask) override
+        { vuf_guest_notifier_mask(vdev, n, mask); }
+    bool guest_notifier_pending(VirtIODevice *vdev, int n) override
+        { return vuf_guest_notifier_pending(vdev, n); }
+    struct vhost_dev * get_vhost(VirtIODevice *vdev) override
+        { return vuf_get_vhost(vdev); }
+};
+
 static void vuf_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VHostUserFSClass>(klass);
 
     device_class_set_props(dc, vuf_properties);
     dc->vmsd = &vuf_vmstate;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->realize = vuf_device_realize;
-    vdc->unrealize = vuf_device_unrealize;
-    vdc->get_features = vuf_get_features;
-    vdc->get_config = vuf_get_config;
-    vdc->set_status = vuf_set_status;
-    vdc->guest_notifier_mask = vuf_guest_notifier_mask;
-    vdc->guest_notifier_pending = vuf_guest_notifier_pending;
-    vdc->get_vhost = vuf_get_vhost;
 }
 
 static const TypeInfo vuf_info = {
@@ -454,6 +467,7 @@ static const TypeInfo vuf_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VHostUserFS),
     .instance_init = vuf_instance_init,
+    .class_size = sizeof(VHostUserFSClass),
     .class_init = vuf_class_init,
 };
 

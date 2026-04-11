@@ -18,6 +18,7 @@
 #include "qapi/error.h"
 #include "system/system.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
@@ -187,21 +188,27 @@ static void virtio_gpu_gl_device_unrealize(DeviceState *qdev)
     g_array_unref(g->capset_ids);
 }
 
+struct VirtIOGPUGLClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_gpu_gl_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_gpu_gl_device_unrealize(dev); }
+    void reset(VirtIODevice *vdev) override
+        { virtio_gpu_gl_reset(vdev); }
+};
+
 static void virtio_gpu_gl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOGPUBaseClass *vbc = VIRTIO_GPU_BASE_CLASS(klass);
     VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
+
+    qom_fixup_vtable<VirtIOGPUGLClass>(klass);
 
     vbc->gl_flushed = virtio_gpu_gl_flushed;
     vgc->handle_ctrl = virtio_gpu_gl_handle_ctrl;
     vgc->process_cmd = virtio_gpu_virgl_process_cmd;
     vgc->update_cursor_data = virtio_gpu_gl_update_cursor_data;
-
-    vdc->realize = virtio_gpu_gl_device_realize;
-    vdc->unrealize = virtio_gpu_gl_device_unrealize;
-    vdc->reset = virtio_gpu_gl_reset;
     device_class_set_props(dc, virtio_gpu_gl_properties);
 }
 
@@ -209,6 +216,7 @@ static const TypeInfo virtio_gpu_gl_info = {
     .name = TYPE_VIRTIO_GPU_GL,
     .parent = TYPE_VIRTIO_GPU,
     .instance_size = sizeof(VirtIOGPUGL),
+    .class_size = sizeof(VirtIOGPUGLClass),
     .class_init = virtio_gpu_gl_class_init,
 };
 module_obj(TYPE_VIRTIO_GPU_GL);

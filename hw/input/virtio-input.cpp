@@ -15,6 +15,7 @@ extern "C" {
 #include "trace.h"
 
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-input.h"
 
@@ -317,21 +318,32 @@ static const Property virtio_input_properties[] = {
     DEFINE_PROP_STRING("serial", VirtIOInput, serial),
 };
 
+struct VirtIOInputClassImpl : VirtIOInputClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_input_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_input_device_unrealize(dev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_input_get_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { virtio_input_set_config(vdev, config); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return virtio_input_get_features(vdev, f, errp); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return virtio_input_set_status(vdev, val); }
+    void reset(VirtIODevice *vdev) override
+        { virtio_input_reset(vdev); }
+};
+
 static void virtio_input_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VirtIOInputClassImpl>(klass);
 
     device_class_set_props(dc, virtio_input_properties);
     dc->vmsd           = &vmstate_virtio_input;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    vdc->realize      = virtio_input_device_realize;
-    vdc->unrealize    = virtio_input_device_unrealize;
-    vdc->get_config   = virtio_input_get_config;
-    vdc->set_config   = virtio_input_set_config;
-    vdc->get_features = virtio_input_get_features;
-    vdc->set_status   = virtio_input_set_status;
-    vdc->reset        = virtio_input_reset;
 }
 
 static const TypeInfo virtio_input_info = {
@@ -340,7 +352,7 @@ static const TypeInfo virtio_input_info = {
     .instance_size = sizeof(VirtIOInput),
     .instance_finalize = virtio_input_finalize,
     .is_abstract      = true,
-    .class_size    = sizeof(VirtIOInputClass),
+    .class_size = sizeof(VirtIOInputClassImpl),
     .class_init    = virtio_input_class_init,
 };
 

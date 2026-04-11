@@ -28,6 +28,7 @@
 #include "system/system.h"
 #include "system/runstate.h"
 #include "hw/virtio/virtio-blk.h"
+#include "qom/cpp/object.h"
 #include "scsi/constants.h"
 #ifdef __linux__
 # include <scsi/sg.h>
@@ -1138,7 +1139,7 @@ static void virtio_blk_reset(VirtIODevice *vdev)
 
 /* coalesce internal state, copy to pci i/o region 0
  */
-static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
+void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
 {
     VirtIOBlock *s = reinterpret_cast<VirtIOBlock *>(vdev);
     BlockConf *conf = &s->conf.conf;
@@ -1901,25 +1902,40 @@ static void virtio_blk_device_unrealize(DeviceState *dev)
     s->unrealize();
 }
 
+struct VirtIOBlkClassImpl : VirtIOBlkClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_blk_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_blk_device_unrealize(dev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_blk_update_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { virtio_blk_set_config(vdev, config); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return virtio_blk_get_features(vdev, f, errp); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return virtio_blk_set_status(vdev, val); }
+    void reset(VirtIODevice *vdev) override
+        { virtio_blk_reset(vdev); }
+    void save(VirtIODevice *vdev, QEMUFile *f) override
+        { virtio_blk_save_device(vdev, f); }
+    int load(VirtIODevice *vdev, QEMUFile *f, int version_id) override
+        { return virtio_blk_load_device(vdev, f, version_id); }
+    int start_ioeventfd(VirtIODevice *vdev) override
+        { return virtio_blk_start_ioeventfd(vdev); }
+    void stop_ioeventfd(VirtIODevice *vdev) override
+        { virtio_blk_stop_ioeventfd(vdev); }
+};
+
 void VirtIOBlock::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
+
+    qom_fixup_vtable<VirtIOBlkClassImpl>(klass);
 
     device_class_set_props(dc, virtio_blk_properties);
     dc->vmsd = &vmstate_virtio_blk;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->realize = virtio_blk_device_realize;
-    vdc->unrealize = virtio_blk_device_unrealize;
-    vdc->get_config = virtio_blk_update_config;
-    vdc->set_config = virtio_blk_set_config;
-    vdc->get_features = virtio_blk_get_features;
-    vdc->set_status = virtio_blk_set_status;
-    vdc->reset = virtio_blk_reset;
-    vdc->save = virtio_blk_save_device;
-    vdc->load = virtio_blk_load_device;
-    vdc->start_ioeventfd = virtio_blk_start_ioeventfd;
-    vdc->stop_ioeventfd = virtio_blk_stop_ioeventfd;
 }
 
 static const TypeInfo virtio_blk_info = {
@@ -1927,7 +1943,7 @@ static const TypeInfo virtio_blk_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOBlock),
     .instance_init = virtio_blk_instance_init,
-    .class_size = sizeof(VirtIOBlkClass),
+    .class_size = sizeof(VirtIOBlkClassImpl),
     .class_init = VirtIOBlock::classInit,
 };
 

@@ -19,6 +19,7 @@
 #include "qemu/error-report.h"
 
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-crypto.h"
 #include "hw/qdev-properties.h"
 #include "standard-headers/linux/virtio_ids.h"
@@ -1277,23 +1278,36 @@ static struct vhost_dev *virtio_crypto_get_vhost(VirtIODevice *vdev)
     return &vhost_crypto->dev;
 }
 
+struct VirtIOCryptoClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_crypto_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_crypto_device_unrealize(dev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_crypto_get_config(vdev, config); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return virtio_crypto_get_features(vdev, f, errp); }
+    void reset(VirtIODevice *vdev) override
+        { virtio_crypto_reset(vdev); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return virtio_crypto_set_status(vdev, val); }
+    void guest_notifier_mask(VirtIODevice *vdev, int n, bool mask) override
+        { virtio_crypto_guest_notifier_mask(vdev, n, mask); }
+    bool guest_notifier_pending(VirtIODevice *vdev, int n) override
+        { return virtio_crypto_guest_notifier_pending(vdev, n); }
+    struct vhost_dev *get_vhost(VirtIODevice *vdev) override
+        { return virtio_crypto_get_vhost(vdev); }
+};
+
 static void virtio_crypto_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VirtIOCryptoClass>(klass);
 
     device_class_set_props(dc, virtio_crypto_properties);
     dc->vmsd = &vmstate_virtio_crypto;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->realize = virtio_crypto_device_realize;
-    vdc->unrealize = virtio_crypto_device_unrealize;
-    vdc->get_config = virtio_crypto_get_config;
-    vdc->get_features = virtio_crypto_get_features;
-    vdc->reset = virtio_crypto_reset;
-    vdc->set_status = virtio_crypto_set_status;
-    vdc->guest_notifier_mask = virtio_crypto_guest_notifier_mask;
-    vdc->guest_notifier_pending = virtio_crypto_guest_notifier_pending;
-    vdc->get_vhost = virtio_crypto_get_vhost;
 }
 
 static void virtio_crypto_instance_init(Object *obj)
@@ -1312,6 +1326,7 @@ static const TypeInfo virtio_crypto_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOCrypto),
     .instance_init = virtio_crypto_instance_init,
+    .class_size = sizeof(VirtIOCryptoClass),
     .class_init = virtio_crypto_class_init,
 };
 

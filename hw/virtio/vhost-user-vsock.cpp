@@ -15,6 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/virtio/vhost-user-vsock.h"
+#include "qom/cpp/object.h"
 
 static const int user_feature_bits[] = {
     VIRTIO_F_VERSION_1,
@@ -156,24 +157,34 @@ static const Property vuv_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserVSock, conf.chardev),
 };
 
+struct VHostUserVSockClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vuv_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { vuv_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return vuv_get_features(vdev, f, errp); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { vuv_get_config(vdev, config); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vuv_set_status(vdev, val); }
+};
+
 static void vuv_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VHostUserVSockClass>(klass);
 
     device_class_set_props(dc, vuv_properties);
     dc->vmsd = &vuv_vmstate;
-    vdc->realize = vuv_device_realize;
-    vdc->unrealize = vuv_device_unrealize;
-    vdc->get_features = vuv_get_features;
-    vdc->get_config = vuv_get_config;
-    vdc->set_status = vuv_set_status;
 }
 
 static const TypeInfo vuv_info = {
     .name = TYPE_VHOST_USER_VSOCK,
     .parent = TYPE_VHOST_VSOCK_COMMON,
     .instance_size = sizeof(VHostUserVSock),
+    .class_size = sizeof(VHostUserVSockClass),
     .class_init = vuv_class_init,
 };
 

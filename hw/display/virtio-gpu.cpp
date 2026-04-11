@@ -24,6 +24,7 @@
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
 #include "hw/virtio/virtio-gpu.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/virtio/virtio-bus.h"
@@ -1837,24 +1838,32 @@ static void virtio_gpu_resource_destroy_wrapper(VirtIOGPU *g,
     g->resourceDestroy(res, errp);
 }
 
+struct VirtIOGPUClassImpl : VirtIOGPUClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_gpu_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_gpu_device_unrealize(dev); }
+    void reset(VirtIODevice *vdev) override
+        { virtio_gpu_reset(vdev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_gpu_get_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { virtio_gpu_set_config(vdev, config); }
+};
+
 void VirtIOGPU::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
     VirtIOGPUClass *vgc = reinterpret_cast<VirtIOGPUClass *>(klass);
-    VirtIOGPUBaseClass *vgbc = &vgc->parent;
+    VirtIOGPUBaseClass *vgbc = reinterpret_cast<VirtIOGPUBaseClass *>(klass);
+
+    qom_fixup_vtable<VirtIOGPUClassImpl>(klass);
 
     vgc->handle_ctrl = virtio_gpu_handle_ctrl;
     vgc->process_cmd = virtio_gpu_simple_process_cmd_wrapper;
     vgc->update_cursor_data = virtio_gpu_update_cursor_data_wrapper;
     vgc->resource_destroy = virtio_gpu_resource_destroy_wrapper;
     vgbc->gl_flushed = virtio_gpu_handle_gl_flushed;
-
-    vdc->realize = virtio_gpu_device_realize;
-    vdc->unrealize = virtio_gpu_device_unrealize;
-    vdc->reset = virtio_gpu_reset;
-    vdc->get_config = virtio_gpu_get_config;
-    vdc->set_config = virtio_gpu_set_config;
 
     dc->vmsd = &vmstate_virtio_gpu;
     device_class_set_props(dc, virtio_gpu_properties);
@@ -1869,7 +1878,7 @@ static const TypeInfo virtio_gpu_info = {
     .name = TYPE_VIRTIO_GPU,
     .parent = TYPE_VIRTIO_GPU_BASE,
     .instance_size = sizeof(VirtIOGPU),
-    .class_size = sizeof(VirtIOGPUClass),
+    .class_size = sizeof(VirtIOGPUClassImpl),
     .class_init = virtio_gpu_class_init,
 };
 module_obj(TYPE_VIRTIO_GPU);

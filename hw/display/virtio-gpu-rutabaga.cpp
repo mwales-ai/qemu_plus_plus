@@ -6,6 +6,7 @@
 #include "qemu/iov.h"
 #include "trace.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
 #include "hw/virtio/virtio-iommu.h"
@@ -1110,6 +1111,11 @@ static const Property virtio_gpu_rutabaga_properties[] = {
     DEFINE_PROP_STRING("wsi", VirtIOGPURutabaga, wsi),
 };
 
+struct VirtIOGPURutabagaClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_gpu_rutabaga_realize(dev, errp); }
+};
+
 static void virtio_gpu_rutabaga_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1117,12 +1123,13 @@ static void virtio_gpu_rutabaga_class_init(ObjectClass *klass, const void *data)
     VirtIOGPUBaseClass *vbc = VIRTIO_GPU_BASE_CLASS(klass);
     VirtIOGPUClass *vgc = VIRTIO_GPU_CLASS(klass);
 
+    qom_fixup_vtable<VirtIOGPURutabagaClass>(klass);
+
     vbc->gl_flushed = virtio_gpu_rutabaga_gl_flushed;
     vgc->handle_ctrl = virtio_gpu_rutabaga_handle_ctrl;
     vgc->process_cmd = virtio_gpu_rutabaga_process_cmd;
     vgc->update_cursor_data = virtio_gpu_rutabaga_update_cursor;
     vgc->resource_destroy = virtio_gpu_rutabaga_resource_unref;
-    vdc->realize = virtio_gpu_rutabaga_realize;
     device_class_set_props(dc, virtio_gpu_rutabaga_properties);
 }
 
@@ -1131,7 +1138,8 @@ static const TypeInfo virtio_gpu_rutabaga_info[] = {
         .name = TYPE_VIRTIO_GPU_RUTABAGA,
         .parent = TYPE_VIRTIO_GPU,
         .instance_size = sizeof(VirtIOGPURutabaga),
-        .class_init = virtio_gpu_rutabaga_class_init,
+        .class_size = sizeof(VirtIOGPURutabagaClass),
+    .class_init = virtio_gpu_rutabaga_class_init,
     },
 };
 

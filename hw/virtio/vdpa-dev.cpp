@@ -24,6 +24,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/vdpa-dev.h"
 #include "system/system.h"
@@ -362,22 +363,33 @@ static const VMStateDescription vmstate_vhost_vdpa_device = {
     .fields = vmstate_vhost_vdpa_device_fields,
 };
 
+struct VhostVdpaDeviceClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vhost_vdpa_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { vhost_vdpa_device_unrealize(dev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { vhost_vdpa_device_get_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { vhost_vdpa_device_set_config(vdev, config); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return vhost_vdpa_device_get_features(vdev, f, errp); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vhost_vdpa_device_set_status(vdev, val); }
+    struct vhost_dev * get_vhost(VirtIODevice *vdev) override
+        { return vhost_vdpa_device_get_vhost(vdev); }
+};
+
 static void vhost_vdpa_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VhostVdpaDeviceClass>(klass);
 
     device_class_set_props(dc, vhost_vdpa_device_properties);
     dc->desc = "VDPA-based generic device assignment";
     dc->vmsd = &vmstate_vhost_vdpa_device;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->realize = vhost_vdpa_device_realize;
-    vdc->unrealize = vhost_vdpa_device_unrealize;
-    vdc->get_config = vhost_vdpa_device_get_config;
-    vdc->set_config = vhost_vdpa_device_set_config;
-    vdc->get_features = vhost_vdpa_device_get_features;
-    vdc->set_status = vhost_vdpa_device_set_status;
-    vdc->get_vhost = vhost_vdpa_device_get_vhost;
 }
 
 static void __attribute__((used)) vhost_vdpa_device_instance_init(Object *obj)
@@ -393,6 +405,7 @@ static const TypeInfo vhost_vdpa_device_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VhostVdpaDevice),
     .instance_init = vhost_vdpa_device_instance_init,
+    .class_size = sizeof(VhostVdpaDeviceClass),
     .class_init = vhost_vdpa_device_class_init,
 };
 

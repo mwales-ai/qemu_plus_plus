@@ -15,6 +15,7 @@
 #include "standard-headers/linux/virtio_vsock.h"
 #include "qapi/error.h"
 #include "hw/virtio/virtio-access.h"
+#include "qom/cpp/object.h"
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "hw/qdev-properties.h"
@@ -208,24 +209,34 @@ static const Property vhost_vsock_properties[] = {
     DEFINE_PROP_STRING("vhostfd", VHostVSock, conf.vhostfd),
 };
 
+struct VHostVSockClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vhost_vsock_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { vhost_vsock_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return vhost_vsock_get_features(vdev, f, errp); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { vhost_vsock_get_config(vdev, config); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vhost_vsock_set_status(vdev, val); }
+};
+
 static void vhost_vsock_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VHostVSockClass>(klass);
 
     device_class_set_props(dc, vhost_vsock_properties);
     dc->vmsd = &vmstate_virtio_vhost_vsock;
-    vdc->realize = vhost_vsock_device_realize;
-    vdc->unrealize = vhost_vsock_device_unrealize;
-    vdc->get_features = vhost_vsock_get_features;
-    vdc->get_config = vhost_vsock_get_config;
-    vdc->set_status = vhost_vsock_set_status;
 }
 
 static const TypeInfo vhost_vsock_info = {
     .name = TYPE_VHOST_VSOCK,
     .parent = TYPE_VHOST_VSOCK_COMMON,
     .instance_size = sizeof(VHostVSock),
+    .class_size = sizeof(VHostVSockClass),
     .class_init = vhost_vsock_class_init,
 };
 

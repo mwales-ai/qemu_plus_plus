@@ -24,6 +24,7 @@
 #include "trace.h"
 #include "qapi/error.h"
 #include "hw/audio/virtio-snd.h"
+#include "qom/cpp/object.h"
 
 #define VIRTIO_SOUND_VM_VERSION 1
 #define VIRTIO_SOUND_JACK_DEFAULT 0
@@ -1364,22 +1365,31 @@ static void virtio_snd_reset(VirtIODevice *vdev)
     }
 }
 
+struct VirtIOSndClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_snd_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_snd_unrealize(dev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_snd_get_config(vdev, config); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return ::get_features(vdev, f, errp); }
+    void reset(VirtIODevice *vdev) override
+        { virtio_snd_reset(vdev); }
+};
+
 static void virtio_snd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
+    qom_fixup_vtable<VirtIOSndClass>(klass);
 
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     device_class_set_props(dc, virtio_snd_properties);
 
     dc->vmsd = &vmstate_virtio_snd;
     vdc->vmsd = &vmstate_virtio_snd_device;
-    vdc->realize = virtio_snd_realize;
-    vdc->unrealize = virtio_snd_unrealize;
-    vdc->get_config = virtio_snd_get_config;
-    vdc->get_features = get_features;
-    vdc->reset = virtio_snd_reset;
     vdc->legacy_features = 0;
 }
 
@@ -1388,7 +1398,8 @@ static const TypeInfo virtio_snd_types[] = {
       .name          = TYPE_VIRTIO_SND,
       .parent        = TYPE_VIRTIO_DEVICE,
       .instance_size = sizeof(VirtIOSound),
-      .class_init    = virtio_snd_class_init,
+      .class_size = sizeof(VirtIOSndClass),
+    .class_init    = virtio_snd_class_init,
     }
 };
 

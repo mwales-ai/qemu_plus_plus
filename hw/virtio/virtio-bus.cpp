@@ -62,14 +62,7 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
     }
 
     /* Get the features of the plugged device. */
-    if (vdc->get_features_ex) {
-        vdc->get_features_ex(vdev, vdev->host_features_ex, &local_err);
-    } else {
-        assert(vdc->get_features != NULL);
-        virtio_features_from_u64(vdev->host_features_ex,
-                                 vdc->get_features(vdev, vdev->host_features,
-                                                   &local_err));
-    }
+    vdc->get_features_ex(vdev, vdev->host_features_ex, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -155,11 +148,7 @@ uint32_t virtio_bus_get_vdev_bad_features(VirtioBusState *bus)
 
     assert(vdev != NULL);
     k = VIRTIO_DEVICE_GET_CLASS(vdev);
-    if (k->bad_features != NULL) {
-        return k->bad_features(vdev);
-    } else {
-        return 0;
-    }
+    return k->bad_features(vdev);
 }
 
 /* Get config of the plugged device. */
@@ -170,9 +159,7 @@ void virtio_bus_get_vdev_config(VirtioBusState *bus, uint8_t *config)
 
     assert(vdev != NULL);
     k = VIRTIO_DEVICE_GET_CLASS(vdev);
-    if (k->get_config != NULL) {
-        k->get_config(vdev, config);
-    }
+    k->get_config(vdev, config);
 }
 
 /* Set config of the plugged device. */
@@ -183,9 +170,7 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config)
 
     assert(vdev != NULL);
     k = VIRTIO_DEVICE_GET_CLASS(vdev);
-    if (k->set_config != NULL) {
-        k->set_config(vdev, config);
-    }
+    k->set_config(vdev, config);
 }
 
 /* On success, ioeventfd ownership belongs to the caller.  */

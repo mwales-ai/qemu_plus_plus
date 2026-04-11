@@ -12,6 +12,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/vhost-user-scmi.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/virtio_scmi.h"
@@ -286,26 +287,37 @@ static const Property vu_scmi_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserSCMI, chardev),
 };
 
+struct VHostUserSCMIClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vu_scmi_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { vu_scmi_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return vu_scmi_get_features(vdev, f, errp); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vu_scmi_set_status(vdev, val); }
+    void guest_notifier_mask(VirtIODevice *vdev, int n, bool mask) override
+        { vu_scmi_guest_notifier_mask(vdev, n, mask); }
+    bool guest_notifier_pending(VirtIODevice *vdev, int n) override
+        { return vu_scmi_guest_notifier_pending(vdev, n); }
+};
+
 static void vu_scmi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VHostUserSCMIClass>(klass);
 
     device_class_set_props(dc, vu_scmi_properties);
     dc->vmsd = &vu_scmi_vmstate;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-    vdc->realize = vu_scmi_device_realize;
-    vdc->unrealize = vu_scmi_device_unrealize;
-    vdc->get_features = vu_scmi_get_features;
-    vdc->set_status = vu_scmi_set_status;
-    vdc->guest_notifier_mask = vu_scmi_guest_notifier_mask;
-    vdc->guest_notifier_pending = vu_scmi_guest_notifier_pending;
 }
 
 static const TypeInfo vu_scmi_info = {
     .name = TYPE_VHOST_USER_SCMI,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VHostUserSCMI),
+    .class_size = sizeof(VHostUserSCMIClass),
     .class_init = vu_scmi_class_init,
 };
 

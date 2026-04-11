@@ -132,10 +132,7 @@ struct VirtioMemSystemReset {
     VirtIOMEM *vmem;
 };
 
-struct VirtIOMEMClass {
-    /* private */
-    VirtioDeviceClass parent_class;
-
+struct VirtIOMEMClass : VirtioDeviceClass {
     /* public */
     void (*fill_device_info)(const VirtIOMEM *vmen, VirtioMEMDeviceInfo *vi);
     MemoryRegion *(*get_memory_region)(VirtIOMEM *vmem, Error **errp);

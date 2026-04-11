@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 
 #include "hw/virtio/virtio-gpu.h"
+#include "qom/cpp/object.h"
 #include "migration/blocker.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -288,15 +289,21 @@ virtio_gpu_base_device_unrealize(DeviceState *qdev)
     migrate_del_blocker(&g->migration_blocker);
 }
 
+struct VirtIOGPUBaseClassImpl : VirtIOGPUBaseClass {
+    void unrealize(DeviceState *dev) override
+        { virtio_gpu_base_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return virtio_gpu_base_get_features(vdev, f, errp); }
+    void set_features(VirtIODevice *vdev, uint64_t val) override
+        { virtio_gpu_base_set_features(vdev, val); }
+};
+
 static void
 virtio_gpu_base_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
-    vdc->unrealize = virtio_gpu_base_device_unrealize;
-    vdc->get_features = virtio_gpu_base_get_features;
-    vdc->set_features = virtio_gpu_base_set_features;
+    qom_fixup_vtable<VirtIOGPUBaseClassImpl>(klass);
 
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->hotpluggable = false;
@@ -307,7 +314,7 @@ static const TypeInfo virtio_gpu_base_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOGPUBase),
     .is_abstract = true,
-    .class_size = sizeof(VirtIOGPUBaseClass),
+    .class_size = sizeof(VirtIOGPUBaseClassImpl),
     .class_init = virtio_gpu_base_class_init,
 };
 module_obj(TYPE_VIRTIO_GPU_BASE);

@@ -125,6 +125,13 @@ typedef struct MultiReqBuffer {
     bool is_write;
 } MultiReqBuffer;
 
+#ifdef __cplusplus
+typedef struct VirtIOBlkClass : VirtioDeviceClass {
+    /*< public >*/
+    bool (*handle_unknown_request)(VirtIOBlockReq *req, MultiReqBuffer *mrb,
+                                   uint32_t type);
+} VirtIOBlkClass;
+#else
 typedef struct VirtIOBlkClass {
     /*< private >*/
     VirtioDeviceClass parent;
@@ -132,9 +139,11 @@ typedef struct VirtIOBlkClass {
     bool (*handle_unknown_request)(VirtIOBlockReq *req, MultiReqBuffer *mrb,
                                    uint32_t type);
 } VirtIOBlkClass;
+#endif
 
 void virtio_blk_handle_vq(VirtIOBlock *s, VirtQueue *vq);
 void virtio_blk_req_complete(VirtIOBlockReq *req, unsigned char status);
+void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config);
 
 #ifdef __cplusplus
 }

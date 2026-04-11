@@ -75,6 +75,16 @@ struct VirtIOInput {
     bool                              active;
 };
 
+#ifdef __cplusplus
+struct VirtIOInputClass : VirtioDeviceClass {
+    /*< public >*/
+
+    DeviceRealize realize;
+    DeviceUnrealize unrealize;
+    void (*change_active)(VirtIOInput *vinput);
+    void (*handle_status)(VirtIOInput *vinput, virtio_input_event *event);
+};
+#else
 struct VirtIOInputClass {
     /*< private >*/
     VirtioDeviceClass parent;
@@ -85,6 +95,7 @@ struct VirtIOInputClass {
     void (*change_active)(VirtIOInput *vinput);
     void (*handle_status)(VirtIOInput *vinput, virtio_input_event *event);
 };
+#endif
 
 struct VirtIOInputHID {
     VirtIOInput                       parent_obj;

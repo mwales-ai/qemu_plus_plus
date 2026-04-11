@@ -22,6 +22,7 @@
 #include "system/reset.h"
 #include "system/runstate.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-mem.h"
 #include "qapi/error.h"
@@ -1871,12 +1872,27 @@ static void virtio_mem_unplug_request_check(VirtIOMEM *vmem, Error **errp)
     }
 }
 
+struct VirtIOMEMClassImpl : VirtIOMEMClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_mem_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_mem_device_unrealize(dev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_mem_get_config(vdev, config); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return virtio_mem_get_features(vdev, f, errp); }
+    int validate_features(VirtIODevice *vdev) override
+        { return virtio_mem_validate_features(vdev); }
+};
+
 static void virtio_mem_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOMEMClass *vmc = VIRTIO_MEM_CLASS(klass);
     RamDiscardManagerClass *rdmc = RAM_DISCARD_MANAGER_CLASS(klass);
+
+    qom_fixup_vtable<VirtIOMEMClassImpl>(klass);
 
     device_class_set_props(dc, virtio_mem_properties);
     if (virtio_mem_has_legacy_guests()) {
@@ -1885,11 +1901,6 @@ static void virtio_mem_class_init(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_virtio_mem;
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->realize = virtio_mem_device_realize;
-    vdc->unrealize = virtio_mem_device_unrealize;
-    vdc->get_config = virtio_mem_get_config;
-    vdc->get_features = virtio_mem_get_features;
-    vdc->validate_features = virtio_mem_validate_features;
     vdc->vmsd = &vmstate_virtio_mem_device;
 
     vmc->fill_device_info = virtio_mem_fill_device_info;
@@ -1919,7 +1930,7 @@ static const TypeInfo virtio_mem_info = {
     .instance_size = sizeof(VirtIOMEM),
     .instance_init = virtio_mem_instance_init,
     .instance_finalize = virtio_mem_instance_finalize,
-    .class_size = sizeof(VirtIOMEMClass),
+    .class_size = sizeof(VirtIOMEMClassImpl),
     .class_init = virtio_mem_class_init,
     .interfaces = virtio_mem_interfaces,
 };

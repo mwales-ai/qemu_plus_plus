@@ -14,6 +14,7 @@
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-bus.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/vhost-user-base.h"
 #include "qemu/error-report.h"
 
@@ -354,16 +355,24 @@ static void vub_device_unrealize(DeviceState *dev)
     do_vhost_user_cleanup(vdev, vub);
 }
 
+struct VHostUserBaseClassImpl : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vub_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { vub_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return vub_get_features(vdev, f, errp); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { vub_get_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { vub_set_config(vdev, config); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vub_set_status(vdev, val); }
+};
+
 static void vub_class_init(ObjectClass *klass, const void *data)
 {
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-
-    vdc->realize = vub_device_realize;
-    vdc->unrealize = vub_device_unrealize;
-    vdc->get_features = vub_get_features;
-    vdc->get_config = vub_get_config;
-    vdc->set_config = vub_set_config;
-    vdc->set_status = vub_set_status;
+    qom_fixup_vtable<VHostUserBaseClassImpl>(klass);
 }
 
 static const TypeInfo vub_types[] = {
@@ -372,7 +381,7 @@ static const TypeInfo vub_types[] = {
         .parent = TYPE_VIRTIO_DEVICE,
         .instance_size = sizeof(VHostUserBase),
         .is_abstract = true,
-        .class_size = sizeof(VHostUserBaseClass),
+        .class_size = sizeof(VHostUserBaseClassImpl),
         .class_init = vub_class_init,
     }
 };

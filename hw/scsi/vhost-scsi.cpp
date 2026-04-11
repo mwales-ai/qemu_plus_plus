@@ -25,6 +25,7 @@
 #include "hw/virtio/vhost-scsi.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-scsi.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-bus.h"
 #include "hw/fw-path-provider.h"
 #include "hw/qdev-properties.h"
@@ -368,21 +369,31 @@ static const Property vhost_scsi_properties[] = {
                      conf.worker_per_virtqueue, false),
 };
 
+struct VHostSCSIClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { vhost_scsi_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { vhost_scsi_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return vhost_scsi_common_get_features(vdev, f, errp); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { vhost_scsi_common_set_config(vdev, config); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return vhost_scsi_set_status(vdev, val); }
+    struct vhost_dev * get_vhost(VirtIODevice *vdev) override
+        { return vhost_scsi_get_vhost(vdev); }
+};
+
 static void vhost_scsi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(klass);
+
+    qom_fixup_vtable<VHostSCSIClass>(klass);
 
     device_class_set_props(dc, vhost_scsi_properties);
     dc->vmsd = &vmstate_virtio_vhost_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->realize = vhost_scsi_realize;
-    vdc->unrealize = vhost_scsi_unrealize;
-    vdc->get_features = vhost_scsi_common_get_features;
-    vdc->set_config = vhost_scsi_common_set_config;
-    vdc->set_status = vhost_scsi_set_status;
-    vdc->get_vhost = vhost_scsi_get_vhost;
     fwc->get_dev_path = vhost_scsi_common_get_fw_dev_path;
 }
 
@@ -406,6 +417,7 @@ static const TypeInfo vhost_scsi_info = {
     .parent = TYPE_VHOST_SCSI_COMMON,
     .instance_size = sizeof(VHostSCSI),
     .instance_init = vhost_scsi_instance_init,
+    .class_size = sizeof(VHostSCSIClass),
     .class_init = vhost_scsi_class_init,
     .interfaces = vhost_scsi_interfaces,
 };

@@ -15,6 +15,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-rng.h"
 #include "system/rng.h"
@@ -263,24 +264,33 @@ static const Property virtio_rng_properties[] = {
     DEFINE_PROP_LINK("rng", VirtIORNG, conf.rng, TYPE_RNG_BACKEND, RngBackend *),
 };
 
+struct VirtIORNGClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_rng_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_rng_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return ::get_features(vdev, f, errp); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return virtio_rng_set_status(vdev, val); }
+};
+
 static void virtio_rng_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<VirtIORNGClass>(klass);
 
     device_class_set_props(dc, virtio_rng_properties);
     dc->vmsd = &vmstate_virtio_rng;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->realize = virtio_rng_device_realize;
-    vdc->unrealize = virtio_rng_device_unrealize;
-    vdc->get_features = get_features;
-    vdc->set_status = virtio_rng_set_status;
 }
 
 static const TypeInfo virtio_rng_info = {
     .name = TYPE_VIRTIO_RNG,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIORNG),
+    .class_size = sizeof(VirtIORNGClass),
     .class_init = virtio_rng_class_init,
 };
 

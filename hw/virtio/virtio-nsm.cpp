@@ -15,6 +15,7 @@
 
 #include "crypto/hash.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-nsm.h"
 #include "hw/virtio/cbor-helpers.h"
 #include "standard-headers/linux/virtio_ids.h"
@@ -1714,17 +1715,25 @@ static const Property virtio_nsm_properties[] = {
     DEFINE_PROP_STRING("module-id", VirtIONSM, module_id),
 };
 
+struct VirtIONSMClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_nsm_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_nsm_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return ::get_features(vdev, f, errp); }
+};
+
 static void virtio_nsm_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
 
+    qom_fixup_vtable<VirtIONSMClass>(klass);
+
     device_class_set_props(dc, virtio_nsm_properties);
     dc->vmsd = &vmstate_virtio_nsm;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    vdc->realize = virtio_nsm_device_realize;
-    vdc->unrealize = virtio_nsm_device_unrealize;
-    vdc->get_features = get_features;
     vdc->vmsd = &vmstate_virtio_nsm_device;
 }
 
@@ -1732,6 +1741,7 @@ static const TypeInfo virtio_nsm_info = {
     .name = TYPE_VIRTIO_NSM,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIONSM),
+    .class_size = sizeof(VirtIONSMClass),
     .class_init = virtio_nsm_class_init,
 };
 

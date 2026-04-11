@@ -41,11 +41,17 @@ struct VHostUserBase {
  * Needed so we can use the base realize after specialisation
  * tweaks
  */
+#ifdef __cplusplus
+struct VHostUserBaseClass : VirtioDeviceClass {
+    DeviceRealize parent_realize;
+};
+#else
 struct VHostUserBaseClass {
     VirtioDeviceClass parent_class;
 
     DeviceRealize parent_realize;
 };
+#endif
 
 
 #define TYPE_VHOST_USER_TEST_DEVICE "vhost-user-test-device"

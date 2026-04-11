@@ -165,11 +165,17 @@ struct VirtIOGPUBase {
     struct virtio_gpu_requested_state req_state[VIRTIO_GPU_MAX_SCANOUTS];
 };
 
+#ifdef __cplusplus
+struct VirtIOGPUBaseClass : VirtioDeviceClass {
+    void (*gl_flushed)(VirtIOGPUBase *g);
+};
+#else
 struct VirtIOGPUBaseClass {
     VirtioDeviceClass parent;
 
     void (*gl_flushed)(VirtIOGPUBase *g);
 };
+#endif
 
 #define VIRTIO_GPU_BASE_PROPERTIES(_state, _conf)                       \
     DEFINE_PROP_UINT32("max_outputs", _state, _conf.max_outputs, 1),    \
@@ -287,6 +293,18 @@ struct VirtIOGPU {
 #endif
 };
 
+#ifdef __cplusplus
+struct VirtIOGPUClass : VirtIOGPUBaseClass {
+    void (*handle_ctrl)(VirtIODevice *vdev, VirtQueue *vq);
+    void (*process_cmd)(VirtIOGPU *g, struct virtio_gpu_ctrl_command *cmd);
+    void (*update_cursor_data)(VirtIOGPU *g,
+                               struct virtio_gpu_scanout *s,
+                               uint32_t resource_id);
+    void (*resource_destroy)(VirtIOGPU *g,
+                             struct virtio_gpu_simple_resource *res,
+                             Error **errp);
+};
+#else
 struct VirtIOGPUClass {
     VirtIOGPUBaseClass parent;
 
@@ -299,6 +317,7 @@ struct VirtIOGPUClass {
                              struct virtio_gpu_simple_resource *res,
                              Error **errp);
 };
+#endif
 
 /* VirtIOGPUGL renderer states */
 typedef enum {

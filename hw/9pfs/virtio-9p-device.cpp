@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/virtio/virtio.h"
+#include "qom/cpp/object.h"
 #include "qemu/sockets.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
@@ -250,25 +251,35 @@ static const Property virtio_9p_properties[] = {
     DEFINE_PROP_STRING("fsdev", V9fsVirtioState, state.fsconf.fsdev_id),
 };
 
+struct Virtio9PClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { virtio_9p_device_realize(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { virtio_9p_device_unrealize(dev); }
+    uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp) override
+        { return virtio_9p_get_features(vdev, f, errp); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_9p_get_config(vdev, config); }
+    void reset(VirtIODevice *vdev) override
+        { virtio_9p_reset(vdev); }
+};
+
 static void virtio_9p_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<Virtio9PClass>(klass);
 
     device_class_set_props(dc, virtio_9p_properties);
     dc->vmsd = &vmstate_virtio_9p;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    vdc->realize = virtio_9p_device_realize;
-    vdc->unrealize = virtio_9p_device_unrealize;
-    vdc->get_features = virtio_9p_get_features;
-    vdc->get_config = virtio_9p_get_config;
-    vdc->reset = virtio_9p_reset;
 }
 
 static const TypeInfo virtio_device_info = {
     .name = TYPE_VIRTIO_9P,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(V9fsVirtioState),
+    .class_size = sizeof(Virtio9PClass),
     .class_init = virtio_9p_class_init,
 };
 

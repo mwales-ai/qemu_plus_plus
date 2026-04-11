@@ -692,7 +692,7 @@ static int virtio_mmio_set_guest_notifier(DeviceState *d, int n, bool assign,
         event_notifier_cleanup(notifier);
     }
 
-    if (vdc->guest_notifier_mask && vdev->use_guest_notifier_mask) {
+    if (vdev->use_guest_notifier_mask) {
         vdc->guest_notifier_mask(vdev, n, !assign);
     }
 
@@ -717,7 +717,7 @@ static int virtio_mmio_set_config_guest_notifier(DeviceState *d, bool assign,
         virtio_config_set_guest_notifier_fd_handler(vdev, assign, with_irqfd);
         event_notifier_cleanup(notifier);
     }
-    if (vdc->guest_notifier_mask && vdev->use_guest_notifier_mask) {
+    if (vdev->use_guest_notifier_mask) {
         vdc->guest_notifier_mask(vdev, VIRTIO_CONFIG_IRQ_IDX, !assign);
     }
     return r;

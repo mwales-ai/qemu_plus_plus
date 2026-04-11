@@ -22,6 +22,7 @@
 #include "monitor/qdev.h"
 #include "monitor/monitor.h"
 #include "qobject/qdict.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "qemu/atomic.h"
@@ -4368,34 +4369,58 @@ static const Property virtio_net_properties[] = {
                                true),
 };
 
+struct VirtIONetClass : VirtioDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override
+        { VirtIONet::realizeStatic(dev, errp); }
+    void unrealize(DeviceState *dev) override
+        { VirtIONet::unrealizeStatic(dev); }
+    void get_config(VirtIODevice *vdev, uint8_t *config) override
+        { virtio_net_get_config(vdev, config); }
+    void set_config(VirtIODevice *vdev, const uint8_t *config) override
+        { virtio_net_set_config(vdev, config); }
+    void get_features_ex(VirtIODevice *vdev, uint64_t *requested_features,
+                         Error **errp) override
+        { virtio_net_get_features(vdev, requested_features, errp); }
+    void set_features_ex(VirtIODevice *vdev, const uint64_t *val) override
+        { virtio_net_set_features(vdev, val); }
+    uint64_t bad_features(VirtIODevice *vdev) override
+        { return virtio_net_bad_features(vdev); }
+    void reset(VirtIODevice *vdev) override
+        { VirtIONet::resetStatic(vdev); }
+    void queue_reset(VirtIODevice *vdev, uint32_t queue_index) override
+        { virtio_net_queue_reset(vdev, queue_index); }
+    void queue_enable(VirtIODevice *vdev, uint32_t queue_index) override
+        { virtio_net_queue_enable(vdev, queue_index); }
+    int set_status(VirtIODevice *vdev, uint8_t val) override
+        { return virtio_net_set_status(vdev, val); }
+    void guest_notifier_mask(VirtIODevice *vdev, int n, bool mask) override
+        { virtio_net_guest_notifier_mask(vdev, n, mask); }
+    bool guest_notifier_pending(VirtIODevice *vdev, int n) override
+        { return virtio_net_guest_notifier_pending(vdev, n); }
+    int pre_load_queues(VirtIODevice *vdev, uint32_t n) override
+        { return virtio_net_pre_load_queues(vdev, n); }
+    int post_load(VirtIODevice *vdev) override
+        { return virtio_net_post_load_virtio(vdev); }
+    bool primary_unplug_pending(void *opaque) override
+        { return ::primary_unplug_pending(opaque); }
+    struct vhost_dev *get_vhost(VirtIODevice *vdev) override
+        { return virtio_net_get_vhost(vdev); }
+    void toggle_device_iotlb(VirtIODevice *vdev) override
+        { vhost_toggle_device_iotlb(vdev); }
+};
+
 /* static */ void VirtIONet::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
 
+    qom_fixup_vtable<VirtIONetClass>(klass);
+
     device_class_set_props(dc, virtio_net_properties);
     dc->vmsd = &vmstate_virtio_net;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
-    vdc->realize = VirtIONet::realizeStatic;
-    vdc->unrealize = VirtIONet::unrealizeStatic;
-    vdc->get_config = virtio_net_get_config;
-    vdc->set_config = virtio_net_set_config;
-    vdc->get_features_ex = virtio_net_get_features;
-    vdc->set_features_ex = virtio_net_set_features;
-    vdc->bad_features = virtio_net_bad_features;
-    vdc->reset = VirtIONet::resetStatic;
-    vdc->queue_reset = virtio_net_queue_reset;
-    vdc->queue_enable = virtio_net_queue_enable;
-    vdc->set_status = virtio_net_set_status;
-    vdc->guest_notifier_mask = virtio_net_guest_notifier_mask;
-    vdc->guest_notifier_pending = virtio_net_guest_notifier_pending;
     vdc->legacy_features |= (0x1 << VIRTIO_NET_F_GSO);
-    vdc->pre_load_queues = virtio_net_pre_load_queues;
-    vdc->post_load = virtio_net_post_load_virtio;
     vdc->vmsd = &vmstate_virtio_net_device;
-    vdc->primary_unplug_pending = primary_unplug_pending;
-    vdc->get_vhost = virtio_net_get_vhost;
-    vdc->toggle_device_iotlb = vhost_toggle_device_iotlb;
 }
 
 static const TypeInfo virtio_net_info = {
@@ -4403,6 +4428,7 @@ static const TypeInfo virtio_net_info = {
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIONet),
     .instance_init = VirtIONet::instanceInitStatic,
+    .class_size = sizeof(VirtIONetClass),
     .class_init = VirtIONet::classInit,
 };
 

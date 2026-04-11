@@ -35,6 +35,7 @@
 #include "system/memory.h"
 #include "system/runstate.h"
 #include "virtio-qmp.h"
+#include "qom/cpp/object.h"
 
 #include "standard-headers/linux/virtio_ids.h"
 #include "standard-headers/linux/vhost_types.h"
@@ -3138,12 +3139,7 @@ static int virtio_set_features_nocheck(VirtIODevice *vdev, const uint64_t *val)
     bad = virtio_features_andnot(tmp, val, vdev->host_features_ex);
     virtio_features_and(tmp, val, vdev->host_features_ex);
 
-    if (k->set_features_ex) {
-        k->set_features_ex(vdev, val);
-    } else {
-        bad = bad || virtio_features_use_ex(tmp);
-        vdev->setFeatures(tmp[0]);
-    }
+    k->set_features_ex(vdev, val);
 
     virtio_features_copy(vdev->guest_features_ex, tmp);
     return bad ? -1 : 0;
@@ -3243,7 +3239,7 @@ void virtio_reset(void *opaque)
         vdev->device_endian = virtio_default_endian();
     }
 
-    if (k->get_vhost) {
+    {
         struct vhost_dev *hdev = k->get_vhost(vdev);
         /* Only reset when vhost back-end is connected */
         if (hdev && hdev->vhost_ops) {
@@ -3364,11 +3360,9 @@ virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         return -1;
     }
 
-    if (vdc->pre_load_queues) {
-        ret = vdc->pre_load_queues(vdev, num);  /* no wrapper: rarely used */
-        if (ret) {
-            return ret;
-        }
+    ret = vdc->pre_load_queues(vdev, num);
+    if (ret) {
+        return ret;
     }
 
     for (i = 0; i < num; i++) {
@@ -4032,15 +4026,10 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
     Error *err = NULL;
 
-    /* Devices should either use vmsd or the load/save methods */
-    assert(!vdc->vmsd || !vdc->load);
-
-    if (vdc->realize != NULL) {
-        vdc->realize(dev, &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
-            return;
-        }
+    vdc->realize(dev, &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
     }
 
     /* Devices should not use both ioeventfd and notification data feature */
@@ -4071,9 +4060,7 @@ static void virtio_device_unrealize(DeviceState *dev)
     memory_listener_unregister(&vdev->listener);
     virtio_bus_device_unplugged(vdev);
 
-    if (vdc->unrealize != NULL) {
-        vdc->unrealize(dev);
-    }
+    vdc->unrealize(dev);
 
     g_free(vdev->bus_name);
     vdev->bus_name = NULL;
@@ -4233,18 +4220,48 @@ void virtio_device_release_ioeventfd(VirtIODevice *vdev)
     virtio_bus_release_ioeventfd(vbus);
 }
 
+/*
+ * Default virtual method implementations for VirtioDeviceClass.
+ * get_features_ex delegates to get_features (the u64 path).
+ * set_features_ex delegates to set_features.
+ * start_ioeventfd/stop_ioeventfd provide the standard ioeventfd impl.
+ */
+void VirtioDeviceClass::get_features_ex(VirtIODevice *vdev,
+                                        uint64_t *requested_features,
+                                        Error **errp)
+{
+    uint64_t features = get_features(vdev, vdev->host_features, errp);
+    virtio_features_from_u64(requested_features, features);
+}
+
+void VirtioDeviceClass::set_features_ex(VirtIODevice *vdev,
+                                        const uint64_t *val)
+{
+    set_features(vdev, val[0]);
+}
+
+int VirtioDeviceClass::start_ioeventfd(VirtIODevice *vdev)
+{
+    return virtio_device_start_ioeventfd_impl(vdev);
+}
+
+void VirtioDeviceClass::stop_ioeventfd(VirtIODevice *vdev)
+{
+    virtio_device_stop_ioeventfd_impl(vdev);
+}
+
 static void virtio_device_class_init(ObjectClass *klass, const void *data)
 {
     /* Set the default value here. */
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    qom_fixup_vtable<VirtioDeviceClass>(klass);
+
     dc->realize = virtio_device_realize;
     dc->unrealize = virtio_device_unrealize;
     dc->bus_type = TYPE_VIRTIO_BUS;
     device_class_set_props(dc, virtio_properties);
-    vdc->start_ioeventfd = virtio_device_start_ioeventfd_impl;
-    vdc->stop_ioeventfd = virtio_device_stop_ioeventfd_impl;
 
     vdc->legacy_features |= VIRTIO_LEGACY_FEATURES;
 }

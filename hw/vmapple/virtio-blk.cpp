@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "hw/vmapple/vmapple.h"
 #include "hw/virtio/virtio-blk.h"
+#include "qom/cpp/object.h"
 #include "hw/virtio/virtio-pci.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -26,11 +27,9 @@
 #define TYPE_VMAPPLE_VIRTIO_BLK  "vmapple-virtio-blk"
 OBJECT_DECLARE_TYPE(VMAppleVirtIOBlk, VMAppleVirtIOBlkClass, VMAPPLE_VIRTIO_BLK)
 
-typedef struct VMAppleVirtIOBlkClass {
-    VirtIOBlkClass parent;
-
-    void (*get_config)(VirtIODevice *vdev, uint8_t *config);
-} VMAppleVirtIOBlkClass;
+struct VMAppleVirtIOBlkClass : VirtIOBlkClass {
+    void get_config(VirtIODevice *vdev, uint8_t *config) override;
+};
 
 typedef struct VMAppleVirtIOBlk {
     VirtIOBlock parent_obj;
@@ -67,13 +66,13 @@ static bool vmapple_virtio_blk_handle_unknown_request(VirtIOBlockReq *req,
  * the spec reserves for max_secure_erase_sectors. Let's hook into the
  * get_config code path here, run it as usual and then patch in the apple type.
  */
-static void vmapple_virtio_blk_get_config(VirtIODevice *vdev, uint8_t *config)
+void VMAppleVirtIOBlkClass::get_config(VirtIODevice *vdev, uint8_t *config)
 {
     VMAppleVirtIOBlk *dev = VMAPPLE_VIRTIO_BLK(vdev);
-    VMAppleVirtIOBlkClass *vvbk = VMAPPLE_VIRTIO_BLK_GET_CLASS(dev);
     struct virtio_blk_config *blkcfg = (struct virtio_blk_config *)config;
 
-    vvbk->get_config(vdev, config);
+    /* Call parent's get_config (virtio_blk_update_config) directly */
+    virtio_blk_update_config(vdev, config);
 
     g_assert(dev->parent_obj.config_size >= endof(struct virtio_blk_config, zoned));
 
@@ -84,12 +83,10 @@ static void vmapple_virtio_blk_get_config(VirtIODevice *vdev, uint8_t *config)
 static void vmapple_virtio_blk_class_init(ObjectClass *klass, const void *data)
 {
     VirtIOBlkClass *vbk = VIRTIO_BLK_CLASS(klass);
-    VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    VMAppleVirtIOBlkClass *vvbk = VMAPPLE_VIRTIO_BLK_CLASS(klass);
+
+    qom_fixup_vtable<VMAppleVirtIOBlkClass>(klass);
 
     vbk->handle_unknown_request = vmapple_virtio_blk_handle_unknown_request;
-    vvbk->get_config = vdc->get_config;
-    vdc->get_config = vmapple_virtio_blk_get_config;
 }
 
 static const TypeInfo vmapple_virtio_blk_info = {
