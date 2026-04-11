@@ -94,38 +94,33 @@ DECLARE_INSTANCE_CHECKER(SDState, SD_CARD_SPI, TYPE_SD_CARD_SPI)
 #define TYPE_EMMC "emmc"
 DECLARE_INSTANCE_CHECKER(SDState, EMMC, TYPE_EMMC)
 
-struct SDCardClass {
-    /*< private >*/
-    DeviceClass parent_class;
-    /*< public >*/
+/*
+ * SDCardClass — QOM class struct using C++ virtual methods (Option D).
+ */
+#ifdef __cplusplus
+struct SDCardClass : DeviceClass {
+    virtual size_t do_command(SDState *sd, SDRequest *req,
+                              uint8_t *resp, size_t respsz);
+    virtual void write_byte(SDState *sd, uint8_t value);
+    virtual uint8_t read_byte(SDState *sd);
+    virtual bool receive_ready(SDState *sd);
+    virtual bool data_ready(SDState *sd);
+    virtual void set_voltage(SDState *sd, uint16_t millivolts);
+    virtual uint8_t get_dat_lines(SDState *sd);
+    virtual bool get_cmd_line(SDState *sd);
+    virtual bool get_inserted(SDState *sd);
+    virtual bool get_readonly(SDState *sd);
+    virtual void set_cid(SDState *sd);
+    virtual void set_csd(SDState *sd, uint64_t size);
 
-    /**
-     * Process a SD command request.
-     * @sd: card
-     * @req: command request
-     * @resp: buffer to receive the command response
-     * @respsz: size of @resp buffer
-     *
-     * Return: size of the response
-     */
+    const struct SDProto *proto;
+};
+#else
+struct SDCardClass {
+    DeviceClass parent_class;
     size_t (*do_command)(SDState *sd, SDRequest *req,
                          uint8_t *resp, size_t respsz);
-    /**
-     * Write a byte to a SD card.
-     * @sd: card
-     * @value: byte to write
-     *
-     * Write a byte on the data lines of a SD card.
-     */
     void (*write_byte)(SDState *sd, uint8_t value);
-    /**
-     * Read a byte from a SD card.
-     * @sd: card
-     *
-     * Read a byte from the data lines of a SD card.
-     *
-     * Return: byte value read
-     */
     uint8_t (*read_byte)(SDState *sd);
     bool (*receive_ready)(SDState *sd);
     bool (*data_ready)(SDState *sd);
@@ -136,9 +131,9 @@ struct SDCardClass {
     bool (*get_readonly)(SDState *sd);
     void (*set_cid)(SDState *sd);
     void (*set_csd)(SDState *sd, uint64_t size);
-
     const struct SDProto *proto;
 };
+#endif
 
 #define TYPE_SD_BUS "sd-bus"
 OBJECT_DECLARE_TYPE(SDBus, SDBusClass,

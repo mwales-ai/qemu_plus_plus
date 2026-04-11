@@ -40,6 +40,7 @@
 #include "hw/registerfields.h"
 #include "system/block-backend.h"
 #include "hw/sd/sd.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qemu/bitmap.h"
@@ -3233,27 +3234,75 @@ static const Property emmc_properties[] = {
     DEFINE_PROP_UINT64("rpmb-partition-size", SDState, rpmb_part_size, 0),
 };
 
+/* Default virtual method implementations for SDCardClass */
+size_t SDCardClass::do_command(SDState *sd, SDRequest *req,
+                                uint8_t *resp, size_t respsz) { return 0; }
+void SDCardClass::write_byte(SDState *sd, uint8_t value) {}
+uint8_t SDCardClass::read_byte(SDState *sd) { return 0; }
+bool SDCardClass::receive_ready(SDState *sd) { return false; }
+bool SDCardClass::data_ready(SDState *sd) { return false; }
+void SDCardClass::set_voltage(SDState *sd, uint16_t millivolts) {}
+uint8_t SDCardClass::get_dat_lines(SDState *sd) { return 0; }
+bool SDCardClass::get_cmd_line(SDState *sd) { return false; }
+bool SDCardClass::get_inserted(SDState *sd) { return false; }
+bool SDCardClass::get_readonly(SDState *sd) { return false; }
+void SDCardClass::set_cid(SDState *sd) {}
+void SDCardClass::set_csd(SDState *sd, uint64_t size) {}
+
+/* Base SDCommonClass — overrides the 10 common methods */
+struct SDCommonClass : SDCardClass {
+    size_t do_command(SDState *sd, SDRequest *req, uint8_t *resp,
+                      size_t respsz) override;
+    void write_byte(SDState *sd, uint8_t value) override;
+    uint8_t read_byte(SDState *sd) override;
+    bool receive_ready(SDState *sd) override;
+    bool data_ready(SDState *sd) override;
+    void set_voltage(SDState *sd, uint16_t millivolts) override;
+    uint8_t get_dat_lines(SDState *sd) override;
+    bool get_cmd_line(SDState *sd) override;
+    bool get_inserted(SDState *sd) override;
+    bool get_readonly(SDState *sd) override;
+};
+
+size_t SDCommonClass::do_command(SDState *sd, SDRequest *req, uint8_t *resp,
+                                  size_t respsz) { return sd_do_command(sd, req, resp, respsz); }
+void SDCommonClass::write_byte(SDState *sd, uint8_t value) { sd_write_byte(sd, value); }
+uint8_t SDCommonClass::read_byte(SDState *sd) { return sd_read_byte(sd); }
+bool SDCommonClass::receive_ready(SDState *sd) { return sd_receive_ready(sd); }
+bool SDCommonClass::data_ready(SDState *sd) { return sd_data_ready(sd); }
+void SDCommonClass::set_voltage(SDState *sd, uint16_t millivolts) { sd_set_voltage(sd, millivolts); }
+uint8_t SDCommonClass::get_dat_lines(SDState *sd) { return sd_get_dat_lines(sd); }
+bool SDCommonClass::get_cmd_line(SDState *sd) { return sd_get_cmd_line(sd); }
+bool SDCommonClass::get_inserted(SDState *sd) { return sd_get_inserted(sd); }
+bool SDCommonClass::get_readonly(SDState *sd) { return sd_get_readonly(sd); }
+
+/* SD card — overrides set_cid, set_csd */
+struct SDClass : SDCommonClass {
+    void set_cid(SDState *sd) override;
+    void set_csd(SDState *sd, uint64_t size) override;
+};
+void SDClass::set_cid(SDState *sd) { sd_set_cid(sd); }
+void SDClass::set_csd(SDState *sd, uint64_t size) { sd_set_csd(sd, size); }
+
+/* eMMC — overrides set_cid, set_csd */
+struct EMMCClass : SDCommonClass {
+    void set_cid(SDState *sd) override;
+    void set_csd(SDState *sd, uint64_t size) override;
+};
+void EMMCClass::set_cid(SDState *sd) { emmc_set_cid(sd); }
+void EMMCClass::set_csd(SDState *sd, uint64_t size) { emmc_set_csd(sd, size); }
+
 void SDState::commonClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
+
+    qom_fixup_vtable<SDCommonClass>(klass);
 
     device_class_set_props(dc, sdmmc_common_properties);
     dc->vmsd = &sd_vmstate;
     device_class_set_legacy_reset(dc, SDState::sdReset);
     dc->bus_type = TYPE_SD_BUS;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-
-    sc->set_voltage = sd_set_voltage;
-    sc->get_dat_lines = sd_get_dat_lines;
-    sc->get_cmd_line = sd_get_cmd_line;
-    sc->do_command = sd_do_command;
-    sc->write_byte = sd_write_byte;
-    sc->read_byte = sd_read_byte;
-    sc->receive_ready = sd_receive_ready;
-    sc->data_ready = sd_data_ready;
-    sc->get_inserted = sd_get_inserted;
-    sc->get_readonly = sd_get_readonly;
 }
 
 void SDState::sdClassInit(ObjectClass *klass, const void *data)
@@ -3261,11 +3310,10 @@ void SDState::sdClassInit(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
 
+    qom_fixup_vtable<SDClass>(klass);
+
     dc->realize = SDState::sdRealize;
     device_class_set_props(dc, sd_properties);
-
-    sc->set_cid = sd_set_cid;
-    sc->set_csd = sd_set_csd;
     sc->proto = &sd_proto_sd;
 }
 
@@ -3289,16 +3337,14 @@ void SDState::emmcClassInit(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     SDCardClass *sc = SDMMC_COMMON_CLASS(klass);
 
+    qom_fixup_vtable<EMMCClass>(klass);
+
     assert(qcrypto_hmac_supports(QCRYPTO_HASH_ALGO_SHA256));
 
     dc->desc = "eMMC";
     dc->realize = SDState::emmcRealize;
     device_class_set_props(dc, emmc_properties);
-
     sc->proto = &sd_proto_emmc;
-
-    sc->set_cid = emmc_set_cid;
-    sc->set_csd = emmc_set_csd;
 }
 
 static const TypeInfo sd_types[] = {
@@ -3309,12 +3355,13 @@ static const TypeInfo sd_types[] = {
         .instance_init  = SDState::instanceInit,
         .instance_finalize = SDState::instanceFinalize,
         .is_abstract    = true,
-        .class_size     = sizeof(SDCardClass),
+        .class_size     = sizeof(SDCommonClass),
         .class_init     = SDState::commonClassInit,
     },
     {
         .name           = TYPE_SD_CARD,
         .parent         = TYPE_SDMMC_COMMON,
+        .class_size     = sizeof(SDClass),
         .class_init     = SDState::sdClassInit,
     },
     {
@@ -3325,6 +3372,7 @@ static const TypeInfo sd_types[] = {
     {
         .name           = TYPE_EMMC,
         .parent         = TYPE_SDMMC_COMMON,
+        .class_size     = sizeof(EMMCClass),
         .class_init     = SDState::emmcClassInit,
     },
 };

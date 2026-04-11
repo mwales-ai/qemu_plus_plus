@@ -50,10 +50,7 @@ uint8_t sdbus_get_dat_lines(SDBus *sdbus)
 
     if (slave) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(slave);
-
-        if (sc->get_dat_lines) {
-            dat_lines = sc->get_dat_lines(slave);
-        }
+        dat_lines = sc->get_dat_lines(slave);
     }
     trace_sdbus_get_dat_lines(sdbus_name(sdbus), dat_lines);
 
@@ -67,10 +64,7 @@ bool sdbus_get_cmd_line(SDBus *sdbus)
 
     if (slave) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(slave);
-
-        if (sc->get_cmd_line) {
-            cmd_line = sc->get_cmd_line(slave);
-        }
+        cmd_line = sc->get_cmd_line(slave);
     }
     trace_sdbus_get_cmd_line(sdbus_name(sdbus), cmd_line);
 
@@ -85,7 +79,6 @@ void sdbus_set_voltage(SDBus *sdbus, uint16_t millivolts)
     if (card) {
         SDCardClass *sc = SDMMC_COMMON_GET_CLASS(card);
 
-        assert(sc->set_voltage);
         sc->set_voltage(card, millivolts);
     }
 }
