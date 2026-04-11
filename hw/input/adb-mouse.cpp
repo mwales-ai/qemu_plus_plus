@@ -26,6 +26,7 @@
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "ui/console.h"
 #include "hw/input/adb.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "adb-internal.h"
@@ -60,12 +61,12 @@ struct MouseState {
 };
 
 
-struct ADBMouseClass {
-    /*< public >*/
-    ADBDeviceClass parent_class;
-    /*< private >*/
-
+struct ADBMouseClass : ADBDeviceClass {
     DeviceRealize parent_realize;
+
+    int devreq(ADBDevice *d, uint8_t *obuf,
+               const uint8_t *buf, int len) override;
+    bool devhasdata(ADBDevice *d) override;
 };
 
 #define ADB_MOUSE_BUTTON_LEFT   0x01
@@ -331,18 +332,24 @@ static void adb_mouse_initfn(Object *obj)
     s->initfn();
 }
 
+int ADBMouseClass::devreq(ADBDevice *d, uint8_t *obuf,
+                           const uint8_t *buf, int len) {
+    return adb_mouse_request(d, obuf, buf, len);
+}
+bool ADBMouseClass::devhasdata(ADBDevice *d) {
+    return adb_mouse_has_data(d);
+}
+
 void MouseState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-    ADBDeviceClass *adc = reinterpret_cast<ADBDeviceClass *>(oc);
     ADBMouseClass *amc = reinterpret_cast<ADBMouseClass *>(oc);
+
+    qom_fixup_vtable<ADBMouseClass>(oc);
 
     device_class_set_parent_realize(dc, adb_mouse_realizefn,
                                     &amc->parent_realize);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-
-    adc->devreq = adb_mouse_request;
-    adc->devhasdata = adb_mouse_has_data;
     device_class_set_legacy_reset(dc, adb_mouse_reset);
     dc->vmsd = &vmstate_adb_mouse;
 }

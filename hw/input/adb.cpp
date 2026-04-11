@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/input/adb.h"
+#include "qom/cpp/object.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
@@ -301,9 +302,16 @@ static void adb_device_realizefn(DeviceState *dev, Error **errp)
     bus->devices[bus->nb_devices++] = d;
 }
 
+/* Default virtual method implementations */
+int ADBDeviceClass::devreq(ADBDevice *d, uint8_t *obuf,
+                            const uint8_t *buf, int len) { return 0; }
+bool ADBDeviceClass::devhasdata(ADBDevice *d) { return false; }
+
 static void adb_device_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
+
+    qom_fixup_vtable<ADBDeviceClass>(oc);
 
     dc->realize = adb_device_realizefn;
     dc->bus_type = TYPE_ADB_BUS;

@@ -25,6 +25,7 @@
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/input/adb.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "ui/input.h"
@@ -61,12 +62,12 @@ struct KBDState {
 };
 
 
-struct ADBKeyboardClass {
-    /*< private >*/
-    ADBDeviceClass parent_class;
-    /*< public >*/
-
+struct ADBKeyboardClass : ADBDeviceClass {
     DeviceRealize parent_realize;
+
+    int devreq(ADBDevice *d, uint8_t *obuf,
+               const uint8_t *buf, int len) override;
+    bool devhasdata(ADBDevice *d) override;
 };
 
 /* The adb keyboard doesn't have every key imaginable */
@@ -428,18 +429,24 @@ static void adb_kbd_initfn(Object *obj)
     s->initfn(obj);
 }
 
+int ADBKeyboardClass::devreq(ADBDevice *d, uint8_t *obuf,
+                              const uint8_t *buf, int len) {
+    return adb_kbd_request(d, obuf, buf, len);
+}
+bool ADBKeyboardClass::devhasdata(ADBDevice *d) {
+    return adb_kbd_has_data(d);
+}
+
 void KBDState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-    ADBDeviceClass *adc = reinterpret_cast<ADBDeviceClass *>(oc);
     ADBKeyboardClass *akc = reinterpret_cast<ADBKeyboardClass *>(oc);
+
+    qom_fixup_vtable<ADBKeyboardClass>(oc);
 
     device_class_set_parent_realize(dc, adb_kbd_realizefn,
                                     &akc->parent_realize);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
-
-    adc->devreq = adb_kbd_request;
-    adc->devhasdata = adb_kbd_has_data;
     device_class_set_legacy_reset(dc, adb_kbd_reset);
     dc->vmsd = &vmstate_adb_kbd;
 }

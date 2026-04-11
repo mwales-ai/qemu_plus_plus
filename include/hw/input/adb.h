@@ -58,14 +58,22 @@ struct ADBDevice {
 };
 
 
+/*
+ * ADBDeviceClass — QOM class struct using C++ virtual methods (Option D).
+ */
+#ifdef __cplusplus
+struct ADBDeviceClass : DeviceClass {
+    virtual int devreq(ADBDevice *d, uint8_t *obuf,
+                       const uint8_t *buf, int len);
+    virtual bool devhasdata(ADBDevice *d);
+};
+#else
 struct ADBDeviceClass {
-    /*< private >*/
     DeviceClass parent_class;
-    /*< public >*/
-
     ADBDeviceRequest *devreq;
     ADBDeviceHasData *devhasdata;
 };
+#endif
 
 #define TYPE_ADB_BUS "apple-desktop-bus"
 OBJECT_DECLARE_SIMPLE_TYPE(ADBBusState, ADB_BUS)
