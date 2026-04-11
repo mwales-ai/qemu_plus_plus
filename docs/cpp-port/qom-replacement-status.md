@@ -194,9 +194,9 @@ headers. This fixed 3 ARM/aarch64 boot failures.
 
 | Metric | Value |
 |--------|-------|
-| Class hierarchies fully converted | 3 |
-| Class structs with C++ inheritance | 8 |
-| Virtual methods replacing function pointers | 14 |
+| Class hierarchies fully converted | 9 |
+| Class structs with C++ inheritance | 10 |
+| Virtual methods replacing function pointers | 55 |
 
 **Option D** is the key architectural change: replacing QOM's function pointer
 dispatch with actual C++ virtual methods on the class structs. This is done in
@@ -214,18 +214,22 @@ the C++ vtable pointer after QOM's `type_initialize()` memcpy overwrites it.
 
 | Class Hierarchy | Virtual Methods | Subclasses | Files |
 |----------------|----------------|------------|-------|
-| MOS6522DeviceClass | 6 | 4 (CUDA, VIA1, VIA2, PMU) | 5 files |
+| MOS6522DeviceClass | 6 | 4 (CUDA, VIA1, VIA2, PMU) | 6 files |
 | VirtIOSerialPortClass | 7 | 2 (virtserialport, virtconsole) | 3 files |
 | IDEDeviceClass | 1 | 3 (ide-hd, ide-cd, ide-cf) | 3 files |
+| PITCommonClass | 4 | 2 (i8254, kvm-i8254) | 4 files |
+| SCSIDeviceClass | 5 | 4 (hd, cd, block, generic) | 4 files |
+| HDACodecDeviceClass | 4 | 4 (output, duplex, micro) | 3 files |
+| AwRtcClass | 2 | 3 (sun4i, sun6i, sun7i) | 2 files |
+| USBDeviceClass | 14 | 15 (hub, hid, wacom, etc.) | 22 files |
+| SDCardClass | 12 | 4 (sd, spi, emmc) | 3 files |
 
 **Step 1 only (C++ inheritance, function pointers remain):**
 
 | Class Hierarchy | Function Pointers | Subclass Files |
 |----------------|-------------------|----------------|
 | PCIDeviceClass | 4 | 100+ |
-| VirtioDeviceClass | 23 | 7+ |
-| USBDeviceClass | 11 | 15+ |
-| SCSIDeviceClass | 5 | 4 (in progress) |
+| VirtioDeviceClass | 23 | 27 (conversion in progress) |
 
 **How virtual method dispatch works:**
 
@@ -244,8 +248,7 @@ assigned function pointers to compiler-managed vtables.
 
 ## What's Next
 
-1. Continue Option D conversion for SCSIDeviceClass (5 function pointers, 4 subclasses)
-2. Convert USBDeviceClass (11 function pointers, 15+ subclass files)
-3. Convert VirtioDeviceClass (23 function pointers — highest impact)
-4. Eventually tackle PCIDeviceClass (100+ subclass files — mass conversion)
-5. Remove QOM runtime type registry once all hierarchies use C++ dispatch
+1. Convert VirtioDeviceClass (23 function pointers, 27 subclass files — in progress)
+2. Eventually tackle PCIDeviceClass (100+ subclass files — mass conversion phase)
+3. Convert remaining small hierarchies (XenDevice, SSI, I2C, etc.)
+4. Remove QOM runtime type registry once all hierarchies use C++ dispatch
