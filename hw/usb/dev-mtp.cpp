@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include <wchar.h>
@@ -2100,19 +2101,36 @@ static const Property mtp_properties[] = {
     DEFINE_PROP_BOOL("readonly", MTPState, readonly, true),
 };
 
+struct USBMTPDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void cancel_packet(USBDevice *dev, USBPacket *p) override;
+    void handle_attach(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void USBMTPDeviceClass::realize(USBDevice *dev, Error **errp) { MTPState::realizeWrapper(dev, errp); }
+void USBMTPDeviceClass::cancel_packet(USBDevice *dev, USBPacket *p) { usb_mtp_cancel_packet(dev, p); }
+void USBMTPDeviceClass::handle_attach(USBDevice *dev) { usb_desc_attach(dev); }
+void USBMTPDeviceClass::handle_reset(USBDevice *dev) { MTPState::handleResetWrapper(dev); }
+void USBMTPDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                       int value, int index, int length,
+                                       uint8_t *data) {
+    usb_mtp_handle_control(dev, p, request, value, index, length, data);
+}
+void USBMTPDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { usb_mtp_handle_data(dev, p); }
+
 void MTPState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
-    uc->realize        = realizeWrapper;
+    qom_fixup_vtable<USBMTPDeviceClass>(klass);
     uc->product_desc   = "QEMU USB MTP";
     uc->usb_desc       = &::desc;
-    uc->cancel_packet  = usb_mtp_cancel_packet;
-    uc->handle_attach  = usb_desc_attach;
-    uc->handle_reset   = handleResetWrapper;
-    uc->handle_control = usb_mtp_handle_control;
-    uc->handle_data    = usb_mtp_handle_data;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "USB Media Transfer Protocol device";
     dc->fw_name = "mtp";
@@ -2124,6 +2142,7 @@ static const TypeInfo mtp_info = {
     .name          = TYPE_USB_MTP,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(MTPState),
+    .class_size    = sizeof(USBMTPDeviceClass),
     .class_init    = MTPState::classInit,
 };
 

@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include <canokey-qemu.h>
 
 #include "qemu/module.h"
@@ -300,19 +301,36 @@ static const Property canokey_properties[] = {
     DEFINE_PROP_STRING("file", CanoKeyState, file),
 };
 
+struct CanoKeyDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void handle_attach(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void CanoKeyDeviceClass::realize(USBDevice *dev, Error **errp) { canokey_realize(dev, errp); }
+void CanoKeyDeviceClass::unrealize(USBDevice *dev) { canokey_unrealize(dev); }
+void CanoKeyDeviceClass::handle_attach(USBDevice *dev) { usb_desc_attach(dev); }
+void CanoKeyDeviceClass::handle_reset(USBDevice *dev) { canokey_handle_reset(dev); }
+void CanoKeyDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                        int value, int index, int length,
+                                        uint8_t *data) {
+    canokey_handle_control(dev, p, request, value, index, length, data);
+}
+void CanoKeyDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { canokey_handle_data(dev, p); }
+
 static void canokey_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
+    qom_fixup_vtable<CanoKeyDeviceClass>(klass);
     uc->product_desc   = "CanoKey QEMU";
     uc->usb_desc       = &desc_canokey;
-    uc->handle_reset   = canokey_handle_reset;
-    uc->handle_control = canokey_handle_control;
-    uc->handle_data    = canokey_handle_data;
-    uc->handle_attach  = usb_desc_attach;
-    uc->realize        = canokey_realize;
-    uc->unrealize      = canokey_unrealize;
     dc->desc           = "CanoKey QEMU";
     device_class_set_props(dc, canokey_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
@@ -322,6 +340,7 @@ static const TypeInfo canokey_info = {
     .name = TYPE_CANOKEY,
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(CanoKeyState),
+    .class_size = sizeof(CanoKeyDeviceClass),
     .class_init = canokey_class_init
 };
 

@@ -34,6 +34,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include "qom/object.h"
 #ifndef CONFIG_WIN32
 #include <poll.h>
@@ -1790,21 +1791,47 @@ static const Property usb_host_dev_properties[] = {
                      suppress_remote_wake, true),
 };
 
+struct USBHostDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void cancel_packet(USBDevice *dev, USBPacket *p) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+    void flush_ep_queue(USBDevice *dev, USBEndpoint *ep) override;
+    int alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                      int streams) override;
+    void free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps) override;
+};
+
+void USBHostDeviceClass::realize(USBDevice *dev, Error **errp) { usb_host_realize(dev, errp); }
+void USBHostDeviceClass::unrealize(USBDevice *dev) { usb_host_unrealize(dev); }
+void USBHostDeviceClass::cancel_packet(USBDevice *dev, USBPacket *p) { usb_host_cancel_packet(dev, p); }
+void USBHostDeviceClass::handle_reset(USBDevice *dev) { usb_host_handle_reset(dev); }
+void USBHostDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                        int value, int index, int length,
+                                        uint8_t *data) {
+    usb_host_handle_control(dev, p, request, value, index, length, data);
+}
+void USBHostDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { usb_host_handle_data(dev, p); }
+void USBHostDeviceClass::flush_ep_queue(USBDevice *dev, USBEndpoint *ep) { usb_host_flush_ep_queue(dev, ep); }
+int USBHostDeviceClass::alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                                      int streams) {
+    return usb_host_alloc_streams(dev, eps, nr_eps, streams);
+}
+void USBHostDeviceClass::free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps) {
+    usb_host_free_streams(dev, eps, nr_eps);
+}
+
 static void usb_host_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize        = usb_host_realize;
+    qom_fixup_vtable<USBHostDeviceClass>(klass);
     uc->product_desc   = "USB Host Device";
-    uc->cancel_packet  = usb_host_cancel_packet;
-    uc->handle_data    = usb_host_handle_data;
-    uc->handle_control = usb_host_handle_control;
-    uc->handle_reset   = usb_host_handle_reset;
-    uc->unrealize      = usb_host_unrealize;
-    uc->flush_ep_queue = usb_host_flush_ep_queue;
-    uc->alloc_streams  = usb_host_alloc_streams;
-    uc->free_streams   = usb_host_free_streams;
     dc->vmsd = &vmstate_usb_host;
     device_class_set_props(dc, usb_host_dev_properties);
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
@@ -1815,6 +1842,7 @@ static const TypeInfo usb_host_dev_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHostDevice),
     .instance_init = usb_host_instance_init,
+    .class_size    = sizeof(USBHostDeviceClass),
     .class_init    = usb_host_class_initfn,
 };
 module_obj(TYPE_USB_HOST_DEVICE);

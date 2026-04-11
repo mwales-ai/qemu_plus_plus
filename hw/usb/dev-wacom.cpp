@@ -28,6 +28,7 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#include "qom/cpp/object.h"
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "hw/usb/hid.h"
@@ -452,18 +453,34 @@ static const VMStateDescription vmstate_usb_wacom = {
     .unmigratable = 1,
 };
 
+struct USBWacomDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void USBWacomDeviceClass::realize(USBDevice *dev, Error **errp) { USBWacomState::realize(dev, errp); }
+void USBWacomDeviceClass::unrealize(USBDevice *dev) { USBWacomState::unrealize(dev); }
+void USBWacomDeviceClass::handle_reset(USBDevice *dev) { USBWacomState::handleReset(dev); }
+void USBWacomDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                         int value, int index, int length,
+                                         uint8_t *data) {
+    USBWacomState::handleControl(dev, p, request, value, index, length, data);
+}
+void USBWacomDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { USBWacomState::handleData(dev, p); }
+
 void USBWacomState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
+    qom_fixup_vtable<USBWacomDeviceClass>(klass);
     uc->product_desc   = "QEMU PenPartner Tablet";
     uc->usb_desc       = &desc_wacom;
-    uc->realize        = USBWacomState::realize;
-    uc->handle_reset   = USBWacomState::handleReset;
-    uc->handle_control = USBWacomState::handleControl;
-    uc->handle_data    = USBWacomState::handleData;
-    uc->unrealize      = USBWacomState::unrealize;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "QEMU PenPartner Tablet";
     dc->vmsd = &vmstate_usb_wacom;
@@ -473,6 +490,7 @@ static const TypeInfo wacom_info = {
     .name          = TYPE_USB_WACOM,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBWacomState),
+    .class_size    = sizeof(USBWacomDeviceClass),
     .class_init    = USBWacomState::classInit,
 };
 

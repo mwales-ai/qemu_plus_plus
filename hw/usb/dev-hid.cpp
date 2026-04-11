@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#include "qom/cpp/object.h"
 #include "ui/console.h"
 #include "hw/usb.h"
 #include "migration/vmstate.h"
@@ -842,15 +843,29 @@ static const VMStateDescription vmstate_usb_kbd = {
     .fields = vmstate_usb_kbd_fields,
 };
 
+struct USBHIDDeviceClass : USBDeviceClass {
+    void unrealize(USBDevice *dev) override;
+    void handle_attach(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void USBHIDDeviceClass::unrealize(USBDevice *dev) { USBHIDState::unrealize(dev); }
+void USBHIDDeviceClass::handle_attach(USBDevice *dev) { usb_desc_attach(dev); }
+void USBHIDDeviceClass::handle_reset(USBDevice *dev) { USBHIDState::handleReset(dev); }
+void USBHIDDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                       int value, int index, int length,
+                                       uint8_t *data) {
+    USBHIDState::handleControl(dev, p, request, value, index, length, data);
+}
+void USBHIDDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { USBHIDState::handleData(dev, p); }
+
 void USBHIDState::hidClassInit(ObjectClass *klass, const void *data)
 {
-    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
-
-    uc->handle_reset   = USBHIDState::handleReset;
-    uc->handle_control = USBHIDState::handleControl;
-    uc->handle_data    = USBHIDState::handleData;
-    uc->unrealize      = USBHIDState::unrealize;
-    uc->handle_attach  = usb_desc_attach;
+    qom_fixup_vtable<USBHIDDeviceClass>(klass);
 }
 
 static const TypeInfo usb_hid_type_info = {
@@ -858,6 +873,7 @@ static const TypeInfo usb_hid_type_info = {
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHIDState),
     .is_abstract = true,
+    .class_size = sizeof(USBHIDDeviceClass),
     .class_init = USBHIDState::hidClassInit,
 };
 
@@ -867,12 +883,17 @@ static const Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("head", USBHIDState, head, 0),
 };
 
+struct USBTabletClass : USBHIDDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+};
+void USBTabletClass::realize(USBDevice *dev, Error **errp) { USBHIDState::tabletRealize(dev, errp); }
+
 void USBHIDState::tabletClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
-    uc->realize        = USBHIDState::tabletRealize;
+    qom_fixup_vtable<USBTabletClass>(klass);
     uc->product_desc   = "QEMU USB Tablet";
     dc->vmsd = &vmstate_usb_ptr;
     device_class_set_props(dc, usb_tablet_properties);
@@ -882,6 +903,7 @@ void USBHIDState::tabletClassInit(ObjectClass *klass, const void *data)
 static const TypeInfo usb_tablet_info = {
     .name          = "usb-tablet",
     .parent        = TYPE_USB_HID,
+    .class_size    = sizeof(USBTabletClass),
     .class_init    = USBHIDState::tabletClassInit,
 };
 
@@ -889,12 +911,17 @@ static const Property usb_mouse_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
 };
 
+struct USBMouseClass : USBHIDDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+};
+void USBMouseClass::realize(USBDevice *dev, Error **errp) { USBHIDState::mouseRealize(dev, errp); }
+
 void USBHIDState::mouseClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
-    uc->realize        = USBHIDState::mouseRealize;
+    qom_fixup_vtable<USBMouseClass>(klass);
     uc->product_desc   = "QEMU USB Mouse";
     dc->vmsd = &vmstate_usb_ptr;
     device_class_set_props(dc, usb_mouse_properties);
@@ -904,6 +931,7 @@ void USBHIDState::mouseClassInit(ObjectClass *klass, const void *data)
 static const TypeInfo usb_mouse_info = {
     .name          = "usb-mouse",
     .parent        = TYPE_USB_HID,
+    .class_size    = sizeof(USBMouseClass),
     .class_init    = USBHIDState::mouseClassInit,
 };
 
@@ -912,12 +940,17 @@ static const Property usb_keyboard_properties[] = {
         DEFINE_PROP_STRING("display", USBHIDState, display),
 };
 
+struct USBKeyboardClass : USBHIDDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+};
+void USBKeyboardClass::realize(USBDevice *dev, Error **errp) { USBHIDState::keyboardRealize(dev, errp); }
+
 void USBHIDState::keyboardClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
-    uc->realize        = USBHIDState::keyboardRealize;
+    qom_fixup_vtable<USBKeyboardClass>(klass);
     uc->product_desc   = "QEMU USB Keyboard";
     dc->vmsd = &vmstate_usb_kbd;
     device_class_set_props(dc, usb_keyboard_properties);
@@ -927,6 +960,7 @@ void USBHIDState::keyboardClassInit(ObjectClass *klass, const void *data)
 static const TypeInfo usb_keyboard_info = {
     .name          = "usb-kbd",
     .parent        = TYPE_USB_HID,
+    .class_size    = sizeof(USBKeyboardClass),
     .class_init    = USBHIDState::keyboardClassInit,
 };
 

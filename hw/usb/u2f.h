@@ -40,15 +40,26 @@ OBJECT_DECLARE_TYPE(U2FKeyState, U2FKeyClass, U2F_KEY)
  * Callbacks to be used by the U2F key base device (i.e. hw/u2f.c)
  * to interact with its variants (i.e. hw/u2f-*.c)
  */
+#ifdef __cplusplus
+struct U2FKeyClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+    void handle_attach(USBDevice *dev) override;
+#else
 struct U2FKeyClass {
-    /*< private >*/
     USBDeviceClass parent_class;
+#endif
 
     /*< public >*/
     void (*recv_from_guest)(U2FKeyState *key,
                             const uint8_t packet[U2FHID_PACKET_SIZE]);
-    void (*realize)(U2FKeyState *key, Error **errp);
-    void (*unrealize)(U2FKeyState *key);
+    void (*u2f_realize)(U2FKeyState *key, Error **errp);
+    void (*u2f_unrealize)(U2FKeyState *key);
 };
 
 /*

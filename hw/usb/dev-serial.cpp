@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "qemu/error-report.h"
@@ -670,15 +671,29 @@ static const Property serial_properties[] = {
     DEFINE_PROP_BOOL("always-plugged", USBSerialState, always_plugged, false),
 };
 
+struct USBSerialDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void USBSerialDeviceClass::realize(USBDevice *dev, Error **errp) { USBSerialState::realize(dev, errp); }
+void USBSerialDeviceClass::handle_reset(USBDevice *dev) { USBSerialState::handleReset(dev); }
+void USBSerialDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                          int value, int index, int length,
+                                          uint8_t *data) {
+    USBSerialState::handleControl(dev, p, request, value, index, length, data);
+}
+void USBSerialDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { USBSerialState::handleData(dev, p); }
+
 void USBSerialState::devClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
-    uc->realize        = USBSerialState::realize;
-    uc->handle_reset   = USBSerialState::handleReset;
-    uc->handle_control = USBSerialState::handleControl;
-    uc->handle_data    = USBSerialState::handleData;
+    qom_fixup_vtable<USBSerialDeviceClass>(klass);
     dc->vmsd = &vmstate_usb_serial;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
@@ -688,6 +703,7 @@ static const TypeInfo usb_serial_dev_type_info = {
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBSerialState),
     .is_abstract = true,
+    .class_size = sizeof(USBSerialDeviceClass),
     .class_init = USBSerialState::devClassInit,
 };
 

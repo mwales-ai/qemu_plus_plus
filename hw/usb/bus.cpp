@@ -2,6 +2,7 @@
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/qdev-properties.h"
 #include "hw/usb.h"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/type-helpers.h"
@@ -111,28 +112,19 @@ void usb_bus_release(USBBus *bus)
 static void usb_device_realize(USBDevice *dev, Error **errp)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-
-    if (klass->realize) {
-        klass->realize(dev, errp);
-    }
+    klass->realize(dev, errp);
 }
 
 USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-    if (klass->find_device) {
-        return klass->find_device(dev, addr);
-    }
-    return NULL;
+    return klass->find_device(dev, addr);
 }
 
 static void usb_device_unrealize(USBDevice *dev)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-
-    if (klass->unrealize) {
-        klass->unrealize(dev);
-    }
+    klass->unrealize(dev);
 }
 
 void usb_device_cancel_packet(USBDevice *dev, USBPacket *p)
@@ -143,9 +135,7 @@ void usb_device_cancel_packet(USBDevice *dev, USBPacket *p)
 void usb_device_handle_attach(USBDevice *dev)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-    if (klass->handle_attach) {
-        klass->handle_attach(dev);
-    }
+    klass->handle_attach(dev);
 }
 
 void usb_device_handle_reset(USBDevice *dev)
@@ -199,18 +189,13 @@ int usb_device_alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
                              int streams)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-    if (klass->alloc_streams) {
-        return klass->alloc_streams(dev, eps, nr_eps, streams);
-    }
-    return 0;
+    return klass->alloc_streams(dev, eps, nr_eps, streams);
 }
 
 void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-    if (klass->free_streams) {
-        klass->free_streams(dev, eps, nr_eps);
-    }
+    klass->free_streams(dev, eps, nr_eps);
 }
 
 static void usb_qdev_realize_impl(USBDevice *dev, Error **errp)
@@ -717,9 +702,30 @@ static void usb_device_class_init_impl(DeviceClass *k)
     device_class_set_props(k, usb_props);
 }
 
+/* Default virtual method implementations for USBDeviceClass */
+void USBDeviceClass::realize(USBDevice *dev, Error **errp) {}
+void USBDeviceClass::unrealize(USBDevice *dev) {}
+USBDevice *USBDeviceClass::find_device(USBDevice *dev, uint8_t addr) { return NULL; }
+void USBDeviceClass::cancel_packet(USBDevice *dev, USBPacket *p) {}
+void USBDeviceClass::handle_attach(USBDevice *dev) {}
+void USBDeviceClass::handle_reset(USBDevice *dev) {}
+void USBDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                    int value, int index, int length,
+                                    uint8_t *data) {}
+void USBDeviceClass::handle_data(USBDevice *dev, USBPacket *p) {}
+void USBDeviceClass::set_interface(USBDevice *dev, int interface,
+                                   int alt_old, int alt_new) {}
+void USBDeviceClass::flush_ep_queue(USBDevice *dev, USBEndpoint *ep) {}
+void USBDeviceClass::ep_stopped(USBDevice *dev, USBEndpoint *ep) {}
+int USBDeviceClass::alloc_streams(USBDevice *dev, USBEndpoint **eps,
+                                  int nr_eps, int streams) { return 0; }
+void USBDeviceClass::free_streams(USBDevice *dev, USBEndpoint **eps,
+                                  int nr_eps) {}
+
 static void usb_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+    qom_fixup_vtable<USBDeviceClass>(klass);
     usb_device_class_init_impl(k);
 }
 

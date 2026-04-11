@@ -24,6 +24,7 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
 #include "trace.h"
@@ -715,19 +716,36 @@ static const Property usb_hub_properties[] = {
     DEFINE_PROP_BOOL("port-power", USBHubState, port_power, false),
 };
 
+struct USBHubDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    USBDevice *find_device(USBDevice *dev, uint8_t addr) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void USBHubDeviceClass::realize(USBDevice *dev, Error **errp) { USBHubState::realize(dev, errp); }
+void USBHubDeviceClass::unrealize(USBDevice *dev) { USBHubState::unrealize(dev); }
+USBDevice *USBHubDeviceClass::find_device(USBDevice *dev, uint8_t addr) { return USBHubState::findDevice(dev, addr); }
+void USBHubDeviceClass::handle_reset(USBDevice *dev) { USBHubState::handleReset(dev); }
+void USBHubDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                       int value, int index, int length,
+                                       uint8_t *data) {
+    USBHubState::handleControl(dev, p, request, value, index, length, data);
+}
+void USBHubDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { USBHubState::handleData(dev, p); }
+
 void USBHubState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
-    uc->realize        = USBHubState::realize;
+    qom_fixup_vtable<USBHubDeviceClass>(klass);
     uc->product_desc   = "QEMU USB Hub";
     uc->usb_desc       = &desc_hub;
-    uc->find_device    = USBHubState::findDevice;
-    uc->handle_reset   = USBHubState::handleReset;
-    uc->handle_control = USBHubState::handleControl;
-    uc->handle_data    = USBHubState::handleData;
-    uc->unrealize      = USBHubState::unrealize;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "hub";
     dc->vmsd = &vmstate_usb_hub;
@@ -738,6 +756,7 @@ static const TypeInfo hub_info = {
     .name          = TYPE_USB_HUB,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHubState),
+    .class_size    = sizeof(USBHubDeviceClass),
     .class_init    = USBHubState::classInit,
 };
 

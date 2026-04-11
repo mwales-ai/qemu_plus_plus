@@ -60,4 +60,15 @@ void usb_msd_handle_reset(USBDevice *dev);
 
 #ifdef __cplusplus
 }
+
+/* USBDeviceClass subclass for USB mass storage base type */
+struct USBStorageDeviceClass : USBDeviceClass {
+    void cancel_packet(USBDevice *dev, USBPacket *p) override;
+    void handle_attach(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
 #endif

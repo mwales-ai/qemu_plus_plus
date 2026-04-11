@@ -36,6 +36,7 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#include "qom/cpp/object.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
@@ -1502,19 +1503,35 @@ void USBCCIDState::ccidRealizeWrapper(USBDevice *dev, Error **errp)
     s->ccidRealize(errp);
 }
 
+struct USBCCIDDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void USBCCIDDeviceClass::realize(USBDevice *dev, Error **errp) { USBCCIDState::ccidRealizeWrapper(dev, errp); }
+void USBCCIDDeviceClass::unrealize(USBDevice *dev) { USBCCIDState::unrealize(dev); }
+void USBCCIDDeviceClass::handle_reset(USBDevice *dev) { USBCCIDState::handleReset(dev); }
+void USBCCIDDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                        int value, int index, int length,
+                                        uint8_t *data) {
+    USBCCIDState::handleControl(dev, p, request, value, index, length, data);
+}
+void USBCCIDDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { USBCCIDState::handleData(dev, p); }
+
 void USBCCIDState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
     HotplugHandlerClass *hc = reinterpret_cast<HotplugHandlerClass *>(klass);
 
-    uc->realize        = USBCCIDState::ccidRealizeWrapper;
+    qom_fixup_vtable<USBCCIDDeviceClass>(klass);
     uc->product_desc   = "QEMU USB CCID";
     uc->usb_desc       = &desc_ccid;
-    uc->handle_reset   = USBCCIDState::handleReset;
-    uc->handle_control = USBCCIDState::handleControl;
-    uc->handle_data    = USBCCIDState::handleData;
-    uc->unrealize      = USBCCIDState::unrealize;
     dc->desc = "CCID Rev 1.1 smartcard reader";
     dc->vmsd = &ccid_vmstate;
     device_class_set_props(dc, ccid_properties);
@@ -1531,6 +1548,7 @@ static const TypeInfo ccid_info = {
     .name          = TYPE_USB_CCID_DEV,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBCCIDState),
+    .class_size    = sizeof(USBCCIDDeviceClass),
     .class_init    = USBCCIDState::classInit,
     .interfaces = ccid_interfaces,
 };

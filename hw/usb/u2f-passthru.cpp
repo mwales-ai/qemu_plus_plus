@@ -559,8 +559,8 @@ void U2FPassthruState::classInit(ObjectClass *klass, const void *data)
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     U2FKeyClass *kc = reinterpret_cast<U2FKeyClass *>(klass);
 
-    kc->realize = u2f_passthru_realize;
-    kc->unrealize = u2f_passthru_unrealize;
+    kc->u2f_realize = u2f_passthru_realize;
+    kc->u2f_unrealize = u2f_passthru_unrealize;
     kc->recv_from_guest = U2FPassthruState::recvFromGuest;
     dc->desc = "QEMU U2F passthrough key";
     dc->vmsd = &u2f_passthru_vmstate;

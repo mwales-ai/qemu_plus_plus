@@ -413,8 +413,8 @@ void U2FEmulatedState::classInit(ObjectClass *klass, const void *data)
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     U2FKeyClass *kc = reinterpret_cast<U2FKeyClass *>(klass);
 
-    kc->realize = u2f_emulated_realize;
-    kc->unrealize = u2f_emulated_unrealize;
+    kc->u2f_realize = u2f_emulated_realize;
+    kc->u2f_unrealize = u2f_emulated_unrealize;
     kc->recv_from_guest = U2FEmulatedState::recvFromGuest;
     dc->desc = "QEMU U2F emulated key";
     device_class_set_props(dc, u2f_emulated_properties);

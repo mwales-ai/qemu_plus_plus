@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
@@ -40,17 +41,26 @@ static void usb_msd_bot_realize(USBDevice *dev, Error **errp)
     usb_msd_handle_reset(dev);
 }
 
+struct USBMSDBotClass : USBStorageDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+};
+
+void USBMSDBotClass::realize(USBDevice *dev, Error **errp) {
+    usb_msd_bot_realize(dev, errp);
+}
+
 static void usb_msd_class_bot_initfn(ObjectClass *klass, const void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize = usb_msd_bot_realize;
+    qom_fixup_vtable<USBMSDBotClass>(klass);
     uc->attached_settable = true;
 }
 
 static const TypeInfo bot_info = {
     .name          = "usb-bot",
     .parent        = TYPE_USB_STORAGE,
+    .class_size    = sizeof(USBMSDBotClass),
     .class_init    = usb_msd_class_bot_initfn,
 };
 

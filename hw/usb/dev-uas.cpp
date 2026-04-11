@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "trace.h"
@@ -987,20 +988,38 @@ static const Property uas_properties[] = {
     DEFINE_PROP_UINT32("log-scsi-req", UASDevice, requestlog, 0),
 };
 
+struct USBUASDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void cancel_packet(USBDevice *dev, USBPacket *p) override;
+    void handle_attach(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void USBUASDeviceClass::realize(USBDevice *dev, Error **errp) { usb_uas_realize(dev, errp); }
+void USBUASDeviceClass::unrealize(USBDevice *dev) { usb_uas_unrealize(dev); }
+void USBUASDeviceClass::cancel_packet(USBDevice *dev, USBPacket *p) { usb_uas_cancel_io(dev, p); }
+void USBUASDeviceClass::handle_attach(USBDevice *dev) { usb_desc_attach(dev); }
+void USBUASDeviceClass::handle_reset(USBDevice *dev) { usb_uas_handle_reset(dev); }
+void USBUASDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                       int value, int index, int length,
+                                       uint8_t *data) {
+    usb_uas_handle_control(dev, p, request, value, index, length, data);
+}
+void USBUASDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { usb_uas_handle_data(dev, p); }
+
 static void usb_uas_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize        = usb_uas_realize;
+    qom_fixup_vtable<USBUASDeviceClass>(klass);
     uc->product_desc   = desc_strings[STR_PRODUCT];
     uc->usb_desc       = &desc;
-    uc->cancel_packet  = usb_uas_cancel_io;
-    uc->handle_attach  = usb_desc_attach;
-    uc->handle_reset   = usb_uas_handle_reset;
-    uc->handle_control = usb_uas_handle_control;
-    uc->handle_data    = usb_uas_handle_data;
-    uc->unrealize      = usb_uas_unrealize;
     uc->attached_settable = true;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "storage";
@@ -1012,6 +1031,7 @@ static const TypeInfo uas_info = {
     .name          = TYPE_USB_UAS,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(UASDevice),
+    .class_size    = sizeof(USBUASDeviceClass),
     .class_init    = usb_uas_class_initfn,
 };
 

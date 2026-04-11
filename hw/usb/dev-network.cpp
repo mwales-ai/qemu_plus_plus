@@ -25,6 +25,7 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 #include "hw/qdev-properties.h"
 #include "hw/usb.h"
@@ -1466,18 +1467,34 @@ void USBNetState::instanceInitWrapper(Object *obj)
     s->instanceInit();
 }
 
+struct USBNetDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+};
+
+void USBNetDeviceClass::realize(USBDevice *dev, Error **errp) { USBNetState::netRealizeWrapper(dev, errp); }
+void USBNetDeviceClass::unrealize(USBDevice *dev) { USBNetState::unrealize(dev); }
+void USBNetDeviceClass::handle_reset(USBDevice *dev) { USBNetState::handleReset(dev); }
+void USBNetDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                       int value, int index, int length,
+                                       uint8_t *data) {
+    USBNetState::handleControlCb(dev, p, request, value, index, length, data);
+}
+void USBNetDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { USBNetState::handleDataCb(dev, p); }
+
 void USBNetState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
-    uc->realize        = USBNetState::netRealizeWrapper;
+    qom_fixup_vtable<USBNetDeviceClass>(klass);
     uc->product_desc   = "QEMU USB Network Interface";
     uc->usb_desc       = &desc_net;
-    uc->handle_reset   = USBNetState::handleReset;
-    uc->handle_control = USBNetState::handleControlCb;
-    uc->handle_data    = USBNetState::handleDataCb;
-    uc->unrealize      = USBNetState::unrealize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "network";
     dc->vmsd = &vmstate_usb_net;
@@ -1489,6 +1506,7 @@ static const TypeInfo net_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBNetState),
     .instance_init = USBNetState::instanceInitWrapper,
+    .class_size    = sizeof(USBNetDeviceClass),
     .class_init    = USBNetState::classInit,
 };
 

@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -600,18 +601,33 @@ static const VMStateDescription vmstate_usb_msd = {
     .fields = vmstate_usb_msd_fields
 };
 
+/* Virtual method implementations for USBStorageDeviceClass */
+void USBStorageDeviceClass::cancel_packet(USBDevice *dev, USBPacket *p) {
+    usb_msd_cancel_io(dev, p);
+}
+void USBStorageDeviceClass::handle_attach(USBDevice *dev) {
+    usb_desc_attach(dev);
+}
+void USBStorageDeviceClass::handle_reset(USBDevice *dev) {
+    usb_msd_handle_reset(dev);
+}
+void USBStorageDeviceClass::handle_control(USBDevice *dev, USBPacket *p,
+                                           int request, int value, int index,
+                                           int length, uint8_t *data) {
+    usb_msd_handle_control(dev, p, request, value, index, length, data);
+}
+void USBStorageDeviceClass::handle_data(USBDevice *dev, USBPacket *p) {
+    usb_msd_handle_data(dev, p);
+}
+
 static void usb_msd_class_initfn_common(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
+    qom_fixup_vtable<USBStorageDeviceClass>(klass);
     uc->product_desc   = "QEMU USB MSD";
     uc->usb_desc       = &desc;
-    uc->cancel_packet  = usb_msd_cancel_io;
-    uc->handle_attach  = usb_desc_attach;
-    uc->handle_reset   = usb_msd_handle_reset;
-    uc->handle_control = usb_msd_handle_control;
-    uc->handle_data    = usb_msd_handle_data;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "storage";
     dc->vmsd = &vmstate_usb_msd;
@@ -622,6 +638,7 @@ static const TypeInfo usb_storage_dev_type_info = {
     .parent = TYPE_USB_DEVICE,
     .instance_size = sizeof(MSDState),
     .is_abstract = true,
+    .class_size = sizeof(USBStorageDeviceClass),
     .class_init = usb_msd_class_initfn_common,
 };
 

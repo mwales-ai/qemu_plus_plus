@@ -8,6 +8,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "hw/usb.h"
@@ -74,12 +75,19 @@ static const Property msd_properties[] = {
     DEFINE_PROP_BOOL("commandlog", MSDState, commandlog, false),
 };
 
+struct USBMSDStorageClass : USBStorageDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+};
+
+void USBMSDStorageClass::realize(USBDevice *dev, Error **errp) {
+    usb_msd_storage_realize(dev, errp);
+}
+
 static void usb_msd_class_storage_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->realize = usb_msd_storage_realize;
+    qom_fixup_vtable<USBMSDStorageClass>(klass);
     device_class_set_props(dc, msd_properties);
 }
 
@@ -132,6 +140,7 @@ static const TypeInfo msd_info = {
     .name          = "usb-storage",
     .parent        = TYPE_USB_STORAGE,
     .instance_init = usb_msd_instance_init,
+    .class_size    = sizeof(USBMSDStorageClass),
     .class_init    = usb_msd_class_storage_initfn,
 };
 

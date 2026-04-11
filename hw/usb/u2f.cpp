@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 
 extern "C" {
 #include "qemu/module.h"
@@ -294,8 +295,8 @@ static void u2f_key_unrealize(USBDevice *dev)
     U2FKeyState *key = U2F_KEY(dev);
     U2FKeyClass *kc = U2F_KEY_GET_CLASS(key);
 
-    if (kc->unrealize != NULL) {
-        kc->unrealize(key);
+    if (kc->u2f_unrealize != NULL) {
+        kc->u2f_unrealize(key);
     }
 }
 
@@ -309,8 +310,8 @@ static void u2f_key_realize(USBDevice *dev, Error **errp)
     usb_desc_init(dev);
     u2f_key_reset(key);
 
-    if (kc->realize != NULL) {
-        kc->realize(key, &local_err);
+    if (kc->u2f_realize != NULL) {
+        kc->u2f_realize(key, &local_err);
         if (local_err != NULL) {
             error_propagate(errp, local_err);
             return;
@@ -337,19 +338,26 @@ const VMStateDescription vmstate_u2f_key = {
     .fields = vmstate_u2f_key_fields,
 };
 
+/* Virtual method implementations for U2FKeyClass */
+void U2FKeyClass::realize(USBDevice *dev, Error **errp) { u2f_key_realize(dev, errp); }
+void U2FKeyClass::unrealize(USBDevice *dev) { u2f_key_unrealize(dev); }
+void U2FKeyClass::handle_reset(USBDevice *dev) { u2f_key_handle_reset(dev); }
+void U2FKeyClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                  int value, int index, int length,
+                                  uint8_t *data) {
+    u2f_key_handle_control(dev, p, request, value, index, length, data);
+}
+void U2FKeyClass::handle_data(USBDevice *dev, USBPacket *p) { u2f_key_handle_data(dev, p); }
+void U2FKeyClass::handle_attach(USBDevice *dev) { usb_desc_attach(dev); }
+
 static void u2f_key_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
+    qom_fixup_vtable<U2FKeyClass>(klass);
     uc->product_desc   = "QEMU U2F USB key";
     uc->usb_desc       = &desc_u2f_key;
-    uc->handle_reset   = u2f_key_handle_reset;
-    uc->handle_control = u2f_key_handle_control;
-    uc->handle_data    = u2f_key_handle_data;
-    uc->handle_attach  = usb_desc_attach;
-    uc->realize        = u2f_key_realize;
-    uc->unrealize      = u2f_key_unrealize;
     dc->desc           = "QEMU U2F key";
     dc->vmsd           = &vmstate_u2f_key;
 }

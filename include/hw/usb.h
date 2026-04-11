@@ -265,34 +265,30 @@ typedef void (*USBDeviceUnrealize)(USBDevice *dev);
 
 #ifdef __cplusplus
 struct USBDeviceClass : DeviceClass {
-#else
-struct USBDeviceClass {
-    DeviceClass parent_class;
-#endif
 
-    USBDeviceRealize realize;
-    USBDeviceUnrealize unrealize;
+    virtual void realize(USBDevice *dev, Error **errp);
+    virtual void unrealize(USBDevice *dev);
 
     /*
      * Walk (enabled) downstream ports, check for a matching device.
      * Only hubs implement this.
      */
-    USBDevice *(*find_device)(USBDevice *dev, uint8_t addr);
+    virtual USBDevice *find_device(USBDevice *dev, uint8_t addr);
 
     /*
      * Called when a packet is canceled.
      */
-    void (*cancel_packet)(USBDevice *dev, USBPacket *p);
+    virtual void cancel_packet(USBDevice *dev, USBPacket *p);
 
     /*
      * Attach the device
      */
-    void (*handle_attach)(USBDevice *dev);
+    virtual void handle_attach(USBDevice *dev);
 
     /*
      * Reset the device
      */
-    void (*handle_reset)(USBDevice *dev);
+    virtual void handle_reset(USBDevice *dev);
 
     /*
      * Process control request.
@@ -301,8 +297,9 @@ struct USBDeviceClass {
      * Status gets stored in p->status, and if p->status == USB_RET_SUCCESS
      * then the number of bytes transferred is stored in p->actual_length
      */
-    void (*handle_control)(USBDevice *dev, USBPacket *p, int request, int value,
-                           int index, int length, uint8_t *data);
+    virtual void handle_control(USBDevice *dev, USBPacket *p, int request,
+                                int value, int index, int length,
+                                uint8_t *data);
 
     /*
      * Process data transfers (both BULK and ISOC).
@@ -311,27 +308,53 @@ struct USBDeviceClass {
      * Status gets stored in p->status, and if p->status == USB_RET_SUCCESS
      * then the number of bytes transferred is stored in p->actual_length
      */
-    void (*handle_data)(USBDevice *dev, USBPacket *p);
+    virtual void handle_data(USBDevice *dev, USBPacket *p);
 
-    void (*set_interface)(USBDevice *dev, int interface,
-                          int alt_old, int alt_new);
+    virtual void set_interface(USBDevice *dev, int interface,
+                               int alt_old, int alt_new);
 
     /*
      * Called when the hcd is done queuing packets for an endpoint, only
      * necessary for devices which can return USB_RET_ADD_TO_QUEUE.
      */
-    void (*flush_ep_queue)(USBDevice *dev, USBEndpoint *ep);
+    virtual void flush_ep_queue(USBDevice *dev, USBEndpoint *ep);
 
     /*
      * Called by the hcd to let the device know the queue for an endpoint
      * has been unlinked / stopped. Optional may be NULL.
      */
-    void (*ep_stopped)(USBDevice *dev, USBEndpoint *ep);
+    virtual void ep_stopped(USBDevice *dev, USBEndpoint *ep);
 
     /*
      * Called by the hcd to alloc / free streams on a bulk endpoint.
      * Optional may be NULL.
      */
+    virtual int alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                              int streams);
+    virtual void free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps);
+
+    const char *product_desc;
+    const USBDesc *usb_desc;
+    bool attached_settable;
+};
+#else
+struct USBDeviceClass {
+    DeviceClass parent_class;
+
+    USBDeviceRealize realize;
+    USBDeviceUnrealize unrealize;
+
+    USBDevice *(*find_device)(USBDevice *dev, uint8_t addr);
+    void (*cancel_packet)(USBDevice *dev, USBPacket *p);
+    void (*handle_attach)(USBDevice *dev);
+    void (*handle_reset)(USBDevice *dev);
+    void (*handle_control)(USBDevice *dev, USBPacket *p, int request, int value,
+                           int index, int length, uint8_t *data);
+    void (*handle_data)(USBDevice *dev, USBPacket *p);
+    void (*set_interface)(USBDevice *dev, int interface,
+                          int alt_old, int alt_new);
+    void (*flush_ep_queue)(USBDevice *dev, USBEndpoint *ep);
+    void (*ep_stopped)(USBDevice *dev, USBEndpoint *ep);
     int (*alloc_streams)(USBDevice *dev, USBEndpoint **eps, int nr_eps,
                          int streams);
     void (*free_streams)(USBDevice *dev, USBEndpoint **eps, int nr_eps);
@@ -340,6 +363,7 @@ struct USBDeviceClass {
     const USBDesc *usb_desc;
     bool attached_settable;
 };
+#endif
 
 typedef struct USBPortOps {
     void (*attach)(USBPort *port);
@@ -603,46 +627,32 @@ static inline USBDevice *usb_create_simple(USBBus *bus, const char *name)
  */
 inline void USBDevice::handleReset() {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
-    if (klass->handle_reset) {
-        klass->handle_reset(this);
-    }
+    klass->handle_reset(this);
 }
 inline void USBDevice::handleControl(USBPacket *p, int request, int value,
                                      int index, int length, uint8_t *data) {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
-    if (klass->handle_control) {
-        klass->handle_control(this, p, request, value, index, length, data);
-    }
+    klass->handle_control(this, p, request, value, index, length, data);
 }
 inline void USBDevice::handleData(USBPacket *p) {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
-    if (klass->handle_data) {
-        klass->handle_data(this, p);
-    }
+    klass->handle_data(this, p);
 }
 inline void USBDevice::cancelPacket(USBPacket *p) {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
-    if (klass->cancel_packet) {
-        klass->cancel_packet(this, p);
-    }
+    klass->cancel_packet(this, p);
 }
 inline void USBDevice::setInterface(int interface, int alt_old, int alt_new) {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
-    if (klass->set_interface) {
-        klass->set_interface(this, interface, alt_old, alt_new);
-    }
+    klass->set_interface(this, interface, alt_old, alt_new);
 }
 inline void USBDevice::flushEpQueue(USBEndpoint *ep) {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
-    if (klass->flush_ep_queue) {
-        klass->flush_ep_queue(this, ep);
-    }
+    klass->flush_ep_queue(this, ep);
 }
 inline void USBDevice::epStopped(USBEndpoint *ep) {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(this);
-    if (klass->ep_stopped) {
-        klass->ep_stopped(this, ep);
-    }
+    klass->ep_stopped(this, ep);
 }
 #endif
 

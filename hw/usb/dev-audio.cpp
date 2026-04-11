@@ -31,6 +31,7 @@
 
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#include "qom/cpp/object.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "hw/usb.h"
@@ -1017,27 +1018,49 @@ static const Property usb_audio_properties[] = {
     DEFINE_PROP_BOOL("multi", USBAudioState, multi, false),
 };
 
+struct USBAudioDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+    void set_interface(USBDevice *dev, int interface,
+                       int alt_old, int alt_new) override;
+};
+
+void USBAudioDeviceClass::realize(USBDevice *dev, Error **errp) { USBAudioState::realize(dev, errp); }
+void USBAudioDeviceClass::unrealize(USBDevice *dev) { USBAudioState::unrealize(dev); }
+void USBAudioDeviceClass::handle_reset(USBDevice *dev) { USBAudioState::handleReset(dev); }
+void USBAudioDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                         int value, int index, int length,
+                                         uint8_t *data) {
+    USBAudioState::handleControl(dev, p, request, value, index, length, data);
+}
+void USBAudioDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { USBAudioState::handleData(dev, p); }
+void USBAudioDeviceClass::set_interface(USBDevice *dev, int interface,
+                                        int alt_old, int alt_new) {
+    USBAudioState::setInterface(dev, interface, alt_old, alt_new);
+}
+
 void USBAudioState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     USBDeviceClass *k = reinterpret_cast<USBDeviceClass *>(klass);
 
+    qom_fixup_vtable<USBAudioDeviceClass>(klass);
     dc->vmsd          = &vmstate_usb_audio;
     device_class_set_props(dc, usb_audio_properties);
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     k->product_desc   = "QEMU USB Audio Interface";
-    k->realize        = USBAudioState::realize;
-    k->handle_reset   = USBAudioState::handleReset;
-    k->handle_control = USBAudioState::handleControl;
-    k->handle_data    = USBAudioState::handleData;
-    k->unrealize      = USBAudioState::unrealize;
-    k->set_interface  = USBAudioState::setInterface;
 }
 
 static const TypeInfo usb_audio_info = {
     .name          = TYPE_USB_AUDIO,
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBAudioState),
+    .class_size    = sizeof(USBAudioDeviceClass),
     .class_init    = USBAudioState::classInit,
 };
 

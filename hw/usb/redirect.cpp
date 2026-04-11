@@ -26,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include "qemu/cutils.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
@@ -2584,22 +2585,49 @@ static const Property usbredir_properties[] = {
                      suppress_remote_wake, true),
 };
 
+struct USBRedirDeviceClass : USBDeviceClass {
+    void realize(USBDevice *dev, Error **errp) override;
+    void unrealize(USBDevice *dev) override;
+    void cancel_packet(USBDevice *dev, USBPacket *p) override;
+    void handle_reset(USBDevice *dev) override;
+    void handle_control(USBDevice *dev, USBPacket *p, int request,
+                        int value, int index, int length,
+                        uint8_t *data) override;
+    void handle_data(USBDevice *dev, USBPacket *p) override;
+    void flush_ep_queue(USBDevice *dev, USBEndpoint *ep) override;
+    void ep_stopped(USBDevice *dev, USBEndpoint *ep) override;
+    int alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                      int streams) override;
+    void free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps) override;
+};
+
+void USBRedirDeviceClass::realize(USBDevice *dev, Error **errp) { usbredir_realize(dev, errp); }
+void USBRedirDeviceClass::unrealize(USBDevice *dev) { usbredir_unrealize(dev); }
+void USBRedirDeviceClass::cancel_packet(USBDevice *dev, USBPacket *p) { usbredir_cancel_packet(dev, p); }
+void USBRedirDeviceClass::handle_reset(USBDevice *dev) { usbredir_handle_reset(dev); }
+void USBRedirDeviceClass::handle_control(USBDevice *dev, USBPacket *p, int request,
+                                         int value, int index, int length,
+                                         uint8_t *data) {
+    usbredir_handle_control(dev, p, request, value, index, length, data);
+}
+void USBRedirDeviceClass::handle_data(USBDevice *dev, USBPacket *p) { usbredir_handle_data(dev, p); }
+void USBRedirDeviceClass::flush_ep_queue(USBDevice *dev, USBEndpoint *ep) { usbredir_flush_ep_queue(dev, ep); }
+void USBRedirDeviceClass::ep_stopped(USBDevice *dev, USBEndpoint *ep) { usbredir_ep_stopped(dev, ep); }
+int USBRedirDeviceClass::alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
+                                       int streams) {
+    return usbredir_alloc_streams(dev, eps, nr_eps, streams);
+}
+void USBRedirDeviceClass::free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps) {
+    usbredir_free_streams(dev, eps, nr_eps);
+}
+
 static void usbredir_class_initfn(ObjectClass *klass, const void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    uc->realize        = usbredir_realize;
+    qom_fixup_vtable<USBRedirDeviceClass>(klass);
     uc->product_desc   = "USB Redirection Device";
-    uc->unrealize      = usbredir_unrealize;
-    uc->cancel_packet  = usbredir_cancel_packet;
-    uc->handle_reset   = usbredir_handle_reset;
-    uc->handle_data    = usbredir_handle_data;
-    uc->handle_control = usbredir_handle_control;
-    uc->flush_ep_queue = usbredir_flush_ep_queue;
-    uc->ep_stopped     = usbredir_ep_stopped;
-    uc->alloc_streams  = usbredir_alloc_streams;
-    uc->free_streams   = usbredir_free_streams;
     dc->vmsd           = &usbredir_vmstate;
     device_class_set_props(dc, usbredir_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
@@ -2620,6 +2648,7 @@ static const TypeInfo usbredir_dev_info = {
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBRedirDevice),
     .instance_init = usbredir_instance_init,
+    .class_size    = sizeof(USBRedirDeviceClass),
     .class_init    = usbredir_class_initfn,
 };
 module_obj(TYPE_USB_REDIR);
