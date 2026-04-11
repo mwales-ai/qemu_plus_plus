@@ -100,35 +100,26 @@ struct AwRtcState {
  * such that the generic code can use this struct to support
  * all devices.
  */
-struct AwRtcClass {
-    /*< private >*/
-    SysBusDeviceClass parent_class;
-    /*< public >*/
-
-    /** Defines device specific register map */
+/*
+ * AwRtcClass — QOM class struct using C++ virtual methods (Option D).
+ */
+#ifdef __cplusplus
+struct AwRtcClass : SysBusDeviceClass {
     const uint8_t *regmap;
-
-    /** Size of the regmap in bytes */
     size_t regmap_size;
 
-    /**
-     * Read device specific register
-     *
-     * @offset: register offset to read
-     * @return true if register read successful, false otherwise
-     */
-    bool (*read)(AwRtcState *s, uint32_t offset);
-
-    /**
-     * Write device specific register
-     *
-     * @offset: register offset to write
-     * @data: value to set in register
-     * @return true if register write successful, false otherwise
-     */
-    bool (*write)(AwRtcState *s, uint32_t offset, uint32_t data);
-
+    virtual bool read(AwRtcState *s, uint32_t offset);
+    virtual bool write(AwRtcState *s, uint32_t offset, uint32_t data);
 };
+#else
+struct AwRtcClass {
+    SysBusDeviceClass parent_class;
+    const uint8_t *regmap;
+    size_t regmap_size;
+    bool (*read)(AwRtcState *s, uint32_t offset);
+    bool (*write)(AwRtcState *s, uint32_t offset, uint32_t data);
+};
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

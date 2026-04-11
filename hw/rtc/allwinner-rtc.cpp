@@ -23,6 +23,7 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/rtc/allwinner-rtc.h"
+#include "qom/cpp/object.h"
 #include "system/rtc.h"
 
 extern "C" {
@@ -147,7 +148,7 @@ static bool allwinner_rtc_sun4i_write(AwRtcState *s, uint32_t offset,
 
 static bool allwinner_rtc_sun6i_read(AwRtcState *s, uint32_t offset)
 {
-    const AwRtcClass *c = AW_RTC_GET_CLASS(s);
+    AwRtcClass *c = AW_RTC_GET_CLASS(s);
 
     switch (c->regmap[offset]) {
     case REG_GP4:             /* General Purpose Register 4 */
@@ -164,7 +165,7 @@ static bool allwinner_rtc_sun6i_read(AwRtcState *s, uint32_t offset)
 static bool allwinner_rtc_sun6i_write(AwRtcState *s, uint32_t offset,
                                       uint32_t data)
 {
-    const AwRtcClass *c = AW_RTC_GET_CLASS(s);
+    AwRtcClass *c = AW_RTC_GET_CLASS(s);
 
     switch (c->regmap[offset]) {
     case REG_GP4:             /* General Purpose Register 4 */
@@ -182,7 +183,7 @@ static uint64_t allwinner_rtc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     AwRtcState *s = AW_RTC(opaque);
-    const AwRtcClass *c = AW_RTC_GET_CLASS(s);
+    AwRtcClass *c = AW_RTC_GET_CLASS(s);
     uint64_t val = 0;
 
     if (offset >= c->regmap_size) {
@@ -227,7 +228,7 @@ static void allwinner_rtc_write(void *opaque, hwaddr offset,
                                 uint64_t val, unsigned size)
 {
     AwRtcState *s = AW_RTC(opaque);
-    const AwRtcClass *c = AW_RTC_GET_CLASS(s);
+    AwRtcClass *c = AW_RTC_GET_CLASS(s);
 
     if (offset >= c->regmap_size) {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: out-of-bounds offset 0x%04x\n",
@@ -330,9 +331,38 @@ static const Property allwinner_rtc_properties[] = {
     DEFINE_PROP_INT32("base-year", AwRtcState, base_year, 0),
 };
 
+/* Default virtual method implementations for AwRtcClass */
+bool AwRtcClass::read(AwRtcState *s, uint32_t offset) { return false; }
+bool AwRtcClass::write(AwRtcState *s, uint32_t offset, uint32_t data) { return false; }
+
+/* Subclass structs with virtual method overrides */
+struct AwRtcSun4iClass : AwRtcClass {
+    bool read(AwRtcState *s, uint32_t offset) override;
+    bool write(AwRtcState *s, uint32_t offset, uint32_t data) override;
+};
+struct AwRtcSun6iClass : AwRtcClass {
+    bool read(AwRtcState *s, uint32_t offset) override;
+    bool write(AwRtcState *s, uint32_t offset, uint32_t data) override;
+};
+
+bool AwRtcSun4iClass::read(AwRtcState *s, uint32_t offset) {
+    return allwinner_rtc_sun4i_read(s, offset);
+}
+bool AwRtcSun4iClass::write(AwRtcState *s, uint32_t offset, uint32_t data) {
+    return allwinner_rtc_sun4i_write(s, offset, data);
+}
+bool AwRtcSun6iClass::read(AwRtcState *s, uint32_t offset) {
+    return allwinner_rtc_sun6i_read(s, offset);
+}
+bool AwRtcSun6iClass::write(AwRtcState *s, uint32_t offset, uint32_t data) {
+    return allwinner_rtc_sun6i_write(s, offset, data);
+}
+
 static void allwinner_rtc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<AwRtcClass>(klass);
 
     device_class_set_legacy_reset(dc, allwinner_rtc_reset);
     dc->vmsd = &allwinner_rtc_vmstate;
@@ -349,10 +379,10 @@ static void allwinner_rtc_sun4i_class_init(ObjectClass *klass, const void *data)
 {
     AwRtcClass *arc = AW_RTC_CLASS(klass);
 
+    qom_fixup_vtable<AwRtcSun4iClass>(klass);
+
     arc->regmap = allwinner_rtc_sun4i_regmap;
     arc->regmap_size = sizeof(allwinner_rtc_sun4i_regmap);
-    arc->read = allwinner_rtc_sun4i_read;
-    arc->write = allwinner_rtc_sun4i_write;
 }
 
 static void allwinner_rtc_sun6i_init(Object *obj)
@@ -365,10 +395,10 @@ static void allwinner_rtc_sun6i_class_init(ObjectClass *klass, const void *data)
 {
     AwRtcClass *arc = AW_RTC_CLASS(klass);
 
+    qom_fixup_vtable<AwRtcSun6iClass>(klass);
+
     arc->regmap = allwinner_rtc_sun6i_regmap;
     arc->regmap_size = sizeof(allwinner_rtc_sun6i_regmap);
-    arc->read = allwinner_rtc_sun6i_read;
-    arc->write = allwinner_rtc_sun6i_write;
 }
 
 static void allwinner_rtc_sun7i_init(Object *obj)
@@ -379,8 +409,8 @@ static void allwinner_rtc_sun7i_init(Object *obj)
 
 static void allwinner_rtc_sun7i_class_init(ObjectClass *klass, const void *data)
 {
-    AwRtcClass *arc = AW_RTC_CLASS(klass);
-    allwinner_rtc_sun4i_class_init(klass, arc);
+    /* sun7i uses the same read/write methods as sun4i */
+    allwinner_rtc_sun4i_class_init(klass, data);
 }
 
 static const TypeInfo allwinner_rtc_info = {
@@ -397,6 +427,7 @@ static const TypeInfo allwinner_rtc_sun4i_info = {
     .name          = TYPE_AW_RTC_SUN4I,
     .parent        = TYPE_AW_RTC,
     .instance_init = allwinner_rtc_sun4i_init,
+    .class_size    = sizeof(AwRtcSun4iClass),
     .class_init    = allwinner_rtc_sun4i_class_init,
 };
 
@@ -404,6 +435,7 @@ static const TypeInfo allwinner_rtc_sun6i_info = {
     .name          = TYPE_AW_RTC_SUN6I,
     .parent        = TYPE_AW_RTC,
     .instance_init = allwinner_rtc_sun6i_init,
+    .class_size    = sizeof(AwRtcSun6iClass),
     .class_init    = allwinner_rtc_sun6i_class_init,
 };
 
@@ -411,6 +443,7 @@ static const TypeInfo allwinner_rtc_sun7i_info = {
     .name          = TYPE_AW_RTC_SUN7I,
     .parent        = TYPE_AW_RTC,
     .instance_init = allwinner_rtc_sun7i_init,
+    .class_size    = sizeof(AwRtcSun4iClass),
     .class_init    = allwinner_rtc_sun7i_class_init,
 };
 
