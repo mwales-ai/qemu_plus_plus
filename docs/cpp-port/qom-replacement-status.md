@@ -5,7 +5,7 @@
 QEMU++ is replacing QEMU's C-based Object Model (QOM) with native C++ classes,
 virtual methods, and compile-time type checking. This document tracks progress.
 
-**Branch:** `qom-replacement` (100+ commits)
+**Branch:** `qom-replacement` (110+ commits)
 **Build:** All 5 target ISAs building clean
 **Tests:** 14/15 smoke tests passing
 
@@ -103,7 +103,7 @@ enforces member access. Code reads more naturally.
 | PS/2 protocol | hw/input/ps2.cpp | 44 |
 | ARTIST display | hw/display/artist.cpp | 42 |
 
-### Phase 3: QOM Cast Replacement - 76% complete
+### Phase 3: QOM Cast Replacement - 94% complete
 
 | Metric | Value |
 |--------|-------|
@@ -148,55 +148,14 @@ files now):
 - XHCIState — USB 3.0 host controller
 - SpaprMachineState — PPC pseries machine
 
-## Key Bug Fix: struct {} Layout Mismatch
-
-During the conversion, we discovered a critical C/C++ struct layout mismatch.
-Empty struct markers (`struct {} end_reset_fields;`) used in CPU state structs
-have size 0 in C but size 1 in C++, causing field offset mismatches between
-C-compiled and C++-compiled code sharing the same struct.
-
-This was causing ARM boot failures — the `features` field in `CPUARMState` was
-at offset 78680 in C but 78688 in C++, so C code writing feature bits and C++
-code reading them were accessing different memory.
-
-**Fix:** Created `QEMU_STRUCT_MARKER()` macro using `char name[0]` in C++
-(zero-length array) and `struct {} name` in C. Applied to all 11 target CPU
-headers. This fixed 3 ARM/aarch64 boot failures.
-
-## Design Decisions
-
-1. **No C++ vtable in device structs** — QOM requires `parent_obj` at offset 0.
-   Using C++ virtual methods would insert a vtable pointer before `parent_obj`,
-   breaking QOM binary compatibility. Methods are regular (non-virtual) C++
-   member functions with thin static wrappers for QOM callback dispatch.
-
-2. **VMState works unchanged** — `offsetof()` works on C++ structs with
-   non-virtual methods. All VMState migration descriptors and DEFINE_PROP
-   property macros continue to work without modification.
-
-3. **Incremental migration** — Every commit keeps all 5 targets building and
-   booting. Old QOM code and new C++ methods coexist in the same binary.
-
-4. **reinterpret_cast for QOM casts** — QOM structs embed their parent as the
-   first field (C-style composition, not C++ inheritance), so `static_cast`
-   doesn't work. `reinterpret_cast` correctly reflects the layout guarantee.
-
-## Target Machine Coverage
-
-| Target | Key Devices Converted |
-|--------|----------------------|
-| **x86_64 (q35)** | Serial, KBD/PS2, Q35/MCH, HPET, E1000E, RTL8139, xHCI, LSI SCSI, Intel HDA, AC97, SB16, Bochs display, VirtIO block/net/GPU/SCSI |
-| **aarch64 (virt)** | PL011, GICv3/ITS, PL061 GPIO, PL110 display, GPEX PCIe, DWC2 USB, VirtIO block/net/GPU/SCSI |
-| **riscv64 (virt)** | PLIC, ACLINT, APLIC, GPEX PCIe, VirtIO block/net/GPU/SCSI |
-| **ppc64 (pseries)** | spapr machine, VirtIO block/net/SCSI |
-
 ### Phase 5: Option D — C++ Virtual Methods on Class Structs
 
 | Metric | Value |
 |--------|-------|
-| Class hierarchies fully converted | 9 |
-| Class structs with C++ inheritance | 10 |
-| Virtual methods replacing function pointers | 55 |
+| Class hierarchies fully converted | **10** |
+| Class structs with C++ inheritance | **16** |
+| Virtual methods replacing function pointers | **80** |
+| Subclass files converted | **~90** |
 
 **Option D** is the key architectural change: replacing QOM's function pointer
 dispatch with actual C++ virtual methods on the class structs. This is done in
@@ -214,41 +173,122 @@ the C++ vtable pointer after QOM's `type_initialize()` memcpy overwrites it.
 
 | Class Hierarchy | Virtual Methods | Subclasses | Files |
 |----------------|----------------|------------|-------|
-| MOS6522DeviceClass | 6 | 4 (CUDA, VIA1, VIA2, PMU) | 6 files |
+| VirtioDeviceClass | 25 | 27+ (balloon, blk, net, gpu, scsi, ...) | 42 files |
+| USBDeviceClass | 14 | 15 (hub, hid, wacom, serial, ...) | 22 files |
+| SDCardClass | 12 | 4 (sd, spi, emmc) | 3 files |
 | VirtIOSerialPortClass | 7 | 2 (virtserialport, virtconsole) | 3 files |
-| IDEDeviceClass | 1 | 3 (ide-hd, ide-cd, ide-cf) | 3 files |
-| PITCommonClass | 4 | 2 (i8254, kvm-i8254) | 4 files |
+| MOS6522DeviceClass | 6 | 4 (CUDA, VIA2, PMU) | 6 files |
 | SCSIDeviceClass | 5 | 4 (hd, cd, block, generic) | 4 files |
+| PITCommonClass | 4 | 2 (i8254, kvm-i8254) | 4 files |
 | HDACodecDeviceClass | 4 | 4 (output, duplex, micro) | 3 files |
 | AwRtcClass | 2 | 3 (sun4i, sun6i, sun7i) | 2 files |
-| USBDeviceClass | 14 | 15 (hub, hid, wacom, etc.) | 22 files |
-| SDCardClass | 12 | 4 (sd, spi, emmc) | 3 files |
+| IDEDeviceClass | 1 | 3 (ide-hd, ide-cd, ide-cf) | 3 files |
+
+**Intermediate class structs also converted to C++ inheritance:**
+- VirtIOGPUBaseClass, VirtIOGPUClass (virtio-gpu hierarchy)
+- VirtIOBlkClass (virtio-blk)
+- VirtIOInputClass (virtio-input)
+- VirtIOMEMClass, VirtIOPMEMClass (virtio memory devices)
+- VHostUserBaseClass (vhost-user devices)
+- SCSIDiskClass (scsi-disk sub-hierarchy)
 
 **Step 1 only (C++ inheritance, function pointers remain):**
 
 | Class Hierarchy | Function Pointers | Subclass Files |
 |----------------|-------------------|----------------|
 | PCIDeviceClass | 4 | 100+ |
-| VirtioDeviceClass | 23 | 27 (conversion in progress) |
 
 **How virtual method dispatch works:**
 
 ```cpp
 /* Before (QOM function pointer): */
-MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-mdc->portB_write(s);  /* runtime lookup + indirect call */
+VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+if (vdc->get_config) {
+    vdc->get_config(vdev, config);   /* null check + indirect call */
+}
 
 /* After (C++ virtual method): */
-MOS6522DeviceClass *mdc = MOS6522_GET_CLASS(s);
-mdc->portB_write(s);  /* C++ virtual dispatch — same syntax, compiler-managed */
+VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+vdc->get_config(vdev, config);       /* direct virtual dispatch, no null check */
 ```
 
-The call sites don't change — only the dispatch mechanism moves from manually-
-assigned function pointers to compiler-managed vtables.
+The call sites are simplified — null checks are eliminated because virtual
+methods always exist (default implementations do nothing). The dispatch
+mechanism moves from manually-assigned function pointers to compiler-managed
+vtables.
+
+## Key Bug Fix: struct {} Layout Mismatch
+
+During the conversion, we discovered a critical C/C++ struct layout mismatch.
+Empty struct markers (`struct {} end_reset_fields;`) used in CPU state structs
+have size 0 in C but size 1 in C++, causing field offset mismatches between
+C-compiled and C++-compiled code sharing the same struct.
+
+This was causing ARM boot failures — the `features` field in `CPUARMState` was
+at offset 78680 in C but 78688 in C++, so C code writing feature bits and C++
+code reading them were accessing different memory.
+
+**Fix:** Created `QEMU_STRUCT_MARKER()` macro using `char name[0]` in C++
+(zero-length array) and `struct {} name` in C. Applied to all 11 target CPU
+headers. This fixed 3 ARM/aarch64 boot failures.
+
+## Key Infrastructure: qom_fixup_vtable
+
+When a QOM class struct gains C++ virtual methods, QOM's `type_initialize()`
+breaks the vtable. QOM copies parent class data into the child via `memcpy()`,
+which overwrites the C++ vtable pointer with the parent's vtable.
+
+The `qom_fixup_vtable<T>()` template (in `include/qom/cpp/object.h`) fixes
+this by copying just the vtable pointer from a properly-constructed temporary:
+
+```cpp
+template<typename T>
+inline void qom_fixup_vtable(void *obj) {
+    T tmp;
+    memcpy(obj, &tmp, sizeof(void *));  // restore vtable pointer only
+}
+```
+
+This must be called at the START of every `class_init` for a class struct
+that uses C++ virtual methods.
+
+## Design Decisions
+
+1. **C++ vtable on class structs, not instance structs** — QOM requires
+   `parent_obj` at offset 0 in instance structs. Virtual methods on class
+   structs don't affect instance layout. The vtable lives in the class object
+   (one per type), not in every device instance.
+
+2. **`#ifdef __cplusplus` dual view** — Class struct headers provide both a
+   C++ view (with inheritance and virtual methods) and a C view (with embedded
+   parent and function pointers). This allows incremental migration — C files
+   continue to work unchanged.
+
+3. **VMState works unchanged** — `offsetof()` works on C++ structs with
+   non-virtual methods. All VMState migration descriptors and DEFINE_PROP
+   property macros continue to work without modification.
+
+4. **Incremental migration** — Every commit keeps all 5 targets building and
+   booting. Old QOM code and new C++ methods coexist in the same binary.
+
+5. **reinterpret_cast for QOM casts** — QOM structs embed their parent as the
+   first field (C-style composition, not C++ inheritance), so `static_cast`
+   doesn't work. `reinterpret_cast` correctly reflects the layout guarantee.
+
+## Target Machine Coverage
+
+| Target | Key Devices Converted |
+|--------|----------------------|
+| **x86_64 (q35)** | Serial, KBD/PS2, Q35/MCH, HPET, E1000E, RTL8139, xHCI, LSI SCSI, Intel HDA, AC97, SB16, Bochs display, VirtIO block/net/GPU/SCSI, i8254 PIT |
+| **aarch64 (virt)** | PL011, GICv3/ITS, PL061 GPIO, PL110 display, GPEX PCIe, DWC2 USB, VirtIO block/net/GPU/SCSI, Allwinner RTC |
+| **riscv64 (virt)** | PLIC, ACLINT, APLIC, GPEX PCIe, VirtIO block/net/GPU/SCSI |
+| **ppc64 (pseries)** | spapr machine, VirtIO block/net/SCSI, MOS6522/CUDA/VIA |
 
 ## What's Next
 
-1. Convert VirtioDeviceClass (23 function pointers, 27 subclass files — in progress)
-2. Eventually tackle PCIDeviceClass (100+ subclass files — mass conversion phase)
-3. Convert remaining small hierarchies (XenDevice, SSI, I2C, etc.)
-4. Remove QOM runtime type registry once all hierarchies use C++ dispatch
+1. Convert PCIDeviceClass (4 function pointers, 100+ subclass files — mass
+   conversion phase, requires scripted approach)
+2. Convert remaining small hierarchies (XenDevice, SSI, I2C, PCDIMMDevice,
+   SysBusDevice, etc.)
+3. Modernize the property system with typed C++ declarations
+4. Eventually remove the QOM runtime type registry entirely
