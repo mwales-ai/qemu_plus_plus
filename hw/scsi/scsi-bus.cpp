@@ -7,6 +7,7 @@
 #include "qemu/hw-version.h"
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
+#include "qom/cpp/object.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "scsi/constants.h"
@@ -844,7 +845,6 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
 {
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
     const SCSIReqOps *ops;
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(d);
     SCSIRequest *req;
     SCSICommand cmd = { .len = 0 };
     int ret;
@@ -875,7 +875,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
         ops = NULL;
     }
 
-    if (ops != NULL || !sc->parse_cdb) {
+    if (ops != NULL) {
         ret = scsi_req_parse_cdb(d, &cmd, buf, buf_len);
     } else {
         ret = d->parseCdb(&cmd, buf, buf_len, hba_private);
@@ -1994,6 +1994,23 @@ static const Property scsi_props[] = {
     DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
 };
 
+/* Default virtual method implementations for SCSIDeviceClass */
+void SCSIDeviceClass::realize(SCSIDevice *dev, Error **errp) {}
+void SCSIDeviceClass::unrealize(SCSIDevice *dev) {}
+int SCSIDeviceClass::parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
+                                uint8_t *buf, size_t buf_len,
+                                void *hba_private)
+{
+    return scsi_req_parse_cdb(dev, cmd, buf, buf_len);
+}
+SCSIRequest *SCSIDeviceClass::alloc_req(SCSIDevice *s, uint32_t tag,
+                                         uint32_t lun, uint8_t *buf,
+                                         void *hba_private)
+{
+    return NULL;
+}
+void SCSIDeviceClass::unit_attention_reported(SCSIDevice *s) {}
+
 static void scsi_device_class_init_impl(DeviceClass *k)
 {
     set_bit(DEVICE_CATEGORY_STORAGE, k->categories);
@@ -2006,6 +2023,9 @@ static void scsi_device_class_init_impl(DeviceClass *k)
 static void scsi_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<SCSIDeviceClass>(klass);
+
     scsi_device_class_init_impl(k);
 }
 

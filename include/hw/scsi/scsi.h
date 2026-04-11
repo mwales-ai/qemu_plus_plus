@@ -62,12 +62,26 @@ struct SCSIRequest {
 #define TYPE_SCSI_DEVICE "scsi-device"
 OBJECT_DECLARE_TYPE(SCSIDevice, SCSIDeviceClass, SCSI_DEVICE)
 
+/*
+ * SCSIDeviceClass — QOM class struct using C++ virtual methods (Option D).
+ *
+ * Function pointers replaced with virtual methods. Default implementations:
+ * realize/unrealize/unit_attention_reported do nothing; alloc_req returns NULL.
+ * The vtable is restored in class_init via qom_fixup_vtable<T>().
+ */
 #ifdef __cplusplus
 struct SCSIDeviceClass : DeviceClass {
+    virtual void realize(SCSIDevice *dev, Error **errp);
+    virtual void unrealize(SCSIDevice *dev);
+    virtual int parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
+                          size_t buf_len, void *hba_private);
+    virtual SCSIRequest *alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                                   uint8_t *buf, void *hba_private);
+    virtual void unit_attention_reported(SCSIDevice *s);
+};
 #else
 struct SCSIDeviceClass {
     DeviceClass parent_class;
-#endif
     void (*realize)(SCSIDevice *dev, Error **errp);
     void (*unrealize)(SCSIDevice *dev);
     int (*parse_cdb)(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
@@ -76,6 +90,7 @@ struct SCSIDeviceClass {
                               uint8_t *buf, void *hba_private);
     void (*unit_attention_reported)(SCSIDevice *s);
 };
+#endif
 
 struct SCSIDevice
 {
@@ -273,48 +288,31 @@ extern const SCSIReqOps scsi_generic_req_ops;
 /*
  * Virtual method dispatch wrappers on SCSIDevice.
  *
- * These inline methods dispatch through the QOM class function pointers,
+ * These inline methods dispatch through the QOM class virtual methods,
  * providing clean call syntax: dev->callRealize(errp) instead of
  * SCSI_DEVICE_GET_CLASS(dev)->realize(dev, errp).
  *
- * This is a stepping stone toward replacing the SCSIDeviceClass
- * function pointers with C++ virtual methods on the device object.
- * When we do that, only the wrapper implementations change --
- * all call sites stay the same.
+ * SCSIDeviceClass methods are now C++ virtual methods (Option D).
+ * No null checks needed — virtual methods always exist with defaults.
  */
 inline void SCSIDevice::callRealize(Error **errp) {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
-    if (sc->realize) {
-        sc->realize(this, errp);
-    }
+    SCSI_DEVICE_GET_CLASS(this)->realize(this, errp);
 }
 inline void SCSIDevice::callUnrealize() {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
-    if (sc->unrealize) {
-        sc->unrealize(this);
-    }
+    SCSI_DEVICE_GET_CLASS(this)->unrealize(this);
 }
 inline int SCSIDevice::parseCdb(SCSICommand *cmd, uint8_t *buf,
                                 size_t buf_len, void *hba_private) {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
-    if (sc->parse_cdb) {
-        return sc->parse_cdb(this, cmd, buf, buf_len, hba_private);
-    }
-    return -1;
+    return SCSI_DEVICE_GET_CLASS(this)->parse_cdb(this, cmd, buf,
+                                                   buf_len, hba_private);
 }
 inline SCSIRequest *SCSIDevice::allocReq(uint32_t tag, uint32_t lun,
                                          uint8_t *buf, void *hba_private) {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
-    if (sc->alloc_req) {
-        return sc->alloc_req(this, tag, lun, buf, hba_private);
-    }
-    return NULL;
+    return SCSI_DEVICE_GET_CLASS(this)->alloc_req(this, tag, lun,
+                                                   buf, hba_private);
 }
 inline void SCSIDevice::unitAttentionReported() {
-    SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(this);
-    if (sc->unit_attention_reported) {
-        sc->unit_attention_reported(this);
-    }
+    SCSI_DEVICE_GET_CLASS(this)->unit_attention_reported(this);
 }
 #endif
 

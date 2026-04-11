@@ -29,6 +29,7 @@
 #include "qemu/hw-version.h"
 #include "qemu/memalign.h"
 #include "hw/scsi/scsi.h"
+#include "qom/cpp/object.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "hw/scsi/emulation.h"
@@ -65,8 +66,7 @@
 
 OBJECT_DECLARE_TYPE(SCSIDiskState, SCSIDiskClass, SCSI_DISK_BASE)
 
-struct SCSIDiskClass {
-    SCSIDeviceClass parent_class;
+struct SCSIDiskClass : SCSIDeviceClass {
     /*
      * Callbacks receive ret == 0 for success. Errors are represented either as
      * negative errno values, or as positive SAM status codes. For host_status
@@ -3206,10 +3206,38 @@ static void scsi_property_add_specifics(DeviceClass *dc)
     }
 }
 
+/* Subclass structs for virtual method overrides */
+struct SCSIHdClass : SCSIDiskClass {
+    void realize(SCSIDevice *dev, Error **errp) override;
+    void unrealize(SCSIDevice *dev) override;
+    SCSIRequest *alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                           uint8_t *buf, void *hba_private) override;
+    void unit_attention_reported(SCSIDevice *s) override;
+};
+
+struct SCSICdClass : SCSIDiskClass {
+    void realize(SCSIDevice *dev, Error **errp) override;
+    SCSIRequest *alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                           uint8_t *buf, void *hba_private) override;
+    void unit_attention_reported(SCSIDevice *s) override;
+};
+
+#ifdef __linux__
+struct SCSIBlockClass : SCSIDiskClass {
+    void realize(SCSIDevice *dev, Error **errp) override;
+    SCSIRequest *alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                           uint8_t *buf, void *hba_private) override;
+    int parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
+                  size_t buf_len, void *hba_private) override;
+};
+#endif
+
 void SCSIDiskState::baseClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     SCSIDiskClass *sdc = reinterpret_cast<SCSIDiskClass *>(klass);
+
+    qom_fixup_vtable<SCSIDiskClass>(klass);
 
     dc->fw_name = "disk";
     device_class_set_legacy_reset(dc, SCSIDiskState::resetWrapper);
@@ -3278,15 +3306,21 @@ static const VMStateDescription vmstate_scsi_disk_state = {
     .fields = vmstate_scsi_disk_state_fields,
 };
 
+/* Virtual method implementations for SCSIHdClass */
+void SCSIHdClass::realize(SCSIDevice *dev, Error **errp) { scsi_hd_realize(dev, errp); }
+void SCSIHdClass::unrealize(SCSIDevice *dev) { scsi_unrealize(dev); }
+SCSIRequest *SCSIHdClass::alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                                     uint8_t *buf, void *hba_private) {
+    return scsi_new_request(s, tag, lun, buf, hba_private);
+}
+void SCSIHdClass::unit_attention_reported(SCSIDevice *s) { scsi_disk_unit_attention_reported(s); }
+
 void SCSIDiskState::hdClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    SCSIDeviceClass *sc = reinterpret_cast<SCSIDeviceClass *>(klass);
 
-    sc->realize      = scsi_hd_realize;
-    sc->unrealize    = scsi_unrealize;
-    sc->alloc_req    = scsi_new_request;
-    sc->unit_attention_reported = scsi_disk_unit_attention_reported;
+    qom_fixup_vtable<SCSIHdClass>(klass);
+
     dc->desc = "virtual SCSI disk";
     device_class_set_props(dc, scsi_hd_properties);
     dc->vmsd  = &vmstate_scsi_disk_state;
@@ -3297,6 +3331,7 @@ void SCSIDiskState::hdClassInit(ObjectClass *klass, const void *data)
 static const TypeInfo scsi_hd_info = {
     .name          = "scsi-hd",
     .parent        = TYPE_SCSI_DISK_BASE,
+    .class_size    = sizeof(SCSIHdClass),
     .class_init    = SCSIDiskState::hdClassInit,
 };
 
@@ -3320,14 +3355,20 @@ static const Property scsi_cd_properties[] = {
                     SCSI_DISK_QUIRK_MODE_PAGE_TRUNCATED, 0),
 };
 
+/* Virtual method implementations for SCSICdClass */
+void SCSICdClass::realize(SCSIDevice *dev, Error **errp) { scsi_cd_realize(dev, errp); }
+SCSIRequest *SCSICdClass::alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                                     uint8_t *buf, void *hba_private) {
+    return scsi_new_request(s, tag, lun, buf, hba_private);
+}
+void SCSICdClass::unit_attention_reported(SCSIDevice *s) { scsi_disk_unit_attention_reported(s); }
+
 void SCSIDiskState::cdClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    SCSIDeviceClass *sc = reinterpret_cast<SCSIDeviceClass *>(klass);
 
-    sc->realize      = scsi_cd_realize;
-    sc->alloc_req    = scsi_new_request;
-    sc->unit_attention_reported = scsi_disk_unit_attention_reported;
+    qom_fixup_vtable<SCSICdClass>(klass);
+
     dc->desc = "virtual SCSI CD-ROM";
     device_class_set_props(dc, scsi_cd_properties);
     dc->vmsd  = &vmstate_scsi_disk_state;
@@ -3338,6 +3379,7 @@ void SCSIDiskState::cdClassInit(ObjectClass *klass, const void *data)
 static const TypeInfo scsi_cd_info = {
     .name          = "scsi-cd",
     .parent        = TYPE_SCSI_DISK_BASE,
+    .class_size    = sizeof(SCSICdClass),
     .class_init    = SCSIDiskState::cdClassInit,
 };
 
@@ -3357,15 +3399,24 @@ static const Property scsi_block_properties[] = {
                        DEFAULT_IO_TIMEOUT),
 };
 
+/* Virtual method implementations for SCSIBlockClass */
+void SCSIBlockClass::realize(SCSIDevice *dev, Error **errp) { scsi_block_realize(dev, errp); }
+SCSIRequest *SCSIBlockClass::alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                                        uint8_t *buf, void *hba_private) {
+    return scsi_block_new_request(s, tag, lun, buf, hba_private);
+}
+int SCSIBlockClass::parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
+                               size_t buf_len, void *hba_private) {
+    return scsi_block_parse_cdb(dev, cmd, buf, buf_len, hba_private);
+}
+
 void SCSIDiskState::blockClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    SCSIDeviceClass *sc = reinterpret_cast<SCSIDeviceClass *>(klass);
     SCSIDiskClass *sdc = reinterpret_cast<SCSIDiskClass *>(klass);
 
-    sc->realize      = scsi_block_realize;
-    sc->alloc_req    = scsi_block_new_request;
-    sc->parse_cdb    = scsi_block_parse_cdb;
+    qom_fixup_vtable<SCSIBlockClass>(klass);
+
     sdc->dma_readv   = scsi_block_dma_readv;
     sdc->dma_writev  = scsi_block_dma_writev;
     sdc->update_sense = scsi_block_update_sense;
@@ -3378,6 +3429,7 @@ void SCSIDiskState::blockClassInit(ObjectClass *klass, const void *data)
 static const TypeInfo scsi_block_info = {
     .name          = "scsi-block",
     .parent        = TYPE_SCSI_DISK_BASE,
+    .class_size    = sizeof(SCSIBlockClass),
     .class_init    = SCSIDiskState::blockClassInit,
 };
 #endif

@@ -17,6 +17,7 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/scsi/scsi.h"
+#include "qom/cpp/object.h"
 #include "migration/qemu-file-types.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -786,14 +787,30 @@ static int scsi_generic_parse_cdb(SCSIDevice *dev, SCSICommand *cmd,
     return scsi_bus_parse_cdb(dev, cmd, buf, buf_len, hba_private);
 }
 
+struct SCSIGenericClass : SCSIDeviceClass {
+    void realize(SCSIDevice *dev, Error **errp) override;
+    SCSIRequest *alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                           uint8_t *buf, void *hba_private) override;
+    int parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
+                  size_t buf_len, void *hba_private) override;
+};
+
+void SCSIGenericClass::realize(SCSIDevice *dev, Error **errp) { scsi_generic_realize(dev, errp); }
+SCSIRequest *SCSIGenericClass::alloc_req(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                                          uint8_t *buf, void *hba_private) {
+    return scsi_new_request(s, tag, lun, buf, hba_private);
+}
+int SCSIGenericClass::parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
+                                 size_t buf_len, void *hba_private) {
+    return scsi_generic_parse_cdb(dev, cmd, buf, buf_len, hba_private);
+}
+
 static void scsi_generic_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
 
-    sc->realize      = scsi_generic_realize;
-    sc->alloc_req    = scsi_new_request;
-    sc->parse_cdb    = scsi_generic_parse_cdb;
+    qom_fixup_vtable<SCSIGenericClass>(klass);
+
     dc->fw_name = "disk";
     dc->desc = "pass through generic scsi device (/dev/sg*)";
     device_class_set_legacy_reset(dc, scsi_generic_reset);
@@ -805,6 +822,7 @@ static const TypeInfo scsi_generic_info = {
     .name          = "scsi-generic",
     .parent        = TYPE_SCSI_DEVICE,
     .instance_size = sizeof(SCSIDevice),
+    .class_size    = sizeof(SCSIGenericClass),
     .class_init    = scsi_generic_class_initfn,
 };
 
