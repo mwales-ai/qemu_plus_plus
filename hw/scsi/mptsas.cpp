@@ -38,6 +38,7 @@
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "mpi.h"
+#include "qom/cpp/object.h"
 
 #define NAA_LOCALLY_ASSIGNED_ID 0x3ULL
 #define IEEE_COMPANY_LOCALLY_ASSIGNED 0x525400
@@ -1409,13 +1410,29 @@ static const Property mptsas_properties[] = {
     DEFINE_PROP_ON_OFF_AUTO("msi", MPTSASState, msi, ON_OFF_AUTO_AUTO),
 };
 
+/* Subclass struct for PCIDeviceClass virtual method overrides */
+struct MPTSASDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override;
+    void pci_exit(PCIDevice *dev) override;
+};
+
+void MPTSASDeviceClass::pci_realize(PCIDevice *dev, Error **errp)
+{
+    mptsas_scsi_realize(dev, errp);
+}
+
+void MPTSASDeviceClass::pci_exit(PCIDevice *dev)
+{
+    mptsas_scsi_uninit(dev);
+}
+
 static void mptsas1068_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
-    pc->realize = mptsas_scsi_realize;
-    pc->exit = mptsas_scsi_uninit;
+    qom_fixup_vtable<MPTSASDeviceClass>(oc);
+
     pc->romfile = 0;
     pc->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     pc->device_id = PCI_DEVICE_ID_LSI_SAS1068;
@@ -1438,6 +1455,7 @@ static const TypeInfo mptsas_info = {
     .name = TYPE_MPTSAS1068,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(MPTSASState),
+    .class_size = sizeof(MPTSASDeviceClass),
     .class_init = mptsas1068_class_init,
     .interfaces = mptsas_interfaces,
 };

@@ -57,7 +57,7 @@ static void virtio_input_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
 
     device_class_set_props(dc, virtio_input_pci_properties);
-    k->realize = virtio_input_pci_realize;
+    k->virtio_realize = virtio_input_pci_realize;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     pcidev_k->class_id = PCI_CLASS_INPUT_OTHER;

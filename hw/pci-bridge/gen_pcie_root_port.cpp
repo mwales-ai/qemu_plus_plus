@@ -103,7 +103,7 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
                                               grp->res_reserve, errp);
 
     if (rc < 0) {
-        rpc->parent_class.exit(d);
+        rpc->pci_exit(d);
         return;
     }
 

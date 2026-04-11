@@ -45,7 +45,7 @@ static void virtio_nsm_pci_class_init(ObjectClass *klass, const void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
 
-    k->realize = virtio_nsm_pci_realize;
+    k->virtio_realize = virtio_nsm_pci_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 

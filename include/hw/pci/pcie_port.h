@@ -84,8 +84,14 @@ typedef struct PCIERootPortClass PCIERootPortClass;
 DECLARE_CLASS_CHECKERS(PCIERootPortClass, PCIE_ROOT_PORT,
                        TYPE_PCIE_ROOT_PORT)
 
+#ifdef __cplusplus
+struct PCIERootPortClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override;
+    void pci_exit(PCIDevice *dev) override;
+#else
 struct PCIERootPortClass {
     PCIDeviceClass parent_class;
+#endif
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
 

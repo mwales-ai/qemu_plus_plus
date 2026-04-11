@@ -27,10 +27,27 @@ DECLARE_OBJ_CHECKERS(PCIDevice, PCIDeviceClass,
 /* Implemented by devices that can be plugged on Conventional PCI buses */
 #define INTERFACE_CONVENTIONAL_PCI_DEVICE "conventional-pci-device"
 
-/* Option D: C++ inheritance replaces parent_class embedding.
- * Layout is identical — no virtual methods yet, so no vtable pointer. */
+/*
+ * PCIDeviceClass — QOM class struct using C++ virtual methods (Option D).
+ *
+ * pci_realize and pci_exit are virtual methods; default implementations do
+ * nothing. Subclasses override these via C++ inheritance + qom_fixup_vtable.
+ *
+ * realize/exit function pointer fields are kept for backward compatibility
+ * during the transition. pci_qdev_realize() and pci_qdev_unrealize() dispatch
+ * through the virtual methods, which by default call the function pointers.
+ * Once all devices have been converted to override the virtuals directly,
+ * the function pointer fields can be removed.
+ *
+ * config_read/config_write remain function pointers — they are copied to the
+ * PCIDevice instance at realize time and dispatched through the instance.
+ *
+ * The vtable is restored in class_init() via qom_fixup_vtable<T>().
+ */
 #ifdef __cplusplus
 struct PCIDeviceClass : DeviceClass {
+    virtual void pci_realize(PCIDevice *dev, Error **errp);
+    virtual void pci_exit(PCIDevice *dev);
 #else
 struct PCIDeviceClass {
     DeviceClass parent_class;

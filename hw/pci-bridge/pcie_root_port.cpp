@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 static void rp_aer_vector_update(PCIDevice *d)
 {
@@ -167,15 +168,26 @@ static void rp_instance_post_init(Object *obj)
     }
 }
 
+/* Virtual method implementations for PCIERootPortClass */
+void PCIERootPortClass::pci_realize(PCIDevice *dev, Error **errp)
+{
+    rp_realize(dev, errp);
+}
+
+void PCIERootPortClass::pci_exit(PCIDevice *dev)
+{
+    rp_exit(dev);
+}
+
 static void rp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    qom_fixup_vtable<PCIERootPortClass>(klass);
+
     k->config_write = rp_write_config;
-    k->realize = rp_realize;
-    k->exit = rp_exit;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     rc->phases.hold = rp_reset_hold;
     device_class_set_props(dc, rp_props);

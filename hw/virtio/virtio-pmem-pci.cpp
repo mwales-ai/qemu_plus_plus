@@ -87,7 +87,7 @@ static void virtio_pmem_pci_class_init(ObjectClass *klass, const void *data)
     PCIDeviceClass *pcidev_k = PCI_DEVICE_CLASS(klass);
     MemoryDeviceClass *mdc = MEMORY_DEVICE_CLASS(klass);
 
-    k->realize = virtio_pmem_pci_realize;
+    k->virtio_realize = virtio_pmem_pci_realize;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;
     pcidev_k->class_id = PCI_CLASS_OTHERS;

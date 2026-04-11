@@ -228,7 +228,7 @@ static void virtio_vga_base_class_init(ObjectClass *klass, const void *data)
     resettable_class_set_parent_phases(rc, NULL, virtio_vga_base_reset_hold,
                                        NULL, &v->parent_phases);
 
-    k->realize = virtio_vga_base_realize;
+    k->virtio_realize = virtio_vga_base_realize;
     pcidev_k->romfile = "vgabios-virtio.bin";
     pcidev_k->class_id = PCI_CLASS_DISPLAY_VGA;
 

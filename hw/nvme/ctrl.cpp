@@ -212,6 +212,7 @@
 #include "nvme.h"
 #include "dif.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define NVME_MAX_IOQPAIRS 0xffff
 #define NVME_DB_SIZE  4
@@ -9514,15 +9515,31 @@ static const VMStateDescription nvme_vmstate = {
     .unmigratable = 1,
 };
 
+/* Subclass struct for PCIDeviceClass virtual method overrides */
+struct NvmeDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override;
+    void pci_exit(PCIDevice *dev) override;
+};
+
+void NvmeDeviceClass::pci_realize(PCIDevice *dev, Error **errp)
+{
+    nvme_realize(dev, errp);
+}
+
+void NvmeDeviceClass::pci_exit(PCIDevice *dev)
+{
+    nvme_exit(dev);
+}
+
 static void nvme_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
-    pc->realize = nvme_realize;
+    qom_fixup_vtable<NvmeDeviceClass>(oc);
+
     pc->config_write = nvme_pci_write_config;
     pc->config_read = nvme_pci_read_config;
-    pc->exit = nvme_exit;
     pc->class_id = PCI_CLASS_STORAGE_EXPRESS;
     pc->revision = 2;
 
@@ -9551,6 +9568,7 @@ static const TypeInfo nvme_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(NvmeCtrl),
     .instance_init = nvme_instance_init,
+    .class_size    = sizeof(NvmeDeviceClass),
     .class_init    = nvme_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },

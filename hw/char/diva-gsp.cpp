@@ -25,6 +25,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 #define PCI_DEVICE_ID_HP_DIVA           0x1048
 /* various DIVA GSP cards: */
@@ -196,12 +197,25 @@ static const Property diva_serial_properties[] = {
                                     PCI_DEVICE_ID_HP_DIVA_TOSCA1),
 };
 
+/* Subclass struct for PCIDivaSerialState virtual method overrides */
+struct PCIDivaSerialDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override
+    {
+        PCIDivaSerialState::realizeWrapper(dev, errp);
+    }
+    void pci_exit(PCIDevice *dev) override
+    {
+        PCIDivaSerialState::pciExit(dev);
+    }
+};
+
 void PCIDivaSerialState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
-    pc->realize = realizeWrapper;
-    pc->exit = pciExit;
+
+    qom_fixup_vtable<PCIDivaSerialDeviceClass>(klass);
+
     pc->vendor_id = PCI_VENDOR_ID_HP;
     pc->device_id = PCI_DEVICE_ID_HP_DIVA;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_HP;
@@ -265,12 +279,25 @@ void DivaAuxState::exit(PCIDevice *dev)
     qemu_free_irq(pci->irq);
 }
 
+/* Subclass struct for DivaAuxState virtual method overrides */
+struct DivaAuxDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override
+    {
+        DivaAuxState::realizeWrapper(dev, errp);
+    }
+    void pci_exit(PCIDevice *dev) override
+    {
+        DivaAuxState::exit(dev);
+    }
+};
+
 void DivaAuxState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
-    pc->realize = realizeWrapper;
-    pc->exit = exit;
+
+    qom_fixup_vtable<DivaAuxDeviceClass>(klass);
+
     pc->vendor_id = PCI_VENDOR_ID_HP;
     pc->device_id = PCI_DEVICE_ID_HP_DIVA_AUX;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_HP;
@@ -290,6 +317,7 @@ static const TypeInfo diva_aux_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(DivaAuxState),
     .instance_init = DivaAuxState::instanceInit,
+    .class_size    = sizeof(DivaAuxDeviceClass),
     .class_init    = DivaAuxState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -304,6 +332,7 @@ static const TypeInfo diva_serial_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDivaSerialState),
     .instance_init = PCIDivaSerialState::instanceInit,
+    .class_size    = sizeof(PCIDivaSerialDeviceClass),
     .class_init    = PCIDivaSerialState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

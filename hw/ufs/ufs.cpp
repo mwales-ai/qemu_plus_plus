@@ -28,6 +28,7 @@
 #include "hw/irq.h"
 #include "trace.h"
 #include "ufs.h"
+#include "qom/cpp/object.h"
 
 /* The QEMU-UFS device follows spec version 4.0 */
 #define UFS_SPEC_VER 0x0400
@@ -1884,13 +1885,29 @@ static const VMStateDescription ufs_vmstate = {
     .unmigratable = 1,
 };
 
+/* Subclass struct for PCIDeviceClass virtual method overrides */
+struct UfsDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override;
+    void pci_exit(PCIDevice *dev) override;
+};
+
+void UfsDeviceClass::pci_realize(PCIDevice *dev, Error **errp)
+{
+    ufs_realize(dev, errp);
+}
+
+void UfsDeviceClass::pci_exit(PCIDevice *dev)
+{
+    ufs_exit(dev);
+}
+
 static void ufs_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
-    pc->realize = ufs_realize;
-    pc->exit = ufs_exit;
+    qom_fixup_vtable<UfsDeviceClass>(oc);
+
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_UFS;
     pc->class_id = PCI_CLASS_STORAGE_UFS;
@@ -1936,6 +1953,7 @@ static const TypeInfo ufs_info = {
     .name = TYPE_UFS,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(UfsHc),
+    .class_size = sizeof(UfsDeviceClass),
     .class_init = ufs_class_init,
     .interfaces = ufs_interfaces,
 };

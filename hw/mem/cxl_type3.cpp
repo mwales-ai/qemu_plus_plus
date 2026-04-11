@@ -30,6 +30,7 @@
 #include "system/numa.h"
 #include "hw/cxl/cxl.h"
 #include "hw/pci/msix.h"
+#include "qom/cpp/object.h"
 
 /* type3 device private */
 enum CXL_T3_MSIX_VECTOR {
@@ -2100,14 +2101,25 @@ void qmp_cxl_release_dynamic_capacity(const char *path, uint16_t host_id,
     }
 }
 
+/* Virtual method implementations for CXLType3Class */
+void CXLType3Class::pci_realize(PCIDevice *dev, Error **errp)
+{
+    ct3_realize(dev, errp);
+}
+
+void CXLType3Class::pci_exit(PCIDevice *dev)
+{
+    ct3_exit(dev);
+}
+
 static void ct3_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
     CXLType3Class *cvc = CXL_TYPE3_CLASS(oc);
 
-    pc->realize = ct3_realize;
-    pc->exit = ct3_exit;
+    qom_fixup_vtable<CXLType3Class>(oc);
+
     pc->class_id = PCI_CLASS_MEMORY_CXL;
     pc->vendor_id = PCI_VENDOR_ID_INTEL;
     pc->device_id = 0xd93; /* LVF for now */

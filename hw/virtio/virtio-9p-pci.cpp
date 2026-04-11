@@ -66,7 +66,7 @@ void V9fsPCIState::classInit(ObjectClass *klass, const void *data)
     PCIDeviceClass *pcidev_k = reinterpret_cast<PCIDeviceClass *>(klass);
     VirtioPCIClass *k = reinterpret_cast<VirtioPCIClass *>(klass);
 
-    k->realize = realize;
+    k->virtio_realize = realize;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_9P;
     pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;

@@ -77,7 +77,7 @@ static void virtio_net_pci_class_init(ObjectClass *klass, const void *data)
     k->sriov_vf_user_creatable = true;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     device_class_set_props(dc, virtio_net_properties);
-    vpciklass->realize = virtio_net_pci_realize;
+    vpciklass->virtio_realize = virtio_net_pci_realize;
 }
 
 static void virtio_net_pci_instance_init(Object *obj)

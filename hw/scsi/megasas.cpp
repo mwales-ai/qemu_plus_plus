@@ -37,6 +37,7 @@
 #include "mfi.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define MEGASAS_VERSION_GEN1 "1.70"
 #define MEGASAS_VERSION_GEN2 "1.80"
@@ -193,8 +194,10 @@ struct MegasasState {
 };
 typedef struct MegasasState MegasasState;
 
-struct MegasasBaseClass {
-    PCIDeviceClass parent_class;
+struct MegasasBaseClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override;
+    void pci_exit(PCIDevice *dev) override;
+
     const char *product_name;
     const char *product_version;
     int mmio_bar;
@@ -2587,6 +2590,17 @@ static struct MegasasInfo megasas_devices[] = {
     }
 };
 
+/* Virtual method implementations for MegasasBaseClass */
+void MegasasBaseClass::pci_realize(PCIDevice *dev, Error **errp)
+{
+    MegasasState::realizeWrapper(dev, errp);
+}
+
+void MegasasBaseClass::pci_exit(PCIDevice *dev)
+{
+    megasas_scsi_uninit(dev);
+}
+
 void MegasasState::classInit(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
@@ -2594,8 +2608,8 @@ void MegasasState::classInit(ObjectClass *oc, const void *data)
     MegasasBaseClass *e = reinterpret_cast<MegasasBaseClass *>(oc);
     const MegasasInfo *info = static_cast<const MegasasInfo *>(data);
 
-    pc->realize = MegasasState::realizeWrapper;
-    pc->exit = megasas_scsi_uninit;
+    qom_fixup_vtable<MegasasBaseClass>(oc);
+
     pc->vendor_id = PCI_VENDOR_ID_LSI_LOGIC;
     pc->device_id = info->device_id;
     pc->subsystem_vendor_id = PCI_VENDOR_ID_LSI_LOGIC;

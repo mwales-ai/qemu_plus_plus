@@ -652,9 +652,15 @@ struct CXLType3Dev {
 #define TYPE_CXL_TYPE3 "cxl-type3"
 OBJECT_DECLARE_TYPE(CXLType3Dev, CXLType3Class, CXL_TYPE3)
 
+#ifdef __cplusplus
+struct CXLType3Class : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override;
+    void pci_exit(PCIDevice *dev) override;
+#else
 struct CXLType3Class {
     /* Private */
     PCIDeviceClass parent_class;
+#endif
 
     /* public */
     uint64_t (*get_lsa_size)(CXLType3Dev *ct3d);

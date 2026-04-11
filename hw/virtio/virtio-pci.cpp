@@ -42,6 +42,7 @@
 #include "qapi/visitor.h"
 #include "system/replay.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define VIRTIO_PCI_REGION_SIZE(dev)     VIRTIO_PCI_CONFIG_OFF(msix_present(dev))
 
@@ -2345,8 +2346,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 
     virtio_pci_bus_new(&proxy->bus, sizeof(proxy->bus), proxy);
-    if (k->realize) {
-        k->realize(proxy, errp);
+    if (k->virtio_realize) {
+        k->virtio_realize(proxy, errp);
     }
 }
 
@@ -2481,6 +2482,17 @@ static int virtio_pci_sync_config(DeviceState *dev, Error **errp)
     return qdev_sync_config(DEVICE(vdev), errp);
 }
 
+/* Virtual method implementations for VirtioPCIClass */
+void VirtioPCIClass::pci_realize(PCIDevice *dev, Error **errp)
+{
+    virtio_pci_realize(dev, errp);
+}
+
+void VirtioPCIClass::pci_exit(PCIDevice *dev)
+{
+    virtio_pci_exit(dev);
+}
+
 static void virtio_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -2488,9 +2500,9 @@ static void virtio_pci_class_init(ObjectClass *klass, const void *data)
     VirtioPCIClass *vpciklass = VIRTIO_PCI_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
 
+    qom_fixup_vtable<VirtioPCIClass>(klass);
+
     device_class_set_props(dc, virtio_pci_properties);
-    k->realize = virtio_pci_realize;
-    k->exit = virtio_pci_exit;
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;

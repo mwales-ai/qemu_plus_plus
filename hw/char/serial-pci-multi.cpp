@@ -40,6 +40,8 @@ extern "C" {
 #include "migration/vmstate.h"
 }
 
+#include "qom/cpp/object.h"
+
 #define PCI_SERIAL_MAX_PORTS 4
 
 typedef struct PCIMultiSerialState {
@@ -147,13 +149,26 @@ static const Property multi_4x_serial_pci_properties[] = {
     DEFINE_PROP_CHR("chardev4",  PCIMultiSerialState, state[3].chr),
 };
 
+/* Subclass struct for PCIDeviceClass virtual method overrides */
+struct PCIMultiSerialDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override
+    {
+        multi_serial_pci_realize(dev, errp);
+    }
+    void pci_exit(PCIDevice *dev) override
+    {
+        multi_serial_pci_exit(dev);
+    }
+};
+
 static void multi_2x_serial_pci_class_initfn(ObjectClass *klass,
                                              const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->realize = multi_serial_pci_realize;
-    pc->exit = multi_serial_pci_exit;
+
+    qom_fixup_vtable<PCIMultiSerialDeviceClass>(klass);
+
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL2;
     pc->revision = 1;
@@ -168,8 +183,9 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass,
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
-    pc->realize = multi_serial_pci_realize;
-    pc->exit = multi_serial_pci_exit;
+
+    qom_fixup_vtable<PCIMultiSerialDeviceClass>(klass);
+
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL4;
     pc->revision = 1;
@@ -202,6 +218,7 @@ static const TypeInfo multi_2x_serial_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIMultiSerialState),
     .instance_init = multi_serial_init,
+    .class_size    = sizeof(PCIMultiSerialDeviceClass),
     .class_init    = multi_2x_serial_pci_class_initfn,
     .interfaces = multi_serial_pci_interfaces,
 };
@@ -211,6 +228,7 @@ static const TypeInfo multi_4x_serial_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIMultiSerialState),
     .instance_init = multi_serial_init,
+    .class_size    = sizeof(PCIMultiSerialDeviceClass),
     .class_init    = multi_4x_serial_pci_class_initfn,
     .interfaces = multi_serial_pci_interfaces,
 };

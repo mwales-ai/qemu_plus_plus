@@ -101,10 +101,16 @@ typedef struct {
 #define TYPE_VIRTIO_PCI "virtio-pci"
 OBJECT_DECLARE_TYPE(VirtIOPCIProxy, VirtioPCIClass, VIRTIO_PCI)
 
+#ifdef __cplusplus
+struct VirtioPCIClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override;
+    void pci_exit(PCIDevice *dev) override;
+#else
 struct VirtioPCIClass {
     PCIDeviceClass parent_class;
+#endif
     DeviceRealize parent_dc_realize;
-    void (*realize)(VirtIOPCIProxy *vpci_dev, Error **errp);
+    void (*virtio_realize)(VirtIOPCIProxy *vpci_dev, Error **errp);
 };
 
 typedef struct VirtIOPCIRegion {

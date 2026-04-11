@@ -73,7 +73,7 @@ static void vhost_user_blk_pci_class_init(ObjectClass *klass, const void *data)
 
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     device_class_set_props(dc, vhost_user_blk_pci_properties);
-    k->realize = vhost_user_blk_pci_realize;
+    k->virtio_realize = vhost_user_blk_pci_realize;
     pcidev_k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     pcidev_k->device_id = PCI_DEVICE_ID_VIRTIO_BLOCK;
     pcidev_k->revision = VIRTIO_PCI_ABI_VERSION;

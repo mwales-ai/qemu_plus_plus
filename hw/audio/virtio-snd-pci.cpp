@@ -52,7 +52,7 @@ static void virtio_snd_pci_class_init(ObjectClass *klass, const void *data)
     dc->desc = "Virtio Sound";
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
 
-    vpciklass->realize = virtio_snd_pci_realize;
+    vpciklass->virtio_realize = virtio_snd_pci_realize;
     pcidevklass->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
 }
 

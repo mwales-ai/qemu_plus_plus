@@ -77,7 +77,7 @@ static void vhost_vdpa_device_pci_class_init(ObjectClass *klass,
     VirtioPCIClass *k = VIRTIO_PCI_CLASS(klass);
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    k->realize = vhost_vdpa_device_pci_realize;
+    k->virtio_realize = vhost_vdpa_device_pci_realize;
 }
 
 static const VirtioPCIDeviceTypeInfo vhost_vdpa_device_pci_info = {

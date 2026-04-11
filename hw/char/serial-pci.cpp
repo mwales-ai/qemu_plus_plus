@@ -35,6 +35,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_PCI_SERIAL "pci-serial"
 
@@ -66,8 +67,6 @@ struct PCISerialState {
         qemu_free_irq(s->irq);
     }
 
-    static void pciRealize(PCIDevice *dev, Error **errp);
-    static void pciExit(PCIDevice *dev);
     static void instanceInit(Object *o);
     static void classInit(ObjectClass *klass, const void *data);
 
@@ -76,13 +75,19 @@ struct PCISerialState {
 
 OBJECT_DECLARE_SIMPLE_TYPE(PCISerialState, PCI_SERIAL)
 
-void PCISerialState::pciRealize(PCIDevice *dev, Error **errp)
+/* Subclass struct for PCIDeviceClass virtual method overrides */
+struct PCISerialDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override;
+    void pci_exit(PCIDevice *dev) override;
+};
+
+void PCISerialDeviceClass::pci_realize(PCIDevice *dev, Error **errp)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     pci->realize(errp);
 }
 
-void PCISerialState::pciExit(PCIDevice *dev)
+void PCISerialDeviceClass::pci_exit(PCIDevice *dev)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     pci->exitDevice();
@@ -101,8 +106,9 @@ void PCISerialState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
-    pc->realize = pciRealize;
-    pc->exit = pciExit;
+
+    qom_fixup_vtable<PCISerialDeviceClass>(klass);
+
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_SERIAL;
     pc->revision = 1;
@@ -127,6 +133,7 @@ static const TypeInfo serial_pci_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCISerialState),
     .instance_init = PCISerialState::instanceInit,
+    .class_size    = sizeof(PCISerialDeviceClass),
     .class_init    = PCISerialState::classInit,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

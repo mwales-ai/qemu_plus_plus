@@ -55,7 +55,29 @@
 #include "hw/xen/xen.h"
 #include "hw/i386/kvm/xen_evtchn.h"
 
+#include "qom/cpp/object.h"
+
 bool pci_available = true;
+
+/*
+ * PCIDeviceClass default virtual method implementations.
+ * By default, pci_realize/pci_exit delegate to the function pointer fields
+ * for backward compatibility with unconverted devices. Converted devices
+ * override these virtual methods directly.
+ */
+void PCIDeviceClass::pci_realize(PCIDevice *dev, Error **errp)
+{
+    if (realize) {
+        realize(dev, errp);
+    }
+}
+
+void PCIDeviceClass::pci_exit(PCIDevice *dev)
+{
+    if (exit) {
+        exit(dev);
+    }
+}
 
 static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);
@@ -1460,9 +1482,7 @@ static void pci_qdev_unrealize(DeviceState *dev)
     pci_del_option_rom(pci_dev);
     pcie_sriov_unregister_device(pci_dev);
 
-    if (pc->exit) {
-        pc->exit(pci_dev);
-    }
+    pc->pci_exit(pci_dev);
 
     pci_device_deassert_intx(pci_dev);
     do_pci_unregister_device(pci_dev);
@@ -2293,13 +2313,11 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     if (pci_dev == NULL)
         return;
 
-    if (pc->realize) {
-        pc->realize(pci_dev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            do_pci_unregister_device(pci_dev);
-            return;
-        }
+    pc->pci_realize(pci_dev, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        do_pci_unregister_device(pci_dev);
+        return;
     }
 
     if (!pcie_sriov_register_device(pci_dev, errp)) {
@@ -2845,6 +2863,8 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev)
 static void pci_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<PCIDeviceClass>(klass);
 
     k->realize = pci_qdev_realize;
     k->unrealize = pci_qdev_unrealize;

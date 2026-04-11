@@ -16,6 +16,7 @@
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
 #include "hw/cxl/cxl.h"
+#include "qom/cpp/object.h"
 
 #define CXL_SWCCI_MSIX_MBOX 3
 
@@ -71,13 +72,25 @@ static const Property cxl_switch_cci_props[] = {
                      target, TYPE_CXL_USP, PCIDevice *),
 };
 
+/* Subclass struct for PCIDeviceClass virtual method overrides */
+struct CSWMBCCIDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override
+    {
+        cswbcci_realize(dev, errp);
+    }
+    void pci_exit(PCIDevice *dev) override
+    {
+        cswmbcci_exit(dev);
+    }
+};
+
 static void cswmbcci_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
 
-    pc->realize = cswbcci_realize;
-    pc->exit = cswmbcci_exit;
+    qom_fixup_vtable<CSWMBCCIDeviceClass>(oc);
+
     /* Serial bus, CXL Switch CCI */
     pc->class_id = 0x0c0b;
     /*
@@ -102,6 +115,7 @@ static const TypeInfo cswmbcci_info = {
     .name = TYPE_CXL_SWITCH_MAILBOX_CCI,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(CSWMBCCIDev),
+    .class_size = sizeof(CSWMBCCIDeviceClass),
     .class_init = cswmbcci_class_init,
     .interfaces = cswmbcci_interfaces,
 };

@@ -22,6 +22,7 @@
 #include "qom/object.h"
 #include "hw/pci/pci_device.h"
 #include "standard-headers/misc/pvpanic.h"
+#include "qom/cpp/object.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(PVPanicPCIState, PVPANIC_PCI_DEVICE)
 
@@ -58,14 +59,23 @@ static const Property pvpanic_pci_properties[] = {
                       PVPANIC_EVENTS),
 };
 
+/* Subclass struct for PCIDeviceClass virtual method overrides */
+struct PVPanicPCIDeviceClass : PCIDeviceClass {
+    void pci_realize(PCIDevice *dev, Error **errp) override
+    {
+        pvpanic_pci_realizefn(dev, errp);
+    }
+};
+
 static void pvpanic_pci_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(klass);
 
+    qom_fixup_vtable<PVPanicPCIDeviceClass>(klass);
+
     device_class_set_props(dc, pvpanic_pci_properties);
 
-    pc->realize = pvpanic_pci_realizefn;
     pc->vendor_id = PCI_VENDOR_ID_REDHAT;
     pc->device_id = PCI_DEVICE_ID_REDHAT_PVPANIC;
     pc->revision = 1;
@@ -79,6 +89,7 @@ static const TypeInfo pvpanic_pci_info = {
     .name          = TYPE_PVPANIC_PCI_DEVICE,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PVPanicPCIState),
+    .class_size    = sizeof(PVPanicPCIDeviceClass),
     .class_init    = pvpanic_pci_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
