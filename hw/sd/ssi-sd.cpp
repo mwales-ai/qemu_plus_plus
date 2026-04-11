@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "system/blockdev.h"
 #include "hw/ssi/ssi.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/sd/sd.h"
@@ -327,13 +328,20 @@ static void ssi_sd_reset(DeviceState *dev)
     s->stopping = 0;
 }
 
+struct SSISDClass : SSIPeripheralClass {
+    void realize(SSIPeripheral *dev, Error **errp) override;
+    uint32_t transfer(SSIPeripheral *dev, uint32_t val) override;
+};
+void SSISDClass::realize(SSIPeripheral *dev, Error **errp) { ssi_sd_realize(dev, errp); }
+uint32_t SSISDClass::transfer(SSIPeripheral *dev, uint32_t val) { return ssi_sd_transfer(dev, val); }
+
 static void ssi_sd_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
-    k->realize = ssi_sd_realize;
-    k->transfer = ssi_sd_transfer;
+    qom_fixup_vtable<SSISDClass>(klass);
+
     k->cs_polarity = SSI_CS_LOW;
     dc->vmsd = &vmstate_ssi_sd;
     device_class_set_legacy_reset(dc, ssi_sd_reset);
@@ -346,6 +354,7 @@ static const TypeInfo ssi_sd_types[] = {
         .name           = TYPE_SSI_SD,
         .parent         = TYPE_SSI_PERIPHERAL,
         .instance_size  = sizeof(ssi_sd_state),
+        .class_size     = sizeof(SSISDClass),
         .class_init     = ssi_sd_class_init,
     },
 };

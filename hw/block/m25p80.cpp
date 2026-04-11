@@ -29,6 +29,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/ssi/ssi.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "qemu/bitops.h"
 #include "qemu/log.h"
@@ -526,8 +527,7 @@ struct Flash {
 
 };
 
-struct M25P80Class {
-    SSIPeripheralClass parent_class;
+struct M25P80Class : SSIPeripheralClass {
     const FlashPartInfo *pi;
 };
 
@@ -1870,15 +1870,23 @@ static const VMStateDescription vmstate_m25p80 = {
     .subsections = vmstate_m25p80_subsections,
 };
 
+struct M25P80BaseClass : M25P80Class {
+    void realize(SSIPeripheral *dev, Error **errp) override;
+    uint32_t transfer(SSIPeripheral *dev, uint32_t val) override;
+    int set_cs(SSIPeripheral *dev, bool select) override;
+};
+void M25P80BaseClass::realize(SSIPeripheral *dev, Error **errp) { m25p80_realize(dev, errp); }
+uint32_t M25P80BaseClass::transfer(SSIPeripheral *dev, uint32_t val) { return m25p80_transfer8(dev, val); }
+int M25P80BaseClass::set_cs(SSIPeripheral *dev, bool select) { return m25p80_cs(dev, select); }
+
 static void m25p80_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
     M25P80Class *mc = M25P80_CLASS(klass);
 
-    k->realize = m25p80_realize;
-    k->transfer = m25p80_transfer8;
-    k->set_cs = m25p80_cs;
+    qom_fixup_vtable<M25P80BaseClass>(klass);
+
     k->cs_polarity = SSI_CS_LOW;
     dc->vmsd = &vmstate_m25p80;
     device_class_set_props(dc, m25p80_properties);
@@ -1893,7 +1901,7 @@ static const TypeInfo m25p80_info = {
     .parent         = TYPE_SSI_PERIPHERAL,
     .instance_size  = sizeof(Flash),
     .is_abstract    = true,
-    .class_size     = sizeof(M25P80Class),
+    .class_size     = sizeof(M25P80BaseClass),
 };
 
 static void m25p80_register_types(void)

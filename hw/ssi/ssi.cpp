@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-properties.h"
 #include "hw/ssi/ssi.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qom/object.h"
@@ -79,14 +80,17 @@ static void ssi_cs_default(void *opaque, int n, int level)
     bool cs = !!level;
     assert(n == 0);
     if (s->cs != cs) {
-        if (s->spc->set_cs) {
-            s->spc->set_cs(s, cs);
-        }
+        s->spc->set_cs(s, cs);
     }
     s->cs = cs;
 }
 
-static uint32_t ssi_transfer_raw_default(SSIPeripheral *dev, uint32_t val)
+/* Default virtual method implementations for SSIPeripheralClass */
+void SSIPeripheralClass::realize(SSIPeripheral *dev, Error **errp) {}
+uint32_t SSIPeripheralClass::transfer(SSIPeripheral *dev, uint32_t val) { return 0; }
+int SSIPeripheralClass::set_cs(SSIPeripheral *dev, bool select) { return 0; }
+
+uint32_t SSIPeripheralClass::transfer_raw(SSIPeripheral *dev, uint32_t val)
 {
     SSIPeripheralClass *ssc = dev->spc;
 
@@ -103,8 +107,7 @@ static void ssi_peripheral_realize(DeviceState *dev, Error **errp)
     SSIPeripheral *s = SSI_PERIPHERAL(dev);
     SSIPeripheralClass *ssc = SSI_PERIPHERAL_GET_CLASS(s);
 
-    if (ssc->transfer_raw == ssi_transfer_raw_default &&
-            ssc->cs_polarity != SSI_CS_NONE) {
+    if (ssc->cs_polarity != SSI_CS_NONE) {
         qdev_init_gpio_in_named(dev, ssi_cs_default, SSI_GPIO_CS, 1);
     }
     s->spc = ssc;
@@ -118,14 +121,12 @@ static const Property ssi_peripheral_properties[] = {
 
 static void ssi_peripheral_class_init(ObjectClass *klass, const void *data)
 {
-    SSIPeripheralClass *ssc = SSI_PERIPHERAL_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<SSIPeripheralClass>(klass);
 
     dc->realize = ssi_peripheral_realize;
     dc->bus_type = TYPE_SSI_BUS;
-    if (!ssc->transfer_raw) {
-        ssc->transfer_raw = ssi_transfer_raw_default;
-    }
     device_class_set_props(dc, ssi_peripheral_properties);
 }
 

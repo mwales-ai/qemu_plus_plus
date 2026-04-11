@@ -33,33 +33,27 @@ OBJECT_DECLARE_TYPE(SSIPeripheral, SSIPeripheralClass,
 
 #define SSI_GPIO_CS "ssi-gpio-cs"
 
-/* Peripherals.  */
+/*
+ * SSIPeripheralClass — QOM class struct using C++ virtual methods (Option D).
+ */
+#ifdef __cplusplus
+struct SSIPeripheralClass : DeviceClass {
+    virtual void realize(SSIPeripheral *dev, Error **errp);
+    virtual uint32_t transfer(SSIPeripheral *dev, uint32_t val);
+    virtual int set_cs(SSIPeripheral *dev, bool select);
+    SSICSMode cs_polarity;
+    virtual uint32_t transfer_raw(SSIPeripheral *dev, uint32_t val);
+};
+#else
 struct SSIPeripheralClass {
     DeviceClass parent_class;
-
     void (*realize)(SSIPeripheral *dev, Error **errp);
-
-    /* if you have standard or no CS behaviour, just override transfer.
-     * This is called when the device cs is active (true by default).
-     * See ssi_transfer().
-     */
     uint32_t (*transfer)(SSIPeripheral *dev, uint32_t val);
-    /* called when the CS line changes. Optional, devices only need to implement
-     * this if they have side effects associated with the cs line (beyond
-     * tristating the txrx lines).
-     */
     int (*set_cs)(SSIPeripheral *dev, bool select);
-    /* define whether or not CS exists and is active low/high */
     SSICSMode cs_polarity;
-
-    /* if you have non-standard CS behaviour override this to take control
-     * of the CS behaviour at the device level. transfer, set_cs, and
-     * cs_polarity are unused if this is overwritten. Transfer_raw will
-     * always be called for the device for every txrx access to the parent bus
-     * See ssi_transfer().
-     */
     uint32_t (*transfer_raw)(SSIPeripheral *dev, uint32_t val);
 };
+#endif
 
 struct SSIPeripheral {
     DeviceState parent_obj;

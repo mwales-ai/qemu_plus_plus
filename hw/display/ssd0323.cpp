@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/ssi/ssi.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "ui/console.h"
@@ -363,13 +364,20 @@ static void ssd0323_realize(SSIPeripheral *d, Error **errp)
     qdev_init_gpio_in(dev, ssd0323_cd, 1);
 }
 
+struct SSD0323Class : SSIPeripheralClass {
+    void realize(SSIPeripheral *dev, Error **errp) override;
+    uint32_t transfer(SSIPeripheral *dev, uint32_t val) override;
+};
+void SSD0323Class::realize(SSIPeripheral *dev, Error **errp) { ssd0323_realize(dev, errp); }
+uint32_t SSD0323Class::transfer(SSIPeripheral *dev, uint32_t val) { return ssd0323_transfer(dev, val); }
+
 static void ssd0323_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SSIPeripheralClass *k = SSI_PERIPHERAL_CLASS(klass);
 
-    k->realize = ssd0323_realize;
-    k->transfer = ssd0323_transfer;
+    qom_fixup_vtable<SSD0323Class>(klass);
+
     k->cs_polarity = SSI_CS_HIGH;
     dc->vmsd = &vmstate_ssd0323;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
@@ -379,6 +387,7 @@ static const TypeInfo ssd0323_info = {
     .name          = TYPE_SSD0323,
     .parent        = TYPE_SSI_PERIPHERAL,
     .instance_size = sizeof(ssd0323_state),
+    .class_size    = sizeof(SSD0323Class),
     .class_init    = ssd0323_class_init,
 };
 
