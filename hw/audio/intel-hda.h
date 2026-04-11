@@ -31,14 +31,26 @@ struct HDACodecBus {
     hda_codec_xfer_func xfer;
 };
 
+/*
+ * HDACodecDeviceClass — QOM class struct using C++ virtual methods (Option D).
+ */
+#ifdef __cplusplus
+struct HDACodecDeviceClass : DeviceClass {
+    virtual void init(HDACodecDevice *dev, Error **errp);
+    virtual void exit(HDACodecDevice *dev);
+    virtual void command(HDACodecDevice *dev, uint32_t nid, uint32_t data);
+    virtual void stream(HDACodecDevice *dev, uint32_t stnr, bool running,
+                        bool output);
+};
+#else
 struct HDACodecDeviceClass {
     DeviceClass parent_class;
-
     void (*init)(HDACodecDevice *dev, Error **errp);
     void (*exit)(HDACodecDevice *dev);
     void (*command)(HDACodecDevice *dev, uint32_t nid, uint32_t data);
     void (*stream)(HDACodecDevice *dev, uint32_t stnr, bool running, bool output);
 };
+#endif
 
 struct HDACodecDevice {
     DeviceState         qdev;

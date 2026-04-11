@@ -22,6 +22,7 @@
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "intel-hda.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "qemu/host-utils.h"
 #include "qemu/module.h"
@@ -922,14 +923,44 @@ static void hda_audio_init_micro(HDACodecDevice *hda, Error **errp)
     hda_audio_init(hda, desc, errp);
 }
 
+/* HDA audio base class — overrides exit/command/stream */
+struct HDABaseAudioClass : HDACodecDeviceClass {
+    void exit(HDACodecDevice *dev) override;
+    void command(HDACodecDevice *dev, uint32_t nid, uint32_t data) override;
+    void stream(HDACodecDevice *dev, uint32_t stnr, bool running,
+                bool output) override;
+};
+
+void HDABaseAudioClass::exit(HDACodecDevice *dev) { hda_audio_exit(dev); }
+void HDABaseAudioClass::command(HDACodecDevice *dev, uint32_t nid, uint32_t data) {
+    hda_audio_command(dev, nid, data);
+}
+void HDABaseAudioClass::stream(HDACodecDevice *dev, uint32_t stnr, bool running,
+                                bool output) {
+    hda_audio_stream(dev, stnr, running, output);
+}
+
+/* Leaf classes — each overrides init */
+struct HDAOutputClass : HDABaseAudioClass {
+    void init(HDACodecDevice *dev, Error **errp) override;
+};
+struct HDADuplexClass : HDABaseAudioClass {
+    void init(HDACodecDevice *dev, Error **errp) override;
+};
+struct HDAMicroClass : HDABaseAudioClass {
+    void init(HDACodecDevice *dev, Error **errp) override;
+};
+
+void HDAOutputClass::init(HDACodecDevice *dev, Error **errp) { hda_audio_init_output(dev, errp); }
+void HDADuplexClass::init(HDACodecDevice *dev, Error **errp) { hda_audio_init_duplex(dev, errp); }
+void HDAMicroClass::init(HDACodecDevice *dev, Error **errp) { hda_audio_init_micro(dev, errp); }
+
 void HDAAudioState::baseClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
 
-    k->exit = hda_audio_exit;
-    k->command = hda_audio_command;
-    k->stream = hda_audio_stream;
+    qom_fixup_vtable<HDABaseAudioClass>(klass);
+
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     device_class_set_legacy_reset(dc, HDAAudioState::resetWrapper);
     dc->vmsd = &vmstate_hda_audio;
@@ -941,51 +972,55 @@ static const TypeInfo hda_audio_info = {
     .parent        = TYPE_HDA_CODEC_DEVICE,
     .instance_size = sizeof(HDAAudioState),
     .is_abstract   = true,
+    .class_size    = sizeof(HDABaseAudioClass),
     .class_init    = HDAAudioState::baseClassInit,
 };
 
 void HDAAudioState::outputClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
 
-    k->init = hda_audio_init_output;
+    qom_fixup_vtable<HDAOutputClass>(klass);
+
     dc->desc = "HDA Audio Codec, output-only (line-out)";
 }
 
 static const TypeInfo hda_audio_output_info = {
     .name          = "hda-output",
     .parent        = TYPE_HDA_AUDIO,
+    .class_size    = sizeof(HDAOutputClass),
     .class_init    = HDAAudioState::outputClassInit,
 };
 
 void HDAAudioState::duplexClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
 
-    k->init = hda_audio_init_duplex;
+    qom_fixup_vtable<HDADuplexClass>(klass);
+
     dc->desc = "HDA Audio Codec, duplex (line-out, line-in)";
 }
 
 static const TypeInfo hda_audio_duplex_info = {
     .name          = "hda-duplex",
     .parent        = TYPE_HDA_AUDIO,
+    .class_size    = sizeof(HDADuplexClass),
     .class_init    = HDAAudioState::duplexClassInit,
 };
 
 void HDAAudioState::microClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
 
-    k->init = hda_audio_init_micro;
+    qom_fixup_vtable<HDAMicroClass>(klass);
+
     dc->desc = "HDA Audio Codec, duplex (speaker, microphone)";
 }
 
 static const TypeInfo hda_audio_micro_info = {
     .name          = "hda-micro",
     .parent        = TYPE_HDA_AUDIO,
+    .class_size    = sizeof(HDAMicroClass),
     .class_init    = HDAAudioState::microClassInit,
 };
 

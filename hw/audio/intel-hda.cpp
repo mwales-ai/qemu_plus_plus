@@ -29,6 +29,7 @@
 #include "qemu/module.h"
 #include "hw/audio/model.h"
 #include "intel-hda.h"
+#include "qom/cpp/object.h"
 #include "migration/vmstate.h"
 #include "intel-hda-defs.h"
 #include "qobject/qdict.h"
@@ -57,6 +58,14 @@ void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
     bus->xfer = xfer;
 }
 
+/* Default virtual method implementations for HDACodecDeviceClass */
+void HDACodecDeviceClass::init(HDACodecDevice *dev, Error **errp) {}
+void HDACodecDeviceClass::exit(HDACodecDevice *dev) {}
+void HDACodecDeviceClass::command(HDACodecDevice *dev, uint32_t nid,
+                                   uint32_t data) {}
+void HDACodecDeviceClass::stream(HDACodecDevice *dev, uint32_t stnr,
+                                  bool running, bool output) {}
+
 static void hda_codec_dev_realize(DeviceState *qdev, Error **errp)
 {
     HDACodecBus *bus = reinterpret_cast<HDACodecBus *>(qdev->parent_bus);
@@ -79,9 +88,7 @@ static void hda_codec_dev_unrealize(DeviceState *qdev)
     HDACodecDevice *dev = reinterpret_cast<HDACodecDevice *>(qdev);
     HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
-    if (cdc->exit) {
-        cdc->exit(dev);
-    }
+    cdc->exit(dev);
 }
 
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
@@ -524,9 +531,7 @@ void IntelHDAState::notifyCodecs(uint32_t stream, bool running, bool output)
 
         cdev = reinterpret_cast<HDACodecDevice *>(qdev);
         cdc = HDA_CODEC_DEVICE_GET_CLASS(cdev);
-        if (cdc->stream) {
-            cdc->stream(cdev, stream, running, output);
-        }
+        cdc->stream(cdev, stream, running, output);
     }
 }
 
@@ -1220,6 +1225,9 @@ static const TypeInfo intel_hda_info_ich9 = {
 void IntelHDAState::hdaCodecDeviceClassInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = reinterpret_cast<DeviceClass *>(klass);
+
+    qom_fixup_vtable<HDACodecDeviceClass>(klass);
+
     k->realize = hda_codec_dev_realize;
     k->unrealize = hda_codec_dev_unrealize;
     set_bit(DEVICE_CATEGORY_SOUND, k->categories);
