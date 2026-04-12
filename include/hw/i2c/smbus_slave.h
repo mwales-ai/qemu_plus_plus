@@ -37,24 +37,40 @@ OBJECT_DECLARE_TYPE(SMBusDevice, SMBusDeviceClass,
                     SMBUS_DEVICE)
 
 
-struct SMBusDeviceClass {
-    I2CSlaveClass parent_class;
+/*
+ * SMBusDeviceClass -- QOM class struct using C++ virtual methods (Option D).
+ *
+ * Inherits from I2CSlaveClass.  Default implementations:
+ *   quick_cmd: do nothing
+ *   write_data: return 0
+ *   receive_byte: return 0xFF
+ *
+ * The vtable is restored in class_init via qom_fixup_vtable<SMBusDeviceClass>().
+ */
+#ifdef __cplusplus
+struct SMBusDeviceClass : I2CSlaveClass {
+    /*
+     * I2C-level overrides: SMBus protocol handling.
+     * These implement the I2C event/recv/send protocol for SMBus devices.
+     */
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
 
     /*
      * An operation with no data, special in SMBus.
-     * This may be NULL, quick commands are ignore in that case.
+     * Default does nothing.
      */
-    void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
+    virtual void quick_cmd(SMBusDevice *dev, uint8_t read);
 
     /*
      * We can't distinguish between a word write and a block write with
      * length 1, so pass the whole data block including the length byte
      * (if present).  The device is responsible figuring out what type of
      * command this is.
-     * This may be NULL if no data is written to the device.  Writes
-     * will be ignore in that case.
+     * Default returns 0.
      */
-    int (*write_data)(SMBusDevice *dev, uint8_t *buf, uint8_t len);
+    virtual int write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len);
 
     /*
      * Likewise we can't distinguish between different reads, or even know
@@ -62,11 +78,18 @@ struct SMBusDeviceClass {
      * byte at a time.  The device is responsible for adding the length
      * byte on block reads.  This call cannot fail, it should return
      * something, preferably 0xff if nothing is available.
-     * This may be NULL if no data is read from the device.  Reads will
-     * return 0xff in that case.
+     * Default returns 0xFF.
      */
+    virtual uint8_t receive_byte(SMBusDevice *dev);
+};
+#else
+struct SMBusDeviceClass {
+    I2CSlaveClass parent_class;
+    void (*quick_cmd)(SMBusDevice *dev, uint8_t read);
+    int (*write_data)(SMBusDevice *dev, uint8_t *buf, uint8_t len);
     uint8_t (*receive_byte)(SMBusDevice *dev);
 };
+#endif
 
 #define SMBUS_DATA_MAX_LEN 34  /* command + len + 32 bytes of data.  */
 

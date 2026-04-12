@@ -15,6 +15,7 @@
 #include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_ADM1272 "adm1272"
 #define ADM1272(obj) OBJECT_CHECK(ADM1272State, (obj), TYPE_ADM1272)
@@ -513,16 +514,25 @@ static void adm1272_init(Object *obj)
 
 }
 
+/* Subclass struct for virtual method overrides */
+struct ADM1272Class : PMBusDeviceClass {
+    int pmbus_write_data(PMBusDevice *dev, const uint8_t *buf, uint8_t len) override;
+    uint8_t pmbus_receive_byte(PMBusDevice *dev) override;
+};
+
+int ADM1272Class::pmbus_write_data(PMBusDevice *dev, const uint8_t *buf, uint8_t len) { return adm1272_write_data(dev, buf, len); }
+uint8_t ADM1272Class::pmbus_receive_byte(PMBusDevice *dev) { return adm1272_read_byte(dev); }
+
 static void adm1272_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
 
+    qom_fixup_vtable<ADM1272Class>(klass);
+
     dc->desc = "Analog Devices ADM1272 Hot Swap controller";
     dc->vmsd = &vmstate_adm1272;
-    k->write_data = adm1272_write_data;
-    k->receive_byte = adm1272_read_byte;
     k->device_num_pages = 1;
 
     rc->phases.exit = adm1272_exit_reset;
@@ -533,6 +543,7 @@ static const TypeInfo adm1272_info = {
     .parent = TYPE_PMBUS_DEVICE,
     .instance_size = sizeof(ADM1272State),
     .instance_init = adm1272_init,
+    .class_size = sizeof(ADM1272Class),
     .class_init = adm1272_class_init,
 };
 

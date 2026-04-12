@@ -7,6 +7,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qom/cpp/object.h"
 #include "hw/i2c/pmbus_device.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
@@ -748,15 +749,25 @@ static void max34451_init(Object *obj)
 
 }
 
+/* Subclass struct for virtual method overrides */
+struct MAX34451Class : PMBusDeviceClass {
+    int pmbus_write_data(PMBusDevice *dev, const uint8_t *buf, uint8_t len) override;
+    uint8_t pmbus_receive_byte(PMBusDevice *dev) override;
+};
+
+int MAX34451Class::pmbus_write_data(PMBusDevice *dev, const uint8_t *buf, uint8_t len) { return max34451_write_data(dev, buf, len); }
+uint8_t MAX34451Class::pmbus_receive_byte(PMBusDevice *dev) { return max34451_read_byte(dev); }
+
 static void max34451_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<MAX34451Class>(klass);
+
     dc->desc = "Maxim MAX34451 16-Channel V/I monitor";
     dc->vmsd = &vmstate_max34451;
-    k->write_data = max34451_write_data;
-    k->receive_byte = max34451_read_byte;
     k->device_num_pages = MAX34451_NUM_PAGES;
     rc->phases.exit = max34451_exit_reset;
 }
@@ -766,6 +777,7 @@ static const TypeInfo max34451_info = {
     .parent = TYPE_PMBUS_DEVICE,
     .instance_size = sizeof(MAX34451State),
     .instance_init = max34451_init,
+    .class_size = sizeof(MAX34451Class),
     .class_init = max34451_class_init,
 };
 

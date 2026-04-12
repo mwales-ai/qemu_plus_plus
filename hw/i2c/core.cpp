@@ -19,8 +19,44 @@ extern "C" {
 } /* extern "C" */
 
 #include "qemu/main-loop.h"
+#include "qom/cpp/object.h"
 
 #define I2C_BROADCAST 0x00
+
+/*
+ * I2CSlaveClass default virtual method implementations.
+ */
+int I2CSlaveClass::send(I2CSlave *s, uint8_t data)
+{
+    return -1;  /* NAK */
+}
+
+void I2CSlaveClass::send_async(I2CSlave *s, uint8_t data)
+{
+    /* do nothing */
+}
+
+uint8_t I2CSlaveClass::recv(I2CSlave *s)
+{
+    return 0xFF;
+}
+
+int I2CSlaveClass::event(I2CSlave *s, enum i2c_event event)
+{
+    return 0;
+}
+
+bool I2CSlaveClass::match_and_add(I2CSlave *candidate, uint8_t address,
+                                   bool broadcast, I2CNodeList *current_devs)
+{
+    if ((candidate->address == address) || (broadcast)) {
+        I2CNode *node = g_new(struct I2CNode, 1);
+        node->elt = candidate;
+        QLIST_INSERT_HEAD(current_devs, node, next);
+        return true;
+    }
+    return false;
+}
 
 static const Property i2c_props[] = {
     DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
@@ -169,17 +205,15 @@ static int i2c_do_start_transfer(I2CBus *bus, uint8_t address,
         /* If the bus is already busy, assume this is a repeated
            start condition.  */
 
-        if (sc->event) {
-            trace_i2c_event(event == I2C_START_SEND ? "start" : "start_async",
-                            s->address);
-            rv = sc->event(s, event);
-            if (rv && !bus->broadcast) {
-                if (bus_scanned) {
-                    /* First call, terminate the transfer. */
-                    i2c_end_transfer(bus);
-                }
-                return rv;
+        trace_i2c_event(event == I2C_START_SEND ? "start" : "start_async",
+                        s->address);
+        rv = sc->event(s, event);
+        if (rv && !bus->broadcast) {
+            if (bus_scanned) {
+                /* First call, terminate the transfer. */
+                i2c_end_transfer(bus);
             }
+            return rv;
         }
     }
     return 0;
@@ -260,10 +294,8 @@ void i2c_end_transfer(I2CBus *bus)
     QLIST_FOREACH_SAFE(node, &bus->current_devs, next, next) {
         I2CSlave *s = node->elt;
         sc = I2C_SLAVE_GET_CLASS(s);
-        if (sc->event) {
-            trace_i2c_event("finish", s->address);
-            sc->event(s, I2C_FINISH);
-        }
+        trace_i2c_event("finish", s->address);
+        sc->event(s, I2C_FINISH);
         QLIST_REMOVE(node, next);
         g_free(node);
     }
@@ -281,12 +313,8 @@ int i2c_send(I2CBus *bus, uint8_t data)
     QLIST_FOREACH(node, &bus->current_devs, next) {
         s = node->elt;
         sc = I2C_SLAVE_GET_CLASS(s);
-        if (sc->send) {
-            trace_i2c_send(s->address, data);
-            ret = ret || sc->send(s, data);
-        } else {
-            ret = -1;
-        }
+        trace_i2c_send(s->address, data);
+        ret = ret || sc->send(s, data);
     }
 
     return ret ? -1 : 0;
@@ -298,10 +326,6 @@ int i2c_send_async(I2CBus *bus, uint8_t data)
     I2CNode *node = QLIST_FIRST(&bus->current_devs);
     I2CSlave *slave = node->elt;
     I2CSlaveClass *sc = I2C_SLAVE_GET_CLASS(slave);
-
-    if (!sc->send_async) {
-        return -1;
-    }
 
     trace_i2c_send_async(slave->address, data);
 
@@ -318,12 +342,10 @@ uint8_t i2c_recv(I2CBus *bus)
     I2CSlave *s;
 
     if (!QLIST_EMPTY(&bus->current_devs) && !bus->broadcast) {
-        sc = I2C_SLAVE_GET_CLASS(QLIST_FIRST(&bus->current_devs)->elt);
-        if (sc->recv) {
-            s = QLIST_FIRST(&bus->current_devs)->elt;
-            data = sc->recv(s);
-            trace_i2c_recv(s->address, data);
-        }
+        s = QLIST_FIRST(&bus->current_devs)->elt;
+        sc = I2C_SLAVE_GET_CLASS(s);
+        data = sc->recv(s);
+        trace_i2c_recv(s->address, data);
     }
 
     return data;
@@ -341,10 +363,8 @@ void i2c_nack(I2CBus *bus)
 
     QLIST_FOREACH(node, &bus->current_devs, next) {
         sc = I2C_SLAVE_GET_CLASS(node->elt);
-        if (sc->event) {
-            trace_i2c_event("nack", node->elt->address);
-            sc->event(node->elt, I2C_NACK);
-        }
+        trace_i2c_event("nack", node->elt->address);
+        sc->event(node->elt, I2C_NACK);
     }
 }
 
@@ -415,28 +435,15 @@ I2CSlave *i2c_slave_create_simple(I2CBus *bus, const char *name, uint8_t addr)
     return dev;
 }
 
-static bool i2c_slave_match(I2CSlave *candidate, uint8_t address,
-                            bool broadcast, I2CNodeList *current_devs)
-{
-    if ((candidate->address == address) || (broadcast)) {
-        I2CNode *node = g_new(struct I2CNode, 1);
-        node->elt = candidate;
-        QLIST_INSERT_HEAD(current_devs, node, next);
-        return true;
-    }
-
-    /* Not found and not broadcast. */
-    return false;
-}
-
 static void i2c_slave_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+
+    qom_fixup_vtable<I2CSlaveClass>(klass);
+
     set_bit(DEVICE_CATEGORY_MISC, k->categories);
     k->bus_type = TYPE_I2C_BUS;
     device_class_set_props(k, i2c_props);
-    sc->match_and_add = i2c_slave_match;
 }
 
 static const TypeInfo i2c_slave_type_info = {

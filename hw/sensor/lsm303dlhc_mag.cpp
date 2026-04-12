@@ -28,6 +28,7 @@
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "qom/cpp/object.h"
 
 enum LSM303DLHCMagReg {
     LSM303DLHC_MAG_REG_CRA          = 0x00,
@@ -529,16 +530,25 @@ static void lsm303dlhc_mag_initfn(Object *obj)
 /*
  * Set the virtual method pointers (bus state change, tx/rx, etc.).
  */
+/* Subclass struct for virtual method overrides */
+struct LSM303DLHCMagClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int LSM303DLHCMagClass::event(I2CSlave *s, enum i2c_event event) { return lsm303dlhc_mag_event(s, event); }
+uint8_t LSM303DLHCMagClass::recv(I2CSlave *s) { return lsm303dlhc_mag_recv(s); }
+int LSM303DLHCMagClass::send(I2CSlave *s, uint8_t data) { return lsm303dlhc_mag_send(s, data); }
+
 static void lsm303dlhc_mag_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    qom_fixup_vtable<LSM303DLHCMagClass>(klass);
 
     device_class_set_legacy_reset(dc, lsm303dlhc_mag_reset);
     dc->vmsd = &vmstate_lsm303dlhc_mag;
-    k->event = lsm303dlhc_mag_event;
-    k->recv = lsm303dlhc_mag_recv;
-    k->send = lsm303dlhc_mag_send;
 }
 
 static const TypeInfo lsm303dlhc_mag_info = {
@@ -546,6 +556,7 @@ static const TypeInfo lsm303dlhc_mag_info = {
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(LSM303DLHCMagState),
     .instance_init = lsm303dlhc_mag_initfn,
+    .class_size = sizeof(LSM303DLHCMagClass),
     .class_init = lsm303dlhc_mag_class_init,
 };
 

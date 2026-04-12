@@ -29,6 +29,7 @@
 #include "hw/ipmi/ipmi.h"
 #include "qom/object.h"
 #include "hw/acpi/ipmi.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_SMBUS_IPMI "smbus-ipmi"
 OBJECT_DECLARE_SIMPLE_TYPE(SMBusIPMIDevice, SMBUS_IPMI)
@@ -351,15 +352,23 @@ static void smbus_ipmi_get_fwinfo(struct IPMIInterface *ii, IPMIFwInfo *info)
     info->uuid = sid->uuid;
 }
 
+/* Subclass struct for virtual method overrides */
+struct SMBusIPMIClass : SMBusDeviceClass {
+    uint8_t receive_byte(SMBusDevice *dev) override;
+    int write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len) override;
+};
+
+uint8_t SMBusIPMIClass::receive_byte(SMBusDevice *dev) { return ipmi_receive_byte(dev); }
+int SMBusIPMIClass::write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len) { return ipmi_write_data(dev, buf, len); }
+
 static void smbus_ipmi_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     IPMIInterfaceClass *iic = IPMI_INTERFACE_CLASS(oc);
-    SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(oc);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(oc);
 
-    sc->receive_byte = ipmi_receive_byte;
-    sc->write_data = ipmi_write_data;
+    qom_fixup_vtable<SMBusIPMIClass>(oc);
+
     dc->vmsd = &vmstate_smbus_ipmi;
     dc->realize = smbus_ipmi_realize;
     iic->set_atn = smbus_ipmi_set_atn;
@@ -375,6 +384,7 @@ static const TypeInfo smbus_ipmi_info = {
     .parent        = TYPE_SMBUS_DEVICE,
     .instance_size = sizeof(SMBusIPMIDevice),
     .instance_init = smbus_ipmi_init,
+    .class_size    = sizeof(SMBusIPMIClass),
     .class_init    = smbus_ipmi_class_init,
     .interfaces = (const InterfaceInfo[]) {
         { TYPE_IPMI_INTERFACE },

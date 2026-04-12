@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "hw/registerfields.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 FIELD(CONFIG, SHUTDOWN_MODE,        0, 1)
 FIELD(CONFIG, THERMOSTAT_MODE,      1, 1)
@@ -313,15 +314,24 @@ static void tmp105_initfn(Object *obj)
                         tmp105_set_temperature, NULL, NULL);
 }
 
+/* Subclass struct for virtual method overrides */
+struct TMP105Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int TMP105Class::event(I2CSlave *s, enum i2c_event event) { return tmp105_event(s, event); }
+uint8_t TMP105Class::recv(I2CSlave *s) { return tmp105_rx(s); }
+int TMP105Class::send(I2CSlave *s, uint8_t data) { return tmp105_tx(s, data); }
+
 static void tmp105_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    qom_fixup_vtable<TMP105Class>(klass);
 
     dc->realize = tmp105_realize;
-    k->event = tmp105_event;
-    k->recv = tmp105_rx;
-    k->send = tmp105_tx;
     dc->vmsd = &vmstate_tmp105;
 }
 
@@ -330,6 +340,7 @@ static const TypeInfo tmp105_info = {
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TMP105State),
     .instance_init = tmp105_initfn,
+    .class_size    = sizeof(TMP105Class),
     .class_init    = tmp105_class_init,
 };
 

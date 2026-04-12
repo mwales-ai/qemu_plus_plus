@@ -22,6 +22,8 @@ extern "C" {
 #include "qemu/module.h"
 }
 
+#include "qom/cpp/object.h"
+
 //#define DEBUG_SMBUS 1
 
 #ifdef DEBUG_SMBUS
@@ -39,6 +41,24 @@ do { g_autofree char *qom_path = object_get_canonical_path(OBJECT(dev));  \
              } while (0)
 #endif
 
+/*
+ * SMBusDeviceClass default virtual method implementations.
+ */
+void SMBusDeviceClass::quick_cmd(SMBusDevice *dev, uint8_t read)
+{
+    /* do nothing */
+}
+
+int SMBusDeviceClass::write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len)
+{
+    return 0;
+}
+
+uint8_t SMBusDeviceClass::receive_byte(SMBusDevice *dev)
+{
+    return 0xFF;
+}
+
 enum {
     SMBUS_IDLE,
     SMBUS_WRITE_DATA,
@@ -52,9 +72,7 @@ static void smbus_do_quick_cmd(SMBusDevice *dev, int recv)
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
     DPRINTF("Quick Command %d\n", recv);
-    if (sc->quick_cmd) {
-        sc->quick_cmd(dev, recv);
-    }
+    sc->quick_cmd(dev, recv);
 }
 
 static void smbus_do_write(SMBusDevice *dev)
@@ -62,12 +80,10 @@ static void smbus_do_write(SMBusDevice *dev)
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
 
     DPRINTF("Command %d len %d\n", dev->data_buf[0], dev->data_len);
-    if (sc->write_data) {
-        sc->write_data(dev, dev->data_buf, dev->data_len);
-    }
+    sc->write_data(dev, dev->data_buf, dev->data_len);
 }
 
-static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
+int SMBusDeviceClass::event(I2CSlave *s, enum i2c_event event)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
 
@@ -159,7 +175,7 @@ static int smbus_i2c_event(I2CSlave *s, enum i2c_event event)
     return 0;
 }
 
-static uint8_t smbus_i2c_recv(I2CSlave *s)
+uint8_t SMBusDeviceClass::recv(I2CSlave *s)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
     SMBusDeviceClass *sc = SMBUS_DEVICE_GET_CLASS(dev);
@@ -167,9 +183,7 @@ static uint8_t smbus_i2c_recv(I2CSlave *s)
 
     switch (dev->mode) {
     case SMBUS_READ_DATA:
-        if (sc->receive_byte) {
-            ret = sc->receive_byte(dev);
-        }
+        ret = sc->receive_byte(dev);
         DPRINTF("Read data %02x\n", ret);
         break;
 
@@ -182,7 +196,7 @@ static uint8_t smbus_i2c_recv(I2CSlave *s)
     return ret;
 }
 
-static int smbus_i2c_send(I2CSlave *s, uint8_t data)
+int SMBusDeviceClass::send(I2CSlave *s, uint8_t data)
 {
     SMBusDevice *dev = SMBUS_DEVICE(s);
 
@@ -206,11 +220,7 @@ static int smbus_i2c_send(I2CSlave *s, uint8_t data)
 
 static void smbus_device_class_init(ObjectClass *klass, const void *data)
 {
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
-
-    sc->event = smbus_i2c_event;
-    sc->recv = smbus_i2c_recv;
-    sc->send = smbus_i2c_send;
+    qom_fixup_vtable<SMBusDeviceClass>(klass);
 }
 
 extern "C"

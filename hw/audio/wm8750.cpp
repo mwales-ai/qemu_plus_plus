@@ -15,6 +15,7 @@
 #include "hw/audio/wm8750.h"
 #include "qemu/audio.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define IN_PORT_N	3
 #define OUT_PORT_N	3
@@ -730,15 +731,24 @@ static const Property wm8750_properties[] = {
     DEFINE_AUDIO_PROPERTIES(WM8750State, audio_be),
 };
 
+/* Subclass struct for virtual method overrides */
+struct WM8750Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int WM8750Class::event(I2CSlave *s, enum i2c_event event) { return wm8750_event(s, event); }
+uint8_t WM8750Class::recv(I2CSlave *s) { return wm8750_rx(s); }
+int WM8750Class::send(I2CSlave *s, uint8_t data) { return wm8750_tx(s, data); }
+
 void WM8750State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    I2CSlaveClass *sc = reinterpret_cast<I2CSlaveClass *>(klass);
+
+    qom_fixup_vtable<WM8750Class>(klass);
 
     dc->realize = WM8750State::realizeWrapper;
-    sc->event = wm8750_event;
-    sc->recv = wm8750_rx;
-    sc->send = wm8750_tx;
     dc->vmsd = &vmstate_wm8750;
     device_class_set_props(dc, wm8750_properties);
 }
@@ -747,6 +757,7 @@ static const TypeInfo wm8750_info = {
     .name          = TYPE_WM8750,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(WM8750State),
+    .class_size    = sizeof(WM8750Class),
     .class_init    = WM8750State::classInit,
 };
 

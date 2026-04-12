@@ -16,6 +16,7 @@
 #include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_MAX31785 "max31785"
 #define MAX31785(obj) OBJECT_CHECK(MAX31785State, (obj), TYPE_MAX31785)
@@ -546,15 +547,25 @@ static void max31785_init(Object *obj)
     }
 }
 
+/* Subclass struct for virtual method overrides */
+struct MAX31785Class : PMBusDeviceClass {
+    int pmbus_write_data(PMBusDevice *dev, const uint8_t *buf, uint8_t len) override;
+    uint8_t pmbus_receive_byte(PMBusDevice *dev) override;
+};
+
+int MAX31785Class::pmbus_write_data(PMBusDevice *dev, const uint8_t *buf, uint8_t len) { return max31785_write_data(dev, buf, len); }
+uint8_t MAX31785Class::pmbus_receive_byte(PMBusDevice *dev) { return max31785_read_byte(dev); }
+
 static void max31785_class_init(ObjectClass *klass, const void *data)
 {
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<MAX31785Class>(klass);
+
     dc->desc = "Maxim MAX31785 6-Channel Fan Controller";
     dc->vmsd = &vmstate_max31785;
-    k->write_data = max31785_write_data;
-    k->receive_byte = max31785_read_byte;
     k->device_num_pages = MAX31785_TOTAL_NUM_PAGES;
     rc->phases.exit = max31785_exit_reset;
 }
@@ -564,6 +575,7 @@ static const TypeInfo max31785_info = {
     .parent = TYPE_PMBUS_DEVICE,
     .instance_size = sizeof(MAX31785State),
     .instance_init = max31785_init,
+    .class_size = sizeof(MAX31785Class),
     .class_init = max31785_class_init,
 };
 

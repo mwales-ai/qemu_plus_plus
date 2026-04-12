@@ -19,6 +19,7 @@
 #include "hw/qdev-properties-system.h"
 #include "system/block-backend.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 /* #define DEBUG_AT24C */
 
@@ -243,15 +244,24 @@ static const Property at24c_eeprom_props[] = {
     DEFINE_PROP_DRIVE("drive", EEPROMState, blk),
 };
 
+/* Subclass struct for virtual method overrides */
+struct EEPROMClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event ev) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int EEPROMClass::event(I2CSlave *s, enum i2c_event ev) { return EEPROMState::event(s, ev); }
+uint8_t EEPROMClass::recv(I2CSlave *s) { return EEPROMState::recv(s); }
+int EEPROMClass::send(I2CSlave *s, uint8_t data) { return EEPROMState::send(s, data); }
+
 void EEPROMState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
+
+    qom_fixup_vtable<EEPROMClass>(klass);
 
     dc->realize = EEPROMState::realizeWrapper;
-    k->event = EEPROMState::event;
-    k->recv = EEPROMState::recv;
-    k->send = EEPROMState::send;
 
     device_class_set_props(dc, at24c_eeprom_props);
     device_class_set_legacy_reset(dc, EEPROMState::resetWrapper);
@@ -261,7 +271,7 @@ static const TypeInfo at24c_eeprom_type = {
     .name = TYPE_AT24C_EE,
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(EEPROMState),
-    .class_size = sizeof(I2CSlaveClass),
+    .class_size = sizeof(EEPROMClass),
     .class_init = EEPROMState::classInit,
 };
 

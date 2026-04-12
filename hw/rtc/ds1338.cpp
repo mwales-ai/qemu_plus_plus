@@ -18,6 +18,7 @@
 #include "qom/object.h"
 #include "system/rtc.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 /* Size of NVRAM including both the user-accessible area and the
  * secondary register area.
@@ -227,14 +228,23 @@ static const VMStateDescription vmstate_ds1338 = {
     }
 };
 
+/* Subclass struct for virtual method overrides */
+struct DS1338Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event ev) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int DS1338Class::event(I2CSlave *s, enum i2c_event ev) { return DS1338State::event(s, ev); }
+uint8_t DS1338Class::recv(I2CSlave *s) { return DS1338State::recv(s); }
+int DS1338Class::send(I2CSlave *s, uint8_t data) { return DS1338State::send(s, data); }
+
 void DS1338State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
 
-    k->event = event;
-    k->recv = recv;
-    k->send = send;
+    qom_fixup_vtable<DS1338Class>(klass);
+
     device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_ds1338;
 }
@@ -244,6 +254,7 @@ static const TypeInfo ds1338_types[] = {
         .name          = TYPE_DS1338,
         .parent        = TYPE_I2C_SLAVE,
         .instance_size = sizeof(DS1338State),
+        .class_size    = sizeof(DS1338Class),
         .class_init    = DS1338State::classInit,
     },
 };

@@ -12,6 +12,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "qom/cpp/object.h"
 
 uint16_t pmbus_data2direct_mode(PMBusCoefficients c, uint32_t value)
 {
@@ -208,14 +209,34 @@ static uint8_t pmbus_out_buf_pop(PMBusDevice *pmdev)
     return data;
 }
 
-static void pmbus_quick_cmd(SMBusDevice *smd, uint8_t read)
+/*
+ * PMBusDeviceClass default virtual method implementations.
+ */
+void PMBusDeviceClass::pmbus_quick_cmd(PMBusDevice *dev, uint8_t read)
+{
+    /* do nothing */
+}
+
+int PMBusDeviceClass::pmbus_write_data(PMBusDevice *dev, const uint8_t *buf,
+                                        uint8_t len)
+{
+    return 0;
+}
+
+uint8_t PMBusDeviceClass::pmbus_receive_byte(PMBusDevice *dev)
+{
+    return PMBUS_ERR_BYTE;
+}
+
+/*
+ * SMBus-level overrides for PMBus protocol handling.
+ */
+void PMBusDeviceClass::quick_cmd(SMBusDevice *smd, uint8_t read)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(smd);
     PMBusDeviceClass *pmdc = PMBUS_DEVICE_GET_CLASS(pmdev);
 
-    if (pmdc->quick_cmd) {
-        pmdc->quick_cmd(pmdev, read);
-    }
+    pmdc->pmbus_quick_cmd(pmdev, read);
 }
 
 static uint8_t pmbus_pages_num(PMBusDevice *pmdev)
@@ -312,7 +333,7 @@ static void pmbus_cml_error(PMBusDevice *pmdev)
     }
 }
 
-static uint8_t pmbus_receive_byte(SMBusDevice *smd)
+uint8_t PMBusDeviceClass::receive_byte(SMBusDevice *smd)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(smd);
     PMBusDeviceClass *pmdc = PMBUS_DEVICE_GET_CLASS(pmdev);
@@ -1165,9 +1186,7 @@ static uint8_t pmbus_receive_byte(SMBusDevice *smd)
 passthough:
     default:
         /* Pass through read request if not handled */
-        if (pmdc->receive_byte) {
-            ret = pmdc->receive_byte(pmdev);
-        }
+        ret = pmdc->pmbus_receive_byte(pmdev);
         break;
     }
 
@@ -1224,7 +1243,7 @@ static void pmbus_operation(PMBusDevice *pmdev)
     pmbus_check_limits(pmdev);
 }
 
-static int pmbus_write_data(SMBusDevice *smd, uint8_t *buf, uint8_t len)
+int PMBusDeviceClass::write_data(SMBusDevice *smd, uint8_t *buf, uint8_t len)
 {
     PMBusDevice *pmdev = PMBUS_DEVICE(smd);
     PMBusDeviceClass *pmdc = PMBUS_DEVICE_GET_CLASS(pmdev);
@@ -1271,7 +1290,7 @@ static int pmbus_write_data(SMBusDevice *smd, uint8_t *buf, uint8_t len)
     if (pmdev->page == PB_ALL_PAGES) {
         for (int i = 0; i < pmdev->num_pages; i++) {
             pmdev->page = i;
-            pmbus_write_data(smd, buf, len);
+            this->write_data(smd, buf, len);
         }
         pmdev->page = PB_ALL_PAGES;
         return 0;
@@ -1845,9 +1864,7 @@ static int pmbus_write_data(SMBusDevice *smd, uint8_t *buf, uint8_t len)
 passthrough:
     /* Unimplemented registers get passed to the device */
     default:
-        if (pmdc->write_data) {
-            ret = pmdc->write_data(pmdev, buf, len);
-        }
+        ret = pmdc->pmbus_write_data(pmdev, buf, len);
         break;
     }
     pmbus_check_limits(pmdev);
@@ -1904,11 +1921,7 @@ static void pmbus_device_finalize(Object *obj)
 
 static void pmbus_device_class_init(ObjectClass *klass, const void *data)
 {
-    SMBusDeviceClass *k = SMBUS_DEVICE_CLASS(klass);
-
-    k->quick_cmd = pmbus_quick_cmd;
-    k->write_data = pmbus_write_data;
-    k->receive_byte = pmbus_receive_byte;
+    qom_fixup_vtable<PMBusDeviceClass>(klass);
 }
 
 static const TypeInfo pmbus_device_type_info = {

@@ -15,6 +15,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 /*
  * PCF8574 and compatible chips incorporate quasi-bidirectional
@@ -166,13 +167,21 @@ const VMStateDescription PCF8574State::vmstate_pcf8574 = {
     .fields = vmstate_pcf8574_fields,
 };
 
+/* Subclass struct for virtual method overrides */
+struct PCF8574Class : I2CSlaveClass {
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+uint8_t PCF8574Class::recv(I2CSlave *s) { return PCF8574State::i2cRx(s); }
+int PCF8574Class::send(I2CSlave *s, uint8_t data) { return PCF8574State::i2cTx(s, data); }
+
 void PCF8574State::classInit(ObjectClass *klass, const void *data)
 {
-    DeviceClass   *dc = reinterpret_cast<DeviceClass *>(klass);
-    I2CSlaveClass *k  = reinterpret_cast<I2CSlaveClass *>(klass);
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
 
-    k->recv     = i2cRx;
-    k->send     = i2cTx;
+    qom_fixup_vtable<PCF8574Class>(klass);
+
     dc->realize = deviceRealize;
     device_class_set_legacy_reset(dc, deviceReset_static);
     dc->vmsd    = &vmstate_pcf8574;
@@ -183,6 +192,7 @@ static const TypeInfo pcf8574_infos[] = {
         .name          = TYPE_PCF8574,
         .parent        = TYPE_I2C_SLAVE,
         .instance_size = sizeof(PCF8574State),
+        .class_size    = sizeof(PCF8574Class),
         .class_init    = PCF8574State::classInit,
     }
 };

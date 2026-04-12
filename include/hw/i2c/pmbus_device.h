@@ -267,18 +267,45 @@ OBJECT_DECLARE_TYPE(PMBusDevice, PMBusDeviceClass,
 #define PB_HAS_MFR_INFO            BIT_ULL(50)
 #define PB_HAS_STATUS_MFR_SPECIFIC BIT_ULL(51)
 
+/*
+ * PMBusDeviceClass -- QOM class struct using C++ virtual methods (Option D).
+ *
+ * Inherits from SMBusDeviceClass.  The PMBus layer has its own virtual methods
+ * that shadow the SMBus names (different signature: PMBusDevice* vs SMBusDevice*).
+ * To avoid C++ name-hiding issues, these are prefixed with pmbus_.
+ *
+ * The vtable is restored in class_init via qom_fixup_vtable<PMBusDeviceClass>().
+ */
+#ifdef __cplusplus
+struct PMBusDeviceClass : SMBusDeviceClass {
+    uint8_t device_num_pages;
+
+    /*
+     * SMBus-level overrides: PMBus protocol handling.
+     * These implement the SMBus quick_cmd/write_data/receive_byte for PMBus.
+     */
+    void quick_cmd(SMBusDevice *dev, uint8_t read) override;
+    int write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len) override;
+    uint8_t receive_byte(SMBusDevice *dev) override;
+
+    /**
+     * Implement pmbus_quick_cmd, pmbus_receive_byte, and pmbus_write_data to
+     * support non-standard PMBus functionality.
+     */
+    virtual void pmbus_quick_cmd(PMBusDevice *dev, uint8_t read);
+    virtual int pmbus_write_data(PMBusDevice *dev, const uint8_t *buf,
+                                 uint8_t len);
+    virtual uint8_t pmbus_receive_byte(PMBusDevice *dev);
+};
+#else
 struct PMBusDeviceClass {
     SMBusDeviceClass parent_class;
     uint8_t device_num_pages;
-
-    /**
-     * Implement quick_cmd, receive byte, and write_data to support non-standard
-     * PMBus functionality
-     */
     void (*quick_cmd)(PMBusDevice *dev, uint8_t read);
     int (*write_data)(PMBusDevice *dev, const uint8_t *buf, uint8_t len);
     uint8_t (*receive_byte)(PMBusDevice *dev);
 };
+#endif
 
 /*
  * According to the spec, each page may offer the full range of PMBus commands

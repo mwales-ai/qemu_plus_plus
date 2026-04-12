@@ -26,6 +26,7 @@
 #include "qemu/log.h"
 #include "trace.h"
 #include "tpm_tis.h"
+#include "qom/cpp/object.h"
 
 /* Operations */
 #define OP_SEND   1
@@ -528,21 +529,29 @@ static void tpm_tis_i2c_reset(DeviceState *dev)
     return tpm_tis_reset(s);
 }
 
+/* Subclass struct for virtual method overrides */
+struct TPMTisI2CClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int TPMTisI2CClass::event(I2CSlave *s, enum i2c_event event) { return tpm_tis_i2c_event(s, event); }
+uint8_t TPMTisI2CClass::recv(I2CSlave *s) { return tpm_tis_i2c_recv(s); }
+int TPMTisI2CClass::send(I2CSlave *s, uint8_t data) { return tpm_tis_i2c_send(s, data); }
+
 static void tpm_tis_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
     TPMIfClass *tc = TPM_IF_CLASS(klass);
+
+    qom_fixup_vtable<TPMTisI2CClass>(klass);
 
     dc->realize = tpm_tis_i2c_realizefn;
     device_class_set_legacy_reset(dc, tpm_tis_i2c_reset);
     dc->vmsd = &vmstate_tpm_tis_i2c;
     device_class_set_props(dc, tpm_tis_i2c_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-
-    k->event = tpm_tis_i2c_event;
-    k->recv = tpm_tis_i2c_recv;
-    k->send = tpm_tis_i2c_send;
 
     tc->model = TPM_MODEL_TPM_TIS;
     tc->request_completed = tpm_tis_i2c_request_completed;
@@ -558,6 +567,7 @@ static const TypeInfo tpm_tis_i2c_info = {
     .name          = TYPE_TPM_TIS_I2C,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(TPMStateI2C),
+    .class_size    = sizeof(TPMTisI2CClass),
     .class_init    = tpm_tis_i2c_class_init,
     .interfaces    = tpm_tis_i2c_interfaces,
 };

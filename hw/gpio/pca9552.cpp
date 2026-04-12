@@ -23,11 +23,12 @@
 #include "qapi/visitor.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
-struct PCA955xClass {
-    /*< private >*/
-    I2CSlaveClass parent_class;
-    /*< public >*/
+struct PCA955xClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
 
     uint8_t pin_count;
     uint8_t max_reg;
@@ -434,14 +435,17 @@ static const Property pca955x_properties[] = {
     DEFINE_PROP_STRING("description", PCA955xState, description),
 };
 
+/* PCA955xClass virtual method implementations */
+int PCA955xClass::event(I2CSlave *s, enum i2c_event event) { return pca955x_event(s, event); }
+uint8_t PCA955xClass::recv(I2CSlave *s) { return pca955x_recv(s); }
+int PCA955xClass::send(I2CSlave *s, uint8_t data) { return pca955x_send(s, data); }
+
 static void pca955x_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->event = pca955x_event;
-    k->recv = pca955x_recv;
-    k->send = pca955x_send;
+    qom_fixup_vtable<PCA955xClass>(klass);
+
     dc->realize = pca955x_realize;
     device_class_set_props(dc, pca955x_properties);
 }

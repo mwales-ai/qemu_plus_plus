@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/registerfields.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 /* Enable SLAVE_ADDR_RX_MATCH always */
 #define R_I2CD_INTR_STS_ALWAYS_ENABLE  R_I2CD_INTR_STS_SLAVE_ADDR_RX_MATCH_MASK
@@ -1435,22 +1436,30 @@ static void aspeed_i2c_bus_slave_send_async(I2CSlave *slave, uint8_t data)
     aspeed_i2c_bus_raise_interrupt(bus);
 }
 
+/* Subclass struct for virtual method overrides */
+struct AspeedI2CBusSlaveClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    void send_async(I2CSlave *s, uint8_t data) override;
+};
+
+int AspeedI2CBusSlaveClass::event(I2CSlave *s, enum i2c_event event) { return aspeed_i2c_bus_slave_event(s, event); }
+void AspeedI2CBusSlaveClass::send_async(I2CSlave *s, uint8_t data) { aspeed_i2c_bus_slave_send_async(s, data); }
+
 static void aspeed_i2c_bus_slave_class_init(ObjectClass *klass,
                                             const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+
+    qom_fixup_vtable<AspeedI2CBusSlaveClass>(klass);
 
     dc->desc = "Aspeed I2C Bus Slave";
-
-    sc->event = aspeed_i2c_bus_slave_event;
-    sc->send_async = aspeed_i2c_bus_slave_send_async;
 }
 
 static const TypeInfo aspeed_i2c_bus_slave_info = {
     .name           = TYPE_ASPEED_I2C_BUS_SLAVE,
     .parent         = TYPE_I2C_SLAVE,
     .instance_size  = sizeof(AspeedI2CBusSlave),
+    .class_size     = sizeof(AspeedI2CBusSlaveClass),
     .class_init     = aspeed_i2c_bus_slave_class_init,
 };
 

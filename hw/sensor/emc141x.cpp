@@ -27,6 +27,7 @@
 #include "qemu/module.h"
 #include "qom/object.h"
 #include "hw/sensor/emc141x_regs.h"
+#include "qom/cpp/object.h"
 
 #define SENSORS_COUNT_MAX    4
 
@@ -55,8 +56,11 @@ struct EMC141XState {
     static void classInit(ObjectClass *klass, const void *data);
 };
 
-struct EMC141XClass {
-    I2CSlaveClass parent_class;
+struct EMC141XClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event ev) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+
     uint8_t model;
     unsigned sensors_count;
 
@@ -287,15 +291,18 @@ void EMC141XState::initfn(Object *obj)
                         EMC141XState::setTemperature, NULL, NULL);
 }
 
+/* EMC141XClass virtual method implementations */
+int EMC141XClass::event(I2CSlave *s, enum i2c_event ev) { return EMC141XState::event(s, ev); }
+uint8_t EMC141XClass::recv(I2CSlave *s) { return EMC141XState::rx(s); }
+int EMC141XClass::send(I2CSlave *s, uint8_t data) { return EMC141XState::tx(s, data); }
+
 void EMC141XState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
+
+    qom_fixup_vtable<EMC141XClass>(klass);
 
     device_class_set_legacy_reset(dc, emc141x_reset);
-    k->event = EMC141XState::event;
-    k->recv = EMC141XState::rx;
-    k->send = EMC141XState::tx;
     dc->vmsd = &vmstate_emc141x;
 }
 

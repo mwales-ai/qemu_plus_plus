@@ -12,6 +12,7 @@
 #include "qapi/visitor.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 static uint8_t isl_pmbus_vr_read_byte(PMBusDevice *pmdev)
 {
@@ -233,12 +234,22 @@ static void raa228000_init(Object *obj)
     isl_pmbus_vr_add_props(obj, flags, 1);
 }
 
+/* Subclass struct for virtual method overrides */
+struct ISLPMBusVRClass : PMBusDeviceClass {
+    int pmbus_write_data(PMBusDevice *dev, const uint8_t *buf, uint8_t len) override;
+    uint8_t pmbus_receive_byte(PMBusDevice *dev) override;
+};
+
+int ISLPMBusVRClass::pmbus_write_data(PMBusDevice *dev, const uint8_t *buf, uint8_t len) { return isl_pmbus_vr_write_data(dev, buf, len); }
+uint8_t ISLPMBusVRClass::pmbus_receive_byte(PMBusDevice *dev) { return isl_pmbus_vr_read_byte(dev); }
+
 static void isl_pmbus_vr_class_init(ObjectClass *klass, const void *data,
                                     uint8_t pages)
 {
     PMBusDeviceClass *k = PMBUS_DEVICE_CLASS(klass);
-    k->write_data = isl_pmbus_vr_write_data;
-    k->receive_byte = isl_pmbus_vr_read_byte;
+
+    qom_fixup_vtable<ISLPMBusVRClass>(klass);
+
     k->device_num_pages = pages;
 }
 
@@ -289,6 +300,7 @@ static const TypeInfo isl69260_info = {
     .parent = TYPE_PMBUS_DEVICE,
     .instance_size = sizeof(ISLState),
     .instance_init = raa22xx_init,
+    .class_size = sizeof(ISLPMBusVRClass),
     .class_init = isl69260_class_init,
 };
 
@@ -297,6 +309,7 @@ static const TypeInfo raa229004_info = {
     .parent = TYPE_PMBUS_DEVICE,
     .instance_size = sizeof(ISLState),
     .instance_init = raa22xx_init,
+    .class_size = sizeof(ISLPMBusVRClass),
     .class_init = raa229004_class_init,
 };
 
@@ -305,6 +318,7 @@ static const TypeInfo raa228000_info = {
     .parent = TYPE_PMBUS_DEVICE,
     .instance_size = sizeof(ISLState),
     .instance_init = raa228000_init,
+    .class_size = sizeof(ISLPMBusVRClass),
     .class_init = raa228000_class_init,
 };
 

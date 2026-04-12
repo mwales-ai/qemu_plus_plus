@@ -32,6 +32,7 @@
 #include "migration/vmstate.h"
 #include "hw/i2c/smbus_eeprom.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 //#define DEBUG
 
@@ -139,15 +140,23 @@ static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
     }
 }
 
+/* Subclass struct for virtual method overrides */
+struct SMBusEEPROMClass : SMBusDeviceClass {
+    uint8_t receive_byte(SMBusDevice *dev) override;
+    int write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len) override;
+};
+
+uint8_t SMBusEEPROMClass::receive_byte(SMBusDevice *dev) { return eeprom_receive_byte(dev); }
+int SMBusEEPROMClass::write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len) { return eeprom_write_data(dev, buf, len); }
+
 static void smbus_eeprom_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<SMBusEEPROMClass>(klass);
 
     dc->realize = smbus_eeprom_realize;
     device_class_set_legacy_reset(dc, smbus_eeprom_reset);
-    sc->receive_byte = eeprom_receive_byte;
-    sc->write_data = eeprom_write_data;
     dc->vmsd = &vmstate_smbus_eeprom;
     /* Reason: init_data */
     dc->user_creatable = false;
@@ -158,6 +167,7 @@ static const TypeInfo smbus_eeprom_types[] = {
         .name          = TYPE_SMBUS_EEPROM,
         .parent        = TYPE_SMBUS_DEVICE,
         .instance_size = sizeof(SMBusEEPROMDevice),
+        .class_size    = sizeof(SMBusEEPROMClass),
         .class_init    = smbus_eeprom_class_initfn,
     },
 };

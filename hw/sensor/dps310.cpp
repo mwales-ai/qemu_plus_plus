@@ -13,6 +13,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 #define NUM_REGISTERS   0x33
 
@@ -197,14 +198,23 @@ static const VMStateDescription vmstate_dps310 = {
     }
 };
 
+/* Subclass struct for virtual method overrides */
+struct DPS310Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int DPS310Class::event(I2CSlave *s, enum i2c_event event) { return dps310_event(s, event); }
+uint8_t DPS310Class::recv(I2CSlave *s) { return dps310_rx(s); }
+int DPS310Class::send(I2CSlave *s, uint8_t data) { return dps310_tx(s, data); }
+
 static void dps310_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->event = dps310_event;
-    k->recv = dps310_rx;
-    k->send = dps310_tx;
+    qom_fixup_vtable<DPS310Class>(klass);
+
     device_class_set_legacy_reset(dc, dps310_reset);
     dc->vmsd = &vmstate_dps310;
 }
@@ -213,6 +223,7 @@ static const TypeInfo dps310_info = {
     .name          = TYPE_DPS310,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(DPS310State),
+    .class_size    = sizeof(DPS310Class),
     .class_init    = dps310_class_init,
 };
 

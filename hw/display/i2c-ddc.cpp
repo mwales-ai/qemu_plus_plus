@@ -23,6 +23,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/display/i2c-ddc.h"
+#include "qom/cpp/object.h"
 
 #ifndef DEBUG_I2CDDC
 #define DEBUG_I2CDDC 0
@@ -99,17 +100,26 @@ static const Property i2c_ddc_properties[] = {
     DEFINE_EDID_PROPERTIES(I2CDDCState, edid_info),
 };
 
+/* Subclass struct for virtual method overrides */
+struct I2CDDCClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int I2CDDCClass::event(I2CSlave *s, enum i2c_event event) { return i2c_ddc_event(s, event); }
+uint8_t I2CDDCClass::recv(I2CSlave *s) { return i2c_ddc_rx(s); }
+int I2CDDCClass::send(I2CSlave *s, uint8_t data) { return i2c_ddc_tx(s, data); }
+
 static void i2c_ddc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    I2CSlaveClass *isc = I2C_SLAVE_CLASS(oc);
+
+    qom_fixup_vtable<I2CDDCClass>(oc);
 
     device_class_set_legacy_reset(dc, i2c_ddc_reset);
     dc->vmsd = &vmstate_i2c_ddc;
     device_class_set_props(dc, i2c_ddc_properties);
-    isc->event = i2c_ddc_event;
-    isc->recv = i2c_ddc_rx;
-    isc->send = i2c_ddc_tx;
 }
 
 static const TypeInfo i2c_ddc_info = {
@@ -117,6 +127,7 @@ static const TypeInfo i2c_ddc_info = {
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(I2CDDCState),
     .instance_init = i2c_ddc_init,
+    .class_size = sizeof(I2CDDCClass),
     .class_init = i2c_ddc_class_init
 };
 

@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 #include "ui/console.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 //#define DEBUG_SSD0303 1
 
@@ -313,15 +314,24 @@ static void ssd0303_realize(DeviceState *dev, Error **errp)
     qemu_console_resize(s->con, 96 * MAGNIFY, 16 * MAGNIFY);
 }
 
+/* Subclass struct for virtual method overrides */
+struct SSD0303Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int SSD0303Class::event(I2CSlave *s, enum i2c_event event) { return ssd0303_event(s, event); }
+uint8_t SSD0303Class::recv(I2CSlave *s) { return ssd0303_recv(s); }
+int SSD0303Class::send(I2CSlave *s, uint8_t data) { return ssd0303_send(s, data); }
+
 static void ssd0303_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    qom_fixup_vtable<SSD0303Class>(klass);
 
     dc->realize = ssd0303_realize;
-    k->event = ssd0303_event;
-    k->recv = ssd0303_recv;
-    k->send = ssd0303_send;
     dc->vmsd = &vmstate_ssd0303;
 }
 
@@ -329,6 +339,7 @@ static const TypeInfo ssd0303_info = {
     .name          = TYPE_SSD0303,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(ssd0303_state),
+    .class_size    = sizeof(SSD0303Class),
     .class_init    = ssd0303_class_init,
 };
 

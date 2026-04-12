@@ -24,6 +24,7 @@ extern "C" {
 }
 
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define SII9022_SYS_CTRL_DATA 0x1a
 #define SII9022_SYS_CTRL_PWR_DWN 0x10
@@ -173,14 +174,23 @@ static void sii9022_realize(DeviceState *dev, Error **errp)
     i2c_slave_create_simple(bus, TYPE_I2CDDC, 0x50);
 }
 
+/* Subclass struct for virtual method overrides */
+struct SII9022Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int SII9022Class::event(I2CSlave *s, enum i2c_event event) { return sii9022_event(s, event); }
+uint8_t SII9022Class::recv(I2CSlave *s) { return sii9022_rx(s); }
+int SII9022Class::send(I2CSlave *s, uint8_t data) { return sii9022_tx(s, data); }
+
 static void sii9022_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->event = sii9022_event;
-    k->recv = sii9022_rx;
-    k->send = sii9022_tx;
+    qom_fixup_vtable<SII9022Class>(klass);
+
     device_class_set_legacy_reset(dc, sii9022_reset);
     dc->realize = sii9022_realize;
     dc->vmsd = &vmstate_sii9022;
@@ -190,6 +200,7 @@ static const TypeInfo sii9022_info = {
     .name          = TYPE_SII9022,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(sii9022_state),
+    .class_size    = sizeof(SII9022Class),
     .class_init    = sii9022_class_init,
 };
 

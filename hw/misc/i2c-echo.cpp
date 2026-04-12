@@ -14,6 +14,7 @@
 #include "block/aio.h"
 #include "hw/i2c/i2c.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_I2C_ECHO "i2c-echo"
 OBJECT_DECLARE_SIMPLE_TYPE(I2CEchoState, I2C_ECHO)
@@ -145,22 +146,31 @@ static void i2c_echo_realize(DeviceState *dev, Error **errp)
     state->bh = qemu_bh_new(i2c_echo_bh, state);
 }
 
+/* Subclass struct for virtual method overrides */
+struct I2CEchoClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int I2CEchoClass::event(I2CSlave *s, enum i2c_event event) { return i2c_echo_event(s, event); }
+uint8_t I2CEchoClass::recv(I2CSlave *s) { return i2c_echo_recv(s); }
+int I2CEchoClass::send(I2CSlave *s, uint8_t data) { return i2c_echo_send(s, data); }
+
 static void i2c_echo_class_init(ObjectClass *oc, const void *data)
 {
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(oc);
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    dc->realize = i2c_echo_realize;
+    qom_fixup_vtable<I2CEchoClass>(oc);
 
-    sc->event = i2c_echo_event;
-    sc->recv = i2c_echo_recv;
-    sc->send = i2c_echo_send;
+    dc->realize = i2c_echo_realize;
 }
 
 static const TypeInfo i2c_echo = {
     .name = TYPE_I2C_ECHO,
     .parent = TYPE_I2C_SLAVE,
     .instance_size = sizeof(I2CEchoState),
+    .class_size = sizeof(I2CEchoClass),
     .class_init = i2c_echo_class_init,
 };
 

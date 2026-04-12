@@ -27,27 +27,38 @@ typedef struct I2CNodeList I2CNodeList;
 OBJECT_DECLARE_TYPE(I2CSlave, I2CSlaveClass,
                     I2C_SLAVE)
 
-struct I2CSlaveClass {
-    DeviceClass parent_class;
-
+/*
+ * I2CSlaveClass -- QOM class struct using C++ virtual methods (Option D).
+ *
+ * Function pointers replaced with virtual methods.  Default implementations:
+ *   send: return -1 (NAK)
+ *   send_async: do nothing
+ *   recv: return 0xFF
+ *   event: return 0
+ *   match_and_add: standard address-match logic (check address, create I2CNode)
+ *
+ * The vtable is restored in class_init via qom_fixup_vtable<I2CSlaveClass>().
+ */
+#ifdef __cplusplus
+struct I2CSlaveClass : DeviceClass {
     /* Master to slave. Returns non-zero for a NAK, 0 for success. */
-    int (*send)(I2CSlave *s, uint8_t data);
+    virtual int send(I2CSlave *s, uint8_t data);
 
     /* Master to slave (asynchronous). Receiving slave must call i2c_ack(). */
-    void (*send_async)(I2CSlave *s, uint8_t data);
+    virtual void send_async(I2CSlave *s, uint8_t data);
 
     /*
      * Slave to master.  This cannot fail, the device should always
      * return something here.
      */
-    uint8_t (*recv)(I2CSlave *s);
+    virtual uint8_t recv(I2CSlave *s);
 
     /*
      * Notify the slave of a bus state change.  For start event,
      * returns non-zero to NAK an operation.  For other events the
      * return code is not used and should be zero.
      */
-    int (*event)(I2CSlave *s, enum i2c_event event);
+    virtual int event(I2CSlave *s, enum i2c_event event);
 
     /*
      * Check if this device matches the address provided.  Returns bool of
@@ -56,9 +67,21 @@ struct I2CSlaveClass {
      *
      * If broadcast is true, match should add the device and return true.
      */
+    virtual bool match_and_add(I2CSlave *candidate, uint8_t address,
+                               bool broadcast, I2CNodeList *current_devs);
+};
+#else
+struct I2CSlaveClass {
+    DeviceClass parent_class;
+
+    int (*send)(I2CSlave *s, uint8_t data);
+    void (*send_async)(I2CSlave *s, uint8_t data);
+    uint8_t (*recv)(I2CSlave *s);
+    int (*event)(I2CSlave *s, enum i2c_event event);
     bool (*match_and_add)(I2CSlave *candidate, uint8_t address, bool broadcast,
                           I2CNodeList *current_devs);
 };
+#endif
 
 struct I2CSlave {
     DeviceState qdev;

@@ -32,6 +32,7 @@
 #include "qapi/visitor.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 /* Manufacturer / Device ID's */
 #define TMP421_MANUFACTURER_ID          0x55
@@ -79,8 +80,11 @@ struct TMP421State {
     static void classInit(ObjectClass *klass, const void *data);
 };
 
-struct TMP421Class {
-    I2CSlaveClass parent_class;
+struct TMP421Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event ev) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+
     const DeviceInfo *dev;
 };
 
@@ -351,16 +355,19 @@ static void tmp421_realize_wrapper(DeviceState *dev, Error **errp)
     s->realize(errp);
 }
 
+/* TMP421Class virtual method implementations */
+int TMP421Class::event(I2CSlave *s, enum i2c_event ev) { return TMP421State::event(s, ev); }
+uint8_t TMP421Class::recv(I2CSlave *s) { return TMP421State::rx(s); }
+int TMP421Class::send(I2CSlave *s, uint8_t data) { return TMP421State::tx(s, data); }
+
 void TMP421State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
 
+    qom_fixup_vtable<TMP421Class>(klass);
+
     dc->realize = tmp421_realize_wrapper;
-    k->event = TMP421State::event;
-    k->recv = TMP421State::rx;
-    k->send = TMP421State::tx;
     dc->vmsd = &vmstate_tmp421;
     sc->dev = (DeviceInfo *) data;
 

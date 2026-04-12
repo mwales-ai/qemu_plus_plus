@@ -19,11 +19,12 @@
 #include "qapi/visitor.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
-struct PCA9554Class {
-    /*< private >*/
-    I2CSlaveClass parent_class;
-    /*< public >*/
+struct PCA9554Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
 };
 typedef struct PCA9554Class PCA9554Class;
 
@@ -294,14 +295,17 @@ static const Property pca9554_properties[] = {
     DEFINE_PROP_STRING("description", PCA9554State, description),
 };
 
+/* PCA9554Class virtual method implementations */
+int PCA9554Class::event(I2CSlave *s, enum i2c_event event) { return pca9554_event(s, event); }
+uint8_t PCA9554Class::recv(I2CSlave *s) { return pca9554_recv(s); }
+int PCA9554Class::send(I2CSlave *s, uint8_t data) { return pca9554_send(s, data); }
+
 static void pca9554_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
-    k->event = pca9554_event;
-    k->recv = pca9554_recv;
-    k->send = pca9554_send;
+    qom_fixup_vtable<PCA9554Class>(klass);
+
     dc->realize = pca9554_realize;
     device_class_set_legacy_reset(dc, pca9554_reset);
     dc->vmsd = &pca9554_vmstate;

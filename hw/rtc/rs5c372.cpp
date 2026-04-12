@@ -21,6 +21,7 @@ extern "C" {
 #include "qemu/bcd.h"
 #include "trace.h"
 }
+#include "qom/cpp/object.h"
 
 #define NVRAM_SIZE 0x10
 
@@ -218,15 +219,24 @@ static const VMStateDescription rs5c372_vmstate = {
     .fields = rs5c372_vmstate_fields,
 };
 
+/* Subclass struct for virtual method overrides */
+struct RS5C372Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event ev) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int RS5C372Class::event(I2CSlave *s, enum i2c_event ev) { return RS5C372State::event(s, ev); }
+uint8_t RS5C372Class::recv(I2CSlave *s) { return RS5C372State::recv(s); }
+int RS5C372Class::send(I2CSlave *s, uint8_t data) { return RS5C372State::send(s, data); }
+
 void RS5C372State::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
-    k->event = event;
-    k->recv = recv;
-    k->send = send;
+    qom_fixup_vtable<RS5C372Class>(klass);
+
     dc->vmsd = &rs5c372_vmstate;
     rc->phases.hold = resetHold;
 }
@@ -237,6 +247,7 @@ static const TypeInfo rs5c372_types[] = {
         .parent        = TYPE_I2C_SLAVE,
         .instance_size = sizeof(RS5C372State),
         .instance_init = RS5C372State::instanceInit,
+        .class_size    = sizeof(RS5C372Class),
         .class_init    = RS5C372State::classInit,
     },
 };

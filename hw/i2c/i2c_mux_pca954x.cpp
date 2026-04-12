@@ -27,6 +27,7 @@
 #include "qemu/queue.h"
 #include "qom/object.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define PCA9548_CHANNEL_COUNT 8
 #define PCA9546_CHANNEL_COUNT 4
@@ -52,11 +53,15 @@ typedef struct Pca954xState {
  * struct Pca954xClass - The pca954x class object.
  * @nchans: The number of i2c channels this device has.
  */
-typedef struct Pca954xClass {
-    SMBusDeviceClass parent;
+struct Pca954xClass : SMBusDeviceClass {
+    bool match_and_add(I2CSlave *candidate, uint8_t address,
+                       bool broadcast, I2CNodeList *current_devs) override;
+    int write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len) override;
+    uint8_t receive_byte(SMBusDevice *dev) override;
 
     uint8_t nchans;
-} Pca954xClass;
+};
+typedef struct Pca954xClass Pca954xClass;
 
 #define TYPE_PCA954X "pca954x"
 OBJECT_DECLARE_TYPE(Pca954xState, Pca954xClass, PCA954X)
@@ -215,22 +220,23 @@ static const Property pca954x_props[] = {
     DEFINE_PROP_STRING("name", Pca954xState, name),
 };
 
+/* Pca954xClass virtual method implementations */
+bool Pca954xClass::match_and_add(I2CSlave *candidate, uint8_t address,
+                                  bool broadcast, I2CNodeList *current_devs) { return pca954x_match(candidate, address, broadcast, current_devs); }
+int Pca954xClass::write_data(SMBusDevice *dev, uint8_t *buf, uint8_t len) { return pca954x_write_data(dev, buf, len); }
+uint8_t Pca954xClass::receive_byte(SMBusDevice *dev) { return pca954x_read_byte(dev); }
+
 static void pca954x_class_init(ObjectClass *klass, const void *data)
 {
-    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SMBusDeviceClass *k = SMBUS_DEVICE_CLASS(klass);
 
-    sc->match_and_add = pca954x_match;
+    qom_fixup_vtable<Pca954xClass>(klass);
 
     rc->phases.enter = pca954x_enter_reset;
 
     dc->desc = "Pca954x i2c-mux";
     dc->realize = pca954x_realize;
-
-    k->write_data = pca954x_write_data;
-    k->receive_byte = pca954x_read_byte;
 
     device_class_set_props(dc, pca954x_props);
 }

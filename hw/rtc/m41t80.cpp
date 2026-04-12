@@ -16,6 +16,7 @@
 #include "hw/i2c/i2c.h"
 #include "qom/object.h"
 #include "system/rtc.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_M41T80 "m41t80"
 OBJECT_DECLARE_SIMPLE_TYPE(M41t80State, M41T80)
@@ -111,22 +112,34 @@ struct M41t80State {
         return s->event(event);
     }
 
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-        I2CSlaveClass *sc = reinterpret_cast<I2CSlaveClass *>(klass);
-
-        dc->realize = deviceRealize;
-        sc->send = i2cSend;
-        sc->recv = i2cRecv;
-        sc->event = i2cEvent;
-    }
+    static void classInit(ObjectClass *klass, const void *data);
 };
+
+/* Subclass struct for virtual method overrides */
+struct M41t80Class : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event ev) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+};
+
+int M41t80Class::event(I2CSlave *s, enum i2c_event ev) { return M41t80State::i2cEvent(s, ev); }
+uint8_t M41t80Class::recv(I2CSlave *s) { return M41t80State::i2cRecv(s); }
+int M41t80Class::send(I2CSlave *s, uint8_t data) { return M41t80State::i2cSend(s, data); }
+
+void M41t80State::classInit(ObjectClass *klass, const void *data)
+{
+    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+
+    qom_fixup_vtable<M41t80Class>(klass);
+
+    dc->realize = deviceRealize;
+}
 
 static const TypeInfo m41t80_info = {
     .name          = TYPE_M41T80,
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(M41t80State),
+    .class_size    = sizeof(M41t80Class),
     .class_init    = M41t80State::classInit,
 };
 

@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "hw/i2c/i2c.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_AXP2XX     "axp2xx_pmu"
 #define TYPE_AXP209_PMU "axp209_pmu"
@@ -52,12 +53,14 @@ typedef struct AXP2xxI2CState {
     uint8_t count;          /* counter used for tx/rx */
 } AXP2xxI2CState;
 
-typedef struct AXP2xxClass {
-    /*< private >*/
-    I2CSlaveClass parent_class;
-    /*< public >*/
+struct AXP2xxClass : I2CSlaveClass {
+    int event(I2CSlave *s, enum i2c_event event) override;
+    uint8_t recv(I2CSlave *s) override;
+    int send(I2CSlave *s, uint8_t data) override;
+
     void (*reset_enter)(AXP2xxI2CState *s, ResetType type);
-} AXP2xxClass;
+};
+typedef struct AXP2xxClass AXP2xxClass;
 
 #define AXP209_CHIP_VERSION_ID             (0x01)
 #define AXP209_DC_DC2_OUT_V_CTRL_RESET     (0x16)
@@ -227,17 +230,20 @@ static const VMStateDescription vmstate_axp2xx = {
     .fields = vmstate_axp2xx_fields,
 };
 
+/* AXP2xxClass virtual method implementations */
+int AXP2xxClass::event(I2CSlave *s, enum i2c_event event) { return axp2xx_event(s, event); }
+uint8_t AXP2xxClass::recv(I2CSlave *s) { return axp2xx_rx(s); }
+int AXP2xxClass::send(I2CSlave *s, uint8_t data) { return axp2xx_tx(s, data); }
+
 static void axp2xx_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
-    I2CSlaveClass *isc = I2C_SLAVE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);
+
+    qom_fixup_vtable<AXP2xxClass>(oc);
 
     rc->phases.enter = axp2xx_reset_enter;
     dc->vmsd = &vmstate_axp2xx;
-    isc->event = axp2xx_event;
-    isc->recv = axp2xx_rx;
-    isc->send = axp2xx_tx;
 }
 
 static const TypeInfo axp2xx_info = {
