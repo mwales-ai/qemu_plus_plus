@@ -35,29 +35,41 @@ struct IPackBus {
 OBJECT_DECLARE_TYPE(IPackDevice, IPackDeviceClass,
                     IPACK_DEVICE)
 
+/*
+ * IPackDeviceClass — QOM class struct using C++ virtual methods (Option D).
+ */
+#ifdef __cplusplus
+struct IPackDeviceClass : DeviceClass {
+    virtual void realize(DeviceState *dev, Error **errp);
+    virtual void unrealize(DeviceState *dev);
+    virtual uint16_t io_read(IPackDevice *dev, uint8_t addr);
+    virtual void io_write(IPackDevice *dev, uint8_t addr, uint16_t val);
+    virtual uint16_t id_read(IPackDevice *dev, uint8_t addr);
+    virtual void id_write(IPackDevice *dev, uint8_t addr, uint16_t val);
+    virtual uint16_t int_read(IPackDevice *dev, uint8_t addr);
+    virtual void int_write(IPackDevice *dev, uint8_t addr, uint16_t val);
+    virtual uint16_t mem_read16(IPackDevice *dev, uint32_t addr);
+    virtual void mem_write16(IPackDevice *dev, uint32_t addr, uint16_t val);
+    virtual uint8_t mem_read8(IPackDevice *dev, uint32_t addr);
+    virtual void mem_write8(IPackDevice *dev, uint32_t addr, uint8_t val);
+};
+#else
 struct IPackDeviceClass {
-    /*< private >*/
     DeviceClass parent_class;
-    /*< public >*/
-
     DeviceRealize realize;
     DeviceUnrealize unrealize;
-
     uint16_t (*io_read)(IPackDevice *dev, uint8_t addr);
     void (*io_write)(IPackDevice *dev, uint8_t addr, uint16_t val);
-
     uint16_t (*id_read)(IPackDevice *dev, uint8_t addr);
     void (*id_write)(IPackDevice *dev, uint8_t addr, uint16_t val);
-
     uint16_t (*int_read)(IPackDevice *dev, uint8_t addr);
     void (*int_write)(IPackDevice *dev, uint8_t addr, uint16_t val);
-
     uint16_t (*mem_read16)(IPackDevice *dev, uint32_t addr);
     void (*mem_write16)(IPackDevice *dev, uint32_t addr, uint16_t val);
-
     uint8_t (*mem_read8)(IPackDevice *dev, uint32_t addr);
     void (*mem_write8)(IPackDevice *dev, uint32_t addr, uint8_t val);
 };
+#endif
 
 struct IPackDevice {
     DeviceState parent_obj;

@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "hw/ipack/ipack.h"
+#include "qom/cpp/object.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -602,22 +603,37 @@ static const Property ipoctal_properties[] = {
     DEFINE_PROP_CHR("chardev7", IPOctalState, ch[7].dev),
 };
 
+struct IPOctalClass : IPackDeviceClass {
+    void realize(DeviceState *dev, Error **errp) override;
+    uint16_t io_read(IPackDevice *dev, uint8_t addr) override;
+    void io_write(IPackDevice *dev, uint8_t addr, uint16_t val) override;
+    uint16_t id_read(IPackDevice *dev, uint8_t addr) override;
+    void id_write(IPackDevice *dev, uint8_t addr, uint16_t val) override;
+    uint16_t int_read(IPackDevice *dev, uint8_t addr) override;
+    void int_write(IPackDevice *dev, uint8_t addr, uint16_t val) override;
+    uint16_t mem_read16(IPackDevice *dev, uint32_t addr) override;
+    void mem_write16(IPackDevice *dev, uint32_t addr, uint16_t val) override;
+    uint8_t mem_read8(IPackDevice *dev, uint32_t addr) override;
+    void mem_write8(IPackDevice *dev, uint32_t addr, uint8_t val) override;
+};
+
+void IPOctalClass::realize(DeviceState *dev, Error **errp) { IPOctalState::realizeWrapper(dev, errp); }
+uint16_t IPOctalClass::io_read(IPackDevice *dev, uint8_t addr) { return IPOctalState::ioRead(dev, addr); }
+void IPOctalClass::io_write(IPackDevice *dev, uint8_t addr, uint16_t val) { IPOctalState::ioWrite(dev, addr, val); }
+uint16_t IPOctalClass::id_read(IPackDevice *dev, uint8_t addr) { return IPOctalState::idRead(dev, addr); }
+void IPOctalClass::id_write(IPackDevice *dev, uint8_t addr, uint16_t val) { IPOctalState::idWrite(dev, addr, val); }
+uint16_t IPOctalClass::int_read(IPackDevice *dev, uint8_t addr) { return IPOctalState::intRead(dev, addr); }
+void IPOctalClass::int_write(IPackDevice *dev, uint8_t addr, uint16_t val) { IPOctalState::intWrite(dev, addr, val); }
+uint16_t IPOctalClass::mem_read16(IPackDevice *dev, uint32_t addr) { return IPOctalState::memRead16(dev, addr); }
+void IPOctalClass::mem_write16(IPackDevice *dev, uint32_t addr, uint16_t val) { IPOctalState::memWrite16(dev, addr, val); }
+uint8_t IPOctalClass::mem_read8(IPackDevice *dev, uint32_t addr) { return IPOctalState::memRead8(dev, addr); }
+void IPOctalClass::mem_write8(IPackDevice *dev, uint32_t addr, uint8_t val) { IPOctalState::memWrite8(dev, addr, val); }
+
 void IPOctalState::classInit(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    IPackDeviceClass *ic = reinterpret_cast<IPackDeviceClass *>(klass);
 
-    ic->realize     = IPOctalState::realizeWrapper;
-    ic->io_read     = ioRead;
-    ic->io_write    = ioWrite;
-    ic->id_read     = idRead;
-    ic->id_write    = idWrite;
-    ic->int_read    = intRead;
-    ic->int_write   = intWrite;
-    ic->mem_read16  = memRead16;
-    ic->mem_write16 = memWrite16;
-    ic->mem_read8   = memRead8;
-    ic->mem_write8  = memWrite8;
+    qom_fixup_vtable<IPOctalClass>(klass);
 
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc    = "GE IP-Octal 232 8-channel RS-232 IndustryPack";
@@ -629,6 +645,7 @@ static const TypeInfo ipoctal_info = {
     .name          = TYPE_IPOCTAL,
     .parent        = TYPE_IPACK_DEVICE,
     .instance_size = sizeof(IPOctalState),
+    .class_size    = sizeof(IPOctalClass),
     .class_init    = IPOctalState::classInit,
 };
 

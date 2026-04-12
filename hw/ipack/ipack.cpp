@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/ipack/ipack.h"
+#include "qom/cpp/object.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -65,14 +66,24 @@ static void ipack_device_realize(DeviceState *dev, Error **errp)
     k->realize(dev, errp);
 }
 
+/* Default virtual method implementations for IPackDeviceClass */
+void IPackDeviceClass::realize(DeviceState *dev, Error **errp) {}
+void IPackDeviceClass::unrealize(DeviceState *dev) {}
+uint16_t IPackDeviceClass::io_read(IPackDevice *dev, uint8_t addr) { return 0xFFFF; }
+void IPackDeviceClass::io_write(IPackDevice *dev, uint8_t addr, uint16_t val) {}
+uint16_t IPackDeviceClass::id_read(IPackDevice *dev, uint8_t addr) { return 0xFFFF; }
+void IPackDeviceClass::id_write(IPackDevice *dev, uint8_t addr, uint16_t val) {}
+uint16_t IPackDeviceClass::int_read(IPackDevice *dev, uint8_t addr) { return 0xFFFF; }
+void IPackDeviceClass::int_write(IPackDevice *dev, uint8_t addr, uint16_t val) {}
+uint16_t IPackDeviceClass::mem_read16(IPackDevice *dev, uint32_t addr) { return 0xFFFF; }
+void IPackDeviceClass::mem_write16(IPackDevice *dev, uint32_t addr, uint16_t val) {}
+uint8_t IPackDeviceClass::mem_read8(IPackDevice *dev, uint32_t addr) { return 0xFF; }
+void IPackDeviceClass::mem_write8(IPackDevice *dev, uint32_t addr, uint8_t val) {}
+
 static void ipack_device_unrealize(DeviceState *dev)
 {
     IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(dev);
-
-    if (k->unrealize) {
-        k->unrealize(dev);
-        return;
-    }
+    k->unrealize(dev);
 }
 
 static const Property ipack_device_props[] = {
@@ -82,6 +93,8 @@ static const Property ipack_device_props[] = {
 static void ipack_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+
+    qom_fixup_vtable<IPackDeviceClass>(klass);
 
     set_bit(DEVICE_CATEGORY_INPUT, k->categories);
     k->bus_type = TYPE_IPACK_BUS;

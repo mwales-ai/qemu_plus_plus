@@ -314,9 +314,7 @@ uint64_t TPCI200State::readLas1(void *opaque, hwaddr addr, unsigned size)
         switch (space) {
         case IP_ID_SPACE:
             offset = addr & IP_ID_SPACE_ADDR_MASK;
-            if (k->id_read) {
-                ret = k->id_read(ip, offset);
-            }
+            ret = k->id_read(ip, offset);
             break;
         case IP_INT_SPACE:
             offset = addr & IP_INT_SPACE_ADDR_MASK;
@@ -328,15 +326,11 @@ uint64_t TPCI200State::readLas1(void *opaque, hwaddr addr, unsigned size)
                     qemu_irq_lower(&ip->irq[intno]);
                 }
             }
-            if (k->int_read) {
-                ret = k->int_read(ip, offset);
-            }
+            ret = k->int_read(ip, offset);
             break;
         default:
             offset = addr & IP_IO_SPACE_ADDR_MASK;
-            if (k->io_read) {
-                ret = k->io_read(ip, offset);
-            }
+            ret = k->io_read(ip, offset);
             break;
         }
     }
@@ -366,21 +360,15 @@ void TPCI200State::writeLas1(void *opaque, hwaddr addr, uint64_t val,
         switch (space) {
         case IP_ID_SPACE:
             offset = addr & IP_ID_SPACE_ADDR_MASK;
-            if (k->id_write) {
-                k->id_write(ip, offset, val);
-            }
+            k->id_write(ip, offset, val);
             break;
         case IP_INT_SPACE:
             offset = addr & IP_INT_SPACE_ADDR_MASK;
-            if (k->int_write) {
-                k->int_write(ip, offset, val);
-            }
+            k->int_write(ip, offset, val);
             break;
         default:
             offset = addr & IP_IO_SPACE_ADDR_MASK;
-            if (k->io_write) {
-                k->io_write(ip, offset, val);
-            }
+            k->io_write(ip, offset, val);
             break;
         }
     }
@@ -404,9 +392,7 @@ uint64_t TPCI200State::readLas2(void *opaque, hwaddr addr, unsigned size)
         DPRINTF("Read LAS2: IP module %u not installed\n", ip_n);
     } else {
         IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
-        if (k->mem_read16) {
-            ret = k->mem_read16(ip, offset);
-        }
+        ret = k->mem_read16(ip, offset);
     }
 
     return adjust_value(s->big_endian[2], &ret, size);
@@ -431,9 +417,7 @@ void TPCI200State::writeLas2(void *opaque, hwaddr addr, uint64_t val,
         DPRINTF("Write LAS2: IP module %u not installed\n", ip_n);
     } else {
         IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
-        if (k->mem_write16) {
-            k->mem_write16(ip, offset, val);
-        }
+        k->mem_write16(ip, offset, val);
     }
 }
 
@@ -451,9 +435,7 @@ uint64_t TPCI200State::readLas3(void *opaque, hwaddr addr, unsigned size)
         DPRINTF("Read LAS3: IP module %u not installed\n", ip_n);
     } else {
         IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
-        if (k->mem_read8) {
-            ret = k->mem_read8(ip, offset);
-        }
+        ret = k->mem_read8(ip, offset);
     }
 
     return ret;
@@ -473,9 +455,7 @@ void TPCI200State::writeLas3(void *opaque, hwaddr addr, uint64_t val,
         DPRINTF("Write LAS3: IP module %u not installed\n", ip_n);
     } else {
         IPackDeviceClass *k = IPACK_DEVICE_GET_CLASS(ip);
-        if (k->mem_write8) {
-            k->mem_write8(ip, offset, val);
-        }
+        k->mem_write8(ip, offset, val);
     }
 }
 
