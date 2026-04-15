@@ -19,6 +19,7 @@
 #include "migration/vmstate.h"
 #include "target/ppc/cpu.h"
 #include "hw/ppc/spapr.h"
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
@@ -237,41 +238,36 @@ static const VMStateDescription vmstate_wdt = {
     .fields = vmstate_wdt_fields,
 };
 
-static void spapr_wdt_realize(DeviceState *dev, Error **errp)
+void SpaprWatchdog::realize(Error **errp)
 {
-    SpaprWatchdog *w = SPAPR_WDT(dev);
-    Object *o = OBJECT(dev);
+    Object *o = reinterpret_cast<Object *>(this);
 
-    timer_init_ms(&w->timer, QEMU_CLOCK_VIRTUAL, watchdog_expired, w);
+    timer_init_ms(&timer, QEMU_CLOCK_VIRTUAL, watchdog_expired, this);
 
     object_property_add_uint64_ptr(o, "expire",
-                                   (uint64_t *)&w->timer.expire_time,
+                                   (uint64_t *)&timer.expire_time,
                                    OBJ_PROP_FLAG_READ);
-    object_property_add_uint8_ptr(o, "action", &w->action, OBJ_PROP_FLAG_READ);
+    object_property_add_uint8_ptr(o, "action", &action, OBJ_PROP_FLAG_READ);
     object_property_add_uint8_ptr(o, "leaveOtherWatchdogsRunningOnTimeout",
-                                  &w->leave_others, OBJ_PROP_FLAG_READ);
+                                  &leave_others, OBJ_PROP_FLAG_READ);
 }
 
-static void spapr_wdt_class_init(ObjectClass *oc, const void *data)
+void SpaprWatchdog::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = spapr_wdt_realize;
     dc->vmsd = &vmstate_wdt;
     dc->user_creatable = false;
 }
 
-static const TypeInfo spapr_wdt_info = {
-    .name          = TYPE_SPAPR_WDT,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(SpaprWatchdog),
-    .class_init    = spapr_wdt_class_init,
-};
+REGISTER_QEMU_DEVICE(SpaprWatchdog, TYPE_SPAPR_WDT, TYPE_DEVICE)
 
-static void spapr_watchdog_register_types(void)
+/*
+ * Hypercall registration: H_WATCHDOG needs spapr_register_hypercall to
+ * be called once at module init. Separate type_init since
+ * REGISTER_QEMU_DEVICE already consumed the main init hook.
+ */
+static void spapr_watchdog_register_hypercall(void)
 {
     spapr_register_hypercall(H_WATCHDOG, h_watchdog);
-    type_register_static(&spapr_wdt_info);
 }
 
-type_init(spapr_watchdog_register_types)
+type_init(spapr_watchdog_register_hypercall)

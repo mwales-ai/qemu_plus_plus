@@ -167,6 +167,11 @@ typedef struct SpaprWatchdog {
     QEMUTimer timer;
     uint8_t action;         /* One of PSERIES_WDTF_ACTION_xxx */
     uint8_t leave_others;   /* leaveOtherWatchdogsRunningOnTimeout */
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 } SpaprWatchdog;
 
 /**
