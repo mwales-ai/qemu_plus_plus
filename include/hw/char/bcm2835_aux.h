@@ -30,6 +30,12 @@ struct BCM2835AuxState {
     uint8_t read_fifo[BCM2835_AUX_RX_FIFO_LEN];
     uint8_t read_pos, read_count;
     uint8_t ier, iir;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

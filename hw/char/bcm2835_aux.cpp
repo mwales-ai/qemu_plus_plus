@@ -28,6 +28,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #define AUX_IRQ         0x0
 #define AUX_ENABLES     0x4
@@ -273,50 +274,31 @@ static const VMStateDescription vmstate_bcm2835_aux = {
     .fields = vmstate_bcm2835_aux_fields,
 };
 
-static void bcm2835_aux_init(Object *obj)
+void BCM2835AuxState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    BCM2835AuxState *s = BCM2835_AUX(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_aux_ops, s,
-                          TYPE_BCM2835_AUX, 0x100);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &bcm2835_aux_ops, this, TYPE_BCM2835_AUX, 0x100);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 }
 
-static void bcm2835_aux_realize(DeviceState *dev, Error **errp)
+void BCM2835AuxState::realize(Error **errp)
 {
-    BCM2835AuxState *s = BCM2835_AUX(dev);
-
-    qemu_chr_fe_set_handlers(&s->chr, bcm2835_aux_can_receive,
-                             bcm2835_aux_receive, NULL, NULL, s, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, bcm2835_aux_can_receive,
+                             bcm2835_aux_receive, NULL, NULL, this, NULL, true);
 }
 
 static const Property bcm2835_aux_props[] = {
     DEFINE_PROP_CHR("chardev", BCM2835AuxState, chr),
 };
 
-static void bcm2835_aux_class_init(ObjectClass *oc, const void *data)
+void BCM2835AuxState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = bcm2835_aux_realize;
     dc->vmsd = &vmstate_bcm2835_aux;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     device_class_set_props(dc, bcm2835_aux_props);
 }
 
-static const TypeInfo bcm2835_aux_info = {
-    .name          = TYPE_BCM2835_AUX,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835AuxState),
-    .instance_init = bcm2835_aux_init,
-    .class_init    = bcm2835_aux_class_init,
-};
-
-static void bcm2835_aux_register_types(void)
-{
-    type_register_static(&bcm2835_aux_info);
-}
-
-type_init(bcm2835_aux_register_types)
+REGISTER_QEMU_DEVICE(BCM2835AuxState, TYPE_BCM2835_AUX, TYPE_SYS_BUS_DEVICE)
