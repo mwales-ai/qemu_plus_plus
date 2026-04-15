@@ -10,79 +10,77 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qemu/log.h"
 #include "hw/misc/imx8mp_analog.h"
 #include "migration/vmstate.h"
-}
+#include "qom/cpp/object.h"
 
 #define ANALOG_PLL_LOCK BIT(31)
 
-static void imx8mp_analog_reset(DeviceState *dev)
+void IMX8MPAnalogState::reset()
 {
-    IMX8MPAnalogState *s = IMX8MP_ANALOG(dev);
 
-    memset(s->analog, 0, sizeof(s->analog));
+    memset(analog, 0, sizeof(analog));
 
-    s->analog[ANALOG_AUDIO_PLL1_GEN_CTRL] = 0x00002010;
-    s->analog[ANALOG_AUDIO_PLL1_FDIV_CTL0] = 0x00145032;
-    s->analog[ANALOG_AUDIO_PLL1_FDIV_CTL1] = 0x00000000;
-    s->analog[ANALOG_AUDIO_PLL1_SSCG_CTRL] = 0x00000000;
-    s->analog[ANALOG_AUDIO_PLL1_MNIT_CTRL] = 0x00100103;
-    s->analog[ANALOG_AUDIO_PLL2_GEN_CTRL] = 0x00002010;
-    s->analog[ANALOG_AUDIO_PLL2_FDIV_CTL0] = 0x00145032;
-    s->analog[ANALOG_AUDIO_PLL2_FDIV_CTL1] = 0x00000000;
-    s->analog[ANALOG_AUDIO_PLL2_SSCG_CTRL] = 0x00000000;
-    s->analog[ANALOG_AUDIO_PLL2_MNIT_CTRL] = 0x00100103;
-    s->analog[ANALOG_VIDEO_PLL1_GEN_CTRL] = 0x00002010;
-    s->analog[ANALOG_VIDEO_PLL1_FDIV_CTL0] = 0x00145032;
-    s->analog[ANALOG_VIDEO_PLL1_FDIV_CTL1] = 0x00000000;
-    s->analog[ANALOG_VIDEO_PLL1_SSCG_CTRL] = 0x00000000;
-    s->analog[ANALOG_VIDEO_PLL1_MNIT_CTRL] = 0x00100103;
-    s->analog[ANALOG_DRAM_PLL_GEN_CTRL] = 0x00002010;
-    s->analog[ANALOG_DRAM_PLL_FDIV_CTL0] = 0x0012c032;
-    s->analog[ANALOG_DRAM_PLL_FDIV_CTL1] = 0x00000000;
-    s->analog[ANALOG_DRAM_PLL_SSCG_CTRL] = 0x00000000;
-    s->analog[ANALOG_DRAM_PLL_MNIT_CTRL] = 0x00100103;
-    s->analog[ANALOG_GPU_PLL_GEN_CTRL] = 0x00000810;
-    s->analog[ANALOG_GPU_PLL_FDIV_CTL0] = 0x000c8031;
-    s->analog[ANALOG_GPU_PLL_LOCKD_CTRL] = 0x0010003f;
-    s->analog[ANALOG_GPU_PLL_MNIT_CTRL] = 0x00280081;
-    s->analog[ANALOG_VPU_PLL_GEN_CTRL] = 0x00000810;
-    s->analog[ANALOG_VPU_PLL_FDIV_CTL0] = 0x0012c032;
-    s->analog[ANALOG_VPU_PLL_LOCKD_CTRL] = 0x0010003f;
-    s->analog[ANALOG_VPU_PLL_MNIT_CTRL] = 0x00280081;
-    s->analog[ANALOG_ARM_PLL_GEN_CTRL] = 0x00000810;
-    s->analog[ANALOG_ARM_PLL_FDIV_CTL0] = 0x000fa031;
-    s->analog[ANALOG_ARM_PLL_LOCKD_CTRL] = 0x0010003f;
-    s->analog[ANALOG_ARM_PLL_MNIT_CTRL] = 0x00280081;
-    s->analog[ANALOG_SYS_PLL1_GEN_CTRL] = 0x0aaaa810;
-    s->analog[ANALOG_SYS_PLL1_FDIV_CTL0] = 0x00190032;
-    s->analog[ANALOG_SYS_PLL1_LOCKD_CTRL] = 0x0010003f;
-    s->analog[ANALOG_SYS_PLL1_MNIT_CTRL] = 0x00280081;
-    s->analog[ANALOG_SYS_PLL2_GEN_CTRL] = 0x0aaaa810;
-    s->analog[ANALOG_SYS_PLL2_FDIV_CTL0] = 0x000fa031;
-    s->analog[ANALOG_SYS_PLL2_LOCKD_CTRL] = 0x0010003f;
-    s->analog[ANALOG_SYS_PLL2_MNIT_CTRL] = 0x00280081;
-    s->analog[ANALOG_SYS_PLL3_GEN_CTRL] = 0x00000810;
-    s->analog[ANALOG_SYS_PLL3_FDIV_CTL0] = 0x000fa031;
-    s->analog[ANALOG_SYS_PLL3_LOCKD_CTRL] = 0x0010003f;
-    s->analog[ANALOG_SYS_PLL3_MNIT_CTRL] = 0x00280081;
-    s->analog[ANALOG_OSC_MISC_CFG] = 0x00000000;
-    s->analog[ANALOG_ANAMIX_PLL_MNIT_CTL] = 0x00000000;
-    s->analog[ANALOG_DIGPROG] = 0x00824010;
+    analog[ANALOG_AUDIO_PLL1_GEN_CTRL] = 0x00002010;
+    analog[ANALOG_AUDIO_PLL1_FDIV_CTL0] = 0x00145032;
+    analog[ANALOG_AUDIO_PLL1_FDIV_CTL1] = 0x00000000;
+    analog[ANALOG_AUDIO_PLL1_SSCG_CTRL] = 0x00000000;
+    analog[ANALOG_AUDIO_PLL1_MNIT_CTRL] = 0x00100103;
+    analog[ANALOG_AUDIO_PLL2_GEN_CTRL] = 0x00002010;
+    analog[ANALOG_AUDIO_PLL2_FDIV_CTL0] = 0x00145032;
+    analog[ANALOG_AUDIO_PLL2_FDIV_CTL1] = 0x00000000;
+    analog[ANALOG_AUDIO_PLL2_SSCG_CTRL] = 0x00000000;
+    analog[ANALOG_AUDIO_PLL2_MNIT_CTRL] = 0x00100103;
+    analog[ANALOG_VIDEO_PLL1_GEN_CTRL] = 0x00002010;
+    analog[ANALOG_VIDEO_PLL1_FDIV_CTL0] = 0x00145032;
+    analog[ANALOG_VIDEO_PLL1_FDIV_CTL1] = 0x00000000;
+    analog[ANALOG_VIDEO_PLL1_SSCG_CTRL] = 0x00000000;
+    analog[ANALOG_VIDEO_PLL1_MNIT_CTRL] = 0x00100103;
+    analog[ANALOG_DRAM_PLL_GEN_CTRL] = 0x00002010;
+    analog[ANALOG_DRAM_PLL_FDIV_CTL0] = 0x0012c032;
+    analog[ANALOG_DRAM_PLL_FDIV_CTL1] = 0x00000000;
+    analog[ANALOG_DRAM_PLL_SSCG_CTRL] = 0x00000000;
+    analog[ANALOG_DRAM_PLL_MNIT_CTRL] = 0x00100103;
+    analog[ANALOG_GPU_PLL_GEN_CTRL] = 0x00000810;
+    analog[ANALOG_GPU_PLL_FDIV_CTL0] = 0x000c8031;
+    analog[ANALOG_GPU_PLL_LOCKD_CTRL] = 0x0010003f;
+    analog[ANALOG_GPU_PLL_MNIT_CTRL] = 0x00280081;
+    analog[ANALOG_VPU_PLL_GEN_CTRL] = 0x00000810;
+    analog[ANALOG_VPU_PLL_FDIV_CTL0] = 0x0012c032;
+    analog[ANALOG_VPU_PLL_LOCKD_CTRL] = 0x0010003f;
+    analog[ANALOG_VPU_PLL_MNIT_CTRL] = 0x00280081;
+    analog[ANALOG_ARM_PLL_GEN_CTRL] = 0x00000810;
+    analog[ANALOG_ARM_PLL_FDIV_CTL0] = 0x000fa031;
+    analog[ANALOG_ARM_PLL_LOCKD_CTRL] = 0x0010003f;
+    analog[ANALOG_ARM_PLL_MNIT_CTRL] = 0x00280081;
+    analog[ANALOG_SYS_PLL1_GEN_CTRL] = 0x0aaaa810;
+    analog[ANALOG_SYS_PLL1_FDIV_CTL0] = 0x00190032;
+    analog[ANALOG_SYS_PLL1_LOCKD_CTRL] = 0x0010003f;
+    analog[ANALOG_SYS_PLL1_MNIT_CTRL] = 0x00280081;
+    analog[ANALOG_SYS_PLL2_GEN_CTRL] = 0x0aaaa810;
+    analog[ANALOG_SYS_PLL2_FDIV_CTL0] = 0x000fa031;
+    analog[ANALOG_SYS_PLL2_LOCKD_CTRL] = 0x0010003f;
+    analog[ANALOG_SYS_PLL2_MNIT_CTRL] = 0x00280081;
+    analog[ANALOG_SYS_PLL3_GEN_CTRL] = 0x00000810;
+    analog[ANALOG_SYS_PLL3_FDIV_CTL0] = 0x000fa031;
+    analog[ANALOG_SYS_PLL3_LOCKD_CTRL] = 0x0010003f;
+    analog[ANALOG_SYS_PLL3_MNIT_CTRL] = 0x00280081;
+    analog[ANALOG_OSC_MISC_CFG] = 0x00000000;
+    analog[ANALOG_ANAMIX_PLL_MNIT_CTL] = 0x00000000;
+    analog[ANALOG_DIGPROG] = 0x00824010;
 
     /* all PLLs need to be locked */
-    s->analog[ANALOG_AUDIO_PLL1_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_AUDIO_PLL2_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_VIDEO_PLL1_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_DRAM_PLL_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_GPU_PLL_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_VPU_PLL_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_ARM_PLL_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_SYS_PLL1_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_SYS_PLL2_GEN_CTRL] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_SYS_PLL3_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_AUDIO_PLL1_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_AUDIO_PLL2_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_VIDEO_PLL1_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_DRAM_PLL_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_GPU_PLL_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_VPU_PLL_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_ARM_PLL_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_SYS_PLL1_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_SYS_PLL2_GEN_CTRL] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_SYS_PLL3_GEN_CTRL] |= ANALOG_PLL_LOCK;
 }
 
 static uint64_t imx8mp_analog_read(void *opaque, hwaddr offset, unsigned size)
@@ -118,18 +116,18 @@ static void __attribute__((constructor)) init_imx8mp_analog_ops(void)
     imx8mp_analog_ops.impl.unaligned = false;
 }
 
-static void imx8mp_analog_init(Object *obj)
+void IMX8MPAnalogState::init()
 {
-    IMX8MPAnalogState *s = IMX8MP_ANALOG(obj);
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
+    SysBusDevice *sd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init(&s->mmio.container, obj, TYPE_IMX8MP_ANALOG, 0x10000);
+    memory_region_init(&mmio.container, obj, TYPE_IMX8MP_ANALOG, 0x10000);
 
-    memory_region_init_io(&s->mmio.analog, obj, &imx8mp_analog_ops, s,
-                          TYPE_IMX8MP_ANALOG, sizeof(s->analog));
-    memory_region_add_subregion(&s->mmio.container, 0, &s->mmio.analog);
+    memory_region_init_io(&mmio.analog, obj, &imx8mp_analog_ops, this,
+                          TYPE_IMX8MP_ANALOG, sizeof(analog));
+    memory_region_add_subregion(&mmio.container, 0, &mmio.analog);
 
-    sysbus_init_mmio(sd, &s->mmio.container);
+    sysbus_init_mmio(sd, &mmio.container);
 }
 
 static const VMStateField vmstate_imx8mp_analog_fields[] = {
@@ -144,23 +142,11 @@ static const VMStateDescription imx8mp_analog_vmstate = {
     .fields = vmstate_imx8mp_analog_fields,
 };
 
-static void imx8mp_analog_class_init(ObjectClass *klass, const void *data)
+void IMX8MPAnalogState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, imx8mp_analog_reset);
     dc->vmsd  = &imx8mp_analog_vmstate;
     dc->desc  = "i.MX 8M Plus Analog Module";
 }
 
-static const TypeInfo imx8mp_analog_types[] = {
-    {
-        .name          = TYPE_IMX8MP_ANALOG,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(IMX8MPAnalogState),
-        .instance_init = imx8mp_analog_init,
-        .class_init    = imx8mp_analog_class_init,
-    }
-};
-
-DEFINE_TYPES(imx8mp_analog_types);
+REGISTER_QEMU_DEVICE(IMX8MPAnalogState, TYPE_IMX8MP_ANALOG,
+                     TYPE_SYS_BUS_DEVICE)
