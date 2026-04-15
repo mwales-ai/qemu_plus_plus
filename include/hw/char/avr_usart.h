@@ -87,6 +87,13 @@ struct AVRUsartState {
     qemu_irq txc_irq;
     /* Data Register Empty */
     qemu_irq dre_irq;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_CHAR_AVR_USART_H */

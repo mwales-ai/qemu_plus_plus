@@ -25,6 +25,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+#include "qom/cpp/object.h"
 
 static int avr_usart_can_receive(void *opaque)
 {
@@ -90,19 +91,18 @@ static void update_char_mask(AVRUsartState *usart)
     }
 }
 
-static void avr_usart_reset(DeviceState *dev)
+void AVRUsartState::reset()
 {
-    AVRUsartState *usart = AVR_USART(dev);
-    usart->data_valid = false;
-    usart->csra = 0b00100000;
-    usart->csrb = 0b00000000;
-    usart->csrc = 0b00000110;
-    usart->brrl = 0;
-    usart->brrh = 0;
-    update_char_mask(usart);
-    qemu_set_irq(usart->rxc_irq, 0);
-    qemu_set_irq(usart->txc_irq, 0);
-    qemu_set_irq(usart->dre_irq, 0);
+    data_valid = false;
+    csra = 0b00100000;
+    csrb = 0b00000000;
+    csrc = 0b00000110;
+    brrl = 0;
+    brrh = 0;
+    update_char_mask(this);
+    qemu_set_irq(rxc_irq, 0);
+    qemu_set_irq(txc_irq, 0);
+    qemu_set_irq(dre_irq, 0);
 }
 
 static uint64_t avr_usart_read(void *opaque, hwaddr addr, unsigned int size)
@@ -265,56 +265,39 @@ static const Property avr_usart_properties[] = {
 
 static void avr_usart_pr(void *opaque, int irq, int level)
 {
-    AVRUsartState *s = AVR_USART(opaque);
+    AVRUsartState *s = static_cast<AVRUsartState *>(opaque);
 
     s->enabled = !level;
 
     if (!s->enabled) {
-        avr_usart_reset(DEVICE(s));
+        s->reset();
     }
 }
 
-static void avr_usart_init(Object *obj)
+void AVRUsartState::init()
 {
-    AVRUsartState *s = AVR_USART(obj);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rxc_irq);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->dre_irq);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->txc_irq);
-    memory_region_init_io(&s->mmio, obj, &avr_usart_ops, s, TYPE_AVR_USART, 7);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
-    qdev_init_gpio_in(DEVICE(s), avr_usart_pr, 1);
-    s->enabled = true;
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    sysbus_init_irq(sbd, &rxc_irq);
+    sysbus_init_irq(sbd, &dre_irq);
+    sysbus_init_irq(sbd, &txc_irq);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &avr_usart_ops, this, TYPE_AVR_USART, 7);
+    sysbus_init_mmio(sbd, &mmio);
+    qdev_init_gpio_in(reinterpret_cast<DeviceState *>(this), avr_usart_pr, 1);
+    enabled = true;
 }
 
-static void avr_usart_realize(DeviceState *dev, Error **errp)
+void AVRUsartState::realize(Error **errp)
 {
-    AVRUsartState *s = AVR_USART(dev);
-    qemu_chr_fe_set_handlers(&s->chr, avr_usart_can_receive,
+    qemu_chr_fe_set_handlers(&chr, avr_usart_can_receive,
                              avr_usart_receive, NULL, NULL,
-                             s, NULL, true);
-    avr_usart_reset(dev);
+                             this, NULL, true);
+    reset();
 }
 
-static void avr_usart_class_init(ObjectClass *klass, const void *data)
+void AVRUsartState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, avr_usart_reset);
     device_class_set_props(dc, avr_usart_properties);
-    dc->realize = avr_usart_realize;
 }
 
-static const TypeInfo avr_usart_info = {
-    .name          = TYPE_AVR_USART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AVRUsartState),
-    .instance_init = avr_usart_init,
-    .class_init    = avr_usart_class_init,
-};
-
-static void avr_usart_register_types(void)
-{
-    type_register_static(&avr_usart_info);
-}
-
-type_init(avr_usart_register_types)
+REGISTER_QEMU_DEVICE(AVRUsartState, TYPE_AVR_USART, TYPE_SYS_BUS_DEVICE)
