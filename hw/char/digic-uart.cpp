@@ -36,6 +36,7 @@
 #include "hw/char/digic-uart.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
+#include "qom/cpp/object.h"
 
 enum {
     ST_RX_RDY = (1 << 0),
@@ -136,29 +137,23 @@ static void uart_event(void *opaque, QEMUChrEvent event)
 {
 }
 
-static void digic_uart_reset(DeviceState *d)
+void DigicUartState::reset()
 {
-    DigicUartState *s = DIGIC_UART(d);
-
-    s->reg_rx = 0;
-    s->reg_st = ST_TX_RDY;
+    reg_rx = 0;
+    reg_st = ST_TX_RDY;
 }
 
-static void digic_uart_realize(DeviceState *dev, Error **errp)
+void DigicUartState::realize(Error **errp)
 {
-    DigicUartState *s = DIGIC_UART(dev);
-
-    qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
-                             uart_event, NULL, s, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, uart_can_rx, uart_rx,
+                             uart_event, NULL, this, NULL, true);
 }
 
-static void digic_uart_init(Object *obj)
+void DigicUartState::init()
 {
-    DigicUartState *s = DIGIC_UART(obj);
-
-    memory_region_init_io(&s->regs_region, OBJECT(s), &uart_mmio_ops, s,
-                          TYPE_DIGIC_UART, 0x18);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->regs_region);
+    memory_region_init_io(&regs_region, reinterpret_cast<Object *>(this),
+                          &uart_mmio_ops, this, TYPE_DIGIC_UART, 0x18);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &regs_region);
 }
 
 static const VMStateField vmstate_digic_uart_fields[] = {
@@ -178,27 +173,10 @@ static const Property digic_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", DigicUartState, chr),
 };
 
-static void digic_uart_class_init(ObjectClass *klass, const void *data)
+void DigicUartState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = digic_uart_realize;
-    device_class_set_legacy_reset(dc, digic_uart_reset);
     dc->vmsd = &vmstate_digic_uart;
     device_class_set_props(dc, digic_uart_properties);
 }
 
-static const TypeInfo digic_uart_info = {
-    .name = TYPE_DIGIC_UART,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(DigicUartState),
-    .instance_init = digic_uart_init,
-    .class_init = digic_uart_class_init,
-};
-
-static void digic_uart_register_types(void)
-{
-    type_register_static(&digic_uart_info);
-}
-
-type_init(digic_uart_register_types)
+REGISTER_QEMU_DEVICE(DigicUartState, TYPE_DIGIC_UART, TYPE_SYS_BUS_DEVICE)

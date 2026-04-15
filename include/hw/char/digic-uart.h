@@ -42,6 +42,13 @@ struct DigicUartState {
 
     uint32_t reg_rx;
     uint32_t reg_st;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_CHAR_DIGIC_UART_H */
