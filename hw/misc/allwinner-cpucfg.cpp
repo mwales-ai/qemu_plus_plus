@@ -29,6 +29,7 @@
 #include "target/arm/arm-powerctl.h"
 #include "target/arm/cpu.h"
 #include "hw/misc/allwinner-cpucfg.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 /* CPUCFG register offsets */
@@ -225,25 +226,19 @@ static const MemoryRegionOps allwinner_cpucfg_ops = {
     .impl = { .min_access_size = 4, },
 };
 
-static void allwinner_cpucfg_reset(DeviceState *dev)
+void AwCpuCfgState::reset()
 {
-    AwCpuCfgState *s = AW_CPUCFG(dev);
-
-    /* Set default values for registers */
-    s->gen_ctrl = REG_GEN_CTRL_RST;
-    s->super_standby = REG_SUPER_STANDBY_RST;
-    s->entry_addr = 0;
+    gen_ctrl = REG_GEN_CTRL_RST;
+    super_standby = REG_SUPER_STANDBY_RST;
+    entry_addr = 0;
 }
 
-static void allwinner_cpucfg_init(Object *obj)
+void AwCpuCfgState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwCpuCfgState *s = AW_CPUCFG(obj);
-
-    /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_cpucfg_ops, s,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &allwinner_cpucfg_ops, this,
                           TYPE_AW_CPUCFG, 1 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateDescription allwinner_cpucfg_vmstate = {
@@ -258,25 +253,9 @@ static const VMStateDescription allwinner_cpucfg_vmstate = {
     }
 };
 
-static void allwinner_cpucfg_class_init(ObjectClass *klass, const void *data)
+void AwCpuCfgState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, allwinner_cpucfg_reset);
     dc->vmsd = &allwinner_cpucfg_vmstate;
 }
 
-static const TypeInfo allwinner_cpucfg_info = {
-    .name          = TYPE_AW_CPUCFG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwCpuCfgState),
-    .instance_init = allwinner_cpucfg_init,
-    .class_init    = allwinner_cpucfg_class_init,
-};
-
-static void allwinner_cpucfg_register(void)
-{
-    type_register_static(&allwinner_cpucfg_info);
-}
-
-type_init(allwinner_cpucfg_register)
+REGISTER_QEMU_DEVICE(AwCpuCfgState, TYPE_AW_CPUCFG, TYPE_SYS_BUS_DEVICE)

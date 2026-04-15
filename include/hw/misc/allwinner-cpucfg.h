@@ -46,6 +46,11 @@ struct AwCpuCfgState {
     uint32_t super_standby;
     uint32_t entry_addr;
 
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MISC_ALLWINNER_CPUCFG_H */
