@@ -18,6 +18,7 @@
 #include "hw/timer/bcm2835_systmr.h"
 #include "hw/registerfields.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 REG32(CTRL_STATUS,  0x00)
@@ -118,27 +119,26 @@ static const MemoryRegionOps bcm2835_systmr_ops = {
     },
 };
 
-static void bcm2835_systmr_reset(DeviceState *dev)
+void BCM2835SystemTimerState::reset()
 {
-    BCM2835SystemTimerState *s = BCM2835_SYSTIMER(dev);
-
-    memset(&s->reg, 0, sizeof(s->reg));
+    memset(&reg, 0, sizeof(reg));
 }
 
-static void bcm2835_systmr_realize(DeviceState *dev, Error **errp)
+void BCM2835SystemTimerState::realize(Error **errp)
 {
-    BCM2835SystemTimerState *s = BCM2835_SYSTIMER(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &bcm2835_systmr_ops,
-                          s, "bcm2835-sys-timer", 0x20);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &bcm2835_systmr_ops, this,
+                          "bcm2835-sys-timer", 0x20);
+    sysbus_init_mmio(sbd, &iomem);
 
-    for (size_t i = 0; i < ARRAY_SIZE(s->tmr); i++) {
-        s->tmr[i].id = i;
-        s->tmr[i].state = s;
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->tmr[i].irq);
-        timer_init_us(&s->tmr[i].timer, QEMU_CLOCK_VIRTUAL,
-                      bcm2835_systmr_timer_expire, &s->tmr[i]);
+    for (size_t i = 0; i < ARRAY_SIZE(tmr); i++) {
+        tmr[i].id = i;
+        tmr[i].state = this;
+        sysbus_init_irq(sbd, &tmr[i].irq);
+        timer_init_us(&tmr[i].timer, QEMU_CLOCK_VIRTUAL,
+                      bcm2835_systmr_timer_expire, &tmr[i]);
     }
 }
 
@@ -154,25 +154,10 @@ static const VMStateDescription bcm2835_systmr_vmstate = {
     }
 };
 
-static void bcm2835_systmr_class_init(ObjectClass *klass, const void *data)
+void BCM2835SystemTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = bcm2835_systmr_realize;
-    device_class_set_legacy_reset(dc, bcm2835_systmr_reset);
     dc->vmsd = &bcm2835_systmr_vmstate;
 }
 
-static const TypeInfo bcm2835_systmr_info = {
-    .name = TYPE_BCM2835_SYSTIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835SystemTimerState),
-    .class_init = bcm2835_systmr_class_init,
-};
-
-static void bcm2835_systmr_register_types(void)
-{
-    type_register_static(&bcm2835_systmr_info);
-}
-
-type_init(bcm2835_systmr_register_types);
+REGISTER_QEMU_DEVICE(BCM2835SystemTimerState, TYPE_BCM2835_SYSTIMER,
+                     TYPE_SYS_BUS_DEVICE)

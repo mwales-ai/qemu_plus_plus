@@ -37,6 +37,12 @@ struct BCM2835SystemTimerState {
         uint32_t compare[BCM2835_SYSTIMER_COUNT];
     } reg;
     BCM2835SystemTimerCompare tmr[BCM2835_SYSTIMER_COUNT];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
