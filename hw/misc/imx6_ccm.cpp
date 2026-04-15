@@ -15,6 +15,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 static const char *imx6_ccm_reg_name(uint32_t reg)
@@ -378,89 +379,87 @@ static uint32_t imx6_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     return freq;
 }
 
-static void imx6_ccm_reset(DeviceState *dev)
+void IMX6CCMState::reset()
 {
-    IMX6CCMState *s = IMX6_CCM(dev);
-
     trace_imx6_ccm_reset();
 
-    s->ccm[CCM_CCR] = 0x040116FF;
-    s->ccm[CCM_CCDR] = 0x00000000;
-    s->ccm[CCM_CSR] = 0x00000010;
-    s->ccm[CCM_CCSR] = 0x00000100;
-    s->ccm[CCM_CACRR] = 0x00000000;
-    s->ccm[CCM_CBCDR] = 0x00018D40;
-    s->ccm[CCM_CBCMR] = 0x00022324;
-    s->ccm[CCM_CSCMR1] = 0x00F00000;
-    s->ccm[CCM_CSCMR2] = 0x02B92F06;
-    s->ccm[CCM_CSCDR1] = 0x00490B00;
-    s->ccm[CCM_CS1CDR] = 0x0EC102C1;
-    s->ccm[CCM_CS2CDR] = 0x000736C1;
-    s->ccm[CCM_CDCDR] = 0x33F71F92;
-    s->ccm[CCM_CHSCCDR] = 0x0002A150;
-    s->ccm[CCM_CSCDR2] = 0x0002A150;
-    s->ccm[CCM_CSCDR3] = 0x00014841;
-    s->ccm[CCM_CDHIPR] = 0x00000000;
-    s->ccm[CCM_CTOR] = 0x00000000;
-    s->ccm[CCM_CLPCR] = 0x00000079;
-    s->ccm[CCM_CISR] = 0x00000000;
-    s->ccm[CCM_CIMR] = 0xFFFFFFFF;
-    s->ccm[CCM_CCOSR] = 0x000A0001;
-    s->ccm[CCM_CGPR] = 0x0000FE62;
-    s->ccm[CCM_CCGR0] = 0xFFFFFFFF;
-    s->ccm[CCM_CCGR1] = 0xFFFFFFFF;
-    s->ccm[CCM_CCGR2] = 0xFC3FFFFF;
-    s->ccm[CCM_CCGR3] = 0xFFFFFFFF;
-    s->ccm[CCM_CCGR4] = 0xFFFFFFFF;
-    s->ccm[CCM_CCGR5] = 0xFFFFFFFF;
-    s->ccm[CCM_CCGR6] = 0xFFFFFFFF;
-    s->ccm[CCM_CMEOR] = 0xFFFFFFFF;
+    ccm[CCM_CCR] = 0x040116FF;
+    ccm[CCM_CCDR] = 0x00000000;
+    ccm[CCM_CSR] = 0x00000010;
+    ccm[CCM_CCSR] = 0x00000100;
+    ccm[CCM_CACRR] = 0x00000000;
+    ccm[CCM_CBCDR] = 0x00018D40;
+    ccm[CCM_CBCMR] = 0x00022324;
+    ccm[CCM_CSCMR1] = 0x00F00000;
+    ccm[CCM_CSCMR2] = 0x02B92F06;
+    ccm[CCM_CSCDR1] = 0x00490B00;
+    ccm[CCM_CS1CDR] = 0x0EC102C1;
+    ccm[CCM_CS2CDR] = 0x000736C1;
+    ccm[CCM_CDCDR] = 0x33F71F92;
+    ccm[CCM_CHSCCDR] = 0x0002A150;
+    ccm[CCM_CSCDR2] = 0x0002A150;
+    ccm[CCM_CSCDR3] = 0x00014841;
+    ccm[CCM_CDHIPR] = 0x00000000;
+    ccm[CCM_CTOR] = 0x00000000;
+    ccm[CCM_CLPCR] = 0x00000079;
+    ccm[CCM_CISR] = 0x00000000;
+    ccm[CCM_CIMR] = 0xFFFFFFFF;
+    ccm[CCM_CCOSR] = 0x000A0001;
+    ccm[CCM_CGPR] = 0x0000FE62;
+    ccm[CCM_CCGR0] = 0xFFFFFFFF;
+    ccm[CCM_CCGR1] = 0xFFFFFFFF;
+    ccm[CCM_CCGR2] = 0xFC3FFFFF;
+    ccm[CCM_CCGR3] = 0xFFFFFFFF;
+    ccm[CCM_CCGR4] = 0xFFFFFFFF;
+    ccm[CCM_CCGR5] = 0xFFFFFFFF;
+    ccm[CCM_CCGR6] = 0xFFFFFFFF;
+    ccm[CCM_CMEOR] = 0xFFFFFFFF;
 
-    s->analog[CCM_ANALOG_PLL_ARM] = 0x00013042;
-    s->analog[CCM_ANALOG_PLL_USB1] = 0x00012000;
-    s->analog[CCM_ANALOG_PLL_USB2] = 0x00012000;
-    s->analog[CCM_ANALOG_PLL_SYS] = 0x00013001;
-    s->analog[CCM_ANALOG_PLL_SYS_SS] = 0x00000000;
-    s->analog[CCM_ANALOG_PLL_SYS_NUM] = 0x00000000;
-    s->analog[CCM_ANALOG_PLL_SYS_DENOM] = 0x00000012;
-    s->analog[CCM_ANALOG_PLL_AUDIO] = 0x00011006;
-    s->analog[CCM_ANALOG_PLL_AUDIO_NUM] = 0x05F5E100;
-    s->analog[CCM_ANALOG_PLL_AUDIO_DENOM] = 0x2964619C;
-    s->analog[CCM_ANALOG_PLL_VIDEO] = 0x0001100C;
-    s->analog[CCM_ANALOG_PLL_VIDEO_NUM] = 0x05F5E100;
-    s->analog[CCM_ANALOG_PLL_VIDEO_DENOM] = 0x10A24447;
-    s->analog[CCM_ANALOG_PLL_MLB] = 0x00010000;
-    s->analog[CCM_ANALOG_PLL_ENET] = 0x00011001;
-    s->analog[CCM_ANALOG_PFD_480] = 0x1311100C;
-    s->analog[CCM_ANALOG_PFD_528] = 0x1018101B;
+    analog[CCM_ANALOG_PLL_ARM] = 0x00013042;
+    analog[CCM_ANALOG_PLL_USB1] = 0x00012000;
+    analog[CCM_ANALOG_PLL_USB2] = 0x00012000;
+    analog[CCM_ANALOG_PLL_SYS] = 0x00013001;
+    analog[CCM_ANALOG_PLL_SYS_SS] = 0x00000000;
+    analog[CCM_ANALOG_PLL_SYS_NUM] = 0x00000000;
+    analog[CCM_ANALOG_PLL_SYS_DENOM] = 0x00000012;
+    analog[CCM_ANALOG_PLL_AUDIO] = 0x00011006;
+    analog[CCM_ANALOG_PLL_AUDIO_NUM] = 0x05F5E100;
+    analog[CCM_ANALOG_PLL_AUDIO_DENOM] = 0x2964619C;
+    analog[CCM_ANALOG_PLL_VIDEO] = 0x0001100C;
+    analog[CCM_ANALOG_PLL_VIDEO_NUM] = 0x05F5E100;
+    analog[CCM_ANALOG_PLL_VIDEO_DENOM] = 0x10A24447;
+    analog[CCM_ANALOG_PLL_MLB] = 0x00010000;
+    analog[CCM_ANALOG_PLL_ENET] = 0x00011001;
+    analog[CCM_ANALOG_PFD_480] = 0x1311100C;
+    analog[CCM_ANALOG_PFD_528] = 0x1018101B;
 
-    s->analog[PMU_REG_1P1] = 0x00001073;
-    s->analog[PMU_REG_3P0] = 0x00000F74;
-    s->analog[PMU_REG_2P5] = 0x00005071;
-    s->analog[PMU_REG_CORE] = 0x00402010;
-    s->analog[PMU_MISC0] = 0x04000080;
-    s->analog[PMU_MISC1] = 0x00000000;
-    s->analog[PMU_MISC2] = 0x00272727;
+    analog[PMU_REG_1P1] = 0x00001073;
+    analog[PMU_REG_3P0] = 0x00000F74;
+    analog[PMU_REG_2P5] = 0x00005071;
+    analog[PMU_REG_CORE] = 0x00402010;
+    analog[PMU_MISC0] = 0x04000080;
+    analog[PMU_MISC1] = 0x00000000;
+    analog[PMU_MISC2] = 0x00272727;
 
-    s->analog[USB_ANALOG_USB1_VBUS_DETECT] = 0x00000004;
-    s->analog[USB_ANALOG_USB1_CHRG_DETECT] = 0x00000000;
-    s->analog[USB_ANALOG_USB1_VBUS_DETECT_STAT] = 0x00000000;
-    s->analog[USB_ANALOG_USB1_CHRG_DETECT_STAT] = 0x00000000;
-    s->analog[USB_ANALOG_USB1_MISC] = 0x00000002;
-    s->analog[USB_ANALOG_USB2_VBUS_DETECT] = 0x00000004;
-    s->analog[USB_ANALOG_USB2_CHRG_DETECT] = 0x00000000;
-    s->analog[USB_ANALOG_USB2_MISC] = 0x00000002;
-    s->analog[USB_ANALOG_DIGPROG] = 0x00630000;
+    analog[USB_ANALOG_USB1_VBUS_DETECT] = 0x00000004;
+    analog[USB_ANALOG_USB1_CHRG_DETECT] = 0x00000000;
+    analog[USB_ANALOG_USB1_VBUS_DETECT_STAT] = 0x00000000;
+    analog[USB_ANALOG_USB1_CHRG_DETECT_STAT] = 0x00000000;
+    analog[USB_ANALOG_USB1_MISC] = 0x00000002;
+    analog[USB_ANALOG_USB2_VBUS_DETECT] = 0x00000004;
+    analog[USB_ANALOG_USB2_CHRG_DETECT] = 0x00000000;
+    analog[USB_ANALOG_USB2_MISC] = 0x00000002;
+    analog[USB_ANALOG_DIGPROG] = 0x00630000;
 
     /* all PLLs need to be locked */
-    s->analog[CCM_ANALOG_PLL_ARM]   |= CCM_ANALOG_PLL_LOCK;
-    s->analog[CCM_ANALOG_PLL_USB1]  |= CCM_ANALOG_PLL_LOCK;
-    s->analog[CCM_ANALOG_PLL_USB2]  |= CCM_ANALOG_PLL_LOCK;
-    s->analog[CCM_ANALOG_PLL_SYS]   |= CCM_ANALOG_PLL_LOCK;
-    s->analog[CCM_ANALOG_PLL_AUDIO] |= CCM_ANALOG_PLL_LOCK;
-    s->analog[CCM_ANALOG_PLL_VIDEO] |= CCM_ANALOG_PLL_LOCK;
-    s->analog[CCM_ANALOG_PLL_MLB]   |= CCM_ANALOG_PLL_LOCK;
-    s->analog[CCM_ANALOG_PLL_ENET]  |= CCM_ANALOG_PLL_LOCK;
+    analog[CCM_ANALOG_PLL_ARM]   |= CCM_ANALOG_PLL_LOCK;
+    analog[CCM_ANALOG_PLL_USB1]  |= CCM_ANALOG_PLL_LOCK;
+    analog[CCM_ANALOG_PLL_USB2]  |= CCM_ANALOG_PLL_LOCK;
+    analog[CCM_ANALOG_PLL_SYS]   |= CCM_ANALOG_PLL_LOCK;
+    analog[CCM_ANALOG_PLL_AUDIO] |= CCM_ANALOG_PLL_LOCK;
+    analog[CCM_ANALOG_PLL_VIDEO] |= CCM_ANALOG_PLL_LOCK;
+    analog[CCM_ANALOG_PLL_MLB]   |= CCM_ANALOG_PLL_LOCK;
+    analog[CCM_ANALOG_PLL_ENET]  |= CCM_ANALOG_PLL_LOCK;
 }
 
 static uint64_t imx6_ccm_read(void *opaque, hwaddr offset, unsigned size)
@@ -714,56 +713,32 @@ static const struct MemoryRegionOps imx6_analog_ops = {
     },
 };
 
-static void imx6_ccm_init(Object *obj)
+void IMX6CCMState::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMX6CCMState *s = IMX6_CCM(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
 
-    /* initialize a container for the all memory range */
-    memory_region_init(&s->container, OBJECT(dev), TYPE_IMX6_CCM, 0x5000);
+    memory_region_init(&container, obj, TYPE_IMX6_CCM, 0x5000);
 
-    /* We initialize an IO memory region for the CCM part */
-    memory_region_init_io(&s->ioccm, OBJECT(dev), &imx6_ccm_ops, s,
+    memory_region_init_io(&ioccm, obj, &imx6_ccm_ops, this,
                           TYPE_IMX6_CCM ".ccm", CCM_MAX * sizeof(uint32_t));
+    memory_region_add_subregion(&container, 0, &ioccm);
 
-    /* Add the CCM as a subregion at offset 0 */
-    memory_region_add_subregion(&s->container, 0, &s->ioccm);
-
-    /* We initialize an IO memory region for the ANALOG part */
-    memory_region_init_io(&s->ioanalog, OBJECT(dev), &imx6_analog_ops, s,
+    memory_region_init_io(&ioanalog, obj, &imx6_analog_ops, this,
                           TYPE_IMX6_CCM ".analog",
                           CCM_ANALOG_MAX * sizeof(uint32_t));
+    memory_region_add_subregion(&container, 0x4000, &ioanalog);
 
-    /* Add the ANALOG as a subregion at offset 0x4000 */
-    memory_region_add_subregion(&s->container, 0x4000, &s->ioanalog);
-
-    sysbus_init_mmio(sd, &s->container);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &container);
 }
 
-static void imx6_ccm_class_init(ObjectClass *klass, const void *data)
+void IMX6CCMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
+    IMXCCMClass *ccm_class = reinterpret_cast<IMXCCMClass *>(dc);
 
-    device_class_set_legacy_reset(dc, imx6_ccm_reset);
     dc->vmsd = &vmstate_imx6_ccm;
     dc->desc = "i.MX6 Clock Control Module";
 
-    ccm->get_clock_frequency = imx6_ccm_get_clock_frequency;
+    ccm_class->get_clock_frequency = imx6_ccm_get_clock_frequency;
 }
 
-static const TypeInfo imx6_ccm_info = {
-    .name          = TYPE_IMX6_CCM,
-    .parent        = TYPE_IMX_CCM,
-    .instance_size = sizeof(IMX6CCMState),
-    .instance_init = imx6_ccm_init,
-    .class_init    = imx6_ccm_class_init,
-};
-
-static void imx6_ccm_register_types(void)
-{
-    type_register_static(&imx6_ccm_info);
-}
-
-type_init(imx6_ccm_register_types)
+REGISTER_QEMU_DEVICE(IMX6CCMState, TYPE_IMX6_CCM, TYPE_IMX_CCM)

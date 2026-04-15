@@ -193,6 +193,11 @@ struct IMX6CCMState {
     uint32_t ccm[CCM_MAX];
     uint32_t analog[CCM_ANALOG_MAX];
 
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX6_CCM_H */
