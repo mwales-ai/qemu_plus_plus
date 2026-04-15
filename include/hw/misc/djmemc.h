@@ -22,6 +22,11 @@ struct DJMEMCState {
 
     /* Memory controller */
     uint32_t regs[DJMEMC_NUM_REGS];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_DJMEMC "djMEMC"

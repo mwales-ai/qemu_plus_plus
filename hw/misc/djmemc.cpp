@@ -12,6 +12,7 @@
 #include "migration/vmstate.h"
 #include "hw/misc/djmemc.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 
@@ -33,7 +34,7 @@
 
 static uint64_t djmemc_read(void *opaque, hwaddr addr, unsigned size)
 {
-    DJMEMCState *s = opaque;
+    DJMEMCState *s = static_cast<DJMEMCState *>(opaque);
     uint64_t val = 0;
 
     switch (addr) {
@@ -57,7 +58,7 @@ static uint64_t djmemc_read(void *opaque, hwaddr addr, unsigned size)
 static void djmemc_write(void *opaque, hwaddr addr, uint64_t val,
                          unsigned size)
 {
-    DJMEMCState *s = opaque;
+    DJMEMCState *s = static_cast<DJMEMCState *>(opaque);
 
     trace_djmemc_write(addr, val, size);
 
@@ -86,14 +87,11 @@ static const MemoryRegionOps djmemc_mmio_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void djmemc_init(Object *obj)
+void DJMEMCState::init()
 {
-    DJMEMCState *s = DJMEMC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->mem_regs, obj, &djmemc_mmio_ops, s, "djMEMC",
-                          DJMEMC_SIZE);
-    sysbus_init_mmio(sbd, &s->mem_regs);
+    memory_region_init_io(&mem_regs, reinterpret_cast<Object *>(this),
+                          &djmemc_mmio_ops, this, "djMEMC", DJMEMC_SIZE);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mem_regs);
 }
 
 static void djmemc_reset_hold(Object *obj, ResetType type)
@@ -113,23 +111,12 @@ static const VMStateDescription vmstate_djmemc = {
     }
 };
 
-static void djmemc_class_init(ObjectClass *oc, const void *data)
+void DJMEMCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    ResettableClass *rc = RESETTABLE_CLASS(oc);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(dc);
 
     dc->vmsd = &vmstate_djmemc;
     rc->phases.hold = djmemc_reset_hold;
 }
 
-static const TypeInfo djmemc_info_types[] = {
-    {
-        .name          = TYPE_DJMEMC,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(DJMEMCState),
-        .instance_init = djmemc_init,
-        .class_init    = djmemc_class_init,
-    },
-};
-
-DEFINE_TYPES(djmemc_info_types)
+REGISTER_QEMU_DEVICE(DJMEMCState, TYPE_DJMEMC, TYPE_SYS_BUS_DEVICE)
