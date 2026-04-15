@@ -30,6 +30,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_GPIOKEY "gpio-key"
 OBJECT_DECLARE_SIMPLE_TYPE(GPIOKEYState, GPIOKEY)
@@ -41,10 +42,21 @@ struct GPIOKEYState {
     QEMUTimer *timer;
     qemu_irq irq;
 
-    void deviceReset()
+    void reset()
     {
         timer_del(timer);
     }
+
+    void realize(Error **errp)
+    {
+        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+
+        sysbus_init_irq(sbd, &irq);
+        qdev_init_gpio_in(reinterpret_cast<DeviceState *>(this), setIrq, 1);
+        timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, timerExpired, this);
+    }
+
+    static void classInit(DeviceClass *dc);
 
     static void timerExpired(void *opaque)
     {
@@ -62,38 +74,6 @@ struct GPIOKEYState {
         timer_mod(s->timer,
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + GPIO_KEY_LATENCY);
     }
-
-    void realize(Error **errp)
-    {
-        SysBusDevice *sbd = SYS_BUS_DEVICE(reinterpret_cast<DeviceState *>(this));
-
-        sysbus_init_irq(sbd, &irq);
-        qdev_init_gpio_in(reinterpret_cast<DeviceState *>(this), setIrq, 1);
-        timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, timerExpired, this);
-    }
-
-    static void deviceReset_static(DeviceState *dev)
-    {
-        GPIOKEYState *s = GPIOKEY(dev);
-        s->deviceReset();
-    }
-
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        GPIOKEYState *s = GPIOKEY(dev);
-        s->realize(errp);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-        dc->realize = deviceRealize;
-        dc->vmsd = &vmstate_gpio_key;
-        device_class_set_legacy_reset(dc, deviceReset_static);
-    }
-
-    static const VMStateDescription vmstate_gpio_key;
 };
 
 static const VMStateField vmstate_gpio_key_fields[] = {
@@ -101,23 +81,16 @@ static const VMStateField vmstate_gpio_key_fields[] = {
     VMSTATE_END_OF_LIST()
 };
 
-const VMStateDescription GPIOKEYState::vmstate_gpio_key = {
+static const VMStateDescription vmstate_gpio_key = {
     .name = "gpio-key",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = vmstate_gpio_key_fields,
 };
 
-static const TypeInfo gpio_key_info = {
-    .name          = TYPE_GPIOKEY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GPIOKEYState),
-    .class_init    = GPIOKEYState::classInit,
-};
-
-static void gpio_key_register_types(void)
+void GPIOKEYState::classInit(DeviceClass *dc)
 {
-    type_register_static(&gpio_key_info);
+    dc->vmsd = &vmstate_gpio_key;
 }
 
-type_init(gpio_key_register_types)
+REGISTER_QEMU_DEVICE(GPIOKEYState, TYPE_GPIOKEY, TYPE_SYS_BUS_DEVICE)
