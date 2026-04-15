@@ -19,6 +19,13 @@ struct VirtCtrlState {
     qemu_irq irq;
 
     uint32_t irq_enabled;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

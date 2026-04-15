@@ -12,6 +12,7 @@
 #include "trace.h"
 #include "system/runstate.h"
 #include "hw/misc/virt_ctrl.h"
+#include "qom/cpp/object.h"
 
 enum {
     REG_FEATURES = 0x00,
@@ -29,7 +30,7 @@ enum {
 
 static uint64_t virt_ctrl_read(void *opaque, hwaddr addr, unsigned size)
 {
-    VirtCtrlState *s = opaque;
+    VirtCtrlState *s = static_cast<VirtCtrlState *>(opaque);
     uint64_t value = 0;
 
     switch (addr) {
@@ -51,7 +52,7 @@ static uint64_t virt_ctrl_read(void *opaque, hwaddr addr, unsigned size)
 static void virt_ctrl_write(void *opaque, hwaddr addr, uint64_t value,
                             unsigned size)
 {
-    VirtCtrlState *s = opaque;
+    VirtCtrlState *s = static_cast<VirtCtrlState *>(opaque);
 
     trace_virt_ctrl_write(s, addr, size, value);
 
@@ -87,21 +88,17 @@ static const MemoryRegionOps virt_ctrl_ops = {
     .impl = { .max_access_size = 4, },
 };
 
-static void virt_ctrl_reset(DeviceState *dev)
+void VirtCtrlState::reset()
 {
-    VirtCtrlState *s = VIRT_CTRL(dev);
-
-    trace_virt_ctrl_reset(s);
+    trace_virt_ctrl_reset(this);
 }
 
-static void virt_ctrl_realize(DeviceState *dev, Error **errp)
+void VirtCtrlState::realize(Error **errp)
 {
-    VirtCtrlState *s = VIRT_CTRL(dev);
+    trace_virt_ctrl_instance_init(this);
 
-    trace_virt_ctrl_instance_init(s);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &virt_ctrl_ops, s,
-                          "virt-ctrl", 0x100);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &virt_ctrl_ops, this, "virt-ctrl", 0x100);
 }
 
 static const VMStateDescription vmstate_virt_ctrl = {
@@ -114,37 +111,19 @@ static const VMStateDescription vmstate_virt_ctrl = {
     }
 };
 
-static void virt_ctrl_instance_init(Object *obj)
+void VirtCtrlState::init()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    VirtCtrlState *s = VIRT_CTRL(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
-    trace_virt_ctrl_instance_init(s);
+    trace_virt_ctrl_instance_init(this);
 
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(dev, &iomem);
+    sysbus_init_irq(dev, &irq);
 }
 
-static void virt_ctrl_class_init(ObjectClass *oc, const void *data)
+void VirtCtrlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    device_class_set_legacy_reset(dc, virt_ctrl_reset);
-    dc->realize = virt_ctrl_realize;
     dc->vmsd = &vmstate_virt_ctrl;
 }
 
-static const TypeInfo virt_ctrl_info = {
-    .name = TYPE_VIRT_CTRL,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .class_init = virt_ctrl_class_init,
-    .instance_init = virt_ctrl_instance_init,
-    .instance_size = sizeof(VirtCtrlState),
-};
-
-static void virt_ctrl_register_types(void)
-{
-    type_register_static(&virt_ctrl_info);
-}
-
-type_init(virt_ctrl_register_types)
+REGISTER_QEMU_DEVICE(VirtCtrlState, TYPE_VIRT_CTRL, TYPE_SYS_BUS_DEVICE)
