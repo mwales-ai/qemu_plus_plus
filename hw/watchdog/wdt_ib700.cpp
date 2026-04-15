@@ -26,6 +26,7 @@
 #include "hw/isa/isa.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 /*#define IB700_DEBUG 1*/
 
@@ -47,6 +48,10 @@ struct IB700state {
     QEMUTimer *timer;
 
     PortioList port_list;
+
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
 };
 
 /* This is the timer.  We use a global here because the watchdog
@@ -109,48 +114,29 @@ static const MemoryRegionPortio wdt_portio_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
-static void wdt_ib700_realize(DeviceState *dev, Error **errp)
+void IB700state::realize(Error **errp)
 {
-    IB700State *s = IB700(dev);
-
     ib700_debug("watchdog init\n");
 
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ib700_timer_expired, s);
+    timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, ib700_timer_expired, this);
 
-    portio_list_init(&s->port_list, OBJECT(s), wdt_portio_list, s, "ib700");
-    portio_list_add(&s->port_list, isa_address_space_io(&s->parent_obj), 0);
+    portio_list_init(&port_list, reinterpret_cast<Object *>(this),
+                     wdt_portio_list, this, "ib700");
+    portio_list_add(&port_list, isa_address_space_io(&parent_obj), 0);
 }
 
-static void wdt_ib700_reset(DeviceState *dev)
+void IB700state::reset()
 {
-    IB700State *s = IB700(dev);
-
     ib700_debug("watchdog reset\n");
 
-    timer_del(s->timer);
+    timer_del(timer);
 }
 
-static void wdt_ib700_class_init(ObjectClass *klass, const void *data)
+void IB700state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = wdt_ib700_realize;
-    device_class_set_legacy_reset(dc, wdt_ib700_reset);
     dc->vmsd = &vmstate_ib700;
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->desc = "iBASE 700";
 }
 
-static const TypeInfo wdt_ib700_info = {
-    .name          = TYPE_IB700,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(IB700State),
-    .class_init    = wdt_ib700_class_init,
-};
-
-static void wdt_ib700_register_types(void)
-{
-    type_register_static(&wdt_ib700_info);
-}
-
-type_init(wdt_ib700_register_types)
+REGISTER_QEMU_DEVICE(IB700state, TYPE_IB700, TYPE_ISA_DEVICE)
