@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 #include "target/arm/arm-powerctl.h"
 #include "hw/core/cpu.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 static const char *imx6_src_reg_name(uint32_t reg)
@@ -72,18 +73,16 @@ static const VMStateDescription vmstate_imx6_src = {
     },
 };
 
-static void imx6_src_reset(DeviceState *dev)
+void IMX6SRCState::reset()
 {
-    IMX6SRCState *s = IMX6_SRC(dev);
-
     trace_imx6_src_reset();
 
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(regs, 0, sizeof(regs));
 
     /* Set reset values */
-    s->regs[SRC_SCR] = 0x521;
-    s->regs[SRC_SRSR] = 0x1;
-    s->regs[SRC_SIMR] = 0x1F;
+    regs[SRC_SCR] = 0x521;
+    regs[SRC_SRSR] = 0x1;
+    regs[SRC_SIMR] = 0x1F;
 }
 
 static uint64_t imx6_src_read(void *opaque, hwaddr offset, unsigned size)
@@ -264,35 +263,17 @@ static const struct MemoryRegionOps imx6_src_ops = {
     },
 };
 
-static void imx6_src_realize(DeviceState *dev, Error **errp)
+void IMX6SRCState::realize(Error **errp)
 {
-    IMX6SRCState *s = IMX6_SRC(dev);
-
-    memory_region_init_io(&s->iomem, OBJECT(dev), &imx6_src_ops, s,
-                          TYPE_IMX6_SRC, 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &imx6_src_ops, this, TYPE_IMX6_SRC, 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void imx6_src_class_init(ObjectClass *klass, const void *data)
+void IMX6SRCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = imx6_src_realize;
-    device_class_set_legacy_reset(dc, imx6_src_reset);
     dc->vmsd = &vmstate_imx6_src;
     dc->desc = "i.MX6 System Reset Controller";
 }
 
-static const TypeInfo imx6_src_info = {
-    .name          = TYPE_IMX6_SRC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMX6SRCState),
-    .class_init    = imx6_src_class_init,
-};
-
-static void imx6_src_register_types(void)
-{
-    type_register_static(&imx6_src_info);
-}
-
-type_init(imx6_src_register_types)
+REGISTER_QEMU_DEVICE(IMX6SRCState, TYPE_IMX6_SRC, TYPE_SYS_BUS_DEVICE)

@@ -69,6 +69,11 @@ struct IMX6SRCState {
 
     uint32_t regs[SRC_MAX];
 
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX6_SRC_H */
