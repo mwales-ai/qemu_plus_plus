@@ -73,6 +73,12 @@ typedef struct SBSA_GWDTState {
     uint32_t woru;
     uint32_t wcvl;
     uint32_t wcvu;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } SBSA_GWDTState;
 
 #endif /* WDT_SBSA_GWDT_H */

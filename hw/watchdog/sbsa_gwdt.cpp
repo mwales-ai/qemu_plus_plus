@@ -17,7 +17,6 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "system/reset.h"
 #include "system/watchdog.h"
 #include "hw/qdev-properties.h"
@@ -26,7 +25,7 @@ extern "C" {
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
-}
+#include "qom/cpp/object.h"
 
 static const VMStateField vmstate_sbsa_gwdt_fields[] = {
     VMSTATE_TIMER_PTR(timer, SBSA_GWDTState),
@@ -181,18 +180,16 @@ static void sbsa_gwdt_write(void *opaque, hwaddr offset, uint64_t data,
     }
 }
 
-static void wdt_sbsa_gwdt_reset(DeviceState *dev)
+void SBSA_GWDTState::reset()
 {
-    SBSA_GWDTState *s = SBSA_GWDT(dev);
+    timer_del(timer);
 
-    timer_del(s->timer);
-
-    s->wcs  = 0;
-    s->wcvl = 0;
-    s->wcvu = 0;
-    s->worl = 0;
-    s->woru = 0;
-    s->id = SBSA_GWDT_ID;
+    wcs  = 0;
+    wcvl = 0;
+    wcvu = 0;
+    worl = 0;
+    woru = 0;
+    id = SBSA_GWDT_ID;
 }
 
 static void sbsa_gwdt_timer_sysinterrupt(void *opaque)
@@ -218,7 +215,7 @@ static void sbsa_gwdt_timer_sysinterrupt(void *opaque)
         case WATCHDOG_ACTION_PAUSE:
             break;
         default:
-            wdt_sbsa_gwdt_reset(DEVICE(s));
+            s->reset();
         }
         watchdog_perform_action();
     }
@@ -246,28 +243,27 @@ static void __attribute__((constructor)) init_sbsa_gwdt_ops(void)
     sbsa_gwdt_ops.valid.unaligned = false;
 }
 
-static void wdt_sbsa_gwdt_realize(DeviceState *dev, Error **errp)
+void SBSA_GWDTState::realize(Error **errp)
 {
-    SBSA_GWDTState *s = SBSA_GWDT(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->rmmio, OBJECT(dev),
-                          &sbsa_gwdt_rops, s,
+    memory_region_init_io(&rmmio, reinterpret_cast<Object *>(this),
+                          &sbsa_gwdt_rops, this,
                           "sbsa_gwdt.refresh",
                           SBSA_GWDT_RMMIO_SIZE);
 
-    memory_region_init_io(&s->cmmio, OBJECT(dev),
-                          &sbsa_gwdt_ops, s,
+    memory_region_init_io(&cmmio, reinterpret_cast<Object *>(this),
+                          &sbsa_gwdt_ops, this,
                           "sbsa_gwdt.control",
                           SBSA_GWDT_CMMIO_SIZE);
 
-    sysbus_init_mmio(sbd, &s->rmmio);
-    sysbus_init_mmio(sbd, &s->cmmio);
+    sysbus_init_mmio(sbd, &rmmio);
+    sysbus_init_mmio(sbd, &cmmio);
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sbsa_gwdt_timer_sysinterrupt,
-                dev);
+    timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sbsa_gwdt_timer_sysinterrupt,
+                         reinterpret_cast<DeviceState *>(this));
 }
 
 static const Property wdt_sbsa_gwdt_props[] = {
@@ -280,12 +276,8 @@ static const Property wdt_sbsa_gwdt_props[] = {
                        62500000),
 };
 
-static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, const void *data)
+void SBSA_GWDTState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = wdt_sbsa_gwdt_realize;
-    device_class_set_legacy_reset(dc, wdt_sbsa_gwdt_reset);
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
     dc->vmsd = &vmstate_sbsa_gwdt;
@@ -293,16 +285,4 @@ static void wdt_sbsa_gwdt_class_init(ObjectClass *klass, const void *data)
     device_class_set_props(dc, wdt_sbsa_gwdt_props);
 }
 
-static const TypeInfo wdt_sbsa_gwdt_info = {
-    .name  = TYPE_WDT_SBSA,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(SBSA_GWDTState),
-    .class_init = wdt_sbsa_gwdt_class_init,
-};
-
-static void wdt_sbsa_gwdt_register_types(void)
-{
-    type_register_static(&wdt_sbsa_gwdt_info);
-}
-
-type_init(wdt_sbsa_gwdt_register_types)
+REGISTER_QEMU_DEVICE(SBSA_GWDTState, TYPE_WDT_SBSA, TYPE_SYS_BUS_DEVICE)
