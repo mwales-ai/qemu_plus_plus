@@ -25,6 +25,12 @@ struct IMX8MPCCMState {
     MemoryRegion iomem;
 
     uint32_t ccm[CCM_MAX];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX8MP_CCM_H */

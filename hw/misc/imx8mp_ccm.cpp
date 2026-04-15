@@ -10,21 +10,18 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qemu/log.h"
 #include "hw/misc/imx8mp_ccm.h"
 #include "migration/vmstate.h"
-}
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
 #define CKIH_FREQ 16000000 /* 16MHz crystal input */
 
-static void imx8mp_ccm_reset(DeviceState *dev)
+void IMX8MPCCMState::reset()
 {
-    IMX8MPCCMState *s = IMX8MP_CCM(dev);
-
-    memset(s->ccm, 0, sizeof(s->ccm));
+    memset(ccm, 0, sizeof(ccm));
 }
 
 #define CCM_INDEX(offset)   (((offset) & ~(hwaddr)0xF) / sizeof(uint32_t))
@@ -81,19 +78,12 @@ static void __attribute__((constructor)) init_imx8mp_set_clr_tog_ops(void)
     imx8mp_set_clr_tog_ops.impl.unaligned = false;
 }
 
-static void imx8mp_ccm_init(Object *obj)
+void IMX8MPCCMState::init()
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMX8MPCCMState *s = IMX8MP_CCM(obj);
-
-    memory_region_init_io(&s->iomem,
-                          obj,
-                          &imx8mp_set_clr_tog_ops,
-                          s->ccm,
-                          TYPE_IMX8MP_CCM ".ccm",
-                          sizeof(s->ccm));
-
-    sysbus_init_mmio(sd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &imx8mp_set_clr_tog_ops, ccm,
+                          TYPE_IMX8MP_CCM ".ccm", sizeof(ccm));
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateField vmstate_imx8mp_ccm_fields[] = {
@@ -150,26 +140,14 @@ static uint32_t imx8mp_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     return freq;
 }
 
-static void imx8mp_ccm_class_init(ObjectClass *klass, const void *data)
+void IMX8MPCCMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
+    IMXCCMClass *ccm_class = reinterpret_cast<IMXCCMClass *>(dc);
 
-    device_class_set_legacy_reset(dc, imx8mp_ccm_reset);
     dc->vmsd  = &imx8mp_ccm_vmstate;
     dc->desc  = "i.MX 8M Plus Clock Control Module";
 
-    ccm->get_clock_frequency = imx8mp_ccm_get_clock_frequency;
+    ccm_class->get_clock_frequency = imx8mp_ccm_get_clock_frequency;
 }
 
-static const TypeInfo imx8mp_ccm_types[] = {
-    {
-        .name          = TYPE_IMX8MP_CCM,
-        .parent        = TYPE_IMX_CCM,
-        .instance_size = sizeof(IMX8MPCCMState),
-        .instance_init = imx8mp_ccm_init,
-        .class_init    = imx8mp_ccm_class_init,
-    },
-};
-
-DEFINE_TYPES(imx8mp_ccm_types);
+REGISTER_QEMU_DEVICE(IMX8MPCCMState, TYPE_IMX8MP_CCM, TYPE_IMX_CCM)
