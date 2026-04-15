@@ -39,6 +39,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 static const uint8_t pl061_id[12] =
@@ -87,16 +88,15 @@ struct PL061State {
     uint8_t floating();
     uint8_t getPullups();
     void update();
+    void init();
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
     static void setIrq(void *opaque, int irq, int level);
     static void enterReset(Object *obj, ResetType type);
     static void holdReset(Object *obj, ResetType type);
-    static void instanceInit(Object *obj);
     static void luminaryInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateDescription vmstate_pl061 = {
@@ -544,31 +544,24 @@ void PL061State::luminaryInit(Object *obj)
     s->id = pl061_id_luminary;
 }
 
-void PL061State::instanceInit(Object *obj)
+void PL061State::init()
 {
-    PL061State *s = reinterpret_cast<PL061State *>(obj);
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    s->id = pl061_id;
+    id = pl061_id;
 
-    memory_region_init_io(&s->iomem, obj, &pl061_ops, s, "pl061", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &pl061_ops, this, "pl061", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
     qdev_init_gpio_in(dev, setIrq, N_GPIOS);
-    qdev_init_gpio_out(dev, s->out, N_GPIOS);
-}
-
-void PL061State::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    reinterpret_cast<PL061State *>(dev)->realize(errp);
+    qdev_init_gpio_out(dev, out, N_GPIOS);
 }
 
 void PL061State::realize(Error **errp)
 {
-    PL061State *s = this;
-
-    if (s->pullups & s->pulldowns) {
+    if (pullups & pulldowns) {
         error_setg(errp, "no bit may be set both in pullups and pulldowns");
         return;
     }
@@ -579,36 +572,30 @@ static const Property pl061_props[] = {
     DEFINE_PROP_UINT8("pulldowns", PL061State, pulldowns, 0x0),
 };
 
-void PL061State::classInit(ObjectClass *klass, const void *data)
+void PL061State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(dc);
 
     dc->vmsd = &vmstate_pl061;
-    dc->realize = realizeWrapper;
     device_class_set_props(dc, pl061_props);
     rc->phases.enter = enterReset;
     rc->phases.hold = holdReset;
 }
 
-static const TypeInfo pl061_info = {
-    .name          = TYPE_PL061,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL061State),
-    .instance_init = PL061State::instanceInit,
-    .class_init    = PL061State::classInit,
-};
+REGISTER_QEMU_DEVICE(PL061State, TYPE_PL061, TYPE_SYS_BUS_DEVICE)
 
+/*
+ * pl061_luminary subtype: same class, different id (set by luminaryInit).
+ */
 static const TypeInfo pl061_luminary_info = {
     .name          = "pl061_luminary",
     .parent        = TYPE_PL061,
     .instance_init = PL061State::luminaryInit,
 };
 
-static void pl061_register_types(void)
+static void pl061_luminary_register_types(void)
 {
-    type_register_static(&pl061_info);
     type_register_static(&pl061_luminary_info);
 }
 
-type_init(pl061_register_types)
+type_init(pl061_luminary_register_types)
