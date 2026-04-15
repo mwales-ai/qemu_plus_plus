@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "hw/misc/armv7m_ras.h"
 #include "qemu/log.h"
+#include "qom/cpp/object.h"
 
 static MemTxResult ras_read(void *opaque, hwaddr addr,
                             uint64_t *data, unsigned size,
@@ -62,32 +63,11 @@ static const MemoryRegionOps ras_ops = {
 };
 
 
-static void armv7m_ras_init(Object *obj)
+void ARMv7MRAS::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ARMv7MRAS *s = ARMV7M_RAS(obj);
-
-    memory_region_init_io(&s->iomem, obj, &ras_ops,
-                          s, "armv7m-ras", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &ras_ops,
+                          this, "armv7m-ras", 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void armv7m_ras_class_init(ObjectClass *klass, const void *data)
-{
-    /* This device has no state: no need for vmstate or reset */
-}
-
-static const TypeInfo armv7m_ras_info = {
-    .name = TYPE_ARMV7M_RAS,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARMv7MRAS),
-    .instance_init = armv7m_ras_init,
-    .class_init = armv7m_ras_class_init,
-};
-
-static void armv7m_ras_register_types(void)
-{
-    type_register_static(&armv7m_ras_info);
-}
-
-type_init(armv7m_ras_register_types);
+REGISTER_QEMU_DEVICE(ARMv7MRAS, TYPE_ARMV7M_RAS, TYPE_SYS_BUS_DEVICE)

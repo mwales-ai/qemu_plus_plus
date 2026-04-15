@@ -32,6 +32,10 @@ struct ARMv7MRAS {
 
     /*< public >*/
     MemoryRegion iomem;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 #endif
