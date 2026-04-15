@@ -25,6 +25,7 @@
 #include "hw/irq.h"
 #include "hw/char/sifive_uart.h"
 #include "hw/qdev-properties-system.h"
+#include "qom/cpp/object.h"
 
 #define TX_INTERRUPT_TRIGGER_DELAY_NS 100
 
@@ -270,32 +271,29 @@ static const Property sifive_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", SiFiveUARTState, chr),
 };
 
-static void sifive_uart_init(Object *obj)
+void SiFiveUARTState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    SiFiveUARTState *s = SIFIVE_UART(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &sifive_uart_ops, s,
-                          TYPE_SIFIVE_UART, SIFIVE_UART_MAX);
-    sysbus_init_mmio(sbd, &s->mmio);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &sifive_uart_ops, this, TYPE_SIFIVE_UART,
+                          SIFIVE_UART_MAX);
+    sysbus_init_mmio(sbd, &mmio);
+    sysbus_init_irq(sbd, &irq);
 }
 
-static void sifive_uart_realize(DeviceState *dev, Error **errp)
+void SiFiveUARTState::realize(Error **errp)
 {
-    SiFiveUARTState *s = SIFIVE_UART(dev);
+    fifo8_create(&tx_fifo, SIFIVE_UART_TX_FIFO_SIZE);
 
-    fifo8_create(&s->tx_fifo, SIFIVE_UART_TX_FIFO_SIZE);
+    fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                       fifo_trigger_update, this);
 
-    s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                          fifo_trigger_update, s);
-
-    if (qemu_chr_fe_backend_connected(&s->chr)) {
-        qemu_chr_fe_set_handlers(&s->chr, sifive_uart_can_rx, sifive_uart_rx,
-                                 sifive_uart_event, sifive_uart_be_change, s,
-                                 NULL, true);
+    if (qemu_chr_fe_backend_connected(&chr)) {
+        qemu_chr_fe_set_handlers(&chr, sifive_uart_can_rx, sifive_uart_rx,
+                                 sifive_uart_event, sifive_uart_be_change,
+                                 this, NULL, true);
     }
-
 }
 
 static void sifive_uart_unrealize(DeviceState *dev)
@@ -334,12 +332,10 @@ static const VMStateDescription vmstate_sifive_uart = {
 };
 
 
-static void sifive_uart_class_init(ObjectClass *oc, const void *data)
+void SiFiveUARTState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    ResettableClass *rc = RESETTABLE_CLASS(oc);
+    ResettableClass *rc = RESETTABLE_CLASS(dc);
 
-    dc->realize = sifive_uart_realize;
     dc->unrealize = sifive_uart_unrealize;
     dc->vmsd = &vmstate_sifive_uart;
     rc->phases.enter = sifive_uart_reset_enter;
@@ -348,20 +344,7 @@ static void sifive_uart_class_init(ObjectClass *oc, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo sifive_uart_info = {
-    .name          = TYPE_SIFIVE_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFiveUARTState),
-    .instance_init = sifive_uart_init,
-    .class_init    = sifive_uart_class_init,
-};
-
-static void sifive_uart_register_types(void)
-{
-    type_register_static(&sifive_uart_info);
-}
-
-type_init(sifive_uart_register_types)
+REGISTER_QEMU_DEVICE(SiFiveUARTState, TYPE_SIFIVE_UART, TYPE_SYS_BUS_DEVICE)
 
 /*
  * Create UART device.

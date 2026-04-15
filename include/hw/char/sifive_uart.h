@@ -86,6 +86,12 @@ struct SiFiveUARTState {
     Fifo8 tx_fifo;
 
     QEMUTimer *fifo_trigger_handle;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 SiFiveUARTState *sifive_uart_create(MemoryRegion *address_space, hwaddr base,
