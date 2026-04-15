@@ -12,6 +12,7 @@
 #include "migration/vmstate.h"
 #include "hw/sysbus.h"
 #include "hw/misc/iosb.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 #define IOSB_SIZE          0x2000
@@ -91,14 +92,11 @@ static void iosb_reset_hold(Object *obj, ResetType type)
     s->regs[IOSB_CONFIG >> 8] = 1;
 }
 
-static void iosb_init(Object *obj)
+void IOSBState::init()
 {
-    IOSBState *s = IOSB(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->mem_regs, obj, &iosb_mmio_ops, s, "IOSB",
-                          IOSB_SIZE);
-    sysbus_init_mmio(sbd, &s->mem_regs);
+    memory_region_init_io(&mem_regs, reinterpret_cast<Object *>(this),
+                          &iosb_mmio_ops, this, "IOSB", IOSB_SIZE);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mem_regs);
 }
 
 static const VMStateField vmstate_iosb_fields[] = {
@@ -113,23 +111,12 @@ static const VMStateDescription vmstate_iosb = {
     .fields = vmstate_iosb_fields,
 };
 
-static void iosb_class_init(ObjectClass *oc, const void *data)
+void IOSBState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-    ResettableClass *rc = RESETTABLE_CLASS(oc);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(dc);
 
     dc->vmsd = &vmstate_iosb;
     rc->phases.hold = iosb_reset_hold;
 }
 
-static const TypeInfo iosb_info_types[] = {
-    {
-        .name          = TYPE_IOSB,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(IOSBState),
-        .instance_init = iosb_init,
-        .class_init    = iosb_class_init,
-    },
-};
-
-DEFINE_TYPES(iosb_info_types)
+REGISTER_QEMU_DEVICE(IOSBState, TYPE_IOSB, TYPE_SYS_BUS_DEVICE)

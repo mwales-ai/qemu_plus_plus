@@ -17,6 +17,11 @@ struct IOSBState {
 
     MemoryRegion mem_regs;
     uint32_t regs[IOSB_REGS];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_IOSB "IOSB"
