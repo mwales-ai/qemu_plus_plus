@@ -27,6 +27,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qemu/log.h"
+#include "qom/cpp/object.h"
 
 static uint64_t shakti_uart_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -108,19 +109,17 @@ static const MemoryRegionOps shakti_uart_ops = {
     .impl = {.min_access_size = 1, .max_access_size = 4},
 };
 
-static void shakti_uart_reset(DeviceState *dev)
+void ShaktiUartState::reset()
 {
-    ShaktiUartState *s = SHAKTI_UART(dev);
-
-    s->uart_baud = SHAKTI_UART_BAUD_DEFAULT;
-    s->uart_tx = 0x0;
-    s->uart_rx = 0x0;
-    s->uart_status = 0x0000;
-    s->uart_delay = 0x0000;
-    s->uart_control = SHAKTI_UART_CONTROL_DEFAULT;
-    s->uart_interrupt = 0x0000;
-    s->uart_iq_cycles = 0x00;
-    s->uart_rx_threshold = 0x00;
+    uart_baud = SHAKTI_UART_BAUD_DEFAULT;
+    uart_tx = 0x0;
+    uart_rx = 0x0;
+    uart_status = 0x0000;
+    uart_delay = 0x0000;
+    uart_control = SHAKTI_UART_CONTROL_DEFAULT;
+    uart_interrupt = 0x0000;
+    uart_iq_cycles = 0x00;
+    uart_rx_threshold = 0x00;
 }
 
 static int shakti_uart_can_receive(void *opaque)
@@ -138,48 +137,27 @@ static void shakti_uart_receive(void *opaque, const uint8_t *buf, int size)
     s->uart_status |= SHAKTI_UART_STATUS_RX_NOT_EMPTY;
 }
 
-static void shakti_uart_realize(DeviceState *dev, Error **errp)
+void ShaktiUartState::realize(Error **errp)
 {
-    ShaktiUartState *sus = SHAKTI_UART(dev);
-    qemu_chr_fe_set_handlers(&sus->chr, shakti_uart_can_receive,
-                             shakti_uart_receive, NULL, NULL, sus, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, shakti_uart_can_receive,
+                             shakti_uart_receive, NULL, NULL, this, NULL, true);
 }
 
-static void shakti_uart_instance_init(Object *obj)
+void ShaktiUartState::init()
 {
-    ShaktiUartState *sus = SHAKTI_UART(obj);
-    memory_region_init_io(&sus->mmio,
-                          obj,
-                          &shakti_uart_ops,
-                          sus,
-                          TYPE_SHAKTI_UART,
-                          0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &sus->mmio);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &shakti_uart_ops, this, TYPE_SHAKTI_UART, 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mmio);
 }
 
 static const Property shakti_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", ShaktiUartState, chr),
 };
 
-static void shakti_uart_class_init(ObjectClass *klass, const void *data)
+void ShaktiUartState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    device_class_set_legacy_reset(dc, shakti_uart_reset);
-    dc->realize = shakti_uart_realize;
     device_class_set_props(dc, shakti_uart_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo shakti_uart_info = {
-    .name = TYPE_SHAKTI_UART,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ShaktiUartState),
-    .instance_init = shakti_uart_instance_init,
-    .class_init = shakti_uart_class_init,
-};
-
-static void shakti_uart_register_types(void)
-{
-    type_register_static(&shakti_uart_info);
-}
-type_init(shakti_uart_register_types)
+REGISTER_QEMU_DEVICE(ShaktiUartState, TYPE_SHAKTI_UART, TYPE_SYS_BUS_DEVICE)

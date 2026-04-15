@@ -73,6 +73,13 @@ typedef struct {
     uint32_t uart_rx_threshold;
 
     CharFrontend chr;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } ShaktiUartState;
 
 #ifdef __cplusplus
