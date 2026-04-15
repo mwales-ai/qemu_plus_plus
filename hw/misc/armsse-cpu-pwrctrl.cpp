@@ -24,6 +24,7 @@
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
 #include "hw/misc/armsse-cpu-pwrctrl.h"
+#include "qom/cpp/object.h"
 
 REG32(CPUPWRCFG, 0x0)
 REG32(PID4, 0xfd0)
@@ -96,11 +97,9 @@ static const MemoryRegionOps pwrctrl_ops = {
     .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void pwrctrl_reset(DeviceState *dev)
+void ARMSSECPUPwrCtrl::reset()
 {
-    ARMSSECPUPwrCtrl *s = ARMSSE_CPU_PWRCTRL(dev);
-
-    s->cpupwrcfg = 0;
+    cpupwrcfg = 0;
 }
 
 static const VMStateField vmstate_pwrctrl_vmstate_fields[] = {
@@ -115,35 +114,17 @@ static const VMStateDescription pwrctrl_vmstate = {
     .fields = vmstate_pwrctrl_vmstate_fields,
 };
 
-static void pwrctrl_init(Object *obj)
+void ARMSSECPUPwrCtrl::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ARMSSECPUPwrCtrl *s = ARMSSE_CPU_PWRCTRL(obj);
-
-    memory_region_init_io(&s->iomem, obj, &pwrctrl_ops,
-                          s, "armsse-cpu-pwrctrl", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &pwrctrl_ops, this, "armsse-cpu-pwrctrl", 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void pwrctrl_class_init(ObjectClass *klass, const void *data)
+void ARMSSECPUPwrCtrl::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, pwrctrl_reset);
     dc->vmsd = &pwrctrl_vmstate;
 }
 
-static const TypeInfo pwrctrl_info = {
-    .name = TYPE_ARMSSE_CPU_PWRCTRL,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARMSSECPUPwrCtrl),
-    .instance_init = pwrctrl_init,
-    .class_init = pwrctrl_class_init,
-};
-
-static void pwrctrl_register_types(void)
-{
-    type_register_static(&pwrctrl_info);
-}
-
-type_init(pwrctrl_register_types);
+REGISTER_QEMU_DEVICE(ARMSSECPUPwrCtrl, TYPE_ARMSSE_CPU_PWRCTRL,
+                     TYPE_SYS_BUS_DEVICE)

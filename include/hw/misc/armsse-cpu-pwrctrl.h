@@ -35,6 +35,12 @@ struct ARMSSECPUPwrCtrl {
     MemoryRegion iomem;
 
     uint32_t cpupwrcfg;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
