@@ -27,16 +27,15 @@
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
 #include "hw/irq.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
-static void avr_mask_reset(DeviceState *dev)
+void AVRMaskState::reset()
 {
-    AVRMaskState *s = AVR_MASK(dev);
-
-    s->val = 0x00;
+    val = 0x00;
 
     for (int i = 0; i < 8; i++) {
-        qemu_set_irq(s->irq[i], 0);
+        qemu_set_irq(irq[i], 0);
     }
 }
 
@@ -75,39 +74,24 @@ static const MemoryRegionOps avr_mask_ops = {
     },
 };
 
-static void avr_mask_init(Object *dev)
+void AVRMaskState::init()
 {
-    AVRMaskState *s = AVR_MASK(dev);
-    SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
+    SysBusDevice *busdev = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, dev, &avr_mask_ops, s, TYPE_AVR_MASK,
-                          0x01);
-    sysbus_init_mmio(busdev, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &avr_mask_ops, this, TYPE_AVR_MASK, 0x01);
+    sysbus_init_mmio(busdev, &iomem);
 
     for (int i = 0; i < 8; i++) {
-        sysbus_init_irq(busdev, &s->irq[i]);
+        sysbus_init_irq(busdev, &irq[i]);
     }
-    s->val = 0x00;
+    val = 0x00;
 }
 
-static void avr_mask_class_init(ObjectClass *klass, const void *data)
+void AVRMaskState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, avr_mask_reset);
+    /* reset is auto-wired by REGISTER_QEMU_DEVICE */
+    (void)dc;
 }
 
-static const TypeInfo avr_mask_info = {
-    .name          = TYPE_AVR_MASK,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AVRMaskState),
-    .class_init    = avr_mask_class_init,
-    .instance_init = avr_mask_init,
-};
-
-static void avr_mask_register_types(void)
-{
-    type_register_static(&avr_mask_info);
-}
-
-type_init(avr_mask_register_types)
+REGISTER_QEMU_DEVICE(AVRMaskState, TYPE_AVR_MASK, TYPE_SYS_BUS_DEVICE)

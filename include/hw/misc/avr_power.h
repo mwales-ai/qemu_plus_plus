@@ -41,6 +41,12 @@ struct AVRMaskState {
 
     uint8_t val;
     qemu_irq irq[8];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MISC_AVR_POWER_H */
