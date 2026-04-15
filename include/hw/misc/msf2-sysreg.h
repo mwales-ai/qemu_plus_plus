@@ -73,6 +73,13 @@ struct MSF2SysregState {
     uint8_t apb1div;
 
     uint32_t regs[MSF2_SYSREG_MMIO_SIZE / 4];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MSF2_SYSREG_H */

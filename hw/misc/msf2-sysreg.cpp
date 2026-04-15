@@ -20,6 +20,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 static inline int msf2_divbits(uint32_t div)
@@ -29,14 +30,12 @@ static inline int msf2_divbits(uint32_t div)
     return (div < 8) ? r : r + 1;
 }
 
-static void msf2_sysreg_reset(DeviceState *d)
+void MSF2SysregState::reset()
 {
-    MSF2SysregState *s = MSF2_SYSREG(d);
-
-    s->regs[MSSDDR_PLL_STATUS_LOW_CR] = 0x021A2358;
-    s->regs[MSSDDR_PLL_STATUS] = 0x3;
-    s->regs[MSSDDR_FACC1_CR] = msf2_divbits(s->apb0div) << 5 |
-                               msf2_divbits(s->apb1div) << 2;
+    regs[MSSDDR_PLL_STATUS_LOW_CR] = 0x021A2358;
+    regs[MSSDDR_PLL_STATUS] = 0x3;
+    regs[MSSDDR_FACC1_CR] = msf2_divbits(apb0div) << 5 |
+                             msf2_divbits(apb1div) << 2;
 }
 
 static uint64_t msf2_sysreg_read(void *opaque, hwaddr offset,
@@ -99,13 +98,12 @@ static const MemoryRegionOps sysreg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void msf2_sysreg_init(Object *obj)
+void MSF2SysregState::init()
 {
-    MSF2SysregState *s = MSF2_SYSREG(obj);
-
-    memory_region_init_io(&s->iomem, obj, &sysreg_ops, s, TYPE_MSF2_SYSREG,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &sysreg_ops, this, TYPE_MSF2_SYSREG,
                           MSF2_SYSREG_MMIO_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateField vmstate_msf2_sysreg_fields[] = {
@@ -126,39 +124,20 @@ static const Property msf2_sysreg_properties[] = {
     DEFINE_PROP_UINT8("apb1divisor", MSF2SysregState, apb1div, 2),
 };
 
-static void msf2_sysreg_realize(DeviceState *dev, Error **errp)
+void MSF2SysregState::realize(Error **errp)
 {
-    MSF2SysregState *s = MSF2_SYSREG(dev);
-
-    if ((s->apb0div > 32 || !is_power_of_2(s->apb0div))
-        || (s->apb1div > 32 || !is_power_of_2(s->apb1div))) {
+    if ((apb0div > 32 || !is_power_of_2(apb0div))
+        || (apb1div > 32 || !is_power_of_2(apb1div))) {
         error_setg(errp, "Invalid apb divisor value");
         error_append_hint(errp, "apb divisor must be a power of 2"
                            " and maximum value is 32\n");
     }
 }
 
-static void msf2_sysreg_class_init(ObjectClass *klass, const void *data)
+void MSF2SysregState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_msf2_sysreg;
-    device_class_set_legacy_reset(dc, msf2_sysreg_reset);
     device_class_set_props(dc, msf2_sysreg_properties);
-    dc->realize = msf2_sysreg_realize;
 }
 
-static const TypeInfo msf2_sysreg_info = {
-    .name  = TYPE_MSF2_SYSREG,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(MSF2SysregState),
-    .instance_init = msf2_sysreg_init,
-    .class_init = msf2_sysreg_class_init,
-};
-
-static void msf2_sysreg_register_types(void)
-{
-    type_register_static(&msf2_sysreg_info);
-}
-
-type_init(msf2_sysreg_register_types)
+REGISTER_QEMU_DEVICE(MSF2SysregState, TYPE_MSF2_SYSREG, TYPE_SYS_BUS_DEVICE)
