@@ -16,6 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #ifndef DEBUG_IMX25_CCM
 #define DEBUG_IMX25_CCM 0
@@ -191,39 +192,25 @@ static uint32_t imx25_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     return freq;
 }
 
-static void imx25_ccm_reset(DeviceState *dev)
+void IMX25CCMState::reset()
 {
-    IMX25CCMState *s = IMX25_CCM(dev);
-
     DPRINTF("\n");
 
-    memset(s->reg, 0, IMX25_CCM_MAX_REG * sizeof(uint32_t));
-    s->reg[IMX25_CCM_MPCTL_REG] = 0x800b2c01;
-    s->reg[IMX25_CCM_UPCTL_REG] = 0x84042800;
-    /* 
-     * The value below gives:
-     * CPU = 133 MHz, AHB = 66,5 MHz, IPG = 33 MHz. 
-     */
-    s->reg[IMX25_CCM_CCTL_REG]  = 0xd0030000;
-    s->reg[IMX25_CCM_CGCR0_REG] = 0x028A0100;
-    s->reg[IMX25_CCM_CGCR1_REG] = 0x04008100;
-    s->reg[IMX25_CCM_CGCR2_REG] = 0x00000438;
-    s->reg[IMX25_CCM_PCDR0_REG] = 0x01010101;
-    s->reg[IMX25_CCM_PCDR1_REG] = 0x01010101;
-    s->reg[IMX25_CCM_PCDR2_REG] = 0x01010101;
-    s->reg[IMX25_CCM_PCDR3_REG] = 0x01010101;
-    s->reg[IMX25_CCM_PMCR0_REG] = 0x00A00000;
-    s->reg[IMX25_CCM_PMCR1_REG] = 0x0000A030;
-    s->reg[IMX25_CCM_PMCR2_REG] = 0x0000A030;
-    s->reg[IMX25_CCM_MCR_REG]   = 0x43000000;
-
-    /*
-     * default boot will change the reset values to allow:
-     * CPU = 399 MHz, AHB = 133 MHz, IPG = 66,5 MHz. 
-     * For some reason, this doesn't work. With the value below, linux
-     * detects a 88 MHz IPG CLK instead of 66,5 MHz.
-    s->reg[IMX25_CCM_CCTL_REG]  = 0x20032000;
-     */
+    memset(reg, 0, IMX25_CCM_MAX_REG * sizeof(uint32_t));
+    reg[IMX25_CCM_MPCTL_REG] = 0x800b2c01;
+    reg[IMX25_CCM_UPCTL_REG] = 0x84042800;
+    reg[IMX25_CCM_CCTL_REG]  = 0xd0030000;
+    reg[IMX25_CCM_CGCR0_REG] = 0x028A0100;
+    reg[IMX25_CCM_CGCR1_REG] = 0x04008100;
+    reg[IMX25_CCM_CGCR2_REG] = 0x00000438;
+    reg[IMX25_CCM_PCDR0_REG] = 0x01010101;
+    reg[IMX25_CCM_PCDR1_REG] = 0x01010101;
+    reg[IMX25_CCM_PCDR2_REG] = 0x01010101;
+    reg[IMX25_CCM_PCDR3_REG] = 0x01010101;
+    reg[IMX25_CCM_PMCR0_REG] = 0x00A00000;
+    reg[IMX25_CCM_PMCR1_REG] = 0x0000A030;
+    reg[IMX25_CCM_PMCR2_REG] = 0x0000A030;
+    reg[IMX25_CCM_MCR_REG]   = 0x43000000;
 }
 
 static uint64_t imx25_ccm_read(void *opaque, hwaddr offset, unsigned size)
@@ -281,40 +268,21 @@ static const struct MemoryRegionOps imx25_ccm_ops = {
     },
 };
 
-static void imx25_ccm_init(Object *obj)
+void IMX25CCMState::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMX25CCMState *s = IMX25_CCM(obj);
-
-    memory_region_init_io(&s->iomem, OBJECT(dev), &imx25_ccm_ops, s,
-                          TYPE_IMX25_CCM, 0x1000);
-    sysbus_init_mmio(sd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &imx25_ccm_ops, this, TYPE_IMX25_CCM, 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void imx25_ccm_class_init(ObjectClass *klass, const void *data)
+void IMX25CCMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
+    IMXCCMClass *ccm = reinterpret_cast<IMXCCMClass *>(dc);
 
-    device_class_set_legacy_reset(dc, imx25_ccm_reset);
     dc->vmsd = &vmstate_imx25_ccm;
     dc->desc = "i.MX25 Clock Control Module";
 
     ccm->get_clock_frequency = imx25_ccm_get_clock_frequency;
 }
 
-static const TypeInfo imx25_ccm_info = {
-    .name          = TYPE_IMX25_CCM,
-    .parent        = TYPE_IMX_CCM,
-    .instance_size = sizeof(IMX25CCMState),
-    .instance_init = imx25_ccm_init,
-    .class_init    = imx25_ccm_class_init,
-};
-
-static void imx25_ccm_register_types(void)
-{
-    type_register_static(&imx25_ccm_info);
-}
-
-type_init(imx25_ccm_register_types)
+REGISTER_QEMU_DEVICE(IMX25CCMState, TYPE_IMX25_CCM, TYPE_IMX_CCM)
