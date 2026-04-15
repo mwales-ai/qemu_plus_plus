@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/misc/allwinner-sid.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 /* SID register offsets */
@@ -107,24 +108,17 @@ static const MemoryRegionOps allwinner_sid_ops = {
     .impl = { .min_access_size = 4, },
 };
 
-static void allwinner_sid_reset(DeviceState *dev)
+void AwSidState::reset()
 {
-    AwSidState *s = AW_SID(dev);
-
-    /* Set default values for registers */
-    s->control = 0;
-    s->rdkey = 0;
+    control = 0;
+    rdkey = 0;
 }
 
-static void allwinner_sid_init(Object *obj)
+void AwSidState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwSidState *s = AW_SID(obj);
-
-    /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_sid_ops, s,
-                           TYPE_AW_SID, 1 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &allwinner_sid_ops, this, TYPE_AW_SID, 1 * KiB);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const Property allwinner_sid_properties[] = {
@@ -143,26 +137,10 @@ static const VMStateDescription allwinner_sid_vmstate = {
     }
 };
 
-static void allwinner_sid_class_init(ObjectClass *klass, const void *data)
+void AwSidState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, allwinner_sid_reset);
     dc->vmsd = &allwinner_sid_vmstate;
     device_class_set_props(dc, allwinner_sid_properties);
 }
 
-static const TypeInfo allwinner_sid_info = {
-    .name          = TYPE_AW_SID,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwSidState),
-    .instance_init = allwinner_sid_init,
-    .class_init    = allwinner_sid_class_init,
-};
-
-static void allwinner_sid_register(void)
-{
-    type_register_static(&allwinner_sid_info);
-}
-
-type_init(allwinner_sid_register)
+REGISTER_QEMU_DEVICE(AwSidState, TYPE_AW_SID, TYPE_SYS_BUS_DEVICE)
