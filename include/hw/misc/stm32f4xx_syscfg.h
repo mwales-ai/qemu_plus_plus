@@ -55,6 +55,12 @@ struct STM32F4xxSyscfgState {
 
     qemu_irq irq;
     qemu_irq gpio_out[16];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

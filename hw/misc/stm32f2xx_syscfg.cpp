@@ -26,6 +26,7 @@
 #include "hw/misc/stm32f2xx_syscfg.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #ifndef STM_SYSCFG_ERR_DEBUG
 #define STM_SYSCFG_ERR_DEBUG 0
@@ -39,17 +40,15 @@
 
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
-static void stm32f2xx_syscfg_reset(DeviceState *dev)
+void STM32F2XXSyscfgState::reset()
 {
-    STM32F2XXSyscfgState *s = STM32F2XX_SYSCFG(dev);
-
-    s->syscfg_memrmp = 0x00000000;
-    s->syscfg_pmc = 0x00000000;
-    s->syscfg_exticr1 = 0x00000000;
-    s->syscfg_exticr2 = 0x00000000;
-    s->syscfg_exticr3 = 0x00000000;
-    s->syscfg_exticr4 = 0x00000000;
-    s->syscfg_cmpcr = 0x00000000;
+    syscfg_memrmp = 0x00000000;
+    syscfg_pmc = 0x00000000;
+    syscfg_exticr1 = 0x00000000;
+    syscfg_exticr2 = 0x00000000;
+    syscfg_exticr3 = 0x00000000;
+    syscfg_exticr4 = 0x00000000;
+    syscfg_cmpcr = 0x00000000;
 }
 
 static uint64_t stm32f2xx_syscfg_read(void *opaque, hwaddr addr,
@@ -129,33 +128,13 @@ static const MemoryRegionOps stm32f2xx_syscfg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void stm32f2xx_syscfg_init(Object *obj)
+void STM32F2XXSyscfgState::init()
 {
-    STM32F2XXSyscfgState *s = STM32F2XX_SYSCFG(obj);
-
-    memory_region_init_io(&s->mmio, obj, &stm32f2xx_syscfg_ops, s,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &stm32f2xx_syscfg_ops, this,
                           TYPE_STM32F2XX_SYSCFG, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mmio);
 }
 
-static void stm32f2xx_syscfg_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, stm32f2xx_syscfg_reset);
-}
-
-static const TypeInfo stm32f2xx_syscfg_info = {
-    .name          = TYPE_STM32F2XX_SYSCFG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32F2XXSyscfgState),
-    .instance_init = stm32f2xx_syscfg_init,
-    .class_init    = stm32f2xx_syscfg_class_init,
-};
-
-static void stm32f2xx_syscfg_register_types(void)
-{
-    type_register_static(&stm32f2xx_syscfg_info);
-}
-
-type_init(stm32f2xx_syscfg_register_types)
+REGISTER_QEMU_DEVICE(STM32F2XXSyscfgState, TYPE_STM32F2XX_SYSCFG,
+                     TYPE_SYS_BUS_DEVICE)

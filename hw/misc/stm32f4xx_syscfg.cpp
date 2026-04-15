@@ -28,18 +28,17 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/misc/stm32f4xx_syscfg.h"
+#include "qom/cpp/object.h"
 
-static void stm32f4xx_syscfg_reset(DeviceState *dev)
+void STM32F4xxSyscfgState::reset()
 {
-    STM32F4xxSyscfgState *s = STM32F4XX_SYSCFG(dev);
-
-    s->syscfg_memrmp = 0x00000000;
-    s->syscfg_pmc = 0x00000000;
-    s->syscfg_exticr[0] = 0x00000000;
-    s->syscfg_exticr[1] = 0x00000000;
-    s->syscfg_exticr[2] = 0x00000000;
-    s->syscfg_exticr[3] = 0x00000000;
-    s->syscfg_cmpcr = 0x00000000;
+    syscfg_memrmp = 0x00000000;
+    syscfg_pmc = 0x00000000;
+    syscfg_exticr[0] = 0x00000000;
+    syscfg_exticr[1] = 0x00000000;
+    syscfg_exticr[2] = 0x00000000;
+    syscfg_exticr[3] = 0x00000000;
+    syscfg_cmpcr = 0x00000000;
 }
 
 static void stm32f4xx_syscfg_set_irq(void *opaque, int irq, int level)
@@ -119,18 +118,20 @@ static const MemoryRegionOps stm32f4xx_syscfg_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void stm32f4xx_syscfg_init(Object *obj)
+void STM32F4xxSyscfgState::init()
 {
-    STM32F4xxSyscfgState *s = STM32F4XX_SYSCFG(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    memory_region_init_io(&s->mmio, obj, &stm32f4xx_syscfg_ops, s,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &stm32f4xx_syscfg_ops, this,
                           TYPE_STM32F4XX_SYSCFG, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(sbd, &mmio);
 
-    qdev_init_gpio_in(DEVICE(obj), stm32f4xx_syscfg_set_irq, 16 * 9);
-    qdev_init_gpio_out(DEVICE(obj), s->gpio_out, 16);
+    qdev_init_gpio_in(dev, stm32f4xx_syscfg_set_irq, 16 * 9);
+    qdev_init_gpio_out(dev, gpio_out, 16);
 }
 
 static const VMStateField vmstate_stm32f4xx_syscfg_fields[] = {
@@ -149,25 +150,10 @@ static const VMStateDescription vmstate_stm32f4xx_syscfg = {
     .fields = vmstate_stm32f4xx_syscfg_fields,
 };
 
-static void stm32f4xx_syscfg_class_init(ObjectClass *klass, const void *data)
+void STM32F4xxSyscfgState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, stm32f4xx_syscfg_reset);
     dc->vmsd = &vmstate_stm32f4xx_syscfg;
 }
 
-static const TypeInfo stm32f4xx_syscfg_info = {
-    .name          = TYPE_STM32F4XX_SYSCFG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32F4xxSyscfgState),
-    .instance_init = stm32f4xx_syscfg_init,
-    .class_init    = stm32f4xx_syscfg_class_init,
-};
-
-static void stm32f4xx_syscfg_register_types(void)
-{
-    type_register_static(&stm32f4xx_syscfg_info);
-}
-
-type_init(stm32f4xx_syscfg_register_types)
+REGISTER_QEMU_DEVICE(STM32F4xxSyscfgState, TYPE_STM32F4XX_SYSCFG,
+                     TYPE_SYS_BUS_DEVICE)
