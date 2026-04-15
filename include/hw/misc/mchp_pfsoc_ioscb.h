@@ -50,6 +50,11 @@ typedef struct MchpPfSoCIoscbState {
     MemoryRegion bc_sgmii;
     MemoryRegion io_calib_sgmii;
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 } MchpPfSoCIoscbState;
 
 #define TYPE_MCHP_PFSOC_IOSCB "mchp.pfsoc.ioscb"

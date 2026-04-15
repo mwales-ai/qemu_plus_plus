@@ -27,6 +27,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/misc/mchp_pfsoc_ioscb.h"
+#include "qom/cpp/object.h"
 
 /*
  * The whole IOSCB module registers map into the system address at 0x3000_0000,
@@ -201,115 +202,97 @@ static const MemoryRegionOps mchp_pfsoc_ctrl_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void mchp_pfsoc_ioscb_realize(DeviceState *dev, Error **errp)
+void MchpPfSoCIoscbState::realize(Error **errp)
 {
-    MchpPfSoCIoscbState *s = MCHP_PFSOC_IOSCB(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Object *obj = reinterpret_cast<Object *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init(&s->container, OBJECT(s),
+    memory_region_init(&container, obj,
                        "mchp.pfsoc.ioscb", IOSCB_WHOLE_REG_SIZE);
-    sysbus_init_mmio(sbd, &s->container);
+    sysbus_init_mmio(sbd, &container);
 
     /* add subregions for all sub-modules in IOSCB */
 
-    memory_region_init_io(&s->lane01, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&lane01, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.lane01", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_LANE01_BASE, &s->lane01);
+    memory_region_add_subregion(&container, IOSCB_LANE01_BASE, &lane01);
 
-    memory_region_init_io(&s->lane23, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&lane23, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.lane23", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_LANE23_BASE, &s->lane23);
+    memory_region_add_subregion(&container, IOSCB_LANE23_BASE, &lane23);
 
-    memory_region_init_io(&s->ctrl, OBJECT(s), &mchp_pfsoc_ctrl_ops, s,
+    memory_region_init_io(&ctrl, obj, &mchp_pfsoc_ctrl_ops, this,
                           "mchp.pfsoc.ioscb.ctrl", IOSCB_CTRL_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_CTRL_BASE, &s->ctrl);
+    memory_region_add_subregion(&container, IOSCB_CTRL_BASE, &ctrl);
 
-    memory_region_init_io(&s->qspixip, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&qspixip, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.qspixip", IOSCB_QSPIXIP_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_QSPIXIP_BASE, &s->qspixip);
+    memory_region_add_subregion(&container, IOSCB_QSPIXIP_BASE, &qspixip);
 
-    memory_region_init_io(&s->mailbox, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&mailbox, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.mailbox", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_MAILBOX_BASE, &s->mailbox);
+    memory_region_add_subregion(&container, IOSCB_MAILBOX_BASE, &mailbox);
 
-    memory_region_init_io(&s->cfg, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&cfg, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.cfg", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_CFG_BASE, &s->cfg);
+    memory_region_add_subregion(&container, IOSCB_CFG_BASE, &cfg);
 
-    memory_region_init_io(&s->ccc, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&ccc, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.ccc", IOSCB_CCC_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_CCC_BASE, &s->ccc);
+    memory_region_add_subregion(&container, IOSCB_CCC_BASE, &ccc);
 
-    memory_region_init_io(&s->pll_mss, OBJECT(s), &mchp_pfsoc_pll_ops, s,
+    memory_region_init_io(&pll_mss, obj, &mchp_pfsoc_pll_ops, this,
                           "mchp.pfsoc.ioscb.pll_mss", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_PLL_MSS_BASE, &s->pll_mss);
+    memory_region_add_subregion(&container, IOSCB_PLL_MSS_BASE, &pll_mss);
 
-    memory_region_init_io(&s->cfm_mss, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&cfm_mss, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.cfm_mss", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_CFM_MSS_BASE, &s->cfm_mss);
+    memory_region_add_subregion(&container, IOSCB_CFM_MSS_BASE, &cfm_mss);
 
-    memory_region_init_io(&s->pll_ddr, OBJECT(s), &mchp_pfsoc_pll_ops, s,
+    memory_region_init_io(&pll_ddr, obj, &mchp_pfsoc_pll_ops, this,
                           "mchp.pfsoc.ioscb.pll_ddr", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_PLL_DDR_BASE, &s->pll_ddr);
+    memory_region_add_subregion(&container, IOSCB_PLL_DDR_BASE, &pll_ddr);
 
-    memory_region_init_io(&s->bc_ddr, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&bc_ddr, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.bc_ddr", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_BC_DDR_BASE, &s->bc_ddr);
+    memory_region_add_subregion(&container, IOSCB_BC_DDR_BASE, &bc_ddr);
 
-    memory_region_init_io(&s->io_calib_ddr, OBJECT(s),
-                          &mchp_pfsoc_io_calib_ddr_ops, s,
+    memory_region_init_io(&io_calib_ddr, obj,
+                          &mchp_pfsoc_io_calib_ddr_ops, this,
                           "mchp.pfsoc.ioscb.io_calib_ddr",
                           IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_IO_CALIB_DDR_BASE,
-                                &s->io_calib_ddr);
+    memory_region_add_subregion(&container, IOSCB_IO_CALIB_DDR_BASE,
+                                &io_calib_ddr);
 
-    memory_region_init_io(&s->pll_sgmii, OBJECT(s), &mchp_pfsoc_pll_ops, s,
+    memory_region_init_io(&pll_sgmii, obj, &mchp_pfsoc_pll_ops, this,
                           "mchp.pfsoc.ioscb.pll_sgmii", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_PLL_SGMII_BASE,
-                                &s->pll_sgmii);
+    memory_region_add_subregion(&container, IOSCB_PLL_SGMII_BASE, &pll_sgmii);
 
-    memory_region_init_io(&s->dll_sgmii, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&dll_sgmii, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.dll_sgmii", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_DLL_SGMII_BASE,
-                                &s->dll_sgmii);
+    memory_region_add_subregion(&container, IOSCB_DLL_SGMII_BASE, &dll_sgmii);
 
-    memory_region_init_io(&s->cfm_sgmii, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&cfm_sgmii, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.cfm_sgmii", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_CFM_SGMII_BASE,
-                                &s->cfm_sgmii);
+    memory_region_add_subregion(&container, IOSCB_CFM_SGMII_BASE, &cfm_sgmii);
 
-    memory_region_init_io(&s->bc_sgmii, OBJECT(s), &mchp_pfsoc_dummy_ops, s,
+    memory_region_init_io(&bc_sgmii, obj, &mchp_pfsoc_dummy_ops, this,
                           "mchp.pfsoc.ioscb.bc_sgmii", IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_BC_SGMII_BASE,
-                                &s->bc_sgmii);
+    memory_region_add_subregion(&container, IOSCB_BC_SGMII_BASE, &bc_sgmii);
 
-    memory_region_init_io(&s->io_calib_sgmii, OBJECT(s), &mchp_pfsoc_dummy_ops,
-                          s, "mchp.pfsoc.ioscb.io_calib_sgmii",
+    memory_region_init_io(&io_calib_sgmii, obj, &mchp_pfsoc_dummy_ops,
+                          this, "mchp.pfsoc.ioscb.io_calib_sgmii",
                           IOSCB_SUBMOD_REG_SIZE);
-    memory_region_add_subregion(&s->container, IOSCB_IO_CALIB_SGMII_BASE,
-                                &s->io_calib_sgmii);
+    memory_region_add_subregion(&container, IOSCB_IO_CALIB_SGMII_BASE,
+                                &io_calib_sgmii);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+    sysbus_init_irq(sbd, &irq);
 }
 
-static void mchp_pfsoc_ioscb_class_init(ObjectClass *klass, const void *data)
+void MchpPfSoCIoscbState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "Microchip PolarFire SoC IOSCB modules";
-    dc->realize = mchp_pfsoc_ioscb_realize;
 }
 
-static const TypeInfo mchp_pfsoc_ioscb_info = {
-    .name          = TYPE_MCHP_PFSOC_IOSCB,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MchpPfSoCIoscbState),
-    .class_init    = mchp_pfsoc_ioscb_class_init,
-};
-
-static void mchp_pfsoc_ioscb_register_types(void)
-{
-    type_register_static(&mchp_pfsoc_ioscb_info);
-}
-
-type_init(mchp_pfsoc_ioscb_register_types)
+REGISTER_QEMU_DEVICE(MchpPfSoCIoscbState, TYPE_MCHP_PFSOC_IOSCB,
+                     TYPE_SYS_BUS_DEVICE)
