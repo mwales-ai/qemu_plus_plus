@@ -17,6 +17,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 #define MAIL0_PEEK   0x90
@@ -282,61 +283,40 @@ static const VMStateDescription vmstate_bcm2835_mbox = {
     .fields = vmstate_bcm2835_mbox_fields,
 };
 
-static void bcm2835_mbox_init(Object *obj)
+void BCM2835MboxState::init()
 {
-    BCM2835MboxState *s = BCM2835_MBOX(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &bcm2835_mbox_ops, s,
-                          TYPE_BCM2835_MBOX, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->arm_irq);
-    qdev_init_gpio_in(DEVICE(s), bcm2835_mbox_set_irq, MBOX_CHAN_COUNT);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &bcm2835_mbox_ops, this, TYPE_BCM2835_MBOX, 0x400);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &arm_irq);
+    qdev_init_gpio_in(dev, bcm2835_mbox_set_irq, MBOX_CHAN_COUNT);
 }
 
-static void bcm2835_mbox_reset(DeviceState *dev)
+void BCM2835MboxState::reset()
 {
-    BCM2835MboxState *s = BCM2835_MBOX(dev);
-    int n;
-
-    mbox_reset(&s->mbox[0]);
-    mbox_reset(&s->mbox[1]);
-    s->mbox_irq_disabled = false;
-    for (n = 0; n < MBOX_CHAN_COUNT; n++) {
-        s->available[n] = false;
+    mbox_reset(&mbox[0]);
+    mbox_reset(&mbox[1]);
+    mbox_irq_disabled = false;
+    for (int n = 0; n < MBOX_CHAN_COUNT; n++) {
+        available[n] = false;
     }
 }
 
-static void bcm2835_mbox_realize(DeviceState *dev, Error **errp)
+void BCM2835MboxState::realize(Error **errp)
 {
-    BCM2835MboxState *s = BCM2835_MBOX(dev);
-    Object *obj;
-
-    obj = object_property_get_link(OBJECT(dev), "mbox-mr", &error_abort);
-    s->mbox_mr = MEMORY_REGION(obj);
-    address_space_init(&s->mbox_as, s->mbox_mr, TYPE_BCM2835_MBOX "-memory");
-    bcm2835_mbox_reset(dev);
+    Object *obj = object_property_get_link(reinterpret_cast<Object *>(this),
+                                            "mbox-mr", &error_abort);
+    mbox_mr = MEMORY_REGION(obj);
+    address_space_init(&mbox_as, mbox_mr, TYPE_BCM2835_MBOX "-memory");
+    reset();
 }
 
-static void bcm2835_mbox_class_init(ObjectClass *klass, const void *data)
+void BCM2835MboxState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = bcm2835_mbox_realize;
-    device_class_set_legacy_reset(dc, bcm2835_mbox_reset);
     dc->vmsd = &vmstate_bcm2835_mbox;
 }
 
-static const TypeInfo bcm2835_mbox_info = {
-    .name          = TYPE_BCM2835_MBOX,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835MboxState),
-    .instance_init = bcm2835_mbox_init,
-    .class_init    = bcm2835_mbox_class_init,
-};
-
-static void bcm2835_mbox_register_types(void)
-{
-    type_register_static(&bcm2835_mbox_info);
-}
-
-type_init(bcm2835_mbox_register_types)
+REGISTER_QEMU_DEVICE(BCM2835MboxState, TYPE_BCM2835_MBOX, TYPE_SYS_BUS_DEVICE)

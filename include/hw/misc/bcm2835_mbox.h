@@ -34,6 +34,13 @@ struct BCM2835MboxState {
     bool mbox_irq_disabled;
     bool available[MBOX_CHAN_COUNT];
     BCM2835Mbox mbox[2];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
