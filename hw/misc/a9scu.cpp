@@ -15,6 +15,7 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #define A9_SCU_CPU_MAX  4
 
@@ -91,25 +92,21 @@ static const MemoryRegionOps a9_scu_ops = {
     },
 };
 
-static void a9_scu_reset(DeviceState *dev)
+void A9SCUState::reset()
 {
-    A9SCUState *s = A9_SCU(dev);
-    s->control = 0;
+    control = 0;
 }
 
-static void a9_scu_realize(DeviceState *dev, Error **errp)
+void A9SCUState::realize(Error **errp)
 {
-    A9SCUState *s = A9_SCU(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    if (!s->num_cpu || s->num_cpu > A9_SCU_CPU_MAX) {
-        error_setg(errp, "Illegal CPU count: %u", s->num_cpu);
+    if (!num_cpu || num_cpu > A9_SCU_CPU_MAX) {
+        error_setg(errp, "Illegal CPU count: %u", num_cpu);
         return;
     }
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &a9_scu_ops, s,
-                          "a9-scu", 0x100);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &a9_scu_ops, this, "a9-scu", 0x100);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateField vmstate_a9_scu_fields[] = {
@@ -129,26 +126,10 @@ static const Property a9_scu_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A9SCUState, num_cpu, 1),
 };
 
-static void a9_scu_class_init(ObjectClass *klass, const void *data)
+void A9SCUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, a9_scu_properties);
     dc->vmsd = &vmstate_a9_scu;
-    device_class_set_legacy_reset(dc, a9_scu_reset);
-    dc->realize = a9_scu_realize;
 }
 
-static const TypeInfo a9_scu_info = {
-    .name          = TYPE_A9_SCU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(A9SCUState),
-    .class_init    = a9_scu_class_init,
-};
-
-static void a9mp_register_types(void)
-{
-    type_register_static(&a9_scu_info);
-}
-
-type_init(a9mp_register_types)
+REGISTER_QEMU_DEVICE(A9SCUState, TYPE_A9_SCU, TYPE_SYS_BUS_DEVICE)

@@ -24,6 +24,12 @@ struct A9SCUState {
     uint32_t control;
     uint32_t status;
     uint32_t num_cpu;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_A9_SCU "a9-scu"
