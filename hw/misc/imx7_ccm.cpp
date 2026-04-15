@@ -15,66 +15,55 @@
 
 #include "hw/misc/imx7_ccm.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
 #define CKIH_FREQ 24000000 /* 24MHz crystal input */
 
-static void imx7_analog_reset(DeviceState *dev)
+void IMX7AnalogState::reset()
 {
-    IMX7AnalogState *s = IMX7_ANALOG(dev);
+    memset(pmu, 0, sizeof(pmu));
+    memset(analog, 0, sizeof(analog));
 
-    memset(s->pmu, 0, sizeof(s->pmu));
-    memset(s->analog, 0, sizeof(s->analog));
-
-    s->analog[ANALOG_PLL_ARM]         = 0x00002042;
-    s->analog[ANALOG_PLL_DDR]         = 0x0060302c;
-    s->analog[ANALOG_PLL_DDR_SS]      = 0x00000000;
-    s->analog[ANALOG_PLL_DDR_NUM]     = 0x06aaac4d;
-    s->analog[ANALOG_PLL_DDR_DENOM]   = 0x100003ec;
-    s->analog[ANALOG_PLL_480]         = 0x00002000;
-    s->analog[ANALOG_PLL_480A]        = 0x52605a56;
-    s->analog[ANALOG_PLL_480B]        = 0x52525216;
-    s->analog[ANALOG_PLL_ENET]        = 0x00001fc0;
-    s->analog[ANALOG_PLL_AUDIO]       = 0x0001301b;
-    s->analog[ANALOG_PLL_AUDIO_SS]    = 0x00000000;
-    s->analog[ANALOG_PLL_AUDIO_NUM]   = 0x05f5e100;
-    s->analog[ANALOG_PLL_AUDIO_DENOM] = 0x2964619c;
-    s->analog[ANALOG_PLL_VIDEO]       = 0x0008201b;
-    s->analog[ANALOG_PLL_VIDEO_SS]    = 0x00000000;
-    s->analog[ANALOG_PLL_VIDEO_NUM]   = 0x0000f699;
-    s->analog[ANALOG_PLL_VIDEO_DENOM] = 0x000f4240;
-    s->analog[ANALOG_PLL_MISC0]       = 0x00000000;
+    analog[ANALOG_PLL_ARM]         = 0x00002042;
+    analog[ANALOG_PLL_DDR]         = 0x0060302c;
+    analog[ANALOG_PLL_DDR_SS]      = 0x00000000;
+    analog[ANALOG_PLL_DDR_NUM]     = 0x06aaac4d;
+    analog[ANALOG_PLL_DDR_DENOM]   = 0x100003ec;
+    analog[ANALOG_PLL_480]         = 0x00002000;
+    analog[ANALOG_PLL_480A]        = 0x52605a56;
+    analog[ANALOG_PLL_480B]        = 0x52525216;
+    analog[ANALOG_PLL_ENET]        = 0x00001fc0;
+    analog[ANALOG_PLL_AUDIO]       = 0x0001301b;
+    analog[ANALOG_PLL_AUDIO_SS]    = 0x00000000;
+    analog[ANALOG_PLL_AUDIO_NUM]   = 0x05f5e100;
+    analog[ANALOG_PLL_AUDIO_DENOM] = 0x2964619c;
+    analog[ANALOG_PLL_VIDEO]       = 0x0008201b;
+    analog[ANALOG_PLL_VIDEO_SS]    = 0x00000000;
+    analog[ANALOG_PLL_VIDEO_NUM]   = 0x0000f699;
+    analog[ANALOG_PLL_VIDEO_DENOM] = 0x000f4240;
+    analog[ANALOG_PLL_MISC0]       = 0x00000000;
 
     /* all PLLs need to be locked */
-    s->analog[ANALOG_PLL_ARM]   |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_PLL_DDR]   |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_PLL_480]   |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_PLL_480A]  |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_PLL_480B]  |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_PLL_ENET]  |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_PLL_AUDIO] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_PLL_VIDEO] |= ANALOG_PLL_LOCK;
-    s->analog[ANALOG_PLL_MISC0] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_ARM]   |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_DDR]   |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_480]   |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_480A]  |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_480B]  |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_ENET]  |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_AUDIO] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_VIDEO] |= ANALOG_PLL_LOCK;
+    analog[ANALOG_PLL_MISC0] |= ANALOG_PLL_LOCK;
 
-    /*
-     * Since I couldn't find any info about this in the reference
-     * manual the value of this register is based strictly on matching
-     * what Linux kernel expects it to be.
-     */
-    s->analog[ANALOG_DIGPROG]  = 0x720000;
-    /*
-     * Set revision to be 1.0 (Arbitrary choice, no particular
-     * reason).
-     */
-    s->analog[ANALOG_DIGPROG] |= 0x000010;
+    /* See original source for register value rationale */
+    analog[ANALOG_DIGPROG]  = 0x720000;
+    analog[ANALOG_DIGPROG] |= 0x000010;
 }
 
-static void imx7_ccm_reset(DeviceState *dev)
+void IMX7CCMState::reset()
 {
-    IMX7CCMState *s = IMX7_CCM(dev);
-
-    memset(s->ccm, 0, sizeof(s->ccm));
+    memset(ccm, 0, sizeof(ccm));
 }
 
 #define CCM_INDEX(offset)   (((offset) & ~(hwaddr)0xF) / sizeof(uint32_t))
@@ -153,61 +142,36 @@ static const struct MemoryRegionOps imx7_digprog_ops = {
     },
 };
 
-static void imx7_ccm_init(Object *obj)
+void IMX7CCMState::init()
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMX7CCMState *s = IMX7_CCM(obj);
-
-    memory_region_init_io(&s->iomem,
-                          obj,
-                          &imx7_set_clr_tog_ops,
-                          s->ccm,
-                          TYPE_IMX7_CCM ".ccm",
-                          sizeof(s->ccm));
-
-    sysbus_init_mmio(sd, &s->iomem);
+    Object *obj = reinterpret_cast<Object *>(this);
+    memory_region_init_io(&iomem, obj, &imx7_set_clr_tog_ops, ccm,
+                          TYPE_IMX7_CCM ".ccm", sizeof(ccm));
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void imx7_analog_init(Object *obj)
+void IMX7AnalogState::init()
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMX7AnalogState *s = IMX7_ANALOG(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
+    SysBusDevice *sd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init(&s->mmio.container, obj, TYPE_IMX7_ANALOG,
-                       0x10000);
+    memory_region_init(&mmio.container, obj, TYPE_IMX7_ANALOG, 0x10000);
 
-    memory_region_init_io(&s->mmio.analog,
-                          obj,
-                          &imx7_set_clr_tog_ops,
-                          s->analog,
-                          TYPE_IMX7_ANALOG,
-                          sizeof(s->analog));
+    memory_region_init_io(&mmio.analog, obj, &imx7_set_clr_tog_ops,
+                          analog, TYPE_IMX7_ANALOG, sizeof(analog));
+    memory_region_add_subregion(&mmio.container, 0x60, &mmio.analog);
 
-    memory_region_add_subregion(&s->mmio.container,
-                                0x60, &s->mmio.analog);
+    memory_region_init_io(&mmio.pmu, obj, &imx7_set_clr_tog_ops, pmu,
+                          TYPE_IMX7_ANALOG ".pmu", sizeof(pmu));
+    memory_region_add_subregion(&mmio.container, 0x200, &mmio.pmu);
 
-    memory_region_init_io(&s->mmio.pmu,
-                          obj,
-                          &imx7_set_clr_tog_ops,
-                          s->pmu,
-                          TYPE_IMX7_ANALOG ".pmu",
-                          sizeof(s->pmu));
+    memory_region_init_io(&mmio.digprog, obj, &imx7_digprog_ops,
+                          &analog[ANALOG_DIGPROG],
+                          TYPE_IMX7_ANALOG ".digprog", sizeof(uint32_t));
+    memory_region_add_subregion_overlap(&mmio.container, 0x800,
+                                        &mmio.digprog, 10);
 
-    memory_region_add_subregion(&s->mmio.container,
-                                0x200, &s->mmio.pmu);
-
-    memory_region_init_io(&s->mmio.digprog,
-                          obj,
-                          &imx7_digprog_ops,
-                          &s->analog[ANALOG_DIGPROG],
-                          TYPE_IMX7_ANALOG ".digprog",
-                          sizeof(uint32_t));
-
-    memory_region_add_subregion_overlap(&s->mmio.container,
-                                        0x800, &s->mmio.digprog, 10);
-
-
-    sysbus_init_mmio(sd, &s->mmio.container);
+    sysbus_init_mmio(sd, &mmio.container);
 }
 
 static const VMStateDescription vmstate_imx7_ccm = {
@@ -262,25 +226,17 @@ static uint32_t imx7_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     return freq;
 }
 
-static void imx7_ccm_class_init(ObjectClass *klass, const void *data)
+void IMX7CCMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
+    IMXCCMClass *ccm_class = reinterpret_cast<IMXCCMClass *>(dc);
 
-    device_class_set_legacy_reset(dc, imx7_ccm_reset);
     dc->vmsd  = &vmstate_imx7_ccm;
     dc->desc  = "i.MX7 Clock Control Module";
 
-    ccm->get_clock_frequency = imx7_ccm_get_clock_frequency;
+    ccm_class->get_clock_frequency = imx7_ccm_get_clock_frequency;
 }
 
-static const TypeInfo imx7_ccm_info = {
-    .name          = TYPE_IMX7_CCM,
-    .parent        = TYPE_IMX_CCM,
-    .instance_size = sizeof(IMX7CCMState),
-    .instance_init = imx7_ccm_init,
-    .class_init    = imx7_ccm_class_init,
-};
+REGISTER_QEMU_DEVICE(IMX7CCMState, TYPE_IMX7_CCM, TYPE_IMX_CCM)
 
 static const VMStateDescription vmstate_imx7_analog = {
     .name = TYPE_IMX7_ANALOG,
@@ -293,26 +249,10 @@ static const VMStateDescription vmstate_imx7_analog = {
     },
 };
 
-static void imx7_analog_class_init(ObjectClass *klass, const void *data)
+void IMX7AnalogState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, imx7_analog_reset);
     dc->vmsd  = &vmstate_imx7_analog;
     dc->desc  = "i.MX7 Analog Module";
 }
 
-static const TypeInfo imx7_analog_info = {
-    .name          = TYPE_IMX7_ANALOG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMX7AnalogState),
-    .instance_init = imx7_analog_init,
-    .class_init    = imx7_analog_class_init,
-};
-
-static void imx7_ccm_register_type(void)
-{
-    type_register_static(&imx7_ccm_info);
-    type_register_static(&imx7_analog_info);
-}
-type_init(imx7_ccm_register_type)
+REGISTER_QEMU_DEVICE(IMX7AnalogState, TYPE_IMX7_ANALOG, TYPE_SYS_BUS_DEVICE)

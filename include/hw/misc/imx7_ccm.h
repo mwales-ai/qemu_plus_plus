@@ -115,6 +115,12 @@ struct IMX7CCMState {
     MemoryRegion iomem;
 
     uint32_t ccm[CCM_MAX];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 
@@ -135,6 +141,12 @@ struct IMX7AnalogState {
 
     uint32_t analog[ANALOG_MAX];
     uint32_t pmu[PMU_MAX];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX7_CCM_H */
