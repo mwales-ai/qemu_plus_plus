@@ -22,6 +22,12 @@ struct Bcm2835ThermalState {
     /*< public >*/
     MemoryRegion iomem;
     uint32_t ctl;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

@@ -12,6 +12,7 @@
 #include "hw/misc/bcm2835_thermal.h"
 #include "hw/registerfields.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 REG32(CTL, 0)
 FIELD(CTL, POWER_DOWN, 0, 1)
@@ -85,20 +86,17 @@ static const MemoryRegionOps bcm2835_thermal_ops = {
     .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void bcm2835_thermal_reset(DeviceState *dev)
+void Bcm2835ThermalState::reset()
 {
-    Bcm2835ThermalState *s = BCM2835_THERMAL(dev);
-
-    s->ctl = 0;
+    ctl = 0;
 }
 
-static void bcm2835_thermal_realize(DeviceState *dev, Error **errp)
+void Bcm2835ThermalState::realize(Error **errp)
 {
-    Bcm2835ThermalState *s = BCM2835_THERMAL(dev);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_thermal_ops,
-                          s, TYPE_BCM2835_THERMAL, 8);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &bcm2835_thermal_ops, this,
+                          TYPE_BCM2835_THERMAL, 8);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateField bcm2835_thermal_vmstate_fields[] = {
@@ -113,25 +111,10 @@ static const VMStateDescription bcm2835_thermal_vmstate = {
     .fields = bcm2835_thermal_vmstate_fields,
 };
 
-static void bcm2835_thermal_class_init(ObjectClass *klass, const void *data)
+void Bcm2835ThermalState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = bcm2835_thermal_realize;
-    device_class_set_legacy_reset(dc, bcm2835_thermal_reset);
     dc->vmsd = &bcm2835_thermal_vmstate;
 }
 
-static const TypeInfo bcm2835_thermal_info = {
-    .name = TYPE_BCM2835_THERMAL,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Bcm2835ThermalState),
-    .class_init = bcm2835_thermal_class_init,
-};
-
-static void bcm2835_thermal_register_types(void)
-{
-    type_register_static(&bcm2835_thermal_info);
-}
-
-type_init(bcm2835_thermal_register_types)
+REGISTER_QEMU_DEVICE(Bcm2835ThermalState, TYPE_BCM2835_THERMAL,
+                     TYPE_SYS_BUS_DEVICE)

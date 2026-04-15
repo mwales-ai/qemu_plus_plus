@@ -41,6 +41,11 @@ struct ARMSSECPUID {
 
     /* Properties */
     uint32_t cpuid;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

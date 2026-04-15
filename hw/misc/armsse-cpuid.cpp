@@ -27,6 +27,7 @@
 #include "hw/registerfields.h"
 #include "hw/misc/armsse-cpuid.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 REG32(CPUID, 0x0)
 REG32(PID4, 0xfd0)
@@ -94,39 +95,20 @@ static const Property armsse_cpuid_props[] = {
     DEFINE_PROP_UINT32("CPUID", ARMSSECPUID, cpuid, 0),
 };
 
-static void armsse_cpuid_init(Object *obj)
+void ARMSSECPUID::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ARMSSECPUID *s = ARMSSE_CPUID(obj);
-
-    memory_region_init_io(&s->iomem, obj, &armsse_cpuid_ops,
-                          s, "armsse-cpuid", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &armsse_cpuid_ops, this, "armsse-cpuid", 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void armsse_cpuid_class_init(ObjectClass *klass, const void *data)
+void ARMSSECPUID::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     /*
      * This device has no guest-modifiable state and so it
      * does not need a reset function or VMState.
      */
-
     device_class_set_props(dc, armsse_cpuid_props);
 }
 
-static const TypeInfo armsse_cpuid_info = {
-    .name = TYPE_ARMSSE_CPUID,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARMSSECPUID),
-    .instance_init = armsse_cpuid_init,
-    .class_init = armsse_cpuid_class_init,
-};
-
-static void armsse_cpuid_register_types(void)
-{
-    type_register_static(&armsse_cpuid_info);
-}
-
-type_init(armsse_cpuid_register_types);
+REGISTER_QEMU_DEVICE(ARMSSECPUID, TYPE_ARMSSE_CPUID, TYPE_SYS_BUS_DEVICE)
