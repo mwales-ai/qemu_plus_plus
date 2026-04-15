@@ -12,6 +12,7 @@
 #include "hw/irq.h"
 #include "hw/misc/aspeed_peci.h"
 #include "hw/registerfields.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 #define ASPEED_PECI_CC_RSP_SUCCESS (0x40U)
@@ -112,41 +113,24 @@ static const MemoryRegionOps aspeed_peci_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void aspeed_peci_realize(DeviceState *dev, Error **errp)
+void AspeedPECIState::realize(Error **errp)
 {
-    AspeedPECIState *s = ASPEED_PECI(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &aspeed_peci_ops, s,
-                          TYPE_ASPEED_PECI, 0x1000);
-    sysbus_init_mmio(sbd, &s->mmio);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &aspeed_peci_ops, this, TYPE_ASPEED_PECI, 0x1000);
+    sysbus_init_mmio(sbd, &mmio);
+    sysbus_init_irq(sbd, &irq);
 }
 
-static void aspeed_peci_reset(DeviceState *dev)
+void AspeedPECIState::reset()
 {
-    AspeedPECIState *s = ASPEED_PECI(dev);
-
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(regs, 0, sizeof(regs));
 }
 
-static void aspeed_peci_class_init(ObjectClass *klass, const void *data)
+void AspeedPECIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = aspeed_peci_realize;
-    device_class_set_legacy_reset(dc, aspeed_peci_reset);
     dc->desc = "Aspeed PECI Controller";
 }
 
-static const TypeInfo aspeed_peci_types[] = {
-    {
-        .name = TYPE_ASPEED_PECI,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(AspeedPECIState),
-        .is_abstract = false,
-        .class_init = aspeed_peci_class_init,
-    },
-};
-
-DEFINE_TYPES(aspeed_peci_types);
+REGISTER_QEMU_DEVICE(AspeedPECIState, TYPE_ASPEED_PECI, TYPE_SYS_BUS_DEVICE)

@@ -28,6 +28,12 @@ struct AspeedPECIState {
     qemu_irq irq;
 
     uint32_t regs[ASPEED_PECI_NR_REGS];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
