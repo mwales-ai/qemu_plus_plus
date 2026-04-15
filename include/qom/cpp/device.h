@@ -1,7 +1,8 @@
 /*
- * QEMU++ C++ Device Wrappers (SysBus, PCI)
+ * QEMU++ C++ Device Helpers (SysBus, PCI)
  *
- * Extends qom/cpp/object.h with wrappers for specific device types.
+ * Extends qom/cpp/object.h with zero-vtable helpers for specific device
+ * types. Same design rule as object.h: NO virtual methods.
  *
  * Copyright (c) 2026 QEMU++ Project
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -18,32 +19,33 @@
 #include "hw/sysbus.h"
 #include "hw/pci/pci_device.h"
 
-namespace qemu {
-
-/**
- * CppSysBusDevice: C++ wrapper for SysBusDevice.
+/*
+ * CppSysBusDevice: zero-vtable view over a QOM SysBusDevice.
  *
- * Use this as the base class for memory-mapped devices that attach
- * to the system bus (most non-PCI hardware).
- *
- * Provides convenience methods for registering MMIO regions and IRQs.
+ * Use as a CRTP-free mixin: the device class inherits CppSysBusDevice,
+ * embeds `SysBusDevice parent_obj` as its first data member, and gets
+ * convenience helpers for MMIO/IRQ registration and the sysBusDevice()
+ * accessor.
  *
  * Example:
- *   class MyTimer : public qemu::CppSysBusDevice {
- *       QEMU_DEVICE_TYPE("my-timer")
+ *   class PL011State : public CppSysBusDevice {
  *   public:
- *       void realize(Error **errp) override;
- *       void reset() override;
+ *       SysBusDevice parent_obj;   // MUST be first — QOM embedding
+ *       MemoryRegion iomem;
+ *       qemu_irq irq[6];
+ *       uint32_t theCr;
+ *       // ...
  *
+ *       void init();
+ *       void realize(Error **errp);
+ *       void reset();
  *       static void classInit(DeviceClass *dc);
- *
- *   private:
- *       MemoryRegion theMmio;
- *       uint32_t theCount;
- *       uint32_t theReload;
- *       qemu_irq theIrq;
- *       QEMUTimer *theTimer;
  *   };
+ *
+ * Note: CppSysBusDevice contributes 0 bytes to PL011State via empty-base
+ * optimization, so sizeof(PL011State) is unchanged from the equivalent
+ * C struct. Binary layout is preserved and embedders that do
+ * `PL011State uart0;` keep working unchanged.
  */
 class CppSysBusDevice : public CppDevice
 {
@@ -72,29 +74,14 @@ public:
 
 protected:
     CppSysBusDevice() = default;
-    ~CppSysBusDevice() override = default;
+    ~CppSysBusDevice() = default;  /* NON-virtual */
 };
 
-/**
- * CppPCIDevice: C++ wrapper for PCIDevice.
+/*
+ * CppPCIDevice: zero-vtable view over a QOM PCIDevice.
  *
- * Use this as the base class for PCI devices. Override realize()
- * to set up BARs, capabilities, and interrupts.
- *
- * Example:
- *   class MyNIC : public qemu::CppPCIDevice {
- *       QEMU_DEVICE_TYPE("my-nic")
- *   public:
- *       void realize(Error **errp) override;
- *       void reset() override;
- *
- *       static void classInit(DeviceClass *dc);
- *
- *   private:
- *       MemoryRegion theBar;
- *       NICState *theNic;
- *       NICConf theConf;
- *   };
+ * Same idiom as CppSysBusDevice. The concrete device class embeds
+ * `PCIDevice parent_obj` as its first data member.
  */
 class CppPCIDevice : public CppDevice
 {
@@ -121,25 +108,20 @@ public:
 
 protected:
     CppPCIDevice() = default;
-    ~CppPCIDevice() override = default;
+    ~CppPCIDevice() = default;  /* NON-virtual */
 };
 
 /*
- * QEMU_SYSBUS_DEVICE_REGISTER(ClassName)
- *
- * Convenience macro for SysBus devices — sets parent to TYPE_SYS_BUS_DEVICE.
+ * REGISTER_QEMU_SYSBUS_DEVICE: register a SysBus-based C++ device.
+ * Convenience wrapper around REGISTER_QEMU_DEVICE.
  */
-#define QEMU_SYSBUS_DEVICE_REGISTER(ClassName) \
-    QEMU_DEVICE_REGISTER(ClassName, TYPE_SYS_BUS_DEVICE)
+#define REGISTER_QEMU_SYSBUS_DEVICE(ClassName, type_name_str)             \
+    REGISTER_QEMU_DEVICE(ClassName, type_name_str, TYPE_SYS_BUS_DEVICE)
 
 /*
- * QEMU_PCI_DEVICE_REGISTER(ClassName)
- *
- * Convenience macro for PCI devices — sets parent to TYPE_PCI_DEVICE.
+ * REGISTER_QEMU_PCI_DEVICE: register a PCI-based C++ device.
  */
-#define QEMU_PCI_DEVICE_REGISTER(ClassName) \
-    QEMU_DEVICE_REGISTER(ClassName, TYPE_PCI_DEVICE)
-
-} /* namespace qemu */
+#define REGISTER_QEMU_PCI_DEVICE(ClassName, type_name_str)                \
+    REGISTER_QEMU_DEVICE(ClassName, type_name_str, TYPE_PCI_DEVICE)
 
 #endif /* QOM_CPP_DEVICE_H */
