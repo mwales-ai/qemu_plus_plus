@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "hw/misc/allwinner-h3-dramc.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 #define REG_INDEX(offset)    (offset / sizeof(uint32_t))
@@ -259,59 +260,54 @@ static void allwinner_h3_dramc_reset(DeviceState *dev)
     memset(&s->dramphy, 0, sizeof(s->dramphy));
 }
 
-static void allwinner_h3_dramc_realize(DeviceState *dev, Error **errp)
+void AwH3DramCtlState::realize(Error **errp)
 {
-    AwH3DramCtlState *s = AW_H3_DRAMC(dev);
-
     /* Only power of 2 RAM sizes from 256MiB up to 2048MiB are supported */
     for (uint8_t i = 8; i < 13; i++) {
-        if (1 << i == s->ram_size) {
+        if (1 << i == ram_size) {
             break;
         } else if (i == 12) {
             error_report("%s: ram-size %u MiB is not supported",
-                          __func__, s->ram_size);
+                          __func__, ram_size);
             exit(1);
         }
     }
 
     /* Setup row mirror mappings */
-    memory_region_init_ram(&s->row_mirror, OBJECT(s),
+    memory_region_init_ram(&row_mirror, reinterpret_cast<Object *>(this),
                            "allwinner-h3-dramc.row-mirror",
                             4 * KiB, &error_abort);
-    memory_region_add_subregion_overlap(get_system_memory(), s->ram_addr,
-                                       &s->row_mirror, 10);
+    memory_region_add_subregion_overlap(get_system_memory(), ram_addr,
+                                       &row_mirror, 10);
 
-    memory_region_init_alias(&s->row_mirror_alias, OBJECT(s),
+    memory_region_init_alias(&row_mirror_alias, reinterpret_cast<Object *>(this),
                             "allwinner-h3-dramc.row-mirror-alias",
-                            &s->row_mirror, 0, 4 * KiB);
+                            &row_mirror, 0, 4 * KiB);
     memory_region_add_subregion_overlap(get_system_memory(),
-                                        s->ram_addr + 1 * MiB,
-                                       &s->row_mirror_alias, 10);
-    memory_region_set_enabled(&s->row_mirror_alias, false);
+                                        ram_addr + 1 * MiB,
+                                       &row_mirror_alias, 10);
+    memory_region_set_enabled(&row_mirror_alias, false);
 }
 
-static void allwinner_h3_dramc_init(Object *obj)
+void AwH3DramCtlState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwH3DramCtlState *s = AW_H3_DRAMC(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    Object *obj = reinterpret_cast<Object *>(this);
 
     /* DRAMCOM registers */
-    memory_region_init_io(&s->dramcom_iomem, OBJECT(s),
-                          &allwinner_h3_dramcom_ops, s,
-                           TYPE_AW_H3_DRAMC, 4 * KiB);
-    sysbus_init_mmio(sbd, &s->dramcom_iomem);
+    memory_region_init_io(&dramcom_iomem, obj, &allwinner_h3_dramcom_ops, this,
+                          TYPE_AW_H3_DRAMC, 4 * KiB);
+    sysbus_init_mmio(sbd, &dramcom_iomem);
 
     /* DRAMCTL registers */
-    memory_region_init_io(&s->dramctl_iomem, OBJECT(s),
-                          &allwinner_h3_dramctl_ops, s,
-                           TYPE_AW_H3_DRAMC, 4 * KiB);
-    sysbus_init_mmio(sbd, &s->dramctl_iomem);
+    memory_region_init_io(&dramctl_iomem, obj, &allwinner_h3_dramctl_ops, this,
+                          TYPE_AW_H3_DRAMC, 4 * KiB);
+    sysbus_init_mmio(sbd, &dramctl_iomem);
 
     /* DRAMPHY registers */
-    memory_region_init_io(&s->dramphy_iomem, OBJECT(s),
-                          &allwinner_h3_dramphy_ops, s,
+    memory_region_init_io(&dramphy_iomem, obj, &allwinner_h3_dramphy_ops, this,
                           TYPE_AW_H3_DRAMC, 4 * KiB);
-    sysbus_init_mmio(sbd, &s->dramphy_iomem);
+    sysbus_init_mmio(sbd, &dramphy_iomem);
 }
 
 static const Property allwinner_h3_dramc_properties[] = {
@@ -331,27 +327,12 @@ static const VMStateDescription allwinner_h3_dramc_vmstate = {
     }
 };
 
-static void allwinner_h3_dramc_class_init(ObjectClass *klass, const void *data)
+void AwH3DramCtlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, allwinner_h3_dramc_reset);
     dc->vmsd = &allwinner_h3_dramc_vmstate;
-    dc->realize = allwinner_h3_dramc_realize;
     device_class_set_props(dc, allwinner_h3_dramc_properties);
 }
 
-static const TypeInfo allwinner_h3_dramc_info = {
-    .name          = TYPE_AW_H3_DRAMC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwH3DramCtlState),
-    .instance_init = allwinner_h3_dramc_init,
-    .class_init    = allwinner_h3_dramc_class_init,
-};
-
-static void allwinner_h3_dramc_register(void)
-{
-    type_register_static(&allwinner_h3_dramc_info);
-}
-
-type_init(allwinner_h3_dramc_register)
+REGISTER_QEMU_DEVICE(AwH3DramCtlState, TYPE_AW_H3_DRAMC,
+                     TYPE_SYS_BUS_DEVICE)

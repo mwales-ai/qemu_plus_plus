@@ -100,6 +100,11 @@ struct AwH3DramCtlState {
 
     /** @} */
 
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MISC_ALLWINNER_H3_DRAMC_H */
