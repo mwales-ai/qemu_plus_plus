@@ -35,6 +35,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 REG32(INTR_STATE, 0x00)
     FIELD(INTR_STATE, TX_WATERMARK, 0, 1)
@@ -227,28 +228,26 @@ static void uart_write_tx_fifo(IbexUartState *s, const uint8_t *buf,
               (s->char_tx_time * 4));
 }
 
-static void ibex_uart_reset(DeviceState *dev)
+void IbexUartState::reset()
 {
-    IbexUartState *s = IBEX_UART(dev);
+    uart_intr_state = 0x00000000;
+    uart_intr_state = 0x00000000;
+    uart_intr_enable = 0x00000000;
+    uart_ctrl = 0x00000000;
+    uart_status = 0x0000003c;
+    uart_rdata = 0x00000000;
+    uart_fifo_ctrl = 0x00000000;
+    uart_fifo_status = 0x00000000;
+    uart_ovrd = 0x00000000;
+    uart_val = 0x00000000;
+    uart_timeout_ctrl = 0x00000000;
 
-    s->uart_intr_state = 0x00000000;
-    s->uart_intr_state = 0x00000000;
-    s->uart_intr_enable = 0x00000000;
-    s->uart_ctrl = 0x00000000;
-    s->uart_status = 0x0000003c;
-    s->uart_rdata = 0x00000000;
-    s->uart_fifo_ctrl = 0x00000000;
-    s->uart_fifo_status = 0x00000000;
-    s->uart_ovrd = 0x00000000;
-    s->uart_val = 0x00000000;
-    s->uart_timeout_ctrl = 0x00000000;
+    tx_level = 0;
+    rx_level = 0;
 
-    s->tx_level = 0;
-    s->rx_level = 0;
+    char_tx_time = (NANOSECONDS_PER_SECOND / 230400) * 10;
 
-    s->char_tx_time = (NANOSECONDS_PER_SECOND / 230400) * 10;
-
-    ibex_uart_update_irqs(s);
+    ibex_uart_update_irqs(this);
 }
 
 static uint64_t ibex_uart_get_baud(IbexUartState *s)
@@ -511,58 +510,40 @@ static const Property ibex_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", IbexUartState, chr),
 };
 
-static void ibex_uart_init(Object *obj)
+void IbexUartState::init()
 {
-    IbexUartState *s = IBEX_UART(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(this);
 
-    s->f_clk = qdev_init_clock_in(DEVICE(obj), "f_clock",
-                                  ibex_uart_clk_update, s, ClockUpdate);
-    clock_set_hz(s->f_clk, IBEX_UART_CLOCK);
+    f_clk = qdev_init_clock_in(ds, "f_clock", ibex_uart_clk_update, this,
+                               ClockUpdate);
+    clock_set_hz(f_clk, IBEX_UART_CLOCK);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->tx_watermark);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rx_watermark);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->tx_empty);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rx_overflow);
+    sysbus_init_irq(sbd, &tx_watermark);
+    sysbus_init_irq(sbd, &rx_watermark);
+    sysbus_init_irq(sbd, &tx_empty);
+    sysbus_init_irq(sbd, &rx_overflow);
 
-    memory_region_init_io(&s->mmio, obj, &ibex_uart_ops, s,
-                          TYPE_IBEX_UART, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &ibex_uart_ops, this, TYPE_IBEX_UART, 0x400);
+    sysbus_init_mmio(sbd, &mmio);
 }
 
-static void ibex_uart_realize(DeviceState *dev, Error **errp)
+void IbexUartState::realize(Error **errp)
 {
-    IbexUartState *s = IBEX_UART(dev);
+    fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                       fifo_trigger_update, this);
 
-    s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                          fifo_trigger_update, s);
-
-    qemu_chr_fe_set_handlers(&s->chr, ibex_uart_can_receive,
+    qemu_chr_fe_set_handlers(&chr, ibex_uart_can_receive,
                              ibex_uart_receive, NULL, NULL,
-                             s, NULL, true);
+                             this, NULL, true);
 }
 
-static void ibex_uart_class_init(ObjectClass *klass, const void *data)
+void IbexUartState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, ibex_uart_reset);
-    dc->realize = ibex_uart_realize;
     dc->vmsd = &vmstate_ibex_uart;
     device_class_set_props(dc, ibex_uart_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo ibex_uart_info = {
-    .name          = TYPE_IBEX_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IbexUartState),
-    .instance_init = ibex_uart_init,
-    .class_init    = ibex_uart_class_init,
-};
-
-static void ibex_uart_register_types(void)
-{
-    type_register_static(&ibex_uart_info);
-}
-
-type_init(ibex_uart_register_types)
+REGISTER_QEMU_DEVICE(IbexUartState, TYPE_IBEX_UART, TYPE_SYS_BUS_DEVICE)

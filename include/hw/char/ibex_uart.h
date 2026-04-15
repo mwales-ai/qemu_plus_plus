@@ -69,5 +69,12 @@ struct IbexUartState {
     qemu_irq rx_watermark;
     qemu_irq tx_empty;
     qemu_irq rx_overflow;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 #endif /* HW_IBEX_UART_H */
