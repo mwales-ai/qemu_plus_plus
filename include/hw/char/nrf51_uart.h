@@ -73,6 +73,13 @@ struct NRF51UARTState {
     bool tx_started;
     bool pending_tx_byte;
     bool enabled;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

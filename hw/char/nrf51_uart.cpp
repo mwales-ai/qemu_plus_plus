@@ -21,6 +21,7 @@
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 static void nrf51_uart_update_irq(NRF51UARTState *s)
 {
@@ -196,27 +197,25 @@ static const MemoryRegionOps uart_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void nrf51_uart_reset(DeviceState *dev)
+void NRF51UARTState::reset()
 {
-    NRF51UARTState *s = NRF51_UART(dev);
+    pending_tx_byte = 0;
 
-    s->pending_tx_byte = 0;
+    uart_cancel_transmit(this);
 
-    uart_cancel_transmit(s);
+    memset(reg, 0, sizeof(reg));
 
-    memset(s->reg, 0, sizeof(s->reg));
+    reg[R_UART_PSELRTS] = 0xFFFFFFFF;
+    reg[R_UART_PSELTXD] = 0xFFFFFFFF;
+    reg[R_UART_PSELCTS] = 0xFFFFFFFF;
+    reg[R_UART_PSELRXD] = 0xFFFFFFFF;
+    reg[R_UART_BAUDRATE] = 0x4000000;
 
-    s->reg[R_UART_PSELRTS] = 0xFFFFFFFF;
-    s->reg[R_UART_PSELTXD] = 0xFFFFFFFF;
-    s->reg[R_UART_PSELCTS] = 0xFFFFFFFF;
-    s->reg[R_UART_PSELRXD] = 0xFFFFFFFF;
-    s->reg[R_UART_BAUDRATE] = 0x4000000;
-
-    s->rx_fifo_len = 0;
-    s->rx_fifo_pos = 0;
-    s->rx_started = false;
-    s->tx_started = false;
-    s->enabled = false;
+    rx_fifo_len = 0;
+    rx_fifo_pos = 0;
+    rx_started = false;
+    tx_started = false;
+    enabled = false;
 }
 
 static void uart_receive(void *opaque, const uint8_t *buf, int size)
@@ -257,23 +256,20 @@ static void uart_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-static void nrf51_uart_realize(DeviceState *dev, Error **errp)
+void NRF51UARTState::realize(Error **errp)
 {
-    NRF51UARTState *s = NRF51_UART(dev);
-
-    qemu_chr_fe_set_handlers(&s->chr, uart_can_receive, uart_receive,
-                             uart_event, NULL, s, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, uart_can_receive, uart_receive,
+                             uart_event, NULL, this, NULL, true);
 }
 
-static void nrf51_uart_init(Object *obj)
+void NRF51UARTState::init()
 {
-    NRF51UARTState *s = NRF51_UART(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &uart_ops, s,
-                          "nrf51_soc.uart", UART_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &uart_ops,
+                          this, "nrf51_soc.uart", UART_SIZE);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 }
 
 static int nrf51_uart_post_load(void *opaque, int version_id)
@@ -308,27 +304,10 @@ static const Property nrf51_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", NRF51UARTState, chr),
 };
 
-static void nrf51_uart_class_init(ObjectClass *klass, const void *data)
+void NRF51UARTState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, nrf51_uart_reset);
-    dc->realize = nrf51_uart_realize;
     device_class_set_props(dc, nrf51_uart_properties);
     dc->vmsd = &nrf51_uart_vmstate;
 }
 
-static const TypeInfo nrf51_uart_info = {
-    .name = TYPE_NRF51_UART,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NRF51UARTState),
-    .instance_init = nrf51_uart_init,
-    .class_init = nrf51_uart_class_init
-};
-
-static void nrf51_uart_register_types(void)
-{
-    type_register_static(&nrf51_uart_info);
-}
-
-type_init(nrf51_uart_register_types)
+REGISTER_QEMU_DEVICE(NRF51UARTState, TYPE_NRF51_UART, TYPE_SYS_BUS_DEVICE)
