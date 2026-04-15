@@ -24,6 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/sifive_e_prci.h"
+#include "qom/cpp/object.h"
 
 static uint64_t sifive_e_prci_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -82,34 +83,22 @@ static const MemoryRegionOps sifive_e_prci_ops = {
     }
 };
 
-static void sifive_e_prci_init(Object *obj)
+void SiFiveEPRCIState::init()
 {
-    SiFiveEPRCIState *s = SIFIVE_E_PRCI(obj);
-
-    memory_region_init_io(&s->mmio, obj, &sifive_e_prci_ops, s,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &sifive_e_prci_ops, this,
                           TYPE_SIFIVE_E_PRCI, SIFIVE_E_PRCI_REG_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mmio);
 
-    s->hfrosccfg = (SIFIVE_E_PRCI_HFROSCCFG_RDY | SIFIVE_E_PRCI_HFROSCCFG_EN);
-    s->hfxosccfg = (SIFIVE_E_PRCI_HFXOSCCFG_RDY | SIFIVE_E_PRCI_HFXOSCCFG_EN);
-    s->pllcfg = (SIFIVE_E_PRCI_PLLCFG_REFSEL | SIFIVE_E_PRCI_PLLCFG_BYPASS |
-                 SIFIVE_E_PRCI_PLLCFG_LOCK);
-    s->plloutdiv = SIFIVE_E_PRCI_PLLOUTDIV_DIV1;
+    hfrosccfg = (SIFIVE_E_PRCI_HFROSCCFG_RDY | SIFIVE_E_PRCI_HFROSCCFG_EN);
+    hfxosccfg = (SIFIVE_E_PRCI_HFXOSCCFG_RDY | SIFIVE_E_PRCI_HFXOSCCFG_EN);
+    pllcfg = (SIFIVE_E_PRCI_PLLCFG_REFSEL | SIFIVE_E_PRCI_PLLCFG_BYPASS |
+              SIFIVE_E_PRCI_PLLCFG_LOCK);
+    plloutdiv = SIFIVE_E_PRCI_PLLOUTDIV_DIV1;
 }
 
-static const TypeInfo sifive_e_prci_info = {
-    .name          = TYPE_SIFIVE_E_PRCI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFiveEPRCIState),
-    .instance_init = sifive_e_prci_init,
-};
-
-static void sifive_e_prci_register_types(void)
-{
-    type_register_static(&sifive_e_prci_info);
-}
-
-type_init(sifive_e_prci_register_types)
+REGISTER_QEMU_DEVICE(SiFiveEPRCIState, TYPE_SIFIVE_E_PRCI,
+                     TYPE_SYS_BUS_DEVICE)
 
 
 /*

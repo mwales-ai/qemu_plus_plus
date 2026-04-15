@@ -71,6 +71,10 @@ struct SiFiveEPRCIState {
     uint32_t hfxosccfg;
     uint32_t pllcfg;
     uint32_t plloutdiv;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 DeviceState *sifive_e_prci_create(hwaddr addr);
