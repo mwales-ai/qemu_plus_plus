@@ -18,6 +18,7 @@
 #include "hw/irq.h"
 #include "hw/misc/imx_rngc.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 #define RNGC_NAME "i.MX RNGC"
 
@@ -218,27 +219,25 @@ static void imx_rngc_seed(void *opaque)
     }
 }
 
-static void imx_rngc_realize(DeviceState *dev, Error **errp)
+void IMXRNGCState::realize(Error **errp)
 {
-    IMXRNGCState *s = IMX_RNGC(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &imx_rngc_ops, s,
-                          TYPE_IMX_RNGC, 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &imx_rngc_ops, this, TYPE_IMX_RNGC, 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
 
-    sysbus_init_irq(sbd, &s->irq);
-    s->self_test_bh = qemu_bh_new_guarded(imx_rngc_self_test, s,
-                                          &dev->mem_reentrancy_guard);
-    s->seed_bh = qemu_bh_new_guarded(imx_rngc_seed, s,
-                                     &dev->mem_reentrancy_guard);
+    sysbus_init_irq(sbd, &irq);
+    self_test_bh = qemu_bh_new_guarded(imx_rngc_self_test, this,
+                                       &dev->mem_reentrancy_guard);
+    seed_bh = qemu_bh_new_guarded(imx_rngc_seed, this,
+                                  &dev->mem_reentrancy_guard);
 }
 
-static void imx_rngc_reset(DeviceState *dev)
+void IMXRNGCState::reset()
 {
-    IMXRNGCState *s = IMX_RNGC(dev);
-
-    imx_rngc_do_reset(s);
+    imx_rngc_do_reset(this);
 }
 
 static const VMStateField vmstate_imx_rngc_fields[] = {
@@ -256,26 +255,10 @@ static const VMStateDescription vmstate_imx_rngc = {
     .fields = vmstate_imx_rngc_fields,
 };
 
-static void imx_rngc_class_init(ObjectClass *klass, const void *data)
+void IMXRNGCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = imx_rngc_realize;
-    device_class_set_legacy_reset(dc, imx_rngc_reset);
-    dc->desc = RNGC_NAME,
+    dc->desc = RNGC_NAME;
     dc->vmsd = &vmstate_imx_rngc;
 }
 
-static const TypeInfo imx_rngc_info = {
-    .name          = TYPE_IMX_RNGC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXRNGCState),
-    .class_init    = imx_rngc_class_init,
-};
-
-static void imx_rngc_register_types(void)
-{
-    type_register_static(&imx_rngc_info);
-}
-
-type_init(imx_rngc_register_types)
+REGISTER_QEMU_DEVICE(IMXRNGCState, TYPE_IMX_RNGC, TYPE_SYS_BUS_DEVICE)

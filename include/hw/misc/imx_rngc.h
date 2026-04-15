@@ -31,6 +31,12 @@ struct IMXRNGCState {
     QEMUBH *self_test_bh;
     QEMUBH *seed_bh;
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX_RNGC_H */
