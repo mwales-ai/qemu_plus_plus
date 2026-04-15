@@ -62,6 +62,11 @@ struct AwA10ClockCtlState {
 
     /** Array of hardware registers */
     uint32_t regs[AW_A10_CCM_REGS_NUM];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MISC_ALLWINNER_H3_CCU_H */

@@ -27,6 +27,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/allwinner-a10-ccm.h"
+#include "qom/cpp/object.h"
 
 /* CCM register offsets */
 enum {
@@ -178,15 +179,12 @@ static void allwinner_a10_ccm_reset_enter(Object *obj, ResetType type)
     s->regs[REG_INDEX(REG_CPU_AHB_APB0_CFG)] = REG_CPU_AHB_APB0_CFG_RST;
 }
 
-static void allwinner_a10_ccm_init(Object *obj)
+void AwA10ClockCtlState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwA10ClockCtlState *s = AW_A10_CCM(obj);
-
-    /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_a10_ccm_ops, s,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &allwinner_a10_ccm_ops, this,
                           TYPE_AW_A10_CCM, AW_A10_CCM_IOSIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateDescription allwinner_a10_ccm_vmstate = {
@@ -199,26 +197,12 @@ static const VMStateDescription allwinner_a10_ccm_vmstate = {
     }
 };
 
-static void allwinner_a10_ccm_class_init(ObjectClass *klass, const void *data)
+void AwA10ClockCtlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(dc);
 
     rc->phases.enter = allwinner_a10_ccm_reset_enter;
     dc->vmsd = &allwinner_a10_ccm_vmstate;
 }
 
-static const TypeInfo allwinner_a10_ccm_info = {
-    .name          = TYPE_AW_A10_CCM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwA10ClockCtlState),
-    .instance_init = allwinner_a10_ccm_init,
-    .class_init    = allwinner_a10_ccm_class_init,
-};
-
-static void allwinner_a10_ccm_register(void)
-{
-    type_register_static(&allwinner_a10_ccm_info);
-}
-
-type_init(allwinner_a10_ccm_register)
+REGISTER_QEMU_DEVICE(AwA10ClockCtlState, TYPE_AW_A10_CCM, TYPE_SYS_BUS_DEVICE)
