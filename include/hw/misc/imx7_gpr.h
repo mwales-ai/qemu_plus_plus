@@ -28,6 +28,11 @@ struct IMX7GPRState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

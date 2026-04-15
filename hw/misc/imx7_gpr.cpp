@@ -16,6 +16,7 @@
 #include "hw/misc/imx7_gpr.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
@@ -92,33 +93,17 @@ static const struct MemoryRegionOps imx7_gpr_ops = {
     },
 };
 
-static void imx7_gpr_init(Object *obj)
+void IMX7GPRState::init()
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMX7GPRState *s = IMX7_GPR(obj);
-
-    memory_region_init_io(&s->mmio, obj, &imx7_gpr_ops, s,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &imx7_gpr_ops, this,
                           TYPE_IMX7_GPR, 64 * 1024);
-    sysbus_init_mmio(sd, &s->mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mmio);
 }
 
-static void imx7_gpr_class_init(ObjectClass *klass, const void *data)
+void IMX7GPRState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->desc  = "i.MX7 General Purpose Registers Module";
+    dc->desc = "i.MX7 General Purpose Registers Module";
 }
 
-static const TypeInfo imx7_gpr_info = {
-    .name          = TYPE_IMX7_GPR,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMX7GPRState),
-    .instance_init = imx7_gpr_init,
-    .class_init    = imx7_gpr_class_init,
-};
-
-static void imx7_gpr_register_type(void)
-{
-    type_register_static(&imx7_gpr_info);
-}
-type_init(imx7_gpr_register_type)
+REGISTER_QEMU_DEVICE(IMX7GPRState, TYPE_IMX7_GPR, TYPE_SYS_BUS_DEVICE)

@@ -27,6 +27,7 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/misc/mchp_pfsoc_sysreg.h"
+#include "qom/cpp/object.h"
 #include "system/runstate.h"
 
 #define MSS_RESET_CR    0x18
@@ -80,36 +81,22 @@ static const MemoryRegionOps mchp_pfsoc_sysreg_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void mchp_pfsoc_sysreg_realize(DeviceState *dev, Error **errp)
+void MchpPfSoCSysregState::realize(Error **errp)
 {
-    MchpPfSoCSysregState *s = MCHP_PFSOC_SYSREG(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->sysreg, OBJECT(dev),
-                          &mchp_pfsoc_sysreg_ops, s,
+    memory_region_init_io(&sysreg, reinterpret_cast<Object *>(this),
+                          &mchp_pfsoc_sysreg_ops, this,
                           "mchp.pfsoc.sysreg",
                           MCHP_PFSOC_SYSREG_REG_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->sysreg);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+    sysbus_init_mmio(sbd, &sysreg);
+    sysbus_init_irq(sbd, &irq);
 }
 
-static void mchp_pfsoc_sysreg_class_init(ObjectClass *klass, const void *data)
+void MchpPfSoCSysregState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "Microchip PolarFire SoC SYSREG module";
-    dc->realize = mchp_pfsoc_sysreg_realize;
 }
 
-static const TypeInfo mchp_pfsoc_sysreg_info = {
-    .name          = TYPE_MCHP_PFSOC_SYSREG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MchpPfSoCSysregState),
-    .class_init    = mchp_pfsoc_sysreg_class_init,
-};
-
-static void mchp_pfsoc_sysreg_register_types(void)
-{
-    type_register_static(&mchp_pfsoc_sysreg_info);
-}
-
-type_init(mchp_pfsoc_sysreg_register_types)
+REGISTER_QEMU_DEVICE(MchpPfSoCSysregState, TYPE_MCHP_PFSOC_SYSREG,
+                     TYPE_SYS_BUS_DEVICE)
