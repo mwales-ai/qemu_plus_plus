@@ -28,6 +28,7 @@
 #include "hw/char/cmsdk-apb-uart.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties-system.h"
+#include "qom/cpp/object.h"
 
 REG32(DATA, 0)
 REG32(STATE, 4)
@@ -304,39 +305,35 @@ static const MemoryRegionOps uart_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void cmsdk_apb_uart_reset(DeviceState *dev)
+void CMSDKAPBUART::reset()
 {
-    CMSDKAPBUART *s = CMSDK_APB_UART(dev);
-
     trace_cmsdk_apb_uart_reset();
-    uart_cancel_transmit(s);
-    s->state = 0;
-    s->ctrl = 0;
-    s->intstatus = 0;
-    s->bauddiv = 0;
-    s->txbuf = 0;
-    s->rxbuf = 0;
+    uart_cancel_transmit(this);
+    state = 0;
+    ctrl = 0;
+    intstatus = 0;
+    bauddiv = 0;
+    txbuf = 0;
+    rxbuf = 0;
 }
 
-static void cmsdk_apb_uart_init(Object *obj)
+void CMSDKAPBUART::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    CMSDKAPBUART *s = CMSDK_APB_UART(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &uart_ops, s, "uart", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->txint);
-    sysbus_init_irq(sbd, &s->rxint);
-    sysbus_init_irq(sbd, &s->txovrint);
-    sysbus_init_irq(sbd, &s->rxovrint);
-    sysbus_init_irq(sbd, &s->uartint);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &uart_ops,
+                          this, "uart", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &txint);
+    sysbus_init_irq(sbd, &rxint);
+    sysbus_init_irq(sbd, &txovrint);
+    sysbus_init_irq(sbd, &rxovrint);
+    sysbus_init_irq(sbd, &uartint);
 }
 
-static void cmsdk_apb_uart_realize(DeviceState *dev, Error **errp)
+void CMSDKAPBUART::realize(Error **errp)
 {
-    CMSDKAPBUART *s = CMSDK_APB_UART(dev);
-
-    if (s->pclk_frq == 0) {
+    if (pclk_frq == 0) {
         error_setg(errp, "CMSDK APB UART: pclk-frq property must be set");
         return;
     }
@@ -344,8 +341,8 @@ static void cmsdk_apb_uart_realize(DeviceState *dev, Error **errp)
     /* This UART has no flow control, so we do not need to register
      * an event handler to deal with CHR_EVENT_BREAK.
      */
-    qemu_chr_fe_set_handlers(&s->chr, uart_can_receive, uart_receive,
-                             NULL, NULL, s, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, uart_can_receive, uart_receive,
+                             NULL, NULL, this, NULL, true);
 }
 
 static int cmsdk_apb_uart_post_load(void *opaque, int version_id)
@@ -384,27 +381,10 @@ static const Property cmsdk_apb_uart_properties[] = {
     DEFINE_PROP_UINT32("pclk-frq", CMSDKAPBUART, pclk_frq, 0),
 };
 
-static void cmsdk_apb_uart_class_init(ObjectClass *klass, const void *data)
+void CMSDKAPBUART::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = cmsdk_apb_uart_realize;
     dc->vmsd = &cmsdk_apb_uart_vmstate;
-    device_class_set_legacy_reset(dc, cmsdk_apb_uart_reset);
     device_class_set_props(dc, cmsdk_apb_uart_properties);
 }
 
-static const TypeInfo cmsdk_apb_uart_info = {
-    .name = TYPE_CMSDK_APB_UART,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CMSDKAPBUART),
-    .instance_init = cmsdk_apb_uart_init,
-    .class_init = cmsdk_apb_uart_class_init,
-};
-
-static void cmsdk_apb_uart_register_types(void)
-{
-    type_register_static(&cmsdk_apb_uart_info);
-}
-
-type_init(cmsdk_apb_uart_register_types);
+REGISTER_QEMU_DEVICE(CMSDKAPBUART, TYPE_CMSDK_APB_UART, TYPE_SYS_BUS_DEVICE)

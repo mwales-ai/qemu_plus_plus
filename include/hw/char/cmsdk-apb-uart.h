@@ -45,6 +45,13 @@ struct CMSDKAPBUART {
     /* This UART has no FIFO, only a 1-character buffer for each of Tx and Rx */
     uint8_t txbuf;
     uint8_t rxbuf;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
