@@ -22,6 +22,12 @@ struct BCM2835RngState {
 
     uint32_t rng_ctrl;
     uint32_t rng_status;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

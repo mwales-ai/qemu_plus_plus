@@ -13,6 +13,7 @@
 #include "qemu/module.h"
 #include "hw/misc/bcm2835_rng.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 static uint32_t get_random_bytes(void)
 {
@@ -108,42 +109,22 @@ static const VMStateDescription vmstate_bcm2835_rng = {
     .fields = vmstate_bcm2835_rng_fields,
 };
 
-static void bcm2835_rng_init(Object *obj)
+void BCM2835RngState::init()
 {
-    BCM2835RngState *s = BCM2835_RNG(obj);
-
-    memory_region_init_io(&s->iomem, obj, &bcm2835_rng_ops, s,
-                          TYPE_BCM2835_RNG, 0x10);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &bcm2835_rng_ops, this, TYPE_BCM2835_RNG, 0x10);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void bcm2835_rng_reset(DeviceState *dev)
+void BCM2835RngState::reset()
 {
-    BCM2835RngState *s = BCM2835_RNG(dev);
-
-    s->rng_ctrl = 0;
-    s->rng_status = 0;
+    rng_ctrl = 0;
+    rng_status = 0;
 }
 
-static void bcm2835_rng_class_init(ObjectClass *klass, const void *data)
+void BCM2835RngState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, bcm2835_rng_reset);
     dc->vmsd = &vmstate_bcm2835_rng;
 }
 
-static const TypeInfo bcm2835_rng_info = {
-    .name          = TYPE_BCM2835_RNG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835RngState),
-    .instance_init = bcm2835_rng_init,
-    .class_init    = bcm2835_rng_class_init,
-};
-
-static void bcm2835_rng_register_types(void)
-{
-    type_register_static(&bcm2835_rng_info);
-}
-
-type_init(bcm2835_rng_register_types)
+REGISTER_QEMU_DEVICE(BCM2835RngState, TYPE_BCM2835_RNG, TYPE_SYS_BUS_DEVICE)
