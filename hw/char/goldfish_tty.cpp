@@ -18,6 +18,7 @@
 #include "system/address-spaces.h"
 #include "system/dma.h"
 #include "hw/char/goldfish_tty.h"
+#include "qom/cpp/object.h"
 
 #define GOLDFISH_TTY_VERSION 1
 
@@ -194,32 +195,28 @@ static void goldfish_tty_receive(void *opaque, const uint8_t *buffer, int size)
     }
 }
 
-static void goldfish_tty_reset(DeviceState *dev)
+void GoldfishTTYState::reset()
 {
-    GoldfishTTYState *s = GOLDFISH_TTY(dev);
+    trace_goldfish_tty_reset(this);
 
-    trace_goldfish_tty_reset(s);
-
-    fifo8_reset(&s->rx_fifo);
-    s->int_enabled = false;
-    s->data_ptr = 0;
-    s->data_len = 0;
+    fifo8_reset(&rx_fifo);
+    int_enabled = false;
+    data_ptr = 0;
+    data_len = 0;
 }
 
-static void goldfish_tty_realize(DeviceState *dev, Error **errp)
+void GoldfishTTYState::realize(Error **errp)
 {
-    GoldfishTTYState *s = GOLDFISH_TTY(dev);
+    trace_goldfish_tty_realize(this);
 
-    trace_goldfish_tty_realize(s);
+    fifo8_create(&rx_fifo, GOLFISH_TTY_BUFFER_SIZE);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &goldfish_tty_ops, this, "goldfish_tty", 0x24);
 
-    fifo8_create(&s->rx_fifo, GOLFISH_TTY_BUFFER_SIZE);
-    memory_region_init_io(&s->iomem, OBJECT(s), &goldfish_tty_ops, s,
-                          "goldfish_tty", 0x24);
-
-    if (qemu_chr_fe_backend_connected(&s->chr)) {
-        qemu_chr_fe_set_handlers(&s->chr, goldfish_tty_can_receive,
+    if (qemu_chr_fe_backend_connected(&chr)) {
+        qemu_chr_fe_set_handlers(&chr, goldfish_tty_can_receive,
                                  goldfish_tty_receive, NULL, NULL,
-                                 s, NULL, true);
+                                 this, NULL, true);
     }
 }
 
@@ -251,40 +248,22 @@ static const Property goldfish_tty_properties[] = {
     DEFINE_PROP_CHR("chardev", GoldfishTTYState, chr),
 };
 
-static void goldfish_tty_instance_init(Object *obj)
+void GoldfishTTYState::init()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    GoldfishTTYState *s = GOLDFISH_TTY(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
-    trace_goldfish_tty_instance_init(s);
+    trace_goldfish_tty_instance_init(this);
 
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(dev, &iomem);
+    sysbus_init_irq(dev, &irq);
 }
 
-static void goldfish_tty_class_init(ObjectClass *oc, const void *data)
+void GoldfishTTYState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     device_class_set_props(dc, goldfish_tty_properties);
-    device_class_set_legacy_reset(dc, goldfish_tty_reset);
-    dc->realize = goldfish_tty_realize;
     dc->unrealize = goldfish_tty_unrealize;
     dc->vmsd = &vmstate_goldfish_tty;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo goldfish_tty_info = {
-    .name = TYPE_GOLDFISH_TTY,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GoldfishTTYState),
-    .instance_init = goldfish_tty_instance_init,
-    .class_init = goldfish_tty_class_init,
-};
-
-static void goldfish_tty_register_types(void)
-{
-    type_register_static(&goldfish_tty_info);
-}
-
-type_init(goldfish_tty_register_types)
+REGISTER_QEMU_DEVICE(GoldfishTTYState, TYPE_GOLDFISH_TTY, TYPE_SYS_BUS_DEVICE)

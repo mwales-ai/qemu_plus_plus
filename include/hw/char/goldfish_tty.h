@@ -35,6 +35,13 @@ struct GoldfishTTYState {
     bool int_enabled;
 
     Fifo8 rx_fifo;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
