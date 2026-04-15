@@ -12,6 +12,7 @@
 #include "qemu/log.h"
 #include "qemu/timer.h"
 #include "system/rtc.h"
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
@@ -120,12 +121,10 @@ static void aspeed_rtc_write(void *opaque, hwaddr addr,
     trace_aspeed_rtc_write(addr, val);
 }
 
-static void aspeed_rtc_reset(DeviceState *d)
+void AspeedRtcState::reset()
 {
-    AspeedRtcState *rtc = ASPEED_RTC(d);
-
-    rtc->offset = 0;
-    memset(rtc->reg, 0, sizeof(rtc->reg));
+    offset = 0;
+    memset(reg, 0, sizeof(reg));
 }
 
 static const MemoryRegionOps aspeed_rtc_ops = {
@@ -144,37 +143,20 @@ static const VMStateDescription vmstate_aspeed_rtc = {
     }
 };
 
-static void aspeed_rtc_realize(DeviceState *dev, Error **errp)
+void AspeedRtcState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    AspeedRtcState *s = ASPEED_RTC(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_rtc_ops, s,
-                          "aspeed-rtc", 0x18ULL);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &aspeed_rtc_ops, this, "aspeed-rtc", 0x18ULL);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
-static void aspeed_rtc_class_init(ObjectClass *klass, const void *data)
+void AspeedRtcState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = aspeed_rtc_realize;
     dc->vmsd = &vmstate_aspeed_rtc;
-    device_class_set_legacy_reset(dc, aspeed_rtc_reset);
 }
 
-static const TypeInfo aspeed_rtc_info = {
-    .name          = TYPE_ASPEED_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedRtcState),
-    .class_init    = aspeed_rtc_class_init,
-};
-
-static void aspeed_rtc_register_types(void)
-{
-    type_register_static(&aspeed_rtc_info);
-}
-
-type_init(aspeed_rtc_register_types)
+REGISTER_QEMU_DEVICE(AspeedRtcState, TYPE_ASPEED_RTC, TYPE_SYS_BUS_DEVICE)

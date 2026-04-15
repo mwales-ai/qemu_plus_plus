@@ -20,6 +20,11 @@ struct AspeedRtcState {
     uint32_t reg[0x18];
     int64_t offset;
 
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_ASPEED_RTC "aspeed.rtc"
