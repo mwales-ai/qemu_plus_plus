@@ -19,6 +19,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 #define SYSTICK_ENABLE    (1 << 0)
@@ -196,21 +197,19 @@ static const MemoryRegionOps systick_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void systick_reset(DeviceState *dev)
+void SysTickState::reset()
 {
-    SysTickState *s = SYSTICK(dev);
-
-    ptimer_transaction_begin(s->ptimer);
-    s->control = 0;
-    if (!clock_has_source(s->refclk)) {
+    ptimer_transaction_begin(ptimer);
+    control = 0;
+    if (!clock_has_source(refclk)) {
         /* This bit is always 1 if there is no external refclk */
-        s->control |= SYSTICK_CLKSOURCE;
+        control |= SYSTICK_CLKSOURCE;
     }
-    ptimer_stop(s->ptimer);
-    ptimer_set_count(s->ptimer, 0);
-    ptimer_set_limit(s->ptimer, 0, 0);
-    systick_set_period_from_clock(s);
-    ptimer_transaction_commit(s->ptimer);
+    ptimer_stop(ptimer);
+    ptimer_set_count(ptimer, 0);
+    ptimer_set_limit(ptimer, 0, 0);
+    systick_set_period_from_clock(this);
+    ptimer_transaction_commit(ptimer);
 }
 
 static void systick_cpuclk_update(void *opaque, ClockEvent event)
@@ -239,31 +238,32 @@ static void systick_refclk_update(void *opaque, ClockEvent event)
     ptimer_transaction_commit(s->ptimer);
 }
 
-static void systick_instance_init(Object *obj)
+void SysTickState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    SysTickState *s = SYSTICK(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &systick_ops, s, "systick", 0xe0);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &systick_ops, this, "systick", 0xe0);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 
-    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk",
-                                   systick_refclk_update, s, ClockUpdate);
-    s->cpuclk = qdev_init_clock_in(DEVICE(obj), "cpuclk",
-                                   systick_cpuclk_update, s, ClockUpdate);
+    refclk = qdev_init_clock_in(reinterpret_cast<DeviceState *>(this),
+                                "refclk", systick_refclk_update,
+                                this, ClockUpdate);
+    cpuclk = qdev_init_clock_in(reinterpret_cast<DeviceState *>(this),
+                                "cpuclk", systick_cpuclk_update,
+                                this, ClockUpdate);
 }
 
-static void systick_realize(DeviceState *dev, Error **errp)
+void SysTickState::realize(Error **errp)
 {
-    SysTickState *s = SYSTICK(dev);
-    s->ptimer = ptimer_init(systick_timer_tick, s,
-                            PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
-                            PTIMER_POLICY_NO_COUNTER_ROUND_DOWN |
-                            PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
-                            PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT);
+    ptimer = ptimer_init(systick_timer_tick, this,
+                         PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
+                         PTIMER_POLICY_NO_COUNTER_ROUND_DOWN |
+                         PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
+                         PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT);
 
-    if (!clock_has_source(s->cpuclk)) {
+    if (!clock_has_source(cpuclk)) {
         error_setg(errp, "systick: cpuclk must be connected");
         return;
     }
@@ -286,26 +286,9 @@ static const VMStateDescription vmstate_systick = {
     .fields = vmstate_systick_fields,
 };
 
-static void systick_class_init(ObjectClass *klass, const void *data)
+void SysTickState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_systick;
-    device_class_set_legacy_reset(dc, systick_reset);
-    dc->realize = systick_realize;
 }
 
-static const TypeInfo armv7m_systick_info = {
-    .name = TYPE_SYSTICK,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysTickState),
-    .instance_init = systick_instance_init,
-    .class_init = systick_class_init,
-};
-
-static void armv7m_systick_register_types(void)
-{
-    type_register_static(&armv7m_systick_info);
-}
-
-type_init(armv7m_systick_register_types)
+REGISTER_QEMU_DEVICE(SysTickState, TYPE_SYSTICK, TYPE_SYS_BUS_DEVICE)
