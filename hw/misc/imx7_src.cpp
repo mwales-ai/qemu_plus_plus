@@ -18,6 +18,7 @@
 #include "target/arm/arm-powerctl.h"
 #include "hw/core/cpu.h"
 #include "hw/registerfields.h"
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
@@ -92,16 +93,14 @@ static const VMStateDescription vmstate_imx7_src = {
     .fields = vmstate_imx7_src_fields,
 };
 
-static void imx7_src_reset(DeviceState *dev)
+void IMX7SRCState::reset()
 {
-    IMX7SRCState *s = IMX7_SRC(dev);
-
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(regs, 0, sizeof(regs));
 
     /* Set reset values */
-    s->regs[SRC_SCR] = 0xA0;
-    s->regs[SRC_SRSR] = 0x1;
-    s->regs[SRC_SIMR] = 0x1F;
+    regs[SRC_SCR] = 0xA0;
+    regs[SRC_SRSR] = 0x1;
+    regs[SRC_SIMR] = 0x1F;
 }
 
 static uint64_t imx7_src_read(void *opaque, hwaddr offset, unsigned size)
@@ -244,35 +243,17 @@ static const struct MemoryRegionOps imx7_src_ops = {
     },
 };
 
-static void imx7_src_realize(DeviceState *dev, Error **errp)
+void IMX7SRCState::realize(Error **errp)
 {
-    IMX7SRCState *s = IMX7_SRC(dev);
-
-    memory_region_init_io(&s->iomem, OBJECT(dev), &imx7_src_ops, s,
-                          TYPE_IMX7_SRC, 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &imx7_src_ops, this, TYPE_IMX7_SRC, 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void imx7_src_class_init(ObjectClass *klass, const void *data)
+void IMX7SRCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = imx7_src_realize;
-    device_class_set_legacy_reset(dc, imx7_src_reset);
     dc->vmsd = &vmstate_imx7_src;
     dc->desc = "i.MX6 System Reset Controller";
 }
 
-static const TypeInfo imx7_src_info = {
-    .name          = TYPE_IMX7_SRC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMX7SRCState),
-    .class_init    = imx7_src_class_init,
-};
-
-static void imx7_src_register_types(void)
-{
-    type_register_static(&imx7_src_info);
-}
-
-type_init(imx7_src_register_types)
+REGISTER_QEMU_DEVICE(IMX7SRCState, TYPE_IMX7_SRC, TYPE_SYS_BUS_DEVICE)

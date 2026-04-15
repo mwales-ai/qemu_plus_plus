@@ -61,6 +61,12 @@ struct IMX7SRCState {
     MemoryRegion iomem;
 
     uint32_t regs[SRC_MAX];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX7_SRC_H */
