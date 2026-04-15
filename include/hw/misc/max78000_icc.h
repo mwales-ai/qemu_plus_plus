@@ -28,6 +28,11 @@ struct Max78000IccState {
     uint32_t info;
     uint32_t sz;
     uint32_t ctrl;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

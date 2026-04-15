@@ -12,6 +12,7 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/misc/max78000_icc.h"
+#include "qom/cpp/object.h"
 
 
 static uint64_t max78000_icc_read(void *opaque, hwaddr addr,
@@ -87,35 +88,20 @@ static void max78000_icc_reset_hold(Object *obj, ResetType type)
     s->ctrl = 0x10000;
 }
 
-static void max78000_icc_init(Object *obj)
+void Max78000IccState::init()
 {
-    Max78000IccState *s = MAX78000_ICC(obj);
-
-    memory_region_init_io(&s->mmio, obj, &max78000_icc_ops, s,
-                        TYPE_MAX78000_ICC, 0x800);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &max78000_icc_ops, this,
+                          TYPE_MAX78000_ICC, 0x800);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mmio);
 }
 
-static void max78000_icc_class_init(ObjectClass *klass, const void *data)
+void Max78000IccState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(dc);
 
     rc->phases.hold = max78000_icc_reset_hold;
     dc->vmsd = &max78000_icc_vmstate;
 }
 
-static const TypeInfo max78000_icc_info = {
-    .name          = TYPE_MAX78000_ICC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Max78000IccState),
-    .instance_init = max78000_icc_init,
-    .class_init    = max78000_icc_class_init,
-};
-
-static void max78000_icc_register_types(void)
-{
-    type_register_static(&max78000_icc_info);
-}
-
-type_init(max78000_icc_register_types)
+REGISTER_QEMU_DEVICE(Max78000IccState, TYPE_MAX78000_ICC, TYPE_SYS_BUS_DEVICE)

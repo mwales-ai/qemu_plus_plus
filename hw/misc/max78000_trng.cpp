@@ -13,6 +13,7 @@
 #include "migration/vmstate.h"
 #include "hw/misc/max78000_trng.h"
 #include "qemu/guest-random.h"
+#include "qom/cpp/object.h"
 
 static uint64_t max78000_trng_read(void *opaque, hwaddr addr,
                                     unsigned int size)
@@ -103,38 +104,24 @@ static const VMStateDescription max78000_trng_vmstate = {
     .fields = vmstate_max78000_trng_vmstate_fields,
 };
 
-static void max78000_trng_init(Object *obj)
+void Max78000TrngState::init()
 {
-    Max78000TrngState *s = MAX78000_TRNG(obj);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->mmio, obj, &max78000_trng_ops, s,
-                        TYPE_MAX78000_TRNG, 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
-
+    sysbus_init_irq(sbd, &irq);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &max78000_trng_ops, this,
+                          TYPE_MAX78000_TRNG, 0x1000);
+    sysbus_init_mmio(sbd, &mmio);
 }
 
-static void max78000_trng_class_init(ObjectClass *klass, const void *data)
+void Max78000TrngState::classInit(DeviceClass *dc)
 {
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(dc);
 
     rc->phases.hold = max78000_trng_reset_hold;
     dc->vmsd = &max78000_trng_vmstate;
-
 }
 
-static const TypeInfo max78000_trng_info = {
-    .name          = TYPE_MAX78000_TRNG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Max78000TrngState),
-    .instance_init = max78000_trng_init,
-    .class_init    = max78000_trng_class_init,
-};
-
-static void max78000_trng_register_types(void)
-{
-    type_register_static(&max78000_trng_info);
-}
-
-type_init(max78000_trng_register_types)
+REGISTER_QEMU_DEVICE(Max78000TrngState, TYPE_MAX78000_TRNG,
+                     TYPE_SYS_BUS_DEVICE)

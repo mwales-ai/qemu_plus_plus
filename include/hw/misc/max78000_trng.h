@@ -30,6 +30,11 @@ struct Max78000TrngState {
     uint32_t data;
 
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
