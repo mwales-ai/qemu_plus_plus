@@ -36,6 +36,11 @@ extern "C" {
 typedef struct MchpPfSoCDdrSgmiiPhyState {
     SysBusDevice parent;
     MemoryRegion sgmii_phy;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 } MchpPfSoCDdrSgmiiPhyState;
 
 #define TYPE_MCHP_PFSOC_DDR_SGMII_PHY "mchp.pfsoc.ddr_sgmii_phy"
@@ -51,6 +56,11 @@ typedef struct MchpPfSoCDdrSgmiiPhyState {
 typedef struct MchpPfSoCDdrCfgState {
     SysBusDevice parent;
     MemoryRegion cfg;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 } MchpPfSoCDdrCfgState;
 
 #define TYPE_MCHP_PFSOC_DDR_CFG "mchp.pfsoc.ddr_cfg"

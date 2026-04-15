@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "hw/misc/mchp_pfsoc_dmc.h"
+#include "qom/cpp/object.h"
 
 /* DDR SGMII PHY module */
 
@@ -99,39 +100,22 @@ static const MemoryRegionOps mchp_pfsoc_ddr_sgmii_phy_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void mchp_pfsoc_ddr_sgmii_phy_realize(DeviceState *dev, Error **errp)
+void MchpPfSoCDdrSgmiiPhyState::realize(Error **errp)
 {
-    MchpPfSoCDdrSgmiiPhyState *s = MCHP_PFSOC_DDR_SGMII_PHY(dev);
-
-    memory_region_init_io(&s->sgmii_phy, OBJECT(dev),
-                          &mchp_pfsoc_ddr_sgmii_phy_ops, s,
+    memory_region_init_io(&sgmii_phy, reinterpret_cast<Object *>(this),
+                          &mchp_pfsoc_ddr_sgmii_phy_ops, this,
                           "mchp.pfsoc.ddr_sgmii_phy",
                           MCHP_PFSOC_DDR_SGMII_PHY_REG_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->sgmii_phy);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &sgmii_phy);
 }
 
-static void mchp_pfsoc_ddr_sgmii_phy_class_init(ObjectClass *klass,
-                                                const void *data)
+void MchpPfSoCDdrSgmiiPhyState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "Microchip PolarFire SoC DDR SGMII PHY module";
-    dc->realize = mchp_pfsoc_ddr_sgmii_phy_realize;
 }
 
-static const TypeInfo mchp_pfsoc_ddr_sgmii_phy_info = {
-    .name          = TYPE_MCHP_PFSOC_DDR_SGMII_PHY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MchpPfSoCDdrSgmiiPhyState),
-    .class_init    = mchp_pfsoc_ddr_sgmii_phy_class_init,
-};
-
-static void mchp_pfsoc_ddr_sgmii_phy_register_types(void)
-{
-    type_register_static(&mchp_pfsoc_ddr_sgmii_phy_info);
-}
-
-type_init(mchp_pfsoc_ddr_sgmii_phy_register_types)
+REGISTER_QEMU_DEVICE(MchpPfSoCDdrSgmiiPhyState, TYPE_MCHP_PFSOC_DDR_SGMII_PHY,
+                     TYPE_SYS_BUS_DEVICE)
 
 /* DDR CFG module */
 
@@ -182,35 +166,19 @@ static const MemoryRegionOps mchp_pfsoc_ddr_cfg_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void mchp_pfsoc_ddr_cfg_realize(DeviceState *dev, Error **errp)
+void MchpPfSoCDdrCfgState::realize(Error **errp)
 {
-    MchpPfSoCDdrCfgState *s = MCHP_PFSOC_DDR_CFG(dev);
-
-    memory_region_init_io(&s->cfg, OBJECT(dev),
-                          &mchp_pfsoc_ddr_cfg_ops, s,
+    memory_region_init_io(&cfg, reinterpret_cast<Object *>(this),
+                          &mchp_pfsoc_ddr_cfg_ops, this,
                           "mchp.pfsoc.ddr_cfg",
                           MCHP_PFSOC_DDR_CFG_REG_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->cfg);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &cfg);
 }
 
-static void mchp_pfsoc_ddr_cfg_class_init(ObjectClass *klass, const void *data)
+void MchpPfSoCDdrCfgState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "Microchip PolarFire SoC DDR CFG module";
-    dc->realize = mchp_pfsoc_ddr_cfg_realize;
 }
 
-static const TypeInfo mchp_pfsoc_ddr_cfg_info = {
-    .name          = TYPE_MCHP_PFSOC_DDR_CFG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MchpPfSoCDdrCfgState),
-    .class_init    = mchp_pfsoc_ddr_cfg_class_init,
-};
-
-static void mchp_pfsoc_ddr_cfg_register_types(void)
-{
-    type_register_static(&mchp_pfsoc_ddr_cfg_info);
-}
-
-type_init(mchp_pfsoc_ddr_cfg_register_types)
+REGISTER_QEMU_DEVICE(MchpPfSoCDdrCfgState, TYPE_MCHP_PFSOC_DDR_CFG,
+                     TYPE_SYS_BUS_DEVICE)
