@@ -32,6 +32,7 @@
 #include "chardev/char-serial.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 DeviceState *pl011_create(hwaddr addr, qemu_irq irq, Chardev *chr)
@@ -645,22 +646,21 @@ static const Property pl011_properties[] = {
     DEFINE_PROP_BOOL("migrate-clk", PL011State, migrate_clk, true),
 };
 
-static void pl011_init(Object *obj)
+void PL011State::init()
 {
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-    PL011State *s = reinterpret_cast<PL011State *>(obj);
-    size_t i;
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(s), &pl011_ops, s, "pl011", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &pl011_ops, this, "pl011", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    for (size_t i = 0; i < ARRAY_SIZE(irq); i++) {
+        sysbus_init_irq(sbd, &irq[i]);
     }
 
-    s->clk = qdev_init_clock_in(reinterpret_cast<DeviceState *>(obj), "clk", pl011_clock_update, s,
-                                ClockUpdate);
+    clk = qdev_init_clock_in(reinterpret_cast<DeviceState *>(this), "clk",
+                             pl011_clock_update, this, ClockUpdate);
 
-    s->id = pl011_id_arm;
+    id = pl011_id_arm;
 }
 
 void PL011State::realize(Error **errp)
@@ -687,34 +687,20 @@ void PL011State::reset()
     resetTxFifo();
 }
 
-static void pl011_realize(DeviceState *dev, Error **errp)
+void PL011State::classInit(DeviceClass *dc)
 {
-    reinterpret_cast<PL011State *>(dev)->realize(errp);
-}
-
-static void pl011_reset(DeviceState *dev)
-{
-    reinterpret_cast<PL011State *>(dev)->reset();
-}
-
-void PL011State::classInit(ObjectClass *oc, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
-    dc->realize = pl011_realize;
-    device_class_set_legacy_reset(dc, pl011_reset);
     dc->vmsd = &vmstate_pl011;
     device_class_set_props(dc, pl011_properties);
 }
 
-static const TypeInfo pl011_arm_info = {
-    .name          = TYPE_PL011,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL011State),
-    .instance_init = pl011_init,
-    .class_init    = PL011State::classInit,
-};
+REGISTER_QEMU_DEVICE(PL011State, TYPE_PL011, TYPE_SYS_BUS_DEVICE)
 
+/*
+ * pl011_luminary: subtype that shares PL011State but advertises a
+ * different peripheral ID. Register manually because REGISTER_QEMU_DEVICE
+ * is one-type-per-class; the subtype just overrides instance_init to
+ * set the id field after the parent init runs.
+ */
 static void pl011_luminary_init(Object *obj)
 {
     reinterpret_cast<PL011State *>(obj)->id = pl011_id_luminary;
@@ -726,10 +712,9 @@ static const TypeInfo pl011_luminary_info = {
     .instance_init = pl011_luminary_init,
 };
 
-static void pl011_register_types(void)
+static void pl011_luminary_register_types(void)
 {
-    type_register_static(&pl011_arm_info);
     type_register_static(&pl011_luminary_info);
 }
 
-type_init(pl011_register_types)
+type_init(pl011_luminary_register_types)

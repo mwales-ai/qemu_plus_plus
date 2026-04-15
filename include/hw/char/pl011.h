@@ -64,6 +64,7 @@ struct PL011State {
 
 #ifdef __cplusplus
     /* C++ methods — no vtable, safe for embedding */
+    void init();
     void realize(Error **errp);
     void reset();
     void updateIrq();
@@ -88,7 +89,7 @@ struct PL011State {
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
                           unsigned size);
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 
