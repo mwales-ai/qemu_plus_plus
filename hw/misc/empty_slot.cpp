@@ -16,6 +16,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_EMPTY_SLOT "empty_slot"
 OBJECT_DECLARE_SIMPLE_TYPE(EmptySlot, EMPTY_SLOT)
@@ -26,6 +27,9 @@ struct EmptySlot {
     MemoryRegion iomem;
     char *name;
     uint64_t size;
+
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
 };
 
 static uint64_t empty_slot_read(void *opaque, hwaddr addr,
@@ -67,16 +71,14 @@ void empty_slot_init(const char *name, hwaddr addr, uint64_t slot_size)
     }
 }
 
-static void empty_slot_realize(DeviceState *dev, Error **errp)
+void EmptySlot::realize(Error **errp)
 {
-    EmptySlot *s = EMPTY_SLOT(dev);
-
-    if (s->name == NULL) {
-        s->name = g_strdup("empty-slot");
+    if (name == NULL) {
+        name = g_strdup("empty-slot");
     }
-    memory_region_init_io(&s->iomem, OBJECT(s), &empty_slot_ops, s,
-                          s->name, s->size);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &empty_slot_ops, this, name, size);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const Property empty_slot_properties[] = {
@@ -84,25 +86,10 @@ static const Property empty_slot_properties[] = {
     DEFINE_PROP_STRING("name", EmptySlot, name),
 };
 
-static void empty_slot_class_init(ObjectClass *klass, const void *data)
+void EmptySlot::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = empty_slot_realize;
     device_class_set_props(dc, empty_slot_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo empty_slot_info = {
-    .name          = TYPE_EMPTY_SLOT,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(EmptySlot),
-    .class_init    = empty_slot_class_init,
-};
-
-static void empty_slot_register_types(void)
-{
-    type_register_static(&empty_slot_info);
-}
-
-type_init(empty_slot_register_types)
+REGISTER_QEMU_DEVICE(EmptySlot, TYPE_EMPTY_SLOT, TYPE_SYS_BUS_DEVICE)

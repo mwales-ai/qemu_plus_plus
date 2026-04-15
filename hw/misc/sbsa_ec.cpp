@@ -12,18 +12,21 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "system/runstate.h"
-}
+#include "qom/cpp/object.h"
+
+#define TYPE_SBSA_SECURE_EC "sbsa-ec"
 
 typedef struct SECUREECState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
+
+    void init();
+    static void classInit(DeviceClass *dc);
 } SECUREECState;
 
-#define TYPE_SBSA_SECURE_EC "sbsa-ec"
 OBJECT_DECLARE_SIMPLE_TYPE(SECUREECState, SBSA_SECURE_EC)
 
 enum sbsa_ec_powerstates {
@@ -65,35 +68,17 @@ static const MemoryRegionOps sbsa_ec_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void sbsa_ec_init(Object *obj)
+void SECUREECState::init()
 {
-    SECUREECState *s = SBSA_SECURE_EC(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->iomem, obj, &sbsa_ec_ops, s, "sbsa-ec",
-                          0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &sbsa_ec_ops, this, "sbsa-ec", 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void sbsa_ec_class_init(ObjectClass *klass, const void *data)
+void SECUREECState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     /* No vmstate or reset required: device has no internal state */
     dc->user_creatable = false;
 }
 
-static const TypeInfo sbsa_ec_info = {
-    .name          = TYPE_SBSA_SECURE_EC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SECUREECState),
-    .instance_init = sbsa_ec_init,
-    .class_init    = sbsa_ec_class_init,
-};
-
-static void sbsa_ec_register_type(void)
-{
-    type_register_static(&sbsa_ec_info);
-}
-
-type_init(sbsa_ec_register_type);
+REGISTER_QEMU_DEVICE(SECUREECState, TYPE_SBSA_SECURE_EC, TYPE_SYS_BUS_DEVICE)
