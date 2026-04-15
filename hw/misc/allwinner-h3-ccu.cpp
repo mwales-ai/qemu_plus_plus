@@ -24,6 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/allwinner-h3-ccu.h"
+#include "qom/cpp/object.h"
 
 /* CCU register offsets */
 enum {
@@ -163,49 +164,44 @@ static const MemoryRegionOps allwinner_h3_ccu_ops = {
     .impl = { .min_access_size = 4, },
 };
 
-static void allwinner_h3_ccu_reset(DeviceState *dev)
+void AwH3ClockCtlState::reset()
 {
-    AwH3ClockCtlState *s = AW_H3_CCU(dev);
-
     /* Set default values for registers */
-    s->regs[REG_INDEX(REG_PLL_CPUX)] = REG_PLL_CPUX_RST;
-    s->regs[REG_INDEX(REG_PLL_AUDIO)] = REG_PLL_AUDIO_RST;
-    s->regs[REG_INDEX(REG_PLL_VIDEO)] = REG_PLL_VIDEO_RST;
-    s->regs[REG_INDEX(REG_PLL_VE)] = REG_PLL_VE_RST;
-    s->regs[REG_INDEX(REG_PLL_DDR)] = REG_PLL_DDR_RST;
-    s->regs[REG_INDEX(REG_PLL_PERIPH0)] = REG_PLL_PERIPH0_RST;
-    s->regs[REG_INDEX(REG_PLL_GPU)] = REG_PLL_GPU_RST;
-    s->regs[REG_INDEX(REG_PLL_PERIPH1)] = REG_PLL_PERIPH1_RST;
-    s->regs[REG_INDEX(REG_PLL_DE)] = REG_PLL_DE_RST;
-    s->regs[REG_INDEX(REG_CPUX_AXI)] = REG_CPUX_AXI_RST;
-    s->regs[REG_INDEX(REG_APB1)] = REG_APB1_RST;
-    s->regs[REG_INDEX(REG_APB2)] = REG_APB2_RST;
-    s->regs[REG_INDEX(REG_DRAM_CFG)] = REG_DRAM_CFG_RST;
-    s->regs[REG_INDEX(REG_MBUS)] = REG_MBUS_RST;
-    s->regs[REG_INDEX(REG_PLL_TIME0)] = REG_PLL_TIME0_RST;
-    s->regs[REG_INDEX(REG_PLL_TIME1)] = REG_PLL_TIME1_RST;
-    s->regs[REG_INDEX(REG_PLL_CPUX_BIAS)] = REG_PLL_CPUX_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_AUDIO_BIAS)] = REG_PLL_AUDIO_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_VIDEO_BIAS)] = REG_PLL_VIDEO_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_VE_BIAS)] = REG_PLL_VE_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_DDR_BIAS)] = REG_PLL_DDR_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_PERIPH0_BIAS)] = REG_PLL_PERIPH0_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_GPU_BIAS)] = REG_PLL_GPU_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_PERIPH1_BIAS)] = REG_PLL_PERIPH1_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_DE_BIAS)] = REG_PLL_DE_BIAS_RST;
-    s->regs[REG_INDEX(REG_PLL_CPUX_TUNING)] = REG_PLL_CPUX_TUNING_RST;
-    s->regs[REG_INDEX(REG_PLL_DDR_TUNING)] = REG_PLL_DDR_TUNING_RST;
+    regs[REG_INDEX(REG_PLL_CPUX)] = REG_PLL_CPUX_RST;
+    regs[REG_INDEX(REG_PLL_AUDIO)] = REG_PLL_AUDIO_RST;
+    regs[REG_INDEX(REG_PLL_VIDEO)] = REG_PLL_VIDEO_RST;
+    regs[REG_INDEX(REG_PLL_VE)] = REG_PLL_VE_RST;
+    regs[REG_INDEX(REG_PLL_DDR)] = REG_PLL_DDR_RST;
+    regs[REG_INDEX(REG_PLL_PERIPH0)] = REG_PLL_PERIPH0_RST;
+    regs[REG_INDEX(REG_PLL_GPU)] = REG_PLL_GPU_RST;
+    regs[REG_INDEX(REG_PLL_PERIPH1)] = REG_PLL_PERIPH1_RST;
+    regs[REG_INDEX(REG_PLL_DE)] = REG_PLL_DE_RST;
+    regs[REG_INDEX(REG_CPUX_AXI)] = REG_CPUX_AXI_RST;
+    regs[REG_INDEX(REG_APB1)] = REG_APB1_RST;
+    regs[REG_INDEX(REG_APB2)] = REG_APB2_RST;
+    regs[REG_INDEX(REG_DRAM_CFG)] = REG_DRAM_CFG_RST;
+    regs[REG_INDEX(REG_MBUS)] = REG_MBUS_RST;
+    regs[REG_INDEX(REG_PLL_TIME0)] = REG_PLL_TIME0_RST;
+    regs[REG_INDEX(REG_PLL_TIME1)] = REG_PLL_TIME1_RST;
+    regs[REG_INDEX(REG_PLL_CPUX_BIAS)] = REG_PLL_CPUX_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_AUDIO_BIAS)] = REG_PLL_AUDIO_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_VIDEO_BIAS)] = REG_PLL_VIDEO_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_VE_BIAS)] = REG_PLL_VE_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_DDR_BIAS)] = REG_PLL_DDR_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_PERIPH0_BIAS)] = REG_PLL_PERIPH0_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_GPU_BIAS)] = REG_PLL_GPU_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_PERIPH1_BIAS)] = REG_PLL_PERIPH1_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_DE_BIAS)] = REG_PLL_DE_BIAS_RST;
+    regs[REG_INDEX(REG_PLL_CPUX_TUNING)] = REG_PLL_CPUX_TUNING_RST;
+    regs[REG_INDEX(REG_PLL_DDR_TUNING)] = REG_PLL_DDR_TUNING_RST;
 }
 
-static void allwinner_h3_ccu_init(Object *obj)
+void AwH3ClockCtlState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwH3ClockCtlState *s = AW_H3_CCU(obj);
-
-    /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_h3_ccu_ops, s,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &allwinner_h3_ccu_ops, this,
                           TYPE_AW_H3_CCU, AW_H3_CCU_IOSIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateDescription allwinner_h3_ccu_vmstate = {
@@ -218,25 +214,9 @@ static const VMStateDescription allwinner_h3_ccu_vmstate = {
     }
 };
 
-static void allwinner_h3_ccu_class_init(ObjectClass *klass, const void *data)
+void AwH3ClockCtlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, allwinner_h3_ccu_reset);
     dc->vmsd = &allwinner_h3_ccu_vmstate;
 }
 
-static const TypeInfo allwinner_h3_ccu_info = {
-    .name          = TYPE_AW_H3_CCU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwH3ClockCtlState),
-    .instance_init = allwinner_h3_ccu_init,
-    .class_init    = allwinner_h3_ccu_class_init,
-};
-
-static void allwinner_h3_ccu_register(void)
-{
-    type_register_static(&allwinner_h3_ccu_info);
-}
-
-type_init(allwinner_h3_ccu_register)
+REGISTER_QEMU_DEVICE(AwH3ClockCtlState, TYPE_AW_H3_CCU, TYPE_SYS_BUS_DEVICE)
