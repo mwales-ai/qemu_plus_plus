@@ -24,6 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/allwinner-h3-sysctrl.h"
+#include "qom/cpp/object.h"
 
 /* System Control register offsets */
 enum {
@@ -86,24 +87,19 @@ static const MemoryRegionOps allwinner_h3_sysctrl_ops = {
     .impl = { .min_access_size = 4, },
 };
 
-static void allwinner_h3_sysctrl_reset(DeviceState *dev)
+void AwH3SysCtrlState::reset()
 {
-    AwH3SysCtrlState *s = AW_H3_SYSCTRL(dev);
-
     /* Set default values for registers */
-    s->regs[REG_INDEX(REG_VER)] = REG_VER_RST;
-    s->regs[REG_INDEX(REG_EMAC_PHY_CLK)] = REG_EMAC_PHY_CLK_RST;
+    regs[REG_INDEX(REG_VER)] = REG_VER_RST;
+    regs[REG_INDEX(REG_EMAC_PHY_CLK)] = REG_EMAC_PHY_CLK_RST;
 }
 
-static void allwinner_h3_sysctrl_init(Object *obj)
+void AwH3SysCtrlState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwH3SysCtrlState *s = AW_H3_SYSCTRL(obj);
-
-    /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_h3_sysctrl_ops, s,
-                           TYPE_AW_H3_SYSCTRL, 4 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &allwinner_h3_sysctrl_ops, this,
+                          TYPE_AW_H3_SYSCTRL, 4 * KiB);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateDescription allwinner_h3_sysctrl_vmstate = {
@@ -116,26 +112,10 @@ static const VMStateDescription allwinner_h3_sysctrl_vmstate = {
     }
 };
 
-static void allwinner_h3_sysctrl_class_init(ObjectClass *klass,
-                                            const void *data)
+void AwH3SysCtrlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, allwinner_h3_sysctrl_reset);
     dc->vmsd = &allwinner_h3_sysctrl_vmstate;
 }
 
-static const TypeInfo allwinner_h3_sysctrl_info = {
-    .name          = TYPE_AW_H3_SYSCTRL,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwH3SysCtrlState),
-    .instance_init = allwinner_h3_sysctrl_init,
-    .class_init    = allwinner_h3_sysctrl_class_init,
-};
-
-static void allwinner_h3_sysctrl_register(void)
-{
-    type_register_static(&allwinner_h3_sysctrl_info);
-}
-
-type_init(allwinner_h3_sysctrl_register)
+REGISTER_QEMU_DEVICE(AwH3SysCtrlState, TYPE_AW_H3_SYSCTRL,
+                     TYPE_SYS_BUS_DEVICE)

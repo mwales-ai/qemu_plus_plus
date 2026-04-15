@@ -61,6 +61,11 @@ struct AwH3SysCtrlState {
     /** Array of hardware registers */
     uint32_t regs[AW_H3_SYSCTRL_REGS_NUM];
 
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MISC_ALLWINNER_H3_SYSCTRL_H */
