@@ -26,6 +26,12 @@ struct NPCM7xxRNGState {
     uint8_t rngcs;
     uint8_t rngd;
     uint8_t rngmode;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_NPCM7XX_RNG "npcm7xx-rng"

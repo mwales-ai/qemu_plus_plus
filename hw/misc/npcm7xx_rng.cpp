@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
@@ -128,22 +129,19 @@ static const MemoryRegionOps npcm7xx_rng_ops = {
     },
 };
 
-static void npcm7xx_rng_enter_reset(Object *obj, ResetType type)
+void NPCM7xxRNGState::reset()
 {
-    NPCM7xxRNGState *s = NPCM7XX_RNG(obj);
-
-    s->rngcs = 0;
-    s->rngd = 0;
-    s->rngmode = 0;
+    rngcs = 0;
+    rngd = 0;
+    rngmode = 0;
 }
 
-static void npcm7xx_rng_init(Object *obj)
+void NPCM7xxRNGState::init()
 {
-    NPCM7xxRNGState *s = NPCM7XX_RNG(obj);
-
-    memory_region_init_io(&s->iomem, obj, &npcm7xx_rng_ops, s, "regs",
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &npcm7xx_rng_ops, this, "regs",
                           NPCM7XX_RNG_REGS_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateField vmstate_npcm7xx_rng_fields[] = {
@@ -160,23 +158,10 @@ static const VMStateDescription vmstate_npcm7xx_rng = {
     .fields = vmstate_npcm7xx_rng_fields,
 };
 
-static void npcm7xx_rng_class_init(ObjectClass *klass, const void *data)
+void NPCM7xxRNGState::classInit(DeviceClass *dc)
 {
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "NPCM7xx Random Number Generator";
     dc->vmsd = &vmstate_npcm7xx_rng;
-    rc->phases.enter = npcm7xx_rng_enter_reset;
 }
 
-static const TypeInfo npcm7xx_rng_types[] = {
-    {
-        .name = TYPE_NPCM7XX_RNG,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(NPCM7xxRNGState),
-        .instance_init = npcm7xx_rng_init,
-        .class_init = npcm7xx_rng_class_init,
-    },
-};
-DEFINE_TYPES(npcm7xx_rng_types);
+REGISTER_QEMU_DEVICE(NPCM7xxRNGState, TYPE_NPCM7XX_RNG, TYPE_SYS_BUS_DEVICE)
