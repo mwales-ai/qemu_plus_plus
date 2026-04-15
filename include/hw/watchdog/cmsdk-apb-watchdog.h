@@ -63,6 +63,13 @@ struct CMSDKAPBWatchdog {
     uint32_t itop;
     uint32_t resetstatus;
     const uint32_t *id;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
