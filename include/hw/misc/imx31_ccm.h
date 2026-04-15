@@ -84,6 +84,11 @@ struct IMX31CCMState {
 
     uint32_t reg[IMX31_CCM_MAX_REG];
 
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX31_CCM_H */

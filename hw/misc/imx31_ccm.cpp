@@ -16,6 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #define CKIH_FREQ 26000000 /* 26MHz crystal input */
 
@@ -206,30 +207,28 @@ static uint32_t imx31_ccm_get_clock_frequency(IMXCCMState *dev, IMXClk clock)
     return freq;
 }
 
-static void imx31_ccm_reset(DeviceState *dev)
+void IMX31CCMState::reset()
 {
-    IMX31CCMState *s = IMX31_CCM(dev);
-
     DPRINTF("()\n");
 
-    memset(s->reg, 0, sizeof(uint32_t) * IMX31_CCM_MAX_REG);
+    memset(reg, 0, sizeof(uint32_t) * IMX31_CCM_MAX_REG);
 
-    s->reg[IMX31_CCM_CCMR_REG]   = 0x074b0b7d;
-    s->reg[IMX31_CCM_PDR0_REG]   = 0xff870b48;
-    s->reg[IMX31_CCM_PDR1_REG]   = 0x49fcfe7f;
-    s->reg[IMX31_CCM_RCSR_REG]   = 0x007f0000;
-    s->reg[IMX31_CCM_MPCTL_REG]  = 0x04001800;
-    s->reg[IMX31_CCM_UPCTL_REG]  = 0x04051c03;
-    s->reg[IMX31_CCM_SPCTL_REG]  = 0x04043001;
-    s->reg[IMX31_CCM_COSR_REG]   = 0x00000280;
-    s->reg[IMX31_CCM_CGR0_REG]   = 0xffffffff;
-    s->reg[IMX31_CCM_CGR1_REG]   = 0xffffffff;
-    s->reg[IMX31_CCM_CGR2_REG]   = 0xffffffff;
-    s->reg[IMX31_CCM_WIMR_REG]   = 0xffffffff;
-    s->reg[IMX31_CCM_LTR1_REG]   = 0x00004040;
-    s->reg[IMX31_CCM_PMCR0_REG]  = 0x80209828;
-    s->reg[IMX31_CCM_PMCR1_REG]  = 0x00aa0000;
-    s->reg[IMX31_CCM_PDR2_REG]   = 0x00000285;
+    reg[IMX31_CCM_CCMR_REG]   = 0x074b0b7d;
+    reg[IMX31_CCM_PDR0_REG]   = 0xff870b48;
+    reg[IMX31_CCM_PDR1_REG]   = 0x49fcfe7f;
+    reg[IMX31_CCM_RCSR_REG]   = 0x007f0000;
+    reg[IMX31_CCM_MPCTL_REG]  = 0x04001800;
+    reg[IMX31_CCM_UPCTL_REG]  = 0x04051c03;
+    reg[IMX31_CCM_SPCTL_REG]  = 0x04043001;
+    reg[IMX31_CCM_COSR_REG]   = 0x00000280;
+    reg[IMX31_CCM_CGR0_REG]   = 0xffffffff;
+    reg[IMX31_CCM_CGR1_REG]   = 0xffffffff;
+    reg[IMX31_CCM_CGR2_REG]   = 0xffffffff;
+    reg[IMX31_CCM_WIMR_REG]   = 0xffffffff;
+    reg[IMX31_CCM_LTR1_REG]   = 0x00004040;
+    reg[IMX31_CCM_PMCR0_REG]  = 0x80209828;
+    reg[IMX31_CCM_PMCR1_REG]  = 0x00aa0000;
+    reg[IMX31_CCM_PDR2_REG]   = 0x00000285;
 }
 
 static uint64_t imx31_ccm_read(void *opaque, hwaddr offset, unsigned size)
@@ -308,40 +307,21 @@ static const struct MemoryRegionOps imx31_ccm_ops = {
 
 };
 
-static void imx31_ccm_init(Object *obj)
+void IMX31CCMState::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMX31CCMState *s = IMX31_CCM(obj);
-
-    memory_region_init_io(&s->iomem, OBJECT(dev), &imx31_ccm_ops, s,
-                          TYPE_IMX31_CCM, 0x1000);
-    sysbus_init_mmio(sd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &imx31_ccm_ops, this, TYPE_IMX31_CCM, 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void imx31_ccm_class_init(ObjectClass *klass, const void *data)
+void IMX31CCMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc  = DEVICE_CLASS(klass);
-    IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
+    IMXCCMClass *ccm = reinterpret_cast<IMXCCMClass *>(dc);
 
-    device_class_set_legacy_reset(dc, imx31_ccm_reset);
     dc->vmsd  = &vmstate_imx31_ccm;
     dc->desc  = "i.MX31 Clock Control Module";
 
     ccm->get_clock_frequency = imx31_ccm_get_clock_frequency;
 }
 
-static const TypeInfo imx31_ccm_info = {
-    .name          = TYPE_IMX31_CCM,
-    .parent        = TYPE_IMX_CCM,
-    .instance_size = sizeof(IMX31CCMState),
-    .instance_init = imx31_ccm_init,
-    .class_init    = imx31_ccm_class_init,
-};
-
-static void imx31_ccm_register_types(void)
-{
-    type_register_static(&imx31_ccm_info);
-}
-
-type_init(imx31_ccm_register_types)
+REGISTER_QEMU_DEVICE(IMX31CCMState, TYPE_IMX31_CCM, TYPE_IMX_CCM)
