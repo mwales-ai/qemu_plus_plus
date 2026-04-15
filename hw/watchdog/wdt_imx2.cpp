@@ -11,14 +11,13 @@
 
 #include "qemu/osdep.h"
 
-extern "C" {
 #include "qemu/bitops.h"
 #include "qemu/module.h"
 #include "system/watchdog.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/watchdog/wdt_imx2.h"
-}
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
@@ -46,29 +45,27 @@ static void imx2_wdt_expired(void *opaque)
     }
 }
 
-static void imx2_wdt_reset(DeviceState *dev)
+void IMX2WdtState::reset()
 {
-    IMX2WdtState *s = IMX2_WDT(dev);
+    ptimer_transaction_begin(timer);
+    ptimer_stop(timer);
+    ptimer_transaction_commit(timer);
 
-    ptimer_transaction_begin(s->timer);
-    ptimer_stop(s->timer);
-    ptimer_transaction_commit(s->timer);
-
-    if (s->pretimeout_support) {
-        ptimer_transaction_begin(s->itimer);
-        ptimer_stop(s->itimer);
-        ptimer_transaction_commit(s->itimer);
+    if (pretimeout_support) {
+        ptimer_transaction_begin(itimer);
+        ptimer_stop(itimer);
+        ptimer_transaction_commit(itimer);
     }
 
-    s->wicr_locked = false;
-    s->wcr_locked = false;
-    s->wcr_wde_locked = false;
+    wicr_locked = false;
+    wcr_locked = false;
+    wcr_wde_locked = false;
 
-    s->wcr = IMX2_WDT_WCR_WDA | IMX2_WDT_WCR_SRS;
-    s->wsr = 0;
-    s->wrsr &= ~(IMX2_WDT_WRSR_TOUT | IMX2_WDT_WRSR_SFTW);
-    s->wicr = IMX2_WDT_WICR_WICT_DEF;
-    s->wmcr = IMX2_WDT_WMCR_PDE;
+    wcr = IMX2_WDT_WCR_WDA | IMX2_WDT_WCR_SRS;
+    wsr = 0;
+    wrsr &= ~(IMX2_WDT_WRSR_TOUT | IMX2_WDT_WRSR_SFTW);
+    wicr = IMX2_WDT_WICR_WICT_DEF;
+    wmcr = IMX2_WDT_WMCR_PDE;
 }
 
 static uint64_t imx2_wdt_read(void *opaque, hwaddr addr, unsigned int size)
@@ -245,35 +242,34 @@ static const VMStateDescription vmstate_imx2_wdt = {
     .fields = vmstate_imx2_wdt_fields,
 };
 
-static void imx2_wdt_realize(DeviceState *dev, Error **errp)
+void IMX2WdtState::realize(Error **errp)
 {
-    IMX2WdtState *s = IMX2_WDT(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->mmio, OBJECT(dev),
-                          &imx2_wdt_ops, s,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &imx2_wdt_ops, this,
                           TYPE_IMX2_WDT,
                           IMX2_WDT_MMIO_SIZE);
-    sysbus_init_mmio(sbd, &s->mmio);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &mmio);
+    sysbus_init_irq(sbd, &irq);
 
-    s->timer = ptimer_init(imx2_wdt_expired, s,
-                           PTIMER_POLICY_NO_IMMEDIATE_TRIGGER |
-                           PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
-                           PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
-    ptimer_transaction_begin(s->timer);
-    ptimer_set_freq(s->timer, 2);
-    ptimer_set_limit(s->timer, 0xff, 1);
-    ptimer_transaction_commit(s->timer);
-    if (s->pretimeout_support) {
-        s->itimer = ptimer_init(imx2_wdt_interrupt, s,
-                                PTIMER_POLICY_NO_IMMEDIATE_TRIGGER |
-                                PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
-                                PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
-        ptimer_transaction_begin(s->itimer);
-        ptimer_set_freq(s->itimer, 2);
-        ptimer_set_limit(s->itimer, 0xff, 1);
-        ptimer_transaction_commit(s->itimer);
+    timer = ptimer_init(imx2_wdt_expired, this,
+                        PTIMER_POLICY_NO_IMMEDIATE_TRIGGER |
+                        PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
+                        PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
+    ptimer_transaction_begin(timer);
+    ptimer_set_freq(timer, 2);
+    ptimer_set_limit(timer, 0xff, 1);
+    ptimer_transaction_commit(timer);
+    if (pretimeout_support) {
+        itimer = ptimer_init(imx2_wdt_interrupt, this,
+                             PTIMER_POLICY_NO_IMMEDIATE_TRIGGER |
+                             PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
+                             PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
+        ptimer_transaction_begin(itimer);
+        ptimer_set_freq(itimer, 2);
+        ptimer_set_limit(itimer, 0xff, 1);
+        ptimer_transaction_commit(itimer);
     }
 }
 
@@ -282,27 +278,12 @@ static const Property imx2_wdt_properties[] = {
                      false),
 };
 
-static void imx2_wdt_class_init(ObjectClass *klass, const void *data)
+void IMX2WdtState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, imx2_wdt_properties);
-    dc->realize = imx2_wdt_realize;
-    device_class_set_legacy_reset(dc, imx2_wdt_reset);
     dc->vmsd = &vmstate_imx2_wdt;
     dc->desc = "i.MX2 watchdog timer";
     set_bit(DEVICE_CATEGORY_WATCHDOG, dc->categories);
 }
 
-static const TypeInfo imx2_wdt_info = {
-    .name          = TYPE_IMX2_WDT,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMX2WdtState),
-    .class_init    = imx2_wdt_class_init,
-};
-
-static void imx2_wdt_register_type(void)
-{
-    type_register_static(&imx2_wdt_info);
-}
-type_init(imx2_wdt_register_type)
+REGISTER_QEMU_DEVICE(IMX2WdtState, TYPE_IMX2_WDT, TYPE_SYS_BUS_DEVICE)
