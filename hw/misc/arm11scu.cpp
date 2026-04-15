@@ -13,6 +13,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
                                 unsigned size)
@@ -61,43 +62,20 @@ static const MemoryRegionOps mpcore_scu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void arm11_scu_realize(DeviceState *dev, Error **errp)
+void ARM11SCUState::init()
 {
-}
-
-static void arm11_scu_init(Object *obj)
-{
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ARM11SCUState *s = ARM11_SCU(obj);
-
-    memory_region_init_io(&s->iomem, OBJECT(s),
-                          &mpcore_scu_ops, s, "mpcore-scu", 0x100);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &mpcore_scu_ops, this, "mpcore-scu", 0x100);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const Property arm11_scu_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", ARM11SCUState, num_cpu, 1),
 };
 
-static void arm11_scu_class_init(ObjectClass *oc, const void *data)
+void ARM11SCUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = arm11_scu_realize;
     device_class_set_props(dc, arm11_scu_properties);
 }
 
-static const TypeInfo arm11_scu_type_info = {
-    .name          = TYPE_ARM11_SCU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARM11SCUState),
-    .instance_init = arm11_scu_init,
-    .class_init    = arm11_scu_class_init,
-};
-
-static void arm11_scu_register_types(void)
-{
-    type_register_static(&arm11_scu_type_info);
-}
-
-type_init(arm11_scu_register_types)
+REGISTER_QEMU_DEVICE(ARM11SCUState, TYPE_ARM11_SCU, TYPE_SYS_BUS_DEVICE)

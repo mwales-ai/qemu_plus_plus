@@ -25,6 +25,11 @@ struct ARM11SCUState {
     uint32_t control;
     uint32_t num_cpu;
     MemoryRegion iomem;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

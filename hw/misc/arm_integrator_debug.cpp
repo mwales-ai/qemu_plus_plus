@@ -22,6 +22,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(IntegratorDebugState, INTEGRATOR_DEBUG)
 
@@ -30,16 +31,11 @@ struct IntegratorDebugState {
 
     MemoryRegion iomem;
 
-    /* Instance methods */
-    void instanceInit();
+    void init();
 
-    /* Static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size);
-
-    /* Class methods */
-    static void classInit(ObjectClass *klass, const void *data);
 };
 
 uint64_t IntegratorDebugState::mmioRead(void *opaque, hwaddr offset,
@@ -88,35 +84,12 @@ static const MemoryRegionOps intdbg_control_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void intdbg_control_init(Object *obj)
-{
-    IntegratorDebugState *s = reinterpret_cast<IntegratorDebugState *>(obj);
-    s->instanceInit();
-}
-
-void IntegratorDebugState::instanceInit()
+void IntegratorDebugState::init()
 {
     memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
                           &intdbg_control_ops, NULL, "dbg-leds", 0x1000000);
     sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-void IntegratorDebugState::classInit(ObjectClass *klass, const void *data)
-{
-    /* No special class init needed */
-}
-
-static const TypeInfo intdbg_info = {
-    .name          = TYPE_INTEGRATOR_DEBUG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IntegratorDebugState),
-    .instance_init = intdbg_control_init,
-    .class_init    = IntegratorDebugState::classInit,
-};
-
-static void intdbg_register_types(void)
-{
-    type_register_static(&intdbg_info);
-}
-
-type_init(intdbg_register_types)
+REGISTER_QEMU_DEVICE(IntegratorDebugState, TYPE_INTEGRATOR_DEBUG,
+                     TYPE_SYS_BUS_DEVICE)
