@@ -38,6 +38,10 @@ struct SiFiveTestState {
 
     /*< public >*/
     MemoryRegion mmio;
+
+#ifdef __cplusplus
+    void init();
+#endif
 };
 
 enum {

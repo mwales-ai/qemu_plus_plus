@@ -26,6 +26,7 @@
 #include "system/runstate.h"
 #include "hw/misc/sifive_test.h"
 #include "system/system.h"
+#include "qom/cpp/object.h"
 
 static uint64_t sifive_test_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -68,28 +69,15 @@ static const MemoryRegionOps sifive_test_ops = {
     }
 };
 
-static void sifive_test_init(Object *obj)
+void SiFiveTestState::init()
 {
-    SiFiveTestState *s = SIFIVE_TEST(obj);
-
-    memory_region_init_io(&s->mmio, obj, &sifive_test_ops, s,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &sifive_test_ops, this,
                           TYPE_SIFIVE_TEST, 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mmio);
 }
 
-static const TypeInfo sifive_test_info = {
-    .name          = TYPE_SIFIVE_TEST,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFiveTestState),
-    .instance_init = sifive_test_init,
-};
-
-static void sifive_test_register_types(void)
-{
-    type_register_static(&sifive_test_info);
-}
-
-type_init(sifive_test_register_types)
+REGISTER_QEMU_DEVICE(SiFiveTestState, TYPE_SIFIVE_TEST, TYPE_SYS_BUS_DEVICE)
 
 
 /*
