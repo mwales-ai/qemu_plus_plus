@@ -34,6 +34,13 @@ struct BCM2835PropertyState {
     uint32_t addr;
     char *command_line;
     bool pending;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

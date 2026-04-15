@@ -16,6 +16,7 @@
 #include "system/dma.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 #include "hw/arm/raspi_platform.h"
 
@@ -507,49 +508,48 @@ static const VMStateDescription vmstate_bcm2835_property = {
     .fields = vmstate_bcm2835_property_fields,
 };
 
-static void bcm2835_property_init(Object *obj)
+void BCM2835PropertyState::init()
 {
-    BCM2835PropertyState *s = BCM2835_PROPERTY(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_property_ops, s,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &bcm2835_property_ops, this,
                           TYPE_BCM2835_PROPERTY, 0x10);
 
     /*
      * bcm2835_property_ops call into bcm2835_mbox, which in-turn reads from
      * iomem. As such, mark iomem as re-entracy safe.
      */
-    s->iomem.disable_reentrancy_guard = true;
+    iomem.disable_reentrancy_guard = true;
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->mbox_irq);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &mbox_irq);
 }
 
-static void bcm2835_property_reset(DeviceState *dev)
+void BCM2835PropertyState::reset()
 {
-    BCM2835PropertyState *s = BCM2835_PROPERTY(dev);
-
-    s->pending = false;
+    pending = false;
 }
 
-static void bcm2835_property_realize(DeviceState *dev, Error **errp)
+void BCM2835PropertyState::realize(Error **errp)
 {
-    BCM2835PropertyState *s = BCM2835_PROPERTY(dev);
+    Object *me = reinterpret_cast<Object *>(this);
     Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), "fb", &error_abort);
-    s->fbdev = BCM2835_FB(obj);
+    obj = object_property_get_link(me, "fb", &error_abort);
+    fbdev = BCM2835_FB(obj);
 
-    obj = object_property_get_link(OBJECT(dev), "dma-mr", &error_abort);
-    s->dma_mr = MEMORY_REGION(obj);
-    address_space_init(&s->dma_as, s->dma_mr, TYPE_BCM2835_PROPERTY "-memory");
+    obj = object_property_get_link(me, "dma-mr", &error_abort);
+    dma_mr = MEMORY_REGION(obj);
+    address_space_init(&dma_as, dma_mr, TYPE_BCM2835_PROPERTY "-memory");
 
-    obj = object_property_get_link(OBJECT(dev), "otp", &error_abort);
-    s->otp = BCM2835_OTP(obj);
+    obj = object_property_get_link(me, "otp", &error_abort);
+    otp = BCM2835_OTP(obj);
 
     /* TODO: connect to MAC address of USB NIC device, once we emulate it */
-    qemu_macaddr_default_if_unset(&s->macaddr);
+    qemu_macaddr_default_if_unset(&macaddr);
 
-    bcm2835_property_reset(dev);
+    reset();
 }
 
 static const Property bcm2835_property_props[] = {
@@ -557,26 +557,11 @@ static const Property bcm2835_property_props[] = {
     DEFINE_PROP_STRING("command-line", BCM2835PropertyState, command_line),
 };
 
-static void bcm2835_property_class_init(ObjectClass *klass, const void *data)
+void BCM2835PropertyState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, bcm2835_property_props);
-    dc->realize = bcm2835_property_realize;
     dc->vmsd = &vmstate_bcm2835_property;
 }
 
-static const TypeInfo bcm2835_property_info = {
-    .name          = TYPE_BCM2835_PROPERTY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835PropertyState),
-    .instance_init = bcm2835_property_init,
-    .class_init    = bcm2835_property_class_init,
-};
-
-static void bcm2835_property_register_types(void)
-{
-    type_register_static(&bcm2835_property_info);
-}
-
-type_init(bcm2835_property_register_types)
+REGISTER_QEMU_DEVICE(BCM2835PropertyState, TYPE_BCM2835_PROPERTY,
+                     TYPE_SYS_BUS_DEVICE)
