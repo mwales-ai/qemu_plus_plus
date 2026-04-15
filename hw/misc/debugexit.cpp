@@ -15,6 +15,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/module.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 #include "system/runstate.h"
 
 #define TYPE_ISA_DEBUG_EXIT_DEVICE "isa-debug-exit"
@@ -32,7 +33,7 @@ struct ISADebugExitState {
     static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
     static void mmioWrite(void *opaque, hwaddr addr, uint64_t val,
                           unsigned width);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 DECLARE_INSTANCE_CHECKER(ISADebugExitState, ISA_DEBUG_EXIT_DEVICE,
@@ -71,29 +72,11 @@ static const Property debug_exit_properties[] = {
     DEFINE_PROP_UINT32("iosize", ISADebugExitState, iosize, 0x02),
 };
 
-static void debug_exit_realize(DeviceState *d, Error **errp)
+void ISADebugExitState::classInit(DeviceClass *dc)
 {
-    ISA_DEBUG_EXIT_DEVICE(d)->realize(errp);
-}
-
-void ISADebugExitState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    dc->realize = debug_exit_realize;
     device_class_set_props(dc, debug_exit_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo debug_exit_info = {
-    .name          = TYPE_ISA_DEBUG_EXIT_DEVICE,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISADebugExitState),
-    .class_init    = ISADebugExitState::classInit,
-};
-
-static void debug_exit_register_types(void)
-{
-    type_register_static(&debug_exit_info);
-}
-
-type_init(debug_exit_register_types)
+REGISTER_QEMU_DEVICE(ISADebugExitState, TYPE_ISA_DEBUG_EXIT_DEVICE,
+                     TYPE_ISA_DEVICE)

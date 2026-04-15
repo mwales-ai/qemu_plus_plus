@@ -12,6 +12,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/misc/pvpanic.h"
 #include "hw/sysbus.h"
+#include "qom/cpp/object.h"
 #include "standard-headers/misc/pvpanic.h"
 
 OBJECT_DECLARE_SIMPLE_TYPE(PVPanicMMIOState, PVPANIC_MMIO_DEVICE)
@@ -23,22 +24,14 @@ struct PVPanicMMIOState {
 
     PVPanicState pvpanic;
 
-    /* Instance methods */
-    void instanceInit();
-
-    /* Class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
-static void pvpanic_mmio_initfn(Object *obj)
+void PVPanicMMIOState::init()
 {
-    PVPanicMMIOState *s = reinterpret_cast<PVPanicMMIOState *>(obj);
-    s->instanceInit();
-}
-
-void PVPanicMMIOState::instanceInit()
-{
-    pvpanic_setup_io(&pvpanic, reinterpret_cast<DeviceState *>(this), PVPANIC_MMIO_SIZE);
+    pvpanic_setup_io(&pvpanic, reinterpret_cast<DeviceState *>(this),
+                     PVPANIC_MMIO_SIZE);
     sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &pvpanic.mr);
 }
 
@@ -47,25 +40,11 @@ static const Property pvpanic_mmio_properties[] = {
                       PVPANIC_PANICKED | PVPANIC_CRASH_LOADED),
 };
 
-void PVPanicMMIOState::classInit(ObjectClass *klass, const void *data)
+void PVPanicMMIOState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     device_class_set_props(dc, pvpanic_mmio_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo pvpanic_mmio_info = {
-    .name          = TYPE_PVPANIC_MMIO_DEVICE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PVPanicMMIOState),
-    .instance_init = pvpanic_mmio_initfn,
-    .class_init    = PVPanicMMIOState::classInit,
-};
-
-static void pvpanic_register_types(void)
-{
-    type_register_static(&pvpanic_mmio_info);
-}
-
-type_init(pvpanic_register_types)
+REGISTER_QEMU_DEVICE(PVPanicMMIOState, TYPE_PVPANIC_MMIO_DEVICE,
+                     TYPE_SYS_BUS_DEVICE)
