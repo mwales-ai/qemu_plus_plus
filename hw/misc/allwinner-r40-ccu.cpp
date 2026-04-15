@@ -24,6 +24,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/allwinner-r40-ccu.h"
+#include "qom/cpp/object.h"
 
 /* CCU register offsets */
 enum {
@@ -137,42 +138,37 @@ static const MemoryRegionOps allwinner_r40_ccu_ops = {
     .impl = { .min_access_size = 4, },
 };
 
-static void allwinner_r40_ccu_reset(DeviceState *dev)
+void AwR40ClockCtlState::reset()
 {
-    AwR40ClockCtlState *s = AW_R40_CCU(dev);
-
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(regs, 0, sizeof(regs));
 
     /* Set default values for registers */
-    s->regs[REG_INDEX(REG_PLL_CPUX_CTRL)]       = 0x00001000;
-    s->regs[REG_INDEX(REG_PLL_AUDIO_CTRL)]      = 0x00035514;
-    s->regs[REG_INDEX(REG_PLL_VIDEO0_CTRL)]     = 0x03006207;
-    s->regs[REG_INDEX(REG_PLL_VE_CTRL)]         = 0x03006207;
-    s->regs[REG_INDEX(REG_PLL_DDR0_CTRL)]       = 0x00001000,
-    s->regs[REG_INDEX(REG_PLL_PERIPH0_CTRL)]    = 0x00041811;
-    s->regs[REG_INDEX(REG_PLL_PERIPH1_CTRL)]    = 0x00041811;
-    s->regs[REG_INDEX(REG_PLL_VIDEO1_CTRL)]     = 0x03006207;
-    s->regs[REG_INDEX(REG_PLL_SATA_CTRL)]       = 0x00001811;
-    s->regs[REG_INDEX(REG_PLL_GPU_CTRL)]        = 0x03006207;
-    s->regs[REG_INDEX(REG_PLL_MIPI_CTRL)]       = 0x00000515;
-    s->regs[REG_INDEX(REG_PLL_DE_CTRL)]         = 0x03006207;
-    s->regs[REG_INDEX(REG_PLL_DDR1_CTRL)]       = 0x00001800;
-    s->regs[REG_INDEX(REG_AHB1_APB1_CFG)]       = 0x00001010;
-    s->regs[REG_INDEX(REG_APB2_CFG)]            = 0x01000000;
-    s->regs[REG_INDEX(REG_PLL_DDR_AUX)]         = 0x00000001;
-    s->regs[REG_INDEX(REG_PLL_DDR1_CFG)]        = 0x0ccca000;
-    s->regs[REG_INDEX(REG_SYS_32K_CLK)]         = 0x0000000f;
+    regs[REG_INDEX(REG_PLL_CPUX_CTRL)]       = 0x00001000;
+    regs[REG_INDEX(REG_PLL_AUDIO_CTRL)]      = 0x00035514;
+    regs[REG_INDEX(REG_PLL_VIDEO0_CTRL)]     = 0x03006207;
+    regs[REG_INDEX(REG_PLL_VE_CTRL)]         = 0x03006207;
+    regs[REG_INDEX(REG_PLL_DDR0_CTRL)]       = 0x00001000,
+    regs[REG_INDEX(REG_PLL_PERIPH0_CTRL)]    = 0x00041811;
+    regs[REG_INDEX(REG_PLL_PERIPH1_CTRL)]    = 0x00041811;
+    regs[REG_INDEX(REG_PLL_VIDEO1_CTRL)]     = 0x03006207;
+    regs[REG_INDEX(REG_PLL_SATA_CTRL)]       = 0x00001811;
+    regs[REG_INDEX(REG_PLL_GPU_CTRL)]        = 0x03006207;
+    regs[REG_INDEX(REG_PLL_MIPI_CTRL)]       = 0x00000515;
+    regs[REG_INDEX(REG_PLL_DE_CTRL)]         = 0x03006207;
+    regs[REG_INDEX(REG_PLL_DDR1_CTRL)]       = 0x00001800;
+    regs[REG_INDEX(REG_AHB1_APB1_CFG)]       = 0x00001010;
+    regs[REG_INDEX(REG_APB2_CFG)]            = 0x01000000;
+    regs[REG_INDEX(REG_PLL_DDR_AUX)]         = 0x00000001;
+    regs[REG_INDEX(REG_PLL_DDR1_CFG)]        = 0x0ccca000;
+    regs[REG_INDEX(REG_SYS_32K_CLK)]         = 0x0000000f;
 }
 
-static void allwinner_r40_ccu_init(Object *obj)
+void AwR40ClockCtlState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwR40ClockCtlState *s = AW_R40_CCU(obj);
-
-    /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_r40_ccu_ops, s,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &allwinner_r40_ccu_ops, this,
                           TYPE_AW_R40_CCU, AW_R40_CCU_IOSIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateDescription allwinner_r40_ccu_vmstate = {
@@ -185,25 +181,10 @@ static const VMStateDescription allwinner_r40_ccu_vmstate = {
     }
 };
 
-static void allwinner_r40_ccu_class_init(ObjectClass *klass, const void *data)
+void AwR40ClockCtlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, allwinner_r40_ccu_reset);
     dc->vmsd = &allwinner_r40_ccu_vmstate;
 }
 
-static const TypeInfo allwinner_r40_ccu_info = {
-    .name          = TYPE_AW_R40_CCU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwR40ClockCtlState),
-    .instance_init = allwinner_r40_ccu_init,
-    .class_init    = allwinner_r40_ccu_class_init,
-};
-
-static void allwinner_r40_ccu_register(void)
-{
-    type_register_static(&allwinner_r40_ccu_info);
-}
-
-type_init(allwinner_r40_ccu_register)
+REGISTER_QEMU_DEVICE(AwR40ClockCtlState, TYPE_AW_R40_CCU,
+                     TYPE_SYS_BUS_DEVICE)

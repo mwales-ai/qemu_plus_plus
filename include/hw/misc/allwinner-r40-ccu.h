@@ -60,6 +60,11 @@ struct AwR40ClockCtlState {
     /** Array of hardware registers */
     uint32_t regs[AW_R40_CCU_REGS_NUM];
 
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MISC_ALLWINNER_R40_CCU_H */
