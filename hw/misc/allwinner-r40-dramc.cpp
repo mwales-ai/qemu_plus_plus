@@ -29,6 +29,7 @@
 #include "qapi/error.h"
 #include "qemu/bitops.h"
 #include "hw/misc/allwinner-r40-dramc.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 #define REG_INDEX(offset)    (offset / sizeof(uint32_t))
@@ -401,67 +402,59 @@ static const MemoryRegionOps allwinner_r40_dualrank_detect_ops = {
     .impl = { .min_access_size = 4, },
 };
 
-static void allwinner_r40_dramc_reset(DeviceState *dev)
+void AwR40DramCtlState::reset()
 {
-    AwR40DramCtlState *s = AW_R40_DRAMC(dev);
-
-    /* Set default values for registers */
-    memset(&s->dramcom, 0, sizeof(s->dramcom));
-    memset(&s->dramctl, 0, sizeof(s->dramctl));
-    memset(&s->dramphy, 0, sizeof(s->dramphy));
+    memset(&dramcom, 0, sizeof(dramcom));
+    memset(&dramctl, 0, sizeof(dramctl));
+    memset(&dramphy, 0, sizeof(dramphy));
 }
 
-static void allwinner_r40_dramc_realize(DeviceState *dev, Error **errp)
+void AwR40DramCtlState::realize(Error **errp)
 {
-    AwR40DramCtlState *s = AW_R40_DRAMC(dev);
-
-    if (!get_match_ddr(s->ram_size)) {
+    if (!get_match_ddr(ram_size)) {
         error_report("%s: ram-size %u MiB is not supported",
-                        __func__, s->ram_size);
+                        __func__, ram_size);
         exit(1);
     }
 
     /* R40 support max 2G memory but we only support up to 1G now. */
-    memory_region_init_io(&s->detect_cells, OBJECT(s),
-                          &allwinner_r40_detect_ops, s,
+    memory_region_init_io(&detect_cells, reinterpret_cast<Object *>(this),
+                          &allwinner_r40_detect_ops, this,
                           "DRAMCELLS", 1 * GiB);
-    memory_region_add_subregion_overlap(get_system_memory(), s->ram_addr,
-                                        &s->detect_cells, 10);
-    memory_region_set_enabled(&s->detect_cells, false);
+    memory_region_add_subregion_overlap(get_system_memory(), ram_addr,
+                                        &detect_cells, 10);
+    memory_region_set_enabled(&detect_cells, false);
 
     /*
      * We only support DRAM size up to 1G now, so prepare a high memory page
      * after 1G for dualrank detect.
      */
-    memory_region_init_io(&s->dram_high, OBJECT(s),
-                            &allwinner_r40_dualrank_detect_ops, s,
-                            "DRAMHIGH", KiB);
-    memory_region_add_subregion(get_system_memory(), s->ram_addr + GiB,
-                                &s->dram_high);
+    memory_region_init_io(&dram_high, reinterpret_cast<Object *>(this),
+                          &allwinner_r40_dualrank_detect_ops, this,
+                          "DRAMHIGH", KiB);
+    memory_region_add_subregion(get_system_memory(), ram_addr + GiB,
+                                &dram_high);
 }
 
-static void allwinner_r40_dramc_init(Object *obj)
+void AwR40DramCtlState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwR40DramCtlState *s = AW_R40_DRAMC(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    Object *obj = reinterpret_cast<Object *>(this);
 
     /* DRAMCOM registers, index 0 */
-    memory_region_init_io(&s->dramcom_iomem, OBJECT(s),
-                          &allwinner_r40_dramcom_ops, s,
+    memory_region_init_io(&dramcom_iomem, obj, &allwinner_r40_dramcom_ops, this,
                           "DRAMCOM", 4 * KiB);
-    sysbus_init_mmio(sbd, &s->dramcom_iomem);
+    sysbus_init_mmio(sbd, &dramcom_iomem);
 
     /* DRAMCTL registers, index 1 */
-    memory_region_init_io(&s->dramctl_iomem, OBJECT(s),
-                          &allwinner_r40_dramctl_ops, s,
+    memory_region_init_io(&dramctl_iomem, obj, &allwinner_r40_dramctl_ops, this,
                           "DRAMCTL", 4 * KiB);
-    sysbus_init_mmio(sbd, &s->dramctl_iomem);
+    sysbus_init_mmio(sbd, &dramctl_iomem);
 
     /* DRAMPHY registers. index 2 */
-    memory_region_init_io(&s->dramphy_iomem, OBJECT(s),
-                          &allwinner_r40_dramphy_ops, s,
+    memory_region_init_io(&dramphy_iomem, obj, &allwinner_r40_dramphy_ops, this,
                           "DRAMPHY", 4 * KiB);
-    sysbus_init_mmio(sbd, &s->dramphy_iomem);
+    sysbus_init_mmio(sbd, &dramphy_iomem);
 }
 
 static const Property allwinner_r40_dramc_properties[] = {
@@ -484,27 +477,11 @@ static const VMStateDescription allwinner_r40_dramc_vmstate = {
     }
 };
 
-static void allwinner_r40_dramc_class_init(ObjectClass *klass, const void *data)
+void AwR40DramCtlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, allwinner_r40_dramc_reset);
     dc->vmsd = &allwinner_r40_dramc_vmstate;
-    dc->realize = allwinner_r40_dramc_realize;
     device_class_set_props(dc, allwinner_r40_dramc_properties);
 }
 
-static const TypeInfo allwinner_r40_dramc_info = {
-    .name          = TYPE_AW_R40_DRAMC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwR40DramCtlState),
-    .instance_init = allwinner_r40_dramc_init,
-    .class_init    = allwinner_r40_dramc_class_init,
-};
-
-static void allwinner_r40_dramc_register(void)
-{
-    type_register_static(&allwinner_r40_dramc_info);
-}
-
-type_init(allwinner_r40_dramc_register)
+REGISTER_QEMU_DEVICE(AwR40DramCtlState, TYPE_AW_R40_DRAMC,
+                     TYPE_SYS_BUS_DEVICE)

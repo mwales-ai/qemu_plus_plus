@@ -103,6 +103,12 @@ struct AwR40DramCtlState {
 
     /** @} */
 
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MISC_ALLWINNER_R40_DRAMC_H */
