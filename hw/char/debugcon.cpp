@@ -33,6 +33,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_ISA_DEBUGCON_DEVICE "isa-debugcon"
 OBJECT_DECLARE_SIMPLE_TYPE(ISADebugconState, ISA_DEBUGCON_DEVICE)
@@ -94,13 +95,7 @@ struct ISADebugconState {
                                     iobase, &s->io);
     }
 
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        ISADebugconState *s = reinterpret_cast<ISADebugconState *>(dev);
-        s->realize(errp);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     static const MemoryRegionOps debugcon_ops;
     static const Property debugcon_isa_properties[];
@@ -119,25 +114,10 @@ const Property ISADebugconState::debugcon_isa_properties[] = {
     DEFINE_PROP_UINT32("readback", ISADebugconState, state.readback, 0xe9),
 };
 
-void ISADebugconState::classInit(ObjectClass *klass, const void *data)
+void ISADebugconState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = deviceRealize;
     device_class_set_props(dc, debugcon_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo debugcon_isa_info = {
-    .name          = TYPE_ISA_DEBUGCON_DEVICE,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISADebugconState),
-    .class_init    = ISADebugconState::classInit,
-};
-
-static void debugcon_register_types(void)
-{
-    type_register_static(&debugcon_isa_info);
-}
-
-type_init(debugcon_register_types)
+REGISTER_QEMU_DEVICE(ISADebugconState, TYPE_ISA_DEBUGCON_DEVICE, TYPE_ISA_DEVICE)
