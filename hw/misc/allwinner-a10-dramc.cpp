@@ -27,6 +27,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/allwinner-a10-dramc.h"
+#include "qom/cpp/object.h"
 
 /* DRAMC register offsets */
 enum {
@@ -132,15 +133,12 @@ static void allwinner_a10_dramc_reset_enter(Object *obj, ResetType type)
     s->regs[REG_INDEX(REG_SDR_ZQSR)] = REG_SDR_ZQSR_RESET;
 }
 
-static void allwinner_a10_dramc_init(Object *obj)
+void AwA10DramControllerState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwA10DramControllerState *s = AW_A10_DRAMC(obj);
-
-    /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_a10_dramc_ops, s,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &allwinner_a10_dramc_ops, this,
                           TYPE_AW_A10_DRAMC, AW_A10_DRAMC_IOSIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
 static const VMStateDescription allwinner_a10_dramc_vmstate = {
@@ -154,26 +152,13 @@ static const VMStateDescription allwinner_a10_dramc_vmstate = {
     }
 };
 
-static void allwinner_a10_dramc_class_init(ObjectClass *klass, const void *data)
+void AwA10DramControllerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    ResettableClass *rc = reinterpret_cast<ResettableClass *>(dc);
 
     rc->phases.enter = allwinner_a10_dramc_reset_enter;
     dc->vmsd = &allwinner_a10_dramc_vmstate;
 }
 
-static const TypeInfo allwinner_a10_dramc_info = {
-    .name          = TYPE_AW_A10_DRAMC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwA10DramControllerState),
-    .instance_init = allwinner_a10_dramc_init,
-    .class_init    = allwinner_a10_dramc_class_init,
-};
-
-static void allwinner_a10_dramc_register(void)
-{
-    type_register_static(&allwinner_a10_dramc_info);
-}
-
-type_init(allwinner_a10_dramc_register)
+REGISTER_QEMU_DEVICE(AwA10DramControllerState, TYPE_AW_A10_DRAMC,
+                     TYPE_SYS_BUS_DEVICE)

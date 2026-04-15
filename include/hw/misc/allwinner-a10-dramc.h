@@ -63,6 +63,11 @@ struct AwA10DramControllerState {
 
     /** Array of hardware registers */
     uint32_t regs[AW_A10_DRAMC_REGS_NUM];
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MISC_ALLWINNER_A10_DRAMC_H */
