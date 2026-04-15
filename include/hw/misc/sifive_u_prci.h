@@ -83,6 +83,11 @@ struct SiFiveUPRCIState {
     uint32_t coreclksel;
     uint32_t devicesreset;
     uint32_t clkmuxstatus;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+#endif
 };
 
 /*

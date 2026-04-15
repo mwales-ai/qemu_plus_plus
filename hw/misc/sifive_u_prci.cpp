@@ -23,6 +23,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/misc/sifive_u_prci.h"
+#include "qom/cpp/object.h"
 
 static uint64_t sifive_u_prci_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -119,51 +120,28 @@ static const MemoryRegionOps sifive_u_prci_ops = {
     }
 };
 
-static void sifive_u_prci_realize(DeviceState *dev, Error **errp)
+void SiFiveUPRCIState::realize(Error **errp)
 {
-    SiFiveUPRCIState *s = SIFIVE_U_PRCI(dev);
-
-    memory_region_init_io(&s->mmio, OBJECT(dev), &sifive_u_prci_ops, s,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &sifive_u_prci_ops, this,
                           TYPE_SIFIVE_U_PRCI, SIFIVE_U_PRCI_REG_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mmio);
 }
 
-static void sifive_u_prci_reset(DeviceState *dev)
+void SiFiveUPRCIState::reset()
 {
-    SiFiveUPRCIState *s = SIFIVE_U_PRCI(dev);
-
     /* Initialize register to power-on-reset values */
-    s->hfxosccfg = SIFIVE_U_PRCI_HFXOSCCFG_RDY | SIFIVE_U_PRCI_HFXOSCCFG_EN;
-    s->corepllcfg0 = SIFIVE_U_PRCI_PLLCFG0_DIVR | SIFIVE_U_PRCI_PLLCFG0_DIVF |
-                     SIFIVE_U_PRCI_PLLCFG0_DIVQ | SIFIVE_U_PRCI_PLLCFG0_FSE |
-                     SIFIVE_U_PRCI_PLLCFG0_LOCK;
-    s->ddrpllcfg0 = SIFIVE_U_PRCI_PLLCFG0_DIVR | SIFIVE_U_PRCI_PLLCFG0_DIVF |
+    hfxosccfg = SIFIVE_U_PRCI_HFXOSCCFG_RDY | SIFIVE_U_PRCI_HFXOSCCFG_EN;
+    corepllcfg0 = SIFIVE_U_PRCI_PLLCFG0_DIVR | SIFIVE_U_PRCI_PLLCFG0_DIVF |
+                  SIFIVE_U_PRCI_PLLCFG0_DIVQ | SIFIVE_U_PRCI_PLLCFG0_FSE |
+                  SIFIVE_U_PRCI_PLLCFG0_LOCK;
+    ddrpllcfg0 = SIFIVE_U_PRCI_PLLCFG0_DIVR | SIFIVE_U_PRCI_PLLCFG0_DIVF |
+                 SIFIVE_U_PRCI_PLLCFG0_DIVQ | SIFIVE_U_PRCI_PLLCFG0_FSE |
+                 SIFIVE_U_PRCI_PLLCFG0_LOCK;
+    gemgxlpllcfg0 = SIFIVE_U_PRCI_PLLCFG0_DIVR | SIFIVE_U_PRCI_PLLCFG0_DIVF |
                     SIFIVE_U_PRCI_PLLCFG0_DIVQ | SIFIVE_U_PRCI_PLLCFG0_FSE |
                     SIFIVE_U_PRCI_PLLCFG0_LOCK;
-    s->gemgxlpllcfg0 = SIFIVE_U_PRCI_PLLCFG0_DIVR | SIFIVE_U_PRCI_PLLCFG0_DIVF |
-                       SIFIVE_U_PRCI_PLLCFG0_DIVQ | SIFIVE_U_PRCI_PLLCFG0_FSE |
-                       SIFIVE_U_PRCI_PLLCFG0_LOCK;
-    s->coreclksel = SIFIVE_U_PRCI_CORECLKSEL_HFCLK;
+    coreclksel = SIFIVE_U_PRCI_CORECLKSEL_HFCLK;
 }
 
-static void sifive_u_prci_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = sifive_u_prci_realize;
-    device_class_set_legacy_reset(dc, sifive_u_prci_reset);
-}
-
-static const TypeInfo sifive_u_prci_info = {
-    .name          = TYPE_SIFIVE_U_PRCI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFiveUPRCIState),
-    .class_init    = sifive_u_prci_class_init,
-};
-
-static void sifive_u_prci_register_types(void)
-{
-    type_register_static(&sifive_u_prci_info);
-}
-
-type_init(sifive_u_prci_register_types)
+REGISTER_QEMU_DEVICE(SiFiveUPRCIState, TYPE_SIFIVE_U_PRCI, TYPE_SYS_BUS_DEVICE)
