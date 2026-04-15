@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "qemu/fifo32.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #ifndef DEBUG_IMX_UART
 #define DEBUG_IMX_UART 0
@@ -168,20 +169,17 @@ static void imx_serial_reset(IMXSerialState *s)
     timer_del(&s->ageing_timer);
 }
 
-static void imx_serial_reset_at_boot(DeviceState *dev)
+void IMXSerialState::reset()
 {
-    IMXSerialState *s = IMX_SERIAL(dev);
-
-    imx_serial_reset(s);
+    imx_serial_reset(this);
 
     /*
      * enable the uart on boot, so messages from the linux decompressor
      * are visible.  On real hardware this is done by the boot rom
      * before anything else is loaded.
      */
-    s->ucr1 = UCR1_UARTEN;
-    s->ucr2 = UCR2_TXEN;
-
+    ucr1 = UCR1_UARTEN;
+    ucr2 = UCR2_TXEN;
 }
 
 static uint64_t imx_serial_read(void *opaque, hwaddr offset,
@@ -440,58 +438,38 @@ static const struct MemoryRegionOps imx_serial_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void imx_serial_realize(DeviceState *dev, Error **errp)
+void IMXSerialState::realize(Error **errp)
 {
-    IMXSerialState *s = IMX_SERIAL(dev);
+    fifo32_create(&rx_fifo, FIFO_SIZE);
+    timer_init_ns(&ageing_timer, QEMU_CLOCK_VIRTUAL,
+                  imx_serial_rx_fifo_ageing_timer_int, this);
 
-    fifo32_create(&s->rx_fifo, FIFO_SIZE);
-    timer_init_ns(&s->ageing_timer, QEMU_CLOCK_VIRTUAL,
-                  imx_serial_rx_fifo_ageing_timer_int, s);
+    DPRINTF("char dev for uart: %p\n", qemu_chr_fe_get_driver(&chr));
 
-    DPRINTF("char dev for uart: %p\n", qemu_chr_fe_get_driver(&s->chr));
-
-    qemu_chr_fe_set_handlers(&s->chr, imx_can_receive, imx_receive,
-                             imx_event, NULL, s, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, imx_can_receive, imx_receive,
+                             imx_event, NULL, this, NULL, true);
 }
 
-static void imx_serial_init(Object *obj)
+void IMXSerialState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    IMXSerialState *s = IMX_SERIAL(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &imx_serial_ops, s,
-                          TYPE_IMX_SERIAL, 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &imx_serial_ops, this, TYPE_IMX_SERIAL, 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 }
 
 static const Property imx_serial_properties[] = {
     DEFINE_PROP_CHR("chardev", IMXSerialState, chr),
 };
 
-static void imx_serial_class_init(ObjectClass *klass, const void *data)
+void IMXSerialState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = imx_serial_realize;
     dc->vmsd = &vmstate_imx_serial;
-    device_class_set_legacy_reset(dc, imx_serial_reset_at_boot);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "i.MX series UART";
     device_class_set_props(dc, imx_serial_properties);
 }
 
-static const TypeInfo imx_serial_info = {
-    .name           = TYPE_IMX_SERIAL,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(IMXSerialState),
-    .instance_init  = imx_serial_init,
-    .class_init     = imx_serial_class_init,
-};
-
-static void imx_serial_register_types(void)
-{
-    type_register_static(&imx_serial_info);
-}
-
-type_init(imx_serial_register_types)
+REGISTER_QEMU_DEVICE(IMXSerialState, TYPE_IMX_SERIAL, TYPE_SYS_BUS_DEVICE)
