@@ -51,6 +51,13 @@ typedef struct MchpPfSoCMMUartState {
     SerialMM serial_mm;
 
     uint32_t reg[MCHP_PFSOC_MMUART_REG_COUNT];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } MchpPfSoCMMUartState;
 
 /**

@@ -26,6 +26,7 @@
 #include "migration/vmstate.h"
 #include "hw/char/mchp_pfsoc_mmuart.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 #define REGS_OFFSET 0x20
 
@@ -69,45 +70,46 @@ static const MemoryRegionOps mchp_pfsoc_mmuart_ops = {
     },
 };
 
-static void mchp_pfsoc_mmuart_reset(DeviceState *dev)
+void MchpPfSoCMMUartState::reset()
 {
-    MchpPfSoCMMUartState *s = MCHP_PFSOC_UART(dev);
-
-    memset(s->reg, 0, sizeof(s->reg));
-    device_cold_reset(DEVICE(&s->serial_mm));
+    memset(reg, 0, sizeof(reg));
+    device_cold_reset(reinterpret_cast<DeviceState *>(&serial_mm));
 }
 
-static void mchp_pfsoc_mmuart_init(Object *obj)
+void MchpPfSoCMMUartState::init()
 {
-    MchpPfSoCMMUartState *s = MCHP_PFSOC_UART(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
 
-    object_initialize_child(obj, "serial-mm", &s->serial_mm, TYPE_SERIAL_MM);
-    object_property_add_alias(obj, "chardev", OBJECT(&s->serial_mm), "chardev");
+    object_initialize_child(obj, "serial-mm", &serial_mm, TYPE_SERIAL_MM);
+    object_property_add_alias(obj, "chardev",
+                              reinterpret_cast<Object *>(&serial_mm), "chardev");
 }
 
-static void mchp_pfsoc_mmuart_realize(DeviceState *dev, Error **errp)
+void MchpPfSoCMMUartState::realize(Error **errp)
 {
-    MchpPfSoCMMUartState *s = MCHP_PFSOC_UART(dev);
+    DeviceState *smm_dev = reinterpret_cast<DeviceState *>(&serial_mm);
+    SysBusDevice *smm_sbd = reinterpret_cast<SysBusDevice *>(&serial_mm);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    Object *obj = reinterpret_cast<Object *>(this);
 
-    qdev_prop_set_uint8(DEVICE(&s->serial_mm), "regshift", 2);
-    qdev_prop_set_uint32(DEVICE(&s->serial_mm), "baudbase", 399193);
-    qdev_prop_set_uint8(DEVICE(&s->serial_mm), "endianness",
-                        DEVICE_LITTLE_ENDIAN);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->serial_mm), errp)) {
+    qdev_prop_set_uint8(smm_dev, "regshift", 2);
+    qdev_prop_set_uint32(smm_dev, "baudbase", 399193);
+    qdev_prop_set_uint8(smm_dev, "endianness", DEVICE_LITTLE_ENDIAN);
+    if (!sysbus_realize(smm_sbd, errp)) {
         return;
     }
 
-    sysbus_pass_irq(SYS_BUS_DEVICE(dev), SYS_BUS_DEVICE(&s->serial_mm));
+    sysbus_pass_irq(sbd, smm_sbd);
 
-    memory_region_init(&s->container, OBJECT(s), "mchp.pfsoc.mmuart", 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->container);
+    memory_region_init(&container, obj, "mchp.pfsoc.mmuart", 0x1000);
+    sysbus_init_mmio(sbd, &container);
 
-    memory_region_add_subregion(&s->container, 0,
-                    sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->serial_mm), 0));
+    memory_region_add_subregion(&container, 0,
+                                sysbus_mmio_get_region(smm_sbd, 0));
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &mchp_pfsoc_mmuart_ops, s,
+    memory_region_init_io(&iomem, obj, &mchp_pfsoc_mmuart_ops, this,
                           "mchp.pfsoc.mmuart.regs", 0x1000 - REGS_OFFSET);
-    memory_region_add_subregion(&s->container, REGS_OFFSET, &s->iomem);
+    memory_region_add_subregion(&container, REGS_OFFSET, &iomem);
 }
 
 static const VMStateField vmstate_mchp_pfsoc_mmuart_fields[] = {
@@ -123,30 +125,14 @@ static const VMStateDescription mchp_pfsoc_mmuart_vmstate = {
     .fields = vmstate_mchp_pfsoc_mmuart_fields,
 };
 
-static void mchp_pfsoc_mmuart_class_init(ObjectClass *oc, const void *data)
+void MchpPfSoCMMUartState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = mchp_pfsoc_mmuart_realize;
-    device_class_set_legacy_reset(dc, mchp_pfsoc_mmuart_reset);
     dc->vmsd = &mchp_pfsoc_mmuart_vmstate;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo mchp_pfsoc_mmuart_info = {
-    .name          = TYPE_MCHP_PFSOC_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MchpPfSoCMMUartState),
-    .instance_init = mchp_pfsoc_mmuart_init,
-    .class_init    = mchp_pfsoc_mmuart_class_init,
-};
-
-static void mchp_pfsoc_mmuart_register_types(void)
-{
-    type_register_static(&mchp_pfsoc_mmuart_info);
-}
-
-type_init(mchp_pfsoc_mmuart_register_types)
+REGISTER_QEMU_DEVICE(MchpPfSoCMMUartState, TYPE_MCHP_PFSOC_UART,
+                     TYPE_SYS_BUS_DEVICE)
 
 extern "C"
 MchpPfSoCMMUartState *mchp_pfsoc_mmuart_create(MemoryRegion *sysmem,
