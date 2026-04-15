@@ -19,6 +19,7 @@
 #include "hw/misc/imx7_snvs.h"
 #include "qemu/cutils.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 #include "system/system.h"
 #include "system/rtc.h"
 #include "system/runstate.h"
@@ -68,11 +69,9 @@ static uint64_t imx7_snvs_read(void *opaque, hwaddr offset, unsigned size)
     return ret;
 }
 
-static void imx7_snvs_reset(DeviceState *dev)
+void IMX7SNVSState::reset()
 {
-    IMX7SNVSState *s = IMX7_SNVS(dev);
-
-    s->lpcr = 0;
+    lpcr = 0;
 }
 
 static void imx7_snvs_write(void *opaque, hwaddr offset,
@@ -129,41 +128,23 @@ static const struct MemoryRegionOps imx7_snvs_ops = {
     },
 };
 
-static void imx7_snvs_init(Object *obj)
+void IMX7SNVSState::init()
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMX7SNVSState *s = IMX7_SNVS(obj);
     struct tm tm;
 
-    memory_region_init_io(&s->mmio, obj, &imx7_snvs_ops, s,
-                          TYPE_IMX7_SNVS, 0x1000);
-
-    sysbus_init_mmio(sd, &s->mmio);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &imx7_snvs_ops, this, TYPE_IMX7_SNVS, 0x1000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mmio);
 
     qemu_get_timedate(&tm, 0);
-    s->tick_offset = mktimegm(&tm) -
+    tick_offset = mktimegm(&tm) -
         qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
 }
 
-static void imx7_snvs_class_init(ObjectClass *klass, const void *data)
+void IMX7SNVSState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, imx7_snvs_reset);
     dc->vmsd = &vmstate_imx7_snvs;
     dc->desc  = "i.MX7 Secure Non-Volatile Storage Module";
 }
 
-static const TypeInfo imx7_snvs_info = {
-    .name          = TYPE_IMX7_SNVS,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMX7SNVSState),
-    .instance_init = imx7_snvs_init,
-    .class_init    = imx7_snvs_class_init,
-};
-
-static void imx7_snvs_register_type(void)
-{
-    type_register_static(&imx7_snvs_info);
-}
-type_init(imx7_snvs_register_type)
+REGISTER_QEMU_DEVICE(IMX7SNVSState, TYPE_IMX7_SNVS, TYPE_SYS_BUS_DEVICE)

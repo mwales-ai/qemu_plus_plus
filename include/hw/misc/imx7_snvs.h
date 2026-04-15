@@ -36,6 +36,12 @@ struct IMX7SNVSState {
 
     uint64_t tick_offset;
     uint64_t lpcr;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX7_SNVS_H */
