@@ -14,6 +14,7 @@
 #include "hw/misc/bcm2835_powermgt.h"
 #include "migration/vmstate.h"
 #include "system/runstate.h"
+#include "qom/cpp/object.h"
 
 #define PASSWORD 0x5a000000
 #define PASSWORD_MASK 0xff000000
@@ -116,44 +117,26 @@ static const VMStateDescription vmstate_bcm2835_powermgt = {
     }
 };
 
-static void bcm2835_powermgt_init(Object *obj)
+void BCM2835PowerMgtState::init()
 {
-    BCM2835PowerMgtState *s = BCM2835_POWERMGT(obj);
-
-    memory_region_init_io(&s->iomem, obj, &bcm2835_powermgt_ops, s,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &bcm2835_powermgt_ops, this,
                           TYPE_BCM2835_POWERMGT, 0x200);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void bcm2835_powermgt_reset(DeviceState *dev)
+void BCM2835PowerMgtState::reset()
 {
-    BCM2835PowerMgtState *s = BCM2835_POWERMGT(dev);
-
     /* https://elinux.org/BCM2835_registers#PM */
-    s->rstc = 0x00000102;
-    s->rsts = 0x00001000;
-    s->wdog = 0x00000000;
+    rstc = 0x00000102;
+    rsts = 0x00001000;
+    wdog = 0x00000000;
 }
 
-static void bcm2835_powermgt_class_init(ObjectClass *klass, const void *data)
+void BCM2835PowerMgtState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, bcm2835_powermgt_reset);
     dc->vmsd = &vmstate_bcm2835_powermgt;
 }
 
-static const TypeInfo bcm2835_powermgt_info = {
-    .name          = TYPE_BCM2835_POWERMGT,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835PowerMgtState),
-    .instance_init = bcm2835_powermgt_init,
-    .class_init    = bcm2835_powermgt_class_init,
-};
-
-static void bcm2835_powermgt_register_types(void)
-{
-    type_register_static(&bcm2835_powermgt_info);
-}
-
-type_init(bcm2835_powermgt_register_types)
+REGISTER_QEMU_DEVICE(BCM2835PowerMgtState, TYPE_BCM2835_POWERMGT,
+                     TYPE_SYS_BUS_DEVICE)
