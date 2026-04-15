@@ -26,6 +26,8 @@
 #include "hw/qdev-core.h"
 
 #include <cstring>
+#include <type_traits>
+#include <utility>
 
 /*
  * DEPRECATED: qom_fixup_vtable<T> — legacy helper from the abandoned
@@ -127,21 +129,6 @@ protected:
  * PCIDevice) as their first data member. They do NOT get `realize` and
  * `reset` from inheritance — instead they define their own static or
  * member functions and register them via REGISTER_QEMU_DEVICE.
- *
- * Example (see hw/char/pl011.cpp for the real thing):
- *
- *   class PL011State : public CppDevice
- *   {
- *   public:
- *       SysBusDevice parent_obj;   // QOM parent; MUST be first
- *       MemoryRegion iomem;
- *       uint32_t theCr;
- *       // ...
- *
- *       void realize(Error **errp);
- *       void reset();
- *       void init();
- *   };
  */
 class CppDevice : public CppObject
 {
@@ -167,105 +154,157 @@ protected:
 };
 
 /*
- * REGISTER_QEMU_DEVICE: register a C++ device class with QOM.
+ * Device registration plumbing: detects which lifecycle methods a device
+ * class defines and auto-wires trampolines + TypeInfo fields for them.
  *
- * Generates the trampolines, class_init, TypeInfo, and type_init
- * boilerplate from a device class that has the following members:
+ * Supported methods (all optional):
+ *   void T::init()
+ *   void T::finalize()
+ *   void T::realize(Error **errp)
+ *   void T::reset()
+ *   static void T::classInit(DeviceClass *dc)
  *
- *   class FooState : public CppDevice {
- *       SysBusDevice parent_obj;   // or DeviceState / PCIDevice
- *       // ... data members ...
- *
- *       void init();             // called by instance_init (optional)
- *       void realize(Error **errp);
- *       void reset();            // optional
- *   };
- *
- * Plus a static `classInit(DeviceClass *dc)` method where the device
- * sets categories, vmsd, props, user_creatable, etc. The macro handles
- * the DEVICE_CLASS(oc) cast and calls classInit.
- *
- * Usage (at file scope in hw/foo/foo.cpp):
- *
- *   REGISTER_QEMU_DEVICE(FooState, "foo-device", TYPE_SYS_BUS_DEVICE)
- *
- * If the device has no `init()` method, pass nullptr via the
- * REGISTER_QEMU_DEVICE_NOINIT variant.
+ * The REGISTER_QEMU_DEVICE macro only needs the class name and type
+ * strings — it figures out which methods the class has and wires up
+ * instance_init / instance_finalize / dc->realize / dc->legacy_reset /
+ * T::classInit accordingly. No boilerplate even when methods are absent.
  */
-#define REGISTER_QEMU_DEVICE(ClassName, type_name_str, parent_type_str)   \
-static void ClassName##_cpp_realize(DeviceState *dev, Error **errp)       \
-{                                                                         \
-    ClassName *self = reinterpret_cast<ClassName *>(dev);                  \
-    self->realize(errp);                                                  \
-}                                                                         \
-                                                                          \
-static void ClassName##_cpp_reset(DeviceState *dev)                       \
-{                                                                         \
-    ClassName *self = reinterpret_cast<ClassName *>(dev);                  \
-    self->reset();                                                        \
-}                                                                         \
-                                                                          \
-static void ClassName##_cpp_init(Object *obj)                             \
-{                                                                         \
-    ClassName *self = reinterpret_cast<ClassName *>(obj);                  \
-    self->init();                                                         \
-}                                                                         \
-                                                                          \
-static void ClassName##_cpp_class_init(ObjectClass *oc, const void *data) \
-{                                                                         \
-    DeviceClass *dc = DEVICE_CLASS(oc);                                   \
-    dc->realize = ClassName##_cpp_realize;                                \
-    device_class_set_legacy_reset(dc, ClassName##_cpp_reset);             \
-    ClassName::classInit(dc);                                             \
-}                                                                         \
-                                                                          \
-static const TypeInfo ClassName##_type_info = {                           \
-    .name          = type_name_str,                                       \
-    .parent        = parent_type_str,                                     \
-    .instance_size = sizeof(ClassName),                                   \
-    .instance_init = ClassName##_cpp_init,                                \
-    .class_init    = ClassName##_cpp_class_init,                          \
-};                                                                        \
-                                                                          \
-static void ClassName##_cpp_register_types(void)                          \
-{                                                                         \
-    type_register_static(&ClassName##_type_info);                         \
-}                                                                         \
-                                                                          \
-type_init(ClassName##_cpp_register_types)
+namespace qemu_device_detail {
+
+/* --- method detection via SFINAE --- */
+
+template<typename, typename = void>
+struct has_init : std::false_type {};
+template<typename T>
+struct has_init<T, std::void_t<decltype(std::declval<T &>().init())>>
+    : std::true_type {};
+
+template<typename, typename = void>
+struct has_finalize : std::false_type {};
+template<typename T>
+struct has_finalize<T, std::void_t<decltype(std::declval<T &>().finalize())>>
+    : std::true_type {};
+
+template<typename, typename = void>
+struct has_realize : std::false_type {};
+template<typename T>
+struct has_realize<T, std::void_t<
+    decltype(std::declval<T &>().realize(std::declval<Error **>()))>>
+    : std::true_type {};
+
+template<typename, typename = void>
+struct has_reset : std::false_type {};
+template<typename T>
+struct has_reset<T, std::void_t<decltype(std::declval<T &>().reset())>>
+    : std::true_type {};
+
+template<typename, typename = void>
+struct has_class_init : std::false_type {};
+template<typename T>
+struct has_class_init<T, std::void_t<
+    decltype(T::classInit(std::declval<DeviceClass *>()))>>
+    : std::true_type {};
+
+/* --- trampolines (instantiated only when needed) --- */
+
+template<typename T>
+void trampoline_init(Object *obj)
+{
+    reinterpret_cast<T *>(obj)->init();
+}
+
+template<typename T>
+void trampoline_finalize(Object *obj)
+{
+    reinterpret_cast<T *>(obj)->finalize();
+}
+
+template<typename T>
+void trampoline_realize(DeviceState *dev, Error **errp)
+{
+    reinterpret_cast<T *>(dev)->realize(errp);
+}
+
+template<typename T>
+void trampoline_reset(DeviceState *dev)
+{
+    reinterpret_cast<T *>(dev)->reset();
+}
 
 /*
- * REGISTER_QEMU_DEVICE_NORESET: same as REGISTER_QEMU_DEVICE but skips
- * the legacy_reset callback. Use when the device uses ResettableClass
- * multi-phase reset instead (or doesn't need a reset handler).
+ * Generic class_init wrapper. Called by QOM with an ObjectClass pointer;
+ * casts it to DeviceClass, auto-wires realize/reset based on method
+ * detection, then calls the user's classInit(DeviceClass *) if present.
  */
-#define REGISTER_QEMU_DEVICE_NORESET(ClassName, type_name_str,            \
-                                     parent_type_str)                     \
-static void ClassName##_cpp_realize(DeviceState *dev, Error **errp)       \
-{                                                                         \
-    ClassName *self = reinterpret_cast<ClassName *>(dev);                  \
-    self->realize(errp);                                                  \
-}                                                                         \
-                                                                          \
-static void ClassName##_cpp_init(Object *obj)                             \
-{                                                                         \
-    ClassName *self = reinterpret_cast<ClassName *>(obj);                  \
-    self->init();                                                         \
-}                                                                         \
-                                                                          \
-static void ClassName##_cpp_class_init(ObjectClass *oc, const void *data) \
-{                                                                         \
-    DeviceClass *dc = DEVICE_CLASS(oc);                                   \
-    dc->realize = ClassName##_cpp_realize;                                \
-    ClassName::classInit(dc);                                             \
-}                                                                         \
-                                                                          \
+template<typename T>
+void trampoline_class_init(ObjectClass *oc, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    if constexpr (has_realize<T>::value) {
+        dc->realize = trampoline_realize<T>;
+    }
+    if constexpr (has_reset<T>::value) {
+        device_class_set_legacy_reset(dc, trampoline_reset<T>);
+    }
+    if constexpr (has_class_init<T>::value) {
+        T::classInit(dc);
+    }
+}
+
+/* --- conditional function-pointer accessors for TypeInfo --- */
+
+template<typename T>
+constexpr auto get_instance_init() -> void (*)(Object *)
+{
+    if constexpr (has_init<T>::value) {
+        return trampoline_init<T>;
+    } else {
+        return nullptr;
+    }
+}
+
+template<typename T>
+constexpr auto get_instance_finalize() -> void (*)(Object *)
+{
+    if constexpr (has_finalize<T>::value) {
+        return trampoline_finalize<T>;
+    } else {
+        return nullptr;
+    }
+}
+
+}  /* namespace qemu_device_detail */
+
+/*
+ * REGISTER_QEMU_DEVICE: register a C++ device class with QOM.
+ *
+ * Usage (at file scope in hw/foo/foo.cpp):
+ *   REGISTER_QEMU_DEVICE(FooState, TYPE_FOO, TYPE_SYS_BUS_DEVICE)
+ *
+ * The class `FooState` may define any subset of:
+ *   void init();                              // called by instance_init
+ *   void finalize();                          // called by instance_finalize
+ *   void realize(Error **errp);               // wired to dc->realize
+ *   void reset();                             // wired to dc->legacy_reset
+ *   static void classInit(DeviceClass *dc);   // called after wiring above
+ *
+ * Methods not defined are simply not wired up. The macro expands to a
+ * single TypeInfo + type_init pair, no trampoline functions pollute
+ * the translation unit's namespace.
+ *
+ * For devices that register additional QOM types (subtypes) from the
+ * same file, use REGISTER_QEMU_DEVICE plus manual type_register_static
+ * calls in a separate type_init — see hw/char/pl011.cpp for an example
+ * with the pl011_luminary subtype.
+ */
+#define REGISTER_QEMU_DEVICE(ClassName, type_name_str, parent_type_str)   \
 static const TypeInfo ClassName##_type_info = {                           \
-    .name          = type_name_str,                                       \
-    .parent        = parent_type_str,                                     \
-    .instance_size = sizeof(ClassName),                                   \
-    .instance_init = ClassName##_cpp_init,                                \
-    .class_init    = ClassName##_cpp_class_init,                          \
+    .name              = type_name_str,                                   \
+    .parent            = parent_type_str,                                 \
+    .instance_size     = sizeof(ClassName),                               \
+    .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+    .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+    .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
 };                                                                        \
                                                                           \
 static void ClassName##_cpp_register_types(void)                          \

@@ -124,4 +124,12 @@ protected:
 #define REGISTER_QEMU_PCI_DEVICE(ClassName, type_name_str)                \
     REGISTER_QEMU_DEVICE(ClassName, type_name_str, TYPE_PCI_DEVICE)
 
+/*
+ * REGISTER_QEMU_DEVICE_OF: register a C++ device type whose parent is
+ * another already-registered device. Useful for subtypes that refine a
+ * base class's behavior (e.g. the luminary variant of pl011).
+ */
+#define REGISTER_QEMU_DEVICE_OF(ClassName, type_name_str, parent_type_str) \
+    REGISTER_QEMU_DEVICE(ClassName, type_name_str, parent_type_str)
+
 #endif /* QOM_CPP_DEVICE_H */

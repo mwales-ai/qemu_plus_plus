@@ -43,6 +43,13 @@ struct PL031State {
     uint32_t cr;
     uint32_t im;
     uint32_t is;
+
+#ifdef __cplusplus
+    /* Zero-vtable member functions — safe for embedding */
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

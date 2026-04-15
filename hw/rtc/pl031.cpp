@@ -23,6 +23,7 @@
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 #include "trace.h"
 #include "qapi/qapi-events-misc.h"
 
@@ -187,28 +188,26 @@ static const MemoryRegionOps pl031_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pl031_init(Object *obj)
+void PL031State::init()
 {
-    PL031State *s = PL031(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
     struct tm tm;
 
-    memory_region_init_io(&s->iomem, obj, &pl031_ops, s, "pl031", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &pl031_ops, this, "pl031", 0x1000);
+    sysbus_init_mmio(dev, &iomem);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(dev, &irq);
     qemu_get_timedate(&tm, 0);
-    s->tick_offset = mktimegm(&tm) -
+    tick_offset = mktimegm(&tm) -
         qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
 
-    s->timer = timer_new_ns(rtc_clock, pl031_interrupt, s);
+    timer = timer_new_ns(rtc_clock, pl031_interrupt, this);
 }
 
-static void pl031_finalize(Object *obj)
+void PL031State::finalize()
 {
-    PL031State *s = PL031(obj);
-
-    timer_free(s->timer);
+    timer_free(timer);
 }
 
 static int pl031_pre_save(void *opaque)
@@ -338,26 +337,10 @@ static const Property pl031_properties[] = {
                      PL031State, migrate_tick_offset, true),
 };
 
-static void pl031_class_init(ObjectClass *klass, const void *data)
+void PL031State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_pl031;
     device_class_set_props(dc, pl031_properties);
 }
 
-static const TypeInfo pl031_info = {
-    .name          = TYPE_PL031,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL031State),
-    .instance_init = pl031_init,
-    .instance_finalize = pl031_finalize,
-    .class_init    = pl031_class_init,
-};
-
-static void pl031_register_types(void)
-{
-    type_register_static(&pl031_info);
-}
-
-type_init(pl031_register_types)
+REGISTER_QEMU_DEVICE(PL031State, TYPE_PL031, TYPE_SYS_BUS_DEVICE)
