@@ -50,6 +50,12 @@ struct TMP105State {
      * looking for T_high, true when looking for T_low.
      */
     bool detect_falling;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

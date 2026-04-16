@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "hw/registerfields.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 FIELD(CONFIG, SHUTDOWN_MODE,        0, 1)
 FIELD(CONFIG, THERMOSTAT_MODE,      1, 1)
@@ -296,46 +297,30 @@ static void tmp105_reset(I2CSlave *i2c)
     tmp105_interrupt_update(s);
 }
 
-static void tmp105_realize(DeviceState *dev, Error **errp)
+void TMP105State::realize(Error **errp)
 {
-    I2CSlave *i2c = I2C_SLAVE(dev);
-    TMP105State *s = TMP105(i2c);
+    I2CSlave *i2c_dev = reinterpret_cast<I2CSlave *>(this);
 
-    qdev_init_gpio_out(&i2c->qdev, &s->pin, 1);
+    qdev_init_gpio_out(&i2c_dev->qdev, &pin, 1);
 
-    tmp105_reset(&s->i2c);
+    tmp105_reset(&i2c);
 }
 
-static void tmp105_initfn(Object *obj)
+void TMP105State::init()
 {
-    object_property_add(obj, "temperature", "int",
+    object_property_add(reinterpret_cast<Object *>(this), "temperature", "int",
                         tmp105_get_temperature,
                         tmp105_set_temperature, NULL, NULL);
 }
 
-static void tmp105_class_init(ObjectClass *klass, const void *data)
+void TMP105State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(dc);
 
-    dc->realize = tmp105_realize;
     k->event = tmp105_event;
     k->recv = tmp105_rx;
     k->send = tmp105_tx;
     dc->vmsd = &vmstate_tmp105;
 }
 
-static const TypeInfo tmp105_info = {
-    .name          = TYPE_TMP105,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(TMP105State),
-    .instance_init = tmp105_initfn,
-    .class_init    = tmp105_class_init,
-};
-
-static void tmp105_register_types(void)
-{
-    type_register_static(&tmp105_info);
-}
-
-type_init(tmp105_register_types)
+REGISTER_QEMU_DEVICE(TMP105State, TYPE_TMP105, TYPE_I2C_SLAVE)
