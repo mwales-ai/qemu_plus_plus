@@ -76,6 +76,12 @@ struct IMXEPITState {
     uint32_t cmp;
 
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX_EPIT_H */

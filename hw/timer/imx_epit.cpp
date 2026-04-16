@@ -20,6 +20,7 @@
 #include "hw/misc/imx_ccm.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "qom/cpp/object.h"
 
 #ifndef DEBUG_IMX_EPIT
 #define DEBUG_IMX_EPIT 0
@@ -396,59 +397,30 @@ static const VMStateDescription vmstate_imx_timer_epit = {
     .fields = vmstate_imx_timer_epit_fields,
 };
 
-static void imx_epit_realize(DeviceState *dev, Error **errp)
+void IMXEPITState::realize(Error **errp)
 {
-    IMXEPITState *s = IMX_EPIT(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     DPRINTF("\n");
 
-    sysbus_init_irq(sbd, &s->irq);
-    memory_region_init_io(&s->iomem, OBJECT(s), &imx_epit_ops, s, TYPE_IMX_EPIT,
-                          0x00001000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &irq);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &imx_epit_ops, this, TYPE_IMX_EPIT, 0x00001000);
+    sysbus_init_mmio(sbd, &iomem);
 
-    /*
-     * The reload timer keeps running when the peripheral is enabled. It is a
-     * kind of wall clock that does not generate any interrupts. The callback
-     * needs to be provided, but it does nothing as the ptimer already supports
-     * all necessary reloading functionality.
-     */
-    s->timer_reload = ptimer_init(imx_epit_reload, s, PTIMER_POLICY_LEGACY);
-
-    /*
-     * The compare timer is running only when the peripheral configuration is
-     * in a state that will generate compare interrupts.
-     */
-    s->timer_cmp = ptimer_init(imx_epit_cmp, s, PTIMER_POLICY_LEGACY);
+    timer_reload = ptimer_init(imx_epit_reload, this, PTIMER_POLICY_LEGACY);
+    timer_cmp = ptimer_init(imx_epit_cmp, this, PTIMER_POLICY_LEGACY);
 }
 
-static void imx_epit_dev_reset(DeviceState *dev)
+void IMXEPITState::reset()
 {
-    IMXEPITState *s = IMX_EPIT(dev);
-    imx_epit_reset(s, true);
+    imx_epit_reset(this, true);
 }
 
-static void imx_epit_class_init(ObjectClass *klass, const void *data)
+void IMXEPITState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc  = DEVICE_CLASS(klass);
-
-    dc->realize = imx_epit_realize;
-    device_class_set_legacy_reset(dc, imx_epit_dev_reset);
     dc->vmsd = &vmstate_imx_timer_epit;
     dc->desc = "i.MX periodic timer";
 }
 
-static const TypeInfo imx_epit_info = {
-    .name = TYPE_IMX_EPIT,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXEPITState),
-    .class_init = imx_epit_class_init,
-};
-
-static void imx_epit_register_types(void)
-{
-    type_register_static(&imx_epit_info);
-}
-
-type_init(imx_epit_register_types)
+REGISTER_QEMU_DEVICE(IMXEPITState, TYPE_IMX_EPIT, TYPE_SYS_BUS_DEVICE)
