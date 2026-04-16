@@ -67,6 +67,13 @@ struct AwA10PITState {
     uint32_t count_lo;
     uint32_t count_hi;
     uint32_t count_ctl;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

@@ -27,6 +27,8 @@ extern "C" {
 #include "qemu/module.h"
 } /* extern "C" */
 
+#include "qom/cpp/object.h"
+
 static void a10_pit_update_irq(AwA10PITState *s)
 {
     int i;
@@ -220,29 +222,28 @@ static const VMStateDescription vmstate_a10_pit = {
     .fields = vmstate_a10_pit_fields,
 };
 
-static void a10_pit_reset(DeviceState *dev)
+void AwA10PITState::reset()
 {
-    AwA10PITState *s = AW_A10_PIT(dev);
     uint8_t i;
 
-    s->irq_enable = 0;
-    s->irq_status = 0;
-    a10_pit_update_irq(s);
+    irq_enable = 0;
+    irq_status = 0;
+    a10_pit_update_irq(this);
 
     for (i = 0; i < 6; i++) {
-        s->control[i] = AW_A10_PIT_DEFAULT_CLOCK;
-        s->interval[i] = 0;
-        s->count[i] = 0;
-        ptimer_transaction_begin(s->timer[i]);
-        ptimer_stop(s->timer[i]);
-        a10_pit_set_freq(s, i);
-        ptimer_transaction_commit(s->timer[i]);
+        control[i] = AW_A10_PIT_DEFAULT_CLOCK;
+        interval[i] = 0;
+        count[i] = 0;
+        ptimer_transaction_begin(timer[i]);
+        ptimer_stop(timer[i]);
+        a10_pit_set_freq(this, i);
+        ptimer_transaction_commit(timer[i]);
     }
-    s->watch_dog_mode = 0;
-    s->watch_dog_control = 0;
-    s->count_lo = 0;
-    s->count_hi = 0;
-    s->count_ctl = 0;
+    watch_dog_mode = 0;
+    watch_dog_control = 0;
+    count_lo = 0;
+    count_hi = 0;
+    count_ctl = 0;
 }
 
 static void a10_pit_timer_cb(void *opaque)
@@ -261,60 +262,41 @@ static void a10_pit_timer_cb(void *opaque)
     }
 }
 
-static void a10_pit_init(Object *obj)
+void AwA10PITState::init()
 {
-    AwA10PITState *s = AW_A10_PIT(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
     uint8_t i;
 
     for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
+        sysbus_init_irq(sbd, &irq[i]);
     }
-    memory_region_init_io(&s->iomem, OBJECT(s), &a10_pit_ops, s,
-                          TYPE_AW_A10_PIT, 0x400);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &a10_pit_ops, this, TYPE_AW_A10_PIT, 0x400);
+    sysbus_init_mmio(sbd, &iomem);
 
     for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        AwA10TimerContext *tc = &s->timer_context[i];
+        AwA10TimerContext *tc = &timer_context[i];
 
-        tc->container = s;
+        tc->container = this;
         tc->index = i;
-        s->timer[i] = ptimer_init(a10_pit_timer_cb, tc, PTIMER_POLICY_LEGACY);
+        timer[i] = ptimer_init(a10_pit_timer_cb, tc, PTIMER_POLICY_LEGACY);
     }
 }
 
-static void a10_pit_finalize(Object *obj)
+void AwA10PITState::finalize()
 {
-    AwA10PITState *s = AW_A10_PIT(obj);
     int i;
 
     for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        ptimer_free(s->timer[i]);
+        ptimer_free(timer[i]);
     }
 }
 
-static void a10_pit_class_init(ObjectClass *klass, const void *data)
+void AwA10PITState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, a10_pit_reset);
     device_class_set_props(dc, a10_pit_properties);
     dc->desc = "allwinner a10 timer";
     dc->vmsd = &vmstate_a10_pit;
 }
 
-static const TypeInfo a10_pit_info = {
-    .name = TYPE_AW_A10_PIT,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwA10PITState),
-    .instance_init = a10_pit_init,
-    .instance_finalize = a10_pit_finalize,
-    .class_init = a10_pit_class_init,
-};
-
-static void a10_register_types(void)
-{
-    type_register_static(&a10_pit_info);
-}
-
-type_init(a10_register_types);
+REGISTER_QEMU_DEVICE(AwA10PITState, TYPE_AW_A10_PIT, TYPE_SYS_BUS_DEVICE)
