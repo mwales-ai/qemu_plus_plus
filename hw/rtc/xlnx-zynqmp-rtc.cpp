@@ -40,6 +40,7 @@ extern "C" {
 #include "migration/vmstate.h"
 }
 
+#include "qom/cpp/object.h"
 #include "trace.h"
 
 #ifndef XLNX_ZYNQMP_RTC_ERR_DEBUG
@@ -179,17 +180,16 @@ static const RegisterAccessInfo rtc_regs_info[] = {
     }
 };
 
-static void rtc_reset(DeviceState *dev)
+void XlnxZynqMPRTC::reset()
 {
-    XlnxZynqMPRTC *s = XLNX_ZYNQMP_RTC(dev);
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
-        register_reset(&s->regs_info[i]);
+    for (i = 0; i < ARRAY_SIZE(regs_info); ++i) {
+        register_reset(&regs_info[i]);
     }
 
-    rtc_int_update_irq(s);
-    addr_error_int_update_irq(s);
+    rtc_int_update_irq(this);
+    addr_error_int_update_irq(this);
 }
 
 static MemoryRegionOps rtc_ops = {
@@ -204,31 +204,30 @@ static void __attribute__((constructor)) init_rtc_ops(void)
     rtc_ops.valid.max_access_size = 4;
 }
 
-static void rtc_init(Object *obj)
+void XlnxZynqMPRTC::init()
 {
-    XlnxZynqMPRTC *s = XLNX_ZYNQMP_RTC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(this);
+    Object *obj = reinterpret_cast<Object *>(this);
     RegisterInfoArray *reg_array;
     struct tm current_tm;
 
-    memory_region_init(&s->iomem, obj, TYPE_XLNX_ZYNQMP_RTC,
+    memory_region_init(&iomem, obj, TYPE_XLNX_ZYNQMP_RTC,
                        XLNX_ZYNQMP_RTC_R_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), rtc_regs_info,
+        register_init_block32(ds, rtc_regs_info,
                               ARRAY_SIZE(rtc_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &rtc_ops,
                               XLNX_ZYNQMP_RTC_ERR_DEBUG,
                               XLNX_ZYNQMP_RTC_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
-                                0x0,
-                                &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq_rtc_int);
-    sysbus_init_irq(sbd, &s->irq_addr_error_int);
+    memory_region_add_subregion(&iomem, 0x0, &reg_array->mem);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq_rtc_int);
+    sysbus_init_irq(sbd, &irq_addr_error_int);
 
     qemu_get_timedate(&current_tm, 0);
-    s->tick_offset = mktimegm(&current_tm) -
+    tick_offset = mktimegm(&current_tm) -
         qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
 
     trace_xlnx_zynqmp_rtc_gettime(current_tm.tm_year, current_tm.tm_mon,
@@ -276,25 +275,9 @@ static const VMStateDescription vmstate_rtc = {
     .fields = vmstate_rtc_fields,
 };
 
-static void rtc_class_init(ObjectClass *klass, const void *data)
+void XlnxZynqMPRTC::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, rtc_reset);
     dc->vmsd = &vmstate_rtc;
 }
 
-static const TypeInfo rtc_info = {
-    .name          = TYPE_XLNX_ZYNQMP_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxZynqMPRTC),
-    .instance_init = rtc_init,
-    .class_init    = rtc_class_init,
-};
-
-static void rtc_register_types(void)
-{
-    type_register_static(&rtc_info);
-}
-
-type_init(rtc_register_types)
+REGISTER_QEMU_DEVICE(XlnxZynqMPRTC, TYPE_XLNX_ZYNQMP_RTC, TYPE_SYS_BUS_DEVICE)
