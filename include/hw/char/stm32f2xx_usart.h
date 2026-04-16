@@ -79,6 +79,13 @@ struct STM32F2XXUsartState {
 
     CharFrontend chr;
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

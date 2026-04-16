@@ -29,6 +29,7 @@
 #include "hw/qdev-properties-system.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #include "trace.h"
 
@@ -73,19 +74,17 @@ static void stm32f2xx_usart_receive(void *opaque, const uint8_t *buf, int size)
     trace_stm32f2xx_usart_receive(d->id, *buf);
 }
 
-static void stm32f2xx_usart_reset(DeviceState *dev)
+void STM32F2XXUsartState::reset()
 {
-    STM32F2XXUsartState *s = STM32F2XX_USART(dev);
+    usart_sr = USART_SR_RESET;
+    usart_dr = 0x00000000;
+    usart_brr = 0x00000000;
+    usart_cr1 = 0x00000000;
+    usart_cr2 = 0x00000000;
+    usart_cr3 = 0x00000000;
+    usart_gtpr = 0x00000000;
 
-    s->usart_sr = USART_SR_RESET;
-    s->usart_dr = 0x00000000;
-    s->usart_brr = 0x00000000;
-    s->usart_cr1 = 0x00000000;
-    s->usart_cr2 = 0x00000000;
-    s->usart_cr3 = 0x00000000;
-    s->usart_gtpr = 0x00000000;
-
-    stm32f2xx_update_irq(s);
+    stm32f2xx_update_irq(this);
 }
 
 static uint64_t stm32f2xx_usart_read(void *opaque, hwaddr addr,
@@ -200,46 +199,28 @@ static const Property stm32f2xx_usart_properties[] = {
     DEFINE_PROP_CHR("chardev", STM32F2XXUsartState, chr),
 };
 
-static void stm32f2xx_usart_init(Object *obj)
+void STM32F2XXUsartState::init()
 {
-    STM32F2XXUsartState *s = STM32F2XX_USART(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    memory_region_init_io(&s->mmio, obj, &stm32f2xx_usart_ops, s,
-                          TYPE_STM32F2XX_USART, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &stm32f2xx_usart_ops, this, TYPE_STM32F2XX_USART,
+                          0x400);
+    sysbus_init_mmio(sbd, &mmio);
 }
 
-static void stm32f2xx_usart_realize(DeviceState *dev, Error **errp)
+void STM32F2XXUsartState::realize(Error **errp)
 {
-    STM32F2XXUsartState *s = STM32F2XX_USART(dev);
-
-    qemu_chr_fe_set_handlers(&s->chr, stm32f2xx_usart_can_receive,
+    qemu_chr_fe_set_handlers(&chr, stm32f2xx_usart_can_receive,
                              stm32f2xx_usart_receive, NULL, NULL,
-                             s, NULL, true);
+                             this, NULL, true);
 }
 
-static void stm32f2xx_usart_class_init(ObjectClass *klass, const void *data)
+void STM32F2XXUsartState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, stm32f2xx_usart_reset);
     device_class_set_props(dc, stm32f2xx_usart_properties);
-    dc->realize = stm32f2xx_usart_realize;
 }
 
-static const TypeInfo stm32f2xx_usart_info = {
-    .name          = TYPE_STM32F2XX_USART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32F2XXUsartState),
-    .instance_init = stm32f2xx_usart_init,
-    .class_init    = stm32f2xx_usart_class_init,
-};
-
-static void stm32f2xx_usart_register_types(void)
-{
-    type_register_static(&stm32f2xx_usart_info);
-}
-
-type_init(stm32f2xx_usart_register_types)
+REGISTER_QEMU_DEVICE(STM32F2XXUsartState, TYPE_STM32F2XX_USART, TYPE_SYS_BUS_DEVICE)
