@@ -232,7 +232,7 @@ typedef struct cxl_device_state {
             uint64_t dev_reg_state64[CXL_DEVICE_STATUS_REGISTERS_LENGTH / 8];
         };
         uint64_t event_status;
-    };
+    } dev_status;
     MemoryRegion memory_device;
     struct {
         MemoryRegion caps;
@@ -240,7 +240,7 @@ typedef struct cxl_device_state {
             uint32_t caps_reg_state32[CXL_CAPS_SIZE / 4];
             uint64_t caps_reg_state64[CXL_CAPS_SIZE / 8];
         };
-    };
+    } cap_regs;
 
     /* CXL r3.1 Section 8.2.8.4: Mailbox Registers */
     struct {
@@ -253,7 +253,7 @@ typedef struct cxl_device_state {
             uint32_t mbox_reg_state32[CXL_MAILBOX_REGISTERS_LENGTH / 4];
             uint64_t mbox_reg_state64[CXL_MAILBOX_REGISTERS_LENGTH / 8];
         };
-    };
+    } mbox_regs;
 
     /* Stash the memory device status value */
     uint64_t memdev_status;
@@ -348,7 +348,7 @@ void cxl_initialize_t3_ld_cci(CXLCCI *cci, DeviceState *d,
 
 #define cxl_device_cap_init(dstate, reg, cap_id, ver)                      \
     do {                                                                   \
-        uint32_t *cap_hdrs = dstate->caps_reg_state32;                     \
+        uint32_t *cap_hdrs = dstate->cap_regs.caps_reg_state32;             \
         int which = R_CXL_DEV_##reg##_CAP_HDR0;                            \
         cap_hdrs[which] =                                                  \
             FIELD_DP32(cap_hdrs[which], CXL_DEV_##reg##_CAP_HDR0,          \
@@ -431,7 +431,7 @@ static inline void __toggle_media(CXLDeviceState *cxl_dstate, uint64_t val)
 
 static inline bool cxl_dev_media_disabled(CXLDeviceState *cxl_dstate)
 {
-    uint64_t dev_status_reg = cxl_dstate->mbox_reg_state64[R_CXL_MEM_DEV_STS];
+    uint64_t dev_status_reg = cxl_dstate->mbox_regs.mbox_reg_state64[R_CXL_MEM_DEV_STS];
     return FIELD_EX64(dev_status_reg, CXL_MEM_DEV_STS, MEDIA_STATUS) == 0x3;
 }
 static inline bool scan_media_running(CXLCCI *cci)

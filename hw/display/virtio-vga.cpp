@@ -147,19 +147,19 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
          * for the stdvga registers.  Make the common and isr regions
          * smaller then.
          */
-        vpci_dev->common.size /= 2;
-        vpci_dev->isr.size /= 2;
+        vpci_dev->named.common.size /= 2;
+        vpci_dev->named.isr.size /= 2;
     }
 
     offset = memory_region_size(&vpci_dev->modern_bar);
-    offset -= vpci_dev->notify.size;
-    vpci_dev->notify.offset = offset;
-    offset -= vpci_dev->device.size;
-    vpci_dev->device.offset = offset;
-    offset -= vpci_dev->isr.size;
-    vpci_dev->isr.offset = offset;
-    offset -= vpci_dev->common.size;
-    vpci_dev->common.offset = offset;
+    offset -= vpci_dev->named.notify.size;
+    vpci_dev->named.notify.offset = offset;
+    offset -= vpci_dev->named.device.size;
+    vpci_dev->named.device.offset = offset;
+    offset -= vpci_dev->named.isr.size;
+    vpci_dev->named.isr.offset = offset;
+    offset -= vpci_dev->named.common.size;
+    vpci_dev->named.common.offset = offset;
 
     /* init virtio bits */
     virtio_pci_force_virtio_1(vpci_dev);

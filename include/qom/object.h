@@ -158,6 +158,11 @@ struct ObjectClass
 struct Object
 {
     /* private: */
+#ifdef __cplusplus
+    virtual ~Object() = default;
+#else
+    void *_cpp_vtable_reserved;
+#endif
     ObjectClass *klass;
     ObjectFree *free;
     GHashTable *properties;
@@ -476,6 +481,10 @@ struct Object
  * @interfaces: The list of interfaces associated with this type.  This
  *   should point to a static array that's terminated with a zero filled
  *   element.
+ * @cpp_vtable: Pointer to the C++ vtable for instances of this type.
+ *   Set by REGISTER_QEMU_DEVICE during type registration and written
+ *   to offset 0 of each instance during object_initialize_with_type().
+ *   NULL for pure-C types.
  */
 struct TypeInfo
 {
@@ -496,6 +505,8 @@ struct TypeInfo
     const void *class_data;
 
     const InterfaceInfo *interfaces;
+
+    const void *cpp_vtable;
 };
 
 /**

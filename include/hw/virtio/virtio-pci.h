@@ -137,7 +137,7 @@ struct VirtIOPCIProxy {
             VirtIOPCIRegion device;
             VirtIOPCIRegion notify;
             VirtIOPCIRegion notify_pio;
-        };
+        } named;
         VirtIOPCIRegion regs[5];
     };
     MemoryRegion modern_bar;

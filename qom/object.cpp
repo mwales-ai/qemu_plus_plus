@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include <new>
 #ifdef CONFIG_LINUX_IO_URING
 #include <liburing.h>
 #endif
@@ -77,6 +78,8 @@ struct TypeImpl
 
     int num_interfaces;
     InterfaceImpl interfaces[MAX_INTERFACES];
+
+    const void *cpp_vtable;
 };
 
 static Type type_interface;
@@ -133,6 +136,8 @@ static TypeImpl *type_new(const TypeInfo *info)
     ti->instance_finalize = info->instance_finalize;
 
     ti->is_abstract = info->is_abstract;
+
+    ti->cpp_vtable = info->cpp_vtable;
 
     for (i = 0; info->interfaces && info->interfaces[i].type; i++) {
         ti->interfaces[i].type_name = g_strdup(info->interfaces[i].type);
@@ -558,6 +563,27 @@ static void object_class_property_init_all(Object *obj)
     }
 }
 
+/*
+ * Set the C++ vtable pointer at offset 0 of the object.
+ * Called after memset zeroes the instance memory. If the type was
+ * registered with a cpp_vtable (via REGISTER_QEMU_DEVICE), use that;
+ * otherwise fall back to the base Object vtable.
+ */
+static void object_cpp_set_vtable(Object *obj, TypeImpl *type)
+{
+    static const void *object_vtable = []() {
+        alignas(Object) unsigned char buf[sizeof(Object)]{};
+        Object *tmp = new (buf) Object;
+        const void *vptr;
+        memcpy(&vptr, buf, sizeof(void *));
+        tmp->~Object();
+        return vptr;
+    }();
+
+    const void *vtable = type->cpp_vtable ? type->cpp_vtable : object_vtable;
+    memcpy(static_cast<void *>(obj), &vtable, sizeof(void *));
+}
+
 static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type)
 {
     type_initialize(type);
@@ -566,7 +592,8 @@ static void object_initialize_with_type(Object *obj, size_t size, TypeImpl *type
     g_assert(type->is_abstract == false);
     g_assert(size >= type->instance_size);
 
-    memset(obj, 0, type->instance_size);
+    memset(static_cast<void *>(obj), 0, type->instance_size);
+    object_cpp_set_vtable(obj, type);
     obj->klass = type->klass;
     object_ref(obj);
     object_class_property_init_all(obj);

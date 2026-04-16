@@ -34,9 +34,9 @@ static uint64_t caps_reg_read(void *opaque, hwaddr offset, unsigned size)
 
     switch (size) {
     case 4:
-        return cxl_dstate->caps_reg_state32[offset / size];
+        return cxl_dstate->cap_regs.caps_reg_state32[offset / size];
     case 8:
-        return cxl_dstate->caps_reg_state64[offset / size];
+        return cxl_dstate->cap_regs.caps_reg_state64[offset / size];
     default:
         g_assert_not_reached();
     }
@@ -48,13 +48,13 @@ static uint64_t dev_reg_read(void *opaque, hwaddr offset, unsigned size)
 
     switch (size) {
     case 1:
-        return cxl_dstate->dev_reg_state[offset];
+        return cxl_dstate->dev_status.dev_reg_state[offset];
     case 2:
-        return cxl_dstate->dev_reg_state16[offset / size];
+        return cxl_dstate->dev_status.dev_reg_state16[offset / size];
     case 4:
-        return cxl_dstate->dev_reg_state32[offset / size];
+        return cxl_dstate->dev_status.dev_reg_state32[offset / size];
     case 8:
-        return cxl_dstate->dev_reg_state64[offset / size];
+        return cxl_dstate->dev_status.dev_reg_state64[offset / size];
     default:
         g_assert_not_reached();
     }
@@ -76,11 +76,11 @@ static uint64_t mailbox_reg_read(void *opaque, hwaddr offset, unsigned size)
 
     switch (size) {
     case 1:
-        return cxl_dstate->mbox_reg_state[offset];
+        return cxl_dstate->mbox_regs.mbox_reg_state[offset];
     case 2:
-        return cxl_dstate->mbox_reg_state16[offset / size];
+        return cxl_dstate->mbox_regs.mbox_reg_state16[offset / size];
     case 4:
-        return cxl_dstate->mbox_reg_state32[offset / size];
+        return cxl_dstate->mbox_regs.mbox_reg_state32[offset / size];
     case 8:
         if (offset == A_CXL_DEV_BG_CMD_STS) {
             uint64_t bg_status_reg;
@@ -91,10 +91,10 @@ static uint64_t mailbox_reg_read(void *opaque, hwaddr offset, unsigned size)
             bg_status_reg = FIELD_DP64(bg_status_reg, CXL_DEV_BG_CMD_STS,
                                        RET_CODE, cci->bg.ret_code);
             /* endian? */
-            cxl_dstate->mbox_reg_state64[offset / size] = bg_status_reg;
+            cxl_dstate->mbox_regs.mbox_reg_state64[offset / size] = bg_status_reg;
         }
         if (offset == A_CXL_DEV_MAILBOX_STS) {
-            uint64_t status_reg = cxl_dstate->mbox_reg_state64[offset / size];
+            uint64_t status_reg = cxl_dstate->mbox_regs.mbox_reg_state64[offset / size];
             int bgop;
 
             qemu_mutex_lock(&cci->bg.lock);
@@ -102,10 +102,10 @@ static uint64_t mailbox_reg_read(void *opaque, hwaddr offset, unsigned size)
 
             status_reg = FIELD_DP64(status_reg, CXL_DEV_MAILBOX_STS, BG_OP,
                                     bgop);
-            cxl_dstate->mbox_reg_state64[offset / size] = status_reg;
+            cxl_dstate->mbox_regs.mbox_reg_state64[offset / size] = status_reg;
             qemu_mutex_unlock(&cci->bg.lock);
         }
-        return cxl_dstate->mbox_reg_state64[offset / size];
+        return cxl_dstate->mbox_regs.mbox_reg_state64[offset / size];
     default:
         g_assert_not_reached();
     }
@@ -168,30 +168,30 @@ static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
     }
 
     if (offset >= A_CXL_DEV_CMD_PAYLOAD) {
-        memcpy(cxl_dstate->mbox_reg_state + offset, &value, size);
+        memcpy(cxl_dstate->mbox_regs.mbox_reg_state + offset, &value, size);
         return;
     }
 
     switch (size) {
     case 4:
-        mailbox_mem_writel(cxl_dstate->mbox_reg_state32, offset, value);
+        mailbox_mem_writel(cxl_dstate->mbox_regs.mbox_reg_state32, offset, value);
         break;
     case 8:
-        mailbox_mem_writeq(cxl_dstate->mbox_reg_state64, offset, value);
+        mailbox_mem_writeq(cxl_dstate->mbox_regs.mbox_reg_state64, offset, value);
         break;
     default:
         g_assert_not_reached();
     }
 
-    if (ARRAY_FIELD_EX32(cxl_dstate->mbox_reg_state32, CXL_DEV_MAILBOX_CTRL,
+    if (ARRAY_FIELD_EX32(cxl_dstate->mbox_regs.mbox_reg_state32, CXL_DEV_MAILBOX_CTRL,
                          DOORBELL)) {
         uint64_t command_reg =
-            cxl_dstate->mbox_reg_state64[R_CXL_DEV_MAILBOX_CMD];
+            cxl_dstate->mbox_regs.mbox_reg_state64[R_CXL_DEV_MAILBOX_CMD];
         uint8_t cmd_set = FIELD_EX64(command_reg, CXL_DEV_MAILBOX_CMD,
                                      COMMAND_SET);
         uint8_t cmd = FIELD_EX64(command_reg, CXL_DEV_MAILBOX_CMD, COMMAND);
         size_t len_in = FIELD_EX64(command_reg, CXL_DEV_MAILBOX_CMD, LENGTH);
-        uint8_t *pl = cxl_dstate->mbox_reg_state + A_CXL_DEV_CMD_PAYLOAD;
+        uint8_t *pl = cxl_dstate->mbox_regs.mbox_reg_state + A_CXL_DEV_CMD_PAYLOAD;
         /*
          * Copy taken to avoid need for individual command handlers to care
          * about aliasing.
@@ -223,10 +223,10 @@ static void mailbox_reg_write(void *opaque, hwaddr offset, uint64_t value,
         command_reg = FIELD_DP64(command_reg, CXL_DEV_MAILBOX_CMD,
                                  LENGTH, len_out);
 
-        cxl_dstate->mbox_reg_state64[R_CXL_DEV_MAILBOX_CMD] = command_reg;
-        cxl_dstate->mbox_reg_state64[R_CXL_DEV_MAILBOX_STS] = status_reg;
+        cxl_dstate->mbox_regs.mbox_reg_state64[R_CXL_DEV_MAILBOX_CMD] = command_reg;
+        cxl_dstate->mbox_regs.mbox_reg_state64[R_CXL_DEV_MAILBOX_STS] = status_reg;
         /* Tell the host we're done */
-        ARRAY_FIELD_DP32(cxl_dstate->mbox_reg_state32, CXL_DEV_MAILBOX_CTRL,
+        ARRAY_FIELD_DP32(cxl_dstate->mbox_regs.mbox_reg_state32, CXL_DEV_MAILBOX_CTRL,
                          DOORBELL, 0);
     }
 }
@@ -311,24 +311,24 @@ void cxl_device_register_block_init(Object *obj, CXLDeviceState *cxl_dstate,
     memory_region_init(&cxl_dstate->device_registers, obj, "device-registers",
                        pow2ceil(CXL_MMIO_SIZE));
 
-    memory_region_init_io(&cxl_dstate->caps, obj, &caps_ops, cxl_dstate,
+    memory_region_init_io(&cxl_dstate->cap_regs.caps, obj, &caps_ops, cxl_dstate,
                           "cap-array", CXL_CAPS_SIZE);
-    memory_region_init_io(&cxl_dstate->device, obj, &dev_ops, cxl_dstate,
+    memory_region_init_io(&cxl_dstate->dev_status.device, obj, &dev_ops, cxl_dstate,
                           "device-status", CXL_DEVICE_STATUS_REGISTERS_LENGTH);
-    memory_region_init_io(&cxl_dstate->mailbox, obj, &mailbox_ops, cci,
+    memory_region_init_io(&cxl_dstate->mbox_regs.mailbox, obj, &mailbox_ops, cci,
                           "mailbox", CXL_MAILBOX_REGISTERS_LENGTH);
     memory_region_init_io(&cxl_dstate->memory_device, obj, &mdev_ops,
                           cxl_dstate, "memory device caps",
                           CXL_MEMORY_DEVICE_REGISTERS_LENGTH);
 
     memory_region_add_subregion(&cxl_dstate->device_registers, 0,
-                                &cxl_dstate->caps);
+                                &cxl_dstate->cap_regs.caps);
     memory_region_add_subregion(&cxl_dstate->device_registers,
                                 CXL_DEVICE_STATUS_REGISTERS_OFFSET,
-                                &cxl_dstate->device);
+                                &cxl_dstate->dev_status.device);
     memory_region_add_subregion(&cxl_dstate->device_registers,
                                 CXL_MAILBOX_REGISTERS_OFFSET,
-                                &cxl_dstate->mailbox);
+                                &cxl_dstate->mbox_regs.mailbox);
     memory_region_add_subregion(&cxl_dstate->device_registers,
                                 CXL_MEMORY_DEVICE_REGISTERS_OFFSET,
                                 &cxl_dstate->memory_device);
@@ -338,13 +338,13 @@ void cxl_event_set_status(CXLDeviceState *cxl_dstate, CXLEventLogType log_type,
                           bool available)
 {
     if (available) {
-        cxl_dstate->event_status |= (1 << log_type);
+        cxl_dstate->dev_status.event_status |= (1 << log_type);
     } else {
-        cxl_dstate->event_status &= ~(1 << log_type);
+        cxl_dstate->dev_status.event_status &= ~(1 << log_type);
     }
 
-    ARRAY_FIELD_DP64(cxl_dstate->dev_reg_state64, CXL_DEV_EVENT_STATUS,
-                     EVENT_STATUS, cxl_dstate->event_status);
+    ARRAY_FIELD_DP64(cxl_dstate->dev_status.dev_reg_state64, CXL_DEV_EVENT_STATUS,
+                     EVENT_STATUS, cxl_dstate->dev_status.event_status);
 }
 
 static void device_reg_init_common(CXLDeviceState *cxl_dstate)
@@ -359,18 +359,18 @@ static void device_reg_init_common(CXLDeviceState *cxl_dstate)
 static void mailbox_reg_init_common(CXLDeviceState *cxl_dstate, int msi_n)
 {
     /* 2048 payload size */
-    ARRAY_FIELD_DP32(cxl_dstate->mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
+    ARRAY_FIELD_DP32(cxl_dstate->mbox_regs.mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
                      PAYLOAD_SIZE, CXL_MAILBOX_PAYLOAD_SHIFT);
-    cxl_dstate->payload_size = CXL_MAILBOX_MAX_PAYLOAD_SIZE;
+    cxl_dstate->mbox_regs.payload_size = CXL_MAILBOX_MAX_PAYLOAD_SIZE;
     /* irq support */
-    ARRAY_FIELD_DP32(cxl_dstate->mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
+    ARRAY_FIELD_DP32(cxl_dstate->mbox_regs.mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
                      BG_INT_CAP, 1);
-    ARRAY_FIELD_DP32(cxl_dstate->mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
+    ARRAY_FIELD_DP32(cxl_dstate->mbox_regs.mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
                      MSI_N, msi_n);
-    cxl_dstate->mbox_msi_n = msi_n;
-    ARRAY_FIELD_DP32(cxl_dstate->mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
+    cxl_dstate->mbox_regs.mbox_msi_n = msi_n;
+    ARRAY_FIELD_DP32(cxl_dstate->mbox_regs.mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
                      MBOX_READY_TIME, 0); /* Not reported */
-    ARRAY_FIELD_DP32(cxl_dstate->mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
+    ARRAY_FIELD_DP32(cxl_dstate->mbox_regs.mbox_reg_state32, CXL_DEV_MAILBOX_CAP,
                      TYPE, 0); /* Inferred from class code */
 }
 
@@ -387,7 +387,7 @@ static void memdev_reg_init_common(CXLDeviceState *cxl_dstate)
 void cxl_device_register_init_t3(CXLType3Dev *ct3d, int msi_n)
 {
     CXLDeviceState *cxl_dstate = &ct3d->cxl_dstate;
-    uint64_t *cap_h = cxl_dstate->caps_reg_state64;
+    uint64_t *cap_h = cxl_dstate->cap_regs.caps_reg_state64;
     const int cap_count = 3;
 
     /* CXL Device Capabilities Array Register */
@@ -413,7 +413,7 @@ void cxl_device_register_init_t3(CXLType3Dev *ct3d, int msi_n)
 void cxl_device_register_init_swcci(CSWMBCCIDev *sw, int msi_n)
 {
     CXLDeviceState *cxl_dstate = &sw->cxl_dstate;
-    uint64_t *cap_h = cxl_dstate->caps_reg_state64;
+    uint64_t *cap_h = cxl_dstate->cap_regs.caps_reg_state64;
     const int cap_count = 3;
 
     /* CXL Device Capabilities Array Register */

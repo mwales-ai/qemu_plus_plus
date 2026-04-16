@@ -271,7 +271,7 @@ static CXLRetCode cmd_events_get_records(const struct cxl_cmd *cmd,
 
     pl = (CXLGetEventPayload *)payload_out;
 
-    max_recs = (cxlds->payload_size - CXL_EVENT_PAYLOAD_HDR_SIZE) /
+    max_recs = (cxlds->mbox_regs.payload_size - CXL_EVENT_PAYLOAD_HDR_SIZE) /
                 CXL_EVENT_RECORD_SIZE;
     if (max_recs > 0xFFFF) {
         max_recs = 0xFFFF;
@@ -4019,9 +4019,9 @@ static void bg_timercb(void *opaque)
         cci->bg.runtime = 0;
 
         if (msix_enabled(pdev)) {
-            msix_notify(pdev, cxl_dstate->mbox_msi_n);
+            msix_notify(pdev, cxl_dstate->mbox_regs.mbox_msi_n);
         } else if (msi_enabled(pdev)) {
-            msi_notify(pdev, cxl_dstate->mbox_msi_n);
+            msi_notify(pdev, cxl_dstate->mbox_regs.mbox_msi_n);
         }
     }
 

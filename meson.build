@@ -794,6 +794,8 @@ if 'cpp' in all_languages
     '-Wno-pointer-arith',
     '-Wno-literal-suffix',
     '-Wno-enum-compare',
+    '-Wno-invalid-offsetof',
+    '-Wno-class-memaccess',
   ]), native: false, language: 'cpp')
 endif
 if 'objc' in all_languages

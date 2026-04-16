@@ -1,15 +1,10 @@
 /*
  * QEMU++ C++ Object Model Wrappers
  *
- * Provides zero-vtable C++ helper classes that are binary-compatible
- * with QOM structs. A CppObject/CppDevice is a "view" over QOM memory —
- * it adds C++ member-function syntax and compile-time type checking
- * without adding any data members or virtual methods.
- *
- * Design rule: NO VIRTUAL METHODS anywhere in this file or its callers.
- * Virtual methods introduce a vtable pointer at offset 0, which collides
- * with QOM's ObjectClass::type at offset 0. Use direct member functions
- * dispatched through static function pointers in TypeInfo instead.
+ * Provides C++ helper classes and registration macros for QOM devices.
+ * Object (the QOM base) now has a C++ vtable pointer at offset 0,
+ * enabling virtual methods on device state structs. The vtable pointer
+ * is set during QOM initialization via object_cpp_set_vtable().
  *
  * Copyright (c) 2026 QEMU++ Project
  * SPDX-License-Identifier: GPL-2.0-or-later
@@ -26,21 +21,15 @@
 #include "hw/qdev-core.h"
 
 #include <cstring>
+#include <new>
 #include <type_traits>
 #include <utility>
 
 /*
- * DEPRECATED: qom_fixup_vtable<T> — legacy helper from the abandoned
- * Option D Step 2 virtual-method approach. It memcpys a C++ vtable
- * pointer from a stack-constructed T into the class struct at offset 0.
- *
- * This is broken: it overwrites ObjectClass::type and causes SIGSEGV
- * during type enumeration. Only the MOS6522 hierarchy on this branch
- * still calls it, and only because MOS6522 types are not enumerated
- * during -machine help so the corruption goes unobserved.
- *
- * Do NOT use this in new code. It will be deleted along with the
- * MOS6522 Step 2 conversion in a later phase.
+ * LEGACY: qom_fixup_vtable<T> — writes a C++ vtable pointer into a QOM
+ * CLASS struct at offset 0. This corrupts ObjectClass::type and will be
+ * removed when MOS6522 class-struct virtual methods are migrated to
+ * instance-struct virtual methods (Phase D). Do NOT use in new code.
  */
 template<typename T>
 inline void qom_fixup_vtable(void *obj) {
@@ -52,12 +41,20 @@ inline void qom_fixup_vtable(void *obj) {
  * Design Philosophy
  * =================
  *
- * These wrappers do NOT replace QOM — they sit on top of it. A CppDevice
- * IS-A DeviceState in memory, registered through normal TypeInfo, and
- * fully compatible with existing C code that uses DEVICE(), OBJECT(), etc.
+ * These wrappers sit on top of QOM. A CppDevice IS-A DeviceState in
+ * memory, registered through normal TypeInfo, and fully compatible with
+ * existing C code that uses DEVICE(), OBJECT(), etc.
+ *
+ * Object now has a virtual destructor (C++) / padding field (C), giving
+ * all QOM objects a vtable pointer at offset 0. This enables C++ virtual
+ * methods on device state structs (realize, reset, etc. with override).
+ *
+ * The vtable pointer is set during QOM init (object_cpp_set_vtable)
+ * using the per-type pointer extracted by REGISTER_QEMU_DEVICE.
  *
  * What changes for the device author:
  *   - Device state struct becomes a C++ class with member functions
+ *   - Methods can be virtual with override for polymorphic dispatch
  *   - No s->field syntax; methods access members directly
  *   - Type casting uses static_cast instead of OBJECT_CHECK
  *   - Registration boilerplate is collapsed via REGISTER_QEMU_DEVICE
@@ -65,30 +62,19 @@ inline void qom_fixup_vtable(void *obj) {
  * What stays the same:
  *   - The state struct embeds its QOM parent (DeviceState, SysBusDevice,
  *     PCIDevice) as its first data member — required for QOM layout
- *   - VMState migration descriptors (offsetof works on C++ classes
- *     with standard-layout fields)
+ *   - VMState migration descriptors (offsetof works on C++ classes)
  *   - MemoryRegionOps dispatch tables
  *   - QOM type registration (TypeInfo, type_init)
  *   - Property system (DEFINE_PROP_* macros, for now)
  *   - Two-phase init (instance_init + realize)
- *
- * What MUST NOT happen:
- *   - No virtual methods. Ever. They add a vtable pointer that corrupts
- *     ObjectClass::type at offset 0. Use static function pointers on
- *     TypeInfo/DeviceClass for dispatch.
  */
 
 /*
- * CppObject: zero-vtable view over a QOM Object.
+ * CppObject: utility view over a QOM Object.
  *
- * This class has no data members and no virtual methods. Its sizeof is
- * 1 (empty class) and it contributes 0 bytes to derived classes via
- * empty-base optimization. The "this" pointer of a CppObject is the
- * same as the QOM Object pointer it views.
- *
- * Subclasses provide their own data — which must start with the QOM
- * parent struct (Object, DeviceState, SysBusDevice, PCIDevice) as the
- * first data member, so that reinterpret_cast<Object *>(this) is valid.
+ * Provides reinterpret_cast helpers for accessing the underlying QOM
+ * pointers. Concrete device classes embed their QOM parent as their
+ * first data member, so reinterpret_cast<Object *>(this) is valid.
  */
 class CppObject
 {
@@ -114,7 +100,7 @@ public:
 protected:
     /* No public construction — always created through QOM's instance_init */
     CppObject() = default;
-    ~CppObject() = default;  /* NON-virtual: adding virtual breaks layout */
+    ~CppObject() = default;
 
     /* Non-copyable, non-movable (QOM manages object lifecycle) */
     CppObject(const CppObject &) = delete;
@@ -122,13 +108,12 @@ protected:
 };
 
 /*
- * CppDevice: zero-vtable view over a QOM DeviceState.
+ * CppDevice: utility view over a QOM DeviceState.
  *
- * Like CppObject, this contributes 0 bytes to derived classes. Concrete
- * device classes embed `DeviceState parent_obj` (or SysBusDevice, or
- * PCIDevice) as their first data member. They do NOT get `realize` and
- * `reset` from inheritance — instead they define their own static or
- * member functions and register them via REGISTER_QEMU_DEVICE.
+ * Concrete device classes embed `DeviceState parent_obj` (or
+ * SysBusDevice, or PCIDevice) as their first data member. They
+ * define realize/reset as member functions and register them via
+ * REGISTER_QEMU_DEVICE.
  */
 class CppDevice : public CppObject
 {
@@ -150,7 +135,7 @@ public:
 
 protected:
     CppDevice() = default;
-    ~CppDevice() = default;  /* NON-virtual */
+    ~CppDevice() = default;
 };
 
 /*
@@ -273,6 +258,24 @@ constexpr auto get_instance_finalize() -> void (*)(Object *)
     }
 }
 
+/*
+ * Extract the C++ vtable pointer for a given type. Uses a static local
+ * so the temporary is constructed only once per type.
+ */
+template<typename T>
+const void *extract_vtable()
+{
+    static const void *vtable = []() {
+        alignas(T) unsigned char buf[sizeof(T)]{};
+        T *tmp = new (buf) T;
+        const void *vptr;
+        std::memcpy(&vptr, buf, sizeof(void *));
+        tmp->~T();
+        return vptr;
+    }();
+    return vtable;
+}
+
 }  /* namespace qemu_device_detail */
 
 /*
@@ -289,27 +292,23 @@ constexpr auto get_instance_finalize() -> void (*)(Object *)
  *   static void classInit(DeviceClass *dc);   // called after wiring above
  *
  * Methods not defined are simply not wired up. The macro expands to a
- * single TypeInfo + type_init pair, no trampoline functions pollute
- * the translation unit's namespace.
- *
- * For devices that register additional QOM types (subtypes) from the
- * same file, use REGISTER_QEMU_DEVICE plus manual type_register_static
- * calls in a separate type_init — see hw/char/pl011.cpp for an example
- * with the pl011_luminary subtype.
+ * TypeInfo + type_init pair. The C++ vtable pointer is extracted at
+ * registration time and stored in TypeInfo::cpp_vtable so QOM can
+ * set it during object initialization.
  */
 #define REGISTER_QEMU_DEVICE(ClassName, type_name_str, parent_type_str)   \
-static const TypeInfo ClassName##_type_info = {                           \
-    .name              = type_name_str,                                   \
-    .parent            = parent_type_str,                                 \
-    .instance_size     = sizeof(ClassName),                               \
-    .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
-    .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
-    .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
-};                                                                        \
-                                                                          \
 static void ClassName##_cpp_register_types(void)                          \
 {                                                                         \
-    type_register_static(&ClassName##_type_info);                         \
+    static TypeInfo info = {                                              \
+        .name              = type_name_str,                               \
+        .parent            = parent_type_str,                             \
+        .instance_size     = sizeof(ClassName),                           \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
+    };                                                                    \
+    info.cpp_vtable = qemu_device_detail::extract_vtable<ClassName>();    \
+    type_register_static(&info);                                          \
 }                                                                         \
                                                                           \
 type_init(ClassName##_cpp_register_types)

@@ -389,8 +389,8 @@ static int virtio_pci_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
     bool legacy = virtio_pci_legacy(proxy);
     bool modern = virtio_pci_modern(proxy);
     bool modern_pio = proxy->flags & VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY;
-    MemoryRegion *modern_mr = &proxy->notify.mr;
-    MemoryRegion *modern_notify_mr = &proxy->notify_pio.mr;
+    MemoryRegion *modern_mr = &proxy->named.notify.mr;
+    MemoryRegion *modern_notify_mr = &proxy->named.notify_pio.mr;
     MemoryRegion *legacy_mr = &proxy->bar;
     hwaddr modern_addr = virtio_pci_queue_mem_mult(proxy) *
                          virtio_get_queue_index(vq);
@@ -1394,9 +1394,9 @@ static int virtio_pci_set_host_notifier_mr(DeviceState *d, int n,
 
     if (assign) {
         offset = virtio_pci_queue_mem_mult(proxy) * n;
-        memory_region_add_subregion_overlap(&proxy->notify.mr, offset, mr, 1);
+        memory_region_add_subregion_overlap(&proxy->named.notify.mr, offset, mr, 1);
     } else {
-        memory_region_del_subregion(&proxy->notify.mr, mr);
+        memory_region_del_subregion(&proxy->named.notify.mr, mr);
     }
 
     return 0;
@@ -1941,39 +1941,39 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy,
     g_autoptr(GString) name = g_string_new(NULL);
 
     g_string_printf(name, "virtio-pci-common-%s", vdev_name);
-    memory_region_init_io(&proxy->common.mr, OBJECT(proxy),
+    memory_region_init_io(&proxy->named.common.mr, OBJECT(proxy),
                           &common_ops,
                           proxy,
                           name->str,
-                          proxy->common.size);
+                          proxy->named.common.size);
 
     g_string_printf(name, "virtio-pci-isr-%s", vdev_name);
-    memory_region_init_io(&proxy->isr.mr, OBJECT(proxy),
+    memory_region_init_io(&proxy->named.isr.mr, OBJECT(proxy),
                           &isr_ops,
                           proxy,
                           name->str,
-                          proxy->isr.size);
+                          proxy->named.isr.size);
 
     g_string_printf(name, "virtio-pci-device-%s", vdev_name);
-    memory_region_init_io(&proxy->device.mr, OBJECT(proxy),
+    memory_region_init_io(&proxy->named.device.mr, OBJECT(proxy),
                           &device_ops,
                           proxy,
                           name->str,
-                          proxy->device.size);
+                          proxy->named.device.size);
 
     g_string_printf(name, "virtio-pci-notify-%s", vdev_name);
-    memory_region_init_io(&proxy->notify.mr, OBJECT(proxy),
+    memory_region_init_io(&proxy->named.notify.mr, OBJECT(proxy),
                           &notify_ops,
                           proxy,
                           name->str,
-                          proxy->notify.size);
+                          proxy->named.notify.size);
 
     g_string_printf(name, "virtio-pci-notify-pio-%s", vdev_name);
-    memory_region_init_io(&proxy->notify_pio.mr, OBJECT(proxy),
+    memory_region_init_io(&proxy->named.notify_pio.mr, OBJECT(proxy),
                           &notify_pio_ops,
                           proxy,
                           name->str,
-                          proxy->notify_pio.size);
+                          proxy->named.notify_pio.size);
 }
 
 static void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
@@ -2132,10 +2132,10 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 
         virtio_pci_modern_regions_init(proxy, vdev->name);
 
-        virtio_pci_modern_mem_region_map(proxy, &proxy->common, &cap);
-        virtio_pci_modern_mem_region_map(proxy, &proxy->isr, &cap);
-        virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);
-        virtio_pci_modern_mem_region_map(proxy, &proxy->notify, &notify.cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->named.common, &cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->named.isr, &cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->named.device, &cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->named.notify, &notify.cap);
 
         if (modern_pio) {
             memory_region_init(&proxy->io_bar, OBJECT(proxy),
@@ -2146,7 +2146,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
             pci_register_bar(&proxy->pci_dev, proxy->modern_io_bar_idx,
                              PCI_BASE_ADDRESS_SPACE_IO, &proxy->io_bar);
 
-            virtio_pci_modern_io_region_map(proxy, &proxy->notify_pio,
+            virtio_pci_modern_io_region_map(proxy, &proxy->named.notify_pio,
                                             &notify_pio.cap);
         }
 
@@ -2217,12 +2217,12 @@ static void virtio_pci_device_unplugged(DeviceState *d)
     virtio_pci_stop_ioeventfd(proxy);
 
     if (modern) {
-        virtio_pci_modern_mem_region_unmap(proxy, &proxy->common);
-        virtio_pci_modern_mem_region_unmap(proxy, &proxy->isr);
-        virtio_pci_modern_mem_region_unmap(proxy, &proxy->device);
-        virtio_pci_modern_mem_region_unmap(proxy, &proxy->notify);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->named.common);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->named.isr);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->named.device);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->named.notify);
         if (modern_pio) {
-            virtio_pci_modern_io_region_unmap(proxy, &proxy->notify_pio);
+            virtio_pci_modern_io_region_unmap(proxy, &proxy->named.notify_pio);
         }
     }
 }
@@ -2254,30 +2254,30 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     proxy->modern_io_bar_idx  = 2;
     proxy->modern_mem_bar_idx = 4;
 
-    proxy->common.offset = 0x0;
-    proxy->common.size = 0x1000;
-    proxy->common.type = VIRTIO_PCI_CAP_COMMON_CFG;
+    proxy->named.common.offset = 0x0;
+    proxy->named.common.size = 0x1000;
+    proxy->named.common.type = VIRTIO_PCI_CAP_COMMON_CFG;
 
-    proxy->isr.offset = 0x1000;
-    proxy->isr.size = 0x1000;
-    proxy->isr.type = VIRTIO_PCI_CAP_ISR_CFG;
+    proxy->named.isr.offset = 0x1000;
+    proxy->named.isr.size = 0x1000;
+    proxy->named.isr.type = VIRTIO_PCI_CAP_ISR_CFG;
 
-    proxy->device.offset = 0x2000;
-    proxy->device.size = 0x1000;
-    proxy->device.type = VIRTIO_PCI_CAP_DEVICE_CFG;
+    proxy->named.device.offset = 0x2000;
+    proxy->named.device.size = 0x1000;
+    proxy->named.device.type = VIRTIO_PCI_CAP_DEVICE_CFG;
 
-    proxy->notify.offset = 0x3000;
-    proxy->notify.size = virtio_pci_queue_mem_mult(proxy) * VIRTIO_QUEUE_MAX;
-    proxy->notify.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
+    proxy->named.notify.offset = 0x3000;
+    proxy->named.notify.size = virtio_pci_queue_mem_mult(proxy) * VIRTIO_QUEUE_MAX;
+    proxy->named.notify.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
 
-    proxy->notify_pio.offset = 0x0;
-    proxy->notify_pio.size = 0x4;
-    proxy->notify_pio.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
+    proxy->named.notify_pio.offset = 0x0;
+    proxy->named.notify_pio.size = 0x4;
+    proxy->named.notify_pio.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
 
     /* subclasses can enforce modern, so do this unconditionally */
     memory_region_init(&proxy->modern_bar, OBJECT(proxy), "virtio-pci",
                        /* PCI BAR regions must be powers of 2 */
-                       pow2ceil(proxy->notify.offset + proxy->notify.size));
+                       pow2ceil(proxy->named.notify.offset + proxy->named.notify.size));
 
     address_space_init(&proxy->modern_cfg_mem_as, &proxy->modern_bar,
                        "virtio-pci-cfg-mem-as");
