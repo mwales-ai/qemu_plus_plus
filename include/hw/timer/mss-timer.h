@@ -58,6 +58,12 @@ struct MSSTimerState {
     MemoryRegion mmio;
     uint32_t freq_hz;
     struct Msf2Timer timers[NUM_TIMERS];
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MSS_TIMER_H */

@@ -34,6 +34,8 @@ extern "C" {
 #include "migration/vmstate.h"
 }
 
+#include "qom/cpp/object.h"
+
 #ifndef MSS_TIMER_ERR_DEBUG
 #define MSS_TIMER_ERR_DEBUG  0
 #endif
@@ -228,34 +230,34 @@ static void timer_hit(void *opaque)
     timer_update_irq(st);
 }
 
-static void mss_timer_init(Object *obj)
+void MSSTimerState::init()
 {
-    MSSTimerState *t = MSS_TIMER(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
     int i;
 
     /* Init all the ptimers.  */
     for (i = 0; i < NUM_TIMERS; i++) {
-        struct Msf2Timer *st = &t->timers[i];
+        struct Msf2Timer *st = &timers[i];
 
         st->ptimer = ptimer_init(timer_hit, st, PTIMER_POLICY_LEGACY);
         ptimer_transaction_begin(st->ptimer);
-        ptimer_set_freq(st->ptimer, t->freq_hz);
+        ptimer_set_freq(st->ptimer, freq_hz);
         ptimer_transaction_commit(st->ptimer);
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &st->irq);
+        sysbus_init_irq(sbd, &st->irq);
     }
 
-    memory_region_init_io(&t->mmio, OBJECT(t), &timer_ops, t, TYPE_MSS_TIMER,
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this), &timer_ops,
+                          this, TYPE_MSS_TIMER,
                           NUM_TIMERS * R_TIM1_MAX * 4);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &t->mmio);
+    sysbus_init_mmio(sbd, &mmio);
 }
 
-static void mss_timer_finalize(Object *obj)
+void MSSTimerState::finalize()
 {
-    MSSTimerState *t = MSS_TIMER(obj);
     int i;
 
     for (i = 0; i < NUM_TIMERS; i++) {
-        struct Msf2Timer *st = &t->timers[i];
+        struct Msf2Timer *st = &timers[i];
 
         ptimer_free(st->ptimer);
     }
@@ -294,26 +296,10 @@ static const Property mss_timer_properties[] = {
                       100 * 1000000),
 };
 
-static void mss_timer_class_init(ObjectClass *klass, const void *data)
+void MSSTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, mss_timer_properties);
     dc->vmsd = &vmstate_mss_timer;
 }
 
-static const TypeInfo mss_timer_info = {
-    .name          = TYPE_MSS_TIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MSSTimerState),
-    .instance_init = mss_timer_init,
-    .instance_finalize = mss_timer_finalize,
-    .class_init    = mss_timer_class_init,
-};
-
-static void mss_timer_register_types(void)
-{
-    type_register_static(&mss_timer_info);
-}
-
-type_init(mss_timer_register_types)
+REGISTER_QEMU_DEVICE(MSSTimerState, TYPE_MSS_TIMER, TYPE_SYS_BUS_DEVICE)
