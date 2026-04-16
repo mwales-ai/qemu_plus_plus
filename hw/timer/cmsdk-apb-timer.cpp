@@ -39,6 +39,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/timer/cmsdk-apb-timer.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 REG32(CTRL, 0)
     FIELD(CTRL, EN, 0, 1)
@@ -191,18 +192,16 @@ static void cmsdk_apb_timer_tick(void *opaque)
     }
 }
 
-static void cmsdk_apb_timer_reset(DeviceState *dev)
+void CMSDKAPBTimer::reset()
 {
-    CMSDKAPBTimer *s = CMSDK_APB_TIMER(dev);
-
     trace_cmsdk_apb_timer_reset();
-    s->ctrl = 0;
-    s->intstatus = 0;
-    ptimer_transaction_begin(s->timer);
-    ptimer_stop(s->timer);
+    ctrl = 0;
+    intstatus = 0;
+    ptimer_transaction_begin(timer);
+    ptimer_stop(timer);
     /* Set the limit and the count */
-    ptimer_set_limit(s->timer, 0, 1);
-    ptimer_transaction_commit(s->timer);
+    ptimer_set_limit(timer, 0, 1);
+    ptimer_transaction_commit(timer);
 }
 
 static void cmsdk_apb_timer_clk_update(void *opaque, ClockEvent event)
@@ -214,37 +213,36 @@ static void cmsdk_apb_timer_clk_update(void *opaque, ClockEvent event)
     ptimer_transaction_commit(s->timer);
 }
 
-static void cmsdk_apb_timer_init(Object *obj)
+void CMSDKAPBTimer::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    CMSDKAPBTimer *s = CMSDK_APB_TIMER(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &cmsdk_apb_timer_ops,
-                          s, "cmsdk-apb-timer", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->timerint);
-    s->pclk = qdev_init_clock_in(DEVICE(s), "pclk",
-                                 cmsdk_apb_timer_clk_update, s, ClockUpdate);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &cmsdk_apb_timer_ops, this, "cmsdk-apb-timer",
+                          0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &timerint);
+    pclk = qdev_init_clock_in(ds, "pclk", cmsdk_apb_timer_clk_update, this,
+                              ClockUpdate);
 }
 
-static void cmsdk_apb_timer_realize(DeviceState *dev, Error **errp)
+void CMSDKAPBTimer::realize(Error **errp)
 {
-    CMSDKAPBTimer *s = CMSDK_APB_TIMER(dev);
-
-    if (!clock_has_source(s->pclk)) {
+    if (!clock_has_source(pclk)) {
         error_setg(errp, "CMSDK APB timer: pclk clock must be connected");
         return;
     }
 
-    s->timer = ptimer_init(cmsdk_apb_timer_tick, s,
-                           PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
-                           PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT |
-                           PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
-                           PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
+    timer = ptimer_init(cmsdk_apb_timer_tick, this,
+                        PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
+                        PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT |
+                        PTIMER_POLICY_NO_IMMEDIATE_RELOAD |
+                        PTIMER_POLICY_NO_COUNTER_ROUND_DOWN);
 
-    ptimer_transaction_begin(s->timer);
-    ptimer_set_period_from_clock(s->timer, s->pclk, 1);
-    ptimer_transaction_commit(s->timer);
+    ptimer_transaction_begin(timer);
+    ptimer_set_period_from_clock(timer, pclk, 1);
+    ptimer_transaction_commit(timer);
 }
 
 static const VMStateField cmsdk_apb_timer_vmstate_fields[] = {
@@ -264,26 +262,9 @@ static const VMStateDescription cmsdk_apb_timer_vmstate = {
     .fields = cmsdk_apb_timer_vmstate_fields,
 };
 
-static void cmsdk_apb_timer_class_init(ObjectClass *klass, const void *data)
+void CMSDKAPBTimer::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = cmsdk_apb_timer_realize;
     dc->vmsd = &cmsdk_apb_timer_vmstate;
-    device_class_set_legacy_reset(dc, cmsdk_apb_timer_reset);
 }
 
-static const TypeInfo cmsdk_apb_timer_info = {
-    .name = TYPE_CMSDK_APB_TIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CMSDKAPBTimer),
-    .instance_init = cmsdk_apb_timer_init,
-    .class_init = cmsdk_apb_timer_class_init,
-};
-
-static void cmsdk_apb_timer_register_types(void)
-{
-    type_register_static(&cmsdk_apb_timer_info);
-}
-
-type_init(cmsdk_apb_timer_register_types);
+REGISTER_QEMU_DEVICE(CMSDKAPBTimer, TYPE_CMSDK_APB_TIMER, TYPE_SYS_BUS_DEVICE)

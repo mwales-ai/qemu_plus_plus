@@ -44,6 +44,13 @@ struct CMSDKAPBTimer {
     uint32_t value;
     uint32_t reload;
     uint32_t intstatus;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
