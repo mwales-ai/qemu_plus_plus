@@ -16,6 +16,7 @@
 #include "hw/qdev-properties-system.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define FIFO_DEPTH 4
 
@@ -37,6 +38,11 @@ struct mcf_uart_state {
     int rx_enabled;
     qemu_irq irq;
     CharFrontend chr;
+
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_MCF_UART "mcf-uart"
@@ -232,18 +238,16 @@ extern "C" void mcf_uart_write(void *opaque, hwaddr addr,
     mcf_uart_update(s);
 }
 
-static void mcf_uart_reset(DeviceState *dev)
+void mcf_uart_state::reset()
 {
-    mcf_uart_state *s = MCF_UART(dev);
-
-    s->fifo_len = 0;
-    s->mr[0] = 0;
-    s->mr[1] = 0;
-    s->sr = MCF_UART_TxEMP;
-    s->tx_enabled = 0;
-    s->rx_enabled = 0;
-    s->isr = 0;
-    s->imr = 0;
+    fifo_len = 0;
+    mr[0] = 0;
+    mr[1] = 0;
+    sr = MCF_UART_TxEMP;
+    tx_enabled = 0;
+    rx_enabled = 0;
+    isr = 0;
+    imr = 0;
 }
 
 static void mcf_uart_push_byte(mcf_uart_state *s, uint8_t data)
@@ -299,53 +303,34 @@ static const MemoryRegionOps mcf_uart_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void mcf_uart_instance_init(Object *obj)
+void mcf_uart_state::init()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    mcf_uart_state *s = MCF_UART(dev);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &mcf_uart_ops, s, "uart", 0x40);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &mcf_uart_ops, this, "uart", 0x40);
+    sysbus_init_mmio(dev, &iomem);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(dev, &irq);
 }
 
-static void mcf_uart_realize(DeviceState *dev, Error **errp)
+void mcf_uart_state::realize(Error **errp)
 {
-    mcf_uart_state *s = MCF_UART(dev);
-
-    qemu_chr_fe_set_handlers(&s->chr, mcf_uart_can_receive, mcf_uart_receive,
-                             mcf_uart_event, NULL, s, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, mcf_uart_can_receive, mcf_uart_receive,
+                             mcf_uart_event, NULL, this, NULL, true);
 }
 
 static const Property mcf_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", mcf_uart_state, chr),
 };
 
-static void mcf_uart_class_init(ObjectClass *oc, const void *data)
+void mcf_uart_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = mcf_uart_realize;
-    device_class_set_legacy_reset(dc, mcf_uart_reset);
     device_class_set_props(dc, mcf_uart_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo mcf_uart_info = {
-    .name          = TYPE_MCF_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mcf_uart_state),
-    .instance_init = mcf_uart_instance_init,
-    .class_init    = mcf_uart_class_init,
-};
-
-static void mcf_uart_register(void)
-{
-    type_register_static(&mcf_uart_info);
-}
-
-type_init(mcf_uart_register)
+REGISTER_QEMU_DEVICE(mcf_uart_state, TYPE_MCF_UART, TYPE_SYS_BUS_DEVICE)
 
 extern "C" DeviceState *mcf_uart_create(qemu_irq irq, Chardev *chrdrv)
 {
