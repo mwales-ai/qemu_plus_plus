@@ -51,5 +51,12 @@ struct IbexTimerState {
     qemu_irq irq;
 
     qemu_irq m_timer_irq;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 #endif /* HW_IBEX_TIMER_H */

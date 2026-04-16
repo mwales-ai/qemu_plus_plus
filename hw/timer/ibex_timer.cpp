@@ -33,6 +33,7 @@
 #include "hw/qdev-properties.h"
 #include "target/riscv/cpu.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 REG32(ALERT_TEST, 0x00)
     FIELD(ALERT_TEST, FATAL_FAULT, 0, 1)
@@ -114,22 +115,20 @@ static void ibex_timer_cb(void *opaque)
     }
 }
 
-static void ibex_timer_reset(DeviceState *dev)
+void IbexTimerState::reset()
 {
-    IbexTimerState *s = IBEX_TIMER(dev);
+    mtimer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                          &ibex_timer_cb, this);
+    mtimecmp = 0;
 
-    s->mtimer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                              &ibex_timer_cb, s);
-    s->mtimecmp = 0;
+    timer_ctrl = 0x00000000;
+    timer_cfg0 = 0x00010000;
+    timer_compare_lower0 = 0xFFFFFFFF;
+    timer_compare_upper0 = 0xFFFFFFFF;
+    timer_intr_enable = 0x00000000;
+    timer_intr_state = 0x00000000;
 
-    s->timer_ctrl = 0x00000000;
-    s->timer_cfg0 = 0x00010000;
-    s->timer_compare_lower0 = 0xFFFFFFFF;
-    s->timer_compare_upper0 = 0xFFFFFFFF;
-    s->timer_intr_enable = 0x00000000;
-    s->timer_intr_state = 0x00000000;
-
-    ibex_timer_update_irqs(s);
+    ibex_timer_update_irqs(this);
 }
 
 static uint64_t ibex_timer_read(void *opaque, hwaddr addr,
@@ -266,46 +265,26 @@ static const Property ibex_timer_properties[] = {
     DEFINE_PROP_UINT32("timebase-freq", IbexTimerState, timebase_freq, 10000),
 };
 
-static void ibex_timer_init(Object *obj)
+void IbexTimerState::init()
 {
-    IbexTimerState *s = IBEX_TIMER(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    memory_region_init_io(&s->mmio, obj, &ibex_timer_ops, s,
-                          TYPE_IBEX_TIMER, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &ibex_timer_ops, this, TYPE_IBEX_TIMER, 0x400);
+    sysbus_init_mmio(sbd, &mmio);
 }
 
-static void ibex_timer_realize(DeviceState *dev, Error **errp)
+void IbexTimerState::realize(Error **errp)
 {
-    IbexTimerState *s = IBEX_TIMER(dev);
-
-    qdev_init_gpio_out(dev, &s->m_timer_irq, 1);
+    qdev_init_gpio_out(reinterpret_cast<DeviceState *>(this), &m_timer_irq, 1);
 }
 
-
-static void ibex_timer_class_init(ObjectClass *klass, const void *data)
+void IbexTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, ibex_timer_reset);
     dc->vmsd = &vmstate_ibex_timer;
-    dc->realize = ibex_timer_realize;
     device_class_set_props(dc, ibex_timer_properties);
 }
 
-static const TypeInfo ibex_timer_info = {
-    .name          = TYPE_IBEX_TIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IbexTimerState),
-    .instance_init = ibex_timer_init,
-    .class_init    = ibex_timer_class_init,
-};
-
-static void ibex_timer_register_types(void)
-{
-    type_register_static(&ibex_timer_info);
-}
-
-type_init(ibex_timer_register_types)
+REGISTER_QEMU_DEVICE(IbexTimerState, TYPE_IBEX_TIMER, TYPE_SYS_BUS_DEVICE)
