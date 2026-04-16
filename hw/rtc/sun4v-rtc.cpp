@@ -17,6 +17,7 @@
 #include "hw/rtc/sun4v-rtc.h"
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 
 #define TYPE_SUN4V_RTC "sun4v_rtc"
@@ -26,6 +27,9 @@ struct Sun4vRtc {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
 };
 
 static uint64_t sun4v_rtc_read(void *opaque, hwaddr addr,
@@ -65,33 +69,17 @@ void sun4v_rtc_init(hwaddr addr)
     sysbus_mmio_map(s, 0, addr);
 }
 
-static void sun4v_rtc_realize(DeviceState *dev, Error **errp)
+void Sun4vRtc::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    Sun4vRtc *s = SUN4V_RTC(dev);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &sun4v_rtc_ops, s,
-                          "sun4v-rtc", 0x08ULL);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &sun4v_rtc_ops, this, "sun4v-rtc", 0x08ULL);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
-static void sun4v_rtc_class_init(ObjectClass *klass, const void *data)
+void Sun4vRtc::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = sun4v_rtc_realize;
 }
 
-static const TypeInfo sun4v_rtc_info = {
-    .name          = TYPE_SUN4V_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Sun4vRtc),
-    .class_init    = sun4v_rtc_class_init,
-};
-
-static void sun4v_rtc_register_types(void)
-{
-    type_register_static(&sun4v_rtc_info);
-}
-
-type_init(sun4v_rtc_register_types)
+REGISTER_QEMU_DEVICE(Sun4vRtc, TYPE_SUN4V_RTC, TYPE_SYS_BUS_DEVICE)
