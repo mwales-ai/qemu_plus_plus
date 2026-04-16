@@ -15,6 +15,7 @@
 #include "qemu/module.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 
 static int max78000_uart_can_receive(void *opaque)
@@ -51,22 +52,20 @@ static void max78000_uart_receive(void *opaque, const uint8_t *buf, int size)
     max78000_update_irq(s);
 }
 
-static void max78000_uart_reset_hold(Object *obj, ResetType type)
+void Max78000UartState::reset()
 {
-    Max78000UartState *s = MAX78000_UART(obj);
-
-    s->ctrl = 0;
-    s->status = UART_TX_EM | UART_RX_EM;
-    s->int_en = 0;
-    s->int_fl = 0;
-    s->osr = 0;
-    s->txpeek = 0;
-    s->pnr = UART_RTS;
-    s->fifo = 0;
-    s->dma = 0;
-    s->wken = 0;
-    s->wkfl = 0;
-    fifo8_reset(&s->rx_fifo);
+    ctrl = 0;
+    status = UART_TX_EM | UART_RX_EM;
+    int_en = 0;
+    int_fl = 0;
+    osr = 0;
+    txpeek = 0;
+    pnr = UART_RTS;
+    fifo = 0;
+    dma = 0;
+    wken = 0;
+    wkfl = 0;
+    fifo8_reset(&rx_fifo);
 }
 
 static uint64_t max78000_uart_read(void *opaque, hwaddr addr,
@@ -236,58 +235,36 @@ static const VMStateDescription max78000_uart_vmstate = {
     .fields = vmstate_max78000_uart_fields,
 };
 
-static void max78000_uart_init(Object *obj)
+void Max78000UartState::init()
 {
-    Max78000UartState *s = MAX78000_UART(obj);
-    fifo8_create(&s->rx_fifo, 8);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    fifo8_create(&rx_fifo, 8);
 
-    memory_region_init_io(&s->mmio, obj, &max78000_uart_ops, s,
-                          TYPE_MAX78000_UART, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_irq(sbd, &irq);
+
+    memory_region_init_io(&mmio, reinterpret_cast<Object *>(this),
+                          &max78000_uart_ops, this, TYPE_MAX78000_UART,
+                          0x400);
+    sysbus_init_mmio(sbd, &mmio);
 }
 
-static void max78000_uart_finalize(Object *obj)
+void Max78000UartState::finalize()
 {
-    Max78000UartState *s = MAX78000_UART(obj);
-    fifo8_destroy(&s->rx_fifo);
+    fifo8_destroy(&rx_fifo);
 }
 
-static void max78000_uart_realize(DeviceState *dev, Error **errp)
+void Max78000UartState::realize(Error **errp)
 {
-    Max78000UartState *s = MAX78000_UART(dev);
-
-    qemu_chr_fe_set_handlers(&s->chr, max78000_uart_can_receive,
+    qemu_chr_fe_set_handlers(&chr, max78000_uart_can_receive,
                              max78000_uart_receive, NULL, NULL,
-                             s, NULL, true);
+                             this, NULL, true);
 }
 
-static void max78000_uart_class_init(ObjectClass *klass, const void *data)
+void Max78000UartState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
-
-    rc->phases.hold = max78000_uart_reset_hold;
-
     device_class_set_props(dc, max78000_uart_properties);
-    dc->realize = max78000_uart_realize;
-
     dc->vmsd = &max78000_uart_vmstate;
 }
 
-static const TypeInfo max78000_uart_info = {
-    .name          = TYPE_MAX78000_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Max78000UartState),
-    .instance_init = max78000_uart_init,
-    .instance_finalize = max78000_uart_finalize,
-    .class_init    = max78000_uart_class_init,
-};
-
-static void max78000_uart_register_types(void)
-{
-    type_register_static(&max78000_uart_info);
-}
-
-type_init(max78000_uart_register_types)
+REGISTER_QEMU_DEVICE(Max78000UartState, TYPE_MAX78000_UART, TYPE_SYS_BUS_DEVICE)

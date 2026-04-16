@@ -74,5 +74,13 @@ struct Max78000UartState {
 
     CharFrontend chr;
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 #endif /* HW_STM32F2XX_USART_H */
