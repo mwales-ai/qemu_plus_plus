@@ -18,12 +18,15 @@ The C++ file port is essentially complete (2211 .cpp files, 6 .c remaining as
 hard-blocked). The next goal is to leverage C++ inheritance, virtual methods,
 and compile-time type checking to replace QOM's runtime type system.
 
-See `docs/cpp-port/research.md` for the full design document covering:
-- What QOM does today and why it's problematic in C++
-- The proposed C++ class hierarchy (QemuObject, QemuDevice, QemuSysBusDevice, QemuPCIDevice)
-- Migration strategy (4 phases: infrastructure, pilot devices, mass conversion, QOM removal)
-- How virtual methods, type checking, interfaces, and properties change
-- Risks, mitigations, and open questions
+See `docs/cpp-port/virtual-methods-plan.md` for the **current active plan**:
+- Adding C++ virtual methods to QOM state structs (Object, DeviceState, etc.)
+- Phased migration: infrastructure, base virtuals, pilot devices, bus-level, mass conversion
+- C/C++ ABI compatibility via padding field in C matching vtable pointer in C++
+- ~91 devices already ported with REGISTER_QEMU_DEVICE — just need `override` added
+
+See `docs/cpp-port/research.md` for background research on QOM and C++ alternatives.
+See `docs/cpp-port/cpp-native-roadmap.md` for historical context (the "zero vtables"
+approach that has been superseded by the virtual methods plan).
 
 ### QOM Replacement Priorities
 
@@ -202,7 +205,10 @@ When converting a `.c` file to `.cpp`:
 - `include/hw/qdev-core.h` - Device model base
 - `include/hw/qdev-properties.h` - Device properties
 - `hw/core/qdev.cpp` - Device model implementation
-- `docs/cpp-port/research.md` - QOM replacement design document
+- `docs/cpp-port/virtual-methods-plan.md` - **Active plan**: C++ virtual methods for QOM
+- `docs/cpp-port/research.md` - Background research on QOM and C++ alternatives
+- `docs/cpp-port/cpp-native-roadmap.md` - Historical roadmap (superseded by virtual-methods-plan)
+- `include/qom/cpp/object.h` - REGISTER_QEMU_DEVICE macro and C++ wrappers
 
 ## Common Pitfalls
 
