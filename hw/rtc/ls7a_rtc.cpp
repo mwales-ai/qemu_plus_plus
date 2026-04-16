@@ -18,6 +18,7 @@
 #include "hw/misc/unimp.h"
 #include "system/rtc.h"
 #include "hw/registerfields.h"
+#include "qom/cpp/object.h"
 
 #define SYS_TOYTRIM        0x20
 #define SYS_TOYWRITE0      0x24
@@ -94,8 +95,8 @@ struct LS7ARtcState {
     void rtcStart();
     void toymatchWrite(uint64_t val, int num);
     void rtcmatchWrite(uint64_t val, int num);
-    void realize(DeviceState *dev, Error **errp);
-    void reset(DeviceState *dev);
+    void realize(Error **errp);
+    void reset();
 
     static uint64_t readOp(void *opaque, hwaddr addr, unsigned size);
     static void writeOp(void *opaque, hwaddr addr, uint64_t val,
@@ -104,7 +105,7 @@ struct LS7ARtcState {
     static void rtcTimerCb(void *opaque);
     static int preSave(void *opaque);
     static int postLoad(void *opaque, int version_id);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* switch nanoseconds time to rtc ticks */
@@ -405,45 +406,42 @@ void LS7ARtcState::rtcTimerCb(void *opaque)
     }
 }
 
-void LS7ARtcState::realize(DeviceState *dev, Error **errp)
+void LS7ARtcState::realize(Error **errp)
 {
     int i;
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
-    LS7ARtcState *d = reinterpret_cast<LS7ARtcState *>(sbd);
-    memory_region_init_io(&d->iomem, NULL, &ls7a_rtc_ops,
-                         static_cast<void *>(d), "ls7a_rtc", 0x100);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    sysbus_init_irq(sbd, &d->irq);
+    memory_region_init_io(&iomem, NULL, &ls7a_rtc_ops,
+                         static_cast<void *>(this), "ls7a_rtc", 0x100);
 
-    sysbus_init_mmio(sbd, &d->iomem);
+    sysbus_init_irq(sbd, &irq);
+
+    sysbus_init_mmio(sbd, &iomem);
     for (i = 0; i < TIMER_NUMS; i++) {
-        d->toymatch[i] = 0;
-        d->rtcmatch[i] = 0;
-        d->toy_timer[i] = timer_new_ms(rtc_clock, toyTimerCb, d);
-        d->rtc_timer[i] = timer_new_ms(rtc_clock, rtcTimerCb, d);
+        toymatch[i] = 0;
+        rtcmatch[i] = 0;
+        toy_timer[i] = timer_new_ms(rtc_clock, toyTimerCb, this);
+        rtc_timer[i] = timer_new_ms(rtc_clock, rtcTimerCb, this);
     }
-    d->offset_toy = 0;
-    d->offset_rtc = 0;
-
+    offset_toy = 0;
+    offset_rtc = 0;
 }
 
-/* delete timer and clear reg when reset */
-void LS7ARtcState::reset(DeviceState *dev)
+void LS7ARtcState::reset()
 {
     int i;
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
-    LS7ARtcState *d = reinterpret_cast<LS7ARtcState *>(sbd);
+
     for (i = 0; i < TIMER_NUMS; i++) {
-        if (d->toyEnabled()) {
-            timer_del(d->toy_timer[i]);
+        if (toyEnabled()) {
+            timer_del(toy_timer[i]);
         }
-        if (d->rtcEnabled()) {
-            timer_del(d->rtc_timer[i]);
+        if (rtcEnabled()) {
+            timer_del(rtc_timer[i]);
         }
-        d->toymatch[i] = 0;
-        d->rtcmatch[i] = 0;
+        toymatch[i] = 0;
+        rtcmatch[i] = 0;
     }
-    d->cntrctl = 0;
+    cntrctl = 0;
 }
 
 int LS7ARtcState::preSave(void *opaque)
@@ -486,25 +484,10 @@ static const VMStateDescription vmstate_ls7a_rtc = {
     }
 };
 
-void LS7ARtcState::classInit(ObjectClass *klass, const void *data)
+void LS7ARtcState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
     dc->vmsd = &vmstate_ls7a_rtc;
-    dc->realize = realize;
-    device_class_set_legacy_reset(dc, reset);
     dc->desc = "ls7a rtc";
 }
 
-static const TypeInfo ls7a_rtc_info = {
-    .name          = TYPE_LS7A_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LS7ARtcState),
-    .class_init    = LS7ARtcState::classInit,
-};
-
-static void ls7a_rtc_register_types(void)
-{
-    type_register_static(&ls7a_rtc_info);
-}
-
-type_init(ls7a_rtc_register_types)
+REGISTER_QEMU_DEVICE(LS7ARtcState, TYPE_LS7A_RTC, TYPE_SYS_BUS_DEVICE)
