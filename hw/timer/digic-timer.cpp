@@ -34,6 +34,7 @@
 
 #include "hw/timer/digic-timer.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 static const VMStateField vmstate_digic_timer_fields[] = {
     VMSTATE_PTIMER(ptimer, DigicTimerState),
@@ -49,15 +50,13 @@ static const VMStateDescription vmstate_digic_timer = {
     .fields = vmstate_digic_timer_fields,
 };
 
-static void digic_timer_reset(DeviceState *dev)
+void DigicTimerState::reset()
 {
-    DigicTimerState *s = DIGIC_TIMER(dev);
-
-    ptimer_transaction_begin(s->ptimer);
-    ptimer_stop(s->ptimer);
-    ptimer_transaction_commit(s->ptimer);
-    s->control = 0;
-    s->relvalue = 0;
+    ptimer_transaction_begin(ptimer);
+    ptimer_stop(ptimer);
+    ptimer_transaction_commit(ptimer);
+    control = 0;
+    relvalue = 0;
 }
 
 static uint64_t digic_timer_read(void *opaque, hwaddr offset, unsigned size)
@@ -92,7 +91,7 @@ static void digic_timer_write(void *opaque, hwaddr offset,
     switch (offset) {
     case DIGIC_TIMER_CONTROL:
         if (value & DIGIC_TIMER_CONTROL_RST) {
-            digic_timer_reset((DeviceState *)s);
+            s->reset();
             break;
         }
 
@@ -137,52 +136,31 @@ static void digic_timer_tick(void *opaque)
     /* Nothing to do on timer rollover */
 }
 
-static void digic_timer_init(Object *obj)
+void DigicTimerState::init()
 {
-    DigicTimerState *s = DIGIC_TIMER(obj);
-
-    s->ptimer = ptimer_init(digic_timer_tick, NULL, PTIMER_POLICY_LEGACY);
+    ptimer = ptimer_init(digic_timer_tick, NULL, PTIMER_POLICY_LEGACY);
 
     /*
      * FIXME: there is no documentation on Digic timer
      * frequency setup so let it always run at 1 MHz
      */
-    ptimer_transaction_begin(s->ptimer);
-    ptimer_set_freq(s->ptimer, 1 * 1000 * 1000);
-    ptimer_transaction_commit(s->ptimer);
+    ptimer_transaction_begin(ptimer);
+    ptimer_set_freq(ptimer, 1 * 1000 * 1000);
+    ptimer_transaction_commit(ptimer);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &digic_timer_ops, s,
-                          TYPE_DIGIC_TIMER, 0x100);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &digic_timer_ops, this, TYPE_DIGIC_TIMER, 0x100);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 }
 
-static void digic_timer_finalize(Object *obj)
+void DigicTimerState::finalize()
 {
-    DigicTimerState *s = DIGIC_TIMER(obj);
-
-    ptimer_free(s->ptimer);
+    ptimer_free(ptimer);
 }
 
-static void digic_timer_class_init(ObjectClass *klass, const void *class_data)
+void DigicTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, digic_timer_reset);
     dc->vmsd = &vmstate_digic_timer;
 }
 
-static const TypeInfo digic_timer_info = {
-    .name = TYPE_DIGIC_TIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(DigicTimerState),
-    .instance_init = digic_timer_init,
-    .instance_finalize = digic_timer_finalize,
-    .class_init = digic_timer_class_init,
-};
-
-static void digic_timer_register_type(void)
-{
-    type_register_static(&digic_timer_info);
-}
-
-type_init(digic_timer_register_type)
+REGISTER_QEMU_DEVICE(DigicTimerState, TYPE_DIGIC_TIMER, TYPE_SYS_BUS_DEVICE)

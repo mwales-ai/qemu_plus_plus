@@ -41,6 +41,13 @@ struct DigicTimerState {
 
     uint32_t control;
     uint32_t relvalue;
+
+#ifdef __cplusplus
+    void init();
+    void finalize();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_TIMER_DIGIC_TIMER_H */
