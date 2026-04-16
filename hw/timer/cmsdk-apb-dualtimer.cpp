@@ -28,6 +28,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 REG32(TIMER1LOAD, 0x0)
 REG32(TIMER1VALUE, 0x4)
@@ -433,18 +434,17 @@ static void cmsdk_dualtimermod_reset(CMSDKAPBDualTimerModule *m)
     ptimer_transaction_commit(m->timer);
 }
 
-static void cmsdk_apb_dualtimer_reset(DeviceState *dev)
+void CMSDKAPBDualTimer::reset()
 {
-    CMSDKAPBDualTimer *s = CMSDK_APB_DUALTIMER(dev);
     int i;
 
     trace_cmsdk_apb_dualtimer_reset();
 
-    for (i = 0; i < ARRAY_SIZE(s->timermod); i++) {
-        cmsdk_dualtimermod_reset(&s->timermod[i]);
+    for (i = 0; i < ARRAY_SIZE(timermod); i++) {
+        cmsdk_dualtimermod_reset(&timermod[i]);
     }
-    s->timeritcr = 0;
-    s->timeritop = 0;
+    timeritcr = 0;
+    timeritop = 0;
 }
 
 static void cmsdk_apb_dualtimer_clk_update(void *opaque, ClockEvent event)
@@ -461,39 +461,39 @@ static void cmsdk_apb_dualtimer_clk_update(void *opaque, ClockEvent event)
     }
 }
 
-static void cmsdk_apb_dualtimer_init(Object *obj)
+void CMSDKAPBDualTimer::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    CMSDKAPBDualTimer *s = CMSDK_APB_DUALTIMER(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(this);
     int i;
 
-    memory_region_init_io(&s->iomem, obj, &cmsdk_apb_dualtimer_ops,
-                          s, "cmsdk-apb-dualtimer", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->timerintc);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &cmsdk_apb_dualtimer_ops, this,
+                          "cmsdk-apb-dualtimer", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &timerintc);
 
-    for (i = 0; i < ARRAY_SIZE(s->timermod); i++) {
-        sysbus_init_irq(sbd, &s->timermod[i].timerint);
+    for (i = 0; i < ARRAY_SIZE(timermod); i++) {
+        sysbus_init_irq(sbd, &timermod[i].timerint);
     }
-    s->timclk = qdev_init_clock_in(DEVICE(s), "TIMCLK",
-                                   cmsdk_apb_dualtimer_clk_update, s,
-                                   ClockUpdate);
+    timclk = qdev_init_clock_in(ds, "TIMCLK",
+                                cmsdk_apb_dualtimer_clk_update, this,
+                                ClockUpdate);
 }
 
-static void cmsdk_apb_dualtimer_realize(DeviceState *dev, Error **errp)
+void CMSDKAPBDualTimer::realize(Error **errp)
 {
-    CMSDKAPBDualTimer *s = CMSDK_APB_DUALTIMER(dev);
     int i;
 
-    if (!clock_has_source(s->timclk)) {
+    if (!clock_has_source(timclk)) {
         error_setg(errp, "CMSDK APB dualtimer: TIMCLK clock must be connected");
         return;
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->timermod); i++) {
-        CMSDKAPBDualTimerModule *m = &s->timermod[i];
+    for (i = 0; i < ARRAY_SIZE(timermod); i++) {
+        CMSDKAPBDualTimerModule *m = &timermod[i];
 
-        m->parent = s;
+        m->parent = this;
         m->timer = ptimer_init(cmsdk_dualtimermod_tick, m,
                                PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
                                PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT |
@@ -536,26 +536,9 @@ static const VMStateDescription cmsdk_apb_dualtimer_vmstate = {
     .fields = cmsdk_apb_dualtimer_vmstate_fields,
 };
 
-static void cmsdk_apb_dualtimer_class_init(ObjectClass *klass, const void *data)
+void CMSDKAPBDualTimer::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = cmsdk_apb_dualtimer_realize;
     dc->vmsd = &cmsdk_apb_dualtimer_vmstate;
-    device_class_set_legacy_reset(dc, cmsdk_apb_dualtimer_reset);
 }
 
-static const TypeInfo cmsdk_apb_dualtimer_info = {
-    .name = TYPE_CMSDK_APB_DUALTIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CMSDKAPBDualTimer),
-    .instance_init = cmsdk_apb_dualtimer_init,
-    .class_init = cmsdk_apb_dualtimer_class_init,
-};
-
-static void cmsdk_apb_dualtimer_register_types(void)
-{
-    type_register_static(&cmsdk_apb_dualtimer_info);
-}
-
-type_init(cmsdk_apb_dualtimer_register_types);
+REGISTER_QEMU_DEVICE(CMSDKAPBDualTimer, TYPE_CMSDK_APB_DUALTIMER, TYPE_SYS_BUS_DEVICE)
