@@ -34,6 +34,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties-system.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -535,15 +536,13 @@ static void cadence_uart_reset_hold(Object *obj, ResetType type)
     uart_update_status(s);
 }
 
-static void cadence_uart_realize(DeviceState *dev, Error **errp)
+void CadenceUARTState::realize(Error **errp)
 {
-    CadenceUARTState *s = CADENCE_UART(dev);
+    fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                       fifo_trigger_update, this);
 
-    s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                          fifo_trigger_update, s);
-
-    qemu_chr_fe_set_handlers(&s->chr, uart_can_receive, uart_receive,
-                             uart_event, NULL, s, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, uart_can_receive, uart_receive,
+                             uart_event, NULL, this, NULL, true);
 }
 
 static void cadence_uart_refclk_update(void *opaque, ClockEvent event)
@@ -554,21 +553,22 @@ static void cadence_uart_refclk_update(void *opaque, ClockEvent event)
     uart_parameters_setup(s);
 }
 
-static void cadence_uart_init(Object *obj)
+void CadenceUARTState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    CadenceUARTState *s = CADENCE_UART(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    DeviceState *ds = reinterpret_cast<DeviceState *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &uart_ops, s, "uart", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &uart_ops,
+                          this, "uart", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 
-    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk",
-                                   cadence_uart_refclk_update, s, ClockUpdate);
+    refclk = qdev_init_clock_in(ds, "refclk", cadence_uart_refclk_update, this,
+                                ClockUpdate);
     /* initialize the frequency in case the clock remains unconnected */
-    clock_set_hz(s->refclk, UART_DEFAULT_REF_CLK);
+    clock_set_hz(refclk, UART_DEFAULT_REF_CLK);
 
-    s->char_tx_time = (NANOSECONDS_PER_SECOND / 9600) * 10;
+    char_tx_time = (NANOSECONDS_PER_SECOND / 9600) * 10;
 }
 
 static int cadence_uart_pre_load(void *opaque)
@@ -623,29 +623,14 @@ static const Property cadence_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", CadenceUARTState, chr),
 };
 
-static void cadence_uart_class_init(ObjectClass *klass, const void *data)
+void CadenceUARTState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(dc);
 
-    dc->realize = cadence_uart_realize;
     dc->vmsd = &vmstate_cadence_uart;
     rc->phases.enter = cadence_uart_reset_init;
     rc->phases.hold  = cadence_uart_reset_hold;
     device_class_set_props(dc, cadence_uart_properties);
-  }
-
-static const TypeInfo cadence_uart_info = {
-    .name          = TYPE_CADENCE_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CadenceUARTState),
-    .instance_init = cadence_uart_init,
-    .class_init    = cadence_uart_class_init,
-};
-
-static void cadence_uart_register_types(void)
-{
-    type_register_static(&cadence_uart_info);
 }
 
-type_init(cadence_uart_register_types)
+REGISTER_QEMU_DEVICE(CadenceUARTState, TYPE_CADENCE_UART, TYPE_SYS_BUS_DEVICE)

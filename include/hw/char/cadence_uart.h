@@ -51,6 +51,12 @@ struct CadenceUARTState {
     qemu_irq irq;
     QEMUTimer *fifo_trigger_handle;
     Clock *refclk;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
