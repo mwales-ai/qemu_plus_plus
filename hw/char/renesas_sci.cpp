@@ -29,6 +29,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/char/renesas_sci.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 /* SCI register map */
 REG8(SMR, 0)
@@ -245,17 +246,16 @@ static const MemoryRegionOps sci_ops = {
     .impl = { .max_access_size = 1, },
 };
 
-static void rsci_reset(DeviceState *dev)
+void RSCIState::reset()
 {
-    RSCIState *sci = RSCI(dev);
-    sci->smr = sci->scr = 0x00;
-    sci->brr = 0xff;
-    sci->tdr = 0xff;
-    sci->rdr = 0x00;
-    sci->ssr = 0x84;
-    sci->scmr = 0x00;
-    sci->semr = 0x00;
-    sci->rx_next = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    smr = scr = 0x00;
+    brr = 0xff;
+    tdr = 0xff;
+    rdr = 0x00;
+    ssr = 0x84;
+    scmr = 0x00;
+    semr = 0x00;
+    rx_next = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
 static void sci_event(void *opaque, QEMUChrEvent event)
@@ -269,33 +269,30 @@ static void sci_event(void *opaque, QEMUChrEvent event)
     }
 }
 
-static void rsci_realize(DeviceState *dev, Error **errp)
+void RSCIState::realize(Error **errp)
 {
-    RSCIState *sci = RSCI(dev);
-
-    if (sci->input_freq == 0) {
+    if (input_freq == 0) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "renesas_sci: input-freq property must be set.");
         return;
     }
-    qemu_chr_fe_set_handlers(&sci->chr, can_receive, receive,
-                             sci_event, NULL, sci, NULL, true);
+    qemu_chr_fe_set_handlers(&chr, can_receive, receive,
+                             sci_event, NULL, this, NULL, true);
 }
 
-static void rsci_init(Object *obj)
+void RSCIState::init()
 {
-    SysBusDevice *d = SYS_BUS_DEVICE(obj);
-    RSCIState *sci = RSCI(obj);
+    SysBusDevice *d = reinterpret_cast<SysBusDevice *>(this);
     int i;
 
-    memory_region_init_io(&sci->memory, OBJECT(sci), &sci_ops,
-                          sci, "renesas-sci", 0x8);
-    sysbus_init_mmio(d, &sci->memory);
+    memory_region_init_io(&memory, reinterpret_cast<Object *>(this), &sci_ops,
+                          this, "renesas-sci", 0x8);
+    sysbus_init_mmio(d, &memory);
 
     for (i = 0; i < SCI_NR_IRQ; i++) {
-        sysbus_init_irq(d, &sci->irq[i]);
+        sysbus_init_irq(d, &irq[i]);
     }
-    timer_init_ns(&sci->timer, QEMU_CLOCK_VIRTUAL, txend, sci);
+    timer_init_ns(&timer, QEMU_CLOCK_VIRTUAL, txend, this);
 }
 
 static const VMStateField vmstate_rsci_fields[] = {
@@ -326,27 +323,10 @@ static const Property rsci_properties[] = {
     DEFINE_PROP_CHR("chardev", RSCIState, chr),
 };
 
-static void rsci_class_init(ObjectClass *klass, const void *data)
+void RSCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = rsci_realize;
     dc->vmsd = &vmstate_rsci;
-    device_class_set_legacy_reset(dc, rsci_reset);
     device_class_set_props(dc, rsci_properties);
 }
 
-static const TypeInfo rsci_info = {
-    .name = TYPE_RENESAS_SCI,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RSCIState),
-    .instance_init = rsci_init,
-    .class_init = rsci_class_init,
-};
-
-static void rsci_register_types(void)
-{
-    type_register_static(&rsci_info);
-}
-
-type_init(rsci_register_types)
+REGISTER_QEMU_DEVICE(RSCIState, TYPE_RENESAS_SCI, TYPE_SYS_BUS_DEVICE)

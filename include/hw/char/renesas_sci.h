@@ -49,6 +49,13 @@ struct RSCIState {
     int64_t trtime;
     int64_t rx_next;
     uint64_t input_freq;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
