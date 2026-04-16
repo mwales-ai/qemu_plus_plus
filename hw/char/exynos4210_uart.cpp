@@ -37,6 +37,7 @@
 
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 /*
  *  Offsets for UART registers relative to SFR base address
@@ -169,7 +170,7 @@ struct Exynos4210UartState {
     uint32_t txFifoTriggerLevel() const;
     uint32_t rxFifoTriggerLevel() const;
     void reset();
-    void initfn();
+    void init();
     void realize(Error **errp);
 
     /* static callbacks */
@@ -182,11 +183,7 @@ struct Exynos4210UartState {
     static void event(void *opaque, QEMUChrEvent event);
     static int postLoad(void *opaque, int version_id);
 
-    /* static QOM wrappers */
-    static void resetWrapper(DeviceState *dev);
-    static void initWrapper(Object *obj);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 
@@ -703,7 +700,7 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
     return dev;
 }
 
-void Exynos4210UartState::initfn()
+void Exynos4210UartState::init()
 {
     SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
@@ -729,25 +726,6 @@ void Exynos4210UartState::realize(Error **errp)
                              NULL, this, NULL, true);
 }
 
-/* static QOM wrappers */
-void Exynos4210UartState::resetWrapper(DeviceState *dev)
-{
-    Exynos4210UartState *s = reinterpret_cast<Exynos4210UartState *>(dev);
-    s->reset();
-}
-
-void Exynos4210UartState::initWrapper(Object *obj)
-{
-    Exynos4210UartState *s = reinterpret_cast<Exynos4210UartState *>(obj);
-    s->initfn();
-}
-
-void Exynos4210UartState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    Exynos4210UartState *s = reinterpret_cast<Exynos4210UartState *>(dev);
-    s->realize(errp);
-}
-
 static const Property exynos4210_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", Exynos4210UartState, chr),
     DEFINE_PROP_UINT32("channel", Exynos4210UartState, channel, 0),
@@ -755,27 +733,10 @@ static const Property exynos4210_uart_properties[] = {
     DEFINE_PROP_UINT32("tx-size", Exynos4210UartState, tx.size, 16),
 };
 
-void Exynos4210UartState::classInit(ObjectClass *klass, const void *data)
+void Exynos4210UartState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = Exynos4210UartState::realizeWrapper;
-    device_class_set_legacy_reset(dc, Exynos4210UartState::resetWrapper);
     device_class_set_props(dc, exynos4210_uart_properties);
     dc->vmsd = &vmstate_exynos4210_uart;
 }
 
-static const TypeInfo exynos4210_uart_info = {
-    .name          = TYPE_EXYNOS4210_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210UartState),
-    .instance_init = Exynos4210UartState::initWrapper,
-    .class_init    = Exynos4210UartState::classInit,
-};
-
-static void exynos4210_uart_register(void)
-{
-    type_register_static(&exynos4210_uart_info);
-}
-
-type_init(exynos4210_uart_register)
+REGISTER_QEMU_DEVICE(Exynos4210UartState, TYPE_EXYNOS4210_UART, TYPE_SYS_BUS_DEVICE)
