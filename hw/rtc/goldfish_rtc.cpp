@@ -33,6 +33,7 @@
 #include "qemu/log.h"
 
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define RTC_TIME_LOW            0x00
 #define RTC_TIME_HIGH           0x04
@@ -242,36 +243,33 @@ static const VMStateDescription goldfish_rtc_vmstate = {
     .fields = goldfish_rtc_vmstate_fields,
 };
 
-static void goldfish_rtc_reset(DeviceState *dev)
+void GoldfishRTCState::reset()
 {
-    GoldfishRTCState *s = GOLDFISH_RTC(dev);
-
-    timer_del(s->timer);
-    s->alarm_next = 0;
-    s->alarm_running = 0;
-    s->irq_pending = 0;
-    s->irq_enabled = 0;
+    timer_del(timer);
+    alarm_next = 0;
+    alarm_running = 0;
+    irq_pending = 0;
+    irq_enabled = 0;
 }
 
-static void goldfish_rtc_realize(DeviceState *d, Error **errp)
+void GoldfishRTCState::realize(Error **errp)
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(d);
-    GoldfishRTCState *s = GOLDFISH_RTC(d);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
     struct tm tm;
 
-    memory_region_init_io(&s->iomem, OBJECT(s),
-                          goldfish_rtc_ops[s->big_endian], s,
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          goldfish_rtc_ops[big_endian], this,
                           "goldfish_rtc", 0x24);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(dev, &iomem);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(dev, &irq);
 
-    s->timer = timer_new_ns(rtc_clock, goldfish_rtc_interrupt, s);
+    timer = timer_new_ns(rtc_clock, goldfish_rtc_interrupt, this);
 
     qemu_get_timedate(&tm, 0);
-    s->tick_offset = mktimegm(&tm);
-    s->tick_offset *= NANOSECONDS_PER_SECOND;
-    s->tick_offset -= qemu_clock_get_ns(rtc_clock);
+    tick_offset = mktimegm(&tm);
+    tick_offset *= NANOSECONDS_PER_SECOND;
+    tick_offset -= qemu_clock_get_ns(rtc_clock);
 }
 
 static const Property goldfish_rtc_properties[] = {
@@ -279,26 +277,10 @@ static const Property goldfish_rtc_properties[] = {
                       false),
 };
 
-static void goldfish_rtc_class_init(ObjectClass *klass, const void *data)
+void GoldfishRTCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, goldfish_rtc_properties);
-    dc->realize = goldfish_rtc_realize;
-    device_class_set_legacy_reset(dc, goldfish_rtc_reset);
     dc->vmsd = &goldfish_rtc_vmstate;
 }
 
-static const TypeInfo goldfish_rtc_info = {
-    .name          = TYPE_GOLDFISH_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GoldfishRTCState),
-    .class_init    = goldfish_rtc_class_init,
-};
-
-static void goldfish_rtc_register_types(void)
-{
-    type_register_static(&goldfish_rtc_info);
-}
-
-type_init(goldfish_rtc_register_types)
+REGISTER_QEMU_DEVICE(GoldfishRTCState, TYPE_GOLDFISH_RTC, TYPE_SYS_BUS_DEVICE)

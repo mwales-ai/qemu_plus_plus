@@ -48,6 +48,12 @@ struct GoldfishRTCState {
     uint32_t time_high;
 
     bool big_endian;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
