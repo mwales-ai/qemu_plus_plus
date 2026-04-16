@@ -19,6 +19,7 @@
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 /* Common timer implementation.  */
 
@@ -214,11 +215,11 @@ struct SP804State {
                           unsigned size);
 
     /* Instance methods */
-    void initfn(Object *obj);
-    void realize(DeviceState *dev, Error **errp);
+    void init();
+    void realize(Error **errp);
 
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const uint8_t sp804_ids[] = {
@@ -306,37 +307,22 @@ static const VMStateDescription vmstate_sp804 = {
     .fields = vmstate_sp804_fields,
 };
 
-void SP804State::initfn(Object *obj)
+void SP804State::init()
 {
-    SP804State *s = reinterpret_cast<SP804State *>(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    sysbus_init_irq(sbd, &s->irq);
-    memory_region_init_io(&s->iomem, obj, &sp804_ops, s,
-                          "sp804", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &irq);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &sp804_ops,
+                          this, "sp804", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
-static void sp804_init(Object *obj)
+void SP804State::realize(Error **errp)
 {
-    SP804State *s = reinterpret_cast<SP804State *>(obj);
-    s->initfn(obj);
-}
-
-void SP804State::realize(DeviceState *dev, Error **errp)
-{
-    SP804State *s = reinterpret_cast<SP804State *>(dev);
-
-    s->timer[0] = arm_timer_init(s->freq0);
-    s->timer[1] = arm_timer_init(s->freq1);
-    s->timer[0]->irq = qemu_allocate_irq(SP804State::setIrq, s, 0);
-    s->timer[1]->irq = qemu_allocate_irq(SP804State::setIrq, s, 1);
-}
-
-static void sp804_realize(DeviceState *dev, Error **errp)
-{
-    SP804State *s = reinterpret_cast<SP804State *>(dev);
-    s->realize(dev, errp);
+    timer[0] = arm_timer_init(freq0);
+    timer[1] = arm_timer_init(freq1);
+    timer[0]->irq = qemu_allocate_irq(SP804State::setIrq, this, 0);
+    timer[1]->irq = qemu_allocate_irq(SP804State::setIrq, this, 1);
 }
 
 /* Integrator/CP timer module.  */
@@ -356,7 +342,7 @@ struct icp_pit_state {
                           unsigned size);
 
     /* Instance methods */
-    void initfn(Object *obj);
+    void init();
 };
 
 uint64_t icp_pit_state::mmioRead(void *opaque, hwaddr offset, unsigned size)
@@ -395,67 +381,38 @@ static const MemoryRegionOps icp_pit_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void icp_pit_state::initfn(Object *obj)
+void icp_pit_state::init()
 {
-    icp_pit_state *s = reinterpret_cast<icp_pit_state *>(obj);
-    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
     /* Timer 0 runs at the system clock speed (40MHz).  */
-    s->timer[0] = arm_timer_init(40000000);
+    timer[0] = arm_timer_init(40000000);
     /* The other two timers run at 1MHz.  */
-    s->timer[1] = arm_timer_init(1000000);
-    s->timer[2] = arm_timer_init(1000000);
+    timer[1] = arm_timer_init(1000000);
+    timer[2] = arm_timer_init(1000000);
 
-    sysbus_init_irq(dev, &s->timer[0]->irq);
-    sysbus_init_irq(dev, &s->timer[1]->irq);
-    sysbus_init_irq(dev, &s->timer[2]->irq);
+    sysbus_init_irq(dev, &timer[0]->irq);
+    sysbus_init_irq(dev, &timer[1]->irq);
+    sysbus_init_irq(dev, &timer[2]->irq);
 
-    memory_region_init_io(&s->iomem, obj, &icp_pit_ops, s,
-                          "icp_pit", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+                          &icp_pit_ops, this, "icp_pit", 0x1000);
+    sysbus_init_mmio(dev, &iomem);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
 }
 
-static void icp_pit_init(Object *obj)
-{
-    icp_pit_state *s = reinterpret_cast<icp_pit_state *>(obj);
-    s->initfn(obj);
-}
-
-static const TypeInfo icp_pit_info = {
-    .name          = TYPE_INTEGRATOR_PIT,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(icp_pit_state),
-    .instance_init = icp_pit_init,
-};
+REGISTER_QEMU_DEVICE(icp_pit_state, TYPE_INTEGRATOR_PIT, TYPE_SYS_BUS_DEVICE)
 
 static const Property sp804_properties[] = {
     DEFINE_PROP_UINT32("freq0", SP804State, freq0, 1000000),
     DEFINE_PROP_UINT32("freq1", SP804State, freq1, 1000000),
 };
 
-void SP804State::classInit(ObjectClass *klass, const void *data)
+void SP804State::classInit(DeviceClass *dc)
 {
-    DeviceClass *k = DEVICE_CLASS(klass);
-
-    k->realize = sp804_realize;
-    device_class_set_props(k, sp804_properties);
-    k->vmsd = &vmstate_sp804;
+    device_class_set_props(dc, sp804_properties);
+    dc->vmsd = &vmstate_sp804;
 }
 
-static const TypeInfo sp804_info = {
-    .name          = TYPE_SP804,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SP804State),
-    .instance_init = sp804_init,
-    .class_init    = SP804State::classInit,
-};
-
-static void arm_timer_register_types(void)
-{
-    type_register_static(&icp_pit_info);
-    type_register_static(&sp804_info);
-}
-
-type_init(arm_timer_register_types)
+REGISTER_QEMU_DEVICE(SP804State, TYPE_SP804, TYPE_SYS_BUS_DEVICE)
