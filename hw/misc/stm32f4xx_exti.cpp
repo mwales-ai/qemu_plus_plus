@@ -28,40 +28,39 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/misc/stm32f4xx_exti.h"
+#include "qom/cpp/object.h"
 
-static void stm32f4xx_exti_reset(DeviceState *dev)
+void STM32F4xxExtiState::reset()
 {
-    STM32F4xxExtiState *s = STM32F4XX_EXTI(dev);
-
-    s->exti_imr = 0x00000000;
-    s->exti_emr = 0x00000000;
-    s->exti_rtsr = 0x00000000;
-    s->exti_ftsr = 0x00000000;
-    s->exti_swier = 0x00000000;
-    s->exti_pr = 0x00000000;
+    exti_imr = 0x00000000;
+    exti_emr = 0x00000000;
+    exti_rtsr = 0x00000000;
+    exti_ftsr = 0x00000000;
+    exti_swier = 0x00000000;
+    exti_pr = 0x00000000;
 }
 
-static void stm32f4xx_exti_set_irq(void *opaque, int irq, int level)
+static void stm32f4xx_exti_set_irq(void *opaque, int irqnum, int level)
 {
     STM32F4xxExtiState *s = static_cast<STM32F4xxExtiState *>(opaque);
 
-    trace_stm32f4xx_exti_set_irq(irq, level);
+    trace_stm32f4xx_exti_set_irq(irqnum, level);
 
-    if (((1 << irq) & s->exti_rtsr) && level) {
+    if (((1 << irqnum) & s->exti_rtsr) && level) {
         /* Rising Edge */
-        s->exti_pr |= 1 << irq;
+        s->exti_pr |= 1 << irqnum;
     }
 
-    if (((1 << irq) & s->exti_ftsr) && !level) {
+    if (((1 << irqnum) & s->exti_ftsr) && !level) {
         /* Falling Edge */
-        s->exti_pr |= 1 << irq;
+        s->exti_pr |= 1 << irqnum;
     }
 
-    if (!((1 << irq) & s->exti_imr)) {
+    if (!((1 << irqnum) & s->exti_imr)) {
         /* Interrupt is masked */
         return;
     }
-    qemu_irq_pulse(s->irq[irq]);
+    qemu_irq_pulse(s->irq[irqnum]);
 }
 
 static uint64_t stm32f4xx_exti_read(void *opaque, hwaddr addr,
@@ -132,20 +131,17 @@ static const MemoryRegionOps stm32f4xx_exti_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void stm32f4xx_exti_init(Object *obj)
+void STM32F4xxExtiState::init()
 {
-    STM32F4xxExtiState *s = STM32F4XX_EXTI(obj);
-    int i;
-
-    for (i = 0; i < NUM_INTERRUPT_OUT_LINES; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq[i]);
+    for (int i = 0; i < NUM_INTERRUPT_OUT_LINES; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &irq[i]);
     }
 
-    memory_region_init_io(&s->mmio, obj, &stm32f4xx_exti_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &stm32f4xx_exti_ops, this,
                           TYPE_STM32F4XX_EXTI, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    qdev_init_gpio_in(DEVICE(obj), stm32f4xx_exti_set_irq,
+    qdev_init_gpio_in(DEVICE(this), stm32f4xx_exti_set_irq,
                       NUM_GPIO_EVENT_IN_LINES);
 }
 
@@ -166,25 +162,10 @@ static const VMStateDescription vmstate_stm32f4xx_exti = {
     .fields = vmstate_stm32f4xx_exti_fields,
 };
 
-static void stm32f4xx_exti_class_init(ObjectClass *klass, const void *data)
+void STM32F4xxExtiState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, stm32f4xx_exti_reset);
     dc->vmsd = &vmstate_stm32f4xx_exti;
 }
 
-static const TypeInfo stm32f4xx_exti_info = {
-    .name          = TYPE_STM32F4XX_EXTI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32F4xxExtiState),
-    .instance_init = stm32f4xx_exti_init,
-    .class_init    = stm32f4xx_exti_class_init,
-};
-
-static void stm32f4xx_exti_register_types(void)
-{
-    type_register_static(&stm32f4xx_exti_info);
-}
-
-type_init(stm32f4xx_exti_register_types)
+REGISTER_QEMU_DEVICE(STM32F4xxExtiState, TYPE_STM32F4XX_EXTI,
+                      TYPE_SYS_BUS_DEVICE)

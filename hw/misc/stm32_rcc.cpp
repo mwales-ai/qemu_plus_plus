@@ -23,28 +23,23 @@
  */
 
 #include "qemu/osdep.h"
-
-extern "C" {
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "hw/misc/stm32_rcc.h"
-}
-
 #include "trace.h"
+#include "qom/cpp/object.h"
 
-static void stm32_rcc_reset(DeviceState *dev)
+void STM32RccState::reset()
 {
-    STM32RccState *s = STM32_RCC(dev);
-
     for (int i = 0; i < STM32_RCC_NREGS; i++) {
-        s->regs[i] = 0;
+        regs[i] = 0;
     }
 }
 
 static uint64_t stm32_rcc_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    STM32RccState *s = STM32_RCC(opaque);
+    STM32RccState *s = static_cast<STM32RccState *>(opaque);
 
     uint32_t value = 0;
     if (addr > STM32_RCC_DCKCFGR2) {
@@ -60,7 +55,7 @@ static uint64_t stm32_rcc_read(void *opaque, hwaddr addr, unsigned int size)
 static void stm32_rcc_write(void *opaque, hwaddr addr,
                             uint64_t val64, unsigned int size)
 {
-    STM32RccState *s = STM32_RCC(opaque);
+    STM32RccState *s = static_cast<STM32RccState *>(opaque);
     uint32_t value = val64;
     uint32_t prev_value, new_value, irq_offset;
 
@@ -115,20 +110,18 @@ static const MemoryRegionOps stm32_rcc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void stm32_rcc_init(Object *obj)
+void STM32RccState::init()
 {
-    STM32RccState *s = STM32_RCC(obj);
-
-    memory_region_init_io(&s->mmio, obj, &stm32_rcc_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &stm32_rcc_ops, this,
                           TYPE_STM32_RCC, STM32_RCC_PERIPHERAL_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    qdev_init_gpio_out(DEVICE(obj), s->reset_irq, STM32_RCC_NIRQS);
-    qdev_init_gpio_out(DEVICE(obj), s->enable_irq, STM32_RCC_NIRQS);
+    qdev_init_gpio_out(DEVICE(this), reset_irq, STM32_RCC_NIRQS);
+    qdev_init_gpio_out(DEVICE(this), enable_irq, STM32_RCC_NIRQS);
 
     for (int i = 0; i < STM32_RCC_NIRQS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->reset_irq[i]);
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->enable_irq[i]);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &reset_irq[i]);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &enable_irq[i]);
     }
 }
 
@@ -144,25 +137,9 @@ static const VMStateDescription vmstate_stm32_rcc = {
     .fields = vmstate_stm32_rcc_fields,
 };
 
-static void stm32_rcc_class_init(ObjectClass *klass, const void *data)
+void STM32RccState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_stm32_rcc;
-    device_class_set_legacy_reset(dc, stm32_rcc_reset);
 }
 
-static const TypeInfo stm32_rcc_info = {
-    .name          = TYPE_STM32_RCC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32RccState),
-    .instance_init = stm32_rcc_init,
-    .class_init    = stm32_rcc_class_init,
-};
-
-static void stm32_rcc_register_types(void)
-{
-    type_register_static(&stm32_rcc_info);
-}
-
-type_init(stm32_rcc_register_types)
+REGISTER_QEMU_DEVICE(STM32RccState, TYPE_STM32_RCC, TYPE_SYS_BUS_DEVICE)

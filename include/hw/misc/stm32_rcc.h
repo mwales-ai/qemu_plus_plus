@@ -86,6 +86,12 @@ struct STM32RccState {
 
     qemu_irq enable_irq[STM32_RCC_NIRQS];
     qemu_irq reset_irq[STM32_RCC_NIRQS];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_STM32_RCC_H */

@@ -54,6 +54,12 @@ struct STM32F4xxExtiState {
     uint32_t exti_pr;
 
     qemu_irq irq[NUM_INTERRUPT_OUT_LINES];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

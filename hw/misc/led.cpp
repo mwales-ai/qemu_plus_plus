@@ -11,6 +11,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/misc/led.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define LED_INTENSITY_PERCENT_MAX   100
 
@@ -66,39 +67,37 @@ static void led_set_state_gpio_handler(void *opaque, int line, int new_state)
     led_set_state(s, !!new_state == s->gpio_active_high);
 }
 
-static void led_reset(DeviceState *dev)
+void LEDState::reset()
 {
-    LEDState *s = LED(dev);
-
-    led_set_state(s, s->gpio_active_high);
+    led_set_state(this, gpio_active_high);
 }
+
+static const VMStateField vmstate_led_fields[] = {
+    VMSTATE_UINT8(intensity_percent, LEDState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_led = {
     .name = TYPE_LED,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(intensity_percent, LEDState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_led_fields,
 };
 
-static void led_realize(DeviceState *dev, Error **errp)
+void LEDState::realize(Error **errp)
 {
-    LEDState *s = LED(dev);
-
-    if (s->color == NULL) {
+    if (color == NULL) {
         error_setg(errp, "property 'color' not specified");
         return;
-    } else if (!led_color_name_is_valid(s->color)) {
+    } else if (!led_color_name_is_valid(color)) {
         error_setg(errp, "property 'color' invalid or not supported");
         return;
     }
-    if (s->description == NULL) {
-        s->description = g_strdup("n/a");
+    if (description == NULL) {
+        description = g_strdup("n/a");
     }
 
-    qdev_init_gpio_in(DEVICE(s), led_set_state_gpio_handler, 1);
+    qdev_init_gpio_in(DEVICE(this), led_set_state_gpio_handler, 1);
 }
 
 static const Property led_properties[] = {
@@ -107,31 +106,15 @@ static const Property led_properties[] = {
     DEFINE_PROP_BOOL("gpio-active-high", LEDState, gpio_active_high, true),
 };
 
-static void led_class_init(ObjectClass *klass, const void *data)
+void LEDState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "LED";
     dc->vmsd = &vmstate_led;
-    device_class_set_legacy_reset(dc, led_reset);
-    dc->realize = led_realize;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     device_class_set_props(dc, led_properties);
 }
 
-static const TypeInfo led_info = {
-    .name = TYPE_LED,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(LEDState),
-    .class_init = led_class_init
-};
-
-static void led_register_types(void)
-{
-    type_register_static(&led_info);
-}
-
-type_init(led_register_types)
+REGISTER_QEMU_DEVICE(LEDState, TYPE_LED, TYPE_DEVICE)
 
 LEDState *led_create_simple(Object *parentobj,
                             GpioPolarity gpio_polarity,

@@ -54,6 +54,12 @@ struct LEDState {
      * to the GPIO polarity).
      */
     bool gpio_active_high;
+
+#ifdef __cplusplus
+    void reset();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 typedef struct LEDState LEDState;
 DECLARE_INSTANCE_CHECKER(LEDState, LED, TYPE_LED)

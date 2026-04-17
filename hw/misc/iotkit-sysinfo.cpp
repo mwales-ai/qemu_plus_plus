@@ -27,6 +27,7 @@
 #include "hw/misc/iotkit-sysinfo.h"
 #include "hw/qdev-properties.h"
 #include "hw/arm/armsse-version.h"
+#include "qom/cpp/object.h"
 
 REG32(SYS_VERSION, 0x0)
 REG32(SYS_CONFIG, 0x4)
@@ -61,7 +62,7 @@ static const int sysinfo_sse300_id[] = {
 static uint64_t iotkit_sysinfo_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
-    IoTKitSysInfo *s = IOTKIT_SYSINFO(opaque);
+    IoTKitSysInfo *s = static_cast<IoTKitSysInfo *>(opaque);
     uint64_t r;
 
     switch (offset) {
@@ -136,49 +137,29 @@ static const Property iotkit_sysinfo_props[] = {
     DEFINE_PROP_UINT32("IIDR", IoTKitSysInfo, iidr, 0),
 };
 
-static void iotkit_sysinfo_init(Object *obj)
+void IoTKitSysInfo::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    IoTKitSysInfo *s = IOTKIT_SYSINFO(obj);
-
-    memory_region_init_io(&s->iomem, obj, &iotkit_sysinfo_ops,
-                          s, "iotkit-sysinfo", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, OBJECT(this), &iotkit_sysinfo_ops,
+                          this, "iotkit-sysinfo", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void iotkit_sysinfo_realize(DeviceState *dev, Error **errp)
+void IoTKitSysInfo::realize(Error **errp)
 {
-    IoTKitSysInfo *s = IOTKIT_SYSINFO(dev);
-
-    if (!armsse_version_valid(s->sse_version)) {
-        error_setg(errp, "invalid sse-version value %d", s->sse_version);
+    if (!armsse_version_valid(sse_version)) {
+        error_setg(errp, "invalid sse-version value %d", sse_version);
         return;
     }
 }
 
-static void iotkit_sysinfo_class_init(ObjectClass *klass, const void *data)
+void IoTKitSysInfo::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     /*
      * This device has no guest-modifiable state and so it
      * does not need a reset function or VMState.
      */
-    dc->realize = iotkit_sysinfo_realize;
     device_class_set_props(dc, iotkit_sysinfo_props);
 }
 
-static const TypeInfo iotkit_sysinfo_info = {
-    .name = TYPE_IOTKIT_SYSINFO,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IoTKitSysInfo),
-    .instance_init = iotkit_sysinfo_init,
-    .class_init = iotkit_sysinfo_class_init,
-};
-
-static void iotkit_sysinfo_register_types(void)
-{
-    type_register_static(&iotkit_sysinfo_info);
-}
-
-type_init(iotkit_sysinfo_register_types);
+REGISTER_QEMU_DEVICE(IoTKitSysInfo, TYPE_IOTKIT_SYSINFO,
+                      TYPE_SYS_BUS_DEVICE)

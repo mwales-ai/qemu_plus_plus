@@ -44,6 +44,12 @@ struct IoTKitSysInfo {
     uint32_t sys_config;
     uint32_t sse_version;
     uint32_t iidr;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

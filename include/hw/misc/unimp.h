@@ -23,6 +23,11 @@ struct UnimplementedDeviceState {
     unsigned offset_fmt_width;
     char *name;
     uint64_t size;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**
