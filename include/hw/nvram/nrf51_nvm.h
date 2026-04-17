@@ -59,6 +59,12 @@ struct NRF51NVMState {
 
     uint32_t config;
 
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 

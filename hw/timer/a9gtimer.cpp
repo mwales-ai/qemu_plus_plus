@@ -33,6 +33,7 @@
 #include "qemu/module.h"
 #include "hw/core/cpu.h"
 #include "system/qtest.h"
+#include "qom/cpp/object.h"
 
 #ifndef A9_GTIMER_ERR_DEBUG
 #define A9_GTIMER_ERR_DEBUG 0
@@ -276,50 +277,43 @@ static const MemoryRegionOps a9_gtimer_ops = {
     },
 };
 
-static void a9_gtimer_reset(DeviceState *dev)
+void A9GTimerState::reset()
 {
-    A9GTimerState *s = A9_GTIMER(dev);
-    int i;
+    counter = 0;
+    control = 0;
 
-    s->counter = 0;
-    s->control = 0;
-
-    for (i = 0; i < s->num_cpu; i++) {
-        A9GTimerPerCPU *gtb = &s->per_cpu[i];
+    for (uint32_t i = 0; i < num_cpu; i++) {
+        A9GTimerPerCPU *gtb = &per_cpu[i];
 
         gtb->control = 0;
         gtb->status = 0;
         gtb->compare = 0;
         gtb->inc = 0;
     }
-    a9_gtimer_update(s, false);
+    a9_gtimer_update(this, false);
 }
 
-static void a9_gtimer_realize(DeviceState *dev, Error **errp)
+void A9GTimerState::realize(Error **errp)
 {
-    A9GTimerState *s = A9_GTIMER(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    int i;
-
-    if (s->num_cpu < 1 || s->num_cpu > A9_GTIMER_MAX_CPUS) {
+    if (num_cpu < 1 || num_cpu > A9_GTIMER_MAX_CPUS) {
         error_setg(errp, "%s: num-cpu must be between 1 and %d",
                    __func__, A9_GTIMER_MAX_CPUS);
         return;
     }
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &a9_gtimer_this_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &a9_gtimer_this_ops, this,
                           "a9gtimer shared", 0x20);
-    sysbus_init_mmio(sbd, &s->iomem);
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, a9_gtimer_update_no_sync, s);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, a9_gtimer_update_no_sync, this);
 
-    for (i = 0; i < s->num_cpu; i++) {
-        A9GTimerPerCPU *gtb = &s->per_cpu[i];
+    for (uint32_t i = 0; i < num_cpu; i++) {
+        A9GTimerPerCPU *gtb = &per_cpu[i];
 
-        gtb->parent = s;
-        sysbus_init_irq(sbd, &gtb->irq);
-        memory_region_init_io(&gtb->iomem, OBJECT(dev), &a9_gtimer_ops, gtb,
+        gtb->parent = this;
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &gtb->irq);
+        memory_region_init_io(&gtb->iomem, OBJECT(this), &a9_gtimer_ops, gtb,
                               "a9gtimer per cpu", 0x20);
-        sysbus_init_mmio(sbd, &gtb->iomem);
+        sysbus_init_mmio(SYS_BUS_DEVICE(this), &gtb->iomem);
     }
 }
 
@@ -385,26 +379,10 @@ static const Property a9_gtimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", A9GTimerState, num_cpu, 0),
 };
 
-static void a9_gtimer_class_init(ObjectClass *klass, const void *data)
+void A9GTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = a9_gtimer_realize;
     dc->vmsd = &vmstate_a9_gtimer;
-    device_class_set_legacy_reset(dc, a9_gtimer_reset);
     device_class_set_props(dc, a9_gtimer_properties);
 }
 
-static const TypeInfo a9_gtimer_info = {
-    .name          = TYPE_A9_GTIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(A9GTimerState),
-    .class_init    = a9_gtimer_class_init,
-};
-
-static void a9_gtimer_register_types(void)
-{
-    type_register_static(&a9_gtimer_info);
-}
-
-type_init(a9_gtimer_register_types)
+REGISTER_QEMU_DEVICE(A9GTimerState, TYPE_A9_GTIMER, TYPE_SYS_BUS_DEVICE)

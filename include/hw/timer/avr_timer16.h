@@ -88,6 +88,13 @@ struct AVRTimer16State {
     uint64_t period_ns;
     uint64_t reset_time_ns;
     enum NextInterrupt next_interrupt;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_TIMER_AVR_TIMER16_H */

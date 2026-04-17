@@ -25,6 +25,7 @@
 #include "hw/nvram/nrf51_nvm.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 /*
  * FICR Registers Assignments
@@ -311,43 +312,36 @@ static const MemoryRegionOps flash_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void nrf51_nvm_init(Object *obj)
+void NRF51NVMState::init()
 {
-    NRF51NVMState *s = NRF51_NVM(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->mmio, obj, &io_ops, s, "nrf51_soc.nvmc",
+    memory_region_init_io(&mmio, OBJECT(this), &io_ops, this, "nrf51_soc.nvmc",
                           NRF51_NVMC_SIZE);
-    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    memory_region_init_io(&s->ficr, obj, &ficr_ops, s, "nrf51_soc.ficr",
+    memory_region_init_io(&ficr, OBJECT(this), &ficr_ops, this, "nrf51_soc.ficr",
                           sizeof(ficr_content));
-    sysbus_init_mmio(sbd, &s->ficr);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &ficr);
 
-    memory_region_init_io(&s->uicr, obj, &uicr_ops, s, "nrf51_soc.uicr",
-                          sizeof(s->uicr_content));
-    sysbus_init_mmio(sbd, &s->uicr);
+    memory_region_init_io(&uicr, OBJECT(this), &uicr_ops, this, "nrf51_soc.uicr",
+                          sizeof(uicr_content));
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &uicr);
 }
 
-static void nrf51_nvm_realize(DeviceState *dev, Error **errp)
+void NRF51NVMState::realize(Error **errp)
 {
-    NRF51NVMState *s = NRF51_NVM(dev);
-
-    if (!memory_region_init_rom_device(&s->flash, OBJECT(dev), &flash_ops, s,
-                                       "nrf51_soc.flash", s->flash_size, errp)) {
+    if (!memory_region_init_rom_device(&flash, OBJECT(this), &flash_ops, this,
+                                       "nrf51_soc.flash", flash_size, errp)) {
         return;
     }
 
-    s->storage = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->flash));
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->flash);
+    storage = static_cast<uint8_t *>(memory_region_get_ram_ptr(&flash));
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &flash);
 }
 
-static void nrf51_nvm_reset(DeviceState *dev)
+void NRF51NVMState::reset()
 {
-    NRF51NVMState *s = NRF51_NVM(dev);
-
-    s->config = 0x00;
-    memset(s->uicr_content, 0xFF, sizeof(s->uicr_content));
+    config = 0x00;
+    memset(uicr_content, 0xFF, sizeof(uicr_content));
 }
 
 static const Property nrf51_nvm_properties[] = {
@@ -368,27 +362,10 @@ static const VMStateDescription vmstate_nvm = {
     .fields = vmstate_nvm_fields,
 };
 
-static void nrf51_nvm_class_init(ObjectClass *klass, const void *data)
+void NRF51NVMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, nrf51_nvm_properties);
     dc->vmsd = &vmstate_nvm;
-    dc->realize = nrf51_nvm_realize;
-    device_class_set_legacy_reset(dc, nrf51_nvm_reset);
 }
 
-static const TypeInfo nrf51_nvm_info = {
-    .name = TYPE_NRF51_NVM,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NRF51NVMState),
-    .instance_init = nrf51_nvm_init,
-    .class_init = nrf51_nvm_class_init
-};
-
-static void nrf51_nvm_register_types(void)
-{
-    type_register_static(&nrf51_nvm_info);
-}
-
-type_init(nrf51_nvm_register_types)
+REGISTER_QEMU_DEVICE(NRF51NVMState, TYPE_NRF51_NVM, TYPE_SYS_BUS_DEVICE)

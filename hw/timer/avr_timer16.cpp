@@ -38,6 +38,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/timer/avr_timer16.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 /* Register offsets */
 #define T16_CRA     0x0
@@ -241,7 +242,7 @@ static void avr_timer16_set_alarm(AVRTimer16State *t16)
 
 static void avr_timer16_interrupt(void *opaque)
 {
-    AVRTimer16State *t16 = opaque;
+    AVRTimer16State *t16 = static_cast<AVRTimer16State *>(opaque);
     uint8_t mode = MODE(t16);
 
     avr_timer16_update_cnt(t16);
@@ -294,25 +295,23 @@ static void avr_timer16_interrupt(void *opaque)
     avr_timer16_set_alarm(t16);
 }
 
-static void avr_timer16_reset(DeviceState *dev)
+void AVRTimer16State::reset()
 {
-    AVRTimer16State *t16 = AVR_TIMER16(dev);
+    avr_timer16_clock_reset(this);
+    avr_timer16_clksrc_update(this);
+    avr_timer16_set_alarm(this);
 
-    avr_timer16_clock_reset(t16);
-    avr_timer16_clksrc_update(t16);
-    avr_timer16_set_alarm(t16);
-
-    qemu_set_irq(t16->capt_irq, 0);
-    qemu_set_irq(t16->compa_irq, 0);
-    qemu_set_irq(t16->compb_irq, 0);
-    qemu_set_irq(t16->compc_irq, 0);
-    qemu_set_irq(t16->ovf_irq, 0);
+    qemu_set_irq(capt_irq, 0);
+    qemu_set_irq(compa_irq, 0);
+    qemu_set_irq(compb_irq, 0);
+    qemu_set_irq(compc_irq, 0);
+    qemu_set_irq(ovf_irq, 0);
 }
 
 static uint64_t avr_timer16_read(void *opaque, hwaddr offset, unsigned size)
 {
     assert(size == 1);
-    AVRTimer16State *t16 = opaque;
+    AVRTimer16State *t16 = static_cast<AVRTimer16State *>(opaque);
     uint8_t retval = 0;
 
     switch (offset) {
@@ -376,7 +375,7 @@ static void avr_timer16_write(void *opaque, hwaddr offset,
                               uint64_t val64, unsigned size)
 {
     assert(size == 1);
-    AVRTimer16State *t16 = opaque;
+    AVRTimer16State *t16 = static_cast<AVRTimer16State *>(opaque);
     uint8_t val8 = (uint8_t)val64;
     uint8_t prev_clk_src = CLKSRC(t16);
 
@@ -476,7 +475,7 @@ static uint64_t avr_timer16_imsk_read(void *opaque,
                                       unsigned size)
 {
     assert(size == 1);
-    AVRTimer16State *t16 = opaque;
+    AVRTimer16State *t16 = static_cast<AVRTimer16State *>(opaque);
     trace_avr_timer16_read_imsk(offset ? 0 : t16->imsk);
     if (offset != 0) {
         return 0;
@@ -488,7 +487,7 @@ static void avr_timer16_imsk_write(void *opaque, hwaddr offset,
                                    uint64_t val64, unsigned size)
 {
     assert(size == 1);
-    AVRTimer16State *t16 = opaque;
+    AVRTimer16State *t16 = static_cast<AVRTimer16State *>(opaque);
     trace_avr_timer16_write_imsk(val64);
     if (offset != 0) {
         return;
@@ -501,7 +500,7 @@ static uint64_t avr_timer16_ifr_read(void *opaque,
                                      unsigned size)
 {
     assert(size == 1);
-    AVRTimer16State *t16 = opaque;
+    AVRTimer16State *t16 = static_cast<AVRTimer16State *>(opaque);
     trace_avr_timer16_read_ifr(offset ? 0 : t16->ifr);
     if (offset != 0) {
         return 0;
@@ -513,7 +512,7 @@ static void avr_timer16_ifr_write(void *opaque, hwaddr offset,
                                   uint64_t val64, unsigned size)
 {
     assert(size == 1);
-    AVRTimer16State *t16 = opaque;
+    AVRTimer16State *t16 = static_cast<AVRTimer16State *>(opaque);
     trace_avr_timer16_write_imsk(val64);
     if (offset != 0) {
         return;
@@ -555,66 +554,45 @@ static void avr_timer16_pr(void *opaque, int irq, int level)
     s->enabled = !level;
 
     if (!s->enabled) {
-        avr_timer16_reset(DEVICE(s));
+        s->reset();
     }
 }
 
-static void avr_timer16_init(Object *obj)
+void AVRTimer16State::init()
 {
-    AVRTimer16State *s = AVR_TIMER16(obj);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &capt_irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &compa_irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &compb_irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &compc_irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &ovf_irq);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->capt_irq);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->compa_irq);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->compb_irq);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->compc_irq);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->ovf_irq);
+    memory_region_init_io(&iomem, OBJECT(this), &avr_timer16_ops,
+                          this, "avr-timer16", 0xe);
+    memory_region_init_io(&imsk_iomem, OBJECT(this), &avr_timer16_imsk_ops,
+                          this, "avr-timer16-intmask", 0x1);
+    memory_region_init_io(&ifr_iomem, OBJECT(this), &avr_timer16_ifr_ops,
+                          this, "avr-timer16-intflag", 0x1);
 
-    memory_region_init_io(&s->iomem, obj, &avr_timer16_ops,
-                          s, "avr-timer16", 0xe);
-    memory_region_init_io(&s->imsk_iomem, obj, &avr_timer16_imsk_ops,
-                          s, "avr-timer16-intmask", 0x1);
-    memory_region_init_io(&s->ifr_iomem, obj, &avr_timer16_ifr_ops,
-                          s, "avr-timer16-intflag", 0x1);
-
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->imsk_iomem);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->ifr_iomem);
-    qdev_init_gpio_in(DEVICE(s), avr_timer16_pr, 1);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &imsk_iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &ifr_iomem);
+    qdev_init_gpio_in(DEVICE(this), avr_timer16_pr, 1);
 }
 
-static void avr_timer16_realize(DeviceState *dev, Error **errp)
+void AVRTimer16State::realize(Error **errp)
 {
-    AVRTimer16State *s = AVR_TIMER16(dev);
-
-    if (s->cpu_freq_hz == 0) {
+    if (cpu_freq_hz == 0) {
         error_setg(errp, "AVR timer16: cpu-frequency-hz property must be set");
         return;
     }
 
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, avr_timer16_interrupt, s);
-    s->enabled = true;
+    timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, avr_timer16_interrupt, this);
+    enabled = true;
 }
 
-static void avr_timer16_class_init(ObjectClass *klass, const void *data)
+void AVRTimer16State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, avr_timer16_reset);
-    dc->realize = avr_timer16_realize;
     device_class_set_props(dc, avr_timer16_properties);
 }
 
-static const TypeInfo avr_timer16_info = {
-    .name          = TYPE_AVR_TIMER16,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AVRTimer16State),
-    .instance_init = avr_timer16_init,
-    .class_init    = avr_timer16_class_init,
-};
-
-static void avr_timer16_register_types(void)
-{
-    type_register_static(&avr_timer16_info);
-}
-
-type_init(avr_timer16_register_types)
+REGISTER_QEMU_DEVICE(AVRTimer16State, TYPE_AVR_TIMER16, TYPE_SYS_BUS_DEVICE)

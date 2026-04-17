@@ -87,6 +87,12 @@ struct A9GTimerState {
     uint32_t control; /* only non per cpu banked bits valid */
 
     A9GTimerPerCPU per_cpu[A9_GTIMER_MAX_CPUS];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct A9GTimerUpdate {
