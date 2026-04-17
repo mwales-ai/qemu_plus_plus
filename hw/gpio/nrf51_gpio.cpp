@@ -12,11 +12,11 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
 #include "hw/gpio/nrf51_gpio.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 /*
  * Check if the output driver is connected to the direction switch
@@ -90,12 +90,10 @@ static void update_state(NRF51GPIOState *s)
 
         if (!input) {
             if (pull >= 0) {
-                /* Input buffer disconnected from external drives */
                 s->in = deposit32(s->in, i, 1, pull);
             }
         } else {
             if (connected_out && connected_in && out != in) {
-                /* Pin both driven externally and internally */
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "GPIO pin %zu short circuited\n", i);
             }
@@ -108,11 +106,6 @@ static void update_state(NRF51GPIOState *s)
                     assert_detect = true;
                 }
             } else {
-                /*
-                 * Floating input: the output stimulates IN if connected,
-                 * otherwise pull-up/pull-down resistors put a value on both
-                 * IN and OUT.
-                 */
                 if (pull >= 0 && !connected_out) {
                     connected_out = true;
                     out = pull;
@@ -128,11 +121,6 @@ static void update_state(NRF51GPIOState *s)
     qemu_set_irq(s->detect, assert_detect);
 }
 
-/*
- * Direction is exposed in both the DIR register and the DIR bit
- * of each PINs CNF configuration register. Reflect bits for pins in DIR
- * to individual pin configuration registers.
- */
 static void reflect_dir_bit_in_cnf(NRF51GPIOState *s)
 {
     size_t i;
@@ -146,7 +134,7 @@ static void reflect_dir_bit_in_cnf(NRF51GPIOState *s)
 
 static uint64_t nrf51_gpio_read(void *opaque, hwaddr offset, unsigned int size)
 {
-    NRF51GPIOState *s = NRF51_GPIO(opaque);
+    NRF51GPIOState *s = static_cast<NRF51GPIOState *>(opaque);
     uint64_t r = 0;
     size_t idx;
 
@@ -182,7 +170,7 @@ static uint64_t nrf51_gpio_read(void *opaque, hwaddr offset, unsigned int size)
 static void nrf51_gpio_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned int size)
 {
-    NRF51GPIOState *s = NRF51_GPIO(opaque);
+    NRF51GPIOState *s = static_cast<NRF51GPIOState *>(opaque);
     size_t idx;
 
     trace_nrf51_gpio_write(offset, value);
@@ -218,10 +206,6 @@ static void nrf51_gpio_write(void *opaque, hwaddr offset,
     case NRF51_GPIO_REG_CNF_START ... NRF51_GPIO_REG_CNF_END:
         idx = (offset - NRF51_GPIO_REG_CNF_START) / 4;
         s->cnf[idx] = value;
-        /*
-         * direction is exposed in both the DIR register and the DIR bit
-         * of each PINs CNF configuration register.
-         */
         s->dir = (s->dir & ~(1UL << idx)) | ((value & 0x01) << idx);
         break;
 
@@ -246,7 +230,7 @@ static const MemoryRegionOps gpio_ops = {
 
 static void nrf51_gpio_set(void *opaque, int line, int value)
 {
-    NRF51GPIOState *s = NRF51_GPIO(opaque);
+    NRF51GPIOState *s = static_cast<NRF51GPIOState *>(opaque);
 
     trace_nrf51_gpio_set(line, value);
 
@@ -260,20 +244,19 @@ static void nrf51_gpio_set(void *opaque, int line, int value)
     update_state(s);
 }
 
-static void nrf51_gpio_reset(DeviceState *dev)
+void NRF51GPIOState::reset()
 {
-    NRF51GPIOState *s = NRF51_GPIO(dev);
     size_t i;
 
-    s->out = 0;
-    s->old_out = 0;
-    s->old_out_connected = 0;
-    s->in = 0;
-    s->in_mask = 0;
-    s->dir = 0;
+    out = 0;
+    old_out = 0;
+    old_out_connected = 0;
+    in = 0;
+    in_mask = 0;
+    dir = 0;
 
     for (i = 0; i < NRF51_GPIO_PINS; i++) {
-        s->cnf[i] = 0x00000002;
+        cnf[i] = 0x00000002;
     }
 }
 
@@ -295,39 +278,21 @@ static const VMStateDescription vmstate_nrf51_gpio = {
     .fields = vmstate_nrf51_gpio_fields,
 };
 
-static void nrf51_gpio_init(Object *obj)
+void NRF51GPIOState::init()
 {
-    NRF51GPIOState *s = NRF51_GPIO(obj);
-
-    memory_region_init_io(&s->mmio, obj, &gpio_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &gpio_ops, this,
             TYPE_NRF51_GPIO, NRF51_GPIO_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    qdev_init_gpio_in(DEVICE(s), nrf51_gpio_set, NRF51_GPIO_PINS);
-    qdev_init_gpio_out(DEVICE(s), s->output, NRF51_GPIO_PINS);
-    qdev_init_gpio_out_named(DEVICE(s), &s->detect, "detect", 1);
+    qdev_init_gpio_in(DEVICE(this), nrf51_gpio_set, NRF51_GPIO_PINS);
+    qdev_init_gpio_out(DEVICE(this), output, NRF51_GPIO_PINS);
+    qdev_init_gpio_out_named(DEVICE(this), &detect, "detect", 1);
 }
 
-static void nrf51_gpio_class_init(ObjectClass *klass, const void *data)
+void NRF51GPIOState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_nrf51_gpio;
-    device_class_set_legacy_reset(dc, nrf51_gpio_reset);
     dc->desc = "nRF51 GPIO";
 }
 
-static const TypeInfo nrf51_gpio_info = {
-    .name = TYPE_NRF51_GPIO,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NRF51GPIOState),
-    .instance_init = nrf51_gpio_init,
-    .class_init = nrf51_gpio_class_init
-};
-
-static void nrf51_gpio_register_types(void)
-{
-    type_register_static(&nrf51_gpio_info);
-}
-
-type_init(nrf51_gpio_register_types)
+REGISTER_QEMU_DEVICE(NRF51GPIOState, TYPE_NRF51_GPIO, TYPE_SYS_BUS_DEVICE)

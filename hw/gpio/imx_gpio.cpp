@@ -22,12 +22,10 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
-
-extern "C" {
 #include "qemu/log.h"
-#include "qemu/module.h"
+#include "qapi/error.h"
 #include "trace.h"
-} /* extern "C" */
+#include "qom/cpp/object.h"
 
 #ifndef DEBUG_IMX_GPIO
 #define DEBUG_IMX_GPIO 0
@@ -74,28 +72,21 @@ static void imx_gpio_update_int(IMXGPIOState *s)
 
 static void imx_gpio_set_int_line(IMXGPIOState *s, int line, IMXGPIOLevel level)
 {
-    /* if this signal isn't configured as an input signal, nothing to do */
     if (extract32(s->gdir, line, 1)) {
         return;
     }
 
-    /* When set, EDGE_SEL overrides the ICR config */
     if (extract32(s->edge_sel, line, 1)) {
-        /* we detect interrupt on rising and falling edge */
         if (extract32(s->psr, line, 1) != level) {
-            /* level changed */
             s->isr = deposit32(s->isr, line, 1, 1);
         }
     } else if (extract64(s->icr, 2*line + 1, 1)) {
-        /* interrupt is edge sensitive */
         if (extract32(s->psr, line, 1) != level) {
-            /* level changed */
             if (extract64(s->icr, 2*line, 1) != level) {
                 s->isr = deposit32(s->isr, line, 1, 1);
             }
         }
     } else {
-        /* interrupt is level sensitive */
         if (extract64(s->icr, 2*line, 1) == level) {
             s->isr = deposit32(s->isr, line, 1, 1);
         }
@@ -104,14 +95,13 @@ static void imx_gpio_set_int_line(IMXGPIOState *s, int line, IMXGPIOLevel level)
 
 static void imx_gpio_set(void *opaque, int line, int level)
 {
-    IMXGPIOState *s = IMX_GPIO(opaque);
+    IMXGPIOState *s = static_cast<IMXGPIOState *>(opaque);
     IMXGPIOLevel imx_level = level ? IMX_GPIO_LEVEL_HIGH : IMX_GPIO_LEVEL_LOW;
 
     trace_imx_gpio_set(DEVICE(s)->canonical_path, line, imx_level);
 
     imx_gpio_set_int_line(s, line, imx_level);
 
-    /* this is an input signal, so set PSR */
     s->psr = deposit32(s->psr, line, 1, imx_level);
 
     imx_gpio_update_int(s);
@@ -134,10 +124,6 @@ static inline void imx_gpio_set_all_output_lines(IMXGPIOState *s)
     int i;
 
     for (i = 0; i < IMX_GPIO_PIN_COUNT; i++) {
-        /*
-         * if the line is set as output, then forward the line
-         * level to its user.
-         */
         if (extract32(s->gdir, i, 1) && s->output[i]) {
             qemu_set_irq(s->output[i], extract32(s->dr, i, 1));
         }
@@ -146,15 +132,11 @@ static inline void imx_gpio_set_all_output_lines(IMXGPIOState *s)
 
 static uint64_t imx_gpio_read(void *opaque, hwaddr offset, unsigned size)
 {
-    IMXGPIOState *s = IMX_GPIO(opaque);
+    IMXGPIOState *s = static_cast<IMXGPIOState *>(opaque);
     uint32_t reg_value = 0;
 
     switch (offset) {
     case DR_ADDR:
-        /*
-         * depending on the "line" configuration, the bit values
-         * are coming either from DR or PSR
-         */
         reg_value = (s->dr & s->gdir) | (s->psr & ~s->gdir);
         break;
 
@@ -207,7 +189,7 @@ static uint64_t imx_gpio_read(void *opaque, hwaddr offset, unsigned size)
 static void imx_gpio_write(void *opaque, hwaddr offset, uint64_t value,
                            unsigned size)
 {
-    IMXGPIOState *s = IMX_GPIO(opaque);
+    IMXGPIOState *s = static_cast<IMXGPIOState *>(opaque);
 
     trace_imx_gpio_write(DEVICE(s)->canonical_path, imx_gpio_reg_name(offset),
                          value);
@@ -299,58 +281,38 @@ static const Property imx_gpio_properties[] = {
                      false),
 };
 
-static void imx_gpio_reset(DeviceState *dev)
+void IMXGPIOState::reset()
 {
-    IMXGPIOState *s = IMX_GPIO(dev);
+    dr       = 0;
+    gdir     = 0;
+    psr      = 0;
+    icr      = 0;
+    imr      = 0;
+    isr      = 0;
+    edge_sel = 0;
 
-    s->dr       = 0;
-    s->gdir     = 0;
-    s->psr      = 0;
-    s->icr      = 0;
-    s->imr      = 0;
-    s->isr      = 0;
-    s->edge_sel = 0;
-
-    imx_gpio_set_all_output_lines(s);
-    imx_gpio_update_int(s);
+    imx_gpio_set_all_output_lines(this);
+    imx_gpio_update_int(this);
 }
 
-static void imx_gpio_realize(DeviceState *dev, Error **errp)
+void IMXGPIOState::realize(Error **errp)
 {
-    IMXGPIOState *s = IMX_GPIO(dev);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &imx_gpio_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &imx_gpio_ops, this,
                           TYPE_IMX_GPIO, IMX_GPIO_MEM_SIZE);
 
-    qdev_init_gpio_in(DEVICE(s), imx_gpio_set, IMX_GPIO_PIN_COUNT);
-    qdev_init_gpio_out(DEVICE(s), s->output, IMX_GPIO_PIN_COUNT);
+    qdev_init_gpio_in(DEVICE(this), imx_gpio_set, IMX_GPIO_PIN_COUNT);
+    qdev_init_gpio_out(DEVICE(this), output, IMX_GPIO_PIN_COUNT);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[0]);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[1]);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq[0]);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq[1]);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void imx_gpio_class_init(ObjectClass *klass, const void *data)
+void IMXGPIOState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = imx_gpio_realize;
-    device_class_set_legacy_reset(dc, imx_gpio_reset);
     device_class_set_props(dc, imx_gpio_properties);
     dc->vmsd = &vmstate_imx_gpio;
     dc->desc = "i.MX GPIO controller";
 }
 
-static const TypeInfo imx_gpio_info = {
-    .name = TYPE_IMX_GPIO,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXGPIOState),
-    .class_init = imx_gpio_class_init,
-};
-
-static void imx_gpio_register_types(void)
-{
-    type_register_static(&imx_gpio_info);
-}
-
-type_init(imx_gpio_register_types)
+REGISTER_QEMU_DEVICE(IMXGPIOState, TYPE_IMX_GPIO, TYPE_SYS_BUS_DEVICE)

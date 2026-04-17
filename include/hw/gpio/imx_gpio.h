@@ -63,6 +63,12 @@ struct IMXGPIOState {
 
     qemu_irq irq[2];
     qemu_irq output[IMX_GPIO_PIN_COUNT];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

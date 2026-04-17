@@ -18,12 +18,8 @@
 #include "hw/sd/sd.h"
 #include "hw/gpio/bcm2835_gpio.h"
 #include "hw/irq.h"
-
-extern "C" {
 #include "qemu/log.h"
-#include "qemu/module.h"
-#include "qemu/timer.h"
-} /* extern "C" */
+#include "qom/cpp/object.h"
 
 #define GPFSEL0   0x00
 #define GPFSEL1   0x04
@@ -259,22 +255,20 @@ err_out:
             __func__, offset);
 }
 
-static void bcm2835_gpio_reset(DeviceState *dev)
+void BCM2835GpioState::reset()
 {
-    BCM2835GpioState *s = BCM2835_GPIO(dev);
-
     int i;
     for (i = 0; i < 6; i++) {
-        gpfsel_set(s, i, 0);
+        gpfsel_set(this, i, 0);
     }
 
-    s->sd_fsel = 0;
+    sd_fsel = 0;
 
     /* SDHCI is selected by default */
-    sdbus_reparent_card(&s->sdbus, s->sdbus_sdhci);
+    sdbus_reparent_card(&sdbus, sdbus_sdhci);
 
-    s->lev0 = 0;
-    s->lev1 = 0;
+    lev0 = 0;
+    lev1 = 0;
 }
 
 static const MemoryRegionOps bcm2835_gpio_ops = {
@@ -298,52 +292,31 @@ static const VMStateDescription vmstate_bcm2835_gpio = {
     .fields = vmstate_bcm2835_gpio_fields,
 };
 
-static void bcm2835_gpio_init(Object *obj)
+void BCM2835GpioState::init()
 {
-    BCM2835GpioState *s = BCM2835_GPIO(obj);
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    qbus_init(&sdbus, sizeof(sdbus), TYPE_SD_BUS, DEVICE(this), "sd-bus");
 
-    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS, DEVICE(s), "sd-bus");
-
-    memory_region_init_io(&s->iomem, obj,
-            &bcm2835_gpio_ops, s, "bcm2835_gpio", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    qdev_init_gpio_out(dev, s->out, 54);
+    memory_region_init_io(&iomem, OBJECT(this),
+            &bcm2835_gpio_ops, this, "bcm2835_gpio", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    qdev_init_gpio_out(DEVICE(this), out, 54);
 }
 
-static void bcm2835_gpio_realize(DeviceState *dev, Error **errp)
+void BCM2835GpioState::realize(Error **errp)
 {
-    BCM2835GpioState *s = BCM2835_GPIO(dev);
     Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), "sdbus-sdhci", &error_abort);
-    s->sdbus_sdhci = SD_BUS(obj);
+    obj = object_property_get_link(OBJECT(this), "sdbus-sdhci", &error_abort);
+    sdbus_sdhci = SD_BUS(obj);
 
-    obj = object_property_get_link(OBJECT(dev), "sdbus-sdhost", &error_abort);
-    s->sdbus_sdhost = SD_BUS(obj);
+    obj = object_property_get_link(OBJECT(this), "sdbus-sdhost", &error_abort);
+    sdbus_sdhost = SD_BUS(obj);
 }
 
-static void bcm2835_gpio_class_init(ObjectClass *klass, const void *data)
+void BCM2835GpioState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_bcm2835_gpio;
-    dc->realize = &bcm2835_gpio_realize;
-    device_class_set_legacy_reset(dc, bcm2835_gpio_reset);
 }
 
-static const TypeInfo bcm2835_gpio_info = {
-    .name          = TYPE_BCM2835_GPIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835GpioState),
-    .instance_init = bcm2835_gpio_init,
-    .class_init    = bcm2835_gpio_class_init,
-};
-
-static void bcm2835_gpio_register_types(void)
-{
-    type_register_static(&bcm2835_gpio_info);
-}
-
-type_init(bcm2835_gpio_register_types)
+REGISTER_QEMU_DEVICE(BCM2835GpioState, TYPE_BCM2835_GPIO,
+                      TYPE_SYS_BUS_DEVICE)

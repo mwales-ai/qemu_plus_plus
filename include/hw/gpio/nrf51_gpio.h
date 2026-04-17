@@ -70,6 +70,12 @@ struct NRF51GPIOState {
 
     qemu_irq output[NRF51_GPIO_PINS];
     qemu_irq detect;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
