@@ -76,6 +76,12 @@ struct LasiState {
     uint32_t rtc_ref;
 
     MemoryRegion this_mem;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

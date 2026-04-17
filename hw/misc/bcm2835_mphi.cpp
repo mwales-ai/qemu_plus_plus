@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/main-loop.h"
+#include "qom/cpp/object.h"
 
 static inline void mphi_raise_irq(BCM2835MphiState *s)
 {
@@ -123,32 +124,24 @@ static const MemoryRegionOps mphi_mmio_ops = {
     .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void mphi_reset(DeviceState *dev)
+void BCM2835MphiState::reset()
 {
-    BCM2835MphiState *s = BCM2835_MPHI(dev);
-
-    s->outdda = 0;
-    s->outddb = 0;
-    s->ctrl = 0;
-    s->intstat = 0;
-    s->swirq = 0;
+    outdda = 0;
+    outddb = 0;
+    ctrl = 0;
+    intstat = 0;
+    swirq = 0;
 }
 
-static void mphi_realize(DeviceState *dev, Error **errp)
+void BCM2835MphiState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    BCM2835MphiState *s = BCM2835_MPHI(dev);
-
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
-static void mphi_init(Object *obj)
+void BCM2835MphiState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    BCM2835MphiState *s = BCM2835_MPHI(obj);
-
-    memory_region_init_io(&s->iomem, obj, &mphi_mmio_ops, s, "mphi", MPHI_MMIO_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, OBJECT(this), &mphi_mmio_ops, this, "mphi", MPHI_MMIO_SIZE);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const VMStateField vmstate_mphi_state_fields[] = {
@@ -167,26 +160,9 @@ const VMStateDescription vmstate_mphi_state = {
     .fields = vmstate_mphi_state_fields,
 };
 
-static void mphi_class_init(ObjectClass *klass, const void *data)
+void BCM2835MphiState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = mphi_realize;
-    device_class_set_legacy_reset(dc, mphi_reset);
     dc->vmsd = &vmstate_mphi_state;
 }
 
-static const TypeInfo bcm2835_mphi_type_info = {
-    .name          = TYPE_BCM2835_MPHI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835MphiState),
-    .instance_init = mphi_init,
-    .class_init    = mphi_class_init,
-};
-
-static void bcm2835_mphi_register_types(void)
-{
-    type_register_static(&bcm2835_mphi_type_info);
-}
-
-type_init(bcm2835_mphi_register_types)
+REGISTER_QEMU_DEVICE(BCM2835MphiState, TYPE_BCM2835_MPHI, TYPE_SYS_BUS_DEVICE)

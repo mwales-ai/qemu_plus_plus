@@ -55,6 +55,12 @@ struct SiFiveEAONState {
     uint16_t wdogcmp0;
     uint32_t wdogcount;
     uint8_t wdogunlock;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

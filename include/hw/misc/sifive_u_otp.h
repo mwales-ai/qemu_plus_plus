@@ -83,6 +83,11 @@ struct SiFiveUOTPState {
     /* config */
     uint32_t serial;
     BlockBackend *blk;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_SIFIVE_U_OTP_H */

@@ -29,6 +29,7 @@
 #include "hw/misc/sifive_u_otp.h"
 #include "system/blockdev.h"
 #include "system/block-backend.h"
+#include "qom/cpp/object.h"
 
 #define WRITTEN_BIT_ON 0x1
 
@@ -199,40 +200,39 @@ static const Property sifive_u_otp_properties[] = {
     DEFINE_PROP_DRIVE("drive", SiFiveUOTPState, blk),
 };
 
-static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
+void SiFiveUOTPState::realize(Error **errp)
 {
-    SiFiveUOTPState *s = SIFIVE_U_OTP(dev);
     DriveInfo *dinfo;
 
-    memory_region_init_io(&s->mmio, OBJECT(dev), &sifive_u_otp_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &sifive_u_otp_ops, this,
                           TYPE_SIFIVE_U_OTP, SIFIVE_U_OTP_REG_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {
         int ret;
         uint64_t perm;
         int filesize;
-        BlockBackend *blk;
+        BlockBackend *blk_dev;
 
-        blk = blk_by_legacy_dinfo(dinfo);
+        blk_dev = blk_by_legacy_dinfo(dinfo);
         filesize = SIFIVE_U_OTP_NUM_FUSES * SIFIVE_U_OTP_FUSE_WORD;
-        if (blk_getlength(blk) < filesize) {
+        if (blk_getlength(blk_dev) < filesize) {
             error_setg(errp, "OTP drive size < 16K");
             return;
         }
 
-        qdev_prop_set_drive_err(dev, "drive", blk, errp);
+        qdev_prop_set_drive_err(DEVICE(this), "drive", blk_dev, errp);
 
-        if (s->blk) {
+        if (blk) {
             perm = BLK_PERM_CONSISTENT_READ |
-                   (blk_supports_write_perm(s->blk) ? BLK_PERM_WRITE : 0);
-            ret = blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp);
+                   (blk_supports_write_perm(blk) ? BLK_PERM_WRITE : 0);
+            ret = blk_set_perm(blk, perm, BLK_PERM_ALL, errp);
             if (ret < 0) {
                 return;
             }
 
-            if (blk_pread(s->blk, 0, filesize, s->fuse, static_cast<BdrvRequestFlags>(0)) < 0) {
+            if (blk_pread(blk, 0, filesize, fuse, static_cast<BdrvRequestFlags>(0)) < 0) {
                 error_setg(errp, "failed to read the initial flash content");
                 return;
             }
@@ -240,26 +240,26 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
     }
 
     /* Initialize all fuses' initial value to 0xFFs */
-    memset(s->fuse, 0xff, sizeof(s->fuse));
+    memset(fuse, 0xff, sizeof(fuse));
 
     /* Make a valid content of serial number */
-    s->fuse[SIFIVE_U_OTP_SERIAL_ADDR] = s->serial;
-    s->fuse[SIFIVE_U_OTP_SERIAL_ADDR + 1] = ~(s->serial);
+    fuse[SIFIVE_U_OTP_SERIAL_ADDR] = serial;
+    fuse[SIFIVE_U_OTP_SERIAL_ADDR + 1] = ~(serial);
 
-    if (s->blk) {
+    if (blk) {
         /* Put serial number to backend as well*/
         uint32_t serial_data;
         int index = SIFIVE_U_OTP_SERIAL_ADDR;
 
-        serial_data = s->serial;
-        if (blk_pwrite(s->blk, index * SIFIVE_U_OTP_FUSE_WORD,
+        serial_data = serial;
+        if (blk_pwrite(blk, index * SIFIVE_U_OTP_FUSE_WORD,
                        SIFIVE_U_OTP_FUSE_WORD, &serial_data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "failed to write index<%d>", index);
             return;
         }
 
-        serial_data = ~(s->serial);
-        if (blk_pwrite(s->blk, (index + 1) * SIFIVE_U_OTP_FUSE_WORD,
+        serial_data = ~(serial);
+        if (blk_pwrite(blk, (index + 1) * SIFIVE_U_OTP_FUSE_WORD,
                        SIFIVE_U_OTP_FUSE_WORD, &serial_data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "failed to write index<%d>", index + 1);
             return;
@@ -267,27 +267,12 @@ static void sifive_u_otp_realize(DeviceState *dev, Error **errp)
     }
 
     /* Initialize write-once map */
-    memset(s->fuse_wo, 0x00, sizeof(s->fuse_wo));
+    memset(fuse_wo, 0x00, sizeof(fuse_wo));
 }
 
-static void sifive_u_otp_class_init(ObjectClass *klass, const void *data)
+void SiFiveUOTPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, sifive_u_otp_properties);
-    dc->realize = sifive_u_otp_realize;
 }
 
-static const TypeInfo sifive_u_otp_info = {
-    .name          = TYPE_SIFIVE_U_OTP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFiveUOTPState),
-    .class_init    = sifive_u_otp_class_init,
-};
-
-static void sifive_u_otp_register_types(void)
-{
-    type_register_static(&sifive_u_otp_info);
-}
-
-type_init(sifive_u_otp_register_types)
+REGISTER_QEMU_DEVICE(SiFiveUOTPState, TYPE_SIFIVE_U_OTP, TYPE_SYS_BUS_DEVICE)

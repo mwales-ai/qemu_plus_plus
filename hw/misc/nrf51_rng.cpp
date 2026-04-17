@@ -19,6 +19,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/guest-random.h"
+#include "qom/cpp/object.h"
 
 static void update_irq(NRF51RNGState *s)
 {
@@ -182,39 +183,34 @@ static void nrf51_rng_tep_stop(void *opaque, int n, int level)
 }
 
 
-static void nrf51_rng_init(Object *obj)
+void NRF51RNGState::init()
 {
-    NRF51RNGState *s = NRF51_RNG(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->mmio, obj, &rng_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &rng_ops, this,
             TYPE_NRF51_RNG, NRF51_RNG_SIZE);
-    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    timer_init_us(&s->timer, QEMU_CLOCK_VIRTUAL, nrf51_rng_timer_expire, s);
+    timer_init_us(&timer, QEMU_CLOCK_VIRTUAL, nrf51_rng_timer_expire, this);
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
     /* Tasks */
-    qdev_init_gpio_in_named(DEVICE(s), nrf51_rng_tep_start, "tep_start", 1);
-    qdev_init_gpio_in_named(DEVICE(s), nrf51_rng_tep_stop, "tep_stop", 1);
+    qdev_init_gpio_in_named(DEVICE(this), nrf51_rng_tep_start, "tep_start", 1);
+    qdev_init_gpio_in_named(DEVICE(this), nrf51_rng_tep_stop, "tep_stop", 1);
 
     /* Events */
-    qdev_init_gpio_out_named(DEVICE(s), &s->eep_valrdy, "eep_valrdy", 1);
+    qdev_init_gpio_out_named(DEVICE(this), &eep_valrdy, "eep_valrdy", 1);
 }
 
-static void nrf51_rng_reset(DeviceState *dev)
+void NRF51RNGState::reset()
 {
-    NRF51RNGState *s = NRF51_RNG(dev);
+    value = 0;
+    active = 0;
+    event_valrdy = 0;
+    shortcut_stop_on_valrdy = 0;
+    interrupt_enabled = 0;
+    filter_enabled = 0;
 
-    s->value = 0;
-    s->active = 0;
-    s->event_valrdy = 0;
-    s->shortcut_stop_on_valrdy = 0;
-    s->interrupt_enabled = 0;
-    s->filter_enabled = 0;
-
-    rng_update_timer(s);
+    rng_update_timer(this);
 }
 
 
@@ -241,26 +237,10 @@ static const VMStateDescription vmstate_rng = {
     .fields = vmstate_rng_fields,
 };
 
-static void nrf51_rng_class_init(ObjectClass *klass, const void *data)
+void NRF51RNGState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, nrf51_rng_properties);
     dc->vmsd = &vmstate_rng;
-    device_class_set_legacy_reset(dc, nrf51_rng_reset);
 }
 
-static const TypeInfo nrf51_rng_info = {
-    .name = TYPE_NRF51_RNG,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NRF51RNGState),
-    .instance_init = nrf51_rng_init,
-    .class_init = nrf51_rng_class_init
-};
-
-static void nrf51_rng_register_types(void)
-{
-    type_register_static(&nrf51_rng_info);
-}
-
-type_init(nrf51_rng_register_types)
+REGISTER_QEMU_DEVICE(NRF51RNGState, TYPE_NRF51_RNG, TYPE_SYS_BUS_DEVICE)

@@ -20,6 +20,7 @@
 #include "migration/vmstate.h"
 #include "qom/object.h"
 #include "hw/misc/lasi.h"
+#include "qom/cpp/object.h"
 
 
 static bool lasi_chip_mem_valid(void *opaque, hwaddr addr,
@@ -246,48 +247,27 @@ static void lasi_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static void lasi_reset(DeviceState *dev)
+void LasiState::reset()
 {
-    LasiState *s = LASI_CHIP(dev);
-
-    s->iar = 0xFFFB0000 + 3; /* CPU_HPA + 3 */
+    iar = 0xFFFB0000 + 3; /* CPU_HPA + 3 */
 
     /* Real time clock (RTC), it's only one 32-bit counter @9000 */
-    s->rtc_ref = 0;
+    rtc_ref = 0;
 }
 
-static void lasi_init(Object *obj)
+void LasiState::init()
 {
-    LasiState *s = LASI_CHIP(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    memory_region_init_io(&this_mem, OBJECT(this), &lasi_chip_ops,
+                          this, "lasi", 0x100000);
 
-    memory_region_init_io(&s->this_mem, OBJECT(s), &lasi_chip_ops,
-                          s, "lasi", 0x100000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &this_mem);
 
-    sysbus_init_mmio(sbd, &s->this_mem);
-
-    qdev_init_gpio_in(DEVICE(obj), lasi_set_irq, LASI_IRQS);
+    qdev_init_gpio_in(DEVICE(this), lasi_set_irq, LASI_IRQS);
 }
 
-static void lasi_class_init(ObjectClass *klass, const void *data)
+void LasiState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, lasi_reset);
     dc->vmsd = &vmstate_lasi;
 }
 
-static const TypeInfo lasi_pcihost_info = {
-    .name          = TYPE_LASI_CHIP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LasiState),
-    .instance_init = lasi_init,
-    .class_init    = lasi_class_init,
-};
-
-static void lasi_register_types(void)
-{
-    type_register_static(&lasi_pcihost_info);
-}
-
-type_init(lasi_register_types)
+REGISTER_QEMU_DEVICE(LasiState, TYPE_LASI_CHIP, TYPE_SYS_BUS_DEVICE)

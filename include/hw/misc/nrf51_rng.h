@@ -79,6 +79,11 @@ struct NRF51RNGState {
     uint32_t interrupt_enabled;
     uint32_t filter_enabled;
 
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 

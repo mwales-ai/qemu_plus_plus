@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "system/watchdog.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 REG32(AON_WDT_WDOGCFG, 0x0)
     FIELD(AON_WDT_WDOGCFG, SCALE, 0, 4)
@@ -261,32 +262,27 @@ static const MemoryRegionOps sifive_e_aon_ops = {
     }
 };
 
-static void sifive_e_aon_reset(DeviceState *dev)
+void SiFiveEAONState::reset()
 {
-    SiFiveEAONState *r = SIFIVE_E_AON(dev);
+    wdogcfg = FIELD_DP32(wdogcfg, AON_WDT_WDOGCFG, RSTEN, 0);
+    wdogcfg = FIELD_DP32(wdogcfg, AON_WDT_WDOGCFG, EN_ALWAYS, 0);
+    wdogcfg = FIELD_DP32(wdogcfg, AON_WDT_WDOGCFG, EN_CORE_AWAKE, 0);
+    wdogcmp0 = 0xbeef;
 
-    r->wdogcfg = FIELD_DP32(r->wdogcfg, AON_WDT_WDOGCFG, RSTEN, 0);
-    r->wdogcfg = FIELD_DP32(r->wdogcfg, AON_WDT_WDOGCFG, EN_ALWAYS, 0);
-    r->wdogcfg = FIELD_DP32(r->wdogcfg, AON_WDT_WDOGCFG, EN_CORE_AWAKE, 0);
-    r->wdogcmp0 = 0xbeef;
-
-    sifive_e_aon_wdt_update_state(r);
+    sifive_e_aon_wdt_update_state(this);
 }
 
-static void sifive_e_aon_init(Object *obj)
+void SiFiveEAONState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    SiFiveEAONState *r = SIFIVE_E_AON(obj);
-
-    memory_region_init_io(&r->mmio, OBJECT(r), &sifive_e_aon_ops, r,
+    memory_region_init_io(&mmio, OBJECT(this), &sifive_e_aon_ops, this,
                           TYPE_SIFIVE_E_AON, SIFIVE_E_AON_MAX);
-    sysbus_init_mmio(sbd, &r->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
     /* watchdog timer */
-    r->wdog_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                 sifive_e_aon_wdt_expired_cb, r);
-    r->wdogclk_freq = SIFIVE_E_LFCLK_DEFAULT_FREQ;
-    sysbus_init_irq(sbd, &r->wdog_irq);
+    wdog_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                              sifive_e_aon_wdt_expired_cb, this);
+    wdogclk_freq = SIFIVE_E_LFCLK_DEFAULT_FREQ;
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &wdog_irq);
 }
 
 static const Property sifive_e_aon_properties[] = {
@@ -294,25 +290,9 @@ static const Property sifive_e_aon_properties[] = {
                        SIFIVE_E_LFCLK_DEFAULT_FREQ),
 };
 
-static void sifive_e_aon_class_init(ObjectClass *oc, const void *data)
+void SiFiveEAONState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    device_class_set_legacy_reset(dc, sifive_e_aon_reset);
     device_class_set_props(dc, sifive_e_aon_properties);
 }
 
-static const TypeInfo sifive_e_aon_info = {
-    .name          = TYPE_SIFIVE_E_AON,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFiveEAONState),
-    .instance_init = sifive_e_aon_init,
-    .class_init    = sifive_e_aon_class_init,
-};
-
-static void sifive_e_aon_register_types(void)
-{
-    type_register_static(&sifive_e_aon_info);
-}
-
-type_init(sifive_e_aon_register_types)
+REGISTER_QEMU_DEVICE(SiFiveEAONState, TYPE_SIFIVE_E_AON, TYPE_SYS_BUS_DEVICE)

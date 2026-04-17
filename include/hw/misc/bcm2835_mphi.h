@@ -36,6 +36,13 @@ struct BCM2835MphiState {
     uint32_t ctrl;
     uint32_t intstat;
     uint32_t swirq;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
