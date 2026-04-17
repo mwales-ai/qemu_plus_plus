@@ -78,4 +78,10 @@ struct BCM2835SPIState {
 
     Fifo8 tx_fifo;
     Fifo8 rx_fifo;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };

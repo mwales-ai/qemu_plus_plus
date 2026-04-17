@@ -16,8 +16,8 @@ extern "C" {
 #include "hw/ssi/pl022.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
 }
+#include "qom/cpp/object.h"
 
 //#define DEBUG_PL022 1
 
@@ -201,15 +201,13 @@ static void pl022_write(void *opaque, hwaddr offset,
     }
 }
 
-static void pl022_reset(DeviceState *dev)
+void PL022State::reset()
 {
-    PL022State *s = PL022(dev);
-
-    s->rx_fifo_len = 0;
-    s->tx_fifo_len = 0;
-    s->im = 0;
-    s->is = PL022_INT_TX;
-    s->sr = PL022_SR_TFE | PL022_SR_TNF;
+    rx_fifo_len = 0;
+    tx_fifo_len = 0;
+    im = 0;
+    is = PL022_INT_TX;
+    sr = PL022_SR_TFE | PL022_SR_TNF;
 }
 
 static const MemoryRegionOps pl022_ops = {
@@ -270,36 +268,17 @@ static const VMStateDescription vmstate_pl022 = {
     .fields = vmstate_pl022_fields,
 };
 
-static void pl022_realize(DeviceState *dev, Error **errp)
+void PL022State::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    PL022State *s = PL022(dev);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &pl022_ops, s, "pl022", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-    s->ssi = ssi_create_bus(dev, "ssi");
+    memory_region_init_io(&iomem, OBJECT(this), &pl022_ops, this, "pl022", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    ssi = ssi_create_bus(DEVICE(this), "ssi");
 }
 
-static void pl022_class_init(ObjectClass *klass, const void *data)
+void PL022State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, pl022_reset);
     dc->vmsd = &vmstate_pl022;
-    dc->realize = pl022_realize;
 }
 
-static const TypeInfo pl022_info = {
-    .name          = TYPE_PL022,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL022State),
-    .class_init    = pl022_class_init,
-};
-
-static void pl022_register_types(void)
-{
-    type_register_static(&pl022_info);
-}
-
-type_init(pl022_register_types)
+REGISTER_QEMU_DEVICE(PL022State, TYPE_PL022, TYPE_SYS_BUS_DEVICE)

@@ -63,6 +63,11 @@ struct BCM2835OTPState {
     /* <public> */
     MemoryRegion iomem;
     uint32_t otp_rows[BCM2835_OTP_ROW_COUNT];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 

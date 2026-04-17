@@ -48,6 +48,12 @@ struct PL022State {
     uint16_t rx_fifo[8];
     qemu_irq irq;
     SSIBus *ssi;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

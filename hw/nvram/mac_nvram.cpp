@@ -32,9 +32,9 @@
 #include "system/block-backend.h"
 #include "migration/vmstate.h"
 #include "qemu/cutils.h"
-#include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 #include <zlib.h> /* for adler32 */
 
 #define DEF_SYSTEM_SIZE 0xc10
@@ -90,41 +90,38 @@ static const VMStateDescription vmstate_macio_nvram = {
 };
 
 
-static void macio_nvram_reset(DeviceState *dev)
+void MacIONVRAMState::reset()
 {
 }
 
-static void macio_nvram_realizefn(DeviceState *dev, Error **errp)
+void MacIONVRAMState::realize(Error **errp)
 {
-    SysBusDevice *d = SYS_BUS_DEVICE(dev);
-    MacIONVRAMState *s = MACIO_NVRAM(dev);
+    data = static_cast<uint8_t *>(g_malloc0(size));
 
-    s->data = static_cast<uint8_t *>(g_malloc0(s->size));
-
-    if (s->blk) {
-        int64_t len = blk_getlength(s->blk);
+    if (blk) {
+        int64_t len = blk_getlength(blk);
         if (len < 0) {
             error_setg_errno(errp, -len,
                              "could not get length of nvram backing image");
             return;
-        } else if (len != s->size) {
+        } else if (len != size) {
             error_setg_errno(errp, -len,
                              "invalid size nvram backing image");
             return;
         }
-        if (blk_set_perm(s->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
+        if (blk_set_perm(blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
                          BLK_PERM_ALL, errp) < 0) {
             return;
         }
-        if (blk_pread(s->blk, 0, s->size, s->data, static_cast<BdrvRequestFlags>(0)) < 0) {
+        if (blk_pread(blk, 0, size, data, static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "can't read-nvram contents");
             return;
         }
     }
 
-    memory_region_init_io(&s->mem, OBJECT(s), &macio_nvram_ops, s,
-                          "macio-nvram", s->size << s->it_shift);
-    sysbus_init_mmio(d, &s->mem);
+    memory_region_init_io(&mem, OBJECT(this), &macio_nvram_ops, this,
+                          "macio-nvram", size << it_shift);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mem);
 }
 
 static void macio_nvram_unrealizefn(DeviceState *dev)
@@ -140,28 +137,12 @@ static const Property macio_nvram_properties[] = {
     DEFINE_PROP_DRIVE("drive", MacIONVRAMState, blk),
 };
 
-static void macio_nvram_class_init(ObjectClass *oc, const void *data)
+void MacIONVRAMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = macio_nvram_realizefn;
     dc->unrealize = macio_nvram_unrealizefn;
-    device_class_set_legacy_reset(dc, macio_nvram_reset);
     dc->vmsd = &vmstate_macio_nvram;
     device_class_set_props(dc, macio_nvram_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-}
-
-static const TypeInfo macio_nvram_type_info = {
-    .name = TYPE_MACIO_NVRAM,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MacIONVRAMState),
-    .class_init = macio_nvram_class_init,
-};
-
-static void macio_nvram_register_types(void)
-{
-    type_register_static(&macio_nvram_type_info);
 }
 
 /* Set up a system OpenBIOS NVRAM partition */
@@ -213,4 +194,4 @@ void pmac_format_nvram_partition(MacIONVRAMState *nvr, int len)
     pmac_format_nvram_partition_of(nvr, 0, len / 2);
     pmac_format_nvram_partition_osx(nvr, len / 2, len / 2);
 }
-type_init(macio_nvram_register_types)
+REGISTER_QEMU_DEVICE(MacIONVRAMState, TYPE_MACIO_NVRAM, TYPE_SYS_BUS_DEVICE)

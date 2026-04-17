@@ -23,24 +23,21 @@
  */
 
 #include "qemu/osdep.h"
-
-extern "C" {
 #include "qemu/log.h"
 #include "qemu/fifo8.h"
 #include "hw/ssi/bcm2835_spi.h"
 #include "hw/irq.h"
 #include "migration/vmstate.h"
-}
+#include "qapi/error.h"
+#include "qom/cpp/object.h"
 
 static void bcm2835_spi_update_int(BCM2835SPIState *s)
 {
     int do_interrupt = 0;
 
-    /* Interrupt on DONE */
     if (s->cs & BCM2835_SPI_CS_INTD && s->cs & BCM2835_SPI_CS_DONE) {
         do_interrupt = 1;
     }
-    /* Interrupt on RXR */
     if (s->cs & BCM2835_SPI_CS_INTR && s->cs & BCM2835_SPI_CS_RXR) {
         do_interrupt = 1;
     }
@@ -49,21 +46,18 @@ static void bcm2835_spi_update_int(BCM2835SPIState *s)
 
 static void bcm2835_spi_update_rx_flags(BCM2835SPIState *s)
 {
-    /* Set RXD if RX FIFO is non empty */
     if (!fifo8_is_empty(&s->rx_fifo)) {
         s->cs |= BCM2835_SPI_CS_RXD;
     } else {
         s->cs &= ~BCM2835_SPI_CS_RXD;
     }
 
-    /* Set RXF if RX FIFO is full */
     if (fifo8_is_full(&s->rx_fifo)) {
         s->cs |= BCM2835_SPI_CS_RXF;
     } else {
         s->cs &= ~BCM2835_SPI_CS_RXF;
     }
 
-    /* Set RXR if RX FIFO is 3/4th used or above */
     if (fifo8_num_used(&s->rx_fifo) >= FIFO_SIZE_3_4) {
         s->cs |= BCM2835_SPI_CS_RXR;
     } else {
@@ -73,14 +67,12 @@ static void bcm2835_spi_update_rx_flags(BCM2835SPIState *s)
 
 static void bcm2835_spi_update_tx_flags(BCM2835SPIState *s)
 {
-    /* Set TXD if TX FIFO is not full */
     if (fifo8_is_full(&s->tx_fifo)) {
         s->cs &= ~BCM2835_SPI_CS_TXD;
     } else {
         s->cs |= BCM2835_SPI_CS_TXD;
     }
 
-    /* Set DONE if in TA mode and TX FIFO is empty */
     if (fifo8_is_empty(&s->tx_fifo) && s->cs & BCM2835_SPI_CS_TA) {
         s->cs |= BCM2835_SPI_CS_DONE;
     } else {
@@ -148,24 +140,20 @@ static void bcm2835_spi_write(void *opaque, hwaddr addr,
     case BCM2835_SPI_CS:
         s->cs = (value & ~RO_MASK) | (s->cs & RO_MASK);
         if (!(s->cs & BCM2835_SPI_CS_TA)) {
-            /* Clear DONE and RXR if TA is off */
             s->cs &= ~(BCM2835_SPI_CS_DONE);
             s->cs &= ~(BCM2835_SPI_CS_RXR);
         }
 
-        /* Clear RX FIFO */
         if (s->cs & BCM2835_SPI_CLEAR_RX) {
             fifo8_reset(&s->rx_fifo);
             bcm2835_spi_update_rx_flags(s);
         }
 
-        /* Clear TX FIFO*/
         if (s->cs & BCM2835_SPI_CLEAR_TX) {
             fifo8_reset(&s->tx_fifo);
             bcm2835_spi_update_tx_flags(s);
         }
 
-        /* Set Transfer Active */
         if (s->cs & BCM2835_SPI_CS_TA) {
             bcm2835_spi_update_tx_flags(s);
         }
@@ -183,12 +171,6 @@ static void bcm2835_spi_write(void *opaque, hwaddr addr,
         bcm2835_spi_update_int(s);
         break;
     case BCM2835_SPI_FIFO:
-        /*
-         * According to documentation, writes to FIFO without TA controls
-         * CS and DLEN registers. This is supposed to be used in DMA mode
-         * which is currently unimplemented. Moreover, Linux does not make
-         * use of this and directly modifies the CS and DLEN registers.
-         */
         if (s->cs & BCM2835_SPI_CS_TA) {
             if (s->cs & BCM2835_SPI_CS_TXD) {
                 fifo8_push(&s->tx_fifo, value & 0xff);
@@ -223,32 +205,29 @@ static const MemoryRegionOps bcm2835_spi_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void bcm2835_spi_realize(DeviceState *dev, Error **errp)
+void BCM2835SPIState::realize(Error **errp)
 {
-    BCM2835SPIState *s = BCM2835_SPI(dev);
-    s->bus = ssi_create_bus(dev, "spi");
+    bus = ssi_create_bus(DEVICE(this), "spi");
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &bcm2835_spi_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &bcm2835_spi_ops, this,
                           TYPE_BCM2835_SPI, 0x18);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    fifo8_create(&s->tx_fifo, FIFO_SIZE);
-    fifo8_create(&s->rx_fifo, FIFO_SIZE);
+    fifo8_create(&tx_fifo, FIFO_SIZE);
+    fifo8_create(&rx_fifo, FIFO_SIZE);
 }
-static void bcm2835_spi_reset(DeviceState *dev)
+
+void BCM2835SPIState::reset()
 {
-    BCM2835SPIState *s = BCM2835_SPI(dev);
+    fifo8_reset(&tx_fifo);
+    fifo8_reset(&rx_fifo);
 
-    fifo8_reset(&s->tx_fifo);
-    fifo8_reset(&s->rx_fifo);
-
-    /* Reset values according to BCM2835 Peripheral Documentation */
-    s->cs = BCM2835_SPI_CS_TXD | BCM2835_SPI_CS_REN;
-    s->clk = 0;
-    s->dlen = 0;
-    s->ltoh = 0x1;
-    s->dc = 0x30201020;
+    cs = BCM2835_SPI_CS_TXD | BCM2835_SPI_CS_REN;
+    clk = 0;
+    dlen = 0;
+    ltoh = 0x1;
+    dc = 0x30201020;
 }
 
 static const VMStateField vmstate_bcm2835_spi_fields[] = {
@@ -269,25 +248,9 @@ static const VMStateDescription vmstate_bcm2835_spi = {
     .fields = vmstate_bcm2835_spi_fields,
 };
 
-static void bcm2835_spi_class_init(ObjectClass *klass, const void *data)
+void BCM2835SPIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, bcm2835_spi_reset);
-    dc->realize = bcm2835_spi_realize;
     dc->vmsd = &vmstate_bcm2835_spi;
 }
 
-static const TypeInfo bcm2835_spi_info = {
-    .name = TYPE_BCM2835_SPI,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835SPIState),
-    .class_init = bcm2835_spi_class_init,
-};
-
-static void bcm2835_spi_register_types(void)
-{
-    type_register_static(&bcm2835_spi_info);
-}
-
-type_init(bcm2835_spi_register_types)
+REGISTER_QEMU_DEVICE(BCM2835SPIState, TYPE_BCM2835_SPI, TYPE_SYS_BUS_DEVICE)

@@ -23,13 +23,10 @@
  */
 
 #include "qemu/osdep.h"
-
-extern "C" {
 #include "qemu/log.h"
-#include "qemu/module.h"
 #include "hw/ssi/stm32f2xx_spi.h"
 #include "migration/vmstate.h"
-}
+#include "qom/cpp/object.h"
 
 #ifndef STM_SPI_ERR_DEBUG
 #define STM_SPI_ERR_DEBUG 0
@@ -43,19 +40,17 @@ extern "C" {
 
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
-static void stm32f2xx_spi_reset(DeviceState *dev)
+void STM32F2XXSPIState::reset()
 {
-    STM32F2XXSPIState *s = STM32F2XX_SPI(dev);
-
-    s->spi_cr1 = 0x00000000;
-    s->spi_cr2 = 0x00000000;
-    s->spi_sr = 0x0000000A;
-    s->spi_dr = 0x0000000C;
-    s->spi_crcpr = 0x00000007;
-    s->spi_rxcrcr = 0x00000000;
-    s->spi_txcrcr = 0x00000000;
-    s->spi_i2scfgr = 0x00000000;
-    s->spi_i2spr = 0x00000002;
+    spi_cr1 = 0x00000000;
+    spi_cr2 = 0x00000000;
+    spi_sr = 0x0000000A;
+    spi_dr = 0x0000000C;
+    spi_crcpr = 0x00000007;
+    spi_rxcrcr = 0x00000000;
+    spi_txcrcr = 0x00000000;
+    spi_i2scfgr = 0x00000000;
+    spi_i2spr = 0x00000002;
 }
 
 static void stm32f2xx_spi_transfer(STM32F2XXSPIState *s)
@@ -134,9 +129,6 @@ static void stm32f2xx_spi_write(void *opaque, hwaddr addr,
         s->spi_cr2 = value;
         return;
     case STM_SPI_SR:
-        /* Read only register, except for clearing the CRCERR bit, which
-         * is not supported
-         */
         return;
     case STM_SPI_DR:
         s->spi_dr = value;
@@ -193,39 +185,21 @@ static const VMStateDescription vmstate_stm32f2xx_spi = {
     .fields = vmstate_stm32f2xx_spi_fields,
 };
 
-static void stm32f2xx_spi_init(Object *obj)
+void STM32F2XXSPIState::init()
 {
-    STM32F2XXSPIState *s = STM32F2XX_SPI(obj);
-    DeviceState *dev = DEVICE(obj);
-
-    memory_region_init_io(&s->mmio, obj, &stm32f2xx_spi_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &stm32f2xx_spi_ops, this,
                           TYPE_STM32F2XX_SPI, 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    s->ssi = ssi_create_bus(dev, "ssi");
+    ssi = ssi_create_bus(DEVICE(this), "ssi");
 }
 
-static void stm32f2xx_spi_class_init(ObjectClass *klass, const void *data)
+void STM32F2XXSPIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, stm32f2xx_spi_reset);
     dc->vmsd = &vmstate_stm32f2xx_spi;
 }
 
-static const TypeInfo stm32f2xx_spi_info = {
-    .name          = TYPE_STM32F2XX_SPI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32F2XXSPIState),
-    .instance_init = stm32f2xx_spi_init,
-    .class_init    = stm32f2xx_spi_class_init,
-};
-
-static void stm32f2xx_spi_register_types(void)
-{
-    type_register_static(&stm32f2xx_spi_info);
-}
-
-type_init(stm32f2xx_spi_register_types)
+REGISTER_QEMU_DEVICE(STM32F2XXSPIState, TYPE_STM32F2XX_SPI,
+                      TYPE_SYS_BUS_DEVICE)

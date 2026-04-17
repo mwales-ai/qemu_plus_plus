@@ -18,6 +18,7 @@
 #include "hw/gpio/sifive_gpio.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 static void update_output_irq(SIFIVEGPIOState *s)
 {
@@ -299,29 +300,27 @@ static void sifive_gpio_set(void *opaque, int line, int value)
     update_state(s);
 }
 
-static void sifive_gpio_reset(DeviceState *dev)
+void SIFIVEGPIOState::reset()
 {
-    SIFIVEGPIOState *s = SIFIVE_GPIO(dev);
-
-    s->value = 0;
-    s->input_en = 0;
-    s->output_en = 0;
-    s->port = 0;
-    s->pue = 0;
-    s->ds = 0;
-    s->rise_ie = 0;
-    s->rise_ip = 0;
-    s->fall_ie = 0;
-    s->fall_ip = 0;
-    s->high_ie = 0;
-    s->high_ip = 0;
-    s->low_ie = 0;
-    s->low_ip = 0;
-    s->iof_en = 0;
-    s->iof_sel = 0;
-    s->out_xor = 0;
-    s->in = 0;
-    s->in_mask = 0;
+    value = 0;
+    input_en = 0;
+    output_en = 0;
+    port = 0;
+    pue = 0;
+    ds = 0;
+    rise_ie = 0;
+    rise_ip = 0;
+    fall_ie = 0;
+    fall_ip = 0;
+    high_ie = 0;
+    high_ip = 0;
+    low_ie = 0;
+    low_ip = 0;
+    iof_en = 0;
+    iof_sel = 0;
+    out_xor = 0;
+    in = 0;
+    in_mask = 0;
 }
 
 static const VMStateField vmstate_sifive_gpio_fields[] = {
@@ -357,44 +356,26 @@ static const Property sifive_gpio_properties[] = {
     DEFINE_PROP_UINT32("ngpio", SIFIVEGPIOState, ngpio, SIFIVE_GPIO_PINS),
 };
 
-static void sifive_gpio_realize(DeviceState *dev, Error **errp)
+void SIFIVEGPIOState::realize(Error **errp)
 {
-    SIFIVEGPIOState *s = SIFIVE_GPIO(dev);
-
-    memory_region_init_io(&s->mmio, OBJECT(dev), &gpio_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &gpio_ops, this,
             TYPE_SIFIVE_GPIO, SIFIVE_GPIO_SIZE);
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    for (uint32_t i = 0; i < s->ngpio; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
+    for (uint32_t i = 0; i < ngpio; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &irq[i]);
     }
 
-    qdev_init_gpio_in(DEVICE(s), sifive_gpio_set, s->ngpio);
-    qdev_init_gpio_out(DEVICE(s), s->output, s->ngpio);
+    qdev_init_gpio_in(DEVICE(this), sifive_gpio_set, ngpio);
+    qdev_init_gpio_out(DEVICE(this), output, ngpio);
 }
 
-static void sifive_gpio_class_init(ObjectClass *klass, const void *data)
+void SIFIVEGPIOState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, sifive_gpio_properties);
     dc->vmsd = &vmstate_sifive_gpio;
-    dc->realize = sifive_gpio_realize;
-    device_class_set_legacy_reset(dc, sifive_gpio_reset);
     dc->desc = "SiFive GPIO";
 }
 
-static const TypeInfo sifive_gpio_info = {
-    .name = TYPE_SIFIVE_GPIO,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SIFIVEGPIOState),
-    .class_init = sifive_gpio_class_init
-};
-
-static void sifive_gpio_register_types(void)
-{
-    type_register_static(&sifive_gpio_info);
-}
-
-type_init(sifive_gpio_register_types)
+REGISTER_QEMU_DEVICE(SIFIVEGPIOState, TYPE_SIFIVE_GPIO, TYPE_SYS_BUS_DEVICE)

@@ -78,6 +78,12 @@ struct SIFIVEGPIOState {
 
     /* config */
     uint32_t ngpio;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

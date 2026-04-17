@@ -18,6 +18,7 @@ extern "C" {
 #include "hw/nvram/bcm2835_otp.h"
 #include "migration/vmstate.h"
 }
+#include "qom/cpp/object.h"
 
 extern "C"
 uint32_t bcm2835_otp_get_row(BCM2835OTPState *s, unsigned int row)
@@ -150,14 +151,13 @@ static void __attribute__((constructor)) init_bcm2835_otp_ops(void)
     bcm2835_otp_ops.impl.max_access_size = 4;
 }
 
-static void bcm2835_otp_realize(DeviceState *dev, Error **errp)
+void BCM2835OTPState::realize(Error **errp)
 {
-    BCM2835OTPState *s = BCM2835_OTP(dev);
-    memory_region_init_io(&s->iomem, OBJECT(dev), &bcm2835_otp_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &bcm2835_otp_ops, this,
                           TYPE_BCM2835_OTP, 0x80);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 
-    memset(s->otp_rows, 0x00, sizeof(s->otp_rows));
+    memset(otp_rows, 0x00, sizeof(otp_rows));
 }
 
 static const VMStateField vmstate_bcm2835_otp_fields[] = {
@@ -172,24 +172,9 @@ static const VMStateDescription vmstate_bcm2835_otp = {
     .fields = vmstate_bcm2835_otp_fields,
 };
 
-static void bcm2835_otp_class_init(ObjectClass *klass, const void *data)
+void BCM2835OTPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = bcm2835_otp_realize;
     dc->vmsd = &vmstate_bcm2835_otp;
 }
 
-static const TypeInfo bcm2835_otp_info = {
-    .name = TYPE_BCM2835_OTP,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835OTPState),
-    .class_init = bcm2835_otp_class_init,
-};
-
-static void bcm2835_otp_register_types(void)
-{
-    type_register_static(&bcm2835_otp_info);
-}
-
-type_init(bcm2835_otp_register_types)
+REGISTER_QEMU_DEVICE(BCM2835OTPState, TYPE_BCM2835_OTP, TYPE_SYS_BUS_DEVICE)

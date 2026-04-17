@@ -49,6 +49,12 @@ struct MacIONVRAMState {
     MemoryRegion mem;
     uint8_t *data;
     BlockBackend *blk;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 void pmac_format_nvram_partition(MacIONVRAMState *nvr, int len);

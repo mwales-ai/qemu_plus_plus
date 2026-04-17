@@ -76,6 +76,11 @@ struct NRF51TimerState {
     uint32_t bitmode;
     uint32_t prescaler;
 
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 

@@ -13,13 +13,13 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
 #include "hw/arm/nrf51.h"
 #include "hw/irq.h"
 #include "hw/timer/nrf51_timer.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 #define TIMER_CLK_FREQ 16000000UL
 
@@ -313,37 +313,32 @@ static const MemoryRegionOps rng_ops = {
     .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void nrf51_timer_init(Object *obj)
+void NRF51TimerState::init()
 {
-    NRF51TimerState *s = NRF51_TIMER(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->iomem, obj, &rng_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &rng_ops, this,
                           TYPE_NRF51_TIMER, NRF51_PERIPHERAL_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    timer_init_ns(&s->timer, QEMU_CLOCK_VIRTUAL, timer_expire, s);
+    timer_init_ns(&timer, QEMU_CLOCK_VIRTUAL, timer_expire, this);
 }
 
-static void nrf51_timer_reset(DeviceState *dev)
+void NRF51TimerState::reset()
 {
-    NRF51TimerState *s = NRF51_TIMER(dev);
+    timer_del(&timer);
+    timer_start_ns = 0x00;
+    update_counter_ns = 0x00;
+    counter = 0x00;
+    running = false;
 
-    timer_del(&s->timer);
-    s->timer_start_ns = 0x00;
-    s->update_counter_ns = 0x00;
-    s->counter = 0x00;
-    s->running = false;
+    memset(events_compare, 0x00, sizeof(events_compare));
+    memset(cc, 0x00, sizeof(cc));
 
-    memset(s->events_compare, 0x00, sizeof(s->events_compare));
-    memset(s->cc, 0x00, sizeof(s->cc));
-
-    s->shorts = 0x00;
-    s->inten = 0x00;
-    s->mode = 0x00;
-    s->bitmode = 0x00;
-    s->prescaler = 0x00;
+    shorts = 0x00;
+    inten = 0x00;
+    mode = 0x00;
+    bitmode = 0x00;
+    prescaler = 0x00;
 }
 
 static int nrf51_timer_post_load(void *opaque, int version_id)
@@ -356,52 +351,38 @@ static int nrf51_timer_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static const VMStateField vmstate_nrf51_timer_fields[] = {
+    VMSTATE_TIMER(timer, NRF51TimerState),
+    VMSTATE_INT64(timer_start_ns, NRF51TimerState),
+    VMSTATE_INT64(update_counter_ns, NRF51TimerState),
+    VMSTATE_UINT32(counter, NRF51TimerState),
+    VMSTATE_BOOL(running, NRF51TimerState),
+    VMSTATE_UINT8_ARRAY(events_compare, NRF51TimerState,
+                        NRF51_TIMER_REG_COUNT),
+    VMSTATE_UINT32_ARRAY(cc, NRF51TimerState, NRF51_TIMER_REG_COUNT),
+    VMSTATE_UINT32(shorts, NRF51TimerState),
+    VMSTATE_UINT32(inten, NRF51TimerState),
+    VMSTATE_UINT32(mode, NRF51TimerState),
+    VMSTATE_UINT32(bitmode, NRF51TimerState),
+    VMSTATE_UINT32(prescaler, NRF51TimerState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_nrf51_timer = {
     .name = TYPE_NRF51_TIMER,
     .version_id = 1,
     .post_load = nrf51_timer_post_load,
-    .fields = (const VMStateField[]) {
-        VMSTATE_TIMER(timer, NRF51TimerState),
-        VMSTATE_INT64(timer_start_ns, NRF51TimerState),
-        VMSTATE_INT64(update_counter_ns, NRF51TimerState),
-        VMSTATE_UINT32(counter, NRF51TimerState),
-        VMSTATE_BOOL(running, NRF51TimerState),
-        VMSTATE_UINT8_ARRAY(events_compare, NRF51TimerState,
-                            NRF51_TIMER_REG_COUNT),
-        VMSTATE_UINT32_ARRAY(cc, NRF51TimerState, NRF51_TIMER_REG_COUNT),
-        VMSTATE_UINT32(shorts, NRF51TimerState),
-        VMSTATE_UINT32(inten, NRF51TimerState),
-        VMSTATE_UINT32(mode, NRF51TimerState),
-        VMSTATE_UINT32(bitmode, NRF51TimerState),
-        VMSTATE_UINT32(prescaler, NRF51TimerState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_nrf51_timer_fields,
 };
 
 static const Property nrf51_timer_properties[] = {
     DEFINE_PROP_UINT8("id", NRF51TimerState, id, 0),
 };
 
-static void nrf51_timer_class_init(ObjectClass *klass, const void *data)
+void NRF51TimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, nrf51_timer_reset);
     dc->vmsd = &vmstate_nrf51_timer;
     device_class_set_props(dc, nrf51_timer_properties);
 }
 
-static const TypeInfo nrf51_timer_info = {
-    .name = TYPE_NRF51_TIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NRF51TimerState),
-    .instance_init = nrf51_timer_init,
-    .class_init = nrf51_timer_class_init
-};
-
-static void nrf51_timer_register_types(void)
-{
-    type_register_static(&nrf51_timer_info);
-}
-
-type_init(nrf51_timer_register_types)
+REGISTER_QEMU_DEVICE(NRF51TimerState, TYPE_NRF51_TIMER, TYPE_SYS_BUS_DEVICE)
