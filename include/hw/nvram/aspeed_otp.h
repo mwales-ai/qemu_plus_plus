@@ -32,6 +32,11 @@ typedef struct AspeedOTPState {
     MemoryRegion mmio;
 
     uint8_t *storage;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 } AspeedOTPState;
 
 #ifdef __cplusplus

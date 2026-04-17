@@ -13,6 +13,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/nvram/aspeed_otp.h"
 #include "hw/nvram/trace.h"
+#include "qom/cpp/object.h"
 
 static uint64_t aspeed_otp_read(void *opaque, hwaddr offset, unsigned size)
 {
@@ -141,24 +142,22 @@ static const MemoryRegionOps aspeed_otp_ops = {
     .impl = { .unaligned = true },
 };
 
-static void aspeed_otp_realize(DeviceState *dev, Error **errp)
+void AspeedOTPState::realize(Error **errp)
 {
-    AspeedOTPState *s = ASPEED_OTP(dev);
-
-    if (s->size == 0) {
+    if (size == 0) {
         error_setg(errp, "aspeed.otp: 'size' property must be set");
         return;
     }
 
-    s->storage = static_cast<uint8_t *>(blk_blockalign(s->blk, s->size));
+    storage = static_cast<uint8_t *>(blk_blockalign(blk, size));
 
-    if (!aspeed_otp_init_storage(s, errp)) {
+    if (!aspeed_otp_init_storage(this, errp)) {
         return;
     }
 
-    memory_region_init_io(&s->mmio, OBJECT(dev), &aspeed_otp_ops,
-                          s, "aspeed.otp", s->size);
-    address_space_init(&s->as, &s->mmio, NULL);
+    memory_region_init_io(&mmio, OBJECT(this), &aspeed_otp_ops,
+                          this, "aspeed.otp", size);
+    address_space_init(&as, &mmio, NULL);
 }
 
 static const Property aspeed_otp_properties[] = {
@@ -166,23 +165,9 @@ static const Property aspeed_otp_properties[] = {
     DEFINE_PROP_DRIVE("drive", AspeedOTPState, blk),
 };
 
-static void aspeed_otp_class_init(ObjectClass *klass, const void *data)
+void AspeedOTPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->realize = aspeed_otp_realize;
     device_class_set_props(dc, aspeed_otp_properties);
 }
 
-static const TypeInfo aspeed_otp_info = {
-    .name          = TYPE_ASPEED_OTP,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(AspeedOTPState),
-    .class_init    = aspeed_otp_class_init,
-};
-
-static void aspeed_otp_register_types(void)
-{
-    type_register_static(&aspeed_otp_info);
-}
-
-type_init(aspeed_otp_register_types)
+REGISTER_QEMU_DEVICE(AspeedOTPState, TYPE_ASPEED_OTP, TYPE_DEVICE)

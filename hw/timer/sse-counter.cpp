@@ -38,6 +38,7 @@
 #include "hw/clock.h"
 #include "hw/qdev-clock.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 /* Registers in the control frame */
 REG32(CNTCR, 0x0)
@@ -378,16 +379,14 @@ static const MemoryRegionOps sse_counter_status_ops = {
     },
 };
 
-static void sse_counter_reset(DeviceState *dev)
+void SSECounter::reset()
 {
-    SSECounter *s = SSE_COUNTER(dev);
-
     trace_sse_counter_reset();
 
-    s->cntcr = 0;
-    s->cntscr0 = 0x01000000;
-    s->ns_then = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    s->ticks_then = 0;
+    cntcr = 0;
+    cntscr0 = 0x01000000;
+    ns_then = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    ticks_then = 0;
 }
 
 static void sse_clk_callback(void *opaque, ClockEvent event)
@@ -416,28 +415,23 @@ static void sse_clk_callback(void *opaque, ClockEvent event)
     }
 }
 
-static void sse_counter_init(Object *obj)
+void SSECounter::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    SSECounter *s = SSE_COUNTER(obj);
+    notifier_list_init(&notifier_list);
 
-    notifier_list_init(&s->notifier_list);
-
-    s->clk = qdev_init_clock_in(DEVICE(obj), "CLK", sse_clk_callback, s,
-                                ClockPreUpdate | ClockUpdate);
-    memory_region_init_io(&s->control_mr, obj, &sse_counter_control_ops,
-                          s, "sse-counter-control", 0x1000);
-    memory_region_init_io(&s->status_mr, obj, &sse_counter_status_ops,
-                          s, "sse-counter-status", 0x1000);
-    sysbus_init_mmio(sbd, &s->control_mr);
-    sysbus_init_mmio(sbd, &s->status_mr);
+    clk = qdev_init_clock_in(DEVICE(this), "CLK", sse_clk_callback, this,
+                             ClockPreUpdate | ClockUpdate);
+    memory_region_init_io(&control_mr, OBJECT(this), &sse_counter_control_ops,
+                          this, "sse-counter-control", 0x1000);
+    memory_region_init_io(&status_mr, OBJECT(this), &sse_counter_status_ops,
+                          this, "sse-counter-status", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &control_mr);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &status_mr);
 }
 
-static void sse_counter_realize(DeviceState *dev, Error **errp)
+void SSECounter::realize(Error **errp)
 {
-    SSECounter *s = SSE_COUNTER(dev);
-
-    if (!clock_has_source(s->clk)) {
+    if (!clock_has_source(clk)) {
         error_setg(errp, "SSE system counter: CLK must be connected");
         return;
     }
@@ -455,26 +449,9 @@ static const VMStateDescription sse_counter_vmstate = {
     .fields = sse_counter_vmstate_fields,
 };
 
-static void sse_counter_class_init(ObjectClass *klass, const void *data)
+void SSECounter::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = sse_counter_realize;
     dc->vmsd = &sse_counter_vmstate;
-    device_class_set_legacy_reset(dc, sse_counter_reset);
 }
 
-static const TypeInfo sse_counter_info = {
-    .name = TYPE_SSE_COUNTER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SSECounter),
-    .instance_init = sse_counter_init,
-    .class_init = sse_counter_class_init,
-};
-
-static void sse_counter_register_types(void)
-{
-    type_register_static(&sse_counter_info);
-}
-
-type_init(sse_counter_register_types);
+REGISTER_QEMU_DEVICE(SSECounter, TYPE_SSE_COUNTER, TYPE_SYS_BUS_DEVICE)

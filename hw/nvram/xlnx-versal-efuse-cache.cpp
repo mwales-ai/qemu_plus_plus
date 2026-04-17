@@ -27,6 +27,7 @@
 
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 #define MR_SIZE 0xC00
 
@@ -73,14 +74,11 @@ static const MemoryRegionOps efuse_cache_ops = {
     },
 };
 
-static void efuse_cache_init(Object *obj)
+void XlnxVersalEFuseCache::init()
 {
-    XlnxVersalEFuseCache *s = XLNX_VERSAL_EFUSE_CACHE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->iomem, obj, &efuse_cache_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &efuse_cache_ops, this,
                           TYPE_XLNX_VERSAL_EFUSE_CACHE, MR_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const Property efuse_cache_props[] = {
@@ -89,24 +87,9 @@ static const Property efuse_cache_props[] = {
                      TYPE_XLNX_EFUSE, XlnxEFuse *),
 };
 
-static void efuse_cache_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalEFuseCache::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, efuse_cache_props);
 }
 
-static const TypeInfo efuse_cache_info = {
-    .name          = TYPE_XLNX_VERSAL_EFUSE_CACHE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalEFuseCache),
-    .instance_init = efuse_cache_init,
-    .class_init    = efuse_cache_class_init,
-};
-
-static void efuse_cache_register_types(void)
-{
-    type_register_static(&efuse_cache_info);
-}
-
-type_init(efuse_cache_register_types)
+REGISTER_QEMU_DEVICE(XlnxVersalEFuseCache, TYPE_XLNX_VERSAL_EFUSE_CACHE, TYPE_SYS_BUS_DEVICE)

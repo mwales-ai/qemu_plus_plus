@@ -53,6 +53,13 @@ struct SSETimer {
     uint64_t cntp_aival;
     uint32_t cntp_aival_ctl;
     uint32_t cntp_aival_reload;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

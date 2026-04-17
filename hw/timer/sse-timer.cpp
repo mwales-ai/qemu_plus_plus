@@ -48,6 +48,7 @@
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 REG32(CNTPCT_LO, 0x0)
 REG32(CNTPCT_HI, 0x4)
@@ -372,19 +373,17 @@ static const MemoryRegionOps sse_timer_ops = {
     },
 };
 
-static void sse_timer_reset(DeviceState *dev)
+void SSETimer::reset()
 {
-    SSETimer *s = SSE_TIMER(dev);
-
     trace_sse_timer_reset();
 
-    timer_del(&s->timer);
-    s->cntfrq = 0;
-    s->cntp_ctl = 0;
-    s->cntp_cval = 0;
-    s->cntp_aival = 0;
-    s->cntp_aival_ctl = 0;
-    s->cntp_aival_reload = 0;
+    timer_del(&timer);
+    cntfrq = 0;
+    cntp_ctl = 0;
+    cntp_cval = 0;
+    cntp_aival = 0;
+    cntp_aival_ctl = 0;
+    cntp_aival_reload = 0;
 }
 
 static void sse_timer_counter_callback(Notifier *notifier, void *data)
@@ -401,30 +400,25 @@ static void sse_timer_counter_callback(Notifier *notifier, void *data)
     }
 }
 
-static void sse_timer_init(Object *obj)
+void SSETimer::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    SSETimer *s = SSE_TIMER(obj);
-
-    memory_region_init_io(&s->iomem, obj, &sse_timer_ops,
-                          s, "sse-timer", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, OBJECT(this), &sse_timer_ops,
+                          this, "sse-timer", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
-static void sse_timer_realize(DeviceState *dev, Error **errp)
+void SSETimer::realize(Error **errp)
 {
-    SSETimer *s = SSE_TIMER(dev);
-
-    if (!s->counter) {
+    if (!counter) {
         error_setg(errp, "counter property was not set");
         return;
     }
 
-    s->counter_notifier.notify = sse_timer_counter_callback;
-    sse_counter_register_consumer(s->counter, &s->counter_notifier);
+    counter_notifier.notify = sse_timer_counter_callback;
+    sse_counter_register_consumer(counter, &counter_notifier);
 
-    timer_init_ns(&s->timer, QEMU_CLOCK_VIRTUAL, sse_timer_cb, s);
+    timer_init_ns(&timer, QEMU_CLOCK_VIRTUAL, sse_timer_cb, this);
 }
 
 static const VMStateField sse_timer_vmstate_fields[] = {
@@ -449,27 +443,10 @@ static const Property sse_timer_properties[] = {
     DEFINE_PROP_LINK("counter", SSETimer, counter, TYPE_SSE_COUNTER, SSECounter *),
 };
 
-static void sse_timer_class_init(ObjectClass *klass, const void *data)
+void SSETimer::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = sse_timer_realize;
     dc->vmsd = &sse_timer_vmstate;
-    device_class_set_legacy_reset(dc, sse_timer_reset);
     device_class_set_props(dc, sse_timer_properties);
 }
 
-static const TypeInfo sse_timer_info = {
-    .name = TYPE_SSE_TIMER,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SSETimer),
-    .instance_init = sse_timer_init,
-    .class_init = sse_timer_class_init,
-};
-
-static void sse_timer_register_types(void)
-{
-    type_register_static(&sse_timer_info);
-}
-
-type_init(sse_timer_register_types);
+REGISTER_QEMU_DEVICE(SSETimer, TYPE_SSE_TIMER, TYPE_SYS_BUS_DEVICE)

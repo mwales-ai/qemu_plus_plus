@@ -54,6 +54,11 @@ struct XlnxVersalEFuseCache {
     MemoryRegion iomem;
 
     XlnxEFuse *efuse;
+
+#ifdef __cplusplus
+    void init();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 /**
