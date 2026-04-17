@@ -30,9 +30,9 @@
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
 #include "hw/sysbus.h"
-#include "qemu/module.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define DUART(x)
 
@@ -68,6 +68,11 @@ struct XilinxUARTLite {
     unsigned int rx_fifo_len;
 
     uint32_t regs[R_MAX];
+
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
 };
 
 static void uart_update_irq(XilinxUARTLite *s)
@@ -93,9 +98,9 @@ static void uart_update_status(XilinxUARTLite *s)
     s->regs[R_STATUS] = r;
 }
 
-static void xilinx_uartlite_reset(DeviceState *dev)
+void XilinxUARTLite::reset()
 {
-    uart_update_status(XILINX_UARTLITE(dev));
+    uart_update_status(this);
 }
 
 static uint64_t
@@ -218,51 +223,31 @@ static void uart_event(void *opaque, QEMUChrEvent event)
 
 }
 
-static void xilinx_uartlite_realize(DeviceState *dev, Error **errp)
+void XilinxUARTLite::realize(Error **errp)
 {
-    XilinxUARTLite *s = XILINX_UARTLITE(dev);
-
-    if (s->model_endianness == ENDIAN_MODE_UNSPECIFIED) {
+    if (model_endianness == ENDIAN_MODE_UNSPECIFIED) {
         error_setg(errp, TYPE_XILINX_UARTLITE " property 'endianness'"
                          " must be set to 'big' or 'little'");
         return;
     }
 
-    memory_region_init_io(&s->mmio, OBJECT(dev),
-                          &uart_ops[s->model_endianness == ENDIAN_MODE_BIG],
-                          s, "xlnx.xps-uartlite", R_MAX * 4);
-    qemu_chr_fe_set_handlers(&s->chr, uart_can_rx, uart_rx,
-                             uart_event, NULL, s, NULL, true);
+    memory_region_init_io(&mmio, OBJECT(this),
+                          &uart_ops[model_endianness == ENDIAN_MODE_BIG],
+                          this, "xlnx.xps-uartlite", R_MAX * 4);
+    qemu_chr_fe_set_handlers(&chr, uart_can_rx, uart_rx,
+                             uart_event, NULL, this, NULL, true);
 }
 
-static void xilinx_uartlite_init(Object *obj)
+void XilinxUARTLite::init()
 {
-    XilinxUARTLite *s = XILINX_UARTLITE(obj);
-
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
-static void xilinx_uartlite_class_init(ObjectClass *klass, const void *data)
+void XilinxUARTLite::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, xilinx_uartlite_reset);
-    dc->realize = xilinx_uartlite_realize;
     device_class_set_props(dc, xilinx_uartlite_properties);
 }
 
-static const TypeInfo xilinx_uartlite_info = {
-    .name          = TYPE_XILINX_UARTLITE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XilinxUARTLite),
-    .instance_init = xilinx_uartlite_init,
-    .class_init    = xilinx_uartlite_class_init,
-};
-
-static void xilinx_uart_register_types(void)
-{
-    type_register_static(&xilinx_uartlite_info);
-}
-
-type_init(xilinx_uart_register_types)
+REGISTER_QEMU_DEVICE(XilinxUARTLite, TYPE_XILINX_UARTLITE,
+                      TYPE_SYS_BUS_DEVICE)
