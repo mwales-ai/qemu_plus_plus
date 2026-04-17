@@ -53,6 +53,12 @@ struct RTMRState {
     qemu_irq cmib[TMR_CH];
     qemu_irq ovi[TMR_CH];
     QEMUTimer timer[TMR_CH];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

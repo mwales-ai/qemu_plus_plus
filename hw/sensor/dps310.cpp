@@ -13,23 +13,12 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 #define NUM_REGISTERS   0x33
 
-typedef struct DPS310State {
-    /*< private >*/
-    I2CSlave i2c;
-
-    /*< public >*/
-    uint8_t regs[NUM_REGISTERS];
-
-    uint8_t len;
-    uint8_t pointer;
-
-} DPS310State;
-
 #define TYPE_DPS310 "dps310"
-#define DPS310(obj) OBJECT_CHECK(DPS310State, (obj), TYPE_DPS310)
+OBJECT_DECLARE_SIMPLE_TYPE(DPS310State, DPS310)
 
 #define DPS310_PRS_B2           0x00
 #define DPS310_PRS_B1           0x01
@@ -56,133 +45,134 @@ typedef struct DPS310State {
 #define DPS310_COEF_LAST        0x21
 #define DPS310_COEF_SRC         0x28
 
-static void dps310_reset(DeviceState *dev)
-{
-    DPS310State *s = DPS310(dev);
+struct DPS310State {
+    I2CSlave i2c;
 
-    static const uint8_t regs_reset_state[sizeof(s->regs)] = {
-        0xfe, 0x2f, 0xee, 0x02, 0x69, 0xa6, 0x00, 0x80, 0xc7, 0x00, 0x00, 0x00,
-        0x00, 0x10, 0x00, 0x00, 0x0e, 0x1e, 0xdd, 0x13, 0xca, 0x5f, 0x21, 0x52,
-        0xf9, 0xc6, 0x04, 0xd1, 0xdb, 0x47, 0x00, 0x5b, 0xfb, 0x3a, 0x00, 0x00,
-        0x20, 0x49, 0x4e, 0xa5, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x60, 0x15, 0x02
-    };
+    uint8_t regs[NUM_REGISTERS];
+    uint8_t len;
+    uint8_t pointer;
 
-    memcpy(s->regs, regs_reset_state, sizeof(s->regs));
-    s->pointer = 0;
+    void reset()
+    {
+        static const uint8_t regs_reset_state[sizeof(regs)] = {
+            0xfe, 0x2f, 0xee, 0x02, 0x69, 0xa6, 0x00, 0x80,
+            0xc7, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
+            0x0e, 0x1e, 0xdd, 0x13, 0xca, 0x5f, 0x21, 0x52,
+            0xf9, 0xc6, 0x04, 0xd1, 0xdb, 0x47, 0x00, 0x5b,
+            0xfb, 0x3a, 0x00, 0x00, 0x20, 0x49, 0x4e, 0xa5,
+            0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x60, 0x15, 0x02
+        };
 
-    /* TODO: assert these after some timeout ? */
-    s->regs[DPS310_MEAS_CFG] = DPS310_COEF_RDY | DPS310_SENSOR_RDY
-        | DPS310_TMP_RDY | DPS310_PRS_RDY;
-}
+        memcpy(regs, regs_reset_state, sizeof(regs));
+        pointer = 0;
 
-static uint8_t dps310_read(DPS310State *s, uint8_t reg)
-{
-    if (reg >= sizeof(s->regs)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: register 0x%02x out of bounds\n",
-                      __func__, s->pointer);
-        return 0xFF;
+        regs[DPS310_MEAS_CFG] = DPS310_COEF_RDY | DPS310_SENSOR_RDY
+            | DPS310_TMP_RDY | DPS310_PRS_RDY;
     }
 
-    switch (reg) {
-    case DPS310_PRS_B2:
-    case DPS310_PRS_B1:
-    case DPS310_PRS_B0:
-    case DPS310_TMP_B2:
-    case DPS310_TMP_B1:
-    case DPS310_TMP_B0:
-    case DPS310_PRS_CFG:
-    case DPS310_TMP_CFG:
-    case DPS310_MEAS_CFG:
-    case DPS310_CFG_REG:
-    case DPS310_COEF_BASE...DPS310_COEF_LAST:
-    case DPS310_COEF_SRC:
-    case 0x32: /* Undocumented register to indicate workaround not required */
-        return s->regs[reg];
-    default:
-        qemu_log_mask(LOG_UNIMP, "%s: register 0x%02x unimplemented\n",
-                      __func__, reg);
-        return 0xFF;
-    }
-}
-
-static void dps310_write(DPS310State *s, uint8_t reg, uint8_t data)
-{
-    if (reg >= sizeof(s->regs)) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s: register %d out of bounds\n",
-                      __func__, s->pointer);
-        return;
-    }
-
-    switch (reg) {
-    case DPS310_RESET:
-        if (data == DPS310_RESET_MAGIC) {
-            device_cold_reset(DEVICE(s));
+    uint8_t readReg(uint8_t reg)
+    {
+        if (reg >= sizeof(regs)) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "%s: register 0x%02x out of bounds\n",
+                          __func__, pointer);
+            return 0xFF;
         }
-        break;
-    case DPS310_PRS_CFG:
-    case DPS310_TMP_CFG:
-    case DPS310_MEAS_CFG:
-    case DPS310_CFG_REG:
-        s->regs[reg] = data;
-        break;
-    default:
-        qemu_log_mask(LOG_UNIMP, "%s: register 0x%02x unimplemented\n",
-                      __func__, reg);
-        return;
-    }
-}
 
-static uint8_t dps310_rx(I2CSlave *i2c)
-{
-    DPS310State *s = DPS310(i2c);
-
-    if (s->len == 1) {
-        return dps310_read(s, s->pointer++);
-    } else {
-        return 0xFF;
-    }
-}
-
-static int dps310_tx(I2CSlave *i2c, uint8_t data)
-{
-    DPS310State *s = DPS310(i2c);
-
-    if (s->len == 0) {
-        /*
-         * first byte is the register pointer for a read or write
-         * operation
-         */
-        s->pointer = data;
-        s->len++;
-    } else if (s->len == 1) {
-        dps310_write(s, s->pointer++, data);
-    }
-
-    return 0;
-}
-
-static int dps310_event(I2CSlave *i2c, enum i2c_event event)
-{
-    DPS310State *s = DPS310(i2c);
-
-    switch (event) {
-    case I2C_START_SEND:
-        s->pointer = 0xFF;
-        s->len = 0;
-        break;
-    case I2C_START_RECV:
-        if (s->len != 1) {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s: invalid recv sequence\n",
-                          __func__);
+        switch (reg) {
+        case DPS310_PRS_B2:
+        case DPS310_PRS_B1:
+        case DPS310_PRS_B0:
+        case DPS310_TMP_B2:
+        case DPS310_TMP_B1:
+        case DPS310_TMP_B0:
+        case DPS310_PRS_CFG:
+        case DPS310_TMP_CFG:
+        case DPS310_MEAS_CFG:
+        case DPS310_CFG_REG:
+        case DPS310_COEF_BASE...DPS310_COEF_LAST:
+        case DPS310_COEF_SRC:
+        case 0x32:
+            return regs[reg];
+        default:
+            qemu_log_mask(LOG_UNIMP, "%s: register 0x%02x unimplemented\n",
+                          __func__, reg);
+            return 0xFF;
         }
-        break;
-    default:
-        break;
     }
 
-    return 0;
-}
+    void writeReg(uint8_t reg, uint8_t data)
+    {
+        if (reg >= sizeof(regs)) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: register %d out of bounds\n",
+                          __func__, pointer);
+            return;
+        }
+
+        switch (reg) {
+        case DPS310_RESET:
+            if (data == DPS310_RESET_MAGIC) {
+                device_cold_reset(DEVICE(this));
+            }
+            break;
+        case DPS310_PRS_CFG:
+        case DPS310_TMP_CFG:
+        case DPS310_MEAS_CFG:
+        case DPS310_CFG_REG:
+            regs[reg] = data;
+            break;
+        default:
+            qemu_log_mask(LOG_UNIMP, "%s: register 0x%02x unimplemented\n",
+                          __func__, reg);
+            return;
+        }
+    }
+
+    static uint8_t i2cRecv(I2CSlave *i2c)
+    {
+        DPS310State *s = DPS310(i2c);
+        if (s->len == 1) {
+            return s->readReg(s->pointer++);
+        } else {
+            return 0xFF;
+        }
+    }
+
+    static int i2cSend(I2CSlave *i2c, uint8_t data)
+    {
+        DPS310State *s = DPS310(i2c);
+        if (s->len == 0) {
+            s->pointer = data;
+            s->len++;
+        } else if (s->len == 1) {
+            s->writeReg(s->pointer++, data);
+        }
+        return 0;
+    }
+
+    static int i2cEvent(I2CSlave *i2c, enum i2c_event event)
+    {
+        DPS310State *s = DPS310(i2c);
+        switch (event) {
+        case I2C_START_SEND:
+            s->pointer = 0xFF;
+            s->len = 0;
+            break;
+        case I2C_START_RECV:
+            if (s->len != 1) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "%s: invalid recv sequence\n", __func__);
+            }
+            break;
+        default:
+            break;
+        }
+        return 0;
+    }
+
+    static void classInit(DeviceClass *dc);
+};
 
 static const VMStateDescription vmstate_dps310 = {
     .name = "DPS310",
@@ -197,28 +187,14 @@ static const VMStateDescription vmstate_dps310 = {
     }
 };
 
-static void dps310_class_init(ObjectClass *klass, const void *data)
+void DPS310State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(dc);
 
-    k->event = dps310_event;
-    k->recv = dps310_rx;
-    k->send = dps310_tx;
-    device_class_set_legacy_reset(dc, dps310_reset);
+    k->event = i2cEvent;
+    k->recv = i2cRecv;
+    k->send = i2cSend;
     dc->vmsd = &vmstate_dps310;
 }
 
-static const TypeInfo dps310_info = {
-    .name          = TYPE_DPS310,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(DPS310State),
-    .class_init    = dps310_class_init,
-};
-
-static void dps310_register_types(void)
-{
-    type_register_static(&dps310_info);
-}
-
-type_init(dps310_register_types)
+REGISTER_QEMU_DEVICE(DPS310State, TYPE_DPS310, TYPE_I2C_SLAVE)

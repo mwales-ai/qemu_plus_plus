@@ -28,6 +28,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/timer/renesas_tmr.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 REG8(TCR, 0)
   FIELD(TCR, CCLR,  3, 2)
@@ -192,7 +193,7 @@ static uint8_t read_tccr(uint8_t r)
 
 static uint64_t tmr_read(void *opaque, hwaddr addr, unsigned size)
 {
-    RTMRState *tmr = opaque;
+    RTMRState *tmr = static_cast<RTMRState *>(opaque);
     int ch = addr & 1;
     uint64_t ret;
 
@@ -276,7 +277,7 @@ static void tmr_write_count(RTMRState *tmr, int ch, unsigned size,
 
 static void tmr_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
 {
-    RTMRState *tmr = opaque;
+    RTMRState *tmr = static_cast<RTMRState *>(opaque);
     int ch = addr & 1;
 
     if (size == 2 && (ch != 0 || addr == A_TCR || addr == A_TCSR)) {
@@ -398,49 +399,46 @@ static void timer_events(RTMRState *tmr, int ch)
 
 static void timer_event0(void *opaque)
 {
-    RTMRState *tmr = opaque;
+    RTMRState *tmr = static_cast<RTMRState *>(opaque);
 
     timer_events(tmr, 0);
 }
 
 static void timer_event1(void *opaque)
 {
-    RTMRState *tmr = opaque;
+    RTMRState *tmr = static_cast<RTMRState *>(opaque);
 
     timer_events(tmr, 1);
 }
 
-static void rtmr_reset(DeviceState *dev)
+void RTMRState::reset()
 {
-    RTMRState *tmr = RTMR(dev);
-    tmr->tcr[0]   = tmr->tcr[1]   = 0x00;
-    tmr->tcsr[0]  = 0x00;
-    tmr->tcsr[1]  = 0x10;
-    tmr->tcnt[0]  = tmr->tcnt[1]  = 0x00;
-    tmr->tcora[0] = tmr->tcora[1] = 0xff;
-    tmr->tcorb[0] = tmr->tcorb[1] = 0xff;
-    tmr->tccr[0]  = tmr->tccr[1]  = 0x00;
-    tmr->next[0]  = tmr->next[1]  = none;
-    tmr->tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    tcr[0]   = tcr[1]   = 0x00;
+    tcsr[0]  = 0x00;
+    tcsr[1]  = 0x10;
+    tcnt[0]  = tcnt[1]  = 0x00;
+    tcora[0] = tcora[1] = 0xff;
+    tcorb[0] = tcorb[1] = 0xff;
+    tccr[0]  = tccr[1]  = 0x00;
+    next[0]  = next[1]  = none;
+    tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 }
 
-static void rtmr_init(Object *obj)
+void RTMRState::init()
 {
-    SysBusDevice *d = SYS_BUS_DEVICE(obj);
-    RTMRState *tmr = RTMR(obj);
-    int i;
+    SysBusDevice *d = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&tmr->memory, OBJECT(tmr), &tmr_ops,
-                          tmr, "renesas-tmr", 0x10);
-    sysbus_init_mmio(d, &tmr->memory);
+    memory_region_init_io(&memory, OBJECT(this), &tmr_ops,
+                          this, "renesas-tmr", 0x10);
+    sysbus_init_mmio(d, &memory);
 
-    for (i = 0; i < ARRAY_SIZE(tmr->ovi); i++) {
-        sysbus_init_irq(d, &tmr->cmia[i]);
-        sysbus_init_irq(d, &tmr->cmib[i]);
-        sysbus_init_irq(d, &tmr->ovi[i]);
+    for (int i = 0; i < ARRAY_SIZE(ovi); i++) {
+        sysbus_init_irq(d, &cmia[i]);
+        sysbus_init_irq(d, &cmib[i]);
+        sysbus_init_irq(d, &ovi[i]);
     }
-    timer_init_ns(&tmr->timer[0], QEMU_CLOCK_VIRTUAL, timer_event0, tmr);
-    timer_init_ns(&tmr->timer[1], QEMU_CLOCK_VIRTUAL, timer_event1, tmr);
+    timer_init_ns(&timer[0], QEMU_CLOCK_VIRTUAL, timer_event0, this);
+    timer_init_ns(&timer[1], QEMU_CLOCK_VIRTUAL, timer_event1, this);
 }
 
 static const VMStateDescription vmstate_rtmr = {
@@ -467,26 +465,10 @@ static const Property rtmr_properties[] = {
     DEFINE_PROP_UINT64("input-freq", RTMRState, input_freq, 0),
 };
 
-static void rtmr_class_init(ObjectClass *klass, const void *data)
+void RTMRState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_rtmr;
-    device_class_set_legacy_reset(dc, rtmr_reset);
     device_class_set_props(dc, rtmr_properties);
 }
 
-static const TypeInfo rtmr_info = {
-    .name = TYPE_RENESAS_TMR,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RTMRState),
-    .instance_init = rtmr_init,
-    .class_init = rtmr_class_init,
-};
-
-static void rtmr_register_types(void)
-{
-    type_register_static(&rtmr_info);
-}
-
-type_init(rtmr_register_types)
+REGISTER_QEMU_DEVICE(RTMRState, TYPE_RENESAS_TMR, TYPE_SYS_BUS_DEVICE)

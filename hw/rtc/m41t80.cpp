@@ -8,7 +8,6 @@
  */
 
 #include "qemu/osdep.h"
-#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
@@ -16,6 +15,7 @@
 #include "hw/i2c/i2c.h"
 #include "qom/object.h"
 #include "system/rtc.h"
+#include "qom/cpp/object.h"
 
 #define TYPE_M41T80 "m41t80"
 OBJECT_DECLARE_SIMPLE_TYPE(M41t80State, M41T80)
@@ -87,12 +87,6 @@ struct M41t80State {
         return 0;
     }
 
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        M41t80State *s = M41T80(dev);
-        s->realize(errp);
-    }
-
     static int i2cSend(I2CSlave *i2c, uint8_t data)
     {
         M41t80State *s = M41T80(i2c);
@@ -111,28 +105,14 @@ struct M41t80State {
         return s->event(event);
     }
 
-    static void classInit(ObjectClass *klass, const void *data)
+    static void classInit(DeviceClass *dc)
     {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-        I2CSlaveClass *sc = reinterpret_cast<I2CSlaveClass *>(klass);
+        I2CSlaveClass *sc = I2C_SLAVE_CLASS(dc);
 
-        dc->realize = deviceRealize;
         sc->send = i2cSend;
         sc->recv = i2cRecv;
         sc->event = i2cEvent;
     }
 };
 
-static const TypeInfo m41t80_info = {
-    .name          = TYPE_M41T80,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(M41t80State),
-    .class_init    = M41t80State::classInit,
-};
-
-static void m41t80_register_types(void)
-{
-    type_register_static(&m41t80_info);
-}
-
-type_init(m41t80_register_types)
+REGISTER_QEMU_DEVICE(M41t80State, TYPE_M41T80, TYPE_I2C_SLAVE)

@@ -29,6 +29,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/core/cpu.h"
+#include "qom/cpp/object.h"
 
 #define PTIMER_POLICY                       \
     (PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |  \
@@ -36,10 +37,6 @@
      PTIMER_POLICY_NO_IMMEDIATE_TRIGGER  |  \
      PTIMER_POLICY_NO_IMMEDIATE_RELOAD   |  \
      PTIMER_POLICY_NO_COUNTER_ROUND_DOWN)
-
-/* This device implements the per-cpu private timer and watchdog block
- * which is used in both the ARM11MPCore and Cortex-A9MP.
- */
 
 static inline int get_current_cpu(ARMMPTimerState *s)
 {
@@ -58,26 +55,20 @@ static inline void timerblock_update_irq(TimerBlock *tb)
     qemu_set_irq(tb->irq, tb->status && (tb->control & 4));
 }
 
-/* Return conversion factor from mpcore timer ticks to qemu timer ticks.  */
 static inline uint32_t timerblock_scale(uint32_t control)
 {
     return (((control >> 8) & 0xff) + 1) * 10;
 }
 
-/* Must be called within a ptimer transaction block */
 static inline void timerblock_set_count(struct ptimer_state *timer,
                                         uint32_t control, uint64_t *count)
 {
-    /* PTimer would trigger interrupt for periodic timer when counter set
-     * to 0, MPtimer under certain condition only.
-     */
     if ((control & 3) == 3 && (control & 0xff00) == 0 && *count == 0) {
         *count = ptimer_get_limit(timer);
     }
     ptimer_set_count(timer, *count);
 }
 
-/* Must be called within a ptimer transaction block */
 static inline void timerblock_run(struct ptimer_state *timer,
                                   uint32_t control, uint32_t load)
 {
@@ -88,10 +79,7 @@ static inline void timerblock_run(struct ptimer_state *timer,
 
 static void timerblock_tick(void *opaque)
 {
-    TimerBlock *tb = (TimerBlock *)opaque;
-    /* Periodic timer with load = 0 and prescaler != 0 would re-trigger
-     * IRQ after one period, otherwise it either stops or wraps around.
-     */
+    TimerBlock *tb = static_cast<TimerBlock *>(opaque);
     if ((tb->control & 2) && (tb->control & 0xff00) == 0 &&
             ptimer_get_limit(tb->timer) == 0) {
         ptimer_stop(tb->timer);
@@ -103,7 +91,7 @@ static void timerblock_tick(void *opaque)
 static uint64_t timerblock_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
-    TimerBlock *tb = (TimerBlock *)opaque;
+    TimerBlock *tb = static_cast<TimerBlock *>(opaque);
     switch (addr) {
     case 0: /* Load */
         return ptimer_get_limit(tb->timer);
@@ -121,14 +109,11 @@ static uint64_t timerblock_read(void *opaque, hwaddr addr,
 static void timerblock_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
-    TimerBlock *tb = (TimerBlock *)opaque;
+    TimerBlock *tb = static_cast<TimerBlock *>(opaque);
     uint32_t control = tb->control;
     switch (addr) {
     case 0: /* Load */
         ptimer_transaction_begin(tb->timer);
-        /* Setting load to 0 stops the timer without doing the tick if
-         * prescaler = 0.
-         */
         if ((control & 1) && (control & 0xff00) == 0 && value == 0) {
             ptimer_stop(tb->timer);
         }
@@ -138,9 +123,6 @@ static void timerblock_write(void *opaque, hwaddr addr,
         break;
     case 4: /* Counter.  */
         ptimer_transaction_begin(tb->timer);
-        /* Setting counter to 0 stops the one-shot timer, or periodic with
-         * load = 0, without doing the tick if prescaler = 0.
-         */
         if ((control & 1) && (control & 0xff00) == 0 && value == 0 &&
                 (!(control & 2) || ptimer_get_limit(tb->timer) == 0)) {
             ptimer_stop(tb->timer);
@@ -159,7 +141,6 @@ static void timerblock_write(void *opaque, hwaddr addr,
         }
         if (value & 1) {
             uint64_t count = ptimer_get_count(tb->timer);
-            /* Re-load periodic timer counter if needed.  */
             if ((value & 2) && count == 0) {
                 timerblock_set_count(tb->timer, value, &count);
             }
@@ -175,13 +156,10 @@ static void timerblock_write(void *opaque, hwaddr addr,
     }
 }
 
-/* Wrapper functions to implement the "read timer/watchdog for
- * the current CPU" memory regions.
- */
 static uint64_t arm_thistimer_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    ARMMPTimerState *s = (ARMMPTimerState *)opaque;
+    ARMMPTimerState *s = static_cast<ARMMPTimerState *>(opaque);
     int id = get_current_cpu(s);
     return timerblock_read(&s->timerblock[id], addr, size);
 }
@@ -189,7 +167,7 @@ static uint64_t arm_thistimer_read(void *opaque, hwaddr addr,
 static void arm_thistimer_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    ARMMPTimerState *s = (ARMMPTimerState *)opaque;
+    ARMMPTimerState *s = static_cast<ARMMPTimerState *>(opaque);
     int id = get_current_cpu(s);
     timerblock_write(&s->timerblock[id], addr, value, size);
 }
@@ -227,51 +205,35 @@ static void timerblock_reset(TimerBlock *tb)
     }
 }
 
-static void arm_mptimer_reset(DeviceState *dev)
+void ARMMPTimerState::reset()
 {
-    ARMMPTimerState *s = ARM_MPTIMER(dev);
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(s->timerblock); i++) {
-        timerblock_reset(&s->timerblock[i]);
+    for (int i = 0; i < ARRAY_SIZE(timerblock); i++) {
+        timerblock_reset(&timerblock[i]);
     }
 }
 
-static void arm_mptimer_init(Object *obj)
+void ARMMPTimerState::init()
 {
-    ARMMPTimerState *s = ARM_MPTIMER(obj);
-
-    memory_region_init_io(&s->iomem, obj, &arm_thistimer_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &arm_thistimer_ops, this,
                           "arm_mptimer_timer", 0x20);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void arm_mptimer_realize(DeviceState *dev, Error **errp)
+void ARMMPTimerState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    ARMMPTimerState *s = ARM_MPTIMER(dev);
-    int i;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    if (s->num_cpu < 1 || s->num_cpu > ARM_MPTIMER_MAX_CPUS) {
+    if (num_cpu < 1 || num_cpu > ARM_MPTIMER_MAX_CPUS) {
         error_setg(errp, "num-cpu must be between 1 and %d",
                    ARM_MPTIMER_MAX_CPUS);
         return;
     }
-    /* We implement one timer block per CPU, and expose multiple MMIO regions:
-     *  * region 0 is "timer for this core"
-     *  * region 1 is "timer for core 0"
-     *  * region 2 is "timer for core 1"
-     * and so on.
-     * The outgoing interrupt lines are
-     *  * timer for core 0
-     *  * timer for core 1
-     * and so on.
-     */
-    for (i = 0; i < s->num_cpu; i++) {
-        TimerBlock *tb = &s->timerblock[i];
+
+    for (int i = 0; i < num_cpu; i++) {
+        TimerBlock *tb = &timerblock[i];
         tb->timer = ptimer_init(timerblock_tick, tb, PTIMER_POLICY);
         sysbus_init_irq(sbd, &tb->irq);
-        memory_region_init_io(&tb->iomem, OBJECT(s), &timerblock_ops, tb,
+        memory_region_init_io(&tb->iomem, OBJECT(this), &timerblock_ops, tb,
                               "arm_mptimer_timerblock", 0x20);
         sysbus_init_mmio(sbd, &tb->iomem);
     }
@@ -308,27 +270,10 @@ static const Property arm_mptimer_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", ARMMPTimerState, num_cpu, 0),
 };
 
-static void arm_mptimer_class_init(ObjectClass *klass, const void *data)
+void ARMMPTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = arm_mptimer_realize;
     dc->vmsd = &vmstate_arm_mptimer;
-    device_class_set_legacy_reset(dc, arm_mptimer_reset);
     device_class_set_props(dc, arm_mptimer_properties);
 }
 
-static const TypeInfo arm_mptimer_info = {
-    .name          = TYPE_ARM_MPTIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARMMPTimerState),
-    .instance_init = arm_mptimer_init,
-    .class_init    = arm_mptimer_class_init,
-};
-
-static void arm_mptimer_register_types(void)
-{
-    type_register_static(&arm_mptimer_info);
-}
-
-type_init(arm_mptimer_register_types)
+REGISTER_QEMU_DEVICE(ARMMPTimerState, TYPE_ARM_MPTIMER, TYPE_SYS_BUS_DEVICE)
