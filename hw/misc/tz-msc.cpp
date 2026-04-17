@@ -20,6 +20,7 @@
 #include "hw/irq.h"
 #include "hw/misc/tz-msc.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 static void tz_msc_update_irq(TZMSC *s)
 {
@@ -212,57 +213,43 @@ static const MemoryRegionOps tz_msc_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void tz_msc_reset(DeviceState *dev)
+void TZMSC::reset()
 {
-    TZMSC *s = TZ_MSC(dev);
-
     trace_tz_msc_reset();
-    s->cfg_sec_resp = false;
-    s->cfg_nonsec = false;
-    s->irq_clear = 0;
-    s->irq_status = 0;
+    cfg_sec_resp = false;
+    cfg_nonsec = false;
+    irq_clear = 0;
+    irq_status = 0;
 }
 
-static void tz_msc_init(Object *obj)
+void TZMSC::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    TZMSC *s = TZ_MSC(obj);
+    DeviceState *dev = DEVICE(this);
 
     qdev_init_gpio_in_named(dev, tz_msc_cfg_nonsec, "cfg_nonsec", 1);
     qdev_init_gpio_in_named(dev, tz_msc_cfg_sec_resp, "cfg_sec_resp", 1);
     qdev_init_gpio_in_named(dev, tz_msc_irq_clear, "irq_clear", 1);
-    qdev_init_gpio_out_named(dev, &s->irq, "irq", 1);
+    qdev_init_gpio_out_named(dev, &irq, "irq", 1);
 }
 
-static void tz_msc_realize(DeviceState *dev, Error **errp)
+void TZMSC::realize(Error **errp)
 {
-    Object *obj = OBJECT(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    TZMSC *s = TZ_MSC(dev);
     const char *name = "tz-msc-downstream";
     uint64_t size;
 
-    /*
-     * We can't create the upstream end of the port until realize,
-     * as we don't know the size of the MR used as the downstream until then.
-     * We insist on having a downstream, to avoid complicating the
-     * code with handling the "don't know how big this is" case. It's easy
-     * enough for the user to create an unimplemented_device as downstream
-     * if they have nothing else to plug into this.
-     */
-    if (!s->downstream) {
+    if (!downstream) {
         error_setg(errp, "MSC 'downstream' link not set");
         return;
     }
-    if (!s->idau) {
+    if (!idau) {
         error_setg(errp, "MSC 'idau' link not set");
         return;
     }
 
-    size = memory_region_size(s->downstream);
-    address_space_init(&s->downstream_as, s->downstream, name);
-    memory_region_init_io(&s->upstream, obj, &tz_msc_ops, s, name, size);
-    sysbus_init_mmio(sbd, &s->upstream);
+    size = memory_region_size(downstream);
+    address_space_init(&downstream_as, downstream, name);
+    memory_region_init_io(&upstream, OBJECT(this), &tz_msc_ops, this, name, size);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &upstream);
 }
 
 static const VMStateField tz_msc_vmstate_fields[] = {
@@ -287,27 +274,10 @@ static const Property tz_msc_properties[] = {
                      TYPE_IDAU_INTERFACE, IDAUInterface *),
 };
 
-static void tz_msc_class_init(ObjectClass *klass, const void *data)
+void TZMSC::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = tz_msc_realize;
     dc->vmsd = &tz_msc_vmstate;
-    device_class_set_legacy_reset(dc, tz_msc_reset);
     device_class_set_props(dc, tz_msc_properties);
 }
 
-static const TypeInfo tz_msc_info = {
-    .name = TYPE_TZ_MSC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(TZMSC),
-    .instance_init = tz_msc_init,
-    .class_init = tz_msc_class_init,
-};
-
-static void tz_msc_register_types(void)
-{
-    type_register_static(&tz_msc_info);
-}
-
-type_init(tz_msc_register_types);
+REGISTER_QEMU_DEVICE(TZMSC, TYPE_TZ_MSC, TYPE_SYS_BUS_DEVICE)

@@ -70,6 +70,13 @@ struct MIPSITUState {
 
     /* ITU Control Register */
     uint64_t icr0;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 /* Get ITC Configuration Tag memory region. */

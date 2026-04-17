@@ -30,6 +30,7 @@ extern "C" {
 #include "hw/misc/mips_itu.h"
 #include "hw/qdev-properties.h"
 #include "target/mips/cpu.h"
+#include "qom/cpp/object.h"
 
 #define ITC_TAG_ADDRSPACE_SZ (ITC_ADDRESSMAP_NUM * 8)
 /* Initialize as 4kB area to fit all 32 cells with default 128B grain.
@@ -496,48 +497,41 @@ static void itc_reset_cells(MIPSITUState *s)
     }
 }
 
-static void mips_itu_init(Object *obj)
+void MIPSITUState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MIPSITUState *s = MIPS_ITU(obj);
-
-    memory_region_init_io(&s->storage_io, OBJECT(s), &itc_storage_ops, s,
+    memory_region_init_io(&storage_io, OBJECT(this), &itc_storage_ops, this,
                           "mips-itc-storage", ITC_STORAGE_ADDRSPACE_SZ);
-    sysbus_init_mmio(sbd, &s->storage_io);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &storage_io);
 
-    memory_region_init_io(&s->tag_io, OBJECT(s), &itc_tag_ops, s,
+    memory_region_init_io(&tag_io, OBJECT(this), &itc_tag_ops, this,
                           "mips-itc-tag", ITC_TAG_ADDRSPACE_SZ);
 }
 
-static void mips_itu_realize(DeviceState *dev, Error **errp)
+void MIPSITUState::realize(Error **errp)
 {
-    MIPSITUState *s = MIPS_ITU(dev);
-
-    if (s->num_fifo > ITC_FIFO_NUM_MAX) {
+    if (num_fifo > ITC_FIFO_NUM_MAX) {
         error_setg(errp, "Exceed maximum number of FIFO cells: %d",
-                   s->num_fifo);
+                   num_fifo);
         return;
     }
-    if (s->num_semaphores > ITC_SEMAPH_NUM_MAX) {
+    if (num_semaphores > ITC_SEMAPH_NUM_MAX) {
         error_setg(errp, "Exceed maximum number of Semaphore cells: %d",
-                   s->num_semaphores);
+                   num_semaphores);
         return;
     }
 
-    s->cell = g_new(ITCStorageCell, get_num_cells(s));
+    cell = g_new(ITCStorageCell, get_num_cells(this));
 }
 
-static void mips_itu_reset(DeviceState *dev)
+void MIPSITUState::reset()
 {
-    MIPSITUState *s = MIPS_ITU(dev);
-
-    s->ITCAddressMap[0] = 0;
-    s->ITCAddressMap[1] =
+    ITCAddressMap[0] = 0;
+    ITCAddressMap[1] =
             ((ITC_STORAGE_ADDRSPACE_SZ - 1) & ITC_AM1_ADDR_MASK_MASK) |
-            (get_num_cells(s) << ITC_AM1_NUMENTRIES_OFS);
-    itc_reconfigure(s);
+            (get_num_cells(this) << ITC_AM1_NUMENTRIES_OFS);
+    itc_reconfigure(this);
 
-    itc_reset_cells(s);
+    itc_reset_cells(this);
 }
 
 static const Property mips_itu_properties[] = {
@@ -547,26 +541,9 @@ static const Property mips_itu_properties[] = {
                       ITC_SEMAPH_NUM_MAX),
 };
 
-static void mips_itu_class_init(ObjectClass *klass, const void *data)
+void MIPSITUState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, mips_itu_properties);
-    dc->realize = mips_itu_realize;
-    device_class_set_legacy_reset(dc, mips_itu_reset);
 }
 
-static const TypeInfo mips_itu_info = {
-    .name          = TYPE_MIPS_ITU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MIPSITUState),
-    .instance_init = mips_itu_init,
-    .class_init    = mips_itu_class_init,
-};
-
-static void mips_itu_register_types(void)
-{
-    type_register_static(&mips_itu_info);
-}
-
-type_init(mips_itu_register_types)
+REGISTER_QEMU_DEVICE(MIPSITUState, TYPE_MIPS_ITU, TYPE_SYS_BUS_DEVICE)

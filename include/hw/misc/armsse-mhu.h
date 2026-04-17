@@ -40,6 +40,12 @@ struct ARMSSEMHU {
 
     uint32_t cpu0intr;
     uint32_t cpu1intr;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

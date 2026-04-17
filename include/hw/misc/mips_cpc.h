@@ -45,6 +45,13 @@ struct MIPSCPCState {
 
     MemoryRegion mr;
     uint64_t vp_running; /* Indicates which VPs are in the run state */
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* MIPS_CPC_H */

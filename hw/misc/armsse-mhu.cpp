@@ -25,6 +25,7 @@
 #include "hw/registerfields.h"
 #include "hw/irq.h"
 #include "hw/misc/armsse-mhu.h"
+#include "qom/cpp/object.h"
 
 REG32(CPU0INTR_STAT, 0x0)
 REG32(CPU0INTR_SET, 0x4)
@@ -144,12 +145,10 @@ static const MemoryRegionOps armsse_mhu_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void armsse_mhu_reset(DeviceState *dev)
+void ARMSSEMHU::reset()
 {
-    ARMSSEMHU *s = ARMSSE_MHU(dev);
-
-    s->cpu0intr = 0;
-    s->cpu1intr = 0;
+    cpu0intr = 0;
+    cpu1intr = 0;
 }
 
 static const VMStateDescription armsse_mhu_vmstate = {
@@ -163,37 +162,20 @@ static const VMStateDescription armsse_mhu_vmstate = {
     },
 };
 
-static void armsse_mhu_init(Object *obj)
+void ARMSSEMHU::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ARMSSEMHU *s = ARMSSE_MHU(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, obj, &armsse_mhu_ops,
-                          s, "armsse-mhu", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->cpu0irq);
-    sysbus_init_irq(sbd, &s->cpu1irq);
+    memory_region_init_io(&iomem, OBJECT(this), &armsse_mhu_ops,
+                          this, "armsse-mhu", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &cpu0irq);
+    sysbus_init_irq(sbd, &cpu1irq);
 }
 
-static void armsse_mhu_class_init(ObjectClass *klass, const void *data)
+void ARMSSEMHU::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, armsse_mhu_reset);
     dc->vmsd = &armsse_mhu_vmstate;
 }
 
-static const TypeInfo armsse_mhu_info = {
-    .name = TYPE_ARMSSE_MHU,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARMSSEMHU),
-    .instance_init = armsse_mhu_init,
-    .class_init = armsse_mhu_class_init,
-};
-
-static void armsse_mhu_register_types(void)
-{
-    type_register_static(&armsse_mhu_info);
-}
-
-type_init(armsse_mhu_register_types);
+REGISTER_QEMU_DEVICE(ARMSSEMHU, TYPE_ARMSSE_MHU, TYPE_SYS_BUS_DEVICE)

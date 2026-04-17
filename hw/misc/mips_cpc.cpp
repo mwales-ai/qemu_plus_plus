@@ -30,6 +30,7 @@ extern "C" {
 }
 
 #include "cpu.h"
+#include "qom/cpp/object.h"
 
 static inline uint64_t cpc_vp_run_mask(MIPSCPCState *cpc)
 {
@@ -123,37 +124,27 @@ static void __attribute__((constructor)) init_cpc_ops(void)
     cpc_ops.impl.max_access_size = 8;
 }
 
-static void mips_cpc_init(Object *obj)
+void MIPSCPCState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MIPSCPCState *s = MIPS_CPC(obj);
-
-    memory_region_init_io(&s->mr, OBJECT(s), &cpc_ops, s, "mips-cpc",
+    memory_region_init_io(&mr, OBJECT(this), &cpc_ops, this, "mips-cpc",
                           CPC_ADDRSPACE_SZ);
-    sysbus_init_mmio(sbd, &s->mr);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mr);
 }
 
-static void mips_cpc_realize(DeviceState *dev, Error **errp)
+void MIPSCPCState::realize(Error **errp)
 {
-    MIPSCPCState *s = MIPS_CPC(dev);
-
-    if (s->vp_start_running > cpc_vp_run_mask(s)) {
+    if (vp_start_running > cpc_vp_run_mask(this)) {
         error_setg(errp,
                    "incorrect vp_start_running 0x%" PRIx64 " for num_vp = %d",
-                   s->vp_running, s->num_vp);
+                   vp_running, num_vp);
         return;
     }
 }
 
-static void mips_cpc_reset(DeviceState *dev)
+void MIPSCPCState::reset()
 {
-    MIPSCPCState *s = MIPS_CPC(dev);
-
-    /* Reflect the fact that all VPs are halted on reset */
-    s->vp_running = 0;
-
-    /* Put selected VPs into run state */
-    cpc_run_vp(s, s->vp_start_running);
+    vp_running = 0;
+    cpc_run_vp(this, vp_start_running);
 }
 
 static const VMStateField vmstate_mips_cpc_fields[] = {
@@ -173,27 +164,10 @@ static const Property mips_cpc_properties[] = {
     DEFINE_PROP_UINT64("vp-start-running", MIPSCPCState, vp_start_running, 0x1),
 };
 
-static void mips_cpc_class_init(ObjectClass *klass, const void *data)
+void MIPSCPCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = mips_cpc_realize;
-    device_class_set_legacy_reset(dc, mips_cpc_reset);
     dc->vmsd = &vmstate_mips_cpc;
     device_class_set_props(dc, mips_cpc_properties);
 }
 
-static const TypeInfo mips_cpc_info = {
-    .name          = TYPE_MIPS_CPC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MIPSCPCState),
-    .instance_init = mips_cpc_init,
-    .class_init    = mips_cpc_class_init,
-};
-
-static void mips_cpc_register_types(void)
-{
-    type_register_static(&mips_cpc_info);
-}
-
-type_init(mips_cpc_register_types)
+REGISTER_QEMU_DEVICE(MIPSCPCState, TYPE_MIPS_CPC, TYPE_SYS_BUS_DEVICE)
