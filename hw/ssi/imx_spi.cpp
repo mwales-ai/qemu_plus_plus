@@ -13,7 +13,7 @@
 #include "hw/ssi/imx_spi.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #ifndef DEBUG_IMX_SPI
 #define DEBUG_IMX_SPI 0
@@ -271,12 +271,10 @@ static void imx_spi_soft_reset(IMXSPIState *s)
     }
 }
 
-static void imx_spi_reset(DeviceState *dev)
+void IMXSPIState::reset()
 {
-    IMXSPIState *s = IMX_SPI(dev);
-
-    imx_spi_common_reset(s);
-    s->regs[ECSPI_CONREG] = 0;
+    imx_spi_common_reset(this);
+    regs[ECSPI_CONREG] = 0;
 }
 
 static uint64_t imx_spi_read(void *opaque, hwaddr offset, unsigned size)
@@ -447,46 +445,27 @@ static const struct MemoryRegionOps imx_spi_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, .unaligned = false },
 };
 
-static void imx_spi_realize(DeviceState *dev, Error **errp)
+void IMXSPIState::realize(Error **errp)
 {
-    IMXSPIState *s = IMX_SPI(dev);
-    int i;
+    bus = ssi_create_bus(DEVICE(this), "spi");
 
-    s->bus = ssi_create_bus(dev, "spi");
-
-    memory_region_init_io(&s->iomem, OBJECT(dev), &imx_spi_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &imx_spi_ops, this,
                           TYPE_IMX_SPI, 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    for (i = 0; i < ECSPI_NUM_CS; ++i) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->cs_lines[i]);
+    for (int i = 0; i < ECSPI_NUM_CS; ++i) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &cs_lines[i]);
     }
 
-    fifo32_create(&s->tx_fifo, ECSPI_FIFO_SIZE);
-    fifo32_create(&s->rx_fifo, ECSPI_FIFO_SIZE);
+    fifo32_create(&tx_fifo, ECSPI_FIFO_SIZE);
+    fifo32_create(&rx_fifo, ECSPI_FIFO_SIZE);
 }
 
-static void imx_spi_class_init(ObjectClass *klass, const void *data)
+void IMXSPIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = imx_spi_realize;
     dc->vmsd = &vmstate_imx_spi;
-    device_class_set_legacy_reset(dc, imx_spi_reset);
     dc->desc = "i.MX SPI Controller";
 }
 
-static const TypeInfo imx_spi_info = {
-    .name          = TYPE_IMX_SPI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXSPIState),
-    .class_init    = imx_spi_class_init,
-};
-
-static void imx_spi_register_types(void)
-{
-    type_register_static(&imx_spi_info);
-}
-
-type_init(imx_spi_register_types)
+REGISTER_QEMU_DEVICE(IMXSPIState, TYPE_IMX_SPI, TYPE_SYS_BUS_DEVICE)

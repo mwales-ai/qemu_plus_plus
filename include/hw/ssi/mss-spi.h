@@ -54,6 +54,12 @@ struct MSSSpiState {
     bool enabled;
 
     uint32_t regs[R_SPI_MAX];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_MSS_SPI_H */

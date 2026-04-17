@@ -102,6 +102,12 @@ struct IMXSPIState {
     Fifo32 tx_fifo;
 
     int16_t burst_length;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX_SPI_H */

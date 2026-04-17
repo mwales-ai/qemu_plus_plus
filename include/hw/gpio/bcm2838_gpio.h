@@ -44,6 +44,13 @@ struct BCM2838GpioState {
     uint8_t sd_fsel;
     qemu_irq out[BCM2838_GPIO_NUM];
     uint32_t pup_cntrl_reg[GPIO_PUP_PDN_CNTRL_NUM];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

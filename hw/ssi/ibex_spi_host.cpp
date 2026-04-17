@@ -25,7 +25,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
 #include "hw/registerfields.h"
 #include "hw/ssi/ibex_spi_host.h"
 #include "hw/irq.h"
@@ -33,6 +32,7 @@
 #include "hw/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qom/cpp/object.h"
 
 REG32(INTR_STATE, 0x00)
     FIELD(INTR_STATE, ERROR, 0, 1)
@@ -127,33 +127,30 @@ static void ibex_spi_txfifo_reset(IbexSPIHostState *s)
     s->regs[IBEX_SPI_HOST_STATUS] = data;
 }
 
-static void ibex_spi_host_reset(DeviceState *dev)
+void IbexSPIHostState::reset()
 {
-    IbexSPIHostState *s = IBEX_SPI_HOST(dev);
     trace_ibex_spi_host_reset("Resetting Ibex SPI");
 
-    /* SPI Host Register Reset */
-    s->regs[IBEX_SPI_HOST_INTR_STATE]   = 0x00;
-    s->regs[IBEX_SPI_HOST_INTR_ENABLE]  = 0x00;
-    s->regs[IBEX_SPI_HOST_INTR_TEST]    = 0x00;
-    s->regs[IBEX_SPI_HOST_ALERT_TEST]   = 0x00;
-    s->regs[IBEX_SPI_HOST_CONTROL]      = 0x7f;
-    s->regs[IBEX_SPI_HOST_STATUS]       = 0x00;
-    s->regs[IBEX_SPI_HOST_CONFIGOPTS]   = 0x00;
-    s->regs[IBEX_SPI_HOST_CSID]         = 0x00;
-    s->regs[IBEX_SPI_HOST_COMMAND]      = 0x00;
-    /* RX/TX Modelled by FIFO */
-    s->regs[IBEX_SPI_HOST_RXDATA]       = 0x00;
-    s->regs[IBEX_SPI_HOST_TXDATA]       = 0x00;
+    regs[IBEX_SPI_HOST_INTR_STATE]   = 0x00;
+    regs[IBEX_SPI_HOST_INTR_ENABLE]  = 0x00;
+    regs[IBEX_SPI_HOST_INTR_TEST]    = 0x00;
+    regs[IBEX_SPI_HOST_ALERT_TEST]   = 0x00;
+    regs[IBEX_SPI_HOST_CONTROL]      = 0x7f;
+    regs[IBEX_SPI_HOST_STATUS]       = 0x00;
+    regs[IBEX_SPI_HOST_CONFIGOPTS]   = 0x00;
+    regs[IBEX_SPI_HOST_CSID]         = 0x00;
+    regs[IBEX_SPI_HOST_COMMAND]      = 0x00;
+    regs[IBEX_SPI_HOST_RXDATA]       = 0x00;
+    regs[IBEX_SPI_HOST_TXDATA]       = 0x00;
 
-    s->regs[IBEX_SPI_HOST_ERROR_ENABLE] = 0x1F;
-    s->regs[IBEX_SPI_HOST_ERROR_STATUS] = 0x00;
-    s->regs[IBEX_SPI_HOST_EVENT_ENABLE] = 0x00;
+    regs[IBEX_SPI_HOST_ERROR_ENABLE] = 0x1F;
+    regs[IBEX_SPI_HOST_ERROR_STATUS] = 0x00;
+    regs[IBEX_SPI_HOST_EVENT_ENABLE] = 0x00;
 
-    ibex_spi_rxfifo_reset(s);
-    ibex_spi_txfifo_reset(s);
+    ibex_spi_rxfifo_reset(this);
+    ibex_spi_txfifo_reset(this);
 
-    s->init_status = true;
+    init_status = true;
 }
 
 /*
@@ -289,7 +286,7 @@ static void ibex_spi_host_transfer(IbexSPIHostState *s)
 static uint64_t ibex_spi_host_read(void *opaque, hwaddr addr,
                                      unsigned int size)
 {
-    IbexSPIHostState *s = opaque;
+    IbexSPIHostState *s = static_cast<IbexSPIHostState *>(opaque);
     uint32_t rc = 0;
     uint8_t rx_byte = 0;
 
@@ -342,7 +339,7 @@ static uint64_t ibex_spi_host_read(void *opaque, hwaddr addr,
 static void ibex_spi_host_write(void *opaque, hwaddr addr,
                                 uint64_t val64, unsigned int size)
 {
-    IbexSPIHostState *s = opaque;
+    IbexSPIHostState *s = static_cast<IbexSPIHostState *>(opaque);
     uint32_t val32 = val64;
     uint32_t shift_mask = 0xff, status = 0, data = 0;
     uint8_t txqd_len;
@@ -380,7 +377,7 @@ static void ibex_spi_host_write(void *opaque, hwaddr addr,
         s->regs[addr] = val32;
 
         if (val32 & R_CONTROL_SW_RST_MASK)  {
-            ibex_spi_host_reset((DeviceState *)s);
+            s->reset();
             /* Clear active if any */
             s->regs[IBEX_SPI_HOST_STATUS] &=  ~R_STATUS_ACTIVE_MASK;
         }
@@ -564,84 +561,62 @@ static const Property ibex_spi_properties[] = {
     DEFINE_PROP_UINT32("num_cs", IbexSPIHostState, num_cs, 1),
 };
 
+static const VMStateField vmstate_ibex_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, IbexSPIHostState, IBEX_SPI_HOST_MAX_REGS),
+    VMSTATE_VARRAY_UINT32(config_opts, IbexSPIHostState,
+                          num_cs, 0, vmstate_info_uint32, uint32_t),
+    VMSTATE_FIFO8(rx_fifo, IbexSPIHostState),
+    VMSTATE_FIFO8(tx_fifo, IbexSPIHostState),
+    VMSTATE_TIMER_PTR(fifo_trigger_handle, IbexSPIHostState),
+    VMSTATE_BOOL(init_status, IbexSPIHostState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription vmstate_ibex = {
     .name = TYPE_IBEX_SPI_HOST,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, IbexSPIHostState, IBEX_SPI_HOST_MAX_REGS),
-        VMSTATE_VARRAY_UINT32(config_opts, IbexSPIHostState,
-                              num_cs, 0, vmstate_info_uint32, uint32_t),
-        VMSTATE_FIFO8(rx_fifo, IbexSPIHostState),
-        VMSTATE_FIFO8(tx_fifo, IbexSPIHostState),
-        VMSTATE_TIMER_PTR(fifo_trigger_handle, IbexSPIHostState),
-        VMSTATE_BOOL(init_status, IbexSPIHostState),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_ibex_fields,
 };
 
 static void fifo_trigger_update(void *opaque)
 {
-    IbexSPIHostState *s = opaque;
+    IbexSPIHostState *s = static_cast<IbexSPIHostState *>(opaque);
     ibex_spi_host_transfer(s);
 }
 
-static void ibex_spi_host_realize(DeviceState *dev, Error **errp)
+void IbexSPIHostState::realize(Error **errp)
 {
-    IbexSPIHostState *s = IBEX_SPI_HOST(dev);
-    int i;
+    ssi = ssi_create_bus(DEVICE(this), "ssi");
+    cs_lines = g_new0(qemu_irq, num_cs);
 
-    s->ssi = ssi_create_bus(dev, "ssi");
-    s->cs_lines = g_new0(qemu_irq, s->num_cs);
-
-    for (i = 0; i < s->num_cs; ++i) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->cs_lines[i]);
+    for (uint32_t i = 0; i < num_cs; ++i) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &cs_lines[i]);
     }
 
-    /* Setup CONFIGOPTS Multi-register */
-    s->config_opts = g_new0(uint32_t, s->num_cs);
+    config_opts = g_new0(uint32_t, num_cs);
 
-    /* Setup FIFO Interrupt Timer */
-    s->fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                          fifo_trigger_update, s);
+    fifo_trigger_handle = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                       fifo_trigger_update, this);
 
-    /* FIFO sizes as per OT Spec */
-    fifo8_create(&s->tx_fifo, IBEX_SPI_HOST_TXFIFO_LEN);
-    fifo8_create(&s->rx_fifo, IBEX_SPI_HOST_RXFIFO_LEN);
+    fifo8_create(&tx_fifo, IBEX_SPI_HOST_TXFIFO_LEN);
+    fifo8_create(&rx_fifo, IBEX_SPI_HOST_RXFIFO_LEN);
 }
 
-static void ibex_spi_host_init(Object *obj)
+void IbexSPIHostState::init()
 {
-    IbexSPIHostState *s = IBEX_SPI_HOST(obj);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &host_err);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &event);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->host_err);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->event);
-
-    memory_region_init_io(&s->mmio, obj, &ibex_spi_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &ibex_spi_ops, this,
                           TYPE_IBEX_SPI_HOST, 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
-static void ibex_spi_host_class_init(ObjectClass *klass, const void *data)
+void IbexSPIHostState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->realize = ibex_spi_host_realize;
-    device_class_set_legacy_reset(dc, ibex_spi_host_reset);
     dc->vmsd = &vmstate_ibex;
     device_class_set_props(dc, ibex_spi_properties);
 }
 
-static const TypeInfo ibex_spi_host_info = {
-    .name          = TYPE_IBEX_SPI_HOST,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IbexSPIHostState),
-    .instance_init = ibex_spi_host_init,
-    .class_init    = ibex_spi_host_class_init,
-};
-
-static void ibex_spi_host_register_types(void)
-{
-    type_register_static(&ibex_spi_host_info);
-}
-
-type_init(ibex_spi_host_register_types)
+REGISTER_QEMU_DEVICE(IbexSPIHostState, TYPE_IBEX_SPI_HOST, TYPE_SYS_BUS_DEVICE)

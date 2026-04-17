@@ -1,7 +1,7 @@
 # QEMU++ Native C++ Port Status Report
 
-**Date:** 2026-04-15
-**Branch:** `cpp-native` (463 commits ahead of master)
+**Date:** 2026-04-17
+**Branch:** `cpp-native` (469 commits ahead of master)
 **Base:** QEMU v10.2.1 (tag `v10.2.1`)
 **Smoke Tests:** 13/15 passing (2 pre-existing ppc64 failures)
 
@@ -21,17 +21,22 @@
 - Zero runtime overhead: generates the same TypeInfo + type_init boilerplate at
   compile time, but lets devices define C++ methods instead of static trampolines
 
-### Devices Ported to REGISTER_QEMU_DEVICE: 91 files, ~95 device types
+### Devices Ported to REGISTER_QEMU_DEVICE: 119 files
 
 | Subsystem     | Ported | Remaining | Total |
 |---------------|--------|-----------|-------|
-| hw/char       | 18     | 19        | 37    |
+| hw/char       | 20     | 17        | 37    |
 | hw/misc       | 52     | 66        | 118   |
-| hw/timer      | 8      | 26        | 34    |
-| hw/rtc        | 5      | 7         | 12    |
+| hw/timer      | 14     | 20        | 34    |
+| hw/rtc        | 7      | 5         | 12    |
 | hw/watchdog   | 5      | 6         | 11    |
-| hw/gpio       | 3      | 11        | 14    |
-| **Subtotal**  | **91** | **135**   | **226**|
+| hw/gpio       | 8      | 6         | 14    |
+| hw/ssi        | 3      | 6         | 9     |
+| hw/nvram      | 2      | 12        | 14    |
+| hw/sensor     | 2      | 8         | 10    |
+| **Subtotal**  | **113**| **146**   | **259**|
+
+*Note: 6 additional devices are in hw/ subdirectories not yet tracked above.*
 
 ### What Each Port Does
 For every converted device:

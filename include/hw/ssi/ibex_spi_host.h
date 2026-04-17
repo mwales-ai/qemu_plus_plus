@@ -87,6 +87,13 @@ typedef struct {
 
     /* Used to track the init status, for replicating TXDATA ghost writes */
     bool init_status;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } IbexSPIHostState;
 
 #endif

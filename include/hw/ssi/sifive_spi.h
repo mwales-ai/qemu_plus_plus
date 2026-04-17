@@ -45,6 +45,12 @@ typedef struct SiFiveSPIState {
     Fifo8 rx_fifo;
 
     uint32_t regs[SIFIVE_SPI_REG_NUM];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } SiFiveSPIState;
 
 #endif /* HW_SIFIVE_SPI_H */

@@ -28,7 +28,7 @@
 #include "hw/ssi/mss-spi.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
+#include "qom/cpp/object.h"
 
 #ifndef MSS_SPI_ERR_DEBUG
 #define MSS_SPI_ERR_DEBUG   0
@@ -137,23 +137,21 @@ static void spi_update_irq(MSSSpiState *s)
     qemu_set_irq(s->irq, irq);
 }
 
-static void mss_spi_reset(DeviceState *d)
+void MSSSpiState::reset()
 {
-    MSSSpiState *s = MSS_SPI(d);
+    memset(regs, 0, sizeof regs);
+    regs[R_SPI_CONTROL] = 0x80000102;
+    regs[R_SPI_DFSIZE] = 0x4;
+    regs[R_SPI_STATUS] = S_SSEL | S_TXFIFOEMP | S_RXFIFOEMP;
+    regs[R_SPI_CLKGEN] = 0x7;
+    regs[R_SPI_RIS] = 0x0;
 
-    memset(s->regs, 0, sizeof s->regs);
-    s->regs[R_SPI_CONTROL] = 0x80000102;
-    s->regs[R_SPI_DFSIZE] = 0x4;
-    s->regs[R_SPI_STATUS] = S_SSEL | S_TXFIFOEMP | S_RXFIFOEMP;
-    s->regs[R_SPI_CLKGEN] = 0x7;
-    s->regs[R_SPI_RIS] = 0x0;
+    fifo_depth = 4;
+    frame_count = 1;
+    enabled = false;
 
-    s->fifo_depth = 4;
-    s->frame_count = 1;
-    s->enabled = false;
-
-    rxfifo_reset(s);
-    txfifo_reset(s);
+    rxfifo_reset(this);
+    txfifo_reset(this);
 }
 
 static uint64_t
@@ -301,7 +299,7 @@ static void spi_write(void *opaque, hwaddr addr,
         s->enabled = value & C_ENABLE;
         s->frame_count = (value & FMCOUNT_MASK) >> FMCOUNT_SHIFT;
         if (value & C_RESET) {
-            mss_spi_reset(DEVICE(s));
+            s->reset();
         }
         break;
 
@@ -365,22 +363,19 @@ static const MemoryRegionOps spi_ops = {
     .valid = { .min_access_size = 1, .max_access_size = 4 },
 };
 
-static void mss_spi_realize(DeviceState *dev, Error **errp)
+void MSSSpiState::realize(Error **errp)
 {
-    MSSSpiState *s = MSS_SPI(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    spi = ssi_create_bus(DEVICE(this), "spi");
 
-    s->spi = ssi_create_bus(dev, "spi");
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &cs_line);
 
-    sysbus_init_irq(sbd, &s->irq);
-    sysbus_init_irq(sbd, &s->cs_line);
-
-    memory_region_init_io(&s->mmio, OBJECT(s), &spi_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &spi_ops, this,
                           TYPE_MSS_SPI, R_SPI_MAX * 4);
-    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    fifo32_create(&s->tx_fifo, FIFO_CAPACITY);
-    fifo32_create(&s->rx_fifo, FIFO_CAPACITY);
+    fifo32_create(&tx_fifo, FIFO_CAPACITY);
+    fifo32_create(&rx_fifo, FIFO_CAPACITY);
 }
 
 static const VMStateField vmstate_mss_spi_fields[] = {
@@ -397,25 +392,9 @@ static const VMStateDescription vmstate_mss_spi = {
     .fields = vmstate_mss_spi_fields,
 };
 
-static void mss_spi_class_init(ObjectClass *klass, const void *data)
+void MSSSpiState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = mss_spi_realize;
-    device_class_set_legacy_reset(dc, mss_spi_reset);
     dc->vmsd = &vmstate_mss_spi;
 }
 
-static const TypeInfo mss_spi_info = {
-    .name           = TYPE_MSS_SPI,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(MSSSpiState),
-    .class_init     = mss_spi_class_init,
-};
-
-static void mss_spi_register_types(void)
-{
-    type_register_static(&mss_spi_info);
-}
-
-type_init(mss_spi_register_types)
+REGISTER_QEMU_DEVICE(MSSSpiState, TYPE_MSS_SPI, TYPE_SYS_BUS_DEVICE)

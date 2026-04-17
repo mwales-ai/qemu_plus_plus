@@ -20,9 +20,9 @@
 
 extern "C" {
 #include "qemu/log.h"
-#include "qemu/module.h"
 #include "qemu/timer.h"
 } /* extern "C" */
+#include "qom/cpp/object.h"
 
 #define GPFSEL0   0x00
 #define GPFSEL1   0x04
@@ -298,26 +298,24 @@ static void bcm2838_gpio_write(void *opaque, hwaddr offset, uint64_t value,
     }
 }
 
-static void bcm2838_gpio_reset(DeviceState *dev)
+void BCM2838GpioState::reset()
 {
-    BCM2838GpioState *s = BCM2838_GPIO(dev);
+    memset(fsel, 0, sizeof(fsel));
 
-    memset(s->fsel, 0, sizeof(s->fsel));
-
-    s->sd_fsel = 0;
+    sd_fsel = 0;
 
     /* SDHCI is selected by default */
-    sdbus_reparent_card(&s->sdbus, s->sdbus_sdhci);
+    sdbus_reparent_card(&sdbus, sdbus_sdhci);
 
-    s->lev0 = 0;
-    s->lev1 = 0;
+    lev0 = 0;
+    lev1 = 0;
 
-    memset(s->fsel, 0, sizeof(s->fsel));
+    memset(fsel, 0, sizeof(fsel));
 
-    s->pup_cntrl_reg[0] = RESET_VAL_CNTRL_REG0;
-    s->pup_cntrl_reg[1] = RESET_VAL_CNTRL_REG1;
-    s->pup_cntrl_reg[2] = RESET_VAL_CNTRL_REG2;
-    s->pup_cntrl_reg[3] = RESET_VAL_CNTRL_REG3;
+    pup_cntrl_reg[0] = RESET_VAL_CNTRL_REG0;
+    pup_cntrl_reg[1] = RESET_VAL_CNTRL_REG1;
+    pup_cntrl_reg[2] = RESET_VAL_CNTRL_REG2;
+    pup_cntrl_reg[3] = RESET_VAL_CNTRL_REG3;
 }
 
 static const MemoryRegionOps bcm2838_gpio_ops = {
@@ -343,52 +341,30 @@ static const VMStateDescription vmstate_bcm2838_gpio = {
     .fields = vmstate_bcm2838_gpio_fields,
 };
 
-static void bcm2838_gpio_init(Object *obj)
+void BCM2838GpioState::init()
 {
-    BCM2838GpioState *s = BCM2838_GPIO(obj);
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    qbus_init(&sdbus, sizeof(sdbus), TYPE_SD_BUS, DEVICE(this), "sd-bus");
 
-    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS, DEVICE(s), "sd-bus");
-
-    memory_region_init_io(&s->iomem, obj, &bcm2838_gpio_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &bcm2838_gpio_ops, this,
                           "bcm2838_gpio", BCM2838_GPIO_REGS_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
-    qdev_init_gpio_out(dev, s->out, BCM2838_GPIO_NUM);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    qdev_init_gpio_out(DEVICE(this), out, BCM2838_GPIO_NUM);
 }
 
-static void bcm2838_gpio_realize(DeviceState *dev, Error **errp)
+void BCM2838GpioState::realize(Error **errp)
 {
-    BCM2838GpioState *s = BCM2838_GPIO(dev);
     Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), "sdbus-sdhci", &error_abort);
-    s->sdbus_sdhci = SD_BUS(obj);
+    obj = object_property_get_link(OBJECT(this), "sdbus-sdhci", &error_abort);
+    sdbus_sdhci = SD_BUS(obj);
 
-    obj = object_property_get_link(OBJECT(dev), "sdbus-sdhost", &error_abort);
-    s->sdbus_sdhost = SD_BUS(obj);
+    obj = object_property_get_link(OBJECT(this), "sdbus-sdhost", &error_abort);
+    sdbus_sdhost = SD_BUS(obj);
 }
 
-static void bcm2838_gpio_class_init(ObjectClass *klass, const void *data)
+void BCM2838GpioState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_bcm2838_gpio;
-    dc->realize = &bcm2838_gpio_realize;
-    device_class_set_legacy_reset(dc, bcm2838_gpio_reset);
 }
 
-static const TypeInfo bcm2838_gpio_info = {
-    .name          = TYPE_BCM2838_GPIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2838GpioState),
-    .instance_init = bcm2838_gpio_init,
-    .class_init    = bcm2838_gpio_class_init,
-};
-
-static void bcm2838_gpio_register_types(void)
-{
-    type_register_static(&bcm2838_gpio_info);
-}
-
-type_init(bcm2838_gpio_register_types)
+REGISTER_QEMU_DEVICE(BCM2838GpioState, TYPE_BCM2838_GPIO, TYPE_SYS_BUS_DEVICE)

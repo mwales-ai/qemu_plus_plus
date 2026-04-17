@@ -24,7 +24,6 @@
 extern "C" {
 #include "qemu/fifo8.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
 }
 
 #include "hw/irq.h"
@@ -32,6 +31,7 @@ extern "C" {
 #include "hw/sysbus.h"
 #include "hw/ssi/ssi.h"
 #include "hw/ssi/sifive_spi.h"
+#include "qom/cpp/object.h"
 
 #define R_SCKDIV        (0x00 / 4)
 #define R_SCKMODE       (0x04 / 4)
@@ -110,25 +110,23 @@ static void sifive_spi_update_irq(SiFiveSPIState *s)
     qemu_set_irq(s->irq, level);
 }
 
-static void sifive_spi_reset(DeviceState *d)
+void SiFiveSPIState::reset()
 {
-    SiFiveSPIState *s = SIFIVE_SPI(d);
-
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(regs, 0, sizeof(regs));
 
     /* The reset value is high for all implemented CS pins */
-    s->regs[R_CSDEF] = (1 << s->num_cs) - 1;
+    regs[R_CSDEF] = (1 << num_cs) - 1;
 
     /* Populate register with their default value */
-    s->regs[R_SCKDIV] = 0x03;
-    s->regs[R_DELAY0] = 0x1001;
-    s->regs[R_DELAY1] = 0x01;
+    regs[R_SCKDIV] = 0x03;
+    regs[R_DELAY0] = 0x1001;
+    regs[R_DELAY1] = 0x01;
 
-    sifive_spi_txfifo_reset(s);
-    sifive_spi_rxfifo_reset(s);
+    sifive_spi_txfifo_reset(this);
+    sifive_spi_rxfifo_reset(this);
 
-    sifive_spi_update_cs(s);
-    sifive_spi_update_irq(s);
+    sifive_spi_update_cs(this);
+    sifive_spi_update_irq(this);
 }
 
 static void sifive_spi_flush_txfifo(SiFiveSPIState *s)
@@ -312,51 +310,31 @@ static void __attribute__((constructor)) init_sifive_spi_ops(void)
     sifive_spi_ops.valid.max_access_size = 4;
 }
 
-static void sifive_spi_realize(DeviceState *dev, Error **errp)
+void SiFiveSPIState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    SiFiveSPIState *s = SIFIVE_SPI(dev);
-    int i;
+    spi = ssi_create_bus(DEVICE(this), "spi");
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    s->spi = ssi_create_bus(dev, "spi");
-    sysbus_init_irq(sbd, &s->irq);
-
-    s->cs_lines = g_new0(qemu_irq, s->num_cs);
-    for (i = 0; i < s->num_cs; i++) {
-        sysbus_init_irq(sbd, &s->cs_lines[i]);
+    cs_lines = g_new0(qemu_irq, num_cs);
+    for (uint32_t i = 0; i < num_cs; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &cs_lines[i]);
     }
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &sifive_spi_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &sifive_spi_ops, this,
                           TYPE_SIFIVE_SPI, 0x1000);
-    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    fifo8_create(&s->tx_fifo, FIFO_CAPACITY);
-    fifo8_create(&s->rx_fifo, FIFO_CAPACITY);
+    fifo8_create(&tx_fifo, FIFO_CAPACITY);
+    fifo8_create(&rx_fifo, FIFO_CAPACITY);
 }
 
 static const Property sifive_spi_properties[] = {
     DEFINE_PROP_UINT32("num-cs", SiFiveSPIState, num_cs, 1),
 };
 
-static void sifive_spi_class_init(ObjectClass *klass, const void *data)
+void SiFiveSPIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, sifive_spi_properties);
-    device_class_set_legacy_reset(dc, sifive_spi_reset);
-    dc->realize = sifive_spi_realize;
 }
 
-static const TypeInfo sifive_spi_info = {
-    .name           = TYPE_SIFIVE_SPI,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(SiFiveSPIState),
-    .class_init     = sifive_spi_class_init,
-};
-
-static void sifive_spi_register_types(void)
-{
-    type_register_static(&sifive_spi_info);
-}
-
-type_init(sifive_spi_register_types)
+REGISTER_QEMU_DEVICE(SiFiveSPIState, TYPE_SIFIVE_SPI, TYPE_SYS_BUS_DEVICE)
