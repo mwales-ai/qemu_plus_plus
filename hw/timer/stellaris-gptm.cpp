@@ -18,6 +18,8 @@ extern "C" {
 #include "hw/timer/stellaris-gptm.h"
 }
 
+#include "qom/cpp/object.h"
+
 static void gptm_update_irq(gptm_state *s)
 {
     int level;
@@ -274,64 +276,34 @@ static const VMStateDescription vmstate_stellaris_gptm = {
     .fields = vmstate_stellaris_gptm_fields,
 };
 
-static void stellaris_gptm_init(Object *obj)
+void gptm_state::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    gptm_state *s = STELLARIS_GPTM(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    qdev_init_gpio_out(DEVICE(this), &trigger, 1);
 
-    sysbus_init_irq(sbd, &s->irq);
-    qdev_init_gpio_out(dev, &s->trigger, 1);
-
-    memory_region_init_io(&s->iomem, obj, &gptm_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &gptm_ops, this,
                           "gptm", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 
-    s->opaque[0] = s->opaque[1] = s;
+    opaque[0] = opaque[1] = this;
 
-    /*
-     * TODO: in an ideal world we would model the effects of changing
-     * the input clock frequency while the countdown timer is active.
-     * The best way to do this would be to convert the device to use
-     * ptimer instead of hand-rolling its own timer. This would also
-     * make it easy to implement reading the current count from the
-     * TAR and TBR registers.
-     */
-    s->clk = qdev_init_clock_in(dev, "clk", NULL, NULL, 0);
+    clk = qdev_init_clock_in(DEVICE(this), "clk", NULL, NULL, 0);
 }
 
-static void stellaris_gptm_realize(DeviceState *dev, Error **errp)
+void gptm_state::realize(Error **errp)
 {
-    gptm_state *s = STELLARIS_GPTM(dev);
-
-    if (!clock_has_source(s->clk)) {
+    if (!clock_has_source(clk)) {
         error_setg(errp, "stellaris-gptm: clk must be connected");
         return;
     }
 
-    s->timer[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[0]);
-    s->timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[1]);
+    timer[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &opaque[0]);
+    timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &opaque[1]);
 }
 
-static void stellaris_gptm_class_init(ObjectClass *klass, const void *data)
+void gptm_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_stellaris_gptm;
-    dc->realize = stellaris_gptm_realize;
 }
 
-static const TypeInfo stellaris_gptm_info = {
-    .name          = TYPE_STELLARIS_GPTM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(gptm_state),
-    .instance_init = stellaris_gptm_init,
-    .class_init    = stellaris_gptm_class_init,
-};
-
-static void stellaris_gptm_register_types(void)
-{
-    type_register_static(&stellaris_gptm_info);
-}
-
-type_init(stellaris_gptm_register_types)
+REGISTER_QEMU_DEVICE(gptm_state, TYPE_STELLARIS_GPTM, TYPE_SYS_BUS_DEVICE)

@@ -49,6 +49,12 @@ struct CadenceTTCState {
 
     MemoryRegion iomem;
     CadenceTimerState timer[3];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

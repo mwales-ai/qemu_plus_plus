@@ -35,6 +35,7 @@
 
 #include "trace.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #define UNIT_REG_SIZE    16     /* Size of memory mapped regs for the unit */
 #define GPTIMER_REG_SIZE 16     /* Size of memory mapped regs for a GPTimer */
@@ -90,6 +91,12 @@ struct GPTimerUnit {
     uint32_t scaler;
     uint32_t reload;
     uint32_t config;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 static void grlib_gptimer_tx_begin(GPTimer *timer)
@@ -160,7 +167,7 @@ static void grlib_gptimer_set_scaler(GPTimerUnit *unit, uint32_t scaler)
 
 static void grlib_gptimer_hit(void *opaque)
 {
-    GPTimer *timer = opaque;
+    GPTimer *timer = static_cast<GPTimer *>(opaque);
     assert(timer != NULL);
 
     trace_grlib_gptimer_hit(timer->id);
@@ -181,7 +188,7 @@ static void grlib_gptimer_hit(void *opaque)
 static uint64_t grlib_gptimer_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    GPTimerUnit        *unit  = opaque;
+    GPTimerUnit        *unit  = static_cast<GPTimerUnit *>(opaque);
     hwaddr  timer_addr;
     int                 id;
     uint32_t            value = 0;
@@ -240,7 +247,7 @@ static uint64_t grlib_gptimer_read(void *opaque, hwaddr addr,
 static void grlib_gptimer_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    GPTimerUnit        *unit = opaque;
+    GPTimerUnit        *unit = static_cast<GPTimerUnit *>(opaque);
     hwaddr  timer_addr;
     int                 id;
 
@@ -339,24 +346,19 @@ static const MemoryRegionOps grlib_gptimer_ops = {
     },
 };
 
-static void grlib_gptimer_reset(DeviceState *d)
+void GPTimerUnit::reset()
 {
-    GPTimerUnit *unit = GRLIB_GPTIMER(d);
-    int          i    = 0;
+    scaler = 0;
+    reload = 0;
 
-    assert(unit != NULL);
-
-    unit->scaler = 0;
-    unit->reload = 0;
-
-    unit->config  = unit->nr_timers;
-    unit->config |= unit->irq_line << 3;
-    unit->config |= 1 << 8;     /* separate interrupt */
-    unit->config |= 1 << 9;     /* Disable timer freeze */
+    config  = nr_timers;
+    config |= irq_line << 3;
+    config |= 1 << 8;     /* separate interrupt */
+    config |= 1 << 9;     /* Disable timer freeze */
 
 
-    for (i = 0; i < unit->nr_timers; i++) {
-        GPTimer *timer = &unit->timers[i];
+    for (uint32_t i = 0; i < nr_timers; i++) {
+        GPTimer *timer = &timers[i];
 
         timer->counter = 0;
         timer->reload = 0;
@@ -364,43 +366,39 @@ static void grlib_gptimer_reset(DeviceState *d)
         ptimer_transaction_begin(timer->ptimer);
         ptimer_stop(timer->ptimer);
         ptimer_set_count(timer->ptimer, 0);
-        ptimer_set_freq(timer->ptimer, unit->freq_hz);
+        ptimer_set_freq(timer->ptimer, freq_hz);
         ptimer_transaction_commit(timer->ptimer);
     }
 }
 
-static void grlib_gptimer_realize(DeviceState *dev, Error **errp)
+void GPTimerUnit::realize(Error **errp)
 {
-    GPTimerUnit  *unit = GRLIB_GPTIMER(dev);
-    unsigned int  i;
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    assert(nr_timers > 0);
+    assert(nr_timers <= GPTIMER_MAX_TIMERS);
 
-    assert(unit->nr_timers > 0);
-    assert(unit->nr_timers <= GPTIMER_MAX_TIMERS);
+    timers = static_cast<GPTimer *>(
+        g_malloc0(sizeof timers[0] * nr_timers));
 
-    unit->timers = g_malloc0(sizeof unit->timers[0] * unit->nr_timers);
+    for (unsigned int i = 0; i < nr_timers; i++) {
+        GPTimer *timer = &timers[i];
 
-    for (i = 0; i < unit->nr_timers; i++) {
-        GPTimer *timer = &unit->timers[i];
-
-        timer->unit   = unit;
+        timer->unit   = this;
         timer->ptimer = ptimer_init(grlib_gptimer_hit, timer,
                                     PTIMER_POLICY_LEGACY);
         timer->id     = i;
 
-        /* One IRQ line for each timer */
-        sysbus_init_irq(sbd, &timer->irq);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &timer->irq);
 
         ptimer_transaction_begin(timer->ptimer);
-        ptimer_set_freq(timer->ptimer, unit->freq_hz);
+        ptimer_set_freq(timer->ptimer, freq_hz);
         ptimer_transaction_commit(timer->ptimer);
     }
 
-    memory_region_init_io(&unit->iomem, OBJECT(unit), &grlib_gptimer_ops,
-                          unit, "gptimer",
-                          UNIT_REG_SIZE + GPTIMER_REG_SIZE * unit->nr_timers);
+    memory_region_init_io(&iomem, OBJECT(this), &grlib_gptimer_ops,
+                          this, "gptimer",
+                          UNIT_REG_SIZE + GPTIMER_REG_SIZE * nr_timers);
 
-    sysbus_init_mmio(sbd, &unit->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const Property grlib_gptimer_properties[] = {
@@ -409,25 +407,9 @@ static const Property grlib_gptimer_properties[] = {
     DEFINE_PROP_UINT32("nr-timers", GPTimerUnit, nr_timers, 2),
 };
 
-static void grlib_gptimer_class_init(ObjectClass *klass, const void *data)
+void GPTimerUnit::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = grlib_gptimer_realize;
-    device_class_set_legacy_reset(dc, grlib_gptimer_reset);
     device_class_set_props(dc, grlib_gptimer_properties);
 }
 
-static const TypeInfo grlib_gptimer_info = {
-    .name          = TYPE_GRLIB_GPTIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GPTimerUnit),
-    .class_init    = grlib_gptimer_class_init,
-};
-
-static void grlib_gptimer_register_types(void)
-{
-    type_register_static(&grlib_gptimer_info);
-}
-
-type_init(grlib_gptimer_register_types)
+REGISTER_QEMU_DEVICE(GPTimerUnit, TYPE_GRLIB_GPTIMER, TYPE_SYS_BUS_DEVICE)

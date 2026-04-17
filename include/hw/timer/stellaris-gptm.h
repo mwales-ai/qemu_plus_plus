@@ -46,6 +46,12 @@ struct gptm_state {
     qemu_irq trigger;
     qemu_irq irq;
     Clock *clk;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

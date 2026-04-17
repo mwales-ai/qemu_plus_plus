@@ -36,6 +36,7 @@
 #include "hw/qdev-properties-system.h"
 #include "hw/ssi/ssi.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 #ifdef XILINX_SPI_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -100,6 +101,12 @@ struct XilinxSPI {
     Fifo8 tx_fifo;
 
     uint32_t regs[R_MAX];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 static void txfifo_reset(XilinxSPI *s)
@@ -164,9 +171,9 @@ static void xlx_spi_do_reset(XilinxSPI *s)
     xlx_spi_update_cs(s);
 }
 
-static void xlx_spi_reset(DeviceState *d)
+void XilinxSPI::reset()
 {
-    xlx_spi_do_reset(XILINX_SPI(d));
+    xlx_spi_do_reset(this);
 }
 
 static inline int spi_master_enabled(XilinxSPI *s)
@@ -331,13 +338,9 @@ static void __attribute__((constructor)) init_spi_ops(void)
     spi_ops[1].endianness = DEVICE_BIG_ENDIAN;
 }
 
-static void xilinx_spi_realize(DeviceState *dev, Error **errp)
+void XilinxSPI::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    XilinxSPI *s = XILINX_SPI(dev);
-    int i;
-
-    if (s->model_endianness == ENDIAN_MODE_UNSPECIFIED) {
+    if (model_endianness == ENDIAN_MODE_UNSPECIFIED) {
         error_setg(errp, TYPE_XILINX_SPI " property 'endianness'"
                          " must be set to 'big' or 'little'");
         return;
@@ -345,23 +348,23 @@ static void xilinx_spi_realize(DeviceState *dev, Error **errp)
 
     DB_PRINT("\n");
 
-    s->spi = ssi_create_bus(dev, "spi");
+    spi = ssi_create_bus(DEVICE(this), "spi");
 
-    sysbus_init_irq(sbd, &s->irq);
-    s->cs_lines = g_new0(qemu_irq, s->num_cs);
-    for (i = 0; i < s->num_cs; ++i) {
-        sysbus_init_irq(sbd, &s->cs_lines[i]);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    cs_lines = g_new0(qemu_irq, num_cs);
+    for (int i = 0; i < num_cs; ++i) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &cs_lines[i]);
     }
 
-    memory_region_init_io(&s->mmio, OBJECT(s),
-                          &spi_ops[s->model_endianness == ENDIAN_MODE_BIG], s,
+    memory_region_init_io(&mmio, OBJECT(this),
+                          &spi_ops[model_endianness == ENDIAN_MODE_BIG], this,
                           "xilinx-spi", R_MAX * 4);
-    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    s->irqline = -1;
+    irqline = -1;
 
-    fifo8_create(&s->tx_fifo, FIFO_CAPACITY);
-    fifo8_create(&s->rx_fifo, FIFO_CAPACITY);
+    fifo8_create(&tx_fifo, FIFO_CAPACITY);
+    fifo8_create(&rx_fifo, FIFO_CAPACITY);
 }
 
 static const VMStateField vmstate_xilinx_spi_fields[] = {
@@ -383,26 +386,10 @@ static const Property xilinx_spi_properties[] = {
     DEFINE_PROP_UINT8("num-ss-bits", XilinxSPI, num_cs, 1),
 };
 
-static void xilinx_spi_class_init(ObjectClass *klass, const void *data)
+void XilinxSPI::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = xilinx_spi_realize;
-    device_class_set_legacy_reset(dc, xlx_spi_reset);
     device_class_set_props(dc, xilinx_spi_properties);
     dc->vmsd = &vmstate_xilinx_spi;
 }
 
-static const TypeInfo xilinx_spi_info = {
-    .name           = TYPE_XILINX_SPI,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(XilinxSPI),
-    .class_init     = xilinx_spi_class_init,
-};
-
-static void xilinx_spi_register_types(void)
-{
-    type_register_static(&xilinx_spi_info);
-}
-
-type_init(xilinx_spi_register_types)
+REGISTER_QEMU_DEVICE(XilinxSPI, TYPE_XILINX_SPI, TYPE_SYS_BUS_DEVICE)

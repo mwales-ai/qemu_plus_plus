@@ -25,6 +25,7 @@
 #include "qom/object.h"
 
 #include "hw/timer/cadence_ttc.h"
+#include "qom/cpp/object.h"
 
 #ifdef CADENCE_TTC_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -381,23 +382,18 @@ static void cadence_timer_init(uint32_t freq, CadenceTimerState *s)
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cadence_timer_tick, s);
 }
 
-static void cadence_ttc_init(Object *obj)
+void CadenceTTCState::init()
 {
-    CadenceTTCState *s = CADENCE_TTC(obj);
-
-    memory_region_init_io(&s->iomem, obj, &cadence_ttc_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &cadence_ttc_ops, this,
                           "timer", 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void cadence_ttc_realize(DeviceState *dev, Error **errp)
+void CadenceTTCState::realize(Error **errp)
 {
-    CadenceTTCState *s = CADENCE_TTC(dev);
-    int i;
-
-    for (i = 0; i < 3; ++i) {
-        cadence_timer_init(133000000, &s->timer[i]);
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->timer[i].irq);
+    for (int i = 0; i < 3; ++i) {
+        cadence_timer_init(133000000, &timer[i]);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &timer[i].irq);
     }
 }
 
@@ -455,25 +451,9 @@ static const VMStateDescription vmstate_cadence_ttc = {
     .fields = vmstate_cadence_ttc_fields,
 };
 
-static void cadence_ttc_class_init(ObjectClass *klass, const void *data)
+void CadenceTTCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_cadence_ttc;
-    dc->realize = cadence_ttc_realize;
 }
 
-static const TypeInfo cadence_ttc_info = {
-    .name  = TYPE_CADENCE_TTC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(CadenceTTCState),
-    .instance_init = cadence_ttc_init,
-    .class_init = cadence_ttc_class_init,
-};
-
-static void cadence_ttc_register_types(void)
-{
-    type_register_static(&cadence_ttc_info);
-}
-
-type_init(cadence_ttc_register_types)
+REGISTER_QEMU_DEVICE(CadenceTTCState, TYPE_CADENCE_TTC, TYPE_SYS_BUS_DEVICE)

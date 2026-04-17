@@ -57,6 +57,13 @@ typedef struct SiFivePwmState {
     uint32_t pwmcmp[SIFIVE_PWM_CHANS];
 
     qemu_irq irqs[SIFIVE_PWM_IRQS];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 } SiFivePwmState;
 
 #endif /* HW_SIFIVE_PWM_H */

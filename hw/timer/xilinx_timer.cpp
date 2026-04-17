@@ -39,6 +39,8 @@ extern "C" {
 #include "qom/object.h"
 }
 
+#include "qom/cpp/object.h"
+
 #define D(x)
 
 #define R_TCSR     0
@@ -83,6 +85,12 @@ struct XpsTimerState
     uint8_t one_timer_only;
     uint32_t freq_hz;
     struct xlx_timer *timers;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 static inline unsigned int num_timers(XpsTimerState *t)
@@ -228,43 +236,37 @@ static void timer_hit(void *opaque)
     timer_update_irq(t);
 }
 
-static void xilinx_timer_realize(DeviceState *dev, Error **errp)
+void XpsTimerState::realize(Error **errp)
 {
-    XpsTimerState *t = XILINX_TIMER(dev);
-    unsigned int i;
-
-    if (t->model_endianness == ENDIAN_MODE_UNSPECIFIED) {
+    if (model_endianness == ENDIAN_MODE_UNSPECIFIED) {
         error_setg(errp, TYPE_XILINX_TIMER " property 'endianness'"
                          " must be set to 'big' or 'little'");
         return;
     }
 
     /* Init all the ptimers.  */
-    t->timers = static_cast<struct xlx_timer *>(
-        g_malloc0(sizeof t->timers[0] * num_timers(t)));
-    for (i = 0; i < num_timers(t); i++) {
-        struct xlx_timer *xt = &t->timers[i];
+    timers = static_cast<struct xlx_timer *>(
+        g_malloc0(sizeof timers[0] * num_timers(this)));
+    for (unsigned int i = 0; i < num_timers(this); i++) {
+        struct xlx_timer *xt = &timers[i];
 
-        xt->parent = t;
+        xt->parent = this;
         xt->nr = i;
         xt->ptimer = ptimer_init(timer_hit, xt, PTIMER_POLICY_LEGACY);
         ptimer_transaction_begin(xt->ptimer);
-        ptimer_set_freq(xt->ptimer, t->freq_hz);
+        ptimer_set_freq(xt->ptimer, freq_hz);
         ptimer_transaction_commit(xt->ptimer);
     }
 
-    memory_region_init_io(&t->mmio, OBJECT(t),
-                          &timer_ops[t->model_endianness == ENDIAN_MODE_BIG],
-                          t, "xlnx.xps-timer", R_MAX * 4 * num_timers(t));
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &t->mmio);
+    memory_region_init_io(&mmio, OBJECT(this),
+                          &timer_ops[model_endianness == ENDIAN_MODE_BIG],
+                          this, "xlnx.xps-timer", R_MAX * 4 * num_timers(this));
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
-static void xilinx_timer_init(Object *obj)
+void XpsTimerState::init()
 {
-    XpsTimerState *t = XILINX_TIMER(obj);
-
-    /* All timers share a single irq line.  */
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &t->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
 static const Property xilinx_timer_properties[] = {
@@ -273,25 +275,9 @@ static const Property xilinx_timer_properties[] = {
     DEFINE_PROP_UINT8("one-timer-only", XpsTimerState, one_timer_only, 0),
 };
 
-static void xilinx_timer_class_init(ObjectClass *klass, const void *data)
+void XpsTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = xilinx_timer_realize;
     device_class_set_props(dc, xilinx_timer_properties);
 }
 
-static const TypeInfo xilinx_timer_info = {
-    .name          = TYPE_XILINX_TIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XpsTimerState),
-    .instance_init = xilinx_timer_init,
-    .class_init    = xilinx_timer_class_init,
-};
-
-static void xilinx_timer_register_types(void)
-{
-    type_register_static(&xilinx_timer_info);
-}
-
-type_init(xilinx_timer_register_types)
+REGISTER_QEMU_DEVICE(XpsTimerState, TYPE_XILINX_TIMER, TYPE_SYS_BUS_DEVICE)

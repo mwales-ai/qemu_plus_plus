@@ -37,6 +37,8 @@ extern "C" {
 #include "qemu/module.h"
 }
 
+#include "qom/cpp/object.h"
+
 #define HAS_PWM_EN_BITS(cfg) ((cfg & R_CONFIG_ENONESHOT_MASK) || \
                               (cfg & R_CONFIG_ENALWAYS_MASK))
 
@@ -374,18 +376,17 @@ static void sifive_pwm_write(void *opaque, hwaddr addr,
     sifive_pwm_set_alarms(s);
 }
 
-static void sifive_pwm_reset(DeviceState *dev)
+void SiFivePwmState::reset()
 {
-    SiFivePwmState *s = SIFIVE_PWM(dev);
     uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    s->pwmcfg = 0x00000000;
-    s->pwmcmp[0] = 0x00000000;
-    s->pwmcmp[1] = 0x00000000;
-    s->pwmcmp[2] = 0x00000000;
-    s->pwmcmp[3] = 0x00000000;
+    pwmcfg = 0x00000000;
+    pwmcmp[0] = 0x00000000;
+    pwmcmp[1] = 0x00000000;
+    pwmcmp[2] = 0x00000000;
+    pwmcmp[3] = 0x00000000;
 
-    s->tick_offset = sifive_pwm_ns_to_ticks(s, now);
+    tick_offset = sifive_pwm_ns_to_ticks(this, now);
 }
 
 static const MemoryRegionOps sifive_pwm_ops = {
@@ -415,58 +416,36 @@ static const Property sifive_pwm_properties[] = {
                        freq_hz, 500000000ULL),
 };
 
-static void sifive_pwm_init(Object *obj)
+void SiFivePwmState::init()
 {
-    SiFivePwmState *s = SIFIVE_PWM(obj);
-    int i;
-
-    for (i = 0; i < SIFIVE_PWM_IRQS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irqs[i]);
+    for (int i = 0; i < SIFIVE_PWM_IRQS; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &irqs[i]);
     }
 
-    memory_region_init_io(&s->mmio, obj, &sifive_pwm_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &sifive_pwm_ops, this,
                           TYPE_SIFIVE_PWM, 0x100);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
-static void sifive_pwm_realize(DeviceState *dev, Error **errp)
+void SiFivePwmState::realize(Error **errp)
 {
-    SiFivePwmState *s = SIFIVE_PWM(dev);
+    timer_init_ns(&timer[0], QEMU_CLOCK_VIRTUAL,
+                  sifive_pwm_interrupt_0, this);
 
-    timer_init_ns(&s->timer[0], QEMU_CLOCK_VIRTUAL,
-                  sifive_pwm_interrupt_0, s);
+    timer_init_ns(&timer[1], QEMU_CLOCK_VIRTUAL,
+                  sifive_pwm_interrupt_1, this);
 
-    timer_init_ns(&s->timer[1], QEMU_CLOCK_VIRTUAL,
-                  sifive_pwm_interrupt_1, s);
+    timer_init_ns(&timer[2], QEMU_CLOCK_VIRTUAL,
+                  sifive_pwm_interrupt_2, this);
 
-    timer_init_ns(&s->timer[2], QEMU_CLOCK_VIRTUAL,
-                  sifive_pwm_interrupt_2, s);
-
-    timer_init_ns(&s->timer[3], QEMU_CLOCK_VIRTUAL,
-                  sifive_pwm_interrupt_3, s);
+    timer_init_ns(&timer[3], QEMU_CLOCK_VIRTUAL,
+                  sifive_pwm_interrupt_3, this);
 }
 
-static void sifive_pwm_class_init(ObjectClass *klass, const void *data)
+void SiFivePwmState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, sifive_pwm_reset);
     device_class_set_props(dc, sifive_pwm_properties);
     dc->vmsd = &vmstate_sifive_pwm;
-    dc->realize = sifive_pwm_realize;
 }
 
-static const TypeInfo sifive_pwm_info = {
-    .name          = TYPE_SIFIVE_PWM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFivePwmState),
-    .instance_init = sifive_pwm_init,
-    .class_init    = sifive_pwm_class_init,
-};
-
-static void sifive_pwm_register_types(void)
-{
-    type_register_static(&sifive_pwm_info);
-}
-
-type_init(sifive_pwm_register_types)
+REGISTER_QEMU_DEVICE(SiFivePwmState, TYPE_SIFIVE_PWM, TYPE_SYS_BUS_DEVICE)
