@@ -122,6 +122,13 @@ struct IoTKitSecCtl {
     IoTKitSecCtlPPC ahbexp[IOTS_NUM_APB_EXP_PPC];
 
     uint32_t sse_version;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

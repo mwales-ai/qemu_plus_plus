@@ -40,6 +40,13 @@ typedef struct AspeedLPCState {
 
     uint32_t regs[ASPEED_LPC_NR_REGS];
     uint32_t hicr7;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 } AspeedLPCState;
 
 #endif /* ASPEED_LPC_H */

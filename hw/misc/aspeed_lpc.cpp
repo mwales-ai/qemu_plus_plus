@@ -16,6 +16,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "qom/cpp/object.h"
 
 #define TO_REG(offset) ((offset) >> 2)
 
@@ -384,39 +385,38 @@ static const MemoryRegionOps aspeed_lpc_ops = {
     },
 };
 
-static void aspeed_lpc_reset(DeviceState *dev)
+void AspeedLPCState::reset()
 {
-    struct AspeedLPCState *s = ASPEED_LPC(dev);
+    subdevice_irqs_pending = 0;
 
-    s->subdevice_irqs_pending = 0;
+    memset(regs, 0, sizeof(regs));
 
-    memset(s->regs, 0, sizeof(s->regs));
-
-    s->regs[HICR7] = s->hicr7;
+    regs[HICR7] = hicr7;
 }
 
-static void aspeed_lpc_realize(DeviceState *dev, Error **errp)
+void AspeedLPCState::realize(Error **errp)
 {
-    AspeedLPCState *s = ASPEED_LPC(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    sysbus_init_irq(sbd, &s->irq);
-    sysbus_init_irq(sbd, &s->subdevice_irqs[aspeed_lpc_kcs_1]);
-    sysbus_init_irq(sbd, &s->subdevice_irqs[aspeed_lpc_kcs_2]);
-    sysbus_init_irq(sbd, &s->subdevice_irqs[aspeed_lpc_kcs_3]);
-    sysbus_init_irq(sbd, &s->subdevice_irqs[aspeed_lpc_kcs_4]);
-    sysbus_init_irq(sbd, &s->subdevice_irqs[aspeed_lpc_ibt]);
+    sysbus_init_irq(sbd, &irq);
+    sysbus_init_irq(sbd, &subdevice_irqs[aspeed_lpc_kcs_1]);
+    sysbus_init_irq(sbd, &subdevice_irqs[aspeed_lpc_kcs_2]);
+    sysbus_init_irq(sbd, &subdevice_irqs[aspeed_lpc_kcs_3]);
+    sysbus_init_irq(sbd, &subdevice_irqs[aspeed_lpc_kcs_4]);
+    sysbus_init_irq(sbd, &subdevice_irqs[aspeed_lpc_ibt]);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_lpc_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &aspeed_lpc_ops, this,
             TYPE_ASPEED_LPC, 0x1000);
 
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 
-    qdev_init_gpio_in(dev, aspeed_lpc_set_irq, ASPEED_LPC_NR_SUBDEVS);
+    qdev_init_gpio_in(DEVICE(this), aspeed_lpc_set_irq, ASPEED_LPC_NR_SUBDEVS);
 }
 
-static void aspeed_lpc_init(Object *obj)
+void AspeedLPCState::init()
 {
+    Object *obj = OBJECT(this);
+
     object_property_add(obj, "idr1", "uint32", aspeed_kcs_get_register_property,
                         aspeed_kcs_set_register_property, NULL, NULL);
     object_property_add(obj, "odr1", "uint32", aspeed_kcs_get_register_property,
@@ -460,28 +460,11 @@ static const Property aspeed_lpc_properties[] = {
     DEFINE_PROP_UINT32("hicr7", AspeedLPCState, hicr7, 0),
 };
 
-static void aspeed_lpc_class_init(ObjectClass *klass, const void *data)
+void AspeedLPCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = aspeed_lpc_realize;
-    device_class_set_legacy_reset(dc, aspeed_lpc_reset);
-    dc->desc = "Aspeed LPC Controller",
+    dc->desc = "Aspeed LPC Controller";
     dc->vmsd = &vmstate_aspeed_lpc;
     device_class_set_props(dc, aspeed_lpc_properties);
 }
 
-static const TypeInfo aspeed_lpc_info = {
-    .name = TYPE_ASPEED_LPC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedLPCState),
-    .instance_init = aspeed_lpc_init,
-    .class_init = aspeed_lpc_class_init,
-};
-
-static void aspeed_lpc_register_types(void)
-{
-    type_register_static(&aspeed_lpc_info);
-}
-
-type_init(aspeed_lpc_register_types);
+REGISTER_QEMU_DEVICE(AspeedLPCState, TYPE_ASPEED_LPC, TYPE_SYS_BUS_DEVICE)

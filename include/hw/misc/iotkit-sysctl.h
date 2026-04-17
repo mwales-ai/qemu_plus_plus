@@ -68,6 +68,13 @@ struct IoTKitSysCtl {
     uint32_t cpuwait_rst;
     uint32_t initsvtor0_rst;
     uint32_t initsvtor1_rst;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

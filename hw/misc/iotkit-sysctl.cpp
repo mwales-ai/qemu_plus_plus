@@ -30,6 +30,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/arm/armsse-version.h"
 #include "target/arm/arm-powerctl.h"
+#include "qom/cpp/object.h"
 
 REG32(SECDBGSTAT, 0x0)
 REG32(SECDBGSET, 0x4)
@@ -713,52 +714,45 @@ static const MemoryRegionOps iotkit_sysctl_ops = {
     .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void iotkit_sysctl_reset(DeviceState *dev)
+void IoTKitSysCtl::reset()
 {
-    IoTKitSysCtl *s = IOTKIT_SYSCTL(dev);
-
     trace_iotkit_sysctl_reset();
-    s->secure_debug = 0;
-    s->reset_syndrome = 1;
-    s->reset_mask = 0;
-    s->gretreg = 0;
-    s->initsvtor0 = s->initsvtor0_rst;
-    s->initsvtor1 = s->initsvtor1_rst;
-    s->cpuwait = s->cpuwait_rst;
-    s->wicctrl = 0;
-    s->scsecctrl = 0;
-    s->fclk_div = 0;
-    s->sysclk_div = 0;
-    s->clock_force = 0;
-    s->nmi_enable = 0;
-    s->ewctrl = 0;
-    s->pwrctrl = 0x3;
-    s->pdcm_pd_sys_sense = 0x7f;
-    s->pdcm_pd_sram0_sense = 0;
-    s->pdcm_pd_sram1_sense = 0;
-    s->pdcm_pd_sram2_sense = 0;
-    s->pdcm_pd_sram3_sense = 0;
-    s->pdcm_pd_cpu0_sense = 0;
-    s->pdcm_pd_vmr0_sense = 0;
-    s->pdcm_pd_vmr1_sense = 0;
+    secure_debug = 0;
+    reset_syndrome = 1;
+    reset_mask = 0;
+    gretreg = 0;
+    initsvtor0 = initsvtor0_rst;
+    initsvtor1 = initsvtor1_rst;
+    cpuwait = cpuwait_rst;
+    wicctrl = 0;
+    scsecctrl = 0;
+    fclk_div = 0;
+    sysclk_div = 0;
+    clock_force = 0;
+    nmi_enable = 0;
+    ewctrl = 0;
+    pwrctrl = 0x3;
+    pdcm_pd_sys_sense = 0x7f;
+    pdcm_pd_sram0_sense = 0;
+    pdcm_pd_sram1_sense = 0;
+    pdcm_pd_sram2_sense = 0;
+    pdcm_pd_sram3_sense = 0;
+    pdcm_pd_cpu0_sense = 0;
+    pdcm_pd_vmr0_sense = 0;
+    pdcm_pd_vmr1_sense = 0;
 }
 
-static void iotkit_sysctl_init(Object *obj)
+void IoTKitSysCtl::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    IoTKitSysCtl *s = IOTKIT_SYSCTL(obj);
-
-    memory_region_init_io(&s->iomem, obj, &iotkit_sysctl_ops,
-                          s, "iotkit-sysctl", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, OBJECT(this), &iotkit_sysctl_ops,
+                          this, "iotkit-sysctl", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void iotkit_sysctl_realize(DeviceState *dev, Error **errp)
+void IoTKitSysCtl::realize(Error **errp)
 {
-    IoTKitSysCtl *s = IOTKIT_SYSCTL(dev);
-
-    if (!armsse_version_valid(s->sse_version)) {
-        error_setg(errp, "invalid sse-version value %d", s->sse_version);
+    if (!armsse_version_valid(sse_version)) {
+        error_setg(errp, "invalid sse-version value %d", sse_version);
         return;
     }
 }
@@ -850,27 +844,10 @@ static const Property iotkit_sysctl_props[] = {
                        0x10000000),
 };
 
-static void iotkit_sysctl_class_init(ObjectClass *klass, const void *data)
+void IoTKitSysCtl::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &iotkit_sysctl_vmstate;
-    device_class_set_legacy_reset(dc, iotkit_sysctl_reset);
     device_class_set_props(dc, iotkit_sysctl_props);
-    dc->realize = iotkit_sysctl_realize;
 }
 
-static const TypeInfo iotkit_sysctl_info = {
-    .name = TYPE_IOTKIT_SYSCTL,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IoTKitSysCtl),
-    .instance_init = iotkit_sysctl_init,
-    .class_init = iotkit_sysctl_class_init,
-};
-
-static void iotkit_sysctl_register_types(void)
-{
-    type_register_static(&iotkit_sysctl_info);
-}
-
-type_init(iotkit_sysctl_register_types);
+REGISTER_QEMU_DEVICE(IoTKitSysCtl, TYPE_IOTKIT_SYSCTL, TYPE_SYS_BUS_DEVICE)

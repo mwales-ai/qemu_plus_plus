@@ -21,6 +21,7 @@
 #include "hw/misc/iotkit-secctl.h"
 #include "hw/arm/armsse-version.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 /* Registers in the secure privilege control block */
 REG32(SECRESPCFG, 0x10)
@@ -611,17 +612,15 @@ static void iotkit_secctl_reset_ppc(IoTKitSecCtlPPC *ppc)
     ppc->nsp = 0;
 }
 
-static void iotkit_secctl_reset(DeviceState *dev)
+void IoTKitSecCtl::reset()
 {
-    IoTKitSecCtl *s = IOTKIT_SECCTL(dev);
+    secppcintstat = 0;
+    secppcinten = 0;
+    secrespcfg = 0;
+    nsccfg = 0;
+    brginten = 0;
 
-    s->secppcintstat = 0;
-    s->secppcinten = 0;
-    s->secrespcfg = 0;
-    s->nsccfg = 0;
-    s->brginten = 0;
-
-    foreach_ppc(s, iotkit_secctl_reset_ppc);
+    foreach_ppc(this, iotkit_secctl_reset_ppc);
 }
 
 static void iotkit_secctl_mpc_status(void *opaque, int n, int level)
@@ -686,33 +685,31 @@ static void iotkit_secctl_init_ppc(IoTKitSecCtl *s,
     g_free(gpioname);
 }
 
-static void iotkit_secctl_init(Object *obj)
+void IoTKitSecCtl::init()
 {
-    IoTKitSecCtl *s = IOTKIT_SECCTL(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DeviceState *dev = DEVICE(obj);
+    DeviceState *dev = DEVICE(this);
     int i;
 
-    iotkit_secctl_init_ppc(s, &s->apb[0], "apb_ppc0",
+    iotkit_secctl_init_ppc(this, &apb[0], "apb_ppc0",
                            IOTS_APB_PPC0_NUM_PORTS, 0);
-    iotkit_secctl_init_ppc(s, &s->apb[1], "apb_ppc1",
+    iotkit_secctl_init_ppc(this, &apb[1], "apb_ppc1",
                            IOTS_APB_PPC1_NUM_PORTS, 1);
 
     for (i = 0; i < IOTS_NUM_APB_EXP_PPC; i++) {
-        IoTKitSecCtlPPC *ppc = &s->apbexp[i];
+        IoTKitSecCtlPPC *ppc = &apbexp[i];
         char *ppcname = g_strdup_printf("apb_ppcexp%d", i);
-        iotkit_secctl_init_ppc(s, ppc, ppcname, IOTS_PPC_NUM_PORTS, 4 + i);
+        iotkit_secctl_init_ppc(this, ppc, ppcname, IOTS_PPC_NUM_PORTS, 4 + i);
         g_free(ppcname);
     }
     for (i = 0; i < IOTS_NUM_AHB_EXP_PPC; i++) {
-        IoTKitSecCtlPPC *ppc = &s->ahbexp[i];
+        IoTKitSecCtlPPC *ppc = &ahbexp[i];
         char *ppcname = g_strdup_printf("ahb_ppcexp%d", i);
-        iotkit_secctl_init_ppc(s, ppc, ppcname, IOTS_PPC_NUM_PORTS, 20 + i);
+        iotkit_secctl_init_ppc(this, ppc, ppcname, IOTS_PPC_NUM_PORTS, 20 + i);
         g_free(ppcname);
     }
 
-    qdev_init_gpio_out_named(dev, &s->sec_resp_cfg, "sec_resp_cfg", 1);
-    qdev_init_gpio_out_named(dev, &s->nsc_cfg_irq, "nsc_cfg", 1);
+    qdev_init_gpio_out_named(dev, &sec_resp_cfg, "sec_resp_cfg", 1);
+    qdev_init_gpio_out_named(dev, &nsc_cfg_irq, "nsc_cfg", 1);
 
     qdev_init_gpio_in_named(dev, iotkit_secctl_mpc_status, "mpc_status",
                             IOTS_NUM_MPC);
@@ -721,26 +718,24 @@ static void iotkit_secctl_init(Object *obj)
 
     qdev_init_gpio_in_named(dev, iotkit_secctl_mscexp_status,
                             "mscexp_status", IOTS_NUM_EXP_MSC);
-    qdev_init_gpio_out_named(dev, s->mscexp_clear, "mscexp_clear",
+    qdev_init_gpio_out_named(dev, mscexp_clear, "mscexp_clear",
                              IOTS_NUM_EXP_MSC);
-    qdev_init_gpio_out_named(dev, s->mscexp_ns, "mscexp_ns",
+    qdev_init_gpio_out_named(dev, mscexp_ns, "mscexp_ns",
                              IOTS_NUM_EXP_MSC);
-    qdev_init_gpio_out_named(dev, &s->msc_irq, "msc_irq", 1);
+    qdev_init_gpio_out_named(dev, &msc_irq, "msc_irq", 1);
 
-    memory_region_init_io(&s->s_regs, obj, &iotkit_secctl_s_ops,
-                          s, "iotkit-secctl-s-regs", 0x1000);
-    memory_region_init_io(&s->ns_regs, obj, &iotkit_secctl_ns_ops,
-                          s, "iotkit-secctl-ns-regs", 0x1000);
-    sysbus_init_mmio(sbd, &s->s_regs);
-    sysbus_init_mmio(sbd, &s->ns_regs);
+    memory_region_init_io(&s_regs, OBJECT(this), &iotkit_secctl_s_ops,
+                          this, "iotkit-secctl-s-regs", 0x1000);
+    memory_region_init_io(&ns_regs, OBJECT(this), &iotkit_secctl_ns_ops,
+                          this, "iotkit-secctl-ns-regs", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &s_regs);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &ns_regs);
 }
 
-static void iotkit_secctl_realize(DeviceState *dev, Error **errp)
+void IoTKitSecCtl::realize(Error **errp)
 {
-    IoTKitSecCtl *s = IOTKIT_SECCTL(dev);
-
-    if (!armsse_version_valid(s->sse_version)) {
-        error_setg(errp, "invalid sse-version value %d", s->sse_version);
+    if (!armsse_version_valid(sse_version)) {
+        error_setg(errp, "invalid sse-version value %d", sse_version);
         return;
     }
 }
@@ -824,27 +819,10 @@ static const Property iotkit_secctl_props[] = {
     DEFINE_PROP_UINT32("sse-version", IoTKitSecCtl, sse_version, 0),
 };
 
-static void iotkit_secctl_class_init(ObjectClass *klass, const void *data)
+void IoTKitSecCtl::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &iotkit_secctl_vmstate;
-    device_class_set_legacy_reset(dc, iotkit_secctl_reset);
-    dc->realize = iotkit_secctl_realize;
     device_class_set_props(dc, iotkit_secctl_props);
 }
 
-static const TypeInfo iotkit_secctl_info = {
-    .name = TYPE_IOTKIT_SECCTL,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IoTKitSecCtl),
-    .instance_init = iotkit_secctl_init,
-    .class_init = iotkit_secctl_class_init,
-};
-
-static void iotkit_secctl_register_types(void)
-{
-    type_register_static(&iotkit_secctl_info);
-}
-
-type_init(iotkit_secctl_register_types);
+REGISTER_QEMU_DEVICE(IoTKitSecCtl, TYPE_IOTKIT_SECCTL, TYPE_SYS_BUS_DEVICE)
