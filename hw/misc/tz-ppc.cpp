@@ -20,6 +20,7 @@
 #include "hw/irq.h"
 #include "hw/misc/tz-ppc.h"
 #include "hw/qdev-properties.h"
+#include "qom/cpp/object.h"
 
 static void tz_ppc_update_irq(TZPPC *s)
 {
@@ -207,81 +208,72 @@ static void tz_ppc_dummy_write(void *opaque, hwaddr addr,
     g_assert_not_reached();
 }
 
-static const MemoryRegionOps tz_ppc_dummy_ops = {
-    /* define r/w methods to avoid assert failure in memory_region_init_io */
-    .read = tz_ppc_dummy_read,
-    .write = tz_ppc_dummy_write,
-    .valid = { .accepts = tz_ppc_dummy_accepts, },
-};
+static MemoryRegionOps tz_ppc_dummy_ops;
 
-static void tz_ppc_reset(DeviceState *dev)
+static void __attribute__((constructor)) init_tz_ppc_dummy_ops(void)
 {
-    TZPPC *s = TZ_PPC(dev);
-
-    trace_tz_ppc_reset();
-    s->cfg_sec_resp = false;
-    memset(s->cfg_nonsec, 0, sizeof(s->cfg_nonsec));
-    memset(s->cfg_ap, 0, sizeof(s->cfg_ap));
+    memset(&tz_ppc_dummy_ops, 0, sizeof(tz_ppc_dummy_ops));
+    tz_ppc_dummy_ops.read = tz_ppc_dummy_read;
+    tz_ppc_dummy_ops.write = tz_ppc_dummy_write;
+    tz_ppc_dummy_ops.valid.accepts = tz_ppc_dummy_accepts;
 }
 
-static void tz_ppc_init(Object *obj)
+void TZPPC::reset()
 {
-    DeviceState *dev = DEVICE(obj);
-    TZPPC *s = TZ_PPC(obj);
+    trace_tz_ppc_reset();
+    cfg_sec_resp = false;
+    memset(cfg_nonsec, 0, sizeof(cfg_nonsec));
+    memset(cfg_ap, 0, sizeof(cfg_ap));
+}
+
+void TZPPC::init()
+{
+    DeviceState *dev = DEVICE(this);
 
     qdev_init_gpio_in_named(dev, tz_ppc_cfg_nonsec, "cfg_nonsec", TZ_NUM_PORTS);
     qdev_init_gpio_in_named(dev, tz_ppc_cfg_ap, "cfg_ap", TZ_NUM_PORTS);
     qdev_init_gpio_in_named(dev, tz_ppc_cfg_sec_resp, "cfg_sec_resp", 1);
     qdev_init_gpio_in_named(dev, tz_ppc_irq_enable, "irq_enable", 1);
     qdev_init_gpio_in_named(dev, tz_ppc_irq_clear, "irq_clear", 1);
-    qdev_init_gpio_out_named(dev, &s->irq, "irq", 1);
+    qdev_init_gpio_out_named(dev, &irq, "irq", 1);
 }
 
-static void tz_ppc_realize(DeviceState *dev, Error **errp)
+void TZPPC::realize(Error **errp)
 {
-    Object *obj = OBJECT(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    TZPPC *s = TZ_PPC(dev);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     int i;
     int max_port = 0;
 
-    /* We can't create the upstream end of the port until realize,
-     * as we don't know the size of the MR used as the downstream until then.
-     */
     for (i = 0; i < TZ_NUM_PORTS; i++) {
-        if (s->port[i].downstream) {
+        if (port[i].downstream) {
             max_port = i;
         }
     }
 
     for (i = 0; i <= max_port; i++) {
-        TZPPCPort *port = &s->port[i];
+        TZPPCPort *p = &port[i];
         char *name;
         uint64_t size;
 
-        if (!port->downstream) {
-            /*
-             * Create dummy sysbus MMIO region so the sysbus region
-             * numbering doesn't get out of sync with the port numbers.
-             * The size is entirely arbitrary.
-             */
+        if (!p->downstream) {
             name = g_strdup_printf("tz-ppc-dummy-port[%d]", i);
-            memory_region_init_io(&port->upstream, obj, &tz_ppc_dummy_ops,
-                                  port, name, 0x10000);
-            sysbus_init_mmio(sbd, &port->upstream);
+            memory_region_init_io(&p->upstream, obj, &tz_ppc_dummy_ops,
+                                  p, name, 0x10000);
+            sysbus_init_mmio(sbd, &p->upstream);
             g_free(name);
             continue;
         }
 
         name = g_strdup_printf("tz-ppc-port[%d]", i);
 
-        port->ppc = s;
-        address_space_init(&port->downstream_as, port->downstream, name);
+        p->ppc = this;
+        address_space_init(&p->downstream_as, p->downstream, name);
 
-        size = memory_region_size(port->downstream);
-        memory_region_init_io(&port->upstream, obj, &tz_ppc_ops,
-                              port, name, size);
-        sysbus_init_mmio(sbd, &port->upstream);
+        size = memory_region_size(p->downstream);
+        memory_region_init_io(&p->upstream, obj, &tz_ppc_ops,
+                              p, name, size);
+        sysbus_init_mmio(sbd, &p->upstream);
         g_free(name);
     }
 }
@@ -327,27 +319,10 @@ static const Property tz_ppc_properties[] = {
     DEFINE_PORT(15),
 };
 
-static void tz_ppc_class_init(ObjectClass *klass, const void *data)
+void TZPPC::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = tz_ppc_realize;
     dc->vmsd = &tz_ppc_vmstate;
-    device_class_set_legacy_reset(dc, tz_ppc_reset);
     device_class_set_props(dc, tz_ppc_properties);
 }
 
-static const TypeInfo tz_ppc_info = {
-    .name = TYPE_TZ_PPC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(TZPPC),
-    .instance_init = tz_ppc_init,
-    .class_init = tz_ppc_class_init,
-};
-
-static void tz_ppc_register_types(void)
-{
-    type_register_static(&tz_ppc_info);
-}
-
-type_init(tz_ppc_register_types);
+REGISTER_QEMU_DEVICE(TZPPC, TYPE_TZ_PPC, TYPE_SYS_BUS_DEVICE)

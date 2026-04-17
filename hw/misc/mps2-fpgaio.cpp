@@ -27,6 +27,7 @@
 #include "hw/misc/led.h"
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
+#include "qom/cpp/object.h"
 
 REG32(LED0, 0)
 REG32(DBGCTRL, 4)
@@ -253,51 +254,46 @@ static const MemoryRegionOps mps2_fpgaio_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void mps2_fpgaio_reset(DeviceState *dev)
+void MPS2FPGAIO::reset()
 {
-    MPS2FPGAIO *s = MPS2_FPGAIO(dev);
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     trace_mps2_fpgaio_reset();
-    s->led0 = 0;
-    s->prescale = 0;
-    s->misc = 0;
-    s->clk1hz_tick_offset = tickoff_from_counter(now, 0, 1);
-    s->clk100hz_tick_offset = tickoff_from_counter(now, 0, 100);
-    s->counter = 0;
-    s->pscntr = 0;
-    s->pscntr_sync_ticks = now;
+    led0 = 0;
+    prescale = 0;
+    misc = 0;
+    clk1hz_tick_offset = tickoff_from_counter(now, 0, 1);
+    clk100hz_tick_offset = tickoff_from_counter(now, 0, 100);
+    counter = 0;
+    pscntr = 0;
+    pscntr_sync_ticks = now;
 
-    for (size_t i = 0; i < s->num_leds; i++) {
-        device_cold_reset(DEVICE(s->led[i]));
+    for (size_t i = 0; i < num_leds; i++) {
+        device_cold_reset(DEVICE(led[i]));
     }
 }
 
-static void mps2_fpgaio_init(Object *obj)
+void MPS2FPGAIO::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MPS2FPGAIO *s = MPS2_FPGAIO(obj);
-
-    memory_region_init_io(&s->iomem, obj, &mps2_fpgaio_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &mps2_fpgaio_ops, this,
                           "mps2-fpgaio", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void mps2_fpgaio_realize(DeviceState *dev, Error **errp)
+void MPS2FPGAIO::realize(Error **errp)
 {
-    MPS2FPGAIO *s = MPS2_FPGAIO(dev);
     uint32_t i;
 
-    if (s->num_leds > MPS2FPGAIO_MAX_LEDS) {
+    if (num_leds > MPS2FPGAIO_MAX_LEDS) {
         error_setg(errp, "num-leds cannot be greater than %d",
                    MPS2FPGAIO_MAX_LEDS);
         return;
     }
 
-    for (i = 0; i < s->num_leds; i++) {
+    for (i = 0; i < num_leds; i++) {
         g_autofree char *ledname = g_strdup_printf("USERLED%d", i);
-        s->led[i] = led_create_simple(OBJECT(dev), GPIO_POLARITY_ACTIVE_HIGH,
-                                      LED_COLOR_GREEN, ledname);
+        led[i] = led_create_simple(OBJECT(this), GPIO_POLARITY_ACTIVE_HIGH,
+                                   LED_COLOR_GREEN, ledname);
     }
 }
 
@@ -330,27 +326,10 @@ static const Property mps2_fpgaio_properties[] = {
     DEFINE_PROP_BOOL("has-dbgctrl", MPS2FPGAIO, has_dbgctrl, false),
 };
 
-static void mps2_fpgaio_class_init(ObjectClass *klass, const void *data)
+void MPS2FPGAIO::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &mps2_fpgaio_vmstate;
-    dc->realize = mps2_fpgaio_realize;
-    device_class_set_legacy_reset(dc, mps2_fpgaio_reset);
     device_class_set_props(dc, mps2_fpgaio_properties);
 }
 
-static const TypeInfo mps2_fpgaio_info = {
-    .name = TYPE_MPS2_FPGAIO,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MPS2FPGAIO),
-    .instance_init = mps2_fpgaio_init,
-    .class_init = mps2_fpgaio_class_init,
-};
-
-static void mps2_fpgaio_register_types(void)
-{
-    type_register_static(&mps2_fpgaio_info);
-}
-
-type_init(mps2_fpgaio_register_types);
+REGISTER_QEMU_DEVICE(MPS2FPGAIO, TYPE_MPS2_FPGAIO, TYPE_SYS_BUS_DEVICE)

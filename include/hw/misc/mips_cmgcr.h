@@ -86,6 +86,13 @@ struct MIPSGCRState {
 
     /* VP Local/Other Registers */
     MIPSGCRVPState *vps;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* MIPS_CMGCR_H */

@@ -21,6 +21,7 @@ extern "C" {
 #include "hw/qdev-properties.h"
 #include "hw/intc/mips_gic.h"
 }
+#include "qom/cpp/object.h"
 
 static inline bool is_cpc_connected(MIPSGCRState *s)
 {
@@ -172,28 +173,22 @@ static void gcr_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
 
 static MemoryRegionOps gcr_ops;
 
-static void mips_gcr_init(Object *obj)
+void MIPSGCRState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MIPSGCRState *s = MIPS_GCR(obj);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &gcr_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &gcr_ops, this,
                           "mips-gcr", GCR_ADDRSPACE_SZ);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void mips_gcr_reset(DeviceState *dev)
+void MIPSGCRState::reset()
 {
-    MIPSGCRState *s = MIPS_GCR(dev);
-    int i;
+    update_gic_base(this, 0);
+    update_cpc_base(this, 0);
 
-    update_gic_base(s, 0);
-    update_cpc_base(s, 0);
-
-    for (i = 0; i < s->num_vps; i++) {
-        s->vps[i].other = 0;
-        s->vps[i].reset_base = 0xBFC00000 & GCR_CL_RESET_BASE_MSK;
-        cpu_set_exception_base(i, get_exception_base(&s->vps[i]));
+    for (uint32_t i = 0; i < num_vps; i++) {
+        vps[i].other = 0;
+        vps[i].reset_base = 0xBFC00000 & GCR_CL_RESET_BASE_MSK;
+        cpu_set_exception_base(i, get_exception_base(&vps[i]));
     }
 }
 
@@ -219,37 +214,19 @@ static const Property mips_gcr_properties[] = {
                      MemoryRegion *),
 };
 
-static void mips_gcr_realize(DeviceState *dev, Error **errp)
+void MIPSGCRState::realize(Error **errp)
 {
-    MIPSGCRState *s = MIPS_GCR(dev);
-
     /* Create local set of registers for each VP */
-    s->vps = g_new(MIPSGCRVPState, s->num_vps);
+    vps = g_new(MIPSGCRVPState, num_vps);
 }
 
-static void mips_gcr_class_init(ObjectClass *klass, const void *data)
+void MIPSGCRState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     device_class_set_props(dc, mips_gcr_properties);
     dc->vmsd = &vmstate_mips_gcr;
-    device_class_set_legacy_reset(dc, mips_gcr_reset);
-    dc->realize = mips_gcr_realize;
 }
 
-static const TypeInfo mips_gcr_info = {
-    .name          = TYPE_MIPS_GCR,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MIPSGCRState),
-    .instance_init = mips_gcr_init,
-    .class_init    = mips_gcr_class_init,
-};
-
-static void mips_gcr_register_types(void)
-{
-    type_register_static(&mips_gcr_info);
-}
-
-type_init(mips_gcr_register_types)
+REGISTER_QEMU_DEVICE(MIPSGCRState, TYPE_MIPS_GCR, TYPE_SYS_BUS_DEVICE)
 
 static void __attribute__((constructor)) init_gcr_ops(void)
 {

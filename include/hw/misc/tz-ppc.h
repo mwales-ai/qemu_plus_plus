@@ -102,6 +102,13 @@ struct TZPPC {
     uint32_t nonsec_mask;
 
     TZPPCPort port[TZ_NUM_PORTS];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
