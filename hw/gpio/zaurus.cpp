@@ -20,9 +20,9 @@
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
-#include "qemu/module.h"
 #include "qemu/log.h"
 #include "qom/object.h"
+#include "qom/cpp/object.h"
 
 /* SCOOP devices */
 
@@ -46,6 +46,11 @@ struct ScoopInfo {
     uint16_t irr;
     uint16_t imr;
     uint16_t isr;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define SCOOP_MCR       0x00
@@ -77,7 +82,7 @@ static inline void scoop_gpio_handler_update(ScoopInfo *s)
 static uint64_t scoop_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
-    ScoopInfo *s = (ScoopInfo *) opaque;
+    ScoopInfo *s = static_cast<ScoopInfo *>(opaque);
 
     switch (addr & 0x3f) {
     case SCOOP_MCR:
@@ -113,7 +118,7 @@ static uint64_t scoop_read(void *opaque, hwaddr addr,
 static void scoop_write(void *opaque, hwaddr addr,
                         uint64_t value, unsigned size)
 {
-    ScoopInfo *s = (ScoopInfo *) opaque;
+    ScoopInfo *s = static_cast<ScoopInfo *>(opaque);
     value &= 0xffff;
 
     switch (addr & 0x3f) {
@@ -165,7 +170,7 @@ static const MemoryRegionOps scoop_ops = {
 
 static void scoop_gpio_set(void *opaque, int line, int level)
 {
-    ScoopInfo *s = (ScoopInfo *) opaque;
+    ScoopInfo *s = static_cast<ScoopInfo *>(opaque);
 
     if (level) {
         s->gpio_level |= (1 << line);
@@ -174,23 +179,19 @@ static void scoop_gpio_set(void *opaque, int line, int level)
     }
 }
 
-static void scoop_init(Object *obj)
+void ScoopInfo::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    ScoopInfo *s = SCOOP(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    s->status = 0x02;
-    qdev_init_gpio_out(dev, s->handler, 16);
-    qdev_init_gpio_in(dev, scoop_gpio_set, 16);
-    memory_region_init_io(&s->iomem, obj, &scoop_ops, s, "scoop", 0x1000);
-
-    sysbus_init_mmio(sbd, &s->iomem);
+    status = 0x02;
+    qdev_init_gpio_out(DEVICE(this), handler, 16);
+    qdev_init_gpio_in(DEVICE(this), scoop_gpio_set, 16);
+    memory_region_init_io(&iomem, OBJECT(this), &scoop_ops, this,
+                          "scoop", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static int scoop_post_load(void *opaque, int version_id)
 {
-    ScoopInfo *s = (ScoopInfo *) opaque;
+    ScoopInfo *s = static_cast<ScoopInfo *>(opaque);
     int i;
     uint32_t level;
 
@@ -244,25 +245,10 @@ static const VMStateDescription vmstate_scoop_regs = {
     .fields = vmstate_scoop_fields,
 };
 
-static void scoop_sysbus_class_init(ObjectClass *klass, const void *data)
+void ScoopInfo::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "Scoop2 Sharp custom ASIC";
     dc->vmsd = &vmstate_scoop_regs;
 }
 
-static const TypeInfo scoop_sysbus_info = {
-    .name          = TYPE_SCOOP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ScoopInfo),
-    .instance_init = scoop_init,
-    .class_init    = scoop_sysbus_class_init,
-};
-
-static void scoop_register_types(void)
-{
-    type_register_static(&scoop_sysbus_info);
-}
-
-type_init(scoop_register_types)
+REGISTER_QEMU_DEVICE(ScoopInfo, TYPE_SCOOP, TYPE_SYS_BUS_DEVICE)

@@ -27,10 +27,8 @@
 #include "hw/qdev-properties.h"
 #include "hw/timer/renesas_cmt.h"
 #include "migration/vmstate.h"
-
-extern "C" {
 #include "qemu/log.h"
-}
+#include "qom/cpp/object.h"
 
 /*
  *  +0 CMSTR - common control
@@ -59,19 +57,11 @@ static void update_events(RCMTState *cmt, int ch)
     int64_t next_time;
 
     if ((cmt->cmstr & (1 << ch)) == 0) {
-        /* count disable, so not happened next event. */
         return;
     }
     next_time = cmt->cmcor[ch] - cmt->cmcnt[ch];
     next_time *= NANOSECONDS_PER_SECOND;
     next_time /= cmt->input_freq;
-    /*
-     * CKS -> div rate
-     *  0 -> 8 (1 << 3)
-     *  1 -> 32 (1 << 5)
-     *  2 -> 128 (1 << 7)
-     *  3 -> 512 (1 << 9)
-     */
     next_time *= 1 << (3 + FIELD_EX16(cmt->cmcr[ch], CMCR, CKS) * 2);
     next_time += qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     timer_mod(&cmt->timer[ch], next_time);
@@ -215,30 +205,25 @@ static void timer_event1(void *opaque)
     timer_events(cmt, 1);
 }
 
-static void rcmt_reset(DeviceState *dev)
+void RCMTState::reset()
 {
-    RCMTState *cmt = RCMT(dev);
-    cmt->cmstr = 0;
-    cmt->cmcr[0] = cmt->cmcr[1] = 0;
-    cmt->cmcnt[0] = cmt->cmcnt[1] = 0;
-    cmt->cmcor[0] = cmt->cmcor[1] = 0xffff;
+    cmstr = 0;
+    cmcr[0] = cmcr[1] = 0;
+    cmcnt[0] = cmcnt[1] = 0;
+    cmcor[0] = cmcor[1] = 0xffff;
 }
 
-static void rcmt_init(Object *obj)
+void RCMTState::init()
 {
-    SysBusDevice *d = SYS_BUS_DEVICE(obj);
-    RCMTState *cmt = RCMT(obj);
-    int i;
+    memory_region_init_io(&memory, OBJECT(this), &cmt_ops,
+                          this, "renesas-cmt", 0x10);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &memory);
 
-    memory_region_init_io(&cmt->memory, OBJECT(cmt), &cmt_ops,
-                          cmt, "renesas-cmt", 0x10);
-    sysbus_init_mmio(d, &cmt->memory);
-
-    for (i = 0; i < ARRAY_SIZE(cmt->cmi); i++) {
-        sysbus_init_irq(d, &cmt->cmi[i]);
+    for (int i = 0; i < ARRAY_SIZE(cmi); i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &cmi[i]);
     }
-    timer_init_ns(&cmt->timer[0], QEMU_CLOCK_VIRTUAL, timer_event0, cmt);
-    timer_init_ns(&cmt->timer[1], QEMU_CLOCK_VIRTUAL, timer_event1, cmt);
+    timer_init_ns(&timer[0], QEMU_CLOCK_VIRTUAL, timer_event0, this);
+    timer_init_ns(&timer[1], QEMU_CLOCK_VIRTUAL, timer_event1, this);
 }
 
 static const VMStateField vmstate_rcmt_fields[] = {
@@ -262,26 +247,10 @@ static const Property rcmt_properties[] = {
     DEFINE_PROP_UINT64("input-freq", RCMTState, input_freq, 0),
 };
 
-static void rcmt_class_init(ObjectClass *klass, const void *data)
+void RCMTState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_rcmt;
-    device_class_set_legacy_reset(dc, rcmt_reset);
     device_class_set_props(dc, rcmt_properties);
 }
 
-static const TypeInfo rcmt_info = {
-    .name = TYPE_RENESAS_CMT,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RCMTState),
-    .instance_init = rcmt_init,
-    .class_init = rcmt_class_init,
-};
-
-static void rcmt_register_types(void)
-{
-    type_register_static(&rcmt_info);
-}
-
-type_init(rcmt_register_types)
+REGISTER_QEMU_DEVICE(RCMTState, TYPE_RENESAS_CMT, TYPE_SYS_BUS_DEVICE)

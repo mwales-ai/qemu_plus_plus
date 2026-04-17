@@ -38,6 +38,12 @@ struct RCMTState {
     int64_t tick[CMT_CH];
     qemu_irq cmi[CMT_CH];
     QEMUTimer timer[CMT_CH];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

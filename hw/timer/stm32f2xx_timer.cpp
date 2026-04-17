@@ -23,15 +23,13 @@
  */
 
 #include "qemu/osdep.h"
-
-extern "C" {
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/timer/stm32f2xx_timer.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
-#include "qemu/module.h"
-}
+#include "qapi/error.h"
+#include "qom/cpp/object.h"
 
 #ifndef STM_TIMER_ERR_DEBUG
 #define STM_TIMER_ERR_DEBUG 0
@@ -97,31 +95,30 @@ static void stm32f2xx_timer_set_alarm(STM32F2XXTimerState *s, int64_t now)
     DB_PRINT("Wait Time: %" PRId64 " ticks\n", s->hit_time);
 }
 
-static void stm32f2xx_timer_reset(DeviceState *dev)
+void STM32F2XXTimerState::reset()
 {
-    STM32F2XXTimerState *s = STM32F2XXTIMER(dev);
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
-    s->tim_cr1 = 0;
-    s->tim_cr2 = 0;
-    s->tim_smcr = 0;
-    s->tim_dier = 0;
-    s->tim_sr = 0;
-    s->tim_egr = 0;
-    s->tim_ccmr1 = 0;
-    s->tim_ccmr2 = 0;
-    s->tim_ccer = 0;
-    s->tim_psc = 0;
-    s->tim_arr = 0;
-    s->tim_ccr1 = 0;
-    s->tim_ccr2 = 0;
-    s->tim_ccr3 = 0;
-    s->tim_ccr4 = 0;
-    s->tim_dcr = 0;
-    s->tim_dmar = 0;
-    s->tim_or = 0;
+    tim_cr1 = 0;
+    tim_cr2 = 0;
+    tim_smcr = 0;
+    tim_dier = 0;
+    tim_sr = 0;
+    tim_egr = 0;
+    tim_ccmr1 = 0;
+    tim_ccmr2 = 0;
+    tim_ccer = 0;
+    tim_psc = 0;
+    tim_arr = 0;
+    tim_ccr1 = 0;
+    tim_ccr2 = 0;
+    tim_ccr3 = 0;
+    tim_ccr4 = 0;
+    tim_dcr = 0;
+    tim_dmar = 0;
+    tim_or = 0;
 
-    s->tick_offset = stm32f2xx_ns_to_ticks(s, now);
+    tick_offset = stm32f2xx_ns_to_ticks(this, now);
 }
 
 static uint64_t stm32f2xx_timer_read(void *opaque, hwaddr offset,
@@ -260,9 +257,6 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
         return;
     }
 
-    /* This means that a register write has affected the timer in a way that
-     * requires a refresh of both tick_offset and the alarm.
-     */
     s->tick_offset = stm32f2xx_ns_to_ticks(s, now) - timer_val;
     stm32f2xx_timer_set_alarm(s, now);
 }
@@ -308,44 +302,25 @@ static const Property stm32f2xx_timer_properties[] = {
                        freq_hz, 1000000000),
 };
 
-static void stm32f2xx_timer_init(Object *obj)
+void STM32F2XXTimerState::init()
 {
-    STM32F2XXTimerState *s = STM32F2XXTIMER(obj);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-
-    memory_region_init_io(&s->iomem, obj, &stm32f2xx_timer_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &stm32f2xx_timer_ops, this,
                           "stm32f2xx_timer", 0x400);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void stm32f2xx_timer_realize(DeviceState *dev, Error **errp)
+void STM32F2XXTimerState::realize(Error **errp)
 {
-    STM32F2XXTimerState *s = STM32F2XXTIMER(dev);
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32f2xx_timer_interrupt, s);
+    timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, stm32f2xx_timer_interrupt, this);
 }
 
-static void stm32f2xx_timer_class_init(ObjectClass *klass, const void *data)
+void STM32F2XXTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, stm32f2xx_timer_reset);
     device_class_set_props(dc, stm32f2xx_timer_properties);
     dc->vmsd = &vmstate_stm32f2xx_timer;
-    dc->realize = stm32f2xx_timer_realize;
 }
 
-static const TypeInfo stm32f2xx_timer_info = {
-    .name          = TYPE_STM32F2XX_TIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32F2XXTimerState),
-    .instance_init = stm32f2xx_timer_init,
-    .class_init    = stm32f2xx_timer_class_init,
-};
-
-static void stm32f2xx_timer_register_types(void)
-{
-    type_register_static(&stm32f2xx_timer_info);
-}
-
-type_init(stm32f2xx_timer_register_types)
+REGISTER_QEMU_DEVICE(STM32F2XXTimerState, TYPE_STM32F2XX_TIMER,
+                      TYPE_SYS_BUS_DEVICE)

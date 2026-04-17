@@ -97,6 +97,13 @@ struct STM32F2XXTimerState {
     uint32_t tim_dcr;
     uint32_t tim_dmar;
     uint32_t tim_or;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_STM32F2XX_TIMER_H */
