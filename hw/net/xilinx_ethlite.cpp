@@ -103,6 +103,11 @@ struct XlnxXpsEthLite
     UnimplementedDeviceState rsvd;
     UnimplementedDeviceState mdio;
     XlnxXpsEthLitePort port[2];
+
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
 };
 
 static inline void eth_pulse_irq(XlnxXpsEthLite *s)
@@ -285,11 +290,9 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     return size;
 }
 
-static void xilinx_ethlite_reset(DeviceState *dev)
+void XlnxXpsEthLite::reset()
 {
-    XlnxXpsEthLite *s = XILINX_ETHLITE(dev);
-
-    s->port_index = 0;
+    port_index = 0;
 }
 
 static NetClientInfo net_xilinx_ethlite_info = {
@@ -299,17 +302,17 @@ static NetClientInfo net_xilinx_ethlite_info = {
     .can_receive = eth_can_rx,
 };
 
-static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
+void XlnxXpsEthLite::realize(Error **errp)
 {
-    XlnxXpsEthLite *s = XILINX_ETHLITE(dev);
+    DeviceState *dev = DEVICE(this);
     unsigned ops_index;
 
-    if (s->model_endianness == ENDIAN_MODE_UNSPECIFIED) {
+    if (model_endianness == ENDIAN_MODE_UNSPECIFIED) {
         error_setg(errp, TYPE_XILINX_ETHLITE " property 'endianness'"
                          " must be set to 'big' or 'little'");
         return;
     }
-    ops_index = s->model_endianness == ENDIAN_MODE_BIG ? 1 : 0;
+    ops_index = model_endianness == ENDIAN_MODE_BIG ? 1 : 0;
 
     /* Build ops at runtime instead of using designated range initializers */
     static MemoryRegionOps eth_porttx_ops[2];
@@ -323,65 +326,63 @@ static void xilinx_ethlite_realize(DeviceState *dev, Error **errp)
         ops_initialized = true;
     }
 
-    memory_region_init(&s->container, OBJECT(dev),
+    memory_region_init(&container, OBJECT(this),
                        "xlnx.xps-ethernetlite", 0x2000);
 
-    object_initialize_child(OBJECT(dev), "ethlite.reserved", &s->rsvd,
+    object_initialize_child(OBJECT(this), "ethlite.reserved", &rsvd,
                             TYPE_UNIMPLEMENTED_DEVICE);
-    qdev_prop_set_string(DEVICE(&s->rsvd), "name", "ethlite.reserved");
-    qdev_prop_set_uint64(DEVICE(&s->rsvd), "size",
-                         memory_region_size(&s->container));
-    sysbus_realize(SYS_BUS_DEVICE(&s->rsvd), &error_fatal);
-    memory_region_add_subregion_overlap(&s->container, 0,
-                           sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->rsvd), 0),
+    qdev_prop_set_string(DEVICE(&rsvd), "name", "ethlite.reserved");
+    qdev_prop_set_uint64(DEVICE(&rsvd), "size",
+                         memory_region_size(&container));
+    sysbus_realize(SYS_BUS_DEVICE(&rsvd), &error_fatal);
+    memory_region_add_subregion_overlap(&container, 0,
+                           sysbus_mmio_get_region(SYS_BUS_DEVICE(&rsvd), 0),
                            -1);
 
-    object_initialize_child(OBJECT(dev), "ethlite.mdio", &s->mdio,
+    object_initialize_child(OBJECT(this), "ethlite.mdio", &mdio,
                             TYPE_UNIMPLEMENTED_DEVICE);
-    qdev_prop_set_string(DEVICE(&s->mdio), "name", "ethlite.mdio");
-    qdev_prop_set_uint64(DEVICE(&s->mdio), "size", 4 * 4);
-    sysbus_realize(SYS_BUS_DEVICE(&s->mdio), &error_fatal);
-    memory_region_add_subregion(&s->container, A_MDIO_BASE,
-                           sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->mdio), 0));
+    qdev_prop_set_string(DEVICE(&mdio), "name", "ethlite.mdio");
+    qdev_prop_set_uint64(DEVICE(&mdio), "size", 4 * 4);
+    sysbus_realize(SYS_BUS_DEVICE(&mdio), &error_fatal);
+    memory_region_add_subregion(&container, A_MDIO_BASE,
+                           sysbus_mmio_get_region(SYS_BUS_DEVICE(&mdio), 0));
 
     for (unsigned i = 0; i < 2; i++) {
-        memory_region_init_ram(&s->port[i].txbuf, OBJECT(dev),
+        memory_region_init_ram(&port[i].txbuf, OBJECT(this),
                                i ? "ethlite.tx[1]buf" : "ethlite.tx[0]buf",
                                BUFSZ_MAX, &error_abort);
-        memory_region_add_subregion(&s->container, 0x0800 * i, &s->port[i].txbuf);
-        memory_region_init_io(&s->port[i].txio, OBJECT(dev),
-                              &eth_porttx_ops[ops_index], s,
+        memory_region_add_subregion(&container, 0x0800 * i, &port[i].txbuf);
+        memory_region_init_io(&port[i].txio, OBJECT(this),
+                              &eth_porttx_ops[ops_index], this,
                               i ? "ethlite.tx[1]io" : "ethlite.tx[0]io",
                               4 * TX_MAX);
-        memory_region_add_subregion(&s->container, i ? A_TX_BASE1 : A_TX_BASE0,
-                                    &s->port[i].txio);
+        memory_region_add_subregion(&container, i ? A_TX_BASE1 : A_TX_BASE0,
+                                    &port[i].txio);
 
-        memory_region_init_ram(&s->port[i].rxbuf, OBJECT(dev),
+        memory_region_init_ram(&port[i].rxbuf, OBJECT(this),
                                i ? "ethlite.rx[1]buf" : "ethlite.rx[0]buf",
                                BUFSZ_MAX, &error_abort);
-        memory_region_add_subregion(&s->container, 0x1000 + 0x0800 * i,
-                                    &s->port[i].rxbuf);
-        memory_region_init_io(&s->port[i].rxio, OBJECT(dev),
-                              &eth_portrx_ops[ops_index], s,
+        memory_region_add_subregion(&container, 0x1000 + 0x0800 * i,
+                                    &port[i].rxbuf);
+        memory_region_init_io(&port[i].rxio, OBJECT(this),
+                              &eth_portrx_ops[ops_index], this,
                               i ? "ethlite.rx[1]io" : "ethlite.rx[0]io",
                               4 * RX_MAX);
-        memory_region_add_subregion(&s->container, i ? A_RX_BASE1 : A_RX_BASE0,
-                                    &s->port[i].rxio);
+        memory_region_add_subregion(&container, i ? A_RX_BASE1 : A_RX_BASE0,
+                                    &port[i].rxio);
     }
 
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_xilinx_ethlite_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_xilinx_ethlite_info, &conf,
+                          object_get_typename(OBJECT(this)), dev->id,
+                          &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 }
 
-static void xilinx_ethlite_init(Object *obj)
+void XlnxXpsEthLite::init()
 {
-    XlnxXpsEthLite *s = XILINX_ETHLITE(obj);
-
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->container);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &container);
 }
 
 static const Property xilinx_ethlite_properties[] = {
@@ -391,23 +392,10 @@ static const Property xilinx_ethlite_properties[] = {
     DEFINE_NIC_PROPERTIES(XlnxXpsEthLite, conf),
 };
 
-static void xilinx_ethlite_class_init(ObjectClass *klass, const void *data)
+void XlnxXpsEthLite::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = xilinx_ethlite_realize;
-    device_class_set_legacy_reset(dc, xilinx_ethlite_reset);
     device_class_set_props(dc, xilinx_ethlite_properties);
 }
 
-static const TypeInfo xilinx_ethlite_types[] = {
-    {
-        .name          = TYPE_XILINX_ETHLITE,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(XlnxXpsEthLite),
-        .instance_init = xilinx_ethlite_init,
-        .class_init    = xilinx_ethlite_class_init,
-    },
-};
-
-DEFINE_TYPES(xilinx_ethlite_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxXpsEthLite, TYPE_XILINX_ETHLITE, TYPE_SYS_BUS_DEVICE)

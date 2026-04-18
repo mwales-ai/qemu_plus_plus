@@ -136,9 +136,8 @@ static void spapr_rtc_qom_date(Object *obj, struct tm *current_tm, Error **errp)
     spapr_rtc_read(SPAPR_RTC(obj), current_tm, NULL);
 }
 
-static void spapr_rtc_realize(DeviceState *dev, Error **errp)
+void SpaprRtcState::realize(Error **errp)
 {
-    SpaprRtcState *rtc = SPAPR_RTC(dev);
     struct tm tm;
     time_t host_s;
     int64_t rtc_ns;
@@ -148,26 +147,25 @@ static void spapr_rtc_realize(DeviceState *dev, Error **errp)
     qemu_get_timedate(&tm, 0);
     host_s = mktimegm(&tm);
     rtc_ns = qemu_clock_get_ns(rtc_clock);
-    rtc->ns_offset = host_s * NANOSECONDS_PER_SECOND - rtc_ns;
+    ns_offset = host_s * NANOSECONDS_PER_SECOND - rtc_ns;
 
-    object_property_add_tm(OBJECT(rtc), "date", spapr_rtc_qom_date);
+    object_property_add_tm(OBJECT(this), "date", spapr_rtc_qom_date);
 }
+
+static const VMStateField vmstate_spapr_rtc_fields[] = {
+    VMSTATE_INT64(ns_offset, SpaprRtcState),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_spapr_rtc = {
     .name = "spapr/rtc",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_INT64(ns_offset, SpaprRtcState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_spapr_rtc_fields,
 };
 
-static void spapr_rtc_class_init(ObjectClass *oc, const void *data)
+void SpaprRtcState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = spapr_rtc_realize;
     dc->vmsd = &vmstate_spapr_rtc;
     /* Reason: This is an internal device only for handling the hypercalls */
     dc->user_creatable = false;
@@ -178,15 +176,5 @@ static void spapr_rtc_class_init(ObjectClass *oc, const void *data)
                         rtas_set_time_of_day);
 }
 
-static const TypeInfo spapr_rtc_info = {
-    .name          = TYPE_SPAPR_RTC,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(SpaprRtcState),
-    .class_init    = spapr_rtc_class_init,
-};
-
-static void spapr_rtc_register_types(void)
-{
-    type_register_static(&spapr_rtc_info);
-}
-type_init(spapr_rtc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SpaprRtcState, TYPE_SPAPR_RTC, TYPE_DEVICE)

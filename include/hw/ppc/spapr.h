@@ -42,6 +42,11 @@ struct SpaprRtcState {
     /*< private >*/
     DeviceState parent_obj;
     int64_t ns_offset;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 typedef struct SpaprDimmState SpaprDimmState;

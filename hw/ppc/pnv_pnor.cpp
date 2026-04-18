@@ -78,41 +78,40 @@ static const MemoryRegionOps pnv_pnor_ops = {
     },
 };
 
-static void pnv_pnor_realize(DeviceState *dev, Error **errp)
+void PnvPnor::realize(Error **errp)
 {
-    PnvPnor *s = PNV_PNOR(dev);
     int ret;
 
-    if (s->blk) {
+    if (blk) {
         uint64_t perm = BLK_PERM_CONSISTENT_READ |
-                        (blk_supports_write_perm(s->blk) ? BLK_PERM_WRITE : 0);
-        ret = blk_set_perm(s->blk, perm, BLK_PERM_ALL, errp);
+                        (blk_supports_write_perm(blk) ? BLK_PERM_WRITE : 0);
+        ret = blk_set_perm(blk, perm, BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;
         }
 
-        s->size = blk_getlength(s->blk);
-        if (s->size <= 0) {
+        size = blk_getlength(blk);
+        if (size <= 0) {
             error_setg(errp, "failed to get flash size");
             return;
         }
 
-        s->storage = static_cast<uint8_t *>(blk_blockalign(s->blk, s->size));
+        storage = static_cast<uint8_t *>(blk_blockalign(blk, size));
 
-        if (blk_pread(s->blk, 0, s->size, s->storage,
+        if (blk_pread(blk, 0, size, storage,
                       static_cast<BdrvRequestFlags>(0)) < 0) {
             error_setg(errp, "failed to read the initial flash content");
             return;
         }
     } else {
-        s->storage = static_cast<uint8_t *>(blk_blockalign(NULL, s->size));
-        memset(s->storage, 0xFF, s->size);
+        storage = static_cast<uint8_t *>(blk_blockalign(NULL, size));
+        memset(storage, 0xFF, size);
     }
 
-    s->lpc_address = PNOR_SPI_OFFSET;
+    lpc_address = PNOR_SPI_OFFSET;
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &pnv_pnor_ops, s,
-                          TYPE_PNV_PNOR, s->size);
+    memory_region_init_io(&mmio, OBJECT(this), &pnv_pnor_ops, this,
+                          TYPE_PNV_PNOR, size);
 }
 
 static const Property pnv_pnor_properties[] = {
@@ -120,24 +119,10 @@ static const Property pnv_pnor_properties[] = {
     DEFINE_PROP_DRIVE("drive", PnvPnor, blk),
 };
 
-static void pnv_pnor_class_init(ObjectClass *klass, const void *data)
+void PnvPnor::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = pnv_pnor_realize;
     device_class_set_props(dc, pnv_pnor_properties);
 }
 
-static const TypeInfo pnv_pnor_info = {
-    .name          = TYPE_PNV_PNOR,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PnvPnor),
-    .class_init    = pnv_pnor_class_init,
-};
-
-static void pnv_pnor_register_types(void)
-{
-    type_register_static(&pnv_pnor_info);
-}
-
-type_init(pnv_pnor_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PnvPnor, TYPE_PNV_PNOR, TYPE_SYS_BUS_DEVICE)

@@ -35,6 +35,10 @@ struct mcf_intc_state {
     uint8_t icr[64];
     M68kCPU *cpu;
     int active_vector;
+
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
 };
 
 static void mcf_intc_update(mcf_intc_state *s)
@@ -155,16 +159,14 @@ static void mcf_intc_set_irq(void *opaque, int irq, int level)
     mcf_intc_update(s);
 }
 
-static void mcf_intc_reset(DeviceState *dev)
+void mcf_intc_state::reset()
 {
-    mcf_intc_state *s = MCF_INTC(dev);
-
-    s->imr = ~0ull;
-    s->ipr = 0;
-    s->ifr = 0;
-    s->enabled = 0;
-    memset(s->icr, 0, 64);
-    s->active_vector = 24;
+    imr = ~0ull;
+    ipr = 0;
+    ifr = 0;
+    enabled = 0;
+    memset(icr, 0, 64);
+    active_vector = 24;
 }
 
 static const MemoryRegionOps mcf_intc_ops = {
@@ -173,12 +175,10 @@ static const MemoryRegionOps mcf_intc_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void mcf_intc_instance_init(Object *obj)
+void mcf_intc_state::init()
 {
-    mcf_intc_state *s = MCF_INTC(obj);
-
-    memory_region_init_io(&s->iomem, obj, &mcf_intc_ops, s, "mcf", 0x100);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+    memory_region_init_io(&iomem, OBJECT(this), &mcf_intc_ops, this, "mcf", 0x100);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const Property mcf_intc_properties[] = {
@@ -186,29 +186,14 @@ static const Property mcf_intc_properties[] = {
                      TYPE_M68K_CPU, M68kCPU *),
 };
 
-static void mcf_intc_class_init(ObjectClass *oc, const void *data)
+void mcf_intc_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     device_class_set_props(dc, mcf_intc_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    device_class_set_legacy_reset(dc, mcf_intc_reset);
 }
 
-static const TypeInfo mcf_intc_gate_info = {
-    .name          = TYPE_MCF_INTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mcf_intc_state),
-    .instance_init = mcf_intc_instance_init,
-    .class_init    = mcf_intc_class_init,
-};
-
-static void mcf_intc_register_types(void)
-{
-    type_register_static(&mcf_intc_gate_info);
-}
-
-type_init(mcf_intc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(mcf_intc_state, TYPE_MCF_INTC, TYPE_SYS_BUS_DEVICE)
 
 extern "C" qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
                         hwaddr base,

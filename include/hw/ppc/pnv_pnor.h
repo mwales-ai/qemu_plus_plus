@@ -31,6 +31,11 @@ struct PnvPnor {
     uint32_t       lpc_address; /* Offset within LPC FW space */
     int64_t        size;
     MemoryRegion   mmio;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* PPC_PNV_PNOR_H */
