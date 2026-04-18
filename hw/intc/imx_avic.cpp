@@ -318,54 +318,34 @@ static const MemoryRegionOps imx_avic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void imx_avic_reset(DeviceState *dev)
+void IMXAVICState::reset()
 {
-    IMXAVICState *s = IMX_AVIC(dev);
-
-    s->pending = 0;
-    s->enabled = 0;
-    s->is_fiq = 0;
-    s->intmask = 0x1f;
-    s->intcntl = 0;
-    memset(s->prio, 0, sizeof s->prio);
+    pending = 0;
+    enabled = 0;
+    is_fiq = 0;
+    intmask = 0x1f;
+    intcntl = 0;
+    memset(prio, 0, sizeof prio);
 }
 
-static void imx_avic_init(Object *obj)
+void IMXAVICState::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    IMXAVICState *s = IMX_AVIC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, obj, &imx_avic_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &imx_avic_ops, this,
                           TYPE_IMX_AVIC, 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 
-    qdev_init_gpio_in(dev, imx_avic_set_irq, IMX_AVIC_NUM_IRQS);
-    sysbus_init_irq(sbd, &s->irq);
-    sysbus_init_irq(sbd, &s->fiq);
+    qdev_init_gpio_in(DEVICE(this), imx_avic_set_irq, IMX_AVIC_NUM_IRQS);
+    sysbus_init_irq(sbd, &irq);
+    sysbus_init_irq(sbd, &fiq);
 }
 
-
-static void imx_avic_class_init(ObjectClass *klass, const void *data)
+void IMXAVICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_imx_avic;
-    device_class_set_legacy_reset(dc, imx_avic_reset);
     dc->desc = "i.MX Advanced Vector Interrupt Controller";
 }
 
-static const TypeInfo imx_avic_info = {
-    .name = TYPE_IMX_AVIC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXAVICState),
-    .instance_init = imx_avic_init,
-    .class_init = imx_avic_class_init,
-};
-
-static void imx_avic_register_types(void)
-{
-    type_register_static(&imx_avic_info);
-}
-
-type_init(imx_avic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IMXAVICState, TYPE_IMX_AVIC, TYPE_SYS_BUS_DEVICE)

@@ -165,49 +165,29 @@ static const VMStateDescription vmstate_heathrow = {
     .fields = vmstate_heathrow_fields
 };
 
-static void heathrow_reset(DeviceState *d)
+void HeathrowState::reset()
 {
-    HeathrowState *s = HEATHROW(d);
-
-    s->pics[0].level_triggered = 0;
-    s->pics[1].level_triggered = 0x1ff00000;
+    pics[0].level_triggered = 0;
+    pics[1].level_triggered = 0x1ff00000;
 }
 
-static void heathrow_init(Object *obj)
+void HeathrowState::init()
 {
-    HeathrowState *s = HEATHROW(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    /* only 1 CPU */
-    qdev_init_gpio_out(DEVICE(obj), s->irqs, 1);
+    qdev_init_gpio_out(DEVICE(this), irqs, 1);
+    qdev_init_gpio_in(DEVICE(this), heathrow_set_irq, HEATHROW_NUM_IRQS);
 
-    qdev_init_gpio_in(DEVICE(obj), heathrow_set_irq, HEATHROW_NUM_IRQS);
-
-    memory_region_init_io(&s->mem, OBJECT(s), &heathrow_ops, s,
+    memory_region_init_io(&mem, OBJECT(this), &heathrow_ops, this,
                           "heathrow-pic", 0x1000);
-    sysbus_init_mmio(sbd, &s->mem);
+    sysbus_init_mmio(sbd, &mem);
 }
 
-static void heathrow_class_init(ObjectClass *oc, const void *data)
+void HeathrowState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    device_class_set_legacy_reset(dc, heathrow_reset);
     dc->vmsd = &vmstate_heathrow;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo heathrow_type_info = {
-    .name = TYPE_HEATHROW,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(HeathrowState),
-    .instance_init = heathrow_init,
-    .class_init = heathrow_class_init,
-};
-
-static void heathrow_register_types(void)
-{
-    type_register_static(&heathrow_type_info);
-}
-
-type_init(heathrow_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(HeathrowState, TYPE_HEATHROW, TYPE_SYS_BUS_DEVICE)

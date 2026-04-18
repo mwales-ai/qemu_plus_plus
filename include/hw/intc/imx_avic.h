@@ -51,6 +51,12 @@ struct IMXAVICState {
     qemu_irq irq;
     qemu_irq fiq;
     uint32_t prio[PRIO_WORDS]; /* Priorities are 4-bits each */
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX_AVIC_H */

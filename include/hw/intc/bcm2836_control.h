@@ -56,6 +56,12 @@ struct BCM2836ControlState {
     /* outputs to CPU cores */
     qemu_irq irq[BCM2836_NCORES];
     qemu_irq fiq[BCM2836_NCORES];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

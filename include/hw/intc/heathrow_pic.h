@@ -45,6 +45,12 @@ struct HeathrowState {
     MemoryRegion mem;
     HeathrowPICState pics[2];
     qemu_irq irqs[1];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #define HEATHROW_NUM_IRQS 64

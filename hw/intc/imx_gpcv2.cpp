@@ -24,11 +24,9 @@
 #define MIPI_PHY_SW_Pxx_REQ         BIT(0)
 
 
-static void imx_gpcv2_reset(DeviceState *dev)
+void IMXGPCv2State::reset()
 {
-    IMXGPCv2State *s = IMX_GPCV2(dev);
-
-    memset(s->regs, 0, sizeof(s->regs));
+    memset(regs, 0, sizeof(regs));
 }
 
 static uint64_t imx_gpcv2_read(void *opaque, hwaddr offset,
@@ -78,18 +76,17 @@ static const struct MemoryRegionOps imx_gpcv2_ops = {
     },
 };
 
-static void imx_gpcv2_init(Object *obj)
+void IMXGPCv2State::init()
 {
-    SysBusDevice *sd = SYS_BUS_DEVICE(obj);
-    IMXGPCv2State *s = IMX_GPCV2(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem,
-                          obj,
+    memory_region_init_io(&iomem,
+                          OBJECT(this),
                           &imx_gpcv2_ops,
-                          s,
+                          this,
                           TYPE_IMX_GPCV2 ".iomem",
-                          sizeof(s->regs));
-    sysbus_init_mmio(sd, &s->iomem);
+                          sizeof(regs));
+    sysbus_init_mmio(sbd, &iomem);
 }
 
 static const VMStateDescription vmstate_imx_gpcv2 = {
@@ -102,25 +99,11 @@ static const VMStateDescription vmstate_imx_gpcv2 = {
     },
 };
 
-static void imx_gpcv2_class_init(ObjectClass *klass, const void *data)
+void IMXGPCv2State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, imx_gpcv2_reset);
     dc->vmsd  = &vmstate_imx_gpcv2;
     dc->desc  = "i.MX GPCv2 Module";
 }
 
-static const TypeInfo imx_gpcv2_info = {
-    .name          = TYPE_IMX_GPCV2,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXGPCv2State),
-    .instance_init = imx_gpcv2_init,
-    .class_init    = imx_gpcv2_class_init,
-};
-
-static void imx_gpcv2_register_type(void)
-{
-    type_register_static(&imx_gpcv2_info);
-}
-type_init(imx_gpcv2_register_type)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IMXGPCv2State, TYPE_IMX_GPCV2, TYPE_SYS_BUS_DEVICE)

@@ -311,37 +311,34 @@ static const MemoryRegionOps bcm2836_control_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void bcm2836_control_reset(DeviceState *d)
+void BCM2836ControlState::reset()
 {
-    BCM2836ControlState *s = BCM2836_CONTROL(d);
     int i;
 
-    s->route_gpu_irq = s->route_gpu_fiq = 0;
+    route_gpu_irq = route_gpu_fiq = 0;
 
-    timer_del(&s->timer);
-    s->route_localtimer = 0;
-    s->local_timer_control = 0;
+    timer_del(&timer);
+    route_localtimer = 0;
+    local_timer_control = 0;
 
     for (i = 0; i < BCM2836_NCORES; i++) {
-        s->timercontrol[i] = 0;
-        s->mailboxcontrol[i] = 0;
+        timercontrol[i] = 0;
+        mailboxcontrol[i] = 0;
     }
 
     for (i = 0; i < BCM2836_NCORES * BCM2836_MBPERCORE; i++) {
-        s->mailboxes[i] = 0;
+        mailboxes[i] = 0;
     }
 }
 
-static void bcm2836_control_init(Object *obj)
+void BCM2836ControlState::init()
 {
-    BCM2836ControlState *s = BCM2836_CONTROL(obj);
-    DeviceState *dev = DEVICE(obj);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->iomem, obj, &bcm2836_control_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &bcm2836_control_ops, this,
                           TYPE_BCM2836_CONTROL, REG_LIMIT);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 
-    /* inputs from each CPU core */
     qdev_init_gpio_in_named(dev, bcm2836_control_set_local_irq0, "cntpsirq",
                             BCM2836_NCORES);
     qdev_init_gpio_in_named(dev, bcm2836_control_set_local_irq1, "cntpnsirq",
@@ -351,17 +348,14 @@ static void bcm2836_control_init(Object *obj)
     qdev_init_gpio_in_named(dev, bcm2836_control_set_local_irq3, "cntvirq",
                             BCM2836_NCORES);
 
-    /* IRQ and FIQ inputs from upstream bcm2835 controller */
     qdev_init_gpio_in_named(dev, bcm2836_control_set_gpu_irq, "gpu-irq", 1);
     qdev_init_gpio_in_named(dev, bcm2836_control_set_gpu_fiq, "gpu-fiq", 1);
 
-    /* outputs to CPU cores */
-    qdev_init_gpio_out_named(dev, s->irq, "irq", BCM2836_NCORES);
-    qdev_init_gpio_out_named(dev, s->fiq, "fiq", BCM2836_NCORES);
+    qdev_init_gpio_out_named(dev, irq, "irq", BCM2836_NCORES);
+    qdev_init_gpio_out_named(dev, fiq, "fiq", BCM2836_NCORES);
 
-    /* create a qemu virtual timer */
-    timer_init_ns(&s->timer, QEMU_CLOCK_VIRTUAL,
-                  bcm2836_control_local_timer_tick, s);
+    timer_init_ns(&timer, QEMU_CLOCK_VIRTUAL,
+                  bcm2836_control_local_timer_tick, this);
 }
 
 static const VMStateDescription vmstate_bcm2836_control = {
@@ -383,25 +377,10 @@ static const VMStateDescription vmstate_bcm2836_control = {
     }
 };
 
-static void bcm2836_control_class_init(ObjectClass *klass, const void *data)
+void BCM2836ControlState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, bcm2836_control_reset);
     dc->vmsd = &vmstate_bcm2836_control;
 }
 
-static const TypeInfo bcm2836_control_info = {
-    .name          = TYPE_BCM2836_CONTROL,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2836ControlState),
-    .instance_init = bcm2836_control_init,
-    .class_init    = bcm2836_control_class_init,
-};
-
-static void bcm2836_control_register_types(void)
-{
-    type_register_static(&bcm2836_control_info);
-}
-
-type_init(bcm2836_control_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(BCM2836ControlState, TYPE_BCM2836_CONTROL, TYPE_SYS_BUS_DEVICE)

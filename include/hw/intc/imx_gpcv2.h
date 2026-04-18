@@ -15,6 +15,12 @@ struct IMXGPCv2State {
     /*< public >*/
     MemoryRegion iomem;
     uint32_t     regs[GPC_NUM];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_IMX_GPCV2 "imx-gpcv2"
