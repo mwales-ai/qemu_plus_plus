@@ -86,22 +86,20 @@ enum {
 #define IIC_DIRECTCNTL_MSDA (1 << 1)
 #define IIC_DIRECTCNTL_MSCL (1 << 0)
 
-static void ppc4xx_i2c_reset(DeviceState *s)
+void PPC4xxI2CState::reset()
 {
-    PPC4xxI2CState *i2c = PPC4xx_I2C(s);
-
-    i2c->mdidx = -1;
-    memset(i2c->mdata, 0, ARRAY_SIZE(i2c->mdata));
+    mdidx = -1;
+    memset(mdata, 0, ARRAY_SIZE(mdata));
     /* [hl][ms]addr are not affected by reset */
-    i2c->cntl = 0;
-    i2c->mdcntl = 0;
-    i2c->sts = 0;
-    i2c->extsts = IIC_EXTSTS_BCS_FREE;
-    i2c->clkdiv = 0;
-    i2c->intrmsk = 0;
-    i2c->xfrcnt = 0;
-    i2c->xtcntlss = 0;
-    i2c->directcntl = 0xf; /* all non-reserved bits set */
+    cntl = 0;
+    mdcntl = 0;
+    sts = 0;
+    extsts = IIC_EXTSTS_BCS_FREE;
+    clkdiv = 0;
+    intrmsk = 0;
+    xfrcnt = 0;
+    xtcntlss = 0;
+    directcntl = 0xf; /* all non-reserved bits set */
 }
 
 static uint64_t ppc4xx_i2c_readb(void *opaque, hwaddr addr, unsigned int size)
@@ -308,7 +306,7 @@ static void ppc4xx_i2c_writeb(void *opaque, hwaddr addr, uint64_t value,
         i2c->xtcntlss &= ~(value & 0xf0);
         if (value & IIC_XTCNTLSS_SRST) {
             /* Is it actually a full reset? U-Boot sets some regs before */
-            ppc4xx_i2c_reset(DEVICE(i2c));
+            i2c->reset();
             break;
         }
         break;
@@ -340,36 +338,19 @@ static const MemoryRegionOps ppc4xx_i2c_ops = {
     .impl = { .min_access_size = 1, .max_access_size = 1, },
 };
 
-static void ppc4xx_i2c_init(Object *o)
+void PPC4xxI2CState::init()
 {
-    PPC4xxI2CState *s = PPC4xx_I2C(o);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &ppc4xx_i2c_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &ppc4xx_i2c_ops, this,
                           TYPE_PPC4xx_I2C, PPC4xx_I2C_MEM_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->irq);
-    s->bus = i2c_init_bus(DEVICE(s), "i2c");
-    bitbang_i2c_init(&s->bitbang, s->bus);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    bus = i2c_init_bus(DEVICE(this), "i2c");
+    bitbang_i2c_init(&bitbang, bus);
 }
 
-static void ppc4xx_i2c_class_init(ObjectClass *klass, const void *data)
+void PPC4xxI2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, ppc4xx_i2c_reset);
 }
 
-static const TypeInfo ppc4xx_i2c_type_info = {
-    .name = TYPE_PPC4xx_I2C,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PPC4xxI2CState),
-    .instance_init = ppc4xx_i2c_init,
-    .class_init = ppc4xx_i2c_class_init,
-};
-
-static void ppc4xx_i2c_register_types(void)
-{
-    type_register_static(&ppc4xx_i2c_type_info);
-}
-
-type_init(ppc4xx_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PPC4xxI2CState, TYPE_PPC4xx_I2C, TYPE_SYS_BUS_DEVICE)

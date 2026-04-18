@@ -263,6 +263,10 @@ struct lan9118_state {
     uint32_t read_long;
 
     uint32_t mode_16bit;
+
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_lan9118_fields[] = {
@@ -393,62 +397,60 @@ static void lan9118_set_link(NetClientState *nc)
                             nc->link_down);
 }
 
-static void lan9118_reset(DeviceState *d)
+void lan9118_state::reset()
 {
-    lan9118_state *s = LAN9118(d);
+    irq_cfg &= (IRQ_TYPE | IRQ_POL);
+    int_sts = 0;
+    int_en = 0;
+    fifo_int = 0x48000000;
+    rx_cfg = 0;
+    tx_cfg = 0;
+    hw_cfg = mode_16bit ? 0x00050000 : 0x00050004;
+    pmt_ctrl &= 0x45;
+    gpio_cfg = 0;
+    txp->fifo_used = 0;
+    txp->state = TX_IDLE;
+    txp->cmd_a = 0xffffffffu;
+    txp->cmd_b = 0xffffffffu;
+    txp->len = 0;
+    txp->fifo_used = 0;
+    tx_fifo_size = 4608;
+    tx_status_fifo_used = 0;
+    rx_status_fifo_size = 704;
+    rx_fifo_size = 2640;
+    rx_fifo_used = 0;
+    rx_status_fifo_size = 176;
+    rx_status_fifo_used = 0;
+    rxp_offset = 0;
+    rxp_size = 0;
+    rxp_pad = 0;
+    rx_packet_size_tail = rx_packet_size_head;
+    rx_packet_size[rx_packet_size_head] = 0;
+    mac_cmd = 0;
+    mac_data = 0;
+    afc_cfg = 0;
+    e2p_cmd = 0;
+    e2p_data = 0;
+    free_timer_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 40;
 
-    s->irq_cfg &= (IRQ_TYPE | IRQ_POL);
-    s->int_sts = 0;
-    s->int_en = 0;
-    s->fifo_int = 0x48000000;
-    s->rx_cfg = 0;
-    s->tx_cfg = 0;
-    s->hw_cfg = s->mode_16bit ? 0x00050000 : 0x00050004;
-    s->pmt_ctrl &= 0x45;
-    s->gpio_cfg = 0;
-    s->txp->fifo_used = 0;
-    s->txp->state = TX_IDLE;
-    s->txp->cmd_a = 0xffffffffu;
-    s->txp->cmd_b = 0xffffffffu;
-    s->txp->len = 0;
-    s->txp->fifo_used = 0;
-    s->tx_fifo_size = 4608;
-    s->tx_status_fifo_used = 0;
-    s->rx_status_fifo_size = 704;
-    s->rx_fifo_size = 2640;
-    s->rx_fifo_used = 0;
-    s->rx_status_fifo_size = 176;
-    s->rx_status_fifo_used = 0;
-    s->rxp_offset = 0;
-    s->rxp_size = 0;
-    s->rxp_pad = 0;
-    s->rx_packet_size_tail = s->rx_packet_size_head;
-    s->rx_packet_size[s->rx_packet_size_head] = 0;
-    s->mac_cmd = 0;
-    s->mac_data = 0;
-    s->afc_cfg = 0;
-    s->e2p_cmd = 0;
-    s->e2p_data = 0;
-    s->free_timer_start = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 40;
+    ptimer_transaction_begin(timer);
+    ptimer_stop(timer);
+    ptimer_set_count(timer, 0xffff);
+    ptimer_transaction_commit(timer);
+    gpt_cfg = 0xffff;
 
-    ptimer_transaction_begin(s->timer);
-    ptimer_stop(s->timer);
-    ptimer_set_count(s->timer, 0xffff);
-    ptimer_transaction_commit(s->timer);
-    s->gpt_cfg = 0xffff;
+    mac_cr = MAC_CR_PRMS;
+    mac_hashh = 0;
+    mac_hashl = 0;
+    mac_mii_acc = 0;
+    mac_mii_data = 0;
+    mac_flow = 0;
 
-    s->mac_cr = MAC_CR_PRMS;
-    s->mac_hashh = 0;
-    s->mac_hashl = 0;
-    s->mac_mii_acc = 0;
-    s->mac_mii_data = 0;
-    s->mac_flow = 0;
+    read_word_n = 0;
+    write_word_n = 0;
 
-    s->read_word_n = 0;
-    s->write_word_n = 0;
-
-    s->eeprom_writable = 0;
-    lan9118_reload_eeprom(s);
+    eeprom_writable = 0;
+    lan9118_reload_eeprom(this);
 }
 
 static void rx_fifo_push(lan9118_state *s, uint32_t val)
@@ -1007,7 +1009,7 @@ static void lan9118_writel(void *opaque, hwaddr offset,
     case CSR_HW_CFG:
         if (val & 1) {
             /* SRST */
-            lan9118_reset(DEVICE(s));
+            s->reset();
         } else {
             s->hw_cfg = (val & 0x003f300) | (s->hw_cfg & 0x4);
         }
@@ -1270,43 +1272,42 @@ static NetClientInfo net_lan9118_info = {
     .link_status_changed = lan9118_set_link,
 };
 
-static void lan9118_realize(DeviceState *dev, Error **errp)
+void lan9118_state::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    lan9118_state *s = LAN9118(dev);
+    DeviceState *dev = DEVICE(this);
     int i;
     const MemoryRegionOps *mem_ops =
-            s->mode_16bit ? &lan9118_16bit_mem_ops : &lan9118_mem_ops;
+            mode_16bit ? &lan9118_16bit_mem_ops : &lan9118_mem_ops;
 
-    qemu_init_irq(&s->mii_irq, lan9118_update_irq, s, 0);
-    object_initialize_child(OBJECT(s), "mii", &s->mii, TYPE_LAN9118_PHY);
-    if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(&s->mii), errp)) {
+    qemu_init_irq(&mii_irq, lan9118_update_irq, this, 0);
+    object_initialize_child(OBJECT(this), "mii", &mii, TYPE_LAN9118_PHY);
+    if (!sysbus_realize_and_unref(SYS_BUS_DEVICE(&mii), errp)) {
         return;
     }
-    qdev_connect_gpio_out(DEVICE(&s->mii), 0, &s->mii_irq);
+    qdev_connect_gpio_out(DEVICE(&mii), 0, &mii_irq);
 
-    memory_region_init_io(&s->mmio, OBJECT(dev), mem_ops, s,
+    memory_region_init_io(&mmio, OBJECT(dev), mem_ops, this,
                           "lan9118-mmio", 0x100);
-    sysbus_init_mmio(sbd, &s->mmio);
-    sysbus_init_irq(sbd, &s->irq);
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
 
-    s->nic = qemu_new_nic(&net_lan9118_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-    s->eeprom[0] = 0xa5;
+    nic = qemu_new_nic(&net_lan9118_info, &conf,
+                       object_get_typename(OBJECT(dev)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
+    eeprom[0] = 0xa5;
     for (i = 0; i < 6; i++) {
-        s->eeprom[i + 1] = s->conf.macaddr.a[i];
+        eeprom[i + 1] = conf.macaddr.a[i];
     }
-    s->pmt_ctrl = 1;
-    s->txp = &s->tx_packet;
+    pmt_ctrl = 1;
+    txp = &tx_packet;
 
-    s->timer = ptimer_init(lan9118_tick, s, PTIMER_POLICY_LEGACY);
-    ptimer_transaction_begin(s->timer);
-    ptimer_set_freq(s->timer, 10000);
-    ptimer_set_limit(s->timer, 0xffff, 1);
-    ptimer_transaction_commit(s->timer);
+    timer = ptimer_init(lan9118_tick, this, PTIMER_POLICY_LEGACY);
+    ptimer_transaction_begin(timer);
+    ptimer_set_freq(timer, 10000);
+    ptimer_set_limit(timer, 0xffff, 1);
+    ptimer_transaction_commit(timer);
 }
 
 static const Property lan9118_properties[] = {
@@ -1314,26 +1315,10 @@ static const Property lan9118_properties[] = {
     DEFINE_PROP_UINT32("mode_16bit", lan9118_state, mode_16bit, 0),
 };
 
-static void lan9118_class_init(ObjectClass *klass, const void *data)
+void lan9118_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, lan9118_reset);
     device_class_set_props(dc, lan9118_properties);
     dc->vmsd = &vmstate_lan9118;
-    dc->realize = lan9118_realize;
-}
-
-static const TypeInfo lan9118_info = {
-    .name          = TYPE_LAN9118,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(lan9118_state),
-    .class_init    = lan9118_class_init,
-};
-
-static void lan9118_register_types(void)
-{
-    type_register_static(&lan9118_info);
 }
 
 /* Legacy helper function.  Should go away when machine config files are
@@ -1351,4 +1336,5 @@ void lan9118_init(uint32_t base, qemu_irq irq)
     sysbus_connect_irq(s, 0, irq);
 }
 
-type_init(lan9118_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(lan9118_state, TYPE_LAN9118, TYPE_SYS_BUS_DEVICE)

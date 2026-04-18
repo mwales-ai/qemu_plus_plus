@@ -63,6 +63,10 @@ struct smc91c111_state {
     uint8_t int_level;
     uint8_t int_mask;
     MemoryRegion mmio;
+
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_smc91c111_fields[] = {
@@ -357,26 +361,24 @@ static void smc91c111_queue_tx(smc91c111_state *s, int packet)
     smc91c111_do_tx(s);
 }
 
-static void smc91c111_reset(DeviceState *dev)
+void smc91c111_state::reset()
 {
-    smc91c111_state *s = SMC91C111(dev);
-
-    s->bank = 0;
-    s->tx_fifo_len = 0;
-    s->tx_fifo_done_len = 0;
-    s->rx_fifo_len = 0;
-    s->allocated = 0;
-    s->packet_num = 0;
-    s->tx_alloc = 0;
-    s->tcr = 0;
-    s->rcr = 0;
-    s->cr = 0xa0b1;
-    s->ctr = 0x1210;
-    s->ptr = 0;
-    s->ercv = 0x1f;
-    s->int_level = INT_TX_EMPTY;
-    s->int_mask = 0;
-    smc91c111_update(s);
+    bank = 0;
+    tx_fifo_len = 0;
+    tx_fifo_done_len = 0;
+    rx_fifo_len = 0;
+    allocated = 0;
+    packet_num = 0;
+    tx_alloc = 0;
+    tcr = 0;
+    rcr = 0;
+    cr = 0xa0b1;
+    ctr = 0x1210;
+    ptr = 0;
+    ercv = 0x1f;
+    int_level = INT_TX_EMPTY;
+    int_mask = 0;
+    smc91c111_update(this);
 }
 
 #define SET_LOW(name, val) s->name = (s->name & 0xff00) | val
@@ -452,7 +454,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
         case 5:
             SET_HIGH(rcr, value);
             if (s->rcr & RCR_SOFT_RST) {
-                smc91c111_reset(DEVICE(s));
+                s->reset();
             }
             smc91c111_flush_queued_packets(s);
             return;
@@ -902,47 +904,29 @@ static NetClientInfo net_smc91c111_info = {
     .can_receive = smc91c111_can_receive_nc,
 };
 
-static void smc91c111_realize(DeviceState *dev, Error **errp)
+void smc91c111_state::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    smc91c111_state *s = SMC91C111(dev);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &smc91c111_mem_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &smc91c111_mem_ops, this,
                           "smc91c111-mmio", 16);
-    sysbus_init_mmio(sbd, &s->mmio);
-    sysbus_init_irq(sbd, &s->irq);
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_smc91c111_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-    /* ??? Save/restore.  */
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_smc91c111_info, &conf,
+                       object_get_typename(OBJECT(dev)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 }
 
 static const Property smc91c111_properties[] = {
     DEFINE_NIC_PROPERTIES(smc91c111_state, conf),
 };
 
-static void smc91c111_class_init(ObjectClass *klass, const void *data)
+void smc91c111_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = smc91c111_realize;
-    device_class_set_legacy_reset(dc, smc91c111_reset);
     dc->vmsd = &vmstate_smc91c111;
     device_class_set_props(dc, smc91c111_properties);
-}
-
-static const TypeInfo smc91c111_info = {
-    .name          = TYPE_SMC91C111,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(smc91c111_state),
-    .class_init    = smc91c111_class_init,
-};
-
-static void smc91c111_register_types(void)
-{
-    type_register_static(&smc91c111_info);
 }
 
 /* Legacy helper function.  Should go away when machine config files are
@@ -960,4 +944,5 @@ void smc91c111_init(uint32_t base, qemu_irq irq)
     sysbus_connect_irq(s, 0, irq);
 }
 
-type_init(smc91c111_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(smc91c111_state, TYPE_SMC91C111, TYPE_SYS_BUS_DEVICE)

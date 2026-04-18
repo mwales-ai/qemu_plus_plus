@@ -74,6 +74,11 @@ struct NubusBridge {
     SysBusDevice parent_obj;
 
     NubusBus bus;
+
+#ifdef __cplusplus
+    void init();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
