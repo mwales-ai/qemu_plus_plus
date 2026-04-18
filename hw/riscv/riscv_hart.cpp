@@ -145,42 +145,27 @@ static bool riscv_hart_realize(RISCVHartArrayState *s, int idx,
     return qdev_realize(DEVICE(&s->harts[idx]), NULL, errp);
 }
 
-static void riscv_harts_realize(DeviceState *dev, Error **errp)
+void RISCVHartArrayState::realize(Error **errp)
 {
-    RISCVHartArrayState *s = RISCV_HART_ARRAY(dev);
     int n;
 
-    s->harts = g_new0(RISCVCPU, s->num_harts);
+    harts = g_new0(RISCVCPU, num_harts);
 
 #ifndef CONFIG_USER_ONLY
     riscv_cpu_register_csr_qtest_callback();
 #endif
 
-    for (n = 0; n < s->num_harts; n++) {
-        if (!riscv_hart_realize(s, n, s->cpu_type, errp)) {
+    for (n = 0; n < num_harts; n++) {
+        if (!riscv_hart_realize(this, n, cpu_type, errp)) {
             return;
         }
     }
 }
 
-static void riscv_harts_class_init(ObjectClass *klass, const void *data)
+void RISCVHartArrayState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, riscv_harts_props);
-    dc->realize = riscv_harts_realize;
 }
 
-static const TypeInfo riscv_harts_info = {
-    .name          = TYPE_RISCV_HART_ARRAY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVHartArrayState),
-    .class_init    = riscv_harts_class_init,
-};
-
-static void riscv_harts_register_types(void)
-{
-    type_register_static(&riscv_harts_info);
-}
-
-type_init(riscv_harts_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RISCVHartArrayState, TYPE_RISCV_HART_ARRAY, TYPE_SYS_BUS_DEVICE)

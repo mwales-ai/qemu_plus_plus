@@ -47,6 +47,11 @@ struct RISCVHartArrayState {
     uint32_t num_rnmi_excpvec;
     uint64_t *rnmi_excpvec;
     RISCVCPU *harts;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

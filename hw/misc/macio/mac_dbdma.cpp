@@ -864,13 +864,12 @@ static const VMStateDescription vmstate_dbdma = {
     .fields = vmstate_dbdma_fields,
 };
 
-static void mac_dbdma_reset(DeviceState *d)
+void DBDMAState::reset()
 {
-    DBDMAState *s = MAC_DBDMA(d);
     int i;
 
     for (i = 0; i < DBDMA_CHANNELS; i++) {
-        memset(s->channels[i].regs, 0, DBDMA_SIZE);
+        memset(channels[i].regs, 0, DBDMA_SIZE);
     }
 }
 
@@ -899,14 +898,12 @@ static void dbdma_unassigned_flush(DBDMA_io *io)
                   __func__, ch->channel);
 }
 
-static void mac_dbdma_init(Object *obj)
+void DBDMAState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DBDMAState *s = MAC_DBDMA(obj);
     int i;
 
     for (i = 0; i < DBDMA_CHANNELS; i++) {
-        DBDMA_channel *ch = &s->channels[i];
+        DBDMA_channel *ch = &channels[i];
 
         ch->rw = dbdma_unassigned_rw;
         ch->flush = dbdma_unassigned_flush;
@@ -914,37 +911,20 @@ static void mac_dbdma_init(Object *obj)
         ch->io.channel = ch;
     }
 
-    memory_region_init_io(&s->mem, obj, &dbdma_ops, s, "dbdma", 0x1000);
-    sysbus_init_mmio(sbd, &s->mem);
+    memory_region_init_io(&mem, OBJECT(this), &dbdma_ops, this, "dbdma", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mem);
 }
 
-static void mac_dbdma_realize(DeviceState *dev, Error **errp)
+void DBDMAState::realize(Error **errp)
 {
-    DBDMAState *s = MAC_DBDMA(dev);
-
-    s->bh = qemu_bh_new_guarded(DBDMA_run_bh, s, &dev->mem_reentrancy_guard);
+    DeviceState *dev = DEVICE(this);
+    bh = qemu_bh_new_guarded(DBDMA_run_bh, this, &dev->mem_reentrancy_guard);
 }
 
-static void mac_dbdma_class_init(ObjectClass *oc, const void *data)
+void DBDMAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = mac_dbdma_realize;
-    device_class_set_legacy_reset(dc, mac_dbdma_reset);
     dc->vmsd = &vmstate_dbdma;
 }
 
-static const TypeInfo mac_dbdma_type_info = {
-    .name = TYPE_MAC_DBDMA,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(DBDMAState),
-    .instance_init = mac_dbdma_init,
-    .class_init = mac_dbdma_class_init
-};
-
-static void mac_dbdma_register_types(void)
-{
-    type_register_static(&mac_dbdma_type_info);
-}
-
-type_init(mac_dbdma_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(DBDMAState, TYPE_MAC_DBDMA, TYPE_SYS_BUS_DEVICE)

@@ -36,18 +36,11 @@ extern "C" qemu_irq get_cps_irq(MIPSCPSState *s, int pin_number)
     return s->gic.irq_state[pin_number].irq;
 }
 
-static void mips_cps_init(Object *obj)
+void MIPSCPSState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MIPSCPSState *s = MIPS_CPS(obj);
-
-    s->clock = qdev_init_clock_in(DEVICE(obj), "clk-in", NULL, NULL, 0);
-    /*
-     * Cover entire address space as there do not seem to be any
-     * constraints for the base address of CPC and GIC.
-     */
-    memory_region_init(&s->container, obj, "mips-cps-container", UINT64_MAX);
-    sysbus_init_mmio(sbd, &s->container);
+    clock = qdev_init_clock_in(DEVICE(this), "clk-in", NULL, NULL, 0);
+    memory_region_init(&container, OBJECT(this), "mips-cps-container", UINT64_MAX);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &container);
 }
 
 static void main_cpu_reset(void *opaque)
@@ -65,108 +58,100 @@ static bool cpu_mips_itu_supported(CPUMIPSState *env)
     return is_mt && tcg_enabled();
 }
 
-static void mips_cps_realize(DeviceState *dev, Error **errp)
+void MIPSCPSState::realize(Error **errp)
 {
-    MIPSCPSState *s = MIPS_CPS(dev);
+    Object *obj = OBJECT(this);
     target_ulong gcr_base;
     bool itu_present = false;
 
-    if (!clock_get(s->clock)) {
+    if (!clock_get(clock)) {
         error_setg(errp, "CPS input clock is not connected to an output clock");
         return;
     }
 
-    for (int i = 0; i < s->num_vp; i++) {
-        MIPSCPU *cpu = MIPS_CPU(object_new(s->cpu_type));
+    for (int i = 0; i < num_vp; i++) {
+        MIPSCPU *cpu = MIPS_CPU(object_new(cpu_type));
         CPUMIPSState *env = &cpu->env;
 
-        object_property_set_bool(OBJECT(cpu), "big-endian", s->cpu_is_bigendian,
+        object_property_set_bool(OBJECT(cpu), "big-endian", cpu_is_bigendian,
                                  &error_abort);
 
-        /* All VPs are halted on reset. Leave powering up to CPC. */
         object_property_set_bool(OBJECT(cpu), "start-powered-off", true,
                                  &error_abort);
 
-        /* All cores use the same clock tree */
-        qdev_connect_clock_in(DEVICE(cpu), "clk-in", s->clock);
+        qdev_connect_clock_in(DEVICE(cpu), "clk-in", clock);
 
         if (!qdev_realize_and_unref(DEVICE(cpu), NULL, errp)) {
             return;
         }
 
-        /* Init internal devices */
         cpu_mips_irq_init_cpu(cpu);
         cpu_mips_clock_init(cpu);
 
         if (cpu_mips_itu_supported(env)) {
             itu_present = true;
-            /* Attach ITC Tag to the VP */
-            env->itc_tag = mips_itu_get_tag_region(&s->itu);
+            env->itc_tag = mips_itu_get_tag_region(&itu);
         }
         qemu_register_reset(main_cpu_reset, cpu);
     }
 
-    /* Inter-Thread Communication Unit */
     if (itu_present) {
-        object_initialize_child(OBJECT(dev), "itu", &s->itu, TYPE_MIPS_ITU);
-        object_property_set_uint(OBJECT(&s->itu), "num-fifo", 16,
+        object_initialize_child(obj, "itu", &itu, TYPE_MIPS_ITU);
+        object_property_set_uint(OBJECT(&itu), "num-fifo", 16,
                                 &error_abort);
-        object_property_set_uint(OBJECT(&s->itu), "num-semaphores", 16,
+        object_property_set_uint(OBJECT(&itu), "num-semaphores", 16,
                                 &error_abort);
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->itu), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&itu), errp)) {
             return;
         }
 
-        memory_region_add_subregion(&s->container, 0,
-                           sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->itu), 0));
+        memory_region_add_subregion(&container, 0,
+                           sysbus_mmio_get_region(SYS_BUS_DEVICE(&itu), 0));
     }
 
-    /* Cluster Power Controller */
-    object_initialize_child(OBJECT(dev), "cpc", &s->cpc, TYPE_MIPS_CPC);
-    object_property_set_uint(OBJECT(&s->cpc), "num-vp", s->num_vp,
+    object_initialize_child(obj, "cpc", &cpc, TYPE_MIPS_CPC);
+    object_property_set_uint(OBJECT(&cpc), "num-vp", num_vp,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->cpc), "vp-start-running", 1,
+    object_property_set_int(OBJECT(&cpc), "vp-start-running", 1,
                             &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->cpc), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&cpc), errp)) {
         return;
     }
 
-    memory_region_add_subregion(&s->container, 0,
-                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->cpc), 0));
+    memory_region_add_subregion(&container, 0,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&cpc), 0));
 
-    /* Global Interrupt Controller */
-    object_initialize_child(OBJECT(dev), "gic", &s->gic, TYPE_MIPS_GIC);
-    object_property_set_uint(OBJECT(&s->gic), "num-vp", s->num_vp,
+    object_initialize_child(obj, "gic", &gic, TYPE_MIPS_GIC);
+    object_property_set_uint(OBJECT(&gic), "num-vp", num_vp,
                             &error_abort);
-    object_property_set_uint(OBJECT(&s->gic), "num-irq", 128,
+    object_property_set_uint(OBJECT(&gic), "num-irq", 128,
                             &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gic), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&gic), errp)) {
         return;
     }
 
-    memory_region_add_subregion(&s->container, 0,
-                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gic), 0));
+    memory_region_add_subregion(&container, 0,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&gic), 0));
 
-    /* Global Configuration Registers */
     gcr_base = MIPS_CPU(first_cpu)->env.CP0_CMGCRBase << 4;
 
-    object_initialize_child(OBJECT(dev), "gcr", &s->gcr, TYPE_MIPS_GCR);
-    object_property_set_uint(OBJECT(&s->gcr), "num-vp", s->num_vp,
+    object_initialize_child(obj, "gcr", &gcr, TYPE_MIPS_GCR);
+    object_property_set_uint(OBJECT(&gcr), "num-vp", num_vp,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->gcr), "gcr-rev", 0x800,
+    object_property_set_int(OBJECT(&gcr), "gcr-rev", 0x800,
                             &error_abort);
-    object_property_set_int(OBJECT(&s->gcr), "gcr-base", gcr_base,
+    object_property_set_int(OBJECT(&gcr), "gcr-base", gcr_base,
                             &error_abort);
-    object_property_set_link(OBJECT(&s->gcr), "gic", OBJECT(&s->gic.mr),
+    object_property_set_link(OBJECT(&gcr), "gic", OBJECT(&gic.mr),
                              &error_abort);
-    object_property_set_link(OBJECT(&s->gcr), "cpc", OBJECT(&s->cpc.mr),
+    object_property_set_link(OBJECT(&gcr), "cpc", OBJECT(&cpc.mr),
                              &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gcr), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&gcr), errp)) {
         return;
     }
 
-    memory_region_add_subregion(&s->container, gcr_base,
-                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gcr), 0));
+    memory_region_add_subregion(&container, gcr_base,
+                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&gcr), 0));
 }
 
 static const Property mips_cps_properties[] = {
@@ -176,25 +161,10 @@ static const Property mips_cps_properties[] = {
     DEFINE_PROP_BOOL("cpu-big-endian", MIPSCPSState, cpu_is_bigendian, false),
 };
 
-static void mips_cps_class_init(ObjectClass *klass, const void *data)
+void MIPSCPSState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = mips_cps_realize;
     device_class_set_props(dc, mips_cps_properties);
 }
 
-static const TypeInfo mips_cps_info = {
-    .name = TYPE_MIPS_CPS,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MIPSCPSState),
-    .instance_init = mips_cps_init,
-    .class_init = mips_cps_class_init,
-};
-
-static void mips_cps_register_types(void)
-{
-    type_register_static(&mips_cps_info);
-}
-
-type_init(mips_cps_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MIPSCPSState, TYPE_MIPS_CPS, TYPE_SYS_BUS_DEVICE)

@@ -46,6 +46,12 @@ struct MIPSCPSState {
     MIPSCPCState cpc;
     MIPSITUState itu;
     Clock *clock;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 qemu_irq get_cps_irq(MIPSCPSState *cps, int pin_number);

@@ -30,6 +30,11 @@ struct AllwinnerAHCIState {
 
     MemoryRegion mmio;
     uint32_t regs[ALLWINNER_AHCI_MMIO_SIZE / 4];
+
+#ifdef __cplusplus
+    void init();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

@@ -87,15 +87,14 @@ static void __attribute__((constructor)) init_allwinner_ahci_mem_ops(void)
     allwinner_ahci_mem_ops.valid.max_access_size = 4;
 }
 
-static void allwinner_ahci_init(Object *obj)
+void AllwinnerAHCIState::init()
 {
-    SysbusAHCIState *s = SYSBUS_AHCI(obj);
-    AllwinnerAHCIState *a = ALLWINNER_AHCI(obj);
+    SysbusAHCIState *s = SYSBUS_AHCI(this);
 
-    memory_region_init_io(&a->mmio, obj, &allwinner_ahci_mem_ops, a,
+    memory_region_init_io(&mmio, OBJECT(this), &allwinner_ahci_mem_ops, this,
                           "allwinner-ahci", ALLWINNER_AHCI_MMIO_SIZE);
     memory_region_add_subregion(&s->ahci.mem, ALLWINNER_AHCI_MMIO_OFF,
-                                &a->mmio);
+                                &mmio);
 }
 
 static const VMStateField vmstate_allwinner_ahci_fields[] = {
@@ -111,24 +110,10 @@ static const VMStateDescription vmstate_allwinner_ahci = {
     .fields = vmstate_allwinner_ahci_fields,
 };
 
-static void allwinner_ahci_class_init(ObjectClass *klass, const void *data)
+void AllwinnerAHCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_allwinner_ahci;
 }
 
-static const TypeInfo allwinner_ahci_info = {
-    .name          = TYPE_ALLWINNER_AHCI,
-    .parent        = TYPE_SYSBUS_AHCI,
-    .instance_size = sizeof(AllwinnerAHCIState),
-    .instance_init = allwinner_ahci_init,
-    .class_init    = allwinner_ahci_class_init,
-};
-
-static void sysbus_ahci_register_types(void)
-{
-    type_register_static(&allwinner_ahci_info);
-}
-
-type_init(sysbus_ahci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AllwinnerAHCIState, TYPE_ALLWINNER_AHCI, TYPE_SYSBUS_AHCI)
