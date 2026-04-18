@@ -213,6 +213,12 @@ struct MIPSGICState {
 
     uint32_t num_vps;
     uint32_t num_irq;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* MIPS_GIC_H */

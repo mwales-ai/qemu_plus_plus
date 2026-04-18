@@ -195,7 +195,7 @@ bad_offset:
 
 static void gic_timer_expire_cb(void *opaque, uint32_t vp_index)
 {
-    MIPSGICState *gic = opaque;
+    MIPSGICState *gic = static_cast<MIPSGICState *>(opaque);
 
     gic->vps[vp_index].pend |= (1 << GIC_LOCAL_INT_COMPARE);
     if (gic->vps[vp_index].pend &
@@ -391,38 +391,35 @@ static const MemoryRegionOps gic_ops = {
     },
 };
 
-static void mips_gic_init(Object *obj)
+void MIPSGICState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    MIPSGICState *s = MIPS_GIC(obj);
-
-    memory_region_init_io(&s->mr, OBJECT(s), &gic_ops, s,
+    memory_region_init_io(&mr, OBJECT(this), &gic_ops, this,
                           "mips-gic", GIC_ADDRSPACE_SZ);
-    sysbus_init_mmio(sbd, &s->mr);
-    qemu_register_reset(gic_reset, s);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mr);
+    qemu_register_reset(gic_reset, this);
 }
 
-static void mips_gic_realize(DeviceState *dev, Error **errp)
+void MIPSGICState::realize(Error **errp)
 {
-    MIPSGICState *s = MIPS_GIC(dev);
+    DeviceState *dev = DEVICE(this);
     CPUState *cs = first_cpu;
     int i;
 
-    if (s->num_vps > GIC_MAX_VPS) {
-        error_setg(errp, "Exceeded maximum CPUs %d", s->num_vps);
+    if (num_vps > GIC_MAX_VPS) {
+        error_setg(errp, "Exceeded maximum CPUs %d", num_vps);
         return;
     }
-    if ((s->num_irq > GIC_MAX_INTRS) || (s->num_irq % 8) || (s->num_irq <= 0)) {
+    if ((num_irq > GIC_MAX_INTRS) || (num_irq % 8) || (num_irq <= 0)) {
         error_setg(errp, "GIC supports up to %d external interrupts in "
-                   "multiples of 8 : %d", GIC_MAX_INTRS, s->num_irq);
+                   "multiples of 8 : %d", GIC_MAX_INTRS, num_irq);
         return;
     }
-    s->vps = g_new(MIPSGICVPState, s->num_vps);
-    s->irq_state = g_new(MIPSGICIRQState, s->num_irq);
+    vps = g_new(MIPSGICVPState, num_vps);
+    irq_state = g_new(MIPSGICIRQState, num_irq);
     /* Register the env for all VPs with the GIC */
-    for (i = 0; i < s->num_vps; i++) {
+    for (i = 0; i < num_vps; i++) {
         if (cs != NULL) {
-            s->vps[i].env = cpu_env(cs);
+            vps[i].env = cpu_env(cs);
             cs = CPU_NEXT(cs);
         } else {
             error_setg(errp,
@@ -430,10 +427,10 @@ static void mips_gic_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
-    s->gic_timer = mips_gictimer_init(s, s->num_vps, gic_timer_expire_cb);
-    qdev_init_gpio_in(dev, gic_set_irq, s->num_irq);
-    for (i = 0; i < s->num_irq; i++) {
-        s->irq_state[i].irq = qdev_get_gpio_in(dev, i);
+    gic_timer = mips_gictimer_init(this, num_vps, gic_timer_expire_cb);
+    qdev_init_gpio_in(dev, gic_set_irq, num_irq);
+    for (i = 0; i < num_irq; i++) {
+        irq_state[i].irq = qdev_get_gpio_in(dev, i);
     }
 }
 
@@ -442,25 +439,10 @@ static const Property mips_gic_properties[] = {
     DEFINE_PROP_UINT32("num-irq", MIPSGICState, num_irq, 256),
 };
 
-static void mips_gic_class_init(ObjectClass *klass, const void *data)
+void MIPSGICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, mips_gic_properties);
-    dc->realize = mips_gic_realize;
 }
 
-static const TypeInfo mips_gic_info = {
-    .name          = TYPE_MIPS_GIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MIPSGICState),
-    .instance_init = mips_gic_init,
-    .class_init    = mips_gic_class_init,
-};
-
-static void mips_gic_register_types(void)
-{
-    type_register_static(&mips_gic_info);
-}
-
-type_init(mips_gic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MIPSGICState, TYPE_MIPS_GIC, TYPE_SYS_BUS_DEVICE)

@@ -38,6 +38,11 @@ struct Exynos4210GicState {
     MemoryRegion dist_alias[EXYNOS4210_GIC_NCPUS];
     uint32_t num_cpu;
     DeviceState *gic;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

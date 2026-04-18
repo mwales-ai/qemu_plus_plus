@@ -28,10 +28,16 @@ extern "C" {
 #define TRICORE_TESTDEVICE(obj) \
     OBJECT_CHECK(TriCoreTestDeviceState, (obj), TYPE_TRICORE_TESTDEVICE)
 
-typedef struct {
+typedef struct TriCoreTestDeviceState {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 } TriCoreTestDeviceState;
 
 #ifdef __cplusplus

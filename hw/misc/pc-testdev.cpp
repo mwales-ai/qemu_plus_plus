@@ -53,6 +53,9 @@ struct PCTestdev {
     MemoryRegion iomem;
     uint32_t ioport_data;
     char iomem_buf[IOMEM_LEN];
+
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
 };
 
 #define TYPE_TESTDEV "pc-testdev"
@@ -163,50 +166,35 @@ static const MemoryRegionOps test_iomem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void testdev_realizefn(DeviceState *d, Error **errp)
+void PCTestdev::realize(Error **errp)
 {
-    ISADevice *isa = ISA_DEVICE(d);
-    PCTestdev *dev = TESTDEV(d);
+    ISADevice *isa = ISA_DEVICE(this);
     MemoryRegion *mem = isa_address_space(isa);
     MemoryRegion *io = isa_address_space_io(isa);
 
-    memory_region_init_io(&dev->ioport, OBJECT(dev), &test_ioport_ops, dev,
+    memory_region_init_io(&ioport, OBJECT(this), &test_ioport_ops, this,
                           "pc-testdev-ioport", 4);
-    memory_region_init_io(&dev->ioport_byte, OBJECT(dev),
-                          &test_ioport_byte_ops, dev,
+    memory_region_init_io(&ioport_byte, OBJECT(this),
+                          &test_ioport_byte_ops, this,
                           "pc-testdev-ioport-byte", 4);
-    memory_region_init_io(&dev->flush, OBJECT(dev), &test_flush_ops, dev,
+    memory_region_init_io(&flush, OBJECT(this), &test_flush_ops, this,
                           "pc-testdev-flush-page", 4);
-    memory_region_init_io(&dev->irq, OBJECT(dev), &test_irq_ops, dev,
+    memory_region_init_io(&this->irq, OBJECT(this), &test_irq_ops, this,
                           "pc-testdev-irq-line", 24);
-    memory_region_init_io(&dev->iomem, OBJECT(dev), &test_iomem_ops, dev,
+    memory_region_init_io(&this->iomem, OBJECT(this), &test_iomem_ops, this,
                           "pc-testdev-iomem", IOMEM_LEN);
 
-    memory_region_add_subregion(io,  0xe0,       &dev->ioport);
-    memory_region_add_subregion(io,  0xe4,       &dev->flush);
-    memory_region_add_subregion(io,  0xe8,       &dev->ioport_byte);
-    memory_region_add_subregion(io,  0x2000,     &dev->irq);
-    memory_region_add_subregion(mem, 0xff000000, &dev->iomem);
+    memory_region_add_subregion(io,  0xe0,       &ioport);
+    memory_region_add_subregion(io,  0xe4,       &flush);
+    memory_region_add_subregion(io,  0xe8,       &ioport_byte);
+    memory_region_add_subregion(io,  0x2000,     &this->irq);
+    memory_region_add_subregion(mem, 0xff000000, &this->iomem);
 }
 
-static void testdev_class_init(ObjectClass *klass, const void *data)
+void PCTestdev::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->realize = testdev_realizefn;
 }
 
-static const TypeInfo testdev_info = {
-    .name           = TYPE_TESTDEV,
-    .parent         = TYPE_ISA_DEVICE,
-    .instance_size  = sizeof(PCTestdev),
-    .class_init     = testdev_class_init,
-};
-
-static void testdev_register_types(void)
-{
-    type_register_static(&testdev_info);
-}
-
-type_init(testdev_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PCTestdev, TYPE_TESTDEV, TYPE_ISA_DEVICE)

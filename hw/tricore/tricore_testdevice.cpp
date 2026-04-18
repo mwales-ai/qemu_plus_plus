@@ -36,46 +36,29 @@ static uint64_t tricore_testdevice_read(void *opaque, hwaddr offset,
     return 0xdeadbeef;
 }
 
-static void tricore_testdevice_reset(DeviceState *dev)
+void TriCoreTestDeviceState::reset()
 {
 }
 
 static const MemoryRegionOps tricore_testdevice_ops = {
     .read = tricore_testdevice_read,
     .write = tricore_testdevice_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void tricore_testdevice_init(Object *obj)
+void TriCoreTestDeviceState::init()
 {
-    TriCoreTestDeviceState *s = TRICORE_TESTDEVICE(obj);
-   /* map memory */
-    memory_region_init_io(&s->iomem, OBJECT(s), &tricore_testdevice_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &tricore_testdevice_ops, this,
                           "tricore_testdevice", 0x4);
 }
 
-static void tricore_testdevice_class_init(ObjectClass *klass, const void *data)
+void TriCoreTestDeviceState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, tricore_testdevice_reset);
 }
 
-static const TypeInfo tricore_testdevice_info = {
-    .name          = TYPE_TRICORE_TESTDEVICE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(TriCoreTestDeviceState),
-    .instance_init = tricore_testdevice_init,
-    .class_init    = tricore_testdevice_class_init,
-};
-
-static void tricore_testdevice_register_types(void)
-{
-    type_register_static(&tricore_testdevice_info);
-}
-
-type_init(tricore_testdevice_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(TriCoreTestDeviceState, TYPE_TRICORE_TESTDEVICE, TYPE_SYS_BUS_DEVICE)
