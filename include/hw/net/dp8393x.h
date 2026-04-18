@@ -55,6 +55,13 @@ struct dp8393xState {
     /* Memory access */
     MemoryRegion *dma_mr;
     AddressSpace as;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

@@ -225,23 +225,22 @@ static ssize_t aw_emac_receive(NetClientState *nc, const uint8_t *buf,
     return size;
 }
 
-static void aw_emac_reset(DeviceState *dev)
+void AwEmacState::reset()
 {
-    AwEmacState *s = AW_EMAC(dev);
-    NetClientState *nc = qemu_get_queue(s->nic);
+    NetClientState *nc = qemu_get_queue(nic);
 
-    s->ctl = 0;
-    s->tx_mode = 0;
-    s->int_ctl = 0;
-    s->int_sta = 0;
-    s->tx_channel = 0;
-    s->phy_target = 0;
+    ctl = 0;
+    tx_mode = 0;
+    int_ctl = 0;
+    int_sta = 0;
+    tx_channel = 0;
+    phy_target = 0;
 
-    aw_emac_tx_reset(s, 0);
-    aw_emac_tx_reset(s, 1);
-    aw_emac_rx_reset(s);
+    aw_emac_tx_reset(this, 0);
+    aw_emac_tx_reset(this, 1);
+    aw_emac_rx_reset(this);
 
-    mii_reset(&s->mii, !nc->link_down);
+    mii_reset(&mii, !nc->link_down);
 }
 
 static uint64_t aw_emac_read(void *opaque, hwaddr offset, unsigned size)
@@ -322,7 +321,7 @@ static void aw_emac_write(void *opaque, hwaddr offset, uint64_t value,
     switch (offset) {
     case EMAC_CTL_REG:
         if (value & EMAC_CTL_RESET) {
-            aw_emac_reset(DEVICE(s));
+            s->reset();
             value &= ~EMAC_CTL_RESET;
         }
         s->ctl = value;
@@ -442,30 +441,27 @@ static NetClientInfo net_aw_emac_info = {
     .link_status_changed = aw_emac_set_link,
 };
 
-static void aw_emac_init(Object *obj)
+void AwEmacState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwEmacState *s = AW_EMAC(obj);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &aw_emac_mem_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &aw_emac_mem_ops, this,
                           "aw_emac", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
-static void aw_emac_realize(DeviceState *dev, Error **errp)
+void AwEmacState::realize(Error **errp)
 {
-    AwEmacState *s = AW_EMAC(dev);
+    DeviceState *dev = DEVICE(this);
 
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_aw_emac_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_aw_emac_info, &conf,
+                       object_get_typename(OBJECT(dev)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 
-    fifo8_create(&s->rx_fifo, RX_FIFO_SIZE);
-    fifo8_create(&s->tx_fifo[0], TX_FIFO_SIZE);
-    fifo8_create(&s->tx_fifo[1], TX_FIFO_SIZE);
+    fifo8_create(&rx_fifo, RX_FIFO_SIZE);
+    fifo8_create(&tx_fifo[0], TX_FIFO_SIZE);
+    fifo8_create(&tx_fifo[1], TX_FIFO_SIZE);
 }
 
 static const Property aw_emac_properties[] = {
@@ -524,27 +520,11 @@ static const VMStateDescription vmstate_aw_emac = {
     .fields = vmstate_aw_emac_fields,
 };
 
-static void aw_emac_class_init(ObjectClass *klass, const void *data)
+void AwEmacState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = aw_emac_realize;
     device_class_set_props(dc, aw_emac_properties);
-    device_class_set_legacy_reset(dc, aw_emac_reset);
     dc->vmsd = &vmstate_aw_emac;
 }
 
-static const TypeInfo aw_emac_info = {
-    .name           = TYPE_AW_EMAC,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AwEmacState),
-    .instance_init   = aw_emac_init,
-    .class_init     = aw_emac_class_init,
-};
-
-static void aw_emac_register_types(void)
-{
-    type_register_static(&aw_emac_info);
-}
-
-type_init(aw_emac_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AwEmacState, TYPE_AW_EMAC, TYPE_SYS_BUS_DEVICE)

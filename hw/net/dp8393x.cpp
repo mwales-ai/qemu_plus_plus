@@ -655,8 +655,8 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps dp8393x_ops = {
     .read = dp8393x_read,
     .write = dp8393x_write,
-    .impl = { .min_access_size = 2, },
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = { .min_access_size = 2, },
 };
 
 static void dp8393x_watchdog(void *opaque)
@@ -861,31 +861,30 @@ done:
     return pkt_size;
 }
 
-static void dp8393x_reset(DeviceState *dev)
+void dp8393xState::reset()
 {
-    dp8393xState *s = DP8393X(dev);
-    timer_del(s->watchdog);
+    timer_del(watchdog);
 
-    memset(s->regs, 0, sizeof(s->regs));
-    s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux/mips */
-    s->regs[SONIC_CR] = SONIC_CR_RST | SONIC_CR_STP | SONIC_CR_RXDIS;
-    s->regs[SONIC_DCR] &= ~(SONIC_DCR_EXBUS | SONIC_DCR_LBR);
-    s->regs[SONIC_RCR] &= ~(SONIC_RCR_LB0 | SONIC_RCR_LB1 | SONIC_RCR_BRD |
-                            SONIC_RCR_RNT);
-    s->regs[SONIC_TCR] |= SONIC_TCR_NCRS | SONIC_TCR_PTX;
-    s->regs[SONIC_TCR] &= ~SONIC_TCR_BCM;
-    s->regs[SONIC_IMR] = 0;
-    s->regs[SONIC_ISR] = 0;
-    s->regs[SONIC_DCR2] = 0;
-    s->regs[SONIC_EOBC] = 0x02F8;
-    s->regs[SONIC_RSC] = 0;
-    s->regs[SONIC_CE] = 0;
-    s->regs[SONIC_RSC] = 0;
+    memset(regs, 0, sizeof(regs));
+    regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux/mips */
+    regs[SONIC_CR] = SONIC_CR_RST | SONIC_CR_STP | SONIC_CR_RXDIS;
+    regs[SONIC_DCR] &= ~(SONIC_DCR_EXBUS | SONIC_DCR_LBR);
+    regs[SONIC_RCR] &= ~(SONIC_RCR_LB0 | SONIC_RCR_LB1 | SONIC_RCR_BRD |
+                         SONIC_RCR_RNT);
+    regs[SONIC_TCR] |= SONIC_TCR_NCRS | SONIC_TCR_PTX;
+    regs[SONIC_TCR] &= ~SONIC_TCR_BCM;
+    regs[SONIC_IMR] = 0;
+    regs[SONIC_ISR] = 0;
+    regs[SONIC_DCR2] = 0;
+    regs[SONIC_EOBC] = 0x02F8;
+    regs[SONIC_RSC] = 0;
+    regs[SONIC_CE] = 0;
+    regs[SONIC_RSC] = 0;
 
     /* Network cable is connected */
-    s->regs[SONIC_RCR] |= SONIC_RCR_CRS;
+    regs[SONIC_RCR] |= SONIC_RCR_CRS;
 
-    dp8393x_update_irq(s);
+    dp8393x_update_irq(this);
 }
 
 static NetClientInfo net_dp83932_info = {
@@ -895,40 +894,39 @@ static NetClientInfo net_dp83932_info = {
     .receive = dp8393x_receive,
 };
 
-static void dp8393x_instance_init(Object *obj)
+void dp8393xState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    dp8393xState *s = DP8393X(obj);
-
-    sysbus_init_mmio(sbd, &s->mmio);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
-static void dp8393x_realize(DeviceState *dev, Error **errp)
+void dp8393xState::realize(Error **errp)
 {
-    dp8393xState *s = DP8393X(dev);
+    DeviceState *dev = DEVICE(this);
 
-    address_space_init(&s->as, s->dma_mr, "dp8393x");
-    memory_region_init_io(&s->mmio, OBJECT(dev), &dp8393x_ops, s,
-                          "dp8393x-regs", SONIC_REG_COUNT << s->it_shift);
+    address_space_init(&as, dma_mr, "dp8393x");
+    memory_region_init_io(&mmio, OBJECT(dev), &dp8393x_ops, this,
+                          "dp8393x-regs", SONIC_REG_COUNT << it_shift);
 
-    s->nic = qemu_new_nic(&net_dp83932_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    nic = qemu_new_nic(&net_dp83932_info, &conf,
+                       object_get_typename(OBJECT(dev)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 
-    s->watchdog = timer_new_ns(QEMU_CLOCK_VIRTUAL, dp8393x_watchdog, s);
+    watchdog = timer_new_ns(QEMU_CLOCK_VIRTUAL, dp8393x_watchdog, this);
 }
+
+static const VMStateField vmstate_dp8393x_fields[] = {
+    VMSTATE_UINT16_2DARRAY(cam, dp8393xState, 16, 3),
+    VMSTATE_UINT16_ARRAY(regs, dp8393xState, SONIC_REG_COUNT),
+    VMSTATE_END_OF_LIST()
+};
 
 static const VMStateDescription vmstate_dp8393x = {
     .name = "dp8393x",
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField []) {
-        VMSTATE_UINT16_2DARRAY(cam, dp8393xState, 16, 3),
-        VMSTATE_UINT16_ARRAY(regs, dp8393xState, SONIC_REG_COUNT),
-        VMSTATE_END_OF_LIST()
-    }
+    .fields = vmstate_dp8393x_fields,
 };
 
 static const Property dp8393x_properties[] = {
@@ -939,28 +937,12 @@ static const Property dp8393x_properties[] = {
     DEFINE_PROP_BOOL("big_endian", dp8393xState, big_endian, false),
 };
 
-static void dp8393x_class_init(ObjectClass *klass, const void *data)
+void dp8393xState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
-    dc->realize = dp8393x_realize;
-    device_class_set_legacy_reset(dc, dp8393x_reset);
     dc->vmsd = &vmstate_dp8393x;
     device_class_set_props(dc, dp8393x_properties);
 }
 
-static const TypeInfo dp8393x_info = {
-    .name          = TYPE_DP8393X,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(dp8393xState),
-    .instance_init = dp8393x_instance_init,
-    .class_init    = dp8393x_class_init,
-};
-
-static void dp8393x_register_types(void)
-{
-    type_register_static(&dp8393x_info);
-}
-
-type_init(dp8393x_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(dp8393xState, TYPE_DP8393X, TYPE_SYS_BUS_DEVICE)

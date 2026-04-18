@@ -172,6 +172,13 @@ struct AwEmacState {
     Fifo8          tx_fifo[NUM_TX_FIFOS];
     uint32_t       tx_length[NUM_TX_FIFOS];
     uint32_t       tx_channel;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

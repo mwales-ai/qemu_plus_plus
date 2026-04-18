@@ -55,6 +55,11 @@ struct mcf_fec_state {
     uint32_t etdsr;
     uint32_t emrbr;
     uint32_t mib[FEC_MIB_SIZE];
+
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
 };
 
 #define FEC_INT_HB   0x80000000
@@ -297,19 +302,17 @@ static void mcf_fec_enable_rx(mcf_fec_state *s)
     }
 }
 
-static void mcf_fec_reset(DeviceState *dev)
+void mcf_fec_state::reset()
 {
-    mcf_fec_state *s = MCF_FEC_NET(dev);
-
-    s->eir = 0;
-    s->eimr = 0;
-    s->rx_enabled = 0;
-    s->ecr = 0;
-    s->mscr = 0;
-    s->rcr = 0x05ee0001;
-    s->tcr = 0;
-    s->tfwr = 0;
-    s->rfsr = 0x500;
+    eir = 0;
+    eimr = 0;
+    rx_enabled = 0;
+    ecr = 0;
+    mscr = 0;
+    rcr = 0x05ee0001;
+    tcr = 0;
+    tfwr = 0;
+    rfsr = 0x500;
 }
 
 #define MMFR_WRITE_OP   (1 << 28)
@@ -423,7 +426,7 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
         s->ecr = value;
         if (value & FEC_RESET) {
             DPRINTF("Reset\n");
-            mcf_fec_reset(opaque);
+            s->reset();
         }
         if ((s->ecr & FEC_EN) == 0) {
             s->rx_enabled = 0;
@@ -637,26 +640,24 @@ static NetClientInfo net_mcf_fec_info = {
     .receive = mcf_fec_receive,
 };
 
-static void mcf_fec_realize(DeviceState *dev, Error **errp)
+void mcf_fec_state::realize(Error **errp)
 {
-    mcf_fec_state *s = MCF_FEC_NET(dev);
+    DeviceState *dev = DEVICE(this);
 
-    s->nic = qemu_new_nic(&net_mcf_fec_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    nic = qemu_new_nic(&net_mcf_fec_info, &conf,
+                       object_get_typename(OBJECT(dev)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 }
 
-static void mcf_fec_instance_init(Object *obj)
+void mcf_fec_state::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    mcf_fec_state *s = MCF_FEC_NET(obj);
     int i;
 
-    memory_region_init_io(&s->iomem, obj, &mcf_fec_ops, s, "fec", 0x400);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_init_io(&iomem, OBJECT(this), &mcf_fec_ops, this, "fec", 0x400);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
     for (i = 0; i < FEC_NUM_IRQ; i++) {
-        sysbus_init_irq(sbd, &s->irq[i]);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &irq[i]);
     }
 }
 
@@ -664,28 +665,12 @@ static const Property mcf_fec_properties[] = {
     DEFINE_NIC_PROPERTIES(mcf_fec_state, conf),
 };
 
-static void mcf_fec_class_init(ObjectClass *oc, const void *data)
+void mcf_fec_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
-    dc->realize = mcf_fec_realize;
     dc->desc = "MCF Fast Ethernet Controller network device";
-    device_class_set_legacy_reset(dc, mcf_fec_reset);
     device_class_set_props(dc, mcf_fec_properties);
 }
 
-static const TypeInfo mcf_fec_info = {
-    .name          = TYPE_MCF_FEC_NET,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mcf_fec_state),
-    .instance_init = mcf_fec_instance_init,
-    .class_init    = mcf_fec_class_init,
-};
-
-static void mcf_fec_register_types(void)
-{
-    type_register_static(&mcf_fec_info);
-}
-
-type_init(mcf_fec_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(mcf_fec_state, TYPE_MCF_FEC_NET, TYPE_SYS_BUS_DEVICE)

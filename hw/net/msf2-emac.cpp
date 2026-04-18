@@ -501,11 +501,9 @@ static ssize_t emac_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     return size;
 }
 
-static void msf2_emac_reset(DeviceState *dev)
+void MSF2EmacState::reset()
 {
-    MSF2EmacState *s = MSS_EMAC(dev);
-
-    msf2_emac_do_reset(s);
+    msf2_emac_do_reset(this);
 }
 
 static void emac_set_link(NetClientState *nc)
@@ -523,33 +521,31 @@ static NetClientInfo net_msf2_emac_info = {
     .link_status_changed = emac_set_link,
 };
 
-static void msf2_emac_realize(DeviceState *dev, Error **errp)
+void MSF2EmacState::realize(Error **errp)
 {
-    MSF2EmacState *s = MSS_EMAC(dev);
+    DeviceState *dev = DEVICE(this);
 
-    if (!s->dma_mr) {
+    if (!dma_mr) {
         error_setg(errp, "MSS_EMAC 'ahb-bus' link not set");
         return;
     }
 
-    address_space_init(&s->dma_as, s->dma_mr, "emac-ahb");
+    address_space_init(&dma_as, dma_mr, "emac-ahb");
 
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_msf2_emac_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_msf2_emac_info, &conf,
+                       object_get_typename(OBJECT(dev)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 }
 
-static void msf2_emac_init(Object *obj)
+void MSF2EmacState::init()
 {
-    MSF2EmacState *s = MSS_EMAC(obj);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-
-    memory_region_init_io(&s->mmio, obj, &emac_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &emac_ops, this,
                           "msf2-emac", R_MAX * 4);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
 static const Property msf2_emac_properties[] = {
@@ -573,27 +569,11 @@ static const VMStateDescription vmstate_msf2_emac = {
     .fields = vmstate_msf2_emac_fields,
 };
 
-static void msf2_emac_class_init(ObjectClass *klass, const void *data)
+void MSF2EmacState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = msf2_emac_realize;
-    device_class_set_legacy_reset(dc, msf2_emac_reset);
     dc->vmsd = &vmstate_msf2_emac;
     device_class_set_props(dc, msf2_emac_properties);
 }
 
-static const TypeInfo msf2_emac_info = {
-    .name          = TYPE_MSS_EMAC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MSF2EmacState),
-    .instance_init = msf2_emac_init,
-    .class_init    = msf2_emac_class_init,
-};
-
-static void msf2_emac_register_types(void)
-{
-    type_register_static(&msf2_emac_info);
-}
-
-type_init(msf2_emac_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MSF2EmacState, TYPE_MSS_EMAC, TYPE_SYS_BUS_DEVICE)

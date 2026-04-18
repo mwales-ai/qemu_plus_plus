@@ -50,4 +50,11 @@ struct MSF2EmacState {
     uint16_t phy_regs[PHY_MAX_REGS];
 
     uint32_t regs[R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
