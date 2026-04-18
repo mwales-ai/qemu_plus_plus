@@ -381,90 +381,64 @@ static const GraphicHwOps vgafb_ops = {
     .gfx_update  = fb_update_display,
 };
 
-static void bcm2835_fb_init(Object *obj)
+void BCM2835FBState::init()
 {
-    BCM2835FBState *s = BCM2835_FB(obj);
-
-    memory_region_init_io(&s->iomem, obj, &bcm2835_fb_ops, s, TYPE_BCM2835_FB,
-                          0x10);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->mbox_irq);
+    memory_region_init_io(&iomem, OBJECT(this), &bcm2835_fb_ops, this,
+                          TYPE_BCM2835_FB, 0x10);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &mbox_irq);
 }
 
-static void bcm2835_fb_reset(DeviceState *dev)
+void BCM2835FBState::reset()
 {
-    BCM2835FBState *s = BCM2835_FB(dev);
-
-    s->pending = false;
-
-    s->config = s->initial_config;
-
-    s->invalidate = true;
-    s->lock = false;
+    pending = false;
+    config = initial_config;
+    invalidate = true;
+    lock = false;
 }
 
-static void bcm2835_fb_realize(DeviceState *dev, Error **errp)
+void BCM2835FBState::realize(Error **errp)
 {
-    BCM2835FBState *s = BCM2835_FB(dev);
-    Object *obj;
-
-    if (s->vcram_base == 0) {
+    if (vcram_base == 0) {
         error_setg(errp, "%s: required vcram-base property not set", __func__);
         return;
     }
 
-    obj = object_property_get_link(OBJECT(dev), "dma-mr", &error_abort);
+    Object *obj = object_property_get_link(OBJECT(this), "dma-mr", &error_abort);
 
-    /* Fill in the parts of initial_config that are not set by QOM properties */
-    s->initial_config.xres_virtual = s->initial_config.xres;
-    s->initial_config.yres_virtual = s->initial_config.yres;
-    s->initial_config.xoffset = 0;
-    s->initial_config.yoffset = 0;
-    s->initial_config.base = s->vcram_base + BCM2835_FB_OFFSET;
+    initial_config.xres_virtual = initial_config.xres;
+    initial_config.yres_virtual = initial_config.yres;
+    initial_config.xoffset = 0;
+    initial_config.yoffset = 0;
+    initial_config.base = vcram_base + BCM2835_FB_OFFSET;
 
-    s->dma_mr = MEMORY_REGION(obj);
-    address_space_init(&s->dma_as, s->dma_mr, TYPE_BCM2835_FB "-memory");
+    dma_mr = MEMORY_REGION(obj);
+    address_space_init(&dma_as, dma_mr, TYPE_BCM2835_FB "-memory");
 
-    bcm2835_fb_reset(dev);
+    reset();
 
-    s->con = graphic_console_init(dev, 0, &vgafb_ops, s);
-    qemu_console_resize(s->con, s->config.xres, s->config.yres);
+    con = graphic_console_init(DEVICE(this), 0, &vgafb_ops, this);
+    qemu_console_resize(con, config.xres, config.yres);
 }
 
 static const Property bcm2835_fb_props[] = {
-    DEFINE_PROP_UINT32("vcram-base", BCM2835FBState, vcram_base, 0),/*required*/
+    DEFINE_PROP_UINT32("vcram-base", BCM2835FBState, vcram_base, 0),
     DEFINE_PROP_UINT32("vcram-size", BCM2835FBState, vcram_size,
                        DEFAULT_VCRAM_SIZE),
     DEFINE_PROP_UINT32("xres", BCM2835FBState, initial_config.xres, 640),
     DEFINE_PROP_UINT32("yres", BCM2835FBState, initial_config.yres, 480),
     DEFINE_PROP_UINT32("bpp", BCM2835FBState, initial_config.bpp, 16),
     DEFINE_PROP_UINT32("pixo", BCM2835FBState,
-                       initial_config.pixo, 1), /* 1=RGB, 0=BGR */
+                       initial_config.pixo, 1),
     DEFINE_PROP_UINT32("alpha", BCM2835FBState,
-                       initial_config.alpha, 2), /* alpha ignored */
+                       initial_config.alpha, 2),
 };
 
-static void bcm2835_fb_class_init(ObjectClass *klass, const void *data)
+void BCM2835FBState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, bcm2835_fb_props);
-    dc->realize = bcm2835_fb_realize;
-    device_class_set_legacy_reset(dc, bcm2835_fb_reset);
     dc->vmsd = &vmstate_bcm2835_fb;
 }
 
-static const TypeInfo bcm2835_fb_info = {
-    .name          = TYPE_BCM2835_FB,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835FBState),
-    .instance_init = bcm2835_fb_init,
-    .class_init    = bcm2835_fb_class_init,
-};
-
-static void bcm2835_fb_register_types(void)
-{
-    type_register_static(&bcm2835_fb_info);
-}
-
-type_init(bcm2835_fb_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(BCM2835FBState, TYPE_BCM2835_FB, TYPE_SYS_BUS_DEVICE)

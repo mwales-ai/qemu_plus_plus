@@ -49,6 +49,12 @@ struct IMXUSBPHYState {
     MemoryRegion iomem;
 
     uint32_t usbphy[USBPHY_MAX];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX_USB_PHY_H */

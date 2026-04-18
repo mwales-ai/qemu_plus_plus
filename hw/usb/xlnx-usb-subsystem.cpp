@@ -31,62 +31,45 @@
 #include "hw/qdev-properties.h"
 #include "hw/usb/xlnx-usb-subsystem.h"
 
-static void versal_usb2_realize(DeviceState *dev, Error **errp)
+void VersalUsb2::realize(Error **errp)
 {
-    VersalUsb2 *s = VERSAL_USB2(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     Error *err = NULL;
 
-    sysbus_realize(SYS_BUS_DEVICE(&s->dwc3), &err);
+    sysbus_realize(SYS_BUS_DEVICE(&dwc3), &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
-    sysbus_realize(SYS_BUS_DEVICE(&s->usb2Ctrl), &err);
+    sysbus_realize(SYS_BUS_DEVICE(&usb2Ctrl), &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
-    sysbus_init_mmio(sbd, &s->dwc3_mr);
-    sysbus_init_mmio(sbd, &s->usb2Ctrl_mr);
-    qdev_pass_gpios(DEVICE(&s->dwc3.sysbus_xhci), dev, SYSBUS_DEVICE_GPIO_IRQ);
+    sysbus_init_mmio(sbd, &dwc3_mr);
+    sysbus_init_mmio(sbd, &usb2Ctrl_mr);
+    qdev_pass_gpios(DEVICE(&dwc3.sysbus_xhci), DEVICE(this), SYSBUS_DEVICE_GPIO_IRQ);
 }
 
-static void versal_usb2_init(Object *obj)
+void VersalUsb2::init()
 {
-    VersalUsb2 *s = VERSAL_USB2(obj);
+    Object *obj = OBJECT(this);
 
-    object_initialize_child(obj, "versal.dwc3", &s->dwc3,
-                            TYPE_USB_DWC3);
-    object_initialize_child(obj, "versal.usb2-ctrl", &s->usb2Ctrl,
+    object_initialize_child(obj, "versal.dwc3", &dwc3, TYPE_USB_DWC3);
+    object_initialize_child(obj, "versal.usb2-ctrl", &usb2Ctrl,
                             TYPE_XILINX_VERSAL_USB2_CTRL_REGS);
-    memory_region_init_alias(&s->dwc3_mr, obj, "versal.dwc3_alias",
-                             &s->dwc3.iomem, 0, DWC3_SIZE);
-    memory_region_init_alias(&s->usb2Ctrl_mr, obj, "versal.usb2Ctrl_alias",
-                             &s->usb2Ctrl.iomem, 0, USB2_REGS_R_MAX * 4);
-    qdev_alias_all_properties(DEVICE(&s->dwc3), obj);
-    qdev_alias_all_properties(DEVICE(&s->dwc3.sysbus_xhci), obj);
-    object_property_add_alias(obj, "dma", OBJECT(&s->dwc3.sysbus_xhci), "dma");
+    memory_region_init_alias(&dwc3_mr, obj, "versal.dwc3_alias",
+                             &dwc3.iomem, 0, DWC3_SIZE);
+    memory_region_init_alias(&usb2Ctrl_mr, obj, "versal.usb2Ctrl_alias",
+                             &usb2Ctrl.iomem, 0, USB2_REGS_R_MAX * 4);
+    qdev_alias_all_properties(DEVICE(&dwc3), obj);
+    qdev_alias_all_properties(DEVICE(&dwc3.sysbus_xhci), obj);
+    object_property_add_alias(obj, "dma", OBJECT(&dwc3.sysbus_xhci), "dma");
 }
 
-static void versal_usb2_class_init(ObjectClass *klass, const void *data)
+void VersalUsb2::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = versal_usb2_realize;
 }
 
-static const TypeInfo versal_usb2_info = {
-    .name          = TYPE_XILINX_VERSAL_USB2,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VersalUsb2),
-    .instance_init = versal_usb2_init,
-    .class_init    = versal_usb2_class_init,
-};
-
-static void versal_usb_types(void)
-{
-    type_register_static(&versal_usb2_info);
-}
-
-type_init(versal_usb_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VersalUsb2, TYPE_XILINX_VERSAL_USB2, TYPE_SYS_BUS_DEVICE)

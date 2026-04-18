@@ -46,6 +46,12 @@ typedef struct VersalUsb2 {
 
     VersalUsb2CtrlRegs usb2Ctrl;
     USBDWC3 dwc3;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 } VersalUsb2;
 
 #ifdef __cplusplus

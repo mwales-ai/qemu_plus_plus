@@ -39,17 +39,15 @@ static void imx_usbphy_softreset(IMXUSBPHYState *s)
     s->usbphy[USBPHY_CTRL] = 0xc0200000;
 }
 
-static void imx_usbphy_reset(DeviceState *dev)
+void IMXUSBPHYState::reset()
 {
-    IMXUSBPHYState *s = IMX_USBPHY(dev);
+    usbphy[USBPHY_STATUS] = 0x00000000;
+    usbphy[USBPHY_DEBUG] = 0x7f180000;
+    usbphy[USBPHY_DEBUG0_STATUS] = 0x00000000;
+    usbphy[USBPHY_DEBUG1] = 0x00001000;
+    usbphy[USBPHY_VERSION] = 0x04020000;
 
-    s->usbphy[USBPHY_STATUS] = 0x00000000;
-    s->usbphy[USBPHY_DEBUG] = 0x7f180000;
-    s->usbphy[USBPHY_DEBUG0_STATUS] = 0x00000000;
-    s->usbphy[USBPHY_DEBUG1] = 0x00001000;
-    s->usbphy[USBPHY_VERSION] = 0x04020000;
-
-    imx_usbphy_softreset(s);
+    imx_usbphy_softreset(this);
 }
 
 static uint64_t imx_usbphy_read(void *opaque, hwaddr offset, unsigned size)
@@ -195,38 +193,21 @@ static void imx_usbphy_write(void *opaque, hwaddr offset, uint64_t value,
 
 static MemoryRegionOps imx_usbphy_ops;
 
-static void imx_usbphy_realize(DeviceState *dev, Error **errp)
+void IMXUSBPHYState::realize(Error **errp)
 {
-    IMXUSBPHYState *s = IMX_USBPHY(dev);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &imx_usbphy_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &imx_usbphy_ops, this,
                           "imx-usbphy", 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void imx_usbphy_class_init(ObjectClass *klass, const void *data)
+void IMXUSBPHYState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, imx_usbphy_reset);
     dc->vmsd = &vmstate_imx_usbphy;
     dc->desc = "i.MX USB PHY Module";
-    dc->realize = imx_usbphy_realize;
 }
 
-static const TypeInfo imx_usbphy_info = {
-    .name          = TYPE_IMX_USBPHY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXUSBPHYState),
-    .class_init    = imx_usbphy_class_init,
-};
-
-static void imx_usbphy_register_types(void)
-{
-    type_register_static(&imx_usbphy_info);
-}
-
-type_init(imx_usbphy_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IMXUSBPHYState, TYPE_IMX_USBPHY, TYPE_SYS_BUS_DEVICE)
 
 static void __attribute__((constructor)) init_imx_usbphy_ops(void)
 {

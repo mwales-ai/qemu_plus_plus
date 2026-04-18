@@ -55,6 +55,13 @@ struct BCM2835FBState {
 
     BCM2835FBConfig config;
     BCM2835FBConfig initial_config;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 void bcm2835_fb_reconfigure(BCM2835FBState *s, BCM2835FBConfig *newconfig);
