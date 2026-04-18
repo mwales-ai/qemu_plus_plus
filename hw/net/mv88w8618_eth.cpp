@@ -107,6 +107,10 @@ struct mv88w8618_eth_state {
     uint32_t cur_rx[4];
     NICState *nic;
     NICConf conf;
+
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
 };
 
 static void eth_rx_desc_put(AddressSpace *dma_as, uint32_t addr,
@@ -327,31 +331,29 @@ static NetClientInfo net_mv88w8618_info = {
     .cleanup = eth_cleanup,
 };
 
-static void mv88w8618_eth_init(Object *obj)
+void mv88w8618_eth_state::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DeviceState *dev = DEVICE(sbd);
-    mv88w8618_eth_state *s = MV88W8618_ETH(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    sysbus_init_irq(sbd, &s->irq);
-    memory_region_init_io(&s->iomem, obj, &mv88w8618_eth_ops, s,
+    sysbus_init_irq(sbd, &irq);
+    memory_region_init_io(&iomem, OBJECT(this), &mv88w8618_eth_ops, this,
                           "mv88w8618-eth", MP_ETH_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
-static void mv88w8618_eth_realize(DeviceState *dev, Error **errp)
+void mv88w8618_eth_state::realize(Error **errp)
 {
-    mv88w8618_eth_state *s = MV88W8618_ETH(dev);
+    DeviceState *dev = DEVICE(this);
 
-    if (!s->dma_mr) {
+    if (!dma_mr) {
         error_setg(errp, TYPE_MV88W8618_ETH " 'dma-memory' link not set");
         return;
     }
 
-    address_space_init(&s->dma_as, s->dma_mr, "emac-dma");
-    s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
+    address_space_init(&dma_as, dma_mr, "emac-dma");
+    nic = qemu_new_nic(&net_mv88w8618_info, &conf,
+                       object_get_typename(OBJECT(this)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
 }
 
 static const VMStateField vmstate_mv88w8618_eth_fields[] = {
@@ -379,27 +381,12 @@ static const Property mv88w8618_eth_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void mv88w8618_eth_class_init(ObjectClass *klass, const void *data)
+void mv88w8618_eth_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &mv88w8618_eth_vmsd;
     device_class_set_props(dc, mv88w8618_eth_properties);
-    dc->realize = mv88w8618_eth_realize;
 }
 
-static const TypeInfo mv88w8618_eth_info = {
-    .name          = TYPE_MV88W8618_ETH,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mv88w8618_eth_state),
-    .instance_init = mv88w8618_eth_init,
-    .class_init    = mv88w8618_eth_class_init,
-};
-
-static void musicpal_register_types(void)
-{
-    type_register_static(&mv88w8618_eth_info);
-}
-
-type_init(musicpal_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(mv88w8618_eth_state, TYPE_MV88W8618_ETH, TYPE_SYS_BUS_DEVICE)
 

@@ -100,41 +100,35 @@ static const VMStateDescription vmstate_lance = {
     }
 };
 
-static void lance_realize(DeviceState *dev, Error **errp)
+void SysBusPCNetState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    SysBusPCNetState *d = SYSBUS_PCNET(dev);
-    PCNetState *s = &d->state;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->mmio, OBJECT(d), &lance_mem_ops, d,
+    memory_region_init_io(&state.mmio, OBJECT(this), &lance_mem_ops, this,
                           "lance-mmio", 4);
 
     qdev_init_gpio_in(dev, parent_lance_reset, 1);
 
-    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_mmio(sbd, &state.mmio);
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &state.irq);
 
-    s->phys_mem_read = ledma_memory_read;
-    s->phys_mem_write = ledma_memory_write;
-    pcnet_common_init(dev, s, &net_lance_info);
+    state.phys_mem_read = ledma_memory_read;
+    state.phys_mem_write = ledma_memory_write;
+    pcnet_common_init(dev, &state, &net_lance_info);
 }
 
-static void lance_reset(DeviceState *dev)
+void SysBusPCNetState::reset()
 {
-    SysBusPCNetState *d = SYSBUS_PCNET(dev);
-
-    pcnet_h_reset(&d->state);
+    pcnet_h_reset(&state);
 }
 
-static void lance_instance_init(Object *obj)
+void SysBusPCNetState::init()
 {
-    SysBusPCNetState *d = SYSBUS_PCNET(obj);
-    PCNetState *s = &d->state;
-
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+    device_add_bootindex_property(OBJECT(this), &state.conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
+                                  DEVICE(this));
 }
 
 static const Property lance_properties[] = {
@@ -143,29 +137,13 @@ static const Property lance_properties[] = {
     DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
 };
 
-static void lance_class_init(ObjectClass *klass, const void *data)
+void SysBusPCNetState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = lance_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "ethernet";
-    device_class_set_legacy_reset(dc, lance_reset);
     dc->vmsd = &vmstate_lance;
     device_class_set_props(dc, lance_properties);
 }
 
-static const TypeInfo lance_info = {
-    .name          = TYPE_LANCE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusPCNetState),
-    .class_init    = lance_class_init,
-    .instance_init = lance_instance_init,
-};
-
-static void lance_register_types(void)
-{
-    type_register_static(&lance_info);
-}
-
-type_init(lance_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SysBusPCNetState, TYPE_LANCE, TYPE_SYS_BUS_DEVICE)

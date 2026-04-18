@@ -119,69 +119,49 @@ static const VMStateDescription vmstate_lasi_82596 = {
     .fields = vmstate_lasi_82596_fields,
 };
 
-static void lasi_82596_realize(DeviceState *dev, Error **errp)
+void SysBusI82596State::realize(Error **errp)
 {
-    SysBusI82596State *d = SYSBUS_I82596(dev);
-    I82596State *s = &d->state;
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->mmio, OBJECT(d), &lasi_82596_mem_ops, d,
+    memory_region_init_io(&state.mmio, OBJECT(this), &lasi_82596_mem_ops, this,
                 "lasi_82596-mmio", PA_GET_MACADDR + 4);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
+    sysbus_init_irq(sbd, &state.irq);
+    sysbus_init_mmio(sbd, &state.mmio);
 
-    i82596_common_init(dev, s, &net_lasi_82596_info);
+    i82596_common_init(dev, &state, &net_lasi_82596_info);
 }
 
-static void lasi_82596_reset(DeviceState *dev)
+void SysBusI82596State::reset()
 {
-    SysBusI82596State *d = SYSBUS_I82596(dev);
-
-    i82596_h_reset(&d->state);
+    i82596_h_reset(&state);
 }
 
-static void lasi_82596_instance_init(Object *obj)
+void SysBusI82596State::init()
 {
-    SysBusI82596State *d = SYSBUS_I82596(obj);
-    I82596State *s = &d->state;
     static const MACAddr HP_MAC = {
         .a = { 0x08, 0x00, 0x09, 0xef, 0x34, 0xf6 } };
 
-    s->conf.macaddr = HP_MAC;
+    state.conf.macaddr = HP_MAC;
 
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+    device_add_bootindex_property(OBJECT(this), &state.conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj));
+                                  DEVICE(this));
 }
 
 static const Property lasi_82596_properties[] = {
     DEFINE_NIC_PROPERTIES(SysBusI82596State, state.conf),
 };
 
-static void lasi_82596_class_init(ObjectClass *klass, const void *data)
+void SysBusI82596State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = lasi_82596_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->fw_name = "ethernet";
-    device_class_set_legacy_reset(dc, lasi_82596_reset);
     dc->vmsd = &vmstate_lasi_82596;
     dc->user_creatable = false;
     device_class_set_props(dc, lasi_82596_properties);
 }
 
-static const TypeInfo lasi_82596_info = {
-    .name          = TYPE_LASI_82596,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusI82596State),
-    .class_init    = lasi_82596_class_init,
-    .instance_init = lasi_82596_instance_init,
-};
-
-static void lasi_82596_register_types(void)
-{
-    type_register_static(&lasi_82596_info);
-}
-
-type_init(lasi_82596_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SysBusI82596State, TYPE_LASI_82596, TYPE_SYS_BUS_DEVICE)

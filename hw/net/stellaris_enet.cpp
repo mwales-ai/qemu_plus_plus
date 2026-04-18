@@ -82,6 +82,10 @@ struct stellaris_enet_state {
     NICConf conf;
     qemu_irq irq;
     MemoryRegion mmio;
+
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_rx_frame_fields[] = {
@@ -466,16 +470,14 @@ static const MemoryRegionOps stellaris_enet_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void stellaris_enet_reset(DeviceState *dev)
+void stellaris_enet_state::reset()
 {
-    stellaris_enet_state *s =  STELLARIS_ENET(dev);
-
-    s->mdv = 0x80;
-    s->rctl = SE_RCTL_BADCRC;
-    s->im = SE_INT_PHY | SE_INT_MD | SE_INT_RXER | SE_INT_FOV | SE_INT_TXEMP
-            | SE_INT_TXER | SE_INT_RX;
-    s->thr = 0x3f;
-    s->tx_fifo_len = 0;
+    mdv = 0x80;
+    rctl = SE_RCTL_BADCRC;
+    im = SE_INT_PHY | SE_INT_MD | SE_INT_RXER | SE_INT_FOV | SE_INT_TXEMP
+         | SE_INT_TXER | SE_INT_RX;
+    thr = 0x3f;
+    tx_fifo_len = 0;
 }
 
 static NetClientInfo net_stellaris_enet_info = {
@@ -484,47 +486,32 @@ static NetClientInfo net_stellaris_enet_info = {
     .receive = stellaris_enet_receive,
 };
 
-static void stellaris_enet_realize(DeviceState *dev, Error **errp)
+void stellaris_enet_state::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    stellaris_enet_state *s = STELLARIS_ENET(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->mmio, OBJECT(s), &stellaris_enet_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &stellaris_enet_ops, this,
                           "stellaris_enet", 0x1000);
-    sysbus_init_mmio(sbd, &s->mmio);
-    sysbus_init_irq(sbd, &s->irq);
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
+    sysbus_init_mmio(sbd, &mmio);
+    sysbus_init_irq(sbd, &irq);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
 
-    s->nic = qemu_new_nic(&net_stellaris_enet_info, &s->conf,
-                          object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    nic = qemu_new_nic(&net_stellaris_enet_info, &conf,
+                       object_get_typename(OBJECT(this)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 }
 
 static const Property stellaris_enet_properties[] = {
     DEFINE_NIC_PROPERTIES(stellaris_enet_state, conf),
 };
 
-static void stellaris_enet_class_init(ObjectClass *klass, const void *data)
+void stellaris_enet_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = stellaris_enet_realize;
-    device_class_set_legacy_reset(dc, stellaris_enet_reset);
     device_class_set_props(dc, stellaris_enet_properties);
     dc->vmsd = &vmstate_stellaris_enet;
 }
 
-static const TypeInfo stellaris_enet_info = {
-    .name          = TYPE_STELLARIS_ENET,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(stellaris_enet_state),
-    .class_init    = stellaris_enet_class_init,
-};
-
-static void stellaris_enet_register_types(void)
-{
-    type_register_static(&stellaris_enet_info);
-}
-
-type_init(stellaris_enet_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(stellaris_enet_state, TYPE_STELLARIS_ENET, TYPE_SYS_BUS_DEVICE)

@@ -23,6 +23,13 @@ struct SysBusI82596State {
     I82596State state;
     uint16_t last_val;
     int val_index:1;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
