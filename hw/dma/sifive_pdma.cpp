@@ -452,38 +452,21 @@ static void __attribute__((constructor)) init_sifive_pdma_ops(void)
     sifive_pdma_ops.valid.max_access_size = 8;
 }
 
-static void sifive_pdma_realize(DeviceState *dev, Error **errp)
+void SiFivePDMAState::realize(Error **errp)
 {
-    SiFivePDMAState *s = SIFIVE_PDMA(dev);
-    int i;
-
-    memory_region_init_io(&s->iomem, OBJECT(dev), &sifive_pdma_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &sifive_pdma_ops, this,
                           TYPE_SIFIVE_PDMA, SIFIVE_PDMA_REG_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 
-    for (i = 0; i < SIFIVE_PDMA_IRQS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
+    for (int i = 0; i < SIFIVE_PDMA_IRQS; i++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &irq[i]);
     }
 }
 
-static void sifive_pdma_class_init(ObjectClass *klass, const void *data)
+void SiFivePDMAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "SiFive Platform DMA controller";
-    dc->realize = sifive_pdma_realize;
 }
 
-static const TypeInfo sifive_pdma_info = {
-    .name          = TYPE_SIFIVE_PDMA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFivePDMAState),
-    .class_init    = sifive_pdma_class_init,
-};
-
-static void sifive_pdma_register_types(void)
-{
-    type_register_static(&sifive_pdma_info);
-}
-
-type_init(sifive_pdma_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SiFivePDMAState, TYPE_SIFIVE_PDMA, TYPE_SYS_BUS_DEVICE)

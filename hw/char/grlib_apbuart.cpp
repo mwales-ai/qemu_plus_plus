@@ -94,6 +94,10 @@ struct UART {
     char buffer[FIFO_LENGTH];
     int  len;
     int  current;
+
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
 };
 
 static int uart_data_to_read(UART *uart)
@@ -138,14 +142,14 @@ static void uart_add_to_fifo(UART          *uart,
 
 static int grlib_apbuart_can_receive(void *opaque)
 {
-    UART *uart = opaque;
+    UART *uart = static_cast<UART *>(opaque);
 
     return FIFO_LENGTH - uart->len;
 }
 
 static void grlib_apbuart_receive(void *opaque, const uint8_t *buf, int size)
 {
-    UART *uart = opaque;
+    UART *uart = static_cast<UART *>(opaque);
 
     if (uart->control & UART_RECEIVE_ENABLE) {
         uart_add_to_fifo(uart, buf, size);
@@ -167,7 +171,7 @@ static void grlib_apbuart_event(void *opaque, QEMUChrEvent event)
 static uint64_t grlib_apbuart_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
-    UART     *uart = opaque;
+    UART     *uart = static_cast<UART *>(opaque);
 
     addr &= 0xff;
 
@@ -197,7 +201,7 @@ static uint64_t grlib_apbuart_read(void *opaque, hwaddr addr,
 static void grlib_apbuart_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
-    UART          *uart = opaque;
+    UART          *uart = static_cast<UART *>(opaque);
     unsigned char  c    = 0;
 
     addr &= 0xff;
@@ -240,66 +244,43 @@ static void grlib_apbuart_write(void *opaque, hwaddr addr,
 }
 
 static const MemoryRegionOps grlib_apbuart_ops = {
-    .write      = grlib_apbuart_write,
     .read       = grlib_apbuart_read,
+    .write      = grlib_apbuart_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void grlib_apbuart_realize(DeviceState *dev, Error **errp)
+void UART::realize(Error **errp)
 {
-    UART *uart = GRLIB_APB_UART(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    qemu_chr_fe_set_handlers(&uart->chr,
+    qemu_chr_fe_set_handlers(&chr,
                              grlib_apbuart_can_receive,
                              grlib_apbuart_receive,
                              grlib_apbuart_event,
-                             NULL, uart, NULL, true);
+                             NULL, this, NULL, true);
 
-    sysbus_init_irq(sbd, &uart->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    memory_region_init_io(&uart->iomem, OBJECT(uart), &grlib_apbuart_ops, uart,
+    memory_region_init_io(&iomem, OBJECT(this), &grlib_apbuart_ops, this,
                           "uart", UART_REG_SIZE);
 
-    sysbus_init_mmio(sbd, &uart->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void grlib_apbuart_reset(DeviceState *d)
+void UART::reset()
 {
-    UART *uart = GRLIB_APB_UART(d);
-
-    /* Transmitter FIFO and shift registers are always empty in QEMU */
-    uart->status =  UART_TRANSMIT_FIFO_EMPTY | UART_TRANSMIT_SHIFT_EMPTY;
-    /* Everything is off */
-    uart->control = 0;
-    /* Flush receive FIFO */
-    uart->len = 0;
-    uart->current = 0;
+    status =  UART_TRANSMIT_FIFO_EMPTY | UART_TRANSMIT_SHIFT_EMPTY;
+    control = 0;
+    len = 0;
+    current = 0;
 }
 
 static const Property grlib_apbuart_properties[] = {
     DEFINE_PROP_CHR("chrdev", UART, chr),
 };
 
-static void grlib_apbuart_class_init(ObjectClass *klass, const void *data)
+void UART::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = grlib_apbuart_realize;
-    device_class_set_legacy_reset(dc, grlib_apbuart_reset);
     device_class_set_props(dc, grlib_apbuart_properties);
 }
 
-static const TypeInfo grlib_apbuart_info = {
-    .name          = TYPE_GRLIB_APB_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(UART),
-    .class_init    = grlib_apbuart_class_init,
-};
-
-static void grlib_apbuart_register_types(void)
-{
-    type_register_static(&grlib_apbuart_info);
-}
-
-type_init(grlib_apbuart_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(UART, TYPE_GRLIB_APB_UART, TYPE_SYS_BUS_DEVICE)

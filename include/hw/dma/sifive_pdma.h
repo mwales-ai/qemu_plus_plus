@@ -49,6 +49,11 @@ typedef struct SiFivePDMAState {
     qemu_irq irq[SIFIVE_PDMA_IRQS];
 
     struct sifive_pdma_chan chan[SIFIVE_PDMA_CHANS];
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 } SiFivePDMAState;
 
 #define TYPE_SIFIVE_PDMA    "sifive.pdma"

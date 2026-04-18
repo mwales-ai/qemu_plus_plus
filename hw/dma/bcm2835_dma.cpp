@@ -340,73 +340,43 @@ static const VMStateDescription vmstate_bcm2835_dma = {
     .fields = vmstate_bcm2835_dma_fields,
 };
 
-static void bcm2835_dma_init(Object *obj)
+void BCM2835DMAState::init()
 {
-    BCM2835DMAState *s = BCM2835_DMA(obj);
-    int n;
-
-    /* DMA channels 0-14 occupy a contiguous block of IO memory, along
-     * with the global enable and interrupt status bits. Channel 15
-     * has the same register map, but is mapped at a discontiguous
-     * address in a separate IO block.
-     */
-    memory_region_init_io(&s->iomem0, OBJECT(s), &bcm2835_dma0_ops, s,
+    memory_region_init_io(&iomem0, OBJECT(this), &bcm2835_dma0_ops, this,
                           TYPE_BCM2835_DMA, 0x1000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem0);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem0);
 
-    memory_region_init_io(&s->iomem15, OBJECT(s), &bcm2835_dma15_ops, s,
+    memory_region_init_io(&iomem15, OBJECT(this), &bcm2835_dma15_ops, this,
                           TYPE_BCM2835_DMA "-chan15", 0x100);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem15);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem15);
 
-    for (n = 0; n < 16; n++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(s), &s->chan[n].irq);
+    for (int n = 0; n < 16; n++) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &chan[n].irq);
     }
 }
 
-static void bcm2835_dma_reset(DeviceState *dev)
+void BCM2835DMAState::reset()
 {
-    BCM2835DMAState *s = BCM2835_DMA(dev);
-    int n;
-
-    s->enable = 0xffff;
-    s->int_status = 0;
-    for (n = 0; n < BCM2835_DMA_NCHANS; n++) {
-        bcm2835_dma_chan_reset(&s->chan[n]);
+    enable = 0xffff;
+    int_status = 0;
+    for (int n = 0; n < BCM2835_DMA_NCHANS; n++) {
+        bcm2835_dma_chan_reset(&chan[n]);
     }
 }
 
-static void bcm2835_dma_realize(DeviceState *dev, Error **errp)
+void BCM2835DMAState::realize(Error **errp)
 {
-    BCM2835DMAState *s = BCM2835_DMA(dev);
-    Object *obj;
+    Object *obj = object_property_get_link(OBJECT(this), "dma-mr", &error_abort);
+    dma_mr = MEMORY_REGION(obj);
+    address_space_init(&dma_as, dma_mr, TYPE_BCM2835_DMA "-memory");
 
-    obj = object_property_get_link(OBJECT(dev), "dma-mr", &error_abort);
-    s->dma_mr = MEMORY_REGION(obj);
-    address_space_init(&s->dma_as, s->dma_mr, TYPE_BCM2835_DMA "-memory");
-
-    bcm2835_dma_reset(dev);
+    reset();
 }
 
-static void bcm2835_dma_class_init(ObjectClass *klass, const void *data)
+void BCM2835DMAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = bcm2835_dma_realize;
-    device_class_set_legacy_reset(dc, bcm2835_dma_reset);
     dc->vmsd = &vmstate_bcm2835_dma;
 }
 
-static const TypeInfo bcm2835_dma_info = {
-    .name          = TYPE_BCM2835_DMA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835DMAState),
-    .instance_init = bcm2835_dma_init,
-    .class_init    = bcm2835_dma_class_init,
-};
-
-static void bcm2835_dma_register_types(void)
-{
-    type_register_static(&bcm2835_dma_info);
-}
-
-type_init(bcm2835_dma_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(BCM2835DMAState, TYPE_BCM2835_DMA, TYPE_SYS_BUS_DEVICE)
