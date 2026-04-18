@@ -46,6 +46,12 @@ struct SerialMM {
 
     uint8_t regshift;
     uint8_t endianness;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 SerialMM *serial_mm_init(MemoryRegion *address_space,

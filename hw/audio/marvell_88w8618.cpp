@@ -63,6 +63,11 @@ struct mv88w8618_audio_state {
     uint32_t last_free;
     uint32_t clock_div;
     void *wm;
+
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
 };
 
 static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
@@ -230,16 +235,14 @@ static void mv88w8618_audio_write(void *opaque, hwaddr offset,
     }
 }
 
-static void mv88w8618_audio_reset(DeviceState *d)
+void mv88w8618_audio_state::reset()
 {
-    mv88w8618_audio_state *s = MV88W8618_AUDIO(d);
-
-    s->playback_mode = 0;
-    s->status = 0;
-    s->irq_enable = 0;
-    s->clock_div = 0;
-    s->threshold = 0;
-    s->phys_buf = 0;
+    playback_mode = 0;
+    status = 0;
+    irq_enable = 0;
+    clock_div = 0;
+    threshold = 0;
+    phys_buf = 0;
 }
 
 static const MemoryRegionOps mv88w8618_audio_ops = {
@@ -248,28 +251,25 @@ static const MemoryRegionOps mv88w8618_audio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void mv88w8618_audio_init(Object *obj)
+void mv88w8618_audio_state::init()
 {
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
-    mv88w8618_audio_state *s = MV88W8618_AUDIO(dev);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
 
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_irq(dev, &irq);
 
-    memory_region_init_io(&s->iomem, obj, &mv88w8618_audio_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &mv88w8618_audio_ops, this,
                           "audio", MP_AUDIO_SIZE);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(dev, &iomem);
 
-    object_property_add_link(OBJECT(dev), "wm8750", TYPE_WM8750,
-                             (Object **) &s->wm,
+    object_property_add_link(OBJECT(this), "wm8750", TYPE_WM8750,
+                             (Object **) &wm,
                              qdev_prop_allow_set_link_before_realize,
                              static_cast<ObjectPropertyLinkFlags>(0));
 }
 
-static void mv88w8618_audio_realize(DeviceState *dev, Error **errp)
+void mv88w8618_audio_state::realize(Error **errp)
 {
-    mv88w8618_audio_state *s = MV88W8618_AUDIO(dev);
-
-    wm8750_data_req_set(static_cast<DeviceState *>(s->wm), mv88w8618_audio_callback, s);
+    wm8750_data_req_set(static_cast<DeviceState *>(wm), mv88w8618_audio_callback, this);
 }
 
 static const VMStateField mv88w8618_audio_vmsd_fields[] = {
@@ -292,27 +292,11 @@ static const VMStateDescription mv88w8618_audio_vmsd = {
     .fields = mv88w8618_audio_vmsd_fields,
 };
 
-static void mv88w8618_audio_class_init(ObjectClass *klass, const void *data)
+void mv88w8618_audio_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = mv88w8618_audio_realize;
-    device_class_set_legacy_reset(dc, mv88w8618_audio_reset);
     dc->vmsd = &mv88w8618_audio_vmsd;
     dc->user_creatable = false;
 }
 
-static const TypeInfo mv88w8618_audio_info = {
-    .name          = TYPE_MV88W8618_AUDIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(mv88w8618_audio_state),
-    .instance_init = mv88w8618_audio_init,
-    .class_init    = mv88w8618_audio_class_init,
-};
-
-static void mv88w8618_register_types(void)
-{
-    type_register_static(&mv88w8618_audio_info);
-}
-
-type_init(mv88w8618_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(mv88w8618_audio_state, TYPE_MV88W8618_AUDIO, TYPE_SYS_BUS_DEVICE)

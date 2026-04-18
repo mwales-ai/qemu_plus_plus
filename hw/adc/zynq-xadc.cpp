@@ -92,23 +92,21 @@ static void zynq_xadc_update_ints(ZynqXADCState *s)
     qemu_set_irq(s->irq, !!(s->regs[INT_STS] & ~s->regs[INT_MASK]));
 }
 
-static void zynq_xadc_reset(DeviceState *d)
+void ZynqXADCState::reset()
 {
-    ZynqXADCState *s = ZYNQ_XADC(d);
+    regs[CFG] = 0x14 << CFG_IGAP_SHIFT |
+                CFG_TCKRATE_DIV(4) << CFG_TCKRATE_SHIFT | CFG_REDGE;
+    regs[INT_STS] = INT_CFIFO_LTH;
+    regs[INT_MASK] = 0xffffffff;
+    regs[CMDFIFO] = 0;
+    regs[RDFIFO] = 0;
+    regs[MCTL] = MCTL_RESET;
 
-    s->regs[CFG] = 0x14 << CFG_IGAP_SHIFT |
-                   CFG_TCKRATE_DIV(4) << CFG_TCKRATE_SHIFT | CFG_REDGE;
-    s->regs[INT_STS] = INT_CFIFO_LTH;
-    s->regs[INT_MASK] = 0xffffffff;
-    s->regs[CMDFIFO] = 0;
-    s->regs[RDFIFO] = 0;
-    s->regs[MCTL] = MCTL_RESET;
+    memset(xadc_regs, 0, sizeof(xadc_regs));
+    memset(xadc_dfifo, 0, sizeof(xadc_dfifo));
+    xadc_dfifo_entries = 0;
 
-    memset(s->xadc_regs, 0, sizeof(s->xadc_regs));
-    memset(s->xadc_dfifo, 0, sizeof(s->xadc_dfifo));
-    s->xadc_dfifo_entries = 0;
-
-    zynq_xadc_update_ints(s);
+    zynq_xadc_update_ints(this);
 }
 
 static uint16_t xadc_pop_dfifo(ZynqXADCState *s)
@@ -257,15 +255,14 @@ static const MemoryRegionOps xadc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void zynq_xadc_init(Object *obj)
+void ZynqXADCState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    ZynqXADCState *s = ZYNQ_XADC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, obj, &xadc_ops, s, "zynq-xadc",
+    memory_region_init_io(&iomem, OBJECT(this), &xadc_ops, this, "zynq-xadc",
                           ZYNQ_XADC_MMIO_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 }
 
 static const VMStateField vmstate_zynq_xadc_fields[] = {
@@ -286,25 +283,10 @@ static const VMStateDescription vmstate_zynq_xadc = {
     .fields = vmstate_zynq_xadc_fields,
 };
 
-static void zynq_xadc_class_init(ObjectClass *klass, const void *data)
+void ZynqXADCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_zynq_xadc;
-    device_class_set_legacy_reset(dc, zynq_xadc_reset);
 }
 
-static const TypeInfo zynq_xadc_info = {
-    .name  = TYPE_ZYNQ_XADC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(ZynqXADCState),
-    .instance_init = zynq_xadc_init,
-    .class_init = zynq_xadc_class_init,
-};
-
-static void zynq_xadc_register_types(void)
-{
-    type_register_static(&zynq_xadc_info);
-}
-
-type_init(zynq_xadc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ZynqXADCState, TYPE_ZYNQ_XADC, TYPE_SYS_BUS_DEVICE)

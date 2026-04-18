@@ -84,6 +84,12 @@ struct STM32F2XXADCState {
     uint32_t adc_dr;
 
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_STM32F2XX_ADC_H */

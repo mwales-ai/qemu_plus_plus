@@ -44,30 +44,28 @@ extern "C" {
 
 #define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
-static void stm32f2xx_adc_reset(DeviceState *dev)
+void STM32F2XXADCState::reset()
 {
-    STM32F2XXADCState *s = STM32F2XX_ADC(dev);
-
-    s->adc_sr = 0x00000000;
-    s->adc_cr1 = 0x00000000;
-    s->adc_cr2 = 0x00000000;
-    s->adc_smpr1 = 0x00000000;
-    s->adc_smpr2 = 0x00000000;
-    s->adc_jofr[0] = 0x00000000;
-    s->adc_jofr[1] = 0x00000000;
-    s->adc_jofr[2] = 0x00000000;
-    s->adc_jofr[3] = 0x00000000;
-    s->adc_htr = 0x00000FFF;
-    s->adc_ltr = 0x00000000;
-    s->adc_sqr1 = 0x00000000;
-    s->adc_sqr2 = 0x00000000;
-    s->adc_sqr3 = 0x00000000;
-    s->adc_jsqr = 0x00000000;
-    s->adc_jdr[0] = 0x00000000;
-    s->adc_jdr[1] = 0x00000000;
-    s->adc_jdr[2] = 0x00000000;
-    s->adc_jdr[3] = 0x00000000;
-    s->adc_dr = 0x00000000;
+    adc_sr = 0x00000000;
+    adc_cr1 = 0x00000000;
+    adc_cr2 = 0x00000000;
+    adc_smpr1 = 0x00000000;
+    adc_smpr2 = 0x00000000;
+    adc_jofr[0] = 0x00000000;
+    adc_jofr[1] = 0x00000000;
+    adc_jofr[2] = 0x00000000;
+    adc_jofr[3] = 0x00000000;
+    adc_htr = 0x00000FFF;
+    adc_ltr = 0x00000000;
+    adc_sqr1 = 0x00000000;
+    adc_sqr2 = 0x00000000;
+    adc_sqr3 = 0x00000000;
+    adc_jsqr = 0x00000000;
+    adc_jdr[0] = 0x00000000;
+    adc_jdr[1] = 0x00000000;
+    adc_jdr[2] = 0x00000000;
+    adc_jdr[3] = 0x00000000;
+    adc_dr = 0x00000000;
 }
 
 static uint32_t stm32f2xx_adc_generate_value(STM32F2XXADCState *s)
@@ -282,36 +280,19 @@ static const VMStateDescription vmstate_stm32f2xx_adc = {
     .fields = vmstate_stm32f2xx_adc_fields,
 };
 
-static void stm32f2xx_adc_init(Object *obj)
+void STM32F2XXADCState::init()
 {
-    STM32F2XXADCState *s = STM32F2XX_ADC(obj);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
-
-    memory_region_init_io(&s->mmio, obj, &stm32f2xx_adc_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &stm32f2xx_adc_ops, this,
                           TYPE_STM32F2XX_ADC, 0x100);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
-static void stm32f2xx_adc_class_init(ObjectClass *klass, const void *data)
+void STM32F2XXADCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, stm32f2xx_adc_reset);
     dc->vmsd = &vmstate_stm32f2xx_adc;
 }
 
-static const TypeInfo stm32f2xx_adc_info = {
-    .name          = TYPE_STM32F2XX_ADC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32F2XXADCState),
-    .instance_init = stm32f2xx_adc_init,
-    .class_init    = stm32f2xx_adc_class_init,
-};
-
-static void stm32f2xx_adc_register_types(void)
-{
-    type_register_static(&stm32f2xx_adc_info);
-}
-
-type_init(stm32f2xx_adc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(STM32F2XXADCState, TYPE_STM32F2XX_ADC, TYPE_SYS_BUS_DEVICE)

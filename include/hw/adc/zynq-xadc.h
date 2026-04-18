@@ -40,6 +40,12 @@ struct ZynqXADCState {
     uint16_t xadc_dfifo_entries;
 
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* ZYNQ_XADC_H */

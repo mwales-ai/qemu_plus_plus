@@ -72,20 +72,19 @@ static void __attribute__((constructor)) init_serial_mm_ops(void)
     serial_mm_ops[DEVICE_BIG_ENDIAN].impl.max_access_size = 8;
 }
 
-static void serial_mm_realize(DeviceState *dev, Error **errp)
+void SerialMM::realize(Error **errp)
 {
-    SerialMM *smm = SERIAL_MM(dev);
-    SerialState *s = &smm->serial;
+    SerialState *s = &serial;
 
     if (!qdev_realize(DEVICE(s), NULL, errp)) {
         return;
     }
 
-    memory_region_init_io(&s->io, OBJECT(dev),
-                          &serial_mm_ops[smm->endianness], smm, "serial",
-                          8 << smm->regshift);
-    sysbus_init_mmio(SYS_BUS_DEVICE(smm), &s->io);
-    sysbus_init_irq(SYS_BUS_DEVICE(smm), &smm->serial.irq);
+    memory_region_init_io(&s->io, OBJECT(this),
+                          &serial_mm_ops[endianness], this, "serial",
+                          8 << regshift);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &s->io);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &serial.irq);
 }
 
 static const VMStateField vmstate_serial_mm_fields[] = {
@@ -123,13 +122,11 @@ SerialMM *serial_mm_init(MemoryRegion *address_space,
     return smm;
 }
 
-static void serial_mm_instance_init(Object *o)
+void SerialMM::init()
 {
-    SerialMM *smm = SERIAL_MM(o);
+    object_initialize_child(OBJECT(this), "serial", &serial, TYPE_SERIAL);
 
-    object_initialize_child(o, "serial", &smm->serial, TYPE_SERIAL);
-
-    qdev_alias_all_properties(DEVICE(&smm->serial), o);
+    qdev_alias_all_properties(DEVICE(&serial), OBJECT(this));
 }
 
 static const Property serial_mm_properties[] = {
@@ -141,23 +138,11 @@ static const Property serial_mm_properties[] = {
     DEFINE_PROP_UINT8("endianness", SerialMM, endianness, DEVICE_NATIVE_ENDIAN),
 };
 
-static void serial_mm_class_init(ObjectClass *oc, const void *data)
+void SerialMM::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     device_class_set_props(dc, serial_mm_properties);
-    dc->realize = serial_mm_realize;
     dc->vmsd = &vmstate_serial_mm;
 }
 
-static const TypeInfo types[] = {
-    {
-        .name = TYPE_SERIAL_MM,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(SerialMM),
-        .instance_init = serial_mm_instance_init,
-        .class_init = serial_mm_class_init,
-    },
-};
-
-DEFINE_TYPES(types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SerialMM, TYPE_SERIAL_MM, TYPE_SYS_BUS_DEVICE)
