@@ -30,6 +30,13 @@ typedef struct FSIMasterState {
 
     uint32_t regs[FSI_MASTER_NR_REGS];
     FSICFAMState cfam;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 } FSIMasterState;
 
 #ifdef __cplusplus

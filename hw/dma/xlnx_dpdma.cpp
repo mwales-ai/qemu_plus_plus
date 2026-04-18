@@ -565,53 +565,31 @@ static const MemoryRegionOps dma_ops = {
     },
 };
 
-static void xlnx_dpdma_init(Object *obj)
+void XlnxDPDMAState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    XlnxDPDMAState *s = XLNX_DPDMA(obj);
-
-    memory_region_init_io(&s->iomem, obj, &dma_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &dma_ops, this,
                           TYPE_XLNX_DPDMA, 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
-static void xlnx_dpdma_reset(DeviceState *dev)
+void XlnxDPDMAState::reset()
 {
-    XlnxDPDMAState *s = XLNX_DPDMA(dev);
-    size_t i;
+    memset(registers, 0, sizeof(registers));
+    registers[DPDMA_IMR] =  0x07FFFFFF;
+    registers[DPDMA_EIMR] = 0xFFFFFFFF;
+    registers[DPDMA_ALC0_MIN] = 0x0000FFFF;
+    registers[DPDMA_ALC1_MIN] = 0x0000FFFF;
 
-    memset(s->registers, 0, sizeof(s->registers));
-    s->registers[DPDMA_IMR] =  0x07FFFFFF;
-    s->registers[DPDMA_EIMR] = 0xFFFFFFFF;
-    s->registers[DPDMA_ALC0_MIN] = 0x0000FFFF;
-    s->registers[DPDMA_ALC1_MIN] = 0x0000FFFF;
-
-    for (i = 0; i < 6; i++) {
-        s->data[i] = NULL;
-        s->operation_finished[i] = true;
+    for (size_t i = 0; i < 6; i++) {
+        data[i] = NULL;
+        operation_finished[i] = true;
     }
 }
 
-static void xlnx_dpdma_class_init(ObjectClass *oc, const void *data)
+void XlnxDPDMAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     dc->vmsd = &vmstate_xlnx_dpdma;
-    device_class_set_legacy_reset(dc, xlnx_dpdma_reset);
-}
-
-static const TypeInfo xlnx_dpdma_info = {
-    .name          = TYPE_XLNX_DPDMA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxDPDMAState),
-    .instance_init = xlnx_dpdma_init,
-    .class_init    = xlnx_dpdma_class_init,
-};
-
-static void xlnx_dpdma_register_types(void)
-{
-    type_register_static(&xlnx_dpdma_info);
 }
 
 static MemTxResult xlnx_dpdma_read_descriptor(XlnxDPDMAState *s,
@@ -849,4 +827,5 @@ void xlnx_dpdma_trigger_vsync_irq(XlnxDPDMAState *s)
     xlnx_dpdma_update_irq(s);
 }
 
-type_init(xlnx_dpdma_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxDPDMAState, TYPE_XLNX_DPDMA, TYPE_SYS_BUS_DEVICE)

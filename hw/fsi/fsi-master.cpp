@@ -108,63 +108,37 @@ static const struct MemoryRegionOps fsi_master_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void fsi_master_init(Object *o)
+void FSIMasterState::init()
 {
-    FSIMasterState *s = FSI_MASTER(o);
+    object_initialize_child(OBJECT(this), "cfam", &cfam, TYPE_FSI_CFAM);
 
-    object_initialize_child(o, "cfam", &s->cfam, TYPE_FSI_CFAM);
+    qbus_init(&bus, sizeof(bus), TYPE_FSI_BUS, DEVICE(this), NULL);
 
-    qbus_init(&s->bus, sizeof(s->bus), TYPE_FSI_BUS, DEVICE(s), NULL);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &fsi_master_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &fsi_master_ops, this,
                           TYPE_FSI_MASTER, 0x10000000);
-    memory_region_init(&s->opb2fsi, OBJECT(s), "fsi.opb2fsi", 0x10000000);
+    memory_region_init(&opb2fsi, OBJECT(this), "fsi.opb2fsi", 0x10000000);
 }
 
-static void fsi_master_realize(DeviceState *dev, Error **errp)
+void FSIMasterState::realize(Error **errp)
 {
-    FSIMasterState *s = FSI_MASTER(dev);
-
-    if (!qdev_realize(DEVICE(&s->cfam), BUS(&s->bus), errp)) {
+    if (!qdev_realize(DEVICE(&cfam), BUS(&bus), errp)) {
         return;
     }
 
-    /* address ? */
-    memory_region_add_subregion(&s->opb2fsi, 0, &s->cfam.mr);
+    memory_region_add_subregion(&opb2fsi, 0, &cfam.mr);
 }
 
-static void fsi_master_reset(DeviceState *dev)
+void FSIMasterState::reset()
 {
-    FSIMasterState *s = FSI_MASTER(dev);
-
-    /* Initialize registers */
-    memset(s->regs, 0, sizeof(s->regs));
-
-    /* ASPEED default */
-    s->regs[FSI_MVER] = 0xe0050101;
+    memset(regs, 0, sizeof(regs));
+    regs[FSI_MVER] = 0xe0050101;
 }
 
-static void fsi_master_class_init(ObjectClass *klass, const void *data)
+void FSIMasterState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->bus_type = TYPE_OP_BUS;
     dc->desc = "FSI Master";
-    dc->realize = fsi_master_realize;
-    device_class_set_legacy_reset(dc, fsi_master_reset);
 }
 
-static const TypeInfo fsi_master_info = {
-    .name = TYPE_FSI_MASTER,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FSIMasterState),
-    .instance_init = fsi_master_init,
-    .class_init = fsi_master_class_init,
-};
-
-static void fsi_register_types(void)
-{
-    type_register_static(&fsi_master_info);
-}
-
-type_init(fsi_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(FSIMasterState, TYPE_FSI_MASTER, TYPE_DEVICE)

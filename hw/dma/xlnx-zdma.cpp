@@ -754,16 +754,13 @@ static RegisterAccessInfo zdma_regs_info[] = {
     }
 };
 
-static void zdma_reset(DeviceState *dev)
+void XlnxZDMA::reset()
 {
-    XlnxZDMA *s = XLNX_ZDMA(dev);
-    unsigned int i;
-
-    for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
-        register_reset(&s->regs_info[i]);
+    for (unsigned int i = 0; i < ARRAY_SIZE(regs_info); ++i) {
+        register_reset(&regs_info[i]);
     }
 
-    zdma_ch_imr_update_irq(s);
+    zdma_ch_imr_update_irq(this);
 }
 
 static uint64_t zdma_read(void *opaque, hwaddr addr, unsigned size)
@@ -813,39 +810,33 @@ static const MemoryRegionOps zdma_ops = {
     },
 };
 
-static void zdma_realize(DeviceState *dev, Error **errp)
+void XlnxZDMA::realize(Error **errp)
 {
-    XlnxZDMA *s = XLNX_ZDMA(dev);
-    unsigned int i;
-
-    if (!s->dma_mr) {
+    if (!dma_mr) {
         error_setg(errp, TYPE_XLNX_ZDMA " 'dma' link not set");
         return;
     }
-    address_space_init(&s->dma_as, s->dma_mr, "zdma-dma");
+    address_space_init(&dma_as, dma_mr, "zdma-dma");
 
-    for (i = 0; i < ARRAY_SIZE(zdma_regs_info); ++i) {
-        RegisterInfo *r = &s->regs_info[zdma_regs_info[i].addr / 4];
+    for (unsigned int i = 0; i < ARRAY_SIZE(zdma_regs_info); ++i) {
+        RegisterInfo *r = &regs_info[zdma_regs_info[i].addr / 4];
 
         memset(r, 0, sizeof(*r));
-        r->data = (uint8_t *)&s->regs[zdma_regs_info[i].addr / 4];
+        r->data = (uint8_t *)&regs[zdma_regs_info[i].addr / 4];
         r->data_size = sizeof(uint32_t);
         r->access = &zdma_regs_info[i];
-        r->opaque = s;
+        r->opaque = this;
     }
 
-    s->attr = MEMTXATTRS_UNSPECIFIED;
+    attr = MEMTXATTRS_UNSPECIFIED;
 }
 
-static void zdma_init(Object *obj)
+void XlnxZDMA::init()
 {
-    XlnxZDMA *s = XLNX_ZDMA(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-
-    memory_region_init_io(&s->iomem, obj, &zdma_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &zdma_ops, this,
                           TYPE_XLNX_ZDMA, ZDMA_R_MAX * 4);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq_zdma_ch_imr);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq_zdma_ch_imr);
 }
 
 static const VMStateField vmstate_zdma_fields[] = {
@@ -869,27 +860,11 @@ static const Property zdma_props[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void zdma_class_init(ObjectClass *klass, const void *data)
+void XlnxZDMA::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, zdma_reset);
-    dc->realize = zdma_realize;
     device_class_set_props(dc, zdma_props);
     dc->vmsd = &vmstate_zdma;
 }
 
-static const TypeInfo zdma_info = {
-    .name          = TYPE_XLNX_ZDMA,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxZDMA),
-    .instance_init = zdma_init,
-    .class_init    = zdma_class_init,
-};
-
-static void zdma_register_types(void)
-{
-    type_register_static(&zdma_info);
-}
-
-type_init(zdma_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxZDMA, TYPE_XLNX_ZDMA, TYPE_SYS_BUS_DEVICE)

@@ -33,6 +33,12 @@ typedef struct FSICFAMState {
 
     FSILBus lbus;
     FSIScratchPad scratchpad;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 } FSICFAMState;
 
 #ifdef __cplusplus

@@ -40,6 +40,12 @@ struct XlnxDPDMAState {
     uint8_t *data[6];
     bool operation_finished[6];
     qemu_irq irq;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 

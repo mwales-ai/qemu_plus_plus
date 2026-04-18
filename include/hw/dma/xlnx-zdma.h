@@ -75,6 +75,13 @@ struct XlnxZDMA {
     /* We don't model the common bufs. Must be at least 16 bytes
        to model write only mode.  */
     uint8_t buf[2048];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_XLNX_ZDMA "xlnx.zdma"

@@ -107,60 +107,40 @@ static const struct MemoryRegionOps fsi_cfam_unimplemented_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static void fsi_cfam_instance_init(Object *obj)
+void FSICFAMState::init()
 {
-    FSICFAMState *s = FSI_CFAM(obj);
-
-    object_initialize_child(obj, "scratchpad", &s->scratchpad,
+    object_initialize_child(OBJECT(this), "scratchpad", &scratchpad,
                             TYPE_FSI_SCRATCHPAD);
 }
 
-static void fsi_cfam_realize(DeviceState *dev, Error **errp)
+void FSICFAMState::realize(Error **errp)
 {
-    FSICFAMState *cfam = FSI_CFAM(dev);
-    FSISlaveState *slave = FSI_SLAVE(dev);
+    FSISlaveState *slave = FSI_SLAVE(this);
 
-    /* Each slave has a 2MiB address space */
-    memory_region_init_io(&cfam->mr, OBJECT(cfam), &fsi_cfam_unimplemented_ops,
-                          cfam, TYPE_FSI_CFAM, 2 * MiB);
+    memory_region_init_io(&mr, OBJECT(this), &fsi_cfam_unimplemented_ops,
+                          this, TYPE_FSI_CFAM, 2 * MiB);
 
-    qbus_init(&cfam->lbus, sizeof(cfam->lbus), TYPE_FSI_LBUS, DEVICE(cfam),
-              NULL);
+    qbus_init(&lbus, sizeof(lbus), TYPE_FSI_LBUS, DEVICE(this), NULL);
 
-    memory_region_init_io(&cfam->config_iomem, OBJECT(cfam), &cfam_config_ops,
-                          cfam, TYPE_FSI_CFAM ".config", 0x400);
+    memory_region_init_io(&config_iomem, OBJECT(this), &cfam_config_ops,
+                          this, TYPE_FSI_CFAM ".config", 0x400);
 
-    memory_region_add_subregion(&cfam->mr, 0, &cfam->config_iomem);
-    memory_region_add_subregion(&cfam->mr, 0x800, &slave->iomem);
-    memory_region_add_subregion(&cfam->mr, 0xc00, &cfam->lbus.mr);
+    memory_region_add_subregion(&mr, 0, &config_iomem);
+    memory_region_add_subregion(&mr, 0x800, &slave->iomem);
+    memory_region_add_subregion(&mr, 0xc00, &lbus.mr);
 
-    /* Add scratchpad engine */
-    if (!qdev_realize(DEVICE(&cfam->scratchpad), BUS(&cfam->lbus), errp)) {
+    if (!qdev_realize(DEVICE(&scratchpad), BUS(&lbus), errp)) {
         return;
     }
 
-    FSILBusDevice *fsi_dev = FSI_LBUS_DEVICE(&cfam->scratchpad);
-    memory_region_add_subregion(&cfam->lbus.mr, 0, &fsi_dev->iomem);
+    FSILBusDevice *fsi_dev = FSI_LBUS_DEVICE(&scratchpad);
+    memory_region_add_subregion(&lbus.mr, 0, &fsi_dev->iomem);
 }
 
-static void fsi_cfam_class_init(ObjectClass *klass, const void *data)
+void FSICFAMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     dc->bus_type = TYPE_FSI_BUS;
-    dc->realize = fsi_cfam_realize;
 }
 
-static const TypeInfo fsi_cfam_info = {
-    .name = TYPE_FSI_CFAM,
-    .parent = TYPE_FSI_SLAVE,
-    .instance_size = sizeof(FSICFAMState),
-    .instance_init = fsi_cfam_instance_init,
-    .class_init = fsi_cfam_class_init,
-};
-
-static void fsi_cfam_register_types(void)
-{
-    type_register_static(&fsi_cfam_info);
-}
-
-type_init(fsi_cfam_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(FSICFAMState, TYPE_FSI_CFAM, TYPE_FSI_SLAVE)
