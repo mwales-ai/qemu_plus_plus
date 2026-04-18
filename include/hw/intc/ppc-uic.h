@@ -73,6 +73,12 @@ struct PPCUIC {
     uint32_t uictr;  /* Triggering register */
     uint32_t uicvcr; /* Vector configuration register */
     uint32_t uicvr;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

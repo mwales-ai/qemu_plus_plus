@@ -272,16 +272,15 @@ static const RegisterAccessInfo xlnx_zynqmp_ipi_regs_info[] = {
     }
 };
 
-static void xlnx_zynqmp_ipi_reset(DeviceState *dev)
+void XlnxZynqMPIPI::reset()
 {
-    XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(dev);
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
-        register_reset(&s->regs_info[i]);
+    for (i = 0; i < ARRAY_SIZE(regs_info); ++i) {
+        register_reset(&regs_info[i]);
     }
 
-    xlnx_zynqmp_ipi_update_irq(s);
+    xlnx_zynqmp_ipi_update_irq(this);
 }
 
 static void xlnx_zynqmp_ipi_handler(void *opaque, int n, int level)
@@ -316,43 +315,42 @@ static const MemoryRegionOps xlnx_zynqmp_ipi_ops = {
     },
 };
 
-static void xlnx_zynqmp_ipi_realize(DeviceState *dev, Error **errp)
+void XlnxZynqMPIPI::realize(Error **errp)
 {
+    DeviceState *dev = DEVICE(this);
     qdev_init_gpio_in_named(dev, xlnx_zynqmp_ipi_handler, "IPI_INPUTS", 32);
     qdev_init_gpio_in_named(dev, xlnx_zynqmp_obs_handler, "OBS_INPUTS", 32);
 }
 
-__attribute__((used))
-static void xlnx_zynqmp_ipi_init(Object *obj)
+void XlnxZynqMPIPI::init()
 {
-    XlnxZynqMPIPI *s = XLNX_ZYNQMP_IPI(obj);
-    DeviceState *dev = DEVICE(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    DeviceState *dev = DEVICE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
     char *irq_name;
     int i;
 
-    memory_region_init(&s->iomem, obj, TYPE_XLNX_ZYNQMP_IPI,
+    memory_region_init(&iomem, OBJECT(this), TYPE_XLNX_ZYNQMP_IPI,
                        R_XLNX_ZYNQMP_IPI_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), xlnx_zynqmp_ipi_regs_info,
+        register_init_block32(dev, xlnx_zynqmp_ipi_regs_info,
                               ARRAY_SIZE(xlnx_zynqmp_ipi_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &xlnx_zynqmp_ipi_ops,
                               XLNX_ZYNQMP_IPI_ERR_DEBUG,
                               R_XLNX_ZYNQMP_IPI_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
+    memory_region_add_subregion(&iomem,
                                 0x0,
                                 &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 
     for (i = 0; i < NUM_IPIS; i++) {
-        qdev_init_gpio_out_named(dev, &s->irq_trig_out[i],
+        qdev_init_gpio_out_named(dev, &irq_trig_out[i],
                                  index_array_names[i], 1);
 
         irq_name = g_strdup_printf("OBS_%s", index_array_names[i]);
-        qdev_init_gpio_out_named(dev, &s->irq_obs_out[i],
+        qdev_init_gpio_out_named(dev, &irq_obs_out[i],
                                  irq_name, 1);
         g_free(irq_name);
     }
@@ -370,26 +368,10 @@ static const VMStateDescription vmstate_zynqmp_pmu_ipi = {
     .fields = vmstate_zynqmp_pmu_ipi_fields,
 };
 
-static void xlnx_zynqmp_ipi_class_init(ObjectClass *klass, const void *data)
+void XlnxZynqMPIPI::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, xlnx_zynqmp_ipi_reset);
-    dc->realize = xlnx_zynqmp_ipi_realize;
     dc->vmsd = &vmstate_zynqmp_pmu_ipi;
 }
 
-static const TypeInfo xlnx_zynqmp_ipi_info = {
-    .name          = TYPE_XLNX_ZYNQMP_IPI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxZynqMPIPI),
-    .instance_init = xlnx_zynqmp_ipi_init,
-    .class_init    = xlnx_zynqmp_ipi_class_init,
-};
-
-static void xlnx_zynqmp_ipi_register_types(void)
-{
-    type_register_static(&xlnx_zynqmp_ipi_info);
-}
-
-type_init(xlnx_zynqmp_ipi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxZynqMPIPI, TYPE_XLNX_ZYNQMP_IPI, TYPE_SYS_BUS_DEVICE)

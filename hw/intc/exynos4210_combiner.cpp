@@ -286,17 +286,15 @@ static void exynos4210_combiner_handler(void *opaque, int irq, int level)
     exynos4210_combiner_update(s, group_n);
 }
 
-static void exynos4210_combiner_reset(DeviceState *d)
+void Exynos4210CombinerState::reset()
 {
-    struct Exynos4210CombinerState *s = (struct Exynos4210CombinerState *)d;
+    memset(&group, 0, sizeof(group));
+    memset(&reg_set, 0, sizeof(reg_set));
 
-    memset(&s->group, 0, sizeof(s->group));
-    memset(&s->reg_set, 0, sizeof(s->reg_set));
-
-    s->reg_set[0xC0 >> 2] = 0x01010101;
-    s->reg_set[0xC4 >> 2] = 0x01010101;
-    s->reg_set[0xD0 >> 2] = 0x01010101;
-    s->reg_set[0xD4 >> 2] = 0x01010101;
+    reg_set[0xC0 >> 2] = 0x01010101;
+    reg_set[0xC4 >> 2] = 0x01010101;
+    reg_set[0xD0 >> 2] = 0x01010101;
+    reg_set[0xD4 >> 2] = 0x01010101;
 }
 
 static const MemoryRegionOps exynos4210_combiner_ops = {
@@ -308,51 +306,31 @@ static const MemoryRegionOps exynos4210_combiner_ops = {
 /*
  * Internal Combiner initialization.
  */
-static void exynos4210_combiner_init(Object *obj)
+void Exynos4210CombinerState::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    Exynos4210CombinerState *s = EXYNOS4210_COMBINER(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     unsigned int i;
 
-    /* Allocate general purpose input signals and connect a handler to each of
-     * them */
-    qdev_init_gpio_in(dev, exynos4210_combiner_handler, IIC_NIRQ);
+    qdev_init_gpio_in(DEVICE(this), exynos4210_combiner_handler, IIC_NIRQ);
 
-    /* Connect SysBusDev irqs to device specific irqs */
     for (i = 0; i < IIC_NGRP; i++) {
-        sysbus_init_irq(sbd, &s->output_irq[i]);
+        sysbus_init_irq(sbd, &output_irq[i]);
     }
 
-    memory_region_init_io(&s->iomem, obj, &exynos4210_combiner_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_combiner_ops, this,
                           "exynos4210-combiner", IIC_REGION_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
 static const Property exynos4210_combiner_properties[] = {
     DEFINE_PROP_UINT32("external", Exynos4210CombinerState, external, 0),
 };
 
-static void exynos4210_combiner_class_init(ObjectClass *klass, const void *data)
+void Exynos4210CombinerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, exynos4210_combiner_reset);
     device_class_set_props(dc, exynos4210_combiner_properties);
     dc->vmsd = &vmstate_exynos4210_combiner;
 }
 
-static const TypeInfo exynos4210_combiner_info = {
-    .name          = TYPE_EXYNOS4210_COMBINER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210CombinerState),
-    .instance_init = exynos4210_combiner_init,
-    .class_init    = exynos4210_combiner_class_init,
-};
-
-static void exynos4210_combiner_register_types(void)
-{
-    type_register_static(&exynos4210_combiner_info);
-}
-
-type_init(exynos4210_combiner_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210CombinerState, TYPE_EXYNOS4210_COMBINER, TYPE_SYS_BUS_DEVICE)

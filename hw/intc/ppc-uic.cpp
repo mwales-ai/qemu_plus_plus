@@ -230,35 +230,33 @@ static void dcr_write_uic(void *opaque, int dcrn, uint32_t val)
     }
 }
 
-static void ppc_uic_reset(DeviceState *dev)
+void PPCUIC::reset()
 {
-    PPCUIC *uic = PPC_UIC(dev);
-
-    uic->uiccr = 0x00000000;
-    uic->uicer = 0x00000000;
-    uic->uicpr = 0x00000000;
-    uic->uicsr = 0x00000000;
-    uic->uictr = 0x00000000;
-    if (uic->use_vectors) {
-        uic->uicvcr = 0x00000000;
-        uic->uicvr = 0x0000000;
+    uiccr = 0x00000000;
+    uicer = 0x00000000;
+    uicpr = 0x00000000;
+    uicsr = 0x00000000;
+    uictr = 0x00000000;
+    if (use_vectors) {
+        uicvcr = 0x00000000;
+        uicvr = 0x0000000;
     }
 }
 
-static void ppc_uic_realize(DeviceState *dev, Error **errp)
+void PPCUIC::realize(Error **errp)
 {
-    PPCUIC *uic = PPC_UIC(dev);
-    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    Ppc4xxDcrDeviceState *dcr = PPC4xx_DCR_DEVICE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = DEVICE(this);
     int i;
 
     for (i = 0; i < DCR_UICMAX; i++) {
-        ppc4xx_dcr_register(dcr, uic->dcr_base + i, uic,
+        ppc4xx_dcr_register(dcr, dcr_base + i, this,
                          &dcr_read_uic, &dcr_write_uic);
     }
 
-    sysbus_init_irq(sbd, &uic->output_int);
-    sysbus_init_irq(sbd, &uic->output_cint);
+    sysbus_init_irq(sbd, &output_int);
+    sysbus_init_irq(sbd, &output_cint);
     qdev_init_gpio_in(dev, ppcuic_set_irq, UIC_MAX_IRQ);
 }
 
@@ -286,26 +284,11 @@ static const VMStateDescription ppc_uic_vmstate = {
     .fields = vmstate_ppc_uic_fields,
 };
 
-static void ppc_uic_class_init(ObjectClass *klass, const void *data)
+void PPCUIC::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, ppc_uic_reset);
-    dc->realize = ppc_uic_realize;
     dc->vmsd = &ppc_uic_vmstate;
     device_class_set_props(dc, ppc_uic_properties);
 }
 
-static const TypeInfo ppc_uic_info = {
-    .name = TYPE_PPC_UIC,
-    .parent = TYPE_PPC4xx_DCR_DEVICE,
-    .instance_size = sizeof(PPCUIC),
-    .class_init = ppc_uic_class_init,
-};
-
-static void ppc_uic_register_types(void)
-{
-    type_register_static(&ppc_uic_info);
-}
-
-type_init(ppc_uic_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PPCUIC, TYPE_PPC_UIC, TYPE_PPC4xx_DCR_DEVICE)

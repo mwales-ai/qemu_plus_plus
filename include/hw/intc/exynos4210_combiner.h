@@ -52,6 +52,12 @@ struct Exynos4210CombinerState {
     uint32_t external;          /* 1 means that this combiner is external */
 
     qemu_irq output_irq[IIC_NGRP];
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

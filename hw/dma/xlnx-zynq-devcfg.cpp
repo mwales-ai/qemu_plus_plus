@@ -145,13 +145,12 @@ static void xlnx_zynq_devcfg_update_ixr(XlnxZynqDevcfg *s)
     qemu_set_irq(s->irq, ~s->regs[R_INT_MASK] & s->regs[R_INT_STS]);
 }
 
-static void xlnx_zynq_devcfg_reset(DeviceState *dev)
+void XlnxZynqDevcfg::reset()
 {
-    XlnxZynqDevcfg *s = XLNX_ZYNQ_DEVCFG(dev);
     int i;
 
     for (i = 0; i < XLNX_ZYNQ_DEVCFG_R_MAX; ++i) {
-        register_reset(&s->regs_info[i]);
+        register_reset(&regs_info[i]);
     }
 }
 
@@ -400,48 +399,33 @@ static const VMStateDescription vmstate_xlnx_zynq_devcfg = {
     .fields = vmstate_xlnx_zynq_devcfg_fields
 };
 
-static void xlnx_zynq_devcfg_init(Object *obj)
+void XlnxZynqDevcfg::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    XlnxZynqDevcfg *s = XLNX_ZYNQ_DEVCFG(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    memory_region_init(&s->iomem, obj, "devcfg", XLNX_ZYNQ_DEVCFG_R_MAX * 4);
+    memory_region_init(&iomem, OBJECT(this), "devcfg",
+                       XLNX_ZYNQ_DEVCFG_R_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), xlnx_zynq_devcfg_regs_info,
+        register_init_block32(DEVICE(this), xlnx_zynq_devcfg_regs_info,
                               ARRAY_SIZE(xlnx_zynq_devcfg_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &xlnx_zynq_devcfg_reg_ops,
                               XLNX_ZYNQ_DEVCFG_ERR_DEBUG,
                               XLNX_ZYNQ_DEVCFG_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
+    memory_region_add_subregion(&iomem,
                                 A_CTRL,
                                 &reg_array->mem);
 
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
-static void xlnx_zynq_devcfg_class_init(ObjectClass *klass, const void *data)
+void XlnxZynqDevcfg::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, xlnx_zynq_devcfg_reset);
     dc->vmsd = &vmstate_xlnx_zynq_devcfg;
 }
 
-static const TypeInfo xlnx_zynq_devcfg_info = {
-    .name           = TYPE_XLNX_ZYNQ_DEVCFG,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(XlnxZynqDevcfg),
-    .instance_init  = xlnx_zynq_devcfg_init,
-    .class_init     = xlnx_zynq_devcfg_class_init,
-};
-
-static void xlnx_zynq_devcfg_register_types(void)
-{
-    type_register_static(&xlnx_zynq_devcfg_info);
-}
-
-type_init(xlnx_zynq_devcfg_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxZynqDevcfg, TYPE_XLNX_ZYNQ_DEVCFG, TYPE_SYS_BUS_DEVICE)

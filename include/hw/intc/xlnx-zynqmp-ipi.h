@@ -51,6 +51,13 @@ struct XlnxZynqMPIPI {
 
     uint32_t regs[R_XLNX_ZYNQMP_IPI_MAX];
     RegisterInfo regs_info[R_XLNX_ZYNQMP_IPI_MAX];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* XLNX_ZYNQMP_IPI_H */
