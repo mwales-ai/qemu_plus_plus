@@ -38,6 +38,12 @@ struct AwA10PICState {
     uint32_t enable[AW_A10_PIC_REG_NUM];
     uint32_t mask[AW_A10_PIC_REG_NUM];
     /*priority setting here*/
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

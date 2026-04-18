@@ -31,6 +31,12 @@ struct BCM2835ICState {
     uint8_t arm_irq_level, arm_irq_enable;
     bool fiq_enable;
     uint8_t fiq_select;
+
+#ifdef __cplusplus
+    void init();
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

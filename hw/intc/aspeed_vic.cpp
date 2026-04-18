@@ -300,35 +300,33 @@ static void aspeed_vic_ops_init(void)
     aspeed_vic_ops.valid.unaligned = false;
 }
 
-static void aspeed_vic_reset(DeviceState *dev)
+void AspeedVICState::reset()
 {
-    AspeedVICState *s = ASPEED_VIC(dev);
-
-    s->level = 0;
-    s->raw = 0;
-    s->select = 0;
-    s->enable = 0;
-    s->trigger = 0;
-    s->sense = 0x1F07FFF8FFFFULL;
-    s->dual_edge = 0xF800070000ULL;
-    s->event = 0x5F07FFF8FFFFULL;
+    level = 0;
+    raw = 0;
+    select = 0;
+    enable = 0;
+    trigger = 0;
+    sense = 0x1F07FFF8FFFFULL;
+    dual_edge = 0xF800070000ULL;
+    event = 0x5F07FFF8FFFFULL;
 }
 
 #define AVIC_IO_REGION_SIZE 0x20000
 
-static void aspeed_vic_realize(DeviceState *dev, Error **errp)
+void AspeedVICState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    AspeedVICState *s = ASPEED_VIC(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_vic_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &aspeed_vic_ops, this,
                           TYPE_ASPEED_VIC, AVIC_IO_REGION_SIZE);
 
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 
     qdev_init_gpio_in(dev, aspeed_vic_set_irq, ASPEED_VIC_NR_IRQS);
-    sysbus_init_irq(sbd, &s->irq);
-    sysbus_init_irq(sbd, &s->fiq);
+    sysbus_init_irq(sbd, &irq);
+    sysbus_init_irq(sbd, &fiq);
 }
 
 static const VMStateField vmstate_aspeed_vic_fields[] = {
@@ -350,25 +348,11 @@ static const VMStateDescription vmstate_aspeed_vic = {
     .fields = vmstate_aspeed_vic_fields,
 };
 
-static void aspeed_vic_class_init(ObjectClass *klass, const void *data)
+void AspeedVICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    dc->realize = aspeed_vic_realize;
-    device_class_set_legacy_reset(dc, aspeed_vic_reset);
     dc->desc = "ASPEED Interrupt Controller (New)";
     dc->vmsd = &vmstate_aspeed_vic;
 }
 
-static const TypeInfo aspeed_vic_info = {
-    .name = TYPE_ASPEED_VIC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AspeedVICState),
-    .class_init = aspeed_vic_class_init,
-};
-
-static void aspeed_vic_register_types(void)
-{
-    type_register_static(&aspeed_vic_info);
-}
-
-type_init(aspeed_vic_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AspeedVICState, TYPE_ASPEED_VIC, TYPE_SYS_BUS_DEVICE)

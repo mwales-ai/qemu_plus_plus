@@ -176,31 +176,27 @@ static const MemoryRegionOps bcm2835_ic_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void bcm2835_ic_reset(DeviceState *d)
+void BCM2835ICState::reset()
 {
-    BCM2835ICState *s = BCM2835_IC(d);
-
-    s->gpu_irq_enable = 0;
-    s->arm_irq_enable = 0;
-    s->fiq_enable = false;
-    s->fiq_select = 0;
+    gpu_irq_enable = 0;
+    arm_irq_enable = 0;
+    fiq_enable = false;
+    fiq_select = 0;
 }
 
-static void bcm2835_ic_init(Object *obj)
+void BCM2835ICState::init()
 {
-    BCM2835ICState *s = BCM2835_IC(obj);
+    memory_region_init_io(&iomem, OBJECT(this), &bcm2835_ic_ops, this,
+                          TYPE_BCM2835_IC, 0x200);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 
-    memory_region_init_io(&s->iomem, obj, &bcm2835_ic_ops, s, TYPE_BCM2835_IC,
-                          0x200);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
-
-    qdev_init_gpio_in_named(DEVICE(s), bcm2835_ic_set_gpu_irq,
+    qdev_init_gpio_in_named(DEVICE(this), bcm2835_ic_set_gpu_irq,
                             BCM2835_IC_GPU_IRQ, GPU_IRQS);
-    qdev_init_gpio_in_named(DEVICE(s), bcm2835_ic_set_arm_irq,
+    qdev_init_gpio_in_named(DEVICE(this), bcm2835_ic_set_arm_irq,
                             BCM2835_IC_ARM_IRQ, ARM_IRQS);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->irq);
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->fiq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &fiq);
 }
 
 static const VMStateDescription vmstate_bcm2835_ic = {
@@ -218,25 +214,10 @@ static const VMStateDescription vmstate_bcm2835_ic = {
     }
 };
 
-static void bcm2835_ic_class_init(ObjectClass *klass, const void *data)
+void BCM2835ICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, bcm2835_ic_reset);
     dc->vmsd = &vmstate_bcm2835_ic;
 }
 
-static const TypeInfo bcm2835_ic_info = {
-    .name          = TYPE_BCM2835_IC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835ICState),
-    .instance_init = bcm2835_ic_init,
-    .class_init    = bcm2835_ic_class_init,
-};
-
-static void bcm2835_ic_register_types(void)
-{
-    type_register_static(&bcm2835_ic_info);
-}
-
-type_init(bcm2835_ic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(BCM2835ICState, TYPE_BCM2835_IC, TYPE_SYS_BUS_DEVICE)

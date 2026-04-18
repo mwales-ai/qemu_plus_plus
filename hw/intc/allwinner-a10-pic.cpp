@@ -158,57 +158,40 @@ static const VMStateDescription vmstate_aw_a10_pic = {
     .fields = vmstate_aw_a10_pic_fields
 };
 
-static void aw_a10_pic_init(Object *obj)
+void AwA10PICState::init()
 {
-    AwA10PICState *s = AW_A10_PIC(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-     qdev_init_gpio_in(DEVICE(dev), aw_a10_pic_set_irq, AW_A10_PIC_INT_NR);
-     sysbus_init_irq(dev, &s->parent_irq);
-     sysbus_init_irq(dev, &s->parent_fiq);
-     memory_region_init_io(&s->iomem, OBJECT(s), &aw_a10_pic_ops, s,
-                           TYPE_AW_A10_PIC, 0x400);
-     sysbus_init_mmio(dev, &s->iomem);
+    qdev_init_gpio_in(DEVICE(this), aw_a10_pic_set_irq, AW_A10_PIC_INT_NR);
+    sysbus_init_irq(sbd, &parent_irq);
+    sysbus_init_irq(sbd, &parent_fiq);
+    memory_region_init_io(&iomem, OBJECT(this), &aw_a10_pic_ops, this,
+                          TYPE_AW_A10_PIC, 0x400);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
-static void aw_a10_pic_reset(DeviceState *d)
+void AwA10PICState::reset()
 {
-    AwA10PICState *s = AW_A10_PIC(d);
     uint8_t i;
 
-    s->base_addr = 0;
-    s->protect = 0;
-    s->nmi = 0;
-    s->vector = 0;
+    base_addr = 0;
+    protect = 0;
+    nmi = 0;
+    vector = 0;
     for (i = 0; i < AW_A10_PIC_REG_NUM; i++) {
-        s->irq_pending[i] = 0;
-        s->fiq_pending[i] = 0;
-        s->select[i] = 0;
-        s->enable[i] = 0;
-        s->mask[i] = 0;
+        irq_pending[i] = 0;
+        fiq_pending[i] = 0;
+        select[i] = 0;
+        enable[i] = 0;
+        mask[i] = 0;
     }
 }
 
-static void aw_a10_pic_class_init(ObjectClass *klass, const void *data)
+void AwA10PICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, aw_a10_pic_reset);
     dc->desc = "allwinner a10 pic";
     dc->vmsd = &vmstate_aw_a10_pic;
- }
-
-static const TypeInfo aw_a10_pic_info = {
-    .name = TYPE_AW_A10_PIC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwA10PICState),
-    .instance_init = aw_a10_pic_init,
-    .class_init = aw_a10_pic_class_init,
-};
-
-static void aw_a10_register_types(void)
-{
-    type_register_static(&aw_a10_pic_info);
 }
 
-type_init(aw_a10_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AwA10PICState, TYPE_AW_A10_PIC, TYPE_SYS_BUS_DEVICE)

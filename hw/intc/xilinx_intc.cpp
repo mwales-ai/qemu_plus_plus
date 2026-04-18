@@ -70,6 +70,10 @@ struct XpsIntc
     uint32_t regs[R_MAX];
     /* state of the interrupt input pins */
     uint32_t irq_pin_state;
+
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
 };
 
 static void update_irq(XpsIntc *p)
@@ -167,28 +171,24 @@ static void irq_handler(void *opaque, int irq, int level)
     update_irq(p);
 }
 
-static void xilinx_intc_init(Object *obj)
+void XpsIntc::init()
 {
-    XpsIntc *p = XILINX_INTC(obj);
-
-    qdev_init_gpio_in(DEVICE(obj), irq_handler, 32);
-    sysbus_init_irq(SYS_BUS_DEVICE(obj), &p->parent_irq);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &p->mmio);
+    qdev_init_gpio_in(DEVICE(this), irq_handler, 32);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &parent_irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
-static void xilinx_intc_realize(DeviceState *dev, Error **errp)
+void XpsIntc::realize(Error **errp)
 {
-    XpsIntc *p = XILINX_INTC(dev);
-
-    if (p->model_endianness == ENDIAN_MODE_UNSPECIFIED) {
+    if (model_endianness == ENDIAN_MODE_UNSPECIFIED) {
         error_setg(errp, TYPE_XILINX_INTC " property 'endianness'"
                          " must be set to 'big' or 'little'");
         return;
     }
 
-    memory_region_init_io(&p->mmio, OBJECT(dev),
-                          &pic_ops[p->model_endianness == ENDIAN_MODE_BIG],
-                          p, "xlnx.xps-intc",
+    memory_region_init_io(&mmio, OBJECT(this),
+                          &pic_ops[model_endianness == ENDIAN_MODE_BIG],
+                          this, "xlnx.xps-intc",
                           R_MAX * 4);
 }
 
@@ -197,28 +197,13 @@ static const Property xilinx_intc_properties[] = {
     DEFINE_PROP_UINT32("kind-of-intr", XpsIntc, c_kind_of_intr, 0),
 };
 
-static void xilinx_intc_class_init(ObjectClass *klass, const void *data)
+void XpsIntc::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = xilinx_intc_realize;
     device_class_set_props(dc, xilinx_intc_properties);
 }
 
-static const TypeInfo xilinx_intc_info = {
-    .name          = TYPE_XILINX_INTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XpsIntc),
-    .instance_init = xilinx_intc_init,
-    .class_init    = xilinx_intc_class_init,
-};
-
-static void xilinx_intc_register_types(void)
-{
-    type_register_static(&xilinx_intc_info);
-}
-
-type_init(xilinx_intc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XpsIntc, TYPE_XILINX_INTC, TYPE_SYS_BUS_DEVICE)
 
 static void __attribute__((constructor)) init_pic_ops(void)
 {
