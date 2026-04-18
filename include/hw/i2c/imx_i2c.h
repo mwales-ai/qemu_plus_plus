@@ -83,6 +83,12 @@ struct IMXI2CState {
     uint16_t i2sr;
     uint16_t i2dr_read;
     uint16_t i2dr_write;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* IMX_I2C_H */

@@ -41,6 +41,12 @@ struct MicrobitI2CState {
     MemoryRegion iomem;
     uint32_t regs[MICROBIT_I2C_NREGS];
     uint32_t read_idx;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

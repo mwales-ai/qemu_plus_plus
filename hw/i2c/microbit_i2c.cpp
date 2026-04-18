@@ -75,55 +75,37 @@ static const MemoryRegionOps microbit_i2c_ops = {
     .impl = { .min_access_size = 4, .max_access_size = 4, },
 };
 
+static const VMStateField vmstate_microbit_i2c_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, MicrobitI2CState, MICROBIT_I2C_NREGS),
+    VMSTATE_UINT32(read_idx, MicrobitI2CState),
+    VMSTATE_END_OF_LIST()
+};
+
 static const VMStateDescription microbit_i2c_vmstate = {
     .name = TYPE_MICROBIT_I2C,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, MicrobitI2CState, MICROBIT_I2C_NREGS),
-        VMSTATE_UINT32(read_idx, MicrobitI2CState),
-        VMSTATE_END_OF_LIST()
-    },
+    .fields = vmstate_microbit_i2c_fields,
 };
 
-static void microbit_i2c_reset(DeviceState *dev)
+void MicrobitI2CState::reset()
 {
-    MicrobitI2CState *s = MICROBIT_I2C(dev);
-
-    memset(s->regs, 0, sizeof(s->regs));
-    s->read_idx = 0;
+    memset(regs, 0, sizeof(regs));
+    read_idx = 0;
 }
 
-static void microbit_i2c_realize(DeviceState *dev, Error **errp)
+void MicrobitI2CState::realize(Error **errp)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    MicrobitI2CState *s = MICROBIT_I2C(dev);
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &microbit_i2c_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &microbit_i2c_ops, this,
                           "microbit.twi", NRF51_PERIPHERAL_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void microbit_i2c_class_init(ObjectClass *klass, const void *data)
+void MicrobitI2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &microbit_i2c_vmstate;
-    device_class_set_legacy_reset(dc, microbit_i2c_reset);
-    dc->realize = microbit_i2c_realize;
     dc->desc = "Microbit I2C controller";
 }
 
-static const TypeInfo microbit_i2c_info = {
-    .name = TYPE_MICROBIT_I2C,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MicrobitI2CState),
-    .class_init = microbit_i2c_class_init,
-};
-
-static void microbit_i2c_register_types(void)
-{
-    type_register_static(&microbit_i2c_info);
-}
-
-type_init(microbit_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MicrobitI2CState, TYPE_MICROBIT_I2C, TYPE_SYS_BUS_DEVICE)

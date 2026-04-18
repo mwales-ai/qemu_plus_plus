@@ -222,29 +222,27 @@ static void bcm2835_i2c_ops_init(void)
     bcm2835_i2c_ops.valid.max_access_size = 4;
 }
 
-static void bcm2835_i2c_realize(DeviceState *dev, Error **errp)
+void BCM2835I2CState::realize(Error **errp)
 {
-    BCM2835I2CState *s = BCM2835_I2C(dev);
-    s->bus = i2c_init_bus(dev, NULL);
+    DeviceState *dev = DEVICE(this);
+    bus = i2c_init_bus(dev, NULL);
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &bcm2835_i2c_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &bcm2835_i2c_ops, this,
                           TYPE_BCM2835_I2C, 0x24);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
-static void bcm2835_i2c_reset(DeviceState *dev)
+void BCM2835I2CState::reset()
 {
-    BCM2835I2CState *s = BCM2835_I2C(dev);
-
     /* Reset values according to BCM2835 Peripheral Documentation */
-    s->c = 0x0;
-    s->s = BCM2835_I2C_S_TXD | BCM2835_I2C_S_TXE;
-    s->dlen = 0x0;
-    s->a = 0x0;
-    s->div = 0x5dc;
-    s->del = 0x00300030;
-    s->clkt = 0x40;
+    c = 0x0;
+    s = BCM2835_I2C_S_TXD | BCM2835_I2C_S_TXE;
+    dlen = 0x0;
+    a = 0x0;
+    div = 0x5dc;
+    del = 0x00300030;
+    clkt = 0x40;
 }
 
 static const VMStateField vmstate_bcm2835_i2c_fields[] = {
@@ -266,25 +264,10 @@ static const VMStateDescription vmstate_bcm2835_i2c = {
     .fields = vmstate_bcm2835_i2c_fields,
 };
 
-static void bcm2835_i2c_class_init(ObjectClass *klass, const void *data)
+void BCM2835I2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, bcm2835_i2c_reset);
-    dc->realize = bcm2835_i2c_realize;
     dc->vmsd = &vmstate_bcm2835_i2c;
 }
 
-static const TypeInfo bcm2835_i2c_info = {
-    .name = TYPE_BCM2835_I2C,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835I2CState),
-    .class_init = bcm2835_i2c_class_init,
-};
-
-static void bcm2835_i2c_register_types(void)
-{
-    type_register_static(&bcm2835_i2c_info);
-}
-
-type_init(bcm2835_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(BCM2835I2CState, TYPE_BCM2835_I2C, TYPE_SYS_BUS_DEVICE)

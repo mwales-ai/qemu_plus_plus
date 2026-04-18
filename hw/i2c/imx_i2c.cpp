@@ -63,21 +63,19 @@ static inline bool imx_i2c_is_master(IMXI2CState *s)
     return s->i2cr & I2CR_MSTA;
 }
 
-static void imx_i2c_reset(DeviceState *dev)
+void IMXI2CState::reset()
 {
-    IMXI2CState *s = IMX_I2C(dev);
-
-    if (s->address != ADDR_RESET) {
-        i2c_end_transfer(s->bus);
+    if (address != ADDR_RESET) {
+        i2c_end_transfer(bus);
     }
 
-    s->address    = ADDR_RESET;
-    s->iadr       = IADR_RESET;
-    s->ifdr       = IFDR_RESET;
-    s->i2cr       = I2CR_RESET;
-    s->i2sr       = I2SR_RESET;
-    s->i2dr_read  = I2DR_RESET;
-    s->i2dr_write = I2DR_RESET;
+    address    = ADDR_RESET;
+    iadr       = IADR_RESET;
+    ifdr       = IFDR_RESET;
+    i2cr       = I2CR_RESET;
+    i2sr       = I2SR_RESET;
+    i2dr_read  = I2DR_RESET;
+    i2dr_write = I2DR_RESET;
 }
 
 static inline void imx_i2c_raise_interrupt(IMXI2CState *s)
@@ -171,7 +169,7 @@ static void imx_i2c_write(void *opaque, hwaddr offset,
         if (imx_i2c_is_enabled(s) && ((value & I2CR_IEN) == 0)) {
             /* This is a soft reset. IADR is preserved during soft resets */
             uint16_t iadr = s->iadr;
-            imx_i2c_reset(DEVICE(s));
+            s->reset();
             s->iadr = iadr;
         } else { /* normal write */
             s->i2cr = value & I2CR_MASK;
@@ -294,37 +292,22 @@ static const VMStateDescription imx_i2c_vmstate = {
     .fields = imx_i2c_vmstate_fields,
 };
 
-static void imx_i2c_realize(DeviceState *dev, Error **errp)
+void IMXI2CState::realize(Error **errp)
 {
-    IMXI2CState *s = IMX_I2C(dev);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &imx_i2c_ops, s, TYPE_IMX_I2C,
+    memory_region_init_io(&iomem, OBJECT(this), &imx_i2c_ops, this, TYPE_IMX_I2C,
                           IMX_I2C_MEM_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
-    s->bus = i2c_init_bus(dev, NULL);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    bus = i2c_init_bus(dev, NULL);
 }
 
-static void imx_i2c_class_init(ObjectClass *klass, const void *data)
+void IMXI2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &imx_i2c_vmstate;
-    device_class_set_legacy_reset(dc, imx_i2c_reset);
-    dc->realize = imx_i2c_realize;
     dc->desc = "i.MX I2C Controller";
 }
 
-static const TypeInfo imx_i2c_type_info = {
-    .name = TYPE_IMX_I2C,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXI2CState),
-    .class_init = imx_i2c_class_init,
-};
-
-static void imx_i2c_register_types(void)
-{
-    type_register_static(&imx_i2c_type_info);
-}
-
-type_init(imx_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IMXI2CState, TYPE_IMX_I2C, TYPE_SYS_BUS_DEVICE)

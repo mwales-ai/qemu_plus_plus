@@ -77,4 +77,10 @@ struct BCM2835I2CState {
     uint32_t clkt;
 
     uint32_t last_dlen;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };

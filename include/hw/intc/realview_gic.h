@@ -27,6 +27,12 @@ struct RealViewGICState {
     MemoryRegion container;
 
     GICState gic;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus
