@@ -450,38 +450,22 @@ hwaddr cxl_fmws_set_memmap(hwaddr base, hwaddr max_addr)
     return base;
 }
 
-static void cxl_fmw_realize(DeviceState *dev, Error **errp)
+void CXLFixedWindow::realize(Error **errp)
 {
-    CXLFixedWindow *fw = CXL_FMW(dev);
-
-    memory_region_init_io(&fw->mr, OBJECT(dev), &cfmws_ops, fw,
-                          "cxl-fixed-memory-region", fw->size);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &fw->mr);
+    memory_region_init_io(&mr, OBJECT(this), &cfmws_ops, this,
+                          "cxl-fixed-memory-region", size);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mr);
 }
 
 /*
  * Note: Fixed memory windows represent fixed address decoders on the host and
  * as such have no dynamic state to reset or migrate
  */
-static void cxl_fmw_class_init(ObjectClass *klass, const void *data)
+void CXLFixedWindow::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "CXL Fixed Memory Window";
-    dc->realize = cxl_fmw_realize;
-    /* Reason - created by machines as tightly coupled to machine memory map */
     dc->user_creatable = false;
 }
 
-static const TypeInfo cxl_fmw_info = {
-    .name = TYPE_CXL_FMW,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CXLFixedWindow),
-    .class_init = cxl_fmw_class_init,
-};
-
-static void cxl_host_register_types(void)
-{
-    type_register_static(&cxl_fmw_info);
-}
-type_init(cxl_host_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(CXLFixedWindow, TYPE_CXL_FMW, TYPE_SYS_BUS_DEVICE)

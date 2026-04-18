@@ -50,6 +50,10 @@ struct XenOverlayState {
     void *shinfo_ptr;
     uint64_t shinfo_gpa;
     bool long_mode;
+
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
 };
 
 struct XenOverlayState *xen_overlay_singleton;
@@ -88,23 +92,21 @@ static int xen_overlay_set_be_shinfo(uint64_t gfn)
 }
 
 
-static void xen_overlay_realize(DeviceState *dev, Error **errp)
+void XenOverlayState::realize(Error **errp)
 {
-    XenOverlayState *s = XEN_OVERLAY(dev);
-
     if (xen_mode != XEN_EMULATE) {
         error_setg(errp, "Xen overlay page support is for Xen emulation");
         return;
     }
 
-    memory_region_init_ram(&s->shinfo_mem, OBJECT(dev), "xen:shared_info",
+    memory_region_init_ram(&shinfo_mem, OBJECT(this), "xen:shared_info",
                            XEN_PAGE_SIZE, &error_abort);
-    memory_region_set_enabled(&s->shinfo_mem, true);
+    memory_region_set_enabled(&shinfo_mem, true);
 
-    s->shinfo_ptr = memory_region_get_ram_ptr(&s->shinfo_mem);
-    s->shinfo_gpa = INVALID_GPA;
-    s->long_mode = false;
-    memset(s->shinfo_ptr, 0, XEN_PAGE_SIZE);
+    shinfo_ptr = memory_region_get_ram_ptr(&shinfo_mem);
+    shinfo_gpa = INVALID_GPA;
+    long_mode = false;
+    memset(shinfo_ptr, 0, XEN_PAGE_SIZE);
 }
 
 static int xen_overlay_pre_save(void *opaque)
@@ -154,26 +156,18 @@ static const VMStateDescription xen_overlay_vmstate = {
     .fields = vmstate_xen_overlay_fields,
 };
 
-static void xen_overlay_reset(DeviceState *dev)
+void XenOverlayState::reset()
 {
     kvm_xen_soft_reset();
 }
 
-static void xen_overlay_class_init(ObjectClass *klass, const void *data)
+void XenOverlayState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, xen_overlay_reset);
-    dc->realize = xen_overlay_realize;
     dc->vmsd = &xen_overlay_vmstate;
 }
 
-static const TypeInfo xen_overlay_info = {
-    .name          = TYPE_XEN_OVERLAY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XenOverlayState),
-    .class_init    = xen_overlay_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XenOverlayState, TYPE_XEN_OVERLAY, TYPE_SYS_BUS_DEVICE)
 
 extern "C"
 void xen_overlay_create(void)
@@ -186,13 +180,6 @@ void xen_overlay_create(void)
         xen_domid = 1;
     };
 }
-
-static void xen_overlay_register_types(void)
-{
-    type_register_static(&xen_overlay_info);
-}
-
-type_init(xen_overlay_register_types)
 
 extern "C"
 int xen_overlay_map_shinfo_page(uint64_t gpa)

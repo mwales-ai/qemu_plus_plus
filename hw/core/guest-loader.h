@@ -26,6 +26,11 @@ struct GuestLoaderState {
     char *kernel;
     char *args;
     char *initrd;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_GUEST_LOADER "guest-loader"

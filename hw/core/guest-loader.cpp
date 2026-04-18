@@ -84,28 +84,27 @@ static void loader_insert_platform_data(GuestLoaderState *s, int size,
     }
 }
 
-static void guest_loader_realize(DeviceState *dev, Error **errp)
+void GuestLoaderState::realize(Error **errp)
 {
-    GuestLoaderState *s = GUEST_LOADER(dev);
-    char *file = s->kernel ? s->kernel : s->initrd;
+    char *file = kernel ? kernel : initrd;
     int size = 0;
 
     /* Perform some error checking on the user's options */
-    if (s->kernel && s->initrd) {
+    if (kernel && initrd) {
         error_setg(errp, "Cannot specify a kernel and initrd in same stanza");
         return;
-    } else if (!s->kernel && !s->initrd)  {
+    } else if (!kernel && !initrd)  {
         error_setg(errp, "Need to specify a kernel or initrd image");
         return;
-    } else if (!s->addr) {
+    } else if (!addr) {
         error_setg(errp, "Need to specify the address of guest blob");
         return;
-    } else if (s->args && !s->kernel) {
+    } else if (args && !kernel) {
         error_setg(errp, "Boot args only relevant to kernel blobs");
     }
 
     /* Default to the maximum size being the machine's ram size */
-    size = load_image_targphys_as(file, s->addr, current_machine->ram_size,
+    size = load_image_targphys_as(file, addr, current_machine->ram_size,
                                   NULL, errp);
     if (size < 0) {
         error_prepend(errp, "Cannot load specified image %s: ", file);
@@ -113,7 +112,7 @@ static void guest_loader_realize(DeviceState *dev, Error **errp)
     }
 
     /* Now the image is loaded we need to update the platform data */
-    loader_insert_platform_data(s, size, errp);
+    loader_insert_platform_data(this, size, errp);
 }
 
 static const Property guest_loader_props[] = {
@@ -123,28 +122,14 @@ static const Property guest_loader_props[] = {
     DEFINE_PROP_STRING("initrd", GuestLoaderState, initrd),
 };
 
-static void guest_loader_class_init(ObjectClass *klass, const void *data)
+void GuestLoaderState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = guest_loader_realize;
     device_class_set_props(dc, guest_loader_props);
     dc->desc = "Guest Loader";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo guest_loader_info = {
-    .name = TYPE_GUEST_LOADER,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(GuestLoaderState),
-    .class_init = guest_loader_class_init,
-};
-
-static void guest_loader_register_type(void)
-{
-    type_register_static(&guest_loader_info);
-}
-
-type_init(guest_loader_register_type)
-
 } /* extern "C" */
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(GuestLoaderState, TYPE_GUEST_LOADER, TYPE_DEVICE)

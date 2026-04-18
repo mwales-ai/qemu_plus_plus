@@ -46,43 +46,31 @@ struct XenPrimaryConsoleState {
 
     struct xengntdev_handle *gt;
     void *granted_xs;
+
+    void realize(Error **errp);
 };
 
 struct XenPrimaryConsoleState *xen_primary_console_singleton;
 
-static void xen_primary_console_realize(DeviceState *dev, Error **errp)
+void XenPrimaryConsoleState::realize(Error **errp)
 {
-    XenPrimaryConsoleState *s = XEN_PRIMARY_CONSOLE(dev);
-
     if (xen_mode != XEN_EMULATE) {
         error_setg(errp, "Xen primary console support is for Xen emulation");
         return;
     }
 
-    memory_region_init_ram(&s->console_page, OBJECT(dev), "xen:console_page",
+    memory_region_init_ram(&console_page, OBJECT(this), "xen:console_page",
                            XEN_PAGE_SIZE, &error_abort);
-    memory_region_set_enabled(&s->console_page, true);
-    s->cp = memory_region_get_ram_ptr(&s->console_page);
-    memset(s->cp, 0, XEN_PAGE_SIZE);
+    memory_region_set_enabled(&console_page, true);
+    cp = memory_region_get_ram_ptr(&console_page);
+    memset(cp, 0, XEN_PAGE_SIZE);
 
     /* We can't map it this early as KVM isn't ready */
-    xen_primary_console_singleton = s;
+    xen_primary_console_singleton = this;
 }
 
-static void xen_primary_console_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = xen_primary_console_realize;
-}
-
-static const TypeInfo xen_primary_console_info = {
-    .name          = TYPE_XEN_PRIMARY_CONSOLE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XenPrimaryConsoleState),
-    .class_init    = xen_primary_console_class_init,
-};
-
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XenPrimaryConsoleState, TYPE_XEN_PRIMARY_CONSOLE, TYPE_SYS_BUS_DEVICE)
 
 extern "C"
 void xen_primary_console_create(void)
@@ -98,13 +86,6 @@ void xen_primary_console_create(void)
      * overlay page can be mapped.
      */
 }
-
-static void xen_primary_console_register_types(void)
-{
-    type_register_static(&xen_primary_console_info);
-}
-
-type_init(xen_primary_console_register_types)
 
 extern "C"
 uint16_t xen_primary_console_get_port(void)
