@@ -342,49 +342,46 @@ static const MemoryRegionOps riscv_imsic_ops = {
     }
 };
 
-static void riscv_imsic_realize(DeviceState *dev, Error **errp)
+void RISCVIMSICState::realize(Error **errp)
 {
-    RISCVIMSICState *imsic = RISCV_IMSIC(dev);
-    RISCVCPU *rcpu = RISCV_CPU(cpu_by_arch_id(imsic->hartid));
-    CPUState *cpu = cpu_by_arch_id(imsic->hartid);
+    DeviceState *dev = DEVICE(this);
+    RISCVCPU *rcpu = RISCV_CPU(cpu_by_arch_id(hartid));
+    CPUState *cpu = cpu_by_arch_id(hartid);
     CPURISCVState *env = cpu ? cpu_env(cpu) : NULL;
 
-    /* Claim the CPU interrupt to be triggered by this IMSIC */
     if (riscv_cpu_claim_interrupts(rcpu,
-            (imsic->mmode) ? MIP_MEIP : MIP_SEIP) < 0) {
+            (mmode) ? MIP_MEIP : MIP_SEIP) < 0) {
         error_setg(errp, "%s already claimed",
-                   (imsic->mmode) ? "MEIP" : "SEIP");
+                   (mmode) ? "MEIP" : "SEIP");
         return;
     }
 
     if (!kvm_irqchip_in_kernel()) {
-        /* Create output IRQ lines */
-        imsic->external_irqs = static_cast<qemu_irq *>(g_malloc(sizeof(qemu_irq) * imsic->num_pages));
-        qdev_init_gpio_out(dev, imsic->external_irqs, imsic->num_pages);
+        external_irqs = static_cast<qemu_irq *>(g_malloc(sizeof(qemu_irq) * num_pages));
+        qdev_init_gpio_out(dev, external_irqs, num_pages);
 
-        imsic->num_eistate = imsic->num_pages * imsic->num_irqs;
-        imsic->eidelivery = g_new0(uint32_t, imsic->num_pages);
-        imsic->eithreshold = g_new0(uint32_t, imsic->num_pages);
-        imsic->eistate = g_new0(uint32_t, imsic->num_eistate);
+        num_eistate = num_pages * num_irqs;
+        eidelivery = g_new0(uint32_t, num_pages);
+        eithreshold = g_new0(uint32_t, num_pages);
+        eistate = g_new0(uint32_t, num_eistate);
     }
 
-    memory_region_init_io(&imsic->mmio, OBJECT(dev), &riscv_imsic_ops,
-                          imsic, TYPE_RISCV_IMSIC,
-                          IMSIC_MMIO_SIZE(imsic->num_pages));
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &imsic->mmio);
+    memory_region_init_io(&mmio, OBJECT(this), &riscv_imsic_ops,
+                          this, TYPE_RISCV_IMSIC,
+                          IMSIC_MMIO_SIZE(num_pages));
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 
-    /* Force select AIA feature and setup CSR read-modify-write callback */
     if (env) {
-        if (!imsic->mmode) {
+        if (!mmode) {
             rcpu->cfg.ext_ssaia = true;
-            riscv_cpu_set_geilen(env, imsic->num_pages - 1);
+            riscv_cpu_set_geilen(env, num_pages - 1);
         } else {
             rcpu->cfg.ext_smaia = true;
         }
 
         if (!kvm_irqchip_in_kernel()) {
-            riscv_cpu_set_aia_ireg_rmw_fn(env, (imsic->mmode) ? PRV_M : PRV_S,
-                                          riscv_imsic_rmw, imsic);
+            riscv_cpu_set_aia_ireg_rmw_fn(env, (mmode) ? PRV_M : PRV_S,
+                                          riscv_imsic_rmw, this);
         }
     }
 
@@ -424,28 +421,14 @@ static const VMStateDescription vmstate_riscv_imsic = {
     .fields = vmstate_riscv_imsic_fields,
 };
 
-static void riscv_imsic_class_init(ObjectClass *klass, const void *data)
+void RISCVIMSICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, riscv_imsic_properties);
-    dc->realize = riscv_imsic_realize;
     dc->vmsd = &vmstate_riscv_imsic;
 }
 
-static const TypeInfo riscv_imsic_info = {
-    .name          = TYPE_RISCV_IMSIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVIMSICState),
-    .class_init    = riscv_imsic_class_init,
-};
-
-static void riscv_imsic_register_types(void)
-{
-    type_register_static(&riscv_imsic_info);
-}
-
-type_init(riscv_imsic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RISCVIMSICState, TYPE_RISCV_IMSIC, TYPE_SYS_BUS_DEVICE)
 
 /*
  * Create IMSIC device.

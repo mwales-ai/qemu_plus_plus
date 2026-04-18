@@ -452,16 +452,15 @@ static void irq_handler(void *opaque, int irq, int level)
     xlnx_pmu_io_irq_update(s);
 }
 
-static void xlnx_pmu_io_intc_reset(DeviceState *dev)
+void XlnxPMUIOIntc::reset()
 {
-    XlnxPMUIOIntc *s = XLNX_PMU_IO_INTC(dev);
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
-        register_reset(&s->regs_info[i]);
+    for (i = 0; i < ARRAY_SIZE(regs_info); ++i) {
+        register_reset(&regs_info[i]);
     }
 
-    xlnx_pmu_io_irq_update(s);
+    xlnx_pmu_io_irq_update(this);
 }
 
 static const MemoryRegionOps xlnx_pmu_io_intc_ops = {
@@ -480,78 +479,61 @@ static const Property xlnx_pmu_io_intc_properties[] = {
     DEFINE_PROP_UINT32("intc-positive", XlnxPMUIOIntc, cfg.positive, 0),
 };
 
-static void xlnx_pmu_io_intc_realize(DeviceState *dev, Error **errp)
+void XlnxPMUIOIntc::realize(Error **errp)
 {
-    XlnxPMUIOIntc *s = XLNX_PMU_IO_INTC(dev);
-
     /* Internal interrupts are edge triggered */
-    s->cfg.level_edge <<= 16;
-    s->cfg.level_edge |= 0xffff;
+    cfg.level_edge <<= 16;
+    cfg.level_edge |= 0xffff;
 
     /* Internal interrupts are positive. */
-    s->cfg.positive <<= 16;
-    s->cfg.positive |= 0xffff;
+    cfg.positive <<= 16;
+    cfg.positive |= 0xffff;
 
     /* Max 16 external interrupts. */
-    assert(s->cfg.intr_size <= 16);
+    assert(cfg.intr_size <= 16);
 
-    qdev_init_gpio_in(dev, irq_handler, 16 + s->cfg.intr_size);
+    qdev_init_gpio_in(DEVICE(this), irq_handler, 16 + cfg.intr_size);
 }
 
-static void xlnx_pmu_io_intc_init(Object *obj)
+void XlnxPMUIOIntc::init()
 {
-    XlnxPMUIOIntc *s = XLNX_PMU_IO_INTC(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     RegisterInfoArray *reg_array;
 
-    memory_region_init(&s->iomem, obj, TYPE_XLNX_PMU_IO_INTC,
+    memory_region_init(&iomem, OBJECT(this), TYPE_XLNX_PMU_IO_INTC,
                        XLNXPMUIOINTC_R_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), xlnx_pmu_io_intc_regs_info,
+        register_init_block32(DEVICE(this), xlnx_pmu_io_intc_regs_info,
                               ARRAY_SIZE(xlnx_pmu_io_intc_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &xlnx_pmu_io_intc_ops,
                               XLNX_PMU_IO_INTC_ERR_DEBUG,
                               XLNXPMUIOINTC_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
+    memory_region_add_subregion(&iomem,
                                 0x0,
                                 &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 
-    sysbus_init_irq(sbd, &s->parent_irq);
+    sysbus_init_irq(sbd, &parent_irq);
 }
+
+static const VMStateField vmstate_xlnx_pmu_io_intc_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, XlnxPMUIOIntc, XLNXPMUIOINTC_R_MAX),
+    VMSTATE_END_OF_LIST(),
+};
 
 static const VMStateDescription vmstate_xlnx_pmu_io_intc = {
     .name = TYPE_XLNX_PMU_IO_INTC,
     .version_id = 1,
     .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, XlnxPMUIOIntc, XLNXPMUIOINTC_R_MAX),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_xlnx_pmu_io_intc_fields,
 };
 
-static void xlnx_pmu_io_intc_class_init(ObjectClass *klass, const void *data)
+void XlnxPMUIOIntc::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, xlnx_pmu_io_intc_reset);
-    dc->realize = xlnx_pmu_io_intc_realize;
     dc->vmsd = &vmstate_xlnx_pmu_io_intc;
     device_class_set_props(dc, xlnx_pmu_io_intc_properties);
 }
 
-static const TypeInfo xlnx_pmu_io_intc_info = {
-    .name          = TYPE_XLNX_PMU_IO_INTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxPMUIOIntc),
-    .class_init    = xlnx_pmu_io_intc_class_init,
-    .instance_init = xlnx_pmu_io_intc_init,
-};
-
-static void xlnx_pmu_io_intc_register_types(void)
-{
-    type_register_static(&xlnx_pmu_io_intc_info);
-}
-
-type_init(xlnx_pmu_io_intc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxPMUIOIntc, TYPE_XLNX_PMU_IO_INTC, TYPE_SYS_BUS_DEVICE)

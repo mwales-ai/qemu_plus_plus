@@ -52,6 +52,13 @@ struct XlnxPMUIOIntc {
 
     uint32_t regs[XLNXPMUIOINTC_R_MAX];
     RegisterInfo regs_info[XLNXPMUIOINTC_R_MAX];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_INTC_XLNX_PMU_IOMOD_INTC_H */

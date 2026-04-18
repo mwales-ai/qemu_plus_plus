@@ -52,6 +52,9 @@ struct KVMClockState {
     /* whether the 'clock' value was obtained in a host with
      * reliable KVM_GET_CLOCK */
     bool clock_is_reliable;
+
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
 };
 
 struct pvclock_vcpu_time_info {
@@ -221,18 +224,16 @@ static void kvmclock_vm_state_change(void *opaque, bool running,
     }
 }
 
-static void kvmclock_realize(DeviceState *dev, Error **errp)
+void KVMClockState::realize(Error **errp)
 {
-    KVMClockState *s = KVM_CLOCK(dev);
-
     if (!kvm_enabled()) {
         error_setg(errp, "kvmclock device requires KVM");
         return;
     }
 
-    kvm_update_clock(s);
+    kvm_update_clock(this);
 
-    qemu_add_vm_change_state_handler(kvmclock_vm_state_change, s);
+    qemu_add_vm_change_state_handler(kvmclock_vm_state_change, this);
 }
 
 static bool kvmclock_clock_is_reliable_needed(void *opaque)
@@ -318,21 +319,14 @@ static const Property kvmclock_properties[] = {
                       mach_use_reliable_get_clock, true),
 };
 
-static void kvmclock_class_init(ObjectClass *klass, const void *data)
+void KVMClockState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = kvmclock_realize;
     dc->vmsd = &kvmclock_vmsd;
     device_class_set_props(dc, kvmclock_properties);
 }
 
-static const TypeInfo kvmclock_info = {
-    .name          = TYPE_KVM_CLOCK,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(KVMClockState),
-    .class_init    = kvmclock_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(KVMClockState, TYPE_KVM_CLOCK, TYPE_SYS_BUS_DEVICE)
 
 /* Note: Must be called after VCPU initialization. */
 extern "C"
@@ -347,10 +341,3 @@ void kvmclock_create(bool create_always)
         sysbus_create_simple(TYPE_KVM_CLOCK, -1, NULL);
     }
 }
-
-static void kvmclock_register_types(void)
-{
-    type_register_static(&kvmclock_info);
-}
-
-type_init(kvmclock_register_types)

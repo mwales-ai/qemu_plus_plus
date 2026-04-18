@@ -64,6 +64,11 @@ struct RISCVIMSICState {
     uint32_t hartid;
     uint32_t num_pages;
     uint32_t num_irqs;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 DeviceState *riscv_imsic_create(hwaddr addr, uint32_t hartid, bool mmode,

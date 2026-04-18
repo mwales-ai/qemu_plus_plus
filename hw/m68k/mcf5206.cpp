@@ -157,7 +157,7 @@ static void m5206_timer_init(m5206_timer_state *s, qemu_irq irq)
 
 /* System Integration Module.  */
 
-typedef struct {
+typedef struct m5206_mbar_state {
     SysBusDevice parent_obj;
 
     M68kCPU *cpu;
@@ -174,6 +174,10 @@ typedef struct {
     uint8_t par;
     /* Include the UART vector registers here.  */
     uint8_t uivr[2];
+
+    void realize(Error **errp);
+    void reset();
+    void classInit(DeviceClass *dc);
 } m5206_mbar_state;
 
 #define MCF5206_MBAR(obj) OBJECT_CHECK(m5206_mbar_state, (obj), TYPE_MCF5206_MBAR)
@@ -261,28 +265,26 @@ static void m5206_mbar_set_irq(void *opaque, int irq, int level)
 
 /* System Integration Module.  */
 
-static void m5206_mbar_reset(DeviceState *dev)
+void m5206_mbar_state::reset()
 {
-    m5206_mbar_state *s = MCF5206_MBAR(dev);
-
-    s->scr = 0xc0;
-    s->icr[1] = 0x04;
-    s->icr[2] = 0x08;
-    s->icr[3] = 0x0c;
-    s->icr[4] = 0x10;
-    s->icr[5] = 0x14;
-    s->icr[6] = 0x18;
-    s->icr[7] = 0x1c;
-    s->icr[8] = 0x1c;
-    s->icr[9] = 0x80;
-    s->icr[10] = 0x80;
-    s->icr[11] = 0x80;
-    s->icr[12] = 0x00;
-    s->icr[13] = 0x00;
-    s->imr = 0x3ffe;
-    s->rsr = 0x80;
-    s->swivr = 0x0f;
-    s->par = 0;
+    scr = 0xc0;
+    icr[1] = 0x04;
+    icr[2] = 0x08;
+    icr[3] = 0x0c;
+    icr[4] = 0x10;
+    icr[5] = 0x14;
+    icr[6] = 0x18;
+    icr[7] = 0x1c;
+    icr[8] = 0x1c;
+    icr[9] = 0x80;
+    icr[10] = 0x80;
+    icr[11] = 0x80;
+    icr[12] = 0x00;
+    icr[13] = 0x00;
+    imr = 0x3ffe;
+    rsr = 0x80;
+    swivr = 0x0f;
+    par = 0;
 }
 
 static uint64_t m5206_mbar_read(m5206_mbar_state *s,
@@ -580,23 +582,21 @@ static void m5206_mbar_writefn(void *opaque, hwaddr addr,
 static const MemoryRegionOps m5206_mbar_ops = {
     .read = m5206_mbar_readfn,
     .write = m5206_mbar_writefn,
-    .valid = { .min_access_size = 1, .max_access_size = 4, },
     .endianness = DEVICE_BIG_ENDIAN,
+    .valid = { .min_access_size = 1, .max_access_size = 4, },
 };
 
-static void mcf5206_mbar_realize(DeviceState *dev, Error **errp)
+void m5206_mbar_state::realize(Error **errp)
 {
-    m5206_mbar_state *s = MCF5206_MBAR(dev);
-
-    memory_region_init_io(&s->iomem, NULL, &m5206_mbar_ops, s,
+    memory_region_init_io(&iomem, NULL, &m5206_mbar_ops, this,
                           "mbar", 0x00001000);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 
-    s->pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
-    m5206_timer_init(&s->timer[0], s->pic[9]);
-    m5206_timer_init(&s->timer[1], s->pic[10]);
-    s->uart[0] = mcf_uart_create(s->pic[12], serial_hd(0));
-    s->uart[1] = mcf_uart_create(s->pic[13], serial_hd(1));
+    pic = qemu_allocate_irqs(m5206_mbar_set_irq, this, 14);
+    m5206_timer_init(&timer[0], pic[9]);
+    m5206_timer_init(&timer[1], pic[10]);
+    uart[0] = mcf_uart_create(pic[12], serial_hd(0));
+    uart[1] = mcf_uart_create(pic[13], serial_hd(1));
 }
 
 static const Property mcf5206_mbar_properties[] = {
@@ -604,27 +604,12 @@ static const Property mcf5206_mbar_properties[] = {
                      TYPE_M68K_CPU, M68kCPU *),
 };
 
-static void mcf5206_mbar_class_init(ObjectClass *oc, const void *data)
+void m5206_mbar_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     device_class_set_props(dc, mcf5206_mbar_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     dc->desc = "MCF5206 system integration module";
-    dc->realize = mcf5206_mbar_realize;
-    device_class_set_legacy_reset(dc, m5206_mbar_reset);
 }
 
-static const TypeInfo mcf5206_mbar_info = {
-    .name          = TYPE_MCF5206_MBAR,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(m5206_mbar_state),
-    .class_init    = mcf5206_mbar_class_init,
-};
-
-static void mcf5206_mbar_register_types(void)
-{
-    type_register_static(&mcf5206_mbar_info);
-}
-
-type_init(mcf5206_mbar_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(m5206_mbar_state, TYPE_MCF5206_MBAR, TYPE_SYS_BUS_DEVICE)
