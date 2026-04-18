@@ -204,13 +204,13 @@ static bool nvme_subsys_setup(NvmeSubsystem *subsys, Error **errp)
     return true;
 }
 
-static void nvme_subsys_realize(DeviceState *dev, Error **errp)
+void NvmeSubsystem::realize(Error **errp)
 {
-    NvmeSubsystem *subsys = NVME_SUBSYS(dev);
+    DeviceState *dev = DEVICE(this);
 
-    qbus_init(&subsys->bus, sizeof(NvmeBus), TYPE_NVME_BUS, dev, dev->id);
+    qbus_init(&bus, sizeof(NvmeBus), TYPE_NVME_BUS, dev, dev->id);
 
-    nvme_subsys_setup(subsys, errp);
+    nvme_subsys_setup(this, errp);
 }
 
 static const Property nvme_subsystem_props[] = {
@@ -222,28 +222,12 @@ static const Property nvme_subsystem_props[] = {
     DEFINE_PROP_UINT16("fdp.nruh", NvmeSubsystem, params.fdp.nruh, 0),
 };
 
-static void nvme_subsys_class_init(ObjectClass *oc, const void *data)
+void NvmeSubsystem::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-
-    dc->realize = nvme_subsys_realize;
     dc->desc = "Virtual NVMe subsystem";
-
     device_class_set_props(dc, nvme_subsystem_props);
 }
 
-static const TypeInfo nvme_subsys_info = {
-    .name = TYPE_NVME_SUBSYS,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(NvmeSubsystem),
-    .class_init = nvme_subsys_class_init,
-};
-
-static void nvme_subsys_register_types(void)
-{
-    type_register_static(&nvme_subsys_info);
-}
-
-type_init(nvme_subsys_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NvmeSubsystem, TYPE_NVME_SUBSYS, TYPE_DEVICE)

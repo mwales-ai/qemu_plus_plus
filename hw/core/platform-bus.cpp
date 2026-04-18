@@ -187,27 +187,23 @@ void platform_bus_link_device(PlatformBusDevice *pbus, SysBusDevice *sbdev)
     }
 }
 
-static void platform_bus_realize(DeviceState *dev, Error **errp)
+void PlatformBusDevice::realize(Error **errp)
 {
-    PlatformBusDevice *pbus;
-    SysBusDevice *d;
+    SysBusDevice *d = SYS_BUS_DEVICE(this);
     uint32_t i;
 
-    d = SYS_BUS_DEVICE(dev);
-    pbus = PLATFORM_BUS_DEVICE(dev);
+    memory_region_init(&mmio, OBJECT(this), "platform bus",
+                       mmio_size);
+    sysbus_init_mmio(d, &mmio);
 
-    memory_region_init(&pbus->mmio, OBJECT(dev), "platform bus",
-                       pbus->mmio_size);
-    sysbus_init_mmio(d, &pbus->mmio);
-
-    pbus->used_irqs = bitmap_new(pbus->num_irqs);
-    pbus->irqs = g_new0(qemu_irq, pbus->num_irqs);
-    for (i = 0; i < pbus->num_irqs; i++) {
-        sysbus_init_irq(d, &pbus->irqs[i]);
+    used_irqs = bitmap_new(num_irqs);
+    irqs = g_new0(qemu_irq, num_irqs);
+    for (i = 0; i < num_irqs; i++) {
+        sysbus_init_irq(d, &irqs[i]);
     }
 
     /* some devices might be initialized before so update used IRQs map */
-    plaform_bus_refresh_irqs(pbus);
+    plaform_bus_refresh_irqs(this);
 }
 
 static const Property platform_bus_properties[] = {
@@ -215,26 +211,12 @@ static const Property platform_bus_properties[] = {
     DEFINE_PROP_UINT32("mmio_size", PlatformBusDevice, mmio_size, 0),
 };
 
-static void platform_bus_class_init(ObjectClass *klass, const void *data)
+void PlatformBusDevice::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = platform_bus_realize;
     device_class_set_props(dc, platform_bus_properties);
 }
 
-static const TypeInfo platform_bus_info = {
-    .name          = TYPE_PLATFORM_BUS_DEVICE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PlatformBusDevice),
-    .class_init    = platform_bus_class_init,
-};
+} // extern "C"
 
-static void platform_bus_register_types(void)
-{
-    type_register_static(&platform_bus_info);
-}
-
-type_init(platform_bus_register_types)
-
-} /* extern "C" */
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PlatformBusDevice, TYPE_PLATFORM_BUS_DEVICE, TYPE_SYS_BUS_DEVICE)

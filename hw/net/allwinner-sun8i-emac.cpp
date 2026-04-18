@@ -555,31 +555,30 @@ static void allwinner_sun8i_emac_transmit(AwSun8iEmacState *s)
     }
 }
 
-static void allwinner_sun8i_emac_reset(DeviceState *dev)
+void AwSun8iEmacState::reset()
 {
-    AwSun8iEmacState *s = AW_SUN8I_EMAC(dev);
-    NetClientState *nc = qemu_get_queue(s->nic);
+    NetClientState *nc = qemu_get_queue(nic);
 
     trace_allwinner_sun8i_emac_reset();
 
-    s->mii_cmd = 0;
-    s->mii_data = 0;
-    s->basic_ctl0 = 0;
-    s->basic_ctl1 = REG_BASIC_CTL_1_RST;
-    s->int_en = 0;
-    s->int_sta = 0;
-    s->frm_flt = 0;
-    s->rx_ctl0 = 0;
-    s->rx_ctl1 = RX_CTL1_RX_MD;
-    s->rx_desc_head = 0;
-    s->rx_desc_curr = 0;
-    s->tx_ctl0 = 0;
-    s->tx_ctl1 = 0;
-    s->tx_desc_head = 0;
-    s->tx_desc_curr = 0;
-    s->tx_flowctl = 0;
+    mii_cmd = 0;
+    mii_data = 0;
+    basic_ctl0 = 0;
+    basic_ctl1 = REG_BASIC_CTL_1_RST;
+    int_en = 0;
+    int_sta = 0;
+    frm_flt = 0;
+    rx_ctl0 = 0;
+    rx_ctl1 = RX_CTL1_RX_MD;
+    rx_desc_head = 0;
+    rx_desc_curr = 0;
+    tx_ctl0 = 0;
+    tx_ctl1 = 0;
+    tx_desc_head = 0;
+    tx_desc_curr = 0;
+    tx_flowctl = 0;
 
-    allwinner_sun8i_emac_mii_reset(s, !nc->link_down);
+    allwinner_sun8i_emac_mii_reset(this, !nc->link_down);
 }
 
 static uint64_t allwinner_sun8i_emac_read(void *opaque, hwaddr offset,
@@ -693,7 +692,7 @@ static void allwinner_sun8i_emac_write(void *opaque, hwaddr offset,
         break;
     case REG_BASIC_CTL_1:       /* Basic Control 1 */
         if (value & BASIC_CTL1_SOFTRST) {
-            allwinner_sun8i_emac_reset(DEVICE(s));
+            s->reset();
             value &= ~BASIC_CTL1_SOFTRST;
         }
         s->basic_ctl1 = value;
@@ -805,33 +804,32 @@ static NetClientInfo net_allwinner_sun8i_emac_info = {
     .link_status_changed = allwinner_sun8i_emac_set_link,
 };
 
-static void allwinner_sun8i_emac_init(Object *obj)
+void AwSun8iEmacState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    AwSun8iEmacState *s = AW_SUN8I_EMAC(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_sun8i_emac_mem_ops,
-                           s, TYPE_AW_SUN8I_EMAC, 64 * KiB);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
+    memory_region_init_io(&iomem, OBJECT(this), &allwinner_sun8i_emac_mem_ops,
+                           this, TYPE_AW_SUN8I_EMAC, 64 * KiB);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
 }
 
-static void allwinner_sun8i_emac_realize(DeviceState *dev, Error **errp)
+void AwSun8iEmacState::realize(Error **errp)
 {
-    AwSun8iEmacState *s = AW_SUN8I_EMAC(dev);
+    DeviceState *dev = DEVICE(this);
 
-    if (!s->dma_mr) {
+    if (!dma_mr) {
         error_setg(errp, TYPE_AW_SUN8I_EMAC " 'dma-memory' link not set");
         return;
     }
 
-    address_space_init(&s->dma_as, s->dma_mr, "emac-dma");
+    address_space_init(&dma_as, dma_mr, "emac-dma");
 
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_allwinner_sun8i_emac_info, &s->conf,
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_allwinner_sun8i_emac_info, &conf,
                           object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+                          &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 }
 
 static const Property allwinner_sun8i_emac_properties[] = {
@@ -882,28 +880,11 @@ static const VMStateDescription vmstate_aw_emac = {
     .fields = vmstate_aw_sun8i_emac_fields,
 };
 
-static void allwinner_sun8i_emac_class_init(ObjectClass *klass,
-                                            const void *data)
+void AwSun8iEmacState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = allwinner_sun8i_emac_realize;
-    device_class_set_legacy_reset(dc, allwinner_sun8i_emac_reset);
     dc->vmsd = &vmstate_aw_emac;
     device_class_set_props(dc, allwinner_sun8i_emac_properties);
 }
 
-static const TypeInfo allwinner_sun8i_emac_info = {
-    .name           = TYPE_AW_SUN8I_EMAC,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(AwSun8iEmacState),
-    .instance_init  = allwinner_sun8i_emac_init,
-    .class_init     = allwinner_sun8i_emac_class_init,
-};
-
-static void allwinner_sun8i_emac_register_types(void)
-{
-    type_register_static(&allwinner_sun8i_emac_info);
-}
-
-type_init(allwinner_sun8i_emac_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AwSun8iEmacState, TYPE_AW_SUN8I_EMAC, TYPE_SYS_BUS_DEVICE)

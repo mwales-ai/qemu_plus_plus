@@ -1458,52 +1458,51 @@ static void gem_phy_reset(CadenceGEMState *s)
     phy_update_link(s);
 }
 
-static void gem_reset(DeviceState *d)
+void CadenceGEMState::reset()
 {
     int i;
-    CadenceGEMState *s = CADENCE_GEM(d);
     const uint8_t *a;
     uint32_t queues_mask = 0;
 
     DB_PRINT("\n");
 
     /* Set post reset register values */
-    memset(&s->regs[0], 0, sizeof(s->regs));
-    s->regs[R_NWCFG] = 0x00080000;
-    s->regs[R_NWSTATUS] = 0x00000006;
-    s->regs[R_DMACFG] = 0x00020784;
-    s->regs[R_IMR] = 0x07ffffff;
-    s->regs[R_TXPAUSE] = 0x0000ffff;
-    s->regs[R_TXPARTIALSF] = 0x000003ff;
-    s->regs[R_RXPARTIALSF] = 0x000003ff;
-    s->regs[R_MODID] = s->revision;
-    s->regs[R_DESCONF] = 0x02D00110;
-    if (!s->pcs_enabled) {
-        s->regs[R_DESCONF] |= 0x00000001;
+    memset(&regs[0], 0, sizeof(regs));
+    regs[R_NWCFG] = 0x00080000;
+    regs[R_NWSTATUS] = 0x00000006;
+    regs[R_DMACFG] = 0x00020784;
+    regs[R_IMR] = 0x07ffffff;
+    regs[R_TXPAUSE] = 0x0000ffff;
+    regs[R_TXPARTIALSF] = 0x000003ff;
+    regs[R_RXPARTIALSF] = 0x000003ff;
+    regs[R_MODID] = revision;
+    regs[R_DESCONF] = 0x02D00110;
+    if (!pcs_enabled) {
+        regs[R_DESCONF] |= 0x00000001;
     }
-    s->regs[R_DESCONF2] = 0x2ab10000 | s->jumbo_max_len;
-    s->regs[R_DESCONF5] = 0x002f2045;
-    s->regs[R_DESCONF6] = R_DESCONF6_DMA_ADDR_64B_MASK;
-    s->regs[R_INT_Q1_MASK] = 0x00000CE6;
-    s->regs[R_JUMBO_MAX_LEN] = s->jumbo_max_len;
+    regs[R_DESCONF2] = 0x2ab10000 | jumbo_max_len;
+    regs[R_DESCONF5] = 0x002f2045;
+    regs[R_DESCONF6] = R_DESCONF6_DMA_ADDR_64B_MASK;
+    regs[R_INT_Q1_MASK] = 0x00000CE6;
+    regs[R_JUMBO_MAX_LEN] = jumbo_max_len;
 
-    if (s->num_priority_queues > 1) {
-        queues_mask = MAKE_64BIT_MASK(1, s->num_priority_queues - 1);
-        s->regs[R_DESCONF6] |= queues_mask;
+    if (num_priority_queues > 1) {
+        queues_mask = MAKE_64BIT_MASK(1, num_priority_queues - 1);
+        regs[R_DESCONF6] |= queues_mask;
     }
 
     /* Set MAC address */
-    a = &s->conf.macaddr.a[0];
-    s->regs[R_SPADDR1LO] = a[0] | (a[1] << 8) | (a[2] << 16) | (a[3] << 24);
-    s->regs[R_SPADDR1HI] = a[4] | (a[5] << 8);
+    a = &conf.macaddr.a[0];
+    regs[R_SPADDR1LO] = a[0] | (a[1] << 8) | (a[2] << 16) | (a[3] << 24);
+    regs[R_SPADDR1HI] = a[4] | (a[5] << 8);
 
     for (i = 0; i < 4; i++) {
-        s->sar_active[i] = false;
+        sar_active[i] = false;
     }
 
-    gem_phy_reset(s);
+    gem_phy_reset(this);
 
-    gem_update_int_status(s);
+    gem_update_int_status(this);
 }
 
 static uint16_t gem_phy_read(CadenceGEMState *s, unsigned reg_num)
@@ -1740,75 +1739,76 @@ static NetClientInfo net_gem_info = {
     .link_status_changed = gem_set_link,
 };
 
-static void gem_realize(DeviceState *dev, Error **errp)
+void CadenceGEMState::realize(Error **errp)
 {
-    CadenceGEMState *s = CADENCE_GEM(dev);
+    DeviceState *dev = DEVICE(this);
     int i;
 
-    address_space_init(&s->dma_as,
-                       s->dma_mr ? s->dma_mr : get_system_memory(), "dma");
+    address_space_init(&dma_as,
+                       dma_mr ? dma_mr : get_system_memory(), "dma");
 
-    if (s->num_priority_queues == 0 ||
-        s->num_priority_queues > MAX_PRIORITY_QUEUES) {
+    if (num_priority_queues == 0 ||
+        num_priority_queues > MAX_PRIORITY_QUEUES) {
         error_setg(errp, "Invalid num-priority-queues value: %" PRIx8,
-                   s->num_priority_queues);
+                   num_priority_queues);
         return;
-    } else if (s->num_type1_screeners > MAX_TYPE1_SCREENERS) {
+    } else if (num_type1_screeners > MAX_TYPE1_SCREENERS) {
         error_setg(errp, "Invalid num-type1-screeners value: %" PRIx8,
-                   s->num_type1_screeners);
+                   num_type1_screeners);
         return;
-    } else if (s->num_type2_screeners > MAX_TYPE2_SCREENERS) {
+    } else if (num_type2_screeners > MAX_TYPE2_SCREENERS) {
         error_setg(errp, "Invalid num-type2-screeners value: %" PRIx8,
-                   s->num_type2_screeners);
+                   num_type2_screeners);
         return;
     }
 
-    for (i = 0; i < s->num_priority_queues; ++i) {
-        sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[i]);
+    for (i = 0; i < num_priority_queues; ++i) {
+        sysbus_init_irq(SYS_BUS_DEVICE(dev), &irq[i]);
     }
 
-    gem_init_register_masks(s);
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
+    gem_init_register_masks(this);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
 
-    s->nic = qemu_new_nic(&net_gem_info, &s->conf,
+    nic = qemu_new_nic(&net_gem_info, &conf,
                           object_get_typename(OBJECT(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
+                          &dev->mem_reentrancy_guard, this);
 
-    if (s->jumbo_max_len > MAX_FRAME_SIZE) {
+    if (jumbo_max_len > MAX_FRAME_SIZE) {
         error_setg(errp, "jumbo-max-len is greater than %d",
                   MAX_FRAME_SIZE);
         return;
     }
 }
 
-static void gem_init(Object *obj)
+void CadenceGEMState::init()
 {
-    CadenceGEMState *s = CADENCE_GEM(obj);
-    DeviceState *dev = DEVICE(obj);
+    DeviceState *dev = DEVICE(this);
 
     DB_PRINT("\n");
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &gem_ops, s,
-                          "enet", sizeof(s->regs));
+    memory_region_init_io(&iomem, OBJECT(this), &gem_ops, this,
+                          "enet", sizeof(regs));
 
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &iomem);
 }
+
+static const VMStateField vmstate_cadence_gem_fields[] = {
+    VMSTATE_UINT32_ARRAY(regs, CadenceGEMState, CADENCE_GEM_MAXREG),
+    VMSTATE_UINT16_ARRAY(phy_regs, CadenceGEMState, 32),
+    VMSTATE_UINT8(phy_loop, CadenceGEMState),
+    VMSTATE_UINT32_ARRAY(rx_desc_addr, CadenceGEMState,
+                         MAX_PRIORITY_QUEUES),
+    VMSTATE_UINT32_ARRAY(tx_desc_addr, CadenceGEMState,
+                         MAX_PRIORITY_QUEUES),
+    VMSTATE_BOOL_ARRAY(sar_active, CadenceGEMState, 4),
+    VMSTATE_END_OF_LIST(),
+};
 
 static const VMStateDescription vmstate_cadence_gem = {
     .name = "cadence_gem",
     .version_id = 4,
     .minimum_version_id = 4,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT32_ARRAY(regs, CadenceGEMState, CADENCE_GEM_MAXREG),
-        VMSTATE_UINT16_ARRAY(phy_regs, CadenceGEMState, 32),
-        VMSTATE_UINT8(phy_loop, CadenceGEMState),
-        VMSTATE_UINT32_ARRAY(rx_desc_addr, CadenceGEMState,
-                             MAX_PRIORITY_QUEUES),
-        VMSTATE_UINT32_ARRAY(tx_desc_addr, CadenceGEMState,
-                             MAX_PRIORITY_QUEUES),
-        VMSTATE_BOOL_ARRAY(sar_active, CadenceGEMState, 4),
-        VMSTATE_END_OF_LIST(),
-    }
+    .fields = vmstate_cadence_gem_fields
 };
 
 static const Property gem_properties[] = {
@@ -1834,27 +1834,11 @@ static const Property gem_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void gem_class_init(ObjectClass *klass, const void *data)
+void CadenceGEMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = gem_realize;
     device_class_set_props(dc, gem_properties);
     dc->vmsd = &vmstate_cadence_gem;
-    device_class_set_legacy_reset(dc, gem_reset);
 }
 
-static const TypeInfo gem_info = {
-    .name  = TYPE_CADENCE_GEM,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(CadenceGEMState),
-    .instance_init = gem_init,
-    .class_init = gem_class_init,
-};
-
-static void gem_register_types(void)
-{
-    type_register_static(&gem_info);
-}
-
-type_init(gem_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(CadenceGEMState, TYPE_CADENCE_GEM, TYPE_SYS_BUS_DEVICE)

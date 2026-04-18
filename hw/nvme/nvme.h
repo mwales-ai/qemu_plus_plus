@@ -121,6 +121,11 @@ typedef struct NvmeSubsystem {
             uint32_t nrg;
         } fdp;
     } params;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 } NvmeSubsystem;
 
 #ifdef __cplusplus
