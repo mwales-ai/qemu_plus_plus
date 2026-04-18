@@ -46,53 +46,29 @@ static int add_cpu_to_cluster(Object *obj, void *opaque)
     return 0;
 }
 
-static void cpu_cluster_realize(DeviceState *dev, Error **errp)
+void CPUClusterState::realize(Error **errp)
 {
-    /* Iterate through all our CPU children and set their cluster_index */
-    CPUClusterState *cluster = CPU_CLUSTER(dev);
-    Object *cluster_obj = OBJECT(dev);
+    Object *cluster_obj = OBJECT(this);
     CallbackData cbdata = {
-        .cluster = cluster,
+        .cluster = this,
         .cpu_count = 0,
     };
 
-    if (cluster->cluster_id >= MAX_CLUSTERS) {
+    if (cluster_id >= MAX_CLUSTERS) {
         error_setg(errp, "cluster-id must be less than %d", MAX_CLUSTERS);
         return;
     }
 
     object_child_foreach_recursive(cluster_obj, add_cpu_to_cluster, &cbdata);
 
-    /*
-     * A cluster with no CPUs is a bug in the board/SoC code that created it;
-     * if you hit this during development of new code, check that you have
-     * created the CPUs and parented them into the cluster object before
-     * realizing the cluster object.
-     */
     assert(cbdata.cpu_count > 0);
 }
 
-static void cpu_cluster_class_init(ObjectClass *klass, const void *data)
+void CPUClusterState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, cpu_cluster_properties);
-    dc->realize = cpu_cluster_realize;
-
-    /* This is not directly for users, CPU children must be attached by code */
     dc->user_creatable = false;
 }
 
-static const TypeInfo cpu_cluster_type_info = {
-    .name = TYPE_CPU_CLUSTER,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(CPUClusterState),
-    .class_init = cpu_cluster_class_init,
-};
-
-static void cpu_cluster_register_types(void)
-{
-    type_register_static(&cpu_cluster_type_info);
-}
-
-type_init(cpu_cluster_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(CPUClusterState, TYPE_CPU_CLUSTER, TYPE_DEVICE)

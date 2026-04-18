@@ -124,63 +124,43 @@ static void vmclock_handle_reset(void *opaque)
     }
 }
 
-static void vmclock_realize(DeviceState *dev, Error **errp)
+void VmclockState::realize(Error **errp)
 {
-    VmclockState *vms = VMCLOCK(dev);
-
-    /*
-     * Given that this function is executing, there is at least one VMCLOCK
-     * device. Check if there are several.
-     */
     if (!find_vmclock_dev()) {
         error_setg(errp, "at most one %s device is permitted", TYPE_VMCLOCK);
         return;
     }
 
-    vms->physaddr = VMCLOCK_ADDR;
+    physaddr = VMCLOCK_ADDR;
 
-    e820_add_entry(vms->physaddr, VMCLOCK_SIZE, E820_RESERVED);
+    e820_add_entry(physaddr, VMCLOCK_SIZE, E820_RESERVED);
 
-    memory_region_init_ram(&vms->clk_page, OBJECT(dev), "vmclock_page",
+    memory_region_init_ram(&clk_page, OBJECT(this), "vmclock_page",
                            VMCLOCK_SIZE, &error_abort);
-    memory_region_set_enabled(&vms->clk_page, true);
-    vms->clk = static_cast<vmclock_abi *>(
-        memory_region_get_ram_ptr(&vms->clk_page));
-    memset(vms->clk, 0, VMCLOCK_SIZE);
+    memory_region_set_enabled(&clk_page, true);
+    clk = static_cast<vmclock_abi *>(
+        memory_region_get_ram_ptr(&clk_page));
+    memset(clk, 0, VMCLOCK_SIZE);
 
-    vms->clk->magic = cpu_to_le32(VMCLOCK_MAGIC);
-    vms->clk->size = cpu_to_le16(VMCLOCK_SIZE);
-    vms->clk->version = cpu_to_le16(1);
+    clk->magic = cpu_to_le32(VMCLOCK_MAGIC);
+    clk->size = cpu_to_le16(VMCLOCK_SIZE);
+    clk->version = cpu_to_le16(1);
 
     /* These are all zero and thus default, but be explicit */
-    vms->clk->clock_status = VMCLOCK_STATUS_UNKNOWN;
-    vms->clk->counter_id = VMCLOCK_COUNTER_INVALID;
+    clk->clock_status = VMCLOCK_STATUS_UNKNOWN;
+    clk->counter_id = VMCLOCK_COUNTER_INVALID;
 
-    qemu_register_reset(vmclock_handle_reset, vms);
+    qemu_register_reset(vmclock_handle_reset, this);
 
-    vmclock_update_guest(vms);
+    vmclock_update_guest(this);
 }
 
-static void vmclock_device_class_init(ObjectClass *klass, const void *data)
+void VmclockState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_vmclock;
-    dc->realize = vmclock_realize;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo vmclock_device_info = {
-    .name          = TYPE_VMCLOCK,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(VmclockState),
-    .class_init    = vmclock_device_class_init,
-};
-
-static void vmclock_register_types(void)
-{
-    type_register_static(&vmclock_device_info);
-}
-
-type_init(vmclock_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VmclockState, TYPE_VMCLOCK, TYPE_DEVICE)

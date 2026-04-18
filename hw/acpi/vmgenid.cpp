@@ -198,54 +198,35 @@ static void vmgenid_handle_reset(void *opaque)
     memset(vms->vmgenid_addr_le, 0, ARRAY_SIZE(vms->vmgenid_addr_le));
 }
 
-static void vmgenid_realize(DeviceState *dev, Error **errp)
+void VmGenIdState::realize(Error **errp)
 {
-    VmGenIdState *vms = VMGENID(dev);
-
     if (!bios_linker_loader_can_write_pointer()) {
         error_setg(errp, "%s requires DMA write support in fw_cfg, "
                    "which this machine type does not provide", TYPE_VMGENID);
         return;
     }
 
-    /* Given that this function is executing, there is at least one VMGENID
-     * device. Check if there are several.
-     */
     if (!find_vmgenid_dev()) {
         error_setg(errp, "at most one %s device is permitted", TYPE_VMGENID);
         return;
     }
 
-    qemu_register_reset(vmgenid_handle_reset, vms);
+    qemu_register_reset(vmgenid_handle_reset, this);
 
-    vmgenid_update_guest(vms);
+    vmgenid_update_guest(this);
 }
 
 static const Property vmgenid_device_properties[] = {
     DEFINE_PROP_UUID(VMGENID_GUID, VmGenIdState, guid),
 };
 
-static void vmgenid_device_class_init(ObjectClass *klass, const void *data)
+void VmGenIdState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_vmgenid;
-    dc->realize = vmgenid_realize;
     device_class_set_props(dc, vmgenid_device_properties);
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo vmgenid_device_info = {
-    .name          = TYPE_VMGENID,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(VmGenIdState),
-    .class_init    = vmgenid_device_class_init,
-};
-
-static void vmgenid_register_types(void)
-{
-    type_register_static(&vmgenid_device_info);
-}
-
-type_init(vmgenid_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VmGenIdState, TYPE_VMGENID, TYPE_DEVICE)

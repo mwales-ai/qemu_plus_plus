@@ -47,6 +47,9 @@ struct HypervTestDev {
     QLIST_HEAD(, TestSintRoute) sint_routes;
     QLIST_HEAD(, TestMsgConn) msg_conns;
     QLIST_HEAD(, TestEvtConn) evt_conns;
+
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
 };
 
 #define TYPE_HYPERV_TEST_DEV "hyperv-testdev"
@@ -293,38 +296,24 @@ static void __attribute__((constructor)) init_synic_test_sint_ops(void)
     synic_test_sint_ops.endianness = DEVICE_LITTLE_ENDIAN;
 }
 
-static void hv_test_dev_realizefn(DeviceState *d, Error **errp)
+void HypervTestDev::realize(Error **errp)
 {
-    ISADevice *isa = ISA_DEVICE(d);
-    HypervTestDev *dev = HYPERV_TEST_DEV(d);
+    ISADevice *isa = ISA_DEVICE(this);
     MemoryRegion *io = isa_address_space_io(isa);
 
-    QLIST_INIT(&dev->sint_routes);
-    QLIST_INIT(&dev->msg_conns);
-    QLIST_INIT(&dev->evt_conns);
-    memory_region_init_io(&dev->sint_control, OBJECT(dev),
-                          &synic_test_sint_ops, dev,
+    QLIST_INIT(&sint_routes);
+    QLIST_INIT(&msg_conns);
+    QLIST_INIT(&evt_conns);
+    memory_region_init_io(&sint_control, OBJECT(this),
+                          &synic_test_sint_ops, this,
                           "hyperv-testdev-ctl", 4);
-    memory_region_add_subregion(io, 0x3000, &dev->sint_control);
+    memory_region_add_subregion(io, 0x3000, &sint_control);
 }
 
-static void hv_test_dev_class_init(ObjectClass *klass, const void *data)
+void HypervTestDev::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    dc->realize = hv_test_dev_realizefn;
 }
 
-static const TypeInfo hv_test_dev_info = {
-    .name           = TYPE_HYPERV_TEST_DEV,
-    .parent         = TYPE_ISA_DEVICE,
-    .instance_size  = sizeof(HypervTestDev),
-    .class_init     = hv_test_dev_class_init,
-};
-
-static void hv_test_dev_register_types(void)
-{
-    type_register_static(&hv_test_dev_info);
-}
-type_init(hv_test_dev_register_types);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(HypervTestDev, TYPE_HYPERV_TEST_DEV, TYPE_ISA_DEVICE)

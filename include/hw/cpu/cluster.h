@@ -76,6 +76,11 @@ struct CPUClusterState {
 
     /*< public >*/
     uint32_t cluster_id;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

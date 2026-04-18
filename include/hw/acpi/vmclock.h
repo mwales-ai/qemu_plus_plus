@@ -24,6 +24,11 @@ struct VmclockState {
     MemoryRegion clk_page;
     uint64_t physaddr;
     struct vmclock_abi *clk;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    void classInit(DeviceClass *dc);
+#endif
 };
 
 /* returns NULL unless there is exactly one device */
