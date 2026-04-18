@@ -107,7 +107,7 @@ struct XlnxXpsEthLite
     void init();
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static inline void eth_pulse_irq(XlnxXpsEthLite *s)

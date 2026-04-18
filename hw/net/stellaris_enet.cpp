@@ -85,7 +85,7 @@ struct stellaris_enet_state {
 
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_rx_frame_fields[] = {

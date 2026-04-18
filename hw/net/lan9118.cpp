@@ -266,7 +266,7 @@ struct lan9118_state {
 
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_lan9118_fields[] = {

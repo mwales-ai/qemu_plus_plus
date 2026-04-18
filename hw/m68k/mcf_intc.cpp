@@ -38,7 +38,7 @@ struct mcf_intc_state {
 
     void init();
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static void mcf_intc_update(mcf_intc_state *s)

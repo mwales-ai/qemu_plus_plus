@@ -77,7 +77,7 @@ struct PPCUIC {
 #ifdef __cplusplus
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

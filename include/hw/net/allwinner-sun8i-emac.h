@@ -99,6 +99,12 @@ struct AwSun8iEmacState {
 
     /** @} */
 
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_NET_ALLWINNER_SUN8I_EMAC_H */

@@ -54,7 +54,7 @@ struct KVMClockState {
     bool clock_is_reliable;
 
     void realize(Error **errp);
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 struct pvclock_vcpu_time_info {

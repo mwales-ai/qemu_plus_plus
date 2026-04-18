@@ -110,7 +110,7 @@ struct mv88w8618_eth_state {
 
     void init();
     void realize(Error **errp);
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static void eth_rx_desc_put(AddressSpace *dma_as, uint32_t addr,

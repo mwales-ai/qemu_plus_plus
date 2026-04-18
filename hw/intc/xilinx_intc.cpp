@@ -73,7 +73,7 @@ struct XpsIntc
 
     void init();
     void realize(Error **errp);
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static void update_irq(XpsIntc *p)

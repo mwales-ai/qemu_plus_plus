@@ -177,7 +177,7 @@ typedef struct m5206_mbar_state {
 
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 } m5206_mbar_state;
 
 #define MCF5206_MBAR(obj) OBJECT_CHECK(m5206_mbar_state, (obj), TYPE_MCF5206_MBAR)

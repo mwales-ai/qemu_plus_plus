@@ -77,7 +77,7 @@ struct NubusBridge {
 
 #ifdef __cplusplus
     void init();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

@@ -67,7 +67,7 @@ struct mv88w8618_audio_state {
     void init();
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)

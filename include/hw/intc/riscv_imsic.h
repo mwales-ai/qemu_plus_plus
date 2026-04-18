@@ -67,7 +67,7 @@ struct RISCVIMSICState {
 
 #ifdef __cplusplus
     void realize(Error **errp);
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

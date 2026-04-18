@@ -35,7 +35,7 @@ struct BCM2835ICState {
 #ifdef __cplusplus
     void init();
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

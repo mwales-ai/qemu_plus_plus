@@ -40,6 +40,11 @@ struct PlatformBusDevice {
     uint32_t num_irqs;
     qemu_irq *irqs;
     unsigned long *used_irqs;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #ifdef __cplusplus

@@ -55,7 +55,7 @@ struct PCTestdev {
     char iomem_buf[IOMEM_LEN];
 
     void realize(Error **errp);
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_TESTDEV "pc-testdev"

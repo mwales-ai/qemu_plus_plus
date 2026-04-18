@@ -217,7 +217,7 @@ struct MIPSGICState {
 #ifdef __cplusplus
     void init();
     void realize(Error **errp);
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

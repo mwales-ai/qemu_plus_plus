@@ -97,7 +97,7 @@ struct UART {
 
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static int uart_data_to_read(UART *uart)

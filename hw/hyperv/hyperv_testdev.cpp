@@ -49,7 +49,7 @@ struct HypervTestDev {
     QLIST_HEAD(, TestEvtConn) evt_conns;
 
     void realize(Error **errp);
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_HYPERV_TEST_DEV "hyperv-testdev"

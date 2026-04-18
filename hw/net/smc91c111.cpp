@@ -66,7 +66,7 @@ struct smc91c111_state {
 
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_smc91c111_fields[] = {

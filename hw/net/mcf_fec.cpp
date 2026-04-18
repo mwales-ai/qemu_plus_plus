@@ -59,7 +59,7 @@ struct mcf_fec_state {
     void init();
     void realize(Error **errp);
     void reset();
-    void classInit(DeviceClass *dc);
+    static void classInit(DeviceClass *dc);
 };
 
 #define FEC_INT_HB   0x80000000
