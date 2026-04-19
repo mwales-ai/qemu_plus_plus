@@ -404,20 +404,13 @@ struct Exynos4210PmuState {
     MemoryRegion iomem;
     uint32_t reg[PMU_NUM_OF_REGISTERS];
 
-    /* Instance methods */
     void reset();
-    void initfn();
+    void init();
 
-    /* Static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t val, unsigned size);
 
-    /* Static QOM wrappers */
-    static void resetWrapper(DeviceState *dev);
-    static void initWrapper(Object *obj);
-
-    /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static void exynos4210_pmu_poweroff(void)
@@ -492,27 +485,11 @@ void Exynos4210PmuState::reset()
     }
 }
 
-void Exynos4210PmuState::resetWrapper(DeviceState *dev)
+void Exynos4210PmuState::init()
 {
-    Exynos4210PmuState *s = reinterpret_cast<Exynos4210PmuState *>(dev);
-    s->reset();
-}
-
-void Exynos4210PmuState::initfn()
-{
-    Object *obj = reinterpret_cast<Object *>(this);
-    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
-
-    /* memory mapping */
-    memory_region_init_io(&iomem, obj, &exynos4210_pmu_ops, this,
+    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_pmu_ops, this,
                           "exynos4210.pmu", EXYNOS4210_PMU_REGS_MEM_SIZE);
-    sysbus_init_mmio(dev, &iomem);
-}
-
-void Exynos4210PmuState::initWrapper(Object *obj)
-{
-    Exynos4210PmuState *s = reinterpret_cast<Exynos4210PmuState *>(obj);
-    s->initfn();
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const VMStateDescription exynos4210_pmu_vmstate = {
@@ -525,25 +502,10 @@ static const VMStateDescription exynos4210_pmu_vmstate = {
     }
 };
 
-void Exynos4210PmuState::classInit(ObjectClass *klass, const void *data)
+void Exynos4210PmuState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, Exynos4210PmuState::resetWrapper);
     dc->vmsd = &exynos4210_pmu_vmstate;
 }
 
-static const TypeInfo exynos4210_pmu_info = {
-    .name          = TYPE_EXYNOS4210_PMU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210PmuState),
-    .instance_init = Exynos4210PmuState::initWrapper,
-    .class_init    = Exynos4210PmuState::classInit,
-};
-
-static void exynos4210_pmu_register(void)
-{
-    type_register_static(&exynos4210_pmu_info);
-}
-
-type_init(exynos4210_pmu_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210PmuState, TYPE_EXYNOS4210_PMU, TYPE_SYS_BUS_DEVICE)

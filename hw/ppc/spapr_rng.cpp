@@ -93,49 +93,37 @@ struct SpaprRngState {
         return H_SUCCESS;
     }
 
-    static void instanceInit(Object *obj)
+    void init()
     {
         if (object_resolve_path_type("", TYPE_SPAPR_RNG, NULL) != NULL) {
             error_report("spapr-rng can not be instantiated twice!");
             return;
         }
 
-        object_property_set_description(obj, "rng",
+        object_property_set_description(OBJECT(this), "rng",
                                         "ID of the random number generator backend");
     }
 
-    void realize(DeviceState *dev, Error **errp)
+    void realize(Error **errp)
     {
-        SpaprRngState *rngstate = SPAPR_RNG(dev);
-
-        if (rngstate->use_kvm) {
+        if (use_kvm) {
             if (kvmppc_enable_hwrng() == 0) {
                 return;
             }
-            /*
-             * If user specified both, use-kvm and a backend, we fall back to
-             * the backend now. If not, provide an appropriate error message.
-             */
-            if (!rngstate->backend) {
+            if (!backend) {
                 error_setg(errp, "Could not initialize in-kernel H_RANDOM call!");
                 return;
             }
         }
 
-        if (rngstate->backend) {
+        if (backend) {
             spapr_register_hypercall(H_RANDOM, hRandom);
         } else {
             error_setg(errp, "spapr-rng needs an RNG backend!");
         }
     }
 
-    static void realizeWrapper(DeviceState *dev, Error **errp)
-    {
-        SpaprRngState *s = SPAPR_RNG(dev);
-        s->realize(dev, errp);
-    }
-
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const Property spapr_rng_properties[] = {
@@ -144,26 +132,12 @@ static const Property spapr_rng_properties[] = {
                      RngBackend *),
 };
 
-void SpaprRngState::classInit(ObjectClass *oc, const void *data)
+void SpaprRngState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     device_class_set_props(dc, spapr_rng_properties);
     dc->hotpluggable = false;
 }
 
-static const TypeInfo spapr_rng_info = {
-    .name          = TYPE_SPAPR_RNG,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(SpaprRngState),
-    .instance_init = SpaprRngState::instanceInit,
-    .class_init    = SpaprRngState::classInit,
-};
-
-static void spapr_rng_register_type(void)
-{
-    type_register_static(&spapr_rng_info);
-}
-type_init(spapr_rng_register_type)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SpaprRngState, TYPE_SPAPR_RNG, TYPE_DEVICE)

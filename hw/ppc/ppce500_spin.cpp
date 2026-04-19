@@ -101,12 +101,6 @@ struct SpinState {
         }
     }
 
-    static void resetWrapper(DeviceState *dev)
-    {
-        SpinState *s = E500_SPIN(dev);
-        s->reset();
-    }
-
     static void write(void *opaque, hwaddr addr, uint64_t value,
                       unsigned len)
     {
@@ -165,21 +159,11 @@ struct SpinState {
 
     static const MemoryRegionOps ops;
 
-    static void instanceInit(Object *obj)
+    void init()
     {
-        SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
-        SpinState *s = E500_SPIN(dev);
-
-        memory_region_init_io(&s->iomem, obj, &ops, s,
+        memory_region_init_io(&iomem, OBJECT(this), &ops, this,
                               "e500 spin pv device", sizeof(SpinInfo) * MAX_CPUS);
-        sysbus_init_mmio(dev, &s->iomem);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-        device_class_set_legacy_reset(dc, resetWrapper);
+        sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
     }
 };
 
@@ -189,17 +173,5 @@ const MemoryRegionOps SpinState::ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static const TypeInfo ppce500_spin_info = {
-    .name          = TYPE_E500_SPIN,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SpinState),
-    .instance_init = SpinState::instanceInit,
-    .class_init    = SpinState::classInit,
-};
-
-static void ppce500_spin_register_types(void)
-{
-    type_register_static(&ppce500_spin_info);
-}
-
-type_init(ppce500_spin_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SpinState, TYPE_E500_SPIN, TYPE_SYS_BUS_DEVICE)

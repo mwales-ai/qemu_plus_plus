@@ -55,7 +55,7 @@ struct NeXTFbState {
     static void gfxInvalidate(void *opaque);
 
     /* Class methods */
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void NeXTFbState::drawLine(void *opaque, uint8_t *d, const uint8_t *s,
@@ -118,12 +118,6 @@ static const GraphicHwOps nextfb_ops = {
     .gfx_update  = NeXTFbState::gfxUpdate,
 };
 
-static void nextfb_realizefn(DeviceState *dev, Error **errp)
-{
-    NeXTFbState *s = reinterpret_cast<NeXTFbState *>(dev);
-    s->realize(errp);
-}
-
 void NeXTFbState::realize(Error **errp)
 {
     memory_region_init_ram(&fb_mr, reinterpret_cast<Object *>(this),
@@ -139,26 +133,10 @@ void NeXTFbState::realize(Error **errp)
     qemu_console_resize(con, cols, rows);
 }
 
-void NeXTFbState::classInit(ObjectClass *oc, const void *data)
+void NeXTFbState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    dc->realize = nextfb_realizefn;
-
-    /* Note: This device does not have any state that we have to reset or migrate */
 }
 
-static const TypeInfo nextfb_info = {
-    .name          = TYPE_NEXTFB,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NeXTFbState),
-    .class_init    = NeXTFbState::classInit,
-};
-
-static void nextfb_register_types(void)
-{
-    type_register_static(&nextfb_info);
-}
-
-type_init(nextfb_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NeXTFbState, TYPE_NEXTFB, TYPE_SYS_BUS_DEVICE)

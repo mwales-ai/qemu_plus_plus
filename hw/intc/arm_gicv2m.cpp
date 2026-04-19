@@ -155,23 +155,14 @@ struct ARMGICv2mState {
         kvm_msi_via_irqfd_allowed = kvm_irqfds_enabled();
     }
 
-    static void realizeWrapper(DeviceState *dev, Error **errp)
+    void init()
     {
-        ARMGICv2mState *s = reinterpret_cast<ARMGICv2mState *>(dev);
-        s->realize(errp);
-    }
-
-    static void instanceInit(Object *obj)
-    {
-        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-        ARMGICv2mState *s = reinterpret_cast<ARMGICv2mState *>(obj);
-
-        memory_region_init_io(&s->iomem, obj, &ops, s,
+        memory_region_init_io(&iomem, OBJECT(this), &ops, this,
                               "gicv2m", 0x1000);
-        sysbus_init_mmio(sbd, &s->iomem);
+        sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
     }
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 const MemoryRegionOps ARMGICv2mState::ops = {
@@ -185,25 +176,10 @@ static const Property gicv2m_properties[] = {
     DEFINE_PROP_UINT32("num-spi", ARMGICv2mState, num_spi, 64),
 };
 
-void ARMGICv2mState::classInit(ObjectClass *klass, const void *data)
+void ARMGICv2mState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     device_class_set_props(dc, gicv2m_properties);
-    dc->realize = ARMGICv2mState::realizeWrapper;
 }
 
-static const TypeInfo gicv2m_info = {
-    .name          = TYPE_ARM_GICV2M,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARMGICv2mState),
-    .instance_init = ARMGICv2mState::instanceInit,
-    .class_init    = ARMGICv2mState::classInit,
-};
-
-static void gicv2m_register_types(void)
-{
-    type_register_static(&gicv2m_info);
-}
-
-type_init(gicv2m_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ARMGICv2mState, TYPE_ARM_GICV2M, TYPE_SYS_BUS_DEVICE)

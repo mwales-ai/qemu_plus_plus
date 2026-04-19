@@ -52,24 +52,12 @@ struct ISAVGAState {
     void realize(Error **errp);
 
     /* Class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
-
-static void vga_isa_reset(DeviceState *dev)
-{
-    ISAVGAState *d = ISA_VGA(dev);
-    d->reset();
-}
 
 void ISAVGAState::reset()
 {
     vga_common_reset(&state);
-}
-
-static void vga_isa_realizefn(DeviceState *dev, Error **errp)
-{
-    ISAVGAState *d = ISA_VGA(dev);
-    d->realize(errp);
 }
 
 void ISAVGAState::realize(Error **errp)
@@ -109,27 +97,12 @@ static const Property vga_isa_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 8),
 };
 
-void ISAVGAState::classInit(ObjectClass *klass, const void *data)
+void ISAVGAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = vga_isa_realizefn;
-    device_class_set_legacy_reset(dc, vga_isa_reset);
     dc->vmsd = &vmstate_vga_common;
     device_class_set_props(dc, vga_isa_properties);
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
-static const TypeInfo vga_isa_info = {
-    .name          = TYPE_ISA_VGA,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISAVGAState),
-    .class_init    = ISAVGAState::classInit,
-};
-
-static void vga_isa_register_types(void)
-{
-    type_register_static(&vga_isa_info);
-}
-
-type_init(vga_isa_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ISAVGAState, TYPE_ISA_VGA, TYPE_ISA_DEVICE)
