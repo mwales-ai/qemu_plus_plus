@@ -978,11 +978,6 @@ void SerialState::realize(Error **errp)
 }
 
 /* QOM realize callback wrapper */
-static void serial_realize(DeviceState *dev, Error **errp)
-{
-    reinterpret_cast<SerialState *>(dev)->realize(errp);
-}
-
 static void serial_unrealize(DeviceState *dev)
 {
     SerialState *s = reinterpret_cast<SerialState *>(dev);
@@ -1018,27 +1013,12 @@ static const Property serial_properties[] = {
     DEFINE_PROP_BOOL("wakeup", SerialState, wakeup, false),
 };
 
-void SerialState::classInit(ObjectClass *klass, const void *data)
+void SerialState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    /* internal device for serialio/serialmm, not user-creatable */
     dc->user_creatable = false;
-    dc->realize = serial_realize;
     dc->unrealize = serial_unrealize;
     device_class_set_props(dc, serial_properties);
 }
 
-static const TypeInfo serial_info = {
-    .name = TYPE_SERIAL,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SerialState),
-    .class_init = SerialState::classInit,
-};
-
-static void serial_register_types(void)
-{
-    type_register_static(&serial_info);
-}
-
-type_init(serial_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SerialState, TYPE_SERIAL, TYPE_DEVICE)

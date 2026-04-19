@@ -88,7 +88,7 @@ struct SerialState {
     void xmitFifoGet();
     void writeReg(hwaddr addr, uint64_t val);
     uint64_t readReg(hwaddr addr);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 
