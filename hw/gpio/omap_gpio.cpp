@@ -62,12 +62,9 @@ struct Omap1GpioState {
                           unsigned size);
 
     void reset();
-    static void resetWrapper(DeviceState *dev);
-
-    static void instanceInit(Object *obj);
+    void init();
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* General-Purpose I/O of OMAP1 */
@@ -214,24 +211,14 @@ void Omap1GpioState::reset()
     omap_gpio_s::gpioReset(&omap1);
 }
 
-void Omap1GpioState::resetWrapper(DeviceState *dev)
+void Omap1GpioState::init()
 {
-    Omap1GpioState *s = reinterpret_cast<Omap1GpioState *>(dev);
-    s->reset();
-}
-
-void Omap1GpioState::instanceInit(Object *obj)
-{
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    Omap1GpioState *s = reinterpret_cast<Omap1GpioState *>(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-
-    qdev_init_gpio_in(dev, gpioSet, 16);
-    qdev_init_gpio_out(dev, s->omap1.handler, 16);
-    sysbus_init_irq(sbd, &s->omap1.irq);
-    memory_region_init_io(&s->iomem, obj, &omap_gpio_ops, &s->omap1,
+    qdev_init_gpio_in(DEVICE(this), gpioSet, 16);
+    qdev_init_gpio_out(DEVICE(this), omap1.handler, 16);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &omap1.irq);
+    memory_region_init_io(&iomem, OBJECT(this), &omap_gpio_ops, &omap1,
                           "omap.gpio", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 void Omap1GpioState::realize(Error **errp)
@@ -239,12 +226,6 @@ void Omap1GpioState::realize(Error **errp)
     if (!clk) {
         error_setg(errp, "omap-gpio: clk not connected");
     }
-}
-
-void Omap1GpioState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    Omap1GpioState *s = reinterpret_cast<Omap1GpioState *>(dev);
-    s->realize(errp);
 }
 
 extern "C"
@@ -257,28 +238,11 @@ static const Property omap_gpio_properties[] = {
     DEFINE_PROP_INT32("mpu_model", Omap1GpioState, mpu_model, 0),
 };
 
-void Omap1GpioState::classInit(ObjectClass *klass, const void *data)
+void Omap1GpioState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = realizeWrapper;
-    device_class_set_legacy_reset(dc, resetWrapper);
     device_class_set_props(dc, omap_gpio_properties);
-    /* Reason: pointer property "clk" */
     dc->user_creatable = false;
 }
 
-static const TypeInfo omap_gpio_info = {
-    .name          = TYPE_OMAP1_GPIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Omap1GpioState),
-    .instance_init = Omap1GpioState::instanceInit,
-    .class_init    = Omap1GpioState::classInit,
-};
-
-static void omap_gpio_register_types(void)
-{
-    type_register_static(&omap_gpio_info);
-}
-
-type_init(omap_gpio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Omap1GpioState, TYPE_OMAP1_GPIO, TYPE_SYS_BUS_DEVICE)

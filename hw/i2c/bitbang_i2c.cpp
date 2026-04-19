@@ -200,8 +200,8 @@ struct GPIOI2CState {
     qemu_irq out;
 
     static void gpioSet(void *opaque, int irq, int level);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 void GPIOI2CState::gpioSet(void *opaque, int irq, int level)
@@ -215,38 +215,22 @@ void GPIOI2CState::gpioSet(void *opaque, int irq, int level)
     }
 }
 
-void GPIOI2CState::instanceInit(Object *obj)
+void GPIOI2CState::init()
 {
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    GPIOI2CState *s = reinterpret_cast<GPIOI2CState *>(obj);
     I2CBus *bus;
 
-    bus = i2c_init_bus(dev, "i2c");
-    bitbang_i2c_init(&s->bitbang, bus);
+    bus = i2c_init_bus(DEVICE(this), "i2c");
+    bitbang_i2c_init(&bitbang, bus);
 
-    qdev_init_gpio_in(dev, gpioSet, 2);
-    qdev_init_gpio_out(dev, &s->out, 1);
+    qdev_init_gpio_in(DEVICE(this), gpioSet, 2);
+    qdev_init_gpio_out(DEVICE(this), &out, 1);
 }
 
-void GPIOI2CState::classInit(ObjectClass *klass, const void *data)
+void GPIOI2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->desc = "Virtual GPIO to I2C bridge";
 }
 
-static const TypeInfo gpio_i2c_info = {
-    .name          = TYPE_GPIO_I2C,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(GPIOI2CState),
-    .instance_init = GPIOI2CState::instanceInit,
-    .class_init    = GPIOI2CState::classInit,
-};
-
-static void bitbang_i2c_register_types(void)
-{
-    type_register_static(&gpio_i2c_info);
-}
-
-type_init(bitbang_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(GPIOI2CState, TYPE_GPIO_I2C, TYPE_SYS_BUS_DEVICE)

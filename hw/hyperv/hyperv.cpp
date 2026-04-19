@@ -47,10 +47,7 @@ struct SynICState {
     /* Methods */
     void realize(Error **errp);
     void reset();
-
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void resetWrapper(DeviceState *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_SYNIC "hyperv-synic"
@@ -109,15 +106,8 @@ void hyperv_synic_update(CPUState *cs, bool sctl_enable,
     synic_update(synic, sctl_enable, msg_page_addr, event_page_addr);
 }
 
-void SynICState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    SynICState *synic = SYNIC(dev);
-    synic->realize(errp);
-}
-
 void SynICState::realize(Error **errp)
 {
-    Object *obj = reinterpret_cast<Object *>(this);
     char *msgp_name, *eventp_name;
     uint32_t vp_index;
 
@@ -126,9 +116,9 @@ void SynICState::realize(Error **errp)
     msgp_name = g_strdup_printf("synic-%u-msg-page", vp_index);
     eventp_name = g_strdup_printf("synic-%u-event-page", vp_index);
 
-    memory_region_init_ram(&msg_page_mr, obj, msgp_name,
+    memory_region_init_ram(&msg_page_mr, OBJECT(this), msgp_name,
                            sizeof(*msg_page), &error_abort);
-    memory_region_init_ram(&event_page_mr, obj, eventp_name,
+    memory_region_init_ram(&event_page_mr, OBJECT(this), eventp_name,
                            sizeof(*event_page), &error_abort);
     msg_page = static_cast<struct hyperv_message_page *>(memory_region_get_ram_ptr(&msg_page_mr));
     event_page = static_cast<struct hyperv_event_flags_page *>(memory_region_get_ram_ptr(&event_page_mr));
@@ -139,12 +129,6 @@ void SynICState::realize(Error **errp)
     g_free(eventp_name);
 }
 
-void SynICState::resetWrapper(DeviceState *dev)
-{
-    SynICState *synic = SYNIC(dev);
-    synic->reset();
-}
-
 void SynICState::reset()
 {
     memset(msg_page, 0, sizeof(*msg_page));
@@ -153,12 +137,8 @@ void SynICState::reset()
     assert(QLIST_EMPTY(&sint_routes));
 }
 
-void SynICState::classInit(ObjectClass *klass, const void *data)
+void SynICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = SynICState::realizeWrapper;
-    device_class_set_legacy_reset(dc, SynICState::resetWrapper);
     dc->user_creatable = false;
 }
 
@@ -185,19 +165,8 @@ void hyperv_synic_reset(CPUState *cs)
     }
 }
 
-static const TypeInfo synic_type_info = {
-    .name = TYPE_SYNIC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(SynICState),
-    .class_init = SynICState::classInit,
-};
-
-static void synic_register_types(void)
-{
-    type_register_static(&synic_type_info);
-}
-
-type_init(synic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SynICState, TYPE_SYNIC, TYPE_DEVICE)
 
 /*
  * KVM has its own message producers (SynIC timers).  To guarantee

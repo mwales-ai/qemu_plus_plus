@@ -77,8 +77,8 @@ struct SLAVIO_TIMERState {
     uint64_t memReadl(unsigned int timer_index, hwaddr addr);
     void memWritel(unsigned int timer_index, hwaddr addr, uint64_t val);
     void reset();
-    void instanceInit();
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 typedef struct TimerContext {
@@ -385,12 +385,6 @@ static const VMStateDescription vmstate_slavio_timer = {
     }
 };
 
-static void slavio_timer_reset(DeviceState *d)
-{
-    SLAVIO_TIMERState *s = reinterpret_cast<SLAVIO_TIMERState *>(d);
-    s->reset();
-}
-
 void SLAVIO_TIMERState::reset()
 {
     unsigned int i;
@@ -413,15 +407,9 @@ void SLAVIO_TIMERState::reset()
     this->cputimer_mode = 0;
 }
 
-static void slavio_timer_init(Object *obj)
+void SLAVIO_TIMERState::init()
 {
-    SLAVIO_TIMERState *s = reinterpret_cast<SLAVIO_TIMERState *>(obj);
-    s->instanceInit();
-}
-
-void SLAVIO_TIMERState::instanceInit()
-{
-    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
     unsigned int i;
     TimerContext *tc;
 
@@ -433,19 +421,19 @@ void SLAVIO_TIMERState::instanceInit()
         tc->s = this;
         tc->timer_index = i;
 
-        this->cputimer[i].timer = ptimer_init(slavio_timer_irq, tc,
+        cputimer[i].timer = ptimer_init(slavio_timer_irq, tc,
                                            PTIMER_POLICY_LEGACY);
-        ptimer_transaction_begin(this->cputimer[i].timer);
-        ptimer_set_period(this->cputimer[i].timer, TIMER_PERIOD);
-        ptimer_transaction_commit(this->cputimer[i].timer);
+        ptimer_transaction_begin(cputimer[i].timer);
+        ptimer_set_period(cputimer[i].timer, TIMER_PERIOD);
+        ptimer_transaction_commit(cputimer[i].timer);
 
         size = i == 0 ? SYS_TIMER_SIZE : CPU_TIMER_SIZE;
         snprintf(timer_name, sizeof(timer_name), "timer-%i", i);
-        memory_region_init_io(&tc->iomem, reinterpret_cast<Object *>(this), &slavio_timer_mem_ops, tc,
+        memory_region_init_io(&tc->iomem, OBJECT(this), &slavio_timer_mem_ops, tc,
                               timer_name, size);
         sysbus_init_mmio(dev, &tc->iomem);
 
-        sysbus_init_irq(dev, &this->cputimer[i].irq);
+        sysbus_init_irq(dev, &cputimer[i].irq);
     }
 }
 
@@ -453,26 +441,11 @@ static const Property slavio_timer_properties[] = {
     DEFINE_PROP_UINT32("num_cpus",  SLAVIO_TIMERState, num_cpus,  0),
 };
 
-void SLAVIO_TIMERState::classInit(ObjectClass *klass, const void *data)
+void SLAVIO_TIMERState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, slavio_timer_reset);
     dc->vmsd = &vmstate_slavio_timer;
     device_class_set_props(dc, slavio_timer_properties);
 }
 
-static const TypeInfo slavio_timer_info = {
-    .name          = TYPE_SLAVIO_TIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SLAVIO_TIMERState),
-    .instance_init = slavio_timer_init,
-    .class_init    = SLAVIO_TIMERState::classInit,
-};
-
-static void slavio_timer_register_types(void)
-{
-    type_register_static(&slavio_timer_info);
-}
-
-type_init(slavio_timer_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SLAVIO_TIMERState, TYPE_SLAVIO_TIMER, TYPE_SYS_BUS_DEVICE)

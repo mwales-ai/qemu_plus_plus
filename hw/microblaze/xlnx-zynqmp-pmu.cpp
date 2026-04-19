@@ -102,52 +102,27 @@ struct XlnxZynqMPPMUSoCState {
         }
     }
 
-    static void realizeWrapper(DeviceState *dev, Error **errp)
+    void init()
     {
-        XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(dev);
-        s->realize(errp);
-    }
+        object_initialize_child(OBJECT(this), "pmu-cpu", &cpu, TYPE_MICROBLAZE_CPU);
 
-    static void instanceInit(Object *obj)
-    {
-        XlnxZynqMPPMUSoCState *s = XLNX_ZYNQMP_PMU_SOC(obj);
+        object_initialize_child(OBJECT(this), "intc", &intc, TYPE_XLNX_PMU_IO_INTC);
 
-        object_initialize_child(obj, "pmu-cpu", &s->cpu, TYPE_MICROBLAZE_CPU);
-
-        object_initialize_child(obj, "intc", &s->intc, TYPE_XLNX_PMU_IO_INTC);
-
-        /* Create the IPI device */
         for (int i = 0; i < XLNX_ZYNQMP_PMU_NUM_IPIS; i++) {
             char *name = g_strdup_printf("ipi%d", i);
-            object_initialize_child(obj, name, &s->ipi[i], TYPE_XLNX_ZYNQMP_IPI);
+            object_initialize_child(OBJECT(this), name, &ipi[i], TYPE_XLNX_ZYNQMP_IPI);
             g_free(name);
         }
     }
 
-    static void classInit(ObjectClass *oc, const void *data)
+    static void classInit(DeviceClass *dc)
     {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
-        /* xlnx-zynqmp-pmu-soc causes crashes when cold-plugged twice */
         dc->user_creatable = false;
-        dc->realize = realizeWrapper;
     }
 };
 
-static const TypeInfo xlnx_zynqmp_pmu_soc_type_info = {
-    .name = TYPE_XLNX_ZYNQMP_PMU_SOC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(XlnxZynqMPPMUSoCState),
-    .instance_init = XlnxZynqMPPMUSoCState::instanceInit,
-    .class_init = XlnxZynqMPPMUSoCState::classInit,
-};
-
-static void xlnx_zynqmp_pmu_soc_register_types(void)
-{
-    type_register_static(&xlnx_zynqmp_pmu_soc_type_info);
-}
-
-type_init(xlnx_zynqmp_pmu_soc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxZynqMPPMUSoCState, TYPE_XLNX_ZYNQMP_PMU_SOC, TYPE_DEVICE)
 
 /* Define the PMU Machine */
 
