@@ -313,26 +313,18 @@ static void __attribute__((constructor)) init_ivshmem_flat_ops(void)
     ivshmem_flat_ops.impl.max_access_size = 4;
 }
 
-static void ivshmem_flat_instance_init(Object *obj)
+void IvshmemFTState::init()
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    IvshmemFTState *s = IVSHMEM_FLAT(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    /*
-     * Init mem region for 4 MMRs (ivshmem_registers),
-     * 32 bits each => 16 bytes (0x10).
-     */
-    memory_region_init_io(&s->iomem, obj, &ivshmem_flat_ops, s,
+    memory_region_init_io(&iomem, obj, &ivshmem_flat_ops, this,
                           "ivshmem-mmio", 0x10);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 
-    /*
-     * Create one output IRQ that will be connect to the
-     * machine's interrupt controller.
-     */
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    QTAILQ_INIT(&s->peer);
+    QTAILQ_INIT(&peer);
 }
 
 static bool ivshmem_flat_connect_server(DeviceState *dev, Error **errp)
@@ -431,9 +423,9 @@ static bool ivshmem_flat_connect_server(DeviceState *dev, Error **errp)
     return true;
 }
 
-static void ivshmem_flat_realize(DeviceState *dev, Error **errp)
+void IvshmemFTState::realize(Error **errp)
 {
-    if (!ivshmem_flat_connect_server(dev, errp)) {
+    if (!ivshmem_flat_connect_server(DEVICE(this), errp)) {
         return;
     }
 }
@@ -443,28 +435,15 @@ static const Property ivshmem_flat_props[] = {
     DEFINE_PROP_UINT32("shmem-size", IvshmemFTState, shmem_size, 4 * MiB),
 };
 
-static void ivshmem_flat_class_init(ObjectClass *klass, const void *data)
+void IvshmemFTState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->hotpluggable = true;
-    dc->realize = ivshmem_flat_realize;
 
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     device_class_set_props(dc, ivshmem_flat_props);
 
-    /* Reason: Must be wired up in code (sysbus MRs and IRQ) */
     dc->user_creatable = false;
 }
 
-static const TypeInfo ivshmem_flat_types[] = {
-    {
-        .name           = TYPE_IVSHMEM_FLAT,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(IvshmemFTState),
-        .instance_init  = ivshmem_flat_instance_init,
-        .class_init     = ivshmem_flat_class_init,
-    },
-};
-
-DEFINE_TYPES(ivshmem_flat_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IvshmemFTState, TYPE_IVSHMEM_FLAT, TYPE_SYS_BUS_DEVICE)

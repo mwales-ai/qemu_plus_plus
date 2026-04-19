@@ -23,70 +23,69 @@ static const uint32_t max78000_uart_addr[] = {0x40042000, 0x40043000,
 
 static const int max78000_uart_irq[] = {14, 15, 34};
 
-static void max78000_soc_initfn(Object *obj)
+void MAX78000State::init()
 {
-    MAX78000State *s = MAX78000_SOC(obj);
+    Object *obj = OBJECT(this);
     int i;
 
-    object_initialize_child(obj, "armv7m", &s->armv7m, TYPE_ARMV7M);
+    object_initialize_child(obj, "armv7m", &armv7m, TYPE_ARMV7M);
 
-    object_initialize_child(obj, "gcr", &s->gcr, TYPE_MAX78000_GCR);
+    object_initialize_child(obj, "gcr", &gcr, TYPE_MAX78000_GCR);
 
     for (i = 0; i < MAX78000_NUM_ICC; i++) {
         g_autofree char *name = g_strdup_printf("icc%d", i);
-        object_initialize_child(obj, name, &s->icc[i], TYPE_MAX78000_ICC);
+        object_initialize_child(obj, name, &icc[i], TYPE_MAX78000_ICC);
     }
 
     for (i = 0; i < MAX78000_NUM_UART; i++) {
         g_autofree char *name = g_strdup_printf("uart%d", i);
-        object_initialize_child(obj, name, &s->uart[i],
+        object_initialize_child(obj, name, &uart[i],
                                 TYPE_MAX78000_UART);
     }
 
-    object_initialize_child(obj, "trng", &s->trng, TYPE_MAX78000_TRNG);
+    object_initialize_child(obj, "trng", &trng, TYPE_MAX78000_TRNG);
 
-    object_initialize_child(obj, "aes", &s->aes, TYPE_MAX78000_AES);
+    object_initialize_child(obj, "aes", &aes, TYPE_MAX78000_AES);
 
-    s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
+    sysclk = qdev_init_clock_in(DEVICE(this), "sysclk", NULL, NULL, 0);
 }
 
-static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
+void MAX78000State::realize(Error **errp)
 {
-    MAX78000State *s = MAX78000_SOC(dev_soc);
     MemoryRegion *system_memory = get_system_memory();
-    DeviceState *dev, *gcrdev, *armv7m;
+    DeviceState *dev, *gcrdev, *armv7m_dev;
     SysBusDevice *busdev;
     Error *err = NULL;
     int i;
 
-    if (!clock_has_source(s->sysclk)) {
+    if (!clock_has_source(sysclk)) {
         error_setg(errp, "sysclk clock must be wired up by the board code");
         return;
     }
 
-    memory_region_init_rom(&s->flash, OBJECT(dev_soc), "MAX78000.flash",
+    memory_region_init_rom(&flash, OBJECT(this), "MAX78000.flash",
                            FLASH_SIZE, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
 
-    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &s->flash);
+    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &flash);
 
-    memory_region_init_ram(&s->sram, NULL, "MAX78000.sram", SRAM_SIZE,
+    memory_region_init_ram(&sram, NULL, "MAX78000.sram", SRAM_SIZE,
                            &err);
 
-    gcrdev = DEVICE(&s->gcr);
-    object_property_set_link(OBJECT(gcrdev), "sram", OBJECT(&s->sram),
+    gcrdev = DEVICE(&gcr);
+    object_property_set_link(OBJECT(gcrdev), "sram", OBJECT(&sram),
                                  &err);
 
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
-    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &s->sram);
+    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &sram);
 
-    armv7m = DEVICE(&s->armv7m);
+    armv7m_dev = DEVICE(&armv7m);
 
     /*
      * The MAX78000 user guide's Interrupt Vector Table section
@@ -94,28 +93,28 @@ static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
      * 104 in table 5-1. Implement the more generous of the two.
      * This has not been tested in hardware.
      */
-    qdev_prop_set_uint32(armv7m, "num-irq", 120);
-    qdev_prop_set_uint8(armv7m, "num-prio-bits", 3);
-    qdev_prop_set_string(armv7m, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m4"));
-    qdev_prop_set_bit(armv7m, "enable-bitband", true);
-    qdev_connect_clock_in(armv7m, "cpuclk", s->sysclk);
-    object_property_set_link(OBJECT(&s->armv7m), "memory",
+    qdev_prop_set_uint32(armv7m_dev, "num-irq", 120);
+    qdev_prop_set_uint8(armv7m_dev, "num-prio-bits", 3);
+    qdev_prop_set_string(armv7m_dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m4"));
+    qdev_prop_set_bit(armv7m_dev, "enable-bitband", true);
+    qdev_connect_clock_in(armv7m_dev, "cpuclk", sysclk);
+    object_property_set_link(OBJECT(&armv7m), "memory",
                              OBJECT(system_memory), &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&armv7m), errp)) {
         return;
     }
 
     for (i = 0; i < MAX78000_NUM_ICC; i++) {
-        dev = DEVICE(&(s->icc[i]));
+        dev = DEVICE(&(icc[i]));
         sysbus_realize(SYS_BUS_DEVICE(dev), errp);
         sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, max78000_icc_addr[i]);
     }
 
     for (i = 0; i < MAX78000_NUM_UART; i++) {
         g_autofree char *link = g_strdup_printf("uart%d", i);
-        dev = DEVICE(&(s->uart[i]));
+        dev = DEVICE(&(uart[i]));
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&uart[i]), errp)) {
             return;
         }
 
@@ -124,25 +123,25 @@ static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
 
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(busdev, 0, max78000_uart_addr[i]);
-        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m,
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m_dev,
                                                        max78000_uart_irq[i]));
     }
 
-    dev = DEVICE(&s->trng);
+    dev = DEVICE(&trng);
     sysbus_realize(SYS_BUS_DEVICE(dev), errp);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x4004d000);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(armv7m, 4));
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(armv7m_dev, 4));
 
     object_property_set_link(OBJECT(gcrdev), "trng", OBJECT(dev), &err);
 
-    dev = DEVICE(&s->aes);
+    dev = DEVICE(&aes);
     sysbus_realize(SYS_BUS_DEVICE(dev), errp);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x40007400);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(armv7m, 5));
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(armv7m_dev, 5));
 
     object_property_set_link(OBJECT(gcrdev), "aes", OBJECT(dev), &err);
 
-    dev = DEVICE(&s->gcr);
+    dev = DEVICE(&gcr);
     sysbus_realize(SYS_BUS_DEVICE(dev), errp);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0x40000000);
 
@@ -209,24 +208,5 @@ static void max78000_soc_realize(DeviceState *dev_soc, Error **errp)
 
 }
 
-static void max78000_soc_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = max78000_soc_realize;
-}
-
-static const TypeInfo max78000_soc_info = {
-    .name          = TYPE_MAX78000_SOC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MAX78000State),
-    .instance_init = max78000_soc_initfn,
-    .class_init    = max78000_soc_class_init,
-};
-
-static void max78000_soc_types(void)
-{
-    type_register_static(&max78000_soc_info);
-}
-
-type_init(max78000_soc_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MAX78000State, TYPE_MAX78000_SOC, TYPE_SYS_BUS_DEVICE)

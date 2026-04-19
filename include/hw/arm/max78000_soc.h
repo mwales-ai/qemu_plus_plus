@@ -49,6 +49,11 @@ struct MAX78000State {
     Max78000AesState aes;
 
     Clock *sysclk;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+#endif
 };
 
 #ifdef __cplusplus

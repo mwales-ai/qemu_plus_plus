@@ -23,4 +23,10 @@ struct LoongArchPCHMSI {
     /* irq base passed to upper extioi intc */
     unsigned int irq_base;
     unsigned int irq_num;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };

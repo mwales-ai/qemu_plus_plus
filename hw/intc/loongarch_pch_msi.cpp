@@ -52,17 +52,17 @@ static const MemoryRegionOps loongarch_pch_msi_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void loongarch_pch_msi_realize(DeviceState *dev, Error **errp)
+void LoongArchPCHMSI::realize(Error **errp)
 {
-    LoongArchPCHMSI *s = LOONGARCH_PCH_MSI(dev);
+    DeviceState *dev = DEVICE(this);
 
-    if (!s->irq_num || s->irq_num  > PCH_MSI_IRQ_NUM) {
+    if (!irq_num || irq_num  > PCH_MSI_IRQ_NUM) {
         error_setg(errp, "Invalid 'msi_irq_num'");
         return;
     }
 
-    s->pch_msi_irq = g_new(qemu_irq, s->irq_num);
-    qdev_init_gpio_out(dev, s->pch_msi_irq, s->irq_num);
+    pch_msi_irq = g_new(qemu_irq, irq_num);
+    qdev_init_gpio_out(dev, pch_msi_irq, irq_num);
 }
 
 static void loongarch_pch_msi_unrealize(DeviceState *dev)
@@ -72,16 +72,15 @@ static void loongarch_pch_msi_unrealize(DeviceState *dev)
     g_free(s->pch_msi_irq);
 }
 
-static void loongarch_pch_msi_init(Object *obj)
+void LoongArchPCHMSI::init()
 {
-    LoongArchPCHMSI *s = LOONGARCH_PCH_MSI(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    Object *obj = OBJECT(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&s->msi_mmio, obj, &loongarch_pch_msi_ops,
-                          s, TYPE_LOONGARCH_PCH_MSI, 0x8);
-    sysbus_init_mmio(sbd, &s->msi_mmio);
+    memory_region_init_io(&msi_mmio, obj, &loongarch_pch_msi_ops,
+                          this, TYPE_LOONGARCH_PCH_MSI, 0x8);
+    sysbus_init_mmio(sbd, &msi_mmio);
     msi_nonbroken = true;
-
 }
 
 static const Property loongarch_msi_properties[] = {
@@ -89,26 +88,11 @@ static const Property loongarch_msi_properties[] = {
     DEFINE_PROP_UINT32("msi_irq_num",  LoongArchPCHMSI, irq_num, 0),
 };
 
-static void loongarch_pch_msi_class_init(ObjectClass *klass, const void *data)
+void LoongArchPCHMSI::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = loongarch_pch_msi_realize;
     dc->unrealize = loongarch_pch_msi_unrealize;
     device_class_set_props(dc, loongarch_msi_properties);
 }
 
-static const TypeInfo loongarch_pch_msi_info = {
-    .name          = TYPE_LOONGARCH_PCH_MSI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LoongArchPCHMSI),
-    .instance_init = loongarch_pch_msi_init,
-    .class_init    = loongarch_pch_msi_class_init,
-};
-
-static void loongarch_pch_msi_register_types(void)
-{
-    type_register_static(&loongarch_pch_msi_info);
-}
-
-type_init(loongarch_pch_msi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(LoongArchPCHMSI, TYPE_LOONGARCH_PCH_MSI, TYPE_SYS_BUS_DEVICE)
