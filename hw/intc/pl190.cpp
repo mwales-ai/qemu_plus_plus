@@ -235,26 +235,19 @@ struct PL190State {
         updateVectors();
     }
 
-    static void resetWrapper(DeviceState *d)
+    void init()
     {
-        PL190State *s = reinterpret_cast<PL190State *>(d);
-        s->reset();
-    }
+        DeviceState *dev = DEVICE(this);
+        SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    static void instanceInit(Object *obj)
-    {
-        DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-        PL190State *s = reinterpret_cast<PL190State *>(obj);
-        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-
-        memory_region_init_io(&s->iomem, obj, &ops, s, "pl190", 0x1000);
-        sysbus_init_mmio(sbd, &s->iomem);
+        memory_region_init_io(&iomem, OBJECT(this), &ops, this, "pl190", 0x1000);
+        sysbus_init_mmio(sbd, &iomem);
         qdev_init_gpio_in(dev, setIrq, 32);
-        sysbus_init_irq(sbd, &s->irq);
-        sysbus_init_irq(sbd, &s->fiq);
+        sysbus_init_irq(sbd, &irq);
+        sysbus_init_irq(sbd, &fiq);
     }
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 const MemoryRegionOps PL190State::ops = {
@@ -284,25 +277,10 @@ static const VMStateDescription vmstate_pl190 = {
     .fields = vmstate_pl190_fields,
 };
 
-void PL190State::classInit(ObjectClass *klass, const void *data)
+void PL190State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_pl190;
 }
 
-static const TypeInfo pl190_info = {
-    .name          = TYPE_PL190,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL190State),
-    .instance_init = PL190State::instanceInit,
-    .class_init    = PL190State::classInit,
-};
-
-static void pl190_register_types(void)
-{
-    type_register_static(&pl190_info);
-}
-
-type_init(pl190_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PL190State, TYPE_PL190, TYPE_SYS_BUS_DEVICE)

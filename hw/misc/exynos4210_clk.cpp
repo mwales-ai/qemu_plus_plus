@@ -64,7 +64,7 @@ struct Exynos4210ClkState {
     uint32_t reg[EXYNOS4210_REGS_NUM];
 
     /* Instance methods */
-    void instanceInit();
+    void init();
     void reset();
 
     /* Instance MMIO methods */
@@ -77,7 +77,7 @@ struct Exynos4210ClkState {
                           unsigned size);
 
     /* Class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 uint64_t Exynos4210ClkState::mmioRead(void *opaque, hwaddr offset,
@@ -137,12 +137,6 @@ static const MemoryRegionOps exynos4210_clk_ops = {
     }
 };
 
-static void exynos4210_clk_reset(DeviceState *dev)
-{
-    Exynos4210ClkState *s = reinterpret_cast<Exynos4210ClkState *>(dev);
-    s->reset();
-}
-
 void Exynos4210ClkState::reset()
 {
     unsigned int i;
@@ -153,19 +147,12 @@ void Exynos4210ClkState::reset()
     }
 }
 
-static void exynos4210_clk_init(Object *obj)
+void Exynos4210ClkState::init()
 {
-    Exynos4210ClkState *s = reinterpret_cast<Exynos4210ClkState *>(obj);
-    s->instanceInit();
-}
-
-void Exynos4210ClkState::instanceInit()
-{
-    /* memory mapping */
-    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+    memory_region_init_io(&iomem, OBJECT(this),
                           &exynos4210_clk_ops, this, TYPE_EXYNOS4210_CLK,
                           EXYNOS4210_CLK_REGS_MEM_SIZE);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const VMStateDescription exynos4210_clk_vmstate = {
@@ -178,26 +165,10 @@ static const VMStateDescription exynos4210_clk_vmstate = {
     }
 };
 
-void Exynos4210ClkState::classInit(ObjectClass *klass, const void *data)
+void Exynos4210ClkState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    device_class_set_legacy_reset(dc, exynos4210_clk_reset);
     dc->vmsd = &exynos4210_clk_vmstate;
 }
 
-static const TypeInfo exynos4210_clk_info = {
-    .name          = TYPE_EXYNOS4210_CLK,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210ClkState),
-    .instance_init = exynos4210_clk_init,
-    .class_init    = Exynos4210ClkState::classInit,
-};
-
-static void exynos4210_clk_register(void)
-{
-    qemu_log_mask(LOG_GUEST_ERROR, "Clock init\n");
-    type_register_static(&exynos4210_clk_info);
-}
-
-type_init(exynos4210_clk_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210ClkState, TYPE_EXYNOS4210_CLK, TYPE_SYS_BUS_DEVICE)

@@ -47,7 +47,7 @@ struct L2x0State {
     uint32_t filter_end;
 
     /* Instance methods */
-    void instanceInit();
+    void init();
     void reset();
 
     /* Instance MMIO methods */
@@ -60,7 +60,7 @@ struct L2x0State {
                           unsigned size);
 
     /* Class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateDescription vmstate_l2x0 = {
@@ -171,12 +171,6 @@ void L2x0State::writeReg(hwaddr offset, uint64_t value, unsigned size)
     }
 }
 
-static void l2x0_priv_reset(DeviceState *dev)
-{
-    L2x0State *s = reinterpret_cast<L2x0State *>(dev);
-    s->reset();
-}
-
 void L2x0State::reset()
 {
     ctrl = 0;
@@ -193,43 +187,22 @@ static const MemoryRegionOps l2x0_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
  };
 
-static void l2x0_priv_init(Object *obj)
+void L2x0State::init()
 {
-    L2x0State *s = reinterpret_cast<L2x0State *>(obj);
-    s->instanceInit();
-}
-
-void L2x0State::instanceInit()
-{
-    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &l2x0_mem_ops, this,
+    memory_region_init_io(&iomem, OBJECT(this), &l2x0_mem_ops, this,
                           "l2x0_cc", 0x1000);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const Property l2x0_properties[] = {
     DEFINE_PROP_UINT32("cache-type", L2x0State, cache_type, 0x1c100100),
 };
 
-void L2x0State::classInit(ObjectClass *klass, const void *data)
+void L2x0State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &vmstate_l2x0;
     device_class_set_props(dc, l2x0_properties);
-    device_class_set_legacy_reset(dc, l2x0_priv_reset);
 }
 
-static const TypeInfo l2x0_info = {
-    .name = TYPE_ARM_L2X0,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(L2x0State),
-    .instance_init = l2x0_priv_init,
-    .class_init = L2x0State::classInit,
-};
-
-static void l2x0_register_types(void)
-{
-    type_register_static(&l2x0_info);
-}
-
-type_init(l2x0_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(L2x0State, TYPE_ARM_L2X0, TYPE_SYS_BUS_DEVICE)

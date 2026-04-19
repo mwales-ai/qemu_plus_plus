@@ -93,11 +93,11 @@ struct OR1KOMPICState {
         }
     }
 
-    void initfn()
+    void init()
     {
-        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+        SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-        memory_region_init_io(&mr, reinterpret_cast<Object *>(this), &ompic_ops, this,
+        memory_region_init_io(&mr, OBJECT(this), &ompic_ops, this,
                               "or1k-ompic", OMPIC_ADDRSPACE_SZ);
         sysbus_init_mmio(sbd, &mr);
     }
@@ -117,19 +117,7 @@ struct OR1KOMPICState {
         }
     }
 
-    static void instanceInit(Object *obj)
-    {
-        OR1KOMPICState *s = OR1K_OMPIC(obj);
-        s->initfn();
-    }
-
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        OR1KOMPICState *s = OR1K_OMPIC(dev);
-        s->realize(errp);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     static const MemoryRegionOps ompic_ops;
     static const Property or1k_ompic_properties[];
@@ -172,26 +160,11 @@ const VMStateDescription OR1KOMPICState::vmstate_or1k_ompic = {
     }
 };
 
-void OR1KOMPICState::classInit(ObjectClass *klass, const void *data)
+void OR1KOMPICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     device_class_set_props(dc, or1k_ompic_properties);
-    dc->realize = deviceRealize;
     dc->vmsd = &vmstate_or1k_ompic;
 }
 
-static const TypeInfo or1k_ompic_info = {
-    .name          = TYPE_OR1K_OMPIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(OR1KOMPICState),
-    .instance_init = OR1KOMPICState::instanceInit,
-    .class_init    = OR1KOMPICState::classInit,
-};
-
-static void or1k_ompic_register_types(void)
-{
-    type_register_static(&or1k_ompic_info);
-}
-
-type_init(or1k_ompic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(OR1KOMPICState, TYPE_OR1K_OMPIC, TYPE_SYS_BUS_DEVICE)
