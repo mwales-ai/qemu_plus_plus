@@ -46,7 +46,7 @@ extern "C" {
 #define R_START                 0x40
 #define R_END                   (R_START + R_ISR_SIZE * NUM_CORES)
 
-struct loongson_liointc {
+typedef struct LoongsonLiointcState {
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
@@ -60,9 +60,12 @@ struct loongson_liointc {
     /* state of the interrupt input pins */
     uint32_t pin_state;
     bool parent_state[NUM_PARENTS];
-};
 
-static void update_irq(struct loongson_liointc *p)
+    void init();
+    static void classInit(DeviceClass *dc) {}
+} LoongsonLiointcState;
+
+static void update_irq(LoongsonLiointcState *p)
 {
     uint32_t irq, core, ip;
     uint32_t per_ip_isr[NUM_IPS] = {0};
@@ -113,7 +116,7 @@ static void update_irq(struct loongson_liointc *p)
 static uint64_t
 liointc_read(void *opaque, hwaddr addr, unsigned int size)
 {
-    struct loongson_liointc *p = static_cast<struct loongson_liointc *>(opaque);
+    LoongsonLiointcState *p = static_cast<LoongsonLiointcState *>(opaque);
     uint32_t r = 0;
 
     /* Mapper is 1 byte */
@@ -159,7 +162,7 @@ static void
 liointc_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
-    struct loongson_liointc *p = static_cast<struct loongson_liointc *>(opaque);
+    LoongsonLiointcState *p = static_cast<LoongsonLiointcState *>(opaque);
     uint32_t value = val64;
 
     qemu_log_mask(CPU_LOG_INT, "%s: size=%d, addr=%" HWADDR_PRIx ", val=%x\n",
@@ -206,42 +209,30 @@ static MemoryRegionOps pic_ops;
 
 static void irq_handler(void *opaque, int irq, int level)
 {
-    struct loongson_liointc *p = static_cast<struct loongson_liointc *>(opaque);
+    LoongsonLiointcState *p = static_cast<LoongsonLiointcState *>(opaque);
 
     p->pin_state &= ~(1 << irq);
     p->pin_state |= level << irq;
     update_irq(p);
 }
 
-static void loongson_liointc_init(Object *obj)
+void LoongsonLiointcState::init()
 {
-    struct loongson_liointc *p = LOONGSON_LIOINTC(obj);
     int i;
 
-    qdev_init_gpio_in(DEVICE(obj), irq_handler, 32);
+    qdev_init_gpio_in(DEVICE(this), irq_handler, 32);
 
     for (i = 0; i < NUM_PARENTS; i++) {
-        sysbus_init_irq(SYS_BUS_DEVICE(obj), &p->parent_irq[i]);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &parent_irq[i]);
     }
 
-    memory_region_init_io(&p->mmio, obj, &pic_ops, p,
+    memory_region_init_io(&mmio, OBJECT(this), &pic_ops, this,
                          TYPE_LOONGSON_LIOINTC, R_END);
-    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &p->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
-static const TypeInfo loongson_liointc_info = {
-    .name          = TYPE_LOONGSON_LIOINTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(struct loongson_liointc),
-    .instance_init = loongson_liointc_init,
-};
-
-static void loongson_liointc_register_types(void)
-{
-    type_register_static(&loongson_liointc_info);
-}
-
-type_init(loongson_liointc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(LoongsonLiointcState, TYPE_LOONGSON_LIOINTC, TYPE_SYS_BUS_DEVICE)
 
 static void __attribute__((constructor)) init_pic_ops(void)
 {

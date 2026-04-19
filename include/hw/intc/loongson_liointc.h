@@ -16,7 +16,8 @@
 #include "qom/object.h"
 
 #define TYPE_LOONGSON_LIOINTC "loongson.liointc"
-DECLARE_INSTANCE_CHECKER(struct loongson_liointc, LOONGSON_LIOINTC,
+typedef struct LoongsonLiointcState LoongsonLiointcState;
+DECLARE_INSTANCE_CHECKER(LoongsonLiointcState, LOONGSON_LIOINTC,
                          TYPE_LOONGSON_LIOINTC)
 
 #endif /* LOONGSON_LIOINTC_H */
