@@ -329,15 +329,11 @@ struct Exynos4210fimdState {
     bool invalidate;        /* Image needs to be redrawn */
     bool enabled;           /* Display controller is enabled */
 
-    /* Methods */
     void realize(Error **errp);
     void reset();
-    void instanceInit();
+    void init();
 
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void resetWrapper(DeviceState *dev);
-    static void instanceInitWrapper(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* Perform byte/halfword/word swap of data according to WINCON */
@@ -1360,12 +1356,6 @@ static void exynos4210_fimd_update(void *opaque)
     exynos4210_fimd_update_irq(s);
 }
 
-void Exynos4210fimdState::resetWrapper(DeviceState *d)
-{
-    Exynos4210fimdState *s = EXYNOS4210_FIMD(d);
-    s->reset();
-}
-
 void Exynos4210fimdState::reset()
 {
     unsigned w;
@@ -1956,13 +1946,7 @@ static const Property exynos4210_fimd_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-void Exynos4210fimdState::instanceInitWrapper(Object *obj)
-{
-    Exynos4210fimdState *s = EXYNOS4210_FIMD(obj);
-    s->instanceInit();
-}
-
-void Exynos4210fimdState::instanceInit()
+void Exynos4210fimdState::init()
 {
     SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
@@ -1977,12 +1961,6 @@ void Exynos4210fimdState::instanceInit()
     sysbus_init_mmio(dev, &iomem);
 }
 
-void Exynos4210fimdState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    Exynos4210fimdState *s = EXYNOS4210_FIMD(dev);
-    s->realize(errp);
-}
-
 void Exynos4210fimdState::realize(Error **errp)
 {
     if (!fbmem) {
@@ -1993,27 +1971,11 @@ void Exynos4210fimdState::realize(Error **errp)
     console = graphic_console_init(reinterpret_cast<DeviceState *>(this), 0, &exynos4210_fimd_ops, this);
 }
 
-void Exynos4210fimdState::classInit(ObjectClass *klass, const void *data)
+void Exynos4210fimdState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->vmsd = &exynos4210_fimd_vmstate;
-    device_class_set_legacy_reset(dc, Exynos4210fimdState::resetWrapper);
-    dc->realize = Exynos4210fimdState::realizeWrapper;
     device_class_set_props(dc, exynos4210_fimd_properties);
 }
 
-static const TypeInfo exynos4210_fimd_info = {
-    .name = TYPE_EXYNOS4210_FIMD,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210fimdState),
-    .instance_init = Exynos4210fimdState::instanceInitWrapper,
-    .class_init = Exynos4210fimdState::classInit,
-};
-
-static void exynos4210_fimd_register_types(void)
-{
-    type_register_static(&exynos4210_fimd_info);
-}
-
-type_init(exynos4210_fimd_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210fimdState, TYPE_EXYNOS4210_FIMD, TYPE_SYS_BUS_DEVICE)

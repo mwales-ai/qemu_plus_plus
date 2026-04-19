@@ -97,9 +97,9 @@ struct TCXState {
     uint16_t cursy;
 
     /* Instance methods */
-    void doReset();
-    void realize(DeviceState *dev, Error **errp);
-    void initfn(Object *obj);
+    void reset();
+    void realize(Error **errp);
+    void init();
 
     /* Static display callbacks */
     static void updateDisplay(void *opaque);
@@ -125,7 +125,7 @@ struct TCXState {
     static int postLoad(void *opaque, int version_id);
 
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
 private:
     void setDirty(ram_addr_t addr, int len);
@@ -395,7 +395,7 @@ static const VMStateDescription vmstate_tcx = {
     }
 };
 
-void TCXState::doReset()
+void TCXState::reset()
 {
     /* Initialize palette */
     memset(r, 0, 260);
@@ -412,12 +412,6 @@ void TCXState::doReset()
     dac_state = 0;
     cursx = 0xf000; /* Put cursor off screen */
     cursy = 0xf000;
-}
-
-static void tcx_reset(DeviceState *d)
-{
-    TCXState *s = reinterpret_cast<TCXState *>(d);
-    s->doReset();
 }
 
 uint64_t TCXState::dacReadl(void *opaque, hwaddr addr,
@@ -793,86 +787,79 @@ static const GraphicHwOps tcx24_ops = {
     .gfx_update = TCXState::update24Display,
 };
 
-void TCXState::initfn(Object *obj)
+void TCXState::init()
 {
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_rom_nomigrate(&rom, obj, "tcx.prom",
+    memory_region_init_rom_nomigrate(&rom, OBJECT(this), "tcx.prom",
                                      FCODE_MAX_ROM_SIZE, &error_fatal);
     sysbus_init_mmio(sbd, &rom);
 
     /* 2/STIP : Stippler */
-    memory_region_init_io(&stip, obj, &tcx_stip_ops, this, "tcx.stip",
+    memory_region_init_io(&stip, OBJECT(this), &tcx_stip_ops, this, "tcx.stip",
                           TCX_STIP_NREGS);
     sysbus_init_mmio(sbd, &stip);
 
     /* 3/BLIT : Blitter */
-    memory_region_init_io(&blit, obj, &tcx_blit_ops, this, "tcx.blit",
+    memory_region_init_io(&blit, OBJECT(this), &tcx_blit_ops, this, "tcx.blit",
                           TCX_BLIT_NREGS);
     sysbus_init_mmio(sbd, &blit);
 
     /* 5/RSTIP : Raw Stippler */
-    memory_region_init_io(&rstip, obj, &tcx_rstip_ops, this, "tcx.rstip",
+    memory_region_init_io(&rstip, OBJECT(this), &tcx_rstip_ops, this, "tcx.rstip",
                           TCX_RSTIP_NREGS);
     sysbus_init_mmio(sbd, &rstip);
 
     /* 6/RBLIT : Raw Blitter */
-    memory_region_init_io(&rblit, obj, &tcx_rblit_ops, this, "tcx.rblit",
+    memory_region_init_io(&rblit, OBJECT(this), &tcx_rblit_ops, this, "tcx.rblit",
                           TCX_RBLIT_NREGS);
     sysbus_init_mmio(sbd, &rblit);
 
     /* 7/TEC : ??? */
-    memory_region_init_io(&tec, obj, &tcx_dummy_ops, this, "tcx.tec",
+    memory_region_init_io(&tec, OBJECT(this), &tcx_dummy_ops, this, "tcx.tec",
                           TCX_TEC_NREGS);
     sysbus_init_mmio(sbd, &tec);
 
     /* 8/CMAP : DAC */
-    memory_region_init_io(&dac, obj, &tcx_dac_ops, this, "tcx.dac",
+    memory_region_init_io(&dac, OBJECT(this), &tcx_dac_ops, this, "tcx.dac",
                           TCX_DAC_NREGS);
     sysbus_init_mmio(sbd, &dac);
 
     /* 9/THC : Cursor */
-    memory_region_init_io(&thc, obj, &tcx_thc_ops, this, "tcx.thc",
+    memory_region_init_io(&thc, OBJECT(this), &tcx_thc_ops, this, "tcx.thc",
                           TCX_THC_NREGS);
     sysbus_init_mmio(sbd, &thc);
 
     /* 11/DHC : ??? */
-    memory_region_init_io(&dhc, obj, &tcx_dummy_ops, this, "tcx.dhc",
+    memory_region_init_io(&dhc, OBJECT(this), &tcx_dummy_ops, this, "tcx.dhc",
                           TCX_DHC_NREGS);
     sysbus_init_mmio(sbd, &dhc);
 
     /* 12/ALT : ??? */
-    memory_region_init_io(&alt, obj, &tcx_dummy_ops, this, "tcx.alt",
+    memory_region_init_io(&alt, OBJECT(this), &tcx_dummy_ops, this, "tcx.alt",
                           TCX_ALT_NREGS);
     sysbus_init_mmio(sbd, &alt);
 }
 
-static void tcx_initfn(Object *obj)
+void TCXState::realize(Error **errp)
 {
-    TCXState *s = reinterpret_cast<TCXState *>(obj);
-    s->initfn(obj);
-}
-
-void TCXState::realize(DeviceState *dev, Error **errp)
-{
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
-    TCXState *s = reinterpret_cast<TCXState *>(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     ram_addr_t vram_offset = 0;
     int size, ret;
     uint8_t *vram_base;
     char *fcode_filename;
 
-    memory_region_init_ram_nomigrate(&s->vram_mem, reinterpret_cast<Object *>(s), "tcx.vram",
-                           s->vram_size * (1 + 4 + 4), &error_fatal);
-    vmstate_register_ram_global(&s->vram_mem);
-    memory_region_set_log(&s->vram_mem, true, DIRTY_MEMORY_VGA);
-    vram_base = static_cast<uint8_t *>(memory_region_get_ram_ptr(&s->vram_mem));
+    memory_region_init_ram_nomigrate(&vram_mem, OBJECT(this), "tcx.vram",
+                           vram_size * (1 + 4 + 4), &error_fatal);
+    vmstate_register_ram_global(&vram_mem);
+    memory_region_set_log(&vram_mem, true, DIRTY_MEMORY_VGA);
+    vram_base = static_cast<uint8_t *>(memory_region_get_ram_ptr(&vram_mem));
 
     /* 10/ROM : FCode ROM */
-    vmstate_register_ram_global(&s->rom);
+    vmstate_register_ram_global(&rom);
     fcode_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, TCX_ROM_FILE);
     if (fcode_filename) {
-        ret = load_image_mr(fcode_filename, &s->rom);
+        ret = load_image_mr(fcode_filename, &rom);
         g_free(fcode_filename);
         if (ret < 0 || ret > FCODE_MAX_ROM_SIZE) {
             warn_report("tcx: could not load prom '%s'", TCX_ROM_FILE);
@@ -880,49 +867,49 @@ void TCXState::realize(DeviceState *dev, Error **errp)
     }
 
     /* 0/DFB8 : 8-bit plane */
-    s->vram = vram_base;
-    size = s->vram_size;
-    memory_region_init_alias(&s->vram_8bit, reinterpret_cast<Object *>(s), "tcx.vram.8bit",
-                             &s->vram_mem, vram_offset, size);
-    sysbus_init_mmio(sbd, &s->vram_8bit);
+    vram = vram_base;
+    size = vram_size;
+    memory_region_init_alias(&vram_8bit, OBJECT(this), "tcx.vram.8bit",
+                             &vram_mem, vram_offset, size);
+    sysbus_init_mmio(sbd, &vram_8bit);
     vram_offset += size;
     vram_base += size;
 
     /* 1/DFB24 : 24bit plane */
-    size = s->vram_size * 4;
-    s->vram24 = (uint32_t *)vram_base;
-    s->vram24_offset = vram_offset;
-    memory_region_init_alias(&s->vram_24bit, reinterpret_cast<Object *>(s), "tcx.vram.24bit",
-                             &s->vram_mem, vram_offset, size);
-    sysbus_init_mmio(sbd, &s->vram_24bit);
+    size = vram_size * 4;
+    vram24 = (uint32_t *)vram_base;
+    vram24_offset = vram_offset;
+    memory_region_init_alias(&vram_24bit, OBJECT(this), "tcx.vram.24bit",
+                             &vram_mem, vram_offset, size);
+    sysbus_init_mmio(sbd, &vram_24bit);
     vram_offset += size;
     vram_base += size;
 
     /* 4/RDFB32 : Raw Framebuffer */
-    size = s->vram_size * 4;
-    s->cplane = (uint32_t *)vram_base;
-    s->cplane_offset = vram_offset;
-    memory_region_init_alias(&s->vram_cplane, reinterpret_cast<Object *>(s), "tcx.vram.cplane",
-                             &s->vram_mem, vram_offset, size);
-    sysbus_init_mmio(sbd, &s->vram_cplane);
+    size = vram_size * 4;
+    cplane = (uint32_t *)vram_base;
+    cplane_offset = vram_offset;
+    memory_region_init_alias(&vram_cplane, OBJECT(this), "tcx.vram.cplane",
+                             &vram_mem, vram_offset, size);
+    sysbus_init_mmio(sbd, &vram_cplane);
 
     /* 9/THC24bits : NetBSD writes here even with 8-bit display: dummy */
-    if (s->depth == 8) {
-        memory_region_init_io(&s->thc24, reinterpret_cast<Object *>(s), &tcx_dummy_ops, s,
+    if (depth == 8) {
+        memory_region_init_io(&thc24, OBJECT(this), &tcx_dummy_ops, this,
                               "tcx.thc24", TCX_THC_NREGS);
-        sysbus_init_mmio(sbd, &s->thc24);
+        sysbus_init_mmio(sbd, &thc24);
     }
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    if (s->depth == 8) {
-        s->con = graphic_console_init(dev, 0, &tcx_ops, s);
+    if (depth == 8) {
+        con = graphic_console_init(DEVICE(this), 0, &tcx_ops, this);
     } else {
-        s->con = graphic_console_init(dev, 0, &tcx24_ops, s);
+        con = graphic_console_init(DEVICE(this), 0, &tcx24_ops, this);
     }
-    s->thcmisc = 0;
+    thcmisc = 0;
 
-    qemu_console_resize(s->con, s->width, s->height);
+    qemu_console_resize(con, width, height);
 }
 
 static const Property tcx_properties[] = {
@@ -932,33 +919,11 @@ static const Property tcx_properties[] = {
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
 };
 
-static void tcx_realizefn(DeviceState *dev, Error **errp)
+void TCXState::classInit(DeviceClass *dc)
 {
-    TCXState *s = reinterpret_cast<TCXState *>(dev);
-    s->realize(dev, errp);
-}
-
-void TCXState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = tcx_realizefn;
-    device_class_set_legacy_reset(dc, tcx_reset);
     dc->vmsd = &vmstate_tcx;
     device_class_set_props(dc, tcx_properties);
 }
 
-static const TypeInfo tcx_info = {
-    .name          = TYPE_TCX,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(TCXState),
-    .instance_init = tcx_initfn,
-    .class_init    = TCXState::classInit,
-};
-
-static void tcx_register_types(void)
-{
-    type_register_static(&tcx_info);
-}
-
-type_init(tcx_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(TCXState, TYPE_TCX, TYPE_SYS_BUS_DEVICE)

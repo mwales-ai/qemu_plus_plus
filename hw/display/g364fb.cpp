@@ -509,14 +509,8 @@ struct G364SysBusState {
     /* methods */
     void realize(Error **errp);
     void reset();
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
-
-static void g364fb_sysbus_realize(DeviceState *dev, Error **errp)
-{
-    G364SysBusState *sbs = reinterpret_cast<G364SysBusState *>(dev);
-    sbs->realize(errp);
-}
 
 void G364SysBusState::realize(Error **errp)
 {
@@ -527,12 +521,6 @@ void G364SysBusState::realize(Error **errp)
     sysbus_init_irq(sbd, &s->irq);
     sysbus_init_mmio(sbd, &s->mem_ctrl);
     sysbus_init_mmio(sbd, &s->mem_vram);
-}
-
-static void g364fb_sysbus_reset(DeviceState *d)
-{
-    G364SysBusState *s = reinterpret_cast<G364SysBusState *>(d);
-    s->reset();
 }
 
 void G364SysBusState::reset()
@@ -554,28 +542,13 @@ static const VMStateDescription vmstate_g364fb_sysbus = {
     }
 };
 
-void G364SysBusState::classInit(ObjectClass *klass, const void *data)
+void G364SysBusState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = g364fb_sysbus_realize;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "G364 framebuffer";
-    device_class_set_legacy_reset(dc, g364fb_sysbus_reset);
     dc->vmsd = &vmstate_g364fb_sysbus;
     device_class_set_props(dc, g364fb_sysbus_properties);
 }
 
-static const TypeInfo g364fb_sysbus_info = {
-    .name          = TYPE_G364,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(G364SysBusState),
-    .class_init    = G364SysBusState::classInit,
-};
-
-static void g364fb_register_types(void)
-{
-    type_register_static(&g364fb_sysbus_info);
-}
-
-type_init(g364fb_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(G364SysBusState, TYPE_G364, TYPE_SYS_BUS_DEVICE)

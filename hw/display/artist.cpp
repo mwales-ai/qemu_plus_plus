@@ -103,11 +103,8 @@ struct ARTISTState {
     int draw_line_pattern;
 
     void realize(Error **errp);
-    void initfn();
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void initWrapper(Object *obj);
-    static void resetWrapper(DeviceState *qdev);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 
     /* Static MMIO callbacks */
     static void vramWrite(void *opaque, hwaddr addr, uint64_t val,
@@ -1401,7 +1398,7 @@ static const GraphicHwOps artist_ops = {
     .gfx_update = artist_update_display,
 };
 
-void ARTISTState::initfn()
+void ARTISTState::init()
 {
     SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
@@ -1413,11 +1410,6 @@ void ARTISTState::initfn()
     sysbus_init_mmio(sbd, &vram_mem);
 }
 
-void ARTISTState::initWrapper(Object *obj)
-{
-    ARTISTState *s = reinterpret_cast<ARTISTState *>(obj);
-    s->initfn();
-}
 
 static void artist_create_buffer(ARTISTState *s, const char *name,
                                  hwaddr *offset, unsigned int idx,
@@ -1490,11 +1482,6 @@ void ARTISTState::realize(Error **errp)
     qemu_console_resize(con, width, height);
 }
 
-void ARTISTState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    ARTISTState *s = reinterpret_cast<ARTISTState *>(dev);
-    s->realize(errp);
-}
 
 static int vmstate_artist_post_load(void *opaque, int version_id)
 {
@@ -1554,31 +1541,11 @@ static const Property artist_properties[] = {
     DEFINE_PROP_BOOL("disable",        ARTISTState, disable, false),
 };
 
-void ARTISTState::resetWrapper(DeviceState *qdev)
+void ARTISTState::classInit(DeviceClass *dc)
 {
-}
-
-void ARTISTState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = ARTISTState::realizeWrapper;
     dc->vmsd = &vmstate_artist;
-    device_class_set_legacy_reset(dc, ARTISTState::resetWrapper);
     device_class_set_props(dc, artist_properties);
 }
 
-static const TypeInfo artist_info = {
-    .name          = TYPE_ARTIST,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ARTISTState),
-    .instance_init = ARTISTState::initWrapper,
-    .class_init    = ARTISTState::classInit,
-};
-
-static void artist_register_types(void)
-{
-    type_register_static(&artist_info);
-}
-
-type_init(artist_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ARTISTState, TYPE_ARTIST, TYPE_SYS_BUS_DEVICE)

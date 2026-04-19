@@ -98,12 +98,11 @@ struct CG3State {
     static int postLoad(void *opaque, int version_id);
 
     /* Instance methods */
-    void initfn();
+    void init();
     void realize(Error **errp);
     void reset();
 
-    /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void CG3State::updateDisplay(void *opaque)
@@ -298,7 +297,7 @@ static const GraphicHwOps cg3_ops = {
     .gfx_update = CG3State::updateDisplay,
 };
 
-void CG3State::initfn()
+void CG3State::init()
 {
     SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
@@ -309,12 +308,6 @@ void CG3State::initfn()
     memory_region_init_io(&reg, reinterpret_cast<Object *>(this), &cg3_reg_ops, this, "cg3.reg",
                           CG3_REG_SIZE);
     sysbus_init_mmio(sbd, &reg);
-}
-
-static void cg3_initfn(Object *obj)
-{
-    CG3State *s = reinterpret_cast<CG3State *>(obj);
-    s->initfn();
 }
 
 void CG3State::realize(Error **errp)
@@ -345,11 +338,7 @@ void CG3State::realize(Error **errp)
     qemu_console_resize(con, width, height);
 }
 
-static void cg3_realizefn(DeviceState *dev, Error **errp)
-{
-    CG3State *s = reinterpret_cast<CG3State *>(dev);
-    s->realize(errp);
-}
+
 
 int CG3State::postLoad(void *opaque, int version_id)
 {
@@ -390,12 +379,6 @@ void CG3State::reset()
     qemu_irq_lower(irq);
 }
 
-static void cg3_reset(DeviceState *d)
-{
-    CG3State *s = reinterpret_cast<CG3State *>(d);
-    s->reset();
-}
-
 static const Property cg3_properties[] = {
     DEFINE_PROP_UINT32("vram-size",    CG3State, vram_size, -1),
     DEFINE_PROP_UINT16("width",        CG3State, width,     -1),
@@ -403,27 +386,11 @@ static const Property cg3_properties[] = {
     DEFINE_PROP_UINT16("depth",        CG3State, depth,     -1),
 };
 
-void CG3State::classInit(ObjectClass *klass, const void *data)
+void CG3State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = cg3_realizefn;
-    device_class_set_legacy_reset(dc, cg3_reset);
     dc->vmsd = &vmstate_cg3;
     device_class_set_props(dc, cg3_properties);
 }
 
-static const TypeInfo cg3_info = {
-    .name          = TYPE_CG3,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CG3State),
-    .instance_init = cg3_initfn,
-    .class_init    = CG3State::classInit,
-};
-
-static void cg3_register_types(void)
-{
-    type_register_static(&cg3_info);
-}
-
-type_init(cg3_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(CG3State, TYPE_CG3, TYPE_SYS_BUS_DEVICE)

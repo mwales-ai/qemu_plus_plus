@@ -51,7 +51,7 @@ struct DPCDState {
     MemoryRegion iomem;
 
     /* Instance methods */
-    void instanceInit();
+    void init();
     void reset();
 
     /* Static MMIO callbacks */
@@ -60,7 +60,7 @@ struct DPCDState {
                           unsigned size);
 
     /* Class methods */
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 uint64_t DPCDState::mmioRead(void *opaque, hwaddr offset, unsigned size)
@@ -107,12 +107,6 @@ static const MemoryRegionOps aux_ops = {
     },
 };
 
-static void dpcd_reset_fn(DeviceState *dev)
-{
-    DPCDState *s = reinterpret_cast<DPCDState *>(dev);
-    s->reset();
-}
-
 void DPCDState::reset()
 {
     memset(&dpcd_info, 0, sizeof(dpcd_info));
@@ -141,15 +135,9 @@ void DPCDState::reset()
     dpcd_info[DPCD_SINK_STATUS] = DPCD_RECEIVE_PORT_0_STATUS;
 }
 
-static void dpcd_init(Object *obj)
+void DPCDState::init()
 {
-    DPCDState *s = reinterpret_cast<DPCDState *>(obj);
-    s->instanceInit();
-}
-
-void DPCDState::instanceInit()
-{
-    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &aux_ops,
+    memory_region_init_io(&iomem, OBJECT(this), &aux_ops,
                           this, TYPE_DPCD, 0x80000);
     aux_init_mmio(reinterpret_cast<AUXSlave *>(this), &iomem);
 }
@@ -164,25 +152,10 @@ static const VMStateDescription vmstate_dpcd = {
     }
 };
 
-void DPCDState::classInit(ObjectClass *oc, const void *data)
+void DPCDState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
-    device_class_set_legacy_reset(dc, dpcd_reset_fn);
     dc->vmsd = &vmstate_dpcd;
 }
 
-static const TypeInfo dpcd_info = {
-    .name          = TYPE_DPCD,
-    .parent        = TYPE_AUX_SLAVE,
-    .instance_size = sizeof(DPCDState),
-    .instance_init = dpcd_init,
-    .class_init    = DPCDState::classInit,
-};
-
-static void dpcd_register_types(void)
-{
-    type_register_static(&dpcd_info);
-}
-
-type_init(dpcd_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(DPCDState, TYPE_DPCD, TYPE_AUX_SLAVE)

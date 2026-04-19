@@ -56,12 +56,6 @@ struct MMIOIDEState {
         ide_bus_reset(&bus);
     }
 
-    static void resetWrapper(DeviceState *dev)
-    {
-        MMIOIDEState *s = reinterpret_cast<MMIOIDEState *>(dev);
-        s->reset();
-    }
-
     static uint64_t ioRead(void *opaque, hwaddr addr, unsigned size)
     {
         MMIOIDEState *s = static_cast<MMIOIDEState *>(opaque);
@@ -99,36 +93,27 @@ struct MMIOIDEState {
     static const MemoryRegionOps ioOps;
     static const MemoryRegionOps csOps;
 
-    void realize(DeviceState *dev, Error **errp)
+    void realize(Error **errp)
     {
-        SysBusDevice *d = reinterpret_cast<SysBusDevice *>(dev);
+        SysBusDevice *d = SYS_BUS_DEVICE(this);
 
         ide_bus_init_output_irq(&bus, irq);
 
-        memory_region_init_io(&iomem1, reinterpret_cast<Object *>(this), &ioOps, this,
+        memory_region_init_io(&iomem1, OBJECT(this), &ioOps, this,
                               "ide-mmio.1", 16 << shift);
-        memory_region_init_io(&iomem2, reinterpret_cast<Object *>(this), &csOps, this,
+        memory_region_init_io(&iomem2, OBJECT(this), &csOps, this,
                               "ide-mmio.2", 2 << shift);
         sysbus_init_mmio(d, &iomem1);
         sysbus_init_mmio(d, &iomem2);
     }
 
-    static void realizeWrapper(DeviceState *dev, Error **errp)
+    void init()
     {
-        MMIOIDEState *s = reinterpret_cast<MMIOIDEState *>(dev);
-        s->realize(dev, errp);
+        ide_bus_init(&bus, sizeof(bus), DEVICE(this), 0, 2);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
     }
 
-    static void instanceInit(Object *obj)
-    {
-        SysBusDevice *d = reinterpret_cast<SysBusDevice *>(obj);
-        MMIOIDEState *s = reinterpret_cast<MMIOIDEState *>(obj);
-
-        ide_bus_init(&s->bus, sizeof(s->bus), reinterpret_cast<DeviceState *>(obj), 0, 2);
-        sysbus_init_irq(d, &s->irq);
-    }
-
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 
     static const VMStateDescription vmstate_ide_mmio;
 };
@@ -162,27 +147,10 @@ static const Property mmio_ide_properties[] = {
     DEFINE_PROP_UINT32("shift", MMIOIDEState, shift, 0),
 };
 
-void MMIOIDEState::classInit(ObjectClass *oc, const void *data)
+void MMIOIDEState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
-    dc->realize = realizeWrapper;
-    device_class_set_legacy_reset(dc, resetWrapper);
     device_class_set_props(dc, mmio_ide_properties);
     dc->vmsd = &vmstate_ide_mmio;
-}
-
-static const TypeInfo mmio_ide_type_info = {
-    .name = TYPE_MMIO_IDE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MMIOIDEState),
-    .instance_init = MMIOIDEState::instanceInit,
-    .class_init = MMIOIDEState::classInit,
-};
-
-static void mmio_ide_register_types(void)
-{
-    type_register_static(&mmio_ide_type_info);
 }
 
 void mmio_ide_init_drives(DeviceState *dev, DriveInfo *hd0, DriveInfo *hd1)
@@ -197,4 +165,5 @@ void mmio_ide_init_drives(DeviceState *dev, DriveInfo *hd0, DriveInfo *hd1)
     }
 }
 
-type_init(mmio_ide_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MMIOIDEState, TYPE_MMIO_IDE, TYPE_SYS_BUS_DEVICE)

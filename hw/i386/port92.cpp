@@ -53,52 +53,30 @@ struct Port92State {
         }
     }
 
-    void deviceReset()
+    void reset()
     {
         outport &= ~1;
     }
 
-    void initfn()
+    void init()
     {
-        memory_region_init_io(&io, reinterpret_cast<Object *>(this), &port92_ops, this,
+        memory_region_init_io(&io, OBJECT(this), &port92_ops, this,
                               "port92", 1);
 
         outport = 0;
 
-        qdev_init_gpio_out_named(reinterpret_cast<DeviceState *>(this), &a20_out, PORT92_A20_LINE, 1);
+        qdev_init_gpio_out_named(DEVICE(this), &a20_out, PORT92_A20_LINE, 1);
     }
 
     void realize(Error **errp)
     {
-        ISADevice *isadev = ISA_DEVICE(reinterpret_cast<DeviceState *>(this));
+        ISADevice *isadev = ISA_DEVICE(DEVICE(this));
 
         isa_register_ioport(isadev, &io, 0x92);
     }
 
-    static void deviceReset_static(DeviceState *d)
+    static void classInit(DeviceClass *dc)
     {
-        Port92State *s = PORT92(d);
-        s->deviceReset();
-    }
-
-    static void instanceInit(Object *obj)
-    {
-        Port92State *s = PORT92(obj);
-        s->initfn();
-    }
-
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        Port92State *s = PORT92(dev);
-        s->realize(errp);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-        dc->realize = deviceRealize;
-        device_class_set_legacy_reset(dc, deviceReset_static);
         dc->vmsd = &vmstate_port92_isa;
         /*
          * Reason: unlike ordinary ISA devices, this one needs additional
@@ -136,17 +114,5 @@ static void __attribute__((constructor)) init_port92_ops(void)
     Port92State::port92_ops.impl.max_access_size = 1;
 }
 
-static const TypeInfo port92_info = {
-    .name          = TYPE_PORT92,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(Port92State),
-    .instance_init = Port92State::instanceInit,
-    .class_init    = Port92State::classInit,
-};
-
-static void port92_register_types(void)
-{
-    type_register_static(&port92_info);
-}
-
-type_init(port92_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Port92State, TYPE_PORT92, TYPE_ISA_DEVICE)

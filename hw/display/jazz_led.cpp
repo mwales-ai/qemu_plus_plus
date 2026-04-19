@@ -61,9 +61,9 @@ struct LedState {
     static int postLoad(void *opaque, int version_id);
 
     /* Instance methods */
-    void initfn(Object *obj);
-    void realize(DeviceState *dev, Error **errp);
-    void reset(DeviceState *d);
+    void init();
+    void realize(Error **errp);
+    void reset();
 
     /* Static drawing helpers */
     static void drawHorizontalLine(DisplaySurface *ds, int posy,
@@ -72,7 +72,7 @@ struct LedState {
                                  int posy1, int posy2, uint32_t color);
 
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void LedState::drawHorizontalLine(DisplaySurface *ds,
@@ -292,70 +292,29 @@ static const GraphicHwOps jazz_led_ops = {
     .text_update = LedState::textUpdate,
 };
 
-void LedState::initfn(Object *obj)
+void LedState::init()
 {
-    LedState *s = reinterpret_cast<LedState *>(obj);
-    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
-
-    memory_region_init_io(&s->iomem, obj, &led_ops, s, "led", 1);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&iomem, OBJECT(this), &led_ops, this, "led", 1);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void jazz_led_init(Object *obj)
+void LedState::realize(Error **errp)
 {
-    LedState *s = reinterpret_cast<LedState *>(obj);
-    s->initfn(obj);
+    con = graphic_console_init(DEVICE(this), 0, &jazz_led_ops, this);
 }
 
-void LedState::realize(DeviceState *dev, Error **errp)
+void LedState::reset()
 {
-    LedState *s = reinterpret_cast<LedState *>(dev);
-
-    s->con = graphic_console_init(dev, 0, &jazz_led_ops, s);
+    segments = 0;
+    state = static_cast<screen_state_t>(REDRAW_SEGMENTS | REDRAW_BACKGROUND);
+    qemu_console_resize(con, 60, 80);
 }
 
-static void jazz_led_realize(DeviceState *dev, Error **errp)
+void LedState::classInit(DeviceClass *dc)
 {
-    LedState *s = reinterpret_cast<LedState *>(dev);
-    s->realize(dev, errp);
-}
-
-void LedState::reset(DeviceState *d)
-{
-    LedState *s = reinterpret_cast<LedState *>(d);
-
-    s->segments = 0;
-    s->state = static_cast<screen_state_t>(REDRAW_SEGMENTS | REDRAW_BACKGROUND);
-    qemu_console_resize(s->con, 60, 80);
-}
-
-static void jazz_led_reset(DeviceState *d)
-{
-    LedState *s = reinterpret_cast<LedState *>(d);
-    s->reset(d);
-}
-
-void LedState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->desc = "Jazz LED display",
     dc->vmsd = &vmstate_jazz_led;
-    device_class_set_legacy_reset(dc, jazz_led_reset);
-    dc->realize = jazz_led_realize;
 }
 
-static const TypeInfo jazz_led_info = {
-    .name          = TYPE_JAZZ_LED,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LedState),
-    .instance_init = jazz_led_init,
-    .class_init    = LedState::classInit,
-};
-
-static void jazz_led_register(void)
-{
-    type_register_static(&jazz_led_info);
-}
-
-type_init(jazz_led_register);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(LedState, TYPE_JAZZ_LED, TYPE_SYS_BUS_DEVICE)

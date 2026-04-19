@@ -29,7 +29,7 @@ struct RAMFBStandaloneState {
     static bool migrateNeeded(void *opaque);
 
     /* Class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void RAMFBStandaloneState::displayUpdate(void *dev)
@@ -46,12 +46,6 @@ void RAMFBStandaloneState::displayUpdate(void *dev)
 static const GraphicHwOps wrapper_ops = {
     .gfx_update = RAMFBStandaloneState::displayUpdate,
 };
-
-static void ramfb_realizefn(DeviceState *dev, Error **errp)
-{
-    RAMFBStandaloneState *ramfb = reinterpret_cast<RAMFBStandaloneState *>(dev);
-    ramfb->realize(errp);
-}
 
 void RAMFBStandaloneState::realize(Error **errp)
 {
@@ -87,27 +81,13 @@ static const Property ramfb_properties[] = {
                      use_legacy_x86_rom, false),
 };
 
-void RAMFBStandaloneState::classInit(ObjectClass *klass, const void *data)
+void RAMFBStandaloneState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->vmsd = &ramfb_dev_vmstate;
-    dc->realize = ramfb_realizefn;
     dc->desc = "ram framebuffer standalone device";
     device_class_set_props(dc, ramfb_properties);
 }
 
-static const TypeInfo ramfb_info = {
-    .name          = TYPE_RAMFB_DEVICE,
-    .parent        = TYPE_DYNAMIC_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RAMFBStandaloneState),
-    .class_init    = RAMFBStandaloneState::classInit,
-};
-
-static void ramfb_register_types(void)
-{
-    type_register_static(&ramfb_info);
-}
-
-type_init(ramfb_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RAMFBStandaloneState, TYPE_RAMFB_DEVICE, TYPE_DYNAMIC_SYS_BUS_DEVICE)
