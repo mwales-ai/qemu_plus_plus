@@ -92,7 +92,7 @@ struct SiFivePLICState {
     void parseHartConfig();
     void irqRequest(int irq, int level);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

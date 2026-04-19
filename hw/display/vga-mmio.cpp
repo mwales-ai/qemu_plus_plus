@@ -40,11 +40,6 @@
 
 OBJECT_DECLARE_SIMPLE_TYPE(VGAMmioState, VGA_MMIO)
 
-static inline VGAMmioState *vga_mmio_from_obj(void *obj)
-{
-    return reinterpret_cast<VGAMmioState *>(VGA_MMIO(obj));
-}
-
 struct VGAMmioState {
     /*< private >*/
     SysBusDevice parent_obj;
@@ -62,7 +57,7 @@ struct VGAMmioState {
                         unsigned size);
     void realize(Error **errp);
     void reset();
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 uint64_t VGAMmioState::mmRead(void *opaque, hwaddr addr, unsigned size)
@@ -90,21 +85,9 @@ static const MemoryRegionOps vga_mm_ctrl_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void vga_mmio_reset(DeviceState *dev)
-{
-    VGAMmioState *s = vga_mmio_from_obj(dev);
-    s->reset();
-}
-
 void VGAMmioState::reset()
 {
     vga_common_reset(&this->vga);
-}
-
-static void vga_mmio_realizefn(DeviceState *dev, Error **errp)
-{
-    VGAMmioState *s = vga_mmio_from_obj(dev);
-    s->realize(errp);
 }
 
 void VGAMmioState::realize(Error **errp)
@@ -137,27 +120,12 @@ static const Property vga_mmio_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", VGAMmioState, vga.vram_size_mb, 8),
 };
 
-void VGAMmioState::classInit(ObjectClass *klass, const void *data)
+void VGAMmioState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = vga_mmio_realizefn;
-    device_class_set_legacy_reset(dc, vga_mmio_reset);
     dc->vmsd = &vmstate_vga_common;
     device_class_set_props(dc, vga_mmio_properties);
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
-static const TypeInfo vga_mmio_info = {
-    .name          = TYPE_VGA_MMIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VGAMmioState),
-    .class_init    = VGAMmioState::classInit,
-};
-
-static void vga_mmio_register_types(void)
-{
-    type_register_static(&vga_mmio_info);
-}
-
-type_init(vga_mmio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VGAMmioState, TYPE_VGA_MMIO, TYPE_SYS_BUS_DEVICE)

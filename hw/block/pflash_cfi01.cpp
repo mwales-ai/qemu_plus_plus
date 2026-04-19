@@ -89,6 +89,9 @@ struct PFlashCFI01 {
     /* block update buffer */
     unsigned char *blk_bytes;
     uint32_t blk_offset;
+
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
 };
 
 static int pflash_post_load(void *opaque, int version_id);
@@ -806,56 +809,55 @@ static void pflash_cfi01_fill_cfi_table(PFlashCFI01 *pfl)
     pfl->cfi_table[0x3f] = 0x01; /* Number of protection fields */
 }
 
-static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
+void PFlashCFI01::realize(Error **errp)
 {
     ERRP_GUARD();
-    PFlashCFI01 *pfl = PFLASH_CFI01(dev);
     uint64_t total_len;
     int ret;
 
-    if (pfl->sector_len == 0) {
+    if (sector_len == 0) {
         error_setg(errp, "attribute \"sector-length\" not specified or zero.");
         return;
     }
-    if (pfl->nb_blocs == 0) {
+    if (nb_blocs == 0) {
         error_setg(errp, "attribute \"num-blocks\" not specified or zero.");
         return;
     }
-    if (pfl->name == NULL) {
+    if (name == NULL) {
         error_setg(errp, "attribute \"name\" not specified.");
         return;
     }
 
-    total_len = pfl->sector_len * pfl->nb_blocs;
+    total_len = sector_len * nb_blocs;
 
     memory_region_init_rom_device(
-        &pfl->mem, OBJECT(dev),
+        &mem, OBJECT(this),
         &pflash_cfi01_ops,
-        pfl,
-        pfl->name, total_len, errp);
+        this,
+        name, total_len, errp);
     if (*errp) {
         return;
     }
 
-    pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
+    storage = memory_region_get_ram_ptr(&mem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mem);
 
-    if (pfl->blk) {
+    if (blk) {
         uint64_t perm;
-        pfl->ro = !blk_supports_write_perm(pfl->blk);
-        perm = BLK_PERM_CONSISTENT_READ | (pfl->ro ? 0 : BLK_PERM_WRITE);
-        ret = blk_set_perm(pfl->blk, perm, BLK_PERM_ALL, errp);
+        ro = !blk_supports_write_perm(blk);
+        perm = BLK_PERM_CONSISTENT_READ | (ro ? 0 : BLK_PERM_WRITE);
+        ret = blk_set_perm(blk, perm, BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;
         }
     } else {
-        pfl->ro = false;
+        ro = false;
     }
 
-    if (pfl->blk) {
-        if (!blk_check_size_and_read_all(pfl->blk, dev, pfl->storage,
+    if (blk) {
+        if (!blk_check_size_and_read_all(blk, DEVICE(this), storage,
                                          total_len, errp)) {
-            vmstate_unregister_ram(&pfl->mem, DEVICE(pfl));
+            vmstate_unregister_ram(&mem, DEVICE(this));
             return;
         }
     }
@@ -864,21 +866,21 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
      * Default to devices being used at their maximum device width. This was
      * assumed before the device_width support was added.
      */
-    if (!pfl->max_device_width) {
-        pfl->max_device_width = pfl->device_width;
+    if (!max_device_width) {
+        max_device_width = device_width;
     }
 
-    pfl->wcycle = 0;
+    wcycle = 0;
     /*
      * The command 0x00 is not assigned by the CFI open standard,
      * but QEMU historically uses it for the READ_ARRAY command (0xff).
      */
-    pfl->cmd = 0x00;
-    pfl->status = 0x80; /* WSM ready */
-    pflash_cfi01_fill_cfi_table(pfl);
+    cmd = 0x00;
+    status = 0x80; /* WSM ready */
+    pflash_cfi01_fill_cfi_table(this);
 
-    pfl->blk_bytes = static_cast<unsigned char *>(g_malloc(pfl->writeblock_size));
-    pfl->blk_offset = -1;
+    blk_bytes = static_cast<unsigned char *>(g_malloc(writeblock_size));
+    blk_offset = -1;
 }
 
 static void pflash_cfi01_system_reset(DeviceState *dev)
@@ -941,27 +943,16 @@ static const Property pflash_cfi01_properties[] = {
                      old_multiple_chip_handling, false),
 };
 
-static void pflash_cfi01_class_init(ObjectClass *klass, const void *data)
+void PFlashCFI01::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, pflash_cfi01_system_reset);
-    dc->realize = pflash_cfi01_realize;
     device_class_set_props(dc, pflash_cfi01_properties);
     dc->vmsd = &vmstate_pflash;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo pflash_cfi01_types[] = {
-    {
-        .name           = TYPE_PFLASH_CFI01,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(PFlashCFI01),
-        .class_init     = pflash_cfi01_class_init,
-    },
-};
-
-DEFINE_TYPES(pflash_cfi01_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PFlashCFI01, TYPE_PFLASH_CFI01, TYPE_SYS_BUS_DEVICE)
 
 PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    const char *name,

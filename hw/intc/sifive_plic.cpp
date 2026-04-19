@@ -295,11 +295,6 @@ void SiFivePLICState::reset()
     }
 }
 
-static void sifive_plic_reset(DeviceState *dev)
-{
-    reinterpret_cast<SiFivePLICState *>(dev)->reset();
-}
-
 /*
  * parse PLIC hart/mode address offset config
  *
@@ -426,11 +421,6 @@ void SiFivePLICState::realize(Error **errp)
     msi_nonbroken = true;
 }
 
-static void sifive_plic_realize(DeviceState *dev, Error **errp)
-{
-    reinterpret_cast<SiFivePLICState *>(dev)->realize(errp);
-}
-
 static const VMStateField vmstate_sifive_plic_fields[] = {
     VMSTATE_VARRAY_UINT32(source_priority, SiFivePLICState,
                           num_sources, 0,
@@ -470,29 +460,14 @@ static const Property sifive_plic_properties[] = {
     DEFINE_PROP_UINT32("aperture-size", SiFivePLICState, aperture_size, 0),
 };
 
-void SiFivePLICState::classInit(ObjectClass *klass, const void *data)
+void SiFivePLICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    device_class_set_legacy_reset(dc, sifive_plic_reset);
     device_class_set_props(dc, sifive_plic_properties);
-    dc->realize = sifive_plic_realize;
     dc->vmsd = &vmstate_sifive_plic;
 }
 
-static const TypeInfo sifive_plic_info = {
-    .name          = TYPE_SIFIVE_PLIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SiFivePLICState),
-    .class_init    = SiFivePLICState::classInit,
-};
-
-static void sifive_plic_register_types(void)
-{
-    type_register_static(&sifive_plic_info);
-}
-
-type_init(sifive_plic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SiFivePLICState, TYPE_SIFIVE_PLIC, TYPE_SYS_BUS_DEVICE)
 
 /*
  * Create PLIC device.
