@@ -291,8 +291,8 @@ struct OpenEthState {
     desc desc[128];
 
     /* Instance methods */
-    void doReset();
-    void realize(DeviceState *dev, Error **errp);
+    void reset();
+    void realize(Error **errp);
 
     /* Static MMIO callbacks */
     static uint64_t regRead(void *opaque, hwaddr addr, unsigned int size);
@@ -301,7 +301,7 @@ struct OpenEthState {
     static void descWrite(void *opaque, hwaddr addr, uint64_t val, unsigned int size);
 
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static desc *rx_desc(OpenEthState *s)
@@ -343,7 +343,7 @@ static void open_eth_set_link_status(NetClientState *nc)
     mii_set_link(&s->mii, !nc->link_down);
 }
 
-void OpenEthState::doReset()
+void OpenEthState::reset()
 {
     OpenEthState *s = this;
 
@@ -595,7 +595,7 @@ static void open_eth_moder_host_write(OpenEthState *s, uint32_t val)
     uint32_t set = val & ~s->regs[MODER];
 
     if (set & MODER_RST) {
-        s->doReset();
+        s->reset();
     }
 
     s->regs[MODER] = val;
@@ -730,63 +730,36 @@ static const MemoryRegionOps open_eth_desc_ops = {
     .write = OpenEthState::descWrite,
 };
 
-void OpenEthState::realize(DeviceState *dev, Error **errp)
+void OpenEthState::realize(Error **errp)
 {
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
-    OpenEthState *s = reinterpret_cast<OpenEthState *>(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->reg_io, reinterpret_cast<Object *>(dev), &open_eth_reg_ops, s,
+    memory_region_init_io(&reg_io, OBJECT(this), &open_eth_reg_ops, this,
             "open_eth.regs", 0x54);
-    sysbus_init_mmio(sbd, &s->reg_io);
+    sysbus_init_mmio(sbd, &reg_io);
 
-    memory_region_init_io(&s->desc_io, reinterpret_cast<Object *>(dev), &open_eth_desc_ops, s,
+    memory_region_init_io(&desc_io, OBJECT(this), &open_eth_desc_ops, this,
             "open_eth.desc", 0x400);
-    sysbus_init_mmio(sbd, &s->desc_io);
+    sysbus_init_mmio(sbd, &desc_io);
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    s->nic = qemu_new_nic(&net_open_eth_info, &s->conf,
-                          object_get_typename(reinterpret_cast<Object *>(s)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-}
-
-static void sysbus_open_eth_realize(DeviceState *dev, Error **errp)
-{
-    OpenEthState *s = reinterpret_cast<OpenEthState *>(dev);
-    s->realize(dev, errp);
-}
-
-static void qdev_open_eth_reset(DeviceState *dev)
-{
-    OpenEthState *d = reinterpret_cast<OpenEthState *>(dev);
-    d->doReset();
+    nic = qemu_new_nic(&net_open_eth_info, &conf,
+                          object_get_typename(OBJECT(this)), dev->id,
+                          &dev->mem_reentrancy_guard, this);
 }
 
 static const Property open_eth_properties[] = {
     DEFINE_NIC_PROPERTIES(OpenEthState, conf),
 };
 
-void OpenEthState::classInit(ObjectClass *klass, const void *data)
+void OpenEthState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = sysbus_open_eth_realize;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "Opencores 10/100 Mbit Ethernet";
-    device_class_set_legacy_reset(dc, qdev_open_eth_reset);
     device_class_set_props(dc, open_eth_properties);
 }
 
-static const TypeInfo open_eth_info = {
-    .name          = TYPE_OPEN_ETH,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(OpenEthState),
-    .class_init    = OpenEthState::classInit,
-};
-
-static void open_eth_register_types(void)
-{
-    type_register_static(&open_eth_info);
-}
-
-type_init(open_eth_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(OpenEthState, TYPE_OPEN_ETH, TYPE_SYS_BUS_DEVICE)

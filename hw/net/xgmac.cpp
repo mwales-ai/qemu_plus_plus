@@ -161,13 +161,13 @@ struct XgmacState {
     void enetSend();
     void updateIrq();
     int canRx();
-    void realize(DeviceState *dev, Error **errp);
+    void realize(Error **errp);
 
     /* Static callbacks */
     static uint64_t enetRead(void *opaque, hwaddr addr, unsigned size);
     static void enetWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
     static ssize_t ethRx(NetClientState *nc, const uint8_t *buf, size_t size);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_rxtx_stats_fields[] = {
@@ -407,61 +407,41 @@ static NetClientInfo net_xgmac_enet_info = {
     .receive = XgmacState::ethRx,
 };
 
-void XgmacState::realize(DeviceState *dev, Error **errp)
+void XgmacState::realize(Error **errp)
 {
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
-    XgmacState *s = XGMAC(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
+    DeviceState *dev = DEVICE(this);
 
-    memory_region_init_io(&s->iomem, reinterpret_cast<Object *>(s), &enet_mem_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &enet_mem_ops, this,
                           "xgmac", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->sbd_irq);
-    sysbus_init_irq(sbd, &s->pmt_irq);
-    sysbus_init_irq(sbd, &s->mci_irq);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &sbd_irq);
+    sysbus_init_irq(sbd, &pmt_irq);
+    sysbus_init_irq(sbd, &mci_irq);
 
-    qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(&net_xgmac_enet_info, &s->conf,
-                          object_get_typename(reinterpret_cast<Object *>(dev)), dev->id,
-                          &dev->mem_reentrancy_guard, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_xgmac_enet_info, &conf,
+                          object_get_typename(OBJECT(this)), dev->id,
+                          &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 
-    s->regs[XGMAC_ADDR_HIGH(0)] = (s->conf.macaddr.a[5] << 8) |
-                                   s->conf.macaddr.a[4];
-    s->regs[XGMAC_ADDR_LOW(0)] = (s->conf.macaddr.a[3] << 24) |
-                                 (s->conf.macaddr.a[2] << 16) |
-                                 (s->conf.macaddr.a[1] << 8) |
-                                  s->conf.macaddr.a[0];
-}
-
-static void xgmac_enet_realize(DeviceState *dev, Error **errp)
-{
-    XgmacState *s = XGMAC(dev);
-    s->realize(dev, errp);
+    regs[XGMAC_ADDR_HIGH(0)] = (conf.macaddr.a[5] << 8) |
+                                   conf.macaddr.a[4];
+    regs[XGMAC_ADDR_LOW(0)] = (conf.macaddr.a[3] << 24) |
+                                 (conf.macaddr.a[2] << 16) |
+                                 (conf.macaddr.a[1] << 8) |
+                                  conf.macaddr.a[0];
 }
 
 static const Property xgmac_properties[] = {
     DEFINE_NIC_PROPERTIES(XgmacState, conf),
 };
 
-void XgmacState::classInit(ObjectClass *klass, const void *data)
+void XgmacState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = xgmac_enet_realize;
     dc->vmsd = &vmstate_xgmac;
     device_class_set_props(dc, xgmac_properties);
 }
 
-static const TypeInfo xgmac_enet_info = {
-    .name          = TYPE_XGMAC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XgmacState),
-    .class_init    = XgmacState::classInit,
-};
-
-static void xgmac_enet_register_types(void)
-{
-    type_register_static(&xgmac_enet_info);
-}
-
-type_init(xgmac_enet_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XgmacState, TYPE_XGMAC, TYPE_SYS_BUS_DEVICE)

@@ -113,11 +113,11 @@ struct HPETState {
     void delTimer(HPETTimer *t);
 
     /* ----- QOM callbacks ----- */
-    void realize(DeviceState *dev, Error **errp);
-    void reset(DeviceState *d);
-    void initInstance(Object *obj);
+    void realize(Error **errp);
+    void reset();
+    void init();
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     /* static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
@@ -708,14 +708,9 @@ static const MemoryRegionOps hpet_ram_ops = {
     },
 };
 
-static void hpet_reset_wrapper(DeviceState *d)
+void HPETState::reset()
 {
-    reinterpret_cast<HPETState *>(d)->reset(d);
-}
-
-void HPETState::reset(DeviceState *d)
-{
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(d);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     int i;
 
     for (i = 0; i < num_timers; i++) {
@@ -762,31 +757,19 @@ void HPETState::handleLegacyIrq(void *opaque, int n, int level)
     }
 }
 
-static void hpet_init_wrapper(Object *obj)
+void HPETState::init()
 {
-    reinterpret_cast<HPETState *>(obj)->initInstance(obj);
-}
-
-void HPETState::initInstance(Object *obj)
-{
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-
     qemu_mutex_init(&lock);
     seqlock_init(&state_version);
     /* HPET Area */
-    memory_region_init_io(&iomem, obj, &hpet_ram_ops, this, "hpet", HPET_LEN);
+    memory_region_init_io(&iomem, OBJECT(this), &hpet_ram_ops, this, "hpet", HPET_LEN);
     memory_region_enable_lockless_io(&iomem);
-    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static void hpet_realize_wrapper(DeviceState *dev, Error **errp)
+void HPETState::realize(Error **errp)
 {
-    reinterpret_cast<HPETState *>(dev)->realize(dev, errp);
-}
-
-void HPETState::realize(DeviceState *dev, Error **errp)
-{
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
     int i;
     HPETTimer *t;
 
@@ -828,8 +811,8 @@ void HPETState::realize(DeviceState *dev, Error **errp)
     capability |= (num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
     capability |= ((uint64_t)(HPET_CLK_PERIOD * FS_PER_NS) << 32);
 
-    qdev_init_gpio_in(dev, HPETState::handleLegacyIrq, 2);
-    qdev_init_gpio_out(dev, &pit_enabled, 1);
+    qdev_init_gpio_in(DEVICE(this), HPETState::handleLegacyIrq, 2);
+    qdev_init_gpio_out(DEVICE(this), &pit_enabled, 1);
 }
 
 static const Property hpet_device_properties[] = {
@@ -839,27 +822,11 @@ static const Property hpet_device_properties[] = {
     DEFINE_PROP_BOOL("hpet-offset-saved", HPETState, hpet_offset_saved, true),
 };
 
-void HPETState::classInit(ObjectClass *klass, const void *data)
+void HPETState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = hpet_realize_wrapper;
-    device_class_set_legacy_reset(dc, hpet_reset_wrapper);
     dc->vmsd = &vmstate_hpet;
     device_class_set_props(dc, hpet_device_properties);
 }
 
-static const TypeInfo hpet_device_info = {
-    .name          = TYPE_HPET,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(HPETState),
-    .instance_init = hpet_init_wrapper,
-    .class_init    = HPETState::classInit,
-};
-
-static void hpet_register_types(void)
-{
-    type_register_static(&hpet_device_info);
-}
-
-type_init(hpet_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(HPETState, TYPE_HPET, TYPE_SYS_BUS_DEVICE)

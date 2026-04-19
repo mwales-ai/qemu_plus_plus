@@ -74,8 +74,8 @@ struct IRQMP {
     qemu_irq irq[IRQMP_MAX_CPU];
 
     void reset();
-    void realize(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
 };
 
 struct IRQMPState {
@@ -347,12 +347,6 @@ static const MemoryRegionOps grlib_irqmp_ops = {
     },
 };
 
-static void grlib_irqmp_reset_wrapper(DeviceState *d)
-{
-    IRQMP *irqmp = reinterpret_cast<IRQMP *>(d);
-    irqmp->reset();
-}
-
 void IRQMP::reset()
 {
     assert(state != NULL);
@@ -363,63 +357,40 @@ void IRQMP::reset()
         ((1 << ncpus) - 2);
 }
 
-static void grlib_irqmp_realize_wrapper(DeviceState *dev, Error **errp)
+void IRQMP::realize(Error **errp)
 {
-    IRQMP *irqmp = reinterpret_cast<IRQMP *>(dev);
-    irqmp->realize(dev, errp);
-}
-
-void IRQMP::realize(DeviceState *dev, Error **errp)
-{
-    IRQMP *irqmp = reinterpret_cast<IRQMP *>(dev);
-
-    if ((!irqmp->ncpus) || (irqmp->ncpus > IRQMP_MAX_CPU)) {
+    if ((!ncpus) || (ncpus > IRQMP_MAX_CPU)) {
         error_setg(errp, "Invalid ncpus properties: "
-                   "%u, must be 0 < ncpus =< %u.", irqmp->ncpus,
+                   "%u, must be 0 < ncpus =< %u.", ncpus,
                    IRQMP_MAX_CPU);
         return;
     }
 
-    qdev_init_gpio_in(dev, IRQMPState::setIrq, MAX_PILS);
+    qdev_init_gpio_in(DEVICE(this), IRQMPState::setIrq, MAX_PILS);
 
     /*
      * Transitionning from 0 to 1 starts the CPUs. The opposite can't
      * happen.
      */
-    qdev_init_gpio_out_named(dev, irqmp->start_signal, "grlib-start-cpu",
+    qdev_init_gpio_out_named(DEVICE(this), start_signal, "grlib-start-cpu",
                              IRQMP_MAX_CPU);
-    qdev_init_gpio_out_named(dev, irqmp->irq, "grlib-irq", irqmp->ncpus);
-    memory_region_init_io(&irqmp->iomem, reinterpret_cast<Object *>(dev), &grlib_irqmp_ops, irqmp,
+    qdev_init_gpio_out_named(DEVICE(this), irq, "grlib-irq", ncpus);
+    memory_region_init_io(&iomem, OBJECT(this), &grlib_irqmp_ops, this,
                           "irqmp", IRQMP_REG_SIZE);
 
-    irqmp->state = static_cast<IRQMPState *>(g_malloc0(sizeof *irqmp->state));
+    state = static_cast<IRQMPState *>(g_malloc0(sizeof *state));
 
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &irqmp->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const Property grlib_irqmp_properties[] = {
     DEFINE_PROP_UINT32("ncpus", IRQMP, ncpus, 1),
 };
 
-void IRQMP::classInit(ObjectClass *klass, const void *data)
+void IRQMP::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = grlib_irqmp_realize_wrapper;
-    device_class_set_legacy_reset(dc, grlib_irqmp_reset_wrapper);
     device_class_set_props(dc, grlib_irqmp_properties);
 }
 
-static const TypeInfo grlib_irqmp_info = {
-    .name          = TYPE_GRLIB_IRQMP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IRQMP),
-    .class_init    = IRQMP::classInit,
-};
-
-static void grlib_irqmp_register_types(void)
-{
-    type_register_static(&grlib_irqmp_info);
-}
-
-type_init(grlib_irqmp_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IRQMP, TYPE_GRLIB_IRQMP, TYPE_SYS_BUS_DEVICE)

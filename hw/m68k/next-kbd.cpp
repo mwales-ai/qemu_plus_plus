@@ -80,8 +80,8 @@ struct NextKBDState {
     void putKeycode(int keycode);
     static void kbdEvent(DeviceState *dev, QemuConsole *src, InputEvent *evt);
     void reset();
-    void realize(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *oc, const void *data);
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
 };
 
 
@@ -310,32 +310,18 @@ static const QemuInputHandler nextkbd_handler = {
     .event = NextKBDState::kbdEvent,
 };
 
-static void nextkbd_reset_wrapper(DeviceState *dev)
-{
-    NextKBDState *nks = reinterpret_cast<NextKBDState *>(dev);
-    nks->reset();
-}
-
 void NextKBDState::reset()
 {
     memset(&queue, 0, sizeof(KBDQueue));
     shift = 0;
 }
 
-void NextKBDState::realize(DeviceState *dev, Error **errp)
+void NextKBDState::realize(Error **errp)
 {
-    NextKBDState *s = reinterpret_cast<NextKBDState *>(dev);
+    memory_region_init_io(&mr, OBJECT(this), &kbd_ops, this, "next.kbd", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mr);
 
-    memory_region_init_io(&s->mr, reinterpret_cast<Object *>(dev), &kbd_ops, s, "next.kbd", 0x1000);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(dev), &s->mr);
-
-    qemu_input_handler_register(dev, &nextkbd_handler);
-}
-
-static void nextkbd_realize_wrapper(DeviceState *dev, Error **errp)
-{
-    NextKBDState *s = reinterpret_cast<NextKBDState *>(dev);
-    s->realize(dev, errp);
+    qemu_input_handler_register(DEVICE(this), &nextkbd_handler);
 }
 
 static const VMStateDescription nextkbd_vmstate = {
@@ -343,26 +329,11 @@ static const VMStateDescription nextkbd_vmstate = {
     .unmigratable = 1,    /* TODO: Implement this when m68k CPU is migratable */
 };
 
-void NextKBDState::classInit(ObjectClass *oc, const void *data)
+void NextKBDState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->vmsd = &nextkbd_vmstate;
-    dc->realize = nextkbd_realize_wrapper;
-    device_class_set_legacy_reset(dc, nextkbd_reset_wrapper);
 }
 
-static const TypeInfo nextkbd_info = {
-    .name          = TYPE_NEXTKBD,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NextKBDState),
-    .class_init    = NextKBDState::classInit,
-};
-
-static void nextkbd_register_types(void)
-{
-    type_register_static(&nextkbd_info);
-}
-
-type_init(nextkbd_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NextKBDState, TYPE_NEXTKBD, TYPE_SYS_BUS_DEVICE)
