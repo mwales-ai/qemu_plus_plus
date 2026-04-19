@@ -108,9 +108,8 @@ struct Exynos4210I2CState {
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
                           unsigned size);
     void reset();
-    static void resetWrapper(DeviceState *d);
-    static void initfn(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 void Exynos4210I2CState::raiseInterrupt()
@@ -297,12 +296,6 @@ static const VMStateDescription exynos4210_i2c_vmstate = {
     .fields = vmstate_exynos4210_i2c_fields,
 };
 
-void Exynos4210I2CState::resetWrapper(DeviceState *d)
-{
-    Exynos4210I2CState *s = EXYNOS4_I2C(d);
-    s->reset();
-}
-
 void Exynos4210I2CState::reset()
 {
     i2ccon  = 0x00;
@@ -313,38 +306,19 @@ void Exynos4210I2CState::reset()
     scl_free = true;
 }
 
-void Exynos4210I2CState::initfn(Object *obj)
+void Exynos4210I2CState::init()
 {
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    Exynos4210I2CState *s = EXYNOS4_I2C(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-
-    memory_region_init_io(&s->iomem, obj, &exynos4210_i2c_ops, s,
+    memory_region_init_io(&iomem, OBJECT(this), &exynos4210_i2c_ops, this,
                           TYPE_EXYNOS4_I2C, EXYNOS4_I2C_MEM_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-    s->bus = i2c_init_bus(dev, "i2c");
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+    bus = i2c_init_bus(DEVICE(this), "i2c");
 }
 
-void Exynos4210I2CState::classInit(ObjectClass *klass, const void *data)
+void Exynos4210I2CState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->vmsd = &exynos4210_i2c_vmstate;
-    device_class_set_legacy_reset(dc, resetWrapper);
 }
 
-static const TypeInfo exynos4210_i2c_type_info = {
-    .name = TYPE_EXYNOS4_I2C,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210I2CState),
-    .instance_init = Exynos4210I2CState::initfn,
-    .class_init = Exynos4210I2CState::classInit,
-};
-
-static void exynos4210_i2c_register_types(void)
-{
-    type_register_static(&exynos4210_i2c_type_info);
-}
-
-type_init(exynos4210_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210I2CState, TYPE_EXYNOS4_I2C, TYPE_SYS_BUS_DEVICE)

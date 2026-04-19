@@ -100,9 +100,7 @@ struct MPCI2CState {
     static void mmioWrite(void *opaque, hwaddr addr, uint64_t value,
                           unsigned size);
     void realize(Error **errp);
-    static void resetWrapper(DeviceState *dev);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 bool MPCI2CState::isEnabled()
@@ -128,12 +126,6 @@ bool MPCI2CState::irqPending()
 bool MPCI2CState::irqIsEnabled()
 {
     return cr & CCR_MIEN;
-}
-
-void MPCI2CState::resetWrapper(DeviceState *dev)
-{
-    MPCI2CState *i2c = MPC_I2C(dev);
-    i2c->reset();
 }
 
 void MPCI2CState::reset()
@@ -359,29 +351,11 @@ void MPCI2CState::realize(Error **errp)
     bus = i2c_init_bus(dev, "i2c");
 }
 
-void MPCI2CState::realizeWrapper(DeviceState *dev, Error **errp)
+void MPCI2CState::classInit(DeviceClass *dc)
 {
-    MPCI2CState *s = MPC_I2C(dev);
-    s->realize(errp);
-}
-
-void MPCI2CState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->vmsd  = &mpc_i2c_vmstate ;
-    device_class_set_legacy_reset(dc, resetWrapper);
-    dc->realize = realizeWrapper;
     dc->desc = "MPC I2C Controller";
 }
 
-static const TypeInfo mpc_i2c_types[] = {
-    {
-        .name          = TYPE_MPC_I2C,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(MPCI2CState),
-        .class_init    = MPCI2CState::classInit,
-    },
-};
-
-DEFINE_TYPES(mpc_i2c_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MPCI2CState, TYPE_MPC_I2C, TYPE_SYS_BUS_DEVICE)

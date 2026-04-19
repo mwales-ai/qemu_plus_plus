@@ -58,17 +58,15 @@ struct KVMOpenPICState {
     static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
 
     void reset();
-    static void resetWrapper(DeviceState *d);
+    void init();
+    void realize(Error **errp);
 
     static void regionAdd(MemoryListener *listener,
                           MemoryRegionSection *section);
     static void regionDel(MemoryListener *listener,
                           MemoryRegionSection *section);
 
-    static void instanceInit(Object *obj);
-    void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void KVMOpenPICState::setIrq(void *opaque, int n_IRQ, int level)
@@ -101,11 +99,6 @@ void KVMOpenPICState::reset()
     mmioWrite(this, 0x1020, GCR_RESET, sizeof(uint32_t));
 }
 
-void KVMOpenPICState::resetWrapper(DeviceState *d)
-{
-    KVMOpenPICState *opp = reinterpret_cast<KVMOpenPICState *>(d);
-    opp->reset();
-}
 
 uint64_t KVMOpenPICState::mmioRead(void *opaque, hwaddr addr, unsigned size)
 {
@@ -208,11 +201,9 @@ void KVMOpenPICState::regionDel(MemoryListener *listener,
     }
 }
 
-void KVMOpenPICState::instanceInit(Object *obj)
+void KVMOpenPICState::init()
 {
-    KVMOpenPICState *opp = reinterpret_cast<KVMOpenPICState *>(obj);
-
-    memory_region_init_io(&opp->mem, reinterpret_cast<Object *>(opp), &kvm_openpic_mem_ops, opp,
+    memory_region_init_io(&mem, OBJECT(this), &kvm_openpic_mem_ops, this,
                           "kvm-openpic", 0x40000);
 }
 
@@ -278,12 +269,6 @@ void KVMOpenPICState::realize(Error **errp)
     kvm_irqchip_commit_routes(s);
 }
 
-void KVMOpenPICState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    KVMOpenPICState *opp = reinterpret_cast<KVMOpenPICState *>(dev);
-    opp->realize(errp);
-}
-
 int kvm_openpic_connect_vcpu(DeviceState *d, CPUState *cs)
 {
     KVMOpenPICState *opp = reinterpret_cast<KVMOpenPICState *>(d);
@@ -297,27 +282,11 @@ static const Property kvm_openpic_properties[] = {
                        OPENPIC_MODEL_FSL_MPIC_20),
 };
 
-void KVMOpenPICState::classInit(ObjectClass *oc, const void *data)
+void KVMOpenPICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
-    dc->realize = realizeWrapper;
     device_class_set_props(dc, kvm_openpic_properties);
-    device_class_set_legacy_reset(dc, resetWrapper);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo kvm_openpic_info = {
-    .name          = TYPE_KVM_OPENPIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(KVMOpenPICState),
-    .instance_init = KVMOpenPICState::instanceInit,
-    .class_init    = KVMOpenPICState::classInit,
-};
-
-static void kvm_openpic_register_types(void)
-{
-    type_register_static(&kvm_openpic_info);
-}
-
-type_init(kvm_openpic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(KVMOpenPICState, TYPE_KVM_OPENPIC, TYPE_SYS_BUS_DEVICE)

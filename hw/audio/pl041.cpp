@@ -105,13 +105,9 @@ struct PL041State {
     static void writeOp(void *opaque, hwaddr offset, uint64_t value, unsigned size);
 
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-
     void reset();
-    static void resetWrapper(DeviceState *d);
-
-    static void initfn(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 
@@ -533,12 +529,6 @@ void PL041State::writeOp(void *opaque, hwaddr offset,
     s->isr1Update();
 }
 
-void PL041State::resetWrapper(DeviceState *d)
-{
-    PL041State *s = PL041(d);
-    s->reset();
-}
-
 void PL041State::reset()
 {
     resetState();
@@ -550,23 +540,14 @@ static const MemoryRegionOps pl041_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void PL041State::initfn(Object *obj)
+void PL041State::init()
 {
-    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
-    PL041State *s = PL041(dev);
-
-    DBG_L1("pl041_init 0x%08x\n", (uint32_t)s);
+    DBG_L1("pl041_init 0x%08x\n", (uint32_t)this);
 
     /* Connect the device to the sysbus */
-    memory_region_init_io(&s->iomem, obj, &pl041_ops, s, "pl041", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
-}
-
-void PL041State::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    PL041State *s = PL041(dev);
-    s->realize(errp);
+    memory_region_init_io(&iomem, OBJECT(this), &pl041_ops, this, "pl041", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 }
 
 void PL041State::realize(Error **errp)
@@ -660,28 +641,12 @@ static const Property pl041_device_properties[] = {
                        DEFAULT_FIFO_DEPTH),
 };
 
-void PL041State::classInit(ObjectClass *klass, const void *data)
+void PL041State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = PL041State::realizeWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
-    device_class_set_legacy_reset(dc, PL041State::resetWrapper);
     dc->vmsd = &vmstate_pl041;
     device_class_set_props(dc, pl041_device_properties);
 }
 
-static const TypeInfo pl041_device_info = {
-    .name          = TYPE_PL041,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL041State),
-    .instance_init = PL041State::initfn,
-    .class_init    = PL041State::classInit,
-};
-
-static void pl041_register_types(void)
-{
-    type_register_static(&pl041_device_info);
-}
-
-type_init(pl041_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PL041State, TYPE_PL041, TYPE_SYS_BUS_DEVICE)
