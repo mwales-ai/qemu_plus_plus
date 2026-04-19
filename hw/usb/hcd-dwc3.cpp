@@ -587,10 +587,9 @@ static void usb_dwc3_reset_impl(USBDWC3 *s)
     xhci_sysbus_reset(DEVICE(&s->sysbus_xhci));
 }
 
-static void usb_dwc3_reset(DeviceState *dev)
+void USBDWC3::reset()
 {
-    USBDWC3 *s = USB_DWC3(dev);
-    usb_dwc3_reset_impl(s);
+    usb_dwc3_reset_impl(this);
 }
 
 static const MemoryRegionOps usb_dwc3_ops = {
@@ -632,33 +631,31 @@ static void usb_dwc3_realize_impl(USBDWC3 *s, Error **errp)
     s->regs[R_GHWPARAMS8] = 0x478;
 }
 
-static void usb_dwc3_realize(DeviceState *dev, Error **errp)
+void USBDWC3::realize(Error **errp)
 {
-    USBDWC3 *s = USB_DWC3(dev);
-    usb_dwc3_realize_impl(s, errp);
+    usb_dwc3_realize_impl(this, errp);
 }
 
-static void __attribute__((used)) usb_dwc3_init(Object *obj)
+void USBDWC3::init()
 {
-    USBDWC3 *s = USB_DWC3(obj);
     RegisterInfoArray *reg_array;
 
-    memory_region_init(&s->iomem, obj, TYPE_USB_DWC3, DWC3_SIZE);
+    memory_region_init(&iomem, OBJECT(this), TYPE_USB_DWC3, DWC3_SIZE);
     reg_array =
-        register_init_block32(DEVICE(obj), usb_dwc3_regs_info,
+        register_init_block32(DEVICE(this), usb_dwc3_regs_info,
                               ARRAY_SIZE(usb_dwc3_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &usb_dwc3_ops,
                               USB_DWC3_ERR_DEBUG,
                               USB_DWC3_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem,
+    memory_region_add_subregion(&iomem,
                                 DWC3_GLOBAL_OFFSET,
                                 &reg_array->mem);
-    object_initialize_child(obj, "dwc3-xhci", &s->sysbus_xhci,
+    object_initialize_child(OBJECT(this), "dwc3-xhci", &sysbus_xhci,
                             TYPE_XHCI_SYSBUS);
-    qdev_alias_all_properties(DEVICE(&s->sysbus_xhci), obj);
+    qdev_alias_all_properties(DEVICE(&sysbus_xhci), OBJECT(this));
 
-    s->cfg.mode = HOST_MODE;
+    cfg.mode = HOST_MODE;
 }
 
 static const VMStateField vmstate_usb_dwc3_fields[] = {
@@ -679,27 +676,11 @@ static const Property usb_dwc3_properties[] = {
                        0x12345678),
 };
 
-static void usb_dwc3_class_init(ObjectClass *klass, const void *data)
+void USBDWC3::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, usb_dwc3_reset);
-    dc->realize = usb_dwc3_realize;
     dc->vmsd = &vmstate_usb_dwc3;
     device_class_set_props(dc, usb_dwc3_properties);
 }
 
-static const TypeInfo usb_dwc3_info = {
-    .name          = TYPE_USB_DWC3,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(USBDWC3),
-    .instance_init = usb_dwc3_init,
-    .class_init    = usb_dwc3_class_init,
-};
-
-static void usb_dwc3_register_types(void)
-{
-    type_register_static(&usb_dwc3_info);
-}
-
-type_init(usb_dwc3_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(USBDWC3, TYPE_USB_DWC3, TYPE_SYS_BUS_DEVICE)

@@ -51,6 +51,12 @@ typedef struct USBDWC3 {
         uint32_t    dwc_usb3_user;
     } cfg;
 
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } USBDWC3;
 
 #endif
