@@ -365,13 +365,6 @@ static const VMStateDescription vmstate_pmac = {
     .fields = vmstate_pmac_fields
 };
 
-static void macio_ide_reset(DeviceState *dev)
-{
-    MACIOIDEState *d = MACIO_IDE(dev);
-
-    ide_bus_reset(&d->bus);
-}
-
 static int ide_nop_int(const IDEDMA *dma, bool is_write)
 {
     return 0;
@@ -410,16 +403,13 @@ static const IDEDMAOps dbdma_ops = {
     .rw_buf         = ide_nop_int,
 };
 
-static void macio_ide_realizefn(DeviceState *dev, Error **errp)
+void MACIOIDEState::realize(Error **errp)
 {
-    MACIOIDEState *s = MACIO_IDE(dev);
+    ide_bus_init_output_irq(&bus,
+                            qdev_get_gpio_in(DEVICE(this), MACIO_IDE_PMAC_IDE_IRQ));
 
-    ide_bus_init_output_irq(&s->bus,
-                            qdev_get_gpio_in(dev, MACIO_IDE_PMAC_IDE_IRQ));
-
-    /* Register DMA callbacks */
-    s->dma.ops = &dbdma_ops;
-    s->bus.dma = &s->dma;
+    dma.ops = &dbdma_ops;
+    bus.dma = &dma;
 }
 
 static void pmac_ide_irq(void *opaque, int n, int level)
@@ -441,22 +431,24 @@ static void pmac_ide_irq(void *opaque, int n, int level)
     }
 }
 
-static void macio_ide_initfn(Object *obj)
+void MACIOIDEState::init()
 {
-    SysBusDevice *d = SYS_BUS_DEVICE(obj);
-    MACIOIDEState *s = MACIO_IDE(obj);
+    ide_bus_init(&bus, sizeof(bus), DEVICE(this), 0, 2);
+    memory_region_init_io(&mem, OBJECT(this), &pmac_ide_ops, this, "pmac-ide", 0x1000);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &real_ide_irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &real_dma_irq);
 
-    ide_bus_init(&s->bus, sizeof(s->bus), DEVICE(obj), 0, 2);
-    memory_region_init_io(&s->mem, obj, &pmac_ide_ops, s, "pmac-ide", 0x1000);
-    sysbus_init_mmio(d, &s->mem);
-    sysbus_init_irq(d, &s->real_ide_irq);
-    sysbus_init_irq(d, &s->real_dma_irq);
+    qdev_init_gpio_in(DEVICE(this), pmac_ide_irq, MACIO_IDE_PMAC_NIRQS);
 
-    qdev_init_gpio_in(DEVICE(obj), pmac_ide_irq, MACIO_IDE_PMAC_NIRQS);
-
-    object_property_add_link(obj, "dbdma", TYPE_MAC_DBDMA,
-                             (Object **) &s->dbdma,
+    object_property_add_link(OBJECT(this), "dbdma", TYPE_MAC_DBDMA,
+                             (Object **) &dbdma,
                              qdev_prop_allow_set_link_before_realize, static_cast<ObjectPropertyLinkFlags>(0));
+}
+
+void MACIOIDEState::reset()
+{
+    ide_bus_reset(&bus);
 }
 
 static const Property macio_ide_properties[] = {
@@ -464,31 +456,18 @@ static const Property macio_ide_properties[] = {
     DEFINE_PROP_UINT32("addr", MACIOIDEState, addr, -1),
 };
 
-static void macio_ide_class_init(ObjectClass *oc, const void *data)
+void MACIOIDEState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = macio_ide_realizefn;
-    device_class_set_legacy_reset(dc, macio_ide_reset);
     device_class_set_props(dc, macio_ide_properties);
     dc->vmsd = &vmstate_pmac;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo macio_ide_type_info = {
-    .name = TYPE_MACIO_IDE,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MACIOIDEState),
-    .instance_init = macio_ide_initfn,
-    .class_init = macio_ide_class_init,
-};
-
-static void macio_ide_register_types(void)
-{
-    type_register_static(&macio_ide_type_info);
-}
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MACIOIDEState, TYPE_MACIO_IDE, TYPE_SYS_BUS_DEVICE)
 
 /* hd_table must contain 2 block drivers */
+extern "C"
 void macio_ide_init_drives(MACIOIDEState *s, DriveInfo **hd_table)
 {
     int i;
@@ -500,11 +479,10 @@ void macio_ide_init_drives(MACIOIDEState *s, DriveInfo **hd_table)
     }
 }
 
+extern "C"
 void macio_ide_register_dma(MACIOIDEState *s)
 {
     DBDMA_register_channel(s->dbdma, s->channel,
                            qdev_get_gpio_in(DEVICE(s), MACIO_IDE_PMAC_DMA_IRQ),
                            pmac_ide_transfer, pmac_ide_flush, s);
 }
-
-type_init(macio_ide_register_types)

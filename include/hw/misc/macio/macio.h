@@ -92,6 +92,13 @@ struct MACIOIDEState {
     bool dma_active;
     uint32_t timing_reg;
     uint32_t irq_reg;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define MACIO_IDE_PMAC_NIRQS 2

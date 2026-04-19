@@ -50,6 +50,12 @@ struct SplitIRQ {
 
     qemu_irq out_irq[MAX_SPLIT_LINES];
     uint16_t num_lines;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

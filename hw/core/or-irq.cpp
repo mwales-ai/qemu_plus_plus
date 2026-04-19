@@ -27,7 +27,6 @@
 #include <liburing.h>
 #endif
 
-extern "C" {
 #include "hw/irq.h"
 #include "hw/or-irq.h"
 #include "hw/qdev-properties.h"
@@ -49,30 +48,25 @@ static void or_irq_handler(void *opaque, int n, int level)
     qemu_set_irq(s->out_irq, or_level);
 }
 
-static void or_irq_reset(DeviceState *dev)
+void OrIRQState::reset()
 {
-    OrIRQState *s = OR_IRQ(dev);
     int i;
 
     for (i = 0; i < MAX_OR_LINES; i++) {
-        s->levels[i] = false;
+        levels[i] = false;
     }
 }
 
-static void or_irq_realize(DeviceState *dev, Error **errp)
+void OrIRQState::realize(Error **errp)
 {
-    OrIRQState *s = OR_IRQ(dev);
+    assert(num_lines <= MAX_OR_LINES);
 
-    assert(s->num_lines <= MAX_OR_LINES);
-
-    qdev_init_gpio_in(dev, or_irq_handler, s->num_lines);
+    qdev_init_gpio_in(DEVICE(this), or_irq_handler, num_lines);
 }
 
-static void or_irq_init(Object *obj)
+void OrIRQState::init()
 {
-    OrIRQState *s = OR_IRQ(obj);
-
-    qdev_init_gpio_out(DEVICE(obj), &s->out_irq, 1);
+    qdev_init_gpio_out(DEVICE(this), &out_irq, 1);
 }
 
 /* The original version of this device had a fixed 16 entries in its
@@ -147,32 +141,12 @@ static const Property or_irq_properties[] = {
     DEFINE_PROP_UINT16("num-lines", OrIRQState, num_lines, 1),
 };
 
-static void or_irq_class_init(ObjectClass *klass, const void *data)
+void OrIRQState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, or_irq_reset);
     device_class_set_props(dc, or_irq_properties);
-    dc->realize = or_irq_realize;
     dc->vmsd = &vmstate_or_irq;
-
-    /* Reason: Needs to be wired up to work, e.g. see stm32f205_soc.c */
     dc->user_creatable = false;
 }
 
-static const TypeInfo or_irq_type_info = {
-   .name = TYPE_OR_IRQ,
-   .parent = TYPE_DEVICE,
-   .instance_size = sizeof(OrIRQState),
-   .instance_init = or_irq_init,
-   .class_init = or_irq_class_init,
-};
-
-static void or_irq_register_types(void)
-{
-    type_register_static(&or_irq_type_info);
-}
-
-type_init(or_irq_register_types)
-
-} /* extern "C" */
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(OrIRQState, TYPE_OR_IRQ, TYPE_DEVICE)

@@ -28,7 +28,6 @@
 #include <liburing.h>
 #endif
 
-extern "C" {
 #include "hw/core/split-irq.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -45,54 +44,32 @@ static void split_irq_handler(void *opaque, int n, int level)
     }
 }
 
-static void split_irq_init(Object *obj)
+void SplitIRQ::init()
 {
-    qdev_init_gpio_in(DEVICE(obj), split_irq_handler, 1);
+    qdev_init_gpio_in(DEVICE(this), split_irq_handler, 1);
 }
 
-static void split_irq_realize(DeviceState *dev, Error **errp)
+void SplitIRQ::realize(Error **errp)
 {
-    SplitIRQ *s = SPLIT_IRQ(dev);
-
-    if (s->num_lines < 1 || s->num_lines >= MAX_SPLIT_LINES) {
+    if (num_lines < 1 || num_lines >= MAX_SPLIT_LINES) {
         error_setg(errp,
                    "IRQ splitter number of lines %d is not between 1 and %d",
-                   s->num_lines, MAX_SPLIT_LINES);
+                   num_lines, MAX_SPLIT_LINES);
         return;
     }
 
-    qdev_init_gpio_out(dev, s->out_irq, s->num_lines);
+    qdev_init_gpio_out(DEVICE(this), out_irq, num_lines);
 }
 
 static const Property split_irq_properties[] = {
     DEFINE_PROP_UINT16("num-lines", SplitIRQ, num_lines, 1),
 };
 
-static void split_irq_class_init(ObjectClass *klass, const void *data)
+void SplitIRQ::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    /* No state to reset or migrate */
     device_class_set_props(dc, split_irq_properties);
-    dc->realize = split_irq_realize;
-
-    /* Reason: Needs to be wired up to work */
     dc->user_creatable = false;
 }
 
-static const TypeInfo split_irq_type_info = {
-   .name = TYPE_SPLIT_IRQ,
-   .parent = TYPE_DEVICE,
-   .instance_size = sizeof(SplitIRQ),
-   .instance_init = split_irq_init,
-   .class_init = split_irq_class_init,
-};
-
-static void split_irq_register_types(void)
-{
-    type_register_static(&split_irq_type_info);
-}
-
-type_init(split_irq_register_types)
-
-} /* extern "C" */
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SplitIRQ, TYPE_SPLIT_IRQ, TYPE_DEVICE)

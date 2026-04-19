@@ -43,6 +43,13 @@ struct OrIRQState {
     qemu_irq out_irq;
     bool levels[MAX_OR_LINES];
     uint16_t num_lines;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
