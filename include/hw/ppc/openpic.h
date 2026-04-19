@@ -171,6 +171,13 @@ struct OpenPICState {
     uint32_t irq_ipi0;
     uint32_t irq_tim0;
     uint32_t irq_msi;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* OPENPIC_H */

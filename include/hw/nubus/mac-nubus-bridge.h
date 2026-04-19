@@ -24,6 +24,11 @@ struct MacNubusBridge {
 
     MemoryRegion super_slot_alias;
     MemoryRegion slot_alias;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif
