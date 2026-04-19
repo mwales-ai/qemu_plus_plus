@@ -69,6 +69,12 @@ typedef struct XlnxVersalCANFDState {
         uint32_t            ext_clk_freq;
    } cfg;
 
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } XlnxVersalCANFDState;
 
 typedef struct tx_ready_reg_info {

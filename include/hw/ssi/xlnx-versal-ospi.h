@@ -106,6 +106,13 @@ struct XlnxVersalOspi {
 
     /* Maximum inferred membank size is 512 bytes */
     uint8_t stig_membank[512];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* XLNX_VERSAL_OSPI_H */

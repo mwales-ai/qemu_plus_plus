@@ -1390,27 +1390,26 @@ static uint64_t dll_obs_upper_reg_post_read(RegisterInfo *reg, uint64_t val)
 }
 
 
-static void xlnx_versal_ospi_reset(DeviceState *dev)
+void XlnxVersalOspi::reset()
 {
-    XlnxVersalOspi *s = XILINX_VERSAL_OSPI(dev);
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(s->regs_info); ++i) {
-        register_reset(&s->regs_info[i]);
+    for (i = 0; i < ARRAY_SIZE(regs_info); ++i) {
+        register_reset(&regs_info[i]);
     }
 
-    fifo8_reset(&s->rx_fifo);
-    fifo8_reset(&s->tx_fifo);
-    fifo8_reset(&s->rx_sram);
-    fifo8_reset(&s->tx_sram);
+    fifo8_reset(&rx_fifo);
+    fifo8_reset(&tx_fifo);
+    fifo8_reset(&rx_sram);
+    fifo8_reset(&tx_sram);
 
-    s->rd_ind_op[0].completed = true;
-    s->rd_ind_op[1].completed = true;
-    s->wr_ind_op[0].completed = true;
-    s->wr_ind_op[1].completed = true;
-    ARRAY_FIELD_DP32(s->regs, DLL_OBSERVABLE_LOWER_REG,
+    rd_ind_op[0].completed = true;
+    rd_ind_op[1].completed = true;
+    wr_ind_op[0].completed = true;
+    wr_ind_op[1].completed = true;
+    ARRAY_FIELD_DP32(regs, DLL_OBSERVABLE_LOWER_REG,
                      DLL_OBSERVABLE_LOWER_DLL_LOCK_FLD, 1);
-    ARRAY_FIELD_DP32(s->regs, DLL_OBSERVABLE_LOWER_REG,
+    ARRAY_FIELD_DP32(regs, DLL_OBSERVABLE_LOWER_REG,
                      DLL_OBSERVABLE_LOWER_LOOPBACK_LOCK_FLD, 1);
 }
 
@@ -1736,61 +1735,55 @@ static void ospi_update_dac_status(void *opaque, int n, int level)
     s->dac_enable = level;
 }
 
-static void xlnx_versal_ospi_realize(DeviceState *dev, Error **errp)
+void XlnxVersalOspi::realize(Error **errp)
 {
-    XlnxVersalOspi *s = XILINX_VERSAL_OSPI(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    s->num_cs = 4;
-    s->spi = ssi_create_bus(dev, "spi0");
-    s->cs_lines = g_new0(qemu_irq, s->num_cs);
-    for (int i = 0; i < s->num_cs; ++i) {
-        sysbus_init_irq(sbd, &s->cs_lines[i]);
+    num_cs = 4;
+    spi = ssi_create_bus(DEVICE(this), "spi0");
+    cs_lines = g_new0(qemu_irq, num_cs);
+    for (int i = 0; i < num_cs; ++i) {
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &cs_lines[i]);
     }
 
-    fifo8_create(&s->rx_fifo, RXFF_SZ);
-    fifo8_create(&s->tx_fifo, TXFF_SZ);
-    fifo8_create(&s->rx_sram, RXFF_SZ);
-    fifo8_create(&s->tx_sram, TXFF_SZ);
+    fifo8_create(&rx_fifo, RXFF_SZ);
+    fifo8_create(&tx_fifo, TXFF_SZ);
+    fifo8_create(&rx_sram, RXFF_SZ);
+    fifo8_create(&tx_sram, TXFF_SZ);
 }
 
-static void __attribute__((used)) xlnx_versal_ospi_init(Object *obj)
+void XlnxVersalOspi::init()
 {
-    XlnxVersalOspi *s = XILINX_VERSAL_OSPI(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
-    DeviceState *dev = DEVICE(obj);
     RegisterInfoArray *reg_array;
 
-    memory_region_init(&s->iomem, obj, TYPE_XILINX_VERSAL_OSPI,
+    memory_region_init(&iomem, OBJECT(this), TYPE_XILINX_VERSAL_OSPI,
                        XILINX_VERSAL_OSPI_R_MAX * 4);
     reg_array =
-        register_init_block32(DEVICE(obj), ospi_regs_info,
+        register_init_block32(DEVICE(this), ospi_regs_info,
                               ARRAY_SIZE(ospi_regs_info),
-                              s->regs_info, s->regs,
+                              regs_info, regs,
                               &ospi_ops,
                               XILINX_VERSAL_OSPI_ERR_DEBUG,
                               XILINX_VERSAL_OSPI_R_MAX * 4);
-    memory_region_add_subregion(&s->iomem, 0x0, &reg_array->mem);
-    sysbus_init_mmio(sbd, &s->iomem);
+    memory_region_add_subregion(&iomem, 0x0, &reg_array->mem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 
-    memory_region_init_io(&s->iomem_dac, obj, &ospi_dac_ops, s,
+    memory_region_init_io(&iomem_dac, OBJECT(this), &ospi_dac_ops, this,
                           TYPE_XILINX_VERSAL_OSPI "-dac", 0x20000000);
-    sysbus_init_mmio(sbd, &s->iomem_dac);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem_dac);
     /*
      * The OSPI DMA reads flash data through the OSPI linear address space (the
      * iomem_dac region), because of this the reentrancy guard needs to be
      * disabled.
      */
-    s->iomem_dac.disable_reentrancy_guard = true;
+    iomem_dac.disable_reentrancy_guard = true;
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
 
-    object_property_add_link(obj, "dma-src", TYPE_XLNX_CSU_DMA,
-                             (Object **)&s->dma_src,
+    object_property_add_link(OBJECT(this), "dma-src", TYPE_XLNX_CSU_DMA,
+                             (Object **)&dma_src,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG);
 
-    qdev_init_gpio_in_named(dev, ospi_update_dac_status, "ospi-mux-sel", 1);
+    qdev_init_gpio_in_named(DEVICE(this), ospi_update_dac_status, "ospi-mux-sel", 1);
 }
 
 static const VMStateField vmstate_ind_op_fields[] = {
@@ -1839,27 +1832,11 @@ static const Property xlnx_versal_ospi_properties[] = {
                      ind_write_disabled, false),
 };
 
-static void xlnx_versal_ospi_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalOspi::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, xlnx_versal_ospi_reset);
-    dc->realize = xlnx_versal_ospi_realize;
     dc->vmsd = &vmstate_xlnx_versal_ospi;
     device_class_set_props(dc, xlnx_versal_ospi_properties);
 }
 
-static const TypeInfo xlnx_versal_ospi_info = {
-    .name          = TYPE_XILINX_VERSAL_OSPI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalOspi),
-    .instance_init = xlnx_versal_ospi_init,
-    .class_init    = xlnx_versal_ospi_class_init,
-};
-
-static void xlnx_versal_ospi_register_types(void)
-{
-    type_register_static(&xlnx_versal_ospi_info);
-}
-
-type_init(xlnx_versal_ospi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxVersalOspi, TYPE_XILINX_VERSAL_OSPI, TYPE_SYS_BUS_DEVICE)

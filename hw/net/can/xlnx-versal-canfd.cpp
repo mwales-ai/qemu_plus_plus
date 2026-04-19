@@ -1788,18 +1788,17 @@ static const MemoryRegionOps canfd_regs_ops = {
     },
 };
 
-static void canfd_reset(DeviceState *dev)
+void XlnxVersalCANFDState::reset()
 {
-    XlnxVersalCANFDState *s = XILINX_CANFD(dev);
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(s->reg_info); ++i) {
-        register_reset(&s->reg_info[i]);
+    for (i = 0; i < ARRAY_SIZE(reg_info); ++i) {
+        register_reset(&reg_info[i]);
     }
 
-    ptimer_transaction_begin(s->canfd_timer);
-    ptimer_set_count(s->canfd_timer, 0);
-    ptimer_transaction_commit(s->canfd_timer);
+    ptimer_transaction_begin(canfd_timer);
+    ptimer_set_count(canfd_timer, 0);
+    ptimer_transaction_commit(canfd_timer);
 }
 
 static bool can_xilinx_canfd_receive(CanBusClientState *client)
@@ -1867,23 +1866,22 @@ static int xlnx_canfd_connect_to_bus(XlnxVersalCANFDState *s,
     return can_bus_insert_client(bus, &s->bus_client);
 }
 
-static void canfd_realize(DeviceState *dev, Error **errp)
+void XlnxVersalCANFDState::realize(Error **errp)
 {
-    XlnxVersalCANFDState *s = XILINX_CANFD(dev);
     RegisterInfoArray *reg_array;
 
-    reg_array = register_init_block32(dev, canfd_regs_info,
-                                      ARRAY_SIZE(canfd_regs_info), s->reg_info,
-                                      s->regs, &canfd_regs_ops, false,
+    reg_array = register_init_block32(DEVICE(this), canfd_regs_info,
+                                      ARRAY_SIZE(canfd_regs_info), reg_info,
+                                      regs, &canfd_regs_ops, false,
                                       A_RX_FIFO_WATERMARK_REGISTER
                                           + sizeof(uint32_t));
-    memory_region_add_subregion(&s->iomem, 0x00, &reg_array->mem);
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq_canfd_int);
+    memory_region_add_subregion(&iomem, 0x00, &reg_array->mem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &irq_canfd_int);
 
-    if (s->canfdbus) {
-        if (xlnx_canfd_connect_to_bus(s, s->canfdbus) < 0) {
-            g_autofree char *path = object_get_canonical_path(OBJECT(s));
+    if (canfdbus) {
+        if (xlnx_canfd_connect_to_bus(this, canfdbus) < 0) {
+            g_autofree char *path = object_get_canonical_path(OBJECT(this));
 
             error_setg(errp, "%s: xlnx_canfd_connect_to_bus failed", path);
             return;
@@ -1892,25 +1890,23 @@ static void canfd_realize(DeviceState *dev, Error **errp)
     }
 
     /* Allocate a new timer. */
-    s->canfd_timer = ptimer_init(xlnx_versal_canfd_ptimer_cb, s,
+    canfd_timer = ptimer_init(xlnx_versal_canfd_ptimer_cb, this,
                                  PTIMER_POLICY_WRAP_AFTER_ONE_PERIOD |
                                  PTIMER_POLICY_TRIGGER_ONLY_ON_DECREMENT |
                                  PTIMER_POLICY_NO_IMMEDIATE_RELOAD);
 
-    ptimer_transaction_begin(s->canfd_timer);
+    ptimer_transaction_begin(canfd_timer);
 
-    ptimer_set_freq(s->canfd_timer, s->cfg.ext_clk_freq);
-    ptimer_set_limit(s->canfd_timer, CANFD_TIMER_MAX, 1);
-    ptimer_run(s->canfd_timer, 0);
-    ptimer_transaction_commit(s->canfd_timer);
+    ptimer_set_freq(canfd_timer, cfg.ext_clk_freq);
+    ptimer_set_limit(canfd_timer, CANFD_TIMER_MAX, 1);
+    ptimer_run(canfd_timer, 0);
+    ptimer_transaction_commit(canfd_timer);
 }
 
-static void canfd_init(Object *obj)
+void XlnxVersalCANFDState::init()
 {
-    XlnxVersalCANFDState *s = XILINX_CANFD(obj);
-
-    memory_region_init_io(&s->iomem, obj, &canfd_ops, s, TYPE_XILINX_CANFD,
-                          XLNX_VERSAL_CANFD_R_MAX * 4);
+    memory_region_init_io(&iomem, OBJECT(this), &canfd_ops, this,
+                          TYPE_XILINX_CANFD, XLNX_VERSAL_CANFD_R_MAX * 4);
 }
 
 static const VMStateField vmstate_canfd_fields[] = {
@@ -1939,27 +1935,11 @@ static const Property canfd_core_properties[] = {
                      CanBusState *),
 };
 
-static void canfd_class_init(ObjectClass *klass, const void *data)
+void XlnxVersalCANFDState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, canfd_reset);
-    dc->realize = canfd_realize;
     device_class_set_props(dc, canfd_core_properties);
     dc->vmsd = &vmstate_canfd;
 }
 
-static const TypeInfo canfd_info = {
-    .name          = TYPE_XILINX_CANFD,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XlnxVersalCANFDState),
-    .instance_init = canfd_init,
-    .class_init    = canfd_class_init,
-};
-
-static void canfd_register_types(void)
-{
-    type_register_static(&canfd_info);
-}
-
-type_init(canfd_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XlnxVersalCANFDState, TYPE_XILINX_CANFD, TYPE_SYS_BUS_DEVICE)
