@@ -119,13 +119,7 @@ struct I82374State {
         memset(commands, 0, sizeof(commands));
     }
 
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        I82374State *s = I82374(dev);
-        s->realize(errp);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     static const MemoryRegionPortio i82374_portio_list[];
     static const VMStateDescription vmstate_i82374;
@@ -155,27 +149,13 @@ const Property I82374State::i82374_properties[] = {
     DEFINE_PROP_UINT32("iobase", I82374State, iobase, 0x400),
 };
 
-void I82374State::classInit(ObjectClass *klass, const void *data)
+void I82374State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = deviceRealize;
     dc->vmsd = &vmstate_i82374;
     device_class_set_props(dc, i82374_properties);
     dc->desc = "Intel 82374 DMA controller";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo i82374_info = {
-    .name  = TYPE_I82374,
-    .parent = TYPE_ISA_DEVICE,
-    .instance_size  = sizeof(I82374State),
-    .class_init = I82374State::classInit,
-};
-
-static void i82374_register_types(void)
-{
-    type_register_static(&i82374_info);
-}
-
-type_init(i82374_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(I82374State, TYPE_I82374, TYPE_ISA_DEVICE)

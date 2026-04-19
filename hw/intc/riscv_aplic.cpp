@@ -986,12 +986,6 @@ void RISCVAPLICState::realize(Error **errp)
     msi_nonbroken = true;
 }
 
-static void riscv_aplic_realize(DeviceState *dev, Error **errp)
-{
-    RISCVAPLICState *aplic = riscv_aplic_from_obj(dev);
-    aplic->realize(errp);
-}
-
 static const Property riscv_aplic_properties[] = {
     DEFINE_PROP_UINT32("aperture-size", RISCVAPLICState, aperture_size, 0),
     DEFINE_PROP_UINT32("hartid-base", RISCVAPLICState, hartid_base, 0),
@@ -1047,28 +1041,14 @@ static const VMStateDescription vmstate_riscv_aplic = {
     .fields = vmstate_riscv_aplic_fields,
 };
 
-void RISCVAPLICState::classInit(ObjectClass *klass, const void *data)
+void RISCVAPLICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     device_class_set_props(dc, riscv_aplic_properties);
-    dc->realize = riscv_aplic_realize;
     dc->vmsd = &vmstate_riscv_aplic;
 }
 
-static const TypeInfo riscv_aplic_info = {
-    .name          = TYPE_RISCV_APLIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVAPLICState),
-    .class_init    = RISCVAPLICState::classInit,
-};
-
-static void riscv_aplic_register_types(void)
-{
-    type_register_static(&riscv_aplic_info);
-}
-
-type_init(riscv_aplic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RISCVAPLICState, TYPE_RISCV_APLIC, TYPE_SYS_BUS_DEVICE)
 
 /*
  * Add a APLIC device to another APLIC device as child for

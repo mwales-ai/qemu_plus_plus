@@ -101,7 +101,7 @@ struct RISCVAPLICState {
     void idcUpdate(uint32_t idc);
     uint32_t idcClaimi(uint32_t idc);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

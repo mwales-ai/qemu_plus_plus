@@ -812,22 +812,22 @@ static NetClientInfo net_npcm7xx_emc_info = {
     .link_status_changed = emc_set_link,
 };
 
-static void npcm7xx_emc_realize(DeviceState *dev, Error **errp)
+void NPCM7xxEMCState::realize(Error **errp)
 {
-    NPCM7xxEMCState *emc = NPCM7XX_EMC(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(emc);
+    DeviceState *dev = DEVICE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
-    memory_region_init_io(&emc->iomem, OBJECT(emc), &npcm7xx_emc_ops, emc,
+    memory_region_init_io(&iomem, OBJECT(this), &npcm7xx_emc_ops, this,
                           TYPE_NPCM7XX_EMC, 4 * KiB);
-    sysbus_init_mmio(sbd, &emc->iomem);
-    sysbus_init_irq(sbd, &emc->tx_irq);
-    sysbus_init_irq(sbd, &emc->rx_irq);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &tx_irq);
+    sysbus_init_irq(sbd, &rx_irq);
 
-    qemu_macaddr_default_if_unset(&emc->conf.macaddr);
-    emc->nic = qemu_new_nic(&net_npcm7xx_emc_info, &emc->conf,
-                            object_get_typename(OBJECT(dev)), dev->id,
-                            &dev->mem_reentrancy_guard, emc);
-    qemu_format_nic_info_str(qemu_get_queue(emc->nic), emc->conf.macaddr.a);
+    qemu_macaddr_default_if_unset(&conf.macaddr);
+    nic = qemu_new_nic(&net_npcm7xx_emc_info, &conf,
+                       object_get_typename(OBJECT(this)), dev->id,
+                       &dev->mem_reentrancy_guard, this);
+    qemu_format_nic_info_str(qemu_get_queue(nic), conf.macaddr.a);
 }
 
 static void npcm7xx_emc_unrealize(DeviceState *dev)
@@ -856,29 +856,15 @@ static const Property npcm7xx_emc_properties[] = {
     DEFINE_NIC_PROPERTIES(NPCM7xxEMCState, conf),
 };
 
-static void npcm7xx_emc_class_init(ObjectClass *klass, const void *data)
+void NPCM7xxEMCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     dc->desc = "NPCM7xx EMC Controller";
-    dc->realize = npcm7xx_emc_realize;
     dc->unrealize = npcm7xx_emc_unrealize;
     device_class_set_legacy_reset(dc, npcm7xx_emc_reset);
     dc->vmsd = &vmstate_npcm7xx_emc;
     device_class_set_props(dc, npcm7xx_emc_properties);
 }
 
-static const TypeInfo npcm7xx_emc_info = {
-    .name = TYPE_NPCM7XX_EMC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(NPCM7xxEMCState),
-    .class_init = npcm7xx_emc_class_init,
-};
-
-static void npcm7xx_emc_register_type(void)
-{
-    type_register_static(&npcm7xx_emc_info);
-}
-
-type_init(npcm7xx_emc_register_type)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NPCM7xxEMCState, TYPE_NPCM7XX_EMC, TYPE_SYS_BUS_DEVICE)

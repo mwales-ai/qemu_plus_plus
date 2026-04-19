@@ -44,14 +44,8 @@ struct ISACirrusVGAState {
 
     /* methods */
     void realize(Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
-
-static void isa_cirrus_vga_realizefn(DeviceState *dev, Error **errp)
-{
-    ISACirrusVGAState *d = ISA_CIRRUS_VGA(dev);
-    d->realize(errp);
-}
 
 void ISACirrusVGAState::realize(Error **errp)
 {
@@ -86,26 +80,12 @@ static const Property isa_cirrus_vga_properties[] = {
                      cirrus_vga.enable_blitter, true),
 };
 
-void ISACirrusVGAState::classInit(ObjectClass *klass, const void *data)
+void ISACirrusVGAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->vmsd  = &vmstate_cirrus_vga;
-    dc->realize = isa_cirrus_vga_realizefn;
     device_class_set_props(dc, isa_cirrus_vga_properties);
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
 }
 
-static const TypeInfo isa_cirrus_vga_info = {
-    .name          = TYPE_ISA_CIRRUS_VGA,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISACirrusVGAState),
-    .class_init = ISACirrusVGAState::classInit,
-};
-
-static void cirrus_vga_isa_register_types(void)
-{
-    type_register_static(&isa_cirrus_vga_info);
-}
-
-type_init(cirrus_vga_isa_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ISACirrusVGAState, TYPE_ISA_CIRRUS_VGA, TYPE_ISA_DEVICE)

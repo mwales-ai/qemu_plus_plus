@@ -275,6 +275,11 @@ struct NPCM7xxEMCState {
      * descriptors. If the RXON bit in REG_MCMDR is off then this is off.
      */
     bool rx_active;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_NPCM7XX_EMC "npcm7xx-emc"
