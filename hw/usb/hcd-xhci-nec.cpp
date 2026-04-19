@@ -36,11 +36,8 @@ struct XHCINecState {
     uint32_t intrs;
     uint32_t slots;
 
-    /* instance init */
-    void instanceInit();
-
-    /* class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static const Property nec_xhci_properties[] = {
@@ -48,7 +45,7 @@ static const Property nec_xhci_properties[] = {
     DEFINE_PROP_UINT32("slots", XHCINecState, slots, XHCI_MAXSLOTS),
 };
 
-void XHCINecState::instanceInit()
+void XHCINecState::init()
 {
     XHCIPciState *pci = reinterpret_cast<XHCIPciState *>(this);
 
@@ -56,16 +53,9 @@ void XHCINecState::instanceInit()
     pci->xhci.numslots = slots;
 }
 
-static void nec_xhci_instance_init(Object *obj)
+void XHCINecState::classInit(DeviceClass *dc)
 {
-    XHCINecState *nec = reinterpret_cast<XHCINecState *>(obj);
-    nec->instanceInit();
-}
-
-void XHCINecState::classInit(ObjectClass *klass, const void *data)
-{
-    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(dc);
 
     device_class_set_props(dc, nec_xhci_properties);
     k->vendor_id    = PCI_VENDOR_ID_NEC;
@@ -73,17 +63,5 @@ void XHCINecState::classInit(ObjectClass *klass, const void *data)
     k->revision     = 0x03;
 }
 
-static const TypeInfo nec_xhci_info = {
-    .name          = TYPE_NEC_XHCI,
-    .parent        = TYPE_XHCI_PCI,
-    .instance_size = sizeof(XHCINecState),
-    .instance_init = nec_xhci_instance_init,
-    .class_init    = XHCINecState::classInit,
-};
-
-static void nec_xhci_register_types(void)
-{
-    type_register_static(&nec_xhci_info);
-}
-
-type_init(nec_xhci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XHCINecState, TYPE_NEC_XHCI, TYPE_XHCI_PCI)

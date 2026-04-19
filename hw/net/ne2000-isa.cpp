@@ -45,12 +45,12 @@ struct ISANE2000State {
 
     /* methods */
     void realize(Error **errp);
-    void instanceInit();
+    void init();
     static void getBootindex(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp);
     static void setBootindex(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static NetClientInfo net_ne2000_isa_info = {
@@ -68,12 +68,6 @@ static const VMStateDescription vmstate_isa_ne2000 = {
         VMSTATE_END_OF_LIST()
     }
 };
-
-static void isa_ne2000_realizefn(DeviceState *dev, Error **errp)
-{
-    ISANE2000State *isa = reinterpret_cast<ISANE2000State *>(dev);
-    isa->realize(errp);
-}
 
 void ISANE2000State::realize(Error **errp)
 {
@@ -100,11 +94,8 @@ static const Property ne2000_isa_properties[] = {
     DEFINE_NIC_PROPERTIES(ISANE2000State, ne2000.c),
 };
 
-void ISANE2000State::classInit(ObjectClass *klass, const void *data)
+void ISANE2000State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = isa_ne2000_realizefn;
     device_class_set_props(dc, ne2000_isa_properties);
     dc->vmsd = &vmstate_isa_ne2000;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
@@ -144,31 +135,13 @@ out:
     error_propagate(errp, local_err);
 }
 
-static void isa_ne2000_instance_init(Object *obj)
+void ISANE2000State::init()
 {
-    ISANE2000State *isa = reinterpret_cast<ISANE2000State *>(obj);
-    isa->instanceInit();
-}
-
-void ISANE2000State::instanceInit()
-{
-    object_property_add(reinterpret_cast<Object *>(this), "bootindex", "int32",
+    object_property_add(OBJECT(this), "bootindex", "int32",
                         ISANE2000State::getBootindex,
                         ISANE2000State::setBootindex, NULL, NULL);
-    object_property_set_int(reinterpret_cast<Object *>(this), "bootindex", -1, NULL);
+    object_property_set_int(OBJECT(this), "bootindex", -1, NULL);
 }
 
-static const TypeInfo ne2000_isa_info = {
-    .name          = TYPE_ISA_NE2000,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISANE2000State),
-    .instance_init = isa_ne2000_instance_init,
-    .class_init    = ISANE2000State::classInit,
-};
-
-static void ne2000_isa_register_types(void)
-{
-    type_register_static(&ne2000_isa_info);
-}
-
-type_init(ne2000_isa_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ISANE2000State, TYPE_ISA_NE2000, TYPE_ISA_DEVICE)
