@@ -75,10 +75,7 @@ struct VAPICROMState {
 
     /* methods */
     void reset();
-    static void resetWrapper(DeviceState *dev);
-
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
 
     static void vapicWrite(void *opaque, hwaddr addr, uint64_t data,
                            unsigned int size);
@@ -86,7 +83,7 @@ struct VAPICROMState {
     static int postLoad(void *opaque, int version_id);
     static void vmStateChange(void *opaque, bool running, RunState state);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_VAPIC "kvmvapic"
@@ -498,12 +495,6 @@ static void vapic_enable_tpr_reporting(bool enable)
     }
 }
 
-void VAPICROMState::resetWrapper(DeviceState *dev)
-{
-    VAPICROMState *s = reinterpret_cast<VAPICROMState *>(dev);
-    s->reset();
-}
-
 void VAPICROMState::reset()
 {
     state = VAPIC_INACTIVE;
@@ -673,12 +664,6 @@ static const MemoryRegionOps vapic_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void VAPICROMState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    VAPICROMState *s = reinterpret_cast<VAPICROMState *>(dev);
-    s->realize(errp);
-}
-
 void VAPICROMState::realize(Error **errp)
 {
     SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(&busdev);
@@ -805,25 +790,10 @@ static const VMStateDescription vmstate_vapic = {
     .fields = vmstate_vapic_fields,
 };
 
-void VAPICROMState::classInit(ObjectClass *klass, const void *data)
+void VAPICROMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    device_class_set_legacy_reset(dc, VAPICROMState::resetWrapper);
-    dc->vmsd    = &vmstate_vapic;
-    dc->realize = VAPICROMState::realizeWrapper;
+    dc->vmsd = &vmstate_vapic;
 }
 
-static const TypeInfo vapic_type = {
-    .name          = TYPE_VAPIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VAPICROMState),
-    .class_init    = VAPICROMState::classInit,
-};
-
-static void vapic_register(void)
-{
-    type_register_static(&vapic_type);
-}
-
-type_init(vapic_register);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VAPICROMState, TYPE_VAPIC, TYPE_SYS_BUS_DEVICE)

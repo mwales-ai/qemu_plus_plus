@@ -90,12 +90,8 @@ struct VMMouseState {
     static int postLoad(void *opaque, int version_id);
 
     void reset();
-    static void resetWrapper(DeviceState *d);
-
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static void vmmouse_get_data(uint32_t *data)
@@ -315,24 +311,12 @@ static const VMStateDescription vmstate_vmmouse = {
     .fields = vmstate_vmmouse_fields,
 };
 
-void VMMouseState::resetWrapper(DeviceState *d)
-{
-    VMMouseState *s = VMMOUSE(d);
-    s->reset();
-}
-
 void VMMouseState::reset()
 {
     queue_size = VMMOUSE_QUEUE_SIZE;
     nb_queue = 0;
 
     disable();
-}
-
-void VMMouseState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    VMMouseState *s = VMMOUSE(dev);
-    s->realize(errp);
 }
 
 void VMMouseState::realize(Error **errp)
@@ -357,27 +341,12 @@ static const Property vmmouse_properties[] = {
     DEFINE_PROP_LINK("i8042", VMMouseState, i8042, TYPE_I8042, ISAKBDState *),
 };
 
-void VMMouseState::classInit(ObjectClass *klass, const void *data)
+void VMMouseState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = VMMouseState::realizeWrapper;
-    device_class_set_legacy_reset(dc, VMMouseState::resetWrapper);
     dc->vmsd = &vmstate_vmmouse;
     device_class_set_props(dc, vmmouse_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo vmmouse_info = {
-    .name          = TYPE_VMMOUSE,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(VMMouseState),
-    .class_init    = VMMouseState::classInit,
-};
-
-static void vmmouse_register_types(void)
-{
-    type_register_static(&vmmouse_info);
-}
-
-type_init(vmmouse_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VMMouseState, TYPE_VMMOUSE, TYPE_ISA_DEVICE)

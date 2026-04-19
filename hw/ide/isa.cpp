@@ -47,35 +47,23 @@ struct ISAIDEState {
     uint32_t  iobase2;
     uint32_t  irqnum;
 
-    void deviceReset()
+    void reset()
     {
         ide_bus_reset(&bus);
     }
 
     void realize(Error **errp)
     {
-        ISADevice *isadev = ISA_DEVICE(reinterpret_cast<DeviceState *>(this));
+        ISADevice *isadev = ISA_DEVICE(DEVICE(this));
 
-        ide_bus_init(&bus, sizeof(bus), reinterpret_cast<DeviceState *>(this), 0, 2);
+        ide_bus_init(&bus, sizeof(bus), DEVICE(this), 0, 2);
         ide_init_ioport(&bus, isadev, iobase, iobase2);
         ide_bus_init_output_irq(&bus, isa_get_irq(isadev, irqnum));
-        vmstate_register_any(VMSTATE_IF(reinterpret_cast<DeviceState *>(this)), &vmstate_ide_isa, this);
+        vmstate_register_any(VMSTATE_IF(DEVICE(this)), &vmstate_ide_isa, this);
         ide_bus_register_restart_cb(&bus);
     }
 
-    static void deviceReset_static(DeviceState *d)
-    {
-        ISAIDEState *s = reinterpret_cast<ISAIDEState *>(d);
-        s->deviceReset();
-    }
-
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        ISAIDEState *s = reinterpret_cast<ISAIDEState *>(dev);
-        s->realize(errp);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     static const VMStateDescription vmstate_ide_isa;
     static const Property isa_ide_properties[];
@@ -100,13 +88,9 @@ const Property ISAIDEState::isa_ide_properties[] = {
     DEFINE_PROP_UINT32("irq",     ISAIDEState, irqnum,  14),
 };
 
-void ISAIDEState::classInit(ObjectClass *klass, const void *data)
+void ISAIDEState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = deviceRealize;
     dc->fw_name = "ide";
-    device_class_set_legacy_reset(dc, deviceReset_static);
     device_class_set_props(dc, isa_ide_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
@@ -135,16 +119,5 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int irqnum,
     return isadev;
 }
 
-static const TypeInfo isa_ide_info = {
-    .name          = TYPE_ISA_IDE,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISAIDEState),
-    .class_init    = ISAIDEState::classInit,
-};
-
-static void isa_ide_register_types(void)
-{
-    type_register_static(&isa_ide_info);
-}
-
-type_init(isa_ide_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ISAIDEState, TYPE_ISA_IDE, TYPE_ISA_DEVICE)

@@ -83,7 +83,6 @@ struct VMPortState {
 
     /* methods */
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
     static uint64_t ioportRead(void *opaque, hwaddr addr, unsigned size);
     static void ioportWrite(void *opaque, hwaddr addr, uint64_t val, unsigned size);
     static uint32_t cmdGetVersion(void *opaque, uint32_t addr);
@@ -91,7 +90,7 @@ struct VMPortState {
     static uint32_t cmdRamSize(void *opaque, uint32_t addr);
     static uint32_t cmdGetHz(void *opaque, uint32_t addr);
     static uint32_t cmdGetVcpuInfo(void *opaque, uint32_t addr);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static VMPortState *port_state;
@@ -104,11 +103,6 @@ extern "C" void vmport_register(VMPortCommand command, VMPortReadFunc *func, voi
     trace_vmport_register(command, reinterpret_cast<void *>(func), opaque);
     port_state->func[command] = func;
     port_state->opaque[command] = opaque;
-}
-
-void VMPortState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    VMPORT(dev)->realize(errp);
 }
 
 uint64_t VMPortState::ioportRead(void *opaque, hwaddr addr,
@@ -307,26 +301,11 @@ static const Property vmport_properties[] = {
     DEFINE_PROP_UINT8("vmware-vmx-type", VMPortState, vmware_vmx_type, 2),
 };
 
-void VMPortState::classInit(ObjectClass *klass, const void *data)
+void VMPortState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = realizeWrapper;
-    /* Reason: realize sets global port_state */
     dc->user_creatable = false;
     device_class_set_props(dc, vmport_properties);
 }
 
-static const TypeInfo vmport_info = {
-    .name          = TYPE_VMPORT,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(VMPortState),
-    .class_init    = VMPortState::classInit,
-};
-
-static void vmport_register_types(void)
-{
-    type_register_static(&vmport_info);
-}
-
-type_init(vmport_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VMPortState, TYPE_VMPORT, TYPE_ISA_DEVICE)
