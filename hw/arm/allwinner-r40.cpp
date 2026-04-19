@@ -266,65 +266,65 @@ bool allwinner_r40_bootrom_setup(AwR40State *s, BlockBackend *blk, int unit)
     return true;
 }
 
-static void allwinner_r40_init(Object *obj)
+void AwR40State::init()
 {
+    Object *obj = OBJECT(this);
     static const char *mmc_names[AW_R40_NUM_MMCS] = {
         "mmc0", "mmc1", "mmc2", "mmc3"
     };
-    AwR40State *s = AW_R40(obj);
 
-    s->memmap = allwinner_r40_memmap;
+    memmap = allwinner_r40_memmap;
 
     for (int i = 0; i < AW_R40_NUM_CPUS; i++) {
-        object_initialize_child(obj, "cpu[*]", &s->cpus[i],
+        object_initialize_child(obj, "cpu[*]", &cpus[i],
                                 ARM_CPU_TYPE_NAME("cortex-a7"));
     }
 
-    object_initialize_child(obj, "gic", &s->gic, TYPE_ARM_GIC);
+    object_initialize_child(obj, "gic", &gic, TYPE_ARM_GIC);
 
-    object_initialize_child(obj, "timer", &s->timer, TYPE_AW_A10_PIT);
-    object_property_add_alias(obj, "clk0-freq", OBJECT(&s->timer),
+    object_initialize_child(obj, "timer", &timer, TYPE_AW_A10_PIT);
+    object_property_add_alias(obj, "clk0-freq", OBJECT(&timer),
                               "clk0-freq");
-    object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer),
+    object_property_add_alias(obj, "clk1-freq", OBJECT(&timer),
                               "clk1-freq");
 
-    object_initialize_child(obj, "wdt", &s->wdt, TYPE_AW_WDT_SUN4I);
+    object_initialize_child(obj, "wdt", &wdt, TYPE_AW_WDT_SUN4I);
 
-    object_initialize_child(obj, "ccu", &s->ccu, TYPE_AW_R40_CCU);
+    object_initialize_child(obj, "ccu", &ccu, TYPE_AW_R40_CCU);
 
     for (int i = 0; i < AW_R40_NUM_MMCS; i++) {
-        object_initialize_child(obj, mmc_names[i], &s->mmc[i],
+        object_initialize_child(obj, mmc_names[i], &mmc[i],
                                 TYPE_AW_SDHOST_SUN50I_A64);
     }
 
-    object_initialize_child(obj, "sata", &s->sata, TYPE_ALLWINNER_AHCI);
+    object_initialize_child(obj, "sata", &sata, TYPE_ALLWINNER_AHCI);
 
     for (size_t i = 0; i < AW_R40_NUM_USB; i++) {
-        object_initialize_child(obj, "ehci[*]", &s->ehci[i],
+        object_initialize_child(obj, "ehci[*]", &ehci[i],
                                 TYPE_PLATFORM_EHCI);
-        object_initialize_child(obj, "ohci[*]", &s->ohci[i],
+        object_initialize_child(obj, "ohci[*]", &ohci[i],
                                 TYPE_SYSBUS_OHCI);
     }
 
-    object_initialize_child(obj, "twi0", &s->i2c0, TYPE_AW_I2C_SUN6I);
+    object_initialize_child(obj, "twi0", &i2c0, TYPE_AW_I2C_SUN6I);
 
-    object_initialize_child(obj, "emac", &s->emac, TYPE_AW_EMAC);
-    object_initialize_child(obj, "gmac", &s->gmac, TYPE_AW_SUN8I_EMAC);
+    object_initialize_child(obj, "emac", &emac, TYPE_AW_EMAC);
+    object_initialize_child(obj, "gmac", &gmac, TYPE_AW_SUN8I_EMAC);
     object_property_add_alias(obj, "gmac-phy-addr",
-                              OBJECT(&s->gmac), "phy-addr");
+                              OBJECT(&gmac), "phy-addr");
 
-    object_initialize_child(obj, "dramc", &s->dramc, TYPE_AW_R40_DRAMC);
-    object_property_add_alias(obj, "ram-addr", OBJECT(&s->dramc),
+    object_initialize_child(obj, "dramc", &dramc, TYPE_AW_R40_DRAMC);
+    object_property_add_alias(obj, "ram-addr", OBJECT(&dramc),
                              "ram-addr");
-    object_property_add_alias(obj, "ram-size", OBJECT(&s->dramc),
+    object_property_add_alias(obj, "ram-size", OBJECT(&dramc),
                               "ram-size");
 
-    object_initialize_child(obj, "sramc", &s->sramc, TYPE_AW_SRAMC_SUN8I_R40);
+    object_initialize_child(obj, "sramc", &sramc, TYPE_AW_SRAMC_SUN8I_R40);
 }
 
-static void allwinner_r40_realize(DeviceState *dev, Error **errp)
+void AwR40State::realize(Error **errp)
 {
-    AwR40State *s = AW_R40(dev);
+    DeviceState *dev = DEVICE(this);
 
     /* CPUs */
     for (unsigned i = 0; i < AW_R40_NUM_CPUS; i++) {
@@ -333,30 +333,30 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
          * Disable secondary CPUs. Guest EL3 firmware will start
          * them via CPU reset control registers.
          */
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "start-powered-off",
+        qdev_prop_set_bit(DEVICE(&cpus[i]), "start-powered-off",
                           i > 0);
 
         /* All exception levels required */
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el3", true);
-        qdev_prop_set_bit(DEVICE(&s->cpus[i]), "has_el2", true);
+        qdev_prop_set_bit(DEVICE(&cpus[i]), "has_el3", true);
+        qdev_prop_set_bit(DEVICE(&cpus[i]), "has_el2", true);
 
         /* Mark realized */
-        qdev_realize(DEVICE(&s->cpus[i]), NULL, &error_fatal);
+        qdev_realize(DEVICE(&cpus[i]), NULL, &error_fatal);
     }
 
     /* Generic Interrupt Controller */
-    qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", AW_R40_GIC_NUM_SPI +
+    qdev_prop_set_uint32(DEVICE(&gic), "num-irq", AW_R40_GIC_NUM_SPI +
                                                      GIC_INTERNAL);
-    qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
-    qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", AW_R40_NUM_CPUS);
-    qdev_prop_set_bit(DEVICE(&s->gic), "has-security-extensions", false);
-    qdev_prop_set_bit(DEVICE(&s->gic), "has-virtualization-extensions", true);
-    sysbus_realize(SYS_BUS_DEVICE(&s->gic), &error_fatal);
+    qdev_prop_set_uint32(DEVICE(&gic), "revision", 2);
+    qdev_prop_set_uint32(DEVICE(&gic), "num-cpu", AW_R40_NUM_CPUS);
+    qdev_prop_set_bit(DEVICE(&gic), "has-security-extensions", false);
+    qdev_prop_set_bit(DEVICE(&gic), "has-virtualization-extensions", true);
+    sysbus_realize(SYS_BUS_DEVICE(&gic), &error_fatal);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 0, s->memmap[AW_R40_DEV_GIC_DIST]);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 1, s->memmap[AW_R40_DEV_GIC_CPU]);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 2, s->memmap[AW_R40_DEV_GIC_HYP]);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 3, s->memmap[AW_R40_DEV_GIC_VCPU]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&gic), 0, memmap[AW_R40_DEV_GIC_DIST]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&gic), 1, memmap[AW_R40_DEV_GIC_CPU]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&gic), 2, memmap[AW_R40_DEV_GIC_HYP]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&gic), 3, memmap[AW_R40_DEV_GIC_VCPU]);
 
     /*
      * Wire the outputs from each CPU's generic timer and the GICv2
@@ -364,7 +364,7 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
      * and the GIC's IRQ/FIQ/VIRQ/VFIQ interrupt outputs to the CPU's inputs.
      */
     for (unsigned i = 0; i < AW_R40_NUM_CPUS; i++) {
-        DeviceState *cpudev = DEVICE(&s->cpus[i]);
+        DeviceState *cpudev = DEVICE(&cpus[i]);
         int ppibase = AW_R40_GIC_NUM_SPI + i * GIC_INTERNAL + GIC_NR_SGIS;
         size_t irq;
         /*
@@ -381,106 +381,106 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
         /* Connect CPU timer outputs to GIC PPI inputs */
         for (irq = 0; irq < ARRAY_SIZE(timer_irq); irq++) {
             qdev_connect_gpio_out(cpudev, irq,
-                                  qdev_get_gpio_in(DEVICE(&s->gic),
+                                  qdev_get_gpio_in(DEVICE(&gic),
                                                    ppibase + timer_irq[irq]));
         }
 
         /* Connect GIC outputs to CPU interrupt inputs */
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i,
+        sysbus_connect_irq(SYS_BUS_DEVICE(&gic), i,
                            qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i + AW_R40_NUM_CPUS,
+        sysbus_connect_irq(SYS_BUS_DEVICE(&gic), i + AW_R40_NUM_CPUS,
                            qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i + (2 * AW_R40_NUM_CPUS),
+        sysbus_connect_irq(SYS_BUS_DEVICE(&gic), i + (2 * AW_R40_NUM_CPUS),
                            qdev_get_gpio_in(cpudev, ARM_CPU_VIRQ));
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i + (3 * AW_R40_NUM_CPUS),
+        sysbus_connect_irq(SYS_BUS_DEVICE(&gic), i + (3 * AW_R40_NUM_CPUS),
                            qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
 
         /* GIC maintenance signal */
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gic), i + (4 * AW_R40_NUM_CPUS),
-                           qdev_get_gpio_in(DEVICE(&s->gic),
+        sysbus_connect_irq(SYS_BUS_DEVICE(&gic), i + (4 * AW_R40_NUM_CPUS),
+                           qdev_get_gpio_in(DEVICE(&gic),
                                             ppibase + AW_R40_GIC_PPI_MAINT));
     }
 
     /* Timer */
-    sysbus_realize(SYS_BUS_DEVICE(&s->timer), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->timer), 0, s->memmap[AW_R40_DEV_PIT]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 0,
-                       qdev_get_gpio_in(DEVICE(&s->gic),
+    sysbus_realize(SYS_BUS_DEVICE(&timer), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&timer), 0, memmap[AW_R40_DEV_PIT]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&timer), 0,
+                       qdev_get_gpio_in(DEVICE(&gic),
                        AW_R40_GIC_SPI_TIMER0));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 1,
-                       qdev_get_gpio_in(DEVICE(&s->gic),
+    sysbus_connect_irq(SYS_BUS_DEVICE(&timer), 1,
+                       qdev_get_gpio_in(DEVICE(&gic),
                        AW_R40_GIC_SPI_TIMER1));
 
     /* SRAM */
-    sysbus_realize(SYS_BUS_DEVICE(&s->sramc), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sramc), 0, s->memmap[AW_R40_DEV_SRAMC]);
+    sysbus_realize(SYS_BUS_DEVICE(&sramc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&sramc), 0, memmap[AW_R40_DEV_SRAMC]);
 
-    memory_region_init_ram(&s->sram_a1, OBJECT(dev), "sram A1",
+    memory_region_init_ram(&sram_a1, OBJECT(dev), "sram A1",
                             16 * KiB, &error_abort);
-    memory_region_init_ram(&s->sram_a2, OBJECT(dev), "sram A2",
+    memory_region_init_ram(&sram_a2, OBJECT(dev), "sram A2",
                             16 * KiB, &error_abort);
-    memory_region_init_ram(&s->sram_a3, OBJECT(dev), "sram A3",
+    memory_region_init_ram(&sram_a3, OBJECT(dev), "sram A3",
                             13 * KiB, &error_abort);
-    memory_region_init_ram(&s->sram_a4, OBJECT(dev), "sram A4",
+    memory_region_init_ram(&sram_a4, OBJECT(dev), "sram A4",
                             3 * KiB, &error_abort);
     memory_region_add_subregion(get_system_memory(),
-                                s->memmap[AW_R40_DEV_SRAM_A1], &s->sram_a1);
+                                memmap[AW_R40_DEV_SRAM_A1], &sram_a1);
     memory_region_add_subregion(get_system_memory(),
-                                s->memmap[AW_R40_DEV_SRAM_A2], &s->sram_a2);
+                                memmap[AW_R40_DEV_SRAM_A2], &sram_a2);
     memory_region_add_subregion(get_system_memory(),
-                                s->memmap[AW_R40_DEV_SRAM_A3], &s->sram_a3);
+                                memmap[AW_R40_DEV_SRAM_A3], &sram_a3);
     memory_region_add_subregion(get_system_memory(),
-                                s->memmap[AW_R40_DEV_SRAM_A4], &s->sram_a4);
+                                memmap[AW_R40_DEV_SRAM_A4], &sram_a4);
 
     /* Clock Control Unit */
-    sysbus_realize(SYS_BUS_DEVICE(&s->ccu), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_R40_DEV_CCU]);
+    sysbus_realize(SYS_BUS_DEVICE(&ccu), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&ccu), 0, memmap[AW_R40_DEV_CCU]);
 
     /* SATA / AHCI */
-    sysbus_realize(SYS_BUS_DEVICE(&s->sata), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0,
+    sysbus_realize(SYS_BUS_DEVICE(&sata), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&sata), 0,
                     allwinner_r40_memmap[AW_R40_DEV_AHCI]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0,
-                       qdev_get_gpio_in(DEVICE(&s->gic), AW_R40_GIC_SPI_AHCI));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&sata), 0,
+                       qdev_get_gpio_in(DEVICE(&gic), AW_R40_GIC_SPI_AHCI));
 
     /* USB */
     for (size_t i = 0; i < AW_R40_NUM_USB; i++) {
         g_autofree char *bus = g_strdup_printf("usb-bus.%zu", i);
 
-        object_property_set_bool(OBJECT(&s->ehci[i]), "companion-enable", true,
+        object_property_set_bool(OBJECT(&ehci[i]), "companion-enable", true,
                                  &error_fatal);
-        sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ehci[i]), 0,
+        sysbus_realize(SYS_BUS_DEVICE(&ehci[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&ehci[i]), 0,
                         allwinner_r40_memmap[i ? AW_R40_DEV_EHCI2
                                                : AW_R40_DEV_EHCI1]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
-                           qdev_get_gpio_in(DEVICE(&s->gic),
+        sysbus_connect_irq(SYS_BUS_DEVICE(&ehci[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&gic),
                                             i ? AW_R40_GIC_SPI_EHCI2
                                               : AW_R40_GIC_SPI_EHCI1));
 
-        object_property_set_str(OBJECT(&s->ohci[i]), "masterbus", bus,
+        object_property_set_str(OBJECT(&ohci[i]), "masterbus", bus,
                                 &error_fatal);
-        sysbus_realize(SYS_BUS_DEVICE(&s->ohci[i]), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ohci[i]), 0,
+        sysbus_realize(SYS_BUS_DEVICE(&ohci[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&ohci[i]), 0,
                         allwinner_r40_memmap[i ? AW_R40_DEV_OHCI2
                                                : AW_R40_DEV_OHCI1]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ohci[i]), 0,
-                           qdev_get_gpio_in(DEVICE(&s->gic),
+        sysbus_connect_irq(SYS_BUS_DEVICE(&ohci[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&gic),
                                             i ? AW_R40_GIC_SPI_OHCI2
                                               : AW_R40_GIC_SPI_OHCI1));
     }
 
     /* SD/MMC */
     for (int i = 0; i < AW_R40_NUM_MMCS; i++) {
-        qemu_irq irq = qdev_get_gpio_in(DEVICE(&s->gic),
+        qemu_irq irq = qdev_get_gpio_in(DEVICE(&gic),
                                         AW_R40_GIC_SPI_MMC0 + i);
-        const hwaddr addr = s->memmap[AW_R40_DEV_MMC0 + i];
+        const hwaddr addr = memmap[AW_R40_DEV_MMC0 + i];
 
-        object_property_set_link(OBJECT(&s->mmc[i]), "dma-memory",
+        object_property_set_link(OBJECT(&mmc[i]), "dma-memory",
                                  OBJECT(get_system_memory()), &error_fatal);
-        sysbus_realize(SYS_BUS_DEVICE(&s->mmc[i]), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc[i]), 0, addr);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc[i]), 0, irq);
+        sysbus_realize(SYS_BUS_DEVICE(&mmc[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&mmc[i]), 0, addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&mmc[i]), 0, irq);
     }
 
     /* UART0. For future clocktree API: All UARTS are connected to APB2_CLK. */
@@ -495,47 +495,47 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
             AW_R40_GIC_SPI_UART6,
             AW_R40_GIC_SPI_UART7,
         };
-        const hwaddr addr = s->memmap[AW_R40_DEV_UART0 + i];
+        const hwaddr addr = memmap[AW_R40_DEV_UART0 + i];
 
         serial_mm_init(get_system_memory(), addr, 2,
-                       qdev_get_gpio_in(DEVICE(&s->gic), uart_irqs[i]),
+                       qdev_get_gpio_in(DEVICE(&gic), uart_irqs[i]),
                        115200, serial_hd(i), DEVICE_LITTLE_ENDIAN);
     }
 
     /* I2C */
-    sysbus_realize(SYS_BUS_DEVICE(&s->i2c0), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c0), 0, s->memmap[AW_R40_DEV_TWI0]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c0), 0,
-                       qdev_get_gpio_in(DEVICE(&s->gic), AW_R40_GIC_SPI_TWI0));
+    sysbus_realize(SYS_BUS_DEVICE(&i2c0), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&i2c0), 0, memmap[AW_R40_DEV_TWI0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&i2c0), 0,
+                       qdev_get_gpio_in(DEVICE(&gic), AW_R40_GIC_SPI_TWI0));
 
     /* DRAMC */
-    sysbus_realize(SYS_BUS_DEVICE(&s->dramc), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 0,
-                    s->memmap[AW_R40_DEV_DRAMCOM]);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 1,
-                    s->memmap[AW_R40_DEV_DRAMCTL]);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 2,
-                    s->memmap[AW_R40_DEV_DRAMPHY]);
+    sysbus_realize(SYS_BUS_DEVICE(&dramc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&dramc), 0,
+                    memmap[AW_R40_DEV_DRAMCOM]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&dramc), 1,
+                    memmap[AW_R40_DEV_DRAMCTL]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&dramc), 2,
+                    memmap[AW_R40_DEV_DRAMPHY]);
 
     /* GMAC */
-    qemu_configure_nic_device(DEVICE(&s->gmac), true, "gmac");
-    object_property_set_link(OBJECT(&s->gmac), "dma-memory",
+    qemu_configure_nic_device(DEVICE(&gmac), true, "gmac");
+    object_property_set_link(OBJECT(&gmac), "dma-memory",
                                      OBJECT(get_system_memory()), &error_fatal);
-    sysbus_realize(SYS_BUS_DEVICE(&s->gmac), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gmac), 0, s->memmap[AW_R40_DEV_GMAC]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gmac), 0,
-                       qdev_get_gpio_in(DEVICE(&s->gic), AW_R40_GIC_SPI_GMAC));
+    sysbus_realize(SYS_BUS_DEVICE(&gmac), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&gmac), 0, memmap[AW_R40_DEV_GMAC]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&gmac), 0,
+                       qdev_get_gpio_in(DEVICE(&gic), AW_R40_GIC_SPI_GMAC));
 
     /* EMAC */
-    qemu_configure_nic_device(DEVICE(&s->emac), true, "emac");
-    sysbus_realize(SYS_BUS_DEVICE(&s->emac), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->emac), 0, s->memmap[AW_R40_DEV_EMAC]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->emac), 0,
-                       qdev_get_gpio_in(DEVICE(&s->gic), AW_R40_GIC_SPI_EMAC));
+    qemu_configure_nic_device(DEVICE(&emac), true, "emac");
+    sysbus_realize(SYS_BUS_DEVICE(&emac), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&emac), 0, memmap[AW_R40_DEV_EMAC]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&emac), 0,
+                       qdev_get_gpio_in(DEVICE(&gic), AW_R40_GIC_SPI_EMAC));
 
     /* WDT */
-    sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_fatal);
-    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->wdt), 0,
+    sysbus_realize(SYS_BUS_DEVICE(&wdt), &error_fatal);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&wdt), 0,
                             allwinner_r40_memmap[AW_R40_DEV_WDT], 1);
 
     /* Unimplemented devices */
@@ -546,26 +546,10 @@ static void allwinner_r40_realize(DeviceState *dev, Error **errp)
     }
 }
 
-static void allwinner_r40_class_init(ObjectClass *oc, const void *data)
+void AwR40State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = allwinner_r40_realize;
-    /* Reason: uses serial_hd() in realize function */
     dc->user_creatable = false;
 }
 
-static const TypeInfo allwinner_r40_type_info = {
-    .name = TYPE_AW_R40,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(AwR40State),
-    .instance_init = allwinner_r40_init,
-    .class_init = allwinner_r40_class_init,
-};
-
-static void allwinner_r40_register_types(void)
-{
-    type_register_static(&allwinner_r40_type_info);
-}
-
-type_init(allwinner_r40_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AwR40State, TYPE_AW_R40, TYPE_DEVICE)

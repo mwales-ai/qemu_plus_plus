@@ -58,47 +58,46 @@ static const int spi_irq[MSF2_NUM_SPIS] = { 2, 3 };
 static const int uart_irq[MSF2_NUM_UARTS] = { 10, 11 };
 static const int timer_irq[MSF2_NUM_TIMERS] = { 14, 15 };
 
-static void m2sxxx_soc_initfn(Object *obj)
+void MSF2State::init()
 {
-    MSF2State *s = MSF2_SOC(obj);
+    Object *obj = OBJECT(this);
     int i;
 
-    object_initialize_child(obj, "armv7m", &s->armv7m, TYPE_ARMV7M);
+    object_initialize_child(obj, "armv7m", &armv7m, TYPE_ARMV7M);
 
-    object_initialize_child(obj, "sysreg", &s->sysreg, TYPE_MSF2_SYSREG);
+    object_initialize_child(obj, "sysreg", &sysreg, TYPE_MSF2_SYSREG);
 
-    object_initialize_child(obj, "timer", &s->timer, TYPE_MSS_TIMER);
+    object_initialize_child(obj, "timer", &timer, TYPE_MSS_TIMER);
 
     for (i = 0; i < MSF2_NUM_SPIS; i++) {
-        object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_MSS_SPI);
+        object_initialize_child(obj, "spi[*]", &spi[i], TYPE_MSS_SPI);
     }
 
-    object_initialize_child(obj, "emac", &s->emac, TYPE_MSS_EMAC);
+    object_initialize_child(obj, "emac", &emac, TYPE_MSS_EMAC);
 
-    s->m3clk = qdev_init_clock_in(DEVICE(obj), "m3clk", NULL, NULL, 0);
-    s->refclk = qdev_init_clock_in(DEVICE(obj), "refclk", NULL, NULL, 0);
+    m3clk = qdev_init_clock_in(DEVICE(this), "m3clk", NULL, NULL, 0);
+    refclk = qdev_init_clock_in(DEVICE(this), "refclk", NULL, NULL, 0);
 }
 
-static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
+void MSF2State::realize(Error **errp)
 {
-    MSF2State *s = MSF2_SOC(dev_soc);
-    DeviceState *dev, *armv7m;
+    DeviceState *dev, *armv7m_dev;
     SysBusDevice *busdev;
     int i;
 
     MemoryRegion *system_memory = get_system_memory();
 
-    if (!clock_has_source(s->m3clk)) {
+    if (!clock_has_source(m3clk)) {
         error_setg(errp, "m3clk must be wired up by the board code");
         return;
     }
 
     /*
-     * We use s->refclk internally and only define it with qdev_init_clock_in()
+     * We use refclk internally and only define it with qdev_init_clock_in()
      * so it is correctly parented and not leaked on an init/deinit; it is not
      * intended as an externally exposed clock.
      */
-    if (clock_has_source(s->refclk)) {
+    if (clock_has_source(refclk)) {
         error_setg(errp, "refclk must not be wired up by the board code");
         return;
     }
@@ -111,10 +110,10 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
      * implement the divisor as a fixed /32, which matches the reset value
      * of SYSTICK_CR.
      */
-    clock_set_mul_div(s->refclk, 32, 1);
-    clock_set_source(s->refclk, s->m3clk);
+    clock_set_mul_div(refclk, 32, 1);
+    clock_set_source(refclk, m3clk);
 
-    memory_region_init_rom(&s->nvm, OBJECT(dev_soc), "MSF2.eNVM", s->envm_size,
+    memory_region_init_rom(&nvm, OBJECT(this), "MSF2.eNVM", envm_size,
                            &error_fatal);
     /*
      * On power-on, the eNVM region 0x60000000 is automatically
@@ -122,58 +121,58 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
      * start address (0x0). We do not support remapping other eNVM,
      * eSRAM and DDR regions by guest(via Sysreg) currently.
      */
-    memory_region_init_alias(&s->nvm_alias, OBJECT(dev_soc), "MSF2.eNVM",
-                             &s->nvm, 0, s->envm_size);
+    memory_region_init_alias(&nvm_alias, OBJECT(this), "MSF2.eNVM",
+                             &nvm, 0, envm_size);
 
-    memory_region_add_subregion(system_memory, ENVM_BASE_ADDRESS, &s->nvm);
-    memory_region_add_subregion(system_memory, 0, &s->nvm_alias);
+    memory_region_add_subregion(system_memory, ENVM_BASE_ADDRESS, &nvm);
+    memory_region_add_subregion(system_memory, 0, &nvm_alias);
 
-    memory_region_init_ram(&s->sram, NULL, "MSF2.eSRAM", s->esram_size,
+    memory_region_init_ram(&sram, NULL, "MSF2.eSRAM", esram_size,
                            &error_fatal);
-    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &s->sram);
+    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &sram);
 
-    armv7m = DEVICE(&s->armv7m);
-    qdev_prop_set_uint32(armv7m, "num-irq", 81);
-    qdev_prop_set_string(armv7m, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m3"));
-    qdev_prop_set_bit(armv7m, "enable-bitband", true);
-    qdev_connect_clock_in(armv7m, "cpuclk", s->m3clk);
-    qdev_connect_clock_in(armv7m, "refclk", s->refclk);
-    object_property_set_link(OBJECT(&s->armv7m), "memory",
+    armv7m_dev = DEVICE(&armv7m);
+    qdev_prop_set_uint32(armv7m_dev, "num-irq", 81);
+    qdev_prop_set_string(armv7m_dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m3"));
+    qdev_prop_set_bit(armv7m_dev, "enable-bitband", true);
+    qdev_connect_clock_in(armv7m_dev, "cpuclk", m3clk);
+    qdev_connect_clock_in(armv7m_dev, "refclk", refclk);
+    object_property_set_link(OBJECT(&armv7m), "memory",
                              OBJECT(get_system_memory()), &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&armv7m), errp)) {
         return;
     }
 
     for (i = 0; i < MSF2_NUM_UARTS; i++) {
         if (serial_hd(i)) {
             serial_mm_init(get_system_memory(), uart_addr[i], 2,
-                           qdev_get_gpio_in(armv7m, uart_irq[i]),
+                           qdev_get_gpio_in(armv7m_dev, uart_irq[i]),
                            115200, serial_hd(i), DEVICE_NATIVE_ENDIAN);
         }
     }
 
-    dev = DEVICE(&s->timer);
+    dev = DEVICE(&timer);
     /*
      * APB0 clock is the timer input clock.
      * TODO: ideally the MSF2 timer device should use a Clock rather than a
      * clock-frequency integer property.
      */
     qdev_prop_set_uint32(dev, "clock-frequency",
-                         clock_get_hz(s->m3clk) / s->apb0div);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer), errp)) {
+                         clock_get_hz(m3clk) / apb0div);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&timer), errp)) {
         return;
     }
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, MSF2_TIMER_BASE);
     sysbus_connect_irq(busdev, 0,
-                           qdev_get_gpio_in(armv7m, timer_irq[0]));
+                           qdev_get_gpio_in(armv7m_dev, timer_irq[0]));
     sysbus_connect_irq(busdev, 1,
-                           qdev_get_gpio_in(armv7m, timer_irq[1]));
+                           qdev_get_gpio_in(armv7m_dev, timer_irq[1]));
 
-    dev = DEVICE(&s->sysreg);
-    qdev_prop_set_uint32(dev, "apb0divisor", s->apb0div);
-    qdev_prop_set_uint32(dev, "apb1divisor", s->apb1div);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sysreg), errp)) {
+    dev = DEVICE(&sysreg);
+    qdev_prop_set_uint32(dev, "apb0divisor", apb0div);
+    qdev_prop_set_uint32(dev, "apb1divisor", apb1div);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&sysreg), errp)) {
         return;
     }
     busdev = SYS_BUS_DEVICE(dev);
@@ -182,32 +181,32 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < MSF2_NUM_SPIS; i++) {
         gchar *bus_name;
 
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&spi[i]), errp)) {
             return;
         }
 
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[i]), 0, spi_addr[i]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->spi[i]), 0,
-                           qdev_get_gpio_in(armv7m, spi_irq[i]));
+        sysbus_mmio_map(SYS_BUS_DEVICE(&spi[i]), 0, spi_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&spi[i]), 0,
+                           qdev_get_gpio_in(armv7m_dev, spi_irq[i]));
 
         /* Alias controller SPI bus to the SoC itself */
         bus_name = g_strdup_printf("spi%d", i);
-        object_property_add_alias(OBJECT(s), bus_name,
-                                  OBJECT(&s->spi[i]), "spi");
+        object_property_add_alias(OBJECT(this), bus_name,
+                                  OBJECT(&spi[i]), "spi");
         g_free(bus_name);
     }
 
-    dev = DEVICE(&s->emac);
+    dev = DEVICE(&emac);
     qemu_configure_nic_device(dev, true, NULL);
-    object_property_set_link(OBJECT(&s->emac), "ahb-bus",
+    object_property_set_link(OBJECT(&emac), "ahb-bus",
                              OBJECT(get_system_memory()), &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->emac), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&emac), errp)) {
         return;
     }
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, MSF2_EMAC_BASE);
     sysbus_connect_irq(busdev, 0,
-                       qdev_get_gpio_in(armv7m, MSF2_EMAC_IRQ));
+                       qdev_get_gpio_in(armv7m_dev, MSF2_EMAC_IRQ));
 
     /* Below devices are not modelled yet. */
     create_unimplemented_device("i2c_0", 0x40002000, 0x1000);
@@ -236,25 +235,10 @@ static const Property m2sxxx_soc_properties[] = {
     DEFINE_PROP_UINT8("apb1div", MSF2State, apb1div, 2),
 };
 
-static void m2sxxx_soc_class_init(ObjectClass *klass, const void *data)
+void MSF2State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = m2sxxx_soc_realize;
     device_class_set_props(dc, m2sxxx_soc_properties);
 }
 
-static const TypeInfo m2sxxx_soc_info = {
-    .name          = TYPE_MSF2_SOC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MSF2State),
-    .instance_init = m2sxxx_soc_initfn,
-    .class_init    = m2sxxx_soc_class_init,
-};
-
-static void m2sxxx_soc_types(void)
-{
-    type_register_static(&m2sxxx_soc_info);
-}
-
-type_init(m2sxxx_soc_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MSF2State, TYPE_MSF2_SOC, TYPE_SYS_BUS_DEVICE)

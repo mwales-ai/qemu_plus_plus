@@ -76,6 +76,11 @@ struct STM32F405State {
 
     Clock *sysclk;
     Clock *refclk;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+#endif
 };
 
 #ifdef __cplusplus

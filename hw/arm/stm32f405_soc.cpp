@@ -53,61 +53,60 @@ static const int exti_irq[] =  { 6, 7, 8, 9, 10, 23, 23, 23, 23, 23, 40,
                                  40, 40, 40, 40, 40} ;
 
 
-static void stm32f405_soc_initfn(Object *obj)
+void STM32F405State::init()
 {
-    STM32F405State *s = STM32F405_SOC(obj);
+    Object *obj = OBJECT(this);
     int i;
 
-    object_initialize_child(obj, "armv7m", &s->armv7m, TYPE_ARMV7M);
+    object_initialize_child(obj, "armv7m", &armv7m, TYPE_ARMV7M);
 
-    object_initialize_child(obj, "rcc", &s->rcc, TYPE_STM32_RCC);
+    object_initialize_child(obj, "rcc", &rcc, TYPE_STM32_RCC);
 
-    object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32F4XX_SYSCFG);
+    object_initialize_child(obj, "syscfg", &syscfg, TYPE_STM32F4XX_SYSCFG);
 
     for (i = 0; i < STM_NUM_USARTS; i++) {
-        object_initialize_child(obj, "usart[*]", &s->usart[i],
+        object_initialize_child(obj, "usart[*]", &usart[i],
                                 TYPE_STM32F2XX_USART);
     }
 
     for (i = 0; i < STM_NUM_TIMERS; i++) {
-        object_initialize_child(obj, "timer[*]", &s->timer[i],
+        object_initialize_child(obj, "timer[*]", &timer[i],
                                 TYPE_STM32F2XX_TIMER);
     }
 
     for (i = 0; i < STM_NUM_ADCS; i++) {
-        object_initialize_child(obj, "adc[*]", &s->adc[i], TYPE_STM32F2XX_ADC);
+        object_initialize_child(obj, "adc[*]", &adc[i], TYPE_STM32F2XX_ADC);
     }
 
     for (i = 0; i < STM_NUM_SPIS; i++) {
-        object_initialize_child(obj, "spi[*]", &s->spi[i], TYPE_STM32F2XX_SPI);
+        object_initialize_child(obj, "spi[*]", &spi[i], TYPE_STM32F2XX_SPI);
     }
 
-    object_initialize_child(obj, "exti", &s->exti, TYPE_STM32F4XX_EXTI);
+    object_initialize_child(obj, "exti", &exti, TYPE_STM32F4XX_EXTI);
 
-    s->sysclk = qdev_init_clock_in(DEVICE(s), "sysclk", NULL, NULL, 0);
-    s->refclk = qdev_init_clock_in(DEVICE(s), "refclk", NULL, NULL, 0);
+    sysclk = qdev_init_clock_in(DEVICE(this), "sysclk", NULL, NULL, 0);
+    refclk = qdev_init_clock_in(DEVICE(this), "refclk", NULL, NULL, 0);
 }
 
-static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
+void STM32F405State::realize(Error **errp)
 {
-    STM32F405State *s = STM32F405_SOC(dev_soc);
     MemoryRegion *system_memory = get_system_memory();
-    DeviceState *dev, *armv7m;
+    DeviceState *dev, *armv7m_dev;
     SysBusDevice *busdev;
     Error *err = NULL;
     int i;
 
     /*
-     * We use s->refclk internally and only define it with qdev_init_clock_in()
+     * We use refclk internally and only define it with qdev_init_clock_in()
      * so it is correctly parented and not leaked on an init/deinit; it is not
      * intended as an externally exposed clock.
      */
-    if (clock_has_source(s->refclk)) {
+    if (clock_has_source(refclk)) {
         error_setg(errp, "refclk clock must not be wired up by the board code");
         return;
     }
 
-    if (!clock_has_source(s->sysclk)) {
+    if (!clock_has_source(sysclk)) {
         error_setg(errp, "sysclk clock must be wired up by the board code");
         return;
     }
@@ -118,140 +117,140 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
      */
 
     /* The refclk always runs at frequency HCLK / 8 */
-    clock_set_mul_div(s->refclk, 8, 1);
-    clock_set_source(s->refclk, s->sysclk);
+    clock_set_mul_div(refclk, 8, 1);
+    clock_set_source(refclk, sysclk);
 
-    memory_region_init_rom(&s->flash, OBJECT(dev_soc), "STM32F405.flash",
+    memory_region_init_rom(&flash, OBJECT(this), "STM32F405.flash",
                            FLASH_SIZE, &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
-    memory_region_init_alias(&s->flash_alias, OBJECT(dev_soc),
-                             "STM32F405.flash.alias", &s->flash, 0,
+    memory_region_init_alias(&flash_alias, OBJECT(this),
+                             "STM32F405.flash.alias", &flash, 0,
                              FLASH_SIZE);
 
-    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &s->flash);
-    memory_region_add_subregion(system_memory, 0, &s->flash_alias);
+    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &flash);
+    memory_region_add_subregion(system_memory, 0, &flash_alias);
 
-    memory_region_init_ram(&s->sram, NULL, "STM32F405.sram", SRAM_SIZE,
+    memory_region_init_ram(&sram, NULL, "STM32F405.sram", SRAM_SIZE,
                            &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
-    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &s->sram);
+    memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &sram);
 
-    memory_region_init_ram(&s->ccm, NULL, "STM32F405.ccm", CCM_SIZE,
+    memory_region_init_ram(&ccm, NULL, "STM32F405.ccm", CCM_SIZE,
                            &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
     }
-    memory_region_add_subregion(system_memory, CCM_BASE_ADDRESS, &s->ccm);
+    memory_region_add_subregion(system_memory, CCM_BASE_ADDRESS, &ccm);
 
-    armv7m = DEVICE(&s->armv7m);
-    qdev_prop_set_uint32(armv7m, "num-irq", 96);
-    qdev_prop_set_uint8(armv7m, "num-prio-bits", 4);
-    qdev_prop_set_string(armv7m, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m4"));
-    qdev_prop_set_bit(armv7m, "enable-bitband", true);
-    qdev_connect_clock_in(armv7m, "cpuclk", s->sysclk);
-    qdev_connect_clock_in(armv7m, "refclk", s->refclk);
-    object_property_set_link(OBJECT(&s->armv7m), "memory",
+    armv7m_dev = DEVICE(&armv7m);
+    qdev_prop_set_uint32(armv7m_dev, "num-irq", 96);
+    qdev_prop_set_uint8(armv7m_dev, "num-prio-bits", 4);
+    qdev_prop_set_string(armv7m_dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m4"));
+    qdev_prop_set_bit(armv7m_dev, "enable-bitband", true);
+    qdev_connect_clock_in(armv7m_dev, "cpuclk", sysclk);
+    qdev_connect_clock_in(armv7m_dev, "refclk", refclk);
+    object_property_set_link(OBJECT(&armv7m), "memory",
                              OBJECT(system_memory), &error_abort);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&armv7m), errp)) {
         return;
     }
 
     /* Reset and clock controller */
-    dev = DEVICE(&s->rcc);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->rcc), errp)) {
+    dev = DEVICE(&rcc);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&rcc), errp)) {
         return;
     }
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, RCC_ADDR);
 
     /* System configuration controller */
-    dev = DEVICE(&s->syscfg);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->syscfg), errp)) {
+    dev = DEVICE(&syscfg);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&syscfg), errp)) {
         return;
     }
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, SYSCFG_ADD);
-    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, SYSCFG_IRQ));
+    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m_dev, SYSCFG_IRQ));
 
     /* Attach UART (uses USART registers) and USART controllers */
     for (i = 0; i < STM_NUM_USARTS; i++) {
-        dev = DEVICE(&(s->usart[i]));
+        dev = DEVICE(&(usart[i]));
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->usart[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&usart[i]), errp)) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(busdev, 0, usart_addr[i]);
-        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, usart_irq[i]));
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m_dev, usart_irq[i]));
     }
 
     /* Timer 2 to 5 */
     for (i = 0; i < STM_NUM_TIMERS; i++) {
-        dev = DEVICE(&(s->timer[i]));
+        dev = DEVICE(&(timer[i]));
         qdev_prop_set_uint64(dev, "clock-frequency", 1000000000);
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&timer[i]), errp)) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(busdev, 0, timer_addr[i]);
-        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, timer_irq[i]));
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m_dev, timer_irq[i]));
     }
 
     /* ADC device, the IRQs are ORed together */
-    if (!object_initialize_child_with_props(OBJECT(s), "adc-orirq",
-                                            &s->adc_irqs, sizeof(s->adc_irqs),
+    if (!object_initialize_child_with_props(OBJECT(this), "adc-orirq",
+                                            &adc_irqs, sizeof(adc_irqs),
                                             TYPE_OR_IRQ, errp, NULL)) {
         return;
     }
-    object_property_set_int(OBJECT(&s->adc_irqs), "num-lines", STM_NUM_ADCS,
+    object_property_set_int(OBJECT(&adc_irqs), "num-lines", STM_NUM_ADCS,
                             &error_abort);
-    if (!qdev_realize(DEVICE(&s->adc_irqs), NULL, errp)) {
+    if (!qdev_realize(DEVICE(&adc_irqs), NULL, errp)) {
         return;
     }
-    qdev_connect_gpio_out(DEVICE(&s->adc_irqs), 0,
-                          qdev_get_gpio_in(armv7m, ADC_IRQ));
+    qdev_connect_gpio_out(DEVICE(&adc_irqs), 0,
+                          qdev_get_gpio_in(armv7m_dev, ADC_IRQ));
 
     for (i = 0; i < STM_NUM_ADCS; i++) {
-        dev = DEVICE(&(s->adc[i]));
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->adc[i]), errp)) {
+        dev = DEVICE(&(adc[i]));
+        if (!sysbus_realize(SYS_BUS_DEVICE(&adc[i]), errp)) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(busdev, 0, adc_addr[i]);
         sysbus_connect_irq(busdev, 0,
-                           qdev_get_gpio_in(DEVICE(&s->adc_irqs), i));
+                           qdev_get_gpio_in(DEVICE(&adc_irqs), i));
     }
 
     /* SPI devices */
     for (i = 0; i < STM_NUM_SPIS; i++) {
-        dev = DEVICE(&(s->spi[i]));
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->spi[i]), errp)) {
+        dev = DEVICE(&(spi[i]));
+        if (!sysbus_realize(SYS_BUS_DEVICE(&spi[i]), errp)) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_mmio_map(busdev, 0, spi_addr[i]);
-        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, spi_irq[i]));
+        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m_dev, spi_irq[i]));
     }
 
     /* EXTI device */
-    dev = DEVICE(&s->exti);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->exti), errp)) {
+    dev = DEVICE(&exti);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&exti), errp)) {
         return;
     }
     busdev = SYS_BUS_DEVICE(dev);
     sysbus_mmio_map(busdev, 0, EXTI_ADDR);
     for (i = 0; i < 16; i++) {
-        sysbus_connect_irq(busdev, i, qdev_get_gpio_in(armv7m, exti_irq[i]));
+        sysbus_connect_irq(busdev, i, qdev_get_gpio_in(armv7m_dev, exti_irq[i]));
     }
     for (i = 0; i < 16; i++) {
-        qdev_connect_gpio_out(DEVICE(&s->syscfg), i, qdev_get_gpio_in(dev, i));
+        qdev_connect_gpio_out(DEVICE(&syscfg), i, qdev_get_gpio_in(dev, i));
     }
 
     create_unimplemented_device("timer[7]",    0x40001400, 0x400);
@@ -298,25 +297,5 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("RNG",         0x50060800, 0x400);
 }
 
-static void stm32f405_soc_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = stm32f405_soc_realize;
-    /* No vmstate or reset required: device has no internal state */
-}
-
-static const TypeInfo stm32f405_soc_info = {
-    .name          = TYPE_STM32F405_SOC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(STM32F405State),
-    .instance_init = stm32f405_soc_initfn,
-    .class_init    = stm32f405_soc_class_init,
-};
-
-static void stm32f405_soc_types(void)
-{
-    type_register_static(&stm32f405_soc_info);
-}
-
-type_init(stm32f405_soc_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(STM32F405State, TYPE_STM32F405_SOC, TYPE_SYS_BUS_DEVICE)

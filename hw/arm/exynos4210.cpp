@@ -548,9 +548,8 @@ static DeviceState *pl330_create(uint32_t base, OrIRQState *orgate,
     return dev;
 }
 
-static void exynos4210_realize(DeviceState *socdev, Error **errp)
+void Exynos4210State::realize(Error **errp)
 {
-    Exynos4210State *s = EXYNOS4210_SOC(socdev);
     MemoryRegion *system_mem = get_system_memory();
     SysBusDevice *busdev;
     DeviceState *dev, *uart[4], *pl330[3];
@@ -559,7 +558,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
         Object *cpuobj = object_new(ARM_CPU_TYPE_NAME("cortex-a9"));
 
-        object_property_add_child(OBJECT(s), "cpu[*]", cpuobj);
+        object_property_add_child(OBJECT(this), "cpu[*]", cpuobj);
         /* By default A9 CPUs have EL3 enabled.  This board does not currently
          * support EL3 so the CPU EL3 property is disabled before realization.
          */
@@ -567,7 +566,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
             object_property_set_bool(cpuobj, "has_el3", false, &error_fatal);
         }
 
-        s->cpu[n] = ARM_CPU(cpuobj);
+        cpu[n] = ARM_CPU(cpuobj);
         object_property_set_int(cpuobj, "mp-affinity",
                                 exynos4210_calc_affinity(n), &error_abort);
         object_property_set_int(cpuobj, "reset-cbar",
@@ -578,33 +577,33 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 
     /* IRQ Gate */
     for (i = 0; i < EXYNOS4210_NCPUS; i++) {
-        DeviceState *orgate = DEVICE(&s->cpu_irq_orgate[i]);
+        DeviceState *orgate = DEVICE(&cpu_irq_orgate[i]);
         object_property_set_int(OBJECT(orgate), "num-lines",
                                 EXYNOS4210_IRQ_GATE_NINPUTS,
                                 &error_abort);
         qdev_realize(orgate, NULL, &error_abort);
         qdev_connect_gpio_out(orgate, 0,
-                              qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
+                              qdev_get_gpio_in(DEVICE(cpu[i]), ARM_CPU_IRQ));
     }
 
     /* Private memory region and Internal GIC */
-    qdev_prop_set_uint32(DEVICE(&s->a9mpcore), "num-cpu", EXYNOS4210_NCPUS);
-    qdev_prop_set_uint32(DEVICE(&s->a9mpcore), "num-irq",
+    qdev_prop_set_uint32(DEVICE(&a9mpcore), "num-cpu", EXYNOS4210_NCPUS);
+    qdev_prop_set_uint32(DEVICE(&a9mpcore), "num-irq",
                          GIC_EXT_IRQS + GIC_INTERNAL);
-    busdev = SYS_BUS_DEVICE(&s->a9mpcore);
+    busdev = SYS_BUS_DEVICE(&a9mpcore);
     sysbus_realize(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_SMP_PRIVATE_BASE_ADDR);
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
         sysbus_connect_irq(busdev, n,
-                           qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[n]), 0));
+                           qdev_get_gpio_in(DEVICE(&cpu_irq_orgate[n]), 0));
     }
 
     /* Cache controller */
     sysbus_create_simple("l2x0", EXYNOS4210_L2X0_BASE_ADDR, NULL);
 
     /* External GIC */
-    qdev_prop_set_uint32(DEVICE(&s->ext_gic), "num-cpu", EXYNOS4210_NCPUS);
-    busdev = SYS_BUS_DEVICE(&s->ext_gic);
+    qdev_prop_set_uint32(DEVICE(&ext_gic), "num-cpu", EXYNOS4210_NCPUS);
+    busdev = SYS_BUS_DEVICE(&ext_gic);
     sysbus_realize(busdev, &error_fatal);
     /* Map CPU interface */
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_GIC_CPU_BASE_ADDR);
@@ -612,56 +611,56 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     sysbus_mmio_map(busdev, 1, EXYNOS4210_EXT_GIC_DIST_BASE_ADDR);
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
         sysbus_connect_irq(busdev, n,
-                           qdev_get_gpio_in(DEVICE(&s->cpu_irq_orgate[n]), 1));
+                           qdev_get_gpio_in(DEVICE(&cpu_irq_orgate[n]), 1));
     }
 
     /* Internal Interrupt Combiner */
-    busdev = SYS_BUS_DEVICE(&s->int_combiner);
+    busdev = SYS_BUS_DEVICE(&int_combiner);
     sysbus_realize(busdev, &error_fatal);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
         sysbus_connect_irq(busdev, n,
-                           qdev_get_gpio_in(DEVICE(&s->a9mpcore), n));
+                           qdev_get_gpio_in(DEVICE(&a9mpcore), n));
     }
     sysbus_mmio_map(busdev, 0, EXYNOS4210_INT_COMBINER_BASE_ADDR);
 
     /* External Interrupt Combiner */
-    qdev_prop_set_uint32(DEVICE(&s->ext_combiner), "external", 1);
-    busdev = SYS_BUS_DEVICE(&s->ext_combiner);
+    qdev_prop_set_uint32(DEVICE(&ext_combiner), "external", 1);
+    busdev = SYS_BUS_DEVICE(&ext_combiner);
     sysbus_realize(busdev, &error_fatal);
     for (n = 0; n < EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ; n++) {
-        sysbus_connect_irq(busdev, n, qdev_get_gpio_in(DEVICE(&s->ext_gic), n));
+        sysbus_connect_irq(busdev, n, qdev_get_gpio_in(DEVICE(&ext_gic), n));
     }
     sysbus_mmio_map(busdev, 0, EXYNOS4210_EXT_COMBINER_BASE_ADDR);
 
     /* Initialize board IRQs. */
-    exynos4210_init_board_irqs(s);
+    exynos4210_init_board_irqs(this);
 
     /*** Memory ***/
 
     /* Chip-ID and OMR */
-    memory_region_init_io(&s->chipid_mem, OBJECT(socdev),
+    memory_region_init_io(&chipid_mem, OBJECT(this),
                           &exynos4210_chipid_and_omr_ops, NULL,
                           "exynos4210.chipid", sizeof(chipid_and_omr));
     memory_region_add_subregion(system_mem, EXYNOS4210_CHIPID_ADDR,
-                                &s->chipid_mem);
+                                &chipid_mem);
 
     /* Internal ROM */
-    memory_region_init_rom(&s->irom_mem, OBJECT(socdev), "exynos4210.irom",
+    memory_region_init_rom(&irom_mem, OBJECT(this), "exynos4210.irom",
                            EXYNOS4210_IROM_SIZE, &error_fatal);
     memory_region_add_subregion(system_mem, EXYNOS4210_IROM_BASE_ADDR,
-                                &s->irom_mem);
+                                &irom_mem);
     /* mirror of iROM */
-    memory_region_init_alias(&s->irom_alias_mem, OBJECT(socdev),
-                             "exynos4210.irom_alias", &s->irom_mem, 0,
+    memory_region_init_alias(&irom_alias_mem, OBJECT(this),
+                             "exynos4210.irom_alias", &irom_mem, 0,
                              EXYNOS4210_IROM_SIZE);
     memory_region_add_subregion(system_mem, EXYNOS4210_IROM_MIRROR_BASE_ADDR,
-                                &s->irom_alias_mem);
+                                &irom_alias_mem);
 
     /* Internal RAM */
-    memory_region_init_ram(&s->iram_mem, NULL, "exynos4210.iram",
+    memory_region_init_ram(&iram_mem, NULL, "exynos4210.iram",
                            EXYNOS4210_IRAM_SIZE, &error_fatal);
     memory_region_add_subregion(system_mem, EXYNOS4210_IRAM_BASE_ADDR,
-                                &s->iram_mem);
+                                &iram_mem);
 
    /* PMU.
     * The only reason of existence at the moment is that secondary CPU boot
@@ -674,16 +673,16 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
 
     /* PWM */
     sysbus_create_varargs("exynos4210.pwm", EXYNOS4210_PWM_BASE_ADDR,
-                          s->irq_table[exynos4210_get_irq(22, 0)],
-                          s->irq_table[exynos4210_get_irq(22, 1)],
-                          s->irq_table[exynos4210_get_irq(22, 2)],
-                          s->irq_table[exynos4210_get_irq(22, 3)],
-                          s->irq_table[exynos4210_get_irq(22, 4)],
+                          irq_table[exynos4210_get_irq(22, 0)],
+                          irq_table[exynos4210_get_irq(22, 1)],
+                          irq_table[exynos4210_get_irq(22, 2)],
+                          irq_table[exynos4210_get_irq(22, 3)],
+                          irq_table[exynos4210_get_irq(22, 4)],
                           NULL);
     /* RTC */
     sysbus_create_varargs("exynos4210.rtc", EXYNOS4210_RTC_BASE_ADDR,
-                          s->irq_table[exynos4210_get_irq(23, 0)],
-                          s->irq_table[exynos4210_get_irq(23, 1)],
+                          irq_table[exynos4210_get_irq(23, 0)],
+                          irq_table[exynos4210_get_irq(23, 1)],
                           NULL);
 
     /* Multi Core Timer */
@@ -693,13 +692,13 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     for (n = 0; n < 4; n++) {
         /* Connect global timer interrupts to Combiner gpio_in */
         sysbus_connect_irq(busdev, n,
-                s->irq_table[exynos4210_get_irq(1, 4 + n)]);
+                irq_table[exynos4210_get_irq(1, 4 + n)]);
     }
     /* Connect local timer interrupts to Combiner gpio_in */
     sysbus_connect_irq(busdev, 4,
-            s->irq_table[exynos4210_get_irq(51, 0)]);
+            irq_table[exynos4210_get_irq(51, 0)]);
     sysbus_connect_irq(busdev, 5,
-            s->irq_table[exynos4210_get_irq(35, 3)]);
+            irq_table[exynos4210_get_irq(35, 3)]);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_MCT_BASE_ADDR);
 
     /*** I2C ***/
@@ -708,9 +707,9 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         qemu_irq i2c_irq;
 
         if (n < 8) {
-            i2c_irq = s->irq_table[exynos4210_get_irq(EXYNOS4210_I2C_INTG, n)];
+            i2c_irq = irq_table[exynos4210_get_irq(EXYNOS4210_I2C_INTG, n)];
         } else {
-            i2c_irq = s->irq_table[exynos4210_get_irq(EXYNOS4210_HDMI_INTG, 1)];
+            i2c_irq = irq_table[exynos4210_get_irq(EXYNOS4210_HDMI_INTG, 1)];
         }
 
         dev = qdev_new("exynos4210.i2c");
@@ -718,26 +717,26 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_connect_irq(busdev, 0, i2c_irq);
         sysbus_mmio_map(busdev, 0, addr);
-        s->i2c_if[n] = (I2CBus *)qdev_get_child_bus(dev, "i2c");
+        i2c_if[n] = (I2CBus *)qdev_get_child_bus(dev, "i2c");
     }
 
 
     /*** UARTs ***/
     uart[0] = exynos4210_uart_create(EXYNOS4210_UART0_BASE_ADDR,
                            EXYNOS4210_UART0_FIFO_SIZE, 0, serial_hd(0),
-                  s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 0)]);
+                  irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 0)]);
 
     uart[1] = exynos4210_uart_create(EXYNOS4210_UART1_BASE_ADDR,
                            EXYNOS4210_UART1_FIFO_SIZE, 1, serial_hd(1),
-                  s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 1)]);
+                  irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 1)]);
 
     uart[2] = exynos4210_uart_create(EXYNOS4210_UART2_BASE_ADDR,
                            EXYNOS4210_UART2_FIFO_SIZE, 2, serial_hd(2),
-                  s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 2)]);
+                  irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 2)]);
 
     uart[3] = exynos4210_uart_create(EXYNOS4210_UART3_BASE_ADDR,
                            EXYNOS4210_UART3_FIFO_SIZE, 3, serial_hd(3),
-                  s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 3)]);
+                  irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 3)]);
 
     /*** SD/MMC host controllers ***/
     for (n = 0; n < EXYNOS4210_SDHCI_NUMBER; n++) {
@@ -763,7 +762,7 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
         busdev = SYS_BUS_DEVICE(dev);
         sysbus_realize_and_unref(busdev, &error_fatal);
         sysbus_mmio_map(busdev, 0, EXYNOS4210_SDHCI_ADDR(n));
-        sysbus_connect_irq(busdev, 0, s->irq_table[exynos4210_get_irq(29, n)]);
+        sysbus_connect_irq(busdev, 0, irq_table[exynos4210_get_irq(29, n)]);
 
         di = drive_get(IF_SD, 0, n);
         blk = di ? blk_by_legacy_dinfo(di) : NULL;
@@ -781,24 +780,24 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
     sysbus_realize_and_unref(busdev, &error_fatal);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_FIMD0_BASE_ADDR);
     for (n = 0; n < 3; n++) {
-        sysbus_connect_irq(busdev, n, s->irq_table[exynos4210_get_irq(11, n)]);
+        sysbus_connect_irq(busdev, n, irq_table[exynos4210_get_irq(11, n)]);
     }
 
     sysbus_create_simple(TYPE_EXYNOS4210_EHCI, EXYNOS4210_EHCI_BASE_ADDR,
-            s->irq_table[exynos4210_get_irq(28, 3)]);
+            irq_table[exynos4210_get_irq(28, 3)]);
 
     /*** DMA controllers ***/
     pl330[0] = pl330_create(EXYNOS4210_PL330_BASE0_ADDR,
-                            &s->pl330_irq_orgate[0],
-                            s->irq_table[exynos4210_get_irq(21, 0)],
+                            &pl330_irq_orgate[0],
+                            irq_table[exynos4210_get_irq(21, 0)],
                             32, 32, 32);
     pl330[1] = pl330_create(EXYNOS4210_PL330_BASE1_ADDR,
-                            &s->pl330_irq_orgate[1],
-                            s->irq_table[exynos4210_get_irq(21, 1)],
+                            &pl330_irq_orgate[1],
+                            irq_table[exynos4210_get_irq(21, 1)],
                             32, 32, 32);
     pl330[2] = pl330_create(EXYNOS4210_PL330_BASE2_ADDR,
-                            &s->pl330_irq_orgate[2],
-                            s->irq_table[exynos4210_get_irq(20, 1)],
+                            &pl330_irq_orgate[2],
+                            irq_table[exynos4210_get_irq(20, 1)],
                             1, 31, 64);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(uart[0]), 1,
@@ -811,55 +810,36 @@ static void exynos4210_realize(DeviceState *socdev, Error **errp)
                        qdev_get_gpio_in(pl330[1], 17));
 }
 
-static void exynos4210_init(Object *obj)
+void Exynos4210State::init()
 {
-    Exynos4210State *s = EXYNOS4210_SOC(obj);
+    Object *obj = OBJECT(this);
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(s->pl330_irq_orgate); i++) {
+    for (i = 0; i < ARRAY_SIZE(pl330_irq_orgate); i++) {
         char *name = g_strdup_printf("pl330-irq-orgate%d", i);
-        OrIRQState *orgate = &s->pl330_irq_orgate[i];
+        OrIRQState *orgate = &pl330_irq_orgate[i];
 
         object_initialize_child(obj, name, orgate, TYPE_OR_IRQ);
         g_free(name);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->cpu_irq_orgate); i++) {
+    for (i = 0; i < ARRAY_SIZE(cpu_irq_orgate); i++) {
         g_autofree char *name = g_strdup_printf("cpu-irq-orgate%d", i);
-        object_initialize_child(obj, name, &s->cpu_irq_orgate[i], TYPE_OR_IRQ);
+        object_initialize_child(obj, name, &cpu_irq_orgate[i], TYPE_OR_IRQ);
     }
 
-    for (i = 0; i < ARRAY_SIZE(s->splitter); i++) {
+    for (i = 0; i < ARRAY_SIZE(splitter); i++) {
         g_autofree char *name = g_strdup_printf("irq-splitter%d", i);
-        object_initialize_child(obj, name, &s->splitter[i], TYPE_SPLIT_IRQ);
+        object_initialize_child(obj, name, &splitter[i], TYPE_SPLIT_IRQ);
     }
 
-    object_initialize_child(obj, "a9mpcore", &s->a9mpcore, TYPE_A9MPCORE_PRIV);
-    object_initialize_child(obj, "ext-gic", &s->ext_gic, TYPE_EXYNOS4210_GIC);
-    object_initialize_child(obj, "int-combiner", &s->int_combiner,
+    object_initialize_child(obj, "a9mpcore", &a9mpcore, TYPE_A9MPCORE_PRIV);
+    object_initialize_child(obj, "ext-gic", &ext_gic, TYPE_EXYNOS4210_GIC);
+    object_initialize_child(obj, "int-combiner", &int_combiner,
                             TYPE_EXYNOS4210_COMBINER);
-    object_initialize_child(obj, "ext-combiner", &s->ext_combiner,
+    object_initialize_child(obj, "ext-combiner", &ext_combiner,
                             TYPE_EXYNOS4210_COMBINER);
 }
 
-static void exynos4210_class_init(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = exynos4210_realize;
-}
-
-static const TypeInfo exynos4210_info = {
-    .name = TYPE_EXYNOS4210_SOC,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210State),
-    .instance_init = exynos4210_init,
-    .class_init = exynos4210_class_init,
-};
-
-static void exynos4210_register_types(void)
-{
-    type_register_static(&exynos4210_info);
-}
-
-type_init(exynos4210_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210State, TYPE_EXYNOS4210_SOC, TYPE_SYS_BUS_DEVICE)

@@ -107,6 +107,11 @@ struct Exynos4210State {
     Exynos4210CombinerState int_combiner;
     Exynos4210CombinerState ext_combiner;
     SplitIRQ splitter[EXYNOS4210_NUM_SPLITTERS];
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+#endif
 };
 
 #define TYPE_EXYNOS4210_SOC "exynos4210"

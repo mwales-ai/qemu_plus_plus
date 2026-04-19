@@ -135,6 +135,12 @@ struct AwR40State {
     MemoryRegion sram_a2;
     MemoryRegion sram_a3;
     MemoryRegion sram_a4;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**
