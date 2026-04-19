@@ -375,10 +375,10 @@ static void ufs_init_scsi_device(UfsLu *lu, BlockBackend *blk, Error **errp)
     lu->scsi_dev = SCSI_DEVICE(scsi_dev);
 }
 
-static void ufs_lu_realize(DeviceState *dev, Error **errp)
+void UfsLu::realize(Error **errp)
 {
-    UfsLu *lu = DO_UPCAST(UfsLu, qdev, dev);
-    BusState *s = qdev_get_parent_bus(dev);
+    UfsLu *lu = this;
+    BusState *s = qdev_get_parent_bus(DEVICE(this));
     UfsHc *u = UFS(s->parent);
     BlockBackend *blk = lu->conf.blk;
 
@@ -418,27 +418,13 @@ static void ufs_lu_unrealize(DeviceState *dev)
     }
 }
 
-static void ufs_lu_class_init(ObjectClass *oc, const void *data)
+void UfsLu::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = ufs_lu_realize;
     dc->unrealize = ufs_lu_unrealize;
     dc->bus_type = TYPE_UFS_BUS;
     device_class_set_props(dc, ufs_lu_props);
     dc->desc = "Virtual UFS logical unit";
 }
 
-static const TypeInfo ufs_lu_info = {
-    .name = TYPE_UFS_LU,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(UfsLu),
-    .class_init = ufs_lu_class_init,
-};
-
-static void ufs_lu_register_types(void)
-{
-    type_register_static(&ufs_lu_info);
-}
-
-type_init(ufs_lu_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(UfsLu, TYPE_UFS_LU, TYPE_DEVICE)

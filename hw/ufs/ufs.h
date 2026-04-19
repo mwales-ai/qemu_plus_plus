@@ -82,6 +82,11 @@ typedef struct UfsLu {
     SCSIDevice *scsi_dev;
     BlockConf conf;
     UfsScsiOp scsi_op;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 } UfsLu;
 
 typedef struct UfsParams {

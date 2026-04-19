@@ -295,7 +295,7 @@ typedef struct XHCIState {
     bool getFlag(enum xhci_flags bit);
     void setFlag(enum xhci_flags bit);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 } XHCIState;
 

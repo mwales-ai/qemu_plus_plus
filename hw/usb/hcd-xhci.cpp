@@ -2774,12 +2774,6 @@ void XHCIState::reset()
     mfwrapUpdate();
 }
 
-static void xhci_reset(DeviceState *dev)
-{
-    XHCIState *xhci = reinterpret_cast<XHCIState *>(dev);
-    xhci->reset();
-}
-
 static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
 {
     XHCIState *xhci = static_cast<XHCIState *>(ptr);
@@ -3023,7 +3017,7 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
         xhci->usbcmd = val & 0xc0f;
         xhci->mfwrapUpdate();
         if (val & USBCMD_HCRST) {
-            xhci_reset(reinterpret_cast<DeviceState *>(xhci));
+            xhci->reset();
         }
         xhci->intrUpdate(0);
         break;
@@ -3476,12 +3470,6 @@ void XHCIState::realize(Error **errp)
     }
 }
 
-static void usb_xhci_realize(DeviceState *dev, Error **errp)
-{
-    XHCIState *xhci = reinterpret_cast<XHCIState *>(dev);
-    xhci->realize(errp);
-}
-
 void XHCIState::unrealize()
 {
     int i;
@@ -3712,27 +3700,12 @@ static const Property xhci_properties[] = {
                      DeviceState *),
 };
 
-void XHCIState::classInit(ObjectClass *klass, const void *data)
+void XHCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = usb_xhci_realize;
     dc->unrealize = usb_xhci_unrealize;
-    device_class_set_legacy_reset(dc, xhci_reset);
     device_class_set_props(dc, xhci_properties);
     dc->user_creatable = false;
 }
 
-static const TypeInfo xhci_info = {
-    .name          = TYPE_XHCI,
-    .parent        = TYPE_DEVICE,
-    .instance_size = sizeof(XHCIState),
-    .class_init    = XHCIState::classInit,
-};
-
-static void xhci_register_types(void)
-{
-    type_register_static(&xhci_info);
-}
-
-type_init(xhci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XHCIState, TYPE_XHCI, TYPE_DEVICE)
