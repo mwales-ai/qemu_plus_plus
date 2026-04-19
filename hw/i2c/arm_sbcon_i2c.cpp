@@ -78,30 +78,16 @@ static const MemoryRegionOps arm_sbcon_i2c_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void arm_sbcon_i2c_init(Object *obj)
+void ArmSbconI2CState::init()
 {
-    DeviceState *dev = DEVICE(obj);
-    ArmSbconI2CState *s = ARM_SBCON_I2C(obj);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     I2CBus *bus;
 
-    bus = i2c_init_bus(dev, "i2c");
-    bitbang_i2c_init(&s->bitbang, bus);
-    memory_region_init_io(&s->iomem, obj, &arm_sbcon_i2c_ops, s,
+    bus = i2c_init_bus(DEVICE(this), "i2c");
+    bitbang_i2c_init(&bitbang, bus);
+    memory_region_init_io(&iomem, OBJECT(this), &arm_sbcon_i2c_ops, this,
                           "arm_sbcon_i2c", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
-static const TypeInfo arm_sbcon_i2c_info = {
-    .name          = TYPE_ARM_SBCON_I2C,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ArmSbconI2CState),
-    .instance_init = arm_sbcon_i2c_init,
-};
-
-static void arm_sbcon_i2c_register_types(void)
-{
-    type_register_static(&arm_sbcon_i2c_info);
-}
-
-type_init(arm_sbcon_i2c_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ArmSbconI2CState, TYPE_ARM_SBCON_I2C, TYPE_SYS_BUS_DEVICE)

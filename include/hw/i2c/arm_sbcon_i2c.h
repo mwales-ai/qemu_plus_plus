@@ -35,6 +35,11 @@ struct ArmSbconI2CState {
     bitbang_i2c_interface bitbang;
     int out;
     int in;
+
+#ifdef __cplusplus
+    void init();
+    static void classInit(DeviceClass *dc) {}
+#endif
 };
 
 #ifdef __cplusplus
