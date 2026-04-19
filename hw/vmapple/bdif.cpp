@@ -34,8 +34,8 @@ struct VMAppleBdifState {
     static uint64_t read(void *opaque, hwaddr offset, unsigned size);
     static void write(void *opaque, hwaddr offset, uint64_t value,
                       unsigned size);
-    static void initfn(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 #define VMAPPLE_BDIF_SIZE   0x00200000
@@ -244,13 +244,11 @@ static const MemoryRegionOps bdif_ops = {
     },
 };
 
-void VMAppleBdifState::initfn(Object *obj)
+void VMAppleBdifState::init()
 {
-    VMAppleBdifState *s = VMAPPLE_BDIF(obj);
-
-    memory_region_init_io(&s->mmio, obj, &bdif_ops, obj,
+    memory_region_init_io(&mmio, OBJECT(this), &bdif_ops, OBJECT(this),
                          "VMApple Backdoor Interface", VMAPPLE_BDIF_SIZE);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(obj), &s->mmio);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
 static const Property bdif_properties[] = {
@@ -258,25 +256,11 @@ static const Property bdif_properties[] = {
     DEFINE_PROP_DRIVE("root", VMAppleBdifState, root),
 };
 
-void VMAppleBdifState::classInit(ObjectClass *klass, const void *data)
+void VMAppleBdifState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "VMApple Backdoor Interface";
     device_class_set_props(dc, bdif_properties);
 }
 
-static const TypeInfo bdif_info = {
-    .name          = TYPE_VMAPPLE_BDIF,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VMAppleBdifState),
-    .instance_init = VMAppleBdifState::initfn,
-    .class_init    = VMAppleBdifState::classInit,
-};
-
-static void bdif_register_types(void)
-{
-    type_register_static(&bdif_info);
-}
-
-type_init(bdif_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VMAppleBdifState, TYPE_VMAPPLE_BDIF, TYPE_SYS_BUS_DEVICE)

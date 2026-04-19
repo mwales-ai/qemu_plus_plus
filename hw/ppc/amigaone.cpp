@@ -96,8 +96,7 @@ struct A1NVRAMState {
     BlockBackend *blk;
 
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static uint64_t nvram_read(void *opaque, hwaddr addr, unsigned int size)
@@ -174,33 +173,17 @@ void A1NVRAMState::realize(Error **errp)
     }
 }
 
-void A1NVRAMState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    A1NVRAMState *s = reinterpret_cast<A1NVRAMState *>(dev);
-    s->realize(errp);
-}
-
 static const Property nvram_properties[] = {
     DEFINE_PROP_DRIVE("drive", A1NVRAMState, blk),
 };
 
-void A1NVRAMState::classInit(ObjectClass *oc, const void *data)
+void A1NVRAMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
-    dc->realize = A1NVRAMState::realizeWrapper;
     device_class_set_props(dc, nvram_properties);
 }
 
-static const TypeInfo nvram_types[] = {
-    {
-        .name = TYPE_A1_NVRAM,
-        .parent = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(A1NVRAMState),
-        .class_init = A1NVRAMState::classInit,
-    },
-};
-DEFINE_TYPES(nvram_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(A1NVRAMState, TYPE_A1_NVRAM, TYPE_SYS_BUS_DEVICE)
 
 struct boot_info {
     hwaddr entry;

@@ -61,13 +61,11 @@ struct OMAPIntcState {
     /* methods */
     void reset();
     void realize(Error **errp);
-    static void resetWrapper(DeviceState *dev);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
+    void init();
     static void setIntr(void *opaque, int irq, int req);
     static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
     static void mmioWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static void omap_inth_sir_update(OMAPIntcState *s, int is_fiq)
@@ -324,11 +322,6 @@ static const MemoryRegionOps omap_inth_mem_ops = {
     },
 };
 
-void OMAPIntcState::resetWrapper(DeviceState *dev)
-{
-    reinterpret_cast<OMAPIntcState *>(dev)->reset();
-}
-
 void OMAPIntcState::reset()
 {
     OMAPIntcState *s = this;
@@ -358,24 +351,15 @@ void OMAPIntcState::reset()
     qemu_set_irq(s->parent_intr[1], 0);
 }
 
-void OMAPIntcState::instanceInit(Object *obj)
+void OMAPIntcState::init()
 {
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    OMAPIntcState *s = reinterpret_cast<OMAPIntcState *>(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-
-    s->nbanks = 1;
-    sysbus_init_irq(sbd, &s->parent_intr[0]);
-    sysbus_init_irq(sbd, &s->parent_intr[1]);
-    qdev_init_gpio_in(dev, setIntr, s->nbanks * 32);
-    memory_region_init_io(&s->mmio, obj, &omap_inth_mem_ops, s,
-                          "omap-intc", s->size);
-    sysbus_init_mmio(sbd, &s->mmio);
-}
-
-void OMAPIntcState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    reinterpret_cast<OMAPIntcState *>(dev)->realize(errp);
+    nbanks = 1;
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &parent_intr[0]);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &parent_intr[1]);
+    qdev_init_gpio_in(DEVICE(this), setIntr, nbanks * 32);
+    memory_region_init_io(&mmio, OBJECT(this), &omap_inth_mem_ops, this,
+                          "omap-intc", size);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &mmio);
 }
 
 void OMAPIntcState::realize(Error **errp)
@@ -401,28 +385,12 @@ static const Property omap_intc_properties[] = {
     DEFINE_PROP_UINT32("size", OMAPIntcState, size, 0x100),
 };
 
-void OMAPIntcState::classInit(ObjectClass *klass, const void *data)
+void OMAPIntcState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    device_class_set_legacy_reset(dc, resetWrapper);
     device_class_set_props(dc, omap_intc_properties);
     /* Reason: pointer property "clk" */
     dc->user_creatable = false;
-    dc->realize = realizeWrapper;
 }
 
-static const TypeInfo omap_intc_info = {
-    .name          = TYPE_OMAP_INTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(OMAPIntcState),
-    .instance_init = OMAPIntcState::instanceInit,
-    .class_init    = OMAPIntcState::classInit,
-};
-
-static void omap_intc_register_types(void)
-{
-    type_register_static(&omap_intc_info);
-}
-
-type_init(omap_intc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(OMAPIntcState, TYPE_OMAP_INTC, TYPE_SYS_BUS_DEVICE)

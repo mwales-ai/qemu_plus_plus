@@ -141,13 +141,7 @@ struct SysBusNvRamState {
         NvRamState::postLoad(s, 0);
     }
 
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        SysBusNvRamState *sys = reinterpret_cast<SysBusNvRamState *>(dev);
-        sys->realize(errp);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     static const Property nvram_sysbus_properties[];
 };
@@ -157,25 +151,11 @@ const Property SysBusNvRamState::nvram_sysbus_properties[] = {
     DEFINE_PROP_STRING("filename", SysBusNvRamState, nvram.filename),
 };
 
-void SysBusNvRamState::classInit(ObjectClass *klass, const void *data)
+void SysBusNvRamState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = deviceRealize;
     dc->vmsd = &vmstate_nvram;
     device_class_set_props(dc, nvram_sysbus_properties);
 }
 
-static const TypeInfo nvram_sysbus_info = {
-    .name          = TYPE_DS1225Y,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusNvRamState),
-    .class_init    = SysBusNvRamState::classInit,
-};
-
-static void nvram_register_types(void)
-{
-    type_register_static(&nvram_sysbus_info);
-}
-
-type_init(nvram_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SysBusNvRamState, TYPE_DS1225Y, TYPE_SYS_BUS_DEVICE)

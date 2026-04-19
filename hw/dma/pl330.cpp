@@ -290,12 +290,10 @@ struct PL330State {
     void debugExec();
     void exec();
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
     void reset();
-    static void resetWrapper(DeviceState *dev);
     static void execCycleTimer(void *opaque);
     static void dmaStopIrq(void *opaque, int irq, int level);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_pl330_fields[] = {
@@ -1692,38 +1690,11 @@ static const Property pl330_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-void PL330State::realizeWrapper(DeviceState *dev, Error **errp)
+void PL330State::classInit(DeviceClass *dc)
 {
-    PL330State *s = reinterpret_cast<PL330State *>(dev);
-    s->realize(errp);
-}
-
-void PL330State::resetWrapper(DeviceState *dev)
-{
-    PL330State *s = reinterpret_cast<PL330State *>(dev);
-    s->reset();
-}
-
-void PL330State::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = PL330State::realizeWrapper;
-    device_class_set_legacy_reset(dc, PL330State::resetWrapper);
     device_class_set_props(dc, pl330_properties);
     dc->vmsd = &vmstate_pl330;
 }
 
-static const TypeInfo pl330_type_info = {
-    .name           = TYPE_PL330,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(PL330State),
-    .class_init      = PL330State::classInit,
-};
-
-static void pl330_register_types(void)
-{
-    type_register_static(&pl330_type_info);
-}
-
-type_init(pl330_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PL330State, TYPE_PL330, TYPE_SYS_BUS_DEVICE)

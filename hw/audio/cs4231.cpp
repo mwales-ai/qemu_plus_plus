@@ -66,11 +66,6 @@ struct CSState {
         dregs[25] = CS_VER;
     }
 
-    static void resetWrapper(DeviceState *d)
-    {
-        CSState *s = reinterpret_cast<CSState *>(d);
-        s->reset();
-    }
 
     static uint64_t memRead(void *opaque, hwaddr addr, unsigned size)
     {
@@ -140,22 +135,16 @@ struct CSState {
 
     static const MemoryRegionOps memOps;
 
-    static void instanceInit(Object *obj)
+    void init()
     {
-        CSState *s = reinterpret_cast<CSState *>(obj);
-        SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
-
-        memory_region_init_io(&s->iomem, obj, &memOps, s, "cs4321",
+        memory_region_init_io(&iomem, OBJECT(this), &memOps, this, "cs4321",
                               CS_SIZE);
-        sysbus_init_mmio(dev, &s->iomem);
-        sysbus_init_irq(dev, &s->irq);
+        sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
     }
 
-    static void classInit(ObjectClass *klass, const void *data)
+    static void classInit(DeviceClass *dc)
     {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-        device_class_set_legacy_reset(dc, resetWrapper);
         dc->vmsd = &vmstate_cs4231;
     }
 
@@ -181,17 +170,5 @@ const VMStateDescription CSState::vmstate_cs4231 = {
     .fields = vmstate_cs4231_fields,
 };
 
-static const TypeInfo cs4231_info = {
-    .name          = TYPE_CS4231,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(CSState),
-    .instance_init = CSState::instanceInit,
-    .class_init    = CSState::classInit,
-};
-
-static void cs4231_register_types(void)
-{
-    type_register_static(&cs4231_info);
-}
-
-type_init(cs4231_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(CSState, TYPE_CS4231, TYPE_SYS_BUS_DEVICE)

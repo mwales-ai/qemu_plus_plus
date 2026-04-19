@@ -141,11 +141,6 @@ struct MPC8XXXGPIOState {
         icr = 0;
     }
 
-    static void resetWrapper(DeviceState *dev)
-    {
-        MPC8XXXGPIOState *s = reinterpret_cast<MPC8XXXGPIOState *>(dev);
-        s->reset();
-    }
 
     static void setIrq(void *opaque, int irq_num, int level)
     {
@@ -170,21 +165,17 @@ struct MPC8XXXGPIOState {
 
     static const MemoryRegionOps ops;
 
-    static void instanceInit(Object *obj)
+    void init()
     {
-        DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-        MPC8XXXGPIOState *s = reinterpret_cast<MPC8XXXGPIOState *>(obj);
-        SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-
-        memory_region_init_io(&s->iomem, obj, &ops,
-                              s, "mpc8xxx_gpio", 0x1000);
-        sysbus_init_mmio(sbd, &s->iomem);
-        sysbus_init_irq(sbd, &s->irq);
-        qdev_init_gpio_in(dev, setIrq, 32);
-        qdev_init_gpio_out(dev, s->out, 32);
+        memory_region_init_io(&iomem, OBJECT(this), &ops,
+                              this, "mpc8xxx_gpio", 0x1000);
+        sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+        sysbus_init_irq(SYS_BUS_DEVICE(this), &irq);
+        qdev_init_gpio_in(DEVICE(this), setIrq, 32);
+        qdev_init_gpio_out(DEVICE(this), out, 32);
     }
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_mpc8xxx_gpio_fields[] = {
@@ -204,12 +195,9 @@ static const VMStateDescription vmstate_mpc8xxx_gpio = {
     .fields = vmstate_mpc8xxx_gpio_fields,
 };
 
-void MPC8XXXGPIOState::classInit(ObjectClass *klass, const void *data)
+void MPC8XXXGPIOState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->vmsd = &vmstate_mpc8xxx_gpio;
-    device_class_set_legacy_reset(dc, resetWrapper);
 }
 
 const MemoryRegionOps MPC8XXXGPIOState::ops = {
@@ -218,14 +206,5 @@ const MemoryRegionOps MPC8XXXGPIOState::ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static const TypeInfo mpc8xxx_gpio_types[] = {
-    {
-        .name          = TYPE_MPC8XXX_GPIO,
-        .parent        = TYPE_SYS_BUS_DEVICE,
-        .instance_size = sizeof(MPC8XXXGPIOState),
-        .instance_init = MPC8XXXGPIOState::instanceInit,
-        .class_init    = MPC8XXXGPIOState::classInit,
-    },
-};
-
-DEFINE_TYPES(mpc8xxx_gpio_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MPC8XXXGPIOState, TYPE_MPC8XXX_GPIO, TYPE_SYS_BUS_DEVICE)

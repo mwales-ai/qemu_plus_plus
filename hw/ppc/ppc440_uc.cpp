@@ -764,8 +764,7 @@ struct PPC460EXPCIEState {
 
     /* methods */
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 enum {
@@ -1002,11 +1001,6 @@ static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s)
     PPC440_PCIE_DCR(s, PEGPL_CFG);
 }
 
-void PPC460EXPCIEState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    ppc460ex_pcie_from_obj(dev)->realize(errp);
-}
-
 void PPC460EXPCIEState::realize(Error **errp)
 {
     PPC460EXPCIEState *s = this;
@@ -1044,26 +1038,12 @@ static const Property ppc460ex_pcie_props[] = {
                      PowerPCCPU *),
 };
 
-void PPC460EXPCIEState::classInit(ObjectClass *klass, const void *data)
+void PPC460EXPCIEState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->realize = realizeWrapper;
     device_class_set_props(dc, ppc460ex_pcie_props);
     dc->hotpluggable = false;
 }
 
-static const TypeInfo ppc460ex_pcie_host_info = {
-    .name = TYPE_PPC460EX_PCIE_HOST,
-    .parent = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(PPC460EXPCIEState),
-    .class_init = PPC460EXPCIEState::classInit,
-};
-
-static void ppc460ex_pcie_register(void)
-{
-    type_register_static(&ppc460ex_pcie_host_info);
-}
-
-type_init(ppc460ex_pcie_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PPC460EXPCIEState, TYPE_PPC460EX_PCIE_HOST, TYPE_PCIE_HOST_BRIDGE)

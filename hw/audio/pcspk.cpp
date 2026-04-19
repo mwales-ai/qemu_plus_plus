@@ -194,22 +194,14 @@ struct PCSpkState {
         }
     }
 
-    static void realizeWrapper(DeviceState *dev, Error **errp)
+    void init()
     {
-        PCSpkState *s = PC_SPEAKER(dev);
-        s->realize(errp);
-    }
-
-    static void instanceInit(Object *obj)
-    {
-        PCSpkState *s = PC_SPEAKER(obj);
-
-        memory_region_init_io(&s->ioport, reinterpret_cast<Object *>(s), &ioOps, s, "pcspk", 1);
+        memory_region_init_io(&ioport, OBJECT(this), &ioOps, this, "pcspk", 1);
     }
 
     static const char *s_spk;
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 const char *PCSpkState::s_spk = "pcspk";
@@ -242,11 +234,8 @@ static const Property pcspk_properties[] = {
     DEFINE_PROP_LINK("pit", PCSpkState, pit, TYPE_PIT_COMMON, PITCommonState *),
 };
 
-void PCSpkState::classInit(ObjectClass *klass, const void *data)
+void PCSpkState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = PCSpkState::realizeWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->vmsd = &vmstate_spk;
     device_class_set_props(dc, pcspk_properties);
@@ -254,19 +243,8 @@ void PCSpkState::classInit(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo pcspk_info = {
-    .name           = TYPE_PC_SPEAKER,
-    .parent         = TYPE_ISA_DEVICE,
-    .instance_size  = sizeof(PCSpkState),
-    .instance_init  = PCSpkState::instanceInit,
-    .class_init     = PCSpkState::classInit,
-};
-
-static void pcspk_register(void)
-{
-    type_register_static(&pcspk_info);
-}
-type_init(pcspk_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PCSpkState, TYPE_PC_SPEAKER, TYPE_ISA_DEVICE)
 
 MemoryRegionOps PCSpkState::ioOps;
 
