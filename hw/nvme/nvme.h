@@ -330,6 +330,12 @@ typedef struct NvmeNamespace {
     } fdp;
 
     NvmeAtomic  atomic;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 } NvmeNamespace;
 
 static inline uint32_t nvme_nsid(NvmeNamespace *ns)

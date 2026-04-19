@@ -39,6 +39,11 @@ struct GenericLoaderState {
     bool force_raw;
     bool data_be;
     bool set_pc;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define TYPE_GENERIC_LOADER "loader"

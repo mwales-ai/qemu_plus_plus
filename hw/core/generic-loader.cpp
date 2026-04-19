@@ -34,8 +34,6 @@
 #ifdef CONFIG_LINUX_IO_URING
 #include <liburing.h>
 #endif
-
-extern "C" {
 #include "system/dma.h"
 #include "system/reset.h"
 #include "hw/boards.h"
@@ -63,9 +61,9 @@ static void generic_loader_reset(void *opaque)
     }
 }
 
-static void generic_loader_realize(DeviceState *dev, Error **errp)
+void GenericLoaderState::realize(Error **errp)
 {
-    GenericLoaderState *s = GENERIC_LOADER(dev);
+    GenericLoaderState *s = this;
     hwaddr entry;
     ssize_t size = 0;
 
@@ -121,7 +119,7 @@ static void generic_loader_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    qemu_register_reset(generic_loader_reset, dev);
+    qemu_register_reset(generic_loader_reset, DEVICE(this));
 
     if (s->cpu_num != CPU_NONE) {
         s->cpu = qemu_get_cpu(s->cpu_num);
@@ -188,35 +186,13 @@ static const Property generic_loader_props[] = {
     DEFINE_PROP_STRING("file", GenericLoaderState, file),
 };
 
-static void generic_loader_class_init(ObjectClass *klass, const void *data)
+void GenericLoaderState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    /* The reset function is not registered here and is instead registered in
-     * the realize function to allow this device to be added via the device_add
-     * command in the QEMU monitor.
-     * TODO: Improve the device_add functionality to allow resets to be
-     * connected
-     */
-    dc->realize = generic_loader_realize;
     dc->unrealize = generic_loader_unrealize;
     device_class_set_props(dc, generic_loader_props);
     dc->desc = "Generic Loader";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo generic_loader_info = {
-    .name = TYPE_GENERIC_LOADER,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(GenericLoaderState),
-    .class_init = generic_loader_class_init,
-};
-
-static void generic_loader_register_type(void)
-{
-    type_register_static(&generic_loader_info);
-}
-
-type_init(generic_loader_register_type)
-
-} /* extern "C" */
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(GenericLoaderState, TYPE_GENERIC_LOADER, TYPE_DEVICE)

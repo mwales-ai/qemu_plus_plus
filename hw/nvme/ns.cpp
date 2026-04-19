@@ -836,10 +836,10 @@ static bool nvme_ns_set_nsabp(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
     return true;
 }
 
-static void nvme_ns_realize(DeviceState *dev, Error **errp)
+void NvmeNamespace::realize(Error **errp)
 {
-    NvmeNamespace *ns = NVME_NS(dev);
-    BusState *s = qdev_get_parent_bus(dev);
+    NvmeNamespace *ns = this;
+    BusState *s = qdev_get_parent_bus(DEVICE(this));
     NvmeCtrl *n = NVME(s->parent);
     NvmeSubsystem *subsys = n->subsys;
     uint32_t nsid = ns->params.nsid;
@@ -848,7 +848,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     assert(subsys);
 
     /* reparent to subsystem bus */
-    if (!qdev_set_parent_bus(dev, &subsys->bus.parent_bus, errp)) {
+    if (!qdev_set_parent_bus(DEVICE(this), &subsys->bus.parent_bus, errp)) {
         return;
     }
     ns->subsys = subsys;
@@ -937,40 +937,22 @@ static const Property nvme_ns_props[] = {
     DEFINE_PROP_UINT16("atomic.nabo", NvmeNamespace, params.atomic.nabo, 0),
 };
 
-static void nvme_ns_class_init(ObjectClass *oc, const void *data)
+void NvmeNamespace::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-
     dc->bus_type = TYPE_NVME_BUS;
-    dc->realize = nvme_ns_realize;
     dc->unrealize = nvme_ns_unrealize;
     device_class_set_props(dc, nvme_ns_props);
     dc->desc = "Virtual NVMe namespace";
 }
 
-static void nvme_ns_instance_init(Object *obj)
+void NvmeNamespace::init()
 {
-    NvmeNamespace *ns = NVME_NS(obj);
+    sprintf(bootindex_suffix, "/namespace@%" PRIu32 ",0", params.nsid);
 
-    sprintf(ns->bootindex_suffix, "/namespace@%" PRIu32 ",0", ns->params.nsid);
-
-    device_add_bootindex_property(obj, &ns->bootindex, "bootindex",
-                                  ns->bootindex_suffix, DEVICE(obj));
+    device_add_bootindex_property(OBJECT(this), &bootindex, "bootindex",
+                                  bootindex_suffix, DEVICE(this));
 }
 
-static const TypeInfo nvme_ns_info = {
-    .name = TYPE_NVME_NS,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(NvmeNamespace),
-    .instance_init = nvme_ns_instance_init,
-    .class_init = nvme_ns_class_init,
-};
-
-static void nvme_ns_register_types(void)
-{
-    type_register_static(&nvme_ns_info);
-}
-
-type_init(nvme_ns_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(NvmeNamespace, TYPE_NVME_NS, TYPE_DEVICE)

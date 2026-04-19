@@ -38,6 +38,11 @@ typedef struct HvSynDbg {
     int socket;
     bool has_data_pending;
     uint64_t pending_page_gpa;
+
+#ifdef __cplusplus
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 } HvSynDbg;
 
 #define HVSYNDBG(obj) OBJECT_CHECK(HvSynDbg, (obj), TYPE_HV_SYNDBG)
@@ -304,9 +309,9 @@ static void hv_syndbg_recv_event(void *opaque)
     }
 }
 
-static void hv_syndbg_realize(DeviceState *dev, Error **errp)
+void HvSynDbg::realize(Error **errp)
 {
-    HvSynDbg *syndbg = HVSYNDBG(dev);
+    HvSynDbg *syndbg = this;
 
     if (!hv_syndbg_find()) {
         error_setg(errp, "at most one %s device is permitted", TYPE_HV_SYNDBG);
@@ -332,7 +337,7 @@ static void hv_syndbg_realize(DeviceState *dev, Error **errp)
         syndbg->servaddr.sin_addr = *reinterpret_cast<struct in_addr *>(he->h_addr);
     }
 
-    syndbg->socket = socket(AF_INET, SOCK_DGRAM, 0);
+    syndbg->socket = ::socket(AF_INET, SOCK_DGRAM, 0);
     if (syndbg->socket < 0) {
         error_setg(errp, "%s failed to create socket", TYPE_HV_SYNDBG);
         return;
@@ -378,29 +383,15 @@ static const Property hv_syndbg_properties[] = {
     DEFINE_PROP_BOOL("use_hcalls", HvSynDbg, use_hcalls, false),
 };
 
-static void hv_syndbg_class_init(ObjectClass *klass, const void *data)
+void HvSynDbg::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_props(dc, hv_syndbg_properties);
     dc->fw_name = TYPE_HV_SYNDBG;
     dc->vmsd = &vmstate_hv_syndbg;
-    dc->realize = hv_syndbg_realize;
     dc->unrealize = hv_syndbg_unrealize;
     dc->user_creatable = true;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo hv_syndbg_type_info = {
-    .name = TYPE_HV_SYNDBG,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(HvSynDbg),
-    .class_init = hv_syndbg_class_init,
-};
-
-static void hv_syndbg_register_types(void)
-{
-    type_register_static(&hv_syndbg_type_info);
-}
-
-type_init(hv_syndbg_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(HvSynDbg, TYPE_HV_SYNDBG, TYPE_DEVICE)
