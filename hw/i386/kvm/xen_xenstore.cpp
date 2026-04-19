@@ -73,6 +73,9 @@ struct XenXenstoreState {
 
     struct xengntdev_handle *gt;
     void *granted_xs;
+
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
 };
 
 struct XenXenstoreState *xen_xenstore_singleton;
@@ -147,33 +150,32 @@ static void G_GNUC_PRINTF (4, 5) relpath_printf(XenXenstoreState *s,
     g_free(abspath);
 }
 
-static void xen_xenstore_realize(DeviceState *dev, Error **errp)
+void XenXenstoreState::realize(Error **errp)
 {
-    XenXenstoreState *s = XEN_XENSTORE(dev);
     GList *perms;
 
     if (xen_mode != XEN_EMULATE) {
         error_setg(errp, "Xen xenstore support is for Xen emulation");
         return;
     }
-    memory_region_init_ram(&s->xenstore_page, OBJECT(dev), "xen:xenstore_page",
+    memory_region_init_ram(&xenstore_page, OBJECT(this), "xen:xenstore_page",
                            XEN_PAGE_SIZE, &error_abort);
-    memory_region_set_enabled(&s->xenstore_page, true);
-    s->xs = static_cast<struct xenstore_domain_interface *>(memory_region_get_ram_ptr(&s->xenstore_page));
-    memset(s->xs, 0, XEN_PAGE_SIZE);
+    memory_region_set_enabled(&xenstore_page, true);
+    xs = static_cast<struct xenstore_domain_interface *>(memory_region_get_ram_ptr(&xenstore_page));
+    memset(xs, 0, XEN_PAGE_SIZE);
 
     /* We can't map it this early as KVM isn't ready */
-    xen_xenstore_singleton = s;
+    xen_xenstore_singleton = this;
 
-    s->eh = xen_be_evtchn_open();
-    if (!s->eh) {
+    eh = xen_be_evtchn_open();
+    if (!eh) {
         error_setg(errp, "Xenstore evtchn port init failed");
         return;
     }
-    aio_set_fd_handler(qemu_get_aio_context(), xen_be_evtchn_fd(s->eh),
-                       xen_xenstore_event, NULL, NULL, NULL, s);
+    aio_set_fd_handler(qemu_get_aio_context(), xen_be_evtchn_fd(eh),
+                       xen_xenstore_event, NULL, NULL, NULL, this);
 
-    s->impl = xs_impl_create(xen_domid);
+    impl = xs_impl_create(xen_domid);
 
     /* Populate the default nodes */
 
@@ -181,37 +183,37 @@ static void xen_xenstore_realize(DeviceState *dev, Error **errp)
     perms = g_list_append(NULL, xs_perm_as_string(XS_PERM_NONE, DOMID_QEMU));
     perms = g_list_append(perms, xs_perm_as_string(XS_PERM_READ, xen_domid));
 
-    relpath_printf(s, perms, "", "%s", "");
+    relpath_printf(this, perms, "", "%s", "");
 
-    relpath_printf(s, perms, "domid", "%u", xen_domid);
+    relpath_printf(this, perms, "domid", "%u", xen_domid);
 
-    relpath_printf(s, perms, "control/platform-feature-xs_reset_watches", "%u", 1);
-    relpath_printf(s, perms, "control/platform-feature-multiprocessor-suspend", "%u", 1);
+    relpath_printf(this, perms, "control/platform-feature-xs_reset_watches", "%u", 1);
+    relpath_printf(this, perms, "control/platform-feature-multiprocessor-suspend", "%u", 1);
 
-    relpath_printf(s, perms, "platform/acpi", "%u", 1);
-    relpath_printf(s, perms, "platform/acpi_s3", "%u", 1);
-    relpath_printf(s, perms, "platform/acpi_s4", "%u", 1);
-    relpath_printf(s, perms, "platform/acpi_laptop_slate", "%u", 0);
+    relpath_printf(this, perms, "platform/acpi", "%u", 1);
+    relpath_printf(this, perms, "platform/acpi_s3", "%u", 1);
+    relpath_printf(this, perms, "platform/acpi_s4", "%u", 1);
+    relpath_printf(this, perms, "platform/acpi_laptop_slate", "%u", 0);
 
     g_list_free_full(perms, g_free);
 
     /* Nodes owned by the guest */
     perms = g_list_append(NULL, xs_perm_as_string(XS_PERM_NONE, xen_domid));
 
-    relpath_printf(s, perms, "attr", "%s", "");
+    relpath_printf(this, perms, "attr", "%s", "");
 
-    relpath_printf(s, perms, "control/shutdown", "%s", "");
-    relpath_printf(s, perms, "control/feature-poweroff", "%u", 1);
-    relpath_printf(s, perms, "control/feature-reboot", "%u", 1);
-    relpath_printf(s, perms, "control/feature-suspend", "%u", 1);
-    relpath_printf(s, perms, "control/feature-s3", "%u", 1);
-    relpath_printf(s, perms, "control/feature-s4", "%u", 1);
+    relpath_printf(this, perms, "control/shutdown", "%s", "");
+    relpath_printf(this, perms, "control/feature-poweroff", "%u", 1);
+    relpath_printf(this, perms, "control/feature-reboot", "%u", 1);
+    relpath_printf(this, perms, "control/feature-suspend", "%u", 1);
+    relpath_printf(this, perms, "control/feature-s3", "%u", 1);
+    relpath_printf(this, perms, "control/feature-s4", "%u", 1);
 
-    relpath_printf(s, perms, "data", "%s", "");
-    relpath_printf(s, perms, "device", "%s", "");
-    relpath_printf(s, perms, "drivers", "%s", "");
-    relpath_printf(s, perms, "error", "%s", "");
-    relpath_printf(s, perms, "feature", "%s", "");
+    relpath_printf(this, perms, "data", "%s", "");
+    relpath_printf(this, perms, "device", "%s", "");
+    relpath_printf(this, perms, "drivers", "%s", "");
+    relpath_printf(this, perms, "error", "%s", "");
+    relpath_printf(this, perms, "feature", "%s", "");
 
     g_list_free_full(perms, g_free);
 
@@ -297,20 +299,13 @@ static const VMStateDescription xen_xenstore_vmstate = {
     .fields = xen_xenstore_vmstate_fields,
 };
 
-static void xen_xenstore_class_init(ObjectClass *klass, const void *data)
+void XenXenstoreState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = xen_xenstore_realize;
     dc->vmsd = &xen_xenstore_vmstate;
 }
 
-static const TypeInfo xen_xenstore_info = {
-    .name          = TYPE_XEN_XENSTORE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XenXenstoreState),
-    .class_init    = xen_xenstore_class_init,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XenXenstoreState, TYPE_XEN_XENSTORE, TYPE_SYS_BUS_DEVICE)
 
 void xen_xenstore_create(void)
 {
@@ -323,13 +318,6 @@ void xen_xenstore_create(void)
      * overlay page can be mapped.
      */
 }
-
-static void xen_xenstore_register_types(void)
-{
-    type_register_static(&xen_xenstore_info);
-}
-
-type_init(xen_xenstore_register_types)
 
 uint16_t xen_xenstore_get_port(void)
 {

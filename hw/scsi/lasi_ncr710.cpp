@@ -176,32 +176,32 @@ static const VMStateDescription vmstate_lasi_ncr710 = {
     .fields = vmstate_lasi_ncr710_fields,
 };
 
-static void lasi_ncr710_realize(DeviceState *dev, Error **errp)
+void LasiNCR710State::realize(Error **errp)
 {
-    LasiNCR710State *s = LASI_NCR710(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
+    DeviceState *dev = DEVICE(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
     trace_lasi_ncr710_device_realize();
 
-    scsi_bus_init(&s->ncr710.bus, sizeof(s->ncr710.bus), dev,
+    scsi_bus_init(&ncr710.bus, sizeof(ncr710.bus), dev,
                   &lasi_ncr710_scsi_info);
-    s->ncr710.as = &address_space_memory;
-    s->ncr710.irq = s->lasi_irq;
+    ncr710.as = &address_space_memory;
+    ncr710.irq = lasi_irq;
 
-    s->ncr710.reselection_retry_timer =
+    ncr710.reselection_retry_timer =
         timer_new_ns(QEMU_CLOCK_VIRTUAL,
                      ncr710_reselection_retry_callback,
-                     &s->ncr710);
+                     &ncr710);
 
-    ncr710_soft_reset(&s->ncr710);
+    ncr710_soft_reset(&ncr710);
 
     trace_lasi_ncr710_timers_initialized(
-        (uint64_t)s->ncr710.reselection_retry_timer);
+        (uint64_t)ncr710.reselection_retry_timer);
 
     /* Initialize memory region */
-    memory_region_init_io(&s->mmio, OBJECT(dev), &lasi_ncr710_mmio_ops, s,
+    memory_region_init_io(&mmio, OBJECT(this), &lasi_ncr710_mmio_ops, this,
                           "lasi-ncr710", 0x200);
-    sysbus_init_mmio(sbd, &s->mmio);
+    sysbus_init_mmio(sbd, &mmio);
 }
 
 extern "C"
@@ -251,46 +251,27 @@ DeviceState *lasi_ncr710_init(MemoryRegion *addr_space, hwaddr hpa,
     return dev;
 }
 
-static void lasi_ncr710_reset(DeviceState *dev)
+void LasiNCR710State::reset()
 {
-    LasiNCR710State *s = LASI_NCR710(dev);
     trace_lasi_ncr710_device_reset();
-    ncr710_soft_reset(&s->ncr710);
+    ncr710_soft_reset(&ncr710);
 }
 
-static void lasi_ncr710_instance_init(Object *obj)
+void LasiNCR710State::init()
 {
-    LasiNCR710State *s = LASI_NCR710(obj);
-
-    s->hw_type = HPHW_FIO;
-    s->sversion = LASI_710_SVERSION;
-    s->hversion = LASI_710_HVERSION;
+    hw_type = HPHW_FIO;
+    sversion = LASI_710_SVERSION;
+    hversion = LASI_710_HVERSION;
 }
 
-static void lasi_ncr710_class_init(ObjectClass *klass, const void *data)
+void LasiNCR710State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = lasi_ncr710_realize;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->fw_name = "scsi";
     dc->desc = "HP-PARISC LASI NCR710 SCSI adapter";
-    device_class_set_legacy_reset(dc, lasi_ncr710_reset);
     dc->vmsd = &vmstate_lasi_ncr710;
     dc->user_creatable = false;
 }
 
-static const TypeInfo lasi_ncr710_info = {
-    .name          = TYPE_LASI_NCR710,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(LasiNCR710State),
-    .instance_init = lasi_ncr710_instance_init,
-    .class_init    = lasi_ncr710_class_init,
-};
-
-static void lasi_ncr710_register_types(void)
-{
-    type_register_static(&lasi_ncr710_info);
-}
-
-type_init(lasi_ncr710_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(LasiNCR710State, TYPE_LASI_NCR710, TYPE_SYS_BUS_DEVICE)

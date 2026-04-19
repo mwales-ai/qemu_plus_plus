@@ -82,45 +82,47 @@ struct XenGnttabState {
     uint64_t *gnt_frame_gpas;
 
     uint8_t *map_track;
+
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
 };
 
 struct XenGnttabState *xen_gnttab_singleton;
 
-static void xen_gnttab_realize(DeviceState *dev, Error **errp)
+void XenGnttabState::realize(Error **errp)
 {
-    XenGnttabState *s = XEN_GNTTAB(dev);
     int i;
 
     if (xen_mode != XEN_EMULATE) {
         error_setg(errp, "Xen grant table support is for Xen emulation");
         return;
     }
-    s->max_frames = kvm_xen_get_gnttab_max_frames();
-    memory_region_init_ram(&s->gnt_frames, OBJECT(dev), "xen:grant_table",
-                           XEN_PAGE_SIZE * s->max_frames, &error_abort);
-    memory_region_set_enabled(&s->gnt_frames, true);
-    s->entries.v1 = static_cast<grant_entry_v1_t *>(memory_region_get_ram_ptr(&s->gnt_frames));
+    max_frames = kvm_xen_get_gnttab_max_frames();
+    memory_region_init_ram(&gnt_frames, OBJECT(this), "xen:grant_table",
+                           XEN_PAGE_SIZE * max_frames, &error_abort);
+    memory_region_set_enabled(&gnt_frames, true);
+    entries.v1 = static_cast<grant_entry_v1_t *>(memory_region_get_ram_ptr(&gnt_frames));
 
     /* Create individual page-sizes aliases for overlays */
-    s->gnt_aliases = g_new0(MemoryRegion, s->max_frames);
-    s->gnt_frame_gpas = g_new(uint64_t, s->max_frames);
-    for (i = 0; i < s->max_frames; i++) {
-        memory_region_init_alias(&s->gnt_aliases[i], OBJECT(dev),
-                                 NULL, &s->gnt_frames,
+    gnt_aliases = g_new0(MemoryRegion, max_frames);
+    gnt_frame_gpas = g_new(uint64_t, max_frames);
+    for (i = 0; i < static_cast<int>(max_frames); i++) {
+        memory_region_init_alias(&gnt_aliases[i], OBJECT(this),
+                                 NULL, &gnt_frames,
                                  i * XEN_PAGE_SIZE, XEN_PAGE_SIZE);
-        s->gnt_frame_gpas[i] = INVALID_GPA;
+        gnt_frame_gpas[i] = INVALID_GPA;
     }
 
-    s->nr_frames = 0;
-    memset(s->entries.v1, 0, XEN_PAGE_SIZE * s->max_frames);
-    s->entries.v1[GNTTAB_RESERVED_XENSTORE].flags = GTF_permit_access;
-    s->entries.v1[GNTTAB_RESERVED_XENSTORE].frame = XEN_SPECIAL_PFN(XENSTORE);
+    nr_frames = 0;
+    memset(entries.v1, 0, XEN_PAGE_SIZE * max_frames);
+    entries.v1[GNTTAB_RESERVED_XENSTORE].flags = GTF_permit_access;
+    entries.v1[GNTTAB_RESERVED_XENSTORE].frame = XEN_SPECIAL_PFN(XENSTORE);
 
-    qemu_mutex_init(&s->gnt_lock);
+    qemu_mutex_init(&gnt_lock);
 
-    xen_gnttab_singleton = s;
+    xen_gnttab_singleton = this;
 
-    s->map_track = g_new0(uint8_t, s->max_frames * ENTRIES_PER_FRAME_V1);
+    map_track = g_new0(uint8_t, max_frames * ENTRIES_PER_FRAME_V1);
 
     xen_gnttab_ops = &emu_gnttab_backend_ops;
 }
@@ -159,20 +161,10 @@ static const VMStateDescription xen_gnttab_vmstate = {
     .fields = xen_gnttab_vmstate_fields,
 };
 
-static void xen_gnttab_class_init(ObjectClass *klass, const void *data)
+void XenGnttabState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = xen_gnttab_realize;
     dc->vmsd = &xen_gnttab_vmstate;
 }
-
-static const TypeInfo xen_gnttab_info = {
-    .name          = TYPE_XEN_GNTTAB,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XenGnttabState),
-    .class_init    = xen_gnttab_class_init,
-};
 
 void xen_gnttab_create(void)
 {
@@ -180,12 +172,8 @@ void xen_gnttab_create(void)
                                                            -1, NULL));
 }
 
-static void xen_gnttab_register_types(void)
-{
-    type_register_static(&xen_gnttab_info);
-}
-
-type_init(xen_gnttab_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XenGnttabState, TYPE_XEN_GNTTAB, TYPE_SYS_BUS_DEVICE)
 
 int xen_gnttab_map_page(uint64_t idx, uint64_t gfn)
 {

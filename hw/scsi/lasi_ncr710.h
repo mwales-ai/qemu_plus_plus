@@ -47,6 +47,13 @@ typedef struct LasiNCR710State {
     uint32_t sversion;       /* Software version */
     uint32_t hversion;       /* Hardware version */
     NCR710State ncr710;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } LasiNCR710State;
 
 DeviceState *lasi_ncr710_init(MemoryRegion *addr_space, hwaddr hpa,

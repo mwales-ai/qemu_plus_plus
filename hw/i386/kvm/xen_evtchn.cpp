@@ -170,6 +170,8 @@ struct XenEvtchnState {
 
     /* Per-PIRQ information (rebuilt on migration, protected by BQL) */
     struct pirq_info *pirq;
+
+    static void classInit(DeviceClass *dc);
 };
 
 #define pirq_inuse_word(s, pirq) (s->pirq_inuse_bitmap[((pirq) / 64)])
@@ -275,19 +277,10 @@ static const VMStateDescription xen_evtchn_vmstate = {
     .fields = xen_evtchn_vmstate_fields,
 };
 
-static void xen_evtchn_class_init(ObjectClass *klass, const void *data)
+void XenEvtchnState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     dc->vmsd = &xen_evtchn_vmstate;
 }
-
-static const TypeInfo xen_evtchn_info = {
-    .name          = TYPE_XEN_EVTCHN,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(XenEvtchnState),
-    .class_init    = xen_evtchn_class_init,
-};
 
 static struct evtchn_backend_ops emu_evtchn_backend_ops = {
     .open = xen_be_evtchn_open,
@@ -356,12 +349,8 @@ void xen_evtchn_create(unsigned int nr_gsis, qemu_irq *system_gsis)
     xen_evtchn_ops = &emu_evtchn_backend_ops;
 }
 
-static void xen_evtchn_register_types(void)
-{
-    type_register_static(&xen_evtchn_info);
-}
-
-type_init(xen_evtchn_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(XenEvtchnState, TYPE_XEN_EVTCHN, TYPE_SYS_BUS_DEVICE)
 
 static int set_callback_pci_intx(XenEvtchnState *s, uint64_t param)
 {
