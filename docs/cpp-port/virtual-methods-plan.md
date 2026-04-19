@@ -166,7 +166,7 @@ Add virtual methods to bus-specific base structs:
 
 ### Phase E: Mass conversion
 
-Convert remaining ~600 devices. The ~91 already ported with
+Convert remaining devices. The ~321 already ported with
 REGISTER_QEMU_DEVICE just need `override` added — no structural changes.
 
 ### Phase F: Eliminate class structs
@@ -175,9 +175,9 @@ Once all virtual methods are dispatched through C++ vtables, QOM class
 structs (DeviceClass, PCIDeviceClass, etc.) become vestigial. Gradually
 remove function pointer fields that are now handled by vtable dispatch.
 
-## Impact on Already-Ported Devices (~91)
+## Impact on Already-Ported Devices (~321)
 
-The ~91 devices already converted with `REGISTER_QEMU_DEVICE` are NOT
+The ~321 devices already converted with `REGISTER_QEMU_DEVICE` are NOT
 wasted work. The member functions (init, realize, reset, classInit) stay
 exactly as-is. Changes needed:
 1. Add `override` keyword to realize() and reset() declarations
