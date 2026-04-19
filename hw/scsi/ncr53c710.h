@@ -218,6 +218,13 @@ typedef struct SysBusNCR710State {
     MemoryRegion iomem;
     qemu_irq irq;
     NCR710State ncr710;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    void reset();
+    static void classInit(DeviceClass *dc);
+#endif
 } SysBusNCR710State;
 
 static inline NCR710State *ncr710_from_scsi_bus(SCSIBus *bus)

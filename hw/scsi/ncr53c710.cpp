@@ -2209,13 +2209,9 @@ void ncr710_reg_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
     ncr710_reg_writeb(s, offset, val8);
 }
 
-/* Device reset */
-static void ncr710_device_reset(DeviceState *dev)
+void SysBusNCR710State::reset()
 {
-    SysBusNCR710State *sysbus_dev = SYSBUS_NCR710_SCSI(dev);
-    NCR710State *s = &sysbus_dev->ncr710;
-
-    ncr710_soft_reset(s);
+    ncr710_soft_reset(&ncr710);
 }
 
 static const struct SCSIBusInfo ncr710_scsi_info = {
@@ -2362,65 +2358,45 @@ DeviceState *ncr53c710_init(MemoryRegion *address_space, hwaddr addr,
     return dev;
 }
 
-static void sysbus_ncr710_realize(DeviceState *dev, Error **errp)
+void SysBusNCR710State::realize(Error **errp)
 {
-    SysBusNCR710State *s = SYSBUS_NCR710_SCSI(dev);
-
     trace_ncr710_device_realize();
-    scsi_bus_init(&s->ncr710.bus, sizeof(s->ncr710.bus), dev,
+    scsi_bus_init(&ncr710.bus, sizeof(ncr710.bus), DEVICE(this),
                   &ncr710_scsi_info);
-    s->ncr710.as = &address_space_memory;
+    ncr710.as = &address_space_memory;
 
-    ncr710_scsi_fifo_init(&s->ncr710.scsi_fifo);
-    s->ncr710.dcntl &= ~NCR710_DCNTL_COM;
-    s->ncr710.scid = 0x80 | NCR710_HOST_ID;
+    ncr710_scsi_fifo_init(&ncr710.scsi_fifo);
+    ncr710.dcntl &= ~NCR710_DCNTL_COM;
+    ncr710.scid = 0x80 | NCR710_HOST_ID;
 
-    s->ncr710.reselection_retry_timer =
+    ncr710.reselection_retry_timer =
         timer_new_ns(QEMU_CLOCK_VIRTUAL,
                      ncr710_reselection_retry_callback,
-                     &s->ncr710);
+                     &ncr710);
 
-    memset(s->ncr710.msg, 0, sizeof(s->ncr710.msg));
+    memset(ncr710.msg, 0, sizeof(ncr710.msg));
 
-    memory_region_init_io(&s->iomem, OBJECT(s), &ncr710_mmio_ops, &s->ncr710,
+    memory_region_init_io(&iomem, OBJECT(this), &ncr710_mmio_ops, &ncr710,
                           "ncr710", 0x100);
-    sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
-    sysbus_init_irq(SYS_BUS_DEVICE(s), &s->ncr710.irq);
-
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
+    sysbus_init_irq(SYS_BUS_DEVICE(this), &ncr710.irq);
 }
 
-static void sysbus_ncr710_init(Object *obj)
+void SysBusNCR710State::init()
 {
-    SysBusNCR710State *s = SYSBUS_NCR710_SCSI(obj);
-    memset(&s->ncr710, 0, sizeof(NCR710State));
-    s->ncr710.ctest0 = 0x01;
-    s->ncr710.scid = 0x80 | NCR710_HOST_ID;
-    s->ncr710.dstat = NCR710_DSTAT_DFE;
+    memset(&ncr710, 0, sizeof(NCR710State));
+    ncr710.ctest0 = 0x01;
+    ncr710.scid = 0x80 | NCR710_HOST_ID;
+    ncr710.dstat = NCR710_DSTAT_DFE;
 }
 
-static void sysbus_ncr710_class_init(ObjectClass *oc, const void *data)
+void SysBusNCR710State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = sysbus_ncr710_realize;
-    device_class_set_legacy_reset(dc, ncr710_device_reset);
     dc->bus_type = NULL;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->desc = "NCR53C710 SCSI I/O Processor (SysBus)";
     dc->vmsd = &vmstate_sysbus_ncr710;
 }
 
-static const TypeInfo sysbus_ncr710_info = {
-    .name = TYPE_SYSBUS_NCR710_SCSI,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusNCR710State),
-    .instance_init = sysbus_ncr710_init,
-    .class_init = sysbus_ncr710_class_init,
-};
-
-static void ncr710_register_types(void)
-{
-    type_register_static(&sysbus_ncr710_info);
-}
-
-type_init(ncr710_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SysBusNCR710State, TYPE_SYSBUS_NCR710_SCSI, TYPE_SYS_BUS_DEVICE)
