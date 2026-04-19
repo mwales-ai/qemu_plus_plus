@@ -179,15 +179,9 @@ struct RS6000MCState {
                                  rs6000mc_port_list, this, "rs6000mc");
     }
 
-    static void realizeWrapper(DeviceState *dev, Error **errp)
-    {
-        RS6000MCState *s = RS6000MC(dev);
-        s->realize(errp);
-    }
-
     static const MemoryRegionPortio rs6000mc_port_list[];
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 const MemoryRegionPortio RS6000MCState::rs6000mc_port_list[] = {
@@ -214,25 +208,11 @@ static const Property rs6000mc_properties[] = {
     DEFINE_PROP_BOOL("auto-configure", RS6000MCState, autoconfigure, true),
 };
 
-void RS6000MCState::classInit(ObjectClass *klass, const void *data)
+void RS6000MCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = RS6000MCState::realizeWrapper;
     dc->vmsd = &vmstate_rs6000mc;
     device_class_set_props(dc, rs6000mc_properties);
 }
 
-static const TypeInfo rs6000mc_info = {
-    .name          = TYPE_RS6000MC,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(RS6000MCState),
-    .class_init    = RS6000MCState::classInit,
-};
-
-static void rs6000mc_types(void)
-{
-    type_register_static(&rs6000mc_info);
-}
-
-type_init(rs6000mc_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RS6000MCState, TYPE_RS6000MC, TYPE_ISA_DEVICE)

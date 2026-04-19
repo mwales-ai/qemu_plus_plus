@@ -152,12 +152,11 @@ struct ECCState {
     void writeReg(hwaddr addr, uint64_t val, unsigned size);
     uint64_t readDiag(hwaddr addr, unsigned size);
     void writeDiag(hwaddr addr, uint64_t val, unsigned size);
-    void initfn();
-    void realize();
+    void init();
+    void realize(Error **errp);
     void reset();
 
-    /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void ECCState::mmioWrite(void *opaque, hwaddr addr, uint64_t val,
@@ -335,74 +334,39 @@ void ECCState::reset()
     regs[ECC_ECR1] = 0;
 }
 
-static void ecc_reset(DeviceState *d)
+void ECCState::init()
 {
-    ECCState *s = reinterpret_cast<ECCState *>(d);
-    s->reset();
-}
-
-void ECCState::initfn()
-{
-    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
 
     sysbus_init_irq(dev, &irq);
 
-    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this), &ecc_mem_ops, this, "ecc",
+    memory_region_init_io(&iomem, OBJECT(this), &ecc_mem_ops, this, "ecc",
                           ECC_SIZE);
     sysbus_init_mmio(dev, &iomem);
 }
 
-static void ecc_init(Object *obj)
+void ECCState::realize(Error **errp)
 {
-    ECCState *s = reinterpret_cast<ECCState *>(obj);
-    s->initfn();
-}
-
-void ECCState::realize()
-{
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(this);
 
     regs[0] = version;
 
-    if (version == ECC_MCC) { // SS-600MP only
-        memory_region_init_io(&iomem_diag, reinterpret_cast<Object *>(this), &ecc_diag_mem_ops,
+    if (version == ECC_MCC) {
+        memory_region_init_io(&iomem_diag, OBJECT(this), &ecc_diag_mem_ops,
                               this, "ecc.diag", ECC_DIAG_SIZE);
         sysbus_init_mmio(sbd, &iomem_diag);
     }
-}
-
-static void ecc_realize(DeviceState *dev, Error **errp)
-{
-    ECCState *s = reinterpret_cast<ECCState *>(dev);
-    s->realize();
 }
 
 static const Property ecc_properties[] = {
     DEFINE_PROP_UINT32("version", ECCState, version, -1),
 };
 
-void ECCState::classInit(ObjectClass *klass, const void *data)
+void ECCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = ecc_realize;
-    device_class_set_legacy_reset(dc, ecc_reset);
     dc->vmsd = &vmstate_ecc;
     device_class_set_props(dc, ecc_properties);
 }
 
-static const TypeInfo ecc_info = {
-    .name          = TYPE_ECC_MEMCTL,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ECCState),
-    .instance_init = ecc_init,
-    .class_init    = ECCState::classInit,
-};
-
-
-static void ecc_register_types(void)
-{
-    type_register_static(&ecc_info);
-}
-
-type_init(ecc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ECCState, TYPE_ECC_MEMCTL, TYPE_SYS_BUS_DEVICE)

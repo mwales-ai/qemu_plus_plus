@@ -83,7 +83,7 @@ struct Exynos4210RngState {
     uint32_t reg_status;
 
     /* Instance methods */
-    void instanceInit();
+    void init();
     void reset();
     bool seedReady() const;
     void setSeed(unsigned int i, uint64_t val);
@@ -99,7 +99,7 @@ struct Exynos4210RngState {
                           unsigned size);
 
     /* Class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 bool Exynos4210RngState::seedReady() const
@@ -247,12 +247,6 @@ static const MemoryRegionOps exynos4210_rng_ops = {
     .valid = { .min_access_size = 4, .max_access_size = 4, },
 };
 
-static void exynos4210_rng_reset(DeviceState *dev)
-{
-    Exynos4210RngState *s = reinterpret_cast<Exynos4210RngState *>(dev);
-    s->reset();
-}
-
 void Exynos4210RngState::reset()
 {
     reg_control = 0;
@@ -261,18 +255,12 @@ void Exynos4210RngState::reset()
     seed_set = 0;
 }
 
-static void exynos4210_rng_init(Object *obj)
+void Exynos4210RngState::init()
 {
-    Exynos4210RngState *s = reinterpret_cast<Exynos4210RngState *>(obj);
-    s->instanceInit();
-}
-
-void Exynos4210RngState::instanceInit()
-{
-    memory_region_init_io(&iomem, reinterpret_cast<Object *>(this),
+    memory_region_init_io(&iomem, OBJECT(this),
                           &exynos4210_rng_ops, this, TYPE_EXYNOS4210_RNG,
                           EXYNOS4210_RNG_REGS_MEM_SIZE);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
+    sysbus_init_mmio(SYS_BUS_DEVICE(this), &iomem);
 }
 
 static const VMStateField vmstate_exynos4210_rng_vmstate_fields[] = {
@@ -291,25 +279,10 @@ static const VMStateDescription exynos4210_rng_vmstate = {
     .fields = vmstate_exynos4210_rng_vmstate_fields,
 };
 
-void Exynos4210RngState::classInit(ObjectClass *klass, const void *data)
+void Exynos4210RngState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    device_class_set_legacy_reset(dc, exynos4210_rng_reset);
     dc->vmsd = &exynos4210_rng_vmstate;
 }
 
-static const TypeInfo exynos4210_rng_info = {
-    .name          = TYPE_EXYNOS4210_RNG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210RngState),
-    .instance_init = exynos4210_rng_init,
-    .class_init    = Exynos4210RngState::classInit,
-};
-
-static void exynos4210_rng_register(void)
-{
-    type_register_static(&exynos4210_rng_info);
-}
-
-type_init(exynos4210_rng_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210RngState, TYPE_EXYNOS4210_RNG, TYPE_SYS_BUS_DEVICE)

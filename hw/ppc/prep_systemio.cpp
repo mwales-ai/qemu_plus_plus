@@ -76,8 +76,7 @@ struct PrepSystemIoState {
                                  unsigned size);
 
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* PORT 0092 -- Special Port 92 (Read/Write) */
@@ -296,12 +295,6 @@ void PrepSystemIoState::realize(Error **errp)
                                 &ppc_parity_mem);
 }
 
-void PrepSystemIoState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    PrepSystemIoState *s = PREP_SYSTEMIO(dev);
-    s->realize(errp);
-}
-
 static const VMStateDescription vmstate_prep_systemio = {
     .name = "prep_systemio",
     .version_id = 1,
@@ -319,25 +312,11 @@ static const Property prep_systemio_properties[] = {
     DEFINE_PROP_UINT8("equipment", PrepSystemIoState, equipment, 0),
 };
 
-void PrepSystemIoState::classInit(ObjectClass *klass, const void *data)
+void PrepSystemIoState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = realizeWrapper;
     dc->vmsd = &vmstate_prep_systemio;
     device_class_set_props(dc, prep_systemio_properties);
 }
 
-static const TypeInfo prep_systemio800_info = {
-    .name          = TYPE_PREP_SYSTEMIO,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(PrepSystemIoState),
-    .class_init    = PrepSystemIoState::classInit,
-};
-
-static void prep_systemio_register_types(void)
-{
-    type_register_static(&prep_systemio800_info);
-}
-
-type_init(prep_systemio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PrepSystemIoState, TYPE_PREP_SYSTEMIO, TYPE_ISA_DEVICE)
