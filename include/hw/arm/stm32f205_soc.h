@@ -67,6 +67,11 @@ struct STM32F205State {
 
     Clock *sysclk;
     Clock *refclk;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+#endif
 };
 
 #endif

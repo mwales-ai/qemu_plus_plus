@@ -151,6 +151,12 @@ struct AwH3State {
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;
     MemoryRegion sram_c;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 /**

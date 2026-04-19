@@ -28,60 +28,60 @@
 #include "chardev/char.h"
 #include "target/arm/cpu-qom.h"
 
-static void fsl_imx31_init(Object *obj)
+void FslIMX31State::init()
 {
-    FslIMX31State *s = FSL_IMX31(obj);
+    Object *obj = OBJECT(this);
     int i;
 
-    object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm1136"));
+    object_initialize_child(obj, "cpu", &cpu, ARM_CPU_TYPE_NAME("arm1136"));
 
-    object_initialize_child(obj, "avic", &s->avic, TYPE_IMX_AVIC);
+    object_initialize_child(obj, "avic", &avic, TYPE_IMX_AVIC);
 
-    object_initialize_child(obj, "ccm", &s->ccm, TYPE_IMX31_CCM);
+    object_initialize_child(obj, "ccm", &ccm, TYPE_IMX31_CCM);
 
     for (i = 0; i < FSL_IMX31_NUM_UARTS; i++) {
-        object_initialize_child(obj, "uart[*]", &s->uart[i], TYPE_IMX_SERIAL);
+        object_initialize_child(obj, "uart[*]", &uart[i], TYPE_IMX_SERIAL);
     }
 
-    object_initialize_child(obj, "gpt", &s->gpt, TYPE_IMX31_GPT);
+    object_initialize_child(obj, "gpt", &gpt, TYPE_IMX31_GPT);
 
     for (i = 0; i < FSL_IMX31_NUM_EPITS; i++) {
-        object_initialize_child(obj, "epit[*]", &s->epit[i], TYPE_IMX_EPIT);
+        object_initialize_child(obj, "epit[*]", &epit[i], TYPE_IMX_EPIT);
     }
 
     for (i = 0; i < FSL_IMX31_NUM_I2CS; i++) {
-        object_initialize_child(obj, "i2c[*]", &s->i2c[i], TYPE_IMX_I2C);
+        object_initialize_child(obj, "i2c[*]", &i2c[i], TYPE_IMX_I2C);
     }
 
     for (i = 0; i < FSL_IMX31_NUM_GPIOS; i++) {
-        object_initialize_child(obj, "gpio[*]", &s->gpio[i], TYPE_IMX_GPIO);
+        object_initialize_child(obj, "gpio[*]", &gpio[i], TYPE_IMX_GPIO);
     }
 
-    object_initialize_child(obj, "wdt", &s->wdt, TYPE_IMX2_WDT);
+    object_initialize_child(obj, "wdt", &wdt, TYPE_IMX2_WDT);
 }
 
-static void fsl_imx31_realize(DeviceState *dev, Error **errp)
+void FslIMX31State::realize(Error **errp)
 {
-    FslIMX31State *s = FSL_IMX31(dev);
+    DeviceState *dev = DEVICE(this);
     uint16_t i;
 
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
+    if (!qdev_realize(DEVICE(&cpu), NULL, errp)) {
         return;
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->avic), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&avic), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->avic), 0, FSL_IMX31_AVIC_ADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->avic), 0,
-                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->avic), 1,
-                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&avic), 0, FSL_IMX31_AVIC_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&avic), 0,
+                       qdev_get_gpio_in(DEVICE(&cpu), ARM_CPU_IRQ));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&avic), 1,
+                       qdev_get_gpio_in(DEVICE(&cpu), ARM_CPU_FIQ));
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->ccm), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&ccm), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccm), 0, FSL_IMX31_CCM_ADDR);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&ccm), 0, FSL_IMX31_CCM_ADDR);
 
     /* Initialize all UARTS */
     for (i = 0; i < FSL_IMX31_NUM_UARTS; i++) {
@@ -93,27 +93,27 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
             { FSL_IMX31_UART2_ADDR, FSL_IMX31_UART2_IRQ },
         };
 
-        qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
+        qdev_prop_set_chr(DEVICE(&uart[i]), "chardev", serial_hd(i));
 
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&uart[i]), errp)) {
             return;
         }
 
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 0, serial_table[i].addr);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
-                           qdev_get_gpio_in(DEVICE(&s->avic),
+        sysbus_mmio_map(SYS_BUS_DEVICE(&uart[i]), 0, serial_table[i].addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&uart[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&avic),
                                             serial_table[i].irq));
     }
 
-    s->gpt.ccm = IMX_CCM(&s->ccm);
+    gpt.ccm = IMX_CCM(&ccm);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpt), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&gpt), errp)) {
         return;
     }
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpt), 0, FSL_IMX31_GPT_ADDR);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpt), 0,
-                       qdev_get_gpio_in(DEVICE(&s->avic), FSL_IMX31_GPT_IRQ));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&gpt), 0, FSL_IMX31_GPT_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&gpt), 0,
+                       qdev_get_gpio_in(DEVICE(&avic), FSL_IMX31_GPT_IRQ));
 
     /* Initialize all EPIT timers */
     for (i = 0; i < FSL_IMX31_NUM_EPITS; i++) {
@@ -125,15 +125,15 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
             { FSL_IMX31_EPIT2_ADDR, FSL_IMX31_EPIT2_IRQ },
         };
 
-        s->epit[i].ccm = IMX_CCM(&s->ccm);
+        epit[i].ccm = IMX_CCM(&ccm);
 
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->epit[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&epit[i]), errp)) {
             return;
         }
 
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->epit[i]), 0, epit_table[i].addr);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->epit[i]), 0,
-                           qdev_get_gpio_in(DEVICE(&s->avic),
+        sysbus_mmio_map(SYS_BUS_DEVICE(&epit[i]), 0, epit_table[i].addr);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&epit[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&avic),
                                             epit_table[i].irq));
     }
 
@@ -149,14 +149,14 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
         };
 
         /* Initialize the I2C */
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->i2c[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&i2c[i]), errp)) {
             return;
         }
         /* Map I2C memory */
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[i]), 0, i2c_table[i].addr);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&i2c[i]), 0, i2c_table[i].addr);
         /* Connect I2C IRQ to PIC */
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[i]), 0,
-                           qdev_get_gpio_in(DEVICE(&s->avic),
+        sysbus_connect_irq(SYS_BUS_DEVICE(&i2c[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&avic),
                                             i2c_table[i].irq));
     }
 
@@ -171,77 +171,58 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
             { FSL_IMX31_GPIO3_ADDR, FSL_IMX31_GPIO3_IRQ }
         };
 
-        object_property_set_bool(OBJECT(&s->gpio[i]), "has-edge-sel", false,
+        object_property_set_bool(OBJECT(&gpio[i]), "has-edge-sel", false,
                                  &error_abort);
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->gpio[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&gpio[i]), errp)) {
             return;
         }
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio[i]), 0, gpio_table[i].addr);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&gpio[i]), 0, gpio_table[i].addr);
         /* Connect GPIO IRQ to PIC */
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio[i]), 0,
-                           qdev_get_gpio_in(DEVICE(&s->avic),
+        sysbus_connect_irq(SYS_BUS_DEVICE(&gpio[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&avic),
                                             gpio_table[i].irq));
     }
 
     /* Watchdog */
-    sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_abort);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->wdt), 0, FSL_IMX31_WDT_ADDR);
+    sysbus_realize(SYS_BUS_DEVICE(&wdt), &error_abort);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&wdt), 0, FSL_IMX31_WDT_ADDR);
 
     /* On a real system, the first 16k is a `secure boot rom' */
-    if (!memory_region_init_rom(&s->secure_rom, OBJECT(dev), "imx31.secure_rom",
+    if (!memory_region_init_rom(&secure_rom, OBJECT(dev), "imx31.secure_rom",
                                 FSL_IMX31_SECURE_ROM_SIZE, errp)) {
         return;
     }
     memory_region_add_subregion(get_system_memory(), FSL_IMX31_SECURE_ROM_ADDR,
-                                &s->secure_rom);
+                                &secure_rom);
 
     /* There is also a 16k ROM */
-    if (!memory_region_init_rom(&s->rom, OBJECT(dev), "imx31.rom",
+    if (!memory_region_init_rom(&rom, OBJECT(dev), "imx31.rom",
                                 FSL_IMX31_ROM_SIZE, errp)) {
         return;
     }
     memory_region_add_subregion(get_system_memory(), FSL_IMX31_ROM_ADDR,
-                                &s->rom);
+                                &rom);
 
     /* initialize internal RAM (16 KB) */
-    if (!memory_region_init_ram(&s->iram, NULL, "imx31.iram",
+    if (!memory_region_init_ram(&iram, NULL, "imx31.iram",
                                 FSL_IMX31_IRAM_SIZE, errp)) {
         return;
     }
     memory_region_add_subregion(get_system_memory(), FSL_IMX31_IRAM_ADDR,
-                                &s->iram);
+                                &iram);
 
     /* internal RAM (16 KB) is aliased over 256 MB - 16 KB */
-    memory_region_init_alias(&s->iram_alias, OBJECT(dev), "imx31.iram_alias",
-                             &s->iram, 0, FSL_IMX31_IRAM_ALIAS_SIZE);
+    memory_region_init_alias(&iram_alias, OBJECT(dev), "imx31.iram_alias",
+                             &iram, 0, FSL_IMX31_IRAM_ALIAS_SIZE);
     memory_region_add_subregion(get_system_memory(), FSL_IMX31_IRAM_ALIAS_ADDR,
-                                &s->iram_alias);
+                                &iram_alias);
 }
 
-static void fsl_imx31_class_init(ObjectClass *oc, const void *data)
+void FslIMX31State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = fsl_imx31_realize;
     dc->desc = "i.MX31 SOC";
-    /*
-     * Reason: uses serial_hds in realize and the kzm board does not
-     * support multiple CPUs
-     */
     dc->user_creatable = false;
 }
 
-static const TypeInfo fsl_imx31_type_info = {
-    .name = TYPE_FSL_IMX31,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(FslIMX31State),
-    .instance_init = fsl_imx31_init,
-    .class_init = fsl_imx31_class_init,
-};
-
-static void fsl_imx31_register_types(void)
-{
-    type_register_static(&fsl_imx31_type_info);
-}
-
-type_init(fsl_imx31_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(FslIMX31State, TYPE_FSL_IMX31, TYPE_DEVICE)

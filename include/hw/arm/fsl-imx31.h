@@ -55,6 +55,12 @@ struct FslIMX31State {
     MemoryRegion   rom;
     MemoryRegion   iram;
     MemoryRegion   iram_alias;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #define FSL_IMX31_SECURE_ROM_ADDR       0x00000000

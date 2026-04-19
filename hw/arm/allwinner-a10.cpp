@@ -66,66 +66,66 @@ void allwinner_a10_bootrom_setup(AwA10State *s, BlockBackend *blk)
                   NULL, NULL, NULL, NULL, false);
 }
 
-static void aw_a10_init(Object *obj)
+void AwA10State::init()
 {
-    AwA10State *s = AW_A10(obj);
+    Object *obj = OBJECT(this);
 
-    object_initialize_child(obj, "cpu", &s->cpu,
+    object_initialize_child(obj, "cpu", &cpu,
                             ARM_CPU_TYPE_NAME("cortex-a8"));
 
-    object_initialize_child(obj, "intc", &s->intc, TYPE_AW_A10_PIC);
+    object_initialize_child(obj, "intc", &intc, TYPE_AW_A10_PIC);
 
-    object_initialize_child(obj, "timer", &s->timer, TYPE_AW_A10_PIT);
+    object_initialize_child(obj, "timer", &timer, TYPE_AW_A10_PIT);
 
-    object_initialize_child(obj, "ccm", &s->ccm, TYPE_AW_A10_CCM);
+    object_initialize_child(obj, "ccm", &ccm, TYPE_AW_A10_CCM);
 
-    object_initialize_child(obj, "dramc", &s->dramc, TYPE_AW_A10_DRAMC);
+    object_initialize_child(obj, "dramc", &dramc, TYPE_AW_A10_DRAMC);
 
-    object_initialize_child(obj, "emac", &s->emac, TYPE_AW_EMAC);
+    object_initialize_child(obj, "emac", &emac, TYPE_AW_EMAC);
 
-    object_initialize_child(obj, "sata", &s->sata, TYPE_ALLWINNER_AHCI);
+    object_initialize_child(obj, "sata", &sata, TYPE_ALLWINNER_AHCI);
 
-    object_initialize_child(obj, "i2c0", &s->i2c0, TYPE_AW_I2C);
+    object_initialize_child(obj, "i2c0", &i2c0, TYPE_AW_I2C);
 
-    object_initialize_child(obj, "spi0", &s->spi0, TYPE_AW_A10_SPI);
+    object_initialize_child(obj, "spi0", &spi0, TYPE_AW_A10_SPI);
 
     for (size_t i = 0; i < AW_A10_NUM_USB; i++) {
-        object_initialize_child(obj, "ehci[*]", &s->ehci[i],
+        object_initialize_child(obj, "ehci[*]", &ehci[i],
                                 TYPE_PLATFORM_EHCI);
-        object_initialize_child(obj, "ohci[*]", &s->ohci[i], TYPE_SYSBUS_OHCI);
+        object_initialize_child(obj, "ohci[*]", &ohci[i], TYPE_SYSBUS_OHCI);
     }
 
-    object_initialize_child(obj, "mmc0", &s->mmc0, TYPE_AW_SDHOST_SUN4I);
+    object_initialize_child(obj, "mmc0", &mmc0, TYPE_AW_SDHOST_SUN4I);
 
-    object_initialize_child(obj, "rtc", &s->rtc, TYPE_AW_RTC_SUN4I);
+    object_initialize_child(obj, "rtc", &rtc, TYPE_AW_RTC_SUN4I);
 
-    object_initialize_child(obj, "wdt", &s->wdt, TYPE_AW_WDT_SUN4I);
+    object_initialize_child(obj, "wdt", &wdt, TYPE_AW_WDT_SUN4I);
 }
 
-static void aw_a10_realize(DeviceState *dev, Error **errp)
+void AwA10State::realize(Error **errp)
 {
-    AwA10State *s = AW_A10(dev);
+    DeviceState *dev = DEVICE(this);
     SysBusDevice *sysbusdev;
 
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
+    if (!qdev_realize(DEVICE(&cpu), NULL, errp)) {
         return;
     }
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->intc), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&intc), errp)) {
         return;
     }
-    sysbusdev = SYS_BUS_DEVICE(&s->intc);
+    sysbusdev = SYS_BUS_DEVICE(&intc);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_PIC_REG_BASE);
     sysbus_connect_irq(sysbusdev, 0,
-                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ));
+                       qdev_get_gpio_in(DEVICE(&cpu), ARM_CPU_IRQ));
     sysbus_connect_irq(sysbusdev, 1,
-                       qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_FIQ));
-    qdev_pass_gpios(DEVICE(&s->intc), dev, NULL);
+                       qdev_get_gpio_in(DEVICE(&cpu), ARM_CPU_FIQ));
+    qdev_pass_gpios(DEVICE(&intc), dev, NULL);
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&timer), errp)) {
         return;
     }
-    sysbusdev = SYS_BUS_DEVICE(&s->timer);
+    sysbusdev = SYS_BUS_DEVICE(&timer);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_PIT_REG_BASE);
     sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(dev, 22));
     sysbus_connect_irq(sysbusdev, 1, qdev_get_gpio_in(dev, 23));
@@ -134,32 +134,32 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(sysbusdev, 4, qdev_get_gpio_in(dev, 67));
     sysbus_connect_irq(sysbusdev, 5, qdev_get_gpio_in(dev, 68));
 
-    memory_region_init_ram(&s->sram_a, OBJECT(dev), "sram A", 48 * KiB,
+    memory_region_init_ram(&sram_a, OBJECT(dev), "sram A", 48 * KiB,
                            &error_fatal);
-    memory_region_add_subregion(get_system_memory(), 0x00000000, &s->sram_a);
+    memory_region_add_subregion(get_system_memory(), 0x00000000, &sram_a);
     create_unimplemented_device("a10-sram-ctrl", 0x01c00000, 4 * KiB);
 
     /* Clock Control Module */
-    sysbus_realize(SYS_BUS_DEVICE(&s->ccm), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccm), 0, AW_A10_CCM_BASE);
+    sysbus_realize(SYS_BUS_DEVICE(&ccm), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&ccm), 0, AW_A10_CCM_BASE);
 
     /* DRAM Control Module */
-    sysbus_realize(SYS_BUS_DEVICE(&s->dramc), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dramc), 0, AW_A10_DRAMC_BASE);
+    sysbus_realize(SYS_BUS_DEVICE(&dramc), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&dramc), 0, AW_A10_DRAMC_BASE);
 
-    qemu_configure_nic_device(DEVICE(&s->emac), true, NULL);
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->emac), errp)) {
+    qemu_configure_nic_device(DEVICE(&emac), true, NULL);
+    if (!sysbus_realize(SYS_BUS_DEVICE(&emac), errp)) {
         return;
     }
-    sysbusdev = SYS_BUS_DEVICE(&s->emac);
+    sysbusdev = SYS_BUS_DEVICE(&emac);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_EMAC_BASE);
     sysbus_connect_irq(sysbusdev, 0, qdev_get_gpio_in(dev, 55));
 
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->sata), errp)) {
+    if (!sysbus_realize(SYS_BUS_DEVICE(&sata), errp)) {
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0, AW_A10_SATA_BASE);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0, qdev_get_gpio_in(dev, 56));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&sata), 0, AW_A10_SATA_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&sata), 0, qdev_get_gpio_in(dev, 56));
 
     /* FIXME use a qdev chardev prop instead of serial_hd() */
     serial_mm_init(get_system_memory(), AW_A10_UART0_REG_BASE, 2,
@@ -169,71 +169,55 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     for (size_t i = 0; i < AW_A10_NUM_USB; i++) {
         g_autofree char *bus = g_strdup_printf("usb-bus.%zu", i);
 
-        object_property_set_bool(OBJECT(&s->ehci[i]), "companion-enable",
+        object_property_set_bool(OBJECT(&ehci[i]), "companion-enable",
                                  true, &error_fatal);
-        sysbus_realize(SYS_BUS_DEVICE(&s->ehci[i]), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ehci[i]), 0,
+        sysbus_realize(SYS_BUS_DEVICE(&ehci[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&ehci[i]), 0,
                         AW_A10_EHCI_BASE + i * 0x8000);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
+        sysbus_connect_irq(SYS_BUS_DEVICE(&ehci[i]), 0,
                            qdev_get_gpio_in(dev, 39 + i));
 
-        object_property_set_str(OBJECT(&s->ohci[i]), "masterbus", bus,
+        object_property_set_str(OBJECT(&ohci[i]), "masterbus", bus,
                                 &error_fatal);
-        sysbus_realize(SYS_BUS_DEVICE(&s->ohci[i]), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(&s->ohci[i]), 0,
+        sysbus_realize(SYS_BUS_DEVICE(&ohci[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&ohci[i]), 0,
                         AW_A10_OHCI_BASE + i * 0x8000);
-        sysbus_connect_irq(SYS_BUS_DEVICE(&s->ohci[i]), 0,
+        sysbus_connect_irq(SYS_BUS_DEVICE(&ohci[i]), 0,
                            qdev_get_gpio_in(dev, 64 + i));
     }
 
     /* SD/MMC */
-    object_property_set_link(OBJECT(&s->mmc0), "dma-memory",
+    object_property_set_link(OBJECT(&mmc0), "dma-memory",
                              OBJECT(get_system_memory()), &error_fatal);
-    sysbus_realize(SYS_BUS_DEVICE(&s->mmc0), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc0), 0, AW_A10_MMC0_BASE);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc0), 0, qdev_get_gpio_in(dev, 32));
-    object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->mmc0),
+    sysbus_realize(SYS_BUS_DEVICE(&mmc0), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&mmc0), 0, AW_A10_MMC0_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&mmc0), 0, qdev_get_gpio_in(dev, 32));
+    object_property_add_alias(OBJECT(this), "sd-bus", OBJECT(&mmc0),
                               "sd-bus");
 
     /* RTC */
-    sysbus_realize(SYS_BUS_DEVICE(&s->rtc), &error_fatal);
-    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->rtc), 0, AW_A10_RTC_BASE, 10);
+    sysbus_realize(SYS_BUS_DEVICE(&rtc), &error_fatal);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&rtc), 0, AW_A10_RTC_BASE, 10);
 
     /* I2C */
-    sysbus_realize(SYS_BUS_DEVICE(&s->i2c0), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c0), 0, AW_A10_I2C0_BASE);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c0), 0, qdev_get_gpio_in(dev, 7));
+    sysbus_realize(SYS_BUS_DEVICE(&i2c0), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&i2c0), 0, AW_A10_I2C0_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&i2c0), 0, qdev_get_gpio_in(dev, 7));
 
     /* SPI */
-    sysbus_realize(SYS_BUS_DEVICE(&s->spi0), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi0), 0, AW_A10_SPI0_BASE);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->spi0), 0, qdev_get_gpio_in(dev, 10));
+    sysbus_realize(SYS_BUS_DEVICE(&spi0), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&spi0), 0, AW_A10_SPI0_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&spi0), 0, qdev_get_gpio_in(dev, 10));
 
     /* WDT */
-    sysbus_realize(SYS_BUS_DEVICE(&s->wdt), &error_fatal);
-    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->wdt), 0, AW_A10_WDT_BASE, 1);
+    sysbus_realize(SYS_BUS_DEVICE(&wdt), &error_fatal);
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&wdt), 0, AW_A10_WDT_BASE, 1);
 }
 
-static void aw_a10_class_init(ObjectClass *oc, const void *data)
+void AwA10State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = aw_a10_realize;
-    /* Reason: Uses serial_hds and nd_table in realize function */
     dc->user_creatable = false;
 }
 
-static const TypeInfo aw_a10_type_info = {
-    .name = TYPE_AW_A10,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(AwA10State),
-    .instance_init = aw_a10_init,
-    .class_init = aw_a10_class_init,
-};
-
-static void aw_a10_register_types(void)
-{
-    type_register_static(&aw_a10_type_info);
-}
-
-type_init(aw_a10_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AwA10State, TYPE_AW_A10, TYPE_DEVICE)

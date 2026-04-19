@@ -31,74 +31,57 @@
 
 #define DIGIC_UART_BASE          0xc0800000
 
-static void digic_init(Object *obj)
+void DigicState::init()
 {
-    DigicState *s = DIGIC(obj);
+    Object *obj = OBJECT(this);
     int i;
 
-    object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm946"));
+    object_initialize_child(obj, "cpu", &cpu, ARM_CPU_TYPE_NAME("arm946"));
 
     for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
         g_autofree char *name = g_strdup_printf("timer[%d]", i);
-        object_initialize_child(obj, name, &s->timer[i], TYPE_DIGIC_TIMER);
+        object_initialize_child(obj, name, &timer[i], TYPE_DIGIC_TIMER);
     }
 
-    object_initialize_child(obj, "uart", &s->uart, TYPE_DIGIC_UART);
+    object_initialize_child(obj, "uart", &uart, TYPE_DIGIC_UART);
 }
 
-static void digic_realize(DeviceState *dev, Error **errp)
+void DigicState::realize(Error **errp)
 {
-    DigicState *s = DIGIC(dev);
     SysBusDevice *sbd;
     int i;
 
-    if (!object_property_set_bool(OBJECT(&s->cpu), "reset-hivecs", true,
+    if (!object_property_set_bool(OBJECT(&cpu), "reset-hivecs", true,
                                   errp)) {
         return;
     }
 
-    if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
+    if (!qdev_realize(DEVICE(&cpu), NULL, errp)) {
         return;
     }
 
     for (i = 0; i < DIGIC4_NB_TIMERS; i++) {
-        if (!sysbus_realize(SYS_BUS_DEVICE(&s->timer[i]), errp)) {
+        if (!sysbus_realize(SYS_BUS_DEVICE(&timer[i]), errp)) {
             return;
         }
 
-        sbd = SYS_BUS_DEVICE(&s->timer[i]);
+        sbd = SYS_BUS_DEVICE(&timer[i]);
         sysbus_mmio_map(sbd, 0, DIGIC4_TIMER_BASE(i));
     }
 
-    qdev_prop_set_chr(DEVICE(&s->uart), "chardev", serial_hd(0));
-    if (!sysbus_realize(SYS_BUS_DEVICE(&s->uart), errp)) {
+    qdev_prop_set_chr(DEVICE(&uart), "chardev", serial_hd(0));
+    if (!sysbus_realize(SYS_BUS_DEVICE(&uart), errp)) {
         return;
     }
 
-    sbd = SYS_BUS_DEVICE(&s->uart);
+    sbd = SYS_BUS_DEVICE(&uart);
     sysbus_mmio_map(sbd, 0, DIGIC_UART_BASE);
 }
 
-static void digic_class_init(ObjectClass *oc, const void *data)
+void DigicState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(oc);
-
-    dc->realize = digic_realize;
-    /* Reason: Uses serial_hds in the realize function --> not usable twice */
     dc->user_creatable = false;
 }
 
-static const TypeInfo digic_type_info = {
-    .name = TYPE_DIGIC,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(DigicState),
-    .instance_init = digic_init,
-    .class_init = digic_class_init,
-};
-
-static void digic_register_types(void)
-{
-    type_register_static(&digic_type_info);
-}
-
-type_init(digic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(DigicState, TYPE_DIGIC, TYPE_DEVICE)

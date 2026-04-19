@@ -38,6 +38,12 @@ struct DigicState {
 
     DigicTimerState timer[DIGIC4_NB_TIMERS];
     DigicUartState uart;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif /* HW_ARM_DIGIC_H */
