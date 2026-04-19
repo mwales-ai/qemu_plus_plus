@@ -60,6 +60,12 @@ struct ESCCState {
     MemoryRegion mmio;
     uint32_t disabled;
     uint32_t frequency;
+
+#ifdef __cplusplus
+    void init();
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
+#endif
 };
 
 #endif

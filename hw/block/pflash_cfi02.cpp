@@ -107,6 +107,9 @@ struct PFlashCFI02 {
     unsigned long *sector_erase_map;
     char *name;
     void *storage;
+
+    void realize(Error **errp);
+    static void classInit(DeviceClass *dc);
 };
 
 /*
@@ -812,34 +815,34 @@ static void pflash_cfi02_fill_cfi_table(PFlashCFI02 *pfl, int nb_regions)
     assert(0x0c + pri_ofs < ARRAY_SIZE(pfl->cfi_table));
 }
 
-static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
+void PFlashCFI02::realize(Error **errp)
 {
     ERRP_GUARD();
-    PFlashCFI02 *pfl = PFLASH_CFI02(dev);
+    DeviceState *dev = DEVICE(this);
     int ret;
 
-    if (pfl->uniform_sector_len == 0 && pfl->sector_len[0] == 0) {
+    if (uniform_sector_len == 0 && sector_len[0] == 0) {
         error_setg(errp, "attribute \"sector-length\" not specified or zero.");
         return;
     }
-    if (pfl->uniform_nb_blocs == 0 && pfl->nb_blocs[0] == 0) {
+    if (uniform_nb_blocs == 0 && nb_blocs[0] == 0) {
         error_setg(errp, "attribute \"num-blocks\" not specified or zero.");
         return;
     }
-    if (pfl->name == NULL) {
+    if (name == NULL) {
         error_setg(errp, "attribute \"name\" not specified.");
         return;
     }
 
     int nb_regions;
-    pfl->chip_len = 0;
-    pfl->total_sectors = 0;
+    chip_len = 0;
+    total_sectors = 0;
     for (nb_regions = 0; nb_regions < PFLASH_MAX_ERASE_REGIONS; ++nb_regions) {
-        if (pfl->nb_blocs[nb_regions] == 0) {
+        if (nb_blocs[nb_regions] == 0) {
             break;
         }
-        pfl->total_sectors += pfl->nb_blocs[nb_regions];
-        uint64_t sector_len_per_device = pfl->sector_len[nb_regions];
+        total_sectors += nb_blocs[nb_regions];
+        uint64_t sector_len_per_device = sector_len[nb_regions];
 
         /*
          * The size of each flash sector must be a power of 2 and it must be
@@ -854,80 +857,80 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
                        nb_regions, sector_len_per_device);
             return;
         }
-        if (pfl->chip_len & (sector_len_per_device - 1)) {
+        if (chip_len & (sector_len_per_device - 1)) {
             error_setg(errp, "unsupported configuration: "
                        "flash region %d not correctly aligned.",
                        nb_regions);
             return;
         }
 
-        pfl->chip_len += (uint64_t)pfl->sector_len[nb_regions] *
-                          pfl->nb_blocs[nb_regions];
+        chip_len += (uint64_t)sector_len[nb_regions] *
+                          nb_blocs[nb_regions];
     }
 
-    uint64_t uniform_len = (uint64_t)pfl->uniform_nb_blocs *
-                           pfl->uniform_sector_len;
+    uint64_t uniform_len = (uint64_t)uniform_nb_blocs *
+                           uniform_sector_len;
     if (nb_regions == 0) {
         nb_regions = 1;
-        pfl->nb_blocs[0] = pfl->uniform_nb_blocs;
-        pfl->sector_len[0] = pfl->uniform_sector_len;
-        pfl->chip_len = uniform_len;
-        pfl->total_sectors = pfl->uniform_nb_blocs;
-    } else if (uniform_len != 0 && uniform_len != pfl->chip_len) {
+        nb_blocs[0] = uniform_nb_blocs;
+        sector_len[0] = uniform_sector_len;
+        chip_len = uniform_len;
+        total_sectors = uniform_nb_blocs;
+    } else if (uniform_len != 0 && uniform_len != chip_len) {
         error_setg(errp, "\"num-blocks\"*\"sector-length\" "
                    "different from \"num-blocks0\"*\'sector-length0\" + ... + "
                    "\"num-blocks3\"*\"sector-length3\"");
         return;
     }
 
-    memory_region_init_rom_device(&pfl->orig_mem, OBJECT(pfl),
-                                  &pflash_cfi02_ops, pfl, pfl->name,
-                                  pfl->chip_len, errp);
+    memory_region_init_rom_device(&orig_mem, OBJECT(this),
+                                  &pflash_cfi02_ops, this, name,
+                                  chip_len, errp);
     if (*errp) {
         return;
     }
 
-    pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
+    storage = memory_region_get_ram_ptr(&orig_mem);
 
-    if (pfl->blk) {
+    if (blk) {
         uint64_t perm;
-        pfl->ro = !blk_supports_write_perm(pfl->blk);
-        perm = BLK_PERM_CONSISTENT_READ | (pfl->ro ? 0 : BLK_PERM_WRITE);
-        ret = blk_set_perm(pfl->blk, perm, BLK_PERM_ALL, errp);
+        ro = !blk_supports_write_perm(blk);
+        perm = BLK_PERM_CONSISTENT_READ | (ro ? 0 : BLK_PERM_WRITE);
+        ret = blk_set_perm(blk, perm, BLK_PERM_ALL, errp);
         if (ret < 0) {
             return;
         }
     } else {
-        pfl->ro = 0;
+        ro = 0;
     }
 
-    if (pfl->blk) {
-        if (!blk_check_size_and_read_all(pfl->blk, dev, pfl->storage,
-                                         pfl->chip_len, errp)) {
-            vmstate_unregister_ram(&pfl->orig_mem, DEVICE(pfl));
+    if (blk) {
+        if (!blk_check_size_and_read_all(blk, dev, storage,
+                                         chip_len, errp)) {
+            vmstate_unregister_ram(&orig_mem, DEVICE(this));
             return;
         }
     }
 
     /* Only 11 bits are used in the comparison. */
-    pfl->unlock_addr0 &= 0x7FF;
-    pfl->unlock_addr1 &= 0x7FF;
+    unlock_addr0 &= 0x7FF;
+    unlock_addr1 &= 0x7FF;
 
     /* Allocate memory for a bitmap for sectors being erased. */
-    pfl->sector_erase_map = bitmap_new(pfl->total_sectors);
+    sector_erase_map = bitmap_new(total_sectors);
 
-    pfl->rom_mode = true;
-    if (pfl->mappings > 1) {
-        pflash_setup_mappings(pfl);
-        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->mem);
+    rom_mode = true;
+    if (mappings > 1) {
+        pflash_setup_mappings(this);
+        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &mem);
     } else {
-        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &pfl->orig_mem);
+        sysbus_init_mmio(SYS_BUS_DEVICE(dev), &orig_mem);
     }
 
-    timer_init_ns(&pfl->timer, QEMU_CLOCK_VIRTUAL, pflash_timer, pfl);
-    pfl->status = 0;
+    timer_init_ns(&timer, QEMU_CLOCK_VIRTUAL, pflash_timer, this);
+    status = 0;
 
-    pflash_cfi02_fill_cfi_table(pfl, nb_regions);
+    pflash_cfi02_fill_cfi_table(this, nb_regions);
 }
 
 static void pflash_cfi02_reset(DeviceState *dev)
@@ -968,30 +971,16 @@ static void pflash_cfi02_unrealize(DeviceState *dev)
     g_free(pfl->sector_erase_map);
 }
 
-static void pflash_cfi02_class_init(ObjectClass *klass, const void *data)
+void PFlashCFI02::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = pflash_cfi02_realize;
     device_class_set_legacy_reset(dc, pflash_cfi02_reset);
     dc->unrealize = pflash_cfi02_unrealize;
     device_class_set_props(dc, pflash_cfi02_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo pflash_cfi02_info = {
-    .name           = TYPE_PFLASH_CFI02,
-    .parent         = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(PFlashCFI02),
-    .class_init     = pflash_cfi02_class_init,
-};
-
-static void pflash_cfi02_register_types(void)
-{
-    type_register_static(&pflash_cfi02_info);
-}
-
-type_init(pflash_cfi02_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PFlashCFI02, TYPE_PFLASH_CFI02, TYPE_SYS_BUS_DEVICE)
 
 PFlashCFI02 *pflash_cfi02_register(hwaddr base,
                                    const char *name,

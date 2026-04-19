@@ -1047,48 +1047,46 @@ static const QemuInputHandler sunmouse_handler = {
     .sync  = sunmouse_sync,
 };
 
-static void escc_init1(Object *obj)
+void ESCCState::init()
 {
-    ESCCState *s = ESCC(obj);
-    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(this);
     unsigned int i;
 
     for (i = 0; i < 2; i++) {
-        sysbus_init_irq(dev, &s->chn[i].irq);
-        s->chn[i].chn = static_cast<ESCCChnID>(1 - i);
+        sysbus_init_irq(dev, &chn[i].irq);
+        chn[i].chn = static_cast<ESCCChnID>(1 - i);
     }
-    s->chn[0].otherchn = &s->chn[1];
-    s->chn[1].otherchn = &s->chn[0];
+    chn[0].otherchn = &chn[1];
+    chn[1].otherchn = &chn[0];
 
-    sysbus_init_mmio(dev, &s->mmio);
+    sysbus_init_mmio(dev, &mmio);
 }
 
-static void escc_realize(DeviceState *dev, Error **errp)
+void ESCCState::realize(Error **errp)
 {
-    ESCCState *s = ESCC(dev);
     unsigned int i;
 
-    s->chn[0].disabled = s->disabled;
-    s->chn[1].disabled = s->disabled;
+    chn[0].disabled = disabled;
+    chn[1].disabled = disabled;
 
-    memory_region_init_io(&s->mmio, OBJECT(dev), &escc_mem_ops, s, "escc",
-                          ESCC_SIZE << s->it_shift);
+    memory_region_init_io(&mmio, OBJECT(this), &escc_mem_ops, this, "escc",
+                          ESCC_SIZE << it_shift);
 
     for (i = 0; i < 2; i++) {
-        if (qemu_chr_fe_backend_connected(&s->chn[i].chr)) {
-            s->chn[i].clock = s->frequency / 2;
-            qemu_chr_fe_set_handlers(&s->chn[i].chr, serial_can_receive,
+        if (qemu_chr_fe_backend_connected(&chn[i].chr)) {
+            chn[i].clock = frequency / 2;
+            qemu_chr_fe_set_handlers(&chn[i].chr, serial_can_receive,
                                      serial_receive1, serial_event, NULL,
-                                     &s->chn[i], NULL, true);
+                                     &chn[i], NULL, true);
         }
     }
 
-    if (s->chn[0].type == escc_mouse) {
-        s->chn[0].hs = qemu_input_handler_register((DeviceState *)(&s->chn[0]),
+    if (chn[0].type == escc_mouse) {
+        chn[0].hs = qemu_input_handler_register((DeviceState *)(&chn[0]),
                                                    &sunmouse_handler);
     }
-    if (s->chn[1].type == escc_kbd) {
-        s->chn[1].hs = qemu_input_handler_register((DeviceState *)(&s->chn[1]),
+    if (chn[1].type == escc_kbd) {
+        chn[1].hs = qemu_input_handler_register((DeviceState *)(&chn[1]),
                                                    &sunkbd_handler);
     }
 }
@@ -1105,28 +1103,13 @@ static const Property escc_properties[] = {
     DEFINE_PROP_STRING("chnA-sunkbd-layout", ESCCState, chn[1].sunkbd_layout),
 };
 
-static void escc_class_init(ObjectClass *klass, const void *data)
+void ESCCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
     device_class_set_legacy_reset(dc, escc_reset);
-    dc->realize = escc_realize;
     dc->vmsd = &vmstate_escc;
     device_class_set_props(dc, escc_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo escc_info = {
-    .name          = TYPE_ESCC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ESCCState),
-    .instance_init = escc_init1,
-    .class_init    = escc_class_init,
-};
-
-static void escc_register_types(void)
-{
-    type_register_static(&escc_info);
-}
-
-type_init(escc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ESCCState, TYPE_ESCC, TYPE_SYS_BUS_DEVICE)
