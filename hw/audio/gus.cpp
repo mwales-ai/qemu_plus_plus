@@ -73,7 +73,7 @@ struct GUSState {
     static void audioCallback(void *opaque, int free);
     static int readDMA(void *opaque, int nchan, int dma_pos, int dma_len);
     void realize(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 uint32_t GUSState::readb(void *opaque, uint32_t nport)
@@ -321,10 +321,8 @@ static const Property gus_properties[] = {
     DEFINE_PROP_UINT32 ("dma",     GUSState, emu.gusdma,  3),
 };
 
-void GUSState::classInit(ObjectClass *klass, const void *data)
+void GUSState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS (klass);
-
     dc->realize = gus_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Gravis Ultrasound GF1";
@@ -332,17 +330,10 @@ void GUSState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, gus_properties);
 }
 
-static const TypeInfo gus_info = {
-    .name          = TYPE_GUS,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof (GUSState),
-    .class_init    = GUSState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(GUSState, TYPE_GUS, TYPE_ISA_DEVICE)
 
-static void gus_register_types (void)
+static void __attribute__((constructor)) gus_audio_init(void)
 {
-    type_register_static (&gus_info);
     audio_register_model("gus", "Gravis Ultrasound GF1", TYPE_GUS);
 }
-
-type_init (gus_register_types)

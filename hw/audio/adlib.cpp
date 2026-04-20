@@ -85,7 +85,7 @@ struct AdlibState {
     static void callback(void *opaque, int free);
     void fini();
     void realize(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void AdlibState::stopOplTimer(size_t n)
@@ -320,27 +320,18 @@ static const Property adlib_properties[] = {
     DEFINE_PROP_UINT32 ("freq",    AdlibState, freq,  44100),
 };
 
-void AdlibState::classInit(ObjectClass *klass, const void *data)
+void AdlibState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS (klass);
-
     dc->realize = adlib_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = ADLIB_DESC;
     device_class_set_props(dc, adlib_properties);
 }
 
-static const TypeInfo adlib_info = {
-    .name          = TYPE_ADLIB,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof (AdlibState),
-    .class_init    = AdlibState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AdlibState, TYPE_ADLIB, TYPE_ISA_DEVICE)
 
-static void adlib_register_types (void)
+static void __attribute__((constructor)) adlib_audio_init(void)
 {
-    type_register_static (&adlib_info);
     audio_register_model("adlib", ADLIB_DESC, TYPE_ADLIB);
 }
-
-type_init (adlib_register_types)

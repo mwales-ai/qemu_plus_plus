@@ -72,7 +72,7 @@ struct USBWacomState {
     static void handleData(USBDevice *dev, USBPacket *p);
     static void realize(USBDevice *dev, Error **errp);
     static void unrealize(USBDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_USB_WACOM "usb-wacom-tablet"
@@ -452,9 +452,9 @@ static const VMStateDescription vmstate_usb_wacom = {
     .unmigratable = 1,
 };
 
-void USBWacomState::classInit(ObjectClass *klass, const void *data)
+void USBWacomState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->product_desc   = "QEMU PenPartner Tablet";
@@ -469,17 +469,10 @@ void USBWacomState::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_usb_wacom;
 }
 
-static const TypeInfo wacom_info = {
-    .name          = TYPE_USB_WACOM,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBWacomState),
-    .class_init    = USBWacomState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(USBWacomState, TYPE_USB_WACOM, TYPE_USB_DEVICE)
 
-static void usb_wacom_register_types(void)
+static void __attribute__((constructor)) usb_wacom_legacy_init(void)
 {
-    type_register_static(&wacom_info);
     usb_legacy_register(TYPE_USB_WACOM, "wacom-tablet", NULL);
 }
-
-type_init(usb_wacom_register_types)
