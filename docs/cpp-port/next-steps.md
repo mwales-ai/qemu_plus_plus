@@ -164,11 +164,12 @@ since QEMU's command-line and QMP interface create devices by string name.
 
 ## Current Metrics
 
-- 89 commits on `qom-replacement`
+- 531 commits ahead of master on `cpp-native`
 - 2,211 .cpp files (6 .c remaining)
-- 196 devices with ::classInit
-- 183 deeply converted devices
-- 3,043 reinterpret_cast (replacing QOM runtime casts)
-- 108 _GET_CLASS macros (intentionally kept — runtime type lookup)
-- 14/15 smoke tests passing
+- 321 devices using REGISTER_QEMU_DEVICE macro
+- 123 additional devices with ::classInit (old-style, no macro)
+- 183 deeply converted devices (all helpers as member functions)
+- 8 bus-level class hierarchies with C++ virtual methods (Option D)
+- ~2,750+ reinterpret_cast (replacing QOM runtime casts)
+- 13/15 smoke tests passing
 - All 5 target ISAs building clean

@@ -5,9 +5,9 @@
 QEMU++ is replacing QEMU's C-based Object Model (QOM) with native C++ classes,
 virtual methods, and compile-time type checking. This document tracks progress.
 
-**Branch:** `qom-replacement` (87 commits)
+**Branch:** `cpp-native` (531 commits ahead of master)
 **Build:** All 5 target ISAs building clean
-**Tests:** 14/15 smoke tests passing
+**Tests:** 13/15 smoke tests passing (2 pre-existing ppc64 failures)
 
 ## What is QOM?
 
@@ -21,7 +21,7 @@ Every QOM type check looks like this at runtime:
 ```c
 SerialState *s = SERIAL(dev);
 // Expands to: object_dynamic_cast_assert(dev, "serial", __FILE__, __LINE__)
-// → walks type hierarchy comparing strings, checks LRU cache, aborts on mismatch
+// -> walks type hierarchy comparing strings, checks LRU cache, aborts on mismatch
 ```
 
 In C++, the same operation is free:
@@ -32,28 +32,22 @@ SerialState *s = static_cast<SerialState *>(dev);  // zero cost, verified at com
 
 ## Conversion Progress
 
-### Phase 1: classInit Conversion - COMPLETE
+### REGISTER_QEMU_DEVICE Macro — 321 devices
 
-| Metric | Value |
-|--------|-------|
-| Devices with `::classInit` static methods | 196 |
-| Free `class_init` functions remaining | 0* |
+The `REGISTER_QEMU_DEVICE` macro auto-generates TypeInfo, trampolines, and
+type registration via SFINAE detection of `init()`, `realize(Error**)`,
+`reset()`, and `static classInit(DeviceClass*)` methods.
 
-\* Only macro-generated subtype variants in spapr.cpp remain.
+Each conversion:
+- Replaces ~15-20 lines of boilerplate per device
+- Converts free functions to C++ member functions (`this` instead of casts)
+- Eliminates static trampoline functions
+- One-line macro replaces TypeInfo + type_register_static + type_init
 
-Every device's `class_init` function — which sets up the QOM type metadata,
-virtual method pointers, and properties — is now a C++ static method on the
-device struct.
+### Deep Method Conversion — 183 devices
 
-### Phase 2: Deep Method Conversion - 183 devices
-
-| Metric | Value |
-|--------|-------|
-| Deeply converted devices | 183 |
-| Total C++ method references | ~4,000 |
-
-"Deep conversion" means ALL internal helper functions (not just lifecycle
-methods) are converted from C free functions to C++ struct methods:
+ALL internal helper functions (not just lifecycle methods) converted from
+C free functions to C++ struct methods:
 
 **Before (QOM C style):**
 ```c
@@ -79,9 +73,6 @@ void SerialState::updateIrq()
 // Called as: updateIrq();  (or s->updateIrq() from outside)
 ```
 
-No `s->` noise everywhere. The method belongs to the struct. The compiler
-enforces member access. Code reads more naturally.
-
 **Top devices by method count:**
 
 | Device | File | Methods |
@@ -96,83 +87,77 @@ enforces member access. Code reads more naturally.
 | xHCI USB 3.0 | hw/usb/hcd-xhci.cpp | 53 |
 | USB Smart Card | hw/usb/dev-smartcard-reader.cpp | 50 |
 | Exynos MCT | hw/timer/exynos4210_mct.cpp | 50 |
-| TCX display | hw/display/tcx.cpp | 48 |
-| LSI SCSI | hw/scsi/lsi53c895a.cpp | 46 |
-| Slavio misc | hw/misc/slavio_misc.cpp | 46 |
-| Cirrus VGA | hw/display/cirrus_vga.cpp | 44 |
-| PS/2 protocol | hw/input/ps2.cpp | 44 |
-| ARTIST display | hw/display/artist.cpp | 42 |
 
-### Phase 3: QOM Cast Replacement - 76% complete
+### QOM Cast Replacement — ~95% complete
 
 | Metric | Value |
 |--------|-------|
-| `reinterpret_cast` uses | 2,751 |
-| QOM macro casts remaining | 175 |
-| **Conversion rate** | **94%** |
+| `reinterpret_cast` uses | ~2,750+ |
+| QOM macro casts remaining | ~175 |
+| **Conversion rate** | **~95%** |
 
 QOM's runtime type-checking macros (`SERIAL()`, `PL011()`, `VIRTIO_BLK()`,
-etc.) are being replaced with compile-time `reinterpret_cast`. This eliminates
-the runtime overhead of string-based type hierarchy walks and LRU cache checks.
+etc.) are being replaced with compile-time `reinterpret_cast`. The remaining
+175 QOM macros are mostly in VMSTATE/DEFINE_PROP macro expansions and
+`_GET_CLASS` macros (intentionally kept for runtime class lookup).
 
-The remaining 175 QOM macros are:
-- `_GET_CLASS` macros (runtime type lookup — intentionally kept)
-- VMSTATE and DEFINE_PROP macro expansions (infrastructure limitation)
-- A small number of casts in complex polymorphic code paths
+### Option D: Bus-Level Virtual Methods — 8 hierarchies complete
 
-### Phase 4: Header Method Declarations - 20 device types
+C++ class hierarchies added to QOM class structs, enabling `override` and
+compile-time virtual method dispatch:
 
-C++ method declarations added to shared header-defined structs, proving that
-all `include/hw/` headers can be extended (they're only included from .cpp
-files now):
+| Hierarchy | Virtual Methods | Status |
+|-----------|----------------|--------|
+| MOS6522DeviceClass | 6 | Complete (full replacement) |
+| PCIDeviceClass | 5 | Complete (hybrid — C++ + function pointers) |
+| I2CSlaveClass | 5 | Complete |
+| SMBusDeviceClass | 3 | Complete |
+| PMBusDeviceClass | 7 | Complete |
+| IPackDeviceClass | 11 | Complete |
+| SSIPeripheralClass | 3 | Complete |
+| ADBDeviceClass | 3 | Complete |
+| VirtIODeviceClass | 24 | Dispatch wrappers only |
+| SCSIDeviceClass | 20 | Dispatch wrappers only |
+| USBDeviceClass | 13 | Dispatch wrappers only |
 
-**x86 platform:**
-- SerialState (16550A UART) — boots x86 with serial console
-- KBDState + PS2KbdState/PS2MouseState — keyboard/mouse
-- Q35PCIHost + MCHPCIState — Q35 chipset
-- HPETState — High Precision Event Timer
+### Header Method Declarations — 20+ device types
 
-**ARM platform:**
-- PL011State — PL011 UART, boots ARM virt
-- GICv3State — interrupt controller
-- GICv3ITSClass — interrupt translation
+C++ method declarations added to shared header-defined structs across all
+target platforms:
 
-**RISC-V platform:**
-- SiFivePLICState — PLIC interrupt controller
-- RISCVAclintMTimerState/SwiState — timer/software interrupts
-- RISCVAPLICState — Advanced PLIC
+**x86 platform:** SerialState, KBDState, PS2KbdState/PS2MouseState,
+Q35PCIHost, MCHPCIState, HPETState
 
-**Cross-platform:**
-- VirtIOBlock, VirtIONet, VirtIOGPU, VirtIOSCSI — all VirtIO devices
-- GPEXHost — PCIe host bridge
-- XHCIState — USB 3.0 host controller
-- SpaprMachineState — PPC pseries machine
+**ARM platform:** PL011State, GICv3State, GICv3ITSClass
 
-## Key Bug Fix: struct {} Layout Mismatch
+**RISC-V platform:** SiFivePLICState, RISCVAclintMTimerState/SwiState,
+RISCVAPLICState
 
-During the conversion, we discovered a critical C/C++ struct layout mismatch.
+**Cross-platform:** VirtIOBlock, VirtIONet, VirtIOGPU, VirtIOSCSI,
+GPEXHost, XHCIState, SpaprMachineState
+
+## Key Bug Fixes
+
+### struct {} Layout Mismatch
 Empty struct markers (`struct {} end_reset_fields;`) used in CPU state structs
-have size 0 in C but size 1 in C++, causing field offset mismatches between
-C-compiled and C++-compiled code sharing the same struct.
+have size 0 in C but size 1 in C++, causing field offset mismatches. Fixed with
+`QEMU_STRUCT_MARKER()` macro using `char name[0]` in C++. Applied to all 11
+target CPU headers. Fixed 3 ARM/aarch64 boot failures.
 
-This was causing ARM boot failures — the `features` field in `CPUARMState` was
-at offset 78680 in C but 78688 in C++, so C code writing feature bits and C++
-code reading them were accessing different memory.
-
-**Fix:** Created `QEMU_STRUCT_MARKER()` macro using `char name[0]` in C++
-(zero-length array) and `struct {} name` in C. Applied to all 11 target CPU
-headers. This fixed 3 ARM/aarch64 boot failures.
+### SDHCIState Deleted Destructor
+`SDHCIState` contains a union of `PCIDevice` and `SysBusDevice`, which makes
+the destructor deleted in C++. This blocks SoC files that embed SDHCIState
+(fsl-imx25, fsl-imx6, fsl-imx6ul, fsl-imx7) from using REGISTER_QEMU_DEVICE.
 
 ## Design Decisions
 
-1. **No C++ vtable in device structs** — QOM requires `parent_obj` at offset 0.
-   Using C++ virtual methods would insert a vtable pointer before `parent_obj`,
-   breaking QOM binary compatibility. Methods are regular (non-virtual) C++
-   member functions with thin static wrappers for QOM callback dispatch.
+1. **No C++ vtable in device structs (yet)** — QOM requires `parent_obj` at
+   offset 0. Using C++ virtual methods would insert a vtable pointer before
+   `parent_obj`. The virtual-methods-plan.md describes how to add this via
+   C/C++ ABI-compatible padding.
 
 2. **VMState works unchanged** — `offsetof()` works on C++ structs with
-   non-virtual methods. All VMState migration descriptors and DEFINE_PROP
-   property macros continue to work without modification.
+   non-virtual methods. All VMState migration descriptors continue to work.
 
 3. **Incremental migration** — Every commit keeps all 5 targets building and
    booting. Old QOM code and new C++ methods coexist in the same binary.
@@ -188,11 +173,12 @@ headers. This fixed 3 ARM/aarch64 boot failures.
 | **x86_64 (q35)** | Serial, KBD/PS2, Q35/MCH, HPET, E1000E, RTL8139, xHCI, LSI SCSI, Intel HDA, AC97, SB16, Bochs display, VirtIO block/net/GPU/SCSI |
 | **aarch64 (virt)** | PL011, GICv3/ITS, PL061 GPIO, PL110 display, GPEX PCIe, DWC2 USB, VirtIO block/net/GPU/SCSI |
 | **riscv64 (virt)** | PLIC, ACLINT, APLIC, GPEX PCIe, VirtIO block/net/GPU/SCSI |
-| **ppc64 (pseries)** | spapr machine, VirtIO block/net/SCSI |
+| **ppc64 (pseries)** | spapr machine, OpenPIC, VirtIO block/net/SCSI |
 
 ## What's Next
 
-1. Complete QOM cast replacement in remaining files
-2. Replace QOM virtual method function pointers with C++ virtual methods
-3. Modernize the property system with typed C++ declarations
-4. Eventually remove the QOM runtime type registry entirely
+1. **Extend REGISTER_QEMU_DEVICE** for ResettableClass, interfaces, abstract types
+2. **Complete Option D** bus-level virtual methods (VirtIO, SCSI, USB)
+3. **Implement virtual-methods-plan.md Phase A** — vtable pointer in Object
+4. **Phase B/C** — virtual realize()/reset() with `override` on pilot devices
+5. **Phase E** — mass `override` addition to existing 321 devices
