@@ -71,8 +71,8 @@ struct VMAppleCfgState {
                                          const char *property_name);
     static void reset(Object *obj, ResetType type);
     static void realize(DeviceState *dev, Error **errp);
-    static void initfn(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 bool VMAppleCfgState::setFixlenPropertyOrError(char *__restrict__ dst,
@@ -153,13 +153,13 @@ void VMAppleCfgState::realize(DeviceState *dev, Error **errp)
     }
 }
 
-void VMAppleCfgState::initfn(Object *obj)
+void VMAppleCfgState::init()
 {
-    VMAppleCfgState *s = reinterpret_cast<VMAppleCfgState *>(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
 
-    memory_region_init_ram(&s->mem, obj, "VMApple Config", VMAPPLE_CFG_SIZE,
+    memory_region_init_ram(&mem, obj, "VMApple Config", VMAPPLE_CFG_SIZE,
                            &error_fatal);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(obj), &s->mem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &mem);
 }
 
 static const Property vmapple_cfg_properties[] = {
@@ -178,9 +178,9 @@ static const Property vmapple_cfg_properties[] = {
     DEFINE_PROP_STRING("soc_name", VMAppleCfgState, soc_name),
 };
 
-void VMAppleCfgState::classInit(ObjectClass *klass, const void *data)
+void VMAppleCfgState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->realize = VMAppleCfgState::realize;
@@ -189,17 +189,5 @@ void VMAppleCfgState::classInit(ObjectClass *klass, const void *data)
     rc->phases.hold = VMAppleCfgState::reset;
 }
 
-static const TypeInfo vmapple_cfg_info = {
-    .name          = TYPE_VMAPPLE_CFG,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(VMAppleCfgState),
-    .instance_init = VMAppleCfgState::initfn,
-    .class_init    = VMAppleCfgState::classInit,
-};
-
-static void vmapple_cfg_register_types(void)
-{
-    type_register_static(&vmapple_cfg_info);
-}
-
-type_init(vmapple_cfg_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VMAppleCfgState, TYPE_VMAPPLE_CFG, TYPE_SYS_BUS_DEVICE)

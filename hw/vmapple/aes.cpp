@@ -141,8 +141,8 @@ struct AESState {
     static uint64_t aes2Read(void *opaque, hwaddr offset, unsigned size);
     static void aes2Write(void *opaque, hwaddr offset, uint64_t val, unsigned size);
     static void resetHold(Object *obj, ResetType type);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static void aes_update_irq(AESState *s)
@@ -556,36 +556,25 @@ void AESState::resetHold(Object *obj, ResetType type)
     s->watermark = 0;
 }
 
-void AESState::instanceInit(Object *obj)
+void AESState::init()
 {
-    AESState *s = APPLE_AES(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
 
-    memory_region_init_io(&s->iomem1, obj, &aes1_ops, s, TYPE_APPLE_AES, 0x4000);
-    memory_region_init_io(&s->iomem2, obj, &aes2_ops, s, TYPE_APPLE_AES, 0x4000);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(s), &s->iomem1);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(s), &s->iomem2);
-    sysbus_init_irq(reinterpret_cast<SysBusDevice *>(s), &s->irq);
-    s->as = &address_space_memory;
+    memory_region_init_io(&iomem1, obj, &aes1_ops, this, TYPE_APPLE_AES, 0x4000);
+    memory_region_init_io(&iomem2, obj, &aes2_ops, this, TYPE_APPLE_AES, 0x4000);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem1);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem2);
+    sysbus_init_irq(reinterpret_cast<SysBusDevice *>(this), &irq);
+    as = &address_space_memory;
 }
 
-void AESState::classInit(ObjectClass *klass, const void *data)
+void AESState::classInit(DeviceClass *dc)
 {
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     rc->phases.hold = resetHold;
 }
 
-static const TypeInfo aes_info = {
-    .name          = TYPE_APPLE_AES,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AESState),
-    .class_init    = AESState::classInit,
-    .instance_init = AESState::instanceInit,
-};
-
-static void aes_register_types(void)
-{
-    type_register_static(&aes_info);
-}
-
-type_init(aes_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(AESState, TYPE_APPLE_AES, TYPE_SYS_BUS_DEVICE)
