@@ -101,7 +101,7 @@ struct VSCSIState {
     /* Static callbacks / class methods */
     static void realize(SpaprVioDevice *dev, Error **errp);
     static void vscsiReset(SpaprVioDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static union viosrp_iu *req_iu(vscsi_req *req)
@@ -1284,9 +1284,9 @@ static const VMStateDescription vmstate_spapr_vscsi = {
     .fields = vmstate_spapr_vscsi_fields,
 };
 
-void VSCSIState::classInit(ObjectClass *klass, const void *data)
+void VSCSIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SpaprVioDeviceClass *k = reinterpret_cast<SpaprVioDeviceClass *>(klass);
 
     k->realize = VSCSIState::realize;
@@ -1302,16 +1302,5 @@ void VSCSIState::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_spapr_vscsi;
 }
 
-static const TypeInfo spapr_vscsi_info = {
-    .name          = TYPE_VIO_SPAPR_VSCSI_DEVICE,
-    .parent        = TYPE_VIO_SPAPR_DEVICE,
-    .instance_size = sizeof(VSCSIState),
-    .class_init    = VSCSIState::classInit,
-};
-
-static void spapr_vscsi_register_types(void)
-{
-    type_register_static(&spapr_vscsi_info);
-}
-
-type_init(spapr_vscsi_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VSCSIState, TYPE_VIO_SPAPR_VSCSI_DEVICE, TYPE_VIO_SPAPR_DEVICE)

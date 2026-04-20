@@ -211,11 +211,10 @@ struct MTPState {
     } dataset;
 
     /* methods */
-    void realize(Error **errp);
     void handleReset();
     static void realizeWrapper(USBDevice *dev, Error **errp);
     static void handleResetWrapper(USBDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /*
@@ -2100,9 +2099,9 @@ static const Property mtp_properties[] = {
     DEFINE_PROP_BOOL("readonly", MTPState, readonly, true),
 };
 
-void MTPState::classInit(ObjectClass *klass, const void *data)
+void MTPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = realizeWrapper;
@@ -2120,16 +2119,5 @@ void MTPState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, mtp_properties);
 }
 
-static const TypeInfo mtp_info = {
-    .name          = TYPE_USB_MTP,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(MTPState),
-    .class_init    = MTPState::classInit,
-};
-
-static void usb_mtp_register_types(void)
-{
-    type_register_static(&mtp_info);
-}
-
-type_init(usb_mtp_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MTPState, TYPE_USB_MTP, TYPE_USB_DEVICE)

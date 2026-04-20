@@ -64,7 +64,7 @@ struct USBHubState {
     static void realize(USBDevice *dev, Error **errp);
     static void unrealize(USBDevice *dev);
     static USBDevice *findDevice(USBDevice *dev, uint8_t addr);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     /* Port ops (static callbacks) */
     static void portAttach(USBPort *port1);
@@ -715,9 +715,9 @@ static const Property usb_hub_properties[] = {
     DEFINE_PROP_BOOL("port-power", USBHubState, port_power, false),
 };
 
-void USBHubState::classInit(ObjectClass *klass, const void *data)
+void USBHubState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = USBHubState::realize;
@@ -734,16 +734,5 @@ void USBHubState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, usb_hub_properties);
 }
 
-static const TypeInfo hub_info = {
-    .name          = TYPE_USB_HUB,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBHubState),
-    .class_init    = USBHubState::classInit,
-};
-
-static void usb_hub_register_types(void)
-{
-    type_register_static(&hub_info);
-}
-
-type_init(usb_hub_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(USBHubState, TYPE_USB_HUB, TYPE_USB_DEVICE)

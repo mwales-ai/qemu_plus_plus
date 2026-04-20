@@ -128,7 +128,7 @@ struct IPOctalState {
     /* methods */
     void updateIrq(unsigned block);
     void writeCr(unsigned channel, uint8_t val);
-    void realize(Error **errp);
+    void doRealize(Error **errp);
 
     static uint16_t ioRead(IPackDevice *ip, uint8_t addr);
     static void ioWrite(IPackDevice *ip, uint8_t addr, uint16_t val);
@@ -146,7 +146,7 @@ struct IPOctalState {
     static void hostdevEvent(void *opaque, QEMUChrEvent event);
 
     static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField vmstate_scc2698_channel_fields[] = {
@@ -568,10 +568,10 @@ void IPOctalState::hostdevEvent(void *opaque, QEMUChrEvent event)
 
 void IPOctalState::realizeWrapper(DeviceState *dev, Error **errp)
 {
-    reinterpret_cast<IPOctalState *>(dev)->realize(errp);
+    reinterpret_cast<IPOctalState *>(dev)->doRealize(errp);
 }
 
-void IPOctalState::realize(Error **errp)
+void IPOctalState::doRealize(Error **errp)
 {
     unsigned i;
 
@@ -602,9 +602,9 @@ static const Property ipoctal_properties[] = {
     DEFINE_PROP_CHR("chardev7", IPOctalState, ch[7].dev),
 };
 
-void IPOctalState::classInit(ObjectClass *klass, const void *data)
+void IPOctalState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     IPackDeviceClass *ic = reinterpret_cast<IPackDeviceClass *>(klass);
 
     ic->realize     = IPOctalState::realizeWrapper;
@@ -625,16 +625,5 @@ void IPOctalState::classInit(ObjectClass *klass, const void *data)
     dc->vmsd    = &vmstate_ipoctal;
 }
 
-static const TypeInfo ipoctal_info = {
-    .name          = TYPE_IPOCTAL,
-    .parent        = TYPE_IPACK_DEVICE,
-    .instance_size = sizeof(IPOctalState),
-    .class_init    = IPOctalState::classInit,
-};
-
-static void ipoctal_register_types(void)
-{
-    type_register_static(&ipoctal_info);
-}
-
-type_init(ipoctal_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(IPOctalState, TYPE_IPOCTAL, TYPE_IPACK_DEVICE)

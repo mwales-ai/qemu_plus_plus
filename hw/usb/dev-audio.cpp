@@ -671,7 +671,7 @@ struct USBAudioState {
     static void setInterface(USBDevice *dev, int iface, int old, int value);
     static void realize(USBDevice *dev, Error **errp);
     static void unrealize(USBDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_USB_AUDIO "usb-audio"
@@ -1017,9 +1017,9 @@ static const Property usb_audio_properties[] = {
     DEFINE_PROP_BOOL("multi", USBAudioState, multi, false),
 };
 
-void USBAudioState::classInit(ObjectClass *klass, const void *data)
+void USBAudioState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *k = reinterpret_cast<USBDeviceClass *>(klass);
 
     dc->vmsd          = &vmstate_usb_audio;
@@ -1034,16 +1034,5 @@ void USBAudioState::classInit(ObjectClass *klass, const void *data)
     k->set_interface  = USBAudioState::setInterface;
 }
 
-static const TypeInfo usb_audio_info = {
-    .name          = TYPE_USB_AUDIO,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBAudioState),
-    .class_init    = USBAudioState::classInit,
-};
-
-static void usb_audio_register_types(void)
-{
-    type_register_static(&usb_audio_info);
-}
-
-type_init(usb_audio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(USBAudioState, TYPE_USB_AUDIO, TYPE_USB_DEVICE)

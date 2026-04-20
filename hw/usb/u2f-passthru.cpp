@@ -94,7 +94,7 @@ struct U2FPassthruState {
                               const uint8_t packet[U2FHID_PACKET_SIZE]);
     static bool isU2fDevice(int fd);
     static int postLoad(void *opaque, int version_id);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_U2F_PASSTHRU "u2f-passthru"
@@ -554,9 +554,9 @@ static const Property u2f_passthru_properties[] = {
     DEFINE_PROP_STRING("hidraw", U2FPassthruState, hidraw),
 };
 
-void U2FPassthruState::classInit(ObjectClass *klass, const void *data)
+void U2FPassthruState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     U2FKeyClass *kc = reinterpret_cast<U2FKeyClass *>(klass);
 
     kc->realize = u2f_passthru_realize;
@@ -568,16 +568,5 @@ void U2FPassthruState::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
-static const TypeInfo u2f_key_passthru_info = {
-    .name = TYPE_U2F_PASSTHRU,
-    .parent = TYPE_U2F_KEY,
-    .instance_size = sizeof(U2FPassthruState),
-    .class_init = U2FPassthruState::classInit
-};
-
-static void u2f_key_passthru_register_types(void)
-{
-    type_register_static(&u2f_key_passthru_info);
-}
-
-type_init(u2f_key_passthru_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(U2FPassthruState, TYPE_U2F_PASSTHRU, TYPE_U2F_KEY)

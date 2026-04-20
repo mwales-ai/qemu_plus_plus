@@ -659,7 +659,7 @@ struct USBNetState {
 
     /* Methods */
     void netRealize(Error **errp);
-    void instanceInit();
+    void init();
     int isRndis();
     int ndisQuery(uint32_t oid, uint8_t *inbuf, unsigned int inlen, uint8_t *outbuf, size_t outlen);
     int ndisSet(uint32_t oid, uint8_t *inbuf, unsigned int inlen);
@@ -680,14 +680,13 @@ struct USBNetState {
 
     /* Static callbacks */
     static void netRealizeWrapper(USBDevice *dev, Error **errp);
-    static void instanceInitWrapper(Object *obj);
     static void handleReset(USBDevice *dev);
     static void handleControlCb(USBDevice *dev, USBPacket *p, int request, int value, int index, int length, uint8_t *data);
     static void handleDataCb(USBDevice *dev, USBPacket *p);
     static ssize_t receiveCb(NetClientState *nc, const uint8_t *buf, size_t size);
     static void cleanupCb(NetClientState *nc);
     static void unrealize(USBDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_USB_NET "usb-net"
@@ -1434,13 +1433,12 @@ void USBNetState::netRealize(Error **errp)
     usb_desc_set_string(dev, STRING_ETHADDR, s->usbstring_mac);
 }
 
-void USBNetState::instanceInit()
+void USBNetState::init()
 {
     Object *obj = reinterpret_cast<Object *>(this);
     USBDevice *dev = reinterpret_cast<USBDevice *>(obj);
-    USBNetState *s = this;
 
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+    device_add_bootindex_property(obj, &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   &dev->qdev);
 }
@@ -1460,15 +1458,9 @@ void USBNetState::netRealizeWrapper(USBDevice *dev, Error **errp)
     s->netRealize(errp);
 }
 
-void USBNetState::instanceInitWrapper(Object *obj)
+void USBNetState::classInit(DeviceClass *dc)
 {
-    USBNetState *s = reinterpret_cast<USBNetState *>(obj);
-    s->instanceInit();
-}
-
-void USBNetState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     USBDeviceClass *uc = reinterpret_cast<USBDeviceClass *>(klass);
 
     uc->realize        = USBNetState::netRealizeWrapper;
@@ -1484,17 +1476,5 @@ void USBNetState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, net_properties);
 }
 
-static const TypeInfo net_info = {
-    .name          = TYPE_USB_NET,
-    .parent        = TYPE_USB_DEVICE,
-    .instance_size = sizeof(USBNetState),
-    .instance_init = USBNetState::instanceInitWrapper,
-    .class_init    = USBNetState::classInit,
-};
-
-static void usb_net_register_types(void)
-{
-    type_register_static(&net_info);
-}
-
-type_init(usb_net_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(USBNetState, TYPE_USB_NET, TYPE_USB_DEVICE)

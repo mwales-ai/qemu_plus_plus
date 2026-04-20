@@ -84,7 +84,7 @@ struct PassthruState {
     static void apduFromGuest(CCIDCardState *base,
                               const uint8_t *apdu, uint32_t len);
     static const uint8_t *getAtr(CCIDCardState *base, uint32_t *len);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_CCID_PASSTHRU "ccid-card-passthru"
@@ -407,9 +407,9 @@ static const Property passthru_card_properties[] = {
     DEFINE_PROP_UINT8("debug", PassthruState, debug, 0),
 };
 
-void PassthruState::classInit(ObjectClass *klass, const void *data)
+void PassthruState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     CCIDCardClass *cc = reinterpret_cast<CCIDCardClass *>(klass);
 
     cc->realize = passthru_realize;
@@ -421,18 +421,7 @@ void PassthruState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, passthru_card_properties);
 }
 
-static const TypeInfo passthru_card_info = {
-    .name          = TYPE_CCID_PASSTHRU,
-    .parent        = TYPE_CCID_CARD,
-    .instance_size = sizeof(PassthruState),
-    .class_init    = PassthruState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PassthruState, TYPE_CCID_PASSTHRU, TYPE_CCID_CARD)
 module_obj(TYPE_CCID_PASSTHRU);
 module_kconfig(USB);
-
-static void ccid_card_passthru_register_types(void)
-{
-    type_register_static(&passthru_card_info);
-}
-
-type_init(ccid_card_passthru_register_types)

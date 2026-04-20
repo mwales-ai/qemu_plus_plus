@@ -157,7 +157,7 @@ struct EmulatedState {
     static void cardEventHandler(EventNotifier *notifier);
     static void emulRealize(CCIDCardState *base, Error **errp);
     static void emulUnrealize(CCIDCardState *base);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void EmulatedState::apduFromGuest(CCIDCardState *base,
@@ -615,9 +615,9 @@ static const Property emulated_card_properties[] = {
     DEFINE_PROP_UINT8("debug", EmulatedState, debug, 0),
 };
 
-void EmulatedState::classInit(ObjectClass *klass, const void *data)
+void EmulatedState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     CCIDCardClass *cc = reinterpret_cast<CCIDCardClass *>(klass);
 
     cc->realize = EmulatedState::emulRealize;
@@ -629,18 +629,7 @@ void EmulatedState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, emulated_card_properties);
 }
 
-static const TypeInfo emulated_card_info = {
-    .name          = TYPE_EMULATED_CCID,
-    .parent        = TYPE_CCID_CARD,
-    .instance_size = sizeof(EmulatedState),
-    .class_init    = EmulatedState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(EmulatedState, TYPE_EMULATED_CCID, TYPE_CCID_CARD)
 module_obj(TYPE_EMULATED_CCID);
 module_kconfig(USB);
-
-static void ccid_card_emulated_register_types(void)
-{
-    type_register_static(&emulated_card_info);
-}
-
-type_init(ccid_card_emulated_register_types)

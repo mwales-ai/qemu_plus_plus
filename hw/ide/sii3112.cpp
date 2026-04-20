@@ -45,9 +45,9 @@ struct SiI3112PCIState {
     void reset();
     static void resetWrapper(DeviceState *dev);
 
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     static void realizeWrapper(PCIDevice *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* The sii3112_reg_read and sii3112_reg_write functions implement the
@@ -267,7 +267,7 @@ void SiI3112PCIState::resetWrapper(DeviceState *dev)
     s->reset();
 }
 
-void SiI3112PCIState::realize(Error **errp)
+void SiI3112PCIState::doRealize(Error **errp)
 {
     PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
     PCIIDEState *s = reinterpret_cast<PCIIDEState *>(dev);
@@ -313,12 +313,12 @@ void SiI3112PCIState::realize(Error **errp)
 void SiI3112PCIState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
     SiI3112PCIState *s = reinterpret_cast<SiI3112PCIState *>(dev);
-    s->realize(errp);
+    s->doRealize(errp);
 }
 
-void SiI3112PCIState::classInit(ObjectClass *klass, const void *data)
+void SiI3112PCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pd = reinterpret_cast<PCIDeviceClass *>(klass);
 
     pd->vendor_id = 0x1095;
@@ -331,16 +331,5 @@ void SiI3112PCIState::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo sii3112_pci_info = {
-    .name = TYPE_SII3112_PCI,
-    .parent = TYPE_PCI_IDE,
-    .instance_size = sizeof(SiI3112PCIState),
-    .class_init = SiI3112PCIState::classInit,
-};
-
-static void sii3112_register_types(void)
-{
-    type_register_static(&sii3112_pci_info);
-}
-
-type_init(sii3112_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SiI3112PCIState, TYPE_SII3112_PCI, TYPE_PCI_IDE)

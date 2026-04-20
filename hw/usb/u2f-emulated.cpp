@@ -112,7 +112,7 @@ struct U2FEmulatedState {
     static ssize_t readFile(const char *path, char *buffer, size_t buffer_len);
     static bool setupCounter(const char *path, struct synced_counter *counter);
     static void eventHandler(EventNotifier *notifier);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_U2F_EMULATED "u2f-emulated"
@@ -408,9 +408,9 @@ static const Property u2f_emulated_properties[] = {
     DEFINE_PROP_STRING("counter", U2FEmulatedState, counter),
 };
 
-void U2FEmulatedState::classInit(ObjectClass *klass, const void *data)
+void U2FEmulatedState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     U2FKeyClass *kc = reinterpret_cast<U2FKeyClass *>(klass);
 
     kc->realize = u2f_emulated_realize;
@@ -420,16 +420,5 @@ void U2FEmulatedState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, u2f_emulated_properties);
 }
 
-static const TypeInfo u2f_key_emulated_info = {
-    .name = TYPE_U2F_EMULATED,
-    .parent = TYPE_U2F_KEY,
-    .instance_size = sizeof(U2FEmulatedState),
-    .class_init = U2FEmulatedState::classInit
-};
-
-static void u2f_key_emulated_register_types(void)
-{
-    type_register_static(&u2f_key_emulated_info);
-}
-
-type_init(u2f_key_emulated_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(U2FEmulatedState, TYPE_U2F_EMULATED, TYPE_U2F_KEY)
