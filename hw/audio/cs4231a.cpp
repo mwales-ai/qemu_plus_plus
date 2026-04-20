@@ -100,13 +100,9 @@ struct CSState {
     static int postLoad(void *opaque, int version_id);
 
     void reset();
-    static void resetWrapper(DeviceState *dev);
-
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-
-    static void initfn(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 #define MODE2 (1 << 6)
@@ -241,12 +237,6 @@ static const int16_t ALawDecompressTable[256] =
       688,   656,   752,   720,   560,   528,   624,   592,
       944,   912,  1008,   976,   816,   784,   880,   848
 };
-
-void CSState::resetWrapper(DeviceState *dev)
-{
-    CSState *s = CS4231A(dev);
-    s->reset();
-}
 
 void CSState::reset()
 {
@@ -687,18 +677,10 @@ static void __attribute__((constructor)) init_cs_ioport_ops(void)
     cs_ioport_ops.impl.max_access_size = 1;
 }
 
-void CSState::initfn(Object *obj)
+void CSState::init()
 {
-    CSState *s = CS4231A (obj);
-
-    memory_region_init_io (&s->ioports, OBJECT(s), &cs_ioport_ops, s,
-                           "cs4231a", 4);
-}
-
-void CSState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    CSState *s = CS4231A(dev);
-    s->realize(errp);
+    memory_region_init_io(&ioports, OBJECT(this), &cs_ioport_ops, this,
+                          "cs4231a", 4);
 }
 
 void CSState::realize(Error **errp)
@@ -735,30 +717,18 @@ static const Property cs4231a_properties[] = {
     DEFINE_PROP_UINT32 ("dma",     CSState, dma,  3),
 };
 
-void CSState::classInit(ObjectClass *klass, const void *data)
+void CSState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS (klass);
-
-    dc->realize = CSState::realizeWrapper;
-    device_class_set_legacy_reset(dc, CSState::resetWrapper);
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Crystal Semiconductor CS4231A";
     dc->vmsd = &vmstate_cs4231a;
     device_class_set_props(dc, cs4231a_properties);
 }
 
-static const TypeInfo cs4231a_info = {
-    .name          = TYPE_CS4231A,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof (CSState),
-    .instance_init = CSState::initfn,
-    .class_init    = CSState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(CSState, TYPE_CS4231A, TYPE_ISA_DEVICE)
 
-static void cs4231a_register_types (void)
+static void __attribute__((constructor)) cs4231a_audio_init(void)
 {
-    type_register_static (&cs4231a_info);
     audio_register_model("cs4231a", "CS4231A", TYPE_CS4231A);
 }
-
-type_init (cs4231a_register_types)
