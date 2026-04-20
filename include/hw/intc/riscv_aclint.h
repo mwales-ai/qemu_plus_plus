@@ -55,7 +55,7 @@ typedef struct RISCVAclintMTimerState {
     uint64_t mmioRead(hwaddr addr, unsigned size);
     void mmioWrite(hwaddr addr, uint64_t value, unsigned size);
     void writeTimecmp(void *cpu, int hartid, uint64_t value);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 } RISCVAclintMTimerState;
 
@@ -85,7 +85,7 @@ typedef struct RISCVAclintSwiState {
     void resetEnter(ResetType type);
     uint64_t mmioRead(hwaddr addr, unsigned size);
     void mmioWrite(hwaddr addr, uint64_t value, unsigned size);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 } RISCVAclintSwiState;
 

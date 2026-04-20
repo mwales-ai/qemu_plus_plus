@@ -319,11 +319,6 @@ void RISCVAclintMTimerState::realize(Error **errp)
     }
 }
 
-static void riscv_aclint_mtimer_realize(DeviceState *dev, Error **errp)
-{
-    reinterpret_cast<RISCVAclintMTimerState *>(dev)->realize(errp);
-}
-
 void RISCVAclintMTimerState::resetEnter(ResetType type)
 {
     /*
@@ -361,22 +356,17 @@ static const VMStateDescription vmstate_riscv_mtimer = {
     .fields = vmstate_riscv_mtimer_fields,
 };
 
-void RISCVAclintMTimerState::classInit(ObjectClass *klass, const void *data)
+void RISCVAclintMTimerState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    dc->realize = riscv_aclint_mtimer_realize;
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     device_class_set_props(dc, riscv_aclint_mtimer_properties);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
     rc->phases.enter = riscv_aclint_mtimer_reset_enter;
     dc->vmsd = &vmstate_riscv_mtimer;
 }
 
-static const TypeInfo riscv_aclint_mtimer_info = {
-    .name          = TYPE_RISCV_ACLINT_MTIMER,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVAclintMTimerState),
-    .class_init    = RISCVAclintMTimerState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RISCVAclintMTimerState, TYPE_RISCV_ACLINT_MTIMER, TYPE_SYS_BUS_DEVICE)
 
 /*
  * Create ACLINT MTIMER device.
@@ -537,10 +527,6 @@ void RISCVAclintSwiState::realize(Error **errp)
     }
 }
 
-static void riscv_aclint_swi_realize(DeviceState *dev, Error **errp)
-{
-    reinterpret_cast<RISCVAclintSwiState *>(dev)->realize(errp);
-}
 
 void RISCVAclintSwiState::resetEnter(ResetType type)
 {
@@ -565,21 +551,15 @@ static void riscv_aclint_swi_reset_enter(Object *obj, ResetType type)
     reinterpret_cast<RISCVAclintSwiState *>(obj)->resetEnter(type);
 }
 
-void RISCVAclintSwiState::classInit(ObjectClass *klass, const void *data)
+void RISCVAclintSwiState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-    dc->realize = riscv_aclint_swi_realize;
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     device_class_set_props(dc, riscv_aclint_swi_properties);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
     rc->phases.enter = riscv_aclint_swi_reset_enter;
 }
 
-static const TypeInfo riscv_aclint_swi_info = {
-    .name          = TYPE_RISCV_ACLINT_SWI,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RISCVAclintSwiState),
-    .class_init    = RISCVAclintSwiState::classInit,
-};
+REGISTER_QEMU_DEVICE(RISCVAclintSwiState, TYPE_RISCV_ACLINT_SWI, TYPE_SYS_BUS_DEVICE)
 
 /*
  * Create ACLINT [M|S]SWI device.
@@ -615,10 +595,3 @@ DeviceState *riscv_aclint_swi_create(hwaddr addr, uint32_t hartid_base,
     return dev;
 }
 
-static void riscv_aclint_register_types(void)
-{
-    type_register_static(&riscv_aclint_mtimer_info);
-    type_register_static(&riscv_aclint_swi_info);
-}
-
-type_init(riscv_aclint_register_types)

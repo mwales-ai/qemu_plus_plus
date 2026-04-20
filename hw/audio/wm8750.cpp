@@ -68,10 +68,10 @@ struct WM8750State {
     static int preSave(void *opaque);
     static int postLoad(void *opaque, int version_id);
 
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     static void realizeWrapper(DeviceState *dev, Error **errp);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* pow(10.0, -i / 20.0) * 255, i = 0..42 */
@@ -640,10 +640,10 @@ static const VMStateDescription vmstate_wm8750 = {
 void WM8750State::realizeWrapper(DeviceState *dev, Error **errp)
 {
     WM8750State *s = WM8750(dev);
-    s->realize(errp);
+    s->doRealize(errp);
 }
 
-void WM8750State::realize(Error **errp)
+void WM8750State::doRealize(Error **errp)
 {
     if (!AUD_backend_check(&audio_be, errp)) {
         return;
@@ -730,9 +730,9 @@ static const Property wm8750_properties[] = {
     DEFINE_AUDIO_PROPERTIES(WM8750State, audio_be),
 };
 
-void WM8750State::classInit(ObjectClass *klass, const void *data)
+void WM8750State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *sc = reinterpret_cast<I2CSlaveClass *>(klass);
 
     dc->realize = WM8750State::realizeWrapper;
@@ -743,16 +743,5 @@ void WM8750State::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, wm8750_properties);
 }
 
-static const TypeInfo wm8750_info = {
-    .name          = TYPE_WM8750,
-    .parent        = TYPE_I2C_SLAVE,
-    .instance_size = sizeof(WM8750State),
-    .class_init    = WM8750State::classInit,
-};
-
-static void wm8750_register_types(void)
-{
-    type_register_static(&wm8750_info);
-}
-
-type_init(wm8750_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(WM8750State, TYPE_WM8750, TYPE_I2C_SLAVE)
