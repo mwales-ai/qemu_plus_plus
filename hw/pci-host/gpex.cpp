@@ -159,21 +159,9 @@ void GPEXHost::realize(Error **errp)
     qdev_realize(reinterpret_cast<DeviceState *>(&s->gpex_root), reinterpret_cast<BusState *>(pci->bus), &error_fatal);
 }
 
-static void gpex_host_realize(DeviceState *dev, Error **errp)
-{
-    GPEXHost *s = reinterpret_cast<GPEXHost *>(dev);
-    s->realize(errp);
-}
-
 void GPEXHost::unrealize()
 {
     g_free(irq);
-}
-
-static void gpex_host_unrealize(DeviceState *dev)
-{
-    GPEXHost *s = reinterpret_cast<GPEXHost *>(dev);
-    s->unrealize();
 }
 
 const char *GPEXHost::rootBusPath(PCIHostState *host_bridge,
@@ -204,36 +192,33 @@ static const Property gpex_host_properties[] = {
     DEFINE_PROP_UINT8("num-irqs", GPEXHost, num_irqs, PCI_NUM_PINS),
 };
 
-void GPEXHost::classInit(ObjectClass *klass, const void *data)
-    {
-        DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-        PCIHostBridgeClass *hc = reinterpret_cast<PCIHostBridgeClass *>(klass);
-
-        hc->root_bus_path = GPEXHost::rootBusPath;
-        dc->realize = gpex_host_realize;
-        dc->unrealize = gpex_host_unrealize;
-        set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-        dc->fw_name = "pci";
-        device_class_set_props(dc, gpex_host_properties);
+static void gpex_host_unrealize(DeviceState *dev)
+{
+    GPEXHost *s = reinterpret_cast<GPEXHost *>(dev);
+    s->unrealize();
 }
 
-void GPEXHost::initfn(Object *obj)
+void GPEXHost::classInit(DeviceClass *dc)
 {
-    GPEXHost *s = reinterpret_cast<GPEXHost *>(obj);
-    GPEXRootState *root = &s->gpex_root;
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    PCIHostBridgeClass *hc = reinterpret_cast<PCIHostBridgeClass *>(klass);
+
+    hc->root_bus_path = GPEXHost::rootBusPath;
+    dc->unrealize = gpex_host_unrealize;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+    dc->fw_name = "pci";
+    device_class_set_props(dc, gpex_host_properties);
+}
+
+void GPEXHost::init()
+{
+    GPEXRootState *root = &gpex_root;
+    Object *obj = reinterpret_cast<Object *>(this);
 
     object_initialize_child(obj, "gpex_root", root, TYPE_GPEX_ROOT_DEVICE);
     qdev_prop_set_int32(reinterpret_cast<DeviceState *>(root), "addr", PCI_DEVFN(0, 0));
     qdev_prop_set_bit(reinterpret_cast<DeviceState *>(root), "multifunction", false);
 }
-
-static const TypeInfo gpex_host_info = {
-    .name       = TYPE_GPEX_HOST,
-    .parent     = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(GPEXHost),
-    .instance_init = GPEXHost::initfn,
-    .class_init = GPEXHost::classInit,
-};
 
 /****************************************************************************
  * GPEX Root D0:F0
@@ -249,7 +234,7 @@ static const VMStateDescription vmstate_gpex_root = {
     }
 };
 
-void GPEXRootState::classInit(ObjectClass *klass, const void *data)
+static void gpex_root_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
@@ -268,21 +253,22 @@ void GPEXRootState::classInit(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-static const TypeInfo gpex_root_info = {
-    .name = TYPE_GPEX_ROOT_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(GPEXRootState),
-    .class_init = GPEXRootState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo gpex_root_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void gpex_register(void)
+static void __attribute__((constructor)) register_gpex_root(void)
 {
+    static TypeInfo gpex_root_info = {
+        .name = TYPE_GPEX_ROOT_DEVICE,
+        .parent = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(GPEXRootState),
+        .class_init = gpex_root_class_init,
+        .interfaces = gpex_root_interfaces,
+    };
     type_register_static(&gpex_root_info);
-    type_register_static(&gpex_host_info);
 }
 
-type_init(gpex_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(GPEXHost, TYPE_GPEX_HOST, TYPE_PCIE_HOST_BRIDGE)

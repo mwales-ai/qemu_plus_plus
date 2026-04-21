@@ -165,9 +165,10 @@ void Q35PCIHost::realize(DeviceState *dev, Error **errp)
     qdev_realize(reinterpret_cast<DeviceState *>(&mch), reinterpret_cast<BusState *>(pci->bus), &error_fatal);
 }
 
-void Q35PCIHost::initInstance(Object *obj)
+void Q35PCIHost::init()
 {
-    Q35PCIHost *s = reinterpret_cast<Q35PCIHost *>(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
+    Q35PCIHost *s = this;
     PCIHostState *phb = reinterpret_cast<PCIHostState *>(obj);
     PCIExpressHost *pehb = reinterpret_cast<PCIExpressHost *>(obj);
 
@@ -252,14 +253,9 @@ static const char *q35_host_root_bus_path(PCIHostState *host_bridge,
     return reinterpret_cast<Q35PCIHost *>(host_bridge)->rootBusPath(rootbus);
 }
 
-static void q35_host_initfn(Object *obj)
+void Q35PCIHost::classInit(DeviceClass *dc)
 {
-    reinterpret_cast<Q35PCIHost *>(obj)->initInstance(obj);
-}
-
-void Q35PCIHost::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIHostBridgeClass *hc = reinterpret_cast<PCIHostBridgeClass *>(klass);
 
     hc->root_bus_path = q35_host_root_bus_path;
@@ -270,14 +266,6 @@ void Q35PCIHost::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->fw_name = "pci";
 }
-
-static const TypeInfo q35_host_info = {
-    .name       = TYPE_Q35_HOST_DEVICE,
-    .parent     = TYPE_PCIE_HOST_BRIDGE,
-    .instance_size = sizeof(Q35PCIHost),
-    .instance_init = q35_host_initfn,
-    .class_init = Q35PCIHost::classInit,
-};
 
 /****************************************************************************
  * MCH D0:F0
@@ -699,7 +687,7 @@ static void mch_realize(PCIDevice *d, Error **errp)
     reinterpret_cast<MCHPCIState *>(d)->realize(d, errp);
 }
 
-void MCHPCIState::classInit(ObjectClass *klass, const void *data)
+static void mch_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
     DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
@@ -735,18 +723,17 @@ static const InterfaceInfo mch_interfaces[] = {
     { },
 };
 
-static const TypeInfo mch_info = {
-    .name = TYPE_MCH_PCI_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(MCHPCIState),
-    .class_init = MCHPCIState::classInit,
-    .interfaces = mch_interfaces,
-};
-
-static void q35_register(void)
+static void __attribute__((constructor)) register_mch_type(void)
 {
+    static TypeInfo mch_info = {
+        .name = TYPE_MCH_PCI_DEVICE,
+        .parent = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(MCHPCIState),
+        .class_init = mch_class_init,
+        .interfaces = mch_interfaces,
+    };
     type_register_static(&mch_info);
-    type_register_static(&q35_host_info);
 }
 
-type_init(q35_register);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Q35PCIHost, TYPE_Q35_HOST_DEVICE, TYPE_PCIE_HOST_BRIDGE)

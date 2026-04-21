@@ -63,8 +63,7 @@ struct ArticiaState {
     static int bus0MapIrq(PCIDevice *pdev, int pin);
 
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 uint64_t ArticiaState::gpioRead(void *opaque, hwaddr addr, unsigned int size)
@@ -223,17 +222,8 @@ void ArticiaState::realize(Error **errp)
     qdev_init_gpio_out(dev, irq, ARRAY_SIZE(irq));
 }
 
-void ArticiaState::realizeWrapper(DeviceState *dev, Error **errp)
+void ArticiaState::classInit(DeviceClass *dc)
 {
-    ArticiaState *s = reinterpret_cast<ArticiaState *>(dev);
-    s->realize(errp);
-}
-
-void ArticiaState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
@@ -305,27 +295,25 @@ static const InterfaceInfo articia_pci_bridge_interfaces[] = {
     { },
 };
 
-static const TypeInfo articia_types[] = {
-    {
-        .name          = TYPE_ARTICIA,
-        .parent        = TYPE_PCI_HOST_BRIDGE,
-        .instance_size = sizeof(ArticiaState),
-        .class_init    = ArticiaState::classInit,
-    },
-    {
+static void __attribute__((constructor)) register_articia_extra_types(void)
+{
+    static TypeInfo articia_pci_host_info = {
         .name          = TYPE_ARTICIA_PCI_HOST,
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(ArticiaHostState),
         .class_init    = ArticiaHostState::pciHostClassInit,
         .interfaces    = articia_pci_host_interfaces,
-    },
-    {
+    };
+    static TypeInfo articia_pci_bridge_info = {
         .name          = TYPE_ARTICIA_PCI_BRIDGE,
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(PCIDevice),
         .class_init    = ArticiaHostState::pciBridgeClassInit,
         .interfaces    = articia_pci_bridge_interfaces,
-    },
-};
+    };
+    type_register_static(&articia_pci_host_info);
+    type_register_static(&articia_pci_bridge_info);
+}
 
-DEFINE_TYPES(articia_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ArticiaState, TYPE_ARTICIA, TYPE_PCI_HOST_BRIDGE)

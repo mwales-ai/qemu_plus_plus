@@ -42,7 +42,7 @@ struct GPEXRootState {
     /*< public >*/
 
 #ifdef __cplusplus
-    static void classInit(ObjectClass *klass, const void *data);
+    /* classInit moved to file-local static function */
 #endif
 };
 
@@ -83,9 +83,9 @@ struct GPEXHost {
     static void setIrq(void *opaque, int irq_num, int level);
     static PCIINTxRoute routeIntxPinToIrq(void *opaque, int pin);
     static int swizzleMapIrqFn(PCIDevice *pci_dev, int pin);
+    void init();
     static const char *rootBusPath(PCIHostState *host_bridge, PCIBus *rootbus);
-    static void initfn(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

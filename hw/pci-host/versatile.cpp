@@ -105,11 +105,9 @@ struct PCIVPBState {
 
     /* methods */
     void reset();
-    static void resetWrapper(DeviceState *d);
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
     static void realviewInit(Object *obj);
     static void hostClassInit(ObjectClass *klass, const void *data);
 };
@@ -377,11 +375,6 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-void PCIVPBState::resetWrapper(DeviceState *d)
-{
-    reinterpret_cast<PCIVPBState *>(d)->reset();
-}
-
 void PCIVPBState::reset()
 {
     PCIVPBState *s = this;
@@ -399,19 +392,12 @@ void PCIVPBState::reset()
     pci_vpb_update_all_windows(s);
 }
 
-void PCIVPBState::instanceInit(Object *obj)
+void PCIVPBState::init()
 {
-    PCIVPBState *s = reinterpret_cast<PCIVPBState *>(obj);
-
     /* Window sizes for VersatilePB; realview_pci's init will override */
-    s->mem_win_size[0] = 0x0c000000;
-    s->mem_win_size[1] = 0x10000000;
-    s->mem_win_size[2] = 0x10000000;
-}
-
-void PCIVPBState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    reinterpret_cast<PCIVPBState *>(dev)->realize(errp);
+    mem_win_size[0] = 0x0c000000;
+    mem_win_size[1] = 0x10000000;
+    mem_win_size[2] = 0x10000000;
 }
 
 void PCIVPBState::realize(Error **errp)
@@ -513,36 +499,16 @@ static const InterfaceInfo versatile_pci_host_interfaces[] = {
     { },
 };
 
-static const TypeInfo versatile_pci_host_info = {
-    .name          = TYPE_VERSATILE_PCI_HOST,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init    = PCIVPBState::hostClassInit,
-    .interfaces = versatile_pci_host_interfaces,
-};
-
 static const Property pci_vpb_properties[] = {
     DEFINE_PROP_UINT8("broken-irq-mapping", PCIVPBState, irq_mapping_prop,
                       PCI_VPB_IRQMAP_ASSUME_OK),
 };
 
-void PCIVPBState::classInit(ObjectClass *klass, const void *data)
+void PCIVPBState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = PCIVPBState::realizeWrapper;
-    device_class_set_legacy_reset(dc, PCIVPBState::resetWrapper);
     dc->vmsd = &pci_vpb_vmstate;
     device_class_set_props(dc, pci_vpb_properties);
 }
-
-static const TypeInfo pci_vpb_info = {
-    .name          = TYPE_VERSATILE_PCI,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(PCIVPBState),
-    .instance_init = PCIVPBState::instanceInit,
-    .class_init    = PCIVPBState::classInit,
-};
 
 void PCIVPBState::realviewInit(Object *obj)
 {
@@ -555,17 +521,23 @@ void PCIVPBState::realviewInit(Object *obj)
     s->mem_win_size[2] = 0x08000000;
 }
 
-static const TypeInfo pci_realview_info = {
-    .name          = "realview_pci",
-    .parent        = TYPE_VERSATILE_PCI,
-    .instance_init = PCIVPBState::realviewInit,
-};
-
-static void versatile_pci_register_types(void)
+static void __attribute__((constructor)) register_versatile_extra_types(void)
 {
-    type_register_static(&pci_vpb_info);
+    static TypeInfo pci_realview_info = {
+        .name          = "realview_pci",
+        .parent        = TYPE_VERSATILE_PCI,
+        .instance_init = PCIVPBState::realviewInit,
+    };
+    static TypeInfo versatile_pci_host = {
+        .name          = TYPE_VERSATILE_PCI_HOST,
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(PCIDevice),
+        .class_init    = PCIVPBState::hostClassInit,
+        .interfaces    = versatile_pci_host_interfaces,
+    };
     type_register_static(&pci_realview_info);
-    type_register_static(&versatile_pci_host_info);
+    type_register_static(&versatile_pci_host);
 }
 
-type_init(versatile_pci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PCIVPBState, TYPE_VERSATILE_PCI, TYPE_PCI_HOST_BRIDGE)

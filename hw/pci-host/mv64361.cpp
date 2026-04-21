@@ -69,13 +69,17 @@ static const InterfaceInfo mv64361_pcibridge_interfaces[] = {
     { },
 };
 
-static const TypeInfo mv64361_pcibridge_info = {
-    .name          = TYPE_MV64361_PCI_BRIDGE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init    = MV64361PCIState::pciBridgeClassInit,
-    .interfaces    = mv64361_pcibridge_interfaces,
-};
+static void __attribute__((constructor)) register_mv64361_pcibridge_type(void)
+{
+    static TypeInfo mv64361_pcibridge_info = {
+        .name          = TYPE_MV64361_PCI_BRIDGE,
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(PCIDevice),
+        .class_init    = MV64361PCIState::pciBridgeClassInit,
+        .interfaces    = mv64361_pcibridge_interfaces,
+    };
+    type_register_static(&mv64361_pcibridge_info);
+}
 
 void MV64361PCIState::setIrq(void *opaque, int n, int level)
 {
@@ -117,20 +121,16 @@ void MV64361PCIState::hostClassInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
-static const TypeInfo mv64361_pcihost_info = {
-       .name          = TYPE_MV64361_PCI,
-       .parent        = TYPE_PCI_HOST_BRIDGE,
-       .instance_size = sizeof(MV64361PCIState),
-       .class_init    = MV64361PCIState::hostClassInit,
-};
-
-static void mv64361_pci_register_types(void)
+static void __attribute__((constructor)) register_mv64361_pcihost_type(void)
 {
-   type_register_static(&mv64361_pcihost_info);
-   type_register_static(&mv64361_pcibridge_info);
+    static TypeInfo mv64361_pcihost_info = {
+        .name          = TYPE_MV64361_PCI,
+        .parent        = TYPE_PCI_HOST_BRIDGE,
+        .instance_size = sizeof(MV64361PCIState),
+        .class_init    = MV64361PCIState::hostClassInit,
+    };
+    type_register_static(&mv64361_pcihost_info);
 }
-
-type_init(mv64361_pci_register_types)
 
 
 OBJECT_DECLARE_SIMPLE_TYPE(MV64361State, MV64361)
@@ -171,7 +171,7 @@ struct MV64361State {
     static void gppIrq(void *opaque, int n, int level);
     static void realize(DeviceState *dev, Error **errp);
     static void reset(DeviceState *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 enum mv64361_irq_cause {
@@ -945,24 +945,11 @@ void MV64361State::reset(DeviceState *dev)
     MV64361State::setMemWindows(s,0xfbfff);
 }
 
-void MV64361State::classInit(ObjectClass *klass, const void *data)
+void MV64361State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->realize = MV64361State::realize;
     device_class_set_legacy_reset(dc, MV64361State::reset);
 }
 
-static const TypeInfo mv64361_type_info = {
-    .name = TYPE_MV64361,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MV64361State),
-    .class_init = MV64361State::classInit,
-};
-
-static void mv64361_register_types(void)
-{
-    type_register_static(&mv64361_type_info);
-}
-
-type_init(mv64361_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MV64361State, TYPE_MV64361, TYPE_SYS_BUS_DEVICE)

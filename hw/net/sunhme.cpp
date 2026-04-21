@@ -190,8 +190,8 @@ struct SunHMEState {
     void transmitFrame(uint8_t *buf, int size);
     void miiWrite(uint8_t reg, uint16_t data);
     uint16_t miiRead(uint8_t reg);
-    void doReset();
-    void instanceInit();
+    void reset();
+    void init();
     void realize(PCIDevice *pci_dev, Error **errp);
 
     inline int getTxRingCount();
@@ -217,7 +217,7 @@ struct SunHMEState {
     static void linkStatusChanged(NetClientState *nc);
     static ssize_t receive(NetClientState *nc, const uint8_t *buf, size_t size);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const Property sunhme_properties[] = {
@@ -932,13 +932,7 @@ static void sunhme_realize(PCIDevice *pci_dev, Error **errp)
     s->realize(pci_dev, errp);
 }
 
-static void sunhme_instance_init(Object *obj)
-{
-    SunHMEState *s = sunhme_from_obj(obj);
-    s->instanceInit();
-}
-
-void SunHMEState::instanceInit()
+void SunHMEState::init()
 {
     device_add_bootindex_property(reinterpret_cast<Object *>(this),
                                   &conf.bootindex, "bootindex",
@@ -946,7 +940,7 @@ void SunHMEState::instanceInit()
                                   reinterpret_cast<DeviceState *>(this));
 }
 
-void SunHMEState::doReset()
+void SunHMEState::reset()
 {
     /* Configure internal transceiver */
     mifregs[HME_MIFI_CFG >> 2] |= HME_MIF_CFG_MDI0;
@@ -970,12 +964,6 @@ void SunHMEState::doReset()
     sebregs[HME_SEBI_IMASK >> 2] = 0xff7fffff;
 }
 
-static void sunhme_reset(DeviceState *ds)
-{
-    SunHMEState *s = sunhme_from_obj(ds);
-    s->doReset();
-}
-
 static const VMStateDescription vmstate_hme = {
     .name = "sunhme",
     .version_id = 0,
@@ -993,9 +981,9 @@ static const VMStateDescription vmstate_hme = {
     }
 };
 
-void SunHMEState::classInit(ObjectClass *klass, const void *data)
+void SunHMEState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = sunhme_realize;
@@ -1003,26 +991,15 @@ void SunHMEState::classInit(ObjectClass *klass, const void *data)
     k->device_id = PCI_DEVICE_ID_SUN_HME;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     dc->vmsd = &vmstate_hme;
-    device_class_set_legacy_reset(dc, sunhme_reset);
     device_class_set_props(dc, sunhme_properties);
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
-static const TypeInfo sunhme_info = {
-    .name          = TYPE_SUNHME,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(SunHMEState),
-    .instance_init = sunhme_instance_init,
-    .class_init    = SunHMEState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { }
-    }
+static const InterfaceInfo sunhme_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void sunhme_register_types(void)
-{
-    type_register_static(&sunhme_info);
-}
-
-type_init(sunhme_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(SunHMEState, TYPE_SUNHME, TYPE_PCI_DEVICE,
+                             sunhme_interfaces)

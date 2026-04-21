@@ -79,10 +79,8 @@ struct PREPPCIState {
     static void changeGpio(void *opaque, int n, int level);
 
     void realize(Error **errp);
-    static void realizeFnWrapper(DeviceState *d, Error **errp);
-    void initfn(Object *obj);
-    static void initfnWrapper(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
     static void ravenPciClassInit(ObjectClass *klass, const void *data);
 };
 
@@ -288,14 +286,9 @@ void PREPPCIState::realize(Error **errp)
     pci_setup_iommu(h->bus, &raven_iommu_ops, this);
 }
 
-void PREPPCIState::realizeFnWrapper(DeviceState *d, Error **errp)
+void PREPPCIState::init()
 {
-    PREPPCIState *s = reinterpret_cast<PREPPCIState *>(d);
-    s->realize(errp);
-}
-
-void PREPPCIState::initfn(Object *obj)
-{
+    Object *obj = reinterpret_cast<Object *>(this);
     MemoryRegion *address_space_mem = get_system_memory();
 
     memory_region_init(&pci_io, obj, "pci-io", 0x3f800000);
@@ -329,18 +322,9 @@ void PREPPCIState::initfn(Object *obj)
     memory_region_add_subregion(&bm, 0x80000000, &bm_ram_alias);
 }
 
-void PREPPCIState::initfnWrapper(Object *obj)
+void PREPPCIState::classInit(DeviceClass *dc)
 {
-    PREPPCIState *s = reinterpret_cast<PREPPCIState *>(obj);
-    s->initfn(obj);
-}
-
-void PREPPCIState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-    dc->realize = realizeFnWrapper;
     dc->fw_name = "pci";
 }
 
@@ -374,20 +358,16 @@ static const InterfaceInfo raven_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo raven_types[] = {
-    {
-        .name = TYPE_RAVEN_PCI_HOST_BRIDGE,
-        .parent = TYPE_PCI_HOST_BRIDGE,
-        .instance_size = sizeof(PREPPCIState),
-        .instance_init = PREPPCIState::initfnWrapper,
-        .class_init = PREPPCIState::classInit,
-    },
-    {
+static void __attribute__((constructor)) register_raven_pci_type(void)
+{
+    static TypeInfo raven_pci_info = {
         .name = TYPE_RAVEN_PCI_DEVICE,
         .parent = TYPE_PCI_DEVICE,
         .class_init = PREPPCIState::ravenPciClassInit,
         .interfaces = raven_pci_interfaces,
-    },
-};
+    };
+    type_register_static(&raven_pci_info);
+}
 
-DEFINE_TYPES(raven_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PREPPCIState, TYPE_RAVEN_PCI_HOST_BRIDGE, TYPE_PCI_HOST_BRIDGE)
