@@ -58,10 +58,9 @@ typedef struct PCIDivaSerialState {
     static void pciExit(PCIDevice *dev);
     static void irqMux(void *opaque, int n, int level);
     static struct diva_info getDivaInfo(PCIDeviceClass *pc);
-    void realize(Error **errp);
-    static void realizeWrapper(PCIDevice *dev, Error **errp);
-    static void instanceInit(Object *o);
-    static void classInit(ObjectClass *klass, const void *data);
+    void doRealize(Error **errp);
+    void init();
+    static void classInit(DeviceClass *dc);
 } PCIDivaSerialState;
 
 struct diva_info {
@@ -124,7 +123,7 @@ struct diva_info PCIDivaSerialState::getDivaInfo(PCIDeviceClass *pc)
 }
 
 
-void PCIDivaSerialState::realize(Error **errp)
+void PCIDivaSerialState::doRealize(Error **errp)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(&dev);
     SerialState *s;
@@ -166,10 +165,10 @@ void PCIDivaSerialState::realize(Error **errp)
                      PCI_BASE_ADDRESS_MEM_PREFETCH, &mailboxbar);
 }
 
-void PCIDivaSerialState::realizeWrapper(PCIDevice *dev, Error **errp)
+static void pci_diva_serial_realize(PCIDevice *dev, Error **errp)
 {
     PCIDivaSerialState *pci = DO_UPCAST(PCIDivaSerialState, dev, dev);
-    pci->realize(errp);
+    pci->doRealize(errp);
 }
 
 static const VMStateDescription vmstate_pci_diva = {
@@ -196,11 +195,11 @@ static const Property diva_serial_properties[] = {
                                     PCI_DEVICE_ID_HP_DIVA_TOSCA1),
 };
 
-void PCIDivaSerialState::classInit(ObjectClass *klass, const void *data)
+void PCIDivaSerialState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
-    pc->realize = realizeWrapper;
+    pc->realize = pci_diva_serial_realize;
     pc->exit = pciExit;
     pc->vendor_id = PCI_VENDOR_ID_HP;
     pc->device_id = PCI_DEVICE_ID_HP_DIVA;
@@ -213,15 +212,15 @@ void PCIDivaSerialState::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-void PCIDivaSerialState::instanceInit(Object *o)
+void PCIDivaSerialState::init()
 {
-    PCIDevice *dev = reinterpret_cast<PCIDevice *>(o);
-    PCIDivaSerialState *pms = DO_UPCAST(PCIDivaSerialState, dev, dev);
-    struct diva_info di = getDivaInfo(PCI_DEVICE_GET_CLASS(dev));
+    Object *o = reinterpret_cast<Object *>(this);
+    PCIDevice *pcidev = reinterpret_cast<PCIDevice *>(this);
+    struct diva_info di = getDivaInfo(PCI_DEVICE_GET_CLASS(pcidev));
     size_t i;
 
     for (i = 0; i < di.nports; i++) {
-        object_initialize_child(o, "serial[*]", &pms->state[i], TYPE_SERIAL);
+        object_initialize_child(o, "serial[*]", &state[i], TYPE_SERIAL);
     }
 }
 
@@ -233,17 +232,15 @@ struct DivaAuxState {
     MemoryRegion mem;
     qemu_irq irq;
 
-    void realize(Error **errp);
-    static void realizeWrapper(PCIDevice *dev, Error **errp);
+    void doRealize(Error **errp);
     static void exit(PCIDevice *dev);
-    static void instanceInit(Object *o);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_DIVA_AUX "diva-aux"
 OBJECT_DECLARE_SIMPLE_TYPE(DivaAuxState, DIVA_AUX)
 
-void DivaAuxState::realize(Error **errp)
+void DivaAuxState::doRealize(Error **errp)
 {
     dev.config[PCI_CLASS_PROG] = 0x02;
     dev.config[PCI_INTERRUPT_PIN] = 0x01;
@@ -253,10 +250,10 @@ void DivaAuxState::realize(Error **errp)
     pci_register_bar(&dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &mem);
 }
 
-void DivaAuxState::realizeWrapper(PCIDevice *dev, Error **errp)
+static void diva_aux_realize(PCIDevice *dev, Error **errp)
 {
     DivaAuxState *pci = DO_UPCAST(DivaAuxState, dev, dev);
-    pci->realize(errp);
+    pci->doRealize(errp);
 }
 
 void DivaAuxState::exit(PCIDevice *dev)
@@ -265,11 +262,11 @@ void DivaAuxState::exit(PCIDevice *dev)
     qemu_free_irq(pci->irq);
 }
 
-void DivaAuxState::classInit(ObjectClass *klass, const void *data)
+void DivaAuxState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
-    pc->realize = realizeWrapper;
+    pc->realize = diva_aux_realize;
     pc->exit = exit;
     pc->vendor_id = PCI_VENDOR_ID_HP;
     pc->device_id = PCI_DEVICE_ID_HP_DIVA_AUX;
@@ -281,40 +278,18 @@ void DivaAuxState::classInit(ObjectClass *klass, const void *data)
     dc->user_creatable = false;
 }
 
-void DivaAuxState::instanceInit(Object *o)
-{
-}
-
-static const TypeInfo diva_aux_info = {
-    .name          = TYPE_DIVA_AUX,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(DivaAuxState),
-    .instance_init = DivaAuxState::instanceInit,
-    .class_init    = DivaAuxState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo diva_aux_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-
-
-static const TypeInfo diva_serial_pci_info = {
-    .name          = "diva-gsp",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDivaSerialState),
-    .instance_init = PCIDivaSerialState::instanceInit,
-    .class_init    = PCIDivaSerialState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo diva_serial_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void diva_pci_register_type(void)
-{
-    type_register_static(&diva_serial_pci_info);
-    type_register_static(&diva_aux_info);
-}
-
-type_init(diva_pci_register_type)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(DivaAuxState, TYPE_DIVA_AUX, TYPE_PCI_DEVICE,
+                             diva_aux_interfaces)
+REGISTER_QEMU_DEVICE_IFACES(PCIDivaSerialState, "diva-gsp", TYPE_PCI_DEVICE,
+                             diva_serial_interfaces)

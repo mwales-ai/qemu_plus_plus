@@ -272,11 +272,11 @@ struct GT64120State {
     bool needsBswap() const;
     uint64_t pciDataRead(hwaddr addr, unsigned size);
     void pciDataWrite(hwaddr addr, uint64_t val, unsigned size);
-    void doReset();
-    void doRealize(Error **errp);
+    void reset();
+    void realize(Error **errp);
 
     static void pciClassInit(ObjectClass *klass, const void *data);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* Adjust range to avoid touching space which isn't mappable via PCI */
@@ -1067,13 +1067,7 @@ static const MemoryRegionOps gt64120_pci_data_ops = {
     },
 };
 
-static void gt64120_reset(DeviceState *dev)
-{
-    GT64120State *s = reinterpret_cast<GT64120State *>(dev);
-    s->doReset();
-}
-
-void GT64120State::doReset()
+void GT64120State::reset()
 {
     /* FIXME: Malta specific hw assumptions ahead */
 
@@ -1227,13 +1221,7 @@ void GT64120State::doReset()
     this->pciMapping();
 }
 
-static void gt64120_realize(DeviceState *dev, Error **errp)
-{
-    GT64120State *s = reinterpret_cast<GT64120State *>(dev);
-    s->doRealize(errp);
-}
-
-void GT64120State::doRealize(Error **errp)
+void GT64120State::realize(Error **errp)
 {
     PCIHostState *phb = reinterpret_cast<PCIHostState *>(this);
     DeviceState *dev = reinterpret_cast<DeviceState *>(this);
@@ -1332,33 +1320,23 @@ static const TypeInfo gt64120_pci_info = {
     },
 };
 
+static void __attribute__((constructor)) gt64120_pci_register_type(void)
+{
+    type_register_static(&gt64120_pci_info);
+}
+
 static const Property gt64120_properties[] = {
     DEFINE_PROP_BOOL("cpu-little-endian", GT64120State,
                      cpu_little_endian, false),
 };
 
-void GT64120State::classInit(ObjectClass *klass, const void *data)
+void GT64120State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     device_class_set_props(dc, gt64120_properties);
-    dc->realize = gt64120_realize;
-    device_class_set_legacy_reset(dc, gt64120_reset);
     dc->vmsd = &vmstate_gt64120;
 }
 
-static const TypeInfo gt64120_info = {
-    .name          = TYPE_GT64120_PCI_HOST_BRIDGE,
-    .parent        = TYPE_PCI_HOST_BRIDGE,
-    .instance_size = sizeof(GT64120State),
-    .class_init    = GT64120State::classInit,
-};
-
-static void gt64120_pci_register_types(void)
-{
-    type_register_static(&gt64120_info);
-    type_register_static(&gt64120_pci_info);
-}
-
-type_init(gt64120_pci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(GT64120State, TYPE_GT64120_PCI_HOST_BRIDGE,
+                      TYPE_PCI_HOST_BRIDGE)

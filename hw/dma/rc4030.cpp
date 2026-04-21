@@ -120,15 +120,12 @@ struct rc4030State {
                                       IOMMUAccessFlags flag, int iommu_idx);
 
     void reset();
-    static void resetWrapper(DeviceState *dev);
     static int postLoad(void *opaque, int version_id);
 
-    static void instanceInit(Object *obj);
+    void init();
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
     void unrealize();
-    static void unrealizeWrapper(DeviceState *dev);
-    static void classInit(ObjectClass *klass, const void *class_data);
+    static void classInit(DeviceClass *dc);
     static void iommuClassInit(ObjectClass *klass, const void *data);
 };
 
@@ -580,12 +577,6 @@ void rc4030State::reset()
     qemu_irq_lower(jazz_bus_irq);
 }
 
-void rc4030State::resetWrapper(DeviceState *dev)
-{
-    rc4030State *s = reinterpret_cast<rc4030State *>(dev);
-    s->reset();
-}
-
 int rc4030State::postLoad(void *opaque, int version_id)
 {
     rc4030State *s = static_cast<rc4030State *>(opaque);
@@ -689,19 +680,18 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
     return s;
 }
 
-void rc4030State::instanceInit(Object *obj)
+void rc4030State::init()
 {
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    rc4030State *s = reinterpret_cast<rc4030State *>(obj);
-    SysBusDevice *sysbus = reinterpret_cast<SysBusDevice *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sysbus = reinterpret_cast<SysBusDevice *>(this);
 
     qdev_init_gpio_in(dev, irqJazzRequest, 16);
 
-    sysbus_init_irq(sysbus, &s->timer_irq);
-    sysbus_init_irq(sysbus, &s->jazz_bus_irq);
+    sysbus_init_irq(sysbus, &timer_irq);
+    sysbus_init_irq(sysbus, &jazz_bus_irq);
 
-    sysbus_init_mmio(sysbus, &s->iomem_chipset);
-    sysbus_init_mmio(sysbus, &s->iomem_jazzio);
+    sysbus_init_mmio(sysbus, &iomem_chipset);
+    sysbus_init_mmio(sysbus, &iomem_jazzio);
 }
 
 void rc4030State::realize(Error **errp)
@@ -722,12 +712,6 @@ void rc4030State::realize(Error **errp)
     address_space_init(&dma_as, reinterpret_cast<MemoryRegion *>(&dma_mr), "rc4030-dma");
 }
 
-void rc4030State::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    rc4030State *s = reinterpret_cast<rc4030State *>(dev);
-    s->realize(errp);
-}
-
 void rc4030State::unrealize()
 {
     timer_free(periodic_timer);
@@ -736,29 +720,16 @@ void rc4030State::unrealize()
     object_unparent(reinterpret_cast<Object *>(&dma_mr));
 }
 
-void rc4030State::unrealizeWrapper(DeviceState *dev)
+static void rc4030_unrealize(DeviceState *dev)
 {
-    rc4030State *s = reinterpret_cast<rc4030State *>(dev);
-    s->unrealize();
+    reinterpret_cast<rc4030State *>(dev)->unrealize();
 }
 
-void rc4030State::classInit(ObjectClass *klass, const void *class_data)
+void rc4030State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = realizeWrapper;
-    dc->unrealize = unrealizeWrapper;
-    device_class_set_legacy_reset(dc, resetWrapper);
+    dc->unrealize = rc4030_unrealize;
     dc->vmsd = &vmstate_rc4030;
 }
-
-static const TypeInfo rc4030_info = {
-    .name = TYPE_RC4030,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(rc4030State),
-    .instance_init = rc4030State::instanceInit,
-    .class_init = rc4030State::classInit,
-};
 
 void rc4030State::iommuClassInit(ObjectClass *klass, const void *data)
 {
@@ -768,18 +739,18 @@ void rc4030State::iommuClassInit(ObjectClass *klass, const void *data)
 }
 
 static const TypeInfo rc4030_iommu_memory_region_info = {
-    .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_RC4030_IOMMU_MEMORY_REGION,
+    .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = rc4030State::iommuClassInit,
 };
 
-static void rc4030_register_types(void)
+static void __attribute__((constructor)) rc4030_register_iommu_type(void)
 {
-    type_register_static(&rc4030_info);
     type_register_static(&rc4030_iommu_memory_region_info);
 }
 
-type_init(rc4030_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(rc4030State, TYPE_RC4030, TYPE_SYS_BUS_DEVICE)
 
 DeviceState *rc4030_init(rc4030_dma **dmas, IOMMUMemoryRegion **dma_mr)
 {

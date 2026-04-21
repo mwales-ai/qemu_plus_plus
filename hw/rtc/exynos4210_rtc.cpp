@@ -119,7 +119,7 @@ struct Exynos4210RTCState {
     void checkAlarmRaise();
     void updateFreq(uint32_t reg_value);
     void reset();
-    void initfn();
+    void init();
     void finalize();
 
     /* helper methods */
@@ -133,11 +133,7 @@ struct Exynos4210RTCState {
     static void writeReg(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size);
 
-    /* static QOM wrappers */
-    static void resetWrapper(DeviceState *d);
-    static void initWrapper(Object *obj);
-    static void finalizeWrapper(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TICCKSEL(value) ((value & (0x0F << 4)) >> 4)
@@ -581,7 +577,7 @@ static const MemoryRegionOps exynos4210_rtc_ops = {
 /*
  * RTC timer initialization
  */
-void Exynos4210RTCState::initfn()
+void Exynos4210RTCState::init()
 {
     SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
@@ -612,45 +608,10 @@ void Exynos4210RTCState::finalize()
     ptimer_free(ptimer_1Hz);
 }
 
-/* static QOM wrappers */
-void Exynos4210RTCState::resetWrapper(DeviceState *d)
+void Exynos4210RTCState::classInit(DeviceClass *dc)
 {
-    Exynos4210RTCState *s = reinterpret_cast<Exynos4210RTCState *>(d);
-    s->reset();
-}
-
-void Exynos4210RTCState::initWrapper(Object *obj)
-{
-    Exynos4210RTCState *s = reinterpret_cast<Exynos4210RTCState *>(obj);
-    s->initfn();
-}
-
-void Exynos4210RTCState::finalizeWrapper(Object *obj)
-{
-    Exynos4210RTCState *s = reinterpret_cast<Exynos4210RTCState *>(obj);
-    s->finalize();
-}
-
-void Exynos4210RTCState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    device_class_set_legacy_reset(dc, Exynos4210RTCState::resetWrapper);
     dc->vmsd = &vmstate_exynos4210_rtc_state;
 }
 
-static const TypeInfo exynos4210_rtc_info = {
-    .name          = TYPE_EXYNOS4210_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210RTCState),
-    .instance_init = Exynos4210RTCState::initWrapper,
-    .instance_finalize = Exynos4210RTCState::finalizeWrapper,
-    .class_init    = Exynos4210RTCState::classInit,
-};
-
-static void exynos4210_rtc_register_types(void)
-{
-    type_register_static(&exynos4210_rtc_info);
-}
-
-type_init(exynos4210_rtc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210RTCState, TYPE_EXYNOS4210_RTC, TYPE_SYS_BUS_DEVICE)

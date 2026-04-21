@@ -309,12 +309,10 @@ struct Exynos4210MCTState {
     static void gfrcEvent(void *opaque);
     static uint64_t mctRead(void *opaque, hwaddr offset, unsigned size);
     static void mctWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
-    void instanceInit();
-    static void instanceInitWrapper(Object *obj);
-    static void instanceFinalize(Object *obj);
+    void init();
+    void finalize();
     void reset();
-    static void resetWrapper(DeviceState *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /*** VMState ***/
@@ -1561,7 +1559,7 @@ static const MemoryRegionOps exynos4210_mct_ops = {
 };
 
 /* MCT init */
-void Exynos4210MCTState::instanceInit()
+void Exynos4210MCTState::init()
 {
     int i;
     Object *obj = reinterpret_cast<Object *>(this);
@@ -1596,51 +1594,22 @@ void Exynos4210MCTState::instanceInit()
     sysbus_init_mmio(dev, &iomem);
 }
 
-void Exynos4210MCTState::instanceFinalize(Object *obj)
+void Exynos4210MCTState::finalize()
 {
     int i;
-    Exynos4210MCTState *s = reinterpret_cast<Exynos4210MCTState *>(obj);
 
-    ptimer_free(s->g_timer.ptimer_frc);
+    ptimer_free(g_timer.ptimer_frc);
 
     for (i = 0; i < 2; i++) {
-        ptimer_free(s->l_timer[i].tick_timer.ptimer_tick);
-        ptimer_free(s->l_timer[i].ptimer_frc);
+        ptimer_free(l_timer[i].tick_timer.ptimer_tick);
+        ptimer_free(l_timer[i].ptimer_frc);
     }
 }
 
-void Exynos4210MCTState::instanceInitWrapper(Object *obj)
+void Exynos4210MCTState::classInit(DeviceClass *dc)
 {
-    Exynos4210MCTState *s = reinterpret_cast<Exynos4210MCTState *>(obj);
-    s->instanceInit();
-}
-
-void Exynos4210MCTState::resetWrapper(DeviceState *dev)
-{
-    Exynos4210MCTState *s = reinterpret_cast<Exynos4210MCTState *>(dev);
-    s->reset();
-}
-
-void Exynos4210MCTState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, Exynos4210MCTState::resetWrapper);
     dc->vmsd = &vmstate_exynos4210_mct_state;
 }
 
-static const TypeInfo exynos4210_mct_info = {
-    .name          = TYPE_EXYNOS4210_MCT,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210MCTState),
-    .instance_init = Exynos4210MCTState::instanceInitWrapper,
-    .instance_finalize = Exynos4210MCTState::instanceFinalize,
-    .class_init    = Exynos4210MCTState::classInit,
-};
-
-static void exynos4210_mct_register_types(void)
-{
-    type_register_static(&exynos4210_mct_info);
-}
-
-type_init(exynos4210_mct_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210MCTState, TYPE_EXYNOS4210_MCT, TYPE_SYS_BUS_DEVICE)

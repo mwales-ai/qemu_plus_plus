@@ -130,7 +130,7 @@ struct Exynos4210PWMState {
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value,
                           unsigned size);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /*** VMState ***/
@@ -392,11 +392,6 @@ void Exynos4210PWMState::writeReg(hwaddr offset, uint64_t value,
 /*
  * Set default values to timer fields and registers
  */
-static void exynos4210_pwm_reset(DeviceState *d)
-{
-    Exynos4210PWMState *s = reinterpret_cast<Exynos4210PWMState *>(d);
-    s->reset();
-}
 
 void Exynos4210PWMState::reset()
 {
@@ -425,12 +420,6 @@ static const MemoryRegionOps exynos4210_pwm_ops = {
 /*
  * PWM timer initialization
  */
-static void exynos4210_pwm_init(Object *obj)
-{
-    Exynos4210PWMState *s = reinterpret_cast<Exynos4210PWMState *>(obj);
-    s->init();
-}
-
 void Exynos4210PWMState::init()
 {
     SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
@@ -450,12 +439,6 @@ void Exynos4210PWMState::init()
     sysbus_init_mmio(dev, &iomem);
 }
 
-static void exynos4210_pwm_finalize(Object *obj)
-{
-    Exynos4210PWMState *s = reinterpret_cast<Exynos4210PWMState *>(obj);
-    s->finalize();
-}
-
 void Exynos4210PWMState::finalize()
 {
     int i;
@@ -465,26 +448,10 @@ void Exynos4210PWMState::finalize()
     }
 }
 
-void Exynos4210PWMState::classInit(ObjectClass *klass, const void *data)
+void Exynos4210PWMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, exynos4210_pwm_reset);
     dc->vmsd = &vmstate_exynos4210_pwm_state;
 }
 
-static const TypeInfo exynos4210_pwm_info = {
-    .name          = TYPE_EXYNOS4210_PWM,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(Exynos4210PWMState),
-    .instance_init = exynos4210_pwm_init,
-    .instance_finalize = exynos4210_pwm_finalize,
-    .class_init    = Exynos4210PWMState::classInit,
-};
-
-static void exynos4210_pwm_register_types(void)
-{
-    type_register_static(&exynos4210_pwm_info);
-}
-
-type_init(exynos4210_pwm_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(Exynos4210PWMState, TYPE_EXYNOS4210_PWM, TYPE_SYS_BUS_DEVICE)

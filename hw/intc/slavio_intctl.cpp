@@ -76,8 +76,8 @@ struct SLAVIO_INTCTLState {
 
     /* methods */
     void checkInterrupts(int set_irqs);
-    void reset(DeviceState *d);
-    void instanceInit(Object *obj);
+    void reset();
+    void init();
 
     static void setIrq(void *opaque, int irq, int level);
     static void setTimerIrqCpu(void *opaque, int cpu, int level);
@@ -96,7 +96,7 @@ struct SLAVIO_INTCTLState {
     static bool getStatistics(InterruptStatsProvider *obj,
                               uint64_t **irq_counts, unsigned int *nb_irqs);
 #endif
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define INTCTL_MAXADDR 0xf
@@ -396,19 +396,18 @@ static const VMStateDescription vmstate_intctl = {
     }
 };
 
-void SLAVIO_INTCTLState::reset(DeviceState *d)
+void SLAVIO_INTCTLState::reset()
 {
-    SLAVIO_INTCTLState *s = reinterpret_cast<SLAVIO_INTCTLState *>(d);
     int i;
 
     for (i = 0; i < MAX_CPUS; i++) {
-        s->slaves[i].intreg_pending = 0;
-        s->slaves[i].irl_out = 0;
+        slaves[i].intreg_pending = 0;
+        slaves[i].irl_out = 0;
     }
-    s->intregm_disabled = ~MASTER_IRQ_MASK;
-    s->intregm_pending = 0;
-    s->target_cpu = 0;
-    s->checkInterrupts(0);
+    intregm_disabled = ~MASTER_IRQ_MASK;
+    intregm_pending = 0;
+    target_cpu = 0;
+    checkInterrupts(0);
 }
 
 #ifdef DEBUG_IRQ_COUNT
@@ -436,40 +435,39 @@ void SLAVIO_INTCTLState::printInfo(InterruptStatsProvider *obj, GString *buf)
                            s->intregm_pending, s->intregm_disabled);
 }
 
-void SLAVIO_INTCTLState::instanceInit(Object *obj)
+void SLAVIO_INTCTLState::init()
 {
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    SLAVIO_INTCTLState *s = reinterpret_cast<SLAVIO_INTCTLState *>(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
     unsigned int i, j;
     char slave_name[45];
 
     qdev_init_gpio_in(dev, setIrqAll, 32 + MAX_CPUS);
-    memory_region_init_io(&s->iomem, obj, &slavio_intctlm_mem_ops, s,
+    memory_region_init_io(&iomem, obj, &slavio_intctlm_mem_ops, this,
                           "master-interrupt-controller", INTCTLM_SIZE);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 
     for (i = 0; i < MAX_CPUS; i++) {
         snprintf(slave_name, sizeof(slave_name),
                  "slave-interrupt-controller-%i", i);
         for (j = 0; j < MAX_PILS; j++) {
-            sysbus_init_irq(sbd, &s->cpu_irqs[i][j]);
+            sysbus_init_irq(sbd, &cpu_irqs[i][j]);
         }
-        memory_region_init_io(&s->slaves[i].iomem, reinterpret_cast<Object *>(s),
+        memory_region_init_io(&slaves[i].iomem, obj,
                               &slavio_intctl_mem_ops,
-                              &s->slaves[i], slave_name, INTCTL_SIZE);
-        sysbus_init_mmio(sbd, &s->slaves[i].iomem);
-        s->slaves[i].cpu = i;
-        s->slaves[i].master = s;
+                              &slaves[i], slave_name, INTCTL_SIZE);
+        sysbus_init_mmio(sbd, &slaves[i].iomem);
+        slaves[i].cpu = i;
+        slaves[i].master = this;
     }
 }
 
-void SLAVIO_INTCTLState::classInit(ObjectClass *klass, const void *data)
+void SLAVIO_INTCTLState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     InterruptStatsProviderClass *ic = reinterpret_cast<InterruptStatsProviderClass *>(klass);
 
-    device_class_set_legacy_reset(dc, reset);
     dc->vmsd = &vmstate_intctl;
 #ifdef DEBUG_IRQ_COUNT
     ic->get_statistics = getStatistics;
@@ -477,21 +475,11 @@ void SLAVIO_INTCTLState::classInit(ObjectClass *klass, const void *data)
     ic->print_info = printInfo;
 }
 
-static const TypeInfo slavio_intctl_info = {
-    .name          = TYPE_SLAVIO_INTCTL,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SLAVIO_INTCTLState),
-    .instance_init = SLAVIO_INTCTLState::instanceInit,
-    .class_init    = SLAVIO_INTCTLState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_INTERRUPT_STATS_PROVIDER },
-        { }
-    },
+static const InterfaceInfo slavio_intctl_interfaces[] = {
+    { TYPE_INTERRUPT_STATS_PROVIDER },
+    { }
 };
 
-static void slavio_intctl_register_types(void)
-{
-    type_register_static(&slavio_intctl_info);
-}
-
-type_init(slavio_intctl_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(SLAVIO_INTCTLState, TYPE_SLAVIO_INTCTL,
+                             TYPE_SYS_BUS_DEVICE, slavio_intctl_interfaces)
