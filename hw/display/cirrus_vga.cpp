@@ -187,9 +187,9 @@ struct PCICirrusVGAState {
     CirrusVGAState cirrus_vga;
 
     /* Methods */
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     static void realizeWrapper(PCIDevice *dev, Error **errp);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_PCI_CIRRUS_VGA "cirrus-vga"
@@ -2981,7 +2981,7 @@ void cirrus_init_common(CirrusVGAState *s, Object *owner,
  *
  ***************************************/
 
-void PCICirrusVGAState::realize(Error **errp)
+void PCICirrusVGAState::doRealize(Error **errp)
 {
     PCICirrusVGAState *d = this;
     PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
@@ -3037,12 +3037,12 @@ static const Property pci_vga_cirrus_properties[] = {
 void PCICirrusVGAState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
     PCICirrusVGAState *d = reinterpret_cast<PCICirrusVGAState *>(dev);
-    d->realize(errp);
+    d->doRealize(errp);
 }
 
-void PCICirrusVGAState::classInit(ObjectClass *klass, const void *data)
+void PCICirrusVGAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = PCICirrusVGAState::realizeWrapper;
@@ -3057,20 +3057,11 @@ void PCICirrusVGAState::classInit(ObjectClass *klass, const void *data)
     dc->hotpluggable = false;
 }
 
-static const TypeInfo cirrus_vga_info = {
-    .name          = TYPE_PCI_CIRRUS_VGA,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCICirrusVGAState),
-    .class_init    = PCICirrusVGAState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo cirrus_vga_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void cirrus_vga_register_types(void)
-{
-    type_register_static(&cirrus_vga_info);
-}
-
-type_init(cirrus_vga_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCICirrusVGAState, TYPE_PCI_CIRRUS_VGA,
+                             TYPE_PCI_DEVICE, cirrus_vga_interfaces)

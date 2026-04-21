@@ -2064,16 +2064,9 @@ struct SM501SysBusState {
     /* methods */
     void realize(Error **errp);
     void reset();
-    static void realizeWrapper(DeviceState *dev, Error **errp);
-    static void resetWrapper(DeviceState *dev);
-    static void instanceInit(Object *o);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
-
-void SM501SysBusState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    sysbus_sm501_from_obj(dev)->realize(errp);
-}
 
 void SM501SysBusState::realize(Error **errp)
 {
@@ -2115,11 +2108,6 @@ void SM501SysBusState::reset()
     state.doReset();
 }
 
-void SM501SysBusState::resetWrapper(DeviceState *dev)
-{
-    sysbus_sm501_from_obj(dev)->reset();
-}
-
 static const VMStateDescription vmstate_sm501_sysbus = {
     .name = TYPE_SYSBUS_SM501,
     .version_id = 2,
@@ -2131,23 +2119,19 @@ static const VMStateDescription vmstate_sm501_sysbus = {
      }
 };
 
-void SM501SysBusState::classInit(ObjectClass *klass, const void *data)
+void SM501SysBusState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
-    dc->realize = realizeWrapper;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "SM501 Multimedia Companion";
     device_class_set_props(dc, sm501_sysbus_properties);
-    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_sm501_sysbus;
 }
 
-void SM501SysBusState::instanceInit(Object *o)
+void SM501SysBusState::init()
 {
-    SM501SysBusState *sm501 = sysbus_sm501_from_obj(o);
-    OHCISysBusState *ohci = &sm501->ohci;
-    SerialMM *smm = &sm501->serial;
+    Object *o = reinterpret_cast<Object *>(this);
+    OHCISysBusState *ohci = &this->ohci;
+    SerialMM *smm = &this->serial;
 
     object_initialize_child(o, "ohci", ohci, TYPE_SYSBUS_OHCI);
     object_property_add_alias(o, "dma-offset", reinterpret_cast<Object *>(ohci), "dma-offset");
@@ -2161,13 +2145,9 @@ void SM501SysBusState::instanceInit(Object *o)
     object_property_add_alias(o, "chardev", reinterpret_cast<Object *>(smm), "chardev");
 }
 
-static const TypeInfo sm501_sysbus_info = {
-    .name          = TYPE_SYSBUS_SM501,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SM501SysBusState),
-    .instance_init = SM501SysBusState::instanceInit,
-    .class_init    = SM501SysBusState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SM501SysBusState, TYPE_SYSBUS_SM501,
+                      TYPE_SYS_BUS_DEVICE)
 
 #define TYPE_PCI_SM501 "sm501"
 OBJECT_DECLARE_SIMPLE_TYPE(SM501PCIState, PCI_SM501)
@@ -2185,20 +2165,19 @@ struct SM501PCIState {
     uint32_t vram_size;
 
     /* methods */
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     void reset();
     static void realizeWrapper(PCIDevice *dev, Error **errp);
-    static void resetWrapper(DeviceState *dev);
-    static void instanceInit(Object *o);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 void SM501PCIState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    pci_sm501_from_obj(dev)->realize(errp);
+    pci_sm501_from_obj(dev)->doRealize(errp);
 }
 
-void SM501PCIState::realize(Error **errp)
+void SM501PCIState::doRealize(Error **errp)
 {
     SM501PCIState *s = this;
     PCIDevice *dev = &s->parent_obj;
@@ -2227,11 +2206,6 @@ void SM501PCIState::reset()
     state.misc_control |= 1;
 }
 
-void SM501PCIState::resetWrapper(DeviceState *dev)
-{
-    pci_sm501_from_obj(dev)->reset();
-}
-
 static const VMStateDescription vmstate_sm501_pci = {
     .name = TYPE_PCI_SM501,
     .version_id = 2,
@@ -2244,9 +2218,9 @@ static const VMStateDescription vmstate_sm501_pci = {
      }
 };
 
-void SM501PCIState::classInit(ObjectClass *klass, const void *data)
+void SM501PCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = realizeWrapper;
@@ -2256,13 +2230,13 @@ void SM501PCIState::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->desc = "SM501 Display Controller";
     device_class_set_props(dc, sm501_pci_properties);
-    device_class_set_legacy_reset(dc, resetWrapper);
     dc->hotpluggable = false;
     dc->vmsd = &vmstate_sm501_pci;
 }
 
-void SM501PCIState::instanceInit(Object *o)
+void SM501PCIState::init()
 {
+    Object *o = reinterpret_cast<Object *>(this);
     object_property_set_description(o, "x-pixman", "Use pixman for: "
                                     "1: fill, 2: blit, 4: overlap blit");
 }
@@ -2272,19 +2246,5 @@ static const InterfaceInfo sm501_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo sm501_pci_info = {
-    .name          = TYPE_PCI_SM501,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(SM501PCIState),
-    .instance_init = SM501PCIState::instanceInit,
-    .class_init    = SM501PCIState::classInit,
-    .interfaces = sm501_pci_interfaces,
-};
-
-static void sm501_register_types(void)
-{
-    type_register_static(&sm501_sysbus_info);
-    type_register_static(&sm501_pci_info);
-}
-
-type_init(sm501_register_types)
+REGISTER_QEMU_DEVICE_IFACES(SM501PCIState, TYPE_PCI_SM501,
+                             TYPE_PCI_DEVICE, sm501_pci_interfaces)

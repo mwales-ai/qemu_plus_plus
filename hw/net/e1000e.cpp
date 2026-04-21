@@ -88,9 +88,9 @@ struct E1000EState {
     void realize(PCIDevice *pci_dev, Error **errp);
     void uninit(PCIDevice *pci_dev);
     void resetHold(Object *obj, ResetType type);
-    void instanceInit(Object *obj);
+    void init();
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     /* static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
@@ -723,9 +723,9 @@ static const Property e1000e_properties[] = {
     DEFINE_PROP_BOOL("migrate-timadj", E1000EState, timadj, true),
 };
 
-void E1000EState::classInit(ObjectClass *klass, const void *data)
+void E1000EState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
     PCIDeviceClass *c = reinterpret_cast<PCIDeviceClass *>(klass);
 
@@ -757,16 +757,12 @@ void E1000EState::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
-static void e1000e_instance_init_wrapper(Object *obj)
+void E1000EState::init()
 {
-    reinterpret_cast<E1000EState *>(obj)->instanceInit(obj);
-}
-
-void E1000EState::instanceInit(Object *obj)
-{
+    Object *obj = reinterpret_cast<Object *>(this);
     device_add_bootindex_property(obj, &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  reinterpret_cast<DeviceState *>(obj));
+                                  reinterpret_cast<DeviceState *>(this));
 }
 
 static const InterfaceInfo e1000e_interfaces[] = {
@@ -774,18 +770,6 @@ static const InterfaceInfo e1000e_interfaces[] = {
     { }
 };
 
-static const TypeInfo e1000e_info = {
-    .name = TYPE_E1000E,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(E1000EState),
-    .instance_init = e1000e_instance_init_wrapper,
-    .class_init = E1000EState::classInit,
-    .interfaces = e1000e_interfaces,
-};
-
-static void e1000e_register_types(void)
-{
-    type_register_static(&e1000e_info);
-}
-
-type_init(e1000e_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(E1000EState, TYPE_E1000E,
+                             TYPE_PCI_DEVICE, e1000e_interfaces)

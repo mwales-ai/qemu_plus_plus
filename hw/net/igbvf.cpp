@@ -73,7 +73,7 @@ struct IgbVfState {
     void pciRealize(Error **errp);
     void resetHold(ResetType type);
     void pciUninit();
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 hwaddr IgbVfState::vfToPfAddr(hwaddr addr, uint16_t vfn, bool write)
@@ -343,9 +343,9 @@ void IgbVfState::pciUninit()
     msix_uninit(dev, &this->msix, &this->msix);
 }
 
-void IgbVfState::classInit(ObjectClass *klass, const void *data)
+void IgbVfState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *c = reinterpret_cast<PCIDeviceClass *>(klass);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
@@ -369,17 +369,6 @@ static const InterfaceInfo igbvf_interfaces[] = {
     { }
 };
 
-static const TypeInfo igbvf_info = {
-    .name = TYPE_IGBVF,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(IgbVfState),
-    .class_init = IgbVfState::classInit,
-    .interfaces = igbvf_interfaces,
-};
-
-static void igb_register_types(void)
-{
-    type_register_static(&igbvf_info);
-}
-
-type_init(igb_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(IgbVfState, TYPE_IGBVF,
+                             TYPE_PCI_DEVICE, igbvf_interfaces)

@@ -105,8 +105,11 @@ struct IGBState {
     static int preSave(void *opaque);
     static int postLoad(void *opaque, int version_id);
 
+    /* Instance init */
+    void init();
+
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
 private:
     bool ioGetRegIndex(uint32_t *idx);
@@ -664,9 +667,9 @@ static const Property igb_properties[] = {
     DEFINE_PROP_BOOL("x-pcie-flr-init", IGBState, has_flr, true),
 };
 
-void IGBState::classInit(ObjectClass *klass, const void *data)
+void IGBState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
     PCIDeviceClass *c = reinterpret_cast<PCIDeviceClass *>(klass);
 
@@ -686,12 +689,12 @@ void IGBState::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 }
 
-static void igb_instance_init(Object *obj)
+void IGBState::init()
 {
-    IGBState *s = reinterpret_cast<IGBState *>(obj);
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+    Object *obj = reinterpret_cast<Object *>(this);
+    device_add_bootindex_property(obj, &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  reinterpret_cast<DeviceState *>(obj));
+                                  reinterpret_cast<DeviceState *>(this));
 }
 
 static const InterfaceInfo igb_interfaces[] = {
@@ -699,18 +702,6 @@ static const InterfaceInfo igb_interfaces[] = {
     { }
 };
 
-static const TypeInfo igb_info = {
-    .name = TYPE_IGB,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(IGBState),
-    .instance_init = igb_instance_init,
-    .class_init = IGBState::classInit,
-    .interfaces = igb_interfaces,
-};
-
-static void igb_register_types(void)
-{
-    type_register_static(&igb_info);
-}
-
-type_init(igb_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(IGBState, TYPE_IGB,
+                             TYPE_PCI_DEVICE, igb_interfaces)

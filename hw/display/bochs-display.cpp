@@ -67,16 +67,19 @@ struct BochsDisplayState {
 
     /* Instance methods */
     int getMode(BochsDisplayMode *mode);
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     void exit();
-    void initfn();
+    void init();
 
     /* Static QOM property callbacks */
     static bool getBigEndianFb(Object *obj, Error **errp);
     static void setBigEndianFb(Object *obj, bool value, Error **errp);
 
+    /* Static PCI callbacks */
+    static void realizeWrapper(PCIDevice *dev, Error **errp);
+
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_BOCHS_DISPLAY "bochs-display"
@@ -282,7 +285,7 @@ static const GraphicHwOps bochs_display_gfx_ops = {
     .gfx_update = BochsDisplayState::updateDisplay,
 };
 
-void BochsDisplayState::realize(Error **errp)
+void BochsDisplayState::doRealize(Error **errp)
 {
     PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
     Object *obj = reinterpret_cast<Object *>(this);
@@ -332,10 +335,10 @@ void BochsDisplayState::realize(Error **errp)
     memory_region_set_log(&vram, true, DIRTY_MEMORY_VGA);
 }
 
-static void bochs_display_realize(PCIDevice *dev, Error **errp)
+void BochsDisplayState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
     BochsDisplayState *s = reinterpret_cast<BochsDisplayState *>(dev);
-    s->realize(errp);
+    s->doRealize(errp);
 }
 
 bool BochsDisplayState::getBigEndianFb(Object *obj, Error **errp)
@@ -352,7 +355,7 @@ void BochsDisplayState::setBigEndianFb(Object *obj, bool value, Error **errp)
     s->big_endian_fb = value;
 }
 
-void BochsDisplayState::initfn()
+void BochsDisplayState::init()
 {
     PCIDevice *dev = reinterpret_cast<PCIDevice *>(this);
 
@@ -362,12 +365,6 @@ void BochsDisplayState::initfn()
                              BochsDisplayState::setBigEndianFb);
 
     dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
-}
-
-static void bochs_display_init(Object *obj)
-{
-    BochsDisplayState *s = reinterpret_cast<BochsDisplayState *>(obj);
-    s->initfn();
 }
 
 void BochsDisplayState::exit()
@@ -387,16 +384,16 @@ static const Property bochs_display_properties[] = {
     DEFINE_EDID_PROPERTIES(BochsDisplayState, edid_info),
 };
 
-void BochsDisplayState::classInit(ObjectClass *klass, const void *data)
+void BochsDisplayState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->class_id  = PCI_CLASS_DISPLAY_OTHER;
     k->vendor_id = PCI_VENDOR_ID_QEMU;
     k->device_id = PCI_DEVICE_ID_QEMU_VGA;
 
-    k->realize   = bochs_display_realize;
+    k->realize   = realizeWrapper;
     k->romfile   = "vgabios-bochs-display.bin";
     k->exit      = bochs_display_exit;
     dc->vmsd     = &vmstate_bochs_display;
@@ -410,18 +407,6 @@ static const InterfaceInfo bochs_display_interfaces[] = {
     { },
 };
 
-static const TypeInfo bochs_display_type_info = {
-    .name           = TYPE_BOCHS_DISPLAY,
-    .parent         = TYPE_PCI_DEVICE,
-    .instance_size  = sizeof(BochsDisplayState),
-    .instance_init  = bochs_display_init,
-    .class_init     = BochsDisplayState::classInit,
-    .interfaces     = bochs_display_interfaces,
-};
-
-static void bochs_display_register_types(void)
-{
-    type_register_static(&bochs_display_type_info);
-}
-
-type_init(bochs_display_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(BochsDisplayState, TYPE_BOCHS_DISPLAY,
+                             TYPE_PCI_DEVICE, bochs_display_interfaces)
