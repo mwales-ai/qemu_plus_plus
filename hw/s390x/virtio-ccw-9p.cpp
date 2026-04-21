@@ -33,15 +33,13 @@ struct V9fsCCWState {
         qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
     }
 
-    static void instanceInit(Object *obj)
+    void init()
     {
-        V9fsCCWState *dev = VIRTIO_9P_CCW(obj);
-
-        virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
-                                    TYPE_VIRTIO_9P);
+        virtio_instance_init_common(reinterpret_cast<Object *>(this),
+                                    &vdev, sizeof(vdev), TYPE_VIRTIO_9P);
     }
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const Property virtio_ccw_9p_properties[] = {
@@ -51,9 +49,9 @@ static const Property virtio_ccw_9p_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-void V9fsCCWState::classInit(ObjectClass *klass, const void *data)
+void V9fsCCWState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = reinterpret_cast<VirtIOCCWDeviceClass *>(klass);
 
     k->realize = realize;
@@ -61,17 +59,5 @@ void V9fsCCWState::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo virtio_ccw_9p_info = {
-    .name          = TYPE_VIRTIO_9P_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(V9fsCCWState),
-    .instance_init = V9fsCCWState::instanceInit,
-    .class_init    = V9fsCCWState::classInit,
-};
-
-static void virtio_ccw_9p_register(void)
-{
-    type_register_static(&virtio_ccw_9p_info);
-}
-
-type_init(virtio_ccw_9p_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(V9fsCCWState, TYPE_VIRTIO_9P_CCW, TYPE_VIRTIO_CCW_DEVICE)

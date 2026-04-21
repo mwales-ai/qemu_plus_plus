@@ -30,27 +30,23 @@ struct VHostVSockCCWState {
         qdev_realize(vdev, BUS(&ccw_dev->bus), errp);
     }
 
-    static void instanceInit(Object *obj)
+    void init()
     {
-        VHostVSockCCWState *dev = VHOST_VSOCK_CCW(obj);
-        VirtioCcwDevice *ccw_dev = reinterpret_cast<VirtioCcwDevice *>(obj);
+        Object *obj = reinterpret_cast<Object *>(this);
+        VirtioCcwDevice *ccw_dev = reinterpret_cast<VirtioCcwDevice *>(this);
         VirtIODevice *virtio_dev;
 
-        virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+        virtio_instance_init_common(obj, &vdev, sizeof(vdev),
                                     TYPE_VHOST_VSOCK);
 
-        virtio_dev = VIRTIO_DEVICE(&dev->vdev);
+        virtio_dev = VIRTIO_DEVICE(&vdev);
 
-        /*
-         * To avoid migration issues, we force virtio version 1 only when
-         * legacy check is enabled in the new machine types (>= 5.1).
-         */
         if (!virtio_legacy_check_disabled(virtio_dev)) {
             ccw_dev->force_revision_1 = true;
         }
     }
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const Property vhost_vsock_ccw_properties[] = {
@@ -58,9 +54,9 @@ static const Property vhost_vsock_ccw_properties[] = {
                        VIRTIO_CCW_MAX_REV),
 };
 
-void VHostVSockCCWState::classInit(ObjectClass *klass, const void *data)
+void VHostVSockCCWState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtIOCCWDeviceClass *k = reinterpret_cast<VirtIOCCWDeviceClass *>(klass);
 
     k->realize = realize;
@@ -68,17 +64,5 @@ void VHostVSockCCWState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, vhost_vsock_ccw_properties);
 }
 
-static const TypeInfo vhost_vsock_ccw_info = {
-    .name          = TYPE_VHOST_VSOCK_CCW,
-    .parent        = TYPE_VIRTIO_CCW_DEVICE,
-    .instance_size = sizeof(VHostVSockCCWState),
-    .instance_init = VHostVSockCCWState::instanceInit,
-    .class_init    = VHostVSockCCWState::classInit,
-};
-
-static void vhost_vsock_ccw_register(void)
-{
-    type_register_static(&vhost_vsock_ccw_info);
-}
-
-type_init(vhost_vsock_ccw_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VHostVSockCCWState, TYPE_VHOST_VSOCK_CCW, TYPE_VIRTIO_CCW_DEVICE)

@@ -207,6 +207,7 @@ struct ZynqSLCRState {
     uint8_t boot_mode;
 
     /* Instance methods */
+    void init();
     void computeClocks();
     void propagateClocks();
     void realize(Error **errp);
@@ -222,7 +223,7 @@ struct ZynqSLCRState {
     static void resetExit(Object *obj, ResetType type);
 
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /*
@@ -623,21 +624,15 @@ void ZynqSLCRState::realize(Error **errp)
     }
 }
 
-static void zynq_slcr_realize(DeviceState *dev, Error **errp)
+void ZynqSLCRState::init()
 {
-    ZynqSLCRState *s = zynq_slcr_from_obj(dev);
-    s->realize(errp);
-}
+    Object *obj = reinterpret_cast<Object *>(this);
 
-static void zynq_slcr_init(Object *obj)
-{
-    ZynqSLCRState *s = zynq_slcr_from_obj(obj);
-
-    memory_region_init_io(&s->iomem, obj, &slcr_ops, s, "slcr",
+    memory_region_init_io(&iomem, obj, &slcr_ops, this, "slcr",
                           ZYNQ_SLCR_MMIO_SIZE);
-    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(obj), &s->iomem);
+    sysbus_init_mmio(reinterpret_cast<SysBusDevice *>(this), &iomem);
 
-    qdev_init_clocks(reinterpret_cast<DeviceState *>(obj), zynq_slcr_clocks);
+    qdev_init_clocks(reinterpret_cast<DeviceState *>(this), zynq_slcr_clocks);
 }
 
 static const VMStateField vmstate_zynq_slcr_fields[] = {
@@ -657,30 +652,17 @@ static const Property zynq_slcr_props[] = {
     DEFINE_PROP_UINT8("boot-mode", ZynqSLCRState, boot_mode, 1),
 };
 
-void ZynqSLCRState::classInit(ObjectClass *klass, const void *data)
+void ZynqSLCRState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->vmsd = &vmstate_zynq_slcr;
-    dc->realize = zynq_slcr_realize;
     rc->phases.enter = ZynqSLCRState::resetInit;
     rc->phases.hold  = ZynqSLCRState::resetHold;
     rc->phases.exit  = ZynqSLCRState::resetExit;
     device_class_set_props(dc, zynq_slcr_props);
 }
 
-static const TypeInfo zynq_slcr_info = {
-    .name  = TYPE_ZYNQ_SLCR,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size  = sizeof(ZynqSLCRState),
-    .instance_init = zynq_slcr_init,
-    .class_init = ZynqSLCRState::classInit,
-};
-
-static void zynq_slcr_register_types(void)
-{
-    type_register_static(&zynq_slcr_info);
-}
-
-type_init(zynq_slcr_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(ZynqSLCRState, TYPE_ZYNQ_SLCR, TYPE_SYS_BUS_DEVICE)

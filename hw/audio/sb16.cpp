@@ -135,10 +135,9 @@ struct SB16State {
     void postLoad();
 
     /* QOM methods */
+    void init();
     void realize(Error **errp);
-    static void realizefnWrapper(DeviceState *dev, Error **errp);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define SAMPLE_RATE_MIN 5000
@@ -1418,16 +1417,9 @@ static const MemoryRegionPortio sb16_ioport_list[] = {
 };
 
 
-void SB16State::instanceInit(Object *obj)
+void SB16State::init()
 {
-    SB16State *s = SB16 (obj);
-
-    s->cmd = -1;
-}
-
-void SB16State::realizefnWrapper(DeviceState *dev, Error **errp)
-{
-    reinterpret_cast<SB16State *>(dev)->realize(errp);
+    cmd = -1;
 }
 
 void SB16State::realize(Error **errp)
@@ -1484,29 +1476,18 @@ static const Property sb16_properties[] = {
     DEFINE_PROP_UINT32 ("dma16",   SB16State, hdma, 5),
 };
 
-void SB16State::classInit(ObjectClass *klass, const void *data)
+void SB16State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS (klass);
-
-    dc->realize = realizefnWrapper;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Creative Sound Blaster 16";
     dc->vmsd = &vmstate_sb16;
     device_class_set_props(dc, sb16_properties);
 }
 
-static const TypeInfo sb16_info = {
-    .name          = TYPE_SB16,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof (SB16State),
-    .instance_init = SB16State::instanceInit,
-    .class_init    = SB16State::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SB16State, TYPE_SB16, TYPE_ISA_DEVICE)
 
-static void sb16_register_types (void)
+static void __attribute__((constructor)) sb16_audio_init(void)
 {
-    type_register_static (&sb16_info);
     audio_register_model("sb16", "Creative Sound Blaster 16", TYPE_SB16);
 }
-
-type_init (sb16_register_types)
