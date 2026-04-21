@@ -88,7 +88,7 @@ struct PCIESPState {
     void dmaMemoryRw(uint8_t *buf, int len, DMADirection dir);
     void doRealize(PCIDevice *dev, Error **errp);
     void doExit(PCIDevice *d);
-    void instanceInit();
+    void init();
 
     /* static callbacks */
     static void irqHandler(void *opaque, int irq_num, int level);
@@ -98,7 +98,7 @@ struct PCIESPState {
     static void dmaMemoryReadCb(void *opaque, uint8_t *buf, int len);
     static void dmaMemoryWriteCb(void *opaque, uint8_t *buf, int len);
     static void hardReset(DeviceState *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void PCIESPState::updateIrq()
@@ -455,20 +455,14 @@ static void esp_pci_scsi_exit(PCIDevice *d)
     pci->doExit(d);
 }
 
-void PCIESPState::instanceInit()
+void PCIESPState::init()
 {
     object_initialize_child(reinterpret_cast<Object *>(this), "esp", &esp, TYPE_ESP);
 }
 
-static void esp_pci_init(Object *obj)
+void PCIESPState::classInit(DeviceClass *dc)
 {
-    PCIESPState *pci = reinterpret_cast<PCIESPState *>(obj);
-    pci->instanceInit();
-}
-
-void PCIESPState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = esp_pci_scsi_realize;
@@ -488,15 +482,6 @@ static const InterfaceInfo esp_pci_interfaces[] = {
     { },
 };
 
-static const TypeInfo esp_pci_info = {
-    .name = TYPE_AM53C974_DEVICE,
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIESPState),
-    .instance_init = esp_pci_init,
-    .class_init = PCIESPState::classInit,
-    .interfaces = esp_pci_interfaces,
-};
-
 struct DC390State {
     PCIESPState pci;
     eeprom_t *eeprom;
@@ -507,7 +492,7 @@ struct DC390State {
     /* static callbacks */
     static uint32_t readConfig(PCIDevice *dev, uint32_t addr, int l);
     static void writeConfig(PCIDevice *dev, uint32_t addr, uint32_t val, int l);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 typedef struct DC390State DC390State;
 
@@ -613,9 +598,9 @@ static void dc390_scsi_realize(PCIDevice *dev, Error **errp)
     s->doRealize(dev, errp);
 }
 
-void DC390State::classInit(ObjectClass *klass, const void *data)
+void DC390State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = dc390_scsi_realize;
@@ -625,17 +610,18 @@ void DC390State::classInit(ObjectClass *klass, const void *data)
     dc->desc = "Tekram DC-390 SCSI adapter";
 }
 
-static const TypeInfo dc390_info = {
-    .name = TYPE_DC390_DEVICE,
-    .parent = TYPE_AM53C974_DEVICE,
-    .instance_size = sizeof(DC390State),
-    .class_init = DC390State::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCIESPState, TYPE_AM53C974_DEVICE,
+                             TYPE_PCI_DEVICE, esp_pci_interfaces)
 
-static void esp_pci_register_types(void)
+static void __attribute__((constructor)) dc390_register_type(void)
 {
-    type_register_static(&esp_pci_info);
+    static TypeInfo dc390_info = {
+        .name = TYPE_DC390_DEVICE,
+        .parent = TYPE_AM53C974_DEVICE,
+        .instance_size = sizeof(DC390State),
+        .class_init = qemu_device_detail::trampoline_class_init<DC390State>,
+    };
+    dc390_info.cpp_vtable = qemu_device_detail::extract_vtable<DC390State>();
     type_register_static(&dc390_info);
 }
-
-type_init(esp_pci_register_types)

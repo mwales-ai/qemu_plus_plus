@@ -271,12 +271,11 @@ struct ES1370State {
     uint32_t codec;
     uint32_t sctl;
 
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     void reset();
     static void realizeWrapper(PCIDevice *dev, Error **errp);
-    static void resetWrapper(DeviceState *dev);
     static void exitWrapper(PCIDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 struct chan_bits {
@@ -838,7 +837,7 @@ void ES1370State::reset()
     es1370_reset(this);
 }
 
-void ES1370State::realize(Error **errp)
+void ES1370State::doRealize(Error **errp)
 {
     uint8_t *c = dev.config;
 
@@ -864,16 +863,10 @@ void ES1370State::realize(Error **errp)
     es1370_reset(this);
 }
 
-void ES1370State::resetWrapper(DeviceState *dev)
-{
-    ES1370State *s = reinterpret_cast<ES1370State *>(dev);
-    s->reset();
-}
-
 void ES1370State::realizeWrapper(PCIDevice *dev, Error **errp)
 {
     ES1370State *s = reinterpret_cast<ES1370State *>(dev);
-    s->realize(errp);
+    s->doRealize(errp);
 }
 
 void ES1370State::exitWrapper(PCIDevice *dev)
@@ -892,10 +885,10 @@ static const Property es1370_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ES1370State, audio_be),
 };
 
-void ES1370State::classInit(ObjectClass *klass, const void *data)
+void ES1370State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = DEVICE_CLASS (klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
+    PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = ES1370State::realizeWrapper;
     k->exit = ES1370State::exitWrapper;
@@ -907,7 +900,6 @@ void ES1370State::classInit(ObjectClass *klass, const void *data)
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "ENSONIQ AudioPCI ES1370";
     dc->vmsd = &vmstate_es1370;
-    device_class_set_legacy_reset(dc, ES1370State::resetWrapper);
     device_class_set_props(dc, es1370_properties);
 }
 
@@ -916,18 +908,11 @@ static const InterfaceInfo es1370_interfaces[] = {
     { },
 };
 
-static const TypeInfo es1370_info = {
-    .name          = TYPE_ES1370,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof (ES1370State),
-    .class_init    = ES1370State::classInit,
-    .interfaces = es1370_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ES1370State, TYPE_ES1370,
+                             TYPE_PCI_DEVICE, es1370_interfaces)
 
-static void es1370_register_types (void)
+static void __attribute__((constructor)) es1370_register_audio_model(void)
 {
-    type_register_static (&es1370_info);
     audio_register_model("es1370", "ENSONIQ AudioPCI ES1370", TYPE_ES1370);
 }
-
-type_init (es1370_register_types)

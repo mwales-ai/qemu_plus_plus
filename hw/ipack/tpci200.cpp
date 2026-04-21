@@ -83,10 +83,10 @@ struct TPCI200State {
     static uint64_t readLas3(void *opaque, hwaddr addr, unsigned size);
     static void writeLas3(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     static void realizeWrapper(PCIDevice *pci_dev, Error **errp);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_TPCI200 "tpci200"
@@ -536,10 +536,10 @@ static const MemoryRegionOps tpci200_las3_ops = {
 void TPCI200State::realizeWrapper(PCIDevice *pci_dev, Error **errp)
 {
     TPCI200State *s = reinterpret_cast<TPCI200State *>(pci_dev);
-    s->realize(errp);
+    s->doRealize(errp);
 }
 
-void TPCI200State::realize(Error **errp)
+void TPCI200State::doRealize(Error **errp)
 {
     uint8_t *c = dev.config;
 
@@ -590,9 +590,9 @@ static const VMStateDescription vmstate_tpci200 = {
     }
 };
 
-void TPCI200State::classInit(ObjectClass *klass, const void *data)
+void TPCI200State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = TPCI200State::realizeWrapper;
@@ -611,17 +611,6 @@ static const InterfaceInfo tpci200_interfaces[] = {
     { },
 };
 
-static const TypeInfo tpci200_info = {
-    .name          = TYPE_TPCI200,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(TPCI200State),
-    .class_init    = TPCI200State::classInit,
-    .interfaces    = tpci200_interfaces,
-};
-
-static void tpci200_register_types(void)
-{
-    type_register_static(&tpci200_info);
-}
-
-type_init(tpci200_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(TPCI200State, TYPE_TPCI200,
+                             TYPE_PCI_DEVICE, tpci200_interfaces)

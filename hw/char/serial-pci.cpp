@@ -42,7 +42,7 @@ struct PCISerialState {
     PCIDevice dev;
     SerialState state;
 
-    void realize(Error **errp)
+    void doRealize(Error **errp)
     {
         SerialState *s = &state;
 
@@ -68,8 +68,8 @@ struct PCISerialState {
 
     static void pciRealize(PCIDevice *dev, Error **errp);
     static void pciExit(PCIDevice *dev);
-    static void instanceInit(Object *o);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 
     static const VMStateDescription vmstate_pci_serial;
 };
@@ -79,7 +79,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(PCISerialState, PCI_SERIAL)
 void PCISerialState::pciRealize(PCIDevice *dev, Error **errp)
 {
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
-    pci->realize(errp);
+    pci->doRealize(errp);
 }
 
 void PCISerialState::pciExit(PCIDevice *dev)
@@ -88,18 +88,16 @@ void PCISerialState::pciExit(PCIDevice *dev)
     pci->exitDevice();
 }
 
-void PCISerialState::instanceInit(Object *o)
+void PCISerialState::init()
 {
-    PCISerialState *ps = reinterpret_cast<PCISerialState *>(o);
-
-    object_initialize_child(o, "serial", &ps->state, TYPE_SERIAL);
-
-    qdev_alias_all_properties(reinterpret_cast<DeviceState *>(&ps->state), o);
+    Object *o = reinterpret_cast<Object *>(this);
+    object_initialize_child(o, "serial", &state, TYPE_SERIAL);
+    qdev_alias_all_properties(reinterpret_cast<DeviceState *>(&state), o);
 }
 
-void PCISerialState::classInit(ObjectClass *klass, const void *data)
+void PCISerialState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pc = reinterpret_cast<PCIDeviceClass *>(klass);
     pc->realize = pciRealize;
     pc->exit = pciExit;
@@ -122,21 +120,11 @@ const VMStateDescription PCISerialState::vmstate_pci_serial = {
     }
 };
 
-static const TypeInfo serial_pci_info = {
-    .name          = TYPE_PCI_SERIAL,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCISerialState),
-    .instance_init = PCISerialState::instanceInit,
-    .class_init    = PCISerialState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo serial_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void serial_pci_register_types(void)
-{
-    type_register_static(&serial_pci_info);
-}
-
-type_init(serial_pci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCISerialState, TYPE_PCI_SERIAL,
+                             TYPE_PCI_DEVICE, serial_pci_interfaces)

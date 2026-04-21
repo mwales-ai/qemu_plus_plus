@@ -52,7 +52,7 @@ struct OHCIPCIState {
 
     /* static callbacks */
     static void pciDie(struct OHCIState *ohci);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const Property ohci_pci_properties[] = {
@@ -150,9 +150,9 @@ static const VMStateDescription vmstate_ohci = {
     }
 };
 
-void OHCIPCIState::classInit(ObjectClass *klass, const void *data)
+void OHCIPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = usb_ohci_realize_pci;
@@ -168,20 +168,11 @@ void OHCIPCIState::classInit(ObjectClass *klass, const void *data)
     device_class_set_legacy_reset(dc, usb_ohci_reset_pci);
 }
 
-static const TypeInfo ohci_pci_info = {
-    .name          = TYPE_PCI_OHCI,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(OHCIPCIState),
-    .class_init    = OHCIPCIState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { INTERFACE_CONVENTIONAL_PCI_DEVICE },
-        { },
-    },
+static const InterfaceInfo ohci_pci_interfaces[] = {
+    { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+    { },
 };
 
-static void ohci_pci_register_types(void)
-{
-    type_register_static(&ohci_pci_info);
-}
-
-type_init(ohci_pci_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(OHCIPCIState, TYPE_PCI_OHCI,
+                             TYPE_PCI_DEVICE, ohci_pci_interfaces)

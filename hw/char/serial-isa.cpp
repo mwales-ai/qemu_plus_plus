@@ -82,12 +82,6 @@ struct ISASerialState {
         isa_register_ioport(isadev, &state.io, iobase);
     }
 
-    static void realizeWrapper(DeviceState *dev, Error **errp)
-    {
-        ISASerialState *s = reinterpret_cast<ISASerialState *>(dev);
-        s->realize(errp);
-    }
-
     static void buildAml(AcpiDevAmlIf *adev, Aml *scope)
     {
         ISASerialState *isa = reinterpret_cast<ISASerialState *>(adev);
@@ -107,16 +101,14 @@ struct ISASerialState {
         aml_append(scope, dev);
     }
 
-    static void instanceInit(Object *o)
+    void init()
     {
-        ISASerialState *self = reinterpret_cast<ISASerialState *>(o);
-
-        object_initialize_child(o, "serial", &self->state, TYPE_SERIAL);
-
-        qdev_alias_all_properties(reinterpret_cast<DeviceState *>(&self->state), o);
+        Object *o = reinterpret_cast<Object *>(this);
+        object_initialize_child(o, "serial", &state, TYPE_SERIAL);
+        qdev_alias_all_properties(reinterpret_cast<DeviceState *>(&state), o);
     }
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateDescription vmstate_isa_serial = {
@@ -135,36 +127,25 @@ static const Property serial_isa_properties[] = {
     DEFINE_PROP_UINT32("irq",    ISASerialState, isairq,  -1),
 };
 
-void ISASerialState::classInit(ObjectClass *klass, const void *data)
+void ISASerialState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
-    dc->realize = ISASerialState::realizeWrapper;
     dc->vmsd = &vmstate_isa_serial;
     adevc->build_dev_aml = ISASerialState::buildAml;
     device_class_set_props(dc, serial_isa_properties);
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
-static const TypeInfo serial_isa_info = {
-    .name          = TYPE_ISA_SERIAL,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(ISASerialState),
-    .instance_init = ISASerialState::instanceInit,
-    .class_init    = ISASerialState::classInit,
-    .interfaces = (const InterfaceInfo[]) {
-        { TYPE_ACPI_DEV_AML_IF },
-        { },
-    },
+static const InterfaceInfo serial_isa_interfaces[] = {
+    { TYPE_ACPI_DEV_AML_IF },
+    { },
 };
 
-static void serial_register_types(void)
-{
-    type_register_static(&serial_isa_info);
-}
-
-type_init(serial_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(ISASerialState, TYPE_ISA_SERIAL,
+                             TYPE_ISA_DEVICE, serial_isa_interfaces)
 
 static void serial_isa_init(ISABus *bus, int index, Chardev *chr)
 {

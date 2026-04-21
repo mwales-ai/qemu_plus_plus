@@ -168,12 +168,11 @@ struct AC97LinkState {
     void nabmWriteb(uint32_t addr, uint32_t val);
     void nabmWritew(uint32_t addr, uint32_t val);
     void nabmWritel(uint32_t addr, uint32_t val);
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     void reset();
     static void realizeWrapper(PCIDevice *dev, Error **errp);
-    static void resetWrapper(DeviceState *dev);
     static void exitWrapper(PCIDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 enum {
@@ -1302,17 +1301,12 @@ void AC97LinkState::reset()
     mixerReset();
 }
 
-void AC97LinkState::resetWrapper(DeviceState *dev)
-{
-    reinterpret_cast<AC97LinkState *>(dev)->reset();
-}
-
 void AC97LinkState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    reinterpret_cast<AC97LinkState *>(dev)->realize(errp);
+    reinterpret_cast<AC97LinkState *>(dev)->doRealize(errp);
 }
 
-void AC97LinkState::realize(Error **errp)
+void AC97LinkState::doRealize(Error **errp)
 {
     uint8_t *c = dev.config;
 
@@ -1351,9 +1345,9 @@ static const Property ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(AC97LinkState, audio_be),
 };
 
-void AC97LinkState::classInit(ObjectClass *klass, const void *data)
+void AC97LinkState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = realizeWrapper;
@@ -1366,7 +1360,6 @@ void AC97LinkState::classInit(ObjectClass *klass, const void *data)
     dc->desc = "Intel 82801AA AC97 Audio";
     dc->vmsd = &vmstate_ac97;
     device_class_set_props(dc, ac97_properties);
-    device_class_set_legacy_reset(dc, resetWrapper);
 }
 
 static const InterfaceInfo ac97_interfaces[] = {
@@ -1374,18 +1367,11 @@ static const InterfaceInfo ac97_interfaces[] = {
     { },
 };
 
-static const TypeInfo ac97_info = {
-    .name          = TYPE_AC97,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(AC97LinkState),
-    .class_init    = AC97LinkState::classInit,
-    .interfaces = ac97_interfaces,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(AC97LinkState, TYPE_AC97,
+                             TYPE_PCI_DEVICE, ac97_interfaces)
 
-static void ac97_register_types(void)
+static void __attribute__((constructor)) ac97_register_audio_model(void)
 {
-    type_register_static(&ac97_info);
     audio_register_model("ac97", "Intel 82801AA AC97 Audio", TYPE_AC97);
 }
-
-type_init(ac97_register_types)
