@@ -80,9 +80,9 @@ struct PL110State {
     MemoryRegion *fbmem;
 
     /* ----- methods ----- */
-    void realize(DeviceState *dev, Error **errp);
+    void realize(Error **errp);
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     /* static MMIO callbacks */
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
@@ -569,15 +569,10 @@ static const Property pl110_properties[] = {
                      TYPE_MEMORY_REGION, MemoryRegion *),
 };
 
-static void pl110_realize_wrapper(DeviceState *dev, Error **errp)
+void PL110State::realize(Error **errp)
 {
-    PL110State *s = reinterpret_cast<PL110State *>(dev);
-    s->realize(dev, errp);
-}
-
-void PL110State::realize(DeviceState *dev, Error **errp)
-{
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(dev);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     if (!fbmem) {
         error_setg(errp, "'framebuffer-memory' property was not set");
@@ -615,38 +610,38 @@ static void pl111_init(Object *obj)
     s->version = VERSION_PL111;
 }
 
-void PL110State::classInit(ObjectClass *klass, const void *data)
+void PL110State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
     dc->vmsd = &vmstate_pl110;
-    dc->realize = pl110_realize_wrapper;
     device_class_set_props(dc, pl110_properties);
 }
 
-static const TypeInfo pl110_info = {
-    .name          = TYPE_PL110,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(PL110State),
-    .instance_init = pl110_init,
-    .class_init    = PL110State::classInit,
-};
-
-static const TypeInfo pl110_versatile_info = {
-    .name          = "pl110_versatile",
-    .parent        = TYPE_PL110,
-    .instance_init = pl110_versatile_init,
-};
-
-static const TypeInfo pl111_info = {
-    .name          = "pl111",
-    .parent        = TYPE_PL110,
-    .instance_init = pl111_init,
-};
+#include "qom/cpp/object.h"
 
 static void pl110_register_types(void)
 {
+    static TypeInfo pl110_info = {
+        .name          = TYPE_PL110,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(PL110State),
+        .instance_init = pl110_init,
+        .class_init    = qemu_device_detail::trampoline_class_init<PL110State>,
+    };
+    pl110_info.cpp_vtable = qemu_device_detail::extract_vtable<PL110State>();
+
+    static TypeInfo pl110_versatile_info = {
+        .name          = "pl110_versatile",
+        .parent        = TYPE_PL110,
+        .instance_init = pl110_versatile_init,
+    };
+
+    static TypeInfo pl111_info = {
+        .name          = "pl111",
+        .parent        = TYPE_PL110,
+        .instance_init = pl111_init,
+    };
+
     type_register_static(&pl110_info);
     type_register_static(&pl110_versatile_info);
     type_register_static(&pl111_info);

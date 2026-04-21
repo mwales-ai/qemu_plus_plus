@@ -105,9 +105,9 @@ struct PCITestDevState {
 
     /* Instance methods */
     void resetDev();
-    void realize(PCIDevice *pci_dev, Error **errp);
+    void doRealize(Error **errp);
     void uninit(PCIDevice *dev);
-    void reset(DeviceState *dev);
+    void reset();
 
 private:
     static int startTest(IOTest *test);
@@ -116,7 +116,7 @@ private:
 
 public:
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_PCI_TEST_DEV "pci-testdev"
@@ -260,9 +260,10 @@ static const MemoryRegionOps pci_testdev_pio_ops = {
     },
 };
 
-void PCITestDevState::realize(PCIDevice *pci_dev, Error **errp)
+void PCITestDevState::doRealize(Error **errp)
 {
-    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(pci_dev);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(this);
+    PCITestDevState *d = this;
     uint8_t *pci_conf;
     char *name;
     int r;
@@ -327,8 +328,7 @@ void PCITestDevState::realize(PCIDevice *pci_dev, Error **errp)
 
 static void pci_testdev_realize(PCIDevice *pci_dev, Error **errp)
 {
-    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(pci_dev);
-    d->realize(pci_dev, errp);
+    reinterpret_cast<PCITestDevState *>(pci_dev)->doRealize(errp);
 }
 
 void PCITestDevState::uninit(PCIDevice *dev)
@@ -352,16 +352,9 @@ static void pci_testdev_uninit(PCIDevice *dev)
     d->uninit(dev);
 }
 
-void PCITestDevState::reset(DeviceState *dev)
+void PCITestDevState::reset()
 {
-    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(dev);
-    d->resetDev();
-}
-
-static void qdev_pci_testdev_reset(DeviceState *dev)
-{
-    PCITestDevState *d = reinterpret_cast<PCITestDevState *>(dev);
-    d->reset(dev);
+    resetDev();
 }
 
 static const Property pci_testdev_properties[] = {
@@ -369,9 +362,9 @@ static const Property pci_testdev_properties[] = {
     DEFINE_PROP_BOOL("membar-backed", PCITestDevState, membar_backed, false),
 };
 
-void PCITestDevState::classInit(ObjectClass *klass, const void *data)
+void PCITestDevState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = pci_testdev_realize;
@@ -382,7 +375,6 @@ void PCITestDevState::classInit(ObjectClass *klass, const void *data)
     k->class_id = PCI_CLASS_OTHERS;
     dc->desc = "PCI Test Device";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    device_class_set_legacy_reset(dc, qdev_pci_testdev_reset);
     device_class_set_props(dc, pci_testdev_properties);
 }
 
@@ -391,17 +383,6 @@ static const InterfaceInfo pci_testdev_interfaces[] = {
     { },
 };
 
-static const TypeInfo pci_testdev_info = {
-    .name          = TYPE_PCI_TEST_DEV,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCITestDevState),
-    .class_init    = PCITestDevState::classInit,
-    .interfaces = pci_testdev_interfaces,
-};
-
-static void pci_testdev_register_types(void)
-{
-    type_register_static(&pci_testdev_info);
-}
-
-type_init(pci_testdev_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCITestDevState, TYPE_PCI_TEST_DEV,
+                             TYPE_PCI_DEVICE, pci_testdev_interfaces)

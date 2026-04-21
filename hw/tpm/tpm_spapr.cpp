@@ -93,7 +93,7 @@ struct SpaprTpmState {
     void tpmReset();
     static void realizeWrapper(SpaprVioDevice *dev, Error **errp);
     static void resetWrapper(SpaprVioDevice *dev);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /*
@@ -408,9 +408,9 @@ void SpaprTpmState::realize(Error **errp)
     s->buffer = static_cast<unsigned char *>(g_malloc(TPM_SPAPR_BUFFER_MAX));
 }
 
-void SpaprTpmState::classInit(ObjectClass *klass, const void *data)
+void SpaprTpmState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     SpaprVioDeviceClass *k = reinterpret_cast<SpaprVioDeviceClass *>(klass);
     TPMIfClass *tc = reinterpret_cast<TPMIfClass *>(klass);
 
@@ -435,17 +435,6 @@ static const InterfaceInfo tpm_spapr_interfaces[] = {
     { }
 };
 
-static const TypeInfo tpm_spapr_info = {
-    .name          = TYPE_TPM_SPAPR,
-    .parent        = TYPE_VIO_SPAPR_DEVICE,
-    .instance_size = sizeof(SpaprTpmState),
-    .class_init    = SpaprTpmState::classInit,
-    .interfaces    = tpm_spapr_interfaces,
-};
-
-static void tpm_spapr_register_types(void)
-{
-    type_register_static(&tpm_spapr_info);
-}
-
-type_init(tpm_spapr_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(SpaprTpmState, TYPE_TPM_SPAPR,
+                             TYPE_VIO_SPAPR_DEVICE, tpm_spapr_interfaces)

@@ -98,10 +98,9 @@ struct StrongARMPICState {
     static void setIrq(void *opaque, int irq, int level);
     static uint64_t memRead(void *opaque, hwaddr offset, unsigned size);
     static void memWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
-    void initfn();
-    static void initfnWrapper(Object *obj);
+    void init();
     static int postLoad(void *opaque, int version_id);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define ICIP    0x00
@@ -192,25 +191,18 @@ static const MemoryRegionOps strongarm_pic_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void StrongARMPICState::initfn()
+void StrongARMPICState::init()
 {
     Object *obj = reinterpret_cast<Object *>(this);
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    StrongARMPICState *s = this;
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     qdev_init_gpio_in(dev, StrongARMPICState::setIrq, SA_PIC_SRCS);
-    memory_region_init_io(&s->iomem, obj, &strongarm_pic_ops, s,
+    memory_region_init_io(&iomem, obj, &strongarm_pic_ops, this,
                           "pic", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq);
-    sysbus_init_irq(sbd, &s->fiq);
-}
-
-void StrongARMPICState::initfnWrapper(Object *obj)
-{
-    StrongARMPICState *s = reinterpret_cast<StrongARMPICState *>(obj);
-    s->initfn();
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq);
+    sysbus_init_irq(sbd, &fiq);
 }
 
 int StrongARMPICState::postLoad(void *opaque, int version_id)
@@ -234,21 +226,13 @@ static const VMStateDescription vmstate_strongarm_pic_regs = {
     },
 };
 
-void StrongARMPICState::classInit(ObjectClass *klass, const void *data)
+void StrongARMPICState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "StrongARM PIC";
     dc->vmsd = &vmstate_strongarm_pic_regs;
 }
 
-static const TypeInfo strongarm_pic_info = {
-    .name          = TYPE_STRONGARM_PIC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(StrongARMPICState),
-    .instance_init = StrongARMPICState::initfnWrapper,
-    .class_init    = StrongARMPICState::classInit,
-};
+/* strongarm_pic_info removed — registered via REGISTER_QEMU_DEVICE below */
 
 /* Real-Time Clock */
 #define RTAR 0x00 /* RTC Alarm register */
@@ -290,13 +274,11 @@ struct StrongARMRTCState {
     static void hzTick(void *opaque);
     static uint64_t read(void *opaque, hwaddr addr, unsigned size);
     static void write(void *opaque, hwaddr addr, uint64_t value, unsigned size);
-    void instanceInit();
-    static void instanceInitWrapper(Object *obj);
+    void init();
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
     static int preSave(void *opaque);
     static int postLoad(void *opaque, int version_id);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void StrongARMRTCState::intUpdate()
@@ -422,46 +404,32 @@ static const MemoryRegionOps strongarm_rtc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void StrongARMRTCState::instanceInit()
+void StrongARMRTCState::init()
 {
-    StrongARMRTCState *s = this;
     Object *obj = reinterpret_cast<Object *>(this);
-    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
     struct tm tm;
 
-    s->rttr = 0x0;
-    s->rtsr = 0;
+    rttr = 0x0;
+    rtsr = 0;
 
     qemu_get_timedate(&tm, 0);
 
-    s->last_rcnr = (uint32_t) mktimegm(&tm);
-    s->last_hz = qemu_clock_get_ms(rtc_clock);
+    last_rcnr = (uint32_t) mktimegm(&tm);
+    last_hz = qemu_clock_get_ms(rtc_clock);
 
-    sysbus_init_irq(dev, &s->rtc_irq);
-    sysbus_init_irq(dev, &s->rtc_hz_irq);
+    sysbus_init_irq(dev, &rtc_irq);
+    sysbus_init_irq(dev, &rtc_hz_irq);
 
-    memory_region_init_io(&s->iomem, obj, &strongarm_rtc_ops, s,
+    memory_region_init_io(&iomem, obj, &strongarm_rtc_ops, this,
                           "rtc", 0x10000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(dev, &iomem);
 }
 
 void StrongARMRTCState::realize(Error **errp)
 {
-    StrongARMRTCState *s = this;
-    s->rtc_alarm = timer_new_ms(rtc_clock, StrongARMRTCState::alarmTick, s);
-    s->rtc_hz = timer_new_ms(rtc_clock, StrongARMRTCState::hzTick, s);
-}
-
-void StrongARMRTCState::instanceInitWrapper(Object *obj)
-{
-    StrongARMRTCState *s = reinterpret_cast<StrongARMRTCState *>(obj);
-    s->instanceInit();
-}
-
-void StrongARMRTCState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    StrongARMRTCState *s = reinterpret_cast<StrongARMRTCState *>(dev);
-    s->realize(errp);
+    rtc_alarm = timer_new_ms(rtc_clock, StrongARMRTCState::alarmTick, this);
+    rtc_hz = timer_new_ms(rtc_clock, StrongARMRTCState::hzTick, this);
 }
 
 int StrongARMRTCState::preSave(void *opaque)
@@ -499,23 +467,13 @@ static const VMStateDescription vmstate_strongarm_rtc_regs = {
     },
 };
 
-void StrongARMRTCState::classInit(ObjectClass *klass,
-                                            const void *data)
+void StrongARMRTCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "StrongARM RTC Controller";
     dc->vmsd = &vmstate_strongarm_rtc_regs;
-    dc->realize = StrongARMRTCState::realizeWrapper;
 }
 
-static const TypeInfo strongarm_rtc_sysbus_info = {
-    .name          = TYPE_STRONGARM_RTC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(StrongARMRTCState),
-    .instance_init = StrongARMRTCState::instanceInitWrapper,
-    .class_init    = StrongARMRTCState::classInit,
-};
+/* strongarm_rtc_sysbus_info removed — registered via type_init below */
 
 /* GPIO */
 #define GPLR 0x00
@@ -553,9 +511,8 @@ struct StrongARMGPIOInfo {
     static void setGpio(void *opaque, int line, int level);
     static uint64_t gpioRead(void *opaque, hwaddr offset, unsigned size);
     static void gpioWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
-    void initfn();
-    static void initfnWrapper(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 
@@ -720,25 +677,24 @@ static DeviceState *strongarm_gpio_init(hwaddr base,
     return dev;
 }
 
-void StrongARMGPIOInfo::initfn()
+void StrongARMGPIOInfo::init()
 {
     Object *obj = reinterpret_cast<Object *>(this);
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    StrongARMGPIOInfo *s = this;
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
     int i;
 
     qdev_init_gpio_in(dev, StrongARMGPIOInfo::setGpio, 28);
-    qdev_init_gpio_out(dev, s->handler, 28);
+    qdev_init_gpio_out(dev, handler, 28);
 
-    memory_region_init_io(&s->iomem, obj, &strongarm_gpio_ops, s,
+    memory_region_init_io(&iomem, obj, &strongarm_gpio_ops, this,
                           "gpio", 0x1000);
 
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
     for (i = 0; i < 11; i++) {
-        sysbus_init_irq(sbd, &s->irqs[i]);
+        sysbus_init_irq(sbd, &irqs[i]);
     }
-    sysbus_init_irq(sbd, &s->irqX);
+    sysbus_init_irq(sbd, &irqX);
 }
 
 static const VMStateDescription vmstate_strongarm_gpio_regs = {
@@ -758,27 +714,13 @@ static const VMStateDescription vmstate_strongarm_gpio_regs = {
     },
 };
 
-void StrongARMGPIOInfo::initfnWrapper(Object *obj)
+void StrongARMGPIOInfo::classInit(DeviceClass *dc)
 {
-    StrongARMGPIOInfo *s = reinterpret_cast<StrongARMGPIOInfo *>(obj);
-    s->initfn();
-}
-
-void StrongARMGPIOInfo::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "StrongARM GPIO controller";
     dc->vmsd = &vmstate_strongarm_gpio_regs;
 }
 
-static const TypeInfo strongarm_gpio_info = {
-    .name          = TYPE_STRONGARM_GPIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(StrongARMGPIOInfo),
-    .instance_init = StrongARMGPIOInfo::initfnWrapper,
-    .class_init    = StrongARMGPIOInfo::classInit,
-};
+/* strongarm_gpio_info removed — registered via type_init below */
 
 /* Peripheral Pin Controller */
 #define PPDR 0x00
@@ -810,9 +752,8 @@ struct StrongARMPPCInfo {
     static void setPpc(void *opaque, int line, int level);
     static uint64_t ppcRead(void *opaque, hwaddr offset, unsigned size);
     static void ppcWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
-    void instanceInit();
-    static void instanceInitWrapper(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 void StrongARMPPCInfo::setPpc(void *opaque, int line, int level)
@@ -915,20 +856,19 @@ static const MemoryRegionOps strongarm_ppc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void StrongARMPPCInfo::instanceInit()
+void StrongARMPPCInfo::init()
 {
     Object *obj = reinterpret_cast<Object *>(this);
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    StrongARMPPCInfo *s = this;
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
     qdev_init_gpio_in(dev, StrongARMPPCInfo::setPpc, 22);
-    qdev_init_gpio_out(dev, s->handler, 22);
+    qdev_init_gpio_out(dev, handler, 22);
 
-    memory_region_init_io(&s->iomem, obj, &strongarm_ppc_ops, s,
+    memory_region_init_io(&iomem, obj, &strongarm_ppc_ops, this,
                           "ppc", 0x1000);
 
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 }
 
 static const VMStateDescription vmstate_strongarm_ppc_regs = {
@@ -947,27 +887,13 @@ static const VMStateDescription vmstate_strongarm_ppc_regs = {
     },
 };
 
-void StrongARMPPCInfo::instanceInitWrapper(Object *obj)
+void StrongARMPPCInfo::classInit(DeviceClass *dc)
 {
-    StrongARMPPCInfo *s = reinterpret_cast<StrongARMPPCInfo *>(obj);
-    s->instanceInit();
-}
-
-void StrongARMPPCInfo::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "StrongARM PPC controller";
     dc->vmsd = &vmstate_strongarm_ppc_regs;
 }
 
-static const TypeInfo strongarm_ppc_info = {
-    .name          = TYPE_STRONGARM_PPC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(StrongARMPPCInfo),
-    .instance_init = StrongARMPPCInfo::instanceInitWrapper,
-    .class_init    = StrongARMPPCInfo::classInit,
-};
+/* strongarm_ppc_info removed — registered via type_init below */
 
 /* UART Ports */
 #define UTCR0 0x00
@@ -1047,14 +973,11 @@ struct StrongARMUARTState {
     static void tx(void *opaque);
     static uint64_t uartRead(void *opaque, hwaddr addr, unsigned size);
     static void uartWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
-    void instanceInit();
-    static void instanceInitWrapper(Object *obj);
+    void init();
     void realize(Error **errp);
-    static void realizeWrapper(DeviceState *dev, Error **errp);
     void reset();
-    static void resetWrapper(DeviceState *dev);
     static int postLoad(void *opaque, int version_id);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void StrongARMUARTState::updateStatus()
@@ -1360,16 +1283,15 @@ static const MemoryRegionOps strongarm_uart_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void StrongARMUARTState::instanceInit()
+void StrongARMUARTState::init()
 {
-    StrongARMUARTState *s = this;
     Object *obj = reinterpret_cast<Object *>(this);
-    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(obj);
+    SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &strongarm_uart_ops, s,
+    memory_region_init_io(&iomem, obj, &strongarm_uart_ops, this,
                           "uart", 0x10000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
+    sysbus_init_mmio(dev, &iomem);
+    sysbus_init_irq(dev, &irq);
 }
 
 void StrongARMUARTState::realize(Error **errp)
@@ -1450,42 +1372,14 @@ static const Property strongarm_uart_properties[] = {
     DEFINE_PROP_CHR("chardev", StrongARMUARTState, chr),
 };
 
-void StrongARMUARTState::instanceInitWrapper(Object *obj)
+void StrongARMUARTState::classInit(DeviceClass *dc)
 {
-    StrongARMUARTState *s = reinterpret_cast<StrongARMUARTState *>(obj);
-    s->instanceInit();
-}
-
-void StrongARMUARTState::realizeWrapper(DeviceState *dev, Error **errp)
-{
-    StrongARMUARTState *s = reinterpret_cast<StrongARMUARTState *>(dev);
-    s->realize(errp);
-}
-
-void StrongARMUARTState::resetWrapper(DeviceState *dev)
-{
-    StrongARMUARTState *s = reinterpret_cast<StrongARMUARTState *>(dev);
-    s->reset();
-}
-
-void StrongARMUARTState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "StrongARM UART controller";
-    device_class_set_legacy_reset(dc, StrongARMUARTState::resetWrapper);
     dc->vmsd = &vmstate_strongarm_uart_regs;
     device_class_set_props(dc, strongarm_uart_properties);
-    dc->realize = StrongARMUARTState::realizeWrapper;
 }
 
-static const TypeInfo strongarm_uart_info = {
-    .name          = TYPE_STRONGARM_UART,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(StrongARMUARTState),
-    .instance_init = StrongARMUARTState::instanceInitWrapper,
-    .class_init    = StrongARMUARTState::classInit,
-};
+/* strongarm_uart_info removed — registered via type_init below */
 
 /* Synchronous Serial Ports */
 
@@ -1511,12 +1405,10 @@ struct StrongARMSSPState {
     void fifoUpdate();
     static uint64_t sspRead(void *opaque, hwaddr addr, unsigned size);
     static void sspWrite(void *opaque, hwaddr addr, uint64_t value, unsigned size);
-    void instanceInit();
-    static void instanceInitWrapper(Object *obj);
+    void init();
     void reset();
-    static void resetWrapper(DeviceState *dev);
     static int postLoad(void *opaque, int version_id);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define SSCR0 0x60 /* SSP Control register 0 */
@@ -1696,20 +1588,19 @@ int StrongARMSSPState::postLoad(void *opaque, int version_id)
     return 0;
 }
 
-void StrongARMSSPState::instanceInit()
+void StrongARMSSPState::init()
 {
     Object *obj = reinterpret_cast<Object *>(this);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
-    DeviceState *dev = reinterpret_cast<DeviceState *>(sbd);
-    StrongARMSSPState *s = this;
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
 
-    sysbus_init_irq(sbd, &s->irq);
+    sysbus_init_irq(sbd, &irq);
 
-    memory_region_init_io(&s->iomem, obj, &strongarm_ssp_ops, s,
+    memory_region_init_io(&iomem, obj, &strongarm_ssp_ops, this,
                           "ssp", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_mmio(sbd, &iomem);
 
-    s->bus = ssi_create_bus(dev, "ssi");
+    bus = ssi_create_bus(dev, "ssi");
 }
 
 void StrongARMSSPState::reset()
@@ -1736,34 +1627,13 @@ static const VMStateDescription vmstate_strongarm_ssp_regs = {
     },
 };
 
-void StrongARMSSPState::instanceInitWrapper(Object *obj)
+void StrongARMSSPState::classInit(DeviceClass *dc)
 {
-    StrongARMSSPState *s = reinterpret_cast<StrongARMSSPState *>(obj);
-    s->instanceInit();
-}
-
-void StrongARMSSPState::resetWrapper(DeviceState *dev)
-{
-    StrongARMSSPState *s = reinterpret_cast<StrongARMSSPState *>(dev);
-    s->reset();
-}
-
-void StrongARMSSPState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "StrongARM SSP controller";
-    device_class_set_legacy_reset(dc, StrongARMSSPState::resetWrapper);
     dc->vmsd = &vmstate_strongarm_ssp_regs;
 }
 
-static const TypeInfo strongarm_ssp_info = {
-    .name          = TYPE_STRONGARM_SSP,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(StrongARMSSPState),
-    .instance_init = StrongARMSSPState::instanceInitWrapper,
-    .class_init    = StrongARMSSPState::classInit,
-};
+/* strongarm_ssp_info removed — registered via type_init below */
 
 /* Main CPU functions */
 StrongARMState *sa1110_init(const char *cpu_type)
@@ -1816,14 +1686,60 @@ StrongARMState *sa1110_init(const char *cpu_type)
     return s;
 }
 
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(StrongARMPICState, TYPE_STRONGARM_PIC, TYPE_SYS_BUS_DEVICE)
+
 static void strongarm_register_types(void)
 {
-    type_register_static(&strongarm_pic_info);
-    type_register_static(&strongarm_rtc_sysbus_info);
-    type_register_static(&strongarm_gpio_info);
-    type_register_static(&strongarm_ppc_info);
-    type_register_static(&strongarm_uart_info);
-    type_register_static(&strongarm_ssp_info);
+    static TypeInfo rtc_info = {
+        .name          = TYPE_STRONGARM_RTC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(StrongARMRTCState),
+        .instance_init = qemu_device_detail::trampoline_init<StrongARMRTCState>,
+        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMRTCState>,
+    };
+    rtc_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMRTCState>();
+    type_register_static(&rtc_info);
+
+    static TypeInfo gpio_info = {
+        .name          = TYPE_STRONGARM_GPIO,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(StrongARMGPIOInfo),
+        .instance_init = qemu_device_detail::trampoline_init<StrongARMGPIOInfo>,
+        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMGPIOInfo>,
+    };
+    gpio_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMGPIOInfo>();
+    type_register_static(&gpio_info);
+
+    static TypeInfo ppc_info = {
+        .name          = TYPE_STRONGARM_PPC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(StrongARMPPCInfo),
+        .instance_init = qemu_device_detail::trampoline_init<StrongARMPPCInfo>,
+        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMPPCInfo>,
+    };
+    ppc_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMPPCInfo>();
+    type_register_static(&ppc_info);
+
+    static TypeInfo uart_info = {
+        .name          = TYPE_STRONGARM_UART,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(StrongARMUARTState),
+        .instance_init = qemu_device_detail::trampoline_init<StrongARMUARTState>,
+        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMUARTState>,
+    };
+    uart_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMUARTState>();
+    type_register_static(&uart_info);
+
+    static TypeInfo ssp_info = {
+        .name          = TYPE_STRONGARM_SSP,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(StrongARMSSPState),
+        .instance_init = qemu_device_detail::trampoline_init<StrongARMSSPState>,
+        .class_init    = qemu_device_detail::trampoline_class_init<StrongARMSSPState>,
+    };
+    ssp_info.cpp_vtable = qemu_device_detail::extract_vtable<StrongARMSSPState>();
+    type_register_static(&ssp_info);
 }
 
 type_init(strongarm_register_types)

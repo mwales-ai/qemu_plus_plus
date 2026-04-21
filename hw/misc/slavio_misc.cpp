@@ -86,11 +86,9 @@ struct MiscState {
     static void setPowerFail(void *opaque, int irq, int power_failing);
 
     /* Instance init */
-    void initfn();
-    static void initWrapper(Object *obj);
+    void init();
 
-    static void resetWrapper(DeviceState *d);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_APC "apc"
@@ -109,8 +107,7 @@ struct APCState {
     static void memWriteb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
 
     /* Instance init */
-    void initfn();
-    static void initWrapper(Object *obj);
+    void init();
 };
 
 #define MISC_SIZE 1
@@ -145,11 +142,6 @@ void MiscState::reset()
     config = aux1 = aux2 = mctrl = 0;
 }
 
-void MiscState::resetWrapper(DeviceState *d)
-{
-    MiscState *s = reinterpret_cast<MiscState *>(d);
-    s->reset();
-}
 
 void MiscState::setPowerFail(void *opaque, int irq, int power_failing)
 {
@@ -463,7 +455,7 @@ static const VMStateDescription vmstate_misc = {
     .fields = vmstate_misc_fields,
 };
 
-void APCState::initfn()
+void APCState::init()
 {
     Object *obj = reinterpret_cast<Object *>(this);
     SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
@@ -476,13 +468,7 @@ void APCState::initfn()
     sysbus_init_mmio(dev, &iomem);
 }
 
-void APCState::initWrapper(Object *obj)
-{
-    APCState *s = reinterpret_cast<APCState *>(obj);
-    s->initfn();
-}
-
-void MiscState::initfn()
+void MiscState::init()
 {
     Object *obj = reinterpret_cast<Object *>(this);
     DeviceState *dev = reinterpret_cast<DeviceState *>(this);
@@ -532,39 +518,24 @@ void MiscState::initfn()
     qdev_init_gpio_in(dev, MiscState::setPowerFail, 1);
 }
 
-void MiscState::initWrapper(Object *obj)
+void MiscState::classInit(DeviceClass *dc)
 {
-    MiscState *s = reinterpret_cast<MiscState *>(obj);
-    s->initfn();
-}
-
-void MiscState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    device_class_set_legacy_reset(dc, MiscState::resetWrapper);
     dc->vmsd = &vmstate_misc;
 }
 
-static const TypeInfo slavio_misc_info = {
-    .name          = TYPE_SLAVIO_MISC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MiscState),
-    .instance_init = MiscState::initWrapper,
-    .class_init    = MiscState::classInit,
-};
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(MiscState, TYPE_SLAVIO_MISC, TYPE_SYS_BUS_DEVICE)
 
-static const TypeInfo apc_info = {
-    .name          = TYPE_APC,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MiscState),
-    .instance_init = APCState::initWrapper,
-};
-
-static void slavio_misc_register_types(void)
+static void apc_register_types(void)
 {
-    type_register_static(&slavio_misc_info);
-    type_register_static(&apc_info);
+    static TypeInfo info = {
+        .name          = TYPE_APC,
+        .parent        = TYPE_SYS_BUS_DEVICE,
+        .instance_size = sizeof(APCState),
+        .instance_init = qemu_device_detail::trampoline_init<APCState>,
+    };
+    info.cpp_vtable = qemu_device_detail::extract_vtable<APCState>();
+    type_register_static(&info);
 }
 
-type_init(slavio_misc_register_types)
+type_init(apc_register_types)

@@ -51,7 +51,7 @@ struct V9fsPCIState {
                                     TYPE_VIRTIO_9P);
     }
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const Property virtio_9p_pci_properties[] = {
@@ -60,9 +60,9 @@ static const Property virtio_9p_pci_properties[] = {
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
 };
 
-void V9fsPCIState::classInit(ObjectClass *klass, const void *data)
+void V9fsPCIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *pcidev_k = reinterpret_cast<PCIDeviceClass *>(klass);
     VirtioPCIClass *k = reinterpret_cast<VirtioPCIClass *>(klass);
 
@@ -75,6 +75,14 @@ void V9fsPCIState::classInit(ObjectClass *klass, const void *data)
     device_class_set_props(dc, virtio_9p_pci_properties);
 }
 
+#include "qom/cpp/object.h"
+
+static void v9fs_pci_class_init_trampoline(ObjectClass *oc, const void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(oc);
+    V9fsPCIState::classInit(dc);
+}
+
 static const VirtioPCIDeviceTypeInfo virtio_9p_pci_info = {
     .base_name              = TYPE_VIRTIO_9P_PCI,
     .generic_name           = "virtio-9p-pci",
@@ -82,7 +90,7 @@ static const VirtioPCIDeviceTypeInfo virtio_9p_pci_info = {
     .non_transitional_name  = "virtio-9p-pci-non-transitional",
     .instance_size = sizeof(V9fsPCIState),
     .instance_init = V9fsPCIState::instanceInit,
-    .class_init    = V9fsPCIState::classInit,
+    .class_init    = v9fs_pci_class_init_trampoline,
 };
 
 static void virtio_9p_pci_register(void)

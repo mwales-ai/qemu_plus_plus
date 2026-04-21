@@ -124,7 +124,7 @@ struct ssys_state {
     uint32_t dc4;
 
     /* Static class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static void ssys_update(ssys_state *s)
@@ -515,7 +515,7 @@ struct stellaris_i2c_state {
     uint32_t mcr;
 
     /* Static class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define STELLARIS_I2C_MCS_BUSY    0x01
@@ -749,7 +749,7 @@ struct StellarisADCState {
     qemu_irq irq[4];
 
     /* Static class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static uint32_t stellaris_adc_fifo_read(StellarisADCState *s, int n)
@@ -1479,9 +1479,9 @@ static void stellaris_machine_init(void)
 
 type_init(stellaris_machine_init)
 
-void stellaris_i2c_state::classInit(ObjectClass *klass, const void *data)
+void stellaris_i2c_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     rc->phases.enter = stellaris_i2c_reset_enter;
@@ -1490,17 +1490,19 @@ void stellaris_i2c_state::classInit(ObjectClass *klass, const void *data)
     dc->vmsd = &vmstate_stellaris_i2c;
 }
 
+#include "qom/cpp/object.h"
+
 static const TypeInfo stellaris_i2c_info = {
     .name          = TYPE_STELLARIS_I2C,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(stellaris_i2c_state),
     .instance_init = stellaris_i2c_init,
-    .class_init    = stellaris_i2c_state::classInit,
+    .class_init    = qemu_device_detail::trampoline_class_init<stellaris_i2c_state>,
 };
 
-void StellarisADCState::classInit(ObjectClass *klass, const void *data)
+void StellarisADCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     rc->phases.hold = stellaris_adc_reset_hold;
@@ -1512,12 +1514,12 @@ static const TypeInfo stellaris_adc_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(StellarisADCState),
     .instance_init = stellaris_adc_init,
-    .class_init    = StellarisADCState::classInit,
+    .class_init    = qemu_device_detail::trampoline_class_init<StellarisADCState>,
 };
 
-void ssys_state::classInit(ObjectClass *klass, const void *data)
+void ssys_state::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
     dc->vmsd = &vmstate_stellaris_sys;
@@ -1532,7 +1534,7 @@ static const TypeInfo stellaris_sys_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ssys_state),
     .instance_init = stellaris_sys_instance_init,
-    .class_init = ssys_state::classInit,
+    .class_init = qemu_device_detail::trampoline_class_init<ssys_state>,
 };
 
 static void stellaris_register_types(void)

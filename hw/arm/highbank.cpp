@@ -111,10 +111,8 @@ struct HighbankRegsState {
     uint32_t regs[NUM_REGS];
 
     void reset();
-    void initfn();
-    static void resetWrapper(DeviceState *dev);
-    static void initWrapper(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateDescription vmstate_highbank_regs = {
@@ -135,7 +133,7 @@ void HighbankRegsState::reset()
     regs[0x43] = 0x05F40121;
 }
 
-void HighbankRegsState::initfn()
+void HighbankRegsState::init()
 {
     SysBusDevice *dev = reinterpret_cast<SysBusDevice *>(this);
 
@@ -144,41 +142,14 @@ void HighbankRegsState::initfn()
     sysbus_init_mmio(dev, &iomem);
 }
 
-void HighbankRegsState::resetWrapper(DeviceState *dev)
+void HighbankRegsState::classInit(DeviceClass *dc)
 {
-    HighbankRegsState *s = reinterpret_cast<HighbankRegsState *>(dev);
-    s->reset();
-}
-
-void HighbankRegsState::initWrapper(Object *obj)
-{
-    HighbankRegsState *s = reinterpret_cast<HighbankRegsState *>(obj);
-    s->initfn();
-}
-
-void HighbankRegsState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
-
     dc->desc = "Calxeda Highbank registers";
     dc->vmsd = &vmstate_highbank_regs;
-    device_class_set_legacy_reset(dc, HighbankRegsState::resetWrapper);
 }
 
-static const TypeInfo highbank_regs_info = {
-    .name          = TYPE_HIGHBANK_REGISTERS,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(HighbankRegsState),
-    .instance_init = HighbankRegsState::initWrapper,
-    .class_init    = HighbankRegsState::classInit,
-};
-
-static void highbank_regs_register_types(void)
-{
-    type_register_static(&highbank_regs_info);
-}
-
-type_init(highbank_regs_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(HighbankRegsState, TYPE_HIGHBANK_REGISTERS, TYPE_SYS_BUS_DEVICE)
 
 static struct arm_boot_info highbank_binfo;
 
