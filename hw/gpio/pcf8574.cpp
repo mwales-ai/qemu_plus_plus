@@ -90,7 +90,7 @@ struct PCF8574State {
         return 0;
     }
 
-    void deviceReset()
+    void reset()
     {
         lastrq = MAKE_64BIT_MASK(0, PORTS_COUNT);
         input  = MAKE_64BIT_MASK(0, PORTS_COUNT);
@@ -104,12 +104,6 @@ struct PCF8574State {
         qdev_init_gpio_in(dev, gpioSet, ARRAY_SIZE(handler));
         qdev_init_gpio_out(dev, handler, ARRAY_SIZE(handler));
         qdev_init_gpio_out_named(dev, &intrq, "nINT", 1);
-    }
-
-    static void deviceReset_static(DeviceState *dev)
-    {
-        PCF8574State *s = reinterpret_cast<PCF8574State *>(dev);
-        s->deviceReset();
     }
 
     static uint8_t i2cRx(I2CSlave *i2c)
@@ -140,13 +134,7 @@ struct PCF8574State {
         }
     }
 
-    static void deviceRealize(DeviceState *dev, Error **errp)
-    {
-        PCF8574State *s = reinterpret_cast<PCF8574State *>(dev);
-        s->realize(errp);
-    }
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 
     static const VMStateDescription vmstate_pcf8574;
 };
@@ -166,25 +154,15 @@ const VMStateDescription PCF8574State::vmstate_pcf8574 = {
     .fields = vmstate_pcf8574_fields,
 };
 
-void PCF8574State::classInit(ObjectClass *klass, const void *data)
+void PCF8574State::classInit(DeviceClass *dc)
 {
-    DeviceClass   *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k  = reinterpret_cast<I2CSlaveClass *>(klass);
 
     k->recv     = i2cRx;
     k->send     = i2cTx;
-    dc->realize = deviceRealize;
-    device_class_set_legacy_reset(dc, deviceReset_static);
     dc->vmsd    = &vmstate_pcf8574;
 }
 
-static const TypeInfo pcf8574_infos[] = {
-    {
-        .name          = TYPE_PCF8574,
-        .parent        = TYPE_I2C_SLAVE,
-        .instance_size = sizeof(PCF8574State),
-        .class_init    = PCF8574State::classInit,
-    }
-};
-
-DEFINE_TYPES(pcf8574_infos);
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PCF8574State, TYPE_PCF8574, TYPE_I2C_SLAVE)

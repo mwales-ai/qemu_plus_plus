@@ -192,12 +192,12 @@ struct RS5C372State {
         s->addr_byte = false;
     }
 
-    static void instanceInit(Object *obj)
+    void init()
     {
-        qdev_prop_set_uint8(reinterpret_cast<DeviceState *>(obj), "address", 0x32);
+        qdev_prop_set_uint8(reinterpret_cast<DeviceState *>(this), "address", 0x32);
     }
 
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateField rs5c372_vmstate_fields[] = {
@@ -218,9 +218,9 @@ static const VMStateDescription rs5c372_vmstate = {
     .fields = rs5c372_vmstate_fields,
 };
 
-void RS5C372State::classInit(ObjectClass *klass, const void *data)
+void RS5C372State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
     ResettableClass *rc = reinterpret_cast<ResettableClass *>(klass);
 
@@ -231,14 +231,5 @@ void RS5C372State::classInit(ObjectClass *klass, const void *data)
     rc->phases.hold = resetHold;
 }
 
-static const TypeInfo rs5c372_types[] = {
-    {
-        .name          = TYPE_RS5C372,
-        .parent        = TYPE_I2C_SLAVE,
-        .instance_size = sizeof(RS5C372State),
-        .instance_init = RS5C372State::instanceInit,
-        .class_init    = RS5C372State::classInit,
-    },
-};
-
-DEFINE_TYPES(rs5c372_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(RS5C372State, TYPE_RS5C372, TYPE_I2C_SLAVE)

@@ -347,12 +347,10 @@ struct LSIState {
     void lsi_mem_read(dma_addr_t addr, void *buf, dma_addr_t len);
     void lsi_mem_write(dma_addr_t addr, const void *buf, dma_addr_t len);
     lsi_request *lsi_find_by_tag(uint32_t tag);
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     void reset();
     static void realizeWrapper(PCIDevice *dev, Error **errp);
-    static void resetWrapper(DeviceState *dev);
-    static void classInit(ObjectClass *klass, const void *data);
-    static void lsi53c810ClassInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 #define TYPE_LSI53C810  "lsi53c810"
@@ -2266,11 +2264,6 @@ static const MemoryRegionOps lsi_io_ops = {
     .impl = { .min_access_size = 1, .max_access_size = 1 },
 };
 
-void LSIState::resetWrapper(DeviceState *dev)
-{
-    reinterpret_cast<LSIState *>(dev)->reset();
-}
-
 void LSIState::reset()
 {
     lsi_soft_reset();
@@ -2410,10 +2403,10 @@ static void scripts_timer_cb(void *opaque)
 
 void LSIState::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    reinterpret_cast<LSIState *>(dev)->realize(errp);
+    reinterpret_cast<LSIState *>(dev)->doRealize(errp);
 }
 
-void LSIState::realize(Error **errp)
+void LSIState::doRealize(Error **errp)
 {
     LSIState *s = this;
     PCIDevice *dev = &s->parent_obj;
@@ -2461,9 +2454,9 @@ static void lsi_scsi_exit(PCIDevice *dev)
     timer_free(s->scripts_timer);
 }
 
-void LSIState::classInit(ObjectClass *klass, const void *data)
+void LSIState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = realizeWrapper;
@@ -2472,7 +2465,6 @@ void LSIState::classInit(ObjectClass *klass, const void *data)
     k->device_id = PCI_DEVICE_ID_LSI_53C895A;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     k->subsystem_id = 0x1000;
-    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_lsi_scsi;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
@@ -2482,15 +2474,7 @@ static const InterfaceInfo lsi_interfaces[] = {
     { },
 };
 
-static const TypeInfo lsi_info = {
-    .name          = TYPE_LSI53C895A,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(LSIState),
-    .class_init    = LSIState::classInit,
-    .interfaces = lsi_interfaces,
-};
-
-void LSIState::lsi53c810ClassInit(ObjectClass *klass, const void *data)
+static void lsi53c810_class_init(ObjectClass *klass, const void *data)
 {
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
@@ -2500,16 +2484,17 @@ void LSIState::lsi53c810ClassInit(ObjectClass *klass, const void *data)
 static const TypeInfo lsi53c810_info = {
     .name          = TYPE_LSI53C810,
     .parent        = TYPE_LSI53C895A,
-    .class_init    = LSIState::lsi53c810ClassInit,
+    .class_init    = lsi53c810_class_init,
 };
 
-static void lsi53c895a_register_types(void)
+static void __attribute__((constructor)) lsi53c810_register_types(void)
 {
-    type_register_static(&lsi_info);
     type_register_static(&lsi53c810_info);
 }
 
-type_init(lsi53c895a_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(LSIState, TYPE_LSI53C895A,
+                             TYPE_PCI_DEVICE, lsi_interfaces)
 
 void lsi53c8xx_handle_legacy_cmdline(DeviceState *lsi_dev)
 {

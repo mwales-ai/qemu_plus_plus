@@ -313,4 +313,35 @@ static void ClassName##_cpp_register_types(void)                          \
                                                                           \
 type_init(ClassName##_cpp_register_types)
 
+/*
+ * REGISTER_QEMU_DEVICE_IFACES: like REGISTER_QEMU_DEVICE but with
+ * an InterfaceInfo array for QOM interfaces.
+ *
+ * Usage:
+ *   static const InterfaceInfo foo_ifaces[] = {
+ *       { TYPE_CONVENTIONAL_PCI_DEVICE },
+ *       { }
+ *   };
+ *   REGISTER_QEMU_DEVICE_IFACES(FooState, TYPE_FOO, TYPE_PCI_DEVICE,
+ *                                foo_ifaces)
+ */
+#define REGISTER_QEMU_DEVICE_IFACES(ClassName, type_name_str,                \
+                                     parent_type_str, ifaces_array)          \
+static void ClassName##_cpp_register_types(void)                             \
+{                                                                            \
+    static TypeInfo info = {                                                 \
+        .name              = type_name_str,                                  \
+        .parent            = parent_type_str,                                \
+        .instance_size     = sizeof(ClassName),                              \
+        .instance_init     = qemu_device_detail::get_instance_init<ClassName>(), \
+        .instance_finalize = qemu_device_detail::get_instance_finalize<ClassName>(), \
+        .class_init        = qemu_device_detail::trampoline_class_init<ClassName>, \
+        .interfaces        = ifaces_array,                                   \
+    };                                                                       \
+    info.cpp_vtable = qemu_device_detail::extract_vtable<ClassName>();       \
+    type_register_static(&info);                                             \
+}                                                                            \
+                                                                             \
+type_init(ClassName##_cpp_register_types)
+
 #endif /* QOM_CPP_OBJECT_H */

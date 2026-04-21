@@ -61,13 +61,12 @@ struct PL181State {
 
     /* methods */
     void reset();
-    static void resetWrapper(DeviceState *d);
+    void init();
     static void setReadonly(DeviceState *dev, bool level);
     static void setInserted(DeviceState *dev, bool level);
     static uint64_t mmioRead(void *opaque, hwaddr offset, unsigned size);
     static void mmioWrite(void *opaque, hwaddr offset, uint64_t value, unsigned size);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
     static void busClassInit(ObjectClass *klass, const void *data);
 };
 
@@ -475,11 +474,6 @@ void PL181State::setInserted(DeviceState *dev, bool level)
     qemu_set_irq(s->card_inserted, level);
 }
 
-void PL181State::resetWrapper(DeviceState *d)
-{
-    reinterpret_cast<PL181State *>(d)->reset();
-}
-
 void PL181State::reset()
 {
     PL181State *s = this;
@@ -508,30 +502,27 @@ void PL181State::reset()
     setReadonly(reinterpret_cast<DeviceState *>(s), sdbus_get_readonly(&s->sdbus));
 }
 
-void PL181State::instanceInit(Object *obj)
+void PL181State::init()
 {
-    DeviceState *dev = reinterpret_cast<DeviceState *>(obj);
-    PL181State *s = reinterpret_cast<PL181State *>(obj);
-    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(obj);
+    Object *obj = reinterpret_cast<Object *>(this);
+    DeviceState *dev = reinterpret_cast<DeviceState *>(this);
+    SysBusDevice *sbd = reinterpret_cast<SysBusDevice *>(this);
 
-    memory_region_init_io(&s->iomem, obj, &pl181_ops, s, "pl181", 0x1000);
-    sysbus_init_mmio(sbd, &s->iomem);
-    sysbus_init_irq(sbd, &s->irq[0]);
-    sysbus_init_irq(sbd, &s->irq[1]);
-    qdev_init_gpio_out_named(dev, &s->card_readonly, "card-read-only", 1);
-    qdev_init_gpio_out_named(dev, &s->card_inserted, "card-inserted", 1);
+    memory_region_init_io(&iomem, obj, &pl181_ops, this, "pl181", 0x1000);
+    sysbus_init_mmio(sbd, &iomem);
+    sysbus_init_irq(sbd, &irq[0]);
+    sysbus_init_irq(sbd, &irq[1]);
+    qdev_init_gpio_out_named(dev, &card_readonly, "card-read-only", 1);
+    qdev_init_gpio_out_named(dev, &card_inserted, "card-inserted", 1);
 
-    qbus_init(&s->sdbus, sizeof(s->sdbus), TYPE_PL181_BUS, dev, "sd-bus");
+    qbus_init(&sdbus, sizeof(sdbus), TYPE_PL181_BUS, dev, "sd-bus");
 }
 
-void PL181State::classInit(ObjectClass *klass, const void *data)
+void PL181State::classInit(DeviceClass *dc)
 {
-    DeviceClass *k = reinterpret_cast<DeviceClass *>(klass);
-
-    k->vmsd = &vmstate_pl181;
-    device_class_set_legacy_reset(k, resetWrapper);
+    dc->vmsd = &vmstate_pl181;
     /* Reason: output IRQs should be wired up */
-    k->user_creatable = false;
+    dc->user_creatable = false;
 }
 
 void PL181State::busClassInit(ObjectClass *klass, const void *data)
@@ -542,20 +533,17 @@ void PL181State::busClassInit(ObjectClass *klass, const void *data)
     sbc->set_readonly = setReadonly;
 }
 
-static const TypeInfo pl181_info[] = {
-    {
-        .name           = TYPE_PL181,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(PL181State),
-        .instance_init  = PL181State::instanceInit,
-        .class_init     = PL181State::classInit,
-    },
-    {
-        .name           = TYPE_PL181_BUS,
-        .parent         = TYPE_SD_BUS,
-        .instance_size  = sizeof(SDBus),
-        .class_init     = PL181State::busClassInit,
-    },
+static const TypeInfo pl181_bus_info = {
+    .name           = TYPE_PL181_BUS,
+    .parent         = TYPE_SD_BUS,
+    .instance_size  = sizeof(SDBus),
+    .class_init     = PL181State::busClassInit,
 };
 
-DEFINE_TYPES(pl181_info)
+static void __attribute__((constructor)) pl181_bus_register_types(void)
+{
+    type_register_static(&pl181_bus_info);
+}
+
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(PL181State, TYPE_PL181, TYPE_SYS_BUS_DEVICE)

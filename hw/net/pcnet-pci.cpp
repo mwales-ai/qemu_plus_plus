@@ -76,8 +76,8 @@ struct PCIPCNetState {
     void pciUninit();
     void pciRealize(Error **errp);
     void reset();
-    void instanceInit();
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 void PCIPCNetState::apromWriteb(void *opaque, uint32_t addr, uint32_t val)
@@ -273,13 +273,7 @@ void PCIPCNetState::reset()
     pcnet_h_reset(&this->state);
 }
 
-static void pcnet_instance_init(Object *obj)
-{
-    PCIPCNetState *d = reinterpret_cast<PCIPCNetState *>(obj);
-    d->instanceInit();
-}
-
-void PCIPCNetState::instanceInit()
+void PCIPCNetState::init()
 {
     PCNetState *s = &this->state;
 
@@ -292,9 +286,9 @@ static const Property pcnet_properties[] = {
     DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
 };
 
-void PCIPCNetState::classInit(ObjectClass *klass, const void *data)
+void PCIPCNetState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = pci_pcnet_realize;
@@ -315,18 +309,6 @@ static const InterfaceInfo pcnet_interfaces[] = {
     { },
 };
 
-static const TypeInfo pcnet_info = {
-    .name          = TYPE_PCI_PCNET,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIPCNetState),
-    .instance_init = pcnet_instance_init,
-    .class_init    = PCIPCNetState::classInit,
-    .interfaces    = pcnet_interfaces,
-};
-
-static void pci_pcnet_register_types(void)
-{
-    type_register_static(&pcnet_info);
-}
-
-type_init(pci_pcnet_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PCIPCNetState, TYPE_PCI_PCNET,
+                             TYPE_PCI_DEVICE, pcnet_interfaces)

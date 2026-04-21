@@ -241,7 +241,7 @@ struct VirtIONet {
     void realizeImpl(DeviceState *dev, Error **errp);
     void unrealizeImpl(DeviceState *dev);
     void resetImpl();
-    void instanceInitImpl();
+    void init();
 
     /* Internal helper methods (converted from static functions) */
     bool started(uint8_t status);
@@ -295,8 +295,7 @@ struct VirtIONet {
     static void realizeStatic(DeviceState *dev, Error **errp);
     static void unrealizeStatic(DeviceState *dev);
     static void resetStatic(VirtIODevice *vdev);
-    static void classInit(ObjectClass *klass, const void *data);
-    static void instanceInitStatic(Object *obj);
+    static void classInit(DeviceClass *dc);
 #endif
 };
 

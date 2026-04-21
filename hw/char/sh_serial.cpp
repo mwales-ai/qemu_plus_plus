@@ -91,10 +91,8 @@ struct SHSerialState {
     void reset();
     void realize(Error **errp);
     void unrealize();
-    static void resetWrapper(DeviceState *dev);
-    static void realizeWrapper(DeviceState *d, Error **errp);
     static void unrealizeWrapper(DeviceState *dev);
-    static void classInit(ObjectClass *oc, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void SHSerialState::clearFifo()
@@ -403,12 +401,6 @@ static const MemoryRegionOps sh_serial_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void SHSerialState::resetWrapper(DeviceState *dev)
-{
-    SHSerialState *s = reinterpret_cast<SHSerialState *>(dev);
-    s->reset();
-}
-
 void SHSerialState::reset()
 {
     flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;
@@ -426,12 +418,6 @@ void SHSerialState::reset()
     }
 
     clearFifo();
-}
-
-void SHSerialState::realizeWrapper(DeviceState *d, Error **errp)
-{
-    SHSerialState *s = reinterpret_cast<SHSerialState *>(d);
-    s->realize(errp);
 }
 
 void SHSerialState::realize(Error **errp)
@@ -475,25 +461,13 @@ static const Property sh_serial_properties[] = {
     DEFINE_PROP_UINT8("features", SHSerialState, feat, 0),
 };
 
-void SHSerialState::classInit(ObjectClass *oc, const void *data)
+void SHSerialState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(oc);
-
     device_class_set_props(dc, sh_serial_properties);
-    dc->realize = SHSerialState::realizeWrapper;
     dc->unrealize = SHSerialState::unrealizeWrapper;
-    device_class_set_legacy_reset(dc, SHSerialState::resetWrapper);
     /* Reason: part of SuperH CPU/SoC, needs to be wired up */
     dc->user_creatable = false;
 }
 
-static const TypeInfo sh_serial_types[] = {
-    {
-        .name           = TYPE_SH_SERIAL,
-        .parent         = TYPE_SYS_BUS_DEVICE,
-        .instance_size  = sizeof(SHSerialState),
-        .class_init     = SHSerialState::classInit,
-    },
-};
-
-DEFINE_TYPES(sh_serial_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(SHSerialState, TYPE_SH_SERIAL, TYPE_SYS_BUS_DEVICE)

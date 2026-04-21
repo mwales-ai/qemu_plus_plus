@@ -139,7 +139,7 @@ struct AppleSMCState {
     static void buildAml(AcpiDevAmlIf *adev, Aml *scope);
 
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 void AppleSMCState::ioCmdWrite(void *opaque, hwaddr addr, uint64_t val,
@@ -417,9 +417,9 @@ void AppleSMCState::buildAml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-void AppleSMCState::classInit(ObjectClass *klass, const void *data)
+void AppleSMCState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
     dc->realize = applesmc_isa_realize;
@@ -435,17 +435,6 @@ static const InterfaceInfo applesmc_isa_interfaces[] = {
     { },
 };
 
-static const TypeInfo applesmc_isa_info = {
-    .name          = TYPE_APPLE_SMC,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(AppleSMCState),
-    .class_init    = AppleSMCState::classInit,
-    .interfaces    = applesmc_isa_interfaces,
-};
-
-static void applesmc_register_types(void)
-{
-    type_register_static(&applesmc_isa_info);
-}
-
-type_init(applesmc_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(AppleSMCState, TYPE_APPLE_SMC,
+                             TYPE_ISA_DEVICE, applesmc_isa_interfaces)

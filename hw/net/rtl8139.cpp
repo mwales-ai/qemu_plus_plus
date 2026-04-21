@@ -579,12 +579,12 @@ struct RTL8139State {
     uint32_t rtl8139_MultiIntr_read();
     void rtl8139_set_next_tctr_time();
     void RTL8139TallyCounters_dma_write(dma_addr_t tc_addr);
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     void reset();
     static void realizeWrapper(PCIDevice *dev, Error **errp);
     static void resetWrapper(DeviceState *d);
-    static void classInit(ObjectClass *klass, const void *data);
-    static void instanceInit(Object *obj);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 /* Writes tally counters to memory via DMA */
@@ -3498,10 +3498,10 @@ static NetClientInfo net_rtl8139_info = {
 
 void RTL8139State::realizeWrapper(PCIDevice *dev, Error **errp)
 {
-    reinterpret_cast<RTL8139State *>(dev)->realize(errp);
+    reinterpret_cast<RTL8139State *>(dev)->doRealize(errp);
 }
 
-void RTL8139State::realize(Error **errp)
+void RTL8139State::doRealize(Error **errp)
 {
     RTL8139State *s = this;
     PCIDevice *dev = &s->parent_obj;
@@ -3547,22 +3547,21 @@ void RTL8139State::realize(Error **errp)
     s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, rtl8139_timer, s);
 }
 
-void RTL8139State::instanceInit(Object *obj)
+void RTL8139State::init()
 {
-    RTL8139State *s = reinterpret_cast<RTL8139State *>(obj);
-
-    device_add_bootindex_property(obj, &s->conf.bootindex,
+    device_add_bootindex_property(reinterpret_cast<Object *>(this),
+                                  &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  reinterpret_cast<DeviceState *>(obj));
+                                  reinterpret_cast<DeviceState *>(this));
 }
 
 static const Property rtl8139_properties[] = {
     DEFINE_NIC_PROPERTIES(RTL8139State, conf),
 };
 
-void RTL8139State::classInit(ObjectClass *klass, const void *data)
+void RTL8139State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = realizeWrapper;
@@ -3583,18 +3582,6 @@ static const InterfaceInfo rtl8139_interfaces[] = {
     { },
 };
 
-static const TypeInfo rtl8139_info = {
-    .name          = TYPE_RTL8139,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(RTL8139State),
-    .instance_init = RTL8139State::instanceInit,
-    .class_init    = RTL8139State::classInit,
-    .interfaces    = rtl8139_interfaces,
-};
-
-static void rtl8139_register_types(void)
-{
-    type_register_static(&rtl8139_info);
-}
-
-type_init(rtl8139_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(RTL8139State, TYPE_RTL8139,
+                             TYPE_PCI_DEVICE, rtl8139_interfaces)

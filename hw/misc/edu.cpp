@@ -101,9 +101,9 @@ struct EduState {
     void dmaRw(int is_write, dma_addr_t *val, dma_addr_t *dma_addr,
                bool is_addr64);
 
-    void realize(Error **errp);
+    void doRealize(Error **errp);
     void uninit();
-    void instanceInit();
+    void init();
 
     /* Static callbacks for QEMU infrastructure */
     static uint64_t mmioRead(void *opaque, hwaddr addr, unsigned size);
@@ -111,7 +111,7 @@ struct EduState {
                           unsigned size);
     static void dmaTimerCb(void *opaque);
     static void *factThread(void *opaque);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 /* QOM type checking macro — same as original */
@@ -381,7 +381,7 @@ static const MemoryRegionOps edu_mmio_ops = {
  * Lifecycle methods
  * ======================================================================== */
 
-void EduState::realize(Error **errp)
+void EduState::doRealize(Error **errp)
 {
     uint8_t *pci_conf = pdev.config;
 
@@ -418,20 +418,16 @@ void EduState::uninit()
     msi_uninit(&pdev);
 }
 
-void EduState::instanceInit()
+void EduState::init()
 {
     dma_mask = (1UL << 28) - 1;
     object_property_add_uint64_ptr(reinterpret_cast<Object *>(this), "dma_mask",
                                    &dma_mask, OBJ_PROP_FLAG_READWRITE);
 }
 
-/* ========================================================================
- * QOM registration — thin callbacks delegate to C++ methods
- * ======================================================================== */
-
 static void pci_edu_realize(PCIDevice *pdev, Error **errp)
 {
-    reinterpret_cast<EduState *>(pdev)->realize(errp);
+    reinterpret_cast<EduState *>(pdev)->doRealize(errp);
 }
 
 static void pci_edu_uninit(PCIDevice *pdev)
@@ -439,14 +435,9 @@ static void pci_edu_uninit(PCIDevice *pdev)
     reinterpret_cast<EduState *>(pdev)->uninit();
 }
 
-static void edu_instance_init(Object *obj)
+void EduState::classInit(DeviceClass *dc)
 {
-    reinterpret_cast<EduState *>(obj)->instanceInit();
-}
-
-void EduState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = pci_edu_realize;
@@ -463,15 +454,6 @@ static const InterfaceInfo edu_interfaces[] = {
     { },
 };
 
-static const TypeInfo edu_types[] = {
-    {
-        .name          = TYPE_PCI_EDU_DEVICE,
-        .parent        = TYPE_PCI_DEVICE,
-        .instance_size = sizeof(EduState),
-        .instance_init = edu_instance_init,
-        .class_init    = EduState::classInit,
-        .interfaces    = edu_interfaces,
-    }
-};
-
-DEFINE_TYPES(edu_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(EduState, TYPE_PCI_EDU_DEVICE,
+                             TYPE_PCI_DEVICE, edu_interfaces)

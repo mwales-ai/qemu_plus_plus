@@ -126,7 +126,7 @@ struct I6300State {
                            unsigned size);
 
     /* Class init */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 
@@ -516,9 +516,9 @@ static void i6300esb_exit(PCIDevice *dev)
     d->exit(dev);
 }
 
-void I6300State::classInit(ObjectClass *klass, const void *data)
+void I6300State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->config_read = i6300esb_config_read;
@@ -539,17 +539,6 @@ static const InterfaceInfo i6300esb_interfaces[] = {
     { },
 };
 
-static const TypeInfo i6300esb_info = {
-    .name          = TYPE_WATCHDOG_I6300ESB_DEVICE,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(I6300State),
-    .class_init    = I6300State::classInit,
-    .interfaces = i6300esb_interfaces,
-};
-
-static void i6300esb_register_types(void)
-{
-    type_register_static(&i6300esb_info);
-}
-
-type_init(i6300esb_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(I6300State, TYPE_WATCHDOG_I6300ESB_DEVICE,
+                             TYPE_PCI_DEVICE, i6300esb_interfaces)

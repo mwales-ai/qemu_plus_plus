@@ -38,31 +38,19 @@ struct PVPanicISAState {
     PVPanicState pvpanic;
 
     /* Instance methods */
-    void instanceInit();
+    void init();
     void realize(Error **errp);
 
     /* Static callbacks */
     static void buildDevAml(AcpiDevAmlIf *adev, Aml *scope);
 
     /* Class methods */
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
-static void pvpanic_isa_initfn(Object *obj)
-{
-    PVPanicISAState *s = reinterpret_cast<PVPanicISAState *>(obj);
-    s->instanceInit();
-}
-
-void PVPanicISAState::instanceInit()
+void PVPanicISAState::init()
 {
     pvpanic_setup_io(&pvpanic, reinterpret_cast<DeviceState *>(this), 1);
-}
-
-static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
-{
-    PVPanicISAState *s = reinterpret_cast<PVPanicISAState *>(dev);
-    s->realize(errp);
 }
 
 void PVPanicISAState::realize(Error **errp)
@@ -125,12 +113,11 @@ static const Property pvpanic_isa_properties[] = {
                       PVPANIC_EVENTS),
 };
 
-void PVPanicISAState::classInit(ObjectClass *klass, const void *data)
+void PVPanicISAState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     AcpiDevAmlIfClass *adevc = reinterpret_cast<AcpiDevAmlIfClass *>(klass);
 
-    dc->realize = pvpanic_isa_realizefn;
     device_class_set_props(dc, pvpanic_isa_properties);
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     adevc->build_dev_aml = PVPanicISAState::buildDevAml;
@@ -141,18 +128,6 @@ static const InterfaceInfo pvpanic_isa_interfaces[] = {
     { },
 };
 
-static const TypeInfo pvpanic_isa_info = {
-    .name          = TYPE_PVPANIC_ISA_DEVICE,
-    .parent        = TYPE_ISA_DEVICE,
-    .instance_size = sizeof(PVPanicISAState),
-    .instance_init = pvpanic_isa_initfn,
-    .class_init    = PVPanicISAState::classInit,
-    .interfaces = pvpanic_isa_interfaces,
-};
-
-static void pvpanic_register_types(void)
-{
-    type_register_static(&pvpanic_isa_info);
-}
-
-type_init(pvpanic_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(PVPanicISAState, TYPE_PVPANIC_ISA_DEVICE,
+                             TYPE_ISA_DEVICE, pvpanic_isa_interfaces)

@@ -50,8 +50,8 @@ struct TULIPState {
     static void qdevReset(DeviceState *dev);
     static void pciRealize(PCIDevice *pci_dev, Error **errp);
     static void pciExit(PCIDevice *pci_dev);
-    static void instanceInit(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateDescription vmstate_pci_tulip = {
@@ -1005,12 +1005,12 @@ void TULIPState::pciExit(PCIDevice *pci_dev)
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
 }
 
-void TULIPState::instanceInit(Object *obj)
+void TULIPState::init()
 {
-    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(obj);
-    TULIPState *d = DO_UPCAST(TULIPState, dev, pci_dev);
+    PCIDevice *pci_dev = reinterpret_cast<PCIDevice *>(this);
+    Object *obj = reinterpret_cast<Object *>(this);
 
-    device_add_bootindex_property(obj, &d->c.bootindex,
+    device_add_bootindex_property(obj, &c.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   &pci_dev->qdev);
 }
@@ -1019,9 +1019,9 @@ static const Property tulip_properties[] = {
     DEFINE_NIC_PROPERTIES(TULIPState, c),
 };
 
-void TULIPState::classInit(ObjectClass *klass, const void *data)
+void TULIPState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = TULIPState::pciRealize;
@@ -1042,18 +1042,6 @@ static const InterfaceInfo tulip_interfaces[] = {
     { },
 };
 
-static const TypeInfo tulip_info = {
-    .name          = TYPE_TULIP,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(TULIPState),
-    .instance_init = TULIPState::instanceInit,
-    .class_init    = TULIPState::classInit,
-    .interfaces    = tulip_interfaces,
-};
-
-static void tulip_register_types(void)
-{
-    type_register_static(&tulip_info);
-}
-
-type_init(tulip_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(TULIPState, TYPE_TULIP,
+                             TYPE_PCI_DEVICE, tulip_interfaces)

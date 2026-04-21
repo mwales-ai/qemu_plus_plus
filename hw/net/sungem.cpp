@@ -272,8 +272,8 @@ struct SunGEMState {
     /* Static callbacks */
     static void realizeWrapper(PCIDevice *pci_dev, Error **errp);
     static void resetWrapper(DeviceState *dev);
-    static void instanceInitWrapper(Object *obj);
-    static void classInit(ObjectClass *klass, const void *data);
+    void init();
+    static void classInit(DeviceClass *dc);
     static void mmioGregWriteCb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
     static uint64_t mmioGregReadCb(void *opaque, hwaddr addr, unsigned size);
     static void mmioTxdmaWriteCb(void *opaque, hwaddr addr, uint64_t val, unsigned size);
@@ -1565,13 +1565,7 @@ void SunGEMState::reset()
     resetAll(true);
 }
 
-void SunGEMState::instanceInitWrapper(Object *obj)
-{
-    SunGEMState *s = reinterpret_cast<SunGEMState *>(obj);
-    s->instanceInit();
-}
-
-void SunGEMState::instanceInit()
+void SunGEMState::init()
 {
     device_add_bootindex_property(reinterpret_cast<Object *>(this), &conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
@@ -1614,9 +1608,9 @@ static const VMStateDescription vmstate_sungem = {
     .fields = vmstate_sungem_fields,
 };
 
-void SunGEMState::classInit(ObjectClass *klass, const void *data)
+void SunGEMState::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     PCIDeviceClass *k = reinterpret_cast<PCIDeviceClass *>(klass);
 
     k->realize = SunGEMState::realizeWrapper;
@@ -1636,18 +1630,6 @@ static const InterfaceInfo sungem_interfaces[] = {
     { }
 };
 
-static const TypeInfo sungem_info = {
-    .name          = TYPE_SUNGEM,
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(SunGEMState),
-    .instance_init = SunGEMState::instanceInitWrapper,
-    .class_init    = SunGEMState::classInit,
-    .interfaces    = sungem_interfaces,
-};
-
-static void sungem_register_types(void)
-{
-    type_register_static(&sungem_info);
-}
-
-type_init(sungem_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(SunGEMState, TYPE_SUNGEM,
+                             TYPE_PCI_DEVICE, sungem_interfaces)

@@ -51,7 +51,7 @@ struct CRBState {
     uint64_t readReg(hwaddr addr, unsigned size);
     void writeReg(hwaddr addr, uint64_t val, unsigned size);
     uint8_t getActiveLocty();
-    void reset();
+    void doReset();
     void realize(Error **errp);
 
     /* Static callbacks */
@@ -61,7 +61,7 @@ struct CRBState {
     static void requestCompleted(TPMIf *ti, int ret);
     static enum TPMVersion getVersion(TPMIf *ti);
     static int preSave(void *opaque);
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 typedef struct CRBState CRBState;
 
@@ -261,10 +261,10 @@ static const Property tpm_crb_properties[] = {
 static void tpm_crb_reset_wrapper(void *dev)
 {
     CRBState *s = reinterpret_cast<CRBState *>(dev);
-    s->reset();
+    s->doReset();
 }
 
-void CRBState::reset()
+void CRBState::doReset()
 {
     if (ppi_enabled) {
         tpm_ppi_reset(&ppi);
@@ -344,18 +344,11 @@ void CRBState::realize(Error **errp)
     }
 }
 
-static void tpm_crb_realize_wrapper(DeviceState *dev, Error **errp)
+void CRBState::classInit(DeviceClass *dc)
 {
-    CRBState *s = reinterpret_cast<CRBState *>(dev);
-    s->realize(errp);
-}
-
-void CRBState::classInit(ObjectClass *klass, const void *data)
-{
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     TPMIfClass *tc = reinterpret_cast<TPMIfClass *>(klass);
 
-    dc->realize = tpm_crb_realize_wrapper;
     device_class_set_props(dc, tpm_crb_properties);
     dc->vmsd  = &vmstate_tpm_crb;
     dc->user_creatable = true;
@@ -371,18 +364,6 @@ static const InterfaceInfo tpm_crb_interfaces[] = {
     { }
 };
 
-static const TypeInfo tpm_crb_info = {
-    .name = TYPE_TPM_CRB,
-    /* could be TYPE_SYS_BUS_DEVICE (or LPC etc) */
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(CRBState),
-    .class_init  = CRBState::classInit,
-    .interfaces = tpm_crb_interfaces
-};
-
-static void tpm_crb_register(void)
-{
-    type_register_static(&tpm_crb_info);
-}
-
-type_init(tpm_crb_register)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE_IFACES(CRBState, TYPE_TPM_CRB,
+                             TYPE_DEVICE, tpm_crb_interfaces)

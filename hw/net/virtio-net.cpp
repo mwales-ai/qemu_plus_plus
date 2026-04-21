@@ -4174,25 +4174,14 @@ void VirtIONet::resetStatic(VirtIODevice *vdev)
     n->resetImpl();
 }
 
-void VirtIONet::instanceInitImpl()
+void VirtIONet::init()
 {
-    /*
-     * The default config_size is sizeof(struct virtio_net_config).
-     * Can be overridden with virtio_net_set_config_size.
-     */
     config_size = sizeof(struct virtio_net_config);
     device_add_bootindex_property(reinterpret_cast<Object *>(this), &nic_conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
                                   reinterpret_cast<DeviceState *>(this));
 
     ebpf_rss_init(&ebpf_rss);
-}
-
-/* static wrapper */
-void VirtIONet::instanceInitStatic(Object *obj)
-{
-    VirtIONet *n = reinterpret_cast<VirtIONet *>(obj);
-    n->instanceInitImpl();
 }
 
 static int virtio_net_pre_save(void *opaque)
@@ -4368,9 +4357,9 @@ static const Property virtio_net_properties[] = {
                                true),
 };
 
-/* static */ void VirtIONet::classInit(ObjectClass *klass, const void *data)
+/* static */ void VirtIONet::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     VirtioDeviceClass *vdc = reinterpret_cast<VirtioDeviceClass *>(klass);
 
     device_class_set_props(dc, virtio_net_properties);
@@ -4398,17 +4387,5 @@ static const Property virtio_net_properties[] = {
     vdc->toggle_device_iotlb = vhost_toggle_device_iotlb;
 }
 
-static const TypeInfo virtio_net_info = {
-    .name = TYPE_VIRTIO_NET,
-    .parent = TYPE_VIRTIO_DEVICE,
-    .instance_size = sizeof(VirtIONet),
-    .instance_init = VirtIONet::instanceInitStatic,
-    .class_init = VirtIONet::classInit,
-};
-
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_net_info);
-}
-
-type_init(virtio_register_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(VirtIONet, TYPE_VIRTIO_NET, TYPE_VIRTIO_DEVICE)

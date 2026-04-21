@@ -203,13 +203,7 @@ struct DS1338State {
         addr_byte = false;
     }
 
-    static void resetWrapper(DeviceState *dev)
-    {
-        DS1338State *s = DS1338(dev);
-        s->reset();
-    }
-
-    static void classInit(ObjectClass *klass, const void *data);
+    static void classInit(DeviceClass *dc);
 };
 
 static const VMStateDescription vmstate_ds1338 = {
@@ -227,25 +221,16 @@ static const VMStateDescription vmstate_ds1338 = {
     }
 };
 
-void DS1338State::classInit(ObjectClass *klass, const void *data)
+void DS1338State::classInit(DeviceClass *dc)
 {
-    DeviceClass *dc = reinterpret_cast<DeviceClass *>(klass);
+    ObjectClass *klass = reinterpret_cast<ObjectClass *>(dc);
     I2CSlaveClass *k = reinterpret_cast<I2CSlaveClass *>(klass);
 
     k->event = event;
     k->recv = recv;
     k->send = send;
-    device_class_set_legacy_reset(dc, resetWrapper);
     dc->vmsd = &vmstate_ds1338;
 }
 
-static const TypeInfo ds1338_types[] = {
-    {
-        .name          = TYPE_DS1338,
-        .parent        = TYPE_I2C_SLAVE,
-        .instance_size = sizeof(DS1338State),
-        .class_init    = DS1338State::classInit,
-    },
-};
-
-DEFINE_TYPES(ds1338_types)
+#include "qom/cpp/object.h"
+REGISTER_QEMU_DEVICE(DS1338State, TYPE_DS1338, TYPE_I2C_SLAVE)
